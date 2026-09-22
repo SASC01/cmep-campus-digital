@@ -58,7 +58,7 @@ docs/          PRD, arquitectura, operación y trabajo/<RF>/ (planes, reportes, 
 ```
 
 ## Reglas que no se rompen
-1. **Capas.** `core/` no importa librerías de infraestructura ni `adapters/`. Solo `adapters/` importa `@prisma/client`, `pg-boss`, `minio`, `resend`, `argon2`, `jose` o `livekit-server-sdk`. Los handlers son delgados.
+1. **Capas.** `core/` no importa librerías de infraestructura ni `adapters/`. Solo `adapters/` importa `@prisma/client`, `@prisma/adapter-pg`, `pg`, el cliente generado por Prisma (`adapters/db/generated/`), `pg-boss`, `minio`, `resend`, `argon2`, `jose` o `livekit-server-sdk`. Los handlers son delgados.
 2. **Autorización.** Todo endpoint pasa por la cadena de middleware en su orden. Ninguna verificación de rol, propiedad o inscripción se escribe a mano dentro de un handler. Nada de seguridad solo en el frontend.
 3. **Estado de pago.** Nunca devolver el estado de pago de un alumno a otro estudiante. En respuestas para estudiantes el campo se omite.
 4. **Consultas sanas.** Sin N+1 (ninguna consulta dentro de un ciclo), toda consulta filtra por columna indexada, toda lista se pagina, y el SQL crudo va siempre parametrizado. Si una consulta no encaja en un índice existente, detente y propón el índice.
@@ -68,7 +68,7 @@ docs/          PRD, arquitectura, operación y trabajo/<RF>/ (planes, reportes, 
 8. **Trabajos diferidos sincronizados.** Editar o borrar una fecha límite o una clase en vivo cancela y recrea su trabajo, en la misma transacción.
 9. **Secretos.** Nunca en el código, en el repositorio ni en variables del frontend.
 10. **Infraestructura solo en `infra/` y esquema solo por migraciones de Prisma.** Nada se configura a mano en el servidor sin quedar en el repositorio; nunca se altera la base directamente.
-11. **Sin AWS y sin proveedores no aprobados.** Aprobados: DigitalOcean, Cloudflare (DNS, Pages, R2), LiveKit Cloud y Resend. No propongas ni instales nada de AWS, Firebase, Supabase, Vercel u otro servicio externo sin aprobación explícita. Todo proveedor va detrás de un adaptador y se cambia por configuración.
+11. **Sin AWS y sin proveedores no aprobados.** Aprobados: DigitalOcean, Cloudflare (DNS, Pages, R2), LiveKit Cloud y Resend. No propongas ni instales nada de AWS, Firebase, Supabase, Vercel u otro servicio externo sin aprobación explícita. Todo proveedor va detrás de un adaptador y se cambia por configuración. La regla aplica a servicios y a librerías que nuestro código importa o ejecuta; las dependencias transitivas de herramientas de desarrollo (por ejemplo, del CLI de Prisma) se reportan, pero no bloquean.
 12. **Avisos y correos solo por `notifier`.** Nadie más escribe en `notificaciones` ni llama a Resend. Correo solo por la API de Resend (nada de SMTP ni otras librerías). Los correos de aviso respetan los interruptores de `configuracion`, apagados por defecto. **Fuera de `prod` jamás sale un correo real:** en `dev` y pruebas el canal es `registro`.
 13. **Autenticación sin atajos.** Contraseñas solo con argon2id; tokens de refresco, enlaces de recuperación e invitación y contraseñas temporales guardados solo como hash; `/auth/recuperar` no revela si un correo existe; una contraseña temporal se muestra una única vez y obliga a cambiarla; el token de acceso nunca en `localStorage`; nada de esto aparece en logs.
 
@@ -123,6 +123,7 @@ Cuatro subagentes en `.claude/agents/`. El **orquestador** es la sesión princip
 - Un desacuerdo con `ARCHITECTURE-ESSENTIALS.md` se escala; no se resuelve entre agentes.
 - La carpeta `docs/trabajo/` se versiona: es el historial de decisiones de cada funcionalidad.
 - Los formateadores y cualquier comando con `--write`, `--fix` o `-i` se ejecutan solo acotados al paquete del encargo (`shared/`, `backend/` o `frontend/`), nunca desde la raíz sobre todo el repositorio.
+- Un agente no termina procesos que no arrancó; si el puerto está ocupado por un proceso ajeno o el remedio del plan no aplica, se detiene y pregunta.
 
 ## Estilo de código, módulos y sistema de diseño
 La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.

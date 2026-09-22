@@ -1,10 +1,9 @@
+import { construirApp } from "./app.js"
 import { cargarEnv } from "./config/env.js"
 
-// Validar antes de importar la app: el cliente de Prisma 6 carga backend/.env en process.env
-// al importarse, y una importación estática (izada) haría que cargarEnv() ya viera esas
-// variables. Así el mensaje de "Configuración inválida" sigue siendo la única fuente de verdad.
+// Con Prisma 7 el cliente ya no carga backend/.env al importarse, así que la importación puede ser
+// estática: cargarEnv() sigue siendo la única fuente de verdad de la configuración.
 const env = cargarEnv()
-const { construirApp } = await import("./app.js")
 const app = await construirApp({ env })
 
 const detener = (senal: NodeJS.Signals): void => {

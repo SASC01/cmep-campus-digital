@@ -9,5 +9,6 @@ backend/tmp/
 coverage/
 .DS_Store
 Thumbs.db
+.codex/
 *.dump
 *.sql.gz

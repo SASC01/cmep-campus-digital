@@ -1,0 +1,78 @@
+name: campus-dev
+
+services:
+  postgres:
+    image: postgres:17.11-trixie
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER. Copia infra/.env.example a infra/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD. Copia infra/.env.example a infra/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?Falta POSTGRES_DB. Copia infra/.env.example a infra/.env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:?Falta POSTGRES_PORT. Copia infra/.env.example a infra/.env}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:?Falta STORAGE_ACCESS_KEY. Copia infra/.env.example a infra/.env}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:?Falta STORAGE_SECRET_KEY. Copia infra/.env.example a infra/.env}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:?Falta MINIO_API_PORT. Copia infra/.env.example a infra/.env}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:?Falta MINIO_CONSOLE_PORT. Copia infra/.env.example a infra/.env}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:?Falta STORAGE_ACCESS_KEY. Copia infra/.env.example a infra/.env}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:?Falta STORAGE_SECRET_KEY. Copia infra/.env.example a infra/.env}
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mc alias set campus http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing campus/campus-privado
+        mc mb --ignore-existing campus/campus-publico
+        mc anonymous set download campus/campus-publico
+
+  livekit:
+    image: livekit/livekit-server:v1.9.1
+    command: ["--config", "/etc/livekit.yaml", "--dev", "--bind", "0.0.0.0", "--node-ip", "127.0.0.1"]
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "127.0.0.1:7881:7881"
+      - "127.0.0.1:7882:7882/udp"
+    volumes:
+      - ./livekit/livekit.dev.yaml:/etc/livekit.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7880/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  postgres-data:
+    name: campus-dev-postgres-data
+  minio-data:
+    name: campus-dev-minio-data

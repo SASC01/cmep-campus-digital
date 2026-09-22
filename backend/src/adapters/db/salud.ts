@@ -1,4 +1,4 @@
-import { prisma } from "./cliente.js"
+import { obtenerDb } from "./cliente.js"
 
 type LogDeAdvertencias = {
   warn: (datos: Record<string, unknown>, mensaje: string) => void
@@ -16,8 +16,10 @@ const codigoDe = (error: unknown): string | undefined => {
 // Único lugar que conoce el fallo de Prisma. No registra la URL ni el mensaje del proveedor:
 // solo el nombre del error y su código (P1000, P1001...), suficientes para el diagnóstico.
 export const verificarConexion = async (log?: LogDeAdvertencias): Promise<boolean> => {
+  // Fuera del try: una base no inicializada es un error de programación (500), no una caída (503).
+  const db = obtenerDb()
   try {
-    await prisma.$queryRaw`SELECT 1`
+    await db.$queryRaw`SELECT 1`
     return true
   } catch (error) {
     log?.warn(

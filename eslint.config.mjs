@@ -7,6 +7,8 @@ import tseslint from "typescript-eslint"
 // Regla 1 de AGENTS.md: solo backend/src/adapters/ importa librerias de infraestructura.
 const libreriasDeInfraestructura = [
   "@prisma/client",
+  "@prisma/adapter-pg",
+  "pg",
   "pg-boss",
   "minio",
   "resend",
@@ -20,6 +22,13 @@ const soloEnAdapters = libreriasDeInfraestructura.map((name) => ({
   message: `"${name}" solo se importa dentro de backend/src/adapters/ (AGENTS.md, regla 1).`,
 }))
 
+// El cliente generado por Prisma vive en adapters/db/generated y solo adapters/db lo importa.
+const clienteGenerado = {
+  regex: "adapters/db/generated",
+  message:
+    "El cliente generado de Prisma solo se importa dentro de backend/src/adapters/db/ (AGENTS.md, regla 1).",
+}
+
 // Los workspaces invocan este archivo con --config ../eslint.config.mjs (DEC-08). Con --config,
 // ESLint resuelve files/ignores respecto al cwd, asi que se anclan a la raiz del repositorio.
 const raiz = import.meta.dirname
@@ -27,7 +36,13 @@ const raiz = import.meta.dirname
 export default defineConfig(
   {
     basePath: raiz,
-    ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "backend/prisma/migrations/**"],
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/coverage/**",
+      "backend/prisma/migrations/**",
+      "backend/src/adapters/db/generated/**",
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommended,
@@ -44,7 +59,9 @@ export default defineConfig(
     basePath: raiz,
     files: ["**/*.{ts,mts,cts,js,mjs,cjs}"],
     ignores: ["backend/src/adapters/**"],
-    rules: { "no-restricted-imports": ["error", { paths: soloEnAdapters }] },
+    rules: {
+      "no-restricted-imports": ["error", { paths: soloEnAdapters, patterns: [clienteGenerado] }],
+    },
   },
   {
     basePath: raiz,

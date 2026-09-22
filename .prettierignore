@@ -7,3 +7,4 @@ docs/
 .claude/
 infra/
 /*.md
+backend/src/adapters/db/generated

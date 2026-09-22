@@ -6,6 +6,7 @@ build/
 !.env.example
 *.log
 backend/tmp/
+backend/src/adapters/db/generated/
 coverage/
 *.tsbuildinfo
 .eslintcache

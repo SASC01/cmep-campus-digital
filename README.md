@@ -121,7 +121,7 @@ Desde la raíz del repositorio, una sola vez tras clonar y cada vez que cambie u
 npm install
 ```
 
-Instala los tres workspaces (`shared`, `backend` y `frontend`) en un solo `node_modules`. Necesita red: además de los paquetes, descarga los motores de Prisma.
+Instala los tres workspaces (`shared`, `backend` y `frontend`) en un solo `node_modules`. Necesita red: además de los paquetes, descarga el motor de esquema que usa el CLI de Prisma para las migraciones.
 
 ### 3. Configurar el backend
 
@@ -132,7 +132,7 @@ Set-Location backend
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-`backend/.env` no se versiona. Su `DATABASE_URL` **debe coincidir** con la de `infra/.env` (mismo usuario, contraseña, base y puerto `POSTGRES_PORT`, 5433 por defecto); si cambias una, cambia la otra. El CLI de Prisma lee `backend/.env` por su cuenta, sin banderas.
+`backend/.env` no se versiona. Su `DATABASE_URL` **debe coincidir** con la de `infra/.env` (mismo usuario, contraseña, base y puerto `POSTGRES_PORT`, 5433 por defecto); si cambias una, cambia la otra. El CLI de Prisma lo lee a través de `backend/prisma.config.ts`, sin banderas: ese archivo le indica la URL de conexión y dónde están el esquema y las migraciones.
 
 ### 4. Migraciones y cliente de Prisma
 
@@ -145,7 +145,7 @@ npx prisma generate
 
 `migrate dev` aplica las migraciones de `backend/prisma/migrations` a `campus_dev` y lleva el registro en la tabla `_prisma_migrations` (propia de Prisma, no del negocio). Para validar las migraciones crea una base sombra temporal en el mismo PostgreSQL y la borra al terminar; no necesita configuración extra. Si no hay nada pendiente responde `Already in sync`.
 
-`generate` escribe el cliente de Prisma en `node_modules` (no se versiona). Los scripts `dev`, `dev:worker`, `build` y `test` lo regeneran solos, así que solo hace falta a mano después de un `npm install` limpio.
+`generate` escribe el cliente de Prisma en `backend/src/adapters/db/generated/` (ignorado por git; no se edita a mano). Los scripts `dev`, `dev:worker`, `build`, `lint` y `test` lo regeneran solos, así que solo hace falta a mano después de un `npm install` limpio.
 
 ### 5. Arrancar la API
 
@@ -198,5 +198,6 @@ Registra `"evento":"worker_listo"` y se queda esperando. Todavía no consume tra
 - **`ECONNREFUSED 127.0.0.1:5433` o `P1001`.** El entorno de infra está apagado, o `DATABASE_URL` apunta a otro puerto que `POSTGRES_PORT` en `infra/.env`. Levántalo con `docker compose up -d` desde `infra`.
 - **`P1000` (autenticación).** El usuario o la contraseña de `DATABASE_URL` no coinciden con `POSTGRES_USER` y `POSTGRES_PASSWORD` de `infra/.env`. Recuerda que las credenciales de PostgreSQL se graban al crear el volumen.
 - **`Configuración inválida. Revisa backend/.env ...`.** Falta `backend/.env` o una variable no cumple su regla; el mensaje lista la variable y el motivo (nunca su valor). Compara con `backend/.env.example`.
-- **`@prisma/client did not initialize yet` o `Cannot find module '.prisma/client'`.** Falta generar el cliente: ejecuta `npx prisma generate` desde `backend`.
+- **`Cannot find module '.../adapters/db/generated/client.js'` (`ERR_MODULE_NOT_FOUND`) o errores de `tsc` en `adapters/db/cliente.ts` sobre `./generated/client.js`.** Falta generar el cliente: ejecuta `npx prisma generate` desde `backend`.
+- **Un comando `npx prisma ...` se queja de que falta `DATABASE_URL`** (`PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`). No existe `backend/.env` (repite el paso 3): `prisma.config.ts` lo carga si existe.
 - **`npm run dev` deja procesos vivos al cerrar la terminal.** `tsx watch` arranca un proceso hijo; si el puerto sigue ocupado, localiza el PID con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y termínalo con `taskkill /PID <pid> /T /F`.

@@ -7,6 +7,7 @@ import { cargarEnv } from "../src/config/env.js"
 
 // Doble en memoria de adapters/db: la base "no responde" y nadie toca Prisma en esta prueba.
 vi.mock("../src/adapters/db/index.js", () => ({
+  inicializarDb: () => undefined,
   verificarConexion: async () => false,
   cerrarConexion: async () => undefined,
 }))

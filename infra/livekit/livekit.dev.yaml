@@ -1,0 +1,7 @@
+# LiveKit solo para desarrollo local. En prod se usa LiveKit Cloud.
+# Sin llaves: el modo --dev usa devkey / secret.
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false

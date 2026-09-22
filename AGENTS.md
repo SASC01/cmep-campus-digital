@@ -35,6 +35,7 @@ npx prisma generate
 npm run seed:admin       # crea la cuenta única de administrador
 
 # Servicios locales (desde /infra)
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configuración local sin sobrescribirla
 docker compose up -d     # PostgreSQL, MinIO y LiveKit en modo dev
 npm run reset:admin      # (backend) restablece la contraseña del administrador
 docker compose down

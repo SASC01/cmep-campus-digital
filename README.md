@@ -97,3 +97,106 @@ docker compose exec postgres psql -U campus -d campus_dev -c "CREATE EXTENSION I
 - **Error de variable faltante** ("Falta ... Copia infra/.env.example a infra/.env"). No existe `infra/.env`. Repite el paso de copia de la sección 2.
 - **`error during connect`.** Docker Desktop está cerrado. Ábrelo y espera a que termine de iniciar.
 - **Las extensiones no aparecen.** El volumen ya existía, y el script de inicio solo corre con el volumen vacío. Usa la alternativa de la sección 5.
+
+## Backend en local (Windows + PowerShell)
+
+Arranca la API (Fastify) y el worker en tu máquina contra el PostgreSQL del entorno de desarrollo. Los comandos están escritos para Windows PowerShell 5.1; cada paso indica desde qué carpeta se ejecuta.
+
+### 1. Requisitos
+
+Node 24 LTS y npm 11, y el entorno de infra levantado (sección anterior). Compruébalo así:
+
+```powershell
+node --version
+npm --version
+```
+
+Deben responder `v24.x` y `11.x`. Si usas nvm, `.nvmrc` en la raíz fija la versión `24`.
+
+### 2. Instalar dependencias
+
+Desde la raíz del repositorio, una sola vez tras clonar y cada vez que cambie un `package.json`:
+
+```powershell
+npm install
+```
+
+Instala los tres workspaces (`shared`, `backend` y `frontend`) en un solo `node_modules`. Necesita red: además de los paquetes, descarga los motores de Prisma.
+
+### 3. Configurar el backend
+
+Desde la raíz:
+
+```powershell
+Set-Location backend
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+`backend/.env` no se versiona. Su `DATABASE_URL` **debe coincidir** con la de `infra/.env` (mismo usuario, contraseña, base y puerto `POSTGRES_PORT`, 5433 por defecto); si cambias una, cambia la otra. El CLI de Prisma lee `backend/.env` por su cuenta, sin banderas.
+
+### 4. Migraciones y cliente de Prisma
+
+Desde `backend`, solo la primera vez (y cada vez que llegue una migración nueva):
+
+```powershell
+npx prisma migrate dev
+npx prisma generate
+```
+
+`migrate dev` aplica las migraciones de `backend/prisma/migrations` a `campus_dev` y lleva el registro en la tabla `_prisma_migrations` (propia de Prisma, no del negocio). Para validar las migraciones crea una base sombra temporal en el mismo PostgreSQL y la borra al terminar; no necesita configuración extra. Si no hay nada pendiente responde `Already in sync`.
+
+`generate` escribe el cliente de Prisma en `node_modules` (no se versiona). Los scripts `dev`, `dev:worker`, `build` y `test` lo regeneran solos, así que solo hace falta a mano después de un `npm install` limpio.
+
+### 5. Arrancar la API
+
+Desde `backend`:
+
+```powershell
+npm run dev
+```
+
+La API escucha en `http://127.0.0.1:3000` (variables `HOST` y `PORT` de `backend/.env`) y se recarga al guardar. En otra terminal:
+
+```powershell
+curl.exe http://127.0.0.1:3000/api/salud
+curl.exe -i http://127.0.0.1:3000/api/no-existe
+```
+
+Respuestas esperadas:
+
+- `/api/salud`: `{"estado":"ok","baseDeDatos":"ok","marcaDeTiempo":"2026-09-21T20:15:30.123Z"}` (la fecha es la del momento, en UTC). Si PostgreSQL no responde, devuelve `503` con `{"error":{"codigo":"BASE_DE_DATOS_NO_DISPONIBLE","mensaje":"La base de datos no responde."}}`.
+- `/api/no-existe`: `HTTP/1.1 404 Not Found` con `{"error":{"codigo":"NO_ENCONTRADO","mensaje":"La ruta no existe."}}`. Todos los errores de la API usan ese formato.
+
+Detén la API con Ctrl+C.
+
+### 6. Pruebas
+
+Desde la raíz (corre las de todos los workspaces) o desde `backend`:
+
+```powershell
+npm test
+```
+
+Precondiciones: el entorno de infra levantado y `backend/.env` presente. Incluye pruebas unitarias de `core/` y `config/` y dos de integración que levantan la API en memoria; una de ellas consulta el PostgreSQL de infra. Mensajes si falta algo:
+
+- `Falta backend/.env: copia backend/.env.example a backend/.env`: repite el paso 3.
+- `PostgreSQL de infra no responde en DATABASE_URL. Levanta infra: docker compose up -d en infra/`: repite el paso 2 de la sección anterior.
+
+### 7. Arrancar el worker
+
+Desde `backend`:
+
+```powershell
+npm run dev:worker
+```
+
+Registra `"evento":"worker_listo"` y se queda esperando. Todavía no consume trabajos: la cola llega con el primer trabajo real. Detenlo con Ctrl+C.
+
+### 8. Problemas frecuentes
+
+- **Puerto 3000 ocupado** (`EADDRINUSE`). Diagnostica con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y cambia `PORT` en `backend/.env` (no en `.env.example`).
+- **`ECONNREFUSED 127.0.0.1:5433` o `P1001`.** El entorno de infra está apagado, o `DATABASE_URL` apunta a otro puerto que `POSTGRES_PORT` en `infra/.env`. Levántalo con `docker compose up -d` desde `infra`.
+- **`P1000` (autenticación).** El usuario o la contraseña de `DATABASE_URL` no coinciden con `POSTGRES_USER` y `POSTGRES_PASSWORD` de `infra/.env`. Recuerda que las credenciales de PostgreSQL se graban al crear el volumen.
+- **`Configuración inválida. Revisa backend/.env ...`.** Falta `backend/.env` o una variable no cumple su regla; el mensaje lista la variable y el motivo (nunca su valor). Compara con `backend/.env.example`.
+- **`@prisma/client did not initialize yet` o `Cannot find module '.prisma/client'`.** Falta generar el cliente: ejecuta `npx prisma generate` desde `backend`.
+- **`npm run dev` deja procesos vivos al cerrar la terminal.** `tsx watch` arranca un proceso hijo; si el puerto sigue ocupado, localiza el PID con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y termínalo con `taskkill /PID <pid> /T /F`.

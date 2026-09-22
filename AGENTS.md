@@ -23,10 +23,11 @@ npm install              # instala los tres workspaces: shared, backend, fronten
 npm run lint / test / build   # en todos los workspaces
 
 # Frontend (desde /frontend)
-npm run dev          # servidor local
-npm run build        # compilación de producción
-npm run lint
-npm run test
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # opcional: solo VITE_API_URL, vacía por defecto
+npm run dev          # SPA en http://127.0.0.1:5173 con proxy de /api hacia la API local (127.0.0.1:3000)
+npm run build        # tsc -b + vite build → frontend/dist
+npm run lint         # ESLint + Prettier + tsc -b
+npm run test         # Vitest con jsdom; no necesita la API ni infra
 
 # Backend (desde /backend)
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configuración local sin sobrescribirla

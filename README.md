@@ -201,3 +201,51 @@ Registra `"evento":"worker_listo"` y se queda esperando. Todavía no consume tra
 - **`Cannot find module '.../adapters/db/generated/client.js'` (`ERR_MODULE_NOT_FOUND`) o errores de `tsc` en `adapters/db/cliente.ts` sobre `./generated/client.js`.** Falta generar el cliente: ejecuta `npx prisma generate` desde `backend`.
 - **Un comando `npx prisma ...` se queja de que falta `DATABASE_URL`** (`PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`). No existe `backend/.env` (repite el paso 3): `prisma.config.ts` lo carga si existe.
 - **`npm run dev` deja procesos vivos al cerrar la terminal.** `tsx watch` arranca un proceso hijo; si el puerto sigue ocupado, localiza el PID con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y termínalo con `taskkill /PID <pid> /T /F`.
+
+## Frontend en local (Windows + PowerShell)
+
+Arranca la SPA (Vite) contra la API local. Los comandos están escritos para Windows PowerShell 5.1; cada paso indica desde qué carpeta se ejecuta.
+
+### 1. Requisitos
+
+Node 24 LTS y npm 11 (sección "Backend en local", paso 1), dependencias instaladas con `npm install` desde la raíz (paso 2 de esa sección) y, para que la vista de diagnóstico responda, la API corriendo en `http://127.0.0.1:3000` (paso 5 de esa sección).
+
+### 2. Configurar (opcional)
+
+Desde la raíz:
+
+```powershell
+Set-Location frontend
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+`frontend/.env` no se versiona y hoy solo tiene `VITE_API_URL`, vacía por defecto: el frontend habla con `/api` en su mismo origen y, en desarrollo, Vite reenvía `/api` a `http://127.0.0.1:3000`. No hace falta crear el archivo para trabajar en local.
+
+### 3. Arrancar
+
+Desde `frontend`:
+
+```powershell
+npm run dev
+```
+
+Abre `http://127.0.0.1:5173/login` (pantalla de acceso, todavía sin envío) y `http://127.0.0.1:5173/diagnostico` (consulta `GET /api/salud` y muestra el estado de la API y de la base de datos). Usa `127.0.0.1`, no `localhost`. El servidor recompila al guardar; detenlo con Ctrl+C.
+
+### 4. Comprobar, probar y compilar
+
+Desde `frontend` (o desde la raíz para los tres workspaces):
+
+```powershell
+npm run lint
+npm test
+npm run build
+```
+
+`lint` corre ESLint, Prettier y `tsc -b`; `test` corre Vitest con jsdom (no necesita la API ni infra); `build` deja la SPA en `frontend/dist/`. Los scripts `dev`, `build`, `lint` y `test` compilan antes `shared/` (`shared/dist`), como en el backend.
+
+### 5. Problemas frecuentes
+
+- **Puerto 5173 ocupado** (`Port 5173 is already in use`). Vite no salta a otro puerto a propósito. Diagnostica con `Get-NetTCPConnection -LocalPort 5173 -State Listen` y cierra el proceso que lo usa si es tuyo.
+- **La vista de diagnóstico muestra un error** (`RESPUESTA_INVALIDA`, `SIN_CONEXION` o un 5xx). La API no está corriendo en `127.0.0.1:3000`: arráncala con `npm run dev` desde `backend` (sección anterior, paso 5). Si muestra `BASE_DE_DATOS_NO_DISPONIBLE`, la API responde pero PostgreSQL no: revisa infra.
+- **`Cannot find module '@campus/shared'` o tipos que faltan de `@campus/shared`.** No existe `shared/dist`: ejecuta `npm run build` desde `shared` (los scripts del frontend lo hacen solos; a mano solo tras un `npm install` limpio).
+- **`tsc -b` falla en `node_modules/.tmp`.** Borra `frontend/node_modules/.tmp` (solo contiene información incremental de TypeScript) y repite.

@@ -1,0 +1,71 @@
+/*
+  Tokens de diseño de CMEP Campus Digital. Solo modo claro.
+  Los NOMBRES son definitivos (CLAUDE.md). Los VALORES son provisionales y neutros:
+  se sustituyen al elegir la dirección visual. No copiar estos valores a ningún componente.
+*/
+:root {
+  --background: oklch(0.985 0 0);
+  --surface: oklch(1 0 0);
+  --foreground: oklch(0.2 0 0);
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --border: oklch(0.89 0 0);
+  --primary: oklch(0.3 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.5 0.1 250);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.55 0.15 150);
+  --warning: oklch(0.7 0.15 75);
+  --danger: oklch(0.55 0.2 27);
+
+  /* Derivados que shadcn espera; siempre apuntan a un token propio. */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--accent);
+  --radius: 0.5rem;
+
+  /* Familias provisionales (sistema). Las definitivas llegan con la dirección visual. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
+  --font-mono: var(--font-mono);
+}

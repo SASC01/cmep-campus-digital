@@ -7,6 +7,8 @@ build/
 *.log
 backend/tmp/
 coverage/
+*.tsbuildinfo
+.eslintcache
 .DS_Store
 Thumbs.db
 .codex/

@@ -23,6 +23,7 @@ Si el plan está `BLOQUEADO`, no existe, o no fue aprobado por el humano: detent
 - Modificar, desactivar, saltar o borrar pruebas escritas por el Tester (`*.ataque.test.ts`) para que pasen. Si crees que una prueba del Tester es incorrecta, argumenta en tu resumen; decide el Manager.
 - Relajar una validación, un permiso o un tipo para que algo compile o pase.
 - Desplegar, conectarte a un servidor, `prisma migrate reset`, `docker compose down -v`, `git commit`, `git push`, instalar dependencias sin que el plan lo indique.
+- Ejecutar formateadores o cualquier comando con `--write`, `--fix` o `-i` desde la raíz sobre todo el repositorio. Solo acotados al paquete del encargo (`shared/`, `backend/` o `frontend/`).
 - Importar librerías de infraestructura (Prisma incluido) fuera de `adapters/`, escribir verificaciones de permisos dentro de un handler, hacer consultas dentro de un ciclo, concatenar entrada del usuario en SQL, alterar la base sin migración, introducir cualquier servicio o librería de AWS, de un proveedor no aprobado o de correo distinta de `resend`, escribir en `notificaciones` o enviar correos sin pasar por `notifier`, enviar correos o notificaciones dentro de una petición.
 
 ## Al corregir hallazgos

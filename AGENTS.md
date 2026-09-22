@@ -18,6 +18,10 @@ No cargues los tres por defecto. Si encuentras una contradicción entre document
 > Se completan al inicializar el proyecto. Mantener esta sección al día es parte de cualquier cambio que los altere.
 
 ```bash
+# Raíz del repositorio (una sola vez tras clonar, y cuando cambie un package.json)
+npm install              # instala los tres workspaces: shared, backend, frontend
+npm run lint / test / build   # en todos los workspaces
+
 # Frontend (desde /frontend)
 npm run dev          # servidor local
 npm run build        # compilación de producción
@@ -25,11 +29,12 @@ npm run lint
 npm run test
 
 # Backend (desde /backend)
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configuración local sin sobrescribirla
 npm run dev              # API con recarga
 npm run dev:worker       # worker de la cola
 npm run build
 npm run lint
-npm run test             # Vitest (integración con Testcontainers)
+npm run test             # Vitest (unitarias de core e integración contra el PostgreSQL de infra)
 npx prisma migrate dev   # crea y aplica una migración en local
 npx prisma generate
 npm run seed:admin       # crea la cuenta única de administrador
@@ -117,6 +122,7 @@ Cuatro subagentes en `.claude/agents/`. El **orquestador** es la sesión princip
 - Ningún agente declara verde algo que no ejecutó.
 - Un desacuerdo con `ARCHITECTURE-ESSENTIALS.md` se escala; no se resuelve entre agentes.
 - La carpeta `docs/trabajo/` se versiona: es el historial de decisiones de cada funcionalidad.
+- Los formateadores y cualquier comando con `--write`, `--fix` o `-i` se ejecutan solo acotados al paquete del encargo (`shared/`, `backend/` o `frontend/`), nunca desde la raíz sobre todo el repositorio.
 
 ## Estilo de código, módulos y sistema de diseño
 La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.

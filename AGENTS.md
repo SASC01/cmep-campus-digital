@@ -16,6 +16,7 @@ No cargues los tres por defecto. Si encuentras una contradicción entre document
 
 ## Comandos
 > Se completan al inicializar el proyecto. Mantener esta sección al día es parte de cualquier cambio que los altere.
+> El bloque está marcado como `bash` solo para resaltar la sintaxis: las líneas que copian `.env.example` usan la forma con guarda de Windows PowerShell 5.1, la terminal del proyecto. En Git Bash el equivalente es `cp -n .env.example .env`.
 
 ```bash
 # Raíz del repositorio (una sola vez tras clonar, y cuando cambie un package.json)
@@ -132,7 +133,7 @@ La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, t
 ## Pruebas
 - Toda función de `core/` lleva pruebas unitarias. El cálculo de calificaciones cubre: categorías sin tareas calificadas, pesos redistribuidos, tareas sin calificar, rúbrica parcial, entregas tardías.
 - Todo endpoint nuevo lleva pruebas de autorización: rol incorrecto, clase ajena, alumno restringido y, si aplica, que no se filtre el estado de pago.
-- Las pruebas unitarias de `core/` usan dobles en memoria. Las de integración (handlers y repositorios) corren contra un PostgreSQL real y desechable con Testcontainers; nunca contra una base compartida ni contra `prod`.
+- Las pruebas unitarias de `core/` usan dobles en memoria. Las de integración (handlers y repositorios) corren con Vitest contra el PostgreSQL del entorno de `infra/`, con la `DATABASE_URL` de `backend/.env`; nunca contra una base compartida ni contra `prod`. Testcontainers (una base desechable por corrida) queda pendiente para un encargo posterior.
 - Avisos y correos se prueban a través de `notifier` con un doble en memoria que registra lo que se habría enviado. Ninguna prueba llama a Resend.
 - No marques nada como terminado con pruebas en rojo ni las desactives para que pase.
 

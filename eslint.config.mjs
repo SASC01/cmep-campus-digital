@@ -1,6 +1,8 @@
 import js from "@eslint/js"
 import { defineConfig } from "eslint/config"
 import prettier from "eslint-config-prettier"
+import reactHooks from "eslint-plugin-react-hooks"
+import reactRefresh from "eslint-plugin-react-refresh"
 import globals from "globals"
 import tseslint from "typescript-eslint"
 
@@ -28,6 +30,13 @@ const clienteGenerado = {
   message:
     "El cliente generado de Prisma solo se importa dentro de backend/src/adapters/db/ (AGENTS.md, regla 1).",
 }
+
+// Regla 9 de CLAUDE.md: un módulo de features/ no importa de otro módulo.
+const otroModulo = (regex) => ({
+  regex,
+  message:
+    "Un módulo de features/ no importa de otro módulo; lo compartido sube a components/, lib/ o services/ y entra por @/ (CLAUDE.md, regla 9).",
+})
 
 // Los workspaces invocan este archivo con --config ../eslint.config.mjs (DEC-08). Con --config,
 // ESLint resuelve files/ignores respecto al cwd, asi que se anclan a la raiz del repositorio.
@@ -78,6 +87,45 @@ export default defineConfig(
                 "core/ es logica pura: no importa adapters, handlers, middleware, fastify ni pino (AGENTS.md, regla 1).",
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    basePath: raiz,
+    files: ["frontend/**/*.{ts,tsx}"],
+    extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
+    basePath: raiz,
+    files: ["frontend/src/features/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: soloEnAdapters, patterns: [otroModulo("^@/features/")] },
+      ],
+    },
+  },
+  {
+    basePath: raiz,
+    files: ["frontend/src/features/*/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: soloEnAdapters, patterns: [otroModulo("^@/features/"), otroModulo("^\\.\\.")] },
+      ],
+    },
+  },
+  {
+    basePath: raiz,
+    files: ["frontend/src/features/*/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: soloEnAdapters,
+          patterns: [otroModulo("^@/features/"), otroModulo("^\\.\\./\\.\\.")],
         },
       ],
     },

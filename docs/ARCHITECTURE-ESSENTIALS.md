@@ -7,7 +7,7 @@
 **CMEP Campus Digital.** Plataforma educativa web, una sola institución, 3 roles (`estudiante`, `maestro`, `admin`). **Fase experimental**, ~1,500 usuarios previstos; la arquitectura se diseña para 2,000 simultáneos. Sin integraciones con Google.
 
 ## Proveedores
-- **Sin AWS.** Ni servicios ni librerías.
+- **Sin AWS.** Ni servicios ni librerías. La regla aplica a servicios y a librerías que nuestro código importa o ejecuta; las dependencias transitivas de herramientas de desarrollo (por ejemplo, del CLI de Prisma) se reportan, pero no bloquean.
 - Aprobados: **DigitalOcean** (Droplet), **Cloudflare** (DNS, Pages, R2), **LiveKit Cloud**, **Resend** (correo). Nada más sin aprobación explícita del humano.
 - Todo proveedor debe poder cambiarse por configuración. El núcleo (API, worker, PostgreSQL) corre igual en local, en el Droplet o en un servidor propio.
 - **Correo solo con Resend, por API HTTPS, y solo desde `adapters/notifier`.** Nada de SMTP ni de otras librerías de correo. Fuera de `prod` jamás sale un correo real.
@@ -18,17 +18,18 @@
 - **Datos:** PostgreSQL 17 (`pg_trgm`, `unaccent`) · Prisma
 - **Auth:** propia — argon2id + JWT (`jose`) + token de refresco rotativo en cookie `HttpOnly`
 - **Cola y trabajos diferidos:** pg-boss
-- **Archivos:** protocolo S3 con cliente `minio` → **R2** en `prod`, **MinIO** en `dev`
+- **Archivos:** protocolo S3 con cliente `minio` → **R2** en `prod`, **MinIO** en `dev` (imágenes desde `quay.io`, sin mantenimiento; reemplazable por cualquier almacén S3 vía `STORAGE_*`)
 - **Video:** LiveKit Cloud + Egress hacia R2 · `livekit-server --dev` en local
 - **Operación:** pino · monitoreo de DigitalOcean · `pg_dump` cifrado hacia R2 · GitHub Actions construye y publica las imágenes
-- **Pruebas:** Vitest · Testcontainers
+- **Pruebas:** Vitest. Backend: unitarias de `core/` y `config/`, e integración contra el PostgreSQL de `infra/` (`DATABASE_URL` de `backend/.env`; nunca una base compartida ni `prod`); Testcontainers pendiente. Frontend: jsdom + Testing Library, sin API ni infra
 
 ## Capas del backend
 ```
 handlers → middleware → core → (interfaces) ← adapters → librerías de infraestructura
 ```
 - `core/`: lógica pura. Sin I/O ni librerías de infraestructura.
-- `adapters/`: **único** lugar que importa `@prisma/client`, `pg-boss`, `minio`, `resend`, `argon2`, `jose` o `livekit-server-sdk`. Módulos: `db`, `auth`, `storage`, `notifier`, `queue`, `scheduler`, `live`.
+- `config/`: validación de las variables de entorno con zod y opciones del logger. No es `core/` ni `adapters/`.
+- `adapters/`: **único** lugar que importa `@prisma/client`, `@prisma/adapter-pg`, `pg`, el cliente generado por Prisma (`adapters/db/generated/`, no versionado), `pg-boss`, `minio`, `resend`, `argon2`, `jose` o `livekit-server-sdk`. Módulos: `db`, `auth`, `storage`, `notifier`, `queue`, `scheduler`, `live`.
 - `handlers/`: delgados. Un plugin de Fastify por dominio: `auth`, `usuarios`, `clases`, `tareas`, `calificaciones`, `archivos`, `notificaciones`, `calendario`, `envivo`, `publico`, `admin`.
 - `workers/`: consumidores de la cola. `api` y `worker` son la misma imagen con distinto arranque.
 - `shared/`: tipos y esquemas zod comunes. `infra/`: compose, Caddyfile, respaldos, despliegue.
@@ -85,7 +86,7 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 ## Archivos
 - Subida y descarga con URL prefirmada de 5 min. Los archivos **nunca** pasan por Node ni por el Droplet.
 - Registro `pendiente` → `confirmado`; los pendientes de más de 24 h se borran.
-- Buckets: `campus-privado` (`materiales/` · `entregas/` · `grabaciones/`) · `campus-publico` (`anuncios/`) · `campus-respaldos`.
+- Buckets: `campus-privado` (`materiales/` · `entregas/` · `grabaciones/`) · `campus-publico` (`anuncios/`) · `campus-respaldos` (solo en `prod`; en `dev` MinIO crea únicamente los dos primeros).
 - Tokens de mínimo privilegio: aplicación, Egress (solo escritura en `grabaciones/`), respaldos.
 - Cambiar de almacén = cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`.
 

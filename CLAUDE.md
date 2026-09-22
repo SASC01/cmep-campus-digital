@@ -60,18 +60,20 @@ features/
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
 | `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login | Administrador |
+| `diagnostico` | Vista temporal de `/api/salud` (prueba de conexión con la API). Se mueve a `admin` o se elimina cuando exista ese módulo | Sin sesión (temporal) |
 
 ### Ubicaciones compartidas
 
 - `components/ui/` — componentes de shadcn/ui reestilizados
-- `components/layout/` — barra lateral, encabezado de página, contenedores por rol
-- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `AvatarUsuario`, `EstadoVacio`
+- `components/layout/` — barra lateral, encabezado de página, contenedores por rol (`ContenedorRol`, `LayoutPublico`). El tipo `Rol` de `components/layout/types.ts` es provisional hasta que `shared/` exponga el enum de roles
+- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `AvatarUsuario`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`) y `Cargando` (`cargando.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/liveService.ts` — conexión con LiveKit
 - `app/` — rutas, layouts y guardas por rol
+- `styles/index.css` — entrada de Tailwind (`@import "tailwindcss"`), importa `tokens.css`
 - `styles/tokens.css` — tokens de diseño
 
 ### Backend (`backend/src/`)
@@ -79,6 +81,7 @@ features/
 ```
 core/        lógica pura, sin I/O ni librerías de infraestructura
 adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue y scheduler (pg-boss), live (LiveKit)
+config/      validación de las variables de entorno con zod (env.ts) y opciones del logger (logger.ts); el único código de src/ que lee process.env. No es core/ ni adapters/
 middleware/  authenticate, withProfile, withPasswordGate, withAccess, requireRole, requireMembership, requireOwnership
 handlers/    un plugin de Fastify por dominio
 workers/     consumidores de la cola

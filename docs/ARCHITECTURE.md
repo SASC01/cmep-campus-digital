@@ -8,7 +8,7 @@
 ## 1. Principios
 
 1. **Sin AWS y sin ataduras.** Ningún servicio de AWS. Todo proveedor externo debe poder sustituirse cambiando configuración, no código. Proveedores aprobados: **DigitalOcean** (servidor), **Cloudflare** (DNS, frontend y archivos), **LiveKit Cloud** (video) y **Resend** (correo). Cualquier otro requiere aprobación explícita.
-2. **El núcleo es portátil.** API, worker y base de datos corren en Docker Compose: lo mismo en la computadora del desarrollador, en el Droplet y, mañana, en un servidor del colegio.
+2. **El núcleo es portátil.** API, worker y base de datos corren en Docker Compose: lo mismo en el Droplet y, mañana, en un servidor del colegio. En `dev` la API y el worker corren en el anfitrión con `npm run dev` / `npm run dev:worker`, y solo PostgreSQL, MinIO y LiveKit van en Compose.
 3. **Piso fijo pequeño, pago por uso en lo que varía.** Un servidor mínimo de costo fijo; archivos, video y frontend solo cuestan si se usan.
 4. **Monolito modular.** Una sola API con módulos por dominio.
 5. **Autorización en el backend, en un solo lugar.**
@@ -39,7 +39,7 @@
 | Respaldos | `pg_dump` diario cifrado hacia un bucket de R2 + respaldos del Droplet | Cloudflare / DigitalOcean |
 | Empaquetado | Docker + Docker Compose | — |
 | Integración continua | GitHub Actions: lint, test, build y publicación de imágenes | GitHub |
-| Pruebas | Vitest · Testcontainers · Playwright (hito 3) | — |
+| Pruebas | Vitest. Backend: unitarias e integración contra el PostgreSQL de `infra/` (nunca una base compartida ni `prod`); Testcontainers pendiente. Frontend: jsdom + Testing Library · Playwright (hito 3) | — |
 
 No se usa ninguna librería de AWS: el cliente de archivos es el paquete `minio`, que habla el protocolo S3 con cualquier almacén compatible.
 
@@ -107,9 +107,9 @@ Un dominio a nombre del colegio, con el DNS administrado en Cloudflare:
 
 Frontend y API comparten dominio registrable, condición para que la cookie de sesión `SameSite=Strict` funcione.
 
-### Contenedores (`infra/docker-compose.yml`)
-Producción: `caddy` · `api` · `worker` · `postgres`.
-Desarrollo: `api` · `worker` · `postgres` · `minio` · `livekit` (modo dev). El frontend corre con `npm run dev`.
+### Contenedores
+Producción (`infra/docker-compose.prod.yml`, pendiente de escribir): `caddy` · `api` · `worker` · `postgres`.
+Desarrollo (`infra/docker-compose.yml`, proyecto `campus-dev`): `postgres` · `minio` · `minio-init` (efímero: crea los buckets y termina) · `livekit` (modo dev). La API y el worker no van en contenedor en `dev`: corren en el anfitrión con `npm run dev` y `npm run dev:worker` desde `backend/`; el frontend, con `npm run dev` desde `frontend/`.
 
 ### Entornos
 | Entorno | Dónde | Notas |
@@ -117,32 +117,42 @@ Desarrollo: `api` · `worker` · `postgres` · `minio` · `livekit` (modo dev). 
 | `dev` | Computadora del desarrollador | Todo local y sin cuentas externas. Solo datos ficticios. Los correos no se envían: el canal `registro` los escribe en el log y guarda el HTML en `backend/tmp/correos/` para revisarlos. Las grabaciones se prueban contra un proyecto de LiveKit Cloud de desarrollo |
 | `prod` | Droplet + Cloudflare + LiveKit Cloud | Despliegue aprobado por un humano |
 
-Configuración en variables de entorno: `.env` fuera del repositorio, `.env.example` versionado.
+Configuración en variables de entorno: `.env` fuera del repositorio, `.env.example` versionado. En `dev` hay un `.env` por paquete, cada uno con su `.env.example`, donde se consultan los nombres y los valores de desarrollo:
+- `infra/.env`: lo lee Docker Compose; credenciales y puertos de PostgreSQL, MinIO y LiveKit en local.
+- `backend/.env`: lo cargan la API y el worker al arrancar y lo valida `config/env.ts`; el CLI de Prisma lo lee vía `prisma.config.ts`. Arranque de la API y conexión a la base. Debe apuntar a la base que levanta `infra/.env`: los dos archivos tienen que coincidir.
+- `frontend/.env`: lo lee Vite; dirección de la API. Ninguna variable `VITE_*` puede llevar un secreto: todas terminan en el bundle público.
 
 ## 5. Estructura del repositorio
 
 ```
 /
+├── package.json            workspaces de npm: shared, backend, frontend
 ├── frontend/
+│   ├── components.json     configuración del CLI de shadcn
 │   └── src/
 │       ├── app/            rutas, layouts y guardas por rol
 │       ├── features/       un módulo por dominio: types, data, lib, hooks, components/, *-view.tsx
 │       ├── components/     ui/ (shadcn reestilizado) y layout/
 │       ├── lib/            utilidades compartidas por 2+ módulos
 │       ├── services/       authService, apiClient, liveService
-│       └── styles/         tokens de diseño
+│       ├── styles/         index.css (entrada de Tailwind) y tokens.css (tokens de diseño)
+│       └── test/           configuración de Vitest (jsdom)
 ├── backend/
+│   ├── prisma.config.ts    configuración del CLI de Prisma: esquema, migraciones y DATABASE_URL
 │   ├── prisma/             schema.prisma y migraciones
+│   ├── test/               configuración de Vitest y pruebas de integración
 │   └── src/
+│       ├── config/         validación de las variables de entorno (zod) y opciones del logger
 │       ├── core/           lógica pura, sin I/O ni librerías de infraestructura
-│       ├── adapters/       db, auth, storage, notifier, queue, scheduler, live
+│       ├── adapters/       db (con el cliente generado en db/generated/, no versionado), auth, storage, notifier, queue, scheduler, live
 │       ├── middleware/     cadena de autorización
 │       ├── handlers/       un plugin de Fastify por dominio
 │       ├── workers/        consumidores de la cola
+│       ├── app.ts          construcción de la app de Fastify (la usan server.ts y las pruebas)
 │       ├── server.ts       arranque de la API
 │       └── worker.ts       arranque del worker
 ├── shared/                 tipos y esquemas zod comunes
-├── infra/                  docker-compose, Caddyfile, scripts de respaldo y despliegue
+├── infra/                  docker-compose de desarrollo, livekit/ y postgres/init/; Caddyfile, Compose de prod y scripts de respaldo, pendientes
 └── docs/                   PRD, arquitectura, operación y trabajo/<RF>/
 ```
 
@@ -153,7 +163,7 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 ```
 
 - `core/` no importa nada de `adapters/` ni librerías de infraestructura. Recibe sus dependencias por parámetro.
-- `adapters/` es el **único** lugar donde se importa `@prisma/client`, `pg-boss`, `minio`, `resend`, `argon2`, `jose` o `livekit-server-sdk`.
+- `adapters/` es el **único** lugar donde se importa `@prisma/client`, `@prisma/adapter-pg`, `pg`, el cliente generado por Prisma (`adapters/db/generated/`, no versionado; lo produce `prisma generate`), `pg-boss`, `minio`, `resend`, `argon2`, `jose` o `livekit-server-sdk`.
 - `handlers/` son delgados: validar entrada → llamar a `core` → responder.
 
 | Adaptador | Implementación | Responsabilidad |
@@ -301,7 +311,7 @@ El identificador se guarda en `trabajo_id`. **Editar o borrar la fecha obliga a 
 
 - El bucket privado lleva una política CORS que solo admite el origen `https://campus.<dominio>`.
 - Tres tokens de R2 distintos y de mínimo privilegio: aplicación, Egress de LiveKit (solo escritura en `grabaciones/`) y respaldos.
-- En `dev`, MinIO con los mismos buckets. Cambiar de almacén es cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY`.
+- En `dev`, MinIO (`infra/docker-compose.yml`) crea solo `campus-privado` (sin acceso anónimo) y `campus-publico` (lectura anónima); `campus-respaldos` existe solo en `prod`, en R2. El almacén de desarrollo es reemplazable por cualquier otro compatible con S3 (riesgo 10 de la sección 19). Cambiar de almacén es cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY`.
 
 ## 12. Clases en vivo
 
@@ -437,6 +447,7 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 1. GitHub Actions ejecuta `lint`, `test` y `build` en cada *pull request*.
 2. Al fusionar, construye la imagen y la publica en el registro de contenedores de GitHub.
 3. En el Droplet, con aprobación humana: `docker compose pull` → `npx prisma migrate deploy` → `docker compose up -d`.
+   Pendiente para el encargo de despliegue, con Prisma 7: `migrate deploy` necesita, en la imagen o en un contenedor de migración aparte, `backend/prisma.config.ts`, `backend/prisma/schema.prisma`, `backend/prisma/migrations/` y el CLI `prisma` (hoy devDependency); `DATABASE_URL` llega del entorno (`prisma.config.ts` solo carga `.env` si existe). `prisma generate` en la etapa de build también exige una `DATABASE_URL`, aunque no se conecte, porque `env()` de `prisma/config` se evalúa al cargar el archivo: basta un valor de relleno sin secreto. Y `package-lock.json` no marca el CLI como `dev`: `node_modules/prisma` figura como `peer` (además de `devOptional`) por el par opcional `prisma *` que declara `@prisma/client`, y sus dependencias (`mysql2`, `postgres`, `@prisma/dev`, `@prisma/studio-core`) solo como `devOptional`; el encargo de despliegue debe comprobar con un `npm ci` real qué instala `--omit=dev` en la imagen y cómo aislar el CLI (imagen de build o contenedor de migración aparte).
 4. Verificación: `/salud` y una prueba de humo del login.
 5. Reversión: etiqueta anterior de la imagen. **Las migraciones se escriben compatibles hacia atrás** (agregar antes de quitar), porque el frontend y el backend se despliegan por separado y pueden convivir versiones distintas unos minutos.
 
@@ -460,6 +471,7 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 7. **Autorización:** un endpoint que olvide el middleware filtra datos.
 8. **Cálculo de calificaciones:** casos borde.
 9. **Trabajos diferidos desincronizados** al editar fechas.
+10. **Distribución de MinIO en desarrollo.** MinIO comunitario dejó de distribuirse por Docker Hub: `minio/minio` y `minio/mc` niegan la descarga incluso de etiquetas existentes. En `dev` se usan `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` y `quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z`, imágenes sin mantenimiento; `quay.io` es solo el registro de descarga de una herramienta local, no un proveedor del proyecto. Mitigación: el almacén de desarrollo es reemplazable por cualquier otro compatible con S3 cambiando `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY`; `prod` usa R2 y no depende de estas imágenes.
 
 ## 20. Registro de decisiones
 
@@ -487,3 +499,5 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 | D-20 | Droplet pequeño de DigitalOcean, redimensionable | Equipo en el colegio · Vultr · Hetzner · Railway | Costo fijo bajo, documentación, y es un servidor Linux estándar: migrar es restaurar un respaldo |
 | D-21 | Frontend en Cloudflare Pages y DNS en Cloudflare | Servido por Caddy · Vercel | Gratuito, despliegue automático con vistas previas, protección delante del servidor |
 | D-22 | Restablecimiento por el Administrador con contraseña temporal de un solo uso, como **respaldo** | Único camino · no tenerlo | Los correos no se verifican al registrarse, así que habrá direcciones mal escritas |
+| D-23 | Imágenes de MinIO para `dev` desde `quay.io`, con etiqueta fija; `quay.io` no cuenta como proveedor del proyecto | MinIO desde Docker Hub (ya no disponible) · otro almacén S3 local | Docker Hub niega la descarga de `minio/minio` y `minio/mc`; es solo el registro de una herramienta local y el almacén de `dev` sigue siendo reemplazable por configuración. Decisión escrita del humano en INFRA-01 |
+| D-24 | Prisma 7 con generador `prisma-client`, `@prisma/adapter-pg` y `pg`; cliente generado en `adapters/db/generated/`, no versionado | Prisma 6 con `prisma-client-js` y motor de consultas nativo | Última línea estable; sin motor nativo en la API ni en el worker, el adaptador habla con PostgreSQL a través de `pg`. Decidido en BACK-01 y aplicado en BACK-02 |

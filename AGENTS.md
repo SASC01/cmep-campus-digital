@@ -130,6 +130,7 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 - Un agente no termina procesos que no arrancó; si el puerto está ocupado por un proceso ajeno o el remedio del plan no aplica, se detiene y pregunta.
 - En Windows, un proceso de larga vida (API, Vite, worker) se arranca redirigiendo su salida a un archivo y guardando su PID (por ejemplo, `Start-Process` con `-RedirectStandardOutput` y `-PassThru`); nunca combinado con una tubería, porque el hijo hereda la tubería y el comando no termina.
 - Cuando el plan dice detenerse ante una condición, te detienes aunque la alternativa parezca obvia o inofensiva. Resolverlo por tu cuenta es una desviación, aunque salga bien.
+- Al inicio de cada sesión el orquestador lee docs/ESTADO.md. Al cerrar cada encargo, o antes de limpiar o compactar la sesión, lo actualiza.
 
 ## Estilo de código, módulos y sistema de diseño
 La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.

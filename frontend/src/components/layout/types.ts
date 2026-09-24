@@ -1,2 +1,2 @@
-// Tipo de interfaz provisional: cuando shared/ exponga el enum de roles se reexporta desde allí.
-export type Rol = "estudiante" | "maestro" | "admin"
+// El rol es contrato de la API: se infiere del esquema zod de shared/ (CLAUDE.md, regla 7).
+export type { Rol } from "@campus/shared"

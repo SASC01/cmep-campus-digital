@@ -10,3 +10,60 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Rol {
+  estudiante
+  maestro
+  admin
+
+  @@map("rol_usuario")
+}
+
+enum EstadoPago {
+  al_corriente
+  deudor
+
+  @@map("estado_pago")
+}
+
+// Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
+// (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
+model Usuario {
+  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String     @unique
+  hashContrasena        String     @map("hash_contrasena")
+  debeCambiarContrasena Boolean    @default(false) @map("debe_cambiar_contrasena")
+  nombre                String
+  nombreBusqueda        String     @map("nombre_busqueda")
+  rol                   Rol
+  activo                Boolean    @default(true)
+  estadoPago            EstadoPago @default(al_corriente) @map("estado_pago")
+  fechaEstadoPago       DateTime?  @map("fecha_estado_pago") @db.Timestamptz(3)
+  accesoRestringido     Boolean    @default(false) @map("acceso_restringido")
+  motivoRestriccion     String?    @map("motivo_restriccion")
+  fechaRestriccion      DateTime?  @map("fecha_restriccion") @db.Timestamptz(3)
+  creadoEn              DateTime   @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn         DateTime   @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  sesiones              Sesion[]
+
+  @@index([rol])
+  @@map("usuarios")
+}
+
+// reemplazada_por es un uuid sin FK (S-11): apunta a la sesión que la sustituyó al rotar.
+model Sesion {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId      String    @map("usuario_id") @db.Uuid
+  hashToken      String    @unique @map("hash_token")
+  expiraEn       DateTime  @map("expira_en") @db.Timestamptz(3)
+  revocadaEn     DateTime? @map("revocada_en") @db.Timestamptz(3)
+  reemplazadaPor String?   @map("reemplazada_por") @db.Uuid
+  ip             String?
+  agente         String?
+  creadoEn       DateTime  @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn  DateTime  @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sesiones")
+}

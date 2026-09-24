@@ -134,6 +134,14 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
 `backend/.env` no se versiona. Su `DATABASE_URL` **debe coincidir** con la de `infra/.env` (mismo usuario, contraseña, base y puerto `POSTGRES_PORT`, 5433 por defecto); si cambias una, cambia la otra. El CLI de Prisma lo lee a través de `backend/prisma.config.ts`, sin banderas: ese archivo le indica la URL de conexión y dónde están el esquema y las migraciones.
 
+Además de `DATABASE_URL`, la API exige `JWT_SECRET` (el secreto con el que firma los tokens de acceso, mínimo 32 caracteres). El valor de `backend/.env.example` sirve en `development` y `test`; con `NODE_ENV=production` la API se niega a arrancar si `JWT_SECRET` es ese mismo valor o mide menos de 32 caracteres. Para generar uno propio:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+`ADMIN_EMAIL`, `ADMIN_PASSWORD` (entre 10 y 128 caracteres) y `ADMIN_NOMBRE` solo los usan `npm run seed:admin` y `npm run reset:admin` (paso 5). La copia con guarda de arriba no toca un `backend/.env` que ya existía: si el tuyo es anterior a la autenticación, añade a mano esas cuatro variables tomándolas de `backend/.env.example`.
+
 ### 4. Migraciones y cliente de Prisma
 
 Desde `backend`, solo la primera vez (y cada vez que llegue una migración nueva):
@@ -145,9 +153,29 @@ npx prisma generate
 
 `migrate dev` aplica las migraciones de `backend/prisma/migrations` a `campus_dev` y lleva el registro en la tabla `_prisma_migrations` (propia de Prisma, no del negocio). Para validar las migraciones crea una base sombra temporal en el mismo PostgreSQL y la borra al terminar; no necesita configuración extra. Si no hay nada pendiente responde `Already in sync`.
 
+Hoy hay dos migraciones: `extensiones_iniciales` (`pg_trgm` y `unaccent`) y `usuarios_y_sesiones`, que crea las tablas `usuarios` y `sesiones` y el índice que permite un solo administrador.
+
 `generate` escribe el cliente de Prisma en `backend/src/adapters/db/generated/` (ignorado por git; no se edita a mano). Los scripts `dev`, `dev:worker`, `build`, `lint` y `test` lo regeneran solos, así que solo hace falta a mano después de un `npm install` limpio.
 
-### 5. Arrancar la API
+### 5. Cuenta de administrador
+
+Desde `backend`, una sola vez por base de datos:
+
+```powershell
+npm run seed:admin
+```
+
+Crea la única cuenta de administrador con `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NOMBRE` de `backend/.env` y responde `Administrador creado: <correo>`. Si ya existe un administrador, no cambia nada y termina con código 1: `Ya existe una cuenta de administrador. Usa npm run reset:admin para cambiar su contraseña.`
+
+Para cambiar la contraseña del administrador, pon la nueva en `ADMIN_PASSWORD` y, desde `backend`:
+
+```powershell
+npm run reset:admin
+```
+
+Fija esa contraseña, cierra todas las sesiones del administrador y responde `Contraseña del administrador actualizada y sesiones cerradas: <correo>`. No obliga a cambiarla al entrar, porque la eligió quien ejecuta el comando. Ninguno de los dos comandos imprime la contraseña. En `prod` las variables `ADMIN_*` se definen en el `.env` del servidor solo para ejecutar el comando y se retiran después.
+
+### 6. Arrancar la API
 
 Desde `backend`:
 
@@ -155,7 +183,7 @@ Desde `backend`:
 npm run dev
 ```
 
-La API escucha en `http://127.0.0.1:3000` (variables `HOST` y `PORT` de `backend/.env`) y se recarga al guardar. En otra terminal:
+La API escucha en `http://127.0.0.1:3000` (variables `HOST` y `PORT` de `backend/.env`) y se recarga al guardar. Además de `/api/salud` expone la autenticación (`/api/auth/registro`, `/api/auth/login`, `/api/auth/refrescar`, `/api/auth/logout`) y `GET /api/me`. En otra terminal:
 
 ```powershell
 curl.exe http://127.0.0.1:3000/api/salud
@@ -169,7 +197,7 @@ Respuestas esperadas:
 
 Detén la API con Ctrl+C.
 
-### 6. Pruebas
+### 7. Pruebas
 
 Desde la raíz (corre las de todos los workspaces) o desde `backend`:
 
@@ -177,12 +205,23 @@ Desde la raíz (corre las de todos los workspaces) o desde `backend`:
 npm test
 ```
 
-Precondiciones: el entorno de infra levantado y `backend/.env` presente. Incluye pruebas unitarias de `core/` y `config/` y dos de integración que levantan la API en memoria; una de ellas consulta el PostgreSQL de infra. Mensajes si falta algo:
+Precondiciones: el entorno de infra levantado y `backend/.env` con `DATABASE_URL` y `JWT_SECRET`. El backend tiene 30 archivos con 326 pruebas: unitarias de `core/`, `config/` y `middleware/`; de integración que levantan la API en memoria contra el PostgreSQL de infra; y adversarias (`*.ataque.test.ts`, 192 de ellas), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda entre 15 y 25 segundos, porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`.
+
+Las pruebas de autenticación **escriben en tu `campus_dev`**: crean usuarios y sesiones con correos `auth-<uuid>@pruebas.local` (y variantes con otro prefijo, siempre con el dominio `@pruebas.local`) y los borran al terminar cada archivo. La prueba del administrador único corre dentro de una transacción que siempre se revierte, así que no deja un administrador aunque no exista uno real. Solo una corrida interrumpida puede dejar filas; se reconocen por ese dominio. Para revisarlas y borrarlas desde `infra`:
+
+```powershell
+docker compose exec postgres psql -U campus -d campus_dev -c "SELECT count(*) FROM usuarios WHERE email LIKE '%@pruebas.local';"
+docker compose exec postgres psql -U campus -d campus_dev -c "DELETE FROM usuarios WHERE email LIKE '%@pruebas.local';"
+```
+
+El `DELETE` solo toca usuarios de prueba; sus sesiones se borran en cascada.
+
+Mensajes si falta algo:
 
 - `Falta backend/.env: copia backend/.env.example a backend/.env`: repite el paso 3.
 - `PostgreSQL de infra no responde en DATABASE_URL. Levanta infra: docker compose up -d en infra/`: repite el paso 2 de la sección anterior.
 
-### 7. Arrancar el worker
+### 8. Arrancar el worker
 
 Desde `backend`:
 
@@ -192,12 +231,17 @@ npm run dev:worker
 
 Registra `"evento":"worker_listo"` y se queda esperando. Todavía no consume trabajos: la cola llega con el primer trabajo real. Detenlo con Ctrl+C.
 
-### 8. Problemas frecuentes
+### 9. Problemas frecuentes
 
 - **Puerto 3000 ocupado** (`EADDRINUSE`). Diagnostica con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y cambia `PORT` en `backend/.env` (no en `.env.example`).
 - **`ECONNREFUSED 127.0.0.1:5433` o `P1001`.** El entorno de infra está apagado, o `DATABASE_URL` apunta a otro puerto que `POSTGRES_PORT` en `infra/.env`. Levántalo con `docker compose up -d` desde `infra`.
 - **`P1000` (autenticación).** El usuario o la contraseña de `DATABASE_URL` no coinciden con `POSTGRES_USER` y `POSTGRES_PASSWORD` de `infra/.env`. Recuerda que las credenciales de PostgreSQL se graban al crear el volumen.
 - **`Configuración inválida. Revisa backend/.env ...`.** Falta `backend/.env` o una variable no cumple su regla; el mensaje lista la variable y el motivo (nunca su valor). Compara con `backend/.env.example`.
+- **`JWT_SECRET: obligatoria`.** Tu `backend/.env` es anterior a la autenticación: copia la línea `JWT_SECRET` de `backend/.env.example` (paso 3).
+- **`JWT_SECRET: en production debe ser un secreto propio de al menos 32 caracteres, distinto del de .env.example`.** Arrancaste con `NODE_ENV=production` y el secreto de ejemplo. Genera uno propio con el comando del paso 3.
+- **`ADMIN_EMAIL: obligatoria` (o `ADMIN_PASSWORD`, `ADMIN_NOMBRE`) al ejecutar `seed:admin` o `reset:admin`.** Faltan las variables `ADMIN_*` en `backend/.env`: cópialas de `backend/.env.example` (paso 3).
+- **`Ya existe una cuenta de administrador. Usa npm run reset:admin para cambiar su contraseña.`** Solo puede haber un administrador. Si lo que necesitas es entrar con otra contraseña, usa `npm run reset:admin` (paso 5).
+- **`npm install` intenta compilar `argon2`** (mensajes de `node-gyp`, o `No native build was found` al arrancar). `argon2` trae binarios precompilados para Windows x64 y Linux x64; si tu plataforma o tu versión de Node no está cubierta, intenta compilarlo. No uses `--force` ni `--legacy-peer-deps`: repórtalo, porque cambiar de librería de contraseñas requiere aprobación.
 - **`Cannot find module '.../adapters/db/generated/client.js'` (`ERR_MODULE_NOT_FOUND`) o errores de `tsc` en `adapters/db/cliente.ts` sobre `./generated/client.js`.** Falta generar el cliente: ejecuta `npx prisma generate` desde `backend`.
 - **Un comando `npx prisma ...` se queja de que falta `DATABASE_URL`** (`PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`). No existe `backend/.env` (repite el paso 3): `prisma.config.ts` lo carga si existe.
 - **`npm run dev` deja procesos vivos al cerrar la terminal.** `tsx watch` arranca un proceso hijo; si el puerto sigue ocupado, localiza el PID con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y termínalo con `taskkill /PID <pid> /T /F`.
@@ -208,7 +252,7 @@ Arranca la SPA (Vite) contra la API local. Los comandos están escritos para Win
 
 ### 1. Requisitos
 
-Node 24 LTS y npm 11 (sección "Backend en local", paso 1), dependencias instaladas con `npm install` desde la raíz (paso 2 de esa sección) y, para que la vista de diagnóstico responda, la API corriendo en `http://127.0.0.1:3000` (paso 5 de esa sección).
+Node 24 LTS y npm 11 (sección "Backend en local", paso 1), dependencias instaladas con `npm install` desde la raíz (paso 2 de esa sección) y, para que el login, el registro y la vista de diagnóstico respondan, la API corriendo en `http://127.0.0.1:3000` (paso 6 de esa sección).
 
 ### 2. Configurar (opcional)
 
@@ -229,7 +273,14 @@ Desde `frontend`:
 npm run dev
 ```
 
-Abre `http://127.0.0.1:5173/login` (pantalla de acceso, todavía sin envío) y `http://127.0.0.1:5173/diagnostico` (consulta `GET /api/salud` y muestra el estado de la API y de la base de datos). Usa `127.0.0.1`, no `localhost`. El servidor recompila al guardar; detenlo con Ctrl+C.
+Abre `http://127.0.0.1:5173/login` y `http://127.0.0.1:5173/registro`, que hablan con la API a través del proxy de Vite, y `http://127.0.0.1:5173/diagnostico` (consulta `GET /api/salud` y muestra el estado de la API y de la base de datos). Usa `127.0.0.1`, no `localhost`. El servidor recompila al guardar; detenlo con Ctrl+C.
+
+Para recorrer el flujo completo:
+
+- **Administrador:** crea la cuenta con `npm run seed:admin` (sección "Backend en local", paso 5) y entra en `/login` con `ADMIN_EMAIL` y `ADMIN_PASSWORD`. Llegas a `/admin`.
+- **Estudiante:** crea una cuenta en `/registro`. Quedas con la sesión iniciada en `/estudiante`.
+
+Por ahora cada rol ve una bienvenida con su nombre y el botón "Cerrar sesión"; los dashboards llegan con sus módulos. Si recargas la página, la sesión se restaura sola con la cookie de refresco (el token de acceso vive solo en memoria).
 
 ### 4. Comprobar, probar y compilar
 
@@ -246,6 +297,6 @@ npm run build
 ### 5. Problemas frecuentes
 
 - **Puerto 5173 ocupado** (`Port 5173 is already in use`). Vite no salta a otro puerto a propósito. Diagnostica con `Get-NetTCPConnection -LocalPort 5173 -State Listen` y cierra el proceso que lo usa si es tuyo.
-- **La vista de diagnóstico muestra un error** (`RESPUESTA_INVALIDA`, `SIN_CONEXION` o un 5xx). La API no está corriendo en `127.0.0.1:3000`: arráncala con `npm run dev` desde `backend` (sección anterior, paso 5). Si muestra `BASE_DE_DATOS_NO_DISPONIBLE`, la API responde pero PostgreSQL no: revisa infra.
+- **El login dice "No pudimos conectar con el servidor. Revisa tu conexión." o la vista de diagnóstico muestra un error** (`SIN_CONEXION`, `RESPUESTA_INVALIDA` o un 5xx). La API no está corriendo en `127.0.0.1:3000` (con la API apagada, el proxy de Vite responde `502` sin cuerpo): arráncala con `npm run dev` desde `backend` (sección anterior, paso 6). Si muestra `BASE_DE_DATOS_NO_DISPONIBLE`, la API responde pero PostgreSQL no: revisa infra.
 - **`Cannot find module '@campus/shared'` o tipos que faltan de `@campus/shared`.** No existe `shared/dist`: ejecuta `npm run build` desde `shared` (los scripts del frontend lo hacen solos; a mano solo tras un `npm install` limpio).
 - **`tsc -b` falla en `node_modules/.tmp`.** Borra `frontend/node_modules/.tmp` (solo contiene información incremental de TypeScript) y repite.

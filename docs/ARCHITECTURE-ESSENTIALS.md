@@ -91,11 +91,12 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Cambiar de almacén = cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`.
 
 ## Clases en vivo
-- LiveKit Cloud, un proyecto por entorno. Llaves solo en `.env`. Todo detrás de `adapters/live`.
+- LiveKit Cloud en `prod`; en `dev`, el LiveKit local de `infra/`. El paso a Cloud (encargo DEPLOY) es solo de configuración: URL, llaves, destino de grabaciones y URL pública del webhook. Llaves solo en `.env`. Todo detrás de `adapters/live`.
 - Token emitido por la API tras toda la cadena de autorización.
 - Alumnos en modo webinar. Chat por canales de datos de LiveKit.
 - Cupo configurable según el plan → `SALA_LLENA` / `SIN_CUPO_DE_GRABACION`.
 - Webhook `egress_ended` (firma verificada) → `GRABACION_LISTA`.
+- Grabaciones: no se prueban de punta a punta en `dev`. Su código se prueba con dobles y el botón de grabar va detrás de un interruptor de configuración, desactivado en `dev` ("Grabación disponible solo en el servidor"). DEPLOY verifica una grabación real que llegue a R2 y aparezca en la lista del alumno (D-26).
 
 ## Reglas de negocio que tocan código
 - Estado de pago: `Deudor` / `Al corriente`. Por defecto `Al corriente`. Manual, solo admin. Guarda fecha de cambio. **No bloquea nada por sí solo.**

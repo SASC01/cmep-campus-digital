@@ -21,7 +21,7 @@
 - **Archivos:** protocolo S3 con cliente `minio` → **R2** en `prod`, **MinIO** en `dev` (imágenes desde `quay.io`, sin mantenimiento; reemplazable por cualquier almacén S3 vía `STORAGE_*`)
 - **Video:** LiveKit Cloud + Egress hacia R2 · `livekit-server --dev` en local
 - **Operación:** pino · monitoreo de DigitalOcean · `pg_dump` cifrado hacia R2 · GitHub Actions construye y publica las imágenes
-- **Pruebas:** Vitest. Backend: unitarias de `core/` y `config/`, e integración contra el PostgreSQL de `infra/` (`DATABASE_URL` de `backend/.env`; nunca una base compartida ni `prod`); Testcontainers pendiente. Frontend: jsdom + Testing Library, sin API ni infra
+- **Pruebas:** Vitest. Backend: unitarias de `core/` y `config/`, e integración contra un PostgreSQL desechable por corrida con Testcontainers (imagen de `infra/`, `prisma migrate deploy` al iniciar); nunca `campus_dev`, una base compartida ni `prod`. Frontend: jsdom + Testing Library, sin API ni infra
 
 ## Capas del backend
 ```

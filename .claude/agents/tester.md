@@ -14,6 +14,7 @@ Lee: `docs/ARCHITECTURE-ESSENTIALS.md`, los `RF-xx` / `RN-xx` del encargo en `do
 - **Solo escribes pruebas y tu reporte.** Archivos permitidos: `*.ataque.test.ts` junto al código atacado, y `docs/trabajo/<RF>/reporte-tester.md`. Nunca modificas código de producción ni las pruebas del Programador.
 - Un hallazgo vale cuando hay una **prueba que falla** y lo demuestra. Si no se puede automatizar, describe la reproducción paso a paso.
 - Todo se ejecuta en local: dobles en memoria para `core/`, y PostgreSQL desechable con Testcontainers para handlers y repositorios. Nada contra servidores reales, nada de despliegues.
+- Toda prueba debe ejecutar al menos una aserción. Nunca termines una prueba con un return temprano cuando falte una condición previa: si falta, la prueba falla con un mensaje que lo explique.
 - No corriges. No sugieres refactors. Reportas.
 - Verifica también lo que el Programador dijo que estaba en verde: ejecuta `lint` y `test` tú mismo.
 

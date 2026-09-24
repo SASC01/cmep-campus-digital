@@ -17,7 +17,7 @@ import {
   valorCookieRefresco,
 } from "./ayudas-auth.js"
 
-// Precondición: infra levantado y backend/.env con DATABASE_URL y JWT_SECRET.
+// Precondición: la base desechable de test/global-setup.ts.
 let app: FastifyInstance | undefined
 let appProduccion: FastifyInstance | undefined
 const correos: string[] = []

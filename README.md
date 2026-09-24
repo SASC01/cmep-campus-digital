@@ -104,7 +104,7 @@ Arranca la API (Fastify) y el worker en tu máquina contra el PostgreSQL del ent
 
 ### 1. Requisitos
 
-Node 24 LTS y npm 11, y el entorno de infra levantado (sección anterior). Compruébalo así:
+Node 24 LTS y npm 11, y el entorno de infra levantado (sección anterior). Para correr las pruebas (paso 7) basta con Docker Desktop encendido; no necesitan el entorno de infra. Compruébalo así:
 
 ```powershell
 node --version
@@ -205,21 +205,24 @@ Desde la raíz (corre las de todos los workspaces) o desde `backend`:
 npm test
 ```
 
-Precondiciones: el entorno de infra levantado y `backend/.env` con `DATABASE_URL` y `JWT_SECRET`. El backend tiene 30 archivos con 326 pruebas: unitarias de `core/`, `config/` y `middleware/`; de integración que levantan la API en memoria contra el PostgreSQL de infra; y adversarias (`*.ataque.test.ts`, 192 de ellas), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda entre 15 y 25 segundos, porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`.
+Precondiciones: Docker Desktop encendido y `backend/.env` presente (paso 3). Las pruebas del backend **no usan tu `campus_dev`** ni el PostgreSQL de infra: al empezar, levantan con Testcontainers un PostgreSQL desechable con la misma imagen que `infra/docker-compose.yml`, le aplican las migraciones con `prisma migrate deploy`, crean su único administrador con `seed:admin` y lo destruyen al terminar. `backend/.env` solo hace falta porque `prisma generate`, que corre antes de las pruebas, lo lee; su `DATABASE_URL` no se usa para probar, y `JWT_SECRET` y `ADMIN_*` de las pruebas se generan en cada corrida. No hay forma de dirigir las pruebas a `campus_dev`: una guarda detiene la suite si la base no es la desechable.
 
-Las pruebas de autenticación **escriben en tu `campus_dev`**: crean usuarios y sesiones con correos `auth-<uuid>@pruebas.local` (y variantes con otro prefijo, siempre con el dominio `@pruebas.local`) y los borran al terminar cada archivo. La prueba del administrador único corre dentro de una transacción que siempre se revierte, así que no deja un administrador aunque no exista uno real. Solo una corrida interrumpida puede dejar filas; se reconocen por ese dominio. Para revisarlas y borrarlas desde `infra`:
+La primera corrida descarga de Docker Hub la imagen `testcontainers/ryuk` (necesita red). Ryuk borra el contenedor de pruebas aunque la corrida se interrumpa; tarda hasta un minuto en hacerlo. Para comprobar que no quedó ninguno:
 
 ```powershell
-docker compose exec postgres psql -U campus -d campus_dev -c "SELECT count(*) FROM usuarios WHERE email LIKE '%@pruebas.local';"
-docker compose exec postgres psql -U campus -d campus_dev -c "DELETE FROM usuarios WHERE email LIKE '%@pruebas.local';"
+docker ps -a --filter "label=org.testcontainers=true"
 ```
 
-El `DELETE` solo toca usuarios de prueba; sus sesiones se borran en cascada.
+Debe responder solo la línea de encabezados.
+
+El backend tiene 31 archivos con 330 pruebas: unitarias de `core/`, `config/` y `middleware/`, y de la guarda de la base de pruebas; de integración que levantan la API en memoria contra la base desechable; y adversarias (`*.ataque.test.ts`, 192 de ellas), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda entre 17 y 25 segundos: unos 7 para levantar y preparar la base, y el resto porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`. Toda corrida del backend levanta la base, aunque filtres solo pruebas unitarias.
 
 Mensajes si falta algo:
 
-- `Falta backend/.env: copia backend/.env.example a backend/.env`: repite el paso 3.
-- `PostgreSQL de infra no responde en DATABASE_URL. Levanta infra: docker compose up -d en infra/`: repite el paso 2 de la sección anterior.
+- `No se pudo levantar PostgreSQL de pruebas con Testcontainers. Enciende Docker Desktop y vuelve a correr las pruebas.`: Docker Desktop está apagado o no responde.
+- `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL` antes de empezar: falta `backend/.env` (paso 3).
+- `Falta la base de pruebas: ...`: corriste las pruebas sin la configuración de Vitest del backend (por ejemplo, con otra `--config`). Usa `npm test` o `npx vitest` desde `backend`.
+- `Guarda de la base de pruebas: ...`: algo intentó dirigir las pruebas a una base que no es la desechable, y no se ejecutó ninguna prueba. Repórtalo.
 
 ### 8. Arrancar el worker
 

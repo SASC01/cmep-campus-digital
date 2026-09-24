@@ -114,7 +114,7 @@ Desarrollo (`infra/docker-compose.yml`, proyecto `campus-dev`): `postgres` · `m
 ### Entornos
 | Entorno | Dónde | Notas |
 |---|---|---|
-| `dev` | Computadora del desarrollador | Todo local y sin cuentas externas. Solo datos ficticios. Los correos no se envían: el canal `registro` los escribe en el log y guarda el HTML en `backend/tmp/correos/` para revisarlos. Las grabaciones se prueban contra un proyecto de LiveKit Cloud de desarrollo |
+| `dev` | Computadora del desarrollador | Todo local y sin cuentas externas. Solo datos ficticios. Los correos no se envían: el canal `registro` los escribe en el log y guarda el HTML en `backend/tmp/correos/` para revisarlos. Clases en vivo con el LiveKit local de `infra/` (`livekit-server --dev`); las grabaciones no se prueban de punta a punta en `dev` (§12, D-26) |
 | `prod` | Droplet + Cloudflare + LiveKit Cloud | Despliegue aprobado por un humano |
 
 Configuración en variables de entorno: `.env` fuera del repositorio, `.env.example` versionado. En `dev` hay un `.env` por paquete, cada uno con su `.env.example`, donde se consultan los nombres y los valores de desarrollo:
@@ -315,10 +315,11 @@ El identificador se guarda en `trabajo_id`. **Editar o borrar la fecha obliga a 
 
 ## 12. Clases en vivo
 
-- **LiveKit Cloud.** Un proyecto para `dev` y otro para `prod`. La API genera el token de acceso tras toda la cadena de middleware; las llaves viven solo en el `.env` del servidor.
+- **LiveKit Cloud en `prod`; LiveKit local en `dev`.** En desarrollo, las clases en vivo usan el LiveKit de `infra/` (`livekit-server --dev`). LiveKit Cloud se conecta en el encargo DEPLOY, y el cambio es solo de configuración: URL, llaves, destino de las grabaciones y URL pública del webhook (D-26). La API genera el token de acceso tras toda la cadena de middleware; las llaves viven solo en el `.env` del servidor.
 - El maestro publica video, audio y pantalla; el alumno entra en **modo webinar** (cámara y micrófono apagados por defecto) y usa el chat.
 - El chat viaja por canales de datos de LiveKit; no toca el backend.
 - Grabación con Egress de LiveKit Cloud, que sube el archivo por protocolo S3 a `campus-privado/grabaciones/{claseId}/` en R2. El webhook `egress_ended` encola `GRABACION_LISTA`. *La compatibilidad Egress → R2 se valida en la primera prueba de grabación; la alternativa es cualquier otro almacén S3.*
+- **Grabaciones en desarrollo.** No se prueban de punta a punta en `dev`: el entorno local no tiene Egress hacia R2 ni una URL pública para el webhook. En el encargo ENVIVO, el código de grabación se escribe y se prueba con dobles, y el botón de grabar queda detrás de un interruptor de configuración: desactivado en `dev`, con el texto "Grabación disponible solo en el servidor". La primera grabación real se verifica en DEPLOY (§18, D-26).
 - **Control de cupo** configurable según el plan: participantes y grabaciones simultáneas → `SALA_LLENA` / `SIN_CUPO_DE_GRABACION`.
 - **Plan gratuito (Build):** 100 participantes simultáneos, 2 grabaciones simultáneas, 60 minutos de transcodificación y 5,000 minutos-participante al mes, con tope duro. Suficiente para la fase experimental. Verificar cuotas vigentes antes de un uso mayor.
 - **Ruta de salida:** `adapters/live` usa el SDK estándar. Autoalojar LiveKit es cambiar `LIVEKIT_URL` y las llaves.
@@ -448,8 +449,23 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 2. Al fusionar, construye la imagen y la publica en el registro de contenedores de GitHub.
 3. En el Droplet, con aprobación humana: `docker compose pull` → `npx prisma migrate deploy` → `docker compose up -d`.
    Pendiente para el encargo de despliegue, con Prisma 7: `migrate deploy` necesita, en la imagen o en un contenedor de migración aparte, `backend/prisma.config.ts`, `backend/prisma/schema.prisma`, `backend/prisma/migrations/` y el CLI `prisma` (hoy devDependency); `DATABASE_URL` llega del entorno (`prisma.config.ts` solo carga `.env` si existe). `prisma generate` en la etapa de build también exige una `DATABASE_URL`, aunque no se conecte, porque `env()` de `prisma/config` se evalúa al cargar el archivo: basta un valor de relleno sin secreto. Y `package-lock.json` no marca el CLI como `dev`: `node_modules/prisma` figura como `peer` (además de `devOptional`) por el par opcional `prisma *` que declara `@prisma/client`, y sus dependencias (`mysql2`, `postgres`, `@prisma/dev`, `@prisma/studio-core`) solo como `devOptional`; el encargo de despliegue debe comprobar con un `npm ci` real qué instala `--omit=dev` en la imagen y cómo aislar el CLI (imagen de build o contenedor de migración aparte).
-4. Verificación: `/salud` y una prueba de humo del login.
+4. Verificación: `/salud` y una prueba de humo del login. En el encargo DEPLOY, además, dos verificaciones de punta a punta con servicios reales: un correo de recuperación de contraseña que llegue a la bandeja de entrada, y una grabación completa de una clase en vivo que llegue a R2 y aparezca en la lista del alumno (D-26).
 5. Reversión: etiqueta anterior de la imagen. **Las migraciones se escriben compatibles hacia atrás** (agregar antes de quitar), porque el frontend y el backend se despliegan por separado y pueden convivir versiones distintas unos minutos.
+
+### Requisitos previos a abrir la plataforma
+Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre paréntesis, el encargo donde se decidió cada uno (carpetas en `docs/trabajo/`).
+
+- `trustProxy` en Fastify: sin él, la llave del límite de intentos de login es la IP de Caddy más el correo, y cualquiera podría bloquear el acceso de otra cuenta (AUTH-01).
+- `NODE_ENV=production` obligatorio: activa `Secure` en la cookie de refresco y la guarda que rechaza el `JWT_SECRET` de ejemplo (AUTH-01).
+- Límite de tasa en `/auth/*` y global, registrado con `hook: "preHandler"` para no chocar con la guarda de rutas (AUTH-01).
+- Tope de memoria del almacén de intentos de login (AUTH-01).
+- CORS con credenciales y `OPTIONS *` en `rutas-publicas.ts`; orden de los plugins transversales frente a `registrarMiddleware`; `@fastify/helmet` (AUTH-01).
+- `seed:admin` ejecutable desde `dist/` (AUTH-01).
+- Imagen o contenedor de migración con `prisma.config.ts`, `prisma/` y el CLI; `DATABASE_URL` de relleno para `prisma generate` en el build; comprobar con un `npm ci` real qué instala `--omit=dev` (paso 3 de esta sección; DOCS-01, CHORE-01).
+- CI con Docker para Testcontainers; en el CI, Ryuk también publica su puerto en todas las interfaces (CHORE-01).
+- Conectar LiveKit Cloud por configuración (URL, llaves, destino de las grabaciones y URL pública del webhook) y activar el interruptor de grabación en `prod` (DOCS-02a, D-26).
+- Verificación de punta a punta con servicios reales: un correo de recuperación de contraseña que llegue a la bandeja de entrada (DOCS-02a, D-26).
+- Verificación de punta a punta con servicios reales: una grabación completa de una clase en vivo que llegue a R2 y aparezca en la lista del alumno (DOCS-02a, D-26).
 
 ### Migración a un servidor propio
 1. Instalar Docker en el servidor del colegio y clonar el repositorio.
@@ -502,3 +518,4 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 | D-23 | Imágenes de MinIO para `dev` desde `quay.io`, con etiqueta fija; `quay.io` no cuenta como proveedor del proyecto | MinIO desde Docker Hub (ya no disponible) · otro almacén S3 local | Docker Hub niega la descarga de `minio/minio` y `minio/mc`; es solo el registro de una herramienta local y el almacén de `dev` sigue siendo reemplazable por configuración. Decisión escrita del humano en INFRA-01 |
 | D-24 | Prisma 7 con generador `prisma-client`, `@prisma/adapter-pg` y `pg`; cliente generado en `adapters/db/generated/`, no versionado | Prisma 6 con `prisma-client-js` y motor de consultas nativo | Última línea estable; sin motor nativo en la API ni en el worker, el adaptador habla con PostgreSQL a través de `pg`. Decidido en BACK-01 y aplicado en BACK-02 |
 | D-25 | Pruebas de integración contra un PostgreSQL desechable por corrida con Testcontainers (imagen fijada de `infra/`, `migrate deploy` al iniciar, un administrador sembrado con `seed:admin`); la imagen `testcontainers/ryuk` de Docker Hub es una herramienta local y no cuenta como proveedor | PostgreSQL de `infra/` (`campus_dev`) · un contenedor por archivo | Las pruebas escribían en la base de desarrollo; un contenedor por corrida aísla los datos sin multiplicar el tiempo de la suite. Acordado en M-05 de AUTH-01 y aplicado en CHORE-01 |
+| D-26 | Clases en vivo en `dev` con el LiveKit local de `infra/`; LiveKit Cloud se conecta en el encargo DEPLOY por configuración (URL, llaves, destino de grabaciones, URL pública del webhook). Las grabaciones no se prueban de punta a punta en `dev`: su código se prueba con dobles y el botón de grabar va detrás de un interruptor de configuración, desactivado en `dev` ("Grabación disponible solo en el servidor"). DEPLOY verifica con servicios reales un correo de recuperación en la bandeja de entrada y una grabación completa en R2 y en la lista del alumno | Un proyecto de LiveKit Cloud para `dev` · probar grabaciones de punta a punta desde `dev` | El LiveKit local ya corre en `infra/` sin cuentas externas; Egress hacia R2 y el webhook necesitan servicios reales y una URL pública que solo existen al desplegar |

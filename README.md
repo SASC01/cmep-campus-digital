@@ -215,6 +215,8 @@ docker ps -a --filter "label=org.testcontainers=true"
 
 Debe responder solo la línea de encabezados.
 
+Mientras dura la corrida, Ryuk publica su puerto en todas las interfaces. No corras la suite en una red pública o no confiable sin la mitigación del firewall: regla en `AGENTS.md` ("Pruebas") y pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`.
+
 El backend tiene 31 archivos con 330 pruebas: unitarias de `core/`, `config/` y `middleware/`, y de la guarda de la base de pruebas; de integración que levantan la API en memoria contra la base desechable; y adversarias (`*.ataque.test.ts`, 192 de ellas), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda entre 17 y 25 segundos: unos 7 para levantar y preparar la base, y el resto porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`. Toda corrida del backend levanta la base, aunque filtres solo pruebas unitarias.
 
 Mensajes si falta algo:

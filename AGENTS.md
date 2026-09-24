@@ -94,12 +94,14 @@ docs/          PRD, arquitectura, operación y trabajo/<RF>/ (planes, reportes, 
 ## Equipo de agentes y flujo de trabajo
 Cuatro subagentes en `.claude/agents/`. El **orquestador** es la sesión principal: invoca a cada agente, le pasa la ruta de la carpeta de trabajo y transmite al humano las preguntas y los veredictos. Los agentes no comparten memoria: **todo traspaso es un archivo** en `docs/trabajo/<RF-xx-nombre-corto>/`.
 
-| Agente | Hace | No hace | Entrega |
-|---|---|---|---|
-| `arquitecto` | Analiza, pregunta y planea | No escribe código | `plan.md` |
-| `programador` | Implementa el plan aprobado y corrige hallazgos | No cambia el plan ni las pruebas del Tester | Código + resumen |
-| `tester` | Intenta romper la implementación con pruebas adversarias | No corrige ni toca código de producción | `*.ataque.test.ts` + `reporte-tester.md` |
-| `manager` | Revisa el plan y el resultado final; arbitra y destaca lo importante | No reescribe nada | `revision.md` |
+| Agente | Hace | No hace | Entrega | Modelo |
+|---|---|---|---|---|
+| `arquitecto` | Analiza, pregunta y planea | No escribe código | `plan.md` | `opus`, esfuerzo `high` |
+| `programador` | Implementa el plan aprobado y corrige hallazgos | No cambia el plan ni las pruebas del Tester | Código + resumen | `sonnet`, esfuerzo `medium` (a prueba) |
+| `tester` | Intenta romper la implementación con pruebas adversarias | No corrige ni toca código de producción | `*.ataque.test.ts` + `reporte-tester.md` | `opus`, esfuerzo `high` |
+| `manager` | Revisa el plan y el resultado final; arbitra y destaca lo importante | No reescribe nada | `revision.md` | `opus`, esfuerzo `high` |
+
+El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `effort` en `.claude/agents/*.md`). El del `programador` está a prueba: se revisa después del encargo CLASES.
 
 ### Flujo
 1. El humano pide una funcionalidad citando su `RF-xx`.

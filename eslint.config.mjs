@@ -61,7 +61,7 @@ export default defineConfig(
   },
   {
     basePath: raiz,
-    files: ["backend/scripts/**", "backend/src/config/env.ts"],
+    files: ["backend/src/scripts/**", "backend/src/config/env.ts"],
     rules: { "no-console": "off" },
   },
   {

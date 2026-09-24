@@ -21,15 +21,18 @@
     "pretest": "npm run shared:build && prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "node scripts/pendiente.mjs seed:admin",
-    "reset:admin": "node scripts/pendiente.mjs reset:admin"
+    "seed:admin": "tsx --env-file-if-exists=.env src/scripts/seed-admin.ts",
+    "reset:admin": "tsx --env-file-if-exists=.env src/scripts/reset-admin.ts"
   },
   "dependencies": {
     "@campus/shared": "*",
+    "@fastify/cookie": "^11.1.2",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "argon2": "^0.45.1",
     "fastify": "^5.12.5",
     "fastify-plugin": "^5.1.0",
+    "jose": "^6.2.12",
     "pg": "^8.23.0",
     "pino": "^10.3.1",
     "zod": "^4.6.5"

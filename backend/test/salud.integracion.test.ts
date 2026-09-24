@@ -6,7 +6,7 @@ import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
 import { AppError } from "../src/core/errores.js"
 
-// Precondición: infra levantado (docker compose up -d en infra/) y backend/.env presente.
+// Precondición: la base desechable de test/global-setup.ts (Testcontainers).
 let app: FastifyInstance | undefined
 
 const obtenerApp = (): FastifyInstance => {
@@ -29,7 +29,7 @@ beforeAll(async () => {
   const respuesta = await app.inject({ method: "GET", url: "/api/salud" })
   if (respuesta.statusCode !== 200) {
     throw new Error(
-      "PostgreSQL de infra no responde en DATABASE_URL. Levanta infra: docker compose up -d en infra/",
+      "La base de pruebas no responde en DATABASE_URL (test/global-setup.ts). Revisa que Docker Desktop siga encendido.",
     )
   }
 })

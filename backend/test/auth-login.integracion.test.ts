@@ -11,7 +11,7 @@ import {
   encabezadoCookieRefresco,
 } from "./ayudas-auth.js"
 
-// Precondición: infra levantado y backend/.env con DATABASE_URL y JWT_SECRET. Cada caso usa su
+// Precondición: la base desechable de test/global-setup.ts. Cada caso usa su
 // propio usuario: la llave del límite de intentos es IP + correo y no debe cruzarse entre casos.
 let app: FastifyInstance | undefined
 const ids: string[] = []

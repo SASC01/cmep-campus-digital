@@ -205,7 +205,14 @@ describe("ataque: enumeración de cuentas en login", () => {
     }
   })
 
-  it("el tiempo de respuesta no distingue un correo inexistente de una contraseña incorrecta", async () => {
+  // Robusta frente al ruido de CPU (CHORE-01, M-02) sin cambiar la aserción: mismas medianas, misma
+  // tolerancia max(20 ms, 35 % de la mediana de "incorrecta"). Cambia solo cómo se toman las muestras:
+  // calentamiento descartado, 24 muestras por rama en vez de 9, y el orden de las tres ramas rota por
+  // las 6 permutaciones, así que ninguna rama ocupa siempre la misma posición de la ronda (con la
+  // suite en paralelo, el ruido que caía siempre en la primera posición cargaba una sola serie).
+  it("el tiempo de respuesta no distingue un correo inexistente de una contraseña incorrecta", async ({
+    annotate,
+  }) => {
     const usuario = await crearUsuarioDePrueba(ids)
     const inactivo = await crearUsuarioDePrueba(ids)
     await desactivarUsuarioDePrueba(inactivo.id)
@@ -219,25 +226,49 @@ describe("ataque: enumeración de cuentas en login", () => {
       return duracion
     }
 
-    // Calentamiento y muestras intercaladas para que la deriva afecte a las tres series por igual.
-    await medir(inexistente, "incorrecta-xxxx")
-    const tiempos = {
-      incorrecta: [] as number[],
-      inexistente: [] as number[],
-      inactivo: [] as number[],
+    type Rama = "incorrecta" | "inexistente" | "inactivo"
+    const ramas: Record<Rama, () => Promise<number>> = {
+      incorrecta: () => medir(usuario.email, "incorrecta-xxxx"),
+      inexistente: () => medir(inexistente, "incorrecta-xxxx"),
+      inactivo: () => medir(inactivo.email, inactivo.contrasena),
     }
-    for (let i = 0; i < 9; i += 1) {
-      tiempos.incorrecta.push(await medir(usuario.email, "incorrecta-xxxx"))
-      tiempos.inexistente.push(await medir(inexistente, "incorrecta-xxxx"))
-      tiempos.inactivo.push(await medir(inactivo.email, inactivo.contrasena))
+    const ORDENES: readonly (readonly Rama[])[] = [
+      ["incorrecta", "inexistente", "inactivo"],
+      ["inexistente", "inactivo", "incorrecta"],
+      ["inactivo", "incorrecta", "inexistente"],
+      ["incorrecta", "inactivo", "inexistente"],
+      ["inexistente", "incorrecta", "inactivo"],
+      ["inactivo", "inexistente", "incorrecta"],
+    ]
+    const medirRondas = async (rondas: number): Promise<Record<Rama, number[]>> => {
+      const tiempos: Record<Rama, number[]> = { incorrecta: [], inexistente: [], inactivo: [] }
+      for (let i = 0; i < rondas; i += 1) {
+        for (const rama of ORDENES[i % ORDENES.length] ?? [])
+          tiempos[rama].push(await ramas[rama]())
+      }
+      return tiempos
     }
+
+    // Calentamiento (argon2, JIT, conexión a la base): una vuelta completa de las 6 permutaciones,
+    // descartada.
+    await medirRondas(ORDENES.length)
+    const tiempos = await medirRondas(4 * ORDENES.length)
+
+    const cuartil = (valores: number[], q: number): number => {
+      const ordenados = [...valores].sort((a, b) => a - b)
+      return ordenados[Math.floor(q * (ordenados.length - 1))] ?? 0
+    }
+    const describir = (rama: Rama): string =>
+      `${rama}=${mediana(tiempos[rama]).toFixed(1)} [p25 ${cuartil(tiempos[rama], 0.25).toFixed(1)}, p75 ${cuartil(tiempos[rama], 0.75).toFixed(1)}]`
 
     const base = mediana(tiempos.incorrecta)
     const tolerancia = Math.max(20, base * 0.35)
-    const resumen = `medianas ms: incorrecta=${base.toFixed(1)} inexistente=${mediana(tiempos.inexistente).toFixed(1)} inactivo=${mediana(tiempos.inactivo).toFixed(1)}`
+    const resumen = `medianas ms (n=${tiempos.incorrecta.length} por rama): ${describir("incorrecta")} ${describir("inexistente")} ${describir("inactivo")} · tolerancia ${tolerancia.toFixed(1)}`
+    await annotate(resumen, "tiempos")
+    expect(tiempos.incorrecta).toHaveLength(24)
     expect(Math.abs(mediana(tiempos.inexistente) - base), resumen).toBeLessThan(tolerancia)
     expect(Math.abs(mediana(tiempos.inactivo) - base), resumen).toBeLessThan(tolerancia)
-  }, 60_000)
+  }, 120_000)
 })
 
 describe("ataque: login de cuentas con banderas", () => {

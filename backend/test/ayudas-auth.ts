@@ -11,8 +11,9 @@ import {
 } from "../src/adapters/auth/index.js"
 import { obtenerDb } from "../src/adapters/db/cliente.js"
 
-// Ayudas compartidas por las pruebas de autenticación. Aislamiento en campus_dev (R-08): correos
-// únicos @pruebas.local, ids o correos registrados por quien los crea y borrado en afterAll.
+// Ayudas compartidas por las pruebas de autenticación. Aislamiento dentro de la base desechable que
+// comparten los archivos de una corrida (test/global-setup.ts): correos únicos @pruebas.local, ids o
+// correos registrados por quien los crea y borrado en afterAll.
 // obtenerDb() se usa aquí, y solo aquí fuera de adapters/db, para preparar y limpiar datos.
 
 export const CONTRASENA_DE_PRUEBA = "clave-de-prueba-1234"

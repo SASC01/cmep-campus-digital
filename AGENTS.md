@@ -36,7 +36,7 @@ npm run dev              # API con recarga
 npm run dev:worker       # worker de la cola
 npm run build
 npm run lint
-npm run test             # Vitest (unitarias de core e integración contra el PostgreSQL de infra)
+npm run test             # Vitest: unitarias e integración contra un PostgreSQL desechable por corrida (Testcontainers; necesita Docker Desktop, no infra)
 npx prisma migrate dev   # crea y aplica una migración en local
 npx prisma generate
 npm run seed:admin       # crea la cuenta única de administrador con ADMIN_EMAIL, ADMIN_PASSWORD (≥ 10) y ADMIN_NOMBRE de backend/.env; falla si ya existe
@@ -135,9 +135,11 @@ La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, t
 ## Pruebas
 - Toda función de `core/` lleva pruebas unitarias. El cálculo de calificaciones cubre: categorías sin tareas calificadas, pesos redistribuidos, tareas sin calificar, rúbrica parcial, entregas tardías.
 - Todo endpoint nuevo lleva pruebas de autorización: rol incorrecto, clase ajena, alumno restringido y, si aplica, que no se filtre el estado de pago.
-- Las pruebas unitarias de `core/` usan dobles en memoria. Las de integración (handlers y repositorios) corren con Vitest contra el PostgreSQL del entorno de `infra/`, con la `DATABASE_URL` de `backend/.env`; nunca contra una base compartida ni contra `prod`. Testcontainers (una base desechable por corrida) queda pendiente para un encargo posterior.
+- Las pruebas unitarias de `core/` usan dobles en memoria. Las de integración (handlers y repositorios) corren con Vitest contra un PostgreSQL desechable que Testcontainers levanta en cada corrida (`backend/test/global-setup.ts`): la misma imagen que `infra/`, las migraciones aplicadas con `prisma migrate deploy` y un único administrador creado con `seed:admin`. Ninguna prueba se conecta a `campus_dev`, a una base compartida ni a `prod`: una guarda en `backend/test/setup.ts` detiene la suite si la base no es la desechable. Toda corrida del backend necesita Docker Desktop encendido.
+- **Riesgo residual de Testcontainers:** durante cada corrida del backend, Ryuk (el contenedor que limpia los de la corrida) publica su puerto en todas las interfaces, tiene acceso a Docker y no pide autenticación; Testcontainers 12.1 no permite ligarlo a `127.0.0.1`. El PostgreSQL de pruebas sí se liga a `127.0.0.1`. **No corras la suite del backend en una red pública o no confiable sin la mitigación aplicada en el equipo:** una regla del firewall de Windows que bloquee la entrada a `com.docker.backend.exe` en el perfil de esa red (Docker Desktop 4.48 ignora la opción `"ip"` del motor). La regla solo cubre el perfil en que se crea: una red no confiable clasificada como Privada no queda cubierta. Pasos y verificación en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`. En el equipo de Carlos está aplicado el bloqueo del firewall en el perfil Público; la opción de Docker Engine no aplica en Docker Desktop 4.48.
 - Avisos y correos se prueban a través de `notifier` con un doble en memoria que registra lo que se habría enviado. Ninguna prueba llama a Resend.
 - No marques nada como terminado con pruebas en rojo ni las desactives para que pase.
+- Toda prueba debe ejecutar al menos una aserción. Nunca termines una prueba con un return temprano cuando falte una condición previa: si falta, la prueba falla con un mensaje que lo explique.
 
 ## Git
 - Ramas: `feat/…`, `fix/…`, `chore/…`, `docs/…`.

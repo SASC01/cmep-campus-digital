@@ -39,7 +39,7 @@
 | Respaldos | `pg_dump` diario cifrado hacia un bucket de R2 + respaldos del Droplet | Cloudflare / DigitalOcean |
 | Empaquetado | Docker + Docker Compose | — |
 | Integración continua | GitHub Actions: lint, test, build y publicación de imágenes | GitHub |
-| Pruebas | Vitest. Backend: unitarias e integración contra el PostgreSQL de `infra/` (nunca una base compartida ni `prod`); Testcontainers pendiente. Frontend: jsdom + Testing Library · Playwright (hito 3) | — |
+| Pruebas | Vitest. Backend: unitarias e integración contra un PostgreSQL desechable por corrida con Testcontainers (misma imagen que `infra/`, migraciones con `prisma migrate deploy`; nunca `campus_dev`, una base compartida ni `prod`). Frontend: jsdom + Testing Library · Playwright (hito 3) | — |
 
 No se usa ninguna librería de AWS: el cliente de archivos es el paquete `minio`, que habla el protocolo S3 con cualquier almacén compatible.
 
@@ -140,7 +140,7 @@ Configuración en variables de entorno: `.env` fuera del repositorio, `.env.exam
 ├── backend/
 │   ├── prisma.config.ts    configuración del CLI de Prisma: esquema, migraciones y DATABASE_URL
 │   ├── prisma/             schema.prisma y migraciones
-│   ├── test/               configuración de Vitest y pruebas de integración
+│   ├── test/               configuración de Vitest (base desechable con Testcontainers) y pruebas de integración
 │   └── src/
 │       ├── config/         validación de las variables de entorno (zod) y opciones del logger
 │       ├── core/           lógica pura, sin I/O ni librerías de infraestructura
@@ -501,3 +501,4 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 | D-22 | Restablecimiento por el Administrador con contraseña temporal de un solo uso, como **respaldo** | Único camino · no tenerlo | Los correos no se verifican al registrarse, así que habrá direcciones mal escritas |
 | D-23 | Imágenes de MinIO para `dev` desde `quay.io`, con etiqueta fija; `quay.io` no cuenta como proveedor del proyecto | MinIO desde Docker Hub (ya no disponible) · otro almacén S3 local | Docker Hub niega la descarga de `minio/minio` y `minio/mc`; es solo el registro de una herramienta local y el almacén de `dev` sigue siendo reemplazable por configuración. Decisión escrita del humano en INFRA-01 |
 | D-24 | Prisma 7 con generador `prisma-client`, `@prisma/adapter-pg` y `pg`; cliente generado en `adapters/db/generated/`, no versionado | Prisma 6 con `prisma-client-js` y motor de consultas nativo | Última línea estable; sin motor nativo en la API ni en el worker, el adaptador habla con PostgreSQL a través de `pg`. Decidido en BACK-01 y aplicado en BACK-02 |
+| D-25 | Pruebas de integración contra un PostgreSQL desechable por corrida con Testcontainers (imagen fijada de `infra/`, `migrate deploy` al iniciar, un administrador sembrado con `seed:admin`); la imagen `testcontainers/ryuk` de Docker Hub es una herramienta local y no cuenta como proveedor | PostgreSQL de `infra/` (`campus_dev`) · un contenedor por archivo | Las pruebas escribían en la base de desarrollo; un contenedor por corrida aísla los datos sin multiplicar el tiempo de la suite. Acordado en M-05 de AUTH-01 y aplicado en CHORE-01 |

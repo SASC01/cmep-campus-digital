@@ -39,12 +39,12 @@ npm run lint
 npm run test             # Vitest (unitarias de core e integración contra el PostgreSQL de infra)
 npx prisma migrate dev   # crea y aplica una migración en local
 npx prisma generate
-npm run seed:admin       # crea la cuenta única de administrador
+npm run seed:admin       # crea la cuenta única de administrador con ADMIN_EMAIL, ADMIN_PASSWORD (≥ 10) y ADMIN_NOMBRE de backend/.env; falla si ya existe
+npm run reset:admin      # cambia la contraseña del administrador a ADMIN_PASSWORD y cierra sus sesiones; no activa el cambio obligatorio; nunca imprime la contraseña
 
 # Servicios locales (desde /infra)
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configuración local sin sobrescribirla
 docker compose up -d     # PostgreSQL, MinIO y LiveKit en modo dev
-npm run reset:admin      # (backend) restablece la contraseña del administrador
 docker compose down
 ```
 
@@ -126,6 +126,8 @@ Cuatro subagentes en `.claude/agents/`. El **orquestador** es la sesión princip
 - La carpeta `docs/trabajo/` se versiona: es el historial de decisiones de cada funcionalidad.
 - Los formateadores y cualquier comando con `--write`, `--fix` o `-i` se ejecutan solo acotados al paquete del encargo (`shared/`, `backend/` o `frontend/`), nunca desde la raíz sobre todo el repositorio.
 - Un agente no termina procesos que no arrancó; si el puerto está ocupado por un proceso ajeno o el remedio del plan no aplica, se detiene y pregunta.
+- En Windows, un proceso de larga vida (API, Vite, worker) se arranca redirigiendo su salida a un archivo y guardando su PID (por ejemplo, `Start-Process` con `-RedirectStandardOutput` y `-PassThru`); nunca combinado con una tubería, porque el hijo hereda la tubería y el comando no termina.
+- Cuando el plan dice detenerse ante una condición, te detienes aunque la alternativa parezca obvia o inofensiva. Resolverlo por tu cuenta es una desviación, aunque salga bien.
 
 ## Estilo de código, módulos y sistema de diseño
 La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.

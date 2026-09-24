@@ -51,7 +51,7 @@ features/
 
 | Módulo | Contenido | Roles |
 |--------|-----------|-------|
-| `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro), cambio obligatorio de contraseña, pantalla de acceso restringido | Todos |
+| `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro), cambio obligatorio de contraseña, pantalla de acceso restringido, bienvenida post-login (provisional hasta los dashboards) | Todos |
 | `clases` | Dashboard, muro, crear/editar clase, roster, buscador y alta manual de alumnos | Estudiante, Maestro |
 | `tareas` | Detalle de tarea, zona de entrega, crear tarea o material, rúbrica, hilo privado | Estudiante, Maestro |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |
@@ -65,12 +65,14 @@ features/
 ### Ubicaciones compartidas
 
 - `components/ui/` — componentes de shadcn/ui reestilizados
-- `components/layout/` — barra lateral, encabezado de página, contenedores por rol (`ContenedorRol`, `LayoutPublico`). El tipo `Rol` de `components/layout/types.ts` es provisional hasta que `shared/` exponga el enum de roles
+- `components/layout/` — barra lateral, encabezado de página, contenedores por rol (`ContenedorRol`, `LayoutPublico`). El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
 - `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `AvatarUsuario`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`) y `Cargando` (`cargando.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
+- `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
+- `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO`)
 - `services/liveService.ts` — conexión con LiveKit
 - `app/` — rutas, layouts y guardas por rol
 - `styles/index.css` — entrada de Tailwind (`@import "tailwindcss"`), importa `tokens.css`

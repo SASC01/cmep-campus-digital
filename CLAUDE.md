@@ -6,7 +6,7 @@ Las reglas de proceso (qué leer, reglas que no se rompen, qué requiere confirm
 
 @AGENTS.md
 
-Este archivo cubre **cómo se escribe el código**: estructura de módulos, sistema de diseño y estilo. No dupliques aquí reglas de `AGENTS.md`.
+Este archivo cubre **cómo se escribe el código**: estructura de módulos, reglas técnicas del sistema de diseño y estilo. El sistema visual (valores, tipografía, patrones, densidad y tono) vive en `docs/DESIGN.md`. No dupliques aquí reglas de `AGENTS.md` ni de `DESIGN.md`.
 
 ## Proyecto
 
@@ -16,7 +16,7 @@ CMEP Campus Digital es una plataforma educativa web para una sola institución. 
 - **`/backend`** — Node.js + Fastify + TypeScript (monolito modular), PostgreSQL con Prisma, pg-boss (cola y trabajos diferidos), autenticación propia (argon2id + JWT), archivos por protocolo S3 (R2 en `prod`, MinIO en `dev`), LiveKit Cloud, correo con Resend. Corre en Docker Compose sobre un Droplet de DigitalOcean
 - **`/infra`** — Docker Compose, Caddyfile, configuración de LiveKit, scripts de respaldo
 - **`/shared`** — tipos y esquemas zod comunes a ambos
-- **`/docs`** — `PRD.md`, `ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`
+- **`/docs`** — `PRD.md`, `ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`, `DESIGN.md` (con su captura de referencia en `design/`)
 
 **Fase experimental. Sin AWS.** Proveedores aprobados: DigitalOcean, Cloudflare, LiveKit Cloud y Resend. Los avisos son notificaciones dentro de la plataforma; el correo está activo para cuentas y, para avisos, construido pero apagado por defecto.
 
@@ -96,41 +96,15 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 
 ## Sistema de diseño
 
-### Solo modo claro. Sin modo oscuro durante el piloto.
+**`docs/DESIGN.md` es la fuente única del sistema visual:** principios de la dirección, tokens con su valor y uso, tipografía y escala, radios, espaciado, foco y contraste, patrones reutilizables, densidad por rol, tono de los textos y lo que no se hace. Consúltalo antes de tocar `frontend/`. Aquí solo quedan las reglas técnicas.
 
-### Dirección visual
+### Tokens
 
-Calmada, confiable y cercana, con un toque técnico. Editorial y cálida, con tipografía fuerte (referencias: Notion, Arc Browser, Linear). **No** es una escala de grises neutra con botones negros: ese es justo el aspecto genérico que el proyecto evita.
-
-> **Pendiente:** los valores concretos (colores, fuentes, radios) se fijan al elegir una de las 3 direcciones creativas. Hasta entonces, usa los **nombres** de token de abajo y no inventes valores definitivos.
-
-### Tokens (los nombres son definitivos; los valores, no)
-
-| Token | Uso |
-|-------|-----|
-| `--background` | Fondo de la aplicación |
-| `--surface` | Tarjetas y paneles |
-| `--foreground` | Texto principal y títulos |
-| `--muted` | Fondos sutiles |
-| `--muted-foreground` | Texto secundario |
-| `--border` | Todos los bordes |
-| `--primary` / `--primary-foreground` | Acción principal y su texto |
-| `--accent` | Énfasis puntual, enlaces, elemento activo |
-| `--destructive` | Errores y acciones destructivas |
-| `--success` | "Al corriente", entregado, calificado |
-| `--warning` | Entrega con retraso, fecha límite próxima, alumno en riesgo |
-| `--danger` | "Deudor", sin entregar, acceso restringido |
-
+- Solo modo claro. Sin modo oscuro durante el piloto.
+- Los tokens viven en `styles/tokens.css` con los nombres y valores de `DESIGN.md`, y Tailwind los expone mediante `@theme`. Un token nuevo o un valor que cambia se actualiza en los dos archivos en el mismo cambio.
 - Ningún color, tamaño de fuente, radio o sombra se escribe suelto en un componente. Siempre mediante token.
+- Los derivados que shadcn espera (`--card`, `--popover`, `--secondary`, `--input`, `--ring`…) apuntan a un token propio, nunca a un valor.
 - **El estado nunca se comunica solo con color:** siempre acompañado de texto o icono ("Deudor", "Con retraso").
-- Prohibido: degradados morado-azul, glassmorphism, manchas brillantes, dashboards flotantes, y cualquier color, logo, tipografía o iconografía de Google Classroom.
-
-### Tipografía
-
-- Una familia con carácter para títulos y una muy legible para texto; monoespaciada solo para códigos de clase. Familias concretas: **pendientes**.
-- Títulos: peso fuerte y `letter-spacing` negativo ligero.
-- Texto: `16px`, `line-height: 1.5`.
-- Cifras tabulares en tablas, calificaciones y gradebook.
 
 ### Componentes
 
@@ -144,21 +118,9 @@ Calmada, confiable y cercana, con un toque técnico. Editorial y cálida, con ti
 
 - Los formularios donde alguien captura datos de otra persona (el admin invitando o editando usuarios, un maestro agregando alumnos) usan `autoComplete="off"` en sus campos. `autoComplete` con valores como `name` o `email` solo se usa cuando la persona escribe sus propios datos.
 
-### Densidad por rol
+### Textos
 
-| Rol | Densidad | Patrón dominante |
-|-----|----------|------------------|
-| Estudiante | Ligera, mucho aire | Tarjetas y listas orientadas a la siguiente tarea |
-| Maestro | Intermedia | Listas con estado y tablas moderadas |
-| Administrador | Densa | Tablas con buscador, filtros y selección múltiple |
-
-Los tres comparten los mismos componentes y tokens; cambia el espaciado y la composición, no la biblioteca.
-
-### Textos de la interfaz
-
-- Español de México, tuteo, frases concretas: "Entrega tu tarea antes del jueves a las 23:59", no "Gestiona tus entregables".
-- Nombre del producto: "CMEP Campus Digital"; forma corta "Campus Digital".
-- Prohibido: "potencia", "desbloquea", "optimiza", "sin fricciones" y similares.
+- Los textos de la interfaz siguen el tono de `DESIGN.md` §9.
 - Sin emojis en el código ni en la interfaz.
 
 ## Estilo de código

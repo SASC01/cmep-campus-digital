@@ -11,8 +11,9 @@ Instrucciones para cualquier agente de IA que trabaje en este repositorio. Es la
 | `docs/ARCHITECTURE-ESSENTIALS.md` | **Siempre, antes de escribir código** |
 | `docs/PRD.md` | Al implementar o modificar una funcionalidad o una regla de negocio (busca el `RF-xx` o `RN-xx`) |
 | `docs/ARCHITECTURE.md` | Solo si ESSENTIALS no alcanza: flujos, atributos de tablas, justificación de decisiones |
+| `docs/DESIGN.md` | **En todo encargo que toque `frontend/`**: sistema visual, tokens con valores, patrones, densidad y tono |
 
-No cargues los tres por defecto. Si encuentras una contradicción entre documentos, detente y avisa.
+No los cargues todos por defecto. Si encuentras una contradicción entre documentos, detente y avisa.
 
 ## Comandos
 > Se completan al inicializar el proyecto. Mantener esta sección al día es parte de cualquier cambio que los altere.
@@ -55,7 +56,7 @@ backend/src/{core,adapters,middleware,handlers,workers}
 backend/prisma/   schema.prisma y migraciones
 shared/        tipos y esquemas zod comunes
 infra/         docker-compose, Caddyfile, LiveKit, respaldos
-docs/          PRD, arquitectura, operación y trabajo/<RF>/ (planes, reportes, revisiones)
+docs/          PRD, arquitectura, diseño (DESIGN.md y design/), operación y trabajo/<RF>/ (planes, reportes, revisiones)
 .claude/agents/ arquitecto, programador, tester, manager
 ```
 
@@ -133,9 +134,10 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 - Al inicio de cada sesión el orquestador lee docs/ESTADO.md. Al cerrar cada encargo, o antes de limpiar o compactar la sesión, lo actualiza.
 - Antes de instruir a un agente sobre qué archivo modificar, el orquestador comprueba que no esté en la lista 'No se toca' del plan; si lo está, pide autorización al humano.
 - Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
+- Todo patrón visual nuevo que cree un encargo se documenta en `docs/DESIGN.md` en ese mismo encargo, y el manager lo verifica en la revisión final.
 
 ## Estilo de código, módulos y sistema de diseño
-La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.
+La guía de código está en `CLAUDE.md`: estructura de módulos de `features/`, reglas técnicas de tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. El sistema visual (tokens con valores, tipografía, patrones, densidad por rol y tono) está en `docs/DESIGN.md`. Ambos aplican a cualquier agente, no solo a Claude.
 
 ## Pruebas
 - Toda función de `core/` lleva pruebas unitarias. El cálculo de calificaciones cubre: categorías sin tareas calificadas, pesos redistribuidos, tareas sin calificar, rúbrica parcial, entregas tardías.

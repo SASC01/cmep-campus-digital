@@ -84,7 +84,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-12 | Ver el muro de una clase (anuncios, materiales, tareas) y comentar publicaciones | M |
 | RF-13 | Ver el detalle de una tarea: instrucciones, adjuntos, fecha límite, puntos, rúbrica en solo lectura | M |
 | RF-14 | Entregar una tarea con **archivos y/o enlaces**; anular la entrega y volver a entregar mientras no esté calificada | M |
-| RF-15 | Las entregas después de la fecha límite se aceptan y se marcan "con retraso" | M |
+| RF-15 | Las entregas después de la fecha límite se aceptan y se marcan "con retraso", salvo que el maestro no acepte entregas tardías en esa tarea (RF-44): entonces la entrega se cierra en la fecha límite (TAREAS/ENTREGAS) | M |
 | RF-16 | Hilo de comentarios privados con el maestro dentro de cada tarea | M |
 | RF-17 | "Mis calificaciones" por clase: porcentaje general, lista de tareas con estado/calificación y filtro por estado (todo, asignado, entregado, calificado, sin entregar) | M |
 | RF-18 | Modal "Cálculo de calificación": desglose por categorías ponderadas | S |
@@ -93,6 +93,8 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-21 | Ver su propio estado de pago: "Deudor" o "Al corriente" | M |
 | RF-22 | Unirse a una clase en vivo: ver video y pantalla compartida del maestro, participar en el chat | M |
 | RF-23 | Ver las grabaciones de clases pasadas de sus clases | M |
+| RF-24 | Entregar con "Marcar como completada", sin archivos ni enlaces, una tarea que no requiere adjuntos (ENTREGAS) | S |
+| RF-25 | Las imágenes adjuntas a publicaciones del muro (anuncios y materiales) se muestran en vista previa dentro de la publicación. Los comentarios del muro siguen siendo solo texto (CLASES) | S |
 
 ### 4.3 Maestro
 
@@ -111,6 +113,8 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-40 | Programar una clase en vivo (fecha y hora) o iniciarla en el momento | M |
 | RF-41 | Impartir clase en vivo: video, compartir pantalla, chat, iniciar y detener grabación | M |
 | RF-42 | Calendario con sus fechas límite y sus clases en vivo | S |
+| RF-43 | Organizar el trabajo de clase (tareas y materiales) en **temas** o unidades con nombre y orden: crear, renombrar y reordenar temas, y mover elementos entre temas. Los temas son independientes de las categorías ponderadas de RF-32 (CLASES o TAREAS) | M |
+| RF-44 | Al crear o editar una tarea, elegir si acepta entregas después de la fecha límite. Por defecto sí, marcadas "con retraso"; si no las acepta, la entrega se cierra en la fecha límite (TAREAS/ENTREGAS) | M |
 
 ### 4.4 Administrador
 
@@ -263,7 +267,7 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 - Umbrales de "alumno en riesgo" de RN-05.
 
 **Preguntas abiertas**
-1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `CLAUDE.md`).
+1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió (dirección C, 2026-09-26); siguen abiertos el logo y los colores institucionales.
 2. ¿Se necesitará restringir también a maestros?
 3. ¿Habrá más de un profesor por clase (co-docencia)?
 4. Tamaño máximo de archivo por entrega (propuesta inicial: 100 MB; para video, usar enlace).

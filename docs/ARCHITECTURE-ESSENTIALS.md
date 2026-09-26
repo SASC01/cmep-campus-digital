@@ -104,7 +104,9 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Restricción de acceso: independiente del estado de pago. Solo admin, solo estudiantes, efecto inmediato, reversible.
 - Calificación general: categorías ponderadas; categorías sin tareas calificadas redistribuyen su peso; tareas sin calificar no cuentan.
 - Alumno en riesgo: promedio < 70 % o ≥ 3 tareas vencidas sin entregar.
-- Entrega tardía: se acepta y se marca `con_retraso`. Entregas admiten archivos y enlaces.
+- Entrega tardía: por defecto se acepta y se marca `con_retraso`. Al crear o editar la tarea, el maestro puede no aceptarlas: entonces la entrega se cierra en la fecha límite (RF-15, RF-44).
+- Entregas admiten archivos y enlaces. Una tarea que no requiere adjuntos se entrega con "Marcar como completada" (RF-24).
+- Temas: organizan las tareas y los materiales de una clase, con nombre y orden. Son independientes de las categorías ponderadas y no intervienen en la calificación (RF-43).
 
 ## Operación
 - PostgreSQL **nunca** expuesto a internet. Puertos 80/443 del Droplet solo desde los rangos de Cloudflare.

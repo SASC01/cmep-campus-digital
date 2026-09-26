@@ -45,3 +45,19 @@ export const cerrarConexion = async (): Promise<void> => {
   await cliente.$disconnect()
   cliente = undefined
 }
+
+// Puerto que adapters/queue le pasa a pg-boss como db de send() (DEC-07): permite que pg-boss
+// encole dentro de la misma transacción de Prisma. Igual que fromPrisma, el adaptador que pg-boss
+// publica (dist/adapters/prisma.js): pasa texto y valores tal como pg-boss los entrega, sin
+// transformarlos. Único $queryRawUnsafe de backend/src (V-13); handlers/ y workers/ solo reciben
+// esta capacidad envuelta en alGuardar(sql) y la pasan a encolar, nunca la invocan (regla 1 y 4).
+export interface EjecutorSql {
+  executeSql(texto: string, valores?: unknown[]): Promise<{ rows: unknown[] }>
+}
+
+export const ejecutorSqlDe = (tx: Prisma.TransactionClient): EjecutorSql => ({
+  executeSql: async (texto, valores) => {
+    const filas = await tx.$queryRawUnsafe(texto, ...(valores ?? []))
+    return { rows: Array.isArray(filas) ? filas : [] }
+  },
+})

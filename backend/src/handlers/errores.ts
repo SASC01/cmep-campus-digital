@@ -1,5 +1,6 @@
 import type { ErrorApi } from "@campus/shared"
-import type { FastifyError, FastifyReply } from "fastify"
+import type { FastifyError, FastifyReply, FastifyRequest } from "fastify"
+import { errorCodes } from "fastify"
 import fp from "fastify-plugin"
 
 import { esAppError } from "../core/errores.js"
@@ -7,6 +8,21 @@ import { esAppError } from "../core/errores.js"
 const responder = (reply: FastifyReply, estado: number, codigo: string, mensaje: string) => {
   const cuerpo: ErrorApi = { error: { codigo, mensaje } }
   return reply.status(estado).send(cuerpo)
+}
+
+// T-05: find-my-way corta un :id demasiado largo o mal codificado antes de llegar a un handler o a
+// manejoDeErrores, y por defecto responde fuera del formato de la API repitiendo la URL recibida
+// (error.message la interpola con "%s"). Se ignora ese mensaje a propósito: nunca se hace eco del
+// valor recibido.
+export const erroresDeEnrutamiento = (
+  error: FastifyError,
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): FastifyReply => {
+  if (error instanceof errorCodes.FST_ERR_MAX_PARAM_LENGTH) {
+    return responder(reply, 414, "SOLICITUD_INVALIDA", "La solicitud no es válida.")
+  }
+  return responder(reply, 400, "SOLICITUD_INVALIDA", "La solicitud no es válida.")
 }
 
 // Errores que Fastify marca con un estado 4xx (cuerpo mal formado, tipo de contenido, tamaño...).

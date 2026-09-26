@@ -33,7 +33,7 @@ npm run test         # Vitest con jsdom; no necesita la API ni infra
 # Backend (desde /backend)
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configuración local sin sobrescribirla
 npm run dev              # API con recarga
-npm run dev:worker       # worker de la cola
+npm run dev:worker       # worker de la cola (pg-boss): envía los correos de cuenta; fuera de production los escribe en backend/tmp/correos/ y nunca llama a Resend
 npm run build
 npm run lint
 npm run test             # Vitest: unitarias e integración contra un PostgreSQL desechable por corrida (Testcontainers; necesita Docker Desktop, no infra)
@@ -131,6 +131,7 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 - En Windows, un proceso de larga vida (API, Vite, worker) se arranca redirigiendo su salida a un archivo y guardando su PID (por ejemplo, `Start-Process` con `-RedirectStandardOutput` y `-PassThru`); nunca combinado con una tubería, porque el hijo hereda la tubería y el comando no termina.
 - Cuando el plan dice detenerse ante una condición, te detienes aunque la alternativa parezca obvia o inofensiva. Resolverlo por tu cuenta es una desviación, aunque salga bien.
 - Al inicio de cada sesión el orquestador lee docs/ESTADO.md. Al cerrar cada encargo, o antes de limpiar o compactar la sesión, lo actualiza.
+- Antes de instruir a un agente sobre qué archivo modificar, el orquestador comprueba que no esté en la lista 'No se toca' del plan; si lo está, pide autorización al humano.
 
 ## Estilo de código, módulos y sistema de diseño
 La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.

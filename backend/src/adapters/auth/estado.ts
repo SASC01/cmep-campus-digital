@@ -14,6 +14,9 @@ export interface ConfiguracionAuth {
 export interface EstadoAuth extends ConfiguracionAuth {
   clave: Uint8Array
   hashDeRelleno: string
+  // Clave HKDF derivada de jwtSecret (DEC-03): deriva el token de un enlace de cuenta a partir
+  // de su id, sin guardar el token en claro en ningún sitio.
+  claveTokensCuenta: Uint8Array
 }
 
 // Estado del adaptador: la clave del JWT, los parámetros de argon2 y el hash de relleno. Lo fija

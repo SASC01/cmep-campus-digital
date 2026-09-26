@@ -18,3 +18,26 @@ export {
 } from "./auth.js"
 export { errorApiSchema, type ErrorApi } from "./errores.js"
 export { saludRespuestaSchema, type SaludRespuesta } from "./salud.js"
+export {
+  buscarUsuarioRespuestaSchema,
+  buscarUsuarioSchema,
+  cambiarContrasenaSchema,
+  CODIGOS_CUENTAS,
+  contrasenaTemporalRespuestaSchema,
+  corregirCorreoSchema,
+  invitarMaestroSchema,
+  nuevaContrasenaConTokenSchema,
+  recuperarSchema,
+  tokenDeEnlaceSchema,
+  usuarioAdminSchema,
+  type BuscarUsuario,
+  type BuscarUsuarioRespuesta,
+  type CambiarContrasena,
+  type CodigoCuentas,
+  type ContrasenaTemporalRespuesta,
+  type CorregirCorreo,
+  type InvitarMaestro,
+  type NuevaContrasenaConToken,
+  type Recuperar,
+  type UsuarioAdmin,
+} from "./cuentas.js"

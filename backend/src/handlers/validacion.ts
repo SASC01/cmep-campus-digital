@@ -17,3 +17,14 @@ export const validarCuerpo = <T>(schema: z.ZodType<T>, cuerpo: unknown): T => {
   const mensaje = incidencia?.message ?? "valor inválido"
   throw new AppError("VALIDACION", `${campo}: ${mensaje}`, 400)
 }
+
+// Igual que validarCuerpo, para los parámetros de la URL (por ejemplo, :id).
+export const validarParametros = <T>(schema: z.ZodType<T>, parametros: unknown): T => {
+  const resultado = schema.safeParse(parametros)
+  if (resultado.success) return resultado.data
+
+  const incidencia = resultado.error.issues[0]
+  const campo = incidencia?.path.map(String).join(".") || "parámetro"
+  const mensaje = incidencia?.message ?? "valor inválido"
+  throw new AppError("VALIDACION", `${campo}: ${mensaje}`, 400)
+}

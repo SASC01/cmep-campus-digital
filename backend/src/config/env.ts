@@ -76,7 +76,9 @@ export const validarEnv = (fuente: Record<string, string | undefined>): Resultad
   return { ok: false, errores: formatearIncidencias(resultado.error.issues) }
 }
 
-const salirPorConfiguracionInvalida = (errores: readonly string[]): never => {
+// Se reexporta para config/correo.ts (DEC-12): el worker sale por el mismo camino si su
+// configuración de correo es inválida.
+export const salirPorConfiguracionInvalida = (errores: readonly string[]): never => {
   console.error(
     "Configuración inválida. Revisa backend/.env (si no existe, copia backend/.env.example):",
   )

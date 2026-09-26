@@ -41,7 +41,7 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Login: 5 intentos / 15 min por IP + correo. Mismo mensaje para usuario inexistente y contraseña incorrecta.
 - El correo es el identificador de acceso y **no se verifica**: puede estar mal escrito.
 - Registro público: solo estudiantes. Maestros: los crea el admin y reciben por correo un enlace de un solo uso (72 h) para establecer su contraseña. Admin: `npm run seed:admin`, cuenta única, sin endpoint.
-- **Recuperación por correo:** enlace de un solo uso, 30 min, guardado solo como hash (`tokens_cuenta`); misma respuesta y mismo tiempo exista o no el correo; 3 solicitudes por hora; al usarlo se revocan las sesiones.
+- **Recuperación por correo:** enlace de un solo uso, 30 min, guardado solo como hash (`tokens_cuenta`); misma respuesta y mismo tiempo exista o no el correo; 3 solicitudes por hora; al usarlo se revocan las sesiones. La API encola siempre y el worker resuelve la cuenta (no hay recuperación para el admin); límite de 3 por hora por IP + correo en la API y por cuenta en el worker. El token del enlace se deriva de su id con una clave del servidor y viaja en el fragmento de la URL.
 - **Respaldo por el admin:** contraseña temporal aleatoria mostrada **una sola vez**, guardada solo como hash, activa `debe_cambiar_contrasena` y revoca sesiones. El admin puede corregir un correo. La del admin: `npm run reset:admin`.
 
 ## Autorización (orden fijo, siempre en backend)
@@ -49,15 +49,16 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 
 - Rol, restricción y banderas se leen de la base en **cada** petición; no van en el token.
 - `debe_cambiar_contrasena`: solo pasa `POST /auth/cambiar-contrasena`.
-- Alumno restringido: solo `GET /me` y `GET /me/estado-pago`. Sin tokens de LiveKit, archivos ni grabaciones.
+- Alumno restringido: solo `GET /me` y `GET /me/estado-pago` (y `POST /auth/cambiar-contrasena` si tiene un cambio pendiente). Sin tokens de LiveKit, archivos ni grabaciones.
 - Estado de pago ajeno: solo admin, o maestro dueño de una clase del alumno. Para estudiantes el campo **se omite**.
 
 ## Reglas de datos
 - Prisma **solo** en `adapters/db`.
 - **Sin N+1:** ninguna consulta dentro de un ciclo.
 - Toda consulta filtra por columna indexada; toda lista se pagina (máx. 100).
-- SQL crudo solo parametrizado.
+- SQL crudo solo parametrizado. El único SQL con texto no literal que pasa por Prisma es el de pg-boss al encolar dentro de una transacción (`ejecutorSqlDe` en `adapters/db`, único `$queryRawUnsafe`): todos sus datos viajan como parámetros y el texto solo interpola el esquema, la tabla y el nombre de la cola (constantes del código).
 - Escrituras compuestas en **transacción**, incluido el encolado del evento.
+- Transacciones que crean, rotan o revocan sesiones en bloque, cambian la contraseña o escriben enlaces de un usuario existente: primero su fila de `usuarios` (`FOR SHARE` para crear o rotar su sesión; `FOR NO KEY UPDATE` para lo demás), en READ COMMITTED. Protocolo en `backend/src/adapters/README.md`.
 - Promedios, gradebook, alumnos en riesgo y KPIs: **consultas agregadas**, no contadores guardados.
 - Todo cambio de esquema es una migración de Prisma, **compatible hacia atrás** (frontend y backend se despliegan por separado).
 - Fechas `timestamptz` en UTC; ISO 8601 en la API.

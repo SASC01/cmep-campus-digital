@@ -108,6 +108,7 @@ const prepararBaseDePruebas = async (project: TestProject): Promise<() => Promis
     const cliDePrisma = createRequire(import.meta.url).resolve("prisma/build/index.js")
     ejecutarConNode([cliDePrisma, "migrate", "deploy"], envDeLosPasos, "prisma migrate deploy")
     ejecutarConNode(["--import", "tsx", "src/scripts/seed-admin.ts"], envDeLosPasos, "seed:admin")
+    ejecutarConNode(["--import", "tsx", "test/preparar-cola.ts"], envDeLosPasos, "preparar la cola")
 
     project.provide("entornoDePruebas", entorno)
   } catch (error) {

@@ -270,7 +270,10 @@ describe("ataque: rol y banderas se leen de la base en cada petición (mismo JWT
       where: { rol: "admin" },
       select: { id: true },
     })
-    if (!admin) return
+    // Precondición (CHORE-01): global-setup crea el único admin con seed:admin. Si falta, la prueba
+    // falla aquí en vez de pasar sin probar nada.
+    expect(admin, "la base desechable debe tener el admin que crea seed:admin").not.toBeNull()
+    if (!admin) throw new Error("Precondición: falta el admin de la base desechable")
     const token = await firmarTokenDePrueba({ usuarioId: admin.id })
     expect((await pedir("/prueba-ataque/solo-admin", token)).statusCode).toBe(200)
     expect((await pedir("/prueba-ataque/solo-maestro", token)).statusCode).toBe(403)
@@ -420,7 +423,11 @@ describe("ataque: sesiones de refresco", () => {
 })
 
 describe("ataque: superficie de rutas", () => {
-  it("bajo /api solo existen las 6 rutas de AUTH-01: ninguna crea admins ni maestros", () => {
+  // FE-01 (AUTH-02a, ronda 1 del Tester): la lista exacta pasa de las 6 rutas de AUTH-01 a las 14 de
+  // AUTH-01 + AUTH-02a. Lo que protege no cambia: ninguna ruta crea administradores y la única que
+  // crea maestros es POST /api/admin/maestros, que exige admin. Cualquier ruta nueva hace fallar
+  // esta prueba hasta que el Tester la revise.
+  it("bajo /api solo existen las rutas de AUTH-01 y AUTH-02a: ninguna crea admins; solo /admin/maestros crea maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     for (const linea of arbol.split("\n")) {
@@ -435,11 +442,65 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/salud",
       "HEAD /api/me",
       "HEAD /api/salud",
+      "POST /api/admin/maestros",
+      "POST /api/admin/usuarios/:id/restablecer-contrasena",
+      "POST /api/admin/usuarios/buscar",
+      "POST /api/auth/cambiar-contrasena",
+      "POST /api/auth/establecer-contrasena",
       "POST /api/auth/login",
       "POST /api/auth/logout",
+      "POST /api/auth/recuperar",
       "POST /api/auth/refrescar",
       "POST /api/auth/registro",
+      "POST /api/auth/restablecer",
+      "PUT /api/admin/usuarios/:id/correo",
     ])
+  })
+
+  it("POST /api/admin/maestros exige admin: sin token 401; estudiante y maestro 403 sin crear nada", async () => {
+    const estudiante = await crearUsuarioDePrueba(ids)
+    const maestro = await crearUsuarioDePrueba(ids, { rol: "maestro" })
+    const correoIntento = `fe01-${randomUUID()}@pruebas.local`
+    const invitar = (token?: string) =>
+      obtenerApp().inject({
+        method: "POST",
+        url: "/api/admin/maestros",
+        headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+        payload: { nombre: "Intento FE-01", email: correoIntento },
+      })
+
+    const sinToken = await invitar()
+    expect(sinToken.statusCode).toBe(401)
+    for (const usuario of [estudiante, maestro]) {
+      const respuesta = await invitar(await firmarTokenDePrueba({ usuarioId: usuario.id }))
+      expect(respuesta.statusCode).toBe(403)
+      expect(codigoDe(respuesta)).toBe("ROL_NO_PERMITIDO")
+    }
+    expect(await obtenerDb().usuario.count({ where: { email: correoIntento } })).toBe(0)
+  })
+
+  it("ninguna ruta nueva crea un administrador: invitar con rol admin en el cuerpo crea un maestro y sigue habiendo un solo admin", async () => {
+    const admin = await obtenerDb().usuario.findFirst({
+      where: { rol: "admin" },
+      select: { id: true },
+    })
+    expect(admin, "la base desechable debe tener el admin que crea seed:admin").not.toBeNull()
+    if (!admin) throw new Error("Precondición: falta el admin de la base desechable")
+    const correoInvitado = `fe01-${randomUUID()}@pruebas.local`
+    const respuesta = await obtenerApp().inject({
+      method: "POST",
+      url: "/api/admin/maestros",
+      headers: { authorization: `Bearer ${await firmarTokenDePrueba({ usuarioId: admin.id })}` },
+      payload: { nombre: "Invitado FE-01", email: correoInvitado, rol: "admin" },
+    })
+    const creado = await obtenerDb().usuario.findUnique({
+      where: { email: correoInvitado },
+      select: { id: true, rol: true },
+    })
+    if (creado) ids.push(creado.id)
+    expect(respuesta.statusCode).toBe(201)
+    expect(creado?.rol).toBe("maestro")
+    expect(await obtenerDb().usuario.count({ where: { rol: "admin" } })).toBe(1)
   })
 })
 

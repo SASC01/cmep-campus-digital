@@ -38,6 +38,11 @@ const otroModulo = (regex) => ({
     "Un módulo de features/ no importa de otro módulo; lo compartido sube a components/, lib/ o services/ y entra por @/ (CLAUDE.md, regla 9).",
 })
 
+// N-01: executeSql solo se invoca dentro de backend/src/adapters/. handlers/ y workers/ reciben la
+// capacidad en alGuardar(sql) y solo la pasan a encolar, nunca la invocan (AGENTS.md, reglas 1 y 4).
+const sqlSoloEnAdapters =
+  "executeSql solo se invoca dentro de backend/src/adapters/: handlers/ y workers/ reciben la capacidad en alGuardar(sql) y solo la pasan a encolar (AGENTS.md, reglas 1 y 4)."
+
 // Los workspaces invocan este archivo con --config ../eslint.config.mjs (DEC-08). Con --config,
 // ESLint resuelve files/ignores respecto al cwd, asi que se anclan a la raiz del repositorio.
 const raiz = import.meta.dirname
@@ -88,6 +93,38 @@ export default defineConfig(
             },
           ],
         },
+      ],
+    },
+  },
+  {
+    basePath: raiz,
+    files: ["backend/src/handlers/**", "backend/src/middleware/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: soloEnAdapters,
+          patterns: [
+            clienteGenerado,
+            {
+              regex: "adapters/notifier",
+              message:
+                "Los handlers y el middleware no envían avisos ni correos: encolan el evento y el worker usa adapters/notifier (AGENTS.md, reglas 5 y 12).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    basePath: raiz,
+    files: ["backend/src/**/*.{ts,mts,cts,js,mjs,cjs}"],
+    ignores: ["backend/src/adapters/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "MemberExpression[property.name='executeSql']", message: sqlSoloEnAdapters },
+        { selector: "MemberExpression[property.value='executeSql']", message: sqlSoloEnAdapters },
       ],
     },
   },

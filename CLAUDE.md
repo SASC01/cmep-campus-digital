@@ -1,5 +1,7 @@
 # CMEP Campus Digital — Guía de desarrollo
 
+Responde siempre al humano en español de México, incluidos resúmenes, preguntas y reportes.
+
 Las reglas de proceso (qué leer, reglas que no se rompen, qué requiere confirmación, pruebas, git, definición de terminado) viven en `AGENTS.md` y aplican completas:
 
 @AGENTS.md

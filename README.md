@@ -225,7 +225,7 @@ Debe responder solo la línea de encabezados.
 
 Mientras dura la corrida, Ryuk publica su puerto en todas las interfaces. No corras la suite en una red pública o no confiable sin la mitigación del firewall: regla en `AGENTS.md` ("Pruebas") y pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`.
 
-El backend tiene 65 archivos con 657 pruebas (desde AUTH-02: cuentas, correo, cola y worker): unitarias de `core/`, `config/` y `middleware/`, y de la guarda de la base de pruebas; de integración que levantan la API en memoria contra la base desechable, incluidas las de la cola transaccional y el worker de correo; y adversarias (`*.ataque.test.ts`, 319 de ellas en 21 archivos), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda unos 32 segundos: unos 7 para levantar y preparar la base (también instala el esquema `pgboss` y sus dos colas), y el resto porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`. Toda corrida del backend levanta la base, aunque filtres solo pruebas unitarias.
+El backend tiene 65 archivos con 657 pruebas (desde AUTH-02: cuentas, correo, cola y worker): unitarias de `core/`, `config/` y `middleware/`, y de la guarda de la base de pruebas; de integración que levantan la API en memoria contra la base desechable, incluidas las de la cola transaccional y el worker de correo; y adversarias (`*.ataque.test.ts`, 319 de ellas en 21 archivos), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 25 archivos con 258 pruebas: 183 adversarias, en 11 archivos. La suite del backend tarda unos 32 segundos: unos 7 para levantar y preparar la base (también instala el esquema `pgboss` y sus dos colas), y el resto porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`. Toda corrida del backend levanta la base, aunque filtres solo pruebas unitarias.
 
 Mensajes si falta algo:
 
@@ -244,7 +244,7 @@ npm run dev:worker
 
 Registra `"evento":"worker_listo"` con el canal de correo activo (`registro` fuera de `production`) y se queda esperando trabajos. Consume la cola `CORREO_DE_CUENTA` (recuperación e invitación) y su cola de fallidos: 3 reintentos con espera exponencial desde 30 s y, si se agotan, la cola de fallidos, que solo registra el evento `correo_de_cuenta_fallido`. Las dos colas retienen sus trabajos 1 día.
 
-En desarrollo, cada correo enviado queda como un archivo HTML en `backend/tmp/correos/` (el worker **nunca** llama a Resend fuera de `NODE_ENV=production`, aunque pongas una llave real): ábrelo con `Invoke-Item (Get-ChildItem backend\tmp\correos | Sort-Object LastWriteTime | Select-Object -Last 1).FullName` y sigue el enlace. El enlace apunta a `URL_PUBLICA_FRONTEND` (por defecto, la SPA de Vite); la pantalla que lo recibe llega con AUTH-02b.
+En desarrollo, cada correo enviado queda como un archivo HTML en `backend/tmp/correos/` (el worker **nunca** llama a Resend fuera de `NODE_ENV=production`, aunque pongas una llave real): ábrelo con `Invoke-Item (Get-ChildItem backend\tmp\correos | Sort-Object LastWriteTime | Select-Object -Last 1).FullName` y sigue el enlace. El enlace apunta a `URL_PUBLICA_FRONTEND` (por defecto, la SPA de Vite); la pantalla que lo recibe es `/restablecer` o `/establecer-contrasena`, según el flujo.
 
 Detenlo con Ctrl+C.
 
@@ -301,10 +301,16 @@ Abre `http://127.0.0.1:5173/login` y `http://127.0.0.1:5173/registro`, que habla
 
 Para recorrer el flujo completo:
 
-- **Administrador:** crea la cuenta con `npm run seed:admin` (sección "Backend en local", paso 5) y entra en `/login` con `ADMIN_EMAIL` y `ADMIN_PASSWORD`. Llegas a `/admin`.
+- **Administrador:** crea la cuenta con `npm run seed:admin` (sección "Backend en local", paso 5) y entra en `/login` con `ADMIN_EMAIL` y `ADMIN_PASSWORD`. Llegas a `/admin`, con la pantalla provisional de cuentas (invitar maestro, buscar una cuenta, restablecer su contraseña, corregir su correo).
 - **Estudiante:** crea una cuenta en `/registro`. Quedas con la sesión iniciada en `/estudiante`.
 
-Por ahora cada rol ve una bienvenida con su nombre y el botón "Cerrar sesión"; los dashboards llegan con sus módulos. Si recargas la página, la sesión se restaura sola con la cookie de refresco (el token de acceso vive solo en memoria).
+Por ahora el estudiante y el maestro ven una bienvenida con su nombre y el botón "Cerrar sesión"; los dashboards llegan con sus módulos. Si recargas la página, la sesión se restaura sola con la cookie de refresco (el token de acceso vive solo en memoria).
+
+Los correos de cuenta (recuperación e invitación) no salen de verdad fuera de `prod`: el worker los escribe como HTML en `backend/tmp/correos/` (sección "Backend en local", paso 8). Con la API y el worker corriendo (ese mismo paso), recorre estos tres flujos:
+
+- **Recuperación de contraseña:** en `/login`, entra a "¿Olvidaste tu contraseña?" y pide el enlace con el correo de una cuenta existente. Abre el HTML más reciente de `backend/tmp/correos/` (sección "Backend en local", paso 8) y sigue el enlace `http://127.0.0.1:5173/restablecer#token=...`: elige una contraseña nueva y vuelves a `/login` con el aviso de que se actualizó.
+- **Invitación de un maestro:** entra como administrador a `/admin` y usa "Invitar a un maestro". Abre el HTML nuevo de `backend/tmp/correos/` de la misma forma y sigue el enlace `http://127.0.0.1:5173/establecer-contrasena#token=...`: elige su contraseña y vuelves a `/login` con el aviso de que la cuenta quedó lista.
+- **Restablecimiento por el admin:** en `/admin`, busca una cuenta por su correo exacto y usa "Restablecer contraseña" (con su confirmación en línea). Copia la contraseña temporal que se muestra una sola vez, entra con ella en `/login` y, en `/cambiar-contrasena`, elige una contraseña propia.
 
 ### 4. Comprobar, probar y compilar
 

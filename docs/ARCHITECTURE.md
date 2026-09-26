@@ -509,7 +509,7 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 | D-01 | **Sin AWS; proveedores aprobados y reemplazables por configuración** | Arquitectura serverless en AWS (v1) · todo autoalojado (v2) | Decisión del proyecto; fase experimental con costo mínimo y migración fácil |
 | D-02 | Autenticación propia (argon2id + JWT + refresco rotativo) | Keycloak · servicios de identidad | Un método de acceso y tres roles no justifican más |
 | D-03 | Sin verificación de correo al registrarse | Código por correo | Decisión de producto |
-| D-04 | Maestros dados de alta por el admin | Registro público | Sin verificación, el registro abierto de maestros es un riesgo |
+| D-04 | Maestros dados de alta por el admin: por invitación individual o masiva, o con un **enlace de registro** que genera el admin (vigencia configurable, 7 días por defecto; revocable; guardado solo como hash; el admin ve quién se registró con cada enlace). Actualizada el 2026-09-26 por decisión del humano; el enlace y la invitación masiva se implementan en AUTH-03 | Registro público abierto | Sin verificación, el registro abierto de maestros es un riesgo. El enlace del admin acota quién se registra y por cuánto tiempo, y es revocable y auditable, así que los maestros ya no dependen solo del alta manual |
 | D-05 | PostgreSQL + Prisma | MySQL · MongoDB | Datos muy relacionales; agregados y búsqueda resueltos en la base |
 | D-06 | Monolito modular con Fastify | Microservicios · NestJS · Express | Una sola unidad que desplegar y depurar |
 | D-07 | pg-boss | Redis + BullMQ | La cola vive en PostgreSQL: transaccional y un servicio menos |

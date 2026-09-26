@@ -132,6 +132,7 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 - Cuando el plan dice detenerse ante una condición, te detienes aunque la alternativa parezca obvia o inofensiva. Resolverlo por tu cuenta es una desviación, aunque salga bien.
 - Al inicio de cada sesión el orquestador lee docs/ESTADO.md. Al cerrar cada encargo, o antes de limpiar o compactar la sesión, lo actualiza.
 - Antes de instruir a un agente sobre qué archivo modificar, el orquestador comprueba que no esté en la lista 'No se toca' del plan; si lo está, pide autorización al humano.
+- Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 
 ## Estilo de código, módulos y sistema de diseño
 La guía completa está en `CLAUDE.md`: estructura de módulos de `features/`, tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. Aplica a cualquier agente, no solo a Claude.

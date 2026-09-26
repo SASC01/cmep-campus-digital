@@ -48,7 +48,7 @@ Toda la funcionalidad es nativa: **no hay integraciones con Google** (ni Calenda
 | Rol | Quién es | Cómo obtiene su cuenta | Tarea principal |
 |---|---|---|---|
 | **Estudiante** | Alumno de la institución | Registro público con correo y contraseña. Acceso inmediato, sin verificación por código | Entregar tareas |
-| **Maestro** | Docente de la institución | Lo da de alta el Administrador. No existe registro público de maestros | Calificar |
+| **Maestro** | Docente de la institución | Lo da de alta el Administrador, por invitación individual o masiva, o se registra con un enlace de registro que genera el Administrador (AUTH-03). No existe registro público abierto de maestros | Calificar |
 | **Administrador** | Personal administrativo | Cuenta **única**, predefinida. Sin registro ni recuperación pública | Gestionar usuarios, pagos y acceso |
 
 Todos los roles deben iniciar sesión antes de ver cualquier contenido.
@@ -66,8 +66,10 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-03 | Los correos salen a nombre del dominio del colegio, con la identidad del producto. El correo del usuario no se verifica al registrarse | M |
 | RF-04 | Recuperación de contraseña por autoservicio: enlace de un solo uso enviado por correo, con vigencia de 30 minutos | M |
 | RF-04a | Respaldo: el Administrador puede restablecer la contraseña de un usuario (contraseña temporal mostrada una sola vez) y corregir su correo. El login indica "¿No te llega el correo? Acude a administración" | M |
-| RF-04b | El maestro dado de alta por el Administrador recibe por correo un enlace de un solo uso para establecer su contraseña | M |
-| RF-04d | Quien entra con contraseña temporal debe cambiarla antes de poder hacer cualquier otra cosa | M |
+| RF-04b | El maestro dado de alta por el Administrador recibe por correo un enlace de un solo uso para establecer su contraseña. Al establecerla ve su nombre y puede corregirlo antes de guardar (AUTH-03) | M |
+| RF-04e | Invitación masiva de maestros: el Administrador pega una lista de correos, con un nombre opcional por línea. La pantalla reporta cuántas invitaciones se enviaron, qué correos ya tenían cuenta y cuáles son inválidos, y respeta los límites diarios de envío del servicio de correo (AUTH-03) | S |
+| RF-04f | Registro de maestros por enlace: el Administrador genera un enlace de registro con vigencia configurable (7 días por defecto), puede revocarlo y ve quiénes se registraron con cada enlace. El enlace se guarda solo como hash (AUTH-03) | M |
+| RF-04d | Quien entra con contraseña temporal debe cambiarla antes de poder hacer cualquier otra cosa. El cambio obligatorio pide solo la contraseña nueva y su confirmación, no la temporal (AUTH-03). Un futuro cambio voluntario de contraseña desde el perfil sí pedirá la contraseña actual | M |
 | RF-04c | Cerrar sesión; dar de baja o restringir a un usuario cierra sus sesiones activas | M |
 | RF-05 | Tras iniciar sesión, cada rol llega directamente a su dashboard | M |
 | RF-06 | La pantalla de login muestra a la **izquierda un panel desplazable de anuncios** (imágenes, título, texto) y a la derecha el formulario. En móvil el panel pasa arriba, en formato compacto | M |
@@ -121,6 +123,8 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-54 | Gestión de estado de pago: tabla con buscador, filtro por estado, cambio desde la fila y **selección múltiple** para cambiar varios a la vez | M |
 | RF-55 | Restringir y restablecer el acceso de un alumno, con motivo opcional y confirmación previa. Disponible desde Gestión de usuarios y como columna en la tabla de estado de pago | M |
 | RF-56 | Configuración general: permisos, anuncios del login e **interruptores de avisos por correo** (uno por tipo de evento) | S |
+| RF-57 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (ADMIN) | M |
+| RF-58 | El Administrador puede editar el nombre de cualquier usuario (ADMIN) | M |
 
 ### 4.5 Notificaciones
 

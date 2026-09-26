@@ -61,7 +61,7 @@ features/
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
-| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login | Administrador |
+| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`), hasta la gestión de usuarios completa | Administrador |
 | `diagnostico` | Vista temporal de `/api/salud` (prueba de conexión con la API). Se mueve a `admin` o se elimina cuando exista ese módulo | Sin sesión (temporal) |
 
 ### Ubicaciones compartidas
@@ -74,7 +74,7 @@ features/
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
-- `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO`)
+- `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` o `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)
 - `services/liveService.ts` — conexión con LiveKit
 - `app/` — rutas, layouts y guardas por rol
 - `styles/index.css` — entrada de Tailwind (`@import "tailwindcss"`), importa `tokens.css`
@@ -139,6 +139,10 @@ Calmada, confiable y cercana, con un toque técnico. Editorial y cálida, con ti
 - Botón de acción principal: `variant="primary"`. Por defecto: `variant="outline"`. Destructivo: `variant="destructive"`.
 - Una sola acción principal por vista.
 - Iconos: `lucide-react`. Avisos: `sonner`.
+
+### Formularios
+
+- Los formularios donde alguien captura datos de otra persona (el admin invitando o editando usuarios, un maestro agregando alumnos) usan `autoComplete="off"` en sus campos. `autoComplete` con valores como `name` o `email` solo se usa cuando la persona escribe sus propios datos.
 
 ### Densidad por rol
 

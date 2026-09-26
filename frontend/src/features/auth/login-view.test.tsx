@@ -32,8 +32,10 @@ const stubFetch = (manejador: (ruta: string) => Response | Promise<Response>) =>
   return fetchMock
 }
 
-const renderLogin = () => {
-  const router = createMemoryRouter(rutas, { initialEntries: ["/login"] })
+const renderLogin = (state?: unknown) => {
+  const router = createMemoryRouter(rutas, {
+    initialEntries: [state === undefined ? "/login" : { pathname: "/login", state }],
+  })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
@@ -153,5 +155,13 @@ describe("LoginView", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     responder(errorJson(401, "CREDENCIALES_INVALIDAS"))
     await waitFor(() => expect(boton).toBeEnabled())
+  })
+
+  it("con state.aviso muestra el aviso con role=status", () => {
+    renderLogin({ aviso: "contrasena-actualizada" })
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Tu contraseña se actualizó. Inicia sesión con la nueva.",
+    )
   })
 })

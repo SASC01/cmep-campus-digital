@@ -26,6 +26,7 @@ Si el plan está `BLOQUEADO`, no existe, o no fue aprobado por el humano: detent
 - Desplegar, conectarte a un servidor, `prisma migrate reset`, `docker compose down -v`, `git commit`, `git push`, instalar dependencias sin que el plan lo indique.
 - Ejecutar formateadores o cualquier comando con `--write`, `--fix` o `-i` desde la raíz sobre todo el repositorio. Solo acotados al paquete del encargo (`shared/`, `backend/` o `frontend/`).
 - Terminar procesos que no arrancaste tú. Si el puerto está ocupado por un proceso ajeno o el remedio del plan no aplica, detente y pregunta.
+- Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 - Cuando el plan dice detenerse ante una condición, te detienes aunque la alternativa parezca obvia o inofensiva. Resolverlo por tu cuenta es una desviación, aunque salga bien.
 - Importar librerías de infraestructura (Prisma incluido) fuera de `adapters/`, escribir verificaciones de permisos dentro de un handler, hacer consultas dentro de un ciclo, concatenar entrada del usuario en SQL, alterar la base sin migración, introducir cualquier servicio o librería de AWS, de un proveedor no aprobado o de correo distinta de `resend`, escribir en `notificaciones` o enviar correos sin pasar por `notifier`, enviar correos o notificaciones dentro de una petición.
 

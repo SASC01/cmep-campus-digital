@@ -117,4 +117,40 @@ describe("rutas", () => {
     const { irA } = await import("@/services/navegacion")
     expect(irA).not.toHaveBeenCalled()
   })
+
+  it("con /me 403 CAMBIO_DE_CONTRASENA_REQUERIDO, /estudiante termina en /cambiar-contrasena con el formulario", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      return respuestaJson(403, {
+        error: {
+          codigo: "CAMBIO_DE_CONTRASENA_REQUERIDO",
+          mensaje: "Debes cambiar tu contraseña antes de continuar.",
+        },
+      })
+    })
+
+    const router = await renderEn("/estudiante")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/cambiar-contrasena"))
+    expect(await screen.findByRole("heading", { name: "Cambia tu contraseña" })).toBeInTheDocument()
+  })
+
+  it("con /me 200, /cambiar-contrasena termina en el dashboard del rol", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      return respuestaJson(200, me())
+    })
+
+    const router = await renderEn("/cambiar-contrasena")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
+  })
+
+  it("sin sesión, /cambiar-contrasena termina en /login", async () => {
+    stubFetch(() => sesionInvalida())
+
+    const router = await renderEn("/cambiar-contrasena")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+  })
 })

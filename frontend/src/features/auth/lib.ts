@@ -1,6 +1,7 @@
 import { esApiError } from "@/services/apiClient"
 
 import {
+  AVISOS_LOGIN,
   CAMPOS_FORMULARIO_AUTH,
   ETIQUETAS_ROL,
   MENSAJE_ERROR_AUTH_GENERICO,
@@ -10,12 +11,16 @@ import {
 } from "./data"
 import type {
   Anuncio,
+  AvisoDeLogin,
   CampoFormularioAuth,
   ErroresFormulario,
   IncidenciaValidacion,
   MeRespuesta,
   Rol,
 } from "./types"
+
+// Solo #token=<43 base64url> (DEC-18): cualquier otra forma es un enlace inválido, sin petición.
+const PATRON_TOKEN_FRAGMENTO = /^#token=([A-Za-z0-9_-]{43})$/
 
 // Copia ordenada por orden ascendente. Array.prototype.sort es estable; se copia para no mutar.
 export const ordenarAnuncios = (anuncios: readonly Anuncio[]): Anuncio[] =>
@@ -56,3 +61,27 @@ export const erroresPorCampo = (
   }
   return errores
 }
+
+// DEC-18: token del fragmento leído una sola vez; null si no tiene la forma esperada.
+export const leerTokenDelFragmento = (hash: string): string | null => {
+  const coincidencia = PATRON_TOKEN_FRAGMENTO.exec(hash)
+  return coincidencia?.[1] ?? null
+}
+
+// DEC-17: simétrico a esApiError(error) && error.codigo === "ACCESO_RESTRINGIDO".
+export const requiereCambioDeContrasena = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "CAMBIO_DE_CONTRASENA_REQUERIDO"
+
+const esAvisoDeLogin = (valor: unknown): valor is AvisoDeLogin =>
+  typeof valor === "string" && Object.hasOwn(AVISOS_LOGIN, valor)
+
+// Aviso de /login tras un enlace de cuenta (DEC-17). Un state desconocido no muestra nada.
+export const avisoDeLogin = (estado: unknown): string | null => {
+  if (typeof estado !== "object" || estado === null || !("aviso" in estado)) return null
+  const { aviso } = estado as { aviso: unknown }
+  if (!esAvisoDeLogin(aviso)) return null
+  return AVISOS_LOGIN[aviso]
+}
+
+// Validación de confirmación (solo en cliente: el servidor no conoce ese campo).
+export const contrasenasCoinciden = (a: string, b: string): boolean => a === b

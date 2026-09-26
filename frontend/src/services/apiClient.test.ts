@@ -1,9 +1,14 @@
-import { meRespuestaSchema, saludRespuestaSchema } from "@campus/shared"
+import {
+  meRespuestaSchema,
+  saludRespuestaSchema,
+  sinContenidoSchema,
+  tokenAccesoRespuestaSchema,
+} from "@campus/shared"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ApiError, api, esApiError } from "./apiClient"
 import { establecerToken, haySesion, limpiarToken, obtenerToken } from "./authService"
-import { irA } from "./navegacion"
+import { irA, rutaActual } from "./navegacion"
 
 vi.mock("./navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/estudiante") }))
 
@@ -220,5 +225,73 @@ describe("api: refresco silencioso y casos especiales", () => {
 
     expect(esApiError(error) && error.codigo).toBe("ACCESO_RESTRINGIDO")
     expect(irA).toHaveBeenCalledWith("/acceso-restringido")
+  })
+
+  it("un 403 CAMBIO_DE_CONTRASENA_REQUERIDO lleva a /cambiar-contrasena y el error se lanza igual", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(errorJson(403, "CAMBIO_DE_CONTRASENA_REQUERIDO"))),
+    )
+    establecerToken("vigente")
+
+    const error = await api("/api/clases", { schema: saludRespuestaSchema }).catch(
+      (e: unknown) => e,
+    )
+
+    expect(esApiError(error) && error.codigo).toBe("CAMBIO_DE_CONTRASENA_REQUERIDO")
+    expect(irA).toHaveBeenCalledWith("/cambiar-contrasena")
+  })
+
+  it("estando ya en /cambiar-contrasena, un 403 CAMBIO_DE_CONTRASENA_REQUERIDO no navega otra vez", async () => {
+    vi.mocked(rutaActual).mockReturnValueOnce("/cambiar-contrasena")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(errorJson(403, "CAMBIO_DE_CONTRASENA_REQUERIDO"))),
+    )
+    establecerToken("vigente")
+
+    const error = await api("/api/clases", { schema: saludRespuestaSchema }).catch(
+      (e: unknown) => e,
+    )
+
+    expect(esApiError(error) && error.codigo).toBe("CAMBIO_DE_CONTRASENA_REQUERIDO")
+    expect(irA).not.toHaveBeenCalled()
+  })
+
+  it("un 401 con token en /api/auth/cambiar-contrasena refresca y reintenta (única excepción bajo /api/auth/)", async () => {
+    const fetchMock = vi.fn<typeof fetch>((entrada, init) => {
+      if (String(entrada) === "/api/auth/refrescar") {
+        return Promise.resolve(respuestaJson(200, { tokenAcceso: "nuevo" }))
+      }
+      if (autorizacionDe(init) === "Bearer nuevo")
+        return Promise.resolve(new Response(null, { status: 204 }))
+      return Promise.resolve(errorJson(401, "NO_AUTENTICADO"))
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    establecerToken("viejo")
+
+    await api("/api/auth/cambiar-contrasena", {
+      method: "POST",
+      body: { contrasenaActual: "x", contrasenaNueva: "clave-nueva-1234" },
+      schema: sinContenidoSchema,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(llamadasA(fetchMock, "/api/auth/refrescar")).toBe(1)
+    expect(obtenerToken()).toBe("nuevo")
+  })
+
+  it("un 401 con token en /api/auth/login sigue sin refrescar", async () => {
+    const fetchMock = stubConRefresco(() => Promise.resolve(errorJson(401, "SESION_INVALIDA")))
+    establecerToken("viejo")
+
+    const error = await api("/api/auth/login", {
+      method: "POST",
+      body: {},
+      schema: tokenAccesoRespuestaSchema,
+    }).catch((e: unknown) => e)
+
+    expect(esApiError(error) && error.codigo).toBe("NO_AUTENTICADO")
+    expect(llamadasA(fetchMock, "/api/auth/refrescar")).toBe(0)
   })
 })

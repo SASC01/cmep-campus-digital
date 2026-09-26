@@ -33,8 +33,17 @@ const baseUrl = import.meta.env.VITE_API_URL ?? ""
 
 const RUTA_REFRESCO = "/api/auth/refrescar"
 const PREFIJO_AUTH = "/api/auth/"
+// Única ruta protegida bajo /api/auth/: sí puede refrescar y reintentar ante un 401 (DEC-17).
+const RUTA_CAMBIAR_CONTRASENA_API = "/api/auth/cambiar-contrasena"
 const RUTA_ACCESO_RESTRINGIDO = "/acceso-restringido"
-const RUTAS_SIN_SESION = ["/login", "/registro"]
+const RUTA_CAMBIO_DE_CONTRASENA = "/cambiar-contrasena"
+const RUTAS_SIN_SESION = [
+  "/login",
+  "/registro",
+  "/recuperar",
+  "/restablecer",
+  "/establecer-contrasena",
+]
 // La API responde JSON incluso en 500. Un 5xx sin JSON viene del proxy de Vite o de Caddy con la
 // API caída: para la interfaz es "sin conexión", no una respuesta inválida (DEC-12).
 const ESTADOS_SIN_CONEXION = [500, 502, 503, 504]
@@ -129,15 +138,19 @@ const errorDeRespuesta = (respuesta: Response, cuerpo: unknown): ApiError => {
 }
 
 // Casos especiales que se resuelven aquí y no en cada vista (CLAUDE.md > Casos especiales).
-// 403 CAMBIO_DE_CONTRASENA_REQUERIDO: punto de extensión para AUTH-02 (pantalla de cambio de
-// contraseña); hoy el error se lanza tal cual.
+// 403 CAMBIO_DE_CONTRASENA_REQUERIDO: simétrico a ACCESO_RESTRINGIDO (DEC-17); el error se lanza
+// igual para que la guarda o el llamador decidan.
 const procesar = async <T>(respuesta: Response, opciones: OpcionesApi<T>): Promise<T> => {
   const cuerpo = respuesta.status === 204 ? undefined : await leerJson(respuesta)
 
   if (!respuesta.ok) {
     const error = errorDeRespuesta(respuesta, cuerpo)
     const restringido = respuesta.status === 403 && error.codigo === "ACCESO_RESTRINGIDO"
+    const cambioRequerido =
+      respuesta.status === 403 && error.codigo === "CAMBIO_DE_CONTRASENA_REQUERIDO"
     if (restringido && rutaActual() !== RUTA_ACCESO_RESTRINGIDO) irA(RUTA_ACCESO_RESTRINGIDO)
+    if (cambioRequerido && rutaActual() !== RUTA_CAMBIO_DE_CONTRASENA)
+      irA(RUTA_CAMBIO_DE_CONTRASENA)
     throw error
   }
 
@@ -157,13 +170,16 @@ const perderSesion = (): ApiError => {
 
 // Único fetch de la aplicación (CLAUDE.md, regla 8). Ante un 401 en una ruta que no es de
 // /api/auth/ y SOLO si se envió un token (vencido), refresca y reintenta una vez. Sin token, el 401
-// se lanza tal cual: la guarda de rutas decide (M-08).
+// se lanza tal cual: la guarda de rutas decide (M-08). /api/auth/cambiar-contrasena es la única
+// excepción bajo /api/auth/: sí refresca (DEC-17).
 export const api = async <T>(ruta: string, opciones: OpcionesApi<T>): Promise<T> => {
   const tokenEnviado = obtenerToken()
   const respuesta = await enviar(ruta, opciones, tokenEnviado)
 
   const debeRefrescar =
-    respuesta.status === 401 && tokenEnviado !== undefined && !ruta.startsWith(PREFIJO_AUTH)
+    respuesta.status === 401 &&
+    tokenEnviado !== undefined &&
+    (!ruta.startsWith(PREFIJO_AUTH) || ruta === RUTA_CAMBIAR_CONTRASENA_API)
   if (!debeRefrescar) return procesar(respuesta, opciones)
 
   const refrescada = await refrescarSesion()

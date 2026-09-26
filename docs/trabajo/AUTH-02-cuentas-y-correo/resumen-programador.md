@@ -436,3 +436,372 @@ La ronda 2 anteponía a `usarTokenYCambiarContrasena` y `prepararTokenDeRecupera
 6. `backend/src/handlers/auth/index.ts`: **diff de tres líneas**, todo dentro del bloque de `POST /login` (reproducido en V-22 arriba, para que el humano lo revise sin tener que abrir el archivo completo).
 7. `backend/src/adapters/README.md`: sección nueva, solo documentación.
 8. `backend/test/ayudas-concurrencia.ts` y `backend/test/bloqueo-usuario.integracion.test.ts` (nuevos): la ayuda de concurrencia y las 19 pruebas.
+
+# Resumen del Programador — AUTH-02b — ronda 1
+
+Plan: `docs/trabajo/AUTH-02-cuentas-y-correo/plan.md` (Enmienda 1, sección "AUTH-02b"). Aprobación: `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md` ("Inicio de AUTH-02b — 2026-09-26"). AUTH-02a ya está fusionada en `main` (PR #10, `b55897a`); rama de trabajo `feat/auth-02b-cuentas-frontend`, creada por el orquestador desde ese `main`. Pasos 16 a 21, 22 (sección "Frontend en local" §3 del README), 23b y 24b del plan.
+
+## Pasos completados
+
+16. `frontend/src/services/apiClient.ts`: `procesar` ahora trata `403 CAMBIO_DE_CONTRASENA_REQUERIDO` de forma simétrica a `403 ACCESO_RESTRINGIDO` (`irA("/cambiar-contrasena")`, salvo estando ya ahí); `api` deja de excluir `POST /api/auth/cambiar-contrasena` del refresco ante `401` (única excepción bajo `/api/auth/`); `RUTAS_SIN_SESION` suma `/recuperar`, `/restablecer` y `/establecer-contrasena`. `apiClient.test.ts`: +4 casos (403 CAMBIO… navega; ya en `/cambiar-contrasena` no navega otra vez; 401 con token en `/api/auth/cambiar-contrasena` refresca y reintenta; 401 con token en `/api/auth/login` sigue sin refrescar). `services/navegacion.ts`: comentario ampliado con el nuevo caso.
+17. `features/auth/types.ts`: reexporta `Recuperar`, `NuevaContrasenaConToken`, `CambiarContrasena`; `CampoFormularioAuth` suma `contrasenaActual` / `contrasenaNueva` / `confirmacion`; nuevos `TipoEnlace`, `AvisoDeLogin`, `EstadoDeNavegacionLogin` e interfaz `TextosNuevaContrasena` (para tipar `TEXTOS_NUEVA_CONTRASENA` por tipo de enlace; no estaba en la lista literal del plan pero es necesaria para no declarar el objeto sin tipo — ver "Desviaciones"). `features/auth/data.ts`: `TEXTOS_RECUPERAR`, `TEXTOS_NUEVA_CONTRASENA` (por `recuperacion` / `invitacion`), `TEXTOS_CAMBIAR`, `AVISOS_LOGIN`, `RUTA_CAMBIAR_CONTRASENA`, `MENSAJE_CONFIRMACION_NO_COINCIDE`; `MENSAJES_ERROR_AUTH` suma `ENLACE_INVALIDO`, `DEMASIADAS_SOLICITUDES`, `CONTRASENA_ACTUAL_INCORRECTA`, `CONTRASENA_REPETIDA`, `CAMBIO_DE_CONTRASENA_REQUERIDO`; `CAMPOS_FORMULARIO_AUTH` con los tres campos nuevos. `features/auth/lib.ts`: `leerTokenDelFragmento`, `requiereCambioDeContrasena`, `avisoDeLogin`, `contrasenasCoinciden`. `lib.test.ts`: +5 casos (los tres de `leerTokenDelFragmento`, `requiereCambioDeContrasena`, `avisoDeLogin`) más 2 adicionales de refuerzo (`contrasenasCoinciden`) — ver "Desviaciones".
+18. `features/auth/hooks.ts`: `useRecuperar`, `useNuevaContrasena(tipo)` (ruta por tipo; `onSuccess` navega a `/login` con `state: { aviso }`), `useCambiarContrasena` (`removeQueries(["me"])` → `fetchQuery(consultaMe)` → `navigate(rutaTrasLogin(me))`), `useTokenDelEnlace` (token leído una sola vez con `useState`, efecto que limpia el fragmento con `replace: true`). Componentes nuevos: `components/tarjeta-de-cuenta.tsx`, `components/formulario-recuperar.tsx`, `components/formulario-nueva-contrasena.tsx` (con el subcomponente `EnlaceInvalido`, reutilizado sin token en la URL y cuando el servidor rechaza el token al enviarlo), `components/formulario-cambiar-contrasena.tsx`. Vistas nuevas: `recuperar-view.tsx`, `restablecer-view.tsx`, `establecer-contrasena-view.tsx`, `cambiar-contrasena-view.tsx`, cada una con su `.test.tsx`. `login-view.tsx`: aviso de éxito (`role="status"`, icono `CircleCheck`, `text-success`) a partir de `avisoDeLogin(location.state)`; `login-view.test.tsx` +1 caso.
+19. `app/require-cambio-de-contrasena.tsx` (nuevo): fuera de `RequireSesion`; con `CAMBIO_DE_CONTRASENA_REQUERIDO` → `<Outlet />`; con otro error → `/login`; cargando → `<Cargando />`; con `/me` en `200` → `<Navigate to={rutaTrasLogin(me)} />`. `app/require-sesion.tsx` y `app/require-rol.tsx`: el error `CAMBIO…` navega a `/cambiar-contrasena` en vez de a `/login` (con `requiereCambioDeContrasena(error)`). `app/router.tsx`: `LayoutPublico` suma `/recuperar`, `/restablecer`, `/establecer-contrasena`; ruta `/cambiar-contrasena` con `RequireCambioDeContrasena` (fuera de `RequireSesion`) e índice `CambiarContrasenaView`; índice de `/admin` pasa de `BienvenidaView` a `CuentasView`. `app/router.test.tsx`: +3 casos.
+20. `features/admin/{types,data,lib,hooks}.ts` y `lib.test.ts` (2 casos, exactos del plan); `erroresPorCampoAdmin` en `lib.ts` no está en la lista literal del plan pero era necesaria para la validación en cliente con `aria-invalid`/`aria-describedby` por campo (ver "Desviaciones"). Componentes: `formulario-invitar-maestro.tsx`, `buscador-de-cuenta.tsx`, `ficha-de-cuenta.tsx` (con el subcomponente interno `AccionRestablecer`, para evitar un ternario anidado en JSX), `contrasena-temporal.tsx`, `formulario-corregir-correo.tsx`. `cuentas-view.tsx` (índice de `/admin`, sin ninguna consulta al montar) y `cuentas-view.test.tsx` (6 casos).
+21. Pruebas del frontend de la tabla: `apiClient.test.ts` (+4), `lib.test.ts` de auth (+5, con 2 de refuerzo), `recuperar-view.test.tsx` (3), `restablecer-view.test.tsx` (5), `establecer-contrasena-view.test.tsx` (3), `cambiar-contrasena-view.test.tsx` (4), `login-view.test.tsx` (+1), `router.test.tsx` (+3), `features/admin/lib.test.ts` (2), `cuentas-view.test.tsx` (6). **V-19** en verde (detalle abajo).
+22. `README.md`, solo "Frontend en local" §3: se amplió el párrafo de "Para recorrer el flujo completo" (la bienvenida ya no aplica al admin, que ahora ve la pantalla de cuentas) y se añadieron los tres flujos de correo (recuperación, invitación, restablecimiento por el admin), con la nota de que el worker escribe los HTML en `backend/tmp/correos/` fuera de `prod`. Ninguna otra sección de `README.md` se tocó.
+23b. **V-20** (detalle abajo): Prettier acotado a `frontend/` y `README.md`, tres corridas completas de `npm test` desde la raíz, `npm run lint` y `npm run build` desde la raíz. **V-21** y **V-22** (versión 02b), detalle abajo.
+24b. Esta sección.
+
+## Verificación
+
+- **V-01:** `node --version` → `v24.21.0`; `npm --version` → `11.19.0` (el humano actualizó Node desde AUTH-02a; ya no se esperaba `v24.11.1`/`11.6.2`, según la nota de la orquestación). `git branch --show-current` → `feat/auth-02b-cuentas-frontend`. `git status --short` antes de tocar nada: solo `docs/ESTADO.md` y `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md` (ambos los mantiene el orquestador). `docker version --format "{{.Server.Version}}"` → `28.5.1`; `docker compose ps` en `infra/` → `postgres`, `minio` y `livekit` ya `healthy` (no hizo falta `docker compose up -d`). `Get-NetFirewallRule -DisplayName "Campus: bloquear entrada a Docker en redes publicas"` → `True`/`Inbound`/`Block`/`Public`. `Get-NetConnectionProfile` → `IZZI-F281`/`Public`. `Get-NetTCPConnection -LocalPort 3000,5173 -State Listen` → sin resultados (puertos libres, nada que respetar). **PA-01 y PA-02 no se activaron.**
+- **V-02:** se calculó `Get-FileHash`/`sha256sum` de las 24 `*.ataque.test.ts(x)` de la tabla vigente (`reporte-tester.md`, "AUTH-02a — Ronda 3 (Enmienda 2)"): los 24 valores coinciden exactamente, antes de empezar y otra vez al final (después de las tres corridas de V-20 y de todos los cambios). Se recalcularon en V-21. **Coinciden. PA-02 no se activó por este motivo.**
+- **V-19** (solo frontend, desde `frontend/`): `npm test` → 17 archivos, 106 pruebas, todas verdes. `npm run build` → verde (`tsc -b && vite build`, sin errores; advertencia preexistente de tamaño de chunk, no relacionada). `npm run lint` → verde (ESLint, `prettier --check` y `tsc -b`, sin `any`). `Select-String -Path src -Recurse -Pattern "localStorage|sessionStorage"` → solo aparece en comentarios (`hooks.ts`, `tokenAcceso.ts`) y dentro de pruebas existentes (`restablecer-view.test.tsx`, `apiClient.ataque.test.ts`), nunca en código de producción. `Select-String -Path src -Recurse -Include *.ts,*.tsx -Pattern "fetch\("` sin pruebas → solo `src/services/apiClient.ts`. `Select-String -Path src\features\admin -Recurse -Pattern "@/features/auth"` → sin coincidencias. **Verde en todo.**
+- **V-20:**
+
+| Corrida | Backend | Frontend | Duración backend (Vitest) | Duración frontend (Vitest) |
+|---|---|---|---|---|
+| 1 | 65 archivos · 657/657 | 17 archivos · 106/106 | 57.82 s | 10.33 s |
+| 2 | ídem | ídem | 36.42 s | 10.99 s |
+| 3 | ídem | ídem | 38.70 s | 10.61 s |
+
+  Las tres corridas fueron idénticas: 657/657 en el backend y 106/106 en el frontend (salida completa en `backend/tmp/corrida-1.log`, `-2.log` y `-3.log`). `grep -c "FSTDEP"` sobre los tres logs → `0` en los tres. No se buscó `40P01`/`deadlock detected`/`could not serialize` como condición de parada porque AUTH-02b no toca `adapters/db` ni el protocolo de bloqueo (esa búsqueda es de la ronda 3 de AUTH-02a); de todas formas no aparecen en ninguno de los tres logs. Ninguna prueba fue intermitente entre las tres corridas. Tras la tercera corrida, `docker ps -a --filter "label=org.testcontainers=true"` → vacío. `npm run lint` desde la raíz → verde en los tres workspaces (`shared`, `backend`, `frontend`). `npm run build` desde la raíz → verde en los tres workspaces.
+- **V-21:** se recalcularon los 24 hashes de la tabla vigente: idénticos a los de V-02 (ninguna `*.ataque.test.ts(x)` se tocó). `grep` de `.skip(`, `.only(`, `.todo(`, `.fails(`, `skipIf(`, `runIf(`, `xit(`, `xdescribe(` sobre `backend/test`, `backend/src/**/*.test.ts` y `frontend/src` → sin coincidencias.
+- **V-22 (versión 02b):** `git diff --quiet -- backend shared eslint.config.mjs` → código `0` (sin cambios). `git status --short --untracked-files=all -- backend shared` → vacío. `git status --short --untracked-files=all` (árbol completo) → solo archivos bajo `frontend/`, `README.md`, `docs/trabajo/AUTH-02-cuentas-y-correo/` y `docs/ESTADO.md`. `git ls-files --eol --others --exclude-standard -- frontend` → sin `CRLF` ni `mixed` (todo `w/lf`).
+- **V-23:** el único comando ejecutable de "Frontend en local" §3 sin navegador ya existía sin cambios (`npm run dev`, de arranque prolongado e interactivo). El texto nuevo de §3 menciona `Invoke-Item backend\tmp\correos` para abrir la carpeta de correos: no se ejecutó porque abre una ventana gráfica del Explorador de Windows (no un comando que produzca una salida verificable en consola, y equivalente en espíritu a "necesita navegador"); se comprobó por lectura que la carpeta existe y que el flujo end-to-end (API + worker + frontend) no se puede probar sin arrancar procesos, cosa que AUTH-02b no autoriza. Se reporta como no verificado (ver abajo).
+
+## PARADAS
+
+- **PA-01:** no se activó (regla del firewall y red verificadas en V-01).
+- **PA-02:** no se activó (árbol de trabajo limpio salvo lo esperado; rama correcta; los 24 hashes coinciden).
+- **PA-03 a PA-10, PA-14, PA-15, PA-17 a PA-21:** dependen de pasos de AUTH-02a (instalar dependencias, migrar, arrancar la API o el worker, el protocolo de bloqueo); AUTH-02b no ejecuta ninguno de esos pasos, así que no tuvieron ocasión de activarse. No se activaron.
+- **PA-11:** no se activó. Las 24 `*.ataque.test.ts(x)` siguen en verde, sin excepción (la excepción de FE-01 expiró tras la ronda 1 de AUTH-02a).
+- **PA-12:** no se activó (sin `too many clients already` ni error de conexiones agotadas en los tres logs).
+- **PA-13:** no se activó (ninguna prueba intermitente entre las tres corridas de V-20).
+- **PA-16:** no se activó (`docker ps -a --filter "label=org.testcontainers=true"` vacío 90 s después de la tercera corrida).
+
+## Desviaciones del plan
+
+1. **`TextosNuevaContrasena` (interfaz) en `features/auth/types.ts`.** No aparece en la lista literal de "Cambios por capa" del plan para `types.ts`, pero es necesaria para tipar `TEXTOS_NUEVA_CONTRASENA` (un registro por `TipoEnlace` con campos que difieren entre `recuperacion` e `invitacion`, en particular `descripcion` e `pedirOtroEnlace` opcionales) sin usar `any` ni inline en `data.ts` (CLAUDE.md: los tipos no van inline en archivos que no son `types.ts`). Es un tipo exclusivo de la interfaz, del mismo estilo que `ErroresFormulario` o `IncidenciaValidacion` ya existentes en ese archivo.
+2. **`erroresPorCampoAdmin` en `features/admin/lib.ts`.** La tabla del plan para `admin/lib.ts` solo menciona `mensajeDeErrorAdmin` y `etiquetaDeRolAdmin`. Los formularios de invitar, buscar y corregir correo necesitan mapear las incidencias de `safeParse` a errores por campo para cumplir con CLAUDE.md (`label htmlFor`, `aria-invalid`, `aria-describedby`) de la misma forma que ya existe en `features/auth/lib.ts` (`erroresPorCampo`). Se duplicó la lógica en vez de compartirla (regla 9: un módulo no importa de otro), con su propio `IncidenciaValidacion` y `CampoFormularioAdmin`/`ErroresFormularioAdmin` en `admin/types.ts`.
+3. **2 pruebas adicionales en `features/auth/lib.test.ts`** más allá de las 5 exactas de la tabla del plan: una para `requiereCambioDeContrasena` con un error que no es `ApiError` (además del caso por código) y una para `contrasenasCoinciden` (función nueva de `lib.ts` que la tabla de pruebas no menciona explícitamente pero que sí está en "Cambios por capa" → `lib.ts`). No se retiró ninguna prueba exacta del plan; solo se sumaron estas dos por cobertura mínima de una función pública nueva.
+4. **`descripcion?: string | undefined` explícito en `TarjetaDeCuentaProps`** (en vez de solo `descripcion?: string`): lo exige `exactOptionalPropertyTypes` de TypeScript al pasar `textos.descripcion` (que puede ser `string | undefined` porque solo `invitacion` la define) directamente como prop opcional. Sin este ajuste, `tsc -b` fallaba (`TS2375`). Es un ajuste de tipos, no de comportamiento ni de validación.
+
+Ninguna desviación tocó `backend/`, `shared/`, `eslint.config.mjs` ni ninguna `*.ataque.test.ts(x)`. Ninguna relajó una validación, un permiso o un tipo para que algo compilara: los cuatro puntos son adiciones o precisiones de tipos/pruebas, no relajaciones.
+
+## No verificado o pendiente
+
+- **El flujo en el navegador** (los tres recorridos de "Frontend en local" §3: recuperación, invitación, restablecimiento) no se probó de punta a punta con `npm run dev`, la API y el worker corriendo, porque AUTH-02b no autoriza arrancar procesos de la API ni del worker ni escribir en `campus_dev`. Solo se probó con las pruebas de Vitest/Testing Library (dobles de `fetch`) y con la inspección estática de V-19/V-22.
+- **`Invoke-Item backend\tmp\correos`** (mencionado en el README nuevo) no se ejecutó, por lo explicado en V-23 arriba.
+- Pendientes ya registrados por el orquestador en `aprobacion.md` ("Pendientes para encargos posteriores") que AUTH-02b no cubre: S-05 (ADMIN, si la temporal caduca), E2-03 (riesgo residual de `corregirCorreo`), la gestión de usuarios completa, DEPLOY, `LIMPIEZA_DIARIA`, webhooks de Resend y el cambio voluntario de contraseña — ninguno es alcance de AUTH-02b.
+- La fila `admin` de `CLAUDE.md` (texto ya autorizado por el humano en el plan, "Al cerrar AUTH-02b") queda para que el orquestador la aplique al cerrar este encargo, como indica el plan.
+
+## Conteos exactos
+
+- Frontend: **17 archivos y 106 pruebas** (antes de AUTH-02b: 11 archivos y 69 pruebas). Se sumaron **6 archivos y 37 pruebas** de vista/hook (`recuperar-view.test.tsx` 3, `restablecer-view.test.tsx` 5, `establecer-contrasena-view.test.tsx` 3, `cambiar-contrasena-view.test.tsx` 4, `features/admin/lib.test.ts` 2, `features/admin/cuentas-view.test.tsx` 6) más los casos añadidos a archivos existentes (`apiClient.test.ts` +4, `lib.test.ts` de auth +7 con las 2 de refuerzo, `login-view.test.tsx` +1, `router.test.tsx` +3) y las pruebas ya contadas en los 6 archivos nuevos.
+- Backend: sin cambios en esta parte, **65 archivos y 657 pruebas** (lo que dejó la ronda 3 de AUTH-02a, incluidas las pruebas del Tester).
+- Total: **82 archivos y 763 pruebas** entre los dos workspaces.
+
+## Archivos creados o modificados en esta ronda
+
+- **Creados:** `frontend/src/app/require-cambio-de-contrasena.tsx`; `frontend/src/features/auth/components/tarjeta-de-cuenta.tsx`, `formulario-recuperar.tsx`, `formulario-nueva-contrasena.tsx`, `formulario-cambiar-contrasena.tsx`; `frontend/src/features/auth/recuperar-view.tsx` (+ `.test.tsx`), `restablecer-view.tsx` (+ `.test.tsx`), `establecer-contrasena-view.tsx` (+ `.test.tsx`), `cambiar-contrasena-view.tsx` (+ `.test.tsx`); `frontend/src/features/admin/{types,data,lib,hooks}.ts`, `lib.test.ts`, `cuentas-view.tsx` (+ `.test.tsx`), `components/{formulario-invitar-maestro,buscador-de-cuenta,ficha-de-cuenta,contrasena-temporal,formulario-corregir-correo}.tsx`.
+- **Modificados:** `frontend/src/services/apiClient.ts` (+`.test.ts`), `frontend/src/services/navegacion.ts`; `frontend/src/features/auth/{types,data,lib,hooks}.ts` (+`lib.test.ts`), `login-view.tsx` (+`.test.tsx`); `frontend/src/app/{require-sesion,require-rol,router}.tsx` (+`router.test.tsx`); `README.md` (solo "Frontend en local" §3).
+- **Ninguna `*.ataque.test.ts(x)` se tocó.** Los 24 hashes coinciden exactamente con la tabla vigente (`reporte-tester.md`, "AUTH-02a — Ronda 3"), antes y después de esta ronda.
+- **Nada bajo `backend/`, `shared/` ni `eslint.config.mjs`.**
+
+## Para la revisión humana del diff (por capas)
+
+1. `frontend/src/services/apiClient.ts` y `navegacion.ts`: el nuevo caso simétrico de `CAMBIO_DE_CONTRASENA_REQUERIDO` y la única excepción de refresco bajo `/api/auth/`.
+2. `frontend/src/features/auth/{types,data,lib,hooks}.ts`: tipos, textos, funciones puras y hooks nuevos de cuentas.
+3. `frontend/src/features/auth/components/*` y las cuatro vistas nuevas.
+4. `frontend/src/app/require-cambio-de-contrasena.tsx` (nuevo) y los ajustes de `require-sesion.tsx`, `require-rol.tsx` y `router.tsx`.
+5. `frontend/src/features/admin/*` (módulo nuevo) y `cuentas-view.tsx`.
+6. `README.md`: solo el párrafo ampliado y los tres flujos nuevos de "Frontend en local" §3.
+
+# Resumen del Programador — AUTH-02b — ronda 2
+
+Corrige los ocho hallazgos del Tester (T-01 a T-08, `reporte-tester.md`, "AUTH-02b — Ronda 1"). Ninguna prueba `*.ataque.test.ts(x)` se tocó: los 27 hashes de la tabla del reporte coinciden exactamente al empezar y al terminar (detalle en "Verificación" abajo). Alcance: solo archivos de la sección `frontend/` de "Cambios por capa" del plan; no se tocó nada bajo `backend/`, `shared/` ni `eslint.config.mjs`.
+
+## Hallazgos, uno por uno
+
+### T-01 — El token del enlace y las contraseñas quedan en la caché de mutaciones de TanStack Query
+
+**Corregido**, y con un mecanismo más robusto que el `gcTime: 0` inicial. Al investigar por qué una primera versión con solo `gcTime: 0` seguía fallando en `useCambiarContrasena` (ver "Desviaciones"), confirmé que TanStack Query solo agenda la recolección de una mutación cuando su último observador se desuscribe (al desmontarse el componente), y que una navegación de React Router puede tardar más que la propia espera de la prueba en desmontar el árbol anterior (es una transición de baja prioridad; renderizar el layout completo del dashboard es más lento que navegar a `/login`). Depender del desmontaje para limpiar datos sensibles es entonces una condición de carrera, no una garantía.
+
+Arreglo: en `features/auth/hooks.ts`, `useNuevaContrasena` y `useCambiarContrasena` ahora llevan un `mutationKey` propio (`["nueva-contrasena"]` y `["cambiar-contrasena"]`) y un `onSettled` que saca la mutación de `queryClient.getMutationCache()` en cuanto se resuelve (éxito o error), sin esperar a que el componente se desmonte:
+
+```ts
+const sacarDeLaCacheAlAsentar = (queryClient: QueryClient, mutationKey: readonly unknown[]) => {
+  const cache = queryClient.getMutationCache()
+  for (const mutacion of cache.findAll({ mutationKey })) cache.remove(mutacion)
+}
+```
+
+Quitar la mutación de la caché no afecta lo que el componente muestra: el observador de `useMutation` guarda su propio resultado en memoria (éxito, error, variables) independientemente de si el objeto sigue "registrado" en el `MutationCache`; solo deja de aparecer en `getAll()`, que es exactamente lo que la prueba inspecciona. `gcTime: 0` queda como defensa adicional (por ejemplo, si algo más llega a leer la caché antes de que corra `onSettled`).
+
+Pruebas del Tester que lo cubren: `frontend/src/features/auth/enlace-r1.ataque.test.tsx` › las dos de "DEC-18: tras salir de /restablecer..." y "...tras un fallo de red..."; `frontend/src/app/cuentas-r1.ataque.test.tsx` › "tras cambiarla y llegar al dashboard, ni la temporal ni la nueva quedan en la caché de mutaciones" (las tres, verdes).
+
+### T-02 — Con 409 CAMBIO_NO_REQUERIDO, el usuario queda atrapado en /cambiar-contrasena con un mensaje genérico
+
+**Corregido.** `useCambiarContrasena` ahora comparte una función `avanzarTrasCambio` entre `onSuccess` y `onError`: si el error es `CAMBIO_NO_REQUERIDO` (`esApiError(error) && error.codigo === "CAMBIO_NO_REQUERIDO"`), intenta el mismo camino que un éxito (descartar `/me` en caché, volver a pedirlo, navegar al dashboard que decida). Si `/me` insiste en que el cambio sigue pendiente (la otra carrera que describe el hallazgo: la petición a `/me` posterior también falla), el intento se descarta en silencio (`.catch(() => undefined)`) y el usuario se queda en el formulario, pero con el mensaje propio de `CAMBIO_NO_REQUERIDO` (añadido a `MENSAJES_ERROR_AUTH` en `features/auth/data.ts`: "Ya no tienes un cambio de contraseña pendiente."), no con el genérico "No pudimos completar la operación. Inténtalo de nuevo.".
+
+No hizo falta relajar ninguna validación ni permiso: la decisión de a dónde ir sigue viniendo de `/me` (DEC-17), nunca de asumir el destino desde el cliente.
+
+Pruebas del Tester que lo cubren: `frontend/src/app/cuentas-r1.ataque.test.tsx` › "409 CAMBIO_NO_REQUERIDO (ya se cambió, por ejemplo en otra pestaña): sale del formulario hacia su dashboard" y "el 409 CAMBIO_NO_REQUERIDO no se presenta como un error genérico que invita a reintentar" (ambas verdes).
+
+### T-03 — Dos clics en "Sí, restablecer" hacen dos peticiones
+
+**Corregido.** La causa (confirmada leyendo `notifyManager`/`useSyncExternalStore` de TanStack Query): `restablecer.isPending` se actualiza en la notificación por lotes de la librería, que no es necesariamente síncrona con el segundo clic cuando no hay ningún otro `setState` de React en medio que fuerce un re-render antes. En `features/admin/components/ficha-de-cuenta.tsx`, `AccionRestablecer` ahora guarda un `useRef(false)` que se lee y escribe de forma completamente síncrona en el manejador del clic, antes de llamar a `restablecer.mutate`, y se libera en `onSettled` (para permitir un reintento tras un error):
+
+```ts
+const enviandoRef = useRef(false)
+const handleConfirmar = () => {
+  if (enviandoRef.current) return
+  enviandoRef.current = true
+  restablecer.mutate(usuarioId, { onSettled: () => { enviandoRef.current = false } })
+}
+```
+
+`disabled={restablecer.isPending}` se conserva (para el estado visual del botón), pero la protección real contra el doble clic ya no depende de esa notificación asíncrona.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` › "dos clics en 'Sí, restablecer' en el mismo instante hacen una sola petición" (verde).
+
+### T-04 — Tras corregir el correo, la ficha sigue mostrando el correo anterior
+
+**Corregido.** `formulario-corregir-correo.tsx` recibe una prop nueva `onCorregido: (usuario: UsuarioAdmin) => void` y la pasa como callback `onSuccess` al `mutate` de `useCorregirCorreo` (TanStack Query acepta callbacks por llamada además de los del hook). `ficha-de-cuenta.tsx` la recibe como `onCorreoCorregido` y la reenvía. `buscador-de-cuenta.tsx` guarda el resultado en un estado propio (`usuarioCorregido`) y lo usa como fuente de verdad por encima del `usuario` original de la búsqueda: `usuario={usuarioCorregido ?? buscar.data.usuario}`. La ficha no se remonta (mismo `id`), así que el mensaje "Correo actualizado…" de la propia mutación de corregir sigue visible a la vez que el correo mostrado ya es el nuevo.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` › "tras corregir el correo, la ficha muestra el correo nuevo y no el anterior" (verde).
+
+### T-05 — Una búsqueda rechazada en el cliente deja visible la temporal de la cuenta anterior
+
+**Corregido.** En `buscador-de-cuenta.tsx`, cuando `buscarUsuarioSchema.safeParse` rechaza la entrada, ahora se llama `buscar.reset()` (además de limpiar `usuarioCorregido`) antes de mostrar el error de validación. `buscar.reset()` vacía el estado `isSuccess`/`data` de la mutación de búsqueda, así que la ficha (que solo se muestra con `buscar.isSuccess`) desaparece de inmediato, junto con cualquier temporal que estuviera visible.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` › "buscar otra cuenta con un correo mal escrito (rechazado en el cliente) hace desaparecer la temporal" (verde).
+
+### T-06 — "Cuenta inactiva" se muestra sin icono
+
+**Corregido.** `ficha-de-cuenta.tsx` añade el icono `CircleAlert` de `lucide-react` (el mismo que ya usa `MensajeError` para lo destructivo) junto al texto "Cuenta inactiva", con `text-warning` (el token correspondiente a este estado, no a un error). No se tocaron los otros mensajes de éxito mencionados por el Tester como observación adicional ("Invitación creada…", "Correo actualizado…"): el hallazgo y su prueba solo exigen el icono en "Cuenta inactiva"; añadir iconos donde no se pidió habría sido ampliar el alcance.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` › "'Cuenta inactiva' se muestra con icono y texto (plan, DEC-19)" (verde).
+
+### T-07 — Accesibilidad: el foco se pierde al pedir la confirmación, y la temporal se anuncia sin `role="status"`/`aria-live`
+
+**Corregido**, las dos partes que describe el hallazgo:
+- Foco: el botón "Sí, restablecer" (`ficha-de-cuenta.tsx`) lleva `autoFocus`, así que en cuanto sustituye al botón "Restablecer contraseña" (que tenía el foco) se lo queda él. El botón "Copiar" de `contrasena-temporal.tsx` también lleva `autoFocus`, por la misma razón: cuando "Sí, restablecer" se sustituye por la temporal, el foco no cae en `<body>`.
+- Anuncio: el contenedor de `contrasena-temporal.tsx` ahora lleva `role="status"`, envolviendo el texto de la temporal y su aviso.
+
+Solo una prueba del Tester lo exige explícitamente (el foco al pedir la confirmación); añadí el segundo `autoFocus` (en "Copiar") porque el propio hallazgo describe el mismo problema para el reemplazo de "Sí, restablecer" por la temporal, aunque no tenga una prueba propia (ver "Desviaciones").
+
+Pruebas del Tester que lo cubren: `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` › "al pedir la confirmación, el foco no se pierde en el documento" y "la temporal se anuncia a los lectores de pantalla (role=status o aria-live)" (ambas verdes).
+
+### T-08 — `features/admin/hooks.ts` declara un tipo
+
+**Corregido.** `CorregirCorreoVariables` se movió de `hooks.ts` a `features/admin/types.ts` (junto a `IncidenciaValidacion`, del mismo estilo). `hooks.ts` ahora solo importa el tipo con `import type { CorregirCorreoVariables } from "./types"`.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` › "hooks.ts no declara tipos: van en types.ts (CLAUDE.md, reglas 1 y 4; 'Lo que no se hace')" (verde).
+
+## Archivos creados o modificados en esta ronda
+
+- **Modificados:** `frontend/src/features/auth/hooks.ts` (T-01, T-02), `frontend/src/features/auth/data.ts` (T-02, texto de `CAMBIO_NO_REQUERIDO`), `frontend/src/features/admin/hooks.ts` (T-08), `frontend/src/features/admin/types.ts` (T-08), `frontend/src/features/admin/components/ficha-de-cuenta.tsx` (T-03, T-04, T-06, T-07), `frontend/src/features/admin/components/formulario-corregir-correo.tsx` (T-04), `frontend/src/features/admin/components/buscador-de-cuenta.tsx` (T-04, T-05), `frontend/src/features/admin/components/contrasena-temporal.tsx` (T-07).
+- **Ninguna `*.ataque.test.ts(x)` se tocó.** Los 27 hashes coinciden exactamente antes y después de esta ronda (ver V-19 abajo).
+- **Nada bajo `backend/`, `shared/` ni `eslint.config.mjs`.**
+
+## Verificación
+
+- **V-19** (frontend, desde `frontend/`): `npm run lint` → verde (ESLint, `prettier --check` y `tsc -b`, sin `any` nuevo). `npm test` → **20 archivos, 201 pruebas, todas verdes** (antes de esta ronda: 189 en verde + 12 en rojo de T-01 a T-08; ahora las 12 pasan y ninguna otra se rompió).
+- **Hashes de entrada:** los 27 `*.ataque.test.ts(x)` de la tabla vigente (`reporte-tester.md`, "AUTH-02b — Ronda 1") coincidían exactamente antes de tocar nada (`sha256sum` sobre los 27 archivos).
+- **V-20 (tres corridas completas de `npm test` desde la raíz, salida a archivo, sin tubería):**
+
+| Corrida | Backend | Frontend |
+|---|---|---|
+| 1 | 65 archivos · 657/657 | 20 archivos · 201/201 |
+| 2 | ídem | ídem |
+| 3 | ídem | ídem |
+
+  Las tres corridas dieron el mismo resultado exacto (657/657 y 201/201), sin ninguna prueba intermitente. `grep -c "FSTDEP"` → 0 en las tres. Búsqueda de `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en los tres logs → 0 coincidencias. Tras la tercera corrida, `docker ps -a --filter "label=org.testcontainers=true"` → vacío.
+- **V-21:** recalculé los 27 hashes al terminar: **idénticos** a los de antes de empezar (`diff` sin salida). Ninguna `*.ataque.test.ts(x)` se tocó.
+- **V-22 (versión 02b, ronda 2):** `git status --short --untracked-files=all -- backend shared eslint.config.mjs` → vacío (nada tocado ahí). `git status --short --untracked-files=all -- frontend` → exactamente los archivos listados arriba más los ya existentes de la ronda 1 (sin archivos nuevos fuera de lo que "Qué autoriza" de AUTH-02b permite).
+- **Precondición de red, verificada antes de las corridas del backend:** regla de firewall "Campus: bloquear entrada a Docker en redes publicas" → `True`/`Inbound`/`Block`/`Public`; red `IZZI-F281`/`Public` (declarada de confianza); Docker `28.5.1`; sin contenedores de Testcontainers al empezar ni al terminar.
+
+## PARADAS
+
+Ninguna se activó. En particular, PA-11 (cualquier `*.ataque` en rojo) no se activó: las 27 pruebas del Tester pasan, igual que las 106 pruebas propias existentes del Programador (más las 4 nuevas de esta ronda dentro de las mismas suites: ninguna prueba nueva del Programador se añadió esta ronda, solo código de producción).
+
+## Desviaciones del plan
+
+1. **`onSettled` con eliminación explícita de la caché de mutaciones, en vez de solo `gcTime: 0`, en `useNuevaContrasena` y `useCambiarContrasena`.** El plan (DEC-18) solo pedía que el token y la contraseña "nunca" queden en la caché de TanStack Query; no especifica el mecanismo. Una primera versión con únicamente `gcTime: 0` (siguiendo el patrón ya usado en `features/admin/hooks.ts` para la temporal, DEC-19) dejó una prueba en rojo de forma intermitente-determinística: investigué la causa exacta en el código fuente de `@tanstack/query-core` (documentado en el hallazgo T-01 arriba) y confirmé que depender del desmontaje del componente para limpiar la caché es una carrera cuando la navegación es lenta (layout de dashboard) frente a cuando es rápida (a `/login`, donde sí funcionaba). La solución con `mutationKey` + `onSettled` + `mutationCache.remove(...)` es más explícita y determinista, y no relaja ninguna garantía: sigue sin quedar nada en la caché, solo que ahora no depende de cuánto tarde React en desmontar. `gcTime: 0` se conserva como defensa adicional.
+2. **`autoFocus` en el botón "Copiar" de `contrasena-temporal.tsx` (T-07), no exigido por ninguna prueba nueva.** El propio texto del hallazgo T-07 describe el mismo problema de foco para "Sí, restablecer" (que sí tiene una prueba) y, en la misma frase, dice "Lo mismo ocurre con 'Sí, restablecer', que se sustituye por la temporal" — es decir, señala que el reemplazo de "Sí, restablecer" por la temporal también pierde el foco. Corregirlo (moviendo el foco a "Copiar", la acción principal de esa pantalla) atiende el hallazgo completo, no solo la mitad con prueba explícita. No es una funcionalidad nueva ni cambia ningún comportamiento fuera de la accesibilidad del propio flujo que T-07 señala.
+
+Ninguna desviación relajó una validación, un permiso o un tipo. Ninguna tocó `backend/`, `shared/`, `eslint.config.mjs` ni ninguna `*.ataque.test.ts(x)`.
+
+## No verificado o pendiente
+
+- Igual que en la ronda 1: el flujo en el navegador real (API + worker + Vite) no se ejecutó, porque AUTH-02b no autoriza arrancar esos procesos ni escribir en `campus_dev`.
+- No verifiqué el foco ni el anuncio de la temporal con un lector de pantalla real (NVDA/VoiceOver); me apoyé en lo que jsdom y `@testing-library/react` exponen (`document.activeElement`, el atributo `role`), igual que hace la prueba del Tester.
+- Pendientes ya registrados en `aprobacion.md`/el plan que esta ronda no cubre (S-05, E2-03, gestión de usuarios completa, DEPLOY, `LIMPIEZA_DIARIA`, webhooks de Resend, cambio voluntario de contraseña): sin cambios, siguen fuera de alcance.
+
+# Resumen del Programador — AUTH-02b — ronda 3
+
+Corrige los tres hallazgos del Tester (T-09, T-10, T-11; `reporte-tester.md`, "AUTH-02b — Ronda 2"), todos derivados de la corrección de T-07 con `autoFocus`. Ninguna prueba `*.ataque.test.ts(x)` se tocó: los 30 hashes de la tabla vigente coinciden exactamente al empezar y al terminar (detalle en "Verificación" abajo). Alcance: solo `frontend/src/features/admin/components/ficha-de-cuenta.tsx` y `frontend/src/features/admin/components/contrasena-temporal.tsx`.
+
+## Diseño del arreglo
+
+Los tres hallazgos comparten causa (dos `autoFocus` incondicionales) y se resolvieron juntos con un único rediseño del manejo del foco en `AccionRestablecer` (`ficha-de-cuenta.tsx`):
+
+- Se quitaron los dos `autoFocus`.
+- Un `useEffect` con dependencia en `confirmando` mueve el foco de forma explícita: al abrir la confirmación, a "Cancelar" (nunca a la acción destructiva); al cancelar, de vuelta a "Restablecer contraseña". Un ref (`esPrimerRenderRef`) evita que este efecto robe el foco en el montaje inicial del componente.
+- Un ref (`tieneFocoRef`), actualizado por `onFocusCapture`/`onBlurCapture` en los tres contenedores de `AccionRestablecer`, refleja en todo momento si el foco sigue dentro de la confirmación. Se lee únicamente dentro del `onSuccess` de la mutación (nunca durante el render: ESLint, con la regla `react-hooks/refs` de la versión instalada del plugin, lo prohíbe y detuvo la primera versión del cambio) para fijar un estado (`enfocarTemporal`) que se pasa como prop a `ContrasenaTemporal`.
+- `ContrasenaTemporal` recibe la prop nueva `enfocarAlMostrar: boolean` y, en un efecto que corre al montarse, solo mueve el foco a "Copiar" cuando esa prop es `true`.
+
+### T-09 — Con dos Enter sobre "Restablecer contraseña" se restablece sin confirmar
+
+**Corregido.** El primer Enter abre la confirmación; el efecto de foco ya no deja el foco en "Sí, restablecer", sino en "Cancelar". Un segundo Enter (o su repetición) activa "Cancelar", no la acción destructiva: la mutación no se dispara.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` › "Enter dos veces sobre 'Restablecer contraseña' no restablece sin que el admin confirme" (verde: 0 peticiones a `/restablecer-contrasena`).
+
+### T-10 — "Cancelar" sigue dejando el foco en `<body>`
+
+**Corregido.** El mismo efecto de foco, en la rama `confirmando === false`, devuelve el foco a "Restablecer contraseña" en cuanto ese botón vuelve a existir en el árbol.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` › "'Cancelar' no deja el foco en `<body>`" (verde).
+
+### T-11 — La temporal le roba el foco al admin si está escribiendo en otro campo
+
+**Corregido.** `tieneFocoRef` se apaga en cuanto el admin mueve el foco fuera de `AccionRestablecer` (el `onBlurCapture` del contenedor que tenía el foco se dispara de forma síncrona, antes de que la petición resuelva). Al llegar la respuesta, `onSuccess` lee ese ref ya en `false` y `ContrasenaTemporal` no mueve el foco. Cuando el admin sigue dentro de la confirmación (no la abandonó), `tieneFocoRef` sigue en `true` y "Copiar" recibe el foco, como ya exigía T-07.
+
+Pruebas del Tester que lo cubren: `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` › "la temporal que llega mientras el admin escribe en otro campo no le roba el foco" y "cuando el admin sigue en la confirmación, el foco llega a 'Copiar' (no a `<body>`)" (ambas verdes).
+
+## Archivo sin declarar de la ronda 2 (observación sin severidad del Tester)
+
+El Tester señaló que `frontend/src/features/auth/components/formulario-cambiar-contrasena.tsx` tiene una fecha de modificación posterior a sus pruebas de la ronda 1, pero no aparece en la lista de archivos de la ronda 2 del Programador anterior.
+
+No lo modifiqué en esta ronda ni en ninguna anterior. El archivo nunca se ha confirmado en git (sigue `??`, sin historial), así que no existe una versión previa contra la que comparar un diff real; no puedo reconstruir qué cambió esa ronda ni por qué no se declaró. Lo que sí puedo confirmar, por inspección del archivo tal como está hoy: su comportamiento coincide con la descripción de la ronda 1 (guarda `cambiar.isPending` antes de enviar, `setErrores({})`/`setErrorConfirmacion(false)` antes de `mutate`, valida con `cambiarContrasenaSchema` de `shared/`), y las pruebas de `cambiar-contrasena-view.test.tsx` y del router que lo ejercitan siguen en verde en las tres corridas de abajo. No encontré ninguna validación relajada, ningún permiso tocado ni ningún tipo debilitado en su contenido actual. Coincido con el Tester en que la declaración pendiente de la ronda 2 es un asunto para que el Manager revise en el diff humano; no es algo que yo pueda subsanar retroactivamente sin inventar una historia que no viví.
+
+## Archivos creados o modificados en esta ronda
+
+- **Modificados:** `frontend/src/features/admin/components/ficha-de-cuenta.tsx`, `frontend/src/features/admin/components/contrasena-temporal.tsx`.
+- **Ninguna `*.ataque.test.ts(x)` se tocó.** Los 30 hashes de la tabla vigente (`reporte-tester.md`, "AUTH-02b — Ronda 2") coinciden exactamente antes y después de esta ronda (ver V-19/V-21 abajo).
+- **Nada bajo `backend/`, `shared/` ni `eslint.config.mjs`.**
+
+## Verificación
+
+- **Precondición de red, antes de correr nada:** regla de firewall "Campus: bloquear entrada a Docker en redes publicas" → `True`/`Inbound`/`Block`/`Public` (`Get-NetFirewallRule`). Red `IZZI-F281`/`Public` (`Get-NetConnectionProfile`), declarada de confianza por el humano. Docker `28.5.1`. Sin contenedores de Testcontainers al empezar (`docker ps -a --filter "label=org.testcontainers=true"` vacío).
+- **Hashes de entrada:** los 30 `*.ataque.test.ts(x)` de la tabla vigente (`reporte-tester.md`, "AUTH-02b — Ronda 2") coincidían exactamente antes de tocar nada (`sha256sum -c` sobre los 30 archivos, verificado con la tabla completa).
+- **Primer intento de la corrección leía `tieneFocoRef.current` directamente en el render de `AccionRestablecer` (para pasarlo como prop).** `npm run lint` en `frontend/` lo rechazó: ESLint (`react-hooks/refs`, de la versión del plugin de este proyecto) marca como error leer `ref.current` durante el render. Corregido moviendo esa lectura al `onSuccess` de la mutación (fuera del render) y guardando el resultado en un estado (`enfocarTemporal`) que sí se puede leer durante el render. Documentado también como desviación abajo.
+- **V-19 (frontend, desde `frontend/`):** `npm run lint` → verde (ESLint, `prettier --check` y `tsc -b`, sin `any` nuevo, sin la advertencia de refs). `npx vitest run src/features/admin/cuentas-r1.ataque.test.tsx src/features/admin/cuentas-r2.ataque.test.tsx` → **2 archivos, 41 pruebas, todas verdes** (las 3 de T-09/T-10/T-11 incluidas). `npm test` (todo el frontend) → **23 archivos, 226 pruebas, todas verdes**.
+- **V-20 (tres corridas completas de `npm test` desde la raíz, salida a archivo, sin tubería):**
+
+| Corrida | Backend | Frontend |
+|---|---|---|
+| 1 | 65 archivos · 657/657 | 23 archivos · 226/226 |
+| 2 | ídem | ídem |
+| 3 | ídem | ídem |
+
+  Las tres corridas dieron el mismo resultado exacto, sin ninguna prueba intermitente. `grep -c` de `FSTDEP`, `too many clients`, `40P01`, `deadlock detected` y `could not serialize` sobre los tres logs → `0` en las tres. Tras la tercera corrida, `docker ps -a --filter "label=org.testcontainers=true"` → vacío. Los tres archivos de log (`backend/tmp/corrida-r3-*.log`) se borraron al terminar (están en `.gitignore`, no afectan a git).
+- **V-21:** recalculé los 30 hashes al terminar con `sha256sum -c` sobre la misma tabla: **30/30 `OK`**, idénticos a los de antes de empezar. Ninguna `*.ataque.test.ts(x)` se tocó.
+- **V-22 (versión 02b, ronda 3):** `git status --short --untracked-files=all -- backend shared eslint.config.mjs` → vacío. `git status --short --untracked-files=all -- frontend` → exactamente los archivos ya existentes de rondas anteriores, sin ningún archivo nuevo fuera de lo que "Qué autoriza" de AUTH-02b permite; los dos archivos modificados en esta ronda (`ficha-de-cuenta.tsx`, `contrasena-temporal.tsx`) ya estaban `??` desde la ronda 1 (nunca se han confirmado en git).
+
+## PARADAS
+
+Ninguna se activó. En particular, PA-11 (cualquier `*.ataque` en rojo) no se activó: las 30 pruebas del Tester pasan en las tres corridas, igual que todas las pruebas propias existentes.
+
+## Desviaciones del plan
+
+1. **`onSuccess` de la mutación en vez de leer el ref durante el render, para T-11.** No es una desviación del plan (que no especifica el mecanismo de foco), sino de mi propio primer intento: leer `tieneFocoRef.current` directamente en el cuerpo de `AccionRestablecer` para pasarlo como prop a `ContrasenaTemporal` fue rechazado por ESLint (`react-hooks/refs`: "Cannot access refs during render"). El diseño final captura ese valor en el `onSuccess` de `restablecer.mutate` (un manejador, no el render) y lo guarda en un `useState` (`enfocarTemporal`), que sí es válido leer durante el render. No relaja ninguna validación, permiso ni tipo; es una corrección de estilo exigida por el linter del propio paquete.
+
+Ninguna otra desviación. No toqué `backend/`, `shared/`, `eslint.config.mjs` ni ninguna `*.ataque.test.ts(x)`.
+
+## Hallazgos atendidos
+
+- **T-09:** corregido (ver arriba).
+- **T-10:** corregido (ver arriba).
+- **T-11:** corregido (ver arriba).
+- **Archivo sin declarar de la ronda 2:** no corregido por mí porque no lo modifiqué; explicado arriba para la revisión del Manager.
+
+## No verificado o pendiente
+
+- Igual que en las rondas anteriores: el flujo en el navegador real (API + worker + Vite) no se ejecutó, porque AUTH-02b no autoriza arrancar esos procesos ni escribir en `campus_dev`.
+- No verifiqué el foco con un lector de pantalla real (NVDA/VoiceOver); me apoyé en lo que jsdom y `@testing-library/react` exponen (`document.activeElement`), igual que la prueba del Tester.
+- Las observaciones sin severidad de la ronda 2 (la contraseña del login de AUTH-01 en la caché de mutaciones, la temporal perdida si el admin busca otra cuenta con el restablecimiento en vuelo, el texto genérico ante un fallo de red en la pantalla de admin) quedan sin tocar, como pide el encargo: las decide el Manager.
+- Pendientes ya registrados en `aprobacion.md`/el plan que esta ronda no cubre (S-05, E2-03, gestión de usuarios completa, DEPLOY, `LIMPIEZA_DIARIA`, webhooks de Resend, cambio voluntario de contraseña): sin cambios, siguen fuera de alcance.
+
+# Resumen del Programador — AUTH-02b — ronda 4
+
+Corrige T-12 y T-13 (`reporte-tester.md`, "AUTH-02b — Ronda 3"), la ronda única y acotada autorizada por el humano fuera del máximo de 3, sin ronda 5. Alcance estricto: solo `frontend/src/features/admin/components/ficha-de-cuenta.tsx`. No fue necesario tocar `contrasena-temporal.tsx`: el defecto y su corrección viven enteros en cómo `AccionRestablecer` decide y recupera el foco antes de que `ContrasenaTemporal` reciba `enfocarAlMostrar`; ese componente ya hacía lo correcto con la prop que le llega. Ninguna prueba `*.ataque.test.ts(x)` se tocó: los 31 hashes de la tabla vigente coinciden exactamente al empezar y al terminar (detalle en "Verificación" abajo). No abrí ningún navegador.
+
+## T-12 — En Chromium, "Copiar" nunca recibía el foco tras confirmar, y tras un error el foco quedaba en `<body>`
+
+**Corregido**, en dos partes de `manejarDesenfoque` y `handleConfirmar` de `AccionRestablecer`:
+
+1. **`manejarDesenfoque` ya no apaga `tieneFocoRef` ante cualquier `blur`.** Antes lo hacía siempre. Ahora mira `evento.relatedTarget` (el destino real de un cambio de foco, disponible ya en el propio evento de `blur`/`focusout`, a diferencia de `document.activeElement`, que en ese instante todavía no refleja el destino: lo comprobé empíricamente, ver "Desviaciones" abajo). Si `relatedTarget` es `null` o `document.body`, el evento no tiene un destino real: es la "corrección del foco" del HTML, que en Chromium mueve el foco a `<body>` en cuanto un botón enfocado pasa a `disabled` (justo lo que le pasa a "Sí, restablecer" con `disabled={restablecer.isPending}`). Ese salto no cuenta como que el admin abandonó la confirmación, así que `tieneFocoRef` no se apaga. Si `relatedTarget` es un control real (el admin se movió a otro campo o botón, con o sin ese control ya deshabilitado), sí se apaga, igual que antes.
+2. **`handleConfirmar` recupera el foco en `onError`, nunca antes.** Si la petición falla y `tieneFocoRef.current` seguía en `true` (el admin no se había ido), el foco vuelve a "Cancelar" al conocer el resultado. No lo hice de forma síncrona durante el `blur` (que dejaría `document.activeElement` en `<body>` de inmediato): la prueba del Tester exige que, tras emular la corrección de Chromium, el foco esté genuinamente en `<body>` en ese instante (`emularCorreccionDelFocoDeChromium` lo comprueba con su propia aserción), así que la recuperación tenía que esperar a que la corrección "terminara" y llegara el resultado de la petición.
+
+Con el éxito no hizo falta ningún cambio nuevo: `onSuccess` ya leía `tieneFocoRef.current` (ronda 3); con la corrección de (1), ese valor ya no se apaga por la corrección del foco de Chromium, así que llega `true` cuando corresponde y `ContrasenaTemporal` mueve el foco a "Copiar" con la prop `enfocarAlMostrar` que ya tenía.
+
+Pruebas del Tester que lo cubren, las dos en `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` (describe "en Chromium, 'Sí, restablecer' deshabilitado pierde el foco"):
+- "el admin confirma y no se mueve: al llegar la temporal, el foco llega a 'Copiar'" (verde).
+- "el admin confirma y el servidor responde 500: el foco no queda en `<body>`" (verde).
+
+## T-13 — Con `<StrictMode>`, la ficha que aparece le quitaba el foco al buscador
+
+**Corregido.** El efecto de foco (T-09/T-10, ronda 3) usaba una bandera `esPrimerRenderRef` que solo distinguía "primera vez que corre este efecto" de "las demás veces". Con `<StrictMode>` (como en `main.tsx`), React vuelve a ejecutar los efectos del montaje una segunda vez, en un montaje simulado, conservando los refs: la bandera ya estaba en `false` tras la primera ejecución, así que la segunda se trataba como una transición real de `confirmando` y movía el foco al buscador.
+
+La sustituí por `confirmandoAnteriorRef`, inicializado con el propio valor de `confirmando` en el primer render (`useRef(confirmando)`), y el efecto compara ese ref contra el valor actual: si son iguales, no hace nada; si son distintos, actualiza el ref y mueve el foco. Esto no depende de "cuántas veces corrió el efecto" (lo que rompe `<StrictMode>`), sino de si `confirmando` cambió de verdad entre una ejecución y la siguiente. Con `<StrictMode>`, las dos ejecuciones del montaje ven el mismo valor de `confirmando` (nada cambió entre ellas), así que ninguna mueve el foco. Con una transición real (el admin hace clic), el valor sí cambió respecto al que el ref tenía guardado, así que el foco se mueve, sin que importe si esa ejecución es "la primera" o no.
+
+Prueba del Tester que lo cubre: `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` › "con `<StrictMode>` (como en `main.tsx`), la ficha que aparece no le quita el foco al campo de búsqueda" (verde). La misma prueba sin `<StrictMode>` sigue verde.
+
+## Estado de T-07, T-09, T-10 y T-11
+
+Sigo cumpliéndolos con el mismo mecanismo de la ronda 3, sin tocarlo salvo lo descrito arriba:
+- **T-07:** el `role="status"` de la temporal y el foco en "Cancelar" al pedir la confirmación no cambiaron. La mitad que fallaba en Chromium ("Copiar" tras confirmar sin moverse) es exactamente T-12, ya corregida.
+- **T-09:** el efecto sigue llevando el foco a "Cancelar" al abrir la confirmación, nunca a "Sí, restablecer"; solo cambió el guardia que decide si el efecto debe actuar (`confirmandoAnteriorRef` en vez de `esPrimerRenderRef`), no lo que hace cuando actúa.
+- **T-10:** la rama `confirmando === false` del mismo efecto sigue devolviendo el foco a "Restablecer contraseña".
+- **T-11:** `onBlurCapture` sigue apagando `tieneFocoRef` cuando el admin se mueve a un control real fuera de la confirmación (ahora mirando `relatedTarget` en vez de disparar siempre); el ref se sigue leyendo solo en manejadores (`onSuccess`, y ahora también `onError`), nunca durante el render.
+
+Las 33 pruebas de `cuentas-r1.ataque.test.tsx`, `cuentas-r2.ataque.test.tsx` y `cuentas-r3.ataque.test.tsx` de `features/admin` pasan juntas (ver V-19 abajo), incluidas las que cubren T-07, T-09, T-10 y T-11.
+
+## Archivos creados o modificados en esta ronda
+
+- **Modificado:** `frontend/src/features/admin/components/ficha-de-cuenta.tsx` (import de `type FocusEvent`; `esPrimerRenderRef` sustituido por `confirmandoAnteriorRef`; `handleConfirmar` con `onError`; `manejarDesenfoque` con el chequeo de `relatedTarget`).
+- **No modificado:** `frontend/src/features/admin/components/contrasena-temporal.tsx`. Lo leí completo y no encontré nada que la corrección de T-12/T-13 necesitara cambiar ahí (ver arriba).
+- **Ninguna `*.ataque.test.ts(x)` se tocó.** Los 31 hashes de la tabla vigente (`reporte-tester.md`, "AUTH-02b — Ronda 3") coinciden exactamente antes y después de esta ronda (ver V-19 y V-21 abajo).
+- **Nada bajo `backend/`, `shared/` ni `eslint.config.mjs`.**
+
+## Verificación
+
+- **Precondición de red, antes de correr nada:** regla de firewall "Campus: bloquear entrada a Docker en redes publicas" → `True`/`Inbound`/`Block`/`Public` (`Get-NetFirewallRule`). Red `IZZI-F281`/`Public` (`Get-NetConnectionProfile`), declarada de confianza por el humano. Sin contenedores de Testcontainers al empezar (`docker ps -a --filter "label=org.testcontainers=true"` vacío).
+- **Hashes de entrada:** los 31 `*.ataque.test.ts(x)` de la tabla vigente (`reporte-tester.md`, "AUTH-02b — Ronda 3") coincidían exactamente antes de tocar nada (`sha256sum -c` sobre los 31 archivos).
+- **V-19 (frontend, desde `frontend/`):** `npx vitest run src/features/admin/cuentas-r1.ataque.test.tsx src/features/admin/cuentas-r2.ataque.test.tsx src/features/admin/cuentas-r3.ataque.test.tsx src/app/cuentas-r1.ataque.test.tsx src/app/cuentas-r2.ataque.test.tsx` → **5 archivos, 89 pruebas, todas verdes** (las 18 de la ronda 3, incluidas las dos de T-12 y la de T-13, en verde). `npm run lint` → verde (ESLint, `prettier --check` y `tsc -b`). `npm test` (todo el frontend) → **24 archivos, 244 pruebas, todas verdes**.
+- **V-20 (tres corridas completas de `npm test` desde la raíz, salida a archivo, sin tubería):**
+
+| Corrida | Backend | Frontend |
+|---|---|---|
+| 1 | 65 archivos · 657/657 | 24 archivos · 244/244 |
+| 2 | ídem | ídem |
+| 3 | ídem | ídem |
+
+  Las tres corridas dieron el mismo resultado exacto. `grep -c` de `FSTDEP`, `too many clients`, `40P01`, `deadlock detected` y `could not serialize` sobre los tres logs → `0` en las tres. Tras la tercera corrida, `docker ps -a --filter "label=org.testcontainers=true"` → vacío. Los tres archivos de log se quedaron en el scratchpad de la sesión, fuera del repositorio.
+- **V-21:** recalculé los 31 hashes al terminar con `sha256sum -c` sobre la misma tabla: **31/31 `OK`**, idénticos a los de antes de empezar. Ninguna `*.ataque.test.ts(x)` se tocó.
+- **V-22 (versión 02b, ronda 4):** `git status --short --untracked-files=all -- backend shared eslint.config.mjs` → vacío. `git status --short --untracked-files=all -- frontend` → exactamente los mismos archivos `??`/`M` que ya existían antes de esta ronda (incluidos `ficha-de-cuenta.tsx` y `contrasena-temporal.tsx`, ambos `??` desde la ronda 1, nunca confirmados en git), sin ningún archivo nuevo.
+
+## PARADAS
+
+Ninguna se activó. PA-11 (cualquier `*.ataque` en rojo) no se activó: las 31 pruebas del Tester pasan en las tres corridas, igual que todas las pruebas propias existentes.
+
+## Desviaciones del plan
+
+1. **`document.activeElement` no sirve para distinguir la corrección del foco de Chromium de un cambio de foco real; usé `evento.relatedTarget` en su lugar.** No es una desviación del plan (que no especifica el mecanismo), sino de mi propio primer intento: comprobar `document.activeElement === document.body` dentro de `manejarDesenfoque` parecía razonable (así lo comprueba la propia prueba del Tester, después del `blur`), pero rompía dos pruebas que ya estaban en verde ("la temporal que llega mientras el admin escribe en otro campo/'Correo correcto' no le roba el foco", en `cuentas-r2.ataque.test.tsx` y `cuentas-r3.ataque.test.tsx`): en el instante en que corre el manejador de `blur`, `document.activeElement` todavía no refleja el nuevo destino (sigue en `<body>` de forma transitoria, tanto si el foco se va a un control real como si se va a ningún lado), así que ese chequeo no distinguía los dos casos y confundía un movimiento real de foco con la corrección de Chromium. Lo comprobé ejecutando la suite con ese primer intento y viendo esas dos pruebas fallar exactamente con ese patrón. `evento.relatedTarget`, disponible en el propio evento de `blur`/`focusout` sin esperar a que `document.activeElement` se actualice, sí distingue ambos casos y las 89 pruebas de foco (incluidas esas dos) quedan en verde. No relaja ninguna validación, permiso ni tipo.
+
+Ninguna otra desviación. No toqué `backend/`, `shared/`, `eslint.config.mjs`, `contrasena-temporal.tsx` ni ninguna `*.ataque.test.ts(x)`.
+
+## Hallazgos atendidos
+
+- **T-12:** corregido (ver arriba).
+- **T-13:** corregido (ver arriba).
+
+## No verificado o pendiente
+
+- Igual que en las rondas anteriores: el flujo en el navegador real (API + worker + Vite) no se ejecutó; el encargo de esta ronda no autoriza abrir navegadores ni arrancar esos procesos.
+- No verifiqué el foco con un lector de pantalla real (NVDA/VoiceOver).
+- Todo lo que ya estaba pendiente en las rondas anteriores (MF-02, MF-03, MF-04, MF-05 de `revision.md`, y los pendientes de `aprobacion.md`) sigue sin tocar: esta ronda se limitó, como se pidió, a `ficha-de-cuenta.tsx` y a los dos hallazgos T-12 y T-13.

@@ -550,3 +550,521 @@ No son defectos de AUTH-02a: el diseño de este encargo las cubre. Pero un encar
    - la migración `20260924230513_tokens_cuenta/migration.sql`;
    - `eslint.config.mjs`.
 5. **AUTH-02a no se despliega sola:** una cuenta con cambio obligatorio no tiene pantalla hasta AUTH-02b. Sin commit ni push de ningún agente: el commit lo decides tú, después de MF-01 y MF-02.
+
+# Revisión del Manager — AUTH-02b — final
+Veredicto: ESCALAR AL HUMANO
+Verificación propia (2026-09-26, rama `feat/auth-02b-cuentas-frontend`, una corrida completa desde la raíz): lint `código 0` · build `código 0` · test `código 1`: backend 65 archivos / 657 de 657; frontend 24 archivos / 241 de 244, con exactamente las 3 pruebas en rojo de T-12 y T-13.
+
+**Por qué escalo.** Se agotaron las 3 rondas y la suite no está en verde. El código cumple lo pedido y lo acordado: no encontré ningún problema de seguridad, de alcance ni de reglas. Lo que queda abierto son dos defectos de foco de severidad baja (T-12 y T-13) y sus 3 pruebas en rojo. Con pruebas en rojo no se puede declarar terminado (`AGENTS.md`, "Pruebas" y "Definición de terminado"). Además, una `*.ataque` en rojo fusionada en `main` activaría PA-11 en el primer paso de cualquier encargo siguiente. Salir de aquí exige una decisión que solo tú puedes tomar: una ronda 4 fuera del máximo o aceptar el riesgo por escrito.
+
+**Precondición del backend, comprobada antes de correr nada:**
+- La regla del firewall "Campus: bloquear entrada a Docker en redes publicas" está `True` / `Inbound` / `Block` / `Public`.
+- La red es `IZZI-F281` / `Public`, declarada de confianza por el humano.
+- Docker `28.5.1`, sin contenedores de Testcontainers al empezar.
+
+**Salidas reales:**
+- **`npm run lint`:** código 0. ESLint, `prettier --check` ("All matched files use Prettier code style!") y `tsc -b`, en los tres workspaces.
+- **`npm run build`:** código 0 (`✓ built in 1.48s`). Queda el aviso de Vite del chunk de más de 500 kB, que ya existía.
+- **`npm test`:** código 1.
+  - Backend: `Test Files 65 passed (65)`, `Tests 657 passed (657)`, `Duration 46.52s`.
+  - Frontend: `Test Files 1 failed | 23 passed (24)`, `Tests 3 failed | 241 passed (244)`, `Duration 23.09s`. Las tres en rojo, todas de `features/admin/cuentas-r3.ataque.test.tsx`:
+    - "con <StrictMode> (como en main.tsx), la ficha que aparece no le quita el foco al campo de búsqueda" (T-13);
+    - "el admin confirma y no se mueve: al llegar la temporal, el foco llega a 'Copiar'" (T-12);
+    - "el admin confirma y el servidor responde 500: el foco no queda en <body>" (T-12).
+  - Son las mismas que reporta el Tester. Ninguna otra prueba falla.
+  - En el log, 0 coincidencias de `FSTDEP`, `too many clients`, `40P01`, `deadlock detected` y `could not serialize`.
+- **Contenedores:** al terminar, `docker ps -a --filter "label=org.testcontainers=true"` salió vacío.
+- **Hashes:** `sha256sum -c` de las 31 `*.ataque` de la tabla de la ronda 3 del Tester dio 31/31 `OK`. En disco hay exactamente 31 archivos `*.ataque.test.ts(x)`. El Programador no tocó ninguna.
+- **Pruebas desactivadas:** busqué `.skip`, `.only`, `.todo`, `.fails`, `skipIf`, `runIf`, `xit(`, `xtest(` y `xdescribe` en los `*.test.ts(x)` de `frontend/src`, `backend/` y `shared/`. Sin coincidencias.
+- **Alcance:**
+  - `git status --untracked-files=all -- backend shared eslint.config.mjs` sale vacío.
+  - `git diff --quiet` da código 0 sobre `backend`, `shared`, `eslint.config.mjs`, `infra`, `AGENTS.md`, `CLAUDE.md`, `.claude`, `docs/ARCHITECTURE*.md`, `docs/PRD.md`, `frontend/vite.config.ts`, `frontend/package.json`, `package.json` y `package-lock.json`.
+  - `README.md` tiene un solo fragmento, dentro de "Frontend en local" §3.
+  - Fuera de `frontend/` solo cambian `README.md`, `docs/ESTADO.md` (orquestador) y los archivos de traspaso de esta carpeta.
+  - Los 32 archivos nuevos y los modificados de `frontend/` están en `w/lf`.
+  - `git status` tenía las mismas 51 entradas antes y después de mi corrida.
+- **Revisión estática** (hecha por mí, no copiada de los reportes):
+  - `fetch(` solo en `services/apiClient.ts`.
+  - `localStorage` y `sessionStorage` solo en comentarios.
+  - `features/admin` no importa de `features/auth`, ni al revés.
+  - Sin `dialog` en `admin`, `auth` ni `app`.
+  - Sin `?? []`, `any` ni `console.` en producción.
+  - Sin colores, `px`, sombras ni `font-mono` sueltos.
+  - Sin emojis ni palabras prohibidas.
+  - Sin ternarios anidados.
+
+**Alcance de mi revisión:** una corrida completa; el Programador y el Tester corrieron tres cada uno en la ronda 3, con el mismo resultado. No arranqué Vite, la API ni el worker, no abrí ningún navegador y no toqué código.
+
+**Resumen.** AUTH-02b cubre la parte de interfaz de RF-03, RF-04, RF-04a, RF-04b y RF-04d, y sigue DEC-17, DEC-18 y DEC-19. Lo contrasté con el código:
+- `apiClient` trata `403 CAMBIO_DE_CONTRASENA_REQUERIDO` de forma simétrica a `ACCESO_RESTRINGIDO`, sin bucle. Solo `/api/auth/cambiar-contrasena` refresca bajo `/api/auth/`.
+- Las tres guardas envían a `/cambiar-contrasena`, y `RequireCambioDeContrasena` vive fuera de `RequireSesion`.
+- El token del enlace:
+  - se lee una vez del fragmento, con el patrón exacto de 43 caracteres base64url;
+  - sale de la URL y del historial con `replace`;
+  - vive solo en el estado de React;
+  - la mutación se retira de la caché al asentarse (T-01).
+- La temporal se muestra una vez, con `gcTime: 0`, y desaparece al buscar otra cuenta. La confirmación es en línea y el foco inicial va a "Cancelar" (T-09).
+- La ficha de una cuenta admin no ofrece "Restablecer", y el backend lo niega igual.
+- Textos del plan, uno por uno, en `data.ts`.
+
+Lo único que falla es la gestión del foco en `AccionRestablecer`. Cada corrección de foco abrió un defecto nuevo: T-07 → T-09/T-10/T-11 → T-12/T-13. Las rondas no han convergido en ese punto, y esa es la razón de fondo para acotar mucho la salida.
+
+## Problemas que bloquean
+
+### MF-01 (02b) — La suite no está en verde: 3 pruebas del Tester en rojo (T-12 y T-13)
+- **Dónde:** `frontend/src/features/admin/components/ficha-de-cuenta.tsx` (efecto de foco con `esPrimerRenderRef`; `disabled={restablecer.isPending}` en "Sí, restablecer"; `tieneFocoRef` por `onBlurCapture`) y `frontend/src/features/admin/cuentas-r3.ataque.test.tsx`.
+- **Por qué importa:** la definición de terminado y el "Criterio de cierre" del plan exigen la suite completa en verde. Fusionar con 3 `*.ataque` en rojo dispararía PA-11 en cualquier encargo siguiente, y desactivarlas está prohibido sin tu autorización (`AGENTS.md`, "Pruebas").
+- **Los defectos de fondo son de severidad baja** (valoración en "Hallazgos abiertos de la ronda 3", abajo): no fugan datos, no saltan autorización y no restablecen sin confirmar.
+- **Qué se espera:** tu decisión entre las opciones de "Para el humano", punto 1.
+
+## Hallazgos abiertos de la ronda 3, uno por uno
+
+### T-12 — En Chromium, "Copiar" no recibe el foco tras confirmar, y tras un error el foco queda en `<body>`
+- **¿Es válido?** Sí.
+  - La sonda del Tester en Chrome 153 muestra lo que dice el HTML ("corrección del foco"): un botón con el foco que pasa a `disabled` lo pierde con `blur`/`focusout`.
+  - `manejarDesenfoque` no distingue ese `blur` de un admin que se fue a otro campo, así que `tieneFocoRef` queda en `false` antes de la respuesta.
+  - La emulación en jsdom (quitar `disabled` un instante, `blur()`, reponerlo) deja el DOM igual que React y reproduce el efecto real. Arbitro la prueba como correcta.
+- **Impacto real:** bajo.
+  - La temporal sigue anunciándose por `role="status"`, así que un lector de pantalla la lee.
+  - Quien usa teclado tiene que volver a tabular desde el principio para llegar a "Copiar".
+  - No hay riesgo de restablecer sin confirmar ni de que se vea la temporal de otra cuenta.
+  - Es una regresión frente a la ronda 2 solo en ese camino. La ronda 3 es mejor en conjunto, porque cerró T-09 (media).
+- **¿Bloquea el cierre?** Por sí mismo, no. Bloquea por su prueba en rojo (MF-01).
+- **Recomendación:** ronda 4 extraordinaria y acotada (ver "Para el humano"). Resultado esperado, no implementación:
+  - con el admin quieto en la confirmación, "Copiar" recibe el foco en Chromium al llegar la temporal;
+  - tras un error, el foco queda en un control de la confirmación;
+  - T-03 (una sola petición), T-09, T-10 y T-11 siguen en verde.
+  Si no se autoriza la ronda, destino: ADMIN, que sustituye esta pantalla provisional.
+
+### T-13 — Solo en desarrollo, `<StrictMode>` hace que la ficha le quite el foco al buscador
+- **¿Es válido?** Sí.
+  - `main.tsx` monta la aplicación en `<StrictMode>`. React 19 vuelve a ejecutar el efecto en el montaje simulado y `esPrimerRenderRef` ya no lo protege.
+  - La prueba reproduce exactamente el entorno en que se usa la pantalla en `dev`.
+- **Impacto real:** muy bajo.
+  - No afecta a `prod`.
+  - Si el admin encadena Enter, el foco va a "Cancelar" y no restablece.
+- **¿Bloquea el cierre?** Por sí mismo, no. Bloquea por su prueba en rojo (MF-01).
+- **Recomendación:** entra en la misma ronda 4, con este resultado esperado: el foco solo se mueve ante un cambio real de `confirmando` provocado por el admin, y el doble montaje de `<StrictMode>` no lo mueve. Sin ronda, destino ADMIN.
+
+## Problemas que no bloquean
+
+### MF-02 (02b) — La pantalla de admin construye tarjetas a mano y duplica la validación por campo
+- **Dónde:**
+  - `formulario-invitar-maestro.tsx`, `buscador-de-cuenta.tsx` y `ficha-de-cuenta.tsx` usan `rounded-lg border border-border bg-surface p-4` en lugar de `Card` de `components/ui/`. `tarjeta-de-cuenta.tsx` de `auth` sí usa `Card`.
+  - `features/admin/lib.ts` (`erroresPorCampoAdmin`) y `types.ts` (`IncidenciaValidacion`) duplican `erroresPorCampo` de `features/auth` (desviación 2 declarada en la ronda 1).
+- **Por qué importa:**
+  - `CLAUDE.md`, "Componentes": "NO construyas a mano … tarjetas".
+  - Regla 5: "El código usado por 2 o más módulos sube a … `lib/`".
+- **Por qué no bloquea:**
+  - Usa solo tokens, así que no hay valores sueltos.
+  - Duplicar era lo único posible dentro de lo autorizado: el plan no permitía crear archivos en `frontend/src/lib/` ni tocar `auth/lib.ts` para eso.
+  - La pantalla es provisional.
+- **Qué se espera:** pendiente escrito para ADMIN: usar `Card` en la gestión de usuarios definitiva y subir la conversión de incidencias de zod a `frontend/src/lib/` (refactor propio, sin mezclar con funcionalidad). **No lo metería en la ronda 4**, para mantenerla mínima.
+
+### MF-03 (02b) — Documentos desfasados o con un error pequeño
+- **`README.md` §3 (Frontend en local), dentro del alcance de 02b.** El texto se lee "Desde `frontend`", pero propone `Invoke-Item backend\tmp\correos`, que desde ahí no existe (sería `..\backend\tmp\correos`). Además abre la carpeta, no "el HTML más reciente" que dice la frase. El §8 del backend ya tiene la forma correcta, así que basta con remitir a ella o usar esa misma línea.
+- **`README.md` §7 y §8 (Backend en local), fuera del alcance de 02b:**
+  - §7 dice "El frontend tiene 11 archivos con 69 pruebas (32 adversarias)". Hoy son 24 archivos y 244 pruebas, unas 170 de ellas adversarias en 10 archivos (32 de antes más 95, 25 y 18 de las tres rondas del Tester).
+  - §8 dice que la pantalla que recibe el enlace "llega con AUTH-02b". Ya llegó.
+- **`CLAUDE.md`, "Ubicaciones compartidas":** la línea de `services/navegacion.ts` dice que `apiClient` la usa "al perder la sesión o ante `403 ACCESO_RESTRINGIDO`". Falta `403 CAMBIO_DE_CONTRASENA_REQUERIDO` (DEC-17).
+- **Qué se espera:** carril trivial, antes del commit. Lo aplica el orquestador con tu autorización (`CLAUDE.md` y README fuera de §3), o el Programador en una pasada acotada a `README.md` §3. Cifra exacta de adversarias: confirmar con `npx vitest list` si se quiere precisión.
+
+### MF-04 (02b) — Incidencia de la ronda 3: el Tester lanzó navegadores sin autorización
+- **Qué pasó:**
+  - El Tester lanzó Chrome sin interfaz, con un perfil desechable en el scratchpad, para medir T-12.
+  - Después intentó lo mismo con Edge, que se enganchó a la sesión abierta del humano ("Se está abriendo en una sesión de navegador existente") y pudo abrir una pestaña con la sonda local.
+  - Lo declaró con transparencia y comprobó que no quedó ningún proceso suyo vivo.
+- **Por qué importa:**
+  - La lista "Ejecutar (lista cerrada)" del plan no incluye navegadores ni aplicaciones gráficas, y el de 02b solo autoriza lo común.
+  - Es una desviación de proceso, de la misma familia que "no termines procesos que no arrancaste". Tocar la sesión personal del navegador del humano es justo lo que las reglas intentan evitar: su perfil tiene sesiones, cookies y extensiones.
+  - No hubo daño aparente: la sonda era HTML suelto, sin código del proyecto ni datos.
+  - El Programador sí se contuvo en el caso equivalente (`Invoke-Item`, V-23).
+- **Por qué hace falta una regla:** `.claude/agents/tester.md` no dice nada de navegadores. La prohibición solo se deduce de la "lista cerrada" del plan, y el Tester no la leyó así.
+- **Qué se espera:** tu decisión sobre el texto de la regla ("Para el humano", punto 4).
+
+### MF-05 (02b) — Observaciones sin severidad del Tester que deben quedar escritas como pendientes
+Ninguna merece ser hallazgo de 02b: no violan un requisito del plan ni una regla. Pero si no se escriben, se pierden.
+
+| Observación | Valoración | Destino propuesto |
+|---|---|---|
+| La contraseña del login (y la del registro: `useRegistro` tiene el mismo patrón) queda 5 min en la caché de mutaciones | Mismo defecto que T-01, en código de AUTH-01. El riesgo es bajo (exige ejecutar código en la página o abrir las DevTools), pero contradice la intención de DEC-18 y de la regla 13. El camino de la temporal no se ve afectado, porque `irA` recarga | Pendiente escrito. Un cambio corto de frontend (carril normal: cambia comportamiento) que aplique a `useLogin` y `useRegistro` el mismo `sacarDeLaCacheAlAsentar`, **antes de DEPLOY** |
+| La temporal se pierde si el admin busca otra cuenta con el restablecimiento en vuelo: la cuenta queda restablecida y sus sesiones revocadas sin que el admin lo sepa | Coherente con DEC-19, pero el admin no recibe ninguna señal. Es recuperable: se restablece otra vez | ADMIN: la gestión definitiva no debe ocultar un restablecimiento que sí ocurrió (bloquear la búsqueda mientras está en vuelo, o avisar) |
+| Texto genérico ante un fallo de red en admin ("No pudimos completar la operación…") | `MENSAJES_ERROR_ADMIN` no tiene `SIN_CONEXION`; `auth` sí lo tiene. El plan no fija ese texto | ADMIN |
+| El foco de los botones que se deshabilitan en vuelo cae a `<body>` en todos los formularios (mismo mecanismo que T-12) | Viene de la ronda 1 y ningún requisito lo cubre. Es transversal: `Button` de `components/ui/` | Pendiente del sistema de diseño: decidir un patrón único (por ejemplo, `aria-disabled` con guarda en lugar de `disabled` mientras la petición está en vuelo) cuando se fije la dirección visual, y verificarlo en un navegador real. Si la ronda 4 resuelve T-12 sin `disabled`, ese es el candidato |
+| La alerta de error persiste al cancelar y al reabrir la confirmación | Detalle de estado. No confunde de cuenta, porque la ficha se remonta por `key` | ADMIN |
+| `role="status"` envuelve también el botón "Copiar" | Posible anuncio redundante. No verificado con NVDA ni VoiceOver | ADMIN, con la verificación en un lector de pantalla |
+
+**Qué se espera:** el orquestador los lleva a `aprobacion.md` y a `docs/ESTADO.md`, sección 3, con su destino.
+
+## Detalles menores
+- `features/auth/data.ts`: el comentario de `TEXTOS_NUEVA_CONTRASENA` cita "DEC-17, DEC-19". Debería citar DEC-18 y "Textos de interfaz".
+- `RequireCambioDeContrasena` comprueba `isPending` antes que `isError`. `CLAUDE.md` pide el orden error → cargando. Con TanStack Query son estados excluyentes, así que el comportamiento no cambia.
+- `features/auth/lib.ts`, `avisoDeLogin`: la aserción en línea `estado as { aviso: unknown }` va después de comprobar `"aviso" in estado`, así que es segura. Aun así, `esAvisoDeLogin` ya valida el valor.
+- `USUARIO_NO_ENCONTRADO` → "No hay ninguna cuenta con ese correo." aparece también en un `404` de restablecer o corregir (por `id`, cuenta borrada entre medias). Hoy no se puede alcanzar, porque no hay bajas.
+- Los mensajes de éxito "Invitación creada…" y "Correo actualizado…" van sin icono. No violan "el estado nunca solo con color", porque el texto es el estado, y el plan solo pedía icono en "Cuenta inactiva".
+- `useCambiarContrasena` hace `.catch(() => undefined)` en el camino del `409`. Está justificado en el comentario: el usuario se queda con el mensaje propio de `CAMBIO_NO_REQUERIDO`.
+- `formulario-cambiar-contrasena.tsx`: "Cerrar sesión" no se deshabilita con el cambio en vuelo. Es inocuo, porque `useCerrarSesion` navega y vacía la caché.
+
+## Desacuerdos arbitrados
+- **`formulario-cambiar-contrasena.tsx`, modificado sin declarar en la ronda 2.** Lo leí completo. Coincido con el Tester: el contenido corresponde al plan (DEC-09, DEC-17 y los textos de `/cambiar-contrasena`), valida con `cambiarContrasenaSchema`, la confirmación no viaja al servidor, tiene la misma defensa de doble envío que su gemelo y no relaja nada.
+  - Como el archivo nunca estuvo en git, nadie puede reconstruir qué cambió. La hora coincide con la corrección de T-01/T-02 en `hooks.ts`.
+  - **No bloquea y no requiere acción.** La falta es de declaración: como en MF-03 de 02a, todo archivo que se toca en una ronda va en su lista, aunque el cambio parezca de formato.
+  - El Programador de la ronda 3 no podía subsanarlo (otra instancia, sin memoria), y lo dijo bien.
+- **Desviaciones declaradas: las acepto todas.**
+  - Ronda 1:
+    - `TextosNuevaContrasena` en `types.ts`;
+    - `erroresPorCampoAdmin` duplicado (con el pendiente de MF-02);
+    - 2 pruebas de refuerzo;
+    - `descripcion?: string | undefined` por `exactOptionalPropertyTypes`.
+  - Ronda 2: la retirada explícita de la caché de mutaciones con `onSettled` va más allá del `gcTime: 0` del plan y es más determinista, sin relajar nada. El `autoFocus` en "Copiar" quedó sustituido en la ronda 3.
+  - Ronda 3: el ref se lee en `onSuccess` y no en el render, como exige `react-hooks/refs`.
+  - Ninguna toca `backend/`, `shared/`, `eslint.config.mjs` ni pruebas del Tester, y ninguna relaja una validación, un permiso o un tipo.
+- **T-12 como "regresión":** lo es solo en el camino "confirmar sin moverse → Copiar". La ronda 2 lo resolvía con un `autoFocus` que a la vez causaba T-09 (media) y T-11. El balance de la ronda 3 es positivo.
+- **Pruebas del Tester de la ronda 3:** las tres son legítimas. La emulación de Chromium se apoya en una medición real, y `<StrictMode>` es la configuración de `main.tsx`. El Programador no impugnó ninguna prueba en ninguna ronda.
+
+## Reglas (encargo de frontend)
+| Regla | Resultado |
+|---|---|
+| Token de acceso solo en memoria | Cumple. Sin `localStorage` ni `sessionStorage`. El token del enlace, solo en el estado de React (DEC-18) |
+| Ningún `fetch` fuera de `apiClient` | Cumple (dos `fetch`, los dos en `services/apiClient.ts`: `enviar` y el refresco) |
+| `features/admin` no importa de `features/auth` | Cumple. Tampoco al revés. Lo común va por `services/` y `components/` |
+| Tipos en `types.ts`; sin tipos a mano que existan en `shared/` | Cumple. Los tipos de la API se reexportan de `@campus/shared`. `CorregirCorreoVariables` salió de `hooks.ts` (T-08). En los componentes solo hay interfaces de Props |
+| Solo tokens y `components/ui/` | Cumple en tokens, con `Button` e `Input` de `ui/`. **Excepción:** tarjetas hechas a mano en admin (MF-02) |
+| Una acción principal por vista | Cumple. `/admin`: solo "Enviar invitación" es `primary`. Cada pantalla de cuenta tiene un solo `primary` |
+| Estado con icono y texto | Cumple. "Cuenta inactiva" con `CircleAlert` (T-06); el aviso del login con `CircleCheck` |
+| Retornos tempranos, sin ternarios anidados, sin `?? []` | Cumple |
+| Sin modales | Cumple. Confirmación en línea, sin `role="dialog"` |
+| Textos es-MX, sin palabras prohibidas ni emojis | Cumple. Coinciden con "Textos de interfaz" del plan |
+| Errores del frontend | Cumple. `throw` solo dentro de hooks de TanStack Query. "Copiar" con `try/catch/finally` y toast |
+| Seguridad no solo en la interfaz | Cumple. Ocultar "Restablecer" para el admin es cosmético: el backend responde `403 OPERACION_NO_PERMITIDA` |
+| Sin valores por defecto en `rol`, banderas o estado de pago | Cumple. La ficha no recibe ni muestra `estadoPago` |
+
+## Definición de terminado (`AGENTS.md`)
+- [x] **Cumple el `RF-xx` / `RN-xx` correspondiente** (parte de interfaz de RF-03, RF-04, RF-04a, RF-04b y RF-04d; DEC-17 a DEC-19). Con una salvedad: **nadie recorrió el flujo real en un navegador** (API + worker + Vite). 02b no lo autorizaba, así que queda para tu revisión (ver "Para el humano", punto 3).
+- [x] **Respeta las capas y pasa por el middleware:** 02b es solo frontend, sin endpoints nuevos, y no mueve ninguna seguridad al cliente.
+- [ ] **`lint`, `build` y `test` en verde:** lint y build sí; **test no** (3 en rojo, MF-01).
+- [x] **Pruebas de autorización:** no hay endpoint nuevo en 02b. Las de los 8 endpoints son de 02a.
+- [x] **Migración:** no aplica.
+- [x] **`infra/` y `.env.example`:** no aplica. `frontend/.env.example` no cambia.
+- [ ] **Documentos actualizados:** faltan la fila `admin` de `CLAUDE.md`, la línea de `navegacion.ts` y el README (MF-03).
+
+## Documentos a actualizar
+- **`CLAUDE.md`, tabla de módulos, fila `admin`** (texto del plan, "Al cerrar AUTH-02b"). Lo contrasté con lo implementado y **es correcto**: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo, en el índice de `/admin`, de forma provisional.
+- **`CLAUDE.md`, "Ubicaciones compartidas", `services/navegacion.ts`** (MF-03). Texto propuesto:
+  "`services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` y `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)"
+- **`CLAUDE.md`, fila `auth` (opcional, recomendado):** "bienvenida post-login (provisional hasta los dashboards)" → "bienvenida post-login de estudiante y maestro (provisional hasta los dashboards)". Desde 02b el admin ya no la ve.
+- **`README.md`:** §3 del frontend (`Invoke-Item`), §7 del backend (conteos del frontend) y §8 del backend ("llega con AUTH-02b"), según MF-03.
+- **`aprobacion.md` y `docs/ESTADO.md`:**
+  - tu decisión sobre MF-01 y la regla de MF-04;
+  - los pendientes de MF-02 y MF-05, con su destino;
+  - la suite al cierre;
+  - la tabla vigente de hashes: la de la ronda 3 del Tester, con 31 archivos, o la que se publique si hay ronda 4.
+- **`AGENTS.md` y `.claude/agents/tester.md`:** la regla de MF-04, si la apruebas.
+- **ESSENTIALS, `ARCHITECTURE.md` y `PRD.md`:** sin cambios. 02b no altera ninguna decisión.
+- **Datos personales o secretos en los traspasos:** revisé las secciones de 02b de `resumen-programador.md`, `reporte-tester.md`, `aprobacion.md` y el diff de `docs/ESTADO.md`. No hay correos reales, identificadores de `campus_dev`, tokens, temporales ni rutas personales. Los correos de las pruebas son ficticios (`@ejemplo.mx`, `@pruebas.local`), y la regla de MF-01 de 02a se cumple.
+
+## Para el humano
+1. **Qué hacer con T-12, T-13 y sus 3 pruebas en rojo (MF-01).** Opciones:
+   - **(A) Ronda 4 extraordinaria, única y acotada, como en AUTH-01. La recomiendo.**
+     - **Programador:** solo `features/admin/components/ficha-de-cuenta.tsx` y `contrasena-temporal.tsx`, con los dos resultados esperados de T-12 y T-13 (arriba) y T-03, T-09, T-10 y T-11 en verde. Nada de MF-02 ni MF-05.
+     - **Tester:** vuelve a correr todas sus pruebas y ataca solo esos dos archivos, **sin lanzar navegadores**.
+     - **Manager:** repite lint, build, test y hashes, y aprueba si todo sale en verde.
+     - **Si algo vuelve a fallar, se detiene y te consulta. No hay ronda 5:** se pasa automáticamente a (B).
+     - Por qué la recomiendo: los dos arreglos son locales, las causas están identificadas con precisión, y así evitas el precedente de desactivar pruebas adversarias.
+     - Su riesgo: el historial de este punto (cada corrección de foco abrió otra). Por eso la acoto a resultados comprobables y a dos archivos.
+   - **(B) Aceptar T-12 y T-13 como riesgo residual, con destino ADMIN** (esa pantalla se sustituye con la gestión de usuarios). Exige que autorices por escrito que el Tester convierta **exactamente esas 3 pruebas** en `it.fails(...)`, con un comentario que cite T-12, T-13 y el pendiente de ADMIN, y que publique los hashes nuevos. Así la suite queda en verde y avisará cuando alguien las arregle. No recomiendo `.skip`.
+   - **(C) Cerrar sin tocar nada y fusionar con la suite en rojo:** no lo recomiendo, porque bloquea PA-11 en todos los encargos siguientes.
+2. **MF-03, antes del commit:** autoriza los textos de `CLAUDE.md` (fila `admin`, `navegacion.ts` y, si quieres, la fila `auth`) y la corrección del README (§3, §7 y §8), por el carril trivial.
+3. **Revisión del diff (carril sensible) y comprobación en navegador real.** Nadie ha recorrido los flujos de verdad. Te recomiendo hacerlo tú, con API, worker y Vite en local, siguiendo "Frontend en local" §3:
+   - recuperación;
+   - invitación;
+   - restablecimiento con la temporal y `/cambiar-contrasena`;
+   - `/admin` a 360 px;
+   - Tab y Enter en "Restablecer contraseña" → "Cancelar" → "Sí, restablecer", para ver T-12 con tus propios ojos.
+
+   Lo que más conviene leer a mano:
+   - `frontend/src/services/apiClient.ts` (el `403` nuevo y la excepción de refresco);
+   - `frontend/src/app/require-cambio-de-contrasena.tsx`;
+   - `frontend/src/features/auth/hooks.ts` (`useTokenDelEnlace`, `useCambiarContrasena` y la limpieza de la caché);
+   - `frontend/src/features/admin/components/ficha-de-cuenta.tsx`.
+4. **Regla nueva por la incidencia de los navegadores (MF-04).** Propongo añadir a `AGENTS.md`, "Reglas del equipo", y a `.claude/agents/tester.md`:
+   "Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano."
+5. **MF-05:** confirma los destinos de las observaciones del Tester. En especial, si la contraseña del login y del registro en la caché de mutaciones va como requisito previo a DEPLOY (mi recomendación) o a otro encargo.
+6. **Sin commit ni push de ningún agente:** el commit lo decides tú, después de resolver el punto 1 y aplicar MF-03.
+
+---
+
+# Revisión del Manager — AUTH-02b — cierre
+Veredicto: APROBADO
+Verificación propia (2026-09-26, rama `feat/auth-02b-cuentas-frontend`, una corrida de cada comando desde la raíz): lint `código 0` · build `código 0` · test `código 0`: backend 65 archivos / 657 de 657; frontend 25 archivos / 257 pruebas, 253 en verde y 4 fallos esperados (`it.fails` de T-14).
+
+Esta verificación se limita a lo que cambió desde "AUTH-02b — final": la ronda 4 del Programador y del Tester, la opción B sobre T-14, `README.md`, `CLAUDE.md`, la regla de navegadores y `docs/ESTADO.md`. El resto de 02b ya lo revisé en "AUTH-02b — final" y sigue igual: ningún otro archivo de producción cambió después de la ronda 3.
+
+## Verificación propia, con la salida real
+- **Precondición del backend, comprobada antes de correr nada:**
+  - Regla del firewall "Campus: bloquear entrada a Docker en redes publicas": `Enabled True` · `Direction Inbound` · `Action Block` · `Profile Public`.
+  - Red `IZZI-F281`, `NetworkCategory Public`.
+  - Docker `28.5.1`. `docker ps -a --filter "label=org.testcontainers=true"` vacío al empezar.
+- **`npm run lint`:** código 0. ESLint, `prettier --check` ("All matched files use Prettier code style!", en los tres workspaces) y `tsc -b`.
+- **`npm run build`:** código 0 (`✓ built in 700ms`). Sigue el aviso de Vite del chunk de más de 500 kB, que ya existía.
+- **`npm test`:** código 0.
+  - Backend: `Test Files 65 passed (65)`, `Tests 657 passed (657)`, `Duration 32.26s`.
+  - Frontend: `Test Files 25 passed (25)`, `Tests 253 passed | 4 expected fail (257)`, `Duration 14.34s`.
+  - En el log, 0 coincidencias de `FSTDEP`, `too many clients`, `40P01`, `deadlock detected` y `could not serialize`.
+- **Contenedores:** al terminar, `docker ps -a --filter "label=org.testcontainers=true"` salió vacío.
+- **Hashes:** `sha256sum -c` sobre la tabla vigente de 32 archivos (`reporte-tester.md`, "Aplicación de la opción B a T-14") → 32/32 `OK`. En disco hay exactamente 32 `*.ataque.test.ts(x)`.
+- **`git status --short`:** idéntico antes y después de mis corridas.
+- No abrí navegadores ni arranqué Vite, la API o el worker. No toqué código.
+
+## Lo que verifiqué, punto por punto
+
+### 1. Ronda 4 del Programador
+- **Alcance:** busqué con `find -newer` los archivos posteriores a `cuentas-r3.ataque.test.tsx`, la última escritura de la ronda 3.
+  - En `frontend/src` solo cambiaron `features/admin/components/ficha-de-cuenta.tsx` (Programador) y `features/admin/cuentas-r4.ataque.test.tsx` (Tester).
+  - `contrasena-temporal.tsx` conserva su fecha de la ronda 3.
+  - En `backend/` solo aparece `src/adapters/db/generated/`. Lo regenera `prisma generate` dentro de lint y build, y git lo ignora: `git status` sobre `backend/` sale vacío.
+  - Coincide con lo declarado.
+- **T-12: la corrección es razonable.**
+  - `manejarDesenfoque` ignora el `blur` sin destino (`relatedTarget` nulo). Es el que produce Chromium al corregir el foco cuando deshabilita "Sí, restablecer". Así `tieneFocoRef` sigue en `true` y el `onSuccess` enfoca "Copiar".
+  - El `onError` devuelve el foco a "Cancelar" solo si el admin no se había ido, y lo hace después de la respuesta.
+  - Es el arreglo mínimo para el resultado que pedí en "AUTH-02b — final". El precio es T-14 (ver abajo).
+- **T-13: la corrección es correcta y robusta.**
+  - El ref se inicializa con `confirmandoAnteriorRef = useRef(confirmando)`, y el efecto sale si el valor no cambió.
+  - No depende de cuántas veces corra el efecto, que es justo lo que rompe `<StrictMode>`.
+  - Cada ficha nueva (por `key`) empieza en `false`.
+- **`CLAUDE.md`:** se cumple.
+  - Retornos tempranos en el efecto y en `manejarDesenfoque`.
+  - Sin `else`, ternarios anidados, `any` ni `?? []`.
+  - Solo interfaces de Props en el archivo, y `type FocusEvent` importado de `react`.
+  - Los refs se leen solo en el efecto y en los manejadores, nunca en el render.
+  - Los comentarios explican el porqué.
+- **T-07, T-09 y T-10 se siguen cumpliendo:**
+  - Sus pruebas de las rondas 1, 2 y 3 pasan en mi corrida.
+  - El Tester añadió en la ronda 4 casos con `<StrictMode>`, y también pasan: abrir y cancelar tres veces, Enter mantenido con 0 peticiones y el remontaje de la vista.
+  - T-07 se cumple ahora también en la emulación de Chromium; antes era T-12.
+- **T-11:** se cumple en jsdom, pero en Chromium vuelve a romperse. Es T-14, riesgo aceptado por el humano.
+
+### 2. Opción B sobre T-14 (`frontend/src/features/admin/cuentas-r4.ataque.test.tsx`)
+- **Exactamente 4 `it.fails`, las de T-14** (líneas 208, 232, 256 y 284).
+  - Cada una lleva el comentario "Riesgo aceptado por el humano el 2026-09-26 (T-14): pasa al encargo del sistema de diseño".
+  - Las otras 9 pruebas del archivo son `it` normales y pasan.
+- **Las aserciones no se debilitaron. Lo comprobé de forma independiente:**
+  - Tomé el archivo actual, borré las 4 líneas del comentario y cambié `it.fails(` por `it(`.
+  - Lo pasé por Prettier por `stdin`, sin escribir en el repositorio.
+  - El resultado tiene el SHA-256 `0de25798c050bdc7b71ae525d0bd98d287c33d8c87822097b625a38aafdc57db`, **idéntico** al que publicó el Tester para la versión sin `it.fails`.
+  - Lo único que cambió son la marca y el comentario.
+- **Ninguna otra prueba está desactivada.** Busqué `.fails`, `.skip`, `.only`, `.todo`, `skipIf`, `runIf`, `xit(`, `xtest(` y `xdescribe(` en los `*.test.ts(x)` de `frontend/src`, `backend/src`, `backend/test` y `shared/src`. Solo aparecen esas 4.
+- **La advertencia del Tester es correcta:** una `it.fails` también pasa si falla una aserción de preparación. Hoy el riesgo es bajo, por tres razones:
+  - las ayudas de preparación de esas 4 pruebas (`confirmarConClic`, `emularCorreccionDelFocoDeChromium` y `escribirEn`) se ejercitan en pruebas verdes de las rondas 3 y 4, así que si se rompieran lo delataría otra prueba en rojo;
+  - la única ayuda exclusiva de las `it.fails` es `clicEnZonaNoEnfocable`, que es trivial (`blur()` y comprobar `<body>`);
+  - el Tester vio fallar las 4 en la aserción final del foco, con sus mensajes, en tres corridas antes de marcarlas.
+
+  Aun así, conviene dejar escrito el procedimiento para quien las retome (N-01, abajo).
+
+### 3. Documentos
+- **`README.md` (MF-03, carril trivial): correcto.**
+  - **Frontend §3:**
+    - Ya no propone `Invoke-Item backend\tmp\correos` desde `frontend`. Remite a "Backend en local", paso 8, que tiene la línea correcta para abrir el HTML más reciente.
+    - Los tres flujos citan rutas y textos que existen en el código: `/restablecer`, `/establecer-contrasena` y `/cambiar-contrasena` en `router.tsx`; "¿Olvidaste tu contraseña?" en `auth/data.ts`; "Invitar a un maestro" en `admin/data.ts`.
+    - Los enlaces `…/restablecer#token=` y `…/establecer-contrasena#token=` coinciden con `backend/src/core/auth/enlaces.ts`.
+  - **Backend §7:** dice "25 archivos con 257 pruebas: 183 adversarias, en 11 archivos". Lo confirmé con `npx vitest list` en `frontend/`: 257 pruebas, 183 en `*.ataque`, repartidas en 11 archivos. Los números del backend (65 / 657, con 319 adversarias en 21 archivos) siguen valiendo.
+  - **Backend §8:** dice "la pantalla que lo recibe es `/restablecer` o `/establecer-contrasena`, según el flujo". Es correcto.
+  - **El resto del README quedó igual.** El diff contra `main` tiene solo cuatro fragmentos: §7 y §8 del backend y dos en §3 del frontend. Los de §3 son de la ronda 1, dentro del alcance de 02b.
+- **`CLAUDE.md`, aplicado por el orquestador: correcto.**
+  - La línea de `services/navegacion.ts` añade `403 CAMBIO_DE_CONTRASENA_REQUERIDO` (DEC-17), y coincide con lo que hace `apiClient.ts`.
+  - La fila `admin` añade literalmente el texto del plan ("Al cerrar AUTH-02b", línea 1577), y coincide con lo implementado.
+  - No hay otros cambios en `CLAUDE.md`. La precisión opcional de la fila `auth` no se aplicó: el humano no la autorizó y no hace falta.
+- **Regla de navegadores: correcta.**
+  - Aparece con el texto literal aprobado en `AGENTS.md`, como última viñeta de "Reglas del equipo".
+  - También en `.claude/agents/arquitecto.md`, `manager.md`, `programador.md` y `tester.md`.
+  - En cada uno de esos cinco archivos, el diff es exactamente esa línea. En `manager.md` va además una línea en blanco, porque la regla es un párrafo propio tras "Antes de empezar". Nada más cambió en ellos.
+- **Destinos en `docs/ESTADO.md`: coinciden con la decisión del humano**, con una omisión menor (N-02):
+  - CHORE-02 (no DEPLOY): la contraseña del login y del registro en la caché de mutaciones. Correcto.
+  - ADMIN: correcto. Incluye:
+    - la temporal perdida al buscar otra cuenta con la petición en vuelo;
+    - el texto genérico ante un fallo de red;
+    - la alerta que persiste al reabrir la confirmación;
+    - las tarjetas hechas a mano y `erroresPorCampo` duplicado.
+  - Sistema de diseño: correcto. Incluye el foco de los botones que se deshabilitan en vuelo, y T-14 como riesgo aceptado, con la nota de quitar las marcas al corregirlo.
+
+### 4. Alcance global de AUTH-02b
+- **Vacío** el `git status --short --untracked-files=all` sobre:
+  - `backend`, `shared`, `eslint.config.mjs` e `infra`;
+  - `package.json`, `package-lock.json`, `frontend/package.json` y `frontend/vite.config.ts`;
+  - `docs/ARCHITECTURE*.md` y `docs/PRD.md`.
+- Fuera de `frontend/` solo cambian estos archivos, todos autorizados:
+  - `README.md`, `CLAUDE.md` y `AGENTS.md`;
+  - los cuatro `.claude/agents/*.md`;
+  - `docs/ESTADO.md`;
+  - los cuatro archivos de traspaso de esta carpeta.
+- Los archivos nuevos de `features/admin` están en `w/lf`.
+- **Datos personales en los traspasos:** busqué correos, UUID de `campus_dev` y rutas personales en las líneas añadidas de `docs/`, `README.md`, `AGENTS.md`, `CLAUDE.md` y `.claude/`. Solo aparece `carla@ejemplo.mx`, que es ficticio.
+
+## Definición de terminado (`AGENTS.md`), para AUTH-02b
+- [x] **Cumple el `RF-xx` / `RN-xx`:** la parte de interfaz de RF-03, RF-04, RF-04a, RF-04b y RF-04d, y DEC-17 a DEC-19. El recorrido en navegador real lo hace el humano (su decisión 3).
+- [x] **Respeta las capas y pasa por el middleware:** es solo frontend, sin endpoints nuevos, y ninguna seguridad se mueve al cliente.
+- [x] **`lint`, `build` y `test` en verde:** sí.
+  - Las 4 `it.fails` de T-14 las autorizó el humano por escrito (`aprobacion.md`, "Resultado de la ronda 4 y decisión del humano sobre T-14").
+  - No ocultan nada: si alguien corrige T-14, pasarán a rojo.
+- [x] **Pruebas de autorización:** no aplica; 02b no tiene endpoints nuevos.
+- [x] **Migración:** no aplica.
+- [x] **`infra/` y `.env.example`:** no aplica.
+- [x] **Documentos actualizados:** `CLAUDE.md`, `README.md`, `AGENTS.md` y los agentes están al día. Quedan dos anotaciones menores (N-01 y N-02) y el cierre de `ESTADO.md`, que le toca al orquestador.
+
+**Riesgos aceptados por el humano que se cierran con este encargo:**
+- T-14, con destino al sistema de diseño.
+- Los pendientes de MF-02 y MF-05, con sus destinos.
+
+Ninguno toca datos ni autorización, y ninguno deja ver la temporal de otra cuenta.
+
+## Problemas que bloquean
+Ninguno.
+
+## Problemas que no bloquean
+
+### N-01 — Anotar cómo retirar las `it.fails` de T-14
+- **Dónde:** `docs/ESTADO.md`, fila de T-14 en la sección 3.
+- **Por qué importa:**
+  - Una `it.fails` pasa aunque falle una aserción de preparación.
+  - El encargo del sistema de diseño puede cambiar la confirmación, por ejemplo con `aria-disabled` en lugar de `disabled`. Entonces las ayudas de estas pruebas podrían dejar de aplicar, y las 4 seguirían en verde sin probar nada.
+- **Qué se espera:** que el orquestador añada a la fila una frase como esta: "Al retomarlo: quitar las cuatro `it.fails`, comprobar que fallan en la aserción final del foco con el mensaje '…le llevó el foco a…', y solo entonces corregir".
+
+### N-02 — Falta un destino de MF-05: el `role="status"` que envuelve también "Copiar"
+- **Dónde:** `aprobacion.md` ("Cómo lo aplica el orquestador", destinos) y `docs/ESTADO.md`, sección 3.
+- **Por qué importa:**
+  - El humano aceptó "los de ADMIN … como propone el manager".
+  - Mi propuesta incluía esta observación para ADMIN, con la verificación en un lector de pantalla.
+  - No quedó anotada, así que se perdería.
+- **Qué se espera:** añadirla a la fila de ADMIN de MF-05, en `ESTADO.md` y en `aprobacion.md`: "`role="status"` envuelve también el botón 'Copiar' (posible anuncio redundante); verificarlo con NVDA o VoiceOver".
+
+## Detalles menores
+- **`ficha-de-cuenta.tsx`:** ninguno de estos dos detalles merece otra ronda; quedan para cuando ADMIN rehaga la pantalla.
+  - El comentario de `tieneFocoRef` (líneas 30-32) dice que se lee "solo en manejadores o en el propio onSuccess". Desde la ronda 4 también se lee en `onError`.
+  - La comparación `destino === document.body` no se cumple nunca en la práctica, aunque es inofensiva.
+- **`aprobacion.md`, "Pendientes para encargos posteriores":** dice "AUTH-02b: pasos 16 a 22 del plan", pero el plan (línea 1580) y `ESTADO.md` dicen 16 a 21. Viene del cierre de 02a. Al cerrar 02b esa viñeta deja de tener sentido y se puede retirar.
+- **`ESTADO.md`:** todavía dice "En curso: verificación final de cierre del manager". El orquestador la actualiza con este veredicto.
+
+## Desacuerdos arbitrados
+- **T-14 frente a lo que afirma el Programador sobre T-11.**
+  - El resumen de la ronda 4 dice que `onBlurCapture` "sigue apagando `tieneFocoRef` cuando el admin se mueve a un control real".
+  - El Tester demuestra otra cosa: si el foco ya estaba en `<body>` (por el salto de Chromium o por un clic en una zona no enfocable), ningún `blur` sale del contenedor y el ref no se apaga.
+  - **Tiene razón el Tester:** la afirmación del Programador solo vale en jsdom.
+  - No lo trato como falta de honestidad. El Programador no podía verlo sin navegador, y lo declaró como no verificado. El humano ya decidió aceptarlo como riesgo.
+- **La historia de este punto respalda la decisión del humano de no abrir una ronda 5.**
+  - Cada corrección del foco en `AccionRestablecer` abrió otro caso: T-07 → T-09/T-10/T-11 → T-12/T-13 → T-14.
+  - La causa de fondo es un botón que se deshabilita con el foco puesto. Eso pertenece al sistema de diseño, no a esta pantalla provisional.
+
+## Documentos a actualizar
+- **`docs/ESTADO.md`** (orquestador):
+  - el cierre de AUTH-02b con este veredicto;
+  - la suite final: backend 65 / 657; frontend 25 / 257, con 4 fallos esperados; 32 `*.ataque` con hashes en `reporte-tester.md`, "Aplicación de la opción B a T-14";
+  - N-01 y N-02.
+- **`aprobacion.md`** (orquestador): N-02, y retirar o marcar como hecha la viñeta "AUTH-02b" de "Pendientes para encargos posteriores".
+- **ESSENTIALS, `ARCHITECTURE.md` y `PRD.md`:** sin cambios.
+
+## Para el humano
+1. **Revisión del diff antes del commit (carril sensible).** Lo que más conviene leer a mano es lo mismo que en "AUTH-02b — final":
+   - `frontend/src/services/apiClient.ts`;
+   - `frontend/src/app/require-cambio-de-contrasena.tsx`;
+   - `frontend/src/features/auth/hooks.ts`;
+   - `frontend/src/features/admin/components/ficha-de-cuenta.tsx`.
+
+   Revisa también la línea nueva de `AGENTS.md`, las de los cuatro `.claude/agents/*.md` y las dos de `CLAUDE.md`.
+2. **Recorrido en navegador real (tu decisión 3).** Nadie lo ha hecho todavía. Con la API, el worker y Vite en local, y siguiendo "Frontend en local" §3 del README:
+   - recuperación, invitación y restablecimiento con la temporal y `/cambiar-contrasena`;
+   - `/admin` a 360 px;
+   - con teclado: "Restablecer contraseña" → "Cancelar" → "Sí, restablecer", y que el foco llegue a "Copiar" (T-12);
+   - si quieres ver T-14:
+     - confirma con el ratón;
+     - antes de que responda la API, haz clic en "Nombre completo" de "Invitar a un maestro" y escribe.
+
+     Si la respuesta es rápida, no lo verás. Es el riesgo que aceptaste.
+3. **N-01 y N-02:** son dos anotaciones cortas en `ESTADO.md` y `aprobacion.md`. Las puede aplicar el orquestador antes del commit.
+4. **Commit y PR:** los decides tú. Ningún agente hace commit ni push.
+
+---
+
+# Revisión del Manager — AUTH-02b — verificación de autoComplete
+Veredicto: APROBADO
+Verificación propia (2026-09-26, rama `feat/auth-02b-cuentas-frontend`, una corrida de cada comando desde la raíz): build `código 0` · test `código 0`: backend 65 archivos / 657 de 657; frontend 25 archivos / 258 pruebas, 254 en verde y 4 fallos esperados (`it.fails` de T-14) · lint `código 1`, **solo** por dos HTML de `backend/tmp/correos/` que git ignora (N-01). Sin esos dos archivos, el lint de los tres paquetes pasa.
+
+Verificación acotada, por instrucción del humano (decisión A de "Nombre ajeno en la invitación de un maestro"): el cambio y la suite. Sin ronda del Tester.
+
+## Verificación propia, con la salida real
+- **Precondición del backend, comprobada antes de correr nada:**
+  - Regla "Campus: bloquear entrada a Docker en redes publicas": `Enabled True` · `Direction Inbound` · `Action Block` · `Profile Public`.
+  - Red `IZZI-F281`, `NetworkCategory Public`.
+  - Docker `28.5.1`. `docker ps -a --filter "label=org.testcontainers=true"` vacío al empezar.
+- **`npm run lint`:** código 1.
+  - `shared`: ESLint y Prettier en verde.
+  - `backend`: ESLint en verde. `prettier --check` marca 2 archivos: `tmp/correos/2026-09-26T18-28-47-792Z-….html` y `tmp/correos/2026-09-26T18-34-55-014Z-….html`. Por el `&&`, el `typecheck` del backend no llegó a correr.
+  - `frontend`: ESLint, Prettier ("All matched files use Prettier code style!") y `tsc -b` en verde.
+  - Para cerrar el hueco, corrí aparte en `backend/`: `prettier --check . --ignore-path ../.prettierignore --ignore-path ../.gitignore` → "All matched files use Prettier code style!", código 0; `npm run typecheck` → código 0.
+- **`npm run build`:** código 0 (`✓ built in 669ms`). Sigue el aviso de Vite del chunk de más de 500 kB, que ya existía.
+- **`npm test`:** código 0.
+  - Backend: `Test Files 65 passed (65)`, `Tests 657 passed (657)`, `Duration 34.39s`.
+  - Frontend: `Test Files 25 passed (25)`, `Tests 254 passed | 4 expected fail (258)`, `Duration 14.71s`. Frente al cierre (253 + 4 = 257), la única prueba nueva es la de este cambio.
+  - En el log, 0 coincidencias de `FSTDEP`, `too many clients`, `40P01`, `deadlock detected` y `could not serialize`.
+- **Contenedores:** al terminar, `docker ps -a --filter "label=org.testcontainers=true"` salió vacío.
+- **Hashes:** `sha256sum -c` sobre la tabla vigente de 32 archivos (`reporte-tester.md`, "Aplicación de la opción B a T-14") → 32/32 `OK`. En disco hay exactamente 32 `*.ataque.test.ts(x)`. Las únicas marcas de prueba desactivada en todo el repositorio siguen siendo las 4 `it.fails` de T-14.
+- **`git status --short --untracked-files=all`:** idéntico antes y después de mis corridas.
+- No abrí navegadores ni arranqué Vite, la API o el worker. No toqué código.
+
+## Lo que verifiqué, punto por punto
+
+### 1. `formulario-invitar-maestro.tsx`
+- "Nombre completo" (línea 61) y "Correo" (línea 80) tienen `autoComplete="off"`.
+- **No cambió nada más.** El archivo no está en git, así que no hay `git diff`. Lo comprobé en la transcripción del Programador: hizo exactamente dos `Edit`, `autoComplete="name"` → `"off"` y `autoComplete="email"` → `"off"`, y un `prettier --write` acotado a los dos archivos del encargo, desde `frontend/`.
+
+### 2. `cuentas-view.test.tsx`
+- La prueba nueva, "el formulario de invitación no autocompleta con los datos de quien lo llena", tiene dos aserciones: `toHaveAttribute("autocomplete", "off")` sobre "Nombre completo" y sobre "Correo".
+- Compara el valor del atributo: con `name` o `email` fallaría. `getByLabelText("Correo")` es coincidencia exacta y, al montar, no hay otro campo con esa etiqueta.
+- No usa `return` temprano.
+- **Ninguna otra prueba cambió:** el único `Edit` del Programador en el archivo inserta el bloque nuevo antes de "con 409 muestra…", sin tocar el resto. El archivo pasa de 6 a 7 casos, como consta en `resumen-programador.md`.
+
+### 3. Regla "Formularios" de `CLAUDE.md` en el resto del frontend
+- **`features/admin`: se cumple en todo.** Los otros dos campos donde el admin escribe datos ajenos ya tenían `autoComplete="off"`: `buscador-de-cuenta.tsx:62` y `formulario-corregir-correo.tsx:62`. No hay más campos de texto en el módulo.
+- **`features/auth`: correcto.** En todos sus formularios la persona escribe sus propios datos, así que `name`, `email`, `current-password` y `new-password` están bien usados. Son login, registro, recuperar, nueva contraseña y cambiar contraseña.
+- No hay `<input>`, `<select>` ni `<textarea>` sueltos fuera de `components/ui/`.
+
+### 4. Alcance desde mi revisión de cierre
+Busqué con `find -newer revision.md` los archivos posteriores a mi cierre.
+- **Código:** solo `frontend/src/features/admin/components/formulario-invitar-maestro.tsx` y `frontend/src/features/admin/cuentas-view.test.tsx`.
+- **Documentos del orquestador:** `CLAUDE.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/ESTADO.md` y `aprobacion.md`. No son parte de esta verificación.
+- **Además:** `backend/src/adapters/db/generated/`, que `prisma generate` regenera dentro de lint y test y que git ignora. Y los dos HTML de `backend/tmp/correos/` de N-01, también ignorados por git.
+
+## Problemas que bloquean
+Ninguno.
+
+## Problemas que no bloquean
+
+### N-01 — `npm run lint` desde la raíz sale en rojo por correos locales del worker
+- **Dónde:** `backend/tmp/correos/` (dos HTML de las 12:28 y las 12:34, escritos por `dev:worker` durante la investigación de este defecto) y `.prettierignore`, que no excluye `backend/tmp/`.
+- **Por qué importa:**
+  - Nada de esto entra en el commit, porque `.gitignore` ya excluye `backend/tmp/`. En un checkout limpio, el lint pasa.
+  - Aun así, cualquier agente que corra el lint en este equipo lo verá en rojo mientras existan esos archivos, y el `typecheck` del backend no llega a correr.
+  - El Programador no lo detectó porque solo corrió el lint de `frontend/`.
+  - Le pasará a cualquiera que use el worker en local, así que se va a repetir.
+- **Qué se espera (lo decide el humano):**
+  - o borrar los dos HTML (borrar archivos requiere tu confirmación);
+  - o, mejor, añadir `backend/tmp` a `.prettierignore` en un chore del carril trivial, fuera de este commit o dentro, como prefieras.
+
+### N-02 — El efecto real en el navegador no está verificado
+- `autoComplete="off"` es una indicación para el navegador. Algunos gestores de autorrelleno la ignoran y se guían por la etiqueta o el `name` del campo.
+- jsdom solo prueba que el atributo está puesto. Que Chrome deje de rellenar "Nombre completo" con tus datos se confirma en tu recorrido en navegador real, el punto 2 de "Para el humano" del cierre.
+- Si el navegador lo sigue rellenando, se reabre como defecto. No es motivo para detener el commit.
+
+## Detalles menores
+- La prueba nueva está declarada `async` sin ningún `await`. Es inofensivo.
+
+## Desacuerdos arbitrados
+Ninguno: no hubo ronda del Tester.
+
+## Documentos a actualizar
+- **`docs/ESTADO.md`** (orquestador): la suite al cierre pasa a frontend 25 / 258, con 254 en verde y 4 fallos esperados. Backend sigue en 65 / 657. Si se aplica N-01, anotarlo.
+- **`README.md`, backend §7:** dice "25 archivos con 257 pruebas". Ahora son 258; las adversarias siguen en 183. Es un cambio de una cifra que puede hacer el orquestador.
+
+## Para el humano
+1. **N-01:** decide si borras los dos HTML de `backend/tmp/correos/` o si se añade `backend/tmp` a `.prettierignore`.
+2. **N-02:** en tu recorrido en navegador, abre "Invitar a un maestro" y comprueba que Chrome ya no te ofrece tu nombre ni tu correo.
+3. **Commit y PR:** los decides tú. Ningún agente hace commit ni push.

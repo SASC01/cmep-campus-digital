@@ -3,14 +3,20 @@ import { describe, expect, it } from "vitest"
 import { ApiError } from "@/services/apiClient"
 
 import {
+  avisoDeLogin,
+  contrasenasCoinciden,
   erroresPorCampo,
   etiquetaDeRol,
+  leerTokenDelFragmento,
   mensajeDeErrorAuth,
   ordenarAnuncios,
+  requiereCambioDeContrasena,
   rutaPorRol,
   rutaTrasLogin,
 } from "./lib"
 import type { Anuncio, MeRespuesta } from "./types"
+
+const TOKEN_VALIDO = "A".repeat(43)
 
 const desordenados: Anuncio[] = [
   { anuncioId: "c", titulo: "Tercero", texto: "", orden: 3 },
@@ -89,5 +95,53 @@ describe("erroresPorCampo", () => {
         { path: [], message: "sin campo" },
       ]),
     ).toEqual({ email: "Escribe un correo válido", contrasena: "Mínimo 10" })
+  })
+})
+
+describe("leerTokenDelFragmento", () => {
+  it("con #token=<43 base64url> devuelve el token", () => {
+    expect(leerTokenDelFragmento(`#token=${TOKEN_VALIDO}`)).toBe(TOKEN_VALIDO)
+  })
+
+  it("sin fragmento devuelve null", () => {
+    expect(leerTokenDelFragmento("")).toBeNull()
+  })
+
+  it("con una forma incorrecta devuelve null (corto, caracteres fuera de base64url o sin #token=)", () => {
+    expect(leerTokenDelFragmento("#token=corto")).toBeNull()
+    expect(leerTokenDelFragmento(`#token=${"!".repeat(43)}`)).toBeNull()
+    expect(leerTokenDelFragmento(`#otra-cosa=${TOKEN_VALIDO}`)).toBeNull()
+  })
+})
+
+describe("requiereCambioDeContrasena", () => {
+  it("distingue CAMBIO_DE_CONTRASENA_REQUERIDO de otros códigos y de errores que no son ApiError", () => {
+    expect(
+      requiereCambioDeContrasena(new ApiError("CAMBIO_DE_CONTRASENA_REQUERIDO", "x", 403)),
+    ).toBe(true)
+    expect(requiereCambioDeContrasena(new ApiError("ACCESO_RESTRINGIDO", "x", 403))).toBe(false)
+    expect(requiereCambioDeContrasena(new Error("no es ApiError"))).toBe(false)
+  })
+})
+
+describe("avisoDeLogin", () => {
+  it("traduce un aviso conocido y devuelve null ante un estado desconocido", () => {
+    expect(avisoDeLogin({ aviso: "contrasena-actualizada" })).toBe(
+      "Tu contraseña se actualizó. Inicia sesión con la nueva.",
+    )
+    expect(avisoDeLogin({ aviso: "cuenta-activada" })).toBe(
+      "Tu contraseña quedó lista. Inicia sesión con tu correo.",
+    )
+    expect(avisoDeLogin(undefined)).toBeNull()
+    expect(avisoDeLogin(null)).toBeNull()
+    expect(avisoDeLogin({})).toBeNull()
+    expect(avisoDeLogin({ aviso: "algo-desconocido" })).toBeNull()
+  })
+})
+
+describe("contrasenasCoinciden", () => {
+  it("compara dos contraseñas por igualdad exacta", () => {
+    expect(contrasenasCoinciden("clave-1234", "clave-1234")).toBe(true)
+    expect(contrasenasCoinciden("clave-1234", "otra-clave")).toBe(false)
   })
 })

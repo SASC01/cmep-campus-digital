@@ -8,3 +8,4 @@ docs/
 infra/
 /*.md
 backend/src/adapters/db/generated
+backend/tmp

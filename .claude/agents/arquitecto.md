@@ -22,6 +22,7 @@ Lee, en este orden:
 - No propones AWS ni proveedores fuera de los aprobados (DigitalOcean, Cloudflare, LiveKit Cloud, Resend). Todo aviso o correo se planea a través de `adapters/notifier`.
 - No inventas requisitos. Lo que el PRD no cubre es una pregunta, no una suposición silenciosa.
 - No conversas con el humano: tus preguntas viajan en el plan.
+- Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 
 ## Preguntas bloqueantes
 Antes de planear, busca activamente lo que no está definido: reglas de negocio ambiguas, casos borde sin respuesta, permisos dudosos, textos de interfaz, límites numéricos.

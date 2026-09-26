@@ -19,12 +19,13 @@ app.get("/me", protegido({ permitirRestringido: true }), async (request, reply) 
 })
 ```
 
-| Opción                                       | Efecto                                                                                                                    |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `roles?: readonly Rol[]`                     | `requireRole` exige uno de esos roles; sin roles deja pasar a cualquiera autenticado y activo                             |
-| `permitirRestringido?: boolean`              | `withAccess` deja pasar a un alumno con `acceso_restringido` (solo `GET /me` y, con `pagos`, `GET /me/estado-pago`)       |
-| `permitirCambioPendiente?: boolean`          | `withPasswordGate` deja pasar con `debe_cambiar_contrasena` (solo `POST /auth/cambiar-contrasena`, AUTH-02)               |
-| `pertenencia?: "inscripcion" \| "propiedad"` | añade `requireMembership` o `requireOwnership` como sexto paso (hoy responden `501 NO_IMPLEMENTADO`; llegan con `clases`) |
+| Opción                                        | Efecto                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `roles?: readonly Rol[]`                      | `requireRole` exige uno de esos roles; sin roles deja pasar a cualquiera autenticado y activo                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `permitirRestringido?: boolean`               | `withAccess` deja pasar a un alumno con `acceso_restringido` (solo `GET /me` y, con `pagos`, `GET /me/estado-pago`)                                                                                                                                                                                                                                                                                                                                                                                        |
+| `permitirCambioPendiente?: boolean`           | `withPasswordGate` deja pasar con `debe_cambiar_contrasena` (solo `POST /auth/cambiar-contrasena`, AUTH-02)                                                                                                                                                                                                                                                                                                                                                                                                |
+| `permitirRestringido` en `cambiar-contrasena` | `POST /auth/cambiar-contrasena` es la única ruta que admite `permitirCambioPendiente: true` **y** `permitirRestringido: true` juntos (C-01, AUTH-02): un alumno restringido con un cambio pendiente puede cambiarla; después vuelve a ver solo su pantalla. Un restringido **sin** la bandera no queda bloqueado por `withAccess` en esta ruta, pero el handler evalúa primero si tiene un cambio pendiente y responde `409 CAMBIO_NO_REQUERIDO`, no `403 ACCESO_RESTRINGIDO`: la ruta no le abre nada más |
+| `pertenencia?: "inscripcion" \| "propiedad"`  | añade `requireMembership` o `requireOwnership` como sexto paso (hoy responden `501 NO_IMPLEMENTADO`; llegan con `clases`)                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Cada paso es una `function` con nombre. Las decisiones (`evaluarPasswordGate`, `evaluarAcceso`,
 `evaluarRol`) son funciones puras de `core/auth/autorizacion.ts`; el middleware solo las evalúa y
@@ -35,9 +36,14 @@ nunca van en el token) y **no** lee `estado_pago`. Los handlers obtienen el perf
 ## Rutas públicas (única lista: `rutas-publicas.ts`)
 
 `GET /api/salud`, `POST /api/auth/registro`, `POST /api/auth/login`, `POST /api/auth/refrescar`,
-`POST /api/auth/logout`. `refrescar` y `logout` se autentican con la cookie `campus_refresco`
-(`Path=/api/auth`), credencial exclusiva de esas dos rutas. Para añadir una excepción (por ejemplo
-`OPTIONS` del encargo de CORS o `/api/publico/*`) se amplía **esa** lista, no se rodea la guarda.
+`POST /api/auth/logout`, `POST /api/auth/recuperar`, `POST /api/auth/restablecer`,
+`POST /api/auth/establecer-contrasena`. `refrescar` y `logout` se autentican con la cookie
+`campus_refresco` (`Path=/api/auth`), credencial exclusiva de esas dos rutas. `recuperar` no revela
+nada (encola siempre, sin consultar la cuenta); `restablecer` y `establecer-contrasena` se autentican
+con el token de 256 bits del enlace, de un solo uso (AUTH-02). `cambiar-contrasena` **no** es
+pública: pasa por `protegido()` con `permitirCambioPendiente` y `permitirRestringido` (ver arriba).
+Para añadir una excepción (por ejemplo `OPTIONS` del encargo de CORS o `/api/publico/*`) se amplía
+**esa** lista, no se rodea la guarda.
 
 ## Guarda `onRoute` (`guarda-de-rutas.ts`)
 

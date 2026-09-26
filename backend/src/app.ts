@@ -3,11 +3,15 @@ import Fastify, { LogController, type FastifyInstance } from "fastify"
 
 import { inicializarAuth } from "./adapters/auth/index.js"
 import { cerrarConexion, inicializarDb } from "./adapters/db/index.js"
+import { detenerCola, iniciarCola } from "./adapters/queue/index.js"
 import { opcionesDeAuth } from "./config/auth.js"
+import { opcionesDeCola } from "./config/cola.js"
 import type { Env } from "./config/env.js"
 import { opcionesDeLogger } from "./config/logger.js"
+import { adminHandler } from "./handlers/admin.js"
 import { authHandler } from "./handlers/auth/index.js"
-import { manejoDeErrores } from "./handlers/errores.js"
+import { cuentasHandler } from "./handlers/auth/cuentas.js"
+import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
 import { saludHandler } from "./handlers/salud.js"
 import { usuariosHandler } from "./handlers/usuarios.js"
 import { registrarMiddleware } from "./middleware/index.js"
@@ -21,7 +25,16 @@ export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstan
     logger: opcionesDeLogger(env),
     // Sustituye a la opción de nivel superior requestIdLogLabel, deprecada en Fastify 5 (FSTDEP024).
     logController: new LogController({ requestIdLogLabel: "requestId" }),
+    // T-05: FST_ERR_BAD_URL y FST_ERR_MAX_PARAM_LENGTH los lanza find-my-way antes de manejoDeErrores
+    // (un :id demasiado largo o con codificación rota); sin esto, Fastify responde con su formato
+    // por defecto y repite la URL recibida.
+    frameworkErrors: erroresDeEnrutamiento,
   })
+
+  // DEC-16, N-06: justo después de crear app (ya existe app.log) y antes de manejoDeErrores o de
+  // registrar cualquier handler. La API no supervisa ni programa (N-03: si la base no responde,
+  // start() falla y construirApp lanza; la API no arranca).
+  await iniciarCola({ ...opcionesDeCola(env, "api"), log: app.log })
 
   await app.register(manejoDeErrores)
   // Sin secret: la cookie de refresco no se firma; su valor solo se compara por hash en la base.
@@ -31,9 +44,12 @@ export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstan
 
   await app.register(saludHandler, { prefix: "/api" })
   await app.register(authHandler, { prefix: "/api/auth", env })
+  await app.register(cuentasHandler, { prefix: "/api/auth" })
   await app.register(usuariosHandler, { prefix: "/api" })
+  await app.register(adminHandler, { prefix: "/api/admin" })
 
   app.addHook("onClose", async () => {
+    await detenerCola()
     await cerrarConexion()
   })
 

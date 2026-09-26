@@ -26,25 +26,33 @@ enum EstadoPago {
   @@map("estado_pago")
 }
 
+enum TipoTokenCuenta {
+  recuperacion
+  invitacion
+
+  @@map("tipo_token_cuenta")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
-  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                 String     @unique
-  hashContrasena        String     @map("hash_contrasena")
-  debeCambiarContrasena Boolean    @default(false) @map("debe_cambiar_contrasena")
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String        @unique
+  hashContrasena        String        @map("hash_contrasena")
+  debeCambiarContrasena Boolean       @default(false) @map("debe_cambiar_contrasena")
   nombre                String
-  nombreBusqueda        String     @map("nombre_busqueda")
+  nombreBusqueda        String        @map("nombre_busqueda")
   rol                   Rol
-  activo                Boolean    @default(true)
-  estadoPago            EstadoPago @default(al_corriente) @map("estado_pago")
-  fechaEstadoPago       DateTime?  @map("fecha_estado_pago") @db.Timestamptz(3)
-  accesoRestringido     Boolean    @default(false) @map("acceso_restringido")
-  motivoRestriccion     String?    @map("motivo_restriccion")
-  fechaRestriccion      DateTime?  @map("fecha_restriccion") @db.Timestamptz(3)
-  creadoEn              DateTime   @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn         DateTime   @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  activo                Boolean       @default(true)
+  estadoPago            EstadoPago    @default(al_corriente) @map("estado_pago")
+  fechaEstadoPago       DateTime?     @map("fecha_estado_pago") @db.Timestamptz(3)
+  accesoRestringido     Boolean       @default(false) @map("acceso_restringido")
+  motivoRestriccion     String?       @map("motivo_restriccion")
+  fechaRestriccion      DateTime?     @map("fecha_restriccion") @db.Timestamptz(3)
+  creadoEn              DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn         DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
   sesiones              Sesion[]
+  tokensCuenta          TokenCuenta[]
 
   @@index([rol])
   @@map("usuarios")
@@ -66,4 +74,23 @@ model Sesion {
 
   @@index([usuarioId])
   @@map("sesiones")
+}
+
+// Enlaces de un solo uso (recuperación 30 min, invitación 72 h). Solo el SHA-256 del token; el
+// token se deriva del id con una clave del servidor (DEC-03). revocado_en: invalidado por otro
+// enlace más nuevo, por el admin o por una corrección de correo.
+model TokenCuenta {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId     String          @map("usuario_id") @db.Uuid
+  tipo          TipoTokenCuenta
+  hashToken     String          @unique @map("hash_token")
+  expiraEn      DateTime        @map("expira_en") @db.Timestamptz(3)
+  usadoEn       DateTime?       @map("usado_en") @db.Timestamptz(3)
+  revocadoEn    DateTime?       @map("revocado_en") @db.Timestamptz(3)
+  creadoEn      DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime        @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("tokens_cuenta")
 }

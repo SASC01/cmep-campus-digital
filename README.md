@@ -142,6 +142,8 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 `ADMIN_EMAIL`, `ADMIN_PASSWORD` (entre 10 y 128 caracteres) y `ADMIN_NOMBRE` solo los usan `npm run seed:admin` y `npm run reset:admin` (paso 5). La copia con guarda de arriba no toca un `backend/.env` que ya existía: si el tuyo es anterior a la autenticación, añade a mano esas cuatro variables tomándolas de `backend/.env.example`.
 
+Las variables de correo (`RESEND_API_KEY`, `CORREO_REMITENTE`, `CORREO_RESPONDER_A`, `URL_PUBLICA_FRONTEND`) solo las lee el worker (paso 8); la API no las necesita. En `development` y en `test` no hace falta tocarlas: tienen valores por defecto y, **aunque pongas una llave real en `RESEND_API_KEY`, el worker nunca llama a Resend fuera de `NODE_ENV=production`**: escribe cada correo como HTML en `backend/tmp/correos/`. En `production`, el remitente de ejemplo de `.env.example` (dominio `campus.local`) se rechaza: hace falta un dominio propio verificado en Resend.
+
 ### 4. Migraciones y cliente de Prisma
 
 Desde `backend`, solo la primera vez (y cada vez que llegue una migración nueva):
@@ -153,9 +155,11 @@ npx prisma generate
 
 `migrate dev` aplica las migraciones de `backend/prisma/migrations` a `campus_dev` y lleva el registro en la tabla `_prisma_migrations` (propia de Prisma, no del negocio). Para validar las migraciones crea una base sombra temporal en el mismo PostgreSQL y la borra al terminar; no necesita configuración extra. Si no hay nada pendiente responde `Already in sync`.
 
-Hoy hay dos migraciones: `extensiones_iniciales` (`pg_trgm` y `unaccent`) y `usuarios_y_sesiones`, que crea las tablas `usuarios` y `sesiones` y el índice que permite un solo administrador.
+Hoy hay tres migraciones: `extensiones_iniciales` (`pg_trgm` y `unaccent`), `usuarios_y_sesiones`, que crea las tablas `usuarios` y `sesiones` y el índice que permite un solo administrador, y `tokens_cuenta`, que crea la tabla de enlaces de un solo uso (recuperación e invitación) usados por AUTH-02.
 
 `generate` escribe el cliente de Prisma en `backend/src/adapters/db/generated/` (ignorado por git; no se edita a mano). Los scripts `dev`, `dev:worker`, `build`, `lint` y `test` lo regeneran solos, así que solo hace falta a mano después de un `npm install` limpio.
+
+Además de las tablas de `public`, la API y el worker crean al arrancar el esquema `pgboss` en `campus_dev` (cola de pg-boss, AUTH-02): lo gestiona pg-boss, no Prisma; no se toca a mano ni se incluye en una migración.
 
 ### 5. Cuenta de administrador
 
@@ -183,7 +187,11 @@ Desde `backend`:
 npm run dev
 ```
 
-La API escucha en `http://127.0.0.1:3000` (variables `HOST` y `PORT` de `backend/.env`) y se recarga al guardar. Además de `/api/salud` expone la autenticación (`/api/auth/registro`, `/api/auth/login`, `/api/auth/refrescar`, `/api/auth/logout`) y `GET /api/me`. En otra terminal:
+La API escucha en `http://127.0.0.1:3000` (variables `HOST` y `PORT` de `backend/.env`) y se recarga al guardar. Además de `/api/salud` expone la autenticación (`/api/auth/registro`, `/api/auth/login`, `/api/auth/refrescar`, `/api/auth/logout`), la recuperación y el cambio de contraseña (`/api/auth/recuperar`, `/api/auth/restablecer`, `/api/auth/establecer-contrasena`, `/api/auth/cambiar-contrasena`), `GET /api/me` y las rutas de administración de cuentas (`/api/admin/maestros`, `/api/admin/usuarios/buscar`, `/api/admin/usuarios/{id}/restablecer-contrasena`, `PUT /api/admin/usuarios/{id}/correo`).
+
+**La API necesita la base para arrancar** (pg-boss se conecta al iniciar): si PostgreSQL no responde, la API no arranca y termina con un código distinto de 0. Levanta siempre `infra/` (sección anterior) antes de `npm run dev`. En el servidor, Compose la levantará después de que PostgreSQL esté sano (`depends_on` con `healthcheck`; pendiente de DEPLOY).
+
+En otra terminal:
 
 ```powershell
 curl.exe http://127.0.0.1:3000/api/salud
@@ -205,7 +213,7 @@ Desde la raíz (corre las de todos los workspaces) o desde `backend`:
 npm test
 ```
 
-Precondiciones: Docker Desktop encendido y `backend/.env` presente (paso 3). Las pruebas del backend **no usan tu `campus_dev`** ni el PostgreSQL de infra: al empezar, levantan con Testcontainers un PostgreSQL desechable con la misma imagen que `infra/docker-compose.yml`, le aplican las migraciones con `prisma migrate deploy`, crean su único administrador con `seed:admin` y lo destruyen al terminar. `backend/.env` solo hace falta porque `prisma generate`, que corre antes de las pruebas, lo lee; su `DATABASE_URL` no se usa para probar, y `JWT_SECRET` y `ADMIN_*` de las pruebas se generan en cada corrida. No hay forma de dirigir las pruebas a `campus_dev`: una guarda detiene la suite si la base no es la desechable.
+Precondiciones: Docker Desktop encendido y `backend/.env` presente (paso 3). Las pruebas del backend **no usan tu `campus_dev`** ni el PostgreSQL de infra: al empezar, levantan con Testcontainers un PostgreSQL desechable con la misma imagen que `infra/docker-compose.yml`, le aplican las migraciones con `prisma migrate deploy`, crean su único administrador con `seed:admin`, instalan el esquema `pgboss` y sus dos colas de correo (`test/preparar-cola.ts`) y lo destruyen todo al terminar. `backend/.env` solo hace falta porque `prisma generate`, que corre antes de las pruebas, lo lee; su `DATABASE_URL` no se usa para probar, y `JWT_SECRET` y `ADMIN_*` de las pruebas se generan en cada corrida. No hay forma de dirigir las pruebas a `campus_dev`: una guarda detiene la suite si la base no es la desechable (también en `test/preparar-cola.ts`).
 
 La primera corrida descarga de Docker Hub la imagen `testcontainers/ryuk` (necesita red). Ryuk borra el contenedor de pruebas aunque la corrida se interrumpa; tarda hasta un minuto en hacerlo. Para comprobar que no quedó ninguno:
 
@@ -217,7 +225,7 @@ Debe responder solo la línea de encabezados.
 
 Mientras dura la corrida, Ryuk publica su puerto en todas las interfaces. No corras la suite en una red pública o no confiable sin la mitigación del firewall: regla en `AGENTS.md` ("Pruebas") y pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`.
 
-El backend tiene 31 archivos con 330 pruebas: unitarias de `core/`, `config/` y `middleware/`, y de la guarda de la base de pruebas; de integración que levantan la API en memoria contra la base desechable; y adversarias (`*.ataque.test.ts`, 192 de ellas), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda entre 17 y 25 segundos: unos 7 para levantar y preparar la base, y el resto porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`. Toda corrida del backend levanta la base, aunque filtres solo pruebas unitarias.
+El backend tiene 65 archivos con 657 pruebas (desde AUTH-02: cuentas, correo, cola y worker): unitarias de `core/`, `config/` y `middleware/`, y de la guarda de la base de pruebas; de integración que levantan la API en memoria contra la base desechable, incluidas las de la cola transaccional y el worker de correo; y adversarias (`*.ataque.test.ts`, 319 de ellas en 21 archivos), algunas de las cuales arrancan la API real con `tsx` en un puerto libre al azar y la detienen al terminar. El frontend tiene 11 archivos con 69 pruebas (32 adversarias). La suite del backend tarda unos 32 segundos: unos 7 para levantar y preparar la base (también instala el esquema `pgboss` y sus dos colas), y el resto porque las contraseñas se procesan con argon2id con los mismos parámetros que en `prod`. Toda corrida del backend levanta la base, aunque filtres solo pruebas unitarias.
 
 Mensajes si falta algo:
 
@@ -234,7 +242,11 @@ Desde `backend`:
 npm run dev:worker
 ```
 
-Registra `"evento":"worker_listo"` y se queda esperando. Todavía no consume trabajos: la cola llega con el primer trabajo real. Detenlo con Ctrl+C.
+Registra `"evento":"worker_listo"` con el canal de correo activo (`registro` fuera de `production`) y se queda esperando trabajos. Consume la cola `CORREO_DE_CUENTA` (recuperación e invitación) y su cola de fallidos: 3 reintentos con espera exponencial desde 30 s y, si se agotan, la cola de fallidos, que solo registra el evento `correo_de_cuenta_fallido`. Las dos colas retienen sus trabajos 1 día.
+
+En desarrollo, cada correo enviado queda como un archivo HTML en `backend/tmp/correos/` (el worker **nunca** llama a Resend fuera de `NODE_ENV=production`, aunque pongas una llave real): ábrelo con `Invoke-Item (Get-ChildItem backend\tmp\correos | Sort-Object LastWriteTime | Select-Object -Last 1).FullName` y sigue el enlace. El enlace apunta a `URL_PUBLICA_FRONTEND` (por defecto, la SPA de Vite); la pantalla que lo recibe llega con AUTH-02b.
+
+Detenlo con Ctrl+C.
 
 ### 9. Problemas frecuentes
 
@@ -250,6 +262,13 @@ Registra `"evento":"worker_listo"` y se queda esperando. Todavía no consume tra
 - **`Cannot find module '.../adapters/db/generated/client.js'` (`ERR_MODULE_NOT_FOUND`) o errores de `tsc` en `adapters/db/cliente.ts` sobre `./generated/client.js`.** Falta generar el cliente: ejecuta `npx prisma generate` desde `backend`.
 - **Un comando `npx prisma ...` se queja de que falta `DATABASE_URL`** (`PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`). No existe `backend/.env` (repite el paso 3): `prisma.config.ts` lo carga si existe.
 - **`npm run dev` deja procesos vivos al cerrar la terminal.** `tsx watch` arranca un proceso hijo; si el puerto sigue ocupado, localiza el PID con `Get-NetTCPConnection -LocalPort 3000 -State Listen` y termínalo con `taskkill /PID <pid> /T /F`.
+- **`RESEND_API_KEY: obligatoria en production`.** Arrancaste el worker con `NODE_ENV=production` sin `RESEND_API_KEY`. Solo hace falta en `production`; fuera de ahí el canal es `registro`.
+- **`URL_PUBLICA_FRONTEND: en production debe empezar con https://`.** En `production`, la URL pública del frontend no puede ser `http://`.
+- **`CORREO_REMITENTE: en production debe usar un dominio propio verificado en Resend, distinto del de .env.example`.** El remitente sigue siendo el de `backend/.env.example` (dominio `campus.local`): pon uno con un dominio propio, verificado en Resend.
+- **"No me llega el correo en desarrollo".** ¿Está corriendo `npm run dev:worker` (paso 8)? La API solo encola; el worker es quien envía. Revisa `backend/tmp/correos/`: ahí queda cada correo como HTML.
+- **La API no arranca y el error menciona la base o pg-boss.** ¿Está en marcha `postgres` de `infra/`? Desde AUTH-02, la API necesita la base para arrancar (paso 6).
+- **El login queda bloqueado por intentos (`DEMASIADOS_INTENTOS`) justo cuando quieres entrar con una contraseña temporal.** El límite de 5 intentos en 15 minutos es del login, no de la contraseña: espera la ventana o usa otra IP de prueba.
+- **Rotaste `JWT_SECRET`.** Los enlaces de recuperación e invitación pendientes quedan invalidados (se derivan de ese secreto); pide uno nuevo.
 
 ## Frontend en local (Windows + PowerShell)
 

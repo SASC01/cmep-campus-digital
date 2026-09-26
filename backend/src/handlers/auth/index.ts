@@ -131,13 +131,17 @@ export const authHandler: FastifyPluginAsync<{ env: Env }> = async (app, { env }
 
     intentos.delete(llave)
     const tokenRefresco = generarTokenRefresco()
-    await crearSesion({
+    const creada = await crearSesion({
       usuarioId: credenciales.id,
+      hashVerificado: credenciales.hashContrasena,
       hashToken: hashTokenRefresco(tokenRefresco),
       expiraEn: calcularExpiracionSesion(ahora),
       ip: request.ip,
       agente: agenteDe(request),
     })
+    // null: la contraseña cambió o la cuenta se desactivó entre la verificación y este punto (T-09).
+    // Se responde igual que una contraseña incorrecta.
+    if (!creada) throw credencialesInvalidas()
 
     return responderConSesion(reply, {
       usuarioId: credenciales.id,

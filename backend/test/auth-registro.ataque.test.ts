@@ -165,7 +165,10 @@ describe("ataque: doble envío y duplicados", () => {
       where: { rol: "admin" },
       select: { email: true },
     })
-    if (!admin) return
+    // Precondición (CHORE-01): global-setup crea el único admin con seed:admin. Si falta, la prueba
+    // falla aquí en vez de pasar sin probar nada.
+    expect(admin, "la base desechable debe tener el admin que crea seed:admin").not.toBeNull()
+    if (!admin) throw new Error("Precondición: falta el admin de la base desechable")
     const respuesta = await registrar({
       nombre: "Suplantador",
       email: admin.email.toUpperCase(),

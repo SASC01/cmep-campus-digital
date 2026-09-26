@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto"
+
 import * as argon2 from "argon2"
 
 import { obtenerEstado, type OpcionesArgon2 } from "./estado.js"
@@ -23,3 +25,9 @@ export const verificarContrasena = async (hash: string, contrasena: string): Pro
 // Con él verifica login cuando el correo no existe o el usuario está inactivo, para que el tiempo
 // de respuesta no revele si la cuenta existe (DEC-03).
 export const obtenerHashDeRelleno = (): string => obtenerEstado().hashDeRelleno
+
+// DEC-02: un maestro invitado tiene un argon2id de 32 bytes aleatorios que se descartan, nunca un
+// hash nulo ni un centinela: el login recorre el mismo camino, con el mismo costo, que una
+// contraseña incorrecta.
+export const hashDeContrasenaInutilizable = (): Promise<string> =>
+  hashContrasena(randomBytes(32).toString("base64url"))

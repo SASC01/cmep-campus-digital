@@ -302,8 +302,10 @@ describe("ataque: scripts de administración", () => {
     inicializarDb({ connectionString: cargarEnv().DATABASE_URL })
     const hayAdmin = await existeAdmin()
     await cerrarConexion()
-    // Sin admin, el script crearía uno real: esta prueba no escribe filas ajenas.
-    if (!hayAdmin) return
+    // Precondición (CHORE-01): global-setup crea el único admin con seed:admin. Sin admin, el script
+    // crearía uno: la prueba falla aquí en vez de pasar sin probar nada o de escribir filas.
+    expect(hayAdmin, "la base desechable debe tener el admin que crea seed:admin").toBe(true)
+    if (!hayAdmin) throw new Error("Precondición: falta el admin de la base desechable")
 
     const { codigo, salida } = await ejecutar("src/scripts/seed-admin.ts", {})
     expect(codigo).toBe(1)

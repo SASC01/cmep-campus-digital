@@ -192,6 +192,7 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 - `POST /auth/recuperar` responde siempre lo mismo, exista o no el correo, y tarda lo mismo.
 - Si existe, se envía un enlace de **un solo uso**, vigencia de 30 minutos. En la base se guarda solo el hash del token (`tokens_cuenta`).
 - Al usarlo se revocan todas las sesiones del usuario. Límite: 3 solicitudes por hora por correo e IP.
+- `POST /auth/recuperar` no consulta la cuenta: encola siempre `CORREO_DE_CUENTA` y responde 204; el worker decide si envía. `restablecer` y `establecer-contrasena` no inician sesión. `POST /auth/cambiar-contrasena` solo con `debe_cambiar_contrasena`, permitido también con acceso restringido; conserva la sesión actual y revoca las demás.
 
 **Respaldo, por el Administrador** (correo mal escrito o inaccesible):
 - "Restablecer contraseña" en Gestión de usuarios genera una **contraseña temporal aleatoria, mostrada una sola vez**; se guarda solo su hash.
@@ -231,7 +232,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 | `calendario` | `GET /calendario?desde=&hasta=` |
 | `envivo` | `GET/POST /clases/{id}/envivo` · `POST /envivo/{id}/token` · `POST /envivo/{id}/grabacion` · `POST /webhooks/livekit` (sin JWT, firma verificada) |
 | `publico` | `GET /publico/anuncios` (sin JWT, caché de 60 s) |
-| `admin` | usuarios (alta, baja, `POST /admin/usuarios/{id}/restablecer-contrasena`), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
+| `admin` | usuarios (`POST /admin/maestros` (invitación), `POST /admin/usuarios/buscar`, `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`, baja), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
 | — | `GET /salud` |
 
 Formato de error único: `{ "error": { "codigo": "...", "mensaje": "..." } }`. Toda lista paginada, máximo 100 elementos.
@@ -259,8 +260,10 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 
 - El worker nunca escribe notificaciones ni llama a Resend directamente: usa `notifier.avisar(destinatarios, aviso)` y `notifier.correoDeCuenta(...)`.
 - Los correos se envían de uno en uno, con límite de ritmo acorde al del proveedor. Un fallo de Resend reintenta ese correo, no todo el evento.
-- Idempotencia: `eventId` como `singletonKey`; restricción única `(usuario_id, evento_id)` en `notificaciones`.
+- Idempotencia: `eventId` como `id` del trabajo de pg-boss (un segundo envío con el mismo id no crea otro trabajo) y como `idempotencyKey` de Resend; restricción única `(usuario_id, evento_id)` en `notificaciones`.
+- El encolado transaccional pasa a pg-boss la conexión de la transacción de Prisma (`db` de `send`) mediante `ejecutorSqlDe` de `adapters/db`, equivalente al adaptador `fromPrisma` que publica pg-boss. `createQueue` no actualiza la política de una cola que ya existe: cambiarla exige `updateQueue`. Las colas de correos de cuenta retienen sus trabajos 1 día.
 - 3 reintentos con espera exponencial; después, cola de fallidos vigilada.
+- Un trabajo que pasa a la cola de fallidos recibe otro id; el consumidor lee el original en `sourceId` (pg-boss 12, `includeMetadata: true`) y lo registra como `trabajoId`.
 
 ## 9. Correo
 
@@ -281,7 +284,8 @@ Se recomienda encender primero los dos sensibles al tiempo (clase por comenzar y
 - Los interruptores viven en la tabla `configuracion`. `notifier` los consulta con caché de 60 s.
 - En `dev` y en pruebas el canal es `registro`: **jamás sale un correo real fuera de `prod`**.
 - Plan gratuito: 3,000 correos al mes. Si el nivel 2 lo rebasa, se pasa a un plan de pago o se apagan tipos de aviso; los correos de cuenta tienen prioridad en la cola.
-- Un correo que Resend rechaza de forma permanente (dirección inexistente) no se reintenta y queda registrado.
+- Un correo que Resend rechaza de forma permanente (`400`/`422`, por ejemplo una dirección mal formada) no se reintenta y queda registrado. Un `403` (dominio no verificado o llave inválida) y un fallo de red se tratan como transitorios: tres reintentos y después la cola de fallidos. Los buzones inexistentes se conocen después, como rebote, por webhook (pendiente).
+- El canal lo decide la configuración: Resend solo con `NODE_ENV=production` y llave; cualquier otro caso, `registro` (HTML en `backend/tmp/correos/`).
 - Cambiar de proveedor es escribir otro canal dentro de `adapters/notifier`.
 
 ## 10. Tareas programadas
@@ -363,7 +367,7 @@ erDiagram
 |---|---|---|
 | `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion` | `email` único (en minúsculas) · GIN trigrama sobre `nombre_busqueda` · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` |
 | `sesiones` | `id`, `usuario_id`, `hash_token`, `expira_en`, `revocada_en`, `reemplazada_por`, `ip`, `agente` | `hash_token` único · índice `(usuario_id)` |
-| `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en` | `hash_token` único · índice `(usuario_id)` |
+| `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · FK con `ON DELETE CASCADE` |
 | `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único · índice `(maestro_id)` |
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
 | `inscripciones` | `clase_id`, `usuario_id`, `origen`, `creado_en` | PK compuesta · índice `(usuario_id)` |
@@ -386,8 +390,9 @@ Las tablas de pg-boss viven en su propio esquema (`pgboss`) y no se tocan a mano
 - **Prisma solo dentro de `adapters/db`.**
 - **Sin consultas N+1:** nunca una consulta dentro de un ciclo.
 - **Toda consulta filtra por una columna indexada y toda lista se pagina.** Una consulta que no encaje en un índice existente exige proponer el índice en el plan.
-- **SQL crudo solo con parámetros.** Nunca se concatena entrada del usuario.
+- **SQL crudo solo con parámetros.** Nunca se concatena entrada del usuario. La única excepción de texto no literal es el SQL de pg-boss que ejecuta `ejecutorSqlDe`; sus datos también viajan como parámetros.
 - **Escrituras compuestas en transacción**, incluido el encolado del evento.
+- **Protocolo de bloqueo por usuario.** Crear o rotar una sesión bloquea antes la fila del usuario con `FOR SHARE`. Revocar sesiones en bloque, cambiar la contraseña o escribir `tokens_cuenta` la bloquea antes con `FOR NO KEY UPDATE`. Así esas transacciones quedan en serie sin deadlocks, y una revocación siempre ve las sesiones creadas antes que ella. El login solo crea la sesión si el hash que verificó sigue vigente bajo el bloqueo (AUTH-02, Enmienda 2).
 - **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan.
 - Búsqueda de alumnos con `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: 3 caracteres mínimo y espera de 300 ms.
 - Todo cambio de esquema es una migración de Prisma versionada y compatible hacia atrás.
@@ -466,6 +471,14 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 - Conectar LiveKit Cloud por configuración (URL, llaves, destino de las grabaciones y URL pública del webhook) y activar el interruptor de grabación en `prod` (DOCS-02a, D-26).
 - Verificación de punta a punta con servicios reales: un correo de recuperación de contraseña que llegue a la bandeja de entrada (DOCS-02a, D-26).
 - Verificación de punta a punta con servicios reales: una grabación completa de una clase en vivo que llegue a R2 y aparezca en la lista del alumno (DOCS-02a, D-26).
+- Worker en `prod` con `RESEND_API_KEY`, `CORREO_REMITENTE` de un dominio verificado en Resend (el worker rechaza en `production` el remitente de ejemplo `@campus.local`) y `URL_PUBLICA_FRONTEND` con `https://` (AUTH-02).
+- Archivos de entorno separados para la API y el worker: son la misma imagen, y solo el worker debe recibir `RESEND_API_KEY` y las variables de correo (mínimo privilegio) (AUTH-02).
+- La API y el worker necesitan PostgreSQL para arrancar (pg-boss): sus servicios de Compose llevan `depends_on: postgres: condition: service_healthy` (el `healthcheck` de `postgres` ya existe en `infra/docker-compose.yml`) (AUTH-02).
+- El usuario de la base puede crear el esquema `pgboss` (AUTH-02).
+- Alerta sobre el evento de log `correo_de_cuenta_fallido` (AUTH-02).
+- El límite de tasa de `/auth/*` cubre también `POST /auth/recuperar`, que por petición es más barato que el login (sin argon2) y encola un trabajo por solicitud; con `trustProxy`, la llave de su límite propio (IP + correo) también deja de ser la IP de Caddy (AUTH-02).
+- Retención de las colas de correos de cuenta: 1 día (`retentionSeconds` y `deleteAfterSeconds` en `adapters/queue/colas.ts`); cambiar la política de una cola que ya existe en la base exige `updateQueue` (AUTH-02).
+- Una sola instancia del worker: el tope de recuperaciones por cuenta y el consumo con `batchSize: 1` lo suponen, igual que los límites en memoria de la API (AUTH-02).
 
 ### Migración a un servidor propio
 1. Instalar Docker en el servidor del colegio y clonar el repositorio.
@@ -519,3 +532,4 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 | D-24 | Prisma 7 con generador `prisma-client`, `@prisma/adapter-pg` y `pg`; cliente generado en `adapters/db/generated/`, no versionado | Prisma 6 con `prisma-client-js` y motor de consultas nativo | Última línea estable; sin motor nativo en la API ni en el worker, el adaptador habla con PostgreSQL a través de `pg`. Decidido en BACK-01 y aplicado en BACK-02 |
 | D-25 | Pruebas de integración contra un PostgreSQL desechable por corrida con Testcontainers (imagen fijada de `infra/`, `migrate deploy` al iniciar, un administrador sembrado con `seed:admin`); la imagen `testcontainers/ryuk` de Docker Hub es una herramienta local y no cuenta como proveedor | PostgreSQL de `infra/` (`campus_dev`) · un contenedor por archivo | Las pruebas escribían en la base de desarrollo; un contenedor por corrida aísla los datos sin multiplicar el tiempo de la suite. Acordado en M-05 de AUTH-01 y aplicado en CHORE-01 |
 | D-26 | Clases en vivo en `dev` con el LiveKit local de `infra/`; LiveKit Cloud se conecta en el encargo DEPLOY por configuración (URL, llaves, destino de grabaciones, URL pública del webhook). Las grabaciones no se prueban de punta a punta en `dev`: su código se prueba con dobles y el botón de grabar va detrás de un interruptor de configuración, desactivado en `dev` ("Grabación disponible solo en el servidor"). DEPLOY verifica con servicios reales un correo de recuperación en la bandeja de entrada y una grabación completa en R2 y en la lista del alumno | Un proyecto de LiveKit Cloud para `dev` · probar grabaciones de punta a punta desde `dev` | El LiveKit local ya corre en `infra/` sin cuentas externas; Egress hacia R2 y el webhook necesitan servicios reales y una URL pública que solo existen al desplegar |
+| D-27 | Token de enlace de cuenta derivado de su id con HMAC (clave HKDF de `JWT_SECRET`); la cola solo lleva el id | Token aleatorio dentro de los datos del trabajo | El token no queda en claro en `pgboss.job` ni en los respaldos (regla 13) y los reintentos reenvían el mismo enlace. El id del token no es secreto (sale en los logs como `trabajoId`): la seguridad descansa en la clave, y filtrar `JWT_SECRET` ya es un compromiso total. Decidido en AUTH-02 |

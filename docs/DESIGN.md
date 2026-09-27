@@ -515,7 +515,9 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
 |---|---|---|---|---|
 | Estudiante | Ligera, mucho aire | Vidrio | Bloque destacado, tarjetas de clase y filas de entrega, orientadas a la siguiente tarea | Texto de 16 px, controles de 44 px, 20 px entre bloques |
 | Maestro | Intermedia | Vidrio; el gradebook, opaco | Bloque destacado, listas con estado y tablas moderadas | Filas de 48 px; controles de 44 px en formularios y de 36 px en tablas |
-| Administrador | Densa | Opacas, sin vidrio | Tablas con buscador, filtros y selección múltiple (§7.9) | Filas de 40 px, texto de 14 px, controles de 36 px, sin bloque destacado |
+| Administrador | Densa | Opacas, sin vidrio | Tablas con buscador, filtros y selección múltiple (§7.9) | Filas de 40 px, texto de 14 px (16 px en campos de texto), controles de 36 px, sin bloque destacado |
+
+El texto de los campos de texto va a 16 px (`--text-body`) en los tres roles, también en la densidad del administrador. Por debajo de 16 px, Safari en iOS amplía la página al enfocar un campo, y el usuario tiene que alejarla a mano. El texto de 14 px del administrador aplica a tablas, metadatos y botones, no a lo que se escribe. Decisión del humano (2026-09-27).
 
 Los tres roles comparten componentes y tokens. Cambian el espaciado, la composición y el material de las superficies, no la biblioteca. Si otras tablas del maestro (por ejemplo, el roster) van opacas, lo decide su encargo y se anota aquí.
 

@@ -125,6 +125,19 @@ const pulsarEnter = () => {
   fireEvent.click(conFoco)
 }
 
+// La ficha de una cuenta: el ancestro común más cercano de su nombre y del formulario
+// "Guardar correo". Sin clases de estilo (tester.md, "Reglas de combate").
+const fichaDe = (nombre: string): HTMLElement => {
+  const formularioCorreo = screen.getByRole("form", { name: "Guardar correo" })
+  let nodo: HTMLElement | null = screen.getByText(nombre).parentElement
+  while (nodo && !nodo.contains(formularioCorreo)) nodo = nodo.parentElement
+  if (!nodo) throw new Error("no se encontró el contenedor de la ficha")
+  if (nodo.contains(screen.getByRole("form", { name: "Buscar" }))) {
+    throw new Error("el contenedor encontrado incluye el buscador: no es la ficha")
+  }
+  return nodo
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
   Reflect.deleteProperty(window.navigator, "clipboard")
@@ -287,8 +300,7 @@ describe("ataque (AUTH-02b r2): sin estados cruzados entre cuentas", () => {
     corregirCorreo(CORREO_CORREGIDO)
     await screen.findByText(CORREO_CORREGIDO)
 
-    const ficha = screen.getByText(carla.nombre).closest("div.rounded-lg")
-    if (!(ficha instanceof HTMLElement)) throw new Error("no se encontró el contenedor de la ficha")
+    const ficha = fichaDe(carla.nombre)
     expect(within(ficha).getByText(TEMPORAL)).toBeVisible()
     expect(within(ficha).queryByText(carla.email)).not.toBeInTheDocument()
   })

@@ -158,6 +158,19 @@ const describirFoco = () => {
   return `${conFoco.tagName.toLowerCase()} "${conFoco.textContent || conFoco.getAttribute("aria-label") || conFoco.id}"`
 }
 
+// La ficha de una cuenta: el ancestro común más cercano de su nombre y del formulario
+// "Guardar correo". Sin clases de estilo (tester.md, "Reglas de combate").
+const fichaDe = (nombre: string): HTMLElement => {
+  const formularioCorreo = screen.getByRole("form", { name: "Guardar correo" })
+  let nodo: HTMLElement | null = screen.getByText(nombre).parentElement
+  while (nodo && !nodo.contains(formularioCorreo)) nodo = nodo.parentElement
+  if (!nodo) throw new Error("no se encontró el contenedor de la ficha")
+  if (nodo.contains(screen.getByRole("form", { name: "Buscar" }))) {
+    throw new Error("el contenedor encontrado incluye el buscador: no es la ficha")
+  }
+  return nodo
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -446,8 +459,7 @@ describe("ataque (AUTH-02b r3): sin fugas de estado entre cuentas", () => {
     expect(screen.queryByRole("button", { name: "Copiar" })).not.toBeInTheDocument()
     expect(document.activeElement).toBe(campoBuscar())
 
-    const ficha = screen.getByText(beto.nombre).closest("div.rounded-lg")
-    if (!(ficha instanceof HTMLElement)) throw new Error("no se encontró el contenedor de la ficha")
+    const ficha = fichaDe(beto.nombre)
     fireEvent.click(within(ficha).getByRole("button", { name: "Restablecer contraseña" }))
     expect(document.activeElement).toBe(within(ficha).getByRole("button", { name: "Cancelar" }))
     expect(llamadasQueContienen(fetchMock, "/restablecer-contrasena")).toBe(1)

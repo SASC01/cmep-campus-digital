@@ -7,7 +7,7 @@ Registró: orquestador (sesión principal), a partir del mensaje del humano.
 
 ## Base de V-08
 - `frontend/` y `package-lock.json`: `6868e4d` (fusión de DOCS-03).
-- Todo lo que está fuera de `frontend/`: **`<A>` = pendiente.** El orquestador lo anota aquí después del commit de los documentos del plan, que hace el humano. Sin este hash, el programador no empieza (plan, paso 1, y V-08, "Condiciones de parada").
+- Todo lo que está fuera de `frontend/`: **`<A>` = `5a32230`** (`5a32230f702f27cb7cf094e2bbb43eb47ca94a20`, "docs(design-01): plan 01a replaneado sobre D3 y aprobado", commit del humano del 2026-09-27). El orquestador comprobó que existe (`git cat-file -e '5a32230^{commit}'`, código 0) y que incluye `.claude/agents/tester.md`, `docs/DESIGN.md`, `docs/ESTADO.md` y los 5 archivos de esta carpeta. Tras el commit, el árbol de trabajo quedó limpio y `git diff --quiet 6868e4d -- frontend/` salió con código 0.
 
 ## Texto de la aprobación
 > APRUEBO el plan de DESIGN-01a tal como está en plan.md (estado LISTO).

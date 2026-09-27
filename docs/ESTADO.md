@@ -91,10 +91,13 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - acepta la condición ampliada de 01b;
     - acepta `fichaDe` como solución temporal (R-15; el pendiente va a ADMIN, sección 3);
     - juzga en H-10 `whitespace-nowrap` y el peso de los títulos de los anuncios.
-  - **Siguiente paso:**
-    1. El humano hace commit de los documentos: `.claude/agents/tester.md`, `docs/DESIGN.md` y la carpeta del encargo (`docs/ESTADO.md` es opcional).
-    2. El orquestador anota ese hash como `<A>` en `aprobacion.md`.
-    3. Ronda 0 del tester, solo cuando el humano lo indique.
+  - **Commit de aprobación `<A>` = `5a32230`** (del humano, 2026-09-27), anotado en `aprobacion.md`. Es la base de V-08 fuera de `frontend/`.
+  - **Ronda 0 del tester: COMPLETADA (2026-09-27),** sin condiciones de parada. Reporte en `reporte-tester.md`, transcrito por el orquestador porque el entorno impidió al tester escribirlo.
+    - Las 4 pruebas de T-14 fallan en su aserción final del foco, no en la preparación.
+    - `fichaDe` sustituye a `closest("div.rounded-lg")` en r2, r3 y r4, y devuelve el mismo elemento.
+    - Tabla nueva de 32 hashes: base de V-01 para el programador.
+    - Suite del frontend: 258 pruebas, 254 en verde y 4 fallos esperados. Lint con código 0. El orquestador lo confirmó con su propia corrida.
+  - **Siguiente paso:** `programador` (DESIGN-01a), cuando el humano lo indique.
 
 ## 2b. Encargos decididos, por empezar
 - **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:

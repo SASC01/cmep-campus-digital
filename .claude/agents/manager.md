@@ -38,7 +38,8 @@ Es el momento más barato para detectar un error. Verifica:
 - Lo implementado coincide con `docs/DESIGN.md`, y todo patrón visual nuevo que cree el encargo quedó documentado ahí en este mismo encargo.
 - Solo tokens: ningún color, tamaño, radio o sombra suelto.
 - Componentes de `components/ui/`; nada hecho a mano que ya exista. Nada con el aspecto por defecto de shadcn/ui.
-- Ningún rasgo prohibido: degradados morado-azul, glassmorphism, manchas brillantes, parecido con Google Classroom.
+- Ningún rasgo prohibido: degradados morado-azul, manchas brillantes decorativas, parecido con Google Classroom.
+- Vidrio solo con las reglas de legibilidad, movimiento y alcance de `docs/DESIGN.md`.
 - El estado nunca se comunica solo con color.
 - Densidad acorde al rol. Una sola acción principal por vista.
 - Textos en español de México, concretos, sin palabras prohibidas, sin emojis.

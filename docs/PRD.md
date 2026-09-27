@@ -209,7 +209,7 @@ Total: 26 vistas de rol + 3 compartidas.
 - **Personalidad:** calmada, confiable y cercana, con un toque técnico y moderno. Seriedad educativa sin frialdad corporativa.
 - **Referencias de estilo:** Notion (editorial, cálido, tipografía fuerte), Arc Browser (personalidad propia), Linear (orden y jerarquía).
 - **Google Classroom es referencia solo de arquitectura de información**, nunca de estilo: prohibido imitar sus colores, logo, tipografía o iconografía.
-- **Evitar:** estética genérica de IA/startup/SaaS, degradados morado-azul, glassmorphism, dashboards flotantes, manchas brillantes, rejillas genéricas de características, texto corporativo vago y palabras como "potencia", "desbloquea", "optimiza", "sin fricciones".
+- **Evitar:** estética genérica de IA/startup/SaaS, degradados morado-azul, maquetas de dashboards flotantes como ilustración, manchas brillantes decorativas, rejillas genéricas de características, texto corporativo vago y palabras como "potencia", "desbloquea", "optimiza", "sin fricciones". El vidrio translúcido solo se usa con las reglas de legibilidad, movimiento y alcance de `docs/DESIGN.md` (dirección D3).
 - **Densidad por rol:** Administrador denso y tabular; Estudiante ligero y orientado a tareas; Maestro intermedio.
 - **Patrones a conservar:** barra lateral con lista de clases; bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
 - **CTAs en estados vacíos:** "Crea tu primera clase" (Maestro) y "Únete con tu código de clase" (Estudiante).
@@ -267,7 +267,7 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 - Umbrales de "alumno en riesgo" de RN-05.
 
 **Preguntas abiertas**
-1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió (dirección C, 2026-09-26); siguen abiertos el logo y los colores institucionales.
+1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió: dirección D3, "Vidrio líquido con fondo flotante" (2026-09-27), que reemplazó a la dirección C (2026-09-26). Siguen abiertos el logo y los colores institucionales.
 2. ¿Se necesitará restringir también a maestros?
 3. ¿Habrá más de un profesor por clase (co-docencia)?
 4. Tamaño máximo de archivo por entrega (propuesta inicial: 100 MB; para video, usar enlace).

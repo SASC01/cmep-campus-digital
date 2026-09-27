@@ -628,3 +628,294 @@ Verificación propia (2026-09-27, desde `frontend/`):
 - Basta con quitar esas palabras. Si se hace antes del commit (carril trivial), hay que correr `npm run test` desde `frontend/` y no hace falta otra revisión mía. Si no, entra con las ediciones de `DESIGN.md` de 01b.
 
 **Ronda del tester:** sigue sin hacer falta. Las correcciones son un `var()`, filas y texto de `DESIGN.md` y un comentario; no cambian el comportamiento ni el color que se pinta.
+
+## DESIGN-01b — plan
+
+Veredicto: **CAMBIOS REQUERIDOS** (al arquitecto) por un solo punto, M-01: un párrafo más en la condición de detención y una verificación. El resto del plan está bien hecho y cubre lo que pidió el humano. Cuando llegue la corrección de M-01, me basta revisar ese cambio; conviene aplicar M-02 a M-04 en la misma edición.
+
+Verificación propia (2026-09-27, línea base `e39500a`, sin tocar el repositorio):
+- **Árbol:** `git diff --quiet e39500a -- frontend/` sale con código 0 y no hay archivos sin rastrear en `frontend/`. Fuera de `frontend/` solo cambian `ESTADO.md`, `aprobacion.md` y `comprobacion-humano.md`, más `plan-01b.md`, que está sin rastrear.
+- **lint:** código 0. **test:** código 0; 37 archivos y 496 pruebas en verde, como dice el plan. **build:** código 0.
+- **V-01:** 39/39 con la tabla de "DESIGN-01a — Ronda 1".
+- **`href:"#"` en el JavaScript de `dist/`:** 0 hoy. La comprobación de V-10 no dará un falso positivo.
+
+### Afirmaciones técnicas verificadas
+| Afirmación del plan | Cómo la comprobé | Resultado |
+|---|---|---|
+| `router.subscribe` y `router.state.location` son API pública; `DataRouter` se exporta como tipo | `react-router` 7.18.4: `subscribe(fn: RouterSubscriber): () => void` en los `.d.ts`, y `DataRouter` en las exportaciones de `index.d.ts` | **Confirmada.** El enrutador admite varios suscriptores. `FondoDeLaApp` solo lee: no navega ni redirige |
+| `vi.stubEnv("PROD", true)` | `vitest` 4.1.11: `stubEnv(name, value: T extends "PROD" \| "DEV" \| "SSR" ? boolean : …)` | **Confirmada** |
+| El fondo con `z-index: -1` queda visible | `index.css`: `html` lleva `bg-background` y `body` no lleva fondo. Los únicos `bg-background` de pantalla son los 3 que el plan quita (`layout-publico.tsx`, `contenedor-rol.tsx` y `acceso-restringido-view.tsx`) | **Confirmada.** El fondo del lienzo se pinta antes que los hijos con `z-index` negativo |
+| Inventario de selectores de 01b-2: ninguna prueba cambia | Busqué por mi cuenta en todas las pruebas de `src/`: expresiones regulares con "contraseña", "mostrar" u "ocultar" en consultas por etiqueta, rol, texto, título, marcador o valor; `type="password"`, `[type=`, `getAllByRole("button")`, `getAllByRole("textbox")`, `getAllByLabelText`, `querySelectorAll` de controles; recorridos de Tab y `userEvent.tab` | **Confirmada.** Todas las consultas usan cadenas exactas. `queryAllByRole("button")` solo aparece en `contexto-r1:72` (`/admin`, sin contraseñas) y el conteo de botones solo en `contenedor-rol.test:54` ("Cerrar sesión"). Ninguna prueba recorre el orden de Tab en las pantallas de cuenta. 01b-2 no necesita ronda 0 |
+| Las clases nuevas no activan las guardas de `clases-r1` | Leí V-02 a V-07 y V-13 | **Confirmada.** V-04 solo prohíbe `text-`, `rounded-`, `shadow-`, `leading-`, `tracking-`, `font-`, `bg-`, `border-` y `outline-` seguidos de `[`; las alturas y rejillas arbitrarias del plan no entran. `sin-sombra-de-vidrio` no cuenta como `vidrio`, porque la expresión exige que no haya un guion delante. `CONTEXTO_POR_ROL` usa las claves `material` y `densidad`, así que mudarlo a `data.ts` no escribe el texto `data-material`. El `enEspera=` de "Cerrar sesión" se muda, y el conteo sigue en 13 |
+| Amplitud de los orbes ≤ 60 px | Cálculo | 60.0 (`48, 36`) y 59.1 (`-54, -24`) |
+| `vite preview` en `127.0.0.1:4173` | `frontend/package.json`: `"preview": "vite preview --host 127.0.0.1 --port 4173"` | Confirmada (ver detalle sobre el proxy) |
+
+### Lo que pidió el humano, punto por punto
+- **Borde de los campos:** no se toca. Solo se mide sobre el orbe azul (C-07 con `--field-border` y 3.8 calculado, más H-17).
+- **Botón de contraseña en los 5 formularios:**
+  - `type="button"` (CC-1);
+  - el nombre cambia entre "Mostrar contraseña" y "Ocultar contraseña", con `aria-pressed` (CC-2);
+  - no mueve el cursor (CC-3: `mousedown` cancelado y la selección restaurada);
+  - `autocomplete` intacto (CC-4);
+  - inventario de selectores hecho y confirmado arriba.
+- **Pie:**
+  - "©" con el año calculado (`textoDeDerechos(new Date())`, probado con reloj simulado);
+  - un solo archivo (`components/layout/data.ts`);
+  - marcadores visibles en desarrollo y omitidos en producción (`import.meta.env.PROD`, que `vite build` sustituye por `true`);
+  - nunca `href="#"`: la única forma de producir un `<a>` es con una URL publicable, y lo vigilan la prueba y V-10;
+  - "Aviso de privacidad" incluido.
+- **Una sola comprobación completa al final;** el PR se abre después.
+- **División propuesta** (P-02).
+- **Condición de detención:**
+  - `router.tsx` y las tres guardas no se tocan, y lo comprueba V-14;
+  - el fondo va en `main.tsx` fuera del router, y el plan se detiene si la suscripción no sigue la navegación, sin buscar otra vía;
+  - los destinos salen de `ContenedorRol`, así que `require-rol.tsx` no cambia en absoluto, algo más estricto que el resumen.
+  - **Falta la vista de acceso restringido** (M-01).
+
+### Problemas que bloquean
+
+#### M-01 — La redirección de `AccesoRestringidoView` queda fuera de la condición de detención, y 01b-1 la reescribe en carril normal
+Dónde: §D-6, fila `/acceso-restringido`; "Condición de detención" (§D-1); V-14.
+
+Por qué importa:
+- `features/auth/acceso-restringido-view.tsx` no es solo presentación. Contiene la rama de RN-03 que saca de ahí a quien no está restringido: `if (!data.accesoRestringido) return <Navigate to={rutaPorRol(data.rol)} replace />`, después de las ramas de error y de carga.
+- 01b-1 reestructura el archivo entero: tres estados dentro de `MarcoPublico`, la `Navigate` "sin envolver", el `main` nuevo y `Ban` cambiado por `Lock`.
+- `AGENTS.md` pone la restricción de acceso en el carril sensible. El humano fijó 01b en carril normal con una condición que protege las redirecciones de las guardas. Esta es la misma clase de redirección, pero vive en una vista, así que V-14 no la cubre.
+- Las pruebas existentes cubren parte del comportamiento (`cuentas-r1:112` y `:128`, y `cuentas-r2:193`), pero el plan no dice que esa rama deba quedar igual ni cómo se comprueba.
+
+Qué se espera:
+- En la condición de detención: el orden de las ramas de `AccesoRestringidoView` (error → carga → `!data.accesoRestringido` con su `Navigate` → contenido) y la línea de la `Navigate` quedan idénticos. Si hace falta cambiarlos, el agente se detiene y avisa.
+- Una verificación que el agente pueda ejecutar (por ejemplo, que `git diff e39500a -- …/acceso-restringido-view.tsx` no toque las líneas del `if` ni de la `Navigate`), más el requisito de que las `*.ataque` de `app/` sobre `/acceso-restringido` sigan en verde sin cambios.
+- Un punto de ataque del tester: un usuario no restringido que llega a `/acceso-restringido` termina en su dashboard, sin pasar por el pie ni por el marco.
+- Con esto, 01b-1 puede seguir en carril normal.
+
+### Problemas que no bloquean
+
+#### M-02 — `src/main.tsx` tiene una excepción (E-5) pero no está en "No se toca"
+Dónde: "No se toca", DESIGN-01b-1; E-5; V-08.
+
+Por qué importa: E-5 limita el cambio a la importación y al elemento de `FondoDeLaApp`. Como `main.tsx` no figura en la lista, V-08 no lo compara y nada verifica ese alcance. Es el archivo de arranque, que monta el router y los proveedores.
+
+Qué se espera: `src/main.tsx` entra en "No se toca" de 01b-1, con E-5 como excepción. V-08 comprueba que `git diff e39500a -- frontend/src/main.tsx` solo agrega esas líneas.
+
+#### M-03 — `esUrlPublicable` acepta una URL con espacios alrededor, y el punto de ataque 3 espera que no salga como enlace
+Dónde: §D-5 (`esUrlPublicable`, `renderEnlace`); "Puntos de ataque", 01b-1, punto 3.
+
+Por qué importa:
+- El analizador de URL quita los espacios y caracteres de control de los extremos. Lo comprobé en Node: `new URL(" https://x ")` es válida, con protocolo `https:`.
+- Con la función tal como está escrita, el pie pintaría `<a href=" https://x ">`, y el tester trataría eso como un defecto (el punto 3 dice "nunca un `<a>` con esa `href`"). El plan se contradice.
+- `"java\nscript:alert(1)"` sí queda rechazada, porque su protocolo sale como `javascript:`.
+
+Qué se espera: el plan elige una de dos y alinea la función, la prueba del programador y el punto de ataque.
+- Rechazar una URL que no sea igual a sí misma sin espacios (`url !== url.trim()`).
+- Publicar siempre la forma normalizada (`new URL(url).href`).
+
+Recomiendo rechazarla: el archivo lo edita una persona y un espacio de más es un error de captura. En desarrollo se ve como marcador, así que el error queda a la vista.
+
+#### M-04 — V-17 busca un texto que el componente no contiene
+Dónde: "Verificaciones", V-17.
+
+Por qué importa:
+- V-17 dice "`type="password"` → solo en `campo-contrasena.tsx`". Pero el componente de §D-7 escribe `type={visible ? "text" : "password"}`, así que la búsqueda literal no encuentra nada en ningún archivo.
+- Un programador que siga el texto al pie de la letra no sabrá si eso es un éxito o una parada.
+
+Qué se espera:
+- `type="password"` → 0 en `src/**/*.tsx`.
+- `"password"` → solo en `campo-contrasena.tsx`.
+- `<CampoContrasena` → 7 apariciones.
+
+### Detalles menores
+- **`md:sticky` hereda `inset-x-4` de la barra inferior.** Con `position: sticky`, `left` y `right` son márgenes de pegado horizontal. Hoy no hay desplazamiento horizontal, así que no hacen nada, pero `md:inset-x-auto` deja la intención clara.
+- **`id="anuncios-titulo"` fijo.** Hoy hay un solo `PanelAnuncios` por pantalla. `useId` evita un id duplicado si alguna vez se monta dos veces. Opcional.
+- **La lista de anuncios lleva `tabIndex={0}` aunque no desplace** (con pocos anuncios en escritorio). Es aceptable: el nombre y los `h3` la hacen útil con el lector de pantalla.
+- **`Cargando` en `/admin` mientras carga `RequireRol`:** se pinta fuera de `ContenedorRol`, así que por un instante va en vidrio fuerte, no opaco. Es el mismo caso que S-09 (estados de carga de las guardas). No hace falta cambiarlo, pero conviene anotarlo en R-09.
+- **Espaciado por rol:** hoy es estudiante `gap-8`, maestro `gap-6` y admin `gap-4`, y el plan lo deja en `gap-5`, `gap-5` y `gap-4`. Para el estudiante coincide con los 20 px de `DESIGN.md` §8. El maestro pierde su separación intermedia. Está marcado como propuesta; lo juzga el humano en H-10.
+- **Botón del ojo en pantallas táctiles:** `onMouseDown` cancela el cambio de foco en ratón y en el `mousedown` emulado del toque. Si en un teléfono el teclado virtual se cierra al tocar el ojo, la salida es `onPointerDown`. Conviene que H-16 incluya un toque con la emulación táctil de DevTools a 360 px.
+- **Iconos de los gestores de contraseñas:** 1Password, Bitwarden y otros ponen su icono en el extremo derecho del campo, donde va el ojo. H-16 debería pedir que se anote si se enciman.
+- **Hoja, ventana 5:** "la API no responde (no hay proxy)" puede no ser cierto. En Vite, `preview.proxy` toma por defecto el valor de `server.proxy`, así que con la API encendida el login puede funcionar en `4173`. No cambia la comprobación del pie; basta con quitar la frase.
+- **Textos de los marcadores en producción:** "Sitio web", "Facebook"… siguen en el JavaScript de producción como datos, aunque no se pinten. Cumple lo que pidió el humano ("en el build de producción no se muestra"), pero conviene que lo sepa.
+
+### La ronda 0 que relaja V-07
+- **Qué se pierde entre rondas:** solo la parte de "este archivo usa vidrio", que es conformidad con el diseño. La lista permitida sigue prohibiendo vidrio en cualquier otro archivo, incluido todo `features/admin/`, que es la protección que importa. Además, `vidrio-azul` y `data-material` no cambian.
+- **La alternativa que no debilita nada** sería escribir en la ronda 0 la igualdad exacta con la lista final. Eso deja un rojo previsto durante el trabajo del programador (como los 6 de 01a) y le quita la señal a esa guarda mientras trabaja. No es mejor: prefiero la propuesta del plan.
+- **La vuelta a igualdad exacta es verificable:** las listas finales están escritas en §D-9, el punto de ataque 9 dice que no se amplían (si el código no las cumple, es un hallazgo), el paso 13 me manda comparar el diff de `clases-r1` contra `e39500a` línea por línea, y V-01 sella cada versión con su hash.
+- **Una precisión útil:** que la ronda 1 conserve las dos aserciones de "el archivo original sigue ahí" (`card.tsx` y `button-variants.ts`), ya dentro de la igualdad exacta.
+
+### Otros puntos que pidió revisar el orquestador
+- **Rama y commits:** misma rama, un commit del humano por subentrega (`<C>` y `<D>`) y un solo PR. Tiene sentido: 01b depende de 01a y el humano quiere un solo PR. El diff de 01b-2, que es sensible, se puede revisar aparte.
+- **V-08:** las bases son explícitas (`e39500a` para `frontend/` en 01b-1, `<B>` fuera de él y `<C>` para 01b-2), con la parada por hash ausente y `git cat-file` con comillas. "No se toca" coincide con los pasos, salvo `main.tsx` (M-02).
+- **Formateadores:** solo con rutas concretas desde `frontend/`, y `DESIGN.md` a mano.
+- **Sin navegadores ni `npm run dev` para ningún agente.** La ventana 5 es del humano.
+- **La hoja de la comprobación completa cubre lo que el humano dejó pendiente:**
+  - H-05, con el caso nuevo de Enter con la contraseña a la vista;
+  - H-06;
+  - H-14, el recorte de la sombra;
+  - H-17 y C-07, el borde sobre el orbe azul, con el valor vigente;
+  - `--warning`: el plan justifica que en 01b solo aparece sobre `--surface` (C-13), y está bien;
+  - H-01 a H-10 repetidos;
+  - `/acceso-restringido` y C-13, "no verificada" con su motivo cuando no se puedan comprobar.
+- **Tamaño y sobreconstrucción:**
+  - 01b-1 es grande (unos 25 archivos), pero fondo, marco, pie y composición dependen entre sí: el pie vive en el marco y la composición depende del fondo. Partirlo más no ahorra revisión.
+  - No veo sobreconstrucción. `esUrlPublicable` con `mailto:` y `tel:` responde a "Contacto". CC-5 (sin corrector) tiene una razón de privacidad concreta. `FondoDeLaApp` es la pieza mínima para no tocar el router.
+- **Recorte de la sombra:** la solución (filas sin sombra dentro de la lista con scroll y la sombra en el panel que la contiene) ataca la causa que confirmé en el cierre de 01a, y retira el `p-2 -m-2`. La `Card` no queda dentro de ningún contenedor que recorte. Coincide con lo que recomendé.
+
+### Desacuerdos arbitrados
+Ninguno.
+
+### Documentos a actualizar
+- **`plan-01b.md`** (arquitecto): M-01, y M-02 a M-04 si se aplican en la misma edición.
+- **`DESIGN.md`, `CLAUDE.md`, `README.md` y `ESTADO.md`:** lo que prevén el plan y su cierre es correcto. Los textos propuestos para `CLAUDE.md` coinciden con lo que describe el plan. Los reviso otra vez en el cierre de 01b contra el código real.
+
+### Para el humano
+**P-01 · Carril. Opinión: (A).** El botón decide cuándo una contraseña se ve en claro y cambia el `type` del campo que leen los gestores de contraseñas. `AGENTS.md` pone "sesiones y contraseñas" en el carril sensible. Separarlo en 01b-2 te deja un diff pequeño para revisar a mano. 01b-1 puede quedarse en carril normal si se corrige M-01.
+
+**P-02 · División. Opinión: (A).** Mezclar el cambio visual grande con el cambio sensible haría difícil revisar este último. Con dos commits en la misma rama y una sola comprobación al final no pierdes nada.
+
+**P-03 · Pie en `/admin`. Opinión: (A).** Pediste el pie "en todas las pantallas", y el aviso de privacidad también le importa a quien administra datos personales. Sale opaco sin trabajo extra.
+
+**P-04 · Ocultar al enviar. Opinión: (A).** Evita que la contraseña se quede a la vista después de "Correo o contraseña incorrectos" y devuelve el campo a `password` antes de que el navegador ofrezca guardarla.
+
+**P-05 · Nombre del botón. Opinión: (B), pero es tu decisión, porque se aparta de lo que pediste al pie de la letra.**
+- La guía de ARIA dice que un botón con `aria-pressed` no debe cambiar su nombre. Con las dos cosas, un lector puede decir "Ocultar contraseña, presionado", que es una doble negación.
+- Hay dos salidas coherentes:
+  - (B): nombre fijo "Mostrar contraseña" con `aria-pressed`. "Presionado" significa "se está mostrando".
+  - Nombre que cambia **sin** `aria-pressed`, como hace el sistema de diseño del gobierno británico (GOV.UK).
+- La (A) del plan mezcla las dos.
+- Los nombres repetidos en `/cambiar-contrasena` (tres "Mostrar contraseña") los desambigua el orden de lectura. Si quieres más, (C) se puede combinar con (B).
+
+**Decisiones nuevas que el plan toma como propuesta (las juzgas en la comprobación):**
+- S-10: acceso restringido sin insignia.
+- S-11: títulos de los anuncios en 700.
+- S-12: barra superior a 360 px sin avatar y con "Cerrar sesión" solo con icono.
+- S-04 y R-11: los orbes se detienen donde estaban al salir del login, en vez de volver a su posición.
+- S-05: posición y trayectoria de los orbes.
+- El espaciado del maestro baja de 24 a 20 px.
+- Los textos de los marcadores del pie viajan en el JavaScript de producción, aunque no se pintan.
+
+**Aprobación:** con P-01 (A), tu aprobación escrita del plan cubre 01b-2. Haz commit de los documentos antes de la ronda 0 para que el orquestador anote `<B>`.
+
+### DESIGN-01b — plan, correcciones
+
+Veredicto: **APROBADO**. Ya no hay nada que bloquee: M-01 queda resuelto en lo esencial y M-02 a M-04 y los detalles menores están atendidos. El plan puede ir a la aprobación escrita del humano.
+
+Recomiendo aplicar antes M-05, que no bloquea: agrega tres textos a la búsqueda de V-14, parte 2, y cierra un hueco que comprobé. Si el arquitecto lo aplica tal como está escrito abajo, no necesito otra revisión; basta con que el orquestador confirme el texto.
+
+Verificación propia: solo lectura. El árbol no cambió fuera de los documentos: `frontend/` sigue igual a `e39500a`. Los experimentos de V-14 corrieron en el scratchpad con `git diff --no-index`.
+
+**M-01 — resuelto.**
+- La condición de detención (§D-1) nombra la redirección de RN-03 y fija:
+  - el orden de las ramas;
+  - las cuatro líneas, byte por byte;
+  - la `Navigate` sin envolver;
+  - las importaciones y las llamadas a `useMe` y `useCerrarSesion`.
+- E-6 limita el alcance del cambio.
+- V-14 tiene cuatro partes. La parte 4 obliga en 01b-2 a que el archivo no cambie.
+- Las 9 `*.ataque` que tocan `/acceso-restringido` deben seguir en verde sin modificarse. Comprobé `router.ataque:117` y `:126`, y `contexto-r1:143`.
+- El punto de ataque 2 cubre a estudiante, maestro y admin no restringidos, y al restringido que se queda.
+- 01b-1 puede seguir en carril normal.
+
+**El cambio de V-14, parte 2, que hizo el arquitecto por su cuenta: correcto, pero deja un hueco (M-05).**
+- **El cambio legítimo no dispara falsos positivos.** Escribí en el scratchpad la vista tal como la deja E-6: las tres ramas envueltas en `MarcoPublico`, `Lock`, `Monograma` y el `main` nuevo. En el diff con `-U0` contra `e39500a`, ninguna de las 83 líneas cambiadas contiene los textos fijos de la parte 2. Las cuatro líneas de la parte 3 aparecen en orden (21, 31, 42 y 43).
+- **Con `isPending` e `isError` a secas, sí habría un falso positivo:** `enEspera={cerrarSesion.isPending}` se reindenta y el agente se detendría sin motivo. El cambio del arquitecto está justificado.
+- **Cambios reales que la parte 2 sí detiene:** cualquier cambio en las líneas de las ramas, en la `Navigate` (o una `Navigate` nueva), en `accesoRestringido`, en `rutaPorRol` (también en su importación, que comparte línea con `mensajeDeErrorAuth`) y en la llamada a los dos hooks.
+
+### Problemas que no bloquean
+
+#### M-05 — V-14 deja pasar una rama nueva sin esos textos y un cambio en la importación de los hooks
+Dónde: "Verificaciones", V-14, parte 2.
+
+Por qué importa: lo comprobé con una variante del archivo en el scratchpad que agrega entre la carga y la redirección:
+```tsx
+  if (data.rol === "admin") {
+    return <MarcoPublico><p>{data.nombre}</p></MarcoPublico>
+  }
+```
+y cambia `from "./hooks"` por `from "./hooks-de-prueba"`. Resultado:
+- la parte 2 da **0** coincidencias;
+- la parte 3 encuentra las cuatro líneas en orden;
+- V-14 pasa.
+
+Esa rama deja a un admin no restringido en la pantalla, en vez de mandarlo a su dashboard. El punto de ataque 2 del tester lo encontraría, porque cubre los tres roles, pero la condición de detención existe para que el programador se detenga antes, y aquí no lo haría. E-6 dice además que las importaciones de `useMe` y `useCerrarSesion` "quedan idénticas", y nada lo comprueba: el texto `useMe(` no coincide con la línea de importación.
+
+Qué se espera: agregar a los textos fijos de la parte 2 estos tres:
+- `if (`;
+- `return`;
+- `./hooks"`.
+
+Lo comprobé: en el cambio legítimo de E-6 ninguna línea agregada o quitada contiene ninguno de los tres. Las líneas `if` y `return (` no se reindentan al envolver, porque solo cambia lo que va dentro de cada `return`. En la variante de arriba, en cambio, los tres aparecen en 4 líneas. Con eso, la parte 2 también cubre `if (isError)` e `if (isPending)`, que se pueden conservar para que el texto se entienda.
+
+**Las demás correcciones, comprobadas:**
+- **M-02:** `main.tsx` está en "No se toca" con E-5 (solo se agregan dos líneas, no se quita ninguna). V-08 lo comprueba y también las excepciones E-2 y E-3. En 01b-2, `main.tsx` y `acceso-restringido-view.tsx` quedan sin excepción.
+- **M-03:** `esUrlPublicable` va, con retornos tempranos, en este orden:
+  1. `null` o `""`;
+  2. `url !== url.trim()`;
+  3. `new URL` que lanza;
+  4. protocolo `https:`, `mailto:` o `tel:`.
+
+  El punto de ataque 3 incluye `" https://x "`, `"https://x "` y `"java\nscript:…"`, y exige que cada una salga como marcador en desarrollo. Ya no hay contradicción.
+- **M-04:** V-17 pide `type="password"` → 0, `"password"` solo en `campo-contrasena.tsx` y `<CampoContrasena` → 7.
+- **Detalles menores:**
+  - `md:inset-x-auto` en la barra;
+  - `useId` para el título de los anuncios;
+  - R-09 anota el `Cargando` de `/admin` fuera del contexto opaco;
+  - el maestro pasa de 24 a 20 px, marcado en §5 y juzgado en H-10;
+  - R-15 (textos de los marcadores en el JavaScript de producción), también como recordatorio en la hoja;
+  - R-17 (pantallas táctiles, con el toque a 360 px en H-16);
+  - R-18 (iconos de los gestores de contraseñas, en H-16);
+  - la frase de "sin proxy" de la ventana 5 ya no está.
+- **Pasos 8, 11 y 13:** mandan revisar V-14 con sus cuatro partes y comparar el diff de `acceso-restringido-view.tsx` y de `main.tsx` en la revisión final de 01b-1.
+
+### Para el humano
+- Mis opiniones sobre P-01 a P-05 no cambian (sección "DESIGN-01b — plan"): (A) en P-01 a P-04 y (B) en P-05, que se aparta de tu texto literal y decides tú.
+- Si el arquitecto aplica M-05 antes de que apruebes, la condición de detención sobre acceso restringido queda cerrada también para ramas nuevas. Si no, la cubre el punto de ataque 2 del tester.
+- Recuerda hacer commit de los documentos al aprobar, para que el orquestador anote `<B>`.
+
+### DESIGN-01b — plan, ajuste de P-05
+
+Veredicto: **APROBADO**. El ajuste de P-05 está aplicado de forma coherente. **Ningún selector de prueba, normal ni de ataque, encuentra el botón al buscar un campo, así que 01b-2 no necesita ronda 0.** M-05 también quedó aplicado en V-14, parte 2, y en E-6.
+
+Verificación propia (solo lectura, sobre `frontend/src`, idéntico a `e39500a`; 37 archivos de prueba):
+- **Campos de contraseña hoy:** 7 `type="password"`, en los 4 formularios que lista la tabla de §D-7: `formulario-cambiar-contrasena.tsx:63`, `:78` y `:100`; `formulario-login.tsx:71`; `formulario-nueva-contrasena.tsx:95` y `:117`; `formulario-registro.tsx:89`.
+- **Consultas por etiqueta:** todas usan cadena exacta: "Contraseña", "Contraseña nueva", "Contraseña temporal" y "Confirma la contraseña nueva". Muestreé las líneas del inventario (`login-view.test:50`, `cambiar-contrasena-view.test:53`, `enlace-r1:292`, `cuentas-r1:176` y `en-espera-r1:137` a `:196`) y coinciden.
+  - La única consulta con argumento variable es el auxiliar `escribir` (`app/en-espera-r1.ataque.test.tsx:81`), y todas sus llamadas llevan esas cadenas exactas.
+  - Ninguna prueba usa `exact: false`, `normalizer` ni funciones como criterio de búsqueda.
+  - Aunque el botón tuviera `aria-label`, una cadena exacta como "Contraseña" no coincidiría con "Mostrar contraseña". Con el texto `sr-only`, además, `getByLabelText` no lo toma en cuenta.
+- **Consultas con expresión regular (tus puntos 1 y 3):** solo 5 en todo `src/`: `/Hola,/` y `/Hola, Ana/` (`router.ataque:145` y `:182`, `sesion-r2:156`), `/Correo actualizado/` (`cuentas-r2:274`) y `/Acude a administración/` (`login-view.test:80`).
+  - Ninguna puede coincidir con "Mostrar …".
+  - No hay consultas repartidas en varias líneas (búsqueda multilínea: 0).
+  - No hay ningún `name: /…/`, ni `new RegExp` o `stringMatching` en consultas.
+- **`getByRole("button")` sin nombre y conteos:** solo `contexto-r1:72`, dentro de `controles()`, y sus aserciones sobre controles solo corren en `/admin` (`:94` a `:109`). En las rutas públicas, esa prueba solo cuenta `[data-material]` y `[data-densidad]`, y espera un botón por nombre exacto ("Iniciar sesión", "Guardar contraseña"…). El otro conteo, `contenedor-rol.test:54`, es de "Cerrar sesión".
+- **`getAllByText` sobre formularios:** `errores-r1:126` busca el texto exacto de cada error de campo, y ningún mensaje de error se llama "Mostrar …". `en-espera-r1` de admin (`:310`) cuenta la temporal en `/admin`.
+- **`toHaveTextContent`:** 26 usos, todos sobre `findByRole("alert")` o `getByRole("status")`, que no contienen el botón. No hay ninguno sobre un formulario ni sobre un contenedor que lo incluya.
+- **`textContent` de toda la página:** `document.body.textContent` solo aparece en `enlace-r1:390` (`/recuperar`, sin campo de contraseña; busca `/nadie\.existe/i`) y en `cuentas-r3:343` (`/admin`). El resto de los `textContent` describen el elemento enfocado en `/admin` o leen el nodo del error.
+- **Ninguna prueba menciona** "mostrar", "ocultar", `sr-only` ni `aria-pressed`. La única coincidencia de "mostrar" es un texto de `/admin` ("no se volverá a mostrar").
+- **`sr-only` con la escala anulada:** en Tailwind 4.3.3 es una utilidad estática con valores literales (`position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-width: 0`), sin claves de tema, así que las anulaciones de `tokens.css` no la afectan. Ya aparece hoy en el CSS de `dist/`.
+
+**Coherencia de P-05 (B) con los ajustes y con P-04:**
+- **Nombre fijo por campo**, sin "Ocultar": el marcado de §D-7 ya no tiene la condición del nombre, y V-17 exige 0 apariciones de "Ocultar" y de "Ocultar contraseña".
+- **Estado solo en `aria-pressed`.**
+- **Nombre como texto `sr-only` dentro del botón, sin `aria-label` ni `aria-labelledby`,** con el icono `aria-hidden`. El nombre accesible sale del contenido.
+- **P-04:** al enviar, el campo vuelve a `password`, el botón pasa a `aria-pressed="false"` y el nombre no cambia (CC-6).
+- **`nombreDelBoton` es obligatorio,** así que ningún campo puede quedar sin nombre.
+- **En ninguna pantalla hay dos botones con el mismo nombre:** comprobé la tabla.
+- **Lo verifican:**
+  - `campo-contrasena.test`: nombre igual en los dos estados, sin `aria-label`, `queryByLabelText(nombre)` → `null`, y el envío oculta;
+  - `contrasena-visible.test`: 7 botones con nombre exacto, sin repetidos, y `getByLabelText` devuelve el `input`;
+  - V-17: `aria-label` 0, `aria-labelledby` 0, `sr-only` 1, `aria-pressed` 1, "Ocultar" 0 y las 7 constantes;
+  - V-10: `.sr-only` en `dist/`;
+  - los puntos de ataque 2, 4 y 6 de 01b-2, con el inventario rehecho por el tester sobre las `*.ataque` nuevas de 01b-1;
+  - H-16: nombres esperados por pantalla, el nombre que no cambia y que no se ve.
+- **`CLAUDE.md` y `DESIGN.md` §7.3:** los textos propuestos dicen lo mismo.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores
+- **V-17, "Ocultar" → 0 "en `src/`":** el encabezado de V-17 dice "sin contar pruebas", pero la viñeta dice `src/` a secas. Si una `*.ataque` nueva del tester afirma que **nunca** aparece un botón "Ocultar contraseña", contaría. Basta con leerla bajo el encabezado: sin pruebas.
+- **`aprobacion.md`, "Pendientes para encargos siguientes":** la última viñeta todavía dice que 01b sale "desde una rama nueva después de fusionar 01a", lo que contradice la rama que aprobó el humano. Es del orquestador; basta con quitarla o actualizarla.
+- **P-06 no bloquea.** Cambiar un nombre es el valor de una constante de `features/auth/data.ts` y de las pruebas nuevas de 01b-2. Si el humano lo decide antes de 01b-2, el programador toma los textos de `aprobacion.md` (paso 15).
+
+### Para el humano
+- **Ninguna prueba existente encuentra el botón al buscar un campo:** 01b-2 va sin ronda 0, y el programador se detiene si alguna se pone en rojo (paso 17).
+- **P-06:** "Mostrar contraseña temporal" me parece bien; es la etiqueta del campo con "Mostrar" delante. "Mostrar confirmación de contraseña" es tu texto literal; la alternativa, "Mostrar confirmación de contraseña nueva", sigue la etiqueta, pero es más larga sin ganar claridad. Cualquiera de las dos funciona.
+- **Tu commit de los documentos** fija `<B>` para 01b-1.

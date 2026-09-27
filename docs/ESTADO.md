@@ -142,11 +142,28 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - el pie de página, con "© <año> Colegio Mexicano de Estudios de Posgrado Jurídicos y Económicos" y los enlaces del colegio leídos de un solo archivo de configuración. Hoy son marcadores: se ven en desarrollo y no se muestran en producción.
     - Si 01b queda demasiado grande, el arquitecto propone cómo dividirlo.
     - Como el PR de 01a no se abre antes, 01b no puede salir de `main` con 01a ya fusionada; el arquitecto define la rama.
-  - **Pendientes del humano antes del commit de 01a** (en la rama, sin push):
-    - revisar el diff, incluido `CLAUDE.md`;
-    - confirmar la lista de 19;
-    - aclarar la casilla de 360 px de H-01;
-    - incluir los archivos sin rastrear.
+  - **Commit de 01a: `e39500a`** (del humano, 2026-09-27; 65 archivos, en la rama, sin push).
+    - Antes del commit, el humano confirmó la lista de 19 del lockfile.
+    - H-01 a 360 px quedó marcada a su pedido.
+    - **El PR no se abre** hasta que pase la comprobación visual completa después de 01b.
+  - **DESIGN-01b: `plan-01b.md` en LISTO, APROBADO por el manager (2026-09-27)** (`revision.md`, "DESIGN-01b — plan" y "DESIGN-01b — plan, correcciones"; M-01 a M-05 atendidos).
+    - División propuesta en la misma rama:
+      - 01b-1 (normal): fondo con orbes, marco, composición, pie y recorte de la sombra, con ronda 0 del tester para la guarda V-07;
+      - 01b-2 (sensible, según P-01): el botón para mostrar u ocultar la contraseña, en 7 campos.
+    - Una sola comprobación completa al final (H-01 a H-17, C-01 a C-26) antes del PR.
+    - **APROBADO por escrito por el humano (2026-09-27),** registrado en `aprobacion.md`:
+      - P-01 (A): 01b-1 en carril normal y 01b-2 en sensible.
+      - P-02 (A): dos subentregas en la misma rama, con un commit del humano cada una.
+      - P-03 (A): el mismo pie en `/admin`, opaco.
+      - P-04 (A): la contraseña visible se oculta al enviar.
+      - P-05 (B) con dos ajustes: nombre fijo con `aria-pressed`, el nombre de su campo cuando el formulario tiene varios, y el nombre como texto `sr-only`, sin `aria-label`.
+      - Las propuestas visuales las juzga el humano en la comprobación final.
+    - **Ajuste de P-05 aplicado en `plan-01b.md` y APROBADO por el manager** (`revision.md`, "DESIGN-01b — plan, ajuste de P-05").
+      - Con los nombres por campo, el inventario de selectores sale limpio en todas las pruebas, así que **01b-2 no lleva ronda 0**.
+      - P-06, respondida por el humano, fija los 7 nombres de botón: "Mostrar contraseña", "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal".
+    - **Después:**
+      1. El humano hace commit de los documentos y el orquestador anota el hash como `<B>`.
+      2. Ronda 0 de 01b-1, solo cuando el humano lo indique.
 
 ## 2b. Encargos decididos, por empezar
 - **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:
@@ -216,7 +233,7 @@ Verificado el 2026-09-26, salvo donde se indica:
 - Regla del firewall de Windows "Campus: bloquear entrada a Docker en redes publicas": existe, habilitada, Inbound, Block, perfil Público, sobre `com.docker.backend.exe`. `daemon.json` sin la opción `"ip"` (no aplica en Docker Desktop 4.48).
 - Red actual: `IZZI-F281`, categoría **Pública**. El humano declara que es la red de su casa y de confianza.
 - **La suite del backend no se corre en una red pública o no confiable sin esa regla aplicada** (`AGENTS.md`, "Pruebas", riesgo residual de Testcontainers; pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`).
-- Git local (2026-09-27): `main` al día con `origin/main` (`6868e4d`, fusión del PR #13). Rama actual: `feat/design-01-sistema-de-diseno`, con dos commits del humano sobre `main`: `5a32230` (plan aprobado) y `041e862` (ronda 0). La implementación de 01a y la ronda 1 del tester están sin commit en el árbol de trabajo.
+- Git local (2026-09-27): `main` al día con `origin/main` (`6868e4d`, fusión del PR #13). Rama actual: `feat/design-01-sistema-de-diseno`, con tres commits del humano sobre `main`: `5a32230` (plan aprobado), `041e862` (ronda 0) y `e39500a` (01a completa con su cierre). Sin push: la rama no existe en `origin`.
 
 ## 6. Agentes
 Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en el frontmatter de `.claude/agents/*.md`: `arquitecto`, `manager` y `tester` con `opus` y esfuerzo `high`. **El `programador` usa `sonnet` con esfuerzo `medium` a prueba, hasta revisarlo después del encargo CLASES.**

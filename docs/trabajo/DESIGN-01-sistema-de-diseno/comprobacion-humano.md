@@ -131,7 +131,7 @@ Aquí no va ninguna contraseña. Los correos ficticios `@pruebas.local` pueden q
   - "Atkinson Hyperlegible Next" en el texto y "Bricolage Grotesque" en los títulos.
   - Con `tabular-nums`, las cifras ocupan el mismo ancho.
   - El texto se lee cómodo a 16 px y a 360 px de ancho.
-- [ X] 1280 px  [ ] 360 px
+- [ X] 1280 px  [x] 360 px (marcada por el orquestador a pedido del humano: "H-01 a 360 px: pasa (lo revisé junto con el login a 360)", 2026-09-27)
 - Notas:
 
 #### H-02 · Materiales y controles

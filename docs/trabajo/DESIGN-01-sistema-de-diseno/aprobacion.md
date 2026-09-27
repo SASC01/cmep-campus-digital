@@ -75,7 +75,10 @@ Ningún agente hace commit, push ni deploy.
 - Entradas nuevas: solo las 3 de `@fontsource/*`.
 - Fuera de `"peer"`, solo cambia la sección `frontend`.
 
-La naturaleza del cambio es la misma que se le presentó al humano: solo bajas de `"peer": true`, sin cambios de versiones. **Falta que el humano confirme esta lista de 19 antes del commit.** Con esa confirmación, V-08 da por buena la diferencia de `package-lock.json`: esas 19 bajas más lo de E-2. Cualquier otra diferencia en ese archivo sigue siendo parada.
+La naturaleza del cambio es la misma que se le presentó al humano: solo bajas de `"peer": true`, sin cambios de versiones.
+
+**Confirmación del humano (2026-09-27, antes del commit de 01a):**
+> Confirmo la lista de 19 entradas del lockfile: solo pierden "peer": true, sin cambios de versión, resolved ni integrity. Con esa confirmación, V-08 da por buena la diferencia de `package-lock.json`: esas 19 bajas más lo de E-2. Cualquier otra diferencia en ese archivo sigue siendo parada.
 
 ## Decisiones del humano tras la revisión final del manager — 2026-09-27
 > Decisiones DESIGN-01a:
@@ -116,6 +119,44 @@ El resultado parcial y la suspensión están en `comprobacion-humano.md`. Decisi
     > - Mientras un enlace no tenga URL: en desarrollo se ve como marcador, para evaluar el diseño; en el build de producción no se muestra. Nunca uses href="#".
     > - Agrega a ESTADO.md el pendiente: "Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY".
 
+## Commit de 01a — 2026-09-27
+- **`e39500a`** (`e39500a980275140cc0e24387ea8c563e295e60e`), del humano: "feat(design-01): sistema de diseño D3, parte 01a (tokens, vidrio, fuentes, componentes base, enEspera y T-14)". Son 65 archivos, en la rama `feat/design-01-sistema-de-diseno` y sin push.
+  - El humano lo reportó como `e35500a`. El orquestador lo comprobó en `git log`: el hash real es `e39500a`.
+- Después del commit, el árbol de trabajo quedó limpio.
+- Ya sin commit de por medio, el humano pidió marcar H-01 a 360 px: "pasa (lo revisé junto con el login a 360)".
+- **El PR no se abre** hasta que pase la comprobación visual completa después de 01b.
+- **Siguiente paso:** replanear DESIGN-01b en `plan-01b.md`, en modo plan y sin tocar código. El borde de los campos ya quedó resuelto en 01a. Se agregan el botón para mostrar u ocultar la contraseña y el pie con marcadores.
+
+## Aprobación del plan de DESIGN-01b — 2026-09-27
+Aprobó: Carlos Salazar. Registró: orquestador, a partir del mensaje del humano.
+
+> APRUEBO el plan de DESIGN-01b (plan-01b.md, estado LISTO), con estas respuestas:
+>
+> P-01: (A). 01b-1 carril normal, 01b-2 carril sensible.
+> P-02: (A). Dos subentregas en la misma rama, commit mío por cada una.
+> P-03: (A). Mismo pie en /admin, opaco.
+> P-04: (A). La contraseña visible se oculta al enviar, también si falla la validación.
+> P-05: (B) del manager, con dos ajustes:
+>   1. En formularios con más de un campo de contraseña, cada botón lleva el nombre de su campo ("Mostrar contraseña nueva", "Mostrar confirmación de contraseña"), siempre fijo y con aria-pressed.
+>   2. El nombre accesible va como texto visualmente oculto dentro del botón (sr-only), no como aria-label, para que getByLabelText no encuentre el botón al buscar el campo.
+>   Vuelve a comprobar con los nombres por campo que ningún selector de prueba (incluidas las de ataque) encuentra el botón al buscar un campo. Si alguno lo encuentra, 01b-2 lleva ronda 0.
+>
+> Las propuestas visuales (candado sin insignia, títulos de anuncios en negrita, barra superior a 360, posición y trayectoria de orbes, espaciado del maestro a 20 px) las juzgo en la comprobación final.
+>
+> Registra la aprobación en aprobacion.md, actualiza plan-01b.md con el ajuste de P-05 y ESTADO.md. No hagas commit ni lances la ronda 0: avísame cuando esté listo para mi commit.
+
+**Carriles:** 01b-1 **normal**; 01b-2 **sensible** (aprobación escrita, que es esta, y revisión humana del diff de 01b-2 antes de su commit).
+**Rama:** `feat/design-01-sistema-de-diseno`, desde `e39500a`, con un commit del humano por subentrega. El PR sigue cerrado hasta que pase la comprobación completa.
+**P-06 del plan (nombres de dos botones), respuesta del humano (2026-09-27, herramienta de preguntas):**
+- botón del campo "Confirma la contraseña nueva": **"Mostrar confirmación de contraseña"**, su ejemplo literal;
+- botón del campo "Contraseña temporal": **"Mostrar contraseña temporal"**.
+
+Coinciden con lo que ya proponía `plan-01b.md` (§D-7), así que los 7 nombres quedan fijados sin cambios en el plan.
+
+**Inventario de selectores con los nombres por campo:** el arquitecto no encontró ninguna prueba, normal ni de ataque, que encuentre el botón al buscar un campo, así que 01b-2 no lleva ronda 0. Lo verifica el manager.
+
+**Base `<B>` de V-08 para 01b:** pendiente. El orquestador la anota después del commit de los documentos del plan, que hace el humano.
+
 ## Pendientes para encargos siguientes
 - **ADMIN:** "Dar rol accesible a la ficha de cuenta (role=region con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de fichaDe." (R-15).
-- **DESIGN-01b:** plan detallado en `plan-01b.md`, desde una rama nueva después de fusionar 01a.
+- **DESIGN-01b:** plan detallado en `plan-01b.md`, aprobado el 2026-09-27. Sigue en la misma rama, `feat/design-01-sistema-de-diseno`, desde `e39500a`. Ya no sale de una rama nueva después de fusionar 01a, porque el PR se abre hasta que pase la comprobación completa.

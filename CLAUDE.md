@@ -234,6 +234,7 @@ const handleEntregar = async () => {
 
 - No agregues modo oscuro
 - No uses el aspecto por defecto de shadcn/ui ni una paleta neutra en blanco y negro
+- No uses vidrio fuera de las reglas de legibilidad, movimiento y alcance de `docs/DESIGN.md`
 - No imites a Google Classroom
 - No pongas tipos en archivos de hooks ni declares a mano tipos que ya existen en `shared/`
 - No dupliques datos entre módulos

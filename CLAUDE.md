@@ -66,9 +66,9 @@ features/
 
 ### Ubicaciones compartidas
 
-- `components/ui/` — componentes de shadcn/ui reestilizados
+- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx` y `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`)
 - `components/layout/` — barra lateral, encabezado de página, contenedores por rol (`ContenedorRol`, `LayoutPublico`). El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
-- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `AvatarUsuario`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`) y `Cargando` (`cargando.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
+- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `AvatarUsuario`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`) y `ErrorDeCampo` (`error-de-campo.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
@@ -104,6 +104,8 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 - Los tokens viven en `styles/tokens.css` con los nombres y valores de `DESIGN.md`, y Tailwind los expone mediante `@theme`. Un token nuevo o un valor que cambia se actualiza en los dos archivos en el mismo cambio.
 - Ningún color, tamaño de fuente, radio o sombra se escribe suelto en un componente. Siempre mediante token.
 - Los derivados que shadcn espera (`--card`, `--popover`, `--secondary`, `--input`, `--ring`…) apuntan a un token propio, nunca a un valor.
+- La paleta y las escalas por defecto de Tailwind (colores, tamaños de letra, pesos, radios, sombras y desenfoques) están anuladas en `tokens.css`. Una clase como `text-sm`, `rounded-lg` o `shadow-md` no genera CSS y se pierde sin error: usa `text-small`, `rounded-panel`, `shadow-overlay`. `cn` conoce la escala propia (`lib/utils.ts`).
+- El vidrio se aplica solo con las utilidades `vidrio`, `vidrio-fuerte` y `vidrio-azul` de `tokens.css`, que traen su respaldo sólido sin `backdrop-filter`; nunca con `backdrop-blur-*` ni con fondos blancos translúcidos sueltos. Una pantalla densa marca su contenedor con `data-material="opaco"` (y `data-densidad="densa"` si sus controles miden 36 px): el vidrio pasa a `--surface` sin tocar los componentes.
 - **El estado nunca se comunica solo con color:** siempre acompañado de texto o icono ("Deudor", "Con retraso").
 
 ### Componentes
@@ -111,12 +113,14 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 - Usa los componentes de `components/ui/` (shadcn/ui **reestilizado** con los tokens). NO construyas a mano botones, inputs, tarjetas, diálogos, selects ni tablas.
 - shadcn/ui con su aspecto por defecto es inaceptable: todo componente que se agregue se adapta a los tokens antes de usarse.
 - Botón de acción principal: `variant="primary"`. Por defecto: `variant="outline"`. Destructivo: `variant="destructive"`.
+- Un botón cuya petición está en vuelo usa `enEspera` de `Button` (`aria-disabled`, `aria-busy` e indicador de carga), nunca `disabled`: conserva el foco y no dispara su acción. `disabled` queda para un control que no está disponible.
 - Una sola acción principal por vista.
 - Iconos: `lucide-react`. Avisos: `sonner`.
 
 ### Formularios
 
 - Los formularios donde alguien captura datos de otra persona (el admin invitando o editando usuarios, un maestro agregando alumnos) usan `autoComplete="off"` en sus campos. `autoComplete` con valores como `name` o `email` solo se usa cuando la persona escribe sus propios datos.
+- El error de un campo usa `ErrorDeCampo` (`components/error-de-campo.tsx`, fondo `--danger-soft`), nunca texto rojo suelto: el rojo no llega a AA sobre vidrio al 62 %.
 
 ### Textos
 

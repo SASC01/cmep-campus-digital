@@ -2,9 +2,12 @@ import { registroSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 import { Link } from "react-router"
 
+import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import { TEXTOS_REGISTRO } from "../data"
 import { useRegistro } from "../hooks"
@@ -53,9 +56,7 @@ export function FormularioRegistro() {
         />
       )}
       <div className="flex flex-col gap-2">
-        <label htmlFor="nombre" className="text-sm font-medium">
-          {TEXTOS_REGISTRO.nombre}
-        </label>
+        <Label htmlFor="nombre">{TEXTOS_REGISTRO.nombre}</Label>
         <Input
           id="nombre"
           name="nombre"
@@ -65,16 +66,10 @@ export function FormularioRegistro() {
           aria-invalid={errores.nombre !== undefined}
           aria-describedby={errores.nombre ? "nombre-error" : undefined}
         />
-        {errores.nombre && (
-          <p id="nombre-error" className="text-sm text-destructive">
-            {errores.nombre}
-          </p>
-        )}
+        {errores.nombre && <ErrorDeCampo id="nombre-error">{errores.nombre}</ErrorDeCampo>}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="correo" className="text-sm font-medium">
-          {TEXTOS_REGISTRO.correo}
-        </label>
+        <Label htmlFor="correo">{TEXTOS_REGISTRO.correo}</Label>
         <Input
           id="correo"
           name="correo"
@@ -84,16 +79,10 @@ export function FormularioRegistro() {
           aria-invalid={errores.email !== undefined}
           aria-describedby={errores.email ? "correo-error" : undefined}
         />
-        {errores.email && (
-          <p id="correo-error" className="text-sm text-destructive">
-            {errores.email}
-          </p>
-        )}
+        {errores.email && <ErrorDeCampo id="correo-error">{errores.email}</ErrorDeCampo>}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="contrasena" className="text-sm font-medium">
-          {TEXTOS_REGISTRO.contrasena}
-        </label>
+        <Label htmlFor="contrasena">{TEXTOS_REGISTRO.contrasena}</Label>
         <Input
           id="contrasena"
           name="contrasena"
@@ -103,19 +92,17 @@ export function FormularioRegistro() {
           aria-invalid={errores.contrasena !== undefined}
           aria-describedby={describeContrasena}
         />
-        <p id="contrasena-ayuda" className="text-sm text-muted-foreground">
+        <p id="contrasena-ayuda" className="text-small text-muted-foreground">
           {TEXTOS_REGISTRO.ayudaContrasena}
         </p>
         {errores.contrasena && (
-          <p id="contrasena-error" className="text-sm text-destructive">
-            {errores.contrasena}
-          </p>
+          <ErrorDeCampo id="contrasena-error">{errores.contrasena}</ErrorDeCampo>
         )}
       </div>
-      <Button type="submit" variant="primary" disabled={alta.isPending} aria-busy={alta.isPending}>
+      <Button type="submit" variant="primary" enEspera={alta.isPending}>
         {TEXTOS_REGISTRO.crear}
       </Button>
-      <Link to="/login" className="text-sm text-accent underline-offset-4 hover:underline">
+      <Link to="/login" className={buttonVariants({ variant: "link", size: "enlace" })}>
         {TEXTOS_REGISTRO.yaTienesCuenta}
       </Link>
     </form>

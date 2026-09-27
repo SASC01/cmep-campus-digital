@@ -138,18 +138,17 @@ const pulsarShiftTab = () => {
   act(() => anterior.focus())
 }
 
-// La misma emulación de la ronda 3 (T-12): Chromium saca el foco del botón que pasa a `disabled` y
-// lo deja en <body>, con un blur/focusout sin destino (relatedTarget nulo). jsdom no lo hace.
+// La misma preparación de la ronda 3 (T-12): Chromium saca el foco del botón que pasa a `disabled`
+// y lo deja en <body>. Desde DESIGN-01a (§D-5, §D-6) el botón en vuelo ya no se deshabilita: queda
+// en espera. Esta preparación comprueba ahora F-1: `aria-disabled` y `aria-busy` en "true", sin
+// `disabled`, y el foco conservado. El camino "foco en <body>" lo sigue cubriendo
+// clicEnZonaNoEnfocable (tester, ronda 1).
 const emularCorreccionDelFocoDeChromium = async (control: HTMLElement) => {
-  await waitFor(() => expect(control).toBeDisabled())
-  expect(document.activeElement, "el botón deshabilitado debía tener el foco").toBe(control)
-  act(() => {
-    control.removeAttribute("disabled")
-    control.blur()
-    control.setAttribute("disabled", "")
-  })
-  expect(control).toBeDisabled()
-  expect(document.activeElement).toBe(document.body)
+  await waitFor(() => expect(control).toHaveAttribute("aria-disabled", "true"))
+  expect(control).toHaveAttribute("aria-busy", "true")
+  expect(control).not.toBeDisabled()
+  expect(control).not.toHaveAttribute("disabled")
+  expect(document.activeElement, "el botón en espera debía conservar el foco").toBe(control)
 }
 
 // Un clic sobre una zona no enfocable de la página (texto, fondo): el control con el foco lo pierde
@@ -217,107 +216,95 @@ afterEach(() => {
 // del contenedor de la confirmación, así que tieneFocoRef se queda en true y la llegada de la
 // respuesta le quita el foco. Es la reproducción de T-11, ahora en el navegador real.
 describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la petición en vuelo", () => {
-  // Riesgo aceptado por el humano el 2026-09-26 (T-14): pasa al encargo del sistema de diseño
-  it.fails(
-    "la temporal que llega mientras escribe en 'Nombre completo' no le roba el foco",
-    async () => {
-      const pendiente = diferida()
-      apiDeCuentas(() => pendiente.promesa)
-      renderVista()
-      await buscarConEnter(carla.email, carla.nombre)
-      const confirmar = confirmarConClic()
-      await emularCorreccionDelFocoDeChromium(confirmar)
+  // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
+  it("la temporal que llega mientras escribe en 'Nombre completo' no le roba el foco", async () => {
+    const pendiente = diferida()
+    apiDeCuentas(() => pendiente.promesa)
+    renderVista()
+    await buscarConEnter(carla.email, carla.nombre)
+    const confirmar = confirmarConClic()
+    await emularCorreccionDelFocoDeChromium(confirmar)
 
-      const nombreMaestro = screen.getByLabelText("Nombre completo")
-      escribirEn(nombreMaestro, "Ana Lóp")
-      await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
-      await screen.findByText(TEMPORAL)
-      await esperarUnMomento()
+    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    escribirEn(nombreMaestro, "Ana Lóp")
+    await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
+    await screen.findByText(TEMPORAL)
+    await esperarUnMomento()
 
-      expect(
-        document.activeElement,
-        `el admin escribía en "Nombre completo" y la temporal le llevó el foco a ${describirFoco()}`,
-      ).toBe(nombreMaestro)
-    },
-  )
+    expect(
+      document.activeElement,
+      `el admin escribía en "Nombre completo" y la temporal le llevó el foco a ${describirFoco()}`,
+    ).toBe(nombreMaestro)
+  })
 
-  // Riesgo aceptado por el humano el 2026-09-26 (T-14): pasa al encargo del sistema de diseño
-  it.fails(
-    "la temporal que llega mientras escribe en 'Correo correcto' de la misma ficha no le roba el foco",
-    async () => {
-      const pendiente = diferida()
-      apiDeCuentas(() => pendiente.promesa)
-      renderVista()
-      await buscarConEnter(carla.email, carla.nombre)
-      const confirmar = confirmarConClic()
-      await emularCorreccionDelFocoDeChromium(confirmar)
+  // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
+  it("la temporal que llega mientras escribe en 'Correo correcto' de la misma ficha no le roba el foco", async () => {
+    const pendiente = diferida()
+    apiDeCuentas(() => pendiente.promesa)
+    renderVista()
+    await buscarConEnter(carla.email, carla.nombre)
+    const confirmar = confirmarConClic()
+    await emularCorreccionDelFocoDeChromium(confirmar)
 
-      const correo = screen.getByLabelText("Correo correcto")
-      escribirEn(correo, "carla.r")
-      await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
-      await screen.findByText(TEMPORAL)
-      await esperarUnMomento()
+    const correo = screen.getByLabelText("Correo correcto")
+    escribirEn(correo, "carla.r")
+    await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
+    await screen.findByText(TEMPORAL)
+    await esperarUnMomento()
 
-      expect(
-        document.activeElement,
-        `el admin escribía en "Correo correcto" y la temporal le llevó el foco a ${describirFoco()}`,
-      ).toBe(correo)
-    },
-  )
+    expect(
+      document.activeElement,
+      `el admin escribía en "Correo correcto" y la temporal le llevó el foco a ${describirFoco()}`,
+    ).toBe(correo)
+  })
 
-  // Riesgo aceptado por el humano el 2026-09-26 (T-14): pasa al encargo del sistema de diseño
-  it.fails(
-    "un 500 que llega mientras escribe en 'Nombre completo' no le lleva el foco a 'Cancelar'",
-    async () => {
-      const pendiente = diferida()
-      apiDeCuentas(() => pendiente.promesa)
-      renderVista()
-      await buscarConEnter(carla.email, carla.nombre)
-      const confirmar = confirmarConClic()
-      await emularCorreccionDelFocoDeChromium(confirmar)
+  // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
+  it("un 500 que llega mientras escribe en 'Nombre completo' no le lleva el foco a 'Cancelar'", async () => {
+    const pendiente = diferida()
+    apiDeCuentas(() => pendiente.promesa)
+    renderVista()
+    await buscarConEnter(carla.email, carla.nombre)
+    const confirmar = confirmarConClic()
+    await emularCorreccionDelFocoDeChromium(confirmar)
 
-      const nombreMaestro = screen.getByLabelText("Nombre completo")
-      escribirEn(nombreMaestro, "Ana Lóp")
-      await resolverCon(pendiente, errorJson(500, "ERROR_INTERNO"))
-      expect(await screen.findByRole("alert")).toBeVisible()
-      await esperarUnMomento()
+    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    escribirEn(nombreMaestro, "Ana Lóp")
+    await resolverCon(pendiente, errorJson(500, "ERROR_INTERNO"))
+    expect(await screen.findByRole("alert")).toBeVisible()
+    await esperarUnMomento()
 
-      expect(
-        document.activeElement,
-        `el admin escribía en "Nombre completo" y el error le llevó el foco a ${describirFoco()}`,
-      ).toBe(nombreMaestro)
-    },
-  )
+    expect(
+      document.activeElement,
+      `el admin escribía en "Nombre completo" y el error le llevó el foco a ${describirFoco()}`,
+    ).toBe(nombreMaestro)
+  })
 })
 
 // T-14, en cualquier navegador: el blur sin destino también lo produce un clic en una zona no
 // enfocable. Después, el admin se va a otro campo sin que el contenedor se entere.
 describe("ataque (AUTH-02b r4): un clic en una zona no enfocable y después otro campo", () => {
-  // Riesgo aceptado por el humano el 2026-09-26 (T-14): pasa al encargo del sistema de diseño
-  it.fails(
-    "'Cancelar' con la petición en vuelo, clic fuera y a escribir en 'Nombre completo': la temporal no le roba el foco",
-    async () => {
-      const pendiente = diferida()
-      apiDeCuentas(() => pendiente.promesa)
-      renderVista()
-      await buscarConEnter(carla.email, carla.nombre)
-      confirmarConClic()
-      fireEvent.click(boton("Cancelar"))
-      expect(document.activeElement).toBe(boton("Restablecer contraseña"))
+  // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
+  it("'Cancelar' con la petición en vuelo, clic fuera y a escribir en 'Nombre completo': la temporal no le roba el foco", async () => {
+    const pendiente = diferida()
+    apiDeCuentas(() => pendiente.promesa)
+    renderVista()
+    await buscarConEnter(carla.email, carla.nombre)
+    confirmarConClic()
+    fireEvent.click(boton("Cancelar"))
+    expect(document.activeElement).toBe(boton("Restablecer contraseña"))
 
-      clicEnZonaNoEnfocable()
-      const nombreMaestro = screen.getByLabelText("Nombre completo")
-      escribirEn(nombreMaestro, "Ana Lóp")
-      await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
-      await screen.findByText(TEMPORAL)
-      await esperarUnMomento()
+    clicEnZonaNoEnfocable()
+    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    escribirEn(nombreMaestro, "Ana Lóp")
+    await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
+    await screen.findByText(TEMPORAL)
+    await esperarUnMomento()
 
-      expect(
-        document.activeElement,
-        `el admin escribía en "Nombre completo" y la temporal le llevó el foco a ${describirFoco()}`,
-      ).toBe(nombreMaestro)
-    },
-  )
+    expect(
+      document.activeElement,
+      `el admin escribía en "Nombre completo" y la temporal le llevó el foco a ${describirFoco()}`,
+    ).toBe(nombreMaestro)
+  })
 })
 
 describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener", () => {
@@ -370,6 +357,8 @@ describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener
     await resolverCon(primera, errorJson(500, "ERROR_INTERNO"))
     expect(await screen.findByRole("alert")).toBeVisible()
     await waitFor(() => expect(boton("Sí, restablecer")).toBeEnabled())
+    // N-01 (DESIGN-01a): toBeEnabled ya no distingue un botón en espera; aria-disabled sí.
+    await waitFor(() => expect(boton("Sí, restablecer")).not.toHaveAttribute("aria-disabled"))
     expect(document.activeElement, `tras el 500, el foco quedó en ${describirFoco()}`).toBe(
       boton("Cancelar"),
     )

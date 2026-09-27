@@ -14,9 +14,7 @@ export function RegistroView() {
       <PanelAnuncios anuncios={anuncios} />
       <Card className="self-center">
         <CardHeader>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">
-            {TEXTOS_REGISTRO.titulo}
-          </h1>
+          <h1 className="text-h1">{TEXTOS_REGISTRO.titulo}</h1>
           <CardDescription>{TEXTOS_REGISTRO.subtitulo}</CardDescription>
         </CardHeader>
         <CardContent>

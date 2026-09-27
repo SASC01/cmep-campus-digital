@@ -335,6 +335,8 @@ describe("ataque (AUTH-02b r1): Copiar", () => {
     expect(aviso.success).not.toHaveBeenCalled()
     expect(screen.getByText(TEMPORAL)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Copiar" })).toBeEnabled()
+    // N-01 (DESIGN-01a): toBeEnabled ya no distingue un botón en espera; aria-disabled sí.
+    expect(screen.getByRole("button", { name: "Copiar" })).not.toHaveAttribute("aria-disabled")
   })
 
   it("con el permiso denegado (writeText rechaza): toast de error, sin rechazo sin manejar", async () => {
@@ -352,6 +354,8 @@ describe("ataque (AUTH-02b r1): Copiar", () => {
     )
     expect(writeText).toHaveBeenCalledWith(TEMPORAL)
     expect(screen.getByRole("button", { name: "Copiar" })).toBeEnabled()
+    // N-01 (DESIGN-01a): toBeEnabled ya no distingue un botón en espera; aria-disabled sí.
+    expect(screen.getByRole("button", { name: "Copiar" })).not.toHaveAttribute("aria-disabled")
   })
 
   it("con éxito: copia exactamente la temporal y avisa", async () => {

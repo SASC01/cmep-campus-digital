@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { CuentasView } from "./cuentas-view"
@@ -149,6 +149,77 @@ describe("CuentasView", () => {
 
     await screen.findByText("Otro Maestro")
     expect(screen.queryByText("abcd-efgh-jkmn")).not.toBeInTheDocument()
+  })
+
+  it("con la petición en vuelo, 'Sí, restablecer' está en espera pero no deshabilitado y conserva el foco (F-1)", async () => {
+    let responder: (respuesta: Response) => void = () => undefined
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((entrada) => {
+        if (String(entrada).endsWith("/restablecer-contrasena")) {
+          return new Promise<Response>((resolver) => {
+            responder = resolver
+          })
+        }
+        return Promise.resolve(respuestaJson(200, { usuario }))
+      }),
+    )
+    renderVista()
+
+    await buscarCuenta()
+    fireEvent.click(screen.getByRole("button", { name: "Restablecer contraseña" }))
+    const siRestablecer = screen.getByRole("button", { name: "Sí, restablecer" })
+    siRestablecer.focus()
+    fireEvent.click(siRestablecer)
+
+    await waitFor(() => expect(siRestablecer).toHaveAttribute("aria-disabled", "true"))
+    expect(siRestablecer).not.toBeDisabled()
+    expect(document.activeElement).toBe(siRestablecer)
+
+    responder(respuestaJson(200, { contrasenaTemporal: "abcd-efgh-jkmn" }))
+    await screen.findByText("abcd-efgh-jkmn")
+  })
+
+  it("'Cancelar' con la petición en vuelo, clic fuera y foco en 'Nombre completo': la temporal no se lo roba (T-14, escenario 4)", async () => {
+    let responder: (respuesta: Response) => void = () => undefined
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((entrada) => {
+        if (String(entrada).endsWith("/restablecer-contrasena")) {
+          return new Promise<Response>((resolver) => {
+            responder = resolver
+          })
+        }
+        return Promise.resolve(respuestaJson(200, { usuario }))
+      }),
+    )
+    renderVista()
+
+    await buscarCuenta()
+    fireEvent.click(screen.getByRole("button", { name: "Restablecer contraseña" }))
+    const siRestablecer = screen.getByRole("button", { name: "Sí, restablecer" })
+    fireEvent.click(siRestablecer)
+    await waitFor(() => expect(siRestablecer).toHaveAttribute("aria-disabled", "true"))
+
+    // "Cancelar" no cancela la petición ya en vuelo: solo oculta la confirmación. El efecto de
+    // T-09/T-10 devuelve el foco a "Restablecer contraseña".
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }))
+    const restablecerBtn = screen.getByRole("button", { name: "Restablecer contraseña" })
+    expect(document.activeElement).toBe(restablecerBtn)
+
+    // Clic fuera: el foco se suelta antes de ir a otro campo, como en un clic sobre una zona no
+    // enfocable de la página.
+    act(() => restablecerBtn.blur())
+    expect(document.activeElement).toBe(document.body)
+
+    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    nombreMaestro.focus()
+    expect(document.activeElement).toBe(nombreMaestro)
+
+    responder(respuestaJson(200, { contrasenaTemporal: "abcd-efgh-jkmn" }))
+    await screen.findByText("abcd-efgh-jkmn")
+
+    expect(document.activeElement).toBe(nombreMaestro)
   })
 
   it("corrige el correo y muestra el mensaje de éxito", async () => {

@@ -21,12 +21,12 @@ export function LoginView() {
       <PanelAnuncios anuncios={anuncios} />
       <Card className="self-center">
         <CardHeader>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">{TEXTOS_LOGIN.titulo}</h1>
+          <h1 className="text-h1">{TEXTOS_LOGIN.titulo}</h1>
           <CardDescription>{TEXTOS_LOGIN.subtitulo}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {aviso && (
-            <p role="status" className="flex items-center gap-2 text-sm text-success">
+            <p role="status" className="flex items-center gap-2 text-small text-success">
               <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
               <span>{aviso}</span>
             </p>

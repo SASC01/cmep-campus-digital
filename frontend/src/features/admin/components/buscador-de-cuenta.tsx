@@ -1,9 +1,11 @@
 import { buscarUsuarioSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 
+import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import { TEXTOS_CUENTAS } from "../data"
 import { useBuscarCuenta } from "../hooks"
@@ -46,15 +48,11 @@ export function BuscadorDeCuenta() {
         noValidate
         aria-label={TEXTOS_CUENTAS.buscar.boton}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4"
+        className="flex flex-col gap-4 rounded-panel border border-border bg-surface p-4"
       >
-        <h2 className="font-heading text-lg font-semibold tracking-tight">
-          {TEXTOS_CUENTAS.buscar.titulo}
-        </h2>
+        <h2 className="text-h3">{TEXTOS_CUENTAS.buscar.titulo}</h2>
         <div className="flex flex-col gap-2">
-          <label htmlFor="correo-buscar" className="text-sm font-medium">
-            {TEXTOS_CUENTAS.buscar.correo}
-          </label>
+          <Label htmlFor="correo-buscar">{TEXTOS_CUENTAS.buscar.correo}</Label>
           <Input
             id="correo-buscar"
             name="correo"
@@ -64,18 +62,9 @@ export function BuscadorDeCuenta() {
             aria-invalid={errores.email !== undefined}
             aria-describedby={errores.email ? "correo-buscar-error" : undefined}
           />
-          {errores.email && (
-            <p id="correo-buscar-error" className="text-sm text-destructive">
-              {errores.email}
-            </p>
-          )}
+          {errores.email && <ErrorDeCampo id="correo-buscar-error">{errores.email}</ErrorDeCampo>}
         </div>
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={buscar.isPending}
-          aria-busy={buscar.isPending}
-        >
+        <Button type="submit" variant="outline" enEspera={buscar.isPending}>
           {TEXTOS_CUENTAS.buscar.boton}
         </Button>
       </form>

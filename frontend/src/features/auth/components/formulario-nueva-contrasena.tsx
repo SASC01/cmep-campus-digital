@@ -2,9 +2,12 @@ import { nuevaContrasenaConTokenSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 import { Link } from "react-router"
 
+import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { esApiError } from "@/services/apiClient"
 
 import { MENSAJE_CONFIRMACION_NO_COINCIDE, TEXTOS_NUEVA_CONTRASENA } from "../data"
@@ -24,7 +27,7 @@ export function EnlaceInvalido({ tipo }: EnlaceInvalidoProps) {
     <div className="flex flex-col gap-4">
       <MensajeError mensaje={textos.enlaceInvalido} />
       {tipo === "recuperacion" && (
-        <Link to="/recuperar" className="text-sm text-accent underline-offset-4 hover:underline">
+        <Link to="/recuperar" className={buttonVariants({ variant: "link", size: "enlace" })}>
           {textos.pedirOtroEnlace}
         </Link>
       )}
@@ -85,9 +88,7 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
         <MensajeError mensaje={mensajeDeErrorAuth(nuevaContrasena.error)} />
       )}
       <div className="flex flex-col gap-2">
-        <label htmlFor="contrasenaNueva" className="text-sm font-medium">
-          {textos.contrasenaNueva}
-        </label>
+        <Label htmlFor="contrasenaNueva">{textos.contrasenaNueva}</Label>
         <Input
           id="contrasenaNueva"
           name="contrasenaNueva"
@@ -101,19 +102,15 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
               : "contrasenaNueva-ayuda"
           }
         />
-        <p id="contrasenaNueva-ayuda" className="text-sm text-muted-foreground">
+        <p id="contrasenaNueva-ayuda" className="text-small text-muted-foreground">
           {textos.ayudaContrasena}
         </p>
         {errores.contrasena && (
-          <p id="contrasenaNueva-error" className="text-sm text-destructive">
-            {errores.contrasena}
-          </p>
+          <ErrorDeCampo id="contrasenaNueva-error">{errores.contrasena}</ErrorDeCampo>
         )}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="confirmacion" className="text-sm font-medium">
-          {textos.confirmacion}
-        </label>
+        <Label htmlFor="confirmacion">{textos.confirmacion}</Label>
         <Input
           id="confirmacion"
           name="confirmacion"
@@ -124,17 +121,10 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
           aria-describedby={errorConfirmacion ? "confirmacion-error" : undefined}
         />
         {errorConfirmacion && (
-          <p id="confirmacion-error" className="text-sm text-destructive">
-            {MENSAJE_CONFIRMACION_NO_COINCIDE}
-          </p>
+          <ErrorDeCampo id="confirmacion-error">{MENSAJE_CONFIRMACION_NO_COINCIDE}</ErrorDeCampo>
         )}
       </div>
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={nuevaContrasena.isPending}
-        aria-busy={nuevaContrasena.isPending}
-      >
+      <Button type="submit" variant="primary" enEspera={nuevaContrasena.isPending}>
         {textos.boton}
       </Button>
     </form>

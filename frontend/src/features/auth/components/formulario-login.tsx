@@ -2,9 +2,12 @@ import { loginSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 import { Link } from "react-router"
 
+import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import { TEXTOS_LOGIN } from "../data"
 import { useLogin } from "../hooks"
@@ -48,9 +51,7 @@ export function FormularioLogin() {
         />
       )}
       <div className="flex flex-col gap-2">
-        <label htmlFor="correo" className="text-sm font-medium">
-          {TEXTOS_LOGIN.correo}
-        </label>
+        <Label htmlFor="correo">{TEXTOS_LOGIN.correo}</Label>
         <Input
           id="correo"
           name="correo"
@@ -60,16 +61,10 @@ export function FormularioLogin() {
           aria-invalid={errores.email !== undefined}
           aria-describedby={errores.email ? "correo-error" : undefined}
         />
-        {errores.email && (
-          <p id="correo-error" className="text-sm text-destructive">
-            {errores.email}
-          </p>
-        )}
+        {errores.email && <ErrorDeCampo id="correo-error">{errores.email}</ErrorDeCampo>}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="contrasena" className="text-sm font-medium">
-          {TEXTOS_LOGIN.contrasena}
-        </label>
+        <Label htmlFor="contrasena">{TEXTOS_LOGIN.contrasena}</Label>
         <Input
           id="contrasena"
           name="contrasena"
@@ -80,25 +75,18 @@ export function FormularioLogin() {
           aria-describedby={errores.contrasena ? "contrasena-error" : undefined}
         />
         {errores.contrasena && (
-          <p id="contrasena-error" className="text-sm text-destructive">
-            {errores.contrasena}
-          </p>
+          <ErrorDeCampo id="contrasena-error">{errores.contrasena}</ErrorDeCampo>
         )}
       </div>
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={inicioSesion.isPending}
-        aria-busy={inicioSesion.isPending}
-      >
+      <Button type="submit" variant="primary" enEspera={inicioSesion.isPending}>
         {TEXTOS_LOGIN.entrar}
       </Button>
-      <div className="flex flex-col gap-2 text-sm">
-        <Link to="/recuperar" className="text-accent underline-offset-4 hover:underline">
+      <div className="flex flex-col gap-2">
+        <Link to="/recuperar" className={buttonVariants({ variant: "link", size: "enlace" })}>
           {TEXTOS_LOGIN.olvide}
         </Link>
-        <p className="text-muted-foreground">{TEXTOS_LOGIN.notaAdministracion}</p>
-        <Link to="/registro" className="text-accent underline-offset-4 hover:underline">
+        <p className="text-small text-muted-foreground">{TEXTOS_LOGIN.notaAdministracion}</p>
+        <Link to="/registro" className={buttonVariants({ variant: "link", size: "enlace" })}>
           {TEXTOS_LOGIN.registro}
         </Link>
       </div>

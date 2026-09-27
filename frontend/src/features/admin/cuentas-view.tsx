@@ -9,8 +9,8 @@ export function CuentasView() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-heading text-2xl font-bold tracking-tight">{TEXTOS_CUENTAS.titulo}</h1>
-        <p className="text-sm text-muted-foreground">{TEXTOS_CUENTAS.notaProvisional}</p>
+        <h1 className="text-h1">{TEXTOS_CUENTAS.titulo}</h1>
+        <p className="text-small text-muted-foreground">{TEXTOS_CUENTAS.notaProvisional}</p>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <FormularioInvitarMaestro />

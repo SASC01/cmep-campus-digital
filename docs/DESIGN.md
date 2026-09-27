@@ -9,7 +9,7 @@
 | Dirección | **D3 · Vidrio líquido con fondo flotante**, elegida por el humano. Referencia: `docs/design/referencia-direccion-d3.png` |
 | Antecedente | Dirección C (papel crema, tinta y superficies planas con bordes), elegida el 2026-09-26 y reemplazada por D3. Su captura se conserva en `docs/design/referencia-direccion-c.png`. Decisión en `docs/ARCHITECTURE.md` §20, D-28 |
 | Registrado | 2026-09-27 |
-| Estado de aplicación | `frontend/src/styles/tokens.css` todavía tiene los valores provisionales de FRONT-01. Los de este documento los aplica el encargo DESIGN-01 (en pausa: su plan se escribió para la dirección C y se rehace sobre D3) |
+| Estado de aplicación | DESIGN-01a, cerrado el 2026-09-27: tokens, materiales con su respaldo sólido, fuentes, `components/ui/` y botón en espera, aplicados en `frontend/src/styles/tokens.css` y los componentes base; incluye el borde de los campos y la corrección del rectángulo grisáceo del login, decididos por el humano tras su comprobación parcial. Pendiente en DESIGN-01b: fondo con orbes, movimiento, marco y composición de las pantallas. La comprobación visual completa (H-01 a H-10 y la tabla de contraste) se hace una sola vez, después de DESIGN-01b: en 01a el humano solo comprobó el bloque del login (fuentes, materiales y foco), sin orbes detrás |
 | Marcas | **captura**: medido en la referencia. **humano**: valor dictado por el humano al elegir D3. **propuesta aprobada (2026-09-27)**: no aparece en la captura ni en lo dictado; se propuso al escribir este documento y el humano lo aprobó el 2026-09-27. La marca se conserva para saber de dónde salió cada valor. **propuesta**: valor nuevo que el humano aún no aprueba; lo confirma o corrige el encargo que lo aplique |
 
 ## 1. Referencia
@@ -22,7 +22,7 @@ La medición confirma el orden de las capas del fondo: el velo va **encima** de 
 
 Los textos de la captura son ilustrativos: mandan los del PRD. Por ejemplo, la barra lateral dice "Calificaciones", no "Notas".
 
-**Qué se conserva de la dirección C:** la tinta del texto, el azul real como acción principal, el verde pino de la marca, los colores suaves de estado, las tres familias tipográficas, el borde tinta de los campos y el tono. **Qué cambia:** el fondo, las superficies (vidrio en lugar de papel plano con bordes), los radios, los botones en píldora y el botón tinta sobre el bloque destacado, que desaparece.
+**Qué se conserva de la dirección C:** la tinta del texto, el azul real como acción principal, el verde pino de la marca, los colores suaves de estado, las tres familias tipográficas y el tono. **Qué cambia:** el fondo, las superficies (vidrio en lugar de papel plano con bordes), los radios, los botones en píldora, el botón tinta sobre el bloque destacado, que desaparece, y el borde tinta de los campos, más claro desde el cierre de DESIGN-01a (§3, §5).
 
 ## 2. Principios
 
@@ -47,11 +47,12 @@ Referencias de carácter (PRD §7): Notion (editorial y cálido), Arc Browser (p
 | `--background` | `#E9EEF3` | Color base del fondo, debajo de los orbes y del velo (§7.1) | humano |
 | `--background-veil` | `rgb(247 245 239 / 0.35)` | Velo encima de los orbes. **Obligatorio**: sin él, varios textos sobre vidrio no llegan a AA (§3, "Contraste verificado") | humano; orden de capas por captura |
 | `--surface` | `#FFFFFF` | Superficies opacas: campos, tablas, capas flotantes, pantallas densas. Respaldo sólido del vidrio y del vidrio fuerte | captura |
-| `--foreground` | `#16202E` | Texto principal y títulos. Tinta del contorno de los campos (`--input`) | captura |
+| `--foreground` | `#16202E` | Texto principal y títulos. Tinta del borde de 2 px del botón `outline` en contexto opaco (§7.3, §8) | captura |
 | `--muted` | `#EFECE3` | Fondos sutiles sólidos: cuadro de fecha neutro, encabezado de tabla, fila bajo el cursor en superficies opacas | captura |
 | `--muted-foreground` | `#3D4654` | Texto secundario y metadatos | captura |
 | `--border` | `#DDD8CB` | Bordes que separan en superficies opacas: tablas y divisores. **No delimita controles** (§6) | dirección C |
-| `--input` | `#16202E` (apunta a `--foreground`) | Contorno de 2 px de campos, selects y casillas | captura (C); decisión del humano |
+| `--field-border` | `#5A6472` | Borde de 1 px de campos, selects y casillas (se usa a través de `--input`) | criterio (1 px, más claro que la tinta, 3:1 contra el vidrio en el peor caso, `--accent` al enfocar): decisión del humano (2026-09-27). Valor y nombre del token: propuesta (cierre de DESIGN-01a) |
+| `--input` | `#5A6472` (apunta a `--field-border`) | Contorno de 1 px de campos, selects y casillas. Al enfocar, el borde pasa a `--accent`, con el mismo grosor | ver `--field-border` |
 
 **Acción, énfasis y marca**
 
@@ -80,8 +81,11 @@ Referencias de carácter (PRD §7): Notion (editorial y cálido), Arc Browser (p
 - Los botones rellenos (`primary` y `destructive`) llevan texto blanco `#FFFFFF`.
 - `--brand` y `--success` comparten valor, pero no significado: la marca y la identidad de una clase no comunican estado.
 - Los derivados que shadcn espera (`--card`, `--popover`, `--secondary`, `--input`, `--ring`…) apuntan a un token de esta tabla o de "Materiales", nunca a un valor propio.
-- Tokens nuevos de la dirección C, aceptados por el humano y vigentes: `--accent-soft`, `--brand`, `--brand-foreground`, `--brand-soft`, `--success-soft`, `--warning-soft` y `--danger-soft`. `--input` apunta a `--foreground`.
+- Tokens nuevos de la dirección C, aceptados por el humano y vigentes: `--accent-soft`, `--brand`, `--brand-foreground`, `--brand-soft`, `--success-soft`, `--warning-soft` y `--danger-soft`.
+- **`--field-border` y `--input` (cierre de DESIGN-01a):** `--input` ya no apunta a `--foreground`. El borde de 2 px color tinta resultaba demasiado pesado, y al enfocar el anillo azul quedaba encima del borde oscuro. El criterio del cambio —1 px, un color más claro que la tinta, 3:1 contra el vidrio en el peor caso y `--accent` al enfocar, con el mismo grosor— es decisión del humano (2026-09-27); el valor `#5A6472` y el nombre del token nuevo, `--field-border`, son propuesta de este cierre, sin confirmar todavía. `--input` apunta a `--field-border` con `var()`, como `--ring` apunta a `--accent`. El botón `outline` en contexto opaco del administrador conserva la tinta con el token `--foreground` directamente (no con `--input` ni `--field-border`), así que su aspecto no cambió.
 - Tokens nuevos de D3: `--background-veil`, `--link`, `--accent-soft-glass` y los de "Materiales". Cambian de valor respecto de C: `--background` (antes `#F7F5EF`), `--accent-foreground` y `--brand-foreground` (antes `#F7F5EF`) y `--warning` (antes `#8A5A0B`).
+- **Derivados (DESIGN-01a, propuesta):** `--card` y `--popover` apuntan a `--surface`, no a un token de vidrio: `Card` pinta el vidrio con la utilidad `vidrio` (no con `bg-card`), y así un componente futuro de shadcn que use `bg-card` sin la utilidad no pinta vidrio sin desenfoque.
+- **Tokens nuevos de implementación (DESIGN-01a, propuesta):** `--glass-filter: blur(28px) saturate(170%)`, `--glass-strong-filter: blur(32px) saturate(170%)`, `--glass-accent-filter: blur(30px) saturate(170%)` (los filtros de "Materiales", como variables propias para el respaldo sin `backdrop-filter` y el contexto opaco); `--control-height` (altura de los controles, §8).
 
 ### Materiales
 
@@ -102,6 +106,7 @@ Valores dictados por el humano al elegir D3, salvo los marcados como propuesta a
 - **Ninguna opacidad de vidrio baja del 60 %.**
 - **Sin `backdrop-filter`** (el navegador no lo soporta): el vidrio y el vidrio fuerte pasan a `--surface` (`#FFFFFF`) y el vidrio azul a `--accent` (`#22409A`), sólidos. Safari necesita además el prefijo `-webkit-backdrop-filter`.
 - Los orbes son círculos planos de color sólido, sin brillo ni desenfoque propio. Se ven suaves por el velo y por el vidrio que pasa encima, no por un efecto propio.
+- **Implementación (DESIGN-01a, propuesta):** utilidades `vidrio`, `vidrio-fuerte` y `vidrio-azul` en `tokens.css`, con su respaldo sin `backdrop-filter` mediante `@supports not`. Las pantallas densas (hoy, todo `/admin`) marcan su contenedor con `data-material="opaco"`: el vidrio pasa a `--surface` sin tocar ningún componente. `backdrop-blur-*` de Tailwind queda anulado: nadie puede fabricar vidrio fuera de estas utilidades.
 
 ### Contraste verificado
 
@@ -123,6 +128,9 @@ Razones de contraste WCAG 2.2. Todo par nuevo se verifica y se agrega aquí. Los
 | `--warning` / `--surface` · `--warning-soft` · `--muted` | 7.1 · 6.0 · 6.0 |
 | `--danger` / `--surface` · `--background` · `--danger-soft` | 6.8 · 5.8 · 5.5 |
 | `--destructive-foreground` / `--destructive` | 6.8 |
+| `--destructive` / `--danger-soft` (error de un campo, `ErrorDeCampo`; DESIGN-01a, propuesta) | 5.5 |
+| Anillo de foco interior `#FFFFFF` sobre `--primary` (propuesta aprobada (2026-09-27), confirmada en H-04) · `--destructive` (todavía propuesta; el humano no vio un botón rojo) | 9.2 · 6.8 |
+| Borde de campo `--field-border` (3:1) / `--surface` · `--background` — criterio: decisión del humano (2026-09-27); valor: propuesta (cierre de DESIGN-01a) | 6.0 · 5.1 |
 
 **Sobre vidrio, contra el peor caso.** El cálculo compone las capas como las pinta el navegador:
 
@@ -142,8 +150,9 @@ Para el texto oscuro, el peor caso es el orbe azul `#22409A`, el más oscuro. Pa
 | `--warning` `#7A4F09` | 4.5 | 5.5 | 4.9 |
 | `--success` / `--brand` `#1D5B4B` | 5.0 | 6.1 | 5.4 |
 | `--danger` `#A3341F` | **4.3, no pasa** | 5.3 | 4.7 |
-| Contorno de campo `--input` (3:1) | 10.4 | 12.7 | 11.2 |
+| Contorno de campo `--field-border` (3:1) — criterio: decisión del humano (2026-09-27); valor: propuesta (cierre de DESIGN-01a) | 3.8 | 4.6 | 4.1 |
 | Anillo de foco `--ring` (3:1) | 5.8 | 7.1 | 6.3 |
+| `--danger` como icono (no texto, 3:1; DESIGN-01a, propuesta) | 4.3 | 5.3 | 4.7 |
 
 | Texto sobre vidrio azul (78 %) | Contraste |
 |---|---|
@@ -172,6 +181,8 @@ Qué se sigue de las tablas:
 
 Solo `#A3341F` conserva margen sobre la tarjeta interna, y ninguno de los dos llega a 4.5 sobre vidrio (62 %). De ahí la regla anterior. `--danger` y `--warning` tienen una luminosidad casi igual: se distinguen por tono y, sobre todo, por su texto. Por eso el estado nunca va solo en color.
 
+**Nota (DESIGN-01a):** `frontend/src/styles/tokens.test.ts` recalcula cada par de esta sección con el método descrito arriba (composición de capas, saturación en sRGB y en lineal, peor de los tres resultados) y falla si algún par no llega a su umbral. Si una prueba de contraste se detiene, el error es de este documento y lo decide el humano; no se cambia un token para que la prueba pase.
+
 `--border` da 1.4:1 contra `--surface`: basta para separar superficies, pero no para delimitar un control, que necesita 3:1. Por eso los campos usan `--input`.
 
 ## 4. Tipografía
@@ -196,14 +207,16 @@ Decididas por el humano el 2026-09-26 y confirmadas para D3 el 2026-09-27.
 - Todas se autoalojan con Fontsource y se sirven desde el propio frontend. Nunca se cargan del CDN de Google Fonts, que no es proveedor aprobado.
 - Instalar los paquetes es una dependencia nueva: la aprueba el humano en el encargo que aplique este documento.
 - Se cargan solo los pesos de esta tabla.
+- **Implementación (DESIGN-01a, propuesta aprobada (2026-09-27)):** seis importaciones en `frontend/src/main.tsx`, antes de `./styles/index.css` (para que Vite resuelva las `url()` relativas de cada `@font-face`): `@fontsource/bricolage-grotesque/latin-500.css` y `latin-700.css`; `@fontsource/atkinson-hyperlegible-next/latin-400.css`, `latin-500.css` y `latin-700.css`; `@fontsource/atkinson-hyperlegible-mono/latin-500.css`. Cada CSS de Fontsource suele declarar el mismo peso en `.woff2` y en `.woff`: en `dist/assets/` aparecen los `.woff2` de estos seis pesos y, junto a ellos, sus `.woff` de respaldo.
 
-Nadie las ha visto en pantalla todavía, porque ningún agente abre navegadores. El encargo que las aplique comprueba:
+**H-01, resultado (2026-09-27):** el humano las vio en pantalla, en `/diagnostico` y en `/login`, a 1280 y a 360 px, y las aprobó:
 
-1. Cifras tabulares (`tnum`) en Atkinson Hyperlegible Next.
-2. Lectura cómoda a 16 px y a 360 px de ancho.
-3. Que el humano confirme en su navegador el parecido con la captura.
+1. Solo archivos `.woff2` servidos por el propio origen, sin `fonts.googleapis.com` ni `fonts.gstatic.com`.
+2. "Atkinson Hyperlegible Next" en el texto y "Bricolage Grotesque" en los títulos.
+3. Cifras tabulares (`tabular-nums`) en Atkinson Hyperlegible Next.
+4. Lectura cómoda a 16 px y a 360 px de ancho.
 
-Si algo no cumple, se escala al humano.
+El resto de la comprobación de pantallas (H-02 en adelante) queda para la comprobación completa después de DESIGN-01b.
 
 ### Escala
 
@@ -253,7 +266,8 @@ Elementos sin radio dictado, todos propuesta aprobada (2026-09-27):
 ### Bordes
 
 - **1 px `--glass-border`** (blanco al 75 %): vidrio y vidrio fuerte.
-- **2 px `--input`** (tinta): campos, selects y casillas. Es el borde que delimita un control.
+- **1 px `--input`** (apunta a `--field-border`, más claro que la tinta): campos, selects y casillas. Es el borde que delimita un control. Al enfocar, pasa a `--accent` con el mismo grosor (§6, §7.3). El criterio —1 px, más claro, 3:1 en el peor caso, `--accent` al enfocar— es decisión del humano (2026-09-27); el valor de `--field-border` es propuesta de este cierre.
+- **2 px `--foreground`** (tinta): el botón `outline` en contexto opaco del administrador (§7.3, §8). No usa `--input`, que ahora es el borde de los campos.
 - **1 px `--border`**: tablas y divisores sobre superficies opacas.
 
 ### Sombras
@@ -287,17 +301,23 @@ A menos de 640 px, los márgenes de la ventana bajan a 16 px; propuesta aprobada
 ## 6. Foco, contraste y accesibilidad
 
 - **Foco visible** en todo elemento interactivo, solo con `:focus-visible`: contorno sólido de 2 px, separado 2 px del elemento. Sobre vidrio, vidrio fuerte y superficies claras, en `--ring`. Sobre vidrio azul, `--accent` o `--brand` (bloque destacado, tarjetas de clase de color, botón `primary`), en `#FFFFFF`. Nunca se quita el contorno sin poner otro en su lugar.
+  - **Botones rellenos (`primary`, DESIGN-01a, propuesta aprobada (2026-09-27), confirmada en H-04; `destructive`, mismo mecanismo, todavía propuesta: el humano no vio un botón rojo en el bloque del login):** un contorno blanco por fuera del botón quedaría sobre vidrio claro y no se vería. El contorno va 4 px hacia dentro (`-outline-offset-4`) y en el color del texto del botón (`--primary-foreground` o `--destructive-foreground`, ambos `#FFFFFF`): 9.2:1 y 6.8:1 contra el fondo del botón. El mecanismo de foco blanco para otras superficies de color (bloque destacado, tarjetas de clase) lo construye el encargo que las cree.
 - **Contraste mínimo:** 4.5:1 en texto normal; 3:1 en texto grande (24 px o más, o 18.66 px en 700), en bordes de controles y en el indicador de foco. Sobre vidrio se verifica contra el peor caso (§3).
 - **Texto nunca directo sobre el fondo con orbes.** Siempre sobre vidrio o sobre una superficie sólida.
 - **Controles:** los campos llevan borde `--input`. Los botones se identifican por su texto; su borde de vidrio no necesita 3:1 (WCAG 1.4.11 no lo exige cuando el texto identifica el control).
-- **Tamaño de los objetivos:** 44 × 44 px en las vistas de estudiante y maestro; 36 px de alto en las pantallas densas. WCAG 2.2 pide al menos 24 px.
+- **Tamaño de los objetivos:** 44 × 44 px en las vistas de estudiante y maestro; en las pantallas densas, 36 px desde 768 px de ancho y 44 px por debajo de ese corte (decisión del humano, 2026-09-27; el corte de 768 px, propuesta: coincide con el punto en que la barra lateral pasa a barra inferior, §7.4). WCAG 2.2 pide al menos 24 px.
 - **Estado** siempre con texto o icono, además del color.
 - **Movimiento:**
   - Las transiciones de la interfaz duran 150 ms o menos y solo cambian color y fondo.
   - La única animación decorativa son los orbes del fondo, con sus reglas (§7.1).
   - Con `prefers-reduced-motion: reduce`, los orbes quedan quietos y el indicador de carga deja de girar y conserva su texto.
 - **Sin `backdrop-filter`**, las superficies de vidrio pasan a sólidas (§3, "Materiales"). La interfaz sigue siendo legible y usable sin el efecto.
-- **Botones con una petición en vuelo:** hoy pierden el foco al deshabilitarse (AUTH-02b, MF-05 y T-14, en `docs/ESTADO.md`). El encargo DESIGN-01 fija el patrón y lo documenta en esta sección.
+- **Botones con una petición en vuelo (DESIGN-01a, propuesta):** el patrón es `enEspera` en `Button` (`components/ui/button.tsx`), nunca `disabled`:
+  1. El botón no lleva `disabled`; lleva `aria-disabled="true"` y `aria-busy="true"`, conserva el foco y sigue en el orden de tabulación.
+  2. Su `onClick` intercepta el evento (`preventDefault`, sin llamar al manejador recibido): cubre el clic, Enter y Espacio sobre el botón, y el envío implícito con Enter desde un campo.
+  3. Muestra un indicador de carga (`LoaderCircle`, `aria-hidden`, `motion-reduce:animate-none`) antes del texto; el texto y el nombre accesible no cambian.
+  4. El doble envío queda cubierto en capas: el clic interceptado, la guarda del manejador (`if (mutacion.isPending) return`) y, donde hace falta un candado síncrono entre el clic y el primer repintado, una referencia (`enviandoRef`).
+  `disabled` queda para un control que no está disponible, no para una petición en vuelo.
 
 ## 7. Patrones
 
@@ -353,21 +373,27 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - Sobre vidrio azul, solo `#FFFFFF` y `--accent-soft-glass`.
 - Todo par nuevo sobre vidrio se verifica contra el peor caso (§3) antes de usarse.
 - En pantallas densas (gradebook y administrador) no hay vidrio.
+- **Implementación (DESIGN-01a, propuesta):** cada material es una utilidad de `tokens.css` (`vidrio`, `vidrio-fuerte`, `vidrio-azul`), nunca `backdrop-blur-*` suelto. Una pantalla densa marca su contenedor con `data-material="opaco"` (`ContenedorRol`, solo para el rol `admin`): las tres utilidades quedan en `--surface` sin que sus consumidores cambien de clase.
+- **Contenedor con desplazamiento propio (cierre de DESIGN-01a, propuesta, sin verificar en pantalla):** `overflow-y-auto` recorta `--shadow-glass` (que llega hasta unos 40 px por debajo y 32 px a los lados) en el borde del contenedor y deja un filo recto grisáceo, sobre todo con tarjetas apiladas (`PanelAnuncios` del login). En `PanelAnuncios` el contenedor que hace scroll lleva un pequeño relleno con margen negativo a juego (`p-2 -m-2`), que es un **alivio parcial**: con 8 px de margen, el recorte cae donde la sombra todavía tiene cerca de la mitad de su intensidad, y no es un patrón para copiar tal cual en otro contenedor con scroll. La solución de fondo (sombra dentro de listas con scroll, o una composición sin scroll propio) la decide el encargo que rehaga esa pantalla. Pendiente de comprobación visual: el humano lo revisa en la comprobación completa después de DESIGN-01b.
 
 ### 7.3 Controles
 
 | Variante | Aspecto | Cuándo |
 |---|---|---|
 | `primary` | Fondo `--primary` (azul real, sólido), texto `--primary-foreground` (blanco) en 700, píldora | La acción principal; una por vista. También dentro del bloque destacado |
-| `outline` (por defecto) | Vidrio fuerte, borde `--glass-border`, texto `--foreground` en 700, píldora | Todo lo demás. En pantallas densas: fondo `--surface` con borde 2 px `--input`; propuesta aprobada (2026-09-27) |
+| `outline` (por defecto) | Vidrio fuerte, borde `--glass-border`, texto `--foreground` en 700, píldora | Todo lo demás. En pantallas densas: fondo `--surface` con borde 2 px `--foreground` (tinta); propuesta aprobada (2026-09-27); el token cambió de `--input` a `--foreground` en el cierre de DESIGN-01a, porque `--input` pasó a ser el borde, más claro, de los campos |
 | `destructive` | Fondo `--destructive` (sólido), texto `--destructive-foreground`, píldora | Borrar, dar de baja, restringir |
 | `ghost` | Sin fondo ni borde; vidrio fuerte bajo el cursor (en pantallas densas, `--muted`) | Acciones terciarias en línea |
 | `link` | Texto `--link`, subrayado bajo el cursor | Navegación dentro del texto ("Ver todas") |
 
-- Los botones miden 44 px de alto; en pantallas densas y acciones en línea, 36 px. Texto `--text-small` en 700.
+- Los botones miden 44 px de alto (`--control-height`); en pantallas densas, 36 px desde 768 px de ancho y 44 px por debajo (§6, §8); en acciones en línea, 36 px fijo (tamaño `sm`). Texto `--text-small` en 700.
 - **No hay botón tinta.** El botón sobre el bloque destacado de la dirección C desaparece: la acción principal del bloque va en `primary` azul sobre la tarjeta interna de vidrio fuerte (§7.5).
-- Los campos miden 44 px de alto (36 px en pantallas densas), con fondo `--surface` (sólido, también sobre vidrio), borde 2 px `--input`, texto `--text-body` y etiqueta visible arriba.
-- El error de un campo va debajo, en `--destructive`, con icono y texto. Como el rojo no llega a AA sobre vidrio (62 %), el formulario que muestra errores va sobre vidrio fuerte o sólido, o el mensaje lleva fondo `--danger-soft`. Cuál de las tres opciones se usa lo decide el encargo que aplique este documento.
+- Los campos miden 44 px de alto (36 px en pantallas densas desde 768 px de ancho; 44 px por debajo de ese corte, como en §6 y §8), con fondo `--surface` (sólido, también sobre vidrio), texto `--text-body` y etiqueta visible arriba.
+- **Borde de un campo (cierre de DESIGN-01a):** 1 px `--input` (apunta a `--field-border`), más claro que la tinta (§3, §5); el criterio es decisión del humano (2026-09-27), el valor es propuesta de este cierre. Al enfocar, el borde pasa a `--accent`, con el mismo grosor, para que el campo no salte; el anillo de foco de §6 se queda, por fuera. Un campo inválido usa `--destructive` en vez de `--input`, con el mismo grosor: si se enfoca, conserva el borde `--destructive` y lleva el anillo azul por fuera.
+- **Etiqueta de un campo (DESIGN-01a, propuesta):** `Label` (`components/ui/label.tsx`), `--text-small` en 700 sobre `--foreground`.
+- **Error de un campo (DESIGN-01a, propuesta; decide entre las tres opciones que dejaba abierta esta sección):** `ErrorDeCampo` (`components/error-de-campo.tsx`) pinta el mensaje sobre un fondo `--danger-soft` sólido, con icono `CircleAlert` y `--destructive` como texto (5.5:1, "Contraste verificado"), en vez de texto rojo suelto. Así, el rojo no toca el vidrio (que no llega a AA sobre vidrio al 62 %) sin importar dónde esté el formulario en la pantalla.
+- **`hover` (DESIGN-01a, propuesta; no estaba en este documento):** `primary` y `destructive`, su fondo al 90 %; `outline`, de vidrio fuerte a `--surface` (en pantallas densas, a `--muted`); `ghost`, a vidrio fuerte (en pantallas densas, a `--muted`).
+- **Enlaces sueltos fuera de una frase** (por ejemplo, "¿Olvidaste tu contraseña?", "Crear cuenta"), que no entran en la excepción de objetivo mínimo de WCAG 2.5.8 por ir dentro de texto corrido: tamaño `enlace` de `Button`, con altura mínima de 44 px (DESIGN-01a, propuesta).
 
 ### 7.4 Marco: barra lateral y barra superior
 
@@ -508,6 +534,7 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
 - **Avisos de sonner (`Toaster`):**
   - Mismo fondo, borde, radio y sombra, con texto en `--foreground`.
   - El icono lleva el color del estado: `--success` si salió bien, `--destructive` si falló.
+  - **Implementación (DESIGN-01a, propuesta):** `components/ui/sonner.tsx`, con radio `--radius-row` y `--shadow-overlay` (impuestos con `!important`, porque sonner inyecta sus propios estilos en tiempo de ejecución). Solo lo importa `app/providers.tsx`: ningún otro componente monta un segundo `Toaster`.
 
 ## 8. Densidad por rol
 
@@ -515,9 +542,11 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
 |---|---|---|---|---|
 | Estudiante | Ligera, mucho aire | Vidrio | Bloque destacado, tarjetas de clase y filas de entrega, orientadas a la siguiente tarea | Texto de 16 px, controles de 44 px, 20 px entre bloques |
 | Maestro | Intermedia | Vidrio; el gradebook, opaco | Bloque destacado, listas con estado y tablas moderadas | Filas de 48 px; controles de 44 px en formularios y de 36 px en tablas |
-| Administrador | Densa | Opacas, sin vidrio | Tablas con buscador, filtros y selección múltiple (§7.9) | Filas de 40 px, texto de 14 px (16 px en campos de texto), controles de 36 px, sin bloque destacado |
+| Administrador | Densa | Opacas, sin vidrio | Tablas con buscador, filtros y selección múltiple (§7.9) | Filas de 40 px, texto de 14 px (16 px en campos de texto), controles de 36 px (44 px por debajo de 768 px), sin bloque destacado |
 
 El texto de los campos de texto va a 16 px (`--text-body`) en los tres roles, también en la densidad del administrador. Por debajo de 16 px, Safari en iOS amplía la página al enfocar un campo, y el usuario tiene que alejarla a mano. El texto de 14 px del administrador aplica a tablas, metadatos y botones, no a lo que se escribe. Decisión del humano (2026-09-27).
+
+**Mecanismo (DESIGN-01a, propuesta):** `ContenedorRol` marca su raíz con `data-densidad="densa"` y `data-material="opaco"` solo cuando el rol es `admin`. El token `--control-height` vale `2.75rem` (44 px) en `:root` y `2.25rem` (36 px) desde 768 px de ancho (`@media (width >= 48rem)`) dentro de `[data-densidad="densa"]`: el mismo corte en que la barra lateral pasa a barra inferior (§7.4), porque por debajo de ese ancho la interfaz es de pantalla táctil. `Button` (tamaños `default` e `icon`) e `Input` leen `--control-height`; el tamaño `sm` del botón es fijo, de 36 px, para acciones en línea en cualquier rol.
 
 Los tres roles comparten componentes y tokens. Cambian el espaciado, la composición y el material de las superficies, no la biblioteca. Si otras tablas del maestro (por ejemplo, el roster) van opacas, lo decide su encargo y se anota aquí.
 
@@ -552,6 +581,7 @@ Los tres roles comparten componentes y tokens. Cambian el espaciado, la composic
 - Fuentes o iconos cargados desde CDN de terceros.
 - Modales donde basta una interfaz en línea o un popover (excepciones en `CLAUDE.md`, "Lo que no se hace").
 - Valores sueltos en un componente: todo va por token.
+- Clases de las escalas por defecto de Tailwind (`text-sm`, `font-semibold`, `shadow-md`, `rounded-lg`, `backdrop-blur-*`…): están anuladas en `tokens.css` (DESIGN-01a) y no generan CSS. Usa la escala propia (§3 a §5).
 
 ## 11. Cómo se mantiene
 

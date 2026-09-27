@@ -17,7 +17,7 @@ export function TarjetaDeCuenta({ titulo, descripcion, children }: TarjetaDeCuen
     <main className="flex min-h-svh items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">{titulo}</h1>
+          <h1 className="text-h1">{titulo}</h1>
           {descripcion && <CardDescription>{descripcion}</CardDescription>}
         </CardHeader>
         <CardContent>{children}</CardContent>

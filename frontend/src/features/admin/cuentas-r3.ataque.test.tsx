@@ -135,21 +135,16 @@ const pulsarShiftTab = () => {
 }
 
 // Chromium (comprobado con Chrome 153 sin interfaz, ver el reporte): cuando el botón que tiene el
-// foco pasa a `disabled`, en la siguiente actualización de la página el navegador dispara `blur` y
-// `focusout` sobre él y deja el foco en <body> (la "corrección del foco" del HTML). jsdom no la
-// implementa, y su blur() no hace nada sobre un control deshabilitado (no lo considera enfocable):
-// se quita `disabled` un instante para que blur() dispare los mismos eventos que Chromium, y se
-// vuelve a poner. El DOM queda igual que como lo dejó React.
+// foco pasa a `disabled`, el navegador le quita el foco y lo deja en <body> (la "corrección del
+// foco" del HTML). Desde DESIGN-01a (§D-5, §D-6) el botón en vuelo ya no se deshabilita: queda en
+// espera. Esta preparación comprueba ahora F-1: `aria-disabled` y `aria-busy` en "true", sin
+// `disabled`, y el foco conservado, así que Chromium ya no tiene nada que corregir (tester, ronda 1).
 const emularCorreccionDelFocoDeChromium = async (control: HTMLElement) => {
-  await waitFor(() => expect(control).toBeDisabled())
-  expect(document.activeElement, "el botón deshabilitado debía tener el foco").toBe(control)
-  act(() => {
-    control.removeAttribute("disabled")
-    control.blur()
-    control.setAttribute("disabled", "")
-  })
-  expect(control).toBeDisabled()
-  expect(document.activeElement).toBe(document.body)
+  await waitFor(() => expect(control).toHaveAttribute("aria-disabled", "true"))
+  expect(control).toHaveAttribute("aria-busy", "true")
+  expect(control).not.toBeDisabled()
+  expect(control).not.toHaveAttribute("disabled")
+  expect(document.activeElement, "el botón en espera debía conservar el foco").toBe(control)
 }
 
 const describirFoco = () => {
@@ -404,6 +399,8 @@ describe("ataque (AUTH-02b r3): error del servidor tras confirmar (jsdom)", () =
 
     expect(await screen.findByRole("alert")).toBeVisible()
     await waitFor(() => expect(boton("Sí, restablecer")).toBeEnabled())
+    // N-01 (DESIGN-01a): toBeEnabled ya no distingue un botón en espera; aria-disabled sí.
+    await waitFor(() => expect(boton("Sí, restablecer")).not.toHaveAttribute("aria-disabled"))
     expect(document.activeElement, `el foco quedó en ${describirFoco()}`).not.toBe(document.body)
 
     fireEvent.click(boton("Cancelar"))

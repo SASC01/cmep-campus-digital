@@ -15,6 +15,16 @@ import type {
 
 export const etiquetaDeRolAdmin = (rol: Rol): string => ETIQUETAS_ROL_ADMIN[rol]
 
+// T-14: el foco solo se mueve por programa si nadie más lo tiene ya (o si está en <body>, es decir,
+// nadie lo tiene). Se decide con el elemento activo en el momento de la respuesta, no con el
+// historial de eventos blur/focus (DESIGN-01a, D-6).
+export const focoDisponiblePara = (
+  contenedor: Element | null,
+  activo: Element | null,
+  cuerpo: Element,
+): boolean =>
+  activo === null || activo === cuerpo || (contenedor !== null && contenedor.contains(activo))
+
 const tieneMensajePropio = (codigo: string): codigo is keyof typeof MENSAJES_ERROR_ADMIN =>
   Object.hasOwn(MENSAJES_ERROR_ADMIN, codigo)
 

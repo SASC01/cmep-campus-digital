@@ -41,9 +41,7 @@ export function AccesoRestringidoView() {
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-8 text-foreground">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">
-            {TEXTOS_RESTRINGIDO.titulo}
-          </h1>
+          <h1 className="text-h1">{TEXTOS_RESTRINGIDO.titulo}</h1>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <p className="flex items-start gap-2">
@@ -64,8 +62,7 @@ export function AccesoRestringidoView() {
             variant="outline"
             className="self-start"
             onClick={() => cerrarSesion.mutate()}
-            disabled={cerrarSesion.isPending}
-            aria-busy={cerrarSesion.isPending}
+            enEspera={cerrarSesion.isPending}
           >
             <LogOut aria-hidden="true" />
             {TEXTOS_SESION.cerrarSesion}

@@ -1,9 +1,11 @@
 import { cambiarContrasenaSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 
+import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import { MENSAJE_CONFIRMACION_NO_COINCIDE, TEXTOS_CAMBIAR } from "../data"
 import { useCambiarContrasena, useCerrarSesion } from "../hooks"
@@ -54,9 +56,7 @@ export function FormularioCambiarContrasena() {
     >
       {cambiar.isError && <MensajeError mensaje={mensajeDeErrorAuth(cambiar.error)} />}
       <div className="flex flex-col gap-2">
-        <label htmlFor="contrasenaActual" className="text-sm font-medium">
-          {TEXTOS_CAMBIAR.contrasenaActual}
-        </label>
+        <Label htmlFor="contrasenaActual">{TEXTOS_CAMBIAR.contrasenaActual}</Label>
         <Input
           id="contrasenaActual"
           name="contrasenaActual"
@@ -67,15 +67,11 @@ export function FormularioCambiarContrasena() {
           aria-describedby={errores.contrasenaActual ? "contrasenaActual-error" : undefined}
         />
         {errores.contrasenaActual && (
-          <p id="contrasenaActual-error" className="text-sm text-destructive">
-            {errores.contrasenaActual}
-          </p>
+          <ErrorDeCampo id="contrasenaActual-error">{errores.contrasenaActual}</ErrorDeCampo>
         )}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="contrasenaNueva" className="text-sm font-medium">
-          {TEXTOS_CAMBIAR.contrasenaNueva}
-        </label>
+        <Label htmlFor="contrasenaNueva">{TEXTOS_CAMBIAR.contrasenaNueva}</Label>
         <Input
           id="contrasenaNueva"
           name="contrasenaNueva"
@@ -89,19 +85,15 @@ export function FormularioCambiarContrasena() {
               : "contrasenaNueva-ayuda"
           }
         />
-        <p id="contrasenaNueva-ayuda" className="text-sm text-muted-foreground">
+        <p id="contrasenaNueva-ayuda" className="text-small text-muted-foreground">
           {TEXTOS_CAMBIAR.ayudaContrasena}
         </p>
         {errores.contrasenaNueva && (
-          <p id="contrasenaNueva-error" className="text-sm text-destructive">
-            {errores.contrasenaNueva}
-          </p>
+          <ErrorDeCampo id="contrasenaNueva-error">{errores.contrasenaNueva}</ErrorDeCampo>
         )}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="confirmacion" className="text-sm font-medium">
-          {TEXTOS_CAMBIAR.confirmacion}
-        </label>
+        <Label htmlFor="confirmacion">{TEXTOS_CAMBIAR.confirmacion}</Label>
         <Input
           id="confirmacion"
           name="confirmacion"
@@ -112,26 +104,18 @@ export function FormularioCambiarContrasena() {
           aria-describedby={errorConfirmacion ? "confirmacion-error" : undefined}
         />
         {errorConfirmacion && (
-          <p id="confirmacion-error" className="text-sm text-destructive">
-            {MENSAJE_CONFIRMACION_NO_COINCIDE}
-          </p>
+          <ErrorDeCampo id="confirmacion-error">{MENSAJE_CONFIRMACION_NO_COINCIDE}</ErrorDeCampo>
         )}
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={cambiar.isPending}
-          aria-busy={cambiar.isPending}
-        >
+        <Button type="submit" variant="primary" enEspera={cambiar.isPending}>
           {TEXTOS_CAMBIAR.guardar}
         </Button>
         <Button
           type="button"
           variant="outline"
           onClick={() => cerrarSesion.mutate()}
-          disabled={cerrarSesion.isPending}
-          aria-busy={cerrarSesion.isPending}
+          enEspera={cerrarSesion.isPending}
         >
           {TEXTOS_CAMBIAR.cerrarSesion}
         </Button>

@@ -1,71 +1,221 @@
 /*
   Tokens de diseño de CMEP Campus Digital. Solo modo claro.
-  Los NOMBRES son definitivos (CLAUDE.md). Los VALORES son provisionales y neutros:
-  se sustituyen al elegir la dirección visual. No copiar estos valores a ningún componente.
+  Valores de la dirección visual D3 ("Vidrio líquido con fondo flotante"), tomados de docs/DESIGN.md.
+  No copiar estos valores a ningún componente: usa los tokens y las utilidades de este archivo.
 */
 :root {
-  --background: oklch(0.985 0 0);
-  --surface: oklch(1 0 0);
-  --foreground: oklch(0.2 0 0);
-  --muted: oklch(0.955 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --border: oklch(0.89 0 0);
-  --primary: oklch(0.3 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --accent: oklch(0.5 0.1 250);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.55 0.2 27);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.55 0.15 150);
-  --warning: oklch(0.7 0.15 75);
-  --danger: oklch(0.55 0.2 27);
+  /* Base */
+  --background: #e9eef3;
+  --background-veil: rgb(247 245 239 / 0.35);
+  --surface: #ffffff;
+  --foreground: #16202e;
+  --muted: #efece3;
+  --muted-foreground: #3d4654;
+  --border: #ddd8cb;
+  --field-border: #5a6472;
+  --input: var(--field-border);
 
-  /* Derivados que shadcn espera; siempre apuntan a un token propio. */
+  /* Acción y marca */
+  --primary: #22409a;
+  --primary-foreground: #ffffff;
+  --accent: #22409a;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e1e7f7;
+  --accent-soft-glass: #e8ecf8;
+  --link: #1b3480;
+  --brand: #1d5b4b;
+  --brand-foreground: #ffffff;
+  --brand-soft: #e1eee8;
+  --ring: var(--accent);
+
+  /* Estados */
+  --success: #1d5b4b;
+  --success-soft: #e1eee8;
+  --warning: #7a4f09;
+  --warning-soft: #f6ebd3;
+  --danger: #a3341f;
+  --danger-soft: #f7e4de;
+  --destructive: #a3341f;
+  --destructive-foreground: #ffffff;
+
+  /* Derivados que shadcn espera; siempre apuntan a un token propio (S-12). */
   --card: var(--surface);
   --card-foreground: var(--foreground);
   --popover: var(--surface);
   --popover-foreground: var(--foreground);
   --secondary: var(--muted);
   --secondary-foreground: var(--foreground);
-  --input: var(--border);
-  --ring: var(--accent);
-  --radius: 0.5rem;
 
-  /* Familias provisionales (sistema). Las definitivas llegan con la dirección visual. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-heading: var(--font-sans);
-  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  /* Materiales (vidrio) */
+  --glass: rgb(255 255 255 / 0.62);
+  --glass-strong: rgb(255 255 255 / 0.78);
+  --glass-accent: rgb(34 64 154 / 0.78);
+  --glass-border: rgb(255 255 255 / 0.75);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --shadow-glass: 0 8px 32px rgb(22 32 46 / 0.08);
+  --glass-filter: blur(28px) saturate(170%);
+  --glass-strong-filter: blur(32px) saturate(170%);
+  --glass-accent-filter: blur(30px) saturate(170%);
+  --orb-blue: var(--accent);
+  --orb-green: var(--brand);
+  --orb-soft: #9fb3e6;
+
+  /* Densidad de los controles (D-4) */
+  --control-height: 2.75rem;
+}
+
+/* Respaldo sin backdrop-filter: el vidrio pasa a sólido sin tocar ningún componente. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass: var(--surface);
+    --glass-strong: var(--surface);
+    --glass-accent: var(--accent);
+  }
+}
+
+/* Contexto opaco (pantallas densas: hoy, todo /admin). */
+[data-material="opaco"] {
+  --glass: var(--surface);
+  --glass-strong: var(--surface);
+  --glass-border: var(--border);
+  --glass-highlight: 0 0 transparent;
+  --shadow-glass: 0 0 transparent;
+  --glass-filter: none;
+  --glass-strong-filter: none;
+}
+
+/* Densidad de los controles: 36 px desde 768 px (el md de Tailwind); 44 px por debajo. */
+@media (width >= 48rem) {
+  [data-densidad="densa"] {
+    --control-height: 2.25rem;
+  }
+}
+
+@theme {
+  /* Anula la paleta y las escalas por defecto de Tailwind: una clase como text-sm, rounded-lg
+     o shadow-md deja de generar CSS. Usa la escala propia (tabla debajo). */
+  --color-*: initial;
+  --text-*: initial;
+  --font-*: initial;
+  --font-weight-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+  --blur-*: initial;
+
+  /* Familias (§4) */
+  --font-sans: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+
+  /* Pesos (§4) */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* Escala tipográfica (§4). El signo menos del interletraje es el guion ASCII. */
+  --text-display: 2.75rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 700;
+
+  --text-h1: 1.75rem;
+  --text-h1--line-height: 1.15;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h1--font-weight: 700;
+
+  --text-h2: 1.375rem;
+  --text-h2--line-height: 1.2;
+  --text-h2--letter-spacing: -0.015em;
+  --text-h2--font-weight: 700;
+
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.3;
+  --text-h3--letter-spacing: -0.01em;
+  --text-h3--font-weight: 500;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: 0;
+
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.45;
+  --text-small--letter-spacing: 0;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.35;
+  --text-caption--letter-spacing: 0;
+
+  /* Radios (§5) */
+  --radius-hero: 24px;
+  --radius-panel: 22px;
+  --radius-bar: 20px;
+  --radius-card: 16px;
+  --radius-row: 14px;
+  --radius-date: 12px;
+  --radius-pill: 999px;
+
+  /* Sombra de las capas flotantes (menú, popover, select abierto, diálogo, aviso de sonner) */
+  --shadow-overlay: 0 8px 24px rgb(22 32 46 / 0.12);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-veil: var(--background-veil);
   --color-surface: var(--surface);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-glass: var(--accent-soft-glass);
+  --color-link: var(--link);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-sans);
-  --font-heading: var(--font-heading);
-  --font-mono: var(--font-mono);
+}
+
+@utility vidrio {
+  background-color: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-glass);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+
+@utility vidrio-fuerte {
+  background-color: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-glass);
+  -webkit-backdrop-filter: var(--glass-strong-filter);
+  backdrop-filter: var(--glass-strong-filter);
+}
+
+@utility vidrio-azul {
+  background-color: var(--glass-accent);
+  box-shadow: var(--glass-highlight), var(--shadow-glass);
+  -webkit-backdrop-filter: var(--glass-accent-filter);
+  backdrop-filter: var(--glass-accent-filter);
 }

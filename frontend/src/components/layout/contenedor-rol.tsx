@@ -22,6 +22,13 @@ const ESPACIADO_POR_ROL: Record<Rol, string> = {
   admin: "gap-4",
 }
 
+// Contexto de material y densidad por rol (§D-3 y §D-4): solo el administrador es denso y opaco.
+const CONTEXTO_POR_ROL: Record<Rol, { material?: "opaco"; densidad?: "densa" }> = {
+  estudiante: {},
+  maestro: {},
+  admin: { material: "opaco", densidad: "densa" },
+}
+
 // No importa nada de features/: nombre, etiqueta del rol y cierre de sesión llegan por props desde
 // la guarda de rol (app/require-rol.tsx).
 export function ContenedorRol({
@@ -34,6 +41,8 @@ export function ContenedorRol({
   return (
     <div
       data-rol={rol}
+      data-material={CONTEXTO_POR_ROL[rol].material}
+      data-densidad={CONTEXTO_POR_ROL[rol].densidad}
       className={cn(
         "flex min-h-svh flex-col bg-background text-foreground",
         ESPACIADO_POR_ROL[rol],
@@ -43,19 +52,18 @@ export function ContenedorRol({
         aria-label="Navegación principal"
         className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3"
       >
-        <span className="font-heading font-semibold tracking-tight">Campus Digital</span>
+        <span className="font-heading text-h3 font-bold">Campus Digital</span>
         <div className="flex items-center gap-3">
-          <p className="flex flex-col text-right text-sm leading-tight">
+          <p className="flex flex-col text-right text-small leading-tight">
             <span className="font-medium">{nombre}</span>
             <span className="text-muted-foreground">{etiquetaRol}</span>
           </p>
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="default"
             onClick={onCerrarSesion}
-            disabled={cerrando}
-            aria-busy={cerrando}
+            enEspera={cerrando}
           >
             <LogOut aria-hidden="true" />
             Cerrar sesión

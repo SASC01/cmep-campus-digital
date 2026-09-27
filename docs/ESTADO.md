@@ -161,9 +161,14 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - **Ajuste de P-05 aplicado en `plan-01b.md` y APROBADO por el manager** (`revision.md`, "DESIGN-01b — plan, ajuste de P-05").
       - Con los nombres por campo, el inventario de selectores sale limpio en todas las pruebas, así que **01b-2 no lleva ronda 0**.
       - P-06, respondida por el humano, fija los 7 nombres de botón: "Mostrar contraseña", "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal".
-    - **Después:**
-      1. El humano hace commit de los documentos y el orquestador anota el hash como `<B>`.
-      2. Ronda 0 de 01b-1, solo cuando el humano lo indique.
+    - **Commit de los documentos de 01b: `<B>` = `0fc961b`** (del humano, 2026-09-27), anotado en `aprobacion.md`. `frontend/` es idéntico a `e39500a`.
+    - **Ronda 0 de 01b-1: COMPLETADA en el segundo intento (2026-09-27).**
+      - El primero se detuvo porque el texto de §D-9 no tipaba con `noUncheckedIndexedAccess`.
+      - El humano decidió corregirlo y repetir. El arquitecto corrigió solo el tipado; el orquestador lo verificó y restauró una línea de V-17 que el arquitecto había revertido sin querer.
+      - `clases-r1.ataque` V-07 queda con la lista permitida, hash `dd520b04…`. La tabla de 39 hashes está en `reporte-tester.md`, "DESIGN-01b-1 — Ronda 0, segundo intento".
+      - Corrida del orquestador: 37 archivos y 496 pruebas en verde, lint con código 0.
+    - **Falta, antes del programador de 01b-1:** un commit del humano con la corrección de `plan-01b.md`, la ronda 0 y los documentos. El orquestador anota su hash como base de V-08 fuera de `frontend/`.
+    - **Después:** programador de 01b-1 → tester (rondas 1 a 3) → manager → commit del humano (`<C>`) → 01b-2 → comprobación completa → cierre → PR.
 
 ## 2b. Encargos decididos, por empezar
 - **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:

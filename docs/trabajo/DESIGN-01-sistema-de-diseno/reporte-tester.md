@@ -569,3 +569,230 @@ Buscar otra cuenta en vuelo sigue cubierto por r3:290 y r3:311: la temporal perd
 - 3 modificados: `M` en `cuentas-r1`, `-r3` y `-r4` de `features/admin/`.
 - 7 nuevos (`??`): los archivos de la tabla marcados "nueva (ronda 1)".
 - Más este reporte.
+
+---
+
+## DESIGN-01b-1 — Ronda 0 (guarda V-07)
+
+**Estado: DETENIDA en el subpaso 5.** `npm run lint` sale con código 2: `tsc -b` rechaza el texto exacto de §D-9. Es una condición de parada del encargo, así que no corregí nada. El archivo queda con el cambio aplicado para que se vea el fallo. La copia original, con el hash `9921f668…498b` de la ronda 1 de 01a, está en el scratchpad de la sesión (`clases-r1.ataque.test.ts.orig`).
+
+Base: `HEAD` = `0fc961b`; `frontend/` comparado contra `e39500a`.
+
+### Subpaso 1 · Precondición (desde `frontend/`)
+- `git diff --quiet e39500a -- .` → código 0.
+- `git status --porcelain -- .` → vacío.
+- Observación: en la raíz, `git status` muestra además `docs/ESTADO.md` modificado, y no solo `aprobacion.md` como indicaba el orquestador. Está fuera de `frontend/` y no afecta a la precondición. No lo toqué.
+
+### Subpaso 2 · V-01 con la tabla de 39 de "DESIGN-01a — Ronda 1"
+- `sha256sum -c` desde la raíz → **39/39 OK**, código 0.
+- `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) → 39 archivos.
+
+### Subpaso 3 · Copia y sustitución
+- Copia previa de `src/styles/clases-r1.ataque.test.ts` en el scratchpad.
+- Sustituí la prueba V-07 (líneas 77 a 89) por el texto de §D-9. Comparé con `cmp` las líneas 535 a 560 de `plan-01b.md` contra las líneas 77 a 102 del archivo: son **idénticas byte a byte**. El archivo usa finales LF y no tiene ningún `\r`.
+- `npx prettier --write src/styles/clases-r1.ataque.test.ts` → `(unchanged)`, código 0.
+
+### Subpaso 4 · Diff y estado
+- `git diff --name-only e39500a -- .` → solo `frontend/src/styles/clases-r1.ataque.test.ts`.
+- `git status --porcelain --untracked-files=all -- .` → solo ` M frontend/src/styles/clases-r1.ataque.test.ts`.
+- `git diff --numstat` → 19 líneas agregadas y 6 quitadas, todas dentro de la prueba V-07.
+
+```diff
+diff --git a/frontend/src/styles/clases-r1.ataque.test.ts b/frontend/src/styles/clases-r1.ataque.test.ts
+index 42c88f7..48c8c5d 100644
+--- a/frontend/src/styles/clases-r1.ataque.test.ts
++++ b/frontend/src/styles/clases-r1.ataque.test.ts
+@@ -74,14 +74,27 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
+     expect(coincidencias(/enEspera=/, soloTsx)).toHaveLength(13)
+   })
+ 
+-  it("V-07: vidrio solo en Card, vidrio fuerte solo en las variantes del botón, sin vidrio azul", () => {
+-    // Dentro de una cadena de clases, no en la prosa de un comentario.
+-    expect(rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))).toEqual([
++  it("V-07: vidrio y vidrio fuerte solo donde lo permite el plan, sin vidrio azul", () => {
++    // DESIGN-01b-1, ronda 0 (plan-01b.md, §D-9): lista permitida mientras el programador trabaja.
++    // En la ronda 1 vuelve a igualdad exacta con la lista final.
++    const VIDRIO_PERMITIDO = [
++      "/src/components/layout/barra-navegacion.tsx",
++      "/src/components/layout/barra-superior.tsx",
++      "/src/components/layout/pie-de-pagina.tsx",
+       "/src/components/ui/card.tsx",
+-    ])
+-    expect(rutasDe(coincidencias(/\bvidrio-fuerte\b/))).toEqual([
++    ]
++    const VIDRIO_FUERTE_PERMITIDO = [
++      "/src/components/cargando.tsx",
++      "/src/components/layout/barra-navegacion.tsx",
+       "/src/components/ui/button-variants.ts",
+-    ])
++      "/src/features/auth/components/panel-anuncios.tsx",
++    ]
++    const vidrio = rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))
++    expect(vidrio).toContain("/src/components/ui/card.tsx")
++    expect(vidrio.filter((ruta) => !VIDRIO_PERMITIDO.includes(ruta))).toEqual([])
++    const vidrioFuerte = rutasDe(coincidencias(/\bvidrio-fuerte\b/))
++    expect(vidrioFuerte).toContain("/src/components/ui/button-variants.ts")
++    expect(vidrioFuerte.filter((ruta) => !VIDRIO_FUERTE_PERMITIDO.includes(ruta))).toEqual([])
+     expect(coincidencias(/\bvidrio-azul\b/)).toEqual([])
+     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
+       "/src/components/layout/contenedor-rol.tsx",
+```
+
+### Subpaso 5 · Pruebas y lint
+- `npx vitest run src/styles/clases-r1.ataque.test.ts` → 1 archivo, **11/11 en verde**, código 0.
+- `npm run test` (desde `frontend/`) → **37 archivos y 496 pruebas en verde**, código 0.
+- `npm run lint` (desde `frontend/`) → **código 2. CONDICIÓN DE PARADA.** ESLint y `prettier --check` pasan. Falla `npm run typecheck` (`tsc -b`):
+
+```
+src/styles/clases-r1.ataque.test.ts(94,63): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/styles/clases-r1.ataque.test.ts(97,76): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+```
+
+**Causa.** `tsconfig.base.json` tiene activada la opción `"noUncheckedIndexedAccess": true`. La función auxiliar existente `rutasDe` (línea 28, `lista.map((l) => l.split(":")[0])`) devuelve `(string | undefined)[]`. El texto de §D-9 pasa cada `ruta` a `VIDRIO_PERMITIDO.includes(ruta)` y a `VIDRIO_FUERTE_PERMITIDO.includes(ruta)`; esas constantes se infieren como `string[]`, y `includes` no acepta `undefined`. Las líneas 94 y 97 son las dos `filter` nuevas. Vitest no comprueba tipos, por eso la prueba pasa en verde. La igualdad exacta anterior (`toEqual([...])`) no tenía este problema.
+
+**No lo corregí:** cualquier arreglo (tipar las listas como `(string | undefined)[]`, usar `ruta ?? ""`, tocar `rutasDe`…) se aparta del "texto exacto" de §D-9 y de "Ninguna otra línea del archivo cambia". Lo decide el arquitecto o el humano.
+
+### Subpaso 6 · Tabla de hashes
+**No publico una tabla vigente para el programador**, porque la ronda 0 no terminó. Estado actual, desde la raíz:
+- `sha256sum -c` con la tabla de 39 de "DESIGN-01a — Ronda 1" → 38 OK. Solo falla `frontend/src/styles/clases-r1.ataque.test.ts`, el archivo cambiado a propósito.
+- Hash actual de `frontend/src/styles/clases-r1.ataque.test.ts` con el texto de §D-9, que no pasa lint: `ea2b647797b1ecdf61e85b9d5d4744ac50e9908c63cf6fdf02f9f6faecb04545`. **No es base de V-01.**
+- Hash de la copia original: `9921f668335a999e309364b76a7be6dd3c7825cebf1a23de7b85b03c3885498b`, igual al de la tabla de 01a.
+- Las otras 38 conservan exactamente los hashes de la tabla de "DESIGN-01a — Ronda 1".
+
+### Estado al terminar
+- `git status --porcelain --untracked-files=all`: ` M docs/ESTADO.md`, ` M docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md` (los dos del orquestador), ` M frontend/src/styles/clases-r1.ataque.test.ts` (mío) y este reporte.
+- No arranqué ningún proceso de larga vida, no usé git para escribir y no abrí ningún navegador.
+
+---
+
+## DESIGN-01b-1 — Ronda 0, segundo intento (guarda V-07)
+
+**Estado: COMPLETADA.** El humano decidió "Corregir §D-9 y repetir" (`aprobacion.md`, "Parada de la ronda 0 de 01b-1"). El arquitecto corrigió solo el tipado del texto de V-07 en `plan-01b.md`. Lo apliqué y todas las condiciones de parada se cumplen: el diff solo toca V-07, `git status` de `frontend/` solo muestra ese archivo, la suite da 37 archivos y 496 pruebas en verde, y `npm run lint` sale con código 0.
+
+### Restauración del primer intento
+- Copié `clases-r1.ataque.test.ts.orig`, del scratchpad, sobre `frontend/src/styles/clases-r1.ataque.test.ts`.
+- `sha256sum` → `9921f668335a999e309364b76a7be6dd3c7825cebf1a23de7b85b03c3885498b`, el mismo de la tabla de 01a.
+- `git diff --quiet e39500a -- .` (desde `frontend/`) → código 0. `git status --porcelain -- .` → vacío.
+- `npm run lint` (desde `frontend/`) → código 0, con `tsc -b` incluido.
+
+### Subpaso 1 · Precondición (desde `frontend/`)
+- `git diff --quiet e39500a -- .` → código 0; `git status --porcelain --untracked-files=all -- .` → vacío.
+
+### Subpaso 2 · V-01 con la tabla de 39 de "DESIGN-01a — Ronda 1"
+- `sha256sum -c` desde la raíz → **39/39 OK**, código 0.
+
+### Subpaso 3 · Sustitución y formato
+- Tomé el bloque de §D-9 directamente del plan (líneas 541 a 571 de `plan-01b.md`) y lo puse en lugar de las líneas 77 a 89 del archivo. Las líneas 1 a 76 y del `})` que cierra el `describe` en adelante quedaron **idénticas byte a byte** al original, comprobado con `cmp`.
+- `npx prettier --write src/styles/clases-r1.ataque.test.ts` (desde `frontend/`) → código 0. Prettier solo cambió el corte de líneas del **primer** `expect(... .filter(...))`: lo juntó en una línea y partió `.toEqual([])` en `.toEqual(\n [],\n )`. El plan lo permite ("Prettier puede partir o juntar las líneas de los `expect`").
+- **El contenido es el mismo.** Sin espacios ni saltos de línea, el bloque del archivo (líneas 77 a 107) y el del plan solo difieren en la coma final que Prettier agrega al partir: `([],)` frente a `,)`. Quitando las comas finales antes de `)` o `]`, son idénticos.
+- El archivo usa finales LF: 0 `\r`.
+
+### Subpaso 4 · Diff y estado
+- `git diff --name-only e39500a -- .` → solo `frontend/src/styles/clases-r1.ataque.test.ts`.
+- `git status --porcelain --untracked-files=all -- .` (desde `frontend/`) → solo ` M frontend/src/styles/clases-r1.ataque.test.ts`.
+- `git diff --numstat` → 24 líneas agregadas y 6 quitadas, todas dentro de la prueba V-07.
+
+```diff
+diff --git a/frontend/src/styles/clases-r1.ataque.test.ts b/frontend/src/styles/clases-r1.ataque.test.ts
+index 42c88f7..3cee41b 100644
+--- a/frontend/src/styles/clases-r1.ataque.test.ts
++++ b/frontend/src/styles/clases-r1.ataque.test.ts
+@@ -74,14 +74,32 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
+     expect(coincidencias(/enEspera=/, soloTsx)).toHaveLength(13)
+   })
+ 
+-  it("V-07: vidrio solo en Card, vidrio fuerte solo en las variantes del botón, sin vidrio azul", () => {
+-    // Dentro de una cadena de clases, no en la prosa de un comentario.
+-    expect(rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))).toEqual([
++  it("V-07: vidrio y vidrio fuerte solo donde lo permite el plan, sin vidrio azul", () => {
++    // DESIGN-01b-1, ronda 0 (plan-01b.md, §D-9): lista permitida mientras el programador trabaja.
++    // En la ronda 1 vuelve a igualdad exacta con la lista final. Con noUncheckedIndexedAccess,
++    // rutasDe devuelve (string | undefined)[]: una ruta undefined cuenta como violación.
++    const VIDRIO_PERMITIDO: readonly string[] = [
++      "/src/components/layout/barra-navegacion.tsx",
++      "/src/components/layout/barra-superior.tsx",
++      "/src/components/layout/pie-de-pagina.tsx",
+       "/src/components/ui/card.tsx",
+-    ])
+-    expect(rutasDe(coincidencias(/\bvidrio-fuerte\b/))).toEqual([
++    ]
++    const VIDRIO_FUERTE_PERMITIDO: readonly string[] = [
++      "/src/components/cargando.tsx",
++      "/src/components/layout/barra-navegacion.tsx",
+       "/src/components/ui/button-variants.ts",
+-    ])
++      "/src/features/auth/components/panel-anuncios.tsx",
++    ]
++    const vidrio = rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))
++    expect(vidrio).toContain("/src/components/ui/card.tsx")
++    expect(vidrio.filter((ruta) => ruta === undefined || !VIDRIO_PERMITIDO.includes(ruta))).toEqual(
++      [],
++    )
++    const vidrioFuerte = rutasDe(coincidencias(/\bvidrio-fuerte\b/))
++    expect(vidrioFuerte).toContain("/src/components/ui/button-variants.ts")
++    expect(
++      vidrioFuerte.filter((ruta) => ruta === undefined || !VIDRIO_FUERTE_PERMITIDO.includes(ruta)),
++    ).toEqual([])
+     expect(coincidencias(/\bvidrio-azul\b/)).toEqual([])
+     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
+       "/src/components/layout/contenedor-rol.tsx",
+```
+
+### Subpaso 5 · Pruebas y lint (desde `frontend/`)
+- `npx vitest run src/styles/clases-r1.ataque.test.ts` → 1 archivo, **11/11 en verde**, código 0.
+- `npm run test` → **37 archivos y 496 pruebas en verde**, código 0.
+- `npm run lint` → **código 0**: ESLint limpio, "All matched files use Prettier code style!" y `tsc -b` sin errores.
+
+### Subpaso 6 · Tabla de hashes vigente (SHA-256) de las 39 `*.ataque`: base de V-01 para el programador de 01b-1
+
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) → 39. Comprobé la tabla con `sha256sum -c` desde la raíz → 39/39 OK. Contra la tabla de "DESIGN-01a — Ronda 1": 38 iguales, y solo cambia `clases-r1`.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `1ffcd996ba2f35ef9dbb3a2c209f314ed0df34c6d2ecef8b6369d23a4dbaed02` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `dd520b045bd16fea0fd71a39954b73b882b6f913a30734c369c5d6cc5cc96f6f` | **modificado en la ronda 0 de 01b-1 (§D-9, segundo intento)** |
+
+### Estado al terminar
+- `git status --porcelain --untracked-files=all` (raíz):
+  - ` M frontend/src/styles/clases-r1.ataque.test.ts` y este reporte (míos);
+  - ` M docs/ESTADO.md`, ` M docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md` y ` M docs/trabajo/DESIGN-01-sistema-de-diseno/plan-01b.md` (del orquestador y del arquitecto; no los toqué).
+- No arranqué ningún proceso de larga vida, no usé git para escribir y no abrí ningún navegador.

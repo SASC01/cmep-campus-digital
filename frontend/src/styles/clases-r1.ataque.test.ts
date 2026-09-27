@@ -74,14 +74,32 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     expect(coincidencias(/enEspera=/, soloTsx)).toHaveLength(13)
   })
 
-  it("V-07: vidrio solo en Card, vidrio fuerte solo en las variantes del botón, sin vidrio azul", () => {
-    // Dentro de una cadena de clases, no en la prosa de un comentario.
-    expect(rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))).toEqual([
+  it("V-07: vidrio y vidrio fuerte solo donde lo permite el plan, sin vidrio azul", () => {
+    // DESIGN-01b-1, ronda 0 (plan-01b.md, §D-9): lista permitida mientras el programador trabaja.
+    // En la ronda 1 vuelve a igualdad exacta con la lista final. Con noUncheckedIndexedAccess,
+    // rutasDe devuelve (string | undefined)[]: una ruta undefined cuenta como violación.
+    const VIDRIO_PERMITIDO: readonly string[] = [
+      "/src/components/layout/barra-navegacion.tsx",
+      "/src/components/layout/barra-superior.tsx",
+      "/src/components/layout/pie-de-pagina.tsx",
       "/src/components/ui/card.tsx",
-    ])
-    expect(rutasDe(coincidencias(/\bvidrio-fuerte\b/))).toEqual([
+    ]
+    const VIDRIO_FUERTE_PERMITIDO: readonly string[] = [
+      "/src/components/cargando.tsx",
+      "/src/components/layout/barra-navegacion.tsx",
       "/src/components/ui/button-variants.ts",
-    ])
+      "/src/features/auth/components/panel-anuncios.tsx",
+    ]
+    const vidrio = rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))
+    expect(vidrio).toContain("/src/components/ui/card.tsx")
+    expect(vidrio.filter((ruta) => ruta === undefined || !VIDRIO_PERMITIDO.includes(ruta))).toEqual(
+      [],
+    )
+    const vidrioFuerte = rutasDe(coincidencias(/\bvidrio-fuerte\b/))
+    expect(vidrioFuerte).toContain("/src/components/ui/button-variants.ts")
+    expect(
+      vidrioFuerte.filter((ruta) => ruta === undefined || !VIDRIO_FUERTE_PERMITIDO.includes(ruta)),
+    ).toEqual([])
     expect(coincidencias(/\bvidrio-azul\b/)).toEqual([])
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",

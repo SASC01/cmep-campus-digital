@@ -155,7 +155,32 @@ Coinciden con lo que ya proponía `plan-01b.md` (§D-7), así que los 7 nombres 
 
 **Inventario de selectores con los nombres por campo:** el arquitecto no encontró ninguna prueba, normal ni de ataque, que encuentre el botón al buscar un campo, así que 01b-2 no lleva ronda 0. Lo verifica el manager.
 
-**Base `<B>` de V-08 para 01b:** pendiente. El orquestador la anota después del commit de los documentos del plan, que hace el humano.
+**Base `<B>` de V-08 para 01b: `0fc961b`** (`0fc961bff0623824fd96e870ab4bfc11e44541ce`, "docs(design-01): plan 01b aprobado", commit del humano del 2026-09-27). El orquestador comprobó:
+- que existe: `git cat-file -e '0fc961b^{commit}'`, código 0;
+- que incluye `plan-01b.md`, `revision.md`, `aprobacion.md`, `comprobacion-humano.md` y `docs/ESTADO.md`;
+- que el árbol quedó limpio;
+- que `frontend/` es idéntico a `e39500a`. El orquestador la anota después del commit de los documentos del plan, que hace el humano.
+
+## Parada de la ronda 0 de 01b-1 y decisión del humano — 2026-09-27
+**Parada.** El tester se detuvo en el subpaso 5 (`reporte-tester.md`, "DESIGN-01b-1 — Ronda 0 (guarda V-07)"):
+- El texto exacto de §D-9 pasa Vitest, pero `npm run lint` sale con código 2.
+- `tsc -b` da `TS2345` en `clases-r1.ataque.test.ts`, líneas 94 y 97.
+- La causa: `noUncheckedIndexedAccess` de `tsconfig.base.json` hace que `rutasDe` devuelva `(string | undefined)[]`, y las listas permitidas son `string[]`.
+- El tester dejó el archivo con el texto de §D-9 para que se viera el fallo; el original está en su copia del scratchpad (hash `9921f668…`, el de la tabla de 01a).
+
+**Decisión del humano (herramienta de preguntas):** "Corregir §D-9 y repetir".
+- El arquitecto corrige solo el tipado del texto de §D-9, sin cambiar lo que comprueba. Por ejemplo, una ruta `undefined` cuenta como violación.
+- El orquestador verifica que el cambio del plan sea solo eso.
+- El tester restaura el original desde su copia, comprueba el hash y repite la ronda 0 con el texto corregido.
+- Si lint vuelve a fallar, se detiene otra vez.
+
+Como `plan-01b.md` cambia después de `<B>`, el orquestador le pedirá al humano un commit antes de que empiece el programador y anotará aquí la base nueva de V-08.
+
+**Corrección aplicada (verificada por el orquestador con `git diff 0fc961b -- plan-01b.md`):**
+- El arquitecto cambió solo el texto de V-07 de §D-9: anotación `readonly string[]` en las dos listas, y los dos `filter` con `ruta === undefined || !LISTA.includes(ruta)`.
+- Además escribió en §D-9 el texto de referencia de la ronda 1 (igualdad exacta), ajustó el punto de ataque 9 y agregó una nota en el encabezado.
+- Al hacerlo revirtió sin querer la aclaración de V-17 sobre "Ocultar", que ya estaba en `0fc961b`. El orquestador la restauró, y el diff contra `0fc961b` ya no la incluye.
+- El tester repite la ronda 0 desde el original restaurado.
 
 ## Pendientes para encargos siguientes
 - **ADMIN:** "Dar rol accesible a la ficha de cuenta (role=region con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de fichaDe." (R-15).

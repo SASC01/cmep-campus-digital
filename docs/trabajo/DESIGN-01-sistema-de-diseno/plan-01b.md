@@ -11,6 +11,8 @@ Antecedente que este plan desarrolla: `plan.md`, "DESIGN-01b · resumen" (no se 
 
 **Revisión del manager atendida:** `revision.md`, "DESIGN-01b — plan" (CAMBIOS REQUERIDOS). M-01 (redirección de `AccesoRestringidoView`) en §D-1, §D-6, E-6, V-14, "Pruebas existentes afectadas" y el punto de ataque 2; M-02 (`main.tsx`) en "No se toca" y V-08; M-03 (URL con espacios) en §D-5, las pruebas y el punto de ataque 3; M-04 en V-17. Los detalles menores, en §D-3, §D-5, §D-6, R-09, R-15 a R-18 y la hoja (H-10, H-16 y la ventana 5). Y M-05 de "DESIGN-01b — plan, correcciones" (APROBADO; ramas nuevas e importación de `./hooks`) en V-14, parte 2, en §D-1 y en E-6.
 
+**Corrección tras la parada de la ronda 0 de 01b-1 (2026-09-27; `aprobacion.md`, "Parada de la ronda 0 de 01b-1", decisión del humano "Corregir §D-9 y repetir"):** el texto exacto de V-07 en §D-9 pasaba Vitest, pero no `tsc -b` (`TS2345` en las líneas 94 y 97). `tsconfig.base.json` tiene `"noUncheckedIndexedAccess": true`, así que `rutasDe` devuelve `(string | undefined)[]`, y el texto llamaba a `.includes(ruta)` sobre listas de `string`. Solo cambió el tipado de los dos `filter`: una ruta `undefined` cuenta ahora como violación, que es más estricto y no más laxo. Lo que comprueba la prueba no cambió, y `rutasDe` y el resto del archivo quedan igual. También agregué el texto de referencia de la ronda 1 (igualdad exacta), que tipa sin cambios. Revisé los demás textos literales del plan: no hay otra prueba escrita letra por letra, y los fragmentos de código de producción no indexan arreglos ni llaman a `includes` con valores que puedan ser `undefined`.
+
 ---
 
 ## Preguntas bloqueantes
@@ -530,18 +532,23 @@ Colores nuevos: ninguno. Pares nuevos de uso (todos ya verificados en `DESIGN.md
 
 `styles/clases-r1.ataque.test.ts`, prueba "V-07: vidrio solo en Card, vidrio fuerte solo en las variantes del botón, sin vidrio azul", exige **igualdad exacta**: `vidrio` solo en `card.tsx` y `vidrio-fuerte` solo en `button-variants.ts`. 01b-1 pone `vidrio` en la barra de navegación, la barra superior y el pie, y `vidrio-fuerte` en la barra de navegación, el panel de anuncios y `Cargando`: la prueba se pondría en rojo por un cambio de diseño previsto, no por un defecto.
 
-**Cambio de la ronda 0** (verde antes y después del programador): la igualdad exacta pasa a "solo archivos de una lista permitida, y el archivo original sigue ahí". En la ronda 1, el tester la devuelve a igualdad exacta con la lista final, conservando las dos aserciones de "el archivo original sigue ahí" (`card.tsx` y `button-variants.ts`). Texto exacto que sustituye a esa prueba completa (de `it("V-07: …` a su `})`):
+**Cambio de la ronda 0** (verde antes y después del programador): la igualdad exacta pasa a "solo archivos de una lista permitida, y el archivo original sigue ahí". En la ronda 1, el tester la devuelve a igualdad exacta con la lista final, conservando las dos aserciones de "el archivo original sigue ahí" (`card.tsx` y `button-variants.ts`).
+
+**Tipado (corrección del 2026-09-27, tras la parada de la primera ronda 0).** `tsconfig.base.json` tiene `"noUncheckedIndexedAccess": true`. `rutasDe` (línea 28 del archivo, `l.split(":")[0]`) devuelve por eso `(string | undefined)[]`, y **`rutasDe` no se toca**. En los dos `filter`, una ruta `undefined` cuenta como **violación** (`ruta === undefined || !LISTA.includes(ruta)`): así tipa y es más estricto que antes, no más laxo. Las listas se declaran `readonly string[]` para que `includes` reciba un `string` ya estrechado. Lo que comprueba la prueba no cambia.
+
+Texto exacto que sustituye a esa prueba completa (de `it("V-07: …` a su `})`):
 ```ts
   it("V-07: vidrio y vidrio fuerte solo donde lo permite el plan, sin vidrio azul", () => {
     // DESIGN-01b-1, ronda 0 (plan-01b.md, §D-9): lista permitida mientras el programador trabaja.
-    // En la ronda 1 vuelve a igualdad exacta con la lista final.
-    const VIDRIO_PERMITIDO = [
+    // En la ronda 1 vuelve a igualdad exacta con la lista final. Con noUncheckedIndexedAccess,
+    // rutasDe devuelve (string | undefined)[]: una ruta undefined cuenta como violación.
+    const VIDRIO_PERMITIDO: readonly string[] = [
       "/src/components/layout/barra-navegacion.tsx",
       "/src/components/layout/barra-superior.tsx",
       "/src/components/layout/pie-de-pagina.tsx",
       "/src/components/ui/card.tsx",
     ]
-    const VIDRIO_FUERTE_PERMITIDO = [
+    const VIDRIO_FUERTE_PERMITIDO: readonly string[] = [
       "/src/components/cargando.tsx",
       "/src/components/layout/barra-navegacion.tsx",
       "/src/components/ui/button-variants.ts",
@@ -549,17 +556,42 @@ Colores nuevos: ninguno. Pares nuevos de uso (todos ya verificados en `DESIGN.md
     ]
     const vidrio = rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))
     expect(vidrio).toContain("/src/components/ui/card.tsx")
-    expect(vidrio.filter((ruta) => !VIDRIO_PERMITIDO.includes(ruta))).toEqual([])
+    expect(
+      vidrio.filter((ruta) => ruta === undefined || !VIDRIO_PERMITIDO.includes(ruta)),
+    ).toEqual([])
     const vidrioFuerte = rutasDe(coincidencias(/\bvidrio-fuerte\b/))
     expect(vidrioFuerte).toContain("/src/components/ui/button-variants.ts")
-    expect(vidrioFuerte.filter((ruta) => !VIDRIO_FUERTE_PERMITIDO.includes(ruta))).toEqual([])
+    expect(
+      vidrioFuerte.filter((ruta) => ruta === undefined || !VIDRIO_FUERTE_PERMITIDO.includes(ruta)),
+    ).toEqual([])
     expect(coincidencias(/\bvidrio-azul\b/)).toEqual([])
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
     ])
   })
 ```
-Las expresiones de búsqueda, la de `vidrio-azul` y la de `data-material` no cambian. Ninguna otra línea del archivo cambia.
+Las expresiones de búsqueda, la de `vidrio-azul` y la de `data-material` no cambian. Ninguna otra línea del archivo cambia. Prettier puede partir o juntar las líneas de los `expect`; el contenido es el que cuenta. La ronda 0 exige `npm run lint` (con `tsc -b`) con código 0 en su subpaso 5.
+
+**Texto de referencia de la ronda 1 (igualdad exacta con la lista final).** La ronda 1 sustituye las dos listas y sus `filter` por igualdades exactas, conservando las dos aserciones `toContain`. `toEqual` acepta el arreglo `(string | undefined)[]` sin cambios de tipado, y una ruta `undefined` haría fallar la igualdad. `rutasDe` devuelve las rutas ordenadas, así que las listas van en orden:
+```ts
+    const vidrio = rutasDe(coincidencias(/"[^"\n]*(?<![\w-])vidrio(?![\w-])[^"\n]*"/))
+    expect(vidrio).toContain("/src/components/ui/card.tsx")
+    expect(vidrio).toEqual([
+      "/src/components/layout/barra-navegacion.tsx",
+      "/src/components/layout/barra-superior.tsx",
+      "/src/components/layout/pie-de-pagina.tsx",
+      "/src/components/ui/card.tsx",
+    ])
+    const vidrioFuerte = rutasDe(coincidencias(/\bvidrio-fuerte\b/))
+    expect(vidrioFuerte).toContain("/src/components/ui/button-variants.ts")
+    expect(vidrioFuerte).toEqual([
+      "/src/components/cargando.tsx",
+      "/src/components/layout/barra-navegacion.tsx",
+      "/src/components/ui/button-variants.ts",
+      "/src/features/auth/components/panel-anuncios.tsx",
+    ])
+```
+Si el código final del programador no cumple estas listas, es un hallazgo; la lista no se amplía (punto de ataque 9). El nombre de la prueba y su comentario pueden volver a decir "igualdad exacta"; la ronda 1 también exige `npm run lint` con código 0.
 
 ---
 
@@ -763,7 +795,7 @@ Todas desde `frontend/` salvo que se diga otra cosa. Salidas largas, a un archiv
 6. **Composición:** ningún texto fuera de `Card`, vidrio, vidrio fuerte o sólido (inspección del DOM: cada nodo de texto visible tiene un ancestro con `data-slot="card"`, con una utilidad de vidrio o con un fondo sólido; es una aserción sobre la estructura, los elementos se localizan por rol o texto); `/login` con un solo `heading` "CMEP Campus Digital"; lista de anuncios enfocable y con nombre; acceso restringido con el rojo solo en los 2 iconos.
 7. **Invariantes de DOM (R-08 de `plan.md`)** y `fichaDe`, sin localizar por clases de estilo.
 8. **Regresión:** las 39 `*.ataque`.
-9. **Guardas permanentes:** en la ronda 1, `clases-r1` V-07 vuelve a igualdad exacta con la lista final (la de §D-9 si el programador la cumplió; si no, es un hallazgo, no se amplía la lista), conservando las aserciones de que `card.tsx` y `button-variants.ts` siguen en ella; actualiza las dos descripciones de `tokens-r1` ("Pruebas existentes afectadas") sin tocar sus aserciones; publica la tabla de hashes.
+9. **Guardas permanentes:** en la ronda 1, `clases-r1` V-07 vuelve a igualdad exacta con la lista final (el texto de referencia de §D-9 si el programador la cumplió; si no, es un hallazgo, no se amplía la lista), conservando las aserciones de que `card.tsx` y `button-variants.ts` siguen en ella; actualiza las dos descripciones de `tokens-r1` ("Pruebas existentes afectadas") sin tocar sus aserciones; `npm run lint` con código 0; publica la tabla de hashes.
 
 ### 01b-2
 1. **CC-1 a CC-7** en los 7 campos: activaciones repetidas; Enter desde el campo con la contraseña a la vista sigue enviando **una sola** petición (el `enEspera` del botón de envío no cambia); el botón no dispara `submit` ni con `requestSubmit` en vuelo.

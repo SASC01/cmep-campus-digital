@@ -320,3 +320,251 @@ El orquestador me pidió corregir los hallazgos de `revision.md`, sección "DESI
 - `frontend/src/styles/tokens.test.ts`
 - `docs/DESIGN.md`
 - `frontend/src/features/auth/components/panel-anuncios.tsx` (solo el comentario, seguimiento de M-03)
+
+## DESIGN-01b-1
+
+Implementé los pasos 2 a 11 de `plan-01b.md`, "Pasos de implementación › DESIGN-01b-1" (el paso 1, ronda 0 del tester, ya estaba hecho: `HEAD` = `8feab74`). No toqué DESIGN-01b-2 (nada de `CampoContrasena`, `nombreDelBoton` ni el botón de mostrar/ocultar contraseña).
+
+### Precondiciones (paso 2)
+- `git diff --name-only e39500a -- frontend/` → solo `frontend/src/styles/clases-r1.ataque.test.ts`; sin archivos sin rastrear en `frontend/`.
+- V-01 con la tabla de 39 hashes de "DESIGN-01b-1 — Ronda 0, segundo intento" (`reporte-tester.md`) → 39/39 OK.
+- `<B>` = `8feab74`, comprobado con `git cat-file -e '8feab74^{commit}'` → código 0.
+- V-08 y V-14 en blanco (sin cambios previos en `frontend/` más allá del archivo de la ronda 0).
+
+### Paso 3 · Datos, tipos y funciones puras
+- `frontend/src/components/layout/types.ts` (E-3): agregué `Destino`, `ContextoDeRol`, `EnlaceDelColegio` y `EnlaceVisible`; la reexportación de `Rol` no cambió.
+- `frontend/src/components/layout/data.ts` (nuevo): `NOMBRE_PRODUCTO`, `TEXTOS_MARCO`, `ESPACIADO_POR_ROL`, `CONTEXTO_POR_ROL`, `DESTINOS_POR_ROL`, `RUTAS_CON_ORBES_EN_MOVIMIENTO`, `NOMBRE_DEL_COLEGIO`, `ENLACES_DEL_COLEGIO`.
+- `frontend/src/components/layout/lib.ts` y `lib.test.ts` (nuevos): `orbesEnMovimiento`, `esUrlPublicable`, `enlacesVisibles`, `textoDeDerechos`, con las pruebas de "Pruebas requeridas — 01b-1".
+- `frontend/src/lib/format.ts` (E-2): agregué `inicialesDe`, sin tocar `formatearFechaHora`; sus 4 casos en `format.test.ts`.
+
+### Paso 4 · Tokens
+- `frontend/src/styles/tokens.css`: los seis tokens de orbes (`--orb-blue-size`, `--orb-green-size`, `--orb-soft-size`, `--orb-blue-cycle`, `--orb-green-cycle`, `--orb-soft-cycle`) en el primer `:root`; `@utility sin-sombra-de-vidrio`; el bloque 7 completo (`[data-fondo]`, los tres `[data-orbe]`, `[data-velo]`, la pausa y `prefers-reduced-motion`, los tres `@keyframes`).
+- `frontend/src/styles/tokens.test.ts`: agregué las pruebas del fondo con orbes y los pares de contraste de `--brand` sobre vidrio, vidrio fuerte y tarjeta interna (todos ≥ 4.5; no hizo falta detenerme). `--link` sobre `--accent-soft` ya estaba cubierto desde 01a (par sólido).
+- 145/145 pruebas de `tokens.test.ts` en verde.
+
+### Paso 5 · Fondo
+- `frontend/src/components/layout/fondo-animado.tsx` y `fondo-animado.test.tsx` (nuevos).
+- `frontend/src/app/fondo-de-la-app.tsx` y `fondo-de-la-app.test.tsx` (nuevos): `useSyncExternalStore` sobre `router.subscribe`/`router.state.location.pathname`; la prueba con `createMemoryRouter` sí siguió la navegación (si → no → si → no), así que no hizo falta detenerme por §D-1.
+- `frontend/src/main.tsx` (E-5): solo agregué la importación de `FondoDeLaApp` y el elemento `<FondoDeLaApp router={router} />`, antes de `<RouterProvider>`; ninguna línea existente cambió (comprobado en V-08 con `git diff e39500a`).
+
+### Paso 6 · Pie y marco público
+- `frontend/src/components/layout/pie-de-pagina.tsx` y `pie-de-pagina.test.tsx` (nuevos).
+- `frontend/src/components/layout/marco-publico.tsx` (nuevo) y `layout-publico.tsx` (modificado: `<MarcoPublico><Outlet /></MarcoPublico>`, sin `bg-background` suelto).
+
+### Paso 7 · Marco de los roles
+- `frontend/src/components/layout/monograma.tsx`, `frontend/src/components/avatar-usuario.tsx`, `frontend/src/components/layout/barra-navegacion.tsx`, `frontend/src/components/layout/barra-superior.tsx` (nuevos).
+- `frontend/src/components/layout/contenedor-rol.tsx`: reescrito según §D-3 (una sola `nav`, `BarraSuperior`, `PieDePagina`, sin `bg-background`); el `enEspera` de "Cerrar sesión" se mudó a `BarraSuperior` sin agregar ni quitar ninguno (sigue en 13 en total).
+- `frontend/src/components/layout/contenedor-rol.test.tsx`: conservé las 4 pruebas de 01a y agregué 6 más (destino activo con `aria-current`, nombre/rol una vez, `banner`+`contentinfo` dentro de la raíz, ningún ancestro de la `nav` con clase `vidrio*`). 10/10 en verde.
+
+### Paso 8 · Composición
+- `frontend/src/components/cargando.tsx`: píldora de vidrio fuerte (`rounded-pill vidrio-fuerte px-4 py-2`).
+- `frontend/src/features/auth/components/panel-anuncios.tsx`: rehecho según §D-6 (panel de vidrio, `useId`, lista `sin-sombra-de-vidrio`, filas de vidrio fuerte); se retiraron los `p-2 -m-2` del alivio parcial de 01a.
+- `frontend/src/features/auth/components/tarjeta-de-cuenta.tsx`: `main` de `min-h-svh` a `flex-1`; `<Monograma />` en `CardHeader`.
+- `frontend/src/features/auth/login-view.tsx`, `registro-view.tsx`: `main` de `min-h-svh` a `flex flex-1`.
+- `frontend/src/features/auth/bienvenida-view.tsx`: el `section` pasó a `Card` con `CardHeader`/`CardContent`; el `h1` "Hola, {nombre}" sigue con el texto exacto (`router.test.tsx:87` en verde sin cambios).
+- `frontend/src/features/auth/cambiar-contrasena-view.tsx`: envuelto en `MarcoPublico` (necesario para que el pie apareciera en `/cambiar-contrasena`; lo detectó `app/marco.test.tsx`).
+- `frontend/src/features/auth/acceso-restringido-view.tsx` (E-6): apliqué exactamente lo permitido — `Ban` → `Lock` en la misma línea con `aria-hidden="true"` y `text-danger`; `MarcoPublico` alrededor de los tres `return`; `<Monograma />` en `CardHeader`; nuevas importaciones de `MarcoPublico`, `Monograma` y `Lock` (se quitó `Ban`). No agregué ni quité ninguna línea con `if (` ni `return`; las 4 líneas de §D-1 quedaron idénticas, en el mismo orden (líneas 21, 31, 42 y 43). Al terminar corrí V-14 completa (ver abajo) y las `*.ataque` de `/acceso-restringido`: sin rojos.
+- `frontend/src/features/admin/cuentas-view.tsx`: la cabecera (`h1` + nota) pasó a `Card`/`CardHeader`; nada más de `features/admin` cambió.
+
+### Paso 9 · Prueba de rutas
+- `frontend/src/app/marco.test.tsx` (nuevo): las 11 rutas con exactamente un `contentinfo` y el texto "© \<año actual\> Colegio Mexicano…"; en `/login`, un solo `heading` "CMEP Campus Digital", la lista de anuncios con `tabindex="0"` y nombre accesible "Avisos del colegio", y al menos un `h3` por anuncio. Al escribir esta prueba detecté que `/cambiar-contrasena` aún no tenía pie (por no estar envuelta en `MarcoPublico`) y lo corregí en el paso 8.
+
+### Paso 10 · `docs/DESIGN.md` (E-1)
+Edité a mano, sin formateador, marcando todo lo nuevo como "DESIGN-01b, propuesta":
+- Cabecera "Estado de aplicación".
+- §3 "Materiales": viñeta de implementación de los tokens de orbes y los atributos del fondo.
+- §7.1 "Fondo con orbes": posición y trayectoria (S-05), cómo se decide el movimiento (S-03), pausa vs. `animation: none` (S-04), montaje único fuera del router, y columna "Rutas hoy" en la tabla de alcance.
+- §7.2 "Superficies de vidrio": sustituí la viñeta del alivio parcial de 01a por el recorte de la sombra con `sin-sombra-de-vidrio`; agregué "Lo fijo nunca dentro del vidrio" y los dos patrones nuevos ("Panel de anuncios del login", "Pantallas de cuenta").
+- §7.4 "Marco": bloque de implementación (una sola `nav`, medidas de la barra inferior a 16 px, destinos de hoy, avatar con `inicialesDe`, comportamiento de la barra superior bajo 640 px).
+- §5 "Espaciado": nota de implementación con los 20/16 px por rol.
+- §7.10 "Carga": nota de implementación de la píldora de vidrio fuerte.
+- §7.12 nuevo, "Pie de página": contenido, origen de los datos, URL publicables, marcador en desarrollo, material, estructura y dónde aparece.
+- Después, `npm run test` completo en verde (no dependía de esta edición, pero la corrí de nuevo para confirmar que `tokens-r1.ataque` sigue leyendo bien las tablas de §3 a §5).
+
+### Paso 11 · Verificación y resumen
+
+**lint** (raíz, `npm run lint`): al primer intento, Prettier marcó 5 archivos sin formatear (`barra-navegacion.tsx`, `barra-superior.tsx`, `lib.test.ts`, `lib.ts` de `components/layout`, y `panel-anuncios.tsx`). Corrí `npx prettier --write <esas 5 rutas>` desde `frontend/` (sin tocar nada fuera de esas rutas) y repetí: **código 0** en los tres workspaces (`shared`, `backend`, `frontend`), incluidos ESLint, `prettier --check` y `tsc -b`/`tsc --noEmit`.
+
+**test** (`frontend/`, `npx vitest run`): **42 archivos, 578 pruebas, 578 en verde**, código 0.
+
+**build** (`frontend/`, `npm run build`): código 0. Mismo aviso preexistente de Vite sobre el chunk de más de 500 kB (no relacionado con este cambio).
+
+**V-01:** 39/39 OK, con la tabla de "DESIGN-01b-1 — Ronda 0, segundo intento" (ninguna `*.ataque` cambió de hash).
+
+**V-02 a V-07 y V-13** (`npx vitest run src/styles/clases-r1.ataque.test.ts src/styles/tokens-r1.ataque.test.ts`): 30/30 en verde, incluida la guarda V-07 de la ronda 0 con la lista permitida (`vidrio` en `barra-navegacion.tsx`, `barra-superior.tsx`, `pie-de-pagina.tsx`, `card.tsx`; `vidrio-fuerte` en `cargando.tsx`, `barra-navegacion.tsx`, `button-variants.ts`, `panel-anuncios.tsx`; ningún `vidrio-azul`; `data-material`/`data-densidad` solo en `contenedor-rol.tsx`). `enEspera=` sigue en 13.
+
+**V-08** ("No se toca"):
+- 01b-1, `frontend/`, base `e39500a`: sin cambios en ninguna ruta de la lista principal (`package.json`, `vite.config.ts`, `app/router.tsx`, `require-*.tsx`, `providers.tsx`, `components/ui/**`, `features/*/hooks.ts|types.ts|data.ts|lib.ts` de todos los módulos, `features/auth/components/formulario-*.tsx`, `recuperar-view.tsx`, `restablecer-view.tsx`, `establecer-contrasena-view.tsx`, `features/admin/components/**`, `features/diagnostico/**`, y las pruebas normales salvo las tres autorizadas). Comprobado con `git diff --quiet e39500a -- <ruta>` por cada entrada, código 0 en todas.
+  - E-5 (`main.tsx`): el diff contra `e39500a` no quita ninguna línea, solo agrega la importación y el elemento.
+  - E-2 y E-3 (`format.ts`, `format.test.ts`, `layout/types.ts`): el diff contra `e39500a` no quita ninguna línea, solo agrega.
+  - E-6: ver V-14 abajo.
+  - Lista completa de archivos modificados en `frontend/` (`git diff --name-only e39500a`) y nuevos (`git status --porcelain --untracked-files=all`): coinciden exactamente con "Modificados" y "Nuevos" de "Cambios por capa › frontend/ — DESIGN-01b-1" del plan, sin ningún archivo extra ni faltante.
+- 01b-1, fuera de `frontend/`, base `<B>` = `8feab74`: sin cambios en `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/PRD.md`, `package.json`, `package-lock.json`, `eslint.config.mjs`, `.prettierignore`, `tsconfig.base.json`, `.gitattributes`, `.gitignore`, `.nvmrc`, `plan.md`, `plan-01b.md`, `plan-direccion-c.md`, `revision-direccion-c.md`. `backend/`, `shared/`, `infra/`, `.claude/`, `.codex/` sin cambios (confirmado con `git diff --quiet` y `git status --porcelain`, ambos vacíos). Excepción E-1: el diff de `docs/DESIGN.md` contra `8feab74` solo toca las ocho secciones listadas en el paso 10.
+- Fuera de V-08 (`docs/ESTADO.md`, `aprobacion.md`, `comprobacion-humano.md`, `reporte-tester.md`): no los toqué; sus cambios pendientes son del orquestador, el arquitecto y el tester, previos a mi turno.
+
+**V-09** (fuentes en `dist/`): 6 `.woff2` y 6 `.woff`, todos `latin`, sin Google Fonts.
+
+**V-10** (CSS y JS de `dist/`, tras `npm run build`): presentes `[data-fondo]`, `data-orbe=`, `@keyframes orbe-azul`, `orbe-verde`, `orbe-suave`, `prefers-reduced-motion`, `animation-play-state:paused`, `will-change:transform`, `.sin-sombra-de-vidrio`, `--orb-blue-size`, `.sr-only` (con su variante `max-sm:`); en el JavaScript, `href:"#"` → 0.
+
+**V-11:** cubierto por lint, test y build de arriba, en verde en esta única entrega.
+
+**V-12:** no aplica a 01b-1 (según la numeración del plan, no hay V-12 en la lista de verificaciones de esta subentrega).
+
+**V-14 (condición de detención):**
+1. Guardas y rutas: `git diff --quiet e39500a -- app/router.tsx app/require-rol.tsx app/require-sesion.tsx app/require-cambio-de-contrasena.tsx` → código 0. **Sin cambios.**
+2. Redirección de acceso restringido: en el diff `-U0` contra `e39500a` de `acceso-restringido-view.tsx`, ninguna línea agregada ni quitada contiene `Navigate`, `accesoRestringido`, `rutaPorRol`, `if (`, `if (isError)`, `if (isPending)`, `return`, `useMe(`, `useCerrarSesion(` ni `./hooks"` (comprobado con `grep`, sin coincidencias). **Sin rastro de esos textos en las líneas cambiadas.**
+3. Las cuatro líneas de §D-1 existen idénticas, con su sangría, en este orden: `  if (isError) {` (línea 21), `  if (isPending) {` (línea 31), `  if (!data.accesoRestringido) {` (línea 42), `    return <Navigate to={rutaPorRol(data.rol)} replace />` (línea 43). **Idénticas y en orden.**
+4. No aplica a 01b-1 (es para 01b-2).
+
+**V-15** (movimiento): `@keyframes` solo en `styles/tokens.css` (3 declaraciones); `will-change` solo en `styles/tokens.css` (1 aparición); `animate-` solo en `animate-spin`/`motion-reduce:animate-none` de `cargando.tsx` y `button.tsx` (de 01a, sin cambios).
+
+**V-16** (lo fijo): `\bfixed\b` en `src/**/*.tsx` (sin pruebas) solo en `components/layout/barra-navegacion.tsx` y `components/ui/dialog.tsx`; `data-fondo` solo en `fondo-animado.tsx` (y en `tokens.css`).
+
+**V-17:** no aplica a 01b-1 (es de 01b-2, botón de contraseña).
+
+### Archivos creados
+- `frontend/src/app/fondo-de-la-app.tsx`, `fondo-de-la-app.test.tsx`, `marco.test.tsx`.
+- `frontend/src/components/avatar-usuario.tsx`.
+- `frontend/src/components/layout/fondo-animado.tsx`, `fondo-animado.test.tsx`, `marco-publico.tsx`, `barra-navegacion.tsx`, `barra-superior.tsx`, `monograma.tsx`, `pie-de-pagina.tsx`, `pie-de-pagina.test.tsx`, `data.ts`, `lib.ts`, `lib.test.ts`.
+
+### Archivos modificados
+- `frontend/src/main.tsx` (E-5).
+- `frontend/src/styles/tokens.css`, `tokens.test.ts`.
+- `frontend/src/components/layout/types.ts` (E-3), `contenedor-rol.tsx`, `contenedor-rol.test.tsx`, `layout-publico.tsx`.
+- `frontend/src/components/cargando.tsx`.
+- `frontend/src/lib/format.ts` (E-2), `format.test.ts`.
+- `frontend/src/features/auth/components/panel-anuncios.tsx`, `tarjeta-de-cuenta.tsx`.
+- `frontend/src/features/auth/login-view.tsx`, `registro-view.tsx`, `bienvenida-view.tsx`, `cambiar-contrasena-view.tsx`, `acceso-restringido-view.tsx` (E-6).
+- `frontend/src/features/admin/cuentas-view.tsx`.
+- `docs/DESIGN.md` (E-1).
+
+### Desviaciones del plan
+Ninguna deliberada. Un ajuste dentro de lo previsto por el propio plan: en `contenedor-rol.tsx` apliqué `min-h-[calc(100svh-7rem)]` y `md:min-h-[calc(100svh-3rem)]` en la columna de contenido (el `div` que envuelve `BarraSuperior`, `main` y `PieDePagina`), no en el `main` como sugería el borrador inicial de §D-3 antes de releer con cuidado: el propio texto del plan dice "en esa columna" y autoriza al programador a ajustar estas dos alturas si no dejan el pie al final; no cambié nada más.
+
+### Pendiente o fuera de alcance detectado
+- Nada nuevo respecto de lo que ya lista el plan en "Riesgos y desacuerdos" y "No entra" (destinos nuevos de la barra, botón de avisos, `EstadoVacio`, insignias de estado, pendientes de ADMIN, URLs reales del pie, `viewport-fit=cover`, DESIGN-01b-2).
+- Todo lo visual (posición de los orbes, contraste en navegador, foco, gestores de contraseñas, etc.) queda para la comprobación del humano, como marca el plan (S-01): no abrí ningún navegador.
+
+### Vuelta 2 (ronda 1 del tester)
+
+La ronda 1 dio **ROTO**, con dos hallazgos de severidad baja (T-01 y T-02) y una observación que el manager pidió corregir (O-3). El arbitraje de `revision.md`, "DESIGN-01b-1 — arbitraje de la ronda 1", ya está aplicado en `plan-01b.md` (§D-5 paso 2, E-2, la viñeta de E-2/E-3 de V-08, S-07, las pruebas de `lib.test.ts`, el punto de ataque 3 y §7.12). Apliqué exactamente lo que me tocaba: T-01, T-02 y O-3. No toqué ninguna `*.ataque` ni las descripciones de `tokens-r1.ataque.test.ts:185/:188` (van en la ronda 2 del tester, según el propio arbitraje).
+
+**T-01 — corregido.** `esUrlPublicable` (`frontend/src/components/layout/lib.ts`) ahora rechaza:
+- un carácter de control (U+0000 a U+001F o U+007F) **en cualquier posición**, con una función auxiliar `tieneCaracterDeControl` que recorre el texto con `codePointAt` (sin expresión regular, porque `no-control-regex` de ESLint la habría rechazado);
+- un espacio al inicio o al final (`url !== url.trim()`), como ya hacía.
+
+Un espacio en medio (`"tel:+52 55 1234 5678"`) sigue siendo válido: no lo toca ninguna de las dos guardas y el analizador de `URL` lo acepta para `tel:`. Ajusté el comentario de la función según el texto del arbitraje.
+
+En `frontend/src/components/layout/lib.test.ts` agregué los 3 casos `false` (`"\u0001https://colegio.mx"`, `"https://colegio.mx\u0000"`, `"https://cole\ngio.mx"`) y el caso `true` (`"tel:+52 55 1234 5678"`).
+
+No toqué `frontend/src/components/layout/pie-r1.ataque.test.tsx`. Verificación:
+- `npx vitest run src/components/layout/pie-r1.ataque.test.tsx` → **13/13 en verde** (las 3 de T-01 incluidas, sin modificar el archivo).
+- `npx vitest run src/components/layout/lib.test.ts` → **40/40 en verde** (36 + 4 nuevos).
+- `npm run lint` (raíz) → **código 0**, incluido ESLint: `no-control-regex` no se activó porque no usé ninguna expresión regular para los controles.
+
+**T-02 — corregido, y corrijo aquí la afirmación falsa del paso 11 de la entrega anterior.** El tester tenía razón: mi verificación de V-08 (E-2 y E-3) en la entrega anterior **no se ejecutó** (o se leyó mal); afirmé "no quita ninguna línea, solo agrega" cuando sí se quitaba una línea de `format.test.ts`. Retracto esa afirmación. El arbitraje amplió E-2 para permitir exactamente ese cambio (la importación de `inicialesDe` junto con `formatearFechaHora` en la misma línea, sin separar los `import`), así que no cambié el código: solo repito V-08 con la salida real, esta vez pegada.
+
+Salida real de `git diff e39500a -- frontend/src/lib/format.ts frontend/src/lib/format.test.ts frontend/src/components/layout/types.ts` (desde la raíz), filtrando solo las líneas quitadas (`grep -E '^-[^-]'`):
+```
+-import { formatearFechaHora } from "./format"
+```
+Es la **única** línea quitada en los tres archivos. La reemplaza `+import { formatearFechaHora, inicialesDe } from "./format"`, que es justo lo que ahora autoriza el E-2 ampliado ("Única línea existente que puede cambiar: en `format.test.ts`, la importación de `./format`"). Ninguna otra línea de `format.ts`, `format.test.ts` ni `layout/types.ts` se quita: todo lo demás son líneas agregadas (comprobado leyendo el diff completo, no solo el filtro de quitadas).
+
+**O-3 — corregido.** En `docs/DESIGN.md` §7.4, sustituí el tramo "flotante a 16 px de los bordes de la ventana (no a 24 px: la barra inferior necesita más margen para no encimarse con el borde de la pantalla)" por el texto exacto del manager: "flotante a 16 px de los bordes de la ventana, el margen de la ventana en pantallas angostas (§5); desde 768 px, la barra lateral y la barra superior flotan a 24 px, como dice el inicio de esta sección. Entre 640 y 767 px el margen también es de 16 px, y no de 24 como pide §5, porque cambia en el mismo corte que la barra (DESIGN-01b, propuesta)". La frase inicial de §7.4 ("Las dos barras flotan sobre el fondo, a 24 px de los bordes de la ventana.") no la toqué.
+
+**Verificación completa de la vuelta 2** (desde `frontend/` salvo lo que dice raíz):
+- **lint** (raíz, `npm run lint`): código 0 en los tres workspaces.
+- **test** (`npx vitest run`): **46 archivos, 686 pruebas, 686 en verde**, código 0 (682 de la ronda 1 del tester + 4 casos nuevos de `lib.test.ts`).
+- **build** (`npm run build`): código 0. Mismo aviso preexistente de Vite sobre el chunk de más de 500 kB.
+- **V-01:** tabla de 43 hashes de "DESIGN-01b-1 — Ronda 1" → **43/43 OK**, al empezar y al terminar (no toqué ninguna `*.ataque`).
+- **V-02 a V-07 y V-13** (`npx vitest run src/styles/clases-r1.ataque.test.ts src/styles/tokens-r1.ataque.test.ts`): **30/30 en verde**.
+- **V-08:**
+  - `frontend/`, base `e39500a`: sin cambios en la lista principal de "No se toca"; `main.tsx` (E-5) sin ninguna línea quitada; `format.ts`/`format.test.ts`/`layout/types.ts` (E-2 y E-3) con la única línea quitada ya explicada arriba, que ahora cumple el E-2 ampliado.
+  - Fuera de `frontend/`, base `<B>` = `8feab74`: sin cambios en `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/PRD.md`, `package.json`, `package-lock.json`, `eslint.config.mjs`, `.prettierignore`, `tsconfig.base.json`, `.gitattributes`, `.gitignore`, `.nvmrc`, `plan.md`, `plan-direccion-c.md`, `revision-direccion-c.md`; `backend/`, `shared/`, `infra/`, `.claude/`, `.codex/` sin cambios. `plan-01b.md` difiere de `<B>` en 11 líneas agregadas y 8 quitadas (`git diff --numstat`), que es la diferencia que el arbitraje del manager autorizó y que `aprobacion.md` registra. `docs/DESIGN.md` solo con la excepción E-1 (mismas 8 secciones de la entrega anterior; el cambio de O-3 no agrega ninguna línea nueva contra `8feab74`, porque cae dentro de una línea que yo mismo había agregado en la entrega anterior, todavía sin commit).
+  - Fuera de V-08: `docs/ESTADO.md`, `aprobacion.md`, `comprobacion-humano.md`, `reporte-tester.md`, `revision.md`: no los toqué.
+- **V-09:** 6 `.woff2`, 6 `.woff`, todos `latin`.
+- **V-10:** presentes `[data-fondo]`, `data-orbe=`, los 3 `@keyframes`, `prefers-reduced-motion`, `animation-play-state:paused`, `will-change:transform`, `.sin-sombra-de-vidrio`, `--orb-blue-size`, `.sr-only`; `href:"#"` → 0 en el JS.
+- **V-14** (condición de detención, no toqué `acceso-restringido-view.tsx` en esta vuelta):
+  1. Guardas y rutas sin cambios (código 0).
+  2. Ninguna línea agregada ni quitada en `acceso-restringido-view.tsx` contiene los textos fijos prohibidos.
+  3. Las cuatro líneas de §D-1 existen idénticas, en orden (líneas 21, 31, 42, 43).
+  4. No aplica a 01b-1.
+- **V-15:** `@keyframes` y `will-change` solo en `tokens.css`.
+- **V-16:** `fixed` solo en `barra-navegacion.tsx` y `dialog.tsx`; `data-fondo` solo en `fondo-animado.tsx` y `tokens.css`.
+- **V-17:** no aplica a 01b-1.
+
+### Archivos tocados en la vuelta 2
+- `frontend/src/components/layout/lib.ts` (T-01).
+- `frontend/src/components/layout/lib.test.ts` (T-01).
+- `docs/DESIGN.md` (O-3, dentro de la excepción E-1).
+- Este archivo (`resumen-programador.md`), con la corrección de la afirmación de T-02.
+
+No toqué `frontend/src/lib/format.ts`, `format.test.ts` ni `layout/types.ts` (T-02 no pedía cambiar código, solo repetir la verificación y corregir el resumen). No toqué ninguna `*.ataque.test.*`.
+
+### Desviaciones del plan en esta vuelta
+Ninguna. Apliqué literalmente los textos del arbitraje para T-01, T-02 y O-3, sin ampliar ni recortar su alcance.
+
+### Pendiente o fuera de alcance en esta vuelta
+- Las descripciones de `tokens-r1.ataque.test.ts:185` y `:188` quedan para la ronda 2 del tester, como decide el propio arbitraje: no las toqué.
+- Sigue pendiente todo lo que exige navegador (S-01), sin cambios respecto de la entrega anterior.
+
+### Vuelta 3 (ronda 2 del tester)
+
+La ronda 2 dio **ROTO** por **T-03**: un carácter invisible de formato en medio del dominio (U+00AD, U+200B, U+2060, U+FEFF) sale como enlace real, porque la guarda de la vuelta 2 solo cubría controles de U+0000 a U+001F/U+007F y espacios en los extremos. El manager arbitró con un **criterio general** que sustituye por completo la regla de la vuelta 2 (ya no es una lista de casos): *se publica solo una URL que el analizador de URL deja exactamente igual*, con la única excepción de la barra que agrega a un dominio sin ruta. Apliqué exactamente el alcance cerrado de "Vuelta 3 del programador" en `revision.md`, "DESIGN-01b-1 — arbitraje de la ronda 2".
+
+**1. `frontend/src/components/layout/lib.ts` — corregido.** Reescribí `esUrlPublicable` con los 4 pasos exactos del arbitraje:
+```ts
+export const esUrlPublicable = (url: string | null): boolean => {
+  if (!url) return false
+  let analizada: URL
+  try {
+    analizada = new URL(url)
+  } catch {
+    return false
+  }
+  if (analizada.href !== url && analizada.href !== `${url}/`) return false
+  return (
+    analizada.protocol === "https:" ||
+    analizada.protocol === "mailto:" ||
+    analizada.protocol === "tel:"
+  )
+}
+```
+Quité `tieneCaracterDeControl` y la guarda `url !== url.trim()`: las dos quedan cubiertas por la comparación de `href`. Sin expresiones regulares. El comentario cita M-03, T-01 y T-03, y explica el único caso admitido (la barra final). No toqué `enlacesVisibles` ni `textoDeDerechos`.
+
+**Verificación manual en Node antes de tocar el código** (para no romper ningún caso `true` existente, como pedía la instrucción): confirmé que los 4 casos `true` de `lib.test.ts` (`https://colegio.mx`, `mailto:contacto@colegio.mx`, `tel:+525555555555`, `tel:+52 55 1234 5678`) siguen dando `href` igual a la URL (o con la barra final admitida), y que los 15 casos `false` existentes de la vuelta 2 (incluidos los de T-01) y los 2 nuevos de esta vuelta se rechazan con la nueva regla. **Ninguna aserción existente contradice la regla nueva: no hizo falta detenerme.**
+
+**2. `frontend/src/components/layout/lib.test.ts` — corregido.** Agregué, sin quitar ninguna aserción:
+- caso `false` `"https://cole­gio.mx"` (T-03, guion suave U+00AD en medio del dominio);
+- caso `false` `"https://Colegio.mx"` (consecuencia aceptada por el arbitraje: mayúsculas en el dominio).
+
+**3. `docs/DESIGN.md` §7.12, viñeta "URL publicables" — corregido.** Sustituí la viñeta completa por el texto exacto del arbitraje ("absolutas, con esquema `https:`, `mailto:` o `tel:`, y escritas exactamente como las usará el navegador: el analizador de URL no les cambia nada, salvo la barra final de un dominio sin ruta…"), a mano, sin formateador.
+
+**4. Nada más.** No toqué ningún otro archivo de producción ni ninguna `*.ataque.test.*`.
+
+**Verificación completa** (desde `frontend/` salvo donde se indica raíz):
+- **lint** (raíz, `npm run lint`): código 0 en los tres workspaces.
+- **test** (`npx vitest run`): **47 archivos, 740 pruebas, 740 en verde**, código 0 (738 de la ronda 2 del tester + 2 casos nuevos de `lib.test.ts`).
+- **build** (`npm run build`): código 0. Mismo aviso preexistente de Vite sobre el chunk de más de 500 kB.
+- **Las 4 pruebas de T-03 (`pie-r2.ataque.test.tsx`) y las 3 de T-01 (`pie-r1.ataque.test.tsx`), sin modificar ninguno de los dos archivos:** `npx vitest run src/components/layout/pie-r1.ataque.test.tsx src/components/layout/pie-r2.ataque.test.tsx` → **65/65 en verde** (13 + 52).
+- **V-01:** tabla de 44 hashes de "DESIGN-01b-1 — Ronda 2" → **44/44 OK**, al empezar y al terminar (no toqué ninguna `*.ataque`).
+- **V-08:**
+  - `frontend/`, base `e39500a`: `git diff e39500a -- frontend/src/lib/format.ts frontend/src/lib/format.test.ts frontend/src/components/layout/types.ts | grep -E '^-[^-]'` sigue dando exactamente `-import { formatearFechaHora } from "./format"`, la única línea permitida por E-2; `main.tsx` (E-5) sigue sin ninguna línea quitada; el resto de "No se toca" sin cambios.
+  - Fuera de `frontend/`, base `<B>` = `8feab74`: sin cambios en `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/ARCHITECTURE*.md`, `docs/PRD.md`, `package.json`, `package-lock.json`, `eslint.config.mjs`, `.prettierignore`, `tsconfig.base.json`, `.gitattributes`, `.gitignore`, `.nvmrc`, `plan.md`, `plan-direccion-c.md`, `revision-direccion-c.md`; `backend/`, `shared/`, `infra/`, `.claude/`, `.codex/` sin cambios. `plan-01b.md` difiere de `8feab74` en **17 líneas agregadas y 11 quitadas** (`git diff --numstat`), que coincide con lo reportado (los dos arbitrajes de las rondas 1 y 2). `docs/DESIGN.md` solo con la excepción E-1.
+  - Fuera de V-08: `docs/ESTADO.md`, `aprobacion.md`, `comprobacion-humano.md`, `reporte-tester.md`, `revision.md`: no los toqué.
+- **V-14** (no toqué `acceso-restringido-view.tsx` en esta vuelta): las 4 partes en verde, igual que en la vuelta anterior (líneas 21, 31, 42, 43, sin cambios).
+
+### Archivos tocados en la vuelta 3
+- `frontend/src/components/layout/lib.ts` (T-03: nueva regla de `esUrlPublicable`).
+- `frontend/src/components/layout/lib.test.ts` (T-03: 2 casos `false` nuevos).
+- `docs/DESIGN.md` (dentro de la excepción E-1, viñeta "URL publicables" de §7.12).
+- Este archivo (`resumen-programador.md`), con la subsección "Vuelta 3 (ronda 2 del tester)".
+
+No toqué ninguna otra ruta ni ninguna `*.ataque.test.*`.
+
+### Desviaciones del plan en esta vuelta
+Ninguna. Apliqué literalmente el alcance cerrado del arbitraje de la ronda 2.
+
+### Pendiente o fuera de alcance en esta vuelta
+- O-5 y O-6 (un `mailto:` con espacio en el dominio, o un `tel:`/`mailto:` vacíos, se publican tal cual) quedan fuera de la regla por decisión explícita del arbitraje: no son hallazgos y no los toqué.
+- Sigue pendiente todo lo que exige navegador (S-01), sin cambios respecto de las entregas anteriores.

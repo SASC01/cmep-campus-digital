@@ -59,6 +59,12 @@
   --orb-blue: var(--accent);
   --orb-green: var(--brand);
   --orb-soft: #9fb3e6;
+  --orb-blue-size: 620px;
+  --orb-green-size: 560px;
+  --orb-soft-size: 520px;
+  --orb-blue-cycle: 22s;
+  --orb-green-cycle: 26s;
+  --orb-soft-cycle: 30s;
 
   /* Densidad de los controles (D-4) */
   --control-height: 2.75rem;
@@ -218,4 +224,102 @@
   box-shadow: var(--glass-highlight), var(--shadow-glass);
   -webkit-backdrop-filter: var(--glass-accent-filter);
   backdrop-filter: var(--glass-accent-filter);
+}
+
+/* Recorte de la sombra (DESIGN-01b, §7.2): las filas dentro de un contenedor con desplazamiento
+   propio no llevan sombra; la da el panel que las contiene, que no está dentro de ningún recorte. */
+@utility sin-sombra-de-vidrio {
+  --shadow-glass: 0 0 transparent;
+}
+
+/* Bloque 7: fondo con orbes (§D-2). Sin clases: todo el estilo sale de aquí por atributos, para
+   que las pruebas de tokens lo cubran y las de ataque localicen por atributo, no por clase. */
+[data-fondo] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background-color: var(--background);
+}
+[data-orbe] {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+[data-orbe="azul"] {
+  width: var(--orb-blue-size);
+  height: var(--orb-blue-size);
+  top: -160px;
+  left: -120px;
+  background-color: var(--orb-blue);
+  animation-name: orbe-azul;
+  animation-duration: var(--orb-blue-cycle);
+}
+[data-orbe="verde"] {
+  width: var(--orb-green-size);
+  height: var(--orb-green-size);
+  top: calc(50% - 280px);
+  right: -144px;
+  background-color: var(--orb-green);
+  animation-name: orbe-verde;
+  animation-duration: var(--orb-green-cycle);
+}
+[data-orbe="suave"] {
+  width: var(--orb-soft-size);
+  height: var(--orb-soft-size);
+  bottom: -398px;
+  left: calc(50% - 220px);
+  background-color: var(--orb-soft);
+  animation-name: orbe-suave;
+  animation-duration: var(--orb-soft-cycle);
+}
+[data-velo] {
+  position: absolute;
+  inset: 0;
+  background-color: var(--background-veil);
+}
+[data-fondo][data-movimiento="no"] [data-orbe] {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-orbe] {
+    animation: none;
+  }
+}
+@keyframes orbe-azul {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(48px, 36px) scale(1.08);
+  }
+  100% {
+    transform: translate(24px, -30px) scale(0.92);
+  }
+}
+@keyframes orbe-verde {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-36px, 48px) scale(0.92);
+  }
+  100% {
+    transform: translate(-54px, -24px) scale(1.08);
+  }
+}
+@keyframes orbe-suave {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(48px, -36px) scale(1.08);
+  }
+  100% {
+    transform: translate(-42px, -30px) scale(0.92);
+  }
 }

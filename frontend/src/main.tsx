@@ -2,6 +2,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router"
 
+import { FondoDeLaApp } from "./app/fondo-de-la-app"
 import { Providers } from "./app/providers"
 import { router } from "./app/router"
 import "@fontsource/bricolage-grotesque/latin-500.css"
@@ -19,6 +20,7 @@ if (!raiz) throw new Error("No existe #root en index.html")
 createRoot(raiz).render(
   <StrictMode>
     <Providers>
+      <FondoDeLaApp router={router} />
       <RouterProvider router={router} />
     </Providers>
   </StrictMode>,

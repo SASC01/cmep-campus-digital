@@ -182,6 +182,42 @@ Como `plan-01b.md` cambia después de `<B>`, el orquestador le pedirá al humano
 - Al hacerlo revirtió sin querer la aclaración de V-17 sobre "Ocultar", que ya estaba en `0fc961b`. El orquestador la restauró, y el diff contra `0fc961b` ya no la incluye.
 - El tester repite la ronda 0 desde el original restaurado.
 
+## Base nueva de V-08 para 01b-1 — 2026-09-27
+- **`<B>` = `8feab74`** (`8feab745550a3c20991ef83c424307fa36a314be`, "test(design-01): ronda 0 de 01b-1, guarda V-07 con lista permitida", commit del humano).
+  - Sustituye a `0fc961b` como base de V-08 **fuera de `frontend/`**, por decisión del humano ("Anótalo como base nueva de V-08 fuera de frontend/").
+  - Dentro de `frontend/` la base sigue siendo `e39500a`.
+- Comprobado por el orquestador:
+  - existe (`git cat-file -e '8feab74^{commit}'`, código 0);
+  - incluye `clases-r1.ataque.test.ts`, `plan-01b.md`, `reporte-tester.md`, `aprobacion.md` y `docs/ESTADO.md`;
+  - el árbol quedó limpio;
+  - `git diff --name-only e39500a -- frontend/` lista solo `frontend/src/styles/clases-r1.ataque.test.ts`.
+- **Siguiente paso:** programador de DESIGN-01b-1 según `plan-01b.md`, después la ronda 1 del tester y el veredicto del manager. 01b-2 no empieza.
+
+## Ronda 1 de 01b-1 y arbitraje del manager — 2026-09-27
+- **Tester, ronda 1: ROTO**, con 2 hallazgos de severidad baja (`reporte-tester.md`, "DESIGN-01b-1 — Ronda 1"). No hay ningún salto de autorización, y `/acceso-restringido` resistió con los tres roles.
+  - **T-01:** una URL del pie con un carácter de control invisible al inicio o al final sale como enlace. `trim()` no los quita y `new URL` sí. El error está en el plan (§D-5, paso 2).
+  - **T-02:** el programador quitó una línea de `format.test.ts` (la importación de `./format`), cosa que E-2 no permitía, y declaró en su resumen que no quitaba ninguna.
+- **Error del orquestador:** limitó la ronda 1 del tester a V-07 y a archivos nuevos, aunque el plan también le asignaba actualizar dos descripciones de `tokens-r1.ataque`. Van en la ronda 2.
+- **Arbitraje del manager** (`revision.md`, "DESIGN-01b-1 — arbitraje de la ronda 1"): el ROTO se sostiene.
+  - **T-01:** se rechazan los caracteres de control en cualquier posición, recorriendo el texto sin expresión regular (`no-control-regex`), y los espacios solo en los extremos. Las 3 pruebas del tester son legítimas.
+  - **T-02:** se amplía E-2 para permitir esa línea de importación y el programador corrige su resumen con la salida real de V-08.
+  - **O-3:** el programador corrige la contradicción de `DESIGN.md` §7.4.
+  - **O-2:** se agrega a H-12.
+  - Estos cambios de texto en `plan-01b.md` los aplica el arquitecto y se le informan al humano sin nueva aprobación.
+- `plan-01b.md` cambia después de `<B>` = `8feab74` solo por esos textos. El orquestador verifica el diff y se lo indica al programador como diferencia autorizada de V-08, como se hizo con `CLAUDE.md` en el cierre de 01a.
+
+## Ronda 2 de 01b-1 y arbitraje del manager — 2026-09-27
+- **Tester, ronda 2: ROTO**, con un hallazgo nuevo de severidad baja (`reporte-tester.md`, "DESIGN-01b-1 — Ronda 2").
+  - T-01, T-02 y O-3 quedaron bien corregidos, sin regresiones.
+  - **T-03:** un carácter invisible en medio del dominio (U+00AD, U+200B, U+2060, U+FEFF) sale como enlace del pie. La regla del arbitraje de la ronda 1 solo cubría U+0000 a U+001F y U+007F.
+  - El tester también actualizó las dos descripciones de `tokens-r1.ataque` que el orquestador le había dejado fuera en la ronda 1.
+- **Arbitraje del manager** (`revision.md`, "DESIGN-01b-1 — arbitraje de la ronda 2"): el ROTO se sostiene y T-03 entra en este encargo. La falla fue del arbitraje anterior.
+  - **Regla final:** se publica solo una URL que el analizador deja exactamente igual (`new URL(url).href`), salvo la barra final de un dominio sin ruta. Sustituye a `trim()` y al recorrido de controles, y no usa expresiones regulares. El manager la probó en Node con 66 casos.
+  - **Consecuencias aceptadas:** también quedan como marcador las mayúsculas en el esquema o el dominio, el puerto por defecto, un dominio con acentos y un espacio en la ruta de un `https:`.
+  - **O-5 y O-6 no entran:** la regla no comprueba que el destino sea válido. El error queda a la vista, y el humano prueba cada enlace al llenar las URL reales, antes de DEPLOY.
+  - **Ronda 3 del tester, la última:** acotada a la regla nueva y a las regresiones. Si sale ROTO, se escala al humano.
+- Los textos del plan los aplica el arquitecto y el orquestador verifica el diff. Siguen siendo diferencias autorizadas de V-08 contra `8feab74`.
+
 ## Pendientes para encargos siguientes
 - **ADMIN:** "Dar rol accesible a la ficha de cuenta (role=region con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de fichaDe." (R-15).
 - **DESIGN-01b:** plan detallado en `plan-01b.md`, aprobado el 2026-09-27. Sigue en la misma rama, `feat/design-01-sistema-de-diseno`, desde `e39500a`. Ya no sale de una rama nueva después de fusionar 01a, porque el PR se abre hasta que pase la comprobación completa.

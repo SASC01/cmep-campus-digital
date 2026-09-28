@@ -1,9 +1,11 @@
 import { Outlet } from "react-router"
 
+import { MarcoPublico } from "./marco-publico"
+
 export function LayoutPublico() {
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <MarcoPublico>
       <Outlet />
-    </div>
+    </MarcoPublico>
   )
 }

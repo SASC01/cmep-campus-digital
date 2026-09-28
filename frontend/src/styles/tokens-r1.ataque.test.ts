@@ -182,10 +182,10 @@ describe("ataque (DESIGN-01a r1): contraste de pares sólidos del código", () =
       "--muted-foreground",
       "--background",
       4.5,
-      "Cargando y notas sobre el fondo (sin orbes en 01a)",
+      "respaldo sólido: texto secundario sobre el fondo, sin vidrio",
     ],
     ["--ring", "--muted", 3, "foco de 'Copiar' dentro de la temporal"],
-    ["--input", "--surface", 3, "borde de 2 px de los campos y del outline opaco"],
+    ["--input", "--surface", 3, "borde de 1 px de los campos (--input apunta a --field-border)"],
   ] as const)("%s sobre %s ≥ %s (%s)", (texto, fondo, umbral, donde) => {
     const valor = razon(color(texto), color(fondo))
     expect(valor, `${texto} / ${fondo} (${donde}): ${valor.toFixed(2)}`).toBeGreaterThanOrEqual(

@@ -167,7 +167,28 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
       - El humano decidió corregirlo y repetir. El arquitecto corrigió solo el tipado; el orquestador lo verificó y restauró una línea de V-17 que el arquitecto había revertido sin querer.
       - `clases-r1.ataque` V-07 queda con la lista permitida, hash `dd520b04…`. La tabla de 39 hashes está en `reporte-tester.md`, "DESIGN-01b-1 — Ronda 0, segundo intento".
       - Corrida del orquestador: 37 archivos y 496 pruebas en verde, lint con código 0.
-    - **Falta, antes del programador de 01b-1:** un commit del humano con la corrección de `plan-01b.md`, la ronda 0 y los documentos. El orquestador anota su hash como base de V-08 fuera de `frontend/`.
+    - **Commit de la ronda 0: `8feab74`** (del humano). Por decisión del humano es la **base nueva de V-08 fuera de `frontend/`**; dentro, la base sigue siendo `e39500a`.
+    - **Programador de 01b-1: completado (2026-09-27)** (`resumen-programador.md`, "DESIGN-01b-1"). Corrida del orquestador desde `frontend/`:
+      - lint y build con código 0; test con 42 archivos y 578 pruebas en verde; V-01 39/39;
+      - guardas y rutas sin cambios contra `e39500a`;
+      - V-14 parte 2 sin coincidencias en `acceso-restringido-view.tsx`.
+      - Quedan para que las juzguen tester y manager cinco clases con valores arbitrarios de alto y de rejilla (`calc(100svh-…)`, `grid-cols-[…]`).
+    - **Tester, ronda 1: ROTO,** con 2 hallazgos de severidad baja:
+      - T-01: caracteres de control en la URL del pie;
+      - T-02: una línea quitada de `format.test.ts`, que E-2 no permitía.
+    - **Arbitraje del manager:** el ROTO se sostiene. Los textos corregidos de `plan-01b.md` los aplicó el arquitecto y los verificó el orquestador. Detalle en `aprobacion.md` y `revision.md`.
+    - **Vuelta 2 del programador: completada.** Corrida del orquestador: 46 archivos y 686 pruebas en verde, lint con código 0, 43/43 `*.ataque`.
+    - **Tester, ronda 2: ROTO**, por T-03 (baja): caracteres invisibles en el dominio de una URL del pie.
+      - **Arbitraje:** regla general. Se publica solo una URL que el analizador deja igual, salvo la barra final.
+      - **Vuelta 3 del programador: completada.** Corrida del orquestador: 47 archivos y 740 pruebas en verde, lint con código 0, 44/44 `*.ataque`.
+    - **Tester, ronda 3 (la última): RESISTE, sin hallazgos.** Suite: 48 archivos y 806 pruebas en verde; tabla de 45 `*.ataque`.
+      - O-7: una URL con usuario (`https://colegio.mx@otro-sitio.mx`) se publica tal cual y lleva a otro sitio.
+    - **Manager, revisión final de 01b-1: APROBADO** (`revision.md`, "DESIGN-01b-1 — final"). Condición de detención intacta (V-14), V-08 limpia y ninguna aserción de ataque debilitada.
+      - No bloquea: M-01, el comentario de `ENLACES_DEL_COLEGIO` que todavía describe la regla de la ronda 1, se actualiza en el cierre de 01b.
+      - O-7 queda como pendiente con destino DEPLOY, a decisión del humano.
+    - **Siguiente:**
+      - El humano decide O-7 y hace el commit de 01b-1 (`<C>`, en la rama, sin push).
+      - 01b-2 no empieza hasta que el humano lo indique.
     - **Después:** programador de 01b-1 → tester (rondas 1 a 3) → manager → commit del humano (`<C>`) → 01b-2 → comprobación completa → cierre → PR.
 
 ## 2b. Encargos decididos, por empezar

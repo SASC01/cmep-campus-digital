@@ -9,7 +9,7 @@
 | Dirección | **D3 · Vidrio líquido con fondo flotante**, elegida por el humano. Referencia: `docs/design/referencia-direccion-d3.png` |
 | Antecedente | Dirección C (papel crema, tinta y superficies planas con bordes), elegida el 2026-09-26 y reemplazada por D3. Su captura se conserva en `docs/design/referencia-direccion-c.png`. Decisión en `docs/ARCHITECTURE.md` §20, D-28 |
 | Registrado | 2026-09-27 |
-| Estado de aplicación | DESIGN-01a, cerrado el 2026-09-27: tokens, materiales con su respaldo sólido, fuentes, `components/ui/` y botón en espera, aplicados en `frontend/src/styles/tokens.css` y los componentes base; incluye el borde de los campos y la corrección del rectángulo grisáceo del login, decididos por el humano tras su comprobación parcial. Pendiente en DESIGN-01b: fondo con orbes, movimiento, marco y composición de las pantallas. La comprobación visual completa (H-01 a H-10 y la tabla de contraste) se hace una sola vez, después de DESIGN-01b: en 01a el humano solo comprobó el bloque del login (fuentes, materiales y foco), sin orbes detrás |
+| Estado de aplicación | DESIGN-01a, cerrado el 2026-09-27: tokens, materiales con su respaldo sólido, fuentes, `components/ui/` y botón en espera, aplicados en `frontend/src/styles/tokens.css` y los componentes base; incluye el borde de los campos y la corrección del rectángulo grisáceo del login, decididos por el humano tras su comprobación parcial. DESIGN-01b-1 (2026-09-27): fondo con orbes, movimiento, marco, composición, pie y recorte de la sombra. Pendiente: botón de contraseña (01b-2) y la comprobación visual completa. La comprobación visual completa (H-01 a H-17 y la tabla de contraste) se hace una sola vez, después de DESIGN-01b: en 01a el humano solo comprobó el bloque del login (fuentes, materiales y foco), sin orbes detrás |
 | Marcas | **captura**: medido en la referencia. **humano**: valor dictado por el humano al elegir D3. **propuesta aprobada (2026-09-27)**: no aparece en la captura ni en lo dictado; se propuso al escribir este documento y el humano lo aprobó el 2026-09-27. La marca se conserva para saber de dónde salió cada valor. **propuesta**: valor nuevo que el humano aún no aprueba; lo confirma o corrige el encargo que lo aplique |
 
 ## 1. Referencia
@@ -107,6 +107,7 @@ Valores dictados por el humano al elegir D3, salvo los marcados como propuesta a
 - **Sin `backdrop-filter`** (el navegador no lo soporta): el vidrio y el vidrio fuerte pasan a `--surface` (`#FFFFFF`) y el vidrio azul a `--accent` (`#22409A`), sólidos. Safari necesita además el prefijo `-webkit-backdrop-filter`.
 - Los orbes son círculos planos de color sólido, sin brillo ni desenfoque propio. Se ven suaves por el velo y por el vidrio que pasa encima, no por un efecto propio.
 - **Implementación (DESIGN-01a, propuesta):** utilidades `vidrio`, `vidrio-fuerte` y `vidrio-azul` en `tokens.css`, con su respaldo sin `backdrop-filter` mediante `@supports not`. Las pantallas densas (hoy, todo `/admin`) marcan su contenedor con `data-material="opaco"`: el vidrio pasa a `--surface` sin tocar ningún componente. `backdrop-blur-*` de Tailwind queda anulado: nadie puede fabricar vidrio fuera de estas utilidades.
+- **Implementación (DESIGN-01b, propuesta):** tokens `--orb-blue-size` (620px), `--orb-green-size` (560px), `--orb-soft-size` (520px), `--orb-blue-cycle` (22s), `--orb-green-cycle` (26s) y `--orb-soft-cycle` (30s); estilos del fondo por atributos (`data-fondo`, `data-orbe`, `data-velo`, `data-movimiento`) en `tokens.css`, sin ninguna clase. Sin `--color-background-veil`: el velo se usa como variable CSS, no como utilidad de Tailwind.
 
 ### Contraste verificado
 
@@ -298,6 +299,8 @@ La escala es la de Tailwind, múltiplos de 4 px (`--spacing: 0.25rem`). Medidas 
 
 A menos de 640 px, los márgenes de la ventana bajan a 16 px; propuesta aprobada (2026-09-27).
 
+**Implementación (DESIGN-01b, propuesta):** entre la barra superior, el contenido y el pie, 20 px para estudiante y maestro (el maestro tenía 24 px de separación intermedia: con los 20 px del estudiante, la escala de 4 px no deja un valor entre 16 y 20, así que el maestro pasa a compartir el del estudiante) y 16 px en el administrador (`ESPACIADO_POR_ROL`, `components/layout/data.ts`).
+
 ## 6. Foco, contraste y accesibilidad
 
 - **Foco visible** en todo elemento interactivo, solo con `:focus-visible`: contorno sólido de 2 px, separado 2 px del elemento. Sobre vidrio, vidrio fuerte y superficies claras, en `--ring`. Sobre vidrio azul, `--accent` o `--brand` (bloque destacado, tarjetas de clase de color, botón `primary`), en `#FFFFFF`. Nunca se quita el contorno sin poner otro en su lugar.
@@ -341,16 +344,20 @@ El fondo ocupa toda la ventana, queda fijo detrás del contenido, no recibe el p
 
 - **Animación:** cada orbe se desplaza y escala en un ciclo infinito de ida y vuelta, con `ease-in-out`, **solo con `transform`**. Nunca se animan el color, la opacidad, el tamaño en px ni un desenfoque. La amplitud es propuesta aprobada (2026-09-27): hasta 60 px de desplazamiento y escala entre 0.92 y 1.08.
 - **Rendimiento:** solo los orbes llevan `will-change: transform`. No se agregan más orbes ni capas animadas.
-- **Movimiento reducido:** con `prefers-reduced-motion: reduce`, los orbes quedan quietos en su posición de la captura.
+- **Movimiento reducido:** con `prefers-reduced-motion: reduce`, los orbes quedan quietos en su posición de la captura (`animation: none`).
+- **Posición y trayectoria (DESIGN-01b, propuesta; S-05):** medidas sobre la captura de 1280 × 800. Azul con centro en (190, 150) px de la ventana; verde con centro a 1144 px del borde izquierdo y a media altura; suave con centro horizontal cerca del medio y solo 122 px visibles abajo. El 0 % del ciclo es la posición de la captura; el desplazamiento máximo es de 60 px y la escala va de 0.92 a 1.08, con `alternate` para la ida y vuelta.
+- **Cómo se decide el movimiento (DESIGN-01b):** `orbesEnMovimiento(pathname)` (`components/layout/lib.ts`) compara la ruta actual, sin distinguir mayúsculas y sin la barra final, contra `RUTAS_CON_ORBES_EN_MOVIMIENTO` (`components/layout/data.ts`; S-03).
+- **Pantallas quietas: pausadas, no detenidas (S-04):** en una pantalla sin movimiento los orbes se pausan (`animation-play-state: paused`), así que al llegar desde una pantalla en movimiento se detienen donde estaban, sin salto; al entrar directo quedan en su posición de la captura.
+- **Montaje (DESIGN-01b):** el fondo se monta una sola vez, fuera del router (`app/fondo-de-la-app.tsx`, montado en `main.tsx`), así no se reinicia al navegar y se ve también mientras las guardas cargan.
 
 **Alcance por pantalla**
 
-| Pantallas | Orbes | Superficies |
-|---|---|---|
-| Login e inicio de estudiante y de maestro (dashboards; hoy, la bienvenida provisional) | En movimiento | Vidrio |
-| Pantallas de trabajo: detalle de tarea, calificar, calendario y clase en vivo | Quietos | Vidrio |
-| Gradebook y todas las vistas del administrador | Quietos; propuesta aprobada (2026-09-27) | **Opacas: sin vidrio** |
-| Demás pantallas: registro, recuperar, restablecer y establecer contraseña, cambio obligatorio, acceso restringido y diagnóstico | Quietos | Vidrio |
+| Pantallas | Orbes | Superficies | Rutas hoy (DESIGN-01b) |
+|---|---|---|---|
+| Login e inicio de estudiante y de maestro (dashboards; hoy, la bienvenida provisional) | En movimiento | Vidrio | `/login`, `/estudiante`, `/maestro` |
+| Pantallas de trabajo: detalle de tarea, calificar, calendario y clase en vivo | Quietos | Vidrio | — |
+| Gradebook y todas las vistas del administrador | Quietos; propuesta aprobada (2026-09-27) | **Opacas: sin vidrio** | `/admin` |
+| Demás pantallas: registro, recuperar, restablecer y establecer contraseña, cambio obligatorio, acceso restringido y diagnóstico | Quietos | Vidrio | `/registro`, `/recuperar`, `/restablecer`, `/establecer-contrasena`, `/cambiar-contrasena`, `/acceso-restringido`, `/diagnostico` |
 
 Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo la agrega aquí.
 
@@ -374,7 +381,10 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - Todo par nuevo sobre vidrio se verifica contra el peor caso (§3) antes de usarse.
 - En pantallas densas (gradebook y administrador) no hay vidrio.
 - **Implementación (DESIGN-01a, propuesta):** cada material es una utilidad de `tokens.css` (`vidrio`, `vidrio-fuerte`, `vidrio-azul`), nunca `backdrop-blur-*` suelto. Una pantalla densa marca su contenedor con `data-material="opaco"` (`ContenedorRol`, solo para el rol `admin`): las tres utilidades quedan en `--surface` sin que sus consumidores cambien de clase.
-- **Contenedor con desplazamiento propio (cierre de DESIGN-01a, propuesta, sin verificar en pantalla):** `overflow-y-auto` recorta `--shadow-glass` (que llega hasta unos 40 px por debajo y 32 px a los lados) en el borde del contenedor y deja un filo recto grisáceo, sobre todo con tarjetas apiladas (`PanelAnuncios` del login). En `PanelAnuncios` el contenedor que hace scroll lleva un pequeño relleno con margen negativo a juego (`p-2 -m-2`), que es un **alivio parcial**: con 8 px de margen, el recorte cae donde la sombra todavía tiene cerca de la mitad de su intensidad, y no es un patrón para copiar tal cual en otro contenedor con scroll. La solución de fondo (sombra dentro de listas con scroll, o una composición sin scroll propio) la decide el encargo que rehaga esa pantalla. Pendiente de comprobación visual: el humano lo revisa en la comprobación completa después de DESIGN-01b.
+- **Contenedor con desplazamiento propio (DESIGN-01b, propuesta; sustituye al alivio parcial de 01a):** las superficies de vidrio dentro de un contenedor con `overflow` propio no llevan sombra (utilidad `sin-sombra-de-vidrio` en el contenedor, que redefine `--shadow-glass`; se quedan el borde y el brillo del filo). La sombra la da el panel que lo contiene, que no está dentro de ningún recorte. Así la sombra nunca se corta en seco.
+- **Lo fijo nunca dentro del vidrio (DESIGN-01b):** un `backdrop-filter` convierte a su elemento en bloque contenedor de lo fijo (`position: fixed`) que tenga dentro. El fondo con orbes se monta fuera del router, y la barra inferior cuelga de un contenedor sin vidrio.
+- **Panel de anuncios del login (DESIGN-01b, propuesta):** panel de vidrio con una lista desplazable de filas de vidrio fuerte (`sin-sombra-de-vidrio` en la lista), con nombre accesible del título y enfocable con Tab; compacto arriba en móvil (RF-06).
+- **Pantallas de cuenta (DESIGN-01b, propuesta):** panel de vidrio centrado en la ventana, con el monograma (`Monograma`) encima del título.
 
 ### 7.3 Controles
 
@@ -418,6 +428,13 @@ Las dos barras flotan sobre el fondo, a 24 px de los bordes de la ventana.
   - El botón de avisos: píldora de vidrio fuerte de 44 px de alto, con campana y conteo en palabras ("3 nuevas"). Nunca un punto de color sin texto.
   - El avatar: círculo de 44 px, `--accent`, iniciales en `--accent-foreground`.
 - En pantallas densas, la barra es opaca (`--surface`); propuesta aprobada (2026-09-27).
+
+**Implementación (DESIGN-01b, propuesta, salvo lo ya marcado como aprobado arriba):**
+- Una sola `nav` (`BarraNavegacion`) que es la barra lateral desde 768 px y la barra inferior fija por debajo, flotante a 16 px de los bordes de la ventana, el margen de la ventana en pantallas angostas (§5); desde 768 px, la barra lateral y la barra superior flotan a 24 px, como dice el inicio de esta sección. Entre 640 y 767 px el margen también es de 16 px, y no de 24 como pide §5, porque cambia en el mismo corte que la barra (DESIGN-01b, propuesta), con elementos de 72 × 56 px en la barra inferior y 72 × 60 px en la barra lateral.
+- Destinos de hoy: "Inicio" hacia `/estudiante` o `/maestro`, "Cuentas" hacia `/admin` (un solo destino por rol; `DESTINOS_POR_ROL`, `components/layout/data.ts`).
+- Avatar decorativo (`AvatarUsuario`) con las iniciales de `inicialesDe(nombre)` (`lib/format.ts`).
+- Sin botón de avisos todavía (llega con el módulo `notificaciones`).
+- **Barra superior por debajo de 640 px (S-12):** no caben el nombre del producto, el avatar, el nombre de la persona y "Cerrar sesión" con texto. El nombre y el rol quedan solo para lectores de pantalla, el avatar se oculta y "Cerrar sesión" muestra solo su icono (su nombre accesible no cambia).
 
 ### 7.5 Bloque destacado
 
@@ -522,6 +539,7 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
 - **Carga:** `Cargando` (`components/cargando.tsx`).
   - Icono giratorio y texto en `--muted-foreground`, con `role="status"`.
   - En listas de tarjetas puede sustituirse por marcadores del mismo tamaño en vidrio fuerte, para que la página no salte; propuesta aprobada (2026-09-27).
+  - **Implementación (DESIGN-01b, propuesta):** píldora de vidrio fuerte (`rounded-pill`), para leerse sobre el fondo con orbes en las guardas y sobre cualquier panel.
 - **Vacío:** `EstadoVacio`, por construir.
   - Un título concreto, una frase y una llamada a la acción.
   - Las del PRD son "Crea tu primera clase" (maestro) y "Únete con tu código de clase" (estudiante).
@@ -535,6 +553,18 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
   - Mismo fondo, borde, radio y sombra, con texto en `--foreground`.
   - El icono lleva el color del estado: `--success` si salió bien, `--destructive` si falló.
   - **Implementación (DESIGN-01a, propuesta):** `components/ui/sonner.tsx`, con radio `--radius-row` y `--shadow-overlay` (impuestos con `!important`, porque sonner inyecta sus propios estilos en tiempo de ejecución). Solo lo importa `app/providers.tsx`: ningún otro componente monta un segundo `Toaster`.
+
+### 7.12 Pie de página (DESIGN-01b, propuesta)
+
+Decisión del humano (2026-09-27): mismo pie en todas las pantallas, también en `/admin` (opaco por el contexto).
+
+- **Contenido:** "© \<año actual\> Colegio Mexicano de Estudios de Posgrado Jurídicos y Económicos", con el año calculado en cada carga (no escrito), y los enlaces del colegio.
+- **Origen de los datos:** `components/layout/data.ts` es el único lugar de las URL (`ENLACES_DEL_COLEGIO`). Para publicar un enlace, se escribe su URL completa ahí, sin tocar ningún componente.
+- **URL publicables:** absolutas, con esquema `https:`, `mailto:` o `tel:`, y escritas exactamente como las usará el navegador: el analizador de URL no les cambia nada, salvo la barra final de un dominio sin ruta. `http:`, `#`, una ruta relativa, `javascript:`, una cadena vacía o una URL que el analizador cambie (espacios o caracteres invisibles, mayúsculas en el dominio…) no cuentan como publicables. La regla no comprueba que el destino exista: eso se revisa al llenar las URL reales.
+- **Sin URL publicable:** en desarrollo se ve como marcador (subrayado discontinuo, sin poder pulsarse ni recibir el foco, para distinguirlo de un enlace real); en el build de producción no se muestra. **Nunca `href="#"`.**
+- **Material:** vidrio, `--radius-bar` (opaco en pantallas densas, como el resto del marco).
+- **Estructura:** un `<footer>` sin `<nav>` (una sola `nav` por pantalla es la de navegación principal); la lista de enlaces lleva el nombre accesible "Enlaces del colegio".
+- **Dónde aparece:** al final de todas las pantallas (`MarcoPublico` para las pantallas sin rol, `ContenedorRol` para las de un rol), salvo en los instantes de carga de las guardas (`RequireSesion`, `RequireRol`, `RequireCambioDeContrasena`), que son transiciones, no pantallas.
 
 ## 8. Densidad por rol
 

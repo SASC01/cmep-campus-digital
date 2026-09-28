@@ -796,3 +796,530 @@ Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (si
   - ` M frontend/src/styles/clases-r1.ataque.test.ts` y este reporte (míos);
   - ` M docs/ESTADO.md`, ` M docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md` y ` M docs/trabajo/DESIGN-01-sistema-de-diseno/plan-01b.md` (del orquestador y del arquitecto; no los toqué).
 - No arranqué ningún proceso de larga vida, no usé git para escribir y no abrí ningún navegador.
+
+## DESIGN-01b-1 — Ronda 1
+
+# Reporte del Tester — DESIGN-01b-1 · fondo, marco, composición, pie y recorte de la sombra — Ronda 1
+Veredicto: **ROTO**
+Verificación propia (desde `frontend/`, salvo la última):
+- **lint:** código 0 antes y después de mis pruebas (ESLint, `prettier --check` y `tsc -b`). También `npm run lint` desde la raíz: código 0.
+- **test:** antes de mis pruebas, código 0 (42 archivos, 578 pruebas). Con mis pruebas, código 1: 46 archivos y 682 pruebas, de las que 679 pasan y 3 fallan. Las 3 son T-01.
+- **build:** código 0 antes y después. Solo sale el aviso ya conocido de Vite sobre el bloque de más de 500 kB.
+
+Hallazgos: **2**, los dos de severidad **baja**: T-01, con prueba en rojo, y T-02, de proceso, con su reproducción. No hay hallazgos críticos, altos ni medios.
+
+### Comprobaciones previas
+- **V-01:** `sha256sum -c` contra la tabla de 39 de "Ronda 0, segundo intento", desde la raíz: **39/39 OK** antes de tocar nada.
+- **V-14, repetida por mi cuenta:**
+  1. `git diff --quiet e39500a --` sobre `router.tsx` y las tres guardas `require-*.tsx` → código 0.
+  2. En el diff `-U0` de `acceso-restringido-view.tsx`, ninguna línea agregada o quitada contiene alguno de los 10 textos fijos (0 coincidencias con cada uno).
+  3. Las cuatro líneas existen idénticas y en orden: líneas 21, 31, 42 y 43 (en `e39500a` eran 19, 27, 36 y 37).
+- **V-08 en `frontend/`:** la lista de modificados y nuevos coincide con "Cambios por capa". Las rutas de "No se toca" no tienen cambios: `features/auth/{data,hooks,lib,types}.ts`, los 5 `formulario-*.tsx`, `components/ui/`, `services/`, `features/diagnostico/`, `features/admin/components/`, `providers.tsx`, `index.css`, `index.html`, `package.json`, `vite.config.ts`, `vitest.config.ts` y `src/test/`.
+  - Salvo T-02: `format.test.ts` quita una línea.
+  - Fuera de `frontend/`, contra `8feab74`, solo cambian `docs/DESIGN.md`, `docs/ESTADO.md`, `aprobacion.md` y `resumen-programador.md`.
+- **V-10**, sobre el `dist/` de mi build:
+  - En el CSS están `[data-fondo]`, los tres `@keyframes orbe-*`, `prefers-reduced-motion`, `animation-play-state:paused`, `will-change:transform`, `.sin-sombra-de-vidrio`, `--orb-blue-size`, `.sr-only` y `max-sm\:sr-only`.
+  - En el JS, `href:"#"` aparece 0 veces.
+  - Hay 6 `.woff2`.
+- **Clases que no generan CSS:** saqué cada clase de los 14 archivos de producción tocados y la busqué en el CSS de `dist/`. Todas generan CSS, incluidas `w-18`, `md:h-15`, `size-13`, `rounded-bar`, `text-caption`, `max-sm:size-(--control-height)`, `hover:vidrio-fuerte` e `in-data-[material=opaco]:*`.
+
+### Hallazgos
+
+#### T-01 — Una URL con un carácter de control invisible al inicio o al final sale como enlace real
+Severidad: **baja**
+Prueba: `frontend/src/components/layout/pie-r1.ataque.test.tsx`, "ataque (DESIGN-01b-1 r1): caracteres de control alrededor de la URL (M-03)". Son 3 casos: U+0001 al inicio, U+001F al inicio y U+0000 al final.
+
+**Esperado:** §D-5, paso 2, dice "`false` si `url !== url.trim()` (espacios o caracteres de control al inicio o al final, M-03): el analizador de URL los quitaría en silencio y el `href` saldría con ellos". El comentario de `esUrlPublicable` (`components/layout/lib.ts:15-16`) repite que cubre los caracteres de control. Por eso `"\u0001https://colegio.mx"` debería salir como marcador en desarrollo y omitirse en producción.
+
+**Obtenido:**
+- `String.prototype.trim` solo quita espacios y los controles `\t\n\v\f\r`. No quita U+0000 a U+0008 ni U+000E a U+001F.
+- `new URL` sí los quita: `new URL("\u0001https://colegio.mx").protocol` es `"https:"`.
+- Resultado: `esUrlPublicable` devuelve `true` y el pie pinta `<a href="\u0001https://colegio.mx">`, con el carácter invisible dentro del `href`.
+
+Es justo el caso que M-03 quería dejar a la vista como marcador, y el enlace sale como real en los dos modos.
+
+**Impacto (por eso es baja):**
+- No abre ninguna vía de `javascript:`: el protocolo se revisa después del análisis. `"\u0001javascript:alert(1)"` da `javascript:` y se rechaza.
+- El navegador también quita el carácter al seguir el enlace.
+- El daño es que un error de captura invisible no queda a la vista.
+
+**Nota para el árbitro:** el código aplica al pie de la letra el `trim()` que prescribe §D-5. La contradicción está entre el mecanismo del plan y la intención que el mismo plan declara. No propongo corrección.
+
+Requisito o regla violada: plan-01b.md §D-5 (paso 2, M-03) y S-07.
+
+#### T-02 — V-08 (E-2) no se cumple en `format.test.ts`, y el resumen dice que sí
+Severidad: **baja** (proceso; no cambia ningún comportamiento)
+Prueba: no automatizable como `*.ataque`, porque depende de `git` y de la base `e39500a`. Reproducción desde la raíz:
+1. `git diff e39500a -- frontend/src/lib/format.ts frontend/src/lib/format.test.ts frontend/src/components/layout/types.ts | grep -E '^-[^-]'`
+2. Sale una línea quitada: `-import { formatearFechaHora } from "./format"`. Se sustituyó por `+import { formatearFechaHora, inicialesDe } from "./format"`.
+
+**Esperado:**
+- V-08, excepción E-2: el diff de esos tres archivos "no quita ninguna línea (solo agrega)".
+- E-2 dice "nada existente cambia".
+- La parada de V-08 dice: "Si V-08 marca un archivo cambiado con autorización, el agente se detiene y pregunta".
+
+**Obtenido:**
+- Una línea existente cambió.
+- `resumen-programador.md`, paso 11, V-08, afirma: "E-2 y E-3 (…`format.test.ts`…): el diff contra `e39500a` no quita ninguna línea, solo agrega". Eso es falso para `format.test.ts`.
+
+El cambio es inocuo: solo agrega `inicialesDe` a la importación. Lo que falla es la verificación declarada, que no se ejecutó o se leyó mal.
+
+Requisito o regla violada: plan-01b.md V-08 (E-2) y AGENTS.md ("Ningún agente declara verde algo que no ejecutó").
+
+### Tareas obligatorias de la ronda 1 y justificación de cada cambio a una `*.ataque` existente
+- **`frontend/src/styles/clases-r1.ataque.test.ts`, V-07 (la única `*.ataque` existente que toqué).**
+  - **Qué cambié:** sustituí las dos listas permitidas y sus `filter` por las dos igualdades exactas del **texto de referencia de la ronda 1 de §D-9**, letra por letra. Conservé las dos aserciones `toContain` (`card.tsx` y `button-variants.ts`) y dejé sin cambios `vidrio-azul` y `data-material|data-densidad`.
+  - **Nombre y comentario:** el nombre de la prueba vuelve a decir "igualdad exacta" y el comentario cita §D-9. El plan lo permite.
+  - **Por qué no debilita nada:**
+    - la lista final es la misma que la permitida;
+    - la igualdad es más estricta que el filtro de la ronda 0, porque ahora también falla si falta uno;
+    - una ruta `undefined` hace fallar la igualdad.
+  - **El código cumple la lista exacta:** `vidrio` está en `barra-navegacion`, `barra-superior`, `pie-de-pagina` y `card`; `vidrio-fuerte`, en `cargando`, `barra-navegacion`, `button-variants` y `panel-anuncios`. No es hallazgo y la lista no se amplió.
+  - **Verificación:**
+    - `git diff --numstat e39500a` da 16 líneas agregadas y 4 quitadas, todas dentro de V-07;
+    - 11/11 en verde;
+    - `npm run lint` (con `tsc -b`) sale con código 0.
+- **`tokens-r1.ataque.test.ts`, descripciones de `:185` y `:188`: no las toqué.** El plan (punto de ataque 9 y "Pruebas existentes afectadas") le asigna a esta ronda actualizar el texto de esas dos descripciones sin tocar sus aserciones. Los límites del orquestador para esta ronda solo autorizan "V-07 de `clases-r1` y archivos `*.ataque` nuevos", y seguí el límite más estrecho. Queda pendiente: si el orquestador lo autoriza, se hace en la ronda 2. Sus aserciones siguen valiendo.
+- **Condición de detención y RN-03:**
+  - Un estudiante, un maestro y un admin **no restringidos** que entran a `/acceso-restringido` terminan en `/estudiante`, `/maestro` y `/admin`:
+    - con un solo `contentinfo`, dentro de `[data-rol=<rol>]`;
+    - con una sola `navigation`;
+    - sin que el encabezado "Acceso restringido" aparezca **en ningún momento** (lo vigila un `MutationObserver` durante todo el flujo);
+    - sin que haya dos `footer` a la vez.
+  - El restringido se queda, entre por donde entre (`/acceso-restringido`, `/estudiante`, `/admin` o `/maestro`): tiene el pie fuera de cualquier `data-rol` o `data-material`, 0 `navigation`, 0 `banner` y un solo "Cerrar sesión".
+  - Las 9 `*.ataque` de `/acceso-restringido` siguen en verde con su hash sin cambios.
+  - Ni las guardas ni las rutas cambiaron (V-14).
+
+### Archivos nuevos de esta ronda (4; 104 pruebas)
+- `frontend/src/components/layout/pie-r1.ataque.test.tsx` (13 pruebas: 10 en verde y 3 en rojo, T-01).
+  - Con `vi.mock("./data")`, prueba 21 URL hostiles: `#`, `#aviso`, `javascript:` (también en mayúsculas, partido con `\n` y con `\t`), `vbscript:`, `data:`, `http:`, espacios alrededor, al inicio o al final, `\t` al inicio, `\n` al final, espacio duro, vacía, solo espacios, relativa, relativa al protocolo, sin esquema y `null`.
+  - Revisa URL publicables mezcladas, producción y desarrollo, la lista vacía y que `PROD` se lea al pintar.
+  - Revisa el año en la víspera de Año Nuevo, el 1 de enero y 2099.
+- `frontend/src/components/layout/estatico-r1.ataque.test.ts` (13 pruebas). Búsquedas estáticas:
+  - los enlaces y el nombre del colegio solo en `data.ts`;
+  - nunca `href="#"` ni `javascript:` en el código;
+  - ningún año escrito a mano en el marco;
+  - `FondoAnimado` solo en `FondoDeLaApp`, y `FondoDeLaApp` solo en `main.tsx`, dentro de `Providers`, antes de `RouterProvider` y fuera de él;
+  - `router.tsx` sin fondo;
+  - ningún `bg-background` en componentes;
+  - V-15 y V-16;
+  - los valores arbitrarios de maquetación son exactamente los que prescribe el plan;
+  - nada de 01b-2: 0 `CampoContrasena`, `aria-pressed`, `nombreDelBoton` o "Mostrar contrase…", y los 7 `type="password"` siguen en los 4 formularios.
+- `frontend/src/app/fondo-r1.ataque.test.tsx` (50 pruebas):
+  - `orbesEnMovimiento` con 29 rutas raras;
+  - el fondo montado como en `main.tsx`, en `StrictMode`, a través de 11 redirecciones de guardas;
+  - el mismo nodo de fondo desde `/registro`, pasando por login y `/estudiante`, hasta `/diagnostico` (no se vuelve a montar);
+  - fuera del árbol accesible, sin foco y fuera del marco;
+  - una sola suscripción con 6 navegaciones y la baja al desmontarse;
+  - no navega por su cuenta;
+  - en `tokens.css`: solo `transform` en cada paso de los `@keyframes`, y la regla de movimiento reducido gana por orden y peso sin `!important`, sin otra regla que vuelva a animar;
+  - también en `tokens.css`: la pausa con más peso, `[data-fondo]` sin `transform`, `filter`, `contain` ni `will-change`, y un solo `will-change`, sobre `transform`.
+- `frontend/src/app/marco-r1.ataque.test.tsx` (28 pruebas):
+  - la condición de detención (arriba);
+  - un solo pie al navegar: login → estudiante, cerrar sesión desde `/admin` y `/cambiar-contrasena` → `/maestro`;
+  - el marco de los tres roles: una `nav` hija directa de la raíz, con un solo destino hacia una ruta existente (`matchRoutes`, sin caer en `*`), `aria-current`, enfocable, un `banner`, un pie, nombre y rol una vez, y el nombre del producto que no es un encabezado;
+  - en la cadena de ancestros de la `nav`, ninguna clase que cree un bloque contenedor (`vidrio*`, `transform`, `translate-`, `filter`, `backdrop-`, `will-change-`, `contain-`, `perspective-`…);
+  - en `/admin`, `nav`, `banner` y pie dentro del contexto opaco y denso;
+  - "Cerrar sesión" en espera, con el foco y un solo logout;
+  - en las 11 pantallas: un pie con los 4 marcadores inertes, ningún `href` `#` o `javascript:`, y **ningún nodo de texto fuera de `Card`, vidrio o un fondo sólido de token**. También el `Cargando` de las guardas;
+  - recorte de la sombra en `/login` y `/registro`:
+    - la lista de avisos es la única que desplaza en toda la pantalla, enfocable y con un `h3` por fila, y lleva `sin-sombra-de-vidrio`;
+    - el panel que da la sombra no tiene ningún ancestro que recorte;
+    - no queda ningún `-m-2`.
+
+Ninguna prueba localiza por clases de estilo. Las clases solo se leen como aserción sobre elementos ya localizados por rol, texto o atributo de datos, como piden §D-1 y el punto 6.
+
+### Atacado sin hallazgos
+- **Condición de detención y RN-03:** todo lo de arriba.
+- **Pie:**
+  - el año se calcula;
+  - ninguna URL hostil sale como `<a>`, ni tal cual ni recortada; la única excepción es T-01;
+  - en producción no hay marcadores ni lista;
+  - los marcadores no se enfocan, no están dentro de un `<a>` o `<button>` y no tienen `href`, `role` ni `tabindex`;
+  - sin `target="_blank"`;
+  - el orden se conserva;
+  - no hay `href="#"` ni en el código ni en el build;
+  - el pie aparece en las 11 pantallas, también en `/cambiar-contrasena` y en `/admin`, donde queda dentro del contexto opaco;
+  - los enlaces salen de un solo archivo.
+- **Fondo:** los orbes solo se animan con `transform`; solo se mueven en `/login`, `/estudiante` y `/maestro`, y en las demás se pausan; con movimiento reducido se quedan quietos; se monta fuera del router, sin tocar la navegación y sin volver a montarse; lo fijo no queda dentro de vidrio (M-03).
+- **Marco:** destinos solo con rutas existentes; `nav` fija, hija directa de la raíz sin vidrio; `/admin` opaco y denso, con un solo contenedor marcado; estudiante y maestro sin contexto; foco en el destino y en "Cerrar sesión"; `enEspera` sigue en 13.
+- **Recorte de la sombra:** filas sin sombra dentro de la única lista que desplaza; `p-2 -m-2` retirado.
+- **Valores arbitrarios** (el orquestador pidió juzgarlos): `min-h-[calc(100svh-7rem)]`, `md:min-h-[calc(100svh-3rem)]`, `md:h-[calc(100svh-3rem)]`, `lg:max-h-[calc(100svh-6rem)]`, `md:grid-cols-[6rem_minmax(0,1fr)]` y `lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]`.
+  - **Permitidos.** `CLAUDE.md` prohíbe escribir sueltos el color, el tamaño de fuente, el radio y la sombra ("Siempre mediante token"), y V-04 solo busca `text|rounded|shadow|leading|tracking|font|bg|border|outline-[`.
+  - Estos son medidas de maquetación que el plan prescribe literalmente (§D-3, §D-6 y §D-3 de la `nav`). La rejilla del login ya estaba en `e39500a`.
+  - `estatico-r1` los fija, para que un valor arbitrario nuevo se ponga en rojo.
+- **Regresiones:** las 39 `*.ataque` previas pasan (38 con su hash sin cambios, más `clases-r1` con V-07). Nada de 01b-2 está implementado.
+
+### Observaciones para el manager (sin prueba en rojo; no las cuento como hallazgos)
+- **O-1 · Dos clics en el mismo instante sobre "Cerrar sesión" mandan dos logout.** Con dos `fireEvent.click` seguidos, sin repintado entre ellos, salen dos `POST /api/auth/logout`.
+  - **Es idéntico en `e39500a`:** el mismo `enEspera={cerrando}` solo se mudó a `BarraSuperior`.
+  - `en-espera-r1` solo exige ese caso a login y registro, que cuentan intentos. El logout es idempotente.
+  - Con repintado de por medio, `marco-r1` comprueba que sale un solo logout.
+- **O-2 · En `/admin`, "Cuentas" activo pierde `--accent-soft` al pasar el puntero.** En el CSS de `dist/`, `.in-data-[material=opaco]:hover:bg-muted:hover` pesa (0,2,0) y va después de `.in-data-[material=opaco]:bg-accent-soft`, que pesa (0,1,0). El activo se ve `--muted` con el puntero encima.
+  - Son exactamente las clases del plan (§D-3). Es solo visual: `--link` sobre `--muted` sigue pasando AA.
+  - No está verificado en navegador. Que lo mire el humano en H-12.
+- **O-3 · `DESIGN.md` §7.4 (texto del programador) se contradice.**
+  - Dice "flotante a 16 px de los bordes de la ventana (no a 24 px: la barra inferior necesita más margen …)", pero 16 px es menos margen que 24.
+  - La línea 410 del mismo documento dice "Las dos barras flotan … a 24 px de los bordes".
+  - El código usa 16 px en móvil, como pide §D-3 (`inset-x-4 bottom-4`, `p-4`). Lo que falla es el texto; lo revisa el manager (E-1).
+- **O-4 · Orden de tabulación en móvil.** La `nav`, que por debajo de 768 px es la barra inferior, va antes que la barra superior en el DOM. Con Tab se llega primero a "Inicio", abajo, y después a "Cerrar sesión", arriba. Es la estructura que prescribe §D-3; lo juzga el humano en H-04.
+
+### No atacado y por qué
+- **Todo lo que exige navegador** (S-01): la apariencia, la posición y el movimiento real de los orbes, el rendimiento (H-11), el contraste medido (H-09, C-01 a C-26), la sombra real y el filo al desplazar (H-14), la barra inferior fija a 360 y 767 px sin pegarse a un panel (H-12), el área segura de iOS (R-10) y el foco visible. Jsdom no calcula el diseño ni aplica `tokens.css`. **No verificado; lo decide el humano.**
+- **Rama de error de `AccesoRestringidoView`:** es inalcanzable desde las rutas, porque `RequireSesion` comparte la consulta `useMe` y navega antes a `/login` o `/cambiar-contrasena`. No la ataqué por separado: la vista está en "No se toca" salvo E-6, y V-14 confirma que la rama no cambió.
+- **`tokens-r1`, descripciones de `:185` y `:188`:** fuera de los límites de esta ronda (arriba).
+
+### Tabla de hashes vigente (SHA-256) de las `*.ataque`: 39 previas + 4 nuevas = 43
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) → 43. `sha256sum -c` desde la raíz → 43/43 OK. Contra la tabla de "Ronda 0, segundo intento": 38 iguales, `clases-r1` modificada y 4 nuevas.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `1ffcd996ba2f35ef9dbb3a2c209f314ed0df34c6d2ecef8b6369d23a4dbaed02` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | **modificado en la ronda 1 de 01b-1 (V-07, igualdad exacta)** |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | **nuevo (ronda 1 de 01b-1)** |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `2b3f64cf39d79e7fbe15ecab45364b6603a1fa26d2e05d72ab2e16550d218860` | **nuevo (ronda 1 de 01b-1)** |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | **nuevo (ronda 1 de 01b-1)** |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | **nuevo (ronda 1 de 01b-1)** |
+
+### Estado al terminar
+- Escribí solo:
+  - `frontend/src/styles/clases-r1.ataque.test.ts` (V-07);
+  - los 4 `*.ataque` nuevos;
+  - esta sección.
+- Formateé solo esas 5 rutas, con `npx prettier --write <rutas>` desde `frontend/`.
+- Git solo de lectura. No abrí navegadores ni corrí `npm run dev`. No leí ningún `.env`.
+- Un error de comillas en uno de mis comandos dejó colgado un proceso `python` que yo mismo había arrancado; lo terminé. No toqué procesos ajenos.
+
+## DESIGN-01b-1 — Ronda 2
+
+# Reporte del Tester — DESIGN-01b-1 · fondo, marco, composición, pie y recorte de la sombra — Ronda 2
+Veredicto: **ROTO**
+Verificación propia:
+- **lint:** código 0 desde `frontend/` y desde la raíz, con ESLint, `prettier --check` y `tsc -b`.
+- **test (`frontend/`):** con mis pruebas, código 1. Son 47 archivos y 738 pruebas: 734 pasan y 4 fallan, todas de T-03. Sin `pie-r2`, las 686 pruebas del orquestador pasan.
+- **build:** código 0. En `dist/`, `href:"#"` aparece 0 veces (V-10).
+
+Hallazgos: **1**, de severidad **baja** (T-03, prueba en rojo). No hay hallazgos críticos, altos ni medios. T-01 y T-02 de la ronda 1 quedaron corregidos.
+
+### Regresiones y comprobaciones repetidas
+- **V-01:** `sha256sum -c` con la tabla de 43 de la ronda 1 da **43/43 OK** al empezar. Nadie modificó ninguna `*.ataque`, tampoco `pie-r1` (`0aaa18cd…`).
+- **Mis pruebas de la ronda 1 y las 43 `*.ataque`:** pasan todas en la suite completa.
+  - Las 3 de T-01 en `pie-r1` pasan sin cambios en el archivo (13/13).
+  - Las 9 de `/acceso-restringido` (`router.ataque`, `cuentas-r1`, `cuentas-r2`, `en-espera-r1`, `contexto-r1` y `apiClient.ataque`) siguen en verde, con su hash sin cambios.
+- **V-14:**
+  1. `git diff --quiet e39500a` sobre `router.tsx` y las tres guardas da código 0.
+  2. En el diff `-U0` de `acceso-restringido-view.tsx`, cada uno de los 10 textos fijos aparece 0 veces.
+  3. Las cuatro líneas están en las líneas 21, 31, 42 y 43, en orden.
+- **V-10:** `href:"#"` aparece 0 veces en el JS de `dist/`.
+
+### Tareas de la ronda 2
+- **Tarea 1. Descripciones de `tokens-r1.ataque.test.ts:185` y `:188`.** Solo cambió el cuarto elemento de esas dos tuplas, con los textos sugeridos por el arbitraje:
+  - `:185`: `"Cargando y notas sobre el fondo (sin orbes en 01a)"` pasa a `"respaldo sólido: texto secundario sobre el fondo, sin vidrio"`;
+  - `:188`: `"borde de 2 px de los campos y del outline opaco"` pasa a `"borde de 1 px de los campos (--input apunta a --field-border)"`. Lo confirmé en `tokens.css:16`: `--input: var(--field-border)`.
+
+  Comprobación:
+  - Formateé solo ese archivo y Prettier no hizo cambios.
+  - `git diff --numstat` da 2 líneas agregadas y 2 quitadas, y el diff solo contiene esas dos cadenas.
+  - No toqué los tokens, el fondo, el umbral ni la aserción.
+  - **Por qué no debilita nada:** la descripción solo aparece en el nombre de la prueba y en el mensaje de la aserción.
+- **Tarea 2. T-01, la guarda nueva.** Las 3 pruebas de `pie-r1` pasan sin cambios en el archivo. El archivo nuevo `pie-r2.ataque.test.tsx` agrega 52 pruebas:
+  - **Controles en cualquier posición:** 20 casos, todos rechazados.
+    - `\t`, `\n`, `\r`, `\r\n`, U+0000 y U+007F en medio;
+    - U+007F al inicio y al final;
+    - U+0001 en el esquema y U+001F en la ruta;
+    - un `\t` en un `tel:`, y un `\n` o un U+0000 en un `mailto:`;
+    - `\v` y `\f` en los extremos;
+    - combinados con espacios en los dos órdenes y en los dos extremos.
+
+    En el pie, ninguno sale como `<a>`: en desarrollo son marcadores y en producción no aparecen.
+  - **`tel:+52 55 1234 5678`:** es publicable y sale como enlace con el `href` tal cual.
+  - **Espacio en el dominio de un `https:`:** común, antes del punto o duro; ninguno sale.
+  - **Formas de `javascript:`:** 21 casos, y ninguno pasa, ni suelto ni en el pie.
+    - `javascript:` en mayúsculas o mezcladas, y partido con `\n`, `\t` o `\r`;
+    - con un control o un espacio delante, o un U+0000 antes de los dos puntos;
+    - con guion suave;
+    - con entidades (`&colon;`, `&#58;`, `&#x09;`) o con `%6A`;
+    - `javascript://…%0A`, `https:javascript:`, `vbscript:`, `data:`, `blob:` y `file:`.
+- **Tarea 3. T-02, V-08 con el E-2 ampliado.** `git diff e39500a` de `format.ts`, `format.test.ts` y `layout/types.ts`, filtrado a las líneas quitadas, da **exactamente una**: `-import { formatearFechaHora } from "./format"`, sustituida por `+import { formatearFechaHora, inicialesDe } from "./format"`. Es la única que autoriza E-2. `main.tsx` (E-5) sigue sin líneas quitadas.
+- **Tarea 4. O-3.** El texto nuevo de `DESIGN.md` §7.4 no contradice §5.
+  - §5 dice "A menos de 640 px, los márgenes de la ventana bajan a 16 px".
+  - §7.4 dice 16 px en la barra inferior y 24 px desde 768 px, y declara de forma explícita que entre 640 y 767 px el margen es de 16 px "y no de 24 como pide §5", marcado como propuesta.
+  - El código coincide: `p-4` y `bottom-4` por debajo de `md`, y `md:p-6` desde 768 px.
+  - El inicio de §7.4 (24 px) quedó intacto y describe el escritorio.
+
+### Hallazgos
+
+#### T-03 — Un carácter invisible de formato en el dominio sale como enlace real
+Severidad: **baja**
+Prueba: `frontend/src/components/layout/pie-r2.ataque.test.tsx`, "caracteres invisibles que el analizador quita en silencio". Son 4 casos: U+00AD (guion suave), U+200B (espacio de ancho cero), U+2060 (unión de palabras) y U+FEFF en medio.
+
+**Esperado:** la razón de T-01, que ahora recoge §D-5, paso 2, es que "el analizador de URL quita en silencio … y el `href` saldría con ellos". Una URL con un carácter invisible que el analizador quita en silencio debería quedar como marcador en desarrollo y no publicarse.
+
+**Obtenido:**
+- Estos caracteres no son controles de U+0000 a U+001F ni U+007F, así que la guarda nueva no los ve.
+- `trim()` no los quita en medio.
+- El paso de mapeo de dominios del analizador de URL (IDNA) los elimina: `new URL("https://cole­gio.mx").href` da `"https://colegio.mx/"`.
+- Resultado: `esUrlPublicable` devuelve `true` y el pie pinta `<a href="https://cole­gio.mx">`, con el carácter invisible dentro del `href`.
+
+Es el mismo daño que T-01: un error de captura invisible que sale como enlace real y no queda a la vista. Un guion suave o un espacio de ancho cero llegan con facilidad al copiar una URL de un documento o de una página.
+
+**Impacto:** el mismo de T-01. No abre ninguna vía de `javascript:` (`"java­script:"` falla en el analizador) y el navegador limpia el dominio al seguir el enlace.
+
+**Nota para el árbitro:** el código cumple al pie de la letra la regla arbitrada, que se limita a U+0000–U+001F y U+007F. El hallazgo muestra que esa regla no cubre toda la intención de M-03. Decide el manager si entra en este encargo. No propongo corrección.
+
+Requisito o regla violada: plan-01b.md §D-5, paso 2 (su razón, M-03 y T-01), y S-07.
+
+### Atacado sin hallazgos
+- Todo lo de las tareas 1 a 5.
+- Además de lo atacado en la ronda 1, que sigue en verde: la guarda de controles en cualquier posición, los espacios en los extremos, los espacios en medio (`tel:`), y ninguna forma de `javascript:`.
+
+### Observaciones para el manager (sin prueba en rojo; no las cuento como hallazgos)
+- **O-5 · Un `mailto:` con un espacio en el dominio sí se publica.**
+  - `new URL("mailto:contacto@cole gio.mx").href` conserva el espacio tal cual, porque el `mailto:` no tiene dominio que analizar. `esUrlPublicable` devuelve `true`.
+  - El arbitraje dice "Un espacio en el dominio lo rechaza el propio analizador", y eso solo es cierto para `https:`.
+  - No es una modificación en silencio: el `href` sale con el error a la vista y la regla arbitrada acepta espacios en medio. Por eso no lo cuento como hallazgo y lo quité de mis pruebas.
+- **O-6 · `"tel:"` y `"mailto:"` vacíos se publican** como enlaces sin destino. S-07 no exige contenido después del esquema. Es un error de captura visible.
+- **O-1 a O-4 de la ronda 1:** sin cambios. El arbitraje las dejó así, y O-3 ya está corregida (arriba).
+
+### No atacado y por qué
+- Todo lo que exige navegador (S-01), igual que en la ronda 1. **No verificado; lo decide el humano.**
+- La rama de error de `AccesoRestringidoView`: sigue siendo inalcanzable por las rutas, igual que en la ronda 1.
+
+### Justificación de cada cambio a una `*.ataque` existente
+- **`frontend/src/styles/tokens-r1.ataque.test.ts`:** solo las dos descripciones de la tarea 1, dentro del alcance exacto del arbitraje. No toqué ninguna aserción, token ni umbral.
+- No toqué ninguna otra `*.ataque` existente. `pie-r1`, `marco-r1`, `fondo-r1`, `estatico-r1` y `clases-r1` tienen el mismo hash que en la ronda 1.
+
+### Tabla de hashes vigente (SHA-256) de las `*.ataque`: 43 previas + 1 nueva = 44
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) da 44. `sha256sum -c` desde la raíz da 44/44 OK. Contra la tabla de la ronda 1: 42 iguales, `tokens-r1` modificada y 1 nueva.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `d81ed462116afdd16d4c8ad534941999487d8dbf5eb9dad22dd242cf68044115` | **modificado en la ronda 2 de 01b-1 (solo las descripciones de `:185` y `:188`)** |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | sin cambios |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | sin cambios |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `2b3f64cf39d79e7fbe15ecab45364b6603a1fa26d2e05d72ab2e16550d218860` | sin cambios |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | sin cambios |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | sin cambios |
+| `frontend/src/components/layout/pie-r2.ataque.test.tsx` | `00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21` | **nuevo (ronda 2 de 01b-1)** |
+
+### Estado al terminar
+- Solo escribí:
+  - `frontend/src/styles/tokens-r1.ataque.test.ts` (las dos descripciones);
+  - el nuevo `frontend/src/components/layout/pie-r2.ataque.test.tsx`;
+  - esta sección.
+- Formateé solo esas dos rutas, con `npx prettier --write` desde `frontend/`.
+- Git solo de lectura. No abrí navegadores ni corrí `npm run dev`. No leí ningún `.env` y no dejé procesos en marcha.
+
+## DESIGN-01b-1 — Ronda 3
+
+# Reporte del Tester — DESIGN-01b-1 · fondo, marco, composición, pie y recorte de la sombra — Ronda 3 (última)
+Veredicto: **RESISTE**
+Verificación propia:
+- **lint:** código 0 desde `frontend/` y desde la raíz, con ESLint, `prettier --check` y `tsc -b`.
+- **test:** código 0 en `frontend/`. Son 48 archivos y 806 pruebas en verde: las 740 de la corrida del orquestador más las 66 de `pie-r3`.
+- **build:** código 0. El único aviso es el ya conocido de Vite sobre el bloque de más de 500 kB.
+
+Hallazgos: **0**. T-01, T-02 y T-03 quedaron corregidos; no hay hallazgos críticos, altos, medios ni bajos.
+
+### Comprobaciones
+- **V-01:** `sha256sum -c` con la tabla de 44 de la ronda 2 da **44/44 OK**. Nadie modificó ninguna `*.ataque`:
+  - `pie-r1` conserva el hash `0aaa18cd…`;
+  - `pie-r2` conserva el hash `00a70742…`.
+- **T-01 y T-03 sin tocar las pruebas:**
+  - las 3 de T-01 en `pie-r1` y las 4 de T-03 en `pie-r2` pasan con sus archivos intactos;
+  - las 44 `*.ataque` y la suite completa están en verde.
+- **V-14:**
+  1. `git diff --quiet e39500a` sobre `router.tsx` y las tres guardas da código 0.
+  2. En el diff `-U0` de `acceso-restringido-view.tsx`, cada uno de los 10 textos fijos aparece 0 veces.
+  3. Las cuatro líneas de §D-1 están en las líneas 21, 31, 42 y 43, en orden.
+- **Las 9 `*.ataque` de `/acceso-restringido`:** siguen en verde, con su hash sin cambios.
+- **V-08:**
+  - **`plan-01b.md` contra `8feab74`:** `git diff --numstat` da **17 líneas agregadas y 11 quitadas**, y `git diff -U0` da **10 tramos**. Coincide con los dos arbitrajes autorizados.
+  - **E-2:** en `format.ts`, `format.test.ts` y `layout/types.ts` solo se quita `-import { formatearFechaHora } from "./format"`, que es la única línea permitida.
+  - **E-5:** en `main.tsx` no se quita ninguna línea.
+  - **"No se toca" del frontend:** sin cambios contra `e39500a`. Revisé `features/auth/{data,hooks,lib,types}.ts`, los 5 `formulario-*.tsx`, `components/ui/`, `services/`, `features/diagnostico/`, `features/admin/components/`, `providers.tsx`, `index.css`, `index.html`, `package.json`, `vite.config.ts`, `vitest.config.ts` y `src/test/`.
+  - **Lista de archivos del frontend:** 20 modificados y 20 nuevos, igual que en las rondas anteriores más mis `*.ataque`.
+  - **Fuera de `frontend/`:** solo cambian `docs/` de esta carpeta (entregables, `aprobacion.md`, `plan-01b.md` por los arbitrajes y `revision.md`), `docs/DESIGN.md` (E-1) y `docs/ESTADO.md`.
+- **V-10:** en el JS de `dist/`, `href:"#"` aparece 0 veces.
+
+### Ataque a la regla nueva (archivo nuevo: `frontend/src/components/layout/pie-r3.ataque.test.tsx`, 66 pruebas, todas en verde)
+- **Las 4 URL publicables** (`https://colegio.mx`, `mailto:contacto@colegio.mx`, `tel:+525555555555` y `tel:+52 55 1234 5678`) son publicables. Con `PROD` en `false` y en `true`, salen como enlace en su orden, con el `href` exacto y sin marcadores.
+- **54 URL que el analizador acepta pero reescribe.** Una precondición comprueba en jsdom que el analizador de verdad cambia cada una. Ninguna es publicable:
+  - en desarrollo, las 54 quedan como marcadores, en orden y sin ningún `<a>`;
+  - en producción, no sale nada: ni `<a>`, ni marcador, ni la lista.
+
+  La lista cubre:
+  - mayúsculas en el esquema o en el dominio;
+  - el puerto por defecto y con cero a la izquierda;
+  - acentos y caracteres de ancho completo en el dominio;
+  - espacios y caracteres fuera de ASCII en la ruta, la consulta y el fragmento;
+  - `.` y `..` en la ruta, y `?` o `#` vacíos o con contenido detrás de un dominio sin ruta;
+  - `https:` sin barras, con una barra o con barra invertida;
+  - direcciones IP en forma decimal, hexadecimal, abreviada y IPv6 sin comprimir;
+  - guion suave, espacio de ancho cero, U+2060, U+FEFF, U+034F y U+180E en el dominio;
+  - U+200B, U+202E, U+200E y U+2066 en la ruta, la consulta y el fragmento;
+  - caracteres invisibles o fuera de ASCII en un `mailto:` y en un `tel:`;
+  - espacios y controles en los extremos y en medio;
+  - un `tel:` con espacio al final.
+- **Mezcla:** con las 54 reescritas intercaladas con las 4 publicables, en los dos modos solo salen las 4 publicables, en su orden.
+- **Barrido.** Inserté un carácter en cada posición de las 4 URL publicables y de una URL con ruta, consulta y fragmento: **más de 30 000 casos**, con estos caracteres:
+  - los controles C0, el espacio, DEL y los controles C1;
+  - U+00A0 y los de U+2000 a U+206F (espacios, marcas de dirección y caracteres de formato);
+  - los selectores de variante U+FE00 a U+FE0F y las etiquetas U+E0020 a U+E007F;
+  - U+00AD, U+034F, U+061C, U+115F, U+1160, U+17B4, U+17B5, U+180E, U+3000, U+3164, U+FEFF, U+FFA0, U+FFF9 a U+FFFB, U+E0001, U+E0100 y U+1D173.
+
+  Resultado:
+  - **ninguna URL publicable lleva un carácter invisible o de control.** Solo tienen ASCII visible, más espacios en `tel:` o `mailto:`, donde el analizador los deja tal cual;
+  - toda URL publicable del barrido es exactamente la que usa el navegador.
+
+  Antes corrí el mismo barrido en Node, con 40 170 casos: 0 casos malos.
+
+### Observaciones (no son hallazgos, según el alcance que fijó el arbitraje)
+- **O-7 · Una URL con usuario o contraseña se publica tal cual.** Por ejemplo, `https://colegio.mx@otro-sitio.mx` va en realidad a `otro-sitio.mx`, y `https://user:pass@colegio.mx` también pasa.
+  - La regla se cumple: el analizador no las cambia.
+  - Es el "Alcance de la regla" de §D-5: la regla no comprueba que el destino sea el esperado.
+  - Lo cubre la revisión humana de las URL reales antes de DEPLOY.
+- **O-8 · Una secuencia ya codificada se publica tal cual.** Por ejemplo, `https://colegio.mx/%E2%80%8B` (un espacio de ancho cero ya codificado) o `https://colegio.mx/a%0Ab`.
+  - No es un cambio en silencio: el `href` es exactamente lo escrito y el código es visible en el texto.
+  - Queda dentro del alcance aceptado.
+- **O-9 · Un puerto que no es el por defecto se publica tal cual**, por ejemplo `https://colegio.mx:8443`. Es correcto según la regla y lo dejo solo como nota.
+- **O-5 y O-6** (espacio en el dominio de un `mailto:`, y `tel:` o `mailto:` vacíos) siguen igual. Ahora están escritas en §D-5 como límite de la regla, así que no son hallazgos.
+- **O-1, O-2 y O-4 de la ronda 1:** sin cambios, como decidió el arbitraje.
+
+### No atacado y por qué
+- **Todo lo que exige navegador** (S-01): orbes, rendimiento, contraste medido, sombra real, barra inferior a 360 y 767 px y área segura de iOS. **No verificado; lo decide el humano en la comprobación completa.**
+- **Fuera del alcance cerrado de la ronda 3:** no volví a atacar el marco, el fondo ni la composición más allá de repetir mis pruebas de las rondas 1 y 2, que siguen en verde.
+
+### Justificación de cada cambio a una `*.ataque` existente
+Ninguno. En esta ronda no modifiqué ninguna `*.ataque` existente; solo agregué `pie-r3.ataque.test.tsx`.
+
+### Tabla de hashes vigente (SHA-256) de las `*.ataque`: 44 previas + 1 nueva = 45
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'`, sin `node_modules`, da 45. `sha256sum -c` desde la raíz da 45/45 OK. Contra la tabla de la ronda 2: 44 iguales y 1 nueva.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `d81ed462116afdd16d4c8ad534941999487d8dbf5eb9dad22dd242cf68044115` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | sin cambios |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | sin cambios |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `2b3f64cf39d79e7fbe15ecab45364b6603a1fa26d2e05d72ab2e16550d218860` | sin cambios |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | sin cambios |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | sin cambios |
+| `frontend/src/components/layout/pie-r2.ataque.test.tsx` | `00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21` | sin cambios |
+| `frontend/src/components/layout/pie-r3.ataque.test.tsx` | `472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76` | **nuevo (ronda 3 de 01b-1)** |
+
+### Estado al terminar
+- Solo escribí el nuevo `frontend/src/components/layout/pie-r3.ataque.test.tsx` y esta sección.
+- Formateé solo ese archivo, con `npx prettier --write` desde `frontend/`.
+- Git solo de lectura. No abrí navegadores ni corrí `npm run dev`, y no leí ningún `.env`.
+- El barrido de Node lo corrí como script en el scratchpad y terminó solo. No dejé procesos en marcha.

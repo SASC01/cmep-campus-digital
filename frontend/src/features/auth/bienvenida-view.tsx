@@ -1,5 +1,6 @@
 import { Cargando } from "@/components/cargando"
 import { MensajeError } from "@/components/mensaje-error"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 import { TEXTOS_SESION } from "./data"
 import { useMe } from "./hooks"
@@ -18,9 +19,13 @@ export function BienvenidaView() {
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <h1 className="text-h1">{`${TEXTOS_SESION.saludo}, ${data.nombre}`}</h1>
-      <p className="text-muted-foreground">{TEXTOS_SESION.proximamente}</p>
-    </section>
+    <Card>
+      <CardHeader>
+        <h1 className="text-h1">{`${TEXTOS_SESION.saludo}, ${data.nombre}`}</h1>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">{TEXTOS_SESION.proximamente}</p>
+      </CardContent>
+    </Card>
   )
 }

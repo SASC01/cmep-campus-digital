@@ -180,6 +180,12 @@ describe("tokens.css", () => {
       ["--glass-border", "rgb(255 255 255 / 0.75)"],
       ["--orb-soft", "#9fb3e6"],
       ["--control-height", "2.75rem"],
+      ["--orb-blue-size", "620px"],
+      ["--orb-green-size", "560px"],
+      ["--orb-soft-size", "520px"],
+      ["--orb-blue-cycle", "22s"],
+      ["--orb-green-cycle", "26s"],
+      ["--orb-soft-cycle", "30s"],
     ]
 
     it.each(pares)("%s vale %s", (token, valor) => {
@@ -341,6 +347,85 @@ describe("tokens.css", () => {
         expect(linea).toContain("saturate(170%)")
       },
     )
+
+    it("sin-sombra-de-vidrio redefine --shadow-glass a transparente", () => {
+      const inicio = tokens.indexOf("@utility sin-sombra-de-vidrio {")
+      expect(inicio).toBeGreaterThan(-1)
+      const fin = tokens.indexOf("}", inicio)
+      expect(tokens.slice(inicio, fin)).toContain("--shadow-glass: 0 0 transparent")
+    })
+  })
+
+  describe("fondo con orbes (§D-2)", () => {
+    it("[data-fondo] es fijo, no recibe el puntero y va debajo de todo", () => {
+      const inicio = tokens.indexOf("[data-fondo] {")
+      expect(inicio).toBeGreaterThan(-1)
+      const fin = tokens.indexOf("}", inicio)
+      const bloque = tokens.slice(inicio, fin)
+      expect(bloque).toContain("position: fixed")
+      expect(bloque).toContain("pointer-events: none")
+      expect(bloque).toContain("z-index: -1")
+    })
+
+    it("[data-velo] usa var(--background-veil)", () => {
+      const inicio = tokens.indexOf("[data-velo] {")
+      expect(inicio).toBeGreaterThan(-1)
+      const fin = tokens.indexOf("}", inicio)
+      expect(tokens.slice(inicio, fin)).toContain("var(--background-veil)")
+    })
+
+    it("cada @keyframes orbe-* solo declara transform, con la amplitud y la escala del plan", () => {
+      for (const nombre of ["orbe-azul", "orbe-verde", "orbe-suave"]) {
+        const inicio = tokens.indexOf(`@keyframes ${nombre} {`)
+        expect(inicio, `@keyframes ${nombre} no existe`).toBeGreaterThan(-1)
+        let profundidad = 0
+        let fin = inicio
+        const abre = tokens.indexOf("{", inicio)
+        for (let i = abre; i < tokens.length; i += 1) {
+          if (tokens[i] === "{") profundidad += 1
+          if (tokens[i] === "}") profundidad -= 1
+          if (profundidad === 0) {
+            fin = i
+            break
+          }
+        }
+        const bloque = tokens.slice(inicio, fin)
+        const declaraciones = [...bloque.matchAll(/\n\s*([\w-]+):\s*[^;]+;/g)].map((m) => m[1])
+        expect(declaraciones.length).toBeGreaterThan(0)
+        expect(declaraciones.every((propiedad) => propiedad === "transform")).toBe(true)
+        expect(bloque).toContain("translate(0, 0) scale(1)")
+        const traslados = [...bloque.matchAll(/translate\((-?\d+)px,\s*(-?\d+)px\)/g)]
+        for (const [, x, y] of traslados) {
+          const modulo = Math.hypot(Number(x), Number(y))
+          expect(modulo).toBeLessThanOrEqual(60)
+        }
+        const escalas = [...bloque.matchAll(/scale\(([\d.]+)\)/g)].map(([, valor]) => Number(valor))
+        for (const escala of escalas) {
+          expect(escala).toBeGreaterThanOrEqual(0.92)
+          expect(escala).toBeLessThanOrEqual(1.08)
+        }
+      }
+    })
+
+    it("prefers-reduced-motion quita la animación; sin movimiento, se pausa", () => {
+      expect(tokens).toContain("@media (prefers-reduced-motion: reduce)")
+      const inicio = tokens.indexOf("@media (prefers-reduced-motion: reduce)")
+      const bloque = tokens.slice(inicio, inicio + 150)
+      expect(bloque).toContain("[data-orbe]")
+      expect(bloque).toContain("animation: none")
+      expect(tokens).toContain('[data-fondo][data-movimiento="no"] [data-orbe] {')
+      const inicioPausa = tokens.indexOf('[data-fondo][data-movimiento="no"] [data-orbe] {')
+      const bloquePausa = tokens.slice(inicioPausa, inicioPausa + 100)
+      expect(bloquePausa).toContain("animation-play-state: paused")
+    })
+
+    it("will-change aparece exactamente una vez, en [data-orbe]", () => {
+      const apariciones = tokens.match(/will-change/g) ?? []
+      expect(apariciones).toHaveLength(1)
+      const inicio = tokens.indexOf("[data-orbe] {")
+      const fin = tokens.indexOf("}", inicio)
+      expect(tokens.slice(inicio, fin)).toContain("will-change: transform")
+    })
   })
 
   // -------------------------------------------------------------------------
@@ -412,6 +497,7 @@ describe("tokens.css", () => {
       ["--link", COLOR.link],
       ["--warning", COLOR.warning],
       ["--success", COLOR.success],
+      ["--brand", COLOR.brand],
     ]
 
     it.each(altoContraste)("%s sobre vidrio (62%%) >= 4.5", (nombre, texto) => {
@@ -453,6 +539,7 @@ describe("tokens.css", () => {
         ["--warning", COLOR.warning],
         ["--success", COLOR.success],
         ["--danger", COLOR.danger],
+        ["--brand", COLOR.brand],
       ]
 
       it.each(textoAltoContraste)(`%s sobre ${nombreSuperficie} >= 4.5`, (nombre, texto) => {

@@ -919,3 +919,261 @@ Ninguno.
 - **Ninguna prueba existente encuentra el botón al buscar un campo:** 01b-2 va sin ronda 0, y el programador se detiene si alguna se pone en rojo (paso 17).
 - **P-06:** "Mostrar contraseña temporal" me parece bien; es la etiqueta del campo con "Mostrar" delante. "Mostrar confirmación de contraseña" es tu texto literal; la alternativa, "Mostrar confirmación de contraseña nueva", sigue la etiqueta, pero es más larga sin ganar claridad. Cualquiera de las dos funciona.
 - **Tu commit de los documentos** fija `<B>` para 01b-1.
+
+## DESIGN-01b-1 — arbitraje de la ronda 1
+
+Veredicto sobre el reporte: el **ROTO** del tester se sostiene. Los dos hallazgos son legítimos y de severidad baja. Vuelve al programador con las correcciones de abajo. Dos de ellas cambian el texto del plan (§D-5 y E-2), y son del arquitecto. El orquestador informa al humano; no hace falta volver a aprobar, porque ninguna cambia el alcance ni un comportamiento que el humano haya decidido.
+
+### T-01 — Caracteres de control en la URL del pie: tiene razón el tester
+- **Las 3 pruebas son legítimas tal como están.** Lo que piden (no sale un `<a>` y en desarrollo queda el marcador) es lo que el plan y el comentario de `lib.ts:15-16` declaran como intención de M-03. Lo que falla es el mecanismo del plan: `trim()` no quita U+0000 a U+0008 ni U+000E a U+001F, y el analizador de URL sí. El error es del plan, no del código ni de la prueba.
+- **La regla correcta:** se rechaza un carácter de control **en cualquier posición**, y un espacio **solo al inicio o al final**.
+  - **Controles en cualquier posición:** el analizador de URL también quita en silencio el tabulador y los saltos de línea que están en medio (`"https://cole\ngio.mx"` se vuelve `https://colegio.mx`), y ningún control es legítimo en una URL escrita a mano.
+  - **Espacios en medio, no:** hay que dejar pasar un `tel:+52 55 1234 5678`, que el navegador marca bien. Un espacio en el dominio lo rechaza el propio analizador. Así no se sobreconstruye.
+- **Sin expresión regular de controles:** `js.configs.recommended` incluye `no-control-regex`, y `/[\u0000-\u001F]/` pondría en rojo el lint. Se comprueba recorriendo el texto.
+- **Texto exacto para §D-5, paso 2, de `plan-01b.md`** (sustituye al actual):
+  > 2. **`false` si tiene un carácter de control en cualquier posición (U+0000 a U+001F o U+007F) o un espacio al inicio o al final (`url !== url.trim()`)** (M-03 y T-01 de la ronda 1): el analizador de URL quita en silencio los controles y espacios de los extremos, y el tabulador y los saltos de línea de en medio (`new URL(" https://x ")` y `new URL("\u0001https://x")` son válidas), y el `href` saldría con ellos. Los controles se buscan recorriendo el texto (`codePointAt` menor que `0x20` o igual a `0x7f`), no con una expresión regular: `no-control-regex` de ESLint la rechaza. Un espacio en medio no se rechaza aquí (por ejemplo, `tel:+52 55 1234 5678`); si el analizador no lo acepta, lo rechaza el paso 3.
+- **Para el programador (código y prueba normal):**
+  - En `components/layout/lib.ts`, `esUrlPublicable` agrega esa guarda en el paso 2, con retorno temprano, antes de `new URL`, sin expresión regular de controles, y con el comentario ajustado.
+  - En `components/layout/lib.test.ts` agrega, a los casos `false`: `"\u0001https://colegio.mx"`, `"https://colegio.mx\u0000"` y `"https://cole\ngio.mx"`.
+  - A los casos `true`: `"tel:+52 55 1234 5678"`.
+  - No toca `pie-r1.ataque.test.tsx`.
+  - Después, `npm run lint` y `npm run test`: las 3 de T-01 deben quedar en verde.
+
+### T-02 — Una línea quitada en `format.test.ts`: se amplía E-2 y el programador corrige su resumen
+- **No se separa la importación.** Dos `import` desde `./format` en el mismo archivo empeoran el código solo para cumplir la letra de una verificación, y la intención de E-2 ("nada existente cambia") se refiere a las funciones y a las pruebas, no a la lista de lo que se importa.
+  - El proyecto no tiene `eslint-plugin-import`, así que `import/no-duplicates` no lo detendría. Aun así es la salida equivocada.
+- **Texto exacto para `plan-01b.md`:**
+  - **E-2** ("No se toca", excepciones):
+    > **E-2 · `src/lib/format.ts` y `format.test.ts`:** solo se agrega `inicialesDe` y sus pruebas; nada existente cambia. Única línea existente que puede cambiar: en `format.test.ts`, la importación de `./format`, que pasa a incluir `inicialesDe` (`import { formatearFechaHora, inicialesDe } from "./format"`).
+  - **V-08**, viñeta de E-2 y E-3:
+    > - **E-2 y E-3:** `git diff e39500a -- frontend/src/lib/format.ts frontend/src/lib/format.test.ts frontend/src/components/layout/types.ts` no quita ninguna línea, salvo en `format.test.ts` la importación `-import { formatearFechaHora } from "./format"`, que se sustituye por `+import { formatearFechaHora, inicialesDe } from "./format"`. Cualquier otra línea quitada es parada.
+- **Para el programador:**
+  - Vuelve a ejecutar V-08 completa.
+  - En `resumen-programador.md` corrige la afirmación de E-2 y E-3 con la salida real, pegada, y reconoce que la anterior no se había comprobado.
+  - Aplica aquí la regla de `AGENTS.md`: ningún agente declara verde algo que no ejecutó.
+
+### Descripciones de `tokens-r1.ataque.test.ts:185` y `:188`: van en la ronda 2
+- El tester hizo bien en seguir el límite más estrecho del orquestador. En la ronda 2 va exactamente el alcance del plan ("Pruebas existentes afectadas" y punto de ataque 9).
+- **Solo cambia el cuarto elemento (la descripción) de esas dos tuplas.** Los tokens, el fondo, el umbral y la aserción no se tocan.
+- Descripciones sugeridas; el tester puede ajustarlas si describen mejor el uso vigente:
+  - `:185`: `"respaldo sólido: texto secundario sobre el fondo, sin vidrio"`;
+  - `:188`: `"borde de 1 px de los campos (--input apunta a --field-border)"`.
+- Después, el tester formatea solo ese archivo, comprueba con `git diff` que solo cambian esas dos cadenas, corre `npm run test` y publica la tabla de hashes con `tokens-r1` modificada.
+
+### Observaciones O-1 a O-4
+- **O-1 (dos clics simultáneos en "Cerrar sesión"):** sin cambios. Es igual en `e39500a`, el cierre de sesión se puede repetir sin efecto y con repintado sale uno solo. No es de este encargo.
+- **O-2 ("Cuentas" activo pierde `--accent-soft` bajo el puntero en `/admin`):** sin cambios en esta vuelta. Son las clases literales del plan (§D-3) y el efecto es solo visual. El activo se sigue distinguiendo por `aria-current`, el peso y el color `--link`, que pasa AA sobre `--muted`. Se agrega a H-12 de la hoja: "en `/admin`, pasa el puntero sobre 'Cuentas' activo; si pierde el azul claro, anótalo". Si el humano lo quiere corregir, es un cambio de clases en carril trivial.
+- **O-3 (`DESIGN.md` §7.4 dice 16 px "porque necesita más margen"): lo corrige el programador en esta vuelta** (E-1). La razón que da es falsa, y además contradice §5.
+  - **Texto exacto** que sustituye, en la viñeta de "Una sola `nav`", el tramo "flotante a 16 px de los bordes de la ventana (no a 24 px: la barra inferior necesita más margen para no encimarse con el borde de la pantalla)":
+    > flotante a 16 px de los bordes de la ventana, el margen de la ventana en pantallas angostas (§5); desde 768 px, la barra lateral y la barra superior flotan a 24 px, como dice el inicio de esta sección. Entre 640 y 767 px el margen también es de 16 px, y no de 24 como pide §5, porque cambia en el mismo corte que la barra (DESIGN-01b, propuesta)
+  - La frase del inicio de §7.4 ("Las dos barras flotan sobre el fondo, a 24 px") no se toca: describe el escritorio, que es lo que se midió en la captura.
+- **O-4 (en móvil, la barra inferior va antes que la barra superior en el orden de Tab):** sin cambios. Es la estructura del plan (una sola `nav`, antes del contenido, como una barra lateral) y el orden sigue siendo predecible. Lo juzga el humano en H-04, que la hoja ya incluye.
+
+### Qué recibe cada agente
+- **Arquitecto:** §D-5, paso 2; E-2; la viñeta de E-2 y E-3 de V-08; y la línea de O-2 en H-12. Textos exactos arriba.
+- **Programador (vuelta 2 de 01b-1):**
+  - T-01 en `lib.ts` y `lib.test.ts`;
+  - T-02, que es V-08 otra vez y la corrección del resumen;
+  - O-3 en `DESIGN.md` §7.4;
+  - después, V-01 con la tabla de 43 de la ronda 1, V-02 a V-16, lint, test y build.
+  - No toca ninguna `*.ataque`.
+- **Tester (ronda 2):**
+  - las dos descripciones de `tokens-r1`;
+  - que las 3 de T-01 pasan sin modificarse;
+  - que la guarda nueva no deja pasar controles en medio ni rechaza el `tel:` con espacios;
+  - la tabla de hashes.
+
+## DESIGN-01b-1 — arbitraje de la ronda 2
+
+Veredicto sobre el reporte: el **ROTO** se sostiene. **T-03 entra en este encargo**, porque es la intención de M-03 que la regla de la ronda 1 no alcanzó a cubrir. La culpa es de mi arbitraje anterior, que resolvió con una lista de caracteres, no del programador ni del tester. Las 4 pruebas de `pie-r2` son legítimas y quedan tal como están.
+
+Para cerrar el tema, la lista se sustituye por un **criterio general**: *se publica solo una URL que el analizador deja exactamente igual*. **O-5 y O-6 no entran:** quedan escritas como límite de la regla. T-01, T-02, O-3 y las descripciones de `tokens-r1` quedaron bien.
+
+### La regla final
+**Criterio:** `new URL(url).href` debe ser idéntico a la URL escrita. La única diferencia admitida es la barra que el analizador agrega a un dominio sin ruta (`https://colegio.mx` pasa a `https://colegio.mx/`).
+- **Cubre lo que el analizador quita o transforma en silencio,** sin enumerar caracteres: controles en cualquier posición, espacios en los extremos, saltos de línea y tabuladores en medio, y los caracteres invisibles que el mapeo de dominios elimina (U+00AD, U+200B, U+2060, U+FEFF y cualquier otro de la misma clase). No deja lugar a un T-04 del mismo tipo.
+- **Sustituye a las guardas de la ronda 1** (`trim()` y el recorrido de controles), que quedan cubiertas, y no usa expresiones regulares, así que no hay problema con `no-control-regex`.
+- **Ningún carácter invisible puede pasar:** el analizador codifica o transforma cualquier carácter fuera de ASCII en el dominio, la ruta, la consulta, el fragmento y la parte de un `tel:` o `mailto:`. Lo comprobé con U+200B, U+00AD, U+2060, U+200E y U+202E en esas posiciones.
+- **Lo comprobé en Node** con 66 casos:
+  - pasan los 9 que deben publicarse, entre ellos `https://colegio.mx`, `https://colegio.mx/aviso-de-privacidad`, `mailto:contacto@colegio.mx`, `tel:+525555555555`, `tel:+52 55 1234 5678` y una URL con consulta y fragmento;
+  - se rechazan los 57 que no: los de `pie-r1`, `pie-r2` y `lib.test`, los 4 de T-03, las 21 formas de `javascript:` y los casos de la lista siguiente.
+- **Consecuencias aceptadas, que no son hallazgos.** Estas URL también quedan como marcador, porque el analizador las reescribe:
+  - con mayúsculas en el esquema o en el dominio;
+  - con el puerto por defecto (`:443`);
+  - con un dominio con acentos, que se escribe en su forma `xn--`;
+  - con un espacio en la ruta de un `https:`, que se escribe `%20`.
+
+  En desarrollo se ven como marcador y quien edita `data.ts` las corrige. Esa es la intención de M-03: que el error de captura quede a la vista.
+
+**Texto exacto para `plan-01b.md`, §D-5, "Funciones puras", viñeta de `esUrlPublicable`** (sustituye los pasos 1 a 4 y la línea de `"java\nscript:…"`):
+> - `esUrlPublicable(url: string | null): boolean`, con retornos tempranos y en este orden:
+>   1. `false` si es `null` o `""`;
+>   2. `false` si `new URL(url)` lanza (se atrapa la excepción);
+>   3. **`false` si el analizador la cambia:** `analizada.href !== url` y `analizada.href !== \`${url}/\`` (M-03, T-01 y T-03 de las rondas 1 y 2). Solo se publica lo que el navegador va a usar tal cual; la única diferencia admitida es la barra que el analizador agrega a un dominio sin ruta (`https://colegio.mx` → `https://colegio.mx/`). Así queda como marcador todo lo que el analizador quita o transforma en silencio: controles en cualquier posición, espacios en los extremos, tabuladores y saltos de línea en medio, y caracteres invisibles del dominio (guion suave, espacio de ancho cero…). Consecuencias aceptadas: mayúsculas en el esquema o el dominio, el puerto por defecto, un dominio con acentos (se escribe en su forma `xn--`) o un espacio en la ruta de un `https:` (se escribe `%20`) también quedan como marcador, a la vista en desarrollo. Sin expresiones regulares;
+>   4. `true` solo si el protocolo es `https:`, `mailto:` o `tel:` (S-07).
+>
+>   **Alcance de la regla (O-5 y O-6 de la ronda 2):** garantiza que el `href` es exactamente lo escrito y que el esquema está permitido. No comprueba que el destino exista ni que tenga forma de correo o de teléfono: un `mailto:` con un espacio en el dominio o un `tel:` o `mailto:` vacíos salen tal cual, con el error a la vista. Eso lo revisa el humano al llenar las URL reales, antes de DEPLOY, probando cada enlace.
+
+**En la misma §D-5, viñeta de `enlacesVisibles`:** "con la URL tal cual (ya sin espacios, por el paso 2)" pasa a "con la URL tal cual (el paso 3 garantiza que es la que usa el navegador)".
+
+**S-07**, primera frase y sus dos siguientes, sustituidas por:
+> **S-07 · Enlaces del pie.** Una URL solo cuenta si es absoluta, con esquema `https:`, `mailto:` o `tel:` ("Contacto" puede ser un correo o un teléfono), y el analizador de URL la deja exactamente igual, salvo la barra final de un dominio sin ruta (§D-5, paso 3). `http:`, `#`, rutas relativas, `javascript:`, una cadena vacía y cualquier URL que el analizador cambie (espacios o controles, caracteres invisibles, mayúsculas en el dominio…) cuentan como "sin URL": en desarrollo se ve como marcador, así que el error de captura queda a la vista (M-03, T-01 y T-03). La regla no comprueba que el destino sea válido (§D-5, "Alcance de la regla").
+
+**"Pruebas requeridas", `components/layout/lib.test.ts`, `esUrlPublicable`:** a los casos `false` se agregan `"https://cole­gio.mx"` (T-03) y `"https://Colegio.mx"` (consecuencia aceptada). Los casos `true` no cambian: `https://colegio.mx`, `mailto:contacto@colegio.mx`, `tel:+525555555555` y `tel:+52 55 1234 5678`.
+
+### O-5 y O-6: fuera de la regla
+Un `mailto:` con un espacio en el dominio o un `tel:` o `mailto:` vacíos no son un cambio en silencio: el `href` sale con el error visible. Las URL las escribe una persona de confianza en un solo archivo, y el humano las prueba al llenarlas antes de DEPLOY. Validar la forma de un correo o de un teléfono es sobreconstruir el pie. Quedan escritos como límite en §D-5, así que no son hallazgos en la ronda 3.
+
+### Vuelta 3 del programador (alcance cerrado)
+1. **`components/layout/lib.ts`:**
+   - `esUrlPublicable` con los pasos 1 a 4 de arriba, en ese orden y con retornos tempranos;
+   - se quitan `tieneCaracterDeControl` y la guarda `trim()`;
+   - el comentario explica el criterio y cita M-03, T-01 y T-03;
+   - `enlacesVisibles` y `textoDeDerechos` no cambian.
+2. **`components/layout/lib.test.ts`:** los dos casos `false` de arriba; ninguna aserción existente se quita.
+3. **`docs/DESIGN.md` §7.12, viñeta "URL publicables"** (E-1), que se sustituye por:
+   > - **URL publicables:** absolutas, con esquema `https:`, `mailto:` o `tel:`, y escritas exactamente como las usará el navegador: el analizador de URL no les cambia nada, salvo la barra final de un dominio sin ruta. `http:`, `#`, una ruta relativa, `javascript:`, una cadena vacía o una URL que el analizador cambie (espacios o caracteres invisibles, mayúsculas en el dominio…) no cuentan como publicables. La regla no comprueba que el destino exista: eso se revisa al llenar las URL reales.
+4. **Nada más:** ningún otro archivo de producción, ninguna `*.ataque`.
+5. **Verificación:**
+   - V-01 con la tabla de 44 de la ronda 2;
+   - V-08 (incluida E-2 con su línea permitida);
+   - V-14, lint, test y build desde `frontend/`: **las 4 pruebas de T-03 en verde y ningún rojo**;
+   - `resumen-programador.md`, sección "DESIGN-01b-1 — vuelta 3", con las salidas pegadas.
+
+### Ronda 3 del tester (la última; alcance cerrado)
+- **Comprueba:**
+  - V-01 con la tabla de 44;
+  - las 4 de T-03 y las 3 de T-01 en verde **sin modificar** sus archivos;
+  - las 44 `*.ataque` y la suite completa en verde;
+  - V-14 y V-08.
+- **Ataca solo la regla nueva:** que nada que el analizador cambie salga como `<a>`, en desarrollo ni en producción, y que las 4 URL publicables de los casos `true` sigan saliendo con el `href` tal cual.
+- **No son hallazgos:** las consecuencias aceptadas y el alcance de §D-5 (O-5 y O-6). Tampoco lo que exige navegador.
+- **Si encuentra algo fuera de ese alcance,** lo anota como observación, no como ROTO.
+- **Publica** la tabla de hashes.
+- Si la ronda 3 sale ROTO, se escala al humano, como dice `AGENTS.md`.
+
+## DESIGN-01b-1 — final
+
+Veredicto: **APROBADO** (sin problemas que bloqueen). El orquestador puede pedirle al humano el commit de 01b-1 (`<C>`), en la rama y sin push. La comprobación visual sigue pendiente para después de 01b-2.
+
+Verificación propia (2026-09-27, desde `frontend/`; salidas en el scratchpad):
+- **lint:** código 0 (ESLint, `prettier --check` y `tsc -b`).
+- **test:** código 0; **48 archivos y 806 pruebas en verde**. Coincide con el tester.
+- **build:** código 0; solo el aviso conocido de Vite sobre el bloque de más de 500 kB.
+- **V-01:** `sha256sum -c` con la tabla de 45 de "DESIGN-01b-1 — Ronda 3" da **45/45 OK**. `find` encuentra exactamente 45 `*.ataque`, todas en la tabla.
+  - Contra `e39500a` solo cambian dos existentes: `clases-r1` y `tokens-r1`.
+  - Las 6 nuevas están sin rastrear.
+- **V-14:**
+  1. `git diff --quiet e39500a` sobre `router.tsx` y las tres guardas da código 0.
+  2. En el diff `-U0` de `acceso-restringido-view.tsx`, los 10 textos fijos (incluidos `if (`, `return` y `./hooks"` de M-05) aparecen 0 veces.
+  3. Las cuatro líneas de §D-1 están idénticas y en orden (21, 31, 42 y 43).
+  - Las importaciones de `Navigate`, `./hooks` y `./lib` no cambian, y la rama de la `Navigate` no está envuelta.
+  - Las 9 `*.ataque` de `/acceso-restringido` siguen en verde con su hash, y el tester agregó el caso de los tres roles no restringidos (`marco-r1`).
+- **E-5:** el diff de `main.tsx` agrega exactamente la importación de `FondoDeLaApp` y `<FondoDeLaApp router={router} />` dentro de `Providers`, antes de `RouterProvider`. No quita ninguna línea.
+- **V-08, base `e39500a` (frontend):**
+  - sin cambios en la lista "No se toca": configuración, `index.css`, `providers.tsx`, `components/ui/`, `services/`, los `hooks`, `types`, `data` y `lib` de `features/`, los 5 `formulario-*`, las 3 vistas de cuenta, `features/admin/components/` y `diagnostico`;
+  - E-2: la única línea quitada es la importación permitida de `format.test.ts`.
+- **V-08, base `8feab74` (fuera de frontend):**
+  - solo cambian `docs/DESIGN.md` (E-1), `docs/ESTADO.md` y esta carpeta;
+  - `plan-01b.md` solo con los textos de los dos arbitrajes, que el orquestador verificó;
+  - `package.json`, `package-lock.json`, `backend/`, `shared/`, `infra/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `ARCHITECTURE*`, `PRD.md` y `docs/design/` sin cambios.
+- **V-06:** `enEspera=` sigue en 13.
+- **V-15 y V-16:** `@keyframes` y `will-change` solo en `tokens.css`. `animate-` solo en `cargando.tsx` y `button.tsx`, que ya estaban. `fixed` solo en `barra-navegacion.tsx` y `dialog.tsx`.
+- **V-10, en el CSS de `dist/`:** están `[data-fondo]`, los tres `@keyframes orbe-*`, `prefers-reduced-motion`, `animation-play-state:paused`, `will-change:transform`, `.sin-sombra-de-vidrio`, `--orb-blue-size` y `.sr-only`. En el JS, `href:"#"` aparece 0 veces. Hay 6 `.woff2`.
+- **Nada de 01b-2:** los 7 `type="password"` siguen en los 4 formularios, que no cambiaron.
+
+### Cumplimiento del plan (01b-1)
+- **Alcance:**
+  - fondo con orbes, montado una vez en `main.tsx` (`FondoDeLaApp` con `useSyncExternalStore` sobre `router.subscribe`; solo lee la ruta);
+  - `FondoAnimado` sin clases y con `aria-hidden`;
+  - marco con una sola `nav`, hija directa de una raíz sin vidrio;
+  - `BarraSuperior` con el nombre del producto, que no es un encabezado;
+  - `MarcoPublico`;
+  - pie con `ENLACES_DEL_COLEGIO` en un solo archivo;
+  - composición;
+  - recorte de la sombra (`sin-sombra-de-vidrio`, sin `-m-2`);
+  - `ESPACIADO_POR_ROL` y `CONTEXTO_POR_ROL` en `data.ts`, sin el texto `data-material` fuera de `contenedor-rol.tsx`.
+
+  Todo coincide con §D-1 a §D-6. No hay nada de 01b-2.
+- **La regla del pie** es la final del arbitraje de la ronda 2, con retornos tempranos y sin expresiones regulares: nulo o vacío, `new URL` que lanza, `href` distinto de lo escrito salvo la barra final, y el protocolo.
+- **Capas y reglas:** sin backend ni API, sin secretos, sin proveedores nuevos ni dependencias. `components/layout` no importa de `features/`.
+
+### Las `*.ataque` existentes que cambiaron, línea por línea contra `e39500a`
+- **`clases-r1`, V-07:**
+  - las dos igualdades exactas coinciden letra por letra con el "Texto de referencia de la ronda 1" de §D-9;
+  - se conservan las dos `toContain` (`card.tsx` y `button-variants.ts`);
+  - `vidrio-azul` y `data-material|data-densidad` no cambian;
+  - solo cambian el nombre de la prueba y el comentario;
+  - frente a la igualdad de `e39500a`, amplía la lista con los archivos que el plan autoriza y sigue fallando si sobra o falta uno. **No se debilitó.**
+- **`tokens-r1`:** solo cambia el cuarto elemento, la descripción, de las tuplas de `:185` y `:188`. Tokens, fondo, umbral y aserción no cambian.
+- **Las 6 nuevas** (`pie-r1`, `pie-r2`, `pie-r3`, `estatico-r1`, `fondo-r1` y `marco-r1`):
+  - no tienen `skip`, `only`, `todo` ni `fails`;
+  - ninguna localiza por clase: no hay `querySelector` con clase, ni `getElementsByClassName`, ni `closest` con clase;
+  - `marco-r1` lee las clases de elementos ya localizados por rol o atributo, como aserción sobre la estructura (ancestros sin bloque contenedor, texto sobre panel y `sin-sombra-de-vidrio` en la lista que desplaza), que es lo que permiten §D-1 y el punto de ataque 6;
+  - atacan de verdad: URL hostiles, un barrido de más de 30 000 inserciones, la condición de detención con los tres roles, un solo pie al navegar, el fondo a través de 11 redirecciones, `tokens.css` y los valores arbitrarios fijados.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+
+#### M-01 — El comentario de `ENLACES_DEL_COLEGIO` describe la regla de la ronda 1, no la final
+Dónde: `frontend/src/components/layout/data.ts`, comentario de "Enlaces del pie".
+
+Por qué importa: el comentario dice "escribe su URL completa, sin espacios alrededor". Es lo primero que va a leer el humano cuando llene las URL reales, y la regla vigente es más estricta: la URL debe quedar exactamente como la usa el navegador, con el dominio en minúsculas, sin espacios ni caracteres invisibles, y sin acentos en el dominio (en su forma `xn--`). Si no cumple, sale como marcador sin decir por qué.
+
+Qué se espera: en el cierre de 01b (carril trivial, después de la comprobación completa), el comentario explica la regla final en una o dos líneas y dice que, si un enlace se ve como marcador en desarrollo, es que el navegador cambiaría la URL. No hace falta tocarlo ahora: `data.ts` de `components/layout` está en "No se toca" de 01b-2, y el pie no tiene URL hasta DEPLOY.
+
+### Detalles menores
+- **`enlacesVisibles`:** usa `enlace.url as string` después de `esUrlPublicable`. Es correcto, pero es una aserción de tipo; una variable local ya comprobada lo evitaría. No vale una vuelta.
+- **Valores arbitrarios** (`min-h-[calc(100svh-7rem)]`, `md:min-h-[calc(100svh-3rem)]`, `md:h-[calc(100svh-3rem)]`, `lg:max-h-[calc(100svh-6rem)]` y las dos rejillas): **permitidos**, de acuerdo con el tester. `CLAUDE.md` prohíbe sueltos el color, el tamaño de letra, el radio y la sombra, no medidas de maquetación. Son los que prescribe el plan y `estatico-r1` los fija. Las dos alturas dependen del relleno de `ContenedorRol`: si cambia uno, cambian las otras.
+- **O-1, O-2 y O-4:** como en el arbitraje de la ronda 1. O-2 va a H-12 y O-4 a H-04.
+- **O-8 y O-9** (secuencia ya codificada y puerto que no es el por defecto): el `href` es exactamente lo escrito y está a la vista. Quedan dentro del alcance de §D-5 y no hay nada que hacer.
+
+### O-7 (usuario o contraseña en la URL): queda como pendiente con destino, sin código ahora
+- **Qué es:** `https://colegio.mx@otro-sitio.mx` lleva en realidad a `otro-sitio.mx`, y la regla lo publica, porque el analizador no lo cambia.
+- **Qué decido:**
+  - **No entra en 01b-1.** Es un problema de destino, justo lo que el "Alcance de la regla" de §D-5 deja fuera a propósito.
+  - El dato lo escribe una persona de confianza en un archivo del repositorio, pasa por la revisión del diff y el humano va a probar cada enlace antes de DEPLOY.
+  - Ya no quedan rondas del tester. Abrir el código ahora, por un caso que no llega por error de captura sino a propósito, cambiaría la regla recién cerrada sin nadie que la ataque.
+  - El cambio sería una línea (`analizada.username || analizada.password`), así que si el humano lo quiere, entra sin costo en el cierre de 01b como carril trivial: con su caso en `lib.test.ts` y mi revisión del diff.
+- **Destino:** la fila de `ESTADO.md` "Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY" pasa a decir: "…antes de DEPLOY: probar cada enlace en el navegador y comprobar que ninguno lleva usuario o contraseña antes del dominio (`https://colegio.mx@otro-sitio.mx` lleva a otro sitio)". Lo actualiza el orquestador.
+
+### Documentos
+- **`DESIGN.md`:** está todo patrón nuevo, con su marca:
+  - §3 "Materiales": los tokens de los orbes;
+  - §5: el espaciado por rol;
+  - §7.1: la posición y la trayectoria (propuesta), cómo se decide el movimiento, la pausa y el montaje, más la columna "Rutas hoy";
+  - §7.2: el contenedor con desplazamiento propio (sustituye al alivio de 01a), lo fijo fuera del vidrio, el panel de anuncios y las pantallas de cuenta;
+  - §7.4: la implementación, con el texto corregido de O-3, sin contradecir §5;
+  - §7.10: `Cargando`;
+  - §7.12: el pie completo, con la regla final;
+  - "Estado de aplicación".
+
+  Las marcas existentes no se tocaron.
+- **`CLAUDE.md` y `README.md`:** van en el cierre de 01b, como dice el plan.
+- **`ESTADO.md`:** O-7 (arriba) y el estado de 01b-1 (APROBADO; siguiente paso, el commit `<C>` y después 01b-2).
+
+### Desacuerdos arbitrados
+Sin desacuerdos nuevos. Los tres hallazgos de las rondas 1 y 2 están corregidos y sus pruebas pasan sin modificarse.
+
+### Para el humano
+**Antes del commit de 01b-1 (`<C>`):**
+1. **Carril normal:** no es obligatorio que revises el diff, pero conviene que mires:
+   - `main.tsx` (dos líneas);
+   - `acceso-restringido-view.tsx`, donde solo cambia lo que devuelve cada rama;
+   - `components/layout/lib.ts`, la regla del pie;
+   - el diff de `clases-r1` y `tokens-r1.ataque`.
+2. **Incluye los archivos sin rastrear:**
+   - 15 de producción y de pruebas del programador en `app/`, `components/` y `components/layout/`;
+   - las 6 `*.ataque` nuevas;
+   - los documentos de esta carpeta.
+3. **Decide O-7:** dejarlo como pendiente antes de DEPLOY (lo que recomiendo) o pedir la línea en el cierre de 01b.
+
+**Para la comprobación completa (después de 01b-2), además de lo que ya dice la hoja:**
+- H-12 en `/admin`: pasa el puntero sobre "Cuentas" activo (O-2).
+- H-04 a 360 px: el orden de Tab con la barra inferior primero (O-4).
+- H-14: el recorte de la sombra, que ya no depende de un relleno.
+- H-11: los orbes, su rendimiento y la pausa al salir del login.
+- H-17 y C-07: el borde de los campos sobre el orbe azul.
+- H-15: el pie en producción, con `npm run build` y `npm run preview`.

@@ -1,9 +1,11 @@
 import { invitarMaestroSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 
+import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import { TEXTOS_CUENTAS } from "../data"
 import { useInvitarMaestro } from "../hooks"
@@ -39,21 +41,17 @@ export function FormularioInvitarMaestro() {
       noValidate
       aria-label={TEXTOS_CUENTAS.invitar.boton}
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4"
+      className="flex flex-col gap-4 rounded-panel border border-border bg-surface p-4"
     >
-      <h2 className="font-heading text-lg font-semibold tracking-tight">
-        {TEXTOS_CUENTAS.invitar.titulo}
-      </h2>
+      <h2 className="text-h3">{TEXTOS_CUENTAS.invitar.titulo}</h2>
       {invitar.isError && <MensajeError mensaje={mensajeDeErrorAdmin(invitar.error)} />}
       {invitar.isSuccess && (
-        <p role="status" className="text-sm text-success">
+        <p role="status" className="text-small text-success">
           {TEXTOS_CUENTAS.invitar.exito(invitar.data.nombre)}
         </p>
       )}
       <div className="flex flex-col gap-2">
-        <label htmlFor="nombre-maestro" className="text-sm font-medium">
-          {TEXTOS_CUENTAS.invitar.nombre}
-        </label>
+        <Label htmlFor="nombre-maestro">{TEXTOS_CUENTAS.invitar.nombre}</Label>
         <Input
           id="nombre-maestro"
           name="nombre"
@@ -63,16 +61,10 @@ export function FormularioInvitarMaestro() {
           aria-invalid={errores.nombre !== undefined}
           aria-describedby={errores.nombre ? "nombre-maestro-error" : undefined}
         />
-        {errores.nombre && (
-          <p id="nombre-maestro-error" className="text-sm text-destructive">
-            {errores.nombre}
-          </p>
-        )}
+        {errores.nombre && <ErrorDeCampo id="nombre-maestro-error">{errores.nombre}</ErrorDeCampo>}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="correo-maestro" className="text-sm font-medium">
-          {TEXTOS_CUENTAS.invitar.correo}
-        </label>
+        <Label htmlFor="correo-maestro">{TEXTOS_CUENTAS.invitar.correo}</Label>
         <Input
           id="correo-maestro"
           name="correo"
@@ -82,18 +74,9 @@ export function FormularioInvitarMaestro() {
           aria-invalid={errores.email !== undefined}
           aria-describedby={errores.email ? "correo-maestro-error" : undefined}
         />
-        {errores.email && (
-          <p id="correo-maestro-error" className="text-sm text-destructive">
-            {errores.email}
-          </p>
-        )}
+        {errores.email && <ErrorDeCampo id="correo-maestro-error">{errores.email}</ErrorDeCampo>}
       </div>
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={invitar.isPending}
-        aria-busy={invitar.isPending}
-      >
+      <Button type="submit" variant="primary" enEspera={invitar.isPending}>
         {TEXTOS_CUENTAS.invitar.boton}
       </Button>
     </form>

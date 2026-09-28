@@ -1,0 +1,1392 @@
+# Revisión del Manager — DESIGN-01 · sistema de diseño D3 — plan
+
+## DESIGN-01a — plan
+
+Veredicto: APROBADO (sin problemas que bloqueen). El plan sigue en estado BLOQUEADO hasta que el humano responda P-07 y P-08. Si elige la (A) en las dos, está listo para su aprobación escrita. Con cualquier otra opción, el arquitecto ajusta las secciones que se indican en "Para el humano" y yo reviso solo esos cambios.
+
+Verificación propia (línea base en `6868e4d`, desde `frontend/`):
+- **lint:** código 0.
+- **test:** código 0; 25 archivos y 258 pruebas: 254 en verde y 4 fallos esperados (T-14).
+- **build:** código 0.
+- **`*.ataque`:** los SHA-256 de las 32 coinciden con la tabla vigente de AUTH-02 (32/32 OK). Son 11 en `frontend/` y 21 en `backend/`.
+- **Árbol de trabajo:** igual que al empezar. `git status` muestra solo esta carpeta; `dist/` está ignorado.
+- **Experimentos:** los corrí en el scratchpad, fuera del repositorio, sin modificar ningún archivo del proyecto.
+
+### Afirmaciones técnicas verificadas
+| Afirmación del plan | Cómo la comprobé | Resultado |
+|---|---|---|
+| **M-01 / E-3:** con `css: { include: [/…tokens\.css\?raw$/] }`, `tokens.css?raw` llega con su texto y el resto del CSS sigue vacío (Vitest 4.1.11) | Leí `CSSEnablerPlugin` (`cli-api.CnMVyzaz.js`, 10020-10050) y `defaults.9aQKnqFk.js:68`. Además, corrí Vitest con una configuración del scratchpad (la de `vite.config.ts` más esa `include`): `tokens.css?raw` contiene `--background` e `index.css?raw` llega como `""`. Contraprueba con `css: false`: `tokens.css?raw` llega vacío y la aserción falla | **Confirmada.** La condición de parada de §D-2 no debería dispararse |
+| `vite:css` y `@tailwindcss/vite` excluyen `?raw`; `vite:asset` lo carga como texto | `node.js:717` (`SPECIAL_QUERY_RE`), 29241-29245 y 31838-31856; `@tailwindcss/vite`, expresión `D` | Confirmada |
+| `?raw` tiene tipo sin tocar `tsconfig` | `tsconfig.app.json` carga `vite/client`, que declara `*?raw` | Confirmada |
+| **`in-data-[material=opaco]:` existe en Tailwind 4.3** | Compilé con `@tailwindcss/node` 4.3.3 y el tema anulado del plan | **Confirmada:** genera `:where([data-material="opaco"]) .x`, así que no suma especificidad y la variante se emite después de `.vidrio-fuerte`. `in-data-[…]:hover:bg-muted` y `hover:vidrio-fuerte` (el `ghost`) también generan CSS. No hace falta la alternativa arbitraria |
+| La anulación deja sin CSS las escalas por defecto | La misma compilación | `text-sm`, `rounded-lg`, `shadow-sm`, `font-semibold`, `backdrop-blur-md`, `bg-white` y `text-black` no generan CSS. `rounded-full`, `bg-transparent`, `border-transparent`, `font-medium`, `font-bold` y `leading-tight` sí. `text-h1` lleva tamaño, interlineado, interletraje y peso. `tracking-tight` y `leading-none` siguen generando CSS (su escala se conserva); quitarlos es correcto, porque pisarían el interletraje y el interlineado del token |
+| **`--warning` sobre vidrio: 4.52** | Recalculé con el método de §3 (4 fondos con velo, 3 variantes de saturación) | **4.520**, peor caso: orbe azul con saturación en lineal. Todos los demás pares coinciden con `DESIGN.md` §3. Además: `--accent-soft-glass` sobre vidrio azul, 4.594; `--danger` sobre vidrio, 4.346 (como icono pasa 3:1); `--destructive` sobre `--danger-soft`, 5.575; blanco sobre `--primary` y sobre `--destructive`, 9.259 y 6.844 |
+| **Rojos previstos: 6 + 3** | Leí `cuentas-r2/r3/r4.ataque` y busqué dependencias de `disabled`, de clases y de `textContent` en todas las pruebas | **Confirmada.** `emularCorreccionDelFocoDeChromium` aparece en r3:459 y 483 y en r4:346, 376 y 434 (5). La 4.ª `it.fails`, en r4:284, no la usa y pasará con F-2 (1). `closest("div.rounded-lg")` está solo en r2:290, r3:449 y r4:461 (3). Ninguna otra prueba depende de clases, de `aria-busy` ni de `disabled`, salvo `login-view.test.tsx:151/157`, que adapta el programador. Las `toHaveAccessibleDescription` exactas siguen pasando con el icono `aria-hidden` de `ErrorDeCampo` |
+| 13 botones con `disabled={…}` | Búsqueda en `src/` | Son 13, en los archivos que lista el plan |
+| Inventario de clases | Búsqueda de las escalas anuladas | Los 25 archivos que las usan están todos en el plan. `layout-publico.tsx` y las guardas de `app/` no tienen ninguna, así que es correcto que estén en "No se toca" |
+
+### Antecedentes de la dirección C: atendidos
+- **M-01:** resuelto con E-3 y verificado arriba.
+- **M-02:**
+  - `listaAnuncios` ya no toca `data.ts`: se usa `aria-labelledby` (S-04).
+  - El `h1` del login no se parte en 01a. En 01b, el nombre del producto sale de `components/layout/data.ts`.
+  - V-08 recorre la lista entera, excepciones incluidas, y `setup.ts` está en "No se toca".
+- **M-03:** el carril quedó fijado por el humano (respuesta 6).
+- **M-04:** la tabla "Cierre de cada subentrega" reparte entre 01a y 01b los puntos H, las marcas, los textos de `CLAUDE.md` y `ESTADO.md`, las rondas y los nombres de las secciones.
+- **N-01 a N-06:**
+  - las `toBeEnabled` se refuerzan en la ronda 1;
+  - interletraje con el guion ASCII, y la escala entra en `tokens.test.ts`;
+  - V-06 es más amplia;
+  - ronda 0 con `git diff --quiet` y `git status`; Espacio en H-05;
+  - los `.woff` son esperables;
+  - R-01 y los aplazados tienen destino en ESTADO.
+- **Menores:**
+  - `renderContenido` con retornos tempranos;
+  - "Copiar" sin guarda, justificado;
+  - la regla de formateadores vale para todos los agentes;
+  - la barra con un solo destino se avisa en 01b.
+
+**Reglas de D3 que pidió el humano:**
+- **Orbes solo con `transform`:** 01b, con prueba sobre los `@keyframes`.
+- **Pantallas densas opacas:** contexto `data-material="opaco"` en todo `/admin`. El gradebook usará el mismo mecanismo.
+- **Rojo nunca como texto sobre vidrio al 62 %:** `ErrorDeCampo` sobre `--danger-soft`, más V-13.
+- **Contraste AA medido en navegador:** ver el apartado siguiente.
+
+**Cómo concilia el plan el contraste medido en navegador con la regla de `AGENTS.md`:**
+- Ningún agente abre un navegador ni propone uno sin interfaz, que además sería una dependencia nueva (S-01).
+- La medición la hace el humano en su navegador, con un procedimiento paso a paso (H-09, C-01 a C-12).
+- El orquestador solo transcribe y calcula los pares que no son texto a partir de los hexadecimales que le dicte el humano.
+- El peor caso calculado lo cubre `tokens.test.ts`.
+- Queda un límite, y el plan lo declara: en 01a el fondo es plano, así que H-09 no mide sobre los orbes. El peor caso real se mide en 01b, desplazando el orbe con `translate` desde DevTools.
+
+Me parece la conciliación correcta.
+
+## Problemas que bloquean
+Ninguno.
+
+## Problemas que no bloquean
+
+### M-01 — La precondición `HEAD = 6868e4d` detiene todo si alguien hace commit de los documentos antes de programar
+Dónde: §D-8, paso 1; "Pasos", paso 1.
+Por qué importa: el tester y el programador se detienen si `HEAD` no empieza con `6868e4d`. En el carril sensible, el orquestador escribe `aprobacion.md`. Si el humano hace commit de la carpeta de trabajo, o de cualquier otro documento, en la rama antes de la ronda 0, la precondición falla sin que haya ningún problema real, y se pierde una vuelta.
+Qué se espera: una de dos. O el plan comprueba que `frontend/` no cambió respecto de `6868e4d` (`git diff --quiet 6868e4d -- frontend/`) además de `git status`, o dice de forma explícita que no se hace commit en la rama hasta cerrar 01a.
+
+### M-02 — V-01 mezcla "32" con "desde `frontend/`"
+Dónde: "Verificaciones", V-01 (plan:625); §D-8, paso 2 (plan:268); "Tareas de la ronda 1" (plan:288).
+Por qué importa: V-01 dice "las 32 `*.ataque`" y a la vez que todas las verificaciones van "desde `frontend/`", donde solo hay 11. Las otras 21 están en `backend/`. Un programador que lo siga al pie de la letra obtiene 11 hashes y se detiene, o compara rutas relativas que no coinciden con la tabla.
+Qué se espera: V-01 se ejecuta desde la raíz sobre las 32 rutas de la tabla (`sha256sum -c` da 32/32). La ronda 0 puede seguir con las 11 de `frontend/`.
+
+### M-03 — Notas para `plan-01b.md` que conviene fijar ya
+Dónde: "DESIGN-01b · resumen".
+- **`backdrop-filter` crea bloque contenedor.** Según Filter Effects 2, y así lo hace Chromium, un elemento con `backdrop-filter` distinto de `none` se vuelve el bloque contenedor de sus descendientes `position: fixed`. `FondoAnimado` y la barra inferior fija no pueden quedar dentro de ninguna superficie de vidrio, o se pegarán al panel y no a la ventana. `plan-01b.md` debe decir dónde se montan y comprobarlo.
+- **Guardas en carril normal.** El resumen prevé tocar `app/require-rol.tsx` y `app/router.tsx`. `require-rol.tsx` contiene la redirección de RN-03 (acceso restringido) y la del cambio obligatorio de contraseña. Las dos son materia del carril sensible. Con P-07 (A), 01b sigue en carril normal solo si esas ramas de redirección no cambian. `plan-01b.md` debe declararlas intocables o reabrir el carril (ver "Para el humano").
+- **Contraste en 01b.** La lista del peor caso sobre los orbes no incluye `--warning`, el par con menos margen (4.52). Si alguna pantalla de 01b pone texto de aviso sobre vidrio, se agrega.
+
+## Detalles menores
+- **`FichaDeCuenta`** (§D-6, plan:260): la nueva raíz se describe como `rounded-panel border border-border bg-surface p-4`. Debe conservar `flex flex-col gap-3`; si no, se pierde la separación entre bloques. Conviene decir "sustituye `rounded-lg` por `rounded-panel` y agrega `data-slot`".
+- **Tamaño `enlace`:** hereda `whitespace-nowrap` de la base del botón. El enlace más largo ("¿Ya tienes cuenta? Inicia sesión", unos 245 px) cabe en los 280 px útiles a 360 px, pero sin margen. `whitespace-normal` en ese tamaño lo evita para el futuro.
+- **Títulos de los anuncios** en `text-body` por debajo de `lg`: sin peso propio, pasan de semibold a 400. Si se quiere conservar la jerarquía, agrega `font-bold` o `font-medium`. Se juzga en H-10.
+- **`ContrasenaTemporal`** (`bg-muted`, `rounded-row`, temporal en `text-h3`): es un tratamiento propio del admin. No hace falta un patrón nuevo en `DESIGN.md`, pero conviene una línea en §8 o en §7.10 si se repite.
+- **`CONTEXTO_POR_ROL`** queda en línea en `contenedor-rol.tsx`, igual que `ESPACIADO_POR_ROL`. Cuando 01b cree `components/layout/data.ts`, las dos constantes deberían mudarse ahí.
+- **`NOMBRE_PRODUCTO`** (01b) duplica `TEXTOS_LOGIN.titulo`. Es aceptable, porque `components/layout` no puede importar de `features/`. La fuente única sería que `features/auth/data.ts` lo importara de `components/layout/data.ts`, lo que toca un `data.ts` de `features/`. Se decide en `plan-01b.md`.
+- **`--background-veil`:** el plan no dice si genera `--color-background-veil`. Sin consumidor en 01a, da igual; que lo decida 01b.
+
+## Desacuerdos arbitrados
+- **Los 9 rojos previstos (6 aceptados, más 3 si P-08 es A).** Los comprobé uno por uno (tabla de arriba), y las cuatro condiciones de `revision-direccion-c.md` siguen vigentes tal como las transcribe el plan (plan:617-621). Añado una precisión a la condición 2: "falla por otra causa o en otra línea" se refiere a la línea de preparación de la tabla (144 en r3 y r4; 291, 450 y 462 para `rounded-lg`) y, en la 6.ª, a que la prueba pase.
+- **Las 3 `it.fails` que "fallan por la razón equivocada"** (r4:208, 232 y 256): no cuentan como rojos del programador. Las resuelve el tester en la ronda 1, como dice el plan.
+
+## Documentos a actualizar
+Los que lista "Cierre de 01a" son correctos y completos: `DESIGN.md` con sus marcas, `CLAUDE.md` con el texto literal, `ESTADO.md` §1 a §3 y `README.md`, línea 228. Solo agrego:
+- **`ESTADO.md` §3:** la nota de `backdrop-filter` y el bloque contenedor, como riesgo de 01b (M-03), si `plan-01b.md` no se escribe enseguida.
+- **`AGENTS.md`, `.claude/agents/*.md` y `docs/ARCHITECTURE*.md`:** sin cambios, de acuerdo.
+
+## Para el humano
+
+**P-07 · Reparto entre 01a y 01b. Opinión: (A).**
+- Que la migración de clases vaya en 01a no es una elección: anular las escalas deja sin estilo cualquier archivo sin migrar en el mismo cambio.
+- `enEspera` es comportamiento del `Button` base, y es la razón por la que elegiste carril sensible para 01a. T-14 tiene la misma causa.
+- Marco y composición deben ir con los orbes, porque hoy hay textos directamente sobre el fondo, y con orbes en movimiento esos textos no se sostienen.
+- (B) haría crecer mucho el diff que revisas a mano, y la composición se juzgaría sin el fondo real.
+- **Condición que recomiendo al elegir (A):** 01b se queda en carril normal solo si no cambia ninguna rama de redirección de `require-rol.tsx`, `require-sesion.tsx` ni `require-cambio-de-contrasena.tsx` (acceso restringido, sesión y cambio obligatorio). Si `plan-01b.md` necesita tocarlas, pasa a sensible.
+
+**P-08 · Pruebas que localizan la ficha por `rounded-lg`. Opinión: me inclino por (B); (A) es aceptable.**
+- Las 3 pruebas afectadas (r2:279, r3:432 y r4:449) vigilan justo lo que 01a reescribe: la raíz única de `AccionRestablecer`, que la temporal no pase de una cuenta a otra y el foco con `<StrictMode>`.
+- **Con (A):** fallan en la preparación durante todo el trabajo del programador, así que no le avisan si rompe algo; el tester lo detecta en la ronda 1, a costa de una de las tres rondas.
+- **Con (B):** siguen vivas desde el principio, y el programador queda con los 6 rojos que ya aceptaste. El cambio del selector es mecánico, se comprueba contra el código actual y queda sellado con hash.
+- **Costo de (B):** la ronda 0 deja de ser solo de confirmación, y el arquitecto tiene que ajustar §D-8, E-4, V-01 (la base de hashes pasa a ser la de la ronda 0) y la tabla de rojos.
+- **Si prefieres el proceso más simple, (A) funciona.** (C) no: una clase sin efecto, solo para las pruebas.
+
+**P-09 · Orbes quietos en las demás pantallas. Opinión: (A).**
+- Es lo que dicen `DESIGN.md` §7.1 y D-28, aprobados el mismo día.
+- (B) obligaría a cambiar la fuente única y rompería la continuidad visual entre `/login` y `/registro`, que comparten composición.
+- No bloquea 01a.
+
+**Decisiones nuevas (se confirman en tu comprobación; no bloquean el plan):**
+- **Anillo de foco interior y blanco en los botones rellenos (S-07 y R-14).** Es una interpretación de `DESIGN.md` §6, que no la dice de forma literal. Irá como "propuesta"; la apruebas o la corriges en H-04.
+- **Texto de 16 px en los campos del admin (S-09).** `DESIGN.md` §8 dice "texto de 14 px" para el administrador. El plan conserva 16 px en los campos para que iOS no amplíe la página al enfocarlos. Irá como "propuesta"; la confirmas en H-03.
+- **No hagas commit en la rama antes de que empiece la ronda 0,** o autoriza el ajuste de M-01. Si no, el tester se detiene por la precondición de `HEAD`.
+
+## Revisión de los ajustes (respuestas P-07 a P-09)
+
+Veredicto: CAMBIOS REQUERIDOS, por un solo punto (M-04), de una o dos líneas en V-08. Todo lo demás de los ajustes está bien, y cuando M-04 quede corregido el plan puede ir a tu aprobación por escrito sin otra ronda completa: me basta revisar esa corrección.
+
+Verificación propia (sin tocar el repositorio; los experimentos corrieron en el scratchpad):
+- **`git status`:** solo `.claude/agents/tester.md`, `docs/DESIGN.md` y `docs/ESTADO.md` modificados (los cambios del orquestador) y esta carpeta sin rastrear. `frontend/` sigue idéntico a `6868e4d`.
+- **`fichaDe` antes del cambio.** Copié `cuentas-r2`, `-r3` y `-r4` al scratchpad y sustituí los 3 selectores por el auxiliar, con el texto exacto de §D-8 paso 7. Agregué además dos aserciones temporales: que `fichaDe` devuelve el abuelo del nombre y que ese elemento es el mismo `div.rounded-lg` que encontraba el selector anterior. Corrí las copias con la configuración de Vitest del proyecto contra el código de `6868e4d`: **3 archivos, 39 en verde y 4 fallos esperados**, lo mismo que las originales.
+- **`fichaDe` después del cambio (01a).** Aquí no hay corrida posible, porque el código de 01a todavía no existe. Lo compruebo por estructura con §D-6:
+  - la raíz de la ficha conserva el `div` del nombre, la raíz única de `AccionRestablecer` y `FormularioCorregirCorreo`;
+  - el `div` del nombre no contiene el formulario, así que el recorrido hacia arriba se detiene en la raíz de la ficha;
+  - la ficha es hermana del formulario "Buscar" dentro del contenedor del buscador, así que la guarda no se dispara.
+- **Formularios:** "Guardar correo" existe siempre, también después de corregir el correo (el formulario sigue montado y solo agrega el aviso), así que r2:279 lo encuentra. Los `aria-label` salen de `TEXTOS_CUENTAS` ("Buscar", "Guardar correo", "Enviar invitación"), y 01a no toca `data.ts` (S-03).
+- **Clases en las `*.ataque`:** hoy solo hay 3 apariciones de `rounded` en todas ellas, justo las que cambia la ronda 0, así que "`rounded` en `*.ataque` → 0" es alcanzable. Los otros localizadores (`closest("div")`, `querySelector("svg")`, `[role="status"]`) son por etiqueta HTML o por rol, no por clase.
+
+### Problemas que bloquean
+
+#### M-04 — V-08 da una violación segura en `.claude/` y en `docs/ESTADO.md`, y otra en `docs/trabajo/` si se hace commit
+Dónde: "Verificaciones", V-08 (plan:665), aplicada a la lista "No se toca" (plan:119-124).
+Por qué importa:
+- V-08 exige, para cada ruta de "No se toca", `git diff --quiet 6868e4d -- <ruta>` con código 0. Pero `.claude/` ya difiere de `6868e4d`: el orquestador agregó la regla en `tester.md`, con tu autorización. `docs/ESTADO.md` también difiere, y el orquestador lo sigue actualizando durante el encargo (`AGENTS.md`).
+- Si haces commit de los documentos del plan antes de la ronda 0, como anunciaste, `git diff 6868e4d -- docs/trabajo/` también sale distinto de 0, porque la carpeta de DESIGN-01 aparece como nueva. Y la guarda "no cambian respecto de su última versión confirmada" de `plan.md` y de los antecedentes no dice contra qué se compara.
+- En carril sensible, el programador reportaría una violación de "No se toca" que no existe, o se detendría. Eso es justo lo que pediste evitar: que ninguna verificación dependa de `docs/` ni de `.claude/`.
+
+Qué se espera:
+- **Rutas de `frontend/` y `package-lock.json`:** V-08 sigue comparando contra `6868e4d`.
+- **Rutas fuera de `frontend/`:** V-08 compara contra el commit en que apruebas el plan. El orquestador lo registra en `aprobacion.md`. Así cubre también `plan.md`, `plan-direccion-c.md` y `revision-direccion-c.md`.
+- **`docs/trabajo/`:** la ruta excluye de forma explícita la carpeta de DESIGN-01 (por ejemplo, con `':!docs/trabajo/DESIGN-01-sistema-de-diseno'`).
+- **Archivos del orquestador:** `docs/ESTADO.md`, `aprobacion.md` y `comprobacion-humano.md` quedan fuera de la comprobación del programador; los verifico yo en la revisión final.
+
+Las demás precondiciones y verificaciones cumplen tu condición, y las revisé una por una:
+- **§D-8, pasos 1, 6 y 8:** se ejecutan desde `frontend/` con la ruta `.`, así que solo miran `frontend/`.
+- **Paso 1 del programador:** compara `frontend/` contra `6868e4d` y acepta solo los 3 archivos de la ronda 0; su "como mucho" tolera que hagas commit de ellos.
+- **V-01:** compara hashes de archivos concretos, desde la raíz.
+
+Ninguna de estas depende de `HEAD`, de `docs/` ni de `.claude/`.
+
+### Problemas que no bloquean
+- **`fichaDe` y la regla de `tester.md`.** Cumple la regla: solo usa texto, rol y nombre accesible, más un recorrido del árbol del DOM, sin clases ni atributos nuevos.
+- **Aserciones.** No debilita ninguna: todas quedan iguales, dentro del mismo `within(ficha)`. La guarda contra "Buscar" evita que se tome por ficha un contenedor más amplio.
+- **Holgura teórica.** Si un cambio futuro envolviera la ficha y otro contenido que no fuera el buscador, `fichaDe` devolvería un contenedor más amplio sin avisar. Con una sola ficha en pantalla no cambia ningún resultado, y R-15 deja la salida duradera (rol y nombre accesible en la ficha) para ADMIN. Aceptable.
+- **Tabla de rojos.** Cuadra: 6. Las 3 pruebas de la ficha deben quedar en verde en la entrega del programador. Con F-2, r3:432 sigue llevando el foco a "Copiar", porque el elemento activo, "Sí, restablecer", está dentro de la raíz; r2:279 y r4:449 no dependen de `disabled`. Las 3 `it.fails` que fallan en la preparación no cuentan.
+- **Orden de la ronda 0.** Es correcto: se restaura r4 y se comprueba su hash (paso 6) antes de editar los selectores (paso 7), y el paso 8 reconstruye la línea base completa (258 pruebas).
+
+### Cambios del orquestador (comprobados)
+- **`.claude/agents/tester.md`:** la viñeta está en "Reglas de combate", con el texto que dictaste. El plan la cita igual en E-4, §D-8, los puntos de ataque y R-08, y no hay nada que la contradiga. Esto rompe V-08, pero por la forma de V-08, no por la regla (ver M-04).
+- **`docs/DESIGN.md` §8:** la fila del administrador dice "texto de 14 px (16 px en campos de texto)", y el párrafo sobre Safari en iOS está bien redactado. Coincide con §7.3 ("texto `--text-body`" en los campos) y con S-09. El plan le prohíbe al programador tocar ese texto y le deja agregar "(44 px por debajo de 768 px)" en la misma fila: son compatibles.
+
+### Excepciones y "No se toca" (M-02)
+- **Tester:** la ronda 0 edita `cuentas-r2`, `-r3` y `-r4`, y E-4 lo cubre con su alcance exacto (el auxiliar, las dos líneas de cada archivo, sin aserciones).
+- **Programador:** todo lo que modifica está fuera de "No se toca" o bajo una excepción:
+  - `providers.tsx`, `contenedor-rol.tsx`, `features/admin/lib.ts`, `main.tsx` y `lib/utils.ts` no están en la lista;
+  - las 3 pruebas normales que adapta figuran como excepción;
+  - `DESIGN.md` va por E-5;
+  - las dependencias van por E-1 y E-2, y `vitest.config.ts` por E-3.
+- **Orquestador:** el cierre asigna `CLAUDE.md`, `ESTADO.md` y `README.md`, que están fuera del trabajo del programador, y el plan ya no pide cambios en `.claude/`.
+
+### Detalles menores
+- **Seguimiento de la primera revisión.** Siguen sin atender dos detalles menores: `whitespace-nowrap` en el tamaño `enlace` y el peso de los títulos de los anuncios en `text-body`. No bloquean; se juzgan en H-10.
+- **§D-8, paso 7.** Prettier puede partir el `while` del auxiliar en varias líneas. El diff seguirá siendo "solo el auxiliar y la sustitución", pero conviene que el tester no lo tome por una desviación.
+
+### Para el humano
+**Condición de detención de 01b, extendida por el arquitecto. Opinión: de acuerdo.**
+- `require-sesion.tsx` decide la sesión y `require-cambio-de-contrasena.tsx`, el cambio obligatorio; las dos son materia del carril sensible ("sesiones y contraseñas"), igual que la redirección de acceso restringido de `require-rol.tsx`.
+- Extender la condición a `router.tsx` (rutas, `path`, orden y guardas) también es correcto, porque ahí se decide qué guarda protege cada ruta.
+- La única entrada que queda abierta es agregar una ruta de diseño que envuelva a las demás. Recomiendo que `plan-01b.md` la haga verificable:
+  - el diff de `router.tsx` solo agrega ese elemento envolvente;
+  - `router.test.tsx`, `router.ataque.test.tsx`, `sesion-r2.ataque.test.tsx` y `app/cuentas-r*.ataque.test.tsx` siguen en verde sin modificarse.
+
+**Antes de aprobar el plan de 01a por escrito:**
+- **M-04 debe quedar corregido,** porque si no, la verificación de "No se toca" dará una violación falsa en `.claude/` y en `docs/ESTADO.md`.
+- **Haz commit de los documentos antes de la ronda 0,** como anunciaste, y que el orquestador anote ese hash en `aprobacion.md`. V-08 lo usará como base para todo lo que está fuera de `frontend/`.
+- **La ronda 0 ya no es solo de confirmación.** Además de confirmar T-14, el tester modifica 3 pruebas de ataque (solo el localizador de la ficha) y publica sus hashes nuevos. Es lo que elegiste en P-08 (B).
+- **El programador entrega con 6 rojos previstos,** los que aceptaste. Las 3 pruebas de la ficha deben estar en verde.
+- **01b sigue en carril normal** con la condición de detención extendida.
+
+### Revisión de la corrección de M-04
+
+Veredicto: CAMBIOS REQUERIDOS, por una frase (M-05). Con esa frase corregida, M-04 queda resuelto y el plan puede ir a la aprobación por escrito del humano; conviene aplicar M-06 en la misma edición.
+
+M-04 queda resuelto en lo esencial:
+- **Dos bases.** V-08 usa `6868e4d` para `frontend/` y `package-lock.json`, y `<A>` para todo lo demás. Como `<A>` ya contiene la regla de `tester.md` y el §8 de `DESIGN.md`, desaparecen las violaciones falsas.
+- **Documentos del plan.** `plan.md`, `plan-direccion-c.md` y `revision-direccion-c.md` se comparan uno por uno contra `<A>`.
+- **`DESIGN.md`.** La excepción E-5 también se mide contra `<A>`.
+- **Archivos fuera de V-08.** `ESTADO.md`, `aprobacion.md`, `comprobacion-humano.md` y los entregables de los agentes quedan fuera, y la revisión final los cubre (paso 16).
+
+Comprobé las demás condiciones que me pidió el orquestador:
+- **Ninguna comprobación depende de `HEAD`.** `git diff <base>` compara el árbol de trabajo contra la base, así que un commit posterior no cambia el resultado. `git status --porcelain` solo añade la detección de archivos sin rastrear o modificados, que es lo que se busca.
+- **La parada por `<A>` ausente es precisa:** falta el hash en `aprobacion.md`, o `git cat-file -e` no encuentra ese commit.
+- **La exclusión con pathspec funciona tal como está escrita.** La probé en Git Bash y en PowerShell 5.1.26100: `git status --porcelain -- docs/trabajo ':(exclude)docs/trabajo/DESIGN-01-sistema-de-diseno'` deja fuera la carpeta sin rastrear de DESIGN-01, y `git diff --quiet 6868e4d -- …` con la misma exclusión sale con código 0 en las dos terminales.
+
+#### M-05 — V-08 pone al orquestador a hacer commit (bloquea)
+Dónde: V-08, "Condiciones de parada" (plan:677): "Si el orquestador cambia con autorización un archivo fuera de `frontend/`… lo confirma en un commit y anota su hash".
+Por qué importa: `AGENTS.md` dice que ningún agente hace commit ("El humano decide commit y despliegue. Ningún agente hace commit, push ni deploy"; "No hagas commit ni push sin que se te pida"). El orquestador no es una excepción.
+Qué se espera: una redacción que no le pida el commit a ningún agente. Por ejemplo: "Si durante el encargo cambia con autorización un archivo fuera de `frontend/` distinto de los tres de arriba, el orquestador le pide al humano que haga ese commit y anota el hash nuevo en `aprobacion.md`. Mientras no exista, V-08 marcará ese archivo: el agente se detiene y pregunta, sin darlo por bueno".
+
+#### M-06 — `git cat-file -e <A>^{commit}` sin comillas falla en PowerShell 5.1 (no bloquea)
+Dónde: paso 1 del programador (plan:780) y V-08 (plan:677).
+Por qué importa: `AGENTS.md` declara PowerShell 5.1 como la terminal del proyecto, y en ella las llaves sin comillas se interpretan como un bloque de código. Lo comprobé: `git cat-file -e 6868e4d^{commit}` sale con código 129 ("unknown switch `n'"), aunque el commit existe. Quien ejecute el paso en PowerShell se detendría por una ausencia de `<A>` que no es real. En Git Bash funciona.
+Qué se espera: la forma con comillas simples, `git cat-file -e '<A>^{commit}'`, que funciona igual en las dos terminales. La probé con `6868e4d`: código 0 en ambas; con un hash inexistente, código 128. Otra opción es que el plan diga que V-08 se ejecuta en Git Bash.
+
+## DESIGN-01a — final
+
+Veredicto: **APROBADO** (sin problemas que bloqueen). Antes del commit faltan los pasos del humano del carril sensible: confirmar la lista de 19, hacer la comprobación H-01 a H-10 y revisar el diff (ver "Para el humano").
+
+Verificación propia (2026-09-27, desde `frontend/`, salidas en el scratchpad):
+- **lint:** código 0 (ESLint, `prettier --check` y `tsc -b`).
+- **test:** código 0; **37 archivos, 494 pruebas, 494 en verde**, sin fallos esperados. Solo las `*.ataque` (`vitest run ataque`): 18 archivos, 266 pruebas.
+- **build:** código 0. Sigue el aviso de Vite del bloque de más de 500 kB, que ya existía en AUTH-02.
+- **V-01:** `sha256sum -c` de la tabla de 39 de `reporte-tester.md` ("DESIGN-01a — Ronda 1") da 39/39 OK. `find` encuentra exactamente 39 `*.ataque` y todas están en la tabla. Respecto de `6868e4d` solo cambiaron `features/admin/cuentas-r1`, `-r2`, `-r3` y `-r4`; las 7 nuevas están sin rastrear.
+- **V-02 a V-07 y V-13:** los mismos resultados que declararon el programador y el tester. Las únicas coincidencias de V-03 son el comentario de `tokens.css` y la expresión regular de `clases-r1.ataque.test.ts`, que es el texto de la guarda y no un localizador. `enEspera=` aparece 13 veces, `disabled` no aparece en ningún JSX de producción y `outline-none` solo en `DialogContent`.
+- **V-08:** limpia con las dos bases. Contra `6868e4d`, todas las rutas de `frontend/` de "No se toca"; las únicas pruebas normales modificadas son las 3 permitidas; `package.json` cumple E-1 y `vitest.config.ts` es exactamente E-3. Contra `5a32230`, fuera de `frontend/` solo cambian `docs/DESIGN.md` (E-5), `docs/ESTADO.md`, `aprobacion.md`, `reporte-tester.md`, `resumen-programador.md` y `package-lock.json`.
+- **V-09 y V-10 sobre `dist/`:** 6 `.woff2` y 6 `.woff`, todos `latin`, ninguno `latin-ext` y sin Google Fonts. En el CSS no queda ningún `--color-*` de la paleta por defecto, y aparecen los 15 selectores y valores que pide V-10 (también `data-material=opaco` en la variante del botón `outline`).
+- **`package-lock.json`:** comparé el JSON de `6868e4d` con el del árbol de trabajo, entrada por entrada, con un script del scratchpad. Resultado: **19 entradas pierden `"peer": true`** y son exactamente las 19 que lista `aprobacion.md`. Ninguna entrada gana `peer` ni se borra. Solo hay 3 entradas nuevas (`@fontsource/*` 5.3.0). Fuera de `peer` solo cambia la sección `frontend` (las 3 dependencias de E-1), y la raíz del JSON queda igual.
+
+### Cumplimiento del plan (01a)
+- **Alcance:** están los 11 puntos de "DESIGN-01a" y nada de 01b: sin orbes, sin marco, sin `FondoAnimado` y sin cambios en `layout-publico.tsx`, las guardas ni `router.tsx`.
+- **§D-1 a §D-4:** `tokens.css` tiene los seis bloques en el orden del plan, las diez anulaciones, la escala con el guion ASCII, los radios y `@theme inline` con todos los colores. Las tres utilidades de vidrio tienen su respaldo con `@supports not`, el contexto opaco redefine las siete variables y la densidad corta en 48rem. Los hexadecimales van en minúsculas porque así los deja Prettier; el tester lo explicó y lo acepto.
+- **§D-5:** `Button` con `enEspera` hace lo que dice el plan: `aria-disabled`, `aria-busy` y `data-en-espera` solo cuando está en espera; el clic interceptado con `preventDefault`; el indicador `aria-hidden` con `motion-reduce:animate-none` antes del texto; `asChild` incompatible por tipo. Las guardas `isPending` y `enviandoRef` se conservan.
+- **§D-6:** en `ficha-de-cuenta.tsx` ya no están `tieneFocoRef`, `manejarFoco`, `manejarDesenfoque` ni los `on*Capture`. El foco se decide en `onSuccess` y `onError` con `focoDisponiblePara(raizRef.current, document.activeElement, document.body)`. Hay una sola raíz, y `renderContenido` usa retornos tempranos. La raíz de `FichaDeCuenta` solo cambió `rounded-lg` por `rounded-panel`, y se mantienen las invariantes de R-08.
+- **§D-7 a §D-9:** `ErrorDeCampo`, `Label`, `Toaster` (lo importa solo `providers.tsx`) y el foco global en `index.css` coinciden con el plan. Los botones rellenos llevan el contorno interior.
+- **Capas y reglas que no se rompen:** sin cambios en backend ni en API, sin secretos, sin proveedores nuevos. Las fuentes se sirven desde el propio origen y las dependencias nuevas tienen licencia OFL.
+
+### Comparación de `cuentas-r1` a `cuentas-r4.ataque` contra `6868e4d`
+Revisé el diff línea por línea; en r4 también con `git diff -w`, porque Prettier reindentó los cuerpos.
+- **r1** (+4): debajo de las dos `toBeEnabled()` de "Copiar" agrega `not.toHaveAttribute("aria-disabled")`, cada una con su comentario de N-01. No quita nada.
+- **r2** (ronda 0): solo el auxiliar `fichaDe` y la sustitución de las 2 líneas de `closest("div.rounded-lg")`. Es igual al texto de §D-8, paso 7.
+- **r3:**
+  - `fichaDe` y su sustitución, como en r2;
+  - N-01 en r3:402-403, sin quitar la `toBeEnabled` original;
+  - `emularCorreccionDelFocoDeChromium`: sale la emulación del salto a `<body>` y entran 5 aserciones de F-1 (`aria-disabled`, `aria-busy`, `not.toBeDisabled`, sin atributo `disabled` y el foco en el botón).
+- **r4:** los mismos tres cambios que r3 (N-01 en r4:360-361). Además, las 4 `it.fails` pasan a `it`: su nombre, su preparación y su `expect(document.activeElement, …)` final no cambian; solo cambian la línea `it(`, el cierre y el comentario.
+- **Ninguna aserción final se debilitó.** Lo que se quitó del auxiliar de Chromium era preparación y, como pide §D-8, ahora exige F-1. Así, las 7 pruebas que lo usan comprueban además que el botón en vuelo conserva el foco. El camino "foco en `<body>`" sigue cubierto:
+  - en r4:287, con `clicEnZonaNoEnfocable`;
+  - en 5 pruebas de `foco-r1.ataque`: clic fuera y otro campo, con éxito y con 500; clic fuera sin ir a otro campo, con éxito y con 500; y la variante con `<StrictMode>`.
+- **Ningún localizador por clase de estilo** en las cuatro.
+
+### Las 7 `*.ataque` nuevas
+- **Localizadores:** usan rol, etiqueta y texto accesible. Los únicos selectores CSS son atributos: `[data-material]` y `[data-densidad]` en `contexto-r1`, que es justo lo que ataca; y en `errores-r1`, `input[aria-invalid]` y `svg[aria-hidden]`. Ninguno usa clases de estilo. No hay `skip`, `only`, `todo` ni `fails`.
+- **Atacan de verdad:**
+  - `en-espera-r1`, en `app/` y en `features/admin/`: los 13 botones (más "Cerrar sesión" en cuatro contextos), con clic repetido, `submit`, `requestSubmit` y doble clic en el mismo instante. Comprueban la salida de la espera con éxito y con error.
+  - `foco-r1`: F-2, F-3 y F-4 en 12 escenarios.
+  - `contexto-r1`: el contexto opaco solo en `/admin` y en todos sus controles.
+  - `errores-r1`: la descripción accesible de cada error.
+  - `tokens-r1`: los valores contra las tablas de `DESIGN.md`, leídas del propio documento, y el contraste de pares sólidos que el plan no listaba.
+  - `clases-r1`: V-02 a V-07 y V-13 como guarda permanente.
+- **La tabla de 39 hashes es correcta** (V-01, arriba).
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+
+#### M-01 — La prueba "escenario 4 de T-14" de `cuentas-view.test.tsx` no hace lo que dice su nombre
+Dónde: `frontend/src/features/admin/cuentas-view.test.tsx`, prueba "'Cancelar' con la petición en vuelo, clic fuera y foco en 'Nombre completo'…".
+Por qué importa: el plan pedía "'Cancelar' en vuelo, clic fuera (`blur()`), foco en 'Nombre completo' y llega la temporal". La prueba no pulsa "Cancelar" ni hace el clic fuera: solo enfoca "Nombre completo" con la petición en vuelo. Es otro escenario, que ya cubre r4:221. El nombre promete una cobertura que no da. El escenario real sí está cubierto, en `cuentas-r4.ataque:287` y en `foco-r1`, así que no se pierde protección.
+Qué se espera: que la prueba reproduzca el escenario que nombra (pulsar "Cancelar" y quitar el foco antes de ir al campo) o que cambie de nombre. Es un cambio de carril trivial. Puede ir con el paso 1 del cierre, que ya toca el programador, y después se corre `test`.
+
+#### M-02 — Las capas flotantes salen del contexto opaco y denso (O-1 del tester)
+Dónde: `components/ui/dialog.tsx`. Radix pinta el contenido en un portal a `<body>`, fuera de `ContenedorRol`.
+Por qué importa: un `Button` `outline` dentro de un diálogo abierto en `/admin` tendría `vidrio-fuerte` con `backdrop-filter` y 44 px de alto en escritorio, contra la regla "administrador sin vidrio" y la densidad de §8. Hoy no afecta: nadie usa `Dialog`, y `cuentas-r1.ataque` prohíbe los modales en `features/admin`. Tampoco es trabajo de 01b, que no monta capas flotantes.
+Qué se espera: un pendiente nuevo en `ESTADO.md` §3, con destino ADMIN o el primer encargo que monte un diálogo, popover o select en una pantalla densa. Ese encargo decide cómo heredan el material y la densidad. Una salida coherente con §7.11, que ya dice que las capas flotantes son opacas, es que `DialogContent` lleve siempre `data-material="opaco"`, y que la densidad se pase de forma explícita.
+
+#### M-03 — Marca adelantada en `DESIGN.md` §6 (O-2 del tester)
+Dónde: `docs/DESIGN.md` §6, viñeta "Botones rellenos…: (DESIGN-01a, propuesta, confirmada por el humano)".
+Por qué importa: el humano aceptó S-07 al planear, pero lo confirma en H-04. Además, "propuesta, confirmada por el humano" no es ninguna de las marcas de la tabla de cabecera.
+Qué se espera: después de H-04, en el paso 1 del cierre, la marca queda como "propuesta aprobada (fecha)", o se corrige si el humano prefiere el contorno azul por fuera (R-14).
+
+### Detalles menores
+- **`DESIGN.md` §7.3, campos:** dice "36 px en pantallas densas" sin el corte de 768 px que sí tienen la línea de los botones y §8. Conviene alinearlo en el cierre.
+- **`DESIGN.md` §7.3, error de un campo:** la frase "ni al formulario tener que garantizar que siempre está sobre vidrio fuerte o sólido" no se entiende bien. Redactarla de nuevo en el cierre, sin cambiar la decisión.
+- **O-3 (clases `.outline` y `.backdrop-filter` en `dist/`):** Tailwind las genera porque encuentra esas palabras en el código, pero ningún elemento las usa. No hay que hacer nada.
+- **O-4 (`cn("leading-tight", "text-small")` descarta `leading-tight`):** hoy no ocurre, porque `ContenedorRol` usa una cadena fija. Quien combine interlineado y tamaño con `cn` debe poner el tamaño primero.
+- **O-6 (peso 400 de Bricolage en el título de un anuncio en móvil):** el navegador toma el peso más cercano que sí está cargado (500), sin sintetizarlo. Lo juzga el humano en H-10, como ya decidió.
+- **`CONTEXTO_POR_ROL`, con su tipo en línea en `contenedor-rol.tsx`:** así lo autoriza el plan, y 01b lo mueve a `components/layout/data.ts`.
+- **`tokens-r1.ataque` lee `docs/DESIGN.md` con `?raw`:** una edición de las tablas del documento puede poner en rojo el frontend, y eso es deseable. Después de editar `DESIGN.md` en el cierre, hay que volver a correr `npm run test`.
+- **Proceso:** el tester escribió por error en `/tmp` y terminó un proceso que él mismo había arrancado. Lo reportó y no afectó al repositorio. Antes, el resumen del programador hablaba de "unas 15 entradas" de `package-lock.json`; la cifra correcta, 19, ya quedó registrada.
+
+### Desacuerdos arbitrados
+- **T-01 (tester) frente a la lista de 18 del orquestador:** tiene razón el tester. Recalculé la lista y son 19, idénticas a las de la corrección de `aprobacion.md`. Todas son bajas de `"peer": true`, sin cambios de versión, `resolved` ni `integrity`. Solo falta la confirmación del humano.
+- **Cambio de `emularCorreccionDelFocoDeChromium`:** es la adaptación que manda §D-8 y no debilita nada (ver la comparación de arriba). Queda aceptada.
+- **O-5 (lectura de V-06):** la interpretación del tester es correcta. "`aria-busy` y `aria-disabled` solo en `button.tsx`" se refiere a atributos JSX; la variante `aria-busy:cursor-progress` de `button-variants.ts` la pide el propio plan.
+- **V-03 y `rounded` en las `*.ataque`:** las 2 coincidencias son el texto de la guarda en `clases-r1`, no un localizador. Cumple el propósito de la regla.
+
+### Documentos a actualizar (cierre de 01a)
+- **`docs/DESIGN.md`** (programador, carril trivial, después de H-01 a H-10): las marcas "propuesta" que el humano apruebe pasan a "propuesta aprobada (fecha)"; el párrafo de §4 "Nadie las ha visto en pantalla todavía" se sustituye por el resultado de H-01; la fecha de cierre va en "Estado de aplicación". Se atienden también M-03 y los dos detalles de §7.3. Después, `npm run test` desde `frontend/`.
+- **`CLAUDE.md`** (orquestador, con autorización del humano): **los textos literales del plan ("Cierre de 01a", punto 2) están listos para aplicarse tal como están.** Comprobé cada afirmación contra el código:
+  - `enEspera`: `aria-disabled`, `aria-busy`, el indicador y la regla de `disabled`;
+  - la anulación de las escalas y `cn` en `lib/utils.ts`;
+  - las tres utilidades de vidrio con respaldo y el contexto `data-material` y `data-densidad`;
+  - `ErrorDeCampo` sobre `--danger-soft`;
+  - `label.tsx` y `sonner.tsx`, que solo importa `providers.tsx`.
+
+  No hace falta cambiarles nada.
+- **`docs/ESTADO.md`** (orquestador), según el punto 3 del cierre, más lo siguiente:
+  - **§1:** frontend con 37 archivos y 494 pruebas en verde (266 adversarias en 18 archivos); backend sin cambios, con 65 archivos y 657 pruebas (no se corrió: `backend/` no cambió y sus 21 hashes coinciden).
+  - **Pendiente nuevo de M-02** (portales fuera del contexto opaco y denso), con destino ADMIN o el primer encargo con capas flotantes en una pantalla densa.
+  - **Si M-01 no se corrige en el cierre,** un pendiente con su descripción.
+  - **Lo que ya está desactualizado** y se corrige al cerrar:
+    - en §2, "Siguiente paso: Tester, ronda 1 (en curso)";
+    - en §2, la descripción de la rama "sin commits propios" y la carpeta "sin rastrear";
+    - en §3, la fila "Dirección visual D3", con "falta el commit de los documentos";
+    - en §4, el estado de git local.
+  - **Se retiran de §3** las filas de MF-05 (el foco de los botones deshabilitados) y de T-14.
+- **`README.md`, línea 228** (orquestador): "El frontend tiene 37 archivos con 494 pruebas: 266 adversarias, en 18 archivos." Son los números de mi corrida.
+- **`aprobacion.md`:** dice lo que se decidió: aprobación, `<A>` = `5a32230`, decisiones, parada de V-08 y la corrección a 19. Falta anotar la confirmación del humano de la lista de 19.
+- **`comprobacion-humano.md`:** todavía no existe, como corresponde. El orquestador lo crea con el resultado de H-01 a H-10.
+
+### Para el humano
+Antes del commit (carril sensible):
+1. **Confirma por escrito la lista de 19 entradas** de `package-lock.json` que pierden `"peer": true`: `@babel/core`, `@csstools/css-parser-algorithms`, `@csstools/css-tokenizer`, `@electric-sql/pglite`, `@testing-library/dom`, `@types/react`, `@types/react-dom`, `@typescript-eslint/parser`, `acorn`, `browserslist`, `eslint`, `keyv`, `pg`, `prisma`, `react`, `react-dom`, `typescript`, `vite` y `zod`. Las verifiqué entrada por entrada: ninguna versión cambia, y lo único más son las 3 de `@fontsource/*` y la sección `frontend`. El orquestador anota tu confirmación en `aprobacion.md`.
+2. **Haz la comprobación H-01 a H-10** del plan en Chrome o Edge, a 1280 × 800 y a 360 × 800, incluida la tabla de contraste C-01 a C-12 (H-09). Ningún agente la hizo. Quedan sin verificar:
+   - el contraste medido;
+   - la apariencia del vidrio;
+   - las alturas de 36 y 44 px con el corte de 768 px;
+   - el foco blanco interior (H-04, que decide M-03);
+   - el movimiento reducido;
+   - el aviso de `sonner`;
+   - el envío con Enter desde un campo (H-05);
+   - T-14 en el navegador real (H-06).
+
+   Si un par de H-09 no pasa, se escala antes del commit. `/acceso-restringido` puede quedar "no verificada" si no tienes un estudiante restringido.
+3. **Revisa el diff.** En especial:
+   - `components/ui/button.tsx`;
+   - `features/admin/components/ficha-de-cuenta.tsx`;
+   - los 13 cambios de `disabled` a `enEspera`;
+   - `package-lock.json`;
+   - los diffs de `cuentas-r1`, `-r3` y `-r4.ataque` (resumidos arriba).
+4. **Decide M-01:** corregir la prueba en el cierre (recomendado, trivial) o dejarla como pendiente.
+5. **Al preparar el commit, incluye los archivos nuevos sin rastrear:** 8 del programador (`tokens.test.ts`, `utils.test.ts`, `button.test.tsx`, `label.tsx`, `sonner.tsx`, `error-de-campo.tsx` y su prueba, `contenedor-rol.test.tsx`), las 7 `*.ataque` de la ronda 1 y `resumen-programador.md`. Ningún agente hace commit.
+6. **R-12:** entre 01a y 01b, `main` queda con vidrio sobre fondo plano y la composición actual. Es lo esperado.
+
+## DESIGN-01a — cierre
+
+Veredicto: **CAMBIOS REQUERIDOS** (al programador), por dos correcciones pequeñas de token y de documento: M-01 y M-02. Lo demás del cierre está bien hecho. Cuando lleguen esas dos correcciones, las reviso yo sin ronda del tester (ver "Ronda 2 del tester").
+
+Verificación propia (2026-09-27, desde `frontend/`, salidas en el scratchpad):
+- **lint:** código 0 (ESLint, `prettier --check` y `tsc -b`).
+- **test:** código 0; **37 archivos, 496 pruebas, 496 en verde**. Solo las `*.ataque` (`vitest run ataque`): 18 archivos y 266 pruebas. Coincide con la corrida del orquestador.
+- **build:** código 0. Sigue el aviso de Vite del bloque de más de 500 kB, que ya existía.
+- **V-01:** `sha256sum -c` de la tabla de 39 de `reporte-tester.md` ("DESIGN-01a — Ronda 1") da 39/39 OK. `find` encuentra exactamente 39 `*.ataque` y todas están en la tabla: el cierre no tocó ninguna.
+- **V-02 a V-07:** ningún `ring-` ni `focus:` en `src/` fuera de pruebas. `outline-none` solo en `DialogContent`. Ningún valor arbitrario en los archivos del cierre. `enEspera=` aparece 13 veces. `border-2` solo en la variante `outline` opaca.
+- **V-08:**
+  - **Base `6868e4d`:** todas las rutas de `frontend/` de "No se toca" siguen iguales. Las únicas pruebas normales modificadas son las 3 permitidas. `package.json` solo tiene las 3 líneas de E-1 y `vitest.config.ts` es exactamente E-3.
+  - **Base `5a32230`:** fuera de `frontend/` solo cambian `CLAUDE.md`, `README.md`, `docs/DESIGN.md`, `docs/ESTADO.md` y esta carpeta. `CLAUDE.md` y `README.md` aparecen, como prevé la condición de parada de V-08, porque el orquestador los cambió con autorización. Los revisé abajo.
+  - **`package-lock.json`:** comparé el JSON de `6868e4d` con el del árbol entrada por entrada. **19 entradas pierden `"peer": true`**, las mismas 19 de `aprobacion.md`; ninguna gana `peer` ni se borra. Solo hay 3 entradas nuevas (`@fontsource/*`). Fuera de `peer` solo cambia la sección `frontend`, y la raíz del JSON queda igual. El cierre no tocó el lockfile.
+- **Contraste del borde, recalculado con un script propio** (el método de §3, escrito aparte, sin reutilizar el código de `tokens.test.ts`):
+
+  | Par | Calculado | Reportado | Peor caso |
+  |---|---|---|---|
+  | `#5A6472` / vidrio (62 %) | 3.809 | 3.81 | orbe azul, saturación en lineal |
+  | `#5A6472` / vidrio fuerte (78 %) | 4.652 | 4.65 | ídem |
+  | `#5A6472` / tarjeta interna | 4.127 | 4.13 | ídem |
+  | `#5A6472` / `--surface` | 5.999 | 6.00 | sólido |
+  | `#5A6472` / `--background` | 5.139 | 5.14 | sólido |
+
+  **El peor caso está bien elegido.** El borde es más oscuro que cualquier fondo de vidrio posible, así que el peor caso es el fondo más oscuro: el orbe azul `#22409A` bajo el velo, más oscuro que el verde. Los bordes desenfocados de un orbe dan colores intermedios, más claros, y los orbes son sólidos y no se mezclan entre sí. El método ya contaba con los orbes de 01b, así que "3:1 con los orbes" queda cubierto por cálculo. **Depende del velo:** sin él, sobre el orbe azul, el borde baja a 2.90 y no pasa. `DESIGN.md` ya hace obligatorio el velo; en 01b el borde se agrega a la lista de pares que se miden sobre el orbe (ver "Para el humano").
+
+### Cumplimiento del cierre
+- **Marcas de `DESIGN.md`:**
+  - Pasan a "propuesta aprobada (2026-09-27)" solo la implementación de las fuentes (§4) y el foco blanco interior del botón `primary` (§6). `destructive` sigue como propuesta, porque el humano no vio un botón rojo, y me parece correcto.
+  - El anillo de foco de los enlaces no tenía marca de propuesta, porque sale de la regla general de §6, marcada "captura". No había nada que cambiar.
+  - Las demás marcas siguen como estaban.
+  - Se cumplieron M-03 y los dos detalles de §7.3, y el párrafo de §4 quedó sustituido por el resultado de H-01.
+  - Hay dos excepciones, en M-02.
+- **M-01 (prueba "escenario 4 de T-14"):** resuelto. La prueba ahora hace lo que dice su nombre:
+  1. pulsa "Sí, restablecer" y espera `aria-disabled`;
+  2. pulsa "Cancelar" y comprueba que el foco vuelve a "Restablecer contraseña";
+  3. hace `blur()` y comprueba que el foco queda en `<body>`;
+  4. enfoca "Nombre completo" y lo comprueba;
+  5. resuelve la petición;
+  6. comprueba que el foco sigue en el campo.
+
+  No perdió ninguna aserción: la final se conserva y se agregaron tres.
+- **Borde de los campos:**
+  - `Input` pasa de `border-2` a `border` (1 px) con `focus-visible:border-accent`. El grosor no cambia al enfocar y la altura sigue en `--control-height`.
+  - Sin `focus:`, sin `ring-` y sin valores arbitrarios.
+  - En el CSS generado, `aria-invalid:border-destructive` va después de `focus-visible:border-accent` y tiene la misma especificidad. Por eso un campo inválido conserva el borde rojo al enfocarlo, con el anillo azul por fuera. Es razonable, pero no está escrito (ver "Detalles menores").
+  - `tokens.test.ts` verifica 3:1 contra vidrio, vidrio fuerte, tarjeta interna, `--surface` y `--background` con el valor nuevo, porque todas esas pruebas usan `COLOR.input`.
+- **Botón `outline` opaco del admin:** el CSS generado sigue dando `border-width: 2px` y `border-color: var(--foreground)` (`#16202E`) bajo `:where([data-material="opaco"])`. Es el mismo color que antes daba `--input`, así que su aspecto no cambió.
+- **Regla de §6 con el borde en `--accent` y el anillo juntos:** se sigue cumpliendo.
+  - El anillo global (`:focus-visible`, 2 px sólidos en `--ring`, separado 2 px) no cambia.
+  - Entre el borde de 1 px y el anillo queda una franja de 2 px del vidrio de detrás, así que los dos trazos se distinguen.
+  - El anillo contra el vidrio da 5.88 en el peor caso.
+  - El cambio de estado ya no depende solo del anillo: el borde pasa de gris a azul (1.54:1 entre los dos colores), y el anillo aporta el 3:1.
+  - Que los dos trazos azules paralelos se vean bien lo juzga el humano; es justo lo que pidió ("el anillo de foco se queda").
+- **Rectángulo grisáceo:**
+  - **La causa está bien identificada.** La sombra `--shadow-glass` (`0 8px 32px`) de cada tarjeta llega hasta unos 40 px por debajo y 32 px a los lados. El contenedor con `overflow-y-auto` la recorta en el borde de su caja de relleno (con `overflow-y: auto`, `overflow-x` también deja de ser `visible`). La unión de las sombras de tarjetas apiladas, cortada en seco a la izquierda, a la derecha y abajo, forma un rectángulo gris con filos rectos.
+  - **Lo que se ve "entre" las tarjetas** es, en parte, la propia sombra aprobada, acumulada en separaciones de 12 a 16 px. Eso no lo quita ningún ajuste del recorte.
+  - **La corrección es un alivio parcial,** como declara el programador. Con 8 px de margen, el recorte cae donde la sombra todavía tiene cerca de la mitad de su intensidad.
+  - **No encuentro una salida mejor sin decidir diseño:**
+    - Un relleno igual a la sombra (`p-8`/`p-10` con su margen negativo) no cabe: a 360 px la página tiene 16 px de margen lateral, así que la lista se saldría de la ventana y habría desplazamiento horizontal. Arriba, además, la zona desplazable taparía el `h2` y las tarjetas se verían pasar por encima del título.
+    - Las otras salidas son de diseño: quitar la sombra a las tarjetas dentro de una lista con scroll, o quitar el scroll propio. Le tocan a 01b, que rehace esta composición ("anuncios en filas de vidrio fuerte y lista desplazable"). `vidrio-fuerte` trae la misma sombra, así que el problema volvería.
+  - **El `p-2 -m-2` actual es seguro:**
+    - **360 px:** la lista entra 8 px en el margen de 16 px de `main`, sin desplazamiento horizontal. Arriba queda a 8 px del `h2` (la separación es `gap-4`) y abajo entra 8 px en el `gap-8` que la separa del formulario, sin solaparse.
+    - **Escritorio:** el `aside` entra 8 px en `lg:px-12`, en `lg:py-12` y en el `lg:gap-12` que lo separa del formulario.
+
+  No lo puede ver nadie sin navegador: lo decide el humano en la comprobación completa.
+- **`CLAUDE.md`:** las seis inserciones coinciden palabra por palabra con `plan.md`, "Cierre de 01a", punto 2:
+  - "Ubicaciones compartidas", dos: `components/ui/` y `components/`;
+  - "Tokens", dos;
+  - "Componentes", una;
+  - "Formularios", una.
+
+  No hay ningún otro cambio.
+- **`README.md`, línea 228:** "El frontend tiene 37 archivos con 496 pruebas: 266 adversarias, en 18 archivos." Coincide con mi corrida.
+- **`aprobacion.md` y `comprobacion-humano.md`:**
+  - Registran lo que decidió el humano: la suspensión, que el PR espera a la comprobación completa después de 01b, el borde de 1 px con `--accent` solo en los campos, las marcas y lo que se agrega a 01b.
+  - Están bien.
+  - Un detalle para el humano, abajo: la casilla de 360 px de H-01.
+
+### Problemas que bloquean
+
+#### M-01 — `--input` tiene un valor propio, y `CLAUDE.md` y `DESIGN.md` dicen que es un derivado que apunta a un token
+Dónde:
+- `frontend/src/styles/tokens.css:15` (`--input: #5a6472;`);
+- `docs/DESIGN.md:82` y `:50`;
+- `CLAUDE.md`, "Tokens".
+
+Por qué importa:
+- `CLAUDE.md` dice: "Los derivados que shadcn espera (`--card`, `--popover`, `--secondary`, `--input`, `--ring`…) apuntan a un token propio, nunca a un valor". `DESIGN.md` §3 repite la regla en la línea 82.
+- Con el cierre, `--input` es el único derivado de la lista que lleva un valor literal. El código contradice la regla escrita, y `DESIGN.md` se contradice a sí mismo: la tabla "Base" le da valor y la viñeta de la línea 82 lo prohíbe.
+- Además, la fila de `--foreground` (línea 50) sigue diciendo "Tinta del contorno de los campos (`--input`)", que ya no es cierto.
+
+Qué se espera:
+- El color `#5A6472` vive en un token base con nombre propio. Ese token queda registrado en la tabla "Base" de `DESIGN.md` con su valor, su uso, su contraste y su origen (ver M-02).
+- `--input` apunta a ese token con `var()`, como `--ring` apunta a `--accent`.
+- La fila de `--input` dice a qué token apunta.
+- La fila de `--foreground` deja de mencionar el contorno de los campos.
+- `tokens.test.ts` comprueba el valor del token nuevo y que `--input` apunta a él.
+- `tokens-r1.ataque` resuelve los `var()` y compara contra las tablas de §3, así que una fila nueva bien escrita no debería ponerla en rojo. **Si se pone en rojo, el programador se detiene y lo reporta, sin tocarla.**
+- La otra salida es cambiar la regla para que `--input` deje de ser un derivado. Eso toca `CLAUDE.md` y lo decide el humano (ver "Para el humano").
+
+#### M-02 — La marca de origen del valor `#5A6472` dice "decisión del humano", y ese valor no lo dictó el humano
+Dónde: `docs/DESIGN.md`:
+- tabla "Base", fila de `--input` (línea 54);
+- viñeta de la línea 84;
+- "Contraste verificado", líneas 132 y 152;
+- §5, "Bordes" (línea 268);
+- §7.3, "Borde de un campo" (línea 391).
+
+Por qué importa:
+- El humano fijó el criterio: 1 px, un color más claro, 3:1 contra el vidrio en el peor caso y `--accent` al enfocar.
+- El valor `#5A6472` lo eligió el programador. Según la tabla "Marcas", un valor que el humano aún no aprueba es **propuesta**.
+- Con "decisión del humano", el valor sale de la lista de cosas que el humano juzga en la comprobación completa. Eso es lo contrario de lo que pidió para el cierre: "solo pasa a propuesta aprobada lo que el humano aprobó".
+- En la misma línea, la fila del anillo interior (línea 131) dice "(aprobado, H-04)", que no es ninguna marca de la tabla. La marca es "propuesta aprobada (2026-09-27)", como ya dice §6.
+
+Qué se espera:
+- En cada lugar se distinguen el criterio y el valor: el criterio (1 px, más claro, 3:1 en el peor caso, `--accent` al enfocar), con la marca "decisión del humano (2026-09-27)"; el valor `#5A6472` y el nombre del token nuevo de M-01, como "propuesta (cierre de DESIGN-01a)".
+- La línea 131 usa la marca de la tabla.
+- Después de editar `DESIGN.md`, `npm run test` desde `frontend/`.
+
+### Problemas que no bloquean
+
+#### M-03 — `DESIGN.md` §7.2 presenta como patrón reutilizable un alivio parcial y sin verificar
+Dónde: `docs/DESIGN.md`, §7.2, "Contenedor con desplazamiento propio".
+
+Por qué importa:
+- El texto le dice a un encargo futuro que use `p-2 -m-2` en cualquier contenedor con scroll. El propio programador dice que 8 px no alcanzan para 40 px de sombra, y nadie lo ha visto.
+- Un patrón de `DESIGN.md` se copia. Uno que no resuelve el problema se propagaría.
+- Además, "sin mover el contenido ni el resto del layout" no es exacto cuando la lista llega a `max-h-56`: como la altura máxima ahora incluye el relleno, la lista ocupa 16 px menos en el layout, y el formulario de abajo sube 16 px a 360 px. Es cosmético, pero el texto lo niega. Pasa lo mismo con el comentario de `panel-anuncios.tsx`.
+
+Qué se espera:
+- El texto de §7.2 queda como observación con la marca "propuesta, sin verificar": la causa (el recorte de `--shadow-glass` en un contenedor con scroll), que el ajuste actual es un alivio parcial en `PanelAnuncios` y que la solución la decide 01b con la composición nueva.
+- Sin la afirmación de que no mueve nada.
+- Puede ir en la misma edición que M-01 y M-02.
+
+#### M-04 — `ESTADO.md` no refleja el cierre (del orquestador, antes del commit)
+Dónde: `docs/ESTADO.md` §2 y §3.
+
+Por qué importa: el commit que sigue a este cierre deja `ESTADO.md` como fuente de la siguiente sesión, y hoy tiene tres problemas.
+- **§3 sigue con dos filas ya resueltas por 01a:**
+  - la de MF-05, "los botones que se deshabilitan … pierden el foco" (línea 190);
+  - la de T-14, que dice "Sus 4 pruebas están como `it.fails`" (línea 191), cuando ya no existen.
+
+  Ya lo pedí en la revisión final.
+- **Faltan las filas nuevas que manda `plan.md`, "Cierre de 01a", punto 3:**
+  - R-09, `tw-animate-css`;
+  - R-10, radio de las casillas y `--text-display` en móvil;
+  - S-07, foco blanco sobre superficies de color.
+- **§2 termina con dos viñetas desactualizadas:**
+  - "Después, el cierre de 01a: `DESIGN.md` (marcas), textos de `CLAUDE.md`…, `README.md` y este archivo": eso ya se hizo;
+  - "Cierre de 01a (en curso)".
+
+Qué se espera:
+- Antes del commit, `ESTADO.md` dice que el cierre de 01a está aprobado y qué falta: el commit, confirmar la lista de 19, replanear 01b y la comprobación completa.
+- Se retiran las dos filas de §3 y entran las del punto 3 del plan.
+- Se agregan a 01b los dos puntos de "Para el humano" (rectángulo y borde sobre los orbes).
+- El riesgo de `backdrop-filter` como bloque contenedor puede quedarse solo en `plan.md` si 01b se replanea enseguida, como está previsto.
+
+### Detalles menores
+- **Campo inválido y enfocado:** conserva el borde `--destructive` y lleva el anillo azul por fuera. §7.3 no lo dice. Una frase lo deja escrito; puede ir con M-02.
+- **§7.3, "el anillo de foco de §6 se queda encima":** el anillo va por fuera, separado 2 px, no encima. Basta con "se queda, por fuera".
+- **`tokens-r1.ataque.test.ts:188`:** la descripción dice "borde de 2 px de los campos y del outline opaco", pero el `outline` opaco ya no usa `--input`. La aserción sigue siendo válida (6.00 ≥ 3). El programador no la toca; que la actualice el tester en su próxima ronda (01b) y publique el hash nuevo. El `outline` opaco queda cubierto por `--foreground` / `--surface` (16.4).
+- **`comprobacion-humano.md`:** la hoja de 01a describe en H-02 los "campos blancos con borde tinta de 2 px", y C-07 dice `--input` = `--foreground` `#16202E`. Ya no es así. Como la hoja de la comprobación completa se prepara con 01b, basta con que la nueva use el valor vigente: 1 px, `#5A6472` y, al enfocar, `--accent`. Así el humano no mide contra una referencia vieja.
+
+### Ronda 2 del tester: no hace falta
+Basta con mi revisión, también para las correcciones de M-01 a M-03. Razones:
+- **El carril sensible de 01a se debe a `enEspera`, T-14 y el foco,** y el cierre no los toca: ni `button.tsx`, ni `ficha-de-cuenta.tsx`, ni ningún manejador. Los 39 hashes siguen iguales y las 266 adversarias están en verde contra el código del cierre.
+- **Lo que cambió es presentación pura:**
+  - un valor de token;
+  - dos clases de `Input`;
+  - el token del borde del `outline` opaco, que resuelve al mismo color;
+  - relleno y margen en `panel-anuncios`.
+
+  jsdom no pinta. La única prueba adversaria posible sería leer clases, y `tester.md` prohíbe localizar por clases de estilo. Las guardas permanentes que sí aplican (`clases-r1`: sin `ring-`, `focus:` ni valores sueltos; `tokens-r1`: tablas de `DESIGN.md` contra `tokens.css`) ya corrieron en verde sobre el cierre.
+- **El único riesgo cuantificable, el contraste, lo recalculé por separado** y coincide al centésimo.
+- **Lo que queda sin verificar es visual:** grosor, color, doble trazo azul y rectángulo. Eso lo decide el humano en la comprobación completa, y una ronda del tester no lo cambiaría.
+- **M-01 a M-03** son un `var()`, una fila de tabla y texto de `DESIGN.md`, con `lint` y `test` en verde. Carril trivial dentro del encargo.
+- **Si al corregir M-01 cambia algo más que `tokens.css`, `tokens.test.ts` y `DESIGN.md`,** por ejemplo un componente, lo reevalúo.
+
+### Desacuerdos arbitrados
+Ninguno. El programador y el orquestador coinciden en la causa del rectángulo, y el programador declaró que su corrección es parcial.
+
+### Documentos a actualizar
+- **`docs/DESIGN.md`** (programador): M-01, M-02, M-03 y los dos detalles de §7.3. Después, `npm run lint` y `npm run test` desde `frontend/`.
+- **`frontend/src/styles/tokens.css` y `tokens.test.ts`** (programador): M-01.
+- **`docs/ESTADO.md`** (orquestador): M-04.
+- **`CLAUDE.md`:** sin más cambios, salvo que el humano elija la otra salida de M-01.
+- **`README.md`:** correcto. Si las correcciones agregan pruebas, se actualiza el conteo con la corrida de mi revisión de esas correcciones.
+- **`AGENTS.md`, `.claude/agents/*.md` y `docs/ARCHITECTURE*.md`:** sin cambios.
+
+### Para el humano
+**Decisión (solo si no te convence la salida por defecto de M-01):** si prefieres que `--input` deje de ser un derivado y lleve su color directamente, hay que cambiar una frase de `CLAUDE.md` ("Tokens") y otra de `DESIGN.md` §3. Recomiendo no hacerlo: la regla existe para que cada color tenga un solo nombre de origen, y un token base nuevo cuesta una línea.
+
+**Antes del commit (carril sensible), en el diff:**
+1. **`CLAUDE.md`:** las seis inserciones del plan. Coinciden palabra por palabra y no hay nada más.
+2. **`package-lock.json`:** confirma por escrito la lista de 19 (sigue pendiente). La recalculé otra vez y no cambió.
+3. **Los archivos del cierre:**
+   - `components/ui/input.tsx`: 1 px y `focus-visible:border-accent`;
+   - `components/ui/button-variants.ts`: el `outline` opaco con `border-foreground`;
+   - `features/auth/components/panel-anuncios.tsx`;
+   - `styles/tokens.css` y `tokens.test.ts`;
+   - la prueba de M-01 en `features/admin/cuentas-view.test.tsx`;
+   - `docs/DESIGN.md`, ya con M-01 a M-03 corregidos.
+4. **Lo que ya te pedí en la revisión final:** `button.tsx`, `ficha-de-cuenta.tsx`, los 13 cambios a `enEspera` y los diffs de `cuentas-r1`, `-r3` y `-r4.ataque`.
+5. **Archivos sin rastrear que van en el commit:**
+   - los 8 nuevos del programador;
+   - las 7 `*.ataque` de la ronda 1;
+   - `resumen-programador.md` y `comprobacion-humano.md`.
+6. **H-01 a 360 px:** en `comprobacion-humano.md`, la casilla de 360 px de H-01 está vacía (`[ X] 1280 px  [ ] 360 px`), y la transcripción dice que pasó en los dos anchos. `DESIGN.md` §4 ya lo da por aprobado a 360 px. Confírmalo o corrígelo.
+
+**Para la comprobación completa, después de 01b (no se puede ver sin navegador):**
+- **Borde de los campos:**
+  - con los orbes detrás, que el gris de 1 px se distinga del vidrio;
+  - que al enfocar, el borde azul y el anillo se lean como un solo indicador y no como una línea doble molesta;
+  - que un campo con error se vea bien enfocado.
+  - Mide el borde sobre el orbe azul, igual que `--warning` (plan de 01b): con el orbe azul detrás es el par de borde con menos margen (3.81 calculado, umbral 3).
+- **Rectángulo grisáceo:** si sigue visible con el `p-2`. Como 01b rehace el panel de anuncios con filas de vidrio fuerte en una lista desplazable, que trae la misma sombra, pide que `plan-01b.md` resuelva ahí el recorte de la sombra (sombra dentro de listas con scroll, o composición sin scroll propio). No lo sigas parchando en 01a.
+- **El resto de la hoja:** H-02 a H-10 y C-01 a C-12, como ya decidiste. En C-07 va el valor vigente del borde.
+
+### DESIGN-01a — cierre, correcciones
+
+Veredicto: **APROBADO**. No queda ningún problema que bloquee. El orquestador puede pedirle el commit al humano, en la rama y sin push, después de los pasos de "Para el humano" de la sección anterior.
+
+Verificación propia (2026-09-27, desde `frontend/`):
+- **lint:** código 0.
+- **test:** código 0; 37 archivos y 496 pruebas en verde. `tokens-r1.ataque`, que lee las tablas de §3, también está en verde con la fila nueva.
+- **build:** código 0.
+- **V-01:** 39/39 OK; `find` encuentra exactamente 39 `*.ataque`.
+- **Lockfile:** sin cambios. Siguen las mismas 19 bajas de `"peer": true`.
+
+**Alcance de las correcciones:**
+- `git status` muestra los mismos 65 archivos que en mi revisión del cierre; ninguno nuevo ni borrado.
+- Las clases de `input.tsx`, de `button-variants.ts` y de los dos contenedores de `panel-anuncios.tsx` son idénticas a las que revisé. En `panel-anuncios.tsx` solo cambió el comentario.
+- El conteo de pruebas no cambió.
+- **Límite:** no hay una instantánea del estado anterior, así que el resto de `frontend/` lo comparo solo por esos indicios, no byte por byte.
+
+**M-01 — resuelto.**
+- En `tokens.css`: `--field-border: #5a6472` junto a `--border`, y `--input: var(--field-border)`. `--input` vuelve a ser un derivado, como pide `CLAUDE.md`.
+- `tokens.test.ts` comprueba el valor literal y el `var()`. Las pruebas de 3:1 siguen usando el mismo color.
+- En `DESIGN.md`:
+  - hay una fila "Base" para `--field-border`;
+  - la fila de `--input` dice a qué token apunta;
+  - la de `--foreground` ya no habla de los campos.
+- El nombre en inglés sigue la convención de los demás tokens (`--border`, `--surface`).
+
+**M-02 — resuelto.**
+- En cada lugar de §3, §5 y §7.3 se distinguen el criterio y el valor:
+  - el criterio, con la marca "decisión del humano (2026-09-27)";
+  - el valor y el nombre del token, con la marca "propuesta (cierre de DESIGN-01a)".
+- El anillo interior usa la marca de la tabla: `primary`, "propuesta aprobada (2026-09-27)"; `destructive`, "propuesta".
+- Los dos detalles de §7.3 (campo inválido y enfocado; "se queda, por fuera") también quedaron atendidos.
+
+**M-03 — resuelto.**
+- §7.2 queda como "propuesta, sin verificar en pantalla".
+- Explica la causa y dice que el ajuste es un alivio parcial, que no es un patrón para copiar y que la solución de fondo la decide el encargo que rehaga la pantalla.
+- Ya no dice que no mueve nada.
+
+**M-04 — resuelto en §3** de `ESTADO.md`.
+- Salieron las filas de MF-05 (pérdida de foco) y de T-14. Las otras filas de MF-05 que siguen son pendientes distintos, con destino ADMIN y AUTH-03.
+- La fila de D3 quedó solo con lo de 01b, incluidos:
+  - el recorte de la sombra;
+  - el borde sobre los orbes;
+  - la comprobación completa de la que depende el PR.
+- Entraron las filas de shadcn, R-09, R-10, S-07 y `backdrop-filter`.
+- Faltan las viñetas de §2, que el orquestador actualiza con este veredicto.
+
+**Detalle menor (no bloquea):**
+- `DESIGN.md:25` (§1, "Qué se conserva de la dirección C") sigue incluyendo "el borde tinta de los campos", y ya no es así. Estaba desde antes del encargo, pero ahora contradice §3.
+- Basta con quitar esas palabras. Si se hace antes del commit (carril trivial), hay que correr `npm run test` desde `frontend/` y no hace falta otra revisión mía. Si no, entra con las ediciones de `DESIGN.md` de 01b.
+
+**Ronda del tester:** sigue sin hacer falta. Las correcciones son un `var()`, filas y texto de `DESIGN.md` y un comentario; no cambian el comportamiento ni el color que se pinta.
+
+## DESIGN-01b — plan
+
+Veredicto: **CAMBIOS REQUERIDOS** (al arquitecto) por un solo punto, M-01: un párrafo más en la condición de detención y una verificación. El resto del plan está bien hecho y cubre lo que pidió el humano. Cuando llegue la corrección de M-01, me basta revisar ese cambio; conviene aplicar M-02 a M-04 en la misma edición.
+
+Verificación propia (2026-09-27, línea base `e39500a`, sin tocar el repositorio):
+- **Árbol:** `git diff --quiet e39500a -- frontend/` sale con código 0 y no hay archivos sin rastrear en `frontend/`. Fuera de `frontend/` solo cambian `ESTADO.md`, `aprobacion.md` y `comprobacion-humano.md`, más `plan-01b.md`, que está sin rastrear.
+- **lint:** código 0. **test:** código 0; 37 archivos y 496 pruebas en verde, como dice el plan. **build:** código 0.
+- **V-01:** 39/39 con la tabla de "DESIGN-01a — Ronda 1".
+- **`href:"#"` en el JavaScript de `dist/`:** 0 hoy. La comprobación de V-10 no dará un falso positivo.
+
+### Afirmaciones técnicas verificadas
+| Afirmación del plan | Cómo la comprobé | Resultado |
+|---|---|---|
+| `router.subscribe` y `router.state.location` son API pública; `DataRouter` se exporta como tipo | `react-router` 7.18.4: `subscribe(fn: RouterSubscriber): () => void` en los `.d.ts`, y `DataRouter` en las exportaciones de `index.d.ts` | **Confirmada.** El enrutador admite varios suscriptores. `FondoDeLaApp` solo lee: no navega ni redirige |
+| `vi.stubEnv("PROD", true)` | `vitest` 4.1.11: `stubEnv(name, value: T extends "PROD" \| "DEV" \| "SSR" ? boolean : …)` | **Confirmada** |
+| El fondo con `z-index: -1` queda visible | `index.css`: `html` lleva `bg-background` y `body` no lleva fondo. Los únicos `bg-background` de pantalla son los 3 que el plan quita (`layout-publico.tsx`, `contenedor-rol.tsx` y `acceso-restringido-view.tsx`) | **Confirmada.** El fondo del lienzo se pinta antes que los hijos con `z-index` negativo |
+| Inventario de selectores de 01b-2: ninguna prueba cambia | Busqué por mi cuenta en todas las pruebas de `src/`: expresiones regulares con "contraseña", "mostrar" u "ocultar" en consultas por etiqueta, rol, texto, título, marcador o valor; `type="password"`, `[type=`, `getAllByRole("button")`, `getAllByRole("textbox")`, `getAllByLabelText`, `querySelectorAll` de controles; recorridos de Tab y `userEvent.tab` | **Confirmada.** Todas las consultas usan cadenas exactas. `queryAllByRole("button")` solo aparece en `contexto-r1:72` (`/admin`, sin contraseñas) y el conteo de botones solo en `contenedor-rol.test:54` ("Cerrar sesión"). Ninguna prueba recorre el orden de Tab en las pantallas de cuenta. 01b-2 no necesita ronda 0 |
+| Las clases nuevas no activan las guardas de `clases-r1` | Leí V-02 a V-07 y V-13 | **Confirmada.** V-04 solo prohíbe `text-`, `rounded-`, `shadow-`, `leading-`, `tracking-`, `font-`, `bg-`, `border-` y `outline-` seguidos de `[`; las alturas y rejillas arbitrarias del plan no entran. `sin-sombra-de-vidrio` no cuenta como `vidrio`, porque la expresión exige que no haya un guion delante. `CONTEXTO_POR_ROL` usa las claves `material` y `densidad`, así que mudarlo a `data.ts` no escribe el texto `data-material`. El `enEspera=` de "Cerrar sesión" se muda, y el conteo sigue en 13 |
+| Amplitud de los orbes ≤ 60 px | Cálculo | 60.0 (`48, 36`) y 59.1 (`-54, -24`) |
+| `vite preview` en `127.0.0.1:4173` | `frontend/package.json`: `"preview": "vite preview --host 127.0.0.1 --port 4173"` | Confirmada (ver detalle sobre el proxy) |
+
+### Lo que pidió el humano, punto por punto
+- **Borde de los campos:** no se toca. Solo se mide sobre el orbe azul (C-07 con `--field-border` y 3.8 calculado, más H-17).
+- **Botón de contraseña en los 5 formularios:**
+  - `type="button"` (CC-1);
+  - el nombre cambia entre "Mostrar contraseña" y "Ocultar contraseña", con `aria-pressed` (CC-2);
+  - no mueve el cursor (CC-3: `mousedown` cancelado y la selección restaurada);
+  - `autocomplete` intacto (CC-4);
+  - inventario de selectores hecho y confirmado arriba.
+- **Pie:**
+  - "©" con el año calculado (`textoDeDerechos(new Date())`, probado con reloj simulado);
+  - un solo archivo (`components/layout/data.ts`);
+  - marcadores visibles en desarrollo y omitidos en producción (`import.meta.env.PROD`, que `vite build` sustituye por `true`);
+  - nunca `href="#"`: la única forma de producir un `<a>` es con una URL publicable, y lo vigilan la prueba y V-10;
+  - "Aviso de privacidad" incluido.
+- **Una sola comprobación completa al final;** el PR se abre después.
+- **División propuesta** (P-02).
+- **Condición de detención:**
+  - `router.tsx` y las tres guardas no se tocan, y lo comprueba V-14;
+  - el fondo va en `main.tsx` fuera del router, y el plan se detiene si la suscripción no sigue la navegación, sin buscar otra vía;
+  - los destinos salen de `ContenedorRol`, así que `require-rol.tsx` no cambia en absoluto, algo más estricto que el resumen.
+  - **Falta la vista de acceso restringido** (M-01).
+
+### Problemas que bloquean
+
+#### M-01 — La redirección de `AccesoRestringidoView` queda fuera de la condición de detención, y 01b-1 la reescribe en carril normal
+Dónde: §D-6, fila `/acceso-restringido`; "Condición de detención" (§D-1); V-14.
+
+Por qué importa:
+- `features/auth/acceso-restringido-view.tsx` no es solo presentación. Contiene la rama de RN-03 que saca de ahí a quien no está restringido: `if (!data.accesoRestringido) return <Navigate to={rutaPorRol(data.rol)} replace />`, después de las ramas de error y de carga.
+- 01b-1 reestructura el archivo entero: tres estados dentro de `MarcoPublico`, la `Navigate` "sin envolver", el `main` nuevo y `Ban` cambiado por `Lock`.
+- `AGENTS.md` pone la restricción de acceso en el carril sensible. El humano fijó 01b en carril normal con una condición que protege las redirecciones de las guardas. Esta es la misma clase de redirección, pero vive en una vista, así que V-14 no la cubre.
+- Las pruebas existentes cubren parte del comportamiento (`cuentas-r1:112` y `:128`, y `cuentas-r2:193`), pero el plan no dice que esa rama deba quedar igual ni cómo se comprueba.
+
+Qué se espera:
+- En la condición de detención: el orden de las ramas de `AccesoRestringidoView` (error → carga → `!data.accesoRestringido` con su `Navigate` → contenido) y la línea de la `Navigate` quedan idénticos. Si hace falta cambiarlos, el agente se detiene y avisa.
+- Una verificación que el agente pueda ejecutar (por ejemplo, que `git diff e39500a -- …/acceso-restringido-view.tsx` no toque las líneas del `if` ni de la `Navigate`), más el requisito de que las `*.ataque` de `app/` sobre `/acceso-restringido` sigan en verde sin cambios.
+- Un punto de ataque del tester: un usuario no restringido que llega a `/acceso-restringido` termina en su dashboard, sin pasar por el pie ni por el marco.
+- Con esto, 01b-1 puede seguir en carril normal.
+
+### Problemas que no bloquean
+
+#### M-02 — `src/main.tsx` tiene una excepción (E-5) pero no está en "No se toca"
+Dónde: "No se toca", DESIGN-01b-1; E-5; V-08.
+
+Por qué importa: E-5 limita el cambio a la importación y al elemento de `FondoDeLaApp`. Como `main.tsx` no figura en la lista, V-08 no lo compara y nada verifica ese alcance. Es el archivo de arranque, que monta el router y los proveedores.
+
+Qué se espera: `src/main.tsx` entra en "No se toca" de 01b-1, con E-5 como excepción. V-08 comprueba que `git diff e39500a -- frontend/src/main.tsx` solo agrega esas líneas.
+
+#### M-03 — `esUrlPublicable` acepta una URL con espacios alrededor, y el punto de ataque 3 espera que no salga como enlace
+Dónde: §D-5 (`esUrlPublicable`, `renderEnlace`); "Puntos de ataque", 01b-1, punto 3.
+
+Por qué importa:
+- El analizador de URL quita los espacios y caracteres de control de los extremos. Lo comprobé en Node: `new URL(" https://x ")` es válida, con protocolo `https:`.
+- Con la función tal como está escrita, el pie pintaría `<a href=" https://x ">`, y el tester trataría eso como un defecto (el punto 3 dice "nunca un `<a>` con esa `href`"). El plan se contradice.
+- `"java\nscript:alert(1)"` sí queda rechazada, porque su protocolo sale como `javascript:`.
+
+Qué se espera: el plan elige una de dos y alinea la función, la prueba del programador y el punto de ataque.
+- Rechazar una URL que no sea igual a sí misma sin espacios (`url !== url.trim()`).
+- Publicar siempre la forma normalizada (`new URL(url).href`).
+
+Recomiendo rechazarla: el archivo lo edita una persona y un espacio de más es un error de captura. En desarrollo se ve como marcador, así que el error queda a la vista.
+
+#### M-04 — V-17 busca un texto que el componente no contiene
+Dónde: "Verificaciones", V-17.
+
+Por qué importa:
+- V-17 dice "`type="password"` → solo en `campo-contrasena.tsx`". Pero el componente de §D-7 escribe `type={visible ? "text" : "password"}`, así que la búsqueda literal no encuentra nada en ningún archivo.
+- Un programador que siga el texto al pie de la letra no sabrá si eso es un éxito o una parada.
+
+Qué se espera:
+- `type="password"` → 0 en `src/**/*.tsx`.
+- `"password"` → solo en `campo-contrasena.tsx`.
+- `<CampoContrasena` → 7 apariciones.
+
+### Detalles menores
+- **`md:sticky` hereda `inset-x-4` de la barra inferior.** Con `position: sticky`, `left` y `right` son márgenes de pegado horizontal. Hoy no hay desplazamiento horizontal, así que no hacen nada, pero `md:inset-x-auto` deja la intención clara.
+- **`id="anuncios-titulo"` fijo.** Hoy hay un solo `PanelAnuncios` por pantalla. `useId` evita un id duplicado si alguna vez se monta dos veces. Opcional.
+- **La lista de anuncios lleva `tabIndex={0}` aunque no desplace** (con pocos anuncios en escritorio). Es aceptable: el nombre y los `h3` la hacen útil con el lector de pantalla.
+- **`Cargando` en `/admin` mientras carga `RequireRol`:** se pinta fuera de `ContenedorRol`, así que por un instante va en vidrio fuerte, no opaco. Es el mismo caso que S-09 (estados de carga de las guardas). No hace falta cambiarlo, pero conviene anotarlo en R-09.
+- **Espaciado por rol:** hoy es estudiante `gap-8`, maestro `gap-6` y admin `gap-4`, y el plan lo deja en `gap-5`, `gap-5` y `gap-4`. Para el estudiante coincide con los 20 px de `DESIGN.md` §8. El maestro pierde su separación intermedia. Está marcado como propuesta; lo juzga el humano en H-10.
+- **Botón del ojo en pantallas táctiles:** `onMouseDown` cancela el cambio de foco en ratón y en el `mousedown` emulado del toque. Si en un teléfono el teclado virtual se cierra al tocar el ojo, la salida es `onPointerDown`. Conviene que H-16 incluya un toque con la emulación táctil de DevTools a 360 px.
+- **Iconos de los gestores de contraseñas:** 1Password, Bitwarden y otros ponen su icono en el extremo derecho del campo, donde va el ojo. H-16 debería pedir que se anote si se enciman.
+- **Hoja, ventana 5:** "la API no responde (no hay proxy)" puede no ser cierto. En Vite, `preview.proxy` toma por defecto el valor de `server.proxy`, así que con la API encendida el login puede funcionar en `4173`. No cambia la comprobación del pie; basta con quitar la frase.
+- **Textos de los marcadores en producción:** "Sitio web", "Facebook"… siguen en el JavaScript de producción como datos, aunque no se pinten. Cumple lo que pidió el humano ("en el build de producción no se muestra"), pero conviene que lo sepa.
+
+### La ronda 0 que relaja V-07
+- **Qué se pierde entre rondas:** solo la parte de "este archivo usa vidrio", que es conformidad con el diseño. La lista permitida sigue prohibiendo vidrio en cualquier otro archivo, incluido todo `features/admin/`, que es la protección que importa. Además, `vidrio-azul` y `data-material` no cambian.
+- **La alternativa que no debilita nada** sería escribir en la ronda 0 la igualdad exacta con la lista final. Eso deja un rojo previsto durante el trabajo del programador (como los 6 de 01a) y le quita la señal a esa guarda mientras trabaja. No es mejor: prefiero la propuesta del plan.
+- **La vuelta a igualdad exacta es verificable:** las listas finales están escritas en §D-9, el punto de ataque 9 dice que no se amplían (si el código no las cumple, es un hallazgo), el paso 13 me manda comparar el diff de `clases-r1` contra `e39500a` línea por línea, y V-01 sella cada versión con su hash.
+- **Una precisión útil:** que la ronda 1 conserve las dos aserciones de "el archivo original sigue ahí" (`card.tsx` y `button-variants.ts`), ya dentro de la igualdad exacta.
+
+### Otros puntos que pidió revisar el orquestador
+- **Rama y commits:** misma rama, un commit del humano por subentrega (`<C>` y `<D>`) y un solo PR. Tiene sentido: 01b depende de 01a y el humano quiere un solo PR. El diff de 01b-2, que es sensible, se puede revisar aparte.
+- **V-08:** las bases son explícitas (`e39500a` para `frontend/` en 01b-1, `<B>` fuera de él y `<C>` para 01b-2), con la parada por hash ausente y `git cat-file` con comillas. "No se toca" coincide con los pasos, salvo `main.tsx` (M-02).
+- **Formateadores:** solo con rutas concretas desde `frontend/`, y `DESIGN.md` a mano.
+- **Sin navegadores ni `npm run dev` para ningún agente.** La ventana 5 es del humano.
+- **La hoja de la comprobación completa cubre lo que el humano dejó pendiente:**
+  - H-05, con el caso nuevo de Enter con la contraseña a la vista;
+  - H-06;
+  - H-14, el recorte de la sombra;
+  - H-17 y C-07, el borde sobre el orbe azul, con el valor vigente;
+  - `--warning`: el plan justifica que en 01b solo aparece sobre `--surface` (C-13), y está bien;
+  - H-01 a H-10 repetidos;
+  - `/acceso-restringido` y C-13, "no verificada" con su motivo cuando no se puedan comprobar.
+- **Tamaño y sobreconstrucción:**
+  - 01b-1 es grande (unos 25 archivos), pero fondo, marco, pie y composición dependen entre sí: el pie vive en el marco y la composición depende del fondo. Partirlo más no ahorra revisión.
+  - No veo sobreconstrucción. `esUrlPublicable` con `mailto:` y `tel:` responde a "Contacto". CC-5 (sin corrector) tiene una razón de privacidad concreta. `FondoDeLaApp` es la pieza mínima para no tocar el router.
+- **Recorte de la sombra:** la solución (filas sin sombra dentro de la lista con scroll y la sombra en el panel que la contiene) ataca la causa que confirmé en el cierre de 01a, y retira el `p-2 -m-2`. La `Card` no queda dentro de ningún contenedor que recorte. Coincide con lo que recomendé.
+
+### Desacuerdos arbitrados
+Ninguno.
+
+### Documentos a actualizar
+- **`plan-01b.md`** (arquitecto): M-01, y M-02 a M-04 si se aplican en la misma edición.
+- **`DESIGN.md`, `CLAUDE.md`, `README.md` y `ESTADO.md`:** lo que prevén el plan y su cierre es correcto. Los textos propuestos para `CLAUDE.md` coinciden con lo que describe el plan. Los reviso otra vez en el cierre de 01b contra el código real.
+
+### Para el humano
+**P-01 · Carril. Opinión: (A).** El botón decide cuándo una contraseña se ve en claro y cambia el `type` del campo que leen los gestores de contraseñas. `AGENTS.md` pone "sesiones y contraseñas" en el carril sensible. Separarlo en 01b-2 te deja un diff pequeño para revisar a mano. 01b-1 puede quedarse en carril normal si se corrige M-01.
+
+**P-02 · División. Opinión: (A).** Mezclar el cambio visual grande con el cambio sensible haría difícil revisar este último. Con dos commits en la misma rama y una sola comprobación al final no pierdes nada.
+
+**P-03 · Pie en `/admin`. Opinión: (A).** Pediste el pie "en todas las pantallas", y el aviso de privacidad también le importa a quien administra datos personales. Sale opaco sin trabajo extra.
+
+**P-04 · Ocultar al enviar. Opinión: (A).** Evita que la contraseña se quede a la vista después de "Correo o contraseña incorrectos" y devuelve el campo a `password` antes de que el navegador ofrezca guardarla.
+
+**P-05 · Nombre del botón. Opinión: (B), pero es tu decisión, porque se aparta de lo que pediste al pie de la letra.**
+- La guía de ARIA dice que un botón con `aria-pressed` no debe cambiar su nombre. Con las dos cosas, un lector puede decir "Ocultar contraseña, presionado", que es una doble negación.
+- Hay dos salidas coherentes:
+  - (B): nombre fijo "Mostrar contraseña" con `aria-pressed`. "Presionado" significa "se está mostrando".
+  - Nombre que cambia **sin** `aria-pressed`, como hace el sistema de diseño del gobierno británico (GOV.UK).
+- La (A) del plan mezcla las dos.
+- Los nombres repetidos en `/cambiar-contrasena` (tres "Mostrar contraseña") los desambigua el orden de lectura. Si quieres más, (C) se puede combinar con (B).
+
+**Decisiones nuevas que el plan toma como propuesta (las juzgas en la comprobación):**
+- S-10: acceso restringido sin insignia.
+- S-11: títulos de los anuncios en 700.
+- S-12: barra superior a 360 px sin avatar y con "Cerrar sesión" solo con icono.
+- S-04 y R-11: los orbes se detienen donde estaban al salir del login, en vez de volver a su posición.
+- S-05: posición y trayectoria de los orbes.
+- El espaciado del maestro baja de 24 a 20 px.
+- Los textos de los marcadores del pie viajan en el JavaScript de producción, aunque no se pintan.
+
+**Aprobación:** con P-01 (A), tu aprobación escrita del plan cubre 01b-2. Haz commit de los documentos antes de la ronda 0 para que el orquestador anote `<B>`.
+
+### DESIGN-01b — plan, correcciones
+
+Veredicto: **APROBADO**. Ya no hay nada que bloquee: M-01 queda resuelto en lo esencial y M-02 a M-04 y los detalles menores están atendidos. El plan puede ir a la aprobación escrita del humano.
+
+Recomiendo aplicar antes M-05, que no bloquea: agrega tres textos a la búsqueda de V-14, parte 2, y cierra un hueco que comprobé. Si el arquitecto lo aplica tal como está escrito abajo, no necesito otra revisión; basta con que el orquestador confirme el texto.
+
+Verificación propia: solo lectura. El árbol no cambió fuera de los documentos: `frontend/` sigue igual a `e39500a`. Los experimentos de V-14 corrieron en el scratchpad con `git diff --no-index`.
+
+**M-01 — resuelto.**
+- La condición de detención (§D-1) nombra la redirección de RN-03 y fija:
+  - el orden de las ramas;
+  - las cuatro líneas, byte por byte;
+  - la `Navigate` sin envolver;
+  - las importaciones y las llamadas a `useMe` y `useCerrarSesion`.
+- E-6 limita el alcance del cambio.
+- V-14 tiene cuatro partes. La parte 4 obliga en 01b-2 a que el archivo no cambie.
+- Las 9 `*.ataque` que tocan `/acceso-restringido` deben seguir en verde sin modificarse. Comprobé `router.ataque:117` y `:126`, y `contexto-r1:143`.
+- El punto de ataque 2 cubre a estudiante, maestro y admin no restringidos, y al restringido que se queda.
+- 01b-1 puede seguir en carril normal.
+
+**El cambio de V-14, parte 2, que hizo el arquitecto por su cuenta: correcto, pero deja un hueco (M-05).**
+- **El cambio legítimo no dispara falsos positivos.** Escribí en el scratchpad la vista tal como la deja E-6: las tres ramas envueltas en `MarcoPublico`, `Lock`, `Monograma` y el `main` nuevo. En el diff con `-U0` contra `e39500a`, ninguna de las 83 líneas cambiadas contiene los textos fijos de la parte 2. Las cuatro líneas de la parte 3 aparecen en orden (21, 31, 42 y 43).
+- **Con `isPending` e `isError` a secas, sí habría un falso positivo:** `enEspera={cerrarSesion.isPending}` se reindenta y el agente se detendría sin motivo. El cambio del arquitecto está justificado.
+- **Cambios reales que la parte 2 sí detiene:** cualquier cambio en las líneas de las ramas, en la `Navigate` (o una `Navigate` nueva), en `accesoRestringido`, en `rutaPorRol` (también en su importación, que comparte línea con `mensajeDeErrorAuth`) y en la llamada a los dos hooks.
+
+### Problemas que no bloquean
+
+#### M-05 — V-14 deja pasar una rama nueva sin esos textos y un cambio en la importación de los hooks
+Dónde: "Verificaciones", V-14, parte 2.
+
+Por qué importa: lo comprobé con una variante del archivo en el scratchpad que agrega entre la carga y la redirección:
+```tsx
+  if (data.rol === "admin") {
+    return <MarcoPublico><p>{data.nombre}</p></MarcoPublico>
+  }
+```
+y cambia `from "./hooks"` por `from "./hooks-de-prueba"`. Resultado:
+- la parte 2 da **0** coincidencias;
+- la parte 3 encuentra las cuatro líneas en orden;
+- V-14 pasa.
+
+Esa rama deja a un admin no restringido en la pantalla, en vez de mandarlo a su dashboard. El punto de ataque 2 del tester lo encontraría, porque cubre los tres roles, pero la condición de detención existe para que el programador se detenga antes, y aquí no lo haría. E-6 dice además que las importaciones de `useMe` y `useCerrarSesion` "quedan idénticas", y nada lo comprueba: el texto `useMe(` no coincide con la línea de importación.
+
+Qué se espera: agregar a los textos fijos de la parte 2 estos tres:
+- `if (`;
+- `return`;
+- `./hooks"`.
+
+Lo comprobé: en el cambio legítimo de E-6 ninguna línea agregada o quitada contiene ninguno de los tres. Las líneas `if` y `return (` no se reindentan al envolver, porque solo cambia lo que va dentro de cada `return`. En la variante de arriba, en cambio, los tres aparecen en 4 líneas. Con eso, la parte 2 también cubre `if (isError)` e `if (isPending)`, que se pueden conservar para que el texto se entienda.
+
+**Las demás correcciones, comprobadas:**
+- **M-02:** `main.tsx` está en "No se toca" con E-5 (solo se agregan dos líneas, no se quita ninguna). V-08 lo comprueba y también las excepciones E-2 y E-3. En 01b-2, `main.tsx` y `acceso-restringido-view.tsx` quedan sin excepción.
+- **M-03:** `esUrlPublicable` va, con retornos tempranos, en este orden:
+  1. `null` o `""`;
+  2. `url !== url.trim()`;
+  3. `new URL` que lanza;
+  4. protocolo `https:`, `mailto:` o `tel:`.
+
+  El punto de ataque 3 incluye `" https://x "`, `"https://x "` y `"java\nscript:…"`, y exige que cada una salga como marcador en desarrollo. Ya no hay contradicción.
+- **M-04:** V-17 pide `type="password"` → 0, `"password"` solo en `campo-contrasena.tsx` y `<CampoContrasena` → 7.
+- **Detalles menores:**
+  - `md:inset-x-auto` en la barra;
+  - `useId` para el título de los anuncios;
+  - R-09 anota el `Cargando` de `/admin` fuera del contexto opaco;
+  - el maestro pasa de 24 a 20 px, marcado en §5 y juzgado en H-10;
+  - R-15 (textos de los marcadores en el JavaScript de producción), también como recordatorio en la hoja;
+  - R-17 (pantallas táctiles, con el toque a 360 px en H-16);
+  - R-18 (iconos de los gestores de contraseñas, en H-16);
+  - la frase de "sin proxy" de la ventana 5 ya no está.
+- **Pasos 8, 11 y 13:** mandan revisar V-14 con sus cuatro partes y comparar el diff de `acceso-restringido-view.tsx` y de `main.tsx` en la revisión final de 01b-1.
+
+### Para el humano
+- Mis opiniones sobre P-01 a P-05 no cambian (sección "DESIGN-01b — plan"): (A) en P-01 a P-04 y (B) en P-05, que se aparta de tu texto literal y decides tú.
+- Si el arquitecto aplica M-05 antes de que apruebes, la condición de detención sobre acceso restringido queda cerrada también para ramas nuevas. Si no, la cubre el punto de ataque 2 del tester.
+- Recuerda hacer commit de los documentos al aprobar, para que el orquestador anote `<B>`.
+
+### DESIGN-01b — plan, ajuste de P-05
+
+Veredicto: **APROBADO**. El ajuste de P-05 está aplicado de forma coherente. **Ningún selector de prueba, normal ni de ataque, encuentra el botón al buscar un campo, así que 01b-2 no necesita ronda 0.** M-05 también quedó aplicado en V-14, parte 2, y en E-6.
+
+Verificación propia (solo lectura, sobre `frontend/src`, idéntico a `e39500a`; 37 archivos de prueba):
+- **Campos de contraseña hoy:** 7 `type="password"`, en los 4 formularios que lista la tabla de §D-7: `formulario-cambiar-contrasena.tsx:63`, `:78` y `:100`; `formulario-login.tsx:71`; `formulario-nueva-contrasena.tsx:95` y `:117`; `formulario-registro.tsx:89`.
+- **Consultas por etiqueta:** todas usan cadena exacta: "Contraseña", "Contraseña nueva", "Contraseña temporal" y "Confirma la contraseña nueva". Muestreé las líneas del inventario (`login-view.test:50`, `cambiar-contrasena-view.test:53`, `enlace-r1:292`, `cuentas-r1:176` y `en-espera-r1:137` a `:196`) y coinciden.
+  - La única consulta con argumento variable es el auxiliar `escribir` (`app/en-espera-r1.ataque.test.tsx:81`), y todas sus llamadas llevan esas cadenas exactas.
+  - Ninguna prueba usa `exact: false`, `normalizer` ni funciones como criterio de búsqueda.
+  - Aunque el botón tuviera `aria-label`, una cadena exacta como "Contraseña" no coincidiría con "Mostrar contraseña". Con el texto `sr-only`, además, `getByLabelText` no lo toma en cuenta.
+- **Consultas con expresión regular (tus puntos 1 y 3):** solo 5 en todo `src/`: `/Hola,/` y `/Hola, Ana/` (`router.ataque:145` y `:182`, `sesion-r2:156`), `/Correo actualizado/` (`cuentas-r2:274`) y `/Acude a administración/` (`login-view.test:80`).
+  - Ninguna puede coincidir con "Mostrar …".
+  - No hay consultas repartidas en varias líneas (búsqueda multilínea: 0).
+  - No hay ningún `name: /…/`, ni `new RegExp` o `stringMatching` en consultas.
+- **`getByRole("button")` sin nombre y conteos:** solo `contexto-r1:72`, dentro de `controles()`, y sus aserciones sobre controles solo corren en `/admin` (`:94` a `:109`). En las rutas públicas, esa prueba solo cuenta `[data-material]` y `[data-densidad]`, y espera un botón por nombre exacto ("Iniciar sesión", "Guardar contraseña"…). El otro conteo, `contenedor-rol.test:54`, es de "Cerrar sesión".
+- **`getAllByText` sobre formularios:** `errores-r1:126` busca el texto exacto de cada error de campo, y ningún mensaje de error se llama "Mostrar …". `en-espera-r1` de admin (`:310`) cuenta la temporal en `/admin`.
+- **`toHaveTextContent`:** 26 usos, todos sobre `findByRole("alert")` o `getByRole("status")`, que no contienen el botón. No hay ninguno sobre un formulario ni sobre un contenedor que lo incluya.
+- **`textContent` de toda la página:** `document.body.textContent` solo aparece en `enlace-r1:390` (`/recuperar`, sin campo de contraseña; busca `/nadie\.existe/i`) y en `cuentas-r3:343` (`/admin`). El resto de los `textContent` describen el elemento enfocado en `/admin` o leen el nodo del error.
+- **Ninguna prueba menciona** "mostrar", "ocultar", `sr-only` ni `aria-pressed`. La única coincidencia de "mostrar" es un texto de `/admin` ("no se volverá a mostrar").
+- **`sr-only` con la escala anulada:** en Tailwind 4.3.3 es una utilidad estática con valores literales (`position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-width: 0`), sin claves de tema, así que las anulaciones de `tokens.css` no la afectan. Ya aparece hoy en el CSS de `dist/`.
+
+**Coherencia de P-05 (B) con los ajustes y con P-04:**
+- **Nombre fijo por campo**, sin "Ocultar": el marcado de §D-7 ya no tiene la condición del nombre, y V-17 exige 0 apariciones de "Ocultar" y de "Ocultar contraseña".
+- **Estado solo en `aria-pressed`.**
+- **Nombre como texto `sr-only` dentro del botón, sin `aria-label` ni `aria-labelledby`,** con el icono `aria-hidden`. El nombre accesible sale del contenido.
+- **P-04:** al enviar, el campo vuelve a `password`, el botón pasa a `aria-pressed="false"` y el nombre no cambia (CC-6).
+- **`nombreDelBoton` es obligatorio,** así que ningún campo puede quedar sin nombre.
+- **En ninguna pantalla hay dos botones con el mismo nombre:** comprobé la tabla.
+- **Lo verifican:**
+  - `campo-contrasena.test`: nombre igual en los dos estados, sin `aria-label`, `queryByLabelText(nombre)` → `null`, y el envío oculta;
+  - `contrasena-visible.test`: 7 botones con nombre exacto, sin repetidos, y `getByLabelText` devuelve el `input`;
+  - V-17: `aria-label` 0, `aria-labelledby` 0, `sr-only` 1, `aria-pressed` 1, "Ocultar" 0 y las 7 constantes;
+  - V-10: `.sr-only` en `dist/`;
+  - los puntos de ataque 2, 4 y 6 de 01b-2, con el inventario rehecho por el tester sobre las `*.ataque` nuevas de 01b-1;
+  - H-16: nombres esperados por pantalla, el nombre que no cambia y que no se ve.
+- **`CLAUDE.md` y `DESIGN.md` §7.3:** los textos propuestos dicen lo mismo.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores
+- **V-17, "Ocultar" → 0 "en `src/`":** el encabezado de V-17 dice "sin contar pruebas", pero la viñeta dice `src/` a secas. Si una `*.ataque` nueva del tester afirma que **nunca** aparece un botón "Ocultar contraseña", contaría. Basta con leerla bajo el encabezado: sin pruebas.
+- **`aprobacion.md`, "Pendientes para encargos siguientes":** la última viñeta todavía dice que 01b sale "desde una rama nueva después de fusionar 01a", lo que contradice la rama que aprobó el humano. Es del orquestador; basta con quitarla o actualizarla.
+- **P-06 no bloquea.** Cambiar un nombre es el valor de una constante de `features/auth/data.ts` y de las pruebas nuevas de 01b-2. Si el humano lo decide antes de 01b-2, el programador toma los textos de `aprobacion.md` (paso 15).
+
+### Para el humano
+- **Ninguna prueba existente encuentra el botón al buscar un campo:** 01b-2 va sin ronda 0, y el programador se detiene si alguna se pone en rojo (paso 17).
+- **P-06:** "Mostrar contraseña temporal" me parece bien; es la etiqueta del campo con "Mostrar" delante. "Mostrar confirmación de contraseña" es tu texto literal; la alternativa, "Mostrar confirmación de contraseña nueva", sigue la etiqueta, pero es más larga sin ganar claridad. Cualquiera de las dos funciona.
+- **Tu commit de los documentos** fija `<B>` para 01b-1.
+
+## DESIGN-01b-1 — arbitraje de la ronda 1
+
+Veredicto sobre el reporte: el **ROTO** del tester se sostiene. Los dos hallazgos son legítimos y de severidad baja. Vuelve al programador con las correcciones de abajo. Dos de ellas cambian el texto del plan (§D-5 y E-2), y son del arquitecto. El orquestador informa al humano; no hace falta volver a aprobar, porque ninguna cambia el alcance ni un comportamiento que el humano haya decidido.
+
+### T-01 — Caracteres de control en la URL del pie: tiene razón el tester
+- **Las 3 pruebas son legítimas tal como están.** Lo que piden (no sale un `<a>` y en desarrollo queda el marcador) es lo que el plan y el comentario de `lib.ts:15-16` declaran como intención de M-03. Lo que falla es el mecanismo del plan: `trim()` no quita U+0000 a U+0008 ni U+000E a U+001F, y el analizador de URL sí. El error es del plan, no del código ni de la prueba.
+- **La regla correcta:** se rechaza un carácter de control **en cualquier posición**, y un espacio **solo al inicio o al final**.
+  - **Controles en cualquier posición:** el analizador de URL también quita en silencio el tabulador y los saltos de línea que están en medio (`"https://cole\ngio.mx"` se vuelve `https://colegio.mx`), y ningún control es legítimo en una URL escrita a mano.
+  - **Espacios en medio, no:** hay que dejar pasar un `tel:+52 55 1234 5678`, que el navegador marca bien. Un espacio en el dominio lo rechaza el propio analizador. Así no se sobreconstruye.
+- **Sin expresión regular de controles:** `js.configs.recommended` incluye `no-control-regex`, y `/[\u0000-\u001F]/` pondría en rojo el lint. Se comprueba recorriendo el texto.
+- **Texto exacto para §D-5, paso 2, de `plan-01b.md`** (sustituye al actual):
+  > 2. **`false` si tiene un carácter de control en cualquier posición (U+0000 a U+001F o U+007F) o un espacio al inicio o al final (`url !== url.trim()`)** (M-03 y T-01 de la ronda 1): el analizador de URL quita en silencio los controles y espacios de los extremos, y el tabulador y los saltos de línea de en medio (`new URL(" https://x ")` y `new URL("\u0001https://x")` son válidas), y el `href` saldría con ellos. Los controles se buscan recorriendo el texto (`codePointAt` menor que `0x20` o igual a `0x7f`), no con una expresión regular: `no-control-regex` de ESLint la rechaza. Un espacio en medio no se rechaza aquí (por ejemplo, `tel:+52 55 1234 5678`); si el analizador no lo acepta, lo rechaza el paso 3.
+- **Para el programador (código y prueba normal):**
+  - En `components/layout/lib.ts`, `esUrlPublicable` agrega esa guarda en el paso 2, con retorno temprano, antes de `new URL`, sin expresión regular de controles, y con el comentario ajustado.
+  - En `components/layout/lib.test.ts` agrega, a los casos `false`: `"\u0001https://colegio.mx"`, `"https://colegio.mx\u0000"` y `"https://cole\ngio.mx"`.
+  - A los casos `true`: `"tel:+52 55 1234 5678"`.
+  - No toca `pie-r1.ataque.test.tsx`.
+  - Después, `npm run lint` y `npm run test`: las 3 de T-01 deben quedar en verde.
+
+### T-02 — Una línea quitada en `format.test.ts`: se amplía E-2 y el programador corrige su resumen
+- **No se separa la importación.** Dos `import` desde `./format` en el mismo archivo empeoran el código solo para cumplir la letra de una verificación, y la intención de E-2 ("nada existente cambia") se refiere a las funciones y a las pruebas, no a la lista de lo que se importa.
+  - El proyecto no tiene `eslint-plugin-import`, así que `import/no-duplicates` no lo detendría. Aun así es la salida equivocada.
+- **Texto exacto para `plan-01b.md`:**
+  - **E-2** ("No se toca", excepciones):
+    > **E-2 · `src/lib/format.ts` y `format.test.ts`:** solo se agrega `inicialesDe` y sus pruebas; nada existente cambia. Única línea existente que puede cambiar: en `format.test.ts`, la importación de `./format`, que pasa a incluir `inicialesDe` (`import { formatearFechaHora, inicialesDe } from "./format"`).
+  - **V-08**, viñeta de E-2 y E-3:
+    > - **E-2 y E-3:** `git diff e39500a -- frontend/src/lib/format.ts frontend/src/lib/format.test.ts frontend/src/components/layout/types.ts` no quita ninguna línea, salvo en `format.test.ts` la importación `-import { formatearFechaHora } from "./format"`, que se sustituye por `+import { formatearFechaHora, inicialesDe } from "./format"`. Cualquier otra línea quitada es parada.
+- **Para el programador:**
+  - Vuelve a ejecutar V-08 completa.
+  - En `resumen-programador.md` corrige la afirmación de E-2 y E-3 con la salida real, pegada, y reconoce que la anterior no se había comprobado.
+  - Aplica aquí la regla de `AGENTS.md`: ningún agente declara verde algo que no ejecutó.
+
+### Descripciones de `tokens-r1.ataque.test.ts:185` y `:188`: van en la ronda 2
+- El tester hizo bien en seguir el límite más estrecho del orquestador. En la ronda 2 va exactamente el alcance del plan ("Pruebas existentes afectadas" y punto de ataque 9).
+- **Solo cambia el cuarto elemento (la descripción) de esas dos tuplas.** Los tokens, el fondo, el umbral y la aserción no se tocan.
+- Descripciones sugeridas; el tester puede ajustarlas si describen mejor el uso vigente:
+  - `:185`: `"respaldo sólido: texto secundario sobre el fondo, sin vidrio"`;
+  - `:188`: `"borde de 1 px de los campos (--input apunta a --field-border)"`.
+- Después, el tester formatea solo ese archivo, comprueba con `git diff` que solo cambian esas dos cadenas, corre `npm run test` y publica la tabla de hashes con `tokens-r1` modificada.
+
+### Observaciones O-1 a O-4
+- **O-1 (dos clics simultáneos en "Cerrar sesión"):** sin cambios. Es igual en `e39500a`, el cierre de sesión se puede repetir sin efecto y con repintado sale uno solo. No es de este encargo.
+- **O-2 ("Cuentas" activo pierde `--accent-soft` bajo el puntero en `/admin`):** sin cambios en esta vuelta. Son las clases literales del plan (§D-3) y el efecto es solo visual. El activo se sigue distinguiendo por `aria-current`, el peso y el color `--link`, que pasa AA sobre `--muted`. Se agrega a H-12 de la hoja: "en `/admin`, pasa el puntero sobre 'Cuentas' activo; si pierde el azul claro, anótalo". Si el humano lo quiere corregir, es un cambio de clases en carril trivial.
+- **O-3 (`DESIGN.md` §7.4 dice 16 px "porque necesita más margen"): lo corrige el programador en esta vuelta** (E-1). La razón que da es falsa, y además contradice §5.
+  - **Texto exacto** que sustituye, en la viñeta de "Una sola `nav`", el tramo "flotante a 16 px de los bordes de la ventana (no a 24 px: la barra inferior necesita más margen para no encimarse con el borde de la pantalla)":
+    > flotante a 16 px de los bordes de la ventana, el margen de la ventana en pantallas angostas (§5); desde 768 px, la barra lateral y la barra superior flotan a 24 px, como dice el inicio de esta sección. Entre 640 y 767 px el margen también es de 16 px, y no de 24 como pide §5, porque cambia en el mismo corte que la barra (DESIGN-01b, propuesta)
+  - La frase del inicio de §7.4 ("Las dos barras flotan sobre el fondo, a 24 px") no se toca: describe el escritorio, que es lo que se midió en la captura.
+- **O-4 (en móvil, la barra inferior va antes que la barra superior en el orden de Tab):** sin cambios. Es la estructura del plan (una sola `nav`, antes del contenido, como una barra lateral) y el orden sigue siendo predecible. Lo juzga el humano en H-04, que la hoja ya incluye.
+
+### Qué recibe cada agente
+- **Arquitecto:** §D-5, paso 2; E-2; la viñeta de E-2 y E-3 de V-08; y la línea de O-2 en H-12. Textos exactos arriba.
+- **Programador (vuelta 2 de 01b-1):**
+  - T-01 en `lib.ts` y `lib.test.ts`;
+  - T-02, que es V-08 otra vez y la corrección del resumen;
+  - O-3 en `DESIGN.md` §7.4;
+  - después, V-01 con la tabla de 43 de la ronda 1, V-02 a V-16, lint, test y build.
+  - No toca ninguna `*.ataque`.
+- **Tester (ronda 2):**
+  - las dos descripciones de `tokens-r1`;
+  - que las 3 de T-01 pasan sin modificarse;
+  - que la guarda nueva no deja pasar controles en medio ni rechaza el `tel:` con espacios;
+  - la tabla de hashes.
+
+## DESIGN-01b-1 — arbitraje de la ronda 2
+
+Veredicto sobre el reporte: el **ROTO** se sostiene. **T-03 entra en este encargo**, porque es la intención de M-03 que la regla de la ronda 1 no alcanzó a cubrir. La culpa es de mi arbitraje anterior, que resolvió con una lista de caracteres, no del programador ni del tester. Las 4 pruebas de `pie-r2` son legítimas y quedan tal como están.
+
+Para cerrar el tema, la lista se sustituye por un **criterio general**: *se publica solo una URL que el analizador deja exactamente igual*. **O-5 y O-6 no entran:** quedan escritas como límite de la regla. T-01, T-02, O-3 y las descripciones de `tokens-r1` quedaron bien.
+
+### La regla final
+**Criterio:** `new URL(url).href` debe ser idéntico a la URL escrita. La única diferencia admitida es la barra que el analizador agrega a un dominio sin ruta (`https://colegio.mx` pasa a `https://colegio.mx/`).
+- **Cubre lo que el analizador quita o transforma en silencio,** sin enumerar caracteres: controles en cualquier posición, espacios en los extremos, saltos de línea y tabuladores en medio, y los caracteres invisibles que el mapeo de dominios elimina (U+00AD, U+200B, U+2060, U+FEFF y cualquier otro de la misma clase). No deja lugar a un T-04 del mismo tipo.
+- **Sustituye a las guardas de la ronda 1** (`trim()` y el recorrido de controles), que quedan cubiertas, y no usa expresiones regulares, así que no hay problema con `no-control-regex`.
+- **Ningún carácter invisible puede pasar:** el analizador codifica o transforma cualquier carácter fuera de ASCII en el dominio, la ruta, la consulta, el fragmento y la parte de un `tel:` o `mailto:`. Lo comprobé con U+200B, U+00AD, U+2060, U+200E y U+202E en esas posiciones.
+- **Lo comprobé en Node** con 66 casos:
+  - pasan los 9 que deben publicarse, entre ellos `https://colegio.mx`, `https://colegio.mx/aviso-de-privacidad`, `mailto:contacto@colegio.mx`, `tel:+525555555555`, `tel:+52 55 1234 5678` y una URL con consulta y fragmento;
+  - se rechazan los 57 que no: los de `pie-r1`, `pie-r2` y `lib.test`, los 4 de T-03, las 21 formas de `javascript:` y los casos de la lista siguiente.
+- **Consecuencias aceptadas, que no son hallazgos.** Estas URL también quedan como marcador, porque el analizador las reescribe:
+  - con mayúsculas en el esquema o en el dominio;
+  - con el puerto por defecto (`:443`);
+  - con un dominio con acentos, que se escribe en su forma `xn--`;
+  - con un espacio en la ruta de un `https:`, que se escribe `%20`.
+
+  En desarrollo se ven como marcador y quien edita `data.ts` las corrige. Esa es la intención de M-03: que el error de captura quede a la vista.
+
+**Texto exacto para `plan-01b.md`, §D-5, "Funciones puras", viñeta de `esUrlPublicable`** (sustituye los pasos 1 a 4 y la línea de `"java\nscript:…"`):
+> - `esUrlPublicable(url: string | null): boolean`, con retornos tempranos y en este orden:
+>   1. `false` si es `null` o `""`;
+>   2. `false` si `new URL(url)` lanza (se atrapa la excepción);
+>   3. **`false` si el analizador la cambia:** `analizada.href !== url` y `analizada.href !== \`${url}/\`` (M-03, T-01 y T-03 de las rondas 1 y 2). Solo se publica lo que el navegador va a usar tal cual; la única diferencia admitida es la barra que el analizador agrega a un dominio sin ruta (`https://colegio.mx` → `https://colegio.mx/`). Así queda como marcador todo lo que el analizador quita o transforma en silencio: controles en cualquier posición, espacios en los extremos, tabuladores y saltos de línea en medio, y caracteres invisibles del dominio (guion suave, espacio de ancho cero…). Consecuencias aceptadas: mayúsculas en el esquema o el dominio, el puerto por defecto, un dominio con acentos (se escribe en su forma `xn--`) o un espacio en la ruta de un `https:` (se escribe `%20`) también quedan como marcador, a la vista en desarrollo. Sin expresiones regulares;
+>   4. `true` solo si el protocolo es `https:`, `mailto:` o `tel:` (S-07).
+>
+>   **Alcance de la regla (O-5 y O-6 de la ronda 2):** garantiza que el `href` es exactamente lo escrito y que el esquema está permitido. No comprueba que el destino exista ni que tenga forma de correo o de teléfono: un `mailto:` con un espacio en el dominio o un `tel:` o `mailto:` vacíos salen tal cual, con el error a la vista. Eso lo revisa el humano al llenar las URL reales, antes de DEPLOY, probando cada enlace.
+
+**En la misma §D-5, viñeta de `enlacesVisibles`:** "con la URL tal cual (ya sin espacios, por el paso 2)" pasa a "con la URL tal cual (el paso 3 garantiza que es la que usa el navegador)".
+
+**S-07**, primera frase y sus dos siguientes, sustituidas por:
+> **S-07 · Enlaces del pie.** Una URL solo cuenta si es absoluta, con esquema `https:`, `mailto:` o `tel:` ("Contacto" puede ser un correo o un teléfono), y el analizador de URL la deja exactamente igual, salvo la barra final de un dominio sin ruta (§D-5, paso 3). `http:`, `#`, rutas relativas, `javascript:`, una cadena vacía y cualquier URL que el analizador cambie (espacios o controles, caracteres invisibles, mayúsculas en el dominio…) cuentan como "sin URL": en desarrollo se ve como marcador, así que el error de captura queda a la vista (M-03, T-01 y T-03). La regla no comprueba que el destino sea válido (§D-5, "Alcance de la regla").
+
+**"Pruebas requeridas", `components/layout/lib.test.ts`, `esUrlPublicable`:** a los casos `false` se agregan `"https://cole­gio.mx"` (T-03) y `"https://Colegio.mx"` (consecuencia aceptada). Los casos `true` no cambian: `https://colegio.mx`, `mailto:contacto@colegio.mx`, `tel:+525555555555` y `tel:+52 55 1234 5678`.
+
+### O-5 y O-6: fuera de la regla
+Un `mailto:` con un espacio en el dominio o un `tel:` o `mailto:` vacíos no son un cambio en silencio: el `href` sale con el error visible. Las URL las escribe una persona de confianza en un solo archivo, y el humano las prueba al llenarlas antes de DEPLOY. Validar la forma de un correo o de un teléfono es sobreconstruir el pie. Quedan escritos como límite en §D-5, así que no son hallazgos en la ronda 3.
+
+### Vuelta 3 del programador (alcance cerrado)
+1. **`components/layout/lib.ts`:**
+   - `esUrlPublicable` con los pasos 1 a 4 de arriba, en ese orden y con retornos tempranos;
+   - se quitan `tieneCaracterDeControl` y la guarda `trim()`;
+   - el comentario explica el criterio y cita M-03, T-01 y T-03;
+   - `enlacesVisibles` y `textoDeDerechos` no cambian.
+2. **`components/layout/lib.test.ts`:** los dos casos `false` de arriba; ninguna aserción existente se quita.
+3. **`docs/DESIGN.md` §7.12, viñeta "URL publicables"** (E-1), que se sustituye por:
+   > - **URL publicables:** absolutas, con esquema `https:`, `mailto:` o `tel:`, y escritas exactamente como las usará el navegador: el analizador de URL no les cambia nada, salvo la barra final de un dominio sin ruta. `http:`, `#`, una ruta relativa, `javascript:`, una cadena vacía o una URL que el analizador cambie (espacios o caracteres invisibles, mayúsculas en el dominio…) no cuentan como publicables. La regla no comprueba que el destino exista: eso se revisa al llenar las URL reales.
+4. **Nada más:** ningún otro archivo de producción, ninguna `*.ataque`.
+5. **Verificación:**
+   - V-01 con la tabla de 44 de la ronda 2;
+   - V-08 (incluida E-2 con su línea permitida);
+   - V-14, lint, test y build desde `frontend/`: **las 4 pruebas de T-03 en verde y ningún rojo**;
+   - `resumen-programador.md`, sección "DESIGN-01b-1 — vuelta 3", con las salidas pegadas.
+
+### Ronda 3 del tester (la última; alcance cerrado)
+- **Comprueba:**
+  - V-01 con la tabla de 44;
+  - las 4 de T-03 y las 3 de T-01 en verde **sin modificar** sus archivos;
+  - las 44 `*.ataque` y la suite completa en verde;
+  - V-14 y V-08.
+- **Ataca solo la regla nueva:** que nada que el analizador cambie salga como `<a>`, en desarrollo ni en producción, y que las 4 URL publicables de los casos `true` sigan saliendo con el `href` tal cual.
+- **No son hallazgos:** las consecuencias aceptadas y el alcance de §D-5 (O-5 y O-6). Tampoco lo que exige navegador.
+- **Si encuentra algo fuera de ese alcance,** lo anota como observación, no como ROTO.
+- **Publica** la tabla de hashes.
+- Si la ronda 3 sale ROTO, se escala al humano, como dice `AGENTS.md`.
+
+## DESIGN-01b-1 — final
+
+Veredicto: **APROBADO** (sin problemas que bloqueen). El orquestador puede pedirle al humano el commit de 01b-1 (`<C>`), en la rama y sin push. La comprobación visual sigue pendiente para después de 01b-2.
+
+Verificación propia (2026-09-27, desde `frontend/`; salidas en el scratchpad):
+- **lint:** código 0 (ESLint, `prettier --check` y `tsc -b`).
+- **test:** código 0; **48 archivos y 806 pruebas en verde**. Coincide con el tester.
+- **build:** código 0; solo el aviso conocido de Vite sobre el bloque de más de 500 kB.
+- **V-01:** `sha256sum -c` con la tabla de 45 de "DESIGN-01b-1 — Ronda 3" da **45/45 OK**. `find` encuentra exactamente 45 `*.ataque`, todas en la tabla.
+  - Contra `e39500a` solo cambian dos existentes: `clases-r1` y `tokens-r1`.
+  - Las 6 nuevas están sin rastrear.
+- **V-14:**
+  1. `git diff --quiet e39500a` sobre `router.tsx` y las tres guardas da código 0.
+  2. En el diff `-U0` de `acceso-restringido-view.tsx`, los 10 textos fijos (incluidos `if (`, `return` y `./hooks"` de M-05) aparecen 0 veces.
+  3. Las cuatro líneas de §D-1 están idénticas y en orden (21, 31, 42 y 43).
+  - Las importaciones de `Navigate`, `./hooks` y `./lib` no cambian, y la rama de la `Navigate` no está envuelta.
+  - Las 9 `*.ataque` de `/acceso-restringido` siguen en verde con su hash, y el tester agregó el caso de los tres roles no restringidos (`marco-r1`).
+- **E-5:** el diff de `main.tsx` agrega exactamente la importación de `FondoDeLaApp` y `<FondoDeLaApp router={router} />` dentro de `Providers`, antes de `RouterProvider`. No quita ninguna línea.
+- **V-08, base `e39500a` (frontend):**
+  - sin cambios en la lista "No se toca": configuración, `index.css`, `providers.tsx`, `components/ui/`, `services/`, los `hooks`, `types`, `data` y `lib` de `features/`, los 5 `formulario-*`, las 3 vistas de cuenta, `features/admin/components/` y `diagnostico`;
+  - E-2: la única línea quitada es la importación permitida de `format.test.ts`.
+- **V-08, base `8feab74` (fuera de frontend):**
+  - solo cambian `docs/DESIGN.md` (E-1), `docs/ESTADO.md` y esta carpeta;
+  - `plan-01b.md` solo con los textos de los dos arbitrajes, que el orquestador verificó;
+  - `package.json`, `package-lock.json`, `backend/`, `shared/`, `infra/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `ARCHITECTURE*`, `PRD.md` y `docs/design/` sin cambios.
+- **V-06:** `enEspera=` sigue en 13.
+- **V-15 y V-16:** `@keyframes` y `will-change` solo en `tokens.css`. `animate-` solo en `cargando.tsx` y `button.tsx`, que ya estaban. `fixed` solo en `barra-navegacion.tsx` y `dialog.tsx`.
+- **V-10, en el CSS de `dist/`:** están `[data-fondo]`, los tres `@keyframes orbe-*`, `prefers-reduced-motion`, `animation-play-state:paused`, `will-change:transform`, `.sin-sombra-de-vidrio`, `--orb-blue-size` y `.sr-only`. En el JS, `href:"#"` aparece 0 veces. Hay 6 `.woff2`.
+- **Nada de 01b-2:** los 7 `type="password"` siguen en los 4 formularios, que no cambiaron.
+
+### Cumplimiento del plan (01b-1)
+- **Alcance:**
+  - fondo con orbes, montado una vez en `main.tsx` (`FondoDeLaApp` con `useSyncExternalStore` sobre `router.subscribe`; solo lee la ruta);
+  - `FondoAnimado` sin clases y con `aria-hidden`;
+  - marco con una sola `nav`, hija directa de una raíz sin vidrio;
+  - `BarraSuperior` con el nombre del producto, que no es un encabezado;
+  - `MarcoPublico`;
+  - pie con `ENLACES_DEL_COLEGIO` en un solo archivo;
+  - composición;
+  - recorte de la sombra (`sin-sombra-de-vidrio`, sin `-m-2`);
+  - `ESPACIADO_POR_ROL` y `CONTEXTO_POR_ROL` en `data.ts`, sin el texto `data-material` fuera de `contenedor-rol.tsx`.
+
+  Todo coincide con §D-1 a §D-6. No hay nada de 01b-2.
+- **La regla del pie** es la final del arbitraje de la ronda 2, con retornos tempranos y sin expresiones regulares: nulo o vacío, `new URL` que lanza, `href` distinto de lo escrito salvo la barra final, y el protocolo.
+- **Capas y reglas:** sin backend ni API, sin secretos, sin proveedores nuevos ni dependencias. `components/layout` no importa de `features/`.
+
+### Las `*.ataque` existentes que cambiaron, línea por línea contra `e39500a`
+- **`clases-r1`, V-07:**
+  - las dos igualdades exactas coinciden letra por letra con el "Texto de referencia de la ronda 1" de §D-9;
+  - se conservan las dos `toContain` (`card.tsx` y `button-variants.ts`);
+  - `vidrio-azul` y `data-material|data-densidad` no cambian;
+  - solo cambian el nombre de la prueba y el comentario;
+  - frente a la igualdad de `e39500a`, amplía la lista con los archivos que el plan autoriza y sigue fallando si sobra o falta uno. **No se debilitó.**
+- **`tokens-r1`:** solo cambia el cuarto elemento, la descripción, de las tuplas de `:185` y `:188`. Tokens, fondo, umbral y aserción no cambian.
+- **Las 6 nuevas** (`pie-r1`, `pie-r2`, `pie-r3`, `estatico-r1`, `fondo-r1` y `marco-r1`):
+  - no tienen `skip`, `only`, `todo` ni `fails`;
+  - ninguna localiza por clase: no hay `querySelector` con clase, ni `getElementsByClassName`, ni `closest` con clase;
+  - `marco-r1` lee las clases de elementos ya localizados por rol o atributo, como aserción sobre la estructura (ancestros sin bloque contenedor, texto sobre panel y `sin-sombra-de-vidrio` en la lista que desplaza), que es lo que permiten §D-1 y el punto de ataque 6;
+  - atacan de verdad: URL hostiles, un barrido de más de 30 000 inserciones, la condición de detención con los tres roles, un solo pie al navegar, el fondo a través de 11 redirecciones, `tokens.css` y los valores arbitrarios fijados.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+
+#### M-01 — El comentario de `ENLACES_DEL_COLEGIO` describe la regla de la ronda 1, no la final
+Dónde: `frontend/src/components/layout/data.ts`, comentario de "Enlaces del pie".
+
+Por qué importa: el comentario dice "escribe su URL completa, sin espacios alrededor". Es lo primero que va a leer el humano cuando llene las URL reales, y la regla vigente es más estricta: la URL debe quedar exactamente como la usa el navegador, con el dominio en minúsculas, sin espacios ni caracteres invisibles, y sin acentos en el dominio (en su forma `xn--`). Si no cumple, sale como marcador sin decir por qué.
+
+Qué se espera: en el cierre de 01b (carril trivial, después de la comprobación completa), el comentario explica la regla final en una o dos líneas y dice que, si un enlace se ve como marcador en desarrollo, es que el navegador cambiaría la URL. No hace falta tocarlo ahora: `data.ts` de `components/layout` está en "No se toca" de 01b-2, y el pie no tiene URL hasta DEPLOY.
+
+### Detalles menores
+- **`enlacesVisibles`:** usa `enlace.url as string` después de `esUrlPublicable`. Es correcto, pero es una aserción de tipo; una variable local ya comprobada lo evitaría. No vale una vuelta.
+- **Valores arbitrarios** (`min-h-[calc(100svh-7rem)]`, `md:min-h-[calc(100svh-3rem)]`, `md:h-[calc(100svh-3rem)]`, `lg:max-h-[calc(100svh-6rem)]` y las dos rejillas): **permitidos**, de acuerdo con el tester. `CLAUDE.md` prohíbe sueltos el color, el tamaño de letra, el radio y la sombra, no medidas de maquetación. Son los que prescribe el plan y `estatico-r1` los fija. Las dos alturas dependen del relleno de `ContenedorRol`: si cambia uno, cambian las otras.
+- **O-1, O-2 y O-4:** como en el arbitraje de la ronda 1. O-2 va a H-12 y O-4 a H-04.
+- **O-8 y O-9** (secuencia ya codificada y puerto que no es el por defecto): el `href` es exactamente lo escrito y está a la vista. Quedan dentro del alcance de §D-5 y no hay nada que hacer.
+
+### O-7 (usuario o contraseña en la URL): queda como pendiente con destino, sin código ahora
+- **Qué es:** `https://colegio.mx@otro-sitio.mx` lleva en realidad a `otro-sitio.mx`, y la regla lo publica, porque el analizador no lo cambia.
+- **Qué decido:**
+  - **No entra en 01b-1.** Es un problema de destino, justo lo que el "Alcance de la regla" de §D-5 deja fuera a propósito.
+  - El dato lo escribe una persona de confianza en un archivo del repositorio, pasa por la revisión del diff y el humano va a probar cada enlace antes de DEPLOY.
+  - Ya no quedan rondas del tester. Abrir el código ahora, por un caso que no llega por error de captura sino a propósito, cambiaría la regla recién cerrada sin nadie que la ataque.
+  - El cambio sería una línea (`analizada.username || analizada.password`), así que si el humano lo quiere, entra sin costo en el cierre de 01b como carril trivial: con su caso en `lib.test.ts` y mi revisión del diff.
+- **Destino:** la fila de `ESTADO.md` "Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY" pasa a decir: "…antes de DEPLOY: probar cada enlace en el navegador y comprobar que ninguno lleva usuario o contraseña antes del dominio (`https://colegio.mx@otro-sitio.mx` lleva a otro sitio)". Lo actualiza el orquestador.
+
+### Documentos
+- **`DESIGN.md`:** está todo patrón nuevo, con su marca:
+  - §3 "Materiales": los tokens de los orbes;
+  - §5: el espaciado por rol;
+  - §7.1: la posición y la trayectoria (propuesta), cómo se decide el movimiento, la pausa y el montaje, más la columna "Rutas hoy";
+  - §7.2: el contenedor con desplazamiento propio (sustituye al alivio de 01a), lo fijo fuera del vidrio, el panel de anuncios y las pantallas de cuenta;
+  - §7.4: la implementación, con el texto corregido de O-3, sin contradecir §5;
+  - §7.10: `Cargando`;
+  - §7.12: el pie completo, con la regla final;
+  - "Estado de aplicación".
+
+  Las marcas existentes no se tocaron.
+- **`CLAUDE.md` y `README.md`:** van en el cierre de 01b, como dice el plan.
+- **`ESTADO.md`:** O-7 (arriba) y el estado de 01b-1 (APROBADO; siguiente paso, el commit `<C>` y después 01b-2).
+
+### Desacuerdos arbitrados
+Sin desacuerdos nuevos. Los tres hallazgos de las rondas 1 y 2 están corregidos y sus pruebas pasan sin modificarse.
+
+### Para el humano
+**Antes del commit de 01b-1 (`<C>`):**
+1. **Carril normal:** no es obligatorio que revises el diff, pero conviene que mires:
+   - `main.tsx` (dos líneas);
+   - `acceso-restringido-view.tsx`, donde solo cambia lo que devuelve cada rama;
+   - `components/layout/lib.ts`, la regla del pie;
+   - el diff de `clases-r1` y `tokens-r1.ataque`.
+2. **Incluye los archivos sin rastrear:**
+   - 15 de producción y de pruebas del programador en `app/`, `components/` y `components/layout/`;
+   - las 6 `*.ataque` nuevas;
+   - los documentos de esta carpeta.
+3. **Decide O-7:** dejarlo como pendiente antes de DEPLOY (lo que recomiendo) o pedir la línea en el cierre de 01b.
+
+**Para la comprobación completa (después de 01b-2), además de lo que ya dice la hoja:**
+- H-12 en `/admin`: pasa el puntero sobre "Cuentas" activo (O-2).
+- H-04 a 360 px: el orden de Tab con la barra inferior primero (O-4).
+- H-14: el recorte de la sombra, que ya no depende de un relleno.
+- H-11: los orbes, su rendimiento y la pausa al salir del login.
+- H-17 y C-07: el borde de los campos sobre el orbe azul.
+- H-15: el pie en producción, con `npm run build` y `npm run preview`.
+
+## DESIGN-01b-2 — final
+
+Veredicto: **APROBADO** (sin problemas que bloqueen). Carril sensible: antes del commit `<D>`, el humano revisa el diff (lista en "Para el humano").
+
+Verificación propia (2026-09-27, desde `frontend/`; salidas en el scratchpad):
+- **lint:** código 0.
+- **test:** código 0; **52 archivos y 873 pruebas en verde**. Solo las `*.ataque` (`vitest run ataque`): 26 archivos y 540 pruebas.
+- **build:** código 0; solo el aviso conocido de Vite.
+- **V-01:** `sha256sum -c` con la tabla de 47 de "DESIGN-01b-2 — Ronda 2" da **47/47 OK**. `find` encuentra exactamente 47. Contra `73e29c5` solo cambió una existente, `estatico-r1`, en la ronda 0; `contrasena-r1` y `contrasena-r2` son nuevas.
+- **V-14, parte 4 y guardas:** `git diff --quiet 73e29c5` sale con código 0 sobre `acceso-restringido-view.tsx`, `main.tsx`, `router.tsx` y las tres guardas.
+- **V-08:**
+  - **`frontend/` contra `73e29c5`:** solo cambian `estatico-r1` (ronda 0), los 4 formularios y `features/auth/data.ts`, más los 5 archivos nuevos de E-10 y del tester.
+  - **Fuera de `frontend/` contra `0fc961b`**, sin `docs/trabajo/` ni `docs/ESTADO.md` (regla "Trabajo visual"): solo `AGENTS.md` y `docs/DESIGN.md`.
+  - **`AGENTS.md`:** es **solo** la subsección "Trabajo visual" (7 líneas agregadas y ninguna quitada), con la decisión del humano.
+  - **`DESIGN.md`:** contra `73e29c5` solo cambian la línea de "Estado de aplicación" y la viñeta de §7.3 (E-13). El resto del diff contra `0fc961b` es 01b-1 (E-1), que ya revisé.
+- **V-17:**
+  - `type="password"` literal: 0 en `.tsx`;
+  - `"password"` solo en `campo-contrasena.tsx`;
+  - 7 `<CampoContrasena` (1, 1, 2 y 3 por formulario), cada uno con su constante;
+  - sin `aria-label` ni `aria-labelledby` en el código; un `sr-only` y un `aria-pressed`;
+  - "Ocultar": 0.
+
+  La guarda `estatico-r1` lo comprueba y está en verde. Las líneas de `autoComplete` no aparecen en el diff de ningún formulario: no cambiaron.
+- **V-10:** `.sr-only` está en el CSS de `dist/`, y `href:"#"` aparece 0 veces en el JS.
+
+### Cumplimiento de §D-7 y P-05 (B)
+- **Nombres fijos por campo** (P-06, confirmados por el humano): `mostrar` en login y registro; `mostrarNueva` y `mostrarConfirmacion` en nueva contraseña; `mostrarTemporal`, `mostrarNueva` y `mostrarConfirmacion` en cambiar contraseña. Salen de `TEXTOS_CAMPO_CONTRASENA` en `features/auth/data.ts` (E-12, solo la constante).
+- **Accesibilidad:** el nombre va como texto `sr-only` dentro del botón, sin `aria-label`; el estado va en `aria-pressed`, y `aria-controls` apunta al campo. El icono es `aria-hidden` y solo cambia el dibujo.
+- **CC-1:** `type="button"`.
+- **CC-3:** `onMouseDown` cancela la acción por defecto, y la selección se guarda antes de cambiar el `type` y se restaura en `useLayoutEffect` solo si el campo sigue enfocado.
+- **CC-4:** `autocomplete` intacto.
+- **CC-5:** `spellCheck`, `autoCapitalize` y `autoCorrect`.
+- **CC-6 (P-04):** escuchador de `submit` en captura con `flushSync`, sin `preventDefault`, y retirado al desmontar.
+- **CC-7:** cada campo tiene su estado.
+
+**Corrección de T-01: correcta y mínima.**
+- La selección pendiente se consume una sola vez: `seleccionRef` se anula al entrar en el efecto.
+- Al enviar se captura la selección de ese instante, no la del último clic en el ojo.
+- Las guardas del efecto son retornos tempranos planos, sin anidar.
+- El caso que queda (O-1 de la ronda 2: un envío con el campo ya oculto deja guardada una selección que nadie consume) no es observable: el único cambio posible después lo precede una captura nueva, sea de `alternar` o de otro envío. Coincido con el tester.
+
+**Ronda 0 de 01b-2 (`estatico-r1`), línea por línea contra `73e29c5`:**
+- Es un solo tramo: sustituye el bloque "nada de 01b-2 está implementado" (2 pruebas) por "los 7 campos de contraseña usan CampoContrasena" (5 pruebas).
+- Los auxiliares que usa (`soloTs`, `lineasCon`, `rutasCon`, `sinComentarios` y `archivo`) ya existían, y el resto del archivo no cambió.
+- **Es más estricto que lo que sustituye:**
+  - conserva los 7 campos y su reparto (1, 1, 2 y 3) en los mismos 4 formularios;
+  - agrega por cada campo el `id` y la constante de la tabla, en orden;
+  - exige que no haya `type` ni `aria-label` en el elemento;
+  - exige los 4 textos exactos en un solo lugar y ningún nombre escrito a mano fuera de `data.ts`;
+  - agrega V-17 completo y que solo los 4 formularios importen el componente.
+- El bloque anterior protegía un alcance, "01b-2 no existe", que por definición deja de valer en 01b-2. Sustituirlo era la decisión correcta del humano.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+
+#### M-01 — `interface Seleccion` en el archivo de un componente
+Dónde: `frontend/src/features/auth/components/campo-contrasena.tsx`, `interface Seleccion`.
+
+Por qué importa: `CLAUDE.md`, regla 6: "Las interfaces de Props son los ÚNICOS tipos permitidos en el archivo de un componente"; los tipos van en `types.ts` (regla 1). El programador no podía moverlo, porque `features/auth/types.ts` estaba en "No se toca" de 01b-2.
+
+Qué se espera: en el cierre de 01b (carril trivial), `Seleccion` pasa a `features/auth/types.ts` y el componente la importa. `capturarSeleccion` puede quedarse, porque lee `document` y no es una función pura de `lib.ts`. Después, `npm run lint` y `npm run test`.
+
+### Detalles menores
+- Las pruebas de `campo-contrasena.test.tsx` y `contrasena-visible.test.tsx` cubren CC-1 a CC-7 y los nombres exactos. Lo que exige navegador (gestores de contraseñas, toque en un teléfono, lectores de pantalla) queda para H-16.
+
+### Lo que debe entrar en el cierre de 01b (además de lo que ya dijiste)
+1. **O-7 en código:** en `esUrlPublicable`, después del paso 3, `false` si `analizada.username` o `analizada.password` no están vacíos, con retorno temprano.
+   - En `components/layout/lib.test.ts`, casos `false`: `"https://colegio.mx@otro-sitio.mx"` y `"https://usuario:clave@colegio.mx"`.
+   - En §D-5 de `plan-01b.md` (arquitecto) y en §7.12 de `DESIGN.md`, una línea que lo diga.
+   - Como ya no hay rondas del tester, lo verifico yo: diff mínimo, las dos pruebas nuevas en verde y las 47 `*.ataque` con su hash.
+2. **M-01 de 01b-1:** el comentario de `ENLACES_DEL_COLEGIO` explica la regla final y el rechazo de usuario y contraseña, y dice que, si un enlace se ve como marcador en desarrollo, es que el navegador cambiaría la URL.
+3. **M-01 de esta revisión:** `Seleccion` pasa a `features/auth/types.ts`.
+4. **`README.md`:** el conteo del frontend con los números de la corrida de mi revisión del cierre (hoy: 52 archivos y 873 pruebas, 540 adversarias en 26 archivos; cambiará con las pruebas de O-7).
+5. **`CLAUDE.md`:** los textos de "Lo que aplica el orquestador" de `plan-01b.md`, con autorización del humano.
+6. **`DESIGN.md`:** las marcas "propuesta" pasan a "propuesta aprobada (fecha)" solo después de la comprobación completa, con lo que el humano apruebe; también lo de 01a que quedó pendiente.
+7. **`ESTADO.md`:** 01b cerrado; la fila de DEPLOY de los enlaces del pie, ya sin la parte de O-7 si entra en código; los pendientes de 01b-1 (O-2 y O-4, que el humano juzga en la comprobación).
+8. **`comprobacion-humano.md`:** la hoja de la comprobación completa (H-01 a H-17 y C-01 a C-26) según `plan-01b.md`, con el borde vigente en C-07, O-2 en H-12 y O-4 en H-04.
+
+### Para el humano
+**Antes del commit de 01b-2 (`<D>`), carril sensible. Revisa en el diff:**
+1. `frontend/src/features/auth/components/campo-contrasena.tsx` completo:
+   - el botón (`type="button"`, texto `sr-only`, `aria-pressed`, `aria-controls`);
+   - `onMouseDown`;
+   - la selección y su restauración, que es la corrección de T-01;
+   - el escuchador de `submit` que oculta la contraseña al enviar.
+2. Los 4 formularios (`formulario-login`, `-registro`, `-nueva-contrasena` y `-cambiar-contrasena`): cada `Input type="password"` pasa a `CampoContrasena` con su nombre. Las líneas de `autoComplete`, `name`, `required` y `aria-*` no cambian.
+3. `features/auth/data.ts`: solo `TEXTOS_CAMPO_CONTRASENA`, con los 4 nombres que confirmaste.
+4. `components/layout/estatico-r1.ataque.test.ts`: el bloque que sustituyó la ronda 0, que decidiste tú.
+5. `AGENTS.md`: la subsección "Trabajo visual", que es solo eso.
+6. `docs/DESIGN.md`: la viñeta de §7.3 y la línea de "Estado de aplicación".
+7. Archivos sin rastrear que van en el commit: `campo-contrasena.tsx` y su prueba, `contrasena-visible.test.tsx`, y `app/contrasena-r1` y `contrasena-r2.ataque`.
+
+**En la comprobación completa (H-16):**
+- el cursor no se mueve al pulsar el ojo, tampoco al tocarlo en la emulación táctil a 360 px;
+- los nombres en DevTools › Accessibility no cambian al pulsar, y el estado de presionado sí;
+- el ojo no envía el formulario;
+- con la contraseña a la vista, al enviar vuelve a ocultarse;
+- Chrome o Edge siguen ofreciendo guardar la contraseña;
+- el icono de un gestor de contraseñas no se encima con el ojo.
+
+## DESIGN-01b — cierre
+
+Veredicto: **CAMBIOS REQUERIDOS**, por un solo punto (M-01): la suite no está en verde de forma confiable. El código y los documentos del cierre están bien y no cambian. Lo que falla es el tiempo límite de las pruebas de ataque de contraseña bajo carga, que solo puede corregir el tester, en una ronda corta con el alcance de abajo. Con esa corrección y la suite en verde tres veces seguidas, el cierre queda APROBADO sin otra revisión de fondo.
+
+Verificación propia (2026-09-27, desde `frontend/`; salidas en el scratchpad):
+- **lint:** código 0.
+- **build:** código 0.
+- **test:** tres corridas completas.
+  - Dos, con código 0: 52 archivos y 875 pruebas en verde.
+  - La tercera, con el reporte JSON para medir tiempos, **salió con código 1**: `contrasena-r1.ataque.test.tsx`, "'cambio obligatorio': 5 activaciones…", tardó 5041 ms con el límite de 5000.
+  - Reproduce lo que vio el orquestador: **es un rojo intermitente**.
+- **V-01:** 47/47 con la tabla de "DESIGN-01b-2 — Ronda 2". El cierre no tocó ninguna `*.ataque`.
+- **V-14, parte 4 y guardas:** `acceso-restringido-view.tsx`, `main.tsx`, `router.tsx` y las tres guardas, sin cambios contra `73e29c5`.
+- **V-17:** `type="password"` da 0; hay 7 `<CampoContrasena`; "Ocultar" da 0; `"password"` solo en `campo-contrasena.tsx`, que ya no declara ningún tipo salvo su interfaz de Props.
+- **V-08:**
+  - **`frontend/` contra `73e29c5`:** 01b-2 y el cierre (`components/layout/lib.ts`, `lib.test.ts`, `data.ts` y `features/auth/types.ts`).
+  - **Fuera de `frontend/` contra `0fc961b`**, sin `docs/trabajo/` ni `ESTADO.md`: `AGENTS.md` ("Trabajo visual", 7 líneas agregadas y ninguna quitada), `CLAUDE.md`, `README.md` y `DESIGN.md`.
+
+### Lo que hizo el cierre
+- **O-7:** un solo retorno temprano, `if (analizada.username || analizada.password) return false`, después de comparar el `href` y antes del protocolo, con su comentario.
+  - Casos `false` en `lib.test.ts`: `"https://colegio.mx@otro-sitio.mx"` y `"https://usuario:clave@colegio.mx"`.
+  - Lo comprobé en Node:
+    - `mailto:contacto@colegio.mx` da `username` vacío, porque la `@` de un `mailto:` no es información de usuario, así que sigue publicándose;
+    - `https://:clave@colegio.mx` también se rechaza (contraseña sin usuario).
+  - El diff es mínimo.
+- **El comentario de `ENLACES_DEL_COLEGIO`** (M-01 de 01b-1) explica la regla final: absoluta, con `https:`, `mailto:` o `tel:`, tal como la usa el navegador, sin usuario ni contraseña, marcador en desarrollo y nada en producción.
+- **`features/auth/types.ts`** (M-01 de 01b-2): solo agrega `Seleccion` (7 líneas y 0 quitadas), y `campo-contrasena.tsx` la importa con `import type`.
+- **`DESIGN.md` §7.12:** una frase sobre usuario y contraseña, con su origen (cierre de 01b, O-7).
+- **§D-5 de `plan-01b.md`:** el paso 4 nuevo (usuario y contraseña) y el protocolo pasa a ser el paso 5. El contenido es correcto. Por proceso, los cambios al plan los hace el arquitecto; aquí es una línea que documenta una decisión ya tomada, así que no pido rehacerla.
+- **`CLAUDE.md`:** coincide **palabra por palabra** con "Lo que aplica el orquestador" de `plan-01b.md`:
+  - la viñeta de `components/layout/`;
+  - `AvatarUsuario` pasa a la lista de las que ya existen, con su archivo;
+  - `lib/format.ts` con `inicialesDe`;
+  - `app/` con `FondoDeLaApp`;
+  - la viñeta de "Tokens" sobre lo fijo;
+  - la de "Formularios" sobre `CampoContrasena`.
+
+  No hay nada más.
+- **`README.md`, línea 228:** "El frontend tiene 52 archivos con 875 pruebas: 540 adversarias, en 26 archivos." Coincide con mi corrida.
+- **La hoja de la comprobación completa** (`comprobacion-humano.md`) cubre H-01 a H-17 y C-01 a C-26, con:
+  - O-4 en H-04 (el orden de Tab a 360 px);
+  - O-2 en H-12 ("Cuentas" activo bajo el puntero);
+  - H-14 (recorte de la sombra, con 1280 × 600 para forzar el desplazamiento);
+  - H-15 (desarrollo y producción con `npm run preview` en `4173`, y ningún `href="#"`);
+  - H-16 (nombres por pantalla, el nombre que no cambia, el toque a 360 px, `autocomplete`, que el ojo no envía el formulario, el gestor de contraseñas y **el cursor que se queda al enviar**, que es T-01);
+  - C-07 con `--field-border` `#5A6472` y 3.8 calculado.
+
+### Problemas que bloquean
+
+#### M-01 — Las pruebas de ataque de contraseña superan el tiempo límite bajo carga
+Dónde: `frontend/src/app/contrasena-r1.ataque.test.tsx` y `frontend/src/app/contrasena-r2.ataque.test.tsx`.
+
+Por qué importa:
+- `AGENTS.md` dice que no se marca nada como terminado con pruebas en rojo, y un rojo intermitente es un rojo: el humano o el orquestador lo verán aparecer y desaparecer sin causa.
+- Medí los tiempos en la suite completa. De las 17 pruebas que pasan de 2 s, 8 son de estos dos archivos:
+  - `contrasena-r1`, "cambio obligatorio: 5 activaciones", con 5041 ms (falla con el límite de 5000);
+  - `contrasena-r2`, "varias pulsaciones… y después el envío", con 3556 ms;
+  - `contrasena-r1`, "cambio obligatorio: envío válido con Enter", con 3201 ms;
+  - y otras 5 de `contrasena-r1` entre 2.1 y 2.4 s.
+- Montan el router completo y activan el botón varias veces en `jsdom`. Solas tardan poco (1.3 s); la carga de la suite en paralelo las empuja al límite. No es un defecto del código.
+
+Qué se espera (ronda corta del tester en el cierre; **no cuenta como ronda de ataque**):
+- En esos **dos archivos**, un límite de 15 000 ms para sus pruebas.
+  - Puede ir como tercer argumento de cada `it` o `it.each`, o como opción `{ timeout: 15_000 }` de sus `describe`, lo que deje el diff más corto.
+  - **Ninguna aserción, preparación, dato ni nombre cambia.**
+- El tester comprueba con `git diff` que solo cambian esas llamadas, formatea solo esos dos archivos, corre la suite completa **tres veces seguidas en verde** y publica la tabla de hashes (dos modificadas).
+- No se toca `vitest.config.ts` (un `testTimeout` global cambiaría la configuración de todo el proyecto y necesita autorización).
+- Después lo compruebo yo: el diff de los dos archivos y V-01 con la tabla nueva. El orquestador corre la suite otra vez antes del commit.
+
+### Problemas que no bloquean
+- **M-02 — La suite se acerca al límite en general.** Otras 9 pruebas de ataque que montan el router (entre ellas, de `en-espera-r1`, `cuentas-r2`, `cuentas-r3`, `cuentas-r4`, `sesion-r2` y `fondo-r1`) tardan entre 2 y 2.6 s en la suite completa, cerca de la mitad del límite. Por ahora no fallan. Pendiente con destino, en `ESTADO.md`: un `chore` que decida un `testTimeout` para el frontend en `vitest.config.ts` (con autorización del humano) o que reparta las pruebas pesadas. Lo registra el orquestador.
+
+### Para el humano
+**Antes del commit `<D>`**, que abarca 01b-2 (carril sensible) y el cierre, **y solo después de la ronda corta de M-01**, revisa en el diff:
+1. **01b-2, lo de mi revisión final:**
+   - `campo-contrasena.tsx` completo: el botón, `onMouseDown`, la selección con la corrección de T-01 y el escuchador de `submit`;
+   - los 4 formularios, donde solo cambia el campo y `autoComplete` queda igual;
+   - `features/auth/data.ts`, solo la constante;
+   - el bloque de la ronda 0 en `estatico-r1`;
+   - las pruebas nuevas.
+2. **El cierre:**
+   - `components/layout/lib.ts`: la línea de O-7 y su comentario;
+   - `lib.test.ts`: los dos casos;
+   - `components/layout/data.ts`: el comentario de los enlaces, que es lo que leerás al llenar las URL;
+   - `features/auth/types.ts`: solo agrega `Seleccion`;
+   - `docs/DESIGN.md` §7.12 y §7.3.
+3. **Documentos:**
+   - `CLAUDE.md`: los seis cambios del plan, idénticos;
+   - `AGENTS.md`: "Trabajo visual";
+   - `README.md`, línea 228;
+   - el diff de M-01 del tester en los dos `contrasena-r*.ataque`, que solo debe agregar el límite de tiempo.
+4. **Archivos sin rastrear:** `campo-contrasena.tsx` y su prueba, `contrasena-visible.test.tsx` y las dos `contrasena-r*.ataque`.
+
+**Después del commit:** la comprobación completa con la hoja de `comprobacion-humano.md`, y el PR solo cuando pase. Las marcas "propuesta" de `DESIGN.md` pasan a "propuesta aprobada (fecha)" según lo que apruebes ahí. La fila de DEPLOY de `ESTADO.md` queda como "Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY y probar cada uno"; la parte de usuario y contraseña ya la cubre el código.
+
+### DESIGN-01b — cierre, verificación de M-01
+
+Veredicto del cierre de DESIGN-01b: **APROBADO**. M-01 queda resuelto y no hay otros problemas que bloqueen.
+
+Verificación propia (solo lectura; no corrí la suite, a pedido del orquestador, para no distorsionar sus tiempos):
+- **Originales:** las copias del tester en el scratchpad (`contrasena-r1.orig.tsx` y `contrasena-r2.orig.tsx`) reproducen los hashes de la tabla de la ronda 2 de 01b-2: `cf330a16…` y `1ad62ff6…`. Los archivos actuales dan `9abdd78a…` y `85b524c6…`, como reporta el tester.
+- **El diff contra esos originales** (`git diff --no-index -U0`) solo contiene:
+  - en `contrasena-r1`, 5 `})` sustituidos por `}, 15_000)` y 7 líneas `15_000,` agregadas como tercer argumento de un `it.each` de varias líneas, justo antes del `)` que lo cierra;
+  - en `contrasena-r2`, 10 `})` sustituidos por `}, 15_000)`.
+- **Cada `it` o `it.each` lleva su límite:** 12 de 12 en `r1` y 10 de 10 en `r2`. No hay ningún `skip`, `only`, `todo` ni `fails`.
+- **Nada más cambió:** ni aserciones, ni preparación, ni datos, ni nombres. `vitest.config.ts` no se tocó.
+- **V-01:** las otras 45 `*.ataque` conservan su hash (45/45), y `find` encuentra 47.
+- **Tres corridas completas en verde:** las reporta el tester (875 de 875 cada una) y las repite el orquestador. No las corrí yo.
+
+M-02 (las otras pruebas lentas) sigue como pendiente en `ESTADO.md`, con destino un `chore`. La lista de "Para el humano" de la sección anterior sigue vigente, y se agrega el diff de los dos `contrasena-r*.ataque`: solo el límite de tiempo.

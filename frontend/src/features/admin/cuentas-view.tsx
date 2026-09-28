@@ -1,3 +1,5 @@
+import { Card, CardHeader } from "@/components/ui/card"
+
 import { BuscadorDeCuenta } from "./components/buscador-de-cuenta"
 import { FormularioInvitarMaestro } from "./components/formulario-invitar-maestro"
 import { TEXTOS_CUENTAS } from "./data"
@@ -8,10 +10,12 @@ import { TEXTOS_CUENTAS } from "./data"
 export function CuentasView() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-2xl font-bold tracking-tight">{TEXTOS_CUENTAS.titulo}</h1>
-        <p className="text-sm text-muted-foreground">{TEXTOS_CUENTAS.notaProvisional}</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <h1 className="text-h1">{TEXTOS_CUENTAS.titulo}</h1>
+          <p className="text-small text-muted-foreground">{TEXTOS_CUENTAS.notaProvisional}</p>
+        </CardHeader>
+      </Card>
       <div className="grid gap-6 lg:grid-cols-2">
         <FormularioInvitarMaestro />
         <BuscadorDeCuenta />

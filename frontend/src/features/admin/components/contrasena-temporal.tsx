@@ -37,15 +37,18 @@ export function ContrasenaTemporal({ contrasena, enfocarAlMostrar }: ContrasenaT
   }
 
   return (
-    <div role="status" className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3">
-      <p className="text-lg font-semibold">{contrasena}</p>
-      <p className="text-sm text-muted-foreground">{TEXTOS_CUENTAS.ficha.temporalAviso}</p>
+    <div
+      role="status"
+      className="flex flex-col gap-2 rounded-row border border-border bg-muted p-3"
+    >
+      <p className="text-h3 font-bold tracking-normal">{contrasena}</p>
+      <p className="text-small text-muted-foreground">{TEXTOS_CUENTAS.ficha.temporalAviso}</p>
       <Button
         ref={copiarBtnRef}
         type="button"
         variant="outline"
         onClick={handleCopiar}
-        disabled={copiando}
+        enEspera={copiando}
       >
         {TEXTOS_CUENTAS.ficha.copiar}
       </Button>

@@ -10,7 +10,8 @@ export default mergeConfig(
       globals: false,
       setupFiles: ["./src/test/setup.ts"],
       include: ["src/**/*.test.{ts,tsx}"],
-      css: false,
+      // Solo tokens.css?raw pasa sin vaciarse, para su prueba (DESIGN-01a, M-01). El resto del CSS sigue vacío.
+      css: { include: [/[\\/]src[\\/]styles[\\/]tokens\.css\?raw$/] },
     },
   }),
 )

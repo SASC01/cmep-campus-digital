@@ -1,9 +1,11 @@
-import { LogOut } from "lucide-react"
 import { Outlet } from "react-router"
 
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+import { BarraNavegacion } from "./barra-navegacion"
+import { BarraSuperior } from "./barra-superior"
+import { CONTEXTO_POR_ROL, DESTINOS_POR_ROL, ESPACIADO_POR_ROL } from "./data"
+import { PieDePagina } from "./pie-de-pagina"
 import type { Rol } from "./types"
 
 interface ContenedorRolProps {
@@ -12,14 +14,6 @@ interface ContenedorRolProps {
   etiquetaRol: string
   onCerrarSesion: () => void
   cerrando: boolean
-}
-
-// Densidad por rol (CLAUDE.md): estudiante ligera, maestro intermedia, admin densa.
-// Único punto donde se decide el espaciado base de cada rol.
-const ESPACIADO_POR_ROL: Record<Rol, string> = {
-  estudiante: "gap-8",
-  maestro: "gap-6",
-  admin: "gap-4",
 }
 
 // No importa nada de features/: nombre, etiqueta del rol y cierre de sesión llegan por props desde
@@ -31,40 +25,33 @@ export function ContenedorRol({
   onCerrarSesion,
   cerrando,
 }: ContenedorRolProps) {
+  const contexto = CONTEXTO_POR_ROL[rol]
+
   return (
     <div
       data-rol={rol}
-      className={cn(
-        "flex min-h-svh flex-col bg-background text-foreground",
-        ESPACIADO_POR_ROL[rol],
-      )}
+      data-material={contexto.material}
+      data-densidad={contexto.densidad}
+      className="min-h-svh p-4 pb-24 text-foreground md:grid md:grid-cols-[6rem_minmax(0,1fr)] md:gap-5 md:p-6"
     >
-      <nav
-        aria-label="Navegación principal"
-        className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3"
+      <BarraNavegacion destinos={DESTINOS_POR_ROL[rol]} />
+      <div
+        className={cn(
+          "flex min-h-[calc(100svh-7rem)] min-w-0 flex-col md:min-h-[calc(100svh-3rem)]",
+          ESPACIADO_POR_ROL[rol],
+        )}
       >
-        <span className="font-heading font-semibold tracking-tight">Campus Digital</span>
-        <div className="flex items-center gap-3">
-          <p className="flex flex-col text-right text-sm leading-tight">
-            <span className="font-medium">{nombre}</span>
-            <span className="text-muted-foreground">{etiquetaRol}</span>
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCerrarSesion}
-            disabled={cerrando}
-            aria-busy={cerrando}
-          >
-            <LogOut aria-hidden="true" />
-            Cerrar sesión
-          </Button>
-        </div>
-      </nav>
-      <main className="flex-1 px-4 py-6">
-        <Outlet />
-      </main>
+        <BarraSuperior
+          nombre={nombre}
+          etiquetaRol={etiquetaRol}
+          onCerrarSesion={onCerrarSesion}
+          cerrando={cerrando}
+        />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <PieDePagina />
+      </div>
     </div>
   )
 }

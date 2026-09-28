@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { Monograma } from "@/components/layout/monograma"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 
 interface TarjetaDeCuentaProps {
@@ -14,10 +15,11 @@ interface TarjetaDeCuentaProps {
 // Solo lo usa auth (regla 9): las demás pantallas de la plataforma usan otros layouts.
 export function TarjetaDeCuenta({ titulo, descripcion, children }: TarjetaDeCuentaProps) {
   return (
-    <main className="flex min-h-svh items-center justify-center px-4 py-8">
+    <main className="flex flex-1 items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">{titulo}</h1>
+          <Monograma />
+          <h1 className="text-h1">{titulo}</h1>
           {descripcion && <CardDescription>{descripcion}</CardDescription>}
         </CardHeader>
         <CardContent>{children}</CardContent>

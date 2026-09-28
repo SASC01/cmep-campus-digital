@@ -170,3 +170,11 @@ export const ANUNCIOS_DE_EJEMPLO: Anuncio[] = [
     orden: 3,
   },
 ]
+
+// Botón para mostrar la contraseña (P-05 B, humano, 2026-09-27): nombre fijo por campo, con aria-pressed.
+export const TEXTOS_CAMPO_CONTRASENA = {
+  mostrar: "Mostrar contraseña",
+  mostrarNueva: "Mostrar contraseña nueva",
+  mostrarConfirmacion: "Mostrar confirmación de contraseña",
+  mostrarTemporal: "Mostrar contraseña temporal",
+} as const

@@ -35,7 +35,7 @@ export function DiagnosticoView() {
     <div className="p-6">
       <Card className="max-w-md">
         <CardHeader>
-          <h1 className="font-heading text-xl font-bold tracking-tight">Diagnóstico de conexión</h1>
+          <h1 className="text-h1">Diagnóstico de conexión</h1>
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col gap-2">
@@ -47,7 +47,7 @@ export function DiagnosticoView() {
               <CircleCheck aria-hidden="true" className="size-4 text-success" />
               <span>{`Base de datos: ${data.baseDeDatos}`}</span>
             </li>
-            <li className="text-sm text-muted-foreground">
+            <li className="text-small text-muted-foreground tabular-nums">
               {`Última respuesta: ${formatearFechaHora(data.marcaDeTiempo)}`}
             </li>
           </ul>

@@ -136,7 +136,7 @@ describe("LoginView", () => {
     )
   })
 
-  it("deshabilita el botón durante el envío y un doble clic hace una sola petición", async () => {
+  it("marca el botón en espera durante el envío y un doble clic hace una sola petición", async () => {
     let responder: (respuesta: Response) => void = () => undefined
     const fetchMock = stubFetch(
       () =>
@@ -148,13 +148,16 @@ describe("LoginView", () => {
 
     llenarYEnviar("ana@ejemplo.mx", "clave-de-prueba-1234")
     const boton = screen.getByRole("button", { name: "Iniciar sesión" })
-    await waitFor(() => expect(boton).toBeDisabled())
+    boton.focus()
+    await waitFor(() => expect(boton).toHaveAttribute("aria-disabled", "true"))
+    expect(boton).not.toBeDisabled()
+    expect(document.activeElement).toBe(boton)
     fireEvent.click(boton)
     fireEvent.submit(screen.getByRole("form", { name: "Iniciar sesión" }))
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     responder(errorJson(401, "CREDENCIALES_INVALIDAS"))
-    await waitFor(() => expect(boton).toBeEnabled())
+    await waitFor(() => expect(boton).not.toHaveAttribute("aria-disabled"))
   })
 
   it("con state.aviso muestra el aviso con role=status", () => {

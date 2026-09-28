@@ -17,6 +17,7 @@ Lee: `docs/ARCHITECTURE-ESSENTIALS.md`, los `RF-xx` / `RN-xx` del encargo en `do
 - Todo se ejecuta en local: dobles en memoria para `core/`, y PostgreSQL desechable con Testcontainers para handlers y repositorios. Nada contra servidores reales, nada de despliegues.
 - Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 - Toda prueba debe ejecutar al menos una aserción. Nunca termines una prueba con un return temprano cuando falte una condición previa: si falta, la prueba falla con un mensaje que lo explique.
+- Las pruebas de ataque no localizan elementos por clases de estilo. Usa el rol, la etiqueta o el texto accesible; una clase cambia con el diseño sin que cambie el comportamiento.
 - No corriges. No sugieres refactors. Reportas.
 - Verifica también lo que el Programador dijo que estaba en verde: ejecuta `lint` y `test` tú mismo.
 

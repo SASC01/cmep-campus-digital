@@ -17,16 +17,16 @@ export function LoginView() {
   const aviso = avisoDeLogin(location.state)
 
   return (
-    <main className="grid min-h-svh grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-12 lg:px-12 lg:py-12">
+    <main className="grid flex-1 grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-12 lg:px-12 lg:py-12">
       <PanelAnuncios anuncios={anuncios} />
       <Card className="self-center">
         <CardHeader>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">{TEXTOS_LOGIN.titulo}</h1>
+          <h1 className="text-h1">{TEXTOS_LOGIN.titulo}</h1>
           <CardDescription>{TEXTOS_LOGIN.subtitulo}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {aviso && (
-            <p role="status" className="flex items-center gap-2 text-sm text-success">
+            <p role="status" className="flex items-center gap-2 text-small text-success">
               <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
               <span>{aviso}</span>
             </p>

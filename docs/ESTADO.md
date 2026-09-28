@@ -2,7 +2,7 @@
 
 Tablero vivo de CMEP Campus Digital. Solo hechos verificables; el detalle vive en los archivos a los que remite. Lo lee el orquestador al inicio de cada sesión y lo actualiza al cerrar cada encargo o antes de limpiar o compactar la sesión (`AGENTS.md`, "Reglas del equipo").
 
-Última actualización: 2026-09-27, por el orquestador.
+Última actualización: 2026-09-28, por el orquestador.
 
 ## 1. Encargos completados
 Todos fusionados en `main` de `origin` (verificado con `git log origin/main --merges`). El historial de cada uno está en `docs/trabajo/<encargo>/`.
@@ -20,6 +20,7 @@ Todos fusionados en `main` de `origin` (verificado con `git log origin/main --me
 | AUTH-02a · cuentas y correo, backend | `feat/auth-02a-cuentas-backend` | #10 | `docs/trabajo/AUTH-02-cuentas-y-correo/` |
 | AUTH-02b · cuentas y correo, frontend | `feat/auth-02b-cuentas-frontend` | #11 | `docs/trabajo/AUTH-02-cuentas-y-correo/` |
 | DOCS-02b · estructura y diseño | `docs/docs-02b-estructura-y-diseno` | #12 | Sin carpeta: las decisiones están abajo, en "DOCS-02b cerrada", y en los documentos que cambiaron |
+| DOCS-03 · dirección visual D3 | `docs/docs-03-direccion-d3` | #13 | Sin carpeta: las decisiones están abajo, en "DOCS-03 cerrada", y en los documentos que cambiaron |
 
 Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 258, con 254 en verde y 4 fallos esperados (T-14, marcados `it.fails`). Test y build con código 0 en la verificación del manager; `npm run lint` desde la raíz con código 0 el 2026-09-26. Fuente: `docs/trabajo/AUTH-02-cuentas-y-correo/revision.md`, secciones "AUTH-02b — cierre" y "AUTH-02b — verificación de autoComplete". Hashes vigentes de las 32 `*.ataque`: `reporte-tester.md`, ronda 4 de AUTH-02b.
 
@@ -38,15 +39,14 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - `--danger` y `--destructive` en `#A3341F`, elegido sobre `#A33A2B` por dar más contraste.
     - Se aceptan los siete tokens nuevos, el borde tinta en los campos y "Calificaciones" en la barra lateral.
   - **Siguen como propuesta en `DESIGN.md`:** la sombra de las capas flotantes y el velo de los diálogos, `--text-h1`, las tablas del administrador, la barra inferior en móvil, los marcadores de carga y la fila "Sin entregar".
-  - **Reemplazada por D3 el 2026-09-27 (DOCS-03, sección 2):** la dirección C y su botón tinta sobre el bloque destacado dejan de valer. Siguen vigentes las familias, el `#A3341F`, los siete tokens, el borde tinta de los campos y "Calificaciones".
+  - **Reemplazada por D3 el 2026-09-27 (ver "DOCS-03 cerrada", abajo):** la dirección C y su botón tinta sobre el bloque destacado dejan de valer. Siguen vigentes las familias, el `#A3341F`, los siete tokens, el borde tinta de los campos y "Calificaciones".
   - **Otros documentos:**
     - `CLAUDE.md`: "Sistema de diseño" queda solo con reglas técnicas y remite a `DESIGN.md`.
     - `AGENTS.md`: `DESIGN.md` se lee en todo encargo que toque `frontend/`. Regla nueva: todo patrón visual nuevo se documenta ahí en el mismo encargo y el manager lo verifica; también está en la lista de diseño de `manager.md`.
     - `programador.md` y la pregunta abierta 1 del PRD apuntan a `DESIGN.md`.
   - `frontend/src/styles/tokens.css` no cambió: lo aplica el encargo de dirección visual (DESIGN-01).
 
-## 2. Encargos en curso
-- **DOCS-03 · dirección visual D3** (solo documentos). **Aprobada por el humano el 2026-09-27.** Rama `docs/docs-03-direccion-d3`, creada ese día desde `main` (`c50cece`). Sin commit: el commit y el PR los decide el humano. Sin carpeta en `docs/trabajo/`: las decisiones quedan aquí y en los documentos que cambiaron.
+**DOCS-03 cerrada** con el PR #13 (solo documentos; fusión `6868e4d` en `main`, commit `986bfcd`). Sin carpeta en `docs/trabajo/`: las decisiones quedan aquí y en los documentos que cambiaron.
   - **Aprobación del humano (2026-09-27):**
     - `--danger` y `--destructive` en `#A3341F`, con la regla de que el rojo nunca va como texto sobre vidrio al 62 %: solo sobre vidrio fuerte, sobre una superficie sólida o con fondo `--danger-soft`. Está registrada en `DESIGN.md` §3 (tokens y "Contraste verificado") y §10.
     - `--accent-soft-glass` en `#E8ECF8`.
@@ -69,10 +69,38 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - `--accent-soft` (`#E1E7F7`) no llega a AA sobre vidrio azul.
     - `DESIGN.md` los prohíbe en esas superficies y agrega `--accent-soft-glass` (`#E8ECF8`, medido en la captura).
     - El velo del fondo es obligatorio para que el aviso, el verde y el rojo pasen sobre vidrio.
-- **DESIGN-01 · sistema de diseño**, **en pausa desde el 2026-09-27** por el cambio a D3. Rama `feat/design-01-sistema-de-diseno`, creada desde `main` (`c50cece`) y sin commits propios. Carpeta `docs/trabajo/DESIGN-01-sistema-de-diseno/`.
-  - Su `plan.md` (BLOQUEADO, P-01 a P-05) y su `revision.md` (CAMBIOS REQUERIDOS: M-01 a M-04, más una pregunta sobre el carril) se escribieron para la dirección C. Se conservan como antecedente.
-  - **Siguiente paso: replanear DESIGN-01 sobre D3.** El arquitecto escribe un plan nuevo con el `DESIGN.md` aprobado, M-01 a M-04 y las notas del manager. Las preguntas se hacen de nuevo al humano.
-  - No se programa sin la aprobación del humano.
+
+## 2. Encargos en curso
+- **DESIGN-01 · sistema de diseño D3 ("Vidrio líquido con fondo flotante"), cerrado el 2026-09-28; falta el commit final y el PR.**
+  - **Rama:** `feat/design-01-sistema-de-diseno`, sin push.
+  - **Historial completo:** `docs/trabajo/DESIGN-01-sistema-de-diseno/`, en particular `aprobacion.md`, que registra cada decisión del humano con fecha. Allí están también los planes (`plan.md` para 01a y `plan-01b.md`), las revisiones, los reportes del tester, el resumen del programador y la comprobación del humano. Los planes y la revisión de la dirección C se conservan como antecedente.
+  - **Subentregas y commits del humano:**
+
+    | Commit | Qué entra |
+    |---|---|
+    | `5a32230` | Plan de 01a aprobado |
+    | `041e862` | Ronda 0 de 01a |
+    | `e39500a` | 01a: tokens, vidrio con respaldo sólido, fuentes `@fontsource`, componentes base, `enEspera` en 13 botones, T-14 y el cierre de 01a (borde de campos de 1 px, `--field-border`) |
+    | `0fc961b` | Plan de 01b aprobado |
+    | `8feab74` | Ronda 0 de 01b-1 |
+    | `73e29c5` | 01b-1: fondo con orbes, marco, composición, pie con marcadores y recorte de la sombra |
+    | `d2e5ff7` | 01b-2: botón para mostrar la contraseña, en carril sensible; y el cierre de 01b: O-7, `Seleccion` en `types.ts`, `CLAUDE.md` y `README.md` |
+
+  - **Veredictos:**
+    - Tester: 01a RESISTE en la ronda 1; 01b-1 en la ronda 3; 01b-2 en la ronda 2.
+    - Manager: APROBADO en cada subentrega y en cada cierre.
+  - **Comprobación del humano:** revisión rápida de 7 puntos, todos "bien" (2026-09-28). Lo demás queda cubierto por pruebas automáticas y el contraste por `tokens.test.ts`.
+  - **Suite final del frontend:** 52 archivos y 875 pruebas en verde; 540 adversarias en 26 archivos; lint y build con código 0.
+  - **Reglas nuevas que dejó el encargo:**
+    - `AGENTS.md`, "Trabajo visual": V-08 contra el commit de aprobación, commit por subentrega, ajustes visuales por el carril trivial, una sola ronda del tester para validaciones de configuración, y comprobación humana de máximo 10 minutos y 7 puntos.
+    - `.claude/agents/tester.md`: sin selectores de clase.
+    - `CLAUDE.md`: `enEspera`, escalas anuladas, vidrio, lo fijo fuera del vidrio, `ErrorDeCampo`, `CampoContrasena` y ubicaciones nuevas.
+  - **Siguiente:**
+    1. Commit final del humano: marcas de `DESIGN.md`, este archivo y los documentos de la carpeta.
+    2. `git push` de la rama.
+    3. PR hacia `main`.
+
+    Cuando se fusione, pasa a la sección 1 con su número de PR.
 
 ## 2b. Encargos decididos, por empezar
 - **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:
@@ -104,7 +132,12 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
 | Requisitos previos a abrir la plataforma a alumnos | DEPLOY | `docs/ARCHITECTURE.md` §18, "Requisitos previos a abrir la plataforma" |
 | `pagos`, `admin`, `clases`, `LIMPIEZA_DIARIA`, guarda sobre todas las rutas, ESLint contra `addHook` en `handlers/` | Encargos de cada módulo | `docs/trabajo/AUTH-01-autenticacion-basica/aprobacion.md`, "Encargos siguientes" |
 | Opcionales: unitarias del backend sin `globalSetup`; ESLint contra `@testcontainers/*` en `backend/src/**` | Sin encargo asignado | `docs/trabajo/CHORE-01-testcontainers/aprobacion.md` |
-| Dirección visual D3: aplicar `docs/DESIGN.md` en `tokens.css` (valores, tokens nuevos, materiales de vidrio, velo y orbes, radios, `--shadow-glass` y `--shadow-overlay`, tema del `Toaster`, anillo de foco sólido en lugar de `ring-ring/50`); fondo con orbes y su alcance por pantalla, `prefers-reduced-motion` y respaldo sólido sin `backdrop-filter`; anular la paleta por defecto de Tailwind; instalar las tres familias con `@fontsource` (dependencia nueva que aprueba el humano) y validarlas; aplicar las propuestas aprobadas el 2026-09-27 y la regla del rojo sobre vidrio; además, `paths` de shadcn y grep de V-07. La variante tinta del botón ya no aplica (D3 la elimina) | DESIGN-01 (en pausa; se replanea sobre D3) | `docs/DESIGN.md` y `docs/trabajo/DOCS-01-pendientes/resumen.md` |
+| `paths` y `cn` de shadcn (D-02 y D-03 de DOCS-01) | El primer encargo que ejecute `shadcn add` | `docs/trabajo/DOCS-01-pendientes/resumen.md` y `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, "Cierre de 01a" |
+| Área segura de iOS en la barra inferior (`viewport-fit=cover` y `env(safe-area-inset-bottom)`): no verificada en DESIGN-01, porque `index.html` no se tocó | El primer encargo que toque `index.html`, o DEPLOY antes de abrir a alumnos | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan-01b.md`, "Riesgos" |
+| M-02 del cierre de DESIGN-01b: varias pruebas de ataque que montan el router tardan de 2 a 2.6 s en la suite completa del frontend, cerca del límite de 5 s. Decidir un `testTimeout` del frontend en `vitest.config.ts` (con autorización del humano) o repartir las pruebas pesadas | Un `chore` | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, "DESIGN-01b — cierre" |
+| `tw-animate-css` instalado y sin uso (R-09 de DESIGN-01) | Un `chore` | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-09 |
+| Radio de las casillas y `--text-display` en móvil (R-10 de DESIGN-01) | El primer encargo que los use | ídem, R-10 |
+| Foco blanco por dentro sobre superficies de color, más allá de los botones rellenos (S-07 de DESIGN-01) | El encargo que construya el bloque destacado o las tarjetas de clase | ídem, S-07 |
 | Umbral de "fecha límite próxima" para la fila de entrega (`DESIGN.md` §7.7); el PRD no lo define | TAREAS | `docs/DESIGN.md` §7.7 |
 | Contradicción entre PRD §7, "barra lateral con lista de clases", y la barra lateral compacta de `DESIGN.md` §7.4, donde esa lista no cabe (R-01 del plan de DESIGN-01) | CLASES | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-01 |
 | N-02 de AUTH-02b: confirmar en el navegador del humano que Chrome o Edge ya no rellenan el formulario de invitación (algunos navegadores ignoran `autoComplete="off"`). Sin confirmación registrada | Humano | `docs/trabajo/AUTH-02-cuentas-y-correo/revision.md`, "AUTH-02b — verificación de autoComplete" |
@@ -116,11 +149,12 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
 | AUTH-02b (MF-05): la contraseña del login y del registro queda en la caché de mutaciones de TanStack Query (el token del enlace y las contraseñas de las pantallas de cuenta ya no) | AUTH-03 (antes CHORE-02; lo movió el humano el 2026-09-26) | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Decisiones del humano sobre la escalada de AUTH-02b" y "Nombre ajeno en la invitación de un maestro" |
 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (RF-57) | ADMIN | `docs/PRD.md` y `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Nombre ajeno en la invitación de un maestro" |
 | El admin puede editar el nombre de cualquier usuario (RF-58) | ADMIN | ídem |
+| Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY y probar cada uno. Se editan solo en `ENLACES_DEL_COLEGIO` de `frontend/src/components/layout/data.ts`; el código ya rechaza las URL que el navegador cambiaría y las que llevan usuario o contraseña | Humano, antes de DEPLOY | `docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md`, "Comprobación parcial, suspensión y cierre de 01a" |
+| M-02 de DESIGN-01a: `Dialog` se pinta en un portal fuera del contexto opaco y denso del admin. Hoy nadie lo usa; aparecerá con la primera confirmación en un diálogo de `/admin` | ADMIN, o el primer encargo que ponga una capa flotante en una pantalla densa | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, "DESIGN-01a — final" |
+| Dar rol accesible a la ficha de cuenta (`role=region` con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de `fichaDe` (R-15 de DESIGN-01; decisión del humano, 2026-09-27) | ADMIN | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-15, y `aprobacion.md` |
 | AUTH-02b (MF-05): la temporal se pierde si el admin busca otra cuenta con el restablecimiento en vuelo; texto genérico ante un fallo de red en la pantalla de admin; la alerta de error persiste al reabrir la confirmación | ADMIN | ídem |
 | AUTH-02b (MF-02): tres tarjetas de la pantalla de admin hechas a mano en lugar de `Card`; `erroresPorCampo` duplicado entre `features/auth` y `features/admin` | ADMIN | ídem |
 | AUTH-02b (MF-05): el `role="status"` de la contraseña temporal envuelve también el botón "Copiar", lo que puede producir un anuncio redundante. Hay que comprobarlo con un lector de pantalla (NVDA o VoiceOver) | ADMIN | ídem, y `revision.md`, "AUTH-02b — final" |
-| AUTH-02b (MF-05): los botones que se deshabilitan mientras su petición está en vuelo pierden el foco (el navegador lo manda a `<body>`) | Encargo de dirección visual y sistema de diseño | ídem |
-| AUTH-02b (T-14, riesgo aceptado): en la confirmación del restablecimiento, si el admin se va a otro campo después de un clic en una zona no enfocable o del salto de foco de Chrome, "Copiar" o "Cancelar" le roban el foco al llegar la respuesta. Sus 4 pruebas están como `it.fails` en `frontend/src/features/admin/cuentas-r4.ataque.test.tsx`. Para retirarlas: primero se quitan las marcas y se confirma que las 4 fallan en la aserción final del foco, no en la preparación; solo entonces se corrige el código y se comprueba que pasan en verde. Una `it.fails` también "pasa" si falla la preparación | Encargo de dirección visual y sistema de diseño (misma causa que la fila anterior) | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Resultado de la ronda 4 y decisión del humano sobre T-14" |
 
 ## 4. Decisiones de esta sesión sin documento propio
 Las decisiones del humano de esta sesión están registradas en el `aprobacion.md` o `resumen.md` de cada encargo (tabla de la sección 1) y, las que son reglas, en `AGENTS.md`. Estas prácticas se acordaron encargo por encargo y no tienen otro documento general:
@@ -136,7 +170,7 @@ Verificado el 2026-09-26, salvo donde se indica:
 - Regla del firewall de Windows "Campus: bloquear entrada a Docker en redes publicas": existe, habilitada, Inbound, Block, perfil Público, sobre `com.docker.backend.exe`. `daemon.json` sin la opción `"ip"` (no aplica en Docker Desktop 4.48).
 - Red actual: `IZZI-F281`, categoría **Pública**. El humano declara que es la red de su casa y de confianza.
 - **La suite del backend no se corre en una red pública o no confiable sin esa regla aplicada** (`AGENTS.md`, "Pruebas", riesgo residual de Testcontainers; pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`).
-- Git local (2026-09-27): `main` al día con `origin/main` (`c50cece`, fusión del PR #12). Rama actual: `docs/docs-03-direccion-d3`, creada desde ese `main`, con los cambios de documentos de DOCS-03 sin commit. `feat/design-01-sistema-de-diseno` existe, sin commits propios. Los archivos de `docs/trabajo/DESIGN-01-sistema-de-diseno/` siguen sin rastrear en el árbol de trabajo.
+- Git local (2026-09-27): `main` al día con `origin/main` (`6868e4d`, fusión del PR #13). Rama actual: `feat/design-01-sistema-de-diseno`, con siete commits del humano sobre `main` (`5a32230`, `041e862`, `e39500a`, `0fc961b`, `8feab74`, `73e29c5` y `d2e5ff7`; detalle en la sección 2). Sin push: la rama no existe en `origin` (actualizado el 2026-09-28).
 
 ## 6. Agentes
 Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en el frontmatter de `.claude/agents/*.md`: `arquitecto`, `manager` y `tester` con `opus` y esfuerzo `high`. **El `programador` usa `sonnet` con esfuerzo `medium` a prueba, hasta revisarlo después del encargo CLASES.**

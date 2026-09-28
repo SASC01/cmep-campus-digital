@@ -53,7 +53,7 @@ features/
 
 | Módulo | Contenido | Roles |
 |--------|-----------|-------|
-| `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro), cambio obligatorio de contraseña, pantalla de acceso restringido, bienvenida post-login (provisional hasta los dashboards) | Todos |
+| `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, cambio obligatorio de contraseña, pantalla de acceso restringido, bienvenida post-login (provisional hasta los dashboards) | Todos |
 | `clases` | Dashboard, muro, crear/editar clase, roster, buscador y alta manual de alumnos | Estudiante, Maestro |
 | `tareas` | Detalle de tarea, zona de entrega, crear tarea o material, rúbrica, hilo privado | Estudiante, Maestro |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |

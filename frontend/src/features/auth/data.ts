@@ -61,10 +61,13 @@ export const MENSAJES_ERROR_AUTH = {
   ENLACE_INVALIDO: "El enlace no es válido o ya venció. Pide uno nuevo.",
   DEMASIADAS_SOLICITUDES:
     "Ya pediste varios enlaces para este correo. Espera una hora e inténtalo de nuevo.",
+  // AUTH-03a: ya no se emite desde el servidor; se conserva por si un backend anterior (despliegue
+  // escalonado) todavía la manda.
   CONTRASENA_ACTUAL_INCORRECTA: "La contraseña temporal no es correcta.",
   CONTRASENA_REPETIDA: "La contraseña nueva debe ser distinta de la temporal.",
   CAMBIO_DE_CONTRASENA_REQUERIDO: "Debes cambiar tu contraseña antes de continuar.",
   CAMBIO_NO_REQUERIDO: "Ya no tienes un cambio de contraseña pendiente.",
+  SESION_INVALIDA: "Tu sesión terminó. Vuelve a iniciar sesión.",
 } as const
 
 export const MENSAJE_ERROR_AUTH_GENERICO = "No pudimos completar la operación. Inténtalo de nuevo."
@@ -81,7 +84,6 @@ export const CAMPOS_FORMULARIO_AUTH = [
   "nombre",
   "email",
   "contrasena",
-  "contrasenaActual",
   "contrasenaNueva",
   "confirmacion",
 ] as const satisfies readonly CampoFormularioAuth[]
@@ -114,6 +116,8 @@ export const TEXTOS_NUEVA_CONTRASENA: Record<TipoEnlace, TextosNuevaContrasena> 
   invitacion: {
     titulo: "Elige tu contraseña",
     descripcion: "Con ella vas a entrar a Campus Digital con tu correo.",
+    nombre: "Nombre completo",
+    ayudaNombre: "Así te verán tus alumnos. Corrígelo si hace falta.",
     contrasenaNueva: "Contraseña nueva",
     ayudaContrasena: "Mínimo 10 caracteres",
     confirmacion: "Confirma la contraseña nueva",
@@ -124,11 +128,10 @@ export const TEXTOS_NUEVA_CONTRASENA: Record<TipoEnlace, TextosNuevaContrasena> 
   },
 }
 
-// /cambiar-contrasena (RF-04d, DEC-09).
+// /cambiar-contrasena (RF-04d, AUTH-03a: sin la temporal).
 export const TEXTOS_CAMBIAR = {
   titulo: "Cambia tu contraseña",
   descripcion: "Entraste con una contraseña temporal. Elige una propia para continuar.",
-  contrasenaActual: "Contraseña temporal",
   contrasenaNueva: "Contraseña nueva",
   ayudaContrasena: "Mínimo 10 caracteres",
   confirmacion: "Confirma la contraseña nueva",
@@ -171,10 +174,10 @@ export const ANUNCIOS_DE_EJEMPLO: Anuncio[] = [
   },
 ]
 
-// Botón para mostrar la contraseña (P-05 B, humano, 2026-09-27): nombre fijo por campo, con aria-pressed.
+// Botón para mostrar la contraseña (P-05 B, humano, 2026-09-27): nombre fijo por campo, con
+// aria-pressed. AUTH-03a: sin "mostrarTemporal" (el cambio obligatorio ya no tiene ese campo).
 export const TEXTOS_CAMPO_CONTRASENA = {
   mostrar: "Mostrar contraseña",
   mostrarNueva: "Mostrar contraseña nueva",
   mostrarConfirmacion: "Mostrar confirmación de contraseña",
-  mostrarTemporal: "Mostrar contraseña temporal",
 } as const

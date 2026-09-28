@@ -37,13 +37,16 @@ nunca van en el token) y **no** lee `estado_pago`. Los handlers obtienen el perf
 
 `GET /api/salud`, `POST /api/auth/registro`, `POST /api/auth/login`, `POST /api/auth/refrescar`,
 `POST /api/auth/logout`, `POST /api/auth/recuperar`, `POST /api/auth/restablecer`,
-`POST /api/auth/establecer-contrasena`. `refrescar` y `logout` se autentican con la cookie
-`campus_refresco` (`Path=/api/auth`), credencial exclusiva de esas dos rutas. `recuperar` no revela
-nada (encola siempre, sin consultar la cuenta); `restablecer` y `establecer-contrasena` se autentican
-con el token de 256 bits del enlace, de un solo uso (AUTH-02). `cambiar-contrasena` **no** es
-pública: pasa por `protegido()` con `permitirCambioPendiente` y `permitirRestringido` (ver arriba).
-Para añadir una excepción (por ejemplo `OPTIONS` del encargo de CORS o `/api/publico/*`) se amplía
-**esa** lista, no se rodea la guarda.
+`POST /api/auth/establecer-contrasena`, `POST /api/auth/invitacion` (AUTH-03a). `refrescar` y
+`logout` se autentican con la cookie `campus_refresco` (`Path=/api/auth`), credencial exclusiva de
+esas dos rutas. `recuperar` no revela nada (encola siempre, sin consultar la cuenta); `restablecer`,
+`establecer-contrasena` e `invitacion` se autentican con el token de 256 bits del enlace, de un solo
+uso (AUTH-02); `invitacion` solo devuelve el nombre de la cuenta con el token de una invitación
+viva, sin escribir ni encolar nada. `cambiar-contrasena` **no** es pública: pasa por `protegido()`
+con `permitirCambioPendiente` y `permitirRestringido` (ver arriba); desde AUTH-03a pide solo la
+contraseña nueva y exige además una sesión viva del mismo usuario (cookie de refresco). Para añadir
+una excepción (por ejemplo `OPTIONS` del encargo de CORS o `/api/publico/*`) se amplía **esa**
+lista, no se rodea la guarda.
 
 ## Guarda `onRoute` (`guarda-de-rutas.ts`)
 

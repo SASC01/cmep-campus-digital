@@ -17,12 +17,19 @@ export const nuevaContrasenaConTokenSchema = z.object({
 })
 
 export const cambiarContrasenaSchema = z.object({
-  contrasenaActual: z
-    .string({ error: "Escribe tu contraseña temporal" })
-    .min(1, "Escribe tu contraseña temporal")
-    .max(128, "La contraseña no puede tener más de 128 caracteres"),
   contrasenaNueva: contrasenaSchema,
 })
+
+// El nombre es opcional: quien establece su contraseña con una invitación puede corregirlo.
+export const establecerContrasenaSchema = z.object({
+  token: tokenDeEnlaceSchema,
+  contrasena: contrasenaSchema,
+  nombre: nombreSchema.optional(),
+})
+
+export const datosDeInvitacionSchema = z.object({ token: tokenDeEnlaceSchema })
+
+export const datosDeInvitacionRespuestaSchema = z.object({ nombre: z.string() })
 
 export const invitarMaestroSchema = z.object({ nombre: nombreSchema, email: correoSchema })
 
@@ -48,6 +55,8 @@ export const contrasenaTemporalRespuestaSchema = z.object({
 export const CODIGOS_CUENTAS = {
   ENLACE_INVALIDO: "ENLACE_INVALIDO",
   DEMASIADAS_SOLICITUDES: "DEMASIADAS_SOLICITUDES",
+  // Ya no se emite desde AUTH-03a: se conserva para traducir la respuesta de un backend anterior
+  // durante un despliegue escalonado.
   CONTRASENA_ACTUAL_INCORRECTA: "CONTRASENA_ACTUAL_INCORRECTA",
   CONTRASENA_REPETIDA: "CONTRASENA_REPETIDA",
   CAMBIO_NO_REQUERIDO: "CAMBIO_NO_REQUERIDO",
@@ -59,6 +68,9 @@ export type CodigoCuentas = (typeof CODIGOS_CUENTAS)[keyof typeof CODIGOS_CUENTA
 export type Recuperar = z.infer<typeof recuperarSchema>
 export type NuevaContrasenaConToken = z.infer<typeof nuevaContrasenaConTokenSchema>
 export type CambiarContrasena = z.infer<typeof cambiarContrasenaSchema>
+export type EstablecerContrasena = z.infer<typeof establecerContrasenaSchema>
+export type DatosDeInvitacion = z.infer<typeof datosDeInvitacionSchema>
+export type DatosDeInvitacionRespuesta = z.infer<typeof datosDeInvitacionRespuestaSchema>
 export type InvitarMaestro = z.infer<typeof invitarMaestroSchema>
 export type BuscarUsuario = z.infer<typeof buscarUsuarioSchema>
 export type CorregirCorreo = z.infer<typeof corregirCorreoSchema>

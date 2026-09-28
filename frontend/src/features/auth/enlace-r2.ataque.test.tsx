@@ -138,15 +138,22 @@ describe("ataque (AUTH-02b r2): T-01, el token sale de la caché al asentarse la
     expect(mutacionesEnCache(queryClient)).not.toContain(TOKEN)
   })
 
+  // AUTH-03a ronda 0 (C-6): /establecer-contrasena pide POST /api/auth/invitacion al montar; el
+  // stub la responde con un nombre y el ENLACE_INVALIDO llega al enviar, como antes.
   it.each([
     ["/restablecer", "Guardar contraseña"],
     ["/establecer-contrasena", "Activar mi cuenta"],
   ] as const)(
     "%s: ENLACE_INVALIDO deja la pantalla de enlace inválido y el token fuera de la caché",
     async (ruta, boton) => {
-      stubFetch(() => errorJson(400, "ENLACE_INVALIDO"))
+      stubFetch((rutaApi) =>
+        rutaApi === "/api/auth/invitacion"
+          ? respuestaJson(200, { nombre: "Ana López" })
+          : errorJson(400, "ENLACE_INVALIDO"),
+      )
       const { router, queryClient } = renderEnlace(ruta)
       await waitFor(() => expect(router.state.location.hash).toBe(""))
+      await screen.findByRole("button", { name: boton })
 
       llenarYEnviar(boton)
 
@@ -195,10 +202,17 @@ describe("ataque (AUTH-02b r2): T-01, el token sale de la caché al asentarse la
     expect(router.state.location.pathname).toBe("/recuperar")
   })
 
+  // AUTH-03a ronda 0 (C-6): el stub responde los datos de la invitación que la pantalla pide al
+  // montar. Ahora sí hay una consulta en la caché; sigue protegiendo que el token no entre en ella.
   it("en ningún momento el token pasa a la caché de consultas", async () => {
-    stubFetch(() => respuestaJson(204, undefined))
+    stubFetch((ruta) =>
+      ruta === "/api/auth/invitacion"
+        ? respuestaJson(200, { nombre: "Ana López" })
+        : respuestaJson(204, undefined),
+    )
     const { router, queryClient } = renderEnlace("/establecer-contrasena")
     await waitFor(() => expect(router.state.location.hash).toBe(""))
+    await screen.findByRole("button", { name: "Activar mi cuenta" })
 
     llenarYEnviar("Activar mi cuenta")
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"))

@@ -184,7 +184,7 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 - **Token de refresco:** aleatorio de 256 bits, cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/auth`. En la base, **solo su hash** (tabla `sesiones`). 30 días, **rotación en cada uso**; si llega un token ya rotado se revocan todas las sesiones del usuario.
 - **Límite de intentos:** 5 por 15 minutos por IP + correo. Mismo mensaje para usuario inexistente y contraseña incorrecta.
 - **Registro público:** solo estudiantes. El correo es el identificador de acceso y **no se verifica**, así que puede estar mal escrito: por eso existe el respaldo del Administrador.
-- **Maestros:** los crea el Administrador; reciben por correo un enlace de un solo uso (72 horas) para establecer su contraseña.
+- **Maestros:** no hay registro público abierto de maestros (D-04). Los da de alta el Administrador con una invitación individual (`POST /admin/maestros`): la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
 - **Administrador:** cuenta única creada con `npm run seed:admin`. No existe endpoint que cree administradores.
 
 ### Recuperación de contraseña
@@ -192,11 +192,11 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 - `POST /auth/recuperar` responde siempre lo mismo, exista o no el correo, y tarda lo mismo.
 - Si existe, se envía un enlace de **un solo uso**, vigencia de 30 minutos. En la base se guarda solo el hash del token (`tokens_cuenta`).
 - Al usarlo se revocan todas las sesiones del usuario. Límite: 3 solicitudes por hora por correo e IP.
-- `POST /auth/recuperar` no consulta la cuenta: encola siempre `CORREO_DE_CUENTA` y responde 204; el worker decide si envía. `restablecer` y `establecer-contrasena` no inician sesión. `POST /auth/cambiar-contrasena` solo con `debe_cambiar_contrasena`, permitido también con acceso restringido; conserva la sesión actual y revoca las demás.
+- `POST /auth/recuperar` no consulta la cuenta: encola siempre `CORREO_DE_CUENTA` y responde 204; el worker decide si envía. `restablecer` y `establecer-contrasena` no inician sesión. `POST /auth/cambiar-contrasena` solo con `debe_cambiar_contrasena`, permitido también con acceso restringido; conserva la sesión con la que se hizo el cambio y revoca las demás.
 
 **Respaldo, por el Administrador** (correo mal escrito o inaccesible):
 - "Restablecer contraseña" en Gestión de usuarios genera una **contraseña temporal aleatoria, mostrada una sola vez**; se guarda solo su hash.
-- Activa `debe_cambiar_contrasena` y revoca las sesiones. Con esa bandera, tras iniciar sesión **el único endpoint permitido es el cambio de contraseña**.
+- Activa `debe_cambiar_contrasena` y revoca las sesiones. Con esa bandera, tras iniciar sesión **el único endpoint permitido es el cambio de contraseña**. Pide solo la contraseña nueva, que debe ser distinta de la temporal, y exige una sesión viva del mismo usuario (la cookie de refresco del login con la temporal): un filtro previo sin bloqueo responde `401 SESION_INVALIDA` sin gastar intentos, y la decisión definitiva se toma bajo el bloqueo del usuario. Un futuro cambio voluntario desde el perfil pedirá la contraseña actual.
 - El Administrador también puede corregir el correo de un usuario.
 - La contraseña del Administrador se restablece con `npm run reset:admin`, con acceso al servidor.
 
@@ -222,7 +222,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 
 | Módulo | Rutas principales |
 |---|---|
-| `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/establecer-contrasena` (invitación de maestro) · `POST /auth/cambiar-contrasena` |
+| `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
 | `usuarios` | `GET /me` · `GET /me/estado-pago` · `GET /usuarios/buscar?q=` |
 | `clases` | `POST /clases` · `GET /clases` · `GET/PUT /clases/{id}` · `POST /clases/unirse` · `GET/POST/DELETE /clases/{id}/alumnos` · `GET/POST /clases/{id}/publicaciones` · comentarios |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |

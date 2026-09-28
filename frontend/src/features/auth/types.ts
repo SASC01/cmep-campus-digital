@@ -1,6 +1,8 @@
 // Tipos de datos de la API: se infieren de los esquemas zod de shared/ (CLAUDE.md, regla 7).
 export type {
   CambiarContrasena,
+  DatosDeInvitacionRespuesta,
+  EstablecerContrasena,
   Login,
   MeRespuesta,
   NuevaContrasenaConToken,
@@ -29,9 +31,10 @@ export interface Anuncio {
   orden: number
 }
 
-// Campos de los formularios de cuenta, con los nombres del contrato de la API.
+// Campos de los formularios de cuenta, con los nombres del contrato de la API. AUTH-03a: sin
+// "contrasenaActual" (el cambio obligatorio ya no pide la temporal).
 export type CampoFormularioAuth =
-  "nombre" | "email" | "contrasena" | "contrasenaActual" | "contrasenaNueva" | "confirmacion"
+  "nombre" | "email" | "contrasena" | "contrasenaNueva" | "confirmacion"
 
 // Primer mensaje de validación de cada campo con error.
 export type ErroresFormulario = Partial<Record<CampoFormularioAuth, string>>
@@ -44,9 +47,13 @@ export interface IncidenciaValidacion {
 }
 
 // Textos de /restablecer y /establecer-contrasena, por tipo de enlace (DEC-19, "Textos de interfaz").
+// AUTH-03a (§D-A2): en la invitación, "nombre" y "ayudaNombre" para el campo con el nombre
+// prellenado y corregible.
 export interface TextosNuevaContrasena {
   titulo: string
   descripcion?: string
+  nombre?: string
+  ayudaNombre?: string
   contrasenaNueva: string
   ayudaContrasena: string
   confirmacion: string

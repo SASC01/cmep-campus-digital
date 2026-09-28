@@ -1,6 +1,7 @@
 import type { Rol } from "@campus/shared"
 
 import type { PerfilAutenticado } from "../../core/auth/autorizacion.js"
+import type { ResultadoCambioPropio } from "../../core/auth/cambio-de-contrasena.js"
 import { AppError } from "../../core/errores.js"
 import { bloquearUsuarioParaEscribir } from "./bloqueo-usuario.js"
 import {
@@ -256,30 +257,48 @@ export const corregirCorreo = (
     return tx.usuario.findUnique({ where: { id }, select: SELECT_USUARIO_ADMIN })
   })
 
-// DEC-09: cambio de contraseña propio (cambiar-contrasena). Enmienda 2: bloqueo de escritura del
-// protocolo primero; si la cuenta no existe o el hash vigente ya no es el verificado por el
-// handler (por ejemplo, el admin generó otra temporal entretanto), devuelve false sin escribir
-// nada. Si coincide, conserva la sesión identificada por conservarSesionId (si existe, es del
-// usuario y sigue viva); revoca las demás y todos los tokens vivos del usuario, y devuelve true.
+// AUTH-03a (B-03 B, §D-A1): cambio de contraseña propio (cambiar-contrasena), sin la temporal.
+// Protocolo de bloqueo: (0) bloqueo de escritura; (1) si la cuenta no existe o el hash vigente ya
+// no es el verificado por el handler (por ejemplo, el admin generó otra temporal entretanto) →
+// "credencial_cambiada", sin escribir; (2) si no existe una sesión con ese id, de ese usuarioId,
+// viva (revocada_en IS NULL, reemplazada_por IS NULL, expira_en > ahora) → "sin_sesion", sin
+// escribir; (3) actualiza el hash y apaga la bandera, revoca las demás sesiones vivas del usuario
+// y todos sus tokens de cuenta vivos → "cambiada". La decisión definitiva se toma aquí, bajo el
+// bloqueo: el filtro previo del handler (M-02) no la sustituye, porque entre ambos la sesión puede
+// rotar o revocarse.
 export const cambiarContrasenaPropia = (
   {
     usuarioId,
     hashContrasena,
     hashVerificado,
-    conservarSesionId,
+    sesionId,
     ahora,
   }: {
     usuarioId: string
     hashContrasena: string
     hashVerificado: string
-    conservarSesionId: string | null
+    sesionId: string
     ahora: Date
   },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<boolean> =>
+): Promise<ResultadoCambioPropio> =>
   enTransaccion(ejecutor, async (tx) => {
     const usuario = await bloquearUsuarioParaEscribir(tx, usuarioId)
-    if (usuario === null || usuario.hashContrasena !== hashVerificado) return false
+    if (usuario === null || usuario.hashContrasena !== hashVerificado) {
+      return "credencial_cambiada"
+    }
+
+    const sesionViva = await tx.sesion.findFirst({
+      where: {
+        id: sesionId,
+        usuarioId,
+        revocadaEn: null,
+        reemplazadaPor: null,
+        expiraEn: { gt: ahora },
+      },
+      select: { id: true },
+    })
+    if (sesionViva === null) return "sin_sesion"
 
     await tx.usuario.update({
       where: { id: usuarioId },
@@ -287,16 +306,12 @@ export const cambiarContrasenaPropia = (
       select: { id: true },
     })
     await tx.sesion.updateMany({
-      where: {
-        usuarioId,
-        revocadaEn: null,
-        ...(conservarSesionId === null ? {} : { id: { not: conservarSesionId } }),
-      },
+      where: { usuarioId, revocadaEn: null, id: { not: sesionId } },
       data: { revocadaEn: ahora },
     })
     await tx.tokenCuenta.updateMany({
       where: { usuarioId, usadoEn: null, revocadoEn: null },
       data: { revocadoEn: ahora },
     })
-    return true
+    return "cambiada"
   })

@@ -427,7 +427,9 @@ describe("ataque: superficie de rutas", () => {
   // AUTH-01 + AUTH-02a. Lo que protege no cambia: ninguna ruta crea administradores y la única que
   // crea maestros es POST /api/admin/maestros, que exige admin. Cualquier ruta nueva hace fallar
   // esta prueba hasta que el Tester la revise.
-  it("bajo /api solo existen las rutas de AUTH-01 y AUTH-02a: ninguna crea admins; solo /admin/maestros crea maestros", () => {
+  // AUTH-03a ronda 0 (C-4): se agrega POST /api/auth/invitacion (pública, solo lee el nombre de una
+  // invitación viva). No crea cuentas: la protección no cambia.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a y AUTH-03a: ninguna crea admins; solo /admin/maestros crea maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     for (const linea of arbol.split("\n")) {
@@ -447,6 +449,7 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/admin/usuarios/buscar",
       "POST /api/auth/cambiar-contrasena",
       "POST /api/auth/establecer-contrasena",
+      "POST /api/auth/invitacion",
       "POST /api/auth/login",
       "POST /api/auth/logout",
       "POST /api/auth/recuperar",

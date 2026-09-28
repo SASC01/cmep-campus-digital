@@ -252,9 +252,7 @@ describe("ataque (DESIGN-01b-1 r1): un solo pie al navegar entre pantallas", () 
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
     expect(unicoPie().closest("[data-rol]")).toBeNull()
 
-    fireEvent.change(screen.getByLabelText("Contraseña temporal"), {
-      target: { value: "Temporal-XYZ-1" },
-    })
+    // AUTH-03a ronda 0 (C-5): sin el campo de la temporal.
     fireEvent.change(screen.getByLabelText("Contraseña nueva"), {
       target: { value: "mi-clave-propia-1" },
     })
@@ -412,7 +410,11 @@ const PANTALLAS = [
   },
   {
     ruta: `/establecer-contrasena#token=${TOKEN_ENLACE}`,
-    manejador: sinSesion,
+    // AUTH-03a ronda 0 (C-6): los datos de la invitación que la pantalla pide al montar.
+    manejador: (ruta: string) =>
+      ruta === "/api/auth/invitacion"
+        ? respuestaJson(200, { nombre: "Ana López" })
+        : sinSesion(ruta),
     espera: "Activar mi cuenta",
   },
   { ruta: "/diagnostico", manejador: sinSesion, espera: null },

@@ -21,11 +21,26 @@ export interface CuentaPreparada {
   nombreBusqueda: string
 }
 
-export const prepararRegistro = ({ nombre, email }: DatosDeCuenta): CuentaPreparada => {
+export interface NombrePreparado {
+  nombre: string
+  nombreBusqueda: string
+}
+
+// AUTH-03a: preparación del nombre, reutilizada por prepararRegistro y por quien corrige el nombre
+// al establecer la contraseña (§D-A2).
+export const prepararNombre = (nombre: string): NombrePreparado => {
   const nombreNormalizado = normalizarNombre(nombre)
   return {
     nombre: nombreNormalizado,
-    email: normalizarCorreo(email),
     nombreBusqueda: normalizarParaBusqueda(nombreNormalizado),
+  }
+}
+
+export const prepararRegistro = ({ nombre, email }: DatosDeCuenta): CuentaPreparada => {
+  const { nombre: nombreNormalizado, nombreBusqueda } = prepararNombre(nombre)
+  return {
+    nombre: nombreNormalizado,
+    email: normalizarCorreo(email),
+    nombreBusqueda,
   }
 }

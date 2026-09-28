@@ -40,11 +40,13 @@ export {
   type SesionEncontrada,
 } from "./sesiones.js"
 export {
+  buscarInvitacionPorHash,
   buscarTokenParaEnvio,
   buscarTokenPorHash,
   contarRecuperacionesRecientes,
   prepararTokenDeRecuperacion,
   usarTokenYCambiarContrasena,
+  type InvitacionParaUso,
   type TokenParaEnvio,
   type TokenParaUso,
 } from "./tokens-cuenta.js"

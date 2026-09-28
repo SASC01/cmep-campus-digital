@@ -4,6 +4,7 @@ import {
   normalizarCorreo,
   normalizarNombre,
   normalizarParaBusqueda,
+  prepararNombre,
   prepararRegistro,
 } from "./normalizacion.js"
 
@@ -50,6 +51,23 @@ describe("prepararRegistro", () => {
       nombre: "José Ángel Núñez",
       email: "jose.nunez@ejemplo.mx",
       nombreBusqueda: "jose angel nunez",
+    })
+  })
+})
+
+describe("prepararNombre", () => {
+  it("quita espacios y colapsa los interiores, y calcula nombreBusqueda", () => {
+    expect(prepararNombre("  José   Ángel \t Núñez ")).toEqual({
+      nombre: "José Ángel Núñez",
+      nombreBusqueda: "jose angel nunez",
+    })
+  })
+
+  it("da el mismo resultado de nombreBusqueda que prepararRegistro para el mismo nombre", () => {
+    const nombre = "  Ñoño   Güero "
+    expect(prepararNombre(nombre)).toEqual({
+      nombre: prepararRegistro({ nombre, email: "a@b.mx" }).nombre,
+      nombreBusqueda: prepararRegistro({ nombre, email: "a@b.mx" }).nombreBusqueda,
     })
   })
 })

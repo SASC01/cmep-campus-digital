@@ -7,11 +7,14 @@ para traducir un error de proveedor a `AppError`.
 El formato de error `{ "error": { "codigo", "mensaje" } }` lo aplica `errores.ts` para todas
 las rutas; ninguna otra ruta formatea errores.
 
-## Plugins (AUTH-02)
+## Plugins (AUTH-02, AUTH-03a)
 
-- `auth/cuentas.ts` (prefijo `/api/auth`): `recuperar`, `restablecer`, `establecer-contrasena`
-  (públicas) y `cambiar-contrasena` (con `protegido({ permitirCambioPendiente: true,
-permitirRestringido: true })`).
+- `auth/cuentas.ts` (prefijo `/api/auth`): `recuperar`, `restablecer`, `invitacion` y
+  `establecer-contrasena` (públicas; `invitacion` solo devuelve el nombre de la cuenta con el
+  token de una invitación viva, y `establecer-contrasena` admite corregir ese nombre) y
+  `cambiar-contrasena` (con `protegido({ permitirCambioPendiente: true,
+permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesión viva del mismo
+  usuario, con un filtro previo sin bloqueo y la decisión definitiva bajo el bloqueo del usuario).
 - `admin.ts` (prefijo `/api/admin`): `maestros`, `usuarios/buscar`,
   `usuarios/:id/restablecer-contrasena`, `usuarios/:id/correo`; las cuatro con
   `protegido({ roles: ["admin"] })`.

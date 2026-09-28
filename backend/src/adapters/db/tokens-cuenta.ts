@@ -40,6 +40,28 @@ export const buscarTokenPorHash = (
 ): Promise<TokenParaUso | null> =>
   ejecutor.tokenCuenta.findUnique({ where: { hashToken: hash }, select: SELECT_PARA_USO })
 
+export interface InvitacionParaUso extends TokenParaUso {
+  usuario: { activo: boolean; nombre: string }
+}
+
+// AUTH-03a, §D-A2: POST /auth/invitacion. Lectura de solo el nombre, sin correo, rol ni id.
+export const buscarInvitacionPorHash = (
+  hash: string,
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<InvitacionParaUso | null> =>
+  ejecutor.tokenCuenta.findUnique({
+    where: { hashToken: hash },
+    select: {
+      id: true,
+      usuarioId: true,
+      tipo: true,
+      expiraEn: true,
+      usadoEn: true,
+      revocadoEn: true,
+      usuario: { select: { activo: true, nombre: true } },
+    },
+  })
+
 export const buscarTokenParaEnvio = (
   id: string,
   ejecutor: Ejecutor = obtenerDb(),
@@ -77,11 +99,14 @@ export const usarTokenYCambiarContrasena = (
     tokenId,
     usuarioId,
     hashContrasena,
+    nombre,
     ahora,
   }: {
     tokenId: string
     usuarioId: string
     hashContrasena: string
+    // AUTH-03a, §D-A2: solo con una invitación, y solo si quien la abre corrigió el nombre.
+    nombre?: { nombre: string; nombreBusqueda: string }
     ahora: Date
   },
   ejecutor: Ejecutor = obtenerDb(),
@@ -96,7 +121,11 @@ export const usarTokenYCambiarContrasena = (
 
     await tx.usuario.update({
       where: { id: usuarioId },
-      data: { hashContrasena, debeCambiarContrasena: false },
+      data: {
+        hashContrasena,
+        debeCambiarContrasena: false,
+        ...(nombre === undefined ? {} : nombre),
+      },
       select: { id: true },
     })
     await tx.sesion.updateMany({

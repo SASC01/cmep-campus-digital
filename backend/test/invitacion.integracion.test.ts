@@ -4,13 +4,26 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { construirApp } from "../src/app.js"
 import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { cargarEnv } from "../src/config/env.js"
-import { borrarUsuariosDePruebaPorCorreo, correoDePrueba, consultarMe } from "./ayudas-auth.js"
-import { leerTokens, pedirComoAdmin, tokenDelEnlace } from "./ayudas-cuentas.js"
+import {
+  borrarUsuariosDePrueba,
+  borrarUsuariosDePruebaPorCorreo,
+  correoDePrueba,
+  consultarMe,
+  crearUsuarioDePrueba,
+  leerUsuarioPorCorreo,
+} from "./ayudas-auth.js"
+import { crearTokenDePrueba, leerTokens, pedirComoAdmin, tokenDelEnlace } from "./ayudas-cuentas.js"
 import { crearNotifierEnMemoria } from "./notifier-en-memoria.js"
 import { procesarCorreoDeCuenta } from "../src/workers/correo-de-cuenta.js"
 
+// AUTH-02: alta de un maestro por invitación individual, de punta a punta.
+// AUTH-03a, §D-A2 (T-02, ronda 2 del tester): se agregó POST /auth/invitacion (pública, solo
+// devuelve el nombre con un token de invitación vivo) y el nombre opcional en
+// POST /auth/establecer-contrasena, sin retirar ninguno de los casos de AUTH-02 de abajo.
+
 let app: FastifyInstance
 const correos: string[] = []
+const ids: string[] = []
 const urlPublicaFrontend = "http://127.0.0.1:5173"
 let tokenAdmin: string
 
@@ -27,6 +40,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await borrarUsuariosDePruebaPorCorreo(correos)
+  await borrarUsuariosDePrueba(ids)
   await app.close()
 })
 
@@ -133,7 +147,6 @@ describe("POST /api/admin/maestros", () => {
     await invitar("Maestro Con Token Cruzado", email)
     const usuario = await obtenerDb().usuario.findUnique({ where: { email }, select: { id: true } })
     if (!usuario) throw new Error("no se creó el usuario invitado")
-    const { crearTokenDePrueba } = await import("./ayudas-cuentas.js")
     const { token } = await crearTokenDePrueba({
       usuarioId: usuario.id,
       tipo: "recuperacion",
@@ -233,5 +246,219 @@ describe("POST /api/admin/maestros", () => {
 
     const usuario = await obtenerDb().usuario.findUnique({ where: { email } })
     expect(usuario).toBeNull()
+  })
+})
+
+// AUTH-03a, §D-A2 (T-02, ronda 2 del tester): casos agregados por el encargo, sin quitar los de
+// arriba. `ids` (borrado por id) es un registro de limpieza distinto de `correos` (borrado por
+// correo, de AUTH-02): los dos corren en el mismo afterAll.
+
+const invitacion = (token: unknown) =>
+  app.inject({ method: "POST", url: "/api/auth/invitacion", payload: { token } })
+
+const establecer = (payload: Record<string, unknown>) =>
+  app.inject({ method: "POST", url: "/api/auth/establecer-contrasena", payload })
+
+const restablecer = (payload: Record<string, unknown>) =>
+  app.inject({ method: "POST", url: "/api/auth/restablecer", payload })
+
+const treintaMinutos = () => new Date(Date.now() + 30 * 60_000)
+const setentaYDosHoras = () => new Date(Date.now() + 72 * 3_600_000)
+
+describe("POST /api/auth/invitacion", () => {
+  it("con una invitación viva, responde { nombre } exacto con Cache-Control: no-store", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Ana López" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+
+    const respuesta = await invitacion(token)
+
+    expect(respuesta.statusCode).toBe(200)
+    expect(respuesta.json()).toEqual({ nombre: "Ana López" })
+    expect(respuesta.headers["cache-control"]).toBe("no-store")
+  })
+
+  it("token inexistente → 400 ENLACE_INVALIDO", async () => {
+    const respuesta = await invitacion("Z".repeat(43))
+    expect(respuesta.statusCode).toBe(400)
+    expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("ENLACE_INVALIDO")
+  })
+
+  it("token de recuperación (tipo distinto) → el mismo 400", async () => {
+    const usuario = await crearUsuarioDePrueba(ids)
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "recuperacion",
+      expiraEn: treintaMinutos(),
+    })
+    const respuesta = await invitacion(token)
+    expect(respuesta.statusCode).toBe(400)
+    expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("ENLACE_INVALIDO")
+  })
+
+  it("token ya usado → 400", async () => {
+    const usuario = await crearUsuarioDePrueba(ids)
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+      usadoEn: new Date(),
+    })
+    const respuesta = await invitacion(token)
+    expect(respuesta.statusCode).toBe(400)
+  })
+
+  it("token revocado → 400", async () => {
+    const usuario = await crearUsuarioDePrueba(ids)
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+      revocadoEn: new Date(),
+    })
+    const respuesta = await invitacion(token)
+    expect(respuesta.statusCode).toBe(400)
+  })
+
+  it("token vencido → 400", async () => {
+    const usuario = await crearUsuarioDePrueba(ids)
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: new Date(Date.now() - 1000),
+    })
+    const respuesta = await invitacion(token)
+    expect(respuesta.statusCode).toBe(400)
+  })
+
+  it("cuenta inactiva → 400", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { activo: false })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+    const respuesta = await invitacion(token)
+    expect(respuesta.statusCode).toBe(400)
+  })
+
+  it("no escribe nada ni consume el enlace: el mismo token sirve después para establecer", async () => {
+    const usuario = await crearUsuarioDePrueba(ids)
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+
+    await invitacion(token)
+    await invitacion(token)
+    const respuesta = await establecer({ token, contrasena: "contrasena-nueva-1234" })
+
+    expect(respuesta.statusCode).toBe(204)
+  })
+
+  it("es pública: un Authorization ajeno no cambia la respuesta", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Ana López" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+
+    const respuesta = await app.inject({
+      method: "POST",
+      url: "/api/auth/invitacion",
+      headers: { authorization: "Bearer basura-de-un-token-cualquiera" },
+      payload: { token },
+    })
+
+    expect(respuesta.statusCode).toBe(200)
+    expect(respuesta.json()).toEqual({ nombre: "Ana López" })
+  })
+})
+
+describe("POST /api/auth/establecer-contrasena (nombre, §D-A2)", () => {
+  it("con nombre, actualiza nombre y nombre_busqueda en la misma transacción", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Provisional" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+
+    const respuesta = await establecer({
+      token,
+      contrasena: "contrasena-nueva-1234",
+      nombre: "  José Ángel  Núñez ",
+    })
+
+    expect(respuesta.statusCode).toBe(204)
+    const actualizado = await leerUsuarioPorCorreo(usuario.email)
+    expect(actualizado?.nombre).toBe("José Ángel Núñez")
+    expect(actualizado?.nombreBusqueda).toBe("jose angel nunez")
+  })
+
+  it("sin nombre, el nombre no cambia", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Provisional" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+
+    const respuesta = await establecer({ token, contrasena: "contrasena-nueva-1234" })
+
+    expect(respuesta.statusCode).toBe(204)
+    const actualizado = await leerUsuarioPorCorreo(usuario.email)
+    expect(actualizado?.nombre).toBe("Provisional")
+  })
+
+  it("un nombre inválido → 400 VALIDACION y el token sigue vivo", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Provisional" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: setentaYDosHoras(),
+    })
+
+    const respuesta = await establecer({
+      token,
+      contrasena: "contrasena-nueva-1234",
+      nombre: "a",
+    })
+
+    expect(respuesta.statusCode).toBe(400)
+    expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("VALIDACION")
+    const [fila] = await leerTokens(usuario.id)
+    expect(fila?.usadoEn).toBeNull()
+    const intacto = await leerUsuarioPorCorreo(usuario.email)
+    expect(intacto?.nombre).toBe("Provisional")
+
+    const segundo = await establecer({ token, contrasena: "contrasena-nueva-1234" })
+    expect(segundo.statusCode).toBe(204)
+  })
+})
+
+describe("POST /api/auth/restablecer (nombre ignorado)", () => {
+  it("un nombre en el cuerpo no cambia el nombre de la cuenta", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Nombre original" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "recuperacion",
+      expiraEn: treintaMinutos(),
+    })
+
+    const respuesta = await restablecer({
+      token,
+      contrasena: "contrasena-nueva-1234",
+      nombre: "Nombre que no debería quedar",
+    })
+
+    expect(respuesta.statusCode).toBe(204)
+    const actualizado = await leerUsuarioPorCorreo(usuario.email)
+    expect(actualizado?.nombre).toBe("Nombre original")
   })
 })

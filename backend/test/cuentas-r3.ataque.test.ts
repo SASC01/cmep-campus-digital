@@ -310,7 +310,10 @@ describe("ataque: login frente a una desactivación y frente a los escritores (T
     )
   }, 40_000)
 
-  it("login con la temporal que termina antes de cambiar-contrasena (sin cookie): 200 y 204, y después 0 sesiones vivas", async () => {
+  // AUTH-03a ronda 0 (C-2): sin cookie, el cambio ya no procede (401 SESION_INVALIDA). Sigue
+  // protegiendo que la carrera con un login con la temporal no dé un 5xx ni un estado a medias: la
+  // bandera sigue, la contraseña no cambia y la sesión del login no se toca.
+  it("login con la temporal que termina antes de cambiar-contrasena (sin cookie): 200 y 401, sin 5xx; la bandera sigue", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
 
@@ -321,14 +324,21 @@ describe("ataque: login frente a una desactivación y frente a los escritores (T
         () =>
           post(
             "/api/auth/cambiar-contrasena",
-            { contrasenaActual: usuario.contrasena, contrasenaNueva: "contrasena-propia-r3-1" },
+            { contrasenaNueva: "contrasena-propia-r3-1" },
             tokenAcceso,
           ),
       ],
     )
 
-    expect([estado(resultadoLogin), estado(resultadoCambio)]).toEqual(["200", "204"])
-    expect(await contarSesionesVivas(usuario.id)).toBe(0)
+    expect([estado(resultadoLogin), estado(resultadoCambio)]).toEqual(["200", "401"])
+    expect(codigoDeError(respuesta(resultadoCambio, "el cambio"))).toBe("SESION_INVALIDA")
+    const fila = await obtenerDb().usuario.findUnique({
+      where: { id: usuario.id },
+      select: { debeCambiarContrasena: true },
+    })
+    expect(fila?.debeCambiarContrasena).toBe(true)
+    expect(await contarSesionesVivas(usuario.id)).toBe(1)
+    expect((await login(usuario.email, "contrasena-propia-r3-1", ipPropia())).statusCode).toBe(401)
   }, 40_000)
 })
 
@@ -449,7 +459,10 @@ describe("ataque: refrescos, logout y reutilización entre sí y frente a los es
     expect(await contarSesionesVivas(usuario.id)).toBe(0)
   }, 40_000)
 
-  it("reutilización y cambiar-contrasena con la cookie vigente a la vez: 401 y 204, sin 5xx y 0 sesiones vivas", async () => {
+  // AUTH-03a ronda 0 (C-2): la reutilización va primero y revoca S1, así que bajo el bloqueo el
+  // cambio ya no tiene una sesión viva propia: 401 sin escribir. Sigue protegiendo que la carrera
+  // no dé un 5xx ni deje sesiones vivas; ahora además, que la bandera siga.
+  it("reutilización y cambiar-contrasena con la cookie vigente a la vez: 401 y 401, sin 5xx, 0 sesiones vivas y la bandera sigue", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
     const s0 = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const r1 = await refrescarDePrueba(obtenerApp(), s0.token)
@@ -468,16 +481,19 @@ describe("ataque: refrescos, logout y reutilización entre sí y frente a los es
             authorization: `Bearer ${tokenAcceso}`,
           },
           cookies: { [NOMBRE_COOKIE]: s1 ?? "" },
-          payload: JSON.stringify({
-            contrasenaActual: usuario.contrasena,
-            contrasenaNueva: "contrasena-propia-r3-2",
-          }),
+          payload: JSON.stringify({ contrasenaNueva: "contrasena-propia-r3-2" }),
         }),
     ])
 
-    // La reutilización va primero: revoca S1 y el cambio ya no tiene sesión que conservar.
-    expect([estado(reutilizacion), estado(cambio)]).toEqual(["401", "204"])
+    // La reutilización va primero: revoca S1 y el cambio ya no tiene una sesión viva propia.
+    expect([estado(reutilizacion), estado(cambio)]).toEqual(["401", "401"])
+    expect(codigoDeError(respuesta(cambio, "el cambio"))).toBe("SESION_INVALIDA")
     expect(await contarSesionesVivas(usuario.id)).toBe(0)
+    const fila = await obtenerDb().usuario.findUnique({
+      where: { id: usuario.id },
+      select: { debeCambiarContrasena: true },
+    })
+    expect(fila?.debeCambiarContrasena).toBe(true)
   }, 40_000)
 
   it("reutilización y un login a la vez: ningún 5xx", async () => {
@@ -498,7 +514,10 @@ describe("ataque: refrescos, logout y reutilización entre sí y frente a los es
 })
 
 describe("ataque: decisiones que se toman antes del bloqueo (PB-4)", () => {
-  it("cambiar-contrasena con la cookie S mientras la misma S se refresca: el resultado es el de DEC-09 evaluado al confirmar (S ya reemplazada: no se conserva nada)", async () => {
+  // AUTH-03a ronda 0 (C-2): la decisión sobre la sesión se toma bajo el bloqueo; al tomarlo, S ya
+  // está reemplazada, así que el cambio responde 401 sin escribir. Sigue protegiendo PB-4: lo que se
+  // decidió antes del bloqueo (el filtro previo) no sustituye la decisión bajo el bloqueo.
+  it("cambiar-contrasena con la cookie S mientras la misma S se refresca: 200 y 401, la decisión se toma bajo el bloqueo (S ya reemplazada) y la bandera sigue", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
     const sesion = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
@@ -516,17 +535,21 @@ describe("ataque: decisiones que se toman antes del bloqueo (PB-4)", () => {
             authorization: `Bearer ${tokenAcceso}`,
           },
           cookies: { [NOMBRE_COOKIE]: sesion.token },
-          payload: JSON.stringify({
-            contrasenaActual: usuario.contrasena,
-            contrasenaNueva: "contrasena-propia-r3-3",
-          }),
+          payload: JSON.stringify({ contrasenaNueva: "contrasena-propia-r3-3" }),
         }),
     ])
 
-    expect([estado(refresco), estado(cambio)]).toEqual(["200", "204"])
-    // Nunca queda viva una sesión que no sea la conservada: aquí ninguna, porque al confirmar S ya
-    // estaba reemplazada ("sin una cookie válida, se revocan todas").
-    expect(await contarSesionesVivas(usuario.id)).toBe(0)
+    expect([estado(refresco), estado(cambio)]).toEqual(["200", "401"])
+    expect(codigoDeError(respuesta(cambio, "el cambio"))).toBe("SESION_INVALIDA")
+    // El cambio no escribió: la bandera sigue, la contraseña nueva no entra y solo queda viva S', la
+    // que dejó el refresco.
+    expect(await contarSesionesVivas(usuario.id)).toBe(1)
+    const fila = await obtenerDb().usuario.findUnique({
+      where: { id: usuario.id },
+      select: { debeCambiarContrasena: true },
+    })
+    expect(fila?.debeCambiarContrasena).toBe(true)
+    expect((await login(usuario.email, "contrasena-propia-r3-3", ipPropia())).statusCode).toBe(401)
   }, 40_000)
 
   it("una baja conforme a PB-8 (bloqueo, activo = false, revoca sesiones y enlaces) frente a restablecer, refrescar y login ya formados: 400, 401 y 401", async () => {

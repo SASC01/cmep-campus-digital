@@ -100,10 +100,27 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - `CLAUDE.md`: `enEspera`, escalas anuladas, vidrio, lo fijo fuera del vidrio, `ErrorDeCampo`, `CampoContrasena` y ubicaciones nuevas.
 
 ## 2. Encargos en curso
-Ninguno. Lo siguiente, según el orden que fijó el humano, es AUTH-03 (sección 2b) y después CLASES.
+- **AUTH-03 · ajustes de cuentas**, en la rama `feat/auth-03-ajustes-de-cuentas` (arranca en `53b3126`), carpeta `docs/trabajo/AUTH-03-ajustes-de-cuentas/`. Carril sensible, en tres subentregas: 03a (cambio obligatorio sin la temporal, nombre al activar y contraseñas fuera de la caché), 03b (enlaces de registro de maestros) y 03c (invitación masiva).
+  - **Plan aprobado por escrito** por el humano el 2026-09-28, con todas las recomendaciones; el detalle está en `aprobacion.md`.
+  - **Enmiendas del plan:**
+    - Enmienda 2: M-09 a M-13, un ritmo de 250 ms y el cambio de proceso.
+    - Enmienda 3: el alcance de PA-07, que arbitró el manager: solo se excluyen los dos `P2028` que provoca a propósito `cuentas-r3.ataque`.
+    - Enmienda 4: la redacción de V-04 y V-05.
+  - **Cambio de proceso del 2026-09-28** (`AGENTS.md`, "Commits y cierre de subentregas"):
+    - no hay commit de aprobación, solo uno por subentrega;
+    - el orquestador no pide hashes;
+    - la revisión humana del diff es opcional.
+  - **AUTH-03a cerrada** el 2026-09-28, pendiente del commit del humano.
+    - **Tester:** ronda 0 con 37 casos reescritos. Rondas 1 y 2 ROTO, por T-01 (faltaban pruebas normales) y T-02 (se habían borrado 9 casos de AUTH-02); ronda 3 RESISTE.
+    - **Manager:** APROBADO.
+    - **Suite:** backend 68 archivos / 733 pruebas (366 adversarias en 24 archivos); frontend 54 / 914 (567 adversarias en 28 archivos).
+    - **Documentos aplicados por el orquestador:** `ARCHITECTURE.md` §6 y §7, ESSENTIALS, `CLAUDE.md` y `README.md`.
+  - **Siguen** AUTH-03b (enlaces de registro) y AUTH-03c (invitación masiva). La comprobación en navegador es una sola, al final de 03c.
+
+Después sigue CLASES.
 
 ## 2b. Encargos decididos, por empezar
-- **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:
+- **AUTH-03 · ajustes de cuentas** (en curso desde el 2026-09-28; ver sección 2; esta entrada queda como registro de lo decidido). Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:
   1. El cambio obligatorio de contraseña ya no pide la temporal, solo la nueva y su confirmación. Un futuro cambio voluntario desde el perfil sí pedirá la actual.
   2. Registro de maestros por enlace: el admin lo genera con vigencia configurable (7 días por defecto), puede revocarlo y ve quién se registró con cada uno. El enlace se guarda solo como hash.
   3. Invitación masiva: el admin pega una lista de correos con nombre opcional por línea. La pantalla reporta enviadas, ya existentes e inválidas, y respeta los límites diarios de Resend.
@@ -145,6 +162,9 @@ Ninguno. Lo siguiente, según el orden que fijó el humano, es AUTH-03 (sección
 | E2-03 de AUTH-02: dos correcciones de correo cruzadas y simultáneas del admin pueden provocar un deadlock y un `500` en `corregirCorreo` (datos correctos). Riesgo residual aceptado | ADMIN | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md` |
 | MF-04 de AUTH-02a: la baja cumple el protocolo PB-8; los cambios masivos sobre `usuarios` van en lotes cortos (P2028) | ADMIN | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md` |
 | MF-04 de AUTH-02a: una sola instancia del worker (tope de recuperaciones fuera del bloqueo) | DEPLOY (también en `docs/ARCHITECTURE.md` §18) | ídem |
+| M-18 de AUTH-03a: `usarTokenYCambiarContrasena` no vuelve a leer `activo` bajo el bloqueo. Si la cuenta se desactiva entre `decidirUsoDeToken` y la transacción de `establecer-contrasena`, no se detectaría. Es anterior a AUTH-03 y hoy no hay ninguna ruta de baja | ADMIN, junto a PB-8 | `docs/trabajo/AUTH-03-ajustes-de-cuentas/revision.md`, "Revisión final — AUTH-03a" |
+| M-17 de AUTH-03a: extraer `ContenidoConToken` de `establecer-contrasena-view.tsx` a `components/` (estilo de `CLAUDE.md`) | El próximo encargo que toque `features/auth` después de AUTH-03 | ídem |
+| Evaluar plan de pago de Resend: 100/día es insuficiente para 1,500 usuarios en producción. El plan gratuito da 100 correos por día calendario UTC y 10 peticiones por segundo por equipo | DEPLOY | `docs/trabajo/AUTH-03-ajustes-de-cuentas/aprobacion.md`, B-01 |
 | Resto de lo que deja AUTH-02 para ADMIN, DEPLOY, LIMPIEZA_DIARIA y correo (rebotes, plantilla) | Encargos respectivos | `docs/trabajo/AUTH-02-cuentas-y-correo/plan.md`, "Pendientes para encargos siguientes" |
 | AUTH-02b (MF-05): la contraseña del login y del registro queda en la caché de mutaciones de TanStack Query (el token del enlace y las contraseñas de las pantallas de cuenta ya no) | AUTH-03 (antes CHORE-02; lo movió el humano el 2026-09-26) | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Decisiones del humano sobre la escalada de AUTH-02b" y "Nombre ajeno en la invitación de un maestro" |
 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (RF-57) | ADMIN | `docs/PRD.md` y `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Nombre ajeno en la invitación de un maestro" |

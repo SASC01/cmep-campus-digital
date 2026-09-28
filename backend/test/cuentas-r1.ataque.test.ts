@@ -379,7 +379,10 @@ describe("ataque: tokens de enlace", () => {
 })
 
 describe("ataque: cambio obligatorio de contraseña", () => {
-  it("con la cookie de OTRO usuario: la sesión ajena no se conserva ni se revoca", async () => {
+  // AUTH-03a ronda 0 (C-2): sin la temporal, la cookie de otro usuario ya no autoriza el cambio.
+  // Sigue protegiendo que la sesión ajena no se conserve ni se revoque, y ahora además que nada del
+  // usuario cambie (sus sesiones, su contraseña y su bandera).
+  it("con la cookie de OTRO usuario: 401 SESION_INVALIDA, la sesión ajena sigue viva y nada del usuario cambia", async () => {
     const a = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
     const b = await crearUsuarioDePrueba(ids)
     const sesionA = await iniciarSesionDePrueba(obtenerApp(), a)
@@ -390,24 +393,36 @@ describe("ataque: cambio obligatorio de contraseña", () => {
       url: "/api/auth/cambiar-contrasena",
       headers: { authorization: `Bearer ${sesionA.tokenAcceso}` },
       cookies: { [NOMBRE_COOKIE]: sesionB.cookie },
-      payload: { contrasenaActual: a.contrasena, contrasenaNueva: "contrasena-nueva-de-a-1" },
+      payload: { contrasenaNueva: "contrasena-nueva-de-a-1" },
     })
-    expect(respuesta.statusCode).toBe(204)
-    expect(await contarSesionesVivas(a.id)).toBe(0)
+    expect(respuesta.statusCode).toBe(401)
+    expect(codigoDe(respuesta)).toBe("SESION_INVALIDA")
+    expect(await contarSesionesVivas(a.id)).toBe(1)
     expect(await contarSesionesVivas(b.id)).toBe(1)
+    const fila = await obtenerDb().usuario.findUnique({
+      where: { id: a.id },
+      select: { debeCambiarContrasena: true },
+    })
+    expect(fila?.debeCambiarContrasena).toBe(true)
+    expect((await login(a.email, "contrasena-nueva-de-a-1")).statusCode).toBe(401)
   })
 
-  it("un restringido con bandera cambia la contraseña y después solo ve /me; un segundo cambio → 409", async () => {
+  // AUTH-03a ronda 0 (C-2): el restringido con bandera lleva la cookie de su propia sesión (la del
+  // login con la temporal). Sigue protegiendo RN-03: cambia la contraseña y después solo ve /me.
+  it("un restringido con bandera cambia la contraseña con su cookie y después solo ve /me; un segundo cambio → 409", async () => {
     const usuario = await crearUsuarioDePrueba(ids, {
       accesoRestringido: true,
       debeCambiarContrasena: true,
     })
-    const token = await firmarTokenDePrueba({ usuarioId: usuario.id })
-    const cambio = await post(
-      "/api/auth/cambiar-contrasena",
-      { contrasenaActual: usuario.contrasena, contrasenaNueva: "contrasena-nueva-rest-1" },
-      token,
-    )
+    const sesion = await iniciarSesionDePrueba(obtenerApp(), usuario)
+    const token = sesion.tokenAcceso
+    const cambio = await obtenerApp().inject({
+      method: "POST",
+      url: "/api/auth/cambiar-contrasena",
+      headers: { authorization: `Bearer ${token}` },
+      cookies: { [NOMBRE_COOKIE]: sesion.cookie },
+      payload: { contrasenaNueva: "contrasena-nueva-rest-1" },
+    })
     expect(cambio.statusCode).toBe(204)
 
     const me = await obtenerApp().inject({
@@ -441,22 +456,26 @@ describe("ataque: cambio obligatorio de contraseña", () => {
     expect((await login(usuario.email, usuario.contrasena)).statusCode).toBe(200)
   })
 
-  it("tras 5 temporales incorrectas, la 6.ª con la temporal CORRECTA también es 429 y la bandera sigue", async () => {
+  // AUTH-03a ronda 0 (C-1): sin la temporal, el intento fallido es una nueva igual a la vigente
+  // (CONTRASENA_REPETIDA), con la cookie del login con la temporal para pasar el filtro previo.
+  // Sigue protegiendo el límite de 5 intentos por usuario: la 6.ª, aunque sea válida, es 429.
+  it("tras 5 CONTRASENA_REPETIDA con la cookie propia, la 6.ª con una nueva VÁLIDA también es 429 y la bandera sigue", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
-    const token = await firmarTokenDePrueba({ usuarioId: usuario.id })
+    const sesion = await iniciarSesionDePrueba(obtenerApp(), usuario)
+    const cambiar = (contrasenaNueva: string) =>
+      obtenerApp().inject({
+        method: "POST",
+        url: "/api/auth/cambiar-contrasena",
+        headers: { authorization: `Bearer ${sesion.tokenAcceso}` },
+        cookies: { [NOMBRE_COOKIE]: sesion.cookie },
+        payload: { contrasenaNueva },
+      })
     for (let intento = 0; intento < 5; intento += 1) {
-      const fallo = await post(
-        "/api/auth/cambiar-contrasena",
-        { contrasenaActual: `incorrecta-${intento}`, contrasenaNueva: "contrasena-nueva-fb-1" },
-        token,
-      )
+      const fallo = await cambiar(usuario.contrasena)
       expect(fallo.statusCode).toBe(400)
+      expect(codigoDe(fallo)).toBe("CONTRASENA_REPETIDA")
     }
-    const sexta = await post(
-      "/api/auth/cambiar-contrasena",
-      { contrasenaActual: usuario.contrasena, contrasenaNueva: "contrasena-nueva-fb-1" },
-      token,
-    )
+    const sexta = await cambiar("contrasena-nueva-fb-1")
     expect(sexta.statusCode).toBe(429)
     const fila = await obtenerDb().usuario.findUnique({
       where: { id: usuario.id },

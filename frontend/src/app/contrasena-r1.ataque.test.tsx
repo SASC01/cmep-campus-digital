@@ -8,6 +8,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 // (plan-01b.md, §D-7, CC-1 a CC-7, P-04 A, P-05 B y "Puntos de ataque › 01b-2", 1 a 7), en los 7
 // campos de los 5 formularios, con el router completo y la API simulada con fetch. Se localiza por
 // rol, etiqueta y texto accesible, nunca por clases de estilo (tester.md).
+// AUTH-03a ronda 0: el cambio obligatorio pierde el campo de la temporal (C-5), así que quedan 6
+// campos; /establecer-contrasena pide POST /api/auth/invitacion al montar (C-6) y el stub responde
+// con un nombre para que se muestre el formulario.
 
 vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/login") }))
 
@@ -143,22 +146,14 @@ const CASOS: Caso[] = [
     endpoint: "/api/auth/cambiar-contrasena",
     envio: "Guardar y continuar",
     me: () => errorJson(403, "CAMBIO_DE_CONTRASENA_REQUERIDO"),
-    campos: [
-      {
-        id: "contrasenaActual",
-        etiqueta: "Contraseña temporal",
-        boton: "Mostrar contraseña temporal",
-        autocompletado: "current-password",
-      },
-      NUEVA,
-      CONFIRMACION,
-    ],
+    // AUTH-03a ronda 0 (C-5 y C-1): sin el campo de la temporal; el error del servidor es el que
+    // sigue emitiendo (CONTRASENA_REPETIDA), no CONTRASENA_ACTUAL_INCORRECTA.
+    campos: [NUEVA, CONFIRMACION],
     llenar: (contrasena) => {
-      escribir("Contraseña temporal", "Kp7mWq4Rt9Xz")
       escribir("Contraseña nueva", contrasena)
       escribir("Confirma la contraseña nueva", contrasena)
     },
-    error: () => errorJson(400, "CONTRASENA_ACTUAL_INCORRECTA"),
+    error: () => errorJson(400, "CONTRASENA_REPETIDA"),
   },
 ]
 
@@ -168,6 +163,10 @@ const stubApi = (caso: Caso, respuesta: () => Promise<Response>) => {
   const fetchMock = vi.fn<typeof fetch>((entrada) => {
     const ruta = String(entrada)
     if (ruta === caso.endpoint) return respuesta()
+    // AUTH-03a ronda 0 (C-6): los datos de la invitación que /establecer-contrasena pide al montar.
+    if (ruta === "/api/auth/invitacion") {
+      return Promise.resolve(respuestaJson(200, { nombre: "Ana López" }))
+    }
     if (ruta === "/api/auth/refrescar") {
       return Promise.resolve(
         caso.nombre === "cambio obligatorio"
@@ -466,8 +465,10 @@ describe("ataque (DESIGN-01b-2 r1): al enviar con la contraseña a la vista (P-0
 describe("ataque (DESIGN-01b-2 r1): cursor y foco (CC-3)", () => {
   const caso = CASOS.find((c) => c.nombre === "cambio obligatorio")
   if (!caso) throw new Error("sin el caso de cambio obligatorio")
-  const [temporal, nueva] = caso.campos
-  if (!temporal || !nueva) throw new Error("sin campos")
+  const [primero, segundo] = caso.campos
+  if (!primero || !segundo) throw new Error("sin campos")
+  // AUTH-03a ronda 0 (C-5): el primer campo del cambio obligatorio pasa de la temporal a la nueva, y
+  // el "otro campo" de la confirmación. Lo que se protege del cursor y del foco no cambia.
 
   it.each([
     ["en medio", 2, 4],
@@ -480,12 +481,12 @@ describe("ataque (DESIGN-01b-2 r1): cursor y foco (CC-3)", () => {
       stubApi(caso, () => new Promise<Response>(() => undefined))
       await renderEn(caso.ruta, true)
       await screen.findByRole("button", { name: caso.envio })
-      escribir(temporal.etiqueta, "abcdef")
-      const input = campoDe(temporal)
+      escribir(primero.etiqueta, "abcdef")
+      const input = campoDe(primero)
       act(() => input.focus())
       input.setSelectionRange(inicio, fin)
       for (let vez = 0; vez < 2; vez += 1) {
-        pulsar(botonDe(temporal))
+        pulsar(botonDe(primero))
         expect(document.activeElement).toBe(input)
         expect([input.selectionStart, input.selectionEnd]).toEqual([inicio, fin])
       }
@@ -497,10 +498,10 @@ describe("ataque (DESIGN-01b-2 r1): cursor y foco (CC-3)", () => {
     stubApi(caso, () => new Promise<Response>(() => undefined))
     await renderEn(caso.ruta, true)
     await screen.findByRole("button", { name: caso.envio })
-    const input = campoDe(temporal)
+    const input = campoDe(primero)
     act(() => input.focus())
-    pulsar(botonDe(temporal))
-    expect(estadoDe(temporal)).toEqual({ tipo: "text", presionado: "true" })
+    pulsar(botonDe(primero))
+    expect(estadoDe(primero)).toEqual({ tipo: "text", presionado: "true" })
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe("")
   }, 15_000)
@@ -509,13 +510,13 @@ describe("ataque (DESIGN-01b-2 r1): cursor y foco (CC-3)", () => {
     stubApi(caso, () => new Promise<Response>(() => undefined))
     await renderEn(caso.ruta, true)
     await screen.findByRole("button", { name: caso.envio })
-    escribir(temporal.etiqueta, "abcdef")
-    escribir(nueva.etiqueta, "ghijkl")
-    const otro = campoDe(nueva)
+    escribir(primero.etiqueta, "abcdef")
+    escribir(segundo.etiqueta, "ghijkl")
+    const otro = campoDe(segundo)
     act(() => otro.focus())
     otro.setSelectionRange(1, 3)
-    pulsar(botonDe(temporal))
-    expect(estadoDe(temporal).tipo).toBe("text")
+    pulsar(botonDe(primero))
+    expect(estadoDe(primero).tipo).toBe("text")
     expect(document.activeElement).toBe(otro)
     expect([otro.selectionStart, otro.selectionEnd]).toEqual([1, 3])
   }, 15_000)
@@ -524,10 +525,10 @@ describe("ataque (DESIGN-01b-2 r1): cursor y foco (CC-3)", () => {
     stubApi(caso, () => new Promise<Response>(() => undefined))
     await renderEn(caso.ruta, true)
     await screen.findByRole("button", { name: caso.envio })
-    const boton = botonDe(temporal)
+    const boton = botonDe(primero)
     act(() => boton.focus())
     act(() => boton.click())
-    expect(estadoDe(temporal).tipo).toBe("text")
+    expect(estadoDe(primero).tipo).toBe("text")
     expect(document.activeElement).toBe(boton)
   }, 15_000)
 
@@ -535,18 +536,18 @@ describe("ataque (DESIGN-01b-2 r1): cursor y foco (CC-3)", () => {
     stubApi(caso, () => new Promise<Response>(() => undefined))
     await renderEn(caso.ruta, true)
     const envio = await screen.findByRole("button", { name: caso.envio })
-    escribir(temporal.etiqueta, "abcdef")
-    const input = campoDe(temporal)
+    escribir(primero.etiqueta, "abcdef")
+    const input = campoDe(primero)
     act(() => input.focus())
     input.setSelectionRange(2, 2)
-    pulsar(botonDe(temporal))
-    expect(estadoDe(temporal).tipo).toBe("text")
+    pulsar(botonDe(primero))
+    expect(estadoDe(primero).tipo).toBe("text")
     // La persona lleva el cursor al final y pulsa Enter (envío implícito; la validación falla).
     input.setSelectionRange(6, 6)
     const formulario = envio.closest("form")
     if (!formulario) throw new Error("sin formulario")
     act(() => formulario.requestSubmit())
-    expect(estadoDe(temporal).tipo).toBe("password")
+    expect(estadoDe(primero).tipo).toBe("password")
     expect(document.activeElement).toBe(input)
     expect(
       [input.selectionStart, input.selectionEnd],
@@ -575,14 +576,15 @@ describe("ataque (DESIGN-01b-2 r1): la contraseña a la vista no se guarda en ni
             return [clave, almacen.getItem(clave)]
           }),
         )
+        // AUTH-03a ronda 0 (C-5): sin la temporal, la única contraseña escrita es CONTRASENA.
         expect(volcado).not.toContain(CONTRASENA)
-        expect(volcado).not.toContain("Kp7mWq4Rt9Xz")
       }
     },
     15_000,
   )
 
-  it("cambio obligatorio con las contraseñas a la vista: tras el éxito, ni la temporal ni la nueva quedan en la caché de mutaciones (MF-05)", async () => {
+  // AUTH-03a ronda 0 (C-5): sin la temporal, la contraseña que pasa por la mutación es la nueva.
+  it("cambio obligatorio con las contraseñas a la vista: tras el éxito, la nueva no queda en la caché de mutaciones (MF-05)", async () => {
     let cambiada = false
     vi.stubGlobal(
       "fetch",
@@ -622,7 +624,6 @@ describe("ataque (DESIGN-01b-2 r1): la contraseña a la vista no se guarda en ni
         .getAll()
         .map((m) => m.state),
     )
-    expect(mutaciones).not.toContain("Kp7mWq4Rt9Xz")
     expect(mutaciones).not.toContain(CONTRASENA)
   }, 15_000)
 })

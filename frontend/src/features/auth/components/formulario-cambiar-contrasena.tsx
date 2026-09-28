@@ -27,10 +27,7 @@ export function FormularioCambiarContrasena() {
     const formulario = new FormData(evento.currentTarget)
     const contrasenaNueva = formulario.get("contrasenaNueva")
     const confirmacion = formulario.get("confirmacion")
-    const resultado = cambiarContrasenaSchema.safeParse({
-      contrasenaActual: formulario.get("contrasenaActual"),
-      contrasenaNueva,
-    })
+    const resultado = cambiarContrasenaSchema.safeParse({ contrasenaNueva })
     if (!resultado.success) {
       setErrores(erroresPorCampo(resultado.error.issues))
       setErrorConfirmacion(false)
@@ -55,21 +52,6 @@ export function FormularioCambiarContrasena() {
       className="flex flex-col gap-5"
     >
       {cambiar.isError && <MensajeError mensaje={mensajeDeErrorAuth(cambiar.error)} />}
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="contrasenaActual">{TEXTOS_CAMBIAR.contrasenaActual}</Label>
-        <CampoContrasena
-          id="contrasenaActual"
-          name="contrasenaActual"
-          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrarTemporal}
-          autoComplete="current-password"
-          required
-          aria-invalid={errores.contrasenaActual !== undefined}
-          aria-describedby={errores.contrasenaActual ? "contrasenaActual-error" : undefined}
-        />
-        {errores.contrasenaActual && (
-          <ErrorDeCampo id="contrasenaActual-error">{errores.contrasenaActual}</ErrorDeCampo>
-        )}
-      </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="contrasenaNueva">{TEXTOS_CAMBIAR.contrasenaNueva}</Label>
         <CampoContrasena

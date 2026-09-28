@@ -81,10 +81,12 @@ describe("ataque (DESIGN-01a r1): el error de cada campo sigue siendo su descrip
       llamadas: 0,
     },
     {
+      // AUTH-03a ronda 0 (C-5): sin el campo de la temporal, el envío vacío deja un solo campo
+      // inválido (la nueva), como /restablecer; la confirmación se compara solo con una nueva válida.
       ruta: "/cambiar-contrasena",
       me: () => errorJson(403, "CAMBIO_DE_CONTRASENA_REQUERIDO"),
       formulario: "Guardar y continuar",
-      campos: 2,
+      campos: 1,
       llamadas: 2,
     },
     {

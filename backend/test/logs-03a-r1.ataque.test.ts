@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { randomBytes, randomUUID } from "node:crypto"
+import { randomBytes } from "node:crypto"
 import { createServer } from "node:net"
 import { fileURLToPath } from "node:url"
 
@@ -15,9 +15,12 @@ import { opcionesDeAuth } from "../src/config/auth.js"
 import { cargarEnv } from "../src/config/env.js"
 import { borrarUsuariosDePruebaPorCorreo, correoDePrueba } from "./ayudas-auth.js"
 
-// Ataque del Tester (AUTH-02a, ronda 1): la API real (tsx, un PID, sin shell, puerto libre) recorre
-// las 8 rutas nuevas con contraseñas, temporales, tokens de enlace, JWT y cookies; nada de eso debe
-// aparecer en su log (AGENTS.md, regla 13). Mismo método de completitud que logs-r2 (M-13).
+// Ataque del Tester (AUTH-03a, ronda 1): la API real (tsx, un PID, sin shell, puerto libre, nivel
+// trace) recorre POST /auth/invitacion, /auth/establecer-contrasena con un nombre corregido y el
+// cambio obligatorio sin la temporal (sin cookie, repetida y con éxito, más un contrasenaActual
+// sobrante). Ningún token, contraseña, nombre de la invitación, JWT ni cookie debe aparecer en el
+// log (AGENTS.md, regla 13; plan, "Puntos de ataque" AUTH-03a, punto 2). Mismo método de
+// completitud que logs-cuentas-r1 (reescrito aquí: no se importa de ningún *.ataque).
 
 const DIRECTORIO_BACKEND = fileURLToPath(new URL("..", import.meta.url))
 const env = cargarEnv()
@@ -26,7 +29,7 @@ const correos: string[] = []
 interface LineaDeLog {
   requestId?: string
   msg?: string
-  req?: { url?: string; method?: string }
+  req?: { url?: string }
 }
 
 const puertoLibre = (): Promise<number> =>
@@ -68,49 +71,52 @@ const faltanteEnElLog = (log: string, urlCentinela: string): string | null => {
 }
 
 const secreta = (prefijo: string): string => `${prefijo}-${randomBytes(9).toString("base64url")}`
+const nombreSecreto = (prefijo: string): string => `${prefijo} ${randomBytes(6).toString("hex")}`
 
 let log = ""
 let faltante: string | null = "beforeAll no terminó"
 const secretos: [string, string][] = []
 const estados: Record<string, number> = {}
-let codigoCambioIncorrecto: string | undefined
 
 beforeAll(async () => {
   inicializarDb({ connectionString: env.DATABASE_URL })
   await inicializarAuth(opcionesDeAuth(env))
 
-  const contrasenaAlumno = secreta("inicial")
-  const correoAlumno = correoDePrueba("ataque-logs-cuentas")
-  const correoInvitado = correoDePrueba("ataque-logs-invitado")
-  correos.push(correoAlumno, correoInvitado)
-  const alumno = await obtenerDb().usuario.create({
-    data: {
-      email: correoAlumno,
-      hashContrasena: await hashContrasena(contrasenaAlumno),
-      nombre: "Logs Cuentas",
-      nombreBusqueda: "logs cuentas",
-      rol: "estudiante",
-    },
-    select: { id: true },
-  })
-  const tokenId = randomUUID()
-  const enlace = derivarTokenDeCuenta(tokenId)
-  const tokenBasura = secreta("tokenbasura")
-  const incorrecta = secreta("incorrecta")
-  const nuevaPorCambio = secreta("porcambio")
-  const nuevaPorEnlace = secreta("porenlace")
   const adminPassword = process.env.ADMIN_PASSWORD ?? ""
   const adminEmail = process.env.ADMIN_EMAIL ?? ""
   if (adminPassword.length < 10 || adminEmail === "") {
     throw new Error("Precondición: setup.ts debe exponer ADMIN_EMAIL y ADMIN_PASSWORD")
   }
+
+  const correoInvitado = correoDePrueba("ataque-logs-03a-invitado")
+  const correoAlumno = correoDePrueba("ataque-logs-03a-alumno")
+  correos.push(correoInvitado, correoAlumno)
+  const contrasenaAlumno = secreta("inicial03a")
+  const alumno = await obtenerDb().usuario.create({
+    data: {
+      email: correoAlumno,
+      hashContrasena: await hashContrasena(contrasenaAlumno),
+      nombre: "Logs Tres A",
+      nombreBusqueda: "logs tres a",
+      rol: "estudiante",
+    },
+    select: { id: true },
+  })
+
+  const nombreInvitacion = nombreSecreto("Invitado")
+  const nombreCorregido = nombreSecreto("Corregido")
+  const contrasenaMaestro = secreta("maestro03a")
+  const nuevaPorCambio = secreta("porcambio03a")
+  const actualSobrante = secreta("sobrante03a")
+  const tokenBasura = randomBytes(32).toString("base64url")
   secretos.push(
-    ["contraseña inicial", contrasenaAlumno],
-    ["token de enlace válido", enlace.token],
-    ["token basura", tokenBasura],
-    ["temporal incorrecta", incorrecta],
+    ["contraseña inicial del alumno", contrasenaAlumno],
+    ["nombre de la invitación", nombreInvitacion],
+    ["nombre corregido", nombreCorregido],
+    ["contraseña del maestro", contrasenaMaestro],
     ["nueva por cambio", nuevaPorCambio],
-    ["nueva por enlace", nuevaPorEnlace],
+    ["contrasenaActual sobrante", actualSobrante],
+    ["token basura", tokenBasura],
     ["contraseña del admin", adminPassword],
   )
 
@@ -133,13 +139,12 @@ beforeAll(async () => {
 
   const enviar = async (
     nombre: string,
-    metodo: string,
     ruta: string,
     cuerpo: unknown,
     extra: Record<string, string> = {},
   ): Promise<Response> => {
     const respuesta = await fetch(`${base}${ruta}`, {
-      method: metodo,
+      method: "POST",
       headers: { "content-type": "application/json", ...extra },
       body: JSON.stringify(cuerpo),
     })
@@ -158,7 +163,7 @@ beforeAll(async () => {
     }
     if (!log.includes("Server listening")) throw new Error("La API no arrancó")
 
-    const loginAdmin = await enviar("login admin", "POST", "/api/auth/login", {
+    const loginAdmin = await enviar("login admin", "/api/auth/login", {
       email: adminEmail,
       contrasena: adminPassword,
     })
@@ -166,84 +171,74 @@ beforeAll(async () => {
     secretos.push(["JWT del admin", jwtAdmin], ["cookie del admin", cookieDe(loginAdmin)])
     const comoAdmin = { authorization: `Bearer ${jwtAdmin}` }
 
-    await enviar(
+    const invitar = await enviar(
       "invitar",
-      "POST",
       "/api/admin/maestros",
-      { nombre: "Invitado Logs", email: correoInvitado },
+      { nombre: nombreInvitacion, email: correoInvitado },
       comoAdmin,
     )
-    await enviar("buscar", "POST", "/api/admin/usuarios/buscar", { email: correoAlumno }, comoAdmin)
+    const { id: maestroId } = (await invitar.json()) as { id: string }
+    const fila = await obtenerDb().tokenCuenta.findFirst({
+      where: { usuarioId: maestroId, tipo: "invitacion" },
+      select: { id: true },
+    })
+    if (!fila) throw new Error("Precondición: la invitación no creó un token")
+    const tokenInvitacion = derivarTokenDeCuenta(fila.id).token
+    secretos.push(["token de la invitación", tokenInvitacion])
+
+    const datos = await enviar("invitacion valida", "/api/auth/invitacion", {
+      token: tokenInvitacion,
+    })
+    const { nombre: nombreLeido } = (await datos.json()) as { nombre: string }
+    if (nombreLeido !== nombreInvitacion) {
+      throw new Error("Precondición: /auth/invitacion no devolvió el nombre de la invitación")
+    }
+    await enviar("invitacion basura", "/api/auth/invitacion", { token: tokenBasura })
+    await enviar("establecer con nombre", "/api/auth/establecer-contrasena", {
+      token: tokenInvitacion,
+      contrasena: contrasenaMaestro,
+      nombre: nombreCorregido,
+    })
+    await enviar("invitacion usada", "/api/auth/invitacion", { token: tokenInvitacion })
+
     const reset = await enviar(
       "restablecer admin",
-      "POST",
       `/api/admin/usuarios/${alumno.id}/restablecer-contrasena`,
       {},
       comoAdmin,
     )
     const { contrasenaTemporal } = (await reset.json()) as { contrasenaTemporal: string }
     secretos.push(["contraseña temporal", contrasenaTemporal])
-
-    const loginTemporal = await enviar("login temporal", "POST", "/api/auth/login", {
+    const loginTemporal = await enviar("login temporal", "/api/auth/login", {
       email: correoAlumno,
       contrasena: contrasenaTemporal,
     })
     const { tokenAcceso: jwtAlumno } = (await loginTemporal.json()) as { tokenAcceso: string }
     const cookieAlumno = cookieDe(loginTemporal)
     secretos.push(["JWT del alumno", jwtAlumno], ["cookie del alumno", cookieAlumno])
-    const comoAlumno = {
-      authorization: `Bearer ${jwtAlumno}`,
-      cookie: `campus_refresco=${cookieAlumno}`,
-    }
+    const soloJwt = { authorization: `Bearer ${jwtAlumno}` }
+    const conCookie = { ...soloJwt, cookie: `campus_refresco=${cookieAlumno}` }
 
-    // AUTH-03a ronda 0 (C-1): el paso incorrecto manda una nueva igual a la temporal (400
-    // CONTRASENA_REPETIDA). La "temporal incorrecta" viaja como contrasenaActual, el campo que un
-    // cliente viejo todavía podría mandar y que el servidor ignora: tampoco debe llegar al log.
-    const cambioIncorrecto = await enviar(
-      "cambiar incorrecta",
-      "POST",
+    await enviar(
+      "cambiar sin cookie",
       "/api/auth/cambiar-contrasena",
-      { contrasenaActual: incorrecta, contrasenaNueva: contrasenaTemporal },
-      comoAlumno,
+      { contrasenaNueva: nuevaPorCambio },
+      soloJwt,
     )
-    const cuerpoIncorrecto = (await cambioIncorrecto.json()) as { error?: { codigo?: string } }
-    codigoCambioIncorrecto = cuerpoIncorrecto.error?.codigo
+    await enviar(
+      "cambiar repetida",
+      "/api/auth/cambiar-contrasena",
+      { contrasenaNueva: contrasenaTemporal },
+      conCookie,
+    )
     await enviar(
       "cambiar",
-      "POST",
       "/api/auth/cambiar-contrasena",
-      { contrasenaActual: contrasenaTemporal, contrasenaNueva: nuevaPorCambio },
-      comoAlumno,
-    )
-    await enviar("recuperar", "POST", "/api/auth/recuperar", { email: correoAlumno })
-    // El enlace se crea después del restablecimiento y del cambio, que revocan los enlaces vivos.
-    await obtenerDb().tokenCuenta.create({
-      data: {
-        id: tokenId,
-        usuarioId: alumno.id,
-        tipo: "recuperacion",
-        hashToken: enlace.hash,
-        expiraEn: new Date(Date.now() + 30 * 60_000),
-      },
-      select: { id: true },
-    })
-    await enviar("establecer basura", "POST", "/api/auth/establecer-contrasena", {
-      token: tokenBasura,
-      contrasena: nuevaPorEnlace,
-    })
-    await enviar("restablecer enlace", "POST", "/api/auth/restablecer", {
-      token: enlace.token,
-      contrasena: nuevaPorEnlace,
-    })
-    await enviar(
-      "corregir",
-      "PUT",
-      `/api/admin/usuarios/${alumno.id}/correo`,
-      { email: correoAlumno },
-      comoAdmin,
+      { contrasenaActual: actualSobrante, contrasenaNueva: nuevaPorCambio },
+      conCookie,
     )
 
-    const urlCentinela = `/api/salud?centinela=${randomUUID()}`
+    const urlCentinela = `/api/salud?centinela=${randomBytes(8).toString("hex")}`
     await fetch(`${base}${urlCentinela}`)
     const espera = Date.now()
     while (faltanteEnElLog(log, urlCentinela) !== null && Date.now() - espera < 20_000) {
@@ -264,29 +259,32 @@ afterAll(async () => {
   await cerrarConexion()
 })
 
-describe("ataque: secretos de cuentas en el log de la API real", () => {
+describe("ataque (AUTH-03a r1): secretos de 03a en el log de la API real", () => {
   it("el recorrido llegó a cada ruta con el resultado esperado (precondición)", () => {
     expect(estados).toEqual({
       "login admin": 200,
       invitar: 201,
-      buscar: 200,
+      "invitacion valida": 200,
+      "invitacion basura": 400,
+      "establecer con nombre": 204,
+      "invitacion usada": 400,
       "restablecer admin": 200,
       "login temporal": 200,
-      "cambiar incorrecta": 400,
+      "cambiar sin cookie": 401,
+      "cambiar repetida": 400,
       cambiar: 204,
-      recuperar: 204,
-      "establecer basura": 400,
-      "restablecer enlace": 204,
-      corregir: 200,
     })
-    // AUTH-03a ronda 0 (C-1): el paso incorrecto recorre la comparación con la vigente.
-    expect(codigoCambioIncorrecto).toBe("CONTRASENA_REPETIDA")
     expect(faltante, `log incompleto: ${String(faltante)}`).toBeNull()
+    // El log sí registró las rutas atacadas: la ausencia de secretos no es por un log vacío.
+    const urls = lineasCompletas(log).map((linea) => linea.req?.url)
+    expect(urls).toContain("/api/auth/invitacion")
+    expect(urls).toContain("/api/auth/establecer-contrasena")
+    expect(urls).toContain("/api/auth/cambiar-contrasena")
   })
 
-  it("ninguna contraseña, temporal, token de enlace, JWT ni cookie aparece en el log", () => {
+  it("ningún token, contraseña, nombre de la invitación, JWT ni cookie aparece en el log", () => {
     expect(faltante, `log incompleto: ${String(faltante)}`).toBeNull()
-    expect(secretos.length).toBeGreaterThanOrEqual(12)
+    expect(secretos.length).toBe(14)
     for (const [etiqueta, valor] of secretos) {
       expect(valor.length, `valor vacío: ${etiqueta}`).toBeGreaterThan(8)
       expect(log.includes(valor), `el log contiene: ${etiqueta}`).toBe(false)

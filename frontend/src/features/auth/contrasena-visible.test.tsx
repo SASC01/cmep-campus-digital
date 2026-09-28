@@ -21,7 +21,12 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const stubFetch = () =>
   vi.stubGlobal(
     "fetch",
-    vi.fn(() => Promise.resolve(respuestaJson(204, undefined))),
+    vi.fn((entrada: RequestInfo | URL) => {
+      if (String(entrada) === "/api/auth/invitacion") {
+        return Promise.resolve(respuestaJson(200, { nombre: "Ana López" }))
+      }
+      return Promise.resolve(respuestaJson(204, undefined))
+    }),
   )
 
 const renderConRuta = (path: string, element: ReactElement, hash = "") => {
@@ -80,7 +85,6 @@ const CASOS: CasoDePantalla[] = [
     nombre: "/cambiar-contrasena",
     renderizar: () => renderConRuta("/cambiar-contrasena", <CambiarContrasenaView />),
     campos: [
-      ["contrasenaActual", "Mostrar contraseña temporal", "Contraseña temporal"],
       ["contrasenaNueva", "Mostrar contraseña nueva", "Contraseña nueva"],
       ["confirmacion", "Mostrar confirmación de contraseña", "Confirma la contraseña nueva"],
     ],
@@ -92,9 +96,12 @@ afterEach(() => {
 })
 
 describe("contraseña visible: nombre exacto por campo en los 5 formularios (§D-7)", () => {
-  it.each(CASOS)("$nombre", ({ renderizar, campos }) => {
+  it.each(CASOS)("$nombre", async ({ renderizar, campos }) => {
     stubFetch()
     renderizar()
+
+    const [primerCampo] = campos
+    if (primerCampo) await screen.findByRole("button", { name: primerCampo[1] })
 
     for (const [id, nombreBoton] of campos) {
       const boton = screen.getByRole("button", { name: nombreBoton })

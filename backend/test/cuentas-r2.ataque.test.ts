@@ -213,35 +213,50 @@ describe("ataque: revocación de sesiones frente a un refresco concurrente", () 
     ).toEqual({ vivas: 0, laSesionRotadaSigueRefrescando: false })
   }, 30_000)
 
-  it("el cambio obligatorio de contraseña no deja viva la sesión ajena que un refresco concurrente acaba de rotar", async () => {
+  // AUTH-03a ronda 0 (C-2): sin la temporal, el cambio exige una sesión viva propia, así que el
+  // usuario tiene además su sesión P y el cambio lleva la cookie de P. Sigue protegiendo DEC-09: el
+  // cambio revoca todas las sesiones salvo la de quien cambia, incluida la ajena recién rotada.
+  it("el cambio obligatorio de contraseña con la cookie propia no deja viva la sesión ajena que un refresco concurrente acaba de rotar", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
     // La sesión "ajena" (otro dispositivo, o quien robó la cookie) que el cambio debe cerrar.
     const ajena = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
+    // La sesión propia P de quien cambia (la del login con la temporal).
+    const propia = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
 
     const [respuestaRefrescar, respuestaCambio] = par(
       await conFilaRetenida({ tabla: "sesiones", id: ajena.id }, [
         () => refrescarDePrueba(obtenerApp(), ajena.token),
         () =>
-          post(
-            "/api/auth/cambiar-contrasena",
-            { contrasenaActual: usuario.contrasena, contrasenaNueva: "contrasena-propia-r2-1" },
-            tokenAcceso,
-          ),
+          obtenerApp().inject({
+            method: "POST",
+            url: "/api/auth/cambiar-contrasena",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${tokenAcceso}`,
+            },
+            cookies: { [NOMBRE_COOKIE]: propia.token },
+            payload: JSON.stringify({ contrasenaNueva: "contrasena-propia-r2-1" }),
+          }),
       ]),
     )
 
     expect(respuestaCambio.statusCode, "el cambio de contraseña debe responder 204").toBe(204)
-    const vivas = await contarSesionesVivas(usuario.id)
+    const vivas = (
+      await obtenerDb().sesion.findMany({
+        where: { usuarioId: usuario.id, revocadaEn: null },
+        select: { id: true },
+      })
+    ).map((sesion) => sesion.id)
     const cookieNueva = valorCookieRefresco(respuestaRefrescar)
     const segundoRefresco =
       cookieNueva === undefined ? undefined : await refrescarDePrueba(obtenerApp(), cookieNueva)
 
-    // Sin cookie en la petición de cambio, no hay sesión que conservar: no debe quedar ninguna.
+    // Con la cookie de P, solo P sigue viva.
     expect(
       { vivas, laSesionAjenaSigueRefrescando: segundoRefresco?.statusCode === 200 },
       "DEC-09: el cambio revoca todas las sesiones salvo la de quien cambia",
-    ).toEqual({ vivas: 0, laSesionAjenaSigueRefrescando: false })
+    ).toEqual({ vivas: [propia.id], laSesionAjenaSigueRefrescando: false })
   }, 30_000)
 
   it("un login con la contraseña vieja que termina después de /auth/restablecer no deja una sesión viva", async () => {

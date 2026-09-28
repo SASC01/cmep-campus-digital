@@ -147,32 +147,103 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
   })
 })
 
-describe("ataque (DESIGN-01b-1 r1): nada de 01b-2 está implementado", () => {
-  it("sin CampoContrasena, aria-pressed, nombreDelBoton ni textos del botón de contraseña", () => {
-    expect(
-      lineasCon(
-        /CampoContrasena|aria-pressed|nombreDelBoton|TEXTOS_CAMPO_CONTRASENA|Mostrar contrase/,
-      ),
-    ).toEqual([])
-    expect(rutasCon(/campo-contrasena/)).toEqual([])
-    expect(Object.keys(fuentes).filter((ruta) => ruta.includes("campo-contrasena"))).toEqual([])
+describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContrasena (§D-7, V-17)", () => {
+  // DESIGN-01b-2, ronda 0: sustituye a la guarda de alcance de 01b-1 ("nada de 01b-2 está
+  // implementado"). La tabla de §D-7: por formulario, en orden, el id del campo y la constante de
+  // TEXTOS_CAMPO_CONTRASENA de su botón.
+  const TABLA: Record<string, [string, string][]> = {
+    "/src/features/auth/components/formulario-cambiar-contrasena.tsx": [
+      ["contrasenaActual", "mostrarTemporal"],
+      ["contrasenaNueva", "mostrarNueva"],
+      ["confirmacion", "mostrarConfirmacion"],
+    ],
+    "/src/features/auth/components/formulario-login.tsx": [["contrasena", "mostrar"]],
+    "/src/features/auth/components/formulario-nueva-contrasena.tsx": [
+      ["contrasenaNueva", "mostrarNueva"],
+      ["confirmacion", "mostrarConfirmacion"],
+    ],
+    "/src/features/auth/components/formulario-registro.tsx": [["contrasena", "mostrar"]],
+  }
+  const CAMPO = "/src/features/auth/components/campo-contrasena.tsx"
+  const soloTsx = soloTs.filter(([ruta]) => ruta.endsWith(".tsx"))
+
+  // Cada elemento <CampoContrasena … />, desde su apertura hasta el primer "/>".
+  const elementos = (texto: string) => {
+    const lista: string[] = []
+    for (let desde = texto.indexOf("<CampoContrasena"); desde !== -1;) {
+      const hasta = texto.indexOf("/>", desde)
+      if (hasta === -1) throw new Error("un <CampoContrasena no cierra")
+      lista.push(texto.slice(desde, hasta + 2))
+      desde = texto.indexOf("<CampoContrasena", hasta)
+    }
+    return lista
+  }
+
+  it("exactamente 7 <CampoContrasena, solo en los 4 formularios: 1, 1, 2 y 3", () => {
+    const usos = lineasCon(/<CampoContrasena\b/, soloTsx).map((l) => l.split(":")[0])
+    expect(usos).toHaveLength(7)
+    const porArchivo: Record<string, number> = {}
+    for (const ruta of usos) if (ruta) porArchivo[ruta] = (porArchivo[ruta] ?? 0) + 1
+    expect(porArchivo).toEqual({
+      "/src/features/auth/components/formulario-cambiar-contrasena.tsx": 3,
+      "/src/features/auth/components/formulario-login.tsx": 1,
+      "/src/features/auth/components/formulario-nueva-contrasena.tsx": 2,
+      "/src/features/auth/components/formulario-registro.tsx": 1,
+    })
   })
 
-  it('los 7 campos de contraseña siguen como Input con type="password" en los 4 formularios', () => {
-    const formularios = soloTs.filter(([ruta]) =>
-      /\/features\/auth\/components\/formulario-[\w-]+\.tsx$/.test(ruta),
+  it("cada campo lleva, en orden, la constante de su fila de la tabla, sin type ni aria-label", () => {
+    for (const [ruta, filas] of Object.entries(TABLA)) {
+      const campos = elementos(archivo(ruta))
+      const obtenido = campos.map((elemento) => [
+        /\sid="([^"]+)"/.exec(elemento)?.[1] ?? "(sin id literal)",
+        /nombreDelBoton=\{TEXTOS_CAMPO_CONTRASENA\.(\w+)\}/.exec(elemento)?.[1] ??
+          "(sin constante)",
+      ])
+      expect(obtenido, ruta).toEqual(filas)
+      for (const elemento of campos) {
+        expect(elemento, `${ruta}: un campo fija su type`).not.toMatch(/\stype=/)
+        expect(elemento, `${ruta}: un campo lleva aria-label`).not.toMatch(/aria-label/)
+        expect(elemento.match(/nombreDelBoton=/g), ruta).toHaveLength(1)
+      }
+    }
+  })
+
+  it("TEXTOS_CAMPO_CONTRASENA tiene exactamente los 4 textos de §D-7 y vive solo en features/auth/data.ts", () => {
+    const datos = archivo("/src/features/auth/data.ts")
+    const inicio = datos.indexOf("export const TEXTOS_CAMPO_CONTRASENA = {")
+    expect(inicio, "no existe TEXTOS_CAMPO_CONTRASENA").toBeGreaterThan(-1)
+    const cuerpo = datos.slice(inicio, datos.indexOf("}", inicio))
+    const entradas = Object.fromEntries(
+      [...cuerpo.matchAll(/^\s*(\w+):\s*"([^"]*)",?\s*$/gm)].map(([, clave, valor]) => [
+        clave,
+        valor,
+      ]),
     )
-    const campos = lineasCon(/type="password"/, formularios).map((l) => l.split(":")[0])
-    expect(campos.sort()).toEqual(
-      [
-        "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
-        "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
-        "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
-        "/src/features/auth/components/formulario-login.tsx",
-        "/src/features/auth/components/formulario-nueva-contrasena.tsx",
-        "/src/features/auth/components/formulario-nueva-contrasena.tsx",
-        "/src/features/auth/components/formulario-registro.tsx",
-      ].sort(),
-    )
+    expect(entradas).toEqual({
+      mostrar: "Mostrar contraseña",
+      mostrarNueva: "Mostrar contraseña nueva",
+      mostrarConfirmacion: "Mostrar confirmación de contraseña",
+      mostrarTemporal: "Mostrar contraseña temporal",
+    })
+    expect(rutasCon(/TEXTOS_CAMPO_CONTRASENA\s*=/)).toEqual(["/src/features/auth/data.ts"])
+    // Ningún nombre del botón escrito a mano fuera de data.ts.
+    expect(rutasCon(/"Mostrar (contraseña|confirmación)/)).toEqual(["/src/features/auth/data.ts"])
+  })
+
+  it('V-17: 0 type="password" literal; "password" solo en campo-contrasena.tsx; 0 "Ocultar"', () => {
+    expect(lineasCon(/type="password"/, soloTsx)).toEqual([])
+    expect(rutasCon(/"password"/)).toEqual([CAMPO])
+    expect(lineasCon(/Ocultar/, soloTsx)).toEqual([])
+  })
+
+  it("V-17: en campo-contrasena.tsx, sin aria-label ni aria-labelledby; un sr-only y un aria-pressed en el código", () => {
+    const campo: [string, string][] = [[CAMPO, archivo(CAMPO)]]
+    // Las líneas de comentario del archivo nombran "aria-label", "sr-only" y "aria-pressed" para
+    // explicar el diseño; lo que se cuenta es el código.
+    expect(sinComentarios(lineasCon(/aria-label/, campo))).toEqual([])
+    expect(sinComentarios(lineasCon(/\bsr-only\b/, campo))).toHaveLength(1)
+    expect(sinComentarios(lineasCon(/aria-pressed/, campo))).toHaveLength(1)
+    expect(rutasCon(/<CampoContrasena\b|from "\.\/campo-contrasena"/)).toEqual(Object.keys(TABLA))
   })
 })

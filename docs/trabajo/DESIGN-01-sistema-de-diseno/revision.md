@@ -1177,3 +1177,216 @@ Sin desacuerdos nuevos. Los tres hallazgos de las rondas 1 y 2 están corregidos
 - H-11: los orbes, su rendimiento y la pausa al salir del login.
 - H-17 y C-07: el borde de los campos sobre el orbe azul.
 - H-15: el pie en producción, con `npm run build` y `npm run preview`.
+
+## DESIGN-01b-2 — final
+
+Veredicto: **APROBADO** (sin problemas que bloqueen). Carril sensible: antes del commit `<D>`, el humano revisa el diff (lista en "Para el humano").
+
+Verificación propia (2026-09-27, desde `frontend/`; salidas en el scratchpad):
+- **lint:** código 0.
+- **test:** código 0; **52 archivos y 873 pruebas en verde**. Solo las `*.ataque` (`vitest run ataque`): 26 archivos y 540 pruebas.
+- **build:** código 0; solo el aviso conocido de Vite.
+- **V-01:** `sha256sum -c` con la tabla de 47 de "DESIGN-01b-2 — Ronda 2" da **47/47 OK**. `find` encuentra exactamente 47. Contra `73e29c5` solo cambió una existente, `estatico-r1`, en la ronda 0; `contrasena-r1` y `contrasena-r2` son nuevas.
+- **V-14, parte 4 y guardas:** `git diff --quiet 73e29c5` sale con código 0 sobre `acceso-restringido-view.tsx`, `main.tsx`, `router.tsx` y las tres guardas.
+- **V-08:**
+  - **`frontend/` contra `73e29c5`:** solo cambian `estatico-r1` (ronda 0), los 4 formularios y `features/auth/data.ts`, más los 5 archivos nuevos de E-10 y del tester.
+  - **Fuera de `frontend/` contra `0fc961b`**, sin `docs/trabajo/` ni `docs/ESTADO.md` (regla "Trabajo visual"): solo `AGENTS.md` y `docs/DESIGN.md`.
+  - **`AGENTS.md`:** es **solo** la subsección "Trabajo visual" (7 líneas agregadas y ninguna quitada), con la decisión del humano.
+  - **`DESIGN.md`:** contra `73e29c5` solo cambian la línea de "Estado de aplicación" y la viñeta de §7.3 (E-13). El resto del diff contra `0fc961b` es 01b-1 (E-1), que ya revisé.
+- **V-17:**
+  - `type="password"` literal: 0 en `.tsx`;
+  - `"password"` solo en `campo-contrasena.tsx`;
+  - 7 `<CampoContrasena` (1, 1, 2 y 3 por formulario), cada uno con su constante;
+  - sin `aria-label` ni `aria-labelledby` en el código; un `sr-only` y un `aria-pressed`;
+  - "Ocultar": 0.
+
+  La guarda `estatico-r1` lo comprueba y está en verde. Las líneas de `autoComplete` no aparecen en el diff de ningún formulario: no cambiaron.
+- **V-10:** `.sr-only` está en el CSS de `dist/`, y `href:"#"` aparece 0 veces en el JS.
+
+### Cumplimiento de §D-7 y P-05 (B)
+- **Nombres fijos por campo** (P-06, confirmados por el humano): `mostrar` en login y registro; `mostrarNueva` y `mostrarConfirmacion` en nueva contraseña; `mostrarTemporal`, `mostrarNueva` y `mostrarConfirmacion` en cambiar contraseña. Salen de `TEXTOS_CAMPO_CONTRASENA` en `features/auth/data.ts` (E-12, solo la constante).
+- **Accesibilidad:** el nombre va como texto `sr-only` dentro del botón, sin `aria-label`; el estado va en `aria-pressed`, y `aria-controls` apunta al campo. El icono es `aria-hidden` y solo cambia el dibujo.
+- **CC-1:** `type="button"`.
+- **CC-3:** `onMouseDown` cancela la acción por defecto, y la selección se guarda antes de cambiar el `type` y se restaura en `useLayoutEffect` solo si el campo sigue enfocado.
+- **CC-4:** `autocomplete` intacto.
+- **CC-5:** `spellCheck`, `autoCapitalize` y `autoCorrect`.
+- **CC-6 (P-04):** escuchador de `submit` en captura con `flushSync`, sin `preventDefault`, y retirado al desmontar.
+- **CC-7:** cada campo tiene su estado.
+
+**Corrección de T-01: correcta y mínima.**
+- La selección pendiente se consume una sola vez: `seleccionRef` se anula al entrar en el efecto.
+- Al enviar se captura la selección de ese instante, no la del último clic en el ojo.
+- Las guardas del efecto son retornos tempranos planos, sin anidar.
+- El caso que queda (O-1 de la ronda 2: un envío con el campo ya oculto deja guardada una selección que nadie consume) no es observable: el único cambio posible después lo precede una captura nueva, sea de `alternar` o de otro envío. Coincido con el tester.
+
+**Ronda 0 de 01b-2 (`estatico-r1`), línea por línea contra `73e29c5`:**
+- Es un solo tramo: sustituye el bloque "nada de 01b-2 está implementado" (2 pruebas) por "los 7 campos de contraseña usan CampoContrasena" (5 pruebas).
+- Los auxiliares que usa (`soloTs`, `lineasCon`, `rutasCon`, `sinComentarios` y `archivo`) ya existían, y el resto del archivo no cambió.
+- **Es más estricto que lo que sustituye:**
+  - conserva los 7 campos y su reparto (1, 1, 2 y 3) en los mismos 4 formularios;
+  - agrega por cada campo el `id` y la constante de la tabla, en orden;
+  - exige que no haya `type` ni `aria-label` en el elemento;
+  - exige los 4 textos exactos en un solo lugar y ningún nombre escrito a mano fuera de `data.ts`;
+  - agrega V-17 completo y que solo los 4 formularios importen el componente.
+- El bloque anterior protegía un alcance, "01b-2 no existe", que por definición deja de valer en 01b-2. Sustituirlo era la decisión correcta del humano.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+
+#### M-01 — `interface Seleccion` en el archivo de un componente
+Dónde: `frontend/src/features/auth/components/campo-contrasena.tsx`, `interface Seleccion`.
+
+Por qué importa: `CLAUDE.md`, regla 6: "Las interfaces de Props son los ÚNICOS tipos permitidos en el archivo de un componente"; los tipos van en `types.ts` (regla 1). El programador no podía moverlo, porque `features/auth/types.ts` estaba en "No se toca" de 01b-2.
+
+Qué se espera: en el cierre de 01b (carril trivial), `Seleccion` pasa a `features/auth/types.ts` y el componente la importa. `capturarSeleccion` puede quedarse, porque lee `document` y no es una función pura de `lib.ts`. Después, `npm run lint` y `npm run test`.
+
+### Detalles menores
+- Las pruebas de `campo-contrasena.test.tsx` y `contrasena-visible.test.tsx` cubren CC-1 a CC-7 y los nombres exactos. Lo que exige navegador (gestores de contraseñas, toque en un teléfono, lectores de pantalla) queda para H-16.
+
+### Lo que debe entrar en el cierre de 01b (además de lo que ya dijiste)
+1. **O-7 en código:** en `esUrlPublicable`, después del paso 3, `false` si `analizada.username` o `analizada.password` no están vacíos, con retorno temprano.
+   - En `components/layout/lib.test.ts`, casos `false`: `"https://colegio.mx@otro-sitio.mx"` y `"https://usuario:clave@colegio.mx"`.
+   - En §D-5 de `plan-01b.md` (arquitecto) y en §7.12 de `DESIGN.md`, una línea que lo diga.
+   - Como ya no hay rondas del tester, lo verifico yo: diff mínimo, las dos pruebas nuevas en verde y las 47 `*.ataque` con su hash.
+2. **M-01 de 01b-1:** el comentario de `ENLACES_DEL_COLEGIO` explica la regla final y el rechazo de usuario y contraseña, y dice que, si un enlace se ve como marcador en desarrollo, es que el navegador cambiaría la URL.
+3. **M-01 de esta revisión:** `Seleccion` pasa a `features/auth/types.ts`.
+4. **`README.md`:** el conteo del frontend con los números de la corrida de mi revisión del cierre (hoy: 52 archivos y 873 pruebas, 540 adversarias en 26 archivos; cambiará con las pruebas de O-7).
+5. **`CLAUDE.md`:** los textos de "Lo que aplica el orquestador" de `plan-01b.md`, con autorización del humano.
+6. **`DESIGN.md`:** las marcas "propuesta" pasan a "propuesta aprobada (fecha)" solo después de la comprobación completa, con lo que el humano apruebe; también lo de 01a que quedó pendiente.
+7. **`ESTADO.md`:** 01b cerrado; la fila de DEPLOY de los enlaces del pie, ya sin la parte de O-7 si entra en código; los pendientes de 01b-1 (O-2 y O-4, que el humano juzga en la comprobación).
+8. **`comprobacion-humano.md`:** la hoja de la comprobación completa (H-01 a H-17 y C-01 a C-26) según `plan-01b.md`, con el borde vigente en C-07, O-2 en H-12 y O-4 en H-04.
+
+### Para el humano
+**Antes del commit de 01b-2 (`<D>`), carril sensible. Revisa en el diff:**
+1. `frontend/src/features/auth/components/campo-contrasena.tsx` completo:
+   - el botón (`type="button"`, texto `sr-only`, `aria-pressed`, `aria-controls`);
+   - `onMouseDown`;
+   - la selección y su restauración, que es la corrección de T-01;
+   - el escuchador de `submit` que oculta la contraseña al enviar.
+2. Los 4 formularios (`formulario-login`, `-registro`, `-nueva-contrasena` y `-cambiar-contrasena`): cada `Input type="password"` pasa a `CampoContrasena` con su nombre. Las líneas de `autoComplete`, `name`, `required` y `aria-*` no cambian.
+3. `features/auth/data.ts`: solo `TEXTOS_CAMPO_CONTRASENA`, con los 4 nombres que confirmaste.
+4. `components/layout/estatico-r1.ataque.test.ts`: el bloque que sustituyó la ronda 0, que decidiste tú.
+5. `AGENTS.md`: la subsección "Trabajo visual", que es solo eso.
+6. `docs/DESIGN.md`: la viñeta de §7.3 y la línea de "Estado de aplicación".
+7. Archivos sin rastrear que van en el commit: `campo-contrasena.tsx` y su prueba, `contrasena-visible.test.tsx`, y `app/contrasena-r1` y `contrasena-r2.ataque`.
+
+**En la comprobación completa (H-16):**
+- el cursor no se mueve al pulsar el ojo, tampoco al tocarlo en la emulación táctil a 360 px;
+- los nombres en DevTools › Accessibility no cambian al pulsar, y el estado de presionado sí;
+- el ojo no envía el formulario;
+- con la contraseña a la vista, al enviar vuelve a ocultarse;
+- Chrome o Edge siguen ofreciendo guardar la contraseña;
+- el icono de un gestor de contraseñas no se encima con el ojo.
+
+## DESIGN-01b — cierre
+
+Veredicto: **CAMBIOS REQUERIDOS**, por un solo punto (M-01): la suite no está en verde de forma confiable. El código y los documentos del cierre están bien y no cambian. Lo que falla es el tiempo límite de las pruebas de ataque de contraseña bajo carga, que solo puede corregir el tester, en una ronda corta con el alcance de abajo. Con esa corrección y la suite en verde tres veces seguidas, el cierre queda APROBADO sin otra revisión de fondo.
+
+Verificación propia (2026-09-27, desde `frontend/`; salidas en el scratchpad):
+- **lint:** código 0.
+- **build:** código 0.
+- **test:** tres corridas completas.
+  - Dos, con código 0: 52 archivos y 875 pruebas en verde.
+  - La tercera, con el reporte JSON para medir tiempos, **salió con código 1**: `contrasena-r1.ataque.test.tsx`, "'cambio obligatorio': 5 activaciones…", tardó 5041 ms con el límite de 5000.
+  - Reproduce lo que vio el orquestador: **es un rojo intermitente**.
+- **V-01:** 47/47 con la tabla de "DESIGN-01b-2 — Ronda 2". El cierre no tocó ninguna `*.ataque`.
+- **V-14, parte 4 y guardas:** `acceso-restringido-view.tsx`, `main.tsx`, `router.tsx` y las tres guardas, sin cambios contra `73e29c5`.
+- **V-17:** `type="password"` da 0; hay 7 `<CampoContrasena`; "Ocultar" da 0; `"password"` solo en `campo-contrasena.tsx`, que ya no declara ningún tipo salvo su interfaz de Props.
+- **V-08:**
+  - **`frontend/` contra `73e29c5`:** 01b-2 y el cierre (`components/layout/lib.ts`, `lib.test.ts`, `data.ts` y `features/auth/types.ts`).
+  - **Fuera de `frontend/` contra `0fc961b`**, sin `docs/trabajo/` ni `ESTADO.md`: `AGENTS.md` ("Trabajo visual", 7 líneas agregadas y ninguna quitada), `CLAUDE.md`, `README.md` y `DESIGN.md`.
+
+### Lo que hizo el cierre
+- **O-7:** un solo retorno temprano, `if (analizada.username || analizada.password) return false`, después de comparar el `href` y antes del protocolo, con su comentario.
+  - Casos `false` en `lib.test.ts`: `"https://colegio.mx@otro-sitio.mx"` y `"https://usuario:clave@colegio.mx"`.
+  - Lo comprobé en Node:
+    - `mailto:contacto@colegio.mx` da `username` vacío, porque la `@` de un `mailto:` no es información de usuario, así que sigue publicándose;
+    - `https://:clave@colegio.mx` también se rechaza (contraseña sin usuario).
+  - El diff es mínimo.
+- **El comentario de `ENLACES_DEL_COLEGIO`** (M-01 de 01b-1) explica la regla final: absoluta, con `https:`, `mailto:` o `tel:`, tal como la usa el navegador, sin usuario ni contraseña, marcador en desarrollo y nada en producción.
+- **`features/auth/types.ts`** (M-01 de 01b-2): solo agrega `Seleccion` (7 líneas y 0 quitadas), y `campo-contrasena.tsx` la importa con `import type`.
+- **`DESIGN.md` §7.12:** una frase sobre usuario y contraseña, con su origen (cierre de 01b, O-7).
+- **§D-5 de `plan-01b.md`:** el paso 4 nuevo (usuario y contraseña) y el protocolo pasa a ser el paso 5. El contenido es correcto. Por proceso, los cambios al plan los hace el arquitecto; aquí es una línea que documenta una decisión ya tomada, así que no pido rehacerla.
+- **`CLAUDE.md`:** coincide **palabra por palabra** con "Lo que aplica el orquestador" de `plan-01b.md`:
+  - la viñeta de `components/layout/`;
+  - `AvatarUsuario` pasa a la lista de las que ya existen, con su archivo;
+  - `lib/format.ts` con `inicialesDe`;
+  - `app/` con `FondoDeLaApp`;
+  - la viñeta de "Tokens" sobre lo fijo;
+  - la de "Formularios" sobre `CampoContrasena`.
+
+  No hay nada más.
+- **`README.md`, línea 228:** "El frontend tiene 52 archivos con 875 pruebas: 540 adversarias, en 26 archivos." Coincide con mi corrida.
+- **La hoja de la comprobación completa** (`comprobacion-humano.md`) cubre H-01 a H-17 y C-01 a C-26, con:
+  - O-4 en H-04 (el orden de Tab a 360 px);
+  - O-2 en H-12 ("Cuentas" activo bajo el puntero);
+  - H-14 (recorte de la sombra, con 1280 × 600 para forzar el desplazamiento);
+  - H-15 (desarrollo y producción con `npm run preview` en `4173`, y ningún `href="#"`);
+  - H-16 (nombres por pantalla, el nombre que no cambia, el toque a 360 px, `autocomplete`, que el ojo no envía el formulario, el gestor de contraseñas y **el cursor que se queda al enviar**, que es T-01);
+  - C-07 con `--field-border` `#5A6472` y 3.8 calculado.
+
+### Problemas que bloquean
+
+#### M-01 — Las pruebas de ataque de contraseña superan el tiempo límite bajo carga
+Dónde: `frontend/src/app/contrasena-r1.ataque.test.tsx` y `frontend/src/app/contrasena-r2.ataque.test.tsx`.
+
+Por qué importa:
+- `AGENTS.md` dice que no se marca nada como terminado con pruebas en rojo, y un rojo intermitente es un rojo: el humano o el orquestador lo verán aparecer y desaparecer sin causa.
+- Medí los tiempos en la suite completa. De las 17 pruebas que pasan de 2 s, 8 son de estos dos archivos:
+  - `contrasena-r1`, "cambio obligatorio: 5 activaciones", con 5041 ms (falla con el límite de 5000);
+  - `contrasena-r2`, "varias pulsaciones… y después el envío", con 3556 ms;
+  - `contrasena-r1`, "cambio obligatorio: envío válido con Enter", con 3201 ms;
+  - y otras 5 de `contrasena-r1` entre 2.1 y 2.4 s.
+- Montan el router completo y activan el botón varias veces en `jsdom`. Solas tardan poco (1.3 s); la carga de la suite en paralelo las empuja al límite. No es un defecto del código.
+
+Qué se espera (ronda corta del tester en el cierre; **no cuenta como ronda de ataque**):
+- En esos **dos archivos**, un límite de 15 000 ms para sus pruebas.
+  - Puede ir como tercer argumento de cada `it` o `it.each`, o como opción `{ timeout: 15_000 }` de sus `describe`, lo que deje el diff más corto.
+  - **Ninguna aserción, preparación, dato ni nombre cambia.**
+- El tester comprueba con `git diff` que solo cambian esas llamadas, formatea solo esos dos archivos, corre la suite completa **tres veces seguidas en verde** y publica la tabla de hashes (dos modificadas).
+- No se toca `vitest.config.ts` (un `testTimeout` global cambiaría la configuración de todo el proyecto y necesita autorización).
+- Después lo compruebo yo: el diff de los dos archivos y V-01 con la tabla nueva. El orquestador corre la suite otra vez antes del commit.
+
+### Problemas que no bloquean
+- **M-02 — La suite se acerca al límite en general.** Otras 9 pruebas de ataque que montan el router (entre ellas, de `en-espera-r1`, `cuentas-r2`, `cuentas-r3`, `cuentas-r4`, `sesion-r2` y `fondo-r1`) tardan entre 2 y 2.6 s en la suite completa, cerca de la mitad del límite. Por ahora no fallan. Pendiente con destino, en `ESTADO.md`: un `chore` que decida un `testTimeout` para el frontend en `vitest.config.ts` (con autorización del humano) o que reparta las pruebas pesadas. Lo registra el orquestador.
+
+### Para el humano
+**Antes del commit `<D>`**, que abarca 01b-2 (carril sensible) y el cierre, **y solo después de la ronda corta de M-01**, revisa en el diff:
+1. **01b-2, lo de mi revisión final:**
+   - `campo-contrasena.tsx` completo: el botón, `onMouseDown`, la selección con la corrección de T-01 y el escuchador de `submit`;
+   - los 4 formularios, donde solo cambia el campo y `autoComplete` queda igual;
+   - `features/auth/data.ts`, solo la constante;
+   - el bloque de la ronda 0 en `estatico-r1`;
+   - las pruebas nuevas.
+2. **El cierre:**
+   - `components/layout/lib.ts`: la línea de O-7 y su comentario;
+   - `lib.test.ts`: los dos casos;
+   - `components/layout/data.ts`: el comentario de los enlaces, que es lo que leerás al llenar las URL;
+   - `features/auth/types.ts`: solo agrega `Seleccion`;
+   - `docs/DESIGN.md` §7.12 y §7.3.
+3. **Documentos:**
+   - `CLAUDE.md`: los seis cambios del plan, idénticos;
+   - `AGENTS.md`: "Trabajo visual";
+   - `README.md`, línea 228;
+   - el diff de M-01 del tester en los dos `contrasena-r*.ataque`, que solo debe agregar el límite de tiempo.
+4. **Archivos sin rastrear:** `campo-contrasena.tsx` y su prueba, `contrasena-visible.test.tsx` y las dos `contrasena-r*.ataque`.
+
+**Después del commit:** la comprobación completa con la hoja de `comprobacion-humano.md`, y el PR solo cuando pase. Las marcas "propuesta" de `DESIGN.md` pasan a "propuesta aprobada (fecha)" según lo que apruebes ahí. La fila de DEPLOY de `ESTADO.md` queda como "Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY y probar cada uno"; la parte de usuario y contraseña ya la cubre el código.
+
+### DESIGN-01b — cierre, verificación de M-01
+
+Veredicto del cierre de DESIGN-01b: **APROBADO**. M-01 queda resuelto y no hay otros problemas que bloqueen.
+
+Verificación propia (solo lectura; no corrí la suite, a pedido del orquestador, para no distorsionar sus tiempos):
+- **Originales:** las copias del tester en el scratchpad (`contrasena-r1.orig.tsx` y `contrasena-r2.orig.tsx`) reproducen los hashes de la tabla de la ronda 2 de 01b-2: `cf330a16…` y `1ad62ff6…`. Los archivos actuales dan `9abdd78a…` y `85b524c6…`, como reporta el tester.
+- **El diff contra esos originales** (`git diff --no-index -U0`) solo contiene:
+  - en `contrasena-r1`, 5 `})` sustituidos por `}, 15_000)` y 7 líneas `15_000,` agregadas como tercer argumento de un `it.each` de varias líneas, justo antes del `)` que lo cierra;
+  - en `contrasena-r2`, 10 `})` sustituidos por `}, 15_000)`.
+- **Cada `it` o `it.each` lleva su límite:** 12 de 12 en `r1` y 10 de 10 en `r2`. No hay ningún `skip`, `only`, `todo` ni `fails`.
+- **Nada más cambió:** ni aserciones, ni preparación, ni datos, ni nombres. `vitest.config.ts` no se tocó.
+- **V-01:** las otras 45 `*.ataque` conservan su hash (45/45), y `find` encuentra 47.
+- **Tres corridas completas en verde:** las reporta el tester (875 de 875 cada una) y las repite el orquestador. No las corrí yo.
+
+M-02 (las otras pruebas lentas) sigue como pendiente en `ESTADO.md`, con destino un `chore`. La lista de "Para el humano" de la sección anterior sigue vigente, y se agrega el diff de los dos `contrasena-r*.ataque`: solo el límite de tiempo.

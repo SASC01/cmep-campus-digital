@@ -218,6 +218,46 @@ Como `plan-01b.md` cambia después de `<B>`, el orquestador le pedirá al humano
   - **Ronda 3 del tester, la última:** acotada a la regla nueva y a las regresiones. Si sale ROTO, se escala al humano.
 - Los textos del plan los aplica el arquitecto y el orquestador verifica el diff. Siguen siendo diferencias autorizadas de V-08 contra `8feab74`.
 
+## Commit de 01b-1, O-7 y cambio de proceso — 2026-09-27
+- **`<C>` = `73e29c5`** (`73e29c5955f569b859e6f94f86f9b199d093a116`, "feat(design-01): parte 01b-1 (fondo con orbes, marco, composición, pie y recorte de la sombra)", commit del humano, 48 archivos). El orquestador comprobó que existe y que el árbol quedó limpio.
+- **Revisión visual del humano de 01b-1:** "Ya revisé 01b-1 en el navegador y se ve bien." La comprobación completa con la hoja (H-01 a H-17 y C-01 a C-26) sigue definida en `plan-01b.md` para después de 01b-2.
+- **O-7, decisión del humano:** "en código. En el cierre de 01b, la regla del pie rechaza cualquier URL con usuario o contraseña antes del dominio, con su caso de prueba." Por la regla nueva de proceso, basta una ronda del tester, o la revisión del manager.
+- **Cambio de proceso para trabajo visual** (texto literal del humano; registrado en `AGENTS.md`, "Trabajo visual"):
+  > - V-08 usa como base solo el commit de aprobación del plan; cambios posteriores en docs/trabajo/ y ESTADO.md no exigen un commit nuevo.
+  > - Solo me pides commit al terminar cada subentrega, no en pasos intermedios.
+  > - Los ajustes visuales que yo pida después de ver la pantalla son carril trivial: programador aplica, tests en verde, sin plan ni ronda 0, salvo que toquen pruebas de ataque o lógica.
+  > - Una validación sobre datos que solo escribo yo en un archivo de configuración (como los enlaces del pie) no justifica más de una ronda del tester por casos extremos.
+- **Bases de V-08 para 01b-2:**
+  - `frontend/` contra `<C>` = `73e29c5`, como fija el plan;
+  - fuera de `frontend/`, contra el commit de aprobación del plan, `0fc961b`, sin contar `docs/trabajo/` ni `docs/ESTADO.md`. `docs/DESIGN.md` solo puede cambiar en las secciones de E-1 (01b-1, ya confirmadas en `<C>`) y E-13 (01b-2).
+- **01b-2 (carril sensible):** plan aprobado. Programador → tester → manager. El commit se pide solo al terminar, junto con el cierre de 01b.
+
+## Parada del programador en 01b-2 (paso 17) y decisión del humano — 2026-09-27
+- **Parada:** al poner `CampoContrasena` en los 4 formularios, 2 pruebas existentes se pusieron en rojo, las dos de `frontend/src/components/layout/estatico-r1.ataque.test.ts`, en el bloque "ataque (DESIGN-01b-1 r1): nada de 01b-2 está implementado".
+  - El tester las escribió en la ronda 1 de 01b-1 para blindar el alcance de 01b-1: que no existiera `CampoContrasena` y que los 7 campos siguieran como `type="password"`. Con 01b-2 fallan por diseño.
+  - El resto de la suite quedó en verde (813 de 815) y el inventario de selectores de §D-7 se sostuvo.
+  - El programador no tocó ninguna prueba. Dejó hechos los pasos 15, 16 y 17 (este último parcial); faltan el 18 y el 19. Detalle en `resumen-programador.md`, "DESIGN-01b-2".
+- **Decisión del humano (herramienta de preguntas):** "Ronda 0 del tester".
+  - El tester sustituye solo ese bloque por su equivalente de 01b-2: 7 `CampoContrasena` con el nombre de la tabla, ningún `type="password"` literal fuera de `campo-contrasena` y ningún `aria-label`. La guarda debe quedar igual de estricta.
+  - Publica los hashes. Después el programador sigue con los pasos 18 y 19.
+
+## 01b-2: rondas, revisión final y decisiones del cierre de 01b — 2026-09-27
+- **Tester, ronda 1: ROTO** por T-01 (media): el cursor volvía a una selección vieja al ocultarse por el envío. El programador lo corrigió en la vuelta 2.
+- **Tester, ronda 2: RESISTE.** Suite: 52 archivos y 873 pruebas en verde; tabla de 47 `*.ataque`.
+- **Manager, revisión final de 01b-2: APROBADO** (`revision.md`, "DESIGN-01b-2 — final").
+  - M-01: la interfaz `Seleccion` estaba en `campo-contrasena.tsx`, contra la regla 6 de `CLAUDE.md`.
+  - El manager enlistó lo que el humano debe revisar en el diff antes del commit `<D>`, porque es carril sensible.
+- **Decisiones del humano (herramienta de preguntas):**
+  - **M-01:** "Sí, mover a types.ts". Es una excepción acotada a "No se toca": solo se agrega la interfaz `Seleccion` a `features/auth/types.ts` y se importa en `campo-contrasena.tsx`.
+  - **`CLAUDE.md`:** "Ahora, entran en `<D>`". El orquestador aplicó los textos literales de `plan-01b.md`, "Lo que aplica el orquestador": `components/layout/`, `AvatarUsuario`, `inicialesDe`, `FondoDeLaApp`, lo fijo dentro de vidrio y `CampoContrasena`.
+- **Cierre de 01b (carril trivial del programador, lo revisa el manager):**
+  - O-7 en código (§D-5, paso 4 nuevo, que agregó el orquestador en el plan);
+  - el comentario de `ENLACES_DEL_COLEGIO` (M-01 de 01b-1);
+  - `Seleccion` a `types.ts`;
+  - la línea de O-7 en `DESIGN.md` §7.12.
+  - Después, `README.md`, `ESTADO.md` y la hoja de la comprobación completa en `comprobacion-humano.md`, a cargo del orquestador.
+  - Las marcas de `DESIGN.md` pasan a aprobadas solo después de la comprobación completa.
+
 ## Pendientes para encargos siguientes
 - **ADMIN:** "Dar rol accesible a la ficha de cuenta (role=region con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de fichaDe." (R-15).
 - **DESIGN-01b:** plan detallado en `plan-01b.md`, aprobado el 2026-09-27. Sigue en la misma rama, `feat/design-01-sistema-de-diseno`, desde `e39500a`. Ya no sale de una rama nueva después de fusionar 01a, porque el PR se abre hasta que pase la comprobación completa.

@@ -9,7 +9,8 @@ import { buttonVariants } from "@/components/ui/button-variants"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { TEXTOS_REGISTRO } from "../data"
+import { CampoContrasena } from "./campo-contrasena"
+import { TEXTOS_CAMPO_CONTRASENA, TEXTOS_REGISTRO } from "../data"
 import { useRegistro } from "../hooks"
 import { erroresPorCampo, mensajeDeErrorAuth } from "../lib"
 import type { ErroresFormulario } from "../types"
@@ -83,10 +84,10 @@ export function FormularioRegistro() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="contrasena">{TEXTOS_REGISTRO.contrasena}</Label>
-        <Input
+        <CampoContrasena
           id="contrasena"
           name="contrasena"
-          type="password"
+          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrar}
           autoComplete="new-password"
           required
           aria-invalid={errores.contrasena !== undefined}

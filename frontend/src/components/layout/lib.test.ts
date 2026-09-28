@@ -53,6 +53,8 @@ describe("esUrlPublicable", () => {
     "https://cole\ngio.mx",
     "https://cole­gio.mx",
     "https://Colegio.mx",
+    "https://colegio.mx@otro-sitio.mx",
+    "https://usuario:clave@colegio.mx",
   ])("%s no es publicable", (url) => {
     expect(esUrlPublicable(url)).toBe(false)
   })

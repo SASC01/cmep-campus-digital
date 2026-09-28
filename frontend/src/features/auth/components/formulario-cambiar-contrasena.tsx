@@ -4,10 +4,10 @@ import { useState, type FormEvent } from "react"
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { MENSAJE_CONFIRMACION_NO_COINCIDE, TEXTOS_CAMBIAR } from "../data"
+import { CampoContrasena } from "./campo-contrasena"
+import { MENSAJE_CONFIRMACION_NO_COINCIDE, TEXTOS_CAMBIAR, TEXTOS_CAMPO_CONTRASENA } from "../data"
 import { useCambiarContrasena, useCerrarSesion } from "../hooks"
 import { contrasenasCoinciden, erroresPorCampo, mensajeDeErrorAuth } from "../lib"
 import type { ErroresFormulario } from "../types"
@@ -57,10 +57,10 @@ export function FormularioCambiarContrasena() {
       {cambiar.isError && <MensajeError mensaje={mensajeDeErrorAuth(cambiar.error)} />}
       <div className="flex flex-col gap-2">
         <Label htmlFor="contrasenaActual">{TEXTOS_CAMBIAR.contrasenaActual}</Label>
-        <Input
+        <CampoContrasena
           id="contrasenaActual"
           name="contrasenaActual"
-          type="password"
+          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrarTemporal}
           autoComplete="current-password"
           required
           aria-invalid={errores.contrasenaActual !== undefined}
@@ -72,10 +72,10 @@ export function FormularioCambiarContrasena() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="contrasenaNueva">{TEXTOS_CAMBIAR.contrasenaNueva}</Label>
-        <Input
+        <CampoContrasena
           id="contrasenaNueva"
           name="contrasenaNueva"
-          type="password"
+          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrarNueva}
           autoComplete="new-password"
           required
           aria-invalid={errores.contrasenaNueva !== undefined}
@@ -94,10 +94,10 @@ export function FormularioCambiarContrasena() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirmacion">{TEXTOS_CAMBIAR.confirmacion}</Label>
-        <Input
+        <CampoContrasena
           id="confirmacion"
           name="confirmacion"
-          type="password"
+          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrarConfirmacion}
           autoComplete="new-password"
           required
           aria-invalid={errorConfirmacion}

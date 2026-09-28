@@ -25,6 +25,9 @@ export const esUrlPublicable = (url: string | null): boolean => {
   // medio, y los caracteres invisibles del dominio (guion suave, espacio de ancho cero…). Sin
   // expresiones regulares.
   if (analizada.href !== url && analizada.href !== `${url}/`) return false
+  // Sin usuario ni contraseña antes del dominio (O-7 de la ronda 3, decisión del humano, cierre de
+  // 01b): "https://colegio.mx@otro-sitio.mx" lleva en realidad a "otro-sitio.mx".
+  if (analizada.username || analizada.password) return false
   return (
     analizada.protocol === "https:" ||
     analizada.protocol === "mailto:" ||

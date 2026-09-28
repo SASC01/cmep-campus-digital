@@ -55,3 +55,10 @@ export interface TextosNuevaContrasena {
   pedirOtroEnlace?: string
   avisoLogin: AvisoDeLogin
 }
+
+// Selección de un campo de contraseña, capturada antes de cambiar su type (CampoContrasena, CC-3).
+export interface Seleccion {
+  inicio: number | null
+  fin: number | null
+  tenerFoco: boolean
+}

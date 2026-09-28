@@ -6,11 +6,15 @@ import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { esApiError } from "@/services/apiClient"
 
-import { MENSAJE_CONFIRMACION_NO_COINCIDE, TEXTOS_NUEVA_CONTRASENA } from "../data"
+import { CampoContrasena } from "./campo-contrasena"
+import {
+  MENSAJE_CONFIRMACION_NO_COINCIDE,
+  TEXTOS_CAMPO_CONTRASENA,
+  TEXTOS_NUEVA_CONTRASENA,
+} from "../data"
 import { useNuevaContrasena } from "../hooks"
 import { contrasenasCoinciden, erroresPorCampo, mensajeDeErrorAuth } from "../lib"
 import type { ErroresFormulario, TipoEnlace } from "../types"
@@ -89,10 +93,10 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="contrasenaNueva">{textos.contrasenaNueva}</Label>
-        <Input
+        <CampoContrasena
           id="contrasenaNueva"
           name="contrasenaNueva"
-          type="password"
+          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrarNueva}
           autoComplete="new-password"
           required
           aria-invalid={errores.contrasena !== undefined}
@@ -111,10 +115,10 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirmacion">{textos.confirmacion}</Label>
-        <Input
+        <CampoContrasena
           id="confirmacion"
           name="confirmacion"
-          type="password"
+          nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrarConfirmacion}
           autoComplete="new-password"
           required
           aria-invalid={errorConfirmacion}

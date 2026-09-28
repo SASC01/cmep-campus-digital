@@ -1323,3 +1323,784 @@ Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'`, si
 - Formateé solo ese archivo, con `npx prettier --write` desde `frontend/`.
 - Git solo de lectura. No abrí navegadores ni corrí `npm run dev`, y no leí ningún `.env`.
 - El barrido de Node lo corrí como script en el scratchpad y terminó solo. No dejé procesos en marcha.
+
+## DESIGN-01b-2 — Ronda 0 (estatico-r1)
+
+**Estado: COMPLETADA.** Sustituí solo el `describe` "ataque (DESIGN-01b-1 r1): nada de 01b-2 está implementado" de `frontend/src/components/layout/estatico-r1.ataque.test.ts` por su equivalente de 01b-2, igual de estricto. El código del programador cumple todas las aserciones del bloque nuevo: **no hay hallazgos**. La suite completa y el lint están en verde.
+
+Esta ronda la decidió el humano (`aprobacion.md`, "Parada del programador en 01b-2") y no cuenta en el tope de 3 rondas de 01b-2. La base es `<C>` = `73e29c5`.
+
+### Precondición
+- `sha256sum` de `estatico-r1.ataque.test.ts` antes de tocarlo: `2b3f64cf…218860`, el de mi tabla de la ronda 3 de 01b-1. Guardé una copia del original en el scratchpad.
+- Las otras 44 `*.ataque` coinciden con la tabla de "DESIGN-01b-1 — Ronda 3" (`sha256sum -c`: solo `estatico-r1` difiere, y es la que cambio).
+
+### Qué comprueba el bloque nuevo: `describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContrasena (§D-7, V-17)")`, 5 pruebas
+1. **Exactamente 7 `<CampoContrasena`** en todo `src/**/*.tsx`, sin contar pruebas, solo en los 4 formularios: 1 en login, 1 en registro, 2 en nueva contraseña y 3 en cambiar contraseña.
+2. **Cada campo, en orden, lleva la constante de su fila de la tabla de §D-7.** Recorre cada elemento `<CampoContrasena … />`, lee su `id` literal y la constante de `nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.…}`, y los compara con la tabla:
+
+   | Formulario | Campos, en orden (`id` → constante) |
+   |---|---|
+   | login | `contrasena` → `mostrar` |
+   | registro | `contrasena` → `mostrar` |
+   | nueva contraseña | `contrasenaNueva` → `mostrarNueva`; `confirmacion` → `mostrarConfirmacion` |
+   | cambiar contraseña | `contrasenaActual` → `mostrarTemporal`; `contrasenaNueva` → `mostrarNueva`; `confirmacion` → `mostrarConfirmacion` |
+
+   Además, en cada elemento: ningún `type=`, ningún `aria-label` y un solo `nombreDelBoton`.
+3. **`TEXTOS_CAMPO_CONTRASENA` tiene exactamente las 4 entradas con sus textos:** "Mostrar contraseña", "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal". Se declara solo en `features/auth/data.ts`, y ningún nombre de botón está escrito a mano fuera de ese archivo.
+4. **V-17, texto en todos los `.tsx`:**
+   - `type="password"` literal: 0 en `src/**/*.tsx` sin pruebas;
+   - la cadena `"password"`: solo en `campo-contrasena.tsx`, y en los `.ts` tampoco aparece;
+   - "Ocultar": 0 en `src/**/*.tsx` sin pruebas, contando también los comentarios.
+5. **V-17 en `campo-contrasena.tsx`:**
+   - 0 `aria-label` y 0 `aria-labelledby` (el patrón `aria-label` cubre los dos);
+   - **exactamente 1** `sr-only` y **exactamente 1** `aria-pressed`. Es más estricto que "presentes";
+   - `CampoContrasena` solo se usa o se importa desde los 4 formularios.
+
+   Estas cuentas se hacen sobre el código, sin las líneas de comentario, con el ayudante `sinComentarios` que el archivo ya tenía.
+
+Ninguna prueba localiza elementos: el bloque lee el código fuente, igual que el resto del archivo. Toda prueba ejecuta aserciones.
+
+### Observación para el manager (no es hallazgo)
+- **O-1 · V-17 aplicada con un `grep` literal da cuentas distintas por un comentario.**
+  - La línea 21 de `campo-contrasena.tsx`, un comentario, dice "como texto sr-only dentro del botón (nunca aria-label), con el estado en aria-pressed".
+  - Con un `grep` literal sobre todo el archivo, V-17 da `aria-label` → 1, `sr-only` → 2 y `aria-pressed` → 2, en lugar de 0, 1 y 1.
+  - En el código, sin comentarios, las cuentas son exactamente 0, 1 y 1, y eso es lo que fija el bloque.
+  - Si V-17 se lee de forma literal, lo decide el manager: el comentario solo documenta el diseño y no hay ningún atributo.
+
+### Salidas
+- `npx prettier --write src/components/layout/estatico-r1.ataque.test.ts` (desde `frontend/`): formateado, código 0.
+- `npx vitest run src/components/layout/estatico-r1.ataque.test.ts`: **16/16 en verde**, código 0. Son las 11 pruebas anteriores sin cambios más las 5 del bloque nuevo.
+- `npm run test` (desde `frontend/`): **49 archivos y 818 pruebas en verde**, código 0. No apareció ningún otro rojo.
+- `npm run lint` (desde `frontend/`): **código 0**, con ESLint, `prettier --check` y `tsc -b`.
+- Las líneas 1 a 149 del archivo son idénticas al original (`diff` contra la copia del scratchpad). Solo cambió el último `describe`.
+- `git diff --numstat` da 97 líneas agregadas y 26 quitadas, en un solo tramo, que empieza en el `describe` sustituido.
+
+### Diff completo
+```diff
+diff --git a/frontend/src/components/layout/estatico-r1.ataque.test.ts b/frontend/src/components/layout/estatico-r1.ataque.test.ts
+index 4e91af4..46c84b4 100644
+--- a/frontend/src/components/layout/estatico-r1.ataque.test.ts
++++ b/frontend/src/components/layout/estatico-r1.ataque.test.ts
+@@ -147,32 +147,103 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
+   })
+ })
+ 
+-describe("ataque (DESIGN-01b-1 r1): nada de 01b-2 está implementado", () => {
+-  it("sin CampoContrasena, aria-pressed, nombreDelBoton ni textos del botón de contraseña", () => {
+-    expect(
+-      lineasCon(
+-        /CampoContrasena|aria-pressed|nombreDelBoton|TEXTOS_CAMPO_CONTRASENA|Mostrar contrase/,
+-      ),
+-    ).toEqual([])
+-    expect(rutasCon(/campo-contrasena/)).toEqual([])
+-    expect(Object.keys(fuentes).filter((ruta) => ruta.includes("campo-contrasena"))).toEqual([])
+-  })
+-
+-  it('los 7 campos de contraseña siguen como Input con type="password" en los 4 formularios', () => {
+-    const formularios = soloTs.filter(([ruta]) =>
+-      /\/features\/auth\/components\/formulario-[\w-]+\.tsx$/.test(ruta),
+-    )
+-    const campos = lineasCon(/type="password"/, formularios).map((l) => l.split(":")[0])
+-    expect(campos.sort()).toEqual(
+-      [
+-        "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
+-        "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
+-        "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
+-        "/src/features/auth/components/formulario-login.tsx",
+-        "/src/features/auth/components/formulario-nueva-contrasena.tsx",
+-        "/src/features/auth/components/formulario-nueva-contrasena.tsx",
+-        "/src/features/auth/components/formulario-registro.tsx",
+-      ].sort(),
++describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContrasena (§D-7, V-17)", () => {
++  // DESIGN-01b-2, ronda 0: sustituye a la guarda de alcance de 01b-1 ("nada de 01b-2 está
++  // implementado"). La tabla de §D-7: por formulario, en orden, el id del campo y la constante de
++  // TEXTOS_CAMPO_CONTRASENA de su botón.
++  const TABLA: Record<string, [string, string][]> = {
++    "/src/features/auth/components/formulario-cambiar-contrasena.tsx": [
++      ["contrasenaActual", "mostrarTemporal"],
++      ["contrasenaNueva", "mostrarNueva"],
++      ["confirmacion", "mostrarConfirmacion"],
++    ],
++    "/src/features/auth/components/formulario-login.tsx": [["contrasena", "mostrar"]],
++    "/src/features/auth/components/formulario-nueva-contrasena.tsx": [
++      ["contrasenaNueva", "mostrarNueva"],
++      ["confirmacion", "mostrarConfirmacion"],
++    ],
++    "/src/features/auth/components/formulario-registro.tsx": [["contrasena", "mostrar"]],
++  }
++  const CAMPO = "/src/features/auth/components/campo-contrasena.tsx"
++  const soloTsx = soloTs.filter(([ruta]) => ruta.endsWith(".tsx"))
++
++  // Cada elemento <CampoContrasena … />, desde su apertura hasta el primer "/>".
++  const elementos = (texto: string) => {
++    const lista: string[] = []
++    for (let desde = texto.indexOf("<CampoContrasena"); desde !== -1;) {
++      const hasta = texto.indexOf("/>", desde)
++      if (hasta === -1) throw new Error("un <CampoContrasena no cierra")
++      lista.push(texto.slice(desde, hasta + 2))
++      desde = texto.indexOf("<CampoContrasena", hasta)
++    }
++    return lista
++  }
++
++  it("exactamente 7 <CampoContrasena, solo en los 4 formularios: 1, 1, 2 y 3", () => {
++    const usos = lineasCon(/<CampoContrasena\b/, soloTsx).map((l) => l.split(":")[0])
++    expect(usos).toHaveLength(7)
++    const porArchivo: Record<string, number> = {}
++    for (const ruta of usos) if (ruta) porArchivo[ruta] = (porArchivo[ruta] ?? 0) + 1
++    expect(porArchivo).toEqual({
++      "/src/features/auth/components/formulario-cambiar-contrasena.tsx": 3,
++      "/src/features/auth/components/formulario-login.tsx": 1,
++      "/src/features/auth/components/formulario-nueva-contrasena.tsx": 2,
++      "/src/features/auth/components/formulario-registro.tsx": 1,
++    })
++  })
++
++  it("cada campo lleva, en orden, la constante de su fila de la tabla, sin type ni aria-label", () => {
++    for (const [ruta, filas] of Object.entries(TABLA)) {
++      const campos = elementos(archivo(ruta))
++      const obtenido = campos.map((elemento) => [
++        /\sid="([^"]+)"/.exec(elemento)?.[1] ?? "(sin id literal)",
++        /nombreDelBoton=\{TEXTOS_CAMPO_CONTRASENA\.(\w+)\}/.exec(elemento)?.[1] ??
++          "(sin constante)",
++      ])
++      expect(obtenido, ruta).toEqual(filas)
++      for (const elemento of campos) {
++        expect(elemento, `${ruta}: un campo fija su type`).not.toMatch(/\stype=/)
++        expect(elemento, `${ruta}: un campo lleva aria-label`).not.toMatch(/aria-label/)
++        expect(elemento.match(/nombreDelBoton=/g), ruta).toHaveLength(1)
++      }
++    }
++  })
++
++  it("TEXTOS_CAMPO_CONTRASENA tiene exactamente los 4 textos de §D-7 y vive solo en features/auth/data.ts", () => {
++    const datos = archivo("/src/features/auth/data.ts")
++    const inicio = datos.indexOf("export const TEXTOS_CAMPO_CONTRASENA = {")
++    expect(inicio, "no existe TEXTOS_CAMPO_CONTRASENA").toBeGreaterThan(-1)
++    const cuerpo = datos.slice(inicio, datos.indexOf("}", inicio))
++    const entradas = Object.fromEntries(
++      [...cuerpo.matchAll(/^\s*(\w+):\s*"([^"]*)",?\s*$/gm)].map(([, clave, valor]) => [
++        clave,
++        valor,
++      ]),
+     )
++    expect(entradas).toEqual({
++      mostrar: "Mostrar contraseña",
++      mostrarNueva: "Mostrar contraseña nueva",
++      mostrarConfirmacion: "Mostrar confirmación de contraseña",
++      mostrarTemporal: "Mostrar contraseña temporal",
++    })
++    expect(rutasCon(/TEXTOS_CAMPO_CONTRASENA\s*=/)).toEqual(["/src/features/auth/data.ts"])
++    // Ningún nombre del botón escrito a mano fuera de data.ts.
++    expect(rutasCon(/"Mostrar (contraseña|confirmación)/)).toEqual(["/src/features/auth/data.ts"])
++  })
++
++  it('V-17: 0 type="password" literal; "password" solo en campo-contrasena.tsx; 0 "Ocultar"', () => {
++    expect(lineasCon(/type="password"/, soloTsx)).toEqual([])
++    expect(rutasCon(/"password"/)).toEqual([CAMPO])
++    expect(lineasCon(/Ocultar/, soloTsx)).toEqual([])
++  })
++
++  it("V-17: en campo-contrasena.tsx, sin aria-label ni aria-labelledby; un sr-only y un aria-pressed en el código", () => {
++    const campo: [string, string][] = [[CAMPO, archivo(CAMPO)]]
++    // Las líneas de comentario del archivo nombran "aria-label", "sr-only" y "aria-pressed" para
++    // explicar el diseño; lo que se cuenta es el código.
++    expect(sinComentarios(lineasCon(/aria-label/, campo))).toEqual([])
++    expect(sinComentarios(lineasCon(/\bsr-only\b/, campo))).toHaveLength(1)
++    expect(sinComentarios(lineasCon(/aria-pressed/, campo))).toHaveLength(1)
++    expect(rutasCon(/<CampoContrasena\b|from "\.\/campo-contrasena"/)).toEqual(Object.keys(TABLA))
+   })
+ })
+```
+
+### Tabla de hashes vigente (SHA-256) de las `*.ataque`: 45 (base de V-01 para el programador de 01b-2)
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) da 45. `sha256sum -c` desde la raíz da 45/45 OK. Contra la tabla de "DESIGN-01b-1 — Ronda 3": 44 iguales, y solo cambia `estatico-r1`.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `d81ed462116afdd16d4c8ad534941999487d8dbf5eb9dad22dd242cf68044115` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | sin cambios |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | sin cambios |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `a1aa0c074a6acbf59979cd0050ebb5b428322d298d257784fe66c338b94e6e86` | **modificado en la ronda 0 de 01b-2 (bloque de 01b-2 en lugar de la guarda de alcance de 01b-1)** |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | sin cambios |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | sin cambios |
+| `frontend/src/components/layout/pie-r2.ataque.test.tsx` | `00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21` | sin cambios |
+| `frontend/src/components/layout/pie-r3.ataque.test.tsx` | `472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76` | sin cambios |
+
+### Estado al terminar
+- `git status --porcelain -- frontend/`:
+  - mío: ` M frontend/src/components/layout/estatico-r1.ataque.test.ts`;
+  - del programador de 01b-2, sin tocar: los 4 formularios, `features/auth/data.ts`, `campo-contrasena.tsx` y `campo-contrasena.test.tsx`.
+- Solo escribí ese bloque y esta sección. Git solo de lectura. Sin navegadores ni procesos en marcha, y no leí ningún `.env`.
+
+## DESIGN-01b-2 — Ronda 1
+
+# Reporte del Tester — DESIGN-01b-2 · botón para mostrar u ocultar la contraseña — Ronda 1
+Veredicto: **ROTO**
+Verificación propia:
+- **lint:** código 0 desde `frontend/` y desde la raíz, con ESLint, `prettier --check` y `tsc -b`.
+- **test:** código 1 en `frontend/`. Hay 51 archivos y 862 pruebas: 861 pasan y 1 falla, que es T-01. Sin mi archivo nuevo, pasan las 823 de la corrida del orquestador.
+- **build:** código 0.
+
+Hallazgos: **1**, de severidad **media** (T-01, con prueba en rojo). No hay hallazgos críticos, altos ni bajos.
+
+### Comprobaciones previas
+- **V-01:** `sha256sum -c` con la tabla de 45 de "DESIGN-01b-2 — Ronda 0 (estatico-r1)" da **45/45 OK**.
+- **E-11, los 4 formularios contra `73e29c5`:** las únicas líneas quitadas son los 7 `<Input` y los 7 `type="password"`, más las importaciones. Ninguna línea con `autoComplete` cambió.
+- **E-12, `data.ts`:** solo agrega `TEXTOS_CAMPO_CONTRASENA` y su comentario (0 líneas quitadas).
+- **E-13, `DESIGN.md`:** cambian la línea de "Estado de aplicación" y la viñeta de §7.3 (línea 407).
+- **`estatico-r1`:** cubre la parte estática de V-17 y pasa 16/16.
+- **Fuera del alcance:** `AGENTS.md` agrega 7 líneas (la subsección "Trabajo visual"). El resumen del programador las atribuye al orquestador, con autorización; no son del programador.
+
+### Hallazgos
+
+#### T-01 — Al ocultarse por el envío, el cursor vuelve a una selección vieja
+Severidad: **media** (caso borde de CC-3 mal resuelto)
+Prueba: `frontend/src/app/contrasena-r1.ataque.test.tsx`, "cursor y foco (CC-3) › al ocultarse por el envío, el cursor se queda donde lo dejó la persona (no vuelve a una selección vieja)".
+
+**Reproducción** (en `/cambiar-contrasena`, dentro de `StrictMode`):
+1. En "Contraseña temporal" se escribe `abcdef`, con el foco en el campo y el cursor en (2, 2).
+2. Se pulsa el ojo, con `mousedown` y `click`: la contraseña se ve y el cursor sigue en (2, 2). Hasta aquí, bien.
+3. La persona lleva el cursor al final, a (6, 6), y pulsa Enter. Es un envío implícito, `form.requestSubmit()`; aquí falla la validación en cliente.
+
+**Esperado:** CC-3 dice que el botón "no mueve el cursor del campo". Al ocultarse por el envío (CC-6), el cursor se queda en (6, 6), donde lo dejó la persona.
+
+**Obtenido:** el cursor vuelve a (2, 2), la selección que había al pulsar el ojo.
+
+**Causa (lectura del código):**
+- `alternar` guarda la selección en `seleccionRef` y nunca la borra.
+- El `useLayoutEffect` con `[visible]` también se ejecuta cuando `visible` cambia por el escuchador de `submit` (CC-6). Encuentra la selección vieja con `tenerFoco: true`, ve que el campo sigue con el foco y llama a `setSelectionRange(2, 2)`.
+
+**Por qué no es solo de jsdom:** en Chromium el cambio de `type` manda el cursor al final (lo dice el propio §D-7), y después este efecto lo lleva a la posición vieja.
+
+**Impacto:** tras un error de validación o del servidor, la persona sigue escribiendo o corrigiendo en el campo y el texto entra en una posición que no eligió. La contraseña enviada no cambia, así que no hay fuga de datos. Es un error de usabilidad en un campo sensible.
+
+Requisito o regla violada: plan-01b.md §D-7, CC-3 (y su interacción con CC-6).
+
+### Atacado sin hallazgos
+Archivo nuevo: `frontend/src/app/contrasena-r1.ataque.test.tsx`, 39 pruebas, 38 en verde. Usa el router completo en los 5 formularios y los 7 campos.
+- **Accesibilidad (P-05 B, CC-2), en los 5 formularios:**
+  - cada etiqueta devuelve su `input`;
+  - `queryAllByLabelText(nombre del botón)` devuelve `[]`;
+  - el nombre exacto de la tabla aparece una sola vez;
+  - sin `aria-label` ni `aria-labelledby`; `type="button"`;
+  - el `textContent` del botón es exactamente su nombre, y los iconos llevan `aria-hidden`;
+  - `aria-controls` apunta al `id` del campo, que existe y es único;
+  - en el orden de Tab, el botón va **justo después** de su campo;
+  - una búsqueda por etiqueta con `/contrase|confirm/i` nunca devuelve un botón;
+  - ningún nombre de botón se repite en la pantalla.
+- **Activaciones repetidas (CC-1, CC-4, CC-5, CC-7):**
+  - con 5 pulsaciones por campo, el nombre no cambia; solo cambian `aria-pressed` y el `type`, y el nodo del `input` es el mismo;
+  - `autocomplete` (`current-password` o `new-password`, según la tabla), `name`, `id`, `required`, `aria-invalid`, `aria-describedby`, `spellcheck="false"`, `autocapitalize="none"` y `autocorrect="off"` son iguales en los dos estados;
+  - el click nativo (lo que hace el navegador con Enter y Espacio) no envía: 0 eventos `submit`, 0 peticiones y ningún aviso;
+  - los campos cambian cada uno por su cuenta.
+- **P-04 A y CC-6, en los 5 formularios:**
+  - **Envío válido con Enter** (`requestSubmit`) y las contraseñas a la vista: un escuchador de `submit` en fase de burbuja, que corre antes del `onSubmit` de React, ya ve todos los campos en `password` y los botones en `aria-pressed="false"`. El `fetch` de la mutación también los ve así.
+    - Sale **una sola** petición y el botón de envío pasa a `aria-busy` y `aria-disabled`.
+    - En vuelo, pulsar el ojo, el click nativo, otro `requestSubmit` y `fireEvent.submit` no reenvían.
+    - Con el error, todo queda oculto y con el mismo nombre.
+  - **Error del servidor, dos intentos:** se vuelve a mostrar, se reenvía y se vuelve a ocultar antes de la segunda petición.
+  - **Error de validación en cliente:** se oculta igual y no sale ninguna petición.
+- **Cursor y foco (CC-3), en `StrictMode`:**
+  - la selección en medio, al principio, al final y todo seleccionado no se mueve al pulsar el ojo dos veces, y el foco sigue en el campo;
+  - con el campo vacío, el ojo funciona y el foco se queda;
+  - con el foco en otro campo, no se lo lleva ni se lo devuelve a su campo, y la selección del otro campo no cambia;
+  - con el teclado, el foco se queda en el botón.
+  - La única excepción es T-01.
+- **Almacenamiento:** en los 5 formularios, tras mostrar, enviar, recibir el error y volver a mostrar, ni `localStorage` ni `sessionStorage` contienen la contraseña ni la temporal.
+- **MF-05:** en el cambio obligatorio con las contraseñas a la vista, tras el éxito y la llegada a `/estudiante`, la caché de mutaciones no contiene ni la temporal ni la nueva.
+- **Inventario de selectores (punto 2), rehecho:**
+  - en todas las pruebas de `frontend/src`, normales y `*.ataque` (también `marco-r1`, `fondo-r1`, `pie-r*` y `estatico-r1` de 01b-1), no hay ningún `getByLabelText` con expresión regular ni con `exact: false`, y ningún `getByRole("button")` sin nombre fuera de `/admin` (`contexto-r1`) y de `fondo-animado.test`;
+  - ningún `getByText` con expresión regular menciona "contraseña", "Mostrar" ni "confirm";
+  - la suite completa pasa sin tocar nada: ninguna prueba encuentra el botón al buscar un campo.
+- **Regresión:** las 45 `*.ataque` y todas las de `auth` y `app` pasan.
+
+### Observaciones (sin prueba en rojo; no las cuento como hallazgos)
+- **O-1 · La selección vieja también se restaura si no hay envío de por medio.** Lo mismo pasa con cualquier cambio de `visible` que no venga de `alternar`. Hoy el único es el `submit` (T-01), así que no hay otro camino observable.
+- **O-2 · En `StrictMode`, el escuchador de `submit` se registra, se retira y se vuelve a registrar.** Lo comprobé indirectamente: los casos de cursor en `StrictMode` pasan. En producción no hay doble montaje. Aunque quedaran dos escuchadores, `setVisible(false)` dos veces sería inocuo.
+
+### No atacado y por qué (no verificado; hoja H-16)
+- **Gestores de contraseñas:** si ofrecen guardarla con la contraseña a la vista, y si su icono se encima con el ojo (R-07, R-18).
+- **Lectores de pantalla:** el anuncio de "botón de alternancia, presionado" (R-06).
+- **Pantallas táctiles:** si el teclado virtual se cierra al tocar el ojo (R-17, `onPointerDown`).
+- **Navegador real:** el cursor en Chromium al cambiar el `type`, la apariencia y el foco visible del ojo, y la medición de contraste C-25 y C-26.
+
+### Justificación de cambios a `*.ataque` existentes
+Ninguno. Solo agregué `contrasena-r1.ataque.test.tsx`.
+
+Antes de publicarlo corregí una aserción **mía**, no una existente. Mi búsqueda por etiqueta con `/contrase|confirm/i` exigía que todo lo encontrado fuera un `INPUT`, y en `/restablecer` también encuentra el `<form aria-label="Guardar contraseña">`, que ya estaba antes de 01b-2. Ahora exige que ninguno sea un `BUTTON`, que todos sean `INPUT` o `FORM` y que estén todos los campos de la pantalla. No se aflojó lo que protege: que el botón no aparezca al buscar un campo.
+
+### Tabla de hashes vigente (SHA-256) de las `*.ataque`: 45 previas + 1 nueva = 46
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'`, sin `node_modules`, da 46. `sha256sum -c` desde la raíz da 46/46 OK. Contra la tabla de "DESIGN-01b-2 — Ronda 0 (estatico-r1)": 45 iguales y 1 nueva.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `d81ed462116afdd16d4c8ad534941999487d8dbf5eb9dad22dd242cf68044115` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | sin cambios |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | sin cambios |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `a1aa0c074a6acbf59979cd0050ebb5b428322d298d257784fe66c338b94e6e86` | sin cambios |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | sin cambios |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | sin cambios |
+| `frontend/src/components/layout/pie-r2.ataque.test.tsx` | `00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21` | sin cambios |
+| `frontend/src/components/layout/pie-r3.ataque.test.tsx` | `472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76` | sin cambios |
+| `frontend/src/app/contrasena-r1.ataque.test.tsx` | `cf330a16e36a27ce9884bbf96b994faaea867533bbb242cb30eed1b38091a4ca` | **nuevo (ronda 1 de 01b-2)** |
+
+### Estado al terminar
+- Solo escribí `frontend/src/app/contrasena-r1.ataque.test.tsx` y esta sección. Formateé solo ese archivo.
+- Git solo de lectura. Sin navegadores ni procesos en marcha, y no leí ningún `.env`.
+
+## DESIGN-01b-2 — Ronda 2
+
+# Reporte del Tester — DESIGN-01b-2 · botón para mostrar u ocultar la contraseña — Ronda 2
+Veredicto: **RESISTE**
+Verificación propia:
+- **lint:** código 0 desde `frontend/` y desde la raíz, con ESLint, `prettier --check` y `tsc -b`.
+- **test:** código 0 en `frontend/`, con 52 archivos y 873 pruebas en verde: las 863 de la corrida del orquestador más 10 nuevas.
+- **build:** código 0.
+
+Hallazgos: **0**. T-01 de la ronda 1 quedó corregido.
+
+### Comprobaciones
+- **V-01:** `sha256sum -c` con la tabla de 46 de la ronda 1 da **46/46 OK**.
+- **`contrasena-r1.ataque.test.tsx` pasa sin modificarse:** 39/39, incluida la prueba de T-01. Su hash sigue siendo `cf330a16…4ca`.
+- **Alcance de la vuelta 2:** desde la ronda 1 solo cambió código de 01b-2, dentro de E-10 (`campo-contrasena.tsx` y su prueba). Contra `73e29c5`, `router.tsx`, las guardas, `acceso-restringido-view.tsx`, `main.tsx`, `components/ui/**`, el pie y `features/auth/{hooks,lib,types}.ts` no cambian.
+- **V-17, ahora también con un `grep` literal:** `campo-contrasena.tsx` tiene 0 `aria-label`, 1 `sr-only` y 1 `aria-pressed`. El programador reescribió el comentario que antes sumaba menciones (la observación O-1 de la ronda 0 queda resuelta).
+
+### Ataque a la corrección (archivo nuevo: `frontend/src/app/contrasena-r2.ataque.test.tsx`, 10 pruebas, todas en verde)
+Las 10 corren en `<StrictMode>`, con el router completo, en `/cambiar-contrasena` (3 campos). El envío es implícito (`requestSubmit`) y la validación en cliente falla, así que el formulario se queda en pantalla con el foco donde estaba. Estos casos pasan:
+
+- **Varias pulsaciones del ojo con selecciones distintas y después el envío:** queda la última selección de la persona (7, 7), no la de ninguna pulsación. Con el código de la ronda 1 habría salido (0, 2).
+- **Número par de pulsaciones (ya oculta) y envío:** el rango (4, 6) no cambia.
+- **Envío sin haber pulsado nunca el ojo:** el foco y la selección (3, 3) no cambian. El ojo, pulsado después, respeta la selección de ese momento (6, 8), no la que guardó el envío.
+- **Rango con la contraseña a la vista:** (2, 6) se conserva tras el envío.
+- **Foco fuera del campo visible:** el envío oculta el campo, pero **no llama a `setSelectionRange` sobre él** (lo vigilé con un espía), no le devuelve el foco y no cambia la selección (2, 5) del campo enfocado.
+- **Dos campos visibles del mismo formulario:** el enfocado conserva (1, 3); el otro conserva (2, 5), sin ninguna llamada a `setSelectionRange`.
+- **Ocultada por el envío y vuelta a mostrar con el ojo:** no reaparece ninguna selección vieja, ni de antes ni del envío (4, 4, luego 1 a 6). Un segundo envío con el campo ya oculto no mueve nada (3, 3), y el ojo pulsado después respeta (8, 8).
+- **Dos envíos seguidos, con la contraseña a la vista entre ellos:** cada vez queda la selección de ese instante.
+- **Desmontaje durante el envío:**
+  - con la petición en vuelo se navega a `/login`; el formulario viejo ya no está en el DOM;
+  - un `submit` despachado sobre ese formulario desmontado no toca el campo, porque el escuchador ya se retiró;
+  - la respuesta llega después y `console.error` no registra nada.
+- **Envío con éxito que desmonta el formulario:** en el `fetch` los 3 campos ya están en `password`, se llega a `/estudiante` y no hay ningún `console.error`.
+
+### Regresión
+- Las 38 pruebas de la ronda 1 (CC-1 a CC-7, P-04 con éxito, error del servidor y validación, accesibilidad, orden de Tab y almacenamiento) siguen en verde, más la de T-01.
+- Las 46 `*.ataque` y la suite completa, en verde.
+
+### Observaciones (sin prueba en rojo; no las cuento como hallazgos)
+- **O-1 · Un envío con el campo ya oculto deja guardada una selección que nadie consume.** La deja `ocultarAlEnviar` hasta el siguiente cambio de `visible`. No se nota: el único cambio posible después es `alternar`, que la sobrescribe con la selección de ese instante, o un nuevo envío, que hace lo mismo. Lo confirman las pruebas "envío sin haber pulsado nunca el ojo" y "ocultada por el envío y vuelta a mostrar".
+
+### No atacado y por qué (no verificado; hoja H-16)
+- El cursor real en Chromium al cambiar el `type`.
+- Gestores de contraseñas, lectores de pantalla y pantallas táctiles (R-06, R-07, R-17 y R-18).
+
+### Justificación de cambios a `*.ataque` existentes
+Ninguno. Solo agregué `contrasena-r2.ataque.test.tsx`.
+
+### Tabla de hashes vigente (SHA-256) de las `*.ataque`: 46 previas + 1 nueva = 47
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) da 47. `sha256sum -c` desde la raíz da 47/47 OK. Contra la tabla de la ronda 1: 46 iguales y 1 nueva.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `d81ed462116afdd16d4c8ad534941999487d8dbf5eb9dad22dd242cf68044115` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | sin cambios |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | sin cambios |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `a1aa0c074a6acbf59979cd0050ebb5b428322d298d257784fe66c338b94e6e86` | sin cambios |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | sin cambios |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | sin cambios |
+| `frontend/src/components/layout/pie-r2.ataque.test.tsx` | `00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21` | sin cambios |
+| `frontend/src/components/layout/pie-r3.ataque.test.tsx` | `472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76` | sin cambios |
+| `frontend/src/app/contrasena-r1.ataque.test.tsx` | `cf330a16e36a27ce9884bbf96b994faaea867533bbb242cb30eed1b38091a4ca` | sin cambios |
+| `frontend/src/app/contrasena-r2.ataque.test.tsx` | `1ad62ff6251b1399144a38b37831086c14b2e046b47097256596f12c935d7858` | **nuevo (ronda 2 de 01b-2)** |
+
+### Estado al terminar
+- Solo escribí `frontend/src/app/contrasena-r2.ataque.test.tsx` y esta sección. Formateé solo ese archivo.
+- Git solo de lectura. Sin navegadores ni procesos en marcha, y no leí ningún `.env`.
+
+## DESIGN-01b — cierre: tiempo límite (M-01)
+
+**No es una ronda de ataque.** La pidió el manager (`revision.md`, "DESIGN-01b — cierre", M-01): bajo carga en paralelo, algunas pruebas de `contrasena-r1` y `contrasena-r2` rozaban o pasaban el límite por defecto de 5000 ms. "'cambio obligatorio': 5 activaciones…" dio 5116 ms y 5041 ms.
+
+**Resultado: la suite completa quedó en verde tres veces seguidas, con 875 pruebas, y lint sale con código 0.**
+
+### Qué cambié y por qué así
+- **Antes de tocarlos:** los dos archivos tenían el hash de la tabla de la ronda 2 de 01b-2 (`cf330a16…4ca` y `1ad62ff6…858`), y las otras 45 `*.ataque` también coincidían. Guardé copias de los originales en el scratchpad.
+- **Primer intento, descartado:** `{ timeout: 15_000 }` como opción de los 6 `describe`. Con esa opción la línea del `describe` pasa de 100 caracteres, Prettier parte la llamada y reindenta **todo** el cuerpo de cada `describe`, y el diff crece a cientos de líneas. Restauré los originales desde las copias y verifiqué su hash.
+- **Aplicado:** `15_000` como tercer argumento de cada `it` o `it.each`: 12 en `contrasena-r1` y 10 en `contrasena-r2`. Prettier lo deja en una sola línea por prueba:
+  - `  }, 15_000)` en las pruebas que ya tenían la función pegada a la llamada;
+  - `    15_000,` en las que Prettier ya partía en varias líneas.
+- **Nada más cambia:** ninguna aserción, preparación, dato ni nombre de prueba, y ningún otro archivo; tampoco `vitest.config.ts`. Formateé solo esas dos rutas con `npx prettier --write` desde `frontend/`.
+- **Comprobación del diff:** los dos archivos son nuevos y no tienen commit, así que no hay `git diff` contra una base; comparé con `diff -u` contra las copias. Las únicas líneas quitadas son 15 `  })` (5 en r1 y 10 en r2), cada una sustituida por `  }, 15_000)`. Las únicas agregadas son esas 15 más 7 `    15_000,`, en total 22, una por prueba.
+
+### Resultado (desde `frontend/`)
+| Corrida | Código | Archivos | Pruebas | Duración |
+|---|---|---|---|---|
+| 1 | 0 | 52 en verde | 875 en verde | 88.9 s |
+| 2 | 0 | 52 en verde | 875 en verde | 88.6 s |
+| 3 | 0 | 52 en verde | 875 en verde | 88.0 s |
+
+- `npm run lint`: **código 0**, con ESLint, `prettier --check` y `tsc -b`.
+- En ninguna corrida hubo otro rojo.
+
+### Diff
+```diff
+--- a/frontend/src/app/contrasena-r1.ataque.test.tsx (antes)	2026-09-27 21:52:05.625390000 -0600
++++ b/frontend/src/app/contrasena-r1.ataque.test.tsx	2026-09-27 21:53:24.551739700 -0600
+@@ -300,6 +300,7 @@
+       const nombres = screen.getAllByRole("button").map((b) => b.textContent)
+       expect(new Set(nombres).size).toBe(nombres.length)
+     },
++    15_000,
+   )
+ 
+   it.each(CASOS)(
+@@ -351,6 +352,7 @@
+       expect(llamadasA(fetchMock, caso.endpoint)).toBe(0)
+       expect(screen.queryByRole("alert")).toBeNull()
+     },
++    15_000,
+   )
+ })
+ 
+@@ -413,6 +415,7 @@
+       }
+       expect(llamadasA(fetchMock, caso.endpoint)).toBe(1)
+     },
++    15_000,
+   )
+ 
+   it.each(CASOS)(
+@@ -437,6 +440,7 @@
+       expect(enLaPeticion).toEqual([oculto, oculto])
+       for (const campo of caso.campos) expect(estadoDe(campo)).toEqual(oculto[0])
+     },
++    15_000,
+   )
+ 
+   it.each(CASOS)(
+@@ -455,6 +459,7 @@
+         expect(estadoDe(campo)).toEqual({ tipo: "password", presionado: "false" })
+       }
+     },
++    15_000,
+   )
+ })
+ 
+@@ -485,6 +490,7 @@
+         expect([input.selectionStart, input.selectionEnd]).toEqual([inicio, fin])
+       }
+     },
++    15_000,
+   )
+ 
+   it("campo vacío: el ojo funciona y el foco se queda en el campo", async () => {
+@@ -497,7 +503,7 @@
+     expect(estadoDe(temporal)).toEqual({ tipo: "text", presionado: "true" })
+     expect(document.activeElement).toBe(input)
+     expect(input.value).toBe("")
+-  })
++  }, 15_000)
+ 
+   it("con el foco en otro campo, el ojo no se lo lleva ni se lo devuelve a su campo", async () => {
+     stubApi(caso, () => new Promise<Response>(() => undefined))
+@@ -512,7 +518,7 @@
+     expect(estadoDe(temporal).tipo).toBe("text")
+     expect(document.activeElement).toBe(otro)
+     expect([otro.selectionStart, otro.selectionEnd]).toEqual([1, 3])
+-  })
++  }, 15_000)
+ 
+   it("con el teclado (foco en el botón), el foco se queda en el botón", async () => {
+     stubApi(caso, () => new Promise<Response>(() => undefined))
+@@ -523,7 +529,7 @@
+     act(() => boton.click())
+     expect(estadoDe(temporal).tipo).toBe("text")
+     expect(document.activeElement).toBe(boton)
+-  })
++  }, 15_000)
+ 
+   it("al ocultarse por el envío, el cursor se queda donde lo dejó la persona (no vuelve a una selección vieja)", async () => {
+     stubApi(caso, () => new Promise<Response>(() => undefined))
+@@ -546,7 +552,7 @@
+       [input.selectionStart, input.selectionEnd],
+       "el cursor volvió a la selección que había al pulsar el ojo",
+     ).toEqual([6, 6])
+-  })
++  }, 15_000)
+ })
+ 
+ describe("ataque (DESIGN-01b-2 r1): la contraseña a la vista no se guarda en ningún lado", () => {
+@@ -573,6 +579,7 @@
+         expect(volcado).not.toContain("Kp7mWq4Rt9Xz")
+       }
+     },
++    15_000,
+   )
+ 
+   it("cambio obligatorio con las contraseñas a la vista: tras el éxito, ni la temporal ni la nueva quedan en la caché de mutaciones (MF-05)", async () => {
+@@ -617,5 +624,5 @@
+     )
+     expect(mutaciones).not.toContain("Kp7mWq4Rt9Xz")
+     expect(mutaciones).not.toContain(CONTRASENA)
+-  })
++  }, 15_000)
+ })
+--- a/frontend/src/app/contrasena-r2.ataque.test.tsx (antes)	2026-09-27 21:52:05.677370100 -0600
++++ b/frontend/src/app/contrasena-r2.ataque.test.tsx	2026-09-27 21:53:21.283049600 -0600
+@@ -147,7 +147,7 @@
+     expect(input.type).toBe("password")
+     expect(document.activeElement).toBe(input)
+     expect(seleccion(input)).toEqual([7, 7])
+-  })
++  }, 15_000)
+ 
+   it("número par de pulsaciones (ya oculta) y envío: la selección no cambia", async () => {
+     await preparar()
+@@ -160,7 +160,7 @@
+     enviar()
+     expect(seleccion(input)).toEqual([4, 6])
+     expect(document.activeElement).toBe(input)
+-  })
++  }, 15_000)
+ 
+   it("envío sin haber pulsado nunca el ojo: ni el foco ni la selección cambian, y el ojo después no trae la del envío", async () => {
+     await preparar()
+@@ -174,7 +174,7 @@
+     pulsar(NUEVA)
+     expect(input.type).toBe("text")
+     expect(seleccion(input)).toEqual([6, 8])
+-  })
++  }, 15_000)
+ 
+   it("selección de rango con la contraseña a la vista: se conserva el rango tras el envío", async () => {
+     await preparar()
+@@ -185,7 +185,7 @@
+     enviar()
+     expect(input.type).toBe("password")
+     expect(seleccion(input)).toEqual([2, 6])
+-  })
++  }, 15_000)
+ 
+   it("foco fuera del campo visible: el envío no le devuelve el foco ni le toca la selección", async () => {
+     await preparar()
+@@ -201,7 +201,7 @@
+     expect(tocar).not.toHaveBeenCalled()
+     expect(document.activeElement).toBe(otro)
+     expect(seleccion(otro)).toEqual([2, 5])
+-  })
++  }, 15_000)
+ 
+   it("dos campos visibles del mismo formulario: cada uno conserva la suya y solo el enfocado se restaura", async () => {
+     await preparar()
+@@ -220,7 +220,7 @@
+     expect(seleccion(segundo)).toEqual([1, 3])
+     expect(tocarPrimero).not.toHaveBeenCalled()
+     expect(seleccion(primero)).toEqual([2, 5])
+-  })
++  }, 15_000)
+ 
+   it("ocultada por el envío y vuelta a mostrar con el ojo: no reaparece ninguna selección vieja", async () => {
+     await preparar()
+@@ -245,7 +245,7 @@
+     input.setSelectionRange(8, 8)
+     pulsar(TEMPORAL)
+     expect(seleccion(input)).toEqual([8, 8])
+-  })
++  }, 15_000)
+ 
+   it("dos envíos seguidos con la contraseña a la vista entre ellos: cada vez la selección de ese instante", async () => {
+     await preparar()
+@@ -260,7 +260,7 @@
+     enviar()
+     expect(input.type).toBe("password")
+     expect(seleccion(input)).toEqual([6, 6])
+-  })
++  }, 15_000)
+ })
+ 
+ describe("ataque (DESIGN-01b-2 r2): desmontaje durante el envío", () => {
+@@ -297,7 +297,7 @@
+     })
+     await esperarUnMomento()
+     expect(consola).not.toHaveBeenCalled()
+-  })
++  }, 15_000)
+ 
+   it("el envío con éxito desmonta el formulario: la contraseña quedó oculta antes y no hay errores", async () => {
+     let cambiada = false
+@@ -344,5 +344,5 @@
+     expect(enLaPeticion).toEqual(["password,password,password"])
+     expect(screen.queryByLabelText(TEMPORAL)).toBeNull()
+     expect(consola).not.toHaveBeenCalled()
+-  })
++  }, 15_000)
+ })
+```
+
+### Tabla de hashes vigente (SHA-256) de las 47 `*.ataque`
+Rutas desde la raíz. `find backend frontend shared -name '*.ataque.test.*'` (sin `node_modules`) da 47. `sha256sum -c` desde la raíz da 47/47 OK. Contra la tabla de "DESIGN-01b-2 — Ronda 2": 45 iguales y 2 modificadas.
+
+| Archivo | SHA-256 | Estado |
+|---|---|---|
+| `backend/test/auth-login.ataque.test.ts` | `2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c` | sin cambios |
+| `backend/test/auth-registro.ataque.test.ts` | `73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e` | sin cambios |
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `6e4b4677d73bde3d7c7845c729637186249e704f2aa803fb5efa25e76126b445` | sin cambios |
+| `backend/test/api-real.ataque.test.ts` | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | sin cambios |
+| `backend/test/admin-unico.ataque.test.ts` | `388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85` | sin cambios |
+| `backend/src/config/env.ataque.test.ts` | `4fce3cedf662ba3a188f21a2277db417747d342c115efd4746d3cff58499289b` | sin cambios |
+| `frontend/src/services/apiClient.ataque.test.ts` | `10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce` | sin cambios |
+| `frontend/src/app/router.ataque.test.tsx` | `e58293532633dc5cfe21561e2609d170638c81886b9c31129f03864c73a34f45` | sin cambios |
+| `backend/test/intentos-r2.ataque.test.ts` | `a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a` | sin cambios |
+| `backend/test/guarda-r2.ataque.test.ts` | `ea078f41cc98c947d9b3966ee8eccec2bd5d06eacbaf7ee8cd85f38e6a697c15` | sin cambios |
+| `backend/test/nombres-tokens-r2.ataque.test.ts` | `00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb` | sin cambios |
+| `backend/test/logs-r2.ataque.test.ts` | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | sin cambios |
+| `frontend/src/app/sesion-r2.ataque.test.tsx` | `06f35be8ae68f0abae775268e4e64f3df880ff137a9b54aa3c135941ddb93dcf` | sin cambios |
+| `backend/test/nombres-guarda-r3.ataque.test.ts` | `97b8d6f6c6b26b9b651eb0b46a48ed27b594a8ef659937eb600fde793f07e873` | sin cambios |
+| `backend/test/cuentas-r1.ataque.test.ts` | `994a38f476d55f0b8826dc4b80e07dfb013f9034c7f7aee3cdc29dd74338b793` | sin cambios |
+| `backend/test/worker-r1.ataque.test.ts` | `f4ea0bd908d8ec538aa479f9b09bf6fc6f86df6f93bb7abaaccd7001de876395` | sin cambios |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | `a47af988453adcbc0e7ca710e670b5e2b9906e995ae6aa71e43fa8555764014c` | sin cambios |
+| `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | `42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612` | sin cambios |
+| `backend/test/arranque-r1.ataque.test.ts` | `aae65c95cf34db814d650af5f7fa08d09bff3e6fc6863d4252383058499aa10e` | sin cambios |
+| `backend/src/config/logger.ataque.test.ts` | `43f1754c8c33f7de285ab77dbabb0f493422e858529432c9b2be26ff9423b01b` | sin cambios |
+| `backend/src/config/correo.ataque.test.ts` | `bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671` | sin cambios |
+| `backend/test/cuentas-r2.ataque.test.ts` | `736ae5fc909b5f53b6768010047378324e808c5bbe0434c0b0d140b58d0e598b` | sin cambios |
+| `backend/test/worker-r2.ataque.test.ts` | `64aa76974c7ae3e89b2f1ed3d7efc7864d4323310932a9f46f02c798c363a6d2` | sin cambios |
+| `backend/test/cuentas-r3.ataque.test.ts` | `a352625e291810251f41f53c3da37de82b662a20a82a66127f4d210ba6041b34` | sin cambios |
+| `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | `2584bd412e2d70e22a97cefeeb6278597d2e67ddf55f749bc739411ba432590a` | sin cambios |
+| `frontend/src/app/cuentas-r1.ataque.test.tsx` | `a66120ed3c04a5c02dc64b33ad008be420739fa24eb67ac42d546429e74d7a4a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | `86adaa9a093a987dafd97e279e600211cbdf6cef97879d16fa2d8a9d2846f8b5` | sin cambios |
+| `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | `5fda63b653dbc0db6b1d16c3f26506f5fae630fdfd4a9921a9ef5db98e39d438` | sin cambios |
+| `frontend/src/app/cuentas-r2.ataque.test.tsx` | `b61346baf0c3789fdc15eea548623afb4bf3dc8c230f1944df4336de3a27f9eb` | sin cambios |
+| `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | `b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184` | sin cambios |
+| `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | `72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a` | sin cambios |
+| `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | `942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4` | sin cambios |
+| `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | `3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998` | sin cambios |
+| `frontend/src/features/admin/foco-r1.ataque.test.tsx` | `8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35` | sin cambios |
+| `frontend/src/app/en-espera-r1.ataque.test.tsx` | `bce6e497f61ed77d91b8d45958a4ad6f441be905deefa10d7f902155c850f57f` | sin cambios |
+| `frontend/src/app/contexto-r1.ataque.test.tsx` | `03642a556e05eda6509853d38a5b6c27836643166e835075bf3b4ba1c580d892` | sin cambios |
+| `frontend/src/app/errores-r1.ataque.test.tsx` | `2cfea81b66767023799188baa8babeab680360529a5de44eb5855d9032ae6413` | sin cambios |
+| `frontend/src/styles/tokens-r1.ataque.test.ts` | `d81ed462116afdd16d4c8ad534941999487d8dbf5eb9dad22dd242cf68044115` | sin cambios |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `afb427a8379719aeb979414e328871cac0cbdd110541c6d9c1a7490907c6ad97` | sin cambios |
+| `frontend/src/components/layout/pie-r1.ataque.test.tsx` | `0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c` | sin cambios |
+| `frontend/src/components/layout/estatico-r1.ataque.test.ts` | `a1aa0c074a6acbf59979cd0050ebb5b428322d298d257784fe66c338b94e6e86` | sin cambios |
+| `frontend/src/app/fondo-r1.ataque.test.tsx` | `f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4` | sin cambios |
+| `frontend/src/app/marco-r1.ataque.test.tsx` | `ff15cb0b7b70918877d2c023886462229d5cc2aba8449353beb4154bdabe5552` | sin cambios |
+| `frontend/src/components/layout/pie-r2.ataque.test.tsx` | `00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21` | sin cambios |
+| `frontend/src/components/layout/pie-r3.ataque.test.tsx` | `472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76` | sin cambios |
+| `frontend/src/app/contrasena-r1.ataque.test.tsx` | `9abdd78a0d69cf97e945614ebb982c797675294d02bf881880ee1cca49e22ed8` | **modificado en el cierre de 01b (M-01: tiempo límite de 15 000 ms)** |
+| `frontend/src/app/contrasena-r2.ataque.test.tsx` | `85b524c692bffcaddcdd94b9ab05a3c5f26cc9f75401aa330a681498cbb5e874` | **modificado en el cierre de 01b (M-01: tiempo límite de 15 000 ms)** |
+
+### Estado al terminar
+- Solo modifiqué `frontend/src/app/contrasena-r1.ataque.test.tsx`, `frontend/src/app/contrasena-r2.ataque.test.tsx` y este reporte.
+- Git solo de lectura. Sin navegadores ni procesos en marcha.

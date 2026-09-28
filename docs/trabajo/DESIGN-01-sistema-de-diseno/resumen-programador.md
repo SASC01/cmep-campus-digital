@@ -568,3 +568,164 @@ Ninguna. Apliqué literalmente el alcance cerrado del arbitraje de la ronda 2.
 ### Pendiente o fuera de alcance en esta vuelta
 - O-5 y O-6 (un `mailto:` con espacio en el dominio, o un `tel:`/`mailto:` vacíos, se publican tal cual) quedan fuera de la regla por decisión explícita del arbitraje: no son hallazgos y no los toqué.
 - Sigue pendiente todo lo que exige navegador (S-01), sin cambios respecto de las entregas anteriores.
+
+## DESIGN-01b-2
+
+### Precondiciones (paso 15) — cumplidas
+- `git diff --quiet 73e29c5 -- frontend/` → código 0; sin archivos sin rastrear en `frontend/`.
+- `<C>` = `73e29c5` y `0fc961b` existen (`git cat-file -e`, código 0 en los dos).
+- V-01 con la tabla de 45 de "DESIGN-01b-1 — Ronda 3" → **45/45 OK**.
+
+### Paso 16 — hecho
+- `frontend/src/features/auth/data.ts` (E-12): agregué `TEXTOS_CAMPO_CONTRASENA` con su comentario, tal como está en §D-7, sin tocar nada existente.
+- `frontend/src/features/auth/components/campo-contrasena.tsx` (nuevo): `CampoContrasena` con el marcado exacto de §D-7 (campo con `pr-12`, botón `ghost` `size="icon"` absoluto, `aria-pressed`, `aria-controls`, `onMouseDown` que cancela el evento, `span` con el texto visualmente oculto del nombre, sin atributo de etiqueta); `alternar` guarda la selección y si el campo tenía el foco antes de cambiar el `type`; un `useLayoutEffect` la restaura (CC-3); un `useEffect` registra un escuchador de `submit` en fase de captura sobre `campoRef.current?.form` que hace `flushSync(() => setVisible(false))` (CC-6, P-04 A).
+- `frontend/src/features/auth/components/campo-contrasena.test.tsx` (nuevo): CC-1 a CC-7, con un `nombreDelBoton` de prueba, según la lista de "Pruebas requeridas › Del programador — 01b-2". **9/9 en verde** (`npx vitest run src/features/auth/components/campo-contrasena.test.tsx`).
+
+### Paso 17 — hecho, con una parada intermedia ya resuelta
+Sustituí el `<Input … type="password" …/>` por `<CampoContrasena … nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.<constante>} />` en los 7 campos de los 4 formularios (E-11), con las mismas propiedades sin `type`, agregando las importaciones de `CampoContrasena` y `TEXTOS_CAMPO_CONTRASENA`, y quitando la de `Input` en `formulario-nueva-contrasena.tsx` y `formulario-cambiar-contrasena.tsx` (dejó de usarse en los dos). Las constantes usadas, tal como manda la tabla de §D-7:
+- `formulario-login.tsx`, campo `contrasena` → `mostrar`.
+- `formulario-registro.tsx`, campo `contrasena` → `mostrar`.
+- `formulario-nueva-contrasena.tsx`, campo `contrasenaNueva` → `mostrarNueva`; campo `confirmacion` → `mostrarConfirmacion`.
+- `formulario-cambiar-contrasena.tsx`, campo `contrasenaActual` → `mostrarTemporal`; campo `contrasenaNueva` → `mostrarNueva`; campo `confirmacion` → `mostrarConfirmacion`.
+
+**Parada (ya resuelta).** Al correr `npx vitest run` la primera vez, 2 pruebas existentes se pusieron en rojo dentro de `frontend/src/components/layout/estatico-r1.ataque.test.ts`, en su `describe` "ataque (DESIGN-01b-1 r1): nada de 01b-2 está implementado" (un guardián que el tester escribió en la ronda 1 de 01b-1 para blindar que 01b-2 no existiera todavía). Me detuve ahí, sin tocar esa prueba, y lo reporté al orquestador. El humano decidió resolverlo con una **ronda 0 del tester de 01b-2** (no cuenta en el tope de 3 rondas). El tester sustituyó ese `describe` por su equivalente de 01b-2 ("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContrasena (§D-7, V-17)", `reporte-tester.md`, "DESIGN-01b-2 — Ronda 0 (estatico-r1)"), y mi código ya cumplía todas sus aserciones: sin hallazgos. Confirmé, sin tocar la prueba yo mismo, que la nueva versión pasa: `npx vitest run src/components/layout/estatico-r1.ataque.test.ts` → **16/16 en verde**.
+
+**Ajuste pedido por el orquestador antes de la verificación final, ya aplicado.** El comentario de la línea 21 de `campo-contrasena.tsx` mencionaba literalmente "sr-only", "aria-label" y "aria-pressed", lo que hacía que una búsqueda literal de V-17 (sin descartar comentarios) diera 1, 2 y 2 en vez de 0, 1 y 1. Reescribí el comentario para explicar lo mismo sin esas tres cadenas literales ("el nombre accesible va como texto visualmente oculto dentro del botón, nunca como atributo de etiqueta; el estado va en el atributo de presionado"). No cambié nada más del archivo. Verificado con `grep -c` directo sobre `campo-contrasena.tsx`: `aria-label` → 0, `aria-labelledby` → 0, `sr-only` → 1, `aria-pressed` → 1.
+
+### Paso 18 — hecho
+- `frontend/src/features/auth/contrasena-visible.test.tsx` (nuevo): en los 5 formularios (login, registro, restablecer con token, establecer con token, cambiar), cada campo de contraseña tiene exactamente un botón con `aria-controls` igual a su `id` y con el nombre exacto de la tabla de §D-7 (cadena exacta, sin `aria-label`); ningún par de botones con el mismo nombre en una pantalla; `getByLabelText` de cada etiqueta devuelve el `input`. **5/5 en verde** (`npx vitest run src/features/auth/contrasena-visible.test.tsx`).
+- `docs/DESIGN.md` (E-13), a mano, sin formateador:
+  - §7.3 "Controles": viñeta nueva "Campo de contraseña (DESIGN-01b; nombre y estado: decisión del humano, 2026-09-27; aspecto: propuesta)", con el texto del plan y los tres nombres de la tabla ya confirmados por el humano (P-06), sin dejarlos marcados como pendientes de confirmar.
+  - "Estado de aplicación": agregué la línea de DESIGN-01b-2 y ajusté "Pendiente" para que ya no mencione el botón de contraseña como pendiente, solo la comprobación visual completa y el cierre de 01b.
+
+### Paso 19 — Verificación y resumen
+
+**lint** (raíz, `npm run lint`): al conectar `contrasena-visible.test.tsx`, Prettier marcó ese archivo; lo formateé con `npx prettier --write src/features/auth/contrasena-visible.test.tsx` desde `frontend/`. Después, **código 0** en los tres workspaces (ESLint, `prettier --check`, `tsc -b`/`tsc --noEmit`).
+
+**test** (`frontend/`, `npx vitest run`): **50 archivos, 823 pruebas, 823 en verde**, código 0 (818 de la corrida del orquestador tras la ronda 0 + 5 de `contrasena-visible.test.tsx`).
+
+**build** (`frontend/`, `npm run build`): código 0. Mismo aviso preexistente de Vite sobre el chunk de más de 500 kB.
+
+**V-01:** tabla de 45 de "DESIGN-01b-2 — Ronda 0 (estatico-r1)" → **45/45 OK**, al terminar (no toqué ninguna `*.ataque`).
+
+**V-02 a V-08:**
+- `frontend/`, base `73e29c5`: sin cambios en la lista completa de "No se toca" de 01b-2 (todo lo de 01b-1 más lo que cambió 01b-1, sin excepción, salvo E-10 a E-13). Lista de archivos modificados (`git diff --name-only 73e29c5 -- frontend/`, sin `*.ataque`): exactamente los 4 formularios y `features/auth/data.ts`. Lista de archivos nuevos (`git status --porcelain --untracked-files=all`): exactamente `campo-contrasena.tsx`, `campo-contrasena.test.tsx` y `contrasena-visible.test.tsx`. Coincide letra por letra con E-10, E-11 y E-12.
+  - E-12: `git diff -U0 73e29c5 -- frontend/src/features/auth/data.ts | grep -E '^-[^-]'` → sin salida (solo agrega).
+  - E-11: revisé el diff de los 4 formularios; cada uno solo sustituye `Input`/`type="password"` por `CampoContrasena`/`nombreDelBoton`, agrega las dos importaciones nuevas y quita la de `Input` donde corresponde.
+- Fuera de `frontend/`, base `0fc961b`, sin `docs/trabajo/` ni `docs/ESTADO.md`: sin cambios en `package.json`, `package-lock.json`, `eslint.config.mjs`, `.prettierignore`, `tsconfig.base.json`, `.gitattributes`, `.gitignore`, `.nvmrc`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/PRD.md`, `README.md`; `backend/`, `shared/`, `infra/`, `.claude/`, `.codex/` sin cambios. `CLAUDE.md` sin cambios (código 0): no toqué nada del cierre de 01b. `AGENTS.md` difiere en 7 líneas agregadas (la subsección "Trabajo visual"), que es el cambio autorizado del orquestador, no mío. `docs/DESIGN.md` difiere en 9 tramos (los 8 de E-1, ya confirmados en `<C>`, más 1 nuevo de E-13, mi viñeta de §7.3).
+
+**V-10** (`.sr-only`, en el CSS de `dist/`): presente la utilidad base (`.sr-only{...}`, 1 aparición) y su forma con la variante `max-sm:` (`max-sm\:sr-only{...}`, 1 aparición).
+
+**V-11:** cubierto por lint, test y build de arriba, en verde.
+
+**V-14** (condición de detención, con base `<C>` = `73e29c5`; no toqué `acceso-restringido-view.tsx` ni `main.tsx` en 01b-2):
+1. Guardas y rutas sin cambios (código 0).
+2. Ninguna línea agregada ni quitada en `acceso-restringido-view.tsx` contiene los 10 textos fijos prohibidos (sin coincidencias).
+3. Las cuatro líneas de §D-1 existen idénticas, en orden (líneas 21, 31, 42, 43).
+4. **`git diff --quiet '73e29c5' -- frontend/src/features/auth/acceso-restringido-view.tsx` → código 0; `git diff --quiet 73e29c5 -- frontend/src/main.tsx` → código 0.** Ninguno de los dos archivos cambió en 01b-2.
+
+**V-17** (M-04 y P-05 B), todo en `src/**/*.tsx` sin pruebas:
+- `type="password"` → **0**.
+- `"password"` (con comillas dobles) → solo en `campo-contrasena.tsx`.
+- `<CampoContrasena` → **7** apariciones, en los 4 formularios, cada una con `nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.<constante>}` (confirmé la constante de cada uso: coincide con la tabla de §D-7).
+- En `campo-contrasena.tsx`: `aria-label` → 0, `aria-labelledby` → 0, `sr-only` → 1, `aria-pressed` → 1.
+- "Ocultar contraseña" y "Ocultar" → **0**.
+- `autoComplete=` de los 7 campos: `git diff -U0 73e29c5 -- <los 4 formularios> | grep -E '^[+-].*autoComplete'` → sin salida: ninguna línea con `autoComplete` se agregó ni se quitó con otro valor.
+
+### Archivos creados
+- `frontend/src/features/auth/components/campo-contrasena.tsx`
+- `frontend/src/features/auth/components/campo-contrasena.test.tsx`
+- `frontend/src/features/auth/contrasena-visible.test.tsx`
+
+### Archivos modificados
+- `frontend/src/features/auth/data.ts` (E-12)
+- `frontend/src/features/auth/components/formulario-login.tsx`, `formulario-registro.tsx`, `formulario-nueva-contrasena.tsx`, `formulario-cambiar-contrasena.tsx` (E-11)
+- `docs/DESIGN.md` (E-13)
+
+No toqué `estatico-r1.ataque.test.ts` ni ninguna otra `*.ataque.test.*`; el cambio de esa prueba en la ronda 0 lo hizo el tester. No toqué `CLAUDE.md`, `ENLACES_DEL_COLEGIO` ni nada del cierre de 01b.
+
+### Desviaciones del plan
+Ninguna. La parada intermedia del paso 17 fue justo lo que el plan ordena ante ese escenario, y se resolvió con la ronda 0 del tester que decidió el humano, como estaba previsto para este tipo de colisión.
+
+### Pendiente o fuera de alcance detectado
+- Nada nuevo respecto de lo que ya lista el plan. El cierre de 01b (O-7, el comentario de `ENLACES_DEL_COLEGIO`, `CLAUDE.md`, la comprobación visual completa) queda para después, como indicó el orquestador.
+- Todo lo que exige navegador (S-01) sigue pendiente de la comprobación del humano: no abrí ningún navegador.
+
+### Vuelta 2 (ronda 1 del tester)
+
+La ronda 1 dio **ROTO** por **T-01**, de severidad media: al ocultarse la contraseña por el envío (P-04), el cursor volvía a una selección vieja en vez de quedarse donde lo dejó la persona, incumpliendo CC-3. Apliqué la corrección exacta que pidió el orquestador, sin tocar `*.ataque` ni el resto de los formularios.
+
+**T-01 — corregido.** La causa era que `seleccionRef` se llenaba en `alternar()` y nunca se vaciaba, así que el `useLayoutEffect` con `[visible]` la reutilizaba cada vez que `visible` cambiaba, viniera de donde viniera (del botón o del envío). Cambié `frontend/src/features/auth/components/campo-contrasena.tsx`:
+- Extraje `capturarSeleccion(campo)` (selección actual y si el campo tiene el foco, en ese instante).
+- `alternar()` sigue capturando la selección **en el momento del clic**, sin cambios de comportamiento.
+- El `useLayoutEffect` ahora **consume la selección guardada una sola vez**: la lee y de inmediato pone `seleccionRef.current = null`, antes de cualquier retorno temprano. Así, un cambio de `visible` posterior que no traiga selección nueva no reaplica una vieja.
+- El escuchador de `submit` (CC-6) ahora **captura la selección actual del campo en el instante del envío**, justo antes de `flushSync(() => setVisible(false))`, en vez de dejar que el efecto reutilice lo que había guardado `alternar()` la última vez que se pulsó el ojo. Así, si el cambio de `type` que hace el navegador mueve el cursor, se restaura la posición real que tenía la persona al enviar, no una posición vieja de una interacción anterior.
+- Mantuve CC-1 a CC-7 y P-04 tal como estaban: no toqué el marcado, los atributos, el `type="button"`, `aria-pressed`, `aria-controls`, `onMouseDown` ni la lógica de mostrar/ocultar. Sin retornos anidados ni ternarios en JSX (retornos tempranos dentro del efecto, como ya estaba).
+- No tuve que tocar ningún formulario (E-11) ni `data.ts`: la corrección quedó entera dentro de `campo-contrasena.tsx`.
+
+**Prueba nueva en `campo-contrasena.test.tsx`** (normal, mía, no toca ninguna `*.ataque`): reproduce el caso exacto de la reproducción del tester — escribir `abcdef`, dejar el cursor en (2, 2), pulsar el ojo (el cursor no se mueve), llevar el cursor a (6, 6) y disparar `fireEvent.submit`; comprueba que el campo vuelve a `password` y que la selección queda en (6, 6), no en (2, 2).
+
+**Verificación de que la `*.ataque` de T-01 pasa sin modificarla:** `npx vitest run src/app/contrasena-r1.ataque.test.tsx` → **39/39 en verde**, sin tocar el archivo.
+
+### Verificación completa de la vuelta 2 (desde `frontend/` salvo donde se indica raíz)
+- **lint** (raíz, `npm run lint`): código 0 en los tres workspaces; no hizo falta formatear nada (Prettier ya conforme).
+- **test** (`npx vitest run`): **51 archivos, 863 pruebas, 863 en verde**, código 0 (862 de la corrida del tester + 1 caso nuevo de `campo-contrasena.test.tsx`).
+- **build** (`npm run build`): código 0. Mismo aviso preexistente de Vite sobre el chunk de más de 500 kB.
+- **V-01:** tabla de 46 hashes de "DESIGN-01b-2 — Ronda 1" → **46/46 OK**, sin tocar ninguna `*.ataque`.
+- **V-08:**
+  - `frontend/` contra `73e29c5`: lista de modificados (los 4 formularios + `data.ts`, sin cambios respecto de la entrega anterior porque no los toqué en esta vuelta) y de nuevos (`campo-contrasena.tsx`, `campo-contrasena.test.tsx`, `contrasena-visible.test.tsx`, más la `*.ataque` nueva del tester) sin ningún archivo fuera de lo esperado.
+  - Fuera de `frontend/` contra `0fc961b` (sin `docs/trabajo/` ni `docs/ESTADO.md`): idéntico a la vuelta anterior — sin cambios en `package.json`, `package-lock.json`, `eslint.config.mjs`, `.prettierignore`, `tsconfig.base.json`, `.gitattributes`, `.gitignore`, `.nvmrc`, `docs/ARCHITECTURE*.md`, `docs/PRD.md`, `README.md`, `backend/`, `shared/`, `infra/`, `.claude/`, `.codex/`; `CLAUDE.md` sin cambios; `AGENTS.md` con las mismas 7 líneas ya autorizadas del orquestador; `docs/DESIGN.md` con los mismos 9 tramos de antes (no lo toqué en esta vuelta).
+- **V-14** (base `<C>` = `73e29c5`, parte 4): `git diff --quiet 73e29c5 -- frontend/src/features/auth/acceso-restringido-view.tsx` y `... frontend/src/main.tsx` → código 0 en los dos.
+- **V-17:** `type="password"` → 0; `"password"` solo en `campo-contrasena.tsx`; `<CampoContrasena` → 7; en `campo-contrasena.tsx`: `aria-label` 0, `aria-labelledby` 0, `sr-only` 1, `aria-pressed` 1; "Ocultar contraseña"/"Ocultar" → 0; `autoComplete=` de los 7 campos sin ninguna línea agregada ni quitada contra `<C>`.
+
+### Archivos tocados en la vuelta 2
+- `frontend/src/features/auth/components/campo-contrasena.tsx` (T-01: la corrección).
+- `frontend/src/features/auth/components/campo-contrasena.test.tsx` (T-01: la prueba nueva).
+- Este archivo (`resumen-programador.md`), con la subsección "Vuelta 2 (ronda 1 del tester)".
+
+No toqué `frontend/src/app/contrasena-r1.ataque.test.tsx` (la escribió el tester) ni ninguna otra `*.ataque`. No toqué los 4 formularios, `data.ts`, `docs/DESIGN.md` ni nada del cierre de 01b.
+
+### Desviaciones del plan en esta vuelta
+Ninguna. Apliqué exactamente la corrección que pidió el orquestador: la restauración se limita a la alternancia que la dispara, con la selección tomada en ese momento, y se consume una sola vez.
+
+### Pendiente
+Lo mismo que antes: el cierre de 01b y la comprobación visual completa, y todo lo que exige navegador (S-01), sin cambios en esta vuelta.
+
+## Cierre de DESIGN-01b
+
+Carril trivial. Alcance exacto de 4 puntos, según `aprobacion.md`, "01b-2: rondas, revisión final y decisiones del cierre de 01b", y `plan-01b.md` §D-5 (ya con el paso 4 nuevo). No toqué ninguna `*.ataque`, las marcas de propuesta de `DESIGN.md`, `CLAUDE.md`, `README.md` ni `ESTADO.md`.
+
+**1. O-7 en código — hecho.** En `frontend/src/components/layout/lib.ts`, agregué el paso 4 de §D-5 en `esUrlPublicable`, después del paso 3 (el de "el analizador la cambia") y antes del paso de protocolo: `if (analizada.username || analizada.password) return false`, con un comentario que cita O-7 y el ejemplo `https://colegio.mx@otro-sitio.mx`. Verifiqué en Node que los dos casos nuevos pasan el paso 3 (el `href` sale igual, con la barra final admitida) pero tienen `username`/`password`, así que el paso 4 nuevo los rechaza. En `frontend/src/components/layout/lib.test.ts` agregué los casos `false` `"https://colegio.mx@otro-sitio.mx"` y `"https://usuario:clave@colegio.mx"`, sin quitar ninguna aserción existente.
+
+**2. Comentario de `ENLACES_DEL_COLEGIO` — hecho.** En `frontend/src/components/layout/data.ts` reescribí el comentario para reflejar la regla final (URL absoluta `https:`/`mailto:`/`tel:`, que el analizador deje exactamente igual salvo la barra final, y sin usuario ni contraseña antes del dominio; las demás, marcador en desarrollo y nada en producción). No toqué los datos: los 4 enlaces siguen con `url: null`.
+
+**3. `Seleccion` a `features/auth/types.ts` — hecho.** Agregué la interfaz `Seleccion` al final de `types.ts`, idéntica a la que estaba en `campo-contrasena.tsx` (`inicio`, `fin`, `tenerFoco`), sin tocar nada existente del archivo (confirmado: `git diff -U0` contra `<C>` no quita ninguna línea). En `frontend/src/features/auth/components/campo-contrasena.tsx` quité la declaración local de `Seleccion` y la importo con `import type { Seleccion } from "../types"`. El resto del componente no cambió.
+
+**4. `docs/DESIGN.md` §7.12 — hecho.** En la viñeta "URL publicables", agregué, a mano, que tampoco se publica una URL con usuario o contraseña antes del dominio, con el mismo ejemplo de O-7.
+
+### Verificación (desde `frontend/` salvo donde se indica raíz)
+- **lint** (raíz, `npm run lint`): código 0 en los tres workspaces; no hizo falta formatear nada.
+- **test** (`npx vitest run`): **52 archivos, 875 pruebas, 875 en verde**, código 0. Ninguna `*.ataque` se puso en rojo (incluida `contrasena-r2.ataque.test.tsx`, nueva del tester en su ronda 2, que ya contemplaba O-7).
+- **build** (`npm run build`): código 0. Mismo aviso preexistente de Vite sobre el chunk de más de 500 kB.
+- **V-01:** tabla de 47 hashes de "DESIGN-01b-2 — Ronda 2" → **47/47 OK**, sin tocar ninguna `*.ataque`.
+- **V-08:** archivos modificados contra `<C>` = `73e29c5` (sin `*.ataque`): `components/layout/data.ts`, `components/layout/lib.ts`, `components/layout/lib.test.ts`, `features/auth/types.ts`, más los 4 formularios y `features/auth/data.ts` de la entrega de 01b-2 (sin cambios en esta vuelta). Nada fuera de los 4 puntos del encargo. `types.ts` solo agrega (`git diff -U0` sin ninguna línea quitada).
+- **V-14** (base `<C>` = `73e29c5`, parte 4): `acceso-restringido-view.tsx` y `main.tsx` sin cambios (código 0 en los dos).
+- **V-17:** `type="password"` → 0; `"password"` solo en `campo-contrasena.tsx`; `<CampoContrasena` → 7; en `campo-contrasena.tsx`: `aria-label` 0, `aria-labelledby` 0, `sr-only` 1, `aria-pressed` 1; "Ocultar contraseña"/"Ocultar" → 0; `autoComplete=` sin cambios.
+
+### Archivos tocados en el cierre
+- `frontend/src/components/layout/lib.ts` (O-7).
+- `frontend/src/components/layout/lib.test.ts` (O-7, dos casos nuevos).
+- `frontend/src/components/layout/data.ts` (comentario de `ENLACES_DEL_COLEGIO`).
+- `frontend/src/features/auth/types.ts` (agrega `Seleccion`).
+- `frontend/src/features/auth/components/campo-contrasena.tsx` (importa `Seleccion` de `../types` en vez de declararla local).
+- `docs/DESIGN.md` (§7.12, viñeta "URL publicables").
+- Este archivo (`resumen-programador.md`), con la sección "Cierre de DESIGN-01b".
+
+No toqué ninguna `*.ataque.test.*`, las marcas de propuesta de `DESIGN.md`, `CLAUDE.md`, `README.md` ni `ESTADO.md`.
+
+### Desviaciones del plan
+Ninguna. Los 4 puntos se aplicaron tal como los describió el orquestador, dentro del alcance exacto.
+
+### Pendiente o fuera de alcance
+- `README.md`, `ESTADO.md` y la hoja de la comprobación completa en `comprobacion-humano.md` quedan a cargo del orquestador, según `aprobacion.md`.
+- Las marcas de `DESIGN.md` pasan a aprobadas solo después de la comprobación visual completa, que sigue pendiente y no requiere navegador de mi parte.

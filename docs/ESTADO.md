@@ -186,9 +186,38 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - **Manager, revisión final de 01b-1: APROBADO** (`revision.md`, "DESIGN-01b-1 — final"). Condición de detención intacta (V-14), V-08 limpia y ninguna aserción de ataque debilitada.
       - No bloquea: M-01, el comentario de `ENLACES_DEL_COLEGIO` que todavía describe la regla de la ronda 1, se actualiza en el cierre de 01b.
       - O-7 queda como pendiente con destino DEPLOY, a decisión del humano.
+    - **Commit de 01b-1: `<C>` = `73e29c5`** (del humano). El humano revisó 01b-1 en su navegador: "se ve bien".
+    - **O-7:** va en código, en el cierre de 01b. La regla del pie rechaza una URL con usuario o contraseña antes del dominio.
+    - **Cambio de proceso para trabajo visual** (humano, 2026-09-27; `AGENTS.md`, "Trabajo visual"):
+      - V-08 contra el commit de aprobación del plan;
+      - commit solo al terminar cada subentrega;
+      - ajustes visuales del humano por el carril trivial;
+      - una sola ronda del tester para validaciones sobre configuración que escribe el humano.
+    - **DESIGN-01b-2** (carril sensible):
+      - **Parada en el paso 17:** 2 pruebas de `estatico-r1.ataque` blindaban que 01b-2 aún no existiera. El humano decidió una ronda 0 del tester, completada sin hallazgos: el bloque se sustituyó por su equivalente de 01b-2.
+      - **Programador, pasos 16 a 19: completado.** Corrida del orquestador:
+        - 50 archivos y 823 pruebas en verde; lint y build con código 0; 45/45 `*.ataque`;
+        - guardas, `/acceso-restringido` y `main.tsx` sin cambios contra `73e29c5`.
+      - **Tester, ronda 1: ROTO** por T-01 (media): el cursor volvía a una selección vieja al ocultarse por el envío. Corregido en la vuelta 2.
+      - **Tester, ronda 2: RESISTE.**
+      - **Manager, final de 01b-2: APROBADO.** Su M-01 movió `Seleccion` a `features/auth/types.ts`, con autorización del humano.
+    - **Cierre de 01b:**
+      - Hecho:
+        - O-7 en código (el pie rechaza una URL con usuario o contraseña);
+        - el comentario de `ENLACES_DEL_COLEGIO`;
+        - `Seleccion` en `types.ts`;
+        - `DESIGN.md` §7.12;
+        - `CLAUDE.md`, con los textos del plan (autorizados por el humano para entrar en `<D>`);
+        - `README.md`: frontend con 52 archivos y 875 pruebas; 540 adversarias en 26 archivos;
+        - la hoja de la comprobación completa en `comprobacion-humano.md`.
+      - Manager: CAMBIOS REQUERIDOS por un solo punto, M-01. Una prueba de ataque de `contrasena-r1` supera a veces el límite de 5 s en la suite completa.
+      - **Ronda corta del tester:** `15_000` como límite en las 22 pruebas de `contrasena-r1` y `contrasena-r2`, sin tocar ninguna aserción. Tres corridas en verde.
+      - **Manager: cierre APROBADO** (`revision.md`, "DESIGN-01b — cierre, verificación de M-01").
+      - **Corrida final del orquestador:** 52 archivos y 875 pruebas en verde; lint y build con código 0; 47/47 `*.ataque`.
     - **Siguiente:**
-      - El humano decide O-7 y hace el commit de 01b-1 (`<C>`, en la rama, sin push).
-      - 01b-2 no empieza hasta que el humano lo indique.
+      1. El humano revisa el diff (01b-2 es carril sensible) y hace el commit `<D>`, que incluye 01b-2 y el cierre.
+      2. La comprobación completa con la hoja.
+      3. El PR, solo si pasa.
     - **Después:** programador de 01b-1 → tester (rondas 1 a 3) → manager → commit del humano (`<C>`) → 01b-2 → comprobación completa → cierre → PR.
 
 ## 2b. Encargos decididos, por empezar
@@ -223,6 +252,7 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
 | Opcionales: unitarias del backend sin `globalSetup`; ESLint contra `@testcontainers/*` en `backend/src/**` | Sin encargo asignado | `docs/trabajo/CHORE-01-testcontainers/aprobacion.md` |
 | Dirección visual D3, lo que queda después de 01a: fondo con orbes y su alcance por pantalla; movimiento de los orbes y su `prefers-reduced-motion`; marco y composición de las pantallas; contraste medido sobre los orbes, incluido el borde de los campos (`#5A6472`, el par de borde con menos margen); recorte de la sombra del vidrio en la lista de anuncios del login (el `p-2 -m-2` de 01a es un alivio parcial). Además: el botón para mostrar u ocultar la contraseña y el pie de página (decisión del humano, 2026-09-27). Y la comprobación visual completa del humano (H-01 a H-10 y C-01 a C-12), de la que depende abrir el PR | DESIGN-01b (por replanear) | `docs/DESIGN.md`, `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md` (resumen de 01b), `revision.md` ("DESIGN-01a — cierre") y `aprobacion.md` |
 | `paths` y `cn` de shadcn (D-02 y D-03 de DOCS-01) | El primer encargo que ejecute `shadcn add` | `docs/trabajo/DOCS-01-pendientes/resumen.md` y `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, "Cierre de 01a" |
+| M-02 del cierre de DESIGN-01b: varias pruebas de ataque que montan el router tardan de 2 a 2.6 s en la suite completa del frontend, cerca del límite de 5 s. Decidir un `testTimeout` del frontend en `vitest.config.ts` (con autorización del humano) o repartir las pruebas pesadas | Un `chore` | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, "DESIGN-01b — cierre" |
 | `tw-animate-css` instalado y sin uso (R-09 de DESIGN-01) | Un `chore` | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-09 |
 | Radio de las casillas y `--text-display` en móvil (R-10 de DESIGN-01) | El primer encargo que los use | ídem, R-10 |
 | Foco blanco por dentro sobre superficies de color, más allá de los botones rellenos (S-07 de DESIGN-01) | El encargo que construya el bloque destacado o las tarjetas de clase | ídem, S-07 |
@@ -238,7 +268,7 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
 | AUTH-02b (MF-05): la contraseña del login y del registro queda en la caché de mutaciones de TanStack Query (el token del enlace y las contraseñas de las pantallas de cuenta ya no) | AUTH-03 (antes CHORE-02; lo movió el humano el 2026-09-26) | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Decisiones del humano sobre la escalada de AUTH-02b" y "Nombre ajeno en la invitación de un maestro" |
 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (RF-57) | ADMIN | `docs/PRD.md` y `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Nombre ajeno en la invitación de un maestro" |
 | El admin puede editar el nombre de cualquier usuario (RF-58) | ADMIN | ídem |
-| Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY | Humano, antes de DEPLOY | `docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md`, "Comprobación parcial, suspensión y cierre de 01a" |
+| Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY y probar cada uno. Se editan solo en `ENLACES_DEL_COLEGIO` de `frontend/src/components/layout/data.ts`; el código ya rechaza las URL que el navegador cambiaría y las que llevan usuario o contraseña | Humano, antes de DEPLOY | `docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md`, "Comprobación parcial, suspensión y cierre de 01a" |
 | M-02 de DESIGN-01a: `Dialog` se pinta en un portal fuera del contexto opaco y denso del admin. Hoy nadie lo usa; aparecerá con la primera confirmación en un diálogo de `/admin` | ADMIN, o el primer encargo que ponga una capa flotante en una pantalla densa | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, "DESIGN-01a — final" |
 | Dar rol accesible a la ficha de cuenta (`role=region` con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de `fichaDe` (R-15 de DESIGN-01; decisión del humano, 2026-09-27) | ADMIN | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-15, y `aprobacion.md` |
 | AUTH-02b (MF-05): la temporal se pierde si el admin busca otra cuenta con el restablecimiento en vuelo; texto genérico ante un fallo de red en la pantalla de admin; la alerta de error persiste al reabrir la confirmación | ADMIN | ídem |

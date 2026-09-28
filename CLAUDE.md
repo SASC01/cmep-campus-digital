@@ -67,16 +67,16 @@ features/
 ### Ubicaciones compartidas
 
 - `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx` y `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`)
-- `components/layout/` — barra lateral, encabezado de página, contenedores por rol (`ContenedorRol`, `LayoutPublico`). El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
-- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `AvatarUsuario`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`) y `ErrorDeCampo` (`error-de-campo.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
-- `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo
+- `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
+- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`) y `AvatarUsuario` (`avatar-usuario.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
+- `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo e iniciales de un nombre (`inicialesDe`)
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
 - `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` o `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)
 - `services/liveService.ts` — conexión con LiveKit
-- `app/` — rutas, layouts y guardas por rol
+- `app/` — rutas, layouts, guardas por rol y `FondoDeLaApp` (el fondo con orbes, montado una sola vez en `main.tsx`, fuera del router)
 - `styles/index.css` — entrada de Tailwind (`@import "tailwindcss"`), importa `tokens.css`
 - `styles/tokens.css` — tokens de diseño
 
@@ -106,6 +106,7 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 - Los derivados que shadcn espera (`--card`, `--popover`, `--secondary`, `--input`, `--ring`…) apuntan a un token propio, nunca a un valor.
 - La paleta y las escalas por defecto de Tailwind (colores, tamaños de letra, pesos, radios, sombras y desenfoques) están anuladas en `tokens.css`. Una clase como `text-sm`, `rounded-lg` o `shadow-md` no genera CSS y se pierde sin error: usa `text-small`, `rounded-panel`, `shadow-overlay`. `cn` conoce la escala propia (`lib/utils.ts`).
 - El vidrio se aplica solo con las utilidades `vidrio`, `vidrio-fuerte` y `vidrio-azul` de `tokens.css`, que traen su respaldo sólido sin `backdrop-filter`; nunca con `backdrop-blur-*` ni con fondos blancos translúcidos sueltos. Una pantalla densa marca su contenedor con `data-material="opaco"` (y `data-densidad="densa"` si sus controles miden 36 px): el vidrio pasa a `--surface` sin tocar los componentes.
+- Un elemento fijo (`position: fixed`) nunca va dentro de una superficie de vidrio: `backdrop-filter` convierte a esa superficie en su bloque contenedor y lo fijo se pega a ella, no a la ventana. El fondo con orbes vive fuera del router y la barra inferior cuelga de un contenedor sin vidrio.
 - **El estado nunca se comunica solo con color:** siempre acompañado de texto o icono ("Deudor", "Con retraso").
 
 ### Componentes
@@ -121,6 +122,7 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 
 - Los formularios donde alguien captura datos de otra persona (el admin invitando o editando usuarios, un maestro agregando alumnos) usan `autoComplete="off"` en sus campos. `autoComplete` con valores como `name` o `email` solo se usa cuando la persona escribe sus propios datos.
 - El error de un campo usa `ErrorDeCampo` (`components/error-de-campo.tsx`, fondo `--danger-soft`), nunca texto rojo suelto: el rojo no llega a AA sobre vidrio al 62 %.
+- Todo campo de contraseña usa `CampoContrasena` (`features/auth/components/campo-contrasena.tsx`), con su botón para mostrarla u ocultarla; nunca un `Input` con `type="password"` suelto. El nombre del botón es fijo, por campo, va como texto `sr-only` dentro del botón (nunca `aria-label`) y el estado va en `aria-pressed`.
 
 ### Textos
 

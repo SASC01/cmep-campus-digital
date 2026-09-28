@@ -44,9 +44,11 @@ export const RUTAS_CON_ORBES_EN_MOVIMIENTO = ["/login", "/estudiante", "/maestro
 
 export const NOMBRE_DEL_COLEGIO = "Colegio Mexicano de Estudios de Posgrado Jurídicos y Económicos"
 
-// Enlaces del pie (decisión del humano, 2026-09-27). Para publicar uno, escribe su URL completa,
-// sin espacios alrededor (https://…, mailto:… o tel:…). Sin URL válida: en desarrollo se ve como
-// marcador y en el build de producción no se muestra. Nunca uses "#".
+// Enlaces del pie (decisión del humano, 2026-09-27; regla final, cierre de 01b). Para publicar uno,
+// escribe su URL completa, absoluta, con esquema https:, mailto: o tel:, tal como la usará el
+// navegador: el analizador de URL no debe cambiarle nada (salvo la barra final de un dominio sin
+// ruta) y no debe llevar usuario ni contraseña antes del dominio. Las demás URL se ven como
+// marcador en desarrollo y no se muestran en el build de producción. Nunca uses "#".
 export const ENLACES_DEL_COLEGIO: readonly EnlaceDelColegio[] = [
   { texto: "Sitio web", url: null },
   { texto: "Facebook", url: null },

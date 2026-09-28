@@ -21,6 +21,9 @@ Todos fusionados en `main` de `origin` (verificado con `git log origin/main --me
 | AUTH-02b · cuentas y correo, frontend | `feat/auth-02b-cuentas-frontend` | #11 | `docs/trabajo/AUTH-02-cuentas-y-correo/` |
 | DOCS-02b · estructura y diseño | `docs/docs-02b-estructura-y-diseno` | #12 | Sin carpeta: las decisiones están abajo, en "DOCS-02b cerrada", y en los documentos que cambiaron |
 | DOCS-03 · dirección visual D3 | `docs/docs-03-direccion-d3` | #13 | Sin carpeta: las decisiones están abajo, en "DOCS-03 cerrada", y en los documentos que cambiaron |
+| DESIGN-01 · sistema de diseño D3 (vidrio líquido con fondo flotante) | `feat/design-01-sistema-de-diseno` | #14 (merge `58123dd`) | `docs/trabajo/DESIGN-01-sistema-de-diseno/` |
+
+Suite al cierre de DESIGN-01 (2026-09-28, corrida del orquestador y del manager): frontend 52 archivos / 875 pruebas en verde, de ellas 540 adversarias en 26 archivos; lint, test y build con código 0. Hashes vigentes de las 47 `*.ataque` del frontend: `docs/trabajo/DESIGN-01-sistema-de-diseno/reporte-tester.md`, "DESIGN-01b — cierre: tiempo límite (M-01)". El backend no cambió desde AUTH-02b.
 
 Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 258, con 254 en verde y 4 fallos esperados (T-14, marcados `it.fails`). Test y build con código 0 en la verificación del manager; `npm run lint` desde la raíz con código 0 el 2026-09-26. Fuente: `docs/trabajo/AUTH-02-cuentas-y-correo/revision.md`, secciones "AUTH-02b — cierre" y "AUTH-02b — verificación de autoComplete". Hashes vigentes de las 32 `*.ataque`: `reporte-tester.md`, ronda 4 de AUTH-02b.
 
@@ -70,9 +73,8 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - `DESIGN.md` los prohíbe en esas superficies y agrega `--accent-soft-glass` (`#E8ECF8`, medido en la captura).
     - El velo del fondo es obligatorio para que el aviso, el verde y el rojo pasen sobre vidrio.
 
-## 2. Encargos en curso
-- **DESIGN-01 · sistema de diseño D3 ("Vidrio líquido con fondo flotante"), cerrado el 2026-09-28; falta el commit final y el PR.**
-  - **Rama:** `feat/design-01-sistema-de-diseno`, sin push.
+**DESIGN-01 cerrada** con el PR #14 (fusión `58123dd` en `main`, 2026-09-28), el sistema de diseño D3 ("Vidrio líquido con fondo flotante"):
+  - **Rama:** `feat/design-01-sistema-de-diseno`, fusionada; el último commit de la rama es `bf7db13` (cierre de DESIGN-01).
   - **Historial completo:** `docs/trabajo/DESIGN-01-sistema-de-diseno/`, en particular `aprobacion.md`, que registra cada decisión del humano con fecha. Allí están también los planes (`plan.md` para 01a y `plan-01b.md`), las revisiones, los reportes del tester, el resumen del programador y la comprobación del humano. Los planes y la revisión de la dirección C se conservan como antecedente.
   - **Subentregas y commits del humano:**
 
@@ -85,6 +87,7 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     | `8feab74` | Ronda 0 de 01b-1 |
     | `73e29c5` | 01b-1: fondo con orbes, marco, composición, pie con marcadores y recorte de la sombra |
     | `d2e5ff7` | 01b-2: botón para mostrar la contraseña, en carril sensible; y el cierre de 01b: O-7, `Seleccion` en `types.ts`, `CLAUDE.md` y `README.md` |
+    | `bf7db13` | Cierre de DESIGN-01: marcas de `DESIGN.md` aprobadas, revisión rápida del humano y regla de comprobación breve en `AGENTS.md` |
 
   - **Veredictos:**
     - Tester: 01a RESISTE en la ronda 1; 01b-1 en la ronda 3; 01b-2 en la ronda 2.
@@ -95,12 +98,9 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - `AGENTS.md`, "Trabajo visual": V-08 contra el commit de aprobación, commit por subentrega, ajustes visuales por el carril trivial, una sola ronda del tester para validaciones de configuración, y comprobación humana de máximo 10 minutos y 7 puntos.
     - `.claude/agents/tester.md`: sin selectores de clase.
     - `CLAUDE.md`: `enEspera`, escalas anuladas, vidrio, lo fijo fuera del vidrio, `ErrorDeCampo`, `CampoContrasena` y ubicaciones nuevas.
-  - **Siguiente:**
-    1. Commit final del humano: marcas de `DESIGN.md`, este archivo y los documentos de la carpeta.
-    2. `git push` de la rama.
-    3. PR hacia `main`.
 
-    Cuando se fusione, pasa a la sección 1 con su número de PR.
+## 2. Encargos en curso
+Ninguno. Lo siguiente, según el orden que fijó el humano, es AUTH-03 (sección 2b) y después CLASES.
 
 ## 2b. Encargos decididos, por empezar
 - **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:
@@ -170,7 +170,7 @@ Verificado el 2026-09-26, salvo donde se indica:
 - Regla del firewall de Windows "Campus: bloquear entrada a Docker en redes publicas": existe, habilitada, Inbound, Block, perfil Público, sobre `com.docker.backend.exe`. `daemon.json` sin la opción `"ip"` (no aplica en Docker Desktop 4.48).
 - Red actual: `IZZI-F281`, categoría **Pública**. El humano declara que es la red de su casa y de confianza.
 - **La suite del backend no se corre en una red pública o no confiable sin esa regla aplicada** (`AGENTS.md`, "Pruebas", riesgo residual de Testcontainers; pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`).
-- Git local (2026-09-27): `main` al día con `origin/main` (`6868e4d`, fusión del PR #13). Rama actual: `feat/design-01-sistema-de-diseno`, con siete commits del humano sobre `main` (`5a32230`, `041e862`, `e39500a`, `0fc961b`, `8feab74`, `73e29c5` y `d2e5ff7`; detalle en la sección 2). Sin push: la rama no existe en `origin` (actualizado el 2026-09-28).
+- Git local (2026-09-28): `main` al día con `origin/main` (`58123dd`, fusión del PR #14). Rama actual: `main`, con el árbol limpio. `feat/design-01-sistema-de-diseno` quedó fusionada.
 
 ## 6. Agentes
 Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en el frontmatter de `.claude/agents/*.md`: `arquitecto`, `manager` y `tester` con `opus` y esfuerzo `high`. **El `programador` usa `sonnet` con esfuerzo `medium` a prueba, hasta revisarlo después del encargo CLASES.**

@@ -306,9 +306,37 @@ En la columna **Medido** escribe la razón y el hexadecimal del fondo; por ejemp
 
 ---
 
-## DESIGN-01 · comprobación completa (después de 01b)
+## DESIGN-01 · revisión rápida del humano (después de 01b)
 
-Hoja para llenar. Sale de `plan-01b.md`, "Comprobación completa del humano". **El PR de DESIGN-01 no se abre hasta que esta comprobación pase.** Ningún agente la hace.
+**Decisión del humano (2026-09-28):**
+> NO haré la hoja completa (H-01 a H-17, C-01 a C-26); es desproporcionada. La sustituyo por una revisión rápida de 7 puntos. […] El resto queda como "no verificada por decisión del humano, cubierta por pruebas automáticas". El contraste lo da por bueno tokens.test.ts; la medición manual se descarta.
+
+Regla nueva en `AGENTS.md`, "Trabajo visual": la comprobación humana en navegador dura como máximo 10 minutos y tiene como máximo 7 puntos, solo lo que las pruebas automáticas no pueden ver, sin mediciones manuales de contraste.
+
+Sobre `d2e5ff7` (01b-2 y cierre de 01b):
+
+| # | Punto | Resultado |
+|---|---|---|
+| 1 | Botón mostrar/ocultar en login y registro | bien |
+| 2 | Doble envío con Slow 4G, una sola petición | bien |
+| 3 | T-14 en admin con Slow 4G | bien |
+| 4 | Lectura de textos sobre los orbes | bien |
+| 5 | `prefers-reduced-motion` detiene los orbes | bien |
+| 6 | 360 px sin cortes | bien |
+| 7 | Scroll fluido con orbes | bien |
+
+**Todo lo demás de la hoja completa de abajo (H-01 a H-17 y la tabla C-01 a C-26): no verificada por decisión del humano, cubierta por pruebas automáticas.** El contraste queda cubierto por `tokens.test.ts` y `tokens-r1.ataque.test.ts`. La hoja completa se conserva solo como antecedente.
+
+**Resultado (2026-09-28, transcrito por el orquestador del mensaje del humano):**
+- **Veredicto:** pasa todo. Los 7 puntos están "bien" y no hay correcciones.
+- **No verificadas por decisión del humano, cubiertas por pruebas automáticas:** el resto de H-01 a H-17 y la tabla de contraste C-01 a C-26. El contraste lo cubre `tokens.test.ts`.
+- **Valores de `DESIGN.md`:** pasan a "propuesta aprobada (2026-09-28)" los que aplicó DESIGN-01. Los patrones que ningún encargo ha aplicado todavía siguen como propuesta, según `DESIGN.md` §11.
+
+---
+
+## DESIGN-01 · comprobación completa (después de 01b) — sustituida por la revisión rápida
+
+Hoja original, sin llenar; se conserva como antecedente. Sale de `plan-01b.md`, "Comprobación completa del humano". **El PR de DESIGN-01 no se abre hasta que esta comprobación pase.** Ningún agente la hace.
 
 - **Navegador:** Chrome o Edge, con el zoom al 100 %.
 - **Anchos:** cada pantalla a **1280 × 800** y a **360 × 800**. H-03 y H-12, además, a 768 y a 767.

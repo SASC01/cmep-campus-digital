@@ -2,7 +2,7 @@
 
 Tablero vivo de CMEP Campus Digital. Solo hechos verificables; el detalle vive en los archivos a los que remite. Lo lee el orquestador al inicio de cada sesión y lo actualiza al cerrar cada encargo o antes de limpiar o compactar la sesión (`AGENTS.md`, "Reglas del equipo").
 
-Última actualización: 2026-09-27, por el orquestador.
+Última actualización: 2026-09-28, por el orquestador.
 
 ## 1. Encargos completados
 Todos fusionados en `main` de `origin` (verificado con `git log origin/main --merges`). El historial de cada uno está en `docs/trabajo/<encargo>/`.
@@ -71,154 +71,36 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - El velo del fondo es obligatorio para que el aviso, el verde y el rojo pasen sobre vidrio.
 
 ## 2. Encargos en curso
-- **DESIGN-01 · sistema de diseño**, **replaneado sobre D3 el 2026-09-27**. Rama `feat/design-01-sistema-de-diseno`, al mismo commit que `main` (`6868e4d`) y sin commits propios. Carpeta `docs/trabajo/DESIGN-01-sistema-de-diseno/`, sin rastrear.
-  - **Antecedente de la dirección C:** `plan-direccion-c.md` y `revision-direccion-c.md` (antes `plan.md` y `revision.md`; los renombró el orquestador para que el plan nuevo no los sobrescribiera).
-  - **Respuestas del humano (2026-09-27)** a las preguntas del plan de C: solo destinos de la barra que ya existen; sin tabla y admin opaco; ronda 0 del tester; división en DESIGN-01a (tokens, materiales de vidrio con respaldo sólido, fuentes, componentes base; carril sensible) y DESIGN-01b (`FondoAnimado` con orbes solo en login e inicio, `prefers-reduced-motion`; carril normal); `@fontsource` solo `latin`; controles del admin de 36 px en escritorio y 44 px en pantallas angostas; se autoriza tocar `frontend/vitest.config.ts` para M-01; acepta el cambio en los 6 `*.ataque` previstos. Reglas de D3 para el plan: orbes solo con `transform`, pantallas densas opacas, rojo nunca como texto sobre vidrio al 62 %, contraste AA medido en navegador (lo mide el humano; ningún agente abre navegador).
-  - **`plan.md` nuevo: LISTO.** Contiene el plan de 01a completo y el de 01b en resumen; el detallado de 01b irá en `plan-01b.md` después de fusionar 01a.
-  - **Respuestas del humano a P-07 a P-09 (2026-09-27):**
-    - **P-07 (A):** 01a lleva la migración de clases, `enEspera` en los 13 botones y T-14; 01b, el marco, la composición y los orbes, en carril normal. 01b no toca las redirecciones de `require-rol.tsx`; si hace falta, se detiene y avisa. El plan extiende la condición a `require-sesion.tsx`, `require-cambio-de-contrasena.tsx` y las guardas de `router.tsx`.
-    - **P-08 (B):** en la ronda 0, el tester cambia los selectores `div.rounded-lg` de 3 `*.ataque` por el auxiliar `fichaDe`, que no usa clases. Los rojos previstos del programador siguen siendo 6.
-    - **P-09 (A).**
-    - Aceptó el foco blanco por dentro en los botones rellenos, que confirma en H-04, y los 16 px en los campos del admin.
-    - La precondición de la ronda 0 pasa a "`frontend/` sin cambios desde `6868e4d`".
-  - **Cambios del orquestador autorizados por el humano:**
-    - `.claude/agents/tester.md`: regla "Las pruebas de ataque no localizan elementos por clases de estilo".
-    - `docs/DESIGN.md` §8: 16 px en los campos de texto, por el zoom de Safari en iOS.
-  - **Revisión del manager (`revision.md`):**
-    - APROBADO en la primera pasada, con la línea base en `6868e4d`: lint, test y build con código 0; 258 pruebas, 254 en verde y 4 fallos esperados (T-14); hashes de las 32 `*.ataque` sin cambios.
-    - En los ajustes pidió corregir M-04 (V-08 con dos bases: `6868e4d` para `frontend/` y el commit de aprobación `<A>` para lo demás), M-05 (ningún agente hace commit) y M-06 (comillas en `git cat-file`). Los tres están corregidos; el orquestador verificó el texto de M-05 y M-06.
-  - **Plan de DESIGN-01a APROBADO por escrito por el humano (2026-09-27),** registrado en `aprobacion.md`. Además:
-    - acepta la condición ampliada de 01b;
-    - acepta `fichaDe` como solución temporal (R-15; el pendiente va a ADMIN, sección 3);
-    - juzga en H-10 `whitespace-nowrap` y el peso de los títulos de los anuncios.
-  - **Commit de aprobación `<A>` = `5a32230`** (del humano, 2026-09-27), anotado en `aprobacion.md`. Es la base de V-08 fuera de `frontend/`.
-  - **Ronda 0 del tester: COMPLETADA (2026-09-27),** sin condiciones de parada. Reporte en `reporte-tester.md`, transcrito por el orquestador porque el entorno impidió al tester escribirlo.
-    - Las 4 pruebas de T-14 fallan en su aserción final del foco, no en la preparación.
-    - `fichaDe` sustituye a `closest("div.rounded-lg")` en r2, r3 y r4, y devuelve el mismo elemento.
-    - Tabla nueva de 32 hashes: base de V-01 para el programador.
-    - Suite del frontend: 258 pruebas, 254 en verde y 4 fallos esperados. Lint con código 0. El orquestador lo confirmó con su propia corrida.
-  - **Commit de la ronda 0:** `041e862`, del humano.
-  - **Programador: pasos 1 a 14 completados (2026-09-27).** Resumen en `resumen-programador.md`, sección "DESIGN-01a". El orquestador lo confirmó con su propia corrida desde `frontend/`:
-    - lint y build, código 0;
-    - test, `6 failed | 402 passed | 3 expected fail (411)`, exactamente los 6 rojos previstos;
-    - V-01, 32/32.
-  - **Parada de V-08 en `package-lock.json`:** el `npm install` autorizado quitó `"peer": true` de entradas ajenas, sin cambiar versiones. El humano lo aceptó (registrado en `aprobacion.md`). El orquestador le había mostrado una lista de 18 entradas, que estaba mal; la correcta tiene 19 (T-01 de la ronda 1). **Falta que el humano confirme la lista de 19 antes del commit.**
-  - **Tester, ronda 1: RESISTE (2026-09-27).**
-    - Solo un hallazgo, T-01 (baja): era un error del orquestador en la lista del lockfile.
-    - Retiró las 4 `it.fails` y adaptó la preparación a F-1. Reforzó N-01 y agregó 7 `*.ataque` nuevas, con 83 pruebas.
-    - Suite del frontend: 37 archivos y 494 pruebas en verde; 266 adversarias, en 18 archivos. Lint y build con código 0.
-    - La tabla de hashes de las 39 `*.ataque` está en `reporte-tester.md`, "DESIGN-01a — Ronda 1".
-  - **Manager, revisión final: APROBADO**, sin bloqueantes (`revision.md`, "DESIGN-01a — final").
-    - Confirmó las 19 bajas de `"peer": true` y V-08 limpia con las dos bases.
-    - Revisó línea por línea r1 a r4 contra `6868e4d`: ninguna aserción se debilitó.
-    - Hallazgos que no bloquean:
-      - M-01: la prueba "escenario 4 de T-14" de `cuentas-view.test.tsx` no pulsa "Cancelar" ni hace el clic fuera que dice su nombre. Recomienda corregirla en el cierre.
-      - M-02: `Dialog` en un portal fuera del contexto opaco del admin; va a la sección 3.
-      - M-03 y detalles de `DESIGN.md` §6 y §7.3: se ajustan en el cierre.
-  - **Decisiones del humano (2026-09-27, en `aprobacion.md`):**
-    - M-01 se corrige en el cierre.
-    - El orquestador ya aplicó en `CLAUDE.md` los textos literales del cierre; el humano los revisa en el diff.
-    - La lista de 19 la confirma después de revisar el diff.
-  - **Hoja de la comprobación lista:** `comprobacion-humano.md`, con los comandos para levantar todo en local, las cuentas, H-01 a H-10 en casillas y la tabla C-01 a C-12.
-  - **Comprobación visual: parcial y suspendida (2026-09-27).**
-    - En el bloque del login pasaron H-01, H-02 y H-04, salvo el borde de los campos. Se confirmó S-07 y se queda el anillo de foco de los enlaces.
-    - El humano suspendió el resto: sin orbes, el vidrio no se aprecia.
-    - **Habrá una sola comprobación completa (H-01 a H-10, con H-05 y H-06, y la tabla C-01 a C-12) después de 01b. El PR no se abre hasta que esa comprobación pase.**
-    - Detalle en `comprobacion-humano.md` y `aprobacion.md`.
-  - **Cierre de 01a: APROBADO por el manager (2026-09-27)** (`revision.md`, "DESIGN-01a — cierre" y "DESIGN-01a — cierre, correcciones"). No hizo falta otra ronda del tester: el cierre solo cambia la presentación.
-    - **Marcas de `DESIGN.md`:** solo se aprobó lo del login. Fuentes, foco blanco por dentro en `primary` y anillo de los enlaces; `destructive` sigue como propuesta.
-    - **M-01:** la prueba del escenario 4 de T-14 ya hace lo que dice su nombre.
-    - **Borde de los campos:**
-      - token base `--field-border` `#5A6472` (valor: propuesta; criterio: decisión del humano), con `--input: var(--field-border)`;
-      - 1 px, y `--accent` al enfocar con `focus-visible`;
-      - 3.81 contra el vidrio en el peor caso con orbes, verificado en `tokens.test.ts`;
-      - el `outline` opaco del admin sigue con 2 px de tinta.
-    - **Rectángulo grisáceo:** la sombra `--shadow-glass` se recorta en el contenedor con scroll de los anuncios. `p-2 -m-2` es un alivio parcial, sin verificar en pantalla; la solución de fondo va en 01b.
-    - **Documentos:** `CLAUDE.md` con los textos del cierre, `README.md` (frontend: 37 archivos y 496 pruebas; 266 adversarias en 18 archivos) y la sección 3 de este archivo.
-    - **Suite del frontend:** 37 archivos y 496 pruebas en verde; lint y build con código 0; V-01 39/39.
-    - **Cerradas:** MF-05 (pérdida de foco en botones en espera) y T-14.
-  - **Después del commit:** replanear DESIGN-01b en modo plan, sin tocar código hasta que el humano apruebe. Se agregan al alcance:
-    - el botón para mostrar u ocultar la contraseña en los 5 formularios que la piden;
-    - el pie de página, con "© <año> Colegio Mexicano de Estudios de Posgrado Jurídicos y Económicos" y los enlaces del colegio leídos de un solo archivo de configuración. Hoy son marcadores: se ven en desarrollo y no se muestran en producción.
-    - Si 01b queda demasiado grande, el arquitecto propone cómo dividirlo.
-    - Como el PR de 01a no se abre antes, 01b no puede salir de `main` con 01a ya fusionada; el arquitecto define la rama.
-  - **Commit de 01a: `e39500a`** (del humano, 2026-09-27; 65 archivos, en la rama, sin push).
-    - Antes del commit, el humano confirmó la lista de 19 del lockfile.
-    - H-01 a 360 px quedó marcada a su pedido.
-    - **El PR no se abre** hasta que pase la comprobación visual completa después de 01b.
-  - **DESIGN-01b: `plan-01b.md` en LISTO, APROBADO por el manager (2026-09-27)** (`revision.md`, "DESIGN-01b — plan" y "DESIGN-01b — plan, correcciones"; M-01 a M-05 atendidos).
-    - División propuesta en la misma rama:
-      - 01b-1 (normal): fondo con orbes, marco, composición, pie y recorte de la sombra, con ronda 0 del tester para la guarda V-07;
-      - 01b-2 (sensible, según P-01): el botón para mostrar u ocultar la contraseña, en 7 campos.
-    - Una sola comprobación completa al final (H-01 a H-17, C-01 a C-26) antes del PR.
-    - **APROBADO por escrito por el humano (2026-09-27),** registrado en `aprobacion.md`:
-      - P-01 (A): 01b-1 en carril normal y 01b-2 en sensible.
-      - P-02 (A): dos subentregas en la misma rama, con un commit del humano cada una.
-      - P-03 (A): el mismo pie en `/admin`, opaco.
-      - P-04 (A): la contraseña visible se oculta al enviar.
-      - P-05 (B) con dos ajustes: nombre fijo con `aria-pressed`, el nombre de su campo cuando el formulario tiene varios, y el nombre como texto `sr-only`, sin `aria-label`.
-      - Las propuestas visuales las juzga el humano en la comprobación final.
-    - **Ajuste de P-05 aplicado en `plan-01b.md` y APROBADO por el manager** (`revision.md`, "DESIGN-01b — plan, ajuste de P-05").
-      - Con los nombres por campo, el inventario de selectores sale limpio en todas las pruebas, así que **01b-2 no lleva ronda 0**.
-      - P-06, respondida por el humano, fija los 7 nombres de botón: "Mostrar contraseña", "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal".
-    - **Commit de los documentos de 01b: `<B>` = `0fc961b`** (del humano, 2026-09-27), anotado en `aprobacion.md`. `frontend/` es idéntico a `e39500a`.
-    - **Ronda 0 de 01b-1: COMPLETADA en el segundo intento (2026-09-27).**
-      - El primero se detuvo porque el texto de §D-9 no tipaba con `noUncheckedIndexedAccess`.
-      - El humano decidió corregirlo y repetir. El arquitecto corrigió solo el tipado; el orquestador lo verificó y restauró una línea de V-17 que el arquitecto había revertido sin querer.
-      - `clases-r1.ataque` V-07 queda con la lista permitida, hash `dd520b04…`. La tabla de 39 hashes está en `reporte-tester.md`, "DESIGN-01b-1 — Ronda 0, segundo intento".
-      - Corrida del orquestador: 37 archivos y 496 pruebas en verde, lint con código 0.
-    - **Commit de la ronda 0: `8feab74`** (del humano). Por decisión del humano es la **base nueva de V-08 fuera de `frontend/`**; dentro, la base sigue siendo `e39500a`.
-    - **Programador de 01b-1: completado (2026-09-27)** (`resumen-programador.md`, "DESIGN-01b-1"). Corrida del orquestador desde `frontend/`:
-      - lint y build con código 0; test con 42 archivos y 578 pruebas en verde; V-01 39/39;
-      - guardas y rutas sin cambios contra `e39500a`;
-      - V-14 parte 2 sin coincidencias en `acceso-restringido-view.tsx`.
-      - Quedan para que las juzguen tester y manager cinco clases con valores arbitrarios de alto y de rejilla (`calc(100svh-…)`, `grid-cols-[…]`).
-    - **Tester, ronda 1: ROTO,** con 2 hallazgos de severidad baja:
-      - T-01: caracteres de control en la URL del pie;
-      - T-02: una línea quitada de `format.test.ts`, que E-2 no permitía.
-    - **Arbitraje del manager:** el ROTO se sostiene. Los textos corregidos de `plan-01b.md` los aplicó el arquitecto y los verificó el orquestador. Detalle en `aprobacion.md` y `revision.md`.
-    - **Vuelta 2 del programador: completada.** Corrida del orquestador: 46 archivos y 686 pruebas en verde, lint con código 0, 43/43 `*.ataque`.
-    - **Tester, ronda 2: ROTO**, por T-03 (baja): caracteres invisibles en el dominio de una URL del pie.
-      - **Arbitraje:** regla general. Se publica solo una URL que el analizador deja igual, salvo la barra final.
-      - **Vuelta 3 del programador: completada.** Corrida del orquestador: 47 archivos y 740 pruebas en verde, lint con código 0, 44/44 `*.ataque`.
-    - **Tester, ronda 3 (la última): RESISTE, sin hallazgos.** Suite: 48 archivos y 806 pruebas en verde; tabla de 45 `*.ataque`.
-      - O-7: una URL con usuario (`https://colegio.mx@otro-sitio.mx`) se publica tal cual y lleva a otro sitio.
-    - **Manager, revisión final de 01b-1: APROBADO** (`revision.md`, "DESIGN-01b-1 — final"). Condición de detención intacta (V-14), V-08 limpia y ninguna aserción de ataque debilitada.
-      - No bloquea: M-01, el comentario de `ENLACES_DEL_COLEGIO` que todavía describe la regla de la ronda 1, se actualiza en el cierre de 01b.
-      - O-7 queda como pendiente con destino DEPLOY, a decisión del humano.
-    - **Commit de 01b-1: `<C>` = `73e29c5`** (del humano). El humano revisó 01b-1 en su navegador: "se ve bien".
-    - **O-7:** va en código, en el cierre de 01b. La regla del pie rechaza una URL con usuario o contraseña antes del dominio.
-    - **Cambio de proceso para trabajo visual** (humano, 2026-09-27; `AGENTS.md`, "Trabajo visual"):
-      - V-08 contra el commit de aprobación del plan;
-      - commit solo al terminar cada subentrega;
-      - ajustes visuales del humano por el carril trivial;
-      - una sola ronda del tester para validaciones sobre configuración que escribe el humano.
-    - **DESIGN-01b-2** (carril sensible):
-      - **Parada en el paso 17:** 2 pruebas de `estatico-r1.ataque` blindaban que 01b-2 aún no existiera. El humano decidió una ronda 0 del tester, completada sin hallazgos: el bloque se sustituyó por su equivalente de 01b-2.
-      - **Programador, pasos 16 a 19: completado.** Corrida del orquestador:
-        - 50 archivos y 823 pruebas en verde; lint y build con código 0; 45/45 `*.ataque`;
-        - guardas, `/acceso-restringido` y `main.tsx` sin cambios contra `73e29c5`.
-      - **Tester, ronda 1: ROTO** por T-01 (media): el cursor volvía a una selección vieja al ocultarse por el envío. Corregido en la vuelta 2.
-      - **Tester, ronda 2: RESISTE.**
-      - **Manager, final de 01b-2: APROBADO.** Su M-01 movió `Seleccion` a `features/auth/types.ts`, con autorización del humano.
-    - **Cierre de 01b:**
-      - Hecho:
-        - O-7 en código (el pie rechaza una URL con usuario o contraseña);
-        - el comentario de `ENLACES_DEL_COLEGIO`;
-        - `Seleccion` en `types.ts`;
-        - `DESIGN.md` §7.12;
-        - `CLAUDE.md`, con los textos del plan (autorizados por el humano para entrar en `<D>`);
-        - `README.md`: frontend con 52 archivos y 875 pruebas; 540 adversarias en 26 archivos;
-        - la hoja de la comprobación completa en `comprobacion-humano.md`.
-      - Manager: CAMBIOS REQUERIDOS por un solo punto, M-01. Una prueba de ataque de `contrasena-r1` supera a veces el límite de 5 s en la suite completa.
-      - **Ronda corta del tester:** `15_000` como límite en las 22 pruebas de `contrasena-r1` y `contrasena-r2`, sin tocar ninguna aserción. Tres corridas en verde.
-      - **Manager: cierre APROBADO** (`revision.md`, "DESIGN-01b — cierre, verificación de M-01").
-      - **Corrida final del orquestador:** 52 archivos y 875 pruebas en verde; lint y build con código 0; 47/47 `*.ataque`.
-    - **Siguiente:**
-      1. El humano revisa el diff (01b-2 es carril sensible) y hace el commit `<D>`, que incluye 01b-2 y el cierre.
-      2. La comprobación completa con la hoja.
-      3. El PR, solo si pasa.
-    - **Después:** programador de 01b-1 → tester (rondas 1 a 3) → manager → commit del humano (`<C>`) → 01b-2 → comprobación completa → cierre → PR.
+- **DESIGN-01 · sistema de diseño D3 ("Vidrio líquido con fondo flotante"), cerrado el 2026-09-28; falta el commit final y el PR.**
+  - **Rama:** `feat/design-01-sistema-de-diseno`, sin push.
+  - **Historial completo:** `docs/trabajo/DESIGN-01-sistema-de-diseno/`, en particular `aprobacion.md`, que registra cada decisión del humano con fecha. Allí están también los planes (`plan.md` para 01a y `plan-01b.md`), las revisiones, los reportes del tester, el resumen del programador y la comprobación del humano. Los planes y la revisión de la dirección C se conservan como antecedente.
+  - **Subentregas y commits del humano:**
+
+    | Commit | Qué entra |
+    |---|---|
+    | `5a32230` | Plan de 01a aprobado |
+    | `041e862` | Ronda 0 de 01a |
+    | `e39500a` | 01a: tokens, vidrio con respaldo sólido, fuentes `@fontsource`, componentes base, `enEspera` en 13 botones, T-14 y el cierre de 01a (borde de campos de 1 px, `--field-border`) |
+    | `0fc961b` | Plan de 01b aprobado |
+    | `8feab74` | Ronda 0 de 01b-1 |
+    | `73e29c5` | 01b-1: fondo con orbes, marco, composición, pie con marcadores y recorte de la sombra |
+    | `d2e5ff7` | 01b-2: botón para mostrar la contraseña, en carril sensible; y el cierre de 01b: O-7, `Seleccion` en `types.ts`, `CLAUDE.md` y `README.md` |
+
+  - **Veredictos:**
+    - Tester: 01a RESISTE en la ronda 1; 01b-1 en la ronda 3; 01b-2 en la ronda 2.
+    - Manager: APROBADO en cada subentrega y en cada cierre.
+  - **Comprobación del humano:** revisión rápida de 7 puntos, todos "bien" (2026-09-28). Lo demás queda cubierto por pruebas automáticas y el contraste por `tokens.test.ts`.
+  - **Suite final del frontend:** 52 archivos y 875 pruebas en verde; 540 adversarias en 26 archivos; lint y build con código 0.
+  - **Reglas nuevas que dejó el encargo:**
+    - `AGENTS.md`, "Trabajo visual": V-08 contra el commit de aprobación, commit por subentrega, ajustes visuales por el carril trivial, una sola ronda del tester para validaciones de configuración, y comprobación humana de máximo 10 minutos y 7 puntos.
+    - `.claude/agents/tester.md`: sin selectores de clase.
+    - `CLAUDE.md`: `enEspera`, escalas anuladas, vidrio, lo fijo fuera del vidrio, `ErrorDeCampo`, `CampoContrasena` y ubicaciones nuevas.
+  - **Siguiente:**
+    1. Commit final del humano: marcas de `DESIGN.md`, este archivo y los documentos de la carpeta.
+    2. `git push` de la rama.
+    3. PR hacia `main`.
+
+    Cuando se fusione, pasa a la sección 1 con su número de PR.
 
 ## 2b. Encargos decididos, por empezar
 - **AUTH-03 · ajustes de cuentas.** Va **después del encargo de dirección visual y antes de CLASES** (decisión del humano, 2026-09-26). Por ahora solo está registrado en los documentos: `docs/PRD.md` (RF-04b, RF-04d, RF-04e, RF-04f), `docs/ARCHITECTURE.md` D-04 y ESSENTIALS "Autenticación" y "Asíncrono". Contenido:
@@ -250,13 +132,12 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
 | Requisitos previos a abrir la plataforma a alumnos | DEPLOY | `docs/ARCHITECTURE.md` §18, "Requisitos previos a abrir la plataforma" |
 | `pagos`, `admin`, `clases`, `LIMPIEZA_DIARIA`, guarda sobre todas las rutas, ESLint contra `addHook` en `handlers/` | Encargos de cada módulo | `docs/trabajo/AUTH-01-autenticacion-basica/aprobacion.md`, "Encargos siguientes" |
 | Opcionales: unitarias del backend sin `globalSetup`; ESLint contra `@testcontainers/*` en `backend/src/**` | Sin encargo asignado | `docs/trabajo/CHORE-01-testcontainers/aprobacion.md` |
-| Dirección visual D3, lo que queda después de 01a: fondo con orbes y su alcance por pantalla; movimiento de los orbes y su `prefers-reduced-motion`; marco y composición de las pantallas; contraste medido sobre los orbes, incluido el borde de los campos (`#5A6472`, el par de borde con menos margen); recorte de la sombra del vidrio en la lista de anuncios del login (el `p-2 -m-2` de 01a es un alivio parcial). Además: el botón para mostrar u ocultar la contraseña y el pie de página (decisión del humano, 2026-09-27). Y la comprobación visual completa del humano (H-01 a H-10 y C-01 a C-12), de la que depende abrir el PR | DESIGN-01b (por replanear) | `docs/DESIGN.md`, `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md` (resumen de 01b), `revision.md` ("DESIGN-01a — cierre") y `aprobacion.md` |
 | `paths` y `cn` de shadcn (D-02 y D-03 de DOCS-01) | El primer encargo que ejecute `shadcn add` | `docs/trabajo/DOCS-01-pendientes/resumen.md` y `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, "Cierre de 01a" |
+| Área segura de iOS en la barra inferior (`viewport-fit=cover` y `env(safe-area-inset-bottom)`): no verificada en DESIGN-01, porque `index.html` no se tocó | El primer encargo que toque `index.html`, o DEPLOY antes de abrir a alumnos | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan-01b.md`, "Riesgos" |
 | M-02 del cierre de DESIGN-01b: varias pruebas de ataque que montan el router tardan de 2 a 2.6 s en la suite completa del frontend, cerca del límite de 5 s. Decidir un `testTimeout` del frontend en `vitest.config.ts` (con autorización del humano) o repartir las pruebas pesadas | Un `chore` | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, "DESIGN-01b — cierre" |
 | `tw-animate-css` instalado y sin uso (R-09 de DESIGN-01) | Un `chore` | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-09 |
 | Radio de las casillas y `--text-display` en móvil (R-10 de DESIGN-01) | El primer encargo que los use | ídem, R-10 |
 | Foco blanco por dentro sobre superficies de color, más allá de los botones rellenos (S-07 de DESIGN-01) | El encargo que construya el bloque destacado o las tarjetas de clase | ídem, S-07 |
-| Si `plan-01b.md` no se escribe enseguida: un `backdrop-filter` convierte al panel en bloque contenedor de lo fijo, así que `FondoAnimado` y la barra inferior no pueden quedar dentro de una superficie de vidrio | DESIGN-01b | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, M-03 de la revisión de los ajustes |
 | Umbral de "fecha límite próxima" para la fila de entrega (`DESIGN.md` §7.7); el PRD no lo define | TAREAS | `docs/DESIGN.md` §7.7 |
 | Contradicción entre PRD §7, "barra lateral con lista de clases", y la barra lateral compacta de `DESIGN.md` §7.4, donde esa lista no cabe (R-01 del plan de DESIGN-01) | CLASES | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-01 |
 | N-02 de AUTH-02b: confirmar en el navegador del humano que Chrome o Edge ya no rellenan el formulario de invitación (algunos navegadores ignoran `autoComplete="off"`). Sin confirmación registrada | Humano | `docs/trabajo/AUTH-02-cuentas-y-correo/revision.md`, "AUTH-02b — verificación de autoComplete" |
@@ -289,7 +170,7 @@ Verificado el 2026-09-26, salvo donde se indica:
 - Regla del firewall de Windows "Campus: bloquear entrada a Docker en redes publicas": existe, habilitada, Inbound, Block, perfil Público, sobre `com.docker.backend.exe`. `daemon.json` sin la opción `"ip"` (no aplica en Docker Desktop 4.48).
 - Red actual: `IZZI-F281`, categoría **Pública**. El humano declara que es la red de su casa y de confianza.
 - **La suite del backend no se corre en una red pública o no confiable sin esa regla aplicada** (`AGENTS.md`, "Pruebas", riesgo residual de Testcontainers; pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`).
-- Git local (2026-09-27): `main` al día con `origin/main` (`6868e4d`, fusión del PR #13). Rama actual: `feat/design-01-sistema-de-diseno`, con tres commits del humano sobre `main`: `5a32230` (plan aprobado), `041e862` (ronda 0) y `e39500a` (01a completa con su cierre). Sin push: la rama no existe en `origin`.
+- Git local (2026-09-27): `main` al día con `origin/main` (`6868e4d`, fusión del PR #13). Rama actual: `feat/design-01-sistema-de-diseno`, con siete commits del humano sobre `main` (`5a32230`, `041e862`, `e39500a`, `0fc961b`, `8feab74`, `73e29c5` y `d2e5ff7`; detalle en la sección 2). Sin push: la rama no existe en `origin` (actualizado el 2026-09-28).
 
 ## 6. Agentes
 Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en el frontmatter de `.claude/agents/*.md`: `arquitecto`, `manager` y `tester` con `opus` y esfuerzo `high`. **El `programador` usa `sonnet` con esfuerzo `medium` a prueba, hasta revisarlo después del encargo CLASES.**

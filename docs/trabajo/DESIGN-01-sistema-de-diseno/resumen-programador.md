@@ -729,3 +729,20 @@ Ninguna. Los 4 puntos se aplicaron tal como los describió el orquestador, dentr
 ### Pendiente o fuera de alcance
 - `README.md`, `ESTADO.md` y la hoja de la comprobación completa en `comprobacion-humano.md` quedan a cargo del orquestador, según `aprobacion.md`.
 - Las marcas de `DESIGN.md` pasan a aprobadas solo después de la comprobación visual completa, que sigue pendiente y no requiere navegador de mi parte.
+
+### Marcas de `docs/DESIGN.md` a "propuesta aprobada (2026-09-28)" (2026-09-28)
+
+Carril trivial, a mano y sin formateador, según la revisión rápida del humano en navegador (7 puntos, todos "bien"; `comprobacion-humano.md`, "DESIGN-01 · revisión rápida del humano"; `aprobacion.md`, "Commit de 01b-2 y comprobación del humano"). **33 marcas** de "propuesta" pasaron a "propuesta aprobada (2026-09-28)", conservando el origen que ya tenían (por ejemplo, "propuesta (cierre de DESIGN-01a), aprobada (2026-09-28)"), sin borrar ninguna marca. Antes de aprobar cada una comprobé su uso en `frontend/src` para confirmar que DESIGN-01 (01a, 01b-1 o 01b-2) la aplicó: tokens y materiales (`--field-border`, derivados `--card`/`--popover`, filtros de vidrio, utilidades `vidrio`/`vidrio-fuerte`/`vidrio-azul`, tokens de orbes), contraste de campo y del icono `--danger`, foco interior blanco también en `destructive`, el corte de 768 px, `enEspera`, posición y trayectoria de los orbes, el recorte de la sombra y el resto de §7.2 (panel de anuncios, pantallas de cuenta), `--input`/borde de campo, `Label`, `ErrorDeCampo`, `hover`, tamaño `enlace`, `CampoContrasena`, el marco (barra, avatar con `inicialesDe`, barra superior bajo 640 px), `Cargando` en píldora, `sonner`, el pie de página completo (§7.12) y el mecanismo de densidad del administrador. Ninguna otra marca de `--field-border`/`--input` quedó sin actualizar: la misma frase de origen se repite en varias tablas y la actualicé en cada una.
+
+**Ninguna marca quedó como "propuesta" sin aprobar tras la revisión** (confirmado con `grep -n "propuesta" docs/DESIGN.md | grep -v "propuesta aprobada"`, sin resultados salvo las dos líneas de la leyenda de §"Marcas" y de §11, que son la definición del sistema de marcas, no un valor). Lo que el humano señaló como "ningún encargo lo ha aplicado todavía" ya estaba resuelto de una de estas dos formas, y no lo toqué:
+- **Ya decía "propuesta aprobada (2026-09-27)"** desde el cierre de DESIGN-01a, antes de que el patrón existiera en código (queda fuera de mi alcance: "lo que ya dice … no cambia"): §7.6 "Tarjeta de clase" (variantes sólidas), §7.7 "Fila de entrega" (fila "Sin entregar"), §7.9 "Tablas densas del administrador" (encabezado de la sección) y §7.10 "Carga" (marcadores en listas de tarjetas).
+- **Sin ninguna marca de origen**, así que no había nada que aprobar: §7.5 "Bloque destacado" (no se ha construido ningún dashboard con bloque destacado), el resto de §7.6 y §7.7 sin marcar, §7.8 "Etiqueta de estado" y `EstadoVacio` en §7.10 ("por construir"). Estos patrones los confirma o corrige el encargo que los aplique (§11), como dice el propio documento.
+- Ninguna observación "sin verificar en pantalla" sigue en el documento: la de §7.2 sobre el alivio parcial del recorte de la sombra ya se sustituyó por la solución de fondo en DESIGN-01b-1 (confirmado con `grep -n "sin verificar en pantalla" docs/DESIGN.md`, sin resultados).
+
+**"Estado de aplicación":** actualicé la línea a "DESIGN-01 cerrado el 2026-09-28", con el resumen de las tres partes (01a, 01b-1, 01b-2 y su cierre) y la referencia a la revisión rápida del humano.
+
+**Verificación** (desde `frontend/`): `npx vitest run` → **52 archivos, 875 pruebas, 875 en verde**, código 0 (`tokens-r1.ataque.test.ts` y `tokens.test.ts`, que leen `DESIGN.md`, corridos primero: 164/164 en verde). `npm run lint` → código 0.
+
+**Archivo tocado:** `docs/DESIGN.md` (a mano, sin formateador). No toqué `CLAUDE.md`, `README.md`, `ESTADO.md` ni ninguna `*.ataque.test.*`. `AGENTS.md`, `docs/ESTADO.md`, `aprobacion.md` y `comprobacion-humano.md` ya estaban modificados por el orquestador antes de mi turno; no los toqué.
+
+**Desviaciones:** ninguna.

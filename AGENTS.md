@@ -142,6 +142,7 @@ Decisión del humano (2026-09-27). Aplica a los encargos de diseño y de interfa
 - **Commits:** el orquestador le pide commit al humano solo al terminar cada subentrega, nunca en pasos intermedios (plan, ronda 0, correcciones).
 - **Ajustes visuales que pide el humano después de ver la pantalla:** van por el carril trivial. El `programador` los aplica y las pruebas quedan en verde, sin plan ni ronda 0. Salvo que toquen pruebas `*.ataque` o lógica: entonces siguen el carril que corresponda.
 - **Validaciones sobre datos que solo escribe el humano en un archivo de configuración** (por ejemplo, los enlaces del pie): no justifican más de una ronda del tester por casos extremos. Lo que quede se anota como observación o como pendiente con destino.
+- **La comprobación humana en navegador es de máximo 10 minutos y máximo 7 puntos: solo lo que las pruebas automáticas no pueden ver. Nada de mediciones manuales de contraste.** El contraste lo verifican las pruebas de tokens. Lo demás se registra como "no verificada por decisión del humano, cubierta por pruebas automáticas". Decisión del humano (2026-09-28).
 
 ## Estilo de código, módulos y sistema de diseño
 La guía de código está en `CLAUDE.md`: estructura de módulos de `features/`, reglas técnicas de tokens y componentes, retornos tempranos, manejo de errores en frontend y backend, y la lista de lo que no se hace. El sistema visual (tokens con valores, tipografía, patrones, densidad por rol y tono) está en `docs/DESIGN.md`. Ambos aplican a cualquier agente, no solo a Claude.

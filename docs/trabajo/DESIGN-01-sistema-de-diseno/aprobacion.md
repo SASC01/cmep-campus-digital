@@ -258,6 +258,23 @@ Como `plan-01b.md` cambia después de `<B>`, el orquestador le pedirá al humano
   - Después, `README.md`, `ESTADO.md` y la hoja de la comprobación completa en `comprobacion-humano.md`, a cargo del orquestador.
   - Las marcas de `DESIGN.md` pasan a aprobadas solo después de la comprobación completa.
 
+## Commit de 01b-2 y comprobación del humano — 2026-09-28
+- **`<D>` = `d2e5ff7`** (`d2e5ff760da7cf3677f1609471f488440efce2af`, "feat(design-01): parte 01b-2 (botón para mostrar la contraseña) y cierre de 01b", commit del humano, 26 archivos).
+  - El humano lo reportó como `d2eff7`, que no existe; el orquestador verificó el hash real en `git log`.
+  - Después del commit, el árbol quedó limpio.
+- **Comprobación en navegador (decisión del humano):** la hoja completa (H-01 a H-17 y C-01 a C-26) se sustituye por una revisión rápida de 7 puntos. Lo demás queda como "no verificada por decisión del humano, cubierta por pruebas automáticas". La medición manual del contraste se descarta: lo cubre `tokens.test.ts`.
+  - Registro en `comprobacion-humano.md`, "DESIGN-01 · revisión rápida del humano".
+- **Regla nueva en `AGENTS.md`, "Trabajo visual":** "La comprobación humana en navegador es de máximo 10 minutos y máximo 7 puntos: solo lo que las pruebas automáticas no pueden ver. Nada de mediciones manuales de contraste."
+- **Siguiente:** con los 7 resultados, y si todo está bien, se hace el cierre final:
+  - las marcas de `DESIGN.md` pasan a "propuesta aprobada (fecha)";
+  - se actualiza `ESTADO.md`;
+  - el orquestador prepara los comandos del commit final y del PR de DESIGN-01.
+
+## Resultado de la revisión rápida y cierre final — 2026-09-28
+- **Revisión rápida del humano:** los 7 puntos, "bien" (`comprobacion-humano.md`).
+- **Marcas de `DESIGN.md`:** pasan a "propuesta aprobada (2026-09-28)" los valores y patrones que aplicó DESIGN-01. Lo que ningún encargo ha aplicado todavía sigue como propuesta, según `DESIGN.md` §11, y se confirma en el encargo que lo aplique. Lo aplica el programador por el carril trivial.
+- **Después:** `ESTADO.md`, el commit final del humano y el PR de DESIGN-01 hacia `main`.
+
 ## Pendientes para encargos siguientes
 - **ADMIN:** "Dar rol accesible a la ficha de cuenta (role=region con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de fichaDe." (R-15).
 - **DESIGN-01b:** plan detallado en `plan-01b.md`, aprobado el 2026-09-27. Sigue en la misma rama, `feat/design-01-sistema-de-diseno`, desde `e39500a`. Ya no sale de una rama nueva después de fusionar 01a, porque el PR se abre hasta que pase la comprobación completa.

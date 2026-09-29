@@ -51,6 +51,24 @@ describe("authService", () => {
     expect(fetchMock.mock.calls.map(([entrada]) => String(entrada))).toEqual(["/api/auth/logout"])
   })
 
+  it("registroMaestro guarda el token de acceso y deja la sesión iniciada", async () => {
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(respuestaJson(201, { tokenAcceso: "maestro-nuevo" })),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const { obtenerToken, registroMaestro } = await import("./authService")
+
+    await registroMaestro({
+      nombre: "Nuevo Maestro",
+      email: "maestro@ejemplo.mx",
+      contrasena: "contrasena-nueva-1234",
+      token: "a".repeat(43),
+    })
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/api/auth/registro-maestro")
+    expect(obtenerToken()).toBe("maestro-nuevo")
+  })
+
   it("logout limpia el token aunque la red falle", async () => {
     vi.stubGlobal(
       "fetch",

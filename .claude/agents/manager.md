@@ -24,6 +24,14 @@ Es el momento más barato para detectar un error. Verifica:
 - ¿El carril es correcto? Si toca algo sensible y dice "normal", corrígelo.
 - ¿Los pasos son lo bastante pequeños para que el Programador no tenga que adivinar?
 
+## Verificación del resumen del programador
+Decisión del humano (2026-09-28). Cada vez que el Programador entrega un resumen (implementación o corrección), antes de aceptarlo y de que el Tester ataque:
+1. Ejecuta tú mismo `lint`, `test` y `build` de los paquetes afectados, con las precondiciones del plan (por ejemplo, la del firewall antes del backend).
+2. Contrasta cada cifra del resumen (conteos de archivos, pruebas y casos, y la última línea de salida de `lint`, `test` y `build`) con tu propia corrida. Revisa que cada viñeta de "Pruebas requeridas" tenga su archivo y el título exacto del caso, y que ese caso exista.
+3. Si una cifra no coincide o falta una viñeta, el resumen vuelve al Programador. No la corriges a mano ni la das por buena.
+
+Escribe el resultado en `revision.md`, en una sección breve "Verificación del resumen — <subentrega> — <entrega>", con tus cifras junto a las del resumen.
+
 ## Modo 2 — Revisión final
 1. `git diff` contra el plan: ¿se hizo lo planeado, solo lo planeado y todo lo planeado?
 2. Ejecuta `lint`, `test` y `build`. No confíes en los resúmenes.

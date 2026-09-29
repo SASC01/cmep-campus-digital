@@ -11,26 +11,44 @@ import { obtenerDb } from "../src/adapters/db/cliente.js"
 // detrás de la fila retenida o ya haya terminado. Así el orden de llegada no depende de cuánto
 // tarde argon2 ni de la carga de la suite.
 
+// AUTH-03b: se agrega "enlaces_registro" para la carrera entre revocar un enlace y registrarse
+// con él (registrarMaestroConEnlace y revocarEnlaceRegistro toman FOR NO KEY UPDATE sobre esa
+// fila, Enmienda 6).
 export interface FilaRetenida {
-  tabla: "usuarios" | "sesiones"
+  tabla: "usuarios" | "sesiones" | "enlaces_registro"
   id: string
 }
 
 // Las operaciones que llaman a un adaptador directamente devuelven null.
 export type Operacion = () => Promise<LightMyRequestResponse | null>
 
+// Ejecutor de SQL parametrizado con la transacción retenedora, para escribir algo justo antes de
+// soltar la fila (AUTH-03a, ronda 1 del tester: la carrera "entre el filtro previo y el bloqueo").
+export type EjecutorSqlDeLaRetencion = (
+  sql: TemplateStringsArray,
+  ...valores: unknown[]
+) => Promise<number>
+
 const esperar = (ms: number): Promise<void> => new Promise((resolver) => setTimeout(resolver, ms))
 
 export const conFilaRetenida = async (
   fila: FilaRetenida,
   operaciones: readonly Operacion[],
+  antesDeSoltar?: (sql: EjecutorSqlDeLaRetencion) => Promise<void>,
 ): Promise<(LightMyRequestResponse | null)[]> => {
   const lanzadas: Promise<LightMyRequestResponse | null>[] = []
   await obtenerDb().$transaction(
     async (tx) => {
-      await (fila.tabla === "usuarios"
-        ? tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${fila.id}::uuid FOR UPDATE`
-        : tx.$queryRaw`SELECT id FROM sesiones WHERE id = ${fila.id}::uuid FOR UPDATE`)
+      const consultaPorTabla: Record<FilaRetenida["tabla"], () => Promise<unknown>> = {
+        usuarios: () =>
+          tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${fila.id}::uuid FOR UPDATE`,
+        sesiones: () =>
+          tx.$queryRaw`SELECT id FROM sesiones WHERE id = ${fila.id}::uuid FOR UPDATE`,
+        enlaces_registro: () =>
+          tx.$queryRaw`SELECT id FROM enlaces_registro WHERE id = ${fila.id}::uuid FOR UPDATE`,
+      }
+      await consultaPorTabla[fila.tabla]()
+      const sql: EjecutorSqlDeLaRetencion = (texto, ...valores) => tx.$executeRaw(texto, ...valores)
       const [propio] = await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`
       if (!propio) throw new Error("Precondición: no se obtuvo el pid de la transacción retenedora")
 
@@ -67,6 +85,7 @@ export const conFilaRetenida = async (
           `Precondición: la operación ${indice + 1} no llegó a la fila retenida en 10 s`,
         ).toBe(true)
       }
+      if (antesDeSoltar) await antesDeSoltar(sql)
       // Margen para que la última operación termine de formarse antes de soltar la fila.
       await esperar(100)
     },

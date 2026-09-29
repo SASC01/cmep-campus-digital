@@ -65,13 +65,70 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     expect(coincidencias(/\bring-|\bfocus:/)).toEqual([])
   })
 
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 13 enEspera", () => {
+  // AUTH-03b ronda 0 (C-15, Enmienda 5): de 13 a 19 enEspera=. Los 13 de hoy se quedan en sus
+  // archivos, y se suman los 6 botones de la lista cerrada de §D-B7, una aparición cada uno: "Crear
+  // mi cuenta", "Generar enlace", "Copiar enlace", "Cargar más" de los registrados, y "Sí, revocar" y
+  // "Cargar más enlaces" en tabla-enlaces.tsx o en el componente de su fila, si se extrae. Sigue
+  // protegiendo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número
+  // de botones con espera cambie solo con el plan (un botón de más o de menos, o un envoltorio que
+  // reparta enEspera, vuelve a poner la prueba en rojo; R-16).
+  // AUTH-03c ronda 0 (C-17, §D-C9): de 19 a 20 enEspera=. Se suma "Enviar invitaciones", una
+  // aparición en features/admin/components/formulario-invitacion-masiva.tsx (mutación), a la lista
+  // fija de archivos. Ningún otro botón nuevo de 03c lo lleva: ResultadoInvitacionMasiva no tiene
+  // botones y "Generar enlace" solo pasa a outline. El resto de la lista, "Sí, revocar" y "Cargar más
+  // enlaces" (2, en features/admin/components/ con al menos 1 en tabla-enlaces.tsx), no cambia. Sigue
+  // protegiendo lo mismo que C-15: ningún `disabled` en JSX, aria-busy y aria-disabled solo en
+  // Button, y que el número y el lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 20 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
-    expect(coincidencias(/enEspera=/, soloTsx)).toHaveLength(13)
+    const usos = coincidencias(/enEspera=/, soloTsx)
+    expect(usos).toHaveLength(20)
+
+    const porArchivo = new Map<string, number>()
+    for (const uso of usos) {
+      const ruta = uso.split(":")[0] ?? ""
+      porArchivo.set(ruta, (porArchivo.get(ruta) ?? 0) + 1)
+    }
+    const fijos: Record<string, number> = {
+      // Los 13 de antes de 03b.
+      "/src/components/layout/barra-superior.tsx": 1,
+      "/src/features/admin/components/buscador-de-cuenta.tsx": 1,
+      "/src/features/admin/components/contrasena-temporal.tsx": 1,
+      "/src/features/admin/components/ficha-de-cuenta.tsx": 1,
+      "/src/features/admin/components/formulario-corregir-correo.tsx": 1,
+      "/src/features/admin/components/formulario-invitar-maestro.tsx": 1,
+      "/src/features/auth/acceso-restringido-view.tsx": 1,
+      "/src/features/auth/components/formulario-cambiar-contrasena.tsx": 2,
+      "/src/features/auth/components/formulario-login.tsx": 1,
+      "/src/features/auth/components/formulario-nueva-contrasena.tsx": 1,
+      "/src/features/auth/components/formulario-recuperar.tsx": 1,
+      "/src/features/auth/components/formulario-registro.tsx": 1,
+      // C-15 (1), (2), (3) y (6).
+      "/src/features/auth/components/formulario-registro-maestro.tsx": 1,
+      "/src/features/admin/components/formulario-generar-enlace.tsx": 1,
+      "/src/features/admin/components/enlace-nuevo.tsx": 1,
+      "/src/features/admin/components/registrados-del-enlace.tsx": 1,
+      // C-17 (AUTH-03c): "Enviar invitaciones".
+      "/src/features/admin/components/formulario-invitacion-masiva.tsx": 1,
+    }
+    for (const [ruta, cuantos] of Object.entries(fijos)) {
+      expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
+    }
+    // C-15 (4) y (5): "Sí, revocar" y "Cargar más enlaces", en tabla-enlaces.tsx o en el componente
+    // de su fila; los dos viven en features/admin/components/ y tabla-enlaces.tsx lleva al menos uno.
+    const resto = [...porArchivo].filter(([ruta]) => !(ruta in fijos))
+    expect(
+      resto.every(([ruta]) => ruta.startsWith("/src/features/admin/components/")),
+      `enEspera= fuera de la lista cerrada: ${resto.map(([r]) => r).join(", ")}`,
+    ).toBe(true)
+    expect(resto.reduce((total, [, cuantos]) => total + cuantos, 0)).toBe(2)
+    expect(porArchivo.get("/src/features/admin/components/tabla-enlaces.tsx") ?? 0).toBeGreaterThan(
+      0,
+    )
   })
 
   it("V-07: vidrio y vidrio fuerte solo en la lista final del plan (igualdad exacta), sin vidrio azul", () => {
@@ -102,13 +159,28 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
 })
 
 describe("ataque (DESIGN-01a r1): rojo sobre vidrio (V-13) y Toaster único", () => {
+  // AUTH-03b ronda 0 (C-16, Enmienda 5): la insignia `danger` de components/ui/badge.tsx pinta
+  // text-danger sobre su fondo --danger-soft sólido, en la misma cadena de clases, y el archivo no usa
+  // text-destructive. Sigue protegiendo que el texto rojo solo aparezca donde el plan lo permite
+  // (sólido, --danger-soft o iconos), nunca sobre vidrio al 62 %; ningún archivo de features/ gana
+  // texto rojo (la insignia "Revocado" usa <Badge variant="danger">).
   it("V-13: texto rojo solo donde el plan lo permite (sólido, --danger-soft o iconos)", () => {
-    expect(rutasDe(coincidencias(/\btext-(destructive|danger)([^-\w]|$)/, soloTsx))).toEqual([
+    const rojo = /\btext-(destructive|danger)([^-\w]|$)/
+    expect(rutasDe(coincidencias(rojo, soloTsx))).toEqual([
       "/src/components/error-de-campo.tsx",
       "/src/components/mensaje-error.tsx",
+      "/src/components/ui/badge.tsx",
       "/src/components/ui/sonner.tsx",
       "/src/features/auth/acceso-restringido-view.tsx",
     ])
+    const enBadge = coincidencias(rojo, soloTsx).filter((l) =>
+      l.startsWith("/src/components/ui/badge.tsx:"),
+    )
+    expect(enBadge.length, "badge.tsx no pinta la variante danger").toBeGreaterThan(0)
+    for (const linea of enBadge) {
+      expect(linea, "rojo en badge.tsx sin su fondo --danger-soft").toMatch(/\bbg-danger-soft\b/)
+      expect(linea, "badge.tsx usa text-destructive").not.toMatch(/\btext-destructive\b/)
+    }
   })
 
   it("en acceso restringido, el rojo solo va en los dos iconos (aria-hidden), nunca en texto", () => {

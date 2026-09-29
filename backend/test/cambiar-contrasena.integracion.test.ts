@@ -33,16 +33,16 @@ const login = (email: string, contrasena: string) =>
 const cambiar = (
   tokenAcceso: string,
   {
-    contrasenaActual,
     contrasenaNueva,
     cookie,
-  }: { contrasenaActual: string; contrasenaNueva: string; cookie?: string },
+    extra = {},
+  }: { contrasenaNueva: string; cookie?: string; extra?: Record<string, unknown> },
 ) =>
   app.inject({
     method: "POST",
     url: "/api/auth/cambiar-contrasena",
     headers: { authorization: `Bearer ${tokenAcceso}` },
-    payload: { contrasenaActual, contrasenaNueva },
+    payload: { contrasenaNueva, ...extra },
     ...(cookie === undefined ? {} : { cookies: { campus_refresco: cookie } }),
   })
 
@@ -55,10 +55,9 @@ const crearConCambioPendiente = async () => {
 }
 
 describe("POST /api/auth/cambiar-contrasena", () => {
-  it("con la bandera → 204, la bandera queda en false y /me responde 200", async () => {
+  it("con la cookie viva del login con la temporal → 204, la bandera queda en false y /me responde 200", async () => {
     const { usuario, tokenAcceso, cookie } = await crearConCambioPendiente()
     const respuesta = await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
       contrasenaNueva: "contrasena-nueva-1234",
       cookie,
     })
@@ -75,68 +74,87 @@ describe("POST /api/auth/cambiar-contrasena", () => {
   it("conserva la sesión de la cookie y revoca las demás", async () => {
     const { usuario, tokenAcceso, cookie } = await crearConCambioPendiente()
     await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: new Date(Date.now() + 60_000) })
-    await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
-      contrasenaNueva: "contrasena-nueva-1234",
-      cookie,
-    })
+    await cambiar(tokenAcceso, { contrasenaNueva: "contrasena-nueva-1234", cookie })
     expect(await contarSesionesVivas(usuario.id)).toBe(1)
     const sesiones = await leerSesiones(usuario.id)
     expect(sesiones.filter((sesion) => sesion.revocadaEn === null)).toHaveLength(1)
   })
 
-  it("sin cookie revoca todas las sesiones", async () => {
-    const { usuario, tokenAcceso } = await crearConCambioPendiente()
-    await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
+  it("sin cookie → 401 SESION_INVALIDA, sin gastar intentos: 6 sin cookie y una con cookie válida dan 204", async () => {
+    const { usuario, tokenAcceso, cookie } = await crearConCambioPendiente()
+    for (let intento = 0; intento < 6; intento += 1) {
+      const respuesta = await cambiar(tokenAcceso, { contrasenaNueva: "contrasena-nueva-1234" })
+      expect(respuesta.statusCode).toBe(401)
+      expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("SESION_INVALIDA")
+    }
+    const conCookie = await cambiar(tokenAcceso, {
       contrasenaNueva: "contrasena-nueva-1234",
+      cookie,
     })
-    expect(await contarSesionesVivas(usuario.id)).toBe(0)
+    expect(conCookie.statusCode).toBe(204)
+    expect(await contarSesionesVivas(usuario.id)).toBe(1)
   })
 
-  it("temporal incorrecta → 400 CONTRASENA_ACTUAL_INCORRECTA (no 401)", async () => {
+  it("con una cookie revocada → 401 SESION_INVALIDA", async () => {
+    const { usuario, tokenAcceso } = await crearConCambioPendiente()
+    const revocada = await crearSesionDePrueba({
+      usuarioId: usuario.id,
+      expiraEn: new Date(Date.now() + 60_000),
+      revocadaEn: new Date(),
+    })
+    const respuesta = await cambiar(tokenAcceso, {
+      contrasenaNueva: "contrasena-nueva-1234",
+      cookie: revocada.token,
+    })
+    expect(respuesta.statusCode).toBe(401)
+    expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("SESION_INVALIDA")
+  })
+
+  it("con la cookie de otro usuario → 401 SESION_INVALIDA, sin tocar las sesiones ajenas", async () => {
     const { tokenAcceso } = await crearConCambioPendiente()
+    const otro = await crearUsuarioDePrueba(ids)
+    const sesionDeOtro = await login(otro.email, otro.contrasena)
+    const cookieAjena = valorCookieRefresco(sesionDeOtro)
+
     const respuesta = await cambiar(tokenAcceso, {
-      contrasenaActual: "una-contrasena-equivocada",
       contrasenaNueva: "contrasena-nueva-1234",
+      cookie: cookieAjena,
     })
-    expect(respuesta.statusCode).toBe(400)
-    expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe(
-      "CONTRASENA_ACTUAL_INCORRECTA",
-    )
+    expect(respuesta.statusCode).toBe(401)
+    expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("SESION_INVALIDA")
+    expect(await contarSesionesVivas(otro.id)).toBe(1)
   })
 
-  it("nueva igual a la actual → 400 CONTRASENA_REPETIDA", async () => {
-    const { usuario, tokenAcceso } = await crearConCambioPendiente()
-    const respuesta = await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
-      contrasenaNueva: usuario.contrasena,
-    })
+  it("la nueva igual a la temporal, con cookie → 400 CONTRASENA_REPETIDA", async () => {
+    const { usuario, tokenAcceso, cookie } = await crearConCambioPendiente()
+    const respuesta = await cambiar(tokenAcceso, { contrasenaNueva: usuario.contrasena, cookie })
     expect(respuesta.statusCode).toBe(400)
     expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("CONTRASENA_REPETIDA")
   })
 
-  it("nueva corta → 400", async () => {
-    const { usuario, tokenAcceso } = await crearConCambioPendiente()
+  it("un contrasenaActual en el cuerpo se ignora", async () => {
+    const { tokenAcceso, cookie } = await crearConCambioPendiente()
     const respuesta = await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
-      contrasenaNueva: "corta1",
+      contrasenaNueva: "contrasena-nueva-1234",
+      cookie,
+      extra: { contrasenaActual: "lo-que-sea" },
     })
+    expect(respuesta.statusCode).toBe(204)
+  })
+
+  it("nueva corta → 400", async () => {
+    const { tokenAcceso, cookie } = await crearConCambioPendiente()
+    const respuesta = await cambiar(tokenAcceso, { contrasenaNueva: "corta1", cookie })
     expect(respuesta.statusCode).toBe(400)
   })
 
-  it("el 6.º intento con temporal incorrecta responde 429", async () => {
-    const { usuario, tokenAcceso } = await crearConCambioPendiente()
+  it("5 repetidas con cookie → la 6.ª también es 429", async () => {
+    const { usuario, tokenAcceso, cookie } = await crearConCambioPendiente()
     for (let intento = 0; intento < 5; intento += 1) {
-      await cambiar(tokenAcceso, {
-        contrasenaActual: "mala",
-        contrasenaNueva: "contrasena-nueva-1234",
-      })
+      const respuesta = await cambiar(tokenAcceso, { contrasenaNueva: usuario.contrasena, cookie })
+      expect(respuesta.statusCode).toBe(400)
     }
-    const sexto = await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
-      contrasenaNueva: "contrasena-nueva-1234",
-    })
+    const sexto = await cambiar(tokenAcceso, { contrasenaNueva: "contrasena-nueva-1234", cookie })
     expect(sexto.statusCode).toBe(429)
   })
 
@@ -144,21 +162,22 @@ describe("POST /api/auth/cambiar-contrasena", () => {
     const respuesta = await app.inject({
       method: "POST",
       url: "/api/auth/cambiar-contrasena",
-      payload: { contrasenaActual: "a", contrasenaNueva: "contrasena-nueva-1234" },
+      payload: { contrasenaNueva: "contrasena-nueva-1234" },
     })
     expect(respuesta.statusCode).toBe(401)
   })
 
-  it("un restringido con la bandera puede cambiarla → 204", async () => {
+  it("un restringido con la bandera, con su cookie → 204", async () => {
     const usuario = await crearUsuarioDePrueba(ids, {
       debeCambiarContrasena: true,
       accesoRestringido: true,
     })
     const sesion = await login(usuario.email, usuario.contrasena)
+    const cookie = valorCookieRefresco(sesion)
     const { tokenAcceso } = sesion.json<{ tokenAcceso: string }>()
     const respuesta = await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
       contrasenaNueva: "contrasena-nueva-1234",
+      cookie,
     })
     expect(respuesta.statusCode).toBe(204)
   })
@@ -166,10 +185,11 @@ describe("POST /api/auth/cambiar-contrasena", () => {
   it("un usuario sin la bandera responde 409 CAMBIO_NO_REQUERIDO", async () => {
     const usuario = await crearUsuarioDePrueba(ids)
     const sesion = await login(usuario.email, usuario.contrasena)
+    const cookie = valorCookieRefresco(sesion)
     const { tokenAcceso } = sesion.json<{ tokenAcceso: string }>()
     const respuesta = await cambiar(tokenAcceso, {
-      contrasenaActual: usuario.contrasena,
       contrasenaNueva: "contrasena-nueva-1234",
+      cookie,
     })
     expect(respuesta.statusCode).toBe(409)
     expect(respuesta.json<{ error: { codigo: string } }>().error.codigo).toBe("CAMBIO_NO_REQUERIDO")

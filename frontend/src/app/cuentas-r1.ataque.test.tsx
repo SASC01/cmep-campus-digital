@@ -67,8 +67,9 @@ const renderEn = async (ruta: string) => {
 // El QueryClient del último render, para inspeccionar la caché sin cambiar la firma de renderEn.
 const clienteActual: { queryClient: QueryClient | undefined } = { queryClient: undefined }
 
-const llenarCambio = (actual: string, nueva: string, confirmacion = nueva) => {
-  fireEvent.change(screen.getByLabelText("Contraseña temporal"), { target: { value: actual } })
+// AUTH-03a ronda 0 (C-5): /cambiar-contrasena ya no tiene el campo "Contraseña temporal"; se llenan
+// solo la nueva y su confirmación. Lo que protege cada caso que la usa no cambia.
+const llenarCambio = (nueva: string, confirmacion = nueva) => {
   fireEvent.change(screen.getByLabelText("Contraseña nueva"), { target: { value: nueva } })
   fireEvent.change(screen.getByLabelText("Confirma la contraseña nueva"), {
     target: { value: confirmacion },
@@ -199,7 +200,7 @@ describe("ataque (AUTH-02b r1): restringido con cambio pendiente", () => {
     const router = await renderEn("/cambiar-contrasena")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+    llenarCambio("mi-clave-propia-1")
 
     expect(await screen.findByRole("heading", { name: "Acceso restringido" })).toBeVisible()
     expect(router.state.location.pathname).toBe("/acceso-restringido")
@@ -209,7 +210,9 @@ describe("ataque (AUTH-02b r1): restringido con cambio pendiente", () => {
 })
 
 describe("ataque (AUTH-02b r1): la temporal del usuario después de cambiarla", () => {
-  it("tras cambiarla y llegar al dashboard, ni la temporal ni la nueva quedan en la caché de mutaciones", async () => {
+  // AUTH-03a ronda 0 (C-5): /cambiar-contrasena ya no pide la temporal, así que la única contraseña
+  // que pasa por la mutación es la nueva. Sigue protegiendo que no quede en la caché de mutaciones.
+  it("tras cambiarla y llegar al dashboard, la contraseña nueva no queda en la caché de mutaciones", async () => {
     let cambiada = false
     stubFetch((ruta) => {
       if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "t" })
@@ -223,7 +226,7 @@ describe("ataque (AUTH-02b r1): la temporal del usuario después de cambiarla", 
     const router = await renderEn("/cambiar-contrasena")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+    llenarCambio("mi-clave-propia-1")
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
     await esperarUnMomento()
 
@@ -234,9 +237,6 @@ describe("ataque (AUTH-02b r1): la temporal del usuario después de cambiarla", 
         .getMutationCache()
         .getAll()
         .map((m) => m.state),
-    )
-    expect(mutaciones, "la contraseña temporal sigue en la caché de mutaciones").not.toContain(
-      "Temporal-XYZ-1",
     )
     expect(mutaciones, "la contraseña nueva sigue en la caché de mutaciones").not.toContain(
       "mi-clave-propia-1",
@@ -264,7 +264,7 @@ describe("ataque (AUTH-02b r1): 401 en /api/auth/cambiar-contrasena", () => {
     const router = await renderEn("/cambiar-contrasena")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+    llenarCambio("mi-clave-propia-1")
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
     expect(llamadasA(fetchMock, "/api/auth/cambiar-contrasena")).toBe(2)
@@ -286,7 +286,7 @@ describe("ataque (AUTH-02b r1): 401 en /api/auth/cambiar-contrasena", () => {
     const { irA } = await import("@/services/navegacion")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+    llenarCambio("mi-clave-propia-1")
 
     await waitFor(() => expect(irA).toHaveBeenCalledWith("/login"))
     expect(irA).toHaveBeenCalledTimes(1)
@@ -347,7 +347,7 @@ describe("ataque (AUTH-02b r1): errores del servidor al cambiar la contraseña",
       const router = await renderEn("/cambiar-contrasena")
       await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-      llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+      llenarCambio("mi-clave-propia-1")
 
       expect(await screen.findByRole("alert")).toHaveTextContent(texto)
       expect(router.state.location.pathname).toBe("/cambiar-contrasena")
@@ -363,9 +363,7 @@ describe("ataque (AUTH-02b r1): errores del servidor al cambiar la contraseña",
     await renderEn("/cambiar-contrasena")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    fireEvent.change(screen.getByLabelText("Contraseña temporal"), {
-      target: { value: "Temporal-XYZ-1" },
-    })
+    // AUTH-03a ronda 0 (C-5): sin el campo de la temporal.
     fireEvent.change(screen.getByLabelText("Contraseña nueva"), {
       target: { value: "mi-clave-propia-1" },
     })
@@ -395,7 +393,7 @@ describe("ataque (AUTH-02b r1): errores del servidor al cambiar la contraseña",
     const router = await renderEn("/cambiar-contrasena")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+    llenarCambio("mi-clave-propia-1")
 
     await waitFor(
       () =>
@@ -417,7 +415,7 @@ describe("ataque (AUTH-02b r1): errores del servidor al cambiar la contraseña",
     await renderEn("/cambiar-contrasena")
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
 
-    llenarCambio("Temporal-XYZ-1", "mi-clave-propia-1")
+    llenarCambio("mi-clave-propia-1")
 
     const alerta = await screen.findByRole("alert")
     expect(alerta).not.toHaveTextContent("No pudimos completar la operación. Inténtalo de nuevo.")

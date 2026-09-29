@@ -1,4 +1,8 @@
-import { meRespuestaSchema, sinContenidoSchema } from "@campus/shared"
+import {
+  datosDeInvitacionRespuestaSchema,
+  meRespuestaSchema,
+  sinContenidoSchema,
+} from "@campus/shared"
 import {
   queryOptions,
   useMutation,
@@ -9,19 +13,28 @@ import {
 import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
 
+import { sacarDeLaCacheAlAsentar } from "@/lib/cache-de-mutaciones"
 import { api, ApiError, esApiError } from "@/services/apiClient"
-import { haySesion, login, logout, registro, restaurarSesion } from "@/services/authService"
+import {
+  haySesion,
+  login,
+  logout,
+  registro,
+  registroMaestro,
+  restaurarSesion,
+} from "@/services/authService"
 
 import { ANUNCIOS_DE_EJEMPLO, TEXTOS_NUEVA_CONTRASENA } from "./data"
 import { leerTokenDelFragmento, ordenarAnuncios, rutaTrasLogin } from "./lib"
 import type {
   Anuncio,
   CambiarContrasena,
+  EstablecerContrasena,
   EstadoDeNavegacionLogin,
   Login,
-  NuevaContrasenaConToken,
   Recuperar,
   Registro,
+  RegistroMaestro,
   TipoEnlace,
 } from "./types"
 
@@ -51,6 +64,9 @@ export const consultaMe = queryOptions({
 
 export const useMe = () => useQuery(consultaMe)
 
+const CLAVE_MUTACION_LOGIN = ["login"] as const
+const CLAVE_MUTACION_REGISTRO = ["registro"] as const
+
 // Tras entrar, /me decide el destino (RF-05): nunca el token ni el formulario. El /me en caché puede
 // ser de otra cuenta (T-02: alguien vuelve a /login y entra con otra), así que se descarta antes de
 // consultar el de la cuenta nueva: una sola petición a /me, siempre fresca.
@@ -59,10 +75,13 @@ const consultarMeDeLaCuentaNueva = (queryClient: QueryClient) => {
   return queryClient.fetchQuery(consultaMe)
 }
 
+// AUTH-03a (MF-05 de AUTH-02b): sale de la caché de mutaciones al asentarse, como useNuevaContrasena
+// y useCambiarContrasena, para que la contraseña de login no quede en memoria.
 export const useLogin = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   return useMutation({
+    mutationKey: CLAVE_MUTACION_LOGIN,
     mutationFn: async (credenciales: Login) => {
       await login(credenciales)
       return consultarMeDeLaCuentaNueva(queryClient)
@@ -70,14 +89,18 @@ export const useLogin = () => {
     onSuccess: async (me) => {
       await navigate(rutaTrasLogin(me), { replace: true })
     },
+    onSettled: () => sacarDeLaCacheAlAsentar(queryClient, CLAVE_MUTACION_LOGIN),
+    gcTime: 0,
   })
 }
 
-// Registro con sesión iniciada (P-01): mismo camino que el login.
+// Registro con sesión iniciada (P-01): mismo camino que el login. AUTH-03a: misma salida de la
+// caché de mutaciones que el login.
 export const useRegistro = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   return useMutation({
+    mutationKey: CLAVE_MUTACION_REGISTRO,
     mutationFn: async (datos: Registro) => {
       await registro(datos)
       return consultarMeDeLaCuentaNueva(queryClient)
@@ -85,6 +108,29 @@ export const useRegistro = () => {
     onSuccess: async (me) => {
       await navigate(rutaTrasLogin(me), { replace: true })
     },
+    onSettled: () => sacarDeLaCacheAlAsentar(queryClient, CLAVE_MUTACION_REGISTRO),
+    gcTime: 0,
+  })
+}
+
+const CLAVE_MUTACION_REGISTRO_MAESTRO = ["registro-maestro"] as const
+
+// AUTH-03b, §D-B6: registro de maestro con un enlace de registro vivo; deja la sesión iniciada
+// (N-03), mismo patrón que useRegistro.
+export const useRegistroMaestro = () => {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  return useMutation({
+    mutationKey: CLAVE_MUTACION_REGISTRO_MAESTRO,
+    mutationFn: async (datos: RegistroMaestro) => {
+      await registroMaestro(datos)
+      return consultarMeDeLaCuentaNueva(queryClient)
+    },
+    onSuccess: async (me) => {
+      await navigate(rutaTrasLogin(me), { replace: true })
+    },
+    onSettled: () => sacarDeLaCacheAlAsentar(queryClient, CLAVE_MUTACION_REGISTRO_MAESTRO),
+    gcTime: 0,
   })
 }
 
@@ -110,20 +156,11 @@ export const useRecuperar = () =>
       api("/api/auth/recuperar", { method: "POST", body: datos, schema: sinContenidoSchema }),
   })
 
-// DEC-18/T-01 (ronda 2): el token y la contraseña no pueden depender de cuándo React desmonte el
-// formulario para salir de la caché de mutaciones. Una navegación de React Router puede tardar más
-// (transición de baja prioridad) que la propia espera de quien vigila la caché, así que se saca la
-// mutación en cuanto se asienta (éxito o error), sin esperar al desmontaje. gcTime 0 queda como
-// defensa adicional para cualquier otra ruta de limpieza (por ejemplo, si el observador ya no existe).
-const sacarDeLaCacheAlAsentar = (queryClient: QueryClient, mutationKey: readonly unknown[]) => {
-  const cache = queryClient.getMutationCache()
-  for (const mutacion of cache.findAll({ mutationKey })) cache.remove(mutacion)
-}
-
 const CLAVE_MUTACION_NUEVA_CONTRASENA = ["nueva-contrasena"] as const
 
-// DEC-17: /restablecer (recuperación) y /establecer-contrasena (invitación) comparten forma y
-// esquema; solo cambian la ruta y el aviso que se muestra en /login. No inician sesión (S-04).
+// DEC-17: /restablecer (recuperación) y /establecer-contrasena (invitación) comparten forma;
+// solo cambian la ruta y el aviso que se muestra en /login. No inician sesión (S-04). AUTH-03a:
+// el cuerpo admite un nombre opcional (§D-A2), que /restablecer descarta en silencio (zod).
 export const useNuevaContrasena = (tipo: TipoEnlace) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -131,7 +168,7 @@ export const useNuevaContrasena = (tipo: TipoEnlace) => {
   const aviso = TEXTOS_NUEVA_CONTRASENA[tipo].avisoLogin
   return useMutation({
     mutationKey: CLAVE_MUTACION_NUEVA_CONTRASENA,
-    mutationFn: (datos: NuevaContrasenaConToken) =>
+    mutationFn: (datos: EstablecerContrasena) =>
       api(ruta, { method: "POST", body: datos, schema: sinContenidoSchema }),
     onSuccess: async () => {
       const estado: EstadoDeNavegacionLogin = { aviso }
@@ -141,6 +178,26 @@ export const useNuevaContrasena = (tipo: TipoEnlace) => {
     gcTime: 0,
   })
 }
+
+const CLAVE_DATOS_DE_INVITACION = ["datos-de-invitacion"] as const
+
+// AUTH-03a, §D-A2: POST /auth/invitacion. La clave es fija, sin el token (R-09): el token vive
+// solo en el estado de React que lo lee (useTokenDelEnlace) y en el cierre de queryFn hasta que se
+// recolecta (gcTime 0), nunca en la clave, en meta ni en data de la consulta.
+export const useDatosDeInvitacion = (token: string) =>
+  useQuery({
+    queryKey: CLAVE_DATOS_DE_INVITACION,
+    queryFn: () =>
+      api("/api/auth/invitacion", {
+        method: "POST",
+        body: { token },
+        schema: datosDeInvitacionRespuestaSchema,
+      }),
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
 
 const CLAVE_MUTACION_CAMBIAR_CONTRASENA = ["cambiar-contrasena"] as const
 

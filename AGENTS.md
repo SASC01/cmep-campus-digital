@@ -119,7 +119,7 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 |---|---|---|
 | **trivial** | Texto, estilo o corrección sin cambio de comportamiento ni de datos | `programador` con pruebas → resumen al humano |
 | **normal** | Cualquier funcionalidad | Flujo completo |
-| **sensible** | `middleware/`, `adapters/auth`, sesiones y contraseñas, migraciones, `infra/`, estado de pago, restricción de acceso | Flujo completo + aprobación **explícita y por escrito** del plan + revisión humana del diff antes del commit |
+| **sensible** | `middleware/`, `adapters/auth`, sesiones y contraseñas, migraciones, `infra/`, estado de pago, restricción de acceso | Flujo completo + aprobación **explícita y por escrito** del plan. La revisión humana del diff es opcional (ver "Commits y cierre de subentregas") |
 
 ### Reglas del equipo
 - Los hallazgos se identifican (`T-01`, `M-01`) y se responden uno por uno.
@@ -136,10 +136,30 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 - Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 - Todo patrón visual nuevo que cree un encargo se documenta en `docs/DESIGN.md` en ese mismo encargo, y el manager lo verifica en la revisión final.
 
+### Commits y cierre de subentregas
+Decisión del humano (2026-09-28). Aplica a todos los encargos, de cualquier carril.
+- **Sin commit de aprobación del plan.** La aprobación es por escrito y el orquestador la registra en `aprobacion.md`.
+- **Base de la verificación de "No se toca":**
+  - Fuera de los paquetes, es el commit con que arrancó la rama del encargo.
+  - Dentro de los paquetes, es ese mismo commit para la primera subentrega y el commit de la subentrega anterior para las siguientes.
+  - Los cambios en `docs/trabajo/<encargo>/` y en `docs/ESTADO.md` quedan fuera de esa verificación.
+  - Si el orquestador cambia con autorización del humano un archivo de la lista (por ejemplo, `AGENTS.md`), anota en `aprobacion.md` el SHA-256 del archivo resultante, y ese archivo se verifica contra el hash en lugar del commit.
+- **Un commit por subentrega** (uno por encargo si no se divide), nada intermedio: ni en el plan, ni en la ronda 0, ni en las correcciones.
+  - Al cerrar cada subentrega, el orquestador le da al humano el bloque de comandos listo para copiar: `git status`, `git add` con las rutas y `git commit` con el mensaje.
+  - La subentrega siguiente arranca después de ese commit.
+- **El orquestador nunca le pide un hash al humano:** después del commit, lo lee con `git log` y lo anota en `aprobacion.md`.
+- **La revisión humana del diff no es obligatoria**, tampoco en el carril sensible: basta el APROBADO del manager y las rondas del tester. Al cerrar cada subentrega, el orquestador le entrega al humano un resumen de máximo 15 líneas.
+- **Con el plan aprobado, el orquestador avanza sin esperar indicaciones.** Solo se detiene a preguntar si algo queda BLOQUEADO o surge una decisión que el plan no cubre.
+
+### Resúmenes verificables del programador
+Decisión del humano (2026-09-28). Aplica a todos los encargos y a toda entrega del programador: implementación y cada corrección.
+- **Pruebas requeridas:** el resumen indica, junto a cada viñeta de "Pruebas requeridas" del plan, el archivo y el título exacto del caso que la cubre.
+- **Conteos:** toda cifra de archivos, pruebas o casos sale de `npx vitest list` o de la corrida, con el comando incluido.
+- **lint, test y build:** el resumen trae el comando exacto y la última línea de salida de cada uno, no un "pasaron".
+- **Verificación del manager:** antes de aceptar el resumen, y antes de que el tester ataque, el manager corre `lint`, `test` y `build` y contrasta cada cifra del resumen con su propia corrida. Una cifra que no coincide devuelve el resumen al programador; no se corrige a mano. El detalle está en `.claude/agents/manager.md`, "Verificación del resumen del programador", y en `.claude/agents/programador.md`, "Resumen verificable".
+
 ### Trabajo visual
-Decisión del humano (2026-09-27). Aplica a los encargos de diseño y de interfaz.
-- **Base de la verificación de "No se toca" fuera del paquete** (V-08 en los planes de diseño): solo el commit de aprobación del plan. Los cambios posteriores en `docs/trabajo/<encargo>/` y en `docs/ESTADO.md` quedan fuera de esa verificación y no exigen un commit nuevo.
-- **Commits:** el orquestador le pide commit al humano solo al terminar cada subentrega, nunca en pasos intermedios (plan, ronda 0, correcciones).
+Decisión del humano (2026-09-27). Aplica a los encargos de diseño y de interfaz. La base de "No se toca" y los commits siguen "Commits y cierre de subentregas".
 - **Ajustes visuales que pide el humano después de ver la pantalla:** van por el carril trivial. El `programador` los aplica y las pruebas quedan en verde, sin plan ni ronda 0. Salvo que toquen pruebas `*.ataque` o lógica: entonces siguen el carril que corresponda.
 - **Validaciones sobre datos que solo escribe el humano en un archivo de configuración** (por ejemplo, los enlaces del pie): no justifican más de una ronda del tester por casos extremos. Lo que quede se anota como observación o como pendiente con destino.
 - **La comprobación humana en navegador es de máximo 10 minutos y máximo 7 puntos: solo lo que las pruebas automáticas no pueden ver. Nada de mediciones manuales de contraste.** El contraste lo verifican las pruebas de tokens. Lo demás se registra como "no verificada por decisión del humano, cubierta por pruebas automáticas". Decisión del humano (2026-09-28).

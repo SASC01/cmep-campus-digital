@@ -252,9 +252,7 @@ describe("ataque (DESIGN-01b-1 r1): un solo pie al navegar entre pantallas", () 
     await screen.findByRole("heading", { name: "Cambia tu contraseña" })
     expect(unicoPie().closest("[data-rol]")).toBeNull()
 
-    fireEvent.change(screen.getByLabelText("Contraseña temporal"), {
-      target: { value: "Temporal-XYZ-1" },
-    })
+    // AUTH-03a ronda 0 (C-5): sin el campo de la temporal.
     fireEvent.change(screen.getByLabelText("Contraseña nueva"), {
       target: { value: "mi-clave-propia-1" },
     })
@@ -272,31 +270,39 @@ describe("ataque (DESIGN-01b-1 r1): un solo pie al navegar entre pantallas", () 
 })
 
 describe("ataque (DESIGN-01b-1 r1): marco de cada rol", () => {
+  // AUTH-03b ronda 0 (C-9): el admin pasa a tener dos destinos, "Cuentas" (/admin) y "Maestros"
+  // (/admin/maestros). Sigue protegiendo que cada destino de la nav sea una ruta existente y
+  // enfocable, en su orden, y que solo el de la ruta actual lleve aria-current (NavLink con `end`:
+  // "Cuentas" no queda activa en /admin/maestros ni "Maestros" en /admin). Estudiante y maestro
+  // conservan un solo destino.
   it.each([
     {
       rol: "estudiante",
       nombre: "Ana López",
       etiqueta: "Estudiante",
       destino: "/estudiante",
-      texto: "Inicio",
+      destinos: ["/estudiante"],
+      textos: ["Inicio"],
     },
     {
       rol: "maestro",
       nombre: "Luis Pérez",
       etiqueta: "Maestro",
       destino: "/maestro",
-      texto: "Inicio",
+      destinos: ["/maestro"],
+      textos: ["Inicio"],
     },
     {
       rol: "admin",
       nombre: "Administración",
       etiqueta: "Administrador",
       destino: "/admin",
-      texto: "Cuentas",
+      destinos: ["/admin", "/admin/maestros"],
+      textos: ["Cuentas", "Maestros"],
     },
   ])(
-    "$rol: una nav con un solo destino existente y activo, un banner, un pie, un 'Cerrar sesión'",
-    async ({ rol, nombre, etiqueta, destino, texto }) => {
+    "$rol: una nav con sus destinos existentes, solo el de la ruta actual activo, un banner, un pie, un 'Cerrar sesión'",
+    async ({ rol, nombre, etiqueta, destino, destinos, textos }) => {
       stubFetch(conMe(() => respuestaJson(200, meDe({ rol, nombre }))))
       const { rutas } = await renderEn(destino)
       await screen.findByRole("button", { name: "Cerrar sesión" })
@@ -315,9 +321,12 @@ describe("ataque (DESIGN-01b-1 r1): marco de cada rol", () => {
       expect(nav.parentElement).toBe(raiz)
 
       const enlaces = within(nav).getAllByRole("link")
-      expect(enlaces.map((a) => a.getAttribute("href"))).toEqual([destino])
-      expect(enlaces.map((a) => a.textContent)).toEqual([texto])
-      expect(enlaces[0]).toHaveAttribute("aria-current", "page")
+      expect(enlaces.map((a) => a.getAttribute("href"))).toEqual(destinos)
+      expect(enlaces.map((a) => a.textContent)).toEqual(textos)
+      expect(
+        enlaces.map((a) => a.getAttribute("aria-current")),
+        "aria-current solo en el destino de la ruta actual",
+      ).toEqual(destinos.map((d) => (d === destino ? "page" : null)))
       for (const enlace of enlaces) {
         const href = enlace.getAttribute("href") ?? ""
         const coincidencias = matchRoutes(rutas, href) ?? []
@@ -412,7 +421,11 @@ const PANTALLAS = [
   },
   {
     ruta: `/establecer-contrasena#token=${TOKEN_ENLACE}`,
-    manejador: sinSesion,
+    // AUTH-03a ronda 0 (C-6): los datos de la invitación que la pantalla pide al montar.
+    manejador: (ruta: string) =>
+      ruta === "/api/auth/invitacion"
+        ? respuestaJson(200, { nombre: "Ana López" })
+        : sinSesion(ruta),
     espera: "Activar mi cuenta",
   },
   { ruta: "/diagnostico", manejador: sinSesion, espera: null },

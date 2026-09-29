@@ -40,6 +40,10 @@ const stubApi = (me: () => Response) =>
         return Promise.resolve(respuestaJson(200, { tokenAcceso: "token" }))
       }
       if (ruta === "/api/me") return Promise.resolve(me())
+      // AUTH-03a ronda 0 (C-6): los datos de la invitación que /establecer-contrasena pide al montar.
+      if (ruta === "/api/auth/invitacion") {
+        return Promise.resolve(respuestaJson(200, { nombre: "Ana López" }))
+      }
       if (ruta === "/api/auth/logout") return Promise.resolve(respuestaJson(204, undefined))
       if (ruta === "/api/salud") {
         return Promise.resolve(

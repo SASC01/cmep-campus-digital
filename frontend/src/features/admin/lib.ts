@@ -2,14 +2,19 @@ import { esApiError } from "@/services/apiClient"
 
 import {
   CAMPOS_FORMULARIO_ADMIN,
+  CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   ETIQUETAS_ROL_ADMIN,
   MENSAJE_ERROR_ADMIN_GENERICO,
   MENSAJES_ERROR_ADMIN,
+  TEXTOS_INVITACION_MASIVA,
+  TEXTOS_MAESTROS,
 } from "./data"
 import type {
   CampoFormularioAdmin,
   ErroresFormularioAdmin,
+  EstadoEnlaceRegistro,
   IncidenciaValidacion,
+  MotivoLineaInvalida,
   Rol,
 } from "./types"
 
@@ -28,9 +33,13 @@ export const focoDisponiblePara = (
 const tieneMensajePropio = (codigo: string): codigo is keyof typeof MENSAJES_ERROR_ADMIN =>
   Object.hasOwn(MENSAJES_ERROR_ADMIN, codigo)
 
+// VALIDACION y CUPO_DIARIO_INSUFICIENTE (§D-C7) muestran el mensaje que trae el propio servidor.
+const tieneMensajeDelServidor = (codigo: string): boolean =>
+  (CODIGOS_CON_MENSAJE_DEL_SERVIDOR as readonly string[]).includes(codigo)
+
 export const mensajeDeErrorAdmin = (error: unknown): string => {
   if (!esApiError(error)) return MENSAJE_ERROR_ADMIN_GENERICO
-  if (error.codigo === "VALIDACION") return error.message
+  if (tieneMensajeDelServidor(error.codigo)) return error.message
   if (tieneMensajePropio(error.codigo)) return MENSAJES_ERROR_ADMIN[error.codigo]
   return MENSAJE_ERROR_ADMIN_GENERICO
 }
@@ -50,3 +59,22 @@ export const erroresPorCampoAdmin = (
   }
   return errores
 }
+
+// AUTH-03b, §D-B3: el token va en el fragmento (DEC-14 de AUTH-02), nunca a un servidor ni a
+// Referer.
+export const construirUrlDeRegistro = (origen: string, token: string): string =>
+  `${origen}/registro-maestro#token=${token}`
+
+export const etiquetaDeEstadoEnlace = (estado: EstadoEnlaceRegistro): string =>
+  TEXTOS_MAESTROS.estados[estado]
+
+// AUTH-03b, Enmienda 6 (arbitraje de T-10): sustituye {fecha} en una plantilla de
+// TEXTOS_MAESTROS.enlaces.ocultoDeFila por la fecha ya formateada (zona local, legible), para el
+// texto sr-only que distingue una fila de otra en el nombre accesible de sus botones ("Revocar el
+// enlace creado el 27 sept 2026, 10:00"). Nunca en aria-hidden ni en aria-label.
+export const textoOcultoDeFila = (plantilla: string, fechaFormateada: string): string =>
+  plantilla.replace("{fecha}", fechaFormateada)
+
+// AUTH-03c, §D-C6: motivo de una línea inválida de la invitación masiva, en texto legible.
+export const etiquetaDeMotivo = (motivo: MotivoLineaInvalida): string =>
+  TEXTOS_INVITACION_MASIVA.motivos[motivo]

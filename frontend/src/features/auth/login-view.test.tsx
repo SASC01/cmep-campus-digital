@@ -42,8 +42,17 @@ const renderLogin = (state?: unknown) => {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   )
-  return router
+  return { router, queryClient }
 }
+
+// Todo lo que la caché de mutaciones conserva, serializado (T-01/AUTH-03a, §D-A3).
+const mutacionesEnCache = (queryClient: QueryClient): string =>
+  JSON.stringify(
+    queryClient
+      .getMutationCache()
+      .getAll()
+      .map((mutacion) => ({ opciones: mutacion.options.mutationKey, estado: mutacion.state })),
+  )
 
 const llenarYEnviar = (correo: string, contrasena: string) => {
   fireEvent.change(screen.getByLabelText("Correo"), { target: { value: correo } })
@@ -82,7 +91,7 @@ describe("LoginView", () => {
 
   it("con campos vacíos no envía nada, marca los campos y sigue en /login", () => {
     const fetchMock = stubFetch(() => respuestaJson(200, {}))
-    const router = renderLogin()
+    const { router } = renderLogin()
 
     fireEvent.submit(screen.getByRole("form", { name: "Iniciar sesión" }))
 
@@ -97,7 +106,7 @@ describe("LoginView", () => {
       if (ruta === "/api/auth/login") return respuestaJson(200, { tokenAcceso: "token-maestro" })
       return respuestaJson(200, meMaestro)
     })
-    const router = renderLogin()
+    const { router } = renderLogin()
 
     llenarYEnviar("  Luis@Ejemplo.mx ", "clave-de-prueba-1234")
 
@@ -116,7 +125,7 @@ describe("LoginView", () => {
 
   it("con CREDENCIALES_INVALIDAS muestra la alerta y sigue en /login", async () => {
     stubFetch(() => errorJson(401, "CREDENCIALES_INVALIDAS"))
-    const router = renderLogin()
+    const { router } = renderLogin()
 
     llenarYEnviar("ana@ejemplo.mx", "equivocada")
 
@@ -166,5 +175,30 @@ describe("LoginView", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Tu contraseña se actualizó. Inicia sesión con la nueva.",
     )
+  })
+
+  // AUTH-03a, §D-A3 (MF-05 de AUTH-02b): tras un éxito, la contraseña no queda en ninguna
+  // mutación de la caché de TanStack Query.
+  it("tras un login con éxito, la contraseña no queda en la caché de mutaciones", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/login") return respuestaJson(200, { tokenAcceso: "token-maestro" })
+      return respuestaJson(200, meMaestro)
+    })
+    const { router, queryClient } = renderLogin()
+
+    llenarYEnviar("ana@ejemplo.mx", "clave-de-prueba-1234")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/maestro"))
+    expect(mutacionesEnCache(queryClient)).not.toContain("clave-de-prueba-1234")
+  })
+
+  it("tras un login fallido, la contraseña no queda en la caché de mutaciones", async () => {
+    stubFetch(() => errorJson(401, "CREDENCIALES_INVALIDAS"))
+    const { queryClient } = renderLogin()
+
+    llenarYEnviar("ana@ejemplo.mx", "clave-de-prueba-1234")
+
+    await screen.findByRole("alert")
+    expect(mutacionesEnCache(queryClient)).not.toContain("clave-de-prueba-1234")
   })
 })

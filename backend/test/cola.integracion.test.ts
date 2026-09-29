@@ -16,6 +16,7 @@ import {
   describirCola,
   detenerCola,
   encolar,
+  encolarVarios,
   iniciarCola,
 } from "../src/adapters/queue/index.js"
 import { opcionesDeCola } from "../src/config/cola.js"
@@ -113,6 +114,71 @@ describe("encolado transaccional (DEC-07, la compuerta del encargo)", () => {
 
   it("buscarTrabajo de un id inexistente devuelve null", async () => {
     expect(await buscarTrabajo("PRUEBA_COLA_TRANSACCIONAL", randomUUID())).toBeNull()
+  })
+
+  describe("encolarVarios (AUTH-03c, §D-C4, PA-05)", () => {
+    it("los trabajos insertados heredan retry_limit, retry_backoff, dead_letter y la retención de la cola", async () => {
+      const idA = randomUUID()
+      const idB = randomUUID()
+      await enTransaccion(obtenerDb(), async (tx) => {
+        await encolarVarios(
+          COLA_CORREO_DE_CUENTA,
+          [
+            { id: idA, datos: { tipo: "invitacion" } },
+            { id: idB, datos: { tipo: "invitacion" } },
+          ],
+          { sql: ejecutorSqlDe(tx) },
+        )
+      })
+
+      const filas = await obtenerDb().$queryRaw<
+        { id: string; retry_limit: number; retry_backoff: boolean; dead_letter: string | null }[]
+      >`
+        SELECT id, retry_limit, retry_backoff, dead_letter
+        FROM pgboss.job
+        WHERE id IN (${idA}::uuid, ${idB}::uuid)
+        ORDER BY created_on ASC
+      `
+      expect(filas).toHaveLength(2)
+      for (const fila of filas) {
+        expect(fila.retry_limit).toBe(3)
+        expect(fila.retry_backoff).toBe(true)
+        expect(fila.dead_letter).toBe(COLA_CORREO_DE_CUENTA_FALLIDO)
+      }
+    })
+
+    it("una transacción revertida no deja trabajos", async () => {
+      const id = randomUUID()
+      await expect(
+        enTransaccion(obtenerDb(), async (tx) => {
+          await encolarVarios(COLA_CORREO_DE_CUENTA, [{ id, datos: { tipo: "invitacion" } }], {
+            sql: ejecutorSqlDe(tx),
+          })
+          throw new Error("fallo deliberado tras encolar en lote")
+        }),
+      ).rejects.toThrow("fallo deliberado tras encolar en lote")
+      const trabajo = await buscarTrabajo(COLA_CORREO_DE_CUENTA, id)
+      expect(trabajo).toBeNull()
+    })
+
+    it("el texto del SQL no lleva datos: solo interpola el esquema, la tabla y el nombre de la cola", async () => {
+      const id = randomUUID()
+      const datosSensibles = { tipo: "invitacion", correo: "no-debe-viajar-en-el-texto@ejemplo.mx" }
+      const capturados: { texto: string; valores: unknown[] }[] = []
+      const sqlQueEspia = {
+        executeSql: async (texto: string, valores?: unknown[]) => {
+          capturados.push({ texto, valores: valores ?? [] })
+          const filas = await obtenerDb().$queryRawUnsafe(texto, ...(valores ?? []))
+          return { rows: Array.isArray(filas) ? filas : [] }
+        },
+      }
+      await encolarVarios(COLA_CORREO_DE_CUENTA, [{ id, datos: datosSensibles }], {
+        sql: sqlQueEspia,
+      })
+      expect(capturados).toHaveLength(1)
+      expect(capturados[0].texto).not.toContain("no-debe-viajar-en-el-texto")
+      expect(capturados[0].texto).not.toContain(id)
+    })
   })
 
   it("encolar sin cola iniciada lanza COLA_NO_INICIALIZADA", async () => {

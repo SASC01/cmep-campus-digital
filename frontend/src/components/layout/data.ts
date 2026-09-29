@@ -1,4 +1,4 @@
-import { House, Users } from "lucide-react"
+import { House, UserPlus, Users } from "lucide-react"
 
 import type { ContextoDeRol, Destino, EnlaceDelColegio, Rol } from "./types"
 
@@ -36,7 +36,11 @@ export const CONTEXTO_POR_ROL: Record<Rol, ContextoDeRol> = {
 export const DESTINOS_POR_ROL: Record<Rol, readonly Destino[]> = {
   estudiante: [{ etiqueta: "Inicio", ruta: "/estudiante", icono: House }],
   maestro: [{ etiqueta: "Inicio", ruta: "/maestro", icono: House }],
-  admin: [{ etiqueta: "Cuentas", ruta: "/admin", icono: Users }],
+  // AUTH-03b: el admin gana "Maestros" (/admin/maestros), enlaces de registro e invitación masiva.
+  admin: [
+    { etiqueta: "Cuentas", ruta: "/admin", icono: Users },
+    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus },
+  ],
 }
 
 // Rutas con los orbes en movimiento (S-03); orbesEnMovimiento normaliza antes de comparar.

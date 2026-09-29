@@ -8,6 +8,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 // selección guardada por el ojo se consume una sola vez y, al ocultarse por el envío, se restaura
 // la selección de ese instante. Todo en <StrictMode>, con el router completo y la API simulada.
 // Se localiza por rol, etiqueta y texto accesible, nunca por clases de estilo (tester.md).
+// AUTH-03a ronda 0 (C-5): /cambiar-contrasena queda con 2 campos. Donde un caso usaba la temporal
+// como campo, ahora usa la nueva; donde usaba la temporal y la nueva, usa la nueva y la
+// confirmación. Lo que protege cada caso de la selección y del foco no cambia.
 
 vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/login") }))
 
@@ -30,7 +33,7 @@ const diferida = () => {
   return { promesa, resolver: (respuesta: Response) => resolver(respuesta) }
 }
 
-// /cambiar-contrasena (3 campos) con su endpoint en vuelo o respondiendo lo que se pida.
+// /cambiar-contrasena (2 campos) con su endpoint en vuelo o respondiendo lo que se pida.
 const stubCambio = (respuesta: () => Promise<Response>) => {
   const fetchMock = vi.fn<typeof fetch>((entrada) => {
     const ruta = String(entrada)
@@ -59,11 +62,9 @@ const renderEn = async (ruta: string) => {
 
 const esperarUnMomento = () => act(() => new Promise((resolver) => setTimeout(resolver, 30)))
 
-const TEMPORAL = "Contraseña temporal"
 const NUEVA = "Contraseña nueva"
 const CONFIRMACION = "Confirma la contraseña nueva"
 const BOTON: Record<string, string> = {
-  [TEMPORAL]: "Mostrar contraseña temporal",
   [NUEVA]: "Mostrar contraseña nueva",
   [CONFIRMACION]: "Mostrar confirmación de contraseña",
 }
@@ -111,9 +112,8 @@ const preparar = async () => {
   const fetchMock = stubCambio(() => new Promise<Response>(() => undefined))
   const montaje = await renderEn("/cambiar-contrasena")
   await screen.findByRole("button", { name: "Guardar y continuar" })
-  escribir(TEMPORAL, "abcdefgh")
-  escribir(NUEVA, "ijklmnop")
-  escribir(CONFIRMACION, "qrstuvwx")
+  escribir(NUEVA, "abcdefgh")
+  escribir(CONFIRMACION, "ijklmnop")
   return { fetchMock, ...montaje }
 }
 
@@ -133,13 +133,13 @@ afterEach(() => {
 describe("ataque (DESIGN-01b-2 r2): la selección al ocultarse por el envío es la de ese instante", () => {
   it("varias pulsaciones del ojo con selecciones distintas y después el envío: queda la última de la persona", async () => {
     await preparar()
-    const input = campo(TEMPORAL)
+    const input = campo(NUEVA)
     enfocarEn(input, 1, 1)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     input.setSelectionRange(3, 5)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     input.setSelectionRange(0, 2)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     expect(input.type).toBe("text")
     expect(seleccion(input)).toEqual([0, 2])
     input.setSelectionRange(7, 7)
@@ -151,10 +151,10 @@ describe("ataque (DESIGN-01b-2 r2): la selección al ocultarse por el envío es 
 
   it("número par de pulsaciones (ya oculta) y envío: la selección no cambia", async () => {
     await preparar()
-    const input = campo(TEMPORAL)
+    const input = campo(NUEVA)
     enfocarEn(input, 2, 2)
-    pulsar(TEMPORAL)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
+    pulsar(NUEVA)
     expect(input.type).toBe("password")
     input.setSelectionRange(4, 6)
     enviar()
@@ -189,10 +189,10 @@ describe("ataque (DESIGN-01b-2 r2): la selección al ocultarse por el envío es 
 
   it("foco fuera del campo visible: el envío no le devuelve el foco ni le toca la selección", async () => {
     await preparar()
-    const oculto = campo(TEMPORAL)
-    const otro = campo(NUEVA)
+    const oculto = campo(NUEVA)
+    const otro = campo(CONFIRMACION)
     enfocarEn(oculto, 1, 1)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     expect(oculto.type).toBe("text")
     enfocarEn(otro, 2, 5)
     const tocar = vi.spyOn(oculto, "setSelectionRange")
@@ -205,12 +205,12 @@ describe("ataque (DESIGN-01b-2 r2): la selección al ocultarse por el envío es 
 
   it("dos campos visibles del mismo formulario: cada uno conserva la suya y solo el enfocado se restaura", async () => {
     await preparar()
-    const primero = campo(TEMPORAL)
-    const segundo = campo(NUEVA)
+    const primero = campo(NUEVA)
+    const segundo = campo(CONFIRMACION)
     enfocarEn(primero, 2, 5)
-    pulsar(TEMPORAL)
-    enfocarEn(segundo, 0, 0)
     pulsar(NUEVA)
+    enfocarEn(segundo, 0, 0)
+    pulsar(CONFIRMACION)
     segundo.setSelectionRange(1, 3)
     expect([primero.type, segundo.type]).toEqual(["text", "text"])
     const tocarPrimero = vi.spyOn(primero, "setSelectionRange")
@@ -224,18 +224,18 @@ describe("ataque (DESIGN-01b-2 r2): la selección al ocultarse por el envío es 
 
   it("ocultada por el envío y vuelta a mostrar con el ojo: no reaparece ninguna selección vieja", async () => {
     await preparar()
-    const input = campo(TEMPORAL)
+    const input = campo(NUEVA)
     enfocarEn(input, 2, 2)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     input.setSelectionRange(5, 5)
     enviar()
     expect(seleccion(input)).toEqual([5, 5])
     input.setSelectionRange(4, 4)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     expect(input.type).toBe("text")
     expect(seleccion(input)).toEqual([4, 4])
     input.setSelectionRange(1, 6)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     expect(input.type).toBe("password")
     expect(seleccion(input)).toEqual([1, 6])
     // Otro envío ya oculta: nada que restaurar, nada se mueve.
@@ -243,7 +243,7 @@ describe("ataque (DESIGN-01b-2 r2): la selección al ocultarse por el envío es 
     enviar()
     expect(seleccion(input)).toEqual([3, 3])
     input.setSelectionRange(8, 8)
-    pulsar(TEMPORAL)
+    pulsar(NUEVA)
     expect(seleccion(input)).toEqual([8, 8])
   }, 15_000)
 
@@ -270,11 +270,10 @@ describe("ataque (DESIGN-01b-2 r2): desmontaje durante el envío", () => {
     stubCambio(() => pendiente.promesa)
     const { router } = await renderEn("/cambiar-contrasena")
     await screen.findByRole("button", { name: "Guardar y continuar" })
-    escribir(TEMPORAL, "Kp7mWq4Rt9Xz")
     escribir(NUEVA, "clave-nueva-1234")
     escribir(CONFIRMACION, "clave-nueva-1234")
-    pulsar(TEMPORAL)
     pulsar(NUEVA)
+    pulsar(CONFIRMACION)
     const form = formulario()
     const input = campo(NUEVA)
     act(() => input.focus())
@@ -311,7 +310,7 @@ describe("ataque (DESIGN-01b-2 r2): desmontaje durante el envío", () => {
           return Promise.resolve(respuestaJson(200, { tokenAcceso: "t" }))
         if (ruta === "/api/auth/cambiar-contrasena") {
           enLaPeticion.push(
-            [TEMPORAL, NUEVA, CONFIRMACION]
+            [NUEVA, CONFIRMACION]
               .map((e) => (document.getElementById(campo(e).id) as HTMLInputElement).type)
               .join(","),
           )
@@ -333,16 +332,15 @@ describe("ataque (DESIGN-01b-2 r2): desmontaje durante el envío", () => {
     )
     const { router } = await renderEn("/cambiar-contrasena")
     await screen.findByRole("button", { name: "Guardar y continuar" })
-    escribir(TEMPORAL, "Kp7mWq4Rt9Xz")
     escribir(NUEVA, "clave-nueva-1234")
     escribir(CONFIRMACION, "clave-nueva-1234")
-    for (const etiqueta of [TEMPORAL, NUEVA, CONFIRMACION]) pulsar(etiqueta)
+    for (const etiqueta of [NUEVA, CONFIRMACION]) pulsar(etiqueta)
     act(() => campo(CONFIRMACION).focus())
     enviar()
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
     await esperarUnMomento()
-    expect(enLaPeticion).toEqual(["password,password,password"])
-    expect(screen.queryByLabelText(TEMPORAL)).toBeNull()
+    expect(enLaPeticion).toEqual(["password,password"])
+    expect(screen.queryByLabelText(NUEVA)).toBeNull()
     expect(consola).not.toHaveBeenCalled()
   }, 15_000)
 })

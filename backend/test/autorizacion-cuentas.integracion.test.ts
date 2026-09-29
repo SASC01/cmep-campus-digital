@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
 import { borrarUsuariosDePrueba, crearUsuarioDePrueba, firmarTokenDePrueba } from "./ayudas-auth.js"
+import { crearTokenDePrueba } from "./ayudas-cuentas.js"
 
 let app: FastifyInstance
 const ids: string[] = []
@@ -138,5 +139,37 @@ describe("autorización de las rutas de /api/admin", () => {
     expect(texto).not.toContain("estadoPago")
     expect(texto).not.toContain("hashContrasena")
     expect(texto).not.toContain("hash_token")
+  })
+})
+
+// AUTH-03a, §D-A2: POST /auth/invitacion es pública (RUTAS_PUBLICAS), no protegido() como las
+// rutas de /api/admin de arriba. Un Authorization de cualquier cuenta no cambia su respuesta ni
+// consume el enlace.
+describe("POST /api/auth/invitacion es pública", () => {
+  it("un Authorization ajeno (de cualquier rol) no cambia la respuesta ni consume el enlace", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { nombre: "Ana López" })
+    const { token } = await crearTokenDePrueba({
+      usuarioId: usuario.id,
+      tipo: "invitacion",
+      expiraEn: new Date(Date.now() + 72 * 3_600_000),
+    })
+    const otro = await crearUsuarioDePrueba(ids, { rol: "maestro" })
+    const tokenAjeno = await firmarTokenDePrueba({ usuarioId: otro.id })
+
+    const sinAuthorization = await app.inject({
+      method: "POST",
+      url: "/api/auth/invitacion",
+      payload: { token },
+    })
+    const conAuthorizationAjeno = await app.inject({
+      method: "POST",
+      url: "/api/auth/invitacion",
+      headers: { authorization: `Bearer ${tokenAjeno}` },
+      payload: { token },
+    })
+
+    expect(sinAuthorization.statusCode).toBe(200)
+    expect(conAuthorizationAjeno.statusCode).toBe(200)
+    expect(conAuthorizationAjeno.json()).toEqual(sinAuthorization.json())
   })
 })

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { CambiarContrasenaView } from "./cambiar-contrasena-view"
 import { EstablecerContrasenaView } from "./establecer-contrasena-view"
 import { LoginView } from "./login-view"
+import { RegistroMaestroView } from "./registro-maestro-view"
 import { RegistroView } from "./registro-view"
 import { RestablecerView } from "./restablecer-view"
 
@@ -21,7 +22,12 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const stubFetch = () =>
   vi.stubGlobal(
     "fetch",
-    vi.fn(() => Promise.resolve(respuestaJson(204, undefined))),
+    vi.fn((entrada: RequestInfo | URL) => {
+      if (String(entrada) === "/api/auth/invitacion") {
+        return Promise.resolve(respuestaJson(200, { nombre: "Ana López" }))
+      }
+      return Promise.resolve(respuestaJson(204, undefined))
+    }),
   )
 
 const renderConRuta = (path: string, element: ReactElement, hash = "") => {
@@ -80,10 +86,16 @@ const CASOS: CasoDePantalla[] = [
     nombre: "/cambiar-contrasena",
     renderizar: () => renderConRuta("/cambiar-contrasena", <CambiarContrasenaView />),
     campos: [
-      ["contrasenaActual", "Mostrar contraseña temporal", "Contraseña temporal"],
       ["contrasenaNueva", "Mostrar contraseña nueva", "Contraseña nueva"],
       ["confirmacion", "Mostrar confirmación de contraseña", "Confirma la contraseña nueva"],
     ],
+  },
+  {
+    // AUTH-03b: sexto formulario con un campo de contraseña (C-14, §D-B7).
+    nombre: "/registro-maestro (con token)",
+    renderizar: () =>
+      renderConRuta("/registro-maestro", <RegistroMaestroView />, `#token=${TOKEN}`),
+    campos: [["contrasena", "Mostrar contraseña", "Contraseña"]],
   },
 ]
 
@@ -91,10 +103,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("contraseña visible: nombre exacto por campo en los 5 formularios (§D-7)", () => {
-  it.each(CASOS)("$nombre", ({ renderizar, campos }) => {
+describe("contraseña visible: nombre exacto por campo en los 6 formularios (§D-7)", () => {
+  it.each(CASOS)("$nombre", async ({ renderizar, campos }) => {
     stubFetch()
     renderizar()
+
+    const [primerCampo] = campos
+    if (primerCampo) await screen.findByRole("button", { name: primerCampo[1] })
 
     for (const [id, nombreBoton] of campos) {
       const boton = screen.getByRole("button", { name: nombreBoton })

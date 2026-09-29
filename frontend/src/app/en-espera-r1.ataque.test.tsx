@@ -49,6 +49,10 @@ const stubApi = (rutaEnVuelo: string, pendiente: Diferida, me: () => Response) =
   const fetchMock = vi.fn<typeof fetch>((entrada) => {
     const ruta = String(entrada)
     if (ruta === rutaEnVuelo) return pendiente.promesa
+    // AUTH-03a ronda 0 (C-6): los datos de la invitación que /establecer-contrasena pide al montar.
+    if (ruta === "/api/auth/invitacion") {
+      return Promise.resolve(respuestaJson(200, { nombre: "Ana López" }))
+    }
     if (ruta === "/api/auth/refrescar") {
       return Promise.resolve(respuestaJson(200, { tokenAcceso: "token-ana" }))
     }
@@ -190,12 +194,13 @@ const CASOS_FORMULARIO: CasoFormulario[] = [
     endpoint: "/api/auth/cambiar-contrasena",
     boton: "Guardar y continuar",
     me: conCambioPendiente,
+    // AUTH-03a ronda 0 (C-5 y C-1): sin el campo de la temporal; el error del servidor es el que
+    // sigue emitiendo (CONTRASENA_REPETIDA).
     llenar: () => {
-      escribir("Contraseña temporal", "Kp7mWq4Rt9Xz")
       escribir("Contraseña nueva", "clave-nueva-1234")
       escribir("Confirma la contraseña nueva", "clave-nueva-1234")
     },
-    error: () => errorJson(400, "CONTRASENA_ACTUAL_INCORRECTA"),
+    error: () => errorJson(400, "CONTRASENA_REPETIDA"),
   },
 ]
 

@@ -37,8 +37,17 @@ const renderRegistro = () => {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   )
-  return router
+  return { router, queryClient }
 }
+
+// Todo lo que la caché de mutaciones conserva, serializado (T-01/AUTH-03a, §D-A3).
+const mutacionesEnCache = (queryClient: QueryClient): string =>
+  JSON.stringify(
+    queryClient
+      .getMutationCache()
+      .getAll()
+      .map((mutacion) => ({ opciones: mutacion.options.mutationKey, estado: mutacion.state })),
+  )
 
 const llenarYEnviar = (contrasena: string) => {
   fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "Ana López" } })
@@ -55,7 +64,7 @@ afterEach(() => {
 describe("RegistroView", () => {
   it("con una contraseña corta no envía nada y muestra la ayuda y el error", () => {
     const fetchMock = stubFetch(() => respuestaJson(201, {}))
-    const router = renderRegistro()
+    const { router } = renderRegistro()
 
     llenarYEnviar("corta")
 
@@ -71,7 +80,7 @@ describe("RegistroView", () => {
       if (ruta === "/api/auth/registro") return respuestaJson(201, { tokenAcceso: "token-nuevo" })
       return respuestaJson(200, meEstudiante)
     })
-    const router = renderRegistro()
+    const { router } = renderRegistro()
 
     llenarYEnviar("clave-de-prueba-1234")
 
@@ -91,7 +100,7 @@ describe("RegistroView", () => {
         error: { codigo: "CORREO_EN_USO", mensaje: "Ya existe una cuenta con ese correo." },
       }),
     )
-    const router = renderRegistro()
+    const { router } = renderRegistro()
 
     llenarYEnviar("clave-de-prueba-1234")
 
@@ -99,5 +108,34 @@ describe("RegistroView", () => {
       "Ya existe una cuenta con ese correo. Inicia sesión o recupera tu contraseña.",
     )
     expect(router.state.location.pathname).toBe("/registro")
+  })
+
+  // AUTH-03a, §D-A3 (MF-05 de AUTH-02b): tras un éxito, la contraseña no queda en ninguna
+  // mutación de la caché de TanStack Query.
+  it("tras un registro con éxito, la contraseña no queda en la caché de mutaciones", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/registro") return respuestaJson(201, { tokenAcceso: "token-nuevo" })
+      return respuestaJson(200, meEstudiante)
+    })
+    const { router, queryClient } = renderRegistro()
+
+    llenarYEnviar("clave-de-prueba-1234")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
+    expect(mutacionesEnCache(queryClient)).not.toContain("clave-de-prueba-1234")
+  })
+
+  it("tras un registro fallido, la contraseña no queda en la caché de mutaciones", async () => {
+    stubFetch(() =>
+      respuestaJson(409, {
+        error: { codigo: "CORREO_EN_USO", mensaje: "Ya existe una cuenta con ese correo." },
+      }),
+    )
+    const { queryClient } = renderRegistro()
+
+    llenarYEnviar("clave-de-prueba-1234")
+
+    await screen.findByRole("alert")
+    expect(mutacionesEnCache(queryClient)).not.toContain("clave-de-prueba-1234")
   })
 })

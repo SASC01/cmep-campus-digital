@@ -49,8 +49,7 @@ const renderVista = () => {
   return router
 }
 
-const llenar = (temporal: string, nueva: string, confirmacion: string) => {
-  fireEvent.change(screen.getByLabelText("Contraseña temporal"), { target: { value: temporal } })
+const llenar = (nueva: string, confirmacion: string) => {
   fireEvent.change(screen.getByLabelText("Contraseña nueva"), { target: { value: nueva } })
   fireEvent.change(screen.getByLabelText("Confirma la contraseña nueva"), {
     target: { value: confirmacion },
@@ -71,21 +70,21 @@ describe("CambiarContrasenaView", () => {
     })
     const router = renderVista()
 
-    llenar("temporal-vieja-1234", "clave-nueva-1234", "clave-nueva-1234")
+    llenar("clave-nueva-1234", "clave-nueva-1234")
     fireEvent.click(screen.getByRole("button", { name: "Guardar y continuar" }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
   })
 
-  it("con una temporal incorrecta muestra la alerta", async () => {
-    stubFetch(() => errorJson(400, "CONTRASENA_ACTUAL_INCORRECTA"))
+  it("con una nueva igual a la temporal muestra la alerta", async () => {
+    stubFetch(() => errorJson(400, "CONTRASENA_REPETIDA"))
     renderVista()
 
-    llenar("temporal-equivocada", "clave-nueva-1234", "clave-nueva-1234")
+    llenar("clave-nueva-1234", "clave-nueva-1234")
     fireEvent.click(screen.getByRole("button", { name: "Guardar y continuar" }))
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "La contraseña temporal no es correcta.",
+      "La contraseña nueva debe ser distinta de la temporal.",
     )
   })
 
@@ -93,11 +92,24 @@ describe("CambiarContrasenaView", () => {
     const fetchMock = stubFetch(() => respuestaJson(204, undefined))
     renderVista()
 
-    llenar("temporal-vieja-1234", "clave-nueva-1234", "otra-distinta-999")
+    llenar("clave-nueva-1234", "otra-distinta-999")
     fireEvent.click(screen.getByRole("button", { name: "Guardar y continuar" }))
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(screen.getByText("Las contraseñas no coinciden.")).toBeInTheDocument()
+  })
+
+  // AUTH-03a (M-02/M-03): sin una sesión viva propia, el servidor responde 401 SESION_INVALIDA.
+  it("con SESION_INVALIDA muestra su mensaje propio", async () => {
+    stubFetch(() => errorJson(401, "SESION_INVALIDA"))
+    renderVista()
+
+    llenar("clave-nueva-1234", "clave-nueva-1234")
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y continuar" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Tu sesión terminó. Vuelve a iniciar sesión.",
+    )
   })
 
   it("'Cerrar sesión' lleva a /login", async () => {

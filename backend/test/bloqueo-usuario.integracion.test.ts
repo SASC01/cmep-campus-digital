@@ -30,6 +30,7 @@ import {
   crearSesionDePrueba,
   crearUsuarioDePrueba,
   firmarTokenDePrueba,
+  leerSesiones,
   refrescarDePrueba,
   valorCookieRefresco,
 } from "./ayudas-auth.js"
@@ -166,19 +167,22 @@ describe("A: sin deadlock (retenido: usuario)", () => {
     ).toBe(1)
   }, 30_000)
 
-  it("A3: cambiar-contrasena y luego el restablecimiento del admin: 204 y 200; debe_cambiar_contrasena termina en true", async () => {
+  it("A3: cambiar-contrasena (con su cookie) y luego el restablecimiento del admin: 204 y 200; debe_cambiar_contrasena termina en true", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
+    const sesion = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
     const tokenAdmin = await firmarTokenDePrueba({ usuarioId: await adminId() })
 
     const [cambiar, admin] = par(
       await conFilaRetenida({ tabla: "usuarios", id: usuario.id }, [
         () =>
-          post(
-            "/api/auth/cambiar-contrasena",
-            { contrasenaActual: usuario.contrasena, contrasenaNueva: "contrasena-propia-a3" },
-            tokenAcceso,
-          ),
+          obtenerApp().inject({
+            method: "POST",
+            url: "/api/auth/cambiar-contrasena",
+            headers: { authorization: `Bearer ${tokenAcceso}` },
+            payload: { contrasenaNueva: "contrasena-propia-a3" },
+            cookies: { campus_refresco: sesion.token },
+          }),
         () =>
           obtenerApp().inject({
             method: "POST",
@@ -235,6 +239,56 @@ describe("A: sin deadlock (retenido: usuario)", () => {
     ).toBe(401)
     expect(await contarSesionesVivas(usuario.id)).toBe(0)
   }, 30_000)
+
+  // AUTH-03a, ronda 1 del tester (T-01): la carrera "entre el filtro previo y el bloqueo" (M-02,
+  // M-03) es determinista si se retiene la fila de usuarios (no la de sesiones): el filtro previo
+  // es una lectura sin bloqueo que ya pasó, y cambiar-contrasena queda formado en el
+  // FOR NO KEY UPDATE de bloquearUsuarioParaEscribir. La transacción retenedora revoca la sesión
+  // con SQL antes de soltar la fila, así que ocurre exactamente entre el filtro previo y el bloqueo.
+  it("A5: entre el filtro previo y el bloqueo, la sesión se revoca: 401 SESION_INVALIDA sin escribir", async () => {
+    const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
+    const sesion = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
+    const otra = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
+    const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
+    const antes = await obtenerDb().usuario.findUnique({
+      where: { id: usuario.id },
+      select: { hashContrasena: true },
+    })
+
+    const [respuesta] = await conFilaRetenida(
+      { tabla: "usuarios", id: usuario.id },
+      [
+        () =>
+          obtenerApp().inject({
+            method: "POST",
+            url: "/api/auth/cambiar-contrasena",
+            headers: { authorization: `Bearer ${tokenAcceso}` },
+            payload: { contrasenaNueva: "entre-filtro-y-bloqueo-a5" },
+            cookies: { campus_refresco: sesion.token },
+          }),
+      ],
+      async (sql) => {
+        await sql`UPDATE sesiones SET revocada_en = now() WHERE id = ${sesion.id}::uuid`
+      },
+    )
+
+    expect(respuesta?.statusCode, respuesta?.body).toBe(401)
+    expect(
+      respuesta === undefined ? undefined : errorApiSchema.parse(respuesta.json()).error.codigo,
+    ).toBe("SESION_INVALIDA")
+    const despues = await obtenerDb().usuario.findUnique({
+      where: { id: usuario.id },
+      select: { hashContrasena: true, debeCambiarContrasena: true },
+    })
+    expect(despues?.hashContrasena).toBe(antes?.hashContrasena)
+    expect(despues?.debeCambiarContrasena).toBe(true)
+    expect(await contarSesionesVivas(usuario.id)).toBe(1)
+    const sesionesRestantes = await leerSesiones(usuario.id)
+    const vivas = sesionesRestantes
+      .filter((fila) => fila.revocadaEn === null)
+      .map((fila) => fila.id)
+    expect(vivas).toEqual([otra.id])
+  }, 45_000)
 })
 
 describe("B: T-08 (retenida: sesión)", () => {
@@ -371,19 +425,22 @@ describe("C: T-09 (retenido: usuario)", () => {
     expect(await contarSesionesVivas(usuario.id)).toBe(0)
   }, 30_000)
 
-  it("C2: cambiar-contrasena sin cookie y luego login con la temporal: 204 y 401, 0 sesiones vivas", async () => {
+  it("C2: cambiar-contrasena (con su cookie) y luego login con la temporal: 204 y 401, queda viva solo la sesión usada", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
+    const sesion = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
     const ip = ipDePrueba()
 
     const [cambiar, login] = par(
       await conFilaRetenida({ tabla: "usuarios", id: usuario.id }, [
         () =>
-          post(
-            "/api/auth/cambiar-contrasena",
-            { contrasenaActual: usuario.contrasena, contrasenaNueva: "contrasena-propia-c2" },
-            tokenAcceso,
-          ),
+          obtenerApp().inject({
+            method: "POST",
+            url: "/api/auth/cambiar-contrasena",
+            headers: { authorization: `Bearer ${tokenAcceso}` },
+            payload: { contrasenaNueva: "contrasena-propia-c2" },
+            cookies: { campus_refresco: sesion.token },
+          }),
         () =>
           post(
             "/api/auth/login",
@@ -396,7 +453,9 @@ describe("C: T-09 (retenido: usuario)", () => {
 
     expect(cambiar?.statusCode, "cambiar-contrasena debe responder 204").toBe(204)
     expect(login?.statusCode, "el login con la temporal ya cambiada debe responder 401").toBe(401)
-    expect(await contarSesionesVivas(usuario.id)).toBe(0)
+    expect(await contarSesionesVivas(usuario.id), "queda viva la sesión usada por el cambio").toBe(
+      1,
+    )
   }, 30_000)
 
   it("C3: actualizarContrasenaYRevocarSesiones (directo) y luego login con la vieja: 401, 0 sesiones vivas", async () => {
@@ -463,11 +522,13 @@ describe("C: T-09 (retenido: usuario)", () => {
 })
 
 describe("D: dos escrituras sucesivas del mismo usuario", () => {
-  it("D1: el admin genera la temporal B y luego cambiar-contrasena se hace con la temporal anterior A", async () => {
+  // AUTH-03a (M-03): el restablecimiento del admin gana la carrera → la decisión bajo el bloqueo
+  // encuentra el hash ya cambiado ("credencial_cambiada") → 401 SESION_INVALIDA, sin escribir.
+  it("D1: el admin restablece (retenido primero) y luego cambiar-contrasena con la sesión anterior: 200 y 401 SESION_INVALIDA, sin apagar la bandera", async () => {
     const usuario = await crearUsuarioDePrueba(ids, { debeCambiarContrasena: true })
+    const sesion = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
     const tokenAdmin = await firmarTokenDePrueba({ usuarioId: await adminId() })
-    const contrasenaA = usuario.contrasena
 
     const [admin, cambiar] = par(
       await conFilaRetenida({ tabla: "usuarios", id: usuario.id }, [
@@ -478,20 +539,22 @@ describe("D: dos escrituras sucesivas del mismo usuario", () => {
             headers: { authorization: `Bearer ${tokenAdmin}` },
           }),
         () =>
-          post(
-            "/api/auth/cambiar-contrasena",
-            { contrasenaActual: contrasenaA, contrasenaNueva: "contrasena-propia-d1" },
-            tokenAcceso,
-          ),
+          obtenerApp().inject({
+            method: "POST",
+            url: "/api/auth/cambiar-contrasena",
+            headers: { authorization: `Bearer ${tokenAcceso}` },
+            payload: { contrasenaNueva: "contrasena-propia-d1" },
+            cookies: { campus_refresco: sesion.token },
+          }),
       ]),
     )
 
     expect(admin?.statusCode, "el admin debe responder 200 con la temporal B").toBe(200)
     expect(
       cambiar?.statusCode,
-      "cambiar-contrasena con la temporal anterior debe responder 400",
-    ).toBe(400)
-    expect(errorApiSchema.parse(cambiar?.json()).error.codigo).toBe("CONTRASENA_ACTUAL_INCORRECTA")
+      "cambiar-contrasena, tras la temporal nueva del admin, debe responder 401",
+    ).toBe(401)
+    expect(errorApiSchema.parse(cambiar?.json()).error.codigo).toBe("SESION_INVALIDA")
 
     const temporalB = admin?.json<{ contrasenaTemporal: string }>().contrasenaTemporal
     if (!temporalB) throw new Error("Precondición: el admin no devolvió la temporal B")
@@ -507,10 +570,7 @@ describe("D: dos escrituras sucesivas del mismo usuario", () => {
       where: { id: usuario.id },
       select: { debeCambiarContrasena: true },
     })
-    expect(
-      perfil?.debeCambiarContrasena,
-      "el intento fallido con la temporal A no debe apagar la bandera",
-    ).toBe(true)
+    expect(perfil?.debeCambiarContrasena, "el cambio fallido no debe apagar la bandera").toBe(true)
   }, 30_000)
 })
 
@@ -557,9 +617,9 @@ describe("E: adaptadores, sin concurrencia", () => {
     expect(creada).toBeNull()
   })
 
-  it("E4: cambiarContrasenaPropia con otro hashVerificado devuelve false y no cambia nada", async () => {
+  it("E4: cambiarContrasenaPropia con otro hashVerificado devuelve 'credencial_cambiada' y no cambia nada", async () => {
     const usuario = await crearUsuarioDePrueba(ids)
-    await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
+    const sesion = await crearSesionDePrueba({ usuarioId: usuario.id, expiraEn: treintaDias() })
     const recuperacion = await crearTokenDePrueba({
       usuarioId: usuario.id,
       tipo: "recuperacion",
@@ -568,14 +628,14 @@ describe("E: adaptadores, sin concurrencia", () => {
     const antes = await buscarCredencialesPorId(usuario.id)
     if (!antes) throw new Error("Precondición: no se encontraron las credenciales creadas")
 
-    const cambiada = await cambiarContrasenaPropia({
+    const resultado = await cambiarContrasenaPropia({
       usuarioId: usuario.id,
       hashContrasena: await hashContrasena("contrasena-que-no-debe-quedar"),
       hashVerificado: "un-hash-que-no-es-el-vigente",
-      conservarSesionId: null,
+      sesionId: sesion.id,
       ahora: new Date(),
     })
-    expect(cambiada).toBe(false)
+    expect(resultado).toBe("credencial_cambiada")
 
     const despues = await buscarCredencialesPorId(usuario.id)
     expect(despues?.hashContrasena, "el hash no debe cambiar").toBe(antes.hashContrasena)
@@ -583,6 +643,24 @@ describe("E: adaptadores, sin concurrencia", () => {
     const tokens = await leerTokens(usuario.id)
     const vivos = tokens.filter((t) => t.id === recuperacion.id && t.revocadoEn === null)
     expect(vivos.length, "el token no debe revocarse").toBe(1)
+  })
+
+  it("E4b: cambiarContrasenaPropia sin una sesión viva con ese id devuelve 'sin_sesion' y no cambia nada", async () => {
+    const usuario = await crearUsuarioDePrueba(ids)
+    const antes = await buscarCredencialesPorId(usuario.id)
+    if (!antes) throw new Error("Precondición: no se encontraron las credenciales creadas")
+
+    const resultado = await cambiarContrasenaPropia({
+      usuarioId: usuario.id,
+      hashContrasena: await hashContrasena("contrasena-que-no-debe-quedar"),
+      hashVerificado: antes.hashContrasena,
+      sesionId: randomUUID(),
+      ahora: new Date(),
+    })
+    expect(resultado).toBe("sin_sesion")
+
+    const despues = await buscarCredencialesPorId(usuario.id)
+    expect(despues?.hashContrasena, "el hash no debe cambiar").toBe(antes.hashContrasena)
   })
 
   it("E5: revocarTodasLasSesiones con 2 sesiones vivas devuelve 2", async () => {
@@ -594,20 +672,35 @@ describe("E: adaptadores, sin concurrencia", () => {
     expect(await contarSesionesVivas(usuario.id)).toBe(0)
   })
 
-  it("E6: solo salud.ts y bloqueo-usuario.ts usan $queryRaw etiquetado en adapters/db", async () => {
+  // AUTH-03b, §D-B4/V-04: enlaces-registro.ts suma el FOR NO KEY UPDATE de
+  // registrarMaestroConEnlace y revocarEnlaceRegistro (Enmienda 6). AUTH-03c, §D-C3/V-04:
+  // invitaciones.ts suma el bloqueo consultivo (pg_advisory_xact_lock, M-04), con $executeRaw:
+  // por eso el patrón cubre también esa forma, no solo $queryRaw.
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts e invitaciones.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
     )
-    const patron = /\$queryRaw(?!Unsafe)/
+    const patron = /\$(queryRaw|executeRaw)(?!Unsafe)/
     const conCoincidencia: string[] = []
     for (const archivo of archivos) {
       if (archivo.toLowerCase() === "readme.md") continue
       const ruta = path.join(raizDb, archivo)
       const contenido = await readFile(ruta, "utf-8")
-      if (patron.test(contenido)) conCoincidencia.push(archivo)
+      // Solo código: descarta las líneas que son puro comentario (`// …`), para que una mención en
+      // prosa (como la de enlaces-registro.ts explicando por qué usa $queryRaw) no cuente.
+      const lineasDeCodigo = contenido
+        .split("\n")
+        .filter((linea) => !linea.trim().startsWith("//"))
+        .join("\n")
+      if (patron.test(lineasDeCodigo)) conCoincidencia.push(archivo)
     }
-    expect(conCoincidencia.sort()).toEqual(["bloqueo-usuario.ts", "salud.ts"])
+    expect(conCoincidencia.sort()).toEqual([
+      "bloqueo-usuario.ts",
+      "enlaces-registro.ts",
+      "invitaciones.ts",
+      "salud.ts",
+    ])
   })
 
   it("E7: bloqueo-usuario solo se importa desde adapters/db", async () => {

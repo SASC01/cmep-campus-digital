@@ -30,6 +30,20 @@ export {
   type UsuarioAdmin,
 } from "./usuarios.js"
 export {
+  buscarEnlacePorHash,
+  buscarEnlacePorId,
+  crearEnlaceRegistro,
+  listarEnlacesRegistro,
+  listarRegistradosPorEnlace,
+  registrarMaestroConEnlace,
+  revocarEnlaceRegistro,
+  type EnlaceRegistroConRegistrados,
+  type EnlaceRegistroDb,
+  type ListaEnlacesDb,
+  type ListaRegistradosDb,
+  type RegistradoDb,
+} from "./enlaces-registro.js"
+export {
   buscarSesionPorHash,
   crearSesion,
   revocarSesion,
@@ -40,11 +54,19 @@ export {
   type SesionEncontrada,
 } from "./sesiones.js"
 export {
+  buscarInvitacionPorHash,
   buscarTokenParaEnvio,
   buscarTokenPorHash,
   contarRecuperacionesRecientes,
   prepararTokenDeRecuperacion,
   usarTokenYCambiarContrasena,
+  type InvitacionParaUso,
   type TokenParaEnvio,
   type TokenParaUso,
 } from "./tokens-cuenta.js"
+export {
+  CLAVE_BLOQUEO_INVITACIONES_EN_LOTE,
+  invitarMaestrosEnLote,
+  type CandidatoParaInvitarEnLote,
+  type ResultadoInvitacionEnLote,
+} from "./invitaciones.js"

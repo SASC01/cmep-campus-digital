@@ -427,31 +427,75 @@ describe("ataque: superficie de rutas", () => {
   // AUTH-01 + AUTH-02a. Lo que protege no cambia: ninguna ruta crea administradores y la única que
   // crea maestros es POST /api/admin/maestros, que exige admin. Cualquier ruta nueva hace fallar
   // esta prueba hasta que el Tester la revise.
-  it("bajo /api solo existen las rutas de AUTH-01 y AUTH-02a: ninguna crea admins; solo /admin/maestros crea maestros", () => {
+  // AUTH-03a ronda 0 (C-4): se agrega POST /api/auth/invitacion (pública, solo lee el nombre de una
+  // invitación viva). No crea cuentas: la protección no cambia.
+  // AUTH-03b ronda 0 (C-8): se agregan POST /api/auth/registro-maestro (pública, con un enlace de
+  // registro vivo) y las 4 rutas del admin sobre /api/admin/enlaces-registro (GET y HEAD de la lista
+  // y de los registrados). Lo que protege se reformula sin debilitarse: ninguna ruta crea
+  // administradores; solo POST /api/admin/maestros (admin) y POST /api/auth/registro-maestro (con un
+  // enlace vivo del admin) crean maestros, y la segunda nunca crea otro rol (lo prueban
+  // registro-maestro.integracion y las rondas 1 a 3). Con Fastify 5, printRoutes({ commonPrefix:
+  // false }) anida una ruta bajo otra registrada que sea su prefijo ("/api/auth/registro" →
+  // "-maestro"; "/api/admin/enlaces-registro" → "/:id/revocar"); el análisis de antes descartaba esas
+  // líneas en silencio, así que una ruta nueva que extendiera a otra (por ejemplo,
+  // /api/auth/registro-admin) escapaba de esta guarda. Ahora la ruta completa se reconstruye por
+  // nivel de sangría, y cualquier línea que no se reconozca hace fallar la prueba.
+  // AUTH-03c ronda 0 (C-11, §D-C9): se agrega POST /api/admin/maestros/lote (invitación masiva, solo
+  // para el admin), que también crea maestros; printRoutes la anida bajo /api/admin/maestros y el
+  // análisis por sangría la reconstruye. La protección queda así: ninguna ruta crea administradores;
+  // crean maestros solo POST /api/admin/maestros y POST /api/admin/maestros/lote (las dos solo para
+  // el admin) y POST /api/auth/registro-maestro (con un enlace vivo). Cualquier otra ruta nueva
+  // vuelve a poner la prueba en rojo.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b y AUTH-03c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
+    const noReconocidas: string[] = []
+    const porNivel: string[] = []
     for (const linea of arbol.split("\n")) {
-      const coincidencia = /(\/\S*) \(([^)]+)\)/.exec(linea)
-      if (!coincidencia) continue
-      const [, url, metodos] = coincidencia
-      if (!url?.startsWith("/api")) continue
+      if (linea.trim() === "") continue
+      const coincidencia = /^((?:│ {3}| {4})*)(?:├── |└── )(\S+) \(([^)]+)\)$/.exec(linea)
+      if (!coincidencia) {
+        noReconocidas.push(linea)
+        continue
+      }
+      const [, sangria, segmento, metodos] = coincidencia
+      const nivel = (sangria ?? "").length / 4
+      const padre = nivel === 0 ? "" : porNivel[nivel - 1]
+      if (padre === undefined) {
+        noReconocidas.push(linea)
+        continue
+      }
+      const url = `${padre}${segmento ?? ""}`
+      porNivel[nivel] = url
+      porNivel.length = nivel + 1
+      if (!url.startsWith("/api")) continue
       for (const metodo of (metodos ?? "").split(", ")) rutas.add(`${metodo} ${url}`)
     }
+    expect(noReconocidas, "líneas del árbol de rutas que no se pudieron analizar").toEqual([])
     expect([...rutas].sort()).toEqual([
+      "GET /api/admin/enlaces-registro",
+      "GET /api/admin/enlaces-registro/:id/registrados",
       "GET /api/me",
       "GET /api/salud",
+      "HEAD /api/admin/enlaces-registro",
+      "HEAD /api/admin/enlaces-registro/:id/registrados",
       "HEAD /api/me",
       "HEAD /api/salud",
+      "POST /api/admin/enlaces-registro",
+      "POST /api/admin/enlaces-registro/:id/revocar",
       "POST /api/admin/maestros",
+      "POST /api/admin/maestros/lote",
       "POST /api/admin/usuarios/:id/restablecer-contrasena",
       "POST /api/admin/usuarios/buscar",
       "POST /api/auth/cambiar-contrasena",
       "POST /api/auth/establecer-contrasena",
+      "POST /api/auth/invitacion",
       "POST /api/auth/login",
       "POST /api/auth/logout",
       "POST /api/auth/recuperar",
       "POST /api/auth/refrescar",
       "POST /api/auth/registro",
+      "POST /api/auth/registro-maestro",
       "POST /api/auth/restablecer",
       "PUT /api/admin/usuarios/:id/correo",
     ])

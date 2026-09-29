@@ -295,13 +295,21 @@ describe("ataque (AUTH-02b r1): formularios de enlace", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  // AUTH-03a ronda 0 (C-6): /establecer-contrasena pide POST /api/auth/invitacion al montar; el
+  // stub la responde con un nombre para que aparezca el formulario, y el ENLACE_INVALIDO llega al
+  // enviar, como antes. Sigue protegiendo el mensaje propio, sin formulario y sin reintento.
   it("ENLACE_INVALIDO en la invitación: mensaje propio, sin formulario y sin reintento", async () => {
-    const fetchMock = stubFetch(() => errorJson(400, "ENLACE_INVALIDO"))
+    const fetchMock = stubFetch((ruta) =>
+      ruta === "/api/auth/invitacion"
+        ? respuestaJson(200, { nombre: "Ana López" })
+        : errorJson(400, "ENLACE_INVALIDO"),
+    )
     const { router } = renderEnlace({
       pathname: "/establecer-contrasena",
       hash: `#token=${TOKEN}`,
     })
     await waitFor(() => expect(router.state.location.hash).toBe(""))
+    await screen.findByRole("button", { name: "Activar mi cuenta" })
 
     llenarYEnviar("Activar mi cuenta")
 

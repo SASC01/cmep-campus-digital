@@ -1,4 +1,4 @@
-import { nuevaContrasenaConTokenSchema } from "@campus/shared"
+import { establecerContrasenaSchema } from "@campus/shared"
 import { useState, type FormEvent } from "react"
 import { Link } from "react-router"
 
@@ -6,6 +6,7 @@ import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { esApiError } from "@/services/apiClient"
 
@@ -42,12 +43,19 @@ export function EnlaceInvalido({ tipo }: EnlaceInvalidoProps) {
 interface FormularioNuevaContrasenaProps {
   tipo: TipoEnlace
   token: string
+  // AUTH-03a, §D-A2: solo con una invitación. Su presencia agrega el campo "Nombre completo",
+  // prellenado y corregible, antes de la contraseña.
+  nombreInicial?: string
 }
 
 // DEC-08, DEC-17: el token es de un solo uso; si el servidor lo rechaza (ENLACE_INVALIDO), la vista
 // pasa al mismo estado que si nunca hubo token. Validación en cliente con el esquema de shared/ más
 // la confirmación (que el servidor no conoce).
-export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContrasenaProps) {
+export function FormularioNuevaContrasena({
+  tipo,
+  token,
+  nombreInicial,
+}: FormularioNuevaContrasenaProps) {
   const textos = TEXTOS_NUEVA_CONTRASENA[tipo]
   const nuevaContrasena = useNuevaContrasena(tipo)
   const [errores, setErrores] = useState<ErroresFormulario>({})
@@ -60,7 +68,12 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
     const formulario = new FormData(evento.currentTarget)
     const contrasena = formulario.get("contrasenaNueva")
     const confirmacion = formulario.get("confirmacion")
-    const resultado = nuevaContrasenaConTokenSchema.safeParse({ token, contrasena })
+    const nombre = nombreInicial === undefined ? undefined : formulario.get("nombre")
+    const resultado = establecerContrasenaSchema.safeParse({
+      token,
+      contrasena,
+      ...(nombre === undefined ? {} : { nombre }),
+    })
     if (!resultado.success) {
       setErrores(erroresPorCampo(resultado.error.issues))
       setErrorConfirmacion(false)
@@ -90,6 +103,24 @@ export function FormularioNuevaContrasena({ tipo, token }: FormularioNuevaContra
     >
       {nuevaContrasena.isError && (
         <MensajeError mensaje={mensajeDeErrorAuth(nuevaContrasena.error)} />
+      )}
+      {nombreInicial !== undefined && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="nombre">{textos.nombre}</Label>
+          <Input
+            id="nombre"
+            name="nombre"
+            autoComplete="name"
+            required
+            defaultValue={nombreInicial}
+            aria-invalid={errores.nombre !== undefined}
+            aria-describedby={errores.nombre ? "nombre-ayuda nombre-error" : "nombre-ayuda"}
+          />
+          <p id="nombre-ayuda" className="text-small text-muted-foreground">
+            {textos.ayudaNombre}
+          </p>
+          {errores.nombre && <ErrorDeCampo id="nombre-error">{errores.nombre}</ErrorDeCampo>}
+        </div>
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="contrasenaNueva">{textos.contrasenaNueva}</Label>

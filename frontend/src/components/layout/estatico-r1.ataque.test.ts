@@ -147,13 +147,18 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
   })
 })
 
-describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContrasena (§D-7, V-17)", () => {
+describe("ataque (DESIGN-01b-2 r0): los campos de contraseña usan CampoContrasena (§D-7, V-17)", () => {
   // DESIGN-01b-2, ronda 0: sustituye a la guarda de alcance de 01b-1 ("nada de 01b-2 está
   // implementado"). La tabla de §D-7: por formulario, en orden, el id del campo y la constante de
   // TEXTOS_CAMPO_CONTRASENA de su botón.
+  // AUTH-03a ronda 0 (C-5b): el cambio obligatorio pierde el campo de la temporal y su fila
+  // ["contrasenaActual", "mostrarTemporal"]; quedan 6 campos en los mismos 4 formularios.
+  // AUTH-03b ronda 0 (C-14): se suma un quinto formulario, formulario-registro-maestro.tsx, con un
+  // campo (id "contrasena", constante `mostrar`). Su fila va en orden alfabético de la clave (antes
+  // de formulario-registro.tsx), porque el último caso compara Object.keys(TABLA) con rutasCon, que
+  // devuelve la lista ordenada. Siguen protegiendo lo mismo, con el formulario nuevo en la lista.
   const TABLA: Record<string, [string, string][]> = {
     "/src/features/auth/components/formulario-cambiar-contrasena.tsx": [
-      ["contrasenaActual", "mostrarTemporal"],
       ["contrasenaNueva", "mostrarNueva"],
       ["confirmacion", "mostrarConfirmacion"],
     ],
@@ -162,6 +167,7 @@ describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContra
       ["contrasenaNueva", "mostrarNueva"],
       ["confirmacion", "mostrarConfirmacion"],
     ],
+    "/src/features/auth/components/formulario-registro-maestro.tsx": [["contrasena", "mostrar"]],
     "/src/features/auth/components/formulario-registro.tsx": [["contrasena", "mostrar"]],
   }
   const CAMPO = "/src/features/auth/components/campo-contrasena.tsx"
@@ -179,16 +185,18 @@ describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContra
     return lista
   }
 
-  it("exactamente 7 <CampoContrasena, solo en los 4 formularios: 1, 1, 2 y 3", () => {
+  // AUTH-03b ronda 0 (C-14): de 6 campos en 4 formularios a 7 en 5.
+  it("exactamente 7 <CampoContrasena, solo en los 5 formularios: 1, 1, 2, 2 y 1", () => {
     const usos = lineasCon(/<CampoContrasena\b/, soloTsx).map((l) => l.split(":")[0])
     expect(usos).toHaveLength(7)
     const porArchivo: Record<string, number> = {}
     for (const ruta of usos) if (ruta) porArchivo[ruta] = (porArchivo[ruta] ?? 0) + 1
     expect(porArchivo).toEqual({
-      "/src/features/auth/components/formulario-cambiar-contrasena.tsx": 3,
+      "/src/features/auth/components/formulario-cambiar-contrasena.tsx": 2,
       "/src/features/auth/components/formulario-login.tsx": 1,
       "/src/features/auth/components/formulario-nueva-contrasena.tsx": 2,
       "/src/features/auth/components/formulario-registro.tsx": 1,
+      "/src/features/auth/components/formulario-registro-maestro.tsx": 1,
     })
   })
 
@@ -209,7 +217,8 @@ describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContra
     }
   })
 
-  it("TEXTOS_CAMPO_CONTRASENA tiene exactamente los 4 textos de §D-7 y vive solo en features/auth/data.ts", () => {
+  // AUTH-03a ronda 0 (C-5b): sin el campo de la temporal, mostrarTemporal se retira (§D-A6).
+  it("TEXTOS_CAMPO_CONTRASENA tiene exactamente los 3 textos de §D-7, sin mostrarTemporal, y vive solo en features/auth/data.ts", () => {
     const datos = archivo("/src/features/auth/data.ts")
     const inicio = datos.indexOf("export const TEXTOS_CAMPO_CONTRASENA = {")
     expect(inicio, "no existe TEXTOS_CAMPO_CONTRASENA").toBeGreaterThan(-1)
@@ -224,7 +233,6 @@ describe("ataque (DESIGN-01b-2 r0): los 7 campos de contraseña usan CampoContra
       mostrar: "Mostrar contraseña",
       mostrarNueva: "Mostrar contraseña nueva",
       mostrarConfirmacion: "Mostrar confirmación de contraseña",
-      mostrarTemporal: "Mostrar contraseña temporal",
     })
     expect(rutasCon(/TEXTOS_CAMPO_CONTRASENA\s*=/)).toEqual(["/src/features/auth/data.ts"])
     // Ningún nombre del botón escrito a mano fuera de data.ts.

@@ -15,7 +15,8 @@ vi.mock("@/services/navegacion", () => ({
   rutaActual: vi.fn(() => navegacion.ruta),
 }))
 
-const TEMPORAL = "Temporal-R2-XYZ"
+// AUTH-03a ronda 0 (C-5): sin el campo "Contraseña temporal", la única contraseña que se escribe en
+// /cambiar-contrasena es la nueva; las comprobaciones de la caché pasan a buscarla a ella.
 const NUEVA = "mi-clave-propia-r2"
 const MENSAJE_409 = "Ya no tienes un cambio de contraseña pendiente."
 
@@ -78,7 +79,6 @@ const renderEn = async (ruta: string) => {
 }
 
 const llenarCambio = () => {
-  fireEvent.change(screen.getByLabelText("Contraseña temporal"), { target: { value: TEMPORAL } })
   fireEvent.change(screen.getByLabelText("Contraseña nueva"), { target: { value: NUEVA } })
   fireEvent.change(screen.getByLabelText("Confirma la contraseña nueva"), {
     target: { value: NUEVA },
@@ -135,7 +135,7 @@ describe("ataque (AUTH-02b r2): 409 CAMBIO_NO_REQUERIDO sin bucles ni rebotes", 
     expect(irA).not.toHaveBeenCalled()
     expect(llamadasA(fetchMock, "/api/me")).toBe(2)
     expect(llamadasA(fetchMock, "/api/auth/cambiar-contrasena")).toBe(1)
-    expect(mutacionesEnCache()).not.toContain(TEMPORAL)
+    expect(mutacionesEnCache()).not.toContain(NUEVA)
   })
 
   it("409 pero /me insiste en 403 CAMBIO… (servidor incoherente): sin irA, sin bucle, /me solo una vez más", async () => {
@@ -186,7 +186,6 @@ describe("ataque (AUTH-02b r2): 409 CAMBIO_NO_REQUERIDO sin bucles ni rebotes", 
     expect(llamadasA(fetchMock, "/api/auth/cambiar-contrasena")).toBe(2)
     await esperar(50)
     const cache = mutacionesEnCache()
-    expect(cache).not.toContain(TEMPORAL)
     expect(cache).not.toContain(NUEVA)
   })
 

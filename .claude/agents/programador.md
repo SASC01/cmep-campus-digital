@@ -30,6 +30,13 @@ Si el plan está `BLOQUEADO`, no existe, o no fue aprobado por el humano: detent
 - Cuando el plan dice detenerse ante una condición, te detienes aunque la alternativa parezca obvia o inofensiva. Resolverlo por tu cuenta es una desviación, aunque salga bien.
 - Importar librerías de infraestructura (Prisma incluido) fuera de `adapters/`, escribir verificaciones de permisos dentro de un handler, hacer consultas dentro de un ciclo, concatenar entrada del usuario en SQL, alterar la base sin migración, introducir cualquier servicio o librería de AWS, de un proveedor no aprobado o de correo distinta de `resend`, escribir en `notificaciones` o enviar correos sin pasar por `notifier`, enviar correos o notificaciones dentro de una petición.
 
+## Resumen verificable
+Decisión del humano (2026-09-28). Aplica a toda entrega: implementación y cada corrección.
+- **Pruebas requeridas:** por cada viñeta de "Pruebas requeridas" del plan (de la subentrega, si la hay), el resumen indica el archivo y el título exacto del caso que la cubre. Si una viñeta no tiene caso, lo dices: no está cubierta.
+- **Conteos:** toda cifra de archivos, pruebas o casos sale de `npx vitest list` o de la corrida, y el resumen incluye el comando que la produjo. Nunca de memoria.
+- **lint, test y build:** para cada uno, el comando exacto y la última línea de su salida (por ejemplo, `Tests  838 passed (838)`), no un "pasaron".
+- El manager contrasta cada cifra del resumen con su propia corrida antes de aceptarlo. Una cifra que no coincide te devuelve el resumen; nadie la corrige a mano.
+
 ## Al corregir hallazgos
 Atiende cada hallazgo por su identificador (`T-01`, `M-02`). Para cada uno indica: corregido, o no corregido y por qué.
 
@@ -38,7 +45,9 @@ Atiende cada hallazgo por su identificador (`T-01`, `M-02`). Para cada uno indic
 Plan: <ruta>
 Pasos completados: n de m
 Archivos creados / modificados: <lista>
-Verificación: lint <ok|falla> · test <n pasan, n fallan> · build <ok|n/a> · prisma validate <ok|n/a>
+Verificación (comando exacto y última línea de salida de cada uno): lint <...> · test <...> · build <...|n/a> · prisma validate <...|n/a>
+Pruebas requeridas: <viñeta → archivo y título exacto del caso, una por línea; "no cubierta" si falta>
+Conteos: <cifra y el comando de `npx vitest list` o de la corrida que la produjo>
 Hallazgos atendidos: <T-01 corregido, ...>
 Desviaciones del plan: <ninguna | cuáles y por qué>
 Pendiente o fuera de alcance detectado: <...>

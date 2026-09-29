@@ -184,6 +184,19 @@ describe("api: refresco silencioso y casos especiales", () => {
     expect(irA).toHaveBeenCalledWith("/login")
   })
 
+  // AUTH-03b: "/registro-maestro" entra a RUTAS_SIN_SESION, como las demás pantallas de cuenta sin
+  // sesión: perder la sesión ahí no navega a /login (ya se está en una pantalla sin sesión).
+  it("en /registro-maestro, si el refresco falla no navega a /login", async () => {
+    vi.mocked(rutaActual).mockReturnValueOnce("/registro-maestro")
+    stubConRefresco(() => Promise.resolve(errorJson(401, "SESION_INVALIDA")))
+    establecerToken("viejo")
+
+    const error = await api("/api/me", { schema: meRespuestaSchema }).catch((e: unknown) => e)
+
+    expect(esApiError(error) && error.codigo).toBe("NO_AUTENTICADO")
+    expect(irA).not.toHaveBeenCalled()
+  })
+
   it("un 502 sin JSON (proxy o API caída) es SIN_CONEXION", async () => {
     vi.stubGlobal(
       "fetch",

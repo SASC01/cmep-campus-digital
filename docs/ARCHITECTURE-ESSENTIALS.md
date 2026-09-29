@@ -40,9 +40,9 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Token de refresco: aleatorio, cookie `HttpOnly; Secure; SameSite=Strict`, guardado **solo como hash**, 30 días, rotación en cada uso, reutilización ⇒ se revocan todas las sesiones.
 - Login: 5 intentos / 15 min por IP + correo. Mismo mensaje para usuario inexistente y contraseña incorrecta.
 - El correo es el identificador de acceso y **no se verifica**: puede estar mal escrito.
-- Registro público: solo estudiantes. Maestros: los crea el admin y reciben por correo un enlace de un solo uso (72 h) para establecer su contraseña. Decidido para AUTH-03: invitación masiva, y registro de maestros con un enlace que genera el admin (vigencia configurable, 7 días por defecto; revocable; guardado solo como hash; D-04). Admin: `npm run seed:admin`, cuenta única, sin endpoint.
+- Registro público: solo estudiantes. Maestros: los da de alta el admin, por invitación individual o masiva (enlace de un solo uso por correo, 72 h; al activarlo, el maestro ve y puede corregir su nombre), o se registran con un enlace de registro que genera el admin (token aleatorio mostrado una sola vez y guardado solo como hash; vigencia de 1 a 30 días, 7 por defecto; revocable; el admin ve quién se registró con cada enlace; D-04). Admin: `npm run seed:admin`, cuenta única, sin endpoint.
 - **Recuperación por correo:** enlace de un solo uso, 30 min, guardado solo como hash (`tokens_cuenta`); misma respuesta y mismo tiempo exista o no el correo; 3 solicitudes por hora; al usarlo se revocan las sesiones. La API encola siempre y el worker resuelve la cuenta (no hay recuperación para el admin); límite de 3 por hora por IP + correo en la API y por cuenta en el worker. El token del enlace se deriva de su id con una clave del servidor y viaja en el fragmento de la URL.
-- **Respaldo por el admin:** contraseña temporal aleatoria mostrada **una sola vez**, guardada solo como hash, activa `debe_cambiar_contrasena` y revoca sesiones. Decidido para AUTH-03: ese cambio obligatorio pide solo la contraseña nueva y su confirmación, no la temporal; un futuro cambio voluntario desde el perfil sí pedirá la actual. El admin puede corregir un correo. La del admin: `npm run reset:admin`.
+- **Respaldo por el admin:** contraseña temporal aleatoria mostrada **una sola vez**, guardada solo como hash, activa `debe_cambiar_contrasena` y revoca sesiones. El cambio obligatorio pide solo la contraseña nueva y su confirmación, no la temporal, y exige una sesión viva del mismo usuario (cookie de refresco); un futuro cambio voluntario desde el perfil sí pedirá la actual. El admin puede corregir un correo. La del admin: `npm run reset:admin`.
 
 ## Autorización (orden fijo, siempre en backend)
 1. `authenticate` → 2. `withProfile` → 3. `withPasswordGate` → 4. `withAccess` → 5. `requireRole` → 6. `requireMembership` / `requireOwnership` → 7. handler
@@ -66,7 +66,7 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Búsqueda de alumnos: `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: mínimo 3 caracteres, espera de 300 ms.
 
 ### Tablas
-`usuarios` · `sesiones` · `tokens_cuenta` · `clases` · `categorias` · `inscripciones` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
+`usuarios` · `sesiones` · `tokens_cuenta` · `enlaces_registro` · `clases` · `categorias` · `inscripciones` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
 
 Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único parcial) · `entregas (tarea_id, alumno_id)` único · `notificaciones (usuario_id, evento_id)` único · `comentarios` y `archivos` con exactamente un contexto.
 
@@ -74,7 +74,7 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - La API guarda y encola **en la misma transacción**, y responde. **Nunca** crea notificaciones en la petición.
 - Todo aviso y todo correo sale por `adapters/notifier`: `avisar(destinatarios, aviso)` y `correoDeCuenta(...)`. Nadie más escribe en `notificaciones` ni llama a Resend.
 - **Aviso = notificación in-app siempre + correo solo si ese tipo está activado** en `configuracion` (todos apagados por defecto; los enciende el admin).
-- **Correos de cuenta** (recuperación, invitación de maestro): siempre activos, solo por correo, con prioridad en la cola. La invitación masiva (AUTH-03) respeta los límites diarios de Resend.
+- **Correos de cuenta** (recuperación, invitación de maestro): siempre activos, solo por correo, con prioridad en la cola. La invitación masiva se rechaza completa si rebasa el cupo `INVITACIONES_LIMITE_DIARIO` (80 invitaciones en las últimas 24 h; Resend gratuito: 100 correos por día UTC) y encola un trabajo por maestro en su misma transacción; el worker deja al menos 250 ms entre dos intentos de envío.
 - Un correo por destinatario, con límite de ritmo. Canal `registro` en `dev` y pruebas.
 - Idempotencia por `eventId`. 3 reintentos con espera exponencial; después, cola de fallidos vigilada.
 - Eventos: `PUBLICACION_CREADA` · `MATERIAL_CREADO` · `TAREA_CREADA` · `ENTREGA_REALIZADA` · `CALIFICACION_PUBLICADA` · `COMENTARIO_CREADO` · `RECORDATORIO_24H` · `CLASE_POR_COMENZAR` · `CORREO_DE_CUENTA` · `ENVIAR_CORREO` · `GRABACION_LISTA` · `LIMPIEZA_DIARIA` · `RESPALDO_DIARIO`

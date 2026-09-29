@@ -73,6 +73,7 @@ let log = ""
 let faltante: string | null = "beforeAll no terminó"
 const secretos: [string, string][] = []
 const estados: Record<string, number> = {}
+let codigoCambioIncorrecto: string | undefined
 
 beforeAll(async () => {
   inicializarDb({ connectionString: env.DATABASE_URL })
@@ -195,13 +196,18 @@ beforeAll(async () => {
       cookie: `campus_refresco=${cookieAlumno}`,
     }
 
-    await enviar(
+    // AUTH-03a ronda 0 (C-1): el paso incorrecto manda una nueva igual a la temporal (400
+    // CONTRASENA_REPETIDA). La "temporal incorrecta" viaja como contrasenaActual, el campo que un
+    // cliente viejo todavía podría mandar y que el servidor ignora: tampoco debe llegar al log.
+    const cambioIncorrecto = await enviar(
       "cambiar incorrecta",
       "POST",
       "/api/auth/cambiar-contrasena",
-      { contrasenaActual: incorrecta, contrasenaNueva: nuevaPorCambio },
+      { contrasenaActual: incorrecta, contrasenaNueva: contrasenaTemporal },
       comoAlumno,
     )
+    const cuerpoIncorrecto = (await cambioIncorrecto.json()) as { error?: { codigo?: string } }
+    codigoCambioIncorrecto = cuerpoIncorrecto.error?.codigo
     await enviar(
       "cambiar",
       "POST",
@@ -273,6 +279,8 @@ describe("ataque: secretos de cuentas en el log de la API real", () => {
       "restablecer enlace": 204,
       corregir: 200,
     })
+    // AUTH-03a ronda 0 (C-1): el paso incorrecto recorre la comparación con la vigente.
+    expect(codigoCambioIncorrecto).toBe("CONTRASENA_REPETIDA")
     expect(faltante, `log incompleto: ${String(faltante)}`).toBeNull()
   })
 

@@ -2,12 +2,14 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router"
 
 import { LayoutPublico } from "@/components/layout/layout-publico"
 import { CuentasView } from "@/features/admin/cuentas-view"
+import { MaestrosView } from "@/features/admin/maestros-view"
 import { AccesoRestringidoView } from "@/features/auth/acceso-restringido-view"
 import { BienvenidaView } from "@/features/auth/bienvenida-view"
 import { CambiarContrasenaView } from "@/features/auth/cambiar-contrasena-view"
 import { EstablecerContrasenaView } from "@/features/auth/establecer-contrasena-view"
 import { LoginView } from "@/features/auth/login-view"
 import { RecuperarView } from "@/features/auth/recuperar-view"
+import { RegistroMaestroView } from "@/features/auth/registro-maestro-view"
 import { RegistroView } from "@/features/auth/registro-view"
 import { RestablecerView } from "@/features/auth/restablecer-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
@@ -30,6 +32,7 @@ export const rutas: RouteObject[] = [
       { path: "/recuperar", element: <RecuperarView /> },
       { path: "/restablecer", element: <RestablecerView /> },
       { path: "/establecer-contrasena", element: <EstablecerContrasenaView /> },
+      { path: "/registro-maestro", element: <RegistroMaestroView /> },
       { path: "/diagnostico", element: <DiagnosticoView /> },
     ],
   },
@@ -55,7 +58,10 @@ export const rutas: RouteObject[] = [
       {
         path: "/admin",
         element: <RequireRol rol="admin" />,
-        children: [{ index: true, element: <CuentasView /> }],
+        children: [
+          { index: true, element: <CuentasView /> },
+          { path: "maestros", element: <MaestrosView /> },
+        ],
       },
     ],
   },

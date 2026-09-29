@@ -30,6 +30,20 @@ export {
   type UsuarioAdmin,
 } from "./usuarios.js"
 export {
+  buscarEnlacePorHash,
+  buscarEnlacePorId,
+  crearEnlaceRegistro,
+  listarEnlacesRegistro,
+  listarRegistradosPorEnlace,
+  registrarMaestroConEnlace,
+  revocarEnlaceRegistro,
+  type EnlaceRegistroConRegistrados,
+  type EnlaceRegistroDb,
+  type ListaEnlacesDb,
+  type ListaRegistradosDb,
+  type RegistradoDb,
+} from "./enlaces-registro.js"
+export {
   buscarSesionPorHash,
   crearSesion,
   revocarSesion,

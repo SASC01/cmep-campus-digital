@@ -36,25 +36,28 @@ enum TipoTokenCuenta {
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
-  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                 String        @unique
-  hashContrasena        String        @map("hash_contrasena")
-  debeCambiarContrasena Boolean       @default(false) @map("debe_cambiar_contrasena")
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String          @unique
+  hashContrasena        String          @map("hash_contrasena")
+  debeCambiarContrasena Boolean         @default(false) @map("debe_cambiar_contrasena")
   nombre                String
-  nombreBusqueda        String        @map("nombre_busqueda")
+  nombreBusqueda        String          @map("nombre_busqueda")
   rol                   Rol
-  activo                Boolean       @default(true)
-  estadoPago            EstadoPago    @default(al_corriente) @map("estado_pago")
-  fechaEstadoPago       DateTime?     @map("fecha_estado_pago") @db.Timestamptz(3)
-  accesoRestringido     Boolean       @default(false) @map("acceso_restringido")
-  motivoRestriccion     String?       @map("motivo_restriccion")
-  fechaRestriccion      DateTime?     @map("fecha_restriccion") @db.Timestamptz(3)
-  creadoEn              DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn         DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  activo                Boolean         @default(true)
+  estadoPago            EstadoPago      @default(al_corriente) @map("estado_pago")
+  fechaEstadoPago       DateTime?       @map("fecha_estado_pago") @db.Timestamptz(3)
+  accesoRestringido     Boolean         @default(false) @map("acceso_restringido")
+  motivoRestriccion     String?         @map("motivo_restriccion")
+  fechaRestriccion      DateTime?       @map("fecha_restriccion") @db.Timestamptz(3)
+  creadoEn              DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn         DateTime        @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  enlaceRegistroId      String?         @map("enlace_registro_id") @db.Uuid
   sesiones              Sesion[]
   tokensCuenta          TokenCuenta[]
+  enlaceRegistro        EnlaceRegistro? @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
 
   @@index([rol])
+  @@index([enlaceRegistroId, creadoEn])
   @@map("usuarios")
 }
 
@@ -93,4 +96,21 @@ model TokenCuenta {
 
   @@index([usuarioId])
   @@map("tokens_cuenta")
+}
+
+// AUTH-03b: enlace de registro de maestro. Solo el SHA-256 del token; el token aleatorio se
+// muestra una sola vez, al crearlo, y nunca se guarda (§D-B3). El estado (vigente, vencido,
+// revocado) se deriva en core/, no se guarda (§D-B1). Sin creado_por (S-09): la cuenta admin es
+// única.
+model EnlaceRegistro {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hashToken     String    @unique @map("hash_token")
+  expiraEn      DateTime  @map("expira_en") @db.Timestamptz(3)
+  revocadoEn    DateTime? @map("revocado_en") @db.Timestamptz(3)
+  creadoEn      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime  @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  registrados   Usuario[]
+
+  @@index([creadoEn(sort: Desc), id(sort: Desc)])
+  @@map("enlaces_registro")
 }

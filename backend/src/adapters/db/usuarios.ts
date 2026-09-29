@@ -38,6 +38,8 @@ export interface NuevoUsuario {
   email: string
   hashContrasena: string
   rol: Rol
+  // AUTH-03b: solo cuando el registro nace de un enlace de registro de maestro.
+  enlaceRegistroId?: string
 }
 
 export interface NuevaSesionDeUsuario {

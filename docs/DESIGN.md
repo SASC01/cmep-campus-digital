@@ -356,8 +356,8 @@ El fondo ocupa toda la ventana, queda fijo detrás del contenido, no recibe el p
 |---|---|---|---|
 | Login e inicio de estudiante y de maestro (dashboards; hoy, la bienvenida provisional) | En movimiento | Vidrio | `/login`, `/estudiante`, `/maestro` |
 | Pantallas de trabajo: detalle de tarea, calificar, calendario y clase en vivo | Quietos | Vidrio | — |
-| Gradebook y todas las vistas del administrador | Quietos; propuesta aprobada (2026-09-27) | **Opacas: sin vidrio** | `/admin` |
-| Demás pantallas: registro, recuperar, restablecer y establecer contraseña, cambio obligatorio, acceso restringido y diagnóstico | Quietos | Vidrio | `/registro`, `/recuperar`, `/restablecer`, `/establecer-contrasena`, `/cambiar-contrasena`, `/acceso-restringido`, `/diagnostico` |
+| Gradebook y todas las vistas del administrador | Quietos; propuesta aprobada (2026-09-27) | **Opacas: sin vidrio** | `/admin`, `/admin/maestros` (AUTH-03b) |
+| Demás pantallas: registro, recuperar, restablecer y establecer contraseña, cambio obligatorio, acceso restringido, diagnóstico y registro de maestro por enlace (AUTH-03b) | Quietos | Vidrio | `/registro`, `/recuperar`, `/restablecer`, `/establecer-contrasena`, `/cambiar-contrasena`, `/acceso-restringido`, `/diagnostico`, `/registro-maestro` |
 
 Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo la agrega aquí.
 
@@ -432,7 +432,7 @@ Las dos barras flotan sobre el fondo, a 24 px de los bordes de la ventana.
 
 **Implementación (DESIGN-01b, propuesta aprobada (2026-09-28), salvo lo ya marcado como aprobado arriba):**
 - Una sola `nav` (`BarraNavegacion`) que es la barra lateral desde 768 px y la barra inferior fija por debajo, flotante a 16 px de los bordes de la ventana, el margen de la ventana en pantallas angostas (§5); desde 768 px, la barra lateral y la barra superior flotan a 24 px, como dice el inicio de esta sección. Entre 640 y 767 px el margen también es de 16 px, y no de 24 como pide §5, porque cambia en el mismo corte que la barra (DESIGN-01b, propuesta aprobada (2026-09-28)), con elementos de 72 × 56 px en la barra inferior y 72 × 60 px en la barra lateral.
-- Destinos de hoy: "Inicio" hacia `/estudiante` o `/maestro`, "Cuentas" hacia `/admin` (un solo destino por rol; `DESTINOS_POR_ROL`, `components/layout/data.ts`).
+- Destinos de hoy: "Inicio" hacia `/estudiante` o `/maestro`; el administrador tiene dos, "Cuentas" hacia `/admin` y "Maestros" hacia `/admin/maestros` (AUTH-03b; `DESTINOS_POR_ROL`, `components/layout/data.ts`).
 - Avatar decorativo (`AvatarUsuario`) con las iniciales de `inicialesDe(nombre)` (`lib/format.ts`).
 - Sin botón de avisos todavía (llega con el módulo `notificaciones`).
 - **Barra superior por debajo de 640 px (S-12):** no caben el nombre del producto, el avatar, el nombre de la persona y "Cerrar sesión" con texto. El nombre y el rol quedan solo para lectores de pantalla, el avatar se oculta y "Cerrar sesión" muestra solo su icono (su nombre accesible no cambia).
@@ -508,8 +508,13 @@ Tiene tres formas, y todas llevan palabras:
 | Calificado | success | "Calificado" | — |
 | Sin entregar | danger | "Sin entregar" | — |
 | Alumno en riesgo | warning | "En riesgo" | `TriangleAlert` |
+| Vigente (enlace de registro) | success | "Vigente" | `CircleCheck` |
+| Vencido (enlace de registro) | muted | "Vencido" | `Clock` |
+| Revocado (enlace de registro) | danger | "Revocado" | `Ban` |
 
 Lo implementan `EstadoPagoBadge` y `EstadoEntregaBadge` (`CLAUDE.md`, "Ubicaciones compartidas").
+
+**Implementación de la insignia genérica (AUTH-03b, propuesta):** `components/ui/badge.tsx` (`Badge`), con variantes `success`, `warning`, `danger` y `muted` (`cva`, sin exportarse: no existe `badge-variants.ts`, para que el texto rojo de `danger` quede vigilado en este mismo archivo), fondo `*-soft` sólido, texto en el color del estado y un icono opcional de lucide de 14 px antes del texto. Primer uso: los estados de un enlace de registro en `/admin/maestros`.
 
 ### 7.9 Tablas densas del administrador · propuesta aprobada (2026-09-27)
 
@@ -528,6 +533,7 @@ No aparecen en la captura. Van sobre superficies opacas: en pantallas densas no 
 - **Confirmación:** las acciones sensibles (restringir, dar de baja, cambio masivo de estado de pago) piden confirmación en un diálogo, como excepción del PRD.
 - **Abajo:** paginación, con un máximo de 100 filas por página.
 - **Pantallas angostas:** la tabla se desplaza en horizontal dentro de su contenedor; la página nunca.
+- **Implementación (AUTH-03b, propuesta):** `components/ui/table.tsx` (`Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), contenedor con `overflow-x-auto` propio, fondo `--surface`, borde de 1 px `--border` y `--radius-panel`; encabezado con fondo `--muted`; filas de 40 px con divisor de 1 px `--border`. "Cargar más" como forma de paginar **solo en `/admin/maestros`** (P-02 A); la forma de la tabla de usuarios la decide ADMIN. Línea nueva (Enmienda 6, arbitraje de T-10): "Las acciones de una fila llevan en su nombre accesible el dato que identifica la fila, como texto `sr-only` dentro del botón (nunca `aria-hidden` ni `aria-label`); el texto visible no cambia".
 
 ### 7.10 Estados de error, carga y vacío
 
@@ -541,10 +547,11 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
   - Icono giratorio y texto en `--muted-foreground`, con `role="status"`.
   - En listas de tarjetas puede sustituirse por marcadores del mismo tamaño en vidrio fuerte, para que la página no salte; propuesta aprobada (2026-09-27).
   - **Implementación (DESIGN-01b, propuesta aprobada (2026-09-28)):** píldora de vidrio fuerte (`rounded-pill`), para leerse sobre el fondo con orbes en las guardas y sobre cualquier panel.
-- **Vacío:** `EstadoVacio`, por construir.
-  - Un título concreto, una frase y una llamada a la acción.
+- **Vacío:** `EstadoVacio` (`components/estado-vacio.tsx`; construido en AUTH-03b, propuesta).
+  - Un título concreto, una frase opcional y una llamada a la acción opcional.
   - Las del PRD son "Crea tu primera clase" (maestro) y "Únete con tu código de clase" (estudiante).
-  - Si es la única acción de la vista, va en `primary`; si no, en `outline`. Sin ilustraciones.
+  - La variante del botón (`primary` si es la única acción de la vista, `outline` si no) la decide quien usa el componente, sin valor por defecto dentro de `EstadoVacio`. Sin ilustraciones.
+  - **Excepción (AUTH-03b):** un vacío dentro de una fila expandida de una tabla (los registrados de un enlace de registro) lleva solo el título, sin acción, porque ahí no hay nada que hacer.
 
 ### 7.11 Capas flotantes y avisos
 
@@ -566,6 +573,28 @@ Decisión del humano (2026-09-27): mismo pie en todas las pantallas, también en
 - **Material:** vidrio, `--radius-bar` (opaco en pantallas densas, como el resto del marco).
 - **Estructura:** un `<footer>` sin `<nav>` (una sola `nav` por pantalla es la de navegación principal); la lista de enlaces lleva el nombre accesible "Enlaces del colegio".
 - **Dónde aparece:** al final de todas las pantallas (`MarcoPublico` para las pantallas sin rol, `ContenedorRol` para las de un rol), salvo en los instantes de carga de las guardas (`RequireSesion`, `RequireRol`, `RequireCambioDeContrasena`), que son transiciones, no pantallas.
+
+### 7.13 Dato que se muestra una sola vez (AUTH-03b, propuesta)
+
+Para un dato sensible que el servidor solo entrega una vez (la contraseña temporal del respaldo por el admin, el token de un enlace de registro de maestro):
+
+- Bloque sólido `--muted` con `--radius-row`.
+- El dato en `--text-h3` 700 (con `break-all` si es una URL larga) y el aviso en `--text-small` `--muted-foreground`.
+- El botón "Copiar" (o "Copiar enlace") en `outline`, con `enEspera` mientras el portapapeles responde.
+- El foco pasa al botón de copiar solo si nadie más lo tiene (`focoDisponiblePara`), nunca a la fuerza.
+- El dato vive solo en el estado de quien lo pidió, nunca en la caché de TanStack Query.
+
+Implementan este patrón `ContrasenaTemporal` (`features/admin/components/contrasena-temporal.tsx`, AUTH-02) y `EnlaceNuevo` (`features/admin/components/enlace-nuevo.tsx`, AUTH-03b).
+
+### 7.14 Confirmación en línea (AUTH-03b, propuesta)
+
+Para una acción irreversible de bajo alcance (restablecer una contraseña, revocar un enlace de registro), que no llega al nivel de las acciones destructivas de `CLAUDE.md` (restringir acceso, dar de baja, cambio masivo de estado de pago):
+
+- La frase de consecuencia, seguida de "Sí, …" en `destructive` con `enEspera` y "Cancelar" en `outline`.
+- Al pedir la confirmación, el foco va a "Cancelar" (nunca a la acción destructiva); al cancelar, vuelve al botón que abrió la confirmación.
+- Sin diálogo: el diálogo queda para las acciones de la lista de `CLAUDE.md`.
+
+Implementan este patrón `AccionRestablecer` (`features/admin/components/ficha-de-cuenta.tsx`, AUTH-02) y la confirmación de "Revocar" en `TablaEnlaces` (`features/admin/components/tabla-enlaces.tsx`, AUTH-03b).
 
 ## 8. Densidad por rol
 

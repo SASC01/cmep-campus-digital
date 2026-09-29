@@ -672,7 +672,9 @@ describe("E: adaptadores, sin concurrencia", () => {
     expect(await contarSesionesVivas(usuario.id)).toBe(0)
   })
 
-  it("E6: solo salud.ts y bloqueo-usuario.ts usan $queryRaw etiquetado en adapters/db", async () => {
+  // AUTH-03b, §D-B4/V-04: enlaces-registro.ts suma el FOR NO KEY UPDATE de
+  // registrarMaestroConEnlace y revocarEnlaceRegistro (Enmienda 6).
+  it("E6: solo salud.ts, bloqueo-usuario.ts y enlaces-registro.ts usan $queryRaw etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -685,7 +687,11 @@ describe("E: adaptadores, sin concurrencia", () => {
       const contenido = await readFile(ruta, "utf-8")
       if (patron.test(contenido)) conCoincidencia.push(archivo)
     }
-    expect(conCoincidencia.sort()).toEqual(["bloqueo-usuario.ts", "salud.ts"])
+    expect(conCoincidencia.sort()).toEqual([
+      "bloqueo-usuario.ts",
+      "enlaces-registro.ts",
+      "salud.ts",
+    ])
   })
 
   it("E7: bloqueo-usuario solo se importa desde adapters/db", async () => {

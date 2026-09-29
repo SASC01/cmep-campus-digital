@@ -4,6 +4,8 @@ Enmienda 1 (revisión del manager): M-01 a M-08
 Enmienda 2 (decisiones del humano y revisión de la enmienda 1): M-09 a M-13, ritmo de 250 ms y cambio de proceso
 Enmienda 3 (arbitraje de PA-07, AUTH-03a ronda 2)
 Enmienda 4 (revisión final de 03a): redacción de V-04 y V-05
+Enmienda 5 (ronda 0 de 03b: T-03 y T-04)
+Enmienda 6 (arbitraje de T-07 y T-10, 03b ronda 1)
 Carril: sensible (las tres subentregas; justificación en "Alcance", "Subentregas"). La revisión humana del diff no es obligatoria (`AGENTS.md`, "Commits y cierre de subentregas").
 Requisitos: RF-04b, RF-04d, RF-04e y RF-04f; MF-05 de AUTH-02b (contraseña del login y del registro en la caché de mutaciones). Contexto: RF-02, RF-03, RF-04, RF-04a, RN-03 (restringido con cambio pendiente). ESSENTIALS "Autenticación", "Autorización", "Reglas de datos", "Asíncrono y notificaciones". `ARCHITECTURE.md` D-04, §6, §7, §8, §9 y §14.
 Rama: `feat/auth-03-ajustes-de-cuentas`, creada por el humano desde `53b3126`. Ningún agente crea ni cambia de rama.
@@ -16,6 +18,36 @@ Antecedentes: `docs/trabajo/AUTH-02-cuentas-y-correo/` (`plan.md` DEC-03, DEC-08
 No hay commit de aprobación del plan.
 
 ---
+
+## Enmienda 6 — arbitraje de T-07 y T-10 (AUTH-03b, ronda 1)
+Incorpora lo que el manager asignó al arquitecto (`revision.md`, "Arbitraje de T-07 y T-10 (AUTH-03b, ronda 1)"). No agrega dependencias, migraciones ni cambios de contrato de la API. La comprobación humana sigue en 6 puntos.
+
+- **T-07, bloqueo del enlace.**
+  - El registro por enlace toma `FOR NO KEY UPDATE` sobre la fila del enlace, en lugar de `FOR SHARE`.
+  - La revocación toma ese mismo bloqueo de forma explícita y fija `revocado_en` después de obtenerlo.
+  - La corrección del programador en `revocarEnlaceRegistro` pasa al plan y deja de ser una desviación.
+  - Dónde: §D-B5; en "Cambios por capa", las filas `db/enlaces-registro.ts` y `README.md` (adapters); en "Acceso a datos", las filas `revocarEnlaceRegistro` y `registrarMaestroConEnlace`; el texto propuesto para `ARCHITECTURE.md` §6, ítem 3.
+  - El riesgo residual de la espera sin límite ya no aplica. El plan no lo tenía anotado: lo describen el comentario de `revocarEnlaceRegistro` en `adapters/db/enlaces-registro.ts` y el bloque de `adapters/README.md`, y el programador los actualiza en su corrección.
+- **T-10, nombres accesibles.**
+  - Los cuatro botones de fila de la tabla de enlaces ("Ver registrados" u "Ocultar registrados", "Revocar", "Sí, revocar" y "Cancelar") llevan en su nombre accesible la fecha de creación del enlace.
+  - Esa fecha va con `formatearFechaHora`, como texto `sr-only` dentro del botón, sin `aria-hidden` ni `aria-label`. El texto visible no cambia.
+  - Dónde: §D-B6, §D-B8, §D-B9 (§7.9), la fila de `features/admin` en "Cambios por capa" y "Pruebas requeridas" (frontend de 03b).
+  - R-17 anota el riesgo aceptado de dos enlaces creados en el mismo minuto.
+- **Para el manager (R-18):** el "Cargar más" de los registrados puede repetirse si dos filas están expandidas. No lo incorporo, porque el arbitraje fija cuatro botones.
+
+## Enmienda 5 — ronda 0 de 03b (T-03 y T-04)
+**Qué pasó.** En la ronda 0 de 03b, el tester encontró dos casos de `frontend/src/styles/clases-r1.ataque.test.ts` que el diseño de 03b contradice y que el inventario de §D-B7 no cubría (`reporte-tester.md`, "AUTH-03b — Ronda 0", T-03 y T-04):
+- `:68` (V-06) exige exactamente 13 `enEspera=`;
+- `:105` (V-13) limita el texto rojo a 4 archivos.
+
+**Qué cambió.**
+- **§D-B7** suma dos C-n: C-15, que lleva el conteo de `enEspera=` a 19 con una lista cerrada de 6 botones, y C-16, que suma `components/ui/badge.tsx` a V-13 con la condición de que el rojo vaya solo junto a `bg-danger-soft`.
+- **§D-C9** suma C-17: el conteo pasa a 20 con "Enviar invitaciones". En 03c, la lista de V-13 no cambia.
+- **§D-B6** marca qué botones llevan `enEspera`.
+- **La ronda 0**, paso 2, suma a la búsqueda `enEspera=`, `text-danger`, `text-destructive` y toda prueba estática con conteos o listas cerradas.
+- **Las reglas del programador** (M-13) suman las restricciones de `clases-r1`, `estatico-r1`, `features/admin/cuentas-r1` y `arquitectura-cuentas-r1` que 03b y 03c no contradicen pero pueden romper. Esas restricciones **no se reescriben**.
+
+**Revisión de las demás `*.ataque` estáticas**, con conteos o listas cerradas: `clases-r1`, `estatico-r1`, `tokens-r1`, `features/admin/cuentas-r1`, `marco-r1`, `contexto-r1`, `pie-r1` y, en el backend, `arquitectura-cuentas-r1` y `sesiones-y-cadena`. Fuera de C-15, C-16 y C-17, no encontré otro caso que el diseño contradiga. Lo que sí pueden romper está en las reglas del programador.
 
 ## Enmienda 4 — revisión final de 03a
 Cambia solo la redacción de V-04 (la viñeta de `contrasenaActual` y `mostrarTemporal` excluye los comentarios y la lista de censura de `config/logger.ts`, que se conserva por la regla 13) y de V-05, a pedido del manager (`revision.md`, "Revisión final — AUTH-03a", "Documentos a actualizar").
@@ -296,23 +328,35 @@ Las consultas se validan con `validarParametros` (sirve para cualquier objeto) y
   1. `buscarEnlacePorHash(hashTokenDeEnlace(token))` y `decidirUsoDeEnlace(enlace, ahora)` (core). Si no es válido, `400 ENLACE_INVALIDO` ("El enlace de registro no es válido, ya venció o fue revocado. Pide uno nuevo a administración.").
   2. `prepararRegistro`, `hashContrasena` y `generarTokenRefresco`, todo antes de la transacción.
   3. `registrarMaestroConEnlace({ enlaceId, usuario: { ..., rol: "maestro", enlaceRegistroId }, sesion, ahora })`. Transacción:
-     - `SELECT id FROM enlaces_registro WHERE id = $1 AND revocado_en IS NULL AND expira_en > $2 FOR SHARE` (SQL etiquetado con `$queryRaw`). Si no hay fila, devuelve `null` sin escribir.
+     - `SELECT id FROM enlaces_registro WHERE id = $1 AND revocado_en IS NULL AND expira_en > $2 FOR NO KEY UPDATE` (SQL etiquetado con `$queryRaw`; Enmienda 6). Si no hay fila, devuelve `null` sin escribir.
      - `crearUsuario(tx)`. Un `P2002` se traduce a `409 CORREO_EN_USO` y se relanza, sin atraparlo para seguir (E-02 de AUTH-02).
      - `tx.sesion.create`.
 
      La transacción crea al usuario, así que el protocolo de bloqueo por usuario no aplica (`adapters/README.md`, "Quedan fuera").
   4. `null` → `400 ENLACE_INVALIDO`. Si no, `firmarTokenAcceso`, `ponerCookieRefresco` y `201 { tokenAcceso }`, como el registro de estudiante.
-- **Revocación frente a registro:** `revocarEnlaceRegistro` hace `UPDATE enlaces_registro SET revocado_en = $ahora WHERE id = $1 AND revocado_en IS NULL`. Esa sentencia toma `FOR NO KEY UPDATE` sobre la fila, que choca con el `FOR SHARE` del registro:
-  - un registro que ya tenía la fila confirma antes de que la revocación responda;
-  - un registro que llega después ve `revocado_en` y responde 400.
-
-  Ningún registro confirma después de que la revocación respondió. El `FOR KEY SHARE` que toma la FK al insertar el usuario no choca con el `UPDATE` de la revocación; por eso hace falta el `FOR SHARE` explícito.
+- **Revocación frente a registro** (Enmienda 6, arbitraje de T-07):
+  - `revocarEnlaceRegistro({ id })` hace todo en una sola transacción:
+    1. `SELECT revocado_en FROM enlaces_registro WHERE id = $1 FOR NO KEY UPDATE` (`$queryRaw` etiquetado). Si no hay fila, devuelve `null` (404).
+    2. Si `revocado_en` es nulo, lo fija con la hora tomada **después** de obtener el bloqueo (`new Date()` dentro de la transacción; nunca una hora que el handler decida antes de pedir el bloqueo). Si ya estaba revocado, conserva el `revocado_en` original (idempotente).
+    3. Relee el enlace (PK), cuenta sus registrados y devuelve el estado confirmado.
+  - **Por qué el registro toma `FOR NO KEY UPDATE` y no `FOR SHARE`:** un `FOR SHARE` nuevo se concede sin formarse detrás de un `FOR NO KEY UPDATE` que ya espera. Con registros que se encadenan, la revocación podría no llegar nunca; el tester lo demostró de forma determinista.
+  - **La cola ya es justa:** `FOR NO KEY UPDATE` choca consigo mismo. Un registro nuevo que encuentra la fila tomada tiene que esperar, y espera en la cola del bloqueo de la fila, **detrás** de la revocación que ya estaba esperando.
+  - **Los registros del mismo enlace quedan en serie, con tiempo acotado.** argon2 y la generación del token van antes de la transacción, que solo hace dos `INSERT` (usuario y sesión). Veinte registros simultáneos esperan unos cientos de milisegundos en total, muy por debajo del límite de 5 s de la transacción interactiva, así que no hay riesgo de `P2028`.
+  - **Sin subida de modo:** el `FOR KEY SHARE` que toma la FK al insertar el usuario es más débil que el bloqueo propio.
+  - **Sin deadlock:** el registro toma primero la fila del enlace y después solo inserta; la revocación toma solo esa fila.
+  - **La invariante se mantiene y se refuerza:**
+    - un registro que tiene la fila confirma antes de que la revocación obtenga el bloqueo;
+    - uno que llega después vuelve a evaluar `revocado_en IS NULL` sobre la versión confirmada, no obtiene la fila y responde 400;
+    - ningún registro confirma después de que la revocación respondió;
+    - como la hora se fija después del bloqueo, ningún `creado_en` de un registrado es posterior al `revocado_en` de su enlace.
 
 #### §D-B6 · Frontend de 03b
+Los botones que llevan `enEspera` en 03b son exactamente los seis de C-15 (§D-B7). Se marcan abajo con "(`enEspera`, C-15)".
+
 - **Ruta pública `/registro-maestro`** (en `LayoutPublico`), vista `RegistroMaestroView`:
   - token con `useTokenDelEnlace()` (sin cambios);
   - sin token → mensaje de enlace inválido;
-  - con token → `FormularioRegistroMaestro`: "Nombre completo" (`autoComplete="name"`), "Correo" (`autoComplete="email"`) y "Contraseña" (`CampoContrasena`, `id="contrasena"`, `new-password`, `nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrar}`);
+  - con token → `FormularioRegistroMaestro`: "Nombre completo" (`autoComplete="name"`), "Correo" (`autoComplete="email"`) y "Contraseña" (`CampoContrasena`, `id="contrasena"`, `new-password`, `nombreDelBoton={TEXTOS_CAMPO_CONTRASENA.mostrar}`); botón "Crear mi cuenta" (`primary`, `enEspera`, C-15);
   - con `ENLACE_INVALIDO` → el mensaje de enlace inválido en lugar del formulario;
   - con éxito → `/maestro` (`rutaTrasLogin`).
   - `useRegistroMaestro` sigue el patrón de §D-A3.
@@ -320,26 +364,35 @@ Las consultas se validan con `validarParametros` (sirve para cualquier objeto) y
 - **`EstadoVacio`** (M-05, M-10), en `components/estado-vacio.tsx`. Su primer uso es este encargo.
   - Props: `titulo` (obligatorio), `descripcion?` y `accion?: { texto: string; onClick: () => void; variante: "primary" | "outline" }`.
   - La variante la decide quien lo usa, sin valor por defecto dentro del componente. `DESIGN.md` §7.10 pide `primary` cuando es la única acción de la vista y `outline` si no; en `/admin/maestros` es `outline`, porque la vista ya tiene su acción principal.
+  - Su botón **no** lleva `enEspera`: la acción de un vacío no hace ninguna petición.
   - Sin ilustraciones.
 - **`/admin/maestros`** (hija de la ruta `/admin`, dentro de `RequireRol rol="admin"`), vista `MaestrosView` con el título "Maestros". En 03b trae el panel "Enlaces de registro":
   1. `FormularioGenerarEnlace`:
      - "Vigencia en días", `Input type="number"` de 1 a 30, 7 por defecto, `autoComplete="off"`, error con `ErrorDeCampo`;
-     - botón **"Generar enlace"** con `enEspera`. Es `primary` en 03b y pasa a `outline` en 03c, cuando la acción principal es "Enviar invitaciones".
+     - botón **"Generar enlace"** (`enEspera`, C-15). Es `primary` en 03b y pasa a `outline` en 03c, cuando la acción principal es "Enviar invitaciones".
   2. `EnlaceNuevo`, visible solo mientras el componente siga montado:
      - la URL como texto seleccionable;
      - "Vence el \<fecha\>" (`formatearFechaHora`);
      - el aviso "Cópialo ahora: no se volverá a mostrar. Si lo pierdes, revócalo y genera otro.";
-     - el botón "Copiar enlace" (`try/catch/finally` y `toast`).
+     - el botón "Copiar enlace" (`try/catch/finally` y `toast`; `enEspera={copiando}` mientras el portapapeles responde, igual que "Copiar" de `contrasena-temporal.tsx`; C-15).
 
      Al mostrarse, el foco va a "Copiar enlace" solo si `focoDisponiblePara(...)` (`features/admin/lib.ts`, T-14): nunca le roba el foco a otro campo. `useGenerarEnlace` usa `gcTime: 0` y sale de la caché al asentarse. El componente copia `{ url, expiraEn }` a su estado local en el `onSuccess` de la llamada.
   3. `TablaEnlaces` (`components/ui/table.tsx`), con `useInfiniteQuery(["admin", "enlaces-registro"])`:
      - columnas "Creado", "Vence", "Estado" (insignia con texto: Vigente, Vencido o Revocado), "Registrados" (cifra tabular, a la derecha) y "Acciones";
-     - "Ver registrados" / "Ocultar registrados" (con `aria-expanded`) abre, debajo de la fila, `RegistradosDelEnlace`:
-       - una tabla con "Nombre", "Correo" y "Registro", y "Cargar más";
+     - "Ver registrados" / "Ocultar registrados" (con `aria-expanded`; sin `enEspera`, porque solo abre o cierra) abre, debajo de la fila, `RegistradosDelEnlace`:
+       - una tabla con "Nombre", "Correo" y "Registro", y "Cargar más" (`enEspera={isFetchingNextPage}`, C-15);
        - su vacío es `EstadoVacio` con el título "Nadie se ha registrado con este enlace", **sin acción**, porque dentro de una fila expandida no hay nada que hacer. Es la excepción que documenta `DESIGN.md` §7.10 (§D-B9);
-     - "Revocar", solo en los vigentes, abre una confirmación **en línea** (sin diálogo, como la del restablecimiento): "Quien tenga este enlace ya no podrá registrarse. Las cuentas ya creadas no cambian.", con "Sí, revocar" (`destructive`, `enEspera`) y "Cancelar";
+     - "Revocar", solo en los vigentes, abre una confirmación **en línea** (sin diálogo, como la del restablecimiento): "Quien tenga este enlace ya no podrá registrarse. Las cuentas ya creadas no cambian.", con "Sí, revocar" (`destructive`, `enEspera`, C-15) y "Cancelar";
+     - **nombre accesible de los botones de fila** (Enmienda 6, arbitraje de T-10):
+       - Aplica a los cuatro: "Ver registrados" u "Ocultar registrados", "Revocar", "Sí, revocar" y "Cancelar". Son cuatro porque dos filas pueden tener abierta su confirmación a la vez.
+       - Su **texto visible no cambia**.
+       - Dentro de cada botón, después del texto visible, va un espacio explícito (`{" "}`) y un `<span className="sr-only">` con el dato que identifica la fila: la fecha de creación del enlace, formateada con `formatearFechaHora` (zona local, legible).
+       - Sin `aria-hidden` ni `aria-label`: es la misma técnica que el botón de `CampoContrasena`.
+       - Las plantillas de ese texto viven en `features/admin/data.ts` (§D-B8). `textoOcultoDeFila(plantilla, fechaFormateada)` de `features/admin/lib.ts` recibe la fecha ya formateada y sustituye `{fecha}`.
+       - Nombre accesible resultante, por ejemplo: "Revocar el enlace creado el 27 sep 2026, 10:00".
+       - Dos enlaces creados en el mismo minuto repetirían el nombre: es el riesgo aceptado R-17;
      - al revocar, se invalida la consulta de la lista;
-     - "Cargar más enlaces" al pie;
+     - "Cargar más enlaces" al pie (`enEspera={isFetchingNextPage}`, C-15); si no hay más páginas, el botón no se pinta (nunca `disabled`);
      - vacío: `EstadoVacio` con el título "Aún no has generado enlaces de registro", la frase "Genera uno y compártelo con los maestros que quieras dar de alta." y la acción **"Generar el primer enlace"** (`variante: "outline"`), que lleva el foco al campo "Vigencia en días" del formulario de arriba. El texto es distinto de "Generar enlace" para que no haya dos botones con el mismo nombre en la vista;
      - estados en el orden error → carga → vacío → datos.
 - **Barra:** `DESTINOS_POR_ROL.admin` pasa a `[{ etiqueta: "Cuentas", ruta: "/admin", icono: Users }, { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus }]`. `NavLink` ya usa `end`, así que "Cuentas" no queda activa en `/admin/maestros`.
@@ -352,6 +405,8 @@ Las consultas se validan con `validarParametros` (sirve para cualquier objeto) y
 | C-9 | El admin tiene dos destinos en la barra | `frontend/src/app/marco-r1.ataque.test.tsx:290-319` ("un solo destino"): para el admin pasa a `["/admin", "/admin/maestros"]` y `["Cuentas", "Maestros"]`, con `aria-current` solo en el de la ruta actual |
 | C-10 | `sacarDeLaCacheAlAsentar` se mueve a `lib/` | Ninguno previsto (las pruebas miran la caché, no el módulo) |
 | **C-14 (M-01)** | Un quinto formulario con un campo de contraseña: `formulario-registro-maestro.tsx` (`id="contrasena"`, `mostrar`) | `frontend/src/components/layout/estatico-r1.ataque.test.ts`, con los textos que dejó la ronda 0 de 03a. Tres casos se reescriben en 03b. **(1) `:182`**, "exactamente 6… 1, 1, 2 y 2", se convierte en "exactamente 7 `<CampoContrasena`, solo en los 5 formularios: 1, 1, 2, 2 y 1", con `formulario-registro-maestro.tsx: 1` en `porArchivo`. **(2) La `TABLA`** suma la fila `"/src/features/auth/components/formulario-registro-maestro.tsx": [["contrasena", "mostrar"]]`, insertada en orden alfabético de la clave (antes de `formulario-registro.tsx`), porque `:247` compara con `rutasCon`, que devuelve la lista ordenada. **(3) `:247`** (`<CampoContrasena` o `./campo-contrasena` solo en los formularios de la `TABLA`) no cambia su texto y queda igual a las 5 claves. El caso de los 3 textos de `TEXTOS_CAMPO_CONTRASENA` no cambia, porque el formulario nuevo usa `mostrar`. **Siguen protegiendo** lo mismo que en C-5b, ahora con el formulario nuevo dentro de la lista |
+| **C-15 (T-03)** | Seis botones nuevos con una petición o una espera en vuelo llevan `enEspera` (regla de `CLAUDE.md`, "Componentes"). Lista cerrada, en el código de producción, cada uno con **una** aparición de `enEspera=` escrita en su propio `<Button …>`: (1) "Crear mi cuenta", en `features/auth/components/formulario-registro-maestro.tsx` (mutación); (2) "Generar enlace", en `features/admin/components/formulario-generar-enlace.tsx` (mutación); (3) "Copiar enlace", en `features/admin/components/enlace-nuevo.tsx` (portapapeles asíncrono, como "Copiar" de `contrasena-temporal.tsx`, que ya cuenta hoy); (4) "Sí, revocar", (5) "Cargar más enlaces", en `features/admin/components/tabla-enlaces.tsx` (o en el componente de su fila, si el programador la extrae); (6) "Cargar más", en `features/admin/components/registrados-del-enlace.tsx`. **"Cargar más" sí lleva `enEspera={isFetchingNextPage}`:** `fetchNextPage` es una petición que dispara el botón, así que la regla aplica. Así el botón conserva el foco mientras la lista crece, anuncia `aria-busy` y no dispara una segunda página con un doble clic; esconderlo durante la carga perdería el foco. **No llevan `enEspera`:** "Generar el primer enlace" (solo mueve el foco), el botón de `EstadoVacio`, "Ver registrados"/"Ocultar registrados" (abre o cierra) y "Cancelar". Ningún componente envoltorio reparte `enEspera`: si dos botones compartieran uno, el conteo dejaría de reflejar la lista | `frontend/src/styles/clases-r1.ataque.test.ts:68` (V-06, aserción de `:74`, `toHaveLength(13)`). **Se convierte en** "V-06: … 19 enEspera", con `toHaveLength(19)`: los 13 de hoy más los 6 de la lista. El tester puede fijar además la lista cerrada de archivos que ganan un `enEspera=` (los 5 de arriba, con 2 en `tabla-enlaces.tsx` o en su fila). **Sigue protegiendo:** ningún control usa `disabled` en JSX; `aria-busy` y `aria-disabled` solo los pone `components/ui/button.tsx`; el número de botones con espera cambia solo con el plan, así que un botón nuevo con petición y sin `enEspera`, o uno de más, vuelve a poner la prueba en rojo |
+| **C-16 (T-04)** | La insignia `danger` de `components/ui/badge.tsx` (§D-B9, `DESIGN.md` §7.8) pinta texto rojo sobre su fondo `--danger-soft` sólido, un uso que la regla de V-13 ya permite. La variante se escribe con `bg-danger-soft` y `text-danger` **en la misma línea** (en la misma cadena de clases), y el archivo no usa `text-destructive`. Ningún archivo de `features/` escribe `text-danger` ni `text-destructive`: la insignia "Revocado" usa `<Badge variant="danger">` | `frontend/src/styles/clases-r1.ataque.test.ts:105` (V-13). **Se convierte en** la lista de 5 archivos, ordenada como la devuelve `rutasDe`: `/src/components/error-de-campo.tsx`, `/src/components/mensaje-error.tsx`, `/src/components/ui/badge.tsx`, `/src/components/ui/sonner.tsx` y `/src/features/auth/acceso-restringido-view.tsx`. Se suma una aserción: en `badge.tsx`, toda línea que case con `\btext-(destructive\|danger)` contiene también `bg-danger-soft`, y hay al menos una. **Sigue protegiendo:** el texto rojo solo aparece donde el plan lo permite (sólido, `--danger-soft` o iconos); nunca sobre vidrio al 62 %; en `acceso-restringido-view.tsx`, solo en los dos iconos (el caso `:114` no cambia) |
 
 #### §D-B8 · Textos de 03b (propuesta)
 - `TEXTOS_REGISTRO_MAESTRO`:
@@ -367,6 +422,12 @@ Las consultas se validan con `validarParametros` (sirve para cualquier objeto) y
   - `notaProvisional`: "Pantalla provisional: la gestión completa de usuarios llega después."
   - `enlaces`: el título "Enlaces de registro", la descripción "Quien tenga el enlace puede crear su cuenta de maestro hasta que venza o lo revoques." y los textos de §D-B6, incluidos los dos vacíos
   - `estados`: `{ vigente: "Vigente", vencido: "Vencido", revocado: "Revocado" }`
+  - `ocultoDeFila` (Enmienda 6, T-10): las plantillas del texto `sr-only` de los botones de fila, sin espacio inicial (el espacio va en el JSX); `{fecha}` se sustituye con la fecha ya formateada:
+    - `verRegistrados` y `ocultarRegistrados`: "del enlace creado el {fecha}"
+    - `revocar` y `confirmarRevocacion`: "el enlace creado el {fecha}"
+    - `cancelarRevocacion`: "la revocación del enlace creado el {fecha}"
+
+    Nombres accesibles resultantes: "Ver registrados del enlace creado el …", "Ocultar registrados del enlace creado el …", "Revocar el enlace creado el …", "Sí, revocar el enlace creado el …" y "Cancelar la revocación del enlace creado el …".
 - `MENSAJES_ERROR_ADMIN` agrega `ENLACE_NO_ENCONTRADO: "Ese enlace ya no existe."`.
 
 #### §D-B9 · `docs/DESIGN.md` (lo edita el programador de 03b, a mano, marcado como **propuesta**)
@@ -375,7 +436,7 @@ Las consultas se validan con `validarParametros` (sirve para cualquier objeto) y
 - **§7.8**, implementación de la insignia en `components/ui/badge.tsx`:
   - variantes `success`, `warning`, `danger` y `muted`, con fondo `*-soft` sólido, texto en el color del estado y un icono opcional de 14 px;
   - filas nuevas: Vigente (success, `CircleCheck`), Vencido (muted, `Clock`) y Revocado (danger, `Ban`).
-- **§7.9**, implementación en `components/ui/table.tsx`: contenedor con desplazamiento horizontal propio, encabezado `--muted` y filas de 40 px. "Cargar más" como forma de paginar **solo en `/admin/maestros`** (P-02 A); la forma de la tabla de usuarios la decide ADMIN.
+- **§7.9**, implementación en `components/ui/table.tsx`: contenedor con desplazamiento horizontal propio, encabezado `--muted` y filas de 40 px. "Cargar más" como forma de paginar **solo en `/admin/maestros`** (P-02 A); la forma de la tabla de usuarios la decide ADMIN. Línea nueva (Enmienda 6, arbitraje de T-10): "Las acciones de una fila llevan en su nombre accesible el dato que identifica la fila, como texto `sr-only` dentro del botón (nunca `aria-hidden` ni `aria-label`); el texto visible no cambia".
 - **§7.10**, vacío: `EstadoVacio` construido (`components/estado-vacio.tsx`), con título, frase opcional y acción opcional. La variante de la acción la pasa quien lo usa (`primary` si es la única acción de la vista, `outline` si no). **Excepción:** un vacío dentro de una fila expandida de una tabla (los registrados de un enlace) lleva solo el título, sin acción, porque ahí no hay nada que hacer.
 - **§7.13 nueva, "Dato que se muestra una sola vez"** (contraseña temporal y enlace de registro):
   - bloque sólido `--muted` con `--radius-row`;
@@ -387,6 +448,7 @@ Las consultas se validan con `validarParametros` (sirve para cualquier objeto) y
   - la frase de consecuencia, "Sí, …" en `destructive` con `enEspera` y "Cancelar" en `outline`;
   - el diálogo queda para las acciones de la lista de `CLAUDE.md` (restringir, dar de baja, cambio masivo de pago).
 - **§7.3**, campo de contraseña: la lista de nombres confirmados deja "Mostrar contraseña temporal" con la nota "(retirado en AUTH-03a: el cambio obligatorio ya no pide la temporal)". Esta línea la edita el programador de **03a**.
+- Las ediciones de 03b y 03c en `DESIGN.md` no tocan las tablas de §3 a §5 (tokens, materiales, escala, radios), que lee `tokens-r1.ataque.test.ts`: este encargo no crea tokens.
 
 ### AUTH-03c
 
@@ -496,12 +558,12 @@ Por qué así:
 En `/admin/maestros`, arriba del panel de enlaces, va el panel "Invitar a varios maestros":
 - `Textarea` "Lista de maestros" (`autoComplete="off"`, `spellCheck={false}`, 10 filas), con la ayuda "Un maestro por línea: su correo y, si quieres, su nombre, separados por coma, punto y coma o tabulador. Hasta 100 líneas." y el ejemplo "ana.lopez@colegio.mx, Ana López".
 - Un contador "N de 100 líneas" (`aria-live="polite"`). El error de validación va con `ErrorDeCampo`.
-- **"Enviar invitaciones"** (`primary`, `enEspera`); "Generar enlace" pasa a `outline`.
+- **"Enviar invitaciones"** (`primary`, `enEspera`, C-17); "Generar enlace" pasa a `outline`.
 - Con `CUPO_DIARIO_INSUFICIENTE`, `MensajeError` muestra el mensaje del servidor (lleva el número).
 - Con éxito, `ResultadoInvitacionMasiva` muestra un encabezado con el resumen en palabras dentro de `role="status"` ("Invitaciones enviadas: 12 · Ya tenían cuenta: 2 · No válidas: 1") y tres grupos, cada uno con encabezado y lista:
   - las enviadas: correo y nombre, o "Sin nombre: podrá escribirlo al activar su cuenta.", con la nota "Cada uno recibirá un correo para elegir su contraseña; el enlace vence en 72 horas.";
   - las que ya tenían cuenta: "Línea N · correo";
-  - las no válidas: "Línea N · texto · motivo".
+  - las no válidas: "Línea N · texto · motivo". El motivo va en texto normal o en `<Badge variant="danger">`, **nunca** con `text-danger` ni `text-destructive` escrito en `features/` (V-13 no crece en 03c).
 
   Un grupo vacío no se muestra.
 - `useInvitarEnLote`: mutación sin datos sensibles. No invalida ninguna consulta, porque la masiva no cambia los enlaces.
@@ -525,6 +587,7 @@ Los de §D-C6, más:
 | C-11 | Ruta nueva `POST /api/admin/maestros/lote`, que también crea maestros | `sesiones-y-cadena.ataque.test.ts:430`: se agrega. La protección queda así: ninguna ruta crea admins; crean maestros solo `/admin/maestros`, `/admin/maestros/lote` (las dos solo para el admin) y `/auth/registro-maestro` (con un enlace vivo) |
 | C-12 | "Generar enlace" pasa a `outline` y aparece un segundo panel en `/admin/maestros` | Las `*.ataque` de 03b sobre `/admin/maestros` que dependan de la variante o del orden del foco: el tester las revisa |
 | C-13 | Antes de procesar cada trabajo, el worker espera lo que falte de los 250 ms desde el último intento que llegó al notifier, **incluidos los que lanzaron** (M-09) | Las `*.ataque` del worker que midan tiempos. `worker-r1` no mide tiempos, pero su notifier siempre lanza: ahora cada intento cuenta para el ritmo y los trabajos siguientes esperan hasta 250 ms, muy por debajo de sus esperas de 25 s. El tester lo confirma en la ronda 0 |
+| **C-17 (T-03, en 03c)** | Un botón nuevo con petición en vuelo: "Enviar invitaciones", en `features/admin/components/formulario-invitacion-masiva.tsx` (mutación), con una aparición de `enEspera=`. Ningún otro botón nuevo de 03c lo lleva: `ResultadoInvitacionMasiva` no tiene botones, y "Generar enlace" solo cambia de variante. En 03c **no** crece la lista de V-13: ningún archivo nuevo escribe `text-danger` ni `text-destructive` (§D-C6) | `frontend/src/styles/clases-r1.ataque.test.ts:68` (V-06), con el texto que deje la ronda 0 de 03b. **Se convierte en** "V-06: … 20 enEspera", con `toHaveLength(20)`: los 19 de C-15 más "Enviar invitaciones". Si el tester fijó en 03b la lista de archivos, suma `formulario-invitacion-masiva.tsx`. V-13 (`:105`) queda con los 5 archivos de C-16 y no se reescribe en 03c. **Sigue protegiendo** lo mismo que C-15 |
 
 ---
 
@@ -555,12 +618,12 @@ Los de §D-C6, más:
 | `db/usuarios.ts` | 03a | Modificar | `cambiarContrasenaPropia({ usuarioId, hashContrasena, hashVerificado, sesionId, ahora }): Promise<ResultadoCambioPropio>`, según §D-A1 (el tipo se importa de core). En 03b, `NuevoUsuario` agrega `enlaceRegistroId?: string` |
 | `db/tokens-cuenta.ts` | 03a | Modificar | `usarTokenYCambiarContrasena` acepta `nombre?: { nombre: string; nombreBusqueda: string }` y lo agrega al `data` del `UPDATE usuarios` existente. Nueva `buscarInvitacionPorHash(hash): Promise<(TokenParaUso & { usuario: { activo: boolean; nombre: string } }) \| null>` |
 | `db/index.ts` | 03a, 03b, 03c | Modificar | Reexporta lo nuevo. No reexporta `obtenerDb` ni las funciones de bloqueo |
-| `db/enlaces-registro.ts` | 03b | Crear | `crearEnlaceRegistro({ hashToken, expiraEn })`; `listarEnlacesRegistro({ cursor, limite })`; `buscarEnlacePorHash(hash)`; `buscarEnlacePorId(id)`; `revocarEnlaceRegistro({ id, ahora })` (null si no existe); `listarRegistradosPorEnlace({ enlaceId, cursor, limite })`; `registrarMaestroConEnlace({ enlaceId, usuario, sesion, ahora }): Promise<{ usuarioId: string } \| null>`, con el `FOR SHARE` de §D-B5 en `$queryRaw` etiquetado |
+| `db/enlaces-registro.ts` | 03b | Crear | `crearEnlaceRegistro({ hashToken, expiraEn })`; `listarEnlacesRegistro({ cursor, limite })`; `buscarEnlacePorHash(hash)`; `buscarEnlacePorId(id)`; `revocarEnlaceRegistro({ id })` (null si no existe; toma `FOR NO KEY UPDATE` explícito y fija `revocado_en` después de obtenerlo, §D-B5, Enmienda 6); `listarRegistradosPorEnlace({ enlaceId, cursor, limite })`; `registrarMaestroConEnlace({ enlaceId, usuario, sesion, ahora }): Promise<{ usuarioId: string } \| null>`, con el `FOR NO KEY UPDATE` de §D-B5 en `$queryRaw` etiquetado |
 | `db/invitaciones.ts` | 03c | Crear | `CLAVE_BLOQUEO_INVITACIONES_EN_LOTE`; `invitarMaestrosEnLote({ candidatos, desde }, evaluarCupoDelLote: (usadas: number, solicitadas: number) => AppError \| null, alGuardar: (sql: EjecutorSql, idsDeTokens: string[]) => Promise<void>): Promise<{ insertados: { id, email }[]; existentes: string[] }>`, según §D-C3 (bloqueo con `$executeRaw`, M-04) |
 | `auth/enlaces-registro.ts` | 03b | Crear | `generarTokenDeEnlace(): { token: string; hash: string }`; `hashTokenDeEnlace(token: string): string` |
 | `auth/index.ts` | 03b | Modificar | Solo la línea de reexportación de `./enlaces-registro.js` |
 | `queue/index.ts` | 03c | Modificar | `encolarVarios(nombre, trabajos, { sql })` (§D-C4) |
-| `README.md` (adapters) | 03b, 03c | Modificar | En "Quedan fuera del protocolo", `registrarMaestroConEnlace` e `invitarMaestrosEnLote`. Una nota del `FOR SHARE` del enlace frente a la revocación y otra del bloqueo consultivo de invitaciones y de `encolarVarios` |
+| `README.md` (adapters) | 03b, 03c | Modificar | En "Quedan fuera del protocolo", `registrarMaestroConEnlace` e `invitarMaestrosEnLote`. Una nota del bloqueo del enlace frente a la revocación (`FOR NO KEY UPDATE` en los dos lados, la cola justa y la hora fijada después del bloqueo; sin riesgo residual, Enmienda 6) y otra del bloqueo consultivo de invitaciones y de `encolarVarios` |
 
 ### backend/handlers/ (ruta, método y cadena exacta)
 | Ruta | Sub. | Archivo | Cadena |
@@ -605,7 +668,7 @@ Las dos son compatibles hacia atrás. Detalle en §D-B2 y §D-C2.
 |---|---|---|
 | `src/lib/cache-de-mutaciones.ts` y `.test.ts` | 03b | Crear (§D-B6) |
 | `src/components/estado-vacio.tsx` y su prueba | 03b | Crear (M-05 y M-10, §D-B6) |
-| `src/components/ui/table.tsx` y `badge.tsx`, con sus pruebas | 03b | Crear, a mano, con tokens (§D-B9) |
+| `src/components/ui/table.tsx` y `badge.tsx`, con sus pruebas | 03b | Crear, a mano, con tokens (§D-B9; `badge.tsx` según C-16) |
 | `src/components/ui/textarea.tsx` y su prueba | 03c | Crear |
 | `src/components/layout/data.ts` | 03b | Modificar: solo `DESTINOS_POR_ROL.admin` y su comentario; se importa `UserPlus` |
 | `src/components/layout/contenedor-rol.test.tsx` | 03b | Modificar: dos destinos del admin |
@@ -637,7 +700,7 @@ Las dos son compatibles hacia atrás. Detalle en §D-B2 y §D-C2.
 | `maestros-view.tsx` y su prueba | 03b (crear), 03c (modificar) | Vista de §D-B6 y §D-C6, con densidad de admin |
 | `components/formulario-generar-enlace.tsx`, `enlace-nuevo.tsx`, `tabla-enlaces.tsx`, `registrados-del-enlace.tsx`, `insignia-estado-enlace.tsx` | 03b | Crear |
 | `components/formulario-invitacion-masiva.tsx`, `resultado-invitacion-masiva.tsx` | 03c | Crear |
-| `types.ts`, `data.ts`, `lib.ts` (y `lib.test.ts`), `hooks.ts` | 03b, 03c | Tipos reexportados de `shared/` (más las props de variables en `types.ts`), textos, `construirUrlDeRegistro`, `etiquetaDeEstadoEnlace`, `etiquetaDeMotivo`, `useEnlacesRegistro`, `useGenerarEnlace`, `useRevocarEnlace`, `useRegistradosDelEnlace` y `useInvitarEnLote` |
+| `types.ts`, `data.ts`, `lib.ts` (y `lib.test.ts`), `hooks.ts` | 03b, 03c | Tipos reexportados de `shared/` (más las props de variables en `types.ts`), textos (incluidas las plantillas `ocultoDeFila` de §D-B8), `construirUrlDeRegistro`, `etiquetaDeEstadoEnlace`, `etiquetaDeMotivo`, `textoOcultoDeFila(plantilla: string, fechaFormateada: string): string` (Enmienda 6), `useEnlacesRegistro`, `useGenerarEnlace`, `useRevocarEnlace`, `useRegistradosDelEnlace` y `useInvitarEnLote` |
 
 Ningún componente llama a `fetch`. Los tipos de la API se infieren de `shared/`. Nada se importa entre módulos.
 
@@ -655,10 +718,10 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina con un máximo de 1
 | `usarTokenYCambiarContrasena` (+ nombre) | Sin cambios de consultas; el `UPDATE usuarios` suma dos columnas | PK | — | Sí (existente) |
 | `crearEnlaceRegistro` (03b) | `INSERT enlaces_registro` | PK, único | — | No (una sentencia) |
 | `listarEnlacesRegistro` (03b) | `enlaces_registro ORDER BY creado_en DESC, id DESC`, con cursor de Prisma sobre `id` y `take: limite + 1`; después, `usuarios GROUP BY enlace_registro_id WHERE enlace_registro_id IN (≤ 100 ids)` | `(creado_en DESC, id DESC)`; `(enlace_registro_id, creado_en)` | Sí (20 por defecto, máx. 100) | No: son dos lecturas, y un conteo desfasado un instante es aceptable |
-| `revocarEnlaceRegistro` (03b) | `UPDATE enlaces_registro … WHERE id AND revocado_en IS NULL`; `findUnique` (PK) + conteo de registrados | PK; `(enlace_registro_id, creado_en)` | — | Sí (para devolver el estado confirmado) |
+| `revocarEnlaceRegistro` (03b) | `SELECT revocado_en FROM enlaces_registro WHERE id FOR NO KEY UPDATE` (`$queryRaw` etiquetado); si era nulo, `UPDATE enlaces_registro SET revocado_en` con la hora tomada después del bloqueo (Enmienda 6); `findUnique` (PK) + conteo de registrados | PK; PK; PK; `(enlace_registro_id, creado_en)` | — | Sí: bloqueo, escritura y estado confirmado en la misma transacción |
 | `listarRegistradosPorEnlace` (03b) | `enlaces_registro` (PK, para el 404); `usuarios WHERE enlace_registro_id = $1 ORDER BY creado_en, id`, con cursor | PK; `(enlace_registro_id, creado_en)` | Sí | No |
 | `buscarEnlacePorHash` (03b) | `enlaces_registro` por `hash_token` | único | — | No |
-| `registrarMaestroConEnlace` (03b) | `SELECT … FROM enlaces_registro WHERE id … FOR SHARE`; `INSERT usuarios`; `INSERT sesiones` | PK; único `email`; único `hash_token` | — | Sí |
+| `registrarMaestroConEnlace` (03b) | `SELECT … FROM enlaces_registro WHERE id … FOR NO KEY UPDATE` (Enmienda 6: cola justa frente a la revocación; los registros del mismo enlace van en serie); `INSERT usuarios`; `INSERT sesiones` | PK; único `email`; único `hash_token` | — | Sí |
 | `invitarMaestrosEnLote` (03c) | `pg_advisory_xact_lock` (`$executeRaw`); `COUNT tokens_cuenta WHERE tipo AND creado_en >=`; `usuarios WHERE email IN (≤ 100)`; `createMany usuarios` (`skipDuplicates`); `usuarios WHERE id IN (≤ 100)`; `createMany tokens_cuenta`; `insert` de pg-boss (una sentencia) | —; **`(tipo, creado_en)` nuevo**; único `email`; único; PK; PK | Entrada acotada a 100 | Sí, todo junto, incluido el encolado |
 
 La única consulta nueva que no encajaba en un índice existente es el conteo del cupo. Por eso la migración de 03c agrega `(tipo, creado_en)`.
@@ -780,8 +843,9 @@ Todas llevan al menos una aserción, sin `return` temprano ante una precondició
     - "Copiar enlace" con un portapapeles simulado: éxito y fallo, cada uno con su `toast`;
     - el token fuera de la caché de mutaciones tras asentarse;
     - la tabla con las tres insignias con texto;
-    - ver registrados y cargar más; el vacío de registrados sin acción;
+    - ver registrados y cargar más (el botón en espera mientras llega la página); el vacío de registrados sin acción;
     - revocar con confirmación en línea;
+    - los cuatro botones de fila (Enmienda 6): su nombre accesible es el texto visible más la fecha de creación formateada (por ejemplo, `getByRole("button", { name: "Revocar el enlace creado el <fecha>" })`), el texto visible no cambia, no llevan `aria-hidden` ni `aria-label`, y con dos filas con la confirmación abierta ningún nombre se repite;
     - el vacío de la lista con "Generar el primer enlace" en `outline`, que lleva el foco al campo de vigencia; ningún par de botones con el mismo nombre;
     - estados en el orden error → carga → vacío → datos;
   - la barra del admin con dos destinos.
@@ -807,7 +871,9 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
    - `CampoContrasena` (elementos y conteos por archivo) y `TEXTOS_CAMPO_CONTRASENA` (claves y número de textos). En 03a y 03b llevan a `estatico-r1.ataque.test.ts` (C-5b y C-14) y a cualquier otra prueba que enumere los formularios o los campos de contraseña, por ejemplo `app/contrasena-r1` y `app/contrasena-r2`;
    - `/establecer-contrasena` con token;
    - la lista exacta de rutas (`printRoutes`, `sesiones-y-cadena`) y `RUTAS_PUBLICAS`;
-   - los destinos del admin (`DESTINOS_POR_ROL`, "Cuentas", `/admin`).
+   - los destinos del admin (`DESTINOS_POR_ROL`, "Cuentas", `/admin`);
+   - **(Enmienda 5)** `enEspera=`, `text-danger` y `text-destructive` (C-15, C-16 y C-17);
+   - **(Enmienda 5)** toda prueba estática que recorra el código (`import.meta.glob`, `readdirSync` o `?raw`) y cuente o liste archivos, clases, botones o destinos: `toHaveLength(n)`, listas cerradas con `toEqual([...])` y conteos de `variant=`, `primary`, `rounded-`, `shadow-`, `vidrio`, `data-material`, `animate-`, `fixed`, `ring-`, `focus:`, `outline-none`, `disabled` o `aria-busy`. Hoy son `styles/clases-r1`, `components/layout/estatico-r1`, `styles/tokens-r1` y `features/admin/cuentas-r1` en el frontend, y `arquitectura-cuentas-r1` en el backend.
 
    **Casos fuera del inventario:** si encuentras un caso contradicho que el plan no lista, lo reescribes igual, conservando lo que protege, y en tu reporte **citas el C-n que lo contradice**. Si ningún C-n lo contradice, no es una contradicción sino un hallazgo: no lo reescribes y lo reportas.
 3. **Reporte:** publica en `reporte-tester.md`, sección "AUTH-03x — Ronda 0":
@@ -864,6 +930,7 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
    - el enlace nuevo desaparece al desmontar y no está en ninguna caché;
    - "Copiar enlace" no le roba el foco a un campo que el admin tomó mientras la petición estaba en vuelo (T-14);
    - la confirmación en línea no revoca con un doble Enter;
+   - "Cargar más" en espera no pide una segunda página con un doble clic, y conserva el foco;
    - estados vacío y error; ningún nombre de botón repetido en la vista;
    - `/registro-maestro` limpia el fragmento del historial;
    - la vista a 360 px no se puede medir en jsdom: queda para el humano (H-5).
@@ -917,12 +984,19 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
 - **R-07 · Hash inutilizable compartido por lote** (S-11). Nadie conoce su preimagen. Un login contra cualquiera de esas cuentas cuesta lo mismo que una contraseña incorrecta. `crearSesion` y `cambiarContrasenaPropia` comparan el hash de cada usuario, así que dos filas con el mismo hash no se confunden.
 - **R-08 · Un argon2 más** en `cambiar-contrasena`, para `CONTRASENA_REPETIDA`: unos 100 ms. Con el filtro previo (M-02), solo lo paga quien tiene una sesión viva propia, y el límite de 5 intentos por 15 min lo acota.
 - **R-09 · El token en la función de la consulta** de `useDatosDeInvitacion`. No va en la clave ni en los datos, pero la función vive en las opciones de la consulta hasta que se recolecta (`gcTime: 0` al desmontar). Es el mismo alcance que el estado de React que ya lo guarda.
-- **R-10 · Las `*.ataque` reescritas en la ronda 0 cambian lo que exigen.** El manager compara en su revisión final el diff de cada una contra la base, línea por línea. Verifica que ninguna protección se debilitó más allá de los C-n aprobados (incluidos C-5b y C-14 de `estatico-r1`) y que cada agregado del tester cita su C-n.
+- **R-10 · Las `*.ataque` reescritas en la ronda 0 cambian lo que exigen.** El manager compara en su revisión final el diff de cada una contra la base, línea por línea. Verifica que ninguna protección se debilitó más allá de los C-n aprobados (incluidos C-5b y C-14 de `estatico-r1`, y C-15 a C-17 de `clases-r1`) y que cada agregado del tester cita su C-n.
 - **R-11 · Pantallas provisionales.** `/admin` y `/admin/maestros` las reordenará ADMIN.
 - **R-12 · Testcontainers y Ryuk.** Durante cada corrida del backend, Ryuk publica su puerto sin autenticación en todas las interfaces. Solo se corre con la regla del firewall aplicada y en una red de confianza (PA-01; `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`).
 - **R-13 · `POST /auth/invitacion` revela el nombre** de la cuenta a quien tiene el token, que de todos modos puede activarla. Aceptable.
 - **R-14 · La respuesta del lote repite el texto de las líneas inválidas.** React lo pinta como texto. No se registra en el log (Fastify no registra cuerpos; lo comprueba el tester).
 - **R-15 · Pestaña vieja en el mismo navegador (M-03).** El token de acceso no está atado a una sesión (solo lleva `sub`). Supongamos una pestaña abierta antes del restablecimiento, con un token anterior, en el **mismo navegador** donde después alguien entró con la temporal. Esa pestaña manda la cookie de la sesión nueva y puede completar el cambio. No abre nada nuevo: ese navegador ya tiene la sesión de la temporal y podría hacer el cambio desde cualquier pestaña. Atar el token a la sesión (un `sid` en el JWT) cambiaría la decisión de ESSENTIALS "solo `sub`", y no lo propongo.
+- **R-16 · Conteos que fijan las pruebas estáticas** (Enmienda 5). `clases-r1` cuenta `enEspera=` por apariciones en el código, no por botones en pantalla. Por eso C-15 y C-17 prohíben un componente envoltorio que reparta `enEspera`: el conteo tiene que seguir reflejando la lista cerrada. Si el programador necesitara extraer un botón, conserva una aparición por botón o se detiene (PA-06).
+- **R-17 · Dos enlaces creados en el mismo minuto** (Enmienda 6, riesgo aceptado por el manager en el arbitraje de T-10). `formatearFechaHora` muestra la fecha hasta el minuto, así que los botones de fila de dos enlaces creados en el mismo minuto tendrían el mismo nombre accesible. El admin es una cuenta única y no genera dos enlaces por minuto: se anota y no se resuelve.
+- **R-18 · "Cargar más" de los registrados** (Enmienda 6, para el manager).
+  - El arbitraje de T-10 cubre los cuatro botones de fila. `RegistradosDelEnlace` tiene su propio "Cargar más": con dos filas expandidas y más de 20 registrados en cada una, habría dos botones con el mismo nombre en la vista.
+  - No lo incorporo, porque el arbitraje fija cuatro botones.
+  - Recomiendo aplicarle el mismo patrón, que la línea nueva de `DESIGN.md` §7.9 ya cubriría: `sr-only` "registrados del enlace creado el {fecha}", con el nombre "Cargar más registrados del enlace creado el …". No cambia el conteo de `enEspera=` (C-15).
+  - Lo decide el manager.
 
 ### Textos literales propuestos para documentos (los aplica el orquestador al cerrar cada subentrega)
 Con el cambio de proceso, el orquestador aplica al cerrar cada subentrega, antes de su commit, los textos que ya son ciertos en ese momento, con autorización del humano. Después anota en `aprobacion.md` el SHA-256 de cada archivo protegido que cambió. Cada bloque lleva la marca de la subentrega que lo aplica.
@@ -938,7 +1012,7 @@ Lo mismo vale para las filas `auth` y `admin` de §7, que crecen con cada ruta.
 > - **Maestros:** no hay registro público abierto de maestros (D-04). Se dan de alta de tres formas:
 >   1. **Invitación individual** (`POST /admin/maestros`).
 >   2. **Invitación masiva** (`POST /admin/maestros/lote`): el admin pega hasta 100 líneas con un correo y, opcionalmente, un nombre. Una línea sin nombre usa un nombre provisional (la parte local del correo, el correo completo o "Maestro invitado"). El lote se rechaza completo (`409 CUPO_DIARIO_INSUFICIENTE`) si sus correos nuevos rebasan el cupo `INVITACIONES_LIMITE_DIARIO` (80), que cuenta las invitaciones creadas en las últimas 24 horas.
->   3. **Enlace de registro** que genera el admin (`POST /admin/enlaces-registro`): token aleatorio de 256 bits, mostrado una sola vez y guardado solo como SHA-256 (`enlaces_registro`). Vigencia de 1 a 30 días, 7 por defecto; sin límite de usos; revocable. Con él, `POST /auth/registro-maestro` crea una cuenta de maestro con la sesión iniciada y guarda en `usuarios.enlace_registro_id` el enlace usado; el admin ve quién se registró con cada uno. El registro toma `FOR SHARE` sobre la fila del enlace, así que ninguno confirma después de que la revocación respondió.
+>   3. **Enlace de registro** que genera el admin (`POST /admin/enlaces-registro`): token aleatorio de 256 bits, mostrado una sola vez y guardado solo como SHA-256 (`enlaces_registro`). Vigencia de 1 a 30 días, 7 por defecto; sin límite de usos; revocable. Con él, `POST /auth/registro-maestro` crea una cuenta de maestro con la sesión iniciada y guarda en `usuarios.enlace_registro_id` el enlace usado; el admin ve quién se registró con cada uno. El registro toma `FOR NO KEY UPDATE` sobre la fila del enlace y la revocación fija su hora después de obtener ese mismo bloqueo, así que ninguno confirma después de que la revocación respondió y ningún registrado queda con fecha posterior a la revocación.
 >
 >   En las formas 1 y 2, la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
 
@@ -1011,13 +1085,23 @@ Lo mismo vale para las filas `auth` y `admin` de §7, que crecen con cada ruta.
 - **Backend:** antes de cualquier `npm test` del backend, PA-01.
 - **Cuando una parada se cumple, te detienes**, aunque la alternativa parezca obvia o inofensiva, y reportas el comando, la salida literal y tu hipótesis.
 - **El programador nunca toca `*.ataque.test.*`. El tester nunca toca código de producción ni pruebas normales.** Nadie toca `frontend/src/features/auth/components/campo-contrasena.test.tsx`.
-- **Frontend de 03b y 03c (M-13, por `estatico-r1.ataque.test.ts`):**
-  - ningún valor arbitrario de maquetación (`-[…]`) fuera de `components/ui/`;
-  - ningún `animate-` nuevo (solo existen en `cargando.tsx` y `button.tsx`);
-  - ningún `bg-background`;
-  - ningún `fixed` fuera de la barra de navegación y del diálogo.
+- **Frontend de 03b y 03c (M-13 y Enmienda 5).** Estas pruebas estáticas siguen vigentes sin reescribirse, y una violación activa PA-06:
+  - **`estatico-r1.ataque.test.ts`:** ningún valor arbitrario de maquetación (`-[…]`) fuera de `components/ui/`; ningún `animate-` nuevo (solo existen en `cargando.tsx` y `button.tsx`); ningún `bg-background`; ningún `fixed` fuera de la barra de navegación y del diálogo (el encabezado fijo de la tabla es `sticky`, no `fixed`); ningún `href` literal en un `<a>`.
+  - **`clases-r1.ataque.test.ts`:**
+    - **V-02 a V-04:** ningún color de la paleta de Tailwind, ninguna clase de las escalas anuladas (`text-sm`, `rounded-lg`, `shadow-md`, `backdrop-blur-*`…), ningún color suelto y ningún valor arbitrario de `text`, `rounded`, `shadow`, `bg`, `border` u `outline`, **tampoco dentro de `components/ui/`**. Ningún fondo translúcido a mano (`bg-muted/50`…).
+    - **V-05:** ningún `ring-` ni `focus:`, **tampoco en `table.tsx`, `badge.tsx` y `textarea.tsx`**, aunque los de shadcn los traen: el foco se resuelve como en `input.tsx` y `button-variants.ts`. `outline-none` solo en `dialog.tsx`.
+    - **V-06:** ningún `disabled` en JSX (el "Cargar más" sin más páginas no se pinta); `aria-busy` y `aria-disabled` solo en `button.tsx`; `enEspera=` solo en la lista cerrada de C-15 y C-17.
+    - **V-07:** ningún `vidrio`, `vidrio-fuerte` ni `vidrio-azul` en archivos nuevos (`/registro-maestro` usa `TarjetaDeCuenta` y `Card`; `/admin/maestros` es opaca por `ContenedorRol`); `data-material` y `data-densidad` solo en `contenedor-rol.tsx`.
+    - **V-13:** `text-danger` y `text-destructive` solo en la lista de C-16.
+  - **`features/admin/cuentas-r1.ataque.test.tsx`:** `features/admin` no importa de `features/auth` ni de `components/ui/dialog`, no llama a `fetch` y su `hooks.ts` no declara tipos.
 
-  Si un componente lo necesitara, detente (PA-06 lo haría saltar).
+  Si un componente necesitara algo de esto, detente (PA-06).
+- **Backend de 03b y 03c (Enmienda 5):** `arquitectura-cuentas-r1.ataque.test.ts` sigue vigente:
+  - `pg-boss` se importa solo en `adapters/queue/index.ts`;
+  - hay exactamente un `$queryRawUnsafe`;
+  - `executeSql` solo aparece en `adapters/`;
+  - `handlers/`, `middleware/` y `workers/` no obtienen el cliente de Prisma;
+  - `console.` y `estadoPago` no aparecen en el código (sin comentarios) de `handlers/admin.ts`, `adapters/queue/`, `workers/`, `core/correo/` ni `core/eventos/`.
 
 ### PARADAS
 | # | Condición |
@@ -1088,7 +1172,7 @@ Lo mismo vale para las filas `auth` y `admin` de §7, que crecen con cada ruta.
     - tras el commit, lee el hash con `git log` y lo anota como `<Ca>`.
 
 ### AUTH-03b
-13. **Tester, ronda 0 de 03b** (§D-B7, incluida C-14 de `estatico-r1`). Base `<Ca>`.
+13. **Tester, ronda 0 de 03b** (§D-B7, incluidas C-14 de `estatico-r1` y, con la Enmienda 5, C-15 y C-16 de `clases-r1`). Base `<Ca>`. La ronda 0 ya hecha se completa solo con esos dos casos; el resto de sus reescrituras y rojos esperados sigue valiendo.
 14. **Programador, precondiciones** (como en el paso 2, con `git diff --name-only <Ca> -- shared backend frontend`).
 15. `shared/enlaces-registro.ts` e `index.ts`; build.
 16. `core/auth/enlaces-registro.ts` y sus pruebas.
@@ -1096,14 +1180,14 @@ Lo mismo vale para las filas `auth` y `admin` de §7, que crecen con cada ruta.
 18. `adapters/auth/enlaces-registro.ts` e `index.ts`; `adapters/db/enlaces-registro.ts`, `usuarios.ts` (`NuevoUsuario`) e `index.ts`; `adapters/README.md`.
 19. `handlers/auth/registro-maestro.ts`, `handlers/admin.ts`, `middleware/rutas-publicas.ts` y `app.ts`; los README.
 20. Pruebas del backend de 03b y la suite completa.
-21. `frontend/`: `lib/cache-de-mutaciones.ts`, `components/estado-vacio.tsx`, `components/ui/table.tsx` y `badge.tsx`, `components/layout/data.ts`, `router.tsx`, `services/`, `features/auth` (registro de maestro) y `features/admin` (maestros y enlaces), con sus pruebas, respetando la regla de M-13. Suite completa.
+21. `frontend/`: `lib/cache-de-mutaciones.ts`, `components/estado-vacio.tsx`, `components/ui/table.tsx` y `badge.tsx`, `components/layout/data.ts`, `router.tsx`, `services/`, `features/auth` (registro de maestro) y `features/admin` (maestros y enlaces), con sus pruebas, respetando las reglas de M-13 y de la Enmienda 5 (en particular, `enEspera` solo en los 6 botones de C-15 y el rojo de `badge.tsx` según C-16). Suite completa.
 22. `docs/DESIGN.md` (§D-B9, incluido §7.10), a mano.
 23. V-01 a V-06. `resumen-programador.md`, "AUTH-03b".
 24. **Tester, rondas 1 a 3 de 03b. Manager, final de 03b** (incluye los patrones nuevos de `DESIGN.md`).
 25. **Cierre de 03b (orquestador):** como en el paso 12, con los textos marcados 03b. El hash queda como `<Cb>`.
 
 ### AUTH-03c
-26. **Tester, ronda 0 de 03c** (§D-C9). Base `<Cb>`.
+26. **Tester, ronda 0 de 03c** (§D-C9, incluida C-17 de `clases-r1`). Base `<Cb>`.
 27. **Programador, precondiciones** (como en el paso 2, con `git diff --name-only <Cb> -- shared backend frontend`).
 28. `shared/cuentas.ts` e `index.ts`; build.
 29. `core/auth/invitacion-masiva.ts`, `core/correo/ritmo.ts` y sus pruebas.
@@ -1111,7 +1195,7 @@ Lo mismo vale para las filas `auth` y `admin` de §7, que crecen con cada ruta.
 31. `adapters/queue/index.ts` (`encolarVarios`) y su prueba de PA-05, **antes de seguir**. Después, `adapters/db/invitaciones.ts` (bloqueo con `$executeRaw`, o la alternativa de M-04) e `index.ts`, y `adapters/README.md`.
 32. `config/env.ts` y su prueba; `backend/.env.example`; `handlers/admin.ts` y `app.ts`; `workers/index.ts` (ritmo de 250 ms con el envoltorio de M-09); los README.
 33. Pruebas del backend de 03c y la suite completa.
-34. `frontend/`: `components/ui/textarea.tsx`, `features/admin` (panel de la masiva y resultado) y sus pruebas, respetando la regla de M-13. Suite completa.
+34. `frontend/`: `components/ui/textarea.tsx`, `features/admin` (panel de la masiva y resultado) y sus pruebas, respetando las reglas de M-13 y de la Enmienda 5 (`enEspera` solo en "Enviar invitaciones", C-17; ningún archivo nuevo con `text-danger` ni `text-destructive`). Suite completa.
 35. `docs/DESIGN.md` (§D-C8), a mano.
 36. V-01 a V-06. `resumen-programador.md`, "AUTH-03c".
 37. **Tester, rondas 1 a 3 de 03c. Manager, final de 03c.**

@@ -13,8 +13,16 @@ import {
 import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
 
+import { sacarDeLaCacheAlAsentar } from "@/lib/cache-de-mutaciones"
 import { api, ApiError, esApiError } from "@/services/apiClient"
-import { haySesion, login, logout, registro, restaurarSesion } from "@/services/authService"
+import {
+  haySesion,
+  login,
+  logout,
+  registro,
+  registroMaestro,
+  restaurarSesion,
+} from "@/services/authService"
 
 import { ANUNCIOS_DE_EJEMPLO, TEXTOS_NUEVA_CONTRASENA } from "./data"
 import { leerTokenDelFragmento, ordenarAnuncios, rutaTrasLogin } from "./lib"
@@ -26,6 +34,7 @@ import type {
   Login,
   Recuperar,
   Registro,
+  RegistroMaestro,
   TipoEnlace,
 } from "./types"
 
@@ -54,16 +63,6 @@ export const consultaMe = queryOptions({
 })
 
 export const useMe = () => useQuery(consultaMe)
-
-// DEC-18/T-01 (ronda 2): el token y la contraseña no pueden depender de cuándo React desmonte el
-// formulario para salir de la caché de mutaciones. Una navegación de React Router puede tardar más
-// (transición de baja prioridad) que la propia espera de quien vigila la caché, así que se saca la
-// mutación en cuanto se asienta (éxito o error), sin esperar al desmontaje. gcTime 0 queda como
-// defensa adicional para cualquier otra ruta de limpieza (por ejemplo, si el observador ya no existe).
-const sacarDeLaCacheAlAsentar = (queryClient: QueryClient, mutationKey: readonly unknown[]) => {
-  const cache = queryClient.getMutationCache()
-  for (const mutacion of cache.findAll({ mutationKey })) cache.remove(mutacion)
-}
 
 const CLAVE_MUTACION_LOGIN = ["login"] as const
 const CLAVE_MUTACION_REGISTRO = ["registro"] as const
@@ -110,6 +109,27 @@ export const useRegistro = () => {
       await navigate(rutaTrasLogin(me), { replace: true })
     },
     onSettled: () => sacarDeLaCacheAlAsentar(queryClient, CLAVE_MUTACION_REGISTRO),
+    gcTime: 0,
+  })
+}
+
+const CLAVE_MUTACION_REGISTRO_MAESTRO = ["registro-maestro"] as const
+
+// AUTH-03b, §D-B6: registro de maestro con un enlace de registro vivo; deja la sesión iniciada
+// (N-03), mismo patrón que useRegistro.
+export const useRegistroMaestro = () => {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  return useMutation({
+    mutationKey: CLAVE_MUTACION_REGISTRO_MAESTRO,
+    mutationFn: async (datos: RegistroMaestro) => {
+      await registroMaestro(datos)
+      return consultarMeDeLaCuentaNueva(queryClient)
+    },
+    onSuccess: async (me) => {
+      await navigate(rutaTrasLogin(me), { replace: true })
+    },
+    onSettled: () => sacarDeLaCacheAlAsentar(queryClient, CLAVE_MUTACION_REGISTRO_MAESTRO),
     gcTime: 0,
   })
 }

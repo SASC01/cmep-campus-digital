@@ -3,6 +3,7 @@ import {
   tokenAccesoRespuestaSchema,
   type Login,
   type Registro,
+  type RegistroMaestro,
 } from "@campus/shared"
 
 import { api, refrescarSesion } from "./apiClient"
@@ -25,6 +26,17 @@ export const login = async (credenciales: Login): Promise<void> => {
 // Registro público: solo estudiantes; deja la sesión iniciada (P-01).
 export const registro = async (datos: Registro): Promise<void> => {
   const { tokenAcceso } = await api("/api/auth/registro", {
+    method: "POST",
+    body: datos,
+    schema: tokenAccesoRespuestaSchema,
+  })
+  establecerToken(tokenAcceso)
+}
+
+// AUTH-03b, §D-B5: registro de maestro con un enlace de registro vivo; deja la sesión iniciada
+// (N-03), gemela de registro.
+export const registroMaestro = async (datos: RegistroMaestro): Promise<void> => {
+  const { tokenAcceso } = await api("/api/auth/registro-maestro", {
     method: "POST",
     body: datos,
     schema: tokenAccesoRespuestaSchema,

@@ -67,9 +67,39 @@ concurrentemente, y un login que creaba una sesión con una contraseña que ya h
 - **Nada lento dentro:** argon2 y cualquier I/O van antes de abrir la transacción.
 - **Quedan fuera del protocolo:** las sentencias que revocan una sola sesión por id o por hash
   (`revocarSesion`, `revocarSesionPorHash`); las transacciones que crean al usuario en ellas mismas
-  (`crearUsuarioConSesion`, `crearMaestroInvitado`); las lecturas sin bloqueo (`buscar*`, `contar*`).
+  (`crearUsuarioConSesion`, `crearMaestroInvitado`, `registrarMaestroConEnlace`); las lecturas sin
+  bloqueo (`buscar*`, `contar*`).
 - **Encargos futuros:** todo encargo que revoque sesiones o cambie credenciales (baja, restricción
   que cierre sesiones, cambio voluntario) cumple estas reglas.
+- **AUTH-03b, enlace de registro frente a la revocación (fuera del protocolo por usuario, porque no
+  hay ningún usuario existente que bloquear; Enmienda 6, arbitraje T-07):** tanto
+  `registrarMaestroConEnlace` como `revocarEnlaceRegistro` toman `FOR NO KEY UPDATE` explícito
+  (`$queryRaw` etiquetado) sobre la fila de `enlaces_registro`, antes de crear al usuario o de
+  escribir `revocado_en` respectivamente. `revocarEnlaceRegistro` fija `revocado_en` con
+  `new Date()` **después** de obtener el bloqueo, nunca antes: así ninguna cuenta puede quedar con
+  `creado_en` posterior al `revocado_en` que se fije ahí.
+  - **Por qué el mismo modo en los dos (no `FOR SHARE` para el registro):** `FOR NO KEY UPDATE`
+    choca consigo mismo. Un registro nuevo que encuentra la fila tomada tiene que dormir, y para
+    dormir se forma en la cola de esa tupla, **detrás** de cualquier revocación que ya esperaba: la
+    cola es justa entre peticiones del mismo modo. Con `FOR SHARE` (la forma anterior a esta
+    enmienda) una petición nueva se concedía de inmediato porque era compatible con el titular
+    actual, sin formarse detrás de un `FOR NO KEY UPDATE` en espera; con registros que se
+    encadenaban, la revocación podía no obtener nunca el bloqueo. Con el mismo modo en los dos, esa
+    ventana se cierra: la revocación entra en la cola en su turno y los registros posteriores a ella
+    esperan detrás.
+  - **Costo aceptado:** los registros del mismo enlace quedan en serie (uno a la vez, no en
+    paralelo). Es aceptable porque argon2 y la generación del token van fuera de la transacción, que
+    solo hace dos `INSERT` (usuario y sesión); veinte registros simultáneos esperan en conjunto muy
+    por debajo del límite de 5 s de la transacción interactiva, sin riesgo de `P2028`.
+  - **Sin subida de modo ni deadlock:** el `FOR KEY SHARE` que toma la FK de
+    `usuarios.enlace_registro_id` al insertar es más débil que `FOR NO KEY UPDATE` y no choca con
+    él. No hay deadlock: el registro toma solo la fila del enlace y después inserta; la revocación
+    solo toma esa misma fila.
+  - **La invariante de §D-B5 se mantiene y se refuerza:** un registro que ya tenía la fila confirma
+    antes de que la revocación obtenga el bloqueo; uno que llega después vuelve a evaluar
+    `revocado_en IS NULL` sobre la versión ya confirmada, no obtiene la fila y responde 400; ningún
+    registro confirma después de que la revocación respondió; y ningún `creado_en` es posterior al
+    `revocado_en`.
 
 **Modos de bloqueo de fila de PostgreSQL usados aquí:**
 

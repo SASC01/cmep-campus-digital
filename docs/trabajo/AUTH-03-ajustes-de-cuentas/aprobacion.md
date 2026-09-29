@@ -49,10 +49,30 @@ Además cambiaron la fila del carril sensible (la revisión del diff pasa a ser 
   | `CLAUDE.md` | `7B5E7DA60E0BF75C01C91E93E02B9FBA1B4B06A239B932CD1C89428CB67B3275` | Cierre de 03a: fila `auth` de la tabla de módulos |
   | `README.md` | `590972084A6328B56AA3E9525A11955F1583B3CA8228637FFB0814F16B72D998` | Cierre de 03a: cifras de pruebas de §7 |
 
+  | `docs/ARCHITECTURE.md` | `8BFBADF29A238265612F846A2286B4B971CF27B4C51FDE7ABEEFFBB0C19F6AF3` | Cierre de 03b: §6 "Maestros" (dos formas), §7 filas `auth` y `admin`, §14 diagrama y filas `usuarios` y `enlaces_registro` |
+  | `docs/ARCHITECTURE-ESSENTIALS.md` | `170E850082D27B16115087C808F949FFBB3313C590D2E29B5A49E61819EFC3CB` | Cierre de 03b: "Autenticación", "Maestros", y "Tablas" |
+  | `CLAUDE.md` | `CD7D2AF10ABD0A3DC52960938E73907E0309D99567F71D71DE284376C50FAB76` | Cierre de 03b: filas `auth` y `admin` de la tabla de módulos y "Ubicaciones compartidas" |
+  | `README.md` | `DFDA96198C821439F7F03979EEEF7D616C6EAFC374A698FF45E628954BA31BEE` | Cierre de 03b: cifras de pruebas de §7 (backend 74 / 838, 409 adversarias en 27 archivos; frontend 63 / 985, 600 adversarias en 31 archivos, contadas por el orquestador con `vitest run --reporter=json`) |
+
   Vale siempre **el último hash anotado** de cada archivo (M-14). Los textos aplicados en el cierre de 03a son los siete bloques de `revision.md`, "Revisión final — AUTH-03a", sección 7. Las cifras del README las contó el orquestador con `vitest run --reporter=json`: backend 68 archivos y 733 pruebas, 366 de ellas adversarias en 24 archivos; frontend 54 archivos y 914 pruebas, 567 adversarias en 28 archivos. Todas en verde.
 
 ## Arbitraje de PA-07 (AUTH-03a, ronda 2)
 El tester se detuvo en la ronda 2 porque cada corrida del backend registra 2 `P2028`. El orquestador comprobó que ya aparecían en la corrida de la base y que los provoca a propósito el bloque de AUTH-02 "transacciones que Prisma cierra por tiempo (P2028)" de `cuentas-r3.ataque`. El manager arbitró (`revision.md`, "Arbitraje de PA-07 (AUTH-03a, ronda 2)"): se excluyen solo esos dos, identificados por su ruta y su llamada; cualquier otro activa la parada. El arquitecto lo incorporó al plan (Enmienda 3). No lo escaló al humano porque no toca producto ni arquitectura.
+
+## Enmienda 5 (ronda 0 de 03b)
+El tester encontró en la ronda 0 de 03b dos casos de `clases-r1.ataque` que 03b contradice y que el inventario no cubría: el conteo de `enEspera=` (T-03) y la lista de archivos con texto rojo (T-04). El arquitecto los incorporó como C-15, C-16 y C-17. El manager la aprobó y agregó M-19: las variantes de la insignia no se exportan desde `badge.tsx`. El orquestador comprobó con `git diff d8cb198` que el plan no cambió fuera de la Enmienda 5.
+
+## Arbitraje de T-07 y T-10 (AUTH-03b, ronda 1)
+El manager decidió, sin escalar al humano porque son detalles de diseño del encargo (`revision.md`, "Arbitraje de T-07 y T-10 (AUTH-03b, ronda 1)"):
+- **T-07:** el registro por enlace toma `FOR NO KEY UPDATE` en lugar de `FOR SHARE`, así la revocación no puede esperar sin límite. La revocación toma primero el bloqueo y fija `revocado_en` después.
+- **T-10:** los cuatro botones de fila tienen un nombre accesible único, con la fecha de creación legible (`formatearFechaHora`) en texto `sr-only` dentro del botón. Se rechazó el `aria-hidden` que había propuesto el programador. Riesgo aceptado: dos enlaces creados en el mismo minuto repetirían el nombre.
+- El arquitecto lo incorporó como Enmienda 6. El orquestador comprobó con `git diff d8cb198` que el plan no cambió fuera de las Enmiendas 5 y 6. El tester ajusta en la ronda 2 los localizadores de su `maestros-03b-r1` sin cambiar lo que comprueba cada caso.
+- **R-18 (lo señaló el arquitecto en la Enmienda 6):** el "Cargar más" de `RegistradosDelEnlace` repetiría su nombre si dos filas están expandidas. El orquestador le indicó al programador aplicarle el mismo patrón, porque el plan ya exige que ningún nombre de botón se repita en la vista. Lo verifica el manager en la revisión final.
+
+## Cierre de AUTH-03b (2026-09-28)
+- **Tester:** ronda 0 con T-03 y T-04, resueltos por la Enmienda 5. Ronda 1 ROTO (T-05 a T-11: intermitencia de la suite, pruebas normales faltantes, registro con fecha posterior a la revocación, foco y nombres accesibles, `?? []`). Ronda 2 ROTO por T-12 (pruebas normales incompletas en `maestros-view.test.tsx`). Ronda 3 RESISTE.
+- **Manager:** APROBADO. Confirmó R-18 y las tres desviaciones del programador. Pendientes M-20, M-21 y M-22, y una nota para la revisión del modelo del programador, todo en `docs/ESTADO.md`.
+- **Mitigación para 03c** (propuesta del manager): el resumen del programador asocia cada viñeta de "Pruebas requeridas" con el archivo y el título exacto del caso que la cubre, y todo conteo sale de `npx vitest list`.
 
 ## Cierre de AUTH-03a (2026-09-28)
 - **Tester:** ronda 0 sin hallazgos. Ronda 1 ROTO por T-01 (media): faltaban las pruebas normales que exigía el plan. Ronda 2 ROTO por T-02 (media): la corrección de T-01 había borrado 9 casos de AUTH-02 en `invitacion.integracion`. Ronda 3 RESISTE.
@@ -62,6 +82,6 @@ El tester se detuvo en la ronda 2 porque cada corrida del backend registra 2 `P2
 ## Commits de las subentregas
 | Subentrega | Commit | Anotado por |
 |---|---|---|
-| AUTH-03a | pendiente | orquestador, con `git log` |
+| AUTH-03a | `d8cb198` (`d8cb198c9ed306b78ff276f764702ec2632d8e6e`), 2026-09-28. Es `<Ca>`, la base de 03b dentro de los paquetes | orquestador, con `git log` |
 | AUTH-03b | pendiente | ídem |
 | AUTH-03c | pendiente | ídem |

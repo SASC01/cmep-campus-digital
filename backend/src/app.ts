@@ -11,6 +11,7 @@ import { opcionesDeLogger } from "./config/logger.js"
 import { adminHandler } from "./handlers/admin.js"
 import { authHandler } from "./handlers/auth/index.js"
 import { cuentasHandler } from "./handlers/auth/cuentas.js"
+import { registroMaestroHandler } from "./handlers/auth/registro-maestro.js"
 import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
 import { saludHandler } from "./handlers/salud.js"
 import { usuariosHandler } from "./handlers/usuarios.js"
@@ -45,6 +46,7 @@ export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstan
   await app.register(saludHandler, { prefix: "/api" })
   await app.register(authHandler, { prefix: "/api/auth", env })
   await app.register(cuentasHandler, { prefix: "/api/auth" })
+  await app.register(registroMaestroHandler, { prefix: "/api/auth", env })
   await app.register(usuariosHandler, { prefix: "/api" })
   await app.register(adminHandler, { prefix: "/api/admin" })
 

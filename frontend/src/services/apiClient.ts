@@ -43,6 +43,7 @@ const RUTAS_SIN_SESION = [
   "/recuperar",
   "/restablecer",
   "/establecer-contrasena",
+  "/registro-maestro",
 ]
 // La API responde JSON incluso en 500. Un 5xx sin JSON viene del proxy de Vite o de Caddy con la
 // API caída: para la interfaz es "sin conexión", no una respuesta inválida (DEC-12).

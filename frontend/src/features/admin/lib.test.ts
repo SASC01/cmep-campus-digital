@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import { ApiError } from "@/services/apiClient"
 
-import { focoDisponiblePara, mensajeDeErrorAdmin } from "./lib"
+import {
+  construirUrlDeRegistro,
+  etiquetaDeEstadoEnlace,
+  focoDisponiblePara,
+  mensajeDeErrorAdmin,
+  textoOcultoDeFila,
+} from "./lib"
 
 describe("mensajeDeErrorAdmin", () => {
   it("traduce por código y usa un mensaje genérico para lo que no reconoce", () => {
@@ -42,5 +48,33 @@ describe("focoDisponiblePara", () => {
 
   it("fuera del contenedor: no está disponible", () => {
     expect(focoDisponiblePara(contenedor, fuera, cuerpo)).toBe(false)
+  })
+})
+
+describe("construirUrlDeRegistro", () => {
+  it("compone la URL con el token en el fragmento", () => {
+    expect(construirUrlDeRegistro("https://campus.ejemplo.mx", "a".repeat(43))).toBe(
+      `https://campus.ejemplo.mx/registro-maestro#token=${"a".repeat(43)}`,
+    )
+  })
+})
+
+describe("etiquetaDeEstadoEnlace", () => {
+  it("traduce los tres estados", () => {
+    expect(etiquetaDeEstadoEnlace("vigente")).toBe("Vigente")
+    expect(etiquetaDeEstadoEnlace("vencido")).toBe("Vencido")
+    expect(etiquetaDeEstadoEnlace("revocado")).toBe("Revocado")
+  })
+})
+
+describe("textoOcultoDeFila", () => {
+  it("sustituye {fecha} por la fecha ya formateada", () => {
+    expect(textoOcultoDeFila("el enlace creado el {fecha}", "27 sept 2026, 10:00")).toBe(
+      "el enlace creado el 27 sept 2026, 10:00",
+    )
+  })
+
+  it("sin {fecha} en la plantilla, la deja intacta", () => {
+    expect(textoOcultoDeFila("sin marcador", "27 sept 2026, 10:00")).toBe("sin marcador")
   })
 })

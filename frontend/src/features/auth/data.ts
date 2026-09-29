@@ -32,6 +32,21 @@ export const TEXTOS_REGISTRO = {
   tituloError: "No pudimos crear tu cuenta",
 } as const
 
+// AUTH-03b, §D-B8: registro público de maestro con un enlace de registro del admin.
+export const TEXTOS_REGISTRO_MAESTRO = {
+  titulo: "Crea tu cuenta de maestro",
+  subtitulo:
+    "Administración te compartió este enlace. Escribe bien tu correo: con él vas a iniciar sesión.",
+  nombre: "Nombre completo",
+  correo: "Correo",
+  contrasena: "Contraseña",
+  ayudaContrasena: "Mínimo 10 caracteres",
+  crear: "Crear mi cuenta",
+  tituloError: "No pudimos crear tu cuenta",
+  enlaceInvalido:
+    "Este enlace de registro no es válido, ya venció o fue revocado. Pide uno nuevo a administración.",
+} as const
+
 export const ETIQUETAS_ROL = {
   estudiante: "Estudiante",
   maestro: "Maestro",

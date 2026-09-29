@@ -184,7 +184,11 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 - **Token de refresco:** aleatorio de 256 bits, cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/auth`. En la base, **solo su hash** (tabla `sesiones`). 30 días, **rotación en cada uso**; si llega un token ya rotado se revocan todas las sesiones del usuario.
 - **Límite de intentos:** 5 por 15 minutos por IP + correo. Mismo mensaje para usuario inexistente y contraseña incorrecta.
 - **Registro público:** solo estudiantes. El correo es el identificador de acceso y **no se verifica**, así que puede estar mal escrito: por eso existe el respaldo del Administrador.
-- **Maestros:** no hay registro público abierto de maestros (D-04). Los da de alta el Administrador con una invitación individual (`POST /admin/maestros`): la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
+- **Maestros:** no hay registro público abierto de maestros (D-04). Se dan de alta de dos formas:
+  1. **Invitación individual** (`POST /admin/maestros`).
+  2. **Enlace de registro** que genera el admin (`POST /admin/enlaces-registro`): token aleatorio de 256 bits, mostrado una sola vez y guardado solo como SHA-256 (`enlaces_registro`). Vigencia de 1 a 30 días, 7 por defecto; sin límite de usos; revocable. Con él, `POST /auth/registro-maestro` crea una cuenta de maestro con la sesión iniciada y guarda en `usuarios.enlace_registro_id` el enlace usado; el admin ve quién se registró con cada uno. El registro toma `FOR NO KEY UPDATE` sobre la fila del enlace y la revocación fija su hora después de obtener ese mismo bloqueo, así que ninguno confirma después de que la revocación respondió y ningún registrado queda con fecha posterior a la revocación.
+
+  En la forma 1, la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
 - **Administrador:** cuenta única creada con `npm run seed:admin`. No existe endpoint que cree administradores.
 
 ### Recuperación de contraseña
@@ -222,7 +226,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 
 | Módulo | Rutas principales |
 |---|---|
-| `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
+| `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/registro-maestro` (con un enlace de registro del admin) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
 | `usuarios` | `GET /me` · `GET /me/estado-pago` · `GET /usuarios/buscar?q=` |
 | `clases` | `POST /clases` · `GET /clases` · `GET/PUT /clases/{id}` · `POST /clases/unirse` · `GET/POST/DELETE /clases/{id}/alumnos` · `GET/POST /clases/{id}/publicaciones` · comentarios |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |
@@ -232,7 +236,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 | `calendario` | `GET /calendario?desde=&hasta=` |
 | `envivo` | `GET/POST /clases/{id}/envivo` · `POST /envivo/{id}/token` · `POST /envivo/{id}/grabacion` · `POST /webhooks/livekit` (sin JWT, firma verificada) |
 | `publico` | `GET /publico/anuncios` (sin JWT, caché de 60 s) |
-| `admin` | usuarios (`POST /admin/maestros` (invitación), `POST /admin/usuarios/buscar`, `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`, baja), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
+| `admin` | usuarios (`POST /admin/maestros` (invitación), `GET/POST /admin/enlaces-registro`, `POST /admin/enlaces-registro/{id}/revocar`, `GET /admin/enlaces-registro/{id}/registrados`, `POST /admin/usuarios/buscar`, `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`, baja), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
 | — | `GET /salud` |
 
 Formato de error único: `{ "error": { "codigo": "...", "mensaje": "..." } }`. Toda lista paginada, máximo 100 elementos.
@@ -344,6 +348,7 @@ PostgreSQL. Tablas y columnas en `snake_case` en español; `camelCase` en TypeSc
 ```mermaid
 erDiagram
   usuarios ||--o{ sesiones : tiene
+  enlaces_registro ||--o{ usuarios : registra
   usuarios ||--o{ clases : imparte
   usuarios ||--o{ inscripciones : tiene
   clases ||--o{ inscripciones : agrupa
@@ -365,9 +370,10 @@ erDiagram
 
 | Tabla | Columnas principales | Restricciones e índices |
 |---|---|---|
-| `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion` | `email` único (en minúsculas) · GIN trigrama sobre `nombre_busqueda` · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` |
+| `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion`, `enlace_registro_id` | `email` único (en minúsculas) · GIN trigrama sobre `nombre_busqueda` · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` · índice `(enlace_registro_id, creado_en)` · FK a `enlaces_registro` con `ON DELETE RESTRICT` |
 | `sesiones` | `id`, `usuario_id`, `hash_token`, `expira_en`, `revocada_en`, `reemplazada_por`, `ip`, `agente` | `hash_token` único · índice `(usuario_id)` |
 | `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · FK con `ON DELETE CASCADE` |
+| `enlaces_registro` | `id`, `hash_token`, `expira_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(creado_en DESC, id DESC)`. El estado (vigente, vencido, revocado) se deriva; no se guarda |
 | `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único · índice `(maestro_id)` |
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
 | `inscripciones` | `clase_id`, `usuario_id`, `origen`, `creado_en` | PK compuesta · índice `(usuario_id)` |

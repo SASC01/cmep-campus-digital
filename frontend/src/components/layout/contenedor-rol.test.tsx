@@ -68,10 +68,15 @@ describe("ContenedorRol", () => {
     expect(enlace).toHaveAttribute("aria-current", "page")
   })
 
-  it("con rol admin, el enlace es 'Cuentas' hacia /admin", () => {
+  // AUTH-03b: el admin gana un segundo destino, "Maestros" (/admin/maestros).
+  it("con rol admin, hay dos enlaces: 'Cuentas' hacia /admin y 'Maestros' hacia /admin/maestros", () => {
     renderizar("admin")
-    const enlace = screen.getByRole("link", { name: "Cuentas" })
-    expect(enlace).toHaveAttribute("href", "/admin")
+    const cuentas = screen.getByRole("link", { name: "Cuentas" })
+    expect(cuentas).toHaveAttribute("href", "/admin")
+    expect(cuentas).toHaveAttribute("aria-current", "page")
+    const maestros = screen.getByRole("link", { name: "Maestros" })
+    expect(maestros).toHaveAttribute("href", "/admin/maestros")
+    expect(maestros).not.toHaveAttribute("aria-current")
   })
 
   it("el nombre y la etiqueta del rol aparecen una vez cada uno como texto", () => {

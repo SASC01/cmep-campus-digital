@@ -5,10 +5,12 @@ import {
   ETIQUETAS_ROL_ADMIN,
   MENSAJE_ERROR_ADMIN_GENERICO,
   MENSAJES_ERROR_ADMIN,
+  TEXTOS_MAESTROS,
 } from "./data"
 import type {
   CampoFormularioAdmin,
   ErroresFormularioAdmin,
+  EstadoEnlaceRegistro,
   IncidenciaValidacion,
   Rol,
 } from "./types"
@@ -50,3 +52,18 @@ export const erroresPorCampoAdmin = (
   }
   return errores
 }
+
+// AUTH-03b, §D-B3: el token va en el fragmento (DEC-14 de AUTH-02), nunca a un servidor ni a
+// Referer.
+export const construirUrlDeRegistro = (origen: string, token: string): string =>
+  `${origen}/registro-maestro#token=${token}`
+
+export const etiquetaDeEstadoEnlace = (estado: EstadoEnlaceRegistro): string =>
+  TEXTOS_MAESTROS.estados[estado]
+
+// AUTH-03b, Enmienda 6 (arbitraje de T-10): sustituye {fecha} en una plantilla de
+// TEXTOS_MAESTROS.enlaces.ocultoDeFila por la fecha ya formateada (zona local, legible), para el
+// texto sr-only que distingue una fila de otra en el nombre accesible de sus botones ("Revocar el
+// enlace creado el 27 sept 2026, 10:00"). Nunca en aria-hidden ni en aria-label.
+export const textoOcultoDeFila = (plantilla: string, fechaFormateada: string): string =>
+  plantilla.replace("{fecha}", fechaFormateada)

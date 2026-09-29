@@ -5,13 +5,25 @@ export type {
   BuscarUsuario,
   ContrasenaTemporalRespuesta,
   CorregirCorreo,
+  CrearEnlaceRegistro,
+  EnlaceRegistroAdmin,
+  EstadoEnlaceRegistro,
   InvitarMaestro,
+  RegistradoPorEnlace,
   Rol,
   UsuarioAdmin,
 } from "@campus/shared"
 
-// Campos de los formularios provisionales de cuentas (DEC-19).
-export type CampoFormularioAdmin = "nombre" | "email"
+// Campos de los formularios provisionales de cuentas (DEC-19). AUTH-03b: "vigenciaDias" para el
+// formulario de generar un enlace de registro.
+export type CampoFormularioAdmin = "nombre" | "email" | "vigenciaDias"
+
+// AUTH-03b, §D-B6: el enlace generado vive solo en el estado del componente (M-05, R-09), nunca en
+// la caché de TanStack Query (gcTime 0, sale al asentarse).
+export interface EnlaceGenerado {
+  url: string
+  expiraEn: string
+}
 
 export type ErroresFormularioAdmin = Partial<Record<CampoFormularioAdmin, string>>
 

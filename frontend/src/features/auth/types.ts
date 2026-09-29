@@ -8,6 +8,7 @@ export type {
   NuevaContrasenaConToken,
   Recuperar,
   Registro,
+  RegistroMaestro,
   Rol,
   TokenAccesoRespuesta,
 } from "@campus/shared"

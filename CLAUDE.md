@@ -53,7 +53,7 @@ features/
 
 | Módulo | Contenido | Roles |
 |--------|-----------|-------|
-| `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, cambio obligatorio de contraseña, pantalla de acceso restringido, bienvenida post-login (provisional hasta los dashboards) | Todos |
+| `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, registro de maestro por enlace, cambio obligatorio de contraseña, pantalla de acceso restringido, bienvenida post-login (provisional hasta los dashboards) | Todos |
 | `clases` | Dashboard, muro, crear/editar clase, roster, buscador y alta manual de alumnos | Estudiante, Maestro |
 | `tareas` | Detalle de tarea, zona de entrega, crear tarea o material, rúbrica, hilo privado | Estudiante, Maestro |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |
@@ -61,16 +61,17 @@ features/
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
-| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`), hasta la gestión de usuarios completa | Administrador |
+| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
 | `diagnostico` | Vista temporal de `/api/salud` (prueba de conexión con la API). Se mueve a `admin` o se elimina cuando exista ese módulo | Sin sesión (temporal) |
 
 ### Ubicaciones compartidas
 
-- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx` y `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`)
+- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx` y `badge.tsx` (sus variantes son internas y no se exportan)
 - `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
-- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`, `EstadoVacio`; ya existen `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`) y `AvatarUsuario` (`avatar-usuario.tsx`). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
+- `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`; ya existen `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`), `AvatarUsuario` (`avatar-usuario.tsx`) y `EstadoVacio` (`estado-vacio.tsx`, con la variante de la acción como prop). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo e iniciales de un nombre (`inicialesDe`)
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
+- `lib/cache-de-mutaciones.ts` — `sacarDeLaCacheAlAsentar`: saca de la caché de TanStack Query una mutación con datos sensibles (contraseñas, tokens) en cuanto se asienta
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta

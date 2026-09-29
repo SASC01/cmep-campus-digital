@@ -115,7 +115,14 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - **Manager:** APROBADO.
     - **Suite:** backend 68 archivos / 733 pruebas (366 adversarias en 24 archivos); frontend 54 / 914 (567 adversarias en 28 archivos).
     - **Documentos aplicados por el orquestador:** `ARCHITECTURE.md` §6 y §7, ESSENTIALS, `CLAUDE.md` y `README.md`.
-  - **Siguen** AUTH-03b (enlaces de registro) y AUTH-03c (invitación masiva). La comprobación en navegador es una sola, al final de 03c.
+    - **Commit del humano:** `d8cb198`.
+  - **AUTH-03b cerrada** el 2026-09-28, pendiente del commit del humano.
+    - **Plan:** Enmienda 5, por la ronda 0: dos casos de `clases-r1` que el inventario no cubría. Enmienda 6, por el arbitraje de T-07 y T-10: el registro toma `FOR NO KEY UPDATE` y los botones de fila tienen nombres accesibles únicos.
+    - **Tester:** rondas 1 y 2 ROTO (T-05 a T-12); ronda 3 RESISTE.
+    - **Manager:** APROBADO.
+    - **Migración `enlaces_registro`** aplicada en `campus_dev`.
+    - **Suite:** backend 74 archivos / 838 pruebas (409 adversarias en 27 archivos); frontend 63 / 985 (600 adversarias en 31 archivos).
+  - **Sigue** AUTH-03c (invitación masiva). La comprobación en navegador es una sola, al final de 03c.
 
 Después sigue CLASES.
 
@@ -163,6 +170,9 @@ Después sigue CLASES.
 | MF-04 de AUTH-02a: la baja cumple el protocolo PB-8; los cambios masivos sobre `usuarios` van en lotes cortos (P2028) | ADMIN | `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md` |
 | MF-04 de AUTH-02a: una sola instancia del worker (tope de recuperaciones fuera del bloqueo) | DEPLOY (también en `docs/ARCHITECTURE.md` §18) | ídem |
 | M-18 de AUTH-03a: `usarTokenYCambiarContrasena` no vuelve a leer `activo` bajo el bloqueo. Si la cuenta se desactiva entre `decidirUsoDeToken` y la transacción de `establecer-contrasena`, no se detectaría. Es anterior a AUTH-03 y hoy no hay ninguna ruta de baja | ADMIN, junto a PB-8 | `docs/trabajo/AUTH-03-ajustes-de-cuentas/revision.md`, "Revisión final — AUTH-03a" |
+| M-20 de AUTH-03b: `components/estado-vacio.tsx` exporta `AccionEstadoVacio`, un tipo que no es la interfaz de Props, desde el archivo de un componente (regla 6 de `CLAUDE.md`) | El próximo encargo que toque `components/` después de AUTH-03 | `docs/trabajo/AUTH-03-ajustes-de-cuentas/revision.md`, "Revisión final — AUTH-03b" |
+| M-21 de AUTH-03b: `EnlaceNuevo` (`features/admin/components/enlace-nuevo.tsx`) envuelve el botón "Copiar enlace" en su `role="status"`, igual que la contraseña temporal. Es el mismo caso que la fila de MF-05 sobre el `role="status"` (anuncio redundante), que ahora cubre los dos archivos | ADMIN | ídem |
+| M-22 de AUTH-03b: `DESIGN.md` §7.9 dice "Encabezado: fijo", pero `components/ui/table.tsx` no lo fija. Con listas cortas no se nota | ADMIN, al construir la tabla de usuarios (junto a la forma de paginar, P-02 de AUTH-03) | ídem |
 | M-17 de AUTH-03a: extraer `ContenidoConToken` de `establecer-contrasena-view.tsx` a `components/` (estilo de `CLAUDE.md`) | El próximo encargo que toque `features/auth` después de AUTH-03 | ídem |
 | Evaluar plan de pago de Resend: 100/día es insuficiente para 1,500 usuarios en producción. El plan gratuito da 100 correos por día calendario UTC y 10 peticiones por segundo por equipo | DEPLOY | `docs/trabajo/AUTH-03-ajustes-de-cuentas/aprobacion.md`, B-01 |
 | Resto de lo que deja AUTH-02 para ADMIN, DEPLOY, LIMPIEZA_DIARIA y correo (rebotes, plantilla) | Encargos respectivos | `docs/trabajo/AUTH-02-cuentas-y-correo/plan.md`, "Pendientes para encargos siguientes" |
@@ -174,7 +184,7 @@ Después sigue CLASES.
 | Dar rol accesible a la ficha de cuenta (`role=region` con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de `fichaDe` (R-15 de DESIGN-01; decisión del humano, 2026-09-27) | ADMIN | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-15, y `aprobacion.md` |
 | AUTH-02b (MF-05): la temporal se pierde si el admin busca otra cuenta con el restablecimiento en vuelo; texto genérico ante un fallo de red en la pantalla de admin; la alerta de error persiste al reabrir la confirmación | ADMIN | ídem |
 | AUTH-02b (MF-02): tres tarjetas de la pantalla de admin hechas a mano en lugar de `Card`; `erroresPorCampo` duplicado entre `features/auth` y `features/admin` | ADMIN | ídem |
-| AUTH-02b (MF-05): el `role="status"` de la contraseña temporal envuelve también el botón "Copiar", lo que puede producir un anuncio redundante. Hay que comprobarlo con un lector de pantalla (NVDA o VoiceOver) | ADMIN | ídem, y `revision.md`, "AUTH-02b — final" |
+| AUTH-02b (MF-05): el `role="status"` de la contraseña temporal envuelve también el botón "Copiar", lo que puede producir un anuncio redundante. Hay que comprobarlo con un lector de pantalla (NVDA o VoiceOver). Desde AUTH-03b pasa lo mismo con "Copiar enlace" en `enlace-nuevo.tsx` (M-21) | ADMIN | ídem, y `revision.md`, "AUTH-02b — final" |
 
 ## 4. Decisiones de esta sesión sin documento propio
 Las decisiones del humano de esta sesión están registradas en el `aprobacion.md` o `resumen.md` de cada encargo (tabla de la sección 1) y, las que son reglas, en `AGENTS.md`. Estas prácticas se acordaron encargo por encargo y no tienen otro documento general:
@@ -194,3 +204,12 @@ Verificado el 2026-09-26, salvo donde se indica:
 
 ## 6. Agentes
 Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en el frontmatter de `.claude/agents/*.md`: `arquitecto`, `manager` y `tester` con `opus` y esfuerzo `high`. **El `programador` usa `sonnet` con esfuerzo `medium` a prueba, hasta revisarlo después del encargo CLASES.**
+
+**Nota para esa revisión (propuesta del manager en AUTH-03b, `docs/trabajo/AUTH-03-ajustes-de-cuentas/revision.md`, "Revisión final — AUTH-03b"):**
+- En AUTH-03a y 03b, el código de producción del programador resistió todos los ataques.
+- Pero omitió o dejó incompletas pruebas normales que exigía el plan (T-01, T-06 y T-12).
+- Reemplazó un archivo de pruebas existente sin declararlo (T-02).
+- Afirmó conteos y paradas sin verificarlos: PA-07 en 03a, y "22 casos" en 03b cuando eran 12.
+- Propuso una corrección que satisfacía la prueba sin resolver el problema de accesibilidad (T-10).
+- Costó 4 rondas extra del tester entre las dos subentregas.
+- Mitigación desde 03c: el resumen del programador asocia cada viñeta de "Pruebas requeridas" con el archivo y el título exacto del caso que la cubre, y todo conteo sale de `npx vitest list`.

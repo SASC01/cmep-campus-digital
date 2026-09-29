@@ -65,6 +65,27 @@ export const asegurarCola = async (nombre: string, opciones: QueueOptions = {}):
   await obtenerBoss().createQueue(nombre, opciones)
 }
 
+export interface TrabajoParaEncolarEnLote {
+  id: string
+  datos: object
+}
+
+// AUTH-03c, §D-C4: encolado en lote dentro de una transacción. `sql` es obligatorio: no existe el
+// encolado en lote fuera de una transacción (los trabajos deben nacer con los datos que crea, o
+// ninguno). Un solo `insert` de pg-boss, con los trabajos como un único parámetro JSON; heredan
+// `retry_limit`, `retry_backoff`, `dead_letter` y la retención de la política de la cola.
+export const encolarVarios = async (
+  nombre: string,
+  trabajos: TrabajoParaEncolarEnLote[],
+  { sql }: { sql: EjecutorSql },
+): Promise<void> => {
+  await obtenerBoss().insert(
+    nombre,
+    trabajos.map(({ id, datos }) => ({ id, data: datos })),
+    { db: sql },
+  )
+}
+
 export interface DescripcionDeCola {
   retryLimit: number
   retryDelay: number

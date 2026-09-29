@@ -98,7 +98,7 @@ export function FormularioGenerarEnlace({ vigenciaInputRef }: FormularioGenerarE
         )}
       </div>
       <div ref={accionRef} className="flex flex-col gap-4">
-        <Button type="submit" variant="primary" enEspera={generar.isPending}>
+        <Button type="submit" variant="outline" enEspera={generar.isPending}>
           {TEXTOS_MAESTROS.enlaces.generar}
         </Button>
         {enlace && (

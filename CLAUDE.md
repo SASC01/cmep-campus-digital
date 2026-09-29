@@ -61,12 +61,12 @@ features/
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
-| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
+| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros e invitación masiva (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
 | `diagnostico` | Vista temporal de `/api/salud` (prueba de conexión con la API). Se mueve a `admin` o se elimina cuando exista ese módulo | Sin sesión (temporal) |
 
 ### Ubicaciones compartidas
 
-- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx` y `badge.tsx` (sus variantes son internas y no se exportan)
+- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx`, `badge.tsx` (sus variantes son internas y no se exportan) y `textarea.tsx`
 - `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
 - `components/` — piezas de dominio reutilizadas: `EstadoPagoBadge`, `EstadoEntregaBadge`; ya existen `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`), `AvatarUsuario` (`avatar-usuario.tsx`) y `EstadoVacio` (`estado-vacio.tsx`, con la variante de la acción como prop). Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local), porcentajes, tamaños de archivo e iniciales de un nombre (`inicialesDe`)

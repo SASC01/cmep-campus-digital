@@ -54,6 +54,17 @@ Además cambiaron la fila del carril sensible (la revisión del diff pasa a ser 
   | `CLAUDE.md` | `CD7D2AF10ABD0A3DC52960938E73907E0309D99567F71D71DE284376C50FAB76` | Cierre de 03b: filas `auth` y `admin` de la tabla de módulos y "Ubicaciones compartidas" |
   | `README.md` | `DFDA96198C821439F7F03979EEEF7D616C6EAFC374A698FF45E628954BA31BEE` | Cierre de 03b: cifras de pruebas de §7 (backend 74 / 838, 409 adversarias en 27 archivos; frontend 63 / 985, 600 adversarias en 31 archivos, contadas por el orquestador con `vitest run --reporter=json`) |
 
+  | `AGENTS.md` | `9DAD8ADE065061EB2467BF8EBFB870D5F193EFCE625437D7039CF60E3B19218C` | Antes de 03c: "Resúmenes verificables del programador" (decisión del humano, 2026-09-28) |
+  | `.claude/agents/programador.md` | `D8228AD8149F96B5BDD42E9FB61B60B7E21385784F7AEC5C17F1E51DF9285BAA` | Ídem: "Resumen verificable" y el formato de la respuesta final |
+  | `.claude/agents/manager.md` | `83D178F2C4FBA73C90295541C61C4F8E92D8E5D5B8B75591184153540A60BCC0` | Ídem: "Verificación del resumen del programador" |
+
+  | `docs/ARCHITECTURE.md` | `8BC3570DC56E45FBB43A051AB84525B20618560E4337E900EFA667033CEEB34F` | Cierre de 03c: §6 "Maestros" (tres formas), §7 fila `admin`, §8 `CORREO_DE_CUENTA`, §9 (plan de Resend y ritmo real), §14 `tokens_cuenta` y "Altas en lote", §18 (dos viñetas) |
+  | `docs/ARCHITECTURE-ESSENTIALS.md` | `DBC045F7E599C56C83E3DE899A5BA7F1966B61635A262982E48453136E931387` | Cierre de 03c: "Autenticación" ("o masiva") y "Asíncrono" |
+  | `CLAUDE.md` | `665C32111820381AA181B4242D12CF773E6C8B3B7B62A73A15FE42CFB8718F6B` | Cierre de 03c: fila `admin` ("e invitación masiva") y `textarea.tsx` |
+  | `README.md` | `E3F544884FBEFA37142ABDEBEEC9DC66928D1DAF689063C540A95BDE1439E918` | Cierre de 03c: backend 82 / 932 (447 adversarias en 32 archivos); frontend 65 / 1007 (612 adversarias en 32 archivos), contadas con `vitest run --reporter=json` |
+
+  | `README.md` | `38027AAC98B2977F405B034B814F39AC05C60AA62A253ABC69248E36AF7F04D3` | Carril trivial de 03c (singular del cupo): backend 82 / 933. Las adversarias no cambian |
+
   Vale siempre **el último hash anotado** de cada archivo (M-14). Los textos aplicados en el cierre de 03a son los siete bloques de `revision.md`, "Revisión final — AUTH-03a", sección 7. Las cifras del README las contó el orquestador con `vitest run --reporter=json`: backend 68 archivos y 733 pruebas, 366 de ellas adversarias en 24 archivos; frontend 54 archivos y 914 pruebas, 567 adversarias en 28 archivos. Todas en verde.
 
 ## Arbitraje de PA-07 (AUTH-03a, ronda 2)
@@ -69,6 +80,25 @@ El manager decidió, sin escalar al humano porque son detalles de diseño del en
 - El arquitecto lo incorporó como Enmienda 6. El orquestador comprobó con `git diff d8cb198` que el plan no cambió fuera de las Enmiendas 5 y 6. El tester ajusta en la ronda 2 los localizadores de su `maestros-03b-r1` sin cambiar lo que comprueba cada caso.
 - **R-18 (lo señaló el arquitecto en la Enmienda 6):** el "Cargar más" de `RegistradosDelEnlace` repetiría su nombre si dos filas están expandidas. El orquestador le indicó al programador aplicarle el mismo patrón, porque el plan ya exige que ningún nombre de botón se repita en la vista. Lo verifica el manager en la revisión final.
 
+## Resúmenes verificables del programador (2026-09-28, antes de 03c)
+Decisión del humano, como regla permanente para todos los encargos (`AGENTS.md`, `programador.md` y `manager.md`):
+1. **Propuesta del manager:** el programador indica junto a cada viñeta de "Pruebas requeridas" el archivo y el título exacto del caso que la cubre. Los conteos salen de `npx vitest list`, con el comando incluido.
+2. **Medida del humano:** antes de aceptar el resumen, el manager corre `lint`, `test` y `build` y contrasta cada cifra con su propia corrida. Una cifra que no coincide devuelve el resumen al programador; no se corrige a mano.
+3. **Ajuste del humano:** el resumen incluye el comando exacto y la última línea de salida de `lint`, `test` y `build`, no un "pasaron".
+
+Interpretación del orquestador, anotada en `manager.md`: la verificación ocurre después de cada entrega del programador (implementación y cada corrección) y antes de la ronda siguiente del tester. `docs/ESTADO.md` registra que las medidas empiezan en 03c, para medir si bajan las rondas extra del tester.
+
+## Cierre de AUTH-03c y del encargo (2026-09-29)
+- **Tester:** ronda 0 sin hallazgos. Ronda 1 ROTO: T-13 (medio, pruebas del cupo intermitentes por la base compartida), T-14 y T-15 (bajos). Ronda 2 RESISTE.
+- **Verificación de los resúmenes del programador**, primera subentrega con la regla nueva: el manager devolvió 2 de 5 entregas.
+  - El resumen de la implementación: faltaban las líneas literales y la viñeta de "nada encolado".
+  - El de la corrección de la ronda 1: las pruebas de la carrera del cupo habían quedado con margen 0 y ya no probaban la propiedad.
+- **Manager:** APROBADO. Decidió las observaciones (a) a (f); las que quedan abiertas están en `docs/ESTADO.md`, sección 3.
+- **Carril trivial pedido por el humano antes del commit:** el mensaje del cupo usa el singular con 1 ("1 invitación más"). El manager lo aceptó. Durante esa verificación, el "failed to find the runner" que reportó el programador desde la raíz no se reprodujo. La prueba A3 intermitente de `bloqueo-usuario.integracion` queda como `chore`, por decisión del humano, y no se corrige ahora.
+- **Comprobación humana en navegador:** H-1 a H-6 "bien", el 2026-09-29, incluida una segunda pestaña en H-1 (`comprobacion-humano.md`).
+- **Documentos aplicados por el orquestador:** los bloques de 03c. Sus hashes están en "Bases y hashes".
+- **Commit de 03c:** pendiente. Lo hace el humano; el push y el PR también.
+
 ## Cierre de AUTH-03b (2026-09-28)
 - **Tester:** ronda 0 con T-03 y T-04, resueltos por la Enmienda 5. Ronda 1 ROTO (T-05 a T-11: intermitencia de la suite, pruebas normales faltantes, registro con fecha posterior a la revocación, foco y nombres accesibles, `?? []`). Ronda 2 ROTO por T-12 (pruebas normales incompletas en `maestros-view.test.tsx`). Ronda 3 RESISTE.
 - **Manager:** APROBADO. Confirmó R-18 y las tres desviaciones del programador. Pendientes M-20, M-21 y M-22, y una nota para la revisión del modelo del programador, todo en `docs/ESTADO.md`.
@@ -83,5 +113,5 @@ El manager decidió, sin escalar al humano porque son detalles de diseño del en
 | Subentrega | Commit | Anotado por |
 |---|---|---|
 | AUTH-03a | `d8cb198` (`d8cb198c9ed306b78ff276f764702ec2632d8e6e`), 2026-09-28. Es `<Ca>`, la base de 03b dentro de los paquetes | orquestador, con `git log` |
-| AUTH-03b | pendiente | ídem |
+| AUTH-03b | `32afeef` (`32afeef94109f505e2cd82ceb41e8c704284f344`), 2026-09-28. Es `<Cb>`, la base de 03c dentro de los paquetes | ídem |
 | AUTH-03c | pendiente | ídem |

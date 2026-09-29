@@ -1667,3 +1667,622 @@ Idéntica a la tabla de "AUTH-03b — Ronda 2": esta ronda no cambió ninguna `*
 | `D81ED462116AFDD16D4C8AD534941999487D8DBF5EB9DAD22DD242CF68044115` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
 
 Salidas completas en el scratchpad de la sesión: `r3-build.txt`, `r3-lint.txt`, `r3-frontend.txt`, `r3-backend.txt`, `r3-m0-control.txt` a `r3-m5-sin-toast-de-error.txt`, `r3-m6.txt`, `r3-m7.txt`, `r3-tabla.md`, y el directorio `mut/` (configuración, generador y copias mutadas; sin el enlace a `node_modules`, que retiré al terminar).
+
+---
+
+## AUTH-03c — Ronda 0
+Veredicto: ronda 0 completa, **sin hallazgos**. Reescribí 2 casos, uno por archivo, los dos con su C-n del inventario de §D-C9 (C-11 y C-17). C-12 y C-13 no contradicen ningún caso. Quedan en rojo exactamente esos 2, y los dos fallan por falta del código de 03c.
+
+Verificación propia (2026-09-28):
+- `lint` después de reescribir: backend 0 y frontend 0 (ESLint, Prettier y `tsc`).
+- `test` antes de tocar nada: frontend 985/985 (63 archivos) y backend 838/838 (74 archivos).
+- `test` después de reescribir: frontend 1 fallida de 985; backend 1 fallida de 838.
+
+### Precondiciones
+**PA-02 no se activó:**
+- La rama es `feat/auth-03-ajustes-de-cuentas`, con HEAD en `32afeef` (`<Cb>`).
+- `git diff --name-only 32afeef -- backend shared frontend` estaba vacío antes de empezar.
+- `git status --porcelain` solo mostraba los 5 archivos de documentación que cambió el orquestador: `AGENTS.md`, `.claude/agents/programador.md`, `.claude/agents/manager.md`, `docs/ESTADO.md` y `aprobacion.md`.
+- Fuera de los paquetes, contra `<R>` = `53b3126`, solo cambiaron:
+  - los 7 archivos protegidos por hash;
+  - `docs/DESIGN.md`, excluido de V-05;
+  - `docs/ESTADO.md` y la carpeta del encargo.
+- Los 7 archivos protegidos coinciden con el **último** SHA-256 de `aprobacion.md` (`sha256sum`):
+
+  | Archivo | SHA-256 |
+  |---|---|
+  | `AGENTS.md` | `9DAD8ADE…218C` |
+  | `docs/ARCHITECTURE.md` | `8BFBADF2…6AF3` |
+  | `docs/ARCHITECTURE-ESSENTIALS.md` | `170E8500…C3CB` |
+  | `CLAUDE.md` | `CD7D2AF1…AB76` |
+  | `README.md` | `DFDA9619…1BEE` |
+  | `.claude/agents/programador.md` | `D8228AD8…5BAA` |
+  | `.claude/agents/manager.md` | `83D178F2…BCC0` |
+
+- **V-01:** las 58 `*.ataque` coinciden con la tabla final de "AUTH-03b — Ronda 3" (`sha256sum -c`: 58/58), y el conjunto de archivos es el mismo.
+
+**PA-01 no se activó.** La comprobé antes de cada corrida del backend:
+- la regla responde `True Inbound Block Public`;
+- la red activa es `IZZI-F281` (perfil Public, declarada de confianza por el humano);
+- Docker responde (motor 28.5.1).
+
+**PA-11 no se activó.** Justo al terminar la corrida de base, Ryuk seguía arriba. En la comprobación siguiente, antes de la segunda corrida, no quedaba ningún contenedor con `label=org.testcontainers=true`. Tampoco quedó ninguno después de la segunda.
+
+**PA-07 no se activó.** Evidencia:
+- **Comando**, sobre la salida completa de `npm run test` del backend después de las reescrituras (`t3c-backend-r0.txt`), un término a la vez: `grep -oF "<término>" t3c-backend-r0.txt | wc -l`.
+- **Conteo por término:**
+
+  | Término | Apariciones |
+  |---|---|
+  | `40P01` | 0 |
+  | `deadlock detected` | 0 |
+  | `could not serialize` | 0 |
+  | `P2028` | 2 |
+  | `too many clients` | 0 |
+
+- **Los dos `P2028`**, identificados por la llamada de Prisma, por la pila y por la petición del mismo `requestId` que terminó en 500:
+
+  | # | Línea de la salida | Ruta | Llamada de Prisma | Pila |
+  |---|---|---|---|---|
+  | 1 | `:3481` (`req-1m`; la petición abre en `:2402` y responde 500 en `:3482`) | `POST /api/auth/login` | `tx.sesion.create` (`crearSesion`, `modelName: "Sesion"`) | `adapters/db/sesiones.ts:39` ← `handlers/auth/index.ts:134`, dentro de `app.post("/login")` (desde la línea 105) |
+  | 2 | `:3668` (`req-20`; abre en `:3563` y responde 500 en `:3669`) | `POST /api/auth/restablecer` | `tx.tokenCuenta.updateMany` (`usarTokenYCambiarContrasena`, `modelName: "TokenCuenta"`) | `adapters/db/tokens-cuenta.ts:116` ← `handlers/auth/cuentas.ts:106`, dentro de `app.post("/restablecer")` (desde la línea 98) |
+
+- Son los dos excluidos por la Enmienda 3, uno de cada tipo. La corrida de base (`t3c-backend-base.txt`) da los mismos cinco conteos.
+
+### Casos reescritos por archivo
+Cada uno lleva un comentario `AUTH-03c ronda 0 (C-n, §D-C9)` que explica qué cambió y qué sigue protegiendo. Diff completo en el scratchpad: `t3c-diff.txt` (19 líneas agregadas y 3 quitadas).
+
+| Archivo | Caso | C-n | Qué cambia | Qué sigue protegiendo |
+|---|---|---|---|---|
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | `:449` (antes `:443`) | C-11 | Se agrega `"POST /api/admin/maestros/lote"` a la lista exacta, entre `POST /api/admin/maestros` y `POST /api/admin/usuarios/:id/restablecer-contrasena` (orden de `sort()`). El título pasa a "…AUTH-03b y AUTH-03c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros". El analizador por sangría de la ronda 0 de 03b no cambia | Ninguna ruta fuera de la lista existe bajo `/api`, así que ninguna crea administradores. Crean maestros solo `POST /api/admin/maestros` y `POST /api/admin/maestros/lote` (las dos solo para el admin; la cadena de la primera la prueba `:504`, y la de la segunda, las rondas 1 a 3) y `POST /api/auth/registro-maestro` (con un enlace vivo). Cualquier otra ruta nueva vuelve a poner la prueba en rojo |
+| `frontend/src/styles/clases-r1.ataque.test.ts` | `:82` (antes `:75`) | C-17 | `toHaveLength(19)` pasa a `toHaveLength(20)`, y el título dice "20 enEspera". La lista fija de archivos suma `"/src/features/admin/components/formulario-invitacion-masiva.tsx": 1` ("Enviar invitaciones"). El resto, "Sí, revocar" y "Cargar más enlaces", sigue igual: 2 en `features/admin/components/`, con al menos 1 en `tabla-enlaces.tsx` | Lo mismo que C-15: ningún `disabled` en JSX; `aria-busy` y `aria-disabled` solo en `button.tsx`; el número y el lugar de los botones con espera cambian solo con el plan. Un botón de más o de menos, uno fuera de la lista (por ejemplo, en `resultado-invitacion-masiva.tsx`) o un envoltorio que reparta `enEspera` vuelve a poner la prueba en rojo (R-16) |
+
+**Comprobación de C-11 fuera del repositorio.** El analizador tiene que reconstruir una ruta que `printRoutes` anida bajo otra. Lo comprobé con una app de Fastify 5 en el scratchpad (`t3c-printroutes.mjs`, con el `fastify` del repositorio):
+- `printRoutes({ commonPrefix: false })` imprime `/lote (POST)` bajo `/api/admin/maestros (POST)`;
+- el analizador, copiado tal cual de la prueba, devuelve `POST /api/admin/maestros/lote`, sin líneas no reconocidas.
+
+Así que el caso pasará a verde cuando exista la ruta, sin tocar el analizador.
+
+**V-13 (`clases-r1:167`, antes `:158`) no se reescribe**, como dice C-17: la lista de 5 archivos de C-16 no crece en 03c. Solo cambió su número de línea, porque el caso de arriba creció 9 líneas (7 de comentario y 2 de la lista fija).
+
+**C-12, revisado sin reescrituras.** Revisé las `*.ataque` que montan `/admin/maestros`:
+- `features/admin/maestros-03b-r1` (16 casos) y `app/registro-maestro-03b-r1` (`:219` y `:263`);
+- las demás que montan rutas del admin (`contexto-r1`, `marco-r1`, `router`, `fondo-r1`, `cuentas-r1` a `r4`, `en-espera-r1` y `foco-r1` de `admin`) montan `/admin` o un router propio, no `/admin/maestros`.
+
+Ninguna depende de la variante de "Generar enlace": no hay ningún `primary`, `outline`, `variant` ni `data-variant` en ellas. Ninguna depende de que la vista tenga un solo panel:
+- **Foco:** los casos de T-14 (`:182` y `:201`), el clic triple (`:215`), la confirmación en línea (`:278` y `:290`) y "Generar el primer enlace" (`:362`) solo usan el foco dentro del panel de enlaces. Localizan por nombre exacto ("Generar enlace", "Vigencia en días") y no por posición ni por tabulación.
+- **Nombres repetidos:** `:362` y `:382` exigen nombres únicos en toda la vista, y "Enviar invitaciones" no choca con ninguno.
+- **Filas:** `:486` cuenta las filas de la única tabla. El resultado de la masiva no es una tabla y solo aparece después de un envío.
+- **Contexto:** `registro-maestro-03b-r1:219` exige que todo botón, `input` y encabezado cuelgue del contexto opaco y denso, y el panel nuevo vive en la misma vista.
+- **Consultas al montar:** el panel nuevo no hace ninguna, así que los `stubApi` y `stubFetch` de esas pruebas no ven ninguna petición nueva.
+
+**C-13, confirmado sin reescrituras.** Ninguna `*.ataque` del backend mide el tiempo del worker:
+- `worker-r1` y `worker-r2` son las únicas que usan `registrarConsumidores`. Esperan condiciones con límites de 25 s y 40 s (casos de 40 s y 60 s), sin medir duraciones.
+- `worker-r1` encola un solo trabajo en su cola (`retryLimit: 0`), así que hace un único intento y el ritmo nunca espera.
+- `worker-r2` hace 3 intentos del mismo trabajo (`retryLimit: 2`, `retryDelay: 0`). Con M-09, los dos reintentos esperan hasta 250 ms cada uno: 0.5 s como máximo frente a 40 s.
+- El consumidor de fallidos no pasa por el ritmo (§D-C5 envuelve solo `correoDeCuenta`).
+- Las demás llaman a `procesarCorreoDeCuenta` directamente (`cuentas-r1`, `worker-r1`, `invitacion-flujo-03a-r2`), sin pasar por `workers/index.ts`.
+- `esperar?` es opcional en `DependenciasCorreoDeCuenta`, así que los objetos de dependencias de esas pruebas siguen compilando.
+
+### Rojos esperados (2)
+Quedan en rojo hasta que el programador termine 03c. Cualquier otro rojo, o que uno de estos siga en rojo al final, activa PA-06.
+
+**Backend (1):**
+- B-1 `backend/test/sesiones-y-cadena.ataque.test.ts:449` "bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b y AUTH-03c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros" (C-11). Hoy falla en la aserción de `:475` ("expected [ …(24) ] to deeply equal [ …(25) ]"). La única diferencia es `- "POST /api/admin/maestros/lote"`, y la aserción de líneas no reconocidas pasa.
+
+**Frontend (1):**
+- F-1 `frontend/src/styles/clases-r1.ataque.test.ts:82` "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 20 enEspera" (C-17). Hoy falla en `:89` con "expected [ …(19) ] to have a length of 20 but got 19". Cuando exista el botón, la lista fija exige además 1 `enEspera=` en `formulario-invitacion-masiva.tsx`.
+
+Revisé en la salida por qué falla cada uno: los dos fallan por falta del código de 03c, no por un error de la prueba.
+
+### Agregados fuera del inventario, con su C-n
+Ninguno. Los dos casos reescritos son los del inventario de §D-C9.
+
+### Búsqueda ampliada del paso 2 (Enmienda 5)
+La hice en las 58 `*.ataque` de los dos paquetes, incluidas las 11 que escribieron los testers de 03a y 03b.
+
+- **Términos fijos de las tres rondas 0:** `contrasenaActual`, "Contraseña temporal", `mostrarTemporal`, `CampoContrasena`, `TEXTOS_CAMPO_CONTRASENA`, `/establecer-contrasena` con token, `DESTINOS_POR_ROL`, "Cuentas" y `/admin`.
+  - Los siete primeros aparecen en 6, 3, 1, 1, 1, 24 y 0 archivos.
+  - 03c no toca `features/auth/**`, `handlers/auth/**`, `components/layout/**` ni `rutas-publicas.ts` (están en "No se toca" de 03c), así que ninguno de esos casos se contradice.
+- **Rutas:** la lista exacta de `printRoutes` está solo en `sesiones-y-cadena` (C-11). Ninguna `*.ataque` enumera `RUTAS_PUBLICAS` ni `RUTAS_SIN_SESION`, y 03c no agrega rutas públicas.
+- **Espera y rojo:** `enEspera=`, `text-danger` y `text-destructive` solo cuentan en `clases-r1` (C-17; V-13 sin cambios). En las demás pruebas solo aparecen comprobaciones de `aria-busy` de pantallas existentes.
+- **Pruebas estáticas** que recorren el código (`import.meta.glob`, `readdirSync`, `readFileSync` o `?raw`). Son 8:
+  - `clases-r1`: C-17. Sus demás listas (V-02 a V-05, V-07, V-13 y el Toaster) no cambian con 03c.
+  - `estatico-r1`: sus listas cerradas (`fixed`, `animate-`, valores arbitrarios fuera de `components/ui/`, `bg-background`, `<a href>`, `CampoContrasena`, 0 "Ocultar" en `.tsx`) no se contradicen. `textarea.tsx` vive en `components/ui/`.
+  - `tokens-r1`: lee `tokens.css` y las tablas de `DESIGN.md` §3 a §5. §D-C8 edita §7.3 y §7.15.
+  - `fondo-r1`: lee `tokens.css`, que está en "No se toca".
+  - `features/admin/cuentas-r1`: reglas 8 y 9, sin conteos.
+  - `components/ui/badge-03b-r1`: lee solo `badge.tsx`, que está en "No se toca" de 03c.
+  - `features/admin/maestros-03b-r1`: su lista de `?? []` son solo `tabla-enlaces.tsx` y `registrados-del-enlace.tsx`.
+  - `arquitectura-cuentas-r1`, en el backend: ninguna de sus listas cambia.
+- **Conteos y listas cerradas** de `variant=`, `primary`, `rounded-`, `shadow-`, `vidrio`, `data-material`, `animate-`, `fixed`, `ring-`, `focus:`, `outline-none`, `disabled` y `aria-busy`: fuera de las 8 de arriba no hay ninguno que 03c pueda cambiar.
+- **Otras listas exhaustivas que 03c amplía:**
+  - códigos de error (`CUPO_DIARIO_INSUFICIENTE`), `MENSAJES_ERROR_ADMIN`, exportaciones de `shared/`, variables de entorno (`INVITACIONES_LIMITE_DIARIO`), índices o migraciones y filas de `pgboss.job`;
+  - ninguna `*.ataque` compara una lista cerrada de ellos. Los `Object.keys(...)` que hay miran respuestas de rutas que 03c no toca.
+
+### Hallazgos
+Ninguno. La numeración sigue libre desde **T-13**.
+
+### Observaciones para el manager y el programador (no son hallazgos)
+1. **Dos restricciones que 03c no contradice pero puede romper** (como las de M-13 y la Enmienda 5; no se reescriben):
+   - **`maestros-03b-r1:352`** localiza el indicador de carga con `findByRole("status")`, que exige un único `status` en la vista.
+     - §D-C6 pide para el contador "N de 100 líneas" solo `aria-live="polite"`.
+     - Si el contador se escribe con `role="status"` o como `<output>` (que tiene ese rol implícito), el caso falla con dos coincidencias.
+     - Lo mismo pasa con `findByRole("alert")` en `:343` y `:517` si el panel nuevo pinta una alerta al montar.
+     - El `role="status"` del resumen del lote no choca, porque solo aparece después de un envío.
+   - **`clases-r1:82`:** "Enviar invitaciones" lleva su `enEspera=` escrito en su propio `<Button …>` dentro de `formulario-invitacion-masiva.tsx`, no en un envoltorio (R-16).
+2. **El cupo cuenta todas las invitaciones de la base compartida de la suite.**
+   - Las pruebas del backend corren en paralelo contra un solo PostgreSQL. Muchas crean tokens de invitación, sueltos con `POST /api/admin/maestros` o con `crearTokenDePrueba({ tipo: "invitacion" })`: al menos 7 archivos de `backend/test` por la ruta y 12 que insertan tokens con `tipo: "invitacion"`, varias veces dentro de `it.each` o de ciclos.
+   - Todos caen en la ventana de 24 h que mide `invitarMaestrosEnLote`.
+   - Una prueba de "cupo exacto", "uno más" o "cupo en 0" que dependa del límite por defecto (80), o que lea `usadas` y después envíe el lote, puede recibir un 409 o un 200 distinto según lo que otros archivos crearon en medio. Es el mismo patrón de T-05 (PA-12).
+   - Lo reviso en la ronda 1 sobre las pruebas del programador. Aquí solo lo anoto para que el diseño de esas pruebas lo tenga en cuenta, por ejemplo con un `limiteDiarioInvitaciones` propio calculado dentro del bloqueo, o con una app propia.
+
+### No atacado y por qué
+No escribí pruebas de ataque nuevas de 03c: corresponden a las rondas 1 a 3, después del programador (instrucción de esta ronda).
+
+### Tabla SHA-256 de las 58 `*.ataque` (V-01 para el programador de 03c, después de formatear)
+"(modificado)" marca un cambio respecto de la tabla final de "AUTH-03b — Ronda 3". Formateé solo los dos archivos que toqué, cada uno desde su paquete (`npx prettier --write`; los dos quedaron sin cambios de formato).
+
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `4FCE3CEDF662BA3A188F21A2277DB417747D342C115EFD4746D3CFF58499289B` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `AAE65C95CF34DB814D650AF5F7FA08D09BFF3E6FC6863D4252383058499AA10E` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `EA078F41CC98C947D9B3966EE8ECCEC2BD5D06EACBAF7EE8CD85F38E6A697C15` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `C40E62D89ACF687A92C427DCE81C7B799F41843D50D0A13C9920E5DAFA08B53D` | `backend/test/sesiones-y-cadena.ataque.test.ts` (modificado) |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `5E92F1C572A18BC19CD06E9584AB8FC5C5A0EF709D9782AE05C85229BAAE78A0` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `E58293532633DC5CFE21561E2609D170638C81886B9C31129F03864C73A34F45` | `frontend/src/app/router.ataque.test.tsx` |
+| `06F35BE8AE68F0ABAE775268E4E64F3DF880FF137A9B54AA3C135941DDB93DCF` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `02B46D9223A84E3B84F7FFC5018BC25A1751F0CDA9D5EC938BD32303717E145B` | `frontend/src/styles/clases-r1.ataque.test.ts` (modificado) |
+| `D81ED462116AFDD16D4C8AD534941999487D8DBF5EB9DAD22DD242CF68044115` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+Salidas completas en el scratchpad de la sesión: `t3c-frontend-base.txt`, `t3c-backend-base.txt`, `t3c-frontend-r0.txt`, `t3c-backend-r0.txt`, `t3c-frontend-lint.txt`, `t3c-backend-lint.txt`, `t3c-diff.txt`, `t3c-v01-esperado.txt`, `t3c-tabla.md` y `t3c-printroutes.mjs`.
+
+---
+
+## AUTH-03c — Ronda 1
+Veredicto: **ROTO**. 3 hallazgos: 0 críticos, 0 altos, 1 medio y 2 bajos. El código de producción del backend resistió todos los ataques; los hallazgos son una prueba normal que depende de la base compartida (T-13) y dos detalles del panel (T-14 y T-15).
+
+Verificación propia (2026-09-28), desde la raíz:
+- `npm run build`: código 0; última línea `✓ built in 619ms`.
+- `npm run lint`: código 0; "All matched files use Prettier code style!" en los tres paquetes y `tsc` sin errores.
+- `npm run test`, con mis archivos nuevos:
+  - frontend: `Test Files  1 failed | 64 passed (65)` · `Tests  2 failed | 1005 passed (1007)`. Los 2 rojos son T-14 y T-15; los 995 de antes siguen en verde;
+  - backend, 3 corridas completas seguidas: `Test Files  81 passed (81)` · `Tests  930 passed (930)` las tres (894 de antes más mis 36).
+- Sin mis archivos, las cifras coinciden con el resumen: backend 77 / 894 y frontend 64 / 995.
+
+### Precondiciones y verificación
+- **V-01:** las 58 `*.ataque` coinciden con la tabla de "AUTH-03c — Ronda 0" (`sha256sum -c`: 58/58). No toqué ninguna.
+- **PA-01 no se activó:** `True Inbound Block Public`, red `IZZI-F281` (Public) y Docker 28.5.1, comprobado antes de cada corrida del backend.
+- **PA-11 no se activó:** sin contenedores de Testcontainers después de cada corrida.
+- **PA-07 no se activó.** Comando: `grep -oF "<término>" t3c-r1-backend-N.txt | wc -l` sobre la salida completa de cada una de las 3 corridas.
+  - Conteo, igual en las tres: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `P2028` 2, `too many clients` 0.
+  - Los dos `P2028` (corrida 1, líneas `:3313` y `:3698`) son los excluidos por la Enmienda 3:
+    - `req-1m`, `POST /api/auth/login`, `tx.sesion.create` (`modelName: "Sesion"`): `adapters/db/sesiones.ts:39` ← `handlers/auth/index.ts:134`;
+    - `req-20`, `POST /api/auth/restablecer`, `tx.tokenCuenta.updateMany` (`modelName: "TokenCuenta"`): `adapters/db/tokens-cuenta.ts:116` ← `handlers/auth/cuentas.ts:106`.
+- **Migración** `20260929015654_tokens_cuenta_tipo_creado_en`:
+  - su SQL es exactamente el de §D-C2: un `CREATE INDEX "tokens_cuenta_tipo_creado_en_idx" ON "tokens_cuenta"("tipo", "creado_en")`;
+  - es compatible hacia atrás: solo agrega un índice, sin `DROP` ni `ALTER` de columnas;
+  - `schema.prisma` solo suma `@@index([tipo, creadoEn])` en `TokenCuenta`;
+  - las migraciones anteriores no cambiaron (`git diff --stat 32afeef -- backend/prisma/migrations` vacío).
+- **Pruebas normales contra `32afeef`:** comparé los títulos de `it()`/`test()` de los 79 archivos normales de la base con los de hoy (`t3c-titulos.mjs`).
+  - No se perdió ningún caso.
+  - Crecieron sin quitar nada: `config/env.test.ts` (16 → 19), `cola.integracion` (8 → 11), `worker-correo-de-cuenta.integracion` (12 → 16; los 12 de AUTH-02 intactos) y `maestros-view.test.tsx` (16 → 24).
+  - El único título distinto es E6 de `bloqueo-usuario.integracion`: cambió de texto, no se perdió. Es la desviación 2, ya aceptada, y el caso quedó más estricto: cubre `$executeRaw` y exige `invitaciones.ts`.
+- **PA-08:** `git diff --stat 32afeef` está vacío en `adapters/notifier/`, `config/correo.ts`, `worker.ts`, `workers/correo-de-cuenta.ts`, `core/correo/notifier.ts` y `core/correo/plantillas.ts`. 03c no toca la elección del canal. Las menciones nuevas de Resend en `queue/index.ts`, `ritmo.ts` y `env.ts` son comentarios. `correo.ataque` (regla 12) sigue en verde.
+
+### Hallazgos
+
+#### T-13 — Dos pruebas normales del lote dependen del conteo global de invitaciones y caen en 409 si otro archivo de la suite crea muchas
+Severidad: media (intermitencia de la suite, el mismo patrón que T-05).
+Prueba, reproducible 3 de 3:
+`npx vitest run test/invitacion-masiva.integracion.test.ts test/invitacion-masiva-03c-r1.ataque.test.ts`, desde `backend/` (salidas `t3c-r1-juntos-1.txt` a `-3.txt`).
+- Falla `backend/test/invitacion-masiva.integracion.test.ts:86` "lista mixta: válidas, ya existentes de los tres roles, inválidas y repetidas".
+- Falla `:134` "las cuentas nacen como maestro, con un hash inutilizable compartido y un token de invitación cada una, encolado en pgboss.job".
+- Las dos con `expected 409 to be 200`.
+
+Esperado / Obtenido:
+- Esos dos casos usan la app con el límite por defecto (80) contra la ventana de 24 h de toda la base desechable, que comparten todos los archivos en paralelo.
+- En cuanto otro archivo de la misma corrida crea 78 invitaciones o más, reciben `CUPO_DIARIO_INSUFICIENTE`. Es lo correcto para el producto; la prueba es la que está mal.
+- Mi ataque de "100 líneas justas" crea 100, como pide el plan ("Puntos de ataque", AUTH-03c: "100 líneas justas y 101").
+- La suite completa pasó en verde mis 3 corridas solo por el orden en que Vitest reparte los archivos. Ese orden cambia con la caché de duraciones y con cualquier archivo nuevo.
+
+Segunda parte, por análisis, sobre el mismo archivo:
+- El caso `:313` ("dos lotes lanzados a la vez…") fija `limiteFijado = usadasAntes + 1` antes de abrir la transacción.
+- Su comentario afirma que "ninguna interferencia de otro archivo de la suite puede aflojarlo". **Es falso:** `usadas` también baja cuando el `afterAll` de otro archivo borra sus usuarios, porque los tokens se borran en cascada.
+- Mi propia carrera de cupo lo mostró en la primera corrida conjunta: con un límite de `usadas + 5` leído antes, pasaron dos lotes de 3 ("expected 2 to be less than or equal to 1").
+- En `:313`, un borrado ajeno en esa ventana haría que el lote formado detrás recibiera 200 en lugar de 409.
+- Reescribí mi caso para no depender de eso (ver "Atacado sin hallazgos"). Los casos `:223`, `:237` y `:283` no tienen el problema, porque su evaluador fija el límite con el `usadas` que se lee dentro del bloqueo.
+
+Requisito o regla violada: la observación 2 de la ronda 0, que el resumen dice cubrir; PA-12 ("una prueba propia es intermitente"); AGENTS.md, "Pruebas".
+
+#### T-14 — La ayuda del formato de la lista no es la descripción accesible del campo
+Severidad: baja.
+Prueba: `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx:149` "la ayuda del formato es la descripción accesible del campo (como la ayuda de los demás campos del proyecto)".
+
+Esperado / Obtenido:
+- **Esperado:** al llegar con Tab a "Lista de maestros", un lector de pantalla anuncia cómo se escribe la lista: "Un maestro por línea: su correo y, si quieres, su nombre, separados por coma, punto y coma o tabulador. Hasta 100 líneas."
+- **Obtenido:** la descripción accesible está vacía.
+  - `formulario-invitacion-masiva.tsx:67` solo pone `aria-describedby` cuando hay error.
+  - La ayuda (`:69`) y el contador (`:70`) no están asociados al campo.
+  - El ejemplo solo vive en el `placeholder`, que desaparece al escribir.
+- En el proyecto, la ayuda sí va en `aria-describedby`: `nombre-ayuda` en `formulario-nueva-contrasena.tsx:117` y `describeContrasena` en `formulario-registro.tsx:94` y `formulario-registro-maestro.tsx:103`.
+
+Requisito o regla violada: RNF-08 (accesibilidad básica, etiquetas en formularios) y el patrón de ayuda de los formularios del proyecto.
+
+#### T-15 — Una línea no válida se lee sin el separador antes del motivo
+Severidad: baja.
+Prueba: `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx:221` "cada línea inválida se lee como 'Línea N · texto · motivo' (§D-C6)".
+
+Esperado / Obtenido:
+- **Esperado:** "Línea 7 · no-es-correo · Correo no válido".
+- **Obtenido:** "Línea 7 · no-es-correoCorreo no válido".
+  - `lineaInvalida` (`data.ts:153`) termina en el texto, y la insignia del motivo (`resultado-invitacion-masiva.tsx:68`) va pegada, sin separador.
+  - Leído en voz alta o copiado, no se sabe dónde termina la línea que escribió el admin y dónde empieza el motivo, y la línea es texto libre.
+
+Requisito o regla violada: §D-C6 ("las no válidas: 'Línea N · texto · motivo'").
+
+### Atacado sin hallazgos
+**Lote, por HTTP** (`backend/test/invitacion-masiva-03c-r1.ataque.test.ts`, 27 casos, todos en verde):
+- **100 líneas justas**, con CRLF y 50 líneas vacías o de espacios intercaladas → 200, con:
+  - 100 maestros, un solo hash;
+  - 100 tokens `invitacion` de 72 h;
+  - 100 trabajos cuyo id es el de su token, con `data` = `{ tipo: "invitacion" }` (sin datos personales);
+  - la misma política que el trabajo de una invitación suelta (`retry_limit` 3, `retry_delay`, `retry_backoff`, `expire_seconds`, `deletion_seconds`, `dead_letter` = `CORREO_DE_CUENTA_FALLIDO`, `policy` y retención).
+- **Límites:** 101 líneas con contenido → 400 y nada creado. 40,001 caracteres → 400; 40,000 justos → 200.
+- **Cuerpos inválidos** (sin `lista`, `null`, número, arreglo, objeto, vacía, solo espacios y saltos) → 400 `VALIDACION`, nunca 5xx.
+- **Líneas de solo separadores** (`,`, `;;;`, `,;,`, ` ; `, `\t,\t`, `,,@,,`) → `correo_invalido`, con su número de línea.
+- **Mismo correo con mayúsculas y espacios en tres líneas** → una sola cuenta, en minúsculas y con un token; las otras dos, `repetido`.
+- **El correo del admin**, con mayúsculas y un nombre → "ya tenía cuenta". El admin conserva correo, nombre, hash y rol; sigue siendo el único y no recibe tokens.
+- **Un alumno deudor y restringido** → "ya tenía cuenta", sin cambios de rol, nombre ni banderas. La respuesta tiene exactamente `enviadas`, `yaExistentes` e `invalidas`, sin estado de pago y sin ids de cuenta ni de token.
+- **Banderas en el cuerpo** (`rol: "admin"`, `estadoPago`, `accesoRestringido`, `activo`, `debeCambiarContrasena`, `limite`) → se ignoran.
+- **U+202E y `<script>`:**
+  - U+202E en el nombre → `nombre_invalido`; en el correo → `correo_invalido`. Ninguna cuenta guarda el inversor.
+  - `<script>…</script>` en el nombre se guarda y se devuelve como texto tal cual; el frontend lo pinta como texto (ver abajo).
+- **Partes locales raras sin nombre** (`_`, `-`, `+`, `_+`, `a`, `a.b`, 64 caracteres, correo de 254): toda cuenta creada tiene un nombre que pasa `nombreSchema`, es igual a su `data` y mide 120 caracteres o menos.
+- **Cupo en 0**, anclado con un token propio y un límite de 1:
+  - dos correos nuevos → 409 `CUPO_DIARIO_INSUFICIENTE` con el mensaje exacto ("Hoy solo puedes enviar 0 invitaciones más. …") y ninguna cuenta creada;
+  - solo existentes e inválidas → 200 (las existentes no consumen cupo).
+- **Lotes simultáneos:**
+  - cuatro de 3 correos nuevos con poco cupo: cada uno es todo o nada (200 con sus 3 cuentas o 409 sin ninguna), nunca 5xx;
+  - tres que comparten 5 correos, con cupo amplio: todos 200. Cada correo compartido se crea una vez, con un token y un trabajo, y sale como enviado en un lote y como "ya existente" en los otros dos. En total, 35 cuentas, 35 tokens y 35 trabajos.
+- **Autorización:** sin token → 401; estudiante y maestro → 403 `ROL_NO_PERMITIDO`; restringido → 403 `ACCESO_RESTRINGIDO`; con cambio pendiente → 403 `CAMBIO_DE_CONTRASENA_REQUERIDO`; dado de baja → 401. En ningún caso se crea la cuenta.
+- **Ids:** el id de cada trabajo es el de su token, y ningún token coincide con el id de una cuenta.
+
+**Log** (`backend/test/logs-03c-r1.ataque.test.ts`, 2 casos): la API real, a nivel `trace` y con límite de 10,000, recibió una lista mixta (200), una de 101 líneas (400) y un JSON roto (400). En el log no aparece, ni en minúsculas:
+- ningún correo de las listas: nuevas, existente, repetida, el de dentro de una línea inválida y el primero y el último de la de 101;
+- ningún nombre de las listas;
+- ni la contraseña ni el JWT del admin.
+
+**Worker:**
+- `backend/src/workers/ritmo-03c-r1.ataque.test.ts`, 6 casos, con el reloj y la espera reales, llamando trabajo tras trabajo al manejador que registra `registrarConsumidores`, sin el sondeo de pg-boss:
+  - el primer trabajo no espera;
+  - entre el fin de un intento y el inicio del siguiente hay entre 248 y 310 ms;
+  - nada después del último;
+  - un intento que lanza propaga el error y el siguiente espera 250 ms (M-09);
+  - un rechazado también cuenta;
+  - un omitido no cuenta;
+  - pasados 250 ms no hay espera;
+  - un reloj que salta 10 s hacia atrás nunca hace esperar más de 250 ms.
+- `backend/test/worker-03c-r1.ataque.test.ts`, 1 caso: 5 invitaciones encoladas con `encolarVarios` en una transacción pasan por el consumidor real con el canal `registro`. Quedan exactamente 5 HTML, uno por token, cada uno con su enlace y el nombre de su maestro, y ninguno más después de otro sondeo.
+
+**Frontend** (`frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx`, 10 casos en verde de 12):
+- **El contador:** cuenta bien con CRLF, CR sueltos y líneas en blanco. Con 101 líneas dice "101 de 100 líneas", marca el error en el campo y no manda ninguna petición.
+- **40,001 caracteres:** error en el campo y ninguna petición; con 40,000, la petición lleva la lista tal cual.
+- **Resultado:** sin grupos vacíos (solo inválidas → un grupo; solo enviadas → un grupo, con "Sin nombre…").
+- **`<script>` e `<img onerror>`:** se pintan como texto, sin crear elementos ni ejecutar nada.
+- **El cupo (409):** la alerta lleva el mensaje del servidor, no hay resumen y el cuadro conserva lo escrito. Al reenviar con éxito, la alerta se va y el cuadro sigue igual (S-14).
+- **Un solo `primary`, "Enviar invitaciones",** con el vacío, con la lista, con un enlace nuevo, con la confirmación abierta y con un resultado. "Generar enlace" siempre en `outline`.
+- **Un único `role="status"` en cada momento:** Cargando mientras llega la lista; ninguno con la lista cargada; el resumen tras enviar. El contador es `aria-live="polite"` en un `<p>`, así que `maestros-03b-r1:352` no choca.
+- **Clic triple más los dos envíos del formulario:** una sola petición; el botón queda en espera, sin `disabled` y con el foco.
+
+**`DESIGN.md` §7.3 y §7.15 frente a lo implementado:**
+- **§7.3, `textarea.tsx`:** tiene las mismas clases de borde, fondo, foco (`focus-visible:border-accent`, sin anillo) e inválido que `input.tsx`, `text-body`, 10 filas y `resize-y`. Hay un solo `primary` en `/admin/maestros`.
+- **§7.15:** el resumen en palabras va en `role="status"`; cada grupo tiene encabezado `text-small` en negrita con su conteo entre paréntesis; no hay grupos vacíos; el motivo va en la insignia `danger`, sin rojo suelto en `features/` (V-13 sigue con 5 archivos).
+
+**Nota del manager sobre el caso reforzado** (`invitacion-masiva.integracion:313`): **no pude provocar el `P2028`.**
+- En 3 corridas completas y 3 corridas del par de archivos, con carga paralela, no apareció.
+- Por qué:
+  - la espera de la precondición termina en cuanto la llamada toma su conexión y queda formada en `pg_advisory_xact_lock`;
+  - en ese archivo las pruebas corren en serie, y el pool de 10 conexiones del proceso tiene de sobra para la transacción retenedora, la llamada y la consulta de `pg_stat_activity`;
+  - llegar a 5 s exigiría que el proceso o PostgreSQL se detuvieran más de 5 s, algo que no pude inducir desde una prueba sin modificar la del programador.
+- El riesgo es el que describe el manager: un límite de 10 s dentro de una transacción de 5 s. Queda como fragilidad latente, no demostrada.
+- El problema que sí encontré en ese caso es otro: la premisa del límite fijo (T-13, segunda parte).
+
+**Regresión de 03a y 03b:**
+- las 58 `*.ataque` de antes siguen en verde: backend en las 3 corridas completas y frontend en la corrida completa;
+- las pruebas normales de 03a y 03b siguen completas (comparación de títulos contra `32afeef`).
+
+### Observaciones (no son hallazgos)
+1. **El ritmo de 250 ms no llega a actuar en la operación real, y la estimación de R-06 no se cumple.**
+   - El consumidor usa `batchSize: 1` y el sondeo por defecto de pg-boss, de 2 s. Tampoco hay cola con `notify`.
+   - En la corrida real de `worker-03c-r1` los huecos entre intentos fueron de `[1990, 2013, 2005, 2012]` ms.
+   - Así, un lote de 80 tarda unos 160 s, no "unos 20 s" (R-06 y Enmienda 2). Una recuperación pedida en ese rato puede esperar unos 2.7 min, todavía muy por debajo de los 30 min de su enlace.
+   - El ritmo es correcto como mínimo (lo prueba `ritmo-03c-r1`), pero hoy es una red de seguridad que no se activa.
+   - Lo anoto para el arquitecto y el manager: no viola ningún RF.
+2. **Nombre de la respuesta y nombre guardado.**
+   - `enviadas[].nombre` es el texto de la línea, recortado. Lo guardado pasa además por `normalizarNombre`, que colapsa los espacios internos.
+   - "Ana    López" se guarda como "Ana López", pero la respuesta dice "Ana    López".
+   - En HTML los espacios se colapsan al pintarse, así que casi no se nota; solo se nota con espacios especiales como el U+00A0.
+3. **Textos de `features/admin/data.ts`.**
+   - `demasiadasLineas` no se usa: el formulario muestra el mensaje de `invitacionMasivaSchema`, "No puedes enviar más de 100 líneas a la vez", sin punto final.
+   - `sinNombre` repite el texto que `lineaEnviada` lleva escrito a mano.
+   - El mensaje del cupo usa siempre el plural ("Hoy solo puedes enviar 1 invitaciones más"). Es el texto literal del plan (§D-C1).
+4. **U+202E en el texto de una línea no válida.** El resultado devuelve y pinta el texto que escribió el admin. Un U+202E sin cerrar, dentro del mismo `<li>`, puede invertir visualmente la insignia del motivo, porque la bidi no está aislada. jsdom no lo puede ver: lo decide el humano si le importa. Es texto del propio admin.
+
+### No atacado y por qué
+- **El 409 por HTTP con "cupo exacto" (200 con N justas).** No se puede hacer determinista con la base compartida, porque `usadas` sube y baja por los demás archivos. Lo cubren las pruebas del adaptador del programador (`:223`, `:237`, `:283`), que fijan el límite con el `usadas` leído dentro del bloqueo.
+- **Trabajos huérfanos después de un 409 por HTTP.** Los ids de esos trabajos serían los de tokens que nunca existieron. Buscarlos por ventana de tiempo choca con los trabajos que dejan huérfanos los `afterAll` de otros archivos. Lo cubre `:237`, con el `alGuardar` real y la búsqueda por id, y lo confirma la lectura del código: el error del cupo se lanza antes del primer `createMany`.
+- **360 px, lector de pantalla real y la bidi en pantalla:** no se pueden ver en jsdom. Los decide el humano (H-4 y H-5).
+
+### Tabla SHA-256 de las 63 `*.ataque` (V-01 para la ronda siguiente)
+"(nuevo)" marca los 5 archivos de esta ronda. Las 58 anteriores no cambiaron. Formateé solo mis archivos nuevos, desde su paquete.
+
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `4FCE3CEDF662BA3A188F21A2277DB417747D342C115EFD4746D3CFF58499289B` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` (nuevo) |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `AAE65C95CF34DB814D650AF5F7FA08D09BFF3E6FC6863D4252383058499AA10E` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `EA078F41CC98C947D9B3966EE8ECCEC2BD5D06EACBAF7EE8CD85F38E6A697C15` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` (nuevo) |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` (nuevo) |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `C40E62D89ACF687A92C427DCE81C7B799F41843D50D0A13C9920E5DAFA08B53D` | `backend/test/sesiones-y-cadena.ataque.test.ts` |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` (nuevo) |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `5E92F1C572A18BC19CD06E9584AB8FC5C5A0EF709D9782AE05C85229BAAE78A0` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `E58293532633DC5CFE21561E2609D170638C81886B9C31129F03864C73A34F45` | `frontend/src/app/router.ataque.test.tsx` |
+| `06F35BE8AE68F0ABAE775268E4E64F3DF880FF137A9B54AA3C135941DDB93DCF` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` (nuevo) |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `02B46D9223A84E3B84F7FFC5018BC25A1751F0CDA9D5EC938BD32303717E145B` | `frontend/src/styles/clases-r1.ataque.test.ts` |
+| `D81ED462116AFDD16D4C8AD534941999487D8DBF5EB9DAD22DD242CF68044115` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+Salidas completas en el scratchpad de la sesión: `t3c-r1-build.txt`, `t3c-r1-lint.txt`, `t3c-r1-backend-1.txt` a `-3.txt`, `t3c-r1-frontend-1.txt`, `t3c-r1-juntos-1.txt` a `-3.txt`, `t3c-r1-cuatro-1.txt` a `-3.txt`, `t3c-r1-lote-*.txt`, `t3c-r1-logs-1.txt`, `t3c-r1-ritmo-1.txt`, `t3c-r1-worker-*.txt`, `t3c-r1-front-1.txt`, `t3c-titulos.mjs` y `t3c-r1-tabla.md`.
+
+---
+
+## AUTH-03c — Ronda 2
+Veredicto: **RESISTE**. Sin hallazgos. T-13, T-14 y T-15 quedaron corregidos, y no encontré regresiones en 03c, 03b ni 03a.
+
+Verificación propia (2026-09-28), desde la raíz:
+- `npm run build`: código 0; última línea `✓ built in 616ms`.
+- `npm run lint`: código 0; 3 × "All matched files use Prettier code style!" y `tsc` sin errores.
+- `npm run test`:
+  - frontend: `Test Files  65 passed (65)` · `Tests  1007 passed (1007)`. Mis T-14 y T-15 de la ronda 1 ya pasan;
+  - backend, 2 corridas completas: `Test Files  82 passed (82)` · `Tests  932 passed (932)` las dos (930 de la ronda 1 más los 2 casos de mi archivo nuevo).
+
+### Precondiciones y verificación
+- **V-01:** las 63 `*.ataque` coinciden con mi tabla de "AUTH-03c — Ronda 1" (`sha256sum -c`: 63/63).
+- **Código cambiado desde mi ronda 1** (`find -newer` sobre `backend/src`, `backend/prisma`, `backend/test`, `frontend/src` y `shared/src`, sin el cliente generado):
+  - de producción: `frontend/src/features/admin/components/formulario-invitacion-masiva.tsx` y `frontend/src/features/admin/data.ts`, los dos que declara el programador;
+  - pruebas normales: `backend/test/invitacion-masiva.integracion.test.ts` y `frontend/src/features/admin/maestros-view.test.tsx`;
+  - `backend/src/adapters/db/invitaciones.ts` también tiene fecha posterior, porque se modificó y se revirtió.
+- **`invitaciones.ts`:**
+  - su SHA-256 es `3C59B911F76532ECE8C9B30D8E797F8E7020D82CE8E71A423167E1392E72003B`, el mismo que anotó el manager (`revision.md:981`);
+  - su contenido, 113 líneas, es idéntico línea por línea al que leí y ataqué en la ronda 1: el bloqueo con `$executeRaw`, **después** el `count`, y luego `findMany`, `createMany`, la relectura, los tokens y `alGuardar`.
+- **PA-01 no se activó:** `True Inbound Block Public`, red `IZZI-F281` (Public) y Docker 28.5.1, antes de cada tanda del backend.
+- **PA-11 no se activó:** Ryuk se retiró a los 5 s de terminar la última corrida; no quedó ningún contenedor.
+- **PA-07 no se activó.** Comando: `grep -oF "<término>" t3c-r2-backend-N.txt | wc -l` sobre la salida completa de cada corrida.
+  - Conteo, igual en las dos: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `P2028` 2, `too many clients` 0.
+  - Los dos `P2028` son los excluidos por la Enmienda 3:
+    - corrida 1, `:2692`, y corrida 2, `:2362`: `req-1m`, `POST /api/auth/login`, `tx.sesion.create` (`Sesion`), `adapters/db/sesiones.ts:39` ← `handlers/auth/index.ts:134`;
+    - corrida 1, `:3678`, y corrida 2, `:3447`: `req-20`, `POST /api/auth/restablecer`, `tx.tokenCuenta.updateMany` (`TokenCuenta`), `adapters/db/tokens-cuenta.ts:116` ← `handlers/auth/cuentas.ts:106`.
+  - En las 3 corridas del trío de archivos del lote hubo 0 `P2028`.
+
+### T-13 a T-15, uno por uno
+**T-13: corregido.**
+- **Los dos casos que fallaban** ("lista mixta…", `:93`, y "las cuentas nacen como maestro…", `:141`) usan ahora `appAltoLimite`, con un límite de 10,000.
+- **El resto de los casos del archivo no depende del conteo global:**
+  - "cupo exacto", "uno más que el cupo" y "dos lotes evaluados con márgenes independientes" (`:290`, retitulado) fijan el límite con el `usadas` que se lee dentro del bloqueo;
+  - "las existentes no consumen cupo" no pide ninguna invitación nueva;
+  - "el admin puede" (`:583`) acepta un 409 (solo exige que no sea 5xx, 401 ni 403);
+  - "dos lotes lanzados a la vez…" (`:316`) cuenta en su propia ventana, el 2100-01-01, con `limite: 1` y el único token de esa ventana insertado bajo el bloqueo. Ningún token de la suite cae en esa ventana, así que no le afectan ni las altas ni los borrados en cascada de otros archivos.
+- **Cómo lo comprobé:**
+  - **el par** `invitacion-masiva.integracion` y mi `invitacion-masiva-03c-r1`, en serie (`--no-file-parallelism`) y con el orden fijado por `--sequence.shuffle.files`, comprobado en el reporte detallado:
+    - mi archivo primero (el peor caso de la ronda 1, con sus 100 invitaciones ya en la ventana): semillas 1, 2 y 4 a 8, **7 de 7 en verde**;
+    - el del programador primero: semilla 3, **3 de 3 en verde**.
+
+    Además, 6 corridas en serie más con los argumentos en los dos órdenes, y 3 en paralelo: todas 43/43;
+  - **el trío** del programador, mi `-r1` y mi `-r2` nuevo (la ráfaga de lotes, que se forma en el mismo bloqueo consultivo del caso `:316`), en paralelo: **3 de 3 en verde**, 45/45 y 0 `P2028`;
+  - **la suite completa del backend: 2 de 2 en verde.**
+- **Mis intentos de volver a romperlo:**
+  - la ráfaga contra el bloqueo, en paralelo con `:316`: si el `formada` de `:316` ve bloqueado uno de mis lotes en lugar del suyo, el resultado sigue siendo 409, porque su `count` corre después del COMMIT de la transacción retenedora;
+  - un borrado en cascada durante la carrera: con la ventana de 2100 no le afecta.
+
+  No encontré otra forma de romperlo sin una prueba que escriba a propósito tokens con fecha de 2100, algo que no hace ningún código del proyecto.
+
+**T-14: corregido.** El `Textarea` lleva siempre `aria-describedby="lista-invitacion-masiva-ayuda"`, más el id del error cuando lo hay; el `<p>` de la ayuda tiene ese id. `maestros-03c-r1.ataque.test.tsx:149` pasa. El caso del error (`:108`) también sigue en verde: lee todos los ids de `aria-describedby` y encuentra el mensaje de las 100 líneas.
+
+**T-15: corregido.** `lineaInvalida` termina en " · " (`data.ts:156`), así que la línea se lee "Línea 7 · no-es-correo · Correo no válido". `maestros-03c-r1.ataque.test.tsx:221` pasa.
+
+### Pruebas nuevas
+`backend/test/invitacion-masiva-03c-r2.ataque.test.ts`, 2 casos en verde, deterministas con la base compartida:
+- **"ráfaga de 8 rondas de 4 lotes simultáneos de 8 correos (256 cuentas)":** siempre 200, nunca 5xx ni `P2028`; 256 cuentas y 256 tokens, cada correo una sola vez.
+- **"borrados en cascada de 30 invitaciones en medio de cuatro lotes con poco cupo":** el conteo del cupo baja a mitad de la carrera. Cada lote sigue siendo todo o nada (200 con sus 3 cuentas o 409 sin ninguna), y nunca hay 5xx.
+
+### Hallazgos
+Ninguno.
+
+### Atacado sin hallazgos
+- Todo lo de la ronda 1 sigue en verde: el lote (27 casos), el log (2), el ritmo con reloj real (6), el lote de 5 por el worker real con el canal `registro` (1) y el frontend (12, ahora incluidos T-14 y T-15).
+- **Regresión de 03c, 03b y 03a:**
+  - las 58 `*.ataque` anteriores a 03c y las 5 de mi ronda 1, en verde en las dos corridas completas del backend y en la del frontend;
+  - las pruebas normales, sin casos perdidos: la comparación de títulos contra `32afeef` de la ronda 1 sigue valiendo. Los dos archivos normales que cambiaron desde entonces conservan todos sus casos: `invitacion-masiva.integracion` sigue con 16 casos: los dos del bloqueo se retitularon y reescribieron ("un segundo lote justo después…" pasó a "dos lotes evaluados con márgenes independientes…", y "dos lotes lanzados a la vez…" ahora usa la ventana propia), sin quitar ninguno. `maestros-view.test.tsx` sigue en 24.
+
+### Observaciones (no son hallazgos)
+- **Siguen las observaciones 1 a 4 de la ronda 1:**
+  1. el ritmo no llega a actuar con el sondeo de 2 s, y un lote de 80 tarda unos 160 s;
+  2. el nombre de la respuesta no está normalizado;
+  3. `demasiadasLineas` sin uso, `sinNombre` repetido y el mensaje del cupo siempre en plural;
+  4. un U+202E en el texto de una línea no válida.
+- **La nota del manager sobre el límite de 10 s de la precondición** dentro de una transacción de 5 s sigue valiendo para `:316`. No se produjo en ninguna de las 20 corridas que incluyeron ese caso: 13 del par, 3 del trío, 2 completas y las 2 de la ronda 1 que lo tocaron.
+
+### No atacado y por qué
+- Lo mismo que en la ronda 1: el cupo exacto por HTTP con la base compartida, los trabajos huérfanos de un 409 por HTTP, y 360 px, un lector de pantalla real y la bidi en pantalla, que decide el humano.
+
+### Tabla SHA-256 de las 64 `*.ataque` (cierre de la ronda 2)
+"(nuevo)" marca el archivo de esta ronda. Las 63 anteriores no cambiaron. Formateé solo mi archivo nuevo, desde `backend/`.
+
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `4FCE3CEDF662BA3A188F21A2277DB417747D342C115EFD4746D3CFF58499289B` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `AAE65C95CF34DB814D650AF5F7FA08D09BFF3E6FC6863D4252383058499AA10E` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `EA078F41CC98C947D9B3966EE8ECCEC2BD5D06EACBAF7EE8CD85F38E6A697C15` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` (nuevo) |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `C40E62D89ACF687A92C427DCE81C7B799F41843D50D0A13C9920E5DAFA08B53D` | `backend/test/sesiones-y-cadena.ataque.test.ts` |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `5E92F1C572A18BC19CD06E9584AB8FC5C5A0EF709D9782AE05C85229BAAE78A0` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `E58293532633DC5CFE21561E2609D170638C81886B9C31129F03864C73A34F45` | `frontend/src/app/router.ataque.test.tsx` |
+| `06F35BE8AE68F0ABAE775268E4E64F3DF880FF137A9B54AA3C135941DDB93DCF` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `02B46D9223A84E3B84F7FFC5018BC25A1751F0CDA9D5EC938BD32303717E145B` | `frontend/src/styles/clases-r1.ataque.test.ts` |
+| `D81ED462116AFDD16D4C8AD534941999487D8DBF5EB9DAD22DD242CF68044115` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+Salidas completas en el scratchpad de la sesión: `t3c-r2-build.txt`, `t3c-r2-lint.txt`, `t3c-r2-frontend.txt`, `t3c-r2-backend-1.txt` y `-2.txt`, `t3c-r2-orden-1.txt` a `-8.txt`, `t3c-r2-orden-3b.txt` y `-3c.txt`, `t3c-r2-par-serie-*.txt`, `t3c-r2-par-paralelo-1.txt` a `-3.txt`, `t3c-r2-trio-1.txt` a `-3.txt`, `t3c-r2-carga-1.txt` y `t3c-r2-tabla.md`.

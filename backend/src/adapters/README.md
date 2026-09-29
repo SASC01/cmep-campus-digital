@@ -67,8 +67,8 @@ concurrentemente, y un login que creaba una sesión con una contraseña que ya h
 - **Nada lento dentro:** argon2 y cualquier I/O van antes de abrir la transacción.
 - **Quedan fuera del protocolo:** las sentencias que revocan una sola sesión por id o por hash
   (`revocarSesion`, `revocarSesionPorHash`); las transacciones que crean al usuario en ellas mismas
-  (`crearUsuarioConSesion`, `crearMaestroInvitado`, `registrarMaestroConEnlace`); las lecturas sin
-  bloqueo (`buscar*`, `contar*`).
+  (`crearUsuarioConSesion`, `crearMaestroInvitado`, `registrarMaestroConEnlace`,
+  `invitarMaestrosEnLote`); las lecturas sin bloqueo (`buscar*`, `contar*`).
 - **Encargos futuros:** todo encargo que revoque sesiones o cambie credenciales (baja, restricción
   que cierre sesiones, cambio voluntario) cumple estas reglas.
 - **AUTH-03b, enlace de registro frente a la revocación (fuera del protocolo por usuario, porque no
@@ -100,6 +100,21 @@ concurrentemente, y un login que creaba una sesión con una contraseña que ya h
     `revocado_en IS NULL` sobre la versión ya confirmada, no obtiene la fila y responde 400; ningún
     registro confirma después de que la revocación respondió; y ningún `creado_en` es posterior al
     `revocado_en`.
+
+- **AUTH-03c, bloqueo consultivo de la invitación masiva (fuera del protocolo por usuario, porque
+  no bloquea ninguna fila de `usuarios`; §D-C3, M-04):** `invitarMaestrosEnLote` toma
+  `pg_advisory_xact_lock(CLAVE_BLOQUEO_INVITACIONES_EN_LOTE)` (`$executeRaw` etiquetado; la función
+  devuelve `void`, así que `$queryRaw` fallaría al intentar leer una columna) como primera sentencia
+  de su transacción. Es una constante `bigint` de uso único en el proyecto. Dos lotes simultáneos
+  quedan en serie: el segundo espera hasta que el primero confirme o revierta, así el conteo del
+  cupo diario que lee después nunca se calcula sobre datos que el otro lote todavía no confirmó.
+  El bloqueo se libera solo al terminar la transacción (`pg_advisory_xact_lock`, no `_lock` a secas),
+  así que una excepción (por ejemplo, el cupo insuficiente) lo libera igual al revertir.
+  `encolarVarios` (`adapters/queue/index.ts`) hace, dentro de esa misma transacción, un solo
+  `insert` de pg-boss con los trabajos como un único parámetro JSON: heredan `retry_limit`,
+  `retry_backoff`, `dead_letter` y la retención de la política de la cola (`COALESCE` en
+  `pg-boss/dist/plans.js`, función `insertJobs`), igual que si cada uno se hubiera encolado por
+  separado con `encolar`.
 
 **Modos de bloqueo de fila de PostgreSQL usados aquí:**
 

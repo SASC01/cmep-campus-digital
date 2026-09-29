@@ -64,3 +64,9 @@ export {
   type TokenParaEnvio,
   type TokenParaUso,
 } from "./tokens-cuenta.js"
+export {
+  CLAVE_BLOQUEO_INVITACIONES_EN_LOTE,
+  invitarMaestrosEnLote,
+  type CandidatoParaInvitarEnLote,
+  type ResultadoInvitacionEnLote,
+} from "./invitaciones.js"

@@ -7,7 +7,7 @@ para traducir un error de proveedor a `AppError`.
 El formato de error `{ "error": { "codigo", "mensaje" } }` lo aplica `errores.ts` para todas
 las rutas; ninguna otra ruta formatea errores.
 
-## Plugins (AUTH-02, AUTH-03a, AUTH-03b)
+## Plugins (AUTH-02, AUTH-03a, AUTH-03b, AUTH-03c)
 
 - `auth/cuentas.ts` (prefijo `/api/auth`): `recuperar`, `restablecer`, `invitacion` y
   `establecer-contrasena` (públicas; `invitacion` solo devuelve el nombre de la cuenta con el
@@ -18,7 +18,9 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
 - `auth/registro-maestro.ts` (prefijo `/api/auth`): `registro-maestro` (pública; registro de
   maestro con un enlace de registro vivo del admin; rol, enlaceRegistroId y cualquier otro campo
   extra del cuerpo se descartan; deja la sesión iniciada, como el registro de estudiante).
-- `admin.ts` (prefijo `/api/admin`): `maestros`, `usuarios/buscar`,
+- `admin.ts` (prefijo `/api/admin`): `maestros`, `maestros/lote` (invitación masiva: analiza la
+  lista, respeta el cupo diario `limiteDiarioInvitaciones` y encola un trabajo por maestro insertado
+  con un solo `insert` de pg-boss dentro de su transacción), `usuarios/buscar`,
   `usuarios/:id/restablecer-contrasena`, `usuarios/:id/correo`,
   `enlaces-registro` (crear y listar), `enlaces-registro/:id/revocar` (idempotente) y
   `enlaces-registro/:id/registrados`; todas con `protegido({ roles: ["admin"] })`. El token del

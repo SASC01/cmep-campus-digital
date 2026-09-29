@@ -43,6 +43,14 @@ const envSchema = z
         LONGITUD_MINIMA_JWT_SECRET,
         `debe tener al menos ${LONGITUD_MINIMA_JWT_SECRET} caracteres`,
       ),
+    // AUTH-03c, §D-C3: cupo de invitaciones de maestro (sueltas y masivas) en una ventana móvil de
+    // 24 h. Resend, plan gratuito: 100 correos por día calendario UTC.
+    INVITACIONES_LIMITE_DIARIO: z.coerce
+      .number({ error: "debe ser un entero entre 1 y 10000" })
+      .int("debe ser un entero entre 1 y 10000")
+      .min(1, "debe ser un entero entre 1 y 10000")
+      .max(10_000, "debe ser un entero entre 1 y 10000")
+      .default(80),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return

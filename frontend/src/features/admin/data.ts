@@ -45,13 +45,18 @@ export const ETIQUETAS_ROL_ADMIN = {
   admin: "Administrador",
 } as const satisfies Record<Rol, string>
 
-// Mensajes por código de error de la API. VALIDACION muestra el mensaje del servidor.
+// Mensajes por código de error de la API. VALIDACION y CUPO_DIARIO_INSUFICIENTE muestran el
+// mensaje del servidor (§D-C7): CUPO_DIARIO_INSUFICIENTE no tiene un texto fijo, lleva el número de
+// invitaciones que quedan hoy.
 export const MENSAJES_ERROR_ADMIN = {
   CORREO_EN_USO: "Ya existe una cuenta con ese correo.",
   OPERACION_NO_PERMITIDA: "La contraseña del administrador se restablece desde el servidor.",
   USUARIO_NO_ENCONTRADO: "No hay ninguna cuenta con ese correo.",
   ENLACE_NO_ENCONTRADO: "Ese enlace ya no existe.",
 } as const
+
+// Códigos de error cuyo mensaje lo trae el propio servidor, no una tabla fija (mensajeDeErrorAdmin).
+export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR = ["VALIDACION", "CUPO_DIARIO_INSUFICIENTE"] as const
 
 export const MENSAJE_ERROR_ADMIN_GENERICO = "No pudimos completar la operación. Inténtalo de nuevo."
 
@@ -119,5 +124,39 @@ export const TEXTOS_MAESTROS = {
     vigente: "Vigente",
     vencido: "Vencido",
     revocado: "Revocado",
+  },
+} as const
+
+// AUTH-03c, §D-C6 y §D-C7: invitación masiva de maestros, en /admin/maestros.
+export const TEXTOS_INVITACION_MASIVA = {
+  titulo: "Invitar a varios maestros",
+  etiquetaLista: "Lista de maestros",
+  ayudaLista:
+    "Un maestro por línea: su correo y, si quieres, su nombre, separados por coma, punto y coma o tabulador. Hasta 100 líneas.",
+  ejemplo: "ana.lopez@colegio.mx, Ana López",
+  contador: (lineas: number, limite: number) => `${lineas} de ${limite} líneas`,
+  demasiadasLineas: (limite: number) => `No puedes enviar más de ${limite} líneas a la vez.`,
+  enviar: "Enviar invitaciones",
+  resumen: (enviadas: number, existentes: number, invalidas: number) =>
+    `Invitaciones enviadas: ${enviadas} · Ya tenían cuenta: ${existentes} · No válidas: ${invalidas}`,
+  grupos: {
+    enviadas: "Invitaciones enviadas",
+    existentes: "Ya tenían cuenta",
+    invalidas: "No válidas",
+  },
+  sinNombre: "Sin nombre: podrá escribirlo al activar su cuenta.",
+  notaEnviadas:
+    "Cada uno recibirá un correo para elegir su contraseña; el enlace vence en 72 horas.",
+  lineaEnviada: (correo: string, nombre: string | null) =>
+    `${correo} — ${nombre ?? "Sin nombre: podrá escribirlo al activar su cuenta."}`,
+  lineaExistente: (linea: number, correo: string) => `Línea ${linea} · ${correo}`,
+  // T-15 (ronda 1): termina en "· " (con el espacio) porque el motivo se pinta aparte, en una
+  // insignia; el separador tiene que quedar en el texto para que se lea "Línea N · texto · motivo"
+  // (§D-C6), no "textoMotivo" pegados.
+  lineaInvalida: (linea: number, texto: string) => `Línea ${linea} · ${texto} · `,
+  motivos: {
+    correo_invalido: "Correo no válido",
+    nombre_invalido: "Nombre no válido",
+    repetido: "Repetido en la lista",
   },
 } as const

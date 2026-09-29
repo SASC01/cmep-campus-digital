@@ -33,6 +33,40 @@ export const datosDeInvitacionRespuestaSchema = z.object({ nombre: z.string() })
 
 export const invitarMaestroSchema = z.object({ nombre: nombreSchema, email: correoSchema })
 
+// Invitación masiva (AUTH-03c): una línea por maestro, hasta 100 líneas con contenido.
+export const LIMITE_LINEAS_INVITACION_MASIVA = 100
+
+// Cuenta las líneas con contenido (recortadas), sin importar el salto de línea (CRLF, CR o LF).
+// La usan `analizarListaDeInvitaciones` (core) y el contador del frontend.
+export const contarLineasConContenido = (texto: string): number =>
+  texto.split(/\r\n|\r|\n/).filter((linea) => linea.trim().length > 0).length
+
+export const invitacionMasivaSchema = z.object({
+  lista: z
+    .string({ error: "Escribe al menos un correo" })
+    .max(40_000, "La lista no puede tener más de 40,000 caracteres")
+    .refine((lista) => contarLineasConContenido(lista) >= 1, "Escribe al menos un correo")
+    .refine(
+      (lista) => contarLineasConContenido(lista) <= LIMITE_LINEAS_INVITACION_MASIVA,
+      `No puedes enviar más de ${LIMITE_LINEAS_INVITACION_MASIVA} líneas a la vez`,
+    ),
+})
+
+export const motivoLineaInvalidaSchema = z.enum(["correo_invalido", "nombre_invalido", "repetido"])
+
+// Respuesta de POST /admin/maestros/lote. Sin estadoPago ni ids (§D-C3).
+export const invitacionMasivaRespuestaSchema = z.object({
+  enviadas: z.array(z.object({ email: z.string(), nombre: z.string().nullable() })),
+  yaExistentes: z.array(z.object({ linea: z.number().int(), email: z.string() })),
+  invalidas: z.array(
+    z.object({
+      linea: z.number().int(),
+      texto: z.string(),
+      motivo: motivoLineaInvalidaSchema,
+    }),
+  ),
+})
+
 export const buscarUsuarioSchema = z.object({ email: correoSchema })
 
 export const corregirCorreoSchema = z.object({ email: correoSchema })
@@ -62,6 +96,7 @@ export const CODIGOS_CUENTAS = {
   CAMBIO_NO_REQUERIDO: "CAMBIO_NO_REQUERIDO",
   USUARIO_NO_ENCONTRADO: "USUARIO_NO_ENCONTRADO",
   OPERACION_NO_PERMITIDA: "OPERACION_NO_PERMITIDA",
+  CUPO_DIARIO_INSUFICIENTE: "CUPO_DIARIO_INSUFICIENTE",
 } as const
 
 export type CodigoCuentas = (typeof CODIGOS_CUENTAS)[keyof typeof CODIGOS_CUENTAS]
@@ -72,6 +107,9 @@ export type EstablecerContrasena = z.infer<typeof establecerContrasenaSchema>
 export type DatosDeInvitacion = z.infer<typeof datosDeInvitacionSchema>
 export type DatosDeInvitacionRespuesta = z.infer<typeof datosDeInvitacionRespuestaSchema>
 export type InvitarMaestro = z.infer<typeof invitarMaestroSchema>
+export type InvitacionMasiva = z.infer<typeof invitacionMasivaSchema>
+export type MotivoLineaInvalida = z.infer<typeof motivoLineaInvalidaSchema>
+export type InvitacionMasivaRespuesta = z.infer<typeof invitacionMasivaRespuestaSchema>
 export type BuscarUsuario = z.infer<typeof buscarUsuarioSchema>
 export type CorregirCorreo = z.infer<typeof corregirCorreoSchema>
 export type UsuarioAdmin = z.infer<typeof usuarioAdminSchema>

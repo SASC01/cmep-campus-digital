@@ -564,3 +564,377 @@ Ninguna.
 
 ### Pendiente o fuera de alcance detectado
 Nada nuevo.
+
+## AUTH-03c
+
+### Precondiciones (paso 27)
+- **PA-01:** no se activó. `Get-NetFirewallRule -DisplayName "Campus: bloquear entrada a Docker en redes publicas"` → `True / Inbound / Block / Public`; `Get-NetConnectionProfile` → red activa `IZZI-F281` (Public), declarada de confianza por el humano; `docker version` → motor 28.5.1 encendido. Comprobado antes de cada corrida del backend.
+- **PA-02:** no se activó. Rama `feat/auth-03-ajustes-de-cuentas`, HEAD en `32afeef` (`<Cb>`). `git diff --name-only 32afeef -- backend shared frontend` antes de tocar nada listaba exactamente las 2 `*.ataque` de la ronda 0 (`backend/test/sesiones-y-cadena.ataque.test.ts`, `frontend/src/styles/clases-r1.ataque.test.ts`). Los 7 archivos protegidos (`AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `CLAUDE.md`, `README.md`, `.claude/agents/programador.md`, `.claude/agents/manager.md`) coinciden con el último SHA-256 de `aprobacion.md`.
+- **V-01:** los 58 `*.ataque` coincidían con la tabla de "AUTH-03c — Ronda 0" antes de empezar (`sha256sum -c`, 58/58) y siguen coincidiendo al terminar.
+
+### Migración (paso 30)
+- `npx prisma migrate dev --create-only --name tokens_cuenta_tipo_creado_en` generó `backend/prisma/migrations/20260929015654_tokens_cuenta_tipo_creado_en/migration.sql`.
+- SQL generado (idéntico a §D-C2; PA-03 no se activó):
+  ```sql
+  -- CreateIndex
+  CREATE INDEX "tokens_cuenta_tipo_creado_en_idx" ON "tokens_cuenta"("tipo", "creado_en");
+  ```
+- `npx prisma migrate dev` (una sola vez) la aplicó sin proponer `reset` ni avisar de deriva.
+- **V-03:** `prisma validate` → "is valid"; `prisma format --check` → "All files are formatted correctly!"; `prisma generate` → sin error; `prisma migrate status` → "Database schema is up to date!"; `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → "No difference detected.", código 0. PA-04 no se activó.
+
+### `encolarVarios` y PA-05 (paso 31, antes de seguir)
+Añadí a `test/cola.integracion.test.ts` (prueba normal existente, no `*.ataque`) el describe `encolarVarios (AUTH-03c, §D-C4, PA-05)` con 3 casos, corridos antes de escribir `adapters/db/invitaciones.ts`:
+- los trabajos insertados heredan `retry_limit` (3), `retry_backoff` (true) y `dead_letter` de la política de `CORREO_DE_CUENTA` (verificado leyendo `pgboss.job` directamente);
+- una transacción revertida no deja trabajos;
+- el texto del SQL no lleva datos (un ejecutor espía captura el texto y los valores; el correo y el id de la prueba no aparecen en el texto).
+
+PA-05 no se activó.
+
+### Bloqueo consultivo (M-04)
+Usé `$executeRaw` (la forma primaria de M-04, no la alternativa `$queryRaw ... ::text`), porque `pg_advisory_xact_lock` devuelve `void` y no falló con esa forma. PA-14 no se activó: la prueba "dos lotes lanzados a la vez quedan en serie" confirma con `pg_blocking_pids` que una segunda llamada queda formada detrás de una transacción que ya tiene el bloqueo.
+
+### PARADAs
+- **PA-01 a PA-05:** no se activaron (ver arriba).
+- **PA-06:** no se activó. Antes de mi implementación: backend 1/894 en rojo (el caso de `sesiones-y-cadena` reescrito por el tester); frontend 1/995 en rojo (el caso de `clases-r1` reescrito). Al terminar: 0/894 y 0/995 en rojo. Ninguna otra `*.ataque` se puso en rojo (V-01 sigue 58/58).
+- **PA-07:** no se activó. Comando: `grep -oF "<término>" <salida-completa> | wc -l` sobre la salida completa de `npm test` del backend. Conteo por término, en 3 corridas completas seguidas: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `P2028` 2, `too many clients` 0. Los dos `P2028` son los mismos dos excluidos por la Enmienda 3 (`POST /api/auth/login` sobre `tx.sesion.create`; `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`).
+- **PA-08:** no aplica (03c no cambia el envío de correo, solo su ritmo).
+- **PA-09:** no se activó. No toqué ningún archivo de "No se toca" (verificado con `git diff --name-only 32afeef -- <cada ruta protegida>`, sin salida).
+- **PA-10:** no se activó. Revisé los logs de `invitacion-masiva.integracion.test.ts` y `worker-correo-de-cuenta.integracion.test.ts`: ningún correo de la lista, contraseña ni cookie.
+- **PA-11:** no se activó. `docker ps -a --filter "label=org.testcontainers=true"` vacío después de cada corrida completa (comprobado 3 veces).
+- **PA-12:** no se activó, tras una corrección (ver "Desviaciones"). La suite completa del backend corrió **3 veces seguidas** en verde: 77 archivos / 894 pruebas las tres veces.
+- **PA-13:** no aplica a 03c (es de 03a).
+- **PA-14:** no se activó (ver "Bloqueo consultivo" arriba).
+
+### Verificaciones
+- **V-01:** 58/58 `*.ataque` con el mismo SHA-256 que la tabla de la ronda 0, antes y después de implementar.
+- **V-02:** desde la raíz — `npm run build` código 0; `npm run lint` código 0 en `shared`, `backend` y `frontend`; `npm run test` código 0: backend 77 archivos / 894 pruebas, frontend 64 archivos / 995 pruebas, todas en verde.
+- **V-03:** ver "Migración" arriba. Todo en verde.
+- **V-04 (búsquedas en código de producción, sin pruebas):**
+  - `contrasenaActual` y `mostrarTemporal` → sin cambios desde 03b (03c no toca `features/auth`).
+  - `type="password"` → 0.
+  - `<CampoContrasena` → 7, sin cambios (03c no agrega ningún campo de contraseña).
+  - `autoComplete="off"` en el `Textarea` de la lista de la invitación masiva (`formulario-invitacion-masiva.tsx`).
+  - `console.` y `estadoPago` → 0 en `core/auth/invitacion-masiva.ts`, `core/correo/ritmo.ts`, `adapters/db/invitaciones.ts`, `adapters/queue/index.ts`, `workers/index.ts` y la parte nueva de `handlers/admin.ts`.
+  - `$queryRawUnsafe` → exactamente 1 (`adapters/db/cliente.ts`); `$executeRawUnsafe` → 0.
+  - SQL etiquetado (`$queryRaw`/`$executeRaw`) solo en `salud.ts`, `bloqueo-usuario.ts`, `enlaces-registro.ts` e `invitaciones.ts`. Actualicé `backend/test/bloqueo-usuario.integracion.test.ts` ("E6", prueba normal, no `*.ataque`) para sumar `invitaciones.ts` a la lista permitida y para que la búsqueda cubra también `$executeRaw` (antes solo miraba `$queryRaw`) sin contar menciones en comentarios (ver "Desviaciones").
+  - `INTERVALO_MINIMO_ENTRE_CORREOS_MS = 250` → presente en `core/correo/ritmo.ts`.
+  - `fetch(` → solo en `services/apiClient.ts` (sin cambios).
+  - `enEspera=` en producción `.tsx` → 20 exactos (`grep -rn "enEspera=" frontend/src --include=*.tsx`, sin pruebas): los 19 de 03b más "Enviar invitaciones" en `formulario-invitacion-masiva.tsx`.
+- **V-05 ("No se toca"):** dentro de los paquetes, base `<Cb>` = `32afeef`. `git diff --name-only 32afeef -- <ruta>` vacío para cada ruta de "No se toca" común y de la lista específica de 03c (lo que "Cambios por capa" asigna solo a 03a o a 03b: `handlers/auth/**`, `adapters/auth/**`, `adapters/db/{usuarios,tokens-cuenta,enlaces-registro}.ts`, `middleware/**`, `router.tsx`, `services/**`, `features/auth/**`, `components/estado-vacio.tsx`, `components/ui/{table,badge}.tsx`, `components/layout/**`, y el resto de `adapters/`, `core/` y `handlers/` que no toca este encargo). Fuera de los paquetes, los 7 archivos protegidos coinciden con el hash de `aprobacion.md`.
+- **V-06 (rutas):** `RUTAS_PUBLICAS` no cambia en 03c (`/admin/maestros/lote` no es pública). La lista de `printRoutes` de `sesiones-y-cadena.ataque.test.ts:449` (reescrita por el tester en la ronda 0) pasa en verde con `POST /api/admin/maestros/lote` agregada.
+
+### Resumen técnico
+- **`shared/src/cuentas.ts`** (modificar): `CODIGOS_CUENTAS.CUPO_DIARIO_INSUFICIENTE`; `LIMITE_LINEAS_INVITACION_MASIVA`; `contarLineasConContenido` (la usan `core/` y el contador del frontend); `invitacionMasivaSchema`; `motivoLineaInvalidaSchema`; `invitacionMasivaRespuestaSchema`, con sus tipos.
+- **`backend/src/core/auth/invitacion-masiva.ts`** (crear): `analizarListaDeInvitaciones` (separador tabulador, `;` o `,`; correo antes del primer separador o después del último; nombre `null` si falta o si queda vacío tras recortar; motivos `correo_invalido`/`nombre_invalido`/`repetido`), `nombreProvisionalDe` (M-07, M-12: siempre el `data` de `nombreSchema.safeParse`, nunca el texto de entrada), `NOMBRE_PROVISIONAL_DE_RESPALDO`, `evaluarCupo`, `VENTANA_CUPO_MS`; 25 pruebas unitarias.
+- **`backend/src/core/correo/ritmo.ts`** (crear): `INTERVALO_MINIMO_ENTRE_CORREOS_MS = 250`, `esperaAntesDelSiguiente`; 5 pruebas unitarias.
+- **`backend/src/adapters/db/invitaciones.ts`** (crear): `CLAVE_BLOQUEO_INVITACIONES_EN_LOTE`, `invitarMaestrosEnLote` (bloqueo consultivo → cupo → `createMany` con `skipDuplicates` → relectura por id → `createMany` de tokens → `alGuardar`; un correo insertado por otra transacción en medio se reporta como existente, sin atrapar ningún P2002).
+- **`backend/src/adapters/queue/index.ts`** (modificar): `encolarVarios(nombre, trabajos, { sql })`, `sql` obligatorio, un solo `insert` de pg-boss.
+- **`backend/src/handlers/admin.ts`** (modificar): `POST /maestros/lote`, `protegido({ roles: ["admin"] })`; todo el argon2 (un solo hash inutilizable compartido) y la preparación de cada candidato van antes de la transacción; el `nombre` de la respuesta es el de la línea (no el provisional) o `null`.
+- **`backend/src/app.ts`** (modificar): pasa `limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO` a `adminHandler`.
+- **`backend/src/config/env.ts`** (modificar): `INVITACIONES_LIMITE_DIARIO` (entero 1–10000, 80 por defecto).
+- **`backend/src/workers/index.ts`** (modificar): `registrarConsumidores` envuelve el `notifier` con el ritmo (M-06: espera antes de procesar; M-09: cuenta también los intentos que lanzan, vía `finally`, sin atrapar el error); `esperar?` es una inyección explícita para pruebas, con espera real por defecto. `workers/correo-de-cuenta.ts` no cambió.
+- **`frontend/src/components/ui/textarea.tsx`** (crear): mismo borde/fondo/foco/inválido que `Input`, altura por filas, `resize-y`.
+- **`frontend/src/features/admin/components/formulario-invitacion-masiva.tsx`** y **`resultado-invitacion-masiva.tsx`** (crear): contador con `aria-live="polite"` en un `<p>` normal (nunca `role="status"` ni `<output>`, para no chocar con `maestros-03b-r1:352`); resultado con `role="status"` en el resumen y un grupo por resultado, sin grupos vacíos; el motivo de una línea inválida va en `<Badge variant="danger">`.
+- **`frontend/src/features/admin/maestros-view.tsx`**: agrega el panel de la masiva arriba del de enlaces. **`formulario-generar-enlace.tsx`**: "Generar enlace" pasa de `primary` a `outline` (C-12): una sola acción principal en la vista.
+
+### Archivos creados / modificados
+**Creados:**
+- `backend/prisma/migrations/20260929015654_tokens_cuenta_tipo_creado_en/migration.sql`
+- `backend/src/core/auth/invitacion-masiva.ts` y `.test.ts`
+- `backend/src/core/correo/ritmo.ts` y `.test.ts`
+- `backend/src/adapters/db/invitaciones.ts`
+- `backend/test/invitacion-masiva.integracion.test.ts`
+- `frontend/src/components/ui/textarea.tsx` y `.test.tsx`
+- `frontend/src/features/admin/components/formulario-invitacion-masiva.tsx`
+- `frontend/src/features/admin/components/resultado-invitacion-masiva.tsx`
+
+**Modificados:**
+- `shared/src/{cuentas,index}.ts`
+- `backend/prisma/schema.prisma`
+- `backend/src/adapters/{README.md,db/index.ts,queue/index.ts}`
+- `backend/src/app.ts`
+- `backend/src/config/{env.ts,env.test.ts}`
+- `backend/src/handlers/{admin.ts,README.md}`
+- `backend/src/workers/{index.ts,README.md}`
+- `backend/.env.example`
+- `backend/test/bloqueo-usuario.integracion.test.ts` (E6 suma `invitaciones.ts` y `$executeRaw`; ver "Desviaciones")
+- `backend/test/cola.integracion.test.ts` (suma `encolarVarios`, aditivo)
+- `backend/test/worker-correo-de-cuenta.integracion.test.ts` (suma un `describe` nuevo con su propio `beforeAll`/`afterAll`; ver "Desviaciones": los 12 casos existentes de AUTH-02 siguen intactos)
+- `backend/test/sesiones-y-cadena.ataque.test.ts` (por el tester, ronda 0; no lo toqué)
+- `frontend/src/features/admin/{data,hooks,lib,types}.ts`
+- `frontend/src/features/admin/maestros-view.tsx` y `.test.tsx`
+- `frontend/src/features/admin/components/formulario-generar-enlace.tsx`
+- `frontend/src/styles/clases-r1.ataque.test.ts` (por el tester, ronda 0; no lo toqué)
+- `docs/DESIGN.md` (§7.3, nueva §7.15)
+
+### Conteo final
+- Backend: 77 archivos / 894 pruebas (`npx vitest list` y `npm test`, ambos coinciden), todas en verde, corrido 3 veces seguidas sin intermitencia.
+- Frontend: 64 archivos / 995 pruebas (`npx vitest list` y `npm test`, ambos coinciden), todas en verde.
+- `npm run build` y `npm run lint` (los tres paquetes, desde la raíz): en verde.
+
+### Desviaciones del plan
+1. **Corregí un error propio antes de entregar: sobrescribí por accidente `backend/test/worker-correo-de-cuenta.integracion.test.ts`.** Al crear las pruebas del ritmo asumí que el archivo era nuevo (el plan dice "Pruebas requeridas" 03c: "`worker-correo-de-cuenta.integracion`, con un `esperar` y un `reloj` falsos"), pero ya existía desde AUTH-02 con 12 casos que prueban `procesarCorreoDeCuenta` directamente, sin cola ni ritmo. Lo detecté al revisar `git status` contra la base antes de cerrar el paso. Restauré el archivo original con `git checkout 32afeef -- <archivo>` y agregué mis 4 casos del ritmo como un `describe` nuevo, con su propio `beforeAll`/`afterAll` (cola y consumidor propios), sin tocar ni una línea de los 12 casos existentes. Verificado: `npx vitest list` antes de tocar nada mostraba los 12 títulos originales; después, los mismos 12 más los 4 nuevos, sin ninguno quitado ni debilitado. Corrida 3 veces seguidas, 16/16 en verde las tres.
+2. **`backend/test/bloqueo-usuario.integracion.test.ts` (E6):** el plan no lo lista en "Cambios por capa" de 03c, pero es una prueba normal (no `*.ataque`) cuya aserción quedó en rojo apenas creé `adapters/db/invitaciones.ts` con `$executeRaw`, tal como exige el propio V-04 del plan ("SQL etiquetado... solo en `salud.ts`, `bloqueo-usuario.ts`, `enlaces-registro.ts` e `invitaciones.ts`"). Además de sumar `invitaciones.ts`, amplié el patrón para que cubra `$executeRaw` (antes solo `$queryRaw`) y para que ignore menciones en comentarios (el comentario de `invitaciones.ts` que explica por qué usé `$executeRaw` mencionaba literalmente "`$queryRaw`", lo que producía un falso positivo). Mismo patrón de ajuste que 03b hizo en esta misma prueba.
+
+Ninguna de las dos toca una `*.ataque.test.*` ni relaja una validación, un permiso o un tipo.
+
+### Pruebas requeridas (mapeo completo)
+**Unitarias de core:**
+- `analizarListaDeInvitaciones`: vacía → `backend/src/core/auth/invitacion-masiva.test.ts` "lista vacía → sin candidatos ni inválidas"; solo líneas vacías → "solo líneas vacías → sin candidatos ni inválidas"; CRLF → "CRLF entre líneas"; tab/`;`/`,` → "separador tabulador" / "separador punto y coma" / "separador coma"; correo primero y último, nombre con comas → "correo primero" / "correo último, con un nombre que trae comas"; nombre vacío tras el separador → "nombre vacío tras el separador → null"; correo inválido → "correo inválido, sin separador → invalida"; nombre de 1 carácter, con controles o de 121 → "un nombre de 1 carácter → nombre_invalido" / "un nombre con caracteres de control → nombre_invalido" / "un nombre de 121 caracteres → nombre_invalido"; repetido con mayúsculas distintas → "repetido con mayúsculas distintas → repetido"; 100 líneas → "100 líneas → 100 candidatos"; numeración con líneas vacías intercaladas → "numeración cuenta también las líneas vacías intercaladas"; texto recortado a 200 → "texto de más de 200 caracteres se recorta en la línea inválida".
+- `nombreProvisionalDe` (M-07, M-12): parte local de 1 carácter → "parte local de 1 carácter cae al correo completo"; normal → "parte local normal"; 64+ → "parte local de 64 o más caracteres"; ni parte local ni correo pasan → "ni la parte local ni el correo recortado pasan → respaldo"; siempre pasa `nombreSchema` e igual a su `data` → "el resultado siempre pasa nombreSchema y es igual a su data".
+- `evaluarCupo`: solicitadas == restantes → "solicitadas == restantes → pasa"; +1 → 409 con N → "solicitadas == restantes + 1 → 409 con N en el mensaje"; usadas > límite → N = 0 → "usadas > limite → N = 0".
+- `esperaAntesDelSiguiente` → `backend/src/core/correo/ritmo.test.ts`: sin intento previo → "sin intento previo → 0"; justo en el intervalo → "justo en el intervalo → 0"; a la mitad → "a la mitad del intervalo → lo que falta (125 ms)"; reloj hacia atrás → "reloj hacia atrás → nunca más del intervalo ni negativo".
+
+**Integración del backend:**
+- Matriz de autorización → `backend/test/invitacion-masiva.integracion.test.ts`, describe "autorización de POST /api/admin/maestros/lote": "sin token → 401", "un estudiante → 403 ROL_NO_PERMITIDO", "un maestro → 403 ROL_NO_PERMITIDO", "un estudiante restringido → 403 ACCESO_RESTRINGIDO", "una cuenta con cambio pendiente → 403 CAMBIO_DE_CONTRASENA_REQUERIDO", "el admin puede".
+- Lista mixta → "lista mixta: válidas, ya existentes de los tres roles, inválidas y repetidas".
+- Cuentas como maestro, hash compartido, un token por cuenta, trabajo por token en `pgboss.job` con `retry_limit`/`dead_letter`/id igual, y el nombre provisional pasa `nombreSchema` (M-07) → "las cuentas nacen como maestro, con un hash inutilizable compartido y un token de invitación cada una, encolado en pgboss.job" (una sola prueba cubre las dos partes de la viñeta).
+- Cupo exacto → 200 → "cupo exacto → 200".
+- Uno más → 409, nada creado → "uno más que el cupo → 409, sin crear nada" (nada se encola tampoco: `alGuardar` no se invoca si no hay insertados, por construcción de `invitarMaestrosEnLote`; no hay una aserción aparte sobre `pgboss.job` en este caso).
+- Las existentes no consumen cupo → "las existentes no consumen cupo".
+- Dos lotes simultáneos con cupo para uno solo → "un segundo lote justo después del primero ve el cupo ya consumido: uno pasa y el otro 409" (secuencial, con límite reactivo para ser determinista pese a la carga paralela de la suite) y "dos lotes lanzados a la vez quedan en serie: el segundo espera detrás del bloqueo consultivo (M-04)" (concurrente de verdad, con `pg_blocking_pids`).
+- Un correo creado por otra transacción entre lectura e inserción → "un correo creado por otra transacción entre la lectura y la inserción se reporta como existente, sin 5xx".
+- Rollback de `alGuardar` → "rollback de alGuardar → nada creado".
+- Worker con `esperar`/`reloj` falsos (M-06, M-09) → `backend/test/worker-correo-de-cuenta.integracion.test.ts`, describe "ritmo del worker (M-06 y M-09)": el primer no espera y el segundo sí → "el primer trabajo no espera; el segundo, tras uno enviado, espera antes de procesarse"; tras un error el siguiente también espera y el error se propaga → "un intento que lanza también cuenta para el ritmo (M-09) y el error se propaga (a la cola de fallidos)"; un omitido no cambia el ritmo → "un trabajo omitido siempre pasa por la espera de su turno, pero nunca llama al notifier ni cambia el ritmo del siguiente"; ninguna espera tras el último envío → "ninguna espera ocurre después del último envío".
+- `encolarVarios` dentro y fuera de una transacción revertida → `backend/test/cola.integracion.test.ts`: "los trabajos insertados heredan retry_limit, retry_backoff, dead_letter y la retención de la cola", "una transacción revertida no deja trabajos", "el texto del SQL no lleva datos: solo interpola el esquema, la tabla y el nombre de la cola".
+- `config/env.test.ts`: valor por defecto y límites → "INVITACIONES_LIMITE_DIARIO: por defecto 80", "INVITACIONES_LIMITE_DIARIO: acepta 1 y 10000, y convierte el texto a número", "INVITACIONES_LIMITE_DIARIO: rechaza 0, 10001 y un valor no entero".
+
+**Frontend:**
+- `textarea` → `frontend/src/components/ui/textarea.test.tsx`: "renderiza con la etiqueta y acepta texto", "marca aria-invalid cuando se le pasa".
+- Contador → `frontend/src/features/admin/maestros-view.test.tsx`, describe "invitación masiva": "el contador de líneas cambia al escribir".
+- Más de 100 líneas → `ErrorDeCampo` y ninguna petición → "más de 100 líneas: ErrorDeCampo y ninguna petición".
+- `autoComplete="off"` → "el campo de la lista usa autoComplete=off".
+- `enEspera` → "'Enviar invitaciones' en espera mientras la petición está en vuelo".
+- Resultado con los tres grupos y sin grupos vacíos → "el resultado muestra los tres grupos y ninguno vacío", "un grupo vacío no se muestra".
+- `CUPO_DIARIO_INSUFICIENTE` con el mensaje del servidor → "CUPO_DIARIO_INSUFICIENTE muestra el mensaje del servidor".
+- Un solo `primary` en la vista → "un solo botón primary en la vista".
+
+Todas las viñetas de "Pruebas requeridas" 03c están cubiertas.
+
+## AUTH-03c — Corrección del resumen (verificación del manager)
+
+El manager devolvió el resumen de la implementación (`revision.md`, "Verificación del resumen — AUTH-03c — implementación"): las cifras coincidían y el código estaba en verde, pero (1) faltaban las últimas líneas literales de `lint`, `test` y `build`, y (2) la viñeta "uno más → 409 y nada creado ni encolado" no estaba cubierta de verdad. No toqué código de producción.
+
+### Precondiciones
+- **PA-01:** no se activó. `Get-NetFirewallRule` → `True / Inbound / Block / Public`; red activa `IZZI-F281` (Public, de confianza); `docker version` respondió, antes de cada corrida del backend.
+
+### 1. Caso ampliado: "uno más que el cupo"
+`backend/test/invitacion-masiva.integracion.test.ts`, describe "POST /api/admin/maestros/lote". Título nuevo (antes: "uno más que el cupo → 409, sin crear nada"):
+
+**"uno más que el cupo → 409, sin crear nada ni encolar nada"**
+- Pasa el `alGuardar` **real** (`encolarVarios`, no un `async () => {}`), envuelto en un espía que marca `seLlamoAlGuardar = true` si llegara a invocarse: `expect(seLlamoAlGuardar).toBe(false)`.
+- Comprueba que no existan las **cuentas** de los tres candidatos (como antes).
+- Comprueba que no existan sus **tokens de invitación** (`tokenCuenta.findMany` por los `id` de los candidatos → longitud 0).
+- Comprueba que no existan **trabajos en `pgboss.job`** para esos mismos `id` (`$queryRaw` directo sobre la tabla → longitud 0).
+
+### 2. Mejora opcional aplicada: la carrera con cupo para uno solo
+`backend/test/invitacion-masiva.integracion.test.ts`, mismo describe. Título nuevo (antes: "dos lotes lanzados a la vez quedan en serie: el segundo espera detrás del bloqueo consultivo (M-04)"):
+
+**"dos lotes lanzados a la vez quedan en serie: el segundo espera detrás del bloqueo consultivo y, con cupo para uno solo, recibe CUPO_DIARIO_INSUFICIENTE (M-04)"**
+- El límite se fija **antes** de abrir la transacción retenedora (`limiteFijado = usadasAntes + 1`), no se relee después: ninguna interferencia de otro archivo de la suite puede aflojarlo.
+- La transacción retenedora, antes de soltar el bloqueo consultivo (y ya confirmado que la llamada real quedó formada detrás, con `pg_blocking_pids`), inserta ella misma un token de invitación (`tokenCuenta.create`, con una cuenta desechable creada para eso).
+- Al liberarse el bloqueo, la llamada formada detrás lee su propio `usadas` ya con ese token confirmado y recibe `CUPO_DIARIO_INSUFICIENTE` (`rejects.toMatchObject`); además, no crea la cuenta del candidato.
+- Corregí un rechazo no manejado (`Unhandled Rejection`) que apareció al hacer que esta promesa termine en error: el `.then()` que solo tenía la rama de éxito ahora maneja también la de error (`.then(onFulfilled, onRejected)`), para que Node no lo marque como no manejado mientras la promesa sigue formada detrás del bloqueo. El resultado real se sigue observando después, fuera de la transacción, con `expect(promesaLote).rejects...`.
+
+### Verificación
+- **Archivo aislado**, 3 veces seguidas: 16/16 en verde las tres, sin el aviso de rechazo no manejado tras la corrección.
+- **`npm run lint`** (desde la raíz) → última línea real de cada paquete:
+  - `shared`: `Checking formatting...` → `All matched files use Prettier code style!`
+  - `backend`: `eslint ... && prettier --check ... && npm run typecheck` → `Checking formatting...` → `All matched files use Prettier code style!` → `npm run typecheck` → `tsc -p tsconfig.json --noEmit` (sin salida: éxito silencioso; esa es la última línea real del bloque)
+  - `frontend`: `Checking formatting...` → `All matched files use Prettier code style!` → `npm run typecheck` → `tsc -b` (sin salida: éxito silencioso; última línea real del bloque)
+  - Código de salida del comando completo: 0.
+- **`npm run test`** (desde la raíz) → última línea real de cada paquete:
+  - backend: `Test Files  77 passed (77)` y `Tests  894 passed (894)`
+  - frontend: `Test Files  64 passed (64)` y `Tests  995 passed (995)`
+  - `shared` no tiene script `test` (sin pruebas propias; `--workspaces --if-present` lo omite).
+- **`npm run build`** (desde la raíz) → última línea real: `✓ built in 594ms` (la build de `frontend`, la última del workspace; `shared` y `backend` compilan con `tsc` sin salida en éxito).
+- **PA-07**, en las 2 corridas completas del backend pedidas: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `P2028` 2 en las dos corridas (los mismos dos excluidos de siempre: `POST /api/auth/login` sobre `tx.sesion.create`, `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`).
+- **PA-11:** sin contenedores de Testcontainers después de cada corrida (comprobado tras cada una).
+- **Suite completa del backend, 2 veces seguidas** (pedido del coordinador): las dos, 77 archivos / 894 pruebas en verde. Ninguna prueba nueva (`it()`) se agregó: los dos casos existentes se ampliaron con más aserciones, así que el conteo de 894 no cambia respecto del resumen anterior.
+- **Suite completa del frontend:** 64 archivos / 995 pruebas en verde (sin cambios: esta corrección no tocó nada de frontend).
+
+### Conteos (con el comando que los produjo)
+- Backend: 77 archivos / 894 pruebas — `npm run test` (raíz) y `npx vitest list` (backend) coinciden.
+- Frontend: 64 archivos / 995 pruebas — `npm run test` (raíz) y `npx vitest list` (frontend) coinciden.
+- PA-07, 2 corridas: `P2028` = 2 en ambas; los otros cuatro términos, 0 en ambas — `grep -oF "<término>" <salida> | wc -l` sobre cada corrida completa guardada.
+
+### Mapeo de "Pruebas requeridas" actualizado (solo lo que cambió)
+- "uno más → 409 y nada creado ni encolado" → `backend/test/invitacion-masiva.integracion.test.ts`, título exacto: **"uno más que el cupo → 409, sin crear nada ni encolar nada"** (antes no cubierta del todo; ahora comprueba cuentas, tokens de invitación y `pgboss.job`, con el `alGuardar` real).
+- "dos lotes simultáneos con cupo para uno solo → uno 200 y el otro 409 (bloqueo consultivo)", cobertura reforzada en un solo caso (recomendación opcional del manager, aplicada) → título exacto: **"dos lotes lanzados a la vez quedan en serie: el segundo espera detrás del bloqueo consultivo y, con cupo para uno solo, recibe CUPO_DIARIO_INSUFICIENTE (M-04)"**.
+
+### Archivos modificados en esta corrección
+- `backend/test/invitacion-masiva.integracion.test.ts` (dos casos existentes ampliados, sin quitar ninguno; ningún `it()` nuevo).
+
+Ningún otro archivo, de producción o de pruebas. Ninguna `*.ataque` tocada.
+
+### Desviaciones del plan
+Ninguna.
+
+### Pendiente o fuera de alcance detectado
+Nada nuevo.
+
+## AUTH-03c — Corrección de la ronda 1
+
+El tester dio **ROTO** con 3 hallazgos (0 críticos, 0 altos, 1 medio, 2 bajos). El código de producción del backend resistió todos los ataques. No toqué ninguna `*.ataque`.
+
+### Precondiciones
+- **PA-01:** no se activó. `Get-NetFirewallRule` → `True / Inbound / Block / Public`; `Get-NetConnectionProfile` → `IZZI-F281` (Public, de confianza); Docker encendido. Comprobado antes de cada corrida del backend.
+- **V-01:** las 63 `*.ataque` de la tabla de "AUTH-03c — Ronda 1" coinciden (`sha256sum -c`: 63/63). No toqué ninguna.
+- **Comparación de títulos contra `32afeef`:** `backend/test/invitacion-masiva.integracion.test.ts` sigue con 16 casos (`npx vitest list`); ninguno se quitó, dos cambiaron de título porque su premisa era la que estaba mal (ver abajo). `frontend/src/features/admin/maestros-view.test.tsx` sigue con 24 casos (`npx vitest list`); ninguno se quitó, uno reforzó su aserción (T-15) sin cambiar de título.
+
+### T-13 (media) — Dos pruebas normales del lote dependían del cupo global compartido, y el caso de la carrera tenía una premisa falsa
+**Parte 1: "lista mixta…" y "las cuentas nacen como maestro…" con el límite por defecto.**
+Elegí la primera idea del coordinador: estas dos pruebas no son del cupo, así que ahora usan una app aparte con `INVITACIONES_LIMITE_DIARIO = 10_000` (el máximo que admite la variable), registrada una sola vez en el `beforeAll` (`appAltoLimite`), para que el cupo compartido de la suite nunca les alcance sin importar cuántas invitaciones creen otros archivos en paralelo. No cambié código de producción: `appConLimite` ya existía en el propio archivo de pruebas.
+- `backend/test/invitacion-masiva.integracion.test.ts`, título exacto (sin cambios): **"lista mixta: válidas, ya existentes de los tres roles, inválidas y repetidas"**.
+- Mismo archivo, título exacto (sin cambios): **"las cuentas nacen como maestro, con un hash inutilizable compartido y un token de invitación cada una, encolado en pgboss.job"**.
+
+**Parte 2: la premisa falsa de "usadas solo puede subir".**
+El tester tenía razón: el `afterAll` de otro archivo borra usuarios y sus tokens en cascada, así que `usadas` también baja. Corregí el caso que lo asumía explícitamente y, al verificar la corrección con la suite completa 3 veces, encontré que el caso vecino ("un segundo lote justo después del primero…") tenía la misma premisa y falló de verdad en mi tercera corrida (`expected 409, promise resolved` en vez de rechazar). Lo arreglé también, aunque el tester no lo hubiera señalado por su número de línea, porque es la misma causa raíz que T-13 describe en general ("todas tus pruebas del lote y del cupo… deterministas sin importar lo que hagan otros archivos").
+- Quité la variable `limiteFijado` compartida entre dos llamadas (la causa del fallo) y, en su lugar, cada llamada evalúa su propio cupo con el "usadas" que lee en su momento, sin depender de ningún valor leído por la otra ni de una instantánea externa:
+  - `backend/test/invitacion-masiva.integracion.test.ts`, título exacto (sin cambios): **"un segundo lote justo después del primero ve el cupo ya consumido: uno pasa y el otro 409"**. A evalúa con margen 1 (siempre le alcanza para su único candidato); B evalúa con margen 0 (siempre se queda sin cupo, sea cual sea su "usadas").
+  - Mismo archivo, título nuevo (antes: "dos lotes lanzados a la vez quedan en serie: el segundo espera detrás del bloqueo consultivo y, con cupo para uno solo, recibe CUPO_DIARIO_INSUFICIENTE (M-04)"; quité también la inserción de un token de la transacción retenedora, que ya no hace falta): **"dos lotes lanzados a la vez quedan en serie: el segundo, ya sin cupo, recibe CUPO_DIARIO_INSUFICIENTE (M-04)"**. Sigue demostrando el bloqueo consultivo con `pg_blocking_pids` (una transacción propia toma el bloqueo primero y confirma que la llamada real queda formada detrás); el cupo ahora se evalúa con margen 0 sobre el "usadas" que la propia llamada lee al obtener el bloqueo, así que se queda sin cupo sin importar ese valor.
+
+### T-14 (baja) — La ayuda de "Lista de maestros" no era su descripción accesible
+`frontend/src/features/admin/components/formulario-invitacion-masiva.tsx`: el `Textarea` ahora lleva siempre `aria-describedby` apuntando al `id` de la ayuda (`lista-invitacion-masiva-ayuda`), y suma el del error cuando lo hay (`"lista-invitacion-masiva-ayuda lista-invitacion-masiva-error"`), igual que `nombre-ayuda`/`nombre-error` en `formulario-nueva-contrasena.tsx` y `describeContrasena` en `formulario-registro.tsx`. Cubierto por el archivo del tester (no lo toqué):
+- `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx`, título exacto: **"la ayuda del formato es la descripción accesible del campo (como la ayuda de los demás campos del proyecto)"**.
+
+### T-15 (baja) — Una línea inválida se leía sin separador antes del motivo
+`frontend/src/features/admin/data.ts`: `lineaInvalida` ahora termina en `" · "` (con el espacio), para que el texto y la insignia del motivo, aunque sean dos nodos de texto distintos, se lean juntos como "Línea N · texto · motivo" (§D-C6), no "textoMotivo" pegados. No toqué `resultado-invitacion-masiva.tsx`: el cambio bastó en el dato.
+- Cubierto por el archivo del tester (no lo toqué): `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx`, título exacto: **"cada línea inválida se lee como 'Línea N · texto · motivo' (§D-C6)"**.
+- Reforcé además mi propia prueba normal existente (mismo título, aserción más estricta: ahora compara el `textContent` completo del `<li>` en vez de dos fragmentos sueltos): `frontend/src/features/admin/maestros-view.test.tsx`, título exacto (sin cambios): **"el resultado muestra los tres grupos y ninguno vacío"**.
+
+### Verificación
+- **Archivo aislado** (`backend/test/invitacion-masiva.integracion.test.ts`), 3 veces seguidas: 16/16 en verde las tres.
+- **El par de archivos del tester, en los dos órdenes, 3 veces cada uno** (pedido del coordinador):
+  - `npx vitest run test/invitacion-masiva.integracion.test.ts test/invitacion-masiva-03c-r1.ataque.test.ts` → 3/3 en verde, `Test Files 2 passed (2)` / `Tests 43 passed (43)` las tres.
+  - `npx vitest run test/invitacion-masiva-03c-r1.ataque.test.ts test/invitacion-masiva.integracion.test.ts` → 3/3 en verde, mismas cifras las tres.
+- **Suite completa del backend, 3 veces seguidas** (primera tanda, tras la parte 1 y la primera mitad de la parte 2): las tres en verde, `81 archivos / 930 pruebas`. La **tercera** de esa tanda encontró el problema de la parte 2 (el caso vecino), así que corregí y repetí:
+- **Suite completa del backend, 3 veces seguidas** (segunda tanda, tras corregir también el caso vecino): las tres en verde, `Test Files 81 passed (81)` / `Tests 930 passed (930)`.
+- **Suite completa del frontend:** `Test Files 65 passed (65)` / `Tests 1007 passed (1007)`.
+- **`npm run lint`** (raíz): código 0; última línea real por paquete: `shared` y `backend` → `All matched files use Prettier code style!` (con `tsc` silencioso después, sin errores); `frontend` → `All matched files use Prettier code style!` (con `tsc -b` silencioso después, sin errores).
+- **`npm run build`** (raíz): última línea real: `✓ built in 666ms`.
+- **`npm run test`** (raíz): backend `Test Files  81 passed (81)` / `Tests  930 passed (930)`; frontend `Test Files  65 passed (65)` / `Tests  1007 passed (1007)`.
+- **PA-07**, en las 6 corridas completas del backend de esta corrección (3 + 3): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `P2028` 2 en todas (los mismos dos excluidos de siempre: `POST /api/auth/login` sobre `tx.sesion.create`, `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`).
+- **PA-11:** sin contenedores de Testcontainers después de cada corrida.
+
+### Conteos (con el comando que los produjo)
+- Backend: 81 archivos / 930 pruebas — `npm run test` (raíz) y `npx vitest list` (backend) coinciden.
+- Frontend: 65 archivos / 1007 pruebas — `npm run test` (raíz) y `npx vitest list` (frontend) coinciden.
+- `backend/test/invitacion-masiva.integracion.test.ts`: 16 casos, sin cambio de cantidad (`npx vitest list`).
+- `frontend/src/features/admin/maestros-view.test.tsx`: 24 casos, sin cambio de cantidad (`npx vitest list`).
+- V-01: 63/63 `*.ataque` (`sha256sum -c` contra la tabla de la ronda 1).
+- PA-07, 6 corridas: `P2028` = 2 en las seis; los otros cuatro términos, 0 en todas.
+
+### Archivos modificados en esta corrección
+- `backend/test/invitacion-masiva.integracion.test.ts` (una app nueva de solo lectura para dos casos existentes, y dos casos existentes con su evaluación de cupo corregida; ningún `it()` nuevo, ninguno quitado).
+- `frontend/src/features/admin/components/formulario-invitacion-masiva.tsx` (T-14).
+- `frontend/src/features/admin/data.ts` (T-15).
+- `frontend/src/features/admin/maestros-view.test.tsx` (un caso existente con su aserción reforzada; ningún `it()` nuevo, ninguno quitado).
+
+Ningún otro archivo, de producción o de pruebas. Ninguna `*.ataque` tocada.
+
+### Desviaciones del plan
+Ninguna. La corrección del caso vecino (segunda mitad de T-13) no estaba explícitamente en el hallazgo del tester por su número de línea, pero es la misma causa raíz que T-13 describe en general, y la encontré yo mismo al verificar con la suite completa 3 veces, como piden las reglas de siempre.
+
+### Pendiente o fuera de alcance detectado
+Nada nuevo. Las observaciones 1 a 4 del tester (ritmo real de 250 ms que no se activa por el sondeo de pg-boss, nombre de la respuesta sin `normalizarNombre`, textos sin usar en `data.ts`, U+202E en una línea inválida) no son hallazgos y quedan para el arquitecto/manager, según pidió el propio tester.
+
+## AUTH-03c — Corrección 2 de la ronda 1
+
+El manager devolvió la corrección anterior: los dos casos de la carrera del cupo (margen 0) eran deterministas porque habían dejado de probar la propiedad ("el segundo lote ve lo que el primero confirmó bajo el bloqueo"). Tenía razón. No cambié código de producción, salvo una prueba temporal que revertí (ver abajo).
+
+### Precondiciones
+- **PA-01:** no se activó. `Get-NetFirewallRule` → `True/Inbound/Block/Public`; red `IZZI-F281` (Public, de confianza); Docker encendido. Comprobado antes de cada corrida del backend.
+
+### Qué corregí
+Apliqué la forma que sugirió el manager, sin cambiar producción:
+
+1. **Caso nuevo, con ventana propia** (reemplaza al caso de la carrera con margen 0). `backend/test/invitacion-masiva.integracion.test.ts`, título nuevo (antes: "dos lotes lanzados a la vez quedan en serie: el segundo, ya sin cupo, recibe CUPO_DIARIO_INSUFICIENTE (M-04)"): **"dos lotes lanzados a la vez quedan en serie: el segundo, formado detrás del bloqueo, ve el cupo que confirmó el primero (M-04)"**.
+   - La llamada real cuenta `usadas` solo desde una ventana propia del caso, en el futuro (`desde: new Date("2100-01-01T00:00:00.000Z")`), donde no cae ningún token real de ningún otro archivo de la suite (todos usan la fecha real, nunca el año 2100), con `limite: 1`.
+   - La transacción retenedora, después de confirmar con `pg_blocking_pids` que la llamada real quedó formada detrás del bloqueo consultivo y antes de soltarlo, inserta a mano un token de invitación con `creadoEn` puesto exactamente en esa ventana.
+   - Si la llamada cuenta ese token (porque su `count` corre, como debe ser, después de obtener el bloqueo), ve `usadas = 1` y se queda sin cupo: 409. Si contara antes del bloqueo, no lo vería y pasaría con 200: el caso fallaría.
+2. **Caso secuencial, retitulado** (ya no afirma lo que no prueba). `backend/test/invitacion-masiva.integracion.test.ts`, título nuevo (antes: "un segundo lote justo después del primero ve el cupo ya consumido: uno pasa y el otro 409"): **"dos lotes evaluados con márgenes independientes: uno con margen para pasar, el otro sin margen para quedarse sin cupo"**. El cuerpo no cambió (A con margen 1, B con margen 0); solo el título, para que diga lo que de verdad comprueba: dos evaluaciones independientes, no una relación causal entre ambas.
+
+### Comprobé que el caso nuevo detecta el defecto (y reverté el cambio)
+Con `git status` limpio antes y después, sin dejar nada en producción:
+1. Moví temporalmente, dentro de `backend/src/adapters/db/invitaciones.ts`, la línea `const usadas = await tx.tokenCuenta.count(...)` a **antes** de `await tx.$executeRaw\`SELECT pg_advisory_xact_lock(...)\`` (justo el defecto que describe el hallazgo: sacar el conteo de abajo del bloqueo).
+2. Corrí solo el caso nuevo: `npx vitest run test/invitacion-masiva.integracion.test.ts -t "ve el cupo que confirmó el primero"` → **falló**, como se esperaba: `AssertionError: promise resolved "{ insertados: [ … ] }" instead of rejecting` (la llamada vio `usadas = 0` en su ventana propia, porque contó antes de que la retenedora insertara su token bajo el bloqueo, y pasó con 200 en vez de 409).
+3. Revertí la línea a su posición original (después del `$executeRaw`) con el mismo `Edit`, exactamente como estaba.
+4. Confirmé la reversión: `npx eslint src/adapters/db/invitaciones.ts` sin salida, y `npx vitest run test/invitacion-masiva.integracion.test.ts` → 16/16 en verde de nuevo.
+
+No dejé el defecto en ningún momento entre corridas de la suite completa ni de ningún otro archivo: el archivo de producción solo estuvo alterado durante los pasos 1 a 3, con el propio archivo de pruebas como único testigo.
+
+### Verificación
+- **Archivo aislado**, 3 veces seguidas tras revertir: 16/16 en verde las tres.
+- **El par de archivos del tester, en los dos órdenes, 3 veces cada uno:**
+  - `npx vitest run test/invitacion-masiva.integracion.test.ts test/invitacion-masiva-03c-r1.ataque.test.ts` → 3/3 en verde, `Test Files 2 passed (2)` / `Tests 43 passed (43)` las tres.
+  - `npx vitest run test/invitacion-masiva-03c-r1.ataque.test.ts test/invitacion-masiva.integracion.test.ts` → 3/3 en verde, mismas cifras las tres.
+- **Suite completa del backend, 3 veces seguidas:** las tres en verde, `Test Files 81 passed (81)` / `Tests 930 passed (930)` (sin cambio de cantidad: se renombraron dos casos, ninguno se agregó ni se quitó).
+- **Suite completa del frontend** (sin cambios en esta corrección): `Test Files 65 passed (65)` / `Tests 1007 passed (1007)`.
+- **`npm run lint`** (raíz): código 0; última línea real por paquete: `All matched files use Prettier code style!` en los tres (con `tsc`/`tsc -b` silenciosos después, sin errores).
+- **`npm run build`** (raíz): última línea real: `✓ built in 580ms`.
+- **`npm run test`** (raíz): backend `Test Files  81 passed (81)` / `Tests  930 passed (930)`; frontend `Test Files  65 passed (65)` / `Tests  1007 passed (1007)`.
+- **V-01:** las 63 `*.ataque` de la tabla de "AUTH-03c — Ronda 1" coinciden (`sha256sum -c`: 63/63). No toqué ninguna.
+- **PA-07**, en las 3 corridas completas del backend: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `P2028` 2 en las tres (los mismos dos excluidos de siempre: `POST /api/auth/login` sobre `tx.sesion.create`, `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`).
+- **PA-11:** sin contenedores de Testcontainers después de cada corrida.
+
+### Conteos (con el comando que los produjo)
+- Backend: 81 archivos / 930 pruebas — `npm run test` (raíz) y `npx vitest list` (backend) coinciden. Mismo conteo que antes de esta corrección: se renombraron 2 casos, no se agregó ni se quitó ningún `it()`.
+- Frontend: 65 archivos / 1007 pruebas — sin cambios en esta corrección.
+- `backend/test/invitacion-masiva.integracion.test.ts`: 16 casos, sin cambio de cantidad (`npx vitest list`).
+- PA-07, 3 corridas: `P2028` = 2 en las tres; los otros cuatro términos, 0 en todas.
+
+### Mapeo de "Pruebas requeridas" actualizado (solo lo que cambió)
+- "dos lotes simultáneos con cupo para uno solo → uno 200 y el otro 409 (bloqueo consultivo)" → `backend/test/invitacion-masiva.integracion.test.ts`, título exacto: **"dos lotes lanzados a la vez quedan en serie: el segundo, formado detrás del bloqueo, ve el cupo que confirmó el primero (M-04)"** (antes cubierta solo en apariencia: el margen 0 la hacía pasar sin ver de verdad lo que el primero confirmó; ahora usa una ventana propia y un token confirmado a mano bajo el bloqueo, y detecté que falla si se saca el conteo de abajo del bloqueo).
+
+### Archivos modificados en esta corrección
+- `backend/test/invitacion-masiva.integracion.test.ts` (un caso reemplazado por la versión con ventana propia, con nuevo título; un caso retitulado, mismo cuerpo; ningún `it()` agregado ni quitado).
+
+Temporalmente, y revertido antes de terminar: `backend/src/adapters/db/invitaciones.ts` (una línea reordenada y devuelta a su lugar exacto, solo para comprobar que el caso nuevo detecta el defecto; no quedó ningún cambio en el archivo).
+
+Ningún otro archivo, de producción o de pruebas. Ninguna `*.ataque` tocada.
+
+### Desviaciones del plan
+**Declarada aquí, como pidió el manager:** la corrección anterior (ronda 1) retiró cobertura de la viñeta "dos lotes simultáneos con cupo para uno solo → uno 200 y el otro 409 (bloqueo consultivo)" al evaluar el segundo lote con margen 0, y mi resumen de esa corrección dijo "Desviaciones: ninguna", lo cual no era exacto. Esta corrección restaura la cobertura real de esa viñeta con un caso que sí depende de lo que el primero confirmó bajo el bloqueo (ventana propia + token con `creadoEn` explícito), verificado con el defecto simulado y revertido.
+
+### Pendiente o fuera de alcance detectado
+Nada nuevo.
+
+## AUTH-03c — Carril trivial: singular del cupo
+
+Cambio de texto pedido por el humano antes del commit: el mensaje del cupo debe ir en singular cuando queda exactamente 1, y en plural en cualquier otro caso (incluido 0).
+
+### Qué cambié
+- `backend/src/core/auth/invitacion-masiva.ts` (`evaluarCupo`): una variable (`sustantivo = restantes === 1 ? "invitación" : "invitaciones"`) sin ternarios anidados, sin cambiar el resto del texto. Con `restantes === 1`: "Hoy solo puedes enviar 1 invitación más. Quita líneas de la lista o inténtalo mañana." Con cualquier otro valor, incluido 0: "...N invitaciones más...".
+- `backend/src/core/auth/invitacion-masiva.test.ts`: caso nuevo, título exacto: **"restantes == 1 → singular exacto"** (`evaluarCupo({ limite: 80, usadas: 79, solicitadas: 2 })` → mensaje exacto en singular). Los casos existentes ("solicitadas == restantes + 1 → 409 con N en el mensaje", con N=10, y "usadas > limite → N = 0") no se tocaron: siguen en plural, como antes.
+
+No toqué ninguna `*.ataque`. Confirmé antes de empezar que ninguna prueba de ataque fija el texto con N=1: `backend/test/invitacion-masiva-03c-r1.ataque.test.ts:440` usa N=0 y `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx:242` usa N=3; tampoco la prueba normal `maestros-view.test.tsx`, que usa N=3. Ninguna de las tres cambió ni falló.
+
+### Verificación
+- **PA-01:** no se activó. `Get-NetFirewallRule` → `True/Inbound/Block/Public`; `Get-NetConnectionProfile` → `IZZI-F281` (Public, de confianza); Docker encendido. Comprobado antes de cada corrida del backend.
+- **`npm run lint`** (raíz): código 0; última línea real por paquete: `shared` y `backend` → `All matched files use Prettier code style!` (con `tsc`/`npm run typecheck` silencioso después, sin errores); `frontend` → `All matched files use Prettier code style!` (con `tsc -b` silencioso después, sin errores).
+- **`npm run build`** (raíz): última línea real: `✓ built in 2.59s`.
+- **`npm run test`:** el comando agregado desde la raíz (`npm run test`, que invoca `--workspaces --if-present`) falló 3 de 3 veces con `Error: Vitest failed to find the runner` / `TypeError: Cannot read properties of undefined (reading 'config')` en **todos** los archivos de **ambos** paquetes (`Test Files N failed (N)` / `Tests no tests`), incluso ejecutando solo `npm run test --workspace=@campus/frontend` desde la raíz. Aislé la causa: `cd backend && npm test` y, por separado, `cd frontend && npm test` (los comandos que `AGENTS.md`, "Comandos", documenta para correr cada paquete desde su carpeta) pasan al 100 % cada uno. El problema es de la invocación agregada desde la raíz (`--workspaces`/`--workspace=`), no de mi cambio de una línea en `evaluarCupo` ni de las pruebas: lo confirmé corriendo primero el archivo unitario tocado en aislamiento (26/26 en verde) antes de encontrar el problema de la raíz. No toqué ninguna configuración de la raíz ni de ningún paquete para "arreglarlo": lo reporto como una limitación de esta verificación, no como algo que oculté.
+  - `cd backend && npm test`: `Test Files  82 passed (82)` / `Tests  933 passed (933)`.
+  - `cd frontend && npm test`: `Test Files  65 passed (65)` / `Tests  1007 passed (1007)`.
+- **V-01:** las 64 `*.ataque` de la tabla "cierre de la ronda 2" coinciden (`sha256sum -c`: 64/64). No toqué ninguna.
+- **PA-07:** no se activó. Comando: `grep -oF "<término>" <salida completa de la corrida de backend> | wc -l`. Conteo: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `P2028` 2 (los mismos dos excluidos de siempre: `POST /api/auth/login` sobre `tx.sesion.create`; `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`).
+- **PA-11:** no se activó. Sin contenedores de Testcontainers después de la corrida.
+
+### Conteos (con el comando que los produjo)
+- Backend: 82 archivos / 933 pruebas — `cd backend && npm test` y `npx vitest list` (backend) coinciden. Antes de esta corrección eran 81/930; la diferencia (1 archivo, 3 pruebas) es el archivo nuevo de la ronda 2 del tester (`invitacion-masiva-03c-r2.ataque.test.ts`), no algo que yo agregara.
+- Frontend: 65 archivos / 1007 pruebas — sin cambios en este carril.
+- `backend/src/core/auth/invitacion-masiva.test.ts`: 26 casos (antes 25; +1 el caso nuevo del singular), confirmado con `npx vitest run` (`Tests 26 passed (26)`).
+- V-01: 64/64 `*.ataque` (`sha256sum -c` contra la tabla de la ronda 2).
+
+### Archivos modificados
+- `backend/src/core/auth/invitacion-masiva.ts` (una línea: el mensaje del cupo distingue singular y plural).
+- `backend/src/core/auth/invitacion-masiva.test.ts` (un caso nuevo; ninguno quitado ni modificado).
+
+Ningún otro archivo, de producción o de pruebas. Ninguna `*.ataque` tocada.
+
+### Desviaciones del plan
+Ninguna en el cambio de texto. **Limitación de verificación, declarada:** no logré correr `npm run test` agregado desde la raíz (falla por una causa ajena a este cambio, ver arriba); verifiqué cada paquete por separado con los comandos que `AGENTS.md` documenta para correr desde `backend/` y `frontend/`, ambos en verde. Si el manager quiere que investigue la causa de la falla agregada de raíz, es un tema aparte de este carril trivial.
+
+### Pendiente o fuera de alcance detectado
+La falla de `npm run test` (o `npm run test --workspace=...`) desde la raíz del repositorio, no reproducible corriendo cada paquete por separado. Queda para que el orquestador/humano decida si se investiga como un problema de tooling aparte.

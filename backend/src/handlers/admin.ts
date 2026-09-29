@@ -8,6 +8,8 @@ import {
   crearEnlaceRegistroRespuestaSchema,
   crearEnlaceRegistroSchema,
   enlaceRegistroRespuestaSchema,
+  invitacionMasivaRespuestaSchema,
+  invitacionMasivaSchema,
   invitarMaestroSchema,
   listaEnlacesRegistroRespuestaSchema,
   listaRegistradosRespuestaSchema,
@@ -31,14 +33,22 @@ import {
   corregirCorreo,
   crearEnlaceRegistro,
   crearMaestroInvitado,
+  invitarMaestrosEnLote,
   listarEnlacesRegistro,
   listarRegistradosPorEnlace,
   restablecerConTemporal,
   revocarEnlaceRegistro,
+  type CandidatoParaInvitarEnLote,
   type EnlaceRegistroConRegistrados,
 } from "../adapters/db/index.js"
-import { encolar } from "../adapters/queue/index.js"
+import { encolar, encolarVarios } from "../adapters/queue/index.js"
 import { calcularExpiracionEnlace, estadoDeEnlace } from "../core/auth/enlaces-registro.js"
+import {
+  analizarListaDeInvitaciones,
+  evaluarCupo,
+  nombreProvisionalDe,
+  VENTANA_CUPO_MS,
+} from "../core/auth/invitacion-masiva.js"
 import { evaluarObjetivoDeRestablecimiento } from "../core/auth/respaldo.js"
 import { normalizarCorreo, prepararRegistro } from "../core/auth/normalizacion.js"
 import { calcularExpiracionToken } from "../core/auth/tokens-cuenta.js"
@@ -65,7 +75,10 @@ const vistaDeEnlace = (enlace: EnlaceRegistroConRegistrados, ahora: Date): Enlac
   registrados: enlace.registrados,
 })
 
-export const adminHandler: FastifyPluginAsync = async (app) => {
+export const adminHandler: FastifyPluginAsync<{ limiteDiarioInvitaciones: number }> = async (
+  app,
+  { limiteDiarioInvitaciones },
+) => {
   app.post("/maestros", protegido({ roles: ["admin"] }), async (request, reply) => {
     const datos = validarCuerpo(invitarMaestroSchema, request.body)
     const cuenta = prepararRegistro(datos)
@@ -203,5 +216,68 @@ export const adminHandler: FastifyPluginAsync = async (app) => {
     },
   )
 
-  // AUTH-03c agrega aquí POST /maestros/lote (invitación masiva).
+  // AUTH-03c, §D-C3: invitación masiva. Todo el argon2 (un solo hash inutilizable compartido, S-11)
+  // y la preparación de cada candidato van antes de la transacción; el cupo y el encolado se
+  // deciden dentro de ella.
+  app.post("/maestros/lote", protegido({ roles: ["admin"] }), async (request, reply) => {
+    const datos = validarCuerpo(invitacionMasivaSchema, request.body)
+    const { candidatos, invalidas } = analizarListaDeInvitaciones(datos.lista)
+
+    if (candidatos.length === 0) {
+      return reply.send(
+        invitacionMasivaRespuestaSchema.parse({ enviadas: [], yaExistentes: [], invalidas }),
+      )
+    }
+
+    const ahora = new Date()
+    const hashInutilizable = await hashDeContrasenaInutilizable()
+
+    const preparados = candidatos.map((candidato) => {
+      const cuenta = prepararRegistro({
+        nombre: candidato.nombre ?? nombreProvisionalDe(candidato.email),
+        email: candidato.email,
+      })
+      const usuarioId = randomUUID()
+      const tokenId = randomUUID()
+      const { hash: hashToken } = derivarTokenDeCuenta(tokenId)
+      const candidatoDb: CandidatoParaInvitarEnLote = {
+        usuario: { id: usuarioId, ...cuenta, hashContrasena: hashInutilizable, rol: "maestro" },
+        token: { id: tokenId, hashToken, expiraEn: calcularExpiracionToken("invitacion", ahora) },
+      }
+      return { linea: candidato.linea, nombreOriginal: candidato.nombre, candidatoDb }
+    })
+
+    const resultado = await invitarMaestrosEnLote(
+      {
+        candidatos: preparados.map((preparado) => preparado.candidatoDb),
+        desde: new Date(ahora.getTime() - VENTANA_CUPO_MS),
+      },
+      (usadas, solicitadas) =>
+        evaluarCupo({ limite: limiteDiarioInvitaciones, usadas, solicitadas }),
+      (sql, idsDeTokens) =>
+        encolarVarios(
+          COLA_CORREO_DE_CUENTA,
+          idsDeTokens.map((id) => ({ id, datos: { tipo: "invitacion" } })),
+          { sql },
+        ),
+    )
+
+    const emailsInsertados = new Set(resultado.insertados.map((insertado) => insertado.email))
+    const emailsExistentes = new Set(resultado.existentes)
+
+    const enviadas: { email: string; nombre: string | null }[] = []
+    const yaExistentes: { linea: number; email: string }[] = []
+    for (const preparado of preparados) {
+      const email = preparado.candidatoDb.usuario.email
+      if (emailsInsertados.has(email)) {
+        enviadas.push({ email, nombre: preparado.nombreOriginal })
+        continue
+      }
+      if (emailsExistentes.has(email)) {
+        yaExistentes.push({ linea: preparado.linea, email })
+      }
+    }
+
+    return reply.send(invitacionMasivaRespuestaSchema.parse({ enviadas, yaExistentes, invalidas }))
+  })
 }

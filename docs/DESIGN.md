@@ -405,6 +405,8 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - **`hover` (DESIGN-01a, propuesta aprobada (2026-09-28); no estaba en este documento):** `primary` y `destructive`, su fondo al 90 %; `outline`, de vidrio fuerte a `--surface` (en pantallas densas, a `--muted`); `ghost`, a vidrio fuerte (en pantallas densas, a `--muted`).
 - **Enlaces sueltos fuera de una frase** (por ejemplo, "¿Olvidaste tu contraseña?", "Crear cuenta"), que no entran en la excepción de objetivo mínimo de WCAG 2.5.8 por ir dentro de texto corrido: tamaño `enlace` de `Button`, con altura mínima de 44 px (DESIGN-01a, propuesta aprobada (2026-09-28)).
 - **Campo de contraseña (DESIGN-01b; nombre y estado: decisión del humano, 2026-09-27; aspecto: propuesta aprobada (2026-09-28)):** botón de ojo dentro del campo, a la derecha, 44 px, `ghost`; icono `Eye`/`EyeOff` en `--foreground` (16.4 sobre `--surface`); **nombre fijo por campo** ("Mostrar contraseña" si el formulario tiene un solo campo; si tiene varios, el nombre de su campo: "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal" (retirado en AUTH-03a: el cambio obligatorio ya no pide la temporal), confirmados por el humano), como texto visualmente oculto dentro del botón y nunca como atributo de etiqueta; el estado, en el atributo de presionado; vuelve a ocultarse al enviar el formulario, también si la validación en cliente falla; no mueve el cursor del campo; no cambia el `autocomplete`; sin corrector ortográfico.
+- **Campo de texto largo (AUTH-03c, propuesta), `components/ui/textarea.tsx`:** el mismo borde, fondo y estado inválido que un campo de una línea, foco resuelto igual (`focus-visible:border-accent`, sin anillo propio); `--text-body` (16 px, también en la densidad del administrador); altura por número de filas, no fija; se redimensiona solo en vertical (`resize-y`). Lo usa `FormularioInvitacionMasiva` (`features/admin/components/formulario-invitacion-masiva.tsx`).
+- **Una vista con dos paneles de acción tiene un solo `primary`** (AUTH-03c): en `/admin/maestros`, "Enviar invitaciones" es la acción principal y "Generar enlace" pasa a `outline`.
 
 ### 7.4 Marco: barra lateral y barra superior
 
@@ -595,6 +597,16 @@ Para una acción irreversible de bajo alcance (restablecer una contraseña, revo
 - Sin diálogo: el diálogo queda para las acciones de la lista de `CLAUDE.md`.
 
 Implementan este patrón `AccionRestablecer` (`features/admin/components/ficha-de-cuenta.tsx`, AUTH-02) y la confirmación de "Revocar" en `TablaEnlaces` (`features/admin/components/tabla-enlaces.tsx`, AUTH-03b).
+
+### 7.15 Resumen de una acción por lote (AUTH-03c, propuesta)
+
+Para el resultado de una acción que procesa varias líneas a la vez (la invitación masiva de maestros):
+
+- Una línea de conteos en palabras ("Invitaciones enviadas: 12 · Ya tenían cuenta: 2 · No válidas: 1"), en `role="status"`, para que un lector de pantalla la anuncie al terminar la petición.
+- Debajo, un grupo por resultado, cada uno con un encabezado `--text-small` 700 que lleva su conteo entre paréntesis y una lista.
+- **Sin color como único indicador y sin grupos vacíos:** un grupo sin elementos no se pinta. El motivo de una línea inválida va en texto o en la insignia `danger` (§7.8), nunca como color suelto.
+
+Implementa este patrón `ResultadoInvitacionMasiva` (`features/admin/components/resultado-invitacion-masiva.tsx`, AUTH-03c).
 
 ## 8. Densidad por rol
 

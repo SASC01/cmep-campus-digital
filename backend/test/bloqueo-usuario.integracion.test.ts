@@ -673,23 +673,32 @@ describe("E: adaptadores, sin concurrencia", () => {
   })
 
   // AUTH-03b, §D-B4/V-04: enlaces-registro.ts suma el FOR NO KEY UPDATE de
-  // registrarMaestroConEnlace y revocarEnlaceRegistro (Enmienda 6).
-  it("E6: solo salud.ts, bloqueo-usuario.ts y enlaces-registro.ts usan $queryRaw etiquetado en adapters/db", async () => {
+  // registrarMaestroConEnlace y revocarEnlaceRegistro (Enmienda 6). AUTH-03c, §D-C3/V-04:
+  // invitaciones.ts suma el bloqueo consultivo (pg_advisory_xact_lock, M-04), con $executeRaw:
+  // por eso el patrón cubre también esa forma, no solo $queryRaw.
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts e invitaciones.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
     )
-    const patron = /\$queryRaw(?!Unsafe)/
+    const patron = /\$(queryRaw|executeRaw)(?!Unsafe)/
     const conCoincidencia: string[] = []
     for (const archivo of archivos) {
       if (archivo.toLowerCase() === "readme.md") continue
       const ruta = path.join(raizDb, archivo)
       const contenido = await readFile(ruta, "utf-8")
-      if (patron.test(contenido)) conCoincidencia.push(archivo)
+      // Solo código: descarta las líneas que son puro comentario (`// …`), para que una mención en
+      // prosa (como la de enlaces-registro.ts explicando por qué usa $queryRaw) no cuente.
+      const lineasDeCodigo = contenido
+        .split("\n")
+        .filter((linea) => !linea.trim().startsWith("//"))
+        .join("\n")
+      if (patron.test(lineasDeCodigo)) conCoincidencia.push(archivo)
     }
     expect(conCoincidencia.sort()).toEqual([
       "bloqueo-usuario.ts",
       "enlaces-registro.ts",
+      "invitaciones.ts",
       "salud.ts",
     ])
   })

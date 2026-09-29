@@ -184,11 +184,12 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 - **Token de refresco:** aleatorio de 256 bits, cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/auth`. En la base, **solo su hash** (tabla `sesiones`). 30 días, **rotación en cada uso**; si llega un token ya rotado se revocan todas las sesiones del usuario.
 - **Límite de intentos:** 5 por 15 minutos por IP + correo. Mismo mensaje para usuario inexistente y contraseña incorrecta.
 - **Registro público:** solo estudiantes. El correo es el identificador de acceso y **no se verifica**, así que puede estar mal escrito: por eso existe el respaldo del Administrador.
-- **Maestros:** no hay registro público abierto de maestros (D-04). Se dan de alta de dos formas:
+- **Maestros:** no hay registro público abierto de maestros (D-04). Se dan de alta de tres formas:
   1. **Invitación individual** (`POST /admin/maestros`).
-  2. **Enlace de registro** que genera el admin (`POST /admin/enlaces-registro`): token aleatorio de 256 bits, mostrado una sola vez y guardado solo como SHA-256 (`enlaces_registro`). Vigencia de 1 a 30 días, 7 por defecto; sin límite de usos; revocable. Con él, `POST /auth/registro-maestro` crea una cuenta de maestro con la sesión iniciada y guarda en `usuarios.enlace_registro_id` el enlace usado; el admin ve quién se registró con cada uno. El registro toma `FOR NO KEY UPDATE` sobre la fila del enlace y la revocación fija su hora después de obtener ese mismo bloqueo, así que ninguno confirma después de que la revocación respondió y ningún registrado queda con fecha posterior a la revocación.
+  2. **Invitación masiva** (`POST /admin/maestros/lote`): el admin pega hasta 100 líneas con un correo y, opcionalmente, un nombre. Una línea sin nombre usa un nombre provisional (la parte local del correo, el correo completo o "Maestro invitado"). El lote se rechaza completo (`409 CUPO_DIARIO_INSUFICIENTE`) si sus correos nuevos rebasan el cupo `INVITACIONES_LIMITE_DIARIO` (80 por defecto), que cuenta las invitaciones creadas en las últimas 24 horas. Las cuentas, sus tokens y un trabajo de correo por maestro se crean en una sola transacción, bajo un bloqueo consultivo que deja en serie dos lotes simultáneos.
+  3. **Enlace de registro** que genera el admin (`POST /admin/enlaces-registro`): token aleatorio de 256 bits, mostrado una sola vez y guardado solo como SHA-256 (`enlaces_registro`). Vigencia de 1 a 30 días, 7 por defecto; sin límite de usos; revocable. Con él, `POST /auth/registro-maestro` crea una cuenta de maestro con la sesión iniciada y guarda en `usuarios.enlace_registro_id` el enlace usado; el admin ve quién se registró con cada uno. El registro toma `FOR NO KEY UPDATE` sobre la fila del enlace y la revocación fija su hora después de obtener ese mismo bloqueo, así que ninguno confirma después de que la revocación respondió y ningún registrado queda con fecha posterior a la revocación.
 
-  En la forma 1, la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
+  En las formas 1 y 2, la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
 - **Administrador:** cuenta única creada con `npm run seed:admin`. No existe endpoint que cree administradores.
 
 ### Recuperación de contraseña
@@ -236,7 +237,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 | `calendario` | `GET /calendario?desde=&hasta=` |
 | `envivo` | `GET/POST /clases/{id}/envivo` · `POST /envivo/{id}/token` · `POST /envivo/{id}/grabacion` · `POST /webhooks/livekit` (sin JWT, firma verificada) |
 | `publico` | `GET /publico/anuncios` (sin JWT, caché de 60 s) |
-| `admin` | usuarios (`POST /admin/maestros` (invitación), `GET/POST /admin/enlaces-registro`, `POST /admin/enlaces-registro/{id}/revocar`, `GET /admin/enlaces-registro/{id}/registrados`, `POST /admin/usuarios/buscar`, `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`, baja), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
+| `admin` | usuarios (`POST /admin/maestros` (invitación), `POST /admin/maestros/lote` (invitación masiva), `GET/POST /admin/enlaces-registro`, `POST /admin/enlaces-registro/{id}/revocar`, `GET /admin/enlaces-registro/{id}/registrados`, `POST /admin/usuarios/buscar`, `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`, baja), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
 | — | `GET /salud` |
 
 Formato de error único: `{ "error": { "codigo": "...", "mensaje": "..." } }`. Toda lista paginada, máximo 100 elementos.
@@ -254,7 +255,7 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 | `COMENTARIO_CREADO` | Aviso a la contraparte |
 | `RECORDATORIO_24H` (diferido) | Aviso a quienes no han entregado |
 | `CLASE_POR_COMENZAR` (diferido o inmediato) | Aviso a los alumnos de la clase |
-| `CORREO_DE_CUENTA` | Recuperación de contraseña o invitación de maestro: siempre por correo, nunca in-app |
+| `CORREO_DE_CUENTA` | Recuperación de contraseña o invitación de maestro: siempre por correo, nunca in-app. La invitación masiva encola un trabajo por maestro con un solo `insert` dentro de su transacción. |
 | `ENVIAR_CORREO` | Un envío individual a Resend. Los avisos con correo activado generan uno por destinatario |
 | `GRABACION_LISTA` (desde webhook) | Registra el archivo en `clases_en_vivo` |
 | `LIMPIEZA_DIARIA` (cron) | Borra notificaciones de más de 90 días, sesiones y tokens vencidos, archivos huérfanos |
@@ -287,10 +288,11 @@ Se recomienda encender primero los dos sensibles al tiempo (clase por comenzar y
 - La llave de Resend vive solo en el `.env` del servidor.
 - Los interruptores viven en la tabla `configuracion`. `notifier` los consulta con caché de 60 s.
 - En `dev` y en pruebas el canal es `registro`: **jamás sale un correo real fuera de `prod`**.
-- Plan gratuito: 3,000 correos al mes. Si el nivel 2 lo rebasa, se pasa a un plan de pago o se apagan tipos de aviso; los correos de cuenta tienen prioridad en la cola.
+- Plan gratuito: 3,000 correos al mes, 100 al día (por día calendario UTC) y 10 peticiones por segundo por equipo. Si el nivel 2 lo rebasa, se pasa a un plan de pago o se apagan tipos de aviso; los correos de cuenta tienen prioridad en la cola.
 - Un correo que Resend rechaza de forma permanente (`400`/`422`, por ejemplo una dirección mal formada) no se reintenta y queda registrado. Un `403` (dominio no verificado o llave inválida) y un fallo de red se tratan como transitorios: tres reintentos y después la cola de fallidos. Los buzones inexistentes se conocen después, como rebote, por webhook (pendiente).
 - El canal lo decide la configuración: Resend solo con `NODE_ENV=production` y llave; cualquier otro caso, `registro` (HTML en `backend/tmp/correos/`).
 - Cambiar de proveedor es escribir otro canal dentro de `adapters/notifier`.
+- El worker deja al menos 250 ms entre dos intentos de envío a Resend: antes de cada trabajo espera lo que falte desde el último intento que llegó al notifier, también si lanzó. En la práctica, el sondeo de pg-boss (cada 2 s, un trabajo a la vez) marca el paso, así que un lote de 80 invitaciones tarda unos 2.7 minutos en salir. La invitación masiva respeta además un cupo de 80 invitaciones en una ventana móvil de 24 horas (`INVITACIONES_LIMITE_DIARIO`), más estricta que el día UTC de Resend, que deja margen a las recuperaciones.
 
 ## 10. Tareas programadas
 
@@ -372,7 +374,7 @@ erDiagram
 |---|---|---|
 | `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion`, `enlace_registro_id` | `email` único (en minúsculas) · GIN trigrama sobre `nombre_busqueda` · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` · índice `(enlace_registro_id, creado_en)` · FK a `enlaces_registro` con `ON DELETE RESTRICT` |
 | `sesiones` | `id`, `usuario_id`, `hash_token`, `expira_en`, `revocada_en`, `reemplazada_por`, `ip`, `agente` | `hash_token` único · índice `(usuario_id)` |
-| `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · FK con `ON DELETE CASCADE` |
+| `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · índice `(tipo, creado_en)` (cupo diario de invitaciones) · FK con `ON DELETE CASCADE` |
 | `enlaces_registro` | `id`, `hash_token`, `expira_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(creado_en DESC, id DESC)`. El estado (vigente, vencido, revocado) se deriva; no se guarda |
 | `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único · índice `(maestro_id)` |
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
@@ -399,6 +401,7 @@ Las tablas de pg-boss viven en su propio esquema (`pgboss`) y no se tocan a mano
 - **SQL crudo solo con parámetros.** Nunca se concatena entrada del usuario. La única excepción de texto no literal es el SQL de pg-boss que ejecuta `ejecutorSqlDe`; sus datos también viajan como parámetros.
 - **Escrituras compuestas en transacción**, incluido el encolado del evento.
 - **Protocolo de bloqueo por usuario.** Crear o rotar una sesión bloquea antes la fila del usuario con `FOR SHARE`. Revocar sesiones en bloque, cambiar la contraseña o escribir `tokens_cuenta` la bloquea antes con `FOR NO KEY UPDATE`. Así esas transacciones quedan en serie sin deadlocks, y una revocación siempre ve las sesiones creadas antes que ella. El login solo crea la sesión si el hash que verificó sigue vigente bajo el bloqueo (AUTH-02, Enmienda 2).
+- **Altas en lote** (invitación masiva): una transacción con el bloqueo consultivo de invitaciones (`pg_advisory_xact_lock`, tomado con `$executeRaw`) y, después de él, el conteo del cupo; `createMany` con `skipDuplicates`, la relectura por id de lo insertado y un solo `insert` de pg-boss con la conexión de la transacción. Ninguna consulta por línea y ningún `P2002` atrapado.
 - **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan.
 - Búsqueda de alumnos con `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: 3 caracteres mínimo y espera de 300 ms.
 - Todo cambio de esquema es una migración de Prisma versionada y compatible hacia atrás.
@@ -485,6 +488,8 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 - El límite de tasa de `/auth/*` cubre también `POST /auth/recuperar`, que por petición es más barato que el login (sin argon2) y encola un trabajo por solicitud; con `trustProxy`, la llave de su límite propio (IP + correo) también deja de ser la IP de Caddy (AUTH-02).
 - Retención de las colas de correos de cuenta: 1 día (`retentionSeconds` y `deleteAfterSeconds` en `adapters/queue/colas.ts`); cambiar la política de una cola que ya existe en la base exige `updateQueue` (AUTH-02).
 - Una sola instancia del worker: el tope de recuperaciones por cuenta y el consumo con `batchSize: 1` lo suponen, igual que los límites en memoria de la API (AUTH-02).
+- El límite de tasa del borde cubre también `POST /auth/registro-maestro` y `POST /auth/invitacion` (AUTH-03).
+- Desplegar el backend antes que el frontend cuando un encargo cambia un cuerpo de petición (AUTH-03: `cambiar-contrasena` y `establecer-contrasena`). Para el volumen de correo en producción, ver el pendiente de DEPLOY en `docs/ESTADO.md` ("Evaluar plan de pago de Resend") (AUTH-03).
 
 ### Migración a un servidor propio
 1. Instalar Docker en el servidor del colegio y clonar el repositorio.

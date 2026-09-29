@@ -151,6 +151,13 @@ Decisión del humano (2026-09-28). Aplica a todos los encargos, de cualquier car
 - **La revisión humana del diff no es obligatoria**, tampoco en el carril sensible: basta el APROBADO del manager y las rondas del tester. Al cerrar cada subentrega, el orquestador le entrega al humano un resumen de máximo 15 líneas.
 - **Con el plan aprobado, el orquestador avanza sin esperar indicaciones.** Solo se detiene a preguntar si algo queda BLOQUEADO o surge una decisión que el plan no cubre.
 
+### Resúmenes verificables del programador
+Decisión del humano (2026-09-28). Aplica a todos los encargos y a toda entrega del programador: implementación y cada corrección.
+- **Pruebas requeridas:** el resumen indica, junto a cada viñeta de "Pruebas requeridas" del plan, el archivo y el título exacto del caso que la cubre.
+- **Conteos:** toda cifra de archivos, pruebas o casos sale de `npx vitest list` o de la corrida, con el comando incluido.
+- **lint, test y build:** el resumen trae el comando exacto y la última línea de salida de cada uno, no un "pasaron".
+- **Verificación del manager:** antes de aceptar el resumen, y antes de que el tester ataque, el manager corre `lint`, `test` y `build` y contrasta cada cifra del resumen con su propia corrida. Una cifra que no coincide devuelve el resumen al programador; no se corrige a mano. El detalle está en `.claude/agents/manager.md`, "Verificación del resumen del programador", y en `.claude/agents/programador.md`, "Resumen verificable".
+
 ### Trabajo visual
 Decisión del humano (2026-09-27). Aplica a los encargos de diseño y de interfaz. La base de "No se toca" y los commits siguen "Commits y cierre de subentregas".
 - **Ajustes visuales que pide el humano después de ver la pantalla:** van por el carril trivial. El `programador` los aplica y las pruebas quedan en verde, sin plan ni ronda 0. Salvo que toquen pruebas `*.ataque` o lógica: entonces siguen el carril que corresponda.

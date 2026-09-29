@@ -440,7 +440,13 @@ describe("ataque: superficie de rutas", () => {
   // líneas en silencio, así que una ruta nueva que extendiera a otra (por ejemplo,
   // /api/auth/registro-admin) escapaba de esta guarda. Ahora la ruta completa se reconstruye por
   // nivel de sangría, y cualquier línea que no se reconozca hace fallar la prueba.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a y AUTH-03b: ninguna crea admins; solo /admin/maestros y /auth/registro-maestro crean maestros", () => {
+  // AUTH-03c ronda 0 (C-11, §D-C9): se agrega POST /api/admin/maestros/lote (invitación masiva, solo
+  // para el admin), que también crea maestros; printRoutes la anida bajo /api/admin/maestros y el
+  // análisis por sangría la reconstruye. La protección queda así: ninguna ruta crea administradores;
+  // crean maestros solo POST /api/admin/maestros y POST /api/admin/maestros/lote (las dos solo para
+  // el admin) y POST /api/auth/registro-maestro (con un enlace vivo). Cualquier otra ruta nueva
+  // vuelve a poner la prueba en rojo.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b y AUTH-03c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -478,6 +484,7 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/admin/enlaces-registro",
       "POST /api/admin/enlaces-registro/:id/revocar",
       "POST /api/admin/maestros",
+      "POST /api/admin/maestros/lote",
       "POST /api/admin/usuarios/:id/restablecer-contrasena",
       "POST /api/admin/usuarios/buscar",
       "POST /api/auth/cambiar-contrasena",

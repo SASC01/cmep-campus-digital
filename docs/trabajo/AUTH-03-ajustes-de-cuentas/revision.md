@@ -796,3 +796,515 @@ git add docs/DESIGN.md docs/ESTADO.md docs/trabajo/AUTH-03-ajustes-de-cuentas/ d
 
 ## Para el humano
 Nada que decidir en este cierre. La comprobación en navegador es una sola, al final de 03c. H-3 (copiar el enlace, registrarse en una ventana privada, revocar y volver a abrirlo) y H-5 (360 px) son los que prueban 03b en real.
+
+---
+
+# Verificación del resumen — AUTH-03c — implementación
+Resultado: **DEVUELTO al programador.** Todas las cifras coinciden con mi corrida y el código está en verde. El resumen vuelve por dos motivos:
+- no trae la última línea de salida de `lint`, `test` y `build`, que exige la regla nueva;
+- una viñeta de "Pruebas requeridas" no está cubierta.
+
+El tester no ataca hasta que el programador entregue la corrección y yo la verifique.
+
+## Mi corrida y el resumen, lado a lado
+Desde la raíz, 2026-09-28, con PA-01 comprobada antes del backend: regla `True / Inbound / Block / Public`, red `IZZI-F281` (Public, declarada de confianza) y Docker encendido.
+
+| Dato | Resumen | Mi corrida | ¿Coincide? |
+|---|---|---|---|
+| `npm run build` | "código 0" (sin última línea) | código 0; última línea "✓ built in 587ms" | Sí en el resultado. **Falta la última línea** en el resumen |
+| `npm run lint` | "código 0 en `shared`, `backend` y `frontend`" (sin última línea) | código 0; Prettier "All matched files use Prettier code style!" en los tres; la última etapa es `tsc -b` del frontend, sin errores | Sí en el resultado. **Falta la última línea** |
+| `npm run test`, backend | 77 archivos / 894 pruebas; 3 corridas | "Test Files 77 passed (77)" · "Tests 894 passed (894)", 1 corrida | Sí |
+| `npm run test`, frontend | 64 archivos / 995 pruebas | "Test Files 64 passed (64)" · "Tests 995 passed (995)"; `npx vitest list`: 995 casos | Sí |
+| Prisma | `migrate status` al día; `migrate diff` sin diferencias | "Database schema is up to date!" y "No difference detected." (código 0) | Sí |
+| `enEspera=` en `.tsx` de producción | 20 | 20 | Sí |
+| V-01 | 58/58 contra la tabla de "AUTH-03c — Ronda 0" | 58/58 (`sha256sum` contra esa tabla) | Sí |
+| PA-07 | `P2028` = 2, los excluidos; los otros cuatro en 0 | `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `P2028` 2: `handlers/auth/index.ts:134` (`Sesion`, login) y `handlers/auth/cuentas.ts:106` (`TokenCuenta`, `restablecer`) | Sí; no se activa |
+| PA-11 | sin contenedores | Ryuk se retiró dentro de los 120 s | Sí |
+| `worker-correo-de-cuenta.integracion` | 12 casos antes, 16 después, sin quitar ninguno | Títulos de `it(` contra `32afeef`: los 12 originales intactos y en su orden, más 4 al final. `git diff 32afeef`: 158 líneas agregadas y **1 quitada**, una línea de `import` que se reescribió. `vitest list`: 16 | Sí. La restauración es correcta |
+| `invitacion-masiva.integracion` | 16 casos (10 más la matriz de 6) | `vitest list`: 16 | Sí |
+
+**Desviación 2 (E6 de `bloqueo-usuario.integracion`):** de acuerdo. Sumar `invitaciones.ts` a la lista, cubrir también `$executeRaw` e ignorar los comentarios refuerza la prueba, no la debilita. Lo reviso línea por línea en la revisión final.
+
+## "Pruebas requeridas" de 03c
+Comprobé que existe cada título que cita el resumen: 45 títulos entre core (29), `cola` (3), `env` (3), `textarea` (2) y `maestros-view` (8), más los de `invitacion-masiva` y `worker`. Todos existen con ese texto exacto. Sobre la cobertura real:
+
+- **No cubierta: "uno más → 409 y nada creado ni encolado".** El caso "uno más que el cupo → 409, sin crear nada" (`invitacion-masiva.integracion.test.ts:236`):
+  - solo comprueba que no existan las **cuentas**, no los **tokens de invitación**;
+  - pasa `alGuardar: async () => {}`, así que no hay nada que se pudiera encolar ni que se pueda observar;
+  - "por construcción" no es una prueba.
+
+  **Qué se espera:** el caso comprueba de verdad que el 409 no deja ni cuentas, ni tokens `invitacion` de esos candidatos, ni trabajos en `pgboss.job`. Por ejemplo, usando el `alGuardar` real (`encolarVarios`) o uno espía que registre si se llamó, y buscando en `tokens_cuenta` y en `pgboss.job`. Si el programador prefiere probarlo por HTTP, puede montar `adminHandler` con un `limiteDiarioInvitaciones` pequeño. La forma es suya, pero la aserción tiene que existir.
+- **Cubierta, con una prueba para dos viñetas:** "las cuentas nacen como maestro, con un hash inutilizable compartido y un token de invitación cada una, encolado en `pgboss.job`" (`:133`). Las líneas no traen nombre (`listaDeCorreos` solo pone correos), así que las dos cuentas llevan el nombre provisional, y la prueba afirma `nombreSchema.safeParse(nombre).success`. Cubre de verdad M-07 y la viñeta de cuentas, hash, token y trabajo (`retry_limit` 3, `dead_letter` y el id igual al token). Aceptada.
+- **Cubierta por composición: "dos lotes simultáneos con cupo para uno solo → uno 200 y el otro 409".** Se reparte en dos casos:
+  - `:256`, en serie: el segundo ve el cupo consumido y recibe 409;
+  - `:286`, concurrente de verdad: el segundo queda formado detrás del bloqueo consultivo, con cupo amplio.
+
+  Juntos cubren el mecanismo, porque el conteo se lee después del bloqueo, en READ COMMITTED. La acepto así. **Recomiendo**, ya que el resumen vuelve de todos modos, una aserción que lo cubra en un solo caso: que la transacción retenedora de `:286` inserte un token de invitación antes de soltar el bloqueo, con cupo para uno solo, y que la llamada formada detrás reciba `CUPO_DIARIO_INSUFICIENTE`. No es condición para aceptar.
+- **Worker (M-06, M-09):**
+  - "tras un error del notifier, el siguiente trabajo espera" está cubierto: el caso afirma una espera mayor que 0 en el trabajo D, después del fallo de C.
+  - "tras un omitido no se registra intento" también: el omitido nunca llega al notifier, que es el único punto donde se registra un intento.
+- **El resto de las viñetas** (core, `cola`, `env`, autorización, lista mixta, cupo exacto, existentes sin cupo, carrera entre la lectura y la inserción, rollback de `alGuardar`, `textarea` y las cinco del frontend) tienen su caso y lo cubren.
+
+## Qué debe traer la corrección del programador
+1. **El resumen, con la regla completa** (`AGENTS.md`, "Resúmenes verificables del programador"): el comando exacto y la **última línea literal** de `npm run lint`, `npm run test` (por paquete) y `npm run build`.
+2. **El caso del 409** con las aserciones de "nada creado ni encolado": sin cuentas, sin tokens `invitacion` de los candidatos y sin trabajos en `pgboss.job`. Con su título exacto en el mapeo de "Pruebas requeridas".
+3. **Opcional:** la aserción de la carrera "cupo para uno solo" en `:286`.
+
+No toca código de producción. Después de la corrección, repito esta verificación y, si coincide, el tester puede atacar.
+
+---
+
+# Verificación del resumen — AUTH-03c — corrección 1
+Resultado: **ACEPTADO.** Las cifras y las líneas literales coinciden con mi corrida, la viñeta que faltaba queda cubierta de verdad y el único archivo que cambió es la prueba declarada. **El tester puede atacar 03c.**
+
+## Mi corrida y el resumen, lado a lado
+Desde la raíz, 2026-09-28, con PA-01 comprobada antes del backend: regla `True / Inbound / Block / Public`, red `IZZI-F281` (Public, declarada de confianza) y Docker encendido.
+
+| Dato | Resumen | Mi corrida | ¿Coincide? |
+|---|---|---|---|
+| `npm run build`, última línea | `✓ built in 594ms` | `✓ built in 672ms`, código 0 | Sí (solo cambia el tiempo de la corrida) |
+| `npm run lint` | "All matched files use Prettier code style!" en los tres; después, `tsc` sin salida; código 0 | 3 × "All matched files use Prettier code style!"; la última línea es `> tsc -b` sin errores; código 0 | Sí |
+| `npm run test`, backend | `Test Files  77 passed (77)` · `Tests  894 passed (894)` | `Test Files  77 passed (77)` · `Tests  894 passed (894)` | Sí |
+| `npm run test`, frontend | `Test Files  64 passed (64)` · `Tests  995 passed (995)` | `Test Files  64 passed (64)` · `Tests  995 passed (995)` | Sí |
+| Casos nuevos | ninguno (894 no cambia) | `invitacion-masiva.integracion`: 16 `it(`, los mismos que en la verificación anterior | Sí |
+| V-01 | 58/58 | 58/58 contra la tabla de "AUTH-03c — Ronda 0" | Sí |
+| PA-07 | `P2028` 2 (los excluidos); los demás en 0 | `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `P2028` 2: `handlers/auth/index.ts:134` (`Sesion`) y `handlers/auth/cuentas.ts:106` (`TokenCuenta`) | Sí; no se activa |
+| `Unhandled Rejection` y avisos | corregido | 0 "Unhandled", 0 "unhandled", 0 "PromiseRejection", 0 "Warning" en la salida completa del backend. Los 9 registros de nivel `error` son los mismos 9 de la corrida anterior, que las pruebas provocan a propósito | Sí |
+| PA-11 | sin contenedores | sin contenedores de Testcontainers al terminar | Sí |
+| Alcance | solo `backend/test/invitacion-masiva.integracion.test.ts` | `find … -newer revision.md` sobre `backend/src`, `backend/prisma`, `backend/test`, `frontend/src` y `shared/src`, sin el cliente generado: solo ese archivo. Ninguna `*.ataque` cambió (V-01) | Sí |
+
+## El caso ampliado: "uno más que el cupo → 409, sin crear nada ni encolar nada"
+Cubre la viñeta de verdad. **Falla si:**
+- **`alGuardar` se llamara:** el espía marca `seLlamoAlGuardar`, y la aserción exige `false`. Si se llamara, además dejaría trabajos reales, porque envuelve el `encolarVarios` real.
+- **Quedaran cuentas:** busca las de los tres candidatos por correo y exige longitud 0.
+- **Quedaran tokens:** busca en `tokens_cuenta` los ids de los tokens de los tres candidatos y exige longitud 0.
+- **Quedaran trabajos:** busca en `pgboss.job` esos mismos ids, que son los ids de los trabajos, y exige longitud 0.
+
+Comprueba el estado final después del rechazo. Así, un orden de escritura distinto dentro de la transacción no la engaña: lo que importa es que nada sobreviva al 409.
+
+## El caso reforzado (opcional, aplicado)
+- **Qué hace:** la transacción retenedora toma el bloqueo consultivo y comprueba con `pg_blocking_pids` que la llamada real quedó formada detrás. Antes de soltar el bloqueo, inserta un token de invitación, con el límite fijado en `usadasAntes + 1` antes de abrir la transacción. La llamada formada detrás recibe `CUPO_DIARIO_INSUFICIENTE` y no crea la cuenta. Cubre en un solo caso "con cupo para uno solo, uno pasa y el otro 409".
+- **El rechazo no manejado:** la corrección es correcta. El `.then(éxito, error)` observa la promesa sin tragarse el resultado, que se afirma después con `rejects`.
+- **Nota para la revisión final, no bloquea:** la espera de la precondición (hasta 10 s) corre dentro de una transacción interactiva de Prisma, cuyo límite es de 5 s. Si la precondición tardara, saldría un `P2028` en esta prueba, que PA-07 no excluye. En las corridas no ocurre, porque la llamada se forma en milisegundos.
+
+## Siguiente paso
+El tester puede empezar la ronda 1 de 03c.
+
+---
+
+# Verificación del resumen — AUTH-03c — corrección de la ronda 1
+Resultado: **DEVUELTO al programador.** Las cifras y las líneas literales coinciden con mi corrida, y T-14 y T-15 están bien corregidos. Pero la corrección de T-13 volvió deterministas los dos casos de la carrera del cupo **quitándoles lo que prueban**: los dos pasarían aunque el segundo lote no viera el cupo que consumió el primero. La viñeta "dos lotes simultáneos con cupo para uno solo → uno 200 y el otro 409 (bloqueo consultivo)" queda sin cubrir. La acepté por composición en la verificación de la implementación, y ahora ninguno de los dos casos la sostiene.
+
+## Mi corrida y el resumen, lado a lado
+Desde la raíz, 2026-09-28, con PA-01 comprobada antes del backend: regla `True / Inbound / Block / Public`, red `IZZI-F281` (Public, declarada de confianza) y Docker encendido.
+
+| Dato | Resumen | Mi corrida | ¿Coincide? |
+|---|---|---|---|
+| `npm run build`, última línea | `✓ built in 666ms` | `✓ built in 572ms`, código 0 | Sí (solo cambia el tiempo) |
+| `npm run lint` | código 0; Prettier en los tres y `tsc` sin salida | código 0; igual | Sí |
+| `npm run test`, frontend | `Test Files  65 passed (65)` · `Tests  1007 passed (1007)` | igual | Sí |
+| `npm run test`, backend | `Test Files  81 passed (81)` · `Tests  930 passed (930)` | igual en **2 corridas completas** | Sí |
+| El par del tester, en los dos órdenes | `Test Files 2 passed (2)` · `Tests 43 passed (43)`, 3 veces cada orden | 3 veces en el orden pedido y 1 en el inverso: `2 passed (2)` · `43 passed (43)` las 4 | Sí |
+| V-01 | 63/63 | 63/63 contra la tabla de "AUTH-03c — Ronda 1" | Sí |
+| PA-07 | `P2028` 2, los excluidos | en las 2 corridas: `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `P2028` 2: `handlers/auth/index.ts:134` (`Sesion`) y `handlers/auth/cuentas.ts:106` (`TokenCuenta`). Sin `Unhandled` | Sí |
+| Casos contra `32afeef` | `invitacion-masiva.integracion` 16; `maestros-view.test.tsx` 24 | 16 (archivo nuevo en 03c, igual que en la verificación anterior); `maestros-view` 16 en `32afeef` y 24 hoy, sin ninguno perdido | Sí |
+| Alcance | solo `invitacion-masiva.integracion.test.ts`, `formulario-invitacion-masiva.tsx`, `data.ts` y `maestros-view.test.tsx` | Desde mi verificación anterior, en los paquetes cambiaron esos 4 y los 5 `*.ataque` nuevos del tester. Nada más | Sí |
+
+## El problema: T-13, parte 2
+- **"un segundo lote justo después del primero ve el cupo ya consumido: uno pasa y el otro 409"**. El lote B evalúa con `evaluarCupo({ limite: usadas, usadas, solicitadas })`, es decir, con margen 0. Con eso, **B recibe 409 siempre**, haya o no un lote A antes y vea o no su token. El título afirma "ve el cupo ya consumido", y la prueba ya no lo comprueba.
+- **"dos lotes lanzados a la vez quedan en serie: el segundo, ya sin cupo, recibe CUPO_DIARIO_INSUFICIENTE (M-04)"**. También evalúa con `limite: usadas`, así que el 409 no depende de la serie. Lo único que sigue probando es que la llamada queda formada detrás del bloqueo consultivo (`pg_blocking_pids`), no que su conteo, **leído después del bloqueo**, incluya lo que confirmó quien lo tenía.
+
+Una regresión que moviera el `count` antes del `pg_advisory_xact_lock` en `invitarMaestrosEnLote`, que es justo el error que el bloqueo evita (dos lotes simultáneos que rebasan el cupo), pasaría con los dos casos en verde.
+
+Los 4 pares y las 2 suites en verde confirman que son deterministas, pero no que protejan algo. La observación del coordinador es correcta en la otra dirección: con conteos globales, "leer `usadas` en su momento" no basta para fijar un límite con sentido, porque el conteo puede subir o bajar entre los dos lotes.
+
+## Qué se espera (resultado, no implementación)
+Que al menos un caso cumpla las dos condiciones:
+1. **Falla** si el conteo del segundo lote no incluye las invitaciones que el primero confirmó bajo el bloqueo consultivo. Por ejemplo, si el `count` se hiciera antes del bloqueo.
+2. **Es determinista** aunque otros archivos creen o borren invitaciones en paralelo.
+
+**Una forma posible,** sin cambiar el código de producción:
+- `invitarMaestrosEnLote` recibe `desde`, así que el caso puede contar solo una ventana que ningún otro archivo toca;
+- la transacción retenedora inserta su token de invitación con un `creado_en` explícito en una fecha futura propia del caso (por ejemplo, un instante de 2100 con un id aleatorio);
+- la llamada formada detrás usa `desde` igual a ese instante y `limite: 1`;
+- si la llamada ve el token confirmado, `usadas` = 1 y recibe 409; si no lo ve, `usadas` = 0 y recibe 200.
+
+La forma es del programador. El caso secuencial, si se conserva, debe cumplir lo mismo o cambiar su título para no afirmar lo que no comprueba.
+
+**Registrar como hallazgo del resumen:** la sección "Desviaciones" dice "Ninguna", pero el cambio a margen 0 retiró cobertura de una viñeta del plan. Es la misma clase de omisión no declarada de rondas anteriores.
+
+## T-14, T-15 y la parte 1 de T-13: correctos
+- **T-14:** el `Textarea` lleva siempre `aria-describedby="lista-invitacion-masiva-ayuda"`, y suma el id del error cuando lo hay. Es el mismo patrón que `nombre-ayuda` y `describeContrasena`.
+- **T-15:** `lineaInvalida` termina en `" · "`, así que el `<li>` se lee como "Línea N · texto · motivo". `resultado-invitacion-masiva.tsx` no cambió.
+- **T-13, parte 1:** las dos pruebas que no son del cupo usan una app con `INVITACIONES_LIMITE_DIARIO = 10_000`. Es razonable: la suite no se acerca a ese número.
+
+## Qué debe traer la corrección
+1. El caso o los casos de la carrera del cupo, con las dos condiciones de arriba, y sus títulos exactos en el mapeo de "Pruebas requeridas".
+2. La salida literal de `lint`, `test` y `build`. El par del tester, al menos 3 veces. La suite completa del backend, al menos 2 veces.
+3. "Desviaciones" corregida.
+
+Sin cambios en el código de producción. Después repito esta verificación. Si coincide, el tester hace la ronda 2.
+
+---
+
+# Verificación del resumen — AUTH-03c — corrección 2 de la ronda 1
+Resultado: **ACEPTADO.** Las cifras y las líneas literales coinciden con mi corrida. El caso nuevo es determinista y **falla con el defecto**: lo comprobé yo mismo sobre una copia en el scratchpad, sin tocar el repositorio. `invitaciones.ts` cuenta `usadas` después del bloqueo consultivo. **El tester puede hacer la ronda 2 de 03c.**
+
+## Mi corrida y el resumen, lado a lado
+Desde la raíz, 2026-09-28, con PA-01 comprobada antes del backend: regla `True / Inbound / Block / Public`, red `IZZI-F281` (Public, declarada de confianza) y Docker encendido.
+
+| Dato | Resumen | Mi corrida | ¿Coincide? |
+|---|---|---|---|
+| `npm run build`, última línea | `✓ built in 580ms` | `✓ built in 583ms`, código 0 | Sí (solo cambia el tiempo) |
+| `npm run lint` | código 0; Prettier en los tres y `tsc` sin salida | código 0; 3 × "All matched files use Prettier code style!" | Sí |
+| `npm run test`, frontend | `Test Files  65 passed (65)` · `Tests  1007 passed (1007)` | igual | Sí |
+| `npm run test`, backend | `Test Files  81 passed (81)` · `Tests  930 passed (930)`, 3 veces | igual en **2 corridas completas** | Sí |
+| El par del tester, en los dos órdenes | `2 passed (2)` · `43 passed (43)`, 3 veces cada orden | 3 veces en el orden pedido y 1 en el inverso: `2 passed (2)` · `43 passed (43)` las 4 | Sí |
+| Casos de `invitacion-masiva.integracion` | 16, sin cambio de cantidad | 16 `it(` | Sí |
+| V-01 | 63/63 | 63/63 contra la tabla de "AUTH-03c — Ronda 1" | Sí |
+| PA-07 | `P2028` 2 (los excluidos) | en las 2 corridas: `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `P2028` 2: `handlers/auth/index.ts:134` (`Sesion`) y `handlers/auth/cuentas.ts:106` (`TokenCuenta`). 0 `Unhandled` | Sí |
+| PA-11 | sin contenedores | sin contenedores de Testcontainers al terminar | Sí |
+| Alcance | solo la prueba; `invitaciones.ts` tocado y revertido | Desde mi verificación anterior cambiaron solo `backend/test/invitacion-masiva.integracion.test.ts` y `backend/src/adapters/db/invitaciones.ts`. Del segundo, la fecha de modificación prueba que se tocó, no que se revirtió (abajo) | Sí, con la nota de abajo |
+
+## `invitaciones.ts`: el conteo está después del bloqueo
+- **Lo leí completo.** El orden es:
+  1. `await tx.$executeRaw\`SELECT pg_advisory_xact_lock(…)\``;
+  2. `const usadas = await tx.tokenCuenta.count({ where: { tipo: "invitacion", creadoEn: { gte: desde } } })`;
+  3. existentes → `evaluarCupoDelLote` → `createMany` → relectura → tokens → `alGuardar`.
+
+  Es el orden de §D-C3, y el mismo que describí en la verificación de la implementación ("el conteo se lee después del bloqueo").
+- **Límite de lo que puedo afirmar:** no guardé una copia byte a byte del archivo de entonces. El archivo no está en ningún commit (es nuevo en 03c), así que `git status` no detecta un cambio de contenido, y el "`git status` limpio antes y después" del resumen no prueba la reversión. Lo que sí queda probado:
+  - el orden correcto, por lectura;
+  - que el caso nuevo pasa con el archivo actual y falla con el conteo antes del bloqueo (mi experimento, abajo);
+  - que las suites completas pasan.
+
+  **SHA-256 del archivo hoy, para las verificaciones siguientes:** `3c59b911f76532ece8c9b30d8e797f8e7020d82ce8e71a423167e1392e72003b`. El tester y la revisión final pueden compararlo.
+- **Nota de proceso, no bloquea:** alterar código de producción para simular un defecto conviene hacerlo sobre una copia, como hice abajo, y no sobre el archivo real. Así la reversión no depende de la palabra de quien lo hizo.
+
+## El caso nuevo: determinista y sensible al defecto
+"dos lotes lanzados a la vez quedan en serie: el segundo, formado detrás del bloqueo, ve el cupo que confirmó el primero (M-04)".
+
+- **Es determinista.** La llamada cuenta solo desde su ventana propia (`desde` = 2100-01-01) con `limite: 1`. El único token en esa ventana es el que la retenedora inserta con `creadoEn` explícito, bajo el bloqueo y después de comprobar con `pg_blocking_pids` que la llamada quedó formada detrás.
+  - Busqué en `backend/test` y `backend/src`: ninguna otra prueba ni código crea tokens de cuenta con fechas de 2100.
+  - Lo que otros archivos creen o borren en paralelo cae fuera de esa ventana.
+- **Falla con el defecto.** Lo comprobé sin tocar el repositorio:
+  - copié `invitaciones.ts` a `scratchpad/defecto/` en dos versiones: control, igual, e `invitaciones-defecto.ts`, con el `count` movido antes de `pg_advisory_xact_lock`;
+  - las ejecuté con una configuración de Vitest del scratchpad que redirige la importación `../src/adapters/db/invitaciones.js` de la prueba a la copia, y filtré por el título del caso;
+  - **control:** `Tests  1 passed | 15 skipped (16)`, código 0;
+  - **defecto:** `AssertionError: promise resolved "{ insertados: [ { …(2) } ], …(1) }" instead of rejecting` y `Tests  1 failed | 15 skipped (16)`, código 1.
+
+  Es el mismo resultado que declara el programador.
+- **El caso secuencial retitulado** ("dos lotes evaluados con márgenes independientes: …") ya no afirma lo que no prueba. Queda como está.
+- **La desviación** de la corrección anterior ahora está declarada.
+
+## Observación para la revisión final (no bloquea)
+Mientras existe, el token de 2100 también cuenta en la ventana de 24 h de los demás archivos (`creado_en >= ahora - 24 h` incluye fechas futuras): durante unos milisegundos, `usadas` global sube en 1. Las pruebas del cupo que leen `usadas` bajo el bloqueo no se ven afectadas, y la de "cuatro lotes simultáneos" del tester solo exige todo o nada. Se anota por si una prueba futura depende del conteo global.
+
+## Siguiente paso
+El tester puede hacer la ronda 2 de 03c.
+
+---
+
+# Revisión final — AUTH-03c — final
+Veredicto: **APROBADO.** Queda pendiente la comprobación humana en navegador, que va después de este veredicto y antes del commit de 03c.
+
+## Verificación propia
+2026-09-28, desde la raíz, con PA-01 comprobada antes del backend: regla `True / Inbound / Block / Public`, red `IZZI-F281` declarada de confianza y Docker encendido.
+
+- **build:** 0. Última línea: `✓ built in 617ms`.
+- **lint:** 0, con 3 × "All matched files use Prettier code style!" y `tsc` sin errores.
+- **test:**
+  - frontend: `Test Files  65 passed (65)` · `Tests  1007 passed (1007)`;
+  - backend, **2 corridas completas**: `Test Files  82 passed (82)` · `Tests  932 passed (932)` las dos.
+- **Prisma** (V-03, solo lectura sobre `campus_dev`):
+  - `validate` 0 y `format --check` 0;
+  - `migrate status`: "5 migrations found… Database schema is up to date!";
+  - `migrate diff --exit-code`: "No difference detected.", código 0.
+- **PA-07**, en las 2 corridas: `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `P2028` 2. Los dos `P2028` son los excluidos: `handlers/auth/index.ts:134` (`Sesion`) y `handlers/auth/cuentas.ts:106` (`TokenCuenta`). No hay ningún `Unhandled`. No se activa.
+- **PA-11:** sin contenedores de Testcontainers al terminar.
+- **V-01:** 64/64 contra la tabla de "AUTH-03c — Ronda 2".
+- **V-04:**
+  - 20 `enEspera=`;
+  - SQL etiquetado solo en `salud.ts`, `bloqueo-usuario.ts`, `enlaces-registro.ts` e `invitaciones.ts`, más el único `$queryRawUnsafe` de `cliente.ts`;
+  - 0 `console.` y 0 `estadoPago` en los archivos nuevos del backend;
+  - 0 `?? []`.
+- **V-05:**
+  - **Dentro de los paquetes** (base `32afeef`): vacía para cada ruta de "No se toca" de 03c (`handlers/auth/**`, `adapters/auth/**`, `adapters/db/{usuarios,tokens-cuenta,enlaces-registro,cliente,bloqueo-usuario,sesiones}.ts`, `middleware/**`, `notifier/**`, `queue/colas.ts`, `workers/correo-de-cuenta.ts`, `config/{auth,cola,correo,logger}.ts`, `core/eventos/**`, `app/**`, `services/**`, `features/auth/**`, `components/layout/**`, `components/estado-vacio.tsx`, `components/ui/{table,badge,button,input}.tsx`, `tokens.css`, `cuentas-view.tsx`, las 4 migraciones anteriores, los `package.json` e `infra/`).
+  - **Fuera de los paquetes:** los 7 archivos protegidos coinciden con **el último** SHA-256 de `aprobacion.md`: `AGENTS.md`, `ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`, `CLAUDE.md`, `README.md`, `programador.md` y `manager.md`.
+- **V-06:** `sesiones-y-cadena` fija la lista exacta con `POST /api/admin/maestros/lote`, y pasa. `RUTAS_PUBLICAS` no cambia.
+- **`invitaciones.ts`:** su SHA-256 es `3c59b911…2003b`, igual al que anoté. El `count` va después de `pg_advisory_xact_lock`.
+
+## Problemas que bloquean
+Ninguno.
+
+## 1. Diff contra el plan
+**Está lo de 03c, completo:**
+- **shared:** esquemas, `contarLineasConContenido` y `CUPO_DIARIO_INSUFICIENTE`.
+- **core:** `invitacion-masiva.ts` (analizador, `nombreProvisionalDe` según M-07 y M-12, `evaluarCupo`) y `correo/ritmo.ts`, con sus pruebas.
+- **Migración** del índice `(tipo, creado_en)`.
+- **adapters:** `invitaciones.ts` (bloqueo consultivo con `$executeRaw`, conteo, `createMany` con `skipDuplicates`, relectura, tokens y `alGuardar`) y `encolarVarios`, con `sql` obligatorio y un solo `insert`.
+- **Rutas:** `POST /admin/maestros/lote` con `protegido({ roles: ["admin"] })`. Todo el argon2 va antes de la transacción, con un solo hash inutilizable.
+- **Configuración:** `INVITACIONES_LIMITE_DIARIO` en `config/env.ts` (1 a 10,000, 80 por defecto), con su prueba y `backend/.env.example`.
+- **Worker:** el ritmo según M-06 y M-09, con el `finally` y sin `catch`.
+- **Frontend:** `textarea.tsx`, el panel de la masiva, el resultado y "Generar enlace" en `outline`.
+- **`DESIGN.md`** §7.3 y §7.15.
+
+**Solo eso:** no hay cambios fuera de "Cambios por capa" de 03c.
+- `infra/` no cambia: la variable tiene su valor por defecto.
+- `worker-correo-de-cuenta.integracion` conserva sus 12 casos de AUTH-02 y suma 4.
+
+**La migración** es exactamente §D-C2: un `CREATE INDEX "tokens_cuenta_tipo_creado_en_idx" ON "tokens_cuenta"("tipo", "creado_en")`. Es compatible hacia atrás, porque solo agrega un índice, y `migrate diff` queda limpio.
+
+## 3. R-10 (`*.ataque` reescritas en la ronda 0 de 03c)
+- **C-11, `sesiones-y-cadena`:** solo suma `"POST /api/admin/maestros/lote"` a la lista exacta y actualiza el título. El analizador por sangría no cambia. Conserva lo que protege: ninguna ruta crea administradores, y crean maestros solo las dos rutas del admin y `registro-maestro`.
+- **C-17, `clases-r1`:** pasa de 19 a 20 y suma `formulario-invitacion-masiva.tsx: 1` a la lista fija de archivos. El resto de la lista cerrada y V-13 (5 archivos) no cambian.
+
+Ninguna protección se debilita.
+
+## 4. Definición de terminado, reglas, estilo y diseño
+- **RF-04e cumple:**
+  - la lista acepta un nombre opcional por línea;
+  - el resultado reporta enviadas, ya existentes e inválidas;
+  - respeta el cupo diario (B-01 A: rechazo completo con `409 CUPO_DIARIO_INSUFICIENTE`).
+- **Autorización:** matriz completa por HTTP, en `invitacion-masiva.integracion` y en `invitacion-masiva-03c-r1`. Sin `estadoPago` ni ids en la respuesta.
+- **Consultas:**
+  - el cupo usa el índice nuevo; la búsqueda de existentes, el índice único de `email`; la relectura, la PK;
+  - la entrada se acota a 100 líneas;
+  - no hay N+1;
+  - todo va en una transacción, **incluido el encolado**.
+- **Reglas que no se rompen:**
+  - lo lento va por la cola: un trabajo por token, que hereda la política de la cola, y el correo sale solo por `notifier`;
+  - fechas en UTC;
+  - ningún correo de la lista en los logs (`logs-03c-r1`);
+  - nada de AWS;
+  - migración compatible;
+  - `.env.example` al día.
+- **Estilo de `CLAUDE.md`:** retornos tempranos, errores tipados en core, ningún `try/catch` en el handler, tipos inferidos de `shared/` y sin `?? []`.
+- **Diseño:**
+  - **§7.3:** documenta `textarea.tsx`, con el mismo foco (`focus-visible:border-accent`), `text-body`, altura por filas y `resize-y`, y la regla de un solo `primary` en una vista con dos paneles.
+  - **§7.15**, nueva, "Resumen de una acción por lote": `role="status"`, grupos con su conteo y sin grupos vacíos. El motivo va en la insignia `danger`.
+  - Lo comprobé en el código: **un solo `primary` en `/admin/maestros`** ("Enviar invitaciones") y **"Generar enlace" en `outline`**.
+  - `autoComplete="off"` y `spellCheck={false}` en la lista, que son datos de terceros.
+  - La ayuda del campo es su descripción accesible (T-14), y el contador va en `aria-live="polite"` sin `role="status"`.
+  - Textos en español de México; el estado nunca va solo con color.
+
+## 5. Observaciones del tester: decisiones
+| # | Decisión | Por qué y destino |
+|---|---|---|
+| (a) El ritmo no llega a actuar; un lote de 80 tarda unos 160 s, no 20 s | **Se corrigen los textos, no el código** | El mínimo de 250 ms es correcto y está probado. Lo que no es cierto es "unos 20 s" (R-06 y la Enmienda 2), porque el sondeo de pg-boss (2 s, un trabajo a la vez) marca el paso real. El texto de §9 de abajo ya lo dice. En `docs/ESTADO.md`, para DEPLOY, junto al pendiente de Resend: "si el volumen lo pide, ajustar `pollingIntervalSeconds` del consumidor o dar prioridad a las recuperaciones". Una recuperación puede esperar unos 2.7 min detrás de un lote de 80, muy por debajo de los 30 min de su enlace |
+| (b) El nombre de la respuesta no está normalizado; el guardado sí | **Se acepta** | Es cosmético: el HTML colapsa los espacios al pintar. Lo que se guarda y lo que ve el maestro al activar su cuenta están normalizados |
+| (c) Textos sin usar o repetidos en `features/admin/data.ts` y "1 invitaciones" en plural | **Pendiente, por el carril trivial** | "Hoy solo puedes enviar 1 invitaciones más" es un error de concordancia visible. Viene del texto literal del plan (§D-C1), así que no es un defecto del programador. Destino en `docs/ESTADO.md`: el próximo encargo que toque `features/admin` o el mensaje del cupo (ADMIN), antes de DEPLOY. Se corrige en `evaluarCupo` (singular con N = 1) y en su prueba unitaria, y se retiran `demasiadasLineas` y el `sinNombre` duplicado |
+| (d) Un U+202E en una línea no válida puede invertir la insignia en pantalla | **Pendiente, sin punto en la comprobación humana** | El texto es del propio admin y no afecta a nadie más. Reproducirlo a mano en el navegador no cabe en una comprobación de 10 minutos. La corrección es aislar el texto con `<bdi>` (o `dir="auto"`) en `resultado-invitacion-masiva.tsx`. Destino: ADMIN, en `docs/ESTADO.md` |
+| (e) La espera de 10 s de la precondición dentro de una transacción interactiva de 5 s | **Pendiente para un `chore` de pruebas** | En más de 20 corridas no ocurrió: es una fragilidad latente. Si ocurriera, saldría un `P2028` que PA-07 no excluye. Se corrige bajando el límite de la espera a menos de 5 s o pasando `timeout` a `$transaction`. Aplica a `invitacion-masiva.integracion` (`:316`) y conviene revisar el mismo patrón en `ayudas-concurrencia.ts`. Destino: CHORE-02 o el primer `chore` de pruebas, en `docs/ESTADO.md` |
+| (f) El token de 2100 suma 1 al conteo global mientras existe | **Se acepta y se anota junto a (e)** | Dura milisegundos. Hoy ninguna prueba depende del conteo global. Nota para quien escriba pruebas del cupo: leer `usadas` bajo el bloqueo o usar una ventana propia |
+
+## 6. Comprobación humana en navegador (hoja final)
+**Máximo 10 minutos y 7 puntos; solo lo que las pruebas no ven. La hace el humano. Ningún agente abre navegadores.**
+
+Hoy son 6 puntos. La hoja del plan sigue valiendo con lo implementado; solo le agrego los pasos de arranque y precisiones.
+
+**Arranque** (tres terminales de PowerShell; README, "Backend en local", pasos 6 y 8, y "Frontend en local", paso 3):
+1. `infra/`: `docker compose up -d` (PostgreSQL, MinIO y LiveKit).
+2. `backend/`: `npm run dev` (API en `127.0.0.1:3000`).
+3. `backend/`, en otra terminal: `npm run dev:worker`. Escribe los correos como HTML en `backend/tmp/correos/`, y nunca llama a Resend fuera de `production`.
+4. `frontend/`: `npm run dev` (SPA en `http://127.0.0.1:5173`).
+5. Entra como administrador en `/login` con `ADMIN_EMAIL` y `ADMIN_PASSWORD` de `backend/.env`.
+
+**Correos:** abre el más reciente con
+`Invoke-Item (Get-ChildItem backend\tmp\correos | Sort-Object LastWriteTime | Select-Object -Last 1).FullName`
+y sigue su enlace. Con el sondeo de pg-boss, cada correo tarda unos 2 s en aparecer.
+
+**Puntos:**
+- **H-1 · Cambio obligatorio sin la temporal** (el único punto que prueba en real la cookie de B-03: proxy de Vite, `Path` y `SameSite`).
+  1. En una ventana privada, crea en `/registro` una cuenta de estudiante de prueba (por ejemplo, `h1@pruebas.local`) y cierra sesión.
+  2. Como admin, en `/admin`, búscala por su correo, usa "Restablecer contraseña" y copia la temporal.
+  3. En la ventana privada, entra con la temporal: debe llevarte a `/cambiar-contrasena`, que pide **solo** "Contraseña nueva" y "Confirma la contraseña nueva".
+  4. Guarda. Debes llegar a la pantalla de inicio del estudiante sin volver al login.
+- **H-2 · Nombre al activar la invitación.** En `/admin`, invita a un maestro (por ejemplo, "Ana Lopez", `h2@pruebas.local`) y abre su correo. En `/establecer-contrasena` debe verse "Ana Lopez" en "Nombre completo". Corrígelo a "Ana López", elige la contraseña, entra con ella y comprueba que la barra superior dice "Ana López".
+- **H-3 · Enlace de registro.**
+  1. En `/admin/maestros`, genera un enlace, pulsa "Copiar enlace" y pégalo en una ventana privada.
+  2. Regístrate como maestro (`h3@pruebas.local`): debes llegar a la pantalla de inicio del maestro.
+  3. De vuelta en la lista, el enlace debe mostrar 1 registrado, con su nombre en "Ver registrados".
+  4. Revócalo y vuelve a abrir el mismo enlace en la ventana privada: debe decir que no es válido.
+- **H-4 · Invitación masiva.** En `/admin/maestros`, en "Invitar a varios maestros", pega:
+  ```
+  h4a@pruebas.local, Beto Ruiz
+  h4b@pruebas.local
+  h2@pruebas.local
+  no-es-un-correo
+  h4a@pruebas.local
+  ```
+  Envía. El resumen debe decir 2 enviadas, 1 que ya tenía cuenta y 2 no válidas, con sus motivos. En `backend/tmp/correos/` deben aparecer **solo dos** correos nuevos. El de `h4b` saluda con el nombre provisional "h4b".
+- **H-5 · 360 px.** Con las herramientas del navegador a 360 px de ancho, en `/admin/maestros`, la tabla de enlaces se desplaza dentro de su contenedor y la página no. La barra inferior muestra "Cuentas" y "Maestros", y el panel de la masiva se lee completo.
+- **H-6 · Gestor de contraseñas**, en **un solo navegador** (el de uso diario):
+  - sugiere una contraseña nueva en `/registro-maestro` y en `/cambiar-contrasena`;
+  - no rellena el formulario de invitación de `/admin` ni la lista de `/admin/maestros`.
+
+Lo demás queda "no verificado por decisión del humano, cubierto por pruebas automáticas". El contraste de las insignias lo cubre `tokens.test.ts`.
+
+**Datos de prueba:** las cuentas `h*@pruebas.local` quedan en `campus_dev`. Son ficticias y se pueden quedar (`docs/ESTADO.md` §4).
+
+## 7. Documentos que el orquestador aplica al cerrar 03c
+Texto final, ajustado a lo implementado.
+
+1. **`ARCHITECTURE.md` §6, viñeta "Maestros"** (hoy en las líneas 187 a 191). Se reemplaza entera:
+   > - **Maestros:** no hay registro público abierto de maestros (D-04). Se dan de alta de tres formas:
+   >   1. **Invitación individual** (`POST /admin/maestros`).
+   >   2. **Invitación masiva** (`POST /admin/maestros/lote`): el admin pega hasta 100 líneas con un correo y, opcionalmente, un nombre. Una línea sin nombre usa un nombre provisional (la parte local del correo, el correo completo o "Maestro invitado"). El lote se rechaza completo (`409 CUPO_DIARIO_INSUFICIENTE`) si sus correos nuevos rebasan el cupo `INVITACIONES_LIMITE_DIARIO` (80 por defecto), que cuenta las invitaciones creadas en las últimas 24 horas. Las cuentas, sus tokens y un trabajo de correo por maestro se crean en una sola transacción, bajo un bloqueo consultivo que deja en serie dos lotes simultáneos.
+   >   3. **Enlace de registro** que genera el admin (`POST /admin/enlaces-registro`): token aleatorio de 256 bits, mostrado una sola vez y guardado solo como SHA-256 (`enlaces_registro`). Vigencia de 1 a 30 días, 7 por defecto; sin límite de usos; revocable. Con él, `POST /auth/registro-maestro` crea una cuenta de maestro con la sesión iniciada y guarda en `usuarios.enlace_registro_id` el enlace usado; el admin ve quién se registró con cada uno. El registro toma `FOR NO KEY UPDATE` sobre la fila del enlace y la revocación fija su hora después de obtener ese mismo bloqueo, así que ninguno confirma después de que la revocación respondió y ningún registrado queda con fecha posterior a la revocación.
+   >
+   >   En las formas 1 y 2, la cuenta nace con una contraseña inutilizable y el maestro recibe por correo un enlace de un solo uso (72 horas) para establecer su contraseña. Al abrirlo ve su nombre (`POST /auth/invitacion`) y puede corregirlo antes de guardar.
+2. **`ARCHITECTURE.md` §7, fila `admin`** (hoy en la línea 239). Se agrega `POST /admin/maestros/lote` después de la invitación individual:
+   > | `admin` | usuarios (`POST /admin/maestros` (invitación), `POST /admin/maestros/lote` (invitación masiva), `GET/POST /admin/enlaces-registro`, `POST /admin/enlaces-registro/{id}/revocar`, `GET /admin/enlaces-registro/{id}/registrados`, `POST /admin/usuarios/buscar`, `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`, baja), clases, `PUT /admin/alumnos/estado-pago` (por lote), `PUT /admin/alumnos/{id}/acceso`, anuncios, `GET/PUT /admin/configuracion/avisos-correo`, KPIs, analytics |
+3. **`ARCHITECTURE.md` §8, fila `CORREO_DE_CUENTA`** (hoy en la línea 257). Se agrega al final de su descripción:
+   > La invitación masiva encola un trabajo por maestro con un solo `insert` dentro de su transacción.
+4. **`ARCHITECTURE.md` §9, "Reglas":**
+   - en la viñeta "Plan gratuito: 3,000 correos al mes." (hoy en la línea 290), después de "al mes", agregar ", 100 al día (por día calendario UTC) y 10 peticiones por segundo por equipo";
+   - viñeta nueva, al final (corregida según (a)):
+     > - El worker deja al menos 250 ms entre dos intentos de envío a Resend: antes de cada trabajo espera lo que falte desde el último intento que llegó al notifier, también si lanzó. En la práctica, el sondeo de pg-boss (cada 2 s, un trabajo a la vez) marca el paso, así que un lote de 80 invitaciones tarda unos 2.7 minutos en salir. La invitación masiva respeta además un cupo de 80 invitaciones en una ventana móvil de 24 horas (`INVITACIONES_LIMITE_DIARIO`), más estricta que el día UTC de Resend, que deja margen a las recuperaciones.
+5. **`ARCHITECTURE.md` §14:**
+   - la fila `tokens_cuenta` (hoy en la línea 375) se reemplaza por:
+     > | `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · índice `(tipo, creado_en)` (cupo diario de invitaciones) · FK con `ON DELETE CASCADE` |
+   - en "Reglas de acceso a datos" (hoy desde la línea 395), una viñeta nueva después de "Protocolo de bloqueo por usuario":
+     > - **Altas en lote** (invitación masiva): una transacción con el bloqueo consultivo de invitaciones (`pg_advisory_xact_lock`, tomado con `$executeRaw`) y, después de él, el conteo del cupo; `createMany` con `skipDuplicates`, la relectura por id de lo insertado y un solo `insert` de pg-boss con la conexión de la transacción. Ninguna consulta por línea y ningún `P2002` atrapado.
+6. **`ARCHITECTURE.md` §18, "Requisitos previos a abrir la plataforma"**. Dos viñetas nuevas al final:
+   > - El límite de tasa del borde cubre también `POST /auth/registro-maestro` y `POST /auth/invitacion` (AUTH-03).
+   > - Desplegar el backend antes que el frontend cuando un encargo cambia un cuerpo de petición (AUTH-03: `cambiar-contrasena` y `establecer-contrasena`). Para el volumen de correo en producción, ver el pendiente de DEPLOY en `docs/ESTADO.md` ("Evaluar plan de pago de Resend") (AUTH-03).
+7. **ESSENTIALS, "Autenticación"** (hoy en la línea 43). Desde "Maestros:" hasta "Admin:", se reemplaza por (retira "Decidido para AUTH-03: invitación masiva."):
+   > Maestros: los da de alta el admin, por invitación individual o masiva (enlace de un solo uso por correo, 72 h; al activarlo, el maestro ve y puede corregir su nombre), o se registran con un enlace de registro que genera el admin (token aleatorio mostrado una sola vez y guardado solo como hash; vigencia de 1 a 30 días, 7 por defecto; revocable; el admin ve quién se registró con cada enlace; D-04).
+
+   `Admin: npm run seed:admin, cuenta única, sin endpoint.` se conserva al final.
+8. **ESSENTIALS, "Asíncrono"** (hoy en la línea 77). "La invitación masiva (AUTH-03) respeta los límites diarios de Resend." se reemplaza por:
+   > La invitación masiva se rechaza completa si rebasa el cupo `INVITACIONES_LIMITE_DIARIO` (80 invitaciones en las últimas 24 h; Resend gratuito: 100 correos por día UTC) y encola un trabajo por maestro en su misma transacción; el worker deja al menos 250 ms entre dos intentos de envío.
+9. **`CLAUDE.md`:**
+   - fila `admin` (hoy en la línea 64): "enlaces de registro de maestros (`/admin/maestros`)" pasa a "enlaces de registro de maestros e invitación masiva (`/admin/maestros`)";
+   - `components/ui/` (hoy en la línea 69): después de "`table.tsx` y `badge.tsx` (sus variantes son internas y no se exportan)", agregar ", y `textarea.tsx`".
+10. **`README.md` raíz, §7** (hoy en la línea 228):
+    - backend: "82 archivos con 932 pruebas (hasta AUTH-03: …, los enlaces de registro de maestros y la invitación masiva)";
+    - frontend: "65 archivos con 1007 pruebas";
+    - adversarias: 32 archivos `*.ataque` en el backend y 32 en el frontend. El número de pruebas adversarias lo recuenta el orquestador con `vitest run --reporter=json`, como en 03a y 03b.
+
+Después, el orquestador anota el SHA-256 nuevo de cada archivo en `aprobacion.md` (M-14).
+
+## 8. Cierre del encargo AUTH-03: pendientes y documentos
+**Para `docs/ESTADO.md`:**
+- **Sección 1:** AUTH-03 pasa a encargos completados (03a `d8cb198`, 03b `32afeef`, 03c con su hash), con la carpeta y el PR que decida el humano. Se retira de la sección 2 y de la 2b (la entrada "decidido, por empezar").
+- **Sección 3, se retira:** la fila de MF-05 de AUTH-02b ("la contraseña del login y del registro queda en la caché de mutaciones…"), resuelta en 03a.
+- **Sección 3, filas nuevas:**
+  - (a) ritmo real marcado por el sondeo de 2 s; ajustar `pollingIntervalSeconds` o la prioridad de las recuperaciones si el volumen lo pide → DEPLOY;
+  - (c) "1 invitaciones" en singular, y `demasiadasLineas` y `sinNombre` sobrantes en `features/admin/data.ts` → ADMIN, por el carril trivial, antes de DEPLOY;
+  - (d) aislar con `<bdi>` el texto de una línea no válida en `resultado-invitacion-masiva.tsx` → ADMIN;
+  - (e) y (f): la espera de la precondición (10 s) dentro de transacciones interactivas de 5 s en `invitacion-masiva.integracion` (y revisar el mismo patrón en `ayudas-concurrencia.ts`), más la nota del token de 2100 → CHORE-02 o el primer `chore` de pruebas.
+- **Siguen vigentes, sin cambios:** M-17, M-18, M-20, M-21 y M-22, y "Evaluar plan de pago de Resend" (DEPLOY).
+- **Comprobación humana:** su resultado va en `docs/trabajo/AUTH-03-ajustes-de-cuentas/comprobacion-humano.md`. Un "no pasa" se trata como marca el plan (paso 38).
+- **Nota del programador:** se actualiza con la sección 9 de abajo.
+
+**Otros documentos:** no hay otros que actualizar.
+- `docs/PRD.md` ya describe RF-04b, 04d, 04e y 04f como quedaron.
+- `DESIGN.md` quedó al día en cada subentrega (§7.1, §7.3, §7.4, §7.8 a §7.10 y §7.13 a §7.15, todo como propuesta).
+- `infra/` no cambia.
+- R-06 del plan queda desactualizado ("unos 20 s"). No hace falta enmendar el plan al cierre: esta revisión lo corrige y el texto de §9 queda bien.
+
+## 9. Evaluación del programador en 03c (para la nota de `ESTADO.md`)
+| | 03a | 03b | 03c |
+|---|---|---|---|
+| Rondas del tester | 0, 1 (ROTO), 2 (ROTO), 3 (RESISTE) | 0, 1 (ROTO), 2 (ROTO), 3 (RESISTE) | 0, 1 (ROTO), 2 (RESISTE) |
+| Rondas extra (las que siguen a la 1) | 2 | 2 | **1** |
+| Hallazgos del tester | T-01 y T-02 (proceso, medios) | T-05 (alta) y T-06 a T-12: T-06 y T-12 de proceso, T-07 a T-11 de producción | T-13 (media, prueba normal intermitente), T-14 y T-15 (bajos, de producción: accesibilidad y texto) |
+| Resúmenes devueltos por el manager | — (la regla no existía) | — | **2 de 4 entregas** |
+
+**Los dos resúmenes devueltos en 03c:**
+- **Implementación:** faltaban las últimas líneas literales, y la viñeta "nada encolado" en el 409 estaba sin cubrir ("por construcción").
+- **Corrección de la ronda 1:** los dos casos de la carrera del cupo se volvieron deterministas quitándoles lo que probaban (margen 0), con una desviación no declarada.
+
+Las otras dos entregas se aceptaron a la primera.
+
+**Lectura:**
+- La verificación del resumen detuvo antes del tester los dos defectos de cobertura. El segundo habría costado una ronda más.
+- Los hallazgos del tester en 03c fueron menores que en 03b.
+- Sigue el patrón de fondo: cobertura que se da por buena sin demostrarla. Esta vez se detectó antes, y el programador lo corrigió bien cuando se le devolvió: el caso de la ventana propia y la simulación del defecto.
+
+**Nota de proceso:** para simular el defecto, el programador alteró y revirtió `invitaciones.ts`, el archivo real de producción. Conviene fijar que esas simulaciones se hagan sobre una copia, como la que usé en la verificación, para que la reversión no dependa de su palabra.
+
+**Propuesta de texto para la nota de `ESTADO.md` (sección 6):**
+> AUTH-03c, con los resúmenes verificables: 2 de 4 resúmenes devueltos por el manager (líneas literales y una viñeta sin cubrir; después, dos pruebas vueltas deterministas quitándoles la propiedad, sin declararlo). Una sola ronda extra del tester, frente a dos en 03a y en 03b; hallazgos T-13 (medio, prueba normal intermitente) y T-14 y T-15 (bajos). La verificación previa detuvo los dos problemas de cobertura antes del tester. Sigue el patrón de dar cobertura por buena sin demostrarla, ahora detectado antes. Recomendación para la revisión del modelo después de CLASES: mantener la verificación del resumen; exigir que toda simulación de un defecto se haga sobre una copia, fuera del código de producción.
+
+## 10. Contenido del commit de 03c
+Con rutas explícitas, no `git add -A`. Son las 43 rutas de los paquetes que muestra `git status`, más los documentos:
+
+```
+git add backend/.env.example backend/prisma/schema.prisma backend/prisma/migrations/20260929015654_tokens_cuenta_tipo_creado_en/
+git add backend/src/adapters/README.md backend/src/adapters/db/index.ts backend/src/adapters/db/invitaciones.ts backend/src/adapters/queue/index.ts backend/src/app.ts backend/src/config/env.ts backend/src/config/env.test.ts backend/src/core/auth/invitacion-masiva.ts backend/src/core/auth/invitacion-masiva.test.ts backend/src/core/correo/ritmo.ts backend/src/core/correo/ritmo.test.ts backend/src/handlers/README.md backend/src/handlers/admin.ts backend/src/workers/README.md backend/src/workers/index.ts backend/src/workers/ritmo-03c-r1.ataque.test.ts
+git add backend/test/bloqueo-usuario.integracion.test.ts backend/test/cola.integracion.test.ts backend/test/invitacion-masiva.integracion.test.ts backend/test/invitacion-masiva-03c-r1.ataque.test.ts backend/test/invitacion-masiva-03c-r2.ataque.test.ts backend/test/logs-03c-r1.ataque.test.ts backend/test/sesiones-y-cadena.ataque.test.ts backend/test/worker-03c-r1.ataque.test.ts backend/test/worker-correo-de-cuenta.integracion.test.ts
+git add frontend/src/components/ui/textarea.tsx frontend/src/components/ui/textarea.test.tsx frontend/src/features/admin/components/formulario-generar-enlace.tsx frontend/src/features/admin/components/formulario-invitacion-masiva.tsx frontend/src/features/admin/components/resultado-invitacion-masiva.tsx frontend/src/features/admin/data.ts frontend/src/features/admin/hooks.ts frontend/src/features/admin/lib.ts frontend/src/features/admin/types.ts frontend/src/features/admin/maestros-view.tsx frontend/src/features/admin/maestros-view.test.tsx frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx frontend/src/styles/clases-r1.ataque.test.ts
+git add shared/src/cuentas.ts shared/src/index.ts
+git add AGENTS.md .claude/agents/manager.md .claude/agents/programador.md CLAUDE.md README.md docs/ARCHITECTURE.md docs/ARCHITECTURE-ESSENTIALS.md docs/DESIGN.md docs/ESTADO.md docs/trabajo/AUTH-03-ajustes-de-cuentas/
+```
+
+- **Qué incluye:** las 7 `*.ataque` nuevas sin rastrear y la carpeta de la migración. `AGENTS.md` y los dos `.claude/agents/*.md` cambiaron antes de 03c (resúmenes verificables) y no están en `32afeef`, así que entran en este commit.
+- **Qué no incluye:** nada del scratchpad, `backend/tmp/` ni el cliente generado de Prisma.
+- **Después del commit:** `git status --porcelain` debe quedar vacío.
+
+## Para el humano
+- La **comprobación en navegador** (sección 6) va antes del commit de 03c.
+- Las decisiones sobre (a) a (f) son del manager y van como pendientes con destino. Ninguna exige una decisión tuya, salvo que prefieras corregir ya (c), "1 invitaciones", por el carril trivial antes del commit. Es un cambio de dos líneas en `evaluarCupo` y su prueba unitaria.
+
+---
+
+# Verificación del resumen — AUTH-03c — carril trivial
+Resultado: **ACEPTADO.**
+- El cambio es exactamente el pedido.
+- El error "Vitest failed to find the runner" de `npm run test` desde la raíz **no se reproduce**: lo corrí completo y pasó.
+- Encontré una intermitencia en una prueba normal de 03a (`bloqueo-usuario.integracion`, A3), ajena a este cambio. No bloquea el commit y va como pendiente.
+
+## Mi corrida y el resumen, lado a lado
+2026-09-29, con PA-01 comprobada antes del backend: regla `True / Inbound / Block / Public`, red `IZZI-F281` declarada de confianza y Docker encendido. En los puertos 3000 y 5173 no había nada escuchando, y no toqué ningún proceso ajeno.
+
+| Dato | Resumen | Mi corrida | ¿Coincide? |
+|---|---|---|---|
+| `npm run build`, última línea | `✓ built in 2.59s` | `✓ built in 1.60s`, código 0 | Sí (solo cambia el tiempo) |
+| `npm run lint` | código 0 | código 0; 3 × "All matched files use Prettier code style!" | Sí |
+| backend, por paquete | `82 passed (82)` · `933 passed (933)` | 1.ª corrida (`npm run test --workspace backend`): `1 failed \| 81 passed (82)` · `1 failed \| 932 passed (933)`. Falló A3 de `bloqueo-usuario.integracion` (abajo) | **No**, por una intermitencia ajena al cambio |
+| backend, desde la raíz | falló 3 de 3 con "failed to find the runner" | `npm run test` desde la raíz, completo: backend `Test Files  82 passed (82)` · `Tests  933 passed (933)` | Coincide con la cifra del programador. **El error no se reproduce** |
+| frontend | `65 passed (65)` · `1007 passed (1007)` | por paquete y desde la raíz: `Test Files  65 passed (65)` · `Tests  1007 passed (1007)` las dos veces | Sí |
+| `invitacion-masiva.test.ts` | 26 casos | 26 `it(` | Sí |
+| V-01 | 64/64 | 64/64 contra la tabla de "AUTH-03c — Ronda 2" | Sí |
+| PA-07 | 2 `P2028` (los excluidos) | en las 2 corridas del backend: `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `P2028` 2 (`handlers/auth/index.ts:134` y `handlers/auth/cuentas.ts:106`); 0 `Unhandled` | Sí |
+| Alcance | solo `invitacion-masiva.ts` y su prueba | desde mi revisión final de 03c solo cambiaron esos dos archivos | Sí |
+
+## El cambio: exactamente el pedido
+- **El código:** `evaluarCupo` calcula `const sustantivo = restantes === 1 ? "invitación" : "invitaciones"`, un solo ternario sin anidar, y el resto del texto no cambia.
+  - Con `restantes === 1`: "Hoy solo puedes enviar 1 invitación más. Quita líneas de la lista o inténtalo mañana."
+  - Con 0 y con cualquier otro valor: "… N invitaciones más …".
+- **La cobertura:**
+  - el caso nuevo, "restantes == 1 → singular exacto", afirma el mensaje completo;
+  - el plural con 0 lo fija con el texto exacto `invitacion-masiva-03c-r1.ataque.test.ts:440`, que sigue en verde y con el mismo hash;
+  - el plural con N ≥ 2 queda cubierto por lectura: los casos existentes usan `toContain("10")` y no afirman la palabra. Como detalle, se puede agregar un caso con N = 2 cuando alguien vuelva a tocar ese archivo; no hace falta ahora.
+- Ninguna `*.ataque` cambió.
+
+## `npm run test` desde la raíz
+**No se reproduce.** Lo corrí una vez, completo, desde la raíz:
+- backend `82 passed` · `933 passed`;
+- frontend `65 passed` · `1007 passed`;
+- código 0, sin ningún "failed to find the runner" ni "reading 'config'".
+
+El coordinador también corrió el frontend desde la raíz sin el error.
+
+- **Diagnóstico probable:** algo del entorno del programador en ese momento, como otra corrida de Vitest en paralelo, la carga del equipo o una caché de Vite a medio escribir. No es una falla del repositorio.
+- **No bloquea el commit.** Si vuelve a aparecer, conviene guardar la salida completa y anotarlo para un `chore` de herramientas.
+
+## Hallazgo nuevo, ajeno al cambio: A3 de `bloqueo-usuario.integracion` es intermitente
+- **La falla:** en mi primera corrida del backend, `A3: cambiar-contrasena (con su cookie) y luego el restablecimiento del admin: 204 y 200; debe_cambiar_contrasena termina en true` falló con `expected 401 to be 204`. El cambio de contraseña se resolvió **después** del restablecimiento del admin: vio `credencial_cambiada` y respondió `401 SESION_INVALIDA`. Es un orden invertido.
+- **Lo que pasó después:**
+  - en la corrida siguiente desde la raíz, pasó;
+  - el archivo solo, 3 veces seguidas: `21 passed (21)` las tres;
+  - en mis 9 corridas completas anteriores de 03c también había pasado.
+- **Causa probable:** `conFilaRetenida` da por "formada" la primera operación cuando **cualquier** proceso queda bloqueado detrás de la transacción retenedora (`pg_blocking_pids`, recursivo). Con otros archivos corriendo en paralelo, un bloqueo ajeno o transitorio puede contarse como el del cambio de contraseña. Si eso pasa, el restablecimiento se lanza antes de que el cambio llegue a la fila; el cambio todavía está en su argon2 y pierde el orden.
+- **Qué no es:**
+  - no es un defecto de producción: con cualquiera de los dos órdenes, el resultado del sistema es correcto (en este orden, el cambio no escribe y responde 401);
+  - no lo causa este cambio: A3 no toca `evaluarCupo`.
+- **Destino:** `docs/ESTADO.md`, junto a (e) y (f) de la revisión final de 03c, para CHORE-02 o el primer `chore` de pruebas. Qué se espera: que A3, y cualquier otro caso que dependa del orden de `conFilaRetenida`, compruebe que el proceso bloqueado es **el de su operación** y no cualquiera, o que su aserción no dependa del orden si la retención no lo puede garantizar.
+- **No bloquea el commit de 03c:** es una prueba normal de 03a, pasa en la mayoría de las corridas y no oculta ningún defecto. Si el humano prefiere cerrar AUTH-03 sin ninguna intermitencia conocida, se corrige antes del commit por el carril trivial (solo la prueba y la ayuda).
+
+## Siguiente paso
+El commit de 03c puede seguir. El bloque de `git add` de la revisión final ya incluye `backend/src/core/auth/invitacion-masiva.ts` y su prueba.

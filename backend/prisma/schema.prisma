@@ -95,6 +95,8 @@ model TokenCuenta {
   usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
+  // AUTH-03c: cupo diario de invitaciones (ventana móvil de 24 h sobre tipo = 'invitacion', §D-C2).
+  @@index([tipo, creadoEn])
   @@map("tokens_cuenta")
 }
 

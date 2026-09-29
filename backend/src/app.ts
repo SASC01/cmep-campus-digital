@@ -48,7 +48,10 @@ export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstan
   await app.register(cuentasHandler, { prefix: "/api/auth" })
   await app.register(registroMaestroHandler, { prefix: "/api/auth", env })
   await app.register(usuariosHandler, { prefix: "/api" })
-  await app.register(adminHandler, { prefix: "/api/admin" })
+  await app.register(adminHandler, {
+    prefix: "/api/admin",
+    limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO,
+  })
 
   app.addHook("onClose", async () => {
     await detenerCola()

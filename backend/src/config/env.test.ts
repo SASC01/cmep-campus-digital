@@ -20,6 +20,7 @@ describe("validarEnv", () => {
       LOG_LEVEL: "info",
       DATABASE_URL: urlDePrueba,
       JWT_SECRET: secretoDePrueba,
+      INVITACIONES_LIMITE_DIARIO: 80,
     })
   })
 
@@ -149,6 +150,35 @@ describe("validarEnv", () => {
     })
 
     expect(resultado.ok).toBe(true)
+  })
+
+  it("INVITACIONES_LIMITE_DIARIO: por defecto 80", () => {
+    const resultado = validarEnv(minimo)
+
+    expect(resultado.ok).toBe(true)
+    if (!resultado.ok) return
+    expect(resultado.env.INVITACIONES_LIMITE_DIARIO).toBe(80)
+  })
+
+  it("INVITACIONES_LIMITE_DIARIO: acepta 1 y 10000, y convierte el texto a número", () => {
+    const minimoResultado = validarEnv({ ...minimo, INVITACIONES_LIMITE_DIARIO: "1" })
+    expect(minimoResultado.ok).toBe(true)
+    if (minimoResultado.ok) expect(minimoResultado.env.INVITACIONES_LIMITE_DIARIO).toBe(1)
+
+    const maximoResultado = validarEnv({ ...minimo, INVITACIONES_LIMITE_DIARIO: "10000" })
+    expect(maximoResultado.ok).toBe(true)
+    if (maximoResultado.ok) expect(maximoResultado.env.INVITACIONES_LIMITE_DIARIO).toBe(10_000)
+  })
+
+  it("INVITACIONES_LIMITE_DIARIO: rechaza 0, 10001 y un valor no entero", () => {
+    for (const valor of ["0", "10001", "1.5"]) {
+      const resultado = validarEnv({ ...minimo, INVITACIONES_LIMITE_DIARIO: valor })
+      expect(resultado.ok).toBe(false)
+      if (resultado.ok) continue
+      expect(resultado.errores).toContain(
+        "INVITACIONES_LIMITE_DIARIO: debe ser un entero entre 1 y 10000",
+      )
+    }
   })
 
   it("acepta en production un JWT_SECRET propio de 32 caracteres o más", () => {

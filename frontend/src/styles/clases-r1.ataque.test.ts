@@ -72,14 +72,21 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // protegiendo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número
   // de botones con espera cambie solo con el plan (un botón de más o de menos, o un envoltorio que
   // reparta enEspera, vuelve a poner la prueba en rojo; R-16).
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 19 enEspera", () => {
+  // AUTH-03c ronda 0 (C-17, §D-C9): de 19 a 20 enEspera=. Se suma "Enviar invitaciones", una
+  // aparición en features/admin/components/formulario-invitacion-masiva.tsx (mutación), a la lista
+  // fija de archivos. Ningún otro botón nuevo de 03c lo lleva: ResultadoInvitacionMasiva no tiene
+  // botones y "Generar enlace" solo pasa a outline. El resto de la lista, "Sí, revocar" y "Cargar más
+  // enlaces" (2, en features/admin/components/ con al menos 1 en tabla-enlaces.tsx), no cambia. Sigue
+  // protegiendo lo mismo que C-15: ningún `disabled` en JSX, aria-busy y aria-disabled solo en
+  // Button, y que el número y el lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 20 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(19)
+    expect(usos).toHaveLength(20)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -105,6 +112,8 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/admin/components/formulario-generar-enlace.tsx": 1,
       "/src/features/admin/components/enlace-nuevo.tsx": 1,
       "/src/features/admin/components/registrados-del-enlace.tsx": 1,
+      // C-17 (AUTH-03c): "Enviar invitaciones".
+      "/src/features/admin/components/formulario-invitacion-masiva.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

@@ -3,11 +3,13 @@ import {
   contrasenaTemporalRespuestaSchema,
   crearEnlaceRegistroRespuestaSchema,
   enlaceRegistroRespuestaSchema,
+  invitacionMasivaRespuestaSchema,
   listaEnlacesRegistroRespuestaSchema,
   listaRegistradosRespuestaSchema,
   usuarioAdminSchema,
   type BuscarUsuario,
   type CrearEnlaceRegistro,
+  type InvitacionMasiva,
   type InvitarMaestro,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -116,6 +118,18 @@ export const useRestablecerContrasena = () =>
         schema: contrasenaTemporalRespuestaSchema,
       }),
     gcTime: 0,
+  })
+
+// AUTH-03c, §D-C6: invitación masiva. Sin datos sensibles y sin invalidar ninguna consulta: la
+// masiva no cambia los enlaces de registro.
+export const useInvitarEnLote = () =>
+  useMutation({
+    mutationFn: (datos: InvitacionMasiva) =>
+      api("/api/admin/maestros/lote", {
+        method: "POST",
+        body: datos,
+        schema: invitacionMasivaRespuestaSchema,
+      }),
   })
 
 // DEC-10. No revoca sesiones (S-06): el correo no es la credencial.

@@ -51,6 +51,7 @@ interface Api {
   generar?: () => Response | Promise<Response>
   revocar?: () => Response
   registrados?: () => Response | Promise<Response>
+  lote?: () => Response | Promise<Response>
 }
 
 const stubApi = (api: Api) => {
@@ -78,6 +79,11 @@ const stubApi = (api: Api) => {
     if (ruta.includes("/registrados")) {
       return Promise.resolve(
         api.registrados?.() ?? respuestaJson(200, { registrados: [], siguienteCursor: null }),
+      )
+    }
+    if (ruta === "/api/admin/maestros/lote" && metodo === "POST") {
+      return Promise.resolve(
+        api.lote?.() ?? respuestaJson(200, { enviadas: [], yaExistentes: [], invalidas: [] }),
       )
     }
     return Promise.resolve(errorJson(500, "ERROR_INTERNO"))
@@ -454,5 +460,163 @@ describe("MaestrosView", () => {
     expect(screen.queryByText("Aún no has generado enlaces de registro")).not.toBeInTheDocument()
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
     cuarto.unmount()
+  })
+
+  // AUTH-03c, §D-C6: invitación masiva ("Pruebas requeridas" 03c).
+  describe("invitación masiva", () => {
+    const escribirLista = (texto: string) =>
+      fireEvent.change(screen.getByLabelText("Lista de maestros"), { target: { value: texto } })
+
+    it("el contador de líneas cambia al escribir", async () => {
+      stubApi({})
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+      expect(screen.getByText("0 de 100 líneas")).toBeInTheDocument()
+
+      escribirLista("ana@colegio.mx\nluis@colegio.mx")
+
+      expect(await screen.findByText("2 de 100 líneas")).toBeInTheDocument()
+    })
+
+    it("más de 100 líneas: ErrorDeCampo y ninguna petición", async () => {
+      const fetchMock = stubApi({})
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+
+      const lista = Array.from({ length: 101 }, (_, i) => `maestro${String(i)}@colegio.mx`).join(
+        "\n",
+      )
+      escribirLista(lista)
+      fireEvent.click(screen.getByRole("button", { name: "Enviar invitaciones" }))
+
+      expect(await screen.findByLabelText("Lista de maestros")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      )
+      expect(
+        fetchMock.mock.calls.some(
+          ([entrada, init]) =>
+            String(entrada) === "/api/admin/maestros/lote" && init?.method === "POST",
+        ),
+      ).toBe(false)
+    })
+
+    it("el campo de la lista usa autoComplete=off", async () => {
+      stubApi({})
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+      expect(screen.getByLabelText("Lista de maestros")).toHaveAttribute("autocomplete", "off")
+    })
+
+    it("'Enviar invitaciones' en espera mientras la petición está en vuelo", async () => {
+      const pendiente = diferida()
+      stubApi({ lote: () => pendiente.promesa })
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+      escribirLista("ana@colegio.mx")
+      const enviar = screen.getByRole("button", { name: "Enviar invitaciones" })
+
+      fireEvent.click(enviar)
+
+      await waitFor(() => expect(enviar).toHaveAttribute("aria-busy", "true"))
+
+      pendiente.resolver(
+        respuestaJson(200, {
+          enviadas: [{ email: "ana@colegio.mx", nombre: null }],
+          yaExistentes: [],
+          invalidas: [],
+        }),
+      )
+      await waitFor(() => expect(enviar).not.toHaveAttribute("aria-busy", "true"))
+    })
+
+    it("el resultado muestra los tres grupos y ninguno vacío", async () => {
+      stubApi({
+        lote: () =>
+          respuestaJson(200, {
+            enviadas: [{ email: "ana@colegio.mx", nombre: "Ana López" }],
+            yaExistentes: [{ linea: 2, email: "existente@colegio.mx" }],
+            invalidas: [{ linea: 3, texto: "no-es-un-correo", motivo: "correo_invalido" }],
+          }),
+      })
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+      escribirLista("ana@colegio.mx, Ana López\nexistente@colegio.mx\nno-es-un-correo")
+
+      fireEvent.click(screen.getByRole("button", { name: "Enviar invitaciones" }))
+
+      expect(
+        await screen.findByText("Invitaciones enviadas: 1 · Ya tenían cuenta: 1 · No válidas: 1"),
+      ).toBeInTheDocument()
+      expect(screen.getByText(/Invitaciones enviadas \(1\)/)).toBeInTheDocument()
+      expect(screen.getByText(/Ya tenían cuenta \(1\)/)).toBeInTheDocument()
+      expect(screen.getByText(/No válidas \(1\)/)).toBeInTheDocument()
+      expect(screen.getByText("ana@colegio.mx — Ana López")).toBeInTheDocument()
+      expect(screen.getByText("Línea 2 · existente@colegio.mx")).toBeInTheDocument()
+      // T-15 (ronda 1, AUTH-03c): el separador va antes del motivo, así se lee "Línea N · texto ·
+      // motivo" (§D-C6) y no "textoMotivo" pegados.
+      const invalida = screen.getByText("Correo no válido").closest("li")
+      if (!invalida) throw new Error("la línea inválida no tiene contenedor")
+      expect(invalida).toHaveTextContent("Línea 3 · no-es-un-correo · Correo no válido")
+    })
+
+    it("un grupo vacío no se muestra", async () => {
+      stubApi({
+        lote: () =>
+          respuestaJson(200, {
+            enviadas: [{ email: "ana@colegio.mx", nombre: null }],
+            yaExistentes: [],
+            invalidas: [],
+          }),
+      })
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+      escribirLista("ana@colegio.mx")
+
+      fireEvent.click(screen.getByRole("button", { name: "Enviar invitaciones" }))
+
+      expect(
+        await screen.findByText(
+          "ana@colegio.mx — Sin nombre: podrá escribirlo al activar su cuenta.",
+        ),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole("heading", { name: /Ya tenían cuenta/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole("heading", { name: /No válidas/ })).not.toBeInTheDocument()
+    })
+
+    it("CUPO_DIARIO_INSUFICIENTE muestra el mensaje del servidor", async () => {
+      stubApi({
+        lote: () =>
+          respuestaJson(409, {
+            error: {
+              codigo: "CUPO_DIARIO_INSUFICIENTE",
+              mensaje:
+                "Hoy solo puedes enviar 3 invitaciones más. Quita líneas de la lista o inténtalo mañana.",
+            },
+          }),
+      })
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+      escribirLista("ana@colegio.mx")
+
+      fireEvent.click(screen.getByRole("button", { name: "Enviar invitaciones" }))
+
+      expect(
+        await screen.findByText(
+          "Hoy solo puedes enviar 3 invitaciones más. Quita líneas de la lista o inténtalo mañana.",
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it("un solo botón primary en la vista", async () => {
+      stubApi({})
+      renderVista()
+      await screen.findByRole("button", { name: /^Revocar\b/ })
+
+      const primarios = screen
+        .getAllByRole("button")
+        .filter((boton) => boton.getAttribute("data-variant") === "primary")
+      expect(primarios.map((boton) => boton.textContent)).toEqual(["Enviar invitaciones"])
+    })
   })
 })

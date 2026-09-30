@@ -142,3 +142,24 @@ responde `401`.
 **Por qué se cierra T-09:** `crearSesion` lee `hash_contrasena` y `activo` con `SELECT … FOR SHARE`
 dentro de su transacción y compara el hash con el que el handler ya verificó con argon2; si un
 escritor cambió la contraseña antes, el hash difiere y la sesión no nace.
+
+## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
+
+`buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena
+(`middleware/pertenencia.ts`): `clases` por PK con `inscripciones` filtradas por el `usuarioId` de
+la petición, en una sola llamada. `crearClase` y `regenerarCodigo` reciben un generador de código
+(`() => string`, `node:crypto.randomBytes` + `codigoDesdeBytes` en el handler) y reintentan **una
+sola vez** si el primero choca con el índice único de `codigo_invitacion`, detectado con
+`traducirErrorPrisma` y su `alDuplicar` (§D-A2), sin tocar `adapters/db/errores.ts`: `alDuplicar`
+siempre traduce a `CODIGO_NO_DISPONIBLE` (aparte de la llave primaria, un choque de
+`gen_random_uuid()` inviable en la práctica, el único índice único de `clases` es
+`codigo_invitacion`, así que no hay otro P2002 posible en esta tabla); si el traducido no es ese código, se relanza sin
+reintentar (por ejemplo, el `22021` que `traducirErrorPrisma` ya traduce a `400 VALIDACION`). Si el
+segundo intento también choca, `500 CODIGO_NO_DISPONIBLE`. `editarClase` y
+`regenerarCodigo` filtran por `id` **y** `maestro_id` (defensa extra, M-01): si no actualizan
+ninguna fila, devuelven `null` y el handler responde `403 SIN_ACCESO_A_LA_CLASE`, aunque
+`requireOwnership` ya lo hubiera negado antes. `inscribir` (unirse con código) es un `createMany`
+con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion` (esa tabla llega en
+CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
+`listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
+cursor siguiente, en vez de repetir esa lógica a mano.

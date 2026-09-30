@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { esAppError } from "../core/errores.js"
 import { perfilDe, protegido } from "./index.js"
-import { requireMembership } from "./require-membership.js"
-import { requireOwnership } from "./require-ownership.js"
+import { marcaDeLaCadena } from "./guarda-de-rutas.js"
 
 const nombresDe = (opciones?: Parameters<typeof protegido>[0]) =>
   protegido(opciones).preHandler.map((paso) => paso.name)
@@ -35,18 +34,12 @@ describe("protegido", () => {
   })
 })
 
-describe("requireMembership / requireOwnership", () => {
-  it("lanzan 501 NO_IMPLEMENTADO hasta el módulo de clases", async () => {
-    for (const paso of [requireMembership(), requireOwnership()]) {
-      const error = await paso.call({} as never, {} as never, {} as never).then(
-        () => undefined,
-        (e: unknown) => e,
-      )
-      expect(esAppError(error)).toBe(true)
-      if (!esAppError(error)) continue
-      expect(error.codigo).toBe("NO_IMPLEMENTADO")
-      expect(error.estado).toBe(501)
-    }
+describe("el sexto paso (CLASES-a)", () => {
+  it("PR-A07d: el sexto paso lleva la marca requireMembership o requireOwnership", () => {
+    const pasoInscripcion = protegido({ pertenencia: "inscripcion" }).preHandler.at(-1)
+    const pasoPropiedad = protegido({ pertenencia: "propiedad" }).preHandler.at(-1)
+    expect(marcaDeLaCadena(pasoInscripcion)).toBe("requireMembership")
+    expect(marcaDeLaCadena(pasoPropiedad)).toBe("requireOwnership")
   })
 })
 

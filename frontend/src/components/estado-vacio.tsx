@@ -3,16 +3,16 @@ import { Button } from "@/components/ui/button"
 // M-05, M-10 (AUTH-03b, §D-B6, §D-B9 §7.10): quien usa el componente decide la variante del botón
 // ("primary" si es la única acción de la vista, "outline" si no), sin valor por defecto aquí. Sin
 // "enEspera": la acción de un vacío no hace ninguna petición.
-export interface AccionEstadoVacio {
-  texto: string
-  onClick: () => void
-  variante: "primary" | "outline"
-}
-
+// M-20 (CLASES-a): el tipo de la acción ya no se exporta; es el único tipo permitido de este
+// archivo, en línea dentro de EstadoVacioProps (regla 6 de CLAUDE.md).
 interface EstadoVacioProps {
   titulo: string
   descripcion?: string
-  accion?: AccionEstadoVacio
+  accion?: {
+    texto: string
+    onClick: () => void
+    variante: "primary" | "outline"
+  }
 }
 
 export function EstadoVacio({ titulo, descripcion, accion }: EstadoVacioProps) {

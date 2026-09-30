@@ -1,28 +1,12 @@
-import {
-  datosDeInvitacionRespuestaSchema,
-  meRespuestaSchema,
-  sinContenidoSchema,
-} from "@campus/shared"
-import {
-  queryOptions,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type QueryClient,
-} from "@tanstack/react-query"
+import { datosDeInvitacionRespuestaSchema, sinContenidoSchema } from "@campus/shared"
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
 
 import { sacarDeLaCacheAlAsentar } from "@/lib/cache-de-mutaciones"
-import { api, ApiError, esApiError } from "@/services/apiClient"
-import {
-  haySesion,
-  login,
-  logout,
-  registro,
-  registroMaestro,
-  restaurarSesion,
-} from "@/services/authService"
+import { api, esApiError } from "@/services/apiClient"
+import { login, logout, registro, registroMaestro } from "@/services/authService"
+import { consultaMe } from "@/services/sesionService"
 
 import { ANUNCIOS_DE_EJEMPLO, TEXTOS_NUEVA_CONTRASENA } from "./data"
 import { leerTokenDelFragmento, ordenarAnuncios, rutaTrasLogin } from "./lib"
@@ -44,23 +28,9 @@ export const useAnunciosLogin = (): { anuncios: Anuncio[] } => {
   return { anuncios }
 }
 
-// GET /me (DEC-13). Sin token en memoria, primero intenta restaurar la sesión con la cookie: una
-// sola llamada a /refrescar por carga. Si no se restaura, lanza NO_AUTENTICADO sin llamar a /me y
-// la guarda navega a /login con <Navigate> (M-08). Rol y banderas vienen siempre de aquí.
-export const consultaMe = queryOptions({
-  queryKey: ["me"],
-  queryFn: async () => {
-    if (!haySesion()) {
-      const restaurada = await restaurarSesion()
-      if (!restaurada) {
-        throw new ApiError("NO_AUTENTICADO", "Inicia sesión para continuar.", 401)
-      }
-    }
-    return api("/api/me", { schema: meRespuestaSchema })
-  },
-  retry: false,
-  staleTime: 60_000,
-})
+// R-19: consultaMe vive en services/sesionService.ts (la comparte features/clases) y se reexporta
+// aquí con el mismo nombre para no romper el resto del módulo.
+export { consultaMe }
 
 export const useMe = () => useQuery(consultaMe)
 
@@ -70,8 +40,10 @@ const CLAVE_MUTACION_REGISTRO = ["registro"] as const
 // Tras entrar, /me decide el destino (RF-05): nunca el token ni el formulario. El /me en caché puede
 // ser de otra cuenta (T-02: alguien vuelve a /login y entra con otra), así que se descarta antes de
 // consultar el de la cuenta nueva: una sola petición a /me, siempre fresca.
+// CLASES-a: al entrar con otra cuenta se descartan TODAS las consultas (no solo /me), para que
+// ninguna quede con datos de la cuenta anterior (por ejemplo, ["clases", "inscritas"]).
 const consultarMeDeLaCuentaNueva = (queryClient: QueryClient) => {
-  queryClient.removeQueries({ queryKey: consultaMe.queryKey })
+  queryClient.removeQueries()
   return queryClient.fetchQuery(consultaMe)
 }
 

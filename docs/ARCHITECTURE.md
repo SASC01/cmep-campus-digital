@@ -214,10 +214,12 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 | 3 | `withPasswordGate`: si `debeCambiarContrasena`, solo pasa `POST /auth/cambiar-contrasena` | 403 `CAMBIO_DE_CONTRASENA_REQUERIDO` |
 | 4 | `withAccess`: si `accesoRestringido`, solo pasan `GET /me` y `GET /me/estado-pago` | 403 `ACCESO_RESTRINGIDO` |
 | 5 | `requireRole(...)` | 403 |
-| 6 | `requireMembership` / `requireOwnership` sobre `claseId` | 403 |
+| 6 | `requireMembership` / `requireOwnership` sobre el parámetro `:claseId` de la ruta. `requireMembership` deja pasar al estudiante inscrito y al maestro dueño; `requireOwnership`, solo al maestro dueño. Clase inexistente o ajena: la misma respuesta. El administrador no pasa por ninguna de las dos: sus rutas de clases viven bajo `/admin` | 403 `SIN_ACCESO_A_LA_CLASE` (400 `VALIDACION` si `:claseId` no es un UUID) |
 | 7 | Handler | |
 
 - Rol, restricción y banderas **no viajan en el token**: se leen en cada petición, así cualquier cambio tiene efecto inmediato.
+- Toda ruta bajo `/api` que declare el parámetro `claseId` en cualquier posición de su URL, y todo comodín bajo `/clases` (`/clases*` y `/clases/*`, a cualquier profundidad), lleva el sexto paso; bajo `/clases/`, el único parámetro permitido en el segmento siguiente es `:claseId`. La guarda `onRoute` no deja arrancar la API si falta. El paso deja la clase y la relación del usuario con ella en la petición (`claseDe(request)`). Las consultas por un recurso de la clase (publicación, comentario, archivo) filtran además por el `claseId` de la ruta (CLASES-a). Los comodines generales (`/api/*`, `/api/:seccion/*`) quedan para la guarda sobre todas las rutas (CHORE-02).
+- Las rutas de clases del administrador (`/admin/clases/{claseId}…`, encargo ADMIN) no pasan esta regla tal como está: ADMIN agrega a la guarda una excepción, en carril sensible (CLASES-a, N-01).
 - La restricción también impide emitir tokens de LiveKit y URLs de archivos o grabaciones.
 - El estado de pago de otro alumno solo se devuelve a admin, o al maestro dueño de una clase donde ese alumno está inscrito. Para estudiantes el campo **se omite**.
 
@@ -228,8 +230,8 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 | Módulo | Rutas principales |
 |---|---|
 | `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/registro-maestro` (con un enlace de registro del admin) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
-| `usuarios` | `GET /me` · `GET /me/estado-pago` · `GET /usuarios/buscar?q=` |
-| `clases` | `POST /clases` · `GET /clases` · `GET/PUT /clases/{id}` · `POST /clases/unirse` · `GET/POST/DELETE /clases/{id}/alumnos` · `GET/POST /clases/{id}/publicaciones` · comentarios |
+| `usuarios` | `GET /me` · `GET /me/estado-pago` |
+| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar). Personas, alumnos (con el buscador de candidatos bajo `/clases/{claseId}/alumnos/candidatos?q=`), publicaciones y comentarios llegan con CLASES-b y CLASES-c |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |
 | `calificaciones` | `PUT /tareas/{id}/entregas/{alumnoId}/calificacion` · `GET /clases/{id}/gradebook` · `GET /me/calificaciones` |
 | `archivos` | `POST /archivos/subida` · `POST /archivos/descarga` (devuelven URL prefirmada) |
@@ -372,13 +374,13 @@ erDiagram
 
 | Tabla | Columnas principales | Restricciones e índices |
 |---|---|---|
-| `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion`, `enlace_registro_id` | `email` único (en minúsculas) · GIN trigrama sobre `nombre_busqueda` · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` · índice `(enlace_registro_id, creado_en)` · FK a `enlaces_registro` con `ON DELETE RESTRICT` |
+| `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion`, `enlace_registro_id` | `email` único (en minúsculas) · índice GIN `gin_trgm_ops` sobre `nombre_busqueda` (`usuarios_nombre_busqueda_idx`), que se normaliza en `core/` al escribir (sin acentos, minúsculas, espacios colapsados); `unaccent` no se usa en las consultas · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` · índice `(enlace_registro_id, creado_en)` · FK a `enlaces_registro` con `ON DELETE RESTRICT` |
 | `sesiones` | `id`, `usuario_id`, `hash_token`, `expira_en`, `revocada_en`, `reemplazada_por`, `ip`, `agente` | `hash_token` único · índice `(usuario_id)` |
 | `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · índice `(tipo, creado_en)` (cupo diario de invitaciones) · FK con `ON DELETE CASCADE` |
 | `enlaces_registro` | `id`, `hash_token`, `expira_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(creado_en DESC, id DESC)`. El estado (vigente, vencido, revocado) se deriva; no se guarda |
-| `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único · índice `(maestro_id)` |
+| `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único (7 caracteres de un alfabeto sin I, O, 0 ni 1) · índice `(maestro_id, creado_en DESC, id DESC)` · FK a `usuarios` con `ON DELETE RESTRICT` |
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
-| `inscripciones` | `clase_id`, `usuario_id`, `origen`, `creado_en` | PK compuesta · índice `(usuario_id)` |
+| `inscripciones` | `clase_id`, `usuario_id`, `origen` (`codigo` / `manual`), `creado_en` | PK `(clase_id, usuario_id)` · índice `(usuario_id, creado_en DESC, clase_id DESC)` · FK con `ON DELETE CASCADE` a los dos lados |
 | `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo`, `texto` | índice `(clase_id, creado_en DESC)` |
 | `tareas` | `id`, `clase_id`, `categoria_id`, `titulo`, `instrucciones`, `fecha_limite`, `puntos`, `trabajo_id` | índice `(clase_id, fecha_limite)` |
 | `criterios_rubrica` | `id`, `tarea_id`, `criterio`, `puntos_max`, `orden` | índice `(tarea_id)` |

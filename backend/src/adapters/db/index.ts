@@ -70,3 +70,19 @@ export {
   type CandidatoParaInvitarEnLote,
   type ResultadoInvitacionEnLote,
 } from "./invitaciones.js"
+export {
+  buscarClasePorCodigo,
+  buscarDatosDePertenencia,
+  crearClase,
+  editarClase,
+  inscribir,
+  leerClase,
+  leerCodigo,
+  listarClasesImpartidas,
+  listarClasesInscritas,
+  regenerarCodigo,
+  type ClaseDb,
+  type DatosDePertenencia,
+  type ListaClasesImpartidasDb,
+  type ListaClasesInscritasDb,
+} from "./clases.js"

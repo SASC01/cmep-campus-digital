@@ -1,9 +1,14 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
+import * as modulo from "./estado-vacio"
 import { EstadoVacio } from "./estado-vacio"
 
 describe("EstadoVacio", () => {
+  it("PR-A25: el módulo exporta exactamente ['EstadoVacio'] (M-20: AccionEstadoVacio ya no se exporta)", () => {
+    expect(Object.keys(modulo)).toEqual(["EstadoVacio"])
+  })
+
   it("muestra el título, sin descripción ni acción", () => {
     render(<EstadoVacio titulo="Aún no hay nada" />)
     expect(screen.getByText("Aún no hay nada")).toBeInTheDocument()

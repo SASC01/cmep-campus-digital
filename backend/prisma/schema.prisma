@@ -33,6 +33,13 @@ enum TipoTokenCuenta {
   @@map("tipo_token_cuenta")
 }
 
+enum OrigenInscripcion {
+  codigo
+  manual
+
+  @@map("origen_inscripcion")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
@@ -55,9 +62,12 @@ model Usuario {
   sesiones              Sesion[]
   tokensCuenta          TokenCuenta[]
   enlaceRegistro        EnlaceRegistro? @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
+  clasesImpartidas      Clase[]         @relation("ClasesDelMaestro")
+  inscripciones         Inscripcion[]
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
+  @@index([nombreBusqueda(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("usuarios")
 }
 
@@ -115,4 +125,39 @@ model EnlaceRegistro {
 
   @@index([creadoEn(sort: Desc), id(sort: Desc)])
   @@map("enlaces_registro")
+}
+
+// CLASES-a (§D-A1). codigoInvitacion: 7 caracteres de un alfabeto sin I, O, 0 ni 1 (S-03); único
+// para poder buscarlo. activa se crea en true (S-05) pero ninguna ruta de CLASES la usa ni la
+// cambia (RF-50 queda para más adelante).
+model Clase {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maestroId        String        @map("maestro_id") @db.Uuid
+  nombre           String
+  descripcion      String?
+  codigoInvitacion String        @unique @map("codigo_invitacion")
+  activa           Boolean       @default(true)
+  creadoEn         DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn    DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  maestro          Usuario       @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+  inscripciones    Inscripcion[]
+
+  @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@map("clases")
+}
+
+// PK compuesta (clase_id, usuario_id): un alumno se inscribe una sola vez por clase (§D-A1).
+// origen distingue unirse con código de un alta manual (CLASES-b); movimientos_inscripcion
+// (CLASES-b) registra las altas manuales y las bajas, no las inscripciones por código.
+model Inscripcion {
+  claseId   String            @map("clase_id") @db.Uuid
+  usuarioId String            @map("usuario_id") @db.Uuid
+  origen    OrigenInscripcion
+  creadoEn  DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  clase     Clase             @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  usuario   Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([claseId, usuarioId])
+  @@index([usuarioId, creadoEn(sort: Desc), claseId(sort: Desc)])
+  @@map("inscripciones")
 }

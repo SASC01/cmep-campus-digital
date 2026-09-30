@@ -446,7 +446,15 @@ describe("ataque: superficie de rutas", () => {
   // crean maestros solo POST /api/admin/maestros y POST /api/admin/maestros/lote (las dos solo para
   // el admin) y POST /api/auth/registro-maestro (con un enlace vivo). Cualquier otra ruta nueva
   // vuelve a poner la prueba en rojo.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b y AUTH-03c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // CLASES-a ronda 0 (C-2, §D-R0; V-06 del plan de CLASES-01): se agregan las 12 rutas de CLASES-a
+  // bajo /api/clases (POST /clases; GET y HEAD de /inscritas y /impartidas; POST /unirse; GET, HEAD
+  // y PUT de /:claseId; GET, HEAD y POST de /:claseId/codigo). Ninguna crea cuentas ni cambia roles:
+  // solo tocan clases e inscripciones del perfil autenticado. La protección se reformula sin
+  // debilitarse: ninguna ruta crea administradores; siguen creando maestros solo las tres de hoy
+  // (POST /api/admin/maestros, POST /api/admin/maestros/lote y POST /api/auth/registro-maestro).
+  // printRoutes anida /inscritas, /impartidas, /unirse y /:claseId bajo /api/clases (que tiene
+  // POST) y /codigo bajo /:claseId; el análisis por sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c y CLASES-a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -475,10 +483,18 @@ describe("ataque: superficie de rutas", () => {
     expect([...rutas].sort()).toEqual([
       "GET /api/admin/enlaces-registro",
       "GET /api/admin/enlaces-registro/:id/registrados",
+      "GET /api/clases/:claseId",
+      "GET /api/clases/:claseId/codigo",
+      "GET /api/clases/impartidas",
+      "GET /api/clases/inscritas",
       "GET /api/me",
       "GET /api/salud",
       "HEAD /api/admin/enlaces-registro",
       "HEAD /api/admin/enlaces-registro/:id/registrados",
+      "HEAD /api/clases/:claseId",
+      "HEAD /api/clases/:claseId/codigo",
+      "HEAD /api/clases/impartidas",
+      "HEAD /api/clases/inscritas",
       "HEAD /api/me",
       "HEAD /api/salud",
       "POST /api/admin/enlaces-registro",
@@ -497,7 +513,11 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/auth/registro",
       "POST /api/auth/registro-maestro",
       "POST /api/auth/restablecer",
+      "POST /api/clases",
+      "POST /api/clases/:claseId/codigo",
+      "POST /api/clases/unirse",
       "PUT /api/admin/usuarios/:id/correo",
+      "PUT /api/clases/:claseId",
     ])
   })
 

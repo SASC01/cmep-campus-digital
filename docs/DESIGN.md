@@ -232,6 +232,7 @@ En `@theme`, cada tamaño es un token `--text-*` con sus variantes `--line-heigh
 | `--text-body` | 16 px / 1.5 | 400 | 0 | texto | Texto corrido y campos. Título de fila de entrega, en 700 |
 | `--text-small` | 14 px / 1.45 | 400 o 500 | 0 | texto | Metadatos, texto secundario y celdas de tabla. Botones, en 700 |
 | `--text-caption` | 12 px / 1.35 | 500 o 700 | 0; +0.04em en mayúsculas | texto | Etiquetas de la barra lateral, insignias, mes del cuadro de fecha |
+| `--text-display-compacto` | 32 px / 1.05 | 700 | `-0.03em` | títulos | **Implementación (CLASES-a, propuesta):** el titular del bloque destacado del inicio (estudiante y maestro) usa este token por debajo de 640 px, con `text-display-compacto sm:text-display`, en vez de recalcular `--text-display` con una media query. Mismo interlineado, interletraje y peso que `--text-display`; solo cambia el tamaño |
 
 - El interletraje va en valores CSS literales, con el guion ASCII como signo menos (`-0.03em`). El signo tipográfico `−` no es CSS válido y el navegador ignoraría la declaración sin avisar.
 - La familia de títulos solo se usa en 500 y 700.
@@ -304,7 +305,8 @@ A menos de 640 px, los márgenes de la ventana bajan a 16 px; propuesta aprobada
 ## 6. Foco, contraste y accesibilidad
 
 - **Foco visible** en todo elemento interactivo, solo con `:focus-visible`: contorno sólido de 2 px, separado 2 px del elemento. Sobre vidrio, vidrio fuerte y superficies claras, en `--ring`. Sobre vidrio azul, `--accent` o `--brand` (bloque destacado, tarjetas de clase de color, botón `primary`), en `#FFFFFF`. Nunca se quita el contorno sin poner otro en su lugar.
-  - **Botones rellenos (`primary`, DESIGN-01a, propuesta aprobada (2026-09-27), confirmada en H-04; `destructive`, mismo mecanismo, propuesta aprobada (2026-09-28)):** un contorno blanco por fuera del botón quedaría sobre vidrio claro y no se vería. El contorno va 4 px hacia dentro (`-outline-offset-4`) y en el color del texto del botón (`--primary-foreground` o `--destructive-foreground`, ambos `#FFFFFF`): 9.2:1 y 6.8:1 contra el fondo del botón. El mecanismo de foco blanco para otras superficies de color (bloque destacado, tarjetas de clase) lo construye el encargo que las cree.
+  - **Botones rellenos (`primary`, DESIGN-01a, propuesta aprobada (2026-09-27), confirmada en H-04; `destructive`, mismo mecanismo, propuesta aprobada (2026-09-28)):** un contorno blanco por fuera del botón quedaría sobre vidrio claro y no se vería. El contorno va 4 px hacia dentro (`-outline-offset-4`) y en el color del texto del botón (`--primary-foreground` o `--destructive-foreground`, ambos `#FFFFFF`): 9.2:1 y 6.8:1 contra el fondo del botón.
+  - **Tarjetas de clase de color y bloque destacado (CLASES-a, propuesta; cierra S-07 de DESIGN-01):** mismo mecanismo, `focus-visible:-outline-offset-4` y el color del texto de la superficie (`#FFFFFF`). Blanco sobre `--brand` (verde): 7.9:1; sobre `--accent` (azul): 9.2:1; sobre vidrio azul (bloque destacado): 5.4:1, peor caso. En la tarjeta blanca no hay superficie de color: el foco es el `--ring` global, por fuera del elemento.
 - **Contraste mínimo:** 4.5:1 en texto normal; 3:1 en texto grande (24 px o más, o 18.66 px en 700), en bordes de controles y en el indicador de foco. Sobre vidrio se verifica contra el peor caso (§3).
 - **Texto nunca directo sobre el fondo con orbes.** Siempre sobre vidrio o sobre una superficie sólida.
 - **Controles:** los campos llevan borde `--input`. Los botones se identifican por su texto; su borde de vidrio no necesita 3:1 (WCAG 1.4.11 no lo exige cuando el texto identifica el control).
@@ -354,8 +356,8 @@ El fondo ocupa toda la ventana, queda fijo detrás del contenido, no recibe el p
 
 | Pantallas | Orbes | Superficies | Rutas hoy (DESIGN-01b) |
 |---|---|---|---|
-| Login e inicio de estudiante y de maestro (dashboards; hoy, la bienvenida provisional) | En movimiento | Vidrio | `/login`, `/estudiante`, `/maestro` |
-| Pantallas de trabajo: detalle de tarea, calificar, calendario y clase en vivo | Quietos | Vidrio | — |
+| Login e inicio de estudiante y de maestro (dashboards) | En movimiento | Vidrio | `/login`, `/estudiante`, `/maestro` |
+| Pantallas de trabajo: detalle de tarea, calificar, calendario, clase en vivo, crear/editar clase y las páginas de una clase (muro y, más adelante, personas y alumnos) | Quietos | Vidrio | `/maestro/clases/nueva`, `/estudiante/clases/*`, `/maestro/clases/*` (CLASES-a) |
 | Gradebook y todas las vistas del administrador | Quietos; propuesta aprobada (2026-09-27) | **Opacas: sin vidrio** | `/admin`, `/admin/maestros` (AUTH-03b) |
 | Demás pantallas: registro, recuperar, restablecer y establecer contraseña, cambio obligatorio, acceso restringido, diagnóstico y registro de maestro por enlace (AUTH-03b) | Quietos | Vidrio | `/registro`, `/recuperar`, `/restablecer`, `/establecer-contrasena`, `/cambiar-contrasena`, `/acceso-restringido`, `/diagnostico`, `/registro-maestro` |
 
@@ -438,6 +440,7 @@ Las dos barras flotan sobre el fondo, a 24 px de los bordes de la ventana.
 - Avatar decorativo (`AvatarUsuario`) con las iniciales de `inicialesDe(nombre)` (`lib/format.ts`).
 - Sin botón de avisos todavía (llega con el módulo `notificaciones`).
 - **Barra superior por debajo de 640 px (S-12):** no caben el nombre del producto, el avatar, el nombre de la persona y "Cerrar sesión" con texto. El nombre y el rol quedan solo para lectores de pantalla, el avatar se oculta y "Cerrar sesión" muestra solo su icono (su nombre accesible no cambia).
+- **CLASES-a, R-01 de DESIGN-01 (propuesta):** la barra sigue compacta, con un solo destino "Inicio" por rol (decisión del humano, P-01 A). La "lista de clases" de PRD §7 son las tarjetas de "Mis clases" del inicio (§7.6), no un destino de la barra. Dentro de una clase, "Inicio" **no** se marca activo: `BarraNavegacion` usa `NavLink` con `end`, así que solo coincide con `/estudiante` o `/maestro` exactos, y cada página de clase lleva su propio enlace "Volver a mis clases" (§7.16).
 
 ### 7.5 Bloque destacado
 
@@ -453,6 +456,8 @@ Reglas:
 - El titular siempre lleva un dato ("Tienes 3 entregas esta semana"), nunca un saludo genérico.
 - A menos de 640 px, la tarjeta interna pasa debajo del texto y el titular baja a 32 px.
 - El foco dentro del bloque usa el contorno `#FFFFFF`; dentro de la tarjeta interna, `--ring` (§6).
+
+**Implementación (CLASES-a, propuesta):** `BloqueDestacado` (`features/clases/components/`). El saludo es un `<span>` de texto exacto "Hola, `<nombre>`" (no un encabezado) junto a la fecha de hoy (`formatearFechaLarga`, `lib/format.ts`), y depende solo de la sesión: se ve aunque falle la consulta de clases. El titular (`h1`, `text-display-compacto sm:text-display`) muestra su estado de carga (`Cargando`) y de error ("No pudimos cargar tus clases") antes del dato. La tarjeta interna lleva el formulario de unirse (estudiante) o el enlace "Crear clase" (maestro).
 
 ### 7.6 Tarjeta de clase
 
@@ -471,6 +476,8 @@ Variantes. Indican la identidad de la clase, **nunca un estado**:
 | Blanca | Vidrio fuerte | `--foreground` | `--muted-foreground` |
 
 En la captura, las tarjetas verde y azul se ven al 90 % de opacidad aproximadamente. Aquí van sólidas para que su contraste no dependa de lo que haya detrás; propuesta aprobada (2026-09-27). La variante lavanda de la dirección C desaparece. Cómo se asigna la variante a cada clase lo decide el encargo de CLASES.
+
+**Implementación (CLASES-a, propuesta):** `TarjetaClase` (`features/clases/components/`). La variante se deriva del id de la clase con una función pura y determinista (`varianteDeClase`, `features/clases/lib.ts`: suma de los puntos de código del id módulo 3); no se guarda ni se elige. Metadatos: para el estudiante, el nombre del maestro; para el maestro, "Sin alumnos", "1 alumno" o "N alumnos" (`textoConteoAlumnos`). El nombre accesible del enlace es el nombre de la clase (no incluye los metadatos). Foco (cierra S-07, §6): en las variantes verde y azul, `focus-visible:-outline-offset-4` con el color del texto de la tarjeta; en la blanca, el foco global de `--ring`, por fuera.
 
 ### 7.7 Fila de entrega con cuadro de fecha
 
@@ -554,6 +561,7 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
   - Las del PRD son "Crea tu primera clase" (maestro) y "Únete con tu código de clase" (estudiante).
   - La variante del botón (`primary` si es la única acción de la vista, `outline` si no) la decide quien usa el componente, sin valor por defecto dentro de `EstadoVacio`. Sin ilustraciones.
   - **Excepción (AUTH-03b):** un vacío dentro de una fila expandida de una tabla (los registrados de un enlace de registro) lleva solo el título, sin acción, porque ahí no hay nada que hacer.
+  - **Implementación (CLASES-a, propuesta; M-20):** `AccionEstadoVacio` deja de exportarse desde `estado-vacio.tsx`; el tipo de la acción va en línea dentro de `EstadoVacioProps` (regla 6 de `CLAUDE.md`). Los dos vacíos del panel "Mis clases": "Aún no tienes clases", con la acción `outline` "Únete con tu código de clase" (estudiante, lleva el foco al campo del código) o "Crea tu primera clase" (maestro, navega a crear la clase).
 
 ### 7.11 Capas flotantes y avisos
 
@@ -607,6 +615,14 @@ Para el resultado de una acción que procesa varias líneas a la vez (la invitac
 - **Sin color como único indicador y sin grupos vacíos:** un grupo sin elementos no se pinta. El motivo de una línea inválida va en texto o en la insignia `danger` (§7.8), nunca como color suelto.
 
 Implementa este patrón `ResultadoInvitacionMasiva` (`features/admin/components/resultado-invitacion-masiva.tsx`, AUTH-03c).
+
+### 7.16 Encabezado y secciones de una clase (CLASES-a, propuesta)
+
+Al entrar a una clase (`ClaseLayout`, `features/clases/clase-layout.tsx`):
+
+- **Encabezado** (`EncabezadoClase`, en una `Card`): "Volver a mis clases" (tamaño `enlace`, hacia el inicio del rol), el nombre de la clase en `h1` (`--text-h1`), "Maestro: `<nombre>`" y la descripción (`whitespace-pre-line`, `max-w-prose`). Para el dueño, además: el código de la clase en `font-mono` y `--text-h2`, con "Copiar código" y "Regenerar código" (`outline`, `size="sm"`), y el enlace "Editar clase". Regenerar pide confirmación en línea (§7.14): la frase de consecuencia, "Sí, regenerar" (`destructive`, `enEspera`) y "Cancelar", con el foco a "Cancelar" al abrirla y de vuelta a "Regenerar código" al cancelar.
+- **Secciones** (`SeccionesDeClase`): una `<ul aria-label="Secciones de la clase">` con `NavLink` (`end`) estilados como botón `ghost` (`size="sm"`); react-router marca el activo con `aria-current="page"` por su cuenta, y el estilo activo suma `bg-surface text-link`. No es una `nav` (esa es la del marco, §7.4). En CLASES-a, solo "Muro"; CLASES-b suma "Personas" (estudiante) o "Alumnos" (maestro).
+- Quien puede ver el código y editar la clase es el maestro dueño, que la ruta decide por su prefijo (`/maestro/clases/:claseId` frente a `/estudiante/clases/:claseId`); el backend lo exige de todas formas con `requireOwnership`.
 
 ## 8. Densidad por rol
 

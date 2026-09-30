@@ -20,8 +20,12 @@ export interface OpcionesProtegido {
 const pasoDePertenencia = (
   pertenencia: OpcionesProtegido["pertenencia"],
 ): preHandlerAsyncHookHandler[] => {
-  if (pertenencia === "inscripcion") return [requireMembership()]
-  if (pertenencia === "propiedad") return [requireOwnership()]
+  if (pertenencia === "inscripcion") {
+    return [marcarPasoDeLaCadena(requireMembership(), "requireMembership")]
+  }
+  if (pertenencia === "propiedad") {
+    return [marcarPasoDeLaCadena(requireOwnership(), "requireOwnership")]
+  }
   return []
 }
 
@@ -53,9 +57,11 @@ export const protegido = (
 export const registrarMiddleware = (app: FastifyInstance): void => {
   app.decorateRequest("usuarioId", null)
   app.decorateRequest("perfil", null)
+  app.decorateRequest("clase", null)
   registrarGuardaDeRutas(app)
 }
 
-export { perfilDe } from "./tipos.js"
+export { claseDe, perfilDe } from "./tipos.js"
 export { RUTAS_PUBLICAS } from "./rutas-publicas.js"
 export type { PerfilAutenticado } from "../core/auth/autorizacion.js"
+export type { ClaseDeLaRuta } from "./pertenencia.js"

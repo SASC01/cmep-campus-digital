@@ -79,14 +79,22 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // enlaces" (2, en features/admin/components/ con al menos 1 en tabla-enlaces.tsx), no cambia. Sigue
   // protegiendo lo mismo que C-15: ningún `disabled` en JSX, aria-busy y aria-disabled solo en
   // Button, y que el número y el lugar de los botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 20 enEspera", () => {
+  // CLASES-a ronda 0 (C-7, §D-R0; V-04 del plan de CLASES-01): de 20 a 25 enEspera=. Se suman, a la
+  // lista fija de archivos, los cinco botones de §D-A5 en features/clases/components/: "Unirme a la
+  // clase" (formulario-unirse-clase.tsx, 1), "Crear clase" o "Guardar cambios" (formulario-clase.tsx,
+  // 1), "Ver más clases" (panel-mis-clases.tsx, 1) y "Copiar código" y "Sí, regenerar"
+  // (codigo-de-clase.tsx, 2). Ningún otro archivo de CLASES-a lo lleva: el "Crear clase" del inicio
+  // del maestro es un enlace y "Regenerar código" y "Cancelar" no esperan nada. Sigue protegiendo lo
+  // mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el
+  // lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 25 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(20)
+    expect(usos).toHaveLength(25)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -114,6 +122,11 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/admin/components/registrados-del-enlace.tsx": 1,
       // C-17 (AUTH-03c): "Enviar invitaciones".
       "/src/features/admin/components/formulario-invitacion-masiva.tsx": 1,
+      // C-7 (CLASES-a): los cinco botones de §D-A5.
+      "/src/features/clases/components/formulario-unirse-clase.tsx": 1,
+      "/src/features/clases/components/formulario-clase.tsx": 1,
+      "/src/features/clases/components/panel-mis-clases.tsx": 1,
+      "/src/features/clases/components/codigo-de-clase.tsx": 2,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -131,7 +144,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     )
   })
 
-  it("V-07: vidrio y vidrio fuerte solo en la lista final del plan (igualdad exacta), sin vidrio azul", () => {
+  // CLASES-a ronda 0 (C-8, §D-R0; §D-A5 y V-04 del plan de CLASES-01): el vidrio fuerte suma la
+  // tarjeta interna del bloque destacado (bloque-destacado.tsx) y la tarjeta de clase
+  // (tarjeta-clase.tsx); el vidrio azul, que hasta hoy no existía en el código, pasa a vivir en
+  // exactamente bloque-destacado.tsx. El vidrio sin variante no cambia: PanelMisClases, el
+  // encabezado de la clase y los formularios usan Card. Sigue protegiendo que ningún archivo gane
+  // vidrio fuera de la lista cerrada del plan y que data-material y data-densidad no salgan del
+  // contenedor del rol.
+  it("V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)", () => {
     // DESIGN-01b-1, ronda 1 (plan-01b.md, §D-9, texto de referencia de la ronda 1): igualdad
     // exacta con la lista final. toEqual acepta el (string | undefined)[] de rutasDe; una ruta
     // undefined haría fallar la igualdad.
@@ -150,8 +170,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/components/layout/barra-navegacion.tsx",
       "/src/components/ui/button-variants.ts",
       "/src/features/auth/components/panel-anuncios.tsx",
+      "/src/features/clases/components/bloque-destacado.tsx",
+      "/src/features/clases/components/tarjeta-clase.tsx",
     ])
-    expect(coincidencias(/\bvidrio-azul\b/)).toEqual([])
+    expect(rutasDe(coincidencias(/\bvidrio-azul\b/))).toEqual([
+      "/src/features/clases/components/bloque-destacado.tsx",
+    ])
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
     ])

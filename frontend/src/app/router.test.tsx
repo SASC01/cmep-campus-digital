@@ -83,9 +83,49 @@ describe("rutas", () => {
     const router = await renderEn("/maestro")
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
-    expect(await screen.findByRole("heading", { name: "Hola, Ana López" })).toBeInTheDocument()
+    // CLASES-a ronda 0 (C-4): "Hola, <nombre>" es un <span> de texto, no un encabezado.
+    expect(await screen.findByText("Hola, Ana López")).toBeInTheDocument()
     expect(screen.getByText("Estudiante")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument()
+  })
+
+  it("PR-A26a: /estudiante monta el inicio del estudiante", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      if (ruta.startsWith("/api/clases/inscritas")) {
+        return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+      }
+      return respuestaJson(200, me())
+    })
+
+    await renderEn("/estudiante")
+
+    expect(await screen.findByRole("button", { name: "Unirme a la clase" })).toBeInTheDocument()
+  })
+
+  it("PR-A26b: /maestro/clases/nueva monta el formulario", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      return respuestaJson(200, me({ rol: "maestro" }))
+    })
+
+    await renderEn("/maestro/clases/nueva")
+
+    expect(await screen.findByRole("heading", { name: "Crear clase" })).toBeInTheDocument()
+  })
+
+  it("PR-A26c: un estudiante en /maestro/... vuelve a /estudiante", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      if (ruta.startsWith("/api/clases/inscritas")) {
+        return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+      }
+      return respuestaJson(200, me())
+    })
+
+    const router = await renderEn("/maestro/clases/nueva")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
   })
 
   it("con accesoRestringido, /estudiante termina en /acceso-restringido con el motivo", async () => {

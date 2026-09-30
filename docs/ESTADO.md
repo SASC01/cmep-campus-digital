@@ -5,7 +5,7 @@ Tablero vivo de CMEP Campus Digital. Solo hechos verificables; el detalle vive e
 Última actualización: 2026-09-29, por el orquestador.
 
 ## 1. Encargos completados
-Todos fusionados en `main` de `origin` (verificado con `git log origin/main --merges`), salvo AUTH-03, que está cerrada y espera el commit de 03c, el push, el PR y la fusión, todo a cargo del humano. El historial de cada uno está en `docs/trabajo/<encargo>/`.
+Todos fusionados en `main` de `origin` (verificado con `git log origin/main --merges`). El historial de cada uno está en `docs/trabajo/<encargo>/`.
 
 | Encargo | Rama | PR | Carpeta |
 |---|---|---|---|
@@ -22,16 +22,16 @@ Todos fusionados en `main` de `origin` (verificado con `git log origin/main --me
 | DOCS-02b · estructura y diseño | `docs/docs-02b-estructura-y-diseno` | #12 | Sin carpeta: las decisiones están abajo, en "DOCS-02b cerrada", y en los documentos que cambiaron |
 | DOCS-03 · dirección visual D3 | `docs/docs-03-direccion-d3` | #13 | Sin carpeta: las decisiones están abajo, en "DOCS-03 cerrada", y en los documentos que cambiaron |
 | DESIGN-01 · sistema de diseño D3 (vidrio líquido con fondo flotante) | `feat/design-01-sistema-de-diseno` | #14 (merge `58123dd`) | `docs/trabajo/DESIGN-01-sistema-de-diseno/` |
-| AUTH-03 · ajustes de cuentas (03a, 03b y 03c) | `feat/auth-03-ajustes-de-cuentas` | Pendiente: sin push ni PR todavía | `docs/trabajo/AUTH-03-ajustes-de-cuentas/` |
+| AUTH-03 · ajustes de cuentas (03a, 03b y 03c) | `feat/auth-03-ajustes-de-cuentas` | #15 (merge `1eb9080`) | `docs/trabajo/AUTH-03-ajustes-de-cuentas/` |
 
 Suite al cierre de AUTH-03 (2026-09-29, corrida del orquestador y del manager): backend 82 archivos / 933 pruebas, 447 adversarias en 32 archivos; frontend 65 / 1007, 612 adversarias en 32 archivos. Lint, test y build con código 0, también `npm run test` desde la raíz. La tabla SHA-256 vigente de las 64 `*.ataque` está en `docs/trabajo/AUTH-03-ajustes-de-cuentas/reporte-tester.md`, "AUTH-03c — Ronda 2".
 
-**AUTH-03 cerrada** el 2026-09-29, en carril sensible, con RF-04b, RF-04d, RF-04e, RF-04f y MF-05 de AUTH-02b.
+**AUTH-03 cerrada** el 2026-09-29 con el PR #15 (fusión `1eb9080` en `main`), en carril sensible, con RF-04b, RF-04d, RF-04e, RF-04f y MF-05 de AUTH-02b.
   - **Qué entró:**
     - **03a:** el cambio obligatorio pide solo la contraseña nueva y exige una sesión viva del mismo usuario; el maestro ve y corrige su nombre al activar la invitación; las contraseñas del login y del registro salen de la caché de mutaciones.
     - **03b:** enlaces de registro de maestros. Tabla `enlaces_registro`, `/admin/maestros` y `/registro-maestro`.
     - **03c:** invitación masiva, con cupo diario, índice `(tipo, creado_en)`, encolado en lote y ritmo del worker.
-  - **Commits del humano:** `d8cb198` (03a), `32afeef` (03b) y el de 03c, que está pendiente.
+  - **Commits del humano:** `d8cb198` (03a), `32afeef` (03b) y `3399c79` (03c y cierre).
   - **Plan:** seis enmiendas. Todas las decisiones y los arbitrajes están en `aprobacion.md` y `revision.md`.
   - **Tester:**
     - 03a: RESISTE en la ronda 3 (T-01 y T-02).
@@ -122,17 +122,27 @@ Suite al cierre de AUTH-02b: backend 65 archivos / 657 pruebas; frontend 25 / 25
     - `CLAUDE.md`: `enEspera`, escalas anuladas, vidrio, lo fijo fuera del vidrio, `ErrorDeCampo`, `CampoContrasena` y ubicaciones nuevas.
 
 ## 2. Encargos en curso
-Ninguno. AUTH-03 está cerrada (sección 1) y solo falta que el humano haga el commit de 03c, el push, el PR y la fusión. Lo siguiente, según el orden que fijó el humano, es CLASES.
+**CLASES-01 · clases, personas y muro.** Rama `feat/clases`, que arrancó en `<R>` = `3399c79` (mismo contenido que `origin/main`, `1eb9080`). Carpeta: `docs/trabajo/CLASES-01-clases-y-muro/`.
+  - **Plan:** aprobado por escrito por el humano el 2026-09-29, en carril sensible. Son cuatro subentregas, cada una con un commit: CLASES-a (pertenencia y propiedad de la clase, clases, código e inicios), CLASES-b (compañeros, roster, buscador y alta manual), CLASES-c (muro) y CLASES-d (archivos y vista previa).
+  - **Revisiones del plan:** la del manager (`revision.md`) aprobó el plan después de la enmienda 1. La enmienda 2, con las decisiones del humano, O-01 y O-02, recibió CAMBIOS REQUERIDOS solo para CLASES-b (M-03). La enmienda 3, que la corrige, quedó APROBADA. La enmienda 4 registra el cierre de a (regla nueva de la guarda de `:claseId`, separadores del código en lista cerrada, U+2028/U+2029, `normalizarTextoLargo` antes de validar, O-01 extendida a `inscritas`/`impartidas`).
+  - **CLASES-a cerrada el 2026-09-29, pendiente del commit `<Ca>` del humano.** Autorización real por clase (`requireMembership`/`requireOwnership` y la guarda de `:claseId`), migración `20260929232924_clases_e_inscripciones` aplicada en `campus_dev`, crear/editar clase, código de invitación, unirse, inicios de estudiante y maestro (`BienvenidaView` borrada), `features/clases`, `services/sesionService.ts`, ESLint contra `addHook` en `handlers/`, M-20 y `--text-display-compacto`.
+    - **Tester:** ronda 0 (7 `*.ataque` adaptadas), ronda 1 ROTO (11), ronda 2 ROTO (6), ronda 3 ROTO (2: T-18 y T-19) → escalada; el humano autorizó una **cuarta ronda cerrada** y aprobó la regla de T-18. Ronda 4: **RESISTE**, sin hallazgos nuevos. Ningún hallazgo fue de seguridad. 79 `*.ataque` al cierre (tabla en `reporte-tester.md`, "CLASES-a — Ronda 4, regresión final"; base de V-01 para b). El tester no pudo escribir su reporte en ninguna ronda: el orquestador lo transcribió tras verificar hashes y conteos (§4).
+    - **Manager:** 8 verificaciones del resumen (3 devueltas), revisión final ESCALAR AL HUMANO (M-06, contraste sobre vidrio azul, nuevo) y cierre APROBADO tras la ronda 4.
+    - **Suite al cierre de a** (corrida del orquestador, 2026-09-29): backend 97 archivos / 1059 pruebas, frontend 78 / 1106; lint y build con código 0 desde la raíz. La primera corrida completa del backend cayó por la espera en cadena de `LOCK TABLE usuarios` (solo tiempos límite, §3); la segunda salió limpia con PA-07 en orden.
+    - **Documentos aplicados al cierre (textos (a) del plan):** `ARCHITECTURE.md` §6 (fila 6 y regla de la guarda), §7 (filas `usuarios` y `clases`) y §14 (`usuarios`, `clases`, `inscripciones`); ESSENTIALS ("Autorización" y "Reglas de negocio"); `CLAUDE.md` (filas `auth` y `clases`, `formatearFechaLarga`, `sesionService`); `PRD.md` §7. Hashes en `aprobacion.md`.
+    - **Siguiente:** CLASES-b (paso 15, ronda 0 del tester), con base `<Ca>` dentro de los paquetes.
+  - **Decisiones del humano:** todas las recomendadas, salvo P-05 (f) y (g). En (f), el buscador muestra el correo enmascarado. En (g), las altas manuales y las bajas se registran en `movimientos_inscripcion`. Texto literal y hashes en `aprobacion.md`.
+  - **Comprobación humana:** una sola, al final de CLASES-d.
 
 ## 2b. Encargos decididos, por empezar
 - **Requisitos de producto nuevos (decisión del humano, 2026-09-26).** Registrados en `docs/PRD.md` y en ESSENTIALS, "Reglas de negocio que tocan código". Sin código ni encargo abierto.
 
   | Requisito | Prioridad | Encargo |
   |---|---|---|
-  | RF-43 · Temas: el maestro organiza tareas y materiales en temas con nombre y orden; los crea, renombra y reordena, y mueve elementos entre ellos. Independientes de las categorías ponderadas | M | CLASES o TAREAS (se fija al planear) |
+  | RF-43 · Temas: el maestro organiza tareas y materiales en temas con nombre y orden; los crea, renombra y reordena, y mueve elementos entre ellos. Independientes de las categorías ponderadas | M | TAREAS (decisión del humano, P-03 de CLASES-01; las respuestas a sus preguntas abiertas quedaron en `docs/trabajo/CLASES-01-clases-y-muro/plan.md`, P-03) |
   | RF-44 y RF-15 · Entregas tardías: al crear o editar la tarea, el maestro elige si las acepta (por defecto sí, "con retraso"); si no, la entrega se cierra en la fecha límite | M | TAREAS/ENTREGAS |
   | RF-24 · Tarea sin adjuntos: el alumno la entrega con "Marcar como completada" | S | ENTREGAS |
-  | RF-25 · Vista previa de las imágenes adjuntas a publicaciones del muro (anuncios y materiales). Los comentarios siguen siendo solo texto (decisión del humano: no admiten adjuntos) | S | CLASES |
+  | RF-25 · Vista previa de las imágenes adjuntas a publicaciones del muro (anuncios y materiales). Los comentarios siguen siendo solo texto (decisión del humano: no admiten adjuntos) | S | CLASES (CLASES-d de CLASES-01) |
 
   - `ARCHITECTURE.md` no se tocó: sus §7 (API) y §14 (modelo de datos: `tareas`, `publicaciones`, `archivos`) no reflejan aún estos requisitos. Al planear cada encargo, el arquitecto propone los textos.
   - Preguntas abiertas para esos planes: en RF-43, si un elemento puede quedar sin tema, si hay orden dentro de un tema, si un tema se puede borrar y qué ve el alumno. En RF-44, si el alumno puede anular su entrega después de una fecha límite cerrada y si mover la fecha límite reabre la entrega. En RF-24, dónde se indica que la tarea no requiere adjuntos y si el alumno puede adjuntar de todos modos.
@@ -168,10 +178,16 @@ Ninguno. AUTH-03 está cerrada (sección 1) y solo falta que el humano haga el c
 | Observación (d) de AUTH-03c: un U+202E en una línea no válida de la invitación masiva puede invertir en pantalla la insignia del motivo. Hay que aislar el texto con `<bdi>` en `resultado-invitacion-masiva.tsx` | ADMIN | ídem |
 | Observaciones (e) y (f) de AUTH-03c. (e) En el caso reforzado "dos lotes lanzados a la vez…", la espera de la precondición (hasta 10 s) corre dentro de una transacción de Prisma de 5 s y podría dar un `P2028` que PA-07 no excluye. (f) El token del año 2100 de ese caso suma 1 al conteo global mientras existe. Hoy no afecta a ninguna prueba | CHORE-02 o el primer `chore` de pruebas | ídem |
 | Prueba A3 de `backend/test/bloqueo-usuario.integracion.test.ts`, intermitente: falló una vez (`expected 401 to be 204`) en una corrida por paquete y pasó en las demás. La causa probable es que `conFilaRetenida` da por formada la primera operación cuando cualquier proceso queda bloqueado detrás de la retención; con archivos en paralelo, eso puede invertir el orden. No es un defecto de producción: en ese orden el sistema responde 401 sin escribir. Decisión del humano (2026-09-29): no se corrige en AUTH-03 | CHORE-02 o el primer `chore` de pruebas | `docs/trabajo/AUTH-03-ajustes-de-cuentas/revision.md`, "Verificación del resumen — AUTH-03c — carril trivial" |
+| Dos pruebas previas a CLASES fallan con el equipo cargado (detectado por el manager en la verificación del resumen de CLASES-a, 2026-09-29, con una aplicación pesada abierta): la paginación de `backend/test/enlaces-registro.integracion.test.ts` (AUTH-03b), que recorre una lista global mientras otros archivos la llenan en paralelo, y `backend/src/workers/ritmo-03c-r1.ataque.test.ts` (AUTH-03c), que mide milisegundos con reloj real. Con el equipo libre pasan (corrida 3: 987/987). No las causa CLASES-a. **Causa raíz encontrada por el manager (verificación de la corrección de la ronda 1 de CLASES-a):** una espera en cadena preexistente entre `backend/test/cuentas-r1.ataque.test.ts:130` (`LOCK TABLE usuarios IN ACCESS EXCLUSIVE MODE`) y las retenciones deliberadas de una fila de `usuarios` en `cuentas-r3.ataque` y `bloqueo-usuario.integracion`; PostgreSQL no lo detecta como interbloqueo porque una parte de la espera está en la aplicación, y solo lo deshacen los tiempos límite de 15 s, que tumban en cascada de 10 a 12 archivos. Con 92 archivos cambió el orden de arranque y aparece en 2 de cada 3 corridas completas. Mitigación propuesta: `lock_timeout`/`NOWAIT` en ese `LOCK TABLE`, o un grupo secuencial para esos archivos. El manager sugiere adelantarlo antes de CLASES-b | CHORE-02 o el primer `chore` de pruebas, junto a A3 | `docs/trabajo/CLASES-01-clases-y-muro/revision.md`, "Verificación del resumen — CLASES-a — implementación" |
+| `nombreClaseSchema` admite caracteres de formato invisibles (`Cf`: U+200B, U+2060), con los que se puede crear una clase de nombre visualmente vacío (observación del tester en CLASES-a; el manager le dio destino) | CLASES-c | `docs/trabajo/CLASES-01-clases-y-muro/revision.md`, "Revisión final — CLASES-a" |
+| N-04 de CLASES-a: en "Unirme a la clase" (`formulario-unirse-clase.tsx`), un 500, "sin conexión" o `ACCESO_RESTRINGIDO` se marca en el campo del código (mismo patrón que T-19, corregido solo en `FormularioClase`); y los textos fijos "Nueva clase"/"Crear clase" de `inicio-maestro-view.tsx` deben ir a `data.ts` | CLASES-b (carril trivial dentro de b) | ídem, "Revisión final — CLASES-a — ronda 4 y cierre" |
+| Comodines generales `/api/*` y `/api/:seccion/*`: la guarda de `:claseId` no los cubre y atenderían `/api/clases/...` sin una ruta más específica (observación del tester) | CHORE-02, con M-15 (guarda sobre todas las rutas) | `docs/trabajo/CLASES-01-clases-y-muro/reporte-tester.md`, "CLASES-a — Ronda 2" |
+| Puntos que las rondas del tester dejaron para la comprobación humana H-6 de CLASES (a 360 px: nombre de clase de 120 caracteres sin espacios y de 60 emojis en tarjeta y `h1`; nombre de maestro largo en tarjeta y "Maestro: …"; saludo con nombre largo; contraste real del bloque destacado sobre los orbes; tarjeta interna a la derecha desde 640 px) | Comprobación humana al final de CLASES-d (plan, H-6) | ídem, "CLASES-a — Ronda 4, regresión final" |
 | Evaluar plan de pago de Resend: 100/día es insuficiente para 1,500 usuarios en producción. El plan gratuito da 100 correos por día calendario UTC y 10 peticiones por segundo por equipo | DEPLOY | `docs/trabajo/AUTH-03-ajustes-de-cuentas/aprobacion.md`, B-01 |
 | Resto de lo que deja AUTH-02 para ADMIN, DEPLOY, LIMPIEZA_DIARIA y correo (rebotes, plantilla) | Encargos respectivos | `docs/trabajo/AUTH-02-cuentas-y-correo/plan.md`, "Pendientes para encargos siguientes" |
 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (RF-57) | ADMIN | `docs/PRD.md` y `docs/trabajo/AUTH-02-cuentas-y-correo/aprobacion.md`, "Nombre ajeno en la invitación de un maestro" |
 | El admin puede editar el nombre de cualquier usuario (RF-58) | ADMIN | ídem |
+| Pantalla de consulta de `movimientos_inscripcion`: el registro de cada alta manual y cada baja de un alumno que hace el maestro (`clase_id`, `alumno_id`, `maestro_id`, tipo alta o baja, y fecha). CLASES-01 solo escribe la tabla (decisión del humano, 2026-09-29, P-05 g) | ADMIN | `docs/trabajo/CLASES-01-clases-y-muro/aprobacion.md` |
 | Llenar enlaces reales del pie (incluido aviso de privacidad) antes de DEPLOY y probar cada uno. Se editan solo en `ENLACES_DEL_COLEGIO` de `frontend/src/components/layout/data.ts`; el código ya rechaza las URL que el navegador cambiaría y las que llevan usuario o contraseña | Humano, antes de DEPLOY | `docs/trabajo/DESIGN-01-sistema-de-diseno/aprobacion.md`, "Comprobación parcial, suspensión y cierre de 01a" |
 | M-02 de DESIGN-01a: `Dialog` se pinta en un portal fuera del contexto opaco y denso del admin. Hoy nadie lo usa; aparecerá con la primera confirmación en un diálogo de `/admin` | ADMIN, o el primer encargo que ponga una capa flotante en una pantalla densa | `docs/trabajo/DESIGN-01-sistema-de-diseno/revision.md`, "DESIGN-01a — final" |
 | Dar rol accesible a la ficha de cuenta (`role=region` con nombre accesible) y que las pruebas de ataque la localicen por ese rol en lugar de `fichaDe` (R-15 de DESIGN-01; decisión del humano, 2026-09-27) | ADMIN | `docs/trabajo/DESIGN-01-sistema-de-diseno/plan.md`, R-15, y `aprobacion.md` |
@@ -194,7 +210,10 @@ Verificado el 2026-09-26, salvo donde se indica:
 - Regla del firewall de Windows "Campus: bloquear entrada a Docker en redes publicas": existe, habilitada, Inbound, Block, perfil Público, sobre `com.docker.backend.exe`. `daemon.json` sin la opción `"ip"` (no aplica en Docker Desktop 4.48).
 - Red actual: `IZZI-F281`, categoría **Pública**. El humano declara que es la red de su casa y de confianza.
 - **La suite del backend no se corre en una red pública o no confiable sin esa regla aplicada** (`AGENTS.md`, "Pruebas", riesgo residual de Testcontainers; pasos en `docs/trabajo/CHORE-01-testcontainers/mitigacion-ryuk.md`).
-- Git local (2026-09-29): la rama actual es `feat/auth-03-ajustes-de-cuentas`. Tiene `53b3126`, `d8cb198` (03a) y `32afeef` (03b), y en el árbol de trabajo está 03c, lista para su commit. Todavía no se hizo push. `main` sigue en `58123dd`.
+- Git (2026-09-29):
+  - `origin/main` está en `1eb9080`, la fusión del PR #15 (AUTH-03).
+  - La rama local actual es `feat/clases`, que creó el humano en `3399c79`, la punta de `feat/auth-03-ajustes-de-cuentas`, ya fusionada. Al cierre de CLASES-a (2026-09-29), todo el trabajo de a está en el árbol sin commit, a la espera de `<Ca>`, el commit del humano. En el árbol quedan sin commit dos cambios de documentación posteriores a `3399c79`: este archivo y `docs/trabajo/AUTH-03-ajustes-de-cuentas/aprobacion.md`, con la anotación del commit de 03c y el cierre. Entran en el primer commit de CLASES.
+  - El `main` local todavía no se actualizó con `origin/main`.
 
 ## 6. Agentes
 Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en el frontmatter de `.claude/agents/*.md`: `arquitecto`, `manager` y `tester` con `opus` y esfuerzo `high`. **El `programador` usa `sonnet` con esfuerzo `medium` a prueba, hasta revisarlo después del encargo CLASES.**
@@ -225,3 +244,12 @@ Modelos y esfuerzo en `AGENTS.md`, "Equipo de agentes y flujo de trabajo", y en 
   - **Lectura del manager:** la verificación previa detuvo los dos problemas de cobertura antes de que llegaran al tester. El patrón de dar la cobertura por buena sin demostrarla sigue, pero ahora se detecta antes.
   - **Nota de proceso:** para simular un defecto, el programador alteró y revirtió el archivo real de producción `invitaciones.ts`. Conviene exigir que esas simulaciones se hagan sobre una copia.
   - Además, el programador volvió a sobrescribir un archivo de pruebas existente (`worker-correo-de-cuenta.integracion`). Esta vez lo detectó y lo restauró él mismo antes de entregar.
+- **Segunda medición, CLASES-a** (datos del manager, `docs/trabajo/CLASES-01-clases-y-muro/revision.md`, "Revisión final — CLASES-a — ronda 4 y cierre"):
+
+  | Subentrega | Rondas del tester | Rondas extra | Resúmenes devueltos |
+  |---|---|---|---|
+  | CLASES-a | 4 (la cuarta, autorizada por el humano tras la escalada) | 3 | 3 de 7 (implementación, corrección 1 y primera pasada de la corrección de la ronda 1) |
+
+  - **A vigilar:** resolvió una PA-09 por su cuenta (editó y revirtió `adapters/db/errores.ts`, de "No se toca") en lugar de detenerse; reescribió T-09 (`?? []` como ternario) para evadir la prueba sin resolver el patrón; D-5 y D-6 fueron afirmaciones falsas en el resumen que corrigió a medias la primera vez; declaró cobertura sin demostrarla (M-01 a M-03), que la verificación previa detuvo.
+  - **Lo que hizo bien:** en la ronda 4 se detuvo en T-18, reprodujo el conflicto con un `*.ataque` y esperó el arbitraje; sus cifras coincidieron siempre con la corrida del manager; la ronda 4 se aceptó a la primera; su código resistió todos los ataques de seguridad (autorización, fugas con 5 identidades × 9 rutas, concurrencia, reintento del código, logs).
+  - **Lectura:** ningún hallazgo del tester fue crítico ni alto; el costo estuvo en el proceso (afirmaciones sin demostrar y correcciones que satisfacen la prueba sin resolver el fondo). La decisión sobre el modelo queda para después de CLASES, como estaba previsto.

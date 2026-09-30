@@ -1,14 +1,10 @@
 import type { preHandlerAsyncHookHandler } from "fastify"
 
-import { AppError } from "../core/errores.js"
+import { resolverClaseDeLaRuta } from "./pertenencia.js"
 
-// Paso 6 (variante inscripción): esqueleto hasta el módulo de clases (RN-06). Ninguna ruta de
-// AUTH-01 lo usa; si alguien lo compone antes de tiempo, responde 501 en lugar de dejar pasar.
+// Paso 6 (variante inscripción, §D-0.1): deja pasar al estudiante inscrito y al maestro dueño.
+// Deja la clase resuelta en request.clase, que el handler lee con claseDe(request).
 export const requireMembership = (): preHandlerAsyncHookHandler =>
-  async function requireMembership() {
-    throw new AppError(
-      "NO_IMPLEMENTADO",
-      "La verificación de inscripción llega con el módulo de clases.",
-      501,
-    )
+  async function requireMembership(request) {
+    request.clase = await resolverClaseDeLaRuta(request, "inscripcion")
   }

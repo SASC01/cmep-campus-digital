@@ -26,6 +26,15 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   `enlaces-registro/:id/registrados`; todas con `protegido({ roles: ["admin"] })`. El token del
   enlace solo viaja en la respuesta de crearlo, con `Cache-Control: no-store`.
 
+- `clases/clases.ts` (prefijo `/api`, CLASES-a): `POST /clases` (crear), `GET /clases/inscritas` y
+  `GET /clases/impartidas` (listas propias por rol, paginadas por cursor), `POST /clases/unirse`
+  (con código, idempotente), `GET/PUT /clases/:claseId` (detalle y editar) y
+  `GET/POST /clases/:claseId/codigo` (ver y regenerar el código, con `Cache-Control: no-store`). Las
+  cinco últimas llevan el sexto paso (`requireMembership` o `requireOwnership`, §D-0) y leen la clase
+  de la ruta con `claseDe(request)`, nunca con el `claseId` crudo del parámetro. El código de la
+  clase se genera en el handler (`node:crypto.randomBytes` + `codigoDesdeBytes` de `core/`); el
+  adaptador reintenta una sola vez si choca con el índice único (S-03).
+
 Ningún handler llama a `adapters/notifier` (bloque de ESLint en la raíz): quien necesita avisar por
 correo encola el evento y solo el worker usa `adapters/notifier`. Los repositorios compuestos que
 encolan dentro de su transacción reciben un callback `alGuardar(sql: EjecutorSql)`; el handler solo

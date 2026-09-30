@@ -51,6 +51,7 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - `debe_cambiar_contrasena`: solo pasa `POST /auth/cambiar-contrasena`.
 - Alumno restringido: solo `GET /me` y `GET /me/estado-pago` (y `POST /auth/cambiar-contrasena` si tiene un cambio pendiente). Sin tokens de LiveKit, archivos ni grabaciones.
 - Estado de pago ajeno: solo admin, o maestro dueño de una clase del alumno. Para estudiantes el campo **se omite**.
+- `requireMembership`: estudiante inscrito o maestro dueño; `requireOwnership`: solo el maestro dueño; siempre sobre `:claseId`, con la misma respuesta para una clase inexistente y una ajena. El admin no pasa por rutas de clase fuera de `/admin`, y sus rutas de clases necesitan una excepción de la guarda (ADMIN).
 
 ## Reglas de datos
 - Prisma **solo** en `adapters/db`.
@@ -107,6 +108,7 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Entrega tardía: por defecto se acepta y se marca `con_retraso`. Al crear o editar la tarea, el maestro puede no aceptarlas: entonces la entrega se cierra en la fecha límite (RF-15, RF-44).
 - Entregas admiten archivos y enlaces. Una tarea que no requiere adjuntos se entrega con "Marcar como completada" (RF-24).
 - Temas: organizan las tareas y los materiales de una clase, con nombre y orden. Son independientes de las categorías ponderadas y no intervienen en la calificación (RF-43).
+- Código de clase: 7 caracteres sin I, O, 0 ni 1; se escribe sin distinguir mayúsculas y admite como separadores los espacios y guiones de una lista cerrada; regenerarlo invalida el anterior sin afectar a los inscritos. Unirse es idempotente.
 
 ## Operación
 - PostgreSQL **nunca** expuesto a internet. Puertos 80/443 del Droplet solo desde los rangos de Cloudflare.

@@ -11,6 +11,20 @@ export const formatearFechaHora = (iso: string, zona?: string): string => {
   }).format(fecha)
 }
 
+// CLASES-a (§D-A6): fecha larga en palabras para el saludo del bloque destacado del inicio, por
+// ejemplo "martes 29 de septiembre". Recibe un Date (no un ISO), porque siempre es "hoy". El ICU
+// de es-MX intercala una coma entre el día de la semana y la fecha ("martes, 29 de..."); se quita
+// para dar el texto exacto del diseño.
+export const formatearFechaLarga = (fecha: Date, zona?: string): string =>
+  new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    ...(zona ? { timeZone: zona } : {}),
+  })
+    .format(fecha)
+    .replace(",", "")
+
 // Iniciales de un nombre para el avatar decorativo (§D-3): primer punto de código de las dos
 // primeras palabras, en mayúsculas de es-MX; una sola palabra da una letra; ignora espacios de más.
 export const inicialesDe = (nombre: string): string => {

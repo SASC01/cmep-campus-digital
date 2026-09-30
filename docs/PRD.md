@@ -211,7 +211,7 @@ Total: 26 vistas de rol + 3 compartidas.
 - **Google Classroom es referencia solo de arquitectura de información**, nunca de estilo: prohibido imitar sus colores, logo, tipografía o iconografía.
 - **Evitar:** estética genérica de IA/startup/SaaS, degradados morado-azul, maquetas de dashboards flotantes como ilustración, manchas brillantes decorativas, rejillas genéricas de características, texto corporativo vago y palabras como "potencia", "desbloquea", "optimiza", "sin fricciones". El vidrio translúcido solo se usa con las reglas de legibilidad, movimiento y alcance de `docs/DESIGN.md` (dirección D3).
 - **Densidad por rol:** Administrador denso y tabular; Estudiante ligero y orientado a tareas; Maestro intermedio.
-- **Patrones a conservar:** barra lateral con lista de clases; bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
+- **Patrones a conservar:** tarjetas de "Mis clases" en el inicio de cada rol (la barra lateral es compacta: `docs/DESIGN.md` §7.4); bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
 - **CTAs en estados vacíos:** "Crea tu primera clase" (Maestro) y "Únete con tu código de clase" (Estudiante).
 - Biblioteca de componentes consistente (botones, tarjetas, barra de navegación, tablas) en todas las vistas, construida sobre shadcn/ui **reestilizado** con tokens propios; nunca con su aspecto por defecto.
 - Solo modo claro durante el piloto.

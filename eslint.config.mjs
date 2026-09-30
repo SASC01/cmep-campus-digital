@@ -129,6 +129,40 @@ export default defineConfig(
     },
   },
   {
+    // CLASES-a (§D-0.4, M-14): los plugins de handlers/ no añaden hooks (addHook) — correrían
+    // antes de protegido() y la guarda onRoute no los ve (middleware/README.md, "Límite: hooks de
+    // plugin"). En la configuración plana, el último bloque que coincide reemplaza las opciones de
+    // la regla, así que este repite los dos selectores de executeSql y agrega el de addHook.
+    basePath: raiz,
+    files: ["backend/src/handlers/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "MemberExpression[property.name='executeSql']", message: sqlSoloEnAdapters },
+        { selector: "MemberExpression[property.value='executeSql']", message: sqlSoloEnAdapters },
+        {
+          selector: "CallExpression[callee.property.name='addHook']",
+          message:
+            "Los plugins de handlers/ no añaden hooks: correrían antes de protegido() y la guarda no los ve (middleware/README.md, M-14).",
+        },
+        {
+          selector: "CallExpression[callee.property.value='addHook']",
+          message:
+            "Los plugins de handlers/ no añaden hooks: correrían antes de protegido() y la guarda no los ve (middleware/README.md, M-14).",
+        },
+        {
+          // T-14 (ronda 2 del tester): app[`addHook`](...) — la propiedad entre corchetes es una
+          // plantilla de texto sin expresiones (TemplateLiteral), no un Identifier ni un Literal, así
+          // que ninguno de los dos selectores de arriba la reconoce. quasis.0 es su único fragmento
+          // (una plantilla sin ${...}) y su .value.raw trae el texto literal, "addHook".
+          selector: "CallExpression[callee.property.quasis.0.value.raw='addHook']",
+          message:
+            "Los plugins de handlers/ no añaden hooks: correrían antes de protegido() y la guarda no los ve (middleware/README.md, M-14).",
+        },
+      ],
+    },
+  },
+  {
     basePath: raiz,
     files: ["frontend/**/*.{ts,tsx}"],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],

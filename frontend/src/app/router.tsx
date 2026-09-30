@@ -4,7 +4,6 @@ import { LayoutPublico } from "@/components/layout/layout-publico"
 import { CuentasView } from "@/features/admin/cuentas-view"
 import { MaestrosView } from "@/features/admin/maestros-view"
 import { AccesoRestringidoView } from "@/features/auth/acceso-restringido-view"
-import { BienvenidaView } from "@/features/auth/bienvenida-view"
 import { CambiarContrasenaView } from "@/features/auth/cambiar-contrasena-view"
 import { EstablecerContrasenaView } from "@/features/auth/establecer-contrasena-view"
 import { LoginView } from "@/features/auth/login-view"
@@ -12,6 +11,12 @@ import { RecuperarView } from "@/features/auth/recuperar-view"
 import { RegistroMaestroView } from "@/features/auth/registro-maestro-view"
 import { RegistroView } from "@/features/auth/registro-view"
 import { RestablecerView } from "@/features/auth/restablecer-view"
+import { ClaseLayout } from "@/features/clases/clase-layout"
+import { CrearClaseView } from "@/features/clases/crear-clase-view"
+import { EditarClaseView } from "@/features/clases/editar-clase-view"
+import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
+import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
+import { MuroView } from "@/features/clases/muro-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
@@ -48,12 +53,30 @@ export const rutas: RouteObject[] = [
       {
         path: "/estudiante",
         element: <RequireRol rol="estudiante" />,
-        children: [{ index: true, element: <BienvenidaView /> }],
+        children: [
+          { index: true, element: <InicioEstudianteView /> },
+          {
+            path: "clases/:claseId",
+            element: <ClaseLayout />,
+            children: [{ index: true, element: <MuroView /> }],
+          },
+        ],
       },
       {
         path: "/maestro",
         element: <RequireRol rol="maestro" />,
-        children: [{ index: true, element: <BienvenidaView /> }],
+        children: [
+          { index: true, element: <InicioMaestroView /> },
+          { path: "clases/nueva", element: <CrearClaseView /> },
+          {
+            path: "clases/:claseId",
+            element: <ClaseLayout />,
+            children: [
+              { index: true, element: <MuroView /> },
+              { path: "editar", element: <EditarClaseView /> },
+            ],
+          },
+        ],
       },
       {
         path: "/admin",

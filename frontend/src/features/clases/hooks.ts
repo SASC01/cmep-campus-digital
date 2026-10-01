@@ -1,14 +1,20 @@
 import {
+  agregarAlumnoRespuestaSchema,
+  candidatosRespuestaSchema,
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
+  listaAlumnosRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
+  personasRespuestaSchema,
+  sinContenidoSchema,
   unirseRespuestaSchema,
   type CrearClase,
   type EditarClase,
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
 
 import { consultaMe } from "@/services/sesionService"
 import { api } from "@/services/apiClient"
@@ -16,10 +22,16 @@ import { api } from "@/services/apiClient"
 import {
   CLAVE_CLASES_IMPARTIDAS,
   CLAVE_CLASES_INSCRITAS,
+  claveAlumnos,
+  claveCandidatos,
   claveClaseDetalle,
   claveCodigoDeClase,
+  clavePersonas,
+  LIMITE_CANDIDATOS,
   LIMITE_CLASES,
+  LIMITE_PERSONAS,
 } from "./data"
+import { terminoDeBusquedaValido } from "./lib"
 
 // El saludo del bloque destacado depende solo de la sesión (§D-A5): se ve aunque falle la consulta
 // de clases. select evita volver a pedir /me: reutiliza la caché de consultaMe.
@@ -124,4 +136,193 @@ export const useUnirseAClase = () => {
       api("/api/clases/unirse", { method: "POST", body: datos, schema: unirseRespuestaSchema }),
     onSuccess: () => invalidarListasDeClases(queryClient),
   })
+}
+
+// CLASES-b (§D-B5).
+export const usePersonas = (claseId: string) =>
+  useInfiniteQuery({
+    queryKey: clavePersonas(claseId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(`/api/clases/${claseId}/personas?${conCursor(LIMITE_PERSONAS, pageParam)}`, {
+        schema: personasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+export const useAlumnos = (claseId: string) =>
+  useInfiniteQuery({
+    queryKey: claveAlumnos(claseId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(`/api/clases/${claseId}/alumnos?${conCursor(LIMITE_PERSONAS, pageParam)}`, {
+        schema: listaAlumnosRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// Solo pregunta con un término que el servidor aceptaría (terminoDeBusquedaValido); con menos de 3
+// letras no hace ninguna petición (RN-04).
+export const useCandidatos = (claseId: string, termino: string) =>
+  useQuery({
+    queryKey: [...claveCandidatos(claseId), termino],
+    queryFn: () => {
+      const parametros = new URLSearchParams({ q: termino, limite: String(LIMITE_CANDIDATOS) })
+      return api(`/api/clases/${claseId}/alumnos/candidatos?${parametros.toString()}`, {
+        schema: candidatosRespuestaSchema,
+      })
+    },
+    enabled: terminoDeBusquedaValido(termino),
+  })
+
+// Tras agregar o quitar, el roster, el buscador (el "Ya está en la clase" de cada fila), los
+// compañeros de esa clase y el contador de alumnos de "Mis clases" quedan al día.
+const invalidarPersonasDeLaClase = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+) => {
+  void queryClient.invalidateQueries({ queryKey: claveAlumnos(claseId) })
+  void queryClient.invalidateQueries({ queryKey: claveCandidatos(claseId) })
+  void queryClient.invalidateQueries({ queryKey: clavePersonas(claseId) })
+  void queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_IMPARTIDAS })
+}
+
+export const useAgregarAlumno = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (alumnoId: string) =>
+      api(`/api/clases/${claseId}/alumnos`, {
+        method: "POST",
+        body: { alumnoId },
+        schema: agregarAlumnoRespuestaSchema,
+      }),
+    onSuccess: () => invalidarPersonasDeLaClase(queryClient, claseId),
+  })
+}
+
+export const useQuitarAlumno = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (alumnoId: string) =>
+      api(`/api/clases/${claseId}/alumnos/${alumnoId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: () => invalidarPersonasDeLaClase(queryClient, claseId),
+  })
+}
+
+// Devuelve `valor` después de `ms` sin cambios: el buscador espera 300 ms desde la última tecla
+// antes de preguntar (RN-04).
+export const useTerminoDiferido = (valor: string, ms: number): string => {
+  const [diferido, setDiferido] = useState(valor)
+  useEffect(() => {
+    const temporizador = setTimeout(() => setDiferido(valor), ms)
+    return () => clearTimeout(temporizador)
+  }, [valor, ms])
+  return diferido
+}
+
+// Foco que sobrevive cuando su control se desmonta o se reemplaza (T-21 a T-26, DESIGN.md §7.14).
+// Un control con el foco que desaparece lo deja en <body>, y el navegador no avisa con ningún
+// evento: por eso se recuerda qué fila tiene el foco y cada componente reacciona después de cada
+// render, sin depender del onSuccess de ninguna petición (un componente desmontado no lo recibe).
+//
+// useFilaEnFoco(atributo) devuelve un ref con el valor del atributo `data-…` de la fila que tiene el
+// foco, o null: focusin lo marca al entrar a una fila (y lo borra al ir a otro lado) y focusout lo
+// borra si la persona se fue a ningún elemento (un clic en blanco) y el control sigue en el
+// documento.
+export const useFilaEnFoco = (atributo: string) => {
+  const filaEnFoco = useRef<string | null>(null)
+  useEffect(() => {
+    const alEntrar = (evento: FocusEvent) => {
+      const fila = evento.target instanceof Element ? evento.target.closest(`[${atributo}]`) : null
+      filaEnFoco.current = fila?.getAttribute(atributo) ?? null
+    }
+    const alSalir = (evento: FocusEvent) => {
+      const objetivo = evento.target
+      if (evento.relatedTarget !== null || !(objetivo instanceof Element)) return
+      setTimeout(() => {
+        if (objetivo.isConnected) filaEnFoco.current = null
+      }, 0)
+    }
+    document.addEventListener("focusin", alEntrar)
+    document.addEventListener("focusout", alSalir)
+    return () => {
+      document.removeEventListener("focusin", alEntrar)
+      document.removeEventListener("focusout", alSalir)
+    }
+  }, [atributo])
+  return filaEnFoco
+}
+
+// true si el foco se perdió: ningún elemento, <body> o uno que ya no está en el documento.
+export const focoPerdido = (): boolean => {
+  const activo = document.activeElement
+  return activo === null || activo === document.body || !activo.isConnected
+}
+
+// "Ver más" (T-26, T-28): se desmonta con el foco dentro al cargar la última página. Devuelve el ref
+// que va en ese botón. Mueve el foco SOLO si el botón estaba montado en el render anterior, ya no lo
+// está en este y tenía el foco al desmontarse; con el botón montado nunca lo mueve, aunque el foco
+// esté en <body> (un render sin desmontaje no mueve nada). La marca "tenía el foco" se borra con un
+// focusin en otro elemento y con un focusout del botón que no lleva a ningún elemento mientras
+// sigue conectado (un clic en blanco).
+// Destino: el primer elemento nuevo (`enfocarFila` devuelve false si no pudo) o, si no llegó nada, el
+// encabezado de la lista (`enfocarEncabezado`). Defensa (T-27): si después de eso el foco sigue
+// perdido (el destino no existía o no estaba conectado), va al primer elemento enfocable y conectado
+// de la sección donde estaba el botón y, si no hay ninguno, no se mueve.
+export const useFocoAlCargarMas = (
+  ids: string[] | undefined,
+  enfocarFila: (id: string) => boolean,
+  enfocarEncabezado: () => void,
+) => {
+  const botonRef = useRef<HTMLButtonElement | null>(null)
+  const teniaElFoco = useRef(false)
+  const estabaMontado = useRef(false)
+  const seccionDelBoton = useRef<Element | null>(null)
+  const idsPrevios = useRef<string[] | undefined>(undefined)
+
+  useEffect(() => {
+    const alEntrar = (evento: FocusEvent) => {
+      teniaElFoco.current = botonRef.current !== null && evento.target === botonRef.current
+    }
+    const alSalir = (evento: FocusEvent) => {
+      const boton = botonRef.current
+      if (boton === null || evento.target !== boton || evento.relatedTarget !== null) return
+      setTimeout(() => {
+        if (boton.isConnected) teniaElFoco.current = false
+      }, 0)
+    }
+    document.addEventListener("focusin", alEntrar)
+    document.addEventListener("focusout", alSalir)
+    return () => {
+      document.removeEventListener("focusin", alEntrar)
+      document.removeEventListener("focusout", alSalir)
+    }
+  }, [])
+
+  useEffect(() => {
+    const previos = idsPrevios.current
+    idsPrevios.current = ids
+    const montadoAntes = estabaMontado.current
+    const montadoAhora = botonRef.current !== null
+    estabaMontado.current = montadoAhora
+    if (montadoAhora) {
+      seccionDelBoton.current = botonRef.current?.closest("section, [data-slot='card']") ?? null
+      return
+    }
+    if (!(montadoAntes && teniaElFoco.current)) return
+    teniaElFoco.current = false
+    if (!focoPerdido()) return
+    const nuevo = ids?.find((id) => previos?.includes(id) !== true)
+    if (nuevo !== undefined && enfocarFila(nuevo)) return
+    enfocarEncabezado()
+    if (!focoPerdido()) return
+    const seccion = seccionDelBoton.current
+    if (seccion === null || !seccion.isConnected) return
+    seccion.querySelector<HTMLElement>("button, a[href], input, [tabindex]")?.focus()
+  })
+
+  return botonRef
 }

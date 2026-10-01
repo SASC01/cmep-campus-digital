@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 
 import { TEXTOS_UNIRSE } from "../data"
 import { useUnirseAClase } from "../hooks"
-import { erroresDeFormularioClases, erroresPorCampo, mensajeDeErrorClases } from "../lib"
+import { errorDelCampoCodigo, erroresPorCampo, mensajeDeErrorClases } from "../lib"
 import type { ErroresFormulario } from "../types"
 
 // Id fijo: el vacío de PanelMisClases le lleva el foco (PR-A18g), sin contexto compartido.
@@ -43,13 +43,16 @@ export function FormularioUnirseClase() {
         await navigate(`/estudiante/clases/${respuesta.clase.id}`)
       },
       onError: (error) => {
-        // T-17 (ronda 2 del tester): sin el prefijo técnico "codigo:" en el mensaje. T-19 (ronda 3
-        // del tester): CODIGO_INVALIDO no es un VALIDACION con ese prefijo, pero sigue siendo un
-        // error de este campo (el único que tiene este formulario), a diferencia de
-        // FormularioClase.
-        setErrores(
-          erroresDeFormularioClases(error, ["codigo"]) ?? { codigo: mensajeDeErrorClases(error) },
-        )
+        // N-04 (§D-B4 bis): solo CODIGO_INVALIDO y un VALIDACION de "codigo" son errores del campo,
+        // sin el prefijo técnico "codigo:" (T-17). Cualquier otro (un 500, "sin conexión",
+        // ACCESO_RESTRINGIDO) avisa con un toast y no marca el campo, igual que FormularioClase
+        // (T-19).
+        const errorDeCampo = errorDelCampoCodigo(error)
+        if (errorDeCampo === null) {
+          toast.error(mensajeDeErrorClases(error))
+          return
+        }
+        setErrores(errorDeCampo)
       },
     })
   }

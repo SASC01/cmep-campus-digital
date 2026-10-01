@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -38,7 +38,7 @@ const clase = (n: number, extra: Record<string, unknown> = {}) => ({
 interface Api {
   me?: () => Response
   inscritas?: () => Response | Promise<Response>
-  unirse?: () => Response
+  unirse?: () => Response | Promise<Response>
 }
 
 const stubApi = (api: Api) => {
@@ -195,5 +195,56 @@ describe("InicioEstudianteView", () => {
 
     const enlace = await screen.findByRole("link", { name: "Clase 1" })
     expect(enlace).toHaveAttribute("href", `/estudiante/clases/${clase(1).id}`)
+  })
+
+  it("PR-B17: 'Unirme a la clase' (N-04): CODIGO_INVALIDO y un VALIDACION de codigo van bajo el campo; un 500 y 'sin conexión' avisan con toast, sin aria-invalid en el campo del código", async () => {
+    const escenarios: {
+      nombre: string
+      respuesta: () => Response | Promise<Response>
+      enElCampo: string | null
+    }[] = [
+      {
+        nombre: "CODIGO_INVALIDO",
+        respuesta: () => errorJson(404, "CODIGO_INVALIDO"),
+        enElCampo: "No encontramos una clase con ese código. Revisa que esté bien escrito.",
+      },
+      {
+        nombre: "VALIDACION de codigo",
+        respuesta: () =>
+          respuestaJson(400, {
+            error: { codigo: "VALIDACION", mensaje: "codigo: Escribe los 7 caracteres del código" },
+          }),
+        enElCampo: "Escribe los 7 caracteres del código",
+      },
+      { nombre: "500", respuesta: () => errorJson(500, "ERROR_INTERNO"), enElCampo: null },
+      {
+        nombre: "sin conexión",
+        respuesta: () => Promise.reject(new TypeError("Failed to fetch")),
+        enElCampo: null,
+      },
+    ]
+
+    for (const escenario of escenarios) {
+      stubApi({ unirse: escenario.respuesta })
+      renderVista()
+      await screen.findByRole("heading", { level: 1 })
+      const campo = screen.getByLabelText("Código de la clase")
+      fireEvent.change(campo, { target: { value: "ABCDEFG" } })
+      fireEvent.click(screen.getByRole("button", { name: "Unirme a la clase" }))
+
+      if (escenario.enElCampo !== null) {
+        expect(await screen.findByText(escenario.enElCampo), escenario.nombre).toBeInTheDocument()
+        expect(campo, escenario.nombre).toHaveAttribute("aria-invalid", "true")
+        expect(aviso.error, escenario.nombre).not.toHaveBeenCalled()
+      } else {
+        await waitFor(() => expect(aviso.error, escenario.nombre).toHaveBeenCalledTimes(1))
+        expect(campo, escenario.nombre).toHaveAttribute("aria-invalid", "false")
+        expect(screen.queryByText("mensaje del servidor"), escenario.nombre).not.toBeInTheDocument()
+      }
+
+      cleanup()
+      aviso.error.mockClear()
+      vi.unstubAllGlobals()
+    }
   })
 })

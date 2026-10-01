@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -109,6 +109,28 @@ describe("ClaseLayout", () => {
     expect(
       screen.queryByRole("navigation", { name: "Secciones de la clase" }),
     ).not.toBeInTheDocument()
+  })
+
+  it("PR-B14: las secciones suman 'Personas' (estudiante) y 'Alumnos' (maestro)", async () => {
+    stubApi({})
+    renderLayout(`/estudiante/clases/${CLASE_ID}`)
+    await screen.findByRole("list", { name: "Secciones de la clase" })
+
+    expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute(
+      "href",
+      `/estudiante/clases/${CLASE_ID}/personas`,
+    )
+    expect(screen.queryByRole("link", { name: "Alumnos" })).not.toBeInTheDocument()
+    cleanup()
+
+    renderLayout(`/maestro/clases/${CLASE_ID}`)
+    await screen.findByRole("list", { name: "Secciones de la clase" })
+
+    expect(screen.getByRole("link", { name: "Alumnos" })).toHaveAttribute(
+      "href",
+      `/maestro/clases/${CLASE_ID}/alumnos`,
+    )
+    expect(screen.queryByRole("link", { name: "Personas" })).not.toBeInTheDocument()
   })
 
   it("PR-A22c: el maestro copia el código (portapapeles doble), y un fallo da un toast", async () => {

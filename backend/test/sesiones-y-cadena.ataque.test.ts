@@ -454,7 +454,18 @@ describe("ataque: superficie de rutas", () => {
   // (POST /api/admin/maestros, POST /api/admin/maestros/lote y POST /api/auth/registro-maestro).
   // printRoutes anida /inscritas, /impartidas, /unirse y /:claseId bajo /api/clases (que tiene
   // POST) y /codigo bajo /:claseId; el análisis por sangría los reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c y CLASES-a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // CLASES-b ronda 0 (C-2, §D-R0; §D-B1 y V-06 del plan de CLASES-01): se agregan las 8 rutas de
+  // CLASES-b bajo /api/clases/:claseId (GET y HEAD de /personas; GET, HEAD y POST de /alumnos; GET y
+  // HEAD de /alumnos/candidatos; DELETE de /alumnos/:alumnoId). Ninguna crea cuentas ni cambia roles:
+  // leen miembros de la clase, buscan estudiantes ya existentes y agregan o quitan inscripciones de
+  // la clase del maestro dueño (POST /alumnos solo inscribe a un estudiante activo que ya existe).
+  // Ninguna ruta expone movimientos_inscripcion (V-06: ninguna contiene "movimiento"). La protección
+  // queda igual: ninguna ruta crea administradores; siguen creando maestros solo las tres de hoy
+  // (POST /api/admin/maestros, POST /api/admin/maestros/lote y POST /api/auth/registro-maestro), y
+  // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /personas y
+  // /alumnos bajo /:claseId, y /candidatos y /:alumnoId bajo /alumnos; el análisis por sangría los
+  // reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a y CLASES-b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -481,10 +492,14 @@ describe("ataque: superficie de rutas", () => {
     }
     expect(noReconocidas, "líneas del árbol de rutas que no se pudieron analizar").toEqual([])
     expect([...rutas].sort()).toEqual([
+      "DELETE /api/clases/:claseId/alumnos/:alumnoId",
       "GET /api/admin/enlaces-registro",
       "GET /api/admin/enlaces-registro/:id/registrados",
       "GET /api/clases/:claseId",
+      "GET /api/clases/:claseId/alumnos",
+      "GET /api/clases/:claseId/alumnos/candidatos",
       "GET /api/clases/:claseId/codigo",
+      "GET /api/clases/:claseId/personas",
       "GET /api/clases/impartidas",
       "GET /api/clases/inscritas",
       "GET /api/me",
@@ -492,7 +507,10 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/admin/enlaces-registro",
       "HEAD /api/admin/enlaces-registro/:id/registrados",
       "HEAD /api/clases/:claseId",
+      "HEAD /api/clases/:claseId/alumnos",
+      "HEAD /api/clases/:claseId/alumnos/candidatos",
       "HEAD /api/clases/:claseId/codigo",
+      "HEAD /api/clases/:claseId/personas",
       "HEAD /api/clases/impartidas",
       "HEAD /api/clases/inscritas",
       "HEAD /api/me",
@@ -514,6 +532,7 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/auth/registro-maestro",
       "POST /api/auth/restablecer",
       "POST /api/clases",
+      "POST /api/clases/:claseId/alumnos",
       "POST /api/clases/:claseId/codigo",
       "POST /api/clases/unirse",
       "PUT /api/admin/usuarios/:id/correo",

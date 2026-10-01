@@ -40,30 +40,39 @@ enum OrigenInscripcion {
   @@map("origen_inscripcion")
 }
 
+enum TipoMovimientoInscripcion {
+  alta
+  baja
+
+  @@map("tipo_movimiento_inscripcion")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
-  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                 String          @unique
-  hashContrasena        String          @map("hash_contrasena")
-  debeCambiarContrasena Boolean         @default(false) @map("debe_cambiar_contrasena")
-  nombre                String
-  nombreBusqueda        String          @map("nombre_busqueda")
-  rol                   Rol
-  activo                Boolean         @default(true)
-  estadoPago            EstadoPago      @default(al_corriente) @map("estado_pago")
-  fechaEstadoPago       DateTime?       @map("fecha_estado_pago") @db.Timestamptz(3)
-  accesoRestringido     Boolean         @default(false) @map("acceso_restringido")
-  motivoRestriccion     String?         @map("motivo_restriccion")
-  fechaRestriccion      DateTime?       @map("fecha_restriccion") @db.Timestamptz(3)
-  creadoEn              DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn         DateTime        @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  enlaceRegistroId      String?         @map("enlace_registro_id") @db.Uuid
-  sesiones              Sesion[]
-  tokensCuenta          TokenCuenta[]
-  enlaceRegistro        EnlaceRegistro? @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
-  clasesImpartidas      Clase[]         @relation("ClasesDelMaestro")
-  inscripciones         Inscripcion[]
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String                  @unique
+  hashContrasena         String                  @map("hash_contrasena")
+  debeCambiarContrasena  Boolean                 @default(false) @map("debe_cambiar_contrasena")
+  nombre                 String
+  nombreBusqueda         String                  @map("nombre_busqueda")
+  rol                    Rol
+  activo                 Boolean                 @default(true)
+  estadoPago             EstadoPago              @default(al_corriente) @map("estado_pago")
+  fechaEstadoPago        DateTime?               @map("fecha_estado_pago") @db.Timestamptz(3)
+  accesoRestringido      Boolean                 @default(false) @map("acceso_restringido")
+  motivoRestriccion      String?                 @map("motivo_restriccion")
+  fechaRestriccion       DateTime?               @map("fecha_restriccion") @db.Timestamptz(3)
+  creadoEn               DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn          DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  enlaceRegistroId       String?                 @map("enlace_registro_id") @db.Uuid
+  sesiones               Sesion[]
+  tokensCuenta           TokenCuenta[]
+  enlaceRegistro         EnlaceRegistro?         @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
+  clasesImpartidas       Clase[]                 @relation("ClasesDelMaestro")
+  inscripciones          Inscripcion[]
+  movimientosComoAlumno  MovimientoInscripcion[] @relation("MovimientosDelAlumno")
+  movimientosComoMaestro MovimientoInscripcion[] @relation("MovimientosDelMaestro")
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -131,16 +140,17 @@ model EnlaceRegistro {
 // para poder buscarlo. activa se crea en true (S-05) pero ninguna ruta de CLASES la usa ni la
 // cambia (RF-50 queda para más adelante).
 model Clase {
-  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  maestroId        String        @map("maestro_id") @db.Uuid
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maestroId        String                  @map("maestro_id") @db.Uuid
   nombre           String
   descripcion      String?
-  codigoInvitacion String        @unique @map("codigo_invitacion")
-  activa           Boolean       @default(true)
-  creadoEn         DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn    DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  maestro          Usuario       @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+  codigoInvitacion String                  @unique @map("codigo_invitacion")
+  activa           Boolean                 @default(true)
+  creadoEn         DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn    DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  maestro          Usuario                 @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
   inscripciones    Inscripcion[]
+  movimientos      MovimientoInscripcion[]
 
   @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
   @@map("clases")
@@ -160,4 +170,25 @@ model Inscripcion {
   @@id([claseId, usuarioId])
   @@index([usuarioId, creadoEn(sort: Desc), claseId(sort: Desc)])
   @@map("inscripciones")
+}
+
+// CLASES-b (§D-B8). Registro de las altas manuales y las bajas (P-05 g, S-23): solo se escribe, en
+// la misma transacción que el cambio, y ninguna ruta ni función de CLASES lo lee. El orden del
+// registro es secuencia (toma su valor en el INSERT, que es el último paso de la transacción);
+// creado_en es la hora de inicio de la transacción y no sirve para ordenar. Llaves foráneas con
+// ON DELETE RESTRICT: un registro no desaparece en silencio con una cascada. Sin índices
+// secundarios: ninguna consulta lo lee todavía (los propondrá la pantalla de ADMIN).
+model MovimientoInscripcion {
+  id        String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  secuencia BigInt                    @default(autoincrement())
+  claseId   String                    @map("clase_id") @db.Uuid
+  alumnoId  String                    @map("alumno_id") @db.Uuid
+  maestroId String                    @map("maestro_id") @db.Uuid
+  tipo      TipoMovimientoInscripcion
+  creadoEn  DateTime                  @default(now()) @map("creado_en") @db.Timestamptz(3)
+  clase     Clase                     @relation(fields: [claseId], references: [id], onDelete: Restrict)
+  alumno    Usuario                   @relation("MovimientosDelAlumno", fields: [alumnoId], references: [id], onDelete: Restrict)
+  maestro   Usuario                   @relation("MovimientosDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+
+  @@map("movimientos_inscripcion")
 }

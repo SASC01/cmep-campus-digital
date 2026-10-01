@@ -231,7 +231,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 |---|---|
 | `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/registro-maestro` (con un enlace de registro del admin) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
 | `usuarios` | `GET /me` · `GET /me/estado-pago` |
-| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar). Personas, alumnos (con el buscador de candidatos bajo `/clases/{claseId}/alumnos/candidatos?q=`), publicaciones y comentarios llegan con CLASES-b y CLASES-c |
+| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}`. Publicaciones y comentarios llegan con CLASES-c |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |
 | `calificaciones` | `PUT /tareas/{id}/entregas/{alumnoId}/calificacion` · `GET /clases/{id}/gradebook` · `GET /me/calificaciones` |
 | `archivos` | `POST /archivos/subida` · `POST /archivos/descarga` (devuelven URL prefirmada) |
@@ -356,6 +356,8 @@ erDiagram
   usuarios ||--o{ clases : imparte
   usuarios ||--o{ inscripciones : tiene
   clases ||--o{ inscripciones : agrupa
+  clases ||--o{ movimientos_inscripcion : registra
+  usuarios ||--o{ movimientos_inscripcion : afecta
   clases ||--o{ categorias : pondera
   clases ||--o{ publicaciones : contiene
   clases ||--o{ tareas : asigna
@@ -381,6 +383,7 @@ erDiagram
 | `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único (7 caracteres de un alfabeto sin I, O, 0 ni 1) · índice `(maestro_id, creado_en DESC, id DESC)` · FK a `usuarios` con `ON DELETE RESTRICT` |
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
 | `inscripciones` | `clase_id`, `usuario_id`, `origen` (`codigo` / `manual`), `creado_en` | PK `(clase_id, usuario_id)` · índice `(usuario_id, creado_en DESC, clase_id DESC)` · FK con `ON DELETE CASCADE` a los dos lados |
+| `movimientos_inscripcion` | `id`, `secuencia`, `clase_id`, `alumno_id`, `maestro_id`, `tipo` (`alta` / `baja`), `creado_en` | Registro de cada alta manual y cada baja efectivas, escrito en la misma transacción que la inscripción, como su último paso; unirse con código no se registra. **El orden es `secuencia`** (`BIGSERIAL`, asignada en el `INSERT`: respeta el orden real de los cambios, sin empates; puede tener huecos). `creado_en` es la fecha para mostrar, no el orden (es la hora de inicio de la transacción). FK a `clases` y a `usuarios` con `ON DELETE RESTRICT`. Sin índices secundarios: CLASES solo escribe; la consulta y sus índices los agrega ADMIN |
 | `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo`, `texto` | índice `(clase_id, creado_en DESC)` |
 | `tareas` | `id`, `clase_id`, `categoria_id`, `titulo`, `instrucciones`, `fecha_limite`, `puntos`, `trabajo_id` | índice `(clase_id, fecha_limite)` |
 | `criterios_rubrica` | `id`, `tarea_id`, `criterio`, `puntos_max`, `orden` | índice `(tarea_id)` |
@@ -405,7 +408,7 @@ Las tablas de pg-boss viven en su propio esquema (`pgboss`) y no se tocan a mano
 - **Protocolo de bloqueo por usuario.** Crear o rotar una sesión bloquea antes la fila del usuario con `FOR SHARE`. Revocar sesiones en bloque, cambiar la contraseña o escribir `tokens_cuenta` la bloquea antes con `FOR NO KEY UPDATE`. Así esas transacciones quedan en serie sin deadlocks, y una revocación siempre ve las sesiones creadas antes que ella. El login solo crea la sesión si el hash que verificó sigue vigente bajo el bloqueo (AUTH-02, Enmienda 2).
 - **Altas en lote** (invitación masiva): una transacción con el bloqueo consultivo de invitaciones (`pg_advisory_xact_lock`, tomado con `$executeRaw`) y, después de él, el conteo del cupo; `createMany` con `skipDuplicates`, la relectura por id de lo insertado y un solo `insert` de pg-boss con la conexión de la transacción. Ninguna consulta por línea y ningún `P2002` atrapado.
 - **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan.
-- Búsqueda de alumnos con `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: 3 caracteres mínimo y espera de 300 ms.
+- Búsqueda de alumnos: `LIKE '%término%'` sobre `nombre_busqueda`, con `%`, `_` y `\` escapados; índice GIN `gin_trgm_ops`. El término mide de 3 a 120 caracteres **ya normalizados** (con un tope de 1000 en crudo); la normalización está definida una sola vez en `shared/` (`normalizarTerminoDeBusqueda`) y equivale a la que aplica `core/` a `nombre_busqueda` al escribir. Hasta 20 resultados con indicador de "hay más". El correo de cada resultado sale enmascarado desde el backend (`core/`); el completo solo en el roster del dueño. Frontend: espera de 300 ms.
 - Todo cambio de esquema es una migración de Prisma versionada y compatible hacia atrás.
 
 ## 15. Capacidad

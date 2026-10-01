@@ -4,8 +4,18 @@ export const CLAVE_CLASES_INSCRITAS = ["clases", "inscritas"] as const
 export const CLAVE_CLASES_IMPARTIDAS = ["clases", "impartidas"] as const
 export const claveClaseDetalle = (claseId: string) => ["clases", claseId] as const
 export const claveCodigoDeClase = (claseId: string) => ["clases", claseId, "codigo"] as const
+// CLASES-b: las tres consultas de personas cuelgan de ["clases", claseId, …], así que invalidar el
+// prefijo de una clase las alcanza a todas.
+export const clavePersonas = (claseId: string) => ["clases", claseId, "personas"] as const
+export const claveAlumnos = (claseId: string) => ["clases", claseId, "alumnos"] as const
+export const claveCandidatos = (claseId: string) => ["clases", claseId, "candidatos"] as const
 
 export const LIMITE_CLASES = 20
+// §D-B1: los compañeros y el roster se piden de 50 en 50.
+export const LIMITE_PERSONAS = 50
+// §D-B3: el buscador pide hasta 20 resultados, mínimo de 3 letras y 300 ms de espera (RN-04).
+export const LIMITE_CANDIDATOS = 20
+export const ESPERA_BUSQUEDA_MS = 300
 
 // DESIGN.md §7.6: variantes de la tarjeta de clase, según la identidad de la clase (S-06), nunca un
 // estado. Verde → --brand con metadatos --brand-soft; azul → --accent con metadatos --accent-soft;
@@ -48,6 +58,9 @@ export const TEXTOS_INICIO_MAESTRO = {
   siguientePasoSinClases: "Crea tu primera clase y comparte su código con tus alumnos.",
   siguientePasoConClases: "Comparte el código de cada clase para que tus alumnos se unan.",
   errorTitular: "No pudimos cargar tus clases",
+  // §D-B4 bis: textos fijos que vivían dentro de inicio-maestro-view.tsx (regla 2 de CLAUDE.md).
+  insignia: "Nueva clase",
+  crearClase: "Crear clase",
 } as const
 
 export const TEXTOS_UNIRSE = {
@@ -106,6 +119,7 @@ export const TEXTOS_CODIGO = {
 // N-03 (ronda 4 del manager): textos fijos que vivían en lib.ts (regla 2 de CLAUDE.md).
 export const MENSAJES_ERROR_CLASES_GENERALES = {
   sinAccesoALaClase: "No tienes acceso a esta clase.",
+  alumnoNoEncontrado: "No encontramos a ese alumno.",
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
 
@@ -122,4 +136,48 @@ export const TEXTOS_CLASE = {
 
 export const TEXTOS_MURO_PROVISIONAL = {
   aviso: "Pronto podrás ver aquí los anuncios y materiales de la clase.",
+} as const
+
+// §D-B6: textos de CLASES-b (propuesta).
+export const TEXTOS_PERSONAS = {
+  maestro: "Maestro",
+  alumnos: "Alumnos",
+  verMas: "Ver más alumnos",
+  vacio: "Aún no hay alumnos en esta clase",
+} as const
+
+export const TEXTOS_BUSCADOR_ALUMNOS = {
+  titulo: "Agregar alumnos",
+  campo: "Buscar alumno por nombre",
+  ayuda: "Escribe al menos 3 letras.",
+  // T-24: el mismo aviso de longitud que da el servidor.
+  muyLargo: "La búsqueda no puede tener más de 120 caracteres",
+  resultados: "Resultados de la búsqueda",
+  agregar: "Agregar a la clase",
+  yaEstaEnLaClase: "Ya está en la clase",
+  sinResultados: "No encontramos alumnos con ese nombre. Solo aparecen alumnos con cuenta.",
+  hayMas: "Hay más resultados: escribe más del nombre.",
+  agregado: (nombre: string) => `Agregaste a ${nombre}`,
+  // D-4: con yaEstaba: true no se agregó a nadie; el aviso es neutro, ni éxito ni error.
+  yaEstaba: (nombre: string) => `${nombre} ya estaba en la clase`,
+} as const
+
+export const TEXTOS_TABLA_ALUMNOS = {
+  titulo: "Alumnos",
+  columnas: {
+    nombre: "Nombre",
+    correo: "Correo",
+    estadoPago: "Estado de pago",
+    acceso: "Acceso",
+    seUnio: "Se unió",
+    acciones: "Acciones",
+  },
+  sinRestriccion: "—",
+  quitar: "Quitar",
+  confirmarQuitar: "Dejará de ver la clase. Sus datos no se borran.",
+  siQuitar: "Sí, quitar",
+  cancelar: "Cancelar",
+  quitado: (nombre: string) => `Quitaste a ${nombre} de la clase`,
+  verMas: "Ver más alumnos",
+  vacio: "Aún no hay alumnos. Comparte el código de la clase o búscalos arriba.",
 } as const

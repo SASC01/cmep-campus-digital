@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { siguientePasoInicio, textoConteoAlumnos, titularInicio, varianteDeClase } from "./lib"
+import {
+  siguientePasoInicio,
+  terminoDeBusquedaMuyLargo,
+  terminoDeBusquedaValido,
+  textoConteoAlumnos,
+  titularInicio,
+  varianteDeClase,
+} from "./lib"
 
 describe("varianteDeClase", () => {
   it("PR-A17a: es determinista y, con 30 ids aleatorios, usa las tres variantes", () => {
@@ -35,5 +42,35 @@ describe("textoConteoAlumnos", () => {
     expect(textoConteoAlumnos(0)).toBe("Sin alumnos")
     expect(textoConteoAlumnos(1)).toBe("1 alumno")
     expect(textoConteoAlumnos(5)).toBe("5 alumnos")
+  })
+})
+
+describe("terminoDeBusquedaValido", () => {
+  it("PR-B09: con espacios, acentos y 3 caracteres", () => {
+    expect(terminoDeBusquedaValido("")).toBe(false)
+    expect(terminoDeBusquedaValido("   ")).toBe(false)
+    expect(terminoDeBusquedaValido("ab")).toBe(false)
+    expect(terminoDeBusquedaValido("  ab  ")).toBe(false)
+    expect(terminoDeBusquedaValido("a   ")).toBe(false)
+    expect(terminoDeBusquedaValido("ÁÉ")).toBe(false)
+    expect(terminoDeBusquedaValido("abc")).toBe(true)
+    expect(terminoDeBusquedaValido("  abc  ")).toBe(true)
+    expect(terminoDeBusquedaValido("ÁÉÍ")).toBe(true)
+    expect(terminoDeBusquedaValido("José")).toBe(true)
+    // Igual que el servidor (prepararTerminoDeBusqueda): "a b" normaliza a 3 caracteres.
+    expect(terminoDeBusquedaValido("a  b")).toBe(true)
+  })
+})
+
+describe("terminoDeBusquedaMuyLargo", () => {
+  it("T-24 (ronda 2): decide con el criterio del servidor: más de 120 normalizados (41 sílabas hangul) o más de 1000 en crudo es muy largo y no es válido", () => {
+    expect(terminoDeBusquedaMuyLargo("각".repeat(41))).toBe(true)
+    expect(terminoDeBusquedaValido("각".repeat(41))).toBe(false)
+    expect(terminoDeBusquedaMuyLargo("각".repeat(40))).toBe(false)
+    expect(terminoDeBusquedaValido("각".repeat(40))).toBe(true)
+    expect(terminoDeBusquedaMuyLargo("a".repeat(121))).toBe(true)
+    expect(terminoDeBusquedaMuyLargo(`abc${" ".repeat(1200)}`)).toBe(true)
+    expect(terminoDeBusquedaMuyLargo(`abc${" ".repeat(118)}`)).toBe(false)
+    expect(terminoDeBusquedaValido(`abc${" ".repeat(118)}`)).toBe(true)
   })
 })

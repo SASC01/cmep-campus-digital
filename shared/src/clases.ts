@@ -154,6 +154,115 @@ export const claseRespuestaSchema = z.object({ clase: claseDetalleSchema })
 // paginacionSchema se reutiliza desde enlaces-registro.ts, sin moverlo (§D-A3).
 export { paginacionSchema }
 
+// CLASES-b (§D-B1). El roster y las personas paginan de 50 en 50 por defecto (hasta 100); el resto
+// de las listas sigue con paginacionSchema (20 por defecto).
+export const paginacionRosterSchema = paginacionSchema.extend({
+  limite: z.coerce.number().int().min(1).max(100).optional().default(50),
+})
+
+export const estadoPagoSchema = z.enum(["al_corriente", "deudor"])
+
+// Lo que ve un compañero: nombre y nada más (RN-02, S-09). Sin correo, estado de pago ni restricción.
+export const personaDeClaseSchema = z.object({ id: z.uuid(), nombre: z.string() })
+
+export const personasRespuestaSchema = z.object({
+  maestro: personaDeClaseSchema,
+  alumnos: z.array(personaDeClaseSchema),
+  totalAlumnos: z.number().int().min(0),
+  siguienteCursor: z.uuid().nullable(),
+})
+
+// Roster del dueño (S-10): el único lugar donde salen el correo completo y los datos de pago.
+export const alumnoDeClaseSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  email: z.string(),
+  estadoPago: estadoPagoSchema,
+  accesoRestringido: z.boolean(),
+  origen: z.enum(["codigo", "manual"]),
+  inscritoEn: z.iso.datetime(),
+})
+
+export const listaAlumnosRespuestaSchema = z.object({
+  alumnos: z.array(alumnoDeClaseSchema),
+  total: z.number().int().min(0),
+  siguienteCursor: z.uuid().nullable(),
+})
+
+// T-20 (ronda 1 de CLASES-b): S-11 pide de 3 a 120 caracteres DESPUÉS de normalizar (quitar
+// acentos, minúsculas y espacios juntos), igual que core/ (prepararTerminoDeBusqueda) y el
+// frontend (terminoDeBusquedaValido). Medir el texto crudo rechazaba términos válidos (hangul: "각"
+// son 3 puntos de código al descomponerlo) y rechazaba "abc" seguido de espacios de sobra.
+// Única definición de la normalización del término de búsqueda (T-24): core/ (prepararTerminoDeBusqueda)
+// y el frontend (terminoDeBusquedaValido) la importan de aquí. Es la misma que aplica core/auth a
+// nombre_busqueda (normalizarParaBusqueda): el término y el nombre guardado se comparan normalizados.
+export const normalizarTerminoDeBusqueda = (texto: string): string =>
+  texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim()
+
+export const LONGITUD_MINIMA_BUSQUEDA = 3
+export const LONGITUD_MAXIMA_BUSQUEDA = 120
+// Tope del texto crudo, solo para no procesar entradas absurdas.
+export const LONGITUD_MAXIMA_BUSQUEDA_CRUDA = 1000
+
+// Cómo queda un término frente a S-11: "largo" (más de 120 normalizados, o más de 1000 en crudo),
+// "corto" (menos de 3 normalizados) o "valido". El frontend decide con esto si pregunta, y el
+// esquema de abajo es el mismo criterio del lado del servidor.
+export const estadoDeTerminoDeBusqueda = (texto: string): "valido" | "corto" | "largo" => {
+  if (Array.from(texto).length > LONGITUD_MAXIMA_BUSQUEDA_CRUDA) return "largo"
+  const normalizado = Array.from(normalizarTerminoDeBusqueda(texto)).length
+  if (normalizado > LONGITUD_MAXIMA_BUSQUEDA) return "largo"
+  if (normalizado < LONGITUD_MINIMA_BUSQUEDA) return "corto"
+  return "valido"
+}
+
+// q: máximo de 120 puntos de código normalizados. Con menos de 3 en el texto crudo Y en el
+// normalizado es VALIDACION ("ab", ""); un texto crudo largo que normaliza a menos de 3 ("  ab  ")
+// lo responde core/ como 400 BUSQUEDA_MUY_CORTA.
+export const busquedaCandidatosSchema = z.object({
+  q: z.string({ error: "Escribe al menos 3 letras" }).superRefine((texto, contexto) => {
+    const crudo = Array.from(texto).length
+    const normalizado = Array.from(normalizarTerminoDeBusqueda(texto)).length
+    if (crudo > LONGITUD_MAXIMA_BUSQUEDA_CRUDA || normalizado > LONGITUD_MAXIMA_BUSQUEDA) {
+      contexto.addIssue({
+        code: "custom",
+        message: "La búsqueda no puede tener más de 120 caracteres",
+      })
+      return
+    }
+    if (Math.max(crudo, normalizado) < LONGITUD_MINIMA_BUSQUEDA) {
+      contexto.addIssue({ code: "custom", message: "Escribe al menos 3 letras" })
+    }
+  }),
+  limite: z.coerce.number().int().min(1).max(50).optional().default(20),
+})
+
+// Sin ningún campo con el correo completo (P-05 f): solo el enmascarado.
+export const candidatoSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  correoEnmascarado: z.string(),
+  yaInscrito: z.boolean(),
+})
+
+export const candidatosRespuestaSchema = z.object({
+  candidatos: z.array(candidatoSchema),
+  hayMas: z.boolean(),
+})
+
+export const agregarAlumnoSchema = z.object({
+  alumnoId: z.uuid("alumnoId: debe ser un identificador válido"),
+})
+
+// Sin estadoPago, accesoRestringido ni correo (M-01).
+export const agregarAlumnoRespuestaSchema = z.object({
+  alumno: personaDeClaseSchema,
+  yaEstaba: z.boolean(),
+})
+
+export const alumnoIdParamSchema = z.object({
+  alumnoId: z.uuid("alumnoId: debe ser un identificador válido"),
+})
+
 export const CODIGOS_CLASES = {
   SIN_ACCESO_A_LA_CLASE: "SIN_ACCESO_A_LA_CLASE",
   CODIGO_INVALIDO: "CODIGO_INVALIDO",
@@ -176,3 +285,15 @@ export type ListaClasesImpartidasRespuesta = z.infer<typeof listaClasesImpartida
 export type UnirseRespuesta = z.infer<typeof unirseRespuestaSchema>
 export type CodigoClaseRespuesta = z.infer<typeof codigoClaseRespuestaSchema>
 export type ClaseRespuesta = z.infer<typeof claseRespuestaSchema>
+export type PaginacionRoster = z.infer<typeof paginacionRosterSchema>
+export type EstadoPagoAlumno = z.infer<typeof estadoPagoSchema>
+export type PersonaDeClase = z.infer<typeof personaDeClaseSchema>
+export type PersonasRespuesta = z.infer<typeof personasRespuestaSchema>
+export type AlumnoDeClase = z.infer<typeof alumnoDeClaseSchema>
+export type ListaAlumnosRespuesta = z.infer<typeof listaAlumnosRespuestaSchema>
+export type BusquedaCandidatos = z.infer<typeof busquedaCandidatosSchema>
+export type Candidato = z.infer<typeof candidatoSchema>
+export type CandidatosRespuesta = z.infer<typeof candidatosRespuestaSchema>
+export type AgregarAlumno = z.infer<typeof agregarAlumnoSchema>
+export type AgregarAlumnoRespuesta = z.infer<typeof agregarAlumnoRespuestaSchema>
+export type AlumnoIdParam = z.infer<typeof alumnoIdParamSchema>

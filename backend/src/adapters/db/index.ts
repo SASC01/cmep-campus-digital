@@ -86,3 +86,16 @@ export {
   type ListaClasesImpartidasDb,
   type ListaClasesInscritasDb,
 } from "./clases.js"
+export {
+  agregarAlumnoManual,
+  buscarCandidatos,
+  listarAlumnosDeClase,
+  listarPersonas,
+  quitarAlumno,
+  type AlumnoDeClaseDb,
+  type CandidatoDb,
+  type ListaAlumnosDeClaseDb,
+  type ListaCandidatosDb,
+  type ListaPersonasDb,
+  type PersonaDb,
+} from "./inscripciones.js"

@@ -34,6 +34,14 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   de la ruta con `claseDe(request)`, nunca con el `claseId` crudo del parámetro. El código de la
   clase se genera en el handler (`node:crypto.randomBytes` + `codigoDesdeBytes` de `core/`); el
   adaptador reintenta una sola vez si choca con el índice único (S-03).
+- `clases/alumnos.ts` (prefijo `/api`, CLASES-b): `GET /clases/:claseId/personas` (compañeros;
+  `requireMembership`, solo id y nombre), `GET` y `POST /clases/:claseId/alumnos` (roster del dueño, con
+  correo completo y estado de pago, y alta manual, que responde `{ alumno: { id, nombre }, yaEstaba }`),
+  `GET /clases/:claseId/alumnos/candidatos` (buscador; el handler enmascara el correo con
+  `enmascararCorreo` y nunca responde el completo) y `DELETE /clases/:claseId/alumnos/:alumnoId`
+  (baja, `204` también si no estaba inscrito). Salvo `personas`, todas llevan `requireOwnership`.
+  `GET …/alumnos` es la única ruta que devuelve datos de pago (RN-02). Ninguna ruta lee
+  `movimientos_inscripcion`.
 
 Ningún handler llama a `adapters/notifier` (bloque de ESLint en la raíz): quien necesita avisar por
 correo encola el evento y solo el worker usa `adapters/notifier`. Los repositorios compuestos que

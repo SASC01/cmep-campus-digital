@@ -1,10 +1,13 @@
 // Tipos de la API: se infieren de los esquemas de shared/, nunca a mano (regla 7 de CLAUDE.md).
 export type {
+  AlumnoDeClase,
+  Candidato,
   ClaseDetalle,
   ClaseImpartida,
   ClaseInscrita,
   CrearClase,
   EditarClase,
+  PersonaDeClase,
   Unirse,
   UnirseRespuesta,
 } from "@campus/shared"

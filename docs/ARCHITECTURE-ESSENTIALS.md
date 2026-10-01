@@ -64,10 +64,10 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Todo cambio de esquema es una migración de Prisma, **compatible hacia atrás** (frontend y backend se despliegan por separado).
 - Fechas `timestamptz` en UTC; ISO 8601 en la API.
 - Tablas y columnas en `snake_case` español; `camelCase` en TypeScript vía `@map`. Llaves UUID.
-- Búsqueda de alumnos: `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: mínimo 3 caracteres, espera de 300 ms.
+- Búsqueda de alumnos: `nombre_busqueda` se normaliza en `core/` al escribir (sin acentos, minúsculas, espacios colapsados) y se busca con `LIKE` y el índice GIN de trigramas sobre esa columna; el término pasa por la misma normalización, definida una sola vez en `shared/`, y escapa los comodines. Mide de 3 a 120 caracteres ya normalizados, con un tope de 1000 en crudo. `unaccent` no se usa en las consultas. Frontend: espera de 300 ms.
 
 ### Tablas
-`usuarios` · `sesiones` · `tokens_cuenta` · `enlaces_registro` · `clases` · `categorias` · `inscripciones` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
+`usuarios` · `sesiones` · `tokens_cuenta` · `enlaces_registro` · `clases` · `categorias` · `inscripciones` · `movimientos_inscripcion` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
 
 Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único parcial) · `entregas (tarea_id, alumno_id)` único · `notificaciones (usuario_id, evento_id)` único · `comentarios` y `archivos` con exactamente un contexto.
 
@@ -109,6 +109,7 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Entregas admiten archivos y enlaces. Una tarea que no requiere adjuntos se entrega con "Marcar como completada" (RF-24).
 - Temas: organizan las tareas y los materiales de una clase, con nombre y orden. Son independientes de las categorías ponderadas y no intervienen en la calificación (RF-43).
 - Código de clase: 7 caracteres sin I, O, 0 ni 1; se escribe sin distinguir mayúsculas y admite como separadores los espacios y guiones de una lista cerrada; regenerarlo invalida el anterior sin afectar a los inscritos. Unirse es idempotente.
+- Alta manual: el buscador del maestro muestra el nombre y el correo enmascarado (hasta 2 caracteres de la parte local y nunca todos, `***` y el dominio), enmascarado en el backend; el correo completo solo en el roster, de alumnos ya inscritos en su clase. Cada alta manual y cada baja efectivas se registran en `movimientos_inscripcion` en la misma transacción, ordenadas por `secuencia`; la consulta es de ADMIN.
 
 ## Operación
 - PostgreSQL **nunca** expuesto a internet. Puertos 80/443 del Droplet solo desde los rangos de Cloudflare.

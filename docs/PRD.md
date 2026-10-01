@@ -180,6 +180,8 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - Búsqueda por nombre completo, tolerante a mayúsculas y acentos, por cualquier parte del nombre.
 - Solo aparecen alumnos con cuenta registrada.
 - Maestro: solo en sus clases. Administrador: en cualquier clase.
+- En el buscador del Maestro, cada alumno aparece con su nombre y su correo enmascarado (hasta los 2 primeros caracteres antes de la `@`, nunca todos, `***` y el dominio). El correo completo solo se ve en la lista de alumnos de su clase, una vez inscrito. El buscador nunca muestra el estado de pago.
+- Cada alta manual y cada baja de un alumno quedan registradas, en el orden en que ocurrieron (clase, alumno, maestro, tipo y fecha). El Administrador las consulta (ADMIN).
 
 ### RN-05 Calificaciones
 - La calificación de una tarea con rúbrica es la suma de los puntos por criterio, escalada a los puntos de la tarea.

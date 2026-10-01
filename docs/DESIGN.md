@@ -387,6 +387,7 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - **Lo fijo nunca dentro del vidrio (DESIGN-01b):** un `backdrop-filter` convierte a su elemento en bloque contenedor de lo fijo (`position: fixed`) que tenga dentro. El fondo con orbes se monta fuera del router, y la barra inferior cuelga de un contenedor sin vidrio.
 - **Panel de anuncios del login (DESIGN-01b, propuesta aprobada (2026-09-28)):** panel de vidrio con una lista desplazable de filas de vidrio fuerte (`sin-sombra-de-vidrio` en la lista), con nombre accesible del título y enfocable con Tab; compacto arriba en móvil (RF-06).
 - **Pantallas de cuenta (DESIGN-01b, propuesta aprobada (2026-09-28)):** panel de vidrio centrado en la ventana, con el monograma (`Monograma`) encima del título.
+- **Lista de compañeros (CLASES-b, propuesta):** excepción a "Elemento sobre vidrio". Las filas de `PersonasView` (`ListaPersonas`) van **sin vidrio fuerte**, separadas por divisores de 1 px en `--border` dentro del panel. Son filas de solo lectura, sin acción, y un vidrio fuerte por fila recargaría una lista de 30 nombres.
 
 ### 7.3 Controles
 
@@ -523,6 +524,12 @@ Tiene tres formas, y todas llevan palabras:
 
 Lo implementan `EstadoPagoBadge` y `EstadoEntregaBadge` (`CLAUDE.md`, "Ubicaciones compartidas").
 
+**Implementación de CLASES-b (propuesta):**
+- `components/estado-pago-badge.tsx`: `EstadoPagoBadge({ estado })` pinta `<Badge variant="success">` con `CircleCheck` y "Al corriente", o `<Badge variant="danger">` con `CircleAlert` y "Deudor". No tiene valor por defecto: un estado desconocido no tiene rama (el último `return` es de tipo `never`).
+- `components/acceso-restringido-badge.tsx`: `AccesoRestringidoBadge` pinta `<Badge variant="danger">` con `Lock` y "Acceso restringido".
+- Ninguno de los dos escribe `text-danger`: el rojo vive solo en `badge.tsx`.
+- **"Ya está en la clase"** (resultado del buscador de alumnos, §7.17): `<Badge variant="muted">`, sin icono. Es un dato neutro, no un estado de riesgo.
+
 **Implementación de la insignia genérica (AUTH-03b, propuesta):** `components/ui/badge.tsx` (`Badge`), con variantes `success`, `warning`, `danger` y `muted` (`cva`, sin exportarse: no existe `badge-variants.ts`, para que el texto rojo de `danger` quede vigilado en este mismo archivo), fondo `*-soft` sólido, texto en el color del estado y un icono opcional de lucide de 14 px antes del texto. Primer uso: los estados de un enlace de registro en `/admin/maestros`.
 
 ### 7.9 Tablas densas del administrador · propuesta aprobada (2026-09-27)
@@ -604,6 +611,18 @@ Para una acción irreversible de bajo alcance (restablecer una contraseña, revo
 - Al pedir la confirmación, el foco va a "Cancelar" (nunca a la acción destructiva); al cancelar, vuelve al botón que abrió la confirmación.
 - Sin diálogo: el diálogo queda para las acciones de la lista de `CLAUDE.md`.
 
+**Foco al confirmar una acción que borra la fila (CLASES-b, propuesta; T-21):**
+- Cuando la acción confirmada quita la fila de la lista, el foco no se pierde: va al mismo control de la fila que ocupa su lugar (la siguiente o, si era la última, la anterior).
+- Si la lista queda vacía, o no queda ningún control al que saltar, va al encabezado del panel (`h2` con `tabIndex={-1}`). Nunca a `<body>`.
+- El aviso (toast) anuncia el resultado.
+- El foco se mueve cuando la fila ya desapareció de los datos, no en el `onSuccess` de la petición: así no depende de cuándo llegue la consulta nueva y funciona con varias páginas cargadas.
+- Lo implementa `TablaAlumnos` (`features/clases/components/tabla-alumnos.tsx`): recuerda por `id` qué fila tiene el foco (eventos `focusin`/`focusout`) y, después de cada render, si ese foco se perdió porque su control se desmontó (la fila salió de los datos, o la tabla se reemplazó por un error o por el vacío), lo lleva al "Quitar" vecino o al `h2`. No depende del `onSuccess` de la petición.
+
+**Foco cuando un control desaparece por su propia acción (CLASES-b, propuesta; T-25 y T-26):** el mismo criterio vale cuando el control que tenía el foco se reemplaza o se desmonta por lo que él mismo hizo, no solo cuando se borra una fila:
+- **El control se vuelve no enfocable** ("Agregar a la clase" pasa a la insignia "Ya está en la clase"): el foco va al siguiente control del mismo tipo de la lista (o al anterior si era el último) y, si no queda ninguno, al campo que originó la lista (el buscador).
+- **El control desaparece al cargar lo último** ("Ver más alumnos" tras la última página): el foco va al primer elemento nuevo (su primer control o el propio elemento con `tabIndex={-1}`) y, si no llegó nada, al encabezado de la lista.
+- Se recuerda qué fila o control tenía el foco y se reacciona después de cada render (hooks `useFilaEnFoco` y `useFocoAlCargarMas`, `features/clases/hooks.ts`); un render sin desmontaje no mueve el foco, y no se le quita el foco a un control que la persona eligió.
+
 Implementan este patrón `AccionRestablecer` (`features/admin/components/ficha-de-cuenta.tsx`, AUTH-02) y la confirmación de "Revocar" en `TablaEnlaces` (`features/admin/components/tabla-enlaces.tsx`, AUTH-03b).
 
 ### 7.15 Resumen de una acción por lote (AUTH-03c, propuesta)
@@ -624,6 +643,18 @@ Al entrar a una clase (`ClaseLayout`, `features/clases/clase-layout.tsx`):
 - **Secciones** (`SeccionesDeClase`): una `<ul aria-label="Secciones de la clase">` con `NavLink` (`end`) estilados como botón `ghost` (`size="sm"`); react-router marca el activo con `aria-current="page"` por su cuenta, y el estilo activo suma `bg-surface text-link`. No es una `nav` (esa es la del marco, §7.4). En CLASES-a, solo "Muro"; CLASES-b suma "Personas" (estudiante) o "Alumnos" (maestro).
 - Quien puede ver el código y editar la clase es el maestro dueño, que la ruta decide por su prefijo (`/maestro/clases/:claseId` frente a `/estudiante/clases/:claseId`); el backend lo exige de todas formas con `requireOwnership`.
 
+### 7.17 Buscador con resultados en línea (CLASES-b, propuesta)
+
+Para buscar personas por nombre y actuar sobre cada resultado sin salir de la pantalla (`BuscadorAlumnos`, `features/clases/components/buscador-alumnos.tsx`):
+
+- **Campo con ayuda permanente:** `Input` con su `Label`, `autoComplete="off"` y la ayuda "Escribe al menos 3 letras." siempre visible (`aria-describedby`), no solo cuando falla.
+- **Mínimo y espera:** pregunta al servidor con al menos 3 letras (después de quitar acentos y juntar espacios) y 300 ms después de la última tecla. Con menos, no pide nada.
+- **Resultados:** una lista con divisores de 1 px en `--border` (sin vidrio fuerte, como la lista de compañeros de §7.2). Cada fila lleva el nombre en negrita, el **correo enmascarado como texto secundario** (`--muted-foreground`, tal como llega de la API: el frontend no enmascara; el correo completo solo se ve en el roster) y la acción de la fila.
+- **Acción por fila:** "Agregar a la clase" (`outline`, `size="sm"`, `enEspera` solo en su fila) con el nombre del alumno como texto `sr-only` dentro del botón (§7.9). Si la persona ya está, en su lugar va la insignia `muted` "Ya está en la clase" (§7.8).
+- **Tope:** el servidor acepta de 3 a 120 caracteres normalizados; el campo decide igual (misma función de `shared/`) y, si el término se pasa de 120, no pregunta y muestra con `ErrorDeCampo` "La búsqueda no puede tener más de 120 caracteres".
+- **Mensajes:** "No encontramos alumnos con ese nombre. Solo aparecen alumnos con cuenta." sin resultados, y "Hay más resultados: escribe más del nombre." cuando el servidor tiene más de los que muestra.
+- **Estados, en orden:** sin término válido (solo la ayuda) → error → cargando → sin resultados → resultados.
+
 ## 8. Densidad por rol
 
 | Rol | Densidad | Superficies | Patrón dominante | Medidas |
@@ -635,6 +666,8 @@ Al entrar a una clase (`ClaseLayout`, `features/clases/clase-layout.tsx`):
 El texto de los campos de texto va a 16 px (`--text-body`) en los tres roles, también en la densidad del administrador. Por debajo de 16 px, Safari en iOS amplía la página al enfocar un campo, y el usuario tiene que alejarla a mano. El texto de 14 px del administrador aplica a tablas, metadatos y botones, no a lo que se escribe. Decisión del humano (2026-09-27).
 
 **Mecanismo (DESIGN-01a, propuesta aprobada (2026-09-28)):** `ContenedorRol` marca su raíz con `data-densidad="densa"` y `data-material="opaco"` solo cuando el rol es `admin`. El token `--control-height` vale `2.75rem` (44 px) en `:root` y `2.25rem` (36 px) desde 768 px de ancho (`@media (width >= 48rem)`) dentro de `[data-densidad="densa"]`: el mismo corte en que la barra lateral pasa a barra inferior (§7.4), porque por debajo de ese ancho la interfaz es de pantalla táctil. `Button` (tamaños `default` e `icon`) e `Input` leen `--control-height`; el tamaño `sm` del botón es fijo, de 36 px, para acciones en línea en cualquier rol.
+
+**El roster del maestro (CLASES-b, propuesta):** es una tabla opaca (`Table`, §7.9) dentro de un panel de vidrio (`Card`), con filas de 48 px (`h-12` en `TableRow`) y botones de 36 px (`size="sm"`). No marca el contenedor con `data-material="opaco"`: la tabla ya lleva su propio fondo `--surface`, y el resto de la pantalla del maestro sigue con vidrio. Columnas: nombre, correo completo, estado de pago (`EstadoPagoBadge`), acceso (`AccesoRestringidoBadge` o "—"), fecha de ingreso y acciones. Quitar a un alumno pide confirmación en línea en la misma fila (§7.14).
 
 Los tres roles comparten componentes y tokens. Cambian el espaciado, la composición y el material de las superficies, no la biblioteca. Si otras tablas del maestro (por ejemplo, el roster) van opacas, lo decide su encargo y se anota aquí.
 

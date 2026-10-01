@@ -11,12 +11,14 @@ import { RecuperarView } from "@/features/auth/recuperar-view"
 import { RegistroMaestroView } from "@/features/auth/registro-maestro-view"
 import { RegistroView } from "@/features/auth/registro-view"
 import { RestablecerView } from "@/features/auth/restablecer-view"
+import { AlumnosView } from "@/features/clases/alumnos-view"
 import { ClaseLayout } from "@/features/clases/clase-layout"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
 import { EditarClaseView } from "@/features/clases/editar-clase-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
 import { MuroView } from "@/features/clases/muro-view"
+import { PersonasView } from "@/features/clases/personas-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
@@ -58,7 +60,10 @@ export const rutas: RouteObject[] = [
           {
             path: "clases/:claseId",
             element: <ClaseLayout />,
-            children: [{ index: true, element: <MuroView /> }],
+            children: [
+              { index: true, element: <MuroView /> },
+              { path: "personas", element: <PersonasView /> },
+            ],
           },
         ],
       },
@@ -73,6 +78,7 @@ export const rutas: RouteObject[] = [
             element: <ClaseLayout />,
             children: [
               { index: true, element: <MuroView /> },
+              { path: "alumnos", element: <AlumnosView /> },
               { path: "editar", element: <EditarClaseView /> },
             ],
           },

@@ -1,3 +1,5 @@
+import { estadoDeTerminoDeBusqueda } from "@campus/shared"
+
 import { esApiError } from "@/services/apiClient"
 
 import {
@@ -39,10 +41,21 @@ export const textoConteoAlumnos = (n: number): string => {
   return TEXTOS_TARJETA.variosAlumnos(n)
 }
 
+// §D-B5, T-24: el frontend decide con el mismo criterio que el servidor (estadoDeTerminoDeBusqueda,
+// de shared/): un término se pregunta solo si, normalizado, mide de 3 a 120 caracteres. Lo que se
+// envía es el texto tal cual y el servidor lo normaliza.
+export const terminoDeBusquedaValido = (termino: string): boolean =>
+  estadoDeTerminoDeBusqueda(termino) === "valido"
+
+// El término es demasiado largo para el servidor (T-24): se avisa y no se pregunta.
+export const terminoDeBusquedaMuyLargo = (termino: string): boolean =>
+  estadoDeTerminoDeBusqueda(termino) === "largo"
+
 // N-03 (ronda 4 del manager): los dos textos fijos viven en data.ts, no aquí (regla 2 de CLAUDE.md).
 const MENSAJES_ERROR_CLASES: Record<string, string> = {
   CODIGO_INVALIDO: TEXTOS_UNIRSE.codigoInvalido,
   SIN_ACCESO_A_LA_CLASE: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
+  ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
 }
 
 // T-17 (ronda 2 del tester): el mensaje de un VALIDACION del servidor lleva el nombre técnico del
@@ -105,4 +118,15 @@ export const erroresPorCampo = (
     errores[campo] = incidencia.message
   }
   return errores
+}
+
+// N-04 (ronda 4 de CLASES-a, §D-B4 bis): en "Unirme a la clase" solo CODIGO_INVALIDO y un VALIDACION
+// de "codigo" son errores del campo del código. Cualquier otro (un 500, "sin conexión",
+// ACCESO_RESTRINGIDO) devuelve null y el formulario avisa con un toast, sin marcar el campo: es el
+// mismo patrón que T-19 en FormularioClase.
+export const errorDelCampoCodigo = (error: unknown): ErroresFormulario | null => {
+  if (esApiError(error) && error.codigo === "CODIGO_INVALIDO") {
+    return { codigo: mensajeDeErrorClases(error) }
+  }
+  return erroresDeFormularioClases(error, ["codigo"])
 }

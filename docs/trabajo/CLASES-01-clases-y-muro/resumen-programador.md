@@ -645,3 +645,480 @@ Implementé T-18 tal como se pidió (cursor no perteneciente al usuario → `400
 - `docs/trabajo/CLASES-01-clases-y-muro/resumen-programador.md` (esta sección).
 
 Ningún archivo nuevo fuera de esta lista, salvo `backend/test/clases-r2.ataque.test.ts`, que adaptó el tester (C-16), no yo. Ningún `*.ataque` tocado por mí.
+
+
+## CLASES-b
+
+Base: `<Ca>` = `855069b` dentro de los paquetes; `<R>` = `3399c79` fuera de ellos. Rama `feat/clases`. Pasos 16 a 24 del plan. Carril sensible.
+
+### Precondiciones (paso 16)
+- **PA-01:** regla "Campus: bloquear entrada a Docker en redes publicas" → `Enabled: True`, `Inbound`, `Block`, `Public`. Red activa `IZZI-F281-5G` (Public), declarada de confianza por el humano (nota del orquestador y `reporte-tester.md`, ronda 0 de b).
+- **PA-02:** `git diff --name-only 855069b -- shared backend frontend` listó exactamente las 2 `*.ataque` de la ronda 0 (`backend/test/sesiones-y-cadena.ataque.test.ts` y `frontend/src/styles/clases-r1.ataque.test.ts`).
+- **V-01 (antes de tocar nada):** los SHA-256 de las 79 `*.ataque` (`git ls-files -co --exclude-standard`) contra la tabla "después de la ronda 0 de CLASES-b" de `reporte-tester.md`: `diff` sin diferencias (79 de 79). No toqué ninguna `*.ataque`.
+- Los 2 rojos esperados de la ronda 0 (`sesiones-y-cadena.ataque:468` y `clases-r1.ataque:102`) quedaron en verde con el código de b; ningún otro caso cayó por aserción (PA-06).
+
+### PARADAS (respuesta a cada una)
+| # | Respuesta |
+|---|---|
+| PA-01 | No se activó (ver arriba). |
+| PA-02 | No se activó: rama correcta, base existente, cambios solo los 2 `*.ataque` de la ronda 0, SHA-256 de los archivos protegidos iguales a los de `aprobacion.md` (ARCHITECTURE `48574218…`, ESSENTIALS `00BA6296…`, PRD `2450D461…`, CLAUDE `8CB1A3DF…`, README `38027AAC…`, AGENTS `9DAD8ADE…`), V-01 igual a la tabla. |
+| PA-03 | No se activó: el SQL de `--create-only` (`20260930235837_movimientos_inscripcion`) coincide con §D-B8: el tipo, la tabla (con `BIGSERIAL NOT NULL`) y las tres llaves foráneas con `ON DELETE RESTRICT`; ningún índice, ningún `DROP` ni `ALTER` de una columna existente. `migrate dev` no propuso reset ni avisó de deriva. **Variante de `@unique` en `secuencia`: no hizo falta** (`prisma validate` no la exigió; quedó `BigInt @default(autoincrement())` sin `@unique`). |
+| PA-04 | No se activó: `migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → `No difference detected.`, código 0. |
+| PA-05 | No aplica (c). |
+| PA-06 | No se activó: los 2 rojos de la ronda 0 pasaron a verde y ninguna otra `*.ataque` cayó por aserción. En las 2 corridas completas que cayeron por tiempos límite (ver "Intermitencia conocida") los rojos eran de AUTH o de `PR-A15h` de a, todos por la espera en cadena de `LOCK TABLE usuarios`. |
+| PA-07 | **Ver "Intermitencia conocida", con los conteos.** En las 2 corridas limpias del backend solo aparecen los 2 `P2028` aceptados de `cuentas-r3.ataque` (login → `tx.sesion.create`; restablecer → `tx.tokenCuenta.updateMany`). En una de las 2 corridas con rojos de AUTH (la de la raíz) aparecieron 2 `P2028` más, ambos de código de AUTH retenido por el `LOCK TABLE usuarios`: `adapters/db/usuarios.ts:85` (`tx.sesion.create`, 34 s desde el inicio de la transacción) y `adapters/db/tokens-cuenta.ts:116` (`tx.tokenCuenta.updateMany`, 37 s). Ningún `P2028`, `40P01`, `deadlock detected`, `could not serialize` ni `too many clients` vino de un caso de b; `PR-B16f` no tuvo ninguno en 7 corridas. |
+| PA-08 | No se activó: b no toca correo ni `notifier`. |
+| PA-09 | No se activó: ningún archivo de "No se toca" cambió (V-05). |
+| PA-10 | No se activó: b no escribe logs nuevos y el correo completo de un candidato nunca sale del handler (PR-B04h). |
+| PA-11 | No se activó: tras las corridas, `docker ps` solo muestra los 3 contenedores de `infra` (`campus-dev-*`), ninguno de Testcontainers. |
+| PA-12 | No se activó: las pruebas nuevas del backend (`alumnos`, `alumnos-autorizacion`, `movimientos-inscripcion`, `busqueda`; 52 casos) pasaron 6 de 6 corridas seguidas, y las 2 del frontend (`alumnos-view`, `personas-view`; 18 casos) 6 de 6. |
+| PA-13 | No aplica (a). |
+| PA-14 | No aplica (d). |
+| PA-15 | No se activó: no edité ningún archivo de producción para simular un defecto, y tampoco simulé defectos sobre copias; no afirmo que una prueba "detecte" un defecto concreto más allá de lo que cada caso comprueba. |
+| PA-16 | No se activó: solo creé o modifiqué archivos de las listas de b (ver "Archivos"). |
+| PA-17 | No se activó: Prisma admite el `orderBy` por `usuario.nombreBusqueda` con el filtro de conjunto de claves; PR-B02d y PR-B03d (homónimos partidos entre páginas) y PR-B02f y PR-B03e (cursor de un alumno quitado o desactivado) pasan. |
+
+### Verificación (comando exacto y última línea de salida)
+| Comando | Última línea |
+|---|---|
+| `npm run build` (raíz) | `✓ built in 1.20s` (código 0) |
+| `npm run lint` (raíz) | `> tsc -b` (código 0; la línea anterior de prettier: `All matched files use Prettier code style!`) |
+| `npm run test` (raíz), corrida limpia | backend: `Tests  1111 passed (1111)` (`Test Files  101 passed (101)`); frontend: `Tests  1131 passed (1131)` (`Test Files  81 passed (81)`); código 0 |
+| `npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` |
+| `npx prisma format --check` | `All files are formatted correctly!` |
+| `npx prisma generate` | `✔ Generated Prisma Client (7.10.0) to .\src\adapters\db\generated in 69ms` |
+| `npx prisma migrate status` | `Database schema is up to date!` (7 migraciones) |
+| `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | `No difference detected.` (código 0) |
+
+Migración: un único `npx prisma migrate dev --create-only --name movimientos_inscripcion` y un único `npx prisma migrate dev` (desde `backend/`, contra `campus_dev`); ninguna segunda carpeta. La variante de `@unique` no se usó.
+
+### Intermitencia conocida (CHORE-02, `LOCK TABLE usuarios`)
+Corridas completas del backend que hice, en orden:
+1. `npm test` (desde `backend/`) → **cayó**: 9 archivos y 8 casos, todos por tiempo límite.
+2. `npm test` (desde `backend/`) → **limpia**: 1111 de 1111.
+3. `npm run test` (raíz) → **cayó**: 9 archivos y 13 casos, todos por tiempo límite de la espera en cadena.
+4. `npm run test` (raíz) → **limpia**: 1111 de 1111 y 1131 de 1131.
+
+Los rojos de las corridas 1 y 3 fueron de los archivos de AUTH de siempre (`cuentas-r1`, `cuentas-r3`, `restablecer`, `bloqueo-usuario`, `worker-correo-de-cuenta`, `auth-login.ataque`, `nombres-tokens-r2.ataque`, `api-real.ataque`, `invitacion-masiva-03c-r2.ataque`, `worker-03c-r1.ataque`, `worker-r2.ataque`) y de `PR-A15h` de a (con su `afterAll`); ninguno por aserción y ninguno de b. El patrón (cae, limpia, cae, limpia) es el que ya describió el orquestador al cierre de a. Conteo de `P2028` en la salida (líneas de log JSON): corrida 1, 2 (los aceptados); corrida 2, 2 (los aceptados); corrida 3, 4 (los 2 aceptados y los 2 de AUTH de la fila PA-07); corrida 4, 2 (los aceptados). Los demás términos de PA-07, 0 en las 4.
+
+### V-04 (búsquedas en el código de producción, sin pruebas)
+Salida completa en `scratchpad/v04.txt`; resumen:
+- `$queryRawUnsafe` → 1 uso (`adapters/db/cliente.ts:60`; la otra coincidencia es un comentario); `$executeRawUnsafe` → 0; `$queryRaw`/`$executeRaw` en `backend/src` → solo los de siempre (`bloqueo-usuario.ts`, `enlaces-registro.ts`, `invitaciones.ts`, `salud.ts`); ninguno en los archivos nuevos de b.
+- `addHook` en `backend/src/handlers/` → 0. `from "minio"` → 0.
+- `estadoPago` en `backend/src/` → `adapters/db/enlaces-registro.ts`, `adapters/db/inscripciones.ts`, `adapters/db/usuarios.ts`, `core/auth/autorizacion.ts`, `core/auth/me.ts`, `handlers/auth/index.ts`, `handlers/usuarios.ts` y `middleware/with-profile.ts`: los de AUTH que ya lo tenían más `inscripciones.ts` (`listarAlumnosDeClase`). `handlers/clases/alumnos.ts` **no contiene el texto** `estadoPago`: `GET …/alumnos` lo deja pasar por `listaAlumnosRespuestaSchema`; el plan lo permite como máximo, no lo exige.
+- `movimientoInscripcion` (el modelo) en `backend/src/` → solo `adapters/db/inscripciones.ts`, líneas 226 y 245, ambas `.create(`.
+- `enmascararCorreo` → definido en `core/clases/busqueda.ts:25` y usado en `handlers/clases/alumnos.ts:83` (más su importación). `correoEnmascarado` en `frontend/src/features/clases/lib.ts` → 0.
+- `console.` en los archivos nuevos del backend → 0.
+- `fetch(` en `frontend/src/` (sin pruebas) → solo `services/apiClient.ts` (líneas 70 y 117).
+- `dangerouslySetInnerHTML` y `target="_blank"` → 0.
+- **`enEspera=` → 29** (sin pruebas): 25 de antes más 4 de b: `personas-view.tsx` 1, `components/buscador-alumnos.tsx` 1, `components/tabla-alumnos.tsx` 2 ("Sí, quitar" y "Ver más alumnos"); `lista-personas.tsx` 0.
+- **`vidrio-azul`** → solo `features/clases/components/bloque-destacado.tsx`. **`data-material` / `data-densidad`** → solo `components/layout/contenedor-rol.tsx` (el roster no marca `data-material="opaco"`).
+- `autoComplete="off"` → en el campo del código (`formulario-unirse-clase.tsx`), en el buscador (`buscador-alumnos.tsx`) y en el formulario de la clase (`formulario-clase.tsx`).
+- `from "@/features/auth` en `features/clases/` → 0.
+
+### V-05 ("No se toca")
+Salida completa en `scratchpad/v05.txt`. `git diff --quiet 855069b -- <ruta>` y `git status --porcelain -- <ruta>` vacío en todas las rutas de "No se toca" común y de "CLASES-b, además" que probé (100 rutas, incluidas `middleware/`, `features/auth/`, `services/`, `components/layout/`, `components/ui/`, `components/estado-vacio.tsx`, `adapters/db/{clases,…}.ts`, `handlers/clases/clases.ts`, `config/env.ts`, `adapters/queue/`, `adapters/storage/`, las migraciones de a y anteriores y los `package.json`): 100 de 100 en `OK`.
+- `frontend/src/styles/**`: contra `<Ca>` solo difiere `clases-r1.ataque.test.ts` (la adaptación del tester de la ronda 0, C-11); `tokens.css`, `tokens.test.ts` e `index.css` sin cambios.
+- Migraciones: `git diff --name-only 855069b -- backend/prisma/migrations` no lista nada; `git status --porcelain` lista una sola carpeta nueva: `20260930235837_movimientos_inscripcion/`. En `backend/prisma/` solo cambió `schema.prisma`.
+- `eslint.config.mjs`: **sin cambios contra `<Ca>`** (la regla de V-05 para b). Contra `<R>` sí difiere, por el bloque de §D-0.4 que ya entró con a; no lo toqué. `backend/package.json` y `package-lock.json`: sin cambios contra `<R>`.
+- Fuera de los paquetes, contra `<R>`: `infra`, `.claude`, `.codex`, `package.json`, `.prettierrc.json`, `.prettierignore`, `tsconfig.base.json`, `.gitignore`, `.gitattributes`, `.nvmrc` y `docs/design` sin cambios. Los 6 archivos protegidos coinciden con los SHA-256 de `aprobacion.md` y no cambiaron contra `<Ca>`. `docs/DESIGN.md` sí cambió (§D-B7, abajo; se revisa por diff).
+
+### V-06 (rutas)
+`app.printRoutes({ commonPrefix: false })` (volcado por una prueba temporal que ya borré; la lista exacta la valida además `sesiones-y-cadena.ataque.test.ts:468`, ahora en verde):
+```
+└── /api/clases (POST)
+    ├── /inscritas (GET, HEAD)
+    ├── /impartidas (GET, HEAD)
+    ├── /unirse (POST)
+    └── /:claseId (GET, HEAD, PUT)
+        ├── /codigo (GET, HEAD, POST)
+        ├── /personas (GET, HEAD)
+        └── /alumnos (GET, HEAD, POST)
+            ├── /candidatos (GET, HEAD)
+            └── /:alumnoId (DELETE)
+```
+Las 8 rutas nuevas de b son exactamente: `GET` y `HEAD …/personas`; `GET`, `HEAD` y `POST …/alumnos`; `GET` y `HEAD …/alumnos/candidatos`; `DELETE …/alumnos/:alumnoId`. `RUTAS_PUBLICAS.size` = 10. Ninguna ruta contiene "movimiento" (PR-B16g lo comprueba).
+
+### V-07 y conteos
+- `cd backend && npx vitest list` → **1111** casos en **101** archivos de prueba. Antes de b: 1059 en 97, es decir +52 en +4 archivos.
+- `cd frontend && npx vitest list` → **1131** casos (las otras 5 líneas de la salida son el aviso de configuración de Vite) en **81** archivos. Antes de b: 1106 en 78, es decir +25 en +3 archivos.
+- Archivos de prueba: `awk -F' > ' '{print $1}'` sobre cada lista, filtrado a `.test.ts(x)` y `sort -u | wc -l`.
+- La corrida (`npm run test`, raíz) coincide: backend `Tests  1111 passed (1111)`, `Test Files  101 passed (101)`; frontend `Tests  1131 passed (1131)`, `Test Files  81 passed (81)`.
+- Desglose de los +52 del backend: `busqueda.test.ts` 7, `alumnos.integracion.test.ts` 28, `alumnos-autorizacion.integracion.test.ts` 9, `movimientos-inscripcion.integracion.test.ts` 8. Desglose de los +25 del frontend: `estado-pago-badge.test.tsx` 3, `personas-view.test.tsx` 5, `alumnos-view.test.tsx` 13, `lib.test.ts` 1, `clase-layout.test.tsx` 1, `router.test.tsx` 1, `inicio-estudiante-view.test.tsx` 1.
+- **Búsqueda de cada ID** de PR-B01a a PR-B17 en las dos listas (`grep -c` del ID sobre `list-backend.txt` más `list-frontend.txt`): los **74** IDs aparecen **exactamente una vez** (sin faltantes ni duplicados).
+
+### Pruebas requeridas — tabla completa (74 de 74; título exacto del `vitest list`)
+| ID | Archivo | Título exacto del caso |
+|---|---|---|
+| PR-B01a | `backend/src/core/clases/busqueda.test.ts` | PR-B01a: "José" se normaliza a "jose" |
+| PR-B01b | `backend/src/core/clases/busqueda.test.ts` | PR-B01b: un término que queda en menos de 3 caracteres después de normalizar → null ("  a  b " normaliza a "a b", de 3) |
+| PR-B01c | `backend/src/core/clases/busqueda.test.ts` | PR-B01c: escaparComodinesLike escapa %, _ y \ |
+| PR-B01d | `backend/src/core/clases/busqueda.test.ts` | PR-B01d: con 3 o más caracteres en la parte local deja los 2 primeros, ***, y el dominio |
+| PR-B01e | `backend/src/core/clases/busqueda.test.ts` | PR-B01e: con 2 y con 1 caracteres en la parte local nunca deja ver la parte local completa ("jo@x.mx" → "j***@x.mx", "a@x.mx" → "***@x.mx") |
+| PR-B01f | `backend/src/core/clases/busqueda.test.ts` | PR-B01f: sin @, con la parte local vacía o con el dominio vacío → "***" sin lanzar; con dos @ separa en la última |
+| PR-B01g | `backend/src/core/clases/busqueda.test.ts` | PR-B01g: cuenta caracteres Unicode completos: un emoji o una letra fuera del plano básico no se parte a la mitad |
+| PR-B02a | `backend/test/alumnos.integracion.test.ts` | PR-B02a: personas: el estudiante inscrito ve al maestro y a los alumnos activos, ordenados por nombre |
+| PR-B02b | `backend/test/alumnos.integracion.test.ts` | PR-B02b: personas: una cuenta inactiva no aparece ni cuenta en el total |
+| PR-B02c | `backend/test/alumnos.integracion.test.ts` | PR-B02c: personas: paginación con cursor y totalAlumnos |
+| PR-B02d | `backend/test/alumnos.integracion.test.ts` | PR-B02d: personas: dos alumnos con el mismo nombre, partidos entre dos páginas (limite=1), salen los dos, sin repetirse ni perderse |
+| PR-B02e | `backend/test/alumnos.integracion.test.ts` | PR-B02e: personas: el recorrido recursivo no encuentra estadoPago, accesoRestringido ni email, con un compañero deudor y otro restringido |
+| PR-B02f | `backend/test/alumnos.integracion.test.ts` | PR-B02f: personas: si se quita de la clase al alumno del cursor, la página siguiente sale completa |
+| PR-B03a | `backend/test/alumnos.integracion.test.ts` | PR-B03a: roster: estadoPago deudor y al_corriente correctos |
+| PR-B03b | `backend/test/alumnos.integracion.test.ts` | PR-B03b: roster: accesoRestringido true para el restringido |
+| PR-B03c | `backend/test/alumnos.integracion.test.ts` | PR-B03c: roster: origen y el correo completo correctos |
+| PR-B03d | `backend/test/alumnos.integracion.test.ts` | PR-B03d: roster: dos alumnos con el mismo nombre partidos entre dos páginas |
+| PR-B03e | `backend/test/alumnos.integracion.test.ts` | PR-B03e: roster: un cursor de un alumno desactivado después sigue sirviendo; un cursor de un usuario inexistente → 400 |
+| PR-B04a | `backend/test/alumnos.integracion.test.ts` | PR-B04a: candidatos: "jose", "PÉREZ" y "rez" encuentran a "José Pérez" |
+| PR-B04b | `backend/test/alumnos.integracion.test.ts` | PR-B04b: candidatos: no devuelve maestros, al admin ni cuentas inactivas |
+| PR-B04c | `backend/test/alumnos.integracion.test.ts` | PR-B04c: candidatos: yaInscrito es correcto |
+| PR-B04d | `backend/test/alumnos.integracion.test.ts` | PR-B04d: candidatos: "%%%" y "___" no devuelven a todos los estudiantes |
+| PR-B04e | `backend/test/alumnos.integracion.test.ts` | PR-B04e: candidatos: q de 2 → 400; "  ab  " → 400 BUSQUEDA_MUY_CORTA |
+| PR-B04f | `backend/test/alumnos.integracion.test.ts` | PR-B04f: candidatos: limite y hayMas |
+| PR-B04g | `backend/test/alumnos.integracion.test.ts` | PR-B04g: candidatos: el recorrido recursivo no encuentra estadoPago, accesoRestringido ni email |
+| PR-B04h | `backend/test/alumnos.integracion.test.ts` | PR-B04h: candidatos: cada correoEnmascarado es el de enmascararCorreo, y el correo completo de ningún candidato aparece en la respuesta, incluido un alumno ya inscrito |
+| PR-B05 | `backend/test/alumnos.integracion.test.ts` | PR-B05: con SET LOCAL enable_seqscan = off, EXPLAIN de la consulta con la forma de Prisma menciona usuarios_nombre_busqueda_idx |
+| PR-B06a | `backend/test/alumnos.integracion.test.ts` | PR-B06a: agregar → 200, yaEstaba false, origen = 'manual' |
+| PR-B06b | `backend/test/alumnos.integracion.test.ts` | PR-B06b: agregar dos veces → 200, yaEstaba true, una sola fila |
+| PR-B06c | `backend/test/alumnos.integracion.test.ts` | PR-B06c: un maestro, el admin, una cuenta inactiva o un id inexistente como alumnoId → 404 ALUMNO_NO_ENCONTRADO sin escribir |
+| PR-B06d | `backend/test/alumnos.integracion.test.ts` | PR-B06d: agregar a un alumno restringido → 200 (S-12) |
+| PR-B06e | `backend/test/alumnos.integracion.test.ts` | PR-B06e: la respuesta de agregar tiene exactamente las claves alumno (id, nombre) y yaEstaba, sin estadoPago, accesoRestringido ni email en el recorrido recursivo, con un alumno deudor y restringido |
+| PR-B07a | `backend/test/alumnos.integracion.test.ts` | PR-B07a: quitar → 204 |
+| PR-B07b | `backend/test/alumnos.integracion.test.ts` | PR-B07b: quitar a quien no está inscrito → 204 |
+| PR-B07c | `backend/test/alumnos.integracion.test.ts` | PR-B07c: después de quitarlo, el alumno recibe 403 en GET /clases/:claseId |
+| PR-B08a | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08a: cada ruta de b: sin token, 401 |
+| PR-B08b | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08b: cada ruta: con debe_cambiar_contrasena, 403 CAMBIO_DE_CONTRASENA_REQUERIDO |
+| PR-B08c | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08c: cada ruta: estudiante restringido inscrito, 403 ACCESO_RESTRINGIDO |
+| PR-B08d | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08d: cada ruta: admin, 403 ROL_NO_PERMITIDO |
+| PR-B08e | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en …/alumnos, …/candidatos y en el POST y el DELETE) |
+| PR-B08f | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08f: cada ruta: maestro ajeno y estudiante no inscrito, 403 SIN_ACCESO_A_LA_CLASE |
+| PR-B08g | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08g: cada ruta: el caso permitido, 2xx |
+| PR-B08h | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08h: en cada caso negado, inscripciones y movimientos_inscripcion quedan como estaban |
+| PR-B08i | `backend/test/alumnos-autorizacion.integracion.test.ts` | PR-B08i: ninguna respuesta que recibe un estudiante contiene estadoPago |
+| PR-B09 | `frontend/src/features/clases/lib.test.ts` | PR-B09: con espacios, acentos y 3 caracteres |
+| PR-B10a | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10a: con menos de 3 caracteres no pide nada |
+| PR-B10b | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10b: con temporizadores falsos, una sola petición 300 ms después de la última tecla |
+| PR-B10c | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10c: un candidato inscrito muestra 'Ya está en la clase' en lugar del botón |
+| PR-B10d | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10d: agregar invalida el roster y muestra el toast |
+| PR-B10e | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10e: el buscador lleva autoComplete='off' |
+| PR-B10f | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10f: el botón de cada fila lleva el nombre del alumno en su nombre accesible |
+| PR-B10g | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B10g: cada resultado muestra el correoEnmascarado tal como llega, y el buscador no muestra ningún correo completo |
+| PR-B11a | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B11a: la tabla muestra 'Al corriente' y 'Deudor' como texto |
+| PR-B11b | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B11b: la tabla muestra 'Acceso restringido' como texto |
+| PR-B11c | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B11c: quitar pide confirmación en línea, con el manejo de foco |
+| PR-B11d | `frontend/src/features/clases/alumnos-view.test.tsx` | PR-B11d: 'Ver más alumnos' aparece solo con cursor |
+| PR-B12a | `frontend/src/features/clases/personas-view.test.tsx` | PR-B12a: el maestro va separado de los alumnos |
+| PR-B12b | `frontend/src/features/clases/personas-view.test.tsx` | PR-B12b: el contador va en palabras |
+| PR-B12c | `frontend/src/features/clases/personas-view.test.tsx` | PR-B12c: no hay correos ni insignias de pago |
+| PR-B12d | `frontend/src/features/clases/personas-view.test.tsx` | PR-B12d: los estados siguen su orden: error → cargando → vacío → datos |
+| PR-B13a | `frontend/src/components/estado-pago-badge.test.tsx` | PR-B13a: 'Al corriente' con su icono |
+| PR-B13b | `frontend/src/components/estado-pago-badge.test.tsx` | PR-B13b: 'Deudor' con su icono |
+| PR-B13c | `frontend/src/components/estado-pago-badge.test.tsx` | PR-B13c: AccesoRestringidoBadge con 'Acceso restringido' y su icono |
+| PR-B14 | `frontend/src/features/clases/clase-layout.test.tsx` | PR-B14: las secciones suman 'Personas' (estudiante) y 'Alumnos' (maestro) |
+| PR-B15 | `frontend/src/app/router.test.tsx` | PR-B15: personas y alumnos montan sus vistas |
+| PR-B16a | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16a: un alta manual efectiva escribe exactamente una fila alta con clase_id, alumno_id, maestro_id del perfil y creado_en, y con una secuencia mayor que la de cualquier movimiento anterior |
+| PR-B16b | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16b: una baja efectiva escribe exactamente una fila baja, con una secuencia mayor que la del alta previa |
+| PR-B16c | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16c: un alta con yaEstaba: true y una baja de alguien no inscrito no escriben nada (S-23) |
+| PR-B16d | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16d: unirse con código no escribe nada; quitar después a ese alumno escribe una baja |
+| PR-B16e | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16e: si el INSERT del movimiento falla (maestroId inexistente: viola la llave foránea), la transacción se revierte y no queda ninguna fila de movimiento |
+| PR-B16f | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16f: concurrencia: 5 rondas de 8 peticiones simultáneas (4 altas y 4 bajas del mismo alumno, en orden aleatorio): la secuencia más alta coincide con el estado final, las filas alternan alta y baja empezando por alta y altas − bajas ∈ {0, 1} |
+| PR-B16g | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16g: ninguna ruta de printRoutes contiene «movimiento», y ninguna respuesta de las rutas de b contiene el id ni la secuencia de una fila de movimientos_inscripcion |
+| PR-B16h | `backend/test/movimientos-inscripcion.integracion.test.ts` | PR-B16h: el módulo adapters/db/index no exporta ninguna función cuyo nombre contenga «movimiento» (no hay lectura) |
+| PR-B17 | `frontend/src/features/clases/inicio-estudiante-view.test.tsx` | PR-B17: 'Unirme a la clase' (N-04): CODIGO_INVALIDO y un VALIDACION de codigo van bajo el campo; un 500 y 'sin conexión' avisan con toast, sin aria-invalid en el campo del código |
+
+Ninguna viñeta quedó sin caso. Casos **extra** (sin ID del plan, para cubrir un comportamiento que la viñeta no separa; no sustituyen a ningún ID):
+- `frontend/src/features/clases/personas-view.test.tsx`: "'Ver más alumnos' aparece solo con cursor y pide la página siguiente con ese cursor".
+- `frontend/src/features/clases/alumnos-view.test.tsx`: "muestra los mensajes de sin resultados y de 'hay más', y el error de la búsqueda" y "estados en orden: error, cargando y vacío".
+
+### Archivos creados
+- `backend/prisma/migrations/20260930235837_movimientos_inscripcion/migration.sql`.
+- `backend/src/core/clases/busqueda.ts` y `busqueda.test.ts`.
+- `backend/src/adapters/db/inscripciones.ts`.
+- `backend/src/handlers/clases/alumnos.ts`.
+- `backend/test/alumnos.integracion.test.ts`, `alumnos-autorizacion.integracion.test.ts` y `movimientos-inscripcion.integracion.test.ts`.
+- `frontend/src/components/estado-pago-badge.tsx`, `acceso-restringido-badge.tsx` y `estado-pago-badge.test.tsx`.
+- `frontend/src/features/clases/personas-view.tsx`, `alumnos-view.tsx`, `personas-view.test.tsx` y `alumnos-view.test.tsx`.
+- `frontend/src/features/clases/components/buscador-alumnos.tsx`, `tabla-alumnos.tsx` y `lista-personas.tsx`.
+
+### Archivos modificados
+- `shared/src/clases.ts` y `shared/src/index.ts` (esquemas de b: `estadoPagoSchema`, `paginacionRosterSchema`, `personaDeClaseSchema`, `personasRespuestaSchema`, `alumnoDeClaseSchema`, `listaAlumnosRespuestaSchema`, `busquedaCandidatosSchema`, `candidatoSchema` sin correo completo, `candidatosRespuestaSchema`, `agregarAlumnoSchema`, `agregarAlumnoRespuestaSchema`, `alumnoIdParamSchema` y sus tipos).
+- `backend/prisma/schema.prisma` (modelo `MovimientoInscripcion`, enum `TipoMovimientoInscripcion`, relaciones inversas; `prisma format` también realineó las columnas de `Usuario` y `Clase`, sin cambio de contenido).
+- `backend/src/adapters/db/index.ts`, `backend/src/app.ts`, `backend/src/adapters/README.md`, `backend/src/handlers/README.md`.
+- `backend/test/ayudas-clases.ts` (extendido: `borrarMovimientosYClasesDePrueba`, con la regla de N-10 explicada en su comentario; `crearAlumnoDePrueba`, `leerMovimientos`, `leerInscripcion`).
+- `frontend/src/app/router.tsx`; `frontend/src/features/clases/data.ts`, `hooks.ts`, `lib.ts`, `types.ts`, `inicio-maestro-view.tsx` (textos a `data.ts`), `components/secciones-de-clase.tsx` y `components/formulario-unirse-clase.tsx` (N-04).
+- Pruebas existentes extendidas (solo se agregaron casos; ninguno borrado ni reescrito): `frontend/src/features/clases/lib.test.ts` (PR-B09), `clase-layout.test.tsx` (PR-B14), `frontend/src/app/router.test.tsx` (PR-B15) e `inicio-estudiante-view.test.tsx` (PR-B17). Líneas existentes que cambiaron para poder agregar esos casos: en `clase-layout.test.tsx`, `router.test.tsx` e `inicio-estudiante-view.test.tsx`, `cleanup` se suma al import de `@testing-library/react`; en `inicio-estudiante-view.test.tsx`, el tipo de `unirse` del doble pasó de `() => Response` a `() => Response | Promise<Response>` (para "sin conexión"); en `lib.test.ts`, el import de `./lib` suma `terminoDeBusquedaValido`.
+- `docs/DESIGN.md` (§D-B7, abajo).
+- Ningún `*.ataque.test.*` tocado por mí (los 2 de la ronda 0 son del tester).
+
+### Cambios en `docs/DESIGN.md` (§D-B7, marcados "propuesta")
+- **§7.2:** viñeta nueva con la excepción de la lista de compañeros (`ListaPersonas`: filas de solo lectura sin vidrio fuerte, con divisores de `--border`).
+- **§7.8:** "Implementación de CLASES-b": `EstadoPagoBadge`, `AccesoRestringidoBadge` (sin `text-danger` propio) y la insignia `muted` "Ya está en la clase".
+- **§7.17 (nueva), "Buscador con resultados en línea":** mínimo de 3 letras, espera de 300 ms, ayuda permanente, acción por fila con el nombre como `sr-only`, **correo enmascarado como texto secundario (el completo solo en el roster)**, mensajes de sin resultados y de "hay más" y orden de estados.
+- **§8:** el roster del maestro como tabla opaca dentro de un panel de vidrio, filas de 48 px y botones de 36 px, sin `data-material="opaco"`.
+- Regla de M-06: b no pone texto sobre vidrio azul (`bloque-destacado.tsx` no se tocó), así que no hay superficie de color nueva que nombrar.
+
+### Cambios en los `README.md`
+- `backend/src/adapters/README.md`: sección `db/inscripciones.ts` (paginación por claves, única función con datos de pago, registro en la misma transacción, orden por `secuencia`, sin lecturas).
+- `backend/src/handlers/README.md`: viñeta de `clases/alumnos.ts` con sus 5 rutas.
+
+### Desviaciones del plan y viñetas que no se pueden cumplir al pie de la letra (se reportan, no se omiten)
+1. **PR-B01b** dice `"  a  b "` → `null`, pero `normalizarParaBusqueda` junta los espacios y deja `"a b"` (3 caracteres), que §D-B3 y S-11 aceptan (el mínimo es "menos de 3" **después de normalizar**). Implementé `prepararTerminoDeBusqueda` como dice §D-B3. El caso PR-B01b prueba lo que sí queda en menos de 3 (`"  a  "`, `"  ab  "`, `""`, `"   "`, `"ÁÉ"`) y deja escrito que `"  a  b "` devuelve `"a b"`. Decide el manager si el ejemplo de la viñeta es un error del plan o si el mínimo debe contar sin espacios (cambiaría §D-B3, S-11 y PR-B09).
+2. **PR-B05**: con `SET LOCAL enable_seqscan = off` solo, el planificador elige `usuarios_rol_idx` (con la tabla de pruebas casi vacía el GIN no es rentable) y el caso no puede pasar. Dentro de la misma transacción, que siempre se revierte (se lanza un error propio y se captura), el caso siembra 20,000 estudiantes con `INSERT … generate_series` y corre `ANALYZE "usuarios"` antes del `EXPLAIN (FORMAT JSON)`; con eso el plan menciona `usuarios_nombre_busqueda_idx`. La consulta, el `enable_seqscan = off` y la comprobación son los del plan; solo se suma la siembra revertida (unos 0.9 s por corrida del caso).
+3. **§D-B5** dice que b agrega `textoConteoAlumnos(n)` a `lib.ts`, pero a ya la tenía ("Sin alumnos", "1 alumno", "N alumnos"); la reutilicé para el contador de `PersonasView` y no agregué otra.
+4. **Rutas del frontend:** el plan dice "suma las dos rutas": `/estudiante/clases/:claseId/personas` y `/maestro/clases/:claseId/alumnos`. Que el maestro pueda abrir `PersonasView` "por URL" lo cubre el backend (`requireMembership` deja pasar al dueño); no agregué `/maestro/clases/:claseId/personas` al router. Si el manager la quiere, es una línea en `router.tsx`.
+5. **Invalidación:** agregar y quitar invalidan los tres del plan (`["clases", claseId, "alumnos"]`, `["clases", claseId, "candidatos"]` y `["clases", "impartidas"]`) **y además** `["clases", claseId, "personas"]`, para que la vista de compañeros no quede vieja. Es la única llamada extra.
+6. **Texto vacío del roster:** la viñeta es una sola frase ("Aún no hay alumnos. Comparte el código de la clase o búscalos arriba."); la pasé entera como `titulo` de `EstadoVacio`, sin partirla en título y descripción, para que el texto exacto del plan sea el que aparece.
+7. **"Se unió"** usa `formatearFechaHora` (fecha y hora, ya existente): `lib/format.ts` es de a y d, no de b.
+8. **Textos no listados en §D-B6:** el título del primer panel de `AlumnosView`, "Agregar alumnos" (§D-B4 no le da título), y `ALUMNO_NO_ENCONTRADO` → "No encontramos a ese alumno." en `mensajeDeErrorClases`. Ambos son propuesta.
+
+### Mejoras no pedidas (anotadas, no hechas)
+- `adapters/db/clases.ts`: `listarClasesImpartidas` y `listarClasesInscritas` siguen paginando con el `cursor` de Prisma, mientras roster y personas ya usan conjunto de claves; unificarlos sería un refactor de a.
+- `backend/test/ayudas-auth.ts` (`crearUsuarioDePrueba`) solo pasa el nombre a minúsculas en `nombre_busqueda`, sin quitar acentos; `crearAlumnoDePrueba` lo corrige después con `normalizarParaBusqueda`. Un cambio en `ayudas-auth.ts` (de "No se toca") lo evitaría.
+
+### Pendiente o fuera de alcance detectado
+- Intermitencia de la suite del backend por `LOCK TABLE usuarios` (CHORE-02): 2 de mis 4 corridas completas cayeron por ella; `PR-A15h` de a también se ve afectada.
+- La pantalla de consulta de `movimientos_inscripcion` y sus índices (ordenada por `secuencia`) son de ADMIN (R-21, R-23 a R-25).
+- No hubo comprobación en navegador (no autorizada); la de b va en la comprobación humana de CLASES-d. Las pruebas de b no verifican el diseño visual más allá de lo estático (`clases-r1` y `estatico-r1` pasan).
+
+
+## CLASES-b — corrección ronda 1
+
+Base y reglas como en la sección "CLASES-b". PA-01: regla del firewall `Enabled`/`Inbound`/`Block`/`Public`; red `IZZI-F281-5G` (Public), de confianza. Ninguna `*.ataque` tocada. El esquema de Prisma no cambió (V-03 no aplica).
+
+### Tabla de hallazgos
+| ID | Estado | Archivos | Caso que lo demuestra |
+|---|---|---|---|
+| **T-20** (bajo) | **Corregido** | `shared/src/clases.ts` (`busquedaCandidatosSchema`) | `backend/test/alumnos-b-r1.ataque.test.ts`, "T-20: un término con 3 o más caracteres después de normalizar (S-11) que el frontend da por válido no recibe 400 (hangul: «각», «가나»)" (verde). Pruebas normales extendidas: ver abajo |
+| **T-21** (medio) | **Corregido** (opción A del manager, con salida de respaldo) | `frontend/src/features/clases/components/tabla-alumnos.tsx`, `docs/DESIGN.md` §7.14 | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx`, "T-21: después de «Sí, quitar», cuando la fila desaparece, el foco no se pierde en <body>" (verde). Prueba normal: `PR-B11c2` |
+| **D-1** (manager) | **Corregido** | `backend/test/alumnos.integracion.test.ts` (PR-B05) | `PR-B05` (verde), con la medición de abajo |
+| **D-3** (manager) | **Corregido** | `frontend/src/features/clases/personas-view.tsx` | Solo comentario: ya no dice "por URL"; dice que el backend deja pasar al dueño pero el router no le da ruta propia |
+| **D-4** (manager) | **Corregido** | `frontend/src/features/clases/data.ts`, `components/buscador-alumnos.tsx` | Caso normal `D-4` en `alumnos-view.test.tsx` |
+
+### T-20: qué cambió
+`busquedaCandidatosSchema.q` ya no usa `.min(3)`/`.max(120)` sobre el texto crudo. Ahora mide sobre el texto **normalizado** (NFD sin marcas, minúsculas, espacios juntos, recortado) con el mismo criterio que `prepararTerminoDeBusqueda` (core) y `terminoDeBusquedaValido` (frontend), contando puntos de código:
+- más de 120 normalizados (o más de 1000 en crudo, solo como tope para no procesar entradas absurdas) → `400 VALIDACION`;
+- menos de 3 en crudo **y** en normalizado (`"ab"`, `""`) → `400 VALIDACION` (conserva lo que el tester y PR-B04e ya exigían);
+- un texto largo que normaliza a menos de 3 (`"  ab  "`) sigue siendo `400 BUSQUEDA_MUY_CORTA` de core;
+- hangul (`"각"`, `"가나"`) y `"abc"` más 118 espacios pasan.
+Nota: el schema vive en `shared/` y no puede importar `core/`, así que la normalización está duplicada ahí (como ya lo estaba en el frontend).
+
+Pruebas normales extendidas (solo se agregaron casos):
+- `backend/test/alumnos.integracion.test.ts`: "T-20 (ronda 1): la longitud de q se mide después de normalizar: hangul (3 o más al descomponer) y 'abc' con espacios de sobra pasan; 121 normalizados o 2 en crudo y normalizados, no".
+- `backend/src/core/clases/busqueda.test.ts`: "T-20 (ronda 1): el hangul se descompone en 3 o más caracteres al normalizar y es un término válido".
+
+### T-21: qué cambió
+`TablaAlumnos` guarda en un `ref` el índice de la fila quitada (la fila avisa con `onQuitado` en su `onSuccess`) y un `useEffect` sobre `filas` enfoca, cuando la fila ya no está en los datos, el "Quitar" de `filas[min(índice, filas.length - 1)]`; si la lista quedó vacía o ese "Quitar" no existe, enfoca el `h2` del panel (`tabIndex={-1}`). Ya no se enfoca el "Quitar" de la propia fila en el `onSuccess` (era la causa: se desmontaba). Funciona con varias páginas cargadas porque usa la lista aplanada y no depende de cuándo llegue la consulta.
+- Prueba normal `PR-B11c2` (`frontend/src/features/clases/alumnos-view.test.tsx`): "PR-B11c2: tras 'Sí, quitar' el foco va a la fila que ocupa su lugar (la del medio y la última) o al encabezado si era la única (T-21)".
+- `docs/DESIGN.md` §7.14: viñetas nuevas "Foco al confirmar una acción que borra la fila (CLASES-b, propuesta; T-21)", con el criterio del manager.
+- Cambio de comportamiento menor: tras quitar con éxito, la confirmación ya no se cierra con `setConfirmando(false)` (la fila desaparece); si la consulta nueva fallara, la fila quedaría en confirmación y se podría reintentar.
+
+### D-1: medición de PR-B05
+La transacción lleva ahora `{ timeout: 15000, maxWait: 15000 }` (antes, 5 s por defecto). Siembra mínima medida con `npx vitest run test/alumnos.integracion.test.ts -t PR-B05` (el plan debe mencionar `usuarios_nombre_busqueda_idx`):
+
+| Filas sembradas | ¿Menciona el GIN? |
+|---|---|
+| 500, 1,000, 2,000, 4,000, 8,000, 12,000, 16,000 | No (elige `usuarios_rol_idx`) |
+| 17,000, 18,000, 19,000, 20,000 | Sí |
+
+El umbral está entre 16,000 y 17,000. Quedó en **18,000** (con margen sobre el umbral): `npx vitest run … -t PR-B05 --reporter=verbose` → **564, 530 y 510 ms** (antes 20,000 filas, unos 900 ms). Probé la alternativa de una tabla temporal: no la adopté porque su índice no se llamaría `usuarios_nombre_busqueda_idx` y el caso dejaría de demostrar el índice real.
+
+### D-4: qué cambió
+Con `yaEstaba: true`, el buscador avisa con `toast("<nombre> ya estaba en la clase")` (texto `TEXTOS_BUSCADOR_ALUMNOS.yaEstaba` en `data.ts`; neutro, sin `success` ni `error`); con `false`, sigue "Agregaste a <nombre>". Caso: "D-4: agregar con yaEstaba: true avisa con un toast neutro, sin éxito ni error". Para poder probarlo, el doble de `sonner` de `alumnos-view.test.tsx` pasó a `Object.assign(vi.fn(), { success, error })`.
+
+### CONFLICTO que necesita arbitraje (frontend en rojo por una prueba del tester)
+El caso del tester "agregar a quien otra pestaña acaba de quitar (o de agregar): el roster y el buscador quedan al día" (`frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx`, línea 250) provoca `yaEstaba: true`, y su doble de `sonner` es `{ success, error }` (línea 18), sin función `toast` ni `toast.message`. Con D-4, el código llama a `toast(...)` y Vitest reporta `Unhandled Rejection: TypeError: toast is not a function`, que hace que `vitest run` del frontend termine con código 1 aunque los 1143 casos pasan (`Tests  1143 passed (1143)`, `Errors  1 error`). Yo no puedo tocar la `*.ataque`, y no hay otra forma de avisar "neutro" que `toast(...)`. Opciones: que el tester extienda su doble en la regresión (por ejemplo `Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() })`) o que el manager cambie la decisión de D-4. Hasta entonces, el `npm run test` de la raíz sale con código 1 solo por esto.
+
+### Verificación (comando exacto y última línea)
+| Comando | Última línea |
+|---|---|
+| `npm run build` (raíz) | `✓ built in 648ms` (código 0) |
+| `npm run lint` (raíz) | `> tsc -b` (código 0; antes, prettier sin avisos). Una primera pasada falló por formato en `shared/src/clases.ts` y `backend/test/alumnos.integracion.test.ts`; corregido con `prettier --write` sobre esas rutas |
+| `npm run test` (raíz) | backend `Tests  1137 passed (1137)` (`Test Files  102 passed (102)`); frontend `Tests  1143 passed (1143)` (`Test Files  82 passed (82)`) pero `Errors  1 error` y código 1 por el conflicto de arriba |
+
+- La primera corrida completa del backend de esta ronda cayó por los tiempos límite de AUTH de siempre (9 archivos, 13 casos, ninguno de b ni de las `*.ataque` por aserción); la repetí y salió limpia (1137 de 1137). Con `P2028` solo los 2 aceptados de `cuentas-r3` en ambas; `40P01`, `deadlock detected`, `could not serialize` y `too many clients`, 0.
+- **V-01:** los 81 SHA-256 de las `*.ataque` coinciden con la tabla de ronda 0 (79) más las 2 de la ronda 1 de b (`alumnos-b-r1` backend `485D39EF…` y frontend `755019C7…`).
+- **V-03:** no aplica (no toqué el esquema; la migración sigue siendo la misma carpeta).
+- **V-04:** `enEspera=` 29; `vidrio-azul` solo en `bloque-destacado.tsx`; `data-material`/`data-densidad` solo en `contenedor-rol.tsx` (más sus definiciones en `tokens.css`); `movimientoInscripcion` solo en `adapters/db/inscripciones.ts` (2 `.create(`); `addHook` en handlers 0; `fetch(` solo en `apiClient.ts`; `correoEnmascarado` en `lib.ts` 0.
+- **V-05:** `middleware`, `adapters/db/clases.ts`, `handlers/clases/clases.ts`, `adapters/notifier`, `features/auth`, `services`, `components/ui`, `components/layout`, `styles/tokens.css`, `components/estado-vacio.tsx` y `eslint.config.mjs` sin cambios contra `855069b`; en `backend/prisma/` solo `schema.prisma` y la carpeta nueva de la migración de b (sin cambios respecto de la entrega anterior).
+- **V-06:** las rutas no cambiaron (`sesiones-y-cadena.ataque` en verde).
+- **PA-07:** solo los 2 `P2028` aceptados en las corridas limpias. **PA-11:** `docker ps` solo muestra `campus-dev-postgres-1`, `campus-dev-minio-1` y `campus-dev-livekit-1`.
+
+### Conteos
+- `cd backend && npx vitest list` → **1137** casos en **102** archivos (los 1111 de antes, +2 míos, +24 de `alumnos-b-r1.ataque`).
+- `cd frontend && npx vitest list` → **1143** casos en **82** archivos (los 1131 de antes, +2 míos, +10 de `alumnos-b-r1.ataque`).
+- La corrida coincide con ambas cifras.
+
+### Archivos tocados en esta corrección
+`shared/src/clases.ts`; `backend/test/alumnos.integracion.test.ts`, `backend/src/core/clases/busqueda.test.ts`; `frontend/src/features/clases/{data.ts, personas-view.tsx, components/buscador-alumnos.tsx, components/tabla-alumnos.tsx, alumnos-view.test.tsx}`; `docs/DESIGN.md` (§7.14); esta sección. Todos en las listas de b.
+
+### Observaciones del tester no implementadas (como se indicó)
+"—" en la columna Acceso; tope de 120 en puntos de código frente a UTF-16 (el criterio de T-20 cuenta puntos de código, como antes); términos de búsqueda en `req.url` del log.
+
+
+## CLASES-b — corrección ronda 2
+
+PA-01 comprobada (regla `Enabled`/`Inbound`/`Block`/`Public`; red `IZZI-F281-5G`, de confianza). Ninguna `*.ataque` tocada; el esquema de Prisma no cambió.
+
+### Tabla de hallazgos
+| ID | Estado | Archivos | Caso del tester que lo demuestra |
+|---|---|---|---|
+| **T-22** | Corregido | `frontend/src/features/clases/components/tabla-alumnos.tsx` | `alumnos-b-r2.ataque.test.tsx`, "T-22: si la consulta nueva del roster falla después de quitar, el foco no queda en <body> ni en un botón que ya no existe" (verde) |
+| **T-23** | Corregido | `tabla-alumnos.tsx` | `alumnos-b-r2.ataque.test.tsx`, "T-23: si la fila sale de los datos antes del onSuccess (otra pestaña la quitó y el roster se volvió a pedir), el foco no queda en <body>" (verde) |
+| **T-24** | Corregido | `shared/src/clases.ts` e `index.ts`, `backend/src/core/clases/busqueda.ts`, `frontend/src/features/clases/{lib.ts, data.ts, components/buscador-alumnos.tsx}`, `docs/DESIGN.md` | `alumnos-b-r2.ataque.test.tsx`, "T-24: un término que cabe en el campo (maxLength 120) pero pasa de 120 normalizados no se pide: el backend lo rechaza (41 sílabas hangul)" (verde) |
+
+### T-22 y T-23: la forma de fondo
+La recolocación del foco ya no depende del `onSuccess` (un componente desmontado no lo recibe) ni de la lista capturada al hacer clic. `TablaAlumnos`:
+- recuerda por `id` qué fila tiene el foco: `focusin` en el documento lo marca (`data-alumno-id` de cada fila) y lo borra si el foco va a otro lado; `focusout` sin destino lo borra si el control sigue conectado (un clic en blanco);
+- después de **cada render**, si ese foco se perdió (`document.activeElement` es `<body>`, nulo o está desconectado) porque su control se desmontó, lo lleva al "Quitar" de `ids[min(índice, longitud − 1)]` (índice tomado de la lista del render anterior) y, si no hay ninguno (lista vacía, tabla reemplazada por el error o por el vacío), al `h2` del panel. Nunca a `<body>`.
+Cubre: la fila sale de los datos (con o sin `onSuccess`), la consulta nueva falla (T-22: los datos viejos siguen, pero el error reemplaza la tabla), la lista queda vacía y varias páginas. Se quitaron `onQuitado`, `handleQuitado` y el `ref` `quitada` de la ronda 1. `PR-B11c2` y el caso T-21 del tester siguen en verde.
+
+### T-24 y una sola normalización
+`shared/src/clases.ts` exporta `normalizarTerminoDeBusqueda`, `LONGITUD_MINIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA` (120) y `estadoDeTerminoDeBusqueda(texto)` (`"valido"`, `"corto"` o `"largo"`: más de 120 normalizados o más de 1000 en crudo es `"largo"`). `busquedaCandidatosSchema` usa esas mismas constantes; `core/clases/busqueda.ts` importa de ahí la normalización y el mínimo (la copia local desapareció; `core/auth/normalizacion.ts` no se toca y sigue con la suya para `nombre_busqueda`, con una prueba que exige que den lo mismo); el frontend decide con `estadoDeTerminoDeBusqueda` (`terminoDeBusquedaValido` y `terminoDeBusquedaMuyLargo` en `lib.ts`), así que su copia también desapareció. Con un término muy largo, el buscador no pregunta y muestra con `ErrorDeCampo` "La búsqueda no puede tener más de 120 caracteres" (`aria-invalid` y `aria-describedby`; texto en `data.ts`). `DESIGN.md` §7.17 y §7.14 se actualizaron.
+
+### Pruebas normales extendidas (solo se agregaron casos)
+- `frontend/src/features/clases/alumnos-view.test.tsx`: "T-22 (ronda 2): si la consulta nueva del roster falla después de quitar, el foco va al encabezado del panel"; "T-23 (ronda 2): si la fila sale de los datos antes del onSuccess, el foco no queda en <body> y va a la fila vecina"; "T-24 (ronda 2): un término que cabe en el campo pero pasa de 120 normalizados no se pide y muestra el aviso de longitud". (El tipo del doble `quitar` pasó a `() => Response | Promise<Response>`.)
+- `frontend/src/features/clases/lib.test.ts`: "T-24 (ronda 2): decide con el criterio del servidor: más de 120 normalizados (41 sílabas hangul) o más de 1000 en crudo es muy largo y no es válido".
+- `backend/src/core/clases/busqueda.test.ts`: "T-24 (ronda 2): es la misma normalización que core/auth aplica a nombre_busqueda".
+
+### Verificación (comando exacto y última línea)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` (raíz) | `> tsc -b` (código 0) |
+| `npm run build` (raíz) | `✓ built in 689ms` (código 0) |
+| `npm run test` (raíz), corrida limpia | backend `Tests  1141 passed (1141)` (`Test Files  103 passed (103)`); frontend `Tests  1157 passed (1157)` (`Test Files  83 passed (83)`); código 0, sin errores no manejados |
+
+- La primera corrida completa cayó en el backend por los tiempos límite de AUTH de siempre (11 archivos, 13 casos, ninguno de b ni por aserción; el frontend salió limpio); repetida, limpia. `P2028`: solo los 2 aceptados; `40P01`, `deadlock detected`, `could not serialize` y `too many clients`: 0. PA-11: `docker ps` solo muestra los 3 contenedores de `infra`.
+- **V-01:** 83 `*.ataque`. Los 79 de la ronda 0 y los de las rondas anteriores coinciden, y los 2 nuevos empiezan con `ADF927DF…` (backend `alumnos-b-r2`) y `55DC274E…` (frontend `alumnos-b-r2`). Nota: el SHA-256 de `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` cambió de `755019C7…` a `C3692E9E…` por C-17, en la corrección de la ronda 1 (sección "Corrección ronda 1, adaptación C-17" de `reporte-tester.md`); su doble de `sonner` pasó a ser invocable (`Object.assign(vi.fn(), aviso)`) y no trae ningún `neutro`. No lo cambió el tester en la ronda 2 ni lo toqué yo (corregido, D-7 bis).
+- **V-04:** `enEspera=` 29; `vidrio-azul` solo en `bloque-destacado.tsx`; `movimientoInscripcion` solo en `adapters/db/inscripciones.ts` (2 `.create(`).
+- **V-05:** sin cambios contra `855069b`: `middleware`, `core/auth`, `adapters/db/clases.ts`, `features/auth`, `services`, `components/ui`, `styles/tokens.css`, `eslint.config.mjs`. En `shared/` solo cambiaron `src/clases.ts` e `src/index.ts`. **V-06:** rutas sin cambios. **V-03:** no aplica.
+
+### Conteos (`npx vitest list`)
+- `cd backend && npx vitest list` → **1141** casos en **103** archivos (1137 de antes: +1 mío, +3 de `alumnos-b-r2.ataque`).
+- `cd frontend && npx vitest list` → **1157** casos en **83** archivos (1143 de antes: +4 míos, +10 de `alumnos-b-r2.ataque`).
+- La corrida coincide con ambas cifras.
+
+### Archivos tocados en esta corrección
+`shared/src/clases.ts`, `shared/src/index.ts`; `backend/src/core/clases/busqueda.ts`, `busqueda.test.ts`; `frontend/src/features/clases/{lib.ts, lib.test.ts, data.ts, alumnos-view.test.tsx, components/tabla-alumnos.tsx, components/buscador-alumnos.tsx}`; `docs/DESIGN.md` (§7.14 y §7.17); esta sección. Todos en las listas de b (`shared/` según "Cambios por capa").
+
+
+## CLASES-b — corrección ronda 2 (segunda pasada)
+
+PA-01 comprobada (regla `Enabled`/`Inbound`/`Block`/`Public`; red `IZZI-F281-5G`, de confianza). Ninguna `*.ataque` tocada; el esquema de Prisma no cambió.
+
+### M-07 — PR-B05 intermitente: corregido
+- **Diagnóstico del plan alternativo:** con pocas filas (y con 12,000 sembradas, ya con `enable_indexscan = off`) el plan que gana es `Limit → Sort → Bitmap Heap Scan → Bitmap Index Scan` sobre **`usuarios_rol_idx`** (leído del mensaje de fallo). No es un recorrido ordenado por índice: es otro *bitmap scan*, así que apagar `enable_indexscan` no lo desplaza ni se puede apagar sin apagar el *bitmap scan* del GIN. Por eso **no** dejé ningún `SET LOCAL` extra (el `enable_indexscan = off` que probé no cambió el umbral).
+- **Umbral medido** con el archivo aislado (`npx vitest run test/alumnos.integracion.test.ts -t PR-B05`, con `enable_indexscan = off`): 2,000, 5,000, 8,000, 12,000 y 16,000 filas, no menciona el GIN; 20,000 y 25,000, sí. El umbral está entre 16,000 y 20,000; los 18,000 de la pasada anterior no dejaban margen.
+- **Cambio aplicado** (`backend/test/alumnos.integracion.test.ts`): (1) la aserción imprime el plan elegido si falla (`plan elegido: …`); (2) se siembran **40,000** filas (más del doble del umbral); (3) el `timeout` de 15 s de la transacción se queda; el comentario del caso documenta la alternativa real y el margen.
+- **Evidencia: 6 corridas completas del backend** (`cd backend && npx vitest run --reporter=verbose`), con la línea de PR-B05 de cada una:
+
+| Corrida | PR-B05 | Duración de PR-B05 | Resultado de la corrida |
+|---|---|---|---|
+| 1 | ✓ | 1179 ms | `Tests  1141 passed (1141)` |
+| 2 | ✓ | 3483 ms | cayó por tiempos límite de AUTH (8 casos, todos de 10 s o más de espera) |
+| 3 | ✓ | 4542 ms | `Tests  1141 passed (1141)` |
+| 4 | ✓ | 4723 ms | cayó por tiempos límite de AUTH (9 casos) |
+| 5 | ✓ | 6043 ms | 1 caso en rojo, **ajeno**: `test/enlaces-registro.integracion.test.ts` "lista en orden creado_en DESC, id DESC y pagina con cursor" (aserción de la línea 143, enlaces de registro que otros archivos crean en paralelo; no toca `usuarios` ni nada de b) |
+| 6 | ✓ | 6068 ms | `Tests  1141 passed (1141)` |
+
+PR-B05 nunca falló en las 6 corridas (ni por aserción ni por tiempo; el máximo, 6.1 s, deja más de 8 s de margen con su `timeout`). Las corridas 2 y 4 cuentan aparte (CHORE-02). El caso rojo de la corrida 5 no lo reproduje por separado ni lo investigué más: no es de b, pero lo anoto como intermitencia nueva del archivo `enlaces-registro` (AUTH-03b). Con 40,000 filas PR-B05 tarda más con la suite en paralelo (de 1 a 6 s) que aislado (unos 0.9 s): es el costo del margen.
+
+### D-7 — frase corregida
+La versión anterior de esta sección decía que el SHA-256 de `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` lo había cambiado el tester "en la ronda 2 (su doble ya trae `neutro`)". Eso era falso. Lo que puedo demostrar: el hash actual (`C3692E9E…`) no es el `755019C7…` de la tabla de la ronda 1; por lo que anota el manager y por la sección "CLASES-b — Corrección ronda 1, adaptación C-17" de `reporte-tester.md`, ese cambio es de C-17 en la corrección de la ronda 1. Yo no lo toqué. La versión anterior también atribuía a un `neutro` del doble; el doble de ese archivo no trae ninguno.
+
+### D-8 — `MAXIMO_CARACTERES_BUSQUEDA` unificada
+Se quitó `MAXIMO_CARACTERES_BUSQUEDA` de `frontend/src/features/clases/data.ts`; `components/buscador-alumnos.tsx` usa `LONGITUD_MAXIMA_BUSQUEDA` de `@campus/shared` en el `maxLength` del campo, con un comentario: `maxLength` cuenta unidades de UTF-16, no los caracteres normalizados del servidor, así que es solo un tope de captura y el tope real lo decide `estadoDeTerminoDeBusqueda` (T-24).
+
+### Verificación (comando exacto y última línea)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` (raíz) | `> tsc -b` (código 0) |
+| `npm run build` (raíz) | `✓ built in 790ms` (código 0) |
+| `npm run test` (raíz), corrida limpia | backend `Tests  1141 passed (1141)` (`Test Files  103 passed (103)`); frontend `Tests  1157 passed (1157)` (`Test Files  83 passed (83)`); código 0 |
+
+- Antes de esa corrida limpia, una corrida de la raíz cayó por tiempos límite de AUTH (9 casos, ninguno ajeno a la espera; `P2028` 3 en esa corrida, la de más de AUTH retenido); en la limpia, `P2028` 2 (los aceptados) y 0 de `40P01`, `deadlock detected`, `could not serialize` y `too many clients` (en la que cayó también 0 de esos 4). PA-11: `docker ps` solo muestra los 3 contenedores de `infra`.
+- **V-01:** las 83 `*.ataque` tienen los mismos SHA-256 que en la pasada anterior (`cmp` de las dos tablas calculadas: iguales).
+- **V-04:** `enEspera=` 29. **V-05:** sin cambios contra `855069b` en `middleware`, `core/auth`, `eslint.config.mjs` y `features/auth`. **V-06:** rutas sin cambios (sin tocar handlers). **V-03:** no aplica.
+- Conteos (`npx vitest list`, sin cambio de casos): backend 1141 en 103 archivos; frontend 1157 en 83.
+
+### Archivos tocados en esta pasada
+`backend/test/alumnos.integracion.test.ts`; `frontend/src/features/clases/data.ts`, `components/buscador-alumnos.tsx`; esta sección.
+
+
+## CLASES-b — ronda 4
+
+PA-01 comprobada (regla `Enabled`/`Inbound`/`Block`/`Public`; red `IZZI-F281-5G`, de confianza). Ninguna `*.ataque` tocada; no toqué `panel-mis-clases.tsx` ni nada de admin; el esquema de Prisma no cambió.
+
+### Tabla de hallazgos
+| ID | Estado | Archivos | Caso del tester que lo demuestra |
+|---|---|---|---|
+| **T-25** | Corregido | `frontend/src/features/clases/components/buscador-alumnos.tsx`, `hooks.ts` | `alumnos-b-r3.ataque.test.tsx`, "T-25: con teclado, «Agregar a la clase» se convierte en «Ya está en la clase» y el foco no se pierde en <body>" (verde) |
+| **T-26** | Corregido | `components/tabla-alumnos.tsx`, `personas-view.tsx`, `components/lista-personas.tsx`, `hooks.ts` | `alumnos-b-r3.ataque.test.tsx`, "T-26: con teclado, «Ver más alumnos» desaparece al cargar la última página y el foco no se pierde en <body>" (verde) |
+
+### La forma
+Mismo mecanismo de fondo que T-21 a T-23 (recordar qué control tiene el foco y reaccionar después de cada render, sin `onSuccess`), ahora en `hooks.ts`:
+- `useFilaEnFoco(atributo)`: la lógica de `focusin`/`focusout` que estaba dentro de `TablaAlumnos`; la tabla la usa ahora desde ahí (sin cambio de comportamiento) y el buscador también.
+- `focoPerdido()`: el foco quedó en `<body>`, en nada o en un nodo desconectado.
+- `useFocoAlCargarMas(ids, enfocarFila, enfocarEncabezado)`: devuelve el ref del botón "Ver más". Si ese botón tenía el foco y se desmontó, enfoca el primer id nuevo (comparando con los ids del render anterior) o, si no llegó nada, el encabezado.
+- **T-25:** `BuscadorAlumnos` guarda el "Agregar a la clase" de cada fila (`registrarAgregar`) y, tras cada render, si la fila con el foco lo perdió (su botón se convirtió en la insignia), enfoca el siguiente "Agregar" de la lista, el anterior si era el último y, si no queda ninguno, el campo de búsqueda.
+- **T-26:** `TablaAlumnos` enfoca el "Quitar" de la primera fila nueva; `PersonasView`, el `<li>` de la primera persona nueva (`ListaPersonas` ahora pone `tabIndex={-1}` y `data-persona-id` en cada `<li>`); si no llegó nadie, al `h2` ("Alumnos", con `tabIndex={-1}`). Mientras el botón siga montado (hay más páginas), o si el foco está en otro control, no se mueve nada.
+- `docs/DESIGN.md` §7.14: nuevo bloque "Foco cuando un control desaparece por su propia acción (CLASES-b, propuesta; T-25 y T-26)".
+
+### Pruebas normales (archivo y título exacto)
+- `frontend/src/features/clases/alumnos-view.test.tsx`: "T-25 (ronda 4): al agregar con teclado, el foco va al siguiente «Agregar a la clase», al anterior si era el último y al campo si no queda ninguno".
+- `frontend/src/features/clases/alumnos-view.test.tsx`: "T-26 (ronda 4): al cargar la última página, «Ver más alumnos» desaparece y el foco va al primer control nuevo o, si no llegó nada, al encabezado".
+- `frontend/src/features/clases/personas-view.test.tsx`: "T-26 (ronda 4): al cargar la última página, «Ver más alumnos» desaparece y el foco va a la primera persona nueva o, si no llegó nadie, al encabezado «Alumnos»".
+
+### Verificación (comando exacto y última línea)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` (raíz) | `> tsc -b` (código 0) |
+| `npm run build` (raíz) | `✓ built in 2.65s` (código 0) |
+| `npm run test` (raíz), corrida limpia | backend `Tests  1144 passed (1144)` (`Test Files  104 passed (104)`); frontend `Tests  1170 passed (1170)` (`Test Files  84 passed (84)`); código 0 |
+
+- La primera corrida de la raíz cayó en el backend (12 archivos, 14 casos) y todos los rojos eran tiempos límite de 10 s o más de AUTH (0 rojos sin tiempo límite; CHORE-02); la repetí y salió limpia. Los 2 rojos de la ronda 3 pasan, y el frontend pasó 1170 de 1170 en ambas corridas. `P2028`: 2 en las dos corridas; `40P01`, `deadlock detected`, `could not serialize` y `too many clients`: 0. PA-11: `docker ps` solo muestra los 3 contenedores de `infra`.
+- **V-01:** 85 `*.ataque`: las 83 anteriores con el mismo SHA-256 y las 2 nuevas empiezan con `FC11AB4B…` (backend `alumnos-b-r3`) y `371518E4…` (frontend `alumnos-b-r3`).
+- **V-04:** `enEspera=` 29. **V-05:** sin cambios contra `855069b` en `middleware`, `core/auth`, `eslint.config.mjs`, `features/auth`, `panel-mis-clases.tsx`, `features/admin` y `components/ui`.
+
+### Conteos (`npx vitest list`)
+- `cd backend && npx vitest list` → **1144** casos en **104** archivos (la ronda 2 dejó 1141 en 103; +3 casos y +1 archivo son de `alumnos-b-r3.ataque`; no agregué casos al backend).
+- `cd frontend && npx vitest list` → **1170** casos en **84** archivos (antes 1157 en 83: +3 míos, +10 de `alumnos-b-r3.ataque`).
+
+### Archivos tocados en esta ronda
+`frontend/src/features/clases/{hooks.ts, personas-view.tsx, personas-view.test.tsx, alumnos-view.test.tsx, components/buscador-alumnos.tsx, components/tabla-alumnos.tsx, components/lista-personas.tsx}`; `docs/DESIGN.md` (§7.14); esta sección.
+
+
+## CLASES-b — ronda 5
+
+PA-01 comprobada (regla `Enabled`/`Inbound`/`Block`/`Public`; red `IZZI-F281-5G`, de confianza). Ninguna `*.ataque` tocada. Producción: solo `frontend/src/features/clases/hooks.ts` y `frontend/src/features/clases/personas-view.tsx`; `components/tabla-alumnos.tsx` no cambió de comportamiento (conserva los mismos callbacks). `panel-mis-clases.tsx`, `features/admin` y el esquema de Prisma, intactos.
+
+### Tabla de hallazgos
+| ID | Estado | Archivos | Caso del tester que lo demuestra |
+|---|---|---|---|
+| **T-27** | Corregido | `personas-view.tsx`, `hooks.ts` | `alumnos-b-r4.ataque.test.tsx`, "T-27: personas: si la consulta de la página siguiente falla, el foco no se pierde en <body>" (verde) |
+| **T-28** | Corregido | `hooks.ts` | `alumnos-b-r4.ataque.test.tsx`, "T-28: %s: con ratón en «Ver más alumnos» y después un clic fuera, un render sin desmontaje no mueve el foco" (`alumnos` y `personas`, verdes) |
+
+### Qué cambió
+- **T-28 (`useFocoAlCargarMas`):** el hook mueve el foco solo si el botón estaba montado en el render anterior, ya no lo está en este y tenía el foco al desmontarse (compara el ref entre renders). Con el botón montado nunca lo mueve, aunque el foco esté en `<body>`. La marca "tenía el foco" se borra con un `focusin` en otro elemento y con un `focusout` del botón sin destino (`relatedTarget === null`) mientras sigue conectado, con `setTimeout(0)`, como en `useFilaEnFoco`.
+- **T-27 (`PersonasView`):** después de la primera carga, la vista siempre se pinta con el `h2` "Alumnos" montado; el error de la página siguiente se muestra dentro de esa sección (`MensajeError`, sin la lista) y el foco de "Ver más alumnos" va al `h2`. Antes de la primera carga (primer error o cargando) no hay vista que conservar y se muestra solo `MensajeError` o `Cargando`, como antes (PR-B12d sigue en verde).
+- **Defensa en el hook:** si después de intentar el destino el foco sigue perdido, va al primer elemento enfocable y conectado de la sección en la que estaba el botón (`section` o tarjeta, guardada mientras el botón estaba montado) y, si no hay ninguno, no se mueve.
+- `DESIGN.md` §7.14 no cambia (criterio del manager).
+
+### Pruebas normales (archivo y título exacto)
+- `frontend/src/features/clases/personas-view.test.tsx`: "T-27 (ronda 5): si la consulta de la página siguiente falla, el foco queda en el encabezado «Alumnos» y no en <body>"; "T-28 (ronda 5): con ratón en «Ver más alumnos» y después un clic fuera, un render sin desmontaje no mueve el foco"; "T-27 (ronda 5): si el destino del foco no está conectado, el foco va al primer elemento enfocable de la sección y, si no hay ninguno, no se mueve" (documenta la defensa con un componente de prueba que usa el hook).
+- `frontend/src/features/clases/alumnos-view.test.tsx`: "T-28 (ronda 5): con ratón en «Ver más alumnos» y después un clic fuera, un render sin desmontaje no mueve el foco".
+- Los casos de T-21 a T-26 y `PR-B11c2`, y los del tester de las rondas anteriores, siguen en verde. En `personas-view.test.tsx`, `renderVista` ahora devuelve también el `queryClient` (cambio de una línea para poder invalidar la consulta).
+
+### Verificación (comando exacto y última línea)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` (raíz) | `> tsc -b` (código 0) |
+| `npm run build` (raíz) | `✓ built in 1.16s` (código 0) |
+| `npm run test` (raíz), corrida limpia | backend `Tests  1144 passed (1144)` (`Test Files  104 passed (104)`); frontend `Tests  1189 passed (1189)` (`Test Files  85 passed (85)`); código 0 |
+
+- La primera corrida de la raíz cayó en el backend (9 archivos, 12 casos) y todos los rojos eran tiempos límite de 10 s o más (0 sin tiempo límite; CHORE-02); en esa corrida `P2028` apareció 5 veces (los 2 aceptados más 3 de código de AUTH retenido por la espera en cadena; no los analicé uno por uno). Repetida, salió limpia: `P2028` 2; `40P01`, `deadlock detected`, `could not serialize` y `too many clients`, 0. PA-11: `docker ps` solo muestra los 3 contenedores de `infra`.
+- **V-01:** 86 `*.ataque`: las 85 anteriores con el mismo SHA-256 y la nueva `alumnos-b-r4` (frontend) empieza con `BE0E7656…`.
+- **V-04:** `enEspera=` 29. **V-05:** `panel-mis-clases.tsx`, `features/admin`, `middleware`, `features/auth` y `eslint.config.mjs`, sin cambios contra `855069b`.
+- No toqué el toast "Agregaste a…" (va a CLASES-c).
+
+### Conteos (`npx vitest list`)
+- `cd backend && npx vitest list` → **1144** casos (sin cambio desde la ronda 4).
+- `cd frontend && npx vitest list` → **1189** casos en **85** archivos (1170 en 84 antes: +4 míos y el resto de `alumnos-b-r4.ataque`).

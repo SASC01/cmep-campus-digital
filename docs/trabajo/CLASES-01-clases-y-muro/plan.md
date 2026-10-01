@@ -4,6 +4,7 @@ Enmienda 1 (revisión del manager): M-01 y M-02, N-01 a N-09, detalles menores y
 Enmienda 2 (decisiones del humano del 2026-09-29 y observaciones de la revisión de la enmienda 1): correo enmascarado en el buscador, `movimientos_inscripcion`, O-01, O-02 y detalles menores.
 Enmienda 3 (revisión de la enmienda 2): M-03, N-10, N-11 y el enmascarado de una parte local de 1 carácter. Solo cambia CLASES-b.
 Enmienda 4 (cierre de CLASES-a): regla de la guarda (T-02 y T-13), separadores del código (T-15), nombre de una sola línea (T-16), `normalizarTextoLargo` antes de validar (T-01), cursor inválido en `inscritas` e `impartidas` (T-18), errores que no son de un campo (T-19), texto sobre vidrio azul (M-06), C-16, PA-09 registrada, pendientes nuevos, N-04 a CLASES-b, H-6 y la base de b.
+Enmienda 5 (cierre de CLASES-b): ejemplo de PR-B01b y mínimo de 3 con espacios (D-2), textos de §D-B6, longitud del término sobre el normalizado y normalización única en `shared/` (T-20, T-24), foco en el roster (T-21 a T-23) y su extensión de la ronda 4 (T-25, T-26), C-17, PR-B05 con 40,000 filas, pruebas normales nuevas, pendientes con destino (dos autorizaciones nuevas para c), la base de c y los textos propuestos de b.
 Carril: sensible (las cuatro subentregas; el motivo de cada una está en "Alcance", "Subentregas"). La revisión humana del diff no es obligatoria (`AGENTS.md`, "Commits y cierre de subentregas").
 Requisitos: RF-10 (parcial), RF-11, RF-12 (parcial: sin tareas), RF-19, RF-25, RF-30 (parcial), RF-31, RF-33, RF-38 y RF-39; RN-02, RN-03, RN-04 y RN-06. Diferidos con destino: RF-32 y RF-43. Contexto: ESSENTIALS "Autorización", "Reglas de datos", "Asíncrono y notificaciones" y "Archivos"; `ARCHITECTURE.md` §6, §7, §8, §11 y §14; `DESIGN.md` §4 a §8.
 Rama: `feat/clases`. Arrancó en `3399c79`, con el mismo contenido que `origin/main` (`1eb9080`, fusión del PR #15). Ningún agente crea ni cambia de rama.
@@ -11,11 +12,40 @@ Antecedentes de forma: `docs/trabajo/AUTH-03-ajustes-de-cuentas/plan.md` (subent
 
 **Marcadores de commit:**
 - `<R>` = `3399c79`, el commit con que arrancó la rama;
-- `<Ca>`, `<Cb>` y `<Cc>`: los commits de CLASES-a, -b y -c. El orquestador los lee con `git log` después de cada commit y los anota en `aprobacion.md`. El humano nunca da un hash.
+- `<Ca>`, `<Cb>` y `<Cc>`: los commits de CLASES-a, -b y -c. El orquestador los lee con `git log` después de cada commit y los anota en `aprobacion.md`. El humano nunca da un hash. `<Ca>` = `855069b`.
 
 No hay commit de aprobación del plan.
 
 ---
+
+## Enmienda 5 — cierre de CLASES-b (decisiones y arbitrajes de la implementación)
+Registra en el texto del plan lo que se decidió y se construyó en CLASES-b. Las fuentes son:
+- `aprobacion.md`: "CLASES-b (desde el 2026-09-30)" y "Decisión del humano sobre la escalada de CLASES-b";
+- `revision.md`: "Verificación del resumen — CLASES-b — implementación", sus verificaciones de corrección (ronda 1, ronda 2 y su segunda pasada) y "Revisión final — CLASES-b" (ESCALAR AL HUMANO);
+- `reporte-tester.md`: rondas 0 a 3 de b y C-17.
+
+CLASES-b está en la **ronda 4, corta y cerrada** (T-25 y T-26), autorizada por el humano, sin quinta ronda. Lo que agregue esa ronda queda referido aquí como "ronda 4".
+
+No cambia ninguna decisión de c ni de d, salvo lo que indica el punto 7 (dos autorizaciones nuevas para c) y el punto 9 (textos propuestos). El estado sigue en LISTO.
+
+| # | Qué cambió | Origen | Dónde |
+|---|---|---|---|
+| 1 | **D-2: ejemplo de PR-B01b y mínimo de 3.**<br>- El ejemplo `"  a  b "` → `null` era erróneo: normalizado queda `"a b"`, que mide 3 y se acepta. La viñeta queda con un ejemplo que sí se rechaza (`"  ab  "`, 2 normalizados) y con `"a b"` como aceptado.<br>- **Decisión:** el mínimo de 3 **cuenta los espacios interiores** que quedan tras normalizar, como ya hace la implementación en los tres lados. Excluirlos pediría una segunda regla de conteo distinta de la normalización, y `"a b"` es inofensivo: se busca como `LIKE '%a b%'` sobre el índice GIN.<br>- §D-B6 suma "Agregar alumnos", "No encontramos a ese alumno.", "\<nombre\> ya estaba en la clase" (D-4) y "La búsqueda no puede tener más de 120 caracteres" (T-24). | D-2 del manager; desviaciones 1 y 7; D-4; T-24 | S-11, §D-B3, §D-B4, §D-B6, "Pruebas requeridas" (b) |
+| 2 | **Longitud del término sobre el normalizado (T-20, T-24).**<br>- Se mide **sobre el término normalizado**, de 3 a 120 puntos de código, con un tope de 1000 en crudo.<br>- La normalización y el criterio viven en un solo lugar, `shared/src/clases.ts`: `normalizarTerminoDeBusqueda`, `LONGITUD_MINIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA_CRUDA` y `estadoDeTerminoDeBusqueda`.<br>- La usan el esquema, `core/clases/busqueda.ts` y el frontend. `core/auth/normalizacion.ts` no cambia, y una prueba exige que las dos normalizaciones sean equivalentes.<br>- El `maxLength` del campo cuenta unidades de UTF-16; el tope real lo decide `estadoDeTerminoDeBusqueda`. | T-20, T-24, D-8; observación del manager en la corrección 1 | S-11, §D-B1, §D-B3, §D-B4, §D-B5, "Cambios por capa" (`shared/`, `core/`) |
+| 3 | **Foco en el roster (T-21 a T-23):** patrón "Foco al confirmar una acción que borra la fila" (`DESIGN.md` §7.14, propuesta).<br>- El foco va al mismo control de la fila que ocupa el lugar de la quitada (la siguiente, o la anterior si era la última); si la lista queda vacía, al `h2` del panel con `tabIndex={-1}`.<br>- Se mueve cuando la fila ya desapareció de los datos, no en el `onSuccess`.<br>- Implementación: `TablaAlumnos` recuerda por id la fila con el foco (`focusin`/`focusout`, `data-alumno-id`) y, después de cada render, lo recoloca si el control se desmontó por cualquier causa (consulta que falla, otra pestaña, lista vacía).<br>**Extensión de la ronda 4 (T-25, T-26), en curso:** "un control que desaparece por su propia acción". "Agregar a la clase" lleva el foco al siguiente "Agregar a la clase", al anterior o al campo de búsqueda; "Ver más" lleva el foco al primer elemento nuevo o, si no llegó nada, al encabezado de la lista. | T-21 (arbitraje del manager, opción A), T-22, T-23; T-25 y T-26 (decisión del humano) | §D-B4, §D-B7, "Pruebas requeridas" (b), paso 25 |
+| 4 | **C-17:** el doble de `sonner` de `alumnos-b-r1.ataque.test.tsx` pasó a ser invocable por D-4 (toast neutro). Hash `755019C7…` → `C3692E9E…`. Ninguna aserción cambió | Arbitraje del manager (opción A) | §D-R0 |
+| 5 | **PR-B05 con 40,000 filas** (M-07). Umbral medido: con 16,000 el planificador no usa el GIN y con 17,000 a 20,000 sí. La aserción imprime el plan elegido si falla, y la transacción lleva `timeout` de 15 s. Retiene `usuarios` unos 5 s: nota para CHORE-02 | D-1, M-07 | "Pruebas requeridas" (b), R-27 |
+| 6 | **Pruebas normales nuevas de b:**<br>- PR-B11c2, D-4, T-22, T-23 y T-24 en `alumnos-view.test.tsx`;<br>- T-20 en `alumnos.integracion.test.ts` y en `core/clases/busqueda.test.ts`;<br>- T-24 en `lib.test.ts`;<br>- equivalencia de la normalización en `core/clases/busqueda.test.ts`;<br>- las de T-25 y T-26 que agregue la ronda 4. | Correcciones de las rondas 1 y 2; ronda 4 | "Pruebas requeridas" (b) |
+| 7 | **Pendientes con destino:**<br>- **"Ver más clases" (`panel-mis-clases.tsx`, de a) → CLASES-c.** Se autoriza ese archivo en c, y "Ver más publicaciones" y "Ver más comentarios" nacen con el criterio de §7.14 extendido (PR-C11a a PR-C11c);<br>- "Cargar más enlaces" de admin → ADMIN;<br>- PR-B05 y la espera en cadena → CHORE-02;<br>- para la pantalla de movimientos de ADMIN, la sugerencia de dejar ver un alta seguida de una baja del mismo alumno en poco tiempo;<br>- la ayuda permanente y el aviso de longitud, leídos seguidos por `aria-describedby` → H-6;<br>- `claseId ?? ""` en `personas-view.tsx` y `alumnos-view.tsx` (N-B1, no bloquea) → carril trivial, en el próximo cambio que toque esos archivos. | Revisión final de b; decisión del humano (punto 2); observaciones del tester | "Pendientes de `ESTADO.md`", "No entra", "Alcance" (c), "Entra", §D-C5, "Cambios por capa" (frontend), "Pruebas: listas cerradas" (c), "Pruebas requeridas" (c), paso 32, H-6, R-27 |
+| 8 | **Base de c:** V-01 arranca de la tabla de cierre de b: 85 `*.ataque`, más las de la regresión de la ronda 4. Cifras de cierre de b: backend 104 archivos y 1144 pruebas; frontend 84 archivos y 1167 pruebas, más las que agregue la ronda 4. La base de "No se toca" de c dentro de los paquetes es `<Cb>` | Revisión final de b | V-01, V-05, "Puntos de ataque" (ronda 0), pasos 0, 25 y 27 |
+| 9 | **Textos literales propuestos (b):** la viñeta de búsqueda de §14 ("Reglas de acceso a datos") y la de ESSENTIALS ("Reglas de datos") pasan a "3 a 120 caracteres ya normalizados, tope crudo de 1000, normalización única en `shared/`". La de "Reglas de negocio" (alta manual) no cambia: el enmascarado y el registro se construyeron como estaban redactados | Revisión final de b ("Documentos a actualizar") | "Textos literales propuestos" |
+
+**Contradicciones que encontré y corregí:**
+- **§D-B3 decía que `prepararTerminoDeBusqueda` aplica `normalizarParaBusqueda` de `core/auth/normalizacion.ts`.** Desde T-24 usa la normalización de `shared/`, y `core/auth` quedó intacto, con una prueba de equivalencia. También la fila de `core/clases/busqueda.ts` en "Cambios por capa" declaraba ahí `LONGITUD_MINIMA_BUSQUEDA`, que ahora vive en `shared/`.
+- **§D-B4 decía que el maestro también puede abrir `PersonasView` "por URL".** El backend lo deja pasar (`requireMembership`), pero el router no le da ruta propia; el maestro tiene "Alumnos". Lo aceptó el manager (desviación 4, D-3) y quedó así escrito.
+- **§D-B4 omitía dos detalles construidos y aceptados:** la invalidación de `["clases", claseId, "personas"]` al agregar (desviación 5) y el toast neutro cuando `yaEstaba: true` (D-4). Antes el aviso decía "Agregaste a…" aunque no se hubiera agregado a nadie.
+- **La ayuda del buscador dice "Escribe al menos 3 letras."** y el mínimo cuenta los espacios interiores (punto 1). Se queda: solo difiere en casos como `"a b"`, y cambiarla es carril trivial si el humano lo pide.
+- **Las cifras de cierre de a de la Enmienda 4** (backend 96 y 1054, frontend 77 y 1082) eran las de la ronda 4, antes de la regresión final. El cierre real fue de 97 y 1059 en el backend, y 78 y 1106 en el frontend, con 79 `*.ataque` (`aprobacion.md`, "Cierre de CLASES-a"). Lo anoté en V-01, que ya mira a c.
 
 ## Enmienda 4 — cierre de CLASES-a (decisiones y arbitrajes de la implementación)
 Registra en el texto del plan lo que se decidió y se construyó en CLASES-a. Las fuentes son:
@@ -112,7 +142,7 @@ Incorporé todos los hallazgos, sin desacuerdos. El manager la aprobó (`revisio
 ---
 
 ## Decisiones registradas
-Las respuestas del humano del 2026-09-29 a la antigua tabla de preguntas bloqueantes, más la decisión del cierre de CLASES-a. Ya no queda ninguna pregunta abierta.
+Las respuestas del humano del 2026-09-29 a la antigua tabla de preguntas bloqueantes, más las decisiones del cierre de CLASES-a y de CLASES-b. Ya no queda ninguna pregunta abierta.
 
 | ID | Pregunta (resumen) | Decisión del humano | Qué aplica el plan |
 |---|---|---|---|
@@ -124,6 +154,7 @@ Las respuestas del humano del 2026-09-29 a la antigua tabla de preguntas bloquea
 | **R-10** | ESSENTIALS pide "`archivos` con exactamente un contexto" | Aceptado: confirmado si y solo si tiene publicación, con `clase_id` para autorizar mientras tanto. El orquestador cambia ESSENTIALS con el texto propuesto | §D-D1, texto para ESSENTIALS |
 | **R-19** | `consultaMe` sube a `services/sesionService.ts` | Aceptado | §D-A6 |
 | **T-18** (cierre de CLASES-a) | Qué responden `inscritas` e `impartidas` ante un cursor que ya no existe | Aprobado: `400 VALIDACION` ("cursor: no es válido") si el cursor ya no es una inscripción del alumno o una clase del maestro. El frontend no cambia | §D-A4 |
+| **Escalada de CLASES-b** (2026-09-30) | Cómo cerrar b con T-25 y T-26 abiertos, y adónde va el mismo patrón fuera de b | **1.** Cuarta ronda corta y cerrada, solo en archivos de b (T-25 y T-26 en `buscador-alumnos.tsx`, `tabla-alumnos.tsx` y `personas-view.tsx`), con la extensión de `DESIGN.md` §7.14 y sus pruebas normales; sin quinta ronda.<br>**2.** El "Ver más clases" de a (`panel-mis-clases.tsx`) pasa a CLASES-c; el "Cargar más enlaces" de admin, a ADMIN (o a un `chore`). | §D-B4, paso 25, §D-C5, "No entra" |
 
 ---
 
@@ -158,7 +189,9 @@ Las respuestas del humano del 2026-09-29 a la antigua tabla de preguntas bloquea
 - **S-09 · Compañeros (RF-19):** el alumno ve al maestro y a los alumnos **activos**, por nombre y con su avatar de iniciales. No ve correo, estado de pago ni restricción de acceso: la restricción de un compañero tampoco se muestra a otros alumnos.
 - **S-10 · Roster del maestro (RF-39):** nombre, correo **completo**, estado de pago, etiqueta "Acceso restringido" si aplica, y fecha de inscripción. Solo cuentas activas.
 - **S-11 · Buscador (RF-38, RN-04):**
-  - Solo estudiantes activos, con un término de 3 a 120 caracteres después de normalizarlo.
+  - Solo estudiantes activos.
+  - **Longitud del término (T-20, T-24; Enmienda 5):** de 3 a 120 puntos de código **ya normalizado**, con un tope de 1000 en crudo. La normalización y el criterio se definen una sola vez, en `shared/` (§D-B3).
+  - **El mínimo cuenta los espacios interiores** que quedan tras normalizar (D-2, Enmienda 5): `"a b"` mide 3 y se acepta; `"  ab  "` mide 2 y no.
   - Devuelve hasta 20 resultados y un indicador `hayMas`. No pagina más allá: si hay más, se pide un término más largo (R-06, aceptado por el manager).
   - Muestra el nombre y el **correo enmascarado** (P-05 f, S-22), nunca el correo completo ni el estado de pago.
   - Un solo `LIKE` sobre el término completo: "rez" y "José Pé" encuentran a "José Pérez", y "perez jose" no. RN-04 ("por cualquier parte del nombre") se cumple.
@@ -229,6 +262,12 @@ Las respuestas del humano del 2026-09-29 a la antigua tabla de preguntas bloquea
 | **Nuevo (Enmienda 4):** caracteres `Cf` invisibles en el nombre de la clase (se puede crear una clase de nombre visualmente vacío) | CLASES-c: una regla de "contenido visible" para nombres, títulos, textos y comentarios, aplicada también a `nombreClaseSchema` | §D-C4 |
 | **Nuevo (Enmienda 4):** N-04 de la revisión final de a ("Unirme a la clase" marca en el campo errores que no son de un campo) y los textos fijos "Nueva clase" y "Crear clase" de `inicio-maestro-view.tsx` | CLASES-b, carril trivial dentro de b | §D-B4 bis |
 | **Nuevo (Enmienda 4):** intermitencia de la suite del backend por `LOCK TABLE usuarios` (espera en cadena entre `cuentas-r1.ataque:130` y las filas retenidas de `cuentas-r3` y `bloqueo-usuario`) | CHORE-02 (ya en `docs/ESTADO.md` §3) | R-27 |
+| **Nuevo (Enmienda 5):** "Ver más clases" de a (`panel-mis-clases.tsx`) deja el foco en `<body>` al desaparecer (patrón de T-26) | CLASES-c, con la autorización del archivo; "Ver más publicaciones" y "Ver más comentarios" nacen con el mismo criterio | §D-C5, PR-C11a a PR-C11c |
+| **Nuevo (Enmienda 5):** "Cargar más enlaces" de admin, mismo patrón de T-26 | ADMIN (o un `chore`) | "No entra" |
+| **Nuevo (Enmienda 5):** PR-B05 retiene `usuarios` unos 5 s y alarga la ventana de la espera en cadena | CHORE-02, junto a la espera en cadena | R-27 |
+| **Nuevo (Enmienda 5):** sugerencia para la pantalla de movimientos: dejar ver un alta seguida de una baja del mismo alumno en poco tiempo (observación 1 del tester, consecuencia aceptada de P-05) | ADMIN | "No entra" |
+| **Nuevo (Enmienda 5):** con un término demasiado largo, `aria-describedby` lee la ayuda permanente y luego el aviso | H-6 (escucharlo una vez); si molesta, carril trivial | "Comprobación humana" |
+| **Nuevo (Enmienda 5):** N-B1, `claseId ?? ""` en `personas-view.tsx` y `alumnos-view.tsx` (no bloquea) | Carril trivial, en el próximo cambio que toque esos archivos | — |
 
 ---
 
@@ -241,7 +280,7 @@ Las cuatro van en la misma rama, en este orden. Cada una tiene su ronda 0 del te
 |---|---|---|---|---|
 | **CLASES-a** | RF-10 y RF-30 (parciales), RF-11, RF-31; RN-06 | - `requireMembership` y `requireOwnership` reales, más la regla de la guarda para `:claseId`.<br>- Migración `clases_e_inscripciones`, con el índice GIN del buscador.<br>- Crear, editar y ver clase; ver y regenerar el código; unirse con código.<br>- Inicio de estudiante y de maestro (bloque destacado y tarjetas) y páginas de clase (encabezado y secciones).<br>- ESLint contra `addHook`, caché al cambiar de identidad, M-20 y `--text-display-compacto`. | **Sensible:** `middleware/`, migración, raíz (`eslint.config.mjs`) | `<R>` = `3399c79` |
 | **CLASES-b** | RF-19, RF-38, RF-39; RN-02, RN-03, RN-04 | - Migración `movimientos_inscripcion`.<br>- Compañeros (vista del alumno) y roster con estado de pago y restricción (vista del maestro).<br>- Buscador con correo enmascarado, alta manual y quitar alumno.<br>- Registro de altas manuales y bajas.<br>- `EstadoPagoBadge` y `AccesoRestringidoBadge`.<br>- **Heredado de a** (Enmienda 4, carril trivial dentro de b): N-04 en "Unirme a la clase" y los textos fijos del inicio del maestro (§D-B4 bis). | **Sensible:** migración, estado de pago y restricción de acceso | `<Ca>` |
-| **CLASES-c** | RF-12 (sin tareas), RF-33 (sin adjuntos) | - Migración `publicaciones_y_comentarios`.<br>- Muro: publicar anuncios y materiales, comentar y borrar.<br>- Encolado de `PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO`. | **Sensible:** migración y colas | `<Cb>` |
+| **CLASES-c** | RF-12 (sin tareas), RF-33 (sin adjuntos) | - Migración `publicaciones_y_comentarios`.<br>- Muro: publicar anuncios y materiales, comentar y borrar.<br>- Encolado de `PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO`.<br>- **Heredado de b** (Enmienda 5): el foco de "Ver más clases" en `panel-mis-clases.tsx`, con el criterio de §7.14 extendido (§D-C5). | **Sensible:** migración y colas | `<Cb>` |
 | **CLASES-d** | RF-33 (adjuntos), RF-25 | - Dominio `archivos`: migración `archivos`, `adapters/storage` con `minio` y `STORAGE_*`.<br>- Subida y descarga con URL prefirmada y confirmación al publicar.<br>- Vista previa de imágenes. | **Sensible:** migración, dependencia nueva y configuración | `<Cc>` |
 
 **Fuera de los paquetes** (`docs/`, raíz, `infra/`, `.claude/`), la base de "No se toca" es `<R>` para todo el encargo, con las reglas mecánicas de V-05 para `eslint.config.mjs`, `backend/package.json` y `package-lock.json`. Quedan fuera de esa verificación:
@@ -295,7 +334,8 @@ La subentrega siguiente arranca después de ese commit.
 6. **Muro (CLASES-c):**
    - publicaciones (anuncio y material) y comentarios, con paginación por cursor;
    - borrar;
-   - encolado de los tres avisos.
+   - encolado de los tres avisos;
+   - lo heredado de b (Enmienda 5): el foco de "Ver más clases" en `panel-mis-clases.tsx` (§D-C5).
 7. **Archivos (CLASES-d):**
    - `adapters/storage` y el puerto `Almacen` en `core/`;
    - `POST /clases/{claseId}/archivos` (pendiente y URL de subida);
@@ -320,12 +360,13 @@ La subentrega siguiente arranca después de ese commit.
 | Tareas en el muro (RF-12) | TAREAS (R-01) |
 | Consumidor de los avisos, campana y `notificaciones` | NOTIFICACIONES |
 | RF-52: el admin ve todas las clases y agrega alumnos a cualquiera, con su excepción de la guarda (N-01) | ADMIN |
-| **Pantalla de consulta de `movimientos_inscripcion`** (ordenada por `secuencia`) y los índices que pida su consulta; si el admin registra sus propias altas y bajas ahí | ADMIN |
+| **Pantalla de consulta de `movimientos_inscripcion`** (ordenada por `secuencia`) y los índices que pida su consulta; si el admin registra sus propias altas y bajas ahí. Sugerencia (Enmienda 5): que deje ver un alta seguida de una baja del mismo alumno en poco tiempo | ADMIN |
 | Archivar o borrar una clase; salir de una clase; editar publicaciones o comentarios | Sin encargo: el PRD no los pide |
 | `LIMPIEZA_DIARIA`: filas y objetos de los archivos pendientes vencidos y descartados | Antes de DEPLOY |
 | Guarda sobre todas las rutas (M-15), incluidos los comodines generales `/api/*` y `/api/:seccion/*` | CHORE-02 |
 | Caracteres `Cf` invisibles en el nombre de la clase (Enmienda 4) | CLASES-c (§D-C4) |
-| Intermitencia de `LOCK TABLE usuarios` en la suite del backend (Enmienda 4) | CHORE-02 (R-27) |
+| Intermitencia de `LOCK TABLE usuarios` en la suite del backend (Enmienda 4), y PR-B05, que retiene `usuarios` unos 5 s (Enmienda 5) | CHORE-02 (R-27) |
+| Foco de "Cargar más enlaces" de admin (patrón de T-26; Enmienda 5) | ADMIN (o un `chore`) |
 | CORS del bucket privado en R2 | DEPLOY (`ARCHITECTURE.md` §11 ya lo prevé) |
 | M-17 de AUTH-03a | Próximo encargo que toque `establecer-contrasena-view.tsx` |
 | Índices de las llaves foráneas de autoría (R-21) | ADMIN, si alguna vez hay bajas físicas |
@@ -658,7 +699,7 @@ La revisión final de a comprobó que el código coincide con lo documentado, in
 |---|---|---|---|
 | `GET /clases/:claseId/personas?cursor&limite` | `roles: ["estudiante", "maestro"], pertenencia: "inscripcion"` | `paginacionRosterSchema` (cursor = `usuarioId`; límite de 1 a 100, **50 por defecto**) | `200 { maestro: { id, nombre }, alumnos: { id, nombre }[], totalAlumnos, siguienteCursor }` |
 | `GET /clases/:claseId/alumnos?cursor&limite` | `roles: ["maestro"], pertenencia: "propiedad"` | ídem | `200 { alumnos: AlumnoDeClase[], total, siguienteCursor }`, con `AlumnoDeClase = { id, nombre, email, estadoPago: "al_corriente" \| "deudor", accesoRestringido: boolean, origen: "codigo" \| "manual", inscritoEn }` (correo **completo**) |
-| `GET /clases/:claseId/alumnos/candidatos?q&limite` | ídem | `busquedaCandidatosSchema` `{ q: 3–120, limite: 1–50, 20 por defecto }` | `200 { candidatos: { id, nombre, correoEnmascarado, yaInscrito }[], hayMas }` (**nunca** el correo completo, P-05 f); `400 BUSQUEDA_MUY_CORTA` |
+| `GET /clases/:claseId/alumnos/candidatos?q&limite` | ídem | `busquedaCandidatosSchema` `{ q: 3–120 puntos de código ya normalizado, con tope de 1000 en crudo; limite: 1–50, 20 por defecto }` (T-20, T-24) | `200 { candidatos: { id, nombre, correoEnmascarado, yaInscrito }[], hayMas }` (**nunca** el correo completo, P-05 f).<br>- `400 VALIDACION` si el término mide más de 120 normalizados o más de 1000 en crudo, o menos de 3 en crudo y normalizado.<br>- `400 BUSQUEDA_MUY_CORTA` si solo al normalizarse queda por debajo de 3 (`"  ab  "`, PR-B04e). |
 | `POST /clases/:claseId/alumnos` | ídem | `agregarAlumnoSchema` `{ alumnoId }` | `200 { alumno: { id, nombre }, yaEstaba }` (sin `estadoPago`, `accesoRestringido` ni correo: M-01); `404 ALUMNO_NO_ENCONTRADO` |
 | `DELETE /clases/:claseId/alumnos/:alumnoId` | ídem | `:alumnoId` uuid | `204` (también si no estaba inscrito) |
 
@@ -696,8 +737,15 @@ Las dos operaciones van en **una transacción** del adaptador (`adapters/db/insc
 - Unirse con código (`inscribir`, `db/clases.ts`) no cambia: no registra movimientos (S-23).
 
 #### §D-B3 · Buscador (C-07) y correo enmascarado (P-05 f)
+- **Normalización y criterio del término, en un solo lugar** (`shared/src/clases.ts`; T-20, T-24, Enmienda 5):
+  - `normalizarTerminoDeBusqueda(q)`: la misma normalización que `normalizarParaBusqueda` de `core/auth/normalizacion.ts` (sin acentos, minúsculas, espacios colapsados y recortados);
+  - `LONGITUD_MINIMA_BUSQUEDA = 3` y `LONGITUD_MAXIMA_BUSQUEDA = 120`, en puntos de código del término normalizado, y `LONGITUD_MAXIMA_BUSQUEDA_CRUDA = 1000`;
+  - `estadoDeTerminoDeBusqueda(q)`: dice si el término es válido, muy corto o muy largo con ese criterio;
+  - la usan el esquema (`busquedaCandidatosSchema`), `core/clases/busqueda.ts` y el frontend (§D-B5). Ninguno de los tres tiene su propia copia;
+  - `core/auth/normalizacion.ts` **no cambia** (sigue normalizando `nombre_busqueda` al escribir), y una prueba exige que las dos normalizaciones sean equivalentes.
+  - El mínimo cuenta los espacios interiores que quedan tras normalizar (S-11, D-2).
 - `core/clases/busqueda.ts`:
-  - `prepararTerminoDeBusqueda(q: string): string | null` aplica `normalizarParaBusqueda` (de `core/auth/normalizacion.ts`, sin cambios) y devuelve `null` si el resultado mide menos de `LONGITUD_MINIMA_BUSQUEDA = 3`;
+  - `prepararTerminoDeBusqueda(q: string): string | null` normaliza con `normalizarTerminoDeBusqueda` de `shared/` y devuelve `null` si el resultado mide menos de `LONGITUD_MINIMA_BUSQUEDA`;
   - `escaparComodinesLike(t)` escapa `\`, `%` y `_` con `\`;
   - `enmascararCorreo(email: string): string`, con las reglas de S-22. Pura, sin lanzar.
 - **El repositorio `buscarCandidatos`:**
@@ -721,27 +769,41 @@ Si Prisma no admite ese `orderBy` por la relación o los casos PR-B02d y PR-B03d
 **Nota de la Enmienda 4 (sin cambio de comportamiento):** es el mismo principio de §D-A4: el cursor se rechaza solo cuando ya no se puede reconstruir la clave de orden. Aquí la clave (`usuarios.nombre_busqueda`) sobrevive a la baja, así que el cursor de un alumno quitado sigue sirviendo. En `inscritas` e `impartidas` la clave no sobrevive, y por eso allí se rechaza.
 
 #### §D-B4 · Frontend de CLASES-b
-- **`PersonasView`** (estudiante; también la puede abrir el maestro por URL), en una `Card`:
+- **`PersonasView`** (ruta del estudiante; el backend también deja pasar al maestro dueño, pero el router no le da ruta propia: él tiene "Alumnos"), en una `Card`:
   - sección "Maestro", con `AvatarUsuario` y el nombre;
   - sección "Alumnos" con el contador en palabras ("24 alumnos") y una lista `ul` con divisores (sin vidrio fuerte: excepción documentada en §D-B7);
-  - "Ver más alumnos" (`outline`, `enEspera`).
+  - "Ver más alumnos" (`outline`, `enEspera`), con el foco de "un control que desaparece por su propia acción" (abajo; ronda 4).
   - Estados en orden. Vacío: "Aún no hay alumnos en esta clase" (sin acción).
 - **`AlumnosView`** (maestro), con dos `Card`:
-  1. **`BuscadorAlumnos`:**
+  1. **`BuscadorAlumnos`**, con título "Agregar alumnos":
      - campo "Buscar alumno por nombre" (`autoComplete="off"`), con la ayuda "Escribe al menos 3 letras.";
      - `useTerminoDiferido(valor, 300)` y la consulta solo cuando `terminoDeBusquedaValido(termino)`;
+     - **término demasiado largo (T-24):** el campo lleva `aria-invalid`, `aria-describedby` con la ayuda y el aviso, y `ErrorDeCampo` "La búsqueda no puede tener más de 120 caracteres"; no se hace la petición. El aviso de longitud y el de mínimo nunca aparecen a la vez;
      - cada resultado muestra:
        - el nombre;
        - el **correo enmascarado tal como llega de la API**, como texto secundario;
        - la insignia `muted` "Ya está en la clase" o el botón "Agregar a la clase" (`outline`, `size="sm"`, `enEspera` en su fila; nombre accesible con el nombre del alumno como `sr-only`);
      - sin resultados, "No encontramos alumnos con ese nombre. Solo aparecen alumnos con cuenta."; con `hayMas`, "Hay más resultados: escribe más del nombre.";
-     - al agregar: toast "Agregaste a \<nombre\>" e invalidación de `["clases", claseId, "alumnos"]`, `["clases", claseId, "candidatos"]` y `["clases", "impartidas"]`.
+     - al agregar:
+       - toast "Agregaste a \<nombre\>"; si la respuesta trae `yaEstaba: true`, toast neutro "\<nombre\> ya estaba en la clase", sin éxito ni error (D-4);
+       - `ALUMNO_NO_ENCONTRADO` avisa con "No encontramos a ese alumno.";
+       - invalidación de `["clases", claseId, "alumnos"]`, `["clases", claseId, "candidatos"]`, `["clases", claseId, "personas"]` y `["clases", "impartidas"]`;
+       - el foco no se pierde cuando "Agregar a la clase" se convierte en la insignia (ronda 4, abajo).
   2. **`TablaAlumnos`:**
      - `Table` (opaca) con filas de 48 px (`className="h-12"` en `TableRow`, sin tocar `table.tsx`);
      - columnas "Nombre", "Correo" (completo), "Estado de pago" (`EstadoPagoBadge`), "Acceso" (`AccesoRestringidoBadge` o "—"), "Se unió" (fecha) y "Acciones";
-     - "Quitar" (`ghost`, `size="sm"`, con el nombre del alumno en `sr-only`), con confirmación en línea en la misma fila: "Dejará de ver la clase. Sus datos no se borran.", "Sí, quitar" (`destructive`, `enEspera`) y "Cancelar", con el manejo de foco de §7.14;
-     - "Ver más alumnos" (`outline`, `enEspera`).
+     - "Quitar" (`ghost`, `size="sm"`, con el nombre del alumno en `sr-only`), con confirmación en línea en la misma fila: "Dejará de ver la clase. Sus datos no se borran.", "Sí, quitar" (`destructive`, `enEspera`) y "Cancelar", con el manejo de foco de §7.14 (abajo);
+     - "Ver más alumnos" (`outline`, `enEspera`), con el foco de la ronda 4 (abajo).
      - Vacío: "Aún no hay alumnos. Comparte el código de la clase o búscalos arriba."
+- **Foco al confirmar una acción que borra la fila** (T-21 a T-23; `DESIGN.md` §7.14, propuesta):
+  - tras "Sí, quitar", el foco va al mismo control de la fila que ocupa el lugar de la quitada: la siguiente, o la anterior si era la última;
+  - si la lista queda vacía, o no queda control al cual saltar, va al `h2` del panel ("Alumnos", `tabIndex={-1}`). Nunca a `<body>`;
+  - se mueve cuando la fila ya desapareció de los datos, no en el `onSuccess`, y funciona con varias páginas cargadas;
+  - **implementación:** `TablaAlumnos` recuerda por id la fila que tiene el foco (`focusin` y `focusout` en el documento, con `closest("[data-alumno-id]")`; `data-alumno-id` solo lo llevan las filas del roster). Después de cada render, si el control con el foco se desmontó por cualquier causa (la consulta nueva falla y la tabla se reemplaza por el error, otra pestaña quitó la fila, la lista quedó vacía), lo recoloca con el criterio de arriba. No roba el foco a un control que la persona eligió.
+- **Foco cuando un control desaparece por su propia acción** (T-25 y T-26; ronda 4, en curso; extensión de §7.14):
+  - "Agregar a la clase", que se convierte en la insignia, lleva el foco al siguiente "Agregar a la clase", al anterior o, si no queda ninguno, al campo de búsqueda;
+  - "Ver más alumnos" (roster y `PersonasView`), que desaparece al cargar la última página, lleva el foco al primer elemento nuevo o, si no llegó nada, al encabezado de la lista;
+  - nunca a `<body>`.
 - **`SeccionesDeClase`** suma "Personas" (estudiante) y "Alumnos" (maestro); `app/router.tsx` suma las dos rutas.
 - **Compartidos:**
   - `components/estado-pago-badge.tsx`: `EstadoPagoBadge({ estado })` → `<Badge variant="success">` con `CircleCheck` y "Al corriente", o `<Badge variant="danger">` con `CircleAlert` y "Deudor". Sin valor por defecto (un `estado` desconocido no tiene rama: `never`).
@@ -760,22 +822,27 @@ Dos ajustes de a que la revisión final mandó a b (N-04 y un detalle menor). No
 
 #### §D-B5 · Cambios de CLASES-b en `hooks.ts` y `lib.ts`
 - **`hooks.ts`:** `usePersonas`, `useAlumnos`, `useCandidatos(claseId, termino)`, `useAgregarAlumno`, `useQuitarAlumno` y `useTerminoDiferido(valor, ms)`, sin tipos declarados.
-- **`lib.ts`:** `terminoDeBusquedaValido` y `textoConteoAlumnos(n)`, más el ajuste de N-04 si el reparto de errores vive ahí (§D-B4 bis).
+- **`lib.ts`:** `terminoDeBusquedaValido` y `terminoDeBusquedaMuyLargo`, las dos sobre `estadoDeTerminoDeBusqueda` de `shared/`, sin una copia propia de la normalización (T-24); `textoConteoAlumnos(n)`; y el ajuste de N-04 si el reparto de errores vive ahí (§D-B4 bis).
+- **El campo del buscador** usa `maxLength={LONGITUD_MAXIMA_BUSQUEDA}`, de `shared/` (D-8). El navegador cuenta unidades de UTF-16, no puntos de código normalizados, así que puede cortar antes (por ejemplo, con 60 emojis) o después (41 sílabas hangul) que el criterio del servidor. El tope real lo decide `estadoDeTerminoDeBusqueda`, y lo segundo lo cubre el aviso de longitud.
 
 El frontend **no** enmascara nada: muestra lo que da la API.
 
 #### §D-B6 · Textos de CLASES-b (propuesta)
 - "Maestro", "Alumnos", "N alumnos" (y "1 alumno"), "Ver más alumnos" y "Aún no hay alumnos en esta clase".
-- "Buscar alumno por nombre", "Escribe al menos 3 letras.", "Agregar a la clase", "Ya está en la clase" y los dos mensajes del buscador de §D-B4.
+- "Agregar alumnos" (título del panel del buscador), "Buscar alumno por nombre", "Escribe al menos 3 letras.", "Agregar a la clase", "Ya está en la clase" y los dos mensajes del buscador de §D-B4.
+- "La búsqueda no puede tener más de 120 caracteres" (T-24).
 - Encabezados de la tabla y la confirmación de quitar, de §D-B4.
-- Toasts "Agregaste a \<nombre\>" y "Quitaste a \<nombre\> de la clase".
+- Toasts "Agregaste a \<nombre\>", "\<nombre\> ya estaba en la clase" (neutro, D-4) y "Quitaste a \<nombre\> de la clase".
+- `ALUMNO_NO_ENCONTRADO`: "No encontramos a ese alumno.".
 
 #### §D-B7 · `docs/DESIGN.md` (programador de CLASES-b, a mano, **propuesta**)
 - **§7.8:** la insignia "Ya está en la clase" (`muted`) y la implementación de `EstadoPagoBadge` y `AccesoRestringidoBadge`.
 - **§8:** el roster del maestro es una tabla opaca dentro de un panel de vidrio, con filas de 48 px y botones de 36 px.
 - **§7.2, excepción:** las filas de la lista de compañeros (`PersonasView`) van sin vidrio fuerte, separadas por divisores de `--border` dentro del panel. Son filas de solo lectura, sin acción, y el vidrio fuerte por fila recargaría una lista de 30 nombres.
+- **§7.14 (Enmienda 5):** el patrón "Foco al confirmar una acción que borra la fila" (T-21 a T-23) y, en la ronda 4, su extensión a "un control que desaparece por su propia acción" (T-25 y T-26), con el criterio de §D-B4.
 - **§7.17 (nueva), "Buscador con resultados en línea":**
   - mínimo de 3 caracteres, espera de 300 ms y ayuda permanente;
+  - tope de 120, con el aviso de longitud (T-24);
   - resultados con acción por fila y nombre accesible con el dato de la fila;
   - **el correo enmascarado como texto secundario (el completo solo en el roster)**;
   - los mensajes de sin resultados y de "hay más".
@@ -926,6 +993,10 @@ ALTER TABLE "publicaciones" ADD CONSTRAINT "publicaciones_titulo_segun_tipo"
   - lista ascendente y "Ver más comentarios" (`outline`, `size="sm"`, `enEspera`);
   - `FormularioComentario`, con `Textarea` "Escribe un comentario" y "Comentar" (`outline`, `enEspera`);
   - "Borrar" (`ghost`, `size="sm"`): el maestro lo ve en todos los comentarios; el estudiante, en los `propio`. Pide confirmación en línea con "Sí, borrar comentario" (`destructive`, `enEspera`).
+- **Foco de los "Ver más" (Enmienda 5; criterio de `DESIGN.md` §7.14 extendido en la ronda 4 de b):**
+  - "Ver más publicaciones" y "Ver más comentarios" nacen con el criterio de "un control que desaparece por su propia acción": al desaparecer tras cargar la última página, el foco va al primer elemento nuevo o, si no llegó nada, al encabezado de la lista. Nunca a `<body>`;
+  - **heredado de b, con autorización de archivo:** "Ver más clases" de `features/clases/components/panel-mis-clases.tsx` (de CLASES-a) se corrige con el mismo criterio. Es el único cambio que c hace en ese archivo, y no cambia sus datos ni sus textos.
+  - Pruebas: PR-C11a a PR-C11c.
 
 #### §D-C6 · Textos de CLASES-c (propuesta)
 - "Tipo de publicación", "Anuncio", "Material", "Título del material", "Descripción (opcional)", "Publicar anuncio" y "Publicar material"; toast "Publicado".
@@ -1090,6 +1161,7 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 | C-14 | a | ESLint rechaza `addHook` en `handlers/` | Ninguno |
 | C-15 | b | Migración, tabla y secuencia nuevas (`movimientos_inscripcion`) | Cualquier `*.ataque` que liste de forma cerrada las tablas, las secuencias, las migraciones o los modelos de Prisma. Hoy no conozco ninguno |
 | C-16 | a (ronda 4) | `GET /clases/inscritas` e `/impartidas` responden `400 VALIDACION` ("cursor: no es válido") ante un cursor que ya no es una inscripción del alumno o una clase del maestro (T-18, decisión del humano) | **Ya hecho por el tester, con el arbitraje del manager:** `backend/test/clases-r2.ataque.test.ts`, caso "HEAD, paginación, campos extra y fugas siguen como en la ronda 1".<br>- El cursor de una clase ajena responde `400 VALIDACION` "cursor: no es válido", y el caso sigue afirmando que no hay fuga.<br>- Se suma una aserción: un UUID inexistente responde idéntico, sin oráculo de existencia.<br>- Hash nuevo: `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8`.<br>- Es la única `*.ataque` existente que cambió después de la ronda 0. |
+| C-17 | b (corrección de la ronda 1) | Con `yaEstaba: true`, "Agregar a la clase" avisa con un toast neutro, `toast("<nombre> ya estaba en la clase")` (D-4) | **Ya hecho por el tester, con el arbitraje del manager (opción A):** `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx`.<br>- El doble de `sonner` pasa a ser invocable (`toast: Object.assign(vi.fn(), aviso)`), con las mismas referencias de `success` y `error`; ninguna aserción cambió.<br>- Hash: `755019C7…` → `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F`.<br>- Es la única `*.ataque` existente que cambió en b después de la ronda 0. |
 
 **Al terminar cada ronda 0:**
 - Los casos reescritos quedan **en rojo** hasta que el programador termine, y ninguno más.
@@ -1105,7 +1177,7 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 ### shared/
 | Archivo | Sub. | Acción | Contenido |
 |---|---|---|---|
-| `src/clases.ts` | a, b, c, d | Crear (a); Modificar (b, c, d) | **a:** §D-A3 (con `SEPARADORES_CODIGO_CLASE` y el rechazo de U+2028 y U+2029) y `CODIGOS_CLASES`.<br>**b:** `estadoPagoSchema`, `paginacionRosterSchema`, `personasRespuestaSchema`, `alumnoDeClaseSchema` (con `email` completo), `listaAlumnosRespuestaSchema`, `busquedaCandidatosSchema`, `candidatoSchema = { id, nombre, correoEnmascarado, yaInscrito }` (**sin** `email`, P-05 f), `candidatosRespuestaSchema`, `agregarAlumnoSchema`, `agregarAlumnoRespuestaSchema` (`{ alumno: { id, nombre }, yaEstaba }`) y `alumnoIdParamSchema`.<br>**c:** `tipoPublicacionSchema`, `crearPublicacionSchema` (discriminada), `publicacionSchema`, `listaPublicacionesRespuestaSchema`, `crearComentarioSchema`, `comentarioSchema`, `listaComentariosRespuestaSchema` y los esquemas de parámetros.<br>**d:** `adjuntos` en `publicacionSchema` y `archivoIds` en `crearPublicacionSchema`. |
+| `src/clases.ts` | a, b, c, d | Crear (a); Modificar (b, c, d) | **a:** §D-A3 (con `SEPARADORES_CODIGO_CLASE` y el rechazo de U+2028 y U+2029) y `CODIGOS_CLASES`.<br>**b:** `estadoPagoSchema`, `paginacionRosterSchema`, `personasRespuestaSchema`, `alumnoDeClaseSchema` (con `email` completo), `listaAlumnosRespuestaSchema`, `busquedaCandidatosSchema`, `candidatoSchema = { id, nombre, correoEnmascarado, yaInscrito }` (**sin** `email`, P-05 f), `candidatosRespuestaSchema`, `agregarAlumnoSchema`, `agregarAlumnoRespuestaSchema` (`{ alumno: { id, nombre }, yaEstaba }`) y `alumnoIdParamSchema`. Además, la normalización y el criterio del término (T-20, T-24): `normalizarTerminoDeBusqueda`, `LONGITUD_MINIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA_CRUDA` y `estadoDeTerminoDeBusqueda` (§D-B3).<br>**c:** `tipoPublicacionSchema`, `crearPublicacionSchema` (discriminada), `publicacionSchema`, `listaPublicacionesRespuestaSchema`, `crearComentarioSchema`, `comentarioSchema`, `listaComentariosRespuestaSchema` y los esquemas de parámetros.<br>**d:** `adjuntos` en `publicacionSchema` y `archivoIds` en `crearPublicacionSchema`. |
 | `src/archivos.ts` | d | Crear | §D-D4 |
 | `src/index.ts` | a, b, c, d | Modificar | Reexporta lo nuevo |
 
@@ -1116,7 +1188,7 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 | `core/clases/pertenencia.ts` (Crear) | a | - `type RelacionConClase = "maestro" \| "estudiante"`<br>- `interface DatosDePertenencia { maestroId: string; inscrito: boolean }`<br>- `relacionConClase(perfil: Pick<PerfilAutenticado, "id" \| "rol">, datos: DatosDePertenencia \| null): RelacionConClase \| null`<br>- `evaluarPertenencia(relacion: RelacionConClase \| null, exigencia: "inscripcion" \| "propiedad"): AppError \| null` |
 | `core/paginacion.ts` (Crear) | a | `paginar<T>(filas: T[], limite: number, cursorDe: (fila: T) => string): { pagina: T[]; siguienteCursor: string \| null }` |
 | `core/clases/texto.ts` (Crear) | a | `normalizarTextoLargo(texto: string): string` |
-| `core/clases/busqueda.ts` (Crear) | b | - `LONGITUD_MINIMA_BUSQUEDA = 3`<br>- `prepararTerminoDeBusqueda(q: string): string \| null`<br>- `escaparComodinesLike(t: string): string`<br>- `enmascararCorreo(email: string): string` (S-22) |
+| `core/clases/busqueda.ts` (Crear) | b | - `prepararTerminoDeBusqueda(q: string): string \| null`, con `normalizarTerminoDeBusqueda` y `LONGITUD_MINIMA_BUSQUEDA` importadas de `shared/` (T-24)<br>- `escaparComodinesLike(t: string): string`<br>- `enmascararCorreo(email: string): string` (S-22) |
 | `core/eventos/avisos-de-clase.ts` (Crear) | c | §D-C3 |
 | `core/archivos/almacen.ts` (Crear) | d | `interface Almacen` (§D-D2) |
 | `core/archivos/politica.ts` (Crear) | d | - `validarArchivoDeclarado({ nombre, tipo, tamano }): AppError \| null`<br>- `claveDeMaterial(claseId: string, archivoId: string): string`<br>- `esImagenConVistaPrevia(tipo: string): boolean`<br>- `disposicionDeContenido(nombre: string, modo: "inline" \| "attachment"): string`<br>- `coincideConLoDeclarado(declarado, real): "ok" \| "falta" \| "distinto"`<br>- `VIGENCIA_URL_FIRMADA_S = 300` |
@@ -1170,7 +1242,7 @@ Sin cambios.
 
 ### backend/prisma/
 - a: migración `20260929232924_clases_e_inscripciones` (§D-A1) y `schema.prisma`.
-- b: migración `<timestamp>_movimientos_inscripcion` (§D-B8) y `schema.prisma`.
+- b: migración `20260930235837_movimientos_inscripcion` (§D-B8, sin la variante `@unique`) y `schema.prisma`.
 - c: migración `<timestamp>_publicaciones_y_comentarios` (§D-C1) y `schema.prisma`.
 - d: migración `<timestamp>_archivos` (§D-D1) y `schema.prisma`.
 
@@ -1212,11 +1284,11 @@ Sin cambios.
 |---|---|---|
 | `types.ts` | a–d | Reexporta los tipos de `shared/`; tipos exclusivos de la interfaz |
 | `data.ts` | a–d | Textos de §D-A7, §D-B6, §D-C6 y §D-D6; claves de consulta; `ACCEPT_DE_ADJUNTOS` (d). En b, además, "Nueva clase" y "Crear clase" del inicio del maestro (§D-B4 bis) |
-| `lib.ts` | a–d | `varianteDeClase`, `titularInicio`, `siguientePasoInicio`, `textoConteoAlumnos`, `terminoDeBusquedaValido` (b), el reparto de errores de N-04 (b, si vive aquí) y `errorDeArchivoElegido` (d) |
+| `lib.ts` | a–d | `varianteDeClase`, `titularInicio`, `siguientePasoInicio`, `textoConteoAlumnos`, `terminoDeBusquedaValido` y `terminoDeBusquedaMuyLargo` (b, sobre `estadoDeTerminoDeBusqueda` de `shared/`), el reparto de errores de N-04 (b, si vive aquí) y `errorDeArchivoElegido` (d) |
 | `hooks.ts` | a–d | - **a:** `useNombreDeSesion`, `useClasesInscritas`, `useClasesImpartidas`, `useClase`, `useCodigoDeClase`, `useCrearClase`, `useEditarClase`, `useRegenerarCodigo` y `useUnirseAClase`<br>- **b:** §D-B5<br>- **c:** `usePublicaciones`, `useCrearPublicacion`, `useBorrarPublicacion`, `useComentarios`, `useComentar`, `useBorrarComentario` y `useBorrarMiComentario`<br>- **d:** `useSolicitarSubida` y `useUrlDeDescarga` |
 | `inicio-estudiante-view.tsx`, `inicio-maestro-view.tsx`, `clase-layout.tsx`, `crear-clase-view.tsx`, `editar-clase-view.tsx`, `muro-view.tsx` | a (`muro-view` provisional), c; `inicio-maestro-view.tsx` se modifica en b (textos a `data.ts`, §D-B4 bis) | Vistas |
 | `personas-view.tsx`, `alumnos-view.tsx` | b | Vistas |
-| `components/bloque-destacado.tsx`, `tarjeta-clase.tsx`, `panel-mis-clases.tsx`, `formulario-unirse-clase.tsx`, `formulario-clase.tsx`, `encabezado-clase.tsx`, `codigo-de-clase.tsx`, `secciones-de-clase.tsx` | a; `secciones-de-clase.tsx` y `formulario-unirse-clase.tsx` (N-04, §D-B4 bis) se modifican en b | Crear |
+| `components/bloque-destacado.tsx`, `tarjeta-clase.tsx`, `panel-mis-clases.tsx`, `formulario-unirse-clase.tsx`, `formulario-clase.tsx`, `encabezado-clase.tsx`, `codigo-de-clase.tsx`, `secciones-de-clase.tsx` | a; `secciones-de-clase.tsx` y `formulario-unirse-clase.tsx` (N-04, §D-B4 bis) se modifican en b; **`panel-mis-clases.tsx` se modifica en c**, solo para el foco de "Ver más clases" (§D-C5, Enmienda 5) | Crear |
 | `components/buscador-alumnos.tsx`, `tabla-alumnos.tsx`, `lista-personas.tsx` | b | Crear |
 | `components/formulario-publicacion.tsx`, `publicacion-del-muro.tsx`, `comentarios-de-publicacion.tsx`, `formulario-comentario.tsx` | c (`formulario-publicacion.tsx` se modifica en d) | Crear |
 | `components/lista-de-adjuntos-elegidos.tsx`, `adjuntos-de-publicacion.tsx` | d | Crear |
@@ -1235,7 +1307,7 @@ Tres grupos por subentrega. **Solo** estos archivos de pruebas se crean o se mod
 |---|---|---|---|
 | **a** | **Backend:** `src/core/clases/codigo.test.ts`, `src/core/clases/pertenencia.test.ts`, `src/core/clases/texto.test.ts`, `src/core/paginacion.test.ts`, `test/ayudas-clases.ts` (ayuda), `test/guarda-clase.integracion.test.ts`, `test/clases.integracion.test.ts` y `test/clases-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/lib.test.ts`, `inicio-estudiante-view.test.tsx`, `inicio-maestro-view.test.tsx`, `clase-layout.test.tsx` y `formulario-clase.test.tsx`; `src/features/auth/cambio-de-identidad.test.tsx`. | - `backend/src/middleware/index.test.ts`: el caso "501" pasa a PR-A07d.<br>- `backend/test/middleware-orden.integracion.test.ts`: el caso de `:99` pasa a PR-A07a a PR-A07c.<br>- `frontend/src/app/router.test.tsx`: PR-A26a a PR-A26c y "Hola" como texto.<br>- `frontend/src/styles/tokens.test.ts`: PR-A24.<br>- `frontend/src/components/estado-vacio.test.tsx`: PR-A25.<br>- `frontend/src/lib/format.test.ts`: PR-A27.<br>- **Solo para adaptarse a los inicios nuevos:** `frontend/src/app/marco.test.tsx`, `frontend/src/features/auth/login-view.test.tsx`, `frontend/src/features/auth/registro-view.test.tsx` y `frontend/src/features/auth/registro-maestro-view.test.tsx`. Se permite exactamente agregar al doble de `fetch` la respuesta de `/api/clases/inscritas` o `/impartidas`, o cambiar `findByRole("heading", { name: "Hola, X" })` por `findByText("Hola, X")`. No se quita ninguna aserción, y cada caso cambiado se lista en el resumen. | — |
 | **b** | **Backend:** `src/core/clases/busqueda.test.ts`, `test/alumnos.integracion.test.ts`, `test/alumnos-autorizacion.integracion.test.ts` y `test/movimientos-inscripcion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/personas-view.test.tsx` y `alumnos-view.test.tsx`; `src/components/estado-pago-badge.test.tsx`. | — | - `backend/test/ayudas-clases.ts`: limpieza de movimientos y después de clases, que corre **antes** de `borrarUsuariosDePrueba` en cada archivo de b (N-10, §D-B8).<br>- `frontend/src/features/clases/lib.test.ts` (PR-B09).<br>- `clase-layout.test.tsx` (PR-B14).<br>- `frontend/src/app/router.test.tsx` (PR-B15).<br>- `frontend/src/features/clases/inicio-estudiante-view.test.tsx` (PR-B17, N-04). |
-| **c** | **Backend:** `src/core/eventos/avisos-de-clase.test.ts`, `test/muro.integracion.test.ts` y `test/muro-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/muro-view.test.tsx`, `formulario-publicacion.test.tsx` y `publicacion-del-muro.test.tsx`. | — | `backend/test/ayudas-clases.ts` (misma regla de orden de limpieza) |
+| **c** | **Backend:** `src/core/eventos/avisos-de-clase.test.ts`, `test/muro.integracion.test.ts` y `test/muro-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/muro-view.test.tsx`, `formulario-publicacion.test.tsx` y `publicacion-del-muro.test.tsx`. | — | - `backend/test/ayudas-clases.ts` (misma regla de orden de limpieza).<br>- `frontend/src/features/clases/inicio-estudiante-view.test.tsx` (PR-C11a, foco de "Ver más clases"; Enmienda 5). |
 | **d** | **Backend:** `src/core/archivos/politica.test.ts`, `src/config/almacen.test.ts`, `src/adapters/storage/index.test.ts`, `test/almacen-en-memoria.ts` (ayuda), `test/archivos.integracion.test.ts` y `test/archivos-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/services/almacenService.test.ts` y `src/features/clases/adjuntos-de-publicacion.test.tsx`. | `backend/src/config/env.test.ts` (PR-D02a a PR-D02c) | - `backend/test/ayudas-clases.ts` (misma regla de orden de limpieza).<br>- `frontend/src/lib/format.test.ts` (PR-D14).<br>- `frontend/src/features/clases/lib.test.ts` (PR-D15).<br>- `formulario-publicacion.test.tsx` (PR-D11a a PR-D12c). |
 
 ---
@@ -1404,7 +1476,7 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina (100 como máximo).
 | ID | Archivo | Comportamiento |
 |---|---|---|
 | PR-B01a | `backend/src/core/clases/busqueda.test.ts` | "José" se normaliza a "jose" |
-| PR-B01b | ídem | "  a  b " → `null` (menos de 3) |
+| PR-B01b | ídem | `"  ab  "` → `null` (2 normalizados, menos de 3); `"  a  b "` → `"a b"`, que mide 3 y se acepta: el mínimo cuenta el espacio interior (D-2, Enmienda 5) |
 | PR-B01c | ídem | `escaparComodinesLike` escapa `%`, `_` y `\` |
 | PR-B01d | ídem | `enmascararCorreo("ana.lopez@colegio.mx") === "an***@colegio.mx"` (parte local de 3 o más) |
 | PR-B01e | ídem | parte local de 2 y de 1 caracteres: `"jo@x.mx"` → `"j***@x.mx"` y `"a@x.mx"` → `"***@x.mx"`; nunca aparece la parte local completa (S-22, Enmienda 3) |
@@ -1429,7 +1501,7 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina (100 como máximo).
 | PR-B04f | ídem | candidatos: `limite` y `hayMas` |
 | PR-B04g | ídem | candidatos: el recorrido recursivo no encuentra `estadoPago`, `accesoRestringido` ni `email` |
 | PR-B04h | ídem | candidatos: cada `correoEnmascarado` es el de `enmascararCorreo`, y el correo completo de ningún candidato aparece en `JSON.stringify` de la respuesta (ni en otro campo), incluido un alumno ya inscrito |
-| PR-B05 | ídem | con `SET LOCAL enable_seqscan = off`, `EXPLAIN (FORMAT JSON)` de la consulta con la misma forma que emite Prisma (`"nombre_busqueda"::text LIKE $1`, más `rol`, `activo`, `ORDER BY` y `LIMIT`, con parámetros) menciona `usuarios_nombre_busqueda_idx` |
+| PR-B05 | ídem | Con `SET LOCAL enable_seqscan = off`, `EXPLAIN (FORMAT JSON)` de la consulta con la misma forma que emite Prisma (`"nombre_busqueda"::text LIKE $1`, más `rol`, `activo`, `ORDER BY` y `LIMIT`, con parámetros) menciona `usuarios_nombre_busqueda_idx`.<br>**Como quedó (D-1, M-07; Enmienda 5):**<br>- siembra 40,000 filas dentro de una transacción que se revierte. El umbral medido es: con 16,000 el planificador elige otro *bitmap* sobre `usuarios_rol_idx`, y con 17,000 a 20,000, el GIN. 40,000 deja un margen de dos veces el umbral, medido también en la suite completa;<br>- la aserción imprime el plan elegido si falla;<br>- la transacción lleva `{ timeout: 15000, maxWait: 15000 }`;<br>- retiene `usuarios` unos 5 s (R-27, CHORE-02). |
 | PR-B06a | ídem | agregar → 200, `yaEstaba: false`, `origen = 'manual'` |
 | PR-B06b | ídem | agregar dos veces → 200, `yaEstaba: true`, una sola fila |
 | PR-B06c | ídem | un maestro, el admin, una cuenta inactiva o un id inexistente como `alumnoId` → `404 ALUMNO_NO_ENCONTRADO` sin escribir |
@@ -1458,6 +1530,7 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina (100 como máximo).
 | PR-B11a | ídem | la tabla muestra "Al corriente" y "Deudor" como texto |
 | PR-B11b | ídem | la tabla muestra "Acceso restringido" como texto |
 | PR-B11c | ídem | quitar pide confirmación en línea, con el manejo de foco |
+| PR-B11c2 | ídem | tras "Sí, quitar", el foco va al "Quitar" de la fila que ocupa el lugar de la quitada: fila del medio, última y única (en la única, al `h2`); nunca a `<body>` (T-21, corrección de la ronda 1) |
 | PR-B11d | ídem | "Ver más alumnos" aparece solo con cursor |
 | PR-B12a | `frontend/src/features/clases/personas-view.test.tsx` | el maestro va separado de los alumnos |
 | PR-B12b | ídem | el contador va en palabras |
@@ -1477,6 +1550,20 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina (100 como máximo).
 | PR-B16g | ídem | ninguna ruta de `printRoutes` contiene "movimiento", y ninguna respuesta de las rutas de b contiene el id ni la `secuencia` de una fila de `movimientos_inscripcion` |
 | PR-B16h | ídem | el módulo `adapters/db/index` no exporta ninguna función cuyo nombre contenga "movimiento" (no hay lectura) |
 | PR-B17 | `frontend/src/features/clases/inicio-estudiante-view.test.tsx` (extendido) | "Unirme a la clase" (N-04): `CODIGO_INVALIDO` y un `VALIDACION` de `codigo` van bajo el campo; un 500 y "sin conexión" avisan con toast, sin `aria-invalid` en el campo del código |
+
+**Pruebas normales nuevas de las correcciones de b** (Enmienda 5; casos con el hallazgo en el título, sin ID PR propio):
+
+| Caso | Archivo | Comportamiento |
+|---|---|---|
+| T-20 | `backend/test/alumnos.integracion.test.ts` | la longitud de `q` se mide sobre el normalizado: hangul (`각`, `가나`), `"abc"` más 118 espacios, 121 caracteres y `"ab"`, con la respuesta que corresponde a cada uno |
+| T-20 | `backend/src/core/clases/busqueda.test.ts` | el criterio de longitud sobre el término normalizado en `core/` |
+| Equivalencia | ídem | `normalizarTerminoDeBusqueda` de `shared/` y `normalizarParaBusqueda` de `core/auth/normalizacion.ts` dan lo mismo con 7 muestras (acentos, espacios, hangul, emoji y dígrafos) |
+| D-4 | `frontend/src/features/clases/alumnos-view.test.tsx` | agregar con `yaEstaba: true` avisa con un toast neutro, sin éxito ni error |
+| T-22 | ídem | si la consulta nueva del roster falla después de quitar, el foco va al `h2` del panel; nunca a `<body>` |
+| T-23 | ídem | si otra pestaña quitó la fila antes del `onSuccess`, el foco no queda en `<body>` |
+| T-24 | ídem | con un término de más de 120 normalizados, el campo lleva `aria-invalid` y `ErrorDeCampo` "La búsqueda no puede tener más de 120 caracteres", y no se hace la petición |
+| T-24 | `frontend/src/features/clases/lib.test.ts` (extendido) | `terminoDeBusquedaValido` y `terminoDeBusquedaMuyLargo` siguen a `estadoDeTerminoDeBusqueda` |
+| T-25 y T-26 | `alumnos-view.test.tsx` y `personas-view.test.tsx` (ronda 4) | los casos que agregue la ronda 4 para el foco de "Agregar a la clase" y de "Ver más alumnos" |
 
 ### CLASES-c
 | ID | Archivo | Comportamiento |
@@ -1515,6 +1602,9 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina (100 como máximo).
 | PR-C10b | ídem | la insignia de tipo lleva texto |
 | PR-C10c | ídem | "Ver comentarios" con `aria-expanded` pide los comentarios solo al abrirse |
 | PR-C10d | ídem | "Borrar" aparece en los comentarios propios del alumno y en todos para el maestro, con confirmación en línea |
+| PR-C11a | `frontend/src/features/clases/inicio-estudiante-view.test.tsx` (extendido) | con teclado, "Ver más clases" desaparece al cargar la última página y el foco va a la primera tarjeta nueva o al encabezado "Mis clases"; nunca a `<body>` (Enmienda 5) |
+| PR-C11b | `frontend/src/features/clases/muro-view.test.tsx` | ídem con "Ver más publicaciones" (primera publicación nueva o encabezado de la lista) |
+| PR-C11c | `frontend/src/features/clases/publicacion-del-muro.test.tsx` | ídem con "Ver más comentarios" (primer comentario nuevo o encabezado de los comentarios) |
 
 ### CLASES-d
 | ID | Archivo | Comportamiento |
@@ -1578,8 +1668,9 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
    - el árbol está limpio dentro de los paquetes contra la base de la subentrega: `<R>` en a, `<Ca>` en b, `<Cb>` en c y `<Cc>` en d;
    - V-01 coincide con la tabla vigente:
      - en CLASES-a, la de AUTH-03c, ronda 2;
-     - en **CLASES-b, la del cierre de a**: las 77 `*.ataque` con el hash de C-16, más las `-r4` que agregue la regresión final;
-     - en c y d, la del cierre de la subentrega anterior;
+     - en CLASES-b, la del cierre de a (79 `*.ataque`, con C-16);
+     - en **CLASES-c, la del cierre de b**: las 85 `*.ataque` (con C-16 y C-17), más las que agregue la regresión de la ronda 4 de b;
+     - en d, la del cierre de c;
    - PA-01 antes de cualquier prueba del backend.
 2. **Reescritura:** solo los casos que contradicen los C-n de la subentrega (§D-R0), conservando lo que protegen. Busca como mínimo:
    - `Hola,`, `heading` en `/estudiante` y `/maestro`, y `BienvenidaView` (a);
@@ -1638,7 +1729,7 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
 2. **Concurrencia:** comentar y borrar la publicación al mismo tiempo, en los dos órdenes; ningún `500` ni comentario huérfano.
 3. **Cola:** transacción revertida sin trabajo; ids de trabajo repetidos; ningún texto ni correo en los datos del trabajo.
 4. **Texto:** XSS en el título, el texto y el comentario; caracteres de control; 5,000 y 5,001 caracteres; saltos de línea `\r`.
-5. **Interfaz:** doble envío de la publicación y de "Comentar"; los comentarios se piden solo al abrirse; las confirmaciones.
+5. **Interfaz:** doble envío de la publicación y de "Comentar"; los comentarios se piden solo al abrirse; las confirmaciones; el foco de los tres "Ver más" (publicaciones, comentarios y "Ver más clases") al desaparecer, que nunca queda en `<body>` (Enmienda 5).
 
 ### CLASES-d
 1. **Subida:**
@@ -1699,6 +1790,9 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
   - En la ronda 4, ante T-18, el programador sí se detuvo y preguntó.
   - Para b, c y d rige la regla de siempre: cuando una parada se cumple, el programador se detiene y reporta, aunque la alternativa parezca obvia o inofensiva.
 - **R-27 · Intermitencia preexistente de la suite del backend por `LOCK TABLE usuarios`.** Es la espera en cadena entre `cuentas-r1.ataque:130` y las filas retenidas de `cuentas-r3` y `bloqueo-usuario`. No la causa CLASES. Está anotada en `docs/ESTADO.md` §3, con destino CHORE-02, y volvió a aparecer en la primera corrida del manager en el cierre de a.
+  - **Desde b (Enmienda 5):** PR-B05 retiene `usuarios` unos 5 s mientras siembra 40,000 filas y corre `ANALYZE`. No forma el ciclo, pero alarga la ventana en que la cola se forma.
+  - Candidatos para CHORE-02, por medir: correrlo en un grupo secuencial con los archivos que retienen bloqueos, o sembrar con un `nombre_busqueda` constante y corto.
+  - No se cambia en CLASES.
 
 ### Textos literales propuestos para documentos (los aplica el orquestador al cerrar cada subentrega, con autorización del humano)
 
@@ -1730,13 +1824,13 @@ Y agrega las viñetas, después de "Rol, restricción y banderas…" (la primera
 > | `comentarios` | `id`, `publicacion_id`, `autor_id`, `texto` | índice `(publicacion_id, creado_en, id)`. Hoy solo el contexto `publicacion_id` (NOT NULL); ENTREGAS agrega `entrega_id` y el `CHECK` de exactamente un contexto. Al comentar, la publicación se lee `FOR SHARE` en la misma transacción |
 > | `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado` (`pendiente` / `confirmado` / `descartado`), `clase_id`, `publicacion_id` | `clave_objeto` único · índice `(publicacion_id)` · `CHECK`: un archivo está `confirmado` si y solo si tiene contexto; `pendiente` y `descartado`, ninguno. `clase_id` autoriza mientras el archivo está pendiente. TAREAS y ENTREGAS agregan `tarea_id` y `entrega_id` |
 
-Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
-> - Búsqueda de alumnos: `LIKE '%término%'` sobre `nombre_busqueda`, con el término normalizado en `core/` por la misma función que al escribir y con `%`, `_` y `\` escapados; índice GIN `gin_trgm_ops`. Mínimo de 3 caracteres ya normalizados, hasta 20 resultados con indicador de "hay más". El correo de cada resultado sale enmascarado desde el backend (`core/`); el completo solo en el roster del dueño. Frontend: espera de 300 ms.
+Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por (texto ajustado en la Enmienda 5):
+> - Búsqueda de alumnos: `LIKE '%término%'` sobre `nombre_busqueda`, con `%`, `_` y `\` escapados; índice GIN `gin_trgm_ops`. El término mide de 3 a 120 caracteres **ya normalizados** (con un tope de 1000 en crudo); la normalización está definida una sola vez en `shared/` (`normalizarTerminoDeBusqueda`) y equivale a la que aplica `core/` a `nombre_busqueda` al escribir. Hasta 20 resultados con indicador de "hay más". El correo de cada resultado sale enmascarado desde el backend (`core/`); el completo solo en el roster del dueño. Frontend: espera de 300 ms.
 
 **`docs/ARCHITECTURE-ESSENTIALS.md`.**
 - "Tablas" (b): agrega `movimientos_inscripcion` después de `inscripciones`.
-- "Reglas de datos" (b): reemplaza "Búsqueda de alumnos: `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: mínimo 3 caracteres, espera de 300 ms." por:
-  > - Búsqueda de alumnos: `nombre_busqueda` se normaliza en `core/` al escribir (sin acentos, minúsculas, espacios colapsados) y se busca con `LIKE` y el índice GIN de trigramas sobre esa columna; el término pasa por la misma normalización y escapa los comodines. `unaccent` no se usa en las consultas. Frontend: mínimo 3 caracteres, espera de 300 ms.
+- "Reglas de datos" (b): reemplaza "Búsqueda de alumnos: `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: mínimo 3 caracteres, espera de 300 ms." por (texto ajustado en la Enmienda 5):
+  > - Búsqueda de alumnos: `nombre_busqueda` se normaliza en `core/` al escribir (sin acentos, minúsculas, espacios colapsados) y se busca con `LIKE` y el índice GIN de trigramas sobre esa columna; el término pasa por la misma normalización, definida una sola vez en `shared/`, y escapa los comodines. Mide de 3 a 120 caracteres ya normalizados, con un tope de 1000 en crudo. `unaccent` no se usa en las consultas. Frontend: espera de 300 ms.
 - "Restricciones clave" (d): reemplaza "`comentarios` y `archivos` con exactamente un contexto" por:
   > `comentarios` con exactamente un contexto · `archivos`: confirmado si y solo si tiene exactamente un contexto (los `pendiente` y `descartado`, ninguno; `clase_id` autoriza mientras tanto)
 - "Autorización" (a): agrega:
@@ -1804,6 +1898,7 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
 - **Frontend, regla de diseño de b, c y d** (M-06, Enmienda 4; la revisa el manager en cada revisión final):
   - **ningún texto sobre vidrio azul fuera de `text-accent-foreground` y `text-accent-soft-glass`** (`DESIGN.md` §3, §6 y §7.2), y ningún fondo `bg-accent-soft-glass` bajo un texto sobre vidrio azul;
   - toda superficie de color nueva nombra los colores de su texto en su sección de `DESIGN.md`.
+- **Frontend, foco de c y d** (Enmienda 5; la revisa el manager en cada revisión final): todo control que desaparece o borra su fila sigue `DESIGN.md` §7.14 (con su extensión de la ronda 4 de b); el foco nunca queda en `<body>`.
 - **Backend, reglas estáticas vigentes** (`arquitectura-cuentas-r1`):
   - exactamente un `$queryRawUnsafe` y ningún `$executeRawUnsafe`;
   - `pg-boss` solo en `adapters/queue/index.ts`; `executeSql` solo en `adapters/`;
@@ -1833,12 +1928,13 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
 
 ### Verificaciones
 - **V-01 (hashes):** `Get-FileHash -Algorithm SHA256` de todas las `*.ataque`, contra la última tabla del tester.
-  - **Para CLASES-b, la tabla vigente al cierre de a:**
-    - las 77 `*.ataque`, con el hash de C-16 para `clases-r2` (`0135A34D…`);
-    - más las `-r4` que agregue la regresión final, tal como queden en `reporte-tester.md`.
+  - Para CLASES-b fue la tabla vigente al cierre de a: 79 `*.ataque` (77 de la ronda 3, con el hash de C-16 para `clases-r2`, más las 2 `-r4` de la regresión final). Cifras reales de cierre de a: backend 97 archivos y 1059 pruebas; frontend 78 archivos y 1106 pruebas (`aprobacion.md`, "Cierre de CLASES-a").
+  - **Para CLASES-c, la tabla vigente al cierre de b:**
+    - las 85 `*.ataque`, con el hash de C-16 para `clases-r2` (`0135A34D…`) y el de C-17 para `alumnos-b-r1` del frontend (`C3692E9E…`);
+    - más las que agregue la regresión de la ronda 4 de b, tal como queden en `reporte-tester.md`.
 
-    Cifras de cierre de a, como referencia de V-07: backend 96 archivos y 1054 pruebas; frontend 77 archivos y 1082 pruebas.
-  - Para c y d, la tabla al cierre de la subentrega anterior.
+    Cifras de cierre de b, como referencia de V-07: backend 104 archivos y 1144 pruebas; frontend 84 archivos y 1167 pruebas; más las que agregue la ronda 4.
+  - Para d, la tabla al cierre de c.
 - **V-02 (paquetes):** desde la raíz, `npm run build`, `npm run lint` y `npm run test`, todos con código 0 (el backend, solo con PA-01). El resumen trae **el comando exacto y la última línea de salida de cada uno**.
 - **V-03 (Prisma, a, b, c y d):** `npx prisma validate`, `npx prisma format --check`, `npx prisma generate`, `npx prisma migrate status` y `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`.
 - **V-04 (búsquedas en el código de producción, sin pruebas):**
@@ -1855,7 +1951,7 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
   - `autoComplete="off"` en el campo del código, en el buscador y en el formulario de la clase;
   - `from "@/features/auth` en `features/clases/` → 0.
 - **V-05 ("No se toca"), mecánica:**
-  - **Dentro de los paquetes:** por cada ruta de la lista de la subentrega, `git diff --quiet <base> -- <ruta>` con código 0 y `git status --porcelain -- <ruta>` vacío. La base es `<R>` en a, **`<Ca>` en b**, `<Cb>` en c y `<Cc>` en d.
+  - **Dentro de los paquetes:** por cada ruta de la lista de la subentrega, `git diff --quiet <base> -- <ruta>` con código 0 y `git status --porcelain -- <ruta>` vacío. La base es `<R>` en a, `<Ca>` en b, **`<Cb>` en c** y `<Cc>` en d.
   - **Migraciones:** en cada subentrega, `git diff --name-only <base> -- backend/prisma/migrations` lista solo la carpeta nueva de esa subentrega (a, b, c y d tienen una cada una).
   - **`eslint.config.mjs`:**
     - en a, `git diff <R> -- eslint.config.mjs` contiene solo el bloque de §D-0.4, y el programador pega ese diff en su resumen;
@@ -1885,10 +1981,14 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
    - **CLASES-a:**
      - se implementó y tuvo tres rondas del tester; la revisión final dio ESCALAR;
      - el humano autorizó una cuarta ronda corta y cerrada (M-06, T-18, T-19 y N-01 a N-03) y aprobó la regla de T-18;
-     - el manager aprobó la ronda 4 ("Revisión final — CLASES-a — ronda 4 y cierre"). Falta la regresión final del tester; si RESISTE, se cierra.
+     - el manager aprobó la ronda 4 ("Revisión final — CLASES-a — ronda 4 y cierre"), y la regresión final del tester dio RESISTE.
 
-     La Enmienda 4 registra ese cierre en el plan.
-   - CLASES-b arranca en el paso 15, después del commit `<Ca>`.
+     La Enmienda 4 registra ese cierre en el plan. Commit `<Ca>` = `855069b`.
+   - **CLASES-b (2026-09-30):**
+     - se implementó y tuvo tres rondas del tester (ROTO en la tercera, con T-25 y T-26, dos hallazgos bajos de foco); la revisión final dio ESCALAR AL HUMANO;
+     - el humano autorizó una cuarta ronda corta y cerrada (T-25 y T-26), y mandó "Ver más clases" a CLASES-c y "Cargar más enlaces" a ADMIN.
+
+     La Enmienda 5 registra ese cierre en el plan. CLASES-c arranca en el paso 27, después del commit `<Cb>`.
    - No hay commit de aprobación.
 
 ### CLASES-a
@@ -1933,7 +2033,7 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
     4. tras el commit, lee el hash con `git log` y lo anota como `<Ca>`.
 
 ### CLASES-b
-15. **Tester, ronda 0 de CLASES-b** (C-2, C-11 y C-15). Base `<Ca>`; V-01 contra la tabla vigente al cierre de a (77 `*.ataque` con C-16, más las `-r4`).
+15. **Tester, ronda 0 de CLASES-b** (C-2, C-11 y C-15). Base `<Ca>`; V-01 contra la tabla vigente al cierre de a (79 `*.ataque`, con C-16).
 16. **Programador, precondiciones** (como en el paso 2, con `<Ca>`).
 17. `shared/src/clases.ts` (b) e `index.ts`; build.
 18. `core/clases/busqueda.ts` (con `enmascararCorreo`) y su prueba (PR-B01a a PR-B01g).
@@ -1951,11 +2051,19 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
     - lo heredado de a (§D-B4 bis): `formulario-unirse-clase.tsx`, `lib.ts`, `inicio-maestro-view.tsx` y `data.ts`, con PR-B17.
 23. `docs/DESIGN.md` (§D-B7), a mano.
 24. V-01 a V-07; `resumen-programador.md`, "CLASES-b".
-25. **Manager: verificación del resumen. Tester, rondas 1 a 3. Manager, revisión final de CLASES-b.**
+25. **Revisión y rondas de CLASES-b:**
+    1. **Manager, verificación del resumen.**
+    2. **Tester, rondas 1 a 3**, con las correcciones de las rondas 1 y 2 (T-20 a T-24, D-1, D-3, D-4, D-8, M-07 y C-17).
+    3. **Manager, revisión final de CLASES-b** (ESCALAR AL HUMANO, por T-25 y T-26).
+    4. **Ronda 4, corta y cerrada**, autorizada por el humano (2026-09-30):
+       - corrección del programador de T-25 y T-26, solo en `buscador-alumnos.tsx`, `tabla-alumnos.tsx` y `personas-view.tsx`, con la extensión de `DESIGN.md` §7.14 y sus pruebas normales;
+       - verificación del manager y regresión del tester.
+
+       Sin quinta ronda: un hallazgo nuevo en lo que cambió se escala al humano.
 26. **Cierre de CLASES-b (orquestador):** como en el paso 14, con los textos marcados (b). El hash queda como `<Cb>`.
 
 ### CLASES-c
-27. **Tester, ronda 0 de CLASES-c** (C-2 y C-12). Base `<Cb>`. Antes, la enmienda del plan que fija la regla de "contenido visible" (§D-C4).
+27. **Tester, ronda 0 de CLASES-c** (C-2 y C-12). Base `<Cb>`; V-01 contra la tabla vigente al cierre de b (85 `*.ataque`, con C-16 y C-17, más las de la regresión de la ronda 4 de b). Antes, la enmienda del plan que fija la regla de "contenido visible" (§D-C4).
 28. **Programador, precondiciones** (con `<Cb>`).
 29. `shared/src/clases.ts` (c); build. `core/eventos/avisos-de-clase.ts` y su prueba (PR-C01a y PR-C01b).
 30. **Migración:**
@@ -1968,7 +2076,7 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
     - `adapters/db/publicaciones.ts` (con el `FOR SHARE`) e `index.ts`;
     - `handlers/clases/muro.ts` (ids con `randomUUID`);
     - `app.ts` y los README.
-32. Pruebas del backend de c (PR-C02a a PR-C08h) y la suite completa. `frontend/`: el muro de c, con sus pruebas (PR-C09a a PR-C10d). Suite completa.
+32. Pruebas del backend de c (PR-C02a a PR-C08h) y la suite completa. `frontend/`: el muro de c, con sus pruebas (PR-C09a a PR-C10d), y el foco de los "Ver más", incluido "Ver más clases" en `panel-mis-clases.tsx` (§D-C5, PR-C11a a PR-C11c). Suite completa.
 33. `docs/DESIGN.md` (§D-C7), a mano.
 34. V-01 a V-07; `resumen-programador.md`, "CLASES-c".
 35. **Manager: verificación del resumen. Tester, rondas 1 a 3. Manager, revisión final de CLASES-c.**
@@ -2028,6 +2136,7 @@ Y en "Reglas de acceso a datos", reemplaza la viñeta de la búsqueda por:
   - **En el inicio del maestro:** el titular a 32 px sin desbordarse, las tarjetas en una columna, la tarjeta interna debajo del texto, el relleno del bloque destacado sin apretar el texto, y el saludo con el nombre largo sin salirse.
   - **En las tarjetas de las dos clases largas:** el nombre se parte sin desplazamiento horizontal. En el inicio del estudiante, el nombre largo del maestro también cabe en la tarjeta.
   - **En la página de esas clases:** el `h1` y "Maestro: …" parten la línea sin desbordarse, y las secciones y el encabezado no provocan desplazamiento horizontal.
+  - **Con el lector de pantalla, una sola vez (Enmienda 5):** en "Alumnos", pega en el buscador una de esas cadenas largas y escucha el campo. La ayuda permanente y el aviso de longitud se leen seguidos (`aria-describedby`). Si te molesta, el ajuste es del carril trivial: cuando hay aviso, `aria-describedby` apunta solo al aviso. Si no cabe en el tiempo, queda "no verificado por decisión del humano".
 
 Lo demás queda "no verificado por decisión del humano, cubierto por pruebas automáticas".
 - El contraste lo cubre `tokens.test.ts`.

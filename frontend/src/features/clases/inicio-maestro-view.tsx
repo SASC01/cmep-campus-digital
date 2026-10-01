@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router"
 
 import { buttonVariants } from "@/components/ui/button-variants"
 
-import { TEXTOS_PANEL } from "./data"
+import { TEXTOS_INICIO_MAESTRO, TEXTOS_PANEL } from "./data"
 import { BloqueDestacado } from "./components/bloque-destacado"
 import { PanelMisClases } from "./components/panel-mis-clases"
 import { TarjetaClase } from "./components/tarjeta-clase"
@@ -37,10 +37,10 @@ export function InicioMaestroView() {
         cargando={clases.isLoading}
         esError={clases.isError}
         errorTitular={TEXTOS_PANEL.error}
-        insignia="Nueva clase"
+        insignia={TEXTOS_INICIO_MAESTRO.insignia}
       >
         <Link to="/maestro/clases/nueva" className={buttonVariants({ variant: "primary" })}>
-          Crear clase
+          {TEXTOS_INICIO_MAESTRO.crearClase}
         </Link>
       </BloqueDestacado>
 

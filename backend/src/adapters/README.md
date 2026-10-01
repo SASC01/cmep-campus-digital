@@ -163,3 +163,22 @@ con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion`
 CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
 `listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
 cursor siguiente, en vez de repetir esa lógica a mano.
+
+## `db/inscripciones.ts` (CLASES-b, §D-B1 a §D-B3 bis y §D-B8)
+
+`listarPersonas` y `listarAlumnosDeClase` paginan por conjunto de claves (`nombre_busqueda`,
+`usuario_id`) con un `where`, sin el `cursor` de Prisma. Con cursor, una lectura de `usuarios` por PK
+trae el `nombre_busqueda` del cursor y solo se rechaza (`400 VALIDACION`) si ese usuario no existe: un
+alumno quitado de la clase o desactivado sigue sirviendo, porque su clave de orden sobrevive.
+`listarAlumnosDeClase` es la **única** función que selecciona el correo completo, el estado de pago y
+la restricción de acceso de un alumno (RN-02); `listarPersonas` solo trae id y nombre.
+`buscarCandidatos` escapa los comodines de `LIKE` (Prisma no los escapa en `contains`) y selecciona
+el correo solo para que el handler lo enmascare con `enmascararCorreo` antes de responder.
+
+`agregarAlumnoManual` y `quitarAlumno` corren en **una transacción** y escriben en
+`movimientos_inscripcion` (P-05 g, S-23) solo cuando la inscripción cambia de verdad (un alta con
+`yaEstaba` o una baja de alguien no inscrito no escriben nada). El `INSERT` del movimiento es siempre
+el **último** paso de la transacción: su `secuencia` (`BIGSERIAL`) se toma después de cualquier espera
+por otra transacción, y por eso el orden del registro es `secuencia`, nunca `creado_en` (la hora de
+inicio de la transacción). **Ninguna función exportada lee `movimientos_inscripcion`** (el modelo
+solo aparece en `.create(`); su pantalla de consulta es de ADMIN.

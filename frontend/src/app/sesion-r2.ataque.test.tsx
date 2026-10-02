@@ -6,6 +6,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 // Ataques del Tester (AUTH-01, ronda 2) contra las correcciones de T-02 (/me de la cuenta nueva) y
 // T-07 (restauración cerrada tras logout): salir y volver a entrar en la misma pestaña, registro con
 // otra sesión abierta y /me que falla justo después del login.
+// CLASES-a ronda 0 (C-4, §D-R0): /estudiante y /maestro dejan de ser BienvenidaView. El h1 pasa a
+// ser el titular con dato y "Hola, <nombre>" es un <span> de texto que depende solo de la sesión,
+// así que findByRole("heading", { name: "Hola, X" }) pasa a findByText("Hola, X"). Sigue
+// protegiendo que la pantalla muestre la identidad de la cuenta vigente; las aserciones negativas
+// no cambian. Los dobles de fetch responden a /api/clases/inscritas e /impartidas con el cuerpo de
+// /me (200): el inicio lo rechaza como respuesta inválida y muestra su error, sin tocar la sesión.
 
 vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/login") }))
 
@@ -100,7 +106,7 @@ describe("ataque (ronda 2): salir y volver a entrar en la misma pestaña", () =>
     await entrarComo("luis@ejemplo.mx")
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/maestro"))
-    expect(await screen.findByRole("heading", { name: "Hola, Luis Pérez" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Luis Pérez")).toBeInTheDocument()
     expect(screen.queryByText("Ana López")).not.toBeInTheDocument()
     expect(llamadasA(fetchMock, "/api/auth/refrescar")).toBe(1)
   })
@@ -171,7 +177,7 @@ describe("ataque (ronda 2): identidad al entrar con otra sesión abierta", () =>
       return respuestaJson(200, meDe({}))
     })
     const router = await renderEn("/estudiante")
-    expect(await screen.findByRole("heading", { name: "Hola, Ana López" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Ana López")).toBeInTheDocument()
 
     await act(() => router.navigate("/registro"))
     fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "Pedro Nuevo" } })
@@ -181,7 +187,7 @@ describe("ataque (ronda 2): identidad al entrar con otra sesión abierta", () =>
     })
     fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }))
 
-    expect(await screen.findByRole("heading", { name: "Hola, Pedro Nuevo" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Pedro Nuevo")).toBeInTheDocument()
     expect(screen.queryByText("Ana López")).not.toBeInTheDocument()
   })
 
@@ -196,7 +202,7 @@ describe("ataque (ronda 2): identidad al entrar con otra sesión abierta", () =>
       return respuestaJson(200, meDe({}))
     })
     const router = await renderEn("/estudiante")
-    expect(await screen.findByRole("heading", { name: "Hola, Ana López" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Ana López")).toBeInTheDocument()
     await act(() => router.navigate("/login"))
     await entrarComo("luis@ejemplo.mx")
     expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos conectar")
@@ -205,6 +211,6 @@ describe("ataque (ronda 2): identidad al entrar con otra sesión abierta", () =>
     await act(() => router.navigate("/estudiante"))
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/maestro"))
-    expect(await screen.findByRole("heading", { name: "Hola, Luis Pérez" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Luis Pérez")).toBeInTheDocument()
   })
 })

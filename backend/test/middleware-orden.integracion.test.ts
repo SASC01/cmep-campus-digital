@@ -2,8 +2,10 @@ import { errorApiSchema } from "@campus/shared"
 import Fastify, { type FastifyInstance } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
+import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
+import { manejoDeErrores } from "../src/handlers/errores.js"
 import { authenticate } from "../src/middleware/authenticate.js"
 import { protegido, registrarMiddleware } from "../src/middleware/index.js"
 import { requireRole } from "../src/middleware/require-role.js"
@@ -11,9 +13,11 @@ import { withAccess } from "../src/middleware/with-access.js"
 import { withPasswordGate } from "../src/middleware/with-password-gate.js"
 import { withProfile } from "../src/middleware/with-profile.js"
 import { borrarUsuariosDePrueba, crearUsuarioDePrueba, firmarTokenDePrueba } from "./ayudas-auth.js"
+import { borrarClasesDePrueba, crearClaseDePrueba, inscribirDePrueba } from "./ayudas-clases.js"
 
 let app: FastifyInstance | undefined
 const ids: string[] = []
+const idsClases: string[] = []
 
 const obtenerApp = (): FastifyInstance => {
   if (!app) throw new Error("La aplicación no se construyó en beforeAll")
@@ -31,13 +35,16 @@ beforeAll(async () => {
   app = await construirApp({ env: cargarEnv() })
   // Fuera de /api: la guarda onRoute no aplica y se puede probar la cadena aislada.
   app.get("/prueba/solo-admin", protegido({ roles: ["admin"] }), async () => ({ ok: true }))
-  app.get("/prueba/pertenencia", protegido({ pertenencia: "inscripcion" }), async () => ({
+  // CLASES-a (PR-A07a a PR-A07c): con :claseId, para ejercitar el sexto paso real de la cadena
+  // (requireMembership) contra una clase de verdad.
+  app.get("/prueba/pertenencia/:claseId", protegido({ pertenencia: "inscripcion" }), async () => ({
     ok: true,
   }))
   await app.ready()
 })
 
 afterAll(async () => {
+  await borrarClasesDePrueba(idsClases)
   await borrarUsuariosDePrueba(ids)
   await app?.close()
 })
@@ -96,14 +103,82 @@ describe("cadena de middleware (orden fijo)", () => {
     expect(errorApiSchema.parse(respuesta.json()).error.codigo).toBe("ROL_NO_PERMITIDO")
   })
 
-  it("una ruta con pertenencia responde 501 NO_IMPLEMENTADO hasta el módulo de clases", async () => {
-    const usuario = await crearUsuarioDePrueba(ids)
-    const token = await firmarTokenDePrueba({ usuarioId: usuario.id })
+  // CLASES-a (§D-0, N-13 del orquestador): el caso "501" de arriba se sustituye por PR-A07a a
+  // PR-A07c, que ejercitan el sexto paso real (requireMembership) contra una clase de verdad y
+  // comprueban que el orden de la cadena (withAccess y requireRole antes que la pertenencia) se
+  // respeta también con :claseId.
+  it("PR-A07a: un restringido inscrito recibe ACCESO_RESTRINGIDO, no SIN_ACCESO_A_LA_CLASE", async () => {
+    const maestro = await crearUsuarioDePrueba(ids, { rol: "maestro" })
+    const restringido = await crearUsuarioDePrueba(ids, { accesoRestringido: true })
+    const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
+    await inscribirDePrueba(clase.id, restringido.id, "codigo")
+    const token = await firmarTokenDePrueba({ usuarioId: restringido.id })
 
-    const respuesta = await pedir("/prueba/pertenencia", token)
+    const respuesta = await pedir(`/prueba/pertenencia/${clase.id}`, token)
 
-    expect(respuesta.statusCode).toBe(501)
-    expect(errorApiSchema.parse(respuesta.json()).error.codigo).toBe("NO_IMPLEMENTADO")
+    expect(respuesta.statusCode).toBe(403)
+    expect(errorApiSchema.parse(respuesta.json()).error.codigo).toBe("ACCESO_RESTRINGIDO")
+  })
+
+  it("PR-A07b: el admin recibe ROL_NO_PERMITIDO (el rol se evalúa antes de resolver la clase)", async () => {
+    const maestro = await crearUsuarioDePrueba(ids, { rol: "maestro" })
+    const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
+    // Un solo admin por base (índice único parcial): se usa el que sembró seed:admin.
+    const admin = await obtenerDb().usuario.findFirstOrThrow({
+      where: { rol: "admin" },
+      select: { id: true },
+    })
+    const token = await firmarTokenDePrueba({ usuarioId: admin.id })
+
+    // /prueba/pertenencia no exige roles, así que aquí se compone con requireRole(["estudiante"])
+    // para comprobar que el admin queda fuera antes de llegar al sexto paso.
+    const soloEstudiante = Fastify({ logger: false })
+    await soloEstudiante.register(manejoDeErrores)
+    registrarMiddleware(soloEstudiante)
+    await soloEstudiante.register(
+      async (hijo) => {
+        hijo.get(
+          "/:claseId",
+          protegido({ roles: ["estudiante"], pertenencia: "inscripcion" }),
+          async () => ({ ok: true }),
+        )
+      },
+      { prefix: "/api/prueba-rol" },
+    )
+    await soloEstudiante.ready()
+
+    const respuesta = await soloEstudiante.inject({
+      method: "GET",
+      url: `/api/prueba-rol/${clase.id}`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(respuesta.statusCode).toBe(403)
+    expect(errorApiSchema.parse(respuesta.json()).error.codigo).toBe("ROL_NO_PERMITIDO")
+    await soloEstudiante.close()
+  })
+
+  it("PR-A07c: el miembro recibe 200 y el que no es miembro, 403", async () => {
+    const maestro = await crearUsuarioDePrueba(ids, { rol: "maestro" })
+    const miembro = await crearUsuarioDePrueba(ids)
+    const noMiembro = await crearUsuarioDePrueba(ids)
+    const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
+    await inscribirDePrueba(clase.id, miembro.id, "codigo")
+
+    const respuestaMiembro = await pedir(
+      `/prueba/pertenencia/${clase.id}`,
+      await firmarTokenDePrueba({ usuarioId: miembro.id }),
+    )
+    const respuestaNoMiembro = await pedir(
+      `/prueba/pertenencia/${clase.id}`,
+      await firmarTokenDePrueba({ usuarioId: noMiembro.id }),
+    )
+
+    expect(respuestaMiembro.statusCode).toBe(200)
+    expect(respuestaNoMiembro.statusCode).toBe(403)
+    expect(errorApiSchema.parse(respuestaNoMiembro.json()).error.codigo).toBe(
+      "SIN_ACCESO_A_LA_CLASE",
+    )
   })
 })
 

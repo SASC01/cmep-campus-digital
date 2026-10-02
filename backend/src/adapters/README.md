@@ -142,3 +142,89 @@ responde `401`.
 **Por qué se cierra T-09:** `crearSesion` lee `hash_contrasena` y `activo` con `SELECT … FOR SHARE`
 dentro de su transacción y compara el hash con el que el handler ya verificó con argon2; si un
 escritor cambió la contraseña antes, el hash difiere y la sesión no nace.
+
+## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
+
+`buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena
+(`middleware/pertenencia.ts`): `clases` por PK con `inscripciones` filtradas por el `usuarioId` de
+la petición, en una sola llamada. `crearClase` y `regenerarCodigo` reciben un generador de código
+(`() => string`, `node:crypto.randomBytes` + `codigoDesdeBytes` en el handler) y reintentan **una
+sola vez** si el primero choca con el índice único de `codigo_invitacion`, detectado con
+`traducirErrorPrisma` y su `alDuplicar` (§D-A2), sin tocar `adapters/db/errores.ts`: `alDuplicar`
+siempre traduce a `CODIGO_NO_DISPONIBLE` (aparte de la llave primaria, un choque de
+`gen_random_uuid()` inviable en la práctica, el único índice único de `clases` es
+`codigo_invitacion`, así que no hay otro P2002 posible en esta tabla); si el traducido no es ese código, se relanza sin
+reintentar (por ejemplo, el `22021` que `traducirErrorPrisma` ya traduce a `400 VALIDACION`). Si el
+segundo intento también choca, `500 CODIGO_NO_DISPONIBLE`. `editarClase` y
+`regenerarCodigo` filtran por `id` **y** `maestro_id` (defensa extra, M-01): si no actualizan
+ninguna fila, devuelven `null` y el handler responde `403 SIN_ACCESO_A_LA_CLASE`, aunque
+`requireOwnership` ya lo hubiera negado antes. `inscribir` (unirse con código) es un `createMany`
+con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion` (esa tabla llega en
+CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
+`listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
+cursor siguiente, en vez de repetir esa lógica a mano.
+
+## `db/inscripciones.ts` (CLASES-b, §D-B1 a §D-B3 bis y §D-B8)
+
+`listarPersonas` y `listarAlumnosDeClase` paginan por conjunto de claves (`nombre_busqueda`,
+`usuario_id`) con un `where`, sin el `cursor` de Prisma. Con cursor, una lectura de `usuarios` por PK
+trae el `nombre_busqueda` del cursor y solo se rechaza (`400 VALIDACION`) si ese usuario no existe: un
+alumno quitado de la clase o desactivado sigue sirviendo, porque su clave de orden sobrevive.
+`listarAlumnosDeClase` es la **única** función que selecciona el correo completo, el estado de pago y
+la restricción de acceso de un alumno (RN-02); `listarPersonas` solo trae id y nombre.
+`buscarCandidatos` escapa los comodines de `LIKE` (Prisma no los escapa en `contains`) y selecciona
+el correo solo para que el handler lo enmascare con `enmascararCorreo` antes de responder.
+
+`agregarAlumnoManual` y `quitarAlumno` corren en **una transacción** y escriben en
+`movimientos_inscripcion` (P-05 g, S-23) solo cuando la inscripción cambia de verdad (un alta con
+`yaEstaba` o una baja de alguien no inscrito no escriben nada). El `INSERT` del movimiento es siempre
+el **último** paso de la transacción: su `secuencia` (`BIGSERIAL`) se toma después de cualquier espera
+por otra transacción, y por eso el orden del registro es `secuencia`, nunca `creado_en` (la hora de
+inicio de la transacción). **Ninguna función exportada lee `movimientos_inscripcion`** (el modelo
+solo aparece en `.create(`); su pantalla de consulta es de ADMIN.
+
+## `db/publicaciones.ts` y las colas de avisos (CLASES-c, §D-C2 y §D-C3)
+
+`crearPublicacion` y `crearComentario` abren una transacción, insertan y llaman a
+`alGuardar(ejecutorSqlDe(tx))`: el handler pasa `(sql) => encolar(cola, datos, { id, sql })`, así
+que el aviso nace con el dato o no nace (si `encolar` lanza, todo se revierte). El `id` lo genera el
+handler con `randomUUID()` **antes** de llamar al adaptador y es también el id del trabajo (el
+`eventId` idempotente). Los datos del trabajo llevan solo ids, nunca texto, nombres ni correos.
+`PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO` (con `AVISO_FALLIDO` como cola de
+fallidos, creada primero) las crean la API y el worker al arrancar (`adapters/queue/colas.ts`:
+3 reintentos, espera de 30 s con retroceso, 300 s de expiración, retención de 7 días) y **no tienen
+consumidor** hasta NOTIFICACIONES: los trabajos esperan en la cola.
+
+`crearComentario` lee primero la publicación con
+`SELECT id FROM publicaciones WHERE id = … AND clase_id = … FOR SHARE` (`$queryRaw` etiquetado y
+parametrizado; la única consulta cruda nueva de c). Sin fila responde `null` (el handler, `404`) y no
+inserta. Un borrado simultáneo de la publicación espera a que el comentario confirme y lo borra en
+cascada; si el borrado confirma antes, el `FOR SHARE` ya no ve la fila. Toda consulta por
+`publicacionId` o `comentarioId` filtra además por la clase de la ruta, y «mis comentarios» pone
+`autor_id` dentro de la condición del `deleteMany`. `listarPublicaciones` cuenta los comentarios de
+toda la página con una sola consulta agrupada, fuera de cualquier ciclo.
+
+## `storage` y `db/archivos.ts` (CLASES-d, §D-D1 a §D-D3)
+
+`storage/index.ts` es el único importador de `minio`. Implementa el puerto `Almacen`
+(`core/archivos/almacen.ts`) con tres operaciones: firmar una URL de subida (`PUT`, 300 s), firmar
+una URL de descarga (`GET`, 300 s, con `response-content-type` y `response-content-disposition`) y
+consultar los metadatos de un objeto (`statObject`; `NotFound` es `null`, cualquier otro error es
+`AppError 503 ALMACEN_NO_DISPONIBLE` sin la URL ni las llaves). **La región es fija
+(`STORAGE_REGION`)**: con ella `minio` no pregunta al almacén dónde vive el bucket, así que firmar
+es un cálculo local y no abre ninguna conexión (R-18; lo comprueba PR-D03a con un endpoint
+inalcanzable). Los archivos nunca pasan por Node: el navegador sube y baja directo con la URL
+prefirmada. `config/almacen.ts` traduce `STORAGE_*` a las opciones; sin las tres variables el
+almacén es `null` y subir o descargar responde `503 ALMACEN_NO_CONFIGURADO`.
+
+`db/archivos.ts` guarda solo metadatos. Una solicitud de subida inserta la fila `pendiente` con la
+clave `materiales/{claseId}/{archivoId}` (el nombre del usuario nunca va en la clave). Se confirma
+al publicar: `buscarArchivosParaConfirmar` lee los ids en una consulta por PK, acotada a la clase,
+al usuario, al estado `pendiente` y a las últimas 24 h; el handler comprueba en el almacén que el
+objeto existe y coincide con lo declarado; y `crearPublicacion` inserta la publicación y hace el
+`UPDATE` a `confirmado` en la misma transacción, repitiendo esas condiciones. Si el conteo no
+coincide, lanza `400 ARCHIVO_INVALIDO` y todo se revierte. `borrarPublicacion` primero pasa sus
+archivos a `descartado` y les quita la publicación. Dos `CHECK` (a mano en la migración) fijan que el
+tamaño es positivo y que un archivo está confirmado si y solo si tiene publicación. Los objetos
+descartados o nunca confirmados siguen en el almacén hasta `LIMPIEZA_DIARIA`, prerrequisito de
+DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.

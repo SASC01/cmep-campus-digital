@@ -36,6 +36,7 @@ Decisión del humano (2026-09-28). Aplica a toda entrega: implementación y cada
 - **Conteos:** toda cifra de archivos, pruebas o casos sale de `npx vitest list` o de la corrida, y el resumen incluye el comando que la produjo. Nunca de memoria.
 - **lint, test y build:** para cada uno, el comando exacto y la última línea de su salida (por ejemplo, `Tests  838 passed (838)`), no un "pasaron".
 - El manager contrasta cada cifra del resumen con su propia corrida antes de aceptarlo. Una cifra que no coincide te devuelve el resumen; nadie la corrige a mano.
+- **Hermanos del hallazgo** (decisión del humano, 2026-10-02): al corregir un hallazgo, antes de darlo por cerrado busca los controles, rutas, campos o unidades que comparten su patrón (por ejemplo, si validas el protocolo de la URL de subida, también el de la descarga y el de la vista previa; si redondeas en KB, también en MB y GB). El resumen los lista uno por uno y dice si el remedio les aplica y si lo aplicaste. "No encontré hermanos" también se dice.
 
 ## Al corregir hallazgos
 Atiende cada hallazgo por su identificador (`T-01`, `M-02`). Para cada uno indica: corregido, o no corregido y por qué.

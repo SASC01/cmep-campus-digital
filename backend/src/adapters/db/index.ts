@@ -70,3 +70,52 @@ export {
   type CandidatoParaInvitarEnLote,
   type ResultadoInvitacionEnLote,
 } from "./invitaciones.js"
+export {
+  buscarClasePorCodigo,
+  buscarDatosDePertenencia,
+  crearClase,
+  editarClase,
+  inscribir,
+  leerClase,
+  leerCodigo,
+  listarClasesImpartidas,
+  listarClasesInscritas,
+  regenerarCodigo,
+  type ClaseDb,
+  type DatosDePertenencia,
+  type ListaClasesImpartidasDb,
+  type ListaClasesInscritasDb,
+} from "./clases.js"
+export {
+  agregarAlumnoManual,
+  buscarCandidatos,
+  listarAlumnosDeClase,
+  listarPersonas,
+  quitarAlumno,
+  type AlumnoDeClaseDb,
+  type CandidatoDb,
+  type ListaAlumnosDeClaseDb,
+  type ListaCandidatosDb,
+  type ListaPersonasDb,
+  type PersonaDb,
+} from "./inscripciones.js"
+export {
+  buscarArchivoConfirmado,
+  buscarArchivosParaConfirmar,
+  registrarArchivoPendiente,
+  type ArchivoDb,
+} from "./archivos.js"
+export {
+  borrarComentario,
+  borrarMiComentario,
+  borrarPublicacion,
+  crearComentario,
+  crearPublicacion,
+  listarComentarios,
+  listarPublicaciones,
+  type AutorDb,
+  type ComentarioDb,
+  type ListaComentariosDb,
+  type ListaPublicacionesDb,
+  type PublicacionDb,
+} from "./publicaciones.js"

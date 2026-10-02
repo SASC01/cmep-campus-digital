@@ -97,7 +97,7 @@ Interpretación del orquestador, anotada en `manager.md`: la verificación ocurr
 - **Carril trivial pedido por el humano antes del commit:** el mensaje del cupo usa el singular con 1 ("1 invitación más"). El manager lo aceptó. Durante esa verificación, el "failed to find the runner" que reportó el programador desde la raíz no se reprodujo. La prueba A3 intermitente de `bloqueo-usuario.integracion` queda como `chore`, por decisión del humano, y no se corrige ahora.
 - **Comprobación humana en navegador:** H-1 a H-6 "bien", el 2026-09-29, incluida una segunda pestaña en H-1 (`comprobacion-humano.md`).
 - **Documentos aplicados por el orquestador:** los bloques de 03c. Sus hashes están en "Bases y hashes".
-- **Commit de 03c:** pendiente. Lo hace el humano; el push y el PR también.
+- **Commit de 03c:** `3399c79`, hecho por el humano el 2026-09-29. El push y el PR también los hace el humano.
 
 ## Cierre de AUTH-03b (2026-09-28)
 - **Tester:** ronda 0 con T-03 y T-04, resueltos por la Enmienda 5. Ronda 1 ROTO (T-05 a T-11: intermitencia de la suite, pruebas normales faltantes, registro con fecha posterior a la revocación, foco y nombres accesibles, `?? []`). Ronda 2 ROTO por T-12 (pruebas normales incompletas en `maestros-view.test.tsx`). Ronda 3 RESISTE.
@@ -114,4 +114,4 @@ Interpretación del orquestador, anotada en `manager.md`: la verificación ocurr
 |---|---|---|
 | AUTH-03a | `d8cb198` (`d8cb198c9ed306b78ff276f764702ec2632d8e6e`), 2026-09-28. Es `<Ca>`, la base de 03b dentro de los paquetes | orquestador, con `git log` |
 | AUTH-03b | `32afeef` (`32afeef94109f505e2cd82ceb41e8c704284f344`), 2026-09-28. Es `<Cb>`, la base de 03c dentro de los paquetes | ídem |
-| AUTH-03c | pendiente | ídem |
+| AUTH-03c | `3399c79` (`3399c79579ed4b802a8e5f53bac6f6aa3605ac60`), 2026-09-29. Cierre del encargo | ídem |

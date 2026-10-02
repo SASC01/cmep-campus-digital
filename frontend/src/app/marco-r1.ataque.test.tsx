@@ -131,20 +131,41 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// CLASES-a ronda 0 (C-4, §D-R0): /estudiante y /maestro dejan de ser BienvenidaView; "Hola,
+// <nombre>" pasa a ser un <span> de texto y el h1 es el titular con dato, así que la identidad del
+// estudiante y del maestro se localiza con findByText("Hola, X"); la del admin sigue siendo el
+// encabezado "Cuentas". Sigue protegiendo que cada rol llegue a su destino con su identidad a la
+// vista, un solo pie y sin ver "Acceso restringido". El doble conMe responde 500 a
+// /api/clases/inscritas e /impartidas: el inicio muestra su error y el saludo no depende de eso.
 describe("ataque (DESIGN-01b-1 r1): /acceso-restringido con alguien NO restringido (M-01, RN-03)", () => {
   it.each([
-    { rol: "estudiante", nombre: "Ana López", destino: "/estudiante", titulo: "Hola, Ana López" },
-    { rol: "maestro", nombre: "Luis Pérez", destino: "/maestro", titulo: "Hola, Luis Pérez" },
-    { rol: "admin", nombre: "Administración", destino: "/admin", titulo: "Cuentas" },
+    {
+      rol: "estudiante",
+      nombre: "Ana López",
+      destino: "/estudiante",
+      identidad: () => screen.findByText("Hola, Ana López"),
+    },
+    {
+      rol: "maestro",
+      nombre: "Luis Pérez",
+      destino: "/maestro",
+      identidad: () => screen.findByText("Hola, Luis Pérez"),
+    },
+    {
+      rol: "admin",
+      nombre: "Administración",
+      destino: "/admin",
+      identidad: () => screen.findByRole("heading", { name: "Cuentas" }),
+    },
   ])(
     "un $rol termina en $destino con un solo pie (el del marco) y nunca ve 'Acceso restringido'",
-    async ({ rol, nombre, destino, titulo }) => {
+    async ({ rol, nombre, destino, identidad }) => {
       stubFetch(conMe(() => respuestaJson(200, meDe({ rol, nombre }))))
       const vigia = vigilar()
       const { router } = await renderEn("/acceso-restringido")
 
       await waitFor(() => expect(router.state.location.pathname).toBe(destino))
-      expect(await screen.findByRole("heading", { name: titulo })).toBeInTheDocument()
+      expect(await identidad()).toBeInTheDocument()
       await esperarUnMomento()
       const registro = vigia.terminar()
 
@@ -214,7 +235,8 @@ describe("ataque (DESIGN-01b-1 r1): un solo pie al navegar entre pantallas", () 
     })
     fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }))
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
-    await screen.findByRole("heading", { name: "Hola, Ana López" })
+    // CLASES-a ronda 0 (C-4): la identidad es el <span> "Hola, <nombre>", no un encabezado.
+    await screen.findByText("Hola, Ana López")
     await esperarUnMomento()
 
     expect(vigia.terminar().maxPies).toBeLessThanOrEqual(1)
@@ -261,7 +283,8 @@ describe("ataque (DESIGN-01b-1 r1): un solo pie al navegar entre pantallas", () 
     })
     fireEvent.click(screen.getByRole("button", { name: "Guardar y continuar" }))
     await waitFor(() => expect(router.state.location.pathname).toBe("/maestro"))
-    await screen.findByRole("heading", { name: "Hola, Luis Pérez" })
+    // CLASES-a ronda 0 (C-4): la identidad es el <span> "Hola, <nombre>", no un encabezado.
+    await screen.findByText("Hola, Luis Pérez")
     await esperarUnMomento()
 
     expect(vigia.terminar().maxPies).toBeLessThanOrEqual(1)

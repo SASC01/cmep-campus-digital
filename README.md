@@ -144,6 +144,8 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 Las variables de correo (`RESEND_API_KEY`, `CORREO_REMITENTE`, `CORREO_RESPONDER_A`, `URL_PUBLICA_FRONTEND`) solo las lee el worker (paso 8); la API no las necesita. En `development` y en `test` no hace falta tocarlas: tienen valores por defecto y, **aunque pongas una llave real en `RESEND_API_KEY`, el worker nunca llama a Resend fuera de `NODE_ENV=production`**: escribe cada correo como HTML en `backend/tmp/correos/`. En `production`, el remitente de ejemplo de `.env.example` (dominio `campus.local`) se rechaza: hace falta un dominio propio verificado en Resend.
 
+Si tu `backend/.env` es anterior a CLASES-d, copia a mano las cinco variables `STORAGE_*` de `backend/.env.example`: sin ellas la API arranca, pero subir y descargar archivos responde 503. Para subir archivos en local, MinIO tiene que estar levantado (sección "Entorno de desarrollo local"). Con las variables y MinIO apagado, la API firma igual (es un cálculo local), pero la subida falla en el navegador y publicar con archivos responde 503.
+
 ### 4. Migraciones y cliente de Prisma
 
 Desde `backend`, solo la primera vez (y cada vez que llegue una migración nueva):

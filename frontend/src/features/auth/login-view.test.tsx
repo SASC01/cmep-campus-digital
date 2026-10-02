@@ -120,7 +120,12 @@ describe("LoginView", () => {
     })
     expect(String(consultaMe?.[0])).toBe("/api/me")
     expect(new Headers(consultaMe?.[1]?.headers).get("Authorization")).toBe("Bearer token-maestro")
-    expect(await screen.findByRole("heading", { name: "Hola, Luis Pérez" })).toBeInTheDocument()
+    // CLASES-a (adaptación del programador a los inicios nuevos, permitida por "Pruebas: listas
+    // cerradas por subentrega"; no es la ronda 0 del tester): "Hola, <nombre>" es un <span> de
+    // texto, no un encabezado, así que findByRole("heading", ...) pasa a findByText(...). El doble
+    // responde con meMaestro a /api/clases/impartidas: el inicio del maestro lo rechaza como
+    // respuesta inválida y muestra su error, sin afectar el saludo (depende solo de la sesión).
+    expect(await screen.findByText("Hola, Luis Pérez")).toBeInTheDocument()
   })
 
   it("con CREDENCIALES_INVALIDAS muestra la alerta y sigue en /login", async () => {

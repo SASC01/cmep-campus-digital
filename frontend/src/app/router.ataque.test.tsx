@@ -6,6 +6,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 // Ataques del Tester (AUTH-01, ronda 1) contra las guardas, el login y el cierre de sesión:
 // identidad obsoleta tras volver a entrar, rutas de otro rol, contrato de /me incompleto, logout
 // y restauración de la sesión.
+// CLASES-a ronda 0 (C-4, §D-R0): /estudiante y /maestro dejan de ser BienvenidaView; "Hola,
+// <nombre>" pasa a ser un <span> de texto, así que findByRole("heading", { name: "Hola, X" }) pasa a
+// findByText("Hola, X"). Sigue protegiendo que se muestre la identidad de la cuenta vigente; las
+// aserciones negativas (queryByText(/Hola,/)) y los conteos de /refrescar y /me no cambian. El
+// doble responde a /api/clases/inscritas con el cuerpo de /me (200): el inicio lo rechaza como
+// respuesta inválida y muestra su error, sin pedir otro /refrescar ni otro /me.
 
 vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/login") }))
 
@@ -88,7 +94,7 @@ describe("ataque: identidad tras volver a iniciar sesión", () => {
       return respuestaJson(200, meDe({}))
     })
     const router = await renderEn("/estudiante")
-    expect(await screen.findByRole("heading", { name: "Hola, Ana López" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Ana López")).toBeInTheDocument()
 
     await act(() => router.navigate("/login"))
     llenarLogin("luis@ejemplo.mx", "clave-de-prueba-1234")
@@ -151,7 +157,7 @@ describe("ataque: guardas por rol", () => {
       return respuestaJson(200, meDe({}))
     })
     await renderEn("/estudiante")
-    expect(await screen.findByRole("heading", { name: "Hola, Ana López" })).toBeInTheDocument()
+    expect(await screen.findByText("Hola, Ana López")).toBeInTheDocument()
     expect(llamadasA(fetchMock, "/api/auth/refrescar")).toBe(1)
     expect(llamadasA(fetchMock, "/api/me")).toBe(1)
   })

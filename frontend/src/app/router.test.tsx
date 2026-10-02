@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -83,9 +83,89 @@ describe("rutas", () => {
     const router = await renderEn("/maestro")
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
-    expect(await screen.findByRole("heading", { name: "Hola, Ana López" })).toBeInTheDocument()
+    // CLASES-a ronda 0 (C-4): "Hola, <nombre>" es un <span> de texto, no un encabezado.
+    expect(await screen.findByText("Hola, Ana López")).toBeInTheDocument()
     expect(screen.getByText("Estudiante")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument()
+  })
+
+  it("PR-A26a: /estudiante monta el inicio del estudiante", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      if (ruta.startsWith("/api/clases/inscritas")) {
+        return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+      }
+      return respuestaJson(200, me())
+    })
+
+    await renderEn("/estudiante")
+
+    expect(await screen.findByRole("button", { name: "Unirme a la clase" })).toBeInTheDocument()
+  })
+
+  it("PR-A26b: /maestro/clases/nueva monta el formulario", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      return respuestaJson(200, me({ rol: "maestro" }))
+    })
+
+    await renderEn("/maestro/clases/nueva")
+
+    expect(await screen.findByRole("heading", { name: "Crear clase" })).toBeInTheDocument()
+  })
+
+  it("PR-B15: personas y alumnos montan sus vistas", async () => {
+    const claseId = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+    const clase = {
+      id: claseId,
+      nombre: "Álgebra I",
+      descripcion: null,
+      maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+    }
+    const respuestaDeLaClase = (ruta: string, rol: "estudiante" | "maestro") => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      if (ruta === "/api/me") return respuestaJson(200, me({ rol }))
+      if (ruta === `/api/clases/${claseId}`) return respuestaJson(200, { clase })
+      if (ruta.startsWith(`/api/clases/${claseId}/personas`)) {
+        return respuestaJson(200, {
+          maestro: clase.maestro,
+          alumnos: [],
+          totalAlumnos: 0,
+          siguienteCursor: null,
+        })
+      }
+      if (ruta.startsWith(`/api/clases/${claseId}/alumnos`)) {
+        return respuestaJson(200, { alumnos: [], total: 0, siguienteCursor: null })
+      }
+      return respuestaJson(500, { error: { codigo: "ERROR_INTERNO", mensaje: "no esperada" } })
+    }
+
+    stubFetch((ruta) => respuestaDeLaClase(ruta, "estudiante"))
+    await renderEn(`/estudiante/clases/${claseId}/personas`)
+    expect(await screen.findByRole("heading", { name: "Maestro" })).toBeInTheDocument()
+    expect(screen.getByText("Aún no hay alumnos en esta clase")).toBeInTheDocument()
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.resetModules()
+
+    stubFetch((ruta) => respuestaDeLaClase(ruta, "maestro"))
+    await renderEn(`/maestro/clases/${claseId}/alumnos`)
+    expect(await screen.findByRole("heading", { name: "Agregar alumnos" })).toBeInTheDocument()
+    expect(await screen.findByText(/Aún no hay alumnos\./)).toBeInTheDocument()
+  })
+
+  it("PR-A26c: un estudiante en /maestro/... vuelve a /estudiante", async () => {
+    stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      if (ruta.startsWith("/api/clases/inscritas")) {
+        return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+      }
+      return respuestaJson(200, me())
+    })
+
+    const router = await renderEn("/maestro/clases/nueva")
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
   })
 
   it("con accesoRestringido, /estudiante termina en /acceso-restringido con el motivo", async () => {

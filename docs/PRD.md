@@ -180,6 +180,8 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - Búsqueda por nombre completo, tolerante a mayúsculas y acentos, por cualquier parte del nombre.
 - Solo aparecen alumnos con cuenta registrada.
 - Maestro: solo en sus clases. Administrador: en cualquier clase.
+- En el buscador del Maestro, cada alumno aparece con su nombre y su correo enmascarado (hasta los 2 primeros caracteres antes de la `@`, nunca todos, `***` y el dominio). El correo completo solo se ve en la lista de alumnos de su clase, una vez inscrito. El buscador nunca muestra el estado de pago.
+- Cada alta manual y cada baja de un alumno quedan registradas, en el orden en que ocurrieron (clase, alumno, maestro, tipo y fecha). El Administrador las consulta (ADMIN).
 
 ### RN-05 Calificaciones
 - La calificación de una tarea con rúbrica es la suma de los puntos por criterio, escalada a los puntos de la tarea.
@@ -211,7 +213,7 @@ Total: 26 vistas de rol + 3 compartidas.
 - **Google Classroom es referencia solo de arquitectura de información**, nunca de estilo: prohibido imitar sus colores, logo, tipografía o iconografía.
 - **Evitar:** estética genérica de IA/startup/SaaS, degradados morado-azul, maquetas de dashboards flotantes como ilustración, manchas brillantes decorativas, rejillas genéricas de características, texto corporativo vago y palabras como "potencia", "desbloquea", "optimiza", "sin fricciones". El vidrio translúcido solo se usa con las reglas de legibilidad, movimiento y alcance de `docs/DESIGN.md` (dirección D3).
 - **Densidad por rol:** Administrador denso y tabular; Estudiante ligero y orientado a tareas; Maestro intermedio.
-- **Patrones a conservar:** barra lateral con lista de clases; bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
+- **Patrones a conservar:** tarjetas de "Mis clases" en el inicio de cada rol (la barra lateral es compacta: `docs/DESIGN.md` §7.4); bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
 - **CTAs en estados vacíos:** "Crea tu primera clase" (Maestro) y "Únete con tu código de clase" (Estudiante).
 - Biblioteca de componentes consistente (botones, tarjetas, barra de navegación, tablas) en todas las vistas, construida sobre shadcn/ui **reestilizado** con tokens propios; nunca con su aspecto por defecto.
 - Solo modo claro durante el piloto.

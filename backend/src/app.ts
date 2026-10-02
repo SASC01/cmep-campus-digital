@@ -4,22 +4,43 @@ import Fastify, { LogController, type FastifyInstance } from "fastify"
 import { inicializarAuth } from "./adapters/auth/index.js"
 import { cerrarConexion, inicializarDb } from "./adapters/db/index.js"
 import { detenerCola, iniciarCola } from "./adapters/queue/index.js"
+import { crearAlmacen } from "./adapters/storage/index.js"
+import { opcionesDeAlmacen } from "./config/almacen.js"
 import { opcionesDeAuth } from "./config/auth.js"
 import { opcionesDeCola } from "./config/cola.js"
 import type { Env } from "./config/env.js"
 import { opcionesDeLogger } from "./config/logger.js"
+import type { Almacen } from "./core/archivos/almacen.js"
 import { adminHandler } from "./handlers/admin.js"
+import { archivosHandler } from "./handlers/archivos.js"
 import { authHandler } from "./handlers/auth/index.js"
 import { cuentasHandler } from "./handlers/auth/cuentas.js"
 import { registroMaestroHandler } from "./handlers/auth/registro-maestro.js"
+import { alumnosHandler } from "./handlers/clases/alumnos.js"
+import { clasesHandler } from "./handlers/clases/clases.js"
+import { muroHandler } from "./handlers/clases/muro.js"
 import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
 import { saludHandler } from "./handlers/salud.js"
 import { usuariosHandler } from "./handlers/usuarios.js"
 import { registrarMiddleware } from "./middleware/index.js"
 
+const almacenDeLaConfiguracion = (env: Env): Almacen | null => {
+  const opciones = opcionesDeAlmacen(env)
+  return opciones === null ? null : crearAlmacen(opciones)
+}
+
 // Construye la aplicación sin escuchar: server.ts llama a listen y las pruebas usan inject.
-export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstance> => {
+// `almacen`: si no llega, se construye con STORAGE_* o queda en null (subir y descargar responden
+// 503). Las pruebas pasan un doble en memoria, o null para probar la ausencia.
+export const construirApp = async ({
+  env,
+  almacen,
+}: {
+  env: Env
+  almacen?: Almacen | null
+}): Promise<FastifyInstance> => {
   inicializarDb({ connectionString: env.DATABASE_URL })
+  const almacenDeLaApp = almacen === undefined ? almacenDeLaConfiguracion(env) : almacen
   await inicializarAuth(opcionesDeAuth(env))
 
   const app = Fastify({
@@ -48,6 +69,10 @@ export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstan
   await app.register(cuentasHandler, { prefix: "/api/auth" })
   await app.register(registroMaestroHandler, { prefix: "/api/auth", env })
   await app.register(usuariosHandler, { prefix: "/api" })
+  await app.register(clasesHandler, { prefix: "/api" })
+  await app.register(alumnosHandler, { prefix: "/api" })
+  await app.register(muroHandler, { prefix: "/api", almacen: almacenDeLaApp })
+  await app.register(archivosHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(adminHandler, {
     prefix: "/api/admin",
     limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO,

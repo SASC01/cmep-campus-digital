@@ -109,6 +109,12 @@ describe("ataque (DESIGN-01a r1): tokens.css contra DESIGN.md", () => {
     }
   })
 
+  // CLASES-a ronda 0 (C-9, §D-R0; §D-A5 y §D-A8 del plan de CLASES-01): tokens.css gana
+  // --text-display-compacto (2rem, 1.05, -0.03em, 700) y §4 de DESIGN.md recibe su nota de
+  // implementación, que puede ir como fila de la tabla o como texto aparte. La tabla queda cerrada:
+  // exactamente los 7 tokens de hoy, más esa fila si el programador la agrega, y ningún otro. Si la
+  // fila existe, sus cuatro valores se comparan con tokens.css, incluido el peso 700 (los de peso
+  // único). Sigue protegiendo que cada token de la escala del documento coincida con tokens.css.
   it("escala tipográfica de §4: tamaño, interlineado, interletraje y peso de cada token", () => {
     const seccion = design.slice(design.indexOf("### Escala"), design.indexOf("## 5."))
     const filas = [
@@ -116,7 +122,20 @@ describe("ataque (DESIGN-01a r1): tokens.css contra DESIGN.md", () => {
         /\|\s*`(--text-[\w-]+)`\s*\|\s*(\d+)\s*px\s*\/\s*([\d.]+)\s*\|\s*([^|]+)\|\s*([^|]+)\|/g,
       ),
     ]
-    expect(filas.length).toBe(7)
+    const compacto = "--text-display-compacto"
+    const escalaDeHoy = [
+      "--text-display",
+      "--text-h1",
+      "--text-h2",
+      "--text-h3",
+      "--text-body",
+      "--text-small",
+      "--text-caption",
+    ]
+    const nombres = filas.map(([, token]) => token ?? "")
+    expect(nombres.filter((nombre) => nombre !== compacto)).toEqual(escalaDeHoy)
+    expect(nombres.filter((nombre) => nombre === compacto).length).toBeLessThanOrEqual(1)
+    const conPesoUnico = [...escalaDeHoy.slice(0, 4), compacto]
     for (const [, token, px, interlineado, peso, interletraje] of filas) {
       const nombre = token ?? ""
       expect(valorDe(nombre), `${nombre}`).toBe(`${Number(px) / 16}rem`)
@@ -124,7 +143,7 @@ describe("ataque (DESIGN-01a r1): tokens.css contra DESIGN.md", () => {
       const espaciado = /`(-?[\d.]+em)`/.exec(interletraje ?? "")?.[1] ?? "0"
       expect(valorDe(`${nombre}--letter-spacing`), `${nombre}--letter-spacing`).toBe(espaciado)
       const pesoUnico = /^\s*(\d{3})\s*$/.exec(peso ?? "")?.[1]
-      if (pesoUnico && ["--text-display", "--text-h1", "--text-h2", "--text-h3"].includes(nombre)) {
+      if (pesoUnico && conPesoUnico.includes(nombre)) {
         expect(valorDe(`${nombre}--font-weight`), `${nombre}--font-weight`).toBe(pesoUnico)
       }
     }

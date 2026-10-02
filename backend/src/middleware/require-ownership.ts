@@ -1,14 +1,9 @@
 import type { preHandlerAsyncHookHandler } from "fastify"
 
-import { AppError } from "../core/errores.js"
+import { resolverClaseDeLaRuta } from "./pertenencia.js"
 
-// Paso 6 (variante propiedad): esqueleto hasta el módulo de clases (RN-06). Igual que
-// requireMembership: 501 en lugar de dejar pasar.
+// Paso 6 (variante propiedad, §D-0.1): deja pasar solo al maestro dueño de la clase.
 export const requireOwnership = (): preHandlerAsyncHookHandler =>
-  async function requireOwnership() {
-    throw new AppError(
-      "NO_IMPLEMENTADO",
-      "La verificación de propiedad llega con el módulo de clases.",
-      501,
-    )
+  async function requireOwnership(request) {
+    request.clase = await resolverClaseDeLaRuta(request, "propiedad")
   }

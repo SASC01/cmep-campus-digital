@@ -4,6 +4,7 @@ import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -197,15 +198,17 @@ export function TablaEnlaces({ onGenerarPrimero }: TablaEnlacesProps) {
 
   if (filas.length === 0) {
     return (
-      <EstadoVacio
-        titulo={TEXTOS_MAESTROS.enlaces.vacioListaTitulo}
-        descripcion={TEXTOS_MAESTROS.enlaces.vacioListaDescripcion}
-        accion={{
-          texto: TEXTOS_MAESTROS.enlaces.generarElPrimero,
-          onClick: onGenerarPrimero,
-          variante: "outline",
-        }}
-      />
+      <Card>
+        <EstadoVacio
+          titulo={TEXTOS_MAESTROS.enlaces.vacioListaTitulo}
+          descripcion={TEXTOS_MAESTROS.enlaces.vacioListaDescripcion}
+          accion={{
+            texto: TEXTOS_MAESTROS.enlaces.generarElPrimero,
+            onClick: onGenerarPrimero,
+            variante: "outline",
+          }}
+        />
+      </Card>
     )
   }
 

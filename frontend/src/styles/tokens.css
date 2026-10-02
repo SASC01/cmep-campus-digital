@@ -154,6 +154,13 @@
   --text-caption--line-height: 1.35;
   --text-caption--letter-spacing: 0;
 
+  /* CLASES-a (§D-A5, R-10 de DESIGN-01): titular del bloque destacado del inicio en móvil, para
+     que no se desborde a 32 px sin renunciar al peso de --text-display. */
+  --text-display-compacto: 2rem;
+  --text-display-compacto--line-height: 1.05;
+  --text-display-compacto--letter-spacing: -0.03em;
+  --text-display-compacto--font-weight: 700;
+
   /* Radios (§5) */
   --radius-hero: 24px;
   --radius-panel: 22px;

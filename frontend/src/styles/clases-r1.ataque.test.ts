@@ -79,14 +79,58 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // enlaces" (2, en features/admin/components/ con al menos 1 en tabla-enlaces.tsx), no cambia. Sigue
   // protegiendo lo mismo que C-15: ningún `disabled` en JSX, aria-busy y aria-disabled solo en
   // Button, y que el número y el lugar de los botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 20 enEspera", () => {
+  // CLASES-a ronda 0 (C-7, §D-R0; V-04 del plan de CLASES-01): de 20 a 25 enEspera=. Se suman, a la
+  // lista fija de archivos, los cinco botones de §D-A5 en features/clases/components/: "Unirme a la
+  // clase" (formulario-unirse-clase.tsx, 1), "Crear clase" o "Guardar cambios" (formulario-clase.tsx,
+  // 1), "Ver más clases" (panel-mis-clases.tsx, 1) y "Copiar código" y "Sí, regenerar"
+  // (codigo-de-clase.tsx, 2). Ningún otro archivo de CLASES-a lo lleva: el "Crear clase" del inicio
+  // del maestro es un enlace y "Regenerar código" y "Cancelar" no esperan nada. Sigue protegiendo lo
+  // mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el
+  // lugar de los botones con espera cambien solo con el plan.
+  // CLASES-b ronda 0 (C-11, §D-R0; §D-B4 y V-04 del plan de CLASES-01): de 25 a 29 enEspera=. Se
+  // suman los cuatro botones de §D-B4: "Ver más alumnos" de los compañeros (personas-view.tsx, 1, en
+  // la lista fija), "Agregar a la clase" (buscador-alumnos.tsx o el componente de su fila, 1) y "Sí,
+  // quitar" y "Ver más alumnos" del roster (tabla-alumnos.tsx o el componente de su fila, 2; el
+  // "Ver más alumnos" no es de una fila, así que tabla-alumnos.tsx lleva al menos 1). Como en C-15
+  // de AUTH-03b, los que pueden vivir en un componente de fila quedan fuera de la lista fija: los 3
+  // viven en features/clases/components/, nunca en los componentes de CLASES-a ni en
+  // lista-personas.tsx (en la lista fija con 0), con a lo sumo 1 en buscador-alumnos.tsx y de 1 a 2
+  // en tabla-alumnos.tsx. N-04 (§D-B4 bis) no cambia el botón de formulario-unirse-clase.tsx, y
+  // "Quitar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en JSX,
+  // aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con espera
+  // cambien solo con el plan.
+  // CLASES-c ronda 0 (C-12, §D-R0; §D-C5 y V-04 del plan de CLASES-01): de 29 a 35 enEspera=. Se
+  // suman, a la lista fija de archivos, los seis botones de §D-C5: "Publicar anuncio" o "Publicar
+  // material" (components/formulario-publicacion.tsx, 1), "Ver más publicaciones" (muro-view.tsx,
+  // 1), "Sí, borrar" de la publicación (components/publicacion-del-muro.tsx, 1), "Ver más
+  // comentarios" y "Sí, borrar comentario" (components/comentarios-de-publicacion.tsx, 2) y
+  // "Comentar" (components/formulario-comentario.tsx, 1). Como están en la lista fija, no cuentan
+  // en el resto de features/clases/components/, que sigue siendo solo el buscador, el roster o sus
+  // filas (3). §D-C5 bis no cambia ningún botón: buscador-alumnos.tsx y tabla-alumnos.tsx conservan
+  // sus límites, y con-clase-de-la-ruta.tsx no lleva espera (cualquier enEspera= ahí sería uno de
+  // más en el resto). "Ver comentarios", "Ocultar comentarios", "Borrar publicación", "Borrar",
+  // "Cancelar" y los botones de tipo no esperan nada. Sigue protegiendo lo mismo: ningún `disabled`
+  // en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
+  // espera cambien solo con el plan.
+  // CLASES-d ronda 0 (C-13, §D-R0; §D-D5 y V-04 del plan de CLASES-01): de 35 a 36 enEspera=. Se
+  // suma, a la lista fija de archivos, "Descargar" de la ficha de cada adjunto
+  // (components/adjuntos-de-publicacion.tsx, 1). Ningún otro botón nuevo de d lo lleva: "Adjuntar
+  // archivos" abre el selector y "Quitar" (components/lista-de-adjuntos-elegidos.tsx) solo cambia
+  // estado local; el botón principal de formulario-publicacion.tsx sigue siendo el mismo (1), en
+  // enEspera durante solicitar, subir y publicar. "Cambios por capa" no autoriza otro archivo de
+  // componente para la ficha, así que "Descargar" no puede vivir en un componente de fila aparte; y
+  // como lista-de-adjuntos-elegidos.tsx no está en la lista fija, un enEspera= ahí sería uno de más en
+  // el resto de features/clases/components/ (que sigue siendo solo el buscador, el roster o sus
+  // filas, 3). Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo
+  // en Button, y que el número y el lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 36 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(20)
+    expect(usos).toHaveLength(36)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -114,6 +158,29 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/admin/components/registrados-del-enlace.tsx": 1,
       // C-17 (AUTH-03c): "Enviar invitaciones".
       "/src/features/admin/components/formulario-invitacion-masiva.tsx": 1,
+      // C-7 (CLASES-a): los cinco botones de §D-A5.
+      "/src/features/clases/components/formulario-unirse-clase.tsx": 1,
+      "/src/features/clases/components/formulario-clase.tsx": 1,
+      "/src/features/clases/components/panel-mis-clases.tsx": 1,
+      "/src/features/clases/components/codigo-de-clase.tsx": 2,
+      // C-11 (CLASES-b): "Ver más alumnos" de los compañeros.
+      "/src/features/clases/personas-view.tsx": 1,
+      // C-11: los componentes de CLASES-a sin espera, y la lista de compañeros de CLASES-b (su
+      // "Ver más alumnos" va en personas-view.tsx), siguen sin enEspera=. Así el resto de
+      // features/clases/components/ solo puede ser el buscador, el roster o sus filas.
+      "/src/features/clases/components/bloque-destacado.tsx": 0,
+      "/src/features/clases/components/encabezado-clase.tsx": 0,
+      "/src/features/clases/components/secciones-de-clase.tsx": 0,
+      "/src/features/clases/components/tarjeta-clase.tsx": 0,
+      "/src/features/clases/components/lista-personas.tsx": 0,
+      // C-12 (CLASES-c): los seis botones del muro de §D-C5.
+      "/src/features/clases/components/formulario-publicacion.tsx": 1,
+      "/src/features/clases/muro-view.tsx": 1,
+      "/src/features/clases/components/publicacion-del-muro.tsx": 1,
+      "/src/features/clases/components/comentarios-de-publicacion.tsx": 2,
+      "/src/features/clases/components/formulario-comentario.tsx": 1,
+      // C-13 (CLASES-d): "Descargar" de la ficha de cada adjunto (§D-D5).
+      "/src/features/clases/components/adjuntos-de-publicacion.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -121,17 +188,37 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     // C-15 (4) y (5): "Sí, revocar" y "Cargar más enlaces", en tabla-enlaces.tsx o en el componente
     // de su fila; los dos viven en features/admin/components/ y tabla-enlaces.tsx lleva al menos uno.
     const resto = [...porArchivo].filter(([ruta]) => !(ruta in fijos))
+    const suma = (lista: [string, number][]) =>
+      lista.reduce((total, [, cuantos]) => total + cuantos, 0)
+    const restoAdmin = resto.filter(([ruta]) => ruta.startsWith("/src/features/admin/components/"))
+    const restoClases = resto.filter(([ruta]) =>
+      ruta.startsWith("/src/features/clases/components/"),
+    )
     expect(
-      resto.every(([ruta]) => ruta.startsWith("/src/features/admin/components/")),
+      resto.length,
       `enEspera= fuera de la lista cerrada: ${resto.map(([r]) => r).join(", ")}`,
-    ).toBe(true)
-    expect(resto.reduce((total, [, cuantos]) => total + cuantos, 0)).toBe(2)
+    ).toBe(restoAdmin.length + restoClases.length)
+    expect(suma(restoAdmin)).toBe(2)
     expect(porArchivo.get("/src/features/admin/components/tabla-enlaces.tsx") ?? 0).toBeGreaterThan(
       0,
     )
+    // C-11: "Agregar a la clase", "Sí, quitar" y "Ver más alumnos" del roster.
+    expect(suma(restoClases)).toBe(3)
+    const enBuscador = porArchivo.get("/src/features/clases/components/buscador-alumnos.tsx") ?? 0
+    const enTabla = porArchivo.get("/src/features/clases/components/tabla-alumnos.tsx") ?? 0
+    expect(enBuscador, "enEspera= en buscador-alumnos.tsx").toBeLessThanOrEqual(1)
+    expect(enTabla, "enEspera= en tabla-alumnos.tsx").toBeGreaterThanOrEqual(1)
+    expect(enTabla, "enEspera= en tabla-alumnos.tsx").toBeLessThanOrEqual(2)
   })
 
-  it("V-07: vidrio y vidrio fuerte solo en la lista final del plan (igualdad exacta), sin vidrio azul", () => {
+  // CLASES-a ronda 0 (C-8, §D-R0; §D-A5 y V-04 del plan de CLASES-01): el vidrio fuerte suma la
+  // tarjeta interna del bloque destacado (bloque-destacado.tsx) y la tarjeta de clase
+  // (tarjeta-clase.tsx); el vidrio azul, que hasta hoy no existía en el código, pasa a vivir en
+  // exactamente bloque-destacado.tsx. El vidrio sin variante no cambia: PanelMisClases, el
+  // encabezado de la clase y los formularios usan Card. Sigue protegiendo que ningún archivo gane
+  // vidrio fuera de la lista cerrada del plan y que data-material y data-densidad no salgan del
+  // contenedor del rol.
+  it("V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)", () => {
     // DESIGN-01b-1, ronda 1 (plan-01b.md, §D-9, texto de referencia de la ronda 1): igualdad
     // exacta con la lista final. toEqual acepta el (string | undefined)[] de rutasDe; una ruta
     // undefined haría fallar la igualdad.
@@ -150,8 +237,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/components/layout/barra-navegacion.tsx",
       "/src/components/ui/button-variants.ts",
       "/src/features/auth/components/panel-anuncios.tsx",
+      "/src/features/clases/components/bloque-destacado.tsx",
+      "/src/features/clases/components/tarjeta-clase.tsx",
     ])
-    expect(coincidencias(/\bvidrio-azul\b/)).toEqual([])
+    expect(rutasDe(coincidencias(/\bvidrio-azul\b/))).toEqual([
+      "/src/features/clases/components/bloque-destacado.tsx",
+    ])
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
     ])

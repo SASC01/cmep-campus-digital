@@ -307,6 +307,15 @@ describe("tokens.css", () => {
       },
     )
 
+    // CLASES-a: --text-display-compacto es un token nuevo; va en su propio caso, con su propio ID
+    // al inicio del título (M-02 del plan), sin tocar los 7 casos existentes de arriba (PA-16).
+    it("PR-A24: --text-display-compacto: tamaño 2rem, interlineado 1.05, interletraje -0.03em", () => {
+      expect(tokens).toContain("--text-display-compacto: 2rem")
+      expect(tokens).toContain("--text-display-compacto--line-height: 1.05")
+      expect(tokens).toContain("--text-display-compacto--letter-spacing: -0.03em")
+      expect(tokens).toContain("--text-display-compacto--font-weight: 700")
+    })
+
     const radios: Array<[string, string]> = [
       ["--radius-hero", "24px"],
       ["--radius-panel", "22px"],

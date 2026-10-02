@@ -3,7 +3,6 @@ import { NavLink } from "react-router"
 import { cn } from "@/lib/utils"
 
 import { TEXTOS_MARCO } from "./data"
-import { Monograma } from "./monograma"
 import type { Destino } from "./types"
 
 interface BarraNavegacionProps {
@@ -17,7 +16,6 @@ export function BarraNavegacion({ destinos }: BarraNavegacionProps) {
       aria-label={TEXTOS_MARCO.navegacion}
       className="vidrio fixed inset-x-4 bottom-4 z-10 flex h-16 items-center justify-center gap-3 rounded-panel px-2 md:sticky md:inset-x-auto md:top-6 md:bottom-auto md:h-[calc(100svh-3rem)] md:w-24 md:flex-col md:justify-start md:px-3 md:pt-5"
     >
-      <Monograma className="hidden md:flex" />
       <ul className="flex gap-3 md:flex-col">
         {destinos.map((destino) => (
           <li key={destino.ruta}>

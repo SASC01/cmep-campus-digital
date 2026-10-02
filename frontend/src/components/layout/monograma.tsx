@@ -6,8 +6,8 @@ interface MonogramaProps {
   className?: string
 }
 
-// Decorativo (aria-hidden): "cm" en tarjeta con el radio de §5. Lo usan components/layout y
-// features/auth (regla 5 de CLAUDE.md: código usado por 2 o más módulos sube a components/).
+// Decorativo (aria-hidden): "cm" en tarjeta con el radio de §5. Lo usan solo las pantallas
+// de cuenta de features/auth; la barra lateral dejó de montarlo (ajuste del humano, 2026-10-02).
 export function Monograma({ className }: MonogramaProps) {
   return (
     <span

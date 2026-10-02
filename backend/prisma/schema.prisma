@@ -33,31 +33,68 @@ enum TipoTokenCuenta {
   @@map("tipo_token_cuenta")
 }
 
+enum OrigenInscripcion {
+  codigo
+  manual
+
+  @@map("origen_inscripcion")
+}
+
+enum TipoMovimientoInscripcion {
+  alta
+  baja
+
+  @@map("tipo_movimiento_inscripcion")
+}
+
+enum TipoPublicacion {
+  anuncio
+  material
+
+  @@map("tipo_publicacion")
+}
+
+enum EstadoArchivo {
+  pendiente
+  confirmado
+  descartado
+
+  @@map("estado_archivo")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
-  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                 String          @unique
-  hashContrasena        String          @map("hash_contrasena")
-  debeCambiarContrasena Boolean         @default(false) @map("debe_cambiar_contrasena")
-  nombre                String
-  nombreBusqueda        String          @map("nombre_busqueda")
-  rol                   Rol
-  activo                Boolean         @default(true)
-  estadoPago            EstadoPago      @default(al_corriente) @map("estado_pago")
-  fechaEstadoPago       DateTime?       @map("fecha_estado_pago") @db.Timestamptz(3)
-  accesoRestringido     Boolean         @default(false) @map("acceso_restringido")
-  motivoRestriccion     String?         @map("motivo_restriccion")
-  fechaRestriccion      DateTime?       @map("fecha_restriccion") @db.Timestamptz(3)
-  creadoEn              DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn         DateTime        @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  enlaceRegistroId      String?         @map("enlace_registro_id") @db.Uuid
-  sesiones              Sesion[]
-  tokensCuenta          TokenCuenta[]
-  enlaceRegistro        EnlaceRegistro? @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String                  @unique
+  hashContrasena         String                  @map("hash_contrasena")
+  debeCambiarContrasena  Boolean                 @default(false) @map("debe_cambiar_contrasena")
+  nombre                 String
+  nombreBusqueda         String                  @map("nombre_busqueda")
+  rol                    Rol
+  activo                 Boolean                 @default(true)
+  estadoPago             EstadoPago              @default(al_corriente) @map("estado_pago")
+  fechaEstadoPago        DateTime?               @map("fecha_estado_pago") @db.Timestamptz(3)
+  accesoRestringido      Boolean                 @default(false) @map("acceso_restringido")
+  motivoRestriccion      String?                 @map("motivo_restriccion")
+  fechaRestriccion       DateTime?               @map("fecha_restriccion") @db.Timestamptz(3)
+  creadoEn               DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn          DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  enlaceRegistroId       String?                 @map("enlace_registro_id") @db.Uuid
+  sesiones               Sesion[]
+  tokensCuenta           TokenCuenta[]
+  enlaceRegistro         EnlaceRegistro?         @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
+  clasesImpartidas       Clase[]                 @relation("ClasesDelMaestro")
+  inscripciones          Inscripcion[]
+  movimientosComoAlumno  MovimientoInscripcion[] @relation("MovimientosDelAlumno")
+  movimientosComoMaestro MovimientoInscripcion[] @relation("MovimientosDelMaestro")
+  publicaciones          Publicacion[]
+  comentarios            Comentario[]
+  archivosSubidos        Archivo[]
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
+  @@index([nombreBusqueda(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("usuarios")
 }
 
@@ -115,4 +152,125 @@ model EnlaceRegistro {
 
   @@index([creadoEn(sort: Desc), id(sort: Desc)])
   @@map("enlaces_registro")
+}
+
+// CLASES-a (§D-A1). codigoInvitacion: 7 caracteres de un alfabeto sin I, O, 0 ni 1 (S-03); único
+// para poder buscarlo. activa se crea en true (S-05) pero ninguna ruta de CLASES la usa ni la
+// cambia (RF-50 queda para más adelante).
+model Clase {
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maestroId        String                  @map("maestro_id") @db.Uuid
+  nombre           String
+  descripcion      String?
+  codigoInvitacion String                  @unique @map("codigo_invitacion")
+  activa           Boolean                 @default(true)
+  creadoEn         DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn    DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  maestro          Usuario                 @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+  inscripciones    Inscripcion[]
+  movimientos      MovimientoInscripcion[]
+  publicaciones    Publicacion[]
+  archivos         Archivo[]
+
+  @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@map("clases")
+}
+
+// PK compuesta (clase_id, usuario_id): un alumno se inscribe una sola vez por clase (§D-A1).
+// origen distingue unirse con código de un alta manual (CLASES-b); movimientos_inscripcion
+// (CLASES-b) registra las altas manuales y las bajas, no las inscripciones por código.
+model Inscripcion {
+  claseId   String            @map("clase_id") @db.Uuid
+  usuarioId String            @map("usuario_id") @db.Uuid
+  origen    OrigenInscripcion
+  creadoEn  DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  clase     Clase             @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  usuario   Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([claseId, usuarioId])
+  @@index([usuarioId, creadoEn(sort: Desc), claseId(sort: Desc)])
+  @@map("inscripciones")
+}
+
+// CLASES-b (§D-B8). Registro de las altas manuales y las bajas (P-05 g, S-23): solo se escribe, en
+// la misma transacción que el cambio, y ninguna ruta ni función de CLASES lo lee. El orden del
+// registro es secuencia (toma su valor en el INSERT, que es el último paso de la transacción);
+// creado_en es la hora de inicio de la transacción y no sirve para ordenar. Llaves foráneas con
+// ON DELETE RESTRICT: un registro no desaparece en silencio con una cascada. Sin índices
+// secundarios: ninguna consulta lo lee todavía (los propondrá la pantalla de ADMIN).
+model MovimientoInscripcion {
+  id        String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  secuencia BigInt                    @default(autoincrement())
+  claseId   String                    @map("clase_id") @db.Uuid
+  alumnoId  String                    @map("alumno_id") @db.Uuid
+  maestroId String                    @map("maestro_id") @db.Uuid
+  tipo      TipoMovimientoInscripcion
+  creadoEn  DateTime                  @default(now()) @map("creado_en") @db.Timestamptz(3)
+  clase     Clase                     @relation(fields: [claseId], references: [id], onDelete: Restrict)
+  alumno    Usuario                   @relation("MovimientosDelAlumno", fields: [alumnoId], references: [id], onDelete: Restrict)
+  maestro   Usuario                   @relation("MovimientosDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+
+  @@map("movimientos_inscripcion")
+}
+
+// CLASES-c (§D-C1). El muro: anuncios y materiales de una clase. El CHECK publicaciones_titulo_segun_tipo
+// (el anuncio no lleva título y el material sí) se agregó a mano en la migración: Prisma no expresa
+// CHECK ni lo compara al buscar deriva. Las llaves foráneas de autoría son ON DELETE RESTRICT (no
+// hay bajas físicas de usuarios); las de clase y publicación, CASCADE.
+model Publicacion {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claseId       String          @map("clase_id") @db.Uuid
+  autorId       String          @map("autor_id") @db.Uuid
+  tipo          TipoPublicacion
+  titulo        String?
+  texto         String
+  creadoEn      DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime        @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  clase         Clase           @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  autor         Usuario         @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  comentarios   Comentario[]
+  archivos      Archivo[]
+
+  @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@map("publicaciones")
+}
+
+model Comentario {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicacionId String      @map("publicacion_id") @db.Uuid
+  autorId       String      @map("autor_id") @db.Uuid
+  texto         String
+  creadoEn      DateTime    @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime    @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publicacion   Publicacion @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  autor         Usuario     @relation(fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([publicacionId, creadoEn, id])
+  @@map("comentarios")
+}
+
+// CLASES-d (§D-D1). Metadatos de un archivo del almacén; el objeto vive en R2 o MinIO, nunca en la
+// base. clave_objeto es materiales/{claseId}/{archivoId}: el nombre del usuario no forma parte de
+// ella. Los dos CHECK (tamano > 0, y confirmado si y solo si tiene publicación) se agregaron a mano
+// en la migración: Prisma no expresa CHECK ni lo compara al buscar deriva. publicacion_id es
+// ON DELETE NO ACTION: al borrar una clase, la cascada borra en la misma sentencia sus publicaciones
+// y sus archivos, y la comprobación se hace al final de la sentencia.
+model Archivo {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claveObjeto   String        @unique @map("clave_objeto")
+  nombre        String
+  tipo          String
+  tamano        Int
+  subidoPor     String        @map("subido_por") @db.Uuid
+  estado        EstadoArchivo @default(pendiente)
+  claseId       String        @map("clase_id") @db.Uuid
+  publicacionId String?       @map("publicacion_id") @db.Uuid
+  creadoEn      DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  autor         Usuario       @relation(fields: [subidoPor], references: [id], onDelete: Restrict)
+  clase         Clase         @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  publicacion   Publicacion?  @relation(fields: [publicacionId], references: [id], onDelete: NoAction)
+
+  @@index([publicacionId])
+  @@map("archivos")
 }

@@ -214,10 +214,12 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 | 3 | `withPasswordGate`: si `debeCambiarContrasena`, solo pasa `POST /auth/cambiar-contrasena` | 403 `CAMBIO_DE_CONTRASENA_REQUERIDO` |
 | 4 | `withAccess`: si `accesoRestringido`, solo pasan `GET /me` y `GET /me/estado-pago` | 403 `ACCESO_RESTRINGIDO` |
 | 5 | `requireRole(...)` | 403 |
-| 6 | `requireMembership` / `requireOwnership` sobre `claseId` | 403 |
+| 6 | `requireMembership` / `requireOwnership` sobre el parámetro `:claseId` de la ruta. `requireMembership` deja pasar al estudiante inscrito y al maestro dueño; `requireOwnership`, solo al maestro dueño. Clase inexistente o ajena: la misma respuesta. El administrador no pasa por ninguna de las dos: sus rutas de clases viven bajo `/admin` | 403 `SIN_ACCESO_A_LA_CLASE` (400 `VALIDACION` si `:claseId` no es un UUID) |
 | 7 | Handler | |
 
 - Rol, restricción y banderas **no viajan en el token**: se leen en cada petición, así cualquier cambio tiene efecto inmediato.
+- Toda ruta bajo `/api` que declare el parámetro `claseId` en cualquier posición de su URL, y todo comodín bajo `/clases` (`/clases*` y `/clases/*`, a cualquier profundidad), lleva el sexto paso; bajo `/clases/`, el único parámetro permitido en el segmento siguiente es `:claseId`. La guarda `onRoute` no deja arrancar la API si falta. El paso deja la clase y la relación del usuario con ella en la petición (`claseDe(request)`). Las consultas por un recurso de la clase (publicación, comentario, archivo) filtran además por el `claseId` de la ruta (CLASES-a). Los comodines generales (`/api/*`, `/api/:seccion/*`) quedan para la guarda sobre todas las rutas (CHORE-02).
+- Las rutas de clases del administrador (`/admin/clases/{claseId}…`, encargo ADMIN) no pasan esta regla tal como está: ADMIN agrega a la guarda una excepción, en carril sensible (CLASES-a, N-01).
 - La restricción también impide emitir tokens de LiveKit y URLs de archivos o grabaciones.
 - El estado de pago de otro alumno solo se devuelve a admin, o al maestro dueño de una clase donde ese alumno está inscrito. Para estudiantes el campo **se omite**.
 
@@ -228,11 +230,11 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 | Módulo | Rutas principales |
 |---|---|
 | `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/registro-maestro` (con un enlace de registro del admin) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
-| `usuarios` | `GET /me` · `GET /me/estado-pago` · `GET /usuarios/buscar?q=` |
-| `clases` | `POST /clases` · `GET /clases` · `GET/PUT /clases/{id}` · `POST /clases/unirse` · `GET/POST/DELETE /clases/{id}/alumnos` · `GET/POST /clases/{id}/publicaciones` · comentarios |
+| `usuarios` | `GET /me` · `GET /me/estado-pago` |
+| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}` · `GET/POST /clases/{claseId}/publicaciones` (con adjuntos: `archivoIds` al crear, hasta 5; `adjuntos` en cada publicación, también `[]`) · `DELETE /clases/{claseId}/publicaciones/{publicacionId}` · `GET/POST /clases/{claseId}/publicaciones/{publicacionId}/comentarios` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}/comentarios/{comentarioId}` (maestro) · `DELETE /clases/{claseId}/mis-comentarios/{comentarioId}` (autor) |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |
 | `calificaciones` | `PUT /tareas/{id}/entregas/{alumnoId}/calificacion` · `GET /clases/{id}/gradebook` · `GET /me/calificaciones` |
-| `archivos` | `POST /archivos/subida` · `POST /archivos/descarga` (devuelven URL prefirmada) |
+| `archivos` | `POST /clases/{claseId}/archivos` (maestro dueño: registra un archivo `pendiente` y devuelve la URL prefirmada de subida) · `POST /clases/{claseId}/archivos/{archivoId}/descarga` (alumno inscrito y maestro dueño: URL prefirmada de descarga de un archivo `confirmado`). Sustituyen a `POST /archivos/subida` y `POST /archivos/descarga`. Sin almacén configurado, `503 ALMACEN_NO_CONFIGURADO`. TAREAS y ENTREGAS agregan sus contextos |
 | `notificaciones` | `GET /notificaciones` · `PUT /notificaciones/{id}/leida` · `PUT /notificaciones/leidas` |
 | `calendario` | `GET /calendario?desde=&hasta=` |
 | `envivo` | `GET/POST /clases/{id}/envivo` · `POST /envivo/{id}/token` · `POST /envivo/{id}/grabacion` · `POST /webhooks/livekit` (sin JWT, firma verificada) |
@@ -242,6 +244,8 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 
 Formato de error único: `{ "error": { "codigo": "...", "mensaje": "..." } }`. Toda lista paginada, máximo 100 elementos.
 Detrás del proxy de Cloudflare, la IP real del cliente se toma de la cabecera que Cloudflare agrega, y Caddy solo acepta tráfico de los rangos de Cloudflare.
+
+Textos que escribe el usuario: todo nombre, título o texto obligatorio exige contenido visible, es decir, un mínimo de puntos de código de letra, número, puntuación o símbolo que no sean ignorables por defecto (2 en el nombre de una clase; 1 en el título de un material, un anuncio o un comentario). Se cuentan con `contarCaracteresVisibles`, de `shared/src/clases.ts`; `shared/src/auth.ts` tiene una copia equivalente para los nombres de persona hasta que se unifiquen. Los caracteres de formato (`Cf`) no se rechazan, salvo los inversores de dirección, pero no cuentan: así un emoji compuesto o un texto en otro alfabeto pasan, y uno hecho solo de invisibles no. Los textos largos se normalizan antes de validarse, en el servidor y en los formularios, con `normalizarTextoLargo` (también de `shared/src/clases.ts`: CRLF y CR pasan a LF y se recortan los extremos). Los máximos se miden aparte, después de normalizar y en puntos de código, no en unidades de UTF-16. Los nombres de persona siguen su propia regla, más estricta (`shared/src/auth.ts` rechaza todo `Cf`).
 
 ## 8. Procesamiento asíncrono
 
@@ -258,7 +262,7 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 | `CORREO_DE_CUENTA` | Recuperación de contraseña o invitación de maestro: siempre por correo, nunca in-app. La invitación masiva encola un trabajo por maestro con un solo `insert` dentro de su transacción. |
 | `ENVIAR_CORREO` | Un envío individual a Resend. Los avisos con correo activado generan uno por destinatario |
 | `GRABACION_LISTA` (desde webhook) | Registra el archivo en `clases_en_vivo` |
-| `LIMPIEZA_DIARIA` (cron) | Borra notificaciones de más de 90 días, sesiones y tokens vencidos, archivos huérfanos |
+| `LIMPIEZA_DIARIA` (cron) | Borra notificaciones de más de 90 días, sesiones y tokens vencidos, archivos `pendiente` de más de 24 h y `descartado` (el objeto y la fila) |
 | `RESPALDO_DIARIO` (cron) | `pg_dump` cifrado hacia R2 |
 
 "Aviso" significa: notificación in-app **siempre**, y además correo **solo si** ese tipo de evento está activado en la configuración.
@@ -269,6 +273,7 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 - El encolado transaccional pasa a pg-boss la conexión de la transacción de Prisma (`db` de `send`) mediante `ejecutorSqlDe` de `adapters/db`, equivalente al adaptador `fromPrisma` que publica pg-boss. `createQueue` no actualiza la política de una cola que ya existe: cambiarla exige `updateQueue`. Las colas de correos de cuenta retienen sus trabajos 1 día.
 - 3 reintentos con espera exponencial; después, cola de fallidos vigilada.
 - Un trabajo que pasa a la cola de fallidos recibe otro id; el consumidor lee el original en `sourceId` (pg-boss 12, `includeMetadata: true`) y lo registra como `trabajoId`.
+- `PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO` se encolan desde CLASES en la misma transacción que el dato, con el id del dato (generado en el handler antes del `INSERT`) como id del trabajo y solo ids en sus datos. Sus colas tienen 3 reintentos con espera exponencial, la cola de fallidos `AVISO_FALLIDO` y una retención de 7 días. Su consumidor llega con NOTIFICACIONES; hasta entonces los trabajos esperan en la cola. Un trabajo puede apuntar a una publicación o un comentario ya borrados: el consumidor lo descarta sin error.
 
 ## 9. Correo
 
@@ -307,11 +312,13 @@ El identificador se guarda en `trabajo_id`. **Editar o borrar la fecha obliga a 
 
 ## 11. Archivos
 
-1. El cliente pide `POST /archivos/subida` con nombre, tipo, tamaño y contexto.
+1. El cliente pide `POST /clases/{claseId}/archivos` con nombre, tipo y tamaño; el contexto es la clase de la ruta (TAREAS y ENTREGAS agregan los suyos).
 2. La API valida permisos, tipo y tamaño, registra el archivo como `pendiente` y devuelve una URL prefirmada de 5 minutos.
 3. El navegador sube **directo al almacén**. Los archivos nunca pasan por Node ni por el Droplet.
 4. Al confirmar la entrega o publicación, el archivo pasa a `confirmado`. Los `pendiente` de más de 24 h los borra la limpieza diaria.
 5. La descarga es simétrica: URL prefirmada tras verificar permisos.
+6. Materiales y anuncios (CLASES-d): solo sube el maestro dueño de la clase. Límites: 25 MB por archivo y 5 por publicación; tipos PDF, PNG, JPEG, WebP, GIF, Word, Excel y PowerPoint (formatos actuales y 97-2003) y texto plano; el SVG no se admite. El nombre del archivo no admite `/`, `\`, caracteres de control, separadores de línea, inversores de dirección ni sustitutos sueltos. La clave es `materiales/{claseId}/{archivoId}` y nunca lleva el nombre del archivo. Al publicar, la API lee los archivos por id, acotados a la clase, a quien los subió, al estado `pendiente`, sin publicación y de las últimas 24 h; compara con `statObject` el tamaño y el tipo reales con lo declarado; y los confirma dentro de la transacción de la publicación, con un `UPDATE` que repite esas condiciones y compara el conteo. La URL de subida no limita el tamaño (R2 no admite `POST` con política): un objeto que no coincide no se confirma y queda para la limpieza. Un archivo pasa a `descartado` si se borra su publicación. Toda publicación responde `adjuntos` (también `[]`). La descarga fuerza el tipo declarado y `attachment`; las imágenes se muestran en vista previa con una URL `inline` de 5 minutos. Las tres URL del almacén son `http` o `https` (`urlDelAlmacenSchema`, de `shared/src/archivos.ts`). El firmado es local (región fija en `STORAGE_REGION`); el bucket se elige con `STORAGE_BUCKET_PRIVADO`. Sin `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY` (una variable vacía cuenta como ausente), la API arranca, pero subir y descargar responden `503`; en `production` son obligatorias, también para el worker, que es la misma imagen.
+7. `LIMPIEZA_DIARIA`, que se construye antes de DEPLOY, borra el objeto del almacén y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
 
 | Bucket | Prefijos | Acceso |
 |---|---|---|
@@ -354,6 +361,8 @@ erDiagram
   usuarios ||--o{ clases : imparte
   usuarios ||--o{ inscripciones : tiene
   clases ||--o{ inscripciones : agrupa
+  clases ||--o{ movimientos_inscripcion : registra
+  usuarios ||--o{ movimientos_inscripcion : afecta
   clases ||--o{ categorias : pondera
   clases ||--o{ publicaciones : contiene
   clases ||--o{ tareas : asigna
@@ -368,24 +377,27 @@ erDiagram
   publicaciones ||--o{ comentarios : hilo_publico
   entregas ||--o{ comentarios : hilo_privado
   usuarios ||--o{ archivos : sube
+  clases ||--o{ archivos : guarda
+  publicaciones ||--o{ archivos : adjunta
 ```
 
 | Tabla | Columnas principales | Restricciones e índices |
 |---|---|---|
-| `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion`, `enlace_registro_id` | `email` único (en minúsculas) · GIN trigrama sobre `nombre_busqueda` · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` · índice `(enlace_registro_id, creado_en)` · FK a `enlaces_registro` con `ON DELETE RESTRICT` |
+| `usuarios` | `id`, `email`, `hash_contrasena`, `debe_cambiar_contrasena`, `nombre`, `nombre_busqueda`, `rol`, `activo`, `estado_pago`, `fecha_estado_pago`, `acceso_restringido`, `motivo_restriccion`, `fecha_restriccion`, `enlace_registro_id` | `email` único (en minúsculas) · índice GIN `gin_trgm_ops` sobre `nombre_busqueda` (`usuarios_nombre_busqueda_idx`), que se normaliza en `core/` al escribir (sin acentos, minúsculas, espacios colapsados); `unaccent` no se usa en las consultas · índice `(rol)` · único parcial que garantiza **un solo** `rol = 'admin'` · índice `(enlace_registro_id, creado_en)` · FK a `enlaces_registro` con `ON DELETE RESTRICT` |
 | `sesiones` | `id`, `usuario_id`, `hash_token`, `expira_en`, `revocada_en`, `reemplazada_por`, `ip`, `agente` | `hash_token` único · índice `(usuario_id)` |
 | `tokens_cuenta` | `id`, `usuario_id`, `tipo` (`recuperacion` / `invitacion`), `hash_token`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(usuario_id)` · índice `(tipo, creado_en)` (cupo diario de invitaciones) · FK con `ON DELETE CASCADE` |
 | `enlaces_registro` | `id`, `hash_token`, `expira_en`, `revocado_en`, `creado_en`, `actualizado_en` | `hash_token` único · índice `(creado_en DESC, id DESC)`. El estado (vigente, vencido, revocado) se deriva; no se guarda |
-| `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único · índice `(maestro_id)` |
+| `clases` | `id`, `maestro_id`, `nombre`, `descripcion`, `codigo_invitacion`, `activa` | `codigo_invitacion` único (7 caracteres de un alfabeto sin I, O, 0 ni 1) · índice `(maestro_id, creado_en DESC, id DESC)` · FK a `usuarios` con `ON DELETE RESTRICT` |
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
-| `inscripciones` | `clase_id`, `usuario_id`, `origen`, `creado_en` | PK compuesta · índice `(usuario_id)` |
-| `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo`, `texto` | índice `(clase_id, creado_en DESC)` |
+| `inscripciones` | `clase_id`, `usuario_id`, `origen` (`codigo` / `manual`), `creado_en` | PK `(clase_id, usuario_id)` · índice `(usuario_id, creado_en DESC, clase_id DESC)` · FK con `ON DELETE CASCADE` a los dos lados |
+| `movimientos_inscripcion` | `id`, `secuencia`, `clase_id`, `alumno_id`, `maestro_id`, `tipo` (`alta` / `baja`), `creado_en` | Registro de cada alta manual y cada baja efectivas, escrito en la misma transacción que la inscripción, como su último paso; unirse con código no se registra. **El orden es `secuencia`** (`BIGSERIAL`, asignada en el `INSERT`: respeta el orden real de los cambios, sin empates; puede tener huecos). `creado_en` es la fecha para mostrar, no el orden (es la hora de inicio de la transacción). FK a `clases` y a `usuarios` con `ON DELETE RESTRICT`. Sin índices secundarios: CLASES solo escribe; la consulta y sus índices los agrega ADMIN |
+| `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo` (`anuncio` / `material`), `titulo`, `texto` | índice `(clase_id, creado_en DESC, id DESC)` · `CHECK`: el material lleva título y el anuncio no |
 | `tareas` | `id`, `clase_id`, `categoria_id`, `titulo`, `instrucciones`, `fecha_limite`, `puntos`, `trabajo_id` | índice `(clase_id, fecha_limite)` |
 | `criterios_rubrica` | `id`, `tarea_id`, `criterio`, `puntos_max`, `orden` | índice `(tarea_id)` |
 | `entregas` | `id`, `tarea_id`, `alumno_id`, `estado`, `fecha_entrega`, `con_retraso`, `enlaces` (jsonb), `calificacion`, `fecha_calificacion` | único `(tarea_id, alumno_id)` · índice `(alumno_id)` |
 | `puntajes_rubrica` | `entrega_id`, `criterio_id`, `puntos` | PK compuesta |
-| `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado`, `publicacion_id`, `tarea_id`, `entrega_id` | `clave_objeto` único · exactamente un contexto no nulo |
-| `comentarios` | `id`, `publicacion_id`, `entrega_id`, `autor_id`, `texto` | exactamente uno de los dos contextos · índices por contexto y fecha |
+| `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado` (`pendiente` / `confirmado` / `descartado`), `clase_id`, `publicacion_id` | `clave_objeto` único · índice `(publicacion_id)` · `CHECK`: un archivo está `confirmado` si y solo si tiene contexto; `pendiente` y `descartado`, ninguno. `clase_id` autoriza mientras el archivo está pendiente. TAREAS y ENTREGAS agregan `tarea_id` y `entrega_id` |
+| `comentarios` | `id`, `publicacion_id`, `autor_id`, `texto` | índice `(publicacion_id, creado_en, id)`. Hoy solo el contexto `publicacion_id` (NOT NULL); ENTREGAS agrega `entrega_id` y el `CHECK` de exactamente un contexto. Al comentar, la publicación se lee `FOR SHARE` en la misma transacción |
 | `notificaciones` | `id`, `usuario_id`, `evento_id`, `tipo`, `mensaje`, `enlace`, `leida` | único `(usuario_id, evento_id)` · índice `(usuario_id, creado_en DESC)` · parcial `WHERE leida = false` |
 | `clases_en_vivo` | `id`, `clase_id`, `titulo`, `fecha_inicio`, `estado`, `sala`, `grabando`, `egress_id`, `clave_grabacion`, `trabajo_id` | índices `(clase_id, fecha_inicio)` y `(estado)` |
 | `anuncios_login` | `id`, `titulo`, `texto`, `archivo_id`, `orden`, `activo` | índice `(activo, orden)` |
@@ -403,7 +415,8 @@ Las tablas de pg-boss viven en su propio esquema (`pgboss`) y no se tocan a mano
 - **Protocolo de bloqueo por usuario.** Crear o rotar una sesión bloquea antes la fila del usuario con `FOR SHARE`. Revocar sesiones en bloque, cambiar la contraseña o escribir `tokens_cuenta` la bloquea antes con `FOR NO KEY UPDATE`. Así esas transacciones quedan en serie sin deadlocks, y una revocación siempre ve las sesiones creadas antes que ella. El login solo crea la sesión si el hash que verificó sigue vigente bajo el bloqueo (AUTH-02, Enmienda 2).
 - **Altas en lote** (invitación masiva): una transacción con el bloqueo consultivo de invitaciones (`pg_advisory_xact_lock`, tomado con `$executeRaw`) y, después de él, el conteo del cupo; `createMany` con `skipDuplicates`, la relectura por id de lo insertado y un solo `insert` de pg-boss con la conexión de la transacción. Ninguna consulta por línea y ningún `P2002` atrapado.
 - **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan.
-- Búsqueda de alumnos con `unaccent` + trigramas sobre `nombre_busqueda`. Frontend: 3 caracteres mínimo y espera de 300 ms.
+- Búsqueda de alumnos: `LIKE '%término%'` sobre `nombre_busqueda`, con `%`, `_` y `\` escapados; índice GIN `gin_trgm_ops`. El término mide de 3 a 120 caracteres **ya normalizados** (con un tope de 1000 en crudo); la normalización está definida una sola vez en `shared/` (`normalizarTerminoDeBusqueda`) y equivale a la que aplica `core/` a `nombre_busqueda` al escribir. Hasta 20 resultados con indicador de "hay más". El correo de cada resultado sale enmascarado desde el backend (`core/`); el completo solo en el roster del dueño. Frontend: espera de 300 ms.
+- **Paginación por cursor:** el cursor es el id de la última fila de la página anterior. Con cursor, la consulta lee primero esa fila por su llave, filtrada por el dueño de la lista (el alumno, el maestro, la clase o la publicación). Si no existe (se borró, es ajena o nunca existió), responde `400 VALIDACION` "cursor: no es válido", igual en los tres casos, sin revelar cuál es. La interfaz lo explica con un texto que dice qué pasó y cómo recuperar la lista (CLASES-a, T-18; CLASES-c, T-29 y T-34).
 - Todo cambio de esquema es una migración de Prisma versionada y compatible hacia atrás.
 
 ## 15. Capacidad
@@ -428,7 +441,7 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 - Validación de toda entrada con zod en el borde del handler.
 - `@fastify/helmet`, CORS de origen exacto con credenciales, límite de peticiones global y más estricto en `/auth/*`.
 - Cookies `HttpOnly`, `Secure`, `SameSite=Strict`; el token de acceso solo en memoria.
-- URLs prefirmadas de 5 minutos con tipo y tamaño fijados. Buckets privados salvo `campus-publico`.
+- URLs prefirmadas de 5 minutos. La de subida no fija el tipo ni el tamaño (R2 no admite `POST` con política): antes de confirmar, la API compara el objeto real con lo declarado (`statObject`); la descarga fuerza el tipo declarado y `attachment`; y solo el maestro dueño sube. Un objeto reescrito mientras la URL sigue vigente es un riesgo residual aceptado (CLASES-01, R-03), que se vigila en DEPLOY. Buckets privados salvo `campus-publico`.
 - Los enlaces de recuperación e invitación son de un solo uso, caducan y se guardan solo como hash. Las respuestas de `/auth/recuperar` no revelan si un correo existe.
 - Las contraseñas temporales se muestran una sola vez, se guardan solo como hash y obligan al cambio inmediato.
 - El webhook de LiveKit verifica la firma.

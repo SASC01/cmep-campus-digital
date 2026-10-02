@@ -91,7 +91,12 @@ describe("ataque (ronda 2): la guarda acepta todo lo legítimo", () => {
     ).toBe("arranca")
   })
 
-  it("una ruta con pertenencia responde 501 y sin token 401 (la cadena corre antes)", async () => {
+  // CLASES-a ronda 0 (C-1, §D-0.1 y §D-0.3): requireMembership y requireOwnership dejan de
+  // responder 501; el sexto paso resuelve la clase de la ruta. Una ruta con pertenencia y sin
+  // :claseId sigue arrancando (con token respondería 500 CLASE_AUSENTE: PR-A06d, del programador).
+  // Las aserciones no cambian: siguen protegiendo que sin token la cadena responda 401 antes de
+  // llegar al sexto paso, también en HEAD.
+  it("una ruta con pertenencia y sin :claseId arranca, y sin token responde 401 (la cadena corre antes del sexto paso)", async () => {
     const app = await nuevaApp()
     await app.register(
       async (hijo) => {

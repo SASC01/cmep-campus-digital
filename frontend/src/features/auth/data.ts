@@ -55,8 +55,6 @@ export const ETIQUETAS_ROL = {
 
 export const TEXTOS_SESION = {
   cerrarSesion: "Cerrar sesión",
-  saludo: "Hola",
-  proximamente: "Tu dashboard estará disponible pronto.",
   tituloError: "No pudimos cargar tu cuenta",
 } as const
 

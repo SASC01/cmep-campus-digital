@@ -47,6 +47,13 @@ enum TipoMovimientoInscripcion {
   @@map("tipo_movimiento_inscripcion")
 }
 
+enum TipoPublicacion {
+  anuncio
+  material
+
+  @@map("tipo_publicacion")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
@@ -73,6 +80,8 @@ model Usuario {
   inscripciones          Inscripcion[]
   movimientosComoAlumno  MovimientoInscripcion[] @relation("MovimientosDelAlumno")
   movimientosComoMaestro MovimientoInscripcion[] @relation("MovimientosDelMaestro")
+  publicaciones          Publicacion[]
+  comentarios            Comentario[]
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -151,6 +160,7 @@ model Clase {
   maestro          Usuario                 @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
   inscripciones    Inscripcion[]
   movimientos      MovimientoInscripcion[]
+  publicaciones    Publicacion[]
 
   @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
   @@map("clases")
@@ -191,4 +201,39 @@ model MovimientoInscripcion {
   maestro   Usuario                   @relation("MovimientosDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
 
   @@map("movimientos_inscripcion")
+}
+
+// CLASES-c (§D-C1). El muro: anuncios y materiales de una clase. El CHECK publicaciones_titulo_segun_tipo
+// (el anuncio no lleva título y el material sí) se agregó a mano en la migración: Prisma no expresa
+// CHECK ni lo compara al buscar deriva. Las llaves foráneas de autoría son ON DELETE RESTRICT (no
+// hay bajas físicas de usuarios); las de clase y publicación, CASCADE.
+model Publicacion {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claseId       String          @map("clase_id") @db.Uuid
+  autorId       String          @map("autor_id") @db.Uuid
+  tipo          TipoPublicacion
+  titulo        String?
+  texto         String
+  creadoEn      DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime        @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  clase         Clase           @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  autor         Usuario         @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  comentarios   Comentario[]
+
+  @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@map("publicaciones")
+}
+
+model Comentario {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicacionId String      @map("publicacion_id") @db.Uuid
+  autorId       String      @map("autor_id") @db.Uuid
+  texto         String
+  creadoEn      DateTime    @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime    @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publicacion   Publicacion @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  autor         Usuario     @relation(fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([publicacionId, creadoEn, id])
+  @@map("comentarios")
 }

@@ -99,3 +99,17 @@ export {
   type ListaPersonasDb,
   type PersonaDb,
 } from "./inscripciones.js"
+export {
+  borrarComentario,
+  borrarMiComentario,
+  borrarPublicacion,
+  crearComentario,
+  crearPublicacion,
+  listarComentarios,
+  listarPublicaciones,
+  type AutorDb,
+  type ComentarioDb,
+  type ListaComentariosDb,
+  type ListaPublicacionesDb,
+  type PublicacionDb,
+} from "./publicaciones.js"

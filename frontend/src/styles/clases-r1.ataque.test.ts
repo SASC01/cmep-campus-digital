@@ -99,14 +99,27 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // "Quitar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en JSX,
   // aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con espera
   // cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 29 enEspera", () => {
+  // CLASES-c ronda 0 (C-12, §D-R0; §D-C5 y V-04 del plan de CLASES-01): de 29 a 35 enEspera=. Se
+  // suman, a la lista fija de archivos, los seis botones de §D-C5: "Publicar anuncio" o "Publicar
+  // material" (components/formulario-publicacion.tsx, 1), "Ver más publicaciones" (muro-view.tsx,
+  // 1), "Sí, borrar" de la publicación (components/publicacion-del-muro.tsx, 1), "Ver más
+  // comentarios" y "Sí, borrar comentario" (components/comentarios-de-publicacion.tsx, 2) y
+  // "Comentar" (components/formulario-comentario.tsx, 1). Como están en la lista fija, no cuentan
+  // en el resto de features/clases/components/, que sigue siendo solo el buscador, el roster o sus
+  // filas (3). §D-C5 bis no cambia ningún botón: buscador-alumnos.tsx y tabla-alumnos.tsx conservan
+  // sus límites, y con-clase-de-la-ruta.tsx no lleva espera (cualquier enEspera= ahí sería uno de
+  // más en el resto). "Ver comentarios", "Ocultar comentarios", "Borrar publicación", "Borrar",
+  // "Cancelar" y los botones de tipo no esperan nada. Sigue protegiendo lo mismo: ningún `disabled`
+  // en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
+  // espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 35 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(29)
+    expect(usos).toHaveLength(35)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -149,6 +162,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/secciones-de-clase.tsx": 0,
       "/src/features/clases/components/tarjeta-clase.tsx": 0,
       "/src/features/clases/components/lista-personas.tsx": 0,
+      // C-12 (CLASES-c): los seis botones del muro de §D-C5.
+      "/src/features/clases/components/formulario-publicacion.tsx": 1,
+      "/src/features/clases/muro-view.tsx": 1,
+      "/src/features/clases/components/publicacion-del-muro.tsx": 1,
+      "/src/features/clases/components/comentarios-de-publicacion.tsx": 2,
+      "/src/features/clases/components/formulario-comentario.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

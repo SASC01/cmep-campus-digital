@@ -22,11 +22,18 @@ const estado = vi.hoisted(() => ({
   },
 }))
 
+// CLASES-c ronda 0 (C-19, §D-R0; §D-C5, Enmienda 5 y PR-C11a del plan de CLASES-01):
+// PanelMisClases pasa a usar useFocoAlCargarMas de ./hooks para el foco de "Ver más clases" (regla
+// 4 de CLAUDE.md). Con Vitest 4, leer un export que esta fábrica no devuelve lanza un error, así que
+// la fábrica suma un doble inerte que devuelve un ref vacío, como el botonRef del hook real. No
+// mueve el foco ni toca la consulta; ninguna aserción cambia. Sigue protegiendo lo mismo: los
+// inicios sin error, sin carga y sin datos no afirman vacío ni total.
 vi.mock("./hooks", () => ({
   useNombreDeSesion: () => ({ data: "Ana López" }),
   useClasesInscritas: () => estado.consulta,
   useClasesImpartidas: () => estado.consulta,
   useUnirseAClase: () => ({ isPending: false, mutate: vi.fn() }),
+  useFocoAlCargarMas: () => ({ current: null }),
 }))
 
 const TEXTOS_QUE_AFIRMAN_DATOS = [

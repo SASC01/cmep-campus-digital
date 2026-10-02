@@ -14,6 +14,7 @@ import { cuentasHandler } from "./handlers/auth/cuentas.js"
 import { registroMaestroHandler } from "./handlers/auth/registro-maestro.js"
 import { alumnosHandler } from "./handlers/clases/alumnos.js"
 import { clasesHandler } from "./handlers/clases/clases.js"
+import { muroHandler } from "./handlers/clases/muro.js"
 import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
 import { saludHandler } from "./handlers/salud.js"
 import { usuariosHandler } from "./handlers/usuarios.js"
@@ -52,6 +53,7 @@ export const construirApp = async ({ env }: { env: Env }): Promise<FastifyInstan
   await app.register(usuariosHandler, { prefix: "/api" })
   await app.register(clasesHandler, { prefix: "/api" })
   await app.register(alumnosHandler, { prefix: "/api" })
+  await app.register(muroHandler, { prefix: "/api" })
   await app.register(adminHandler, {
     prefix: "/api/admin",
     limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO,

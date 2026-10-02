@@ -465,7 +465,20 @@ describe("ataque: superficie de rutas", () => {
   // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /personas y
   // /alumnos bajo /:claseId, y /candidatos y /:alumnoId bajo /alumnos; el análisis por sangría los
   // reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a y CLASES-b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // CLASES-c ronda 0 (C-2, §D-R0; §D-C2 y V-06 del plan de CLASES-01): se agregan las 9 rutas del
+  // muro bajo /api/clases/:claseId (GET, HEAD y POST de /publicaciones; DELETE de
+  // /publicaciones/:publicacionId; GET, HEAD y POST de /publicaciones/:publicacionId/comentarios;
+  // DELETE de /publicaciones/:publicacionId/comentarios/:comentarioId; DELETE de
+  // /mis-comentarios/:comentarioId). Ninguna crea cuentas ni cambia roles: crean o borran
+  // publicaciones y comentarios de una clase a la que el perfil pertenece (o de la que es dueño), y
+  // "mis comentarios" solo borra los del propio autor. Ninguna es pública: RUTAS_PUBLICAS sigue con
+  // las 10 de hoy, y una ruta pública nueva sería, además, una ruta nueva en esta lista. La protección
+  // queda igual: ninguna ruta crea administradores; siguen creando maestros solo las tres de hoy
+  // (POST /api/admin/maestros, POST /api/admin/maestros/lote y POST /api/auth/registro-maestro), y
+  // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /publicaciones y
+  // /mis-comentarios bajo /:claseId, y /:publicacionId, /comentarios y /:comentarioId debajo; el
+  // análisis por sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b y CLASES-c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -493,6 +506,9 @@ describe("ataque: superficie de rutas", () => {
     expect(noReconocidas, "líneas del árbol de rutas que no se pudieron analizar").toEqual([])
     expect([...rutas].sort()).toEqual([
       "DELETE /api/clases/:claseId/alumnos/:alumnoId",
+      "DELETE /api/clases/:claseId/mis-comentarios/:comentarioId",
+      "DELETE /api/clases/:claseId/publicaciones/:publicacionId",
+      "DELETE /api/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
       "GET /api/admin/enlaces-registro",
       "GET /api/admin/enlaces-registro/:id/registrados",
       "GET /api/clases/:claseId",
@@ -500,6 +516,8 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/alumnos/candidatos",
       "GET /api/clases/:claseId/codigo",
       "GET /api/clases/:claseId/personas",
+      "GET /api/clases/:claseId/publicaciones",
+      "GET /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "GET /api/clases/impartidas",
       "GET /api/clases/inscritas",
       "GET /api/me",
@@ -511,6 +529,8 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/alumnos/candidatos",
       "HEAD /api/clases/:claseId/codigo",
       "HEAD /api/clases/:claseId/personas",
+      "HEAD /api/clases/:claseId/publicaciones",
+      "HEAD /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "HEAD /api/clases/impartidas",
       "HEAD /api/clases/inscritas",
       "HEAD /api/me",
@@ -534,6 +554,8 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases",
       "POST /api/clases/:claseId/alumnos",
       "POST /api/clases/:claseId/codigo",
+      "POST /api/clases/:claseId/publicaciones",
+      "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "POST /api/clases/unirse",
       "PUT /api/admin/usuarios/:id/correo",
       "PUT /api/clases/:claseId",

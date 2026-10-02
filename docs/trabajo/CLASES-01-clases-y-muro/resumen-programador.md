@@ -1122,3 +1122,357 @@ PA-01 comprobada (regla `Enabled`/`Inbound`/`Block`/`Public`; red `IZZI-F281-5G`
 ### Conteos (`npx vitest list`)
 - `cd backend && npx vitest list` → **1144** casos (sin cambio desde la ronda 4).
 - `cd frontend && npx vitest list` → **1189** casos en **85** archivos (1170 en 84 antes: +4 míos y el resto de `alumnos-b-r4.ataque`).
+
+## CLASES-c — implementación
+
+**PARADA PA-16 activa (2026-10-01): la subentrega queda terminada en su alcance, pero con 1 prueba normal en rojo que no puedo corregir sin salirme de las listas cerradas.** `backend/test/bloqueo-usuario.integracion.test.ts` (AUTH-02, no está en "Pruebas: listas cerradas", fila c), caso "E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts e invitaciones.ts usan SQL etiquetado en adapters/db" (línea 679). Ese caso lista de forma cerrada los archivos de `adapters/db` que usan `$queryRaw` o `$executeRaw`, y el `FOR SHARE` etiquetado de `adapters/db/publicaciones.ts` que el plan manda (§D-C3, "Acceso a datos", "Cambios por capa") lo desborda: `AssertionError: expected [ 'bloqueo-usuario.ts', …(4) ] to deeply equal [ 'bloqueo-usuario.ts', …(3) ]`, con `+ "publicaciones.ts"`. El tester no lo inventarió en C-12 porque solo buscó en `*.ataque`; es una prueba normal. Me detuve: no la toqué ni escondí el SQL (usarlo sin etiqueta o moverlo a otro archivo sería relajar el diseño del plan). **Qué hace falta:** que el arquitecto (o el humano, por escrito) autorice agregar `"publicaciones.ts"` a la lista de ese caso y la mención en su título y su comentario; es lo único que cambia. Con eso, `npm run test` queda en verde (el resto de la suite pasa, ver más abajo).
+
+### Pasos completados
+Pasos 28 a 34 (7 de 7) en su alcance: 28 (precondiciones), 29 (shared y core), 30 (migración), 31 (colas, adaptador, handler, app y README), 32 (pruebas del backend y frontend, §D-C5 y §D-C5 bis), 33 (DESIGN.md) y 34 (verificaciones y este resumen). El único pendiente es el rojo de E6 (PA-16).
+
+### Archivos creados
+- `backend/prisma/migrations/20261002003225_publicaciones_y_comentarios/migration.sql` (con el `CHECK publicaciones_titulo_segun_tipo` agregado a mano en esa misma carpeta antes de aplicar)
+- `backend/src/core/eventos/avisos-de-clase.ts`, `backend/src/core/eventos/avisos-de-clase.test.ts`
+- `backend/src/adapters/db/publicaciones.ts`
+- `backend/src/handlers/clases/muro.ts`
+- `backend/test/muro.integracion.test.ts`, `backend/test/muro-autorizacion.integracion.test.ts`
+- `frontend/src/features/clases/components/{formulario-publicacion,publicacion-del-muro,comentarios-de-publicacion,formulario-comentario,con-clase-de-la-ruta}.tsx`
+- `frontend/src/features/clases/{muro-view,formulario-publicacion,publicacion-del-muro,con-clase-de-la-ruta}.test.tsx`
+
+### Archivos modificados
+- `shared/src/clases.ts`, `shared/src/index.ts`
+- `backend/prisma/schema.prisma`
+- `backend/src/adapters/queue/colas.ts`, `backend/src/adapters/db/index.ts`, `backend/src/app.ts`
+- `backend/src/adapters/README.md`, `backend/src/handlers/README.md`
+- `backend/src/core/clases/texto.test.ts`, `backend/test/ayudas-clases.ts`, `backend/test/clases.integracion.test.ts` (solo se agregaron casos o ayudas)
+- `frontend/src/features/clases/{data,hooks,lib,types}.ts`, `muro-view.tsx` (reemplaza al provisional de a), `clase-layout.tsx`, `editar-clase-view.tsx`, `personas-view.tsx`, `alumnos-view.tsx`
+- `frontend/src/features/clases/components/{panel-mis-clases,buscador-alumnos,tabla-alumnos}.tsx`
+- `frontend/src/features/clases/{lib.test.ts,alumnos-view.test.tsx,inicio-estudiante-view.test.tsx}` y `components/formulario-clase.test.tsx` (solo casos agregados)
+- `docs/DESIGN.md` (§7.3, §7.18 nueva y la línea de §7.14; todo marcado "propuesta")
+- Ninguna `*.ataque` tocada por mí: las tres con cambios en el árbol son las de la ronda 0 (`sesiones-y-cadena`, `styles/clases-r1` y `inicio-sin-datos-r2`), y V-01 sigue en 87 de 87 (más abajo).
+
+### Verificación (comando exacto y última línea)
+Todos desde la raíz del repositorio, salvo donde se indica.
+- `npm run lint` → exit 0; última línea: `> tsc -b`
+- `npm run build` → exit 0; última línea: `✓ built in 602ms`
+- `npm run test` → exit 1 por E6; frontend: `Test Files  90 passed (90)` y `Tests  1230 passed (1230)`; backend: `Test Files  1 failed | 106 passed (107)` y `Tests  1 failed | 1181 passed (1182)` (el único rojo es E6; ninguna `*.ataque` falla)
+- Backend, corrida 1 de la suite completa (`cd backend; npm test`): `Tests  12 failed | 1167 passed | 3 skipped (1182)` (la intermitencia CHORE-02: 11 por tiempo límite en hooks y esperas en cadena, más E6). Repetida una vez: `Tests  1 failed | 1181 passed (1182)` (solo E6), y igual en la corrida final de la raíz.
+- Frontend por paquete: `cd frontend; npm test` (dos veces) → `Tests  1230 passed (1230)`; `cd frontend; npm run lint` → exit 0, última línea `> tsc -b`.
+- `cd backend; npx prisma validate` → `The schema at prisma\schema.prisma is valid 🚀`
+- V-03 (desde `backend/`), cada uno con código 0: `npx prisma validate` ("is valid"), `npx prisma format --check` ("All files are formatted correctly!"), `npx prisma generate` ("Generated Prisma Client (7.10.0)"), `npx prisma migrate status` ("Database schema is up to date!", 8 migraciones) y `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` ("No difference detected."). Un solo `migrate dev --create-only --name publicaciones_y_comentarios` y un solo `migrate dev`; el SQL generado coincide con §D-C1 (PA-03 no se activó) y solo le agregué el `CHECK` a mano.
+
+### Pruebas requeridas de c (archivo y título exacto del caso; salen de `npx vitest list`)
+- PR-C01a: `backend/src/core/eventos/avisos-de-clase.test.ts` — «PR-C01a: colaDePublicacion elige la cola según el tipo»
+- PR-C01b: `backend/src/core/eventos/avisos-de-clase.test.ts` — «PR-C01b: los esquemas rechazan campos de texto extra»
+- PR-C02a: `backend/test/muro.integracion.test.ts` — «PR-C02a: crear un anuncio y un material responde 201»
+- PR-C02b: `backend/test/muro.integracion.test.ts` — «PR-C02b: un material sin título responde 400 VALIDACION»
+- PR-C02c: `backend/test/muro.integracion.test.ts` — «PR-C02c: un INSERT directo que viole publicaciones_titulo_segun_tipo falla»
+- PR-C02d: `backend/test/muro.integracion.test.ts` — «PR-C02d: queda exactamente un trabajo en la cola que corresponde, con id = publicacionId y solo ids»
+- PR-C02e: `backend/test/muro.integracion.test.ts` — «PR-C02e: con un alGuardar doble que lanza, no quedan ni la publicación ni el trabajo»
+- PR-C03a: `backend/test/muro.integracion.test.ts` — «PR-C03a: el muro sale en orden descendente (la más reciente primero)»
+- PR-C03b: `backend/test/muro.integracion.test.ts` — «PR-C03b: el recorrido recursivo del muro no encuentra estadoPago ni email»
+- PR-C03c: `backend/test/muro.integracion.test.ts` — «PR-C03c: el muro pagina con cursor»
+- PR-C03d: `backend/test/muro.integracion.test.ts` — «PR-C03d: cada publicación trae el conteo correcto de comentarios»
+- PR-C03e: `backend/test/muro.integracion.test.ts` — «PR-C03e: cada publicación trae el nombre de su autor»
+- PR-C04a: `backend/test/muro.integracion.test.ts` — «PR-C04a: comentan el alumno inscrito y el maestro (201) y se encola COMENTARIO_CREADO con id = comentarioId»
+- PR-C04b: `backend/test/muro.integracion.test.ts` — «PR-C04b: comentar una publicación de otra clase con el claseId propio responde 404, sin escribir ni encolar»
+- PR-C04c: `backend/test/muro.integracion.test.ts` — «PR-C04c: la lista de comentarios es ascendente y paginada, con propio correcto»
+- PR-C04d: `backend/test/muro.integracion.test.ts` — «PR-C04d: comentar mientras otra transacción borra la publicación responde 404, nunca 500, y no queda ningún comentario»
+- PR-C05a: `backend/test/muro.integracion.test.ts` — «PR-C05a: borrar una publicación responde 204 y sus comentarios desaparecen»
+- PR-C05b: `backend/test/muro.integracion.test.ts` — «PR-C05b: borrar una publicación de otra clase responde 404 y no la toca»
+- PR-C05c: `backend/test/muro.integracion.test.ts` — «PR-C05c: un estudiante que borra una publicación recibe 403 y no se borra»
+- PR-C06a: `backend/test/muro.integracion.test.ts` — «PR-C06a: el maestro borra cualquier comentario de su clase»
+- PR-C06b: `backend/test/muro.integracion.test.ts` — «PR-C06b: el alumno borra el suyo por «mis comentarios»»
+- PR-C06c: `backend/test/muro.integracion.test.ts` — «PR-C06c: con el comentario de otro, «mis comentarios» responde 404 y el comentario sigue»
+- PR-C07: `backend/test/muro.integracion.test.ts` — «PR-C07: describirCola de las tres colas: reintentos, backoff, deadLetter y retención de 7 días; AVISO_FALLIDO existe»
+- PR-C08a: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08a: cada ruta de c: sin token, 401»
+- PR-C08b: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08b: cada ruta: con debe_cambiar_contrasena, 403 CAMBIO_DE_CONTRASENA_REQUERIDO»
+- PR-C08c: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08c: cada ruta: estudiante restringido inscrito, 403 ACCESO_RESTRINGIDO»
+- PR-C08d: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08d: cada ruta: admin, 403 ROL_NO_PERMITIDO»
+- PR-C08e: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en el POST y el DELETE de publicaciones y en el DELETE de comentarios)»
+- PR-C08f: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08f: cada ruta: maestro ajeno y estudiante no inscrito, 403 SIN_ACCESO_A_LA_CLASE»
+- PR-C08g: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08g: cada ruta: el caso permitido, 2xx»
+- PR-C08h: `backend/test/muro-autorizacion.integracion.test.ts` — «PR-C08h: en cada caso negado, publicaciones, comentarios y trabajos de la clase quedan como estaban»
+- PR-C09a: `frontend/src/features/clases/formulario-publicacion.test.tsx` — «PR-C09a: el grupo de tipo usa aria-pressed»
+- PR-C09b: `frontend/src/features/clases/formulario-publicacion.test.tsx` — «PR-C09b: publicar limpia el formulario, avisa e invalida la lista»
+- PR-C09c: `frontend/src/features/clases/formulario-publicacion.test.tsx` — «PR-C09c: el botón dice «Publicar anuncio» o «Publicar material» según el tipo»
+- PR-C09d: `frontend/src/features/clases/muro-view.test.tsx` — «PR-C09d: un solo primary en la vista del maestro y ninguno en la del estudiante»
+- PR-C09e: `frontend/src/features/clases/muro-view.test.tsx` — «PR-C09e: los vacíos por rol»
+- PR-C09f: `frontend/src/features/clases/formulario-publicacion.test.tsx` — «PR-C09f: con «Material», el formulario pide el título»
+- PR-C10a: `frontend/src/features/clases/publicacion-del-muro.test.tsx` — «PR-C10a: un <script> o un <img onerror> en el texto se muestran como texto, sin nodos nuevos»
+- PR-C10b: `frontend/src/features/clases/publicacion-del-muro.test.tsx` — «PR-C10b: la insignia de tipo lleva texto»
+- PR-C10c: `frontend/src/features/clases/publicacion-del-muro.test.tsx` — «PR-C10c: «Ver comentarios» con aria-expanded pide los comentarios solo al abrirse»
+- PR-C10d: `frontend/src/features/clases/publicacion-del-muro.test.tsx` — «PR-C10d: «Borrar» aparece en los comentarios propios del alumno y en todos para el maestro, con confirmación en línea»
+- PR-C11a: `frontend/src/features/clases/inicio-estudiante-view.test.tsx` — «PR-C11a: con teclado, «Ver más clases» desaparece al cargar la última página y el foco va a la primera tarjeta nueva o al encabezado «Mis clases»; nunca a <body>»
+- PR-C11b: `frontend/src/features/clases/muro-view.test.tsx` — «PR-C11b: al cargar la última página, «Ver más publicaciones» desaparece y el foco va a la primera publicación nueva o, si no llegó nada, al encabezado de la lista»
+- PR-C11c: `frontend/src/features/clases/publicacion-del-muro.test.tsx` — «PR-C11c: al cargar la última página, «Ver más comentarios» desaparece y el foco va al primer comentario nuevo o, si no llegó nada, al encabezado de los comentarios»
+- PR-C12a: `backend/src/core/clases/texto.test.ts` — «PR-C12a: contarCaracteresVisibles cuenta por punto de código solo lo que se ve»
+- PR-C12b: `backend/src/core/clases/texto.test.ts` — «PR-C12b: nombreClaseSchema rechaza los nombres sin al menos 2 caracteres visibles»
+- PR-C12c: `backend/src/core/clases/texto.test.ts` — «PR-C12c: nombreClaseSchema acepta emojis compuestos, otros alfabetos y un Cf en medio»
+- PR-C12d: `backend/src/core/clases/texto.test.ts` — «PR-C12d: se normaliza primero y después se valida el contenido visible»
+- PR-C12e: `backend/test/muro.integracion.test.ts` — «PR-C12e: sin contenido visible, cada texto obligatorio responde 400 VALIDACION sin escribir ni encolar»
+- PR-C12f: `backend/test/clases.integracion.test.ts` — «PR-C12f: POST y PUT con un nombre sin contenido visible o de un solo emoji responden 400 VALIDACION, sin crear ni cambiar filas; un emoji compuesto con texto se acepta»
+- PR-C12g: `frontend/src/features/clases/components/formulario-clase.test.tsx` — «PR-C12g: un nombre de solo caracteres invisibles muestra ErrorDeCampo y no llama a la API»
+- PR-C12h: `frontend/src/features/clases/formulario-publicacion.test.tsx` — «PR-C12h: un anuncio, o el título de un material, hechos solo de caracteres invisibles muestran su ErrorDeCampo y no llaman a la API»
+- PR-C12i: `frontend/src/features/clases/publicacion-del-muro.test.tsx` — «PR-C12i: un comentario hecho solo de caracteres invisibles muestra ErrorDeCampo «Escribe tu comentario» y no llama a la API»
+- PR-C13a: `frontend/src/features/clases/alumnos-view.test.tsx` — «PR-C13a: con el POST en vuelo, si la persona escribe otro término y la fila desaparece, el aviso sale igual»
+- PR-C13b: `frontend/src/features/clases/alumnos-view.test.tsx` — «PR-C13b: sin desmontar la fila, cada aviso de agregar (éxito, neutro y error) sale exactamente una vez»
+- PR-C13c: `frontend/src/features/clases/lib.test.ts` — «PR-C13c: con un documento doble, un activeElement nulo, igual a body o desconectado da true; un elemento conectado, false»
+- PR-C13d: `frontend/src/features/clases/con-clase-de-la-ruta.test.tsx` — «PR-C13d: sin :claseId en la ruta muestra el error «No tienes acceso a esta clase.» y no llama a su hijo ni a fetch; con el parámetro, pasa el id tal cual»
+
+Ninguna viñeta de "Pruebas requeridas" de c queda sin caso. Casos adicionales fuera de las viñetas, en los mismos archivos: `muro-autorizacion.integracion.test.ts` ("una publicación de otra clase con un claseId propio responde 404, sin escribir"), `muro-view.test.tsx` ("estados en orden: error, cargando y datos" y "al borrar una publicación con el foco en su «Sí, borrar», el foco va a la vecina y, sin vecinas, al encabezado"), `formulario-publicacion.test.tsx` (2), `publicacion-del-muro.test.tsx` (4) y `lib.test.ts` (el de `vecinaDeFila`).
+
+### Conteos
+- Comandos: `cd backend; npx vitest list > lista-back.txt` y `cd frontend; npx vitest list > lista-front.txt` (en el scratchpad), más `npx vitest list --filesOnly` para los archivos.
+- Backend: 107 archivos (`npx vitest list --filesOnly`: 107 líneas) y 1182 pruebas (`npx vitest list`: 1182 líneas con ` > `; coincide con `Tests  … (1182)` de la corrida). Antes de c: 104 archivos y 1144. Suma: 3 archivos y 38 pruebas (avisos 2, texto 4, muro 22, muro-autorizacion 9, clases.integracion 1).
+- Frontend: 90 archivos (`npx vitest list --filesOnly`: 90 líneas) y 1230 pruebas (`npx vitest list`: 1230 casos; la lista trae 1232 líneas porque dos títulos ocupan dos líneas; coincide con `Tests  1230 passed (1230)`). Antes de c: 86 archivos y 1201. Suma: 4 archivos y 29 pruebas (formulario-publicacion 7, muro-view 5, publicacion-del-muro 10, con-clase-de-la-ruta 1, alumnos-view 2, lib 2, formulario-clase 1, inicio-estudiante 1).
+- `enEspera=`: 35 en `.tsx` de producción (`grep -rn "enEspera=" frontend/src --include=*.tsx`, sin pruebas); el caso C-12 de `styles/clases-r1.ataque.test.ts` pasa.
+
+### V-01 a V-07
+- **V-01:** `sha256sum` de las `*.ataque` de `git ls-files -co --exclude-standard`, contra la tabla de la ronda 0 de c, comparados por programa y con `diff`: **87 de 87 iguales** (antes de empezar y al terminar). `git diff --name-only e9df1f0 -- shared backend frontend` lista solo las 3 `*.ataque` de la ronda 0 entre las `*.ataque`.
+- **V-02:** arriba (lint, build, test).
+- **V-03:** arriba.
+- **V-04 (producción, sin pruebas):**
+  - `$queryRawUnsafe` en código: **1** (`adapters/db/cliente.ts:60`; la línea 52 de ese archivo es un comentario preexistente); `$executeRawUnsafe`: 0.
+  - `$queryRaw` o `$executeRaw` etiquetados en código de `backend/src`: salud, bloqueo-usuario, enlaces-registro e invitaciones (de antes) y **solo `adapters/db/publicaciones.ts:183`** de c.
+  - `addHook` en `backend/src/handlers/`: 0. `console.` en los archivos nuevos del backend: 0.
+  - `estadoPago` en `backend/src` (sin pruebas): los mismos 8 archivos que en `e9df1f0` (comparado con `git grep` sobre la base).
+  - `enEspera=`: 35. `vidrio-azul` fuera de pruebas: `bloque-destacado.tsx` (y la definición en `tokens.css`).
+  - `from "@/features/auth` en `features/clases`: 0. `dangerouslySetInnerHTML` y `target="_blank"` en `frontend/src` (sin pruebas): 0.
+  - `fetch(`: solo `services/apiClient.ts` (líneas 70 y 117; `almacenService.ts` llega en d).
+  - `autoComplete="off"`: buscador, formulario de clase, formulario de unirse y los campos nuevos del muro (título, anuncio o descripción, comentario).
+  - `Default_Ignorable_Code_Point` en `shared/src`: `auth.ts` (sin cambios) y `clases.ts`; en `backend/src` y `frontend/src` (sin pruebas): 0. `contarCaracteresVisibles` se define solo en `shared/src/clases.ts:65`.
+  - `claseId ?? ""` en `features/clases` solo en `components/formulario-clase.tsx:29`. `focoPerdido` se define solo en `features/clases/lib.ts` y `hooks.ts` no la exporta (la importa). `toast` en `components/buscador-alumnos.tsx`: 0.
+- **V-05 ("No se toca"):** `git diff --quiet e9df1f0 -- <ruta>` con código 0 y `git status --porcelain -- <ruta>` vacío para: `infra`, `.claude`, `.codex`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/PRD.md`, `docs/design`, `package.json`, `.prettierrc.json`, `.prettierignore`, `tsconfig.base.json`, `.gitignore`, `.gitattributes`, `.nvmrc`, `eslint.config.mjs`, `package-lock.json`, `backend/package.json`, `backend/prisma.config.ts`, `backend/vitest.config.ts`, `backend/tsconfig*.json`, `backend/src/{server,worker}.ts`, `backend/src/scripts`, `backend/src/config/{auth,cola,correo,logger}.ts`, `backend/src/adapters/{notifier,auth}`, `backend/src/adapters/db/{cliente,bloqueo-usuario,sesiones,salud,errores,usuarios,tokens-cuenta,enlaces-registro,invitaciones,inscripciones,clases}.ts`, `backend/src/adapters/queue/index.ts`, `backend/src/middleware`, `backend/src/handlers/auth`, `backend/src/handlers/{admin,errores,salud,usuarios,validacion}.ts`, `backend/src/handlers/clases/{clases,alumnos}.ts`, `backend/src/core/{auth,correo}`, `backend/src/core/eventos/correo-de-cuenta.ts`, `backend/src/core/errores.ts`, `backend/src/workers`, `backend/test/{global-setup,setup,entorno-de-pruebas,ayudas-auth,ayudas-cuentas,ayudas-concurrencia,notifier-en-memoria,preparar-cola}.ts`, `frontend/{package.json,components.json,tsconfig*.json,vite.config.ts,vitest.config.ts,index.html}`, `frontend/src/{main.tsx,test/setup.ts,styles,app,services,components,lib}`, `frontend/src/features/{admin,diagnostico,auth}`, `shared/src/{auth,cuentas,enlaces-registro}.ts`.
+  - Migraciones: `git diff --name-only e9df1f0 -- backend/prisma/migrations` vacío y `git status --porcelain` lista solo la carpeta nueva `20261002003225_publicaciones_y_comentarios`. `eslint.config.mjs`, `backend/package.json` y `package-lock.json`: sin cambios (código 0).
+  - Fuera de los paquetes solo cambió `docs/DESIGN.md` (paso 33); `docs/trabajo/` y `docs/ESTADO.md` son del orquestador, el manager y el tester.
+- **V-06:** `RUTAS_PUBLICAS` sigue con exactamente 10 (`backend/src/middleware/rutas-publicas.ts`, sin cambios). La lista de rutas registradas la verifica el caso exacto de `backend/test/sesiones-y-cadena.ataque.test.ts` ("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b y CLASES-c: …"), que pasó en las corridas completas con las 54 rutas (45 de hoy más las 9 de c: `GET`, `HEAD` y `POST …/publicaciones`; `DELETE …/publicaciones/:publicacionId`; `GET`, `HEAD` y `POST …/publicaciones/:publicacionId/comentarios`; `DELETE …/publicaciones/:publicacionId/comentarios/:comentarioId`; `DELETE /api/clases/:claseId/mis-comentarios/:comentarioId`). No arranqué la API para imprimir `printRoutes`.
+- **V-07:** conteos y búsqueda de cada ID en `npx vitest list`: arriba (57 IDs, 0 sin caso).
+
+### PARADAS comprobadas
+- **PA-01:** antes de la primera corrida del backend: `Get-NetFirewallRule -DisplayName "Campus: bloquear entrada a Docker en redes publicas"` → `Enabled True`, `Direction Inbound`, `Action Block`, `Profile Public`; `Get-NetConnectionProfile` → `Name IZZI-F281-5G`. Comprobado de nuevo antes de la corrida 1. No se activó.
+- **PA-02:** no se activó (rama `feat/clases`, base `e9df1f0` existe, solo las 3 `*.ataque` de la ronda 0 difieren dentro de los paquetes, V-01 87/87).
+- **PA-03 y PA-04:** no se activaron (SQL de `--create-only` idéntico a §D-C1; `migrate diff … --exit-code` con código 0).
+- **PA-05:** no se activó. PR-C07 (con la lectura de `pgboss.job`) pasó antes de seguir con el handler: los trabajos heredan `retry_limit` 3, `retry_backoff`, `dead_letter` `AVISO_FALLIDO` y 604 800 s de retención; una transacción revertida no deja trabajo (PR-C02e); los datos solo llevan ids (PR-C02d).
+- **PA-06:** no se activó: ninguna `*.ataque` en rojo (C-2 y C-12 pasaron a verde y las demás siguen verdes).
+- **PA-07:** conteos con `grep -c` sobre la salida completa de cada corrida del backend:
+  - corrida 1 (la de CHORE-02): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `P2028` 6 líneas (4 de log y 2 del resumen de fallos): `tx.sesion.create()` en `adapters/db/sesiones.ts:39` desde `POST /api/auth/login` (2 veces, procesos distintos), `tx.sesion.updateMany()` en `sesiones.ts:110` y `tx.tokenCuenta.updateMany()` en `tokens-cuenta.ts:116` desde `POST /api/auth/restablecer`. Los extras sobre los 2 aceptados salieron de la misma cadena de esperas de CHORE-02 (esa corrida cayó con 11 tiempos límite), no de pruebas de c;
+  - corrida 2 y corrida final (desde la raíz): los mismos cuatro términos en 0 y `P2028` 2, exactamente los dos aceptados de `cuentas-r3.ataque` (`tx.sesion.create()` en `sesiones.ts:39`, login; `tx.tokenCuenta.updateMany()` en `tokens-cuenta.ts:116`, restablecer).
+  - Reporto el hallazgo de la corrida 1 y la repetición, como pidió el encargo; si el manager lo considera PA-07, decide él.
+- **PA-08, PA-10, PA-13, PA-14, PA-15, PA-17:** no aplican o no se activaron (nada de correos, logs, guarda, minio ni defectos simulados en producción; no edité producción para probar nada).
+- **PA-09:** no se activó: no toqué nada de "No se toca", no instalé dependencias ni cambié firmas de AUTH. `adapters/queue/colas.ts` y `shared/src/index.ts` están en "Cambios por capa".
+- **PA-11:** `docker ps -a --format '{{.Names}} | {{.Image}} | {{.Status}}'` después de las corridas: solo los 4 contenedores de `infra/` (postgres, minio y livekit sanos; minio-init `Exited (0)`), sin contenedores de Testcontainers; repetido más de 120 s después de terminar la corrida final (ver la línea de hora en el reporte final).
+- **PA-12:** ninguna prueba propia intermitente: backend, 3 corridas completas (1 con la intermitencia conocida de CHORE-02 y 2 limpias salvo E6) y frontend, 3 corridas completas verdes.
+- **PA-16:** **ACTIVA** por `bloqueo-usuario.integracion.test.ts` E6 (ver arriba). Los archivos de pruebas que sí toqué son los de la lista cerrada de c.
+
+### Decisiones y detalles de la implementación (sin cambiar el plan)
+- **shared:** además de los esquemas que lista el plan, agregué `publicacionRespuestaSchema`, `comentarioRespuestaSchema` y `autorDelMuroSchema` (los envoltorios `201 { publicacion }` y `{ comentario }` y el autor) y los esquemas de parámetros `publicacionIdParamSchema`, `publicacionYComentarioParamSchema` y `comentarioIdParamSchema` ("los esquemas de parámetros" de "Cambios por capa"). `CODIGOS_CLASES` ya traía `PUBLICACION_NO_ENCONTRADA` y `COMENTARIO_NO_ENCONTRADO`. `textoLargoSchema` se refactorizó con una función interna para que `textoConContenidoSchema` use `z.string({ error: mensaje })` sin cambiar su comportamiento ni el de `descripcionClaseSchema`.
+- **Colas:** `AVISO_FALLIDO` sin reintentos explícitos, igual que `CORREO_DE_CUENTA_FALLIDO` (hereda el valor por defecto de pg-boss); las tres colas con la política de §D-C3.
+- **Frontend:**
+  - `MuroView` también usa `ConClaseDeLaRuta` (no estaba en la lista de cuatro vistas, pero evita un `claseId ?? ""` nuevo). El rol lo decide por el prefijo de la ruta, como `ClaseLayout`.
+  - Los avisos de borrar publicación y borrar comentario viven en los callbacks de los hooks (no en los de `mutate`): al borrar, el componente desaparece cuando llega la lista nueva y TanStack Query no llamaría a los callbacks de `mutate` (la misma razón de §D-C5 bis).
+  - El foco tras borrar y tras "Ver más" sigue §7.14: `vecinaDeFila` nueva en `lib.ts`, con su caso en `lib.test.ts`, y encabezados `h2` y `h3` solo para lectores de pantalla.
+  - "Ver más clases" busca la tarjeta nueva por su enlace (`a[href]` del destino), porque `tarjeta-clase.tsx` no está en la lista de c.
+- **Escapes Unicode:** la herramienta de edición convierte las secuencias de escape de Unicode en caracteres reales. Lo corregí con un script: cada cadena con caracteres invisibles quedó con escapes en todas las pruebas, y el patrón de Braille en blanco de `shared/src/clases.ts` también. Comprobado con un script que cuenta caracteres de formato, espacios raros y emojis sueltos en cada archivo que toqué: 0 (los 4 de `shared/src/clases.ts` y el 1 de `docs/DESIGN.md` ya estaban en `e9df1f0`).
+
+### Desviaciones del plan
+- Ninguna de diseño. La única condición fuera del plan es la de PA-16 de arriba, que no resolví.
+
+### Pendiente o fuera de alcance detectado
+- **Cursor de publicaciones o comentarios borrados:** `GET …/publicaciones` y `GET …/comentarios` paginan con el `cursor` de Prisma sobre la PK, como dicen §D-C2 y "Acceso a datos". Si la fila del cursor se borra entre dos páginas, Prisma devuelve una página vacía y "Ver más" oculta el resto, el mismo problema de T-18 de a. El plan no pide validar el cursor aquí; lo anoto por si el tester lo ataca (el remedio sería una lectura por PK que responda `400 VALIDACION`, como en `inscritas`).
+- `formulario-clase.tsx` conserva `claseId ?? ""` (pendiente con destino por §D-C5 bis).
+- `shared/src/auth.ts` conserva su copia de `contarVisibles` (pendiente con destino, §D-C4).
+- La intermitencia de CHORE-02 sigue ahí (corrida 1 con 11 tiempos límite).
+
+### Corrección de PA-16 (Enmienda 7)
+
+**PA-16 queda cerrada para `backend/test/bloqueo-usuario.integracion.test.ts` y su caso E6, y ninguna otra prueba fuera de la lista cerrada de c cambió.** Leí la Enmienda 7 (`plan.md`, línea 23, fila de "Pruebas: listas cerradas" de c y nota del paso 32) antes de tocar el archivo.
+
+**Diff exacto del caso E6** (`git diff backend/test/bloqueo-usuario.integracion.test.ts`, solo estas líneas; `prettier --write` sobre ese archivo: `(unchanged)`):
+```
+-  // por eso el patrón cubre también esa forma, no solo $queryRaw.
+-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts e invitaciones.ts usan SQL etiquetado en adapters/db", async () => {
++  // por eso el patrón cubre también esa forma, no solo $queryRaw. CLASES-c, §D-C3/V-04:
++  // publicaciones.ts suma el SELECT … FOR SHARE de crearComentario (Enmienda 7).
++  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts y publicaciones.ts usan SQL etiquetado en adapters/db", async () => {
+...
+       "invitaciones.ts",
++      "publicaciones.ts",
+       "salud.ts",
+```
+No se reescribió el caso, no se quitó ninguna aserción y el patrón no cambió.
+
+**Comandos y última línea de salida:**
+- `cd backend; npm run lint` → exit 0; última línea: `> tsc -p tsconfig.json --noEmit`
+- `cd backend; npx vitest run test/bloqueo-usuario.integracion.test.ts -t "E6"` → `Tests  1 passed | 20 skipped (21)`
+- Suite del backend, corrida 1 (`cd backend; npm test`): `Tests  8 failed | 1174 passed (1182)` y `Test Files  5 failed | 102 passed (107)`. Cayó por la espera en cadena de CHORE-02 (7 "timed out"; ningún fallo de E6 ni de pruebas de c): `alumnos.integracion` (PR-B04c, PR-B04d), `cuentas-r1`, `cuentas-r3`, `restablecer`, `worker-correo-de-cuenta`.
+- Suite del backend, corrida 2 (repetida una vez, `cd backend; npm test`): `Test Files  107 passed (107)` · `Tests  1182 passed (1182)`
+- `npm run test` desde la raíz, corrida 1: backend `Tests  12 failed | 1167 passed | 3 skipped (1182)` (CHORE-02: tiempos límite en `api-real`, `worker-03c-r1`, `bloqueo-usuario` A1, `clases-autorizacion`, `clases-r1`, `cuentas-*`, `restablecer`, `worker-correo`; E6 no falló); frontend `Tests  1230 passed (1230)`.
+- `npm run test` desde la raíz, corrida 2 (repetida una vez): exit 0; backend `Test Files  107 passed (107)` · `Tests  1182 passed (1182)`; frontend `Test Files  90 passed (90)` · `Tests  1230 passed (1230)`; última línea de la salida de la corrida 2: `Duration  48.63s (transform 13.01s, setup 34.88s, import 95.22s, tests 197.07s, environment 166.37s)`.
+
+**Conteos** (`cd backend; npx vitest list | grep -c ' > '` y `npx vitest list --filesOnly | wc -l`): backend 107 archivos y 1182 pruebas, sin cambio. Frontend sin cambio: 90 archivos y 1230 pruebas (`Tests  1230 passed (1230)`).
+
+**V-01:** `sha256sum` de las `*.ataque` contra la tabla de la ronda 0 de c, comparados por programa con `diff`: **87 de 87 iguales**.
+
+**Alcance de los cambios en `backend/test`:** `git diff --name-only e9df1f0 -- backend/test` lista `ayudas-clases.ts`, `bloqueo-usuario.integracion.test.ts`, `clases.integracion.test.ts` y `sesiones-y-cadena.ataque.test.ts` (la `*.ataque` de C-2, de la ronda 0); `git status --porcelain backend/test` suma solo `muro.integracion.test.ts` y `muro-autorizacion.integracion.test.ts` (nuevos). Es decir, mis archivos de c, `bloqueo-usuario.integracion.test.ts` y la `*.ataque` de C-2.
+
+**PA-07** (conteo con `grep -c` sobre la salida completa):
+- Suite del backend, corrida 2 y `npm run test` de la raíz, corrida 2: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `P2028` 2 líneas, exactamente las dos aceptadas de `cuentas-r3`: `tx.sesion.create()` en `adapters/db/sesiones.ts:39` desde `POST /api/auth/login` y `tx.tokenCuenta.updateMany()` en `adapters/db/tokens-cuenta.ts:116` desde `POST /api/auth/restablecer`.
+- Corridas 1 (backend y raíz; CHORE-02): los otros cuatro términos en 0 y `P2028` en 5 líneas, todas en `sesiones.ts:39` (login) y `tokens-cuenta.ts:116` (restablecer), con más repeticiones de las dos llamadas por la misma cadena de esperas; sin otra tabla ni otra ruta. Decide el manager si cuentan como PA-07.
+
+**PA-11:** la corrida final terminó a las 19:15:58; `docker ps -a` a las 19:18:02 (más de 120 s después): solo los 4 contenedores de `infra/` (postgres, minio y livekit sanos; minio-init `Exited (0)`), sin contenedores de Testcontainers.
+
+
+## CLASES-c — corrección de la ronda 1
+
+Corregidos T-29, T-30, T-31 y T-33. T-32 no se tocó en el código (Enmienda 8, el tester reescribió C-20). PA-01 comprobada antes del backend: regla "Campus: bloquear entrada a Docker en redes publicas" con `Enabled True / Inbound / Block / Public`; red `IZZI-F281-5G` (Public).
+
+### Hallazgos
+- **T-29 (medio), corregido.** `backend/src/adapters/db/publicaciones.ts`: `listarPublicaciones` con cursor lee `publicacion` por `id = cursor` y `claseId` y, sin fila, lanza `400 VALIDACION` "cursor: no es válido". `listarComentarios` comprueba primero la publicación en la clase (`404 PUBLICACION_NO_ENCONTRADA`, aunque haya cursor) y después `comentario` por `id = cursor` y `publicacionId`. Una lectura por PK con Prisma (`findFirst`), fuera de ciclos, sin transacción, sin SQL crudo nuevo. El handler no cambió. Ver la desviación D-1 sobre `errorCursorInvalido`.
+- **T-30 (medio), corregido.** `frontend/src/features/clases/hooks.ts`: `useCrearPublicacion` y `useComentar` avisan en sus callbacks (`onSuccess`: invalidación de siempre y `toast.success` con `TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado` / `TEXTOS_COMENTARIOS.avisoComentado`; `onError`: `toast.error(mensajeDeErrorClases(error))` salvo que `erroresDeFormularioClases` lo reconozca como error de campo, con `["titulo", "texto"]` y `["texto"]`). `components/formulario-publicacion.tsx` y `components/formulario-comentario.tsx` ya no importan `toast`: `mutate` solo limpia campos en `onSuccess` y pone errores de campo en `onError`. `comentarios-de-publicacion.tsx` no cambió (el `mutate` vive en los formularios).
+- **T-31 (bajo), corregido.** `normalizarTextoLargo` se define en `shared/src/clases.ts` y se reexporta en `shared/src/index.ts`; `backend/src/core/clases/texto.ts` solo la reexporta de `@campus/shared`. Los dos formularios la aplican a título, texto y comentario antes de `safeParse` y envían `resultado.data`; el campo visible no se reescribe. `formulario-clase.tsx` no se tocó.
+- **T-33 (bajo), corregido.** `shared/src/clases.ts`: `{ error: "Elige si es un anuncio o un material" }` en el `discriminatedUnion` de `crearPublicacionSchema` y `z.string({ error: "La descripción debe ser texto" })` en la descripción opcional del material (sigue opcional, máximo 5,000, sin mínimo de visibles). Las dos constantes son internas de `shared/` (el frontend no las muestra, no van a `data.ts`). `descripcionClaseSchema` no se tocó.
+
+### Archivos modificados
+`shared/src/clases.ts`, `shared/src/index.ts`, `backend/src/core/clases/texto.ts`, `backend/src/adapters/db/publicaciones.ts`, `frontend/src/features/clases/hooks.ts`, `frontend/src/features/clases/components/formulario-publicacion.tsx`, `frontend/src/features/clases/components/formulario-comentario.tsx`; pruebas: `backend/test/muro.integracion.test.ts`, `backend/src/core/clases/texto.test.ts`, `frontend/src/features/clases/formulario-publicacion.test.tsx`, `frontend/src/features/clases/publicacion-del-muro.test.tsx`. Ningún `*.ataque` tocado; `muro-view.test.tsx` no hizo falta.
+
+### Los 8 IDs nuevos (archivo y título exacto)
+- PR-C03f, `backend/test/muro.integracion.test.ts`: "PR-C03f: un cursor borrado, de otra clase o inexistente responde 400 VALIDACION igual; uno válido sigue paginando"
+- PR-C04e, ídem: "PR-C04e: lo mismo con el cursor de un comentario; una publicación de otra clase responde 404 aunque haya cursor"
+- PR-C14a, `frontend/src/features/clases/formulario-publicacion.test.tsx`: "PR-C14a: el aviso de éxito y el de error salen una sola vez, con el formulario montado y desmontado; un error de campo no avisa"
+- PR-C14b, `frontend/src/features/clases/publicacion-del-muro.test.tsx`: "PR-C14b: el aviso de comentar sale una sola vez, con los comentarios abiertos o cerrados antes de la respuesta; un error de campo no avisa"
+- PR-C15a, `backend/src/core/clases/texto.test.ts`: "PR-C15a: es la misma función que la de @campus/shared y da lo mismo con CRLF, CR y extremos en blanco"
+- PR-C15b, `formulario-publicacion.test.tsx`: "PR-C15b: un anuncio de 5,000 caracteres más un salto se envía normalizado; uno de 5,001 sin saltos se rechaza en el formulario"
+- PR-C15c, `publicacion-del-muro.test.tsx`: "PR-C15c: un comentario de 1,000 caracteres más un salto se envía normalizado; uno de 1,001 se rechaza en el formulario"
+- PR-C16, `backend/test/muro.integracion.test.ts`: "PR-C16: tipo ausente o desconocido y descripción que no es texto responden en español"
+
+Los IDs anteriores siguen existiendo: de las filas PR-C de la tabla del plan (58 IDs), ninguna falta en `npx vitest list` (`comm -23` de los IDs del plan contra los de las dos listas da 0). Hay 65 IDs PR-C distintos en las listas (57 anteriores más los 8 nuevos). Comandos: `cd backend; npx vitest list` y `cd frontend; npx vitest list`, redirigidos al scratchpad (`list-backend.txt`, `list-frontend.txt`), y `grep -aoE 'PR-C[0-9]+[a-z]?' | sort -u`.
+
+### Conteos (de `npx vitest list` y de la corrida)
+- Backend: 1214 casos y 109 archivos (`npx vitest list --filesOnly | wc -l` = 109; casos = líneas con " > " de `npx vitest list`). La corrida dice `Test Files  109 passed (109)` y `Tests  1214 passed (1214)`.
+- Frontend: 1258 casos y 92 archivos (`npx vitest list --filesOnly | wc -l` = 92). La corrida: `Test Files  92 passed (92)` y `Tests  1258 passed (1258)`.
+
+### Verificación (comando exacto y última línea)
+- `npm run build` (raíz): exit 0, última línea `✓ built in 688ms`.
+- `npm run lint` (raíz): exit 0, última línea `> tsc -b` (typecheck del frontend; eslint y prettier --check sin errores). Por paquete: `cd backend; npm run lint` → última línea `> tsc -p tsconfig.json --noEmit` (exit 0); `cd frontend; npm run lint` → `All matched files use Prettier code style!` y `tsc -b` (exit 0); `cd shared; npm run build` → `tsc -p tsconfig.json` (exit 0).
+- `npm run test` (raíz): exit 0, `Test Files  109 passed (109)`, `Tests  1214 passed (1214)` (backend) y `Test Files  92 passed (92)`, `Tests  1258 passed (1258)` (frontend); última línea `Duration  49.34s (transform 12.34s, setup 35.65s, import 94.53s, tests 201.31s, environment 168.85s)`.
+- V-03: `npx prisma validate` → "The schema at prisma\schema.prisma is valid"; `npx prisma format --check` → "All files are formatted correctly!"; `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → "No difference detected." La migración no cambió. `prisma generate` lo corre `pretest` en cada corrida del backend. `prisma migrate status` no se ejecutó.
+
+### Corridas completas del backend (PA-12, CHORE-02, PA-07)
+`cd backend; npm run test`, cuatro corridas completas (más la del root):
+1. `Test Files  8 failed | 101 passed (109)`, `Tests  12 failed | 1202 passed (1214)`. Todos los rojos son tiempos límite de CHORE-02 (`Test timed out in 15000ms`, `Hook timed out in 10000ms`, `esperarHasta agotó el tiempo límite`) en archivos de AUTH (`auth-login`, `bloqueo-usuario`, `clases-autorizacion`, `cuentas-03a-r1`, `cuentas-r1`, `cuentas-r3`, `restablecer`, `worker-correo-de-cuenta`); ninguno en archivos del muro.
+2. `Test Files  109 passed (109)`, `Tests  1214 passed (1214)`.
+3. `Test Files  10 failed | 99 passed (109)`, `Tests  10 failed | 1201 passed | 3 skipped (1214)`: otra vez tiempos límite (más un `TypeError` en `api-real.ataque` por un login que no devolvió token bajo carga y una espera agotada en `worker-r2`). Los archivos que fallaron sin ser de AUTH (`api-real`, `worker-r2`, `clases-r1`, `alumnos`, `worker-03c-r1`, `clases-autorizacion`) corridos aparte con `npx vitest run` dieron `Test Files  8 passed (8)`, `Tests  116 passed (116)`.
+4. `Test Files  109 passed (109)`, `Tests  1214 passed (1214)`. Y la corrida del root también en verde.
+Dos corridas completas en verde (la 2 y la 4, más la del root).
+- PA-07 (búsqueda en los logs de las cuatro corridas): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0. `P2028`: solo `adapters/db/sesiones.ts:39` (login) y `adapters/db/tokens-cuenta.ts:116` (restablecer), los dos aceptados; ninguno en una ruta de c ni en `sesiones.ts:110`.
+- PA-11: ningún proceso se quedó colgado; las corridas largas se ejecutaron en primer plano con su salida a archivo y terminaron solas. No arranqué API, worker ni Vite, ni abrí navegadores.
+
+### V-01 (91/91)
+Los hashes SHA-256 de las 91 `*.ataque` (backend, frontend y shared; `git ls-files -co` más `sha256sum` por archivo) comparados por programa con la tabla de C-20 de `reporte-tester.md` (91 filas): `diff` sin diferencias. Hecho antes de empezar (el árbol traía la misma tabla) y al terminar. Ninguna `*.ataque` cambió.
+
+### V-04 (cada búsqueda, sin pruebas)
+- `$queryRawUnsafe` en `backend/src` fuera de pruebas: 1 uso (`adapters/db/cliente.ts:60`; la otra línea es un comentario); `$executeRawUnsafe`: 0.
+- SQL etiquetado en `backend/src`: `bloqueo-usuario.ts`, `enlaces-registro.ts`, `invitaciones.ts`, `salud.ts` y `publicaciones.ts` (el `FOR SHARE` de antes; yo no agregué SQL crudo).
+- `addHook` en `handlers/`: 0. `toast` en `buscador-alumnos.tsx`: 0. `enEspera=` en `frontend/src` (sin pruebas): 35. `disabled` en `features/clases` (sin pruebas): 1 coincidencia, un comentario de `codigo-de-clase.tsx`; ningún atributo. `?? []` en `features/clases` (sin pruebas): 0. `fetch(` en `frontend/src` (sin pruebas): solo `services/apiClient.ts`. `dangerouslySetInnerHTML` y `target="_blank"`: 0. `from "@/features/auth` en `features/clases`: 0. `console.` en `publicaciones.ts`: 0.
+- `normalizarTextoLargo` se define solo en `shared/src/clases.ts:67`; `core/clases/texto.ts` solo la reexporta. `contarCaracteresVisibles` definida solo en `shared/src/clases.ts:71`. `focoPerdido` definida solo en `features/clases/lib.ts:56`. `Default_Ignorable_Code_Point` solo en `shared/src/auth.ts` y `shared/src/clases.ts`.
+- `toast` en `features/clases` (sin pruebas): `codigo-de-clase.tsx`, `formulario-clase.tsx`, `formulario-unirse-clase.tsx`, `tabla-alumnos.tsx`, `hooks.ts` y `lib.ts` (solo la palabra en un comentario, línea 134); `formulario-publicacion.tsx` y `formulario-comentario.tsx` ya no.
+- Invisibles reales y CR en los 12 archivos que toqué o que cito: 0, salvo `shared/src/clases.ts`, que ya traía U+202A y U+202E como parte de una expresión regular de `HEAD` (no son míos).
+
+### V-05 (No se toca, base `e9df1f0`)
+`git diff --quiet e9df1f0 -- <ruta>` por cada ruta de la lista de "No se toca" dentro de los paquetes (backend: `package.json`, `prisma.config.ts`, `vitest.config.ts`, `src/server.ts`, `src/worker.ts`, `src/scripts`, `src/config/{auth,cola,correo,logger}.ts`, `adapters/notifier`, `adapters/auth`, `adapters/db/{cliente,bloqueo-usuario,sesiones,salud,errores,usuarios,tokens-cuenta,enlaces-registro,invitaciones,inscripciones,clases}.ts`, `adapters/queue/index.ts`, `middleware`, `handlers/auth`, `handlers/{admin,errores,salud,usuarios,validacion}.ts`, `core/auth`, `core/correo`, `core/eventos/correo-de-cuenta.ts`, `core/errores.ts`, `workers`, y los `test/` de soporte; frontend: `package.json`, `components.json`, `vite.config.ts`, `vitest.config.ts`, `index.html`, `src/main.tsx`, `src/test/setup.ts`, `src/services`, `src/components`, `src/lib`, `src/features/{admin,diagnostico,auth}`, `src/app`; raíz: `package.json`, `eslint.config.mjs`, `package-lock.json`): código 0 en todas, con `git status --porcelain` vacío, salvo dos rutas que contienen `*.ataque` del tester (no mías): `frontend/src/styles` (`clases-r1.ataque.test.ts`, modificado) y `frontend/src/app` (`muro-rutas-c-r1.ataque.test.tsx`, nuevo), ambos con el hash de la tabla. En el código de producción de esas dos rutas no hay cambio. Migraciones: solo la carpeta nueva `20261002003225_publicaciones_y_comentarios` (`git status`), `git diff --name-only e9df1f0 -- backend/prisma/migrations` vacío (la carpeta es no rastreada).
+
+### Los 9 casos que estaban en rojo, ahora en verde (`muro-c-r1`, sin tocarlos)
+Corridas aisladas: `cd backend; npx vitest run test/muro-c-r1.ataque.test.ts` → `Tests  25 passed (25)`; `cd frontend; npx vitest run src/features/clases/muro-c-r1.ataque.test.tsx` → `Tests  22 passed (22)`.
+- Backend T-29 (2): "publicaciones: el cursor de una publicación borrada entre dos páginas…" y "comentarios: el cursor de un comentario borrado entre dos páginas…" pasan porque el adaptador responde `400 VALIDACION` "cursor: no es válido" en lugar de una página vacía que ocultaba el resto. Backend T-33 (1): "campos ausentes o que no son texto responden en español (N-C3 y punto 4 del manager), también el tipo y la d…" pasa por los dos `error` nuevos de `shared/`.
+- Frontend T-30 (4): los casos "publicación con éxito / con error: si la persona sale del muro con el POST en vuelo, el aviso sale igual (una vez)" y "comentario con éxito / con error: si la persona pulsa «Ocultar comentarios» con el POST en vuelo, el aviso sale igual (una vez)" pasan porque el aviso vive en los callbacks del hook y no en el `mutate` del componente. Frontend T-31 (2): "un anuncio de 5,000 caracteres entre saltos de línea…" y "un comentario de 1,000 caracteres seguido de un salto de línea…" pasan porque el formulario normaliza antes de medir.
+Ninguna otra prueba cayó (suite completa, ver arriba).
+
+### N-C4 (cambio heredado, declarado)
+El programador anterior cambió una línea de un caso existente de `backend/test/clases.integracion.test.ts` (alrededor de la línea 128): el U+202E literal pasó a la secuencia de escape en `payload: { nombre: "Clase‮mala" }`, con el mismo valor. No lo deshice; no lo toqué en esta corrección.
+
+### Desviaciones del plan
+- **D-1: `errorCursorInvalido` copiado, no reutilizado.** La indicación decía reutilizar el de `adapters/db/clases.ts`, pero esa función no está exportada y exportarla exige modificar `adapters/db/clases.ts`, que no está en "Cambios por capa" de c y por tanto está en "No se toca". Para no tocarlo, `publicaciones.ts` define su propio `errorCursorInvalido` con el mismo código, mensaje y estado (`VALIDACION`, "cursor: no es válido", 400), igual que ya hace `adapters/db/inscripciones.ts`. Si el manager prefiere una sola definición, hay que autorizar un cambio mínimo en `clases.ts` (exportar la función) o moverla a un archivo compartido de `adapters/db`.
+- Dos constantes de mensaje (`MENSAJE_TIPO_PUBLICACION`, `MENSAJE_DESCRIPCION_MATERIAL`) quedan internas en `shared/src/clases.ts` (no exportadas), porque el frontend no las muestra.
+- Ninguna otra.
+
+### Pendiente o fuera de alcance detectado
+- `formulario-clase.tsx` sigue sin normalizar (pendiente registrado en la Enmienda 8) y `descripcionClaseSchema` conserva el mensaje de tipo por defecto de zod (pendiente registrado).
+- Los rojos de las corridas 1 y 3 son tiempos límite de CHORE-02 en archivos de AUTH, sin relación con c.
+
+
+## CLASES-c — corrección de la ronda 2
+
+### T-34 (bajo): corregido
+- **Mecanismo.** `frontend/src/features/clases/lib.ts`: función pura nueva `mensajeDeErrorDeLista(error, textoDelCursor)`. Si el error es un `VALIDACION` cuyo campo (`campoDeErrorClases`) es `cursor`, devuelve `textoDelCursor`; en cualquier otro caso devuelve `mensajeDeErrorClases(error)`, sin cambio.
+- **Dónde se usa.** `muro-view.tsx` (error de la consulta de publicaciones) y `components/comentarios-de-publicacion.tsx` (error de la consulta de comentarios), que antes llamaban a `mensajeDeErrorClases`. El foco no cambió (ya iba al encabezado).
+- **Textos** en `features/clases/data.ts`, con las palabras propuestas: `TEXTOS_MURO.cambioMientrasLoVeias` = "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo." y `TEXTOS_COMENTARIOS.cambioMientrasLosVeias` = "Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos."
+- **"Ver más clases": no se hizo.** El mensaje de error de ese panel llega ya armado desde las vistas de inicio por `errorMensaje` a `panel-mis-clases.tsx` (de a, autorizado en c solo para el foco) y a los inicios. Cubrirlo exige tocar esos archivos, así que lo declaro como pendiente y no agregué el texto de "Tus clases cambiaron…".
+- Archivos modificados: `lib.ts`, `data.ts`, `muro-view.tsx`, `components/comentarios-de-publicacion.tsx` y las pruebas `lib.test.ts`, `muro-view.test.tsx`, `publicacion-del-muro.test.tsx`. Ningún `*.ataque` ni código del backend.
+
+### PR-C17 (un ID, tres casos, un caso por archivo)
+- `frontend/src/features/clases/muro-view.test.tsx`: "PR-C17: tras el 400 del cursor en «Ver más publicaciones», se muestra el texto que dice qué pasó y el foco va al encabezado"
+- `frontend/src/features/clases/publicacion-del-muro.test.tsx`: "PR-C17: tras el 400 del cursor en «Ver más comentarios», se muestra el texto que dice qué pasó y el foco no cae en body"
+- `frontend/src/features/clases/lib.test.ts`: "PR-C17: un VALIDACION del campo cursor da el texto dado; cualquier otro error sigue el camino de siempre"
+- Caso de T-34 del tester (`muro-c-r2.ataque.test.tsx`, "tras el 400 del cursor en «Ver más publicaciones», la persona ve un mensaje que dice qué pasó…"): pasa sin tocarlo. `cd frontend; npx vitest run src/features/clases/muro-c-r2.ataque.test.tsx` → `Tests  11 passed (11)`.
+
+### Conteos (`npx vitest list`, `npx vitest list --filesOnly | wc -l`; líneas con " > " de la lista, redirigidas al scratchpad)
+- Backend: 1226 casos, 111 archivos. Frontend: 1272 casos, 93 archivos. Los tres casos PR-C17 aparecen en la lista del frontend.
+
+### Verificación (comando y última línea)
+- `cd frontend; npm run lint`: exit 0, última línea `> tsc -b` (con `All matched files use Prettier code style!`).
+- `cd frontend; npm run test`, dos corridas: ambas exit 0, `Test Files  93 passed (93)`, `Tests  1272 passed (1272)`.
+- `cd backend; npm run test`: corrida 1 cayó por CHORE-02 (`Test Files  8 failed | 103 passed (111)`, `Tests  9 failed | 1215 passed | 2 skipped (1226)`: solo `Test timed out`/`Hook timed out`/`esperarHasta agotó el tiempo límite`); corrida 2: exit 0, `Test Files  111 passed (111)`, `Tests  1226 passed (1226)`.
+- Raíz: `npm run build` exit 0, `✓ built in 705ms`; `npm run lint` exit 0 (última línea del `tsc -b` del frontend); `npm run test`: primera vez exit 1 por CHORE-02 (`Test Files  10 failed | 101 passed (111)`, `Tests  13 failed | 1213 passed (1226)`, solo tiempos límite y una espera de cola agotada; frontend `1272 passed (1272)`), repetida: exit 0, backend `Test Files  111 passed (111)` y `Tests  1226 passed (1226)`, frontend `Test Files  93 passed (93)` y `Tests  1272 passed (1272)`, última línea `Duration  50.03s (transform 13.74s, setup 35.93s, import 98.85s, tests 205.06s, environment 169.40s)`.
+- Formato: `cd frontend; npx prettier --write` solo sobre mis siete archivos.
+
+### V-01, V-04, V-05
+- **V-01:** 94/94. `sha256sum` de las `*.ataque` de `git ls-files -co --exclude-standard` contra las 94 filas de "CLASES-c — Ronda 2" de `reporte-tester.md`, `diff` sin diferencias.
+- **V-04:** `enEspera=` en `frontend/src` sin pruebas: 35; `?? []` en `features/clases` sin pruebas: 0; sin SQL nuevo ni cambios de backend; `normalizarTextoLargo`, `contarCaracteresVisibles` y `focoPerdido` siguen definidas una sola vez (no toqué sus archivos); ningún `toast` nuevo; los textos nuevos viven en `data.ts`, no en `.tsx`.
+- **V-05:** `git diff --quiet e9df1f0 -- backend/src/adapters/db/clases.ts` código 0. Solo toqué archivos que la corrección autorizaba (`lib.ts`, `data.ts`, los componentes del muro y comentarios y sus pruebas). `panel-mis-clases.tsx` ya tenía el cambio de foco autorizado de c y no lo toqué en esta ronda.
+- Invisibles reales y CR en los 7 archivos que toqué: 0.
+
+### PA-07 y PA-11
+- Logs de las dos corridas del backend y de las dos del root: `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0. `P2028` solo en `adapters/db/sesiones.ts:39` y `adapters/db/tokens-cuenta.ts:116` (los dos aceptados); no apareció ninguno de `cambiar-contrasena` ni de `invitarMaestrosEnLote`, ni en rutas de c.
+- PA-11: ningún proceso colgado; todo en primer plano, con su salida a archivo; no arranqué API, worker ni Vite, ni abrí navegadores.
+
+### Desviaciones y pendientes
+- Desviaciones: ninguna. D-1 de la ronda anterior (copia de `errorCursorInvalido`) sigue pendiente de decisión del manager.
+- Pendiente: el mismo mensaje técnico en "Ver más clases" (`panel-mis-clases.tsx` e inicios, de a), con el texto propuesto "Tus clases cambiaron mientras las veías. Vuelve a entrar para verlas completas.": requiere autorización para tocar esos archivos.
+- Pendientes anteriores sin cambio: `formulario-clase.tsx` sin normalizar y `descripcionClaseSchema` con mensaje de tipo por defecto.
+
+
+## CLASES-c — cuarta ronda (T-35)
+
+### T-35 (bajo): corregido
+- **Mecanismo.** `frontend/src/features/clases/muro-view.tsx`: `MuroDeLaClase` guarda en una ref la `key` de la ubicación (`useLocation().key`) con la que se montó. Un efecto reacciona cuando esa clave cambia (pulsar "Muro" estando en el muro agrega una entrada con la misma ruta y una `key` nueva, pero la vista no se desmonta): actualiza la ref y, si la consulta de publicaciones está en `isError`, llama a `refetch()`, que vuelve a pedir la lista desde la primera página sin recargar. Con la lista sana el efecto no hace nada.
+- **Sin cambios de comportamiento visible:** el texto no cambia, el foco se queda en el enlace "Muro" (no lo muevo), y no agregué textos ni toqué `hooks.ts`, `data.ts`, `lib.ts` ni `components/`.
+- **Archivos:** solo `frontend/src/features/clases/muro-view.tsx` y `frontend/src/features/clases/muro-view.test.tsx` (`git status` de `muro-view.tsx`: ` M`).
+- **Por qué pasa ahora el caso de T-35** (`frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx`, "muro: estando en el muro, «Vuelve a abrirlo» pulsando «Muro» recupera la lista"): antes, pulsar "Muro" cambiaba solo la `key` de la ubicación, la vista seguía montada y la consulta seguía en error. Ahora ese cambio dispara el `refetch()` de la primera página; el servidor responde bien, la alerta desaparece y la lista reaparece. `cd frontend; npx vitest run src/app/muro-recuperar-c-r3.ataque.test.tsx src/app/muro-c-r3` → `Tests  3 passed (3)`, sin tocarlo; sus otros dos casos pasan.
+
+### PR-C18 (`frontend/src/features/clases/muro-view.test.tsx`)
+- "PR-C18: con el muro en error por el 400 del cursor, pulsar «Muro» vuelve a pedir la primera página y la lista reaparece, con el foco en «Muro»"
+- "PR-C18: con el muro sano, pulsar «Muro» no vuelve a pedir nada"
+
+### Conteos (`cd frontend; npx vitest list` y `npx vitest list --filesOnly | wc -l`; backend `cd backend; npx vitest list --filesOnly | wc -l`)
+- Frontend: 1292 casos, 95 archivos. Backend (sin cambios): 111 archivos; la corrida dice 1226 pruebas. Los dos casos PR-C18 aparecen en la lista.
+
+### Verificación (comando y última línea)
+- `cd frontend; npm run lint`: exit 0, última línea `> tsc -b`.
+- `cd frontend; npm run test`, dos corridas: ambas exit 0, `Test Files  95 passed (95)`, `Tests  1292 passed (1292)`.
+- Raíz: `npm run build` exit 0, `✓ built in 658ms`; `npm run lint` exit 0; `npm run test` exit 0 a la primera, backend `Test Files  111 passed (111)` y `Tests  1226 passed (1226)`, frontend `Test Files  95 passed (95)` y `Tests  1292 passed (1292)`, última línea `Duration  51.51s (transform 12.99s, setup 36.99s, import 100.09s, tests 214.23s, environment 173.47s)`.
+- Formato: `cd frontend; npx prettier --write` solo sobre `muro-view.tsx` y `muro-view.test.tsx`. Sin invisibles ni CR en los dos (comprobado por programa: 0).
+
+### V-01, V-04, V-05
+- **V-01:** 96/96. `sha256sum` de las `*.ataque` de `git ls-files -co --exclude-standard` contra las 96 filas de "CLASES-c — Ronda 3" de `reporte-tester.md`, `diff` sin diferencias.
+- **V-04:** `enEspera=` en `frontend/src` sin pruebas: 35; `?? []` en `features/clases` sin pruebas: 0; `disabled` en `muro-view.tsx`: 0; sin ternarios anidados; sin textos nuevos; sin cambios de backend.
+- **V-05:** solo cambiaron `muro-view.tsx` y `muro-view.test.tsx` en esta ronda (no pude contrastar la lista SHA-256 del orquestador, que no tengo; lo único que toqué son esos dos archivos).
+
+### PA-07 y PA-11
+- Log de la corrida de la raíz: `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; `P2028` solo en `adapters/db/sesiones.ts:39` y `adapters/db/tokens-cuenta.ts:116` (los dos aceptados). El backend no cambió y no cayó por CHORE-02 en esta ronda.
+- PA-11: ningún proceso colgado; todo en primer plano con salida a archivo; no arranqué API, worker ni Vite, ni abrí navegadores.
+
+### Desviaciones y pendientes
+- Desviaciones: ninguna. D-1 (copia de `errorCursorInvalido` en `publicaciones.ts`) sigue pendiente de decisión del manager.
+- Pendientes sin cambio: "Ver más clases" con el texto técnico (`panel-mis-clases.tsx` e inicios, de a), `formulario-clase.tsx` sin normalizar y `descripcionClaseSchema` con el mensaje de tipo por defecto de zod.
+- Observación: la recuperación cubre el muro de publicaciones. Los comentarios ya se recuperan con "Ocultar comentarios" y "Ver comentarios", como pide el texto.

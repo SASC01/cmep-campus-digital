@@ -182,3 +182,24 @@ el **último** paso de la transacción: su `secuencia` (`BIGSERIAL`) se toma des
 por otra transacción, y por eso el orden del registro es `secuencia`, nunca `creado_en` (la hora de
 inicio de la transacción). **Ninguna función exportada lee `movimientos_inscripcion`** (el modelo
 solo aparece en `.create(`); su pantalla de consulta es de ADMIN.
+
+## `db/publicaciones.ts` y las colas de avisos (CLASES-c, §D-C2 y §D-C3)
+
+`crearPublicacion` y `crearComentario` abren una transacción, insertan y llaman a
+`alGuardar(ejecutorSqlDe(tx))`: el handler pasa `(sql) => encolar(cola, datos, { id, sql })`, así
+que el aviso nace con el dato o no nace (si `encolar` lanza, todo se revierte). El `id` lo genera el
+handler con `randomUUID()` **antes** de llamar al adaptador y es también el id del trabajo (el
+`eventId` idempotente). Los datos del trabajo llevan solo ids, nunca texto, nombres ni correos.
+`PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO` (con `AVISO_FALLIDO` como cola de
+fallidos, creada primero) las crean la API y el worker al arrancar (`adapters/queue/colas.ts`:
+3 reintentos, espera de 30 s con retroceso, 300 s de expiración, retención de 7 días) y **no tienen
+consumidor** hasta NOTIFICACIONES: los trabajos esperan en la cola.
+
+`crearComentario` lee primero la publicación con
+`SELECT id FROM publicaciones WHERE id = … AND clase_id = … FOR SHARE` (`$queryRaw` etiquetado y
+parametrizado; la única consulta cruda nueva de c). Sin fila responde `null` (el handler, `404`) y no
+inserta. Un borrado simultáneo de la publicación espera a que el comentario confirme y lo borra en
+cascada; si el borrado confirma antes, el `FOR SHARE` ya no ve la fila. Toda consulta por
+`publicacionId` o `comentarioId` filtra además por la clase de la ruta, y «mis comentarios» pone
+`autor_id` dentro de la condición del `deleteMany`. `listarPublicaciones` cuenta los comentarios de
+toda la página con una sola consulta agrupada, fuera de cualquier ciclo.

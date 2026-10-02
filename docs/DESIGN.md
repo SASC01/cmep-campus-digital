@@ -410,6 +410,7 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - **Campo de contraseña (DESIGN-01b; nombre y estado: decisión del humano, 2026-09-27; aspecto: propuesta aprobada (2026-09-28)):** botón de ojo dentro del campo, a la derecha, 44 px, `ghost`; icono `Eye`/`EyeOff` en `--foreground` (16.4 sobre `--surface`); **nombre fijo por campo** ("Mostrar contraseña" si el formulario tiene un solo campo; si tiene varios, el nombre de su campo: "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal" (retirado en AUTH-03a: el cambio obligatorio ya no pide la temporal), confirmados por el humano), como texto visualmente oculto dentro del botón y nunca como atributo de etiqueta; el estado, en el atributo de presionado; vuelve a ocultarse al enviar el formulario, también si la validación en cliente falla; no mueve el cursor del campo; no cambia el `autocomplete`; sin corrector ortográfico.
 - **Campo de texto largo (AUTH-03c, propuesta), `components/ui/textarea.tsx`:** el mismo borde, fondo y estado inválido que un campo de una línea, foco resuelto igual (`focus-visible:border-accent`, sin anillo propio); `--text-body` (16 px, también en la densidad del administrador); altura por número de filas, no fija; se redimensiona solo en vertical (`resize-y`). Lo usa `FormularioInvitacionMasiva` (`features/admin/components/formulario-invitacion-masiva.tsx`).
 - **Una vista con dos paneles de acción tiene un solo `primary`** (AUTH-03c): en `/admin/maestros`, "Enviar invitaciones" es la acción principal y "Generar enlace" pasa a `outline`.
+- **Grupo de dos botones para elegir un tipo (CLASES-c, propuesta):** un `<div role="group">` con nombre accesible ("Tipo de publicación") y dos botones `outline`, `size="sm"`, cada uno con `aria-pressed`. El que está presionado lleva fondo `--surface`, texto `--link` y un icono `Check` delante del texto, para que el estado no dependa del color. El botón principal del formulario cambia su objeto según el tipo elegido ("Publicar anuncio" o "Publicar material"). Lo usa `FormularioPublicacion` (`features/clases/components/formulario-publicacion.tsx`).
 
 ### 7.4 Marco: barra lateral y barra superior
 
@@ -611,6 +612,8 @@ Para una acción irreversible de bajo alcance (restablecer una contraseña, revo
 - Al pedir la confirmación, el foco va a "Cancelar" (nunca a la acción destructiva); al cancelar, vuelve al botón que abrió la confirmación.
 - Sin diálogo: el diálogo queda para las acciones de la lista de `CLAUDE.md`.
 
+Implementan la confirmación en línea `AccionRestablecer` (`features/admin/components/ficha-de-cuenta.tsx`, AUTH-02) y la confirmación de "Revocar" en `TablaEnlaces` (`features/admin/components/tabla-enlaces.tsx`, AUTH-03b).
+
 **Foco al confirmar una acción que borra la fila (CLASES-b, propuesta; T-21):**
 - Cuando la acción confirmada quita la fila de la lista, el foco no se pierde: va al mismo control de la fila que ocupa su lugar (la siguiente o, si era la última, la anterior).
 - Si la lista queda vacía, o no queda ningún control al que saltar, va al encabezado del panel (`h2` con `tabIndex={-1}`). Nunca a `<body>`.
@@ -622,8 +625,6 @@ Para una acción irreversible de bajo alcance (restablecer una contraseña, revo
 - **El control se vuelve no enfocable** ("Agregar a la clase" pasa a la insignia "Ya está en la clase"): el foco va al siguiente control del mismo tipo de la lista (o al anterior si era el último) y, si no queda ninguno, al campo que originó la lista (el buscador).
 - **El control desaparece al cargar lo último** ("Ver más alumnos" tras la última página): el foco va al primer elemento nuevo (su primer control o el propio elemento con `tabIndex={-1}`) y, si no llegó nada, al encabezado de la lista.
 - Se recuerda qué fila o control tenía el foco y se reacciona después de cada render (hooks `useFilaEnFoco` y `useFocoAlCargarMas`, `features/clases/hooks.ts`); un render sin desmontaje no mueve el foco, y no se le quita el foco a un control que la persona eligió.
-
-Implementan este patrón `AccionRestablecer` (`features/admin/components/ficha-de-cuenta.tsx`, AUTH-02) y la confirmación de "Revocar" en `TablaEnlaces` (`features/admin/components/tabla-enlaces.tsx`, AUTH-03b).
 
 ### 7.15 Resumen de una acción por lote (AUTH-03c, propuesta)
 
@@ -654,6 +655,18 @@ Para buscar personas por nombre y actuar sobre cada resultado sin salir de la pa
 - **Tope:** el servidor acepta de 3 a 120 caracteres normalizados; el campo decide igual (misma función de `shared/`) y, si el término se pasa de 120, no pregunta y muestra con `ErrorDeCampo` "La búsqueda no puede tener más de 120 caracteres".
 - **Mensajes:** "No encontramos alumnos con ese nombre. Solo aparecen alumnos con cuenta." sin resultados, y "Hay más resultados: escribe más del nombre." cuando el servidor tiene más de los que muestra.
 - **Estados, en orden:** sin término válido (solo la ayuda) → error → cargando → sin resultados → resultados.
+
+### 7.18 Publicación del muro y comentarios (CLASES-c, propuesta)
+
+El muro de una clase (`MuroView`, `features/clases/muro-view.tsx`) es una lista de publicaciones, de la más reciente a la más antigua, y cada una es un panel (`PublicacionDelMuro`, `features/clases/components/publicacion-del-muro.tsx`):
+
+- **Panel de vidrio:** sale de `Card` (§7.2, "Panel"); la publicación no escribe ninguna utilidad de vidrio. Una separación de 16 px (`gap-4`) entre publicaciones. En el maestro, arriba va `FormularioPublicacion` (también un `Card`), con el único `primary` de la vista (§7.3).
+- **Insignia de tipo con texto e icono:** `Badge` `muted` ("Anuncio" con `Megaphone`, "Material" con `BookOpen`; §7.8). El tipo nunca se indica solo con el icono ni con color. Junto a ella, el autor en negrita (`--foreground`) y la fecha en `--muted-foreground` (`--text-small`), ambos sobre el vidrio del panel.
+- **Texto plano:** el título del material, en `h3` (`--text-h3`), y el texto, con `whitespace-pre-line` y `max-w-prose` (`--text-body`, `--foreground`). Es siempre texto: nunca se interpreta como HTML. Una descripción vacía no pinta nada.
+- **Comentarios plegables:** "Ver comentarios (N)" (`ghost`, `size="sm"`, `aria-expanded`, `aria-controls` del bloque que abre) se vuelve "Ocultar comentarios" al abrir. El bloque se monta al abrirse, pide sus comentarios entonces, los muestra en orden ascendente (el más antiguo primero) con divisores de 1 px en `--border`, sin vidrio fuerte (igual que la lista de compañeros, §7.2), y cierra con el formulario de un comentario (`Textarea` con su etiqueta visible y "Comentar", `outline`). Cada bloque lleva un `h3` solo para lectores de pantalla ("Comentarios"), con `tabIndex={-1}`, que recibe el foco cuando no queda a dónde ir.
+- **Borrar con confirmación en línea (§7.14):** "Borrar publicación" (solo el maestro dueño) y "Borrar" en un comentario (el maestro dueño, en todos; cada persona, en los suyos). Piden la frase de consecuencia ("Se borrará con sus comentarios." en la publicación), "Sí, borrar" o "Sí, borrar comentario" (`destructive`, `enEspera`) y "Cancelar" (`outline`), con el foco a "Cancelar" al pedirla. Si la confirmación borra la fila, el foco va al control equivalente de la fila que ocupa su lugar y, sin vecinas, al encabezado de la lista (`h2` o `h3` con `tabIndex={-1}`, solo para lectores de pantalla); nunca a `<body>`.
+- **"Ver más":** "Ver más publicaciones" y "Ver más comentarios" (`outline`, `enEspera`) siguen el criterio de §7.14 para un control que desaparece al cargar lo último: el foco va al primer elemento nuevo o, si no llegó nada, al encabezado de la lista.
+- **Errores de campo:** "Escribe el anuncio", "Escribe el título del material" y "Escribe tu comentario", con `ErrorDeCampo` bajo el campo (§7.3).
 
 ## 8. Densidad por rol
 

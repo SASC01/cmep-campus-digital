@@ -51,6 +51,31 @@ const INVERSORES_DE_DIRECCION = /[‪-‮⁦-⁩]/u
 // los cuatro.
 const SEPARADORES_DE_LINEA_UNICODE = /[\r\n\u2028\u2029]/
 
+// Regla única de contenido visible (CLASES-c, §D-C4). Un carácter visible es un punto de código de
+// letra, número, puntuación o símbolo que no se ve vacío: no es ignorable por defecto (rellenos
+// Hangul, selectores de variante…), ni el patrón Braille en blanco U+2800, ni la cabeza de nota nula
+// U+1D159. Es la misma definición de nombreSchema de personas (auth.ts, T-11 y T-13), que conserva
+// su copia privada porque ese archivo no se toca en este encargo. Los espacios, las marcas
+// combinantes y los caracteres de formato (U+200B, U+200D, U+FE0F…) se admiten pero no cuentan:
+// forman parte de emojis y de otros alfabetos, así que rechazarlos rompería textos válidos.
+const CARACTER_VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u
+const CARACTER_QUE_SE_VE_VACIO = /[\p{Default_Ignorable_Code_Point}\u2800\u{1D159}]/u
+
+// Normaliza un texto largo (descripción de clase, publicación o comentario) antes de validarlo y
+// guardarlo: CRLF y CR pasan a LF y se recorta en los extremos, sin tocar el interior (§D-C4). Vive
+// aquí para que el servidor y los formularios apliquen la misma regla (T-31).
+export const normalizarTextoLargo = (texto: string): string =>
+  texto.replace(/\r\n|\r/g, "\n").trim()
+
+// Se cuenta por punto de código (Array.from), no por unidades de UTF-16 ni por grafemas.
+export const contarCaracteresVisibles = (texto: string): number =>
+  Array.from(texto).filter(
+    (caracter) => CARACTER_VISIBLE.test(caracter) && !CARACTER_QUE_SE_VE_VACIO.test(caracter),
+  ).length
+
+export const MINIMO_VISIBLES_NOMBRE_CLASE = 2
+export const MINIMO_VISIBLES_TEXTO = 1
+
 export const nombreClaseSchema = z
   .string({ error: "Escribe el nombre de la clase" })
   .trim()
@@ -65,6 +90,11 @@ export const nombreClaseSchema = z
     (texto) => !INVERSORES_DE_DIRECCION.test(texto),
     "El nombre tiene caracteres no permitidos",
   )
+  // Último: sobre el texto ya recortado. Un nombre de caracteres invisibles se ve vacío.
+  .refine(
+    (texto) => contarCaracteresVisibles(texto) >= MINIMO_VISIBLES_NOMBRE_CLASE,
+    "El nombre debe tener al menos 2 caracteres",
+  )
 
 // Un carácter de control (\p{Cc}) que no sea salto de línea ni tabulador: recorre el texto en
 // puntos de código completos, sin una clase de caracteres con rangos de control literales
@@ -77,15 +107,25 @@ const tieneControlNoPermitido = (texto: string): boolean =>
 // Permite \n y \t (varias líneas); prohíbe los demás caracteres de control C0/C1 y los inversores
 // de dirección; admite el unificador de emoji (U+200D). Usado por descripcionClaseSchema (a) y,
 // en CLASES-c, por el texto de publicaciones y comentarios.
-export const textoLargoSchema = (max: number) =>
-  z
-    .string()
+const textoLargoCon = (max: number, tipo: z.ZodString) =>
+  tipo
     .max(max, `No puede tener más de ${max} caracteres`)
     .refine((texto) => !tieneControlNoPermitido(texto), "El texto tiene caracteres no permitidos")
     .refine(
       (texto) => !INVERSORES_DE_DIRECCION.test(texto),
       "El texto tiene caracteres no permitidos",
     )
+
+export const textoLargoSchema = (max: number) => textoLargoCon(max, z.string())
+
+// Texto obligatorio de CLASES-c (título del material, anuncio y comentario): textoLargoSchema más
+// al menos un carácter visible (§D-C4). `mensaje` es el del campo vacío y también el error de tipo
+// (campo ausente o que no es texto), para que responda en español (N-C3).
+export const textoConContenidoSchema = (max: number, mensaje: string) =>
+  textoLargoCon(max, z.string({ error: mensaje })).refine(
+    (texto) => contarCaracteresVisibles(texto) >= MINIMO_VISIBLES_TEXTO,
+    mensaje,
+  )
 
 // Una descripción vacía después de trim se guarda como null (S-02).
 export const descripcionClaseSchema = z
@@ -263,6 +303,78 @@ export const alumnoIdParamSchema = z.object({
   alumnoId: z.uuid("alumnoId: debe ser un identificador válido"),
 })
 
+// CLASES-c (§D-C2, §D-C4). El muro: anuncios y materiales con comentarios.
+export const tipoPublicacionSchema = z.enum(["anuncio", "material"])
+
+const MENSAJE_TIPO_PUBLICACION = "Elige si es un anuncio o un material"
+const MENSAJE_DESCRIPCION_MATERIAL = "La descripción debe ser texto"
+
+export const crearPublicacionSchema = z.discriminatedUnion(
+  "tipo",
+  [
+    z.object({
+      tipo: z.literal("anuncio"),
+      texto: textoConContenidoSchema(5000, "Escribe el anuncio"),
+    }),
+    z.object({
+      tipo: z.literal("material"),
+      titulo: textoConContenidoSchema(200, "Escribe el título del material"),
+      texto: textoLargoCon(5000, z.string({ error: MENSAJE_DESCRIPCION_MATERIAL })).optional(),
+    }),
+  ],
+  { error: MENSAJE_TIPO_PUBLICACION },
+)
+
+export const crearComentarioSchema = z.object({
+  texto: textoConContenidoSchema(1000, "Escribe tu comentario"),
+})
+
+export const autorDelMuroSchema = z.object({ id: z.uuid(), nombre: z.string() })
+
+export const publicacionSchema = z.object({
+  id: z.uuid(),
+  tipo: tipoPublicacionSchema,
+  titulo: z.string().nullable(),
+  texto: z.string(),
+  autor: autorDelMuroSchema,
+  creadoEn: z.iso.datetime(),
+  comentarios: z.number().int().min(0),
+})
+
+export const publicacionRespuestaSchema = z.object({ publicacion: publicacionSchema })
+
+export const listaPublicacionesRespuestaSchema = z.object({
+  publicaciones: z.array(publicacionSchema),
+  siguienteCursor: z.uuid().nullable(),
+})
+
+export const comentarioSchema = z.object({
+  id: z.uuid(),
+  texto: z.string(),
+  autor: autorDelMuroSchema,
+  creadoEn: z.iso.datetime(),
+  propio: z.boolean(),
+})
+
+export const comentarioRespuestaSchema = z.object({ comentario: comentarioSchema })
+
+export const listaComentariosRespuestaSchema = z.object({
+  comentarios: z.array(comentarioSchema),
+  siguienteCursor: z.uuid().nullable(),
+})
+
+export const publicacionIdParamSchema = z.object({
+  publicacionId: z.uuid("publicacionId: debe ser un identificador válido"),
+})
+
+export const publicacionYComentarioParamSchema = publicacionIdParamSchema.extend({
+  comentarioId: z.uuid("comentarioId: debe ser un identificador válido"),
+})
+
+export const comentarioIdParamSchema = z.object({
+  comentarioId: z.uuid("comentarioId: debe ser un identificador válido"),
+})
+
 export const CODIGOS_CLASES = {
   SIN_ACCESO_A_LA_CLASE: "SIN_ACCESO_A_LA_CLASE",
   CODIGO_INVALIDO: "CODIGO_INVALIDO",
@@ -297,3 +409,15 @@ export type CandidatosRespuesta = z.infer<typeof candidatosRespuestaSchema>
 export type AgregarAlumno = z.infer<typeof agregarAlumnoSchema>
 export type AgregarAlumnoRespuesta = z.infer<typeof agregarAlumnoRespuestaSchema>
 export type AlumnoIdParam = z.infer<typeof alumnoIdParamSchema>
+export type TipoPublicacion = z.infer<typeof tipoPublicacionSchema>
+export type CrearPublicacion = z.infer<typeof crearPublicacionSchema>
+export type CrearComentario = z.infer<typeof crearComentarioSchema>
+export type Publicacion = z.infer<typeof publicacionSchema>
+export type PublicacionRespuesta = z.infer<typeof publicacionRespuestaSchema>
+export type ListaPublicacionesRespuesta = z.infer<typeof listaPublicacionesRespuestaSchema>
+export type Comentario = z.infer<typeof comentarioSchema>
+export type ComentarioRespuesta = z.infer<typeof comentarioRespuestaSchema>
+export type ListaComentariosRespuesta = z.infer<typeof listaComentariosRespuestaSchema>
+export type PublicacionIdParam = z.infer<typeof publicacionIdParamSchema>
+export type PublicacionYComentarioParam = z.infer<typeof publicacionYComentarioParamSchema>
+export type ComentarioIdParam = z.infer<typeof comentarioIdParamSchema>

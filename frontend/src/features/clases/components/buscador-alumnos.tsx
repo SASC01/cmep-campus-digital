@@ -1,6 +1,5 @@
 import { LONGITUD_MAXIMA_BUSQUEDA } from "@campus/shared"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { toast } from "sonner"
 
 import { Cargando } from "@/components/cargando"
 import { ErrorDeCampo } from "@/components/error-de-campo"
@@ -12,14 +11,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { ESPERA_BUSQUEDA_MS, TEXTOS_BUSCADOR_ALUMNOS } from "../data"
+import { useAgregarAlumno, useCandidatos, useFilaEnFoco, useTerminoDiferido } from "../hooks"
 import {
   focoPerdido,
-  useAgregarAlumno,
-  useCandidatos,
-  useFilaEnFoco,
-  useTerminoDiferido,
-} from "../hooks"
-import { mensajeDeErrorClases, terminoDeBusquedaMuyLargo, terminoDeBusquedaValido } from "../lib"
+  mensajeDeErrorClases,
+  terminoDeBusquedaMuyLargo,
+  terminoDeBusquedaValido,
+} from "../lib"
 import type { Candidato } from "../types"
 
 const ID_CAMPO_BUSQUEDA = "campo-buscar-alumno"
@@ -40,17 +38,10 @@ interface FilaCandidatoProps {
 function FilaCandidato({ claseId, candidato, registrarAgregar }: FilaCandidatoProps) {
   const agregar = useAgregarAlumno(claseId)
 
+  // Los avisos (éxito, "ya estaba" y error) salen de los callbacks de useAgregarAlumno (§D-C5 bis):
+  // la fila puede desmontarse con el POST en vuelo.
   const handleAgregar = () => {
-    agregar.mutate(candidato.id, {
-      onSuccess: (respuesta) => {
-        if (respuesta.yaEstaba) {
-          toast(TEXTOS_BUSCADOR_ALUMNOS.yaEstaba(respuesta.alumno.nombre))
-          return
-        }
-        toast.success(TEXTOS_BUSCADOR_ALUMNOS.agregado(respuesta.alumno.nombre))
-      },
-      onError: (error) => toast.error(mensajeDeErrorClases(error)),
-    })
+    agregar.mutate(candidato.id)
   }
 
   return (
@@ -113,7 +104,7 @@ export function BuscadorAlumnos({ claseId }: BuscadorAlumnosProps) {
   // ninguno, al campo de búsqueda. Nunca a <body>, y no depende del onSuccess.
   useEffect(() => {
     const id = filaEnFocoRef.current
-    if (id === null || !focoPerdido()) return
+    if (id === null || !focoPerdido(document)) return
     filaEnFocoRef.current = null
     if (idsDeFilas === undefined) {
       campoRef.current?.focus()

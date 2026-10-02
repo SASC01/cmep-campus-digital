@@ -248,3 +248,51 @@ describe("InicioEstudianteView", () => {
     }
   })
 })
+
+describe("InicioEstudianteView: foco de «Ver más clases» (§D-C5)", () => {
+  it("PR-C11a: con teclado, «Ver más clases» desaparece al cargar la última página y el foco va a la primera tarjeta nueva o al encabezado «Mis clases»; nunca a <body>", async () => {
+    const conPaginas = (segunda: ReturnType<typeof clase>[]) =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>((entrada) => {
+          const ruta = String(entrada)
+          if (ruta === "/api/me") return Promise.resolve(respuestaJson(200, ME))
+          if (ruta.includes(`cursor=${clase(1).id}`)) {
+            return Promise.resolve(
+              respuestaJson(200, {
+                clases: segunda,
+                total: 1 + segunda.length,
+                siguienteCursor: null,
+              }),
+            )
+          }
+          if (ruta.startsWith("/api/clases/inscritas")) {
+            return Promise.resolve(
+              respuestaJson(200, { clases: [clase(1)], total: 2, siguienteCursor: clase(1).id }),
+            )
+          }
+          return Promise.resolve(errorJson(500, "ERROR_INTERNO"))
+        }),
+      )
+    const cargarMas = async () => {
+      const boton = await screen.findByRole("button", { name: "Ver más clases" })
+      boton.focus()
+      fireEvent.click(boton)
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "Ver más clases" })).toBeNull(),
+      )
+    }
+
+    conPaginas([clase(2)])
+    renderVista()
+    await cargarMas()
+    await waitFor(() => expect(screen.getByRole("link", { name: "Clase 2" })).toHaveFocus())
+    cleanup()
+
+    conPaginas([])
+    renderVista()
+    await cargarMas()
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Mis clases" })).toHaveFocus())
+    expect(document.activeElement).not.toBe(document.body)
+  })
+})

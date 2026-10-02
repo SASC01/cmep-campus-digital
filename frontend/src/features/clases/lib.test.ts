@@ -1,12 +1,16 @@
+import { ApiError } from "@/services/apiClient"
 import { describe, expect, it } from "vitest"
 
 import {
+  focoPerdido,
+  mensajeDeErrorDeLista,
   siguientePasoInicio,
   terminoDeBusquedaMuyLargo,
   terminoDeBusquedaValido,
   textoConteoAlumnos,
   titularInicio,
   varianteDeClase,
+  vecinaDeFila,
 } from "./lib"
 
 describe("varianteDeClase", () => {
@@ -72,5 +76,45 @@ describe("terminoDeBusquedaMuyLargo", () => {
     expect(terminoDeBusquedaMuyLargo(`abc${" ".repeat(1200)}`)).toBe(true)
     expect(terminoDeBusquedaMuyLargo(`abc${" ".repeat(118)}`)).toBe(false)
     expect(terminoDeBusquedaValido(`abc${" ".repeat(118)}`)).toBe(true)
+  })
+})
+
+describe("focoPerdido", () => {
+  it("PR-C13c: con un documento doble, un activeElement nulo, igual a body o desconectado da true; un elemento conectado, false", () => {
+    const body = document.createElement("body")
+    const conectado = document.createElement("button")
+    document.body.append(conectado)
+    const desconectado = document.createElement("button")
+
+    expect(focoPerdido({ activeElement: null, body })).toBe(true)
+    expect(focoPerdido({ activeElement: body, body })).toBe(true)
+    expect(focoPerdido({ activeElement: desconectado, body })).toBe(true)
+    expect(focoPerdido({ activeElement: conectado, body })).toBe(false)
+    conectado.remove()
+  })
+})
+
+describe("vecinaDeFila", () => {
+  it("la fila que ocupa el lugar de la que salió es la siguiente o, si era la última, la anterior; sin filas no hay vecina", () => {
+    expect(vecinaDeFila(["a", "b", "c"], ["a", "c"], "b")).toBe("c")
+    expect(vecinaDeFila(["a", "b", "c"], ["a", "b"], "c")).toBe("b")
+    expect(vecinaDeFila(["a"], [], "a")).toBeUndefined()
+    expect(vecinaDeFila(undefined, ["x", "y"], "z")).toBe("x")
+  })
+})
+
+describe("mensajeDeErrorDeLista", () => {
+  it("PR-C17: un VALIDACION del campo cursor da el texto dado; cualquier otro error sigue el camino de siempre", () => {
+    const texto = "El muro cambió mientras lo veías."
+    expect(
+      mensajeDeErrorDeLista(new ApiError("VALIDACION", "cursor: no es válido", 400), texto),
+    ).toBe(texto)
+    expect(
+      mensajeDeErrorDeLista(new ApiError("VALIDACION", "limite: debe ser un número", 400), texto),
+    ).toBe("debe ser un número")
+    expect(mensajeDeErrorDeLista(new ApiError("PUBLICACION_NO_ENCONTRADA", "x", 404), texto)).toBe(
+      "Esa publicación ya no existe.",
+    )
+    expect(mensajeDeErrorDeLista(new Error("red"), texto)).not.toBe(texto)
   })
 })

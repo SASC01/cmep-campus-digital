@@ -2271,3 +2271,991 @@ El resumen dice que `tabla-alumnos.tsx` "no cambió de comportamiento". **Lo com
 5. **Renders sin desmontaje:** no mueven el foco ni se lo quitan a un control que la persona eligió.
 6. **El estado de error dentro de la sección a 360 px, por análisis:** `MensajeError` bajo el `h2` sin desbordarse.
 7. **Regresión rápida** del resto de b y de a. No queda nada de b sin atacar.
+
+## Revisión de la Enmienda 6 — CLASES — plan
+Fecha: 2026-10-01. Modo 1, acotada a la Enmienda 6 (regla de contenido visible y triviales heredados de b).
+Veredicto: **CAMBIOS REQUERIDOS** (dos correcciones de una línea cada una; el fondo de la enmienda está bien)
+Verificación propia: lint, test y build **no corridos** por instrucción del orquestador (el tester hace la ronda 0 de c en paralelo con Testcontainers). Revisión de lectura. Sí ejecuté con Node 24, fuera de las suites, la definición exacta de `contarVisibles` de `shared/src/auth.ts` sobre los casos de PR-C12a a PR-C12c y sobre casos extremos adicionales, y un escaneo de solo lectura de los `nombre:` literales de las pruebas.
+
+### Qué verifiqué y está bien
+- **El diff es solo lo declarado.** `git diff -U0 e9df1f0 -- plan.md`: 27 hunks, 184 inserciones y 19 borrados. Cada hunk cae en una sección de la columna "Dónde" de la tabla de la Enmienda 6: cabecera, Enmienda 6, "Decisiones registradas", "Pendientes", "Subentregas", "Entra", §D-C4, §D-C5 bis, §D-C6, §D-C7, §D-R0, `shared/`, `core/`, `frontend/`, listas cerradas, "Pruebas requeridas" (c), "Puntos de ataque" (ronda 0 y c), "Textos literales propuestos", V-04 y pasos 27, 29, 32 y 33. Nada en §D-0, §D-A, §D-B, §D-C1 a §D-C3, §D-C5, §D-D, PARADAS ni "No se toca". `frontend/`, `backend/` y `shared/` no tienen cambios rastreados contra `e9df1f0`.
+- **La regla de §D-C4 es correcta y es la de personas.** Con la expresión de `auth.ts` (`[\p{L}\p{N}\p{P}\p{S}]` menos `Default_Ignorable_Code_Point`, U+2800 y U+1D159), todos los valores esperados de PR-C12a coinciden (U+1F44D = 1; U+2764 U+FE0F = 1; con tono = 2; bandera regional = 2; con ZWJ = 2; CJK = 2; y 0 para los `Cf`, los rellenos Hangul, el Braille en blanco, U+1D159, la marca combinante suelta y los espacios Unicode). Casos extra: la bandera de Escocia con etiquetas da 1 visible y se admite; el persa con U+200C da 7; el hebreo con U+200F, 4; la tecla `1` U+FE0F U+20E3, 1; U+180E, U+2061 a U+2064, U+034F, U+17B4, U+FFA0, U+E0001 y U+1BCA0, 0. Ningún `Cf` legítimo se rechaza: `textoLargoSchema` y `nombreClaseSchema` solo rechazan los `Cc`, los inversores y, en el nombre, los saltos de línea. Los inversores son los únicos `Cf` rechazados.
+- **Orden de los `refine` y de la normalización.** El `trim` de zod (y el de `normalizarTextoLargo`) solo quita espacios, terminadores de línea y U+FEFF: nunca un visible. Zod 4 corre los `refine` aunque falle `min` (son incidencias continuables), y los dos lados toman la primera incidencia: `handlers/validacion.ts` con `issues[0]` y `erroresPorCampo` de `lib.ts` con la primera por campo. Como `min(2)` y el `refine` del nombre llevan el mismo mensaje, no hay mensaje doble ni distinto entre lados.
+- **Paridad.** El frontend y el backend validan con los mismos esquemas de `shared/`. El backend normaliza antes y el frontend no, pero la normalización no cambia el conteo de visibles. `shared/` no tiene `test` propio, así que PR-C12a en `backend/src/core/clases/texto.test.ts` es correcto (mismo precedente que `busqueda.test.ts`, que importa `normalizarTerminoDeBusqueda` de `@campus/shared`). PR-C12d además necesita ese archivo porque combina `normalizarTextoLargo` con el esquema.
+- **Lectura de datos existentes.** Los esquemas de respuesta (`claseDetalleSchema`, `claseInscritaSchema` y `claseImpartidaSchema`) usan `z.string()` para el nombre: una clase de `campus_dev` cuyo nombre ya no pasa la regla se sigue leyendo, y solo editarla exige corregir el nombre. No hay datos en `prod`.
+- **Aviso de "Agregar a la clase" (§D-C5 bis, punto 1).** En TanStack Query v5, los callbacks de `useMutation` viven en la mutación y corren aunque el observador se haya desmontado; los de `mutate`, no. `useAgregarAlumno` solo lo usa `FilaCandidato`, así que quitar los callbacks de `mutate` deja cada aviso una sola vez. Todos los dobles de `sonner` que montan el buscador son invocables (`alumnos-b-r1` por C-17, `alumnos-b-r2` a `-r5` y `alumnos-view.test.tsx`). Ninguna `*.ataque` afirma que no haya aviso cuando la fila se desmonta: el caso de `alumnos-b-r4` "escribir un término nuevo mientras se agrega" solo afirma el foco.
+- **`focoPerdido(documento)` a `lib.ts`.** Recibe su entrada y no usa React: cabe en la regla de `lib.ts`. Ninguna prueba la importa de `hooks.ts` y ninguna simula `./lib`.
+- **`ConClaseDeLaRuta`.** Es el remedio mínimo que respeta las reglas de los hooks: un retorno temprano antes de `useClase` o `usePersonas` obliga a partir la vista de todos modos, y una sola guarda evita cuatro copias. Todas las pruebas que montan esas vistas (`clase-layout.test`, `personas-view.test`, `alumnos-view.test`, `clases-r1` a `-r4` y `alumnos-b-r1` a `-r5`) lo hacen con `:claseId` en la ruta. `TEXTOS_CLASE.sinAcceso` existe. Con V-04, `claseId ?? ""` queda solo en `formulario-clase.tsx`, que es el único uso que hay hoy además de las cuatro vistas.
+- **"No se toca" de c.** `components/*.tsx` aparece junto a `services/**`, `styles/**` y `features/auth/**`, que son rutas relativas a `frontend/src/`: es `frontend/src/components/*.tsx`. Además, c crea sus propios componentes en `features/clases/components/` desde antes de la enmienda. Ningún archivo que la enmienda autoriza está en esa lista.
+- **C-18.** Confirmé el inventario: ninguna `*.ataque` afirma que se acepte un nombre de clase sin contenido visible. En las pruebas que tocan clases solo hay dos `nombre:` literales con menos de 2 visibles: `nombre: ""` en `backend/test/clases.integracion.test.ts:218` (espera `400`) y `maestro: { nombre: "L" }` en `clases-r3.ataque.test.tsx:134` (no es un nombre de clase). Lo que las `*.ataque` escriben en "Nombre de la clase" es "Historia".
+- **Carril:** sigue sensible. Correcto.
+
+### Problemas que bloquean
+
+#### M-21 — Ruta equivocada de `formulario-clase.test.tsx` en la lista cerrada de c
+Dónde: "Pruebas: listas cerradas por subentrega", fila c, columna "del propio encargo que se extiende"; y PR-C12g.
+Por qué importa: el archivo existe en `frontend/src/features/clases/components/formulario-clase.test.tsx`, no en `frontend/src/features/clases/formulario-clase.test.tsx`. La lista es cerrada y PA-16 se activa al "modificar un archivo de pruebas que no está en la lista". Tal como está escrito, el programador se detiene en PA-16 o crea un segundo archivo en la ruta del plan, y V-05 marca como tocado sin autorización el archivo real. PR-A21a tenía la misma ruta en a, pero ahí era "Crear" y no estorbó.
+Qué se espera: la ruta real en la lista de c y en PR-C12g.
+
+#### M-22 — Falta un C-n para `inicio-sin-datos-r2.ataque.test.tsx` (afecta la ronda 0 que corre ahora)
+Dónde: §D-R0. Viene de la Enmienda 5 (§D-C5, foco de "Ver más clases"), no de la 6, pero aparece ahora y la ronda 0 de c está en curso.
+Por qué importa: `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx:25` simula `./hooks` con una fábrica cerrada (`useNombreDeSesion`, `useClasesInscritas`, `useClasesImpartidas` y `useUnirseAClase`). Para PR-C11a, `PanelMisClases` o los inicios tendrán que llamar a `useFocoAlCargarMas`, que vive en `hooks.ts` (regla 4 de `CLAUDE.md`). Con Vitest 4, leer un export que la fábrica no devuelve lanza un error ("No … export is defined on the mock"). Los dos casos de esa `*.ataque` quedarían en rojo sin que ningún C-n los cubra: el tester solo puede reportarlos como hallazgo y el programador no puede tocarlos. Es una ronda perdida casi segura.
+Qué se espera: un C-19 en §D-R0 (c). Por ejemplo: "`PanelMisClases` usa `useFocoAlCargarMas` de `hooks.ts`; la fábrica de `vi.mock("./hooks")` de `inicio-sin-datos-r2` suma ese hook con un doble inerte que devuelve un ref, sin cambiar ninguna aserción". Además, que el orquestador se lo pase al tester antes de que cierre la ronda 0.
+
+### Problemas que no bloquean
+
+#### N-C1 — El texto para `ARCHITECTURE.md` §7 dice "definida una sola vez en `shared/`"
+Dónde: "Textos literales propuestos", bloque de §7.
+Mientras `shared/src/auth.ts` conserve `contarVisibles` (la enmienda lo deja como pendiente y V-04 lo admite), el documento de arquitectura diría algo falso. El texto debe decir dónde vive la función (`shared/src/clases.ts`) y que `auth.ts` tiene una copia equivalente hasta que se unifiquen, o no afirmar que es única. Además, en `ARCHITECTURE.md` las líneas 245 ("Formato de error único…") y 246 ("Detrás del proxy de Cloudflare…") forman un solo párrafo: "después de" debe precisar que el texto va como párrafo propio después de la línea 246, para no partir ese párrafo.
+
+#### N-C2 — `claseId ?? ""` en dos vistas de a: un poco más de lo que el humano mandó a c
+Dónde: §D-C5 bis, punto 3; fila 7 de la tabla.
+La decisión del humano y `ESTADO.md` §3 hablan de `personas-view.tsx` y `alumnos-view.tsx`. La enmienda suma `clase-layout.tsx` y `editar-clase-view.tsx` (de a). Es el mismo defecto con el mismo remedio, no cambia el comportamiento con la ruta real y las pruebas existentes lo toleran, así que lo acepto. Lo dejo a la vista porque `clase-layout.tsx` es la vista más atacada del módulo (`clases-r1` a `-r4`) y entra al diff de c.
+
+#### N-C3 — `textoConContenidoSchema` sin mensaje para el campo ausente
+Dónde: §D-C4, "Dónde vive".
+`textoLargoSchema` empieza con `z.string()` sin mensaje: un `POST` sin `texto` respondería "texto: " seguido del mensaje por defecto de zod, en inglés, en lugar de "Escribe el anuncio" o "Escribe tu comentario". El frontend siempre manda el campo, así que solo lo vería quien llame a la API a mano. Recomiendo que `textoConContenidoSchema(max, mensaje)` use `mensaje` también como error de tipo (como hace `nombreClaseSchema` con "Escribe el nombre de la clase") y sumar un caso a PR-C12e.
+
+### Detalles menores
+- **Un solo emoji como nombre de clase.** "👍" (U+1F44D) y "❤️" pasan a `400`, pero "👍🏽", "🇲🇽" y "👩‍💻" (también de un solo grafema) se aceptan, porque se cuenta por punto de código. Está escrito y es coherente con personas; lo anoto para que no sorprenda en H-6.
+- La enmienda descarta `Intl.Segmenter`, entre otras razones, porque "depende de la versión de Unicode de cada motor". `\p{…}` también depende de ella: un carácter asignado hace poco puede clasificarse distinto en el navegador y en Node. Como decide el servidor, lo peor que pasa es que el error llegue del servidor y no del formulario. No cambia la decisión.
+- Las cadenas de prueba del plan llevan los invisibles escritos tal cual. Conviene que el código de las pruebas los escriba con escapes (`​`, `ㅤ`…), para que se puedan leer y ningún editor los altere.
+- El punto 7 de "Puntos de ataque" (c) y la nota "El cambio de `DESIGN.md` §7.14 no lleva ID" de "Pruebas requeridas" caen en secciones que la tabla declara en otras filas (1 y 2), no en las filas 5 a 8 de donde salen. Es un detalle de registro sin efecto.
+- `con-clase-de-la-ruta.test.tsx` queda en `features/clases/` y su componente en `features/clases/components/`. El precedente de `formulario-clase.test.tsx` pone la prueba junto al componente. Cualquiera de las dos sirve; lo que importa es que la lista y el archivo coincidan (ver M-21).
+- Sin `:claseId` (una ruta que hoy no existe), `ClaseLayout` mostraría el error sin el enlace "Volver a mis clases" que hoy lo acompaña. Con el router actual no se puede llegar ahí.
+- El destino del pendiente de `formulario-clase.tsx` ("el próximo cambio que toque el archivo") es vago. Conviene anotarlo también en `docs/ESTADO.md` §3, como se hizo con N-B1.
+
+### Desacuerdos arbitrados
+- **Archivo de utilidades de foco (sugerencia de la revisión de b) contra `lib.ts`:** gana `lib.ts`. Una sola función no justifica un archivo fuera de la estructura de módulos.
+- **Cuatro vistas contra cinco o dos (sugerencia del orquestador):** gana el arquitecto con cuatro (N-C2). `formulario-clase.tsx` pide otro mecanismo, y forzar su corrección mezclaría un refactor del formulario con un cambio trivial.
+
+### Documentos a actualizar
+- `plan.md`: M-21 y M-22 (y N-C1 y N-C3, si el arquitecto los acepta). Por el límite de su herramienta, otra vez como ediciones con ancla que transcribe el orquestador.
+- `docs/ARCHITECTURE.md` §7: al cierre de c, con el texto corregido según N-C1.
+- `docs/ESTADO.md` §3: el pendiente de `formulario-clase.tsx` y la unificación de `contarVisibles`.
+
+### Para el humano
+- No hay nada que decidir para avanzar: M-21 y M-22 son correcciones mecánicas. Conviene pasarle M-22 al tester ya, mientras hace la ronda 0.
+- Informativo (N-C2): la corrección de `claseId ?? ""` toca también dos vistas de a (`clase-layout.tsx` y `editar-clase-view.tsx`), un poco más de lo que pediste ("los triviales heredados de b"). La acepto. Si prefieres limitarla a las dos vistas de b, basta con decirlo.
+
+### Verificación de las correcciones
+Fecha: 2026-10-01. Segunda tanda del arquitecto (E20 a E29), transcrita por el orquestador. Sin suites, por instrucción del orquestador: el tester sigue con la ronda 0.
+
+**Veredicto final de la Enmienda 6: APROBADO.**
+
+- **Diff.** `git diff -U0 e9df1f0 -- plan.md` sigue dando los mismos 27 hunks, con los mismos 19 borrados; las inserciones pasan de 184 a 196. No aparece ningún hunk nuevo. Lo agregado cae dentro de hunks ya declarados y corresponde a las filas 11 a 16:
+  - la tabla y "Contradicciones" de la Enmienda 6;
+  - §D-C4 (N-C3);
+  - C-19 en §D-R0 (M-22);
+  - la lista cerrada de c y PR-C12g (M-21);
+  - PR-C12e y el párrafo de escapes en "Pruebas requeridas";
+  - el punto de "Ronda 0";
+  - "Textos literales propuestos" (N-C1);
+  - el paso 27;
+  - las dos filas de "Pendientes".
+
+  Nada fuera de las secciones declaradas.
+- **M-21: cerrado.** La lista cerrada de c y PR-C12g llevan `frontend/src/features/clases/components/formulario-clase.test.tsx`. La nota en "Contradicciones" deja la lista de a y PR-A21a leídas como esa misma ruta, sin reescribir a. Es suficiente.
+- **M-22: cerrado.**
+  - C-19 está en §D-R0 con su doble inerte (`() => ({ current: null })`), sin cambiar aserciones.
+  - Pide al tester buscar cualquier otra fábrica cerrada de `./hooks` o `../hooks`, y "Ronda 0" suma esa búsqueda.
+  - El paso 27 cita C-19.
+- **N-C1: cerrado.**
+  - El texto para `ARCHITECTURE.md` §7 dice dónde vive la función (`shared/src/clases.ts`) y que `auth.ts` tiene una copia equivalente hasta unificarlas; ya no dice "una sola vez".
+  - La posición queda como párrafo propio después del que contiene "Formato de error único…" y "Detrás del proxy de Cloudflare…".
+- **N-C3: cerrado.** En §D-C4, `textoConContenidoSchema` usa `mensaje` también como error de tipo de `z.string()`, y PR-C12e suma el `POST` de anuncio sin `texto`. El programador debe construirlo sin cambiar el comportamiento de `descripcionClaseSchema` ni de `textoLargoSchema`, y V-01 lo cubre.
+- **Filas PR-C12a a PR-C12g (incidente de transcripción).** Un recorrido por programa de todo `plan.md` no encuentra ningún carácter invisible real: 0 líneas con `Cf`, ignorables por defecto, U+2800, U+3164, U+115F, U+1D159, U+3000 ni U+00A0. Las siete filas llevan escapes en texto, y cada cadena equivale a la que verifiqué antes con la definición de `auth.ts`; los conteos esperados siguen siendo correctos.
+- **Pendientes:** las dos filas dicen que el orquestador las anota también en `docs/ESTADO.md` §3.
+
+**Detalle menor, no bloquea:** dos frases quedaron desactualizadas después de que el orquestador restituyó los escapes:
+- la viñeta "Caracteres invisibles en el plan" de "Contradicciones" dice que algunos escapes "quedaron como caracteres invisibles literales";
+- el párrafo bajo "Pruebas requeridas" (c) dice "aunque en esta tabla aparezcan literales".
+
+Hoy la tabla lleva escapes. La nota de transcripción lo aclara y la instrucción (escapes en el código) sigue siendo correcta; se puede pulir en la próxima enmienda.
+
+## Verificación del resumen — CLASES-c — implementación
+Fecha: 2026-10-01. Modo: verificación del resumen del programador (pasos 28 a 34 y su corrección de PA-16), más la revisión de la Enmienda 7 del plan (modo plan, breve). No es la revisión final de c.
+**Veredicto del resumen: ACEPTADO.** Cada cifra coincide con mi corrida y los 57 IDs de c tienen archivo y título exacto. Pasa al tester (ronda 1).
+**Veredicto de la Enmienda 7: APROBADO.**
+Verificación propia: lint 0 · build 0 · test de la raíz con el backend en rojo por CHORE-02 (solo tiempos límite) y, repetido desde `backend/`, en verde · frontend en verde dos veces.
+
+### Precondiciones (PA-01)
+- `Get-NetFirewallRule -DisplayName "Campus: bloquear entrada a Docker en redes publicas"` → `Enabled True`, `Inbound`, `Block`, `Public`. `Get-NetConnectionProfile` → `IZZI-F281-5G`. Comprobado antes de cada corrida del backend.
+- Docker Desktop encendido (motor 28.5.1) y sin procesos `node` ajenos al empezar. Rama `feat/clases`; la base `e9df1f0` existe.
+
+### Cifras: resumen contra mi corrida
+| Cifra | Resumen del programador | Mi corrida |
+|---|---|---|
+| `npm run lint` (raíz) | código 0; `> tsc -b` | código 0; última línea `> tsc -b` |
+| `npm run build` (raíz) | código 0; `✓ built in 602ms` | código 0; `✓ built in 584ms` (el tiempo varía) |
+| `npm run test` (raíz) | corrida 1: backend `12 failed / 1167 passed / 3 skipped (1182)` (CHORE-02); corrida 2: código 0, backend `107 passed (107)` / `1182 passed (1182)`, frontend `90 passed (90)` / `1230 passed (1230)` | una corrida, código 1, por CHORE-02: backend `9 failed / 98 passed (107)` y `13 failed / 1166 passed / 3 skipped (1182)`; frontend `90 passed (90)` / `1230 passed (1230)`. Detalle de los 13 rojos: 11 "Test timed out in 15000ms", 1 de 40000 ms, 1 hook de 10000 ms, el `esperarHasta` del ritmo del worker de correo y el `TypeError` de `api-real.ataque:227`, que es `t1` vacío porque su login no respondió |
+| Backend repetido (`cd backend; npm test`) | `107 passed (107)` / `1182 passed (1182)` | `Test Files  107 passed (107)` · `Tests  1182 passed (1182)`, código 0; terminó a las 19:24:19 |
+| Frontend por paquete (`cd frontend; npm test`, dos veces) | `1230 passed (1230)` las dos | `90 passed (90)` / `1230 passed (1230)` las dos, código 0 |
+| `npx vitest list` (backend) | 107 archivos y 1182 pruebas | 107 (`--filesOnly`) y 1182 líneas con ` > ` |
+| `npx vitest list` (frontend) | 90 archivos y 1230 pruebas (1232 líneas) | 90 y 1230 casos con ` > ` (1232 líneas) |
+| Suma por archivo (backend) | avisos 2, texto 4, muro 22, muro-autorizacion 9, clases.integracion 1: 38 | igual: 2, 4 (5 − 1), 22, 9 y 1 (22 − 21) |
+| Suma por archivo (frontend) | formulario-publicacion 7, muro-view 5, publicacion-del-muro 10, con-clase 1, alumnos-view 2, lib 2, formulario-clase 1, inicio-estudiante 1: 29 | igual |
+| IDs de "Pruebas requeridas" (c) | 57, ninguno sin caso | 57 de 57. Cada archivo coincide con el de la tabla del plan, y cada título aparece **exacto y una sola vez** en mi lista (cotejo por programa, hasta el fin de línea). Ninguno falta ni sobra respecto de PR-C01a a PR-C13d |
+| `enEspera=` | 35 | 35 |
+| V-01 | 87 de 87 | 87 de 87 |
+
+Además corrí aislados los dos archivos del muro (`npx vitest run test/muro.integracion.test.ts test/muro-autorizacion.integracion.test.ts`): `31 passed (31)` en 14.27 s, sin ningún término de PA-07. PR-C02a y PR-C02b, que cayeron por tiempo en mi corrida de la raíz, son víctimas de la misma espera en cadena (todo `POST` autenticado lee `usuarios` en `withProfile`), no pruebas propias intermitentes: **PA-12 no se activa.**
+
+### V-01 a V-07
+- **V-01:** `sha256sum` de las 87 `*.ataque` de `git ls-files -co --exclude-standard`, contra las 87 filas de la tabla de "CLASES-c — Ronda 0" de `reporte-tester.md`, comparadas por programa con `diff`: **87 de 87 iguales.** Las tres con cambios contra `e9df1f0` son las de la ronda 0 (C-2, C-12 y C-19).
+- **V-03 (desde `backend/`, cada uno con código 0):**
+  - `prisma validate` → "is valid";
+  - `prisma format --check` → "All files are formatted correctly!";
+  - `prisma generate` → "Generated Prisma Client (7.10.0)";
+  - `prisma migrate status` → "8 migrations found… Database schema is up to date!";
+  - `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → "No difference detected.".
+
+  `20261002003225_publicaciones_y_comentarios/migration.sql` es idéntica a §D-C1, con el `CHECK publicaciones_titulo_segun_tipo` al final.
+- **V-04 (producción, sin pruebas):** todas dan lo que pide el plan.
+  - `$queryRawUnsafe`: 1 (`adapters/db/cliente.ts:60`); `$executeRawUnsafe`: 0. SQL etiquetado en `adapters/db`: `salud`, `bloqueo-usuario`, `enlaces-registro`, `invitaciones` y, nuevo, solo `publicaciones.ts:183` (el `FOR SHARE`, parametrizado con `::uuid`).
+  - `addHook` en `handlers/`: 0. `console.` en los tres archivos nuevos del backend: 0. `estadoPago` en el código de `backend/src`: los mismos 8 archivos que en `e9df1f0`. La única mención nueva es una línea de `handlers/README.md` que dice que ninguna respuesta del muro lo lleva.
+  - `enEspera=`: 35. `vidrio-azul` solo en `bloque-destacado.tsx` (y su definición en `tokens.css`). `from "@/features/auth` en `features/clases`: 0. `dangerouslySetInnerHTML` y `target="_blank"`: 0. `fetch(` solo en `services/apiClient.ts` (líneas 70 y 117).
+  - `autoComplete="off"`: buscador, formulario de la clase, formulario de unirse y los dos formularios nuevos del muro.
+  - (Enmienda 6) `Default_Ignorable_Code_Point` solo en `shared/src/auth.ts` y `shared/src/clases.ts`, y 0 en `backend/src` y `frontend/src`. `contarCaracteresVisibles` se define solo en `shared/src/clases.ts:65`. `claseId ?? ""` aparece solo en `components/formulario-clase.tsx:29`. `focoPerdido` se define solo en `lib.ts:56`, y `hooks.ts` la importa sin exportarla. `toast` en `buscador-alumnos.tsx`: 0.
+- **V-05:** `git diff --quiet e9df1f0 -- <ruta>` termina con código 0 y `git status --porcelain` sale vacío en **todas** las rutas de "No se toca" (comunes y de c), incluidas `src/middleware/**`, `services/**`, `components/*.tsx` y `adapters/db/inscripciones.ts`.
+  - En `styles/**` solo cambia `clases-r1.ataque.test.ts`, que es del tester (ronda 0).
+  - Migraciones: `git diff --name-only` sale vacío y hay una sola carpeta nueva sin seguimiento.
+  - `eslint.config.mjs` es igual al de `<Ca>`; `backend/package.json` y `package-lock.json`, iguales a los de `<R>`; `infra/`, `.claude/` y `.codex/`, iguales a `<R>`.
+  - Los seis archivos protegidos de `docs/` y de la raíz (`ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`, `PRD.md`, `AGENTS.md`, `CLAUDE.md` y `README.md`) coinciden con los SHA-256 de `aprobacion.md`, "Cierre de CLASES-b".
+  - Fuera de los paquetes solo cambia `docs/DESIGN.md` (paso 33).
+  - Mis corridas no dejaron cambios en el árbol: 32 archivos rastreados modificados y 16 sin seguimiento, antes y después.
+- **V-06:** no arranqué la API.
+  - La lista exacta la verifica el caso de `backend/test/sesiones-y-cadena.ataque.test.ts` que recorre `obtenerApp().printRoutes({ commonPrefix: false })` y la compara con 54 rutas literales: las 45 anteriores más las 9 de c, con sus `HEAD`. Ese caso pasó en mi corrida del paquete.
+  - `handlers/clases/muro.ts` registra exactamente 7 rutas; sus 2 `GET` suman 2 `HEAD`.
+  - `RUTAS_PUBLICAS` sigue con 10, y `middleware/` no cambió.
+  - Ninguna ruta contiene "movimiento".
+- **V-07:** ver la tabla de cifras.
+
+### Diff de las pruebas que no son `*.ataque` (Enmienda 7 y PA-16)
+- **`backend/test/bloqueo-usuario.integracion.test.ts` contra `e9df1f0`:** dos hunks, y nada más:
+  - la última línea del comentario del caso E6 sigue con "CLASES-c, §D-C3/V-04:", y se suma una línea: "publicaciones.ts suma el SELECT … FOR SHARE de crearComentario (Enmienda 7)";
+  - el título pasa a "E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts y publicaciones.ts usan SQL etiquetado en adapters/db";
+  - la lista del `toEqual` suma `"publicaciones.ts"` en orden alfabético.
+
+  No cambian el patrón, la lectura del directorio ni ninguna aserción. Es exactamente lo que autoriza la Enmienda 7.
+- **Alcance:** `git diff --name-only e9df1f0 -- backend/test frontend/src` más los archivos sin seguimiento dan 11 archivos de pruebas modificados y 7 nuevos.
+  - Los 7 nuevos son los "Nuevos" de c.
+  - De los modificados, 7 son los "del propio encargo que se extienden", 1 es el que autoriza la Enmienda 7 y 3 son las `*.ataque` de la ronda 0.
+
+  Ninguno queda fuera de la lista cerrada.
+- **Los archivos "del propio encargo que se extienden" solo suman casos, con una excepción equivalente:** en `backend/test/clases.integracion.test.ts:128`, un U+202E escrito tal cual pasó a su escape. La cadena tiene el mismo valor ("Clase" + U+202E + "mala"; lo comprobé con Node). Lo cambió el script con que el programador restituyó los escapes, y el resumen dice "solo se agregaron casos". Ver N-C4.
+
+### Revisión a vuelo de pájaro (no es la revisión final)
+- **Cadena de las 7 rutas de `handlers/clases/muro.ts`:** cada una usa `protegido({ roles, pertenencia })` tal como en la tabla de §D-C2:
+  - `inscripcion` con estudiante y maestro en `GET …/publicaciones`, en `GET` y `POST …/comentarios` y en `DELETE …/mis-comentarios/:comentarioId`;
+  - `propiedad` con solo maestro en `POST …/publicaciones`, `DELETE …/publicaciones/:publicacionId` y `DELETE …/comentarios/:comentarioId`.
+
+  La clase sale de `claseDe(request)`, que es el sexto paso real. Ningún handler verifica rol, propiedad o inscripción a mano, ni importa `notifier`, ni lleva `try/catch`.
+- **Ids y cola:** el handler genera `publicacionId` y `comentarioId` con `randomUUID()` antes de llamar al adaptador, y ese id es también el `id` del trabajo. `crearPublicacion` y `crearComentario` abren `enTransaccion`, insertan y llaman a `alGuardar(ejecutorSqlDe(tx))`. El handler pasa `(sql) => encolar(cola, aviso, { id, sql })`. Los datos del trabajo llevan solo ids.
+- **`FOR SHARE`:** es el único SQL crudo nuevo; va etiquetado y parametrizado. Sin fila, `crearComentario` devuelve `null` sin insertar, y el handler responde `404`.
+- **Alcance de las consultas:** toda consulta por `publicacionId` o `comentarioId` filtra además por la clase (`deleteMany` con `publicacion: { claseId }`, y "mis comentarios" con `autorId`). El conteo de comentarios es un solo `groupBy` por página, fuera de ciclos.
+- **`adapters/queue/colas.ts`:** suma exactamente las cuatro colas de §D-C3. `AVISO_FALLIDO` va primero, sin reintentos y con 7 días de retención. Las otras tres llevan `retryLimit` 3, `retryDelay` 30, `retryBackoff`, `expireInSeconds` 300, `deadLetter` `AVISO_FALLIDO` y `retentionSeconds` y `deleteAfterSeconds` de 604,800.
+- **Frontend:**
+  - Los textos nuevos viven en `data.ts`. No hay texto suelto en JSX ni en `aria-label` o `placeholder`.
+  - No hay `?? []`, `disabled` ni ternarios anidados (los tres ternarios son simples).
+  - No hay tipos fuera de `types.ts` salvo las Props.
+  - Los estados siguen el orden error, cargando, vacío y datos.
+- **Regla de contenido visible:** vive solo en `shared/src/clases.ts`: `contarCaracteresVisibles`, los dos mínimos y `textoConContenidoSchema`. La usan `nombreClaseSchema` (último `refine`), el texto del anuncio, el título del material y el comentario. El frontend valida con esos mismos esquemas (`safeParse`) antes de enviar.
+- **`docs/DESIGN.md`** (`git diff e9df1f0`) solo cambia en tres lugares, todos marcados "propuesta":
+  - **§7.3:** una viñeta nueva, "Grupo de dos botones para elegir un tipo". El estado no depende del color: lleva un icono `Check`.
+  - **§7.14:** el párrafo de implementaciones sube justo después de las tres viñetas de la confirmación en línea, empieza con "Implementan la confirmación en línea" y conserva las mismas dos referencias.
+  - **§7.18 nueva:** "Publicación del muro y comentarios".
+
+### Desviaciones declaradas
+1. **`publicacionRespuestaSchema`, `comentarioRespuestaSchema` y `autorDelMuroSchema` en `shared/`: ACEPTADA.** Son los envoltorios de las respuestas que §D-C2 ya fija (`201 { publicacion }`, `{ comentario }` y el `autor`). Por la regla 7 de `CLAUDE.md`, los tipos de la API salen de `shared/`; declararlos a mano habría sido peor. Los esquemas de parámetros están en "Cambios por capa".
+2. **`MuroView` también usa `ConClaseDeLaRuta`: ACEPTADA.** `muro-view.tsx` se reescribe en c de todos modos, y sin la guarda habría nacido un `claseId ?? ""` nuevo que V-04 no admite. El rol que decide el prefijo de la ruta es solo de presentación: el backend lo exige por su cuenta.
+3. **Avisos de borrar publicación y borrar comentario en los callbacks de los hooks: ACEPTADA.** Es el mismo razonamiento de §D-C5 bis: el componente se desmonta cuando llega la lista nueva, y los callbacks de `mutate` no correrían. Ver N-C5 para los avisos de crear, que no siguieron ese criterio.
+4. **Escapes restituidos con un script: ACEPTADA,** con N-C4. Lo que importa (escapes en el código de las pruebas, sin invisibles reales) se cumple.
+5. **"Ver más clases" busca la tarjeta nueva por su `a[href]`: ACEPTADA.** `tarjeta-clase.tsx` no está autorizado en c.
+
+### PA-07 (arbitraje)
+- **Mis corridas:**
+  - en la corrida de la raíz (que cayó por CHORE-02) y en la del paquete (limpia): `40P01`, `deadlock detected`, `could not serialize` y `too many clients`, 0;
+  - las líneas de log con `P2028` son exactamente 2 en cada corrida: `tx.sesion.create()` en `adapters/db/sesiones.ts:39` (login) y `tx.tokenCuenta.updateMany()` en `adapters/db/tokens-cuenta.ts:116` (restablecer);
+  - en la raíz, `grep -c` da 4 porque suma 2 líneas del resumen de fallos: el título del caso de `cuentas-r3`, que contiene "(P2028)", y que cayó por tiempo. No son errores.
+- **Decisión sobre las repeticiones de esas dos llamadas en las corridas que caen por CHORE-02: no cuentan como PA-07.** Se cumplen cuatro condiciones:
+  - **(a)** los otros cuatro términos están en 0;
+  - **(b)** todo `P2028` sale de los dos flujos aceptados de `cuentas-r3`: `POST /api/auth/login` y `POST /api/auth/restablecer`. El `sesiones.ts:110` que reportó una vez el programador es `revocarTodasLasSesiones`, que corre dentro de la misma transacción de restablecer, después de `bloquearUsuarioParaEscribir`. Es el mismo `P2028` aceptado, cortado en otra sentencia;
+  - **(c)** la corrida repetida y limpia trae exactamente los dos aceptados;
+  - **(d)** ningún `P2028` toca una ruta o una tabla de CLASES.
+
+  La exclusión de PA-07 se lee **por flujo y transacción, no por número de línea**. En cambio, un `P2028` en una corrida limpia fuera de esos dos, o en cualquier ruta de c (en particular `crearComentario` con su `FOR SHARE`), **sí** es PA-07. El conteo se hace sobre las líneas de log (`"code":"P2028"` o el sitio de la llamada), no con un `grep -c` que también cuente títulos de casos.
+- **PA-11:** `docker ps -a` a las 19:28:13, más de 120 s después de la última corrida del backend: solo los 4 contenedores de `infra/`, sin Testcontainers.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+#### N-C4 — Una línea existente de `clases.integracion.test.ts` cambió, y el resumen dice "solo se agregaron casos"
+- **Dónde:** `backend/test/clases.integracion.test.ts:128`, un caso de a.
+- **Arbitraje:** no activa PA-16. El caso no se reescribió: la cadena tiene el mismo valor y ninguna aserción cambió. Además, el cambio va en el sentido que pide el plan (escapes, no invisibles reales). No pido revertirlo.
+- **Qué se espera:** que el resumen de la próxima entrega lo declare como cambio de un caso existente, con su motivo. Un script que reescribe archivos de pruebas en bloque debe limitarse a las líneas que el programador agrega.
+
+#### N-C5 — Los avisos de crear publicación y comentario viven en los callbacks de `mutate`
+- **Dónde:** `components/formulario-publicacion.tsx:48-61` y `components/formulario-comentario.tsx:41-52`.
+- **El problema:** es la misma clase de defecto que §D-C5 bis corrigió en "Agregar a la clase". Si el bloque de comentarios se cierra ("Ocultar comentarios") o la persona sale de la vista con el `POST` en vuelo, el formulario se desmonta. TanStack Query ya no llama a esos callbacks: no sale "Comentario publicado" ni, peor, el aviso de error, y la persona no sabe que su comentario no se guardó.
+- **Por qué no bloquea:** el plan no lo exige. Va a la lista del tester; si lo confirma, el remedio es el de §D-C5 bis (los avisos, en los callbacks del hook).
+
+#### N-C6 — El cursor de `GET …/publicaciones` y `GET …/comentarios` no se valida (pendiente que declaró el programador)
+Lo señala el propio programador. Usan el `cursor` de Prisma sobre la PK, como dicen §D-C2 y "Acceso a datos", pero sin comprobar que la fila del cursor sea de esa clase o de esa publicación. Eso da tres comportamientos:
+- **un cursor borrado** da una página vacía, y "Ver más" esconde el resto (el T-18 de a);
+- **el id de una publicación de otra clase** posiciona la página según la fecha de una fila ajena: es un oráculo de existencia, débil porque los ids son UUID aleatorios;
+- **un cursor de comentario de otra publicación** posiciona igual.
+
+En a, C-16 resolvió el mismo caso con `400 VALIDACION` "cursor: no es válido". Va a la ronda 1. Si el tester lo confirma, lo arbitro en la revisión final: el plan no pide validar aquí, así que hará falta una enmienda o la decisión del humano.
+
+### Detalles menores
+- PR-C04d cuenta en `pg_stat_activity` toda sesión con `wait_event_type = 'Lock'` y `FOR SHARE` en la consulta, no solo la de su prueba. Hoy solo `crearComentario` hace `FOR SHARE`, así que no hay falsos positivos. Si otra prueba de c lo hiciera en paralelo, la espera podría confirmarse antes de tiempo.
+- `DESIGN.md` §7.18 omite el `size="sm"` de "Ver más comentarios" que fija §D-C5. Se puede corregir en la revisión final.
+- La sección "Desviaciones del plan" del resumen dice "Ninguna de diseño", y las desviaciones reales están en "Decisiones y detalles". Conviene listarlas en "Desviaciones".
+
+### Enmienda 7 (modo plan, breve): APROBADO
+- **El diff es solo lo declarado.** `git diff -U0 e9df1f0 -- plan.md` da 28 hunks, 216 inserciones y 19 borrados (SHA-256 `0E833ED8…`, igual al de `aprobacion.md`). Frente a mi verificación de la Enmienda 6 (27 hunks, 196 inserciones), lo nuevo es esto:
+  - la línea de la Enmienda 7 en la cabecera (hunk 1);
+  - la sección nueva, 18 líneas, dentro del hunk de la cabecera de enmiendas;
+  - la viñeta de "Ronda 0", punto 2 (el único hunk nuevo, línea 1862);
+  - la celda "existentes que se modifican" de la fila c de las listas cerradas, y la frase de la Enmienda 7 en el paso 32. Las dos son cambios dentro de hunks que ya existían.
+
+  En total, 196 + 1 + 18 + 1 = 216. No hay nada en §D, PARADAS, "No se toca" ni V-xx.
+- **Fondo:**
+  - **Lista literal ampliada en lugar de derivarla de V-04: correcto.** El valor de E6 está en que cada archivo nuevo con SQL etiquetado exija una autorización explícita. Derivar la lista del código o de V-04 la volvería una tautología: pasaría siempre.
+  - **PA-16 cerrada solo para ese archivo y ese caso: correcto.** El alcance es mínimo, y cualquier otro cambio vuelve a activarla.
+  - **Regla de la ronda 0 para d y siguientes (buscar listas cerradas también en las pruebas normales): correcta,** y es la lección real de esta parada. Sugerencia sin efecto de bloqueo: en la ronda 0 de d, el tester puede buscar, en todo `backend/test` y `frontend/src`, `readdir`, `import.meta.glob`, `?raw` y `toEqual([` con nombres de archivo, no solo en las `*.ataque`. d no agrega SQL etiquetado, según el arquitecto. Si llegara a necesitarlo para confirmar archivos, E6 volvería a saltar, y la regla nueva lo detectaría antes de programar.
+
+### Lista de puntos de ataque para la ronda 1 del tester (CLASES-c)
+1. **Cursor sin validar (N-C6)** en `GET …/publicaciones` y `GET …/comentarios`. Cuatro casos:
+   - el cursor de una publicación o un comentario borrado entre dos páginas, que deja una página vacía y oculta el resto;
+   - el id de una publicación de otra clase como cursor (oráculo de existencia y de fecha);
+   - el id de un comentario de otra publicación;
+   - un UUID inexistente frente a uno ajeno: ¿la respuesta es idéntica?
+
+   Compara con el comportamiento de C-16 en `inscritas` e `impartidas`.
+2. **Concurrencia comentar y borrar, en los dos órdenes:**
+   - PR-C04d cubre el borrado que toma la fila primero. Ataca el orden inverso: el `FOR SHARE` del comentario ya tomado, y el `DELETE` de la publicación esperando y borrando en cascada. Que no haya `500` ni comentario huérfano, que la respuesta del comentario sea coherente y que el trabajo `COMENTARIO_CREADO` quede apuntando a un comentario ya borrado (anótalo: NOTIFICACIONES tendrá que tolerarlo);
+   - borrar un comentario y su publicación a la vez;
+   - dos `DELETE …/mis-comentarios/:id` simultáneos: uno `204` y otro `404`.
+
+   En ningún caso un `P2028`; si aparece, es PA-07 (ver el arbitraje).
+3. **Cola transaccional:**
+   - si `encolar` lanza, la transacción se revierte, sin publicación ni comentario;
+   - el id del trabajo coincide con `publicacionId` o `comentarioId`, y un id repetido no duplica;
+   - los datos del trabajo llevan solo ids (ningún texto, nombre ni correo);
+   - las colas tienen `deadLetter`, reintentos y retención;
+   - ningún worker registra un consumidor para esas colas (no lo hay hasta NOTIFICACIONES);
+   - borrar una publicación no encola nada.
+4. **Regla de contenido visible en los tres lados (`shared/`, backend y los tres formularios):**
+   - nombre, título del material, anuncio y comentario hechos solo de `Cf`, rellenos Hangul, Braille en blanco, U+1D159, marcas combinantes sueltas o espacios Unicode, en `POST` y `PUT`;
+   - un nombre con un solo visible;
+   - emojis compuestos y otros alfabetos aceptados;
+   - el mismo mensaje en el formulario y en el `400` del servidor;
+   - el campo ausente o que no es texto, con mensaje en español;
+   - la normalización de CRLF antes de validar;
+   - los máximos en unidades de UTF-16 (5,000 y 5,001; 200 y 201; 1,000 y 1,001);
+   - los caracteres de control y los inversores de dirección;
+   - que no haya una copia de la regla fuera de `shared/`.
+
+   **No son hallazgo** (§D-C4): un `Cf` en medio de un texto con contenido visible, un opcional sin contenido visible y un carácter que se ve vacío solo en algunas fuentes.
+5. **Triviales heredados de b (en la regresión):**
+   - el aviso de "Agregar a la clase" con la fila desmontada, una sola vez y sin duplicados (éxito, neutro y error);
+   - el foco de §7.14 en el buscador y en el roster igual que antes, tras mover `focoPerdido`;
+   - las cinco vistas con `ConClaseDeLaRuta` (las cuatro del plan más `MuroView`): sin `:claseId`, muestran el error y no piden nada.
+6. **Foco de los tres "Ver más" (publicaciones, comentarios y clases):**
+   - con teclado, al cargar la última página, el foco va al primer elemento nuevo o, si no llegó nada, al encabezado; nunca a `<body>`;
+   - un render sin desmontaje no mueve el foco ni se lo quita a un control que la persona eligió;
+   - "Ver más clases" encuentra la tarjeta nueva por su `a[href]`;
+   - el foco tras borrar una publicación o un comentario va a la vecina o, si no hay, al encabezado.
+7. **Avisos perdidos al crear (N-C5):** "Ocultar comentarios", o navegar, con el `POST` de un comentario o de una publicación en vuelo, tanto con éxito como con error. Además, que los avisos de borrar (ahora en los hooks) salgan una sola vez.
+8. **Alcance y fugas:**
+   - el `publicacionId` o el `comentarioId` de otra clase con el `claseId` propio, en las 7 rutas;
+   - un comentario de otra publicación de la misma clase en `DELETE …/publicaciones/:publicacionId/comentarios/:comentarioId`;
+   - "mis comentarios" con el comentario de otro;
+   - el recorrido recursivo de toda respuesta del muro, incluido el `autor`, sin `estadoPago`, `email` ni `accesoRestringido`;
+   - `propio` correcto para el alumno y para el maestro.
+9. **Texto como texto:** XSS en el título, el anuncio, el comentario y el nombre del autor. Saltos de línea con `whitespace-pre-line`. Doble envío de "Publicar" y "Comentar" (`enEspera`). Confirmaciones en línea con el foco en "Cancelar".
+10. **PA-10 en logs** (`LOG_LEVEL=trace`, como `api-real` y `logs-*`): las rutas del muro no registran tokens, cookies ni cuerpos con datos sensibles, y el encolado no deja en el log nada más que ids.
+11. **Rol por el prefijo de la ruta en `MuroView`:** un estudiante en una ruta `/maestro/…` no ve el formulario. Si lo viera, el backend debe negar el `POST` igual (no se oculta en la interfaz lo que el backend niega).
+
+## Arbitrajes de la ronda 1 — CLASES-c
+Fecha: 2026-10-01. Solo lectura, sin suites (por instrucción del orquestador). Fuente: `reporte-tester.md`, "CLASES-c — Ronda 1" (líneas 2596 a 2861).
+**Resultado:** los cinco hallazgos se corrigen en el código. T-29, T-31, T-32 y T-33 necesitan antes una **Enmienda 8** del arquitecto, corta (detalle al final). Ninguno necesita una decisión del humano: T-29 aplica a c una regla que el humano ya decidió en a (T-18).
+
+### T-29 — Cursor borrado en el muro y en los comentarios: opción (b), enmienda del arquitecto, sin el humano
+- **Por qué no basta (a).** §D-A4 escribe el "principio común" dentro de CLASES-a y lo aplica solo a `inscritas`, `impartidas`, personas y roster. Para c, §D-C2 y "Acceso a datos" describen `listarPublicaciones` y `listarComentarios` sin la lectura previa del cursor. El programador no puede agregar una consulta que el plan no tiene, y el tester no puede pedir algo que el plan no dice. El fondo, en cambio, ya está decidido:
+  - el humano aprobó T-18 como regla;
+  - el plan la generalizó en el "principio común";
+  - la clave de orden de c (`publicaciones.creado_en` y `comentarios.creado_en`) desaparece con la fila, que es exactamente el caso de `inscritas`.
+
+  Basta con que el plan lo diga.
+- **Criterio exacto de la corrección:**
+  1. **`listarPublicaciones`:** con `cursor`, primero una lectura por PK de `publicaciones` con `id = cursor` y `clase_id = claseId`. Si no hay fila, `AppError` `400 VALIDACION` "cursor: no es válido", con el mismo código y mensaje que `errorCursorInvalido` de `adapters/db/clases.ts`. Si hay fila, pagina como hoy.
+  2. **`listarComentarios`:** se conserva el orden actual. Primero se comprueba la publicación en la clase (si no está, `404 PUBLICACION_NO_ENCONTRADA`, aunque haya cursor). Después, con `cursor`, una lectura por PK de `comentarios` con `id = cursor` y `publicacion_id = publicacionId`. Si no hay fila, `400 VALIDACION` "cursor: no es válido".
+  3. **Sin oráculo:** un cursor borrado, uno de otra clase o de otra publicación y un UUID inexistente reciben la misma respuesta, byte a byte. Un cursor que no es UUID sigue respondiendo lo que hoy da `paginacionSchema`.
+  4. **Una consulta por PK,** fuera de ciclos y sin transacción. Residual aceptado, igual que en a: si la fila se borra entre la lectura y la página, puede salir una página vacía (ventana de milisegundos).
+  5. **El frontend no cambia:** el `400` de "Ver más" llega como `isError` y se muestra con `MensajeError`, con el foco en el encabezado (T-27, ya cubierto por el tester).
+  6. **Pruebas normales** en `backend/test/muro.integracion.test.ts` (archivo nuevo de c, se extiende): una para publicaciones y otra para comentarios (propuesta: PR-C03f y PR-C04e). Cada una cubre un cursor borrado → `400` "cursor: no es válido", un cursor ajeno idéntico a un UUID inexistente, y un cursor válido que sigue paginando.
+
+  Los cuatro casos del tester de T-29 en `muro-c-r1.ataque.test.ts` deben pasar sin tocarlos.
+
+### T-32 — Los máximos cuentan puntos de código: se corrige el plan, no el esquema
+- **Es una premisa falsa del plan, no un defecto del código.** El comportamiento es deliberado y está documentado en zod 4: `$ZodCheckMaxLength` mide las cadenas en puntos de código (lo dice el comentario de `node_modules/zod/v4/core/checks.js`). Frontend y backend usan el mismo esquema, así que no se desvían entre sí. Cambiar el esquema para contar unidades de UTF-16 sería código nuevo sin requisito detrás, y rompería la coherencia con el término de búsqueda de b, que mide en puntos de código por diseño, y con el conteo de visibles.
+- **Unidad que declara el plan: puntos de código, para todos los `max` y `min` de cadena de `shared/`.** Eso incluye los de c (título 200, anuncio y descripción del material 5,000 y comentario 1,000) y los de a: `nombreClaseSchema` (120; también su `min(2)`, observación 6 del tester) y `descripcionClaseSchema` (2,000). En a no cambia nada del código: el plan solo deja de afirmar algo falso. Consecuencias que hay que escribir:
+  - un texto puede guardar hasta el doble de unidades UTF-16 de su máximo. No hay límite de columna (`TEXT`), así que no es un riesgo;
+  - el `maxLength` del navegador cuenta unidades UTF-16. Hoy solo lo usa el buscador de b, que ya lo documenta en un comentario. Si algún campo lo usara, sería más estricto que el servidor, nunca más laxo. No hace falta agregar ni quitar `maxLength`.
+- **Pruebas:**
+  - el caso "máximos en unidades de UTF-16…" de `muro-c-r1.ataque.test.ts` es del tester y de esta misma ronda. Lo reescribe el tester según el plan corregido (2,500 emojis + "a" = 2,501 puntos de código → `201`; 5,000 emojis + "a" → `400`), sin debilitar los 10 subcasos ASCII. Debe quedar en la tabla de hashes nueva, como C-16;
+  - ninguna prueba normal cambia por T-32.
+- **Corrección a mi propia lista de la ronda 1 (punto 4):** decía "los máximos en unidades de UTF-16". Era la misma premisa falsa, y queda corregida aquí.
+
+### T-30 — Avisos de crear publicación y comentario: confirmado, con este criterio
+1. **Los avisos van a los callbacks de `useCrearPublicacion` y `useComentar`** (`hooks.ts`), como en §D-C5 bis:
+   - `onSuccess`: la invalidación de hoy y `toast.success` ("Publicado" o "Comentario publicado");
+   - `onError`: `toast.error(mensajeDeErrorClases(error))`, **salvo** si el error es de un campo del formulario (lo que hoy detecta `erroresDeFormularioClases` con `["titulo", "texto"]` o `["texto"]`). En ese caso el hook no avisa y el campo lo muestra el componente.
+2. **El componente** llama a `mutate` solo con callbacks de estado local: en `onSuccess`, limpiar los campos; en `onError`, poner los errores de campo. No importa `toast` para crear. Como TanStack Query no llama a esos callbacks si el componente se desmontó, "limpiar el formulario solo si sigue montado" sale solo.
+3. **Cada aviso sale una sola vez:** éxito, error de red o `500`, con el formulario montado o desmontado (cerrar los comentarios o salir del muro). Ningún aviso duplicado con el formulario montado.
+4. **Residual aceptado:** un error **de campo** del servidor con el formulario ya desmontado no se avisa. Solo ocurre si el servidor rechaza un campo que el formulario validó, y T-31 cierra esa diferencia.
+5. **Pruebas normales:** en `formulario-publicacion.test.tsx` y `publicacion-del-muro.test.tsx` (archivos nuevos de c, se extienden), éxito y error con el formulario desmontado y montado, una vez cada uno. Los cuatro casos de T-30 del tester deben pasar sin tocarlos.
+
+### T-31 — El formulario mide antes de normalizar: confirmado, con `normalizarTextoLargo` en `shared/`
+- **Acepto la propuesta del orquestador:** mover `normalizarTextoLargo` a `shared/src/clases.ts` (una sola definición, como `normalizarTerminoDeBusqueda` en b). `backend/src/core/clases/texto.ts` la reexporta, así que los handlers y `core/clases/texto.test.ts` no cambian; si se prefiere, la importa de `@campus/shared`, como `core/clases/busqueda.ts`. Descarto replicarla en el frontend, porque serían dos copias de una regla, el mismo problema que dejó `contarVisibles` en `auth.ts`.
+- **Criterio:**
+  - `FormularioPublicacion` y `FormularioComentario` aplican `normalizarTextoLargo` a los textos que el servidor normaliza (título y texto; comentario) **antes** de `safeParse`, y envían el valor normalizado (`resultado.data`);
+  - el servidor sigue normalizando por su cuenta;
+  - mismo resultado y mismo mensaje en los dos lados: 1,000 caracteres seguidos de un salto de línea se envían; 1,001 sin saltos se rechazan en el formulario con el mensaje del servidor;
+  - el campo visible no se reescribe mientras la persona escribe.
+- **Fuera de alcance:** `formulario-clase.tsx` (la descripción de a tiene el mismo patrón) no está autorizado en c. Queda como pendiente con destino en `docs/ESTADO.md` §3, junto al `claseId ?? ""` de ese mismo archivo.
+- **Pruebas normales:** PR-C12d sigue en `texto.test.ts` sin cambios. Se suma un caso por formulario en `formulario-publicacion.test.tsx` y `publicacion-del-muro.test.tsx`. Los dos casos de T-31 del tester deben pasar sin tocarlos.
+
+### T-33 — Mensajes en inglés de `tipo` y de la descripción del material: confirmado
+- **`crearPublicacionSchema`:** el `discriminatedUnion` lleva `error` en español para el `tipo` ausente o desconocido. Texto propuesto (§D-C6, propuesta): "Elige si es un anuncio o un material". El servidor responde "tipo: Elige si es un anuncio o un material".
+- **La descripción opcional del material** usa un `z.string({ error: … })` con mensaje en español. Texto propuesto: "La descripción debe ser texto". Su comportamiento con una cadena no cambia: opcional, máximo 5,000 y sin mínimo de visibles.
+- **`descripcionClaseSchema` de a no se toca:** la Enmienda 6 lo dejó sin cambio a propósito. Va como pendiente con destino a `ESTADO.md` §3.
+- **Pruebas normales:** un caso en `muro.integracion.test.ts` con los 4 casos del tester: sin `tipo`, `tipo: "tarea"`, `texto: 5` y `texto: null` en un material. El caso de T-33 del tester debe pasar sin tocarlo.
+
+### Enmienda 8 del arquitecto (antes de la corrección del programador)
+La redacta el arquitecto y la transcribe el orquestador, como la 6 y la 7. Solo estas líneas:
+1. **§D-C2, nota debajo de la tabla, y "Acceso a datos":** en las filas `listarPublicaciones` y `listarComentarios`, el paso "1. Con cursor, `publicaciones` (o `comentarios`) por PK dentro de la clase (o la publicación); si no hay fila, `400` (§D-A4, principio común; T-29)". En la columna "Índice", PK.
+2. **§D-C4:** la viñeta "Los máximos no cambian" pasa a decir que cuentan en **puntos de código** (zod 4), con la consecuencia de las unidades UTF-16 y el `maxLength`, y que vale igual para los `max` y `min` de a. Lo mismo en "Puntos de ataque" (c), punto 4 (5,000/5,001 en puntos de código).
+3. **§D-C4, "Dónde vive":** `normalizarTextoLargo` pasa a `shared/src/clases.ts`. "Cambios por capa" (`shared/`: suma `normalizarTextoLargo`; `core/`: `texto.ts` la reexporta; frontend: los dos formularios del muro normalizan antes de validar). Si el arquitecto lo prefiere, conviene una línea en V-04: `normalizarTextoLargo` se define solo en `shared/src/clases.ts`.
+4. **§D-C5 (o §D-C5 bis):** el criterio de avisos de T-30 (puntos 1 a 4 de arriba) para `useCrearPublicacion` y `useComentar`.
+5. **§D-C6:** los dos mensajes nuevos de T-33.
+6. **"Pruebas requeridas" (c):** los IDs nuevos (propuesta: PR-C03f, PR-C04e, PR-C14a y PR-C14b para T-30, PR-C15a y PR-C15b para T-31, y PR-C16 para T-33), todos en archivos nuevos de c que ya están en la lista cerrada. La lista cerrada no cambia.
+7. **"Pendientes":** la normalización y la descripción de `formulario-clase.tsx` (a) y el mensaje de tipo de `descripcionClaseSchema` (a), a `ESTADO.md` §3.
+8. **Ronda del tester:** el tester reescribe su caso de T-32 según el punto 2, y la tabla de hashes de la ronda 1 se actualiza para esa fila antes de que el programador corra V-01.
+
+No cambian §D-C1, §D-C3, PARADAS, "No se toca" ni la lista cerrada de archivos.
+
+## Verificación del resumen — CLASES-c — corrección de la ronda 1
+Fecha: 2026-10-01. Revisé el resumen del programador ("CLASES-c — corrección de la ronda 1", línea 1326 de `resumen-programador.md`) contra el plan de la Enmienda 8 (SHA-256 `23E467B1…`, el mismo que anota `aprobacion.md`) y contra mi arbitraje de la ronda 1.
+**Veredicto del resumen: ACEPTADO.** Cada cifra coincide con mi corrida, y los 65 IDs PR-C tienen archivo y título exacto. Pasa a la ronda 2 del tester.
+**D-1: (a), se acepta la copia de `errorCursorInvalido`.**
+Verificación propia: lint 0 · build 0 · test de la raíz con el backend en rojo por CHORE-02 (solo tiempos límite) y, repetido desde `backend/`, en verde · frontend en verde dos veces · V-03 completo en 0.
+
+### Precondiciones
+- **PA-01:** comprobé `Enabled True`, `Inbound`, `Block`, `Public` y la red `IZZI-F281-5G` antes de cada corrida del backend. Docker encendido; sin procesos `node` ni contenedores de Testcontainers al empezar.
+
+### Cifras: resumen contra mi corrida
+| Cifra | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` (raíz) | código 0; `> tsc -b` | código 0; `> tsc -b` |
+| `npm run build` (raíz) | código 0; `✓ built in 688ms` | código 0; `✓ built in 636ms` |
+| `npm run test` (raíz) | código 0: backend `109 passed (109)` / `1214 passed (1214)`; frontend `92 passed (92)` / `1258 passed (1258)` | código 1 por CHORE-02. Backend `10 failed / 99 passed (109)` y `11 failed / 1176 passed / 27 skipped (1214)`. Los rojos son 8 "Test timed out in 15000ms", uno de 30 s y otro de 40 s, 4 hooks de 10 s, el `esperarHasta` del worker de correo y el `TypeError` de `api-real:227`. Frontend `92 passed (92)` / `1258 passed (1258)` |
+| Backend repetido (`cd backend; npm test`) | corridas 2 y 4 en verde | `Test Files  109 passed (109)` · `Tests  1214 passed (1214)`, código 0 (21:13:51) |
+| Frontend por paquete, dos veces | — | `92 passed (92)` / `1258 passed (1258)` las dos, código 0 |
+| `npx vitest list` | backend 109 archivos y 1214 pruebas; frontend 92 y 1258 | igual: 109 y 1214; 92 y 1258 (1260 líneas: dos títulos ocupan dos líneas) |
+| De dónde salen las sumas | — | Backend: 1182 + 25 (`muro-c-r1.ataque`) + 3 (`logs-muro-c-r1.ataque`) + 3 (`muro.integracion`, de 22 a 25) + 1 (`texto.test`, de 5 a 6) = 1214. Frontend: 1230 + 22 (`muro-c-r1.ataque`) + 2 (`muro-rutas-c-r1.ataque`) + 2 (`formulario-publicacion.test`, de 7 a 9) + 2 (`publicacion-del-muro.test`, de 10 a 12) = 1258 |
+| IDs | los 8 nuevos con título exacto; 65 PR-C distintos | 8 de 8 y 57 de 57 con título exacto, una sola vez cada uno (cotejo por programa). 65 IDs PR-C distintos. Cada ID nuevo está en el archivo que fija la tabla de la Enmienda 8 |
+| V-01 | 91 de 91 | 91 de 91 contra la tabla de C-20 (`muro-c-r1.ataque.test.ts` = `902CC714…`) |
+| V-03 | validate, format y diff en 0; `migrate status` sin correr | Los cinco con código 0: validate, `format --check`, generate, `migrate status` ("8 migrations found… Database schema is up to date!") y `migrate diff --exit-code` |
+| `enEspera=` | 35 | 35 |
+
+Corrí aislados los cuatro archivos del muro del backend (`muro.integracion`, `muro-autorizacion`, `muro-c-r1.ataque` y `logs-muro-c-r1.ataque`): `62 passed (62)`, sin ningún término de PA-07. PR-C02e y PR-C03a, que cayeron por tiempo en mi corrida de la raíz, son víctimas de la misma espera en cadena: **PA-12 no se activa.** En el frontend, `muro-c-r1.ataque` y `muro-rutas-c-r1.ataque` dan `24 passed (24)`.
+
+### Alcance y "No se toca"
+- **Archivos tocados en la corrección:** los que cambiaron en los paquetes después de mi verificación anterior son exactamente los 11 que declara el resumen, más las 4 `*.ataque` del tester de la ronda 1. Nada más.
+- **V-05:** `git diff --quiet e9df1f0` termina con código 0 en todas las rutas de "No se toca", también en `backend/src/adapters/db/clases.ts` e `inscripciones.ts`. Las únicas diferencias están en las rutas que "Cambios por capa" asigna a c (`adapters/queue/colas.ts`, `handlers/clases/muro.ts`, `handlers/README.md`, `prisma/schema.prisma` y la migración nueva) y en las `*.ataque` del tester (`frontend/src/styles` y `frontend/src/app`).
+- **Intactos:** `formulario-clase.tsx` y `descripcionClaseSchema`. `shared/src/auth.ts` sigue sin cambios.
+
+### Las correcciones contra el criterio de la Enmienda 8 y del arbitraje
+- **T-29 (`adapters/db/publicaciones.ts`): cumple.**
+  - Con cursor, `findFirst` por `id` y `claseId` (publicaciones) o por `id` y `publicacionId` (comentarios). Sin fila, `400 VALIDACION` "cursor: no es válido".
+  - En `listarComentarios`, la publicación se comprueba antes que el cursor, así que una publicación ajena da `404` aunque haya cursor.
+  - Es una consulta por PK, sin transacción ni SQL crudo nuevo; el `FOR SHARE` sigue siendo el único.
+  - Sin oráculo: PR-C03f y PR-C04e comparan los cuerpos del cursor borrado, el ajeno y el inexistente, y son iguales.
+- **T-30 (`hooks.ts` y los dos formularios): cumple.**
+  - `useCrearPublicacion` y `useComentar` avisan en sus callbacks: `onSuccess` invalida y muestra `toast.success`; `onError` sale sin avisar si `erroresDeFormularioClases` lo reconoce como error de campo y, si no, muestra `toast.error`.
+  - Los formularios ya no importan `toast`, y su `mutate` solo limpia los campos o marca los errores de campo.
+- **T-31: cumple.**
+  - `normalizarTextoLargo` se define una sola vez, en `shared/src/clases.ts:67`, con el mismo cuerpo que la original de `core/`. `core/clases/texto.ts` solo la reexporta.
+  - Los dos formularios la aplican a título, texto y comentario antes de `safeParse`, envían `resultado.data` y no reescriben el campo visible.
+- **T-33: cumple.** El `discriminatedUnion` lleva `{ error: "Elige si es un anuncio o un material" }`, y la descripción opcional del material, `z.string({ error: "La descripción debe ser texto" })`. `textoLargoSchema` se reescribe sobre `textoLargoCon(max, tipo)` sin cambiar su comportamiento, y `descripcionClaseSchema` queda igual que en `e9df1f0`.
+- **N-C4:** declarado como cambio heredado. Cerrado.
+
+### D-1 — `errorCursorInvalido` copiado en `publicaciones.ts`: (a), se acepta
+- **Exportarlo de `clases.ts` (b) o moverlo a un archivo compartido (c) obligaría a tocar archivos de "No se toca".** `clases.ts` e `inscripciones.ts` lo están, y también `errores.ts`, el lugar natural. Todo para unificar una función de una línea, sin ningún cambio de comportamiento.
+- **El precedente ya existe:** `inscripciones.ts` lleva su propia copia desde b, y se aceptó.
+- **La equivalencia está cubierta por pruebas:** PR-C03f y PR-C04e comparan el código y el mensaje con la constante esperada.
+- **El fallo de la Enmienda 8 (y de mi arbitraje de T-29, punto 1) fue de redacción:** decía "reutilizar" una función que no se exporta. El programador se detuvo como debía. Si algún día se unifican los errores de `adapters/db`, es un refactor aparte (un CHORE), no un pendiente de c.
+
+### PA-07 y PA-11
+- **Corrida del paquete (limpia):** `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0. `P2028`: 2, los aceptados (`sesiones.ts:39`, login; `tokens-cuenta.ts:116`, restablecer).
+- **Corrida de la raíz (CHORE-02):** los otros cuatro términos en 0. `P2028`: 5 líneas. Son los dos aceptados, 2 líneas del título del caso de `cuentas-r3` que cayó por tiempo y **una tercera llamada:** `tx.sesion.findFirst()` en `adapters/db/usuarios.ts:293` (`cambiarContrasenaPropia`), desde `POST /api/auth/cambiar-contrasena`. Esa transacción esperó 36 s el bloqueo de la fila de `usuarios` detrás de la cadena de CHORE-02, expiró y la petición respondió **`500`** ("Error no controlado").
+- **Cómo lo leo, según mi propio arbitraje:**
+  - no cumple la condición (b) de la exclusión (solo los flujos de login y restablecer), así que **es un `P2028` que PA-07 no excluye**;
+  - **no es de c:** es código de AUTH que c no toca, sale de la espera en cadena que solo provoca la suite (`LOCK TABLE usuarios`), y es el mismo mecanismo que los dos aceptados (una transacción interactiva de 5 s que expira esperando un bloqueo);
+  - no aparece en la corrida limpia ni en ninguna ruta del muro.
+
+  Por eso **no devuelvo el resumen** (el programador no lo vio en sus corridas, y la limpia lo confirma), pero **lo escalo al humano** (ver "Para el humano").
+- **PA-11:** `docker ps -a` a las 21:18:13, después de la corrida aislada: solo los 4 contenedores de `infra/`. El Ryuk de esa corrida ya se había retirado.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores
+- Con un cursor borrado, la persona ve en el muro "no es válido": `mensajeDeErrorClases` quita el prefijo `cursor:` del `VALIDACION`. Además, la lista completa se sustituye por `MensajeError`. Es el patrón aceptado en a y b (T-27), pero el texto no dice qué pasó ni qué hacer. Lo pongo en la lista del tester. Si lo confirma, el remedio es un texto propio para `VALIDACION` de `cursor` en `data.ts`; es una decisión de texto, no de seguridad.
+- El resumen cita PR-C15b solo por el nombre del archivo (`formulario-publicacion.test.tsx`). La ruta completa se deduce de la línea anterior. No cambia nada.
+
+### Para el humano
+- **Un tercer `P2028` en AUTH bajo CHORE-02:** `POST /api/auth/cambiar-contrasena` (`cambiarContrasenaPropia`, `usuarios.ts:293`) respondió `500` tras 36 s de espera de bloqueo en una corrida que cayó por la cadena de `LOCK TABLE usuarios`. No es de CLASES y no bloquea c. Recomiendo una de dos:
+  - anotarlo en CHORE-02 junto a los dos aceptados de `cuentas-r3`, con la decisión de si un `P2028` en cualquier transacción de AUTH bajo esa espera se acepta;
+  - o que AUTH traduzca la expiración a un error controlado, en lugar del `500`.
+
+  Hasta que decidas, cualquier `P2028` fuera de los dos flujos aceptados es PA-07.
+
+### Lista de puntos para la ronda 2 del tester (CLASES-c)
+1. **Regresión de los 9 casos por la razón correcta.** Que pasen por la corrección y no por otra cosa:
+   - T-29, por el `400` del adaptador;
+   - T-30, porque avisa el hook y no el componente: ningún `toast` en los formularios, y un aviso por evento con el formulario montado;
+   - T-31, por la normalización antes de `safeParse`;
+   - T-33, por los dos `error` de `shared/`.
+
+   Y la regresión del resto de c, b y a.
+2. **Bordes de T-29:**
+   - varias páginas: el cursor de la página 3 borrado después de cargar la 2, o borrar la primera de la página siguiente (que no es el cursor) sin perder ni duplicar filas;
+   - el borrado concurrente del cursor entre la lectura por PK y la página. El residual de milisegundos está aceptado: no es hallazgo si solo se reproduce con dobles en esa ventana;
+   - cursor de una publicación de otra clase del mismo maestro y de un comentario de otra publicación de la misma clase: la misma respuesta que un UUID inexistente;
+   - en la interfaz, qué ve la persona tras el `400` de "Ver más" (texto y foco) y si recupera la lista sin recargar (detalle menor de arriba);
+   - que una invalidación (crear o borrar con varias páginas cargadas) no reuse el cursor borrado.
+3. **T-30 con error de campo y el formulario desmontado** (el residual aceptado: no se avisa). Además:
+   - con el formulario montado, un error de campo del servidor (un `400` "texto: …" simulado) marca el campo sin aviso y sin duplicar;
+   - un `404 PUBLICACION_NO_ENCONTRADA` al comentar en una publicación ya borrada avisa una sola vez;
+   - un doble envío rápido deja un solo aviso;
+   - el aviso de éxito sale aunque se cierre el bloque de comentarios y se vuelva a abrir antes de la respuesta.
+4. **T-31 con `\r` solo** (texto pegado de Mac antiguo), con extremos en blanco (espacios, tabuladores, saltos y U+FEFF al principio y al final) y con texto que solo tiene blancos:
+   - mismo resultado y mismo mensaje en el formulario y en el servidor;
+   - que el valor enviado sea el normalizado;
+   - el título del material con un salto interior: el servidor lo acepta, porque el título usa la regla de texto largo. Que el formulario haga lo mismo.
+5. **T-33 con más tipos:** `tipo` numérico, nulo, arreglo, objeto, en mayúsculas (`"Anuncio"`) o con espacios. Un cuerpo que no es objeto (cadena, arreglo, `null`). Un comentario con `texto` booleano u objeto. Ningún mensaje en inglés en ningún `400` del muro. Lo que no sea de c (la descripción de la clase) se anota, no es hallazgo.
+6. **Lo que veo débil:**
+   - los avisos de borrar (en los hooks) y los de crear conviviendo en la misma vista sin duplicarse, al crear y borrar seguido;
+   - que `normalizarTextoLargo` desde `@campus/shared` y su reexporte en `core/` sean el mismo objeto (PR-C15a) y que no exista otra copia en `frontend/src`;
+   - PA-10 de nuevo en `logs-muro`, con los `400` del cursor (que el log no registre más que la ruta y el código).
+
+## Verificación del resumen — CLASES-c — corrección de la ronda 2
+Fecha: 2026-10-01. Verifiqué "CLASES-c — corrección de la ronda 2" (`resumen-programador.md`, línea 1404) contra T-34 (`reporte-tester.md`, "CLASES-c — Ronda 2", línea 2976).
+**Veredicto del resumen: ACEPTADO.** Ninguna cifra ni ID difiere de mi corrida, y la corrección es mínima. Pasa a la ronda 3 del tester, la última antes de escalar.
+Verificación propia: lint 0 · build 0 · `npm run test` desde la raíz en verde a la primera · backend por paquete en verde · frontend dos veces en verde.
+
+### Cifras: resumen contra mi corrida
+| Cifra | Resumen | Mi corrida |
+|---|---|---|
+| PA-01 | regla y red correctas | `Enabled True`, `Inbound`, `Block`, `Public`; `IZZI-F281-5G`. Comprobado antes de cada corrida del backend |
+| `npm run lint` (raíz) | código 0 | código 0 |
+| `npm run build` (raíz) | `✓ built in 705ms` | `✓ built in 1.00s`, código 0 |
+| `npm run test` (raíz) | código 0 en la repetición (la primera cayó por CHORE-02) | código 0 a la primera: backend `111 passed (111)` / `1226 passed (1226)`; frontend `93 passed (93)` / `1272 passed (1272)` |
+| Backend por paquete | corrida 2: `111 passed (111)` / `1226 passed (1226)` | `111 passed (111)` / `1226 passed (1226)`, código 0 (21:54:38) |
+| Frontend por paquete, dos veces | `93 passed (93)` / `1272 passed (1272)` las dos | igual las dos, código 0 |
+| `npx vitest list` | 1226 y 111; 1272 y 93 | 1226 y 111; 1272 y 93 |
+| PR-C17 | tres casos, uno por archivo | cada título aparece exacto y una sola vez en `muro-view.test.tsx`, `publicacion-del-muro.test.tsx` y `lib.test.ts` |
+| IDs anteriores | — | los 65 siguen con su título exacto; hay 66 IDs PR-C distintos |
+| V-01 | 94 de 94 | 94 de 94 contra la tabla de "CLASES-c — Ronda 2" |
+| `enEspera=` y `?? []` | 35 y 0 | 35 y 0 |
+
+### Alcance, V-04 y V-05
+- **Archivos:** después de mi verificación anterior solo cambiaron los 7 declarados (`lib.ts`, `data.ts`, `muro-view.tsx`, `components/comentarios-de-publicacion.tsx` y sus tres pruebas) y las 3 `*.ataque` nuevas del tester (`muro-c-r2` de los dos paquetes y `logs-muro-c-r2`). Nada del backend, de `shared/` ni de `docs/DESIGN.md`.
+- **Pruebas extendidas sin borrar casos:** `lib.test.ts` no tiene ninguna línea borrada contra `e9df1f0`. Las otras dos pruebas son archivos nuevos de c, y sus casos anteriores siguen con su título exacto.
+- **V-05:**
+  - `backend/src/adapters/db/clases.ts`, `components/formulario-clase.tsx`, `frontend/src/components`, `frontend/src/services` y `styles/tokens.css` siguen sin cambios contra `e9df1f0`;
+  - `panel-mis-clases.tsx` no cambió en esta corrección, así que conserva solo el foco autorizado de c.
+- **V-04:**
+  - no hay `toast` en `muro-view.tsx` ni en `comentarios-de-publicacion.tsx`;
+  - los dos textos nuevos viven en `data.ts`;
+  - `normalizarTextoLargo`, `contarCaracteresVisibles` y `focoPerdido` se siguen definiendo una sola vez.
+
+### La corrección
+- **`mensajeDeErrorDeLista(error, textoDelCursor)` (`lib.ts:104`):** es pura, sin React. Tiene dos líneas con retorno temprano y ningún ternario. Si `campoDeErrorClases(error) === "cursor"` devuelve el texto que recibe; si no, `mensajeDeErrorClases(error)`. Así solo se desvía un `VALIDACION` cuyo prefijo es `cursor:`. Un `limite:` u otro campo, un `500` o la falta de conexión siguen por el camino de siempre.
+- **Uso:** solo en el error de la lista del muro (`muro-view.tsx:72`) y en el de la lista de comentarios (`comentarios-de-publicacion.tsx:162`). El foco no cambia.
+- **"Ver más clases" queda fuera, con razón:** su mensaje llega armado desde los inicios por la prop `errorMensaje` hacia `panel-mis-clases.tsx`. Los inicios no están autorizados en c, y el panel lo está solo para el foco. Lo acepto como pendiente con destino (lo anota el orquestador), con el texto propuesto "Tus clases cambiaron mientras las veías. Vuelve a entrar para verlas completas.".
+
+### Juicio del texto (`DESIGN.md` §9)
+- "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo." y "Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos." **cumplen §9:** dicen qué pasó y qué hacer, con tuteo, sin culpar a nadie, sin tecnicismos y sin palabras prohibidas. Los acepto.
+- **Una reserva, que no bloquea:** el texto solo sirve si la acción que propone funciona desde donde está la persona.
+  - En los comentarios, "abrirlos" coincide con el botón "Ver comentarios" que la persona tiene enfrente.
+  - En el muro, "Vuelve a abrirlo" es menos claro: la persona ya está en el muro, y pulsar la sección "Muro" lleva a la misma ruta, sin desmontar la vista. El tester comprobó que "volver a entrar al muro" lo recupera, pero no que funcione pulsando la sección activa. Si no funciona, el texto pide algo inútil, y "Vuelve a entrar al muro desde la clase" o un enlace en el propio mensaje serían más honestos.
+
+  Lo pongo en la ronda 3.
+
+### PA-07 y PA-11
+- **Raíz y backend por paquete:** `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0. `P2028`: 2 en cada corrida, los aceptados (`sesiones.ts:39`, login; `tokens-cuenta.ts:116`, restablecer). No apareció el de `cambiar-contrasena` ni ninguno en rutas de c. El tercer `P2028` de mi verificación anterior sigue escalado al humano: no se repitió porque esta vez no hubo espera en cadena.
+- **PA-11:** ver la línea al final de esta sección.
+
+### Problemas que bloquean
+Ninguno.
+
+### Lista de puntos para la ronda 3 del tester (CLASES-c), la última antes de escalar
+Ronda de regresión y bordes residuales, sin abrir frentes nuevos amplios.
+1. **Regresión completa:** las 94 `*.ataque`, en dos corridas limpias del backend (una puede caer por CHORE-02: repítela y reporta las dos) y en las del frontend. Las pruebas normales de a, b y c siguen en verde.
+2. **T-34 por la razón correcta:**
+   - el texto sale solo con el `400` de `cursor`, en "Ver más publicaciones" y "Ver más comentarios";
+   - un `400` de otro campo (por ejemplo `limite`), un `500`, la falta de conexión y un `403` siguen mostrando su mensaje de siempre, sin el texto nuevo;
+   - el foco va al encabezado de la lista, nunca a `<body>`.
+3. **La instrucción del texto funciona:**
+   - tras el `400` en el muro, pulsar la sección "Muro" estando ya en el muro; salir a "Personas" y volver; y el foco de ventana (refresco de TanStack Query);
+   - en los comentarios, "Ocultar comentarios" y "Ver comentarios";
+   - di cuáles recuperan la lista sin recargar la página.
+
+   Si pulsar la sección activa no recupera el muro, es un hallazgo bajo de texto: el texto pide una acción que no sirve.
+4. **Bordes residuales de lo corregido en las rondas 1 y 2,** solo regresión:
+   - T-29 con el cursor de la última página y con `limite=1`;
+   - T-30, avisos únicos al crear y al borrar seguidos;
+   - T-31, `\r` solo y extremos en blanco;
+   - T-33, un tipo no texto en el comentario.
+
+   Si ya los cubre una `*.ataque` vigente, no los dupliques.
+5. **PA-10 en logs:** los `400` del cursor y las rutas del muro en `logs-muro-c-r2`, sin datos sensibles.
+6. **"Ver más clases" no es hallazgo:** su mensaje técnico tras un cursor borrado es el pendiente que el orquestador ya anotó con destino. Solo confírmalo como observación.
+- **PA-11:** a las 22:00:15, `docker ps -a` muestra solo los 4 contenedores de `infra/`. El Ryuk que levantó mi `vitest list` del backend (21:58) ya se retiró.
+
+## Revisión final — CLASES-c
+Fecha: 2026-10-01 (noche). Modo 2, con las tres rondas del tester agotadas. Base dentro de los paquetes: `<Cb>` = `e9df1f0`. Rama `feat/clases`.
+**Veredicto: ESCALAR AL HUMANO.** Las rondas están agotadas y queda un solo bloqueo, T-35 (bajo): una `*.ataque` en rojo. Todo lo demás de c está hecho como se planeó: lo planeado, solo lo planeado y todo lo planeado, con las Enmiendas 6 a 8. **Recomendación: opción (A) en su forma mínima** (abajo): una cuarta ronda corta y cerrada en la que pulsar "Muro" con el muro en error vuelva a pedir la lista. El texto queda igual y no se reescribe ninguna `*.ataque`.
+Verificación propia: lint `0` · build `✓ built in 1.17s` (código 0) · test desde la raíz: backend `111 passed (111)` / `1226 passed (1226)` a la primera, frontend `1 failed | 94 passed (95)` / `1 failed | 1289 passed (1290)` (solo T-35) · backend por paquete `111 passed (111)` / `1226 passed (1226)` · frontend por paquete, igual que desde la raíz · V-01 96/96 · V-03, los 5 comandos con código 0 · PA-07 solo con los dos `P2028` aceptados · PA-11 limpio.
+
+### Problemas que bloquean
+
+#### M-23 — T-35: "Vuelve a abrirlo" no recupera el muro cuando la persona pulsa "Muro"
+- **Dónde:**
+  - `frontend/src/features/clases/muro-view.tsx`, `MuroDeLaClase`;
+  - la prueba es `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx`, caso "muro: estando en el muro, «Vuelve a abrirlo» pulsando «Muro» recupera la lista".
+- **Qué pasa:** tras el `400` del cursor, la vista muestra "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.". La acción más natural para "abrir el muro" es pulsar "Muro" en las secciones de la clase. Esa acción agrega una entrada al historial con la misma ruta, pero no desmonta la vista ni vuelve a pedir la lista: la alerta sigue y no aparece ninguna publicación. Sí recuperan la lista ir a "Personas" y regresar, o recargar la página. En los comentarios el texto sí funciona: "Ocultar comentarios" y luego "Ver comentarios" vuelven a pedir la lista.
+- **Por qué importa:**
+  - `DESIGN.md` §9 pide que un error diga qué pasó y qué hacer, y aquí la instrucción no sirve desde donde está la persona;
+  - la definición de terminado de `AGENTS.md` exige `test` en verde, y "No marques nada como terminado con pruebas en rojo ni las desactives".
+- **Origen:** es la reserva que dejé en "Verificación del resumen — CLASES-c — corrección de la ronda 2". El texto lo propuso el orquestador y yo lo acepté con esa reserva, así que la responsabilidad no es solo del programador.
+- **Qué se espera:** el criterio de la opción (A) mínima, en la sección siguiente.
+
+### Recomendación para el humano sobre T-35
+
+**Comparación de las opciones**
+
+| Opción | Qué cambia | `*.ataque` afectadas | Costo | Para la persona |
+|---|---|---|---|---|
+| **(A) mínima, la que recomiendo:** pulsar "Muro" con el muro en error vuelve a pedir la lista | Solo `muro-view.tsx`, más un caso normal en `muro-view.test.tsx` | Ninguna: el caso de T-35 pasa tal como está escrito, y `muro-c-r3` y los otros dos casos de `muro-recuperar-c-r3` no cambian | Una corrección de unas líneas, mi verificación y una regresión del tester | El texto de hoy pasa a ser verdad: "abrirlo" funciona pulsando "Muro", saliendo y volviendo, o recargando |
+| (A) con otro texto ("Vuelve a entrar a la clase…") | `data.ts` y tres pruebas normales que fijan el texto | `muro-c-r3` (`TEXTO_MURO`) y `muro-recuperar-c-r3` fijan el texto literal, y el caso de T-35 afirma que pulsar "Muro" recupera. El tester tendría que reescribir dos archivos (sería un C-21) y el caso que encontró el defecto | Mayor que la mínima, con una reescritura de `*.ataque` | Pide una acción de varios pasos (salir y volver a entrar). No arregla la acción natural |
+| (A) con un botón "Volver a cargar" en el error | El texto, un patrón visual nuevo (un error con acción) y su documentación en `DESIGN.md` | Las mismas reescrituras que con otro texto. Además, el caso de T-35 seguiría en rojo si "Muro" no recupera la lista | El mayor. `MensajeError` está en "No se toca", así que el botón quedaría fuera de él y solo en el muro, distinto del resto de las listas (personas, roster, inicios y comentarios) | Es lo mejor en abstracto, pero conviene decidirlo una sola vez para todas las listas, no como parche de una |
+| (B) cerrar con T-35 pendiente | Nada | 1 `*.ataque` en rojo dentro del commit `<Cc>` | Cero ahora, pero CLASES-d arranca con un rojo. PA-06 de d ("falla una `*.ataque` que no está en la lista de rojos esperados") se activaría desde la ronda 0, o habría que exceptuarla en el plan | Queda una instrucción que no sirve. Va contra la definición de terminado y contra el precedente de b, que cerró en verde con dos rondas extra autorizadas |
+
+**Criterio exacto de la corrección, si autorizas (A) mínima**
+
+1. **Resultado:** con la lista del muro en error, una navegación nueva a la ruta del muro (pulsar "Muro" estando en él) vuelve a pedir el muro desde la primera página. Cuando la respuesta llega, la alerta desaparece y se ven las publicaciones.
+   - Sin error, pulsar "Muro" puede volver a pedir la lista o no hacer nada. No hay requisito, pero ninguna prueba vigente puede ponerse en rojo.
+   - El cómo lo decide el programador dentro del archivo autorizado: volver a montar la vista por la clave de la ubicación, o volver a pedir la consulta cuando cambia esa clave y la consulta está en error.
+2. **Foco:** se queda en el enlace "Muro" que la persona pulsó, que sigue montado fuera de la vista. Nunca va a `<body>`, y el criterio de §7.14 de los "Ver más" no cambia.
+3. **Sin cambios en:** los textos (`data.ts`), los comentarios, `lib.ts`, `hooks.ts`, el backend y `shared/`. `DESIGN.md` tampoco cambia, porque no es un patrón visual nuevo.
+4. **Archivos autorizados (lista cerrada):**
+   - producción: `frontend/src/features/clases/muro-view.tsx`;
+   - pruebas: `frontend/src/features/clases/muro-view.test.tsx`, solo para agregar el caso nuevo.
+
+   Cualquier otro archivo activa PA-09 o PA-16, y el programador se detiene.
+5. **Prueba normal nueva:** en `muro-view.test.tsx`, el caso "PR-C18: tras el 400 del cursor, una navegación nueva a la ruta del muro vuelve a pedir la primera página, quita la alerta y muestra las publicaciones; el foco no queda en <body>". Hay que registrarlo en la Enmienda 9.
+6. **Pruebas del tester:**
+   - `muro-recuperar-c-r3.ataque.test.tsx` debe pasar sus 3 casos sin tocarlo;
+   - las 96 `*.ataque` deben quedar con los mismos hashes de la tabla de la ronda 3.
+7. **"No se toca":** todo `shared/`, `backend/`, `docs/` (salvo los entregables) y `frontend/`, excepto los dos archivos del punto 4.
+   - **Base:** como no hay commit intermedio, antes de lanzar al programador el orquestador anota en `aprobacion.md` el SHA-256 de cada archivo cambiado o nuevo de c que no sea `*.ataque` (los de `git status -- shared backend frontend`).
+   - Al terminar, solo pueden diferir `muro-view.tsx` y `muro-view.test.tsx`, y las 96 `*.ataque` siguen iguales a la tabla de la ronda 3.
+8. **Cierre de la ronda:**
+   - verifico el resumen con lint, test y build;
+   - el tester hace una regresión: `muro-recuperar-c-r3`, `muro-c-r3` y las 96, el frontend dos veces y el backend una vez con PA-01;
+   - **sin quinta ronda.** Si aparece algo nuevo, va como pendiente con destino o como decisión tuya, no a otra ronda.
+
+**Lo que dejo como pendiente con destino, sea cual sea la opción:** el patrón "error de lista con acción «Volver a cargar»" para todas las listas paginadas (muro, comentarios, personas, roster e inicios). Sería con una acción opcional en `MensajeError`, que está en `components/` y hoy no se toca. Destino: tu decisión tras la comprobación H-6 de CLASES-d, o un `chore` de interfaz.
+
+### Cifras: tester (ronda 3) contra mi corrida
+| Cifra | Tester, ronda 3 | Mi corrida (22:14 a 22:28) |
+|---|---|---|
+| PA-01 | `True / Inbound / Block / Public`; `IZZI-F281-5G` | Lo mismo, comprobado antes de cada corrida del backend |
+| `npm run lint` (raíz) | 0 en los dos paquetes | Código 0 (la última línea es `tsc -b` del frontend) |
+| `npm run build` (raíz) | — | `✓ built in 1.17s`, código 0 |
+| `npm run test` (raíz) | — | backend `111 passed (111)` / `1226 passed (1226)` a la primera, sin espera en cadena; frontend `1 failed \| 94 passed (95)` / `1 failed \| 1289 passed (1290)`; código 1, solo por T-35 |
+| Backend por paquete | `111 passed (111)` / `1226 passed (1226)`, dos veces | `111 passed (111)` / `1226 passed (1226)`, código 0 |
+| Frontend por paquete | `1 failed \| 1289 passed (1290)`, dos veces | Igual (la corrida de la raíz es la primera); el único rojo es T-35 |
+| `npx vitest list` | — | backend 1226 casos en 111 archivos; frontend 1290 en 95 |
+| IDs PR-C | — | 66 distintos, cada uno una vez en su archivo; PR-C17 tres veces (`muro-view.test.tsx`, `publicacion-del-muro.test.tsx` y `lib.test.ts`); PR-C04d aparece también en tres títulos de `muro-c-r1.ataque` (del tester, no cuenta) |
+| V-01 | 94/94 antes de sus archivos; 96 al final | **96/96** contra la tabla de "CLASES-c — Ronda 3", comparadas por programa con `diff` |
+| PA-07 | Solo los dos aceptados | Raíz y paquete: `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; `P2028`: 2 líneas, `sesiones.ts:39` (`tx.sesion.create()`, login) y `tokens-cuenta.ts:116` (`tx.tokenCuenta.updateMany()`, restablecer) |
+| PA-11 | Limpio | A las 22:28:11, `docker ps -a` solo muestra los 4 contenedores de `infra/` |
+| V-03 | — | `validate`, `format --check`, `generate`, `migrate status` ("8 migrations… Database schema is up to date!") y `migrate diff --exit-code` ("No difference detected."), los cinco con código 0 |
+
+### Alcance contra el plan
+**Lo planeado, y solo lo planeado.** `git diff --stat e9df1f0 -- shared backend frontend` da 32 archivos modificados y 25 nuevos. Todos están en "Cambios por capa" de c o en la lista cerrada de pruebas de c, o son `*.ataque` del tester.
+- **Producción:**
+  - `shared/src/clases.ts` e `index.ts`;
+  - `schema.prisma` y la migración `20261002003225_publicaciones_y_comentarios`, idéntica a §D-C1, con el `CHECK` agregado a mano;
+  - `core/clases/texto.ts` (solo reexporta) y `core/eventos/avisos-de-clase.ts`;
+  - `adapters/db/publicaciones.ts`, `adapters/db/index.ts` y `adapters/queue/colas.ts`;
+  - `handlers/clases/muro.ts` y `app.ts`;
+  - los dos `README.md`;
+  - en `features/clases/`: `hooks.ts`, `lib.ts`, `data.ts`, `types.ts`, `muro-view.tsx`, las cuatro vistas de §D-C5 bis, `panel-mis-clases.tsx` (solo el foco), `buscador-alumnos.tsx`, `tabla-alumnos.tsx` y los cinco componentes nuevos.
+- **Pruebas normales:** exactamente las de la lista cerrada de c. `bloqueo-usuario.integracion.test.ts` solo tiene el cambio de E6 (Enmienda 7).
+- **`*.ataque` existentes cambiadas:** solo las del tester (C-2, C-12, C-19 en la ronda 0; C-20 en su propio `muro-c-r1`).
+
+**Todo lo planeado:**
+- §D-C1 a §D-C7, §D-C5 bis y las Enmiendas 6 a 8 están en el código. Lo comprobé en el código, no solo en el verde.
+- Las 7 rutas de §D-C2 llevan `protegido()` con el sexto paso (`pertenencia: "inscripcion"` o `"propiedad"`), con los roles de la tabla.
+- V-06 lo cubre el caso exacto de `sesiones-y-cadena.ataque` (54 rutas), en verde. `middleware/` está intacto, así que `RUTAS_PUBLICAS` sigue con 10.
+
+**V-04 (código de producción):**
+- `$queryRawUnsafe` solo en `adapters/db/cliente.ts`; `$executeRawUnsafe` en 0.
+- El único SQL etiquetado nuevo es el `FOR SHARE` de `publicaciones.ts`, parametrizado.
+- `addHook` en `handlers/`: 0. `notifier` en los handlers: 0. `console.` en los archivos nuevos: 0.
+- `estadoPago` no aparece en ningún archivo de c.
+- `fetch(` solo en `services/apiClient.ts`. `dangerouslySetInnerHTML` y `target="_blank"`: 0.
+- `enEspera=`: 35. `vidrio-azul` solo en `bloque-destacado.tsx`, y ningún archivo del muro escribe vidrio.
+- `from "@/features/` dentro de `features/clases`: 0.
+- `Default_Ignorable_Code_Point` solo en `shared/src/auth.ts` y `clases.ts`.
+- Se definen una sola vez: `contarCaracteresVisibles` y `normalizarTextoLargo` en `shared/src/clases.ts`, y `focoPerdido` en `lib.ts` (`hooks.ts` solo la importa).
+- `claseId ?? ""` solo en `formulario-clase.tsx`, que es un pendiente.
+- `toast`: 0 en `buscador-alumnos.tsx` y en los cinco componentes del muro. `?? []`: 0.
+
+**V-05:**
+- Contra `e9df1f0` quedan intactos:
+  - del backend: `middleware/`, `adapters/db/{clases,inscripciones}.ts`, `adapters/notifier`, `adapters/auth`, `adapters/queue/index.ts`, `workers/`, `config/`, `handlers/clases/{clases,alumnos}.ts`, `test/global-setup.ts` y `test/setup.ts`;
+  - del frontend: `features/auth`, `features/admin`, `services/`, `styles/`, `components/`, `app/` (sin contar las `*.ataque` nuevas) y `formulario-clase.tsx`;
+  - `eslint.config.mjs`, los `package.json`, `package-lock.json`, `infra/` y `.claude/`.
+- La única migración nueva es la carpeta de c.
+- Los archivos protegidos de `docs/` coinciden con su SHA-256 de "Cierre de CLASES-b": `AGENTS.md` `9DAD8ADE…`, `CLAUDE.md` `1076099D…`, `README.md` `38027AAC…`, `ARCHITECTURE.md` `037CE5FC…`, `ARCHITECTURE-ESSENTIALS.md` `BCE288C9…` y `PRD.md` `2FD9DA1F…`. Los cuatro agentes coinciden con su hash de la aprobación.
+- **`docs/DESIGN.md`:** solo cambian §7.3 (una línea, el grupo de dos botones), §7.14 (el párrafo "Implementan la confirmación en línea…" sube tras las tres viñetas, sin otro cambio) y §7.18, nueva. Todo va marcado "propuesta" y coincide con lo construido. SHA-256 actual: `335AA981E958EE997AC1E673B9296BAD9B1A49B5DDAEA7F61DBEFA135CD255F4`.
+
+**`*.ataque`:**
+- Ninguna fue modificada, saltada ni borrada por el programador: las 96 coinciden byte a byte con la tabla de la ronda 3.
+- Ninguna lleva `.skip`, `.only` ni `.todo`.
+- Las que cambiaron contra `e9df1f0` son del tester (ronda 0 y C-20), con los hashes de sus tablas.
+
+### Hallazgos del tester: estado comprobado en el código
+| Hallazgo | Estado | Dónde lo comprobé |
+|---|---|---|
+| T-29 (medio), cursor borrado | **Corregido.** `listarPublicaciones` lee primero el cursor por PK con `claseId` y, sin fila, lanza `400 VALIDACION` "cursor: no es válido". `listarComentarios` comprueba antes la publicación (`null`, que da `404`) y después el cursor con `publicacionId`. Son consultas de Prisma, sin transacción ni SQL crudo, y no hay oráculo | `adapters/db/publicaciones.ts:108-114` y `:163-175`; PR-C03f y PR-C04e |
+| T-30 (medio), avisos perdidos | **Corregido.** Los avisos viven en `onSuccess` y `onError` de `useCrearPublicacion` y `useComentar`, sin avisar los errores de campo. Los formularios llaman a `mutate` solo para el estado local y no importan `toast` | `hooks.ts`, en los dos hooks; `formulario-publicacion.tsx:51-61` y `formulario-comentario.tsx:40-49`; PR-C14a y PR-C14b |
+| T-31 (bajo), medir antes de normalizar | **Corregido.** `normalizarTextoLargo` está definida en `shared/` y `core/clases/texto.ts` la reexporta. Los dos formularios normalizan antes de `safeParse` y envían `resultado.data` | PR-C15a a PR-C15c |
+| T-32 (bajo), unidad de los máximos | **Cerrado en el plan** (Enmienda 8). El código no cambia y C-20 lo verifica | `muro-c-r1.ataque`, en verde |
+| T-33 (bajo), mensajes en inglés | **Corregido.** "Elige si es un anuncio o un material" es el `error` del `discriminatedUnion`, y "La descripción debe ser texto", el del `z.string()` de la descripción. `descripcionClaseSchema` queda intacto (es un pendiente) | `shared/src/clases.ts`; PR-C16 |
+| T-34 (bajo), "no es válido" | **Corregido.** `mensajeDeErrorDeLista` es pura y con retornos tempranos, y solo cambia el texto para un `VALIDACION` del campo `cursor` | `lib.ts:104`; PR-C17; los 15 casos de `muro-c-r3` |
+| T-35 (bajo) | **Abierto:** es M-23 | — |
+
+### Definición de terminado (`AGENTS.md`), punto por punto
+| Punto | Estado |
+|---|---|
+| Cumple el RF/RN | **Sí:**<br>- RF-33 sin adjuntos (los adjuntos son de d);<br>- RF-12 y RF-38/39 en lo que toca al muro;<br>- RN-02, porque ninguna respuesta del muro lleva `estadoPago` ni correos (PR-C03b recorre el JSON).<br>T-35 es de texto, no de requisito |
+| Capas y middleware | **Sí:**<br>- `core/` sin infraestructura;<br>- Prisma y el SQL solo en `adapters/db`;<br>- handlers delgados, sin verificar rol, propiedad ni inscripción a mano;<br>- el sexto paso en las 7 rutas |
+| `lint`, `build` y `test` en verde | **No:** 1 `*.ataque` en rojo (T-35, M-23). Lint y build en 0 |
+| Pruebas de autorización | **Sí:**<br>- PR-C08a a PR-C08h: la matriz por ruta, con rol incorrecto, clase ajena, alumno restringido y sin token;<br>- PR-C03b: no se filtra el estado de pago;<br>- `muro-c-r1` del tester: alcance con ids de otra clase en las 7 rutas |
+| Migración compatible hacia atrás | **Sí:** solo `CREATE TYPE`, `CREATE TABLE`, índices, FK y un `CHECK` sobre tablas nuevas. El código anterior a c no las conoce, así que revertir el código no rompe la base. V-03 en 0 |
+| `infra/` y `.env.example` | No cambian, como se planeó para c (S-21) |
+| Documentos | Pendientes de cierre: se listan abajo. `DESIGN.md` ya está actualizado en este encargo |
+
+### Reglas que no se rompen
+- **Capas:** sin violaciones (V-04).
+- **Middleware:** `protegido()` con la cadena completa, y `claseDe(request)` en cada handler.
+- **Estado de pago:** se omite en todo el muro. `autorDelMuroSchema` es `{ id, nombre }`, y las respuestas pasan por `.parse` de esquemas estrictos de `shared/`.
+- **Consultas sanas:**
+  - ninguna va dentro de un ciclo; el conteo de comentarios sale de un solo `groupBy` por página;
+  - el índice `(clase_id, creado_en DESC, id DESC)` sirve al muro, y `(publicacion_id, creado_en, id)` a los comentarios y al `groupBy`;
+  - la PK sirve al cursor y a los borrados;
+  - `paginacionSchema` limita a 100;
+  - el único SQL crudo nuevo es etiquetado y parametrizado.
+- **Cola:**
+  - el aviso se encola dentro de la transacción del dato (`alGuardar(ejecutorSqlDe(tx))`), con el id generado en el handler como id del trabajo y solo ids en los datos (`z.strictObject`);
+  - `AVISO_FALLIDO` se crea primero;
+  - no hay consumidor: `workers/` está intacto.
+- **UTC:** `creadoEn` sale con `toISOString()` y se valida con `z.iso.datetime()`.
+- **Secretos, AWS, avisos solo por `notifier`, autenticación:** nada cambia.
+- **Infraestructura y esquema:** el esquema cambia solo por la migración, aplicada con `migrate dev` en local, y `infra/` está intacto.
+
+### Estilo (`CLAUDE.md`)
+- **Módulos:**
+  - tipos de la API reexportados de `shared/` en `types.ts`;
+  - textos en `data.ts`, incluidos "Ocultar comentarios" y los dos de T-34;
+  - funciones puras en `lib.ts` (`focoPerdido`, `mensajeDeErrorDeLista` y `vecinaDeFila`);
+  - hooks en `hooks.ts`, sin tipos propios;
+  - en los componentes, solo interfaces de Props;
+  - ningún `fetch`, y `features/clases` no importa de otro módulo.
+- **`ConClaseDeLaRuta`:** retorno temprano sin `claseId`, sin valor de respaldo. Lo usan las cinco vistas: las cuatro de §D-C5 bis, más `MuroView`, una desviación ya aceptada.
+- **Retornos tempranos:**
+  - los estados van en orden error → cargando → vacío → datos en el muro y los comentarios;
+  - ningún ternario anidado en JSX ni `if/else` anidado.
+- **Errores:**
+  - en el frontend, los avisos de las mutaciones viven en los callbacks de `useMutation`, y nada se lanza fuera de TanStack Query;
+  - en el backend, `AppError` sin `try/catch` en los handlers.
+- **Valores por defecto:**
+  - `datos.texto ?? ""` en la descripción opcional del material es un texto, que es el caso permitido;
+  - `comentariosPorPublicacion.get(id) ?? 0` es el conteo de una agrupación que omite los ceros, así que no oculta datos;
+  - ningún `?? []`.
+
+### Lista de diseño (frontend)
+- **`DESIGN.md`:**
+  - §7.3, §7.14 y §7.18 coinciden con lo construido;
+  - el patrón nuevo de c (la publicación del muro y el grupo de tipo) quedó documentado en este encargo;
+  - todas las líneas nuevas llevan la marca "propuesta".
+- **Tokens:**
+  - solo clases de la escala propia (`text-small`, `text-h3`, `text-body`, `text-muted-foreground`, `aria-pressed:bg-surface`, `aria-pressed:text-link`, `border-border`);
+  - `estatico-r1` y `clases-r1` en verde.
+- **Componentes de `components/ui/`:**
+  - `Card` (el vidrio sale de ahí: el muro no escribe ninguna utilidad de vidrio), `Badge` `muted` con icono, `Button`, `Textarea`, `Input` y `Label`;
+  - nada hecho a mano y nada con el aspecto por defecto.
+- **Estado nunca solo con color:**
+  - la insignia lleva texto e icono;
+  - el tipo elegido lleva `aria-pressed` y el icono `Check`.
+- **Acciones principales:** una sola en la vista del maestro ("Publicar…") y ninguna en la del estudiante (PR-C09d).
+- **Textos:** en español de México, con tuteo, sin emojis ni palabras prohibidas. Los vacíos son los de §D-C6: el del maestro va sin acción por decisión del plan, porque el formulario está justo arriba, y el de los comentarios es el propio formulario.
+- **Estados:** error, carga y vacío en el muro y en los comentarios.
+- **360 px (análisis estático):** grupos con `flex-wrap`, nombres y textos con `wrap-anywhere`, `max-w-prose` y botones `self-start`. No vi nada que obligue a desplazarse a lo ancho; sin navegador, queda sin verificar en pantalla.
+- **Foco visible:** los controles usan el `:focus-visible` global (`index.css`). Hay una observación sobre los encabezados `sr-only` (N-C7).
+
+### Problemas que no bloquean
+
+#### N-C7 — El foco que cae en un encabezado `sr-only` no se ve
+- **Dónde:**
+  - `muro-view.tsx:115`, el `h2` "Publicaciones" (`sr-only`, `tabIndex={-1}`);
+  - `comentarios-de-publicacion.tsx:202`, el `h3` "Comentarios".
+- **Qué pasa:** según §7.14 y §7.18, el foco va a ese encabezado en tres casos: cuando se borra la última fila, cuando "Ver más" no trae nada nuevo y con el error de T-34. Como el elemento está recortado a 1 px, el contorno de foco no se ve. Con teclado, la persona no ve dónde quedó, aunque el siguiente Tab continúa bien y el lector de pantalla anuncia el encabezado.
+- **Contexto:** en b, el destino era un `h2` visible ("Alumnos").
+- **Por qué no bloquea:** §7.18 lo documenta como propuesta ("solo para lectores de pantalla") y el foco nunca cae en `<body>`.
+- **Qué se espera:** que decidas el destino en la comprobación H-6 de CLASES-d (es candidato a uno de sus 7 puntos). Las opciones: un encabezado visible del muro, o que el foco vaya a un elemento visible de la lista (el panel del formulario o la primera publicación).
+
+#### N-C8 — PR-C17 tiene tres casos en tres archivos
+- **Qué pasa:** la regla M-02 del plan pide un ID por archivo. Lo acepté en la verificación de la corrección 2 porque cada caso cubre un lado distinto: el muro, los comentarios y la función pura.
+- **Qué se espera:** que la Enmienda 9 lo registre como PR-C17 con sus tres archivos, o como PR-C17a a PR-C17c, solo en el plan. Los títulos de las pruebas no se cambian.
+
+### Detalles menores (no bloquean; al próximo cambio que toque el archivo)
+- **`handlers/README.md`:** la línea "…/publicaciones/:publicacionId/comentarios` (comentan…" de la viñeta de `clases/muro.ts` perdió su sangría. Markdown la lee como continuación, así que solo es estético.
+- **`conTextosNormalizados` (`handlers/clases/muro.ts:47`):** es una función pura con un ciclo sobre nombres de campos, sin consultas, que vive en el handler. Podría vivir en `core/clases/texto.ts`. Hoy es aceptable porque el handler sigue siendo delgado.
+- **La viñeta "Caracteres invisibles en el plan" y el párrafo de escapes bajo "Pruebas requeridas" (c)** siguen diciendo que la tabla tiene invisibles literales, y ya no los tiene. Es el detalle de mi revisión de la Enmienda 6, para la Enmienda 9.
+
+### Desacuerdos arbitrados
+No hay desacuerdos abiertos entre el programador y el tester. T-35 no es un desacuerdo: el programador no ha respondido, porque las rondas están agotadas. La comparación de remedios está en la recomendación.
+
+### Pendientes con destino (comprobados contra `docs/ESTADO.md` §3)
+- **Ya anotados en §3:**
+  - `claseId ?? ""` y la normalización previa en `formulario-clase.tsx`;
+  - el mensaje de tipo en inglés de `descripcionClaseSchema`;
+  - "Ver más clases" con el texto técnico tras el `400` del cursor;
+  - `contarVisibles` de `shared/src/auth.ts`;
+  - el `P2028` de `cambiar-contrasena` y los de `invitarMaestrosEnLote` (CHORE-02 o AUTH).
+- **Falta en §3, y lo debe agregar el orquestador:** la observación del tester en la ronda 1 de c para NOTIFICACIONES. Los trabajos de `PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO` pueden apuntar a una publicación o un comentario ya borrados, y el consumidor debe tratarlos como avisos que ya no aplican, sin fallar ni reintentar. Destino: NOTIFICACIONES. Dónde: `reporte-tester.md`, "CLASES-c — Ronda 1".
+- **Nuevos de esta revisión:**
+  - N-C7, el foco en encabezados `sr-only`. Destino: H-6, como candidato a uno de sus 7 puntos.
+  - El patrón "error de lista con «Volver a cargar»". Destino: tu decisión tras H-6, o un `chore` de interfaz.
+  - Los dos detalles menores de arriba. Destino: carril trivial, en el próximo cambio que toque esos archivos.
+
+### Documentos a actualizar al cierre de c (consolidado para el orquestador)
+Son los "Textos literales propuestos" marcados (c) del plan, con los ajustes que pide lo que se construyó. Se aplican con la autorización del humano y con el hash anotado en `aprobacion.md`.
+
+**1. `docs/ARCHITECTURE.md` §7, fila `clases`.** Reemplazar la fila completa por la del plan (sin la frase "Publicaciones y comentarios llegan con CLASES-c"):
+> | `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}` · `GET/POST /clases/{claseId}/publicaciones` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}` · `GET/POST /clases/{claseId}/publicaciones/{publicacionId}/comentarios` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}/comentarios/{comentarioId}` (maestro) · `DELETE /clases/{claseId}/mis-comentarios/{comentarioId}` (autor) |
+
+**2. `docs/ARCHITECTURE.md` §7, párrafo propio después de la línea "Detrás del proxy de Cloudflare…".** Es el texto de la Enmienda 6, corregido por N-C1 y ajustado por T-31 y T-32 (en negritas, lo que cambia respecto del plan):
+> Textos que escribe el usuario: todo nombre, título o texto obligatorio exige contenido visible, es decir, un mínimo de puntos de código de letra, número, puntuación o símbolo que no sean ignorables por defecto **(2 en el nombre de una clase; 1 en el título de un material, un anuncio o un comentario)**. Se cuentan con `contarCaracteresVisibles`, de `shared/src/clases.ts`; `shared/src/auth.ts` tiene una copia equivalente para los nombres de persona hasta que se unifiquen. Los caracteres de formato (`Cf`) no se rechazan, salvo los inversores de dirección, pero no cuentan: así un emoji compuesto o un texto en otro alfabeto pasan, y uno hecho solo de invisibles no. **Los textos largos se normalizan antes de validarse, en el servidor y en los formularios, con `normalizarTextoLargo` (también de `shared/src/clases.ts`: CRLF y CR pasan a LF y se recortan los extremos).** Los máximos se miden aparte, **después de normalizar y en puntos de código, no en unidades de UTF-16**. Los nombres de persona siguen su propia regla, más estricta (`shared/src/auth.ts` rechaza todo `Cf`).
+
+**3. `docs/ARCHITECTURE.md` §8, después de la tabla de eventos.** Es el texto del plan, más una frase para NOTIFICACIONES (en negritas):
+> - `PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO` se encolan desde CLASES en la misma transacción que el dato, con el id del dato (generado en el handler antes del `INSERT`) como id del trabajo y solo ids en sus datos. Sus colas tienen 3 reintentos con espera exponencial, la cola de fallidos `AVISO_FALLIDO` y una retención de 7 días. Su consumidor llega con NOTIFICACIONES; hasta entonces los trabajos esperan en la cola. **Un trabajo puede apuntar a una publicación o un comentario ya borrados: el consumidor lo descarta sin error.**
+
+**4. `docs/ARCHITECTURE.md` §14, tabla.** Reemplazar las filas `publicaciones` y `comentarios` por las del plan, sin cambios:
+> | `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo` (`anuncio` / `material`), `titulo`, `texto` | índice `(clase_id, creado_en DESC, id DESC)` · `CHECK`: el material lleva título y el anuncio no |
+> | `comentarios` | `id`, `publicacion_id`, `autor_id`, `texto` | índice `(publicacion_id, creado_en, id)`. Hoy solo el contexto `publicacion_id` (NOT NULL); ENTREGAS agrega `entrega_id` y el `CHECK` de exactamente un contexto. Al comentar, la publicación se lee `FOR SHARE` en la misma transacción |
+
+El diagrama ya tiene `clases ||--o{ publicaciones` y `publicaciones ||--o{ comentarios`, así que no cambia.
+
+**5. `docs/ARCHITECTURE.md` §14, "Reglas de acceso a datos": viñeta nueva.** No está en los textos propuestos del plan. La propongo porque el principio de T-18 (decisión tuya en a), aplicado ahora en a, b y c, no está escrito en ningún documento, y TAREAS y ENTREGAS van a paginar igual. Necesita tu autorización, o que el arquitecto la incluya en la Enmienda 9:
+> - **Paginación por cursor:** el cursor es el id de la última fila de la página anterior. Con cursor, la consulta lee primero esa fila por su llave, filtrada por el dueño de la lista (el alumno, el maestro, la clase o la publicación). Si no existe (se borró, es ajena o nunca existió), responde `400 VALIDACION` "cursor: no es válido", igual en los tres casos, sin revelar cuál es. La interfaz lo explica con un texto que dice qué pasó y cómo recuperar la lista (CLASES-a, T-18; CLASES-c, T-29 y T-34).
+
+**6. Sin cambios en c:**
+- **`docs/ARCHITECTURE-ESSENTIALS.md`:** "Tablas" ya lista `publicaciones` y `comentarios`, y "Eventos" las tres colas. La regla de contenido visible es de validación, no de arquitectura (Enmienda 6, fila 4).
+- **`CLAUDE.md`:** la fila `clases` de "Módulos" ya dice "muro con comentarios y adjuntos", y `ConClaseDeLaRuta` es del módulo, no compartida.
+- **`docs/PRD.md`:** el plan no tiene textos (c), y RF-33 ya describe el muro.
+- **`README.md`.**
+- **`docs/DESIGN.md`:** ya está actualizado por el programador. Si autorizas (A) mínima, no cambia.
+
+### Lo que debe registrar la Enmienda 9 (cierre de c, arquitecto)
+1. **T-34:**
+   - `mensajeDeErrorDeLista(error, textoDelCursor)` en `lib.ts`;
+   - los textos `TEXTOS_MURO.cambioMientrasLoVeias` ("El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.") y `TEXTOS_COMENTARIOS.cambioMientrasLosVeias` ("Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos.") en §D-C6;
+   - **PR-C17** con sus tres archivos (`muro-view.test.tsx`, `publicacion-del-muro.test.tsx` y `lib.test.ts`), registrado como excepción aceptada a M-02 o partido en PR-C17a a PR-C17c solo en el plan (N-C8).
+2. **T-35:**
+   - si autorizas (A) mínima: el criterio de M-23 en §D-C5, `muro-view.tsx` en "Cambios por capa" y PR-C18 en "Pruebas requeridas" (c);
+   - si eliges (B): T-35 como pendiente con destino, y la excepción de PA-06 para la ronda 0 de d.
+3. **D-1 aceptada:** `publicaciones.ts` lleva su propia copia de `errorCursorInvalido`, como `inscripciones.ts`, porque `adapters/db/clases.ts` no la exporta y estaba en "No se toca". §D-C2 decía "con el código y el mensaje de `errorCursorInvalido` (`adapters/db/clases.ts`)": pasa a "una copia con el mismo código y mensaje".
+4. **N-C4:** el script de escapes del programador cambió una línea existente de `backend/test/clases.integracion.test.ts:128`. Antes había un U+202E literal y ahora un escape: el valor es el mismo y ningún caso se reescribió. Se registra como cambio de forma aceptado en un archivo "del propio encargo que se extiende".
+5. **Desviaciones aceptadas en la implementación de c:**
+   - los envoltorios `publicacionRespuestaSchema` y `comentarioRespuestaSchema` en `shared/`;
+   - `MuroView` también usa `ConClaseDeLaRuta`;
+   - los avisos de borrado van en los callbacks de los hooks;
+   - `vecinaDeFila` es nueva en `lib.ts`, con su caso en `lib.test.ts`;
+   - los encabezados `h2` y `h3` del muro son solo para lectores de pantalla (N-C7 queda para H-6).
+6. **Cifras reales de cierre de c,** según la opción:
+   - con (A), las que dé mi verificación y la regresión del tester;
+   - con (B), las de hoy: backend 111 archivos y 1226 pruebas; frontend 95 archivos y 1290 pruebas (1 en rojo); 96 `*.ataque`.
+7. **Base de d:**
+   - `<Cc>` dentro de los paquetes;
+   - V-01 desde la tabla de cierre de c: la de la ronda 3 (96), más lo que agregue la regresión de la cuarta ronda si la autorizas.
+8. **Regla nueva de la ronda 0 para d (Enmienda 7, punto 3):** la búsqueda de listas cerradas (archivos, tablas, colas, SQL crudo y rutas) cubre también las pruebas normales existentes, no solo las `*.ataque`. Para d, como mínimo:
+   - `clases-r1.ataque` (`enEspera=` de 35 a 36, C-13);
+   - E6 de `bloqueo-usuario.integracion.test.ts`, que no cambia si d no agrega SQL etiquetado;
+   - las listas de colas;
+   - `config/env.ataque` y `arranque-r1.ataque` (C-13).
+9. **Detalle:** corregir la viñeta "Caracteres invisibles en el plan" y el párrafo de escapes bajo "Pruebas requeridas" (c). Ya no hay invisibles literales en la tabla.
+
+### Medición del programador en c (para `docs/ESTADO.md` §6)
+| Subentrega | Rondas del tester | Rondas extra | Resúmenes devueltos |
+|---|---|---|---|
+| CLASES-c | 3, más la ronda 0, y una 4.ª corta si la autorizas | 2 (3 con la 4.ª) | **0 de 4** (implementación, Enmienda 7, corrección 1 y corrección 2) |
+
+- **Hallazgos:** 7 (T-29 a T-35). Fueron 2 medios (T-29, el cursor borrado, y T-30, los avisos perdidos) y 5 bajos, ninguno de seguridad.
+  - T-32 fue un error del plan (lo escribí yo en mi punto 4 y el arquitecto en §D-C4), no del código.
+  - T-35 nace de un texto que propuso el orquestador y que yo acepté con reserva.
+- **Lo que hizo bien:**
+  - se detuvo en PA-16 (el caso E6 de AUTH-02) y en D-1 (`errorCursorInvalido` en un archivo de "No se toca"), sin tocar nada ni esconder el SQL;
+  - sus cifras coincidieron siempre con mi corrida;
+  - declaró sus desviaciones;
+  - sus correcciones fueron mínimas y acotadas;
+  - anticipó en su propio resumen el cursor sin validar (N-C6, después T-29) como punto de ataque;
+  - todo lo sensible resistió las tres rondas: autorización y alcance por clase en las 7 rutas, concurrencia con `FOR SHARE`, la cola transaccional y PA-10.
+- **Lo que hay que vigilar:**
+  - N-C4: el resumen decía "solo se agregaron casos" y un script suyo cambió una línea existente;
+  - T-30: no aplicó por analogía, a sus hooks nuevos, el remedio que él mismo implementó en §D-C5 bis para "Agregar a la clase";
+  - T-31: no comprobó que el formulario y el servidor midieran lo mismo;
+  - su herramienta de edición convirtió escapes Unicode en caracteres reales, aunque lo detectó y lo corrigió.
+
+  El patrón es el de b: bordes de interfaz y de paridad, no de seguridad.
+- **Lectura acumulada (a, b y c):**
+  - resúmenes devueltos: 3 de 7 en a, 1 de 6 en b y 0 de 4 en c;
+  - rondas extra: 3 en a, 4 en b y 2 en c (3 con la 4.ª);
+  - la verificación previa ya no encuentra cifras falsas;
+  - el costo que queda está en los casos negativos de interfaz;
+  - la decisión sobre el modelo queda para después de CLASES-d, como estaba previsto.
+
+### Para el humano
+1. **Decisión sobre T-35 (M-23).** Recomiendo **(A) mínima**: una cuarta ronda corta y cerrada en la que pulsar "Muro" con el muro en error vuelva a pedir la lista. Toca solo `muro-view.tsx` y un caso PR-C18 en `muro-view.test.tsx`, el texto no cambia y no se reescribe ninguna `*.ataque`. Después vienen mi verificación y una regresión del tester sobre `muro-recuperar-c-r3`, `muro-c-r3` y las 96, sin quinta ronda.
+   - **(B)** deja 1 `*.ataque` en rojo dentro de `<Cc>`. Va contra la definición de terminado y obliga a exceptuar PA-06 en d.
+   - **El botón "Volver a cargar"** es mejor para la persona, pero conviene decidirlo una vez para todas las listas, no solo en el muro. Lo dejo como pendiente con destino.
+2. **Autorización de los textos de cierre:** los puntos 1 a 4 de "Documentos a actualizar", que son los del plan con sus ajustes. El punto 5 (la regla del cursor en §14) es nuevo y necesita tu sí.
+3. **N-C7 (foco en encabezados `sr-only`):** propongo que sea uno de los 7 puntos de H-6, al final de CLASES-d.
+
+### Cuarta ronda y cierre
+Fecha: 2026-10-01, de 22:35 a 22:54. Verifico "CLASES-c — cuarta ronda (T-35)" (`resumen-programador.md`, línea 1445), autorizada por el humano con la opción (A) mínima ("Decisión del humano sobre la escalada de CLASES-c", `aprobacion.md`).
+**Resumen: ACEPTADO.** Ninguna cifra ni ID difiere de mi corrida. **M-23 queda cerrado.**
+**Veredicto final de la revisión de CLASES-c: APROBADO**, sujeto a la regresión final del tester, sin quinta ronda.
+
+#### Cifras: resumen contra mi corrida
+| Cifra | Resumen | Mi corrida |
+|---|---|---|
+| PA-01 | — | `True / Inbound / Block / Public`; `IZZI-F281-5G`, antes de cada corrida del backend |
+| `npm run lint` (raíz) | código 0 | código 0 |
+| `npm run build` (raíz) | `✓ built in 658ms` | `✓ built in 603ms`, código 0 |
+| `npm run test` (raíz) | código 0 a la primera: backend 111/1226, frontend 95/1292 | **Frontend** `95 passed (95)` / `1292 passed (1292)`. **El backend cayó por CHORE-02**: `9 failed \| 102 passed (111)`, `11 failed \| 1191 passed \| 24 skipped (1226)`. Los 11 rojos son tiempos límite de 15 a 40 s de la espera en cadena de `LOCK TABLE usuarios` (`auth-login`, `cuentas-r1`, `cuentas-r3`, `bloqueo-usuario` A1, workers y, por arrastre, PR-A15h de `clases-autorizacion`). Ninguno toca el muro ni este cambio, que es solo del frontend |
+| Backend por paquete (repetición) | — | `111 passed (111)` / `1226 passed (1226)`, código 0 (22:50:52) |
+| Frontend por paquete, dos veces | `95 passed (95)` / `1292 passed (1292)` las dos | Igual las dos, código 0 |
+| `npx vitest list` | frontend 1292 en 95; backend 111 | frontend 1292 en 95; backend sin cambios (1226 en 111) |
+| PR-C18 | dos casos con su título | Los dos títulos aparecen exactos y una sola vez. Hay 67 IDs PR-C distintos |
+| `muro-recuperar-c-r3` | 3/3 sin tocarlo | En verde dentro de las corridas, con el hash de la tabla |
+| V-01 | 96/96 | **96/96** contra la tabla de la ronda 3 (`diff` por programa) |
+| Archivos | solo `muro-view.tsx` y `muro-view.test.tsx` | `git status -- shared backend frontend` sigue con las mismas 57 entradas; el orquestador confirmó con su lista de SHA-256 (459 archivos) que solo esos dos difieren |
+| PA-07 | solo los dos aceptados | **Corrida de la raíz, caída por CHORE-02:** `40P01`, `deadlock`, `could not serialize` y `too many clients` en 0, y 3 `P2028`: los dos aceptados (`sesiones.ts:39` y `tokens-cuenta.ts:116`) más `sesiones.ts:72` (`rotarSesion`, refresco, en A1 de `bloqueo-usuario`). **Repetición limpia:** exactamente los dos aceptados |
+| PA-11 | limpio | A las 22:54 `docker ps -a` solo muestra los 4 de `infra/` |
+
+**Sobre el `P2028` de `sesiones.ts:72`:**
+- Es código de AUTH, con el mismo mecanismo que los aceptados: una transacción que expira detrás de la espera en cadena.
+- Salió en una corrida caída por CHORE-02, no en una ruta de CLASES, y la repetición limpia trae exactamente los dos aceptados.
+- No es PA-07 para c. Lo sumo a la fila de `docs/ESTADO.md` §3 del `P2028` de `cambiar-contrasena` (destino CHORE-02 o AUTH), como un sitio más del mismo patrón.
+
+#### La corrección contra lo aprobado
+Comprobado en `muro-view.tsx:40-50`:
+- **Mecanismo:** una ref guarda la `key` de `useLocation()` con la que se montó la vista. Un efecto, con dependencias `[ubicacion.key, isError, refetch]`, hace esto:
+  - si la clave no cambió, retorno temprano;
+  - si cambió, actualiza la ref y, **solo si la consulta está en `isError`**, llama a `refetch()`.
+
+  En una consulta infinita cuyo `fetchNextPage` falló, `refetch()` vuelve a pedir la primera página desde el principio y con datos frescos (la página fallida no se había agregado). Es lo aprobado.
+- **Sin peticiones de más:**
+  - en el primer render, la ref es igual a la clave;
+  - con la lista sana, el efecto retorna antes de llamar;
+  - si `isError` cambia sin una navegación nueva, la clave es la misma y retorna, así que el error de "Ver más" no dispara nada por sí solo.
+
+  PR-C18, segundo caso, lo prueba contando las peticiones de primera página.
+- **Foco:** no se mueve. Se queda en el enlace "Muro", que PR-C18 comprueba con `toHaveFocus()`. El criterio de §7.14 de los "Ver más" sigue igual.
+- **Texto:** sin cambios en `data.ts`. `muro-c-r3` (15 casos) y los otros dos casos de `muro-recuperar-c-r3` siguen en verde.
+- **Estilo:**
+  - retornos tempranos, sin ternarios anidados ni valores por defecto nuevos;
+  - `void refetch()` no deja un rechazo sin manejar, porque `refetch` de TanStack no lanza salvo con `throwOnError`, que no se usa;
+  - no hay tipos fuera de Props.
+- **Alcance:**
+  - nada en `hooks.ts`, `lib.ts`, `data.ts`, `components/`, el backend ni `shared/`;
+  - `DESIGN.md` no cambia, porque no es un patrón visual nuevo;
+  - los comentarios no cambian, porque ya se recuperaban con "Ocultar" y "Ver comentarios".
+
+**Detalles menores (no bloquean):**
+- El `describe` nuevo de `muro-view.test.tsx` dice "(Enmienda 8, T-35)", pero es la Enmienda 9.
+- El segundo caso de PR-C18 espera 50 ms fijos para su aserción negativa. Es aceptable para comprobar que algo no pasa, y fue estable en mis dos corridas.
+- El resumen dice que D-1 "sigue pendiente de decisión del manager": la acepté en la verificación de la corrección 1, opción (a). Es inexacto, pero no cambia nada.
+
+#### Para la regresión final del tester (sin quinta ronda)
+1. **Base:** V-01 contra la tabla de la ronda 3 (96), más los dos archivos de esta ronda, que no son `*.ataque`. Precondición PA-01 antes del backend.
+2. **T-35 por la razón correcta:**
+   - `muro-recuperar-c-r3` 3/3 sin tocarlo;
+   - con el muro en error, pulsar "Muro" pide una sola vez la primera página y no la de un cursor, quita la alerta y deja el foco en "Muro";
+   - lo mismo con la vista del maestro, con el formulario de publicar arriba.
+3. **Sin peticiones de más:**
+   - pulsar "Muro" con la lista sana, o varias veces seguidas en error, no dispara más de una petición por navegación;
+   - el error de "Ver más" por sí solo no dispara un `refetch`;
+   - otro error de la lista (`500` o sin conexión), seguido de pulsar "Muro", vuelve a intentar: es aceptable y no es hallazgo.
+4. **Regresión:**
+   - `muro-c-r3` (15) y PR-C18 (2);
+   - las 96 `*.ataque` en dos corridas del frontend y una limpia del backend (si cae por CHORE-02, repítela y reporta las dos);
+   - PA-07 y PA-11.
+5. **Cierre:** publica la tabla de hashes de cierre de c, que es la base de V-01 para d. Un hallazgo nuevo no abre una quinta ronda: va como pendiente con destino o como decisión del humano.
+
+#### Medición final del programador en c (para `docs/ESTADO.md` §6)
+| Subentrega | Rondas del tester | Rondas extra | Resúmenes devueltos |
+|---|---|---|---|
+| CLASES-c | 4, más la ronda 0 (la 4.ª corta, autorizada por el humano tras la escalada) | 3 | **0 de 5**: implementación, Enmienda 7, corrección 1, corrección 2 y cuarta ronda |
+
+- **Hallazgos:** 7 (T-29 a T-35), 2 medios y 5 bajos, ninguno de seguridad.
+  - T-32 fue un error del plan.
+  - T-35 nació de un texto que propuso el orquestador y que el manager aceptó con reserva.
+- **Lo que hizo bien:**
+  - se detuvo correctamente en PA-16 (el caso E6 de AUTH-02) y en D-1 (`errorCursorInvalido` en un archivo de "No se toca"), sin tocar nada ni esconder el SQL;
+  - sus cifras fueron exactas en los cinco resúmenes;
+  - declaró sus desviaciones;
+  - sus correcciones fueron mínimas y acotadas: la cuarta ronda tocó exactamente los dos archivos autorizados, con el mecanismo pedido;
+  - anticipó en su propio resumen el cursor sin validar (T-29);
+  - lo sensible resistió todas las rondas: autorización y alcance por clase en las 7 rutas, `FOR SHARE` bajo concurrencia, la cola transaccional y PA-10.
+- **Lo que hay que vigilar:**
+  - N-C4: el primer resumen no declaró que un script suyo cambió una línea existente de `clases.integracion.test.ts`; decía "solo se agregaron casos";
+  - T-30 y T-31: no aplicó por analogía, a sus hooks y formularios nuevos, los remedios que él mismo había implementado (§D-C5 bis) ni comprobó la paridad entre formulario y servidor;
+  - en esta ronda, una afirmación inexacta menor (D-1 "pendiente").
+- **Lectura acumulada (a, b y c):**
+  - resúmenes devueltos: 3 de 7 en a, 1 de 6 en b y 0 de 5 en c;
+  - rondas extra: 3 en a, 4 en b y 3 en c;
+  - la verificación previa ya no encuentra cifras falsas, y el costo que queda está en los casos negativos de interfaz, no en la seguridad;
+  - la decisión sobre el modelo queda para después de CLASES-d.
+
+#### Ajustes al consolidado de cierre
+- **Enmienda 9, punto 2:** la opción autorizada es (A) mínima, con el criterio de M-23 en §D-C5, `muro-view.tsx` en "Cambios por capa" (c) y PR-C18 (dos casos en `muro-view.test.tsx`) en "Pruebas requeridas" (c).
+- **"Documentos a actualizar", punto 5:** la viñeta de la paginación por cursor en `ARCHITECTURE.md` §14 está autorizada por el humano y la aplica el orquestador al cerrar c.
+- **Cifras de cierre de c:**
+  - las de esta verificación: backend 111 archivos y 1226 pruebas; frontend 95 archivos y 1292 pruebas;
+  - 96 `*.ataque`, más las que agregue la regresión final del tester;
+  - la tabla de esa regresión es la base de V-01 para d.

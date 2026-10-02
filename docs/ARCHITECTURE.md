@@ -231,7 +231,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 |---|---|
 | `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/registro-maestro` (con un enlace de registro del admin) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
 | `usuarios` | `GET /me` · `GET /me/estado-pago` |
-| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}`. Publicaciones y comentarios llegan con CLASES-c |
+| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}` · `GET/POST /clases/{claseId}/publicaciones` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}` · `GET/POST /clases/{claseId}/publicaciones/{publicacionId}/comentarios` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}/comentarios/{comentarioId}` (maestro) · `DELETE /clases/{claseId}/mis-comentarios/{comentarioId}` (autor) |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |
 | `calificaciones` | `PUT /tareas/{id}/entregas/{alumnoId}/calificacion` · `GET /clases/{id}/gradebook` · `GET /me/calificaciones` |
 | `archivos` | `POST /archivos/subida` · `POST /archivos/descarga` (devuelven URL prefirmada) |
@@ -244,6 +244,8 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 
 Formato de error único: `{ "error": { "codigo": "...", "mensaje": "..." } }`. Toda lista paginada, máximo 100 elementos.
 Detrás del proxy de Cloudflare, la IP real del cliente se toma de la cabecera que Cloudflare agrega, y Caddy solo acepta tráfico de los rangos de Cloudflare.
+
+Textos que escribe el usuario: todo nombre, título o texto obligatorio exige contenido visible, es decir, un mínimo de puntos de código de letra, número, puntuación o símbolo que no sean ignorables por defecto (2 en el nombre de una clase; 1 en el título de un material, un anuncio o un comentario). Se cuentan con `contarCaracteresVisibles`, de `shared/src/clases.ts`; `shared/src/auth.ts` tiene una copia equivalente para los nombres de persona hasta que se unifiquen. Los caracteres de formato (`Cf`) no se rechazan, salvo los inversores de dirección, pero no cuentan: así un emoji compuesto o un texto en otro alfabeto pasan, y uno hecho solo de invisibles no. Los textos largos se normalizan antes de validarse, en el servidor y en los formularios, con `normalizarTextoLargo` (también de `shared/src/clases.ts`: CRLF y CR pasan a LF y se recortan los extremos). Los máximos se miden aparte, después de normalizar y en puntos de código, no en unidades de UTF-16. Los nombres de persona siguen su propia regla, más estricta (`shared/src/auth.ts` rechaza todo `Cf`).
 
 ## 8. Procesamiento asíncrono
 
@@ -271,6 +273,7 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 - El encolado transaccional pasa a pg-boss la conexión de la transacción de Prisma (`db` de `send`) mediante `ejecutorSqlDe` de `adapters/db`, equivalente al adaptador `fromPrisma` que publica pg-boss. `createQueue` no actualiza la política de una cola que ya existe: cambiarla exige `updateQueue`. Las colas de correos de cuenta retienen sus trabajos 1 día.
 - 3 reintentos con espera exponencial; después, cola de fallidos vigilada.
 - Un trabajo que pasa a la cola de fallidos recibe otro id; el consumidor lee el original en `sourceId` (pg-boss 12, `includeMetadata: true`) y lo registra como `trabajoId`.
+- `PUBLICACION_CREADA`, `MATERIAL_CREADO` y `COMENTARIO_CREADO` se encolan desde CLASES en la misma transacción que el dato, con el id del dato (generado en el handler antes del `INSERT`) como id del trabajo y solo ids en sus datos. Sus colas tienen 3 reintentos con espera exponencial, la cola de fallidos `AVISO_FALLIDO` y una retención de 7 días. Su consumidor llega con NOTIFICACIONES; hasta entonces los trabajos esperan en la cola. Un trabajo puede apuntar a una publicación o un comentario ya borrados: el consumidor lo descarta sin error.
 
 ## 9. Correo
 
@@ -384,13 +387,13 @@ erDiagram
 | `categorias` | `id`, `clase_id`, `nombre`, `peso` | `CHECK (peso BETWEEN 0 AND 100)`; la suma = 100 se valida en `core` |
 | `inscripciones` | `clase_id`, `usuario_id`, `origen` (`codigo` / `manual`), `creado_en` | PK `(clase_id, usuario_id)` · índice `(usuario_id, creado_en DESC, clase_id DESC)` · FK con `ON DELETE CASCADE` a los dos lados |
 | `movimientos_inscripcion` | `id`, `secuencia`, `clase_id`, `alumno_id`, `maestro_id`, `tipo` (`alta` / `baja`), `creado_en` | Registro de cada alta manual y cada baja efectivas, escrito en la misma transacción que la inscripción, como su último paso; unirse con código no se registra. **El orden es `secuencia`** (`BIGSERIAL`, asignada en el `INSERT`: respeta el orden real de los cambios, sin empates; puede tener huecos). `creado_en` es la fecha para mostrar, no el orden (es la hora de inicio de la transacción). FK a `clases` y a `usuarios` con `ON DELETE RESTRICT`. Sin índices secundarios: CLASES solo escribe; la consulta y sus índices los agrega ADMIN |
-| `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo`, `texto` | índice `(clase_id, creado_en DESC)` |
+| `publicaciones` | `id`, `clase_id`, `autor_id`, `tipo` (`anuncio` / `material`), `titulo`, `texto` | índice `(clase_id, creado_en DESC, id DESC)` · `CHECK`: el material lleva título y el anuncio no |
 | `tareas` | `id`, `clase_id`, `categoria_id`, `titulo`, `instrucciones`, `fecha_limite`, `puntos`, `trabajo_id` | índice `(clase_id, fecha_limite)` |
 | `criterios_rubrica` | `id`, `tarea_id`, `criterio`, `puntos_max`, `orden` | índice `(tarea_id)` |
 | `entregas` | `id`, `tarea_id`, `alumno_id`, `estado`, `fecha_entrega`, `con_retraso`, `enlaces` (jsonb), `calificacion`, `fecha_calificacion` | único `(tarea_id, alumno_id)` · índice `(alumno_id)` |
 | `puntajes_rubrica` | `entrega_id`, `criterio_id`, `puntos` | PK compuesta |
 | `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado`, `publicacion_id`, `tarea_id`, `entrega_id` | `clave_objeto` único · exactamente un contexto no nulo |
-| `comentarios` | `id`, `publicacion_id`, `entrega_id`, `autor_id`, `texto` | exactamente uno de los dos contextos · índices por contexto y fecha |
+| `comentarios` | `id`, `publicacion_id`, `autor_id`, `texto` | índice `(publicacion_id, creado_en, id)`. Hoy solo el contexto `publicacion_id` (NOT NULL); ENTREGAS agrega `entrega_id` y el `CHECK` de exactamente un contexto. Al comentar, la publicación se lee `FOR SHARE` en la misma transacción |
 | `notificaciones` | `id`, `usuario_id`, `evento_id`, `tipo`, `mensaje`, `enlace`, `leida` | único `(usuario_id, evento_id)` · índice `(usuario_id, creado_en DESC)` · parcial `WHERE leida = false` |
 | `clases_en_vivo` | `id`, `clase_id`, `titulo`, `fecha_inicio`, `estado`, `sala`, `grabando`, `egress_id`, `clave_grabacion`, `trabajo_id` | índices `(clase_id, fecha_inicio)` y `(estado)` |
 | `anuncios_login` | `id`, `titulo`, `texto`, `archivo_id`, `orden`, `activo` | índice `(activo, orden)` |
@@ -409,6 +412,7 @@ Las tablas de pg-boss viven en su propio esquema (`pgboss`) y no se tocan a mano
 - **Altas en lote** (invitación masiva): una transacción con el bloqueo consultivo de invitaciones (`pg_advisory_xact_lock`, tomado con `$executeRaw`) y, después de él, el conteo del cupo; `createMany` con `skipDuplicates`, la relectura por id de lo insertado y un solo `insert` de pg-boss con la conexión de la transacción. Ninguna consulta por línea y ningún `P2002` atrapado.
 - **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan.
 - Búsqueda de alumnos: `LIKE '%término%'` sobre `nombre_busqueda`, con `%`, `_` y `\` escapados; índice GIN `gin_trgm_ops`. El término mide de 3 a 120 caracteres **ya normalizados** (con un tope de 1000 en crudo); la normalización está definida una sola vez en `shared/` (`normalizarTerminoDeBusqueda`) y equivale a la que aplica `core/` a `nombre_busqueda` al escribir. Hasta 20 resultados con indicador de "hay más". El correo de cada resultado sale enmascarado desde el backend (`core/`); el completo solo en el roster del dueño. Frontend: espera de 300 ms.
+- **Paginación por cursor:** el cursor es el id de la última fila de la página anterior. Con cursor, la consulta lee primero esa fila por su llave, filtrada por el dueño de la lista (el alumno, el maestro, la clase o la publicación). Si no existe (se borró, es ajena o nunca existió), responde `400 VALIDACION` "cursor: no es válido", igual en los tres casos, sin revelar cuál es. La interfaz lo explica con un texto que dice qué pasó y cómo recuperar la lista (CLASES-a, T-18; CLASES-c, T-29 y T-34).
 - Todo cambio de esquema es una migración de Prisma versionada y compatible hacia atrás.
 
 ## 15. Capacidad

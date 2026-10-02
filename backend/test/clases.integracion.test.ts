@@ -125,7 +125,7 @@ describe("POST /api/clases", () => {
       method: "POST",
       url: "/api/clases",
       token: await tokenDe(maestro),
-      payload: { nombre: "Clase‮mala" },
+      payload: { nombre: "Clase\u202Emala" },
     })
 
     expect(respuesta.statusCode).toBe(400)
@@ -488,5 +488,52 @@ describe("GET /api/clases/:claseId", () => {
     const errorInexistente = errorApiSchema.parse(respuestaInexistente.json()).error
     expect(errorAjena).toEqual(errorInexistente)
     expect(errorAjena.codigo).toBe("SIN_ACCESO_A_LA_CLASE")
+  })
+})
+
+describe("contenido visible en el nombre de la clase (Enmienda 6, §D-C4)", () => {
+  it("PR-C12f: POST y PUT con un nombre sin contenido visible o de un solo emoji responden 400 VALIDACION, sin crear ni cambiar filas; un emoji compuesto con texto se acepta", async () => {
+    const maestro = await maestroDePrueba()
+    const token = await tokenDe(maestro)
+    const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id, nombre: "Original" })
+    const mensaje = "nombre: El nombre debe tener al menos 2 caracteres"
+
+    for (const nombre of ["\u200B\u2060", "\u{1F44D}"]) {
+      const antes = await obtenerDb().clase.count({ where: { maestroId: maestro.id } })
+      const crear = await peticion({
+        method: "POST",
+        url: "/api/clases",
+        token,
+        payload: { nombre },
+      })
+      expect(crear.statusCode, `POST ${nombre}`).toBe(400)
+      expect(errorApiSchema.parse(crear.json()).error).toEqual({
+        codigo: "VALIDACION",
+        mensaje,
+      })
+      expect(await obtenerDb().clase.count({ where: { maestroId: maestro.id } })).toBe(antes)
+
+      const editar = await peticion({
+        method: "PUT",
+        url: `/api/clases/${clase.id}`,
+        token,
+        payload: { nombre },
+      })
+      expect(editar.statusCode, `PUT ${nombre}`).toBe(400)
+      expect(errorApiSchema.parse(editar.json()).error).toEqual({
+        codigo: "VALIDACION",
+        mensaje,
+      })
+      expect((await leerClaseDb(clase.id))?.nombre).toBe("Original")
+    }
+
+    const compuesto = await peticion({
+      method: "POST",
+      url: "/api/clases",
+      token,
+      payload: { nombre: "\u{1F469}\u200D\u{1F4BB} Programación" },
+    })
+    expect(compuesto.statusCode).toBe(201)
+    idsClases.push(compuesto.json<{ clase: { id: string } }>().clase.id)
   })
 })

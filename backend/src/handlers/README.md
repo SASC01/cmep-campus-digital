@@ -42,6 +42,15 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   (baja, `204` también si no estaba inscrito). Salvo `personas`, todas llevan `requireOwnership`.
   `GET …/alumnos` es la única ruta que devuelve datos de pago (RN-02). Ninguna ruta lee
   `movimientos_inscripcion`.
+- `clases/muro.ts` (prefijo `/api`, CLASES-c): `GET` y `POST /clases/:claseId/publicaciones` (el muro,
+  paginado por cursor, y publicar un anuncio o un material; solo el maestro dueño publica),
+  `DELETE …/publicaciones/:publicacionId` (borra con sus comentarios), `GET` y `POST
+…/publicaciones/:publicacionId/comentarios` (comentan el alumno inscrito y el maestro),
+  `DELETE …/publicaciones/:publicacionId/comentarios/:comentarioId` (el maestro dueño) y
+  `DELETE …/mis-comentarios/:comentarioId` (el autor). Los textos pasan por `normalizarTextoLargo`
+  antes de validarse (§D-C4). Cada alta encola su aviso en la misma transacción que el dato
+  (`PUBLICACION_CREADA`, `MATERIAL_CREADO` o `COMENTARIO_CREADO`, con el id del dato como id del
+  trabajo); sin consumidor hasta NOTIFICACIONES. Ninguna respuesta lleva `estadoPago` ni correos.
 
 Ningún handler llama a `adapters/notifier` (bloque de ESLint en la raíz): quien necesita avisar por
 correo encola el evento y solo el worker usa `adapters/notifier`. Los repositorios compuestos que

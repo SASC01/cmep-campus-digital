@@ -19,14 +19,8 @@ import {
 import { formatearFechaHora } from "@/lib/format"
 
 import { TEXTOS_TABLA_ALUMNOS } from "../data"
-import {
-  focoPerdido,
-  useAlumnos,
-  useFilaEnFoco,
-  useFocoAlCargarMas,
-  useQuitarAlumno,
-} from "../hooks"
-import { mensajeDeErrorClases } from "../lib"
+import { useAlumnos, useFilaEnFoco, useFocoAlCargarMas, useQuitarAlumno } from "../hooks"
+import { focoPerdido, mensajeDeErrorClases } from "../lib"
 import type { AlumnoDeClase } from "../types"
 
 interface FilaAlumnoProps {
@@ -165,7 +159,7 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
     idsPrevios.current = ids
     const id = filaEnFocoRef.current
     if (id === null) return
-    if (!focoPerdido()) return
+    if (!focoPerdido(document)) return
     const indice = previos?.indexOf(id) ?? ids?.indexOf(id) ?? -1
     const vecina =
       ids === undefined || ids.length === 0

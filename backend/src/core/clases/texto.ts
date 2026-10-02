@@ -1,4 +1,3 @@
-// Normaliza un texto largo (descripción de clase, publicación o comentario) antes de guardarlo:
-// CRLF y CR se convierten a LF y se recorta en los extremos, sin tocar el interior (§D-C4).
-export const normalizarTextoLargo = (texto: string): string =>
-  texto.replace(/\r\n|\r/g, "\n").trim()
+// La definición vive en shared/ (T-31, Enmienda 8): el servidor y los formularios aplican la misma
+// regla. Aquí solo se reexporta para el resto del backend.
+export { normalizarTextoLargo } from "@campus/shared"

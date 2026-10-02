@@ -1,5 +1,4 @@
 import { useRef, type ReactNode } from "react"
-import { useParams } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
@@ -7,17 +6,21 @@ import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
+import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { ListaPersonas } from "./components/lista-personas"
 import { TEXTOS_PERSONAS } from "./data"
 import { useFocoAlCargarMas, usePersonas } from "./hooks"
 import { mensajeDeErrorClases, textoConteoAlumnos } from "./lib"
 
+interface PersonasDeLaClaseProps {
+  claseId: string
+}
+
 // §D-B4: compañeros de la clase (RF-19). La ruta es la del estudiante inscrito; el backend también
 // deja pasar al maestro dueño (requireMembership), pero el router no le da una ruta propia. Solo
 // nombres: ni correo, ni estado de pago ni restricción de acceso (S-09).
-export function PersonasView() {
-  const { claseId } = useParams<{ claseId: string }>()
-  const personas = usePersonas(claseId ?? "")
+function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
+  const personas = usePersonas(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   // T-26: "Ver más alumnos" se desmonta con el foco dentro al cargar la última página; el foco va a la
   // primera persona nueva (su <li> con tabIndex -1) o, si no llegó nadie, al encabezado "Alumnos".
@@ -96,4 +99,9 @@ export function PersonasView() {
       </CardContent>
     </Card>
   )
+}
+
+// El :claseId lo lee ConClaseDeLaRuta (§D-C5 bis).
+export function PersonasView() {
+  return <ConClaseDeLaRuta>{(claseId) => <PersonasDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
 }

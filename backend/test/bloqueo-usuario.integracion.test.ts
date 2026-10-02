@@ -675,8 +675,9 @@ describe("E: adaptadores, sin concurrencia", () => {
   // AUTH-03b, §D-B4/V-04: enlaces-registro.ts suma el FOR NO KEY UPDATE de
   // registrarMaestroConEnlace y revocarEnlaceRegistro (Enmienda 6). AUTH-03c, §D-C3/V-04:
   // invitaciones.ts suma el bloqueo consultivo (pg_advisory_xact_lock, M-04), con $executeRaw:
-  // por eso el patrón cubre también esa forma, no solo $queryRaw.
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts e invitaciones.ts usan SQL etiquetado en adapters/db", async () => {
+  // por eso el patrón cubre también esa forma, no solo $queryRaw. CLASES-c, §D-C3/V-04:
+  // publicaciones.ts suma el SELECT … FOR SHARE de crearComentario (Enmienda 7).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts y publicaciones.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -699,6 +700,7 @@ describe("E: adaptadores, sin concurrencia", () => {
       "bloqueo-usuario.ts",
       "enlaces-registro.ts",
       "invitaciones.ts",
+      "publicaciones.ts",
       "salud.ts",
     ])
   })

@@ -9,12 +9,20 @@ export const claveCodigoDeClase = (claseId: string) => ["clases", claseId, "codi
 export const clavePersonas = (claseId: string) => ["clases", claseId, "personas"] as const
 export const claveAlumnos = (claseId: string) => ["clases", claseId, "alumnos"] as const
 export const claveCandidatos = (claseId: string) => ["clases", claseId, "candidatos"] as const
+// CLASES-c: el muro y los comentarios de cada publicación. Los comentarios no cuelgan de la clave
+// del muro, para que invalidar la lista no vuelva a pedir los comentarios de todas las abiertas.
+export const clavePublicaciones = (claseId: string) => ["clases", claseId, "publicaciones"] as const
+export const claveComentarios = (claseId: string, publicacionId: string) =>
+  ["clases", claseId, "comentarios", publicacionId] as const
 
 export const LIMITE_CLASES = 20
 // §D-B1: los compañeros y el roster se piden de 50 en 50.
 export const LIMITE_PERSONAS = 50
 // §D-B3: el buscador pide hasta 20 resultados, mínimo de 3 letras y 300 ms de espera (RN-04).
 export const LIMITE_CANDIDATOS = 20
+// §D-C2: el muro y los comentarios se piden de 20 en 20.
+export const LIMITE_PUBLICACIONES = 20
+export const LIMITE_COMENTARIOS = 20
 export const ESPERA_BUSQUEDA_MS = 300
 
 // DESIGN.md §7.6: variantes de la tarjeta de clase, según la identidad de la clase (S-06), nunca un
@@ -120,6 +128,9 @@ export const TEXTOS_CODIGO = {
 export const MENSAJES_ERROR_CLASES_GENERALES = {
   sinAccesoALaClase: "No tienes acceso a esta clase.",
   alumnoNoEncontrado: "No encontramos a ese alumno.",
+  // §D-C6: errores del muro.
+  publicacionNoEncontrada: "Esa publicación ya no existe.",
+  comentarioNoEncontrado: "Ese comentario ya no existe.",
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
 
@@ -132,10 +143,6 @@ export const TEXTOS_CLASE = {
   editar: "Editar clase",
   secciones: "Secciones de la clase",
   sinAcceso: "No tienes acceso a esta clase.",
-} as const
-
-export const TEXTOS_MURO_PROVISIONAL = {
-  aviso: "Pronto podrás ver aquí los anuncios y materiales de la clase.",
 } as const
 
 // §D-B6: textos de CLASES-b (propuesta).
@@ -180,4 +187,53 @@ export const TEXTOS_TABLA_ALUMNOS = {
   quitado: (nombre: string) => `Quitaste a ${nombre} de la clase`,
   verMas: "Ver más alumnos",
   vacio: "Aún no hay alumnos. Comparte el código de la clase o búscalos arriba.",
+} as const
+
+// §D-C6: textos de CLASES-c (propuesta).
+export const TEXTOS_MURO = {
+  tituloLista: "Publicaciones",
+  vacioEstudiante: "Tu maestro aún no ha publicado nada en esta clase.",
+  vacioMaestro: "Publica el primer anuncio o material de tu clase.",
+  verMasPublicaciones: "Ver más publicaciones",
+  avisoPublicacionBorrada: "Publicación borrada",
+  cambioMientrasLoVeias: "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.",
+} as const
+
+export const TEXTOS_FORMULARIO_PUBLICACION = {
+  grupoTipo: "Tipo de publicación",
+  anuncio: "Anuncio",
+  material: "Material",
+  campoTitulo: "Título del material",
+  campoAnuncio: "Anuncio",
+  campoDescripcion: "Descripción (opcional)",
+  publicarAnuncio: "Publicar anuncio",
+  publicarMaterial: "Publicar material",
+  avisoPublicado: "Publicado",
+} as const
+
+export const TEXTOS_PUBLICACION = {
+  insigniaAnuncio: "Anuncio",
+  insigniaMaterial: "Material",
+  verComentarios: (n: number) => `Ver comentarios (${n})`,
+  // Texto del botón que pliega los comentarios. Vive aquí y no en el componente: ninguna palabra de
+  // la interfaz se escribe dentro de un .tsx (regla 2 de CLAUDE.md).
+  ocultarComentarios: "Ocultar comentarios",
+  borrarPublicacion: "Borrar publicación",
+  confirmarBorrarPublicacion: "Se borrará con sus comentarios.",
+  siBorrar: "Sí, borrar",
+  cancelar: "Cancelar",
+} as const
+
+export const TEXTOS_COMENTARIOS = {
+  titulo: "Comentarios",
+  campo: "Escribe un comentario",
+  comentar: "Comentar",
+  avisoComentado: "Comentario publicado",
+  cambioMientrasLosVeias:
+    "Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos.",
+  borrar: "Borrar",
+  siBorrarComentario: "Sí, borrar comentario",
+  cancelar: "Cancelar",
+  avisoComentarioBorrado: "Comentario borrado",
+  verMas: "Ver más comentarios",
 } as const

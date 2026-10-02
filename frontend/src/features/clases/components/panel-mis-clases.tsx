@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useRef, type ReactNode, type RefObject } from "react"
 
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 import { TEXTOS_PANEL } from "../data"
+import { useFocoAlCargarMas } from "../hooks"
 import type { ClaseDelPanel } from "../types"
 
 // T-10 (ronda 1 del tester): error → cargando → vacío → datos, sin ternario anidado en el JSX.
@@ -23,6 +24,8 @@ const contenidoPanel = (
     | "accionVacio"
     | "render"
   >,
+  // El ref del botón "Ver más clases" (foco, §7.14) y el de la rejilla de tarjetas.
+  refs: { verMas: RefObject<HTMLButtonElement | null>; rejilla: RefObject<HTMLDivElement | null> },
 ): ReactNode => {
   if (props.isError) return <MensajeError mensaje={props.errorMensaje} />
   if (props.isLoading) return <Cargando />
@@ -42,9 +45,12 @@ const contenidoPanel = (
   return (
     <>
       {/* N-01 (ronda 4): §7.6 pide 12 px de separación entre tarjetas, no 16 (gap-4). */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{props.clases.map(props.render)}</div>
+      <div ref={refs.rejilla} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {props.clases.map(props.render)}
+      </div>
       {props.hasNextPage && (
         <Button
+          ref={refs.verMas}
           type="button"
           variant="outline"
           onClick={props.onVerMas}
@@ -85,23 +91,45 @@ export function PanelMisClases({
   accionVacio,
   render,
 }: PanelMisClasesProps) {
+  const encabezadoRef = useRef<HTMLHeadingElement>(null)
+  const rejillaRef = useRef<HTMLDivElement>(null)
+  // §D-C5 (heredado de CLASES-b, DESIGN.md §7.14): "Ver más clases" se desmonta con el foco dentro al
+  // cargar la última página. El foco va a la primera tarjeta nueva (el enlace de esa clase, por su
+  // destino) o, si no llegó ninguna, al encabezado "Mis clases". Nunca a <body>.
+  const refVerMas = useFocoAlCargarMas(
+    clases?.map((clase) => clase.id),
+    (id) => {
+      const destino = clases?.find((clase) => clase.id === id)?.destino
+      if (destino === undefined) return false
+      const tarjeta = rejillaRef.current?.querySelector<HTMLElement>(`a[href="${destino}"]`)
+      tarjeta?.focus()
+      return tarjeta !== null && tarjeta !== undefined
+    },
+    () => encabezadoRef.current?.focus(),
+  )
+
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-h2">{TEXTOS_PANEL.titulo}</h2>
+        <h2 ref={encabezadoRef} tabIndex={-1} className="text-h2">
+          {TEXTOS_PANEL.titulo}
+        </h2>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {contenidoPanel({
-          isError,
-          errorMensaje,
-          isLoading,
-          clases,
-          hasNextPage,
-          isFetchingNextPage,
-          onVerMas,
-          accionVacio,
-          render,
-        })}
+        {contenidoPanel(
+          {
+            isError,
+            errorMensaje,
+            isLoading,
+            clases,
+            hasNextPage,
+            isFetchingNextPage,
+            onVerMas,
+            accionVacio,
+            render,
+          },
+          { verMas: refVerMas, rejilla: rejillaRef },
+        )}
       </CardContent>
     </Card>
   )

@@ -123,3 +123,86 @@ export const leerInscripcion = (claseId: string, usuarioId: string) =>
   obtenerDb().inscripcion.findUnique({
     where: { claseId_usuarioId: { claseId, usuarioId } },
   })
+
+// CLASES-c. Publicaciones y comentarios sembrados directo en la base (sin pasar por la API ni por la
+// cola). Su limpieza no necesita un paso nuevo: las clases de prueba se borran antes que los
+// usuarios (N-10) y arrastran en cascada sus publicaciones y comentarios; publicaciones.autor_id y
+// comentarios.autor_id son ON DELETE RESTRICT, y por eso el orden de limpieza sigue siendo el mismo.
+export interface OpcionesPublicacionDePrueba {
+  claseId: string
+  autorId: string
+  tipo?: "anuncio" | "material"
+  titulo?: string | null
+  texto?: string
+  creadoEn?: Date
+}
+
+export const crearPublicacionDePrueba = async ({
+  claseId,
+  autorId,
+  tipo = "anuncio",
+  titulo,
+  texto = "Texto de prueba",
+  creadoEn,
+}: OpcionesPublicacionDePrueba): Promise<string> => {
+  const { id } = await obtenerDb().publicacion.create({
+    data: {
+      claseId,
+      autorId,
+      tipo,
+      titulo: titulo ?? (tipo === "material" ? "Material de prueba" : null),
+      texto,
+      ...(creadoEn === undefined ? {} : { creadoEn }),
+    },
+    select: { id: true },
+  })
+  return id
+}
+
+export const crearComentarioDePrueba = async ({
+  publicacionId,
+  autorId,
+  texto = "Comentario de prueba",
+  creadoEn,
+}: {
+  publicacionId: string
+  autorId: string
+  texto?: string
+  creadoEn?: Date
+}): Promise<string> => {
+  const { id } = await obtenerDb().comentario.create({
+    data: { publicacionId, autorId, texto, ...(creadoEn === undefined ? {} : { creadoEn }) },
+    select: { id: true },
+  })
+  return id
+}
+
+export const leerPublicacionDb = (id: string) =>
+  obtenerDb().publicacion.findUnique({ where: { id } })
+
+export const contarPublicaciones = (claseId: string): Promise<number> =>
+  obtenerDb().publicacion.count({ where: { claseId } })
+
+export const contarComentarios = (publicacionId: string): Promise<number> =>
+  obtenerDb().comentario.count({ where: { publicacionId } })
+
+export const leerComentarioDb = (id: string) => obtenerDb().comentario.findUnique({ where: { id } })
+
+// Trabajos de la cola con su política heredada y el momento en que expiran (PA-05): lo que pg-boss
+// guardó en pgboss.job, no lo que dice la cola.
+export interface TrabajoDeCola {
+  id: string
+  name: string
+  retry_limit: number
+  retry_backoff: boolean
+  dead_letter: string | null
+  retencion_s: number
+  datos: Record<string, unknown>
+}
+
+export const leerTrabajosDeCola = (cola: string, claveDeDatos: string, valor: string) =>
+  obtenerDb().$queryRaw<TrabajoDeCola[]>`
+    SELECT id::text AS id, name, retry_limit, retry_backoff, dead_letter,
+           EXTRACT(EPOCH FROM (keep_until - start_after))::int AS retencion_s, data AS datos
+    FROM pgboss.job
+    WHERE name = ${cola} AND data ->> ${claveDeDatos}::text = ${valor}`

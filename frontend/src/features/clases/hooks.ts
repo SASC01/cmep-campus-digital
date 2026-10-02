@@ -3,18 +3,25 @@ import {
   candidatosRespuestaSchema,
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
+  comentarioRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
+  listaComentariosRespuestaSchema,
+  listaPublicacionesRespuestaSchema,
   personasRespuestaSchema,
+  publicacionRespuestaSchema,
   sinContenidoSchema,
   unirseRespuestaSchema,
   type CrearClase,
+  type CrearComentario,
+  type CrearPublicacion,
   type EditarClase,
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import { consultaMe } from "@/services/sesionService"
 import { api } from "@/services/apiClient"
@@ -26,12 +33,25 @@ import {
   claveCandidatos,
   claveClaseDetalle,
   claveCodigoDeClase,
+  claveComentarios,
   clavePersonas,
+  clavePublicaciones,
   LIMITE_CANDIDATOS,
   LIMITE_CLASES,
+  LIMITE_COMENTARIOS,
   LIMITE_PERSONAS,
+  LIMITE_PUBLICACIONES,
+  TEXTOS_BUSCADOR_ALUMNOS,
+  TEXTOS_COMENTARIOS,
+  TEXTOS_FORMULARIO_PUBLICACION,
+  TEXTOS_MURO,
 } from "./data"
-import { terminoDeBusquedaValido } from "./lib"
+import {
+  erroresDeFormularioClases,
+  focoPerdido,
+  mensajeDeErrorClases,
+  terminoDeBusquedaValido,
+} from "./lib"
 
 // El saludo del bloque destacado depende solo de la sesión (§D-A5): se ve aunque falle la consulta
 // de clases. select evita volver a pedir /me: reutiliza la caché de consultaMe.
@@ -196,7 +216,18 @@ export const useAgregarAlumno = (claseId: string) => {
         body: { alumnoId },
         schema: agregarAlumnoRespuestaSchema,
       }),
-    onSuccess: () => invalidarPersonasDeLaClase(queryClient, claseId),
+    // §D-C5 bis: los avisos viven aquí y no en los callbacks de mutate de la fila. Si la persona escribe
+    // otro término con el POST en vuelo, la fila se desmonta y TanStack Query no llama a los callbacks
+    // de mutate; los de useMutation corren aunque el componente ya no exista.
+    onSuccess: (respuesta) => {
+      invalidarPersonasDeLaClase(queryClient, claseId)
+      if (respuesta.yaEstaba) {
+        toast(TEXTOS_BUSCADOR_ALUMNOS.yaEstaba(respuesta.alumno.nombre))
+        return
+      }
+      toast.success(TEXTOS_BUSCADOR_ALUMNOS.agregado(respuesta.alumno.nombre))
+    },
+    onError: (error) => toast.error(mensajeDeErrorClases(error)),
   })
 }
 
@@ -256,12 +287,6 @@ export const useFilaEnFoco = (atributo: string) => {
   return filaEnFoco
 }
 
-// true si el foco se perdió: ningún elemento, <body> o uno que ya no está en el documento.
-export const focoPerdido = (): boolean => {
-  const activo = document.activeElement
-  return activo === null || activo === document.body || !activo.isConnected
-}
-
 // "Ver más" (T-26, T-28): se desmonta con el foco dentro al cargar la última página. Devuelve el ref
 // que va en ese botón. Mueve el foco SOLO si el botón estaba montado en el render anterior, ya no lo
 // está en este y tenía el foco al desmontarse; con el botón montado nunca lo mueve, aunque el foco
@@ -314,15 +339,151 @@ export const useFocoAlCargarMas = (
     }
     if (!(montadoAntes && teniaElFoco.current)) return
     teniaElFoco.current = false
-    if (!focoPerdido()) return
+    if (!focoPerdido(document)) return
     const nuevo = ids?.find((id) => previos?.includes(id) !== true)
     if (nuevo !== undefined && enfocarFila(nuevo)) return
     enfocarEncabezado()
-    if (!focoPerdido()) return
+    if (!focoPerdido(document)) return
     const seccion = seccionDelBoton.current
     if (seccion === null || !seccion.isConnected) return
     seccion.querySelector<HTMLElement>("button, a[href], input, [tabindex]")?.focus()
   })
 
   return botonRef
+}
+
+// CLASES-c (§D-C2, §D-C5). El muro y los comentarios paginan de 20 en 20, con el cursor del servidor.
+export const usePublicaciones = (claseId: string) =>
+  useInfiniteQuery({
+    queryKey: clavePublicaciones(claseId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(`/api/clases/${claseId}/publicaciones?${conCursor(LIMITE_PUBLICACIONES, pageParam)}`, {
+        schema: listaPublicacionesRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// Los conteos de comentarios de cada publicación salen de la lista del muro: tras comentar o borrar
+// un comentario, solo esa consulta (exact) se vuelve a pedir, junto con los comentarios abiertos.
+const invalidarMuro = (queryClient: ReturnType<typeof useQueryClient>, claseId: string) => {
+  void queryClient.invalidateQueries({ queryKey: clavePublicaciones(claseId), exact: true })
+}
+
+export const useCrearPublicacion = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: CrearPublicacion) =>
+      api(`/api/clases/${claseId}/publicaciones`, {
+        method: "POST",
+        body: datos,
+        schema: publicacionRespuestaSchema,
+      }),
+    // T-30: los avisos viven aquí y no en los callbacks de mutate: los de useMutation corren aunque
+    // el formulario ya no esté montado. Un error de campo lo muestra el formulario, no un aviso.
+    onSuccess: () => {
+      invalidarMuro(queryClient, claseId)
+      toast.success(TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado)
+    },
+    onError: (error) => {
+      if (erroresDeFormularioClases(error, ["titulo", "texto"])) return
+      toast.error(mensajeDeErrorClases(error))
+    },
+  })
+}
+
+// Los avisos de los borrados viven aquí y no en los callbacks de mutate: al borrar, el componente
+// desaparece cuando llega la lista nueva y TanStack Query no llamaría a esos callbacks (§D-C5 bis).
+export const useBorrarPublicacion = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (publicacionId: string) =>
+      api(`/api/clases/${claseId}/publicaciones/${publicacionId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: () => {
+      invalidarMuro(queryClient, claseId)
+      toast.success(TEXTOS_MURO.avisoPublicacionBorrada)
+    },
+    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+  })
+}
+
+// Los comentarios se piden solo mientras la publicación está abierta: el componente que usa este
+// hook se monta al abrirla.
+export const useComentarios = (claseId: string, publicacionId: string) =>
+  useInfiniteQuery({
+    queryKey: claveComentarios(claseId, publicacionId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(
+        `/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios?${conCursor(LIMITE_COMENTARIOS, pageParam)}`,
+        { schema: listaComentariosRespuestaSchema },
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+const invalidarComentarios = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  publicacionId: string,
+) => {
+  void queryClient.invalidateQueries({ queryKey: claveComentarios(claseId, publicacionId) })
+  invalidarMuro(queryClient, claseId)
+}
+
+export const useComentar = (claseId: string, publicacionId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: CrearComentario) =>
+      api(`/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios`, {
+        method: "POST",
+        body: datos,
+        schema: comentarioRespuestaSchema,
+      }),
+    // T-30: mismo criterio que useCrearPublicacion.
+    onSuccess: () => {
+      invalidarComentarios(queryClient, claseId, publicacionId)
+      toast.success(TEXTOS_COMENTARIOS.avisoComentado)
+    },
+    onError: (error) => {
+      if (erroresDeFormularioClases(error, ["texto"])) return
+      toast.error(mensajeDeErrorClases(error))
+    },
+  })
+}
+
+// El maestro dueño borra cualquier comentario de su clase.
+export const useBorrarComentario = (claseId: string, publicacionId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (comentarioId: string) =>
+      api(`/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios/${comentarioId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: () => {
+      invalidarComentarios(queryClient, claseId, publicacionId)
+      toast.success(TEXTOS_COMENTARIOS.avisoComentarioBorrado)
+    },
+    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+  })
+}
+
+// Cada persona borra el suyo («mis comentarios»).
+export const useBorrarMiComentario = (claseId: string, publicacionId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (comentarioId: string) =>
+      api(`/api/clases/${claseId}/mis-comentarios/${comentarioId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: () => {
+      invalidarComentarios(queryClient, claseId, publicacionId)
+      toast.success(TEXTOS_COMENTARIOS.avisoComentarioBorrado)
+    },
+    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+  })
 }

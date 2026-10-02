@@ -147,4 +147,20 @@ describe("FormularioClase", () => {
     expect(screen.getByLabelText("Nombre de la clase")).not.toHaveAttribute("aria-invalid", "true")
     expect(screen.queryByText("mensaje del servidor")).not.toBeInTheDocument()
   })
+
+  it("PR-C12g: un nombre de solo caracteres invisibles muestra ErrorDeCampo y no llama a la API", async () => {
+    const fetchMock = stubFetch(() => respuestaJson(500, {}))
+    renderFormulario({ modo: "crear" })
+
+    fireEvent.change(screen.getByLabelText("Nombre de la clase"), {
+      target: { value: "\u200B\u200B" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Crear clase" }))
+
+    expect(
+      await screen.findByText("El nombre debe tener al menos 2 caracteres"),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Nombre de la clase")).toHaveAttribute("aria-invalid", "true")
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

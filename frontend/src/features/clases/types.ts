@@ -5,9 +5,13 @@ export type {
   ClaseDetalle,
   ClaseImpartida,
   ClaseInscrita,
+  Comentario,
   CrearClase,
+  CrearPublicacion,
   EditarClase,
   PersonaDeClase,
+  Publicacion,
+  TipoPublicacion,
   Unirse,
   UnirseRespuesta,
 } from "@campus/shared"

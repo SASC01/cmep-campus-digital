@@ -51,11 +51,20 @@ export const terminoDeBusquedaValido = (termino: string): boolean =>
 export const terminoDeBusquedaMuyLargo = (termino: string): boolean =>
   estadoDeTerminoDeBusqueda(termino) === "largo"
 
+// true si el foco se perdió: ningún elemento, <body> o uno que ya no está en el documento. Recibe el
+// documento en lugar de leer el global, así que es pura respecto de su entrada (§D-C5 bis).
+export const focoPerdido = (documento: Pick<Document, "activeElement" | "body">): boolean => {
+  const activo = documento.activeElement
+  return activo === null || activo === documento.body || !activo.isConnected
+}
+
 // N-03 (ronda 4 del manager): los dos textos fijos viven en data.ts, no aquí (regla 2 de CLAUDE.md).
 const MENSAJES_ERROR_CLASES: Record<string, string> = {
   CODIGO_INVALIDO: TEXTOS_UNIRSE.codigoInvalido,
   SIN_ACCESO_A_LA_CLASE: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
   ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
+  PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
+  COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
 }
 
 // T-17 (ronda 2 del tester): el mensaje de un VALIDACION del servidor lleva el nombre técnico del
@@ -87,6 +96,14 @@ const campoDeErrorClases = (error: unknown): string | null => {
   if (!esApiError(error) || error.codigo !== "VALIDACION") return null
   const coincidencia = PREFIJO_DE_CAMPO.exec(error.message)
   return coincidencia ? (coincidencia[1] ?? null) : null
+}
+
+// T-34: el 400 "cursor: no es válido" de "Ver más" (el cursor ya no existe) no es un texto para la
+// persona: en su lugar se muestra `textoDelCursor`, que dice qué pasó y qué hacer. Cualquier otro
+// error sigue pasando por mensajeDeErrorClases.
+export const mensajeDeErrorDeLista = (error: unknown, textoDelCursor: string): string => {
+  if (campoDeErrorClases(error) === "cursor") return textoDelCursor
+  return mensajeDeErrorClases(error)
 }
 
 // T-19 (ronda 3 del tester): un error que no es de un campo (500, sin conexión, SIN_ACCESO_A_LA_CLASE
@@ -129,4 +146,17 @@ export const errorDelCampoCodigo = (error: unknown): ErroresFormulario | null =>
     return { codigo: mensajeDeErrorClases(error) }
   }
   return erroresDeFormularioClases(error, ["codigo"])
+}
+
+// DESIGN.md §7.14: cuando la fila con el foco sale de la lista, el foco va a la fila que ocupa su
+// lugar (la siguiente o, si era la última, la anterior). `previos` son los ids del render anterior;
+// undefined si la lista no estaba cargada. Sin filas, no hay vecina y el foco va al encabezado.
+export const vecinaDeFila = (
+  previos: string[] | undefined,
+  actuales: string[],
+  id: string,
+): string | undefined => {
+  if (actuales.length === 0) return undefined
+  const indice = previos?.indexOf(id) ?? actuales.indexOf(id)
+  return actuales[Math.min(Math.max(indice, 0), actuales.length - 1)]
 }

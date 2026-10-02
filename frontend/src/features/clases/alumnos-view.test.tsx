@@ -636,3 +636,104 @@ describe("TablaAlumnos", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument()
   })
 })
+
+describe("avisos de «Agregar a la clase» en los callbacks de useAgregarAlumno (§D-C5 bis)", () => {
+  const limpiarAvisos = () => {
+    aviso.mockClear()
+    aviso.success.mockClear()
+    aviso.error.mockClear()
+  }
+
+  it("PR-C13a: con el POST en vuelo, si la persona escribe otro término y la fila desaparece, el aviso sale igual", async () => {
+    for (const [yaEstaba, esperado] of [
+      [false, "Agregaste a Candidato 1"],
+      [true, "Candidato 1 ya estaba en la clase"],
+    ] as const) {
+      limpiarAvisos()
+      let responder: (respuesta: Response) => void = () => undefined
+      const respuestaPendiente = new Promise<Response>((resolver) => {
+        responder = resolver
+      })
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>((entrada, init) => {
+          const ruta = String(entrada)
+          const base = `/api/clases/${CLASE_ID}/alumnos`
+          if (ruta.startsWith(`${base}/candidatos`)) {
+            const candidatos = ruta.includes("q=candidato") ? [candidato(1)] : []
+            return Promise.resolve(respuestaJson(200, { candidatos, hayMas: false }))
+          }
+          if (ruta === base && init?.method === "POST") return respuestaPendiente
+          return Promise.resolve(respuestaJson(200, roster([])))
+        }),
+      )
+      renderVista()
+      await screen.findByText(
+        "Aún no hay alumnos. Comparte el código de la clase o búscalos arriba.",
+      )
+
+      escribir("candidato")
+      fireEvent.click(await screen.findByRole("button", { name: "Agregar a la clase Candidato 1" }))
+      escribir("zzzzzz")
+      await screen.findByText(
+        "No encontramos alumnos con ese nombre. Solo aparecen alumnos con cuenta.",
+      )
+      expect(screen.queryByRole("button", { name: "Agregar a la clase Candidato 1" })).toBeNull()
+      expect(aviso).not.toHaveBeenCalled()
+      expect(aviso.success).not.toHaveBeenCalled()
+
+      responder(respuestaJson(200, { alumno: { id: idDe(1), nombre: "Candidato 1" }, yaEstaba }))
+
+      if (yaEstaba) {
+        await waitFor(() => expect(aviso).toHaveBeenCalledWith(esperado))
+        expect(aviso.success).not.toHaveBeenCalled()
+      } else {
+        await waitFor(() => expect(aviso.success).toHaveBeenCalledWith(esperado))
+      }
+      cleanup()
+    }
+  })
+
+  it("PR-C13b: sin desmontar la fila, cada aviso de agregar (éxito, neutro y error) sale exactamente una vez", async () => {
+    const casos = [
+      {
+        respuesta: () =>
+          respuestaJson(200, { alumno: { id: idDe(1), nombre: "Candidato 1" }, yaEstaba: false }),
+        cuenta: () => aviso.success.mock.calls,
+        texto: "Agregaste a Candidato 1",
+      },
+      {
+        respuesta: () =>
+          respuestaJson(200, { alumno: { id: idDe(1), nombre: "Candidato 1" }, yaEstaba: true }),
+        cuenta: () => aviso.mock.calls,
+        texto: "Candidato 1 ya estaba en la clase",
+      },
+      {
+        respuesta: () => errorJson(500, "ERROR_INTERNO"),
+        cuenta: () => aviso.error.mock.calls,
+        texto: "Algo salió mal. Inténtalo de nuevo.",
+      },
+    ]
+    for (const caso of casos) {
+      limpiarAvisos()
+      stubApi({
+        candidatos: () => respuestaJson(200, { candidatos: [candidato(1)], hayMas: false }),
+        agregar: caso.respuesta,
+      })
+      renderVista()
+
+      escribir("candidato")
+      fireEvent.click(await screen.findByRole("button", { name: "Agregar a la clase Candidato 1" }))
+
+      await waitFor(() => expect(caso.cuenta()).toHaveLength(1))
+      // Un instante más: un segundo aviso (un callback duplicado) llegaría en el mismo ciclo.
+      await act(async () => {
+        await new Promise((resolver) => setTimeout(resolver, 50))
+      })
+      expect(caso.cuenta()).toEqual([[caso.texto]])
+      expect(aviso.mock.calls.length + aviso.success.mock.calls.length).toBeLessThanOrEqual(1)
+      expect(aviso.error.mock.calls.length).toBeLessThanOrEqual(1)
+      cleanup()
+    }
+  })
+})

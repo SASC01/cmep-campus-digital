@@ -9,6 +9,10 @@ Enmienda 6 (arranque de CLASES-c): regla única de contenido visible (§D-C4, C-
 Enmienda 7 (PA-16 en CLASES-c): el caso E6 de `backend/test/bloqueo-usuario.integracion.test.ts` suma `publicaciones.ts` a su lista cerrada de SQL etiquetado en `adapters/db`, y la búsqueda de listas cerradas de la ronda 0 incluye las pruebas normales.
 Enmienda 8 (ronda 1 de CLASES-c, arbitrajes del manager): cursor borrado en el muro y en los comentarios (T-29), avisos de crear en los hooks (T-30), `normalizarTextoLargo` en `shared/` y en los formularios (T-31), los máximos y mínimos de cadena cuentan en puntos de código (T-32, C-20) y mensajes en español del tipo y de la descripción del material (T-33).
 Enmienda 9 (cierre de CLASES-c): texto del cursor inválido en el muro y en los comentarios (T-34, PR-C17), "Muro" recupera el muro en error (T-35, cuarta ronda autorizada por el humano, PR-C18), copia de `errorCursorInvalido` en `publicaciones.ts` (D-1), N-C4, desviaciones aceptadas, pendientes con destino, textos de cierre (c), la base y las cifras de d.
+Enmienda 10 (arranque de CLASES-d): huecos de la ronda 0 de d (T-36 y T-37: C-21, `adjuntos` obligatorio en la respuesta, y C-22, `archivoIds` siempre en el cuerpo), complemento de la ronda 0 del tester, adaptación autorizada de pruebas normales con formas cerradas (N-1 a N-5 y `env.test.ts:130`), PR-D06d, el destino de la PA-07 de la ronda 0 (CHORE-02, arbitraje del manager) y `<Cc>`.
+Enmienda 11 (implementación de CLASES-d): las cuatro desviaciones que aceptó el manager. `publicacion-del-muro.tsx` queda autorizado en d de forma retroactiva, con la frase de borrar condicional; `crearPublicacion` recibe las filas; `buscarArchivosParaConfirmar` filtra; y se registran los extras (`CODIGOS_ARCHIVOS` en `shared/src/archivos.ts`, que corrige §D-0.5) y los pendientes N-D1 a N-D4.
+Enmienda 12 (ronda 1 de CLASES-d, arbitrajes del manager): lista de archivos fija mientras se publica (T-38), `urlDelAlmacenSchema` solo `http(s)` (T-39), `staleTime` del muro según la primera vista previa que vence (T-40), aviso de un rechazo al solicitar con el archivo y el motivo (T-41), nombre con un sustituto suelto rechazado (T-42) y "1 MB" en lugar de "1024 KB" (T-43). IDs PR-D16 a PR-D21, y las observaciones O-1 a O-9 con su destino.
+Enmienda 13 (cierre de CLASES-d y del encargo): rondas 1 a 3 de d y T-44, C-23, desviaciones aceptadas (N-D4, `avisoDeFalloAlSubir` y la precisión de PA-07), pendientes con destino (N-F1 a N-F7 y O-1 a O-15), textos de cierre (d) en su versión final, cifras de cierre, base del siguiente encargo, comprobación humana y estado del plan (LISTO hasta `<Cd>`; CERRADO cuando el humano haga ese commit).
 Carril: sensible (las cuatro subentregas; el motivo de cada una está en "Alcance", "Subentregas"). La revisión humana del diff no es obligatoria (`AGENTS.md`, "Commits y cierre de subentregas").
 Requisitos: RF-10 (parcial), RF-11, RF-12 (parcial: sin tareas), RF-19, RF-25, RF-30 (parcial), RF-31, RF-33, RF-38 y RF-39; RN-02, RN-03, RN-04 y RN-06. Diferidos con destino: RF-32 y RF-43. Contexto: ESSENTIALS "Autorización", "Reglas de datos", "Asíncrono y notificaciones" y "Archivos"; `ARCHITECTURE.md` §6, §7, §8, §11 y §14; `DESIGN.md` §4 a §8.
 Rama: `feat/clases`. Arrancó en `3399c79`, con el mismo contenido que `origin/main` (`1eb9080`, fusión del PR #15). Ningún agente crea ni cambia de rama.
@@ -16,11 +20,140 @@ Antecedentes de forma: `docs/trabajo/AUTH-03-ajustes-de-cuentas/plan.md` (subent
 
 **Marcadores de commit:**
 - `<R>` = `3399c79`, el commit con que arrancó la rama;
-- `<Ca>`, `<Cb>` y `<Cc>`: los commits de CLASES-a, -b y -c. El orquestador los lee con `git log` después de cada commit y los anota en `aprobacion.md`. El humano nunca da un hash. `<Ca>` = `855069b`. `<Cb>` = `e9df1f0`.
+- `<Ca>`, `<Cb>` y `<Cc>`: los commits de CLASES-a, -b y -c. El orquestador los lee con `git log` después de cada commit y los anota en `aprobacion.md`. El humano nunca da un hash. `<Ca>` = `855069b`. `<Cb>` = `e9df1f0`. `<Cc>` = `c7fcece`.
 
 No hay commit de aprobación del plan.
 
 ---
+
+## Enmienda 13 — cierre de CLASES-d y del encargo
+Registra en el texto del plan el cierre de CLASES-d y del encargo. Las fuentes son:
+- `revision.md`:
+  - "Revisión final — CLASES-d" (línea 3881): APROBADO sin bloqueos, con "Problemas que no bloquean" (N-F1 a N-F7), "Detalles menores", "Observaciones O-1 a O-15: destino confirmado o cambiado", "Documentos a actualizar al cierre de d (paso 48)", "Lo que debe registrar la Enmienda 13" y la lista final de la comprobación humana;
+  - "Arbitraje de PA-12 — ronda 2 de CLASES-d" (línea 3795);
+  - "Verificación del resumen — CLASES-d — corrección de la ronda 2" (línea 3813), con la precisión de PA-07;
+- `reporte-tester.md`: "CLASES-d — Ronda 2" (desde la línea 4449; C-23 en la 4475) y "CLASES-d — Ronda 3" (desde la 4723; tabla de 107 en la 4831);
+- `aprobacion.md`, "CLASES-d (desde el 2026-10-02)", para la cronología.
+
+No cambian §D-D1 a §D-D7, PARADAS ni "No se toca". **Estado: LISTO hasta el commit `<Cd>`; pasa a CERRADO cuando el humano lo haga** (lo anota el orquestador en la cabecera, junto con `<Cd>`).
+
+| # | Qué cambió | Origen | Dónde |
+|---|---|---|---|
+| 1 | **Rondas de d:**<br>- ronda 1: ROTO, con T-38 a T-43 (Enmienda 12);<br>- ronda 2: ROTO, solo con T-44;<br>- ronda 3: **RESISTE**, sin hallazgos.<br>Fueron 3 rondas, sin escalada, y ningún hallazgo fue de seguridad. La revisión final dio **APROBADO** sin problemas que bloqueen. | Revisión final de d | Paso 46 |
+| 2 | **T-44 (bajo):** `formatearTamano` mostraba "1024 MB" con 1,073,741,823 bytes. Extiende el criterio de T-43 a todas las unidades: redondea en la unidad actual y sube mientras el redondeado llega a 1024, sin ramas por unidad (lista B, KB, MB y GB y un ciclo). **PR-D21 queda con dos casos**, el de T-43 y el de MB y GB, como aceptó el manager. | Ronda 2; verificación de la corrección 2 | §D-D5 (la viñeta de `lib/format.ts` de la Enmienda 12 se lee con esta extensión), "Pruebas requeridas" (d) |
+| 3 | **C-23** (PA-12 de la ronda 2, arbitrada por el manager): en `backend/test/archivos-d-r1.ataque.test.ts`, los dos conteos de `archivo.count()` se acotan con un `OR` de `claseId IN` y `subidoPor IN`. Es la única `*.ataque` de d que cambió después de publicarse. | Arbitraje de PA-12 | §D-R0 (C-23) |
+| 4 | **Desviaciones aceptadas, además de las cuatro de la Enmienda 11:**<br>- N-D4 aplicado: seis `return` pasan a `throw` en PR-D02a a PR-D02c;<br>- `avisoDeFalloAlSubir` pasa a `features/clases/lib.ts`, con un caso sin ID en `lib.test.ts`;<br>- **precisión de PA-07 para d:** un `500` del muro o de archivos que una `*.ataque` provoca a propósito con un doble imposible, y que el reporte identifica por ruta y causa, no cuenta (los tres `ZodError` de `archivos-d-r2`). Cualquier otro `500` del muro o de archivos en una corrida limpia sigue siendo PA-07. | Verificación de la corrección 2 | "Pendientes" (N-D4) |
+| 5 | **Pendientes con destino:**<br>- **DEPLOY:** O-1, O-5 y O-6;<br>- **el arquitecto, antes de ADMIN:** O-3;<br>- **TAREAS:** O-4 (N-F1);<br>- **ENTREGAS:** O-7 (N-D2, N-F6) y O-14 (N-F3);<br>- **el próximo encargo que toque las reglas de texto:** O-11 (N-F4);<br>- **H-4:** O-13 (N-F5);<br>- **solo nota:** O-2, O-8, O-9 y O-12, y los detalles menores;<br>- **carril trivial antes de `<Cd>`:** N-F2 y el README de `adapters/`, ya aplicado;<br>- **antes de DEPLOY:** `LIMPIEZA_DIARIA`;<br>- **ADMIN:** la consulta de `movimientos_inscripcion`;<br>- **DEPLOY:** el worker en `production` con `STORAGE_*` y el orden de despliegue.<br>Las filas que ya existían se actualizaron en su lugar. | Revisión final, "Observaciones O-1 a O-15" y "Problemas que no bloquean" | "Pendientes" |
+| 6 | **Textos de cierre (d):** la versión final del manager, copiada tal cual al final de "Textos literales propuestos". Manda sobre las entradas (d) anteriores de esa sección. **Nuevos respecto del plan:**<br>- `ARCHITECTURE.md` §16 (N-F7);<br>- el diagrama de §14;<br>- la regla 8 de `CLAUDE.md`;<br>- la frase de MinIO en `README.md`;<br>- y, opcional, §8, `LIMPIEZA_DIARIA`.<br>Además hay **ajustes** sobre los textos que ya estaban en el plan: §7, §11 y ESSENTIALS. | Revisión final, "Documentos a actualizar al cierre de d" | "Textos literales propuestos" |
+| 7 | **Cifras de cierre** (revisión final):<br>- backend `120 passed (120)` / `1300 passed (1300)`, por paquete;<br>- frontend `104 passed (104)` / `1395 passed (1395)`;<br>- lint y build con código 0;<br>- 107 `*.ataque`;<br>- V-03 en 0;<br>- la migración `20261002141710_archivos`, aplicada en `campus_dev`;<br>- 64 IDs PR-D distintos;<br>- V-06 con 56 rutas. | Revisión final | V-01, paso 48 |
+| 8 | **Base del siguiente encargo:** `<Cd>`, que lee el orquestador después del commit, y V-01 desde la tabla de 107 de `reporte-tester.md`, "CLASES-d — Ronda 3" (línea 4831). El carril trivial de N-F2 no toca ninguna `*.ataque`, así que la tabla sigue valiendo. | Revisión final | V-01 |
+| 9 | **Comprobación humana:**<br>- la lista final de H-1 a H-6 es la de la revisión final ("lista final para `comprobacion-humano.md`"), que reemplaza la de este plan;<br>- su resultado lo anota el orquestador en `comprobacion-humano.md`;<br>- con el "bien" del humano, las marcas "propuesta" de `docs/DESIGN.md` de este encargo pasan a "propuesta aprobada (fecha)". | Revisión final | Paso 47, "Comprobación humana" |
+| 10 | **Estado del plan:** LISTO hasta `<Cd>`; CERRADO cuando el humano haga ese commit. | Revisión final, punto 9 | Cabecera, paso 48 |
+
+**Contradicciones que encontré y corregí:**
+- **El texto de §11 del plan decía que la API compara con `statObject` "antes de confirmar".** No decía cómo se acotan los archivos (clase, quien los subió, `pendiente`, 24 h; Enmienda 11), ni que toda publicación responde `adjuntos` (C-21), ni `urlDelAlmacenSchema` (Enmienda 12). La versión final del manager lo recoge.
+- **`ARCHITECTURE.md` §16 contradecía R-03** ("con tipo y tamaño fijados"). El texto nuevo, N-F7, lo corrige.
+- **La regla 8 de `CLAUDE.md` no admitía la excepción de `almacenService`** que diseñó §D-D5. El texto de cierre la agrega.
+- **La lista de la comprobación humana del plan** tenía tiempos, preparación y puntos de antes de las rondas de d (el residual de T-38 iba en H-6, y O-13 no estaba). La lista final de la revisión la reemplaza. La sección "Comprobación humana" de este plan queda como historia y se lee con esta corrección.
+- **Destinos que cambiaron en la revisión final:**
+  - O-4, de "nota de cierre" a TAREAS;
+  - O-7 y O-14, a ENTREGAS;
+  - O-11, de "cierre de d" al próximo encargo de reglas de texto;
+  - O-13, a H-4.
+
+  Actualicé las filas de "Pendientes" en su lugar.
+
+## Enmienda 12 — ronda 1 de CLASES-d (arbitrajes del manager)
+Registra en el plan los arbitrajes del manager sobre los seis hallazgos de la ronda 1 de d, igual que la Enmienda 8 en c. Las fuentes son:
+- `revision.md`, "Arbitrajes de la ronda 1 — CLASES-d" (línea 3549);
+- `reporte-tester.md`, "CLASES-d — Ronda 1" (desde la línea 4132): T-38 a T-43 y las observaciones O-1 a O-9;
+- el código actual:
+  - `formulario-publicacion.tsx` (`handleElegir`, `handleQuitar` y `handlePublicar`);
+  - `adjuntos-de-publicacion.tsx` (`handleDescargar`);
+  - `hooks.ts:370` (`staleTime: TIEMPO_FRESCO_DEL_MURO_MS`) y `data.ts` (`TEXTOS_ADJUNTOS` y `TIEMPO_FRESCO_DEL_MURO_MS = 240_000`);
+  - `core/archivos/politica.ts:15` (`CARACTER_PROHIBIDO_EN_NOMBRE`, sin `\p{Cs}`) y su `sinSustitutosSueltos`.
+
+Ninguno necesita una decisión del humano, y todos se corrigen en archivos ya autorizados en d. No cambian PARADAS, "No se toca", los C-n, la lista cerrada de archivos ni ninguna `*.ataque`. De los pasos, solo el 46 suma una línea. El estado sigue en LISTO.
+
+| # | Qué cambió | Origen | Dónde |
+|---|---|---|---|
+| 1 | **T-38 (medio): la lista de archivos queda fija mientras se publica.**<br>- "Quitar" y elegir archivos no actúan, con una referencia que `handlePublicar` marca antes del primer `await` y libera en el `finally`.<br>- Junto a la lista, una nota con `role="status"`: "Mientras se publica no puedes cambiar los archivos.".<br>- Se publica exactamente la lista que se ve.<br>**Descartadas:** `disabled`, `aria-disabled`, `enEspera` y ocultar los controles (motivos en §D-D5).<br>**Residual para H-6:** los controles se ven activos.<br>**Archivos:** `formulario-publicacion.tsx`, `data.ts` y `DESIGN.md` §7.19. | Arbitraje del manager, T-38 | §D-D5, §D-D6, §D-D7, "Pendientes", "Pruebas requeridas" (d): PR-D16 |
+| 2 | **T-39 (medio): `urlDelAlmacenSchema`** en `shared/src/archivos.ts`, `z.url()` solo con `http` y `https`, en las tres URL del almacén.<br>- El `schema.parse` de `apiClient` falla, y `handleDescargar` avisa sin navegar.<br>- La comprobación de `almacenService` se queda, porque además compara el origen.<br>- Una `vistaPrevia` con otra URL hace fallar el muro completo, por el criterio de C-21. | Arbitraje del manager, T-39 | §D-D4, "Cambios por capa" (`shared/`), "Pruebas requeridas" (d): PR-D17a y PR-D17b |
+| 3 | **T-40 (bajo): el `staleTime` de `usePublicaciones` es una función de la consulta.**<br>- Con vistas previas, el muro se vuelve viejo 60 s antes del `expiraEn` más temprano de las páginas cargadas; sin ellas, el valor de antes.<br>- El cálculo es una función pura de `lib.ts`.<br>- Una imagen que falló se recuerda por su URL, no por el id.<br>**Archivos:** `lib.ts`, `hooks.ts`, `adjuntos-de-publicacion.tsx` y `DESIGN.md` §7.19, donde también se corrige la frase de N-D3. | Arbitraje del manager, T-40 | §D-D5, §D-D7, "Cambios por capa" (frontend), "Pendientes" (N-D3), "Pruebas requeridas" (d): PR-D18a y PR-D18b |
+| 4 | **T-41 (bajo; N-D1): el aviso de un rechazo al solicitar** es "No pudimos subir «nombre»: motivo". El motivo es el mensaje del servidor con `ARCHIVO_INVALIDO`, y el de `mensajeDeErrorClases` con los demás códigos. El cliente no agrega validaciones nuevas.<br>**Archivos:** `formulario-publicacion.tsx` y `data.ts`. | Arbitraje del manager, T-41 | §D-D5, §D-D6, "Pendientes" (N-D1), "Pruebas requeridas" (d): PR-D19 |
+| 5 | **T-42 (bajo): un nombre con un sustituto suelto se rechaza.** `CARACTER_PROHIBIDO_EN_NOMBRE` suma `\p{Cs}` y responde `400 ARCHIVO_INVALIDO`. Descarté normalizar a U+FFFD.<br>**Fuera de d:** los textos del muro también guardan U+FFFD con un sustituto suelto; queda como pendiente para el cierre de d. | Arbitraje del manager, T-42 | §D-D4, "Cambios por capa" (`core/`), "Pendientes", "Pruebas requeridas" (d): PR-D20 |
+| 6 | **T-43 (bajo): `formatearTamano` redondea antes de elegir la unidad.** 1,048,575 bytes se muestran como "1 MB". | Arbitraje del manager, T-43 | §D-D5, "Pruebas requeridas" (d): PR-D21 |
+| 7 | **IDs nuevos: PR-D16 a PR-D21**, todos en archivos de la lista cerrada de d.<br>- Nuevos de d: `adjuntos-de-publicacion.test.tsx` y `politica.test.ts`.<br>- Del propio encargo que se extienden: `formulario-publicacion.test.tsx`, `lib.test.ts` y `format.test.ts`.<br>No hace falta ningún archivo nuevo. V-01 de la corrección se mide contra la tabla de la ronda 1 (101 `*.ataque`), y los 10 casos rojos del tester pasan tal como están. | Arbitraje del manager, "Archivos y 'No se toca'" | "Pruebas requeridas" (d), paso 46 |
+| 8 | **Observaciones del tester, con destino:**<br>- O-1 a DEPLOY y a `LIMPIEZA_DIARIA`;<br>- O-3 al arquitecto, antes de ADMIN;<br>- O-5 y O-6 a DEPLOY;<br>- O-2, O-4, O-8 y O-9 como notas para el cierre de d (O-4, por el carril trivial si el manager lo pide);<br>- O-7 es N-D2, ya anotada. | `reporte-tester.md`, "Observaciones que no son hallazgo" | "Pendientes" |
+
+**Contradicciones que encontré y corregí:**
+- **§D-D5 y `DESIGN.md` §7.19 justificaban `staleTime: 240_000` con las URL de 5 minutos,** pero `useInfiniteQuery` mide desde `dataUpdatedAt`, que se renueva con cada página (T-40). §D-D5 ahora define la función, y §D-D7 cambia la frase de §7.19, que de paso resuelve N-D3.
+- **§D-D5 decía que `almacenService` rechaza una URL que no sea `http(s)`, pero no exigía lo mismo para la descarga** (T-39). Ahora la regla vive una sola vez, en `urlDelAlmacenSchema`, y la comprobación de `almacenService` se queda solo porque además compara el origen.
+- **La fila N-D1 de "Pendientes" dejaba abierta la decisión** entre validar en el cliente o mostrar el mensaje del servidor. El manager eligió lo segundo (T-41); actualicé la fila.
+
+## Enmienda 11 — implementación de CLASES-d (desviaciones aceptadas)
+Registra, antes de la corrección de la ronda 1, lo que el manager aceptó de la implementación de d, para que V-05 y "No se toca" coincidan con el plan. Las fuentes son:
+- `revision.md`, "Verificación del resumen — CLASES-d — implementación" (línea 3301): resumen ACEPTADO, Enmienda 10 APROBADA, arbitraje de las cuatro desviaciones y N-D1 a N-D4;
+- `resumen-programador.md`, "CLASES-d — implementación" (línea 1480), "Desviaciones del plan (para el manager)", puntos 1 a 8;
+- el código actual:
+  - `frontend/src/features/clases/components/publicacion-del-muro.tsx:35-38` y `:81`;
+  - `backend/src/adapters/db/publicaciones.ts:87-106` (`archivos = []`, `archivos?: readonly ArchivoDb[]`);
+  - `backend/src/adapters/db/archivos.ts:55` (`buscarArchivosParaConfirmar({ ids, claseId, subidoPor })`);
+  - `shared/src/archivos.ts:70-82` (`archivoIdParamSchema` y `CODIGOS_ARCHIVOS`);
+  - `backend/src/core/archivos/politica.ts:20-34` (las tres fábricas);
+  - `backend/src/config/env.ts:13` (`vacioComoAusente`);
+  - `frontend/src/features/clases/data.ts:228-254`.
+
+No cambian PARADAS, "No se toca", los C-n, la lista cerrada de pruebas ni nada de a, b o c fuera de §D-C5 (y §D-0.5, que es transversal). El estado sigue en LISTO.
+
+| # | Qué cambió | Origen | Dónde |
+|---|---|---|---|
+| 1 | **Desviación 1: `frontend/src/features/clases/components/publicacion-del-muro.tsx` queda autorizado en d de forma retroactiva.**<br>- El plan pedía el cambio (§D-C5, "…y sus adjuntos." desde d; §D-D5, mostrar los adjuntos en el muro; §D-D6), pero no listaba el archivo. Como "Cambios por capa" dice que todo archivo que no aparece está en "No se toca", estaba ahí por omisión. No hace falta una línea en "CLASES-d, además": basta la fila de "Cambios por capa".<br>- Lo que hace: monta `AdjuntosDePublicacion` y dice "Se borrará con sus comentarios y adjuntos." **solo si la publicación tiene adjuntos**; si no, la frase de c.<br>- **El texto condicional es la forma correcta:** la frase dice lo que de verdad se borra, y no obliga a reescribir `muro-c-r1.ataque.test.tsx:479` ni `publicacion-del-muro.test.tsx:288`, que esperan la frase de c con publicaciones sin adjuntos.<br>- Lo cubre el caso "muestra los adjuntos y, al pedir borrar, la frase que también los nombra" de `adjuntos-de-publicacion.test.tsx`, archivo nuevo de d.<br>- La observación de proceso (debió detenerse por PA-09) va a la medición del programador, no al plan. | Arbitraje del manager, desviación 1 | §D-C5, §D-D5, §D-D6, "Cambios por capa" (frontend) |
+| 2 | **Desviación 2: `crearPublicacion` recibe `archivos?: readonly ArchivoDb[]`, `[]` por defecto, en lugar de `archivoIds`.**<br>- Son las filas que ya leyó `buscarArchivosParaConfirmar`. El `UPDATE` de §D-D3, punto 3.3, repite todas sus condiciones y compara el conteo, así que no se relaja nada.<br>- Con esas filas se arman los `adjuntos` del `201`, sin otra consulta (C-21).<br>- El `[]` por defecto es de un parámetro de **entrada** opcional (publicar sin adjuntos, y PR-C02e, que no se toca), no un valor que esconda datos faltantes. | Arbitraje del manager, desviación 2 | §D-D3 (punto 3.3), "Cambios por capa" (`adapters/db/publicaciones.ts`), "Acceso a datos" |
+| 3 | **Desviación 3: `buscarArchivosParaConfirmar({ ids, claseId, subidoPor })` filtra ya por clase, usuario, `pendiente`, sin publicación y últimas 24 h.**<br>- Sigue siendo una consulta por PK (`id IN (≤5)`).<br>- Es más estricta que el plan y evita consultar al almacén por un objeto ajeno o ya confirmado (no hay oráculo ni gasto en el proveedor).<br>- Si falta una fila, `400 ARCHIVO_INVALIDO`, el mismo código que da el `UPDATE` cuando el conteo no coincide. | Arbitraje del manager, desviación 3 | §D-D3 (punto 3.1), "Cambios por capa" (`adapters/db/archivos.ts`), "Acceso a datos" |
+| 4 | **Extras aceptados:**<br>- `CODIGOS_ARCHIVOS` (y `CodigoArchivos`) en `shared/src/archivos.ts`, el archivo de su dominio. Corrige §D-0.5, que los ponía en `CODIGOS_CLASES`;<br>- `archivoIdParamSchema`;<br>- en `core/archivos/politica.ts`, tres fábricas de error (`almacenNoConfigurado`, `archivoNoSubido` y `archivoNoCoincide`), para no repetir los mensajes entre los dos handlers;<br>- sin almacén, la descarga responde `503 ALMACEN_NO_CONFIGURADO` antes de buscar el archivo, así que no revela si existe;<br>- una `STORAGE_*=` vacía cuenta como ausente (`vacioComoAusente` en `config/env.ts`), sin valores en los mensajes (PR-D02c);<br>- textos accesibles "Archivos elegidos" y "Archivos adjuntos";<br>- casos de prueba sin ID, que suman cobertura y no sustituyen a ningún ID. | Arbitraje del manager, desviación 4 (cubre los puntos 4 a 8 del resumen) | §D-0.5, §D-D2, §D-D3 (punto 5), §D-D4, §D-D6, "Cambios por capa" (`core/`) |
+| 5 | **Pendientes con destino, que no bloquean:**<br>- N-D1, el mensaje de un rechazo del servidor al solicitar (es punto de ataque de la ronda 1: si el tester lo hace hallazgo, se corrige en d);<br>- N-D2, `extensionDe` duplicada;<br>- N-D3, la errata de `DESIGN.md` §7.19 (carril trivial dentro de d, en la próxima entrega);<br>- N-D4, el `return` de PR-D02a, que pasa a `throw` con un mensaje en la próxima entrega. | `revision.md`, "Problemas que no bloquean" | "Pendientes" |
+| 6 | **PA-07 en la verificación:** la corrida por paquete del manager que cayó por CHORE-02 solo trajo tiempos límite y los dos `P2028` aceptados, sin ningún `500` en rutas de c o d, y la repetición salió limpia. Por la regla de d, no es PA-07. No cambia nada | `revision.md`, "Cifras" | — |
+
+**Contradicciones que encontré y corregí:**
+- **§D-0.5 ponía los códigos de d en `CODIGOS_CLASES`** (`shared/src/clases.ts`). Viven en `CODIGOS_ARCHIVOS` (`shared/src/archivos.ts`). Corregí el título y la viñeta de d. Las de a a c no cambian.
+- **El archivo olvidado:** §D-C5 y §D-D6 pedían la frase "…y adjuntos" y §D-D5 pedía ver los adjuntos en el muro, pero "Cambios por capa" no listaba `publicacion-del-muro.tsx` para d. La omisión fue mía, y la ronda 0 tampoco inventarió las dos pruebas que fijan la frase de c. Corregí la fila del frontend, y §D-C5 y §D-D6 ahora dicen que la frase es condicional.
+- **§D-D3, punto 3.1, decía `buscarArchivosParaConfirmar(ids)`, y "Acceso a datos" solo `id IN (≤5)`.** Ahora llevan la firma y los filtros reales.
+
+## Enmienda 10 — arranque de CLASES-d (huecos de la ronda 0 y listas cerradas en pruebas normales)
+Resuelve lo que dejó la ronda 0 de CLASES-d, antes de que el programador empiece. Las fuentes son:
+- `reporte-tester.md`, "CLASES-d — Ronda 0" (línea 3577): T-36, T-37, "Listas cerradas en pruebas normales que d desborda (Enmienda 7)" (N-1 a N-5) y sus "Observaciones para la autorización";
+- `revision.md`, "Arbitraje de PA-07 — ronda 0 de CLASES-d" (línea 3263);
+- el código en `<Cc>`:
+  - `shared/src/clases.ts`: `publicacionSchema` sin `adjuntos`; `crearPublicacionSchema` discriminada y sin `archivoIds`; `CrearPublicacion` es `z.infer`, el tipo de salida;
+  - `frontend/src/services/apiClient.ts:159` (`opciones.schema.parse(cuerpo)`);
+  - `backend/src/config/env.ts` y `env.test.ts`; `backend/src/server.ts` y `worker.ts`, que llaman primero a `cargarEnv()`;
+  - los dobles de `formulario-publicacion.test.tsx:20`, `muro-view.test.tsx:27` y `publicacion-del-muro.test.tsx:23`.
+
+No cambian §D-D1, §D-D2, §D-D4, §D-D6, §D-D7, "No se toca" ni los archivos nuevos de d. Fuera de §D-D5, §D-R0, las pruebas, los puntos de ataque, los pasos y los pendientes, cambian tres cosas, por exigencia de esta enmienda:
+- una línea en §D-D3, punto 4 (la respuesta de crear también lleva `adjuntos`), que exige C-21;
+- una viñeta en PA-07 que remite a la regla de trabajo del manager para d, que exige su arbitraje;
+- la viñeta de d en V-01 (la base del programador es la tabla del complemento).
+
+El estado sigue en LISTO.
+
+| # | Qué cambió | Origen | Dónde |
+|---|---|---|---|
+| 1 | **C-21 (T-36): `adjuntos` es obligatorio en `publicacionSchema`, sin valor por defecto.**<br>- El backend lo manda siempre, `[]` si no hay adjuntos, en el muro y en la respuesta de `POST …/publicaciones`.<br>- El tester suma `adjuntos: []` a los dobles de publicación de las `*.ataque`, en el complemento de la ronda 0, sin cambiar aserciones. Los de las pruebas normales los adapta el programador (N-3 a N-5).<br>**Descartada: `.default([])` en el esquema de respuesta.**<br>- Es el `?? []` que `CLAUDE.md` prohíbe ("Valores por defecto"), un nivel más abajo: un backend que olvide el campo mostraría la publicación sin sus adjuntos y sin error. Obligatorio, el `schema.parse` de `apiClient` lo detecta.<br>- La compatibilidad entre despliegues no lo pide: el campo es aditivo y el backend se despliega primero; el frontend anterior descarta la clave, porque `z.object` no es estricto. Además, todavía no hay `prod` (DEPLOY). | T-36; decisión del arquitecto | §D-D3 (punto 4), §D-D5, §D-R0 (C-21), "Pruebas requeridas" (d): PR-D06d |
+| 2 | **C-22 (T-37): el formulario envía `archivoIds` siempre, `[]` si no hay adjuntos.**<br>- Es lo que ya da `resultado.data` con el `[]` por defecto de §D-D4, y `CrearPublicacion` (tipo de salida) lo exige. Un solo cuerpo, sin ramas.<br>- El tester suma `archivoIds: []` al cuerpo esperado de `muro-c-r2.ataque.test.tsx:385` (aserción en `:398`). Queda en rojo hasta que el programador termine: es el tercer rojo esperado de d.<br>**Descartada: enviarlo solo con adjuntos.** Obliga a quitar del resultado un campo que el propio esquema pone, con una rama más en `handlePublicar`, solo para no tocar un caso.<br>El `[]` por defecto en la **entrada** sí es legítimo: es un dato que el cliente puede omitir, no un dato que falta en una respuesta. | T-37; decisión del arquitecto | §D-D5, §D-R0 (C-22) |
+| 3 | **Complemento de la ronda 0 de d:** antes del V-01 del programador, el tester aplica C-21 y C-22 y publica "CLASES-d — Ronda 0, complemento (C-21 y C-22)": los casos tocados, los 3 rojos esperados y la tabla de hashes de todas las `*.ataque`, que pasa a ser la base de V-01. No cuenta en el tope de 3 | T-36 y T-37 | "Puntos de ataque" (ronda 0, punto 4), pasos 37 y 38, V-01 |
+| 4 | **C-13, como quedó:**<br>- `config/env.ataque.test.ts`: el ayudante `enProduccion` suma un almacén válido;<br>- `test/arranque-r1.ataque.test.ts:79`, fuera del inventario: el worker en `production` suma `STORAGE_*` válidas y una aserción de que no imprime el secreto del almacén;<br>- ninguna `*.ataque` fija la firma de `construirApp`. | Ronda 0 de d | §D-R0 (C-13) |
+| 5 | **Pruebas normales con formas cerradas (Enmienda 7), autorizadas en la fila d:**<br>- `env.test.ts`: N-1 (`:10`, el objeto `Env` completo) suma `STORAGE_REGION` y `STORAGE_BUCKET_PRIVADO` con sus valores por defecto. N-2 (`:184`, `production` válida) y `:130` (`production` rechaza el ejemplo con blancos, que si no se debilitaría en silencio) suman un almacén válido a su entrada;<br>- `formulario-publicacion.test.tsx` (N-3): `adjuntos: []` en su doble y `archivoIds: []` en los cuatro cuerpos esperados;<br>- `muro-view.test.tsx` (N-4) y `publicacion-del-muro.test.tsx` (N-5) entran como "del propio encargo que se extienden", solo para sumar `adjuntos: []` a su doble.<br>Ninguna aserción se quita, ningún título cambia y cada caso cambiado va en el resumen. | Ronda 0 de d: N-1 a N-5 y la observación sobre `:130` | "Pruebas: listas cerradas" (d), paso 38 |
+| 6 | **PR-D06d** (en `archivos.integracion.test.ts`, archivo nuevo de d): una publicación sin adjuntos sale con `adjuntos: []` en el muro y en la respuesta de crear; con adjuntos, la respuesta de crear los trae con la forma del muro. Prueba que el backend cumple lo que C-21 da por hecho | C-21 | "Pruebas requeridas" (d), "Puntos de ataque" (d), punto 5 |
+| 7 | **PA-07 de la ronda 0, decisión (a) del manager:**<br>- el `P2028` de `crearComentario` se reportó en `encolar` (`cliente.ts:60`), pero la llamada que esperó fue `tx.comentario.create()`: la llave foránea `autor_id` quedó detrás del `LOCK TABLE usuarios` de `cuentas-r1:130`;<br>- es de la familia de CHORE-02: va a CHORE-02, no bloquea d y no pide corregir c;<br>- en d rige la regla de trabajo del manager ("Para PA-07 en CLASES-d"). | `revision.md`, "Arbitraje de PA-07 — ronda 0 de CLASES-d" | "Pendientes", PARADAS (PA-07) |
+| 8 | **El worker en `production` también exige `STORAGE_*`.** Es consecuencia de §D-D2: `worker.ts` (en "No se toca") llama a `cargarEnv()`. Es la misma imagen que la API (ESSENTIALS, "Capas del backend"), y `LIMPIEZA_DIARIA` necesitará el almacén. No cambia código: va a DEPLOY como pendiente, junto con el orden de despliegue de un campo de respuesta nuevo (primero el backend) | Ronda 0 de d, "Observaciones para la autorización" | "Pendientes" |
+| 9 | `<Cc>` = `c7fcece` en los marcadores | Cierre de c | Cabecera |
+
+**Contradicciones que encontré y corregí:**
+- **§D-D4 y §D-D5 ya implicaban el cuerpo con `archivoIds` siempre** (`[]` por defecto en el esquema y `crear.mutateAsync({ …, archivoIds })`), pero §D-R0 no lo previó: C-13 no lo nombraba. C-22 lo hace explícito.
+- **§D-D3, punto 4, solo decía que el muro agrega `adjuntos`.** Como `publicacionSchema` es el mismo para el muro y para la respuesta de crear, la respuesta de crear también lo lleva. Lo agregué a ese punto.
+- **C-13 suponía que `env.ataque` caería solo si comparaba el objeto completo, y `arranque-r1` solo por la firma de `construirApp`.** Lo que los contradijo fue la exigencia en `production`. La fila de C-13 ya lo dice.
+- **V-01 de d decía "la tabla de la regresión final de c".** Esa es la base del tester en la ronda 0; la del programador es la del complemento. Corregí V-01.
 
 ## Enmienda 9 — cierre de CLASES-c (decisiones y arbitrajes de la implementación)
 Registra en el texto del plan lo que se decidió y se construyó en CLASES-c. Las fuentes son:
@@ -389,6 +522,24 @@ Las respuestas del humano del 2026-09-29 a la antigua tabla de preguntas bloquea
 | **Nuevo (Enmienda 9):** los `P2028` de AUTH (`cambiar-contrasena` e `invitarMaestrosEnLote`), fuera de los dos aceptados | CHORE-02 o AUTH (ya en `docs/ESTADO.md` §3) | R-27 |
 | **Nuevo (Enmienda 9):** N-C7, el foco que cae en los encabezados `sr-only` del muro y de los comentarios no se ve | Comprobación humana H-6 de CLASES-d, como candidato a uno de sus puntos | "Comprobación humana" |
 | **Nuevo (Enmienda 9):** dos detalles menores de la revisión final de c: la sangría de una línea de `handlers/README.md` y `conTextosNormalizados`, que podría vivir en `core/clases/texto.ts` | Carril trivial, en el próximo cambio que toque esos archivos | — |
+| **Nuevo (Enmienda 10):** PA-07 de la ronda 0 de d. Un `P2028` en `crearComentario`, reportado en `encolar` (`adapters/db/cliente.ts:60`): la llave foránea `autor_id` esperó el `LOCK TABLE usuarios` de `cuentas-r1:130`, en una corrida caída por la espera en cadena; la repetición salió limpia | CHORE-02, por arbitraje del manager (decisión (a)): no bloquea d ni pide corregir c. El orquestador suma el sitio a la fila de `docs/ESTADO.md` §3 de `invitarMaestrosEnLote` y `rotarSesion`, con la propuesta de decidir en CHORE-02 si `adapters/db/errores.ts` traduce `P2028` a un error controlado en todo el backend | `revision.md`, "Arbitraje de PA-07 — ronda 0 de CLASES-d"; PA-07 |
+| **Nuevo (Enmienda 10):** el worker en `production` exige `STORAGE_*` aunque en d no use el almacén (`worker.ts` llama a `cargarEnv()`), y un campo de respuesta nuevo se despliega primero en el backend (C-21) | DEPLOY: el contenedor del worker recibe las mismas `STORAGE_*` que la API, y el orden de despliegue queda en su guía. El orquestador lo anota en `docs/ESTADO.md` §3 | §D-D2, §D-R0 (C-21) |
+| **Nuevo (Enmienda 11), N-D1:** un archivo de 0 bytes, o con `/`, `\` o un control en el nombre, pasa la validación del cliente. El servidor responde `400 ARCHIVO_INVALIDO` con un mensaje específico, pero el frontend lo traduce por código a "Uno de los archivos no coincide con lo que elegiste…", que no dice qué pasó (`DESIGN.md` §9) | Punto de ataque de la ronda 1 de d. Si el tester lo convierte en hallazgo, se corrige en d; si no, queda pendiente para el próximo cambio que toque la validación de archivos. Remedios posibles: que el cliente también rechace el tamaño 0 y esos caracteres con su propio mensaje, o que un `ARCHIVO_INVALIDO` al solicitar muestre el mensaje del servidor. **Enmienda 12:** el tester lo hizo hallazgo (T-41), y se corrige en d con el segundo remedio, sin validaciones nuevas en el cliente | §D-D5, §D-D6 |
+| **Nuevo (Enmienda 11), N-D2:** `extensionDe` está duplicada en `frontend/src/features/clases/lib.ts` y `backend/src/core/archivos/politica.ts`; la regla "tipo más extensión" está escrita dos veces (el mismo patrón que se unificó en c con `normalizarTextoLargo`) | Llevarla (o `tipoYExtensionCoinciden`) a `shared/src/archivos.ts` en el próximo cambio que toque las dos, o en el cierre de d por el carril trivial. **Enmienda 13 (N-F6, O-7):** cambia a **ENTREGAS**, que reutiliza la política de archivos; ya no va al cierre de d | §D-D4 |
+| **Nuevo (Enmienda 11), N-D3:** errata en `DESIGN.md` §7.19, "fresco 4" por "fresco 4 minutos" | Carril trivial dentro de d: la corrige el programador en su próxima entrega (paso 44, edición a mano). **Enmienda 12:** con T-40, la frase pasa a decir "el muro se vuelve a pedir antes de que venza la primera vista previa" | §D-D7 |
+| **Nuevo (Enmienda 11), N-D4:** PR-D02a estrecha el tipo con `if (soloElEndpoint.ok) return` después de la aserción | En la próxima entrega de d, se cambia por `throw` con un mensaje (`env.test.ts` ya está en la fila d; PR-D02a es un caso nuevo de d). **Enmienda 13: hecho** en la corrección de la ronda 2 (seis `return` → `throw` en PR-D02a a PR-D02c) | "Pruebas requeridas" (d) |
+| **Nuevo (Enmienda 12), residual de T-38:** durante la publicación, "Quitar" y "Adjuntar archivos" se ven activos aunque no actúan; lo mitiga la nota con `role="status"` | Punto de H-6 de la comprobación humana. Si el humano quiere el estado nativo, sería abrir `button.tsx` o la regla de `styles/clases-r1` en otro encargo. **Enmienda 13:** en la lista final queda en **H-5** ("Di si te basta la nota") | §D-D5 |
+| **Nuevo (Enmienda 12), de T-42:** los textos del muro (título, anuncio y comentario) aceptan un sustituto suelto y lo guardan como U+FFFD | Cierre de d: pendiente con destino en `textoLargoSchema` y `nombreClaseSchema`, que se trata como la regla de contenido visible (§D-C4). El orquestador lo anota en `docs/ESTADO.md` §3. **Enmienda 13 (N-F4, O-11):** cambia al **próximo encargo que toque las reglas de texto de `shared/src/clases.ts`** (probablemente TAREAS): rechazarlo con `400 VALIDACION` en `textoConContenidoSchema` y `nombreClaseSchema`, como T-42, con su prueba y su C-n. Cambia el comportamiento, así que no cabe en el carril trivial | §D-C4, §D-D4 |
+| **Nuevo (Enmienda 12), O-1:** la URL de subida no limita tamaño ni tipo (solo firma `host`) y sigue sirviendo 300 s después de confirmar, así que el objeto se puede reescribir; tampoco hay tope de solicitudes pendientes por maestro. No hay XSS, porque la vista previa y la descarga fuerzan el tipo guardado; el riesgo es de cupo (amplía R-03) | DEPLOY (permisos del token de R2 y vigilancia del cupo) y `LIMPIEZA_DIARIA`. Una política `POST` con `content-length-range` sería otro encargo. **Enmienda 13, confirmado:** en DEPLOY, permisos del token de R2, alerta de cupo y límite de tasa global; en `LIMPIEZA_DIARIA`, los objetos sobrantes. Lo cita el texto nuevo de `ARCHITECTURE.md` §16 | R-03 |
+| **Nuevo (Enmienda 12), O-3:** `archivos(clase_id)` y `archivos(subido_por)` no tienen índice. Borrar una clase en cascada y el `RESTRICT` al borrar un usuario recorren `archivos` completa. Hoy ninguna ruta borra clases ni usuarios; lo decidió §D-D1 | El arquitecto, antes de ADMIN (bajas y borrados): decidir los índices con su migración. **Enmienda 13, confirmado**, junto con R-21 | §D-D1 |
+| **Nuevo (Enmienda 12), O-5 y O-6:** `STORAGE_*` no se recortan y el nombre del bucket no se valida (un bucket inválido hace que toda firma responda `503 ALMACEN_NO_DISPONIBLE`, sin fugas), y `production` acepta un `STORAGE_ENDPOINT` `http://` | Lista de DEPLOY. **Enmienda 13, confirmado:** DEPLOY decide además si exige `https` en `production` | §D-D2 |
+| **Nuevo (Enmienda 12), O-2, O-4, O-8 y O-9 (notas, no riesgos):**<br>- O-2: el `201` devuelve los adjuntos en el orden de `archivoIds`, y el muro por `creado_en, id`; coinciden con el frontend actual;<br>- O-4: el muro responde URL prefirmadas sin `Cache-Control: no-store`, a diferencia de solicitar y descargar;<br>- O-8: al confirmar, un tipo real con parámetros o en mayúsculas cuenta como el declarado; se sirve con el tipo guardado;<br>- O-9: un UUID en mayúsculas en `archivoIds` se rechaza con `400 ARCHIVO_INVALIDO`; el frontend manda minúsculas.<br>O-7 es N-D2, ya anotada. | Notas para el cierre de d. O-4, por el carril trivial si el manager lo pide en la revisión final. **Enmienda 13:** O-2, O-8 y O-9 quedan como solo nota. **O-4 (N-F1) cambia a TAREAS**, que vuelve a tocar el muro: `no-store` en `GET …/publicaciones` y en el `201` de crear, con su prueba. En DEPLOY, comprobar que ninguna regla de caché de Cloudflare toque `/api/*`. O-7 va a ENTREGAS (fila de N-D2) | §D-D3 |
+| **Nuevo (Enmienda 13), N-F2:** cuatro inversores de dirección literales (U+202A, U+202E, U+2066 y U+2069) en `INVERSORES_DE_DIRECCION`, `shared/src/clases.ts:48`, desde CLASES-a ("Trojan Source": reordenan la línea en editores y diffs, y GitHub marca el archivo). Junto con el detalle menor de `backend/src/adapters/README.md`, que decía que la limpieza diaria estaba "pendiente de NOTIFICACIONES" y no "pendiente previo a DEPLOY" (P-02) | **Carril trivial antes de `<Cd>`, ya aplicado** (escapes en `:48`, comprobado por programa por O-10), sin cambio de comportamiento ni de `*.ataque`; el programador cierra su resumen. La tabla de V-01 no cambia | Paso 48 |
+| **Nuevo (Enmienda 13), N-F3 (O-14):** con un almacén que firmara una URL que no sea `http(s)`, solicitar responde `500` y deja una fila `pendiente` huérfana (`handlers/archivos.ts` inserta antes del `parse` de la respuesta). Inalcanzable con el adaptador real y sin fuga | **ENTREGAS**, en el próximo cambio de `handlers/archivos.ts`: validar la URL firmada antes de insertar, o traducir ese error a `503 ALMACEN_NO_DISPONIBLE` | §D-D3 |
+| **Nuevo (Enmienda 13), N-F5 (O-13):** la nota "Mientras se publica no puedes cambiar los archivos." también aparece un instante al publicar sin archivos | **H-4** de la comprobación humana. Si al humano le molesta, carril trivial (mostrarla solo con `elegidos.length > 0`); si no, nota para el próximo cambio de `formulario-publicacion.tsx` | §D-D5 |
+| **Nuevo (Enmienda 13), N-F7:** `ARCHITECTURE.md` §16 decía "URLs prefirmadas de 5 minutos con tipo y tamaño fijados", y la de subida no fija ninguno de los dos (R-03, O-1) | Texto de cierre (d) para §16, en "Textos literales propuestos". No se corrige en código | R-03 |
+| **Nuevo (Enmienda 13), detalles menores y notas sin acción:**<br>- `adapters/db/publicaciones.ts` repite en `errorArchivoInvalido` el mensaje de `archivoNoCoincide` de `core/archivos/politica.ts`; podría importarlo;<br>- `handlers/clases/muro.ts` creció con la orquestación del almacén (`adjuntosParaResponder` y `archivosParaPublicar`): si TAREAS o ENTREGAS la reutilizan, conviene un módulo propio;<br>- O-12: `Math.min(...vencimientos)` falla por encima de unas 120,000 vistas previas cargadas, un tope inalcanzable; si se toca, un `reduce`;<br>- O-15 (proceso): correr dos suites a la vez tumba el backend por CHORE-02. | El próximo cambio de cada archivo; O-15 es una regla de trabajo (ningún agente corre dos suites a la vez) | — |
+| **Ya existentes, confirmados en el cierre de d (Enmienda 13):** `LIMPIEZA_DIARIA` de archivos (objeto y fila de los pendientes vencidos y los descartados) antes de DEPLOY; la consulta de `movimientos_inscripcion` en ADMIN, ordenada por `secuencia` y con sus índices; el worker en `production` con `STORAGE_*` y el orden de despliegue, primero el backend (DEPLOY); el `P2028` de `cambiar-contrasena`, que reapareció en la corrida caída de la revisión final (AUTH, prioridad alta; basta sumar la fecha) | Sin cambio de destino | Filas de arriba |
 
 ---
 
@@ -581,9 +732,9 @@ Bloque nuevo en `eslint.config.mjs`, después del bloque de `executeSql` y con `
 ```
 Hoy ningún archivo de `handlers/` usa `addHook` (`app.ts` y `guarda-de-rutas.ts` están fuera de ese glob).
 
-#### §D-0.5 · Errores nuevos (en `shared/src/clases.ts`, `CODIGOS_CLASES`)
+#### §D-0.5 · Errores nuevos (en `shared/src/clases.ts`, `CODIGOS_CLASES`; los de d, en `shared/src/archivos.ts`, `CODIGOS_ARCHIVOS`)
 - **CLASES-a a c:** `SIN_ACCESO_A_LA_CLASE` (403), `CODIGO_INVALIDO` (404), `ALUMNO_NO_ENCONTRADO` (404), `PUBLICACION_NO_ENCONTRADA` (404), `COMENTARIO_NO_ENCONTRADO` (404) y `BUSQUEDA_MUY_CORTA` (400).
-- **CLASES-d:** `ARCHIVO_INVALIDO` (400), `ARCHIVO_NO_SUBIDO` (400), `ARCHIVO_NO_ENCONTRADO` (404), `ALMACEN_NO_CONFIGURADO` (503) y `ALMACEN_NO_DISPONIBLE` (503).
+- **CLASES-d** (en `CODIGOS_ARCHIVOS`, el archivo de su dominio; Enmienda 11): `ARCHIVO_INVALIDO` (400), `ARCHIVO_NO_SUBIDO` (400), `ARCHIVO_NO_ENCONTRADO` (404), `ALMACEN_NO_CONFIGURADO` (503) y `ALMACEN_NO_DISPONIBLE` (503).
 - **Errores de programación**, que no van a `shared/`: `CLASE_AUSENTE` y `CODIGO_NO_DISPONIBLE` (500).
 
 ### CLASES-a
@@ -1180,7 +1331,7 @@ ALTER TABLE "publicaciones" ADD CONSTRAINT "publicaciones_titulo_segun_tipo"
   - título del material en `h3`;
   - texto plano con `whitespace-pre-line` y `max-w-prose`;
   - "Ver comentarios (N)" u "Ocultar comentarios" (`ghost`, `size="sm"`, `aria-expanded`, `aria-controls`);
-  - en el maestro, "Borrar publicación" (`ghost`, `size="sm"`) con confirmación en línea: "Se borrará con sus comentarios." ("…y sus adjuntos." desde d), "Sí, borrar" (`destructive`, `enEspera`) y "Cancelar".
+  - en el maestro, "Borrar publicación" (`ghost`, `size="sm"`) con confirmación en línea: "Se borrará con sus comentarios." (desde d, solo si la publicación tiene adjuntos, "Se borrará con sus comentarios y adjuntos."; Enmienda 11), "Sí, borrar" (`destructive`, `enEspera`) y "Cancelar".
 - **`ComentariosDePublicacion`** (se monta al abrir):
   - `useInfiniteQuery`, habilitada solo mientras está abierta;
   - lista ascendente y "Ver más comentarios" (`outline`, `size="sm"`, `enEspera`);
@@ -1317,7 +1468,7 @@ ALTER TABLE "archivos" ADD CONSTRAINT "archivos_confirmado_si_y_solo_si_contexto
   - `STORAGE_REGION` (`us-east-1` por defecto; `auto` en R2);
   - `STORAGE_BUCKET_PRIVADO` (`campus-privado` por defecto).
 
-  Con `superRefine`: las tres primeras van todas o ninguna, y en `production` son obligatorias. Los mensajes no llevan valores. `config/almacen.ts`: `opcionesDeAlmacen(env)` → `OpcionesAlmacen | null`.
+  Con `superRefine`: las tres primeras van todas o ninguna, y en `production` son obligatorias. Los mensajes no llevan valores. Una `STORAGE_*=` vacía cuenta como ausente (`vacioComoAusente`; Enmienda 11). `config/almacen.ts`: `opcionesDeAlmacen(env)` → `OpcionesAlmacen | null`.
 - **`app.ts`:** `construirApp({ env, almacen }: { env: Env; almacen?: Almacen | null })`.
   - Si no llega `almacen`, lo construye con `opcionesDeAlmacen(env)`, o deja `null`.
   - Lo pasa a `muroHandler` y a `archivosHandler`.
@@ -1333,12 +1484,14 @@ ALTER TABLE "archivos" ADD CONSTRAINT "archivos_confirmado_si_y_solo_si_contexto
    - responde `201 { archivo: { id, nombre, tipo, tamano }, subida: { url, metodo: "PUT", cabeceras: { "Content-Type": tipo }, expiraEn } }` con `no-store`.
 2. **El navegador sube directo al almacén** con `services/almacenService.ts`.
 3. **`POST /clases/:claseId/publicaciones`** con `archivoIds` (hasta 5, sin repetidos):
-   1. `buscarArchivosParaConfirmar(ids)`, una consulta por PK;
+   1. `buscarArchivosParaConfirmar({ ids, claseId, subidoPor })`, una consulta por PK que ya filtra por clase, usuario, `pendiente`, sin publicación y últimas 24 h (Enmienda 11). Si falta alguna fila, `400 ARCHIVO_INVALIDO` antes de consultar al almacén: no hay llamada al proveedor por un objeto ajeno ni oráculo;
    2. `almacen.metadatosDe(clave)` con `Promise.all` y `coincideConLoDeclarado`. Si falta el objeto, `400 ARCHIVO_NO_SUBIDO`; si el tamaño o el tipo son distintos, `400 ARCHIVO_INVALIDO`. En los dos casos, no se crea nada;
-   3. `crearPublicacion({ id, … }, alGuardar)` inserta la publicación y hace `UPDATE archivos SET estado = 'confirmado', publicacion_id = $pub WHERE id IN (…) AND clase_id = $clase AND subido_por = $yo AND estado = 'pendiente' AND publicacion_id IS NULL AND creado_en > $ahora - 24 h`;
+   3. `crearPublicacion({ id, …, archivos }, alGuardar)` recibe las filas del paso 3.1 (`archivos`, opcional, `[]` por defecto para publicar sin adjuntos; Enmienda 11), inserta la publicación y hace `UPDATE archivos SET estado = 'confirmado', publicacion_id = $pub WHERE id IN (…) AND clase_id = $clase AND subido_por = $yo AND estado = 'pendiente' AND publicacion_id IS NULL AND creado_en > $ahora - 24 h`;
    4. si el conteo no coincide, lanza `400 ARCHIVO_INVALIDO` y todo se revierte; si coincide, encola.
 4. **El muro** agrega `adjuntos: { id, nombre, tipo, tamano, vistaPrevia: { url, expiraEn } | null }[]`, de una consulta `archivos WHERE publicacion_id IN (página) AND estado = 'confirmado'`. `vistaPrevia` solo existe para PNG, JPEG, WebP y GIF, con disposición `inline`.
+   - **Enmienda 10 (C-21):** `adjuntos` va siempre, también vacío (`[]`). La respuesta `201` de `POST …/publicaciones` lo lleva con la misma forma, armado con las filas que ya leyó el paso 3.1, sin otra consulta; sin `archivoIds`, `adjuntos: []`.
 5. **`POST /clases/:claseId/archivos/:archivoId/descarga`** (`roles: ["estudiante", "maestro"], pertenencia: "inscripcion"`): busca `archivos WHERE id AND clase_id AND estado = 'confirmado'`.
+   - Sin almacén, `503 ALMACEN_NO_CONFIGURADO` antes de buscar el archivo: no revela si existe (Enmienda 11).
    - Sin fila, `404 ARCHIVO_NO_ENCONTRADO`.
    - Con fila, `200 { url, expiraEn }` con `no-store` y disposición `attachment` (RFC 5987 más una alternativa en ASCII).
 6. **Borrar una publicación con adjuntos:** en la misma transacción, `UPDATE archivos SET estado = 'descartado', publicacion_id = NULL WHERE publicacion_id = $1` antes del `DELETE`. Los objetos siguen en el almacén hasta `LIMPIEZA_DIARIA`.
@@ -1352,6 +1505,13 @@ ALTER TABLE "archivos" ADD CONSTRAINT "archivos_confirmado_si_y_solo_si_contexto
   - `text/plain` → `txt`.
 - `TIPOS_CON_VISTA_PREVIA` (las cuatro imágenes), `TAMANO_MAXIMO_ARCHIVO_BYTES = 25 * 1024 * 1024` y `MAXIMO_ADJUNTOS_POR_PUBLICACION = 5`.
 - Esquemas: `solicitarSubidaSchema`, `solicitarSubidaRespuestaSchema`, `adjuntoSchema`, `descargaRespuestaSchema`, y `archivoIds` en `crearPublicacionSchema` (`z.array(z.uuid()).max(5)`, sin repetidos, `[]` por defecto).
+- **Enmienda 11:** además, `archivoIdParamSchema` y `CODIGOS_ARCHIVOS` (los cinco códigos de §D-0.5 para d, con su tipo `CodigoArchivos`). El frontend los traduce por código en `lib.ts`, con los textos de §D-D6 de `MENSAJES_ERROR_CLASES_GENERALES` (`data.ts`).
+- **Enmienda 12 (T-39): `urlDelAlmacenSchema`**, `z.url()` solo con los protocolos `http` y `https` (opción `protocol: /^https?$/`), con un mensaje sin valores. Es la única regla del protocolo permitido.
+  - La usan las tres URL del almacén: `descargaRespuestaSchema.url`, `adjuntoSchema.vistaPrevia.url` y `solicitarSubidaRespuestaSchema.subida.url`. Se exporta desde `index.ts` si hace falta.
+  - **Efecto:** el `schema.parse` de `apiClient` rechaza otra URL; `mutateAsync` falla y `handleDescargar` avisa con `toast.error`, sin navegar. El backend valida sus respuestas con los mismos esquemas.
+  - Una `vistaPrevia` con otra URL hace fallar el muro completo (`isError`). Es el criterio de C-21: una respuesta mal formada es un error y no se repara en silencio.
+  - La comprobación de `almacenService` (protocolo y origen de la API) se queda, porque además compara el origen. No hay otra en el cliente.
+- **Enmienda 12 (T-42): nombre del archivo.** `CARACTER_PROHIBIDO_EN_NOMBRE` de `core/archivos/politica.ts` suma `\p{Cs}`: un sustituto suelto se rechaza con `400 ARCHIVO_INVALIDO` "El nombre del archivo no es válido.", como los controles y los bidireccionales, sin escribir fila ni firmar nada. Un par válido (un emoji) se acepta. `sinSustitutosSueltos` de `disposicionDeContenido` se queda como defensa. **Descartado:** normalizar a U+FFFD y responder lo guardado, porque guardaría un nombre que nadie eligió.
 
 #### §D-D5 · Frontend de CLASES-d
 - **`services/almacenService.ts`:** `subirArchivo(subida, archivo: File): Promise<void>` hace `fetch(subida.url, { method: "PUT", headers: subida.cabeceras, body: archivo, credentials: "omit" })`.
@@ -1363,11 +1523,33 @@ ALTER TABLE "archivos" ADD CONSTRAINT "archivos_confirmado_si_y_solo_si_contexto
   - `ListaDeAdjuntosElegidos`: nombre, `formatearTamano` y "Quitar" (`ghost`, con el nombre en `sr-only`);
   - validación en cliente con `ErrorDeCampo`;
   - `handlePublicar` (`try/catch/finally`), con el botón principal en `enEspera` de principio a fin. Por cada archivo, en orden, llama a `useSolicitarSubida.mutateAsync` y a `subirArchivo`; después, a `crear.mutateAsync({ …, archivoIds })`. Si algo falla, toast, y el formulario conserva lo escrito.
+  - **Lista fija mientras se publica (Enmienda 12, T-38):** desde la primera solicitud hasta que termina `handlePublicar`, la lista de elegidos no cambia.
+    - `handleQuitar` y `handleElegir` regresan sin cambiar nada; `handleElegir` limpia igual el valor del selector.
+    - La comprobación usa una **referencia** que `handlePublicar` marca de forma síncrona, antes del primer `await`, y libera en el `finally`. No usa solo el estado de React, que tarda un render en verse en los manejadores.
+    - Mientras tanto, junto a la lista, una nota con `role="status"`, en `--text-small` y `--muted-foreground`: "Mientras se publica no puedes cambiar los archivos." (§D-D6).
+    - Con éxito, la lista se limpia como antes. Si falla, conserva lo elegido y los controles vuelven a actuar. Se publica exactamente la lista que se ve.
+    - **Descartadas:** `disabled` (lo prohíbe `styles/clases-r1.ataque` en `features/`); `aria-disabled` (la misma prueba lo permite solo en `button.tsx`, que no se toca); `enEspera` en "Quitar" o "Adjuntar" (cambiaría el 36 de C-13 y diría "en curso" de un control que no hace nada); ocultar los controles (los casos del tester los buscan con `getByRole` y `getByLabelText`).
+    - **Residual aceptado, para H-6:** "Quitar" y "Adjuntar archivos" se ven activos durante la publicación; lo mitiga la nota. El estado nativo exigiría abrir `button.tsx` o la regla de `clases-r1` en otro encargo.
+  - **Aviso de un rechazo al solicitar (Enmienda 12, T-41; N-D1):** si la **solicitud** de subida de un archivo falla con un `ApiError`, el aviso nombra el archivo y dice el motivo: `TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)` → "No pudimos subir «\<nombre\>»: \<motivo\>".
+    - Con `ARCHIVO_INVALIDO`, `motivo` es el `mensaje` del servidor (ya en español, sin valores); con cualquier otro código, sale de `mensajeDeErrorClases`.
+    - Un solo aviso, no se publica y se conserva lo escrito. Un fallo del `PUT` al almacén conserva el texto de antes ("No pudimos subir «\<nombre\>». Inténtalo de nuevo.").
+    - **El cliente no agrega validaciones nuevas** de tamaño 0 ni de caracteres del nombre: los casos del tester exigen poder elegir esos archivos, y los rechaza el servidor.
 - **`AdjuntosDePublicacion`:**
   - las imágenes con `vistaPrevia` van en `<img alt="Imagen adjunta: <nombre>">` (`max-h-80`, `rounded-row`, `object-contain`, sin `loading="lazy"`); con `onError`, pasan a la ficha;
   - todos los adjuntos tienen una ficha sólida (`bg-muted`, `rounded-row`) con icono, nombre, tamaño y "Descargar" (`outline`, `size="sm"`, `enEspera`, nombre en `sr-only`), que pide la URL y hace `window.location.assign(url)` dentro de un `try/catch`;
   - `usePublicaciones` usa `staleTime: 240_000`.
-- **`lib/format.ts`:** `formatearTamano(bytes)` → "820 KB" o "2.4 MB".
+  - **Desde la Enmienda 12 (T-40), el `staleTime` de `usePublicaciones` es una función de la consulta** (TanStack Query 5 lo admite):
+    - **con vistas previas,** el muro se vuelve viejo 60 s antes del `expiraEn` más temprano entre todas las vistas previas de las páginas cargadas: `staleTime = max(0, (expiraMínimo − 60 s) − dataUpdatedAt)`;
+    - **sin vistas previas,** se conserva `TIEMPO_FRESCO_DEL_MURO_MS` (240,000);
+    - al volver al muro con la consulta vieja, se vuelve a pedir, como al montar. El margen de 60 s mantiene vigentes las URL viejas mientras llega la respuesta nueva;
+    - el cálculo es una función pura de `lib.ts` (por ejemplo `tiempoFrescoDelMuro(paginas, dataUpdatedAt)`), y `hooks.ts` solo la usa.
+    - **Descartadas:** un `staleTime` fijo menor (no basta: `dataUpdatedAt` se renueva con cada página); `refetchOnMount: "always"` (pediría todas las páginas en cada vuelta, aunque no haya imágenes); pedir una URL nueva en el `onError` (necesitaría una ruta nueva).
+  - **Imagen que falló (Enmienda 12, T-40):** se recuerda por su URL (`vistaPrevia.url`), no por el id del adjunto. Una URL nueva, tras volver a pedir el muro, se vuelve a intentar.
+- **`PublicacionDelMuro` (Enmienda 11):** monta `AdjuntosDePublicacion` con `publicacion.adjuntos`, y su confirmación de borrar dice "Se borrará con sus comentarios y adjuntos." solo si la publicación tiene adjuntos; si no, la frase de c ("Se borrará con sus comentarios."). La frase dice lo que de verdad se borra. Sin `enEspera=` ni foco nuevos.
+- **`lib/format.ts`:** `formatearTamano(bytes)` → "820 KB" o "2.4 MB". Desde la Enmienda 12 (T-43), redondea antes de elegir la unidad: si `Math.round(bytes / 1024)` llega a 1024, pasa a MB ("1 MB"). Los cambios de unidad exactos y PR-D14 no cambian.
+- **Forma de los datos (Enmienda 10):**
+  - **C-21:** `adjuntos` es obligatorio en `publicacionSchema` (`z.array(adjuntoSchema)`), sin `.default` ni `.optional`. Ningún archivo de `features/clases` lo completa con `?? []`: si falta, el `schema.parse` de `apiClient` falla y la vista muestra su error. Todo doble de una publicación, en pruebas normales y `*.ataque`, lleva `adjuntos` (`[]` si no tiene).
+  - **C-22:** `handlePublicar` envía siempre `archivoIds`, `[]` si no hay adjuntos: `crear.mutateAsync({ ...resultado.data, archivoIds })`, con los ids en el orden de subida. Nunca un cuerpo sin la clave. El cuerpo esperado de toda prueba que lo compare completo lleva `archivoIds`.
 
 #### §D-D6 · Textos de CLASES-d (propuesta)
 - "Adjuntar archivos"; ayuda "Hasta 5 archivos de 25 MB: PDF, imágenes, Word, Excel, PowerPoint o texto.".
@@ -1379,7 +1561,11 @@ ALTER TABLE "archivos" ADD CONSTRAINT "archivos_confirmado_si_y_solo_si_contexto
   - `ARCHIVO_NO_SUBIDO`: "Uno de los archivos no terminó de subir. Inténtalo de nuevo.";
   - `ARCHIVO_INVALIDO`: "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.";
   - `ALMACEN_NO_CONFIGURADO` y `ALMACEN_NO_DISPONIBLE`: "Los archivos no están disponibles en este momento. Inténtalo más tarde.".
-- "Quitar", "Descargar", "Imagen adjunta: \<nombre\>" y "Se borrará con sus comentarios y adjuntos.".
+- "Quitar", "Descargar", "Imagen adjunta: \<nombre\>" y "Se borrará con sus comentarios y adjuntos." (solo para una publicación con adjuntos; Enmienda 11).
+- Nombres accesibles de las dos listas (Enmienda 11): "Archivos elegidos" y "Archivos adjuntos".
+- Enmienda 12, en `TEXTOS_ADJUNTOS`:
+  - la nota de la lista fija (T-38): "Mientras se publica no puedes cambiar los archivos.";
+  - el rechazo al solicitar (T-41): `errorRechazado(nombre, motivo)` → "No pudimos subir «\<nombre\>»: \<motivo\>".
 
 #### §D-D7 · `docs/DESIGN.md` (programador de CLASES-d, a mano, **propuesta**)
 **§7.19 (nueva), "Adjuntos y vista previa":**
@@ -1388,6 +1574,10 @@ ALTER TABLE "archivos" ADD CONSTRAINT "archivos_confirmado_si_y_solo_si_contexto
 - "Descargar" con `enEspera`;
 - lista de archivos elegidos con "Quitar";
 - ayuda permanente con los límites.
+
+**Enmienda 12** (el programador lo edita a mano en la corrección de la ronda 1):
+- en "Publicar con archivos" (T-38): "mientras se publica, la lista no cambia: «Quitar» y «Adjuntar archivos» no actúan y una nota lo dice";
+- la frase "el muro se considera fresco 4" (N-D3) pasa a decir "el muro se vuelve a pedir antes de que venza la primera vista previa" (T-40).
 
 ### §D-R0 · Cambios de comportamiento y ronda 0 del tester
 La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.ataque` que contradicen estos cambios, sin cambiar lo que protegen. Completa el inventario con su propia búsqueda en todas las `*.ataque` de los dos paquetes.
@@ -1406,7 +1596,7 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 | C-10 | a | `BienvenidaView` se borra; `TEXTOS_SESION` pierde `saludo` y `proximamente` | Cualquier `*.ataque` que importe `bienvenida-view` o esas dos claves |
 | C-11 | b | `enEspera=` pasa de 25 a **29** | V-06: `buscador-alumnos.tsx` (o su fila) 1; `tabla-alumnos.tsx` (o su fila) 2; `personas-view.tsx` 1 |
 | C-12 | c | `enEspera=` pasa de 29 a **35**; colas nuevas; un `$queryRaw` etiquetado nuevo | - V-06: `formulario-publicacion.tsx` 1, `muro-view.tsx` 1, `publicacion-del-muro.tsx` 1, `comentarios-de-publicacion.tsx` 2 y `formulario-comentario.tsx` 1.<br>- Colas: cualquier `*.ataque` que las enumere de forma cerrada (`worker-r1`, `worker-r2`, `worker-03c-r1`).<br>- SQL etiquetado: cualquier lista cerrada de archivos con `$queryRaw`. |
-| C-13 | d | `enEspera=` pasa de 35 a **36**; `STORAGE_*` en `config/env.ts`; `construirApp` acepta `almacen` | - V-06: `adjuntos-de-publicacion.tsx` 1.<br>- `config/env.ataque.test.ts`, si compara el objeto completo.<br>- `arranque-r1.ataque.test.ts`, si fija la firma de `construirApp`. |
+| C-13 | d | `enEspera=` pasa de 35 a **36**; `STORAGE_*` en `config/env.ts`; `construirApp` acepta `almacen` | - V-06: `adjuntos-de-publicacion.tsx` 1.<br>- `config/env.ataque.test.ts`, si compara el objeto completo.<br>- `arranque-r1.ataque.test.ts`, si fija la firma de `construirApp`.<br>**Hecho en la ronda 0 de d (Enmienda 10):**<br>- `frontend/src/styles/clases-r1.ataque.test.ts:126`: 36, con `adjuntos-de-publicacion.tsx` 1 (rojo esperado);<br>- `backend/src/config/env.ataque.test.ts:10-29`: no compara el objeto completo, pero `production` exigirá `STORAGE_*`. El ayudante `enProduccion` suma un almacén válido y fijo, para que todo rechazo del bloque siga siendo por `JWT_SECRET` (en verde antes y después);<br>- `backend/test/arranque-r1.ataque.test.ts:79` (fuera del inventario, con este C-n): el worker en `production` suma `STORAGE_*` válidas, para que lo único que falte siga siendo el correo, y una aserción de que la salida no contiene el secreto del almacén (en verde antes y después);<br>- ninguna `*.ataque` fija la firma de `construirApp`: las 27 llamadas pasan `{ env }`. |
 | C-14 | a | ESLint rechaza `addHook` en `handlers/` | Ninguno |
 | C-15 | b | Migración, tabla y secuencia nuevas (`movimientos_inscripcion`) | Cualquier `*.ataque` que liste de forma cerrada las tablas, las secuencias, las migraciones o los modelos de Prisma. Hoy no conozco ninguno |
 | C-16 | a (ronda 4) | `GET /clases/inscritas` e `/impartidas` responden `400 VALIDACION` ("cursor: no es válido") ante un cursor que ya no es una inscripción del alumno o una clase del maestro (T-18, decisión del humano) | **Ya hecho por el tester, con el arbitraje del manager:** `backend/test/clases-r2.ataque.test.ts`, caso "HEAD, paginación, campos extra y fugas siguen como en la ronda 1".<br>- El cursor de una clase ajena responde `400 VALIDACION` "cursor: no es válido", y el caso sigue afirmando que no hay fuga.<br>- Se suma una aserción: un UUID inexistente responde idéntico, sin oráculo de existencia.<br>- Hash nuevo: `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8`.<br>- Es la única `*.ataque` existente que cambió después de la ronda 0. |
@@ -1414,6 +1604,9 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 | C-18 | c (Enmienda 6) | `nombreClaseSchema` exige al menos 2 caracteres visibles, y los textos obligatorios de c, al menos 1 (§D-C4). Un nombre sin contenido visible o de un solo emoji simple pasa a `400 VALIDACION`. La descripción de la clase no cambia | **Ningún caso conocido; el tester lo confirma.** Inventario del arquitecto: busqué `U+200B`, `U+2060`, `U+FEFF`, esos literales, `Cf`, `nombreClaseSchema`, `textoLargoSchema` y `descripcionClaseSchema` en las `*.ataque` de los dos paquetes.<br>- Ninguna afirma que se acepte un nombre de clase o una descripción con `Cf`.<br>- `backend/test/clases-r2.ataque.test.ts:146` acepta una descripción con U+200D dentro de un emoji. No lo contradice: la descripción no cambia y U+200D se sigue admitiendo.<br>- `frontend/src/features/clases/clases-r2.ataque.test.tsx:87-143` pinta nombres de 60 emojis con datos dobles, sin pasar por el esquema.<br>- No son de C-18: el término de búsqueda (`alumnos-b-r2`, `alumnos-b-r3`), los nombres de persona (`cuentas-03a-r1`, `auth-registro`, `invitacion-r1`), los nombres de la guarda (`nombres-guarda-r3`), el código (`codigo-r1`, `codigo-r2`) y los enlaces del pie (`pie-r2`, `pie-r3`). |
 | C-19 | c (Enmienda 5, §D-C5; Enmienda 6) | `PanelMisClases` usa `useFocoAlCargarMas` de `hooks.ts` para el foco de "Ver más clases" (PR-C11a) | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx:25` simula `./hooks` con una fábrica cerrada de cuatro hooks (`useNombreDeSesion`, `useClasesInscritas`, `useClasesImpartidas` y `useUnirseAClase`). Con Vitest 4, leer un export ausente de un módulo simulado lanza.<br>- **La fábrica suma `useFocoAlCargarMas`** con un doble inerte que devuelve un ref: `() => ({ current: null })`.<br>- **No cambia ninguna aserción.** El caso sigue protegiendo que los inicios sin datos no afirman nada que la API no dio.<br>- **El tester busca además** cualquier otra `*.ataque` que simule `./hooks` (o `../hooks`) con una fábrica cerrada y monte los inicios o el panel, y la trata igual. |
 | C-20 | c (ronda 1; Enmienda 8) | Los `max` y `min` de cadena de `shared/` cuentan en puntos de código, no en unidades de UTF-16 (T-32, §D-C4) | **Lo hace el tester antes del V-01 del programador:** `backend/test/muro-c-r1.ataque.test.ts:855`, caso "máximos en unidades de UTF-16, contados después de normalizar…".<br>- Lo reescribe según la unidad corregida: 2,500 emojis más "a" son 2,501 puntos de código y responden `201`; 5,000 emojis más "a" responden `400`.<br>- No debilita los 10 subcasos ASCII.<br>- Publica el hash nuevo en la tabla de la ronda 1.<br>- Ninguna prueba normal cambia por T-32. |
+| C-21 | d (Enmienda 10; T-36) | `adjuntos` es obligatorio en `publicacionSchema`, sin valor por defecto (§D-D5). Un doble de publicación sin `adjuntos` deja de pasar `listaPublicacionesRespuestaSchema` o `publicacionRespuestaSchema` en el `schema.parse` de `apiClient` | **Lo hace el tester en el complemento de la ronda 0 de d, antes del V-01 del programador.** 45 casos de 5 archivos: `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` (16 de 22), `muro-c-r2.ataque.test.tsx` (11 de 11), `muro-c-r3.ataque.test.tsx` (14 de 15), `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` (3 de 3) y `muro-recuperar-c-r4.ataque.test.tsx` (1 de 1).<br>- **Único cambio permitido:** sumar `adjuntos: []` a cada constructor y a cada objeto en línea que represente una publicación de una respuesta del muro o de crear. Si el archivo usa un constructor, el cambio va en el constructor y no en cada caso.<br>- **No cambia ninguna aserción ni ningún título.** Un doble hecho inválido a propósito no se toca, y el tester lo justifica en el reporte.<br>- **Sigue protegiendo lo mismo, y en verde antes y después:** hoy `z.object` descarta la clave sobrante.<br>- **El tester lo demuestra** repitiendo su simulación del scratchpad con `adjuntos` y `archivoIds` juntos: ninguna `*.ataque` del muro cae, y solo caen las pruebas normales de N-3 y N-4.<br>- **Busca además** cualquier otra `*.ataque` de los dos paquetes que arme una publicación o fije su lista de claves (`muro-rutas-c-r1` solo usa listas vacías), y la trata igual. |
+| C-22 | d (Enmienda 10; T-37) | El formulario envía siempre `archivoIds`, `[]` si no hay adjuntos (§D-D5) | **Lo hace el tester en el mismo complemento:** `frontend/src/features/clases/muro-c-r2.ataque.test.tsx:385`, "material con extremos en blanco en el título y la descripción: se envían normalizados".<br>- El objeto esperado de `:398` suma `archivoIds: []`. Nada más cambia: sigue protegiendo la normalización de T-31.<br>- **Queda en rojo hasta que el programador termine** (hoy el formulario no envía la clave). Es el tercer rojo esperado de d, con los de C-2 y C-13.<br>- Si encuentra otro caso que compare completo el cuerpo de crear publicación, lo trata igual y lo suma a los rojos esperados. |
+| C-23 | d (ronda 2; PA-12; Enmienda 13) | El caso del tester de la ronda 1 "estudiante inscrito no solicita ni publica; …" contaba toda la tabla `archivos` con `archivo.count()`, y falló una vez (`expected 61 to be 60`) por inserciones de otros archivos de prueba en paralelo. Es un fallo de la prueba, no de producción | **Ya hecho por el tester, con el arbitraje del manager (opción (a) con una condición):** `backend/test/archivos-d-r1.ataque.test.ts`.<br>- Los dos conteos de `archivo.count()` se acotan con `where: { OR: [{ claseId: { in: [...] } }, { subidoPor: { in: [...] } }] }`: las clases que aparecen en las URL del caso (tres; `claseB` no se usa) y los usuarios que hacen peticiones (cinco).<br>- **Por qué los dos:** solo con las clases, una escritura indebida con otro `claseId` pasaría sin detectarse.<br>- **Ninguna otra aserción cambió**, ni el título, ni las comprobaciones de que no se firma nada.<br>- Hash: `B1A6B7FE…` → `79BB87AE390140BD5F5E5BA00E1A32A8E41937DE2A98D59E83335C34A8FB94BB`.<br>- Es la única `*.ataque` de d que cambió después de publicarse. |
 
 **Al terminar cada ronda 0:**
 - Los casos reescritos quedan **en rojo** hasta que el programador termine, y ninguno más.
@@ -1430,7 +1623,7 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 | Archivo | Sub. | Acción | Contenido |
 |---|---|---|---|
 | `src/clases.ts` | a, b, c, d | Crear (a); Modificar (b, c, d) | **a:** §D-A3 (con `SEPARADORES_CODIGO_CLASE` y el rechazo de U+2028 y U+2029) y `CODIGOS_CLASES`.<br>**b:** `estadoPagoSchema`, `paginacionRosterSchema`, `personasRespuestaSchema`, `alumnoDeClaseSchema` (con `email` completo), `listaAlumnosRespuestaSchema`, `busquedaCandidatosSchema`, `candidatoSchema = { id, nombre, correoEnmascarado, yaInscrito }` (**sin** `email`, P-05 f), `candidatosRespuestaSchema`, `agregarAlumnoSchema`, `agregarAlumnoRespuestaSchema` (`{ alumno: { id, nombre }, yaEstaba }`) y `alumnoIdParamSchema`. Además, la normalización y el criterio del término (T-20, T-24): `normalizarTerminoDeBusqueda`, `LONGITUD_MINIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA`, `LONGITUD_MAXIMA_BUSQUEDA_CRUDA` y `estadoDeTerminoDeBusqueda` (§D-B3).<br>**c:** `tipoPublicacionSchema`, `crearPublicacionSchema` (discriminada), `publicacionSchema`, `listaPublicacionesRespuestaSchema`, `crearComentarioSchema`, `comentarioSchema`, `listaComentariosRespuestaSchema` y los esquemas de parámetros.<br>**c (Enmienda 6, §D-C4):** `contarCaracteresVisibles`, `MINIMO_VISIBLES_NOMBRE_CLASE`, `MINIMO_VISIBLES_TEXTO` y `textoConContenidoSchema(max, mensaje)`; `nombreClaseSchema` suma el `refine` de contenido visible; `crearPublicacionSchema` y `crearComentarioSchema` lo usan en sus textos obligatorios.<br>**c (Enmienda 8):** `normalizarTextoLargo` (desde `core/clases/texto.ts`, T-31); el `error` en español del `discriminatedUnion` y de la descripción del material (T-33).<br>**c (Enmienda 9, desviación aceptada):** los envoltorios `publicacionRespuestaSchema` y `comentarioRespuestaSchema`.<br>**d:** `adjuntos` en `publicacionSchema` y `archivoIds` en `crearPublicacionSchema`. |
-| `src/archivos.ts` | d | Crear | §D-D4 |
+| `src/archivos.ts` | d | Crear | §D-D4 (desde la Enmienda 12, con `urlDelAlmacenSchema` en las tres URL del almacén, T-39) |
 | `src/index.ts` | a, b, c, d | Modificar | Reexporta lo nuevo |
 
 ### backend/core/ (funciones puras, con pruebas unitarias)
@@ -1443,7 +1636,7 @@ La ronda 0 no cuenta en el tope de 3. El tester reescribe **solo** los casos `*.
 | `core/clases/busqueda.ts` (Crear) | b | - `prepararTerminoDeBusqueda(q: string): string \| null`, con `normalizarTerminoDeBusqueda` y `LONGITUD_MINIMA_BUSQUEDA` importadas de `shared/` (T-24)<br>- `escaparComodinesLike(t: string): string`<br>- `enmascararCorreo(email: string): string` (S-22) |
 | `core/eventos/avisos-de-clase.ts` (Crear) | c | §D-C3 |
 | `core/archivos/almacen.ts` (Crear) | d | `interface Almacen` (§D-D2) |
-| `core/archivos/politica.ts` (Crear) | d | - `validarArchivoDeclarado({ nombre, tipo, tamano }): AppError \| null`<br>- `claveDeMaterial(claseId: string, archivoId: string): string`<br>- `esImagenConVistaPrevia(tipo: string): boolean`<br>- `disposicionDeContenido(nombre: string, modo: "inline" \| "attachment"): string`<br>- `coincideConLoDeclarado(declarado, real): "ok" \| "falta" \| "distinto"`<br>- `VIGENCIA_URL_FIRMADA_S = 300` |
+| `core/archivos/politica.ts` (Crear) | d | - `validarArchivoDeclarado({ nombre, tipo, tamano }): AppError \| null`<br>- `claveDeMaterial(claseId: string, archivoId: string): string`<br>- `esImagenConVistaPrevia(tipo: string): boolean`<br>- `disposicionDeContenido(nombre: string, modo: "inline" \| "attachment"): string`<br>- `coincideConLoDeclarado(declarado, real): "ok" \| "falta" \| "distinto"`<br>- `VIGENCIA_URL_FIRMADA_S = 300`<br>- (Enmienda 11) tres fábricas de error, para no repetir los mensajes entre los dos handlers: `almacenNoConfigurado(): AppError`, `archivoNoSubido(): AppError` y `archivoNoCoincide(): AppError`<br>- (Enmienda 12, T-42) `CARACTER_PROHIBIDO_EN_NOMBRE` suma `\p{Cs}` (§D-D4) |
 
 La regla de contenido visible (Enmienda 6) no agrega nada a `core/`: vive en `shared/` y la aplican los esquemas. Desde la Enmienda 8, `normalizarTextoLargo` también se define en `shared/`, y `core/clases/texto.ts` solo la reexporta (T-31).
 
@@ -1452,8 +1645,8 @@ La regla de contenido visible (Enmienda 6) no agrega nada a `core/`: vive en `sh
 |---|---|---|---|
 | `db/clases.ts` | a | Crear | - `buscarDatosDePertenencia`<br>- `crearClase(datos, generarCodigo)`, `editarClase`, `leerClase`, `leerCodigo` y `regenerarCodigo(…, generarCodigo)`<br>- `listarClasesImpartidas` y `listarClasesInscritas`, con la comprobación del cursor por PK de §D-A4<br>- `buscarClasePorCodigo` e `inscribir({ claseId, usuarioId, origen }): Promise<{ yaEstaba: boolean }>` (unirse con código; no registra movimientos) |
 | `db/inscripciones.ts` | b | Crear | - `listarPersonas` y `listarAlumnosDeClase`, con la paginación de §D-B3 bis. `listarAlumnosDeClase` es **la única** que selecciona `estadoPago` y `accesoRestringido`<br>- `buscarCandidatos({ claseId, termino, limite })`, que selecciona el `email` para que el handler lo enmascare<br>- `agregarAlumnoManual({ claseId, alumnoId, maestroId })` y `quitarAlumno({ claseId, alumnoId, maestroId })`, cada una en una transacción, con su escritura en `movimientos_inscripcion` como último paso (§D-B2)<br>- **Ninguna función exportada lee `movimientos_inscripcion`** |
-| `db/publicaciones.ts` | c, d | Crear (c); Modificar (d) | **c:**<br>- `crearPublicacion({ id, claseId, autorId, tipo, titulo, texto }, alGuardar)`, `listarPublicaciones` y `borrarPublicacion`<br>- `listarComentarios` y `crearComentario({ id, claseId, publicacionId, autorId, texto }, alGuardar)`, con el `FOR SHARE`; devuelve `null` si no hay publicación<br>- `borrarComentario` y `borrarMiComentario`<br>**d:** confirmación de `archivoIds`, adjuntos en el listado y descarte al borrar |
-| `db/archivos.ts` | d | Crear | `registrarArchivoPendiente`, `buscarArchivosParaConfirmar` y `buscarArchivoConfirmado` |
+| `db/publicaciones.ts` | c, d | Crear (c); Modificar (d) | **c:**<br>- `crearPublicacion({ id, claseId, autorId, tipo, titulo, texto }, alGuardar)`, `listarPublicaciones` y `borrarPublicacion`<br>- `listarComentarios` y `crearComentario({ id, claseId, publicacionId, autorId, texto }, alGuardar)`, con el `FOR SHARE`; devuelve `null` si no hay publicación<br>- `borrarComentario` y `borrarMiComentario`<br>**d:** confirmación de los archivos, adjuntos en el listado y descarte al borrar. Desde la Enmienda 11, `crearPublicacion` recibe `archivos?: readonly ArchivoDb[]` (las filas de `buscarArchivosParaConfirmar`, `[]` por defecto) en lugar de `archivoIds`: confirma esos ids con el `UPDATE` de §D-D3, punto 3.3, que repite todas sus condiciones, y arma con esas filas los `adjuntos` del `201`, sin otra consulta (C-21) |
+| `db/archivos.ts` | d | Crear | `registrarArchivoPendiente`, `buscarArchivosParaConfirmar({ ids, claseId, subidoPor })` (con los filtros de §D-D3, punto 3.1; Enmienda 11) y `buscarArchivoConfirmado` |
 | `db/index.ts` | a, b, c, d | Modificar | Reexporta lo nuevo. No reexporta `obtenerDb` |
 | `queue/colas.ts` | c | Modificar | §D-C3 |
 | `storage/index.ts` | d | Crear | §D-D2 |
@@ -1538,14 +1731,14 @@ Sin cambios.
 |---|---|---|
 | `types.ts` | a–d | Reexporta los tipos de `shared/`; tipos exclusivos de la interfaz |
 | `data.ts` | a–d | Textos de §D-A7, §D-B6, §D-C6 y §D-D6; claves de consulta; `ACCEPT_DE_ADJUNTOS` (d). En b, además, "Nueva clase" y "Crear clase" del inicio del maestro (§D-B4 bis). En c (Enmienda 9), `TEXTOS_MURO.cambioMientrasLoVeias` y `TEXTOS_COMENTARIOS.cambioMientrasLosVeias` (T-34) |
-| `lib.ts` | a–d | `varianteDeClase`, `titularInicio`, `siguientePasoInicio`, `textoConteoAlumnos`, `terminoDeBusquedaValido` y `terminoDeBusquedaMuyLargo` (b, sobre `estadoDeTerminoDeBusqueda` de `shared/`), el reparto de errores de N-04 (b, si vive aquí), `focoPerdido(documento)` (c, Enmienda 6, desde `hooks.ts`), `mensajeDeErrorDeLista(error, textoDelCursor)` (c, Enmienda 9, T-34), `vecinaDeFila` (c, desviación aceptada) y `errorDeArchivoElegido` (d) |
-| `hooks.ts` | a–d | - **a:** `useNombreDeSesion`, `useClasesInscritas`, `useClasesImpartidas`, `useClase`, `useCodigoDeClase`, `useCrearClase`, `useEditarClase`, `useRegenerarCodigo` y `useUnirseAClase`<br>- **b:** §D-B5<br>- **c:** `usePublicaciones`, `useCrearPublicacion`, `useBorrarPublicacion`, `useComentarios`, `useComentar`, `useBorrarComentario` y `useBorrarMiComentario`; además (Enmienda 6), los avisos de `useAgregarAlumno` en sus callbacks, y `focoPerdido` deja de exportarse de aquí; y (Enmienda 8, T-30), los avisos de `useCrearPublicacion` y `useComentar` en sus callbacks<br>- **d:** `useSolicitarSubida` y `useUrlDeDescarga` |
+| `lib.ts` | a–d | `varianteDeClase`, `titularInicio`, `siguientePasoInicio`, `textoConteoAlumnos`, `terminoDeBusquedaValido` y `terminoDeBusquedaMuyLargo` (b, sobre `estadoDeTerminoDeBusqueda` de `shared/`), el reparto de errores de N-04 (b, si vive aquí), `focoPerdido(documento)` (c, Enmienda 6, desde `hooks.ts`), `mensajeDeErrorDeLista(error, textoDelCursor)` (c, Enmienda 9, T-34), `vecinaDeFila` (c, desviación aceptada), `errorDeArchivoElegido` (d) y la función pura del `staleTime` del muro (d, Enmienda 12, T-40; por ejemplo `tiempoFrescoDelMuro(paginas, dataUpdatedAt)`) |
+| `hooks.ts` | a–d | - **a:** `useNombreDeSesion`, `useClasesInscritas`, `useClasesImpartidas`, `useClase`, `useCodigoDeClase`, `useCrearClase`, `useEditarClase`, `useRegenerarCodigo` y `useUnirseAClase`<br>- **b:** §D-B5<br>- **c:** `usePublicaciones`, `useCrearPublicacion`, `useBorrarPublicacion`, `useComentarios`, `useComentar`, `useBorrarComentario` y `useBorrarMiComentario`; además (Enmienda 6), los avisos de `useAgregarAlumno` en sus callbacks, y `focoPerdido` deja de exportarse de aquí; y (Enmienda 8, T-30), los avisos de `useCrearPublicacion` y `useComentar` en sus callbacks<br>- **d:** `useSolicitarSubida` y `useUrlDeDescarga`; desde la Enmienda 12 (T-40), `usePublicaciones` usa como `staleTime` la función de `lib.ts` |
 | `inicio-estudiante-view.tsx`, `inicio-maestro-view.tsx`, `clase-layout.tsx`, `crear-clase-view.tsx`, `editar-clase-view.tsx`, `muro-view.tsx` | a (`muro-view` provisional), c; `inicio-maestro-view.tsx` se modifica en b (textos a `data.ts`, §D-B4 bis); `clase-layout.tsx` y `editar-clase-view.tsx` se modifican en c (N-B1, §D-C5 bis); en c, `muro-view.tsx` también usa `ConClaseDeLaRuta` (desviación aceptada), `mensajeDeErrorDeLista` (T-34) y el `refetch()` al pulsar "Muro" con la lista en error (T-35, Enmienda 9) | Vistas |
 | `personas-view.tsx`, `alumnos-view.tsx` | b; se modifican en c (N-B1, §D-C5 bis) | Vistas |
 | `components/bloque-destacado.tsx`, `tarjeta-clase.tsx`, `panel-mis-clases.tsx`, `formulario-unirse-clase.tsx`, `formulario-clase.tsx`, `encabezado-clase.tsx`, `codigo-de-clase.tsx`, `secciones-de-clase.tsx` | a; `secciones-de-clase.tsx` y `formulario-unirse-clase.tsx` (N-04, §D-B4 bis) se modifican en b; **`panel-mis-clases.tsx` se modifica en c**, solo para el foco de "Ver más clases" (§D-C5, Enmienda 5) | Crear |
 | `components/buscador-alumnos.tsx`, `tabla-alumnos.tsx`, `lista-personas.tsx` | b; `buscador-alumnos.tsx` y `tabla-alumnos.tsx` se modifican en c (aviso de agregar y `focoPerdido`, §D-C5 bis) | Crear |
 | `components/con-clase-de-la-ruta.tsx` | c (Enmienda 6, §D-C5 bis) | Crear |
-| `components/formulario-publicacion.tsx`, `publicacion-del-muro.tsx`, `comentarios-de-publicacion.tsx`, `formulario-comentario.tsx` | c (`formulario-publicacion.tsx` se modifica en d). En c (Enmienda 8), `formulario-publicacion.tsx` y `formulario-comentario.tsx` normalizan antes de validar (T-31) y solo manejan estado local en `mutate` (T-30); `comentarios-de-publicacion.tsx` usa `mensajeDeErrorDeLista` (T-34, Enmienda 9) | Crear |
+| `components/formulario-publicacion.tsx`, `publicacion-del-muro.tsx`, `comentarios-de-publicacion.tsx`, `formulario-comentario.tsx` | c (`formulario-publicacion.tsx` se modifica en d; **`publicacion-del-muro.tsx` también se modifica en d**, autorizado de forma retroactiva por la Enmienda 11: monta `AdjuntosDePublicacion` y elige la frase de borrar según tenga o no adjuntos, §D-D5). En c (Enmienda 8), `formulario-publicacion.tsx` y `formulario-comentario.tsx` normalizan antes de validar (T-31) y solo manejan estado local en `mutate` (T-30); `comentarios-de-publicacion.tsx` usa `mensajeDeErrorDeLista` (T-34, Enmienda 9) | Crear |
 | `components/lista-de-adjuntos-elegidos.tsx`, `adjuntos-de-publicacion.tsx` | d | Crear |
 
 - Ningún componente llama a `fetch`: solo lo hacen `services/apiClient.ts` y `services/almacenService.ts`.
@@ -1563,7 +1756,7 @@ Tres grupos por subentrega. **Solo** estos archivos de pruebas se crean o se mod
 | **a** | **Backend:** `src/core/clases/codigo.test.ts`, `src/core/clases/pertenencia.test.ts`, `src/core/clases/texto.test.ts`, `src/core/paginacion.test.ts`, `test/ayudas-clases.ts` (ayuda), `test/guarda-clase.integracion.test.ts`, `test/clases.integracion.test.ts` y `test/clases-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/lib.test.ts`, `inicio-estudiante-view.test.tsx`, `inicio-maestro-view.test.tsx`, `clase-layout.test.tsx` y `formulario-clase.test.tsx`; `src/features/auth/cambio-de-identidad.test.tsx`. | - `backend/src/middleware/index.test.ts`: el caso "501" pasa a PR-A07d.<br>- `backend/test/middleware-orden.integracion.test.ts`: el caso de `:99` pasa a PR-A07a a PR-A07c.<br>- `frontend/src/app/router.test.tsx`: PR-A26a a PR-A26c y "Hola" como texto.<br>- `frontend/src/styles/tokens.test.ts`: PR-A24.<br>- `frontend/src/components/estado-vacio.test.tsx`: PR-A25.<br>- `frontend/src/lib/format.test.ts`: PR-A27.<br>- **Solo para adaptarse a los inicios nuevos:** `frontend/src/app/marco.test.tsx`, `frontend/src/features/auth/login-view.test.tsx`, `frontend/src/features/auth/registro-view.test.tsx` y `frontend/src/features/auth/registro-maestro-view.test.tsx`. Se permite exactamente agregar al doble de `fetch` la respuesta de `/api/clases/inscritas` o `/impartidas`, o cambiar `findByRole("heading", { name: "Hola, X" })` por `findByText("Hola, X")`. No se quita ninguna aserción, y cada caso cambiado se lista en el resumen. | — |
 | **b** | **Backend:** `src/core/clases/busqueda.test.ts`, `test/alumnos.integracion.test.ts`, `test/alumnos-autorizacion.integracion.test.ts` y `test/movimientos-inscripcion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/personas-view.test.tsx` y `alumnos-view.test.tsx`; `src/components/estado-pago-badge.test.tsx`. | — | - `backend/test/ayudas-clases.ts`: limpieza de movimientos y después de clases, que corre **antes** de `borrarUsuariosDePrueba` en cada archivo de b (N-10, §D-B8).<br>- `frontend/src/features/clases/lib.test.ts` (PR-B09).<br>- `clase-layout.test.tsx` (PR-B14).<br>- `frontend/src/app/router.test.tsx` (PR-B15).<br>- `frontend/src/features/clases/inicio-estudiante-view.test.tsx` (PR-B17, N-04). |
 | **c** | **Backend:** `src/core/eventos/avisos-de-clase.test.ts`, `test/muro.integracion.test.ts` y `test/muro-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/features/clases/muro-view.test.tsx`, `formulario-publicacion.test.tsx` y `publicacion-del-muro.test.tsx`; `src/features/clases/con-clase-de-la-ruta.test.tsx` (Enmienda 6). | `backend/test/bloqueo-usuario.integracion.test.ts` (Enmienda 7): solo el caso E6 suma `"publicaciones.ts"` a su lista cerrada, a su título y a su comentario. No se reescribe el caso ni se quita ninguna aserción, y la lista sigue cerrada: `publicaciones.ts` es el único archivo de c con SQL etiquetado (V-04) | - `backend/test/ayudas-clases.ts` (misma regla de orden de limpieza).<br>- `frontend/src/features/clases/inicio-estudiante-view.test.tsx` (PR-C11a, foco de "Ver más clases"; Enmienda 5).<br>- `backend/src/core/clases/texto.test.ts` (PR-C12a a PR-C12d; Enmienda 6).<br>- `backend/test/clases.integracion.test.ts` (PR-C12f).<br>- `frontend/src/features/clases/components/formulario-clase.test.tsx` (PR-C12g).<br>- `frontend/src/features/clases/lib.test.ts` (PR-C13c).<br>- `frontend/src/features/clases/alumnos-view.test.tsx` (PR-C13a y PR-C13b). |
-| **d** | **Backend:** `src/core/archivos/politica.test.ts`, `src/config/almacen.test.ts`, `src/adapters/storage/index.test.ts`, `test/almacen-en-memoria.ts` (ayuda), `test/archivos.integracion.test.ts` y `test/archivos-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/services/almacenService.test.ts` y `src/features/clases/adjuntos-de-publicacion.test.tsx`. | `backend/src/config/env.test.ts` (PR-D02a a PR-D02c) | - `backend/test/ayudas-clases.ts` (misma regla de orden de limpieza).<br>- `frontend/src/lib/format.test.ts` (PR-D14).<br>- `frontend/src/features/clases/lib.test.ts` (PR-D15).<br>- `formulario-publicacion.test.tsx` (PR-D11a a PR-D12c). |
+| **d** | **Backend:** `src/core/archivos/politica.test.ts`, `src/config/almacen.test.ts`, `src/adapters/storage/index.test.ts`, `test/almacen-en-memoria.ts` (ayuda), `test/archivos.integracion.test.ts` y `test/archivos-autorizacion.integracion.test.ts`.<br>**Frontend:** `src/services/almacenService.test.ts` y `src/features/clases/adjuntos-de-publicacion.test.tsx`. | `backend/src/config/env.test.ts`: PR-D02a a PR-D02c (casos nuevos) y, por la Enmienda 10, exactamente estos tres casos existentes:<br>- **N-1**, `:10`, "acepta el mínimo (DATABASE_URL y JWT_SECRET) y aplica los valores por defecto": el objeto esperado suma `STORAGE_REGION: "us-east-1"` y `STORAGE_BUCKET_PRIVADO: "campus-privado"`;<br>- **N-2**, `:184`, "acepta en production un JWT_SECRET propio de 32 caracteres o más": su entrada suma las tres `STORAGE_*` con valores válidos y ficticios (endpoint `https`);<br>- **`:130`**, "en production también rechaza el ejemplo con blancos alrededor y un secreto de solo blancos (T-08)": su entrada suma el mismo almacén válido, para que el rechazo siga siendo solo por `JWT_SECRET`.<br>Se permite una constante con ese almacén al inicio del archivo. No se quita ninguna aserción, y cada caso cambiado se lista en el resumen, con línea y título. | - `backend/test/ayudas-clases.ts` (misma regla de orden de limpieza).<br>- `frontend/src/lib/format.test.ts` (PR-D14).<br>- `frontend/src/features/clases/lib.test.ts` (PR-D15).<br>- `formulario-publicacion.test.tsx` (PR-D11a a PR-D12c).<br>**Enmienda 10 (C-21 y C-22): adaptación de casos existentes, autorizada aquí.** No es una reescritura en el sentido de PA-16, siempre que sea exactamente esto:<br>- **N-3**, `frontend/src/features/clases/formulario-publicacion.test.tsx`: el doble `publicacionCreada` (`:20`) suma `adjuntos: []`; los cuerpos esperados de `:107` (PR-C09b), `:158` ("un material sin descripción se publica con solo el título"), `:270` y `:282` (PR-C15b) suman `archivoIds: []`;<br>- **N-4**, `frontend/src/features/clases/muro-view.test.tsx` (se agrega a este grupo): el doble `publicacion()` (`:27`) suma `adjuntos: []`;<br>- **N-5**, `frontend/src/features/clases/publicacion-del-muro.test.tsx` (se agrega a este grupo): el constructor `publicacion(): Publicacion` (`:23`) suma `adjuntos: []`.<br>Ninguna aserción se quita ni se debilita, y ningún título cambia. Si otro caso existente de estos tres archivos cae por la misma causa (un doble de publicación en línea sin `adjuntos`, o un cuerpo completo sin `archivoIds`), se adapta igual. Cada caso cambiado se lista en el resumen, con archivo, línea y título, como en a. Cualquier otro cambio en ellos activa PA-16. |
 
 ---
 
@@ -1585,13 +1778,13 @@ Ninguna consulta va dentro de un ciclo. Toda lista se pagina (100 como máximo).
 | `agregarAlumnoManual` (b) | 1. `usuarios` por PK (`id`, `nombre`).<br>2. `INSERT inscripciones ON CONFLICT DO NOTHING`.<br>3. Si insertó, `INSERT movimientos_inscripcion` (toma `secuencia`). | PK; PK; PK | — | **Sí** |
 | `quitarAlumno` (b) | 1. `DELETE inscripciones` por PK.<br>2. Si borró, `INSERT movimientos_inscripcion` (toma `secuencia`). | PK; PK | — | **Sí** |
 | `listarPublicaciones` (c; d suma adjuntos) | 1. Con cursor, `publicaciones` por PK (`id` = cursor, `clase_id`); si no hay fila, `400` (§D-A4, principio común; T-29).<br>2. `publicaciones WHERE clase_id ORDER BY creado_en DESC, id DESC`, con cursor e `include` del autor.<br>3. `groupBy comentarios WHERE publicacion_id IN (página)`.<br>4. (d) `archivos WHERE publicacion_id IN (página) AND estado = 'confirmado'`. | PK; `(clase_id, creado_en DESC, id DESC)`; `(publicacion_id, creado_en, id)`; `archivos(publicacion_id)` | Sí (20) | No |
-| `crearPublicacion` (c; d confirma) | `INSERT publicaciones`; (d) `UPDATE archivos WHERE id IN (≤5) AND …`; `insert` de pg-boss | PK | — | **Sí** |
+| `crearPublicacion` (c; d confirma) | `INSERT publicaciones`; (d) `UPDATE archivos WHERE id IN (≤5) AND …`, con los ids de las filas recibidas (Enmienda 11); `insert` de pg-boss | PK | — | **Sí** |
 | `borrarPublicacion` (c; d) | (d) `UPDATE archivos WHERE publicacion_id`; `DELETE publicaciones WHERE id AND clase_id` | `archivos(publicacion_id)`; PK | — | Sí |
 | `listarComentarios` (c) | 1. `publicaciones WHERE id AND clase_id` (sin fila, `404`).<br>2. Con cursor, `comentarios` por PK (`id` = cursor, `publicacion_id`); si no hay fila, `400` (§D-A4, principio común; T-29).<br>3. `comentarios WHERE publicacion_id ORDER BY creado_en, id`, cursor e `include` del autor. | PK; PK; `(publicacion_id, creado_en, id)` | Sí (20) | No |
 | `crearComentario` (c) | `SELECT … FOR SHARE` (`$queryRaw` etiquetado); `INSERT comentarios`; `insert` de pg-boss | PK | — | **Sí** |
 | `borrarComentario` y `borrarMiComentario` (c) | `DELETE comentarios WHERE id AND publicacion.clase_id [AND publicacion_id \| AND autor_id]` | PK | — | No |
 | `registrarArchivoPendiente` (d) | `INSERT archivos` | PK; único | — | No |
-| `buscarArchivosParaConfirmar` (d) | `archivos WHERE id IN (≤5)` | PK | Entrada acotada a 5 | No |
+| `buscarArchivosParaConfirmar` (d) | `archivos WHERE id IN (≤5) AND clase_id AND subido_por AND estado = 'pendiente' AND publicacion_id IS NULL AND creado_en > ahora − 24 h` (filtros de la Enmienda 11) | PK | Entrada acotada a 5 | No (el `UPDATE` de `crearPublicacion` repite las condiciones dentro de la transacción) |
 | `buscarArchivoConfirmado` (d) | `archivos WHERE id AND clase_id AND estado = 'confirmado'` | PK | — | No |
 
 `movimientos_inscripcion` solo recibe `INSERT`; no hay ninguna consulta de lectura (por eso no lleva índices secundarios, §D-B8). Su orden es `secuencia`.
@@ -1917,6 +2110,7 @@ Enmienda 8: los IDs PR-C03f a PR-C16 van en archivos que ya están en la lista c
 | PR-D06a | ídem | en el muro, `vistaPrevia` solo en las imágenes |
 | PR-D06b | ídem | sin almacén, `vistaPrevia: null` y la lista sale igual |
 | PR-D06c | ídem | el recorrido recursivo del muro no encuentra `clave_objeto`, `claveObjeto` ni `estadoPago` |
+| PR-D06d | ídem | (Enmienda 10, C-21) una publicación sin adjuntos sale con `adjuntos: []` en el muro y en la respuesta `201` de crear; con adjuntos, la respuesta de crear los trae con la forma del muro, y las dos pasan `publicacionRespuestaSchema` y `listaPublicacionesRespuestaSchema` de `shared/` |
 | PR-D07a | ídem | descarga: el miembro recibe 200 con `no-store` |
 | PR-D07b | ídem | descarga de un archivo de otra clase con el `claseId` propio → 404 |
 | PR-D07c | ídem | descarga de un pendiente → 404 |
@@ -1940,6 +2134,16 @@ Enmienda 8: los IDs PR-C03f a PR-C16 van en archivos que ya están en la lista c
 | PR-D13c | ídem | "Descargar" pide la URL (`enEspera`) y llama a `window.location.assign` (doble) |
 | PR-D14 | `frontend/src/lib/format.test.ts` (extendido) | `formatearTamano`: "820 KB" y "2.4 MB" |
 | PR-D15 | `frontend/src/features/clases/lib.test.ts` (extendido) | `errorDeArchivoElegido` para tipo, tamaño y cantidad |
+| PR-D16 | `frontend/src/features/clases/formulario-publicacion.test.tsx` (extendido) | (Enmienda 12, T-38) con la solicitud del primer archivo en vuelo: "Quitar" no saca el archivo ni evita que se publique, elegir otro no lo agrega y la nota está visible. Al terminar, el cuerpo de publicar lleva exactamente los ids de la lista que se veía, la lista se limpia y los controles vuelven a actuar |
+| PR-D17a | `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx` | (Enmienda 12, T-39) una respuesta de descarga con `javascript:alert(1)` o con `data:text/html,…` no llama a `window.location.assign` y da un solo `toast.error` |
+| PR-D17b | `backend/src/core/archivos/politica.test.ts` | (Enmienda 12, T-39) `urlDelAlmacenSchema` acepta `http://` y `https://`, y rechaza `javascript:`, `data:`, `vbscript:`, `file:` y `ftp:`. Importa de `@campus/shared`, como PR-C15a |
+| PR-D18a | `frontend/src/features/clases/lib.test.ts` (extendido) | (Enmienda 12, T-40) la función de `staleTime` con y sin vistas previas, con dos páginas firmadas en momentos distintos (gana el `expiraEn` más temprano) y con un vencimiento ya pasado (da 0) |
+| PR-D18b | `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx` | (Enmienda 12, T-40) una imagen que falló con una URL vuelve a mostrarse cuando el adjunto llega con otra URL |
+| PR-D19 | `frontend/src/features/clases/formulario-publicacion.test.tsx` (extendido) | (Enmienda 12, T-41) un `400 ARCHIVO_INVALIDO` al solicitar da un solo aviso con «nombre» y el mensaje del servidor; un `503` al solicitar da «nombre» y el texto de `ALMACEN_*`; ninguno publica |
+| PR-D20 | `backend/src/core/archivos/politica.test.ts` | (Enmienda 12, T-42) `validarArchivoDeclarado` con un sustituto alto suelto y con uno bajo suelto da `ARCHIVO_INVALIDO`; un emoji (un par válido) en el nombre se acepta |
+| PR-D21 | `frontend/src/lib/format.test.ts` (extendido) | (Enmienda 12, T-43) 1,048,575 y 1,048,064 bytes dan "1 MB"; 1,047,552 da "1023 KB". (Enmienda 13, T-44) Un segundo caso, en el mismo archivo y con el mismo ID: los cambios de unidad a MB y a GB (por ejemplo, 1,073,741,823 bytes dan "1 GB", nunca "1024 MB") |
+
+Enmienda 12: los IDs PR-D16 a PR-D21 van en archivos que ya están en la lista cerrada de d (nuevos de d: `adjuntos-de-publicacion.test.tsx` y `politica.test.ts`; del propio encargo que se extienden: `formulario-publicacion.test.tsx`, `lib.test.ts` y `format.test.ts`). No hace falta ningún archivo nuevo. Los 10 casos rojos de la ronda 1 del tester deben pasar tal como están; ninguna `*.ataque` se reescribe.
 
 ---
 
@@ -1971,6 +2175,14 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
 
    **Casos fuera del inventario:** si encuentras un caso contradicho que el plan no lista, lo reescribes igual y **citas el C-n que lo contradice**. Si ningún C-n lo contradice, es un hallazgo: no lo reescribes y lo reportas.
 3. **Reporte:** en `reporte-tester.md`, "CLASES-x — Ronda 0", el diff, la lista exacta de casos que quedan en rojo y la tabla de hashes de todas las `*.ataque`. Formatea solo los archivos que tocaste, desde su paquete.
+4. **Complemento de la ronda 0 de d (Enmienda 10; antes del V-01 del programador; no cuenta en el tope de 3):**
+   - **Precondiciones:** las de la ronda 0 de d, con V-01 contra la tabla de "CLASES-d — Ronda 0" (97 `*.ataque`, 4 cambiadas) y el árbol de los paquetes con solo esas 4 `*.ataque` cambiadas contra `<Cc>`.
+   - **Reescritura:** solo C-21 y C-22 (§D-R0), con su búsqueda propia de otros dobles de publicación y de otros cuerpos completos de crear publicación en las `*.ataque` de los dos paquetes.
+   - **Comprobación:** la simulación del scratchpad (PA-15) con `adjuntos` y `archivoIds` juntos: no cae ninguna `*.ataque` del muro (tampoco `muro-c-r2:385`), y solo caen las pruebas normales de N-3 y N-4. Con el control, el único rojo nuevo es `muro-c-r2:385`.
+   - **Reporte:** en `reporte-tester.md`, "CLASES-d — Ronda 0, complemento (C-21 y C-22)":
+     - el diff de cada archivo;
+     - la lista exacta de rojos esperados de d: `sesiones-y-cadena:492` (C-2), `styles/clases-r1:126` (C-13) y `muro-c-r2:385` (C-22), más los que agregue la búsqueda propia de C-22;
+     - la tabla de hashes de todas las `*.ataque`, que es la base de V-01 del programador.
 
 ### CLASES-a
 1. **Pertenencia:**
@@ -2039,6 +2251,7 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
 2. **Descarga:** un `archivoId` de otra clase; uno pendiente; uno descartado; un restringido.
 3. **URLs y cabeceras:** vigencia de 5 minutos; `response-content-disposition` con un nombre malicioso (comillas, CRLF, `;`); el `Authorization` nunca va al almacén.
 4. **Secretos:** `STORAGE_SECRET_KEY` o una firma `X-Amz-Signature` en los logs (PA-10).
+5. **Forma de la publicación (Enmienda 10, C-21 y C-22):** una respuesta del muro o de crear sin `adjuntos`, sin almacén o sin adjuntos; un `?? []` o un `.default` que esconda su falta en el frontend o en `shared/`; un cuerpo de crear sin `archivoIds`.
 
 ---
 
@@ -2093,6 +2306,8 @@ Reglas de `tester.md`: sin selectores de clase y sin navegadores. Las `*.ataque`
   - No se cambia en CLASES.
 
 ### Textos literales propuestos para documentos (los aplica el orquestador al cerrar cada subentrega, con autorización del humano)
+
+**Para d manda la "Versión final (d)" del final de esta sección (Enmienda 13),** que reemplaza las entradas marcadas (d) de abajo.
 
 **`docs/ARCHITECTURE.md` §6, tabla de la cadena, fila 6 (CLASES-a).** Reemplaza la fila por:
 > | 6 | `requireMembership` / `requireOwnership` sobre el parámetro `:claseId` de la ruta. `requireMembership` deja pasar al estudiante inscrito y al maestro dueño; `requireOwnership`, solo al maestro dueño. Clase inexistente o ajena: la misma respuesta. El administrador no pasa por ninguna de las dos: sus rutas de clases viven bajo `/admin` | 403 `SIN_ACCESO_A_LA_CLASE` (400 `VALIDACION` si `:claseId` no es un UUID) |
@@ -2167,6 +2382,64 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
 **`README.md` (d).** En "Backend en local", después de la copia de `.env.example`:
 > Si tu `backend/.env` es anterior a CLASES-d, copia a mano las cinco variables `STORAGE_*` de `backend/.env.example`: sin ellas la API arranca, pero subir y descargar archivos responde 503.
 
+#### Versión final (d) (Enmienda 13; texto del manager, "Documentos a actualizar al cierre de d", copiado tal cual)
+Reemplaza las entradas (d) de arriba. Se marca **[ajuste]** lo que cambia un texto que el plan ya traía, y **[nuevo]** lo que el plan no cubría. El orquestador los aplica con la autorización del humano y anota sus SHA-256.
+
+**1. `docs/ARCHITECTURE.md` §7, tabla de la API.**
+- Fila `archivos` **[ajuste]** (quién puede, qué estado se descarga y el `503`). La reemplaza por:
+  > | `archivos` | `POST /clases/{claseId}/archivos` (maestro dueño: registra un archivo `pendiente` y devuelve la URL prefirmada de subida) · `POST /clases/{claseId}/archivos/{archivoId}/descarga` (alumno inscrito y maestro dueño: URL prefirmada de descarga de un archivo `confirmado`). Sustituyen a `POST /archivos/subida` y `POST /archivos/descarga`. Sin almacén configurado, `503 ALMACEN_NO_CONFIGURADO`. TAREAS y ENTREGAS agregan sus contextos |
+- Fila `clases` **[ajuste]**, una inserción: después de "`GET/POST /clases/{claseId}/publicaciones`", agrega "(con adjuntos: `archivoIds` al crear, hasta 5; `adjuntos` en cada publicación, también `[]`)".
+
+**2. `docs/ARCHITECTURE.md` §11.**
+- Paso 1 **[ajuste]** (el contexto es la clase de la ruta). Lo reemplaza por:
+  > 1. El cliente pide `POST /clases/{claseId}/archivos` con nombre, tipo y tamaño; el contexto es la clase de la ruta (TAREAS y ENTREGAS agregan los suyos).
+- Pasos nuevos después del 5 **[ajuste]** (la confirmación con sus filtros, `adjuntos` siempre, `urlDelAlmacenSchema`, el nombre y `STORAGE_*`):
+  > 6. Materiales y anuncios (CLASES-d): solo sube el maestro dueño de la clase. Límites: 25 MB por archivo y 5 por publicación; tipos PDF, PNG, JPEG, WebP, GIF, Word, Excel y PowerPoint (formatos actuales y 97-2003) y texto plano; el SVG no se admite. El nombre del archivo no admite `/`, `\`, caracteres de control, separadores de línea, inversores de dirección ni sustitutos sueltos. La clave es `materiales/{claseId}/{archivoId}` y nunca lleva el nombre del archivo. Al publicar, la API lee los archivos por id, acotados a la clase, a quien los subió, al estado `pendiente`, sin publicación y de las últimas 24 h; compara con `statObject` el tamaño y el tipo reales con lo declarado; y los confirma dentro de la transacción de la publicación, con un `UPDATE` que repite esas condiciones y compara el conteo. La URL de subida no limita el tamaño (R2 no admite `POST` con política): un objeto que no coincide no se confirma y queda para la limpieza. Un archivo pasa a `descartado` si se borra su publicación. Toda publicación responde `adjuntos` (también `[]`). La descarga fuerza el tipo declarado y `attachment`; las imágenes se muestran en vista previa con una URL `inline` de 5 minutos. Las tres URL del almacén son `http` o `https` (`urlDelAlmacenSchema`, de `shared/src/archivos.ts`). El firmado es local (región fija en `STORAGE_REGION`); el bucket se elige con `STORAGE_BUCKET_PRIVADO`. Sin `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY` (una variable vacía cuenta como ausente), la API arranca, pero subir y descargar responden `503`; en `production` son obligatorias, también para el worker, que es la misma imagen.
+  > 7. `LIMPIEZA_DIARIA`, que se construye antes de DEPLOY, borra el objeto del almacén y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
+
+**3. `docs/ARCHITECTURE.md` §14.**
+- Fila `archivos`: el texto del plan, sin cambios:
+  > | `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado` (`pendiente` / `confirmado` / `descartado`), `clase_id`, `publicacion_id` | `clave_objeto` único · índice `(publicacion_id)` · `CHECK`: un archivo está `confirmado` si y solo si tiene contexto; `pendiente` y `descartado`, ninguno. `clase_id` autoriza mientras el archivo está pendiente. TAREAS y ENTREGAS agregan `tarea_id` y `entrega_id` |
+- Diagrama **[nuevo]**: después de `usuarios ||--o{ archivos : sube`, agrega `clases ||--o{ archivos : guarda` y `publicaciones ||--o{ archivos : adjunta`.
+
+**4. `docs/ARCHITECTURE.md` §16, "Aplicación" [nuevo] (N-F7; hoy contradice R-03).** Reemplaza "URLs prefirmadas de 5 minutos con tipo y tamaño fijados." por:
+  > - URLs prefirmadas de 5 minutos. La de subida no fija el tipo ni el tamaño (R2 no admite `POST` con política): antes de confirmar, la API compara el objeto real con lo declarado (`statObject`); la descarga fuerza el tipo declarado y `attachment`; y solo el maestro dueño sube. Un objeto reescrito mientras la URL sigue vigente es un riesgo residual aceptado (CLASES-01, R-03), que se vigila en DEPLOY.
+
+**5. `docs/ARCHITECTURE.md` §8, fila `LIMPIEZA_DIARIA` [nuevo, opcional]** (por coherencia con el paso 7 de §11). Cambia "archivos huérfanos" por "archivos `pendiente` de más de 24 h y `descartado` (el objeto y la fila)".
+
+**6. `docs/ARCHITECTURE-ESSENTIALS.md`.**
+- "Restricciones clave" (R-10, decisión del humano). Reemplaza "`comentarios` y `archivos` con exactamente un contexto" por el texto del plan:
+  > `comentarios` con exactamente un contexto · `archivos`: confirmado si y solo si tiene exactamente un contexto (los `pendiente` y `descartado`, ninguno; `clase_id` autoriza mientras tanto)
+- "Archivos" **[ajuste]** (quién sube y la configuración). Agrega:
+  > - Materiales y anuncios: solo los sube el maestro dueño; 25 MB por archivo, 5 por publicación; PDF, imágenes (sin SVG), Office y texto plano. La confirmación compara el objeto real con lo declarado, dentro de la transacción de la publicación. Vista previa solo de imágenes. La limpieza borra también el objeto de los pendientes vencidos y de los descartados.
+  > - Sin las tres `STORAGE_*` de acceso, la API arranca y los archivos responden 503; en `production` son obligatorias (API y worker). Firmar es local: la región es fija (`STORAGE_REGION`).
+
+**7. `CLAUDE.md`.**
+- Regla 8 de "Arquitectura: módulos por dominio" **[nuevo]** (hoy no admite la excepción que diseñó §D-D5). La reemplaza por:
+  > 8. Ningún componente llama a `fetch`: todo pasa por `services/apiClient` dentro de un hook de `hooks.ts`. Única excepción: la subida directa al almacén, con `subirArchivo` de `services/almacenService.ts`, que el manejador del formulario llama dentro de su `try/catch`; no usa `apiClient` para que el token nunca viaje al almacén
+- "Ubicaciones compartidas", viñeta de `lib/format.ts` **[ajuste]**: la viñeta ya dice "tamaños de archivo"; solo se nombra la función: "…tamaños de archivo (`formatearTamano`)…".
+- Viñeta nueva después de `services/sesionService.ts` (texto del plan):
+  > - `services/almacenService.ts` — sube un archivo al almacén con la URL prefirmada que dio la API (`PUT`, sin `Authorization` ni credenciales). Es el único `fetch` fuera de `apiClient`
+- La fila `clases` de "Módulos" ya dice "muro con comentarios y adjuntos": no cambia.
+
+**8. `README.md`, "Backend en local", paso 3.** Después del párrafo de las variables de correo, el texto del plan más una frase **[nuevo]** (sin MinIO, la subida falla aunque las variables estén):
+  > Si tu `backend/.env` es anterior a CLASES-d, copia a mano las cinco variables `STORAGE_*` de `backend/.env.example`: sin ellas la API arranca, pero subir y descargar archivos responde 503. Para subir archivos en local, MinIO tiene que estar levantado (sección "Entorno de desarrollo local"). Con las variables y MinIO apagado, la API firma igual (es un cálculo local), pero la subida falla en el navegador y publicar con archivos responde 503.
+
+**9. Sin cambios en d:** `docs/PRD.md` (RF-25 y RF-33 ya lo describen).
+
+**10. `docs/DESIGN.md` §7.19.** Queda "propuesta" hasta la comprobación humana. Con el "bien" del humano, la marca pasa a "propuesta aprobada (fecha)" (no se borra). Lo mismo con las secciones de a, b y c que siguen marcadas "propuesta" (§7.3, §7.14, §7.18 y las de a y b), porque H-1 a H-6 las cubren.
+
+**11. `docs/ESTADO.md`.**
+- §2: el cierre de d y del encargo, con las cifras y `<Cd>`.
+- §3:
+  - los pendientes de la tabla de observaciones;
+  - N-F1 a N-F6;
+  - `LIMPIEZA_DIARIA` de archivos (objeto y fila), como prerrequisito de DEPLOY;
+  - la consulta de `movimientos_inscripcion` (ADMIN, por `secuencia`; la fila ya existe);
+  - el worker en `production` con `STORAGE_*` (ya existe);
+  - el `P2028` de `cambiar-contrasena`, que volvió a aparecer en la corrida caída: AUTH, prioridad alta (ya existe). Basta sumar la fecha.
+- §6: la medición de d y la lectura acumulada ("Medición del programador en d" de la revisión final).
+
 ---
 
 ## Pasos de implementación
@@ -2220,7 +2493,7 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
 | PA-04 | `migrate diff … --exit-code` no termina con código 0 (incluido el índice GIN, si Prisma no lo expresa igual) |
 | PA-05 | (c) Pasa cualquiera de estas cosas:<br>- los trabajos de aviso no heredan `retry_limit`, `dead_letter` o la retención de su cola;<br>- una transacción revertida deja un trabajo;<br>- los datos del trabajo llevan texto, nombres o correos. |
 | PA-06 | Falla una `*.ataque` que no está en la lista de rojos esperados de la ronda 0, o al terminar sigue en rojo una de esa lista |
-| PA-07 | En la salida completa de la suite del backend aparece `40P01`, `deadlock detected`, `could not serialize`, `P2028` o `too many clients`.<br>**Única exclusión:** los dos `P2028` aceptados de `backend/test/cuentas-r3.ataque.test.ts` (uno en `POST /api/auth/login` sobre `tx.sesion.create` y uno en `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`), con el texto de PA-07 de `docs/trabajo/AUTH-03-ajustes-de-cuentas/plan.md`.<br>Todo reporte incluye el comando, el conteo por término y la ruta y la llamada de cada `P2028`. |
+| PA-07 | En la salida completa de la suite del backend aparece `40P01`, `deadlock detected`, `could not serialize`, `P2028` o `too many clients`.<br>**Única exclusión:** los dos `P2028` aceptados de `backend/test/cuentas-r3.ataque.test.ts` (uno en `POST /api/auth/login` sobre `tx.sesion.create` y uno en `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`), con el texto de PA-07 de `docs/trabajo/AUTH-03-ajustes-de-cuentas/plan.md`.<br>Todo reporte incluye el comando, el conteo por término y la ruta y la llamada de cada `P2028`.<br>**En CLASES-d (Enmienda 10):** rige la regla de trabajo del manager de `revision.md`, "Arbitraje de PA-07 — ronda 0 de CLASES-d", "Para PA-07 en CLASES-d": un `P2028` en una ruta de c o de d **no** es PA-07 en una corrida caída por la espera en cadena, si se cumplen sus cuatro condiciones; en una corrida limpia, el mismo `P2028` o un `500` del muro o de archivos **sí** lo es, y bloquea. |
 | PA-08 | Cualquier camino por el que un correo real podría salir fuera de `production` |
 | PA-09 | La implementación exige tocar un archivo de "No se toca", instalar una dependencia distinta de `minio` (d), o cambiar una firma de AUTH-01 a AUTH-03 que no esté en "Cambios por capa" |
 | PA-10 | Un log contiene una contraseña, un token, una cookie, `STORAGE_SECRET_KEY`, una firma `X-Amz-Signature`, una URL prefirmada completa o el correo completo de un candidato del buscador |
@@ -2240,7 +2513,11 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
     - más las que agregue la regresión de la ronda 4 de b, tal como queden en `reporte-tester.md`.
 
     Cifras de cierre de b, como referencia de V-07: backend 104 archivos y 1144 pruebas; frontend 84 archivos y 1167 pruebas; más las que agregue la ronda 4.
-  - **Para d, la tabla de la regresión final de c** ("CLASES-c — Ronda 4, regresión final" en `reporte-tester.md`): las 96 `*.ataque` de la ronda 3, más las que agregue esa regresión.
+  - **Para d, la tabla de la regresión final de c** ("CLASES-c — Ronda 4, regresión final" en `reporte-tester.md`): las 96 `*.ataque` de la ronda 3, más las que agregue esa regresión. Es la base de la ronda 0 del tester (97 de 97).
+    - **Para el programador de d (Enmienda 10), la tabla del complemento de la ronda 0** ("CLASES-d — Ronda 0, complemento (C-21 y C-22)"), que incluye los 4 hashes de la ronda 0 y los de C-21 y C-22.
+  - **Para el siguiente encargo (Enmienda 13): la tabla de cierre de d**, con 107 `*.ataque` (`reporte-tester.md`, "CLASES-d — Ronda 3", línea 4831), incluido el hash de C-23 para `archivos-d-r1` (`79BB87AE…`). La base dentro de los paquetes es `<Cd>`.
+
+    Cifras de cierre de d, como referencia de V-07: backend 120 archivos y 1300 pruebas; frontend 104 archivos y 1395 pruebas; lint y build con código 0; V-03 en 0, con la migración `20261002141710_archivos` aplicada en `campus_dev`.
 
     Cifras de cierre de c, como referencia de V-07 (cuarta ronda, antes de la regresión final): backend 111 archivos y 1226 pruebas; frontend 95 archivos y 1292 pruebas; más lo que agregue la regresión final (Enmienda 9).
 - **V-02 (paquetes):** desde la raíz, `npm run build`, `npm run lint` y `npm run test`, todos con código 0 (el backend, solo con PA-01). El resumen trae **el comando exacto y la última línea de salida de cada uno**.
@@ -2308,6 +2585,12 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
      - el humano autorizó una cuarta ronda corta y cerrada, opción (A) mínima: solo `muro-view.tsx` y `muro-view.test.tsx`.
 
      La Enmienda 9 registra ese cierre en el plan. CLASES-d arranca en el paso 37, después del commit `<Cc>`.
+   - **CLASES-d (2026-10-02):**
+     - la Enmienda 10 resolvió los huecos de la ronda 0 (C-21, C-22 y el complemento del tester); la Enmienda 11 registró las desviaciones aceptadas de la implementación, y la Enmienda 12, los arbitrajes de la ronda 1;
+     - tuvo tres rondas del tester (T-38 a T-44), sin escalada: ROTO, ROTO y RESISTE. La revisión final dio APROBADO, sin problemas que bloqueen;
+     - el carril trivial N-F2 (escapes en `shared/src/clases.ts:48`) y el README de `adapters/` se aplicaron antes de `<Cd>`.
+
+     La Enmienda 13 registra ese cierre y el del encargo. Quedan la comprobación humana (paso 47) y el commit `<Cd>` (paso 48).
    - No hay commit de aprobación.
 
 ### CLASES-a
@@ -2404,8 +2687,15 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
 36. **Cierre de CLASES-c (orquestador), con la regresión final del tester en RESISTE:** como en el paso 14, con los textos marcados (c) en su versión final de la Enmienda 9, incluida la viñeta de §14 sobre la paginación por cursor, que el humano autorizó. El hash queda como `<Cc>`.
 
 ### CLASES-d
-37. **Tester, ronda 0 de CLASES-d** (C-2 y C-13). Base `<Cc>`.
-38. **Programador, precondiciones** (con `<Cc>`).
+37. **Tester, ronda 0 de CLASES-d** (C-2 y C-13). Base `<Cc>` = `c7fcece`.
+    - **Hecha el 2026-10-02** (`reporte-tester.md`, "CLASES-d — Ronda 0"): 4 `*.ataque` adaptadas, dos rojos esperados (C-2 y C-13), T-36 y T-37 sin reescribir, N-1 a N-5 inventariadas y una PA-07 que el manager arbitró hacia CHORE-02 (Enmienda 10, fila 7).
+    - **Complemento (Enmienda 10):** el tester aplica C-21 y C-22 como dice "Ronda 0", punto 4, y publica "CLASES-d — Ronda 0, complemento (C-21 y C-22)". El programador no empieza antes.
+38. **Programador, precondiciones** (con `<Cc>`):
+    - PA-01 y PA-02;
+    - `git diff --name-only <Cc> -- shared backend frontend` lista solo las `*.ataque` de la ronda 0 y de su complemento;
+    - V-01 con la tabla del complemento;
+    - los rojos esperados son los de la lista del complemento (3, salvo que su búsqueda propia agregue alguno de C-22).
+    - **Pruebas normales de la Enmienda 10** (fila d de "Pruebas: listas cerradas"): las de `env.test.ts` (N-1, N-2 y `:130`) van en el paso 41, con el cambio de `config/env.ts`; las del frontend (N-3 a N-5), en el paso 43. Entre el cambio de `shared/` del paso 40 y el paso 43, esas pruebas del frontend están en rojo: es lo esperado, y al terminar el paso 43 no queda ninguna.
 39. **Dependencia:** `npm install minio@^8 --workspace @campus/backend`, una sola vez, desde la raíz. Revisa el diff del lockfile (PA-14) y repórtalo con la versión instalada.
 40. `shared/src/archivos.ts` y `clases.ts` (d); build. `core/archivos/almacen.ts` y `politica.ts`, con su prueba (PR-D01a a PR-D01g).
 41. Configuración y almacén:
@@ -2426,7 +2716,15 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
 44. `docs/DESIGN.md` (§D-D7), a mano.
 45. V-01 a V-07; `resumen-programador.md`, "CLASES-d".
 46. **Manager: verificación del resumen. Tester, rondas 1 a 3. Manager, revisión final de CLASES-d.**
+    - **Ronda 1 (2026-10-02):** ROTO, con T-38 a T-43. El manager los arbitró y la Enmienda 12 registra los criterios y PR-D16 a PR-D21. En la corrección, V-01 se mide contra la tabla de la ronda 1 (101 `*.ataque`), y los 10 casos rojos del tester deben pasar sin tocarlos.
+    - **Ronda 2:** ROTO, solo con T-44 ("1024 MB"). PA-12 al empezar, resuelta con C-23. La corrección de T-44 trajo también N-D4 y `avisoDeFalloAlSubir` en `lib.ts`.
+    - **Ronda 3:** RESISTE, sin hallazgos (107 `*.ataque`).
+    - **Revisión final ("Revisión final — CLASES-d"): APROBADO**, sin problemas que bloqueen. Hecho (Enmienda 13).
 47. **Comprobación humana** (abajo). El orquestador la escribe en `comprobacion-humano.md`. Un "no pasa" se escala: los ajustes visuales van por el carril trivial; lo que cambie la lógica, al carril que corresponda.
+    - **En curso (Enmienda 13):** la lista final de H-1 a H-6 es la de la revisión final (`revision.md`, "Comprobación humana en navegador: lista final para `comprobacion-humano.md`"). Reemplaza la de este plan.
+    - Ya está en `comprobacion-humano.md`, pendiente del humano, y su resultado lo anota ahí el orquestador.
+    - En H-4, el humano decide O-13; en H-5, el residual de T-38. Si alguno le molesta, va por el carril trivial.
+    - Si H-5 falla por CORS, el remedio toca `infra/` y lo decide el humano (S-21).
 48. **Cierre de CLASES-d (orquestador):**
     1. aplica los textos marcados (d) y anota sus SHA-256;
     2. actualiza `docs/ESTADO.md`, con el cierre del encargo y los pendientes de `LIMPIEZA_DIARIA` (filas y objetos) y de la consulta de `movimientos_inscripcion` (ADMIN, ordenada por `secuencia`);
@@ -2435,7 +2733,16 @@ Y agrega en "Reglas de acceso a datos" (c; Enmienda 9, autorizada por el humano)
 
     El humano decide el PR.
 
+    **Lo que queda (Enmienda 13):**
+    - el carril trivial N-F2 y el README de `adapters/`: ya aplicados en `shared/src/clases.ts:48` (escapes) y en `backend/src/adapters/README.md`, mientras el programador cierra su resumen. No tocan ninguna `*.ataque`, así que la tabla de V-01 no cambia;
+    - los textos de cierre: la "Versión final (d)" de "Textos literales propuestos", con la autorización del humano y sus SHA-256;
+    - con el "bien" de la comprobación humana, las marcas "propuesta" de `docs/DESIGN.md` de este encargo pasan a "propuesta aprobada (fecha)";
+    - `docs/ESTADO.md` §2, §3 y §6 (punto 11 de la versión final);
+    - el resumen al humano, en 15 líneas como máximo, y el bloque de comandos;
+    - `<Cd>`, leído con `git log` y anotado en `aprobacion.md`. Con ese commit, el estado del plan pasa a **CERRADO**.
+
 ### Comprobación humana en navegador (una sola, al final de CLASES-d; máximo 10 minutos y 6 puntos; solo lo que las pruebas no ven)
+> **Enmienda 13:** la lista vigente es la final de la revisión de d (`revision.md`, "Comprobación humana en navegador: lista final para `comprobacion-humano.md`"), ya copiada en `comprobacion-humano.md`. Lo de abajo queda como historia.
 **Preparación** (no cuenta en el tiempo):
 - `infra` levantado (PostgreSQL y MinIO), y la API y la SPA en local, que arranca el humano. No hace falta el worker.
 - Antes, el humano copia a su `backend/.env` las cinco variables `STORAGE_*` de `backend/.env.example`.

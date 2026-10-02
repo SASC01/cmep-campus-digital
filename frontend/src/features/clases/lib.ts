@@ -1,15 +1,30 @@
-import { estadoDeTerminoDeBusqueda } from "@campus/shared"
+import {
+  estadoDeTerminoDeBusqueda,
+  MAXIMO_ADJUNTOS_POR_PUBLICACION,
+  TAMANO_MAXIMO_ARCHIVO_BYTES,
+  TIPOS_DE_ARCHIVO_PERMITIDOS,
+} from "@campus/shared"
 
 import { esApiError } from "@/services/apiClient"
 
 import {
+  MARGEN_DE_VISTA_PREVIA_MS,
   MENSAJES_ERROR_CLASES_GENERALES,
+  TEXTOS_ADJUNTOS,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
   TEXTOS_TARJETA,
   TEXTOS_UNIRSE,
+  TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
-import type { ErroresFormulario, IncidenciaValidacion, RolDeClases, VarianteDeClase } from "./types"
+import type {
+  ArchivoCandidato,
+  PaginaDelMuro,
+  ErroresFormulario,
+  IncidenciaValidacion,
+  RolDeClases,
+  VarianteDeClase,
+} from "./types"
 
 // S-06: variante determinista a partir del id de la clase (UUID), sin guardarse ni elegirse. La
 // suma de los puntos de código módulo 3 reparte entre las tres variantes.
@@ -65,6 +80,10 @@ const MENSAJES_ERROR_CLASES: Record<string, string> = {
   ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
   PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
   COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
+  ARCHIVO_NO_SUBIDO: MENSAJES_ERROR_CLASES_GENERALES.archivoNoSubido,
+  ARCHIVO_INVALIDO: MENSAJES_ERROR_CLASES_GENERALES.archivoInvalido,
+  ALMACEN_NO_CONFIGURADO: MENSAJES_ERROR_CLASES_GENERALES.almacenNoDisponible,
+  ALMACEN_NO_DISPONIBLE: MENSAJES_ERROR_CLASES_GENERALES.almacenNoDisponible,
 }
 
 // T-17 (ronda 2 del tester): el mensaje de un VALIDACION del servidor lleva el nombre técnico del
@@ -159,4 +178,69 @@ export const vecinaDeFila = (
   if (actuales.length === 0) return undefined
   const indice = previos?.indexOf(id) ?? actuales.indexOf(id)
   return actuales[Math.min(Math.max(indice, 0), actuales.length - 1)]
+}
+
+const extensionDe = (nombre: string): string => {
+  const punto = nombre.lastIndexOf(".")
+  if (punto < 0) return ""
+  return nombre.slice(punto + 1).toLowerCase()
+}
+
+// Algunos sistemas no informan el tipo de un archivo (File.type vacío): se infiere por la extensión,
+// con la misma tabla que usa el servidor. "" si no se reconoce.
+export const tipoDeArchivo = (archivo: Pick<ArchivoCandidato, "name" | "type">): string => {
+  if (archivo.type !== "") return archivo.type
+  const extension = extensionDe(archivo.name)
+  const entrada = Object.entries(TIPOS_DE_ARCHIVO_PERMITIDOS).find(([, extensiones]) =>
+    extensiones.includes(extension),
+  )
+  return entrada?.[0] ?? ""
+}
+
+// §D-D5: la misma política del servidor, antes de pedirle una URL de subida. `yaElegidos` es el
+// número de archivos que ya estaban en la lista. null: el archivo se puede agregar.
+export const errorDeArchivoElegido = (
+  archivo: ArchivoCandidato,
+  yaElegidos: number,
+): string | null => {
+  if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES)
+    return TEXTOS_ADJUNTOS.errorPesaMucho(archivo.name)
+  const tipo = tipoDeArchivo(archivo)
+  const extensiones = Object.hasOwn(TIPOS_DE_ARCHIVO_PERMITIDOS, tipo)
+    ? TIPOS_DE_ARCHIVO_PERMITIDOS[tipo]
+    : undefined
+  if (extensiones === undefined || !extensiones.includes(extensionDe(archivo.name))) {
+    return TEXTOS_ADJUNTOS.errorTipo(archivo.name)
+  }
+  if (yaElegidos >= MAXIMO_ADJUNTOS_POR_PUBLICACION) return TEXTOS_ADJUNTOS.errorCantidad
+  return null
+}
+
+// T-40 (§D-D5): cuánto tiempo se considera fresco el muro cargado. Las vistas previas son URL firmadas
+// que vencen; el muro se vuelve viejo MARGEN_DE_VISTA_PREVIA_MS antes del `expiraEn` más temprano de
+// todas las páginas cargadas, medido desde `dataUpdatedAt` (que se renueva con cada página). Con un
+// vencimiento ya pasado da 0; sin vistas previas, el valor de siempre.
+export const tiempoFrescoDelMuro = (
+  paginas: readonly PaginaDelMuro[],
+  dataUpdatedAt: number,
+): number => {
+  const vencimientos = paginas
+    .flatMap((pagina) => pagina.publicaciones)
+    .flatMap((publicacion) => publicacion.adjuntos)
+    .flatMap((adjunto) =>
+      adjunto.vistaPrevia === null ? [] : [Date.parse(adjunto.vistaPrevia.expiraEn)],
+    )
+    .filter((vencimiento) => !Number.isNaN(vencimiento))
+  if (vencimientos.length === 0) return TIEMPO_FRESCO_DEL_MURO_MS
+  const primero = Math.min(...vencimientos)
+  return Math.max(0, primero - MARGEN_DE_VISTA_PREVIA_MS - dataUpdatedAt)
+}
+
+// T-41: una solicitud rechazada (ApiError) dice qué archivo y por qué; con ARCHIVO_INVALIDO el motivo es
+// el mensaje del servidor (ya en español y sin valores). Un fallo del PUT al almacén no es un
+// ApiError: conserva el texto de siempre.
+export const avisoDeFalloAlSubir = (error: unknown, nombre: string): string => {
+  if (!esApiError(error)) return TEXTOS_ADJUNTOS.errorSubida(nombre)
+  const motivo = error.codigo === "ARCHIVO_INVALIDO" ? error.message : mensajeDeErrorClases(error)
+  return TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)
 }

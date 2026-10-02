@@ -2319,7 +2319,7 @@ Dónde: §D-C4, "Dónde vive".
 ### Detalles menores
 - **Un solo emoji como nombre de clase.** "👍" (U+1F44D) y "❤️" pasan a `400`, pero "👍🏽", "🇲🇽" y "👩‍💻" (también de un solo grafema) se aceptan, porque se cuenta por punto de código. Está escrito y es coherente con personas; lo anoto para que no sorprenda en H-6.
 - La enmienda descarta `Intl.Segmenter`, entre otras razones, porque "depende de la versión de Unicode de cada motor". `\p{…}` también depende de ella: un carácter asignado hace poco puede clasificarse distinto en el navegador y en Node. Como decide el servidor, lo peor que pasa es que el error llegue del servidor y no del formulario. No cambia la decisión.
-- Las cadenas de prueba del plan llevan los invisibles escritos tal cual. Conviene que el código de las pruebas los escriba con escapes (`​`, `ㅤ`…), para que se puedan leer y ningún editor los altere.
+- Las cadenas de prueba del plan llevan los invisibles escritos tal cual. Conviene que el código de las pruebas los escriba con escapes (`\u200B`, `\u3164`…), para que se puedan leer y ningún editor los altere.
 - El punto 7 de "Puntos de ataque" (c) y la nota "El cambio de `DESIGN.md` §7.14 no lleva ID" de "Pruebas requeridas" caen en secciones que la tabla declara en otras filas (1 y 2), no en las filas 5 a 8 de donde salen. Es un detalle de registro sin efecto.
 - `con-clase-de-la-ruta.test.tsx` queda en `features/clases/` y su componente en `features/clases/components/`. El precedente de `formulario-clase.test.tsx` pone la prueba junto al componente. Cualquiera de las dos sirve; lo que importa es que la lista y el archivo coincidan (ver M-21).
 - Sin `:claseId` (una ruta que hoy no existe), `ClaseLayout` mostraría el error sin el enlace "Volver a mis clases" que hoy lo acompaña. Con el router actual no se puede llegar ahí.
@@ -3259,3 +3259,1293 @@ Comprobado en `muro-view.tsx:40-50`:
   - las de esta verificación: backend 111 archivos y 1226 pruebas; frontend 95 archivos y 1292 pruebas;
   - 96 `*.ataque`, más las que agregue la regresión final del tester;
   - la tabla de esa regresión es la base de V-01 para d.
+
+## Arbitraje de PA-07 — ronda 0 de CLASES-d
+Fecha: 2026-10-02. Es de solo lectura: no corrí suites. Fuente: `reporte-tester.md`, "CLASES-d — Ronda 0", sección "PA-07" (corrida 1). Leí `adapters/db/publicaciones.ts`, `adapters/queue/index.ts`, `adapters/db/cliente.ts` y `backend/test/cuentas-r1.ataque.test.ts:127-135`, y busqué todos los bloqueos explícitos de `backend/src`.
+**Decisión: (a).** Es el mismo patrón de CHORE-02. Va a CHORE-02 como pendiente, **no bloquea d** y no pide ninguna corrección de c dentro de d.
+
+### Lo que pasó
+- **El sitio del `P2028` no es el que esperó.** Prisma marca la expiración en la primera llamada que llega después de los 5 s de la transacción interactiva. La que esperó fue la anterior, `tx.comentario.create()`. En `crearComentario` (`publicaciones.ts:202-215`) el orden es:
+  1. `SELECT … FOR SHARE` sobre `publicaciones`;
+  2. `tx.comentario.create()`;
+  3. `alGuardar` → `encolar` → `ejecutorSqlDe` → `$queryRawUnsafe` (`cliente.ts:60`), donde aparece el `P2028`.
+
+  El `INSERT` en `comentarios` dispara la comprobación de la llave foránea `autor_id → usuarios`, que toma `FOR KEY SHARE` sobre la fila del autor. Mientras `cuentas-r1:130` tiene `LOCK TABLE usuarios IN ACCESS EXCLUSIVE MODE`, esa comprobación espera. El `LOCK TABLE` está metido en la espera en cadena de CHORE-02, que dura de 36 a 40 s. Cuando por fin se libera, el `INSERT` termina, la transacción ya expiró y la siguiente llamada (el encolado) recibe el `P2028`, que se traduce a `500`.
+- **Los 36,658 ms coinciden** con el intervalo de los otros tiempos límite de esa corrida y con el `P2028` de `cambiar-contrasena` de c, que fue de 36 s. La corrida 2 sale limpia, con solo los dos aceptados, y los otros cuatro términos están en 0 en las dos.
+
+### Por qué no es propio de c
+- **Ningún código de producción puede bloquear esa comprobación.** En `backend/src`, los únicos bloqueos explícitos sobre `usuarios` son `FOR NO KEY UPDATE` (escritores: contraseña, sesiones en bloque, tokens) y `FOR SHARE` (crear o rotar una sesión), en `bloqueo-usuario.ts`. Los dos son compatibles con el `FOR KEY SHARE` de la llave foránea. Ningún flujo de la API toma `LOCK TABLE` ni `FOR UPDATE` sobre `usuarios`. Solo el `ACCESS EXCLUSIVE` de la prueba de `cuentas-r1`, o una migración que bloquee `usuarios` durante un despliegue, puede detener un comentario o una publicación ahí.
+- **Lo mismo vale para `crearPublicacion`:** su llave foránea a `clases` solo choca con `FOR UPDATE` o con borrados de `clases`, y ninguno existe hoy.
+- **El `FOR SHARE` sobre `publicaciones`** solo espera a un borrado de esa publicación, que es una transacción corta (PR-C04d), no 36 s.
+- **El timeout de 5 s no es un defecto de c.** Es el valor por defecto que usan todas las transacciones del backend, incluidas las de AUTH, y alargarlo solo para el muro escondería la espera en cadena sin resolverla.
+- **Traducir un `P2028` a un error controlado** (por ejemplo `503` "Inténtalo de nuevo") en lugar de un `500` es una decisión transversal:
+  - vive en `adapters/db/errores.ts`, que está en "No se toca" del encargo;
+  - tocaría igual a AUTH (`sesiones.ts`, `tokens-cuenta.ts`, `usuarios.ts`, `invitaciones.ts`);
+  - no se resuelve con un parche en `publicaciones.ts` dentro de d.
+
+### Criterio del humano (2026-10-02) aplicado
+- Un `500` en una corrida limpia es un defecto del dominio dueño. **No es el caso:** este solo aparece en una corrida caída por la espera en cadena, y la repetición limpia no lo trae.
+- **Destino CHORE-02**, en la misma fila que `invitarMaestrosEnLote` y `rotarSesion`. El orquestador suma este sitio a esa fila de `docs/ESTADO.md` §3:
+  - qué pasó: `crearComentario`, la llave foránea `autor_id` detrás del `LOCK TABLE usuarios` de `cuentas-r1`, con el `P2028` reportado en `encolar` (`cliente.ts:60`);
+  - la propuesta para CHORE-02: además de cortar la espera en cadena, decidir si `adapters/db/errores.ts` traduce `P2028` a un error controlado en todo el backend.
+
+### Para PA-07 en CLASES-d (regla de trabajo, mientras no exista CHORE-02)
+- **No es PA-07:** un `P2028` en una ruta de c o de d, en una corrida que cae por la espera en cadena, siempre que se cumplan las cuatro condiciones de mi arbitraje de c:
+  - los otros cuatro términos en 0;
+  - los rojos de esa corrida son tiempos límite de CHORE-02;
+  - la repetición inmediata sale limpia, con exactamente los dos aceptados;
+  - el sitio queda reportado con su llamada.
+- **Sí es PA-07 y bloquea:** el mismo `P2028` en una corrida limpia, o un `500` de una ruta del muro o de archivos en una corrida limpia. Según el criterio del humano, eso sería un defecto de CLASES con prioridad alta.
+- **d puede arrancar.** Lo que sí debe resolverse antes de programar d son T-36 y T-37 de la misma ronda 0: 45 `*.ataque` que d contradice sin un C-n que los cubra. Es un tema aparte, para el arquitecto y el orquestador.
+
+## Verificación del resumen — CLASES-d — implementación
+Fecha: 2026-10-02, de 08:51 a 09:02. Verifico `resumen-programador.md`, "## CLASES-d — implementación" (línea 1480), y en la misma sección reviso la Enmienda 10 (modo plan) y arbitro las desviaciones. Base `<Cc>` = `c7fcece`.
+**Veredicto del resumen: ACEPTADO.** Ninguna cifra ni ID difiere de mi corrida. **Enmienda 10: APROBADA.** **Las cuatro desviaciones se aceptan:** la 1 con autorización retroactiva en la enmienda de cierre y una observación de proceso; las otras tres sin condiciones. Pasa a la ronda 1 del tester de d.
+Verificación propia: lint 0 · build `✓ built in 627ms` · `npm run test` desde la raíz con **código 0 a la primera** (backend `116 passed (116)` / `1272 passed (1272)`, frontend `98 passed (98)` / `1316 passed (1316)`) · backend por paquete: la primera corrida cayó por CHORE-02 y la repetición salió limpia · frontend por paquete, dos veces en verde · V-01 97/97 · V-03 en 0 · PA-07 y PA-10 limpios.
+
+### Cifras: resumen contra mi corrida
+| Cifra | Resumen | Mi corrida |
+|---|---|---|
+| PA-01 | regla y red correctas | `True / Inbound / Block / Public`; `IZZI-F281-5G`, antes de cada corrida del backend |
+| `npm run lint` (raíz) | código 0, `> tsc -b` | código 0 |
+| `npm run build` (raíz) | `✓ built in 1.17s` | `✓ built in 627ms`, código 0 |
+| `npm run test` (raíz) | cayó 2 de 2 por CHORE-02 | **código 0 a la primera**: backend `116 passed (116)` / `1272 passed (1272)`, frontend `98 passed (98)` / `1316 passed (1316)`. El resumen no es inexacto: es otra corrida, con otro orden de arranque |
+| Backend por paquete | corridas 2 y 3 limpias, 1272/1272 | **Corrida 1 caída por CHORE-02:** `10 failed \| 1235 passed \| 27 skipped (1272)`. Los 10 rojos son tiempos límite de 15 a 40 s (`cuentas-r1`, `cuentas-r3`, `bloqueo-usuario` B1, workers y, por arrastre, PR-A15h y los dos casos de cursor de `muro-c-r1`). Sus `P2028` solo están en los dos sitios aceptados (`sesiones.ts:39` y `tokens-cuenta.ts:116`), no hay ningún `500` en rutas de c ni de d y los otros cuatro términos están en 0. **Corrida 2:** `116 passed (116)` / `1272 passed (1272)`, limpia, con exactamente los dos aceptados. Según la regla de d, no es PA-07 |
+| Frontend por paquete | 1316/1316 (3 de 3) | 1316/1316, dos veces |
+| `npx vitest list` | backend 1272 en 116; frontend 1316 en 98 | backend 1272 en 116; frontend 1316 en 98 |
+| IDs PR-D | 56 con caso | Los 56 (49 filas del plan, con PR-D09a a PR-D09h desplegados) aparecen exactamente una vez cada uno, con los títulos del resumen |
+| V-01 | 97/97 | **97/97** contra la tabla de "CLASES-d — Ronda 0, complemento (C-21 y C-22)" (`diff` por programa); no hay `*.ataque` nuevas |
+| Rojos esperados (C-2, C-13, C-22) | en verde | En verde dentro de las corridas limpias; ninguna `*.ataque` en rojo |
+| V-03 | cinco comandos en 0 | Los cinco con código 0 ("9 migrations… up to date"; `No difference detected.`). La migración `20261002141710_archivos` es idéntica a §D-D1, con los dos `CHECK` |
+| PA-07 | solo login y restablecer | Raíz y corrida limpia: 2 `P2028`, los aceptados; los cuatro términos en 0 |
+| PA-10 | 0 | En las salidas completas de la raíz y del backend: `X-Amz-Signature` 0; los cuatro valores de secreto del almacén de las pruebas, 0; el origen del doble (`https://almacen-en-memoria.test`) y `materiales/`, 0 |
+| PA-11 | limpio | A las 09:01:21 solo `campus-dev-postgres-1` (lo levantó el programador). El Ryuk de mi primera corrida ya se había retirado |
+
+### V-04, V-05, V-06 y caracteres invisibles
+**V-04:**
+- `from "minio"` solo en `adapters/storage/index.ts`.
+- `fetch(` solo en `apiClient.ts` (2) y `almacenService.ts` (1).
+- `enEspera=`: 36.
+- `$queryRawUnsafe` solo en `cliente.ts`; los archivos con SQL etiquetado son los cinco de siempre, sin ninguno nuevo de d. E6 queda intacto (`bloqueo-usuario.integracion.test.ts` sin cambios).
+- `adjuntos` sin `?? []`, `.default` ni `.optional` en `shared/` ni en el frontend. En `features/clases` y `shared/`: `?? []` 0.
+- `console.` 0 en los archivos nuevos. `estadoPago` 0 en los archivos de d. `dangerouslySetInnerHTML` y `target="_blank"` 0. `disabled` 0.
+
+**V-05** (contra `c7fcece`, `git diff --quiet` y `status`):
+- intactos:
+  - del backend: `middleware/`, `adapters/db/{clases,inscripciones,cliente,errores}.ts`, `adapters/queue/`, `notifier`, `auth`, `handlers/clases/{clases,alumnos}.ts`, `workers/`, `server.ts`, `worker.ts`, `core/eventos`, `core/clases`, `test/global-setup.ts` y `test/setup.ts`;
+  - del frontend: `components/`, `features/auth`, `features/admin`, `services/{apiClient,authService,sesionService}.ts`, `styles/tokens.css` e `index.css`, `app/router.tsx`, y `muro-view.tsx`, `comentarios-de-publicacion.tsx`, `formulario-clase.tsx` y `panel-mis-clases.tsx` de `features/clases`;
+  - `eslint.config.mjs`, los `package.json` de la raíz, `frontend` y `shared`, `infra/` y `.claude/agents/{programador,tester,manager}.md`.
+- **Migraciones:** solo la carpeta nueva.
+- **`backend/package.json`:** una línea, `"minio": "^8.0.7"`.
+- **Lockfile (lo revisé yo):**
+  - 27 entradas nuevas de `node_modules/`, todas del árbol de `minio`;
+  - 7 líneas borradas, todas marcas `"dev": true` o `"devOptional": true`, porque esos paquetes ahora se usan en producción;
+  - `aws` 0 veces en el diff. **PA-14 no se activa.**
+- **Archivos protegidos:**
+  - con su hash de "Cierre de CLASES-c": `CLAUDE.md`, `README.md`, `ARCHITECTURE-ESSENTIALS.md` y `PRD.md`;
+  - `ARCHITECTURE.md` coincide con `DDB2654E…`;
+  - `AGENTS.md` (`AC6DAE79…`) y `arquitecto.md` (`AE021430…`) coinciden con "Decisiones del humano al cerrar CLASES-c".
+- **`docs/DESIGN.md`:** solo agrega §7.19, marcada "propuesta", y coincide con lo construido. Tiene una errata: "fresco 4" por "fresco 4 minutos".
+
+**V-06:** el caso exacto de `sesiones-y-cadena.ataque` (C-2, 56 rutas) pasa. `middleware/` sigue intacto, así que `RUTAS_PUBLICAS` sigue en 10.
+
+**Invisibles:** con un script propio sobre todo archivo cambiado o nuevo de `shared/src`, `backend/src` y `frontend/src` que no es `*.ataque`, comparando con `c7fcece`, **ningún carácter invisible nuevo**. Solo siguen los 4 de `shared/src/clases.ts` (U+202A, U+202E, U+2066 y U+2069, la expresión de §D-C4), que ya estaban.
+
+**N-1 a N-5:** exactamente lo que autoriza la fila d, y no se quitó ninguna aserción.
+- Las únicas líneas borradas de `env.test.ts` y `formulario-publicacion.test.tsx` son la entrada de `:130` y el `toEqual` de PR-C09b, reescritos en su lugar con `...almacenValido` y con `archivoIds: []`.
+- `muro-view.test.tsx` y `publicacion-del-muro.test.tsx` solo suman `adjuntos: []` a su doble.
+- En `format.test.ts` y `ayudas-clases.ts` solo cambian importaciones.
+
+### Enmienda 10 (modo plan): APROBADA
+**Forma.**
+- `git diff c7fcece -- plan.md` da 69 inserciones, 7 borrados y 15 hunks, y el SHA-256 es `AF6A8116…`, lo mismo que anotó el orquestador.
+- Los hunks caen exactamente en lo declarado: la cabecera (línea de la enmienda y `<Cc>`), la sección de la Enmienda 10, "Pendientes" (2 filas), §D-D3 punto 4 (una viñeta), §D-D5 ("Forma de los datos"), §D-R0 (C-13 completado, C-21 y C-22), la fila d de las listas cerradas, PR-D06d, el punto 4 de "Ronda 0", el punto 5 de "Puntos de ataque" (d), PA-07, V-01 y los pasos 37 y 38.
+- No toca §D-D1, §D-D2, §D-D4, §D-D6, §D-D7 ni "No se toca".
+
+**Fondo.**
+- **C-21 (`adjuntos` obligatorio, sin valor por defecto, también en la respuesta de crear):** correcto. El `.default([])` en la respuesta sería el `?? []` de `CLAUDE.md` un nivel más abajo. Con el campo obligatorio, `schema.parse` detecta un backend que lo olvide. Es aditivo y compatible: primero se despliega el backend, y el frontend anterior descarta la clave. PR-D06d lo prueba en el backend.
+- **C-22 (`archivoIds` siempre en el cuerpo):** correcto. Es lo que ya da `resultado.data` con el `[]` por defecto de la **entrada**, que sí es legítimo, y evita una rama para no tocar un caso. Se distingue bien entrada y respuesta.
+- **Fila d con N-1 a N-5:** correcta y mínima:
+  - `:130` lleva un almacén válido para que el rechazo siga siendo solo por `JWT_SECRET`, sin debilitarse en silencio;
+  - N-4 y N-5 entran como "se extienden";
+  - el resto activa PA-16.
+- **PA-07 para d:** remite a mi regla. Bien.
+- **V-01 del complemento:** corrige una contradicción real. La base del tester era la tabla de cierre de c, y la del programador, la del complemento.
+- **Detalle:** el pendiente del worker en `production` con `STORAGE_*` va bien a DEPLOY.
+
+### Desviaciones del programador: arbitraje
+**1. `publicacion-del-muro.tsx` modificado sin estar en "Cambios por capa" de d: se acepta, con autorización retroactiva en la enmienda de cierre (Enmienda 11). El texto condicional es la forma correcta.**
+- **El cambio es el que el plan pedía, aunque olvidó listar el archivo:**
+  - §D-C5 ya decía "…y sus adjuntos." desde d, y §D-D6 trae el texto "Se borrará con sus comentarios y adjuntos.";
+  - §D-D5 pide mostrar los adjuntos en el muro, y el único lugar donde una publicación pinta su contenido es `PublicacionDelMuro`.
+
+  La omisión es del plan (del arquitecto), y la ronda 0 no inventarió las dos pruebas que fijan el texto viejo (`muro-c-r1.ataque:479` y `publicacion-del-muro.test.tsx:288`).
+- **El diff son 9 líneas:** monta `AdjuntosDePublicacion` y elige la frase de confirmación. No hay `enEspera` nuevo, foco nuevo ni más cambios.
+- **El texto condicional es mejor para la persona:** la frase de consecuencia debe decir lo que de verdad se borra. Decir "y adjuntos" en una publicación sin archivos sería inexacto. Además, no obliga a reescribir ninguna `*.ataque` (no hace falta un C-n) y `DESIGN.md` §7.19 ya lo documenta.
+- **Observación de proceso, que va a la medición:**
+  - debió detenerse por PA-09 ("tocar un archivo de 'No se toca'") y preguntar, como hizo en PA-16 y D-1 en c;
+  - lo atenúa que lo declaró de forma visible, con el motivo y las pruebas afectadas, y que el cambio es el mínimo.
+
+  No devuelvo el resumen por esto: revertirlo y pedir la autorización llevaría al mismo código.
+- **La Enmienda 11 registra:**
+  - `publicacion-del-muro.tsx` en "Cambios por capa" (d);
+  - el texto condicional en §D-D6 y §D-C5 (con adjuntos, "Se borrará con sus comentarios y adjuntos."; sin adjuntos, la frase de c);
+  - el caso "muestra los adjuntos y, al pedir borrar, la frase que también los nombra" de `adjuntos-de-publicacion.test.tsx`.
+
+**2. `crearPublicacion` recibe `archivos` (las filas ya leídas) en lugar de `archivoIds`: se acepta.**
+- El `UPDATE` repite todas las condiciones de §D-D3 punto 3.3 (ids, clase, `subido_por`, pendiente, sin publicación, 24 h) y compara el conteo. Así que recibir las filas en lugar de los ids no relaja nada.
+- Permite armar los `adjuntos` del `201` sin otra consulta, como pide C-21.
+- El valor por defecto `archivos = []` es de un parámetro de **entrada** opcional, para quien publica sin adjuntos y para PR-C02e, que no se toca. No es un valor que oculte datos faltantes.
+
+**3. `buscarArchivosParaConfirmar` filtra por clase, usuario, estado, sin publicación y 24 h: se acepta.**
+- Sigue siendo una consulta por PK (`id IN (≤5)`), con filtros extra.
+- Es más estricta que el plan, y evita consultar al almacén por un objeto ajeno o ya confirmado, lo que serviría de oráculo y gastaría una llamada al proveedor.
+- Si falta una fila, responde `400 ARCHIVO_INVALIDO`, el mismo código que el `UPDATE` cuando el conteo no coincide.
+
+**4. Extras: se aceptan, y la Enmienda 11 los registra.**
+- **`CODIGOS_ARCHIVOS` en `shared/src/archivos.ts`:** §D-0.5 los ponía en `CODIGOS_CLASES`. Que vivan en el archivo del dominio es razonable y coherente, y el frontend los traduce en `MENSAJES_ERROR_CLASES`. Hay que corregir §D-0.5.
+- **`archivoIdParamSchema`.**
+- **Las tres fábricas de error en `core/archivos/politica.ts`:** evitan duplicar los mensajes entre los dos handlers.
+- **La descarga sin almacén responde `503` antes de buscar el archivo:** coincide con §D-D2 y no revela si el archivo existe.
+- **`STORAGE_*=` vacío cuenta como ausente:** evita un error confuso con un `.env` en blanco, y los mensajes no llevan valores (PR-D02c).
+- **Los textos accesibles "Archivos elegidos" y "Archivos adjuntos":** van a §D-D6.
+- **Los casos sin ID:** suman cobertura y no sustituyen a ninguno.
+
+**Las otras cuatro desviaciones del resumen** (puntos 5 a 8: descarga `503`, `vacioComoAusente`, textos, casos sin ID) quedan cubiertas por el punto 4.
+
+### Revisión a vuelo de pájaro (no es la revisión final)
+- **Cadenas de las dos rutas de `handlers/archivos.ts`:**
+  - `POST …/archivos`: `protegido({ roles: ["maestro"], pertenencia: "propiedad" })`;
+  - `POST …/archivos/:archivoId/descarga`: `protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" })`;
+  - las dos usan `claseDe(request)` y ningún handler revisa rol, propiedad ni inscripción a mano;
+  - el alumno restringido lo detiene `withAccess` (PR-D09c y PR-D09i).
+- **URL prefirmada de 5 min y el archivo fuera de Node:**
+  - `presignedPutObject` y `presignedGetObject` con `VIGENCIA_URL_FIRMADA_S = 300`, sin red, gracias a la región fija (PR-D03a);
+  - la API solo firma y guarda metadatos;
+  - el navegador sube con `fetch` `PUT` y `credentials: "omit"`, sin `apiClient` ni token, y rechaza una URL que no sea `http(s)` o que sea del origen de la API.
+  - Los tokens de mínimo privilegio son de configuración en R2 (DEPLOY), no de código.
+- **El estado del archivo:**
+  - un archivo está `confirmado` si y solo si tiene publicación, con el `CHECK` en las dos direcciones (PR-D08b y PR-D08c);
+  - `clase_id` autoriza al pendiente al solicitar y al confirmar;
+  - la descarga exige `confirmado` y `clase_id` de la ruta (PR-D07b y PR-D07c);
+  - al borrar una publicación, sus archivos pasan a `descartado` y quedan sin contexto, en la misma transacción, filtrando por `clase_id` (PR-D08a, y un caso extra con una publicación ajena).
+- **Vista previa:** solo PNG, JPEG, WebP y GIF (`TIPOS_CON_VISTA_PREVIA`), sin SVG.
+  - Para la vista previa, la URL `inline` fuerza `response-content-type` al tipo declarado, y la confirmación compara el tipo real con el declarado.
+  - La descarga es `attachment`, con `filename` en ASCII y `filename*` en RFC 5987.
+  - El nombre rechaza `/`, `\`, controles y bidireccionales.
+  - La clave nunca lleva el nombre y nunca sale en una respuesta (PR-D06c).
+- **Capas:** `minio` solo en `adapters/storage`; `core/archivos` sin infraestructura; Prisma solo en `adapters/db`.
+  - El handler del muro ganó dos funciones (`adjuntosParaResponder` y `archivosParaPublicar`) que orquestan el almacén y la base, sin consultas en un ciclo: una lectura por PK y un `Promise.all` de `statObject` para 5 objetos como máximo.
+  - Es aceptable; si crece, conviene moverlo a un módulo propio.
+- **Consultas:** los adjuntos del muro salen de una sola consulta por página (índice `archivos(publicacion_id)`), y las firmas de las vistas previas son cálculos locales.
+- **Frontend:**
+  - `handlePublicar` con `try/catch/finally` y el botón principal en `enEspera` de principio a fin (PR-D12c);
+  - el aviso de error de una subida nombra el archivo, y el de crear sigue en el hook (T-30 intacto);
+  - "Descargar" usa `try/catch` y `toast`;
+  - "Quitar" sigue §7.14;
+  - "Adjuntar archivos" lleva su ayuda permanente con `aria-describedby`;
+  - tokens solo de la escala propia, y `estatico-r1` y `clases-r1` en verde.
+- **`DESIGN.md`:** solo §7.19, marcada "propuesta".
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean (para el tester o para el cierre de d)
+- **N-D1, mensajes de un rechazo del servidor al solicitar:**
+  - un archivo de 0 bytes, o con un nombre que tiene `/`, `\` o un control, pasa la validación del cliente;
+  - el servidor responde `400 ARCHIVO_INVALIDO` con un mensaje específico ("El archivo está vacío…" o "El nombre del archivo no es válido.");
+  - pero el frontend lo traduce por código a "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.", que no dice qué pasó (`DESIGN.md` §9).
+  - Remedio posible: que el cliente rechace también el tamaño 0 y esos caracteres con su propio mensaje, o que un `ARCHIVO_INVALIDO` al solicitar muestre el mensaje del servidor.
+  - Es punto de ataque; si el tester lo confirma, es un hallazgo bajo.
+- **N-D2, `extensionDe` duplicada:** existe igual en `frontend/src/features/clases/lib.ts` y en `backend/src/core/archivos/politica.ts`. La tabla de tipos es única (`shared/`), pero la regla "tipo más extensión" está escrita dos veces. Es el mismo patrón que unificamos en c con `normalizarTextoLargo`. Pendiente con destino: el cierre de d o un carril trivial, moviendo `extensionDe` (o `tipoYExtensionCoinciden`) a `shared/src/archivos.ts`.
+- **N-D3, errata en `DESIGN.md` §7.19:** "el muro se considera fresco 4" debe decir "4 minutos". Va al carril trivial dentro de d.
+- **N-D4, `PR-D02a` con `if (soloElEndpoint.ok) return`:** el `return` va después de la aserción que exige `ok === false`, solo para estrechar el tipo. Si la precondición fallara, la prueba ya habría fallado. No viola la regla de `AGENTS.md`, pero conviene `if (soloElEndpoint.ok) throw …`, con un mensaje, en el próximo cambio de ese archivo.
+
+### Medición del programador (parcial, d)
+- **Resumen aceptado a la primera:** 0 de 1.
+- **Bien:**
+  - cifras exactas, contrastables y con su comando;
+  - reportó honestamente que desde la raíz le cayó 2 de 2 por CHORE-02;
+  - lockfile limpio y explicado;
+  - N-1 a N-5 al pie de la letra;
+  - declaró cada desviación con su motivo.
+- **A vigilar:** la desviación 1, que se resolvió sin detenerse, aunque la declaró.
+
+### Lista de puntos de ataque para la ronda 1 del tester (CLASES-d)
+Hallazgos desde T-38. Las `*.ataque` nuevas llevan el sufijo `-r1` de d (por ejemplo `archivos-d-r1`). Regla de PA-07 de d. PA-01 antes del backend.
+1. **Alcance por `archivoId`:**
+   - descarga de un archivo de otra clase con el `claseId` propio, de un `pendiente`, de un `descartado` y de un UUID inexistente: las cuatro respuestas idénticas, sin oráculo;
+   - un `archivoId` que no es UUID.
+2. **Confirmar al publicar:**
+   - un `pendiente` de otra clase, de otro maestro (codocente no hay: de otro maestro dueño de otra clase), de hace más de 24 h, ya confirmado en otra publicación o `descartado`;
+   - el mismo id dos veces; 6 ids;
+   - **dos publicaciones simultáneas que reclaman el mismo archivo:** una gana y la otra responde `400` sin dejar publicación ni trabajo en la cola, y ningún `500` ni `P2028` en corrida limpia;
+   - un archivo cuyo objeto no existe en el almacén.
+3. **Lo declarado contra lo real:**
+   - tamaño distinto en 1 byte;
+   - `Content-Type` real distinto, o con parámetros (`image/png; charset=…`) o en mayúsculas;
+   - extensión que no corresponde, doble extensión (`foto.png.html`), sin extensión;
+   - `image/svg+xml` y `text/html` declarados;
+   - `tamano` 0, negativo, decimal, `2^53`, 25 MB y 25 MB + 1;
+   - `tipo` `__proto__` o `constructor`.
+4. **El nombre:**
+   - 255 y 256 puntos de código;
+   - `/`, `\`, controles, U+202E (extensión disfrazada), saltos de línea, comillas, `;`, `%`, emojis y sustitutos sueltos;
+   - el `Content-Disposition` que firma la API: sin inyección de cabecera, con `filename*` correcto y una alternativa ASCII no vacía;
+   - XSS del nombre en la ficha, en el `alt` de la imagen y en el aviso de error (`«…»`).
+5. **La URL prefirmada:**
+   - que la de subida solo sirva para su clave y su método (no para otra clave ni para `GET`), en la medida en que el doble o la firma real lo permitan sin red;
+   - que expire a los 300 s (`X-Amz-Expires=300`);
+   - que la de descarga lleve `attachment` y la de vista previa `inline` solo para las cuatro imágenes;
+   - que ninguna respuesta lleve `claveObjeto` ni `clave_objeto`.
+6. **Alumno restringido y roles:**
+   - el restringido inscrito no obtiene ninguna URL (ni de subida, ni de descarga, ni de vista previa: su muro responde `403`);
+   - un estudiante no puede solicitar una subida;
+   - el admin, en ninguna;
+   - con `debe_cambiar_contrasena`, nada.
+7. **Logs (PA-10)** con `LOG_LEVEL=trace` y la API real: ningún `X-Amz-Signature`, ninguna URL prefirmada completa, ningún `STORAGE_SECRET_KEY` ni clave de objeto, también en los errores del proveedor (`503`).
+8. **Borrar con adjuntos:**
+   - la publicación con adjuntos se borra, y sus archivos quedan `descartado` y sin contexto;
+   - borrar con el `claseId` propio una publicación ajena no descarta nada;
+   - después del borrado, la descarga de un archivo descartado responde `404`;
+   - borrar una clase en cascada (si alguna prueba lo permite), sin violar el `CHECK` ni el `NO ACTION`.
+9. **`adjuntos` en todas las respuestas (C-21):**
+   - el muro con y sin almacén (`vistaPrevia: null`) y con y sin adjuntos, y el `201` de crear;
+   - el frontend con una respuesta sin `adjuntos`: debe dar `isError`, nunca una lista vacía;
+   - un cuerpo de crear sin `archivoIds` sigue aceptado por la API (entrada con valor por defecto), pero el formulario siempre lo envía (C-22).
+10. **Límites en el cliente:**
+    - 5 y 6 archivos, también en dos elecciones sucesivas;
+    - 25 MB y 25 MB + 1;
+    - `File.type` vacío con extensión conocida y desconocida;
+    - un tipo permitido con una extensión que no corresponde;
+    - N-D1 (0 bytes, nombre con `/` o con controles): ¿qué dice el aviso?
+11. **Flujo de publicar:**
+    - doble envío con archivos;
+    - falla la solicitud del segundo archivo, falla el `PUT` o falla el `POST` de publicar después de subir;
+    - el formulario conserva lo escrito y los archivos;
+    - los avisos salen una sola vez;
+    - el botón queda en `enEspera` todo el tiempo;
+    - quitar archivos con teclado (§7.14);
+    - desmontar el formulario con el proceso en curso.
+12. **Vista previa:**
+    - `onError` pasa a la ficha y no deja una imagen rota;
+    - el `alt` es correcto;
+    - una `vistaPrevia.url` con `javascript:` o `data:` llegada del servidor (el esquema usa `z.url()`): qué hace el `<img>`;
+    - "Descargar" con `window.location.assign` y una URL que no sea `http(s)`;
+    - `staleTime` de 4 min frente a la caducidad de 5.
+13. **360 px (análisis estático):**
+    - fichas y lista de elegidos con nombres largos sin espacios, de 255 caracteres;
+    - el botón "Descargar" y el tamaño, que deben partir la línea sin desbordar;
+    - imágenes anchas (`max-w-full`).
+14. **Regresión:**
+    - las 97 `*.ataque` y las pruebas normales de a, b y c, con dos corridas del frontend y una limpia del backend (si cae por CHORE-02, repite y reporta las dos);
+    - el muro de c sin adjuntos idéntico: texto de borrar, foco, "Muro" en error y PR-C18.
+15. **Configuración:**
+    - `STORAGE_*` parciales, vacías, con espacios o con un endpoint que no es `http(s)`;
+    - en `production` sin ellas, la API y el worker no arrancan y no imprimen el secreto;
+    - sin almacén en `dev`, subir y descargar responden `503` y el muro sale con `vistaPrevia: null`.
+- **PA-11:** a las 09:01:21, `docker ps -a` solo muestra `campus-dev-postgres-1`.
+
+## Arbitrajes de la ronda 1 — CLASES-d
+Fecha: 2026-10-02. Es de solo lectura: no corrí suites. Fuente: `reporte-tester.md`, "## CLASES-d — Ronda 1" (desde la línea 4132). Leí los casos del tester (`frontend/src/features/clases/archivos-d-r1.ataque.test.tsx`, `backend/test/archivos-d-r1.ataque.test.ts` y `frontend/src/lib/format-d-r1.ataque.test.ts`) y el código afectado.
+**Los seis hallazgos se corrigen en el código, sin una decisión del humano.** Todo cabe en archivos ya autorizados en d. Hace falta una **Enmienda 12 corta** del arquitecto antes de lanzar al programador, con el mismo precedente que la Enmienda 8 en c: registra los criterios en §D-D4, §D-D5 y §D-D6 y los IDs PR-D16 a PR-D21 en "Pruebas requeridas" (d). Ningún criterio exige reescribir una `*.ataque`: los casos del tester deben pasar tal como están.
+
+### T-38 (medio) — La lista de archivos se puede cambiar con la publicación en vuelo
+**Criterio:** mientras se publica, desde la primera solicitud hasta que termina `handlePublicar`, la lista de elegidos queda **fija**:
+- "Quitar" y elegir un archivo no actúan. `handleQuitar` y `handleElegir` regresan sin cambiar nada, y `handleElegir` limpia el valor del selector igual.
+- La comprobación usa una **referencia** que `handlePublicar` marca de forma síncrona, antes del primer `await`, y libera en el `finally`. No usa solo el estado de React, que tarda un render en verse en los manejadores.
+- Mientras tanto se muestra, junto a la lista, una nota con `role="status"`, en `--text-small` y `--muted-foreground`: "Mientras se publica no puedes cambiar los archivos." (texto en `data.ts`, `TEXTOS_ADJUNTOS`).
+- Al terminar con éxito, la lista se limpia como hoy. Si falla, conserva lo elegido y los controles vuelven a actuar.
+- Lo que se publica es exactamente la lista que se ve.
+
+**Por qué esta forma y no otras:**
+- **`disabled`:** por `CLAUDE.md` sería la forma correcta de "un control que no está disponible", pero V-06 de `styles/clases-r1.ataque` prohíbe `disabled` en el JSX de `features/`.
+- **`aria-disabled`:** la misma prueba lo permite solo en `button.tsx`, que no se toca.
+- **`enEspera` en "Quitar" o "Adjuntar":** cambiaría el conteo de C-13 (36) y además diría "en curso" de un control que no hace nada.
+- **Ocultar los controles:** rompería los casos del tester, que buscan "Quitar privado.pdf" y el selector "Adjuntar archivos" con `getByRole` y `getByLabelText` y necesitan que existan.
+- **Lo que queda:** los controles visibles que no actúan, la nota que lo explica y la garantía de que se publica lo que se ve.
+- **Residual aceptado:** "Quitar" y "Adjuntar" se ven activos durante la publicación. Lo mitiga la nota, y va como punto de H-6. Si el humano quiere el estado nativo, sería abrir `button.tsx` o la regla de `clases-r1` en otro encargo.
+
+**Archivos:** `components/formulario-publicacion.tsx` y `data.ts`. `DESIGN.md` §7.19 agrega, en "Publicar con archivos": "mientras se publica, la lista no cambia: «Quitar» y «Adjuntar archivos» no actúan y una nota lo dice".
+**Prueba normal:** **PR-D16**, en `formulario-publicacion.test.tsx`. Con la solicitud del primer archivo en vuelo:
+- "Quitar" no saca el archivo ni evita que se publique;
+- elegir otro no lo agrega;
+- la nota está visible;
+- al terminar, el cuerpo de publicar lleva exactamente los ids de la lista que se veía, la lista se limpia y los controles vuelven a actuar.
+
+### T-39 (medio) — "Descargar" navega a `javascript:` y `data:`
+**Criterio: una sola regla en `shared/`.**
+- `shared/src/archivos.ts` define `urlDelAlmacenSchema`: `z.url()` restringido a los protocolos `http` y `https`. En zod 4 basta la opción `protocol` (`/^https?$/`); el mensaje, sin valores.
+- Lo usan las tres URL del almacén:
+  - `descargaRespuestaSchema.url`;
+  - `adjuntoSchema.vistaPrevia.url`;
+  - `solicitarSubidaRespuestaSchema.subida.url`.
+- **Efecto:** el `schema.parse` de `apiClient` rechaza una respuesta con otro esquema de URL, así que `mutateAsync` falla, `handleDescargar` cae en su `catch` y avisa con `toast.error`, sin navegar.
+- **También en el backend:** el backend valida sus respuestas con los mismos esquemas, así que nunca responde una URL así.
+
+**No hace falta otra comprobación en el cliente.** El esquema ya garantiza el protocolo. La de `almacenService` (protocolo y origen de la API) se queda, porque además compara el origen.
+
+**Efecto en el muro:** una `vistaPrevia` con una URL de otro esquema hace fallar el muro completo (`isError`). Es el mismo criterio de C-21 (una respuesta mal formada es un error, no se repara en silencio), y esas URL las firma nuestro propio adaptador.
+
+**Archivos:** `shared/src/archivos.ts`, con su `index.ts` si se exporta el esquema.
+**Pruebas normales:**
+- **PR-D17a**, en `adjuntos-de-publicacion.test.tsx`: una respuesta de descarga con `javascript:alert(1)` o con `data:text/html,…` no llama a `window.location.assign` y da un solo `toast.error`.
+- **PR-D17b**, en `backend/src/core/archivos/politica.test.ts`: `urlDelAlmacenSchema` acepta `http://` y `https://` y rechaza `javascript:`, `data:`, `vbscript:`, `file:` y `ftp:`. Importa de `@campus/shared`, como PR-C15a.
+
+### T-40 (bajo) — Vistas previas vencidas al volver al muro después de "Ver más"
+**Criterio, lo mínimo que lo resuelve en todos los casos:** el `staleTime` de `usePublicaciones` pasa a ser una **función de la consulta** (TanStack Query 5 lo admite).
+- **Con vistas previas:** el muro se vuelve viejo **60 s antes del `expiraEn` más temprano** entre todas las vistas previas de las páginas cargadas. Es decir, `staleTime = max(0, (expiraMínimo − 60 s) − dataUpdatedAt)`.
+- **Sin vistas previas:** se conserva el valor de hoy (`TIEMPO_FRESCO_DEL_MURO_MS`).
+- **Al volver al muro** con la consulta vieja, se vuelve a pedir, como hoy al montar.
+- **El margen de 60 s** hace que las URL viejas sigan vigentes mientras llega la respuesta nueva.
+- **El cálculo** es una función pura en `lib.ts` (por ejemplo `tiempoFrescoDelMuro(paginas, dataUpdatedAt)`), y `hooks.ts` solo la usa.
+
+**Además, en `adjuntos-de-publicacion.tsx`:** una imagen que falló se recuerda por su **URL** (`vistaPrevia.url`), no por el id del adjunto. Así, una URL nueva tras volver a pedir el muro vuelve a intentarse. Hoy, con el id, una firma vencida que falló dejaría oculta para siempre la vista previa de ese adjunto, aunque la lista ya traiga una URL vigente.
+
+**Descartadas:**
+- **Un `staleTime` menor:** no resuelve el caso, porque `dataUpdatedAt` se renueva con cada página.
+- **`refetchOnMount: "always"`:** volvería a pedir todas las páginas en cada vuelta al muro, aunque no haya ninguna imagen.
+- **Pedir una URL nueva en el `onError`:** necesitaría una ruta nueva.
+
+**Archivos:** `lib.ts`, `hooks.ts`, `components/adjuntos-de-publicacion.tsx` y `DESIGN.md` §7.19, donde la frase "el muro se considera fresco 4" (N-D3) pasa a decir "el muro se vuelve a pedir antes de que venza la primera vista previa".
+**Pruebas normales:**
+- **PR-D18a**, en `lib.test.ts`: la función con y sin vistas previas, con dos páginas firmadas en momentos distintos (gana el `expiraEn` más temprano) y con un vencimiento ya pasado (da 0).
+- **PR-D18b**, en `adjuntos-de-publicacion.test.tsx`: una imagen que falló con una URL vuelve a mostrarse cuando el adjunto llega con otra URL.
+
+### T-41 (bajo) — El aviso de un rechazo al solicitar no nombra el archivo (N-D1)
+**Criterio:**
+- Cuando falla la **solicitud** de subida de un archivo con un `ApiError`, el aviso nombra el archivo y dice el motivo: `TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)` → "No pudimos subir «\<nombre\>»: \<motivo\>".
+  - Con `ARCHIVO_INVALIDO`, `motivo` es el `mensaje` del servidor: ya está en español, dice la causa y no lleva valores ("El archivo está vacío o pesa más de 25 MB.", "El nombre del archivo no es válido.").
+  - Con cualquier otro código, `motivo` sale de `mensajeDeErrorClases`.
+- Sale un solo aviso, no se publica y se conserva lo escrito.
+- Un fallo del `PUT` al almacén conserva el texto de hoy ("No pudimos subir «\<nombre\>». Inténtalo de nuevo.").
+- **El cliente no agrega validaciones nuevas** de tamaño 0 ni de caracteres del nombre. Los casos del tester exigen que el cliente deje elegir esos archivos ("El cliente lo deja pasar…"): rechazarlos al elegir rompería su precondición. Que los rechace el servidor y el aviso lo explique cumple §7.19 y §9.
+
+**Archivos:** `components/formulario-publicacion.tsx` y `data.ts`.
+**Prueba normal:** **PR-D19**, en `formulario-publicacion.test.tsx`: un `400 ARCHIVO_INVALIDO` al solicitar da un solo aviso con «nombre» y el mensaje del servidor; un `503` al solicitar da «nombre» y el texto de `ALMACEN_*`; ninguno publica.
+
+### T-42 (bajo) — Un nombre con un sustituto suelto se guarda distinto de lo que se responde
+**Criterio:** se **rechaza**, con `400 ARCHIVO_INVALIDO` "El nombre del archivo no es válido.", igual que los controles y los bidireccionales.
+- `CARACTER_PROHIBIDO_EN_NOMBRE` de `core/archivos/politica.ts` suma `\p{Cs}`, que con la bandera `u` reconoce un sustituto suelto. Así no se escribe fila ni se firma nada.
+- `sinSustitutosSueltos` de `disposicionDeContenido` se queda como defensa.
+- **Descartado:** normalizar a U+FFFD y responder lo guardado. Guardaría un nombre que nadie eligió.
+
+**Fuera del alcance de d:** los textos del muro (título, anuncio y comentario) también aceptan un sustituto suelto y lo guardan como U+FFFD. Es una observación para el cierre de d: un pendiente con destino en `textoLargoSchema` y `nombreClaseSchema`, que se trata como la regla de contenido visible.
+
+**Archivo:** `core/archivos/politica.ts`.
+**Prueba normal:** **PR-D20**, en `politica.test.ts`: `validarArchivoDeclarado` con un sustituto alto suelto y con uno bajo suelto da `ARCHIVO_INVALIDO`; un emoji (un par válido) en el nombre se acepta.
+
+### T-43 (bajo) — "1024 KB"
+**Criterio:** redondear antes de elegir la unidad.
+- Si `Math.round(bytes / 1024)` llega a 1024, se pasa a MB, que se formatea igual que hoy ("1 MB").
+- Los cambios de unidad exactos y PR-D14 no cambian.
+
+**Archivo:** `frontend/src/lib/format.ts`.
+**Prueba normal:** **PR-D21**, en `frontend/src/lib/format.test.ts`: 1,048,575 y 1,048,064 bytes dan "1 MB"; 1,047,552 da "1023 KB".
+
+### Archivos y "No se toca"
+- **Todos los archivos están autorizados en d** ("Cambios por capa" y la fila d de las listas cerradas):
+  - producción: `components/formulario-publicacion.tsx`, `components/adjuntos-de-publicacion.tsx`, `data.ts`, `lib.ts` y `hooks.ts` de `features/clases`, `shared/src/archivos.ts` (y `shared/src/index.ts`), `backend/src/core/archivos/politica.ts`, `frontend/src/lib/format.ts` y `docs/DESIGN.md` (§7.19);
+  - pruebas: `formulario-publicacion.test.tsx`, `adjuntos-de-publicacion.test.tsx`, `lib.test.ts`, `politica.test.ts` y `format.test.ts`.
+- **No hace falta ningún archivo nuevo** ni tocar `publicacion-del-muro.tsx`, `comentarios-de-publicacion.tsx`, `muro-view.tsx`, `apiClient.ts`, `button.tsx` ni ninguna `*.ataque`.
+- **La base de V-01** para la corrección es la tabla de la ronda 1 del tester (101).
+- **El arquitecto solo registra en la Enmienda 12:**
+  - los criterios (§D-D4: `urlDelAlmacenSchema`; §D-D5: lista fija durante la publicación y `staleTime` como función; §D-D6: la nota y el aviso de rechazo);
+  - los IDs PR-D16 a PR-D21;
+  - la observación del sustituto suelto en los textos del muro como pendiente;
+  - el residual de T-38 para H-6.
+
+### Para la verificación de la corrección
+Comprobaré:
+- que los 10 casos rojos del tester pasan sin tocarlos y por la razón correcta: T-38 por la referencia y la nota, no por un render más lento; T-40 por la función de `staleTime`, no por un valor fijo menor;
+- que `enEspera=` sigue en 36 y `disabled` y `aria-disabled` en 0 en `features/`;
+- que no hay una segunda definición del protocolo permitido fuera de `shared/` (aparte de la de `almacenService`, que también compara el origen);
+- que `muro-recuperar-c-r3` y `-r4` y PR-C18 siguen en verde con el `staleTime` nuevo.
+
+## Verificación del resumen — CLASES-d — corrección de la ronda 1
+Fecha: 2026-10-02, de 10:04 a 10:13. Verifico `resumen-programador.md`, "## CLASES-d — corrección de la ronda 1" (línea 1697), contra la Enmienda 12 y mis arbitrajes ("## Arbitrajes de la ronda 1 — CLASES-d").
+**Veredicto del resumen: ACEPTADO.** Ninguna cifra ni ID difiere de mi corrida, y las seis correcciones cumplen el criterio exacto. **Enmienda 12: APROBADA.** Pasa a la ronda 2 del tester de d.
+Verificación propia: lint 0 · build `✓ built in 682ms` · `npm run test` desde la raíz con **código 0 a la primera** (backend `118 passed (118)` / `1295 passed (1295)`, frontend `100 passed (100)` / `1339 passed (1339)`) · backend por paquete, limpio · frontend por paquete, dos veces en verde · V-01 101/101 · PA-07, PA-10 y PA-11 limpios.
+
+### Cifras: resumen contra mi corrida
+| Cifra | Resumen | Mi corrida |
+|---|---|---|
+| PA-01 | regla y red correctas | `True / Inbound / Block / Public`; `IZZI-F281-5G`, antes de cada corrida del backend |
+| `npm run lint` (raíz) | código 0 | código 0 |
+| `npm run build` (raíz) | `✓ built in 692ms` | `✓ built in 682ms`, código 0 |
+| `npm run test` (raíz) | corrida 1 caída por CHORE-02; corrida 2 con código 0 | código 0 a la primera: backend 118/1295, frontend 100/1339 |
+| Backend por paquete | 1295/1295, dos corridas | `118 passed (118)` / `1295 passed (1295)`, código 0 |
+| Frontend por paquete | 1339/1339 | `100 passed (100)` / `1339 passed (1339)`, dos veces |
+| `npx vitest list` | 118/1295 y 100/1339 | 1295 casos en 118 archivos; 1339 en 100 |
+| PR-D16 a PR-D21 | 8 casos con título exacto | Los 8 títulos aparecen exactos y una sola vez. Hay 64 IDs PR-D distintos (56 + 8), sin repetidos |
+| Los 10 rojos del tester | en verde sin tocarlos | En verde dentro de las suites, con los mismos hashes de la tabla de la ronda 1 |
+| V-01 | 101/101 | **101/101** contra la tabla de "CLASES-d — Ronda 1" (`diff` por programa) |
+| PA-07 | los dos aceptados en las corridas limpias | Raíz y paquete: los cuatro términos en 0; `P2028` solo en `sesiones.ts:39` y `tokens-cuenta.ts:116` |
+| PA-10 | `X-Amz-Signature` 0 | 0 en las dos salidas del backend |
+| PA-11 | limpio | A las 10:12 solo `campus-dev-postgres-1` |
+
+### V-04 y V-05
+**V-04:**
+- `enEspera=`: 36. `disabled` y `aria-disabled` en el JSX de `features/`: 0. `?? []`: 0.
+- `from "minio"` solo en `adapters/storage/index.ts`. `fetch(` solo en `apiClient.ts` (2) y `almacenService.ts` (1).
+- **Protocolo permitido:** `urlDelAlmacenSchema` se define una sola vez (`shared/src/archivos.ts:35`) y la usan las tres URL. Fuera de ahí solo queda la comprobación de `almacenService`, que el arbitraje conserva porque además compara el origen. No hay otra definición.
+
+**V-05** (contra `c7fcece`):
+- intactos:
+  - del backend: `middleware/`, `adapters/db/{clases,inscripciones,cliente,errores}.ts`, `queue`, `notifier`, `auth`, `handlers/clases/{clases,alumnos}.ts`, `workers/`, `server.ts`, `worker.ts` y E6;
+  - del frontend: `components/`, `features/auth`, `features/admin`, `services/` existentes, `tokens.css`, `router.tsx`, `muro-view.tsx`, `comentarios-de-publicacion.tsx` y `formulario-clase.tsx`;
+  - los `package.json`, `eslint.config.mjs` e `infra/`.
+- `publicacion-del-muro.tsx` conserva solo el cambio de la Enmienda 11 (8 inserciones y 1 borrado contra `c7fcece`).
+- El lockfile y `backend/package.json` siguen como en la entrega anterior: solo `minio`.
+
+### Las correcciones contra el criterio de la Enmienda 12
+- **T-38:**
+  - `publicandoRef` se marca en la primera línea de `handlePublicar`, antes del primer `await`, y se libera en el `finally`;
+  - `handleElegir` (que limpia antes el selector) y `handleQuitar` regresan con la referencia marcada, y `handleSubmit` también la consulta;
+  - la nota es `<p role="status">`, en `text-small` y `text-muted-foreground`, con `TEXTOS_ADJUNTOS.listaFija`;
+  - no hay `disabled`, `aria-disabled`, `enEspera` nuevo ni controles ocultos;
+  - se publica la lista que se ve, porque la referencia impide cambiarla, y `DESIGN.md` §7.19 lo documenta.
+- **T-39:** `urlDelAlmacenSchema = z.url({ protocol: /^https?$/, error: … })`, sin valores en el mensaje. Está en las tres URL, se exporta en `index.ts` y `handleDescargar` no cambia (el `catch` avisa).
+- **T-40:**
+  - `tiempoFrescoDelMuro(paginas, dataUpdatedAt)` es pura, en `lib.ts`: `max(0, primerVencimiento − 60 s − dataUpdatedAt)` y, sin vistas previas, 240,000;
+  - el margen es una constante de `data.ts` (`MARGEN_DE_VISTA_PREVIA_MS`);
+  - `staleTime` es una función de la consulta en `hooks.ts`;
+  - `adjuntos-de-publicacion.tsx` recuerda por URL (`urlsRotas`);
+  - `PaginaDelMuro` en `types.ts` es un alias de `ListaPublicacionesRespuesta`, de `shared/`, así que no es un tipo declarado a mano.
+- **T-41:**
+  - el aviso es `errorRechazado(nombre, motivo)`: con `ARCHIVO_INVALIDO`, el mensaje del servidor; con los demás, `mensajeDeErrorClases`;
+  - un error que no es `ApiError` (el `PUT`) conserva `errorSubida`;
+  - no hay validaciones nuevas en el cliente.
+- **T-42:** `CARACTER_PROHIBIDO_EN_NOMBRE` suma `\p{Cs}` (con la bandera `u`), sin normalizar. `sinSustitutosSueltos` se queda.
+- **T-43:** primero redondea a KB y después elige la unidad. PR-D14 y los cambios de unidad exactos siguen en verde.
+
+### Enmienda 12 (modo plan): APROBADA
+- **Forma:**
+  - `git diff c7fcece -- plan.md` da 201 inserciones y 24 borrados, y el SHA-256 es `91275F96…`, lo mismo que anotó el orquestador;
+  - los hunks nuevos desde la Enmienda 11 caen en lo declarado: la cabecera (la línea de la Enmienda 12), la sección de la Enmienda 12, §D-D4 (`urlDelAlmacenSchema` y el nombre), §D-D5 (lista fija, aviso de rechazo, `staleTime` como función, imagen por URL y `formatearTamano`), §D-D6 (los dos textos), §D-D7 (las dos líneas de §7.19), "Cambios por capa" (`lib.ts` y `hooks.ts`), "Pruebas requeridas" (d) (PR-D16 a PR-D21 y la nota), el paso 46 y "Pendientes";
+  - no toca PARADAS, "No se toca", los C-n ni la lista cerrada.
+- **Fondo:** es mi arbitraje, transcrito fielmente: los descartes y sus motivos, el residual de T-38 para H-6, el pendiente del sustituto suelto en los textos del muro y el destino de O-1 a O-9. Las tres "Contradicciones" son correctas.
+
+### Los invisibles de `shared/src/clases.ts`
+- **Qué son:** 4 caracteres de control de dirección **literales** en la línea 48: `const INVERSORES_DE_DIRECCION = /[U+202A-U+202E U+2066-U+2069]/u` (U+202A, U+202E, U+2066 y U+2069, los extremos de los dos rangos). Están desde CLASES-a (`855069b`).
+  - El orquestador no los vio porque su lista no incluía los bidireccionales.
+  - Ni d ni la corrección agregaron otro: mi script compara cada archivo de producción tocado con `c7fcece`.
+- **¿Importa?** La función es correcta: la expresión rechaza los inversores de dirección, y lo prueban `codigo-r1`, `nombres-guarda-r3`, PR-A08d y otros.
+  - El riesgo es de **revisión**: un U+202E literal reordena en pantalla el resto de la línea en editores y diffs (el patrón "Trojan Source"), y GitHub marca el archivo con un aviso de caracteres bidireccionales.
+  - Además va contra la convención que fijamos en c para las pruebas: los invisibles se escriben con escapes.
+- **Destino: no bloquea.**
+  - Carril trivial en el cierre de d: reemplazar los cuatro literales por escapes (`\u202A-\u202E\u2066-\u2069`), como ya hace `core/archivos/politica.ts:16`, y comprobarlo por programa, porque la herramienta de edición convierte los escapes en caracteres reales (O-10).
+  - `shared/src/clases.ts` está autorizado en d, aunque esa línea es de a, así que el arquitecto lo registra en la enmienda de cierre.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores (no bloquean)
+- **N-D4 no se aplicó y el resumen no lo menciona:** `env.test.ts:219` sigue con `if (soloElEndpoint.ok) return`. La Enmienda 11 lo mandaba "en la próxima entrega de d". Va al cierre de d por el carril trivial, junto con los invisibles de arriba, y a la medición (una omisión no declarada).
+- **`avisoDeFalloAlSubir`** es una función pura definida en el archivo del componente (`formulario-publicacion.tsx:30`). Por la regla 3 de `CLAUDE.md` vive en `lib.ts`. Va al carril trivial en el cierre.
+- **La nota de T-38** aparece también al publicar sin archivos ("no puedes cambiar los archivos" sin que haya ninguno). Es inofensivo; si se quiere, se muestra solo con `elegidos.length > 0`. Va al cierre o a H-6.
+
+### Lista de puntos para la ronda 2 del tester (CLASES-d)
+Hallazgos desde T-44. Las `*.ataque` nuevas llevan el sufijo `-r2` de d. Regla de PA-07 de d. PA-01 antes del backend.
+1. **Regresión de los 10 casos de la ronda 1, por la razón correcta:**
+   - T-38, por la referencia: comprobar que el estado de React no basta;
+   - T-39, por el esquema de `shared/`: el aviso sale del `catch`, sin navegar;
+   - T-40, por la función de `staleTime` y no por un valor fijo menor: con dos páginas, el `staleTime` lo marca la primera vista previa que vence;
+   - T-41, con el nombre y el motivo;
+   - T-42, con `400` y sin fila;
+   - T-43, con "1 MB".
+2. **Bordes de T-38:**
+   - "Quitar" y elegir un archivo en el mismo turno del clic en "Publicar", antes de que se resuelva el primer `await`, y justo después del `finally`, con éxito y con fallo;
+   - el doble envío (dos `submit` seguidos);
+   - "Quitar" con teclado durante la publicación: el foco no se pierde;
+   - si el fallo es al publicar después de subir, la lista queda editable;
+   - la nota aparece y desaparece y se anuncia (`role="status"`).
+3. **Bordes de T-39:**
+   - `HTTP://` y `HTTPS://`, `http:host` sin barras y `//host` (sin protocolo);
+   - `blob:`, `data:`, `javascript:` con espacios o tabuladores al inicio y con mayúsculas (`JaVaScRiPt:`), y `vbscript:`;
+   - en las tres URL, incluida una `vistaPrevia` con otro protocolo, que debe hacer fallar el muro completo (`isError`), no ocultar la publicación;
+   - el backend nunca responde una URL que no pase el esquema.
+4. **Bordes de T-40:**
+   - páginas con `expiraEn` distintos y una sin vistas previas;
+   - un `expiraEn` ya pasado al cargar (`staleTime` 0);
+   - volver al muro antes y después del margen de 60 s;
+   - una imagen que falló y vuelve con otra URL;
+   - que con una consulta en error, o sin datos, no se lance;
+   - que el muro sin vistas previas siga con 4 minutos.
+5. **Bordes de T-41:**
+   - dos archivos rechazados y uno aceptado, en distinto orden: se detiene en el primero, con un solo aviso con ese nombre, y no publica;
+   - un `503` al solicitar;
+   - un nombre con HTML o con `«»` en el aviso;
+   - el mensaje del servidor con texto inesperado, que debe pintarse como texto.
+6. **Bordes de T-42:**
+   - pares válidos (emoji, CJK de plano astral) y sustitutos sueltos al inicio, en medio y al final;
+   - **el pendiente del cierre:** sustitutos sueltos en el título, el anuncio y el comentario del muro. Se reporta como observación (va al cierre de d), no como hallazgo de esta ronda.
+7. **Bordes de T-43:**
+   - 0, 1, 1023 y 1024 B; 1,048,063, 1,048,064 y 1,048,575 B;
+   - 1 MB exacto; 25 MB y 25 MB + 1;
+   - 1,073,741,823 B (cerca de 1 GB: el cliente nunca lo admite, pero la función no debe dar "1024 MB" si se le pide).
+8. **Lo que vi débil:**
+   - la nota de T-38 al publicar sin archivos (detalle de arriba);
+   - `avisoDeFalloAlSubir` con un `ApiError` cuyo `message` esté vacío;
+   - `tiempoFrescoDelMuro` con muchas páginas: `Math.min(...vencimientos)` con varios miles de elementos. Hoy son 100 publicaciones por página y 5 adjuntos, así que no es riesgo, pero conviene un borde.
+9. **Regresión completa:**
+   - las 101 `*.ataque` y las pruebas normales de a, b, c y d, con dos corridas del frontend y una limpia del backend (si cae por CHORE-02, repite y reporta las dos);
+   - el muro de c sin adjuntos idéntico (texto de borrar, foco, "Muro" en error y PR-C18), ahora con el `staleTime` como función.
+
+### Arbitraje de PA-12 — ronda 2 de CLASES-d
+Fecha: 2026-10-02. Es de solo lectura. Fuente: `reporte-tester.md`, "CLASES-d — Ronda 2" (desde la línea 4449), y `backend/test/archivos-d-r1.ataque.test.ts:880-1016`.
+**Decisión: (a), con una condición. Se registra como C-23 en la enmienda de cierre de d, con el mismo precedente que C-16 y C-17.**
+- **Por qué se cae:** el fallo (`expected 61 to be 60`) es de la prueba, no de producción. `archivo.count()` sin filtro cuenta la tabla completa mientras otros archivos de prueba insertan filas en paralelo. Las 11 peticiones ya habían respondido su `401` o `403` antes del conteo. El caso aislado pasa, PA-07 está limpio y no fue CHORE-02.
+- **Lo que se autoriza:** los dos conteos (`:897` y `:1016`) se acotan con `where: { OR: [{ claseId: { in: [<toda clase que aparece en una URL del caso>] } }, { subidoPor: { in: [<todo usuario que hace una petición en el caso>] } }] }`.
+  - **Las clases:** al menos `e.claseA`, `claseConCambio.id` y `claseDeBaja.id`, más `e.claseB` si alguna petición la usa.
+  - **Los usuarios:** el estudiante inscrito, el admin, el maestro ajeno, `conCambio`, `deBaja` y el maestro dueño, si llama.
+  - **Por qué los dos:** solo con las clases, una escritura indebida con otro `claseId` (o hecha por un actor del caso en otra clase) pasaría sin detectarse. Con el `OR`, el conteo sigue demostrando que ninguna de las 11 peticiones escribió, y deja de depender del resto de la suite.
+- **Lo que no cambia:**
+  - ninguna otra aserción ni el título;
+  - las comprobaciones de que no se firma nada;
+  - las respuestas esperadas.
+- **Cierre del cambio:**
+  - el tester publica el hash nuevo de `archivos-d-r1.ataque.test.ts` en la tabla de la ronda 2;
+  - lo corre aislado dos veces y en la suite completa;
+  - sigue con la ronda.
+  - `archivos-d-r2.ataque.test.ts`, todavía sin correr, entra en la tabla con las demás.
+
+## Verificación del resumen — CLASES-d — corrección de la ronda 2
+Fecha: 2026-10-02, de 10:42 a 10:53. Verifico `resumen-programador.md`, "## CLASES-d — corrección de la ronda 2" (línea 1764), contra T-44 (`reporte-tester.md`, "CLASES-d — Ronda 2", línea 4449; C-23 en 4475; tabla de 104 en 4613) y contra los detalles que dejé en la verificación anterior (N-D4 y `avisoDeFalloAlSubir`).
+**Veredicto del resumen: ACEPTADO.** Ninguna cifra ni ID difiere de mi corrida, y la corrección es mínima. Pasa a la ronda 3 del tester de d, la última antes de escalar.
+Verificación propia: lint 0 · build `✓ built in 631ms` · `npm run test` desde la raíz con **código 0 a la primera** (backend `119 passed (119)` / `1298 passed (1298)`, frontend `102 passed (102)` / `1375 passed (1375)`) · backend por paquete: la primera corrida cayó por CHORE-02 y la repetición salió limpia · frontend por paquete, dos veces en verde · V-01 104/104 · no corrí dos suites a la vez.
+
+### Cifras: resumen contra mi corrida
+| Cifra | Resumen | Mi corrida |
+|---|---|---|
+| PA-01 | regla y red correctas | `True / Inbound / Block / Public`; `IZZI-F281-5G`, antes de cada corrida del backend |
+| `npm run lint` (raíz) | código 0 | código 0 |
+| `npm run build` (raíz) | `✓ built in 654ms` | `✓ built in 631ms`, código 0 |
+| `npm run test` (raíz) | código 0; backend 1298/119, frontend 1375/102 | código 0; backend `119 passed (119)` / `1298 passed (1298)`, frontend `102 passed (102)` / `1375 passed (1375)` |
+| Backend por paquete | corrida 1 caída por CHORE-02; corrida 2 limpia | **Corrida 1 caída por CHORE-02:** `9 failed \| 1286 passed \| 3 skipped (1298)`. Son 9 tiempos límite (`cuentas-r1`, `cuentas-r3`, `bloqueo-usuario` A1, workers, `intentos`, PR-A15h y un caso de restablecer). Los `P2028` son todos de AUTH: `sesiones.ts:39`, `tokens-cuenta.ts:116` y `sesiones.ts:110`, este último dentro del flujo de restablecer, como en c. No hay ninguno en rutas de c ni de d. **Corrida 2:** `119 passed (119)` / `1298 passed (1298)`, limpia, con exactamente los dos aceptados. Por la regla de d, no es PA-07 |
+| Frontend por paquete | 1375/1375, dos corridas | `102 passed (102)` / `1375 passed (1375)`, dos veces |
+| `npx vitest list` | 119/1298 y 102/1375 | 1298 casos en 119 archivos; 1375 en 102 |
+| Casos nuevos | PR-D21 (MB y GB) y `avisoDeFalloAlSubir` | Los dos con el título exacto del resumen. El PR-D21 de la ronda 1 sigue intacto. Hay 64 IDs PR-D distintos (sin cambio: PR-D21 se extiende con un caso y su ID) |
+| V-01 | 104/104 | **104/104** contra la tabla de "CLASES-d — Ronda 2" (con el hash de C-23 para `archivos-d-r1`) |
+| PA-07 | los dos aceptados; 3 "Error no controlado" provocados | Raíz y corrida limpia: los cuatro términos en 0; `P2028` solo `sesiones.ts:39` y `tokens-cuenta.ts:116`; 3 `ZodError` "La URL del almacén debe ser http o https", los provocados por `archivos-d-r2` (ver abajo) |
+| PA-10 | 0 | `X-Amz-Signature` 0 en las salidas del backend |
+| PA-11 | limpio | A las 10:53 solo `campus-dev-postgres-1` |
+
+### La corrección
+- **`formatearTamano` (`lib/format.ts`):** usa `UNIDADES_DE_TAMANO = ["B", "KB", "MB", "GB"] as const` y un ciclo `while`.
+  - `redondeado()` redondea en la unidad actual (0 decimales en B y KB, 1 en MB y GB) y lo convierte con `Number()`. Si llega a 1024 y hay una unidad siguiente, divide y sube.
+  - **No vuelve "1024.0 MB":** `Number("1024.0")` es 1024, que cumple la condición del ciclo y sube a GB, donde 0.99995 da "1.0" y se imprime "1 GB". Lo mismo en KB (`1023.5.toFixed(0)` es "1024" y sube).
+  - `Number()` quita el ".0" sin una expresión regular aparte.
+  - No hay ramas por unidad, ternarios anidados (un solo ternario para los decimales) ni valores por defecto. El índice nunca sale de la lista, por la condición del ciclo.
+  - **Límite inherente, sin riesgo:** un valor mayor o igual a 1024 GB se queda en GB ("1024 GB"); el cliente nunca acepta más de 25 MB. Igual que antes, un número negativo o `NaN` no se valida: la función solo recibe `File.size` y enteros del servidor validados por zod.
+  - Los 11 casos de `format-d-r2` pasan sin tocarlos.
+- **N-D4 (`env.test.ts`):** seis `return` de PR-D02a a PR-D02c pasan a `throw new Error("<variable> debía ser inválido y salió válido")` (o "válido y salió inválido"), siempre después de la aserción. Los `return` de los casos anteriores a d no se tocaron, y está bien así: no son de d.
+- **`avisoDeFalloAlSubir`:** pasa a `features/clases/lib.ts`, idéntica, y el componente la importa. Se quitaron de él los imports que ya no usaba. Tiene un caso nuevo en `lib.test.ts` con los tres caminos (`ARCHIVO_INVALIDO`, otro código y un error que no es `ApiError`).
+- **Alcance:**
+  - el orquestador comparó la lista de SHA-256 de los paquetes y solo cambiaron los seis archivos declarados;
+  - por mi parte, `middleware/`, `components/`, `services/`, `muro-view.tsx` y `eslint.config.mjs` siguen iguales a `c7fcece`;
+  - V-04 sigue en orden: `enEspera=` 36, `minio` y `fetch(` en su sitio, y ningún invisible nuevo.
+
+### Los tres `500` provocados por `archivos-d-r2` y la regla de PA-07 de d
+- Mi regla de d dice que un `500` del muro o de archivos en una corrida limpia es PA-07. Estos tres no lo son:
+  - los provoca **a propósito** un caso del tester con un almacén doble que firma `javascript:` y `data:`, algo que el adaptador real no puede producir, porque el endpoint se valida como `http(s)`;
+  - son exactamente tres (`POST …/archivos`, `POST …/archivos/:id/descarga` y `GET …/publicaciones`), con el `ZodError` del esquema de `shared/`, y no filtran la URL.
+- **Precisión de la regla para lo que queda de d:** un `500` del muro o de archivos que una `*.ataque` provoca a propósito con un doble imposible, y que el reporte identifica por ruta y causa, se excluye como los `500` provocados de siempre. Cualquier otro `500` del muro o de archivos en una corrida limpia sigue siendo PA-07.
+- **O-14 del tester** (ese caso responde `500` y no `503`, y en solicitar la fila `pendiente` ya se insertó antes del `parse`): es una nota para el cierre de d. Si se toca, el handler valida la respuesta de la firma antes de insertar, o traduce ese error a `503 ALMACEN_NO_DISPONIBLE`. No bloquea, porque con el adaptador real no ocurre.
+
+### Problemas que bloquean
+Ninguno.
+
+### Lista de puntos para la ronda 3 del tester (CLASES-d), la última antes de escalar
+Es una ronda de **regresión y bordes residuales**, no de ataque nuevo amplio. Hallazgos desde T-45. Las `*.ataque` nuevas llevan el sufijo `-r3` de d. Regla de PA-07 de d (con la precisión de arriba). PA-01 antes del backend; nunca dos suites a la vez.
+1. **Regresión completa:**
+   - las 104 `*.ataque` y las pruebas normales de a, b, c y d, con dos corridas del frontend y una limpia del backend (si cae por CHORE-02, repite y reporta las dos);
+   - V-01 contra la tabla de la ronda 2.
+2. **T-44 por la razón correcta:**
+   - el ciclo sube de unidad porque redondea antes de elegirla, no por un caso especial: 1,073,741,823 B da "1 GB" y 1,073,689,395 da "1023.9 MB";
+   - los vecinos de cada cambio de unidad, también con decimales: 1023.5 KB, 1023.95 MB, 1 GB exacto, 1.5 GB y 1023.95 GB;
+   - que ningún resultado lleve ".0" ni "1024" en una unidad que no sea la última;
+   - T-43 sigue en verde.
+3. **`avisoDeFalloAlSubir` desde `lib.ts`:** los tres caminos (`ARCHIVO_INVALIDO` con el mensaje del servidor, otro código con `mensajeDeErrorClases` y un error que no es `ApiError` con el texto de la subida), y el formulario sigue avisando una sola vez con el nombre.
+4. **N-D4:** PR-D02a a PR-D02c siguen en verde, y un `throw` solo se alcanza si la aserción anterior falla. Solo revisión del código, sin una `*.ataque` nueva si no hace falta.
+5. **Residuales para confirmar como observación, no como hallazgo nuevo:**
+   - O-11 (sustitutos sueltos en los textos del muro);
+   - O-12 (`Math.min` con muchos vencimientos);
+   - O-13 (la nota sin archivos);
+   - O-14 (`500` y fila huérfana con un almacén imposible).
+
+   Ya tienen destino en el cierre de d.
+6. **Bordes que quedan de T-38 a T-42,** solo si no los cubre ya una `*.ataque` vigente: el foco tras quitar y publicar con teclado, y el muro con una página sin vistas previas junto a otra con ellas, al volver después del margen.
+7. **PA-10 y logs:** las rutas de archivos con `LOG_LEVEL=trace`, sin firmas, URL ni secretos, también con los `ZodError` provocados.
+
+## Revisión final — CLASES-d
+# Revisión del Manager — CLASES-d (archivos adjuntos y vista previa) — final
+Fecha: 2026-10-02, de 11:05 a 11:40. Modo 2. Base dentro de los paquetes `<Cc>` = `c7fcece`; fuera, `<R>` = `3399c79`, salvo los protegidos por SHA-256. Rama `feat/clases`. Tester en RESISTE en la ronda 3 (`reporte-tester.md`, "CLASES-d — Ronda 3", línea 4723), sin hallazgos.
+Veredicto: **APROBADO**. No hay problemas que bloqueen. CLASES-d hace lo planeado (§D-D1 a §D-D7 con las Enmiendas 10 a 12), solo lo planeado y todo lo planeado. La suite está en verde con PA-01, las 107 `*.ataque` coinciden con la tabla de cierre del tester y las reglas que no se rompen se cumplen. Lo que queda son pendientes con destino, tres arreglos de texto para el cierre (uno en código, sin cambio de comportamiento) y la comprobación humana del paso 47.
+Verificación propia: lint código 0 · build `✓ built in 622ms`, código 0 · `npm run test` desde la raíz: frontend `104 passed (104)` / `1395 passed (1395)`; backend caído por CHORE-02 (`10 failed | 1290 passed (1300)`, todos tiempos límite) · backend por paquete, repetición limpia: `120 passed (120)` / `1300 passed (1300)` · frontend por paquete, dos veces: `104 passed (104)` / `1395 passed (1395)` · V-01 107/107 · V-03 en 0 · PA-07, PA-10 y PA-11 limpios. Nunca corrí dos suites a la vez.
+
+### Cifras: tester (ronda 3) contra mi corrida
+| Cifra | Tester, ronda 3 | Mi corrida |
+|---|---|---|
+| PA-01 | `True / Inbound / Block / Public`; `IZZI-F281-5G` | Igual, comprobado antes de cada corrida del backend. Contenedores al empezar: solo `campus-dev-postgres-1` |
+| `npm run lint` (raíz) | código 0 por paquete | código 0 (`All matched files use Prettier code style!` y `> tsc -b`) |
+| `npm run build` (raíz) | — | `✓ built in 622ms`, código 0 |
+| `npm run test` (raíz), 11:09:38 a 11:12:05 | — | Frontend `104 passed (104)` / `1395 passed (1395)`. Backend **caído por CHORE-02**: `7 failed \| 113 passed (120)` / `10 failed \| 1290 passed (1300)`. Los 10 son `Test timed out` (15 a 40 s): `cuentas-r1` (2), `cuentas-r3`, `bloqueo-usuario` A1, `auth-login` (2), `cuentas-03a-r1`, `worker-correo-de-cuenta` y, por arrastre, PR-D04a y PR-D04b (su `escenario()` crea cuentas en `usuarios` detrás del `LOCK TABLE`). Ningún rojo por aserción |
+| Backend por paquete (repetición), 11:12:59 a 11:13:58 | `120 passed (120)` / `1300 passed (1300)` | **`120 passed (120)` / `1300 passed (1300)`**, limpia |
+| Frontend por paquete | `104 passed (104)` / `1395 passed (1395)` | Igual, dos veces (53.60 s y 54.37 s) |
+| `npx vitest list` | — | Backend 1300 casos en 120 archivos; frontend 1395 en 104 (con `grep -a`: la lista lleva un caso con bytes no imprimibles en el título) |
+| IDs PR-D | — | Los **64** distintos aparecen; cada uno una vez, salvo PR-D21, que tiene dos casos (el de T-43 y el de T-44), como acepté en la verificación de la corrección 2 |
+| V-01 | 107 de la tabla de cierre | **107/107** contra la tabla de la línea 4831 (`diff` por programa); 107 `*.ataque` en el árbol |
+| V-03 | — | `validate`, `format --check`, `generate`, `migrate status` ("9 migrations found… Database schema is up to date!") y `migrate diff --exit-code` ("No difference detected."), los cinco con código 0 |
+| PA-07, corrida de la raíz (caída) | — | `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0. `P2028`: los dos aceptados (`tx.sesion.create()` en login, `tx.tokenCuenta.updateMany()` en restablecer) y uno en `POST /api/auth/cambiar-contrasena` (`tx.sesion.findFirst()`, `adapters/db/usuarios.ts:293`), el defecto de AUTH ya anotado con prioridad alta en `docs/ESTADO.md` §3. Ninguno en rutas de c ni de d. Por la regla de d (otros términos en 0, rojos solo de tiempo, repetición limpia con los dos aceptados, sitio reportado), no es PA-07 |
+| PA-07, corrida limpia | los dos aceptados; 3 `500` provocados | Los cuatro términos en 0; `P2028` solo los dos aceptados. `5xx` por ruta (correlacionados por `requestId`): 7 `500` de login (5 "fallo simulado en la búsqueda", 1 "al crear la sesión", 1 el `P2028` aceptado), 1 de restablecer (aceptado), 1 de `/prueba/error-comun`, y **3 `500` con `ZodError`** en `POST …/archivos`, `POST …/archivos/:id/descarga` y `GET …/publicaciones`: los del almacén imposible de `archivos-d-r2`, excluidos por mi precisión de la corrección 2. Los `503` son los de los almacenes nulos o inalcanzables (2 + 2 + 1) y el de `/api/salud`. Ningún otro `500` del muro ni de archivos |
+| PA-10 | 0 | En las salidas de la raíz y del paquete: `X-Amz-Signature` 0, `X-Amz-Credential` 0, el secreto de MinIO de desarrollo 0, `materiales/` 0, el origen del doble 0 |
+| PA-11 | limpio | La corrida del paquete terminó a las 11:13:58; a las 11:15:58, solo `campus-dev-postgres-1` |
+
+### Diff contra el plan
+`git diff c7fcece -- shared backend frontend` y los archivos nuevos: 45 rastreados con cambios y 29 sin rastrear.
+- **Lo planeado:**
+  - `shared/src/archivos.ts` con §D-D4 completo, `urlDelAlmacenSchema` (T-39), `archivoIdParamSchema` y `CODIGOS_ARCHIVOS` (Enmienda 11). `adjuntos` es obligatorio en `publicacionSchema` y `archivoIds` va en las dos ramas de `crearPublicacionSchema` (C-21 y C-22);
+  - el puerto `core/archivos/almacen.ts`;
+  - `politica.ts` con las firmas de "Cambios por capa", las tres fábricas y `\p{Cs}` (T-42);
+  - `adapters/storage/index.ts` con la región fija y `statObject` (`NotFound`/`NoSuchKey` → `null`; lo demás → `503` sin datos);
+  - `config/env.ts` con las cinco `STORAGE_*`, `vacioComoAusente` y el `superRefine`, y `config/almacen.ts`;
+  - la migración, idéntica a §D-D1 con los dos `CHECK` (V-03 en 0);
+  - `adapters/db/archivos.ts` y `publicaciones.ts`: confirmación en la transacción de la publicación, con el `UPDATE` que repite todas las condiciones y compara el conteo; adjuntos de la página en una consulta; descarte antes del `DELETE`;
+  - `handlers/archivos.ts`, `clases/muro.ts` y `app.ts` con `almacen`;
+  - el frontend de §D-D5 (`almacenService`, los dos componentes nuevos, `formatearTamano`, `useSolicitarSubida`, `useUrlDeDescarga` y el `staleTime` como función);
+  - los textos de §D-D6 y `DESIGN.md` §7.19.
+- **Solo lo planeado:** todo archivo tocado está en "Cambios por capa" (d) o en la fila d de las listas cerradas, incluido `publicacion-del-muro.tsx` por la Enmienda 11. No hay archivos de pruebas fuera de la lista (PA-16) ni dependencias distintas de `minio`.
+- **Todo lo planeado:**
+  - los 64 IDs PR-D tienen su caso;
+  - V-06: el caso exacto de `sesiones-y-cadena.ataque` (56 rutas) pasa, y `RUTAS_PUBLICAS` sigue en 10 (`middleware/` intacto);
+  - `backend/.env.example` trae el bloque `STORAGE_*` literal del plan;
+  - `handlers/README.md` y `adapters/README.md` documentan lo de d.
+
+### "No se toca" (V-05)
+- **Dentro de los paquetes** (contra `c7fcece`, `git diff --quiet` y `status --porcelain`), quedan intactas las rutas comunes y las de d:
+  - `middleware/`, `features/auth`, `services/sesionService.ts`, `components/`;
+  - `adapters/db/{clases,inscripciones,cliente,bloqueo-usuario,sesiones,salud,errores,usuarios,tokens-cuenta,enlaces-registro,invitaciones}.ts`, `adapters/queue/`, `notifier`, `auth`;
+  - `handlers/clases/{clases,alumnos}.ts`, `handlers/auth`, `handlers/{admin,errores,salud,usuarios,validacion}.ts`;
+  - `core/auth`, `core/correo`, `core/eventos`, `core/clases`, `core/errores.ts`, `workers/`, `server.ts`, `worker.ts`, `scripts/`, `config/{auth,cola,correo,logger}.ts`;
+  - las ayudas de prueba protegidas, `features/admin`, `features/diagnostico`, `services/{apiClient,authService,tokenAcceso,navegacion,liveService}.ts`, `lib/{utils,cache-de-mutaciones}.ts`, `main.tsx` y `test/setup.ts`;
+  - las configuraciones de `frontend/` y `backend/`, `muro-view.tsx`, `comentarios-de-publicacion.tsx`, `formulario-comentario.tsx` y `formulario-clase.tsx`.
+
+  En `styles/` y `app/` solo difieren tres `*.ataque` del tester (C-13 y C-21), con el hash de su tabla.
+- **Migraciones:** solo la carpeta nueva `20261002141710_archivos`.
+- **`eslint.config.mjs`:** sin cambios contra `<Cc>`.
+- **`backend/package.json`:** una línea, `"minio": "^8.0.7"`.
+- **`package-lock.json`:** 324 inserciones y 7 borrados, como en la implementación:
+  - las 27 entradas nuevas son del árbol de `minio`;
+  - los 7 borrados son marcas `dev`/`devOptional`;
+  - `aws` aparece 0 veces.
+- **Fuera de los paquetes, contra `<R>`:** `infra/`, `.claude/agents/{programador,tester,manager}.md`, `package.json` de la raíz, `.prettierrc.json`, `.prettierignore`, `tsconfig.base.json`, `.gitignore`, `.gitattributes`, `.nvmrc` y `docs/design/` están intactos.
+- **Protegidos por SHA-256** (coinciden los ocho):
+  - `AGENTS.md` `AC6DAE79…` y `arquitecto.md` `AE021430…` ("Decisiones del humano al cerrar CLASES-c");
+  - `CLAUDE.md` `1076099D…`, `README.md` `38027AAC…`, `ARCHITECTURE.md` `DDB2654E…`, `ARCHITECTURE-ESSENTIALS.md` `BCE288C9…` y `PRD.md` `2FD9DA1F…` ("Cierre de CLASES-c").
+- **`docs/DESIGN.md`:** solo agrega §7.19 (12 líneas), marcada "propuesta". Coincide con lo construido, incluidas la frase de la Enmienda 12 (lista fija con su nota) y la corrección de N-D3 ("se vuelve a pedir antes de que venza la primera vista previa").
+
+### `*.ataque` (punto 3 de Modo 2)
+- **Ninguna fue modificada, saltada ni borrada por el programador.** Las 107 tienen el hash de la tabla de cierre del tester.
+- Las que cambiaron desde `c7fcece` son todas del tester, con su C-n:
+  - C-2: `sesiones-y-cadena`;
+  - C-13: `env.ataque`, `arranque-r1` y `styles/clases-r1`;
+  - C-21 y C-22: `muro-c-r1`, `muro-c-r2`, `muro-c-r3`, `muro-recuperar-c-r3` y `muro-recuperar-c-r4`;
+  - C-23: `archivos-d-r1`, nueva de d, con el hash `79BB87AE…`.
+- Las 10 nuevas de d son del tester: 4 de la ronda 1, 3 de la ronda 2 y 3 de la ronda 3.
+- No hay `it.skip`, `.only` ni `todo` nuevos en ellas: las 1300 + 1395 corren completas.
+
+### Definición de terminado (`AGENTS.md`), punto por punto
+- [x] **Cumple el RF/RN:**
+  - RF-33: el maestro publica anuncios y materiales con adjuntos, hasta 5 de 25 MB, con los tipos de §D-D4;
+  - RF-25: vista previa solo de PNG, JPEG, WebP y GIF, dentro de la publicación; los comentarios siguen siendo solo texto;
+  - RF-12: el muro muestra los adjuntos con "Descargar";
+  - RN-02 y RN-06 (alumno restringido sin URL; estado de pago nunca en respuestas de estudiantes): PR-D09c, PR-D09i y PR-D06c.
+- [x] **Respeta las capas y pasa por el middleware:** ver "Reglas que no se rompen".
+- [x] **`lint`, `build` y `test` en verde:** ver "Cifras". La única corrida en rojo es la de la raíz, caída por CHORE-02 (solo tiempos límite); la repetición está limpia.
+- [x] **Pruebas de autorización del endpoint nuevo:** PR-D09a a PR-D09i cubren las dos rutas con:
+  - sin token;
+  - cambio de contraseña pendiente;
+  - restringido inscrito;
+  - admin;
+  - rol incorrecto;
+  - maestro ajeno y estudiante no inscrito;
+  - el caso permitido;
+  - "sin cambios" en cada negación;
+  - ninguna URL al restringido.
+
+  Además: PR-D07b (archivo de otra clase con el `claseId` propio → 404), PR-D07c (pendiente → 404) y PR-D06c (sin `estadoPago` ni la clave).
+- [x] **Migración incluida y compatible hacia atrás:**
+  - solo crea un tipo, una tabla, dos índices, tres llaves foráneas y dos `CHECK`; no altera nada existente;
+  - el código anterior no conoce la tabla;
+  - revertir el código deja una tabla sin uso, sin romper la base.
+- [x] **`infra/` y `.env.example`:**
+  - `infra/` sin cambios (S-21: MinIO admite cualquier origen en `dev`; lo comprueba H-5);
+  - `backend/.env.example`, con el bloque literal;
+  - `infra/.env.example` ya traía las mismas `STORAGE_*`.
+- [ ] **Documentos:** pendientes del cierre (paso 48). Ver "Documentos a actualizar". Es trabajo del orquestador después de la comprobación humana, no un defecto de la entrega.
+
+### Reglas que no se rompen
+1. **Capas:**
+   - `from "minio"` solo en `adapters/storage/index.ts`;
+   - `core/archivos/` sin I/O ni librerías (importa `@campus/shared` y `core/errores`);
+   - Prisma solo en `adapters/db`;
+   - `config/almacen.ts` es el único puente entre `STORAGE_*` y el adaptador, y `adapters/` no lee `process.env`;
+   - los handlers son delgados. `muro.ts` ganó dos ayudantes de orquestación, `adjuntosParaResponder` y `archivosParaPublicar`, sin consultas en un ciclo; ver los detalles.
+2. **Middleware:**
+   - las dos rutas de d usan `protegido()` con el sexto paso: `POST …/archivos` → `roles: ["maestro"], pertenencia: "propiedad"`; `POST …/archivos/:archivoId/descarga` → `roles: ["estudiante", "maestro"], pertenencia: "inscripcion"`;
+   - ningún handler revisa rol, propiedad ni inscripción a mano;
+   - `addHook` en `handlers/`: 0.
+3. **Estado de pago:**
+   - ninguna respuesta de d lo lleva (PR-D06c recorre el JSON del muro);
+   - `estadoPago` no aparece en ningún archivo de d.
+4. **Consultas sanas:**
+   - `buscarArchivosParaConfirmar` y `buscarArchivoConfirmado`: por PK, con la entrada acotada a 5;
+   - los adjuntos del muro: una consulta por página sobre `archivos(publicacion_id)`;
+   - el descarte, sobre el mismo índice;
+   - el `UPDATE` de confirmación, por PK dentro de la transacción;
+   - sin consultas en un ciclo. Los `statObject` van en un `Promise.all` de 5 como máximo y son E/S del almacén, no de la base (R-13);
+   - sin SQL crudo nuevo: la lista de archivos con `$queryRaw` es la de c, y `$queryRawUnsafe` sigue solo en `cliente.ts`.
+5. **Lo lento va por cola:**
+   - el aviso de la publicación se sigue encolando en su transacción, ahora junto con la confirmación de los archivos (PR-D05f: un error forzado no deja archivos confirmados ni trabajos);
+   - d no crea notificaciones.
+6. **Los archivos no pasan por Node:**
+   - la API solo firma (300 s) y guarda metadatos;
+   - el navegador sube con `fetch` `PUT` desde `almacenService` (`credentials: "omit"`, sin `apiClient` ni token, sin el origen de la API) y descarga navegando a la URL firmada;
+   - la vista previa usa la URL `inline`.
+7. **UTC:** `expiraEn` y `creadoEn` en ISO 8601 (`toISOString`); las columnas son `timestamptz(3)`.
+8. **Trabajos diferidos:** d no tiene ninguno.
+9. **Secretos:**
+   - `STORAGE_*` solo en `.env`; los valores de `.env.example` son de desarrollo y lo dicen;
+   - los mensajes de `config/env.ts` no llevan valores (PR-D02c);
+   - el adaptador no repite la URL, las llaves ni el mensaje del proveedor;
+   - nada en variables del frontend.
+10. **Infraestructura y esquema:** sin cambios en `infra/`; el esquema cambia solo por la migración.
+11. **Proveedores:** `minio` es el cliente aprobado en ESSENTIALS; su árbol no trae nada de AWS (PA-14 no se activó). Los tokens de mínimo privilegio de R2 son configuración de DEPLOY, no código.
+12. **Notifier:** sin cambios.
+13. **Autenticación:** sin cambios.
+
+**Datos de d:**
+- **`confirmado` si y solo si tiene publicación:** lo garantiza el `CHECK` en las dos direcciones (PR-D08b y PR-D08c). El descarte pone `publicacion_id = NULL` en la misma transacción que el `DELETE` (PR-D08a).
+- **`clase_id` autoriza al pendiente:**
+  - al solicitar, la fila nace con el `claseId` del sexto paso;
+  - al confirmar, la lectura y el `UPDATE` filtran por clase, por `subido_por`, por `pendiente`, por "sin publicación" y por las últimas 24 h (PR-D05d);
+  - la descarga exige `confirmado` y el `claseId` de la ruta.
+
+### Estilo (`CLAUDE.md`)
+- **Módulo `clases`:**
+  - los tipos van en `types.ts`: `ArchivoCandidato` es un tipo de la interfaz, y `PaginaDelMuro` es un alias del tipo de `shared/`;
+  - los textos y las constantes, en `data.ts`;
+  - las funciones puras en `lib.ts`: `tipoDeArchivo`, `errorDeArchivoElegido`, `tiempoFrescoDelMuro` y `avisoDeFalloAlSubir`;
+  - los hooks en `hooks.ts`;
+  - en los componentes, solo interfaces de Props.
+- **`fetch(`** solo en `apiClient.ts` (2) y `almacenService.ts` (1). El componente llama a `subirArchivo`, no a `fetch`, como pide §D-D5. La regla 8 de `CLAUDE.md` necesita su excepción escrita; ver "Documentos a actualizar".
+- **Retornos tempranos** en todas las funciones nuevas. En el JSX no hay ternarios anidados: la frase de borrar sale de una variable.
+- **Manejo de errores:**
+  - `handlePublicar` con `try/catch/finally`, y `handleDescargar` con `try/catch`, ambos con `toast`;
+  - los hooks de mutación no lanzan fuera de TanStack Query;
+  - el backend lanza `AppError` desde `core/` y `adapters/`. El único `try/catch` nuevo traduce el error del proveedor, y está en el adaptador (`firmar` y `metadatosDe`), no en un handler.
+- **Sin valores por defecto silenciosos:**
+  - `?? []` en `features/clases` y `shared/`: 0;
+  - `adjuntos` no tiene `.default` ni `.optional`;
+  - los `[]` que quedan son de entrada (`archivoIds` y `archivos = []`) o los arma el adaptador ("sin adjuntos").
+
+### Lista de diseño (frontend)
+- **`DESIGN.md`:** coincide con lo construido, y el único patrón nuevo (§7.19) quedó documentado en este encargo, marcado "propuesta".
+- **Solo tokens:** `bg-muted`, `rounded-row`, `text-small`, `text-foreground` y `text-muted-foreground`. `max-h-80` y `size-4` son espaciado. No hay valores sueltos de color, tamaño, radio ni sombra (`estatico-r1` y `clases-r1` en verde).
+- **Componentes:** `Button` de `components/ui/` (`outline`/`ghost`, `size="sm"`) y `ErrorDeCampo`. No hay nada hecho a mano que ya exista: el `<input type="file" hidden>` y la `<img>` no tienen equivalente en `ui/`. Sin aspecto por defecto de shadcn ni rasgos prohibidos.
+- **Vidrio:** ninguno nuevo. Las fichas son sólidas (`--muted`) dentro del panel que ya tiene vidrio (§7.2).
+- **El estado no se comunica solo con color:** los errores van con texto en `ErrorDeCampo` o en un aviso; la lista fija, con su nota.
+- **Vista previa:** solo de imágenes, sin SVG (`TIPOS_CON_VISTA_PREVIA`, PR-D01f).
+- **Densidad y acción principal:** la densidad es la del maestro, intermedia. La única acción principal sigue siendo "Publicar…"; "Adjuntar archivos" es `outline`.
+- **Textos:** en español de México, concretos, sin palabras prohibidas ni emojis. Los avisos nombran el archivo y la causa (T-41).
+- **Estados:**
+  - error: el aviso al subir, al descargar o al publicar; si la imagen falla, queda la ficha;
+  - carga: `enEspera` en "Publicar" y "Descargar";
+  - vacío: sin adjuntos no se pinta nada. No necesita CTA: es parte de una publicación, no una vista.
+- **360 px (análisis estático):** las fichas son `flex flex-wrap`, con el nombre en `min-w-0 flex-1 wrap-anywhere`, y el nombre del botón va en `sr-only`. Sin navegador: va a H-6.
+- **Foco:**
+  - visible en los `Button` de `ui/`;
+  - "Quitar" sigue §7.14: va a la fila vecina o a "Adjuntar", nunca a `<body>` (verificado por la ronda 3);
+  - etiquetas: `aria-label` en el selector y en las dos listas, y la ayuda con `aria-describedby`.
+- **`enEspera`:** solo en el único botón nuevo que espera, "Descargar". Total: 36.
+- **Residual aceptado de T-38:** "Quitar" y "Adjuntar archivos" se ven activos mientras se publica, y los mitiga la nota `role="status"`. Va a H-5.
+
+### Problemas que bloquean
+Ninguno.
+
+### Hallazgos del tester: T-38 a T-44 (verificados en el código)
+| Hallazgo | Estado | Dónde lo vi |
+|---|---|---|
+| T-38 (medio), lista cambiable durante la publicación | Corregido | `formulario-publicacion.tsx`: `publicandoRef` se marca en la primera línea de `handlePublicar`, antes del primer `await`, y se libera en el `finally`. `handleElegir` (que antes limpia el selector), `handleQuitar` y `handleSubmit` regresan si está marcada. La nota es `<p role="status">` con `TEXTOS_ADJUNTOS.listaFija`. No hay `disabled`, `aria-disabled`, `enEspera` nuevo ni controles ocultos. Lo cubren PR-D16 y `archivos-d-r1/-r2` |
+| T-39 (medio), "Descargar" hacia `javascript:` y `data:` | Corregido | `urlDelAlmacenSchema` (`z.url({ protocol: /^https?$/ })`) se define una sola vez (`shared/src/archivos.ts:35`) y la usan las tres URL. Fuera de `shared/` solo queda la comprobación de `almacenService`, que también compara el origen. El backend valida sus propias respuestas (O-14) |
+| T-40 (bajo), vistas previas vencidas | Corregido | `tiempoFrescoDelMuro` es pura, en `lib.ts`; `staleTime` es una función en `usePublicaciones`; la imagen fallida se recuerda por URL (`urlsRotas`) |
+| T-41 (bajo; N-D1), aviso genérico al rechazar | Corregido | `avisoDeFalloAlSubir` (`lib.ts`): con `ARCHIVO_INVALIDO`, el mensaje del servidor; con otro código, `mensajeDeErrorClases`; si no es un `ApiError`, `errorSubida`. Sin validaciones nuevas en el cliente |
+| T-42 (bajo), sustituto suelto en el nombre | Corregido | `CARACTER_PROHIBIDO_EN_NOMBRE` incluye `\p{Cs}` con la bandera `u`. Se conserva `sinSustitutosSueltos` |
+| T-43 y T-44 (bajos), "1024 KB" y "1024 MB" | Corregidos | `formatearTamano` redondea en la unidad actual y sube mientras el redondeado llega a 1024. No hay ramas por unidad. La ronda 3 lo barrió con 5,626 cantidades |
+
+**Desacuerdos entre programador y tester:** no hubo en d. El único arbitraje sobre una `*.ataque` fue PA-12 → C-23, a pedido del propio tester.
+
+### Problemas que no bloquean
+- **N-F1 — El muro responde URL firmadas sin `Cache-Control: no-store` (O-4).**
+  - Dónde: `handlers/clases/muro.ts`, `GET …/publicaciones` y la respuesta `201` de `POST …/publicaciones`. Solicitar y descargar sí lo llevan.
+  - Por qué importa: son URL de lectura de objetos privados, válidas 5 minutos. Sin `Last-Modified` el navegador no las guarda por heurística, y Cloudflare no cachea JSON de `/api` por defecto. El riesgo es bajo, pero la API no debería depender de eso.
+  - Qué se espera: `no-store` en las dos respuestas que llevan `vistaPrevia`, con su prueba.
+  - Destino: TAREAS, que vuelve a tocar el muro (R-01). En la lista de DEPLOY, además, comprobar que ninguna regla de caché de Cloudflare toque `/api/*`.
+- **N-F2 — Cuatro inversores de dirección literales en `shared/src/clases.ts:48`** (U+202A, U+202E, U+2066 y U+2069, en `INVERSORES_DE_DIRECCION`, desde CLASES-a).
+  - Dónde: el script de esta revisión sobre todo el código de producción de los tres paquetes encontró solo esa línea.
+  - Por qué importa: funciona, pero un U+202E literal reordena la línea en editores y diffs ("Trojan Source"), y GitHub marcará el archivo en el PR del encargo.
+  - Qué se espera: los mismos rangos escritos con escapes (como `core/archivos/politica.ts:16`), comprobado por programa (la herramienta de edición convierte los escapes en caracteres reales, O-10), con lint y test del paquete `shared` y de los dos que lo usan.
+  - Destino: **carril trivial antes del commit `<Cd>`**, como quedó acordado. No cambia el comportamiento y no toca ninguna `*.ataque`.
+- **N-F3 — O-14: con un almacén que firmara una URL no `http(s)`, solicitar responde `500` y deja una fila `pendiente` huérfana.**
+  - Dónde: `handlers/archivos.ts`, que inserta (`:50`) antes del `parse` de la respuesta (`:61`).
+  - Por qué importa: es inalcanzable con el adaptador real (el endpoint se valida como `http(s)`), y no hay fuga.
+  - Qué se espera, si se toca: validar la URL firmada antes de insertar, o traducir ese error a `503 ALMACEN_NO_DISPONIBLE`.
+  - Destino: nota para el próximo cambio de `handlers/archivos.ts` (ENTREGAS agrega su contexto).
+- **N-F4 — O-11: un sustituto suelto en el título, el anuncio o el comentario se guarda como U+FFFD con `201`.**
+  - Por qué importa: el reemplazo es silencioso y coherente (la respuesta sale de la fila); no es un riesgo.
+  - Qué se espera: rechazarlo con `400 VALIDACION` en `textoConContenidoSchema` y en `nombreClaseSchema`, como T-42 en el nombre de archivo, con su prueba y su C-n.
+  - Destino: el próximo encargo que toque las reglas de texto de `shared/src/clases.ts`. Probablemente TAREAS, que reutiliza esos esquemas para títulos e instrucciones.
+- **N-F5 — O-13: la nota "Mientras se publica no puedes cambiar los archivos." aparece también al publicar sin archivos.**
+  - Por qué importa: dura lo que tarda la petición y es inofensiva.
+  - Qué se espera, si molesta: mostrarla solo con `elegidos.length > 0`. Ninguna `*.ataque` la exige sin archivos.
+  - Destino: que el humano la vea en H-4. Si molesta, carril trivial; si no, nota para el próximo cambio de `formulario-publicacion.tsx`.
+- **N-F6 — N-D2 (O-7): `extensionDe` está duplicada en `frontend/src/features/clases/lib.ts` y en `backend/src/core/archivos/politica.ts`.**
+  - Qué se espera: subir la regla "tipo más extensión" a `shared/src/archivos.ts`, como se hizo con `normalizarTextoLargo`.
+  - Destino: ENTREGAS, que reutiliza la política de archivos para las entregas.
+- **N-F7 — `ARCHITECTURE.md` §16 dice "URLs prefirmadas de 5 minutos con tipo y tamaño fijados".**
+  - Por qué importa: la de subida no fija ni el tipo ni el tamaño. Es el residual aceptado en R-03, porque R2 no admite `POST` con política, y la API los compara con `statObject` antes de confirmar. Además, la URL sigue sirviendo hasta 300 s después de confirmar (O-1).
+  - Qué se espera: no se corrige en código; es un texto de cierre (ver "Documentos a actualizar").
+
+### Detalles menores
+- **`adapters/README.md`** dice que la limpieza diaria está "pendiente de NOTIFICACIONES", pero P-02 la deja "pendiente previo a DEPLOY". Va al carril trivial de N-F2 (es un README dentro de `backend/`).
+- **`adapters/db/publicaciones.ts`** repite en `errorArchivoInvalido` el mensaje de `archivoNoCoincide` de `core/archivos/politica.ts`. Podría importarlo. Destino: el próximo cambio de ese archivo.
+- **`handlers/clases/muro.ts`** creció con la orquestación del almacén (`adjuntosParaResponder` y `archivosParaPublicar`). Hoy es aceptable. Si TAREAS o ENTREGAS lo reutilizan, conviene un módulo propio en `handlers/` o en un ayudante compartido.
+- **O-2:** el `201` devuelve los adjuntos en el orden de `archivoIds`, y el muro, por `creado_en, id`. Coinciden con el frontend actual.
+- **O-8:** al confirmar, un tipo real con parámetros o en mayúsculas cuenta como el declarado. Es seguro, porque se sirve con el tipo guardado.
+- **O-9:** un UUID en mayúsculas en `archivoIds` da `400`. Es seguro, porque el frontend manda minúsculas.
+- **O-12:** `Math.min(...vencimientos)` falla por encima de unas 120,000 vistas previas cargadas, un tope inalcanzable. Si se toca, un `reduce`.
+
+Todos son notas sin acción, salvo la del README.
+
+### Observaciones O-1 a O-15: destino confirmado o cambiado
+El orquestador las lleva a `docs/ESTADO.md` §3, salvo las marcadas "solo nota", que bastan en la Enmienda 13.
+
+| Obs. | Qué | Destino |
+|---|---|---|
+| O-1 | La URL de subida solo firma `host`: no limita el tipo ni el tamaño y sigue sirviendo hasta 300 s después de confirmar. No hay tope de pendientes por maestro | **Confirmado: DEPLOY y `LIMPIEZA_DIARIA`.** En DEPLOY: permisos del token de R2, alerta de cupo y límite de tasa global. En `LIMPIEZA_DIARIA`: los objetos sobrantes. Cerrarlo del todo (`POST` con política) sería otro encargo. Se cita en el texto nuevo de `ARCHITECTURE.md` §16 |
+| O-2 | Orden de los adjuntos: en el `201`, el de `archivoIds`; en el muro, `creado_en, id` | Solo nota |
+| O-3 | `archivos(clase_id)` y `archivos(subido_por)` sin índice | **Confirmado: el arquitecto, antes de ADMIN** (bajas y borrados físicos), junto con R-21 |
+| O-4 | El muro responde URL firmadas sin `no-store` | **Cambiado: TAREAS** (N-F1), que vuelve a tocar el muro. En DEPLOY, comprobar que Cloudflare no cachee `/api/*` |
+| O-5 | `STORAGE_*` no se recortan y el nombre del bucket no se valida | **Confirmado: DEPLOY** |
+| O-6 | `production` acepta un `STORAGE_ENDPOINT` `http://` | **Confirmado: DEPLOY**, que decide si se exige `https` en `production` |
+| O-7 = N-D2 | `extensionDe` duplicada | **Cambiado: ENTREGAS** (N-F6), que reutiliza la política. Ya no va al cierre de d |
+| O-8 | Un tipo real con parámetros o en mayúsculas cuenta como el declarado | Solo nota |
+| O-9 | Un UUID en mayúsculas en `archivoIds` da `400` | Solo nota |
+| O-10 | La herramienta de edición convierte los escapes `\u` en caracteres reales | **Confirmado: proceso.** Ya está en `docs/ESTADO.md` §4. Se aplica al carril trivial de N-F2: verificar por programa |
+| O-11 | Un sustituto suelto en los textos del muro se guarda como U+FFFD | **Cambiado:** de "cierre de d" a **el próximo encargo que toque las reglas de texto de `shared/src/clases.ts`** (N-F4; probablemente TAREAS). Cambia el comportamiento, así que no cabe en el carril trivial |
+| O-12 | `Math.min(...)` con más de unas 120,000 vistas previas | Solo nota |
+| O-13 | La nota de la lista fija también aparece sin archivos | **Cambiado: H-4** (N-F5). Si al humano le molesta, carril trivial |
+| O-14 | Con un almacén imposible: `500` y una fila pendiente huérfana | **Cambiado:** de "nota de cierre" a **el próximo cambio de `handlers/archivos.ts`** (N-F3; ENTREGAS) |
+| O-15 | Correr dos suites a la vez tumba el backend por CHORE-02 | **Proceso:** ver "Para el humano", punto 4 |
+
+### Documentos a actualizar al cierre de d (paso 48)
+Textos finales: los "Textos literales propuestos" marcados (d) del plan, con los ajustes que pide lo construido (marcados **ajuste**). El orquestador los aplica con la autorización del humano y anota sus SHA-256.
+
+**1. `docs/ARCHITECTURE.md` §7, tabla de la API.**
+- Fila `archivos` (**ajuste:** quién puede, qué estado se descarga y el `503`). La reemplaza por:
+  > | `archivos` | `POST /clases/{claseId}/archivos` (maestro dueño: registra un archivo `pendiente` y devuelve la URL prefirmada de subida) · `POST /clases/{claseId}/archivos/{archivoId}/descarga` (alumno inscrito y maestro dueño: URL prefirmada de descarga de un archivo `confirmado`). Sustituyen a `POST /archivos/subida` y `POST /archivos/descarga`. Sin almacén configurado, `503 ALMACEN_NO_CONFIGURADO`. TAREAS y ENTREGAS agregan sus contextos |
+- Fila `clases` (**ajuste**, una inserción): después de "`GET/POST /clases/{claseId}/publicaciones`", agrega "(con adjuntos: `archivoIds` al crear, hasta 5; `adjuntos` en cada publicación, también `[]`)".
+
+**2. `docs/ARCHITECTURE.md` §11.**
+- **Paso 1 (ajuste: el contexto es la clase de la ruta).** Lo reemplaza por:
+  > 1. El cliente pide `POST /clases/{claseId}/archivos` con nombre, tipo y tamaño; el contexto es la clase de la ruta (TAREAS y ENTREGAS agregan los suyos).
+- **Pasos nuevos después del 5.** Es el texto del plan, más lo construido (**ajuste:** la confirmación con sus filtros, `adjuntos` siempre, `urlDelAlmacenSchema`, el nombre y `STORAGE_*`):
+  > 6. Materiales y anuncios (CLASES-d): solo sube el maestro dueño de la clase. Límites: 25 MB por archivo y 5 por publicación; tipos PDF, PNG, JPEG, WebP, GIF, Word, Excel y PowerPoint (formatos actuales y 97-2003) y texto plano; el SVG no se admite. El nombre del archivo no admite `/`, `\`, caracteres de control, separadores de línea, inversores de dirección ni sustitutos sueltos. La clave es `materiales/{claseId}/{archivoId}` y nunca lleva el nombre del archivo. Al publicar, la API lee los archivos por id, acotados a la clase, a quien los subió, al estado `pendiente`, sin publicación y de las últimas 24 h; compara con `statObject` el tamaño y el tipo reales con lo declarado; y los confirma dentro de la transacción de la publicación, con un `UPDATE` que repite esas condiciones y compara el conteo. La URL de subida no limita el tamaño (R2 no admite `POST` con política): un objeto que no coincide no se confirma y queda para la limpieza. Un archivo pasa a `descartado` si se borra su publicación. Toda publicación responde `adjuntos` (también `[]`). La descarga fuerza el tipo declarado y `attachment`; las imágenes se muestran en vista previa con una URL `inline` de 5 minutos. Las tres URL del almacén son `http` o `https` (`urlDelAlmacenSchema`, de `shared/src/archivos.ts`). El firmado es local (región fija en `STORAGE_REGION`); el bucket se elige con `STORAGE_BUCKET_PRIVADO`. Sin `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY` (una variable vacía cuenta como ausente), la API arranca, pero subir y descargar responden `503`; en `production` son obligatorias, también para el worker, que es la misma imagen.
+  > 7. `LIMPIEZA_DIARIA`, que se construye antes de DEPLOY, borra el objeto del almacén y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
+
+**3. `docs/ARCHITECTURE.md` §14.**
+- Fila `archivos`: el texto del plan, sin cambios:
+  > | `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado` (`pendiente` / `confirmado` / `descartado`), `clase_id`, `publicacion_id` | `clave_objeto` único · índice `(publicacion_id)` · `CHECK`: un archivo está `confirmado` si y solo si tiene contexto; `pendiente` y `descartado`, ninguno. `clase_id` autoriza mientras el archivo está pendiente. TAREAS y ENTREGAS agregan `tarea_id` y `entrega_id` |
+- **Diagrama (ajuste; el plan no lo cubría):** después de `usuarios ||--o{ archivos : sube`, agrega `clases ||--o{ archivos : guarda` y `publicaciones ||--o{ archivos : adjunta`.
+
+**4. `docs/ARCHITECTURE.md` §16, "Aplicación" (ajuste nuevo, N-F7; el plan no lo cubría y hoy contradice R-03).** Reemplaza "URLs prefirmadas de 5 minutos con tipo y tamaño fijados." por:
+  > - URLs prefirmadas de 5 minutos. La de subida no fija el tipo ni el tamaño (R2 no admite `POST` con política): antes de confirmar, la API compara el objeto real con lo declarado (`statObject`); la descarga fuerza el tipo declarado y `attachment`; y solo el maestro dueño sube. Un objeto reescrito mientras la URL sigue vigente es un riesgo residual aceptado (CLASES-01, R-03), que se vigila en DEPLOY.
+
+**5. `docs/ARCHITECTURE.md` §8, fila `LIMPIEZA_DIARIA` (ajuste opcional, por coherencia con el paso 7 de §11).** Cambia "archivos huérfanos" por "archivos `pendiente` de más de 24 h y `descartado` (el objeto y la fila)".
+
+**6. `docs/ARCHITECTURE-ESSENTIALS.md`.**
+- "Restricciones clave" (R-10, decisión del humano). Reemplaza "`comentarios` y `archivos` con exactamente un contexto" por el texto del plan:
+  > `comentarios` con exactamente un contexto · `archivos`: confirmado si y solo si tiene exactamente un contexto (los `pendiente` y `descartado`, ninguno; `clase_id` autoriza mientras tanto)
+- "Archivos": agrega el texto del plan, con el **ajuste** de quién sube y la configuración:
+  > - Materiales y anuncios: solo los sube el maestro dueño; 25 MB por archivo, 5 por publicación; PDF, imágenes (sin SVG), Office y texto plano. La confirmación compara el objeto real con lo declarado, dentro de la transacción de la publicación. Vista previa solo de imágenes. La limpieza borra también el objeto de los pendientes vencidos y de los descartados.
+  > - Sin las tres `STORAGE_*` de acceso, la API arranca y los archivos responden 503; en `production` son obligatorias (API y worker). Firmar es local: la región es fija (`STORAGE_REGION`).
+
+**7. `CLAUDE.md`.**
+- Regla 8 de "Arquitectura: módulos por dominio" (**ajuste nuevo:** hoy no admite la excepción que §D-D5 diseñó). La reemplaza por:
+  > 8. Ningún componente llama a `fetch`: todo pasa por `services/apiClient` dentro de un hook de `hooks.ts`. Única excepción: la subida directa al almacén, con `subirArchivo` de `services/almacenService.ts`, que el manejador del formulario llama dentro de su `try/catch`; no usa `apiClient` para que el token nunca viaje al almacén
+- "Ubicaciones compartidas", viñeta de `lib/format.ts` (**ajuste:** la viñeta ya dice "tamaños de archivo"; solo se nombra la función): "…tamaños de archivo (`formatearTamano`)…".
+- Viñeta nueva después de `services/sesionService.ts` (texto del plan):
+  > - `services/almacenService.ts` — sube un archivo al almacén con la URL prefirmada que dio la API (`PUT`, sin `Authorization` ni credenciales). Es el único `fetch` fuera de `apiClient`
+- La fila `clases` de "Módulos" ya dice "muro con comentarios y adjuntos": no cambia.
+
+**8. `README.md`, "Backend en local", paso 3.** Después del párrafo de las variables de correo, el texto del plan más una frase (**ajuste:** sin MinIO, la subida falla aunque las variables estén):
+  > Si tu `backend/.env` es anterior a CLASES-d, copia a mano las cinco variables `STORAGE_*` de `backend/.env.example`: sin ellas la API arranca, pero subir y descargar archivos responde 503. Para subir archivos en local, MinIO tiene que estar levantado (sección "Entorno de desarrollo local"). Con las variables y MinIO apagado, la API firma igual (es un cálculo local), pero la subida falla en el navegador y publicar con archivos responde 503.
+
+**9. Sin cambios en d:** `docs/PRD.md` (RF-25 y RF-33 ya lo describen).
+
+**10. `docs/DESIGN.md` §7.19.** Queda "propuesta" hasta la comprobación humana. Con el "bien" del humano, la marca pasa a "propuesta aprobada (fecha)" (no se borra). Lo mismo con las secciones de a, b y c que siguen marcadas "propuesta" (§7.3, §7.14, §7.18 y las de a y b), porque H-1 a H-6 las cubren.
+
+**11. `docs/ESTADO.md`.**
+- §2: el cierre de d y del encargo, con las cifras y `<Cd>`.
+- §3:
+  - los pendientes de la tabla de observaciones;
+  - N-F1 a N-F6;
+  - `LIMPIEZA_DIARIA` de archivos (objeto y fila), como prerrequisito de DEPLOY;
+  - la consulta de `movimientos_inscripcion` (ADMIN, por `secuencia`; la fila ya existe);
+  - el worker en `production` con `STORAGE_*` (ya existe);
+  - el `P2028` de `cambiar-contrasena`, que volvió a aparecer en mi corrida caída: AUTH, prioridad alta (ya existe). Basta sumar la fecha.
+- §6: la medición de d y la lectura acumulada (abajo).
+
+### Lo que debe registrar la Enmienda 13 (cierre de d y del encargo)
+1. **Cierre de d:**
+   - **Rondas:**
+     - ronda 1: ROTO, con T-38 a T-43;
+     - ronda 2: ROTO, solo con T-44;
+     - ronda 3: **RESISTE**, sin hallazgos.
+
+     Fueron 3 rondas, sin escalada. Ningún hallazgo fue de seguridad.
+   - **T-44:** extiende el criterio de T-43 a todas las unidades: redondea en la unidad actual y sube mientras el redondeado llega a 1024, sin ramas por unidad. PR-D21 queda con dos casos, el de T-43 y el de MB y GB.
+2. **C-23** en la tabla de §D-R0, con el mismo formato que C-16 y C-17:
+   - **origen:** PA-12 en la ronda 2, arbitrada por el manager;
+   - **qué cambió:** en `backend/test/archivos-d-r1.ataque.test.ts`, los dos conteos de `archivo.count()` se acotan con `OR` de `claseId IN` (las clases de las URL del caso) y `subidoPor IN` (los usuarios que piden). Ninguna otra aserción cambió;
+   - **hash:** `B1A6B7FE…` → `79BB87AE390140BD5F5E5BA00E1A32A8E41937DE2A98D59E83335C34A8FB94BB`;
+   - es la única `*.ataque` de d que cambió después de publicarse.
+3. **Desviaciones ya aceptadas:**
+   - las cuatro de la implementación, que registra la Enmienda 11;
+   - las de la corrección 2: N-D4 aplicado (seis `return` → `throw` en PR-D02a a PR-D02c) y `avisoDeFalloAlSubir` a `lib.ts`, con un caso sin ID en `lib.test.ts`;
+   - la precisión de PA-07 para d: un `500` del muro o de archivos que una `*.ataque` provoca a propósito con un doble imposible, y que el reporte identifica por ruta y causa, no cuenta.
+4. **Pendientes con destino:**
+   - de la tabla de observaciones: O-1, O-5 y O-6 a DEPLOY; O-3 al arquitecto antes de ADMIN; O-4 a TAREAS; O-7 (N-D2) a ENTREGAS; O-11 al próximo encargo que toque las reglas de texto; O-13 a H-4; O-14 a ENTREGAS. Las "solo nota" (O-2, O-8, O-9 y O-12) se registran como notas;
+   - N-F1 a N-F7 y los detalles menores;
+   - los inversores literales de `shared/src/clases.ts:48`, desde CLASES-a: carril trivial antes de `<Cd>`;
+   - `LIMPIEZA_DIARIA` (objetos y filas de pendientes vencidos y descartados), antes de DEPLOY;
+   - la consulta de `movimientos_inscripcion`: ADMIN, ordenada por `secuencia`, con sus índices;
+   - el worker en `production` con `STORAGE_*` y el orden de despliegue, primero el backend: DEPLOY.
+5. **Textos de cierre (d):** los de "Documentos a actualizar", con sus ajustes. Son nuevos respecto del plan: §16 (N-F7), el diagrama de §14, la regla 8 de `CLAUDE.md` y la frase de MinIO en `README.md`.
+6. **Cifras de cierre** (esta revisión):
+   - backend `120 passed (120)` / `1300 passed (1300)`;
+   - frontend `104 passed (104)` / `1395 passed (1395)`;
+   - lint y build con código 0;
+   - 107 `*.ataque`;
+   - V-03 en 0;
+   - la migración `20261002141710_archivos` aplicada en `campus_dev`.
+7. **Base del siguiente encargo:**
+   - `<Cd>`, que lee el orquestador tras el commit;
+   - V-01 desde la tabla de 107 de `reporte-tester.md`, "CLASES-d — Ronda 3" (línea 4831). El carril trivial de N-F2 no toca ninguna `*.ataque`, así que la tabla sigue valiendo.
+8. **Comprobación humana:** la lista final de H-1 a H-6 (abajo) y su resultado, que anota el orquestador en `comprobacion-humano.md`.
+9. **Estado del plan:** "CERRADO" cuando el humano haga el commit `<Cd>`. Hasta entonces, LISTO.
+
+### Comprobación humana en navegador: lista final para `comprobacion-humano.md` (paso 47)
+Una sola, al final de d. Máximo 10 minutos y 6 puntos, solo lo que las pruebas no ven (`AGENTS.md`, "Trabajo visual"). Integra lo que las rondas de a, b, c y d dejaron para la comprobación humana (`docs/ESTADO.md` §3 y los reportes del tester). Se quita el "toast perdido" de b, que se corrigió en c (T-30). **Ningún agente abre navegadores: la hace el humano.**
+
+**Preparación** (no cuenta en el tiempo):
+- **Servicios:** desde `infra/`, `docker compose up -d` (PostgreSQL ya corre; esto levanta `minio`, `minio-init` y `livekit`). `minio-init` debe quedar en `exited (0)`, porque crea `campus-privado`.
+- **`backend/.env`:** copia las cinco `STORAGE_*` de `backend/.env.example`. Deben coincidir con `infra/.env`; si cambiaste `MINIO_API_PORT`, ajusta `STORAGE_ENDPOINT`. No hace falta migrar: `campus_dev` ya tiene las 9 migraciones (V-03 de esta revisión).
+- **Procesos:** arranca la API (`npm run dev` en `backend/`) y la SPA (`npm run dev` en `frontend/`). **El worker no hace falta:** los avisos del muro no tienen consumidor hasta NOTIFICACIONES. Solo lo necesitas si das de alta al maestro por invitación de correo (el correo queda en `backend/tmp/correos/`). Con un enlace de registro de `/admin/maestros`, no.
+- **Cuentas `@pruebas.local`:** un maestro **con nombre largo** y un estudiante, este en una ventana privada.
+- **Lo que pone el orquestador en `comprobacion-humano.md`:**
+  - el nombre del maestro;
+  - las dos cadenas de H-6: un nombre de clase de 120 caracteres sin espacios y uno de 60 emojis;
+  - qué archivos usar: un PNG pequeño y un PDF de menos de 25 MB con acentos en el nombre (por ejemplo, `guía de práctica.pdf`).
+
+**Tiempo estimado: 10 minutos** (H-1, 2; H-2, 1; H-3, 2; H-4, 1.5; H-5, 2; H-6, 1.5).
+- **H-1. Clase y código (2 min).**
+  1. Como maestro, crea una clase y copia su código.
+  2. Como estudiante, pégalo en minúsculas y con un espacio en medio en "Unirme a la clase". Los dos inicios deben mostrar la tarjeta de la clase, y el titular, el número correcto.
+  3. Como maestro, regenera el código.
+  4. Como el mismo estudiante, escribe el código viejo: debe decir que no existe.
+- **H-2. Foco con el teclado y el bloque destacado (1 min).** Con Tab, en el inicio:
+  - en una tarjeta verde o azul, el foco se ve como un contorno blanco por dentro; en una blanca, azul por fuera;
+  - en el bloque destacado, el foco también se ve;
+  - a 640 px o más, la tarjeta interna del bloque destacado queda a la derecha, y las tarjetas guardan su separación.
+- **H-3. Alumnos y personas (2 min).** Como maestro, en "Alumnos":
+  1. quita al estudiante (confirmación en línea). Con el teclado, el foco queda en el "Quitar" de la fila vecina o en el título "Alumnos", nunca se pierde;
+  2. búscalo escribiendo su nombre sin acentos: su correo se ve **enmascarado** (a lo más dos letras, `***` y el dominio), nunca completo;
+  3. agrégalo de nuevo: en la tabla aparece con su correo **completo** y "Al corriente".
+
+  Como estudiante, en "Personas", el maestro va aparte y no ves ningún correo ni estado de pago.
+- **H-4. Muro sin archivos (1.5 min).**
+  1. Como maestro, publica un anuncio. Mientras se publica aparece un instante la nota "Mientras se publica no puedes cambiar los archivos.", aunque no haya archivos (O-13): di si te estorba.
+  2. Publica un material.
+  3. Como estudiante, comenta.
+  4. Como maestro, borra ese comentario.
+- **H-5. Material con archivos (2 min).** Es la única comprobación real de la subida a MinIO y de su CORS (S-21).
+  1. Como maestro, elige el PNG y el PDF, y publica un material. Mientras se publica, pulsa "Quitar" en uno: no debe quitarlo, y la nota lo explica. Los controles se ven activos: es el residual aceptado de T-38. Di si te basta la nota.
+  2. Al terminar, la imagen se ve en vista previa.
+  3. "Descargar" del PDF lo baja **con su nombre original, con acentos**.
+  4. Como estudiante, también ves la imagen y descargas el PDF.
+  5. Como maestro, al pedir borrar esa publicación, la frase dice "Se borrará con sus comentarios y adjuntos.". Cancela.
+
+  **Si la subida falla por CORS** (el aviso "No pudimos subir «…». Inténtalo de nuevo." y un error de CORS en la consola), detente: el remedio toca `infra/` y lo decide el humano (S-21).
+- **H-6. A 360 px (1.5 min).** Antes, el maestro crea dos clases más con las cadenas de `comprobacion-humano.md`.
+  - **En el inicio del maestro:**
+    - el titular no se desborda;
+    - las tarjetas van en una columna;
+    - la tarjeta interna queda debajo del texto;
+    - el saludo con el nombre largo no se sale.
+  - **En las tarjetas de las dos clases largas, y en su página** (el `h1` y "Maestro: …"): el texto parte la línea sin desplazamiento horizontal. En el inicio del estudiante, el nombre largo del maestro cabe en la tarjeta.
+  - **En "Alumnos",** la tabla se desplaza dentro de su contenedor, no la página.
+  - **En el muro,** la ficha del PDF y la imagen de H-5 no desbordan.
+  - **Con el lector de pantalla, una sola vez:** en el buscador de "Alumnos", pega una de las cadenas largas y escucha el campo. Se leen seguidas la ayuda permanente y el aviso de longitud. Si te molesta, el ajuste es del carril trivial. Si no cabe en el tiempo, queda "no verificado por decisión del humano".
+
+**No verificado por decisión del humano, cubierto por pruebas automáticas:**
+| Qué | Pruebas que lo cubren |
+|---|---|
+| El contraste | `tokens.test.ts` y `tokens-r1` |
+| El estado "Deudor", que no se puede provocar desde la interfaz | PR-B03a y PR-B11a |
+| El registro de `movimientos_inscripcion`, sin pantalla en CLASES | PR-B16a a PR-B16h |
+| Los destinos de foco de §7.14 con lector de pantalla, salvo lo que se oye en H-3 y H-6 | Las pruebas de foco de b y c |
+| Una vista previa vencida tras 4 o 5 minutos | PR-D18a, PR-D18b y las `*.ataque` de T-40 |
+| Una URL `javascript:` o `data:` | PR-D17a, PR-D17b y T-39 |
+| El alumno restringido sin URL | PR-D09c y PR-D09i |
+| Los límites de tipo, tamaño y cantidad | PR-D11a a PR-D11d y PR-D04b |
+| El firmado sin red | PR-D03a |
+| Que ni el estado de pago ni el correo lleguen a un estudiante | PR-A16, PR-B02e y PR-D06c, entre otras |
+| El CORS y la firma de R2 | Es `prod`: los verifica DEPLOY |
+
+**Con el "bien":** las marcas "propuesta" de `docs/DESIGN.md` de este encargo pasan a "propuesta aprobada (fecha)" ("Documentos a actualizar", punto 10).
+
+### Medición del programador en d (para `docs/ESTADO.md` §6)
+| Subentrega | Rondas del tester | Rondas extra | Resúmenes devueltos |
+|---|---|---|---|
+| CLASES-d | 3 (sin escalada) | 2 | 0 de 3 (implementación, corrección 1 y corrección 2) |
+
+- **Bien:**
+  - cifras exactas en los tres resúmenes, contrastables con su comando;
+  - el lockfile de `minio` limpio y explicado;
+  - N-1 a N-5 al pie de la letra;
+  - las seis correcciones de la ronda 1 cumplieron el criterio exacto a la primera, sin tocar `*.ataque`;
+  - T-44 lo corrigió sin ramas por unidad, que era la causa;
+  - se detuvo donde debía en lo demás;
+  - el código de producción resistió todo lo sensible desde la ronda 1: autorización, alcance por `archivoId` sin oráculo, la carrera de confirmación, firmas y expiración, `Content-Disposition`, logs con `trace` y configuración.
+- **A vigilar:**
+  - **PA-09 no aplicada:** modificó `publicacion-del-muro.tsx` (que estaba en "No se toca" por omisión del plan) sin detenerse. Lo declaró y el cambio era el correcto, pero la regla es detenerse;
+  - **N-D4 omitido** en la primera corrección, sin declararlo. Lo aplicó en la segunda;
+  - **no aplicar por analogía, por segunda subentrega seguida** (T-30 y T-31 en c): T-39 (validó el protocolo de la URL de subida en `almacenService`, pero no el de la descarga ni el de la vista previa) y T-38 (`enEspera` en el botón principal, pero la lista seguía editable durante la misma operación). T-43 y T-44 son el mismo patrón dentro de una función: corrigió KB y no MB.
+
+**Lectura acumulada del encargo (a, b, c y d)**, para la decisión del humano sobre el modelo del programador:
+| Subentrega | Rondas | Extra | Escaladas | Resúmenes devueltos |
+|---|---|---|---|---|
+| CLASES-a | 4 | 3 | 1 | 3 de 7 |
+| CLASES-b | 5 | 4 | 2 | 1 de 6 |
+| CLASES-c | 4 | 3 | 1 | 0 de 5 |
+| CLASES-d | 3 | 2 | 0 | 0 de 3 |
+| **Encargo** | **16** | **12** | **4** | **4 de 21** |
+
+- **Lo que mejoró con las medidas de AUTH-03c:**
+  - la exactitud del resumen: 3 devueltos en a, 1 en b, 0 en c y en d. Las afirmaciones falsas de a (D-5, D-6) y b (D-7) no se repitieron en c ni en d;
+  - las rondas extra bajaron de 4 a 2, y d cerró sin escalada.
+- **Lo que no cambió en las cuatro subentregas:**
+  - ningún hallazgo fue de seguridad ni alto;
+  - el código sensible (autorización, fugas, concurrencia, cola, firmas) resistió desde la ronda 1;
+  - todo el costo estuvo en los casos negativos y los bordes (foco, longitudes, unidades) y en no extender por analogía el remedio de un hallazgo a sus hermanos. Ese patrón explica la mayoría de las 12 rondas extra.
+- **Detenerse ante una PARADA** mejoró, pero no del todo: a (PA-09 resuelta por su cuenta), c (se detuvo bien en PA-16 y D-1) y d (PA-09 otra vez, aunque declarada).
+- **Mi recomendación, que es decisión del humano:** mantener `sonnet` con esfuerzo `medium` en el próximo encargo, con una medida barata contra el patrón que queda. Al corregir un hallazgo, el resumen lista los controles, rutas o unidades hermanos y dice si el remedio también les aplica. Si el próximo encargo vuelve a tener 2 o más rondas extra por subentrega por ese motivo, conviene probar `opus` en el programador para el carril sensible. El costo de cada ronda extra del tester (`opus`, esfuerzo `high`) ya es comparable.
+
+### Desacuerdos arbitrados
+Ninguno nuevo en esta revisión. Los de d ya se arbitraron en su momento, y la Enmienda 13 los registra:
+- PA-07 de la ronda 0, que fue a CHORE-02;
+- las cuatro desviaciones de la implementación (Enmienda 11);
+- T-38 a T-43 (Enmienda 12);
+- PA-12, que dio lugar a C-23;
+- los tres `500` provocados por `archivos-d-r2`.
+
+### Para el humano
+1. **El carril trivial antes del commit `<Cd>` (N-F2 y el detalle del README).** Son dos cambios en archivos autorizados en d, sin cambio de comportamiento ni de `*.ataque`:
+   - cambiar por escapes los cuatro inversores de dirección literales de `shared/src/clases.ts:48`, y comprobarlo por programa;
+   - corregir "pendiente de NOTIFICACIONES" en `backend/src/adapters/README.md`.
+
+   Después, lint y test de `shared`, `backend` y `frontend`. La tabla de V-01 no cambia. Si prefieres no tocar código después de esta revisión, el primero puede ir al siguiente encargo, con el aviso de GitHub en el PR.
+2. **La comprobación humana:** la lista de arriba, de 6 puntos y 10 minutos.
+   - Si H-5 falla por CORS, el remedio toca `infra/` y lo decides tú (S-21).
+   - En H-4 decides O-13 y en H-5, el residual de T-38. Si alguno te molesta, va por el carril trivial.
+3. **El modelo del programador:** los datos y mi recomendación están en "Medición del programador". La decisión estaba prevista para después de CLASES.
+4. **Una regla de proceso que propongo (O-15), opcional:** en `AGENTS.md`, "Pruebas", agregar "Nunca se corren dos suites a la vez (backend y frontend, o dos del backend): la carga tumba el backend por la espera en cadena de CHORE-02". El tester y yo ya lo hacemos. Escribirlo evita que otro agente o una sesión nueva lo repita.
+5. **CHORE-02 sigue costando corridas:** la de la raíz de esta revisión volvió a caer (10 tiempos límite, incluidos dos casos de d por arrastre). También volvió el `P2028` de `cambiar-contrasena`, el pendiente de AUTH con prioridad alta. Con CLASES cerrado, conviene decidir cuándo entra CHORE-02.
+
+### Verificación del carril trivial (N-F2 y README)
+Fecha: 2026-10-02, de 12:35 a 12:47. Verifico `resumen-programador.md`, "## CLASES-d — carril trivial antes de <Cd> (N-F2 y README)" (línea 1808).
+**Veredicto: ACEPTADO.** Las cifras de lint, build y suites coinciden con mi corrida. La única inexactitud es una observación sobre un documento de trabajo, no sobre código (ver abajo).
+
+**Alcance:**
+- Desde mi revisión final (11:27), en los tres paquetes solo cambiaron dos archivos: `shared/src/clases.ts` y `backend/src/adapters/README.md` (`find -newer`). Siguen siendo 35 rastreados y 29 nuevos.
+- **`shared/src/clases.ts`:** contra `c7fcece`, además de lo de d, solo cambia la línea 48: `INVERSORES_DE_DIRECCION` pasa de cuatro literales a escapes `\u202A-\u202E` y `\u2066-\u2069`, en ASCII puro (comprobado por programa). Sobre todo el archivo, inversores e invisibles: 0. El comentario de las líneas 45 y 46 está intacto.
+- **`backend/src/adapters/README.md`:** solo cambia la última frase de la sección de d. Ahora dice `LIMPIEZA_DIARIA`, prerrequisito de DEPLOY (P-02), y que borra el objeto y la fila de pendientes vencidos y descartados. El numstat sigue en 25/0 contra `c7fcece`.
+
+**Mis cifras:**
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `shared`: `npm run lint` y `npm run build` | 0 y 0 | 0 (`All matched files use Prettier code style!`) y 0 (`> tsc -p tsconfig.json`) |
+| `backend`: `npm run lint` | 0 | 0 (`> tsc -p tsconfig.json --noEmit`) |
+| `frontend`: `npm run lint` | 0 | 0 (`> tsc -b`) |
+| `npx vitest run src/core/clases` | `42 passed (42)` | `42 passed (42)` |
+| Backend `npm test` (PA-01 antes: `True Inbound Block Public`, `IZZI-F281-5G`) | `1300 passed (1300)` en la corrida 2 | `120 passed (120)` / `1300 passed (1300)` a la primera, de 12:42:19 a 12:43:20 |
+| Frontend `npm test` (después del backend, nunca a la vez) | `1395 passed (1395)` | `104 passed (104)` / `1395 passed (1395)` |
+| V-01 | 107/107 | **107/107** contra la tabla de la línea 4831 |
+| PA-07 | los dos aceptados | Los cuatro términos en 0; `P2028`, solo los dos aceptados. Los `500` del muro y de archivos son solo los tres `ZodError` provocados por `archivos-d-r2` |
+| PA-10 y PA-11 | limpios | `X-Amz-Signature` 0. A las 12:45, solo `campus-dev-postgres-1` |
+
+**Inexactitud del resumen (no lo devuelvo):** dice que `resumen-programador.md:1392` tiene 4 inversores literales, pero tiene **uno** (U+202E, dentro de `"Clase…mala"`).
+
+**Decisión sobre los invisibles de los documentos de trabajo:** sí se cambian antes del commit `<Cd>`. Todos van al repositorio, y GitHub marca los archivos con caracteres bidireccionales. Todos son escapes que la herramienta convirtió en caracteres reales (O-10), así que lo correcto es volver a escribirlos como el escape que se quiso poner (`\u202E`), no como `U+202E`. El orquestador lo hace con un script (barra invertida con `String.fromCharCode(92)`) y comprueba el resultado por programa:
+- **Obligatorio (bidireccionales):**
+  - `resumen-programador.md:1392` (U+202E);
+  - `aprobacion.md:284` (U+202A, U+202E, U+2066 y U+2069; la anotación del carril trivial, que quiso escribir los escapes).
+- **Recomendado, en la misma pasada (invisibles de ancho cero, que no reordenan pero no se leen):** `reporte-tester.md:559` (U+FEFF), `:1991` (U+200B) y `:2437` (U+200B, U+2060 y U+FEFF). Son casos de prueba citados.
+- **No se toca:** el U+200D de `revision.md:2320`, que es parte del emoji `👩‍💻` citado como tal.
+- **Ya corregido por mí en `revision.md`, mi archivo:** la línea 3737 (los cuatro inversores, que quise escribir como escapes) y la 2322 (U+200B y U+3164). Lo hice con un script; ya no queda ningún bidireccional ni invisible salvo el de la línea 2320.
+- **Fuera de este encargo:** `docs/trabajo/AUTH-03-ajustes-de-cuentas/plan.md:946` tiene un U+202E, ya publicado en `main`. Queda como nota para un `chore` de documentos; no bloquea `<Cd>`.
+
+## Verificación del carril trivial de cierre (ajustes visuales del humano)
+Fecha: 2026-10-02, de 14:57 a 15:06. Verifico `resumen-programador.md`, "## CLASES-d — ajustes visuales del humano (carril trivial, antes de <Cd>)" (línea 1833), contra los cuatro ajustes de `comprobacion-humano.md`, "Ajustes visuales" (líneas 97 a 101).
+**Veredicto: CAMBIOS REQUERIDOS.** Vuelve al programador por dos problemas pequeños: uno de comportamiento en la ruta `editar` y una contradicción interna de `DESIGN.md`. Las cifras coinciden con mi corrida, el alcance es el declarado y V-01 está intacto.
+
+### Problemas que bloquean
+#### M-T1 — El indicador de las secciones marca "Muro" en una página que no es ninguna sección
+Dónde: `frontend/src/features/clases/components/secciones-de-clase.tsx:24` y `:36-37`; la ruta `/maestro/clases/:claseId/editar` (`app/router.tsx:82`) se monta dentro de `ClaseLayout`, que siempre pinta `SeccionesDeClase` (`clase-layout.tsx:47`).
+Por qué importa: el indicador solo distingue "la segunda sección" de "todo lo demás". En "Editar clase", ningún `NavLink` está activo ("Muro" lleva `end` y "Alumnos" no coincide), pero `segundaActiva` es `false` y la pastilla `bg-surface` queda bajo "Muro". La pantalla dice "estás en Muro" y no es cierto: ni `aria-current` ni el color lo respaldan. Esto contradice la regla nueva de §7.3 ("el estado activo se dice además con `aria-current`... nunca solo con la posición del indicador"). Antes del ajuste, en esa ruta no se resaltaba nada. Ninguna prueba lo ve porque el indicador es `aria-hidden`.
+Qué se espera: si ninguna sección está activa, no se ve ningún indicador. Y una prueba normal que lo cubra en las tres rutas del maestro: muro, alumnos y editar. Como el remedio toca la lógica de rutas del componente, la ronda la decide el orquestador según "Trabajo visual". Bastan el programador con su prueba y mi verificación, salvo que alguna `*.ataque` cambie.
+
+#### M-T2 — `DESIGN.md` §7.3 se contradice: la regla "presente y futuro" choca con el grupo "Tipo de publicación"
+Dónde: `docs/DESIGN.md:413` (regla nueva) y `:414` ("Grupo de dos botones para elegir un tipo", aprobado ese mismo día).
+Por qué importa: el humano pidió la regla "para todo control segmentado o de pestañas **futuro**". El texto dice "presente y futuro" y además menciona `aria-pressed`. Con eso, el grupo de `FormularioPublicacion` de la viñeta siguiente, que lleva fondo `--surface`, `Check` y ningún indicador deslizante, queda como incumplimiento sin excepción declarada. `DESIGN.md` es la fuente única: el siguiente encargo no sabría si debe cambiarlo.
+Qué se espera: que la regla diga lo que pidió el humano (los controles futuros, más `SeccionesDeClase`) y que deje al grupo "Tipo de publicación" como existente fuera de la regla, pendiente de que el humano decida. El programador ya lo identificó como hermano en su resumen. En la misma edición, la regla debería fijar el radio del grupo y el del indicador: hoy el código usa `rounded-card` (16 px, documentado para "Tarjetas de clase") con `p-1` y `rounded-row` (14 px), y nada de eso está escrito.
+
+### Cifras: resumen contra mi corrida
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| PA-01 | — | Regla `True Inbound Block Public`; red `IZZI-F281-5G`, perfil `Public` (14:57) |
+| `frontend`: `npm run lint` | sin errores (ESLint, Prettier, `tsc -b`) | código 0; última línea `> tsc -b` |
+| `frontend`: `npm test` | `Tests  1395 passed (1395)` (104 archivos) | 1.ª: `104 passed (104)` / `1395 passed (1395)`; 2.ª: `1 failed`, `1394 passed (1395)` (ver N-T1); 3.ª: `104 passed (104)` / `1395 passed (1395)`. Nunca a la vez que el backend |
+| `backend`: `npm run lint` | no se corrió (no cambia) | código 0; última línea `> tsc -p tsconfig.json --noEmit` |
+| `backend`: `npm test` | no se corrió | `120 passed (120)` / `1300 passed (1300)` a la primera (15:03:44 a 15:04:49) |
+| `npm run build` (raíz) | no se corrió | código 0; `✓ built in 889ms` |
+| V-01 | sin cambios en `*.ataque` | **107/107** contra la tabla de `reporte-tester.md` (línea 4831); el árbol tiene exactamente las mismas 107 rutas |
+| PA-07 | — | `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0. `P2028`: solo los dos aceptados (`POST /api/auth/login` sobre `tx.sesion.create` y `POST /api/auth/restablecer` sobre `tx.tokenCuenta.updateMany`). Los `500`: los tres `ZodError` provocados por `archivos-d-r2`, seis "fallo simulado de la base" de `intentos-r2` y `/prueba/error-comun`, todos provocados a propósito. Ninguno en el muro sin provocar |
+| PA-10 | — | `X-Amz-Signature` y `STORAGE_SECRET_KEY`: 0 |
+| PA-11 | — | A las 15:05:23 (34 s después) Ryuk ya no estaba; solo `campus-dev-postgres-1`, `-minio-1` y `-livekit-1` (los de `infra/` de la comprobación humana) |
+
+### Alcance (lo que cambió)
+- En los paquetes, desde mi verificación anterior (12:47), solo cambiaron los seis `.tsx` declarados (`find -newermt`). El cliente generado de Prisma también, pero lo ignora git (`.gitignore:9`). Rastreados contra `c7fcece`: de 35 a 41, que son exactamente esos seis. Nuevos: siguen siendo 29.
+- Ninguna `*.ataque` ni ninguna prueba normal cambió. El tester no adaptó nada, así que no hubo aserciones que perder.
+- Los protegidos coinciden con sus SHA-256 de `aprobacion.md`: `AGENTS.md`, los tres `.claude/agents/*.md`, `CLAUDE.md`, `README.md`, `ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`, `PRD.md` y `plan.md`. `DESIGN.md` queda en `F1449039…`, a la espera de su hash final en la tabla de cierre.
+- No hay bidireccionales ni invisibles en los siete archivos tocados (comprobado con `node`).
+
+### Los cuatro ajustes contra lo pedido
+1. **Descripción:** cumple. Tiene `min-w-0 wrap-anywhere`, el mismo mecanismo del `h1` y del "Maestro:" (`encabezado-clase.tsx:32` y `:35`). Tailwind 4.3 genera `wrap-anywhere`.
+2. **Monograma:** cumple. La barra empieza en "Inicio" (`DESTINOS_POR_ROL`). `DESIGN.md` actualiza la tabla de tokens (`--brand`) y §7.4. `Monograma` sigue en `components/layout`, aunque ahora solo lo usa `features/auth`: ver N-T2.
+3. **Vacíos sobre orbes:** cumple, y la lista de hermanos del resumen es exacta. Hay seis usos de `EstadoVacio`. Los dos que estaban sueltos (muro y `TablaEnlaces`) ahora van en `Card`. `PanelMisClases`, `TablaAlumnos` y `PersonasView` ya iban dentro de `Card`. `RegistradosDelEnlace` vive dentro de una celda de tabla. Ningún vidrio queda sobre otro vidrio.
+4. **Pestañas:** cumple en vidrio (`Card`), `transition-transform duration-200`, `motion-reduce:transition-none`, `aria-current` y `text-link` conservados, sin `disabled`, sin textos en el `.tsx` y sin ternarios anidados ni `?? []`. Tiene el defecto de M-T1. `DESIGN.md` §6 declara la excepción de 200 ms con `transform` y la de movimiento reducido, y §7.1 la de rendimiento. Todo coherente con la regla de transiciones de 150 ms.
+- **Hermanos del control segmentado:** el resumen es correcto. El único otro grupo excluyente es "Tipo de publicación". `campo-contrasena.tsx` usa `aria-pressed` como interruptor, no como grupo.
+- **`DESIGN.md`:** cambió solo en lo declarado (tabla de tokens, §6, §7.1, §7.3, §7.4, §7.10 y §7.16), además de las marcas de aprobación y §7.19, que ya estaban. Todo lo nuevo lleva la marca "propuesta, decisión del humano (2026-10-02)".
+
+### Problemas que no bloquean
+- **N-T1 — `archivos-d-r2.ataque.test.tsx`, caso "volver al muro después del margen (4 min 1 s)…", es intermitente.** Falló en 1 de mis 3 corridas completas: `expected [ '…/v/1' ] to deeply equal [ '…/v/2' ]`, línea 552. Aislado pasó 5 de 5. El conteo de peticiones de la línea 550 sí pasó: la segunda respuesta llegó, pero no se había pintado dentro de la espera fija de 50 ms (`setTimeout` de la línea 548). No lo causa este ajuste, porque monta `MuroView` con datos y el cambio solo toca la rama vacía. Es una carrera de tiempo bajo carga. Solo el tester puede tocar esa prueba. Recomiendo que la corrija en esta misma vuelta, como un C-n: cambiar la espera fija por una espera de la imagen nueva, sin tocar aserciones ni títulos. Si el humano prefiere no tocarla, va a CHORE-02 y se anota en `docs/ESTADO.md` §3. En cualquier caso, debe registrarse antes de `<Cd>`.
+- **N-T2 — `Monograma` en `components/layout` con un solo módulo usuario (`features/auth`).** La regla 5 de `CLAUDE.md` ya no lo justifica ahí. Moverlo es un refactor entre dominios, que requiere confirmación. Destino: el próximo encargo que toque `features/auth` o el logo (PRD §11). Lo anoté para `ESTADO.md` §3.
+
+### Detalles menores
+- El resumen no trae la última línea literal de `lint` (la describe) ni corre `build`. En un carril trivial sin cambios en `shared/` no hacía falta `build`, y mis cifras confirman lo que dice. No lo devuelvo por esto, pero el resumen de la corrección debe traer la línea literal.
+- Los cuatro ajustes son visuales. Las pruebas no ven el deslizamiento, el vidrio ni el corte a 360 px. Quedan **no verificados en navegador**, y los decide el humano en su vistazo antes de `<Cd>`. Ahí las marcas pasan a "propuesta aprobada".
+
+### Para el orquestador
+1. Programador: M-T1 (con su prueba normal) y M-T2. El resumen de la corrección lista los hermanos y trae lint, test y build con su última línea.
+2. Tester: N-T1, solo si el humano no lo manda a CHORE-02.
+3. Después vuelvo a verificar: lint, test (frontend dos veces), V-01 y el diff de los archivos tocados.
+
+## Verificación de la corrección del carril trivial de cierre (M-T1, M-T2 y C-28)
+Fecha: 2026-10-02, de 15:18 a 15:27. Verifico dos entregas:
+- la del programador, en `resumen-programador.md`, "### Corrección de M-T1 y M-T2" (línea 1849);
+- la del tester, en `reporte-tester.md`, "### C-28: esperas fijas en las *.ataque de d (N-T1)" (línea 4942), con su tabla nueva de 107 hashes (línea 4989).
+
+**Veredicto: APROBADO.** M-T1 y M-T2 quedan corregidos. N-T1 se resolvió con C-28, sin tocar ninguna aserción ni ningún título. Todas las cifras de los dos resúmenes coinciden con mi corrida, y solo cambió lo pedido. Ya no queda nada que bloquee el commit `<Cd>`.
+
+### Cifras: los dos resúmenes contra mi corrida
+| Comando | Programador | Tester | Mi corrida |
+|---|---|---|---|
+| `frontend`: `npm run lint` | `> tsc -b` | `> tsc -b` | código 0; última línea `> tsc -b` |
+| `frontend`: `npm run build` | `✓ built in 2.00s` (desde la raíz) | — | código 0; última línea `✓ built in 693ms` |
+| `frontend`: `npm test`, corrida 1 | `Tests  1396 passed (1396)` | `104 passed (104)` / `1396 passed (1396)` | `Test Files  104 passed (104)` · `Tests  1396 passed (1396)` (56.44 s) |
+| `frontend`: `npm test`, corrida 2 | `Tests  1396 passed (1396)` | `104 passed (104)` / `1396 passed (1396)` | `Test Files  104 passed (104)` · `Tests  1396 passed (1396)` (56.18 s) |
+| `backend`: `npm test` (PA-01 antes) | — | `120 passed (120)` / `1300 passed (1300)` | `Test Files  120 passed (120)` · `Tests  1300 passed (1300)`, de 15:22:15 a 15:23:19. Lo corrí antes de las dos del frontend, nunca a la vez |
+
+- **PA-01:** regla `True Inbound Block Public`; red `IZZI-F281-5G`, perfil `Public`.
+- **PA-07:** los cuatro términos en 0, y `P2028` solo en los dos aceptados (login sobre `tx.sesion.create()` y restablecer sobre `tx.tokenCuenta.updateMany()`). Los `500` son los provocados de siempre: los tres `ZodError` de `archivos-d-r2`, los seis fallos simulados de login y `/prueba/error-comun`.
+- **PA-10:** `X-Amz-Signature` en 0.
+- **PA-11:** al terminar quedaba el Ryuk de la corrida. A las 15:25:25, a más de 120 s, ya no estaba, y solo quedan los cuatro contenedores de `infra/` de la comprobación humana.
+- **V-01:** **107/107** contra la tabla de la línea 4989. Difieren 5 respecto de la tabla de la línea 4831, exactamente las de C-28: `logs-archivos-d-r1` y `-r3` del backend, y `archivos-d-r1`, `-r2` y `-r3` del frontend. Las otras 102 son iguales.
+
+### Alcance (lo que cambió desde mi verificación de las 15:06)
+- Con `find -newermt`, en los paquetes y en los documentos protegidos solo cambiaron estos archivos:
+  - `secciones-de-clase.tsx` y `clase-layout.test.tsx`;
+  - las 5 `*.ataque` de C-28;
+  - `docs/DESIGN.md`;
+  - y, en `docs/trabajo/`, los entregables de los agentes y `aprobacion.md`.
+- Nada más. Rastreados contra `c7fcece`: pasan de 41 a 42, y el que se suma es `clase-layout.test.tsx`. Nuevos: siguen siendo 29.
+- Sin bidireccionales ni invisibles en los ocho archivos tocados (comprobado con `node`).
+
+### M-T1, corregido
+- **`secciones-de-clase.tsx`:**
+  - `primeraActiva` sale de `useMatch({ path: base, end: true })` y `segundaActiva` de `useMatch({ path: destino, end: false })`;
+  - el indicador se monta solo con `hayActiva`, y `translate-x-full` se aplica solo con la segunda activa;
+  - sin ternarios anidados, con un comentario del porqué;
+  - `aria-current` y `text-link` no cambian.
+
+  En "Editar clase" ya no se pinta ningún indicador.
+- **La prueba** (`clase-layout.test.tsx`, "M-T1: en el muro el indicador va bajo la primera sección, en alumnos bajo la segunda y en editar no hay indicador"):
+  - es un archivo del propio encargo que se extiende: solo se agregó un `describe` y ningún caso existente cambió;
+  - cubre las tres rutas del maestro con `aria-current` por rol y texto, y el conteo del indicador (1, 1 y 0);
+  - la posición se ve por `translate-x-full`, porque el indicador es `aria-hidden`. Es una prueba normal, así que la regla de no usar selectores de estilo, que es de las `*.ataque`, no aplica.
+
+  Las rutas del estudiante (muro y personas) no tienen una ruta sin sección dentro de `ClaseLayout`, así que no les falta caso.
+
+### M-T2, corregido
+- **`DESIGN.md` §7.3, viñeta "Control segmentado o de pestañas":**
+  - el alcance es "todo control segmentado o de pestañas **futuro**; hoy solo `SeccionesDeClase`", lo que pidió el humano;
+  - documenta el `Card` con `rounded-card` y `p-1`, y el indicador con `rounded-row`;
+  - el estado activo se dice con `aria-current` (navegación) o `aria-pressed` (elección), y con el color del texto;
+  - "**Sin opción activa no hay indicador**", con el ejemplo de `/editar`;
+  - el grupo "Tipo de publicación" queda fuera de la regla, pendiente de que decida el humano;
+  - lleva la marca "propuesta (2026-10-02), decisión del humano".
+- **La viñeta del grupo de dos botones** (línea 414) no cambió. Ya no hay contradicción.
+- **Hunks de `DESIGN.md` contra `c7fcece`:** caen en las mismas secciones que verifiqué a las 15:06, y en §7.3 solo cambia esa viñeta.
+- **Hash:** el orquestador normalizó el archivo a LF sin cambiar su contenido. Lo comprobé: 0 retornos de carro, el numstat sigue en 36/22 y el SHA-256 actual es **`E3362BD236F2123F85DD29C1D0543884D20A425DAE1C96980697175C40AB9788`** (el `0D7D975B…` que me pasaste correspondía a los mismos bytes con CRLF). Es el hash que va a la tabla de cierre.
+
+### C-28 (N-T1), resuelto
+- **Las 5 `*.ataque` cambian solo en sus esperas fijas:**
+  - en el frontend, `act(() => new Promise(… setTimeout …))` pasa a `waitFor` de la condición real: el aviso del `catch`, el `src` firmado de la vista previa nueva o el número de peticiones;
+  - en el backend, el `setTimeout` de 200 ms pasa a un sondeo de 10 ms con un tope de 5 s;
+  - en el frontend ya no queda ningún `setTimeout`; en el backend, solo el del sondeo.
+- **Aserciones y títulos:**
+  - las aserciones originales siguen después de cada espera. Lo revisé en los seis sitios marcados "C-28";
+  - los títulos son idénticos: `vitest list` de esos archivos frente a mi lista de las 11:15 da 41 casos en el frontend y 4 en el backend, sin diferencias;
+  - las esperas nuevas solo exigen lo que la aserción siguiente ya pedía, así que no debilitan nada.
+- **Los sondeos del backend no fallan por sí mismos** al llegar al tope, pero las aserciones de después sobre el log sí fallan si falta lo esperado. No hay un `return` temprano.
+- **El caso intermitente de N-T1** pasó en mis dos corridas completas del frontend (antes, 1 de 3).
+
+### Lista de diseño (§7.3 y su hermano de §7.16)
+- **Tokens:** solo `rounded-card`, `rounded-row`, `bg-surface` y `text-link`; `duration-200` es la excepción declarada en §5. No hay valores sueltos.
+- **El estado no se dice solo con la posición:** con opción activa lo dicen `aria-current` y el color; sin opción activa no hay indicador.
+- **Movimiento:** `motion-reduce:transition-none`.
+- **Componentes:** `Card` y `buttonVariants` de `ui/`. Sin `disabled`.
+- **§7.16, viñeta "Secciones":** no es un hallazgo; es una observación con destino. Dice "un indicador que se desliza bajo el activo (control segmentado, §7.3…)": remite a §7.3 y solo afirma el indicador cuando hay un activo. Así que no contradice "sin opción activa no hay indicador". Agregar la frase sería repetir una regla que ya vive en un solo lugar.
+  - **Destino:** ninguno obligatorio. Si alguna vez se toca §7.16 por otro motivo, puede sumarse "(sin sección activa, sin indicador)" en el mismo paréntesis.
+- **No verificado en navegador** (lo decide el humano en su vistazo antes de `<Cd>`): el deslizamiento y la ausencia del indicador en "Editar clase".
+
+### Pendientes que siguen con destino (sin cambios)
+- N-T2: `Monograma` en `components/layout` con un solo módulo usuario.
+- Detalle del resumen anterior: ahora el programador trae la última línea literal de lint, test y build. Cumplido.
+
+### Para el orquestador
+- Anota en la tabla de cierre el SHA-256 final de `DESIGN.md` (`E3362BD2…`) y la base de V-01 del siguiente encargo: la tabla de 107 de `reporte-tester.md`, línea 4989 (C-28).
+- No hace falta otra ronda.

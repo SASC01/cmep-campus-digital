@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 
 import {
+  type Adjunto,
   comentarioIdParamSchema,
   comentarioRespuestaSchema,
   crearComentarioSchema,
@@ -18,12 +19,24 @@ import {
   borrarComentario,
   borrarMiComentario,
   borrarPublicacion,
+  buscarArchivosParaConfirmar,
   crearComentario,
   crearPublicacion,
   listarComentarios,
   listarPublicaciones,
+  type ArchivoDb,
 } from "../../adapters/db/index.js"
 import { encolar } from "../../adapters/queue/index.js"
+import type { Almacen } from "../../core/archivos/almacen.js"
+import {
+  almacenNoConfigurado,
+  archivoNoCoincide,
+  archivoNoSubido,
+  coincideConLoDeclarado,
+  disposicionDeContenido,
+  esImagenConVistaPrevia,
+  VIGENCIA_URL_FIRMADA_S,
+} from "../../core/archivos/politica.js"
 import { normalizarTextoLargo } from "../../core/clases/texto.js"
 import { AppError } from "../../core/errores.js"
 import {
@@ -54,10 +67,62 @@ const conTextosNormalizados = (cuerpo: unknown, campos: readonly string[]): unkn
   return objeto
 }
 
+// §D-D3, punto 4: la clave del objeto nunca sale; la vista previa solo existe para las cuatro
+// imágenes y solo con almacén. Firmar es un cálculo local, sin red.
+const adjuntosParaResponder = (
+  almacen: Almacen | null,
+  archivos: readonly ArchivoDb[],
+): Promise<Adjunto[]> =>
+  Promise.all(
+    archivos.map(async ({ id, nombre, tipo, tamano, claveObjeto }): Promise<Adjunto> => {
+      if (almacen === null || !esImagenConVistaPrevia(tipo)) {
+        return { id, nombre, tipo, tamano, vistaPrevia: null }
+      }
+      const url = await almacen.urlDeDescarga({
+        clave: claveObjeto,
+        tipo,
+        disposicion: disposicionDeContenido(nombre, "inline"),
+      })
+      const expiraEn = new Date(Date.now() + VIGENCIA_URL_FIRMADA_S * 1000).toISOString()
+      return { id, nombre, tipo, tamano, vistaPrevia: { url, expiraEn } }
+    }),
+  )
+
+// §D-D3, puntos 3.1 y 3.2: los archivos se leen una vez (acotados a la clase y al usuario) y se
+// comprueba en el almacén que lo subido es lo declarado. Sin ids no toca ni la base ni el almacén.
+const archivosParaPublicar = async ({
+  almacen,
+  ids,
+  claseId,
+  subidoPor,
+}: {
+  almacen: Almacen | null
+  ids: readonly string[]
+  claseId: string
+  subidoPor: string
+}): Promise<ArchivoDb[]> => {
+  if (ids.length === 0) return []
+  if (almacen === null) throw almacenNoConfigurado()
+  const archivos = await buscarArchivosParaConfirmar({ ids, claseId, subidoPor })
+  if (archivos.length !== ids.length) throw archivoNoCoincide()
+  const reales = await Promise.all(
+    archivos.map((archivo) => almacen.metadatosDe(archivo.claveObjeto)),
+  )
+  const veredictos = archivos.map((archivo, i) =>
+    coincideConLoDeclarado(archivo, reales[i] ?? null),
+  )
+  if (veredictos.includes("falta")) throw archivoNoSubido()
+  if (veredictos.includes("distinto")) throw archivoNoCoincide()
+  return archivos
+}
+
 // Rutas de CLASES-c (§D-C2). Ningún handler verifica rol, propiedad o inscripción a mano: todo pasa
 // por protegido() y por claseDe(request) (sexto paso). Ningún handler crea avisos: encola el evento
 // en la misma transacción que el dato y el consumidor es de NOTIFICACIONES.
-export const muroHandler: FastifyPluginAsync = async (app) => {
+export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = async (
+  app,
+  { almacen },
+) => {
   app.get(
     "/clases/:claseId/publicaciones",
     protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" }),
@@ -65,15 +130,14 @@ export const muroHandler: FastifyPluginAsync = async (app) => {
       const { id } = claseDe(request)
       const { cursor, limite } = validarParametros(paginacionSchema, request.query)
       const lista = await listarPublicaciones({ claseId: id, cursor, limite })
-      return reply.send(
-        listaPublicacionesRespuestaSchema.parse({
-          ...lista,
-          publicaciones: lista.publicaciones.map((publicacion) => ({
-            ...publicacion,
-            creadoEn: publicacion.creadoEn.toISOString(),
-          })),
-        }),
+      const publicaciones = await Promise.all(
+        lista.publicaciones.map(async (publicacion) => ({
+          ...publicacion,
+          creadoEn: publicacion.creadoEn.toISOString(),
+          adjuntos: await adjuntosParaResponder(almacen, publicacion.adjuntos),
+        })),
       )
+      return reply.send(listaPublicacionesRespuestaSchema.parse({ ...lista, publicaciones }))
     },
   )
 
@@ -90,6 +154,12 @@ export const muroHandler: FastifyPluginAsync = async (app) => {
       // N-03: el id nace aquí, antes del adaptador; es también el id del trabajo.
       const id = randomUUID()
       const aviso: DatosPublicacionCreada = { publicacionId: id, claseId }
+      const archivos = await archivosParaPublicar({
+        almacen,
+        ids: datos.archivoIds,
+        claseId,
+        subidoPor: perfil.id,
+      })
       const publicacion = await crearPublicacion(
         {
           id,
@@ -98,12 +168,17 @@ export const muroHandler: FastifyPluginAsync = async (app) => {
           tipo: datos.tipo,
           titulo: datos.tipo === "material" ? datos.titulo : null,
           texto: datos.texto ?? "",
+          archivos,
         },
         (sql) => encolar(colaDePublicacion(datos.tipo), aviso, { id, sql }),
       )
       return reply.status(201).send(
         publicacionRespuestaSchema.parse({
-          publicacion: { ...publicacion, creadoEn: publicacion.creadoEn.toISOString() },
+          publicacion: {
+            ...publicacion,
+            creadoEn: publicacion.creadoEn.toISOString(),
+            adjuntos: await adjuntosParaResponder(almacen, publicacion.adjuntos),
+          },
         }),
       )
     },

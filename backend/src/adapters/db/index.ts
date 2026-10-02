@@ -100,6 +100,12 @@ export {
   type PersonaDb,
 } from "./inscripciones.js"
 export {
+  buscarArchivoConfirmado,
+  buscarArchivosParaConfirmar,
+  registrarArchivoPendiente,
+  type ArchivoDb,
+} from "./archivos.js"
+export {
   borrarComentario,
   borrarMiComentario,
   borrarPublicacion,

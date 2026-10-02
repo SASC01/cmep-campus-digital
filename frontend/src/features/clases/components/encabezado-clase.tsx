@@ -38,7 +38,9 @@ export function EncabezadoClase({ clase, esDueno }: EncabezadoClaseProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {clase.descripcion && (
-          <p className="max-w-prose whitespace-pre-line text-body">{clase.descripcion}</p>
+          <p className="max-w-prose min-w-0 wrap-anywhere whitespace-pre-line text-body">
+            {clase.descripcion}
+          </p>
         )}
         {esDueno && (
           <>

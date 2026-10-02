@@ -1,5 +1,6 @@
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
+import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
 import {
   enTransaccion,
   ejecutorSqlDe,
@@ -25,6 +26,8 @@ export interface PublicacionDb {
   autor: AutorDb
   creadoEn: Date
   comentarios: number
+  // CLASES-d (C-21): siempre presente; [] si no tiene archivos.
+  adjuntos: ArchivoDb[]
 }
 
 export interface ListaPublicacionesDb {
@@ -49,6 +52,13 @@ export interface ListaComentariosDb {
 // responde igual: sin oráculo.
 const errorCursorInvalido = (): AppError => new AppError("VALIDACION", "cursor: no es válido", 400)
 
+const errorArchivoInvalido = (): AppError =>
+  new AppError(
+    "ARCHIVO_INVALIDO",
+    "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.",
+    400,
+  )
+
 const SELECT_AUTOR = { select: { id: true, nombre: true } } as const
 
 const SELECT_PUBLICACION = {
@@ -68,8 +78,12 @@ const SELECT_COMENTARIO = {
 } as const
 
 // El id lo genera el handler (N-03): es también el id del trabajo de la cola (el eventId). La
-// publicación y lo que haga alGuardar (encolar el aviso, con el ejecutor SQL de esta misma
-// transacción) confirman juntos o ninguno: si alGuardar lanza, la publicación se revierte.
+// publicación, la confirmación de sus archivos (d) y lo que haga alGuardar (encolar el aviso, con el
+// ejecutor SQL de esta misma transacción) confirman juntos o ninguno: si algo lanza, todo se
+// revierte. `archivos` son las filas que el handler ya leyó con buscarArchivosParaConfirmar; el
+// UPDATE repite las condiciones por si algo cambió entre la lectura y la escritura (otra
+// publicación que reclamó el mismo archivo, o el paso de las 24 h): si no confirma todas, 400. Sin
+// archivos (c) no toca la tabla.
 export const crearPublicacion = (
   {
     id,
@@ -78,6 +92,7 @@ export const crearPublicacion = (
     tipo,
     titulo,
     texto,
+    archivos = [],
   }: {
     id: string
     claseId: string
@@ -85,6 +100,7 @@ export const crearPublicacion = (
     tipo: "anuncio" | "material"
     titulo: string | null
     texto: string
+    archivos?: readonly ArchivoDb[]
   },
   alGuardar: (sql: EjecutorSql) => Promise<void>,
   ejecutor: Ejecutor = obtenerDb(),
@@ -94,8 +110,22 @@ export const crearPublicacion = (
       data: { id, claseId, autorId, tipo, titulo, texto },
       select: SELECT_PUBLICACION,
     })
+    if (archivos.length > 0) {
+      const { count } = await tx.archivo.updateMany({
+        where: {
+          id: { in: archivos.map((archivo) => archivo.id) },
+          claseId,
+          subidoPor: autorId,
+          estado: "pendiente",
+          publicacionId: null,
+          creadoEn: { gt: new Date(Date.now() - VIGENCIA_PENDIENTE_MS) },
+        },
+        data: { estado: "confirmado", publicacionId: id },
+      })
+      if (count !== archivos.length) throw errorArchivoInvalido()
+    }
     await alGuardar(ejecutorSqlDe(tx))
-    return { ...creada, comentarios: 0 }
+    return { ...creada, comentarios: 0, adjuntos: [...archivos] }
   })
 
 // Más reciente primero. Cursor de Prisma sobre la PK (el orden es creado_en DESC, id DESC, que
@@ -130,25 +160,46 @@ export const listarPublicaciones = async (
   const comentariosPorPublicacion = new Map(
     conteos.map((conteo) => [conteo.publicacionId, conteo._count._all]),
   )
+  // d: una sola consulta para los adjuntos de toda la página (índice archivos(publicacion_id)).
+  const archivos = await ejecutor.archivo.findMany({
+    where: { publicacionId: { in: pagina.map((fila) => fila.id) }, estado: "confirmado" },
+    select: { ...SELECT_ARCHIVO, publicacionId: true },
+    orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+  })
+  const adjuntosPorPublicacion = new Map<string, ArchivoDb[]>()
+  for (const { publicacionId, ...archivo } of archivos) {
+    if (publicacionId === null) continue
+    adjuntosPorPublicacion.set(publicacionId, [
+      ...(adjuntosPorPublicacion.get(publicacionId) ?? []),
+      archivo,
+    ])
+  }
   return {
     publicaciones: pagina.map((fila) => ({
       ...fila,
       comentarios: comentariosPorPublicacion.get(fila.id) ?? 0,
+      adjuntos: adjuntosPorPublicacion.get(fila.id) ?? [],
     })),
     siguienteCursor,
   }
 }
 
-// Borra con id y clase_id; sus comentarios caen en cascada. false: no existe en esa clase.
-export const borrarPublicacion = async (
+// Borra con id y clase_id; sus comentarios caen en cascada. false: no existe en esa clase. d: antes
+// del DELETE, en la misma transacción, sus archivos pasan a descartado y pierden la publicación (el
+// CHECK de §D-D1 lo exige, y publicacion_id es NO ACTION); los objetos siguen en el almacén hasta la
+// limpieza diaria. El filtro por clase_id evita descartar los archivos de una publicación ajena.
+export const borrarPublicacion = (
   { claseId, publicacionId }: { claseId: string; publicacionId: string },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<boolean> => {
-  const { count } = await ejecutor.publicacion.deleteMany({
-    where: { id: publicacionId, claseId },
+): Promise<boolean> =>
+  enTransaccion(ejecutor, async (tx) => {
+    await tx.archivo.updateMany({
+      where: { publicacionId, claseId },
+      data: { estado: "descartado", publicacionId: null },
+    })
+    const { count } = await tx.publicacion.deleteMany({ where: { id: publicacionId, claseId } })
+    return count > 0
   })
-  return count > 0
-}
 
 // null: la publicación no existe en esa clase.
 export const listarComentarios = async (

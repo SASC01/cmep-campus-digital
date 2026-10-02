@@ -556,7 +556,7 @@ Requisito o regla violada: §D-0.4 (M-14); AGENTS.md regla 2.
 #### T-04 — El código de invitación acepta un carácter invisible y letras no ASCII
 Severidad: baja
 Prueba: `backend/src/core/clases/codigo-r1.ataque.test.ts`, casos "rechaza el carácter invisible U+FEFF (ZERO WIDTH NO-BREAK SPACE) dentro del código" y "rechaza letras no ASCII que toUpperCase convierte en letras del alfabeto (ß, ſ, ﬀ)".
-Esperado: `codigoInvitacionSchema` rechaza `"ABC﻿DEFG"`, `"ABCDEß"`, `"ABCDEFſ"` y `"ABCDEﬀ"`.
+Esperado: `codigoInvitacionSchema` rechaza `"ABC\uFEFFDEFG"`, `"ABCDEß"`, `"ABCDEFſ"` y `"ABCDEﬀ"`.
 Obtenido: los acepta y los convierte en `"ABCDEFG"`, `"ABCDESS"`, `"ABCDEFS"` y `"ABCDEFF"`.
 - `normalizarCodigoDeClase` usa `\s`, que en JavaScript incluye U+FEFF, U+00A0 y U+3000.
 - `toUpperCase()` convierte `ß` en `SS`, `ſ` en `S` y expande las ligaduras.
@@ -1988,7 +1988,7 @@ Prueba: `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx`, "T-24: un t
 Requisito o regla violada: S-11 (de 3 a 120 caracteres después de normalizar) y la coherencia de §D-B5. El borde es remoto, 41 sílabas coreanas, y por eso es bajo.
 
 ### Atacado sin hallazgos
-- **T-20 con otros alfabetos**, mismo resultado en el backend y en el frontend: japonés "山田太", árabe "محمد", devanagari "क्षमा", tailandés "สมชาย", "İnc" (encuentra "İnci") → 200 y encuentran al alumno; "山田", "مح", "İİ", "ﬁﬁ" → `VALIDACION`; "क्ष" (la virama se quita), "　a　" → `BUSQUEDA_MUY_CORTA`; "ﬁﬁﬁ", "a b", "a　 b", "a​b", "각", "가나" → 200.
+- **T-20 con otros alfabetos**, mismo resultado en el backend y en el frontend: japonés "山田太", árabe "محمد", devanagari "क्षमा", tailandés "สมชาย", "İnc" (encuentra "İnci") → 200 y encuentran al alumno; "山田", "مح", "İİ", "ﬁﬁ" → `VALIDACION`; "क्ष" (la virama se quita), "　a　" → `BUSQUEDA_MUY_CORTA`; "ﬁﬁﬁ", "a b", "a　 b", "a\u200Bb", "각", "가나" → 200.
 - **Bordes del backend:** 120 normalizados → 200; 121 → `VALIDACION`; 120 más 500 espacios → 200; 1000 en crudo → 200; 1001 → `VALIDACION`; 40 sílabas hangul → 200; 120 emojis → 200; 121 → `VALIDACION`.
 - **T-21 con varias páginas** (52 alumnos, "Ver más alumnos"): quitar la primera fila de la página 2 → foco al "Quitar" de la siguiente; la última de la página 1 → a la primera de la página 2; la última de todas → a la anterior; la única → al `h2` "Alumnos".
 - **D-4:** con `yaEstaba: false` solo sale `toast.success("Agregaste a Nadia Ruiz")`, sin aviso neutro; con `yaEstaba: true` y doble clic con el POST en vuelo: un solo POST, un solo `toast("Nadia Ruiz ya estaba en la clase")`, y ningún `success` ni `error`.
@@ -2434,7 +2434,7 @@ Base `<Cb>` = `e9df1f0` dentro de los paquetes. Rama `feat/clases`. Fecha: 2026-
 ### C-18: confirmado (ninguna `*.ataque` lo contradice)
 Busqué por programa (Node, sobre las 87 `*.ataque` de los dos paquetes; `shared/` no tiene `*.ataque`), línea por línea:
 - `U+200B`, `U+2060`, `U+FEFF` y `\bCf\b`;
-- los escapes `​`, `\u{200b}`, `0x200b`, `⁠`, `\u{2060}`, `0x2060`, `﻿`, `\u{feff}` y `0xfeff`, y los literales U+200B, U+2060 y U+FEFF;
+- los escapes `\u200B`, `\u{200b}`, `0x200b`, `\u2060`, `\u{2060}`, `0x2060`, `\uFEFF`, `\u{feff}` y `0xfeff`, y los literales U+200B, U+2060 y U+FEFF;
 - `nombreClaseSchema`, `textoLargoSchema` y `descripcionClaseSchema` (**0 apariciones** de los tres);
 - otros `Cf` (U+00AD, U+180E, U+2061 a U+2064, U+200C a U+200F, etiquetas U+E0020 a U+E007F), rellenos Hangul (U+3164, U+115F, U+1160, U+FFA0), Braille en blanco (U+2800) y U+1F44D (**0**).
 
@@ -3573,3 +3573,1528 @@ La corrida no cayó por CHORE-02, así que no la repetí. Ningún `P2028` en una
 | `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
 | `6D533653FF448718D6E2557B5D8B718C09F3B5A4C88703D584B566B88D04F97B` | `frontend/src/styles/clases-r1.ataque.test.ts` |
 | `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+## CLASES-d — Ronda 0
+Veredicto: ronda 0, de adaptación (no cuenta en el tope de 3), **completa en la reescritura, con dos hallazgos del inventario y una PA-07 en la corrida 1 que decide el orquestador**.
+- Reescribí 4 casos: 2 de C-2 y C-13 que quedan en rojo (los esperados) y 2 de C-13 que quedan en verde antes y después (como C-19 en c).
+- **T-36 y T-37 (hallazgos, sin reescribir):** d contradice 45 casos `*.ataque` del muro del frontend que ningún C-n cubre. Son `adjuntos` en `publicacionSchema` y `archivoIds` en el cuerpo de crear publicación. Los demostré con una copia de `shared/dist` en el scratchpad, sin tocar producción (PA-15).
+- **Enmienda 7:** d desborda 4 pruebas normales con listas o formas cerradas (detalle abajo). Tres de ellas no están autorizadas hoy.
+- **PA-07:** la corrida 1 del backend (CHORE-02) trae un `P2028` nuevo, fuera de los dos aceptados y de los de AUTH, en `POST …/comentarios`. La corrida 2 sale limpia.
+
+Verificación propia: lint del backend con código 0 (`> tsc -p tsconfig.json --noEmit`) · lint del frontend con código 0 (`> tsc -b`) · test del frontend `Tests  1 failed | 1292 passed (1293)` · test del backend `Tests  1 failed | 1225 passed (1226)` (corrida 2; la corrida 1 cayó por la espera en cadena de CHORE-02). En los dos paquetes, el único rojo es el esperado.
+
+Base `<Cc>` = `c7fcece` dentro de los paquetes. Rama `feat/clases`. Fecha: 2026-10-02.
+
+### Precondiciones
+- **Rama y base:** `feat/clases`; `git log -1 --oneline` → `c7fcece feat(clases): parte c (muro con publicaciones y comentarios, avisos encolados, contenido visible y triviales de b)`; `git cat-file -e 'c7fcece^{commit}'` → código 0.
+- **Árbol:** al empezar, `git status --porcelain` listaba `M docs/ESTADO.md` y `M docs/trabajo/CLASES-01-clases-y-muro/aprobacion.md`. Durante la ronda aparecieron, también del orquestador, `M AGENTS.md` y `M .claude/agents/arquitecto.md` (anunciados en el encargo como decisiones del humano de hoy). Todo es documentación fuera de los paquetes, así que no activa PA-02.
+  - **Dentro de los paquetes:** `git diff --quiet c7fcece -- shared backend frontend` → código 0, y `git status --porcelain --untracked-files=all -- shared backend frontend` vacío.
+- **V-01:** comparé por programa los SHA-256 de todas las `*.ataque` de `git ls-files -co --exclude-standard` (Git Bash `sha256sum`, en mayúsculas) con la tabla de "CLASES-c — Ronda 4, regresión final", extraída del reporte, usando `diff`. Resultado: **97 de 97 iguales**, sin faltantes ni sobrantes (`V01-OK`).
+- **PA-01**, antes de cualquier prueba del backend:
+  - `Get-NetFirewallRule -DisplayName "Campus: bloquear entrada a Docker en redes publicas"` → `Enabled True`, `Direction Inbound`, `Action Block`, `Profile Public`;
+  - `Get-NetConnectionProfile` → `Name IZZI-F281-5G`, `NetworkCategory Public` (declarada de confianza por el humano);
+  - Docker Desktop encendido (`docker version` → servidor 28.5.1). `docker ps -a` estaba vacío: hoy no están levantados los contenedores de `infra/`, y la suite no los necesita (Testcontainers).
+
+### Archivos tocados: cuatro `*.ataque` existentes
+1. `backend/test/sesiones-y-cadena.ataque.test.ts` (C-2).
+2. `frontend/src/styles/clases-r1.ataque.test.ts` (C-13, `enEspera=`).
+3. `backend/src/config/env.ataque.test.ts` (C-13, `STORAGE_*`).
+4. `backend/test/arranque-r1.ataque.test.ts` (C-13, `STORAGE_*`; caso fuera del inventario, porque el inventario solo preveía la firma de `construirApp`).
+
+- No toqué código de producción ni pruebas normales, y no creé archivos de pruebas.
+- `git diff --quiet c7fcece -- shared backend/src frontend/src/app frontend/src/features frontend/src/components frontend/src/services frontend/src/lib` → código **1**. Se debe solo a las `*.ataque` que toqué: `backend/src/config/env.ataque.test.ts` está bajo `backend/src`. Con `':(exclude,glob)**/*.ataque.test.*'`, el mismo comando da código 0. `git diff --name-only c7fcece -- shared backend frontend` lista únicamente los cuatro archivos de arriba, y no hay nada sin rastrear dentro de los paquetes.
+- Formato, solo esos cuatro y desde su paquete:
+  - `cd backend; npx prettier --write test/sesiones-y-cadena.ataque.test.ts src/config/env.ataque.test.ts test/arranque-r1.ataque.test.ts`;
+  - `cd frontend; npx prettier --write src/styles/clases-r1.ataque.test.ts`.
+
+  Los cuatro: `(unchanged)`.
+- **Invisibles:** busqué por programa (Node, `\p{Cf}`, `\p{Zs}` salvo el espacio, `\p{Cc}` salvo el salto y el tabulador) en las líneas agregadas del diff → `SIN-INVISIBLES`.
+
+### Qué cambió y qué sigue protegiendo
+- **C-2, `backend/test/sesiones-y-cadena.ataque.test.ts:492`** ("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c y CLASES-d: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros"):
+  - La lista exacta pasa de 54 a **56** con las 2 rutas de V-06 (d): `POST /api/clases/:claseId/archivos` y `POST /api/clases/:claseId/archivos/:archivoId/descarga`, ambas `POST` y sin `HEAD`.
+  - Las inserté en el orden de `sort()`, calculado por programa: van después de `POST /api/clases/:claseId/alumnos`. Comprobé después, también por programa, que la lista queda ordenada, sin repetidos, sin ninguna ruta con "movimiento" y sin `HEAD` de archivos.
+  - El título suma "CLASES-d", y un comentario nuevo explica por qué ninguna de las dos crea cuentas ni cambia roles y por qué ninguna es pública.
+  - **Análisis por sangría con las rutas nuevas:** lo simulé con Fastify del repositorio en el scratchpad (`simular-rutas.mjs`). `printRoutes({ commonPrefix: false })` anida `/archivos (POST)` bajo `/:claseId` y `/:archivoId/descarga (POST)` bajo `/archivos`. El analizador de la prueba reconstruye las dos rutas, sin líneas sin reconocer.
+  - **Sigue protegiendo lo mismo:** la igualdad es exacta; una línea no reconocida hace fallar la prueba; cualquier ruta de más o de menos la pone en rojo; ninguna ruta crea administradores, y siguen creando maestros solo las tres de hoy.
+  - **`RUTAS_PUBLICAS`:** ninguna `*.ataque` la enumera. Hoy tiene exactamente 10 (`middleware/rutas-publicas.ts`, que en d está en "No se toca" por `src/middleware/**`). Una ruta pública nueva sería, además, una ruta nueva en esta lista exacta. No agregué aserciones.
+- **C-13 (`enEspera=`), `frontend/src/styles/clases-r1.ataque.test.ts:126`** ("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 36 enEspera"):
+  - El total pasa de 35 a **36**.
+  - La lista fija suma `/src/features/clases/components/adjuntos-de-publicacion.tsx` con 1 ("Descargar" de la ficha, §D-D5).
+  - **Patrón de las rondas 0 anteriores, sin cambios:**
+    - los archivos con 0 fijo siguen igual;
+    - el resto de `features/clases/components/` sigue sumando exactamente 3 (el buscador, el roster o sus filas), con `buscador-alumnos.tsx` ≤ 1 y `tabla-alumnos.tsx` entre 1 y 2;
+    - el resto de `features/admin/components/` sigue en 2.
+  - **Por qué no hay "o el componente de su fila" para "Descargar":** "Cambios por capa" no autoriza otro archivo de componente para la ficha.
+  - **`lista-de-adjuntos-elegidos.tsx`** ("Quitar" solo cambia estado local) no va en la lista fija: un `enEspera=` ahí sería uno de más en el resto y pondría la prueba en rojo. No le puse un 0 fijo porque el resto ya lo cubre, como con `con-clase-de-la-ruta.tsx` en c.
+  - **Sigue protegiendo lo mismo:** ningún `disabled` en JSX; `aria-busy` y `aria-disabled` solo en `button.tsx`; el número y el lugar de los botones en espera cambian solo con el plan.
+- **C-13 (`STORAGE_*`), `backend/src/config/env.ataque.test.ts:10-29`** (el ayudante `enProduccion` que usan los cuatro casos de "ataque: JWT_SECRET en production", `:31`, `:36`, `:47` y `:52`):
+  - **Contradicción:** el archivo no compara el objeto completo, pero sí lo contradice §D-D2. En `production`, `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY` serán obligatorias, y el ayudante solo pasaba `DATABASE_URL`, `NODE_ENV` y `JWT_SECRET`.
+    - "rechaza 31 caracteres y acepta 32 (frontera exacta)" caería en su mitad "acepta 32".
+    - Los tres rechazos seguirían en verde, pero por el almacén y no por `JWT_SECRET`: se debilitarían en silencio.
+  - **Qué cambió:** el ayudante suma un almacén válido y fijo (`almacenDeProduccion`: un endpoint `https`, una llave y un secreto ficticios), con un comentario que cita C-13.
+  - **Sigue protegiendo lo mismo:** la frontera exacta de 32, el literal de `.env.example` con blancos, el secreto de solo blancos y que ningún mensaje repita el valor recibido.
+    - Como "acepta 32" usa el mismo almacén y tiene que dar `ok`, cualquier rechazo del bloque sigue siendo por `JWT_SECRET`.
+    - El bloque de `validarEnvAdmin` (`:62`) no cambia.
+  - **Estado:** en verde antes y después. Hoy `envSchema` descarta las claves que no conoce.
+- **C-13 (`STORAGE_*`), caso fuera del inventario: `backend/test/arranque-r1.ataque.test.ts:79`** ("el worker en production sin RESEND_API_KEY ni remitente propio no arranca y no imprime valores"):
+  - **Contradicción:** `src/worker.ts` (en "No se toca") llama a `cargarEnv()` antes que a `cargarEnvCorreo()`. Con §D-D2, el worker en `production` sin `STORAGE_*` saldría con código 1 por el almacén, antes de mirar el correo. La salida ya no nombraría `RESEND_API_KEY` ni `CORREO_REMITENTE`, y el caso caería.
+  - **Qué cambió:** el entorno del proceso suma `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY` válidos, con un comentario que cita C-13. Así, la única configuración que falta sigue siendo la del correo.
+  - **Una aserción más:** `expect(salida).not.toContain("secreto-del-almacen-del-ataque")`. El título promete "no imprime valores", y ahora el proceso recibe un secreto del almacén (PA-10).
+  - **Sigue protegiendo lo mismo:** código 1, nombra las dos variables del correo, no imprime el remitente y no llega a `worker_listo`.
+  - **Estado:** en verde antes y después. Hoy el worker ignora `STORAGE_*`.
+  - **Los otros dos casos del archivo no se tocan:**
+    - la API con la base caída corre en `development`, donde `STORAGE_*` es opcional;
+    - `preparar-cola.ts` no usa `config/env.ts`.
+  - **La firma de `construirApp`:** `arranque-r1` no la llama, y no hay que adaptarla por eso (ver abajo).
+
+### Lo que busqué y no hubo que reescribir
+- **`construirApp(` (C-13):** las 27 llamadas de las `*.ataque` del backend son `construirApp({ env })`, `construirApp({ env: cargarEnv() })` o `construirApp({ env: { ...env, INVITACIONES_LIMITE_DIARIO: limite } })`.
+  - Ninguna fija la aridad, la firma exacta ni `Parameters<typeof construirApp>`.
+  - Con `almacen?: Almacen | null` opcional (§D-D2), siguen compilando y, sin `STORAGE_*` en el entorno de las pruebas (`backend/.env` no se lee, CHORE-01), construyen la app con `almacen` en `null`.
+  - Ninguna `*.ataque` arma un `Env` literal: todas parten de `cargarEnv()` y lo extienden con `...env`, así que las claves nuevas con valor por defecto (`STORAGE_REGION`, `STORAGE_BUCKET_PRIVADO`) no rompen el tipo.
+- **`validarEnv`, `cargarEnv` y las variables de entorno:**
+  - `correo.ataque` usa `validarEnvCorreo`, que d no toca.
+  - `logger.ataque` usa `cargarEnv()` en `test`.
+  - Los procesos hijos de `logs-*` y `api-real` (el de logs) arrancan en `development`.
+  - **`api-real.ataque.test.ts:286`** ("con el JWT_SECRET de .env.example la API no arranca y no imprime el secreto") corre en `production` sin `STORAGE_*`. No queda contradicho: el caso afirma código 1 y que la salida **contiene** `JWT_SECRET: en production`, y con §D-D2 la salida contendrá además los errores de `STORAGE_*`.
+    - Lo comprobé con el zod del repositorio (4.6.5, `zod-cadena.mjs` en el scratchpad): dos `superRefine` encadenados informan las dos incidencias, porque las de `ctx.addIssue` son continuables.
+    - Solo caería si la implementación de §D-D2 dejara de informar la de `JWT_SECRET`, lo que sería un defecto (`formatearIncidencias` lista todas).
+- **Dependencia `minio` y módulos de `adapters/`:**
+  - `arquitectura-cuentas-r1` prohíbe AWS (`aws-`, `@aws-sdk/`, `aws-sdk`) y otras librerías de correo y de cola en los cuatro `package.json`; `minio` no coincide con el patrón.
+  - Ninguna `*.ataque` cierra la lista de dependencias de `backend/package.json`, la de módulos de `adapters/` ni prohíbe `from "minio"`.
+  - Las únicas restricciones de importación cerradas son `pg-boss` en `adapters/queue/index.ts` y `resend` en `adapters/notifier/resend.ts`.
+- **`fetch(` en `frontend/src/` (C-13; `services/almacenService.ts`):** ninguna `*.ataque` afirma que solo `services/apiClient.ts` llame a `fetch`.
+  - `features/admin/cuentas-r1.ataque.test.tsx:518` ("ningún fetch fuera de services/apiClient (regla 8)") recorre solo `features/admin/**` (`import.meta.glob("./**/*.{ts,tsx}")`), así que no la contradice.
+  - Las demás menciones de `fetch` en `*.ataque` son dobles con `vi.stubGlobal("fetch", …)`.
+- **Pruebas estáticas** (`import.meta.glob`, `readdirSync`, `?raw`):
+  - `styles/clases-r1` solo cambia por C-13. V-07 (vidrio) y V-13 (`text-danger` y `text-destructive`) no cambian, porque la ficha de §D-D5 es sólida (`bg-muted`) y los errores van con `ErrorDeCampo`.
+  - `components/layout/estatico-r1`, `features/clases/estatico-r1` y `styles/tokens-r1` (lee §3 y §4 de `DESIGN.md`; d agrega §7.19).
+  - `components/ui/badge-03b-r1`, `features/admin/cuentas-r1`, `features/admin/maestros-03b-r1` y `features/clases/clases-r4`.
+  - `backend/test/arquitectura-cuentas-r1`, y los recorridos de `muro-c-r1` (`:615`, nombres de colas, y `:1101`, copia de la regla de contenido visible) y de `muro-c-r2:321` (copia de `normalizarTextoLargo` en el frontend).
+
+  Ninguna cuenta ni lista algo que d cambie, salvo el `enEspera=` de C-13. `target="_blank"` y `dangerouslySetInnerHTML` siguen en 0 (`estatico-r1` prohíbe además `<a … href="…">` literal y `javascript:`).
+- **Tablas, migraciones, modelos, enums, colas y SQL** (`information_schema`, `pg_tables`, `pg_class`, `pg_type`, `pg_enum`, `pg_sequences`, `_prisma_migrations`, `prisma/migrations`, `dmmf`, `ModelName`, `schema.prisma`, `OPCIONES_DE_COLAS`, `describirCola`, `$queryRaw` y `$executeRaw`, en `*.ataque` y en pruebas normales):
+  - 0 listas cerradas de tablas, migraciones, modelos ni enums.
+  - `describirCola` solo en `cola.integracion` y `muro.integracion` (normales, con colas concretas; d no agrega colas).
+  - `$queryRaw`: `arquitectura-cuentas-r1:69` cierra solo `$queryRawUnsafe` (1, `adapters/db/cliente.ts`) y `$executeRawUnsafe` (0). `alumnos-b-r1:1107` lo prohíbe solo en `adapters/db/inscripciones.ts` (en "No se toca" de d). Las demás apariciones son consultas de la propia prueba.
+  - La tabla `archivos` (§D-D1), con `FK ON DELETE RESTRICT` en `subido_por`, no afecta a las `*.ataque`: ninguna crea archivos, así que sus limpiezas de usuarios no chocan.
+- **`staleTime: 240_000` en `usePublicaciones` (§D-D5):** comprobé que no rompe la recuperación del muro tras el `400` del cursor, que protegen `muro-c-r2` ("tras el 400 del cursor, volver a entrar al muro lo recupera…") y `muro-recuperar-c-r3` ("cambiar a «Personas» y regresar a «Muro»…").
+  - Simulé el caso con el `@tanstack/query-core` del repositorio (5.103.2, `stale-muro.mjs` en el scratchpad): primera página, `fetchNextPage` con error, se desmonta y se vuelve a montar con el mismo cliente.
+  - Con `staleTime` en 0 y en 240,000, el montaje nuevo hace 1 petición y sale del error. Al fallar, la consulta queda con `isInvalidated: true`, y una consulta invalidada se trata como vencida aunque no haya pasado su `staleTime`.
+- **C-18, C-19 y C-20:** sin relación con d. Ninguna otra `*.ataque` simula `./hooks` con una fábrica cerrada; d agrega `useSolicitarSubida` y `useUrlDeDescarga`, y `inicio-sin-datos-r2` monta los inicios, no el muro.
+
+**Restricciones que ya existen en las `*.ataque` y que d debe respetar** (no son hallazgos; son notas para el programador):
+1. **`components/layout/estatico-r1`:**
+   - 0 `javascript:` en líneas de código de `src/`, salvo comentarios que empiecen con `//` o `*`. `almacenService.ts` debe validar con una lista de permitidos (`http:` y `https:`), sin escribir el literal `javascript:`.
+   - 0 `<a … href="…">` literal.
+   - `animate-` solo en `cargando.tsx` y `button.tsx`: el indicador de "Descargar" sale de `enEspera`.
+   - Solo los 7 valores arbitrarios de la lista.
+   - 0 `Ocultar` en un `.tsx`.
+2. **`features/clases/estatico-r1`:** 0 `?? []` en `features/clases` (por ejemplo, `adjuntos ?? []` o `archivoIds ?? []`) y ningún ternario anidado en JSX.
+3. **`styles/clases-r1`:**
+   - ningún `disabled` en JSX, tampoco en el `<input type="file">` oculto;
+   - `bg-muted` sin `/NN`;
+   - sin `text-danger` en `features/`;
+   - sin clases de las escalas anuladas.
+4. **`muro-c-r2:321`:** ningún archivo de `frontend/src` puede contener la expresión `\r\n|\r` ni definir `normalizarTextoLargo` (atención si el nombre de un archivo elegido se limpia en el frontend).
+5. **`muro-c-r1:615`:** las colas de avisos solo se nombran en `adapters/queue/colas.ts`, `core/eventos/avisos-de-clase.ts` y `handlers/clases/muro.ts`.
+
+### Listas cerradas en pruebas normales que d desborda (Enmienda 7)
+Las busqué con los mismos patrones que en las `*.ataque` (rutas, variables de entorno, dependencias, módulos de `adapters/`, firma de `construirApp`, `fetch(`, tablas, migraciones, colas y SQL etiquetado). Además busqué las formas cerradas que d cambia: el objeto `Env` completo, el cuerpo exacto de crear publicación y la forma de la publicación. No las reescribo: son del programador. Las listo para que el plan las autorice, o confirme que ya lo están, antes de programar.
+
+| # | Archivo:línea | Título | Qué lista o forma cierra | Qué hace d | ¿Autorizada hoy? |
+|---|---|---|---|---|---|
+| N-1 | `backend/src/config/env.test.ts:10` (aserción en `:16`) | "acepta el mínimo (DATABASE_URL y JWT_SECRET) y aplica los valores por defecto" | `toEqual` con el objeto `Env` completo (7 claves) | Suma `STORAGE_REGION` (`us-east-1`) y `STORAGE_BUCKET_PRIVADO` (`campus-privado`) por defecto: **rojo** | **No.** El archivo está en la lista de d ("existentes que se modifican"), pero su columna solo nombra PR-D02a a PR-D02c (casos nuevos); cambiar este caso existente no está dicho |
+| N-2 | `backend/src/config/env.test.ts:184` | "acepta en production un JWT_SECRET propio de 32 caracteres o más" | `ok: true` en `production` con solo `DATABASE_URL` y `JWT_SECRET` | `production` exige las tres `STORAGE_*`: **rojo** | **No**, por lo mismo que N-1 |
+| N-3 | `frontend/src/features/clases/formulario-publicacion.test.tsx` | `:96` "PR-C09b: publicar limpia el formulario, avisa e invalida la lista" (cuerpo en `:107`); `:147` "un material sin descripción se publica con solo el título" (`:158`); `:264` "PR-C15b: un anuncio de 5,000 caracteres más un salto se envía normalizado; uno de 5,001 sin saltos se rechaza en el formulario" (`:270` y `:282`); `:200` "PR-C14a: el aviso de éxito y el de error salen una sola vez, con el formulario montado y desmontado; un error de campo no avisa" | El cuerpo exacto del `POST …/publicaciones` (`toEqual` sin `archivoIds`) y la respuesta doble `publicacionCreada` (`:6`, sin `adjuntos`) | `archivoIds` con `[]` por defecto en `crearPublicacionSchema` y `crear.mutateAsync({ …, archivoIds })` (§D-D4, §D-D5): rojos `:96`, `:147` y `:264`. Si `adjuntos` es obligatorio en `publicacionSchema`, la respuesta doble no pasa `publicacionRespuestaSchema`: rojos `:96`, `:147`, `:200` y `:264` | **No.** Está en la lista de d como "del propio encargo que se extiende": solo se le **agregan** casos (PR-D11a a PR-D12c), y los existentes no se reescriben (PA-16) |
+| N-4 | `frontend/src/features/clases/muro-view.test.tsx` | `:91` PR-C09d, `:134` PR-C11b, `:168` "al borrar una publicación con el foco en su «Sí, borrar»…", `:221` PR-C17, `:266` y `:290` PR-C18 | Doble `publicacion()` (`:27`) sin `adjuntos` | Si `adjuntos` es obligatorio, la lista no pasa `listaPublicacionesRespuestaSchema` (`apiClient` hace `schema.parse`): **6 rojos** | **No.** No está en la lista de d (PA-16) |
+| N-5 | `frontend/src/features/clases/publicacion-del-muro.test.tsx:23` | El constructor `publicacion(): Publicacion` que usan todos los casos del archivo | Objeto tipado con `Publicacion` (de `types.ts`, inferido de `shared/`) sin `adjuntos` | Si `adjuntos` es obligatorio, `tsc -b` (parte de `npm run lint`) falla en `:23`. Además, si `PublicacionDelMuro` lee `publicacion.adjuntos` sin guarda, los casos caen al pintar. No lo pude correr: el componente de d no existe | **No.** No está en la lista de d (PA-16) |
+| — | `backend/test/bloqueo-usuario.integracion.test.ts:680` | "E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts y publicaciones.ts usan SQL etiquetado en adapters/db" | Lista cerrada de archivos de `adapters/db` con `$queryRaw` o `$executeRaw` | **No la desborda** si d cumple V-04 y la Enmienda 7 punto 4: d no agrega SQL etiquetado (el `UPDATE … WHERE id IN (…) AND … creado_en > …` de §D-D3 se expresa con `updateMany`; `publicaciones.ts` ya está en la lista). Un `$queryRaw` en `archivos.ts` la pondría en rojo (PA-16) | No aplica |
+
+**Cómo los comprobé (N-3 y N-4):**
+- Copié `shared/dist` al scratchpad en tres variantes:
+  - `control`, sin cambios;
+  - `adjuntos`, con `adjuntos: z.array(z.object({ id, nombre, tipo, tamano, vistaPrevia: { url, expiraEn } | null }))` obligatorio en `publicacionSchema`;
+  - `archivoids`, con `archivoIds: z.array(z.uuid()).max(5).default([])` en las dos ramas de `crearPublicacionSchema`.
+- Corrí los 9 archivos del muro con un `vitest.config` del scratchpad (`vitest-d.config.mts`), que solo agrega el alias de `@campus/shared` a la copia. No toqué producción (PA-15).
+- **Resultados:**
+  - `control`: `Tests  84 passed (84)`;
+  - `archivoids`: `Tests  4 failed | 80 passed (84)`;
+  - `adjuntos`: `Tests  55 failed | 29 passed (84)`.
+- Los rojos de las pruebas normales son exactamente los de N-3 y N-4.
+
+**Pruebas normales revisadas que d no desborda:**
+- Ninguna cierra la lista de rutas. `movimientos-inscripcion.integracion.test.ts:243` solo exige que ninguna contenga "movimiento".
+- Ninguna cierra variables de entorno, salvo `env.test.ts`, ni dependencias, módulos de `adapters/` o `fetch(`.
+- Ninguna recorre el código, salvo `styles/tokens.test.ts`, que lee `tokens.css`, y d no toca `styles/**`.
+- Ninguna cierra tablas, migraciones ni modelos.
+- `cola.integracion.test.ts` y PR-C07 de `muro.integracion.test.ts` describen colas concretas, y d no agrega colas.
+- `muro.integracion` y `muro-autorizacion.integracion` no comparan la publicación ni el cuerpo de crear con `toEqual` cerrado.
+- `auth-registro.integracion.test.ts:176` arma `construirApp` con `NODE_ENV: "production"` sin pasar por `validarEnv`. Sigue valiendo mientras `construirApp` acepte `almacen` en `null` en `production`; §D-D2 no dice lo contrario.
+
+**Observaciones para la autorización:**
+- `env.test.ts:114` y `:130` no se ponen en rojo, pero `:130` ("en production también rechaza el ejemplo con blancos alrededor…") solo afirma `ok: false`. Con §D-D2, pasaría también por la falta del almacén y se debilitaría en silencio (el mismo problema que corregí en `env.ataque`).
+- `worker.ts` usa el mismo `cargarEnv()`: con §D-D2, **el worker en `production` también exige `STORAGE_*`**, aunque en d no use el almacén. No lo contradice ningún documento que yo conozca, pero el despliegue de `prod` tendrá que pasarle esas variables también al worker.
+
+### Hallazgos
+#### T-36 — `adjuntos` en `publicacionSchema` contradice 45 casos `*.ataque` del muro del frontend, y ningún C-n los cubre
+Severidad: media (inventario de §D-R0 incompleto; sin corregirlo, el programador cae en PA-06 al cerrar d)
+
+Prueba: no se puede automatizar sin tocar `shared/` (PA-15). Reproducción (scratchpad):
+1. Copia `shared/dist/*.js` a `<scratchpad>/shared-adjuntos/`.
+2. En `<scratchpad>/shared-adjuntos/clases.js`, agrega a `publicacionSchema` el campo `adjuntos` de §D-D3, punto 4 (`z.array(z.object({ id, nombre, tipo, tamano, vistaPrevia: z.object({ url, expiraEn }).nullable() }))`, sin valor por defecto, como lo dice §D-D4).
+3. Desde `frontend/`: `VARIANTE_D=adjuntos npx vitest run --config <scratchpad>/vitest-d.config.mts` con los 6 archivos de abajo. El control (`VARIANTE_D=control`) da `84 passed`.
+
+Esperado / Obtenido:
+- **Esperado (plan, §D-R0 y "Ronda 0", punto 2):** toda `*.ataque` que contradiga un cambio de d aparece en un C-n, para que la ronda 0 la adapte.
+- **Obtenido:** sus dobles de publicación (`id`, `tipo`, `titulo`, `texto`, `autor`, `creadoEn` y `comentarios`, sin `adjuntos`) dejan de pasar `listaPublicacionesRespuestaSchema` y `publicacionRespuestaSchema` (`apiClient` hace `schema.parse`). La consulta queda en `isError` y caen 45 casos:
+  - `frontend/src/features/clases/muro-c-r1.ataque.test.tsx`: 16 de 22. Siguen en verde los 5 de `ConClaseDeLaRuta` y el de "Agregar a la clase";
+  - `frontend/src/features/clases/muro-c-r2.ataque.test.tsx`: 11 de 11;
+  - `frontend/src/features/clases/muro-c-r3.ataque.test.tsx`: 14 de 15. Sigue en verde la precondición del cotejo;
+  - `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx`: 3 de 3;
+  - `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx`: 1 de 1.
+
+  `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` no cae (2 de 2), porque solo usa listas vacías.
+
+Requisito o regla violada: plan, §D-R0 ("El tester reescribe **solo** los casos `*.ataque` que contradicen estos cambios") y C-13, que no incluye `adjuntos`; `AGENTS.md`, "Reglas del equipo" (el programador no toca `*.ataque`).
+- No los reescribí: ningún C-n los cubre ("Casos fuera del inventario").
+- **Lo que tiene que decidir el plan:** cómo quedan esos dobles. Una opción es un C-n que autorice sumar `adjuntos: []` a los constructores y a los objetos en línea de esos 5 archivos, sin tocar aserciones. La otra es definir `adjuntos` de otra forma en `shared/`. Esto mismo alcanza a N-3, N-4 y N-5.
+
+#### T-37 — `archivoIds` en el cuerpo de crear publicación contradice un caso `*.ataque` que fija el cuerpo exacto
+Severidad: media (mismo motivo que T-36)
+
+Prueba: `frontend/src/features/clases/muro-c-r2.ataque.test.tsx:385`, "material con extremos en blanco en el título y la descripción: se envían normalizados" (aserción en `:398`). Reproducción: la de T-36 con la variante `archivoids` (`archivoIds: z.array(z.uuid()).max(5).default([])` en las dos ramas de `crearPublicacionSchema`), con `Tests  4 failed | 80 passed (84)`.
+
+Esperado / Obtenido:
+- **Esperado:** el caso aparece en un C-n de d.
+- **Obtenido:** el formulario envía `resultado.data` del `safeParse` (T-31), que con el valor por defecto ya trae `archivoIds: []`. §D-D5 lo manda además de forma explícita (`crear.mutateAsync({ …, archivoIds })`). El `toEqual({ tipo, titulo, texto })` cae porque sobra `archivoIds: []`.
+
+Requisito o regla violada: plan, §D-R0 y C-13.
+- No lo reescribí. Si el plan lo autoriza, el cambio sería sumar `archivoIds: []` al objeto esperado, que sigue protegiendo la normalización de T-31.
+- El mismo cambio desborda N-3 (`formulario-publicacion.test.tsx`: `:107`, `:158`, `:270` y `:282`).
+
+### Rojos esperados (2) y casos reescritos en verde (2)
+| # | Archivo:línea | Título | C-n | Estado en mi corrida |
+|---|---|---|---|---|
+| 1 | `backend/test/sesiones-y-cadena.ataque.test.ts:492` | "bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c y CLASES-d: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros" | C-2 | **Rojo comprobado** en las dos corridas: `expected [ …(54) ] to deeply equal [ …(56) ]`. En el diff faltan exactamente `POST /api/clases/:claseId/archivos` y `POST /api/clases/:claseId/archivos/:archivoId/descarga`, y no sobra ninguna |
+| 2 | `frontend/src/styles/clases-r1.ataque.test.ts:126` | "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 36 enEspera" | C-13 | **Rojo comprobado:** `expected [ …(35) ] to have a length of 36 but got 35` (`:133`) |
+| — | `backend/src/config/env.ataque.test.ts:31`, `:36`, `:47` y `:52` (ayudante en `:10-29`) | "rechaza 31 caracteres y acepta 32 (frontera exacta)", "rechaza el literal de .env.example con espacios alrededor (sigue siendo el secreto público)", "rechaza un secreto formado solo por espacios en blanco" y "ningún mensaje de error repite el valor recibido" | C-13 | **En verde antes y después:** hoy `envSchema` descarta las claves `STORAGE_*`; con d, las exige en `production` y el ayudante ya las trae |
+| — | `backend/test/arranque-r1.ataque.test.ts:79` | "el worker en production sin RESEND_API_KEY ni remitente propio no arranca y no imprime valores" | C-13 (fuera del inventario) | **En verde antes y después:** hoy el worker ignora `STORAGE_*`; con d, `cargarEnv()` las exige en `production` y el caso ya las trae |
+
+Además, d contradice 45 casos más (T-36 y T-37) que **no** reescribí ni están en esta lista, porque ningún C-n los cubre. Si el plan no los autoriza antes de programar, caerán cuando el programador cambie `shared/` y activarán PA-06.
+
+### Casos fuera del inventario
+- **Con C-n (reescrito):** `backend/test/arranque-r1.ataque.test.ts:79`, por C-13 (`STORAGE_*` en `config/env.ts`). El inventario solo preveía `arranque-r1` por la firma de `construirApp`, que ese archivo no usa.
+- **Sin C-n (hallazgos, sin reescribir):** T-36 (45 casos en 5 archivos) y T-37 (1 caso, incluido en los 45).
+
+### PA-07
+Conté con `grep -c` sobre la salida completa de `npm test` del backend (`cd backend; npm test > r0d-back-test-N.txt 2>&1`, en el scratchpad). El sitio y la llamada de cada `P2028` salen del JSON del log de pino.
+
+| Corrida | Situación | 40P01 | deadlock detected | could not serialize | too many clients | P2028 (líneas) y sitio |
+|---|---|---|---|---|---|---|
+| 1 | CHORE-02: `Test Files  7 failed \| 104 passed (111)` · `Tests  9 failed \| 1217 passed (1226)` · `Duration 107.30s` | 0 | 0 | 0 | 0 | 5 líneas: 3 de log y 2 del título y el extracto del caso de `cuentas-r3`. Los 3 de log: (1) `tx.sesion.create()` en `adapters/db/sesiones.ts:39` (login), 39933 ms, aceptado; (2) `tx.tokenCuenta.updateMany()` en `adapters/db/tokens-cuenta.ts:116` (restablecer), 6038 ms, aceptado; (3) **nuevo, fuera de los aceptados y de los de AUTH:** `prisma.$queryRawUnsafe()` en `adapters/db/cliente.ts:60` (`executeSql`), llamado desde `encolar` en `adapters/queue/index.ts:61`, a los 36658 ms de abrir la transacción, en `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios`. Respondió `500 ERROR_INTERNO` e hizo caer el caso "emojis compuestos y otros alfabetos se aceptan en el nombre, el título, el anuncio y el comentario" de `muro-c-r1.ataque.test.ts`, con el comentario `"数学"` |
+| 2 | limpia salvo C-2: `Test Files  1 failed \| 110 passed (111)` · `Tests  1 failed \| 1225 passed (1226)` · `Duration 48.53s` | 0 | 0 | 0 | 0 | 2, los aceptados: `sesiones.ts:39` (6457 ms) y `tokens-cuenta.ts:116` (6045 ms) |
+
+- **Corrida 1, aparte de C-2 y del `P2028` nuevo:** todo cayó por tiempo límite de la espera en cadena (CHORE-02):
+  - 5 `Test timed out in 15000ms`, 1 de 30,000 ms, 1 de 40,000 ms y 1 `Hook timed out in 10000ms`;
+  - en `alumnos.integracion` PR-B04b y PR-B04c, `bloqueo-usuario` A1, `clases-autorizacion` PR-A15h (y su hook), los dos de `cuentas-r1` (el del `LOCK TABLE` y el del 429) y el de `cuentas-r3`.
+- **Sobre el `P2028` nuevo:**
+  - Es código de c, no de d.
+  - Su transacción esperó 36 s, el mismo intervalo que el `LOCK TABLE usuarios IN ACCESS EXCLUSIVE MODE` de `cuentas-r1:130`. Lo más probable es que la comprobación de la `FK` de `comentarios.autor_id` contra `usuarios` quedara detrás de ese bloqueo. Es la misma familia que CHORE-02 y que los `P2028` de AUTH: una transacción interactiva de Prisma (5 s) que espera un bloqueo externo.
+  - No lo había visto en ninguna ronda de c, y no está en `ESTADO.md`.
+  - **PA-07 se activa con la corrida 1.** Seguí el procedimiento del encargo para CHORE-02: repetí la corrida una vez, y salió limpia. No hice nada más después de verlo. La decisión es del orquestador.
+
+### PARADAS
+- **PA-01:** comprobada antes del backend; no se activó.
+- **PA-02:** no se activó (rama, base y árbol de los paquetes en orden; V-01 97 de 97).
+- **PA-06:** no se activó en mi ronda: en las corridas limpias, el único rojo de cada paquete es el esperado, y los dos esperados están en rojo. **Riesgo para el programador:** T-36 y T-37 lo activarán al cambiar `shared/` si el plan no los resuelve antes.
+- **PA-07:** **activada en la corrida 1** por el `P2028` nuevo de `encolar` (arriba). La corrida 2 sale limpia.
+- **PA-11:** no se activó. La corrida 2 terminó a las 07:44:01, y `docker ps -a` a las 07:46:12 no muestra ningún contenedor. Hoy no están levantados los de `infra/`.
+- **PA-14:** no me corresponde (`npm install minio` es del paso 39). No instalé nada.
+- **PA-15:** no se activó. Las comprobaciones de T-36, T-37, `staleTime`, `printRoutes` y zod usaron copias en el scratchpad (`shared-*`, `vitest-d.config.mts`, `stale-muro.mjs`, `simular-rutas.mjs` y `zod-cadena.mjs`).
+- **PA-16:** no se activó para mí (solo `*.ataque` existentes de los C-n). Para el programador, N-1 a N-5 lo activarían sin autorización del plan.
+
+### Comandos y última línea de salida
+| Comando | Última línea | Resultado |
+|---|---|---|
+| `git log -1 --oneline` | `c7fcece feat(clases): parte c (muro con publicaciones y comentarios, avisos encolados, contenido visible y triviales de b)` | base correcta |
+| `git diff --quiet c7fcece -- shared backend frontend` (al empezar) | (sin salida) | código 0 |
+| V-01: `sha256sum` de las `*.ataque` contra la tabla de la ronda 4 de c, con `diff` | `V01-OK` (97 y 97) | coincide |
+| `Get-NetFirewallRule …` / `Get-NetConnectionProfile` | `Profile : Public` / `Name : IZZI-F281-5G` | en orden |
+| `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit` | código 0 |
+| `cd frontend; npm run lint` | `> tsc -b` | código 0 |
+| `cd frontend; npm test` | `Test Files  1 failed \| 95 passed (96)` · `Tests  1 failed \| 1292 passed (1293)` · `Duration 45.17s` | solo C-13 |
+| `cd backend; npm test` (corrida 1) | `Tests  9 failed \| 1217 passed (1226)` · `Duration 107.30s` | CHORE-02, el `P2028` nuevo y C-2 |
+| `cd backend; npm test` (corrida 2) | `Test Files  1 failed \| 110 passed (111)` · `Tests  1 failed \| 1225 passed (1226)` · `Duration 48.53s` | solo C-2 |
+| Simulación de T-36 y T-37 (`VARIANTE_D=control\|archivoids\|adjuntos npx vitest run --config <scratchpad>/vitest-d.config.mts …`, desde `frontend/`) | `Tests  84 passed (84)` / `Tests  4 failed \| 80 passed (84)` / `Tests  55 failed \| 29 passed (84)` | ver T-36 y T-37 |
+| `git diff --quiet c7fcece -- shared backend/src frontend/src/{app,features,components,services,lib}` | (sin salida) | código 1, solo por `backend/src/config/env.ataque.test.ts`; con `':(exclude,glob)**/*.ataque.test.*'`, código 0 |
+| `git diff --name-only c7fcece -- shared backend frontend` | `frontend/src/styles/clases-r1.ataque.test.ts` | los 4 archivos de la lista y nada más |
+| `npx prettier --write` de los 4 archivos, desde su paquete | `(unchanged)` | formateados |
+
+El número de pruebas no cambia: frontend 96 archivos y 1293 pruebas; backend 111 archivos y 1226 pruebas, los mismos del cierre de c.
+
+### Tabla de SHA-256 de todas las `*.ataque` después de la ronda 0 de CLASES-d (97; cambian 4, marcadas). Base de V-01 para el programador de d y para la ronda 1
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` **(cambia, C-13; antes `4FCE3CED…`)** |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `485D39EF014D4A5437D53177D081BCE59C0EEB476BB2CFE4488F986AE9A2201F` | `backend/test/alumnos-b-r1.ataque.test.ts` |
+| `ADF927DFC3321780749CF99945ACAA6D040E6FDD06BED5A6517F681381C9281F` | `backend/test/alumnos-b-r2.ataque.test.ts` |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` **(cambia, C-13, fuera del inventario; antes `AAE65C95…`)** |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `F3292910B39E4569433CC7EF8FACC6F8171FB5A6825A611AE3D1B06600DF3994` | `backend/test/clases-r1.ataque.test.ts` |
+| `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8` | `backend/test/clases-r2.ataque.test.ts` |
+| `A0C04741BEE92E98848DEC3E5224506C759E64BFA1E865AB04387C20B59AB589` | `backend/test/clases-r3.ataque.test.ts` |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `E4FCE121A6971960FE28750A8AA899BB9A177E1A61110034C634B402A8268AF0` | `backend/test/guarda-clase-r1.ataque.test.ts` |
+| `733D508414D4A62ED2FAFB0F4E24A622DCC83242FE811E6F74A21B70E1E76C21` | `backend/test/guarda-clase-r2.ataque.test.ts` |
+| `8D9D4556363911629260EAA09A2A2A12AD5F106CE705440E220F513E3BAFDBCA` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `902CC714B31855551C28996A7FC1F650771C71B2D064EE993D8E166B51728C2C` | `backend/test/muro-c-r1.ataque.test.ts` |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `A6F219888148B9FF306A20FE411F2D6A32F1BF2907AC1D6F0AB0328FF2C473B8` | `backend/test/sesiones-y-cadena.ataque.test.ts` **(cambia, C-2; antes `0F60A72D…`)** |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `76B256114128377B6A793CAB882D031FB10785076728F8058E0FF1D93A7E9F64` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `EC149F310ABA10C826D6AF38F093DC018036D3F7F35FA0C08C5604D138C1BC39` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |
+| `38B89E3F5A2A927BF49E7FBAE5F732B11F92C9456EFC4730044F46A2722F44B2` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |
+| `2DA2869ADFEF79B529E5FE05D159558501A8C237E0224254A561FD83AE825362` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |
+| `ADF9E1CFD151E030C6B275A47A5C41F68F46BAEDF880A989676151DCACE5A1B3` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |
+| `BE0E7656BA70C2F73B3096885BCE5B2B73EEDF1B05BCE120216DE5E3EA3A8B09` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |
+| `309B9877D03AF86CD6748E033C3E0137CF4C67A1C08E3873E54DD465CAC4F2D6` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |
+| `DB90CF07D1E1F588BBA307DF342BA0420609EA64038C49A3119675766288DA05` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |
+| `290A33CFB6A910BE74BE26245FD84B1B3E932FF63686BF755A07DBDA15070ED4` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |
+| `C0597F198DFF02F342D087AB46400B72E7168A5FAA35D4A12CC8C482B5674E12` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |
+| `525D1DA5DE4001991E042300BC9CF62AD1B0B4D31C9D0E20B32896241AC9EAAC` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |
+| `C27C69F185EA99CA593C2DF569B606D64E989420C7DA5C9C6095B1D7B4B619FF` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |
+| `7DB1CAAFB2E6FE338C92F32C3A95EE1C2BEE94AEB95FE07973FD0F92A13BB556` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |
+| `735048B69E92E559366237AFB8122E3D86AC54FE3BF5FBC369A754DFD6722645` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `C1F4B160D3BE549340F771F3E225721E3776F7A53EA2A653A5A91A2E297BEE93` | `frontend/src/styles/clases-r1.ataque.test.ts` **(cambia, C-13; antes `6D533653…`)** |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+## CLASES-d — Ronda 0, complemento (C-21 y C-22)
+Veredicto: complemento de la ronda 0 (Enmienda 10; no cuenta en el tope de 3), **completo**.
+- Adapté C-21 en 5 `*.ataque` del frontend: 5 dobles de publicación (4 constructores y 1 objeto en línea), más 2 interfaces de tipo de los dobles. No cambié ninguna aserción.
+- Adapté C-22 en 1 cuerpo esperado.
+- Los rojos esperados de d son ahora exactamente 3: C-2, C-13 y C-22.
+- La simulación confirma que, con `adjuntos` obligatorio y `archivoIds` por defecto, no cae ninguna `*.ataque` del muro, y solo caen las pruebas normales de N-3 y N-4.
+- La corrida del backend sale limpia, sin PA-07.
+
+Verificación propia: lint del frontend con código 0 (`> tsc -b`) · lint del backend con código 0 (`> tsc -p tsconfig.json --noEmit`) · test del frontend `Tests  2 failed | 1291 passed (1293)` (C-13 y C-22) · test del backend `Tests  1 failed | 1225 passed (1226)` (C-2; una corrida, limpia).
+
+Base `<Cc>` = `c7fcece`. Rama `feat/clases`. Fecha: 2026-10-02.
+
+### Precondiciones
+- **Rama y base:** `feat/clases`; `git log -1` → `c7fcece`; `git cat-file -e 'c7fcece^{commit}'` → código 0.
+- **Árbol de los paquetes:** `git diff --name-only c7fcece -- shared backend frontend` listaba exactamente las 4 `*.ataque` de la ronda 0 de d, y no había nada sin rastrear. Fuera de los paquetes, solo documentación del orquestador, del arquitecto y del manager (`plan.md` con la Enmienda 10, `revision.md`, `aprobacion.md`, `ESTADO.md`, `AGENTS.md` y `.claude/agents/arquitecto.md`).
+- **V-01:** las 97 `*.ataque` contra la tabla de "CLASES-d — Ronda 0" (extraída del reporte y comparada con `diff`): **97 de 97 iguales** (`V01-OK`).
+- **PA-01**, antes del backend: regla `True Inbound Block Public`; red `IZZI-F281-5G`; Docker encendido.
+
+### Archivos tocados (5, todos `*.ataque` del frontend)
+| Archivo | Diff | Qué sigue protegiendo |
+|---|---|---|
+| `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` | +6 líneas. La interfaz `PublicacionFalsa` suma `adjuntos: unknown[]`, sin eso `tsc` rechaza la clave en el constructor. El constructor `publicacion()` (`:65`) suma `adjuntos: []` antes de `...extra`. Comentario que cita C-21. Los objetos que antes parecían en línea (`:393`, el de HTML) pasan por el constructor con `extra`, así que quedan cubiertos. **1 doble** | Los 22 casos, igual: avisos de crear con el formulario desmontado, doble envío, formulario igual que el servidor, texto como texto, foco de §7.14, `ConClaseDeLaRuta`, "Agregar a la clase" y foco de los "Ver más" |
+| `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` | +10 líneas. **C-21:** la interfaz `PublicacionFalsa` suma `adjuntos: unknown[]` y el constructor `publicacion()` suma `adjuntos: []` (**1 doble**; también cubre la respuesta `201` de crear, `publicacion(899)`). **C-22:** el cuerpo esperado de "material con extremos en blanco en el título y la descripción: se envían normalizados" (caso en `:391`, antes `:385`; aserción en `:407`, antes `:398`) suma `archivoIds: []`, con un comentario que cita C-22 (**1 cuerpo**) | T-29, T-30 y T-31 en la interfaz. En el caso de C-22, la normalización de T-31 del título y la descripción, con el cuerpo completo |
+| `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` | +3 líneas. El único objeto de publicación en línea (en la respuesta de `conPaginas`; su `comentarios: 2` estaba en `:132` antes del cambio, y `adjuntos: []` queda en `:135`) suma `adjuntos: []`, con un comentario que cita C-21. **1 doble** | Los 15 casos de T-34: el texto nuevo solo con el `400` del campo `cursor` |
+| `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` | +5 líneas. El constructor `publicacion()` suma `adjuntos: []`, con un comentario que cita C-21. **1 doble** | Los 3 casos de recuperación tras el `400` del cursor |
+| `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` | +5 líneas. Lo mismo. **1 doble** | El caso de T-35 sin peticiones de más |
+
+- **Totales:** 5 dobles de publicación (4 constructores y 1 en línea), 2 interfaces y 1 cuerpo esperado. Ninguna aserción, ningún título y ningún caso cambió, salvo el cuerpo de C-22.
+- **Ningún doble se hizo inválido a propósito:** en los cinco archivos no hay ninguno, así que no quedó ninguno sin tocar.
+- **Formato:** `cd frontend; npx prettier --write` de los 5 archivos → los 5 `(unchanged)`.
+- **Invisibles:** en las líneas agregadas, `SIN-INVISIBLES` (Node: `\p{Cf}`, `\p{Zs}` salvo el espacio, `\p{Cc}` salvo el salto y el tabulador).
+- **Árbol:** `git diff --name-only c7fcece -- shared backend frontend` lista las 4 de la ronda 0 y estas 5, y nada más. `git diff --quiet c7fcece -- shared backend/src frontend/src/{app,features,components,services,lib} ':(exclude,glob)**/*.ataque.test.*'` → código 0.
+
+### Búsqueda propia (C-21 y C-22)
+- **Dobles de publicación en las `*.ataque` del frontend.** Busqué `creadoEn`, `comentarios:`, `PublicacionFalsa`, `tipo: "anuncio"`, `tipo: "material"` y `publicacion:`.
+  - Solo aparecen en los 5 archivos de arriba. En cada uno, cada aparición de `creadoEn` que no es de un comentario ni de una interfaz es el doble adaptado.
+  - `muro-rutas-c-r1.ataque.test.tsx` solo responde `{ publicaciones: [], siguienteCursor: null }`. No hay nada que adaptar, y sigue en verde con la simulación.
+  - `features/admin/maestros-03b-r1` y `maestros-03c-r1` tienen `creadoEn`, pero de enlaces e invitaciones, no de publicaciones.
+- **Backend.** Ninguna `*.ataque` construye una publicación de respuesta, compara su forma completa ni fija su lista de claves.
+  - `muro-c-r1`, `muro-c-r2`, `logs-muro-c-r1` y `logs-muro-c-r2` leen solo `publicacion.id`, `publicaciones[].id` o campos sueltos.
+  - Los recorridos de claves (`clavesDe` y `clavesEn`) son negativos: claves prohibidas como `estadoPago`, `email` o `rol`. `adjuntos` no está entre ellas, y C-21 no las contradice.
+  - `muro-c-r1:952` compara el `safeParse` de `crearPublicacionSchema` con el estado de la API, y el `[]` por defecto de `archivoIds` no cambia si pasa o no. Sus cuerpos de petición son entradas, no cuerpos esperados.
+- **Cuerpos completos de crear publicación en las `*.ataque`.** Busqué `JSON.parse`, `cuerpoDe` y `toEqual({` con `tipo:`. Solo `muro-c-r2:407`. Los demás `JSON.parse` de cuerpos son de comentarios (`muro-c-r1:114`, solo lee `texto`), de alumnos (`alumnos-b-r1`, `-r4` y `-r5`, `alumnoId`) o de cuentas (`cache-03a-r1` y `registro-maestro-03b-r1`). No hay otro rojo de C-22.
+
+### Comprobación con la simulación (PA-15, sin tocar producción)
+- Usé la misma `vitest-d.config.mts` del scratchpad, que solo agrega el alias de `@campus/shared` a una copia de `shared/dist`. La copia nueva, `shared-ambos`, lleva juntos `adjuntos` obligatorio en `publicacionSchema` y `archivoIds: z.array(z.uuid()).max(5).default([])` en las dos ramas de `crearPublicacionSchema`.
+- Corrí los 9 archivos del muro: las 6 `*.ataque`, con `muro-rutas-c-r1`, y las 3 normales.
+
+| Variante | Resultado | Qué cae |
+|---|---|---|
+| `control` (`shared/dist` sin cambios) | `Tests  1 failed \| 83 passed (84)` | Solo `muro-c-r2:391` (C-22): hoy el formulario no envía `archivoIds` |
+| `ambos` (`adjuntos` y `archivoIds`) | `Tests  10 failed \| 74 passed (84)` | **Ninguna `*.ataque`** (tampoco `muro-c-r2:391`). Solo las normales de N-3 (`formulario-publicacion.test.tsx`: PR-C09b, "un material sin descripción…", PR-C14a y PR-C15b) y de N-4 (`muro-view.test.tsx`: PR-C09d, PR-C11b, "al borrar una publicación…", PR-C17 y los dos PR-C18). Son del programador; no las toqué |
+
+N-5 (`publicacion-del-muro.test.tsx`) no cae en la simulación: monta `PublicacionDelMuro` directo, sin `schema.parse`, y la copia no cambia sus tipos. Su efecto (el `tsc` del doble tipado `Publicacion`) solo se verá con el `shared/` real de d.
+
+### Rojos esperados de d (3)
+| # | Archivo:línea | Título | C-n | Estado en mi corrida (código real de `c7fcece`) |
+|---|---|---|---|---|
+| 1 | `backend/test/sesiones-y-cadena.ataque.test.ts:492` | "bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c y CLASES-d: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros" | C-2 | **Rojo:** `expected [ …(54) ] to deeply equal [ …(56) ]` |
+| 2 | `frontend/src/styles/clases-r1.ataque.test.ts:126` | "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 36 enEspera" | C-13 | **Rojo:** `expected [ …(35) ] to have a length of 36 but got 35` |
+| 3 | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx:391` (aserción en `:407`) | "material con extremos en blanco en el título y la descripción: se envían normalizados" | C-22 | **Rojo ahora:** el formulario de `c7fcece` no envía la clave, y falta `"archivoIds": []` en el cuerpo recibido |
+
+Las otras dos adaptaciones de C-13 (`env.ataque` y `arranque-r1:79`) y las 5 de C-21 siguen en verde antes y después.
+
+### PA-07 (regla del manager para d)
+| Corrida | Situación | 40P01 | deadlock detected | could not serialize | too many clients | P2028 y sitio | `500` en rutas del muro o de archivos |
+|---|---|---|---|---|---|---|---|
+| 1 (`cd backend; npm test > comp-back-test-1.txt 2>&1`) | limpia salvo C-2: `Test Files  1 failed \| 110 passed (111)` · `Duration 52.46s` | 0 | 0 | 0 | 0 | 2, los aceptados: `tx.sesion.create()` en `sesiones.ts:39` (login, 6483 ms) y `tx.tokenCuenta.updateMany()` en `tokens-cuenta.ts:116` (restablecer, 6067 ms) | 0. Los 9 `500` del log son los provocados a propósito (7 de `POST /api/auth/login`, 1 de `POST /api/auth/restablecer` y 1 de `GET /prueba/error-comun`) |
+
+La corrida no cayó por CHORE-02, así que no la repetí. PA-07 no se activa.
+
+### PARADAS
+- **PA-01:** comprobada antes del backend; no se activó.
+- **PA-02:** no se activó (rama, base, árbol y V-01 97 de 97).
+- **PA-06:** no se activó. Los 3 rojos esperados están en rojo y no falla nada más.
+- **PA-07:** no se activó.
+- **PA-11:** no se activó. La corrida terminó a las 08:06:16, y `docker ps -a` a las 08:08:19 no muestra ningún contenedor (hoy no están levantados los de `infra/`).
+- **PA-15:** no se activó (la simulación usa copias en el scratchpad).
+- **PA-16:** no se activó (solo `*.ataque` existentes de C-21 y C-22).
+
+### Comandos y última línea de salida
+| Comando | Última línea | Resultado |
+|---|---|---|
+| V-01 contra la tabla de "CLASES-d — Ronda 0", con `diff` | `V01-OK` (97) | coincide |
+| `cd frontend; npm run lint` | `> tsc -b` | código 0 |
+| `cd frontend; npm test` | `Test Files  2 failed \| 94 passed (96)` · `Tests  2 failed \| 1291 passed (1293)` · `Duration 45.48s` | C-13 y C-22 |
+| `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit` | código 0 |
+| `cd backend; npm test` | `Test Files  1 failed \| 110 passed (111)` · `Tests  1 failed \| 1225 passed (1226)` · `Duration 52.46s` | C-2 |
+| Simulación `VARIANTE_D=control` / `ambos` | `Tests  1 failed \| 83 passed (84)` / `Tests  10 failed \| 74 passed (84)` | ver arriba |
+| `npx prettier --write` de los 5 archivos, desde `frontend/` | `(unchanged)` | formateados |
+
+El número de pruebas no cambia: frontend 96 archivos y 1293 pruebas; backend 111 archivos y 1226 pruebas.
+
+### Tabla de SHA-256 de todas las `*.ataque` después del complemento (97; 5 cambian en el complemento y 4 ya habían cambiado en la ronda 0 de d, todas marcadas). Base de V-01 del programador de d
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` (cambió en la ronda 0 de d, C-13; sin cambios en el complemento) |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `485D39EF014D4A5437D53177D081BCE59C0EEB476BB2CFE4488F986AE9A2201F` | `backend/test/alumnos-b-r1.ataque.test.ts` |
+| `ADF927DFC3321780749CF99945ACAA6D040E6FDD06BED5A6517F681381C9281F` | `backend/test/alumnos-b-r2.ataque.test.ts` |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` (cambió en la ronda 0 de d, C-13; sin cambios en el complemento) |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `F3292910B39E4569433CC7EF8FACC6F8171FB5A6825A611AE3D1B06600DF3994` | `backend/test/clases-r1.ataque.test.ts` |
+| `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8` | `backend/test/clases-r2.ataque.test.ts` |
+| `A0C04741BEE92E98848DEC3E5224506C759E64BFA1E865AB04387C20B59AB589` | `backend/test/clases-r3.ataque.test.ts` |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `E4FCE121A6971960FE28750A8AA899BB9A177E1A61110034C634B402A8268AF0` | `backend/test/guarda-clase-r1.ataque.test.ts` |
+| `733D508414D4A62ED2FAFB0F4E24A622DCC83242FE811E6F74A21B70E1E76C21` | `backend/test/guarda-clase-r2.ataque.test.ts` |
+| `8D9D4556363911629260EAA09A2A2A12AD5F106CE705440E220F513E3BAFDBCA` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `902CC714B31855551C28996A7FC1F650771C71B2D064EE993D8E166B51728C2C` | `backend/test/muro-c-r1.ataque.test.ts` |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `A6F219888148B9FF306A20FE411F2D6A32F1BF2907AC1D6F0AB0328FF2C473B8` | `backend/test/sesiones-y-cadena.ataque.test.ts` (cambió en la ronda 0 de d, C-2; sin cambios en el complemento) |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `76B256114128377B6A793CAB882D031FB10785076728F8058E0FF1D93A7E9F64` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `ACAF61E8AE80EF5A5AFD0ED745F7C4888729332DF5E05286F1EC01DB3849C494` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` **(cambia en el complemento, C-21; antes `EC149F31…`)** |
+| `E0992CEE6F52F58AE1C3451D8D10178040BB5E6995431925337C1042C0BC4F5A` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` **(cambia en el complemento, C-21; antes `38B89E3F…`)** |
+| `2DA2869ADFEF79B529E5FE05D159558501A8C237E0224254A561FD83AE825362` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |
+| `ADF9E1CFD151E030C6B275A47A5C41F68F46BAEDF880A989676151DCACE5A1B3` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |
+| `BE0E7656BA70C2F73B3096885BCE5B2B73EEDF1B05BCE120216DE5E3EA3A8B09` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |
+| `309B9877D03AF86CD6748E033C3E0137CF4C67A1C08E3873E54DD465CAC4F2D6` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |
+| `DB90CF07D1E1F588BBA307DF342BA0420609EA64038C49A3119675766288DA05` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |
+| `290A33CFB6A910BE74BE26245FD84B1B3E932FF63686BF755A07DBDA15070ED4` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |
+| `C0597F198DFF02F342D087AB46400B72E7168A5FAA35D4A12CC8C482B5674E12` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |
+| `525D1DA5DE4001991E042300BC9CF62AD1B0B4D31C9D0E20B32896241AC9EAAC` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |
+| `72A2CD4AB876FFA94D01FB45B2A555C32B2E40336FB65A12A87DEAC82CFAEB1B` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` **(cambia en el complemento, C-21; antes `C27C69F1…`)** |
+| `4E842F547E0156AFC753295CCC6F50A326939FC12B8537969818D3FB01569659` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` **(cambia en el complemento, C-21 y C-22; antes `7DB1CAAF…`)** |
+| `2035462B2659CEB37646C85A4EA35CCFA7A7C31E7013104704018620262BE297` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` **(cambia en el complemento, C-21; antes `735048B6…`)** |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `C1F4B160D3BE549340F771F3E225721E3776F7A53EA2A653A5A91A2E297BEE93` | `frontend/src/styles/clases-r1.ataque.test.ts` (cambió en la ronda 0 de d, C-13; sin cambios en el complemento) |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+## CLASES-d — Ronda 1
+# Reporte del Tester — CLASES-d (archivos: subida, descarga, adjuntos y vista previa) — Ronda 1
+Veredicto: **ROTO**. 6 hallazgos: 0 críticos, 0 altos, 2 medios y 4 bajos. Ninguno es de autorización, de alcance por `archivoId`, de confirmación, de firma ni de logs: todo eso resistió. Los dos medios son del formulario (la lista de archivos sigue editable con la publicación en vuelo) y de «Descargar» (navega a cualquier URL que devuelva la API, incluida `javascript:`).
+
+Verificación propia (regresión, antes de agregar pruebas): lint del backend con código 0 (`> tsc -p tsconfig.json --noEmit`) · lint del frontend con código 0 (`> tsc -b`) · test del backend `Tests  1272 passed (1272)` (una corrida, limpia) · test del frontend `Tests  1316 passed (1316)` (dos corridas). Las cifras con mis pruebas nuevas están en "Comandos y última línea de salida".
+
+Base `<Cc>` = `c7fcece`. Rama `feat/clases`. Fecha: 2026-10-02.
+
+### Precondiciones
+- **Rama y base:** `git branch --show-current` → `feat/clases`; `git log -1 --oneline` → `c7fcece feat(clases): parte c (muro con publicaciones y comentarios, avisos encolados, contenido visible y triviales de b)`. El árbol tiene la implementación de d sin commit y documentación (esperado).
+- **V-01:** extraje por programa la tabla de "CLASES-d — Ronda 0, complemento (C-21 y C-22)" (desde la línea 4031) y la comparé con `diff` contra `sha256sum` (en mayúsculas) de todas las `*.ataque` de `git ls-files -co --exclude-standard`: **97 de 97 iguales** (`V01-OK`), sin faltantes ni sobrantes. PA-02 no se activa.
+- **PA-01**, antes de cualquier prueba del backend: `Get-NetFirewallRule -DisplayName "Campus: bloquear entrada a Docker en redes publicas"` → `Enabled True`, `Direction Inbound`, `Action Block`, `Profile Public`; `Get-NetConnectionProfile` → `Name IZZI-F281-5G`, `NetworkCategory Public`; Docker 28.5.1 encendido; `docker ps -a` → solo `campus-dev-postgres-1` de `infra/`. No levanté MinIO ni nada más.
+
+### Regresión primero
+- **Backend, corrida 1 (antes de mis pruebas):** `cd backend; npm test` → `Test Files  116 passed (116)` · `Tests  1272 passed (1272)` · `Duration 53.11s`. Limpia (ver PA-07).
+- **Frontend, corridas 1 y 2 (antes de mis pruebas):** `cd frontend; npm test` → `Test Files  98 passed (98)` · `Tests  1316 passed (1316)` (`Duration 49.35s` y `47.26s`).
+- **C-2, C-13 y C-22 pasan por la razón correcta:**
+  - C-2 (`sesiones-y-cadena.ataque.test.ts:492`) es una igualdad exacta de la lista de `printRoutes`: queda en verde solo si existen exactamente `POST /api/clases/:claseId/archivos` y `POST /api/clases/:claseId/archivos/:archivoId/descarga` además de las 54. En el código, `handlers/archivos.ts` registra solo esas dos, con `protegido()`.
+  - C-13 (`styles/clases-r1.ataque.test.ts:126`): 36 `enEspera=`, con `adjuntos-de-publicacion.tsx` en 1 («Descargar») y `lista-de-adjuntos-elegidos.tsx` en 0 («Quitar» no espera).
+  - C-22 (`muro-c-r2.ataque.test.tsx:391`): el formulario envía `crear.mutateAsync({ ...datos, archivoIds })` siempre, `[]` sin archivos (`formulario-publicacion.tsx`).
+- **El muro de c sin adjuntos sigue idéntico:** `publicacion-del-muro.tsx` solo elige la frase de borrar según `adjuntos.length` ("Se borrará con sus comentarios." sin adjuntos) y monta `AdjuntosDePublicacion`, que devuelve `null` con `[]`. Siguen en verde los casos de c que lo fijan: el texto de borrar (`muro-c-r1:479`), el foco de §7.14, "Muro" en error (`muro-recuperar-c-r3` y `-r4`) y PR-C18 (`muro-view.test.tsx`).
+
+### Hallazgos
+
+#### T-38 — «Quitar» y «Adjuntar archivos» siguen activos con la publicación en vuelo: un archivo quitado se publica igual, y uno agregado desaparece sin publicarse
+Severidad: **media** (lo que la persona ve en la lista no es lo que se publica; en el primer caso se publica, para todos los alumnos, un archivo que el maestro quitó a propósito)
+
+Prueba: `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx`, casos:
+- "«Quitar» un archivo mientras se suben los anteriores: o no se deja quitar, o no se publica";
+- "«Adjuntar archivos» con la publicación en vuelo: el archivo nuevo o se publica o se queda en la lista; nunca desaparece en silencio".
+
+Esperado / Obtenido:
+- **Quitar.** Se eligen `a.pdf` y `privado.pdf`, se pulsa "Publicar material" y, con la solicitud de `a.pdf` en vuelo, se pulsa "Quitar privado.pdf".
+  - Esperado: o el control no actúa (y el archivo sigue en la lista), o el archivo quitado no se sube ni se publica.
+  - Obtenido: desaparece de la lista, pero `handlePublicar` recorre la copia de `elegidos` que capturó al empezar: se solicita y se sube `privado.pdf`, y el `POST …/publicaciones` lleva los dos ids (`"archivoIds":["…5d11","…5d12"]`). El aviso dice "Publicado".
+- **Adjuntar.** Con la solicitud de `a.pdf` en vuelo, se elige `tardio.pdf`, que entra a la lista. Al terminar, el `POST` solo lleva `a.pdf`, y el `setElegidos([])` del éxito borra `tardio.pdf` de la lista sin publicarlo ni avisar.
+- Causa en el código: en `formulario-publicacion.tsx`, `handlePublicar` itera `for (const archivo of elegidos)` (la lista del cierre) y termina con `setElegidos([])`; mientras tanto, "Quitar" (`ListaDeAdjuntosElegidos`, `ghost`, sin `enEspera`) y "Adjuntar archivos" siguen cambiando el estado.
+
+Requisito o regla violada: RF-33 (publicar con adjuntos: se publica lo elegido); `docs/DESIGN.md` §7.19 ("Publicar con archivos": el principal en `enEspera` de principio a fin; "Quitar" cambia la lista que se va a publicar); plan §D-D5 (`handlePublicar` sube cada archivo de la lista y la limpia al terminar).
+
+#### T-39 — «Descargar» navega a cualquier URL que devuelva la API, también `javascript:` y `data:`
+Severidad: **media** (defensa en profundidad: hace falta una respuesta maliciosa o alterada de la API, pero un `javascript:` en `location.assign` corre en el origen del campus, donde vive el token de acceso en memoria)
+
+Prueba: `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx`, casos "«Descargar» con una URL javascript:alert(document.domain) del servidor: no navega a ella" y "«Descargar» con una URL data:text/html,<script>alert(1)</script> del servidor: no navega a ella".
+
+Esperado / Obtenido:
+- Esperado: como en la subida (`services/almacenService.ts`, PR-D10b), solo se navega a `http:` o `https:`; con otra cosa, el aviso de error y ninguna navegación.
+- Obtenido: `descargaRespuestaSchema.url` es `z.url()`, que acepta `javascript:`, `data:`, `vbscript:` y `file:` (lo comprobé con el `shared/dist` del repositorio), y `FichaDeAdjunto.handleDescargar` llama a `window.location.assign(url)` sin revisar el esquema: el doble de `location.assign` recibe `javascript:alert(document.domain)` y `data:text/html,…`.
+- Nota: `vistaPrevia.url` también es `z.url()`, pero en un `<img src>` un `javascript:` no se ejecuta en los navegadores actuales; no lo reporto (quité ese caso).
+
+Requisito o regla violada: plan §D-D5 (la lista de permitidos `http(s)` que justifica PR-D10b para la URL de subida) y punto 12 de la lista del manager ("«Descargar» con `window.location.assign` y una URL que no sea `http(s)`"); `AGENTS.md`, regla 6 (las URL son del almacén).
+
+#### T-40 — Al volver al muro después de «Ver más publicaciones», la primera página pinta vistas previas con la firma ya vencida
+Severidad: **baja** (la imagen falla, `onError` la quita y queda la ficha: se pierde la vista previa, no el archivo)
+
+Prueba: `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx`, caso "las vistas previas que pinta el muro siguen vigentes al volver a él después de «Ver más publicaciones» (staleTime frente a los 5 minutos)".
+
+Esperado / Obtenido:
+- Guion, con `Date.now` controlado: en t0 se pide la primera página (vista previa firmada hasta t0 + 5 min); en t0 + 3 min, "Ver más publicaciones" trae la segunda; la persona sale del muro y vuelve en t0 + 5 min 30 s, con el mismo `QueryClient`.
+- Esperado: ninguna `<img>` con una firma vencida; al volver, la consulta se vuelve a pedir. Es el motivo del `staleTime: 240_000` (§D-D5 y DESIGN §7.19: "las vistas previas son URL firmadas de 5 minutos y el muro se considera fresco 4").
+- Obtenido: `useInfiniteQuery` mide el `staleTime` desde `dataUpdatedAt`, que se renueva con la última página. A los 5 min 30 s la consulta sigue "fresca" (hasta t0 + 7 min), no se vuelve a pedir y la imagen de la primera página se pinta con la URL firmada en t0, ya vencida: `vistas previas pintadas con su firma ya vencida: expected [ Array(1) ] to deeply equal []`.
+
+Requisito o regla violada: RF-25 (vista previa de las imágenes del muro); plan §D-D5 y `docs/DESIGN.md` §7.19 (el muro se considera fresco 4 minutos para no pintar URL vencidas).
+
+#### T-41 — Si el servidor rechaza un archivo al solicitar la subida (vacío o con un nombre inválido), el aviso no nombra el archivo y dice algo que no pasó (N-D1)
+Severidad: **baja**
+
+Prueba: `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx`, casos "si el servidor rechaza al solicitar un archivo vacío, el aviso nombra ese archivo (DESIGN.md §7.19)" y "si el servidor rechaza al solicitar un archivo con un carácter de control, el aviso nombra ese archivo (DESIGN.md §7.19)".
+
+Esperado / Obtenido:
+- El cliente deja elegir `vacio.pdf` (0 bytes) y un nombre con U+0001: los dos quedan en "Archivos elegidos". Al publicar, `POST …/archivos` responde `400 ARCHIVO_INVALIDO` con "El archivo está vacío o pesa más de 25 MB." o "El nombre del archivo no es válido.".
+- Esperado: un aviso que nombre ese archivo (§7.19) y diga qué pasó (§9).
+- Obtenido: `handlePublicar` traduce todo `ApiError` con `mensajeDeErrorClases`, por código: "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.". No nombra el archivo, aunque `archivoEnSubida` lo tiene, y "no coincide" no es lo que pasó. Confirma N-D1 de la revisión del manager.
+
+Requisito o regla violada: `docs/DESIGN.md` §7.19 ("Si falla la subida de un archivo, un aviso nombra ese archivo") y §9 ("Los errores dicen qué pasó y qué hacer").
+
+#### T-42 — Un nombre con un sustituto suelto se acepta, pero se guarda distinto de lo que responde el `201`
+Severidad: **baja**
+
+Prueba: `backend/test/archivos-d-r1.ataque.test.ts`, caso "un sustituto suelto: o se rechaza, o lo que responde 201 es lo mismo que se guarda".
+
+Esperado / Obtenido:
+- `POST …/archivos` con un `nombre` que lleva un sustituto alto suelto (U+D800) en medio: "tema", U+D800, " uno.pdf".
+- Esperado: o `400` (como los controles y los bidireccionales), o se guarda exactamente lo que se responde.
+- Obtenido: `201`, con `archivo.nombre` igual al recibido (con el sustituto), pero la fila guarda U+FFFD en su lugar: la codificación a UTF-8 lo reemplaza en silencio. El error de Vitest muestra lo guardado (`tema` + U+FFFD + ` uno.pdf`) contra lo respondido (`tema` + U+D800 + ` uno.pdf`). El muro y la descarga mostrarán un nombre que nadie eligió. `validarArchivoDeclarado` no revisa sustitutos, aunque `disposicionDeContenido` sí los prevé.
+
+Requisito o regla violada: plan §D-D3, punto 1 (la respuesta describe el archivo registrado) y punto 4 de la lista del manager ("sustitutos sueltos").
+
+#### T-43 — `formatearTamano` muestra «1024 KB» para los tamaños entre 1023.5 KB y 1 MB
+Severidad: **baja**
+
+Prueba: `frontend/src/lib/format-d-r1.ataque.test.ts`, caso "%i bytes (menos de 1 MB, pero redondea a 1024 KB) no se muestra como «1024 KB»", con 1,048,575 y 1,048,064 bytes.
+
+Esperado / Obtenido: esperado "1 MB" (o, al menos, no "1024 KB"); obtenido "1024 KB". La rama de KB redondea con `Math.round(bytes / 1024)` y no pasa a MB cuando el redondeo llega a 1024.
+
+Requisito o regla violada: plan §D-D5 (`formatearTamano` → "820 KB" o "2.4 MB") y `docs/DESIGN.md` §7.19.
+
+### Resumen de hallazgos
+| ID | Severidad | Título corto | Prueba |
+|---|---|---|---|
+| T-38 | media | «Quitar» y «Adjuntar archivos» activos con la publicación en vuelo | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` (2 casos) |
+| T-39 | media | «Descargar» navega a `javascript:` y `data:` | ídem (2 casos) |
+| T-40 | baja | Vistas previas vencidas al volver tras «Ver más publicaciones» | ídem (1 caso) |
+| T-41 | baja | El aviso de un rechazo al solicitar no nombra el archivo (N-D1) | ídem (2 casos) |
+| T-42 | baja | Sustituto suelto: se guarda U+FFFD y se responde otro nombre | `backend/test/archivos-d-r1.ataque.test.ts` (1 caso) |
+| T-43 | baja | `formatearTamano` da «1024 KB» | `frontend/src/lib/format-d-r1.ataque.test.ts` (2 casos) |
+
+Rojos de esta ronda: 10 casos (1 del backend y 9 del frontend), todos de estos seis hallazgos; ningún otro caso está en rojo.
+
+### Atacado sin hallazgos
+
+**Por punto del plan ("Puntos de ataque para el Tester", CLASES-d):**
+1. **Subida.** La clave siempre es `materiales/{claseId}/{archivoId}`: los campos de más (`claveObjeto: "../../otra"`, `id`, `claseId` de la clase B) se descartan y el id lo genera el servidor. `../a.pdf`, `/` y `\` dan `400`. Tipo y extensión cruzados (`foto.png.html`, `foto`, `foto.png.`, `foto.png ` con espacio, `IMAGE/PNG`, `image/png; charset=utf-8`) dan `400 ARCHIVO_INVALIDO`; `foto.html.png` como PNG se acepta (termina en la extensión correcta). `tamano` 0 y -1 dan `ARCHIVO_INVALIDO`; 1.5, `2^53`, `"10"`, `null` y ausente, `VALIDACION`; 25 MB exactos, `201`; 25 MB + 1, `400`. `tipo` `__proto__`, `constructor`, `toString` y `hasOwnProperty` dan `400` (nunca `500`). Ningún `400` escribe fila ni firma URL. Confirmar ids de otro maestro, de otra clase (también de otra clase **del mismo maestro**), de otro usuario en la misma clase, de 24 h + 1 min, ya confirmados, descartados, inexistentes, repetidos, 6 o sin objeto: `400` con el código correcto, sin publicación, sin trabajo en la cola y con las filas intactas; un id bueno junto a uno ajeno tampoco se confirma (control: el bueno, solo, sí).
+2. **Descarga.** Un archivo confirmado de otra clase (con el `claseId` propio), uno pendiente, uno descartado y un UUID inexistente responden **idéntico** (`404 ARCHIVO_NO_ENCONTRADO`, el mismo cuerpo byte a byte), al alumno y al maestro dueño de las dos clases, sin firmar nada. Un `archivoId` que no es UUID (`no-es-uuid`, `1`, un UUID con un carácter de más, `%20`) da `400 VALIDACION`. El restringido, `403 ACCESO_RESTRINGIDO` sin firmar.
+3. **URL y cabeceras.** Verifiqué cada firma con una implementación propia de SigV4 (`node:crypto`, la verificación que haría el almacén), sobre las URL que firma el adaptador real de `minio` contra `127.0.0.1:9`, sin red:
+   - la de subida es válida para `PUT` y para su ruta; como `GET`, con otra clave o con la clase B en la ruta, la firma no coincide; `X-Amz-Expires=300`; `X-Amz-SignedHeaders=host`; el `expiraEn` anunciado no supera en 1 s la vigencia real;
+   - la de descarga es válida, `attachment`, con `response-content-type` del tipo guardado;
+   - las vistas previas del muro solo existen para PNG, JPEG, WebP y GIF (no para PDF, TXT, DOCX ni SVG), son `inline`, válidas y de 300 s;
+   - `Content-Disposition` con comillas, `;`, `%`, apóstrofos, paréntesis, `*`, emojis, acentos, U+00A0 y una cadena tipo RFC 2047: siempre `attachment; filename="<ASCII seguro no vacío>"; filename*=UTF-8''<codificado>`, sin CR ni LF, y `filename*` decodifica exactamente al nombre; la firma sigue siendo válida con esos valores;
+   - el `Authorization` nunca va al almacén: `subirArchivo` usa `fetch` con `credentials: "omit"` y solo `subida.cabeceras` (lo cubren PR-D10a y PR-D10b; lo revisé en el código).
+4. **Secretos (PA-10):** ver "PA-10".
+5. **Forma de la publicación (C-21 y C-22):** el muro con y sin almacén, con y sin adjuntos, y el `201` de crear llevan siempre `adjuntos` (`[]` si no hay); sin almacén, la imagen sale con `vistaPrevia: null` y `200`. La API acepta el cuerpo sin `archivoIds` (entrada con valor por defecto) y rechaza `null`, texto, objeto, `[1]` y `[""]` con `400 VALIDACION`. En el frontend, una respuesta del muro sin `adjuntos` da `isError` ("alert") y no pinta la publicación; `?? []`, `.default` y `.optional` en `adjuntos`: 0 en `shared/` y en `features/clases` (revisión del código). El formulario siempre envía `archivoIds` (C-22 en verde).
+
+**Por punto de la lista del manager:**
+1. Alcance por `archivoId`: sin hallazgos (punto 2 del plan).
+2. Confirmar al publicar: sin hallazgos. **Dos publicaciones simultáneas que reclaman el mismo archivo**, retenidas de forma determinista detrás de un `FOR UPDATE` propio sobre la fila (con `pg_blocking_pids` recursivo hasta que las dos esperan): una responde `201` con el archivo y la otra `400 ARCHIVO_INVALIDO`; queda una publicación, un trabajo en la cola y el archivo confirmado con la ganadora. Con `[A, B]` contra `[B, A]` a la vez: igual, sin `40P01` ni `500`. Tres corridas, estables.
+3. Lo declarado contra lo real: sin hallazgos. Un byte de más o de menos, un tipo real distinto (`text/html`, `image/svg+xml`) o vacío dan `400` y dejan la fila `pendiente`. El mismo tipo con parámetros (`image/png; charset=binary`) o en mayúsculas se acepta (observación O-8).
+4. El nombre: 255 puntos de código con emojis, `201`; 256, `400`. `/`, `\`, `../`, C0 (U+0000, U+0007), U+007F, C1 (U+0085), CRLF, LF, U+2028, U+2029, U+202D, U+202E, U+2066 y U+2069 dan `400` sin escribir. HTML en el nombre se pinta como texto en la ficha, en el `alt` y en «Quitar», sin crear elementos (el aviso de error también es texto: `sonner` recibe una cadena). **Hallazgo:** el sustituto suelto (T-42).
+5. La URL prefirmada: sin hallazgos (punto 3 del plan). Las respuestas no llevan `claveObjeto`, `clave_objeto`, `clave`, `subidoPor` ni `estadoPago` como campo (recorrido recursivo del muro, al alumno y al maestro; la descarga solo lleva `url` y `expiraEn`). La ruta de la URL sí contiene la clave del objeto: es inherente a una URL de S3 y solo revela ids que el cliente ya tiene.
+6. Restringido y roles: sin hallazgos. Restringido inscrito: muro, descarga y solicitar dan `403 ACCESO_RESTRINGIDO` y no se firma nada. Estudiante no restringido: solicitar y publicar con `archivoIds`, `403 ROL_NO_PERMITIDO`. Admin (el sembrado, con token firmado, sin login): las dos rutas, `403 ROL_NO_PERMITIDO`. Maestro ajeno: `403 SIN_ACCESO_A_LA_CLASE`. Con `debe_cambiar_contrasena`: solicitar, publicar con `archivoIds` y descargar dan `403 CAMBIO_DE_CONTRASENA_REQUERIDO`, y su pendiente sigue pendiente. Dado de baja y sin token: `401 NO_AUTENTICADO`. En ninguno se escribe una fila ni se firma una URL.
+7. Logs (PA-10): sin hallazgos (ver "PA-10").
+8. Borrar con adjuntos: sin hallazgos. La publicación con adjuntos se borra (`204`), su archivo queda `descartado` y sin publicación, su descarga da `404` y no puede volver a confirmarse (`400`). **Borrar una clase** con archivos confirmados (dos, en dos publicaciones), pendientes y descartados: la cascada borra todo sin violar el `CHECK` ni el `NO ACTION`. La publicación ajena con el `claseId` propio ya la cubre "borrar con el claseId propio una publicación ajena no descarta sus archivos" (prueba normal).
+9. `adjuntos` en todas las respuestas: sin hallazgos (punto 5 del plan).
+10. Límites en el cliente: sin hallazgos en lo que valida el cliente. 3 más 3 en dos elecciones: quedan 5 y aparece "Puedes adjuntar hasta 5 archivos."; `File.type` vacío con `.exe`, PDF llamado `foto.png`, `LEEME` sin extensión, SVG y 25 MB + 1 se rechazan con su mensaje y la lista no se crea. **Hallazgo:** N-D1 (T-41).
+11. Flujo de publicar: doble envío (dos `submit` seguidos y un clic con el botón en espera): cada archivo se solicita una vez y se publica una vez, con los ids en orden. Si falla `publicar` después de subir: un solo aviso (el del hook), conserva el título y los archivos, y el botón queda libre. Desmontar el formulario con la subida en vuelo: termina, publica una vez, avisa una vez y no lanza. El fallo del `PUT` del segundo archivo y el `enEspera` de principio a fin ya los cubren PR-D12b y PR-D12c. **Hallazgo:** T-38.
+12. Vista previa: `onError` quita la imagen y deja la ficha con «Descargar»; el `alt` es "Imagen adjunta: <nombre>". Una `vistaPrevia.url` `javascript:` llega al `src` (React no la bloquea en las pruebas), pero en un `<img>` no se ejecuta: no lo reporto. **Hallazgos:** T-39 («Descargar») y T-40 (`staleTime`).
+13. 360 px (análisis estático, sin navegador): la ficha y la fila de elegidos son `flex flex-wrap` con el nombre en `min-w-0 flex-1 wrap-anywhere` (Tailwind 4.3.3 genera `overflow-wrap: anywhere`), así que un nombre de 255 caracteres sin espacios parte la línea; el tamaño y el botón son hermanos del mismo contenedor que envuelve; el nombre del botón va en `sr-only` (no ocupa ancho); la imagen es `max-w-full max-h-80 object-contain self-start`. No encontré nada que desborde. Queda para H-5 y H-6.
+14. Regresión: ver "Regresión primero". Las 97 `*.ataque` vigentes, sin cambios y en verde; las pruebas normales de a, b y c en verde.
+15. Configuración: `STORAGE_*` parciales (solo el secreto; llave y secreto sin endpoint), un endpoint `ftp:` o `javascript:` y `production` sin ellas no validan, y ningún mensaje repite el secreto ni la llave. Vacías o solo con blancos cuentan como ausentes. Con las tres (y `STORAGE_REGION=auto`), `production` valida. Sin almacén, solicitar, descargar y publicar con `archivoIds` dan `503 ALMACEN_NO_CONFIGURADO` sin escribir.
+
+### No atacado y por qué
+- **La subida real al almacén, su CORS y la firma aceptada por R2 o MinIO:** el encargo prohíbe levantar MinIO y no hay red hacia R2. Lo sustituí con la verificación SigV4 propia (la misma cuenta que hace el almacén) y queda para H-5 de la comprobación humana.
+- **360 px en un navegador:** ningún agente abre navegadores. Solo análisis estático (punto 13); queda para H-6.
+- **El worker en `production` sin `STORAGE_*` como proceso:** no lo arranqué. Usa el mismo `cargarEnv()` que la API, y mis casos de `validarEnv` cubren ese camino; `arranque-r1:79` cubre el worker con `STORAGE_*` válidas.
+- **La carrera entre borrar una publicación y confirmarle archivos:** no aplica: una publicación borrada no recibe archivos (los `archivoIds` se confirman solo al crearla).
+- **`LIMPIEZA_DIARIA`:** no existe todavía.
+
+### Observaciones que no son hallazgo (con destino propuesto)
+- **O-1. La URL de subida no limita tamaño ni tipo, y sigue sirviendo después de confirmar.** `presignedPutObject` firma solo `host` (`X-Amz-SignedHeaders=host`): el `PUT` acepta cualquier `Content-Type` y cualquier tamaño, y la confirmación compara después. Pero la URL vive 300 s: tras confirmar, el maestro puede volver a escribir el objeto con otro contenido o más de 25 MB. La vista previa y la descarga fuerzan el tipo guardado (`response-content-type`), así que no veo XSS; el riesgo es de cupo. Tampoco hay tope de solicitudes pendientes por maestro. Destino: DEPLOY (permisos del token de R2 y vigilancia de cupo) y `LIMPIEZA_DIARIA`; si se quiere cerrar, una política `POST` con `content-length-range` sería otro encargo.
+- **O-2. Orden de los adjuntos:** el `201` los devuelve en el orden de `archivoIds`; el muro, por `creado_en, id`. Coinciden con el frontend actual (sube y manda en orden), pero no si un cliente manda otro orden. Destino: nota en el cierre de d.
+- **O-3. `archivos(clase_id)` y `archivos(subido_por)` sin índice:** borrar una clase en cascada y la comprobación `RESTRICT` al borrar un usuario recorren `archivos` sin índice. Hoy no hay ruta que borre clases ni usuarios. Lo decidió §D-D1. Destino: arquitecto, antes de ADMIN (bajas y borrados).
+- **O-4. El muro responde URL prefirmadas sin `Cache-Control: no-store`,** a diferencia de solicitar y descargar. Sin `Last-Modified`, el navegador no lo guarda por heurística. Destino: cierre de d o carril trivial.
+- **O-5. `STORAGE_*` no se recortan y el nombre del bucket no se valida.** Una llave con blancos o un bucket con nombre inválido validan y fallan en tiempo de ejecución: con el bucket inválido, toda firma responde `503 ALMACEN_NO_DISPONIBLE` (lo probé en `logs-archivos-d-r1`, sin fugas). Destino: lista de DEPLOY.
+- **O-6. `production` acepta un `STORAGE_ENDPOINT` `http://`.** Destino: DEPLOY.
+- **O-7. N-D2 confirmada:** `extensionDe` está duplicada en `frontend/src/features/clases/lib.ts` y `backend/src/core/archivos/politica.ts`. Destino: el que fijó el manager.
+- **O-8. Al confirmar, un tipo real con parámetros o en mayúsculas cuenta como el declarado** (`coincideConLoDeclarado` normaliza). No es riesgo: se sirve con el tipo guardado.
+- **O-9. Un UUID en mayúsculas en `archivoIds`** se rechaza con `400 ARCHIVO_INVALIDO` aunque el archivo sea válido (el mapa por id usa la forma de la base). Es seguro; el frontend manda minúsculas. Destino: nota.
+- **O-10. La herramienta de esta sesión convierte las secuencias de escape `\u` de los comandos y de los archivos que escribe en caracteres reales.** Por eso verifiqué por programa (`escapar.cjs`, con los rangos en números) que mis cuatro archivos no tienen invisibles reales: `SIN-INVISIBLES` en los cuatro, después de convertir a escapes 8 que se habían colado (7 en `archivos-d-r1` del backend y 1 en el del frontend). Destino: aviso para el orquestador y los otros agentes.
+
+### PA-07
+Comando: `cd backend; npm test > <scratchpad>/back-test-N.txt 2>&1`; conteo con `grep -c` sobre la salida completa; el sitio de cada `P2028`, del JSON de pino; los `500`, por `requestId` del log.
+
+| Corrida | Situación | 40P01 | deadlock detected | could not serialize | too many clients | P2028 y sitio | `500` en muro o archivos |
+|---|---|---|---|---|---|---|---|
+| 1 (regresión, 09:10:21 a 09:11:18) | limpia: `Test Files  116 passed (116)` · `Tests  1272 passed (1272)` · `Duration 53.11s` | 0 | 0 | 0 | 0 | los 2 aceptados: `tx.sesion.create()` en `adapters/db/sesiones.ts:39` (login) y `tx.tokenCuenta.updateMany()` en `adapters/db/tokens-cuenta.ts:116` (restablecer) | 0. Los 9 `500` son los provocados: 7 de `POST /api/auth/login`, 1 de `POST /api/auth/restablecer` y 1 de `GET /prueba/error-comun` |
+| 2 (con mis pruebas, 09:27:02 a 09:28:03) | limpia salvo T-42: `Test Files  1 failed \| 117 passed (118)` · `Tests  1 failed \| 1292 passed (1293)` · `Duration 57.11s` | 0 | 0 | 0 | 0 | los 2 aceptados, mismos sitios | 0; los mismos 9 provocados |
+| 3 y 4 (solo mis dos archivos) | `Tests  1 failed \| 20 passed (21)` dos veces (T-42) | 0 | 0 | 0 | 0 | 0 | 0 |
+
+No hubo caída por CHORE-02. PA-07 no se activa.
+
+### PA-10
+`backend/test/logs-archivos-d-r1.ataque.test.ts` construye la API real en memoria con `construirApp({ env })` **sin** pasarle almacén, así que `config/almacen.ts` arma el adaptador real de `minio` desde `STORAGE_*` (endpoint `http://127.0.0.1:9`, inalcanzable, como PR-D03a), con `LOG_LEVEL=trace` (comprobado: `app.log.level === "trace"`). Capturé todo lo que se escribe en los descriptores 1 y 2 (`fs.writeSync`, `fs.write`, `process.stdout` y `process.stderr`) durante seis peticiones:
+- solicitar (`201`, URL firmada), el muro del alumno con una imagen (`200`, vista previa firmada) y la descarga (`200`, URL firmada);
+- publicar con un archivo cuando `statObject` no llega al proveedor (`503 ALMACEN_NO_DISPONIBLE`);
+- solicitar y descargar con un bucket de nombre inválido, donde la firma misma falla (`503 ALMACEN_NO_DISPONIBLE`).
+
+En el log, con al menos 6 "request completed": 0 `X-Amz-Signature`, 0 `X-Amz-Credential`, 0 apariciones del secreto y de la llave, 0 `127.0.0.1:9/`, 0 `materiales/`, ninguna de las tres URL firmadas ni sus firmas, ninguna de las tres claves de objeto y 0 del nombre del bucket inválido. PA-10 no se activa.
+
+### PARADAS
+- **PA-01:** comprobada antes del backend; no se activó.
+- **PA-02:** no se activó (rama, base y V-01 97 de 97).
+- **PA-06:** no se activó: ninguna `*.ataque` existente falla; los únicos rojos son los 10 casos nuevos de mis hallazgos.
+- **PA-07:** no se activó (tabla de arriba).
+- **PA-10:** no se activó.
+- **PA-11:** no se activó. La corrida 1 terminó a las 09:11:18 y `docker ps -a` a las 09:15:30 solo muestra `campus-dev-postgres-1`; las corridas 2 a 4 terminaron a las 09:28:03 y 09:31:08, y a las 09:33:38 sigue solo `campus-dev-postgres-1`.
+- **PA-12:** no se activó. Los casos del backend corrieron tres veces (la suite y dos repeticiones) con el mismo resultado; los del frontend, tres veces en la suite (más las corridas sueltas), con el mismo resultado. Las dos carreras del backend esperan por `pg_blocking_pids` hasta que las dos peticiones están formadas, no por tiempo.
+- **PA-15:** no se activó. No toqué producción; el prototipo de la verificación SigV4 (`sigv4.mjs`) y el revisor de invisibles (`escapar.cjs`) viven en el scratchpad.
+
+### Comandos y última línea de salida
+| Comando | Última línea | Resultado |
+|---|---|---|
+| `git log -1 --oneline` | `c7fcece feat(clases): parte c (muro con publicaciones y comentarios, avisos encolados, contenido visible y triviales de b)` | base correcta |
+| V-01 (`sha256sum` de las `*.ataque` contra la tabla del complemento, con `diff`) | `V01-OK` | 97 de 97 |
+| `cd backend; npm run lint` (antes y después) | `> tsc -p tsconfig.json --noEmit` | código 0 |
+| `cd backend; npm test` (corrida 1, regresión) | `Test Files  116 passed (116)` · `Tests  1272 passed (1272)` · `Duration 53.11s` | limpia |
+| `cd backend; npm test` (corrida 2, con mis pruebas) | `Test Files  1 failed \| 117 passed (118)` · `Tests  1 failed \| 1292 passed (1293)` · `Duration 57.11s` | solo T-42 |
+| `cd backend; npx vitest run test/archivos-d-r1.ataque.test.ts test/logs-archivos-d-r1.ataque.test.ts` (dos veces) | `Tests  1 failed \| 20 passed (21)` | solo T-42 |
+| `cd frontend; npm run lint` (antes y después) | `> tsc -b` | código 0 (incluye ESLint y Prettier de mis archivos) |
+| `cd frontend; npm test` (corridas 1 y 2, regresión) | `Test Files  98 passed (98)` · `Tests  1316 passed (1316)` | en verde |
+| `cd frontend; npm test` (final, con mis pruebas) | `Test Files  2 failed \| 98 passed (100)` · `Tests  9 failed \| 1324 passed (1333)` · `Duration 48.98s` | solo T-38, T-39, T-40, T-41 y T-43 |
+| `npx vitest list` de mis archivos | backend 19 + 2; frontend 14 + 3 | 38 casos |
+| `npx prettier --write` de mis archivos, desde su paquete | (sin salida) | formateados; `prettier --check` en verde |
+| `node escapar.cjs <archivo> --revisar` en los cuatro | `SIN-INVISIBLES` | sin invisibles reales |
+
+### Archivos nuevos (4; 38 casos)
+- `backend/test/archivos-d-r1.ataque.test.ts` (19 casos; 1 en rojo: T-42).
+- `backend/test/logs-archivos-d-r1.ataque.test.ts` (2 casos, en verde).
+- `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` (14 casos; 7 en rojo: T-38, T-39, T-40 y T-41).
+- `frontend/src/lib/format-d-r1.ataque.test.ts` (3 casos; 2 en rojo: T-43).
+
+No modifiqué ninguna `*.ataque` existente, ninguna prueba normal ni código de producción.
+
+### Tabla de SHA-256 de todas las `*.ataque` después de la ronda 1 de CLASES-d (101: las 97 vigentes, sin cambios, y 4 nuevas marcadas). Base de V-01 para la corrección del programador
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `485D39EF014D4A5437D53177D081BCE59C0EEB476BB2CFE4488F986AE9A2201F` | `backend/test/alumnos-b-r1.ataque.test.ts` |
+| `ADF927DFC3321780749CF99945ACAA6D040E6FDD06BED5A6517F681381C9281F` | `backend/test/alumnos-b-r2.ataque.test.ts` |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `B1A6B7FE18F153478ED3F05BF92E5A3270469C8C92B2BBA10D8DAEA8150F5B3F` | `backend/test/archivos-d-r1.ataque.test.ts` **(nueva, ronda 1 de d)** |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `F3292910B39E4569433CC7EF8FACC6F8171FB5A6825A611AE3D1B06600DF3994` | `backend/test/clases-r1.ataque.test.ts` |
+| `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8` | `backend/test/clases-r2.ataque.test.ts` |
+| `A0C04741BEE92E98848DEC3E5224506C759E64BFA1E865AB04387C20B59AB589` | `backend/test/clases-r3.ataque.test.ts` |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `E4FCE121A6971960FE28750A8AA899BB9A177E1A61110034C634B402A8268AF0` | `backend/test/guarda-clase-r1.ataque.test.ts` |
+| `733D508414D4A62ED2FAFB0F4E24A622DCC83242FE811E6F74A21B70E1E76C21` | `backend/test/guarda-clase-r2.ataque.test.ts` |
+| `8D9D4556363911629260EAA09A2A2A12AD5F106CE705440E220F513E3BAFDBCA` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `C6B69AF1937CF11A5B8978A686D75FD33EBC32ED803737ED96EF22E2F801887D` | `backend/test/logs-archivos-d-r1.ataque.test.ts` **(nueva, ronda 1 de d)** |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `902CC714B31855551C28996A7FC1F650771C71B2D064EE993D8E166B51728C2C` | `backend/test/muro-c-r1.ataque.test.ts` |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `A6F219888148B9FF306A20FE411F2D6A32F1BF2907AC1D6F0AB0328FF2C473B8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `76B256114128377B6A793CAB882D031FB10785076728F8058E0FF1D93A7E9F64` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `ACAF61E8AE80EF5A5AFD0ED745F7C4888729332DF5E05286F1EC01DB3849C494` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |
+| `E0992CEE6F52F58AE1C3451D8D10178040BB5E6995431925337C1042C0BC4F5A` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |
+| `2DA2869ADFEF79B529E5FE05D159558501A8C237E0224254A561FD83AE825362` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |
+| `ADF9E1CFD151E030C6B275A47A5C41F68F46BAEDF880A989676151DCACE5A1B3` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |
+| `BE0E7656BA70C2F73B3096885BCE5B2B73EEDF1B05BCE120216DE5E3EA3A8B09` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |
+| `309B9877D03AF86CD6748E033C3E0137CF4C67A1C08E3873E54DD465CAC4F2D6` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |
+| `76B33ABD23DB2599C23DDCFE78B51A4943EB7C9A56774524BE1C6A5B295CBAC4` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` **(nueva, ronda 1 de d)** |
+| `DB90CF07D1E1F588BBA307DF342BA0420609EA64038C49A3119675766288DA05` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |
+| `290A33CFB6A910BE74BE26245FD84B1B3E932FF63686BF755A07DBDA15070ED4` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |
+| `C0597F198DFF02F342D087AB46400B72E7168A5FAA35D4A12CC8C482B5674E12` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |
+| `525D1DA5DE4001991E042300BC9CF62AD1B0B4D31C9D0E20B32896241AC9EAAC` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |
+| `72A2CD4AB876FFA94D01FB45B2A555C32B2E40336FB65A12A87DEAC82CFAEB1B` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |
+| `4E842F547E0156AFC753295CCC6F50A326939FC12B8537969818D3FB01569659` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |
+| `2035462B2659CEB37646C85A4EA35CCFA7A7C31E7013104704018620262BE297` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` **(nueva, ronda 1 de d)** |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `C1F4B160D3BE549340F771F3E225721E3776F7A53EA2A653A5A91A2E297BEE93` | `frontend/src/styles/clases-r1.ataque.test.ts` |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+## CLASES-d — Ronda 2
+Veredicto: **detenida por PA-12** (una prueba propia es intermitente). No hay veredicto ROTO o RESISTE todavía: espero la decisión del orquestador.
+
+Base `<Cc>` = `c7fcece`. Rama `feat/clases`. Fecha: 2026-10-02.
+
+### Precondiciones
+- **Base:** `git log -1 --oneline` → `c7fcece feat(clases): parte c (…)`.
+- **V-01:** las 101 `*.ataque` contra la tabla de "CLASES-d — Ronda 1" (`diff` por programa, sin el marcador `*` de `sha256sum`): **101 de 101 iguales** (`V01-OK`).
+- **PA-01:** `Enabled True`, `Inbound`, `Block`, `Public`; red `IZZI-F281-5G`; Docker encendido; `docker ps -a` → solo `campus-dev-postgres-1`.
+
+### Regresión (corrida 1 del backend)
+- `cd backend; npm run lint` → código 0 (`> tsc -p tsconfig.json --noEmit`).
+- `cd backend; npm test` (10:15:40 a 10:16:38) → `Test Files  1 failed | 117 passed (118)` · `Tests  1 failed | 1294 passed (1295)` · `Duration 54.10s`. PA-07: `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; `P2028` solo los dos aceptados (`tx.sesion.create()` y `tx.tokenCuenta.updateMany()`). No cayó por CHORE-02.
+- **El rojo es una prueba mía de la ronda 1:** `backend/test/archivos-d-r1.ataque.test.ts`, caso "estudiante inscrito no solicita ni publica; admin no entra a ninguna; maestro ajeno 403; con cambio de contraseña pendiente, 403; dado de baja, 401. Nada se escribe ni se firma" (`:1016`): `expected 61 to be 60`.
+
+### PA-12 — por qué es mía y no de la implementación
+- La aserción de `:1016` cuenta **toda** la tabla: `obtenerDb().archivo.count()`. Los archivos de pruebas corren en paralelo, y `archivos.integracion`, `archivos-autorizacion` y `logs-archivos-d-r1` insertan filas de `archivos` al mismo tiempo. Una fila ajena que entra entre las dos lecturas pone el caso en rojo.
+- **No es una escritura de la API:** las 11 peticiones del caso respondieron el `401` o el `403` esperado (esas aserciones van antes de `:1016` y pasaron), así que la cadena las detuvo antes del handler.
+- **Diagnóstico:** el mismo caso, solo (`npx vitest run test/archivos-d-r1.ataque.test.ts -t "estudiante inscrito no solicita"`), pasa dos de dos (`Tests  1 passed | 18 skipped (19)`). En la ronda 1 pasó en cinco corridas, y el manager lo vio en verde en las suyas.
+- **Remedio que propongo (necesita autorización: es una `*.ataque` existente):** acotar el conteo a las clases del caso (`obtenerDb().archivo.count({ where: { claseId: { in: [e.claseA, e.claseB, claseConCambio.id, claseDeBaja.id] } } })`) y publicar el hash nuevo. Ninguna otra aserción cambia. Busqué el mismo patrón en mis otras pruebas: es el único conteo global de `archivos`.
+
+### Estado de la ronda
+- Me detuve al ver PA-12, según PARADAS. No corrí el frontend ni ataqué los 9 puntos del manager.
+- **Archivo en curso, sin ejecutar todavía:** `backend/test/archivos-d-r2.ataque.test.ts` (T-42 en sus bordes y T-39 del lado del servidor). Lo dejo en el árbol y lo menciono para que nadie lo confunda con una prueba verificada: si alguien corre la suite antes de que siga la ronda, su resultado no está revisado.
+- **Precisión del remedio:** el conteo global aparece en dos líneas del mismo caso, `:897` (`filasAntes`) y `:1016` (la aserción); las dos se acotan igual. PA-11: a las 10:18:07, `docker ps -a` solo muestra `campus-dev-postgres-1`.
+
+### C-23: conteo acotado en archivos-d-r1 (PA-12)
+Arbitraje del manager (`revision.md`, "### Arbitraje de PA-12 — ronda 2 de CLASES-d"): opción (a), con un `OR` de `claseId IN` y `subidoPor IN`.
+
+- **Diff** (`backend/test/archivos-d-r1.ataque.test.ts`, caso "estudiante inscrito no solicita ni publica; admin no entra a ninguna; maestro ajeno 403; con cambio de contraseña pendiente, 403; dado de baja, 401. Nada se escribe ni se firma"). El archivo no está rastreado, así que el diff es contra mi versión de la ronda 1:
+  ```diff
+  -    const filasAntes = await obtenerDb().archivo.count()
+  +    // C-23 (PA-12 de la ronda 2): el conteo se acota a lo que este caso podría escribir, porque otros
+  +    // archivos de pruebas insertan en `archivos` en paralelo. Toda clase que aparece en una URL del
+  +    // caso, o todo usuario que hace una petición: una escritura indebida con otro claseId también
+  +    // cuenta.
+  +    const filasDelCaso = {
+  +      OR: [
+  +        { claseId: { in: [e.claseA, claseConCambio.id, claseDeBaja.id] } },
+  +        { subidoPor: { in: [e.alumno.id, admin, ajeno.id, conCambio.id, deBaja.id] } },
+  +      ],
+  +    }
+  +    const filasAntes = await obtenerDb().archivo.count({ where: filasDelCaso })
+  ...
+  -    expect(await obtenerDb().archivo.count()).toBe(filasAntes)
+  +    expect(await obtenerDb().archivo.count({ where: filasDelCaso })).toBe(filasAntes)
+  ```
+  Ahora en `:907` y `:1026`.
+- **Las clases:** `e.claseA`, `claseConCambio.id` y `claseDeBaja.id` son todas las que aparecen en una URL del caso. `e.claseB` no se usa en este caso: solo la usan otros casos del archivo (`:331`, `:377` y `:630`).
+- **Los usuarios:** el alumno, el admin, el maestro ajeno, el maestro con cambio pendiente y el dado de baja hacen peticiones; la petición sin token no tiene usuario.
+- No cambió ninguna otra aserción, ningún título ni ninguna comprobación de que no se firma nada. Formato `(unchanged)` y `SIN-INVISIBLES`.
+- **Aislado, dos veces:** `npx vitest run test/archivos-d-r1.ataque.test.ts -t "estudiante inscrito no solicita"` → `Tests  1 passed | 18 skipped (19)` las dos veces.
+- **En suite:** en verde en las corridas 2 y 3 del backend (abajo).
+- **Hash:** antes `B1A6B7FE18F153478ED3F05BF92E5A3270469C8C92B2BBA10D8DAEA8150F5B3F`; ahora `79BB87AE390140BD5F5E5BA00E1A32A8E41937DE2A98D59E83335C34A8FB94BB`.
+
+### Veredicto de la ronda 2
+**ROTO**, por un solo hallazgo bajo, del mismo tipo que T-43 un escalón más arriba. Las seis correcciones (T-38 a T-43) resisten, y pasan por la razón correcta.
+
+Verificación propia: lint del backend con código 0 (`> tsc -p tsconfig.json --noEmit`) · lint del frontend con código 0 (`> tsc -b`) · test del backend `Tests  1298 passed (1298)` (corrida 3, limpia) · test del frontend `Tests  1 failed | 1372 passed (1373)` (dos corridas; el único rojo es T-44).
+
+### Hallazgos
+
+#### T-44 — `formatearTamano` muestra «1024 MB» un byte antes de 1 GB
+Severidad: **baja** (el cliente nunca admite archivos de más de 25 MB, pero `lib/format.ts` es compartido y el manager pidió el borde: punto 7)
+
+Prueba: `frontend/src/lib/format-d-r2.ataque.test.ts`, caso "1,073,741,823 bytes (un byte menos que 1 GB) no se muestra como «1024 MB»".
+
+Esperado / Obtenido: esperado algo distinto de "1024 MB" ("1 GB", o el tamaño sin un "1024" en la unidad menor); obtenido "1024 MB". La corrección de T-43 redondea a KB antes de elegir la unidad, pero la rama de MB vuelve a redondear con `toFixed(1)` sin pasar de unidad: 1023.99 MB se escribe "1024.0" y queda "1024 MB".
+
+Requisito o regla violada: plan §D-D5 y Enmienda 12 (`formatearTamano`: redondear antes de elegir la unidad); punto 7 de la lista del manager.
+
+### Regresión caso por caso (los 10 rojos de la ronda 1, por la razón correcta)
+| Hallazgo | Caso de la ronda 1 | Estado | Por qué pasa (contra el código corregido) |
+|---|---|---|---|
+| T-38 | "«Quitar» un archivo mientras se suben los anteriores: …" | verde | `handleQuitar` regresa con `publicandoRef.current` marcada: el archivo no sale de la lista (`seQuitoDeLaLista: false`) y se publican los dos que se ven. Que es la **referencia** y no el estado lo prueba mi caso nuevo "«Quitar» y elegir en el mismo lote que el envío…": en un solo `act`, el envío, «Quitar», la elección y un segundo envío; los manejadores ven el render viejo (sin `enProceso`) y aun así la lista no cambia y se publica una vez |
+| T-38 | "«Adjuntar archivos» con la publicación en vuelo: …" | verde | `handleElegir` limpia el selector y regresa: `tardio.pdf` no entra a la lista (`aceptadoEnLaLista: false`, `perdido: false`) |
+| T-39 | "«Descargar» con una URL javascript:alert(document.domain) …" y "… data:text/html,… …" | verde | `urlDelAlmacenSchema` rechaza el protocolo, `apiClient` lanza `RESPUESTA_INVALIDA` y el `catch` de `handleDescargar` avisa: mis casos nuevos comprueban que el aviso sale una vez y que `location.assign` no se llama |
+| T-40 | "las vistas previas que pinta el muro siguen vigentes …" | verde | El `staleTime` es la función: con la primera página firmada hasta t0 + 5 min y la segunda pedida en t0 + 3 min, da (t0 + 5 min − 60 s) − (t0 + 3 min) = 60 s; a los 5 min 30 s el muro está viejo y se vuelve a pedir. No es un valor fijo menor: mi caso nuevo "antes del margen" no vuelve a pedir a los 3 min 59 s |
+| T-41 | "si el servidor rechaza al solicitar un archivo vacío / con un carácter de control …" | verde | `avisoDeFalloAlSubir` da "No pudimos subir «vacio.pdf»: El archivo está vacío o pesa más de 25 MB." (nombre y motivo del servidor) |
+| T-42 | "un sustituto suelto: o se rechaza, o lo que responde 201 es lo mismo que se guarda" | verde | `\p{Cs}` rechaza el nombre: `400 ARCHIVO_INVALIDO`, sin fila y sin firma (lo afirma mi caso nuevo; el de la ronda 1 solo exigía la coherencia) |
+| T-43 | "%i bytes (menos de 1 MB, pero redondea a 1024 KB) …" (1,048,575 y 1,048,064) | verde | Da "1 MB" (mi caso nuevo lo afirma con el valor exacto) |
+
+Las 97 `*.ataque` de antes de la ronda 1 y los otros 28 casos de mis archivos de la ronda 1 siguen en verde. El muro de c sin adjuntos sigue igual con el `staleTime` como función: sin vistas previas da 240,000, y siguen en verde el texto de borrar (`muro-c-r1:479`), el foco, "Muro" en error (`muro-recuperar-c-r3` y `-r4`) y PR-C18.
+
+### Atacado sin hallazgos (por punto de la lista del manager)
+1. **Regresión por la razón correcta:** la tabla de arriba.
+2. **Bordes de T-38:**
+   - «Quitar» y elegir en el mismo lote que el clic, antes del primer `await`: la lista no cambia;
+   - dos `submit` seguidos en el mismo lote: una sola publicación;
+   - «Quitar» con el foco en el botón durante la publicación: no sale el archivo y el foco se queda en «Quitar b.pdf»;
+   - la nota es `role="status"`, con "Mientras se publica no puedes cambiar los archivos.", y desaparece al terminar;
+   - después del `finally`, con fallo del `PUT` del segundo archivo, con fallo de publicar después de subir y con éxito: la lista vuelve a ser editable (se quita y se elige). Con éxito queda vacía.
+3. **Bordes de T-39:**
+   - «Descargar» con `TAB` + `javascript:`, espacios + `javascript:`, `JaVaScRiPt:`, `vbscript:`, `blob:`, `file:`, `//host` y `data:`: un aviso y ninguna navegación; `HTTPS://` en mayúsculas sí navega (es https). Con `shared/dist`, `http:host` también se rechaza;
+   - una URL de subida `javascript:`: no hay `PUT`, el aviso nombra el archivo y no se publica;
+   - una `vistaPrevia` `blob:` hace fallar el muro completo (`role="alert"`), sin pintar la publicación;
+   - **del lado del servidor**, con un almacén doble que firma `javascript:` y `data:`: solicitar, descargar y el muro responden un error con el formato de la API, sin la URL en el cuerpo ni en el log (son los 3 `500` provocados de PA-07).
+4. **Bordes de T-40:**
+   - `tiempoFrescoDelMuro`: manda el vencimiento más temprano aunque esté en la segunda página; sin vistas previas, 240,000; sin páginas, 240,000; un vencimiento pasado o a menos del margen, 0; una fecha inválida se ignora;
+   - 50,000 vistas previas cargadas no lanzan (observación O-12);
+   - volver al muro a los 3 min 59 s no lo vuelve a pedir; a los 4 min 1 s sí, y la imagen que había fallado se pinta con su URL nueva (`urlsRotas` por URL);
+   - con la consulta en error, el caso de la ronda 1 "una publicación sin adjuntos en la respuesta es un error…" sigue en verde (la función no se evalúa sin datos).
+5. **Bordes de T-41:**
+   - [aceptado, rechazado, rechazado]: se detiene en el primer rechazo, con un solo aviso ("No pudimos subir «malo1.pdf»: Motivo de malo1.pdf."), sin solicitar el tercero, sin publicar y con los tres archivos en la lista;
+   - un `503 ALMACEN_NO_DISPONIBLE` nombra el archivo, con el texto propio y no el del servidor;
+   - un nombre con HTML y `«»` y un motivo con HTML llegan a `toast.error` como cadena, sin crear elementos;
+   - un `mensaje` vacío no valida `errorApiSchema` (`min(1)`) y da "No pudimos subir «…»: " seguido del texto genérico, nunca vacío.
+6. **Bordes de T-42:** sustitutos sueltos, altos y bajos, al inicio, en medio y al final (y un bajo seguido de un alto): `400 ARCHIVO_INVALIDO`, sin fila y sin firma. Los pares válidos (emoji, CJK del plano astral y una mezcla) se aceptan, y lo respondido y lo guardado coinciden punto de código por punto de código. El pendiente del muro va como observación O-11.
+7. **Bordes de T-43:** 0, 1, 1023 y 1024 B; 1,048,063 ("1023 KB"), 1,048,064, 1,048,575 y 1,048,576 ("1 MB"); 25 MB y 25 MB + 1 ("25 MB"). **Hallazgo:** 1,073,741,823 B (T-44).
+8. **Lo débil:** la nota sin archivos (O-13); `avisoDeFalloAlSubir` con mensaje vacío (punto 5); `Math.min(...)` con muchos elementos (O-12).
+9. **Regresión completa:** ver "Regresión caso por caso" y PA-07.
+
+### No atacado y por qué
+- **Navegador real, MinIO y R2:** prohibidos en esta ronda. Quedan para H-5 y H-6.
+- **La prueba de mutación de T-38** (copiar el formulario con la guarda solo por estado y ver caer mi caso): no la armé, porque el componente importa rutas relativas de su módulo y una copia en el scratchpad no compila sin tocar la configuración. Lo cubre el caso "mismo lote", que solo puede pasar si la guarda existe antes del render.
+
+### Observaciones que no son hallazgo (con destino propuesto)
+- **O-11 (pendiente del cierre de d). Sustitutos sueltos en el título, el anuncio y el comentario del muro.** Lo comprobé con una prueba en el scratchpad (`obs-sustitutos-muro.test.ts`, con la misma base desechable): los tres responden `201`, y lo guardado y lo respondido llevan U+FFFD en lugar del sustituto. Es coherente (la respuesta sale de la fila), pero el reemplazo es silencioso. Destino: el cierre de d, como ya lo dejó la Enmienda 12.
+- **O-12. `tiempoFrescoDelMuro` usa `Math.min(...vencimientos)`.** Con el Node del repositorio, `Math.min` con propagación lanza `RangeError` entre 120,000 y 150,000 elementos. 50,000 pasa. Llegar a ese límite exigiría cargar más de mil páginas del muro en una sola sesión. Destino: nota; si se toca, un `reduce`.
+- **O-13. La nota de T-38 aparece también al publicar sin archivos.** Confirmo el detalle menor del manager. Destino: el que fijó (cierre o H-6).
+- **O-14. Si el almacén firmara una URL que no es http(s), la API responde `500 ERROR_INTERNO`** (el `parse` de `shared/` en el handler), no un `503`. En solicitar, la fila `pendiente` ya se insertó antes del `parse` y queda huérfana hasta `LIMPIEZA_DIARIA`. Con el adaptador real no puede pasar (el endpoint se valida como http o https), y no se filtra la URL. Destino: nota para el cierre de d.
+- **O-15. Mi corrida 2 del backend cayó porque corrí el frontend en paralelo** (10 tiempos límite de CHORE-02). La repetí sola y salió limpia. Para mí: nunca dos suites a la vez.
+
+### PA-07
+Comando: `cd backend; npm test > <scratchpad>/d-r2/back-test-N.txt 2>&1`; conteo con `grep -c`; los sitios de los `P2028`, del JSON de pino; los `5xx`, por `requestId`.
+
+| Corrida | Situación | 40P01 | deadlock detected | could not serialize | too many clients | P2028 y sitio | `500` del muro o de archivos |
+|---|---|---|---|---|---|---|---|
+| 1 (10:15:40 a 10:16:38; antes de C-23) | `Tests  1 failed \| 1294 passed (1295)` · `Duration 54.10s`; el rojo fue PA-12 | 0 | 0 | 0 | 0 | los 2 aceptados (`sesiones.ts:39`, `tx.sesion.create()`; `tokens-cuenta.ts:116`, `tx.tokenCuenta.updateMany()`) | 0 |
+| 2 (10:21:01 a 10:22:33; con C-23 y mis pruebas) | **caída por CHORE-02**: `Test Files  7 failed \| 112 passed (119)` · `Tests  10 failed \| 1288 passed (1298)` · `Duration 87.77s`; los 10 rojos son tiempos límite de 15, 20, 30 y 40 s (`cuentas-r1`, `cuentas-r3`, `bloqueo-usuario` A1, `clases-r1`, `clases-r2`, PR-D04a y PR-D04b) | 0 | 0 | 0 | 0 | solo los 2 sitios aceptados | 3, los **provocados** por `archivos-d-r2` (almacén que firma `javascript:` y `data:`; `ZodError` en el log) |
+| 3 (10:23:16 a 10:24:15; repetición, sola) | **limpia**: `Test Files  119 passed (119)` · `Tests  1298 passed (1298)` · `Duration 55.10s` | 0 | 0 | 0 | 0 | los 2 aceptados | 3, los mismos provocados (`POST …/archivos`, `POST …/archivos/:id/descarga` y `GET …/publicaciones`, los tres de `archivos-d-r2`, con 3 `ZodError`). Ningún otro. Además, los 9 `500` provocados de siempre (login, restablecer y `/prueba/error-comun`) y los `503` provocados de los almacenes nulos o inalcanzables |
+
+PA-07 no se activa: los tres `500` del muro y de archivos los provoca a propósito un caso mío, con un almacén doble que firma URL imposibles con el adaptador real, y son exactamente esos tres. En el log de las corridas: 0 `X-Amz-Signature`, 0 `javascript:alert` y 0 `data:text/html`.
+
+### PARADAS
+- **PA-01:** comprobada antes del backend; no se activó.
+- **PA-02:** no se activó (base y V-01 101 de 101).
+- **PA-06:** no se activó; la única `*.ataque` en rojo es la nueva de T-44.
+- **PA-07:** no se activó (tabla de arriba).
+- **PA-10:** no se activó: 0 `X-Amz-Signature` en las tres corridas, y `logs-archivos-d-r1` en verde.
+- **PA-11:** no se activó. La corrida 3 terminó a las 10:24:15; a las 10:26:37, `docker ps -a` solo muestra `campus-dev-postgres-1`. El Ryuk de la prueba de observación (10:27) se retiró solo; ver la última línea de este reporte.
+- **PA-12:** se activó al empezar (mi conteo global) y se resolvió con C-23, autorizado. Mis casos nuevos corrieron tres veces (solos y en dos suites del frontend; los del backend, solos y en las corridas 2 y 3) con el mismo resultado.
+- **PA-15:** no se activó: la observación O-11 corrió desde el scratchpad, sin tocar producción.
+
+### Comandos y última línea de salida
+| Comando | Última línea | Resultado |
+|---|---|---|
+| V-01 contra la tabla de la ronda 1 | `V01-OK` | 101 de 101 |
+| `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit` | código 0 |
+| `cd backend; npm test` (corrida 3) | `Test Files  119 passed (119)` · `Tests  1298 passed (1298)` · `Duration 55.10s` | limpia |
+| `npx vitest run test/archivos-d-r1.ataque.test.ts -t "estudiante inscrito no solicita"` (dos veces) | `Tests  1 passed \| 18 skipped (19)` | C-23 aislado |
+| `cd frontend; npm run lint` | `> tsc -b` | código 0 |
+| `cd frontend; npm test` (dos veces) | `Test Files  1 failed \| 101 passed (102)` · `Tests  1 failed \| 1372 passed (1373)` (`Duration 51.28s` y `53.60s`) | solo T-44 |
+| `npx vitest list` de mis archivos nuevos | backend 3; frontend 23 + 11 | 37 casos |
+| `node escapar.cjs <archivo> --revisar` (cuatro archivos tocados) | `SIN-INVISIBLES` | sin invisibles reales; los sustitutos se construyen con `String.fromCharCode` |
+
+### Archivos nuevos (3; 37 casos) y uno modificado (C-23)
+- `backend/test/archivos-d-r2.ataque.test.ts` (3 casos, en verde).
+- `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` (23 casos, en verde).
+- `frontend/src/lib/format-d-r2.ataque.test.ts` (11 casos; 1 en rojo: T-44).
+- Modificado por C-23: `backend/test/archivos-d-r1.ataque.test.ts` (solo los dos conteos).
+
+No toqué código de producción, pruebas normales ni otras `*.ataque`.
+
+### Tabla de SHA-256 de todas las `*.ataque` después de la ronda 2 de CLASES-d (104: las 100 vigentes, sin cambios; `archivos-d-r1` con su hash nuevo por C-23; y 3 nuevas, marcadas). Base de V-01 para la corrección del programador
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `485D39EF014D4A5437D53177D081BCE59C0EEB476BB2CFE4488F986AE9A2201F` | `backend/test/alumnos-b-r1.ataque.test.ts` |
+| `ADF927DFC3321780749CF99945ACAA6D040E6FDD06BED5A6517F681381C9281F` | `backend/test/alumnos-b-r2.ataque.test.ts` |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `79BB87AE390140BD5F5E5BA00E1A32A8E41937DE2A98D59E83335C34A8FB94BB` | `backend/test/archivos-d-r1.ataque.test.ts` **(cambia por C-23; antes `B1A6B7FE…`)** |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` **(nueva, ronda 2 de d)** |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `F3292910B39E4569433CC7EF8FACC6F8171FB5A6825A611AE3D1B06600DF3994` | `backend/test/clases-r1.ataque.test.ts` |
+| `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8` | `backend/test/clases-r2.ataque.test.ts` |
+| `A0C04741BEE92E98848DEC3E5224506C759E64BFA1E865AB04387C20B59AB589` | `backend/test/clases-r3.ataque.test.ts` |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `E4FCE121A6971960FE28750A8AA899BB9A177E1A61110034C634B402A8268AF0` | `backend/test/guarda-clase-r1.ataque.test.ts` |
+| `733D508414D4A62ED2FAFB0F4E24A622DCC83242FE811E6F74A21B70E1E76C21` | `backend/test/guarda-clase-r2.ataque.test.ts` |
+| `8D9D4556363911629260EAA09A2A2A12AD5F106CE705440E220F513E3BAFDBCA` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `C6B69AF1937CF11A5B8978A686D75FD33EBC32ED803737ED96EF22E2F801887D` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `902CC714B31855551C28996A7FC1F650771C71B2D064EE993D8E166B51728C2C` | `backend/test/muro-c-r1.ataque.test.ts` |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `A6F219888148B9FF306A20FE411F2D6A32F1BF2907AC1D6F0AB0328FF2C473B8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `76B256114128377B6A793CAB882D031FB10785076728F8058E0FF1D93A7E9F64` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `ACAF61E8AE80EF5A5AFD0ED745F7C4888729332DF5E05286F1EC01DB3849C494` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |
+| `E0992CEE6F52F58AE1C3451D8D10178040BB5E6995431925337C1042C0BC4F5A` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |
+| `2DA2869ADFEF79B529E5FE05D159558501A8C237E0224254A561FD83AE825362` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |
+| `ADF9E1CFD151E030C6B275A47A5C41F68F46BAEDF880A989676151DCACE5A1B3` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |
+| `BE0E7656BA70C2F73B3096885BCE5B2B73EEDF1B05BCE120216DE5E3EA3A8B09` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |
+| `309B9877D03AF86CD6748E033C3E0137CF4C67A1C08E3873E54DD465CAC4F2D6` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |
+| `76B33ABD23DB2599C23DDCFE78B51A4943EB7C9A56774524BE1C6A5B295CBAC4` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |
+| `47797DCD8653009AF74D6EABFEB8919196BAFA124C97708C9C9E23150A07917C` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` **(nueva, ronda 2 de d)** |
+| `DB90CF07D1E1F588BBA307DF342BA0420609EA64038C49A3119675766288DA05` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |
+| `290A33CFB6A910BE74BE26245FD84B1B3E932FF63686BF755A07DBDA15070ED4` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |
+| `C0597F198DFF02F342D087AB46400B72E7168A5FAA35D4A12CC8C482B5674E12` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |
+| `525D1DA5DE4001991E042300BC9CF62AD1B0B4D31C9D0E20B32896241AC9EAAC` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |
+| `72A2CD4AB876FFA94D01FB45B2A555C32B2E40336FB65A12A87DEAC82CFAEB1B` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |
+| `4E842F547E0156AFC753295CCC6F50A326939FC12B8537969818D3FB01569659` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |
+| `2035462B2659CEB37646C85A4EA35CCFA7A7C31E7013104704018620262BE297` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` **(nueva, ronda 2 de d)** |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `C1F4B160D3BE549340F771F3E225721E3776F7A53EA2A653A5A91A2E297BEE93` | `frontend/src/styles/clases-r1.ataque.test.ts` |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+- **PA-11, comprobación final:** a las 10:29:39, `docker ps -a` solo muestra `campus-dev-postgres-1` (el Ryuk de la prueba de observación de las 10:27 ya se había retirado).
+
+## CLASES-d — Ronda 3
+# Reporte del Tester — CLASES-d (archivos) — Ronda 3 (regresión y bordes residuales)
+Veredicto: **RESISTE**. 0 hallazgos. T-44 se corrigió y pasa por la razón correcta; las correcciones de T-38 a T-43 y las 104 `*.ataque` vigentes siguen en verde. O-11 a O-14 se confirman como observaciones con destino. La tabla de SHA-256 del final es la de cierre de d y la base de V-01 del siguiente encargo.
+
+Verificación propia: lint del backend con código 0 (`> tsc -p tsconfig.json --noEmit`) · lint del frontend con código 0 (`> tsc -b`) · test del backend `Tests  1300 passed (1300)` (con mis pruebas; la regresión sin ellas, `Tests  1298 passed (1298)`, también limpia) · test del frontend `Tests  1395 passed (1395)` (con mis pruebas; la regresión sin ellas, `Tests  1375 passed (1375)` dos veces).
+
+Base `<Cc>` = `c7fcece`. Rama `feat/clases`. Fecha: 2026-10-02.
+
+### Precondiciones
+- **Base:** `git log -1 --oneline` → `c7fcece feat(clases): parte c (…)`.
+- **V-01:** las 104 `*.ataque` contra la tabla de "CLASES-d — Ronda 2" (`diff` por programa): **104 de 104 iguales** (`V01-OK`).
+- **PA-01:** `Enabled True`, `Inbound`, `Block`, `Public`; red `IZZI-F281-5G`; Docker encendido; `docker ps -a` → solo `campus-dev-postgres-1`.
+- Corrí una sola suite a la vez (O-15 de la ronda 2).
+
+### Regresión
+| Corrida | Comando | Última línea | Resultado |
+|---|---|---|---|
+| Backend 1 (10:55:10 a 10:56:08), sin mis pruebas nuevas | `cd backend; npm test` | `Test Files  119 passed (119)` · `Tests  1298 passed (1298)` · `Duration 54.68s` | limpia |
+| Frontend 1 y 2, sin mis pruebas nuevas | `cd frontend; npm test` | `Test Files  102 passed (102)` · `Tests  1375 passed (1375)` (`Duration 52.15s` y `53.39s`) | en verde |
+| Backend 2 (11:01:00 a 11:02:00), con mis pruebas | `cd backend; npm test` | `Test Files  120 passed (120)` · `Tests  1300 passed (1300)` · `Duration 56.08s` | limpia |
+| Frontend 3, con mis pruebas | `cd frontend; npm test` | `Test Files  104 passed (104)` · `Tests  1395 passed (1395)` · `Duration 53.09s` | en verde |
+
+- Las 104 `*.ataque` en verde, incluidos los 11 rojos de las rondas 1 y 2 (los 10 de la ronda 1 y T-44).
+- El muro de c sin adjuntos sigue igual: el texto de borrar, el foco, "Muro" en error y PR-C18 siguen en verde.
+
+### Hallazgos
+Ninguno.
+
+### Atacado sin hallazgos (por punto de la lista del manager)
+1. **Regresión completa:** la tabla de arriba y V-01.
+2. **T-44 por la razón correcta** (`frontend/src/lib/format-d-r3.ataque.test.ts`, 16 casos). El ciclo (`UNIDADES_DE_TAMANO = ["B", "KB", "MB", "GB"]`) redondea en la unidad actual (0 decimales en B y KB, 1 en MB y GB) y sube mientras el redondeado llega a 1024. No hay un caso especial:
+   - 0 → "0 B"; 1023 → "1023 B"; 1024 → "1 KB";
+   - 1,048,064, 1,048,575 y 1,048,576 → "1 MB";
+   - 1,073,689,395 (1023.95 MB) → "1023.9 MB"; 1,073,741,823 y 1,073,741,824 → "1 GB";
+   - 1023.96 MB → "1 GB"; 1.5 GB → "1.5 GB";
+   - 25 MB → "25 MB", y siguen "820 KB" y "2.4 MB".
+   - En el tope, GB es la última unidad: 1023.95 GB da "1024 GB" y 2 TB, "2048 GB", sin ".0". Coincide con el criterio del manager ("ningún «1024» en una unidad que no sea la última").
+   - Un barrido de 3,627 cantidades alrededor de cada cambio de unidad (±600 bytes y fracciones 1023.4 a 1023.96 y 1.04 a 1.06), más 1,999 pseudoaleatorias hasta 4 GB: todas con la forma `N U` o `N.D U`, sin ".0", B y KB enteros y menos de 1024 salvo en GB.
+   - T-43 (`format-d-r1`) y T-44 (`format-d-r2`) en verde.
+3. **`avisoDeFalloAlSubir` desde `lib.ts`** (`archivos-d-r3`, caso "ARCHIVO_INVALIDO lleva el mensaje del servidor; …"):
+   - `ARCHIVO_INVALIDO` → "No pudimos subir «vacio.pdf»: El archivo está vacío o pesa más de 25 MB.";
+   - `ALMACEN_NO_DISPONIBLE` → el texto propio, no el crudo del servidor;
+   - un código desconocido → el genérico;
+   - un `Error` o un valor que no es error → "No pudimos subir «…». Inténtalo de nuevo.".
+
+   El formulario sigue avisando una sola vez con el nombre: lo cubren los casos de T-41 de `archivos-d-r1` y `-r2`, en verde.
+4. **N-D4, solo por revisión:** en `backend/src/config/env.test.ts`, PR-D02a a PR-D02c ya no tienen `return`. Cada `if (….ok) throw new Error("… debía ser inválido y salió válido")`, o "válido y salió inválido", va justo después de su `expect(….ok).toBe(…)`, así que el `throw` solo se alcanza si esa aserción ya falló. Siguen en verde en las dos corridas del backend.
+5. **Residuales, confirmados como observación (no como hallazgo):** ver "Observaciones".
+6. **Bordes que quedaban de T-38 a T-42** (`archivos-d-r3`):
+   - **Foco con el teclado:** «Quitar a.pdf» lleva el foco a «Quitar b.pdf»; al publicar desde el botón principal, el foco sigue en él al terminar y nunca cae en `<body>`.
+   - **Muro con una página sin vistas previas y otra con ellas.** La primera página se pide en t0 sin vistas previas; la segunda, en t0 + 3 min, con una que vence en t0 + 8 min. Al volver a los 6 min 59 s, no se vuelve a pedir; a los 7 min 1 s, se piden de nuevo las dos páginas. En los dos casos, la vista previa pintada vence más de 60 s después del momento de volver.
+   - Lo demás de T-38 a T-42 ya lo cubren las `*.ataque` vigentes de las rondas 1 y 2.
+7. **PA-10 con `trace`, también con los `ZodError` provocados** (`backend/test/logs-archivos-d-r3.ataque.test.ts`, 2 casos):
+   - con `LOG_LEVEL=trace` y un almacén doble que firma `javascript:` y `data:` (con un "X-Amz-Signature" falso dentro), las tres rutas responden `500` y el log registra exactamente 3 `ZodError`;
+   - en el log no aparece `javascript:`, `data:text`, `<script>`, `X-Amz-Signature`, ninguna de las dos firmas falsas, `materiales/` ni la clave del objeto;
+   - el caso con el adaptador real (`logs-archivos-d-r1`) sigue en verde.
+
+### No atacado y por qué
+- **Navegador, MinIO y R2:** prohibidos; quedan para H-5 y H-6.
+- **Valores no enteros, negativos, `NaN` o `Infinity` en `formatearTamano`:** el tipo lo permite, pero `File.size` y `tamano` (`z.number().int()`) siempre son enteros no negativos. Por revisión: un valor no entero se redondea en su unidad (sin romper la forma); un negativo daría "-5 B"; `NaN` daría "NaN B" e `Infinity`, "Infinity GB". No son alcanzables; los dejo anotados sin prueba.
+
+### Observaciones que no son hallazgo (confirmadas, con destino)
+- **O-11, sustitutos sueltos en los textos del muro:** sin cambios en el código (`shared/src/clases.ts` y `handlers/clases/muro.ts` no cambiaron desde la ronda 2). La comprobación de la ronda 2 sigue valiendo: el título, el anuncio y el comentario responden `201` y se guardan con U+FFFD. Destino: cierre de d.
+- **O-12, `Math.min(...vencimientos)`:** sigue igual (`features/clases/lib.ts:235`). Con 50,000 vistas previas cargadas no lanza (`archivos-d-r2`); el límite, entre 120,000 y 150,000, no es alcanzable en la práctica. Destino: nota.
+- **O-13, la nota de la lista fija sin archivos:** sigue saliendo con `enProceso` también sin archivos (`formulario-publicacion.tsx:260`). Destino: el que fijó el manager (cierre o H-6).
+- **O-14, almacén imposible:** confirmada con `trace`: las tres rutas responden `500`, no `503`. En solicitar, `registrarArchivoPendiente` (`handlers/archivos.ts:50`) va antes del `parse` de la respuesta (`:61`), así que la fila pendiente queda huérfana. No se filtra la URL. Destino: nota de cierre, según el manager.
+
+### PA-07
+Comando: `cd backend; npm test > <scratchpad>/d-r3/back-test-N.txt 2>&1`; conteo con `grep -c`; los `5xx`, por `requestId` del log.
+
+| Corrida | Situación | 40P01 | deadlock detected | could not serialize | too many clients | P2028 y sitio | `500` del muro o de archivos |
+|---|---|---|---|---|---|---|---|
+| 1 (10:55:10 a 10:56:08) | limpia: `Tests  1298 passed (1298)` | 0 | 0 | 0 | 0 | los 2 aceptados: `tx.sesion.create()` (`sesiones.ts:39`) y `tx.tokenCuenta.updateMany()` (`tokens-cuenta.ts:116`) | 3, los provocados por `archivos-d-r2` (almacén imposible; 3 `ZodError` en el log), excluidos por la precisión del manager |
+| 2 (11:01:00 a 11:02:00) | limpia: `Tests  1300 passed (1300)` | 0 | 0 | 0 | 0 | los 2 aceptados | los mismos 3 de `archivos-d-r2`. Los 3 de `logs-archivos-d-r3` no salen en la salida porque ese caso captura su propio log, y son del mismo tipo (almacén imposible, `ZodError`) |
+
+- No hay ningún otro `500` del muro ni de archivos. Además, los 9 `500` provocados de siempre (7 de login, 1 de restablecer y 1 de `/prueba/error-comun`) y los `503` provocados de los almacenes nulos o inalcanzables.
+- `X-Amz-Signature` en la salida: 0 en las dos corridas.
+- PA-07 no se activa.
+
+### PARADAS
+- **PA-01:** comprobada antes del backend; no se activó.
+- **PA-02:** no se activó (base y V-01 104 de 104).
+- **PA-06:** no se activó (ninguna `*.ataque` en rojo).
+- **PA-07:** no se activó.
+- **PA-10:** no se activó.
+- **PA-11:** no se activó. La corrida 2 terminó a las 11:02:00, y a las 11:03:24 `docker ps -a` solo muestra `campus-dev-postgres-1`.
+- **PA-12:** no se activó. Mis casos nuevos corrieron solos y en la suite con el mismo resultado; el muro de `archivos-d-r3` controla `Date.now` y no depende del reloj.
+- **PA-15:** no se activó (no toqué producción).
+
+### Comandos y última línea de salida
+| Comando | Última línea | Resultado |
+|---|---|---|
+| V-01 contra la tabla de la ronda 2 | `V01-OK` | 104 de 104 |
+| `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit` | código 0 |
+| `cd backend; npm test` (corrida 2) | `Test Files  120 passed (120)` · `Tests  1300 passed (1300)` · `Duration 56.08s` | limpia |
+| `cd frontend; npm run lint` | `> tsc -b` | código 0 |
+| `cd frontend; npm test` (corrida 3) | `Test Files  104 passed (104)` · `Tests  1395 passed (1395)` · `Duration 53.09s` | en verde |
+| `npx vitest list` de mis archivos nuevos | backend 2; frontend 4 + 16 | 22 casos |
+| `node escapar.cjs <archivo> --revisar` (tres archivos nuevos) | `SIN-INVISIBLES` | sin invisibles reales |
+| `npx prettier --write` de mis archivos, desde su paquete | (sin salida) | formateados |
+
+### Archivos nuevos (3; 22 casos)
+- `backend/test/logs-archivos-d-r3.ataque.test.ts` (2 casos).
+- `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` (4 casos).
+- `frontend/src/lib/format-d-r3.ataque.test.ts` (16 casos).
+
+No modifiqué ninguna `*.ataque` existente, ninguna prueba normal ni código de producción.
+
+### Tabla de SHA-256 de todas las `*.ataque` al cierre de CLASES-d (107: las 104 vigentes, sin cambios, y 3 nuevas marcadas). Base de V-01 para el siguiente encargo
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `485D39EF014D4A5437D53177D081BCE59C0EEB476BB2CFE4488F986AE9A2201F` | `backend/test/alumnos-b-r1.ataque.test.ts` |
+| `ADF927DFC3321780749CF99945ACAA6D040E6FDD06BED5A6517F681381C9281F` | `backend/test/alumnos-b-r2.ataque.test.ts` |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `79BB87AE390140BD5F5E5BA00E1A32A8E41937DE2A98D59E83335C34A8FB94BB` | `backend/test/archivos-d-r1.ataque.test.ts` |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `F3292910B39E4569433CC7EF8FACC6F8171FB5A6825A611AE3D1B06600DF3994` | `backend/test/clases-r1.ataque.test.ts` |
+| `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8` | `backend/test/clases-r2.ataque.test.ts` |
+| `A0C04741BEE92E98848DEC3E5224506C759E64BFA1E865AB04387C20B59AB589` | `backend/test/clases-r3.ataque.test.ts` |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `E4FCE121A6971960FE28750A8AA899BB9A177E1A61110034C634B402A8268AF0` | `backend/test/guarda-clase-r1.ataque.test.ts` |
+| `733D508414D4A62ED2FAFB0F4E24A622DCC83242FE811E6F74A21B70E1E76C21` | `backend/test/guarda-clase-r2.ataque.test.ts` |
+| `8D9D4556363911629260EAA09A2A2A12AD5F106CE705440E220F513E3BAFDBCA` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `C6B69AF1937CF11A5B8978A686D75FD33EBC32ED803737ED96EF22E2F801887D` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |
+| `2E7220280A303B7214FFE10D642FBA551DD921A6E8447412F9806433A056B0E6` | `backend/test/logs-archivos-d-r3.ataque.test.ts` **(nueva, ronda 3 de d)** |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `902CC714B31855551C28996A7FC1F650771C71B2D064EE993D8E166B51728C2C` | `backend/test/muro-c-r1.ataque.test.ts` |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `A6F219888148B9FF306A20FE411F2D6A32F1BF2907AC1D6F0AB0328FF2C473B8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `76B256114128377B6A793CAB882D031FB10785076728F8058E0FF1D93A7E9F64` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `ACAF61E8AE80EF5A5AFD0ED745F7C4888729332DF5E05286F1EC01DB3849C494` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |
+| `E0992CEE6F52F58AE1C3451D8D10178040BB5E6995431925337C1042C0BC4F5A` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |
+| `2DA2869ADFEF79B529E5FE05D159558501A8C237E0224254A561FD83AE825362` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |
+| `ADF9E1CFD151E030C6B275A47A5C41F68F46BAEDF880A989676151DCACE5A1B3` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |
+| `BE0E7656BA70C2F73B3096885BCE5B2B73EEDF1B05BCE120216DE5E3EA3A8B09` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |
+| `309B9877D03AF86CD6748E033C3E0137CF4C67A1C08E3873E54DD465CAC4F2D6` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |
+| `76B33ABD23DB2599C23DDCFE78B51A4943EB7C9A56774524BE1C6A5B295CBAC4` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |
+| `47797DCD8653009AF74D6EABFEB8919196BAFA124C97708C9C9E23150A07917C` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |
+| `6B32EC25AC9DB1C23BD3C39D07A707C65115834000580ED86334E4B1FED85AEE` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` **(nueva, ronda 3 de d)** |
+| `DB90CF07D1E1F588BBA307DF342BA0420609EA64038C49A3119675766288DA05` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |
+| `290A33CFB6A910BE74BE26245FD84B1B3E932FF63686BF755A07DBDA15070ED4` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |
+| `C0597F198DFF02F342D087AB46400B72E7168A5FAA35D4A12CC8C482B5674E12` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |
+| `525D1DA5DE4001991E042300BC9CF62AD1B0B4D31C9D0E20B32896241AC9EAAC` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |
+| `72A2CD4AB876FFA94D01FB45B2A555C32B2E40336FB65A12A87DEAC82CFAEB1B` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |
+| `4E842F547E0156AFC753295CCC6F50A326939FC12B8537969818D3FB01569659` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |
+| `2035462B2659CEB37646C85A4EA35CCFA7A7C31E7013104704018620262BE297` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` **(nueva, ronda 3 de d)** |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `C1F4B160D3BE549340F771F3E225721E3776F7A53EA2A653A5A91A2E297BEE93` | `frontend/src/styles/clases-r1.ataque.test.ts` |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+### C-28: esperas fijas en las *.ataque de d (N-T1)
+Arbitraje del manager (`revision.md`, "Verificación del carril trivial de cierre (ajustes visuales del humano)", N-T1). Es una adaptación de mis propias pruebas antes de `<Cd>`, con C-23 como precedente.
+
+El caso "volver al muro después del margen (4 min 1 s)…" de `archivos-d-r2` falló en 1 de 3 corridas completas del manager porque la espera fija de 50 ms perdía la carrera bajo carga. Busqué todas las esperas fijas de mis `*.ataque` de d:
+- `archivos-d-r1`, `-r2` y `-r3`, del frontend y del backend;
+- `format-d-r1`, `-r2` y `-r3`;
+- `logs-archivos-d-r1` y `-r3`.
+
+Cambié las seis que podían perder una carrera por una espera de la condición real. **No cambió ninguna aserción ni ningún título.**
+
+| Archivo:línea | Antes | Después |
+|---|---|---|
+| `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx:412` ("«Descargar» con una URL %s del servidor: no navega a ella") | `await act(() => new Promise((resolver) => setTimeout(resolver, 20)))` | `await waitFor(() => expect(aviso.error).toHaveBeenCalled())`: el aviso del `catch` cuando la URL no pasa el esquema |
+| `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx:509` ("las vistas previas que pinta el muro siguen vigentes …") | `await act(() => new Promise((resolver) => setTimeout(resolver, 50)))` | dos `waitFor`: "Imagen 1.png" con `src` `…/vista/1?firma=3` e "Imagen 2.png" con `…/vista/2?firma=4` (la vista previa nueva de las dos páginas vueltas a pedir) |
+| `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx:549` ("volver al muro %s: …", el de N-T1) | `await act(() => new Promise((resolver) => setTimeout(resolver, 50)))` | `await waitFor(() => expect(pedidas).toBe(pedidasEsperadas))` y un `waitFor` de la imagen con `src` `…/v/<pedidasEsperadas>` |
+| `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx:229` ("primera página sin vistas previas … volver %s") | `await act(() => new Promise((resolver) => setTimeout(resolver, 50)))` | `await waitFor(() => expect(pedidas).toBe(2 + pedidasDeMas))` y un `waitFor` de "Imagen 2.png" con `t=<vencimiento esperado>` en su `src` (el de t0 + 3 min sin nueva petición; el del regreso con ella) |
+| `backend/test/logs-archivos-d-r1.ataque.test.ts:212` (`beforeAll`) | `await new Promise((resolver) => setTimeout(resolver, 200))` | sondeo de 10 ms, con un tope de 5 s, hasta que el log tenga 6 "request completed" |
+| `backend/test/logs-archivos-d-r3.ataque.test.ts:140` (`beforeAll`) | `await new Promise((resolver) => setTimeout(resolver, 200))` | sondeo de 10 ms, con un tope de 5 s, hasta tener 3 `"type":"ZodError"` y 3 "request completed" |
+
+- `act` quedó sin uso en `archivos-d-r1` y `archivos-d-r3` del frontend, así que salió de su import (línea 2). Cada cambio lleva un comentario que cita C-28.
+- **No se tocaron:**
+  - el sondeo de 25 ms de `backend/test/archivos-d-r1.ataque.test.ts:291` (`retenerArchivosYLanzar`), que ya es una espera de condición (`pg_blocking_pids` con un tope);
+  - los `Date.now` controlados con `vi.spyOn`, que simulan el paso del tiempo;
+  - `format-d-r*`, `archivos-d-r2` y `-r3` del backend: no tienen esperas.
+- **Formato:** solo esos archivos, desde su paquete. Lint de ESLint en verde.
+- **Invisibles:** `SIN-INVISIBLES` en los cinco archivos (`escapar.cjs --revisar`).
+
+**Resultados:**
+| Comando | Última línea |
+|---|---|
+| `cd frontend; npm run lint` | `> tsc -b` (código 0) |
+| `npx vitest run` de los tres `archivos-d-r*` del frontend, aislados, tres veces | `Tests  41 passed (41)` las tres |
+| `cd frontend; npm test`, corrida 1 | `Test Files  104 passed (104)` · `Tests  1396 passed (1396)` · `Duration 97.34s` |
+| `cd frontend; npm test`, corrida 2 | `Test Files  104 passed (104)` · `Tests  1396 passed (1396)` · `Duration 64.49s` |
+| `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit` (código 0) |
+| `npx vitest run` de `logs-archivos-d-r1` y `-r3`, aislados, tres veces | `Tests  4 passed (4)` las tres |
+| `cd backend; npm test`, una corrida, sin el frontend a la vez | `Test Files  120 passed (120)` · `Tests  1300 passed (1300)` · `Duration 57.77s` |
+
+PA-07 en la corrida del backend:
+- `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0;
+- `P2028`, solo los dos aceptados (`tx.sesion.create()` y `tx.tokenCuenta.updateMany()`);
+- los `500` son solo los provocados de siempre, más los 3 de `archivos-d-r2` (almacén imposible), ya excluidos por el manager.
+
+El frontend corrió 1396 casos (uno más que en mi ronda 3), porque el carril trivial de cierre agregó una prueba normal; las 107 `*.ataque` no cambian en número.
+
+**PA-11:** al terminar la corrida del backend (15:17:52) aparecen en `docker ps -a`, además del Ryuk de la corrida, `campus-dev-minio-1`, `campus-dev-minio-init-1` y `campus-dev-livekit-1`. Son contenedores de `infra/` que levantó otra persona (lo más probable, para la comprobación humana), no Testcontainers. No los toqué. El Ryuk se revisa abajo.
+
+### Tabla de SHA-256 de las 107 `*.ataque` después de C-28 (nueva base de V-01 para el cierre de d; cambian 5, marcadas)
+| SHA-256 | Archivo |
+|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |
+| `43F1754C8C33F7DE285AB77DBABB0F493422E858529432C9B2BE26FF9423B01B` | `backend/src/config/logger.ataque.test.ts` |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |
+| `BD3C7B5FCB945A2D1F5EC328AA480F8E9B96EC447DC714433575ACA6EE63CCCC` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |
+| `485D39EF014D4A5437D53177D081BCE59C0EEB476BB2CFE4488F986AE9A2201F` | `backend/test/alumnos-b-r1.ataque.test.ts` |
+| `ADF927DFC3321780749CF99945ACAA6D040E6FDD06BED5A6517F681381C9281F` | `backend/test/alumnos-b-r2.ataque.test.ts` |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |
+| `79BB87AE390140BD5F5E5BA00E1A32A8E41937DE2A98D59E83335C34A8FB94BB` | `backend/test/archivos-d-r1.ataque.test.ts` |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |
+| `F3292910B39E4569433CC7EF8FACC6F8171FB5A6825A611AE3D1B06600DF3994` | `backend/test/clases-r1.ataque.test.ts` |
+| `0135A34D3331D84D227DC0CF080C338A16E25334BE4E10EE172677329F7407D8` | `backend/test/clases-r2.ataque.test.ts` |
+| `A0C04741BEE92E98848DEC3E5224506C759E64BFA1E865AB04387C20B59AB589` | `backend/test/clases-r3.ataque.test.ts` |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |
+| `3C069EF866C4A4239BF9584C56B84B5819D4018BAC309454765101ED36FF7237` | `backend/test/cuentas-03a-r1.ataque.test.ts` |
+| `CACCBEB855DEAE681942C60C754FE3EE47BB77A07CA460F5A76B9804F0DFD0F5` | `backend/test/cuentas-r1.ataque.test.ts` |
+| `33586391E0D987822040432878EA6CAB707C910195C8776789B22B3FA2549369` | `backend/test/cuentas-r2.ataque.test.ts` |
+| `924D5DA58A5095D6C9F56CACCC95B2DAA0EFC68D4076C34D85FDA927912BD11B` | `backend/test/cuentas-r3.ataque.test.ts` |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |
+| `E4FCE121A6971960FE28750A8AA899BB9A177E1A61110034C634B402A8268AF0` | `backend/test/guarda-clase-r1.ataque.test.ts` |
+| `733D508414D4A62ED2FAFB0F4E24A622DCC83242FE811E6F74A21B70E1E76C21` | `backend/test/guarda-clase-r2.ataque.test.ts` |
+| `8D9D4556363911629260EAA09A2A2A12AD5F106CE705440E220F513E3BAFDBCA` | `backend/test/guarda-r2.ataque.test.ts` |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |
+| `A82F3F1DFF6E74D34CC319DE688BFED12C1D894FCDCC874D2A2E4FB9AC3A2E53` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` **(cambia, C-28; antes `C6B69AF1…`)** |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` **(cambia, C-28; antes `2E722028…`)** |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |
+| `902CC714B31855551C28996A7FC1F650771C71B2D064EE993D8E166B51728C2C` | `backend/test/muro-c-r1.ataque.test.ts` |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |
+| `97B8D6F6C6B26B9B651EB0B46A48ED27B594A8EF659937EB600FDE793F07E873` | `backend/test/nombres-guarda-r3.ataque.test.ts` |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |
+| `A6F219888148B9FF306A20FE411F2D6A32F1BF2907AC1D6F0AB0328FF2C473B8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |
+| `03161BD1C5DD8C4E42EADFB93BAD66ECF2E9AB5BDE1F491368B29FD269AA3A20` | `backend/test/worker-03c-r1.ataque.test.ts` |
+| `F4EA0BD908D8EC538AA479F9B09BF6FC6F86DF6F93BB7ABAACCD7001DE876395` | `backend/test/worker-r1.ataque.test.ts` |
+| `64AA76974C7AE3E89B2F1ED3D7EFC7864D4323310932A9F46F02C798C363A6D2` | `backend/test/worker-r2.ataque.test.ts` |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |
+| `76B256114128377B6A793CAB882D031FB10785076728F8058E0FF1D93A7E9F64` | `frontend/src/app/marco-r1.ataque.test.tsx` |
+| `ACAF61E8AE80EF5A5AFD0ED745F7C4888729332DF5E05286F1EC01DB3849C494` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |
+| `E0992CEE6F52F58AE1C3451D8D10178040BB5E6995431925337C1042C0BC4F5A` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |
+| `2DA2869ADFEF79B529E5FE05D159558501A8C237E0224254A561FD83AE825362` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |
+| `3267D093574AA792529D8E9311DEBFC651F519EB33F8EF9C369EB2C4C6180389` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |
+| `ADF9E1CFD151E030C6B275A47A5C41F68F46BAEDF880A989676151DCACE5A1B3` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |
+| `B16D9B4376FA719F6DA04745FF701F24FA20159B1AA7904C6C9424D2475EA871` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |
+| `385123D69F8C6411027C5B7DB2E52E62146C0DB54CFFDA3C27BD6B450FE2AF27` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |
+| `C3692E9EC300696E9EB10470BE5239055CF3326D0FCD1607BD82663210AF1B1F` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |
+| `BE0E7656BA70C2F73B3096885BCE5B2B73EEDF1B05BCE120216DE5E3EA3A8B09` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |
+| `309B9877D03AF86CD6748E033C3E0137CF4C67A1C08E3873E54DD465CAC4F2D6` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |
+| `10FB06D3B60E38071FC06D16E3D6341EC0C42AC37CC84812406B207EED994F54` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` **(cambia, C-28; antes `76B33ABD…`)** |
+| `729DCB70477DEC084EA4C9CB9D7C2CAA5DA42BC425753480EAA3E5BC1E6D71FB` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` **(cambia, C-28; antes `47797DCD…`)** |
+| `D16FB15D963CAC9AA335381691C851259AFD85035DDD90D1AE1E510F9BE8D1D2` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` **(cambia, C-28; antes `6B32EC25…`)** |
+| `DB90CF07D1E1F588BBA307DF342BA0420609EA64038C49A3119675766288DA05` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |
+| `290A33CFB6A910BE74BE26245FD84B1B3E932FF63686BF755A07DBDA15070ED4` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |
+| `C0597F198DFF02F342D087AB46400B72E7168A5FAA35D4A12CC8C482B5674E12` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |
+| `525D1DA5DE4001991E042300BC9CF62AD1B0B4D31C9D0E20B32896241AC9EAAC` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |
+| `72A2CD4AB876FFA94D01FB45B2A555C32B2E40336FB65A12A87DEAC82CFAEB1B` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |
+| `4E842F547E0156AFC753295CCC6F50A326939FC12B8537969818D3FB01569659` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |
+| `2035462B2659CEB37646C85A4EA35CCFA7A7C31E7013104704018620262BE297` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |
+| `C1F4B160D3BE549340F771F3E225721E3776F7A53EA2A653A5A91A2E297BEE93` | `frontend/src/styles/clases-r1.ataque.test.ts` |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |
+
+- **PA-11, comprobación final:** a las 15:18:31 el Ryuk de mi corrida ya no aparece; quedan solo los contenedores de `infra/` (`campus-dev-postgres-1`, `campus-dev-minio-1`, `campus-dev-minio-init-1` y `campus-dev-livekit-1`), que no son de Testcontainers ni míos.

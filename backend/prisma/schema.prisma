@@ -54,6 +54,14 @@ enum TipoPublicacion {
   @@map("tipo_publicacion")
 }
 
+enum EstadoArchivo {
+  pendiente
+  confirmado
+  descartado
+
+  @@map("estado_archivo")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
@@ -82,6 +90,7 @@ model Usuario {
   movimientosComoMaestro MovimientoInscripcion[] @relation("MovimientosDelMaestro")
   publicaciones          Publicacion[]
   comentarios            Comentario[]
+  archivosSubidos        Archivo[]
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -161,6 +170,7 @@ model Clase {
   inscripciones    Inscripcion[]
   movimientos      MovimientoInscripcion[]
   publicaciones    Publicacion[]
+  archivos         Archivo[]
 
   @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
   @@map("clases")
@@ -219,6 +229,7 @@ model Publicacion {
   clase         Clase           @relation(fields: [claseId], references: [id], onDelete: Cascade)
   autor         Usuario         @relation(fields: [autorId], references: [id], onDelete: Restrict)
   comentarios   Comentario[]
+  archivos      Archivo[]
 
   @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
   @@map("publicaciones")
@@ -236,4 +247,30 @@ model Comentario {
 
   @@index([publicacionId, creadoEn, id])
   @@map("comentarios")
+}
+
+// CLASES-d (§D-D1). Metadatos de un archivo del almacén; el objeto vive en R2 o MinIO, nunca en la
+// base. clave_objeto es materiales/{claseId}/{archivoId}: el nombre del usuario no forma parte de
+// ella. Los dos CHECK (tamano > 0, y confirmado si y solo si tiene publicación) se agregaron a mano
+// en la migración: Prisma no expresa CHECK ni lo compara al buscar deriva. publicacion_id es
+// ON DELETE NO ACTION: al borrar una clase, la cascada borra en la misma sentencia sus publicaciones
+// y sus archivos, y la comprobación se hace al final de la sentencia.
+model Archivo {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claveObjeto   String        @unique @map("clave_objeto")
+  nombre        String
+  tipo          String
+  tamano        Int
+  subidoPor     String        @map("subido_por") @db.Uuid
+  estado        EstadoArchivo @default(pendiente)
+  claseId       String        @map("clase_id") @db.Uuid
+  publicacionId String?       @map("publicacion_id") @db.Uuid
+  creadoEn      DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  autor         Usuario       @relation(fields: [subidoPor], references: [id], onDelete: Restrict)
+  clase         Clase         @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  publicacion   Publicacion?  @relation(fields: [publicacionId], references: [id], onDelete: NoAction)
+
+  @@index([publicacionId])
+  @@map("archivos")
 }

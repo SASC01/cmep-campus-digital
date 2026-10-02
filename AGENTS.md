@@ -102,7 +102,7 @@ Cuatro subagentes en `.claude/agents/`. El **orquestador** es la sesión princip
 | `tester` | Intenta romper la implementación con pruebas adversarias | No corrige ni toca código de producción | `*.ataque.test.ts` + `reporte-tester.md` | `opus`, esfuerzo `high` |
 | `manager` | Revisa el plan y el resultado final; arbitra y destaca lo importante | No reescribe nada | `revision.md` | `opus`, esfuerzo `high` |
 
-El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `effort` en `.claude/agents/*.md`). El del `programador` está a prueba: se revisa después del encargo CLASES.
+El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `effort` en `.claude/agents/*.md`). El del `programador` se revisó al cerrar CLASES-01 (decisión del humano, 2026-10-02): sigue `sonnet` con esfuerzo `medium`, con la medida de los "hermanos" de "Resúmenes verificables del programador". Si un encargo vuelve a tener 2 o más rondas extra del tester por subentrega por no aplicar el remedio de un hallazgo a sus hermanos, el `programador` pasa a `opus` en el carril sensible.
 
 ### Flujo
 1. El humano pide una funcionalidad citando su `RF-xx`.
@@ -135,6 +135,7 @@ El modelo y el esfuerzo de cada agente se fijan en su frontmatter (`model` y `ef
 - Antes de instruir a un agente sobre qué archivo modificar, el orquestador comprueba que no esté en la lista 'No se toca' del plan; si lo está, pide autorización al humano.
 - Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 - Todo patrón visual nuevo que cree un encargo se documenta en `docs/DESIGN.md` en ese mismo encargo, y el manager lo verifica en la revisión final.
+- **Transcripción con cotejo (regla de respaldo).** Cuando un agente no puede escribir su entregable (por ejemplo, un plan demasiado grande para reescribirlo entero, o una herramienta que rechaza el archivo), lo entrega como texto o como ediciones con ancla literal y el orquestador lo aplica tal cual, sin cambiar contenido, con una nota de transcripción al inicio, un cotejo mecánico (`git diff -U0` contra el commit base, con cada hunk mapeado a su encabezado) y el SHA-256 resultante en `aprobacion.md`; el manager verifica el diff. Los agentes escriben sus archivos grandes por partes (`Edit` o `cat >>`), nunca reescribiéndolos completos. Decisión del humano (2026-10-02).
 
 ### Commits y cierre de subentregas
 Decisión del humano (2026-09-28). Aplica a todos los encargos, de cualquier carril.
@@ -157,6 +158,7 @@ Decisión del humano (2026-09-28). Aplica a todos los encargos y a toda entrega 
 - **Conteos:** toda cifra de archivos, pruebas o casos sale de `npx vitest list` o de la corrida, con el comando incluido.
 - **lint, test y build:** el resumen trae el comando exacto y la última línea de salida de cada uno, no un "pasaron".
 - **Verificación del manager:** antes de aceptar el resumen, y antes de que el tester ataque, el manager corre `lint`, `test` y `build` y contrasta cada cifra del resumen con su propia corrida. Una cifra que no coincide devuelve el resumen al programador; no se corrige a mano. El detalle está en `.claude/agents/manager.md`, "Verificación del resumen del programador", y en `.claude/agents/programador.md`, "Resumen verificable".
+- **Hermanos de un hallazgo** (decisión del humano, 2026-10-02, al cerrar CLASES-01): al corregir un hallazgo, el resumen lista los controles, rutas, campos o unidades hermanos (los que comparten el mismo patrón que el hallazgo) y dice, uno por uno, si el remedio también les aplica y si se aplicó. El manager lo contrasta con el código. Motivo: en CLASES, la mayoría de las rondas extra del tester vinieron de remedios que no se extendieron por analogía (T-30/T-31 en c; T-38/T-39 y T-43/T-44 en d).
 
 ### Trabajo visual
 Decisión del humano (2026-09-27). Aplica a los encargos de diseño y de interfaz. La base de "No se toca" y los commits siguen "Commits y cierre de subentregas".
@@ -175,6 +177,7 @@ La guía de código está en `CLAUDE.md`: estructura de módulos de `features/`,
 - Avisos y correos se prueban a través de `notifier` con un doble en memoria que registra lo que se habría enviado. Ninguna prueba llama a Resend.
 - No marques nada como terminado con pruebas en rojo ni las desactives para que pase.
 - Toda prueba debe ejecutar al menos una aserción. Nunca termines una prueba con un return temprano cuando falte una condición previa: si falta, la prueba falla con un mensaje que lo explique.
+- **Nunca se corren dos suites a la vez** (backend y frontend, o dos corridas del backend): la carga tumba el backend por la espera en cadena de `LOCK TABLE usuarios` (CHORE-02) y la corrida deja de ser verificable. Se corre una, se espera a que termine y se corre la otra. Decisión del humano (2026-10-02).
 
 ## Git
 - Ramas: `feat/…`, `fix/…`, `chore/…`, `docs/…`.

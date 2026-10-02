@@ -32,6 +32,8 @@ const publicacion = (n: number, extra: Record<string, unknown> = {}) => ({
   autor: AUTOR,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios: 0,
+  // C-21 (Enmienda 10): toda publicación del servidor lleva adjuntos.
+  adjuntos: [],
   ...extra,
 })
 

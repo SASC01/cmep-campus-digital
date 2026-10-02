@@ -33,6 +33,10 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const errorApi = (estado: number, codigo: string, mensaje: string) =>
   respuestaJson(estado, { error: { codigo, mensaje } })
 
+// CLASES-d ronda 0, complemento (C-21, §D-R0; §D-D5 "Forma de los datos" y Enmienda 10 del plan de
+// CLASES-01): adjuntos es obligatorio en publicacionSchema y el backend lo manda siempre ([] si no
+// hay adjuntos), en el muro y en la respuesta 201 de crear. El doble lo trae para seguir pasando el
+// schema.parse de apiClient; ninguna aserción cambia y protege lo mismo que antes.
 interface PublicacionFalsa {
   id: string
   tipo: "anuncio" | "material"
@@ -41,6 +45,7 @@ interface PublicacionFalsa {
   autor: { id: string; nombre: string }
   creadoEn: string
   comentarios: number
+  adjuntos: unknown[]
 }
 
 const publicacion = (n: number, comentarios = 0): PublicacionFalsa => ({
@@ -51,6 +56,7 @@ const publicacion = (n: number, comentarios = 0): PublicacionFalsa => ({
   autor: AUTOR,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios,
+  adjuntos: [],
 })
 
 const comentario = (n: number, propio = false) => ({
@@ -395,10 +401,14 @@ describe("ataque CLASES-c r2: T-31 en los formularios", () => {
     })
     fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
     await waitFor(() => expect(llamadas(fetchMock, "POST")).toHaveLength(1))
+    // CLASES-d ronda 0, complemento (C-22, §D-R0; §D-D5 "Forma de los datos" y Enmienda 10): el
+    // formulario envía siempre archivoIds, [] si no hay adjuntos. Sigue protegiendo la normalización
+    // de T-31 del título y la descripción, con el cuerpo completo.
     expect(cuerpoDe(llamadas(fetchMock, "POST")[0])).toEqual({
       tipo: "material",
       titulo: "Unidad 1",
       texto: "línea 1\nlínea 2",
+      archivoIds: [],
     })
   })
 })

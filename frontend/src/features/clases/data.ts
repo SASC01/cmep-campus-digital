@@ -1,3 +1,5 @@
+import { TIPOS_DE_ARCHIVO_PERMITIDOS } from "@campus/shared"
+
 // Claves de consulta de TanStack Query (CLASES-a). Se reutilizan tal cual en las invalidaciones y
 // en la prueba de cambio de identidad (PR-A23a).
 export const CLAVE_CLASES_INSCRITAS = ["clases", "inscritas"] as const
@@ -131,6 +133,10 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   // §D-C6: errores del muro.
   publicacionNoEncontrada: "Esa publicación ya no existe.",
   comentarioNoEncontrado: "Ese comentario ya no existe.",
+  // §D-D6: errores de los archivos adjuntos.
+  archivoNoSubido: "Uno de los archivos no terminó de subir. Inténtalo de nuevo.",
+  archivoInvalido: "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.",
+  almacenNoDisponible: "Los archivos no están disponibles en este momento. Inténtalo más tarde.",
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
 
@@ -220,6 +226,8 @@ export const TEXTOS_PUBLICACION = {
   ocultarComentarios: "Ocultar comentarios",
   borrarPublicacion: "Borrar publicación",
   confirmarBorrarPublicacion: "Se borrará con sus comentarios.",
+  // §D-D6: con archivos adjuntos, la frase de consecuencia también los nombra.
+  confirmarBorrarPublicacionConAdjuntos: "Se borrará con sus comentarios y adjuntos.",
   siBorrar: "Sí, borrar",
   cancelar: "Cancelar",
 } as const
@@ -237,3 +245,36 @@ export const TEXTOS_COMENTARIOS = {
   avisoComentarioBorrado: "Comentario borrado",
   verMas: "Ver más comentarios",
 } as const
+
+// §D-D6: textos de CLASES-d (propuesta).
+export const TEXTOS_ADJUNTOS = {
+  adjuntar: "Adjuntar archivos",
+  ayuda: "Hasta 5 archivos de 25 MB: PDF, imágenes, Word, Excel, PowerPoint o texto.",
+  elegidos: "Archivos elegidos",
+  adjuntos: "Archivos adjuntos",
+  quitar: "Quitar",
+  descargar: "Descargar",
+  imagenAdjunta: (nombre: string) => `Imagen adjunta: ${nombre}`,
+  errorPesaMucho: (nombre: string) => `«${nombre}» pesa más de 25 MB.`,
+  errorTipo: (nombre: string) => `«${nombre}» no es de un tipo permitido.`,
+  errorCantidad: "Puedes adjuntar hasta 5 archivos.",
+  errorSubida: (nombre: string) => `No pudimos subir «${nombre}». Inténtalo de nuevo.`,
+  // T-41: la solicitud de subida de un archivo fue rechazada; `motivo` ya viene en español.
+  errorRechazado: (nombre: string, motivo: string) => `No pudimos subir «${nombre}»: ${motivo}`,
+  // T-38: la lista no cambia mientras se publica.
+  listaFija: "Mientras se publica no puedes cambiar los archivos.",
+} as const
+
+// Los tipos y las extensiones que acepta el selector de archivos, salidos de la misma tabla que usa
+// el servidor para validar (shared/).
+export const ACCEPT_DE_ADJUNTOS = Object.entries(TIPOS_DE_ARCHIVO_PERMITIDOS)
+  .flatMap(([tipo, extensiones]) => [tipo, ...extensiones.map((extension) => `.${extension}`)])
+  .join(",")
+
+// Sin vistas previas, el muro se considera fresco 4 minutos. Con ellas, ver tiempoFrescoDelMuro (lib.ts):
+// son URL firmadas que vencen a los 5 minutos de firmarse.
+export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
+
+// T-40: el muro se vuelve a pedir este tiempo antes de que venza la primera vista previa; así las URL
+// viejas siguen vigentes mientras llega la respuesta nueva.
+export const MARGEN_DE_VISTA_PREVIA_MS = 60_000

@@ -68,6 +68,14 @@ describe("ataque: arranque de la API y del worker (AUTH-02a)", () => {
     expect(salida).not.toContain(clave)
   }, 60_000)
 
+  // CLASES-d ronda 0 (C-13, §D-R0; §D-D2 del plan de CLASES-01; caso fuera del inventario, que
+  // solo preveía la firma de construirApp): config/env.ts exigirá en production STORAGE_ENDPOINT,
+  // STORAGE_ACCESS_KEY y STORAGE_SECRET_KEY, y worker.ts (en "No se toca") llama a cargarEnv() antes
+  // que a cargarEnvCorreo(). Sin almacén, el worker saldría por STORAGE_* antes de mirar el correo y
+  // la salida ya no nombraría RESEND_API_KEY ni CORREO_REMITENTE. El caso suma un almacén válido para
+  // que la única configuración que falte siga siendo la del correo. Sigue protegiendo lo mismo: el
+  // worker en production sin correo no arranca (código 1), nombra las dos variables y no imprime el
+  // remitente ni llega a worker_listo; además, tampoco imprime el secreto del almacén que recibe.
   it("el worker en production sin RESEND_API_KEY ni remitente propio no arranca y no imprime valores", async () => {
     const puertoCerrado = await puertoLibre()
     const remitente = "CMEP <notificaciones@campus.local>"
@@ -75,6 +83,9 @@ describe("ataque: arranque de la API y del worker (AUTH-02a)", () => {
       NODE_ENV: "production",
       JWT_SECRET: randomBytes(36).toString("base64url"),
       DATABASE_URL: `postgresql://campus_pruebas:x@127.0.0.1:${puertoCerrado}/campus_pruebas`,
+      STORAGE_ENDPOINT: "https://almacen.colegio-ataque.mx",
+      STORAGE_ACCESS_KEY: "llave-de-acceso-del-ataque",
+      STORAGE_SECRET_KEY: "secreto-del-almacen-del-ataque",
       RESEND_API_KEY: "",
       CORREO_REMITENTE: remitente,
       URL_PUBLICA_FRONTEND: "https://campus.colegio-ataque.mx",
@@ -84,6 +95,7 @@ describe("ataque: arranque de la API y del worker (AUTH-02a)", () => {
     expect(salida).toContain("RESEND_API_KEY")
     expect(salida).toContain("CORREO_REMITENTE")
     expect(salida).not.toContain("notificaciones@campus.local")
+    expect(salida).not.toContain("secreto-del-almacen-del-ataque")
     expect(salida).not.toContain("worker_listo")
   }, 60_000)
 

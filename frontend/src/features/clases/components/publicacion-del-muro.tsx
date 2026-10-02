@@ -9,6 +9,7 @@ import { formatearFechaHora } from "@/lib/format"
 import { TEXTOS_PUBLICACION } from "../data"
 import { useBorrarPublicacion } from "../hooks"
 import type { Publicacion } from "../types"
+import { AdjuntosDePublicacion } from "./adjuntos-de-publicacion"
 import { ComentariosDePublicacion } from "./comentarios-de-publicacion"
 
 interface PublicacionDelMuroProps {
@@ -31,6 +32,10 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
   const confirmandoAnteriorRef = useRef(confirmando)
   const esMaterial = publicacion.tipo === "material"
+  const textoDeConfirmacion =
+    publicacion.adjuntos.length > 0
+      ? TEXTOS_PUBLICACION.confirmarBorrarPublicacionConAdjuntos
+      : TEXTOS_PUBLICACION.confirmarBorrarPublicacion
 
   useEffect(() => {
     if (confirmandoAnteriorRef.current === confirmando) return
@@ -73,6 +78,8 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
           </p>
         )}
 
+        <AdjuntosDePublicacion claseId={claseId} adjuntos={publicacion.adjuntos} />
+
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -102,7 +109,7 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
 
         {esMaestro && confirmando && (
           <div className="flex flex-col gap-2">
-            <p className="text-small">{TEXTOS_PUBLICACION.confirmarBorrarPublicacion}</p>
+            <p className="text-small">{textoDeConfirmacion}</p>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"

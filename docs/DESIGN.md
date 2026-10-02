@@ -63,7 +63,7 @@ Referencias de carácter (PRD §7): Notion (editorial y cálido), Arc Browser (p
 | `--accent-soft` | `#E1E7F7` | Texto secundario sobre `--accent` sólido (tarjeta de clase azul). **No va sobre vidrio azul** (§3, "Contraste verificado") | captura |
 | `--accent-soft-glass` | `#E8ECF8` | Texto secundario sobre vidrio azul: saludo y siguiente paso del bloque destacado | captura; como token, propuesta aprobada (2026-09-27) |
 | `--link` | `#1B3480` | Enlaces ("Ver todas") y elemento activo de la barra lateral | humano; captura |
-| `--brand` / `--brand-foreground` | `#1D5B4B` / `#FFFFFF` | Monograma, "Campus Digital" en la barra superior, tarjeta de clase verde, insignia "En vivo" y orbe verde | captura |
+| `--brand` / `--brand-foreground` | `#1D5B4B` / `#FFFFFF` | Monograma de las pantallas de cuenta, "Campus Digital" en la barra superior, tarjeta de clase verde, insignia "En vivo" y orbe verde | captura |
 | `--brand-soft` | `#E1EEE8` | Texto secundario sobre `--brand` | captura |
 | `--ring` | `#22409A` (apunta a `--accent`) | Anillo de foco sobre vidrio y superficies claras (§6) | captura |
 
@@ -232,7 +232,7 @@ En `@theme`, cada tamaño es un token `--text-*` con sus variantes `--line-heigh
 | `--text-body` | 16 px / 1.5 | 400 | 0 | texto | Texto corrido y campos. Título de fila de entrega, en 700 |
 | `--text-small` | 14 px / 1.45 | 400 o 500 | 0 | texto | Metadatos, texto secundario y celdas de tabla. Botones, en 700 |
 | `--text-caption` | 12 px / 1.35 | 500 o 700 | 0; +0.04em en mayúsculas | texto | Etiquetas de la barra lateral, insignias, mes del cuadro de fecha |
-| `--text-display-compacto` | 32 px / 1.05 | 700 | `-0.03em` | títulos | **Implementación (CLASES-a, propuesta):** el titular del bloque destacado del inicio (estudiante y maestro) usa este token por debajo de 640 px, con `text-display-compacto sm:text-display`, en vez de recalcular `--text-display` con una media query. Mismo interlineado, interletraje y peso que `--text-display`; solo cambia el tamaño |
+| `--text-display-compacto` | 32 px / 1.05 | 700 | `-0.03em` | títulos | **Implementación (CLASES-a, propuesta aprobada (2026-10-02)):** el titular del bloque destacado del inicio (estudiante y maestro) usa este token por debajo de 640 px, con `text-display-compacto sm:text-display`, en vez de recalcular `--text-display` con una media query. Mismo interlineado, interletraje y peso que `--text-display`; solo cambia el tamaño |
 
 - El interletraje va en valores CSS literales, con el guion ASCII como signo menos (`-0.03em`). El signo tipográfico `−` no es CSS válido y el navegador ignoraría la declaración sin avisar.
 - La familia de títulos solo se usa en 500 y 700.
@@ -306,16 +306,16 @@ A menos de 640 px, los márgenes de la ventana bajan a 16 px; propuesta aprobada
 
 - **Foco visible** en todo elemento interactivo, solo con `:focus-visible`: contorno sólido de 2 px, separado 2 px del elemento. Sobre vidrio, vidrio fuerte y superficies claras, en `--ring`. Sobre vidrio azul, `--accent` o `--brand` (bloque destacado, tarjetas de clase de color, botón `primary`), en `#FFFFFF`. Nunca se quita el contorno sin poner otro en su lugar.
   - **Botones rellenos (`primary`, DESIGN-01a, propuesta aprobada (2026-09-27), confirmada en H-04; `destructive`, mismo mecanismo, propuesta aprobada (2026-09-28)):** un contorno blanco por fuera del botón quedaría sobre vidrio claro y no se vería. El contorno va 4 px hacia dentro (`-outline-offset-4`) y en el color del texto del botón (`--primary-foreground` o `--destructive-foreground`, ambos `#FFFFFF`): 9.2:1 y 6.8:1 contra el fondo del botón.
-  - **Tarjetas de clase de color y bloque destacado (CLASES-a, propuesta; cierra S-07 de DESIGN-01):** mismo mecanismo, `focus-visible:-outline-offset-4` y el color del texto de la superficie (`#FFFFFF`). Blanco sobre `--brand` (verde): 7.9:1; sobre `--accent` (azul): 9.2:1; sobre vidrio azul (bloque destacado): 5.4:1, peor caso. En la tarjeta blanca no hay superficie de color: el foco es el `--ring` global, por fuera del elemento.
+  - **Tarjetas de clase de color y bloque destacado (CLASES-a, propuesta aprobada (2026-10-02); cierra S-07 de DESIGN-01):** mismo mecanismo, `focus-visible:-outline-offset-4` y el color del texto de la superficie (`#FFFFFF`). Blanco sobre `--brand` (verde): 7.9:1; sobre `--accent` (azul): 9.2:1; sobre vidrio azul (bloque destacado): 5.4:1, peor caso. En la tarjeta blanca no hay superficie de color: el foco es el `--ring` global, por fuera del elemento.
 - **Contraste mínimo:** 4.5:1 en texto normal; 3:1 en texto grande (24 px o más, o 18.66 px en 700), en bordes de controles y en el indicador de foco. Sobre vidrio se verifica contra el peor caso (§3).
 - **Texto nunca directo sobre el fondo con orbes.** Siempre sobre vidrio o sobre una superficie sólida.
 - **Controles:** los campos llevan borde `--input`. Los botones se identifican por su texto; su borde de vidrio no necesita 3:1 (WCAG 1.4.11 no lo exige cuando el texto identifica el control).
 - **Tamaño de los objetivos:** 44 × 44 px en las vistas de estudiante y maestro; en las pantallas densas, 36 px desde 768 px de ancho y 44 px por debajo de ese corte (decisión del humano, 2026-09-27; el corte de 768 px, propuesta aprobada (2026-09-28): coincide con el punto en que la barra lateral pasa a barra inferior, §7.4). WCAG 2.2 pide al menos 24 px.
 - **Estado** siempre con texto o icono, además del color.
 - **Movimiento:**
-  - Las transiciones de la interfaz duran 150 ms o menos y solo cambian color y fondo.
+  - Las transiciones de la interfaz duran 150 ms o menos y solo cambian color y fondo. Excepción (propuesta, 2026-10-02): el indicador de un control segmentado o de pestañas (§7.3) se desliza con `transform` en 200 ms.
   - La única animación decorativa son los orbes del fondo, con sus reglas (§7.1).
-  - Con `prefers-reduced-motion: reduce`, los orbes quedan quietos y el indicador de carga deja de girar y conserva su texto.
+  - Con `prefers-reduced-motion: reduce`, los orbes quedan quietos, el indicador de carga deja de girar y conserva su texto, y el indicador de un control segmentado cambia sin transición.
 - **Sin `backdrop-filter`**, las superficies de vidrio pasan a sólidas (§3, "Materiales"). La interfaz sigue siendo legible y usable sin el efecto.
 - **Botones con una petición en vuelo (DESIGN-01a, propuesta aprobada (2026-09-28)):** el patrón es `enEspera` en `Button` (`components/ui/button.tsx`), nunca `disabled`:
   1. El botón no lleva `disabled`; lleva `aria-disabled="true"` y `aria-busy="true"`, conserva el foco y sigue en el orden de tabulación.
@@ -345,7 +345,7 @@ El fondo ocupa toda la ventana, queda fijo detrás del contenido, no recibe el p
 | Azul suave | `--orb-soft` | 520 px | 30 s | Abajo al centro, cortado por el borde |
 
 - **Animación:** cada orbe se desplaza y escala en un ciclo infinito de ida y vuelta, con `ease-in-out`, **solo con `transform`**. Nunca se animan el color, la opacidad, el tamaño en px ni un desenfoque. La amplitud es propuesta aprobada (2026-09-27): hasta 60 px de desplazamiento y escala entre 0.92 y 1.08.
-- **Rendimiento:** solo los orbes llevan `will-change: transform`. No se agregan más orbes ni capas animadas.
+- **Rendimiento:** solo los orbes llevan `will-change: transform`. No se agregan más orbes ni capas animadas (el indicador de un control segmentado, §7.3, usa solo `transition-transform`, sin `will-change`).
 - **Movimiento reducido:** con `prefers-reduced-motion: reduce`, los orbes quedan quietos en su posición de la captura (`animation: none`).
 - **Posición y trayectoria (DESIGN-01b, propuesta aprobada (2026-09-28); S-05):** medidas sobre la captura de 1280 × 800. Azul con centro en (190, 150) px de la ventana; verde con centro a 1144 px del borde izquierdo y a media altura; suave con centro horizontal cerca del medio y solo 122 px visibles abajo. El 0 % del ciclo es la posición de la captura; el desplazamiento máximo es de 60 px y la escala va de 0.92 a 1.08, con `alternate` para la ida y vuelta.
 - **Cómo se decide el movimiento (DESIGN-01b):** `orbesEnMovimiento(pathname)` (`components/layout/lib.ts`) compara la ruta actual, sin distinguir mayúsculas y sin la barra final, contra `RUTAS_CON_ORBES_EN_MOVIMIENTO` (`components/layout/data.ts`; S-03).
@@ -387,7 +387,7 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - **Lo fijo nunca dentro del vidrio (DESIGN-01b):** un `backdrop-filter` convierte a su elemento en bloque contenedor de lo fijo (`position: fixed`) que tenga dentro. El fondo con orbes se monta fuera del router, y la barra inferior cuelga de un contenedor sin vidrio.
 - **Panel de anuncios del login (DESIGN-01b, propuesta aprobada (2026-09-28)):** panel de vidrio con una lista desplazable de filas de vidrio fuerte (`sin-sombra-de-vidrio` en la lista), con nombre accesible del título y enfocable con Tab; compacto arriba en móvil (RF-06).
 - **Pantallas de cuenta (DESIGN-01b, propuesta aprobada (2026-09-28)):** panel de vidrio centrado en la ventana, con el monograma (`Monograma`) encima del título.
-- **Lista de compañeros (CLASES-b, propuesta):** excepción a "Elemento sobre vidrio". Las filas de `PersonasView` (`ListaPersonas`) van **sin vidrio fuerte**, separadas por divisores de 1 px en `--border` dentro del panel. Son filas de solo lectura, sin acción, y un vidrio fuerte por fila recargaría una lista de 30 nombres.
+- **Lista de compañeros (CLASES-b, propuesta aprobada (2026-10-02)):** excepción a "Elemento sobre vidrio". Las filas de `PersonasView` (`ListaPersonas`) van **sin vidrio fuerte**, separadas por divisores de 1 px en `--border` dentro del panel. Son filas de solo lectura, sin acción, y un vidrio fuerte por fila recargaría una lista de 30 nombres.
 
 ### 7.3 Controles
 
@@ -410,7 +410,8 @@ Una pantalla nueva que no esté en la tabla tiene los orbes quietos. Su encargo 
 - **Campo de contraseña (DESIGN-01b; nombre y estado: decisión del humano, 2026-09-27; aspecto: propuesta aprobada (2026-09-28)):** botón de ojo dentro del campo, a la derecha, 44 px, `ghost`; icono `Eye`/`EyeOff` en `--foreground` (16.4 sobre `--surface`); **nombre fijo por campo** ("Mostrar contraseña" si el formulario tiene un solo campo; si tiene varios, el nombre de su campo: "Mostrar contraseña nueva", "Mostrar confirmación de contraseña" y "Mostrar contraseña temporal" (retirado en AUTH-03a: el cambio obligatorio ya no pide la temporal), confirmados por el humano), como texto visualmente oculto dentro del botón y nunca como atributo de etiqueta; el estado, en el atributo de presionado; vuelve a ocultarse al enviar el formulario, también si la validación en cliente falla; no mueve el cursor del campo; no cambia el `autocomplete`; sin corrector ortográfico.
 - **Campo de texto largo (AUTH-03c, propuesta), `components/ui/textarea.tsx`:** el mismo borde, fondo y estado inválido que un campo de una línea, foco resuelto igual (`focus-visible:border-accent`, sin anillo propio); `--text-body` (16 px, también en la densidad del administrador); altura por número de filas, no fija; se redimensiona solo en vertical (`resize-y`). Lo usa `FormularioInvitacionMasiva` (`features/admin/components/formulario-invitacion-masiva.tsx`).
 - **Una vista con dos paneles de acción tiene un solo `primary`** (AUTH-03c): en `/admin/maestros`, "Enviar invitaciones" es la acción principal y "Generar enlace" pasa a `outline`.
-- **Grupo de dos botones para elegir un tipo (CLASES-c, propuesta):** un `<div role="group">` con nombre accesible ("Tipo de publicación") y dos botones `outline`, `size="sm"`, cada uno con `aria-pressed`. El que está presionado lleva fondo `--surface`, texto `--link` y un icono `Check` delante del texto, para que el estado no dependa del color. El botón principal del formulario cambia su objeto según el tipo elegido ("Publicar anuncio" o "Publicar material"). Lo usa `FormularioPublicacion` (`features/clases/components/formulario-publicacion.tsx`).
+- **Control segmentado o de pestañas (propuesta (2026-10-02), decisión del humano):** regla para todo control segmentado o de pestañas **futuro**; hoy solo `SeccionesDeClase` (§7.16) la implementa. El grupo va en vidrio (`Card`, con `rounded-card` y `p-1`) y el indicador de la opción activa es un elemento `aria-hidden` con `rounded-row` que se desliza con `transform` (`translate`) y `transition-transform` de 200 ms, sin transición con `prefers-reduced-motion: reduce` (`motion-reduce:transition-none`). El estado activo se dice además con `aria-current` (en una navegación) o `aria-pressed` (en una elección) y con el color del texto, nunca solo con la posición del indicador. **Sin opción activa no hay indicador:** por ejemplo, `/maestro/clases/:claseId/editar` dentro de la clase no activa ninguna sección, y el indicador no se monta. Pendiente de decisión del humano: si el grupo "Tipo de publicación" (viñeta siguiente), que hoy marca su opción con fondo y `Check` sin indicador deslizante, adopta esta regla; mientras no se decida, queda fuera de ella.
+- **Grupo de dos botones para elegir un tipo (CLASES-c, propuesta aprobada (2026-10-02)):** un `<div role="group">` con nombre accesible ("Tipo de publicación") y dos botones `outline`, `size="sm"`, cada uno con `aria-pressed`. El que está presionado lleva fondo `--surface`, texto `--link` y un icono `Check` delante del texto, para que el estado no dependa del color. El botón principal del formulario cambia su objeto según el tipo elegido ("Publicar anuncio" o "Publicar material"). Lo usa `FormularioPublicacion` (`features/clases/components/formulario-publicacion.tsx`).
 
 ### 7.4 Marco: barra lateral y barra superior
 
@@ -419,7 +420,7 @@ Las dos barras flotan sobre el fondo, a 24 px de los bordes de la ventana.
 **Barra lateral**
 
 - 96 px de ancho, de vidrio, `--radius-panel`.
-- Arriba va el monograma: 52 × 52 px, `--brand`, "cm" en `--brand-foreground`, a 20 px del borde superior de la barra. Es provisional hasta tener el logo del colegio (PRD §11).
+- La barra empieza en el primer destino ("Inicio"; propuesta, decisión del humano (2026-10-02)): ya no lleva el monograma. `Monograma` se conserva solo en las pantallas de cuenta (§7.2).
 - Elementos apilados de 72 × 60 px, `--radius-row` y 12 px entre ellos: icono de lucide de 20 px con su etiqueta en `--text-caption` debajo.
   - **Activo:** vidrio fuerte, icono y etiqueta en `--link` y `aria-current="page"`.
   - **Inactivo:** icono y etiqueta en `--foreground`; vidrio fuerte bajo el cursor.
@@ -442,7 +443,7 @@ Las dos barras flotan sobre el fondo, a 24 px de los bordes de la ventana.
 - Avatar decorativo (`AvatarUsuario`) con las iniciales de `inicialesDe(nombre)` (`lib/format.ts`).
 - Sin botón de avisos todavía (llega con el módulo `notificaciones`).
 - **Barra superior por debajo de 640 px (S-12):** no caben el nombre del producto, el avatar, el nombre de la persona y "Cerrar sesión" con texto. El nombre y el rol quedan solo para lectores de pantalla, el avatar se oculta y "Cerrar sesión" muestra solo su icono (su nombre accesible no cambia).
-- **CLASES-a, R-01 de DESIGN-01 (propuesta):** la barra sigue compacta, con un solo destino "Inicio" por rol (decisión del humano, P-01 A). La "lista de clases" de PRD §7 son las tarjetas de "Mis clases" del inicio (§7.6), no un destino de la barra. Dentro de una clase, "Inicio" **no** se marca activo: `BarraNavegacion` usa `NavLink` con `end`, así que solo coincide con `/estudiante` o `/maestro` exactos, y cada página de clase lleva su propio enlace "Volver a mis clases" (§7.16).
+- **CLASES-a, R-01 de DESIGN-01 (propuesta aprobada (2026-10-02)):** la barra sigue compacta, con un solo destino "Inicio" por rol (decisión del humano, P-01 A). La "lista de clases" de PRD §7 son las tarjetas de "Mis clases" del inicio (§7.6), no un destino de la barra. Dentro de una clase, "Inicio" **no** se marca activo: `BarraNavegacion` usa `NavLink` con `end`, así que solo coincide con `/estudiante` o `/maestro` exactos, y cada página de clase lleva su propio enlace "Volver a mis clases" (§7.16).
 
 ### 7.5 Bloque destacado
 
@@ -459,7 +460,7 @@ Reglas:
 - A menos de 640 px, la tarjeta interna pasa debajo del texto y el titular baja a 32 px.
 - El foco dentro del bloque usa el contorno `#FFFFFF`; dentro de la tarjeta interna, `--ring` (§6).
 
-**Implementación (CLASES-a, propuesta):** `BloqueDestacado` (`features/clases/components/`). El saludo es un `<span>` de texto exacto "Hola, `<nombre>`" (no un encabezado) junto a la fecha de hoy (`formatearFechaLarga`, `lib/format.ts`), y depende solo de la sesión: se ve aunque falle la consulta de clases. El titular (`h1`, `text-display-compacto sm:text-display`) muestra su estado de carga (`Cargando`) y de error ("No pudimos cargar tus clases") antes del dato. La tarjeta interna lleva el formulario de unirse (estudiante) o el enlace "Crear clase" (maestro).
+**Implementación (CLASES-a, propuesta aprobada (2026-10-02)):** `BloqueDestacado` (`features/clases/components/`). El saludo es un `<span>` de texto exacto "Hola, `<nombre>`" (no un encabezado) junto a la fecha de hoy (`formatearFechaLarga`, `lib/format.ts`), y depende solo de la sesión: se ve aunque falle la consulta de clases. El titular (`h1`, `text-display-compacto sm:text-display`) muestra su estado de carga (`Cargando`) y de error ("No pudimos cargar tus clases") antes del dato. La tarjeta interna lleva el formulario de unirse (estudiante) o el enlace "Crear clase" (maestro).
 
 ### 7.6 Tarjeta de clase
 
@@ -479,7 +480,7 @@ Variantes. Indican la identidad de la clase, **nunca un estado**:
 
 En la captura, las tarjetas verde y azul se ven al 90 % de opacidad aproximadamente. Aquí van sólidas para que su contraste no dependa de lo que haya detrás; propuesta aprobada (2026-09-27). La variante lavanda de la dirección C desaparece. Cómo se asigna la variante a cada clase lo decide el encargo de CLASES.
 
-**Implementación (CLASES-a, propuesta):** `TarjetaClase` (`features/clases/components/`). La variante se deriva del id de la clase con una función pura y determinista (`varianteDeClase`, `features/clases/lib.ts`: suma de los puntos de código del id módulo 3); no se guarda ni se elige. Metadatos: para el estudiante, el nombre del maestro; para el maestro, "Sin alumnos", "1 alumno" o "N alumnos" (`textoConteoAlumnos`). El nombre accesible del enlace es el nombre de la clase (no incluye los metadatos). Foco (cierra S-07, §6): en las variantes verde y azul, `focus-visible:-outline-offset-4` con el color del texto de la tarjeta; en la blanca, el foco global de `--ring`, por fuera.
+**Implementación (CLASES-a, propuesta aprobada (2026-10-02)):** `TarjetaClase` (`features/clases/components/`). La variante se deriva del id de la clase con una función pura y determinista (`varianteDeClase`, `features/clases/lib.ts`: suma de los puntos de código del id módulo 3); no se guarda ni se elige. Metadatos: para el estudiante, el nombre del maestro; para el maestro, "Sin alumnos", "1 alumno" o "N alumnos" (`textoConteoAlumnos`). El nombre accesible del enlace es el nombre de la clase (no incluye los metadatos). Foco (cierra S-07, §6): en las variantes verde y azul, `focus-visible:-outline-offset-4` con el color del texto de la tarjeta; en la blanca, el foco global de `--ring`, por fuera.
 
 ### 7.7 Fila de entrega con cuadro de fecha
 
@@ -525,7 +526,7 @@ Tiene tres formas, y todas llevan palabras:
 
 Lo implementan `EstadoPagoBadge` y `EstadoEntregaBadge` (`CLAUDE.md`, "Ubicaciones compartidas").
 
-**Implementación de CLASES-b (propuesta):**
+**Implementación de CLASES-b (propuesta aprobada (2026-10-02)):**
 - `components/estado-pago-badge.tsx`: `EstadoPagoBadge({ estado })` pinta `<Badge variant="success">` con `CircleCheck` y "Al corriente", o `<Badge variant="danger">` con `CircleAlert` y "Deudor". No tiene valor por defecto: un estado desconocido no tiene rama (el último `return` es de tipo `never`).
 - `components/acceso-restringido-badge.tsx`: `AccesoRestringidoBadge` pinta `<Badge variant="danger">` con `Lock` y "Acceso restringido".
 - Ninguno de los dos escribe `text-danger`: el rojo vive solo en `badge.tsx`.
@@ -568,8 +569,9 @@ Se evalúan siempre en ese orden (`CLAUDE.md`, "Retornos tempranos").
   - Un título concreto, una frase opcional y una llamada a la acción opcional.
   - Las del PRD son "Crea tu primera clase" (maestro) y "Únete con tu código de clase" (estudiante).
   - La variante del botón (`primary` si es la única acción de la vista, `outline` si no) la decide quien usa el componente, sin valor por defecto dentro de `EstadoVacio`. Sin ilustraciones.
+  - **Sobre el fondo con orbes (propuesta, decisión del humano (2026-10-02)):** un `EstadoVacio` que se muestra directamente sobre el fondo va dentro de un panel de vidrio (`Card`), como los vacíos del muro y de la lista de enlaces de `/admin/maestros`. Dentro de un panel o de una fila de tabla no lleva uno propio, para no apilar vidrio sobre vidrio.
   - **Excepción (AUTH-03b):** un vacío dentro de una fila expandida de una tabla (los registrados de un enlace de registro) lleva solo el título, sin acción, porque ahí no hay nada que hacer.
-  - **Implementación (CLASES-a, propuesta; M-20):** `AccionEstadoVacio` deja de exportarse desde `estado-vacio.tsx`; el tipo de la acción va en línea dentro de `EstadoVacioProps` (regla 6 de `CLAUDE.md`). Los dos vacíos del panel "Mis clases": "Aún no tienes clases", con la acción `outline` "Únete con tu código de clase" (estudiante, lleva el foco al campo del código) o "Crea tu primera clase" (maestro, navega a crear la clase).
+  - **Implementación (CLASES-a, propuesta aprobada (2026-10-02); M-20):** `AccionEstadoVacio` deja de exportarse desde `estado-vacio.tsx`; el tipo de la acción va en línea dentro de `EstadoVacioProps` (regla 6 de `CLAUDE.md`). Los dos vacíos del panel "Mis clases": "Aún no tienes clases", con la acción `outline` "Únete con tu código de clase" (estudiante, lleva el foco al campo del código) o "Crea tu primera clase" (maestro, navega a crear la clase).
 
 ### 7.11 Capas flotantes y avisos
 
@@ -614,14 +616,14 @@ Para una acción irreversible de bajo alcance (restablecer una contraseña, revo
 
 Implementan la confirmación en línea `AccionRestablecer` (`features/admin/components/ficha-de-cuenta.tsx`, AUTH-02) y la confirmación de "Revocar" en `TablaEnlaces` (`features/admin/components/tabla-enlaces.tsx`, AUTH-03b).
 
-**Foco al confirmar una acción que borra la fila (CLASES-b, propuesta; T-21):**
+**Foco al confirmar una acción que borra la fila (CLASES-b, propuesta aprobada (2026-10-02); T-21):**
 - Cuando la acción confirmada quita la fila de la lista, el foco no se pierde: va al mismo control de la fila que ocupa su lugar (la siguiente o, si era la última, la anterior).
 - Si la lista queda vacía, o no queda ningún control al que saltar, va al encabezado del panel (`h2` con `tabIndex={-1}`). Nunca a `<body>`.
 - El aviso (toast) anuncia el resultado.
 - El foco se mueve cuando la fila ya desapareció de los datos, no en el `onSuccess` de la petición: así no depende de cuándo llegue la consulta nueva y funciona con varias páginas cargadas.
 - Lo implementa `TablaAlumnos` (`features/clases/components/tabla-alumnos.tsx`): recuerda por `id` qué fila tiene el foco (eventos `focusin`/`focusout`) y, después de cada render, si ese foco se perdió porque su control se desmontó (la fila salió de los datos, o la tabla se reemplazó por un error o por el vacío), lo lleva al "Quitar" vecino o al `h2`. No depende del `onSuccess` de la petición.
 
-**Foco cuando un control desaparece por su propia acción (CLASES-b, propuesta; T-25 y T-26):** el mismo criterio vale cuando el control que tenía el foco se reemplaza o se desmonta por lo que él mismo hizo, no solo cuando se borra una fila:
+**Foco cuando un control desaparece por su propia acción (CLASES-b, propuesta aprobada (2026-10-02); T-25 y T-26):** el mismo criterio vale cuando el control que tenía el foco se reemplaza o se desmonta por lo que él mismo hizo, no solo cuando se borra una fila:
 - **El control se vuelve no enfocable** ("Agregar a la clase" pasa a la insignia "Ya está en la clase"): el foco va al siguiente control del mismo tipo de la lista (o al anterior si era el último) y, si no queda ninguno, al campo que originó la lista (el buscador).
 - **El control desaparece al cargar lo último** ("Ver más alumnos" tras la última página): el foco va al primer elemento nuevo (su primer control o el propio elemento con `tabIndex={-1}`) y, si no llegó nada, al encabezado de la lista.
 - Se recuerda qué fila o control tenía el foco y se reacciona después de cada render (hooks `useFilaEnFoco` y `useFocoAlCargarMas`, `features/clases/hooks.ts`); un render sin desmontaje no mueve el foco, y no se le quita el foco a un control que la persona eligió.
@@ -636,15 +638,15 @@ Para el resultado de una acción que procesa varias líneas a la vez (la invitac
 
 Implementa este patrón `ResultadoInvitacionMasiva` (`features/admin/components/resultado-invitacion-masiva.tsx`, AUTH-03c).
 
-### 7.16 Encabezado y secciones de una clase (CLASES-a, propuesta)
+### 7.16 Encabezado y secciones de una clase (CLASES-a, propuesta aprobada (2026-10-02))
 
 Al entrar a una clase (`ClaseLayout`, `features/clases/clase-layout.tsx`):
 
-- **Encabezado** (`EncabezadoClase`, en una `Card`): "Volver a mis clases" (tamaño `enlace`, hacia el inicio del rol), el nombre de la clase en `h1` (`--text-h1`), "Maestro: `<nombre>`" y la descripción (`whitespace-pre-line`, `max-w-prose`). Para el dueño, además: el código de la clase en `font-mono` y `--text-h2`, con "Copiar código" y "Regenerar código" (`outline`, `size="sm"`), y el enlace "Editar clase". Regenerar pide confirmación en línea (§7.14): la frase de consecuencia, "Sí, regenerar" (`destructive`, `enEspera`) y "Cancelar", con el foco a "Cancelar" al abrirla y de vuelta a "Regenerar código" al cancelar.
-- **Secciones** (`SeccionesDeClase`): una `<ul aria-label="Secciones de la clase">` con `NavLink` (`end`) estilados como botón `ghost` (`size="sm"`); react-router marca el activo con `aria-current="page"` por su cuenta, y el estilo activo suma `bg-surface text-link`. No es una `nav` (esa es la del marco, §7.4). En CLASES-a, solo "Muro"; CLASES-b suma "Personas" (estudiante) o "Alumnos" (maestro).
+- **Encabezado** (`EncabezadoClase`, en una `Card`): "Volver a mis clases" (tamaño `enlace`, hacia el inicio del rol), el nombre de la clase en `h1` (`--text-h1`), "Maestro: `<nombre>`" y la descripción (`whitespace-pre-line`, `max-w-prose`, `wrap-anywhere`: el texto largo sin espacios se parte dentro del panel). Para el dueño, además: el código de la clase en `font-mono` y `--text-h2`, con "Copiar código" y "Regenerar código" (`outline`, `size="sm"`), y el enlace "Editar clase". Regenerar pide confirmación en línea (§7.14): la frase de consecuencia, "Sí, regenerar" (`destructive`, `enEspera`) y "Cancelar", con el foco a "Cancelar" al abrirla y de vuelta a "Regenerar código" al cancelar.
+- **Secciones** (`SeccionesDeClase`): una `<ul aria-label="Secciones de la clase">` con `NavLink` (`end`) estilados como botón `ghost` (`size="sm"`) dentro de un `Card` de vidrio, con un indicador que se desliza bajo el activo (control segmentado, §7.3; propuesta, decisión del humano (2026-10-02)); react-router marca el activo con `aria-current="page"` por su cuenta, y el activo suma `text-link`. No es una `nav` (esa es la del marco, §7.4). En CLASES-a, solo "Muro"; CLASES-b suma "Personas" (estudiante) o "Alumnos" (maestro).
 - Quien puede ver el código y editar la clase es el maestro dueño, que la ruta decide por su prefijo (`/maestro/clases/:claseId` frente a `/estudiante/clases/:claseId`); el backend lo exige de todas formas con `requireOwnership`.
 
-### 7.17 Buscador con resultados en línea (CLASES-b, propuesta)
+### 7.17 Buscador con resultados en línea (CLASES-b, propuesta aprobada (2026-10-02))
 
 Para buscar personas por nombre y actuar sobre cada resultado sin salir de la pantalla (`BuscadorAlumnos`, `features/clases/components/buscador-alumnos.tsx`):
 
@@ -656,7 +658,7 @@ Para buscar personas por nombre y actuar sobre cada resultado sin salir de la pa
 - **Mensajes:** "No encontramos alumnos con ese nombre. Solo aparecen alumnos con cuenta." sin resultados, y "Hay más resultados: escribe más del nombre." cuando el servidor tiene más de los que muestra.
 - **Estados, en orden:** sin término válido (solo la ayuda) → error → cargando → sin resultados → resultados.
 
-### 7.18 Publicación del muro y comentarios (CLASES-c, propuesta)
+### 7.18 Publicación del muro y comentarios (CLASES-c, propuesta aprobada (2026-10-02))
 
 El muro de una clase (`MuroView`, `features/clases/muro-view.tsx`) es una lista de publicaciones, de la más reciente a la más antigua, y cada una es un panel (`PublicacionDelMuro`, `features/clases/components/publicacion-del-muro.tsx`):
 
@@ -667,6 +669,18 @@ El muro de una clase (`MuroView`, `features/clases/muro-view.tsx`) es una lista 
 - **Borrar con confirmación en línea (§7.14):** "Borrar publicación" (solo el maestro dueño) y "Borrar" en un comentario (el maestro dueño, en todos; cada persona, en los suyos). Piden la frase de consecuencia ("Se borrará con sus comentarios." en la publicación), "Sí, borrar" o "Sí, borrar comentario" (`destructive`, `enEspera`) y "Cancelar" (`outline`), con el foco a "Cancelar" al pedirla. Si la confirmación borra la fila, el foco va al control equivalente de la fila que ocupa su lugar y, sin vecinas, al encabezado de la lista (`h2` o `h3` con `tabIndex={-1}`, solo para lectores de pantalla); nunca a `<body>`.
 - **"Ver más":** "Ver más publicaciones" y "Ver más comentarios" (`outline`, `enEspera`) siguen el criterio de §7.14 para un control que desaparece al cargar lo último: el foco va al primer elemento nuevo o, si no llegó nada, al encabezado de la lista.
 - **Errores de campo:** "Escribe el anuncio", "Escribe el título del material" y "Escribe tu comentario", con `ErrorDeCampo` bajo el campo (§7.3).
+
+### 7.19 Adjuntos y vista previa (CLASES-d, propuesta aprobada (2026-10-02))
+
+Los archivos de una publicación del muro. Dos piezas: la lista de archivos que el maestro elige al publicar (`ListaDeAdjuntosElegidos`, `features/clases/components/lista-de-adjuntos-elegidos.tsx`) y los archivos ya publicados (`AdjuntosDePublicacion`, `features/clases/components/adjuntos-de-publicacion.tsx`). Ninguna usa vidrio: van dentro del panel de la publicación o del formulario, que ya lo tienen (§7.2).
+
+- **Ficha sólida:** cada archivo, elegido o publicado, es una fila con fondo `--muted` (sólido) y `--radius-row`, con un icono de archivo o de imagen (`FileText`, `Image`; 16 px, `--foreground`), el nombre en negrita (`--text-small`, `--foreground`, 13.9 sobre `--muted`; si es largo, parte la línea), el tamaño (`--text-small`, `--muted-foreground`, 8.0 sobre `--muted`) y su acción. El tamaño se escribe con `formatearTamano` ("820 KB", "2.4 MB").
+- **Imagen con vista previa:** solo PNG, JPEG, WebP y GIF. Va encima de su ficha, en un `<img>` con `alt="Imagen adjunta: <nombre>"`, alto máximo de 20 rem (`max-h-80`), `--radius-row`, `object-contain`, sin `loading="lazy"` (las vistas previas son URL firmadas de 5 minutos: el muro se vuelve a pedir antes de que venza la primera vista previa). Si la imagen no carga, desaparece y queda su ficha; se recuerda por su URL, así que una URL nueva se vuelve a intentar. Un archivo de otro tipo solo tiene ficha.
+- **"Descargar":** `outline`, `size="sm"`, con `enEspera` mientras se pide la URL (§7.3). El nombre del archivo va como texto `sr-only` dentro del botón (nunca `aria-label`). Al pedirla, el navegador navega a la URL firmada y descarga con el nombre original; si falla, un aviso (`sonner`).
+- **Elegir archivos:** "Adjuntar archivos" (`outline`, `size="sm"`, icono `Paperclip`) abre el selector del sistema; la ayuda permanente ("Hasta 5 archivos de 25 MB: PDF, imágenes, Word, Excel, PowerPoint o texto.", `--text-small`, `--muted-foreground`) está siempre a su lado, no solo cuando hay un error. Un archivo que no cumple se rechaza al elegirlo, con `ErrorDeCampo` bajo el control (§7.3).
+- **"Quitar":** `ghost`, `size="sm"`, con el nombre del archivo como texto `sr-only`. Solo cambia la lista local: no espera nada (sin `enEspera`) y sigue §7.14: el foco va al "Quitar" de la fila vecina y, sin filas, a "Adjuntar archivos"; nunca a `<body>`.
+- **Publicar con archivos:** el botón principal ("Publicar anuncio" o "Publicar material") permanece en `enEspera` desde que pide la primera subida hasta que termina de publicar. Si falla la subida de un archivo, un aviso nombra ese archivo (y, si el servidor rechazó la solicitud, el motivo: "No pudimos subir «nombre»: motivo"), no se publica nada y el formulario conserva lo escrito y los archivos elegidos. Mientras se publica, la lista no cambia: "Quitar" y "Adjuntar archivos" no actúan y una nota con `role="status"` lo dice ("Mientras se publica no puedes cambiar los archivos.", `--text-small`, `--muted-foreground`). Los controles no se ven deshabilitados: la nota es la señal.
+- **Borrar una publicación con archivos (§7.14):** la frase de consecuencia pasa a "Se borrará con sus comentarios y adjuntos."; una publicación sin archivos conserva "Se borrará con sus comentarios.".
 
 ## 8. Densidad por rol
 
@@ -680,7 +694,7 @@ El texto de los campos de texto va a 16 px (`--text-body`) en los tres roles, ta
 
 **Mecanismo (DESIGN-01a, propuesta aprobada (2026-09-28)):** `ContenedorRol` marca su raíz con `data-densidad="densa"` y `data-material="opaco"` solo cuando el rol es `admin`. El token `--control-height` vale `2.75rem` (44 px) en `:root` y `2.25rem` (36 px) desde 768 px de ancho (`@media (width >= 48rem)`) dentro de `[data-densidad="densa"]`: el mismo corte en que la barra lateral pasa a barra inferior (§7.4), porque por debajo de ese ancho la interfaz es de pantalla táctil. `Button` (tamaños `default` e `icon`) e `Input` leen `--control-height`; el tamaño `sm` del botón es fijo, de 36 px, para acciones en línea en cualquier rol.
 
-**El roster del maestro (CLASES-b, propuesta):** es una tabla opaca (`Table`, §7.9) dentro de un panel de vidrio (`Card`), con filas de 48 px (`h-12` en `TableRow`) y botones de 36 px (`size="sm"`). No marca el contenedor con `data-material="opaco"`: la tabla ya lleva su propio fondo `--surface`, y el resto de la pantalla del maestro sigue con vidrio. Columnas: nombre, correo completo, estado de pago (`EstadoPagoBadge`), acceso (`AccesoRestringidoBadge` o "—"), fecha de ingreso y acciones. Quitar a un alumno pide confirmación en línea en la misma fila (§7.14).
+**El roster del maestro (CLASES-b, propuesta aprobada (2026-10-02)):** es una tabla opaca (`Table`, §7.9) dentro de un panel de vidrio (`Card`), con filas de 48 px (`h-12` en `TableRow`) y botones de 36 px (`size="sm"`). No marca el contenedor con `data-material="opaco"`: la tabla ya lleva su propio fondo `--surface`, y el resto de la pantalla del maestro sigue con vidrio. Columnas: nombre, correo completo, estado de pago (`EstadoPagoBadge`), acceso (`AccesoRestringidoBadge` o "—"), fecha de ingreso y acciones. Quitar a un alumno pide confirmación en línea en la misma fila (§7.14).
 
 Los tres roles comparten componentes y tokens. Cambian el espaciado, la composición y el material de las superficies, no la biblioteca. Si otras tablas del maestro (por ejemplo, el roster) van opacas, lo decide su encargo y se anota aquí.
 

@@ -69,7 +69,7 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 ### Tablas
 `usuarios` · `sesiones` · `tokens_cuenta` · `enlaces_registro` · `clases` · `categorias` · `inscripciones` · `movimientos_inscripcion` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
 
-Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único parcial) · `entregas (tarea_id, alumno_id)` único · `notificaciones (usuario_id, evento_id)` único · `comentarios` y `archivos` con exactamente un contexto.
+Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único parcial) · `entregas (tarea_id, alumno_id)` único · `notificaciones (usuario_id, evento_id)` único · `comentarios` con exactamente un contexto · `archivos`: confirmado si y solo si tiene exactamente un contexto (los `pendiente` y `descartado`, ninguno; `clase_id` autoriza mientras tanto).
 
 ## Asíncrono y notificaciones
 - La API guarda y encola **en la misma transacción**, y responde. **Nunca** crea notificaciones en la petición.
@@ -91,6 +91,8 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Buckets: `campus-privado` (`materiales/` · `entregas/` · `grabaciones/`) · `campus-publico` (`anuncios/`) · `campus-respaldos` (solo en `prod`; en `dev` MinIO crea únicamente los dos primeros).
 - Tokens de mínimo privilegio: aplicación, Egress (solo escritura en `grabaciones/`), respaldos.
 - Cambiar de almacén = cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`.
+- Materiales y anuncios: solo los sube el maestro dueño; 25 MB por archivo, 5 por publicación; PDF, imágenes (sin SVG), Office y texto plano. La confirmación compara el objeto real con lo declarado, dentro de la transacción de la publicación. Vista previa solo de imágenes. La limpieza borra también el objeto de los pendientes vencidos y de los descartados.
+- Sin las tres `STORAGE_*` de acceso, la API arranca y los archivos responden 503; en `production` son obligatorias (API y worker). Firmar es local: la región es fija (`STORAGE_REGION`).
 
 ## Clases en vivo
 - LiveKit Cloud en `prod`; en `dev`, el LiveKit local de `infra/`. El paso a Cloud (encargo DEPLOY) es solo de configuración: URL, llaves, destino de grabaciones y URL pública del webhook. Llaves solo en `.env`. Todo detrás de `adapters/live`.

@@ -231,10 +231,10 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 |---|---|
 | `auth` | `POST /auth/registro` · `POST /auth/login` · `POST /auth/refrescar` · `POST /auth/logout` · `POST /auth/recuperar` · `POST /auth/restablecer` · `POST /auth/invitacion` (nombre del maestro invitado, con el token del enlace) · `POST /auth/establecer-contrasena` (invitación de maestro; admite corregir el nombre) · `POST /auth/registro-maestro` (con un enlace de registro del admin) · `POST /auth/cambiar-contrasena` (solo la contraseña nueva; exige una sesión viva) |
 | `usuarios` | `GET /me` · `GET /me/estado-pago` |
-| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}` · `GET/POST /clases/{claseId}/publicaciones` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}` · `GET/POST /clases/{claseId}/publicaciones/{publicacionId}/comentarios` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}/comentarios/{comentarioId}` (maestro) · `DELETE /clases/{claseId}/mis-comentarios/{comentarioId}` (autor) |
+| `clases` | `POST /clases` · `GET /clases/inscritas` (estudiante) · `GET /clases/impartidas` (maestro) · `POST /clases/unirse` · `GET/PUT /clases/{claseId}` · `GET/POST /clases/{claseId}/codigo` (ver y regenerar) · `GET /clases/{claseId}/personas` · `GET/POST /clases/{claseId}/alumnos` · `GET /clases/{claseId}/alumnos/candidatos?q=` (correo enmascarado) · `DELETE /clases/{claseId}/alumnos/{alumnoId}` · `GET/POST /clases/{claseId}/publicaciones` (con adjuntos: `archivoIds` al crear, hasta 5; `adjuntos` en cada publicación, también `[]`) · `DELETE /clases/{claseId}/publicaciones/{publicacionId}` · `GET/POST /clases/{claseId}/publicaciones/{publicacionId}/comentarios` · `DELETE /clases/{claseId}/publicaciones/{publicacionId}/comentarios/{comentarioId}` (maestro) · `DELETE /clases/{claseId}/mis-comentarios/{comentarioId}` (autor) |
 | `tareas` | `GET/POST /clases/{id}/tareas` · `GET/PUT/DELETE /tareas/{id}` · `PUT/DELETE /tareas/{id}/entrega` · `GET /tareas/{id}/entregas` · hilo privado |
 | `calificaciones` | `PUT /tareas/{id}/entregas/{alumnoId}/calificacion` · `GET /clases/{id}/gradebook` · `GET /me/calificaciones` |
-| `archivos` | `POST /archivos/subida` · `POST /archivos/descarga` (devuelven URL prefirmada) |
+| `archivos` | `POST /clases/{claseId}/archivos` (maestro dueño: registra un archivo `pendiente` y devuelve la URL prefirmada de subida) · `POST /clases/{claseId}/archivos/{archivoId}/descarga` (alumno inscrito y maestro dueño: URL prefirmada de descarga de un archivo `confirmado`). Sustituyen a `POST /archivos/subida` y `POST /archivos/descarga`. Sin almacén configurado, `503 ALMACEN_NO_CONFIGURADO`. TAREAS y ENTREGAS agregan sus contextos |
 | `notificaciones` | `GET /notificaciones` · `PUT /notificaciones/{id}/leida` · `PUT /notificaciones/leidas` |
 | `calendario` | `GET /calendario?desde=&hasta=` |
 | `envivo` | `GET/POST /clases/{id}/envivo` · `POST /envivo/{id}/token` · `POST /envivo/{id}/grabacion` · `POST /webhooks/livekit` (sin JWT, firma verificada) |
@@ -262,7 +262,7 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 | `CORREO_DE_CUENTA` | Recuperación de contraseña o invitación de maestro: siempre por correo, nunca in-app. La invitación masiva encola un trabajo por maestro con un solo `insert` dentro de su transacción. |
 | `ENVIAR_CORREO` | Un envío individual a Resend. Los avisos con correo activado generan uno por destinatario |
 | `GRABACION_LISTA` (desde webhook) | Registra el archivo en `clases_en_vivo` |
-| `LIMPIEZA_DIARIA` (cron) | Borra notificaciones de más de 90 días, sesiones y tokens vencidos, archivos huérfanos |
+| `LIMPIEZA_DIARIA` (cron) | Borra notificaciones de más de 90 días, sesiones y tokens vencidos, archivos `pendiente` de más de 24 h y `descartado` (el objeto y la fila) |
 | `RESPALDO_DIARIO` (cron) | `pg_dump` cifrado hacia R2 |
 
 "Aviso" significa: notificación in-app **siempre**, y además correo **solo si** ese tipo de evento está activado en la configuración.
@@ -312,11 +312,13 @@ El identificador se guarda en `trabajo_id`. **Editar o borrar la fecha obliga a 
 
 ## 11. Archivos
 
-1. El cliente pide `POST /archivos/subida` con nombre, tipo, tamaño y contexto.
+1. El cliente pide `POST /clases/{claseId}/archivos` con nombre, tipo y tamaño; el contexto es la clase de la ruta (TAREAS y ENTREGAS agregan los suyos).
 2. La API valida permisos, tipo y tamaño, registra el archivo como `pendiente` y devuelve una URL prefirmada de 5 minutos.
 3. El navegador sube **directo al almacén**. Los archivos nunca pasan por Node ni por el Droplet.
 4. Al confirmar la entrega o publicación, el archivo pasa a `confirmado`. Los `pendiente` de más de 24 h los borra la limpieza diaria.
 5. La descarga es simétrica: URL prefirmada tras verificar permisos.
+6. Materiales y anuncios (CLASES-d): solo sube el maestro dueño de la clase. Límites: 25 MB por archivo y 5 por publicación; tipos PDF, PNG, JPEG, WebP, GIF, Word, Excel y PowerPoint (formatos actuales y 97-2003) y texto plano; el SVG no se admite. El nombre del archivo no admite `/`, `\`, caracteres de control, separadores de línea, inversores de dirección ni sustitutos sueltos. La clave es `materiales/{claseId}/{archivoId}` y nunca lleva el nombre del archivo. Al publicar, la API lee los archivos por id, acotados a la clase, a quien los subió, al estado `pendiente`, sin publicación y de las últimas 24 h; compara con `statObject` el tamaño y el tipo reales con lo declarado; y los confirma dentro de la transacción de la publicación, con un `UPDATE` que repite esas condiciones y compara el conteo. La URL de subida no limita el tamaño (R2 no admite `POST` con política): un objeto que no coincide no se confirma y queda para la limpieza. Un archivo pasa a `descartado` si se borra su publicación. Toda publicación responde `adjuntos` (también `[]`). La descarga fuerza el tipo declarado y `attachment`; las imágenes se muestran en vista previa con una URL `inline` de 5 minutos. Las tres URL del almacén son `http` o `https` (`urlDelAlmacenSchema`, de `shared/src/archivos.ts`). El firmado es local (región fija en `STORAGE_REGION`); el bucket se elige con `STORAGE_BUCKET_PRIVADO`. Sin `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY` (una variable vacía cuenta como ausente), la API arranca, pero subir y descargar responden `503`; en `production` son obligatorias, también para el worker, que es la misma imagen.
+7. `LIMPIEZA_DIARIA`, que se construye antes de DEPLOY, borra el objeto del almacén y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
 
 | Bucket | Prefijos | Acceso |
 |---|---|---|
@@ -375,6 +377,8 @@ erDiagram
   publicaciones ||--o{ comentarios : hilo_publico
   entregas ||--o{ comentarios : hilo_privado
   usuarios ||--o{ archivos : sube
+  clases ||--o{ archivos : guarda
+  publicaciones ||--o{ archivos : adjunta
 ```
 
 | Tabla | Columnas principales | Restricciones e índices |
@@ -392,7 +396,7 @@ erDiagram
 | `criterios_rubrica` | `id`, `tarea_id`, `criterio`, `puntos_max`, `orden` | índice `(tarea_id)` |
 | `entregas` | `id`, `tarea_id`, `alumno_id`, `estado`, `fecha_entrega`, `con_retraso`, `enlaces` (jsonb), `calificacion`, `fecha_calificacion` | único `(tarea_id, alumno_id)` · índice `(alumno_id)` |
 | `puntajes_rubrica` | `entrega_id`, `criterio_id`, `puntos` | PK compuesta |
-| `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado`, `publicacion_id`, `tarea_id`, `entrega_id` | `clave_objeto` único · exactamente un contexto no nulo |
+| `archivos` | `id`, `clave_objeto`, `nombre`, `tipo`, `tamano`, `subido_por`, `estado` (`pendiente` / `confirmado` / `descartado`), `clase_id`, `publicacion_id` | `clave_objeto` único · índice `(publicacion_id)` · `CHECK`: un archivo está `confirmado` si y solo si tiene contexto; `pendiente` y `descartado`, ninguno. `clase_id` autoriza mientras el archivo está pendiente. TAREAS y ENTREGAS agregan `tarea_id` y `entrega_id` |
 | `comentarios` | `id`, `publicacion_id`, `autor_id`, `texto` | índice `(publicacion_id, creado_en, id)`. Hoy solo el contexto `publicacion_id` (NOT NULL); ENTREGAS agrega `entrega_id` y el `CHECK` de exactamente un contexto. Al comentar, la publicación se lee `FOR SHARE` en la misma transacción |
 | `notificaciones` | `id`, `usuario_id`, `evento_id`, `tipo`, `mensaje`, `enlace`, `leida` | único `(usuario_id, evento_id)` · índice `(usuario_id, creado_en DESC)` · parcial `WHERE leida = false` |
 | `clases_en_vivo` | `id`, `clase_id`, `titulo`, `fecha_inicio`, `estado`, `sala`, `grabando`, `egress_id`, `clave_grabacion`, `trabajo_id` | índices `(clase_id, fecha_inicio)` y `(estado)` |
@@ -437,7 +441,7 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 - Validación de toda entrada con zod en el borde del handler.
 - `@fastify/helmet`, CORS de origen exacto con credenciales, límite de peticiones global y más estricto en `/auth/*`.
 - Cookies `HttpOnly`, `Secure`, `SameSite=Strict`; el token de acceso solo en memoria.
-- URLs prefirmadas de 5 minutos con tipo y tamaño fijados. Buckets privados salvo `campus-publico`.
+- URLs prefirmadas de 5 minutos. La de subida no fija el tipo ni el tamaño (R2 no admite `POST` con política): antes de confirmar, la API compara el objeto real con lo declarado (`statObject`); la descarga fuerza el tipo declarado y `attachment`; y solo el maestro dueño sube. Un objeto reescrito mientras la URL sigue vigente es un riesgo residual aceptado (CLASES-01, R-03), que se vigila en DEPLOY. Buckets privados salvo `campus-publico`.
 - Los enlaces de recuperación e invitación son de un solo uso, caducan y se guardan solo como hash. Las respuestas de `/auth/recuperar` no revelan si un correo existe.
 - Las contraseñas temporales se muestran una sola vez, se guardan solo como hash y obligan al cambio inmediato.
 - El webhook de LiveKit verifica la firma.

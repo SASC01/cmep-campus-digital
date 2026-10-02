@@ -4,6 +4,7 @@ import {
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
   comentarioRespuestaSchema,
+  descargaRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
@@ -12,11 +13,13 @@ import {
   personasRespuestaSchema,
   publicacionRespuestaSchema,
   sinContenidoSchema,
+  solicitarSubidaRespuestaSchema,
   unirseRespuestaSchema,
   type CrearClase,
   type CrearComentario,
   type CrearPublicacion,
   type EditarClase,
+  type SolicitarSubida,
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -45,12 +48,14 @@ import {
   TEXTOS_COMENTARIOS,
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_MURO,
+  TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
 import {
   erroresDeFormularioClases,
   focoPerdido,
   mensajeDeErrorClases,
   terminoDeBusquedaValido,
+  tiempoFrescoDelMuro,
 } from "./lib"
 
 // El saludo del bloque destacado depende solo de la sesión (§D-A5): se ve aunque falle la consulta
@@ -362,6 +367,13 @@ export const usePublicaciones = (claseId: string) =>
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    // d (T-40): las vistas previas del muro son URL firmadas; el muro se vuelve viejo antes de que
+    // venza la primera. dataUpdatedAt se renueva con cada página, por eso es una función.
+    staleTime: (consulta) => {
+      const datos = consulta.state.data
+      if (datos === undefined) return TIEMPO_FRESCO_DEL_MURO_MS
+      return tiempoFrescoDelMuro(datos.pages, consulta.state.dataUpdatedAt)
+    },
   })
 
 // Los conteos de comentarios de cada publicación salen de la lista del muro: tras comentar o borrar
@@ -487,3 +499,26 @@ export const useBorrarMiComentario = (claseId: string, publicacionId: string) =>
     onError: (error) => toast.error(mensajeDeErrorClases(error)),
   })
 }
+
+// CLASES-d (§D-D3, §D-D5). Pide una URL prefirmada para subir un archivo directo al almacén. Sin
+// avisos propios: el formulario decide qué decirle a la persona según en qué paso falló.
+export const useSolicitarSubida = (claseId: string) =>
+  useMutation({
+    mutationFn: (datos: SolicitarSubida) =>
+      api(`/api/clases/${claseId}/archivos`, {
+        method: "POST",
+        body: datos,
+        schema: solicitarSubidaRespuestaSchema,
+      }),
+  })
+
+// Pide la URL de descarga de un adjunto (5 minutos de vigencia); quien la usa decide qué hacer con
+// ella y avisa si falla.
+export const useUrlDeDescarga = (claseId: string) =>
+  useMutation({
+    mutationFn: (archivoId: string) =>
+      api(`/api/clases/${claseId}/archivos/${archivoId}/descarga`, {
+        method: "POST",
+        schema: descargaRespuestaSchema,
+      }),
+  })

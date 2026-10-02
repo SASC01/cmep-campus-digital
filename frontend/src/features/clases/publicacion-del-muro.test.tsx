@@ -28,6 +28,8 @@ const publicacion = (extra: Partial<Publicacion> = {}): Publicacion => ({
   autor: AUTOR,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios: 2,
+  // C-21 (Enmienda 10): toda publicación lleva adjuntos.
+  adjuntos: [],
   ...extra,
 })
 

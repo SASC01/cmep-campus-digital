@@ -1,4 +1,23 @@
 export {
+  adjuntoSchema,
+  archivoIdParamSchema,
+  CODIGOS_ARCHIVOS,
+  descargaRespuestaSchema,
+  MAXIMO_ADJUNTOS_POR_PUBLICACION,
+  solicitarSubidaRespuestaSchema,
+  solicitarSubidaSchema,
+  TAMANO_MAXIMO_ARCHIVO_BYTES,
+  TIPOS_CON_VISTA_PREVIA,
+  TIPOS_DE_ARCHIVO_PERMITIDOS,
+  urlDelAlmacenSchema,
+  type Adjunto,
+  type ArchivoIdParam,
+  type CodigoArchivos,
+  type DescargaRespuesta,
+  type SolicitarSubida,
+  type SolicitarSubidaRespuesta,
+} from "./archivos.js"
+export {
   CODIGOS_AUTH,
   contrasenaSchema,
   correoSchema,

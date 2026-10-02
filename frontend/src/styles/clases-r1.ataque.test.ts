@@ -112,14 +112,25 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // "Cancelar" y los botones de tipo no esperan nada. Sigue protegiendo lo mismo: ningún `disabled`
   // en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 35 enEspera", () => {
+  // CLASES-d ronda 0 (C-13, §D-R0; §D-D5 y V-04 del plan de CLASES-01): de 35 a 36 enEspera=. Se
+  // suma, a la lista fija de archivos, "Descargar" de la ficha de cada adjunto
+  // (components/adjuntos-de-publicacion.tsx, 1). Ningún otro botón nuevo de d lo lleva: "Adjuntar
+  // archivos" abre el selector y "Quitar" (components/lista-de-adjuntos-elegidos.tsx) solo cambia
+  // estado local; el botón principal de formulario-publicacion.tsx sigue siendo el mismo (1), en
+  // enEspera durante solicitar, subir y publicar. "Cambios por capa" no autoriza otro archivo de
+  // componente para la ficha, así que "Descargar" no puede vivir en un componente de fila aparte; y
+  // como lista-de-adjuntos-elegidos.tsx no está en la lista fija, un enEspera= ahí sería uno de más en
+  // el resto de features/clases/components/ (que sigue siendo solo el buscador, el roster o sus
+  // filas, 3). Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo
+  // en Button, y que el número y el lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 36 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(35)
+    expect(usos).toHaveLength(36)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -168,6 +179,8 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/publicacion-del-muro.tsx": 1,
       "/src/features/clases/components/comentarios-de-publicacion.tsx": 2,
       "/src/features/clases/components/formulario-comentario.tsx": 1,
+      // C-13 (CLASES-d): "Descargar" de la ficha de cada adjunto (§D-D5).
+      "/src/features/clases/components/adjuntos-de-publicacion.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

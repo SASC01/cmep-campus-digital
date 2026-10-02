@@ -39,6 +39,10 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const error500 = () =>
   respuestaJson(500, { error: { codigo: "ERROR_INTERNO", mensaje: "mensaje del servidor" } })
 
+// CLASES-d ronda 0, complemento (C-21, §D-R0; §D-D5 "Forma de los datos" y Enmienda 10 del plan de
+// CLASES-01): adjuntos es obligatorio en publicacionSchema y el backend lo manda siempre ([] si no
+// hay adjuntos), en el muro y en la respuesta 201 de crear. El doble lo trae para seguir pasando el
+// schema.parse de apiClient; ninguna aserción cambia y protege lo mismo que antes.
 interface PublicacionFalsa {
   id: string
   tipo: "anuncio" | "material"
@@ -47,6 +51,7 @@ interface PublicacionFalsa {
   autor: { id: string; nombre: string }
   creadoEn: string
   comentarios: number
+  adjuntos: unknown[]
 }
 
 interface ComentarioFalso {
@@ -65,6 +70,7 @@ const publicacion = (n: number, extra: Partial<PublicacionFalsa> = {}): Publicac
   autor: AUTOR,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios: 0,
+  adjuntos: [],
   ...extra,
 })
 

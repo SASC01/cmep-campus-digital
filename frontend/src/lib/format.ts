@@ -35,3 +35,20 @@ export const inicialesDe = (nombre: string): string => {
     .join("")
   return iniciales.toLocaleUpperCase("es-MX")
 }
+
+// CLASES-d (§D-D5): tamaño de un archivo para mostrarlo, por ejemplo "820 KB" o "2.4 MB". Bytes y KB
+// sin decimales; MB y GB con uno solo, y sin ".0".
+const UNIDADES_DE_TAMANO = ["B", "KB", "MB", "GB"] as const
+
+// T-43 y T-44: el valor se redondea ANTES de elegir la unidad, en todas: si en la unidad actual
+// redondea a 1024, se sube a la siguiente (nunca "1024 KB" ni "1024 MB").
+export const formatearTamano = (bytes: number): string => {
+  let indice = 0
+  let valor = bytes
+  const redondeado = () => Number(valor.toFixed(indice >= 2 ? 1 : 0))
+  while (indice < UNIDADES_DE_TAMANO.length - 1 && redondeado() >= 1024) {
+    valor /= 1024
+    indice += 1
+  }
+  return `${redondeado()} ${UNIDADES_DE_TAMANO[indice]}`
+}

@@ -57,3 +57,15 @@ correo encola el evento y solo el worker usa `adapters/notifier`. Los repositori
 encolan dentro de su transacción reciben un callback `alGuardar(sql: EjecutorSql)`; el handler solo
 pasa `sql` a `encolar(...)`, nunca invoca `sql.executeSql` directamente (regla 4; también vigilado
 por ESLint, `no-restricted-syntax`).
+
+- `archivos.ts` (prefijo `/api`, CLASES-d): `POST /clases/:claseId/archivos` (el maestro dueño
+  declara nombre, tipo y tamaño; responde `201` con la fila `pendiente` y una URL prefirmada de
+  subida, con `Cache-Control: no-store`) y `POST /clases/:claseId/archivos/:archivoId/descarga` (el
+  alumno inscrito y el maestro dueño; responde `200 { url, expiraEn }` con disposición
+  `attachment`, o `404` si el archivo es de otra clase o aún no está confirmado). Ambos reciben el
+  `Almacen` al registrarse (`null` si faltan las variables `STORAGE_*`: `503 ALMACEN_NO_CONFIGURADO`).
+  El archivo nunca pasa por la API. `clases/muro.ts` recibe el mismo `almacen`: `POST …/publicaciones`
+  acepta `archivoIds` (hasta 5, sin repetidos; siempre presentes en el cuerpo del frontend) y
+  confirma los archivos con la publicación; y el muro y la respuesta `201` llevan `adjuntos`
+  (siempre, también `[]`), con `vistaPrevia` solo para PNG, JPEG, WebP y GIF. Ninguna respuesta
+  lleva la clave del objeto.

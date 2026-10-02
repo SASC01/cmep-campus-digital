@@ -130,6 +130,9 @@ const stub = (tipo: "publicaciones" | "comentarios", segunda: () => Promise<Resp
               autor: AUTOR,
               creadoEn: "2026-09-29T15:30:00.000Z",
               comentarios: 2,
+              // CLASES-d ronda 0, complemento (C-21, §D-R0; §D-D5 y Enmienda 10): adjuntos es
+              // obligatorio en publicacionSchema; ninguna aserción cambia.
+              adjuntos: [],
             },
           ],
           siguienteCursor: tipo === "publicaciones" ? ID_PUBLICACION : null,

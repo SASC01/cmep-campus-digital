@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { adjuntoSchema, MAXIMO_ADJUNTOS_POR_PUBLICACION } from "./archivos.js"
 import { paginacionSchema } from "./enlaces-registro.js"
 
 // Código de invitación (S-03): 7 caracteres de un alfabeto sin I, O, 0 ni 1 (32 símbolos, unos
@@ -44,7 +45,7 @@ export const codigoInvitacionSchema = z
 // Caracteres de control (\p{Cc}) y los inversores de dirección (U+202A a U+202E, U+2066 a
 // U+2069): un nombre o un texto largo con ellos podría alterar cómo se lee en la interfaz.
 const CARACTERES_DE_CONTROL = /[\p{Cc}]/u
-const INVERSORES_DE_DIRECCION = /[‪-‮⁦-⁩]/u
+const INVERSORES_DE_DIRECCION = /[\u202A-\u202E\u2066-\u2069]/u
 
 // T-16 (ronda 2 del tester): U+2028 (separador de línea, Zl) y U+2029 (separador de párrafo, Zp)
 // son saltos obligatorios según UAX #14, igual que \r y \n; "una sola línea" (S-02) los cubre a
@@ -309,17 +310,32 @@ export const tipoPublicacionSchema = z.enum(["anuncio", "material"])
 const MENSAJE_TIPO_PUBLICACION = "Elige si es un anuncio o un material"
 const MENSAJE_DESCRIPCION_MATERIAL = "La descripción debe ser texto"
 
+// CLASES-d (§D-D4, C-22): hasta 5 ids sin repetidos; sin ids, []. El frontend los manda siempre.
+const archivoIdsSchema = z
+  .array(z.uuid({ error: "Un archivo adjunto no es válido" }), {
+    error: "Los archivos adjuntos deben ser una lista",
+  })
+  .max(MAXIMO_ADJUNTOS_POR_PUBLICACION, {
+    error: `Puedes adjuntar hasta ${MAXIMO_ADJUNTOS_POR_PUBLICACION} archivos`,
+  })
+  .refine((ids) => new Set(ids).size === ids.length, {
+    error: "No repitas un archivo adjunto",
+  })
+  .default([])
+
 export const crearPublicacionSchema = z.discriminatedUnion(
   "tipo",
   [
     z.object({
       tipo: z.literal("anuncio"),
       texto: textoConContenidoSchema(5000, "Escribe el anuncio"),
+      archivoIds: archivoIdsSchema,
     }),
     z.object({
       tipo: z.literal("material"),
       titulo: textoConContenidoSchema(200, "Escribe el título del material"),
       texto: textoLargoCon(5000, z.string({ error: MENSAJE_DESCRIPCION_MATERIAL })).optional(),
+      archivoIds: archivoIdsSchema,
     }),
   ],
   { error: MENSAJE_TIPO_PUBLICACION },
@@ -339,6 +355,8 @@ export const publicacionSchema = z.object({
   autor: autorDelMuroSchema,
   creadoEn: z.iso.datetime(),
   comentarios: z.number().int().min(0),
+  // C-21: obligatorio, sin .default ni .optional; una publicación sin archivos lleva [].
+  adjuntos: z.array(adjuntoSchema),
 })
 
 export const publicacionRespuestaSchema = z.object({ publicacion: publicacionSchema })

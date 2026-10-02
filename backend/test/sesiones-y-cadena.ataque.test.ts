@@ -478,7 +478,18 @@ describe("ataque: superficie de rutas", () => {
   // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /publicaciones y
   // /mis-comentarios bajo /:claseId, y /:publicacionId, /comentarios y /:comentarioId debajo; el
   // análisis por sangría los reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b y CLASES-c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // CLASES-d ronda 0 (C-2, §D-R0; §D-D3 y V-06 del plan de CLASES-01): se agregan las 2 rutas de
+  // archivos bajo /api/clases/:claseId, las dos POST y sin HEAD: POST /archivos (el maestro dueño pide
+  // una URL prefirmada de subida y queda una fila pendiente) y POST /archivos/:archivoId/descarga (un
+  // miembro de la clase pide la URL de descarga de un archivo confirmado). Ninguna crea cuentas ni
+  // cambia roles: solo registran archivos de la clase o firman URLs del almacén. Ninguna es pública:
+  // RUTAS_PUBLICAS sigue con exactamente las 10 de hoy, y una ruta pública nueva sería, además, una
+  // ruta nueva en esta lista. La protección queda igual: ninguna ruta crea administradores; siguen
+  // creando maestros solo las tres de hoy (POST /api/admin/maestros, POST /api/admin/maestros/lote y
+  // POST /api/auth/registro-maestro), y cualquier otra ruta nueva vuelve a poner la prueba en rojo.
+  // printRoutes anida /archivos bajo /:claseId y /:archivoId/descarga bajo /archivos; el análisis por
+  // sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c y CLASES-d: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -553,6 +564,8 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/auth/restablecer",
       "POST /api/clases",
       "POST /api/clases/:claseId/alumnos",
+      "POST /api/clases/:claseId/archivos",
+      "POST /api/clases/:claseId/archivos/:archivoId/descarga",
       "POST /api/clases/:claseId/codigo",
       "POST /api/clases/:claseId/publicaciones",
       "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",

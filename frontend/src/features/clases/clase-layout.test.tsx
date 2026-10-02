@@ -178,3 +178,56 @@ describe("ClaseLayout", () => {
     )
   })
 })
+
+// Ajuste visual del humano (2026-10-02), M-T1: el indicador deslizante de las secciones solo existe
+// si hay una sección activa (DESIGN.md §7.3).
+describe("indicador de las secciones de la clase", () => {
+  const renderMaestro = (ruta: string) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[ruta]}>
+          <Routes>
+            <Route path="/maestro/clases/:claseId" element={<ClaseLayout />}>
+              <Route index element={<p>muro maestro</p>} />
+              <Route path="alumnos" element={<p>alumnos maestro</p>} />
+              <Route path="editar" element={<p>editar maestro</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
+  // El indicador es aria-hidden y hermano de la lista: se busca dentro del contenedor del grupo.
+  const indicadoresDe = (lista: HTMLElement) =>
+    Array.from(lista.parentElement?.querySelectorAll(':scope > span[aria-hidden="true"]') ?? [])
+
+  it("M-T1: en el muro el indicador va bajo la primera sección, en alumnos bajo la segunda y en editar no hay indicador", async () => {
+    stubApi({})
+
+    renderMaestro(`/maestro/clases/${CLASE_ID}`)
+    let lista = await screen.findByRole("list", { name: "Secciones de la clase" })
+    expect(screen.getByRole("link", { name: "Muro" })).toHaveAttribute("aria-current", "page")
+    let indicadores = indicadoresDe(lista)
+    expect(indicadores).toHaveLength(1)
+    // Sin otra forma de ver la posición (aria-hidden): la clase que lo desplaza una columna.
+    expect(indicadores[0]).not.toHaveClass("translate-x-full")
+    cleanup()
+
+    renderMaestro(`/maestro/clases/${CLASE_ID}/alumnos`)
+    lista = await screen.findByRole("list", { name: "Secciones de la clase" })
+    expect(screen.getByRole("link", { name: "Alumnos" })).toHaveAttribute("aria-current", "page")
+    indicadores = indicadoresDe(lista)
+    expect(indicadores).toHaveLength(1)
+    expect(indicadores[0]).toHaveClass("translate-x-full")
+    cleanup()
+
+    renderMaestro(`/maestro/clases/${CLASE_ID}/editar`)
+    lista = await screen.findByRole("list", { name: "Secciones de la clase" })
+    expect(await screen.findByText("editar maestro")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Muro" })).not.toHaveAttribute("aria-current")
+    expect(screen.getByRole("link", { name: "Alumnos" })).not.toHaveAttribute("aria-current")
+    expect(indicadoresDe(lista)).toHaveLength(0)
+  })
+})

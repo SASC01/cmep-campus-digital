@@ -9,6 +9,21 @@ export const JWT_SECRET_DE_EJEMPLO = "dev_jwt_secret_de_desarrollo_no_valido_par
 
 const LONGITUD_MINIMA_JWT_SECRET = 32
 
+// CLASES-d (§D-D2): las variables vacías (STORAGE_ENDPOINT=) cuentan como ausentes.
+const vacioComoAusente = (valor: unknown): unknown =>
+  typeof valor === "string" && valor.trim() === "" ? undefined : valor
+
+const textoOpcional = z.preprocess(
+  vacioComoAusente,
+  z.string({ error: "debe ser un texto" }).optional(),
+)
+
+const VARIABLES_DEL_ALMACEN = [
+  "STORAGE_ENDPOINT",
+  "STORAGE_ACCESS_KEY",
+  "STORAGE_SECRET_KEY",
+] as const
+
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -51,6 +66,47 @@ const envSchema = z
       .min(1, "debe ser un entero entre 1 y 10000")
       .max(10_000, "debe ser un entero entre 1 y 10000")
       .default(80),
+    // Almacén de archivos con protocolo S3 (MinIO en dev, R2 en prod). Las tres primeras van todas
+    // o ninguna, y en production son obligatorias (superRefine). Los mensajes no llevan valores.
+    STORAGE_ENDPOINT: z.preprocess(
+      vacioComoAusente,
+      z
+        .url({
+          protocol: /^https?$/,
+          error: "debe ser una URL que empiece con http:// o https://",
+        })
+        .optional(),
+    ),
+    STORAGE_ACCESS_KEY: textoOpcional,
+    STORAGE_SECRET_KEY: textoOpcional,
+    STORAGE_REGION: z.preprocess(
+      vacioComoAusente,
+      z.string({ error: "debe ser un texto" }).default("us-east-1"),
+    ),
+    STORAGE_BUCKET_PRIVADO: z.preprocess(
+      vacioComoAusente,
+      z.string({ error: "debe ser un texto" }).default("campus-privado"),
+    ),
+  })
+  .superRefine((env, ctx) => {
+    const definidas = VARIABLES_DEL_ALMACEN.filter((nombre) => env[nombre] !== undefined)
+    const enProduction = env.NODE_ENV === "production"
+    const incompleto = definidas.length > 0 && definidas.length < VARIABLES_DEL_ALMACEN.length
+    for (const nombre of VARIABLES_DEL_ALMACEN) {
+      if (env[nombre] !== undefined) continue
+      if (incompleto) {
+        ctx.addIssue({
+          code: "custom",
+          path: [nombre],
+          message:
+            "debe definirse junto con STORAGE_ENDPOINT, STORAGE_ACCESS_KEY y STORAGE_SECRET_KEY",
+        })
+        continue
+      }
+      if (enProduction) {
+        ctx.addIssue({ code: "custom", path: [nombre], message: "obligatoria en production" })
+      }
+    }
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return

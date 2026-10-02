@@ -1,5 +1,8 @@
+import type { ListaPublicacionesRespuesta } from "@campus/shared"
+
 // Tipos de la API: se infieren de los esquemas de shared/, nunca a mano (regla 7 de CLAUDE.md).
 export type {
+  Adjunto,
   AlumnoDeClase,
   Candidato,
   ClaseDetalle,
@@ -11,6 +14,8 @@ export type {
   EditarClase,
   PersonaDeClase,
   Publicacion,
+  SolicitarSubida,
+  SolicitarSubidaRespuesta,
   TipoPublicacion,
   Unirse,
   UnirseRespuesta,
@@ -38,3 +43,13 @@ export interface ClaseDelPanel {
   metadatos: string
   destino: string
 }
+
+// CLASES-d: lo que lib.ts necesita saber de un archivo elegido (un File lo cumple).
+export interface ArchivoCandidato {
+  name: string
+  type: string
+  size: number
+}
+
+// T-40: una página del muro, tal como la devuelve la API.
+export type PaginaDelMuro = ListaPublicacionesRespuesta

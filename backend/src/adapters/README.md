@@ -203,3 +203,28 @@ cascada; si el borrado confirma antes, el `FOR SHARE` ya no ve la fila. Toda con
 `publicacionId` o `comentarioId` filtra además por la clase de la ruta, y «mis comentarios» pone
 `autor_id` dentro de la condición del `deleteMany`. `listarPublicaciones` cuenta los comentarios de
 toda la página con una sola consulta agrupada, fuera de cualquier ciclo.
+
+## `storage` y `db/archivos.ts` (CLASES-d, §D-D1 a §D-D3)
+
+`storage/index.ts` es el único importador de `minio`. Implementa el puerto `Almacen`
+(`core/archivos/almacen.ts`) con tres operaciones: firmar una URL de subida (`PUT`, 300 s), firmar
+una URL de descarga (`GET`, 300 s, con `response-content-type` y `response-content-disposition`) y
+consultar los metadatos de un objeto (`statObject`; `NotFound` es `null`, cualquier otro error es
+`AppError 503 ALMACEN_NO_DISPONIBLE` sin la URL ni las llaves). **La región es fija
+(`STORAGE_REGION`)**: con ella `minio` no pregunta al almacén dónde vive el bucket, así que firmar
+es un cálculo local y no abre ninguna conexión (R-18; lo comprueba PR-D03a con un endpoint
+inalcanzable). Los archivos nunca pasan por Node: el navegador sube y baja directo con la URL
+prefirmada. `config/almacen.ts` traduce `STORAGE_*` a las opciones; sin las tres variables el
+almacén es `null` y subir o descargar responde `503 ALMACEN_NO_CONFIGURADO`.
+
+`db/archivos.ts` guarda solo metadatos. Una solicitud de subida inserta la fila `pendiente` con la
+clave `materiales/{claseId}/{archivoId}` (el nombre del usuario nunca va en la clave). Se confirma
+al publicar: `buscarArchivosParaConfirmar` lee los ids en una consulta por PK, acotada a la clase,
+al usuario, al estado `pendiente` y a las últimas 24 h; el handler comprueba en el almacén que el
+objeto existe y coincide con lo declarado; y `crearPublicacion` inserta la publicación y hace el
+`UPDATE` a `confirmado` en la misma transacción, repitiendo esas condiciones. Si el conteo no
+coincide, lanza `400 ARCHIVO_INVALIDO` y todo se revierte. `borrarPublicacion` primero pasa sus
+archivos a `descartado` y les quita la publicación. Dos `CHECK` (a mano en la migración) fijan que el
+tamaño es positivo y que un archivo está confirmado si y solo si tiene publicación. Los objetos
+descartados o nunca confirmados siguen en el almacén hasta `LIMPIEZA_DIARIA`, prerrequisito de
+DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.

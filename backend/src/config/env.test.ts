@@ -5,6 +5,12 @@ import { JWT_SECRET_DE_EJEMPLO, validarEnv, validarEnvAdmin } from "./env.js"
 const urlDePrueba = "postgresql://usuario:clave-de-prueba@127.0.0.1:5433/base?schema=public"
 const secretoDePrueba = "secreto-de-prueba-con-mas-de-treinta-y-dos-caracteres"
 const minimo = { DATABASE_URL: urlDePrueba, JWT_SECRET: secretoDePrueba }
+// CLASES-d (Enmienda 10): en production el almacén es obligatorio; valores ficticios y válidos.
+const almacenValido = {
+  STORAGE_ENDPOINT: "https://almacen.ejemplo-de-prueba.mx",
+  STORAGE_ACCESS_KEY: "llave-de-acceso-de-prueba",
+  STORAGE_SECRET_KEY: "secreto-del-almacen-de-prueba",
+}
 
 describe("validarEnv", () => {
   it("acepta el mínimo (DATABASE_URL y JWT_SECRET) y aplica los valores por defecto", () => {
@@ -21,6 +27,8 @@ describe("validarEnv", () => {
       DATABASE_URL: urlDePrueba,
       JWT_SECRET: secretoDePrueba,
       INVITACIONES_LIMITE_DIARIO: 80,
+      STORAGE_REGION: "us-east-1",
+      STORAGE_BUCKET_PRIVADO: "campus-privado",
     })
   })
 
@@ -134,7 +142,12 @@ describe("validarEnv", () => {
       " ".repeat(40),
       `${" ".repeat(10)}corto-de-veinte-chars${" ".repeat(10)}`,
     ]) {
-      const resultado = validarEnv({ ...minimo, NODE_ENV: "production", JWT_SECRET })
+      const resultado = validarEnv({
+        ...minimo,
+        ...almacenValido,
+        NODE_ENV: "production",
+        JWT_SECRET,
+      })
 
       expect(resultado.ok).toBe(false)
       if (resultado.ok) continue
@@ -184,11 +197,104 @@ describe("validarEnv", () => {
   it("acepta en production un JWT_SECRET propio de 32 caracteres o más", () => {
     const resultado = validarEnv({
       ...minimo,
+      ...almacenValido,
       NODE_ENV: "production",
       JWT_SECRET: "un-secreto-propio-de-produccion-de-prueba-1234567890",
     })
 
     expect(resultado.ok).toBe(true)
+  })
+
+  it("PR-D02a: las tres variables STORAGE_* van todas o ninguna", () => {
+    const ninguna = validarEnv(minimo)
+    expect(ninguna.ok).toBe(true)
+    const todas = validarEnv({ ...minimo, ...almacenValido })
+    expect(todas.ok).toBe(true)
+
+    const soloElEndpoint = validarEnv({
+      ...minimo,
+      STORAGE_ENDPOINT: almacenValido.STORAGE_ENDPOINT,
+    })
+    expect(soloElEndpoint.ok).toBe(false)
+    if (soloElEndpoint.ok) throw new Error("soloElEndpoint debía ser inválido y salió válido")
+    expect(soloElEndpoint.errores).toEqual([
+      "STORAGE_ACCESS_KEY: debe definirse junto con STORAGE_ENDPOINT, STORAGE_ACCESS_KEY y STORAGE_SECRET_KEY",
+      "STORAGE_SECRET_KEY: debe definirse junto con STORAGE_ENDPOINT, STORAGE_ACCESS_KEY y STORAGE_SECRET_KEY",
+    ])
+
+    const sinElSecreto = validarEnv({
+      ...minimo,
+      STORAGE_ENDPOINT: almacenValido.STORAGE_ENDPOINT,
+      STORAGE_ACCESS_KEY: almacenValido.STORAGE_ACCESS_KEY,
+    })
+    expect(sinElSecreto.ok).toBe(false)
+
+    const vacias = validarEnv({
+      ...minimo,
+      STORAGE_ENDPOINT: "",
+      STORAGE_ACCESS_KEY: "",
+      STORAGE_SECRET_KEY: "",
+    })
+    expect(vacias.ok).toBe(true)
+
+    const protocoloInvalido = validarEnv({
+      ...minimo,
+      ...almacenValido,
+      STORAGE_ENDPOINT: "ftp://almacen.ejemplo-de-prueba.mx",
+    })
+    expect(protocoloInvalido.ok).toBe(false)
+    if (protocoloInvalido.ok) throw new Error("protocoloInvalido debía ser inválido y salió válido")
+    expect(protocoloInvalido.errores).toEqual([
+      "STORAGE_ENDPOINT: debe ser una URL que empiece con http:// o https://",
+    ])
+  })
+
+  it("PR-D02b: production exige las tres variables STORAGE_*", () => {
+    const resultado = validarEnv({ ...minimo, NODE_ENV: "production" })
+
+    expect(resultado.ok).toBe(false)
+    if (resultado.ok) throw new Error("resultado debía ser inválido y salió válido")
+    expect(resultado.errores).toEqual([
+      "STORAGE_ENDPOINT: obligatoria en production",
+      "STORAGE_ACCESS_KEY: obligatoria en production",
+      "STORAGE_SECRET_KEY: obligatoria en production",
+    ])
+
+    const conAlmacen = validarEnv({
+      ...minimo,
+      ...almacenValido,
+      NODE_ENV: "production",
+      STORAGE_REGION: "auto",
+      STORAGE_BUCKET_PRIVADO: "bucket-propio",
+    })
+    expect(conAlmacen.ok).toBe(true)
+    if (!conAlmacen.ok) throw new Error("conAlmacen debía ser válido y salió inválido")
+    expect(conAlmacen.env.STORAGE_REGION).toBe("auto")
+    expect(conAlmacen.env.STORAGE_BUCKET_PRIVADO).toBe("bucket-propio")
+  })
+
+  it("PR-D02c: los mensajes de STORAGE_* no llevan valores", () => {
+    const resultado = validarEnv({
+      ...minimo,
+      STORAGE_ENDPOINT: "ftp://centinela-endpoint.mx",
+      STORAGE_ACCESS_KEY: "centinela-llave",
+    })
+
+    expect(resultado.ok).toBe(false)
+    if (resultado.ok) throw new Error("resultado debía ser inválido y salió válido")
+    const texto = resultado.errores.join(" | ")
+    expect(texto).toContain("STORAGE_ENDPOINT")
+    expect(texto).toContain("STORAGE_SECRET_KEY")
+    expect(texto).not.toContain("centinela")
+
+    const enProduction = validarEnv({
+      ...minimo,
+      NODE_ENV: "production",
+      STORAGE_ACCESS_KEY: "centinela-llave",
+    })
+    expect(enProduction.ok).toBe(false)
+    if (enProduction.ok) throw new Error("enProduction debía ser inválido y salió válido")
+    expect(enProduction.errores.join(" | ")).not.toContain("centinela")
   })
 })
 

@@ -5,6 +5,7 @@ import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
@@ -89,7 +90,11 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
     if (publicaciones.isLoading || !filas) return <Cargando />
     if (filas.length === 0) {
       return (
-        <EstadoVacio titulo={esMaestro ? TEXTOS_MURO.vacioMaestro : TEXTOS_MURO.vacioEstudiante} />
+        <Card>
+          <EstadoVacio
+            titulo={esMaestro ? TEXTOS_MURO.vacioMaestro : TEXTOS_MURO.vacioEstudiante}
+          />
+        </Card>
       )
     }
     return (

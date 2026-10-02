@@ -1389,7 +1389,7 @@ Corridas aisladas: `cd backend; npx vitest run test/muro-c-r1.ataque.test.ts` �
 Ninguna otra prueba cayó (suite completa, ver arriba).
 
 ### N-C4 (cambio heredado, declarado)
-El programador anterior cambió una línea de un caso existente de `backend/test/clases.integracion.test.ts` (alrededor de la línea 128): el U+202E literal pasó a la secuencia de escape en `payload: { nombre: "Clase‮mala" }`, con el mismo valor. No lo deshice; no lo toqué en esta corrección.
+El programador anterior cambió una línea de un caso existente de `backend/test/clases.integracion.test.ts` (alrededor de la línea 128): el U+202E literal pasó a la secuencia de escape en `payload: { nombre: "Clase\u202Emala" }`, con el mismo valor. No lo deshice; no lo toqué en esta corrección.
 
 ### Desviaciones del plan
 - **D-1: `errorCursorInvalido` copiado, no reutilizado.** La indicación decía reutilizar el de `adapters/db/clases.ts`, pero esa función no está exportada y exportarla exige modificar `adapters/db/clases.ts`, que no está en "Cambios por capa" de c y por tanto está en "No se toca". Para no tocarlo, `publicaciones.ts` define su propio `errorCursorInvalido` con el mismo código, mensaje y estado (`VALIDACION`, "cursor: no es válido", 400), igual que ya hace `adapters/db/inscripciones.ts`. Si el manager prefiere una sola definición, hay que autorizar un cambio mínimo en `clases.ts` (exportar la función) o moverla a un archivo compartido de `adapters/db`.
@@ -1476,3 +1476,398 @@ El programador anterior cambió una línea de un caso existente de `backend/test
 - Desviaciones: ninguna. D-1 (copia de `errorCursorInvalido` en `publicaciones.ts`) sigue pendiente de decisión del manager.
 - Pendientes sin cambio: "Ver más clases" con el texto técnico (`panel-mis-clases.tsx` e inicios, de a), `formulario-clase.tsx` sin normalizar y `descripcionClaseSchema` con el mensaje de tipo por defecto de zod.
 - Observación: la recuperación cubre el muro de publicaciones. Los comentarios ya se recuperan con "Ocultar comentarios" y "Ver comentarios", como pide el texto.
+
+## CLASES-d — implementación
+Fecha: 2026-10-02. Rama `feat/clases`. Base `<Cc>` = `c7fcece`. Plan: `plan.md` (Enmiendas 10 y 9). Sin commit, sin navegador, sin tocar `*.ataque`.
+
+### Pasos completados: 8 de 8 (38 a 45)
+- **38. Precondiciones:** rama `feat/clases`; `git cat-file -e c7fcece^{commit}` en código 0; `git diff --name-only c7fcece -- shared backend frontend` listaba solo las 9 `*.ataque` (ronda 0 y complemento); V-01 97 de 97 contra la tabla del complemento (extraída de `reporte-tester.md` y comparada con `diff`: `V01-OK`); PA-01: regla "Campus: bloquear entrada a Docker en redes publicas" `Enabled True / Inbound / Block / Public`, red `IZZI-F281-5G` (Public), Docker encendido. Para la migración levanté `postgres` de `infra/` con `docker compose up -d postgres` (lo arranqué yo; queda encendido).
+- **39. Dependencia:** `npm install minio@^8 --workspace @campus/backend` desde la raíz, una vez (ver "Lockfile").
+- **40.** `shared/src/archivos.ts` y `clases.ts`; `npm run build` de `shared`; `core/archivos/almacen.ts` y `politica.ts` con su prueba.
+- **41.** `config/env.ts` y `env.test.ts`; `config/almacen.ts` con su prueba; `backend/.env.example` (bloque literal del plan); `adapters/storage/index.ts` con su prueba (PR-D03a y PR-D03b pasaron antes de seguir).
+- **42.** `schema.prisma`; un solo `prisma migrate dev --create-only --name archivos`; SQL revisado contra §D-D1 (idéntico, sin nada más) y los dos `CHECK` agregados a mano en esa misma carpeta; un solo `prisma migrate dev` (aplicó `20261002141710_archivos`); V-03; `adapters/db/archivos.ts`, `publicaciones.ts` e `index.ts`; `handlers/archivos.ts`, `clases/muro.ts` y `app.ts`; `test/almacen-en-memoria.ts` y los README.
+- **43.** Pruebas del backend de d y suite completa; frontend: `services/almacenService.ts`, `lib/format.ts`, componentes de d, `hooks.ts`, `lib.ts`, `data.ts`, `types.ts` y sus pruebas; suite completa.
+- **44.** `docs/DESIGN.md` §7.19 (a mano, marcada "propuesta").
+- **45.** V-01 a V-07 y este resumen.
+
+### Archivos creados y modificados
+**Creados (19, los `??` de `git status`):**
+- `shared/src/archivos.ts`
+- `backend/prisma/migrations/20261002141710_archivos/migration.sql`
+- `backend/src/core/archivos/almacen.ts`, `politica.ts`, `politica.test.ts`
+- `backend/src/config/almacen.ts`, `almacen.test.ts`
+- `backend/src/adapters/storage/index.ts`, `index.test.ts`
+- `backend/src/adapters/db/archivos.ts`
+- `backend/src/handlers/archivos.ts`
+- `backend/test/almacen-en-memoria.ts`, `archivos.integracion.test.ts`, `archivos-autorizacion.integracion.test.ts`
+- `frontend/src/services/almacenService.ts`, `almacenService.test.ts`
+- `frontend/src/features/clases/components/adjuntos-de-publicacion.tsx`, `lista-de-adjuntos-elegidos.tsx`
+- `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx`
+
+**Modificados:**
+- `package-lock.json` y `backend/package.json` (solo `minio`)
+- `shared/src/clases.ts`, `shared/src/index.ts`
+- `backend/prisma/schema.prisma`, `backend/.env.example`
+- `backend/src/config/env.ts`, `env.test.ts`
+- `backend/src/app.ts`
+- `backend/src/adapters/db/publicaciones.ts`, `index.ts`
+- `backend/src/handlers/clases/muro.ts`
+- `backend/src/adapters/README.md`, `backend/src/handlers/README.md`
+- `backend/test/ayudas-clases.ts` (`crearArchivoDePrueba`, `leerArchivoDb`, `listarArchivosDb`)
+- `frontend/src/lib/format.ts`, `format.test.ts`
+- `frontend/src/features/clases/types.ts`, `data.ts`, `lib.ts`, `hooks.ts`, `lib.test.ts`
+- `frontend/src/features/clases/components/formulario-publicacion.tsx`, y **`publicacion-del-muro.tsx` (ver "Desviaciones", punto 1)**
+- `frontend/src/features/clases/formulario-publicacion.test.tsx`, `muro-view.test.tsx`, `publicacion-del-muro.test.tsx`
+- `docs/DESIGN.md` (§7.19)
+
+### Lockfile (`git diff --stat c7fcece -- package-lock.json`: 324 inserciones y 7 eliminaciones; `backend/package.json`: una línea)
+- `backend/package.json`: `+ "minio": "^8.0.7"`. **Versión instalada: `minio` 8.0.7** (`node_modules/minio/package.json`).
+- Paquetes nuevos en el lockfile (todos del árbol de `minio`): `minio`, `@nodable/entities`, `anynum`, `block-stream2` (+ su `readable-stream`), `browser-or-node`, `decode-uri-component`, `eventemitter3`, `fast-xml-builder`, `fast-xml-parser`, `filter-obj`, `is-unsafe`, `mime-db`, `mime-types`, `path-expression-matcher`, `query-string`, `sax`, `split-on-first`, `stream-chain`, `stream-json`, `strict-uri-encode`, `strnum`, `through2` (+ su `readable-stream`), `xml-naming`, `xml2js`, `xmlbuilder`.
+- Las 7 líneas eliminadas son marcas `"dev": true` o `"devOptional": true` que se quitan de `async`, `buffer-crc32`, `inherits`, `lodash`, `safe-buffer`, `string_decoder` y `util-deprecate`, porque ahora también los usa `minio` en producción. No cambia ninguna versión.
+- Ningún paquete de AWS (`git diff -U0 package-lock.json | grep -ci aws` → 0). PA-14 no se activó.
+
+### Pruebas requeridas de d (PR-D01a a PR-D15): archivo y título exacto del caso
+Salen de `npx vitest list` (ver "Conteos"). Las 56 viñetas tienen caso; ninguna "no cubierta".
+- PR-D01a: `backend/src/core/archivos/politica.test.ts`, "PR-D01a: acepta un tipo permitido con extensión coincidente; foto.png como application/pdf da error"
+- PR-D01b: `backend/src/core/archivos/politica.test.ts`, "PR-D01b: el tamaño 0 y 25 MB + 1 dan error; 25 MB exactos es válido"
+- PR-D01c: `backend/src/core/archivos/politica.test.ts`, "PR-D01c: un nombre con /, \ o un carácter de control da error"
+- PR-D01d: `backend/src/core/archivos/politica.test.ts`, "PR-D01d: la clave materiales/{claseId}/{archivoId} no contiene el nombre"
+- PR-D01e: `backend/src/core/archivos/politica.test.ts`, "PR-D01e: con acentos, comillas, punto y coma y saltos da filename* en UTF-8 y una alternativa ASCII sin comillas ni saltos"
+- PR-D01f: `backend/src/core/archivos/politica.test.ts`, "PR-D01f: esImagenConVistaPrevia("image/svg+xml") es false y las cuatro imágenes son true"
+- PR-D01g: `backend/src/core/archivos/politica.test.ts`, "PR-D01g: devuelve ok, falta y distinto"
+- PR-D02a: `backend/src/config/env.test.ts`, "PR-D02a: las tres variables STORAGE_* van todas o ninguna"
+- PR-D02b: `backend/src/config/env.test.ts`, "PR-D02b: production exige las tres variables STORAGE_*"
+- PR-D02c: `backend/src/config/env.test.ts`, "PR-D02c: los mensajes de STORAGE_* no llevan valores"
+- PR-D02d: `backend/src/config/almacen.test.ts`, "PR-D02d: http da useSSL false con su puerto; https da true y el puerto 443"
+- PR-D03a: `backend/src/adapters/storage/index.test.ts`, "PR-D03a: con un endpoint inalcanzable, la URL de subida se firma sin red y lleva X-Amz-Expires=300"
+- PR-D03b: `backend/src/adapters/storage/index.test.ts`, "PR-D03b: la URL de descarga lleva response-content-disposition y response-content-type"
+- PR-D04a: `backend/test/archivos.integracion.test.ts`, "PR-D04a: solicitar: el dueño recibe 201, con la fila pendiente y la clave correcta"
+- PR-D04b: `backend/test/archivos.integracion.test.ts`, "PR-D04b: un tipo o un tamaño inválidos dan 400 sin escribir"
+- PR-D04c: `backend/test/archivos.integracion.test.ts`, "PR-D04c: sin almacén (almacen: null) responde 503 ALMACEN_NO_CONFIGURADO"
+- PR-D05a: `backend/test/archivos.integracion.test.ts`, "PR-D05a: publicar con adjuntos (almacén en memoria) confirma los archivos"
+- PR-D05b: `backend/test/archivos.integracion.test.ts`, "PR-D05b: si falta el objeto, 400 ARCHIVO_NO_SUBIDO y no se crea la publicación"
+- PR-D05c: `backend/test/archivos.integracion.test.ts`, "PR-D05c: si el tamaño o el tipo son distintos, 400 ARCHIVO_INVALIDO"
+- PR-D05d: `backend/test/archivos.integracion.test.ts`, "PR-D05d: un archivo de otra clase, de otro usuario, ya confirmado o de hace más de 24 h da 400 sin cambios"
+- PR-D05e: `backend/test/archivos.integracion.test.ts`, "PR-D05e: 6 ids o ids repetidos dan 400"
+- PR-D05f: `backend/test/archivos.integracion.test.ts`, "PR-D05f: un error forzado dentro de la transacción no deja archivos confirmados ni trabajos"
+- PR-D06a: `backend/test/archivos.integracion.test.ts`, "PR-D06a: en el muro, vistaPrevia solo existe en las imágenes"
+- PR-D06b: `backend/test/archivos.integracion.test.ts`, "PR-D06b: sin almacén, vistaPrevia es null y la lista sale igual"
+- PR-D06c: `backend/test/archivos.integracion.test.ts`, "PR-D06c: el recorrido recursivo del muro no encuentra clave_objeto, claveObjeto ni estadoPago"
+- PR-D06d: `backend/test/archivos.integracion.test.ts`, "PR-D06d: sin adjuntos sale adjuntos: [] en el muro y en la respuesta 201; con adjuntos, la respuesta de crear los trae con la forma del muro"
+- PR-D07a: `backend/test/archivos.integracion.test.ts`, "PR-D07a: el miembro recibe 200 con no-store y una URL con disposición attachment"
+- PR-D07b: `backend/test/archivos.integracion.test.ts`, "PR-D07b: la descarga de un archivo de otra clase con el claseId propio responde 404"
+- PR-D07c: `backend/test/archivos.integracion.test.ts`, "PR-D07c: la descarga de un pendiente responde 404"
+- PR-D08a: `backend/test/archivos.integracion.test.ts`, "PR-D08a: borrar una publicación con adjuntos deja sus archivos descartados y sin contexto"
+- PR-D08b: `backend/test/archivos.integracion.test.ts`, "PR-D08b: un UPDATE directo a confirmado sin publicación falla por el CHECK"
+- PR-D08c: `backend/test/archivos.integracion.test.ts`, "PR-D08c: un UPDATE directo que pone publicacion_id a un pendiente falla por el CHECK"
+- PR-D09a: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09a: cada ruta de d: sin token, 401"
+- PR-D09b: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09b: cada ruta: con debe_cambiar_contrasena, 403 CAMBIO_DE_CONTRASENA_REQUERIDO"
+- PR-D09c: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09c: cada ruta: estudiante restringido inscrito, 403 ACCESO_RESTRINGIDO"
+- PR-D09d: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09d: cada ruta: admin, 403 ROL_NO_PERMITIDO"
+- PR-D09e: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en la solicitud de subida)"
+- PR-D09f: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09f: cada ruta: maestro ajeno y estudiante no inscrito, 403 SIN_ACCESO_A_LA_CLASE"
+- PR-D09g: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09g: cada ruta: el caso permitido, 2xx"
+- PR-D09h: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09h: en cada caso negado, los archivos de la clase quedan como estaban"
+- PR-D09i: `backend/test/archivos-autorizacion.integracion.test.ts`, "PR-D09i: un restringido inscrito no obtiene ninguna URL"
+- PR-D10a: `frontend/src/services/almacenService.test.ts`, "PR-D10a: hace un PUT sin Authorization, con credentials omit y con el Content-Type"
+- PR-D10b: `frontend/src/services/almacenService.test.ts`, "PR-D10b: rechaza una URL javascript:, una relativa y una del origen de la API, sin llamar a fetch"
+- PR-D10c: `frontend/src/services/almacenService.test.ts`, "PR-D10c: una respuesta que no es ok lanza"
+- PR-D11a: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D11a: rechaza en cliente un tipo no permitido, con ErrorDeCampo"
+- PR-D11b: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D11b: rechaza un archivo de más de 25 MB"
+- PR-D11c: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D11c: rechaza un sexto archivo"
+- PR-D11d: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D11d: infiere el tipo por la extensión cuando File.type viene vacío"
+- PR-D12a: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D12a: el orden es solicitar, subir y publicar, con los ids en el orden de subida"
+- PR-D12b: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D12b: si falla la subida del segundo archivo, aparece el toast y no se llama a publicar"
+- PR-D12c: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D12c: el botón principal sigue en enEspera durante todo el proceso"
+- PR-D13a: `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx`, "PR-D13a: la imagen lleva alt="Imagen adjunta: <nombre>""
+- PR-D13b: `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx`, "PR-D13b: con onError, la imagen pasa a la ficha"
+- PR-D13c: `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx`, "PR-D13c: Descargar pide la URL (enEspera) y llama a window.location.assign"
+- PR-D14: `frontend/src/lib/format.test.ts`, "PR-D14: da "820 KB" y "2.4 MB""
+- PR-D15: `frontend/src/features/clases/lib.test.ts`, "PR-D15: da un mensaje para el tipo, el tamaño y la cantidad, y null si el archivo se puede agregar"
+
+(Los casos PR-D02a a PR-D02c están en `backend/src/config/env.test.ts`; el archivo se lista sin prefijo de carpeta en la salida de `vitest list`: `src/config/env.test.ts`, dentro de `backend/`. PR-D02d, PR-D03a y PR-D03b: ídem. Los títulos que llevan dos veces el mismo ID no existen: los casos extra que escribí no empiezan con un ID.)
+
+### Casos existentes adaptados por la Enmienda 10 (N-1 a N-5 y `env.test.ts:130`)
+Ninguna aserción se quitó ni se debilitó y ningún título cambió. Líneas de hoy (el cambio de N-1, N-2 y `:130` suma 6 líneas de la constante `almacenValido`, en `:9`).
+- **N-1**, `backend/src/config/env.test.ts:16`, "acepta el mínimo (DATABASE_URL y JWT_SECRET) y aplica los valores por defecto": el objeto esperado suma `STORAGE_REGION: "us-east-1"` y `STORAGE_BUCKET_PRIVADO: "campus-privado"`.
+- **`:130`**, `backend/src/config/env.test.ts:138`, "en production también rechaza el ejemplo con blancos alrededor y un secreto de solo blancos (T-08)": su entrada suma `...almacenValido`.
+- **N-2**, `backend/src/config/env.test.ts:197`, "acepta en production un JWT_SECRET propio de 32 caracteres o más": su entrada suma `...almacenValido`.
+- Constante nueva al inicio del archivo: `almacenValido` (`env.test.ts:9`, endpoint `https`, valores ficticios).
+- **N-3**, `frontend/src/features/clases/formulario-publicacion.test.tsx`: el doble `publicacionCreada` (`:30`) suma `adjuntos: []`; los cuerpos esperados suman `archivoIds: []` en `:112` (PR-C09b, "PR-C09b: publicar limpia el formulario, avisa e invalida la lista"), `:168` ("un material sin descripción se publica con solo el título"), `:280` y `:294` (PR-C15b, "PR-C15b: un anuncio de 5,000 caracteres más un salto se envía normalizado; uno de 5,001 sin saltos se rechaza en el formulario").
+- **N-4**, `frontend/src/features/clases/muro-view.test.tsx:36`: el doble `publicacion()` suma `adjuntos: []`. Ningún otro caso de ese archivo necesitó cambio.
+- **N-5**, `frontend/src/features/clases/publicacion-del-muro.test.tsx:32`: el constructor `publicacion(): Publicacion` suma `adjuntos: []`. Ningún otro caso necesitó cambio.
+
+### Conteos (comandos y salidas)
+- **Backend:** `cd backend; npx vitest list --filesOnly` → 116 archivos; `cd backend; npx vitest list` → 1272 casos; la corrida limpia dice `Test Files  116 passed (116)` y `Tests  1272 passed (1272)`. En `c7fcece`: 111 archivos y 1226 pruebas. Suman 5 archivos y 46 casos (politica 8, almacen 2, storage 3, env +3, archivos.integracion 21, autorizacion 9).
+- **Frontend:** `cd frontend; npx vitest list --filesOnly` → 98 archivos de pruebas (`grep -c "\.test\.tsx\?$"`); `cd frontend; npx vitest list` → 1316 casos (`grep -c " > "`); la corrida dice `Test Files  98 passed (98)` y `Tests  1316 passed (1316)`. En `c7fcece`: 96 archivos y 1293. Suman 2 archivos y 23 casos (almacenService 4, adjuntos 7, formulario 9, lib 2, format 1; las adaptaciones de N-3 a N-5 no suman casos).
+- Las 56 viñetas de d aparecen en la lista (`grep " > PR-D<id>[: ]"` de cada ID da 1 resultado).
+- Total de `*.ataque`: 97, sin cambios (V-01).
+
+### Verificación (comando exacto y última línea de salida)
+| Comando | Última línea no vacía | Código |
+|---|---|---|
+| `npm run build` (raíz) | `✓ built in 1.17s` (la de `vite build`; antes de ella solo avisos de tamaño de bloque) | 0 |
+| `npm run lint` (raíz) | `> tsc -b` | 0 |
+| `cd shared; npm run lint` | `All matched files use Prettier code style!` | 0 |
+| `cd shared; npm run build` | `> tsc -p tsconfig.json` | 0 |
+| `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit` | 0 |
+| `cd backend; npm run build` | `> tsc -p tsconfig.json` | 0 |
+| `cd backend; npm test` (corrida 2, limpia) | `Tests  1272 passed (1272)` (`Duration  53.58s`) | 0 |
+| `cd backend; npm test` (corrida 3, limpia) | `Tests  1272 passed (1272)` (`Duration  54.25s`) | 0 |
+| `cd frontend; npm run lint` | `> tsc -b` | 0 |
+| `cd frontend; npm run build` | `✓ built in 661ms` | 0 |
+| `cd frontend; npm test` | `Tests  1316 passed (1316)` (`Duration  49.52s`) | 0 |
+| `npm run test` (raíz), corrida de las dos | frontend `Tests  1316 passed (1316)`; backend cayó, ver "PA-07" | backend 1 |
+
+**Los tres rojos esperados, ahora en verde, por la razón correcta:**
+- **C-2**, `backend/test/sesiones-y-cadena.ataque.test.ts:492` ("bajo /api solo existen las rutas de AUTH-01, … CLASES-c y CLASES-d: …"): pasa porque `printRoutes` ya trae exactamente las 2 rutas de d (`POST …/archivos` y `POST …/archivos/:archivoId/descarga`, sin HEAD), y nada más.
+- **C-13**, `frontend/src/styles/clases-r1.ataque.test.ts:126` ("V-06: … 36 enEspera"): pasa porque `adjuntos-de-publicacion.tsx` suma su único `enEspera=` ("Descargar") y ningún otro archivo nuevo lo lleva (`grep -rn "enEspera=" frontend/src --include=*.tsx` sin pruebas → 36).
+- **C-22**, `frontend/src/features/clases/muro-c-r2.ataque.test.tsx:391` ("material con extremos en blanco en el título y la descripción: se envían normalizados"): pasa porque `handlePublicar` manda `{ ...datos, archivoIds }`, con `archivoIds: []` si no hay adjuntos.
+- Ninguna otra `*.ataque` está en rojo: `backend` 116 de 116 archivos y `frontend` 98 de 98 en las corridas limpias. V-01 vuelve a dar 97 de 97 iguales a la tabla del complemento (revisado al final, después de todos mis `prettier --write`).
+
+### V-03 (Prisma), desde `backend/`
+- `npx prisma validate` → `The schema at prisma\schema.prisma is valid`, código 0.
+- `npx prisma format --check` → código 0.
+- `npx prisma generate` → `Generated Prisma Client (7.10.0) to .\src\adapters\db\generated`, código 0.
+- `npx prisma migrate status` → `Database schema is up to date!`, código 0.
+- `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → `No difference detected.`, código 0 (PA-04 no se activó).
+- Comandos de Prisma que sí usé: `migrate dev --create-only --name archivos` (una vez), `migrate dev` (una vez), `validate`, `format`, `generate`, `migrate status`, `migrate diff`. Ningún `reset`, `resolve`, `db push`, `db pull`, `db execute`, `migrate deploy`; ninguna migración existente editada.
+- **PA-03:** el SQL que generó `--create-only` es idéntico a §D-D1 sin los `CHECK` (enum, tabla, índice único, índice de `publicacion_id` y las tres llaves foráneas con `RESTRICT`, `CASCADE` y `NO ACTION`); sin `DROP`, sin `ALTER` de columnas existentes y sin nada en `usuarios`. Agregué a mano los dos `CHECK` (`archivos_tamano_positivo` y `archivos_confirmado_si_y_solo_si_contexto`, en las dos direcciones).
+
+### V-04 (búsquedas en producción, sin pruebas)
+- `$queryRawUnsafe` → 1 archivo (`backend/src/adapters/db/cliente.ts`); `$executeRawUnsafe` → 0.
+- `$queryRaw`/`$executeRaw` en `backend/src/`: los de siempre (`bloqueo-usuario.ts` 2, `enlaces-registro.ts` 2, `invitaciones.ts` 1, `salud.ts` 1) y el `FOR SHARE` de `publicaciones.ts` (c); **ninguno nuevo de d**.
+- `addHook` en `backend/src/handlers/` → 0.
+- `from "minio"` → 1, solo `backend/src/adapters/storage/index.ts`.
+- `estadoPago` en `backend/src/`: ningún archivo nuevo de d lo contiene (los de AUTH e `inscripciones.ts` siguen igual; `git diff c7fcece` no lo toca).
+- `console.` en los archivos nuevos del backend → 0.
+- `\bfetch(` en `frontend/src/` sin pruebas → `services/apiClient.ts` (2) y `services/almacenService.ts` (1). (`muro-view.tsx:49` es `refetch()`, anterior a d.)
+- `dangerouslySetInnerHTML` y `target="_blank"` → 0.
+- `enEspera=` → 36; `vidrio-azul` → solo `bloque-destacado.tsx`; `from "@/features/auth` en `features/clases/` → 0; `?? []` en `features/clases/` sin pruebas → 0 (C-21: nadie completa `adjuntos`).
+- Invisibles: `node scratchpad/invisibles.cjs` sobre los archivos tocados que no son `*.ataque` → solo `shared/src/clases.ts`, con 4 (U+202A, U+202E, U+2066 y U+2069) que ya estaban en `c7fcece` (la expresión de §D-C4); ningún invisible nuevo.
+
+### V-05 ("No se toca")
+- **Dentro de los paquetes, base `c7fcece`:** `git diff --quiet c7fcece -- <ruta>` en código 0 y `git status --porcelain -- <ruta>` vacío para: `backend/{prisma.config.ts,vitest.config.ts,tsconfig.json,tsconfig.build.json}`, `backend/src/{server.ts,worker.ts,scripts}`, `backend/src/config/{auth,cola,correo,logger}.ts`, `adapters/{notifier,auth}`, `adapters/db/{cliente,bloqueo-usuario,sesiones,salud,errores,usuarios,tokens-cuenta,enlaces-registro,invitaciones,clases,inscripciones}.ts`, `adapters/queue/{index,colas}.ts`, `src/middleware/**` (completo), `handlers/{auth,admin.ts,errores.ts,salud.ts,usuarios.ts,validacion.ts,clases/clases.ts,clases/alumnos.ts}`, `core/{auth,correo,eventos,errores.ts}`, `workers`, `test/{global-setup,setup,entorno-de-pruebas,ayudas-auth,ayudas-cuentas,ayudas-concurrencia,notifier-en-memoria,preparar-cola}`, `frontend/{package.json,components.json,vite.config.ts,vitest.config.ts,index.html}`, `frontend/src/{main.tsx,test/setup.ts}`, `frontend/src/services/{apiClient,authService,tokenAcceso,navegacion,liveService,sesionService}.ts`, `frontend/src/components/**`, `frontend/src/lib/{utils,cache-de-mutaciones}.ts`, `frontend/src/features/{admin,diagnostico,auth}`, `eslint.config.mjs`, `package.json` raíz, `.prettierrc.json`, `.prettierignore`, `tsconfig.base.json`, `.gitignore`, `.gitattributes`, `.nvmrc`.
+- `frontend/src/styles` y `frontend/src/app` salen con diferencia solo por las `*.ataque` de la ronda 0 (`styles/clases-r1.ataque.test.ts`, `app/muro-recuperar-c-r3.ataque.test.tsx` y `-r4`), que no son mías; sin esos archivos, 0 diferencias.
+- **Migraciones:** `git diff --name-only c7fcece -- backend/prisma/migrations` vacío y `git status` solo muestra la carpeta nueva `backend/prisma/migrations/20261002141710_archivos/`.
+- **`backend/package.json`:** el diff contra `c7fcece` es una línea, `+    "minio": "^8.0.7",`. **`package-lock.json`:** solo el árbol de `minio` (ver "Lockfile").
+- **Fuera de los paquetes:** lo único que cambié yo es `docs/DESIGN.md` (§7.19) y `package-lock.json`. Los demás cambios sin commit (`AGENTS.md`, `.claude/agents/arquitecto.md`, `docs/ESTADO.md`, `docs/trabajo/CLASES-01-clases-y-muro/*`) son del orquestador, del arquitecto, del tester y del manager; no los toqué. `infra/` sin cambios.
+
+### V-06 (rutas)
+- Los 56 elementos de `printRoutes` (los de hoy, más las 2 de d) los comprueba el caso C-2 de `sesiones-y-cadena.ataque.test.ts`, que compara la lista exacta y pasa. Las 2 de d: `POST /api/clases/:claseId/archivos` y `POST /api/clases/:claseId/archivos/:archivoId/descarga`.
+- `RUTAS_PUBLICAS` (`backend/src/middleware/rutas-publicas.ts`, sin cambios) sigue con exactamente las 10 de hoy. Ninguna ruta contiene "movimiento".
+
+### V-07 (conteos)
+Ver "Conteos". Los listados quedaron en el scratchpad (`list-back.txt`, `list-front.txt`, `list-back-files.txt`, `list-front-files.txt`).
+
+### PARADAS comprobadas
+- **PA-01:** comprobada antes de la primera corrida del backend (regla `True Inbound Block Public`; red `IZZI-F281-5G`, Public). No se activó.
+- **PA-02:** no se activó (rama, base, árbol de los paquetes con solo las 9 `*.ataque`, V-01 97 de 97).
+- **PA-03 y PA-04:** no se activaron (V-03).
+- **PA-05:** no aplica a d.
+- **PA-06:** no se activó. Al final no hay ninguna `*.ataque` en rojo, y V-01 da 97 de 97.
+- **PA-07:** `cd backend; npm test`: corrida 1 (con una falla mía, ver más abajo), corrida 2 y corrida 3 limpias. En las dos limpias (`back-test-2.txt` y `back-test-3.txt`): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0 y `P2028` 2 líneas por corrida (cada `P2028` aparece en el log del error y en el del `msg`; son exactamente los dos aceptados de `cuentas-r3`: `tx.sesion.create()` en `adapters/db/sesiones.ts:39`, de `POST /api/auth/login`, y `tx.tokenCuenta.updateMany()` en `adapters/db/tokens-cuenta.ts:116`, de `POST /api/auth/restablecer`). Las 9 líneas "Error no controlado" de la corrida 2 son esas 2 y 7 fallos simulados a propósito; ninguna es de `publicaciones` ni de `archivos` (`grep -c` 0). **Ningún `P2028` ni `500` del muro o de archivos en una corrida limpia.**
+  - **Corridas caídas por CHORE-02 (las dos corridas de `npm run test` desde la raíz).** Las dos veces el backend cayó con tiempos límite de 15 s en pruebas que crean usuarios mientras las `*.ataque` de cuentas retienen `LOCK TABLE usuarios`: la primera, 12 pruebas en 7 archivos (entre ellas dos mías, PR-D04a y PR-D04b, y dos de c/a: "un cursor de una clase ajena no devuelve nada…" y "POST /clases ignora maestroId…"); la segunda, 12 pruebas en 8 archivos (entre ellas mis PR-D04a y PR-D04b y PR-A15h de a/c). Todas eran `Test timed out in 15000ms` o esperas de las pruebas de ritmo, con `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; los `P2028` de esas corridas fueron de `tx.sesion.create()` (login) y de `tx.tokenCuenta.updateMany()` (restablecer), ninguno en una ruta de c o de d. Con el backend solo (`cd backend; npm test`), las dos repeticiones salieron limpias con exactamente los dos aceptados. Lo reporto tal cual: desde la raíz, `npm run test` cayó las dos veces que lo corrí, y mis dos pruebas PR-D04a y PR-D04b son las primeras de su archivo y por eso las alcanza la espera en cadena; no son intermitentes por su cuenta (pasan en las tres corridas completas del backend solo y cuando se corre su archivo aislado).
+  - Mi única falla real de la corrida 1 era `PR-C02e` de `muro.integracion.test.ts` (archivo fuera de la lista cerrada de d): llamaba a `crearPublicacion` sin `archivos`. Lo resolví haciendo opcional ese parámetro en el adaptador (ver "Desviaciones", punto 2), sin tocar la prueba.
+- **PA-09:** no se activó (la única dependencia nueva es `minio`; no cambié ninguna firma de AUTH; `construirApp({ env })` de `server.ts` sigue compilando porque `almacen` es opcional). Ver "Desviaciones", punto 1, sobre `publicacion-del-muro.tsx`.
+- **PA-10:** `grep` de `X-Amz-Signature`, de los valores de `STORAGE_SECRET_KEY` de las pruebas y de la URL del doble en las salidas completas de las dos corridas limpias del backend → 0. Ningún código nuevo registra nada: `handlers/archivos.ts`, `adapters/storage/index.ts` y `adapters/db/archivos.ts` no llaman al logger ni a `console`; los errores del proveedor se traducen a `AppError 503` sin la URL ni las llaves (probado en `adapters/storage/index.test.ts`).
+- **PA-11:** al terminar cada corrida del backend, `docker ps -a --format '{{.Names}} {{.Status}}'` solo mostró `campus-dev-postgres-1` (el que levanté yo); ningún contenedor de Testcontainers ni Ryuk 120 s después de las corridas.
+- **PA-12:** el backend completo corrió limpio dos veces seguidas (corridas 2 y 3, 1272 de 1272 las dos) y el frontend completo, tres (1316 de 1316). Ver arriba lo de las corridas caídas por CHORE-02.
+- **PA-14:** PR-D03a pasa con un endpoint inalcanzable (`http://127.0.0.1:9`, sin red), con la región fija; `npm install` no agregó nada de AWS ni nada fuera del árbol de `minio`.
+- **PA-15:** no se activó (no edité producción para simular nada).
+- **PA-16:** no se activó. Los archivos de pruebas que toqué son exactamente los de la fila d: nuevos `politica.test.ts`, `almacen.test.ts`, `storage/index.test.ts`, `almacen-en-memoria.ts`, `archivos.integracion.test.ts`, `archivos-autorizacion.integracion.test.ts`, `almacenService.test.ts` y `adjuntos-de-publicacion.test.tsx`; `env.test.ts` solo con PR-D02a a PR-D02c y N-1, N-2 y `:130`; y los que se extienden: `ayudas-clases.ts`, `format.test.ts`, `lib.test.ts`, `formulario-publicacion.test.tsx`, `muro-view.test.tsx` y `publicacion-del-muro.test.tsx` (solo N-4 y N-5). Ningún caso existente se borró ni se reescribió.
+
+### Desviaciones del plan (para el manager)
+1. **`frontend/src/features/clases/components/publicacion-del-muro.tsx` (modificado, no figura en "Cambios por capa" de d ni en la lista "No se toca" de d).** Sin tocarlo, `AdjuntosDePublicacion` no se vería en el muro (la subentrega pide "vista previa de imágenes en el muro"). Agregué el montaje `<AdjuntosDePublicacion claseId adjuntos={publicacion.adjuntos} />` y la frase de confirmación condicional: con adjuntos, "Se borrará con sus comentarios y adjuntos." (`TEXTOS_PUBLICACION.confirmarBorrarPublicacionConAdjuntos`, de §D-D6); sin adjuntos, la de siempre ("Se borrará con sus comentarios."). **Por qué condicional:** `muro-c-r1.ataque.test.tsx:479` y `publicacion-del-muro.test.tsx:288` esperan exactamente el texto viejo con publicaciones sin adjuntos, y las `*.ataque` no se tocan; cambiar el texto para todas rompería una `*.ataque` (PA-06). No agregué ningún `enEspera=` ahí (V-06 sigue en 36). **Decide el manager** si lo acepta o si pide un cambio de plan/prueba. Sin esta frase condicional ninguna prueba normal cubre la frase con adjuntos fuera de `adjuntos-de-publicacion.test.tsx` ("muestra los adjuntos y, al pedir borrar, la frase que también los nombra"); la agregué ahí, que es archivo de la lista de d.
+2. **`crearPublicacion` (adaptador) recibe `archivos` opcional, no `archivoIds`.** El plan dice "confirmación de `archivoIds`". Mi diseño: el handler lee las filas con `buscarArchivosParaConfirmar` (paso 3.1), las verifica contra el almacén (3.2) y se las pasa a `crearPublicacion`, que confirma exactamente esas ids con el `UPDATE` de 3.3 y arma los adjuntos de la respuesta `201` con ellas, sin otra consulta (C-21). El parámetro es opcional (`[]` por defecto) para que `muro.integracion.test.ts` (PR-C02e, fuera de la lista de d) siga compilando y pasando sin tocarse.
+3. **`buscarArchivosParaConfirmar({ ids, claseId, subidoPor })`** filtra ya por clase, usuario, `pendiente`, sin publicación y últimas 24 h (sigue siendo una consulta por PK, con filtros extra), para no consultar al almacén por un objeto ajeno (sin oráculo). Si el conteo no coincide, `400 ARCHIVO_INVALIDO`; el `UPDATE` de `crearPublicacion` repite las condiciones por las carreras.
+4. **`shared/src/archivos.ts` suma `CODIGOS_ARCHIVOS` y `archivoIdParamSchema`** (no listados en §D-D4); `core/archivos/politica.ts` suma tres fábricas de error (`almacenNoConfigurado`, `archivoNoSubido`, `archivoNoCoincide`) para no duplicarlas entre los dos handlers.
+5. **`descarga` sin almacén responde 503 antes de buscar el archivo** (§D-D2: "sin almacén, subir y descargar responden 503").
+6. **`vacioComoAusente` en `env.ts`:** una variable `STORAGE_*=` vacía cuenta como ausente (evita que `.env` con el valor en blanco falle por un motivo confuso). Sin valores en los mensajes.
+7. **Textos fuera de §D-D6:** "Archivos elegidos" y "Archivos adjuntos" (nombres accesibles de las dos listas, en `TEXTOS_ADJUNTOS`). El aviso de un fallo al pedir la URL de descarga usa `mensajeDeErrorClases` (los códigos `ALMACEN_*` dan el texto de §D-D6; el resto, el genérico "Algo salió mal. Inténtalo de nuevo.").
+8. **Casos de prueba adicionales** (sin ID, no sustituyen ninguno): `storage/index.test.ts` "metadatosDe: un objeto ausente da null y un error del proveedor da 503…" (usa un servidor HTTP local en `127.0.0.1`), "sin las variables del almacén, opcionesDeAlmacen devuelve null", "sin almacén responde 503 ALMACEN_NO_CONFIGURADO" (descarga), "borrar con el claseId propio una publicación ajena no descarta sus archivos", "Quitar saca el archivo…" (foco), "sin archivos elegidos, el cuerpo de publicar lleva archivoIds vacío… (C-22)", y los de `PublicacionDelMuro con adjuntos` y de error de descarga.
+
+### Pendiente o fuera de alcance detectado
+- **CHORE-02** sigue activo: `npm run test` desde la raíz cayó 2 de 2 veces por tiempos límite del backend (arriba); con `cd backend; npm test`, 2 de 2 limpias más una con mi falla ya resuelta. El manager lo contrastará con su corrida.
+- Las herramientas de escritura de este entorno convierten los `\uXXXX` de ciertos rangos (separadores y controles bidireccionales) en el carácter real al guardar un archivo; `politica.ts` y su prueba usan esos escapes y los revisé por programa (`node` sobre los archivos: solo escapes, ningún carácter real).
+- `limpieza de objetos y filas` (`LIMPIEZA_DIARIA`): pendiente de NOTIFICACIONES (los `pendiente` y `descartado` y sus objetos siguen en el almacén).
+- Comprobación humana H-5 (subida real a MinIO y su CORS, S-21): **no verificada** por mí (sin navegador). Antes, el humano debe copiar las cinco variables `STORAGE_*` de `backend/.env.example` a su `backend/.env` y levantar MinIO (`docker compose up -d` en `infra/`; yo solo levanté `postgres`). El CORS de MinIO y el `PUT` desde otro origen, y el atributo `hidden` del selector de archivos en un navegador real, solo se ven allí.
+- La base `campus_dev` local ya tiene aplicada la migración `20261002141710_archivos`.
+
+## CLASES-d — corrección de la ronda 1
+Fecha: 2026-10-02. Base `<Cc>` = `c7fcece`. Plan: Enmienda 12. Sin commit, sin navegador, ninguna `*.ataque` tocada.
+
+### Hallazgos atendidos
+- **T-38 corregido.** `formulario-publicacion.tsx`: una referencia `publicandoRef` que `handlePublicar` marca antes del primer `await` y libera en el `finally`; con ella marcada, `handleQuitar` y `handleElegir` regresan sin cambiar nada (`handleElegir` limpia igual el selector) y `handleSubmit` no deja un segundo envío. Con la publicación en curso aparece, junto a la lista, `<p role="status">` con `TEXTOS_ADJUNTOS.listaFija` ("Mientras se publica no puedes cambiar los archivos.", `data.ts`). Sin `disabled`, sin `aria-disabled`, sin `enEspera` nuevo y sin ocultar controles. `DESIGN.md` §7.19.
+- **T-39 corregido.** `shared/src/archivos.ts`: `urlDelAlmacenSchema = z.url({ protocol: /^https?$/ })`, usada por `solicitarSubidaRespuestaSchema.subida.url`, `adjuntoSchema.vistaPrevia.url` y `descargaRespuestaSchema.url`; exportada en `shared/src/index.ts`; `npm run build` de `shared`. Con `javascript:` o `data:` el `schema.parse` de `apiClient` falla (`RESPUESTA_INVALIDA`) y `handleDescargar` (sin cambios) avisa sin navegar. La comprobación de `almacenService` se queda.
+- **T-40 corregido.** `lib.ts`: `tiempoFrescoDelMuro(paginas, dataUpdatedAt)` (pura): sin vistas previas, `TIEMPO_FRESCO_DEL_MURO_MS` (240,000); con ellas, `max(0, expiraEnMásTemprano − 60 s − dataUpdatedAt)`. `hooks.ts`: `staleTime` de `usePublicaciones` es una función de la consulta que la usa. `data.ts`: `MARGEN_DE_VISTA_PREVIA_MS = 60_000`. `types.ts`: `PaginaDelMuro`. `adjuntos-de-publicacion.tsx`: la imagen que falló se recuerda por su URL (`urlsRotas`). `DESIGN.md` §7.19: la frase "el muro se vuelve a pedir antes de que venza la primera vista previa" y la nota de la URL.
+- **T-41 corregido.** `formulario-publicacion.tsx` (función `avisoDeFalloAlSubir`) y `data.ts` (`TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)`): un `ApiError` al solicitar da "No pudimos subir «nombre»: motivo"; con `ARCHIVO_INVALIDO` el motivo es el mensaje del servidor, con los demás, `mensajeDeErrorClases`. Un fallo del `PUT` conserva el texto de siempre. Sin validaciones nuevas en el cliente.
+- **T-42 corregido.** `core/archivos/politica.ts`: `CARACTER_PROHIBIDO_EN_NOMBRE` suma `\p{Cs}`; un sustituto suelto da `400 ARCHIVO_INVALIDO`; un par válido (emoji) se acepta. No se normaliza a U+FFFD. (`sinSustitutosSueltos` de `disposicionDeContenido` se queda como defensa.)
+- **T-43 corregido.** `lib/format.ts`: `formatearTamano` redondea a KB antes de elegir la unidad (1,048,575 bytes da "1 MB").
+
+### Pruebas nuevas (PR-D16 a PR-D21), archivo y título exacto (de `npx vitest list`)
+- PR-D16: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D16: con la solicitud del primer archivo en vuelo, Quitar no saca el archivo, elegir otro no lo agrega y la nota está visible; al terminar se publica exactamente la lista que se veía y los controles vuelven a actuar"
+- PR-D17a: `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx`, "PR-D17a: una respuesta de descarga con javascript:alert(1) o con data:text/html no llama a window.location.assign y da un solo toast.error"
+- PR-D17b: `backend/src/core/archivos/politica.test.ts`, "PR-D17b: acepta http:// y https://, y rechaza javascript:, data:, vbscript:, file: y ftp:"
+- PR-D18a: `frontend/src/features/clases/lib.test.ts`, "PR-D18a: sin vistas previas da el valor de siempre; con ellas, 60 s antes del vencimiento más temprano; con un vencimiento ya pasado, 0"
+- PR-D18b: `frontend/src/features/clases/adjuntos-de-publicacion.test.tsx`, "PR-D18b: una imagen que falló con una URL vuelve a mostrarse cuando el adjunto llega con otra URL"
+- PR-D19: `frontend/src/features/clases/formulario-publicacion.test.tsx`, "PR-D19: un 400 ARCHIVO_INVALIDO al solicitar da un solo aviso con el nombre y el mensaje del servidor; un 503 da el nombre y el texto de ALMACEN_*; ninguno publica"
+- PR-D20: `backend/src/core/archivos/politica.test.ts`, "PR-D20: validarArchivoDeclarado con un sustituto alto suelto y con uno bajo suelto da ARCHIVO_INVALIDO; un emoji (un par válido) se acepta"
+- PR-D21: `frontend/src/lib/format.test.ts`, "PR-D21: 1,048,575 y 1,048,064 bytes dan "1 MB"; 1,047,552 da "1023 KB""
+- Los sustitutos sueltos de PR-D20 se arman con `String.fromCharCode(0xd800)` y `0xdc00`; ningún literal. Ningún archivo de pruebas nuevo (PA-16 no se activó); los cinco archivos tocados son de la lista de d.
+
+### Los 10 casos del tester, en verde sin tocarlos (por la razón correcta)
+Corridas: `cd frontend; npx vitest run src/features/clases/archivos-d-r1.ataque.test.tsx src/lib/format-d-r1.ataque.test.ts` → `Tests  17 passed (17)`; `cd backend; npx vitest run test/archivos-d-r1.ataque.test.ts -t "sustituto suelto"` → `Tests  1 passed | 18 skipped (19)`; y las suites completas.
+- T-38, dos casos ("«Quitar» un archivo mientras se suben los anteriores…" y "«Adjuntar archivos» con la publicación en vuelo…"): la lista no cambia con la publicación en vuelo y se publica la que se ve.
+- T-39, dos casos ("«Descargar» con una URL javascript:… / data:…"): el `schema.parse` rechaza la URL antes de que `handleDescargar` navegue.
+- T-40, un caso ("las vistas previas que pinta el muro siguen vigentes al volver a él…"): el muro se vuelve viejo 60 s antes del `expiraEn` más temprano y se vuelve a pedir.
+- T-41, dos casos ("si el servidor rechaza al solicitar un archivo vacío… / con un carácter de control…"): el aviso nombra el archivo y trae el motivo.
+- T-42, un caso backend ("un sustituto suelto: o se rechaza, o lo que responde 201 es lo mismo que se guarda"): se rechaza con `ARCHIVO_INVALIDO`.
+- T-43, un caso ("%i bytes (menos de 1 MB, pero redondea a 1024 KB) no se muestra como «1024 KB»"): "1 MB".
+
+### Conteos
+- Backend: `cd backend; npx vitest list --filesOnly` → 118 archivos; `npx vitest list` → 1295 casos (la corrida: `Test Files  118 passed (118)` y `Tests  1295 passed (1295)`). Los 118 incluyen los 2 `*.ataque` de backend de la ronda 1 del tester.
+- Frontend: `cd frontend; npx vitest list --filesOnly` → 100 archivos; `npx vitest list` → 1339 casos (`Test Files  100 passed (100)` y `Tests  1339 passed (1339)`).
+- Respecto de mi entrega anterior (backend 116 y 1272, frontend 98 y 1316): mis casos nuevos son 8 (PR-D17b y PR-D20 en backend; PR-D16, PR-D17a, PR-D18a, PR-D18b, PR-D19 y PR-D21 en frontend); el resto son los casos del tester.
+
+### Verificación (comando y última línea)
+- `npm run build` (raíz) · `✓ built in 692ms` · código 0
+- `npm run lint` (raíz) · `> tsc -b` · código 0; también por paquete: `shared`, `backend` y `frontend` en código 0
+- `cd backend; npm test`, corrida 1 · `Tests  1295 passed (1295)` · código 0; corrida 2 · `Tests  1295 passed (1295)` · código 0
+- `cd frontend; npm test` · `Tests  1339 passed (1339)` · código 0 (tres corridas completas con 1339, contando las dos de la raíz)
+- `npm run test` (raíz), corrida 1: el backend cayó por CHORE-02 (`Test Files  8 failed | 110 passed (118)`, `Tests  10 failed | 1282 passed | 3 skipped (1295)`; todas con tiempos límite de 15 a 40 s, entre ellas PR-D05e, PR-D05f y PR-D09d mías, y dos de cursor del muro de c); corrida 2: código 0, backend `Tests  1295 passed (1295)` y frontend `Tests  1339 passed (1339)`.
+
+### V-01
+101 de 101 `*.ataque` iguales a la tabla de "CLASES-d — Ronda 1" (extraída del reporte y comparada con `diff`: `V01-101-OK`), antes de empezar y después de todos mis `prettier --write`.
+
+### V-04
+- `enEspera=` → 36; `disabled` en JSX (sin pruebas ni `components/ui`) → 0; `?? []` en `features/clases` (sin pruebas) → 0.
+- `from "minio"` → solo `backend/src/adapters/storage/index.ts`.
+- `fetch(` en `frontend/src/` sin pruebas → `services/apiClient.ts` (2) y `services/almacenService.ts` (1: `await fetch(subida.url, {`).
+- `urlDelAlmacenSchema` se define solo en `shared/src/archivos.ts` (`grep -rn "urlDelAlmacenSchema = "` → 1).
+- Invisibles: `node scratchpad/invisibles.cjs` → solo los 4 de `shared/src/clases.ts` que ya estaban en `c7fcece`; los sustitutos de las pruebas son `String.fromCharCode`.
+
+### V-05
+`git diff --quiet c7fcece -- <ruta>` y `git status` vacío para las mismas rutas de "No se toca" de d que en la entrega anterior (backend: config, `server.ts`, `worker.ts`, notifier, auth, queue, middleware completo, handlers de auth/admin/errores/salud/usuarios/validación/clases/alumnos, core de auth/correo/eventos/errores, workers, adapters/db no listados, ayudas de pruebas no listadas; frontend: package.json, config, `main.tsx`, `test/setup.ts`, services, `components/**`, `lib/{utils,cache-de-mutaciones}.ts`, admin, diagnóstico, auth; `eslint.config.mjs`, `package.json` raíz). Las migraciones: `git diff --name-only c7fcece -- backend/prisma/migrations` vacío (solo la carpeta nueva sin seguimiento, de la entrega anterior). `backend/package.json`: una línea (`minio`). `muro-view.tsx` y `comentarios-de-publicacion.tsx`: sin cambios; `publicacion-del-muro.tsx` conserva el cambio de la entrega anterior (autorizado en la Enmienda 11) y no lo toqué en esta ronda.
+
+### PA-07, PA-10, PA-11
+- **PA-01** antes del backend: regla `True Inbound Block Public`, red `IZZI-F281-5G`.
+- **PA-07**, backend solo (`back` 1 y 2) y raíz corrida 2: `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; `P2028` 2 líneas por corrida (los dos aceptados: `tx.sesion.create()` en `sesiones.ts:39` y `tx.tokenCuenta.updateMany()` en `tokens-cuenta.ts:116`); ningún `500` ni `P2028` del muro o de archivos. La corrida 1 de la raíz cayó por CHORE-02 (tiempos límite); sus cuatro términos en 0, los `P2028` fueron de `tx.sesion.create()` y `tx.tokenCuenta.updateMany()`, y `grep` de `publicaciones|archivos` en sus "Error no controlado" → 0. La repetición salió limpia con exactamente los dos aceptados.
+- **PA-10:** `X-Amz-Signature` → 0 en las salidas del backend; sin secretos en logs.
+- **PA-11:** `docker ps -a` 125 s después de la última corrida → solo `campus-dev-postgres-1` (el de `infra/` que levanté); sin contenedores de Testcontainers.
+
+### Desviaciones y pendientes
+- Desviaciones: ninguna. Observación de proceso recibida: debo detenerme por PA-09 antes de tocar un archivo no asignado (el caso de `publicacion-del-muro.tsx` en la entrega anterior); en esta ronda solo toqué los archivos que nombra la Enmienda 12.
+- Residual aceptado por el plan para H-6: "Quitar" y "Adjuntar archivos" se ven activos durante la publicación; la nota con `role="status"` lo mitiga. Los textos del muro también guardan U+FFFD con un sustituto suelto: pendiente del cierre de d (Enmienda 12, fila 5).
+- Sigue sin verificar en navegador (H-5 y H-6).
+
+## CLASES-d — corrección de la ronda 2
+Fecha: 2026-10-02. Base `<Cc>` = `c7fcece`. Carril trivial. Ninguna `*.ataque` tocada.
+
+### T-44 corregido
+- `frontend/src/lib/format.ts`: `formatearTamano` ya no tiene una rama por unidad. Una lista `UNIDADES_DE_TAMANO` (B, KB, MB, GB) y un ciclo: el valor se redondea en la unidad actual (sin decimales en B y KB, uno en MB y GB) y, si el redondeo llega a 1024 y hay una unidad siguiente, se divide entre 1024 y se sube de unidad. Así 1,048,575 bytes siguen dando "1 MB" (T-43) y 1,073,741,823 da "1 GB" (T-44). Sin ".0": el valor se imprime como número ("25 MB", "2.4 MB", "820 KB").
+- **PR-D21 extendido** en `frontend/src/lib/format.test.ts` (caso nuevo, sin reescribir el anterior):
+  - "PR-D21: 1,048,575 y 1,048,064 bytes dan "1 MB"; 1,047,552 da "1023 KB"" (el de la ronda 1, intacto)
+  - "PR-D21 (MB y GB): 1,073,741,823 y 1,073,689,396 bytes dan "1 GB"; 1,073,689,395 da "1023.9 MB"; 0 bytes da "0 B""
+- Los 11 casos de `frontend/src/lib/format-d-r2.ataque.test.ts` pasan sin tocarlos (`Tests  11 passed (11)`), incluido "1,073,741,823 bytes (un byte menos que 1 GB) no se muestra como «1024 MB»"; el cambio sube de unidad por la razón correcta (redondea antes de elegirla), no por un caso especial.
+
+### Detalles pendientes del manager, aplicados
+- **N-D4:** `backend/src/config/env.test.ts`, en los casos de PR-D02a a PR-D02c, los `return` que seguían a una aserción de validez pasan a `throw new Error("<variable> debía ser inválido y salió válido")` (o "válido y salió inválido" en `conAlmacen`): líneas 219, 246, 256, 271, 284 y 296. Los `return` anteriores a d (líneas 20 a 172 y 310 en adelante) no los toqué.
+- **`avisoDeFalloAlSubir`:** se movió de `components/formulario-publicacion.tsx` a `frontend/src/features/clases/lib.ts` (`lib.ts:242`, función pura exportada; ya existía `esApiError` ahí) y el componente la importa de `../lib`; se quitaron del componente los imports que ya no usaba (`esApiError` y `mensajeDeErrorClases`). Caso nuevo en `features/clases/lib.test.ts:201`: "un ApiError ARCHIVO_INVALIDO usa el mensaje del servidor, otro código usa el de mensajeDeErrorClases y un fallo que no es ApiError conserva el texto de siempre" (describe `avisoDeFalloAlSubir (T-41)`).
+
+### Conteos
+- Backend: `cd backend; npx vitest list --filesOnly` → 119 archivos; `npx vitest list` → 1298 casos (`Test Files  119 passed (119)`, `Tests  1298 passed (1298)`).
+- Frontend: `cd frontend; npx vitest list --filesOnly` → 102 archivos; `npx vitest list` → 1375 casos (`Tests  1375 passed (1375)`). Mis casos nuevos: 2 (PR-D21 extendido y `avisoDeFalloAlSubir`); el resto son los `*.ataque` de la ronda 2 del tester.
+
+### Verificación (comando y última línea)
+- `cd frontend; npm run lint` · `> tsc -b` · código 0
+- `cd frontend; npm test` · `Tests  1375 passed (1375)` · código 0, dos corridas seguidas
+- `npm run build` (raíz) · `✓ built in 654ms` · código 0
+- `npm run lint` (raíz) · `> tsc -b` · código 0
+- `npm run test` (raíz) · `Tests  1298 passed (1298)` (backend) y `Tests  1375 passed (1375)` (frontend) · código 0
+- `cd backend; npm test`: corrida 1 cayó por CHORE-02 (`Test Files  10 failed | 109 passed (119)`, `Tests  16 failed | 1282 passed (1298)`, solo tiempos límite de 15 a 22 s; entre ellas PR-D04b y PR-D04c mías); corrida 2 · `Tests  1298 passed (1298)` · código 0. No corrí las dos suites a la vez.
+
+### V-01
+104 de 104 `*.ataque` iguales a la tabla de "CLASES-d — Ronda 2" (con `archivos-d-r1` en su hash nuevo), por programa, antes de empezar y al terminar (`V01-104-OK` y `V01-final-OK`).
+
+### V-04
+`enEspera=` 36; `from "minio"` solo en `backend/src/adapters/storage/index.ts`; `fetch(` solo en `apiClient.ts` (2) y `almacenService.ts` (1); invisibles: solo los 4 de `shared/src/clases.ts` que ya estaban en `c7fcece`. Los archivos que toqué en esta ronda son `frontend/src/lib/format.ts`, `format.test.ts`, `features/clases/lib.ts`, `lib.test.ts`, `components/formulario-publicacion.tsx` y `backend/src/config/env.test.ts`, formateados con `prettier --write` acotado a cada paquete.
+
+### V-05
+`git diff --quiet c7fcece -- <ruta>` en código 0 para: `backend/src/{middleware,handlers/auth,handlers/clases/clases.ts,handlers/clases/alumnos.ts,adapters/db/clases.ts,adapters/db/inscripciones.ts,adapters/queue,server.ts,worker.ts}`, `frontend/src/{features/auth,components,services/apiClient.ts,features/clases/muro-view.tsx}` y `eslint.config.mjs` (más el resto de las rutas de "No se toca", sin cambios desde la ronda 1).
+
+### PA-07, PA-10, PA-11
+- **PA-01** antes del backend: regla `True Inbound Block Public`, red `IZZI-F281-5G`.
+- **PA-07** (corrida 2 del backend y corrida de la raíz, limpias): `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; `P2028` 2 líneas (los dos aceptados, login y restablecer). En esas corridas aparecen 3 "Error no controlado" de `POST …/archivos`: son los `ZodError` ("La URL del almacén debe ser http o https") que provoca a propósito `archivos-d-r2.ataque.test.ts` con un almacén que devuelve una URL mala; no son una falla de infraestructura. La corrida 1, caída por CHORE-02, tuvo los cuatro términos en 0.
+- **PA-10:** `X-Amz-Signature` → 0 en las salidas.
+- **PA-11:** `docker ps -a` 120 s después de la última corrida → solo `campus-dev-postgres-1`.
+
+### Desviaciones y pendientes
+Ninguna desviación. Sigue sin verificarse en navegador (H-5 y H-6).
+
+## CLASES-d — carril trivial antes de <Cd> (N-F2 y README)
+Fecha: 2026-10-02. Sin cambio de comportamiento. Solo dos archivos: `shared/src/clases.ts` y `backend/src/adapters/README.md`.
+
+### N-F2: `shared/src/clases.ts:48`
+- Antes: `const INVERSORES_DE_DIRECCION = /[<U+202A>-<U+202E><U+2066>-<U+2069>]/u` (los cuatro inversores literales; aquí se escriben como `<U+…>` para no dejarlos en este documento).
+- Después: `const INVERSORES_DE_DIRECCION = /[\u202A-\u202E\u2066-\u2069]/u` (escapes, mismos rangos, como en `core/archivos/politica.ts:16`). La línea la escribió un script de Node (`String.fromCharCode(92)` para la barra), porque la herramienta de edición convierte los `\uXXXX`.
+- Comprobación por programa (`node`, sobre el archivo en disco): puntos de código U+202A–U+202E y U+2066–U+2069 en la línea 48 → 0; en todo `shared/src/clases.ts` → 0; invisibles (controles, U+00A0, U+00AD, U+2000–U+200F, U+2028–U+202F, U+2060–U+206F, U+FEFF) → 0. El comentario de las líneas 45 y 46 se conserva: "Caracteres de control (\p{Cc}) y los inversores de dirección (U+202A a U+202E, U+2066 a U+2069): un nombre o un texto largo con ellos podría alterar cómo se lee en la interfaz."
+
+### README: `backend/src/adapters/README.md` (sección `storage` y `db/archivos.ts`, líneas 229 y 230)
+- Antes: "…siguen en el almacén hasta la limpieza diaria (pendiente de NOTIFICACIONES)."
+- Después: "…siguen en el almacén hasta `LIMPIEZA_DIARIA`, prerrequisito de DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y de cada `descartado`."
+- Queda una sola mención de NOTIFICACIONES en ese README (línea 196: el consumidor de la cola de avisos), que es correcta y no se toca. `prettier --check` del README pasa (lo había roto el reajuste de líneas de mi primera redacción; lo formateé con `prettier --write` acotado a `backend/`).
+- `git diff c7fcece --stat` de los dos archivos: `backend/src/adapters/README.md` 25 inserciones (la sección de d, ya sin commit) y `shared/src/clases.ts` 20 inserciones y 1 eliminación (la de d más esta línea). No toqué ningún otro archivo en este carril.
+
+### Verificación (comando y última línea)
+- `cd shared; npm run lint` · `All matched files use Prettier code style!` · 0; `npm run build` · `> tsc -p tsconfig.json` · 0
+- `cd backend; npm run lint` · `> tsc -p tsconfig.json --noEmit` · 0; `npx vitest run src/core/clases` · `Tests  42 passed (42)`
+- `cd frontend; npm run lint` · `> tsc -b` · 0; `npx vitest run src/features/clases/lib.test.ts src/features/clases/components/formulario-clase.test.tsx` · `Tests  18 passed (18)`
+- `cd frontend; npm test` · `Tests  1395 passed (1395)`
+- `cd backend; npm test` (PA-01 antes: regla `True Inbound Block Public`, red `IZZI-F281-5G`): corrida 1 `Tests  2 failed | 1298 passed (1300)`: dos casos de ESLint de `guarda-clase-r1` y `-r2` ("control: app.addHook…") con `Test timed out in 15000ms` bajo la carga de la corrida, sin relación con el cambio; corrida 2 · `Tests  1300 passed (1300)` (120 archivos) · código 0. Las dos suites no corrieron a la vez.
+- **PA-07** (corrida 2): `40P01`, `deadlock detected`, `could not serialize` y `too many clients` en 0; `P2028` 2 líneas (los dos aceptados). **PA-10:** `X-Amz-Signature` 0. **PA-11:** 100 s después, `docker ps -a` solo muestra `campus-dev-postgres-1`.
+
+### V-01
+107 de 107 `*.ataque` iguales a la tabla de cierre de d (`reporte-tester.md`, línea 4831), comprobado por programa después de los cambios (`V01 107/107 OK`); no las toqué.
+
+## CLASES-d — ajustes visuales del humano (carril trivial, antes de <Cd>)
+
+Ajustes (decisión del humano, 2026-10-02):
+1. Descripción de la clase: `wrap-anywhere` y `min-w-0` en `frontend/src/features/clases/components/encabezado-clase.tsx`.
+2. Barra lateral sin monograma: `frontend/src/components/layout/barra-navegacion.tsx` (import y uso quitados); comentario de `monograma.tsx` actualizado. `Monograma` se conserva porque lo usan `tarjeta-de-cuenta.tsx` y `acceso-restringido-view.tsx`.
+3. Vacíos sobre el fondo en `Card`: `features/clases/muro-view.tsx` y `features/admin/components/tabla-enlaces.tsx`. `EstadoVacio` no cambia (sus otros usos ya van dentro de panel o tabla).
+4. Pestañas: `features/clases/components/secciones-de-clase.tsx` con grupo en `Card`, indicador `aria-hidden` con `transition-transform duration-200 motion-reduce:transition-none` y `translate-x-full` según `useMatch`. Se conservan la `<ul aria-label>`, los `NavLink` y `aria-current`. Sin cambios en `tokens.css`.
+
+Pruebas normales adaptadas: ninguna; ninguna afirmaba lo anterior. Pruebas `*.ataque` en rojo: ninguna.
+
+DESIGN.md: tabla de tokens (uso de `--brand`), §6 (Movimiento), §7.1 (rendimiento), §7.3 (regla de control segmentado o de pestañas), §7.4 (barra sin monograma), §7.10 (vacío sobre orbes en panel), §7.16 (encabezado y secciones). Todo marcado como propuesta, decisión del humano (2026-10-02).
+
+Verificación (desde frontend/): `npm run lint` terminó sin errores (ESLint, `All matched files use Prettier code style!`, `tsc -b`); `npm test`: `Tests  1395 passed (1395)` (104 archivos). Sin caracteres invisibles (comprobado por programa). El backend no se corrió porque no cambia.
+
+Hermanos: otros `EstadoVacio` sobre orbes, solo los dos tratados (el resto ya está en Card o tabla). Otro control segmentado: el grupo "Tipo de publicación" de `formulario-publicacion.tsx` (sin indicador deslizante, fuera del alcance pedido; pendiente si el humano lo quiere). Textos largos en paneles: la descripción era la única sin corte. Pendiente: `Monograma` sigue en `components/layout` pero solo lo usa `features/auth` (regla 5 de CLAUDE.md sugiere moverlo; no se hizo).
+
+### Corrección de M-T1 y M-T2
+Fecha: 2026-10-02. Solo `frontend/` y `docs/DESIGN.md` §7.3. Ninguna `*.ataque` tocada (`prettier --write` solo sobre los dos archivos de código de `frontend/`).
+
+**M-T1, `frontend/src/features/clases/components/secciones-de-clase.tsx`**
+- Antes: solo `segundaActiva` (`useMatch` de la segunda sección con `end: false`); el `span` del indicador se montaba siempre, así que en `/maestro/clases/:claseId/editar` (ninguna sección activa) quedaba bajo "Muro".
+- Después: `primeraActiva = useMatch({ path: base, end: true }) !== null`, `segundaActiva` igual que antes y `hayActiva = primeraActiva || segundaActiva`; el `span` se monta solo con `{hayActiva && (...)}` y conserva `translate-x-full` cuando la activa es la segunda. Sin ternarios; comentario con el porqué.
+- Caso nuevo en `frontend/src/features/clases/clase-layout.test.tsx` (solo se agregó, ningún caso existente cambió), describe "indicador de las secciones de la clase": "M-T1: en el muro el indicador va bajo la primera sección, en alumnos bajo la segunda y en editar no hay indicador". Cubre las tres rutas del maestro (`/maestro/clases/:claseId`, `/alumnos` y `/editar`): el enlace activo se comprueba por rol y texto con `aria-current`, y el indicador, que es `aria-hidden` y hermano de la lista, se busca dentro del contenedor del grupo con nombre accesible "Secciones de la clase" (`lista.parentElement.querySelectorAll(':scope > span[aria-hidden="true"]')`: 1 en el muro, 1 en alumnos, 0 en editar). **La posición solo se puede ver por su clase:** `translate-x-full` ausente bajo la primera y presente bajo la segunda (no hay otra forma, porque no tiene rol ni texto).
+
+**M-T2, `docs/DESIGN.md` §7.3 (línea 413, la viñeta "Control segmentado o de pestañas")**
+- Antes: "…regla para todo grupo de opciones excluyentes presente y futuro… `aria-current` o `aria-pressed`… Lo usa `SeccionesDeClase` (§7.16)."
+- Después: marcada "propuesta (2026-10-02), decisión del humano"; alcance "todo control segmentado o de pestañas **futuro**; hoy solo `SeccionesDeClase` (§7.16) la implementa"; documenta `Card` con `rounded-card` y `p-1`, el indicador con `rounded-row`, `aria-current` (navegación) o `aria-pressed` (elección), y suma "**Sin opción activa no hay indicador**" con el ejemplo de `/editar`; y deja el grupo "Tipo de publicación" fuera de la regla como "pendiente de decisión del humano" si lo adopta. No toqué ninguna otra línea de `DESIGN.md`.
+
+**Verificación (comando y última línea literal)**
+- `cd frontend; npm run lint` · `> tsc -b`
+- `cd frontend; npm test` (1) · `Tests  1396 passed (1396)` (última línea: `Duration  61.75s (transform 16.65s, setup 44.74s, import 119.70s, tests 243.45s, environment 215.22s)`)
+- `cd frontend; npm test` (2) · `Tests  1396 passed (1396)` (última línea: `Duration  97.87s (transform 31.16s, setup 75.36s, import 210.38s, tests 341.95s, environment 341.07s)`)
+- `npm run build` (raíz) · `✓ built in 2.00s`
+- Invisibles: `node scratchpad/invisibles.cjs` → `archivos revisados: 72 con invisibles: 0`.
+- **V-01:** contra la tabla de cierre de d (línea 4831, 107) difieren 5 `*.ataque`: `backend/test/logs-archivos-d-r1`, `logs-archivos-d-r3` y `frontend/.../archivos-d-r1`, `-r2`, `-r3`. No son míos: no los toqué (ningún comando mío los escribe) y son los que el tester está cambiando en paralelo (hay una tabla más nueva). Las otras 102 son iguales. Sigo sin tocarlas.
+
+**Hermanos (otros lugares con un indicador o con reglas de alcance en `DESIGN.md`)**
+- `docs/DESIGN.md` §7.16, viñeta "Secciones" (línea 646): describe el indicador bajo el activo; **le aplica** que sin sección activa no hay indicador, pero no la modifiqué porque el encargo limita el cambio a §7.3. Queda anotado para el manager o el trámite trivial siguiente.
+- `docs/DESIGN.md` §5, excepción de transiciones (línea 316): menciona el indicador deslizante de §7.3; no cambia (la regla del indicador sigue igual).
+- Grupo "Tipo de publicación" (`formulario-publicacion.tsx`, §7.3 viñeta siguiente): no tiene indicador deslizante; queda fuera de la regla, pendiente de decisión del humano.
+- Otros usos de `translate-x-full` o `motion-reduce:transition-none` con indicador deslizante en `frontend/src` (sin pruebas): ninguno; solo `secciones-de-clase.tsx`.

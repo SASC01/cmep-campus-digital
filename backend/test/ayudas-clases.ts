@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto"
+import { randomBytes, randomUUID } from "node:crypto"
 
 import { LONGITUD_CODIGO_CLASE } from "@campus/shared"
 
@@ -206,3 +206,58 @@ export const leerTrabajosDeCola = (cola: string, claveDeDatos: string, valor: st
            EXTRACT(EPOCH FROM (keep_until - start_after))::int AS retencion_s, data AS datos
     FROM pgboss.job
     WHERE name = ${cola} AND data ->> ${claveDeDatos}::text = ${valor}`
+
+// CLASES-d. Archivos sembrados directo en la base (sin pasar por la API ni por el almacén). Se
+// borran en cascada con su clase (archivos.clase_id es CASCADE); archivos.subido_por es RESTRICT, y
+// por eso la limpieza sigue el mismo orden de N-10: clases antes que usuarios.
+export interface OpcionesArchivoDePrueba {
+  claseId: string
+  subidoPor: string
+  estado?: "pendiente" | "confirmado" | "descartado"
+  // Obligatorio si y solo si estado es "confirmado" (el CHECK de §D-D1).
+  publicacionId?: string
+  nombre?: string
+  tipo?: string
+  tamano?: number
+  creadoEn?: Date
+}
+
+export interface ArchivoDePrueba {
+  id: string
+  claveObjeto: string
+}
+
+export const crearArchivoDePrueba = async ({
+  claseId,
+  subidoPor,
+  estado = "pendiente",
+  publicacionId,
+  nombre = "guia.pdf",
+  tipo = "application/pdf",
+  tamano = 1000,
+  creadoEn,
+}: OpcionesArchivoDePrueba): Promise<ArchivoDePrueba> => {
+  const id = randomUUID()
+  const claveObjeto = `materiales/${claseId}/${id}`
+  await obtenerDb().archivo.create({
+    data: {
+      id,
+      claveObjeto,
+      claseId,
+      subidoPor,
+      estado,
+      nombre,
+      tipo,
+      tamano,
+      ...(publicacionId === undefined ? {} : { publicacionId }),
+      ...(creadoEn === undefined ? {} : { creadoEn }),
+    },
+    select: { id: true },
+  })
+  return { id, claveObjeto }
+}
+
+export const leerArchivoDb = (id: string) => obtenerDb().archivo.findUnique({ where: { id } })
+
+export const listarArchivosDb = (claseId: string) =>
+  obtenerDb().archivo.findMany({ where: { claseId }, orderBy: { id: "asc" } })

@@ -176,8 +176,11 @@ describe("encolado transaccional (DEC-07, la compuerta del encargo)", () => {
         sql: sqlQueEspia,
       })
       expect(capturados).toHaveLength(1)
-      expect(capturados[0].texto).not.toContain("no-debe-viajar-en-el-texto")
-      expect(capturados[0].texto).not.toContain(id)
+      const capturado = capturados[0]
+      expect(capturado, "Precondición: se capturó una consulta").toBeDefined()
+      if (!capturado) throw new Error("Precondición: se capturó una consulta")
+      expect(capturado.texto).not.toContain("no-debe-viajar-en-el-texto")
+      expect(capturado.texto).not.toContain(id)
     })
   })
 

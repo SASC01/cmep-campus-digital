@@ -7,7 +7,7 @@ import {
   listaAlumnosRespuestaSchema,
   personasRespuestaSchema,
 } from "@campus/shared"
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { obtenerDb } from "../src/adapters/db/cliente.js"
@@ -52,12 +52,12 @@ const peticion = (opciones: {
   method: "GET" | "POST" | "DELETE"
   url: string
   token: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
 }): Promise<LightMyRequestResponse> =>
   obtenerApp().inject({
     method: opciones.method,
     url: opciones.url,
-    payload: opciones.payload,
+    ...(opciones.payload === undefined ? {} : { payload: opciones.payload }),
     headers: { authorization: `Bearer ${opciones.token}` },
   })
 
@@ -624,28 +624,46 @@ describe("GET /api/clases/:claseId/alumnos/candidatos", () => {
     }
   })
 
-  // Con la tabla casi vacía el planificador prefiere el índice de rol (no hay estadísticas que
-  // hagan rentable el GIN), así que enable_seqscan = off solo no basta para ver el índice del
-  // buscador. Dentro de la misma transacción, que se revierte siempre, se siembran filas de
-  // estudiantes y se corre ANALYZE: es la forma de la tabla con datos, sin dejar nada. La
-  // alternativa que gana con pocas filas es un Bitmap Index Scan sobre usuarios_rol_idx (plan leído
-  // al fallar); no se puede apagar sin apagar también el bitmap scan del GIN, así que el caso se
-  // hace determinista con margen: el umbral medido está entre 16,000 y 20,000 filas y se siembran
-  // 40,000 (más del doble), medido en la suite completa (M-07).
+  // CHORE-02 (T-05, PR-CH-14a): PR-B05 ya no siembra ni analiza "usuarios", la tabla compartida con
+  // los demás archivos: su estadística cambiaba con lo que otros archivos creaban y borraban, y el
+  // planificador elegía a veces el índice de rol (intermitencia de M-07 de CLASES-b). Dos partes:
+  // 1. el catálogo de la base migrada trae los dos índices con la definición de las migraciones;
+  // 2. el plan, sobre una tabla temporal con los MISMOS dos índices y solo estudiantes (el índice de
+  //    rol no filtra nada), sin escritores concurrentes: la estadística es solo la suya. Sin
+  //    CREATE TABLE ... (LIKE usuarios), que dejaría un bloqueo sobre "usuarios" toda la transacción.
   it("PR-B05: con SET LOCAL enable_seqscan = off, EXPLAIN de la consulta con la forma de Prisma menciona usuarios_nombre_busqueda_idx", async () => {
+    const indices = await obtenerDb().$queryRaw<{ indexname: string; indexdef: string }[]>`
+      SELECT indexname, indexdef FROM pg_indexes
+      WHERE schemaname = 'public' AND tablename = 'usuarios'`
+    const definicionDe = (nombre: string): string =>
+      indices.find((indice) => indice.indexname === nombre)?.indexdef ?? ""
+    expect(definicionDe("usuarios_nombre_busqueda_idx")).toContain(
+      "USING gin (nombre_busqueda gin_trgm_ops)",
+    )
+    expect(definicionDe("usuarios_rol_idx")).toContain("(rol)")
+
     const REVERTIR = new Error("revertir la transacción de PR-B05")
-    const prefijo = randomUUID()
     let plan: unknown
     await obtenerDb()
       .$transaction(
         async (tx) => {
-          await tx.$executeRaw`INSERT INTO "usuarios" ("email", "hash_contrasena", "nombre", "nombre_busqueda", "rol")
-          SELECT ${prefijo} || '-' || g || '@pruebas.local', 'x', 'Explain ' || g, 'alumno ' || g, 'estudiante'
-          FROM generate_series(1, 40000) AS g`
-          await tx.$executeRaw`ANALYZE "usuarios"`
+          await tx.$executeRaw`CREATE TEMP TABLE pr_b05_usuarios (
+            id uuid NOT NULL DEFAULT gen_random_uuid(),
+            nombre text NOT NULL,
+            email text NOT NULL,
+            rol "rol_usuario" NOT NULL,
+            activo boolean NOT NULL DEFAULT true,
+            nombre_busqueda text NOT NULL
+          ) ON COMMIT DROP`
+          await tx.$executeRaw`CREATE INDEX pr_b05_nombre_busqueda_idx ON pr_b05_usuarios USING GIN ("nombre_busqueda" gin_trgm_ops)`
+          await tx.$executeRaw`CREATE INDEX pr_b05_rol_idx ON pr_b05_usuarios ("rol")`
+          await tx.$executeRaw`INSERT INTO pr_b05_usuarios (nombre, email, rol, nombre_busqueda)
+          SELECT 'Explain ' || g, 'explain-' || g || '@pruebas.local', 'estudiante', 'alumno ' || g
+          FROM generate_series(1, 20000) AS g`
+          await tx.$executeRaw`ANALYZE pr_b05_usuarios`
           await tx.$executeRaw`SET LOCAL enable_seqscan = off`
           plan =
-            await tx.$queryRaw`EXPLAIN (FORMAT JSON) SELECT "id", "nombre", "email" FROM "usuarios" WHERE ("rol" = CAST(${"estudiante"}::text AS "rol_usuario") AND "activo" = ${true} AND "nombre_busqueda"::text LIKE ${"%jose%"}) ORDER BY "nombre_busqueda" ASC, "id" ASC LIMIT ${21} OFFSET ${0}`
+            await tx.$queryRaw`EXPLAIN (FORMAT JSON) SELECT "id", "nombre", "email" FROM pr_b05_usuarios WHERE ("rol" = CAST(${"estudiante"}::text AS "rol_usuario") AND "activo" = ${true} AND "nombre_busqueda"::text LIKE ${"%jose%"}) ORDER BY "nombre_busqueda" ASC, "id" ASC LIMIT ${21} OFFSET ${0}`
           throw REVERTIR
         },
         { timeout: 15000, maxWait: 15000 },
@@ -654,9 +672,9 @@ describe("GET /api/clases/:claseId/alumnos/candidatos", () => {
         if (error !== REVERTIR) throw error
       })
 
-    // Si falla, el mensaje trae el plan elegido (M-07) para ver qué alternativa ganó.
+    // Si falla, el mensaje trae el plan elegido para ver qué alternativa ganó.
     expect(JSON.stringify(plan), `plan elegido: ${JSON.stringify(plan)}`).toContain(
-      "usuarios_nombre_busqueda_idx",
+      "pr_b05_nombre_busqueda_idx",
     )
   })
 })

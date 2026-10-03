@@ -7,7 +7,7 @@ import {
   publicacionRespuestaSchema,
   solicitarSubidaRespuestaSchema,
 } from "@campus/shared"
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { obtenerDb } from "../src/adapters/db/cliente.js"
@@ -87,12 +87,12 @@ const peticion = (opciones: {
   method: "GET" | "POST" | "DELETE"
   url: string
   token: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
 }): Promise<LightMyRequestResponse> =>
   (opciones.servidor ?? obtenerApp()).inject({
     method: opciones.method,
     url: opciones.url,
-    payload: opciones.payload,
+    ...(opciones.payload === undefined ? {} : { payload: opciones.payload }),
     headers: { authorization: `Bearer ${opciones.token}` },
   })
 
@@ -147,7 +147,7 @@ const solicitar = async (
 
 const publicar = (
   e: Escenario,
-  payload: unknown,
+  payload: InjectOptions["payload"],
   servidor?: FastifyInstance,
 ): Promise<LightMyRequestResponse> =>
   peticion({

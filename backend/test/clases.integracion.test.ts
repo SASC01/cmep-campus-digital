@@ -7,7 +7,7 @@ import {
   errorApiSchema,
   unirseRespuestaSchema,
 } from "@campus/shared"
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { crearClase } from "../src/adapters/db/clases.js"
@@ -49,12 +49,12 @@ const peticion = async (opciones: {
   method: "GET" | "POST" | "PUT"
   url: string
   token?: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
 }): Promise<LightMyRequestResponse> =>
   obtenerApp().inject({
     method: opciones.method,
     url: opciones.url,
-    payload: opciones.payload,
+    ...(opciones.payload === undefined ? {} : { payload: opciones.payload }),
     headers: opciones.token === undefined ? {} : { authorization: `Bearer ${opciones.token}` },
   })
 

@@ -7,7 +7,7 @@ import {
   listaPublicacionesRespuestaSchema,
   publicacionRespuestaSchema,
 } from "@campus/shared"
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { crearPublicacion } from "../src/adapters/db/index.js"
@@ -90,12 +90,12 @@ const peticion = (opciones: {
   method: "GET" | "POST" | "DELETE"
   url: string
   token: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
 }): Promise<LightMyRequestResponse> =>
   obtenerApp().inject({
     method: opciones.method,
     url: opciones.url,
-    payload: opciones.payload,
+    ...(opciones.payload === undefined ? {} : { payload: opciones.payload }),
     headers: { authorization: `Bearer ${opciones.token}` },
   })
 
@@ -108,7 +108,10 @@ const urlPublicaciones = (claseId: string): string => `/api/clases/${claseId}/pu
 const urlComentarios = (claseId: string, publicacionId: string): string =>
   `/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios`
 
-const publicar = (e: Escenario, payload: unknown): Promise<LightMyRequestResponse> =>
+const publicar = (
+  e: Escenario,
+  payload: InjectOptions["payload"],
+): Promise<LightMyRequestResponse> =>
   peticion({
     method: "POST",
     url: urlPublicaciones(e.claseId),

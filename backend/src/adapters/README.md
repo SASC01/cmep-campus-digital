@@ -143,6 +143,25 @@ responde `401`.
 dentro de su transacción y compara el hash con el que el handler ya verificó con argon2; si un
 escritor cambió la contraseña antes, el hash difiere y la sesión no nace.
 
+## `db/cliente.ts`: `enTransaccion` y el `P2028` (CHORE-02)
+
+`enTransaccion` es el único `$transaction` de `backend/src` (lo comprueba
+`higiene-de-pruebas.integracion.test.ts`). Al abrir la transacción le agrega
+`.catch(traducirErrorDeTransaccion)` (`db/errores.ts`): un `P2028` (la transacción expiró, por
+ejemplo esperando la fila de un usuario detrás de otra transacción, o no obtuvo conexión dentro de
+su `maxWait`) se lanza como `AppError 503 SERVICIO_OCUPADO` con el error original como `cause`.
+Prisma ya revirtió la transacción, así que nada se escribió ni se encoló. Cualquier otro error,
+incluido un `AppError` que la función lance a propósito, se relanza tal cual. Un `enTransaccion`
+anidado no traduce: lo hace el de afuera. El envoltorio de `handlers/errores.ts` registra ese
+`AppError` en `warn` con su causa ("Error controlado del servidor"). La espera de bloqueo no se
+acota con `lock_timeout`: en producción ningún flujo retiene la fila de un usuario más que unas
+pocas sentencias.
+
+`enTransaccion` acepta `{ maxWait }` para las transacciones que van en serie sobre una fila con
+muchos clientes a la vez. Hoy solo la usan `registrarMaestroConEnlace` y `revocarEnlaceRegistro`
+(10 s, M-08): cada registro del mismo enlace toma una conexión antes de formarse en la fila, y con
+el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
+
 ## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
 
 `buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena

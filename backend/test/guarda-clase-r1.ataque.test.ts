@@ -101,10 +101,12 @@ export const plugin: FastifyPluginAsync = async (app) => {
 }
 `
 
+  // A-15 (CHORE-02, ronda 6): primer caso del archivo que llama a ESLint; paga la carga en frío de
+  // ESLint y typescript-eslint, que con la suite cargada llegó a 46.7 s (T-08). Límite propio de 60 s.
   it("control: app.addHook(...) se rechaza", async () => {
     const errores = await erroresDe(plantilla(`app.addHook("onRequest", async () => undefined)`))
     expect(errores.some((m) => m.includes("no añaden hooks"))).toBe(true)
-  })
+  }, 60_000)
 
   it('app["addHook"](...) también debe rechazarse', async () => {
     const errores = await erroresDe(plantilla(`app["addHook"]("onRequest", async () => undefined)`))

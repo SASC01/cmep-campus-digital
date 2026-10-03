@@ -125,14 +125,31 @@ describe("ataque (ronda 3): hooks anteriores a preHandler (T-12)", () => {
     expect(resultado).toContain("onRequest, preParsing, preValidation")
   })
 
+  // CHORE-02, Enmienda 4 (§E4-1, A-13): onSend, preSerialization y onError ya no se permiten. Corren
+  // después de la cadena pero pueden rehacer su 401/403 (T-02 de CHORE-02). Esto revierte la
+  // decisión T-12 de AUTH-01 ("los hooks posteriores sí se permiten") para esos tres; onResponse,
+  // onTimeout y onRequestAbort siguen permitidos.
   it.each([
     ["onSend", "función"],
     ["onSend", "arreglo"],
-    ["onResponse", "función"],
-    ["onResponse", "arreglo"],
     ["preSerialization", "función"],
     ["preSerialization", "arreglo"],
     ["onError", "función"],
+  ] as const)("una ruta protegida con %s como %s no arranca", async (hook, forma) => {
+    const posterior = async () => undefined
+    const opciones: RouteShorthandOptions = {
+      ...protegido(),
+      [hook]: forma === "función" ? posterior : [posterior],
+    }
+    const resultado = await arranca((hijo) => hijo.get("/posterior", opciones, ok))
+    expect(resultado).toContain(
+      `declara ${hook}, que puede rehacer la respuesta de protegido() (AGENTS.md, regla 2)`,
+    )
+  })
+
+  it.each([
+    ["onResponse", "función"],
+    ["onResponse", "arreglo"],
     ["onTimeout", "función"],
     ["onRequestAbort", "función"],
   ] as const)(

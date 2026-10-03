@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import * as adaptadorDb from "../src/adapters/db/index.js"
@@ -42,12 +42,12 @@ const peticion = (opciones: {
   method: "GET" | "POST" | "DELETE"
   url: string
   token: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
 }): Promise<LightMyRequestResponse> =>
   obtenerApp().inject({
     method: opciones.method,
     url: opciones.url,
-    payload: opciones.payload,
+    ...(opciones.payload === undefined ? {} : { payload: opciones.payload }),
     headers: { authorization: `Bearer ${opciones.token}` },
   })
 

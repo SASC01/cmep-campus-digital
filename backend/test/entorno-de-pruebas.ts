@@ -37,6 +37,11 @@ export const validarUrlDePruebas = (url: string): string | null => {
   if (destino.pathname !== `/${NOMBRE_BASE_DE_PRUEBAS}`) {
     return `la base es "${destino.pathname.slice(1)}" y las pruebas solo aceptan "${NOMBRE_BASE_DE_PRUEBAS}"`
   }
+  // pg-connection-string toma host, port y demás de la query: sin esto, ?host=otro pasaría la guarda
+  // y conectaría a otro servidor (N-01, CHORE-02). Va al final para no cambiar el motivo de los demás.
+  if (destino.search !== "") {
+    return "la URL lleva parámetros de consulta, que pueden cambiar el destino de la conexión"
+  }
   return null
 }
 

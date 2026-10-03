@@ -1,5 +1,5 @@
 import { errorApiSchema } from "@campus/shared"
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { obtenerDb } from "../src/adapters/db/cliente.js"
@@ -56,7 +56,7 @@ interface PreparadoRuta {
   nombre: string
   metodo: "GET" | "POST" | "DELETE"
   url: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
   estatusPermitido: number
   tokenPermitido: string
   // El estudiante inscrito, cuando la ruta es solo del maestro (GET …/personas acepta a los dos).
@@ -206,7 +206,7 @@ const pedir = async (
   const respuesta = await obtenerApp().inject({
     method: prep.metodo,
     url: prep.url,
-    payload: prep.payload,
+    ...(prep.payload === undefined ? {} : { payload: prep.payload }),
     headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
   })
   if (token !== undefined && idsDeEstudiantes.has(idDelToken(token))) {

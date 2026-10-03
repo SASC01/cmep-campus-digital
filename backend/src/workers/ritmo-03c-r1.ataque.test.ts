@@ -46,10 +46,17 @@ interface Intento {
   fin: number
 }
 
-// Tolerancia de 2 ms abajo (resolución de Date.now y de los temporizadores de Node) y de 60 ms
-// arriba (la espera es solo "lo que falta", no más).
+// Tolerancia de 2 ms abajo (resolución de Date.now y de los temporizadores de Node) y de 150 ms
+// arriba (la espera es solo "lo que falta", no más). A-6 (CHORE-02, ronda 1): con 124 archivos en
+// paralelo, setTimeout y el bucle de eventos se retrasan más de 60 ms (se midió 65 ms); con 150 ms
+// arriba, un hueco sigue debiendo quedar por debajo de 400 ms, así que una espera doble (unos
+// 500 ms) sigue fallando.
 const TOLERANCIA_ABAJO = 2
-const TOLERANCIA_ARRIBA = 60
+const TOLERANCIA_ARRIBA = 150
+// "Sin espera": lo que puede tardar en arrancar un intento que no debía esperar. Antes, 30 ms (se
+// midió 30 con la suite cargada). 150 ms queda bien por debajo de los 250 ms de una espera
+// indebida, que sigue fallando (A-6, CHORE-02, ronda 1).
+const TOLERANCIA_SIN_ESPERA = 150
 
 const logMudo = {
   error: () => undefined,
@@ -112,7 +119,7 @@ describe("ataque (AUTH-03c r1): ritmo del worker con reloj y espera reales", () 
     const terminoElUltimo = Date.now()
 
     expect(intentos).toHaveLength(5)
-    expect(intentos[0]?.inicio ?? Infinity).toBeLessThan(inicio + 30)
+    expect(intentos[0]?.inicio ?? Infinity).toBeLessThan(inicio + TOLERANCIA_SIN_ESPERA)
     const huecos = intentos.slice(1).map((intento, i) => intento.inicio - (intentos[i]?.fin ?? 0))
     for (const hueco of huecos) {
       expect(hueco, JSON.stringify(huecos)).toBeGreaterThanOrEqual(
@@ -122,7 +129,7 @@ describe("ataque (AUTH-03c r1): ritmo del worker con reloj y espera reales", () 
         INTERVALO_MINIMO_ENTRE_CORREOS_MS + TOLERANCIA_ARRIBA,
       )
     }
-    expect(terminoElUltimo - (intentos[4]?.fin ?? 0)).toBeLessThan(30)
+    expect(terminoElUltimo - (intentos[4]?.fin ?? 0)).toBeLessThan(TOLERANCIA_SIN_ESPERA)
   }, 10_000)
 
   it("M-09: un intento que lanza propaga el error, y el trabajo siguiente espera 250 ms desde el fallo", async () => {
@@ -154,7 +161,7 @@ describe("ataque (AUTH-03c r1): ritmo del worker con reloj y espera reales", () 
     expect(intentos).toHaveLength(2)
     // El omitido esperó su turno (M-06), así que ya pasaron 250 ms desde el primer envío: el
     // siguiente envío arranca sin otra espera.
-    expect((intentos[1]?.inicio ?? Infinity) - terminoElOmitido).toBeLessThan(30)
+    expect((intentos[1]?.inicio ?? Infinity) - terminoElOmitido).toBeLessThan(TOLERANCIA_SIN_ESPERA)
     const hueco = (intentos[1]?.inicio ?? 0) - (intentos[0]?.fin ?? 0)
     expect(hueco).toBeGreaterThanOrEqual(INTERVALO_MINIMO_ENTRE_CORREOS_MS - TOLERANCIA_ABAJO)
     expect(hueco).toBeLessThan(INTERVALO_MINIMO_ENTRE_CORREOS_MS + TOLERANCIA_ARRIBA)
@@ -167,7 +174,7 @@ describe("ataque (AUTH-03c r1): ritmo del worker con reloj y espera reales", () 
     await new Promise((resolver) => setTimeout(resolver, 320))
     const antes = Date.now()
     await manejador(trabajo(2))
-    expect((intentos[1]?.inicio ?? Infinity) - antes).toBeLessThan(30)
+    expect((intentos[1]?.inicio ?? Infinity) - antes).toBeLessThan(TOLERANCIA_SIN_ESPERA)
   }, 10_000)
 
   it("un reloj que salta 10 s hacia atrás nunca hace esperar más de 250 ms", async () => {

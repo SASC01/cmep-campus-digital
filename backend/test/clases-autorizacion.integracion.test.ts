@@ -1,5 +1,5 @@
 import { errorApiSchema } from "@campus/shared"
-import type { FastifyInstance, LightMyRequestResponse } from "fastify"
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { obtenerDb } from "../src/adapters/db/cliente.js"
@@ -34,7 +34,7 @@ interface PreparadoRuta {
   nombre: string
   metodo: "GET" | "POST" | "PUT"
   url: string
-  payload?: unknown
+  payload?: InjectOptions["payload"]
   tokenPermitido: string
   // Token de un rol distinto del exigido, si existe uno "incorrecto" entre los dos roles no-admin
   // (GET /clases/:claseId acepta a los dos, así que no tiene).
@@ -253,7 +253,7 @@ const pedir = async (
   const respuesta = await obtenerApp().inject({
     method: prep.metodo,
     url: prep.url,
-    payload: prep.payload,
+    ...(prep.payload === undefined ? {} : { payload: prep.payload }),
     headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
   })
   cuerposRecibidos.push(respuesta.body)

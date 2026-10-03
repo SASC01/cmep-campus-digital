@@ -160,13 +160,18 @@ const conFilaRetenida = async (
       expect(propio, "Precondición: el pid de la transacción retenedora").toBeDefined()
       if (!propio) throw new Error("Precondición: sin pid de la transacción retenedora")
 
+      // CHORE-02 ronda 0 (C-3, §D-3): solo cuentan los procesos que esperan una fila
+      // (transactionid o tuple), en los dos niveles; no un bloqueo de tabla ni lo de detrás.
       const detrasDeLaFila = async (): Promise<number> => {
         const [cuenta] = await obtenerDb().$queryRaw<{ n: number }[]>`
           WITH RECURSIVE bloqueados(pid) AS (
-            SELECT pid FROM pg_stat_activity WHERE ${propio.pid}::int = ANY(pg_blocking_pids(pid))
+            SELECT a.pid FROM pg_stat_activity a
+            WHERE ${propio.pid}::int = ANY(pg_blocking_pids(a.pid))
+              AND a.wait_event_type = 'Lock' AND a.wait_event IN ('transactionid', 'tuple')
             UNION
             SELECT a.pid FROM pg_stat_activity a
             JOIN bloqueados b ON b.pid = ANY(pg_blocking_pids(a.pid))
+            WHERE a.wait_event_type = 'Lock' AND a.wait_event IN ('transactionid', 'tuple')
           )
           SELECT count(*)::int AS n FROM bloqueados`
         return cuenta?.n ?? 0

@@ -21,6 +21,15 @@ Lee: `docs/ARCHITECTURE-ESSENTIALS.md`, los `RF-xx` / `RN-xx` del encargo en `do
 - No corriges. No sugieres refactors. Reportas.
 - Verifica también lo que el Programador dijo que estaba en verde: ejecuta `lint` y `test` tú mismo.
 
+## PA-07: contención en la salida de la suite del backend (regla permanente desde CHORE-02)
+Decisión del humano (2026-10-03). Aplica a toda corrida completa del backend (`cd backend; npm test`) que hagas en cualquier encargo con backend; el plan ya no la repite, solo fija sus listas.
+- Cuenta en la salida completa, por término: `40P01`, `deadlock detected`, `could not serialize`, `too many clients`, `"Error no controlado"` y `"code":"P2028"`.
+- Te detienes y reportas si: (a) cualquiera de los cuatro primeros es mayor que 0; (b) aparece un `"Error no controlado"` fuera del inventario de la ronda 0 (los que provocan a propósito pruebas existentes, identificados por ruta y llamada, no por línea; el inventario sale de la corrida final de la ronda 0 y es una lista cerrada); (c) aparece un `P2028` fuera de la lista de permitidos que fija el plan del encargo (hoy: los dos de `cuentas-r3.ataque.test.ts` y los tres de `servicio-ocupado.integracion.test.ts`), identificados por ruta y llamada.
+- **Control positivo:** el conteo solo vale si en esa misma salida aparecen los tres `P2028` deterministas de `servicio-ocupado.integracion.test.ts` (`POST /api/auth/cambiar-contrasena`, `POST /api/auth/refrescar`, `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios`), cada uno con su ruta. Si falta alguno (por ejemplo, porque el log quedó en `error` y las líneas `warn` no salen), el conteo no vale: no declaras PA-07 limpia, reportas la corrida con lo que falta y te detienes. Si faltan los dos de `cuentas-r3`, no te detienes, pero lo reportas.
+- No hay excepción por "corrida caída por la espera en cadena": una corrida completa que cae por tiempos límite, o un rojo intermitente en cualquier archivo, es PA-12: no repites la corrida para limpiarla; la reportas completa (archivo, caso, duración, PA-07).
+- Un `P2028` de `maxWait` ("Unable to start a transaction in the given time") es contención del pool de conexiones: se reporta con su ruta; si una ráfaga conocida lo explica (hoy, los registros con el mismo enlace, M-08 de CHORE-02), lo dices, pero no es un permitido.
+- Todo reporte de PA-07 trae el comando, el conteo por término, la comprobación del control positivo y, para cada `P2028`, su ruta y su llamada. La atribución por `requestId` se hace por app, no con un mapa global: los `requestId` se repiten entre apps del mismo proceso.
+
 ## Lista de ataque (aplica lo que corresponda)
 
 **Autorización**

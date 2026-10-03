@@ -50,8 +50,9 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Rol, restricción y banderas se leen de la base en **cada** petición; no van en el token.
 - `debe_cambiar_contrasena`: solo pasa `POST /auth/cambiar-contrasena`.
 - Alumno restringido: solo `GET /me` y `GET /me/estado-pago` (y `POST /auth/cambiar-contrasena` si tiene un cambio pendiente). Sin tokens de LiveKit, archivos ni grabaciones.
-- Estado de pago ajeno: solo admin, o maestro dueño de una clase del alumno. Para estudiantes el campo **se omite**.
-- `requireMembership`: estudiante inscrito o maestro dueño; `requireOwnership`: solo el maestro dueño; siempre sobre `:claseId`, con la misma respuesta para una clase inexistente y una ajena. El admin no pasa por rutas de clase fuera de `/admin`, y sus rutas de clases necesitan una excepción de la guarda (ADMIN).
+- Estado de pago ajeno: solo admin, o maestro de una clase del alumno. Para estudiantes el campo **se omite**.
+- `requireMembership`: estudiante inscrito o maestro de la clase; `requireOwnership`: cualquier maestro de la clase (de uno a dos, en `maestros_de_clase`; CLASES-02, hasta entonces el único de `clases.maestro_id`); siempre sobre `:claseId`, con la misma respuesta para una clase inexistente y una ajena. El admin alcanza cualquier clase desde CLASES-02; cómo pasa la guarda de `:claseId` (la excepción prevista desde CLASES-a) lo fija ese plan.
+- Una guarda `onRoute` no deja arrancar la API si una ruta no pública, con cualquier URL, no empieza por la cadena completa o tiene un parámetro o un comodín en sus dos primeros segmentos (CHORE-02).
 
 ## Reglas de datos
 - Prisma **solo** en `adapters/db`.
@@ -60,6 +61,7 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - SQL crudo solo parametrizado. El único SQL con texto no literal que pasa por Prisma es el de pg-boss al encolar dentro de una transacción (`ejecutorSqlDe` en `adapters/db`, único `$queryRawUnsafe`): todos sus datos viajan como parámetros y el texto solo interpola el esquema, la tabla y el nombre de la cola (constantes del código).
 - Escrituras compuestas en **transacción**, incluido el encolado del evento.
 - Transacciones que crean, rotan o revocan sesiones en bloque, cambian la contraseña o escriben enlaces de un usuario existente: primero su fila de `usuarios` (`FOR SHARE` para crear o rotar su sesión; `FOR NO KEY UPDATE` para lo demás), en READ COMMITTED. Protocolo en `backend/src/adapters/README.md`.
+- Toda transacción se abre con `enTransaccion` (`adapters/db`). Si expira esperando un bloqueo o una conexión (`P2028`), responde `503 SERVICIO_OCUPADO`, nunca `500`.
 - Promedios, gradebook, alumnos en riesgo y KPIs: **consultas agregadas**, no contadores guardados.
 - Todo cambio de esquema es una migración de Prisma, **compatible hacia atrás** (frontend y backend se despliegan por separado).
 - Fechas `timestamptz` en UTC; ISO 8601 en la API.
@@ -67,9 +69,9 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Búsqueda de alumnos: `nombre_busqueda` se normaliza en `core/` al escribir (sin acentos, minúsculas, espacios colapsados) y se busca con `LIKE` y el índice GIN de trigramas sobre esa columna; el término pasa por la misma normalización, definida una sola vez en `shared/`, y escapa los comodines. Mide de 3 a 120 caracteres ya normalizados, con un tope de 1000 en crudo. `unaccent` no se usa en las consultas. Frontend: espera de 300 ms.
 
 ### Tablas
-`usuarios` · `sesiones` · `tokens_cuenta` · `enlaces_registro` · `clases` · `categorias` · `inscripciones` · `movimientos_inscripcion` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
+`usuarios` · `sesiones` · `tokens_cuenta` · `enlaces_registro` · `clases` · `maestros_de_clase` (CLASES-02) · `categorias` · `inscripciones` · `movimientos_inscripcion` · `publicaciones` · `tareas` · `criterios_rubrica` · `entregas` · `puntajes_rubrica` · `archivos` · `comentarios` · `notificaciones` · `clases_en_vivo` · `anuncios_login` · `configuracion` — más el esquema `pgboss`, que no se toca.
 
-Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único parcial) · `entregas (tarea_id, alumno_id)` único · `notificaciones (usuario_id, evento_id)` único · `comentarios` con exactamente un contexto · `archivos`: confirmado si y solo si tiene exactamente un contexto (los `pendiente` y `descartado`, ninguno; `clase_id` autoriza mientras tanto).
+Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único parcial) · `maestros_de_clase (clase_id, maestro_id)` PK, de uno a dos por clase, validado en `core/` dentro de la transacción (CLASES-02) · `entregas (tarea_id, alumno_id)` único · `notificaciones (usuario_id, evento_id)` único · `comentarios` con exactamente un contexto · `archivos`: confirmado si y solo si tiene exactamente un contexto (los `pendiente` y `descartado`, ninguno; `clase_id` autoriza mientras tanto).
 
 ## Asíncrono y notificaciones
 - La API guarda y encola **en la misma transacción**, y responde. **Nunca** crea notificaciones en la petición.
@@ -91,7 +93,7 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Buckets: `campus-privado` (`materiales/` · `entregas/` · `grabaciones/`) · `campus-publico` (`anuncios/`) · `campus-respaldos` (solo en `prod`; en `dev` MinIO crea únicamente los dos primeros).
 - Tokens de mínimo privilegio: aplicación, Egress (solo escritura en `grabaciones/`), respaldos.
 - Cambiar de almacén = cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`.
-- Materiales y anuncios: solo los sube el maestro dueño; 25 MB por archivo, 5 por publicación; PDF, imágenes (sin SVG), Office y texto plano. La confirmación compara el objeto real con lo declarado, dentro de la transacción de la publicación. Vista previa solo de imágenes. La limpieza borra también el objeto de los pendientes vencidos y de los descartados.
+- Materiales y anuncios: solo los sube un maestro de la clase o el admin (CLASES-02); 25 MB por archivo, 5 por publicación; PDF, imágenes (sin SVG), Office y texto plano. La confirmación compara el objeto real con lo declarado, dentro de la transacción de la publicación. Vista previa solo de imágenes. La limpieza borra también el objeto de los pendientes vencidos y de los descartados.
 - Sin las tres `STORAGE_*` de acceso, la API arranca y los archivos responden 503; en `production` son obligatorias (API y worker). Firmar es local: la región es fija (`STORAGE_REGION`).
 
 ## Clases en vivo
@@ -110,8 +112,11 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Entrega tardía: por defecto se acepta y se marca `con_retraso`. Al crear o editar la tarea, el maestro puede no aceptarlas: entonces la entrega se cierra en la fecha límite (RF-15, RF-44).
 - Entregas admiten archivos y enlaces. Una tarea que no requiere adjuntos se entrega con "Marcar como completada" (RF-24).
 - Temas: organizan las tareas y los materiales de una clase, con nombre y orden. Son independientes de las categorías ponderadas y no intervienen en la calificación (RF-43).
+- Clases (decisión del humano, 2026-10-02; CLASES-02): solo el admin crea clases y edita su nombre y descripción, y asigna de uno a dos maestros por clase (`maestros_de_clase`), que agrega, quita o reasigna en cualquier momento; una clase nunca queda sin maestro. El maestro no crea ni edita clases; "Crear clase" desaparece de su inicio. Inscriben alumnos el admin y los maestros de la clase (alta manual y baja, registradas en `movimientos_inscripcion`); el código de invitación se conserva.
+- Autoría (regla general; hoy publicaciones y comentarios, en TAREAS también las tareas): cada autor borra solo lo suyo; un maestro nunca borra ni edita lo del admin; el admin borra cualquier publicación o comentario de cualquier clase. Lo que publica el admin se firma "Administración", con distintivo visible y sin nombre de persona; la firma se deriva del rol del autor, no se guarda.
+- "Personas" del alumno (CLASES-02): correo completo de los maestros y de los compañeros de la clase. El buscador global del maestro conserva el enmascarado.
 - Código de clase: 7 caracteres sin I, O, 0 ni 1; se escribe sin distinguir mayúsculas y admite como separadores los espacios y guiones de una lista cerrada; regenerarlo invalida el anterior sin afectar a los inscritos. Unirse es idempotente.
-- Alta manual: el buscador del maestro muestra el nombre y el correo enmascarado (hasta 2 caracteres de la parte local y nunca todos, `***` y el dominio), enmascarado en el backend; el correo completo solo en el roster, de alumnos ya inscritos en su clase. Cada alta manual y cada baja efectivas se registran en `movimientos_inscripcion` en la misma transacción, ordenadas por `secuencia`; la consulta es de ADMIN.
+- Alta manual: el buscador del maestro muestra el nombre y el correo enmascarado (hasta 2 caracteres de la parte local y nunca todos, `***` y el dominio), enmascarado en el backend; el correo completo solo en el roster, de alumnos ya inscritos en su clase, y para el alumno en "Personas" (CLASES-02). Cada alta manual y cada baja efectivas se registran en `movimientos_inscripcion` en la misma transacción, ordenadas por `secuencia`; la consulta es de ADMIN.
 
 ## Operación
 - PostgreSQL **nunca** expuesto a internet. Puertos 80/443 del Droplet solo desde los rangos de Cloudflare.
@@ -129,3 +134,4 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Solo modo claro. Colores y tamaños únicamente mediante tokens.
 - Prohibido imitar la marca de Google Classroom. Prohibida la estética genérica de IA/SaaS.
 - Densidad: admin tabular, estudiante ligero, maestro intermedio.
+- Barra lateral con la lista de clases del usuario: las primeras visibles y desplazamiento para el resto (CLASES-02; P-01 de CLASES-01 la había dejado compacta).

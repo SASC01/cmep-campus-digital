@@ -33,7 +33,8 @@ const pedir = (url: string, token?: string) =>
 
 beforeAll(async () => {
   app = await construirApp({ env: cargarEnv() })
-  // Fuera de /api: la guarda onRoute no aplica y se puede probar la cadena aislada.
+  // Fuera de /api, con protegido(): la guarda onRoute revisa toda ruta (M-15, CHORE-02), así que se
+  // puede probar la cadena aislada sin quitarle ningún paso.
   app.get("/prueba/solo-admin", protegido({ roles: ["admin"] }), async () => ({ ok: true }))
   // CLASES-a (PR-A07a a PR-A07c): con :claseId, para ejercitar el sexto paso real de la cadena
   // (requireMembership) contra una clase de verdad.

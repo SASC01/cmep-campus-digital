@@ -272,6 +272,8 @@ describe("A: sin deadlock (retenido: usuario)", () => {
       },
     )
 
+    expect(respuesta, "Precondición: cambiar-contrasena debe devolver una respuesta").toBeTruthy()
+    if (!respuesta) throw new Error("Precondición: cambiar-contrasena debe devolver una respuesta")
     expect(respuesta?.statusCode, respuesta?.body).toBe(401)
     expect(
       respuesta === undefined ? undefined : errorApiSchema.parse(respuesta.json()).error.codigo,

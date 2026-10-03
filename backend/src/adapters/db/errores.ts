@@ -55,3 +55,16 @@ export const traducirErrorPrisma = (
   }
   throw error
 }
+
+export const MENSAJE_SERVICIO_OCUPADO =
+  "El servicio está ocupado en este momento. Inténtalo de nuevo en unos segundos."
+
+// P2028: la transacción interactiva expiró (pasó su timeout, por ejemplo esperando un bloqueo de
+// fila) o no obtuvo conexión dentro de su maxWait. Prisma ya la revirtió: nada se escribió. Es
+// transitorio, así que responde 503, nunca 500 (CHORE-02). Cualquier otro error se relanza tal cual.
+export const traducirErrorDeTransaccion = (error: unknown): never => {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2028") {
+    throw new AppError("SERVICIO_OCUPADO", MENSAJE_SERVICIO_OCUPADO, 503, { causa: error })
+  }
+  throw error
+}

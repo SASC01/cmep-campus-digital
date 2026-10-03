@@ -145,13 +145,16 @@ describe("ataque (ronda 2): la guarda rechaza lo ilegítimo", () => {
     )
   })
 
-  it("prefijos //api o /API (errores de tecleo) no atienden /api/*: sin bypass efectivo", async () => {
-    const app = await nuevaApp()
-    await app.register(async (h) => h.get("/x", ok), { prefix: "//api" })
-    await app.register(async (h) => h.get("/y", ok), { prefix: "/API" })
-    await app.ready()
-    expect((await app.inject({ method: "GET", url: "/api/x" })).statusCode).toBe(404)
-    expect((await app.inject({ method: "GET", url: "/api/y" })).statusCode).toBe(404)
+  // CHORE-02 ronda 0 (C-2, §D-5, M-15): la guarda revisa toda ruta, con cualquier URL. Antes, una
+  // ruta sin protegido() bajo //api o /API arrancaba y solo se comprobaba que no atendiera /api/*;
+  // ahora la API no arranca. Rojo esperado hasta el paso 9 del programador.
+  it("prefijos //api o /API (errores de tecleo) sin protegido(): la API no arranca (M-15)", async () => {
+    expect(await arranca((h) => h.get("/x", ok), "//api")).toContain(
+      "no pasa por protegido() (AGENTS.md, regla 2)",
+    )
+    expect(await arranca((h) => h.get("/x", ok), "/API")).toContain(
+      "no pasa por protegido() (AGENTS.md, regla 2)",
+    )
   })
 
   it("un hook de ruta que responde antes de la cadena (onRequest) no debe poder saltarse protegido()", async () => {

@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg"
 
 import { AppError } from "../../core/errores.js"
+import { traducirErrorDeTransaccion } from "./errores.js"
 import { PrismaClient, type Prisma } from "./generated/client.js"
 
 // Única instancia del cliente y únicas importaciones del proyecto de @prisma/adapter-pg y del
@@ -31,12 +32,24 @@ export const obtenerDb = (): PrismaClient => {
 }
 
 // Un PrismaClient abre su propia transacción; un TransactionClient ya está dentro de una y no
-// expone $transaction, así que la función corre directamente sobre él.
+// expone $transaction, así que la función corre directamente sobre él. Es el único $transaction de
+// backend/src (lo comprueba higiene-de-pruebas.integracion.test.ts): un P2028 (la transacción expiró
+// o no obtuvo conexión) se traduce aquí, para todos, a 503 SERVICIO_OCUPADO (CHORE-02).
+// maxWait (opcional): cuánto espera la transacción para obtener una conexión del pool (2 s por
+// defecto de Prisma). Solo para las que van en serie sobre una fila con muchos clientes a la vez
+// (M-08); un enTransaccion anidado, que ya tiene conexión, lo ignora. El timeout no cambia.
 export const enTransaccion = <T>(
   ejecutor: Ejecutor,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  opciones: { maxWait?: number } = {},
 ): Promise<T> => {
-  if ("$transaction" in ejecutor) return ejecutor.$transaction(fn)
+  if ("$transaction" in ejecutor) {
+    const abierta =
+      opciones.maxWait === undefined
+        ? ejecutor.$transaction(fn)
+        : ejecutor.$transaction(fn, { maxWait: opciones.maxWait })
+    return abierta.catch(traducirErrorDeTransaccion)
+  }
   return fn(ejecutor)
 }
 

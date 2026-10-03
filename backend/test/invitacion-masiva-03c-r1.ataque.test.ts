@@ -501,7 +501,7 @@ describe("ataque (AUTH-03c r1): cupo diario (deterministas con la base compartid
 
 describe("ataque (AUTH-03c r1): autorización", () => {
   it.each([
-    ["sin token", async () => "", 401, "NO_AUTENTICADO"],
+    ["sin token", async (): Promise<string> => "", 401, "NO_AUTENTICADO"],
     [
       "un estudiante",
       async () => firmarTokenDePrueba({ usuarioId: (await crearUsuarioDePrueba(ids)).id }),

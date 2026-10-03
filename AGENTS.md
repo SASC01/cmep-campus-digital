@@ -36,7 +36,7 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configura
 npm run dev              # API con recarga
 npm run dev:worker       # worker de la cola (pg-boss): envía los correos de cuenta; fuera de production los escribe en backend/tmp/correos/ y nunca llama a Resend
 npm run build
-npm run lint
+npm run lint             # ESLint, Prettier y tsc de src/ y de las pruebas (tsconfig.test.json)
 npm run test             # Vitest: unitarias e integración contra un PostgreSQL desechable por corrida (Testcontainers; necesita Docker Desktop, no infra)
 npx prisma migrate dev   # crea y aplica una migración en local
 npx prisma generate
@@ -177,7 +177,8 @@ La guía de código está en `CLAUDE.md`: estructura de módulos de `features/`,
 - Avisos y correos se prueban a través de `notifier` con un doble en memoria que registra lo que se habría enviado. Ninguna prueba llama a Resend.
 - No marques nada como terminado con pruebas en rojo ni las desactives para que pase.
 - Toda prueba debe ejecutar al menos una aserción. Nunca termines una prueba con un return temprano cuando falte una condición previa: si falta, la prueba falla con un mensaje que lo explique.
-- **Nunca se corren dos suites a la vez** (backend y frontend, o dos corridas del backend): la carga tumba el backend por la espera en cadena de `LOCK TABLE usuarios` (CHORE-02) y la corrida deja de ser verificable. Se corre una, se espera a que termine y se corre la otra. Decisión del humano (2026-10-02).
+- **Bloqueos en las pruebas (CHORE-02).** Ninguna prueba pide un bloqueo de tabla (`LOCK TABLE`) que pueda esperar: solo con `NOWAIT` y un reintento acotado, para no formar una cola delante de las demás pruebas (lo comprueba `higiene-de-pruebas.integracion.test.ts`). Una retención deliberada de una fila da por formada una operación solo cuando un proceso espera **esa fila** (`wait_event` `transactionid` o `tuple`), nunca por cualquier proceso bloqueado detrás (`formadasDetrasDe` de `backend/test/ayudas-concurrencia.ts`). Toda transacción de una prueba que retiene filas o bloqueos pasa un `timeout` explícito mayor que su espera más larga.
+- **Nunca se corren dos suites a la vez** (backend y frontend, o dos corridas del backend): la carga deja la corrida sin verificar (antes de CHORE-02, además tumbaba el backend por la espera en cadena de `LOCK TABLE usuarios`). Se corre una, se espera a que termine y se corre la otra. Decisión del humano (2026-10-02).
 
 ## Git
 - Ramas: `feat/…`, `fix/…`, `chore/…`, `docs/…`.

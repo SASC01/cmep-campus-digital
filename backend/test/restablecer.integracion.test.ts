@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify"
+import type { FastifyInstance, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import { construirApp } from "../src/app.js"
@@ -214,7 +214,7 @@ describe("ataque de carrera con otras transacciones del mismo usuario (T-01, ron
     })
 
     let peticiones:
-      Promise<[Awaited<ReturnType<typeof restablecer>>, ReturnType<typeof app.inject>]> | undefined
+      Promise<[Awaited<ReturnType<typeof restablecer>>, LightMyRequestResponse]> | undefined
     await obtenerDb().$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${usuario.id}::uuid FOR UPDATE`
@@ -247,7 +247,7 @@ describe("ataque de carrera con otras transacciones del mismo usuario (T-01, ron
     const tokenAcceso = await firmarTokenDePrueba({ usuarioId: usuario.id })
 
     let peticiones:
-      Promise<[Awaited<ReturnType<typeof restablecer>>, ReturnType<typeof app.inject>]> | undefined
+      Promise<[Awaited<ReturnType<typeof restablecer>>, LightMyRequestResponse]> | undefined
     await obtenerDb().$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${usuario.id}::uuid FOR UPDATE`

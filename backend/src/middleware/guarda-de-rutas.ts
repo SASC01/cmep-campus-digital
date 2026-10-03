@@ -1,3 +1,5 @@
+import { createRequire } from "node:module"
+
 import type { FastifyInstance } from "fastify"
 
 import { RUTAS_PUBLICAS } from "./rutas-publicas.js"
@@ -88,15 +90,81 @@ const tienePertenencia = (preHandler: readonly unknown[]): boolean => {
   return marca === "requireMembership" || marca === "requireOwnership"
 }
 
+// CHORE-02: un parámetro o un comodín en los dos primeros segmentos podría atender
+// /api/clases/<id>/… sin la regla de :claseId (/api/*, /api/:seccion/*, /:seccion/*, *).
+// Los segmentos vacíos (//api, /api//) se descartan antes de tomar los dos primeros (O-2): si un día
+// se normalizan las barras dobles, no deben ocupar un lugar.
+const comodinEnLosPrimerosSegmentos = (url: string): boolean =>
+  url
+    .split("/")
+    .filter((segmento) => segmento !== "")
+    .slice(0, 2)
+    .some((segmento) => segmento.includes(":") || segmento.includes("*"))
+
+// CHORE-02, T-02 (§E4-1): clasificación cerrada de las opciones de ruta que Fastify lee
+// (lib/route.js, lib/hooks.js de Fastify 5.12.5). Las prohibidas, por grupo y con el motivo que
+// sale en el mensaje. Permitidas: preHandler (con la cadena primero), onResponse, onTimeout,
+// onRequestAbort, method, url, path, handler, config, constraints, bodyLimit, handlerTimeout,
+// logLevel, exposeHeadRoute, prefixTrailingSlash y attachValidation. Cualquier otra clave, Fastify
+// la ignora.
+interface GrupoDeOpciones {
+  motivo: string
+  nombres: readonly string[]
+}
+
+const OPCIONES_QUE_REHACEN = ["errorHandler", "onSend", "preSerialization", "onError"] as const
+const OPCIONES_QUE_VALIDAN = [
+  "schema",
+  "validatorCompiler",
+  "serializerCompiler",
+  "schemaErrorFormatter",
+] as const
+const OPCIONES_CON_LA_PETICION = ["childLoggerFactory", "logSerializers"] as const
+
+// Los diez hooks del ciclo de vida que Fastify lee de las opciones de la ruta en preReady
+// (opts[hook]): la guarda deja una copia congelada de cada uno, para que mutar después el arreglo
+// que devolvió protegido() no cambie la ruta (H-3).
+const HOOKS_DE_RUTA = [
+  "onTimeout",
+  "onRequest",
+  "preParsing",
+  "preValidation",
+  "preSerialization",
+  "preHandler",
+  "onSend",
+  "onResponse",
+  "onError",
+  "onRequestAbort",
+] as const
+
+// El onSend interno de la ruta HEAD que Fastify genera para todo GET (lib/head-route.js): vacía el
+// cuerpo y es el único onSend que se admite. lib/ de Fastify no publica tipos, de ahí el tipo local;
+// es la única importación de una ruta interna de Fastify en backend/src. Si una versión nueva la
+// mueve, la API no arranca y todas las pruebas lo muestran.
+interface ModuloDeLaRutaHead {
+  parseHeadOnSendHandlers?: (onSend: null) => unknown
+}
+
+const sondearOnSendDeHead = (): unknown => {
+  const modulo = createRequire(import.meta.url)("fastify/lib/head-route.js") as ModuloDeLaRutaHead
+  const onSend = modulo.parseHeadOnSendHandlers?.(null)
+  if (typeof onSend !== "function") {
+    throw new Error("No se encontró el onSend interno de las rutas HEAD de Fastify")
+  }
+  return onSend
+}
+
 // Motivo por el que una ruta no pública no puede registrarse, o null si pasa la guarda.
 const motivoDeRechazo = ({
   url,
   preHandler,
   hooksAnteriores,
+  opcionesProhibidas,
 }: {
   url: string
   preHandler: readonly unknown[]
   hooksAnteriores: readonly (readonly [string, readonly unknown[]])[]
+  opcionesProhibidas: readonly GrupoDeOpciones[]
 }): string | null => {
   if (!pasaPorLaCadenaCompleta(preHandler)) return "no pasa por protegido()"
   if (segmentoDeClaseInvalido(url)) {
@@ -108,45 +176,186 @@ const motivoDeRechazo = ({
   const declarados = hooksAnteriores
     .filter(([, hooks]) => hooks.length > 0)
     .map(([nombre]) => nombre)
-  if (declarados.length === 0) return null
-  return `declara ${declarados.join(", ")}, que se ejecuta antes de protegido()`
+  if (declarados.length > 0) {
+    return `declara ${declarados.join(", ")}, que se ejecuta antes de protegido()`
+  }
+  // T-02 (CHORE-02): opciones de ruta que rehacen, validan o serializan la respuesta de la cadena.
+  const grupo = opcionesProhibidas.find(({ nombres }) => nombres.length > 0)
+  if (grupo) return `declara ${grupo.nombres.join(", ")}, que ${grupo.motivo}`
+  if (comodinEnLosPrimerosSegmentos(url)) {
+    return "tiene un parámetro o un comodín en sus dos primeros segmentos"
+  }
+  return null
 }
 
-// Una ruta puede atender peticiones a /api/* si su URL empieza por /api o si su primer segmento es
-// un parámetro (/:seccion/...) o un comodín (/*): find-my-way la usaría para /api/loquesea (T-06).
-const puedeAtenderApi = (url: string): boolean => {
-  if (url.startsWith("/api")) return true
-  const primerSegmento = url.replace(/^\//, "").split("/")[0] ?? ""
-  return primerSegmento.includes(":") || primerSegmento.includes("*")
+// CHORE-02, T-01: setNotFoundHandler y setErrorHandler no disparan onRoute, así que un plugin
+// podría atender /api/… o rehacer la respuesta de la cadena sin que la guarda lo vea. Los dos
+// únicos manejadores son los de handlers/errores.ts, que app.ts registra ANTES de
+// registrarMiddleware. Desde aquí, cualquier instancia (la raíz, un plugin con fastify-plugin o un
+// hijo encapsulado, que Fastify crea con Object.create del padre) hereda esta propiedad.
+const MANEJADORES_DE_LA_RAIZ = ["setNotFoundHandler", "setErrorHandler"] as const
+
+const bloquearManejadoresPropios = (app: FastifyInstance): void => {
+  for (const metodo of MANEJADORES_DE_LA_RAIZ) {
+    Object.defineProperty(app, metodo, {
+      value: (): never => {
+        throw new Error(
+          `La instancia llama a ${metodo} después de registrarMiddleware: el único es el de handlers/errores.ts, registrado antes (AGENTS.md, regla 2)`,
+        )
+      },
+      writable: false,
+      configurable: false,
+      enumerable: true,
+    })
+  }
 }
 
-// Guarda estructural (DEC-16, M-09, ampliada por T-06 y T-12): hace cumplir la regla 2 de
+// CHORE-02, T-03 (§E4-2): los hooks de la instancia corren en cada ruta del contexto (los de
+// petición, incluso antes que preHandler) y pueden responder o rehacer la respuesta de la cadena;
+// un onRoute posterior podría cambiar una ruta ya revisada. Después de registrarMiddleware solo se
+// admiten los que no tocan la respuesta. Los plugins que necesiten los demás se registran antes,
+// como manejoDeErrores y @fastify/cookie (app.ts).
+const MOTIVO_REHACE = "puede responder o rehacer la respuesta fuera de protegido()"
+const HOOKS_DE_LA_RAIZ = new Map<string, string>([
+  ["onRequest", MOTIVO_REHACE],
+  ["preParsing", MOTIVO_REHACE],
+  ["preValidation", MOTIVO_REHACE],
+  ["preHandler", MOTIVO_REHACE],
+  ["preSerialization", MOTIVO_REHACE],
+  ["onSend", MOTIVO_REHACE],
+  ["onError", MOTIVO_REHACE],
+  ["onRoute", "podría cambiar una ruta después de que la guarda la revisó"],
+])
+
+// Métodos de la instancia que pueden rehacer la respuesta, validar o correr con la petición antes
+// de la cadena (fastify.js:180-290). El resto (rutas, register, decorate*, consultas) se permite:
+// ver la tabla de la Enmienda 4 del plan.
+const MOTIVO_CUERPO = "puede rehacer el cuerpo de la respuesta de protegido()"
+const MOTIVO_VALIDA = "valida fuera de protegido()"
+const MOTIVO_PETICION = "corre con la petición antes de protegido()"
+const METODOS_BLOQUEADOS = new Map<string, string>([
+  ["setReplySerializer", MOTIVO_CUERPO],
+  ["setSerializerCompiler", MOTIVO_CUERPO],
+  ["setValidatorCompiler", MOTIVO_VALIDA],
+  ["setSchemaController", MOTIVO_VALIDA],
+  ["setSchemaErrorFormatter", MOTIVO_VALIDA],
+  ["setGenReqId", MOTIVO_PETICION],
+  ["setChildLoggerFactory", MOTIVO_PETICION],
+  ["addContentTypeParser", MOTIVO_PETICION],
+  ["addConstraintStrategy", MOTIVO_PETICION],
+])
+
+const definirFija = (app: FastifyInstance, nombre: string, valor: unknown): void => {
+  Object.defineProperty(app, nombre, {
+    value: valor,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  })
+}
+
+const bloquearHooksYMetodosDeLaInstancia = (
+  app: FastifyInstance,
+  addHookOriginal: FastifyInstance["addHook"],
+): void => {
+  definirFija(app, "addHook", function (this: unknown, ...argumentos: unknown[]): unknown {
+    const [nombre] = argumentos
+    const motivo = typeof nombre === "string" ? HOOKS_DE_LA_RAIZ.get(nombre) : undefined
+    if (motivo !== undefined) {
+      throw new Error(
+        `La instancia agrega el hook ${nombre as string} después de registrarMiddleware: ${motivo}; un plugin que lo necesite se registra antes (AGENTS.md, regla 2)`,
+      )
+    }
+    return (addHookOriginal as (...a: unknown[]) => unknown).apply(this, argumentos)
+  })
+  for (const [metodo, motivo] of METODOS_BLOQUEADOS) {
+    definirFija(app, metodo, (): never => {
+      throw new Error(
+        `La instancia llama a ${metodo} después de registrarMiddleware: ${motivo}; un plugin que lo necesite se registra antes (AGENTS.md, regla 2)`,
+      )
+    })
+  }
+}
+
+// Guarda estructural (DEC-16, M-09, ampliada por T-06, T-12, M-15 y CHORE-02): hace cumplir la regla 2 de
 // AGENTS.md por construcción. Se registra en el ámbito raíz antes que cualquier handler, así que
 // observa también las rutas de los plugins hijos con prefijo; como Fastify ejecuta onRoute al
-// registrar la ruta, el error aborta el register y la API no arranca. Toda ruta que pueda atender
-// /api/* y no esté en la lista pública debe empezar por la cadena completa de protegido(), en orden,
-// y no puede declarar hooks de ruta que Fastify ejecuta antes que preHandler (onRequest, preParsing,
+// registrar la ruta, el error aborta el register y la API no arranca. Toda ruta, con cualquier URL (no
+// solo las que empiezan por /api: M-15, CHORE-02), que no esté en la lista pública debe empezar por
+// la cadena completa de protegido(), en orden, no puede tener un parámetro ni un comodín en sus dos
+// primeros segmentos (CHORE-02) y no puede declarar hooks de ruta que Fastify ejecuta antes que preHandler (onRequest, preParsing,
 // preValidation): podrían responder sin pasar por la cadena (T-12). HEAD se trata como su GET porque
 // Fastify lo genera automáticamente (exposeHeadRoutes) con las mismas opciones.
 export const registrarGuardaDeRutas = (app: FastifyInstance): void => {
+  const onSendDeHead = sondearOnSendDeHead()
+  const addHookOriginal = app.addHook
+
   app.addHook("onRoute", (ruta) => {
-    if (!puedeAtenderApi(ruta.url)) return
+    // Las opciones de la ruta se leen por nombre: RouteOptions no declara todas con el mismo tipo.
+    const opciones = ruta as unknown as Record<string, unknown>
+    // Copiar, revisar y asignar (H-3): se revisa la misma copia que queda en la ruta.
+    const copias = new Map<string, readonly unknown[]>()
+    for (const hook of HOOKS_DE_RUTA) {
+      if (opciones[hook] === undefined) continue
+      copias.set(hook, Object.freeze([...comoLista<unknown>(opciones[hook])]))
+    }
+    const hooksDe = (nombre: string): readonly unknown[] => copias.get(nombre) ?? []
+    const declaradas = (nombres: readonly string[]): string[] =>
+      nombres.filter((nombre) => {
+        if (nombre === "onSend") {
+          return hooksDe("onSend").some((hook) => hook !== onSendDeHead)
+        }
+        if (copias.has(nombre)) return hooksDe(nombre).length > 0
+        return opciones[nombre] !== undefined
+      })
 
     const motivo = motivoDeRechazo({
       url: ruta.url,
-      preHandler: comoLista<unknown>(ruta.preHandler),
+      preHandler: hooksDe("preHandler"),
       hooksAnteriores: [
-        ["onRequest", comoLista<unknown>(ruta.onRequest)],
-        ["preParsing", comoLista<unknown>(ruta.preParsing)],
-        ["preValidation", comoLista<unknown>(ruta.preValidation)],
+        ["onRequest", hooksDe("onRequest")],
+        ["preParsing", hooksDe("preParsing")],
+        ["preValidation", hooksDe("preValidation")],
+      ],
+      opcionesProhibidas: [
+        {
+          motivo: "puede rehacer la respuesta de protegido()",
+          nombres: declaradas(OPCIONES_QUE_REHACEN),
+        },
+        {
+          motivo: "valida o serializa fuera de protegido()",
+          nombres: declaradas(OPCIONES_QUE_VALIDAN),
+        },
+        {
+          motivo: "corre con la petición antes de protegido()",
+          nombres: declaradas(OPCIONES_CON_LA_PETICION),
+        },
       ],
     })
-    if (motivo === null) return
 
-    for (const metodo of comoLista(ruta.method)) {
-      const metodoEfectivo = metodo === "HEAD" ? "GET" : metodo
-      if (RUTAS_PUBLICAS.has(`${metodoEfectivo} ${ruta.url}`)) continue
-      throw new Error(`La ruta ${metodo} ${ruta.url} ${motivo} (AGENTS.md, regla 2)`)
+    if (motivo !== null) {
+      for (const metodo of comoLista(ruta.method)) {
+        const metodoEfectivo = metodo === "HEAD" ? "GET" : metodo
+        if (RUTAS_PUBLICAS.has(`${metodoEfectivo} ${ruta.url}`)) continue
+        throw new Error(`La ruta ${metodo} ${ruta.url} ${motivo} (AGENTS.md, regla 2)`)
+      }
+      return
+    }
+    // Solo se sustituyen los arreglos (los únicos mutables): una función suelta no cambia, y Fastify
+    // valida distinto un arreglo de una función (onRequestAbort asíncrono), así que no se normaliza.
+    for (const [hook, copia] of copias) {
+      if (Array.isArray(opciones[hook])) opciones[hook] = copia
     }
   })
+
+  // T-03 (§E4-2): un plugin registrado con logSerializers corre con la petición antes de la cadena.
+  app.addHook("onRegister", (_instancia, opcionesDelPlugin) => {
+    if (opcionesDelPlugin.logSerializers === undefined) return
+    throw new Error(
+      "Un plugin se registra con logSerializers después de registrarMiddleware: corre con la petición antes de protegido() (AGENTS.md, regla 2)",
+    )
+  })
+
+  bloquearManejadoresPropios(app)
+  bloquearHooksYMetodosDeLaInstancia(app, addHookOriginal)
 }

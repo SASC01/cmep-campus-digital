@@ -69,12 +69,16 @@ const lineasFallidas = (): Record<string, unknown>[] =>
     .filter((linea) => linea.includes('"correo_de_cuenta_fallido"'))
     .map((linea) => JSON.parse(linea) as Record<string, unknown>)
 
+// Solo tipos (CHORE-02, ronda 0, C-4): asegurarCola tipa sus opciones como QueueOptions de pg-boss,
+// que no incluye deadLetter aunque createQueue sí lo recibe. La política de la cola no cambia.
+type PoliticaConFallidos = NonNullable<Parameters<typeof asegurarCola>[1]> & { deadLetter: string }
+
 beforeAll(async () => {
   inicializarDb({ connectionString: env.DATABASE_URL })
   await inicializarAuth(opcionesDeAuth(env))
   await iniciarCola({ ...opcionesDeCola(env, "worker"), log: pino({ level: "silent" }) })
   await asegurarCola(COLA_FALLIDOS, { retentionSeconds: 3600, deleteAfterSeconds: 3600 })
-  await asegurarCola(COLA, {
+  const politica: PoliticaConFallidos = {
     retryLimit: 2,
     retryDelay: 0,
     retryBackoff: false,
@@ -82,7 +86,8 @@ beforeAll(async () => {
     deadLetter: COLA_FALLIDOS,
     retentionSeconds: 3600,
     deleteAfterSeconds: 3600,
-  })
+  }
+  await asegurarCola(COLA, politica)
   await registrarConsumidores(
     {
       notifier: notifierQueSiempreFalla,

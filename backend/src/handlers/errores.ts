@@ -36,7 +36,18 @@ const estadoDeCliente = (error: FastifyError): number | undefined => {
 export const manejoDeErrores = fp(
   async (app) => {
     app.setErrorHandler((error: FastifyError, request, reply) => {
-      if (esAppError(error)) return responder(reply, error.estado, error.codigo, error.message)
+      if (esAppError(error)) {
+        // CHORE-02: un AppError de servidor con causa (hoy, solo SERVICIO_OCUPADO por P2028) se
+        // registra con su error original, para no perder la señal de contención. Los demás
+        // AppError, como hoy.
+        if (error.estado >= 500 && error.cause !== undefined) {
+          request.log.warn(
+            { err: error.cause, codigo: error.codigo },
+            "Error controlado del servidor",
+          )
+        }
+        return responder(reply, error.estado, error.codigo, error.message)
+      }
 
       const estado = estadoDeCliente(error)
       if (estado !== undefined) {

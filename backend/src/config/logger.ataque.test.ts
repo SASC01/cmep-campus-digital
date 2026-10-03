@@ -1,6 +1,6 @@
 import { Writable } from "node:stream"
 
-import { pino } from "pino"
+import { type Logger, pino } from "pino"
 import { describe, expect, it } from "vitest"
 
 import { cargarEnv } from "./env.js"
@@ -12,7 +12,7 @@ import { opcionesDeLogger } from "./logger.js"
 // enlace, *.contrasenaTemporal, *.token y *.enlace. En pino, "*.token" solo alcanza un nivel de
 // anidación: la clave en la raíz del objeto de log necesita su propia ruta.
 
-const capturar = (registrar: (log: pino.Logger) => void): string => {
+const capturar = (registrar: (log: Logger) => void): string => {
   let salida = ""
   const destino = new Writable({
     write(trozo: Buffer, _codificacion, listo) {

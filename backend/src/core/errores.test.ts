@@ -25,6 +25,28 @@ describe("AppError", () => {
   })
 })
 
+describe("AppError con causa (CHORE-02)", () => {
+  it("conserva la causa original en cause, sin cambiar codigo, estado ni message", () => {
+    const causa = new Error("error del proveedor")
+    const error = new AppError("OCUPADO", "Mensaje público", 503, { causa })
+
+    expect(error.cause).toBe(causa)
+    expect(error.codigo).toBe("OCUPADO")
+    expect(error.estado).toBe(503)
+    expect(error.message).toBe("Mensaje público")
+  })
+
+  it("sin opciones, cause es undefined y codigo, estado y message no cambian", () => {
+    const error = new AppError("SIN_CAUSA", "Mensaje", 418)
+
+    expect(error.cause).toBeUndefined()
+    expect("cause" in error).toBe(false)
+    expect(error.codigo).toBe("SIN_CAUSA")
+    expect(error.estado).toBe(418)
+    expect(error.message).toBe("Mensaje")
+  })
+})
+
 describe("esAppError", () => {
   it("reconoce una instancia de AppError", () => {
     expect(esAppError(new AppError("PRUEBA", "Mensaje"))).toBe(true)

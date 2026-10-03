@@ -55,15 +55,15 @@ lista, no se rodea la guarda.
 ## Guarda `onRoute` (`guarda-de-rutas.ts`)
 
 `registrarMiddleware(app)` (llamada en `app.ts` **antes** de registrar cualquier handler) decora la
-petición con `usuarioId` y `perfil` y registra un hook `onRoute` en el ámbito raíz. Toda ruta que
-pueda atender `/api/*` (su `url` empieza por `/api`, o su primer segmento es un parámetro como
-`/:seccion/...` o un comodín) y no esté en `RUTAS_PUBLICAS` debe empezar por la **cadena completa**
+petición con `usuarioId` y `perfil` y registra un hook `onRoute` en el ámbito raíz. Toda ruta, con
+cualquier URL y no solo bajo `/api` (M-15, CHORE-02), que no esté en `RUTAS_PUBLICAS` debe empezar por la **cadena completa**
 de `protegido()`, en orden: `authenticate`, `withProfile`, `withPasswordGate`, `withAccess`,
 `requireRole`. Los pasos se reconocen por identidad (un registro que solo rellena `protegido()`),
 así que una cadena compuesta a mano o una función ajena con el mismo nombre no pasan. Esas rutas
-tampoco pueden declarar hooks de ruta que Fastify ejecuta antes que `preHandler` (`onRequest`,
-`preParsing`, `preValidation`), porque podrían responder sin pasar por la cadena; los hooks
-posteriores (`preSerialization`, `onSend`, `onResponse`) sí se permiten. Si no se cumple, el
+tampoco pueden declarar las opciones de ruta que pueden responder o rehacer la respuesta fuera de
+la cadena, o que corren con la petición antes que ella (lista cerrada en "Opciones de ruta",
+abajo); solo se permiten `onResponse`, `onTimeout` y `onRequestAbort`, que corren cuando la
+respuesta ya salió o ya no puede salir (CHORE-02, T-02). Si no se cumple, el
 arranque de la API falla con `La ruta <METODO> <url> no pasa por protegido() (AGENTS.md, regla 2)`
 o `La ruta <METODO> <url> declara <hooks>, que se ejecuta antes de protegido() (AGENTS.md, regla 2)`:
 Fastify ejecuta `onRoute` al
@@ -75,13 +75,12 @@ evalúa como su `GET` porque Fastify lo genera automáticamente copiando los `pr
 DEC-16 pedía solo que `authenticate` fuera el primer `preHandler`. La guarda exige más:
 
 - los cinco pasos de `protegido()`, en orden y por identidad;
-- también en las rutas cuyo primer segmento es un parámetro o un comodín, porque pueden atender
-  `/api/*`;
+- en toda ruta, con cualquier URL, no solo en las que pueden atender `/api/*` (M-15, CHORE-02);
 - ningún hook de ruta anterior a `preHandler` (`onRequest`, `preParsing`, `preValidation`).
 
 ### Regla de `:claseId` (CLASES-a, §D-0.3)
 
-Toda ruta que pueda atender `/api/*` y no sea pública debe llevar el sexto paso
+Toda ruta no pública debe llevar el sexto paso
 (`requireMembership` o `requireOwnership`) en la posición 5 de `preHandler` si su URL declara un
 parámetro llamado `claseId` en **cualquier posición** (no solo al principio de un segmento):
 `:claseId` seguido de un carácter que no pueda formar parte de un nombre de parámetro, o del fin de
@@ -101,12 +100,75 @@ paso que el admin nunca pasa (no pasa por `requireMembership` ni `requireOwnersh
 `/api/admin/clases/:id` se rechaza por el nombre del parámetro. El encargo ADMIN agrega una
 excepción a esta regla, en carril sensible; **no se construye en CLASES**.
 
-### Límite: hooks de plugin
+### Parámetros y comodines en los dos primeros segmentos (CHORE-02)
 
-La guarda solo ve las opciones de la ruta en el momento en que corre su `onRoute`. Los hooks que un
-plugin añade con `addHook` (`onRequest`, `preParsing`, `preValidation` e incluso `preHandler`)
-corren antes de `protegido()` y la guarda no los ve. Quedan a la revisión de código: ningún plugin
-de dominio (`handlers/`) añade hooks que respondan o que decidan permisos.
+Ninguna ruta no pública puede tener un parámetro (`:`) o un comodín (`*`) en sus dos primeros
+segmentos (`/api/*`, `/api/:seccion/*`, `/:seccion/*`, `*`, `/api*`): con `protegido()` y sin
+una ruta más específica, atendería `/api/clases/<id>/…` sin la regla de `:claseId`. Es la última
+regla de la guarda; si falta la cadena o el sexto paso, gana ese motivo. El arranque falla con
+`La ruta <METODO> <url> tiene un parámetro o un comodín en sus dos primeros segmentos (AGENTS.md, regla 2)`.
+
+### Manejadores de 404 y de errores (CHORE-02, T-01)
+
+`setNotFoundHandler` y `setErrorHandler` no disparan `onRoute`: un plugin con prefijo `/api` podría
+atender `/api/clases/<id>/…`, o rehacer la respuesta de la cadena, sin que la guarda lo viera.
+`registrarMiddleware` reemplaza los dos métodos de la instancia raíz por uno que lanza; todos los
+contextos lo heredan. Los únicos manejadores son los de `handlers/errores.ts`, que `app.ts`
+registra **antes** de `registrarMiddleware`. Un plugin transversal que necesite cualquiera de los
+dos se registra también antes; si no, la API no arranca con
+`La instancia llama a <método> después de registrarMiddleware: el único es el de handlers/errores.ts, registrado antes (AGENTS.md, regla 2)`.
+
+### Opciones de ruta (CHORE-02, T-02)
+
+Prohibidas, con su motivo:
+
+- `onRequest`, `preParsing`, `preValidation`: corren antes de `protegido()` y podrían responder
+  (T-12).
+- `errorHandler`, `onSend` (salvo el que Fastify agrega a la ruta `HEAD` automática para vaciar el
+  cuerpo), `preSerialization`, `onError`: corren después de la cadena y pueden cambiar el estado,
+  el cuerpo o los encabezados de su `401`/`403`.
+- `schema`, `validatorCompiler`, `serializerCompiler`, `schemaErrorFormatter`: validan antes de
+  `preHandler` o serializan la respuesta fuera de la cadena (los handlers validan con zod).
+- `childLoggerFactory`, `logSerializers`: corren con la petición antes de la cadena.
+
+Permitidas: `method`, `url`, `handler`, `preHandler` (la cadena primero), `config`,
+`constraints`, `bodyLimit`, `handlerTimeout`, `logLevel`, `exposeHeadRoute`,
+`prefixTrailingSlash`, `attachValidation` (sin `schema` no hace nada), `onResponse`,
+`onTimeout` y `onRequestAbort`. La guarda reemplaza las listas de hooks de la ruta declaradas como
+arreglo por una copia congelada, así que mutar después el arreglo de `protegido()` no cambia la
+ruta; un hook declarado como función suelta es inmutable por identidad, y el autor no conserva
+ninguna referencia al objeto de opciones que Fastify lee en `preReady`, porque `route()` lo copia.
+Las rutas públicas están exentas, como con T-12.
+
+### Hooks y métodos de la instancia (CHORE-02, T-01 y T-03)
+
+`registrarMiddleware` reemplaza en la instancia raíz, y todos los contextos lo heredan:
+
+- `addHook` de `onRequest`, `preParsing`, `preValidation`, `preHandler`, `preSerialization`,
+  `onSend`, `onError` (pueden responder o rehacer la respuesta) y `onRoute` (podría cambiar una
+  ruta después de que la guarda la revisó). Se siguen permitiendo `onResponse`, `onTimeout`,
+  `onRequestAbort`, `onReady`, `onListen`, `preClose`, `onClose` y `onRegister`.
+- `setNotFoundHandler` y `setErrorHandler` (T-01), `setReplySerializer`, `setValidatorCompiler`,
+  `setSerializerCompiler`, `setSchemaController`, `setSchemaErrorFormatter`, `setGenReqId`,
+  `setChildLoggerFactory`, `addContentTypeParser` y `addConstraintStrategy`; y `register` con
+  la opción `logSerializers`.
+
+Cualquiera de ellos, llamado después, impide el arranque. Un plugin transversal que los necesite
+(`@fastify/cookie` hoy; `@fastify/cors`, `@fastify/rate-limit` o compresión después) se registra
+**antes** de `registrarMiddleware`, como `manejoDeErrores`. Lo que eso significa de verdad (M-09):
+sus hooks de instancia corren en todas las rutas, también antes de la cadena, y la guarda no los
+ve, así que quedan a la revisión de código al instalarlo; la guarda solo revisa las opciones de
+ruta que ese plugin modifique con un `onRoute` propio; y las rutas que el plugin registra en su
+propio cuerpo nacen antes del `onRoute` de la guarda, así que tampoco las revisa.
+
+### Límite (riesgo aceptado)
+
+La guarda solo ve la API de Fastify. Quedan a la revisión de código: escribir directo en el
+servidor HTTP de Node (`app.server.on("request" …)`, `"checkContinue"`, `"upgrade"`) o en el
+socket de una petición, y usar los símbolos privados de Fastify. La regla estática que impide obtener
+la fábrica de Fastify fuera de `app.ts` (`higiene-de-pruebas.integracion.test.ts`, PR-CH-12g) es de
+texto: no cubre un especificador armado en ejecución (concatenación, plantilla con expresión o una
+variable); queda a la revisión de código (O-12, CHORE-02).
 
 ### Orden de los plugins transversales
 
@@ -114,9 +176,11 @@ La guarda depende del orden en que se registran los plugins que añaden hooks a 
 propio `onRoute`: según ese orden, o la API no arranca, o la guarda no ve el hook. Por eso, en los
 encargos de despliegue y CORS:
 
-- `@fastify/rate-limit` se registra con `hook: "preHandler"`, no con su `onRequest` por defecto;
-- `@fastify/cors` registra `OPTIONS *`, que la guarda trata como ruta que puede atender `/api/*`:
-  hay que añadir `OPTIONS *` a `rutas-publicas.ts`.
+- `@fastify/rate-limit` se registra antes de `registrarMiddleware` y con `hook: "preHandler"`, no con su `onRequest` por defecto (no está instalado: el encargo que lo agregue comprueba cómo añade su hook a las rutas y que la guarda lo acepta);
+- `@fastify/cors` registra `OPTIONS *` dentro de su propio plugin; registrado antes de
+  `registrarMiddleware`, esa ruta nace antes del `onRoute` de la guarda y la guarda no la revisa
+  (M-09). El encargo que lo agregue verifica qué pasa con `OPTIONS *` y si hace falta en
+  `rutas-publicas.ts`.
 
 Al registrarlos, comprueba que la API arranca y que las rutas protegidas siguen respondiendo 401 sin
 token.

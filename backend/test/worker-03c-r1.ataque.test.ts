@@ -47,18 +47,23 @@ const urlPublicaFrontend = "http://127.0.0.1:5173"
 let directorio = ""
 const intentos: { inicio: number; fin: number; idempotencia: string }[] = []
 
+// Solo tipos (CHORE-02, ronda 0, C-4): asegurarCola tipa sus opciones como QueueOptions de pg-boss,
+// que no incluye deadLetter aunque createQueue sí lo recibe. La política de la cola no cambia.
+type PoliticaConFallidos = NonNullable<Parameters<typeof asegurarCola>[1]> & { deadLetter: string }
+
 beforeAll(async () => {
   inicializarDb({ connectionString: env.DATABASE_URL })
   await inicializarAuth(opcionesDeAuth(env))
   await iniciarCola({ ...opcionesDeCola(env, "worker"), log: pino({ level: "silent" }) })
   await asegurarCola(COLA_FALLIDOS, { retentionSeconds: 3600, deleteAfterSeconds: 3600 })
-  await asegurarCola(COLA, {
+  const politica: PoliticaConFallidos = {
     retryLimit: 0,
     expireInSeconds: 30,
     deadLetter: COLA_FALLIDOS,
     retentionSeconds: 3600,
     deleteAfterSeconds: 3600,
-  })
+  }
+  await asegurarCola(COLA, politica)
   directorio = await mkdtemp(join(tmpdir(), "ataque-03c-correos-"))
   const log = pino({ level: "silent" })
   const canal = crearCanalRegistro({ directorio, urlPublicaFrontend, log })

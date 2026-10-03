@@ -15,7 +15,7 @@
 
 ## 1. Resumen
 
-**CMEP Campus Digital** es una plataforma web para la gestión de clases de una sola institución educativa (CMEP). Un maestro crea clases, publica materiales y tareas, califica con rúbricas e imparte clases en vivo. Un estudiante se une a sus clases, entrega tareas, consulta calificaciones, asiste a clases en vivo y ve sus grabaciones. Un administrador único gestiona usuarios, clases, el estado de pago de cada alumno y la restricción de acceso.
+**CMEP Campus Digital** es una plataforma web para la gestión de clases de una sola institución educativa (CMEP). El administrador crea las clases y les asigna de uno a dos maestros. Un maestro publica materiales y tareas, califica con rúbricas e imparte clases en vivo. Un estudiante se une a sus clases, entrega tareas, consulta calificaciones, asiste a clases en vivo y ve sus grabaciones. Un administrador único gestiona usuarios, clases, el estado de pago de cada alumno y la restricción de acceso.
 
 Toda la funcionalidad es nativa: **no hay integraciones con Google** (ni Calendar, ni Drive, ni inicio de sesión con Google).
 
@@ -49,7 +49,7 @@ Toda la funcionalidad es nativa: **no hay integraciones con Google** (ni Calenda
 |---|---|---|---|
 | **Estudiante** | Alumno de la institución | Registro público con correo y contraseña. Acceso inmediato, sin verificación por código | Entregar tareas |
 | **Maestro** | Docente de la institución | Lo da de alta el Administrador, por invitación individual o masiva, o se registra con un enlace de registro que genera el Administrador (AUTH-03). No existe registro público abierto de maestros | Calificar |
-| **Administrador** | Personal administrativo | Cuenta **única**, predefinida. Sin registro ni recuperación pública | Gestionar usuarios, pagos y acceso |
+| **Administrador** | Personal administrativo | Cuenta **única**, predefinida. Sin registro ni recuperación pública | Gestionar clases, usuarios, pagos y acceso |
 
 Todos los roles deben iniciar sesión antes de ver cualquier contenido.
 
@@ -79,8 +79,8 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 
 | ID | Requisito | Prioridad |
 |---|---|---|
-| RF-10 | Dashboard con próximas entregas de todas sus clases y tarjetas de "Mis clases". Cada tarjeta muestra la siguiente fecha límite | M |
-| RF-11 | Unirse a una clase con código de invitación | M |
+| RF-10 | Dashboard con próximas entregas de todas sus clases y tarjetas de "Mis clases". Cada tarjeta muestra la siguiente fecha límite. La barra lateral lista sus clases, con las primeras visibles y desplazamiento para el resto (CLASES-02) | M |
+| RF-11 | Unirse a una clase con código de invitación. Además, el Administrador o un maestro de la clase pueden inscribirlo (RN-04) | M |
 | RF-12 | Ver el muro de una clase (anuncios, materiales, tareas) y comentar publicaciones | M |
 | RF-13 | Ver el detalle de una tarea: instrucciones, adjuntos, fecha límite, puntos, rúbrica en solo lectura | M |
 | RF-14 | Entregar una tarea con **archivos y/o enlaces**; anular la entrega y volver a entregar mientras no esté calificada | M |
@@ -88,7 +88,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-16 | Hilo de comentarios privados con el maestro dentro de cada tarea | M |
 | RF-17 | "Mis calificaciones" por clase: porcentaje general, lista de tareas con estado/calificación y filtro por estado (todo, asignado, entregado, calificado, sin entregar) | M |
 | RF-18 | Modal "Cálculo de calificación": desglose por categorías ponderadas | S |
-| RF-19 | Ver profesor y compañeros de la clase (solo lectura, profesores separados de alumnos, con contador) | S |
+| RF-19 | Ver maestros y compañeros de la clase (solo lectura, maestros separados de alumnos, con contador), con el correo completo de cada uno (CLASES-02) | S |
 | RF-20 | Calendario con tareas pendientes y clases en vivo próximas | M |
 | RF-21 | Ver su propio estado de pago: "Deudor" o "Al corriente" | M |
 | RF-22 | Unirse a una clase en vivo: ver video y pantalla compartida del maestro, participar en el chat | M |
@@ -100,15 +100,15 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 
 | ID | Requisito | Prioridad |
 |---|---|---|
-| RF-30 | Dashboard con sus clases y las entregas pendientes de calificar | M |
-| RF-31 | Crear y editar clases; generar y regenerar el código de invitación | M |
+| RF-30 | Dashboard con sus clases y las entregas pendientes de calificar. La barra lateral lista sus clases, con las primeras visibles y desplazamiento para el resto (CLASES-02) | M |
+| RF-31 | Ver y regenerar el código de invitación de las clases que imparte. El maestro no crea clases ni edita su nombre o descripción: lo hace el Administrador (RF-52, RN-06). Cambio del 2026-10-02; antes el maestro creaba y editaba sus clases (CLASES-02) | M |
 | RF-32 | Definir las **categorías ponderadas** de la clase (p. ej. Examen 40 %, Prácticas 40 %, Problemas 20 %). Los pesos deben sumar 100 % | M |
-| RF-33 | Publicar anuncios y materiales en el muro, con adjuntos | M |
+| RF-33 | Publicar anuncios y materiales propios en el muro, con adjuntos, y borrar los propios. Nunca borra ni edita lo que publicó el Administrador (RN-07) | M |
 | RF-34 | Crear y editar tareas: título, instrucciones, adjuntos, fecha límite, puntos, categoría y **rúbrica propia** (criterios con puntaje máximo) | M |
 | RF-35 | Ver por tarea quiénes entregaron y quiénes no | M |
 | RF-36 | Calificar una entrega: abrirla, puntuar por criterio de la rúbrica (o asignar calificación directa si no hay rúbrica), dejar comentario privado y publicar la calificación | M |
 | RF-37 | Gradebook: tabla alumnos × tareas, promedio general de la clase y **alumnos en riesgo** destacados | M |
-| RF-38 | Buscar alumnos por nombre completo y agregarlos manualmente a **sus** clases. Solo alumnos ya registrados | M |
+| RF-38 | Buscar alumnos por nombre completo, agregarlos manualmente a las clases que imparte y darlos de baja. Solo alumnos ya registrados | M |
 | RF-39 | Roster de la clase con el estado de pago de cada alumno y etiqueta si su acceso está restringido | M |
 | RF-40 | Programar una clase en vivo (fecha y hora) o iniciarla en el momento | M |
 | RF-41 | Impartir clase en vivo: video, compartir pantalla, chat, iniciar y detener grabación | M |
@@ -122,13 +122,14 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 |---|---|---|
 | RF-50 | Dashboard institucional con KPIs: alumnos, maestros, clases activas | M |
 | RF-51 | Alta y baja de maestros y alumnos | M |
-| RF-52 | Vista institucional de todas las clases; buscar y agregar alumnos manualmente a **cualquier** clase | M |
+| RF-52 | Gestión de clases (`/admin/clases`): lista institucional de todas las clases; crear clases y editar su nombre y descripción; asignar de uno a dos maestros a cada clase, y agregarlos, quitarlos o reasignarlos en cualquier momento; buscar e inscribir alumnos manualmente en **cualquier** clase y darlos de baja; entrar al muro de cualquier clase (CLASES-02) | M |
 | RF-53 | Analytics institucional: progreso y participación a nivel escuela | S |
 | RF-54 | Gestión de estado de pago: tabla con buscador, filtro por estado, cambio desde la fila y **selección múltiple** para cambiar varios a la vez | M |
 | RF-55 | Restringir y restablecer el acceso de un alumno, con motivo opcional y confirmación previa. Disponible desde Gestión de usuarios y como columna en la tabla de estado de pago | M |
 | RF-56 | Configuración general: permisos, anuncios del login e **interruptores de avisos por correo** (uno por tipo de evento) | S |
 | RF-57 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (ADMIN) | M |
 | RF-58 | El Administrador puede editar el nombre de cualquier usuario (ADMIN) | M |
+| RF-59 | Publicar anuncios y materiales en el muro de cualquier clase, firmados como "Administración" con un distintivo visible y sin nombre de persona; borrar cualquier publicación o comentario de cualquier clase (RN-07; CLASES-02) | M |
 
 ### 4.5 Notificaciones
 
@@ -179,9 +180,9 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 ### RN-04 Alta manual de alumnos
 - Búsqueda por nombre completo, tolerante a mayúsculas y acentos, por cualquier parte del nombre.
 - Solo aparecen alumnos con cuenta registrada.
-- Maestro: solo en sus clases. Administrador: en cualquier clase.
+- Maestro: solo en las clases que imparte. Administrador: en cualquier clase. Los dos también dan de baja. El código de invitación se conserva como otra vía de inscripción (RF-11).
 - En el buscador del Maestro, cada alumno aparece con su nombre y su correo enmascarado (hasta los 2 primeros caracteres antes de la `@`, nunca todos, `***` y el dominio). El correo completo solo se ve en la lista de alumnos de su clase, una vez inscrito. El buscador nunca muestra el estado de pago.
-- Cada alta manual y cada baja de un alumno quedan registradas, en el orden en que ocurrieron (clase, alumno, maestro, tipo y fecha). El Administrador las consulta (ADMIN).
+- Cada alta manual y cada baja de un alumno quedan registradas, en el orden en que ocurrieron (clase, alumno, quién lo hizo, sea maestro o Administrador, tipo y fecha). El Administrador las consulta (ADMIN).
 
 ### RN-05 Calificaciones
 - La calificación de una tarea con rúbrica es la suma de los puntos por criterio, escalada a los puntos de la tarea.
@@ -190,21 +191,32 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - "Alumno en riesgo": promedio general menor a 70 % **o** 3 o más tareas vencidas sin entregar. (Umbrales iniciales, ajustables en configuración.)
 
 ### RN-06 Propiedad
-- Un maestro solo puede ver y modificar sus propias clases y lo que cuelga de ellas.
+- Las clases las crea el Administrador, que les asigna de **uno a dos maestros** y puede agregarlos, quitarlos o reasignarlos en cualquier momento. Una clase nunca queda sin maestro.
+- Un maestro solo puede ver y modificar las clases que imparte y lo que cuelga de ellas. No crea clases ni edita su nombre o descripción.
 - Un alumno solo accede a las clases en las que está inscrito.
+- El Administrador alcanza cualquier clase: la gestiona, inscribe alumnos y entra a su muro.
+- Decisión del 2026-10-02 (CLASES-02); antes cada clase tenía un solo maestro, que la creaba.
+
+### RN-07 Autoría
+Regla general para todo lo que se publica en una clase: publicaciones y comentarios del muro hoy, y tareas en TAREAS.
+- Cada autor borra solo lo suyo.
+- Un maestro **nunca** borra ni edita lo que publicó el Administrador.
+- El Administrador puede borrar cualquier publicación o comentario de cualquier clase.
+- Lo que publica el Administrador se firma "Administración", con un distintivo visible y sin nombre de persona.
+- La regla se aplica en el backend.
 
 ## 6. Vistas
 
 **Compartidas (3):** Login con panel de anuncios · Registro de estudiante · Panel de notificaciones.
 Estado especial: pantalla de acceso restringido.
 
-**Estudiante (10):** Dashboard · Clase (muro) · Detalle de tarea · Mis calificaciones · Modal de cálculo de calificación · Compañeros y profesor · Calendario · Estado de pago · Clase en vivo · Grabaciones.
+**Estudiante (10):** Dashboard · Clase (muro) · Detalle de tarea · Mis calificaciones · Modal de cálculo de calificación · Compañeros y maestros · Calendario · Estado de pago · Clase en vivo · Grabaciones.
 
-**Maestro (10):** Dashboard · Clase (muro con publicar) · Crear/editar clase · Crear tarea o material · Calificar entrega · Gradebook · Buscador y alta manual · Alumnos de la clase · Clase en vivo (anfitrión) · Calendario.
+**Maestro (9):** Dashboard · Clase (muro con publicar) · Crear tarea o material · Calificar entrega · Gradebook · Buscador y alta manual · Alumnos de la clase · Clase en vivo (anfitrión) · Calendario.
 
-**Administrador (6):** Dashboard institucional · Gestión de usuarios · Gestión de clases · Analytics · Gestión de estado de pago · Configuración general.
+**Administrador (6):** Dashboard institucional · Gestión de usuarios · Gestión de clases (lista, crear, maestros, alumnos y muro de cualquier clase) · Analytics · Gestión de estado de pago · Configuración general.
 
-Total: 26 vistas de rol + 3 compartidas.
+Total: 25 vistas de rol + 3 compartidas ("Crear/editar clase" del Maestro pasó al Administrador el 2026-10-02).
 
 ## 7. Experiencia y marca
 
@@ -213,8 +225,8 @@ Total: 26 vistas de rol + 3 compartidas.
 - **Google Classroom es referencia solo de arquitectura de información**, nunca de estilo: prohibido imitar sus colores, logo, tipografía o iconografía.
 - **Evitar:** estética genérica de IA/startup/SaaS, degradados morado-azul, maquetas de dashboards flotantes como ilustración, manchas brillantes decorativas, rejillas genéricas de características, texto corporativo vago y palabras como "potencia", "desbloquea", "optimiza", "sin fricciones". El vidrio translúcido solo se usa con las reglas de legibilidad, movimiento y alcance de `docs/DESIGN.md` (dirección D3).
 - **Densidad por rol:** Administrador denso y tabular; Estudiante ligero y orientado a tareas; Maestro intermedio.
-- **Patrones a conservar:** tarjetas de "Mis clases" en el inicio de cada rol (la barra lateral es compacta: `docs/DESIGN.md` §7.4); bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
-- **CTAs en estados vacíos:** "Crea tu primera clase" (Maestro) y "Únete con tu código de clase" (Estudiante).
+- **Patrones a conservar:** tarjetas de "Mis clases" en el inicio de cada rol y la lista de clases del usuario en la barra lateral, con las primeras visibles y desplazamiento para el resto (decisión del 2026-10-02 para CLASES-02; sustituye a P-01 de CLASES-01, que la dejó compacta, y resuelve R-01 de DESIGN-01; `docs/DESIGN.md` §7.4 se actualiza en ese encargo); bloque de próximas entregas sobre las tarjetas; detalle de tarea a dos columnas (contenido y rúbrica a la izquierda, "tu trabajo" y comentarios privados a la derecha); roster con profesores separados de alumnos.
+- **CTAs en estados vacíos:** "Crea la primera clase" (Administrador) y "Únete con tu código de clase" (Estudiante). El Maestro sin clases no tiene acción: el estado vacío le dice que el Administrador asigna las clases (CLASES-02).
 - Biblioteca de componentes consistente (botones, tarjetas, barra de navegación, tablas) en todas las vistas, construida sobre shadcn/ui **reestilizado** con tokens propios; nunca con su aspecto por defecto.
 - Solo modo claro durante el piloto.
 - Responsive, rápido y con texto humano y específico.
@@ -271,7 +283,7 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 **Preguntas abiertas**
 1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió: dirección D3, "Vidrio líquido con fondo flotante" (2026-09-27), que reemplazó a la dirección C (2026-09-26). Siguen abiertos el logo y los colores institucionales.
 2. ¿Se necesitará restringir también a maestros?
-3. ¿Habrá más de un profesor por clase (co-docencia)?
+3. ¿Habrá más de un profesor por clase (co-docencia)? **Resuelta el 2026-10-02:** de uno a dos maestros por clase, asignados por el Administrador (RN-06; CLASES-02).
 4. Tamaño máximo de archivo por entrega (propuesta inicial: 100 MB; para video, usar enlace).
 5. Quién opera el servidor después de la entrega: respaldos, actualizaciones y a quién le llegan las alertas.
 6. Quién en administración tendrá la cuenta de Administrador.

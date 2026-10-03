@@ -36,7 +36,7 @@ const cambiar = (
     contrasenaNueva,
     cookie,
     extra = {},
-  }: { contrasenaNueva: string; cookie?: string; extra?: Record<string, unknown> },
+  }: { contrasenaNueva: string; cookie?: string | undefined; extra?: Record<string, unknown> },
 ) =>
   app.inject({
     method: "POST",

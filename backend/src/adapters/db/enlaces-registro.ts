@@ -13,6 +13,13 @@ export interface EnlaceRegistroConRegistrados extends EnlaceRegistroDb {
   registrados: number
 }
 
+// M-08 (CHORE-02): los registros y la revocación de un mismo enlace van en serie sobre su fila
+// (FOR NO KEY UPDATE) y cada transacción toma una conexión del pool ANTES de formarse en esa fila,
+// así que durante una ráfaga la mayoría de las conexiones esperan la fila. Con el maxWait por
+// defecto (2 s), los últimos de 40 registros simultáneos recibían 503. 10 s aguanta unos 330 ms por
+// registro con 30 en cola; más allá es una sobrecarga real y el 503 es la respuesta correcta.
+export const ESPERA_DE_CONEXION_DEL_ENLACE_MS = 10_000
+
 const SELECT_ENLACE = {
   id: true,
   creadoEn: true,
@@ -97,25 +104,29 @@ export const revocarEnlaceRegistro = (
   { id }: { id: string },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<EnlaceRegistroConRegistrados | null> =>
-  enTransaccion(ejecutor, async (tx) => {
-    const [bloqueada] = await tx.$queryRaw<{ revocadoEn: Date | null }[]>`
+  enTransaccion(
+    ejecutor,
+    async (tx) => {
+      const [bloqueada] = await tx.$queryRaw<{ revocadoEn: Date | null }[]>`
       SELECT revocado_en AS "revocadoEn" FROM enlaces_registro
       WHERE id = ${id}::uuid FOR NO KEY UPDATE`
-    if (bloqueada === undefined) return null
+      if (bloqueada === undefined) return null
 
-    if (bloqueada.revocadoEn === null) {
-      await tx.enlaceRegistro.update({
-        where: { id },
-        data: { revocadoEn: new Date() },
-        select: { id: true },
-      })
-    }
+      if (bloqueada.revocadoEn === null) {
+        await tx.enlaceRegistro.update({
+          where: { id },
+          data: { revocadoEn: new Date() },
+          select: { id: true },
+        })
+      }
 
-    const enlace = await tx.enlaceRegistro.findUnique({ where: { id }, select: SELECT_ENLACE })
-    if (enlace === null) return null
-    const registrados = await tx.usuario.count({ where: { enlaceRegistroId: id } })
-    return { ...enlace, registrados }
-  })
+      const enlace = await tx.enlaceRegistro.findUnique({ where: { id }, select: SELECT_ENLACE })
+      if (enlace === null) return null
+      const registrados = await tx.usuario.count({ where: { enlaceRegistroId: id } })
+      return { ...enlace, registrados }
+    },
+    { maxWait: ESPERA_DE_CONEXION_DEL_ENLACE_MS },
+  )
 
 export interface RegistradoDb {
   id: string
@@ -177,14 +188,18 @@ export const registrarMaestroConEnlace = (
   }: { enlaceId: string; usuario: NuevoUsuario; sesion: NuevaSesionDeUsuario; ahora: Date },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<{ usuarioId: string } | null> =>
-  enTransaccion(ejecutor, async (tx) => {
-    const filas = await tx.$queryRaw<{ id: string }[]>`
+  enTransaccion(
+    ejecutor,
+    async (tx) => {
+      const filas = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM enlaces_registro
       WHERE id = ${enlaceId}::uuid AND revocado_en IS NULL AND expira_en > ${ahora}
       FOR NO KEY UPDATE`
-    if (filas.length === 0) return null
+      if (filas.length === 0) return null
 
-    const { id: usuarioId } = await crearUsuario(usuario, tx)
-    await tx.sesion.create({ data: { usuarioId, ...sesion }, select: { id: true } })
-    return { usuarioId }
-  })
+      const { id: usuarioId } = await crearUsuario(usuario, tx)
+      await tx.sesion.create({ data: { usuarioId, ...sesion }, select: { id: true } })
+      return { usuarioId }
+    },
+    { maxWait: ESPERA_DE_CONEXION_DEL_ENLACE_MS },
+  )

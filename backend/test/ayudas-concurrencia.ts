@@ -10,6 +10,14 @@ import { obtenerDb } from "../src/adapters/db/cliente.js"
 // pg_blocking_pids (fuera de la transacción retenedora) hasta que cada operación esté formada
 // detrás de la fila retenida o ya haya terminado. Así el orden de llegada no depende de cuánto
 // tarde argon2 ni de la carga de la suite.
+//
+// "Formada" quiere decir "esperando esta fila" (CHORE-02, §D-3): formadasDetrasDe cuenta solo los
+// procesos que esperan un bloqueo de fila (wait_event "transactionid" o "tuple"), nunca uno de
+// tabla ("relation") ni uno consultivo ("advisory"), ni lo que esté detrás de ellos. Antes contaba
+// cualquier proceso bloqueado detrás, y una operación podía darse por formada antes de llegar a la
+// fila, con lo que la siguiente se lanzaba antes y el orden se invertía (A3 de bloqueo-usuario).
+// Una espera de fila solo existe sobre una fila ya confirmada: en READ COMMITTED, una fila que nace
+// dentro de la retenedora no es visible para las demás, que no la encuentran y no esperan.
 
 // AUTH-03b: se agrega "enlaces_registro" para la carrera entre revocar un enlace y registrarse
 // con él (registrarMaestroConEnlace y revocarEnlaceRegistro toman FOR NO KEY UPDATE sobre esa
@@ -30,6 +38,25 @@ export type EjecutorSqlDeLaRetencion = (
 ) => Promise<number>
 
 const esperar = (ms: number): Promise<void> => new Promise((resolver) => setTimeout(resolver, ms))
+
+// Fuera de la transacción retenedora: dentro de ella, pg_stat_activity conserva la instantánea de su
+// primera lectura hasta el final de la transacción. Cuenta, de forma recursiva, los procesos que
+// esperan la fila que retiene el proceso pid: el primero espera su identificador de transacción
+// ("transactionid") y los siguientes la tupla que tiene el primero ("tuple").
+export const formadasDetrasDe = async (pid: number): Promise<number> => {
+  const [fila] = await obtenerDb().$queryRaw<{ n: number }[]>`
+    WITH RECURSIVE bloqueados(pid) AS (
+      SELECT a.pid FROM pg_stat_activity a
+      WHERE ${pid}::int = ANY(pg_blocking_pids(a.pid))
+        AND a.wait_event_type = 'Lock' AND a.wait_event IN ('transactionid', 'tuple')
+      UNION
+      SELECT a.pid FROM pg_stat_activity a
+      JOIN bloqueados b ON b.pid = ANY(pg_blocking_pids(a.pid))
+      WHERE a.wait_event_type = 'Lock' AND a.wait_event IN ('transactionid', 'tuple')
+    )
+    SELECT count(*)::int AS n FROM bloqueados`
+  return fila?.n ?? 0
+}
 
 export const conFilaRetenida = async (
   fila: FilaRetenida,
@@ -52,20 +79,6 @@ export const conFilaRetenida = async (
       const [propio] = await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`
       if (!propio) throw new Error("Precondición: no se obtuvo el pid de la transacción retenedora")
 
-      const detrasDeLaFila = async (): Promise<number> => {
-        // Fuera de la transacción retenedora: dentro de ella, pg_stat_activity conserva la
-        // instantánea de su primera lectura hasta el final de la transacción.
-        const [fila] = await obtenerDb().$queryRaw<{ n: number }[]>`
-          WITH RECURSIVE bloqueados(pid) AS (
-            SELECT pid FROM pg_stat_activity WHERE ${propio.pid}::int = ANY(pg_blocking_pids(pid))
-            UNION
-            SELECT a.pid FROM pg_stat_activity a
-            JOIN bloqueados b ON b.pid = ANY(pg_blocking_pids(a.pid))
-          )
-          SELECT count(*)::int AS n FROM bloqueados`
-        return fila?.n ?? 0
-      }
-
       for (const [indice, operacion] of operaciones.entries()) {
         let terminada = false
         const lanzada = operacion()
@@ -77,7 +90,7 @@ export const conFilaRetenida = async (
         const limite = Date.now() + 10_000
         let formada = false
         while (!formada && !terminada && Date.now() < limite) {
-          formada = (await detrasDeLaFila()) >= indice + 1
+          formada = (await formadasDetrasDe(propio.pid)) >= indice + 1
           if (!formada) await esperar(25)
         }
         expect(

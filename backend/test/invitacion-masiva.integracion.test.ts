@@ -340,79 +340,93 @@ describe("POST /api/admin/maestros/lote", () => {
 
     let promesaLote: ReturnType<typeof invitarMaestrosEnLote> | undefined
     let seResolvioMientrasBloqueado = false
+    // (f) CHORE-02: el token de 2100 suma 1 a todo conteo de invitaciones de las últimas 24 h
+    // mientras exista; se borra al terminar el caso, en el finally.
+    const idDelTokenDeLaVentana = randomUUID()
 
-    await obtenerDb().$transaction(async (txRetenedora) => {
-      await txRetenedora.$executeRaw`SELECT pg_advisory_xact_lock(${CLAVE_BLOQUEO_INVITACIONES_EN_LOTE})`
-      const [propio] = await txRetenedora.$queryRaw<{ pid: number }[]>`
+    try {
+      await obtenerDb().$transaction(
+        async (txRetenedora) => {
+          await txRetenedora.$executeRaw`SELECT pg_advisory_xact_lock(${CLAVE_BLOQUEO_INVITACIONES_EN_LOTE})`
+          const [propio] = await txRetenedora.$queryRaw<{ pid: number }[]>`
         SELECT pg_backend_pid() AS pid
       `
-      if (!propio) {
-        throw new Error("Precondición: no se obtuvo el pid de la transacción retenedora")
-      }
+          if (!propio) {
+            throw new Error("Precondición: no se obtuvo el pid de la transacción retenedora")
+          }
 
-      promesaLote = invitarMaestrosEnLote(
-        { candidatos: [candidato], desde: ventanaPropia },
-        (usadas, solicitadas) => evaluarCupo({ limite: 1, usadas, solicitadas }),
-        async () => {},
-      )
-      // Maneja las dos ramas de inmediato (aunque el resultado real se observe después, con
-      // `expect(promesaLote).rejects...`, fuera de esta transacción): así Node no la marca como un
-      // rechazo sin manejar mientras la promesa sigue formada detrás del bloqueo.
-      promesaLote.then(
-        () => {
-          seResolvioMientrasBloqueado = true
-        },
-        () => {
-          seResolvioMientrasBloqueado = true
-        },
-      )
+          promesaLote = invitarMaestrosEnLote(
+            { candidatos: [candidato], desde: ventanaPropia },
+            (usadas, solicitadas) => evaluarCupo({ limite: 1, usadas, solicitadas }),
+            async () => {},
+          )
+          // Maneja las dos ramas de inmediato (aunque el resultado real se observe después, con
+          // `expect(promesaLote).rejects...`, fuera de esta transacción): así Node no la marca como un
+          // rechazo sin manejar mientras la promesa sigue formada detrás del bloqueo.
+          promesaLote.then(
+            () => {
+              seResolvioMientrasBloqueado = true
+            },
+            () => {
+              seResolvioMientrasBloqueado = true
+            },
+          )
 
-      const detrasDelBloqueo = async (): Promise<boolean> => {
-        const [fila] = await obtenerDb().$queryRaw<{ n: number }[]>`
+          const detrasDelBloqueo = async (): Promise<boolean> => {
+            const [fila] = await obtenerDb().$queryRaw<{ n: number }[]>`
           SELECT count(*)::int AS n FROM pg_stat_activity
           WHERE ${propio.pid}::int = ANY(pg_blocking_pids(pid))
         `
-        return (fila?.n ?? 0) >= 1
-      }
+            return (fila?.n ?? 0) >= 1
+          }
 
-      const limite = Date.now() + 10_000
-      let formada = false
-      while (!formada && !seResolvioMientrasBloqueado && Date.now() < limite) {
-        formada = await detrasDelBloqueo()
-        if (!formada) await new Promise((resolve) => setTimeout(resolve, 25))
-      }
-      expect(
-        formada || seResolvioMientrasBloqueado,
-        "Precondición: la llamada no llegó al bloqueo consultivo en 10 s",
-      ).toBe(true)
-      expect(
-        seResolvioMientrasBloqueado,
-        "no debería resolverse mientras el bloqueo sigue tomado",
-      ).toBe(false)
+          const limite = Date.now() + 10_000
+          let formada = false
+          while (!formada && !seResolvioMientrasBloqueado && Date.now() < limite) {
+            formada = await detrasDelBloqueo()
+            if (!formada) await new Promise((resolve) => setTimeout(resolve, 25))
+          }
+          expect(
+            formada || seResolvioMientrasBloqueado,
+            "Precondición: la llamada no llegó al bloqueo consultivo en 10 s",
+          ).toBe(true)
+          expect(
+            seResolvioMientrasBloqueado,
+            "no debería resolverse mientras el bloqueo sigue tomado",
+          ).toBe(false)
 
-      // Confirma, bajo el bloqueo, el único token de la ventana propia de este caso.
-      await txRetenedora.tokenCuenta.create({
-        data: {
-          id: randomUUID(),
-          usuarioId: usuarioDelTokenRetenedor.id,
-          tipo: "invitacion",
-          hashToken: derivarTokenDeCuenta(randomUUID()).hash,
-          expiraEn: new Date(ventanaPropia.getTime() + 3_600_000),
-          creadoEn: ventanaPropia,
+          // Confirma, bajo el bloqueo, el único token de la ventana propia de este caso.
+          await txRetenedora.tokenCuenta.create({
+            data: {
+              id: idDelTokenDeLaVentana,
+              usuarioId: usuarioDelTokenRetenedor.id,
+              tipo: "invitacion",
+              hashToken: derivarTokenDeCuenta(randomUUID()).hash,
+              expiraEn: new Date(ventanaPropia.getTime() + 3_600_000),
+              creadoEn: ventanaPropia,
+            },
+            select: { id: true },
+          })
         },
-        select: { id: true },
+        // (e) CHORE-02: espera hasta 10 s a que se forme la llamada real; con el timeout por
+        // defecto (5 s) la retenedora podía expirar antes.
+        { timeout: 20_000, maxWait: 5_000 },
+      )
+
+      // Al salir de $transaction, Prisma hace COMMIT y pg_advisory_xact_lock se libera: la llamada,
+      // ya formada detrás, obtiene el bloqueo y SOLO ENTONCES cuenta "usadas" en su ventana propia,
+      // así que ve el token que la retenedora acaba de confirmar.
+      await expect(promesaLote).rejects.toMatchObject({ codigo: "CUPO_DIARIO_INSUFICIENTE" })
+
+      const cuenta = await obtenerDb().usuario.findUnique({
+        where: { email: candidato.usuario.email },
       })
-    })
-
-    // Al salir de $transaction, Prisma hace COMMIT y pg_advisory_xact_lock se libera: la llamada,
-    // ya formada detrás, obtiene el bloqueo y SOLO ENTONCES cuenta "usadas" en su ventana propia,
-    // así que ve el token que la retenedora acaba de confirmar.
-    await expect(promesaLote).rejects.toMatchObject({ codigo: "CUPO_DIARIO_INSUFICIENTE" })
-
-    const cuenta = await obtenerDb().usuario.findUnique({
-      where: { email: candidato.usuario.email },
-    })
-    expect(cuenta).toBeNull()
+      expect(cuenta).toBeNull()
+    } finally {
+      await obtenerDb().tokenCuenta.deleteMany({ where: { id: idDelTokenDeLaVentana } })
+    }
+    // PR-CH-07b: el token de 2100 ya no existe.
+    expect(await obtenerDb().tokenCuenta.count({ where: { id: idDelTokenDeLaVentana } })).toBe(0)
   })
 
   it("un correo creado por otra transacción entre la lectura y la inserción se reporta como existente, sin 5xx", async () => {
@@ -455,7 +469,7 @@ describe("POST /api/admin/maestros/lote", () => {
               if (propiedad === "findMany" && !interceptado) {
                 interceptado = true
                 const original = objetivo.findMany.bind(objetivo)
-                return async (...args: unknown[]) => {
+                return async (...args: Parameters<typeof original>) => {
                   const resultado: unknown = await original(...args)
                   await clientePrisma.usuario.create({
                     data: {

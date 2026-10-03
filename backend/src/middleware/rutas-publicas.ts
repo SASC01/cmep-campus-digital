@@ -1,6 +1,6 @@
-// Única lista de rutas bajo /api que no pasan por protegido() (DEC-08). Cualquier otra ruta bajo
-// /api que se registre sin authenticate como primer preHandler hace fallar el arranque
-// (guarda-de-rutas.ts). refrescar y logout se autentican con la cookie campus_refresco, credencial
+// Única lista de rutas que no pasan por protegido(), en cualquier URL (DEC-08; M-15, CHORE-02).
+// Cualquier otra ruta que se registre sin authenticate como primer preHandler hace fallar el
+// arranque (guarda-de-rutas.ts). refrescar y logout se autentican con la cookie campus_refresco, credencial
 // exclusiva de esas dos rutas (Path=/api/auth). recuperar no revela nada (encola siempre); restablecer
 // y establecer-contrasena se autentican con el token del enlace de un solo uso (AUTH-02). invitacion
 // (AUTH-03a) se autentica con el token de un enlace de invitación vivo y solo devuelve el nombre.

@@ -2,9 +2,12 @@ import { errorApiSchema, saludRespuestaSchema } from "@campus/shared"
 import type { FastifyInstance } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
+import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
 import { AppError } from "../src/core/errores.js"
+import { protegido } from "../src/middleware/index.js"
+import { firmarTokenDePrueba } from "./ayudas-auth.js"
 
 // Precondición: la base desechable de test/global-setup.ts (Testcontainers).
 let app: FastifyInstance | undefined
@@ -17,10 +20,12 @@ const obtenerApp = (): FastifyInstance => {
 beforeAll(async () => {
   app = await construirApp({ env: cargarEnv() })
 
-  app.get("/prueba/app-error", async () => {
+  // M-15 (CHORE-02): la guarda revisa toda ruta, así que las de prueba llevan protegido() y se
+  // piden con el token del admin de la base desechable.
+  app.get("/api/prueba/app-error", protegido({ roles: ["admin"] }), async () => {
     throw new AppError("PRUEBA", "mensaje", 418)
   })
-  app.get("/prueba/error-comun", async () => {
+  app.get("/api/prueba/error-comun", protegido({ roles: ["admin"] }), async () => {
     throw new Error("boom")
   })
 
@@ -37,6 +42,17 @@ beforeAll(async () => {
 afterAll(async () => {
   await app?.close()
 })
+
+// El admin es único por base (índice parcial): se usa el que sembró seed:admin.
+const tokenDelAdmin = async (): Promise<string> => {
+  const admin = await obtenerDb().usuario.findFirst({
+    where: { rol: "admin" },
+    select: { id: true },
+  })
+  expect(admin, "la base desechable debe tener el admin que crea seed:admin").not.toBeNull()
+  if (!admin) throw new Error("Precondición: falta el admin de la base desechable")
+  return firmarTokenDePrueba({ usuarioId: admin.id })
+}
 
 describe("GET /api/salud", () => {
   it("responde 200 con JSON válido según saludRespuestaSchema", async () => {
@@ -58,7 +74,11 @@ describe("formato de error", () => {
   })
 
   it("traduce un AppError a su estado y código", async () => {
-    const respuesta = await obtenerApp().inject({ method: "GET", url: "/prueba/app-error" })
+    const respuesta = await obtenerApp().inject({
+      method: "GET",
+      url: "/api/prueba/app-error",
+      headers: { authorization: `Bearer ${await tokenDelAdmin()}` },
+    })
 
     expect(respuesta.statusCode).toBe(418)
     const cuerpo = errorApiSchema.parse(respuesta.json())
@@ -67,7 +87,11 @@ describe("formato de error", () => {
   })
 
   it("responde 500 ERROR_INTERNO sin filtrar el mensaje original", async () => {
-    const respuesta = await obtenerApp().inject({ method: "GET", url: "/prueba/error-comun" })
+    const respuesta = await obtenerApp().inject({
+      method: "GET",
+      url: "/api/prueba/error-comun",
+      headers: { authorization: `Bearer ${await tokenDelAdmin()}` },
+    })
 
     expect(respuesta.statusCode).toBe(500)
     const cuerpo = errorApiSchema.parse(respuesta.json())

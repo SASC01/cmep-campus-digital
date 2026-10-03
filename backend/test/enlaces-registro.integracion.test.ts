@@ -53,7 +53,10 @@ describe("POST /api/admin/enlaces-registro", () => {
     expect(respuesta.statusCode).toBe(201)
     expect(respuesta.headers["cache-control"]).toBe("no-store")
 
-    const cuerpo = respuesta.json<{ enlace: Record<string, unknown>; token: string }>()
+    const cuerpo = respuesta.json<{
+      enlace: { id: string } & Record<string, unknown>
+      token: string
+    }>()
     expect(cuerpo.token).toHaveLength(43)
     expect(cuerpo.enlace.estado).toBe("vigente")
     expect(cuerpo.enlace.registrados).toBe(0)
@@ -101,12 +104,16 @@ describe("GET /api/admin/enlaces-registro", () => {
     const a = await crearEnlace()
     const b = await crearEnlace()
     const c = await crearEnlace()
+    const d = await crearEnlace()
     const idA = a.json<{ enlace: { id: string } }>().enlace.id
     const idB = b.json<{ enlace: { id: string } }>().enlace.id
     const idC = c.json<{ enlace: { id: string } }>().enlace.id
-    // creado_en explícito y espaciado: el orden esperado no puede depender del id (uuid aleatorio,
-    // no secuencial) cuando dos filas empatan de milisegundo.
-    const base = Date.now()
+    const idD = d.json<{ enlace: { id: string } }>().enlace.id
+    // CHORE-02 (§D-7): ventana propia, entre 1990 (la de enlaces-03b-r1, que recorre la lista
+    // desde su ancla hasta el final) y "ahora", donde no cae ningún enlace de otro archivo: la
+    // primera página se pide desde el cursor de D (el ancla) y solo hay filas de este caso entre D
+    // y A. El orden esperado no puede depender del id (uuid aleatorio) cuando dos filas empatan.
+    const base = new Date("2000-01-01T00:00:00.000Z").getTime()
     await obtenerDb().enlaceRegistro.update({
       where: { id: idA },
       data: { creadoEn: new Date(base) },
@@ -119,10 +126,14 @@ describe("GET /api/admin/enlaces-registro", () => {
       where: { id: idC },
       data: { creadoEn: new Date(base + 2000) },
     })
+    await obtenerDb().enlaceRegistro.update({
+      where: { id: idD },
+      data: { creadoEn: new Date(base + 3000) },
+    })
 
     const primeraPagina = await app.inject({
       method: "GET",
-      url: "/api/admin/enlaces-registro?limite=2",
+      url: `/api/admin/enlaces-registro?limite=2&cursor=${idD}`,
       headers: { authorization: `Bearer ${tokenAdmin}` },
     })
     expect(primeraPagina.statusCode).toBe(200)
@@ -140,8 +151,12 @@ describe("GET /api/admin/enlaces-registro", () => {
       headers: { authorization: `Bearer ${tokenAdmin}` },
     })
     const cuerpo2 = segundaPagina.json<{ enlaces: { id: string }[] }>()
-    expect(cuerpo2.enlaces.some((enlace) => enlace.id === idA)).toBe(true)
-    expect(cuerpo2.enlaces.some((enlace) => enlace.id === idB)).toBe(false)
+    // Por debajo de 2000 pueden estar o no los enlaces de 1990 de otro archivo: solo se exige que
+    // la página empiece con A y que no repita B, C ni D.
+    expect(cuerpo2.enlaces[0]?.id).toBe(idA)
+    for (const repetido of [idB, idC, idD]) {
+      expect(cuerpo2.enlaces.some((enlace) => enlace.id === repetido)).toBe(false)
+    }
   })
 
   it("limite de 0 → 400", async () => {

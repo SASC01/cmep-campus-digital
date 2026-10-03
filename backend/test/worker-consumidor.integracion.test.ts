@@ -57,13 +57,17 @@ const esperarHasta = async (
   throw new Error("esperarHasta agotó el tiempo límite")
 }
 
+// Solo tipos (CHORE-02): asegurarCola tipa sus opciones como QueueOptions de pg-boss, que no incluye
+// deadLetter aunque createQueue sí lo recibe. La política de la cola no cambia.
+type PoliticaConFallidos = NonNullable<Parameters<typeof asegurarCola>[1]> & { deadLetter: string }
+
 beforeAll(async () => {
   const env = cargarEnv()
   inicializarDb({ connectionString: env.DATABASE_URL })
   await inicializarAuth(opcionesDeAuth(env))
   await iniciarCola({ ...opcionesDeCola(env, "worker"), log })
   await asegurarCola(COLA_FALLIDOS, { retentionSeconds: 3600, deleteAfterSeconds: 3600 })
-  await asegurarCola(COLA, {
+  const politica: PoliticaConFallidos = {
     retryLimit: 1,
     retryDelay: 1,
     retryBackoff: false,
@@ -71,7 +75,8 @@ beforeAll(async () => {
     deadLetter: COLA_FALLIDOS,
     retentionSeconds: 3600,
     deleteAfterSeconds: 3600,
-  })
+  }
+  await asegurarCola(COLA, politica)
   await registrarConsumidores(
     { notifier, urlPublicaFrontend, reloj: () => new Date(), log: logCapturaErrores },
     { correoDeCuenta: COLA, fallidos: COLA_FALLIDOS },

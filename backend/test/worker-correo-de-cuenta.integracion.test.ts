@@ -32,6 +32,10 @@ import {
 import { crearTokenDePrueba, leerTokens, tokenDelEnlace } from "./ayudas-cuentas.js"
 import { crearNotifierEnMemoria } from "./notifier-en-memoria.js"
 
+// Solo tipos (CHORE-02): asegurarCola tipa sus opciones como QueueOptions de pg-boss, que no incluye
+// deadLetter aunque createQueue sí lo recibe. La política de la cola no cambia.
+type PoliticaConFallidos = NonNullable<Parameters<typeof asegurarCola>[1]> & { deadLetter: string }
+
 const ids: string[] = []
 const urlPublicaFrontend = "http://127.0.0.1:5173"
 const logSilencioso = { info: () => undefined, warn: () => undefined, error: () => undefined }
@@ -293,13 +297,14 @@ describe("ritmo del worker (M-06 y M-09)", () => {
     const env = cargarEnv()
     await iniciarCola({ ...opcionesDeCola(env, "worker"), log: logSilencioso })
     await asegurarCola(COLA_FALLIDOS, { retentionSeconds: 3600, deleteAfterSeconds: 3600 })
-    await asegurarCola(COLA, {
+    const politica: PoliticaConFallidos = {
       retryLimit: 0,
       expireInSeconds: 30,
       deadLetter: COLA_FALLIDOS,
       retentionSeconds: 3600,
       deleteAfterSeconds: 3600,
-    })
+    }
+    await asegurarCola(COLA, politica)
     await registrarConsumidores(
       {
         notifier: notifierDeRitmo,

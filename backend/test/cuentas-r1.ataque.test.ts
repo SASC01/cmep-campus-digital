@@ -122,21 +122,64 @@ describe("ataque: enumeración por /auth/recuperar", () => {
     }
   })
 
+  // CHORE-02 ronda 0 (C-1, §D-1): el LOCK TABLE va con NOWAIT y se reintenta con una transacción
+  // nueva. Sin NOWAIT quedaba formado detrás de las filas de usuarios que retienen otros archivos, y
+  // todo lo que consultaba usuarios se formaba detrás de él (espera en cadena). Con NOWAIT nunca
+  // entra en la cola: o lo obtiene en el acto o falla con 55P03 y vuelve a intentar.
   it("con la tabla usuarios bloqueada por otra transacción, recuperar responde igual y a tiempo", async () => {
     const existente = await crearUsuarioDePrueba(ids)
     let pendiente: Promise<LightMyRequestResponse> | undefined
-    const resultado = await obtenerDb().$transaction(
-      async (tx) => {
-        await tx.$executeRaw`LOCK TABLE usuarios IN ACCESS EXCLUSIVE MODE`
-        pendiente = post("/api/auth/recuperar", { email: existente.email }, undefined, "10.62.0.1")
-        return Promise.race([pendiente, esperar(1500)])
-      },
-      { timeout: 10_000, maxWait: 5_000 },
-    )
+    const presupuestoMs = 60_000
+    const inicio = Date.now()
+    let intentos = 0
+    // Con @prisma/adapter-pg, un error de PostgreSQL en $executeRaw llega como P2010, con el código
+    // original en meta.driverAdapterError.cause.originalCode y en el texto del mensaje.
+    const esBloqueoNoDisponible = (error: unknown): boolean => {
+      if (!(error instanceof Error)) return false
+      // Solo se leen propiedades opcionales para clasificar el error; si no existen, quedan en
+      // undefined y decide el texto del mensaje.
+      const conCodigo = error as Error & {
+        code?: unknown
+        meta?: { driverAdapterError?: { cause?: { originalCode?: unknown } } }
+      }
+      if (conCodigo.code === "55P03") return true
+      if (conCodigo.meta?.driverAdapterError?.cause?.originalCode === "55P03") return true
+      return /could not obtain lock on relation/i.test(error.message)
+    }
+    const intentarConElBloqueo = async (): Promise<LightMyRequestResponse | "tiempo"> => {
+      for (;;) {
+        intentos += 1
+        try {
+          return await obtenerDb().$transaction(
+            async (tx) => {
+              await tx.$executeRaw`LOCK TABLE usuarios IN ACCESS EXCLUSIVE MODE NOWAIT`
+              pendiente = post(
+                "/api/auth/recuperar",
+                { email: existente.email },
+                undefined,
+                "10.62.0.1",
+              )
+              return Promise.race([pendiente, esperar(1500)])
+            },
+            { timeout: 10_000, maxWait: 5_000 },
+          )
+        } catch (error) {
+          if (!esBloqueoNoDisponible(error)) throw error
+          if (Date.now() - inicio >= presupuestoMs) {
+            throw new Error(
+              `no se obtuvo el bloqueo de la tabla usuarios en 60 s (${String(intentos)} intentos)`,
+              { cause: error },
+            )
+          }
+          await esperar(20 + Math.floor(Math.random() * 31))
+        }
+      }
+    }
+    const resultado = await intentarConElBloqueo()
     const final = await pendiente
     expect(resultado, "recuperar esperó a la tabla usuarios").not.toBe("tiempo")
     expect(final?.statusCode).toBe(204)
-  })
+  }, 75_000)
 
   it("el 429 es idéntico para un correo existente y uno inexistente", async () => {
     const existente = await crearUsuarioDePrueba(ids)

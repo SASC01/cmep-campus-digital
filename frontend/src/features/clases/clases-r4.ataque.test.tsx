@@ -227,11 +227,13 @@ describe("ataque CLASES-a r4: M-06, texto sobre el vidrio azul", () => {
 })
 
 describe("ataque CLASES-a r4: N-03, los mensajes no cambian", () => {
+  // CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2) y conserva maestro.
   const CLASE = {
     id: CLASE_ID,
     nombre: "Álgebra I",
     descripcion: "Curso",
     maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+    maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
   }
 
   const renderClase = (ruta: string) =>

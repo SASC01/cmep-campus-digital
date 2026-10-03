@@ -1,15 +1,27 @@
+import { MAXIMO_MAESTROS_POR_CLASE } from "@campus/shared"
+
 import { paginar } from "../../core/paginacion.js"
 import { AppError } from "../../core/errores.js"
 import { obtenerDb, type Ejecutor } from "./cliente.js"
 import { traducirErrorPrisma } from "./errores.js"
+import type { Prisma } from "./generated/client.js"
+
+// CLASES-02 (S-05): la ÚNICA definición del orden de los maestros de una clase, el de su
+// asignación: (creado_en, maestro_id) ascendente. La reutilizan el detalle, inscritas, la lista del
+// admin, maestros-de-clase.ts y, desde 02b, listarPersonas. El primero es el "principal".
+export const ORDEN_DE_MAESTROS: Prisma.MaestroDeClaseOrderByWithRelationInput[] = [
+  { creadoEn: "asc" },
+  { maestroId: "asc" },
+]
 
 export interface DatosDePertenencia {
-  maestroId: string
+  esMaestro: boolean
   inscrito: boolean
 }
 
-// Sexto paso de la cadena (§D-0.1): una sola consulta, clase por PK con sus inscripciones
-// filtradas por el usuario de la petición (a lo más una fila, por la PK compuesta).
+// Sexto paso de la cadena (§D-0.1, §D-2A2): una sola consulta, clase por PK con sus maestros y sus
+// inscripciones filtrados por el usuario de la petición (a lo más una fila cada uno, por sus PK
+// compuestas).
 export const buscarDatosDePertenencia = async (
   claseId: string,
   usuarioId: string,
@@ -18,27 +30,59 @@ export const buscarDatosDePertenencia = async (
   const clase = await ejecutor.clase.findUnique({
     where: { id: claseId },
     select: {
-      maestroId: true,
+      maestros: { where: { maestroId: usuarioId }, select: { maestroId: true } },
       inscripciones: { where: { usuarioId }, select: { usuarioId: true } },
     },
   })
   if (clase === null) return null
-  return { maestroId: clase.maestroId, inscrito: clase.inscripciones.length > 0 }
+  return { esMaestro: clase.maestros.length > 0, inscrito: clase.inscripciones.length > 0 }
+}
+
+export interface MaestroDb {
+  id: string
+  nombre: string
 }
 
 export interface ClaseDb {
   id: string
   nombre: string
   descripcion: string | null
-  maestro: { id: string; nombre: string }
+  // De uno a dos, en el orden de ORDEN_DE_MAESTROS.
+  maestros: MaestroDb[]
 }
+
+export const SELECT_MAESTROS_DE_CLASE = {
+  select: { maestro: { select: { id: true, nombre: true } } },
+  orderBy: ORDEN_DE_MAESTROS,
+} as const
 
 const SELECT_CLASE_DETALLE = {
   id: true,
   nombre: true,
   descripcion: true,
-  maestro: { select: { id: true, nombre: true } },
+  maestros: SELECT_MAESTROS_DE_CLASE,
 } as const
+
+interface FilaDeMaestros {
+  maestro: MaestroDb
+}
+
+export const maestrosDeFilas = (filas: readonly FilaDeMaestros[]): MaestroDb[] =>
+  filas.map((fila) => fila.maestro)
+
+interface FilaDeClase {
+  id: string
+  nombre: string
+  descripcion: string | null
+  maestros: FilaDeMaestros[]
+}
+
+const aClaseDb = (fila: FilaDeClase): ClaseDb => ({
+  id: fila.id,
+  nombre: fila.nombre,
+  descripcion: fila.descripcion,
+  maestros: maestrosDeFilas(fila.maestros),
+})
 
 const errorCodigoNoDisponible = (): AppError =>
   new AppError("CODIGO_NO_DISPONIBLE", "No se pudo generar un código de clase disponible.", 500)
@@ -81,69 +125,100 @@ const conReintentoDeCodigo = async <T>(
   }
 }
 
-export const crearClase = (
+// CLASES-02 (§D-2A4, punto 5): los maestros se validan con una lectura por PK (rol maestro y
+// activos). null: la lista no es de uno a dos ids distintos o alguno no es un maestro activo; no se
+// pide código ni se escribe nada. Después, un solo create anidado (atómico) con la clase y sus
+// asignaciones. clases.maestro_id solo se ESCRIBE (P-06 a): el primer maestro en el orden de
+// ORDEN_DE_MAESTROS, que con la misma creado_en desempata por id.
+export const crearClaseAdministrada = async (
   {
-    maestroId,
     nombre,
     descripcion,
-  }: { maestroId: string; nombre: string; descripcion?: string | undefined },
+    maestroIds,
+  }: { nombre: string; descripcion?: string | undefined; maestroIds: readonly string[] },
   generarCodigo: () => string,
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<ClaseDb> =>
-  conReintentoDeCodigo(
+): Promise<ClaseDb | null> => {
+  const ids = maestroIds.map((id) => id.toLowerCase())
+  if (ids.length < 1 || ids.length > MAXIMO_MAESTROS_POR_CLASE) return null
+  if (new Set(ids).size !== ids.length) return null
+
+  const validos = await ejecutor.usuario.findMany({
+    where: { id: { in: ids }, rol: "maestro", activo: true },
+    select: { id: true },
+  })
+  if (validos.length !== ids.length) return null
+
+  const [primero] = [...ids].sort()
+  if (primero === undefined) return null
+  const ahora = new Date()
+  const fila = await conReintentoDeCodigo(
     (codigo) =>
       ejecutor.clase.create({
-        data: { maestroId, nombre, descripcion: descripcion ?? null, codigoInvitacion: codigo },
+        data: {
+          maestroId: primero,
+          nombre,
+          descripcion: descripcion ?? null,
+          codigoInvitacion: codigo,
+          creadoEn: ahora,
+          maestros: { create: ids.map((maestroId) => ({ maestroId, creadoEn: ahora })) },
+        },
         select: SELECT_CLASE_DETALLE,
       }),
     generarCodigo,
   )
+  return aClaseDb(fila)
+}
 
-// Defensa extra (M-01, §D-A2): updateMany con id y maestro_id. Si actualiza 0 filas (clase
-// inexistente o ajena, aunque requireOwnership ya lo haya negado antes), devuelve null.
+// Sin filtro por maestro_id desde CLASES-02 (A-10): la única autorización es el sexto paso, que
+// deja pasar a los maestros de la clase y al administrador. null: la clase ya no existe.
 export const editarClase = async (
   {
     claseId,
-    maestroId,
     nombre,
     descripcion,
-  }: { claseId: string; maestroId: string; nombre: string; descripcion?: string | undefined },
+  }: { claseId: string; nombre: string; descripcion?: string | undefined },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ClaseDb | null> => {
   const { count } = await ejecutor.clase.updateMany({
-    where: { id: claseId, maestroId },
+    where: { id: claseId },
     data: { nombre, descripcion: descripcion ?? null },
   })
   if (count === 0) return null
   return leerClase(claseId, ejecutor)
 }
 
-export const leerClase = (
+export const leerClase = async (
   claseId: string,
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<ClaseDb | null> =>
-  ejecutor.clase.findUnique({ where: { id: claseId }, select: SELECT_CLASE_DETALLE })
+): Promise<ClaseDb | null> => {
+  const fila = await ejecutor.clase.findUnique({
+    where: { id: claseId },
+    select: SELECT_CLASE_DETALLE,
+  })
+  return fila === null ? null : aClaseDb(fila)
+}
 
 export const leerCodigo = async (
-  { claseId, maestroId }: { claseId: string; maestroId: string },
+  claseId: string,
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<string | null> => {
-  const clase = await ejecutor.clase.findFirst({
-    where: { id: claseId, maestroId },
+  const clase = await ejecutor.clase.findUnique({
+    where: { id: claseId },
     select: { codigoInvitacion: true },
   })
   return clase?.codigoInvitacion ?? null
 }
 
-// null: clase inexistente o ajena (defensa extra, igual que editarClase).
+// null: la clase ya no existe.
 export const regenerarCodigo = (
-  { claseId, maestroId }: { claseId: string; maestroId: string },
+  claseId: string,
   generarCodigo: () => string,
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<string | null> =>
   conReintentoDeCodigo(async (codigo) => {
     const { count } = await ejecutor.clase.updateMany({
-      where: { id: claseId, maestroId },
+      where: { id: claseId },
       data: { codigoInvitacion: codigo },
     })
     return count === 0 ? null : codigo
@@ -163,39 +238,47 @@ export interface ListaClasesImpartidasDb {
   siguienteCursor: string | null
 }
 
+// Lee maestros_de_clase con su índice (maestro_id, creado_en DESC, clase_id DESC); el cursor (un
+// claseId) se comprueba por la PK (clase_id, maestro_id) y la lista va en el orden de la asignación.
 export const listarClasesImpartidas = async (
   { maestroId, cursor, limite }: { maestroId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaClasesImpartidasDb> => {
   if (cursor !== undefined) {
-    const claseDelCursor = await ejecutor.clase.findFirst({
-      where: { id: cursor, maestroId },
-      select: { id: true },
+    const asignacionDelCursor = await ejecutor.maestroDeClase.findUnique({
+      where: { claseId_maestroId: { claseId: cursor, maestroId } },
+      select: { claseId: true },
     })
-    if (claseDelCursor === null) throw errorCursorInvalido()
+    if (asignacionDelCursor === null) throw errorCursorInvalido()
   }
   const [filas, total] = await Promise.all([
-    ejecutor.clase.findMany({
+    ejecutor.maestroDeClase.findMany({
       where: { maestroId },
       select: {
-        id: true,
-        nombre: true,
-        _count: { select: { inscripciones: { where: { usuario: { activo: true } } } } },
+        claseId: true,
+        clase: {
+          select: {
+            nombre: true,
+            _count: { select: { inscripciones: { where: { usuario: { activo: true } } } } },
+          },
+        },
       },
-      orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
+      orderBy: [{ creadoEn: "desc" }, { claseId: "desc" }],
       take: limite + 1,
-      ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+      ...(cursor === undefined
+        ? {}
+        : { cursor: { claseId_maestroId: { claseId: cursor, maestroId } }, skip: 1 }),
     }),
-    ejecutor.clase.count({ where: { maestroId } }),
+    ejecutor.maestroDeClase.count({ where: { maestroId } }),
   ])
 
-  const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
+  const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.claseId)
 
   return {
     clases: pagina.map((fila) => ({
-      id: fila.id,
-      nombre: fila.nombre,
-      alumnos: fila._count.inscripciones,
+      id: fila.claseId,
+      nombre: fila.clase.nombre,
+      alumnos: fila.clase._count.inscripciones,
     })),
     total,
     siguienteCursor,
@@ -203,7 +286,7 @@ export const listarClasesImpartidas = async (
 }
 
 export interface ListaClasesInscritasDb {
-  clases: { id: string; nombre: string; maestro: { nombre: string } }[]
+  clases: { id: string; nombre: string; maestros: { nombre: string }[] }[]
   total: number
   siguienteCursor: string | null
 }
@@ -224,7 +307,16 @@ export const listarClasesInscritas = async (
       where: { usuarioId },
       select: {
         claseId: true,
-        clase: { select: { id: true, nombre: true, maestro: { select: { nombre: true } } } },
+        clase: {
+          select: {
+            id: true,
+            nombre: true,
+            maestros: {
+              select: { maestro: { select: { nombre: true } } },
+              orderBy: ORDEN_DE_MAESTROS,
+            },
+          },
+        },
       },
       orderBy: [{ creadoEn: "desc" }, { claseId: "desc" }],
       take: limite + 1,
@@ -241,7 +333,67 @@ export const listarClasesInscritas = async (
     clases: pagina.map((fila) => ({
       id: fila.clase.id,
       nombre: fila.clase.nombre,
-      maestro: { nombre: fila.clase.maestro.nombre },
+      maestros: fila.clase.maestros.map((asignacion) => ({ nombre: asignacion.maestro.nombre })),
+    })),
+    total,
+    siguienteCursor,
+  }
+}
+
+export interface ClaseAdminDb {
+  id: string
+  nombre: string
+  maestros: MaestroDb[]
+  alumnos: number
+  creadoEn: Date
+}
+
+export interface ListaClasesAdminDb {
+  clases: ClaseAdminDb[]
+  total: number
+  siguienteCursor: string | null
+}
+
+// Lista institucional (§D-2A3, S-07): de la más reciente a la más antigua por el índice
+// (creado_en DESC, id DESC). El cursor es una clase y se lee antes por PK: si no existe, 400 en
+// lugar de una página vacía. Los maestros de la página salen en una sola consulta (Prisma agrupa la
+// relación de toda la página), no una por fila.
+export const listarClasesAdmin = async (
+  { cursor, limite }: { cursor: string | undefined; limite: number },
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<ListaClasesAdminDb> => {
+  if (cursor !== undefined) {
+    const claseDelCursor = await ejecutor.clase.findUnique({
+      where: { id: cursor },
+      select: { id: true },
+    })
+    if (claseDelCursor === null) throw errorCursorInvalido()
+  }
+  const [filas, total] = await Promise.all([
+    ejecutor.clase.findMany({
+      select: {
+        id: true,
+        nombre: true,
+        creadoEn: true,
+        maestros: SELECT_MAESTROS_DE_CLASE,
+        _count: { select: { inscripciones: { where: { usuario: { activo: true } } } } },
+      },
+      orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
+      take: limite + 1,
+      ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+    }),
+    ejecutor.clase.count(),
+  ])
+
+  const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
+
+  return {
+    clases: pagina.map((fila) => ({
+      id: fila.id,
+      nombre: fila.nombre,
+      maestros: maestrosDeFilas(fila.maestros),
+      alumnos: fila._count.inscripciones,
+      creadoEn: fila.creadoEn,
     })),
     total,
     siguienteCursor,

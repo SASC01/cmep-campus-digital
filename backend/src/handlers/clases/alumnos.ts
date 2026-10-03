@@ -40,10 +40,11 @@ export const alumnosHandler: FastifyPluginAsync = async (app) => {
     },
   )
 
-  // Único lugar donde salen el correo completo, el estado de pago y la restricción (RN-02).
+  // Único lugar donde salen el correo completo, el estado de pago y la restricción (RN-02), para el
+  // maestro de la clase y el administrador (CLASES-02).
   app.get(
     "/clases/:claseId/alumnos",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { cursor, limite } = validarParametros(paginacionRosterSchema, request.query)
@@ -62,7 +63,7 @@ export const alumnosHandler: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/clases/:claseId/alumnos/candidatos",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { q, limite } = validarParametros(busquedaCandidatosSchema, request.query)
@@ -90,7 +91,7 @@ export const alumnosHandler: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/clases/:claseId/alumnos",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { alumnoId } = validarCuerpo(agregarAlumnoSchema, request.body)
@@ -98,7 +99,7 @@ export const alumnosHandler: FastifyPluginAsync = async (app) => {
       const resultado = await agregarAlumnoManual({
         claseId: id,
         alumnoId,
-        maestroId: perfil.id,
+        actorId: perfil.id,
       })
       if (resultado === null) {
         throw new AppError("ALUMNO_NO_ENCONTRADO", "No encontramos a ese alumno.", 404)
@@ -109,12 +110,12 @@ export const alumnosHandler: FastifyPluginAsync = async (app) => {
 
   app.delete(
     "/clases/:claseId/alumnos/:alumnoId",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { alumnoId } = validarParametros(alumnoIdParamSchema, request.params)
       const perfil = perfilDe(request)
-      await quitarAlumno({ claseId: id, alumnoId, maestroId: perfil.id })
+      await quitarAlumno({ claseId: id, alumnoId, actorId: perfil.id })
       return reply.status(204).send()
     },
   )

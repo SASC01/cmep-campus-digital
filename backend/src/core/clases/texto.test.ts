@@ -6,7 +6,7 @@ import {
 } from "@campus/shared"
 import { describe, expect, it } from "vitest"
 
-import { normalizarTextoLargo } from "./texto.js"
+import { conTextosNormalizados, normalizarTextoLargo } from "./texto.js"
 
 describe("normalizarTextoLargo", () => {
   it("PR-A05: convierte CRLF y CR a LF, recorta los extremos, sin tocar el interior", () => {
@@ -88,5 +88,35 @@ describe("contenido visible (CLASES-c, §D-C4)", () => {
 
     expect(esquema.safeParse("\u200D").success).toBe(false)
     expect(esquema.safeParse("\u{1F469}\u200D\u{1F4BB}").success).toBe(true)
+  })
+})
+
+describe("conTextosNormalizados", () => {
+  it("PR-2A05: CRLF y CR pasan a LF y se recorta, solo en los campos pedidos", () => {
+    const cuerpo = { texto: "  a\r\nb\rc  ", titulo: "  t\r\n", otro: "  x\r\n" }
+    expect(conTextosNormalizados(cuerpo, ["texto", "titulo"])).toEqual({
+      texto: "a\nb\nc",
+      titulo: "t",
+      otro: "  x\r\n",
+    })
+  })
+
+  it("PR-2A05: campos ausentes, no texto o null se dejan intactos", () => {
+    const cuerpo = { texto: 5, titulo: null, objeto: { a: "x\r\n" } }
+    expect(conTextosNormalizados(cuerpo, ["texto", "titulo", "ausente", "objeto"])).toEqual(cuerpo)
+  })
+
+  it("PR-2A05: un cuerpo que no es objeto se devuelve igual", () => {
+    expect(conTextosNormalizados(null, ["texto"])).toBeNull()
+    expect(conTextosNormalizados("hola\r\n", ["texto"])).toBe("hola\r\n")
+    expect(conTextosNormalizados(undefined, ["texto"])).toBeUndefined()
+    expect(conTextosNormalizados(7, ["texto"])).toBe(7)
+  })
+
+  it("PR-2A05: no muta el objeto recibido", () => {
+    const cuerpo = { texto: "  a\r\nb  " }
+    const resultado = conTextosNormalizados(cuerpo, ["texto"])
+    expect(cuerpo).toEqual({ texto: "  a\r\nb  " })
+    expect(resultado).not.toBe(cuerpo)
   })
 })

@@ -39,6 +39,8 @@ interface PreparadoRuta {
   // Token de un rol distinto del exigido, si existe uno "incorrecto" entre los dos roles no-admin
   // (GET /clases/:claseId acepta a los dos, así que no tiene).
   tokenIncorrecto?: string
+  // CLASES-02a (C-3): la ruta lista a "admin" en sus roles, así que el administrador la pasa.
+  admiteAdmin: boolean
   // Tokens de "ajeno" (maestro ajeno y/o estudiante no inscrito): [] en las 4 rutas sin :claseId.
   tokensAjenos: string[]
   // Crea un restringido apropiado para la ruta (inscrito en su clase si la ruta cuelga de
@@ -66,29 +68,12 @@ const idDelToken = (token: string): string => {
   return payload.sub
 }
 
-const prepararPostClases = async (): Promise<PreparadoRuta> => {
-  const maestro = await maestroDePrueba()
-  const estudiante = await estudianteDePrueba()
-  return {
-    nombre: "POST /clases",
-    metodo: "POST",
-    url: "/api/clases",
-    payload: { nombre: "Clase de autorización" },
-    tokenPermitido: await tokenDe(maestro),
-    tokenIncorrecto: await tokenDe(estudiante),
-    tokensAjenos: [],
-    prepararRestringido: async () => tokenDe(await estudianteDePrueba({ accesoRestringido: true })),
-    // M-03: el maestro permitido nunca manda una petición negada; contar sus clases no detectaría
-    // que una negación colada creó una fila a nombre de quien sí la mandó. Se cuenta por esa cuenta.
-    snapshotControlado: ({ actorId }) => obtenerDb().clase.count({ where: { maestroId: actorId } }),
-  }
-}
-
 const prepararGetInscritas = async (): Promise<PreparadoRuta> => {
   const estudiante = await estudianteDePrueba()
   const maestro = await maestroDePrueba()
   return {
     nombre: "GET /clases/inscritas",
+    admiteAdmin: false,
     metodo: "GET",
     url: "/api/clases/inscritas",
     tokenPermitido: await tokenDe(estudiante),
@@ -105,6 +90,7 @@ const prepararGetImpartidas = async (): Promise<PreparadoRuta> => {
   const estudiante = await estudianteDePrueba()
   return {
     nombre: "GET /clases/impartidas",
+    admiteAdmin: false,
     metodo: "GET",
     url: "/api/clases/impartidas",
     tokenPermitido: await tokenDe(maestro),
@@ -122,6 +108,7 @@ const prepararPostUnirse = async (): Promise<PreparadoRuta> => {
   const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
   return {
     nombre: "POST /clases/unirse",
+    admiteAdmin: false,
     metodo: "POST",
     url: "/api/clases/unirse",
     payload: { codigo: clase.codigoInvitacion },
@@ -142,6 +129,7 @@ const prepararGetClase = async (): Promise<PreparadoRuta> => {
   await inscribirDePrueba(clase.id, estudianteInscrito.id, "codigo")
   return {
     nombre: "GET /clases/:claseId",
+    admiteAdmin: true,
     metodo: "GET",
     url: `/api/clases/${clase.id}`,
     tokenPermitido: await tokenDe(estudianteInscrito),
@@ -163,32 +151,6 @@ const prepararGetClase = async (): Promise<PreparadoRuta> => {
   }
 }
 
-const prepararPutClase = async (): Promise<PreparadoRuta> => {
-  const maestro = await maestroDePrueba()
-  const estudiante = await estudianteDePrueba()
-  const otroMaestro = await maestroDePrueba()
-  const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
-  return {
-    nombre: "PUT /clases/:claseId",
-    metodo: "PUT",
-    url: `/api/clases/${clase.id}`,
-    payload: { nombre: "Editada por autorización" },
-    tokenPermitido: await tokenDe(maestro),
-    tokenIncorrecto: await tokenDe(estudiante),
-    tokensAjenos: [await tokenDe(otroMaestro)],
-    prepararRestringido: async () => {
-      const restringido = await estudianteDePrueba({ accesoRestringido: true })
-      await inscribirDePrueba(clase.id, restringido.id, "codigo")
-      return tokenDe(restringido)
-    },
-    snapshotControlado: () =>
-      obtenerDb().clase.findUnique({
-        where: { id: clase.id },
-        select: { nombre: true, descripcion: true, codigoInvitacion: true },
-      }),
-  }
-}
-
 const prepararGetCodigo = async (): Promise<PreparadoRuta> => {
   const maestro = await maestroDePrueba()
   const estudiante = await estudianteDePrueba()
@@ -196,6 +158,7 @@ const prepararGetCodigo = async (): Promise<PreparadoRuta> => {
   const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
   return {
     nombre: "GET /clases/:claseId/codigo",
+    admiteAdmin: true,
     metodo: "GET",
     url: `/api/clases/${clase.id}/codigo`,
     tokenPermitido: await tokenDe(maestro),
@@ -218,6 +181,7 @@ const prepararPostCodigo = async (): Promise<PreparadoRuta> => {
   const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
   return {
     nombre: "POST /clases/:claseId/codigo",
+    admiteAdmin: true,
     metodo: "POST",
     url: `/api/clases/${clase.id}/codigo`,
     tokenPermitido: await tokenDe(maestro),
@@ -233,15 +197,15 @@ const prepararPostCodigo = async (): Promise<PreparadoRuta> => {
   }
 }
 
-// Las 8 rutas de CLASES-a (§D-A2). Cada preparador crea un escenario fresco (clase y cuentas) para
+// Las 6 rutas de CLASES-a que siguen (§D-A2; CLASES-02a retiró POST /clases y PUT /clases/:claseId,
+// C-1 y C-2: su autorización, con las rutas del administrador, vive en
+// gestion-clases-autorizacion.integracion.test.ts). Cada preparador crea un escenario fresco (clase y cuentas) para
 // no arrastrar estado entre pruebas.
 const preparadores = [
-  prepararPostClases,
   prepararGetInscritas,
   prepararGetImpartidas,
   prepararPostUnirse,
   prepararGetClase,
-  prepararPutClase,
   prepararGetCodigo,
   prepararPostCodigo,
 ]
@@ -324,13 +288,18 @@ describe("autorización de las rutas de CLASES-a", () => {
     }
   })
 
-  it("PR-A15d: cada ruta: admin, 403 ROL_NO_PERMITIDO", async () => {
+  it("PR-A15d: cada ruta: admin, 403 ROL_NO_PERMITIDO donde la ruta no lo admite y 2xx donde sí (C-3, CLASES-02a)", async () => {
     // Un solo admin por base (índice único parcial): se usa el que sembró seed:admin (S-01), con
     // sus credenciales de prueba, en lugar de crear uno nuevo por iteración.
     const token = await tokenAdminDePrueba()
     for (const preparar of preparadores) {
       const prep = await preparar()
       const respuesta = await pedir(prep, token)
+      if (prep.admiteAdmin) {
+        expect(respuesta.statusCode, prep.nombre).toBeGreaterThanOrEqual(200)
+        expect(respuesta.statusCode, prep.nombre).toBeLessThan(300)
+        continue
+      }
       expect(respuesta.statusCode, prep.nombre).toBe(403)
       expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
     }
@@ -366,11 +335,6 @@ describe("autorización de las rutas de CLASES-a", () => {
       const respuesta = await pedir(prep, prep.tokenPermitido)
       expect(respuesta.statusCode, prep.nombre).toBeGreaterThanOrEqual(200)
       expect(respuesta.statusCode, prep.nombre).toBeLessThan(300)
-      // POST /clases crea una fila de verdad (fuera de crearClaseDePrueba): se registra para que
-      // el afterAll la borre antes que a su maestro (clases.maestro_id es ON DELETE RESTRICT).
-      if (prep.nombre === "POST /clases") {
-        idsClases.push(respuesta.json<{ clase: { id: string } }>().clase.id)
-      }
     }
   })
 
@@ -387,8 +351,8 @@ describe("autorización de las rutas de CLASES-a", () => {
       const negaciones: { descripcion: string; token: string }[] = [
         { descripcion: "cambio pendiente", token: await tokenDe(conCambioPendiente) },
         { descripcion: "restringido", token: await prep.prepararRestringido() },
-        { descripcion: "admin", token: tokenAdmin },
       ]
+      if (!prep.admiteAdmin) negaciones.push({ descripcion: "admin", token: tokenAdmin })
       if (prep.tokenIncorrecto !== undefined) {
         negaciones.push({ descripcion: "rol incorrecto", token: prep.tokenIncorrecto })
       }

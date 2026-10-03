@@ -112,6 +112,16 @@ const codigoDe = (r: LightMyRequestResponse): string => errorApiSchema.parse(r.j
 const mensajeDe = (r: LightMyRequestResponse): string =>
   errorApiSchema.parse(r.json()).error.mensaje
 
+// CLASES-02a ronda 0 (C-1, C-2, §D-2A3): solo el admin crea y edita clases, por /api/admin/clases.
+const tokenDelAdmin = async (): Promise<string> => {
+  const admin = await obtenerDb().usuario.findFirst({
+    where: { rol: "admin" },
+    select: { id: true },
+  })
+  if (!admin) throw new Error("Precondición: la base desechable no tiene el admin de seed:admin")
+  return firmarTokenDePrueba({ usuarioId: admin.id })
+}
+
 const urlPublicaciones = (claseId: string): string => `/api/clases/${claseId}/publicaciones`
 const urlComentarios = (claseId: string, publicacionId: string): string =>
   `/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios`
@@ -713,11 +723,15 @@ describe("ataque CLASES-c r1: contenido visible por la API (§D-C4, Enmienda 6)"
     },
   )
 
+  // CLASES-02a ronda 0 (C-1, C-2): crear y editar una clase son POST /api/admin/clases (con el
+  // maestro en maestroIds) y PUT /api/admin/clases/:claseId, con el token del admin; la regla de
+  // contenido visible del nombre es la misma.
   it(
     "nombre de clase en POST y PUT: sin visibles o con uno solo, 400 «El nombre debe tener al menos 2 caracteres», sin crear ni cambiar",
     { timeout: 60_000 },
     async () => {
       const e = await escenario()
+      const tokenAdmin = await tokenDelAdmin()
       const antes = await leerClaseDb(e.claseId)
       const nombres = [
         ...SIN_VISIBLES.map((s) => `${s}${s}`),
@@ -735,9 +749,9 @@ describe("ataque CLASES-c r1: contenido visible por la API (§D-C4, Enmienda 6)"
         for (const metodo of ["POST", "PUT"] as const) {
           const r = await peticion({
             method: metodo,
-            url: metodo === "POST" ? "/api/clases" : `/api/clases/${e.claseId}`,
-            token: e.tokenMaestro,
-            payload: { nombre },
+            url: metodo === "POST" ? "/api/admin/clases" : `/api/admin/clases/${e.claseId}`,
+            token: tokenAdmin,
+            payload: metodo === "POST" ? { nombre, maestroIds: [e.maestro.id] } : { nombre },
           })
           if (
             r.statusCode !== 400 ||
@@ -752,11 +766,14 @@ describe("ataque CLASES-c r1: contenido visible por la API (§D-C4, Enmienda 6)"
     },
   )
 
+  // CLASES-02a ronda 0 (C-1): el nombre de la clase se crea por POST /api/admin/clases con el token
+  // del admin y el maestro en maestroIds; el título, el anuncio y el comentario no cambian.
   it(
     "emojis compuestos y otros alfabetos se aceptan en el nombre, el título, el anuncio y el comentario",
     { timeout: 60_000 },
     async () => {
       const e = await escenario()
+      const tokenAdmin = await tokenDelAdmin()
       const publicacionId = await crearPublicacionDePrueba({
         claseId: e.claseId,
         autorId: e.maestro.id,
@@ -779,9 +796,9 @@ describe("ataque CLASES-c r1: contenido visible por la API (§D-C4, Enmienda 6)"
         const etiqueta = JSON.stringify(texto)
         const clase = await peticion({
           method: "POST",
-          url: "/api/clases",
-          token: e.tokenMaestro,
-          payload: { nombre: texto },
+          url: "/api/admin/clases",
+          token: tokenAdmin,
+          payload: { nombre: texto, maestroIds: [e.maestro.id] },
         })
         if (clase.statusCode === 201)
           idsClases.push(clase.json<{ clase: { id: string } }>().clase.id)

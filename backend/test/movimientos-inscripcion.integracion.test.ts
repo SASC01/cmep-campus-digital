@@ -90,7 +90,7 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
     expect(fila).toMatchObject({
       claseId: clase.id,
       alumnoId: nuevo.id,
-      maestroId: maestro.id,
+      actorId: maestro.id,
       tipo: "alta",
     })
     expect(fila?.creadoEn).toBeInstanceOf(Date)
@@ -110,7 +110,7 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
     const filas = await leerMovimientos(clase.id)
     expect(filas.map((fila) => fila.tipo)).toEqual(["alta", "baja"])
     const [alta, baja] = filas
-    expect(baja).toMatchObject({ claseId: clase.id, alumnoId: nuevo.id, maestroId: maestro.id })
+    expect(baja).toMatchObject({ claseId: clase.id, alumnoId: nuevo.id, actorId: maestro.id })
     expect(alta !== undefined && baja !== undefined && baja.secuencia > alta.secuencia).toBe(true)
   })
 
@@ -151,10 +151,10 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
     expect(baja.statusCode).toBe(204)
     const filas = await leerMovimientos(clase.id)
     expect(filas).toHaveLength(1)
-    expect(filas[0]).toMatchObject({ tipo: "baja", alumnoId: quienSeUne.id, maestroId: maestro.id })
+    expect(filas[0]).toMatchObject({ tipo: "baja", alumnoId: quienSeUne.id, actorId: maestro.id })
   })
 
-  it("PR-B16e: si el INSERT del movimiento falla (maestroId inexistente: viola la llave foránea), la transacción se revierte y no queda ninguna fila de movimiento", async () => {
+  it("PR-B16e: si el INSERT del movimiento falla (actorId inexistente: viola la llave foránea), la transacción se revierte y no queda ninguna fila de movimiento", async () => {
     const maestro = await maestroDePrueba()
     const paraAlta = await alumno()
     const paraBaja = await alumno()
@@ -165,7 +165,7 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
       adaptadorDb.agregarAlumnoManual({
         claseId: clase.id,
         alumnoId: paraAlta.id,
-        maestroId: randomUUID(),
+        actorId: randomUUID(),
       }),
     ).rejects.toThrow()
     expect(await leerInscripcion(clase.id, paraAlta.id)).toBeNull()
@@ -174,7 +174,7 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
       adaptadorDb.quitarAlumno({
         claseId: clase.id,
         alumnoId: paraBaja.id,
-        maestroId: randomUUID(),
+        actorId: randomUUID(),
       }),
     ).rejects.toThrow()
     expect(await leerInscripcion(clase.id, paraBaja.id)).not.toBeNull()

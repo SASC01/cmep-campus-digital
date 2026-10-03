@@ -45,6 +45,8 @@ const stubFetch = (rol: "estudiante" | "maestro") => {
             nombre: "Historia",
             descripcion: null,
             maestro: { id: "6a5d7a3e-1c1f-4b8e-9a1e-0f2a3b4c5d6e", nombre: "Luis" },
+            // CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2).
+            maestros: [{ id: "6a5d7a3e-1c1f-4b8e-9a1e-0f2a3b4c5d6e", nombre: "Luis" }],
           },
         }),
       )

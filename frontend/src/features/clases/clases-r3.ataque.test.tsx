@@ -40,11 +40,13 @@ const ME = (rol: "estudiante" | "maestro") => ({
   accesoRestringido: false,
 })
 
+// CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2) y conserva maestro.
 const claseDetalle = {
   id: CLASE_ID,
   nombre: "Álgebra I",
   descripcion: "Curso",
   maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+  maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
 }
 
 type Manejador = (ruta: string, metodo: string) => Response | Promise<Response>
@@ -131,7 +133,15 @@ describe("ataque CLASES-a r3: una sola acción principal por vista", () => {
       if (ruta.startsWith("/api/clases/inscritas")) {
         return respuestaJson(200, {
           clases: conClases
-            ? [{ id: CLASE_ID, nombre: "Álgebra I", maestro: { nombre: "L" } }]
+            ? [
+                // CLASES-02a ronda 0 (C-7): claseInscritaSchema suma maestros (1 o 2).
+                {
+                  id: CLASE_ID,
+                  nombre: "Álgebra I",
+                  maestro: { nombre: "L" },
+                  maestros: [{ nombre: "L" }],
+                },
+              ]
             : [],
           total: conClases ? 1 : 0,
           siguienteCursor: null,

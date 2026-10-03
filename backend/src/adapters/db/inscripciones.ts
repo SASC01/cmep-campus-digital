@@ -1,6 +1,7 @@
 import { AppError } from "../../core/errores.js"
 import { escaparComodinesLike } from "../../core/clases/busqueda.js"
 import { paginar } from "../../core/paginacion.js"
+import { SELECT_MAESTROS_DE_CLASE, maestrosDeFilas } from "./clases.js"
 import { enTransaccion, obtenerDb, type Ejecutor } from "./cliente.js"
 import { traducirErrorPrisma } from "./errores.js"
 import type { Prisma } from "./generated/client.js"
@@ -98,7 +99,7 @@ export const listarPersonas = async (
   const [clase, filas, totalAlumnos] = await Promise.all([
     ejecutor.clase.findUnique({
       where: { id: claseId },
-      select: { maestro: { select: { id: true, nombre: true } } },
+      select: { maestros: SELECT_MAESTROS_DE_CLASE },
     }),
     ejecutor.inscripcion.findMany({
       where,
@@ -109,10 +110,13 @@ export const listarPersonas = async (
     ejecutor.inscripcion.count({ where: { claseId, ...SOLO_CUENTAS_ACTIVAS } }),
   ])
   if (clase === null) return null
+  // Una clase siempre tiene de uno a dos maestros (RN-06); el principal es el primero (S-05).
+  const [maestro] = maestrosDeFilas(clase.maestros)
+  if (maestro === undefined) return null
 
   const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.usuarioId)
   return {
-    maestro: clase.maestro,
+    maestro,
     alumnos: pagina.map((fila) => ({ id: fila.usuarioId, nombre: fila.usuario.nombre })),
     totalAlumnos,
     siguienteCursor,
@@ -201,13 +205,14 @@ export const buscarCandidatos = async (
   }
 }
 
-// Alta manual (§D-B2, P-05 g, S-23). Una transacción: alumno válido → inscripción → movimiento.
+// Alta manual (§D-B2, P-05 g, S-23). actorId: quien hizo el cambio, un maestro de la clase o el
+// administrador (P-08 a; la columna sigue llamándose maestro_id). Una transacción: alumno válido → inscripción → movimiento.
 // El INSERT del movimiento es SIEMPRE el último paso: así su `secuencia` se toma después de
 // cualquier espera por otra transacción y respeta el orden real de los cambios (M-03). Solo un
 // cambio efectivo deja movimiento: un alta con yaEstaba no escribe nada. null: el alumno no existe,
 // no es estudiante o está inactivo.
 export const agregarAlumnoManual = (
-  { claseId, alumnoId, maestroId }: { claseId: string; alumnoId: string; maestroId: string },
+  { claseId, alumnoId, actorId }: { claseId: string; alumnoId: string; actorId: string },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<{ alumno: PersonaDb; yaEstaba: boolean } | null> =>
   enTransaccion(ejecutor, async (tx) => {
@@ -224,7 +229,7 @@ export const agregarAlumnoManual = (
     if (count === 0) return { alumno, yaEstaba: true }
 
     await tx.movimientoInscripcion.create({
-      data: { claseId, alumnoId, maestroId, tipo: "alta" },
+      data: { claseId, alumnoId, actorId, tipo: "alta" },
       select: { id: true },
     })
     return { alumno, yaEstaba: false }
@@ -233,7 +238,7 @@ export const agregarAlumnoManual = (
 // Baja (§D-B2): borra la inscripción por PK y, solo si borró una fila, registra la baja como último
 // paso de la misma transacción. Quitar a quien no está inscrito no escribe nada.
 export const quitarAlumno = (
-  { claseId, alumnoId, maestroId }: { claseId: string; alumnoId: string; maestroId: string },
+  { claseId, alumnoId, actorId }: { claseId: string; alumnoId: string; actorId: string },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<void> =>
   enTransaccion(ejecutor, async (tx) => {
@@ -243,7 +248,7 @@ export const quitarAlumno = (
     if (count === 0) return
 
     await tx.movimientoInscripcion.create({
-      data: { claseId, alumnoId, maestroId, tipo: "baja" },
+      data: { claseId, alumnoId, actorId, tipo: "baja" },
       select: { id: true },
     })
   })

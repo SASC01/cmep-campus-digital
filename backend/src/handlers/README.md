@@ -26,14 +26,23 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   `enlaces-registro/:id/registrados`; todas con `protegido({ roles: ["admin"] })`. El token del
   enlace solo viaja en la respuesta de crearlo, con `Cache-Control: no-store`.
 
-- `clases/clases.ts` (prefijo `/api`, CLASES-a): `POST /clases` (crear), `GET /clases/inscritas` y
+- `clases/clases.ts` (prefijo `/api`, CLASES-a): `GET /clases/inscritas` y
   `GET /clases/impartidas` (listas propias por rol, paginadas por cursor), `POST /clases/unirse`
-  (con código, idempotente), `GET/PUT /clases/:claseId` (detalle y editar) y
-  `GET/POST /clases/:claseId/codigo` (ver y regenerar el código, con `Cache-Control: no-store`). Las
-  cinco últimas llevan el sexto paso (`requireMembership` o `requireOwnership`, §D-0) y leen la clase
+  (con código, idempotente), `GET /clases/:claseId` (detalle, también para el admin) y
+  `GET/POST /clases/:claseId/codigo` (ver y regenerar el código, con `Cache-Control: no-store`, para
+  el maestro de la clase y el admin). Desde CLASES-02a el maestro ya no crea ni edita clases. Las
+  tres últimas llevan el sexto paso (`requireMembership` o `requireOwnership`, §D-0) y leen la clase
   de la ruta con `claseDe(request)`, nunca con el `claseId` crudo del parámetro. El código de la
   clase se genera en el handler (`node:crypto.randomBytes` + `codigoDesdeBytes` de `core/`); el
   adaptador reintenta una sola vez si choca con el índice único (S-03).
+- `clases/gestion.ts` (prefijo `/api`, CLASES-02a): las seis rutas de gestión del administrador, todas
+  con `protegido({ roles: ["admin"] })`: `GET` y `POST /admin/clases` (lista institucional paginada y
+  crear una clase con sus uno o dos maestros), `PUT /admin/clases/:claseId` (editar nombre y
+  descripción), `POST /admin/clases/:claseId/maestros` y
+  `DELETE /admin/clases/:claseId/maestros/:maestroId` (asignar y retirar, con tope de 2 y mínimo de 1)
+  y `GET /admin/maestros/candidatos?q=` (buscador de maestros con correo completo). Las tres con
+  `:claseId` llevan `requireOwnership`. El código de la clase usa el mismo `generarCodigo` de
+  `clases/clases.ts`.
 - `clases/alumnos.ts` (prefijo `/api`, CLASES-b): `GET /clases/:claseId/personas` (compañeros;
   `requireMembership`, solo id y nombre), `GET` y `POST /clases/:claseId/alumnos` (roster del dueño, con
   correo completo y estado de pago, y alta manual, que responde `{ alumno: { id, nombre }, yaEstaba }`),

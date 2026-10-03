@@ -153,28 +153,40 @@ describe("ataque CLASES-a r3: el sexto paso y claseDe usan el mismo claseId", ()
     expect(error, "se registró una ruta después de ready()").not.toBeNull()
   })
 
-  it("con edición y regeneración concurrentes del dueño y de un maestro ajeno, el ajeno nunca escribe", async () => {
+  // CLASES-02a ronda 0 (C-2): la edición es PUT /api/admin/clases/:claseId (solo el admin). El
+  // maestro ajeno la intenta en la ruta nueva (403 ROL_NO_PERMITIDO, paso 5) y regenera en la de
+  // siempre (403 SIN_ACCESO_A_LA_CLASE); el admin edita mientras el dueño regenera. Lo protegido no
+  // cambia: el ajeno nunca escribe, y quedan el último nombre y el último código legítimos.
+  it("con edición del admin y regeneración del dueño concurrentes con un maestro ajeno, el ajeno nunca escribe", async () => {
     const dueno = await maestro()
     const ajeno = await maestro()
     const clase = await crearClaseDePrueba(idsClases, { maestroId: dueno.id, nombre: "Original" })
     const tokenD = await tokenDe(dueno)
     const tokenA = await tokenDe(ajeno)
+    const tokenAdmin = await tokenDe({ id: await idAdmin() })
 
     const codigosDelDueno: string[] = []
     for (let i = 0; i < 6; i++) {
       const respuestas = await Promise.all([
-        pedir(obtenerApp(), "PUT", `/api/clases/${clase.id}`, tokenA, { nombre: `Robada ${i}` }),
+        pedir(obtenerApp(), "PUT", `/api/admin/clases/${clase.id}`, tokenA, {
+          nombre: `Robada ${i}`,
+        }),
         pedir(obtenerApp(), "POST", `/api/clases/${clase.id}/codigo`, tokenA),
-        pedir(obtenerApp(), "PUT", `/api/clases/${clase.id.toUpperCase()}`, tokenA, {
+        pedir(obtenerApp(), "PUT", `/api/admin/clases/${clase.id.toUpperCase()}`, tokenA, {
           nombre: `Robada M ${i}`,
         }),
-        pedir(obtenerApp(), "PUT", `/api/clases/${clase.id}`, tokenD, { nombre: `Dueño ${i}` }),
+        pedir(obtenerApp(), "PUT", `/api/admin/clases/${clase.id}`, tokenAdmin, {
+          nombre: `Dueño ${i}`,
+        }),
         pedir(obtenerApp(), "POST", `/api/clases/${clase.id}/codigo`, tokenD),
       ])
-      for (const r of respuestas.slice(0, 3)) {
-        expect(r.statusCode).toBe(403)
-        expect(codigoDe(r)).toBe("SIN_ACCESO_A_LA_CLASE")
+      const [putAjeno, regenAjeno, putAjenoMayus] = respuestas
+      for (const r of [putAjeno, putAjenoMayus]) {
+        expect(r?.statusCode).toBe(403)
+        expect(r === undefined ? "" : codigoDe(r)).toBe("ROL_NO_PERMITIDO")
       }
+      expect(regenAjeno?.statusCode).toBe(403)
+      expect(regenAjeno === undefined ? "" : codigoDe(regenAjeno)).toBe("SIN_ACCESO_A_LA_CLASE")
       expect(respuestas[3]?.statusCode).toBe(200)
       expect(respuestas[4]?.statusCode).toBe(200)
       codigosDelDueno.push(respuestas[4]?.json<{ codigo: string }>().codigo ?? "")
@@ -240,7 +252,11 @@ describe("ataque CLASES-a r3: código de invitación", () => {
 })
 
 describe("ataque CLASES-a r3: último recorrido de fugas y cabeceras", () => {
-  it("dueño, estudiante, restringido y admin: ninguna respuesta lleva claves prohibidas; el código solo sale al dueño en /codigo, con no-store", async () => {
+  // CLASES-02a ronda 0 (C-1, C-2 y C-3): POST /api/clases y PUT /api/clases/:claseId se cambian por
+  // sus rutas del admin (el admin crea con el dueño en maestroIds), y el admin pasa el sexto paso en
+  // el detalle y en /codigo (P-04 a): el código sale al dueño y al admin en /codigo, con no-store, y
+  // a nadie más ni en ninguna otra ruta.
+  it("dueño, estudiante, restringido y admin: ninguna respuesta lleva claves prohibidas; el código solo sale al dueño y al admin en /codigo, con no-store", async () => {
     const dueno = await maestro()
     const ajeno = await maestro()
     const alumno = await estudiante()
@@ -257,13 +273,17 @@ describe("ataque CLASES-a r3: último recorrido de fugas y cabeceras", () => {
     }
 
     const rutas: { method: "GET" | "HEAD" | "POST" | "PUT"; url: string; payload?: unknown }[] = [
-      { method: "POST", url: "/api/clases", payload: { nombre: "Nueva" } },
+      {
+        method: "POST",
+        url: "/api/admin/clases",
+        payload: { nombre: "Nueva", maestroIds: [dueno.id] },
+      },
       { method: "GET", url: "/api/clases/inscritas" },
       { method: "GET", url: "/api/clases/impartidas" },
       { method: "POST", url: "/api/clases/unirse", payload: { codigo: clase.codigoInvitacion } },
       { method: "GET", url: `/api/clases/${clase.id}` },
       { method: "HEAD", url: `/api/clases/${clase.id}` },
-      { method: "PUT", url: `/api/clases/${clase.id}`, payload: { nombre: "Clase" } },
+      { method: "PUT", url: `/api/admin/clases/${clase.id}`, payload: { nombre: "Clase" } },
       { method: "GET", url: `/api/clases/${clase.id}/codigo` },
       { method: "HEAD", url: `/api/clases/${clase.id}/codigo` },
     ]
@@ -284,7 +304,8 @@ describe("ataque CLASES-a r3: último recorrido de fugas y cabeceras", () => {
         expect(r.statusCode, etiqueta).toBeLessThan(500)
         expect(clavesEn(r.body, prohibidas), etiqueta).toEqual([])
         const codigoActual = (await leerClaseDb(clase.id))?.codigoInvitacion ?? "precondición"
-        const esCodigoDelDueno = quien === "dueno" && ruta.url.endsWith("/codigo")
+        const esCodigoDelDueno =
+          (quien === "dueno" || quien === "admin") && ruta.url.endsWith("/codigo")
         if (esCodigoDelDueno) {
           respuestasDelDueno += 1
           expect(String(r.headers["cache-control"]), etiqueta).toContain("no-store")
@@ -295,7 +316,7 @@ describe("ataque CLASES-a r3: último recorrido de fugas y cabeceras", () => {
         expect(cabeceras, etiqueta).not.toContain(codigoActual)
       }
     }
-    expect(respuestasDelDueno).toBe(2)
+    expect(respuestasDelDueno).toBe(4)
   })
 })
 

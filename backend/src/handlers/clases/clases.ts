@@ -1,8 +1,6 @@
 import {
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
-  crearClaseSchema,
-  editarClaseSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
   LONGITUD_CODIGO_CLASE,
@@ -15,35 +13,31 @@ import { randomBytes } from "node:crypto"
 
 import {
   buscarClasePorCodigo,
-  crearClase,
-  editarClase,
   inscribir,
   leerClase,
   leerCodigo,
   listarClasesImpartidas,
   listarClasesInscritas,
   regenerarCodigo,
+  type ClaseDb,
 } from "../../adapters/db/index.js"
 import { codigoDesdeBytes } from "../../core/clases/codigo.js"
-import { normalizarTextoLargo } from "../../core/clases/texto.js"
 import { AppError } from "../../core/errores.js"
 import { claseDe, perfilDe, protegido } from "../../middleware/index.js"
 import { validarCuerpo, validarParametros } from "../validacion.js"
 
 // El generador de código vive en el handler (S-03): node:crypto (aleatoriedad) + codigoDesdeBytes
 // (core, pura). El adaptador reintenta una sola vez si choca con el índice único.
-const generarCodigo = (): string => codigoDesdeBytes(randomBytes(LONGITUD_CODIGO_CLASE))
+export const generarCodigo = (): string => codigoDesdeBytes(randomBytes(LONGITUD_CODIGO_CLASE))
 
-// T-01 (ronda 1 del tester): normalizarTextoLargo (CRLF y CR → LF, recorte en los extremos) se
-// aplica a la descripción antes de validarla con el esquema (§D-C4: "también en a"). Si se
-// validara primero, un CR o un CRLF haría fallar el refine de caracteres de control antes de que
-// hubiera oportunidad de normalizarlo. Solo toca el campo si llega como cadena; cualquier otra
-// forma (ausente, número, objeto…) se deja intacta para que el esquema la rechace igual que antes.
-const conDescripcionNormalizada = (cuerpo: unknown): unknown => {
-  if (typeof cuerpo !== "object" || cuerpo === null) return cuerpo
-  const objeto = cuerpo as Record<string, unknown>
-  if (typeof objeto.descripcion !== "string") return cuerpo
-  return { ...objeto, descripcion: normalizarTextoLargo(objeto.descripcion) }
+// CLASES-02 (P-06 a): `maestro` (el principal, el primero de `maestros`) es un campo de
+// compatibilidad con el frontend anterior; se retira junto con clases.maestro_id.
+export const conMaestroPrincipal = (clase: ClaseDb) => {
+  const [maestro] = clase.maestros
+  if (maestro === undefined) {
+    throw new AppError("ERROR_INTERNO", "La clase no tiene maestros asignados.", 500)
+  }
+  return { ...clase, maestro }
 }
 
 const codigoInvalido = (): AppError =>
@@ -59,21 +53,17 @@ const sinAcceso = (): AppError =>
 // Rutas de CLASES-a (§D-A2). Ningún handler verifica rol, propiedad o inscripción a mano: todo pasa
 // por protegido() y, en las rutas con :claseId, por claseDe(request) (sexto paso).
 export const clasesHandler: FastifyPluginAsync = async (app) => {
-  app.post("/clases", protegido({ roles: ["maestro"] }), async (request, reply) => {
-    const datos = validarCuerpo(crearClaseSchema, conDescripcionNormalizada(request.body))
-    const perfil = perfilDe(request)
-    const clase = await crearClase(
-      { maestroId: perfil.id, nombre: datos.nombre, descripcion: datos.descripcion },
-      generarCodigo,
-    )
-    return reply.status(201).send(claseRespuestaSchema.parse({ clase }))
-  })
-
   app.get("/clases/inscritas", protegido({ roles: ["estudiante"] }), async (request, reply) => {
     const { cursor, limite } = validarParametros(paginacionSchema, request.query)
     const perfil = perfilDe(request)
     const resultado = await listarClasesInscritas({ usuarioId: perfil.id, cursor, limite })
-    return reply.send(listaClasesInscritasRespuestaSchema.parse(resultado))
+    // `maestro` es el primer maestro de `maestros` (compatibilidad, P-06 a).
+    return reply.send(
+      listaClasesInscritasRespuestaSchema.parse({
+        ...resultado,
+        clases: resultado.clases.map((clase) => ({ ...clase, maestro: clase.maestros[0] })),
+      }),
+    )
   })
 
   app.get("/clases/impartidas", protegido({ roles: ["maestro"] }), async (request, reply) => {
@@ -98,40 +88,21 @@ export const clasesHandler: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/clases/:claseId",
-    protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const clase = await leerClase(id)
       if (clase === null) throw sinAcceso()
-      return reply.send(claseRespuestaSchema.parse({ clase }))
-    },
-  )
-
-  app.put(
-    "/clases/:claseId",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
-    async (request, reply) => {
-      const { id } = claseDe(request)
-      const datos = validarCuerpo(editarClaseSchema, conDescripcionNormalizada(request.body))
-      const perfil = perfilDe(request)
-      const clase = await editarClase({
-        claseId: id,
-        maestroId: perfil.id,
-        nombre: datos.nombre,
-        descripcion: datos.descripcion,
-      })
-      if (clase === null) throw sinAcceso()
-      return reply.send(claseRespuestaSchema.parse({ clase }))
+      return reply.send(claseRespuestaSchema.parse({ clase: conMaestroPrincipal(clase) }))
     },
   )
 
   app.get(
     "/clases/:claseId/codigo",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id } = claseDe(request)
-      const perfil = perfilDe(request)
-      const codigo = await leerCodigo({ claseId: id, maestroId: perfil.id })
+      const codigo = await leerCodigo(id)
       if (codigo === null) throw sinAcceso()
       reply.header("Cache-Control", "no-store")
       return reply.send(codigoClaseRespuestaSchema.parse({ codigo }))
@@ -140,11 +111,10 @@ export const clasesHandler: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/clases/:claseId/codigo",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id } = claseDe(request)
-      const perfil = perfilDe(request)
-      const codigo = await regenerarCodigo({ claseId: id, maestroId: perfil.id }, generarCodigo)
+      const codigo = await regenerarCodigo(id, generarCodigo)
       if (codigo === null) throw sinAcceso()
       reply.header("Cache-Control", "no-store")
       return reply.send(codigoClaseRespuestaSchema.parse({ codigo }))

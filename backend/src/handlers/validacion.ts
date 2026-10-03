@@ -5,7 +5,7 @@ import { AppError } from "../core/errores.js"
 // Validación de cuerpos con safeParse (DEC-05): dato tipado o 400 VALIDACION con la primera
 // incidencia como "<campo>: <mensaje>", sin el valor recibido. Sin fastify-type-provider-zod.
 export const validarCuerpo = <T>(schema: z.ZodType<T>, cuerpo: unknown): T => {
-  if (typeof cuerpo !== "object" || cuerpo === null) {
+  if (typeof cuerpo !== "object" || cuerpo === null || Array.isArray(cuerpo)) {
     throw new AppError("VALIDACION", "cuerpo: debe ser un objeto JSON", 400)
   }
 

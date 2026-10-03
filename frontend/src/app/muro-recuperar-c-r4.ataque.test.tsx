@@ -90,7 +90,14 @@ const crearServidor = () => {
     if (url.pathname === `/api/clases/${CLASE_ID}`) {
       return Promise.resolve(
         respuestaJson(200, {
-          clase: { id: CLASE_ID, nombre: "Historia", descripcion: null, maestro: AUTOR },
+          // CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2).
+          clase: {
+            id: CLASE_ID,
+            nombre: "Historia",
+            descripcion: null,
+            maestro: AUTOR,
+            maestros: [AUTOR],
+          },
         }),
       )
     }

@@ -166,7 +166,7 @@ el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
 `buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena
 (`middleware/pertenencia.ts`): `clases` por PK con `inscripciones` filtradas por el `usuarioId` de
-la petición, en una sola llamada. `crearClase` y `regenerarCodigo` reciben un generador de código
+la petición, en una sola llamada. `crearClaseAdministrada` y `regenerarCodigo` reciben un generador de código
 (`() => string`, `node:crypto.randomBytes` + `codigoDesdeBytes` en el handler) y reintentan **una
 sola vez** si el primero choca con el índice único de `codigo_invitacion`, detectado con
 `traducirErrorPrisma` y su `alDuplicar` (§D-A2), sin tocar `adapters/db/errores.ts`: `alDuplicar`
@@ -174,14 +174,30 @@ siempre traduce a `CODIGO_NO_DISPONIBLE` (aparte de la llave primaria, un choque
 `gen_random_uuid()` inviable en la práctica, el único índice único de `clases` es
 `codigo_invitacion`, así que no hay otro P2002 posible en esta tabla); si el traducido no es ese código, se relanza sin
 reintentar (por ejemplo, el `22021` que `traducirErrorPrisma` ya traduce a `400 VALIDACION`). Si el
-segundo intento también choca, `500 CODIGO_NO_DISPONIBLE`. `editarClase` y
-`regenerarCodigo` filtran por `id` **y** `maestro_id` (defensa extra, M-01): si no actualizan
-ninguna fila, devuelven `null` y el handler responde `403 SIN_ACCESO_A_LA_CLASE`, aunque
-`requireOwnership` ya lo hubiera negado antes. `inscribir` (unirse con código) es un `createMany`
+segundo intento también choca, `500 CODIGO_NO_DISPONIBLE`. `editarClase`, `leerCodigo` y
+`regenerarCodigo` filtran solo por `id` desde CLASES-02 (A-10): la única autorización es el sexto
+paso, que deja pasar a los maestros de la clase y al administrador; repetirla aquí sería una segunda
+implementación. Si la clase ya no existe, devuelven `null` y el handler responde
+`403 SIN_ACCESO_A_LA_CLASE`. `buscarDatosDePertenencia` lee la clase por PK con `maestros_de_clase` e
+`inscripciones` filtradas por el usuario (a lo más una fila cada una). `crearClaseAdministrada` valida
+a los maestros (rol `maestro`, activos) y crea la clase con sus asignaciones en un solo `create`
+anidado. `clases.maestro_id` solo se **escribe** (el primer maestro al crear; el que queda al retirar
+al que estaba ahí): ningún código lo lee (P-06 de CLASES-02). `ORDEN_DE_MAESTROS` es la única
+definición del orden de los maestros de una clase. `inscribir` (unirse con código) es un `createMany`
 con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion` (esa tabla llega en
 CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
 `listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
 cursor siguiente, en vez de repetir esa lógica a mano.
+
+## `db/maestros-de-clase.ts` (CLASES-02, §D-2A4)
+
+`asignarMaestro` y `retirarMaestro` corren en una transacción que primero bloquea la fila de la clase
+con un `updateMany` de `actualizado_en` (`FOR NO KEY UPDATE`, sin SQL crudo; no choca con los
+`FOR KEY SHARE` de las FK), después leen los maestros actuales y deciden con
+`core/clases/maestros.ts` (tope de 2, mínimo de 1). Retirar al maestro que está en
+`clases.maestro_id` lo reescribe con el que queda, en la misma transacción. `buscarMaestrosCandidatos`
+busca sobre `nombre_busqueda` con los comodines escapados, solo maestros activos, y selecciona el
+correo completo, que solo ve el administrador.
 
 ## `db/inscripciones.ts` (CLASES-b, §D-B1 a §D-B3 bis y §D-B8)
 
@@ -201,6 +217,10 @@ el **último** paso de la transacción: su `secuencia` (`BIGSERIAL`) se toma des
 por otra transacción, y por eso el orden del registro es `secuencia`, nunca `creado_en` (la hora de
 inicio de la transacción). **Ninguna función exportada lee `movimientos_inscripcion`** (el modelo
 solo aparece en `.create(`); su pantalla de consulta es de ADMIN.
+
+`agregarAlumnoManual` y `quitarAlumno` reciben `actorId` (el maestro o el administrador que hizo el
+cambio) y lo escriben en `maestro_id` (`actorId` en Prisma). Desde CLASES-02a, `buscarMaestrosCandidatos`
+(`db/maestros-de-clase.ts`) también selecciona correos completos, de maestros, para el administrador.
 
 ## `db/publicaciones.ts` y las colas de avisos (CLASES-c, §D-C2 y §D-C3)
 

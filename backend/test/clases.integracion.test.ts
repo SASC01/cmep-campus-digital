@@ -10,7 +10,7 @@ import {
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { crearClase } from "../src/adapters/db/clases.js"
+import { crearClaseAdministrada } from "../src/adapters/db/clases.js"
 import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
@@ -27,6 +27,7 @@ import {
   crearClaseDePrueba,
   inscribirDePrueba,
   leerClaseDb,
+  tokenDelAdminDePrueba,
 } from "./ayudas-clases.js"
 
 let app: FastifyInstance | undefined
@@ -69,14 +70,16 @@ afterAll(async () => {
   await app?.close()
 })
 
-describe("POST /api/clases", () => {
+// CLASES-02a (C-1): POST /api/clases ya no existe; las clases las crea el administrador con
+// POST /api/admin/clases y maestroIds. Cada caso conserva lo que protegía.
+describe("POST /api/admin/clases (antes POST /api/clases)", () => {
   it("PR-A08a: crear responde 201 con un código de 7 caracteres del alfabeto", async () => {
     const maestro = await maestroDePrueba()
     const respuesta = await peticion({
       method: "POST",
-      url: "/api/clases",
-      token: await tokenDe(maestro),
-      payload: { nombre: "Álgebra I" },
+      url: "/api/admin/clases",
+      token: await tokenDelAdminDePrueba(),
+      payload: { nombre: "Álgebra I", maestroIds: [maestro.id] },
     })
 
     expect(respuesta.statusCode).toBe(201)
@@ -90,14 +93,14 @@ describe("POST /api/clases", () => {
     }
   })
 
-  it("PR-A08b: maestro_id es el del perfil aunque el cuerpo traiga otro maestroId", async () => {
+  it("PR-A08b: el maestro es el de maestroIds aunque el cuerpo traiga otro maestroId suelto", async () => {
     const maestro = await maestroDePrueba()
     const otro = await maestroDePrueba()
     const respuesta = await peticion({
       method: "POST",
-      url: "/api/clases",
-      token: await tokenDe(maestro),
-      payload: { nombre: "Historia", maestroId: otro.id },
+      url: "/api/admin/clases",
+      token: await tokenDelAdminDePrueba(),
+      payload: { nombre: "Historia", maestroIds: [maestro.id], maestroId: otro.id },
     })
 
     const { clase } = respuesta.json<{ clase: { id: string; maestro: { id: string } } }>()
@@ -109,9 +112,9 @@ describe("POST /api/clases", () => {
     const maestro = await maestroDePrueba()
     const respuesta = await peticion({
       method: "POST",
-      url: "/api/clases",
-      token: await tokenDe(maestro),
-      payload: { nombre: "Geografía", descripcion: "   " },
+      url: "/api/admin/clases",
+      token: await tokenDelAdminDePrueba(),
+      payload: { nombre: "Geografía", descripcion: "   ", maestroIds: [maestro.id] },
     })
 
     const { clase } = respuesta.json<{ clase: { id: string; descripcion: string | null } }>()
@@ -123,9 +126,9 @@ describe("POST /api/clases", () => {
     const maestro = await maestroDePrueba()
     const respuesta = await peticion({
       method: "POST",
-      url: "/api/clases",
-      token: await tokenDe(maestro),
-      payload: { nombre: "Clase\u202Emala" },
+      url: "/api/admin/clases",
+      token: await tokenDelAdminDePrueba(),
+      payload: { nombre: "Clase\u202Emala", maestroIds: [maestro.id] },
     })
 
     expect(respuesta.statusCode).toBe(400)
@@ -134,15 +137,15 @@ describe("POST /api/clases", () => {
 
   it("PR-A08e: un nombre con separador de línea (U+2028) o de párrafo (U+2029) responde 400 (ronda 2 del tester, T-16)", async () => {
     const maestro = await maestroDePrueba()
-    const token = await tokenDe(maestro)
+    const token = await tokenDelAdminDePrueba()
     // String.fromCharCode en vez del carácter literal: U+2028 y U+2029 son terminadores de línea
     // del propio ECMAScript y no pueden ir sueltos dentro de un literal de cadena del código fuente.
     for (const separador of [String.fromCharCode(0x2028), String.fromCharCode(0x2029)]) {
       const respuesta = await peticion({
         method: "POST",
-        url: "/api/clases",
+        url: "/api/admin/clases",
         token,
-        payload: { nombre: `Clase${separador}Dos` },
+        payload: { nombre: `Clase${separador}Dos`, maestroIds: [maestro.id] },
       })
       expect(respuesta.statusCode, separador.codePointAt(0)?.toString(16)).toBe(400)
       expect(errorApiSchema.parse(respuesta.json()).error.codigo).toBe("VALIDACION")
@@ -150,7 +153,7 @@ describe("POST /api/clases", () => {
   })
 })
 
-describe("crearClase: reintento de código (PR-A09)", () => {
+describe("crearClaseAdministrada: reintento de código (PR-A09; C-1, A-5)", () => {
   it("PR-A09a: con un generador doble cuyo primer código choca, se crea con el segundo", async () => {
     const maestro = await maestroDePrueba()
     const existente = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
@@ -160,7 +163,11 @@ describe("crearClase: reintento de código (PR-A09)", () => {
       return llamadas === 1 ? existente.codigoInvitacion : codigoDePrueba()
     }
 
-    const clase = await crearClase({ maestroId: maestro.id, nombre: "Con reintento" }, generador)
+    const clase = await crearClaseAdministrada(
+      { maestroIds: [maestro.id], nombre: "Con reintento" },
+      generador,
+    )
+    if (clase === null) throw new Error("Se esperaba una clase creada")
     idsClases.push(clase.id)
 
     expect(llamadas).toBe(2)
@@ -173,8 +180,8 @@ describe("crearClase: reintento de código (PR-A09)", () => {
     const antes = await obtenerDb().clase.count({ where: { maestroId: maestro.id } })
 
     await expect(
-      crearClase(
-        { maestroId: maestro.id, nombre: "Choca dos veces" },
+      crearClaseAdministrada(
+        { maestroIds: [maestro.id], nombre: "Choca dos veces" },
         () => existente.codigoInvitacion,
       ),
     ).rejects.toMatchObject({ codigo: "CODIGO_NO_DISPONIBLE", estado: 500 })
@@ -184,15 +191,16 @@ describe("crearClase: reintento de código (PR-A09)", () => {
   })
 })
 
-describe("PUT /api/clases/:claseId", () => {
-  it("PR-A10a: editar como dueño responde 200 con los datos nuevos", async () => {
+// CLASES-02a (C-2): PUT /api/clases/:claseId ya no existe; la edición es del administrador.
+describe("PUT /api/admin/clases/:claseId (antes PUT /api/clases/:claseId)", () => {
+  it("PR-A10a: editar como administrador responde 200 con los datos nuevos", async () => {
     const maestro = await maestroDePrueba()
     const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id, nombre: "Vieja" })
 
     const respuesta = await peticion({
       method: "PUT",
-      url: `/api/clases/${clase.id}`,
-      token: await tokenDe(maestro),
+      url: `/api/admin/clases/${clase.id}`,
+      token: await tokenDelAdminDePrueba(),
       payload: { nombre: "Nueva", descripcion: "Actualizada" },
     })
 
@@ -213,8 +221,8 @@ describe("PUT /api/clases/:claseId", () => {
 
     const respuesta = await peticion({
       method: "PUT",
-      url: `/api/clases/${clase.id}`,
-      token: await tokenDe(maestro),
+      url: `/api/admin/clases/${clase.id}`,
+      token: await tokenDelAdminDePrueba(),
       payload: { nombre: "" },
     })
 
@@ -492,9 +500,9 @@ describe("GET /api/clases/:claseId", () => {
 })
 
 describe("contenido visible en el nombre de la clase (Enmienda 6, §D-C4)", () => {
-  it("PR-C12f: POST y PUT con un nombre sin contenido visible o de un solo emoji responden 400 VALIDACION, sin crear ni cambiar filas; un emoji compuesto con texto se acepta", async () => {
+  it("PR-C12f (C-1, C-2: rutas del administrador): POST y PUT con un nombre sin contenido visible o de un solo emoji responden 400 VALIDACION, sin crear ni cambiar filas; un emoji compuesto con texto se acepta", async () => {
     const maestro = await maestroDePrueba()
-    const token = await tokenDe(maestro)
+    const token = await tokenDelAdminDePrueba()
     const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id, nombre: "Original" })
     const mensaje = "nombre: El nombre debe tener al menos 2 caracteres"
 
@@ -502,9 +510,9 @@ describe("contenido visible en el nombre de la clase (Enmienda 6, §D-C4)", () =
       const antes = await obtenerDb().clase.count({ where: { maestroId: maestro.id } })
       const crear = await peticion({
         method: "POST",
-        url: "/api/clases",
+        url: "/api/admin/clases",
         token,
-        payload: { nombre },
+        payload: { nombre, maestroIds: [maestro.id] },
       })
       expect(crear.statusCode, `POST ${nombre}`).toBe(400)
       expect(errorApiSchema.parse(crear.json()).error).toEqual({
@@ -515,7 +523,7 @@ describe("contenido visible en el nombre de la clase (Enmienda 6, §D-C4)", () =
 
       const editar = await peticion({
         method: "PUT",
-        url: `/api/clases/${clase.id}`,
+        url: `/api/admin/clases/${clase.id}`,
         token,
         payload: { nombre },
       })
@@ -529,9 +537,9 @@ describe("contenido visible en el nombre de la clase (Enmienda 6, §D-C4)", () =
 
     const compuesto = await peticion({
       method: "POST",
-      url: "/api/clases",
+      url: "/api/admin/clases",
       token,
-      payload: { nombre: "\u{1F469}\u200D\u{1F4BB} Programación" },
+      payload: { nombre: "\u{1F469}\u200D\u{1F4BB} Programación", maestroIds: [maestro.id] },
     })
     expect(compuesto.statusCode).toBe(201)
     idsClases.push(compuesto.json<{ clase: { id: string } }>().clase.id)

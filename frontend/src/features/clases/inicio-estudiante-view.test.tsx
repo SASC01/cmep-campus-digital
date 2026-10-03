@@ -32,6 +32,8 @@ const clase = (n: number, extra: Record<string, unknown> = {}) => ({
   id: `2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d0${String(n)}`,
   nombre: `Clase ${String(n)}`,
   maestro: { nombre: "Luis Pérez" },
+  // CLASES-02a (C-7): el esquema ahora exige `maestros`; solo se agrega el campo.
+  maestros: [{ nombre: "Luis Pérez" }],
   ...extra,
 })
 

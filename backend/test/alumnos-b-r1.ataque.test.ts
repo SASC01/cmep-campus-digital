@@ -240,13 +240,17 @@ describe("ataque CLASES-b r1: autorización con los cinco tokens en las 8 rutas 
       },
     ]
 
+    // CLASES-02a ronda 0 (C-3, matriz de "Autorización"): el admin pasa el sexto paso en el roster,
+    // el buscador, el alta y la baja (soloDueno), y sigue en 403 ROL_NO_PERMITIDO en "personas". Sus
+    // lecturas se comprueban en el recorrido de abajo; su alta y su baja escriben, así que se
+    // prueban aparte, después del dueño, para que "lo negado no escribe nada" siga valiendo.
     const esperado = (
       ruta: (typeof rutas)[number],
       quien: "ajeno" | "inscrito" | "restringido" | "admin" | "noInscrito" | "sinToken",
     ): [number, string] => {
       if (quien === "sinToken") return [401, "NO_AUTENTICADO"]
       if (quien === "restringido") return [403, "ACCESO_RESTRINGIDO"]
-      if (quien === "admin") return [403, "ROL_NO_PERMITIDO"]
+      if (quien === "admin") return ruta.soloDueno ? [ruta.okDueno, ""] : [403, "ROL_NO_PERMITIDO"]
       if (quien === "ajeno") return [403, "SIN_ACCESO_A_LA_CLASE"]
       // requireRole va antes que la pertenencia: un estudiante no inscrito en una ruta del dueño es
       // ROL_NO_PERMITIDO, igual que el inscrito.
@@ -269,9 +273,12 @@ describe("ataque CLASES-b r1: autorización con los cinco tokens en las 8 rutas 
       ["noInscrito", noInscrito.token],
     ]
 
+    const escribe = (ruta: (typeof rutas)[number]): boolean =>
+      ruta.metodo === "POST" || ruta.metodo === "DELETE"
     const discrepancias: string[] = []
     for (const ruta of rutas) {
       for (const [quien, token] of tokens) {
+        if (quien === "admin" && escribe(ruta)) continue
         const respuesta = await pedir(ruta.metodo, ruta.url, token, ruta.payload)
         const [estado, codigo] = esperado(ruta, quien)
         const codigoObtenido = ruta.metodo === "HEAD" ? codigo : (codigoDe(respuesta) ?? "")
@@ -301,6 +308,25 @@ describe("ataque CLASES-b r1: autorización con los cinco tokens en las 8 rutas 
     expect(await leerInscripcion(clase.id, objetivo.id)).not.toBeNull()
     expect(await leerInscripcion(clase.id, inscrito.id)).toBeNull()
     expect((await leerMovimientos(clase.id)).map((fila) => fila.tipo)).toEqual(["alta", "baja"])
+
+    // CLASES-02a ronda 0 (C-3 y C-6): el admin agrega y quita en la clase (P-08 a: el movimiento
+    // lleva su id en actorId), con los mismos códigos que el dueño.
+    const altaAdmin = await pedir("POST", `${base}/alumnos`, tokenAdmin, {
+      alumnoId: noInscrito.id,
+    })
+    expect(altaAdmin.statusCode, altaAdmin.body).toBe(200)
+    const bajaAdmin = await pedir("DELETE", `${base}/alumnos/${objetivo.id}`, tokenAdmin)
+    expect(bajaAdmin.statusCode, bajaAdmin.body).toBe(204)
+    expect(await leerInscripcion(clase.id, noInscrito.id)).not.toBeNull()
+    expect(await leerInscripcion(clase.id, objetivo.id)).toBeNull()
+    expect(
+      (await leerMovimientos(clase.id)).map((fila) => [fila.tipo, fila.actorId, fila.alumnoId]),
+    ).toEqual([
+      ["alta", dueno.id, objetivo.id],
+      ["baja", dueno.id, inscrito.id],
+      ["alta", idAdmin, noInscrito.id],
+      ["baja", idAdmin, objetivo.id],
+    ])
   })
 
   it("un maestro dueño de una clase no puede actuar en otra con su claseId; un claseId inexistente o malformado no escribe ni da 500", async () => {
@@ -1044,6 +1070,8 @@ describe("ataque CLASES-b r1: movimientos_inscripcion", () => {
     expect(await leerInscripcion(clase.id, alumno.id)).toBeNull()
   })
 
+  // CLASES-02a ronda 0 (C-6, P-08 a): MovimientoInscripcion.maestroId pasa a actorId (misma columna
+  // maestro_id en la base); lo protegido no cambia: cada alta queda con quien la hizo.
   it("el mismo alumno agregado a la vez a dos clases de dos maestros: cada clase registra su alta con su maestro", async () => {
     const t = ficha()
     const uno = await crearCuenta({ nombre: `Uno ${t}`, rol: "maestro" })
@@ -1061,10 +1089,10 @@ describe("ataque CLASES-b r1: movimientos_inscripcion", () => {
     expect(respuestas.map((r) => r.statusCode)).toEqual([200, 200, 403, 403])
     const filasUno = await leerMovimientos(claseUno.id)
     const filasDos = await leerMovimientos(claseDos.id)
-    expect(filasUno.map((f) => [f.tipo, f.maestroId, f.alumnoId])).toEqual([
+    expect(filasUno.map((f) => [f.tipo, f.actorId, f.alumnoId])).toEqual([
       ["alta", uno.id, alumno.id],
     ])
-    expect(filasDos.map((f) => [f.tipo, f.maestroId, f.alumnoId])).toEqual([
+    expect(filasDos.map((f) => [f.tipo, f.actorId, f.alumnoId])).toEqual([
       ["alta", dos.id, alumno.id],
     ])
   })

@@ -54,14 +54,14 @@ features/
 | Módulo | Contenido | Roles |
 |--------|-----------|-------|
 | `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, registro de maestro por enlace, cambio obligatorio de contraseña, pantalla de acceso restringido | Todos |
-| `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, crear/editar clase, código de invitación, compañeros, roster, buscador y alta manual de alumnos | Estudiante, Maestro |
+| `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, código de invitación, compañeros, roster, buscador y alta manual de alumnos; gestión de clases del administrador (`/admin/clases`: lista, crear y editar clase, maestros de la clase, y alumnos y muro de cualquier clase) | Estudiante, Maestro, Administrador |
 | `tareas` | Detalle de tarea, zona de entrega, crear tarea o material, rúbrica, hilo privado | Estudiante, Maestro |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |
 | `calendario` | Calendario de tareas y clases en vivo | Estudiante, Maestro |
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
-| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros e invitación masiva (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
+| `admin` | Dashboard institucional, usuarios, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros e invitación masiva (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
 | `diagnostico` | Vista temporal de `/api/salud` (prueba de conexión con la API). Se mueve a `admin` o se elimina cuando exista ese módulo | Sin sesión (temporal) |
 
 ### Ubicaciones compartidas

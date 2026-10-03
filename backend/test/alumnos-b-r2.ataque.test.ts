@@ -206,7 +206,8 @@ describe("ataque CLASES-b r2: movimientos con varios alumnos a la vez", () => {
       expect(filas.length, contexto).toBeGreaterThan(0)
       filas.forEach((fila, indice) => {
         expect(fila.tipo, contexto).toBe(indice % 2 === 0 ? "alta" : "baja")
-        expect(fila.maestroId).toBe(dueno.id)
+        // CLASES-02a ronda 0 (C-6, P-08 a): maestroId pasa a actorId (misma columna maestro_id).
+        expect(fila.actorId).toBe(dueno.id)
       })
       expect(filas.at(-1)?.tipo === "alta", contexto).toBe(inscrito)
     }

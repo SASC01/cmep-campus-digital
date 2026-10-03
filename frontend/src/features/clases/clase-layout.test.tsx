@@ -26,6 +26,8 @@ const claseDetalle = (extra: Record<string, unknown> = {}) => ({
   nombre: "Álgebra I",
   descripcion: "Curso de álgebra",
   maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+  // CLASES-02a (C-7): el esquema ahora exige `maestros`; solo se agrega el campo.
+  maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
   ...extra,
 })
 

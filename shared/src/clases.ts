@@ -130,7 +130,7 @@ export const textoConContenidoSchema = (max: number, mensaje: string) =>
 
 // Una descripción vacía después de trim se guarda como null (S-02).
 export const descripcionClaseSchema = z
-  .string()
+  .string({ error: "La descripción debe ser texto" })
   .trim()
   .transform((texto) => (texto.length === 0 ? undefined : texto))
   .pipe(textoLargoSchema(2000).optional())
@@ -143,6 +143,32 @@ export const crearClaseSchema = z.object({
 
 export const editarClaseSchema = crearClaseSchema
 
+// CLASES-02 (§D-2A1): una clase tiene de uno a dos maestros, los asigna solo el administrador.
+export const MAXIMO_MAESTROS_POR_CLASE = 2
+
+// Los ids se comparan en minúsculas: un UUID es el mismo en mayúsculas y en minúsculas, y dos
+// escrituras del mismo maestro chocarían con la llave primaria de maestros_de_clase.
+export const maestroIdsSchema = z
+  .array(z.uuid("maestroId: debe ser un identificador válido"), {
+    error: "Elige al menos un maestro",
+  })
+  .min(1, "Elige al menos un maestro")
+  .max(MAXIMO_MAESTROS_POR_CLASE, "Una clase puede tener hasta 2 maestros")
+  .refine((ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length, {
+    error: "No repitas un maestro",
+  })
+  .transform((ids) => ids.map((id) => id.toLowerCase()))
+
+export const crearClaseAdminSchema = crearClaseSchema.extend({ maestroIds: maestroIdsSchema })
+
+export const asignarMaestroSchema = z.object({
+  maestroId: z.uuid("maestroId: debe ser un identificador válido"),
+})
+
+export const maestroIdParamSchema = z.object({
+  maestroId: z.uuid("maestroId: debe ser un identificador válido"),
+})
+
 export const unirseSchema = z.object({ codigo: codigoInvitacionSchema })
 
 export const claseIdParamSchema = z.object({
@@ -151,18 +177,26 @@ export const claseIdParamSchema = z.object({
 
 export const maestroDeClaseSchema = z.object({ id: z.uuid(), nombre: z.string() })
 
-// Sin codigoInvitacion (solo lo ve el dueño por GET/POST …/codigo, con no-store).
+// Sin codigoInvitacion (solo lo ven los maestros de la clase y el admin por GET/POST …/codigo, con
+// no-store). `maestro` (el principal, `maestros[0]`) es un campo de compatibilidad (P-06 de
+// CLASES-02): se retira con clases.maestro_id.
 export const claseDetalleSchema = z.object({
   id: z.uuid(),
   nombre: z.string(),
   descripcion: z.string().nullable(),
   maestro: maestroDeClaseSchema,
+  maestros: z.array(maestroDeClaseSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
 })
 
 export const claseInscritaSchema = z.object({
   id: z.uuid(),
   nombre: z.string(),
+  // Compatibilidad (P-06 de CLASES-02): el primer maestro de `maestros`.
   maestro: z.object({ nombre: z.string() }),
+  maestros: z
+    .array(z.object({ nombre: z.string() }))
+    .min(1)
+    .max(MAXIMO_MAESTROS_POR_CLASE),
 })
 
 export const claseImpartidaSchema = z.object({
@@ -191,6 +225,37 @@ export const unirseRespuestaSchema = z.object({
 export const codigoClaseRespuestaSchema = z.object({ codigo: z.string() })
 
 export const claseRespuestaSchema = z.object({ clase: claseDetalleSchema })
+
+// CLASES-02 (§D-2A3). Lista institucional del administrador.
+export const claseAdminSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  maestros: z.array(maestroDeClaseSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
+  alumnos: z.number().int().min(0),
+  creadoEn: z.iso.datetime(),
+})
+
+export const listaClasesAdminRespuestaSchema = z.object({
+  clases: z.array(claseAdminSchema),
+  total: z.number().int().min(0),
+  siguienteCursor: z.uuid().nullable(),
+})
+
+export const maestrosDeClaseRespuestaSchema = z.object({
+  maestros: z.array(maestroDeClaseSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
+})
+
+// El correo completo de un maestro solo lo ve el administrador (S-06).
+export const candidatoMaestroSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  email: z.string(),
+})
+
+export const candidatosMaestroRespuestaSchema = z.object({
+  candidatos: z.array(candidatoMaestroSchema),
+  hayMas: z.boolean(),
+})
 
 // paginacionSchema se reutiliza desde enlaces-registro.ts, sin moverlo (§D-A3).
 export { paginacionSchema }
@@ -400,11 +465,17 @@ export const CODIGOS_CLASES = {
   PUBLICACION_NO_ENCONTRADA: "PUBLICACION_NO_ENCONTRADA",
   COMENTARIO_NO_ENCONTRADO: "COMENTARIO_NO_ENCONTRADO",
   BUSQUEDA_MUY_CORTA: "BUSQUEDA_MUY_CORTA",
+  MAESTRO_NO_ENCONTRADO: "MAESTRO_NO_ENCONTRADO",
+  TOPE_DE_MAESTROS: "TOPE_DE_MAESTROS",
+  CLASE_SIN_MAESTRO: "CLASE_SIN_MAESTRO",
 } as const
 
 export type CodigoClases = (typeof CODIGOS_CLASES)[keyof typeof CODIGOS_CLASES]
 export type CrearClase = z.infer<typeof crearClaseSchema>
 export type EditarClase = z.infer<typeof editarClaseSchema>
+export type CrearClaseAdmin = z.infer<typeof crearClaseAdminSchema>
+export type AsignarMaestro = z.infer<typeof asignarMaestroSchema>
+export type MaestroIdParam = z.infer<typeof maestroIdParamSchema>
 export type Unirse = z.infer<typeof unirseSchema>
 export type ClaseIdParam = z.infer<typeof claseIdParamSchema>
 export type ClaseDetalle = z.infer<typeof claseDetalleSchema>
@@ -415,6 +486,11 @@ export type ListaClasesImpartidasRespuesta = z.infer<typeof listaClasesImpartida
 export type UnirseRespuesta = z.infer<typeof unirseRespuestaSchema>
 export type CodigoClaseRespuesta = z.infer<typeof codigoClaseRespuestaSchema>
 export type ClaseRespuesta = z.infer<typeof claseRespuestaSchema>
+export type ClaseAdmin = z.infer<typeof claseAdminSchema>
+export type ListaClasesAdminRespuesta = z.infer<typeof listaClasesAdminRespuestaSchema>
+export type MaestrosDeClaseRespuesta = z.infer<typeof maestrosDeClaseRespuestaSchema>
+export type CandidatoMaestro = z.infer<typeof candidatoMaestroSchema>
+export type CandidatosMaestroRespuesta = z.infer<typeof candidatosMaestroRespuestaSchema>
 export type PaginacionRoster = z.infer<typeof paginacionRosterSchema>
 export type EstadoPagoAlumno = z.infer<typeof estadoPagoSchema>
 export type PersonaDeClase = z.infer<typeof personaDeClaseSchema>

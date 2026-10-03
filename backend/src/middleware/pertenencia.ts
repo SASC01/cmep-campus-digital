@@ -20,6 +20,7 @@ export interface ClaseDeLaRuta {
 export const resolverClaseDeLaRuta = async (
   request: FastifyRequest,
   exigencia: "inscripcion" | "propiedad",
+  admiteAdmin: boolean,
 ): Promise<ClaseDeLaRuta> => {
   const claseId = (request.params as Record<string, unknown> | undefined)?.claseId
   if (claseId === undefined) {
@@ -34,7 +35,7 @@ export const resolverClaseDeLaRuta = async (
   const perfil = perfilDe(request)
   const datos = await buscarDatosDePertenencia(validado.data.claseId, perfil.id)
   const relacion = relacionConClase(perfil, datos)
-  const error = evaluarPertenencia(relacion, exigencia)
+  const error = evaluarPertenencia(relacion, exigencia, admiteAdmin)
   if (error) throw error
 
   // evaluarPertenencia ya descartó null para ambas exigencias.

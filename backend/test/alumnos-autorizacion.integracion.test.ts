@@ -58,6 +58,9 @@ interface PreparadoRuta {
   url: string
   payload?: InjectOptions["payload"]
   estatusPermitido: number
+  // CLASES-02a (C-3): la ruta lista a "admin" en sus roles; el administrador recibe lo mismo que el
+  // maestro de la clase.
+  admiteAdmin: boolean
   tokenPermitido: string
   // El estudiante inscrito, cuando la ruta es solo del maestro (GET …/personas acepta a los dos).
   tokenIncorrecto?: string
@@ -122,6 +125,7 @@ const prepararGetPersonas = async (): Promise<PreparadoRuta> => {
     metodo: "GET",
     url: `/api/clases/${e.claseId}/personas`,
     estatusPermitido: 200,
+    admiteAdmin: false,
     tokenPermitido: await tokenDe(e.inscrito),
     tokensAjenos: [await tokenDe(e.otroMaestro), await tokenDe(e.noInscrito)],
     prepararRestringido: () => restringidoInscrito(e.claseId),
@@ -136,6 +140,7 @@ const prepararGetAlumnos = async (): Promise<PreparadoRuta> => {
     metodo: "GET",
     url: `/api/clases/${e.claseId}/alumnos`,
     estatusPermitido: 200,
+    admiteAdmin: true,
     tokenPermitido: await tokenDe(e.maestro),
     tokenIncorrecto: await tokenDe(e.inscrito),
     tokensAjenos: [await tokenDe(e.otroMaestro)],
@@ -151,6 +156,7 @@ const prepararGetCandidatos = async (): Promise<PreparadoRuta> => {
     metodo: "GET",
     url: `/api/clases/${e.claseId}/alumnos/candidatos?q=objetivo`,
     estatusPermitido: 200,
+    admiteAdmin: true,
     tokenPermitido: await tokenDe(e.maestro),
     tokenIncorrecto: await tokenDe(e.inscrito),
     tokensAjenos: [await tokenDe(e.otroMaestro)],
@@ -167,6 +173,7 @@ const prepararPostAlumnos = async (): Promise<PreparadoRuta> => {
     url: `/api/clases/${e.claseId}/alumnos`,
     payload: { alumnoId: e.objetivo.id },
     estatusPermitido: 200,
+    admiteAdmin: true,
     tokenPermitido: await tokenDe(e.maestro),
     tokenIncorrecto: await tokenDe(e.inscrito),
     tokensAjenos: [await tokenDe(e.otroMaestro)],
@@ -182,6 +189,7 @@ const prepararDeleteAlumno = async (): Promise<PreparadoRuta> => {
     metodo: "DELETE",
     url: `/api/clases/${e.claseId}/alumnos/${e.objetivo.id}`,
     estatusPermitido: 204,
+    admiteAdmin: true,
     tokenPermitido: await tokenDe(e.maestro),
     tokenIncorrecto: await tokenDe(e.inscrito),
     tokensAjenos: [await tokenDe(e.otroMaestro)],
@@ -286,15 +294,23 @@ describe("autorización de las rutas de CLASES-b", () => {
     },
   )
 
-  it("PR-B08d: cada ruta: admin, 403 ROL_NO_PERMITIDO", { timeout: 60000 }, async () => {
-    const token = await tokenAdminDePrueba()
-    for (const preparar of preparadores) {
-      const prep = await preparar()
-      const respuesta = await pedir(prep, token)
-      expect(respuesta.statusCode, prep.nombre).toBe(403)
-      expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
-    }
-  })
+  it(
+    "PR-B08d: cada ruta: admin, 403 ROL_NO_PERMITIDO en personas y lo mismo que el maestro en las demás (C-3, CLASES-02a)",
+    { timeout: 60000 },
+    async () => {
+      const token = await tokenAdminDePrueba()
+      for (const preparar of preparadores) {
+        const prep = await preparar()
+        const respuesta = await pedir(prep, token)
+        if (prep.admiteAdmin) {
+          expect(respuesta.statusCode, prep.nombre).toBe(prep.estatusPermitido)
+          continue
+        }
+        expect(respuesta.statusCode, prep.nombre).toBe(403)
+        expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
+      }
+    },
+  )
 
   it(
     "PR-B08e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en …/alumnos, …/candidatos y en el POST y el DELETE)",
@@ -350,8 +366,8 @@ describe("autorización de las rutas de CLASES-b", () => {
           { descripcion: "sin token", token: undefined },
           { descripcion: "cambio pendiente", token: await tokenDe(conCambioPendiente) },
           { descripcion: "restringido", token: await prep.prepararRestringido() },
-          { descripcion: "admin", token: tokenAdmin },
         ]
+        if (!prep.admiteAdmin) negaciones.push({ descripcion: "admin", token: tokenAdmin })
         if (prep.tokenIncorrecto !== undefined) {
           negaciones.push({ descripcion: "rol incorrecto", token: prep.tokenIncorrecto })
         }

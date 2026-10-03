@@ -42,11 +42,13 @@ const diferida = (): Diferida => {
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 
+// CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2) y conserva maestro.
 const claseDetalle = (extra: Record<string, unknown> = {}) => ({
   id: CLASE_ID,
   nombre: "Álgebra I",
   descripcion: "Curso de álgebra",
   maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+  maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
   ...extra,
 })
 

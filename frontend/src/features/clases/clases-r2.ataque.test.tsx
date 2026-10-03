@@ -30,11 +30,13 @@ const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 const LARGO = "M".repeat(120)
 const REGLA_DE_CORTE = /(^|\s)(break-all|break-words|wrap-anywhere|wrap-break-word)(\s|$)/
 
+// CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2) y conserva maestro.
 const claseDetalle = (extra: Record<string, unknown> = {}) => ({
   id: CLASE_ID,
   nombre: "Álgebra I",
   descripcion: "Curso de álgebra",
   maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+  maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
   ...extra,
 })
 
@@ -114,7 +116,10 @@ describe("ataque CLASES-a r2: T-08 con nombres de 120 caracteres y con emojis", 
     stubFetch((ruta) => {
       if (ruta === `/api/clases/${CLASE_ID}`) {
         return respuestaJson(200, {
-          clase: claseDetalle({ maestro: { id: CLASE_ID, nombre: LARGO } }),
+          clase: claseDetalle({
+            maestro: { id: CLASE_ID, nombre: LARGO },
+            maestros: [{ id: CLASE_ID, nombre: LARGO }],
+          }),
         })
       }
       return errorJson(500, "ERROR_INTERNO")

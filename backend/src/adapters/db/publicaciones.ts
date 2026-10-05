@@ -1,3 +1,6 @@
+import type { Rol } from "@campus/shared"
+
+import { puedeBorrar, type ParticipanteDeAutoria } from "../../core/autoria.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
@@ -13,9 +16,12 @@ import {
 // publicación o comentario filtra además por la clase de la ruta: un id de otra clase es "no
 // encontrado", sin escribir ni revelar nada.
 
+// El rol del autor se selecciona solo para dos cosas: la firma "Administración" (firmaDelAutor) y
+// puedeBorrar (core/autoria.ts). Nunca sale en una respuesta.
 export interface AutorDb {
   id: string
   nombre: string
+  rol: Rol
 }
 
 export interface PublicacionDb {
@@ -28,6 +34,8 @@ export interface PublicacionDb {
   comentarios: number
   // CLASES-d (C-21): siempre presente; [] si no tiene archivos.
   adjuntos: ArchivoDb[]
+  // CLASES-02b (§D-2B2): core/autoria.ts, con el actor de la petición.
+  puedeBorrar: boolean
 }
 
 export interface ListaPublicacionesDb {
@@ -40,6 +48,7 @@ export interface ComentarioDb {
   texto: string
   autor: AutorDb
   creadoEn: Date
+  puedeBorrar: boolean
 }
 
 export interface ListaComentariosDb {
@@ -52,6 +61,12 @@ export interface ListaComentariosDb {
 // responde igual: sin oráculo.
 const errorCursorInvalido = (): AppError => new AppError("VALIDACION", "cursor: no es válido", 400)
 
+// §D-2B3: la autoría no cambia nunca, así que leerla y borrar en la misma transacción basta, sin
+// candado. Se llama con el actor de la petición; dentro de una ruta con sexto paso, que el maestro
+// sea de esa clase ya lo garantizó la cadena.
+const errorBorradoNoPermitido = (): AppError =>
+  new AppError("BORRADO_NO_PERMITIDO", "No puedes borrar lo que publicó otra persona.", 403)
+
 const errorArchivoInvalido = (): AppError =>
   new AppError(
     "ARCHIVO_INVALIDO",
@@ -59,7 +74,7 @@ const errorArchivoInvalido = (): AppError =>
     400,
   )
 
-const SELECT_AUTOR = { select: { id: true, nombre: true } } as const
+const SELECT_AUTOR = { select: { id: true, nombre: true, rol: true } } as const
 
 const SELECT_PUBLICACION = {
   id: true,
@@ -125,14 +140,25 @@ export const crearPublicacion = (
       if (count !== archivos.length) throw errorArchivoInvalido()
     }
     await alGuardar(ejecutorSqlDe(tx))
-    return { ...creada, comentarios: 0, adjuntos: [...archivos] }
+    // El autor es quien crea: puede borrar lo suyo (core/autoria.ts).
+    return {
+      ...creada,
+      comentarios: 0,
+      adjuntos: [...archivos],
+      puedeBorrar: puedeBorrar(creada.autor, creada.autor),
+    }
   })
 
 // Más reciente primero. Cursor de Prisma sobre la PK (el orden es creado_en DESC, id DESC, que
 // sigue el índice de la clase). El conteo de comentarios sale de una sola consulta agrupada para
 // toda la página, fuera de cualquier ciclo.
 export const listarPublicaciones = async (
-  { claseId, cursor, limite }: { claseId: string; cursor: string | undefined; limite: number },
+  {
+    claseId,
+    cursor,
+    limite,
+    actor,
+  }: { claseId: string; cursor: string | undefined; limite: number; actor: ParticipanteDeAutoria },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaPublicacionesDb> => {
   if (cursor !== undefined) {
@@ -179,20 +205,33 @@ export const listarPublicaciones = async (
       ...fila,
       comentarios: comentariosPorPublicacion.get(fila.id) ?? 0,
       adjuntos: adjuntosPorPublicacion.get(fila.id) ?? [],
+      puedeBorrar: puedeBorrar(actor, fila.autor),
     })),
     siguienteCursor,
   }
 }
 
-// Borra con id y clase_id; sus comentarios caen en cascada. false: no existe en esa clase. d: antes
-// del DELETE, en la misma transacción, sus archivos pasan a descartado y pierden la publicación (el
+// Borra con id y clase_id; sus comentarios caen en cascada. false: no existe en esa clase. 403
+// BORRADO_NO_PERMITIDO (sin escribir nada) si core/autoria.ts no deja a este actor. d: antes del
+// DELETE, en la misma transacción, sus archivos pasan a descartado y pierden la publicación (el
 // CHECK de §D-D1 lo exige, y publicacion_id es NO ACTION); los objetos siguen en el almacén hasta la
 // limpieza diaria. El filtro por clase_id evita descartar los archivos de una publicación ajena.
 export const borrarPublicacion = (
-  { claseId, publicacionId }: { claseId: string; publicacionId: string },
+  {
+    claseId,
+    publicacionId,
+    actor,
+  }: { claseId: string; publicacionId: string; actor: ParticipanteDeAutoria },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<boolean> =>
   enTransaccion(ejecutor, async (tx) => {
+    const publicacion = await tx.publicacion.findFirst({
+      where: { id: publicacionId, claseId },
+      select: { autor: SELECT_AUTOR },
+    })
+    if (publicacion === null) return false
+    if (!puedeBorrar(actor, publicacion.autor)) throw errorBorradoNoPermitido()
+
     await tx.archivo.updateMany({
       where: { publicacionId, claseId },
       data: { estado: "descartado", publicacionId: null },
@@ -208,7 +247,14 @@ export const listarComentarios = async (
     publicacionId,
     cursor,
     limite,
-  }: { claseId: string; publicacionId: string; cursor: string | undefined; limite: number },
+    actor,
+  }: {
+    claseId: string
+    publicacionId: string
+    cursor: string | undefined
+    limite: number
+    actor: ParticipanteDeAutoria
+  },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaComentariosDb | null> => {
   const publicacion = await ejecutor.publicacion.findFirst({
@@ -232,7 +278,10 @@ export const listarComentarios = async (
     ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
   })
   const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
-  return { comentarios: pagina, siguienteCursor }
+  return {
+    comentarios: pagina.map((fila) => ({ ...fila, puedeBorrar: puedeBorrar(actor, fila.autor) })),
+    siguienteCursor,
+  }
 }
 
 // N-09: la transacción lee primero la publicación con FOR SHARE (única consulta cruda nueva de la
@@ -262,23 +311,34 @@ export const crearComentario = (
       select: SELECT_COMENTARIO,
     })
     await alGuardar(ejecutorSqlDe(tx))
-    return creado
+    return { ...creado, puedeBorrar: puedeBorrar(creado.autor, creado.autor) }
   })
 
-// El maestro dueño borra cualquier comentario de la publicación de su clase. false: no existe ahí.
-export const borrarComentario = async (
+// §D-2B3: la misma regla de autoría que las publicaciones (core/autoria.ts), dentro de la
+// transacción. false: no existe ahí (o ya lo borró otra petición). 403 BORRADO_NO_PERMITIDO sin
+// escribir nada si el actor no puede.
+export const borrarComentario = (
   {
     claseId,
     publicacionId,
     comentarioId,
-  }: { claseId: string; publicacionId: string; comentarioId: string },
+    actor,
+  }: { claseId: string; publicacionId: string; comentarioId: string; actor: ParticipanteDeAutoria },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<boolean> => {
-  const { count } = await ejecutor.comentario.deleteMany({
-    where: { id: comentarioId, publicacionId, publicacion: { claseId } },
+): Promise<boolean> =>
+  enTransaccion(ejecutor, async (tx) => {
+    const comentario = await tx.comentario.findFirst({
+      where: { id: comentarioId, publicacionId, publicacion: { claseId } },
+      select: { autor: SELECT_AUTOR },
+    })
+    if (comentario === null) return false
+    if (!puedeBorrar(actor, comentario.autor)) throw errorBorradoNoPermitido()
+
+    const { count } = await tx.comentario.deleteMany({
+      where: { id: comentarioId, publicacionId, publicacion: { claseId } },
+    })
+    return count > 0
   })
-  return count > 0
-}
 
 // "Mis comentarios": autor_id va dentro de la condición del borrado, así que el comentario de otra
 // persona no se toca. false: no existe, no es de esa clase o no es del autor.

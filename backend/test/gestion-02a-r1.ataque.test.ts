@@ -273,7 +273,13 @@ describe("ataque CLASES-02a r1: las seis rutas de gestión, identidad por identi
 })
 
 describe("ataque CLASES-02a r1: el admin en las rutas que NO se le abren", () => {
-  it("personas, inscritas, impartidas, unirse, las 7 del muro y las 2 de archivos: 403 ROL_NO_PERMITIDO y nada se escribe ni se borra", async () => {
+  // CLASES-02b ronda 0 (C-9, §D-2B3, P-03 a y matriz de "Autorización"): en 02b se le abren al
+  // admin el muro (leer, publicar, borrar publicaciones y comentarios por la ruta general) y los
+  // archivos. Siguen cerradas para él personas, inscritas, impartidas, unirse, comentar (P-03 a) y
+  // mis-comentarios: 403 ROL_NO_PERMITIDO sin escribir ni borrar nada. Las que se abren se comprueban
+  // aquí solo en lo que no depende del almacén (el muro); los archivos del admin los prueba
+  // archivos-d-r1 con un almacén en memoria.
+  it("personas, inscritas, impartidas, unirse, comentar y mis-comentarios: 403 ROL_NO_PERMITIDO y nada se escribe ni se borra; el muro ya se le abre (C-9)", async () => {
     const t = ficha()
     const dueno = await crearCuenta({ nombre: `Dueño ${t}`, rol: "maestro" })
     const alumno = await crearCuenta({ nombre: `Alumno ${t}` })
@@ -296,15 +302,8 @@ describe("ataque CLASES-02a r1: el admin en las rutas que NO se le abren", () =>
       ["GET", "/api/clases/impartidas"],
       ["HEAD", "/api/clases/impartidas"],
       ["POST", "/api/clases/unirse", { codigo: clase.codigoInvitacion }],
-      ["GET", `${base}/publicaciones`],
-      ["POST", `${base}/publicaciones`, { tipo: "anuncio", texto: "del admin" }],
-      ["DELETE", `${base}/publicaciones/${publicacionId}`],
-      ["GET", `${base}/publicaciones/${publicacionId}/comentarios`],
       ["POST", `${base}/publicaciones/${publicacionId}/comentarios`, { texto: "del admin" }],
-      ["DELETE", `${base}/publicaciones/${publicacionId}/comentarios/${comentarioId}`],
       ["DELETE", `${base}/mis-comentarios/${comentarioId}`],
-      ["POST", `${base}/archivos`, { nombre: "a.pdf", tipo: "application/pdf", tamano: 10 }],
-      ["POST", `${base}/archivos/${randomUUID()}/descarga`],
     ]
     const fallas: string[] = []
     for (const [metodo, url, payload] of casos) {
@@ -322,6 +321,31 @@ describe("ataque CLASES-02a r1: el admin en las rutas que NO se le abren", () =>
       comentarios: await obtenerDb().comentario.count({ where: { publicacionId } }),
       archivos: await obtenerDb().archivo.count({ where: { claseId: clase.id } }),
     }).toEqual(antes)
+
+    // Lo que se abre en 02b: leer el muro y los comentarios, publicar, y borrar el comentario de
+    // una alumna y la publicación del maestro (el admin borra todo, §D-2B2).
+    const abiertas: [Metodo, string, unknown, number][] = [
+      ["GET", `${base}/publicaciones`, undefined, 200],
+      ["GET", `${base}/publicaciones/${publicacionId}/comentarios`, undefined, 200],
+      ["POST", `${base}/publicaciones`, { tipo: "anuncio", texto: "del admin" }, 201],
+      [
+        "DELETE",
+        `${base}/publicaciones/${publicacionId}/comentarios/${comentarioId}`,
+        undefined,
+        204,
+      ],
+      ["DELETE", `${base}/publicaciones/${publicacionId}`, undefined, 204],
+    ]
+    const abiertasFallidas: string[] = []
+    for (const [metodo, url, payload, estado] of abiertas) {
+      const r = await pedir(metodo, url, tokenAdmin, payload)
+      if (r.statusCode !== estado)
+        abiertasFallidas.push(`${metodo} ${url}: ${r.statusCode} ${r.body.slice(0, 120)}`)
+    }
+    expect(abiertasFallidas).toEqual([])
+    expect(await obtenerDb().comentario.count({ where: { id: comentarioId } })).toBe(0)
+    expect(await obtenerDb().publicacion.count({ where: { id: publicacionId } })).toBe(0)
+    expect(await obtenerDb().publicacion.count({ where: { claseId: clase.id } })).toBe(1)
   })
 
   it("el admin no se inscribe ni como alumno ni como maestro: alta manual con su id y asignarse a sí mismo dan 404 sin escribir", async () => {
@@ -648,10 +672,15 @@ describe("ataque CLASES-02a r1: escritura doble (punto 4)", () => {
     }>().clase
     expect(detalle.maestros).toEqual(esperado)
     expect(detalle.maestro).toEqual(esperado[0])
-    const personas = (await pedir("GET", `${base}/personas`, alumno.token)).json<{
-      maestro: unknown
-    }>()
-    expect(personas.maestro).toEqual(esperado[0])
+    // CLASES-02b ronda 0 (C-11, §D-2B4): "Personas" trae el correo completo de cada maestro y
+    // maestros (1 o 2). Lo que se protege no cambia: sale el asignado, nunca el de clases.maestro_id.
+    const personasRespuesta = await pedir("GET", `${base}/personas`, alumno.token)
+    const personas = personasRespuesta.json<{ maestro: unknown; maestros: unknown }>()
+    const conCorreo = { ...esperado[0], email: asignado.email }
+    expect(personas.maestro).toEqual(conCorreo)
+    expect(personas.maestros).toEqual([conCorreo])
+    expect(personasRespuesta.body).not.toContain(intruso.id)
+    expect(personasRespuesta.body).not.toContain(intruso.email)
     const inscritas = await pedir("GET", "/api/clases/inscritas?limite=100", alumno.token)
     expect(inscritas.body).not.toContain(intruso.nombre)
     const delAdmin = (await pedir("GET", base, tokenAdmin)).json<{ clase: { maestros: unknown } }>()

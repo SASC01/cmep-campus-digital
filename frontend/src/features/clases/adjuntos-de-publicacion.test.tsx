@@ -194,10 +194,16 @@ describe("PublicacionDelMuro con adjuntos", () => {
     tipo: "material",
     titulo: "Guía del tema 3",
     texto: "",
-    autor: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+    autor: {
+      id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+      nombre: "Luis Pérez",
+      administracion: false,
+    },
     creadoEn: "2026-09-29T15:30:00.000Z",
     comentarios: 0,
     adjuntos,
+    // CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
+    puedeBorrar: true,
   })
 
   it("muestra los adjuntos y, al pedir borrar, la frase que también los nombra", () => {

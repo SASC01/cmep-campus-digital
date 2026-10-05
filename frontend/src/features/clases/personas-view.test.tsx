@@ -19,11 +19,17 @@ const errorJson = (estado: number, codigo: string) =>
   respuestaJson(estado, { error: { codigo, mensaje: "mensaje del servidor" } })
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
-const MAESTRO = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b (C-11): el esquema ahora exige `email` en cada persona y `maestros`; solo se agregan.
+const MAESTRO = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  email: "luis@x.mx",
+}
 
 const persona = (n: number, nombre = `Alumno ${String(n)}`) => ({
   id: `4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`,
   nombre,
+  email: `alumno${String(n)}@x.mx`,
 })
 
 const pagina = (
@@ -31,6 +37,7 @@ const pagina = (
   extra: { totalAlumnos?: number; siguienteCursor?: string | null } = {},
 ) => ({
   maestro: MAESTRO,
+  maestros: [MAESTRO],
   alumnos,
   totalAlumnos: extra.totalAlumnos ?? alumnos.length,
   siguienteCursor: extra.siguienteCursor ?? null,

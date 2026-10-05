@@ -271,14 +271,24 @@ export const estadoPagoSchema = z.enum(["al_corriente", "deudor"])
 // Lo que ve un compañero: nombre y nada más (RN-02, S-09). Sin correo, estado de pago ni restricción.
 export const personaDeClaseSchema = z.object({ id: z.uuid(), nombre: z.string() })
 
+// CLASES-02b (RF-19, §D-2B4): "Personas" lleva el correo completo de los maestros y de los
+// compañeros, y nunca el estado de pago ni la restricción de acceso.
+export const personaConCorreoSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  email: z.string(),
+})
+
 export const personasRespuestaSchema = z.object({
-  maestro: personaDeClaseSchema,
-  alumnos: z.array(personaDeClaseSchema),
+  // Compatibilidad (P-06 de CLASES-02): el primer maestro de `maestros`.
+  maestro: personaConCorreoSchema,
+  maestros: z.array(personaConCorreoSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
+  alumnos: z.array(personaConCorreoSchema),
   totalAlumnos: z.number().int().min(0),
   siguienteCursor: z.uuid().nullable(),
 })
 
-// Roster del dueño (S-10): el único lugar donde salen el correo completo y los datos de pago.
+// Roster de los maestros de la clase y del admin (S-10): el único lugar donde salen el correo completo y los datos de pago.
 export const alumnoDeClaseSchema = z.object({
   id: z.uuid(),
   nombre: z.string(),
@@ -410,7 +420,15 @@ export const crearComentarioSchema = z.object({
   texto: textoConContenidoSchema(1000, "Escribe tu comentario"),
 })
 
-export const autorDelMuroSchema = z.object({ id: z.uuid(), nombre: z.string() })
+// CLASES-02b (§D-2B1): lo que publica el administrador sale firmado con este texto y
+// `administracion: true`; el rol nunca sale. El id es el real de la cuenta (P-11).
+export const FIRMA_ADMINISTRACION = "Administración"
+
+export const autorDelMuroSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  administracion: z.boolean(),
+})
 
 export const publicacionSchema = z.object({
   id: z.uuid(),
@@ -422,6 +440,8 @@ export const publicacionSchema = z.object({
   comentarios: z.number().int().min(0),
   // C-21: obligatorio, sin .default ni .optional; una publicación sin archivos lleva [].
   adjuntos: z.array(adjuntoSchema),
+  // CLASES-02b (§D-2B2): lo decide el servidor con core/autoria.ts; la interfaz solo lo lee.
+  puedeBorrar: z.boolean(),
 })
 
 export const publicacionRespuestaSchema = z.object({ publicacion: publicacionSchema })
@@ -437,6 +457,7 @@ export const comentarioSchema = z.object({
   autor: autorDelMuroSchema,
   creadoEn: z.iso.datetime(),
   propio: z.boolean(),
+  puedeBorrar: z.boolean(),
 })
 
 export const comentarioRespuestaSchema = z.object({ comentario: comentarioSchema })
@@ -465,6 +486,7 @@ export const CODIGOS_CLASES = {
   PUBLICACION_NO_ENCONTRADA: "PUBLICACION_NO_ENCONTRADA",
   COMENTARIO_NO_ENCONTRADO: "COMENTARIO_NO_ENCONTRADO",
   BUSQUEDA_MUY_CORTA: "BUSQUEDA_MUY_CORTA",
+  BORRADO_NO_PERMITIDO: "BORRADO_NO_PERMITIDO",
   MAESTRO_NO_ENCONTRADO: "MAESTRO_NO_ENCONTRADO",
   TOPE_DE_MAESTROS: "TOPE_DE_MAESTROS",
   CLASE_SIN_MAESTRO: "CLASE_SIN_MAESTRO",
@@ -494,6 +516,7 @@ export type CandidatosMaestroRespuesta = z.infer<typeof candidatosMaestroRespues
 export type PaginacionRoster = z.infer<typeof paginacionRosterSchema>
 export type EstadoPagoAlumno = z.infer<typeof estadoPagoSchema>
 export type PersonaDeClase = z.infer<typeof personaDeClaseSchema>
+export type PersonaConCorreo = z.infer<typeof personaConCorreoSchema>
 export type PersonasRespuesta = z.infer<typeof personasRespuestaSchema>
 export type AlumnoDeClase = z.infer<typeof alumnoDeClaseSchema>
 export type ListaAlumnosRespuesta = z.infer<typeof listaAlumnosRespuestaSchema>

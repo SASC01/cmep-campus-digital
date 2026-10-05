@@ -370,6 +370,10 @@ describe("ataque CLASES-b r1: las vistas no pintan datos de pago aunque la API l
         Promise.resolve(
           respuestaJson(200, {
             maestro: { id: idDe(7), nombre: "Profe Luna", ...extra },
+            // CLASES-02b ronda 0 (C-11, §D-2B4): personasRespuestaSchema exige maestros (1 o 2) y el
+            // correo de cada persona (ya viene en extra). Con 02b la vista todavía no muestra
+            // correos, así que ninguna aserción cambia; el «@» lo revisa C-17 (02d).
+            maestros: [{ id: idDe(7), nombre: "Profe Luna", ...extra }],
             alumnos: [{ id: idDe(8), nombre: "Compañera Sol", ...extra }],
             totalAlumnos: 1,
             siguienteCursor: null,

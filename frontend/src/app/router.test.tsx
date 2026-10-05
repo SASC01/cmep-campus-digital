@@ -130,7 +130,9 @@ describe("rutas", () => {
       if (ruta === `/api/clases/${claseId}`) return respuestaJson(200, { clase })
       if (ruta.startsWith(`/api/clases/${claseId}/personas`)) {
         return respuestaJson(200, {
-          maestro: clase.maestro,
+          // CLASES-02b (C-11): el esquema ahora exige `email` y `maestros`; solo se agregan.
+          maestro: { ...clase.maestro, email: "luis@x.mx" },
+          maestros: [{ ...clase.maestro, email: "luis@x.mx" }],
           alumnos: [],
           totalAlumnos: 0,
           siguienteCursor: null,

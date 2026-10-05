@@ -18,7 +18,12 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 const PUBLICACION_ID = "5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d11"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
 
 const publicacion = (extra: Partial<Publicacion> = {}): Publicacion => ({
   id: PUBLICACION_ID,
@@ -30,6 +35,7 @@ const publicacion = (extra: Partial<Publicacion> = {}): Publicacion => ({
   comentarios: 2,
   // C-21 (Enmienda 10): toda publicación lleva adjuntos.
   adjuntos: [],
+  puedeBorrar: true,
   ...extra,
 })
 
@@ -38,9 +44,14 @@ const idDe = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}
 const comentario = (n: number, extra: Record<string, unknown> = {}) => ({
   id: idDe(n),
   texto: `Comentario ${String(n)}`,
-  autor: { id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01", nombre: `Autor ${String(n)}` },
+  autor: {
+    id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01",
+    nombre: `Autor ${String(n)}`,
+    administracion: false,
+  },
   creadoEn: "2026-09-29T16:30:00.000Z",
   propio: false,
+  puedeBorrar: true,
   ...extra,
 })
 

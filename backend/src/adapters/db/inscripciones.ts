@@ -1,7 +1,7 @@
 import { AppError } from "../../core/errores.js"
 import { escaparComodinesLike } from "../../core/clases/busqueda.js"
 import { paginar } from "../../core/paginacion.js"
-import { SELECT_MAESTROS_DE_CLASE, maestrosDeFilas } from "./clases.js"
+import { ORDEN_DE_MAESTROS } from "./clases.js"
 import { enTransaccion, obtenerDb, type Ejecutor } from "./cliente.js"
 import { traducirErrorPrisma } from "./errores.js"
 import type { Prisma } from "./generated/client.js"
@@ -11,9 +11,17 @@ export interface PersonaDb {
   nombre: string
 }
 
+export interface PersonaConCorreoDb {
+  id: string
+  nombre: string
+  email: string
+}
+
 export interface ListaPersonasDb {
-  maestro: PersonaDb
-  alumnos: PersonaDb[]
+  // El primero de `maestros` (compatibilidad, P-06 de CLASES-02).
+  maestro: PersonaConCorreoDb
+  maestros: PersonaConCorreoDb[]
+  alumnos: PersonaConCorreoDb[]
   totalAlumnos: number
   siguienteCursor: string | null
 }
@@ -90,7 +98,9 @@ const condicionesDePagina = async (
   }
 }
 
-// Compañeros (RF-19, S-09): solo id y nombre. Esta función no selecciona correo ni datos de pago.
+// "Personas" (RF-19, CLASES-02b): id, nombre y correo completo de los maestros de la clase y de los
+// compañeros. Nunca selecciona el estado de pago ni la restricción de acceso. El orden de los
+// maestros sale de ORDEN_DE_MAESTROS (db/clases.ts).
 export const listarPersonas = async (
   { claseId, cursor, limite }: { claseId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor = obtenerDb(),
@@ -99,25 +109,36 @@ export const listarPersonas = async (
   const [clase, filas, totalAlumnos] = await Promise.all([
     ejecutor.clase.findUnique({
       where: { id: claseId },
-      select: { maestros: SELECT_MAESTROS_DE_CLASE },
+      select: {
+        maestros: {
+          select: { maestro: { select: { id: true, nombre: true, email: true } } },
+          orderBy: ORDEN_DE_MAESTROS,
+        },
+      },
     }),
     ejecutor.inscripcion.findMany({
       where,
       orderBy,
       take,
-      select: { usuarioId: true, usuario: { select: { nombre: true } } },
+      select: { usuarioId: true, usuario: { select: { nombre: true, email: true } } },
     }),
     ejecutor.inscripcion.count({ where: { claseId, ...SOLO_CUENTAS_ACTIVAS } }),
   ])
   if (clase === null) return null
   // Una clase siempre tiene de uno a dos maestros (RN-06); el principal es el primero (S-05).
-  const [maestro] = maestrosDeFilas(clase.maestros)
+  const maestros = clase.maestros.map((fila) => fila.maestro)
+  const [maestro] = maestros
   if (maestro === undefined) return null
 
   const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.usuarioId)
   return {
     maestro,
-    alumnos: pagina.map((fila) => ({ id: fila.usuarioId, nombre: fila.usuario.nombre })),
+    maestros,
+    alumnos: pagina.map((fila) => ({
+      id: fila.usuarioId,
+      nombre: fila.usuario.nombre,
+      email: fila.usuario.email,
+    })),
     totalAlumnos,
     siguienteCursor,
   }

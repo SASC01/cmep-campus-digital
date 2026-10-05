@@ -110,6 +110,7 @@ export {
   type ListaAlumnosDeClaseDb,
   type ListaCandidatosDb,
   type ListaPersonasDb,
+  type PersonaConCorreoDb,
   type PersonaDb,
 } from "./inscripciones.js"
 export {

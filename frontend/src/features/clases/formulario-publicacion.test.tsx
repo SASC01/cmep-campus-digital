@@ -23,11 +23,17 @@ const publicacionCreada = (extra: Record<string, unknown> = {}) => ({
     tipo: "anuncio",
     titulo: null,
     texto: "Mañana hay examen",
-    autor: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+    autor: {
+      id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+      nombre: "Luis Pérez",
+      administracion: false,
+    },
     creadoEn: "2026-09-29T15:30:00.000Z",
     comentarios: 0,
     // C-21 (Enmienda 10): la respuesta siempre lleva adjuntos.
     adjuntos: [],
+    // CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
+    puedeBorrar: true,
     ...extra,
   },
 })

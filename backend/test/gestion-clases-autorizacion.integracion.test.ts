@@ -366,7 +366,9 @@ describe("autorización de las rutas existentes con el admin agregado (CLASES-02
     }
   })
 
-  it("PR-2A23: personas, inscritas, impartidas, unirse y todas las rutas del muro y de los archivos siguen en 403 ROL_NO_PERMITIDO para el admin", async () => {
+  // CLASES-02b (C-9, I-2): el muro (leer, publicar, borrar) y los archivos se abren al admin; siguen
+  // cerradas personas, inscritas, impartidas, unirse, comentar (P-03 a) y mis-comentarios.
+  it("PR-2A23: personas, inscritas, impartidas, unirse, comentar y mis-comentarios siguen en 403 ROL_NO_PERMITIDO para el admin (el muro y los archivos se abren en 02b)", async () => {
     const e = await escenario()
     const base = `/api/clases/${e.claseId}`
     const id = randomUUID()
@@ -379,15 +381,8 @@ describe("autorización de las rutas existentes con el admin agregado (CLASES-02
       { metodo: "GET", url: "/api/clases/inscritas" },
       { metodo: "GET", url: "/api/clases/impartidas" },
       { metodo: "POST", url: "/api/clases/unirse", payload: { codigo: "ABCDEFG" } },
-      { metodo: "GET", url: `${base}/publicaciones` },
-      { metodo: "POST", url: `${base}/publicaciones`, payload: { tipo: "anuncio", texto: "x" } },
-      { metodo: "DELETE", url: `${base}/publicaciones/${id}` },
-      { metodo: "GET", url: `${base}/publicaciones/${id}/comentarios` },
       { metodo: "POST", url: `${base}/publicaciones/${id}/comentarios`, payload: { texto: "x" } },
-      { metodo: "DELETE", url: `${base}/publicaciones/${id}/comentarios/${randomUUID()}` },
       { metodo: "DELETE", url: `${base}/mis-comentarios/${id}` },
-      { metodo: "POST", url: `${base}/archivos`, payload: {} },
-      { metodo: "POST", url: `${base}/archivos/${id}/descarga` },
     ]
 
     for (const ruta of cerradas) {

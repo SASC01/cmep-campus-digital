@@ -34,7 +34,7 @@ export const archivosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 ) => {
   app.post(
     "/clases/:claseId/archivos",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const datos = validarCuerpo(solicitarSubidaSchema, request.body)
@@ -73,7 +73,7 @@ export const archivosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.post(
     "/clases/:claseId/archivos/:archivoId/descarga",
-    protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { archivoId } = validarParametros(archivoIdParamSchema, request.params)

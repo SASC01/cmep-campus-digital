@@ -1341,7 +1341,12 @@ describe("ataque CLASES-c r1: alcance de las 7 rutas con ids de otra clase y fug
     },
   )
 
-  it("rol por la API (punto 11 del manager): un estudiante inscrito no publica, ni borra publicaciones o el comentario de otro por la ruta del maestro (403 ROL_NO_PERMITIDO)", async () => {
+  // CLASES-02b ronda 0 (C-8, §D-2B3 y matriz de "Autorización"): el borrado de comentarios por la
+  // ruta general pasa a estudiante, maestro y admin con "inscripcion" y la autoría (puedeBorrar):
+  // el estudiante llega al adaptador y el comentario de otro le responde 403 BORRADO_NO_PERMITIDO.
+  // Publicar y borrar publicaciones siguen siendo de maestro y admin (403 ROL_NO_PERMITIDO). Lo que
+  // se protege no cambia: el estudiante no publica ni borra lo que no es suyo, y nada se borra.
+  it("rol y autoría por la API (punto 11 del manager): un estudiante inscrito no publica ni borra publicaciones (403 ROL_NO_PERMITIDO), ni borra el comentario de otro (403 BORRADO_NO_PERMITIDO)", async () => {
     const e = await escenario()
     const p = await crearPublicacionDePrueba({ claseId: e.claseId, autorId: e.maestro.id })
     const c = await crearComentarioDePrueba({ publicacionId: p, autorId: e.otroAlumno.id })
@@ -1366,7 +1371,7 @@ describe("ataque CLASES-c r1: alcance de las 7 rutas con ids de otra clase y fug
     expect(rs.map((r) => `${r.statusCode} ${codigoDe(r)}`)).toEqual([
       "403 ROL_NO_PERMITIDO",
       "403 ROL_NO_PERMITIDO",
-      "403 ROL_NO_PERMITIDO",
+      "403 BORRADO_NO_PERMITIDO",
     ])
     expect(await contarPublicaciones(e.claseId)).toBe(1)
     expect(await leerComentarioDb(c)).not.toBeNull()

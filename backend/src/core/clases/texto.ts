@@ -9,7 +9,8 @@ export { normalizarTextoLargo }
 // que llegan como cadena; cualquier otra forma se deja intacta para que el esquema la rechace.
 // No muta el objeto recibido.
 export const conTextosNormalizados = (cuerpo: unknown, campos: readonly string[]): unknown => {
-  if (typeof cuerpo !== "object" || cuerpo === null) return cuerpo
+  // Un arreglo se deja intacto (M-09): validarCuerpo lo rechaza con su mensaje, en vez de volverlo objeto.
+  if (typeof cuerpo !== "object" || cuerpo === null || Array.isArray(cuerpo)) return cuerpo
   const objeto: Record<string, unknown> = { ...(cuerpo as Record<string, unknown>) }
   for (const campo of campos) {
     const valor = objeto[campo]

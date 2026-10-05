@@ -25,8 +25,18 @@ const navegacion = vi.hoisted(() => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/m
 vi.mock("@/services/navegacion", () => navegacion)
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
-const ALUMNA = { id: "4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Ana López" }
+// CLASES-02b ronda 0 (C-10, §D-2B1): el autor del muro suma administracion (obligatorio); un
+// maestro y una alumna firman con su nombre y false.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
+const ALUMNA = {
+  id: "4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Ana López",
+  administracion: false,
+}
 const idPublicacion = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
 const idComentario = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
 const idAlumno = (n: number) => `7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
@@ -48,19 +58,27 @@ interface PublicacionFalsa {
   tipo: "anuncio" | "material"
   titulo: string | null
   texto: string
-  autor: { id: string; nombre: string }
+  autor: { id: string; nombre: string; administracion: boolean }
   creadoEn: string
   comentarios: number
   adjuntos: unknown[]
+  puedeBorrar: boolean
 }
 
 interface ComentarioFalso {
   id: string
   texto: string
-  autor: { id: string; nombre: string }
+  autor: { id: string; nombre: string; administracion: boolean }
   creadoEn: string
   propio: boolean
+  puedeBorrar: boolean
 }
+
+// CLASES-02b ronda 0 (C-10, §D-2B2): cada publicación y comentario suma puedeBorrar (obligatorio).
+// Los dobles llevan el valor de la perspectiva del maestro de la clase, la que muestra «Borrar»
+// desde CLASES-01 (la publicación es suya y el comentario es de una alumna, P-01 b); con 02b la
+// vista todavía decide por el rol, así que ninguna aserción cambia. C-13 (02c) ajusta la otra
+// perspectiva cuando el botón salga de puedeBorrar.
 
 const publicacion = (n: number, extra: Partial<PublicacionFalsa> = {}): PublicacionFalsa => ({
   id: idPublicacion(n),
@@ -71,6 +89,7 @@ const publicacion = (n: number, extra: Partial<PublicacionFalsa> = {}): Publicac
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios: 0,
   adjuntos: [],
+  puedeBorrar: true,
   ...extra,
 })
 
@@ -80,6 +99,7 @@ const comentario = (n: number, extra: Partial<ComentarioFalso> = {}): Comentario
   autor: ALUMNA,
   creadoEn: "2026-09-29T16:30:00.000Z",
   propio: false,
+  puedeBorrar: true,
   ...extra,
 })
 
@@ -399,7 +419,11 @@ describe("ataque CLASES-c r1: texto como texto", () => {
           tipo: "material",
           titulo: `Título ${malicioso}`,
           texto: "<script>alert(2)</script>\nsegunda línea",
-          autor: { id: AUTOR.id, nombre: "<b>Maestro</b><svg onload=alert(3)>" },
+          autor: {
+            id: AUTOR.id,
+            nombre: "<b>Maestro</b><svg onload=alert(3)>",
+            administracion: false,
+          },
           comentarios: 1,
         }),
       ],
@@ -407,7 +431,11 @@ describe("ataque CLASES-c r1: texto como texto", () => {
         [idPublicacion(1)]: [
           comentario(1, {
             texto: `<iframe src="javascript:alert(4)"></iframe>${malicioso}`,
-            autor: { id: ALUMNA.id, nombre: '<a href="javascript:alert(5)">Ana</a>' },
+            autor: {
+              id: ALUMNA.id,
+              nombre: '<a href="javascript:alert(5)">Ana</a>',
+              administracion: false,
+            },
           }),
         ],
       },

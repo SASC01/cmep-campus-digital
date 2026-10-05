@@ -419,7 +419,11 @@ describe("ataque CLASES-b r1: autorización con los cinco tokens en las 8 rutas 
 })
 
 describe("ataque CLASES-b r1: estado de pago, restricción y correo completo fuera del roster", () => {
-  it("un estudiante inscrito ve al compañero restringido y deudor en personas, sin estado de pago, restricción ni correo en ninguna profundidad; el dueño los ve en el roster", async () => {
+  // CLASES-02b ronda 0 (C-11, §D-2B4 y RF-19): "Personas" devuelve el correo completo de maestros y
+  // compañeros, y maestros (1 o 2). El correo deja de ser una fuga en "Personas"; lo que se protege
+  // no cambia: ni estado de pago ni restricción en ninguna profundidad (también en el maestro de
+  // compatibilidad), ni el correo enmascarado, y los correos solo en "Personas" y en el roster.
+  it("un estudiante inscrito ve al compañero restringido y deudor en personas con su correo (C-11), sin estado de pago ni restricción en ninguna profundidad; el dueño los ve en el roster", async () => {
     const t = ficha()
     const dueno = await crearCuenta({ nombre: `Dueño ${t}`, rol: "maestro" })
     const yo = await crearCuenta({ nombre: `Yo ${t}` })
@@ -438,14 +442,28 @@ describe("ataque CLASES-b r1: estado de pago, restricción y correo completo fue
     expect(cuerpo.alumnos.map((a) => a.id)).toContain(restringido.id)
     expect(cuerpo.alumnos.map((a) => a.id)).toContain(deudor.id)
     const claves = new Set(clavesDe(personas.json()))
-    for (const prohibida of ["estadoPago", "accesoRestringido", "email", "correoEnmascarado"]) {
+    for (const prohibida of ["estadoPago", "accesoRestringido", "correoEnmascarado"]) {
       expect(claves.has(prohibida), `clave ${prohibida} en personas`).toBe(false)
     }
-    for (const texto of ["deudor", "al_corriente", "restringid", "@", dueno.email]) {
+    for (const texto of ["deudor", "al_corriente", "restringid"]) {
       expect(personas.body.toLowerCase(), `"${texto}" en personas`).not.toContain(
         texto.toLowerCase(),
       )
     }
+    const conCorreo = personas.json<{
+      maestro: { id: string; nombre: string; email: string }
+      maestros: { id: string; nombre: string; email: string }[]
+      alumnos: { id: string; nombre: string; email: string }[]
+    }>()
+    const delDueno = { id: dueno.id, nombre: dueno.nombre, email: dueno.email }
+    expect(conCorreo.maestro).toEqual(delDueno)
+    expect(conCorreo.maestros).toEqual([delDueno])
+    expect(conCorreo.alumnos.find((a) => a.id === restringido.id)).toEqual({
+      id: restringido.id,
+      nombre: restringido.nombre,
+      email: restringido.email,
+    })
+    expect(conCorreo.alumnos.find((a) => a.id === deudor.id)?.email).toBe(deudor.email)
 
     // El mismo estudiante intenta las demás rutas de b: ningún cuerpo trae datos de pago ni correos.
     const intentos = await Promise.all([
@@ -456,9 +474,12 @@ describe("ataque CLASES-b r1: estado de pago, restricción y correo completo fue
       pedir("GET", `/api/clases/${clase.id}/personas?limite=1`, yo.token),
       pedir("GET", `/api/clases/${clase.id}/personas?cursor=${randomUUID()}`, yo.token),
     ])
-    for (const intento of intentos) {
+    // Las dos últimas peticiones son de "Personas" (limite=1 y un cursor inexistente) y ya
+    // pueden traer correos (C-11); las rutas que el estudiante no tiene, no.
+    for (const [i, intento] of intentos.entries()) {
       expect(intento.body).not.toContain("estadoPago")
       expect(intento.body).not.toContain("accesoRestringido")
+      if (i >= 4) continue
       expect(intento.body).not.toContain(restringido.email)
       expect(intento.body).not.toContain(deudor.email)
     }

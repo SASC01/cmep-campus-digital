@@ -199,7 +199,8 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 
 ### RN-07 Autoría
 Regla general para todo lo que se publica en una clase: publicaciones y comentarios del muro hoy, y tareas en TAREAS.
-- Cada autor borra solo lo suyo.
+- Cada autor borra solo lo suyo. El maestro también borra los comentarios de los alumnos en las clases que imparte; nunca lo que publicó otro maestro de la clase (CLASES-02).
+- Borrar una publicación borra también su hilo de comentarios, de quien sea (CLASES-02).
 - Un maestro **nunca** borra ni edita lo que publicó el Administrador.
 - El Administrador puede borrar cualquier publicación o comentario de cualquier clase.
 - Lo que publica el Administrador se firma "Administración", con un distintivo visible y sin nombre de persona.

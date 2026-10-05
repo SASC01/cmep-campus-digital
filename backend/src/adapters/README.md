@@ -205,8 +205,13 @@ correo completo, que solo ve el administrador.
 `usuario_id`) con un `where`, sin el `cursor` de Prisma. Con cursor, una lectura de `usuarios` por PK
 trae el `nombre_busqueda` del cursor y solo se rechaza (`400 VALIDACION`) si ese usuario no existe: un
 alumno quitado de la clase o desactivado sigue sirviendo, porque su clave de orden sobrevive.
-`listarAlumnosDeClase` es la **única** función que selecciona el correo completo, el estado de pago y
-la restricción de acceso de un alumno (RN-02); `listarPersonas` solo trae id y nombre.
+`listarAlumnosDeClase` es la **única** función que selecciona el estado de pago y la restricción de
+acceso de un alumno (RN-02), y la única que selecciona el correo completo **junto con** esos datos.
+`listarPersonas` selecciona id, nombre y correo de los maestros y de los alumnos de la clase
+(CLASES-02, RF-19), nunca el estado de pago ni la restricción. Fuera de este archivo, también
+seleccionan correos `buscarMaestrosCandidatos` (`db/maestros-de-clase.ts`, solo maestros, para el
+admin) y las funciones de cuentas de AUTH. El orden de los maestros sale de `ORDEN_DE_MAESTROS`
+(`db/clases.ts`).
 `buscarCandidatos` escapa los comodines de `LIKE` (Prisma no los escapa en `contains`) y selecciona
 el correo solo para que el handler lo enmascare con `enmascararCorreo` antes de responder.
 
@@ -242,6 +247,12 @@ cascada; si el borrado confirma antes, el `FOR SHARE` ya no ve la fila. Toda con
 `publicacionId` o `comentarioId` filtra además por la clase de la ruta, y «mis comentarios» pone
 `autor_id` dentro de la condición del `deleteMany`. `listarPublicaciones` cuenta los comentarios de
 toda la página con una sola consulta agrupada, fuera de cualquier ciclo.
+
+El autor se selecciona con su `rol` solo para dos cosas: `firmaDelAutor` (la firma
+"Administración") y `puedeBorrar` (`core/autoria.ts`), que se aplica dentro de la transacción de
+`borrarPublicacion` y `borrarComentario` (leer la autoría y borrar en la misma transacción, sin
+candado: la autoría no cambia) y por elemento en `listarPublicaciones` y `listarComentarios`, con el
+`actor` de la petición. El rol no sale en ninguna respuesta.
 
 ## `storage` y `db/archivos.ts` (CLASES-d, §D-D1 a §D-D3)
 

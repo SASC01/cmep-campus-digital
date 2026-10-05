@@ -113,6 +113,13 @@ describe("conTextosNormalizados", () => {
     expect(conTextosNormalizados(7, ["texto"])).toBe(7)
   })
 
+  it("PR-2A05: un arreglo se devuelve intacto (M-09), sin volverlo objeto, para que validarCuerpo lo rechace", () => {
+    const arreglo = ["x"]
+    expect(conTextosNormalizados(arreglo, ["0", "texto"])).toBe(arreglo)
+    expect(conTextosNormalizados([], ["texto"])).toEqual([])
+    expect(Array.isArray(conTextosNormalizados([{}], ["texto"]))).toBe(true)
+  })
+
   it("PR-2A05: no muta el objeto recibido", () => {
     const cuerpo = { texto: "  a\r\nb  " }
     const resultado = conTextosNormalizados(cuerpo, ["texto"])

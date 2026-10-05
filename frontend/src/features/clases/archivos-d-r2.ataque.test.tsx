@@ -27,7 +27,15 @@ vi.mock("@/services/navegacion", () => navegacion)
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 const ORIGEN_ALMACEN = "https://almacen.ejemplo.mx"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b ronda 0 (C-10, §D-2B1 y §D-2B2): el autor del muro suma administracion (obligatorio;
+// un maestro firma con su nombre y false) y cada publicación suma puedeBorrar: true en la que el
+// maestro acaba de crear (§D-2B3) y false en el muro que ve el estudiante. Ninguna aserción cambia;
+// en «otro protocolo», el muro sigue fallando solo por la vistaPrevia.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
 const TAB = String.fromCharCode(9)
 const idDeArchivo = (n: number) => `9a9b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
 const idPublicacion = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
@@ -48,6 +56,7 @@ const publicacionCreada = () => ({
     creadoEn: "2026-10-02T15:30:00.000Z",
     comentarios: 0,
     adjuntos: [],
+    puedeBorrar: true,
   },
 })
 
@@ -443,6 +452,7 @@ describe("ataque d-r2: T-39 en las tres URL del almacén", () => {
               vistaPrevia: { url: "blob:https://x/1", expiraEn: "2026-10-02T15:05:00.000Z" },
             },
           ],
+          puedeBorrar: false,
         },
       ],
       siguienteCursor: null,
@@ -478,6 +488,7 @@ const pagina = (
             expiraEn === null ? null : { url: `${ORIGEN_ALMACEN}/v/${String(i)}`, expiraEn },
         }),
       ),
+      puedeBorrar: false,
     },
   ],
   siguienteCursor,

@@ -512,3 +512,184 @@ Son los de "Textos propuestos → Al cerrar 02a" del plan, literales:
 | `*.ataque` | 120 (desde 115; tabla de la ronda 2, base de V-01 de 02b) | |
 
 Siguiente paso: el orquestador aplica los textos y las filas de arriba, le da al humano el bloque del commit `<K2a>` y, después del commit, arranca la ronda 0 de 02b.
+
+## Verificación del resumen — CLASES-02b — implementación
+Fecha: 2026-10-05 · Base de "No se toca" dentro de los paquetes: `<K2a>` = `07c992f` (fuera de ellos, `e4396a0`) · Resumen: `resumen-programador.md`, "CLASES-02b — Implementación"
+
+Veredicto: **ACEPTADO.** Todas las cifras coinciden, cada viñeta PR-2B tiene su caso, y la regla de autoría se aplica en el backend dentro de la transacción. No hay hallazgos nuevos.
+
+### Mis corridas (una a la vez)
+PA-01: red `uacam5 2`, categoría Pública, aceptada por el humano solo para hoy (`aprobacion.md`); regla del firewall habilitada (Inbound/Block/Public); Docker 28.5.1. No toqué ningún proceso del humano.
+
+| Comando | Resumen del programador | Mi corrida |
+|---|---|---|
+| `cd backend; npm run lint` | código 0 | código 0; última línea `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` |
+| `cd backend; npm run build` | código 0 | código 0 |
+| `cd backend; npx prisma validate` | — | "The schema at prisma\schema.prisma is valid" (el esquema no cambió en 02b) |
+| `cd backend; npm test` (una corrida completa) | `Test Files 144 passed (144)` · `Tests 1720 passed (1720)` | `Test Files 144 passed (144)` · `Tests 1720 passed (1720)` · 123.84 s |
+| PA-07 | limpia, con control positivo; origen de los 10 "Error no controlado" no verificado | 0 `40P01`, 0 `deadlock detected`, 0 `could not serialize`, 0 `too many clients`, 0 `Unable to start a transaction`. **5** `P2028`, exactamente los permitidos y con el control positivo: `cuentas.ts:202` (cambiar contraseña), `index.ts:134` (login), `index.ts:180` (refrescar), `cuentas.ts:106` (restablecer) y `$queryRawUnsafe` de la cola de comentarios. **10** "Error no controlado", que **verifiqué uno por uno contra I-1 de la ronda 0 de 02b**: 5 "fallo simulado de la base en la búsqueda" y 1 "al crear la sesión" (`intentos-r2`, login); 3 `ZodError` al armar la respuesta en `handlers/archivos.ts:61` (subida), `:90` (descarga) y `handlers/clases/muro.ts:135` (lista de publicaciones; antes `:140`, la línea cambió con 02b como previó el tester); y `boom` (`salud.integracion.test.ts:29`). Coinciden por ruta y llamada |
+| `cd shared; npm run build` | código 0 | código 0 |
+| `npm run build` (raíz) | `✓ built in 2.29s` | código 0, `✓ built in 1.61s` (el tiempo no se contrasta) |
+| `cd frontend; npm test` | `104 passed` · `1396 passed` | `Test Files 104 passed (104)` · `Tests 1396 passed (1396)` |
+| `cd frontend; npm run lint` | código 0; `tsc -b` | código 0; última línea `tsc -b` |
+| Conteos | 144 archivos y 1720 casos (+2 y +17) | 142 + `autoria.test.ts` + `muro-admin.integracion.test.ts` = 144. Casos `it("PR-2B…` en el código: 01:3, 02:3, 03:2, 04:1, 05:1, 06:2, 07:1, 08:1, 09:1, 10:1, es decir 16, más 1 de `texto.test.ts` (M-09) = 17. Coinciden con el mapa del resumen |
+| V-01 | 120/120 | 120/120 contra la tabla de la ronda 0 de 02b. Las 15 `*.ataque` modificadas son exactamente las 15 marcadas "cambia" por el tester; el programador no tocó ninguna y no hay ninguna sin rastrear |
+
+### Diff contra `07c992f` (38 archivos rastreados, +578/−173, y 3 nuevos)
+Lo que cambió, por grupo:
+- **Producción:**
+  - `shared/src/clases.ts` e `index.ts` (A-11).
+  - `core/autoria.ts` (nuevo) y `core/clases/texto.ts` (M-09).
+  - `adapters/db/{publicaciones,inscripciones,index}.ts`.
+  - `handlers/clases/muro.ts` y `handlers/archivos.ts`.
+  - Los README de `adapters` y `handlers`.
+- **Pruebas:**
+  - Nuevas: `autoria.test.ts` y `muro-admin.integracion.test.ts`.
+  - Normales de la lista de 02b: `muro`, `muro-autorizacion`, `archivos-autorizacion` y `alumnos`.
+  - Las dos de I-2: `gestion-clases-autorizacion` y `texto.test.ts`.
+  - Los 7 dobles del frontend, que solo agregan `administracion`, `puedeBorrar`, `maestros` y `email` (lo revisé en `publicacion-del-muro.test.tsx` y `personas-view.test.tsx`).
+- **Las 15 `*.ataque` del tester.**
+
+Sin cambios contra `07c992f`: `middleware/**`, `handlers/validacion.ts`, `handlers/auth/**`, `handlers/admin.ts`, `adapters/db/{archivos,cliente}.ts`, `core/archivos/**`, `backend/prisma/**` (V-03 de 02b), los `package.json`, `package-lock.json`, `infra/`, `AGENTS.md`, `CLAUDE.md`, `README.md` y `.claude/`. El frontend no tiene ningún archivo de producción modificado.
+
+### Revisión del código
+- **`core/autoria.ts` contra P-01 (b) y RN-07.** `puedeBorrar` es pura:
+  - si el actor es admin, puede siempre;
+  - si el actor es el autor, puede (la identidad manda);
+  - si no, solo un maestro frente a un autor estudiante.
+  Así, el maestro nunca borra lo del admin ni lo del otro maestro, y el estudiante solo borra lo suyo. Que el maestro sea de **esa** clase lo garantiza el sexto paso.
+- **`firmaDelAutor`** devuelve `{ id, nombre: FIRMA_ADMINISTRACION, administracion: true }` para el admin, con su `id` real (P-11), y el nombre de la persona con `administracion: false` para los demás. El rol nunca sale. La firma se deriva al leer: no hay columna ni migración nueva.
+- **La regla se aplica en el backend, no solo en la interfaz.**
+  - `borrarPublicacion` y `borrarComentario` corren en `enTransaccion`: leen el autor (con `rol`) filtrando por la clase, devuelven `false` (404) si no existe, y lanzan `403 BORRADO_NO_PERMITIDO` **sin escribir** si `puedeBorrar` es falso. Solo después descartan los archivos y borran.
+  - `borrarComentario` pasó de un `deleteMany` suelto a transacción, como pedía el plan.
+  - `puedeBorrar` por elemento sale de la misma función, con el actor de la petición.
+- **Matriz de roles de 02b.**
+  - `admin` aparece en el GET y el POST de publicaciones, el DELETE de publicación, el GET de comentarios, el DELETE de comentario (que también pasa a `inscripcion` con estudiante) y las dos rutas de archivos.
+  - No aparece en `POST …/comentarios` (el admin no comenta, P-03 a) ni en `mis-comentarios`.
+  - `personas` sigue con `["estudiante", "maestro"]`.
+- **"Personas".** `listarPersonas` selecciona id, nombre y correo de los maestros (en el orden de `ORDEN_DE_MAESTROS`) y de los alumnos. No selecciona `estadoPago` ni `accesoRestringido`: en `inscripciones.ts` esos campos solo aparecen en `listarAlumnosDeClase`, el roster. Los archivos de `backend/src` que mencionan `estadoPago` son los mismos ocho de antes. PR-2B08 los busca en profundidad, también con compañeros deudores y restringidos.
+- **M-09.** `conTextosNormalizados` devuelve intacto un arreglo y queda definida una sola vez, en `core/clases/texto.ts`: `muro.ts` borró su copia.
+- **Hermanos.** La lista del resumen coincide con el código:
+  - las 7 rutas abiertas al admin y las 2 que no (comentar y `mis-comentarios`), más las cuatro de 02a;
+  - los 4 lugares que arman el `autor`, todos con `firmaDelAutor`;
+  - los 2 borrados y las 4 salidas de `puedeBorrar`, todos con `core/autoria.ts`;
+  - las 5 rutas que normalizan texto.
+
+### Arbitraje de las desviaciones
+1. **`puedeBorrar` por elemento lo calcula el adaptador con el actor.** **Aceptada.** Es lo que dice "Cambios por capa" ("la autoría se decide en `core/autoria.ts` y se aplica en el adaptador") y deja al handler sin decisiones de autorización (regla 2). El handler solo arma la firma.
+2. **`handlers/clases/alumnos.ts` no cambió.** **Aceptada.** El adaptador y `personasRespuestaSchema` ya entregan la forma nueva, así que tocar el handler habría sido un cambio vacío. Su descripción en `handlers/README.md` sí se actualizó, lo que cierra el pendiente "roster del dueño" de la revisión final de 02a.
+3. **`listarPersonas` devuelve `null` sin maestros.** **Aceptada.** Es el mismo camino que ya acepté en 02a (desviación 1) y responde `403 SIN_ACCESO_A_LA_CLASE`, no `500`. Ninguna clase válida lo recorre (RN-06).
+4. **PR-C08e baja de 3 a 2 rutas con "rol incorrecto".** **Aceptada.** Es consecuencia directa de §D-2B3, porque el `DELETE` de comentarios ahora admite al estudiante (C-8). La cobertura que se pierde la sustituye la autoría: un estudiante frente al comentario de otro recibe `403 BORRADO_NO_PERMITIDO`, como prueban PR-2B05 y PR-2B06. El archivo está en la lista de PA-16 de 02b.
+
+**Pendiente que el programador anota para 02c:** la variable local `puedeBorrar` de `comentarios-de-publicacion.tsx`, que hoy sale del rol. Ya es C-13 y §D-2C4 del plan, así que no hace falta una fila nueva.
+
+### Qué sigue
+La ronda 1 del tester sobre 02b, con V-01 contra la tabla de su ronda 0 (120). Al cerrar 02b, el orquestador aplica los textos de "Al cerrar 02b" (ESSENTIALS "Autoría", `PRD.md` RN-07, `ARCHITECTURE.md` §14 `publicaciones` y "Personas" en la viñeta de la búsqueda). Los dos README del backend ya están aplicados y no se vuelven a aplicar.
+
+## Revisión final — CLASES-02b
+Fecha: 2026-10-05 · Base dentro de los paquetes: `<K2a>` = `07c992f` · Tester: ronda 0 y ronda 1 (RESISTE, sin hallazgos)
+
+Veredicto: **APROBADO CON OBSERVACIONES.** Nada bloquea el commit `<K2b>`. Hay una decisión de redacción para el humano (O-05), y O-06 y O-07 tienen destino.
+
+Verificación propia (PA-01: `uacam5 2` aceptada por el humano para hoy, firewall habilitado, Docker 28.5.1):
+- **Backend:** `npm run lint` código 0 · `npm run build` código 0 · `npx prisma validate` "valid".
+- **Una corrida completa:** `Test Files 147 passed (147)` · `Tests 1746 passed (1746)` · 104.73 s. Coincide con las tres corridas del tester.
+- **PA-07:**
+  - 0 `40P01`, 0 `deadlock detected`, 0 `could not serialize`, 0 `too many clients`, 0 `Unable to start a transaction`.
+  - 10 "Error no controlado", exactamente I-1 de 02b: 6 de `intentos-r2`, `ZodError` en `archivos.ts:61` y `:90` y en `muro.ts:135`, y `boom`.
+  - 5 `P2028` permitidos (`cuentas.ts:202` y `:106`, `index.ts:134` y `:180`, y la cola de comentarios), con el control positivo.
+- **Frontend:** sin cambios de producción desde mi verificación de la implementación; solo los 7 dobles de prueba y las 11 `*.ataque` del tester. Su última corrida verificada (hoy): 104 archivos y 1396 casos; `lint` código 0.
+- **V-01:** 123/123. Las 120 de la ronda 0 de 02b no cambiaron, y se suman las 3 nuevas de la ronda 1 (`admin-muro-02b-r1`, `autoria-02b-r1`, `logs-02b-r1`). Las 15 `*.ataque` modificadas son del tester; el programador no tocó ninguna.
+
+### 1. Lo planeado, solo lo planeado y todo lo planeado (02b)
+Alcance de 02b, punto por punto:
+1. **El admin publica** anuncios y material con adjuntos, lee el muro y los comentarios, y no comenta (P-03 a).
+2. **Firma "Administración"** derivada del rol al leer, sin guardar nada y con el `autor.id` real (P-11).
+3. **`core/autoria.ts`.** `puedeBorrar` se aplica dentro de la transacción de los dos borrados y se devuelve por elemento.
+4. **Archivos del admin:** pide subidas y descargas.
+5. **"Personas"** con `maestros` y correo completo.
+6. **`conTextosNormalizados`** queda definida una sola vez, en `core/` (más M-09).
+
+Fuera de esa lista entró solo lo arbitrado: M-09, los dos README y el texto de `handlers/README.md` que cerró el pendiente "roster del dueño". No falta nada de 02b.
+
+### 2. "No se toca", autorizaciones y "Cambios por capa"
+El diff contra `07c992f` es el mismo conjunto que verifiqué en la implementación (sin `docs/`): 23 archivos de producción y pruebas normales, 3 nuevos del programador y las 18 `*.ataque` del tester. Todo cae en "Cambios por capa" de 02b, A-3, A-4 (I-2), A-11 y la regla de "Dobles del frontend".
+
+Sin cambios: `middleware/**`, `handlers/validacion.ts`, `handlers/auth/**`, `handlers/admin.ts`, `adapters/db/{archivos,cliente}.ts`, `backend/prisma/**` (V-03 de 02b: el esquema no cambia), los `package.json`, `package-lock.json`, `infra/`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `.claude/` y todo el código de producción del frontend.
+
+### 3. Reglas y autorización
+- **`core/autoria.ts` contra RN-07 y P-01 (b):** el admin borra todo; cada quien, lo suyo; el maestro además, lo de un estudiante. Nunca lo del admin ni lo del otro maestro, y el estudiante solo lo suyo.
+  - Se aplica en el backend: los dos borrados leen la autoría dentro de la transacción y responden `403 BORRADO_NO_PERMITIDO` sin escribir.
+  - `autoria-02b-r1` lo confirmó con 8 actores contra un oráculo de la matriz, incluido que `puedeBorrar` de la lista sea igual al resultado del `DELETE`.
+- **Matriz de 02b:** el admin entra al GET y al POST de publicaciones, al DELETE de publicación, al GET de comentarios, al DELETE de comentario y a las dos rutas de archivos. Queda fuera de comentar, de `mis-comentarios` y de `personas`.
+- **Estudiantes:** ninguna respuesta lleva `estadoPago` ni `accesoRestringido`. "Personas" agrega solo el correo, y el roster sigue siendo la única función que selecciona el estado de pago y la restricción. El muro no expone el rol, el correo ni el nombre real del admin (`admin-muro-02b-r1`). Los logs pasan PA-10 (`logs-02b-r1`).
+- **Capas, consultas y cola:**
+  - `core/autoria.ts` es puro.
+  - El rol del autor sale de la misma relación ya cargada: sin N+1 ni SQL crudo nuevo.
+  - Las publicaciones del admin encolan `PUBLICACION_CREADA` o `MATERIAL_CREADO` con solo ids, en la misma transacción.
+
+### 4. Definición de terminado, para 02b
+- [x] RF-59, RF-19, RF-33 y RN-07 (parte de 02b)
+- [x] Capas y middleware
+- [x] `lint`, `build` y `test` en verde
+- [x] Pruebas de autorización (PR-2B10, la matriz de `muro-autorizacion` y `archivos-autorizacion`, y las `*.ataque`)
+- [x] Sin migración (no cambió el esquema)
+- [x] `infra/` sin cambios
+- [ ] **Documentos:** los README del backend ya están; faltan los textos de "Al cerrar 02b" (abajo), que aplica el orquestador
+
+### Hallazgos
+Ninguno nuevo (ningún M-10).
+
+### Arbitraje de las observaciones del tester
+- **O-05, cascada de comentarios al borrar una publicación: es coherente con RN-07, pero conviene escribirlo. Decisión de redacción del humano; no bloquea el commit.**
+  - **Por qué es coherente.** Borrar una publicación borra su hilo. Es el comportamiento de CLASES-01 y del esquema (`comentarios.publicacion_id` con `ON DELETE CASCADE`), y §D-2B3 lo conservó ("como hoy"). La regla de autoría decide **qué publicación** puede borrar cada quien; los comentarios caen como parte del hilo, no como un borrado del contenido del otro maestro. Además:
+    - lo que un maestro puede borrar con cascada es solo su propia publicación;
+    - los comentarios de estudiantes ya los puede borrar por moderación;
+    - el admin hoy no comenta (P-03 a), así que la cascada no puede tocar nada suyo.
+  - **El riesgo, a futuro.** El comentario del otro maestro sí desaparece sin que él intervenga. Y si algún día el admin comenta (P-03 b), un maestro borraría lo del admin al borrar su propia publicación, contra "nunca lo del admin".
+  - **Recomendación del manager:** aceptar la cascada y escribirla en RN-07 y en ESSENTIALS "Autoría" (texto abajo, como agregado a los textos de 02b). Agregar una fila en ESTADO para revisarla si el admin llega a comentar.
+  - **Alternativa que no recomiendo:** impedir que un maestro borre su publicación si tiene comentarios del otro maestro o del admin. Agrega una regla, un error y una rama en la interfaz para un caso raro, y deja al autor sin poder retirar su propio contenido.
+  - **Texto propuesto para RN-07,** después de la línea de moderación del maestro: "Borrar una publicación borra también su hilo de comentarios, de quien sea." El mismo, al final de la viñeta "Autoría" de ESSENTIALS. Si el humano lo aprueba, el orquestador lo aplica con A-8 junto con los demás textos de 02b. Si prefiere la alternativa, es una decisión de producto nueva y va a un encargo aparte.
+- **O-06, el comentario "Roster del dueño" en `shared/src/clases.ts:291`:** trivial, un comentario sin cambio de comportamiento. Como `shared/src/clases.ts` está en la lista de 02b, lo más barato es que el programador lo corrija **antes del commit `<K2b>`**, con `shared` `build` y `lint` (sin ronda del tester), a "Roster de la clase (maestros y administrador): el único lugar donde salen el correo completo junto con los datos de pago". Si el orquestador prefiere no reabrir 02b, queda una fila en ESTADO con destino "el próximo cambio a `shared/src/clases.ts`" (02c y 02d no tocan `shared/`).
+- **O-07, la firma en la interfaz:** regla para 02c, dentro de C-13 y §D-2C4. `FirmaDelAutor` decide **solo** con `autor.administracion` y nunca compara `autor.nombre` con "Administración": un maestro que se llame así no recibe la insignia. Que el tester lo ataque en la ronda 0 o 1 de 02c (el punto 4 del ataque de 02c ya incluye la insignia). No requiere enmienda: §D-2C4 ya dice "el frontend no usa `autor.nombre` para la firma del admin".
+
+### Medición del programador en 02b
+- **Rondas del tester:** ronda 0 y ronda 1 (RESISTE). **Rondas extra: 0**, y ninguna por hermanos.
+- **Resúmenes devueltos:** 0 de 1.
+- **PARADAS:** 0.
+- **Desviaciones:** 4 declaradas, las cuatro aceptadas.
+- **Hermanos:** listados y correctos contra el código.
+- **El umbral para pasar al programador a `opus` no se alcanzó.**
+
+### Textos que el orquestador aplica al cerrar 02b (A-8, con el SHA-256 en `aprobacion.md`)
+De "Textos propuestos → Al cerrar 02b" del plan, literales:
+1. **`docs/ARCHITECTURE-ESSENTIALS.md`, "Reglas de negocio que tocan código", viñeta "Autoría":** después de "el admin borra cualquier publicación o comentario de cualquier clase." se agrega la oración de la moderación del maestro, de `core/autoria.ts` y de `puedeBorrar` por elemento.
+2. **`docs/PRD.md`, RN-07:** después de "Cada autor borra solo lo suyo." se agrega "El maestro también borra los comentarios de los alumnos en las clases que imparte; nunca lo que publicó otro maestro de la clase (CLASES-02)."
+3. **`docs/ARCHITECTURE.md` §14, fila `publicaciones`:** se agrega "· el autor sale como `{ id, nombre, administracion }`: con `administracion: true`, `nombre` es "Administración"; el rol nunca sale".
+4. **ARCHITECTURE §14, "Reglas de acceso a datos", viñeta de la búsqueda:** la oración del correo completo en el roster y en "Personas" queda como dice el plan (con los maestros de la clase). La parte del buscador de maestros ya se aplicó en 02a.
+5. **Solo si el humano aprueba O-05:** la oración de la cascada en RN-07 y en ESSENTIALS "Autoría" (arriba).
+
+**No se vuelven a aplicar** los textos de `backend/src/adapters/README.md` (secciones `db/inscripciones.ts` y `db/publicaciones.ts`) ni de `handlers/README.md`: ya los aplicó el programador y los verifiqué. `ARCHITECTURE.md` §7, fila `archivos`, no cambia.
+
+### Pendientes para `ESTADO.md` §3
+- **Nueva:** "Si el administrador llega a comentar (P-03 b de CLASES-02), revisar la cascada de comentarios al borrar una publicación: un maestro borraría lo del admin". Destino: el encargo que habilite los comentarios del admin.
+- **Nueva, solo si O-06 no se corrige antes del commit:** "Comentario 'Roster del dueño' en `shared/src/clases.ts:291`". Destino: el próximo cambio a ese archivo, carril trivial.
+- **Nueva:** O-07 como recordatorio de 02c, si el orquestador quiere tenerlo a la vista (ya está en §D-2C4).
+- **Se cierran:**
+  - M-09 (resuelto en 02b);
+  - el pendiente de `handlers/README.md` "roster del dueño" (resuelto en 02b).
+- **Siguen como estaban:** O-04 (DEPLOY), R-06 (ADMIN) y el retiro de compatibilidad (antes del primer DEPLOY).
+
+### Cifras finales de 02b
+| | Archivos | Casos |
+|---|---|---|
+| Backend | 147 (desde 142 al cerrar 02a) | 1746 (desde 1703) |
+| Frontend | 104 | 1396 |
+| `*.ataque` | 123 (desde 120; tabla de la ronda 1 de 02b, base de V-01 de 02c) | |
+
+Siguiente paso:
+1. El humano decide el texto de O-05.
+2. El programador corrige O-06, si el orquestador lo prefiere así.
+3. El orquestador aplica los textos y las filas.
+4. El humano hace el commit `<K2b>`.
+5. Arranca la ronda 0 de 02c, que incluye O-07.

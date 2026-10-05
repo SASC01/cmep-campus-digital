@@ -20,7 +20,12 @@ const errorJson = (estado: number, codigo: string) =>
   respuestaJson(estado, { error: { codigo, mensaje: "mensaje del servidor" } })
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
 
 const idDe = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
 
@@ -34,6 +39,7 @@ const publicacion = (n: number, extra: Record<string, unknown> = {}) => ({
   comentarios: 0,
   // C-21 (Enmienda 10): toda publicación del servidor lleva adjuntos.
   adjuntos: [],
+  puedeBorrar: true,
   ...extra,
 })
 

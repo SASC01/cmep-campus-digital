@@ -1,31 +1,38 @@
-import { NavLink, useMatch } from "react-router"
+import { NavLink, useLocation } from "react-router"
 
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-import { TEXTOS_CLASE } from "../data"
+import {
+  CAPACIDADES_POR_PERSPECTIVA,
+  CLASES_DE_LA_REJILLA_POR_SECCIONES,
+  CLASES_DEL_INDICADOR_POR_SECCIONES,
+  CLASES_DE_POSICION_DEL_INDICADOR,
+  TEXTOS_CLASE,
+} from "../data"
+import { baseDeClase, indiceDeSeccionActiva } from "../lib"
+import type { Perspectiva } from "../types"
 
 interface SeccionesDeClaseProps {
   claseId: string
-  esDueno: boolean
+  perspectiva: Perspectiva
 }
 
-// §D-A5: no es una <nav> (esa es la de components/layout, en components/layout/barra-navegacion).
-// "Muro" para todos y, desde CLASES-b, "Personas" (estudiante) o "Alumnos" (maestro). NavLink pone
-// aria-current="page" en el enlace activo por su cuenta. Ajuste del humano (2026-10-02): el grupo va
-// en vidrio (Card) y el indicador de la activa se desliza con transform; el estado también lo dicen
-// aria-current y el color del texto, no solo la posición del indicador.
-export function SeccionesDeClase({ claseId, esDueno }: SeccionesDeClaseProps) {
-  const base = esDueno ? `/maestro/clases/${claseId}` : `/estudiante/clases/${claseId}`
-  const seccionDelRol = esDueno
-    ? { destino: `${base}/alumnos`, texto: TEXTOS_CLASE.alumnos }
-    : { destino: `${base}/personas`, texto: TEXTOS_CLASE.personas }
+// §D-A5, §D-2C1: no es una <nav> (esa es la de components/layout, en components/layout/barra-navegacion).
+// Las secciones salen de la perspectiva: "Muro" y "Personas" (estudiante), "Muro" y "Alumnos"
+// (maestro) o "Muro", "Alumnos" y "Maestros" (admin). NavLink pone aria-current="page" en el enlace
+// activo por su cuenta. El grupo va en vidrio (Card) y el indicador de la activa se desliza con
+// transform: mide 1/N y se traslada una posición por sección. En contexto opaco (el admin) el
+// indicador usa --accent-soft en vez de --surface, que sobre la superficie opaca no se vería; el
+// estado también lo dicen aria-current y el color del texto, no solo la posición del indicador.
+export function SeccionesDeClase({ claseId, perspectiva }: SeccionesDeClaseProps) {
+  const { pathname } = useLocation()
+  const { secciones } = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
+  const base = baseDeClase(perspectiva, claseId)
   // Sin sección activa (por ejemplo, /editar dentro de ClaseLayout) no hay indicador: un indicador
   // diría algo que aria-current y el color del texto no respaldan (DESIGN.md §7.3).
-  const primeraActiva = useMatch({ path: base, end: true }) !== null
-  const segundaActiva = useMatch({ path: seccionDelRol.destino, end: false }) !== null
-  const hayActiva = primeraActiva || segundaActiva
+  const activa = indiceDeSeccionActiva(pathname, base, secciones)
 
   const clasesDelEnlace = ({ isActive }: { isActive: boolean }) =>
     cn(buttonVariants({ variant: "ghost", size: "sm" }), "relative w-full", isActive && "text-link")
@@ -33,26 +40,34 @@ export function SeccionesDeClase({ claseId, esDueno }: SeccionesDeClaseProps) {
   return (
     <Card className="w-fit gap-0 rounded-card p-1">
       <div className="relative">
-        {hayActiva && (
+        {activa >= 0 && (
           <span
             aria-hidden="true"
             className={cn(
-              "absolute inset-y-0 left-0 w-1/2 rounded-row bg-surface transition-transform duration-200 motion-reduce:transition-none",
-              segundaActiva && "translate-x-full",
+              "absolute inset-y-0 left-0 rounded-row bg-surface transition-transform duration-200 in-data-[material=opaco]:bg-accent-soft motion-reduce:transition-none",
+              CLASES_DEL_INDICADOR_POR_SECCIONES[secciones.length],
+              CLASES_DE_POSICION_DEL_INDICADOR[activa],
             )}
           />
         )}
-        <ul aria-label={TEXTOS_CLASE.secciones} className="relative grid grid-cols-2 gap-0">
-          <li>
-            <NavLink to={base} end className={clasesDelEnlace}>
-              {TEXTOS_CLASE.muro}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to={seccionDelRol.destino} className={clasesDelEnlace}>
-              {seccionDelRol.texto}
-            </NavLink>
-          </li>
+        <ul
+          aria-label={TEXTOS_CLASE.secciones}
+          className={cn(
+            "relative grid gap-0",
+            CLASES_DE_LA_REJILLA_POR_SECCIONES[secciones.length],
+          )}
+        >
+          {secciones.map(({ segmento, texto }) => (
+            <li key={segmento}>
+              <NavLink
+                to={segmento === "" ? base : `${base}/${segmento}`}
+                end={segmento === ""}
+                className={clasesDelEnlace}
+              >
+                {texto}
+              </NavLink>
+            </li>
+          ))}
         </ul>
       </div>
     </Card>

@@ -208,7 +208,11 @@ describe("PublicacionDelMuro con adjuntos", () => {
 
   it("muestra los adjuntos y, al pedir borrar, la frase que también los nombra", () => {
     renderConClient(
-      <PublicacionDelMuro claseId={CLASE_ID} publicacion={publicacion([imagen, pdf])} esMaestro />,
+      <PublicacionDelMuro
+        claseId={CLASE_ID}
+        publicacion={publicacion([imagen, pdf])}
+        perspectiva="maestro"
+      />,
     )
 
     expect(screen.getByRole("list", { name: "Archivos adjuntos" })).toBeInTheDocument()
@@ -221,7 +225,7 @@ describe("PublicacionDelMuro con adjuntos", () => {
 
   it("sin adjuntos conserva la frase de siempre", () => {
     renderConClient(
-      <PublicacionDelMuro claseId={CLASE_ID} publicacion={publicacion([])} esMaestro />,
+      <PublicacionDelMuro claseId={CLASE_ID} publicacion={publicacion([])} perspectiva="maestro" />,
     )
 
     fireEvent.click(screen.getByRole("button", { name: "Borrar publicación" }))

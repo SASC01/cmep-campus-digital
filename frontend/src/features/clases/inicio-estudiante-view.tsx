@@ -4,7 +4,7 @@ import { FormularioUnirseClase, ID_CAMPO_CODIGO_CLASE } from "./components/formu
 import { PanelMisClases } from "./components/panel-mis-clases"
 import { TarjetaClase } from "./components/tarjeta-clase"
 import { useClasesInscritas, useNombreDeSesion } from "./hooks"
-import { mensajeDeErrorClases } from "./lib"
+import { mensajeDeErrorDeLista, unirNombres } from "./lib"
 import type { ClaseDelPanel } from "./types"
 
 export function InicioEstudianteView() {
@@ -19,7 +19,7 @@ export function InicioEstudianteView() {
     pagina.clases.map((clase) => ({
       id: clase.id,
       nombre: clase.nombre,
-      metadatos: clase.maestro.nombre,
+      metadatos: unirNombres(clase.maestros.map((maestro) => maestro.nombre)),
       destino: `/estudiante/clases/${clase.id}`,
     })),
   )
@@ -41,12 +41,16 @@ export function InicioEstudianteView() {
 
       <PanelMisClases
         isError={clases.isError}
-        errorMensaje={clases.isError ? mensajeDeErrorClases(clases.error) : ""}
+        errorMensaje={
+          clases.isError
+            ? mensajeDeErrorDeLista(clases.error, TEXTOS_PANEL.cambioMientrasLasVeias)
+            : ""
+        }
         isLoading={clases.isLoading}
         clases={filas}
         hasNextPage={clases.hasNextPage}
         isFetchingNextPage={clases.isFetchingNextPage}
-        onVerMas={() => void clases.fetchNextPage()}
+        onVerMas={() => void clases.fetchNextPage({ cancelRefetch: false })}
         accionVacio={{
           texto: TEXTOS_PANEL.accionEstudiante,
           onClick: () => document.getElementById(ID_CAMPO_CODIGO_CLASE)?.focus(),

@@ -298,3 +298,53 @@ describe("InicioEstudianteView: foco de «Ver más clases» (§D-C5)", () => {
     expect(document.activeElement).not.toBe(document.body)
   })
 })
+
+// CLASES-02c (PR-2C10 y PR-2C12)
+describe("InicioEstudianteView: dos maestros y el cursor (CLASES-02c)", () => {
+  it("PR-2C10: la tarjeta muestra al maestro o a los dos maestros, unidos con «y»", async () => {
+    stubApi({
+      inscritas: () =>
+        respuestaJson(200, {
+          clases: [
+            clase(1),
+            clase(2, {
+              maestro: { nombre: "Dra. Márquez" },
+              maestros: [{ nombre: "Dra. Márquez" }, { nombre: "Mtro. Ruiz" }],
+            }),
+          ],
+          total: 2,
+          siguienteCursor: null,
+        }),
+    })
+    renderVista()
+
+    expect(await screen.findByText("Luis Pérez")).toBeInTheDocument()
+    expect(screen.getByText("Dra. Márquez y Mtro. Ruiz")).toBeInTheDocument()
+  })
+
+  it("PR-2C12: el 400 del cursor de «Ver más clases» muestra el texto que dice qué pasó", async () => {
+    const cursor = "9a9b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+    let pedidas = 0
+    stubApi({
+      inscritas: () => {
+        pedidas += 1
+        if (pedidas > 1) {
+          return respuestaJson(400, {
+            error: { codigo: "VALIDACION", mensaje: "cursor: no es válido" },
+          })
+        }
+        return respuestaJson(200, { clases: [clase(1)], total: 2, siguienteCursor: cursor })
+      },
+    })
+    renderVista()
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ver más clases" }))
+
+    expect(
+      await screen.findByText(
+        "Tus clases cambiaron mientras las veías. Vuelve a entrar para verlas completas.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/cursor/)).toBeNull()
+  })
+})

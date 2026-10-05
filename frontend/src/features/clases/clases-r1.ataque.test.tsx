@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 import { ClaseLayout } from "./clase-layout"
-import { FormularioClase } from "./components/formulario-clase"
 import { TarjetaClase } from "./components/tarjeta-clase"
+import { CrearClaseView } from "./crear-clase-view"
 import { InicioEstudianteView } from "./inicio-estudiante-view"
 import { InicioMaestroView } from "./inicio-maestro-view"
 import { varianteDeClase } from "./lib"
@@ -253,22 +253,42 @@ describe("ataque CLASES-a r1: doble activación", () => {
     expect(llamadas(fetchMock, "/api/clases/unirse", "POST")).toBe(1)
   })
 
-  it("'Crear clase' en espera no manda un segundo POST /clases", async () => {
+  // CLASES-02 ronda 0 de 02c (C-12, §D-2C2): el maestro ya no crea clases; las crea el admin en
+  // /admin/clases/nueva (CrearClaseView: FormularioClase y el selector de maestros) con
+  // POST /api/admin/clases y al menos un maestro elegido. Sigue protegiendo lo mismo: "Crear clase"
+  // en espera no manda una segunda petición, por ningún camino de activación.
+  it("'Crear clase' en espera no manda un segundo POST /admin/clases", async () => {
     const pendiente = diferida()
     const fetchMock = stubFetch((ruta, metodo) => {
-      if (ruta === "/api/clases" && metodo === "POST") return pendiente.promesa
+      if (ruta === "/api/admin/clases" && metodo === "POST") return pendiente.promesa
+      if (ruta.startsWith("/api/admin/maestros/candidatos") && metodo === "GET") {
+        return respuestaJson(200, {
+          candidatos: [
+            {
+              id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+              nombre: "Luis Pérez",
+              email: "luis@x.mx",
+            },
+          ],
+          hayMas: false,
+        })
+      }
       return errorJson(500, "ERROR_INTERNO")
     })
     render(
       <QueryClientProvider client={nuevoCliente()}>
-        <MemoryRouter>
-          <FormularioClase modo="crear" />
+        <MemoryRouter initialEntries={["/admin/clases/nueva"]}>
+          <CrearClaseView />
         </MemoryRouter>
       </QueryClientProvider>,
     )
     fireEvent.change(screen.getByLabelText("Nombre de la clase"), {
       target: { value: "Historia" },
     })
+    fireEvent.change(screen.getByLabelText("Buscar maestro por nombre"), {
+      target: { value: "Luis" },
+    })
+    fireEvent.click(await screen.findByRole("button", { name: "Elegir Luis Pérez" }))
     const boton = screen.getByRole("button", { name: "Crear clase" })
 
     pulsar(boton)
@@ -276,7 +296,8 @@ describe("ataque CLASES-a r1: doble activación", () => {
     activarDeTodasLasFormas(boton)
     await esperarUnMomento()
 
-    expect(llamadas(fetchMock, "/api/clases", "POST")).toBe(1)
+    expect(llamadas(fetchMock, "/api/admin/clases", "POST")).toBe(1)
+    expect(llamadas(fetchMock, "/api/clases", "POST")).toBe(0)
   })
 
   it("'Ver más clases' en espera no pide la misma página dos veces", async () => {

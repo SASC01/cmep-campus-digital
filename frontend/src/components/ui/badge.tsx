@@ -16,6 +16,9 @@ const badgeVariants = cva(
         warning: "bg-warning-soft text-warning",
         danger: "bg-danger-soft text-danger",
         muted: "bg-muted text-muted-foreground",
+        // CLASES-02c (§D-2C4): identidad institucional, no un estado. Solo firma lo que publica la
+        // administración; --link sobre --accent-soft da 9.1:1 (DESIGN.md §3).
+        institucional: "bg-accent-soft text-link",
       },
     },
     defaultVariants: { variant: "muted" },

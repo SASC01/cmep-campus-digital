@@ -8,6 +8,9 @@ export interface Destino {
   etiqueta: string
   ruta: string
   icono: LucideIcon
+  // CLASES-02c (M-04): el enlace queda activo solo en su ruta exacta o también en sus subrutas. Es
+  // obligatorio y sin valor por defecto: cada destino lo dice.
+  coincidencia: "exacta" | "prefijo"
 }
 
 // Contexto de material y densidad por rol (§D-3 y §D-4): solo el administrador es denso y opaco.

@@ -1,4 +1,4 @@
-import { House, UserPlus, Users } from "lucide-react"
+import { House, School, UserPlus, Users } from "lucide-react"
 
 import type { ContextoDeRol, Destino, EnlaceDelColegio, Rol } from "./types"
 
@@ -34,12 +34,15 @@ export const CONTEXTO_POR_ROL: Record<Rol, ContextoDeRol> = {
 // Un solo destino por rol (respuesta 1 de plan.md; recordatorio en la hoja, H-12). Duplica las
 // rutas de RUTA_POR_ROL de features/auth/data.ts (S-14).
 export const DESTINOS_POR_ROL: Record<Rol, readonly Destino[]> = {
-  estudiante: [{ etiqueta: "Inicio", ruta: "/estudiante", icono: House }],
-  maestro: [{ etiqueta: "Inicio", ruta: "/maestro", icono: House }],
+  estudiante: [{ etiqueta: "Inicio", ruta: "/estudiante", icono: House, coincidencia: "exacta" }],
+  maestro: [{ etiqueta: "Inicio", ruta: "/maestro", icono: House, coincidencia: "exacta" }],
   // AUTH-03b: el admin gana "Maestros" (/admin/maestros), enlaces de registro e invitación masiva.
+  // CLASES-02c (P-07 a): "Clases" lleva a la lista institucional y queda activo en sus subrutas;
+  // "Cuentas" solo en /admin exacto.
   admin: [
-    { etiqueta: "Cuentas", ruta: "/admin", icono: Users },
-    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus },
+    { etiqueta: "Cuentas", ruta: "/admin", icono: Users, coincidencia: "exacta" },
+    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus, coincidencia: "exacta" },
+    { etiqueta: "Clases", ruta: "/admin/clases", icono: School, coincidencia: "prefijo" },
   ],
 }
 

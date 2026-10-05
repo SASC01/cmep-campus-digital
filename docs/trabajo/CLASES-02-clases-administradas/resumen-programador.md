@@ -269,3 +269,182 @@ PA-01 no (regla de firewall habilitada y Public; red `uacam5 2` aceptada por el 
 ### Trivial O-06
 - `shared/src/clases.ts:291`, antes: `// Roster del dueño (S-10): el único lugar donde salen el correo completo y los datos de pago.`; después: `// Roster de los maestros de la clase y del admin (S-10): el único lugar donde salen el correo completo y los datos de pago.` Solo cambió ese comentario.
 - Lint (código 0 en los tres, sin correr suites): `cd shared; npm run lint` → "All matched files use Prettier code style!"; `cd backend; npm run lint` → `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`; `cd frontend; npm run lint` → `> tsc -b`.
+
+## CLASES-02c — Implementación
+
+Plan: `docs/trabajo/CLASES-02-clases-administradas/plan.md` (con las Enmiendas 1 y 2). Rama `feat/clases-02`; base de "No se toca" dentro de los paquetes `<K2b>` = `7544fb9`, fuera `<R>` = `e4396a0`. Fecha: 2026-10-05. Solo frontend: no toqué `backend/` ni `shared/` (`git status` sin cambios en ninguno) y no corrí la suite del backend ni la API ni navegadores.
+Pasos completados: 21 a 26 de 02c (el 20 fue la ronda 0 del tester y el 27 es del orquestador). `docs/DESIGN.md` editado por A-7 con la marca "propuesta (CLASES-02c)".
+
+### Archivos creados (frontend/src)
+- `features/clases/clases-admin-view.tsx`, `features/clases/maestros-de-clase-view.tsx`
+- `features/clases/components/tabla-clases-admin.tsx`, `buscador-de-maestros.tsx`, `lista-maestros-de-clase.tsx`, `firma-del-autor.tsx`, `selector-de-maestros.tsx` (este último no está en "Cambios por capa": ver "Desviaciones")
+- Pruebas: `features/clases/clases-admin-view.test.tsx`, `crear-clase-view.test.tsx`, `maestros-de-clase-view.test.tsx` (los tres de PA-16)
+
+### Archivos modificados
+- `features/clases/`: `types.ts`, `data.ts`, `lib.ts`, `hooks.ts` (se retira `useBorrarMiComentario`, A-5), `clase-layout.tsx`, `muro-view.tsx`, `inicio-maestro-view.tsx`, `inicio-estudiante-view.tsx`, `components/encabezado-clase.tsx`, `secciones-de-clase.tsx`, `publicacion-del-muro.tsx`, `comentarios-de-publicacion.tsx`, `formulario-clase.tsx`, `panel-mis-clases.tsx`, `bloque-destacado.tsx`. `crear-clase-view.tsx`, `editar-clase-view.tsx`, `alumnos-view.tsx`, `tarjeta-clase.tsx` no cambian (hacen lo que debían).
+- `components/ui/badge.tsx` (variante `institucional`); `components/layout/types.ts` (`coincidencia`), `data.ts` (destino "Clases" y `coincidencia` en cada destino), `barra-navegacion.tsx` (`end` según `coincidencia`); `app/router.tsx`.
+- `docs/DESIGN.md` (A-7).
+- Pruebas normales (A-4, PA-16): `app/router.test.tsx`, `components/layout/contenedor-rol.test.tsx`, `components/ui/badge.test.tsx`, `features/clases/clase-layout.test.tsx`, `components/formulario-clase.test.tsx`, `inicio-maestro-view.test.tsx`, `inicio-estudiante-view.test.tsx`, `publicacion-del-muro.test.tsx`, `adjuntos-de-publicacion.test.tsx`, `muro-view.test.tsx`, `lib.test.ts`. Todas están en la columna "Cambiar" de 02c.
+- No modifiqué ninguna `*.ataque`; el `git diff` contra `7544fb9` de `*.ataque` sigue siendo el de los 12 archivos de la ronda 0 del tester (254 inserciones, 67 borrados). Ningún archivo de "No se toca" (`git diff --quiet 7544fb9` con código 0 en `services/*`, `features/auth`, `features/admin`, `features/diagnostico`, `lib`, `package.json`, `vitest.config.ts`, `backend` y `shared`; `styles/` solo cambia por la `*.ataque` del tester) y `features/admin/**` no cambia. `components/layout/barra-superior.tsx`, `pie-de-pagina.tsx` y los demás de la lista no se tocaron.
+
+### Verificación (comando exacto y última línea; una suite a la vez)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b` (antes, ESLint y Prettier: "All matched files use Prettier code style!").
+- `cd frontend; npm test > <scratchpad>/p02c-test-3.txt` (una corrida completa) → `Test Files  107 passed (107)` / `Tests  1458 passed (1458)` / `Duration  69.32s`.
+- Los 21 rojos de la ronda 0 pasaron a verde con el código de producción (primera corrida completa, antes de adaptar mis pruebas normales: `Tests  6 failed | 1397 passed (1403)`, los 6 en pruebas normales que contradecían C-12 y C-13: `router.test` PR-A26b, `inicio-maestro-view.test` PR-A19b y PR-A19c, `lib.test` PR-A17b y `formulario-clase.test` PR-A21b y PR-A21c; ninguno en una `*.ataque`). Los 12 archivos `*.ataque` de la ronda 0 pasan completos.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 1.67s` (el aviso de tamaño de chunk ya existía). `npm run lint` (raíz) → código 0; última línea `> tsc -b`.
+- Frontend de la ronda 0: 104 archivos y 1399 casos; ahora 107 archivos y 1458 casos (+3 archivos nuevos y +59 casos).
+
+### Conteos
+- `cd frontend; npx vitest list > <scratchpad>/p02c-list.txt` → 1458 casos (líneas `src/…`); `npx vitest list --filesOnly` → 107 archivos. Diferencia con la ronda 0 (104 / 1399): +3 archivos y +59 casos.
+- Casos con `PR-2C` en el título (`grep -a -o "PR-2C[0-9]*"` sobre esa lista): PR-2C01 3, PR-2C02 2, PR-2C03 9, PR-2C04 8, PR-2C05 2, PR-2C06 8, PR-2C07 4, PR-2C08 5, PR-2C09 5, PR-2C10 2, PR-2C12 2 (PR-2C11 no lleva ese prefijo: ver abajo).
+
+### Pruebas requeridas (archivo y título)
+- **PR-2C01** → `features/clases/lib.test.ts`: «PR-2C01: las tres perspectivas salen de su prefijo exacto», «PR-2C01: un prefijo parecido o cualquier otra ruta da «estudiante», la perspectiva que menos muestra» (con `/maestros`, `/administrador`, `/admin-x`, `/Admin`, `/`, `/login`…) y «PR-2C01: la tabla de capacidades de §D-2C1, celda por celda».
+- **PR-2C02** → mismo archivo: «PR-2C02: uno y dos nombres» y «PR-2C02: nombres largos sin espacios se conservan enteros (el corte lo hace el estilo)».
+- **PR-2C03** → `features/clases/clases-admin-view.test.tsx` (9 casos, `PR-2C03: …`): error, cargando, vacío con «Crea la primera clase» en outline, tabla con sus cinco columnas y «Abrir» con el nombre `sr-only`, una sola acción primary con la clase exacta de `buttonVariants({ variant: "primary" })`, «Cargar más clases» con `enEspera` y foco al «Abrir» de la primera clase nueva, foco al encabezado si no llegó ninguna, el `400` del cursor con su texto y «con el router de la aplicación, la lista queda en el contexto opaco y denso del administrador».
+- **PR-2C04** → `features/clases/crear-clase-view.test.tsx` (8 casos, `PR-2C04: …`): sin maestros «Elige al menos un maestro» y nada se pide; con uno (`maestroIds`, descripción normalizada, aviso y navegación); con dos (buscador oculto con su nota); el elegido sigue en los resultados con «Ya elegido»; «Quitar» y su foco; `404 MAESTRO_NO_ENCONTRADO` con su mensaje; `autoComplete=off` en los tres campos; doble envío.
+- **PR-2C05** → `features/clases/components/formulario-clase.test.tsx`: «PR-2C05: al guardar, el PUT va a /api/admin/clases/:claseId con el id de la clase y la descripción normalizada, y navega a la clase» y «PR-2C05: en modo editar no hay selector de maestros y «Cancelar» vuelve a la clase».
+- **PR-2C06** → `features/clases/maestros-de-clase-view.test.tsx` (8 casos, `PR-2C06: …`): un maestro (sin «Quitar», con la nota), dos (sin buscador, con la nota), asignar («Asignaste a …», insignia «Ya da esta clase», foco al encabezado al llegar a dos), confirmación en línea con foco a «Cancelar» y de vuelta a «Quitar», confirmar («Quitaste a … de la clase», foco al encabezado), `409 TOPE_DE_MAESTROS`, `409 CLASE_SIN_MAESTRO` y `404 MAESTRO_NO_ENCONTRADO`, cada uno con el mensaje del servidor.
+- **PR-2C07** → `features/clases/clase-layout.test.tsx`: «PR-2C07: el admin vuelve a la lista de clases, ve Muro, Alumnos y Maestros con el indicador y el código, y puede editar» y «PR-2C07: el indicador se traslada una posición por sección y en «Editar clase» no hay indicador» (el indicador se localiza como el hermano anterior de la lista nombrada «Secciones de la clase», y se comprueba su variante `in-data-[material=opaco]:bg-accent-soft`); `muro-view.test.tsx`: «PR-2C07: en la vista del admin hay un solo primary, el grupo del tipo de publicación y ningún formulario de comentario»; `publicacion-del-muro.test.tsx`: «el admin no tiene formulario de comentario y el maestro y el estudiante sí (PR-2C07)».
+- **PR-2C08** → `inicio-maestro-view.test.tsx`: «PR-2C08: el inicio del maestro no tiene «Crear clase» ni tarjeta interna» y «PR-2C08: el vacío de «Mis clases» no tiene botón y dice que la administración asigna las clases»; `clase-layout.test.tsx`: «PR-2C08: el maestro ve el código pero no «Editar clase»» y «PR-2C08: el estudiante no ve el código, no pide /codigo y no ve «Editar clase»»; `app/router.test.tsx`: «PR-2C08: /maestro/clases/nueva no existe: el maestro termina en /login sin pedir una clase llamada nueva» (y `app/rutas-clases-r1.ataque.test.tsx` del tester cubre `/maestro/clases/:id/editar`).
+- **PR-2C09** → `features/clases/publicacion-del-muro.test.tsx`: «sin puedeBorrar no hay «Borrar publicación», tampoco para el maestro ni el admin (PR-2C09)», «con puedeBorrar sí hay «Borrar publicación» en las tres perspectivas (PR-2C09)», «la firma del admin es la insignia «Administración» con su icono y no el nombre; un autor llamado así sin administracion lleva su nombre (PR-2C09)» y «PR-C10d: «Borrar» aparece solo en los comentarios con puedeBorrar, para cualquier perspectiva, con confirmación en línea y por la ruta general» (reescrito por C-13); `muro-view.test.tsx`: «PR-2C09: el vacío del admin dice «Aún no hay publicaciones en esta clase.»» y «PR-2C09: «Borrar publicación» sale de puedeBorrar y no del rol, en las tres perspectivas».
+- **PR-2C10** → `features/clases/clase-layout.test.tsx`: «PR-2C10: el encabezado dice «Maestro: …» con uno y «Maestros: … y …» con dos»; `inicio-estudiante-view.test.tsx`: «PR-2C10: la tarjeta muestra al maestro o a los dos maestros, unidos con «y»».
+- **PR-2C11** → `components/layout/contenedor-rol.test.tsx`: «con rol admin, hay tres enlaces: 'Cuentas' hacia /admin, 'Maestros' hacia /admin/maestros y 'Clases' hacia /admin/clases»; siete casos «en <ruta> solo queda activo [...]» para `/admin` («Cuentas»), `/admin/maestros` («Maestros») y `/admin/clases`, `/admin/clases/nueva`, `/admin/clases/<id>`, `/admin/clases/<id>/maestros` y `/admin/clases/<id>/editar` («Clases»); y «todo destino de DESTINOS_POR_ROL declara su coincidencia, y solo «Clases» es de prefijo». «Inicio» del estudiante y del maestro sigue sin marcarse dentro de una clase por `end` (exacta) y `app/marco-r1.ataque.test.tsx` lo fija; el tipo obliga a declarar `coincidencia`.
+- **PR-2C12** → `inicio-maestro-view.test.tsx` y `inicio-estudiante-view.test.tsx`: «PR-2C12: el 400 del cursor de «Ver más clases» muestra el texto que dice qué pasó» (los dos).
+- Insignia `institucional` (C-19): `components/ui/badge.test.tsx`: «la variante institucional usa --accent-soft con --link y no pinta rojo»; las cinco variantes con sus pares de tokens las fija `badge-03b-r1.ataque.test.ts` (en verde).
+- Triviales heredados: `formulario-clase` sin `claseId ?? ""` (el id llega al mutar) y con `normalizarTextoLargo` (PR-2C04 y PR-2C05); el `400` del cursor de «Ver más clases» (PR-2C12); los dos `describe` de `muro-view.test.tsx` que decían «Enmienda 8» pasan a «Enmienda 9» (el de T-34 y el de T-35).
+
+### V-01
+`git ls-files '*.ataque.test.*'` con `sha256sum` contra la tabla de la ronda 0 de 02c de `reporte-tester.md` (123 filas): 123 de 123 iguales. No hay `*.ataque` sin rastrear ni mías. Las reglas estáticas de las `*.ataque` (V-06 con 39 `enEspera=` y los fijos de C-20, V-07 de vidrio, V-02 a V-04 de valores sueltos, `translate-x-[200%]` de C-22, `?? []` y ternarios anidados) pasan sin tocarlas.
+
+### V-04 (búsquedas en producción, texto, no analizador)
+- `fetch(` en `frontend/src/`: solo `services/apiClient.ts` y `services/almacenService.ts` (nada nuevo). `from "@/features/` en `components/`, `lib/` y `services/`: 0. `from "@/features/admin` en `features/clases`: 0. `claseId ?? ""` en `features/clases/`: 0. `dangerouslySetInnerHTML` y `target="_blank"`: 0.
+- `autoComplete="off"` en los campos de crear clase y de editar clase (`formulario-clase.tsx`) y en el buscador de maestros (`buscador-de-maestros.tsx`, que usa el de asignar y el de elegir); el buscador de alumnos ya lo tenía.
+- `puedeBorrar` en el frontend solo se **lee** del dato (`publicacion.puedeBorrar` y `comentario.puedeBorrar`): la variable local que decidía por el rol (`esMaestro || comentario.propio`) desaparece. `esMaestro`, `esDueno` y `mis-comentarios` ya no aparecen en código de producción (`grep` sin resultados).
+
+### Hermanos
+- **Lugares que mostraban «Crear clase» o «Editar clase» al maestro (todos retirados):** el enlace «Crear clase» y la insignia «Nueva clase» de la tarjeta interna de `InicioMaestroView` (la tarjeta desaparece: `BloqueDestacado` la pinta solo si hay `children`); la acción «Crea tu primera clase» del vacío de «Mis clases» (ahora una frase y sin botón, `PanelMisClases`); `TEXTOS_INICIO_MAESTRO.insignia` y `.crearClase` y `TEXTOS_PANEL.accionMaestro` (borrados de `data.ts`); el enlace «Editar clase» de `EncabezadoClase` (ahora solo si `CAPACIDADES_POR_PERSPECTIVA[perspectiva].editar`, que es solo del admin); `/maestro/clases/nueva` y `/maestro/clases/:claseId/editar` del router; el «Cancelar» de `FormularioClase` que volvía a `/maestro` (ahora a `/admin/clases` o a la clase del admin). Los siete sitios están aplicados.
+- **Botones de borrar que ahora leen `puedeBorrar` (3):** «Borrar publicación» (`PublicacionDelMuro`), «Borrar» de cada comentario (`FilaComentario`) y el segundo camino de borrado (`useBorrarMiComentario`, retirado, con A-5; `useBorrarComentario` va siempre a la ruta general). Ningún otro botón de borrar decide por el rol.
+- **Lugares que muestran el autor y ahora la insignia (2):** la cabecera de cada publicación y la de cada comentario, ambos con `FirmaDelAutor`. Nada más muestra `autor.nombre` (los inicios y la tabla de clases muestran nombres de maestros, que no son firmas).
+- **Lugares que decidían por el rol o por el prefijo `/maestro` y ahora usan la perspectiva (7):** `ClaseLayout` (el «Volver»), `EncabezadoClase` (código, editar, volver y maestros), `SeccionesDeClase` (secciones y base), `MuroView` (formulario de publicar y vacío), `PublicacionDelMuro`, `ComentariosDePublicacion` (formulario de comentar) y `FormularioClase`. `AlumnosView` no cambia (el admin ve el mismo roster y buscador). `perspectivaDeRuta` es la única función que lee el prefijo.
+- **Rutas del router:** maestro: `/maestro` (inicio), `/maestro/clases/nueva` (se redirige a `/login`, ver O-01) y `/maestro/clases/:claseId` con índice y `alumnos`; admin: `/admin` (cuentas), `/admin/maestros`, `/admin/clases` (lista), `/admin/clases/nueva` y `/admin/clases/:claseId` con índice, `alumnos`, `maestros` y `editar`; estudiante: sin cambios. El literal `nueva` gana a `:claseId` bajo `/admin/clases`.
+- **Metadatos y encabezados con uno o dos maestros (3):** `EncabezadoClase` ("Maestro: …" y "Maestros: … y …"), la tarjeta del estudiante (`unirNombres`) y la lista de maestros de la clase. `TarjetaClase` del maestro muestra alumnos y no cambia.
+- **Los dos buscadores de personas:** `BuscadorDeMaestros` es nuevo y no se generaliza `BuscadorAlumnos` (decisión del plan); el tratamiento de foco de §7.14 (siguiente botón, anterior o campo de búsqueda) se copió del de alumnos.
+- No encontré otro hermano.
+
+### PARADAS evaluadas
+PA-02 no (rama correcta y la base `7544fb9` existe; solo cambia `docs/ESTADO.md`, `aprobacion.md` y `reporte-tester.md` de los excluidos y `docs/DESIGN.md` por A-7); V-01 igual. PA-05 no (los 21 rojos de la ronda 0 en verde y ninguno nuevo). PA-06 no (ningún archivo de "No se toca", sin dependencias, sin tocar `vitest.config.ts`). PA-09 no. PA-12 no (suite del frontend sin tiempos límite). PA-13 no (la guarda no es de 02c). PA-16 no (solo archivos de la lista de 02c). PA-01, PA-07 y las demás del backend no aplican: no corrí el backend.
+
+### Desviaciones del plan (pequeñas; las decide el manager)
+1. **O-01 del tester, `/maestro/clases/nueva`:** el plan dice que cae en el `*`, pero coincide con `clases/:claseId` con `claseId = "nueva"`. Lo resolví con una ruta literal `clases/nueva` bajo `/maestro` que redirige a `/login` (`<Navigate to="/login" replace />`), lo mismo a lo que llega cualquier ruta desconocida; así «nueva» no se trata como un `claseId` y la app no pide `GET /api/clases/nueva`. Lo cubre «PR-2C08: /maestro/clases/nueva no existe…» en `router.test.tsx`. Hermanos: no hay otro segmento literal retirado bajo una ruta con `:claseId` (`/maestro/clases/:claseId/editar` desaparece del árbol y cae en el `*`, lo fija `rutas-clases-r1.ataque`).
+2. **`components/selector-de-maestros.tsx` (nuevo, no listado en "Cambios por capa"):** §D-2C2 nombra un `SelectorDeMaestros` para crear una clase, pero la lista de componentes solo trae el buscador, la tabla, la lista de maestros y la firma. Lo creé como un envoltorio delgado (fieldset con leyenda, ayuda, lista de elegidos, nota del tope y `ErrorDeCampo`) para no meter el estado y el foco del selector dentro de `formulario-clase.tsx`. No lleva `enEspera` (V-06 sigue en 39).
+3. **`ListaMaestrosDeClase` sirve a la lista de la clase (con confirmación) y a la de los elegidos al crearla (sin ella)**, por la prop `confirmar`; su único «Sí, quitar» con `enEspera` está ahí (C-20: 1). El tipo de fila (`MaestroDeLista`) vive en `types.ts` (regla 6 de `CLAUDE.md`).
+4. **"Creada" (fecha corta)** usa `formatearFechaDeClase` (`Intl`, `dateStyle: "medium"`) en `features/clases/lib.ts`, no `lib/format.ts` (que está en "No se toca").
+5. **`BloqueDestacado` y `PanelMisClases`:** `insignia` y `children` pasan a opcionales (el maestro no tiene tarjeta interna) y el panel suma `descripcionVacio` además de `accionVacio` opcional; el vacío del estudiante conserva su acción.
+6. **Textos:** el encabezado de la tabla «Clase», «Maestros», «Alumnos», «Creada» y «Acciones» y los demás textos de "Textos de la interfaz" viven en `data.ts`; sumé «Ya elegido» (insignia del resultado ya elegido al crear) y la leyenda «Maestros elegidos» para la lista de elegidos, que el plan no nombra. «Elegir» y «Quitar» llevan el nombre del maestro como texto `sr-only` (§7.9).
+7. **`<h1>` de `ClasesAdminView` lleva `tabIndex={-1}`** para recibir el foco cuando «Cargar más clases» se desmonta sin clases nuevas (§7.14). El encabezado «Maestros de la clase» también (recibe el foco cuando ya no queda un «Quitar»).
+
+### Textos aplicados en `docs/DESIGN.md` (A-7; todos con la marca «propuesta (CLASES-02c)»)
+§7.1 (tabla de alcance: se quita `/maestro/clases/nueva` de las pantallas de trabajo y se suman `/admin/clases`, `/admin/clases/nueva` y `/admin/clases/*` a las del administrador); §7.3 (control segmentado con tres opciones y el indicador `--accent-soft` en contexto opaco; el ejemplo de «sin opción activa» pasa a `/admin/clases/:claseId/editar`); §7.4 (el administrador tiene tres destinos y cada destino declara su `coincidencia`); §7.5 (el maestro no tiene tarjeta interna desde CLASES-02); §7.6 (metadatos con dos maestros); §7.8 (fila «Administración (firma) · institucional · "Administración" · `Landmark`», su nota y la variante `institucional` entre las de la insignia genérica); §7.9 («Cargar más clases» y las columnas de la tabla de clases); §7.10 (vacío del maestro sin acción y vacío del administrador); §7.16 (las tres perspectivas y sus capacidades, «Volver a la lista de clases», encabezado con uno o dos maestros); §7.17 (el buscador de maestros del administrador, el tope de dos, «Quitar» con su foco y la nota del mínimo); §7.18 (el botón de borrar sale de `puedeBorrar`, y la firma «Administración» con `Landmark` decidida por `autor.administracion`). No cambió ningún token ni valor de color.
+
+### Pendiente o fuera de alcance detectado
+- La comprobación humana en navegador (H-1 a H-3) es de 02d, al cerrar.
+- O-03 y O-04 del tester (el texto del maestro sin clases y la rama muerta de `muro-c-r2`) los ataca la ronda 1.
+- A-6 (mover `varianteDeClase` y las claves a `lib/` y `services/`) es de 02d: no la hice.
+
+## CLASES-02c — Corrección de la ronda 1
+
+Hallazgo atendido: **T-02 (media): corregido.** O-05 a O-07 y O-09 del tester no son del programador (el manager las decide); O-08 se atiende abajo.
+
+### T-02
+- **Remedio (`frontend/src/features/clases/hooks.ts`, en "Cambios por capa" de 02c):** los ayudantes de invalidación (`invalidarListasDeClases`, `invalidarMaestrosDeLaClase`, `invalidarPersonasDeLaClase`, `invalidarMuro`, `invalidarComentarios`) ahora devuelven la recarga que disparan (`await Promise.all([queryClient.invalidateQueries(…)])`), y el `onSuccess` de cada hook de acción la espera después de dar el aviso. Con eso la mutación sigue pendiente, y su botón en `enEspera` (nunca `disabled`), hasta que el dato recargado ya no ofrece la acción; el aviso de éxito sale una vez por acción. Sin tipos nuevos en el archivo; el foco no cambia (§7.14: la fila o el buscador lo mueven cuando el dato ya llegó).
+- **Los dos casos del tester pasan sin tocarlos:** `features/clases/maestros-02c-r1.ataque.test.tsx` › «asignar: con el POST ya respondido y la clase sin recargar, un segundo clic en «Asignar a la clase» del mismo maestro no manda otro POST ni otro aviso» y «quitar: con el DELETE ya respondido y la clase sin recargar, un segundo clic en «Sí, quitar» no manda otro DELETE ni otro aviso» (`npx vitest run` de ese archivo: `Tests  42 passed (42)`).
+
+### Hermanos, uno por uno
+- **«Asignar a la clase» (`useAsignarMaestro`) y «Sí, quitar» de la lista de maestros (`useRetirarMaestro`):** los dos del hallazgo: aplicado.
+- **«Agregar a la clase» del buscador de alumnos (`useAgregarAlumno`):** el patrón aplica (el botón seguía hasta que llegaban los candidatos recargados); corregido en el mismo hook (`hooks.ts`), sin tocar `buscador-alumnos.tsx`. El aviso (éxito o «ya estaba») sale primero y después se espera la recarga.
+- **«Sí, quitar» del roster (`useQuitarAlumno`):** aplica; corregido en `hooks.ts` (el `onSuccess` devuelve la recarga). El aviso lo da `tabla-alumnos.tsx` en el callback de `mutate`, que ahora corre cuando la recarga ya llegó; no toqué el componente. Las `*.ataque` de CLASES-b (`alumnos-b-r1` a `-r5`) siguen en verde.
+- **«Borrar publicación» (`useBorrarPublicacion`) y «Borrar» comentario (`useBorrarComentario`):** aplican (la fila seguía con «Sí, borrar» hasta la recarga, y un segundo `DELETE` respondería `404`): corregidos en `hooks.ts`.
+- **«Unirme a la clase» (`useUnirseAClase`):** su `onSuccess` ya devolvía `invalidarListasDeClases`, que ahora es la recarga: el botón sigue en `enEspera` hasta que `inscritas` se vuelve a pedir y después navega. Efecto: la navegación a la clase espera esa recarga (una ida y vuelta).
+- **«Crear clase» y «Guardar cambios» (editar clase):** no aplica: después del `200` navegan a la clase y no hay un dato recargado que esconda la acción; sus invalidaciones quedan sin esperar (`void`).
+- **«Publicar» y «Comentar»:** no aplica: tras el `200` el formulario se limpia (el segundo clic daría el error de campo vacío, sin petición); sus invalidaciones quedan sin esperar.
+- **«Regenerar código»:** no aplica: el hook escribe la respuesta directo en la caché (`setQueryData`), sin recarga.
+- **«Elegir» del selector:** no es hermano (lo confirmó el tester).
+- **«Cargar más» (O-08, dos clics en el mismo instante):** la llamada pasa a `fetchNextPage({ cancelRefetch: false })`, que reutiliza la petición en vuelo en lugar de cancelarla y repetirla. Aplicado en `clases-admin-view.tsx`, `muro-view.tsx`, `components/comentarios-de-publicacion.tsx`, `inicio-maestro-view.tsx` e `inicio-estudiante-view.tsx` (los cinco, de "Cambios por capa" de 02c).
+- **Pendientes que no toqué (fuera de "Cambios por capa" de 02c y de PA-16; el manager decide):** el mismo «Cargar más» en `frontend/src/features/clases/components/tabla-alumnos.tsx` (CLASES-b, «Ver más alumnos» del roster) y en `frontend/src/features/clases/personas-view.tsx` («Ver más alumnos» de compañeros; archivo de 02d). Ninguno más.
+
+### Verificación (una suite a la vez)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+- `cd frontend; npm test` (una corrida completa) → `Test Files  113 passed (113)` / `Tests  1620 passed (1620)` / `Duration  74.45s`. Las 6 `*.ataque` nuevas del tester (`app/rutas-02c-r1`, `features/clases/muro-02c-r1`, `clases-admin-02c-r1`, `maestros-02c-r1`, `inicio-sin-datos-02c-r1` y `estatico-02c-r1`) están dentro y en verde.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 728ms`.
+- `cd frontend; npx vitest list` → 1620 casos (113 archivos, como la corrida). 
+- V-01: 129 de 129 hashes de `*.ataque` iguales a la tabla de la ronda 1 de 02c. No toqué ninguna.
+
+### Archivos tocados contra "Cambios por capa" de 02c
+Solo `frontend/src/features/clases/hooks.ts`, `clases-admin-view.tsx`, `muro-view.tsx`, `inicio-maestro-view.tsx`, `inicio-estudiante-view.tsx` y `components/comentarios-de-publicacion.tsx`: los seis están en la lista de 02c. Ninguna prueba normal ni `*.ataque` cambió; ningún archivo de "No se toca"; sin backend ni `shared/`.
+
+### PARADAS
+Ninguna se activó (PA-05: ningún rojo; PA-06: sin archivos fuera de lista; PA-09: sin resultados distintos entre la corrida aislada y la completa; PA-16: sin archivos de pruebas fuera de lista).
+
+## CLASES-02c — Corrección de la ronda 2
+
+Hallazgos: **T-04 (media): corregido.** **T-03 (baja): no corregido, por arbitraje del manager** (observación: las seis acciones son idempotentes y `enviandoRef` solo se exige donde un envío duplicado daña; el tester retira los casos en la ronda 3).
+
+### T-04
+- **Remedio:** nuevo `useFocoAlPasarAError(esError, destinoRef)` en `features/clases/hooks.ts` (sin tipos nuevos; `RefObject` solo como tipo del parámetro). Se ejecuta en un efecto después del render, no en `onSuccess`, y mueve el foco a `destinoRef` solo cuando la consulta **pasa** a error y `focoPerdido(document)`: una vista que nace en error o un foco que la persona eligió no se tocan. `MensajeError` no se tocó.
+- **Los 3 casos de T-04 pasan a verde sin tocarlos** (`features/clases/ventana-02c-r2.ataque.test.tsx` › «la recarga falla después del 200»: ««Asignar a la clase» (maestros)…», ««Sí, quitar» (maestros)…» y ««Sí, borrar» (publicación)…»).
+
+### Hermanos, uno por uno
+- **`ClaseLayout` (`clase-layout.tsx`):** aplicado: la rama de error se envuelve en un contenedor con `tabIndex={-1}` (que no tenía encabezado) y recibe el foco. Cubre los dos casos de maestros, porque `useClase` comparte clave con el detalle.
+- **`MaestrosDeClaseView` (`maestros-de-clase-view.tsx`):** tiene su propia rama de error (`MensajeError`): aplicado con el mismo contenedor.
+- **Lista del muro (`muro-view.tsx`):** aplicado: el foco va al encabezado `h2` «Publicaciones» (`tabIndex={-1}`, solo lectores de pantalla). Es el caso heredado de la publicación.
+- **`ComentariosDePublicacion` (`components/comentarios-de-publicacion.tsx`):** no se tocó; el foco no cae en `<body>` porque el comentario vive dentro de una `PublicacionDelMuro` (`[data-publicacion-id]`): `MuroView` ya recuerda con `useFilaEnFoco("data-publicacion-id")` en qué publicación estaba el foco y, cuando se pierde, lo lleva al «Borrar publicación» de esa publicación (que sigue montada).
+- **`ClasesAdminView` (`clases-admin-view.tsx`):** aplicado (hook sobre su `h1` con `tabIndex={-1}`). No hay acción con recarga ahí, pero la lista puede pasar a error por «Cargar más» con el foco en el botón.
+- **`TablaAlumnos` (referencia):** no se toca; tiene su propio criterio (el foco va al «Quitar» vecino o al `h2` cuando la fila sale de los datos).
+- **`PersonasView`:** queda para 02d, no se tocó. Fuera de "Cambios por capa": ninguno más.
+
+### Verificación (una suite a la vez)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+- `cd frontend; npm test` (una corrida completa) → `Test Files  1 failed | 114 passed (115)` / `Tests  6 failed | 1650 passed (1656)` / `Duration  67.73s`. Los 6 rojos son los de T-03, que seguirán así hasta que el tester los retire en la ronda 3, todos en `features/clases/ventana-02c-r2.ataque.test.tsx` › «la ventana entre el 200 y la recarga, en los hermanos de T-02» › «<hermano>, segundo clic a 0 ms: una sola petición, un solo aviso, el botón en espera (aria-busy, sin disabled) y el foco fuera de <body>», para «Asignar a la clase» (maestros), «Sí, quitar» (maestros), «Agregar a la clase» (roster), «Sí, quitar» (roster), «Sí, borrar» (publicación) y «Sí, borrar comentario». Ningún otro rojo; las 131 `*.ataque` pasan salvo esos 6.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 869ms`.
+- V-01: 131 de 131 hashes de `*.ataque` iguales a la tabla de la ronda 2 de 02c; no toqué ninguna.
+
+### Archivos tocados contra "Cambios por capa" de 02c
+`frontend/src/features/clases/hooks.ts`, `clase-layout.tsx`, `maestros-de-clase-view.tsx`, `muro-view.tsx` y `clases-admin-view.tsx`: los cinco están en la lista de 02c. Sin pruebas, sin backend ni `shared/`.
+
+### PARADAS
+Ninguna se activó (PA-05: los únicos rojos son los 6 de T-03, que el manager arbitró; PA-06 y PA-16: sin archivos fuera de lista).
+
+## CLASES-02c — Corrección de la ronda 3 (T-05)
+
+Hallazgo atendido: **T-05 (baja): corregido** (cuarta ronda cerrada autorizada por el humano, solo para T-05).
+
+- **Remedio (`features/clases/hooks.ts`, en "Cambios por capa" de 02c):** `useFocoAlPasarAError(esError, tieneDatos, destinoRef)` suma el parámetro `tieneDatos` y un `useRef` (`huboDatos`) que recuerda que la consulta tuvo datos; el foco solo se mueve si hubo datos antes del paso a error, es decir, solo tras una recarga. Una primera carga que falla (la consulta pendiente al montar, que antes se tomaba como un paso a error) o un error ya en la caché no mueven el foco. No cambié nada más del gancho ni sus destinos; el comentario del gancho quedó alineado con ese alcance (T-04 y T-05).
+- **Hermanos (los cuatro usos del gancho, que comparten el cambio por estar en el hook y a los que pasé `tieneDatos`):** `ClaseLayout` (`data !== undefined`), `MaestrosDeClaseView` (`clase.data !== undefined`), la lista del muro (`publicaciones.data !== undefined`) y `ClasesAdminView` (`clases.data !== undefined`). No hay un quinto uso (`ComentariosDePublicacion` no lo lleva, ronda 2). Cada llamada cambió una línea.
+- **Los 3 casos del tester pasan sin tocarlos** (`features/clases/foco-02c-r3.ataque.test.tsx`: `ClaseLayout`, muro y `/admin/clases`), y los casos de T-04 de `ventana-02c-r2.ataque.test.tsx` siguen en verde.
+
+### Verificación (una suite a la vez)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+- `cd frontend; npm test` (una corrida completa) → `Test Files  116 passed (116)` / `Tests  1672 passed (1672)` / `Duration  68.88s`. Sin rojos (incluidos los 26 de `ventana-02c-r2`, que el tester ya dejó en verde).
+- `npm run build` (raíz) → código 0; última línea `✓ built in 723ms`.
+- V-01: 132 de 132 hashes de `*.ataque` iguales a la tabla de la ronda 3 de 02c; no toqué ninguna.
+
+### Archivos tocados contra "Cambios por capa" de 02c
+`hooks.ts`, `clase-layout.tsx`, `clases-admin-view.tsx`, `maestros-de-clase-view.tsx` y `muro-view.tsx`: los cinco están en la lista de 02c. Sin pruebas, backend ni `shared/`. PARADAS: ninguna.
+
+## CLASES-02c — Corrección de la ronda 4 (T-06)
+
+Hallazgo atendido: **T-06 (baja): corregido** (quinta ronda cerrada autorizada por el humano, solo para T-06).
+
+- **Remedio (`features/clases/hooks.ts`):** `useFocoAlPasarAError(esError, tieneDatos, clave, destinoRef)` suma `clave` y un `useRef` con la clave previa. Cuando la clave cambia, reinicia `huboDatos` y `eraError` con los valores del render actual y ese render no mueve el foco. Sin `key={claseId}` en `ConClaseDeLaRuta`: el reinicio dentro del gancho bastó.
+- **Hermanos (los cuatro usos del gancho; el remedio les aplica y lo apliqué a todos):** `ClaseLayout` (`claseId`), `MaestrosDeClaseView` (`claseId`), la lista del muro en `muro-view.tsx` (`claseId`) y `ClasesAdminView` (constante `"clases-admin"`, su consulta no cambia de clave). `ComentariosDePublicacion` no usa el gancho. Sin otros hermanos.
+- **Casos del tester:** los 3 de `features/clases/foco-02c-r4.ataque.test.tsx` pasan sin tocarlos; T-04 (`ventana-02c-r2`) y T-05 (`foco-02c-r3`) siguen en verde.
+
+### Verificación (una suite a la vez)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`. (Prettier pidió reformatear una línea de `muro-view.tsx`; `npx prettier --write` solo sobre ese archivo.)
+- `cd frontend; npm test` (una corrida completa) → `Test Files  117 passed (117)` / `Tests  1702 passed (1702)` / `Duration  69.67s`. Sin rojos.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 685ms`.
+- V-01: 133 de 133 hashes de `*.ataque` iguales a la tabla de la ronda 4 de 02c (comparación con `sha256sum` de cada archivo); no toqué ninguna.
+
+### Archivos tocados
+`hooks.ts`, `clase-layout.tsx`, `clases-admin-view.tsx`, `maestros-de-clase-view.tsx` y `muro-view.tsx`: los cinco están en la lista de 02c. Sin pruebas, backend ni `shared/`. PARADAS: ninguna.

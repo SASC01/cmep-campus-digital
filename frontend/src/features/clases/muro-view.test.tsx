@@ -63,7 +63,7 @@ const stubApi = (manejador: Manejador) => {
 
 const rutaDelMuro = `/api/clases/${CLASE_ID}/publicaciones`
 
-const renderMuro = (rol: "maestro" | "estudiante") => {
+const renderMuro = (rol: "maestro" | "estudiante" | "admin") => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
@@ -112,6 +112,55 @@ describe("MuroView", () => {
     await screen.findByText("Texto de la publicación 1")
     expect(botonesPrimarios()).toHaveLength(0)
     expect(screen.queryByRole("group", { name: "Tipo de publicación" })).toBeNull()
+  })
+
+  // CLASES-02c (§D-2C4, PR-2C07 y PR-2C09): el admin publica (su «Publicar anuncio» es la única
+  // acción principal) y lee sin comentar; el vacío del admin tiene su texto.
+  it("PR-2C07: en la vista del admin hay un solo primary, el grupo del tipo de publicación y ningún formulario de comentario", async () => {
+    stubApi((ruta) => {
+      if (ruta.startsWith(rutaDelMuro)) return respuestaJson(200, lista([publicacion(1)], null))
+      return errorJson(500, "ERROR_INTERNO")
+    })
+
+    renderMuro("admin")
+
+    await screen.findByText("Texto de la publicación 1")
+    expect(botonesPrimarios()).toHaveLength(1)
+    expect(botonesPrimarios()[0]).toHaveTextContent("Publicar anuncio")
+    expect(screen.getByRole("group", { name: "Tipo de publicación" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Ver comentarios (0)" }))
+    expect(screen.queryByLabelText("Escribe un comentario")).toBeNull()
+  })
+
+  it("PR-2C09: el vacío del admin dice «Aún no hay publicaciones en esta clase.»", async () => {
+    stubApi(() => respuestaJson(200, lista([], null)))
+    renderMuro("admin")
+    expect(await screen.findByText("Aún no hay publicaciones en esta clase.")).toBeInTheDocument()
+  })
+
+  it("PR-2C09: «Borrar publicación» sale de puedeBorrar y no del rol, en las tres perspectivas", async () => {
+    stubApi((ruta) => {
+      if (ruta.startsWith(rutaDelMuro)) {
+        return respuestaJson(
+          200,
+          lista(
+            [publicacion(1, { puedeBorrar: false }), publicacion(2, { puedeBorrar: true })],
+            null,
+          ),
+        )
+      }
+      return errorJson(500, "ERROR_INTERNO")
+    })
+
+    for (const rol of ["estudiante", "maestro", "admin"] as const) {
+      renderMuro(rol)
+      await screen.findByText("Texto de la publicación 1")
+      const botones = screen.getAllByRole("button", { name: "Borrar publicación" })
+      expect(botones, rol).toHaveLength(1)
+      const fila = botones[0]?.closest("[data-publicacion-id]")
+      expect(fila, rol).toHaveAttribute("data-publicacion-id", idDe(2))
+      cleanup()
+    }
   })
 
   it("PR-C09e: los vacíos por rol", async () => {
@@ -225,7 +274,7 @@ describe("MuroView", () => {
   })
 })
 
-describe("cursor que ya no existe (Enmienda 8, T-34)", () => {
+describe("cursor que ya no existe (Enmienda 9, T-34)", () => {
   it("PR-C17: tras el 400 del cursor en «Ver más publicaciones», se muestra el texto que dice qué pasó y el foco va al encabezado", async () => {
     stubApi((ruta) => {
       if (!ruta.startsWith(rutaDelMuro)) return errorJson(500, "ERROR_INTERNO")
@@ -252,7 +301,7 @@ describe("cursor que ya no existe (Enmienda 8, T-34)", () => {
   })
 })
 
-describe("pulsar «Muro» con el muro en error (Enmienda 8, T-35)", () => {
+describe("pulsar «Muro» con el muro en error (Enmienda 9, T-35)", () => {
   const renderConEnlaceMuro = () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const ruta = `/estudiante/clases/${CLASE_ID}`

@@ -203,9 +203,12 @@ describe("ataque CLASES-a r2: avisos del código (T-05, T-06)", () => {
 })
 
 describe("ataque CLASES-a r2: VALIDACION del servidor en los formularios (T-11)", () => {
+  // CLASES-02 ronda 0 de 02c (C-12, §D-2C2): editar la clase pasa al admin; useEditarClase hace
+  // PUT /api/admin/clases/:claseId (PUT /api/clases/:claseId ya no existe, C-2 de 02a). Sigue
+  // protegiendo que el VALIDACION de la descripción quede en su campo, sin el nombre técnico.
   it("al editar, un VALIDACION de la descripción se muestra en su campo y sin el nombre técnico del campo", async () => {
     stubFetch((ruta, metodo) => {
-      if (ruta === `/api/clases/${CLASE_ID}` && metodo === "PUT") {
+      if (ruta === `/api/admin/clases/${CLASE_ID}` && metodo === "PUT") {
         return errorJson(400, "VALIDACION", "descripcion: No puede tener más de 2000 caracteres")
       }
       return errorJson(500, "ERROR_INTERNO")

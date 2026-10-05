@@ -8,9 +8,12 @@ import {
 import { esApiError } from "@/services/apiClient"
 
 import {
+  CAPACIDADES_POR_PERSPECTIVA,
+  CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   MARGEN_DE_VISTA_PREVIA_MS,
   MENSAJES_ERROR_CLASES_GENERALES,
   TEXTOS_ADJUNTOS,
+  TEXTOS_CLASE,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
   TEXTOS_TARJETA,
@@ -22,9 +25,57 @@ import type {
   PaginaDelMuro,
   ErroresFormulario,
   IncidenciaValidacion,
+  Perspectiva,
   RolDeClases,
+  SeccionDeClase,
   VarianteDeClase,
 } from "./types"
+
+// §D-2C1: la perspectiva sale del prefijo exacto de la ruta (/estudiante, /maestro o /admin, solo o
+// seguido de "/"). Un prefijo parecido (/maestros, /administrador) o cualquier otra ruta da
+// "estudiante", la perspectiva que menos muestra; el backend decide de todas formas.
+export const perspectivaDeRuta = (pathname: string): Perspectiva => {
+  for (const perspectiva of ["maestro", "admin"] as const) {
+    const base = `/${perspectiva}`
+    if (pathname === base || pathname.startsWith(`${base}/`)) return perspectiva
+  }
+  return "estudiante"
+}
+
+// "A" con uno, "A y B" con dos: los metadatos de las tarjetas y el encabezado de la clase.
+export const unirNombres = (nombres: readonly string[]): string => nombres.join(" y ")
+
+// §D-2C1: "Maestro: A" con uno y "Maestros: A y B" con dos.
+export const textoDeMaestros = (nombres: readonly string[]): string => {
+  if (nombres.length === 1) return TEXTOS_CLASE.maestro(unirNombres(nombres))
+  return TEXTOS_CLASE.maestros(unirNombres(nombres))
+}
+
+// Índice de la sección activa de una clase según la ruta, o -1 si ninguna lo está (por ejemplo,
+// /editar). El muro (segmento "") solo está activo en la base exacta.
+export const indiceDeSeccionActiva = (
+  pathname: string,
+  base: string,
+  secciones: readonly SeccionDeClase[],
+): number => {
+  const sinBarraFinal = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname
+  return secciones.findIndex(({ segmento }) => {
+    const destino = segmento === "" ? base : `${base}/${segmento}`
+    if (segmento === "") return sinBarraFinal === destino
+    return sinBarraFinal === destino || sinBarraFinal.startsWith(`${destino}/`)
+  })
+}
+
+// La ruta base de las secciones de una clase para una perspectiva.
+export const baseDeClase = (perspectiva: Perspectiva, claseId: string): string =>
+  `${CAPACIDADES_POR_PERSPECTIVA[perspectiva].base}/${claseId}`
+
+// "Creada" en la tabla de clases del administrador: fecha corta en la zona local.
+export const formatearFechaDeClase = (iso: string): string => {
+  const fecha = new Date(iso)
+  if (Number.isNaN(fecha.getTime())) return iso
+  return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(fecha)
+}
 
 // S-06: variante determinista a partir del id de la clase (UUID), sin guardarse ni elegirse. La
 // suma de los puntos de código módulo 3 reparte entre las tres variantes.
@@ -101,6 +152,8 @@ const quitarPrefijoDeCampo = (mensaje: string): string => mensaje.replace(PREFIJ
 // muestran el mensaje del servidor sin el prefijo técnico del campo (T-17).
 export const mensajeDeErrorClases = (error: unknown): string => {
   if (!esApiError(error)) return MENSAJES_ERROR_CLASES_GENERALES.generico
+  // CLASES-02c: los errores de maestros y de autoría llegan con su mensaje en español.
+  if (CODIGOS_CON_MENSAJE_DEL_SERVIDOR.includes(error.codigo)) return error.message
   if (error.codigo === "VALIDACION") {
     if (error.message.startsWith("claseId:"))
       return MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase
@@ -124,6 +177,9 @@ export const mensajeDeErrorDeLista = (error: unknown, textoDelCursor: string): s
   if (campoDeErrorClases(error) === "cursor") return textoDelCursor
   return mensajeDeErrorClases(error)
 }
+
+// El 400 "cursor: no es válido" de una lista paginada (la fila del cursor ya no existe).
+export const esErrorDeCursor = (error: unknown): boolean => campoDeErrorClases(error) === "cursor"
 
 // T-19 (ronda 3 del tester): un error que no es de un campo (500, sin conexión, SIN_ACCESO_A_LA_CLASE
 // al editar) no es un VALIDACION con el prefijo técnico de un campo, así que no debe marcar ningún

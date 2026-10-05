@@ -26,9 +26,11 @@ interface BloqueDestacadoProps {
   cargando: boolean
   esError: boolean
   errorTitular: string
-  insignia: string
+  // La tarjeta interna es opcional (§7.5): el maestro no la tiene desde CLASES-02, porque no crea
+  // clases y no hay una acción principal que ofrecerle.
+  insignia?: string
   tituloTarjeta?: string
-  children: ReactNode
+  children?: ReactNode
 }
 
 // §D-A5, §7.5: el saludo depende solo de la sesión (se ve aunque falle la consulta de clases); el
@@ -82,11 +84,13 @@ export function BloqueDestacado({
         )}
       </div>
 
-      <div className="flex w-full flex-col gap-3 rounded-panel vidrio-fuerte p-6 sm:w-80">
-        <span className="text-caption font-bold text-muted-foreground uppercase">{insignia}</span>
-        {tituloTarjeta && <h2 className="text-h3">{tituloTarjeta}</h2>}
-        {children}
-      </div>
+      {children !== undefined && (
+        <div className="flex w-full flex-col gap-3 rounded-panel vidrio-fuerte p-6 sm:w-80">
+          <span className="text-caption font-bold text-muted-foreground uppercase">{insignia}</span>
+          {tituloTarjeta && <h2 className="text-h3">{tituloTarjeta}</h2>}
+          {children}
+        </div>
+      )}
     </section>
   )
 }

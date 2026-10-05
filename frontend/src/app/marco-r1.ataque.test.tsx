@@ -298,6 +298,11 @@ describe("ataque (DESIGN-01b-1 r1): marco de cada rol", () => {
   // enfocable, en su orden, y que solo el de la ruta actual lleve aria-current (NavLink con `end`:
   // "Cuentas" no queda activa en /admin/maestros ni "Maestros" en /admin). Estudiante y maestro
   // conservan un solo destino.
+  // CLASES-02 ronda 0 de 02c (C-14, §D-2C1 y Enmienda 1, M-04): el admin suma un tercer destino,
+  // "Clases" (/admin/clases), después de "Maestros"; en /admin solo "Cuentas" lleva aria-current
+  // ("Clases" es de coincidencia por prefijo, pero /admin no está bajo /admin/clases). Sigue
+  // protegiendo lo mismo: cada destino es una ruta existente y enfocable, en su orden, y solo el de
+  // la ruta actual queda activo.
   it.each([
     {
       rol: "estudiante",
@@ -320,8 +325,8 @@ describe("ataque (DESIGN-01b-1 r1): marco de cada rol", () => {
       nombre: "Administración",
       etiqueta: "Administrador",
       destino: "/admin",
-      destinos: ["/admin", "/admin/maestros"],
-      textos: ["Cuentas", "Maestros"],
+      destinos: ["/admin", "/admin/maestros", "/admin/clases"],
+      textos: ["Cuentas", "Maestros", "Clases"],
     },
   ])(
     "$rol: una nav con sus destinos existentes, solo el de la ruta actual activo, un banner, un pie, un 'Cerrar sesión'",

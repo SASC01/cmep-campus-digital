@@ -103,15 +103,29 @@ describe("rutas", () => {
     expect(await screen.findByRole("button", { name: "Unirme a la clase" })).toBeInTheDocument()
   })
 
-  it("PR-A26b: /maestro/clases/nueva monta el formulario", async () => {
+  // CLASES-02c (C-12): crear clases es del administrador.
+  it("PR-A26b: /admin/clases/nueva monta el formulario para el admin", async () => {
     stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      return respuestaJson(200, me({ rol: "admin" }))
+    })
+
+    await renderEn("/admin/clases/nueva")
+
+    expect(await screen.findByRole("heading", { name: "Crear clase" })).toBeInTheDocument()
+    expect(screen.getByLabelText("Buscar maestro por nombre")).toBeInTheDocument()
+  })
+
+  it("PR-2C08: /maestro/clases/nueva no existe: el maestro termina en /login sin pedir una clase llamada nueva", async () => {
+    const fetchMock = stubFetch((ruta) => {
       if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
       return respuestaJson(200, me({ rol: "maestro" }))
     })
 
-    await renderEn("/maestro/clases/nueva")
+    const router = await renderEn("/maestro/clases/nueva")
 
-    expect(await screen.findByRole("heading", { name: "Crear clase" })).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+    expect(fetchMock.mock.calls.some(([entrada]) => String(entrada).includes("/nueva"))).toBe(false)
   })
 
   it("PR-B15: personas y alumnos montan sus vistas", async () => {

@@ -8,22 +8,24 @@ import { formatearFechaHora } from "@/lib/format"
 
 import { TEXTOS_PUBLICACION } from "../data"
 import { useBorrarPublicacion } from "../hooks"
-import type { Publicacion } from "../types"
+import type { Perspectiva, Publicacion } from "../types"
 import { AdjuntosDePublicacion } from "./adjuntos-de-publicacion"
 import { ComentariosDePublicacion } from "./comentarios-de-publicacion"
+import { FirmaDelAutor } from "./firma-del-autor"
 
 interface PublicacionDelMuroProps {
   claseId: string
   publicacion: Publicacion
-  esMaestro: boolean
+  perspectiva: Perspectiva
 }
 
 // §D-C5, DESIGN.md §7.18: una publicación del muro, en un panel (el vidrio sale de Card). La
 // insignia del tipo lleva texto e icono; el texto es plano (React lo escapa, sin HTML) con
 // whitespace-pre-line y max-w-prose. "Ver comentarios" pliega y despliega los comentarios; el
-// maestro dueño puede borrar la publicación, con confirmación en línea (§7.14): el foco va a
-// "Cancelar" al pedirla y vuelve a "Borrar publicación" al cancelar.
-export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: PublicacionDelMuroProps) {
+// botón "Borrar publicación" sale de `puedeBorrar` (lo decide el servidor con la regla de autoría),
+// nunca del rol; pide confirmación en línea (§7.14): el foco va a "Cancelar" al pedirla y vuelve a
+// "Borrar publicación" al cancelar. La firma sale de FirmaDelAutor (§D-2C4).
+export function PublicacionDelMuro({ claseId, publicacion, perspectiva }: PublicacionDelMuroProps) {
   const [abierto, setAbierto] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const idComentarios = useId()
@@ -62,10 +64,7 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
             </Badge>
           )}
           <p className="text-small text-muted-foreground">
-            <span className="wrap-anywhere font-bold text-foreground">
-              {publicacion.autor.nombre}
-            </span>{" "}
-            · {formatearFechaHora(publicacion.creadoEn)}
+            <FirmaDelAutor autor={publicacion.autor} /> · {formatearFechaHora(publicacion.creadoEn)}
           </p>
         </div>
 
@@ -93,7 +92,7 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
               ? TEXTOS_PUBLICACION.ocultarComentarios
               : TEXTOS_PUBLICACION.verComentarios(publicacion.comentarios)}
           </Button>
-          {esMaestro && !confirmando && (
+          {publicacion.puedeBorrar && !confirmando && (
             <Button
               ref={borrarBtnRef}
               type="button"
@@ -107,7 +106,7 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
           )}
         </div>
 
-        {esMaestro && confirmando && (
+        {publicacion.puedeBorrar && confirmando && (
           <div className="flex flex-col gap-2">
             <p className="text-small">{textoDeConfirmacion}</p>
             <div className="flex flex-wrap gap-2">
@@ -138,7 +137,7 @@ export function PublicacionDelMuro({ claseId, publicacion, esMaestro }: Publicac
             id={idComentarios}
             claseId={claseId}
             publicacionId={publicacion.id}
-            esMaestro={esMaestro}
+            perspectiva={perspectiva}
           />
         )}
       </CardContent>

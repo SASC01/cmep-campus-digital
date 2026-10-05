@@ -229,9 +229,13 @@ describe("ataque (AUTH-03b r1): /admin/maestros en el marco del admin", () => {
     await screen.findByRole("button", { name: "Generar el primer enlace" })
     const nav = screen.getByRole("navigation", { name: "Navegación principal" })
     const enlaces = within(nav).getAllByRole("link")
+    // CLASES-02 ronda 0 de 02c (C-14, Enmienda 1, M-04): el admin suma "Clases" (/admin/clases),
+    // que no queda activo en /admin/maestros. Sigue protegiendo que en /admin/maestros solo
+    // "Maestros" lleve aria-current.
     expect(enlaces.map((a) => [a.textContent, a.getAttribute("aria-current")])).toEqual([
       ["Cuentas", null],
       ["Maestros", "page"],
+      ["Clases", null],
     ])
     expect(screen.getByRole("heading", { level: 1, name: "Maestros" })).toBeVisible()
     const controles = [

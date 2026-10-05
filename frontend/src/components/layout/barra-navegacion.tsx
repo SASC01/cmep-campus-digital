@@ -21,7 +21,7 @@ export function BarraNavegacion({ destinos }: BarraNavegacionProps) {
           <li key={destino.ruta}>
             <NavLink
               to={destino.ruta}
-              end
+              end={destino.coincidencia === "exacta"}
               className={({ isActive }) =>
                 cn(
                   "flex h-14 w-18 flex-col items-center justify-center gap-1 rounded-row text-caption font-medium text-foreground transition-colors duration-150 hover:vidrio-fuerte in-data-[material=opaco]:hover:bg-muted md:h-15",

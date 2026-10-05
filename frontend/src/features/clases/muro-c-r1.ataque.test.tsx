@@ -103,6 +103,13 @@ const comentario = (n: number, extra: Partial<ComentarioFalso> = {}): Comentario
   ...extra,
 })
 
+// CLASES-02 ronda 0 de 02c (C-13, §D-2C4; O-02 de la ronda 0 de 02b): el botón de borrar sale de
+// puedeBorrar, no del rol. Desde la perspectiva del estudiante, el servidor nunca deja borrar la
+// publicación del maestro ni el comentario de otra persona: en los casos con renderMuro
+// ("estudiante") esos dobles llevan puedeBorrar: false (los comentarios propios, true). Ninguna
+// aserción cambia; los dobles quedan como los mandaría el servidor (core/autoria.ts).
+const COMO_ESTUDIANTE = { puedeBorrar: false } as const
+
 const diferido = () => {
   let resolver: (respuesta: Response) => void = () => undefined
   const promesa = new Promise<Response>((r) => {
@@ -222,7 +229,9 @@ describe("ataque CLASES-c r1: avisos de crear con el formulario desmontado (N-C5
   ] as const)(
     "comentario con %s: si la persona pulsa «Ocultar comentarios» con el POST en vuelo, el aviso sale igual (una vez)",
     async (_caso, respuesta, tipo, texto) => {
-      const { pendientes } = crearServidor([publicacion(1)], { [idPublicacion(1)]: [] })
+      const { pendientes } = crearServidor([publicacion(1, COMO_ESTUDIANTE)], {
+        [idPublicacion(1)]: [],
+      })
       renderMuro("estudiante")
       fireEvent.click(await screen.findByRole("button", { name: "Ver comentarios (0)" }))
       const campo = await screen.findByLabelText("Escribe un comentario")
@@ -351,7 +360,9 @@ describe("ataque CLASES-c r1: doble envío (enEspera)", () => {
 
 describe("ataque CLASES-c r1: el formulario decide igual que el servidor (§D-C4)", () => {
   it("un comentario de 1,000 caracteres seguido de un salto de línea se envía: el servidor lo recorta y lo acepta", async () => {
-    const { fetchMock } = crearServidor([publicacion(1)], { [idPublicacion(1)]: [] })
+    const { fetchMock } = crearServidor([publicacion(1, COMO_ESTUDIANTE)], {
+      [idPublicacion(1)]: [],
+    })
     renderMuro("estudiante")
     fireEvent.click(await screen.findByRole("button", { name: "Ver comentarios (0)" }))
     fireEvent.change(await screen.findByLabelText("Escribe un comentario"), {
@@ -425,6 +436,7 @@ describe("ataque CLASES-c r1: texto como texto", () => {
             administracion: false,
           },
           comentarios: 1,
+          ...COMO_ESTUDIANTE,
         }),
       ],
       {
@@ -436,6 +448,7 @@ describe("ataque CLASES-c r1: texto como texto", () => {
               nombre: '<a href="javascript:alert(5)">Ana</a>',
               administracion: false,
             },
+            ...COMO_ESTUDIANTE,
           }),
         ],
       },
@@ -519,18 +532,21 @@ describe("ataque CLASES-c r1: foco de §7.14 con dos publicaciones abiertas", ()
 })
 
 describe("ataque CLASES-c r1: las cinco vistas con ConClaseDeLaRuta, sin :claseId (§D-C5 bis)", () => {
+  // CLASES-02 ronda 0 de 02c (C-12, §D-2C2): "Editar clase" pasa del maestro al admin, así que
+  // EditarClaseView se monta bajo /admin/clases; las demás siguen bajo /maestro/clases. Sigue
+  // protegiendo lo mismo: sin :claseId, cada vista muestra el error y no pide nada.
   it.each([
-    ["ClaseLayout", <ClaseLayout key="a" />],
-    ["EditarClaseView", <EditarClaseView key="b" />],
-    ["PersonasView", <PersonasView key="c" />],
-    ["AlumnosView", <AlumnosView key="d" />],
-    ["MuroView", <MuroView key="e" />],
-  ])(
+    ["ClaseLayout", <ClaseLayout key="a" />, "/maestro/clases"],
+    ["EditarClaseView", <EditarClaseView key="b" />, "/admin/clases"],
+    ["PersonasView", <PersonasView key="c" />, "/maestro/clases"],
+    ["AlumnosView", <AlumnosView key="d" />, "/maestro/clases"],
+    ["MuroView", <MuroView key="e" />, "/maestro/clases"],
+  ] as const)(
     "%s sin :claseId muestra «No tienes acceso a esta clase.» y no pide nada",
-    async (_n, vista) => {
+    async (_n, vista, ruta) => {
       const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(error500()))
       vi.stubGlobal("fetch", fetchMock)
-      conProveedores(vista, "/maestro/clases", "/maestro/clases")
+      conProveedores(vista, ruta, ruta)
       expect(await screen.findByRole("alert")).toHaveTextContent("No tienes acceso a esta clase.")
       await esperar(50)
       expect(fetchMock).not.toHaveBeenCalled()
@@ -657,7 +673,10 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
       if (esComentarios) {
         const siguiente = tipo === "comentarios" ? idComentario(1) : null
         return Promise.resolve(
-          respuestaJson(200, { comentarios: [comentario(1)], siguienteCursor: siguiente }),
+          respuestaJson(200, {
+            comentarios: [comentario(1, COMO_ESTUDIANTE)],
+            siguienteCursor: siguiente,
+          }),
         )
       }
       if (tipo === "publicaciones" && ruta.includes(`cursor=${idPublicacion(1)}`))
@@ -665,7 +684,7 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
       const siguiente = tipo === "publicaciones" ? idPublicacion(1) : null
       return Promise.resolve(
         respuestaJson(200, {
-          publicaciones: [publicacion(1, { comentarios: 2 })],
+          publicaciones: [publicacion(1, { comentarios: 2, ...COMO_ESTUDIANTE })],
           siguienteCursor: siguiente,
         }),
       )
@@ -676,7 +695,10 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
 
   it("con más páginas pendientes, «Ver más publicaciones» sigue montado y el foco no se mueve (render sin desmontaje)", async () => {
     conPaginas("publicaciones", () =>
-      respuestaJson(200, { publicaciones: [publicacion(2)], siguienteCursor: idPublicacion(2) }),
+      respuestaJson(200, {
+        publicaciones: [publicacion(2, COMO_ESTUDIANTE)],
+        siguienteCursor: idPublicacion(2),
+      }),
     )
     renderMuro("estudiante")
     const boton = await screen.findByRole("button", { name: "Ver más publicaciones" })

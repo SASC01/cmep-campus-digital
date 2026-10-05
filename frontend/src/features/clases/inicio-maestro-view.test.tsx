@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -78,22 +78,52 @@ describe("InicioMaestroView", () => {
     expect(await screen.findByText("3 alumnos")).toBeInTheDocument()
   })
 
-  it("PR-A19b: 'Crear clase' apunta a /maestro/clases/nueva", async () => {
+  // CLASES-02c (C-12, §D-2C3): el maestro ya no crea clases; la administración se las asigna.
+  it("PR-2C08: el inicio del maestro no tiene «Crear clase» ni tarjeta interna", async () => {
     stubApi({})
     renderVista()
 
-    expect(await screen.findByRole("link", { name: "Crear clase" })).toHaveAttribute(
-      "href",
-      "/maestro/clases/nueva",
+    await screen.findByText(
+      "La administración te asigna tus clases. Cuando lo haga, aparecerán aquí.",
     )
+    expect(screen.queryByRole("link", { name: "Crear clase" })).toBeNull()
+    expect(screen.queryByText("Nueva clase")).toBeNull()
   })
 
-  it("PR-A19c: la acción del vacío 'Crea tu primera clase' es outline", async () => {
+  it("PR-2C08: el vacío de «Mis clases» no tiene botón y dice que la administración asigna las clases", async () => {
     stubApi({})
     renderVista()
 
-    const accion = await screen.findByRole("button", { name: "Crea tu primera clase" })
-    expect(accion).toHaveAttribute("data-variant", "outline")
+    expect(await screen.findByText("Aún no tienes clases", { selector: "p" })).toBeInTheDocument()
+    expect(screen.getByText("La administración te asigna tus clases.")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Crea tu primera clase" })).toBeNull()
+    expect(screen.queryAllByRole("button")).toHaveLength(0)
+  })
+
+  it("PR-2C12: el 400 del cursor de «Ver más clases» muestra el texto que dice qué pasó", async () => {
+    const cursor = "9a9b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+    let pedidas = 0
+    stubApi({
+      impartidas: () => {
+        pedidas += 1
+        if (pedidas > 1) {
+          return respuestaJson(400, {
+            error: { codigo: "VALIDACION", mensaje: "cursor: no es válido" },
+          })
+        }
+        return respuestaJson(200, { clases: [clase(1)], total: 2, siguienteCursor: cursor })
+      },
+    })
+    renderVista()
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ver más clases" }))
+
+    expect(
+      await screen.findByText(
+        "Tus clases cambiaron mientras las veías. Vuelve a entrar para verlas completas.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/cursor/)).toBeNull()
   })
 
   it("PR-A19d: cada tarjeta es un enlace con el nombre de la clase y destino /maestro/clases/{id}", async () => {

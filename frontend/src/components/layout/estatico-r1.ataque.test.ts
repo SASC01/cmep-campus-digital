@@ -128,6 +128,10 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
     ])
   })
 
+  // CLASES-02 ronda 0 de 02c (C-22, Enmienda 1, M-03; §D-2C1): la lista exacta suma
+  // `translate-x-[200%]`, el indicador de la tercera sección de una clase (Muro, Alumnos y
+  // Maestros del admin); `in-data-[material=opaco]` ya estaba. Sigue protegiendo que un valor
+  // arbitrario de maquetación solo entre con el plan.
   it("los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan", () => {
     const fueraDeUi = soloTs.filter(([ruta]) => !ruta.startsWith("/src/components/ui/"))
     const arbitrarios = lineasCon(/-\[[^\]"]*\]/, fueraDeUi).flatMap(
@@ -142,6 +146,7 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
         "md:h-[calc(100svh-3rem)]",
         "md:min-h-[calc(100svh-3rem)]",
         "min-h-[calc(100svh-7rem)]",
+        "translate-x-[200%]",
       ].sort(),
     )
   })

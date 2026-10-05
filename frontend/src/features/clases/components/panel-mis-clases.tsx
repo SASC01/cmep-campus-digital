@@ -22,6 +22,7 @@ const contenidoPanel = (
     | "isFetchingNextPage"
     | "onVerMas"
     | "accionVacio"
+    | "descripcionVacio"
     | "render"
   >,
   // El ref del botón "Ver más clases" (foco, §7.14) y el de la rejilla de tarjetas.
@@ -38,7 +39,10 @@ const contenidoPanel = (
     return (
       <EstadoVacio
         titulo={TEXTOS_PANEL.vacioTitulo}
-        accion={{ ...props.accionVacio, variante: "outline" }}
+        {...(props.descripcionVacio === undefined ? {} : { descripcion: props.descripcionVacio })}
+        {...(props.accionVacio === undefined
+          ? {}
+          : { accion: { ...props.accionVacio, variante: "outline" as const } })}
       />
     )
   }
@@ -71,15 +75,15 @@ interface PanelMisClasesProps {
   hasNextPage: boolean
   isFetchingNextPage: boolean
   onVerMas: () => void
-  accionVacio: {
-    texto: string
-    onClick: () => void
-  }
+  // El vacío del estudiante lleva una acción; el del maestro, solo una frase (§D-2C3).
+  accionVacio?: { texto: string; onClick: () => void } | undefined
+  descripcionVacio?: string | undefined
   render: (clase: ClaseDelPanel) => ReactNode
 }
 
-// §D-A5: estados en orden error → cargando → vacío → datos. La acción del vacío la decide cada
-// vista (el estudiante lleva el foco al campo del código; el maestro navega a crear su clase).
+// §D-A5: estados en orden error → cargando → vacío → datos. El vacío lo decide cada vista: el
+// estudiante tiene una acción (lleva el foco al campo del código); el maestro, solo la frase de que
+// la administración le asigna sus clases (§D-2C3).
 export function PanelMisClases({
   isError,
   errorMensaje,
@@ -89,6 +93,7 @@ export function PanelMisClases({
   isFetchingNextPage,
   onVerMas,
   accionVacio,
+  descripcionVacio,
   render,
 }: PanelMisClasesProps) {
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
@@ -126,6 +131,7 @@ export function PanelMisClases({
             isFetchingNextPage,
             onVerMas,
             accionVacio,
+            descripcionVacio,
             render,
           },
           { verMas: refVerMas, rejilla: rejillaRef },

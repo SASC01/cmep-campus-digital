@@ -693,3 +693,403 @@ Siguiente paso:
 3. El orquestador aplica los textos y las filas.
 4. El humano hace el commit `<K2b>`.
 5. Arranca la ronda 0 de 02c, que incluye O-07.
+
+## Verificación del resumen — CLASES-02c — implementación
+Fecha: 2026-10-05 · Base dentro de los paquetes: `<K2b>` = `7544fb9` · Resumen: `resumen-programador.md`, "CLASES-02c — Implementación"
+
+Veredicto: **ACEPTADO.** Todas las cifras coinciden y el código cumple con `CLAUDE.md` y `DESIGN.md`. No hay hallazgos nuevos.
+
+### Mis corridas (una a la vez; el backend no se corrió porque el diff no toca `backend/` ni `shared/`)
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 107 passed (107)` · `Tests 1458 passed (1458)` | `Test Files 107 passed (107)` · `Tests 1458 passed (1458)` |
+| `cd frontend; npm run lint` | código 0 | código 0; última línea `tsc -b` |
+| `npm run build` (raíz) | `✓ built in 1.67s` | código 0; `✓ built in 685ms` (el tiempo no se contrasta) |
+| `npm run lint` (raíz) | código 0 | código 0 |
+| `cd frontend; npx vitest list` | 107 archivos y 1458 casos; PR-2C 01:3, 02:2, 03:9, 04:8, 05:2, 06:8, 07:4, 08:5, 09:5, 10:2, 12:2 | 107 archivos y 1458 casos; los mismos conteos por ID |
+| PR-2C11 | sin prefijo en el título; en `contenedor-rol.test.tsx` | Confirmado: el caso de los tres enlaces y los de "solo queda activo" están en ese archivo |
+| V-01 | 123/123 | 123/123 contra la tabla de la ronda 0 de 02c. Las 12 `*.ataque` modificadas son exactamente las 12 marcadas por el tester; no hay ninguna sin rastrear |
+
+El mapa PR-2C01 a PR-2C12 → archivo coincide con `vitest list`:
+- `lib.test`, `clases-admin-view.test`, `crear-clase-view.test`, `formulario-clase.test`, `maestros-de-clase-view.test`;
+- `clase-layout.test`, `inicio-maestro-view.test`, `inicio-estudiante-view.test`, `publicacion-del-muro.test`, `muro-view.test`;
+- `router.test` y `contenedor-rol.test`.
+
+### Diff contra `7544fb9` (44 archivos rastreados, +1550/−352, y 10 nuevos)
+Ningún archivo queda fuera de "Cambios por capa" de 02c, A-3 (las 12 `*.ataque` del tester), A-5 (`useBorrarMiComentario` retirado), A-7 (`docs/DESIGN.md`), PA-16 de 02c, ni las desviaciones de abajo.
+
+Sin cambios contra `7544fb9`: `backend/`, `shared/`, `features/admin/**`, `features/auth/**`, `services/**`, `lib/**`, `styles/tokens.css` e `index.css`, `components/ui/**` salvo `badge.tsx` y `badge.test.tsx`, los componentes compartidos protegidos, los `package.json`, `package-lock.json`, `infra/`, `AGENTS.md`, `CLAUDE.md`, `README.md` y `.claude/`. De `app/` solo cambian `router.tsx` y sus pruebas.
+
+### Revisión del código contra `CLAUDE.md` y `DESIGN.md`
+- **Estructura del módulo.**
+  - Textos en `data.ts` (`TEXTOS_CLASES_ADMIN`, `TEXTOS_BUSCADOR_MAESTROS`, `TEXTOS_MURO.firmaAdministracion`…).
+  - Funciones puras en `lib.ts` (`perspectivaDeRuta`, `textoDeMaestros`, `formatearFechaDeClase`, `esErrorDeCursor`), hooks en `hooks.ts` y tipos en `types.ts`.
+  - Los componentes nuevos solo declaran interfaces `Props`. Las constantes de id de `buscador-de-maestros.tsx` siguen el precedente de `buscador-alumnos.tsx`.
+  - Ningún `fetch` (el único acierto de la búsqueda es `refetch()` en `muro-view.tsx`).
+  - Ningún import de `features/` en `components/`, `lib/` o `services/`; ningún `?? []`; ninguna clase de la escala por defecto de Tailwind ni color suelto (los vigilan también `styles/clases-r1` y `estatico-r1`, en verde).
+- **Contexto del admin.** `data-material="opaco"` y `data-densidad="densa"` siguen saliendo solo de `ContenedorRol` para el rol `admin`, y las pantallas de `/admin/clases*` cuelgan de él.
+- **Componentes de `components/ui/`:** `Table`, `Button`, `Card`, `Badge` y `buttonVariants` en los enlaces.
+- **Botones y formularios.**
+  - `enEspera` en "Cargar más clases", "Sí, quitar" y "Asignar a la clase".
+  - `autoComplete="off"` en los campos de `FormularioClase` y del buscador de maestros.
+  - `ErrorDeCampo` para "Elige al menos un maestro" y para el término largo.
+- **Retornos tempranos y estados.** Las vistas siguen el orden error → cargando → vacío → datos. El vacío del admin trae su CTA en `outline`, y la única acción `primary` de la vista es "Crear clase".
+- **Firma "Administración" (O-07).** `FirmaDelAutor` decide **solo** con `autor.administracion` y nunca compara el nombre. La insignia `institucional` lleva texto e icono `Landmark`, así que no depende solo del color.
+- **Botones de borrar.** "Borrar publicación" y "Borrar" salen de `publicacion.puedeBorrar` y `comentario.puedeBorrar`. No queda ningún `esMaestro`, `esDueno`, `startsWith("/maestro")` ni `mis-comentarios` en producción.
+- **Barra lateral.** `Destino.coincidencia` es obligatorio; `BarraNavegacion` usa `end={destino.coincidencia === "exacta"}`. "Clases" es `"prefijo"` y los demás `"exacta"`.
+- **`DESIGN.md` (A-7),** con 13 marcas "propuesta (CLASES-02c)" y sin tocar ningún token. Documenta cada patrón nuevo:
+  - el alcance opaco de `/admin/clases*` (§7.1);
+  - el indicador en contexto opaco y con tres opciones (§7.3);
+  - el destino "Clases" (§7.4);
+  - la variante `institucional` y la firma (§7.8 y §7.18);
+  - la tabla de clases y "Cargar más clases" (§7.9);
+  - los vacíos del maestro y del admin (§7.10);
+  - las perspectivas, el encabezado con dos maestros y "Volver a la lista de clases" (§7.16);
+  - el buscador de maestros con "Ya da esta clase" (§7.17);
+  - el borrado según `puedeBorrar` (§7.18).
+- **Hermanos.** La lista del resumen coincide con el código:
+  - los lugares de "Crear/Editar clase" del maestro, todos retirados;
+  - los 3 caminos de borrado;
+  - los 2 lugares de la firma;
+  - los 7 componentes que pasan a la perspectiva;
+  - las rutas del router;
+  - los 3 lugares con uno o dos maestros.
+
+### Arbitraje de las desviaciones
+1. **O-01: `/maestro/clases/nueva` con una ruta literal que redirige a `/login`.** **Aceptada.** Sin ella, "nueva" coincidiría con `clases/:claseId` y se pediría `GET /api/clases/nueva`. El resultado es el que el plan esperaba (R-07: una ruta retirada manda a `/login`, como cualquier ruta desconocida). `/maestro/clases/:id/editar` no tiene hijo y cae en el `*`. El tester debe atacar ambas en su ronda.
+2. **Archivo nuevo `components/selector-de-maestros.tsx`.** **Aceptada.** §D-2C2 nombra el componente `SelectorDeMaestros`; solo faltaba en la lista de archivos. Es un envoltorio delgado que compone el buscador y la lista, sin lógica de datos.
+3. **`ListaMaestrosDeClase` con dos usos (con y sin confirmación).** **Aceptada.** Es el mismo patrón visual (§7.14 y §7.17) y evita duplicar el foco al quitar. La confirmación y la petición dependen de props explícitas (`confirmar`, `quitando`, `puedeQuitar`), sin valores por defecto escondidos.
+4. **`formatearFechaDeClase` en `features/clases/lib.ts`.** **Aceptada como local, con un pendiente. No sube en 02d,** porque `lib/format.ts` también está en "No se toca" de 02d y moverla no lo justifica. Queda una fila en ESTADO §3: "Mover `formatearFechaDeClase` a `lib/format.ts` (fecha corta, junto a `formatearFechaHora` y `formatearFechaLarga`) y revisar que una fecha inválida devuelva un valor explícito en lugar del texto ISO", con destino el próximo encargo que toque `lib/format.ts` (ADMIN o TAREAS).
+5. **`BloqueDestacado` y `PanelMisClases` con props opcionales.** **Aceptada.** Es lo que pide el plan (`accionVacio` opcional; el maestro sin tarjeta interna, PRD §7 y `DESIGN.md` §7.5). La ausencia significa "sin acción", no un dato que falta: no es un valor por defecto silencioso.
+
+### Qué sigue
+La ronda 1 del tester sobre 02c, con V-01 contra la tabla de su ronda 0 (123). Puntos que debe cubrir: O-01 (las dos rutas retiradas), O-07 (un autor llamado "Administración" sin `administracion`), el foco de §7.14 en el selector y la lista de maestros, y la barra del admin en sus subrutas.
+
+## Verificación del resumen — CLASES-02c — corrección de la ronda 1
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02c — Corrección de la ronda 1" · Hallazgo: T-02 (media)
+
+Veredicto: **ACEPTADO.** Las cifras coinciden y el remedio de T-02 es correcto y se extendió a sus hermanos. Quedan dos hallazgos menores que no bloquean la ronda 2: M-10, de estilo, y M-11, de exactitud del registro de hermanos.
+
+### Mis corridas
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 113 passed (113)` · `Tests 1620 passed (1620)` | `Test Files 113 passed (113)` · `Tests 1620 passed (1620)` |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 (`✓ built in 668ms`) |
+| V-01 | 129/129 | 129/129: las 123 de la ronda 0 de 02c más las 6 nuevas de la ronda 1, contra sus tablas. Las modificadas y las nuevas son todas del tester |
+
+Los archivos de producción del frontend son los mismos de la implementación de 02c: `hooks.ts` y los cinco de "Cargar más" ya estaban en "Cambios por capa" de 02c. `tabla-alumnos.tsx` y `personas-view.tsx` no se tocaron. No cambió nada fuera del frontend.
+
+### Revisión del remedio (diff de `features/clases/hooks.ts`)
+- **Mecanismo.** Las funciones auxiliares de invalidación (`invalidarListasDeClases`, `invalidarMaestrosDeLaClase`, `invalidarPersonasDeLaClase`, `invalidarMuro` e `invalidarComentarios`) ahora son `async` y devuelven el `Promise.all` de sus `invalidateQueries`. El `onSuccess` de asignar, retirar, agregar alumno, quitar alumno, borrar publicación y borrar comentario muestra su aviso y **después** espera la recarga. Así, la mutación sigue `isPending` y su botón en `enEspera` hasta que llega el dato que ya no ofrece la acción. Ningún botón pasa a `disabled`.
+- **Si la recarga falla.** `invalidateQueries` se resuelve aunque la consulta recargada falle (TanStack Query no propaga el error al refrescar por invalidación), así que la mutación no queda colgada. El error de la recarga lo muestra la propia consulta en su estado `isError`.
+- **Avisos.** El de éxito sale una vez, antes de la espera. El de error sigue saliendo una vez, en `onError`, porque la espera no lanza y no puede disparar un segundo `onError`.
+- **Las acciones que navegan** (crear y editar clase) siguen con `void`, sin esperar. Publicar y comentar también, porque el formulario se limpia y no ofrece una acción repetible. Coincide con la lista de "no aplica" del resumen.
+- **"Cargar más".** `fetchNextPage({ cancelRefetch: false })` está en los cinco de 02c (`clases-admin-view`, `muro-view`, `comentarios-de-publicacion`, `inicio-maestro-view` e `inicio-estudiante-view`). Un segundo clic ya no cancela la petición en vuelo.
+
+### Hallazgos
+- **M-10 (bajo, de estilo; no bloquea).** `useAgregarAlumno`, `onSuccess`: el aviso usa `if (…) { … } else { … }` seguido del `await`. `CLAUDE.md` pide retornos tempranos, y un `else` fuera de un ciclo o de una asignación de valor no es una de las excepciones. Se espera la misma conducta sin `else`: por ejemplo, el aviso en una asignación con dos ramas o en una función auxiliar con retorno temprano. **Destino:** la próxima entrega del programador que toque `hooks.ts` (la corrección de la ronda 2 de 02c si la hay, o 02d; lo autorizo aunque `hooks.ts` no esté en la lista de 02d).
+- **M-11 (exactitud del registro de hermanos; no bloquea ni devuelve el resumen).** El resumen dice que "Unirme a la clase" "ya devolvía la recarga". En `7544fb9`, `invalidarListasDeClases` era síncrona y devolvía `undefined`, así que `useUnirseAClase` no esperaba nada. **Ahora sí espera**, como efecto del cambio de la función auxiliar. El resultado es el correcto por analogía con T-02: la navegación posterior ve la lista ya recargada, a costa de una ida y vuelta más (`inscritas`, porque `impartidas` no está activa para un estudiante). No es perceptible frente a lo que ya esperaba. No lo devuelvo porque el remedio quedó aplicado. Queda corregido aquí para el registro; en adelante, el resumen describe el estado de antes contra el código de la base.
+
+### Arbitraje de los pendientes de "Cargar más" (hermanos de O-08)
+- **`features/clases/components/tabla-alumnos.tsx` (CLASES-b) y `personas-view.tsx`:** se corrigen **en 02d**, con el mismo `fetchNextPage({ cancelRefetch: false })`. `personas-view.tsx` ya está en "Cambios por capa" de 02d. A `tabla-alumnos.tsx` lo autorizo yo como hermano por analogía: una línea, en `features/clases`, fuera de "No se toca". El programador lo lista en sus hermanos de 02d.
+- **`features/admin/components/registrados-del-enlace.tsx` y `tabla-enlaces.tsx`** tienen el mismo patrón y el resumen no los nombró. Están en "No se toca" de CLASES-02 (`features/admin/**`). Fila en ESTADO §3, con destino ADMIN.
+
+### Observaciones de la ronda 1 (O-05 a O-09)
+- **O-05, `/admin/` con barra final no marca "Cuentas":** venía de antes de 02c y ningún enlace interno lleva a `/admin/`. Fila en ESTADO §3, de prioridad baja, con destino ADMIN (con la navegación del administrador).
+- **O-06, ruta en mayúsculas contra la perspectiva:** no abre nada, porque la perspectiva que resulta es la que menos muestra y el backend decide, pero la página no corresponde a la ruta. **Trivial en 02d** (`features/clases/lib.ts` y `lib.test.ts` están en su lista): `perspectivaDeRuta` compara el prefijo sin distinguir mayúsculas, como el router, y los prefijos parecidos (`/maestros`, `/administrador`, `/admin-x`) siguen dando "estudiante". Si alguna `*.ataque` fija el comportamiento actual con `/Admin` o `/MAESTRO`, el tester la reescribe en la ronda 0 de 02d citando este arbitraje.
+- **O-07, `503 SERVICIO_OCUPADO` con el aviso genérico:** **trivial en 02d.** Se suma `SERVICIO_OCUPADO` a `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` (`features/clases/lib.ts`) para que se vea el mensaje del servidor, que ya está en español. R-3 de CHORE-02 (el `503` de `/auth/refrescar` en `apiClient`) sigue aparte, con su destino.
+- **O-08:** aplicado en 02c; sus hermanos van como dice arriba.
+- **O-09, términos de 3 puntos de código "invisibles":** es la regla compartida de `shared/` (T-20 de CLASES-b) y el servidor la aplica igual. Sin acción ni fila.
+
+### Qué sigue
+La ronda 2 del tester sobre 02c, con V-01 contra las 129 de su ronda 1. M-10, O-06, O-07 y los dos hermanos de "Cargar más" pasan a 02d. Al cerrar 02c, las filas de ESTADO son: O-05 a ADMIN, los dos "Cargar más" de `features/admin` a ADMIN, y `formatearFechaDeClase` (de la verificación de la implementación de 02c).
+
+## Arbitraje — ronda 2 de 02c
+Fecha: 2026-10-05 · Sobre `reporte-tester.md`, "CLASES-02c — Ronda 2" (ROTO por T-03, baja, y T-04, media). La ronda 3 es la última antes de escalar: este arbitraje acota su alcance.
+
+### T-03 (dos clics en el mismo instante, sin repintado): decisión **(b)**, observación con destino, no hallazgo
+- **El criterio de `DESIGN.md` §6 (botones con petición en vuelo, punto 4)** pone el candado síncrono (`enviandoRef`) "donde hace falta". Hasta hoy, eso es donde un duplicado tiene un **efecto no idempotente**: login y registro (DESIGN-01a), el restablecimiento con contraseña temporal (`ficha-de-cuenta.tsx`) y la revocación de un enlace (`tabla-enlaces.tsx`).
+- **Los seis hermanos de T-03 son idempotentes en el servidor:**
+  - asignar un maestro ya asignado da `200` igual, sin escribir;
+  - retirar uno no asignado, lo mismo;
+  - el alta de un alumno ya inscrito da `yaEstaba`;
+  - la baja de uno no inscrito no escribe;
+  - un segundo borrado da `404`.
+  El daño posible se limita a un aviso repetido, y solo con dos clics dentro del mismo cuadro, que un navegador real no produce. Con el segundo clic a 30 ms o después del `200`, la ronda 2 confirmó una sola petición y un solo aviso en los seis (12 casos): eso es lo que pedía T-02.
+- **En la ronda 3, el tester retira o reescribe los 6 casos de "mismo instante"** de `ventana-02c-r2.ataque.test.tsx`, citando este arbitraje. Es un archivo suyo de esta misma subentrega, aún sin commit, así que no hace falta A-3: A-3 cubre las `*.ataque` ya existentes que contradice un C-n. Si el orquestador prefiere dejar constancia, basta una línea en `aprobacion.md`. Ningún caso se desactiva con `skip`: se retira o se reescribe para afirmar lo que sí se exige (el segundo clic después del repintado).
+- **Pendiente con destino (ESTADO §3):** aclarar el punto 4 de `DESIGN.md` §6. Texto propuesto: "El candado síncrono (`enviandoRef`) se usa cuando un envío duplicado tendría un efecto que no se puede repetir sin daño (crear una cuenta, mostrar una contraseña temporal, revocar un enlace). Las acciones idempotentes en el servidor quedan cubiertas por `enEspera` y la guarda del manejador." Destino: los textos de `DESIGN.md` de 02d. El orquestador lo propone al humano, porque no es un texto del plan.
+
+### T-04 (el foco cae en `<body>` cuando la recarga falla después del `200`): **hallazgo; el programador lo corrige antes de la ronda 3**
+- **Remedio esperado** (`DESIGN.md` §7.14, "nunca a `<body>`"; el mismo criterio que ya cumple `TablaAlumnos`): cuando la consulta recargada pasa a `isError` y su vista se sustituye por el error **con el foco perdido** (`focoPerdido(document)`, que ya existe en `features/clases/lib.ts`), el foco va a un elemento de la rama de error:
+  - a su encabezado, si la rama conserva uno (`h2` o `h1` con `tabIndex={-1}`);
+  - si no, a un contenedor propio de la vista, con `tabIndex={-1}`, que envuelve a `MensajeError`.
+  El foco se mueve en un efecto que corre cuando el error ya se pintó, no en el `onSuccess`, igual que §7.14 en CLASES-b.
+- **`MensajeError` queda intacto.** Sigue en "No se toca": el contenedor enfocable es de la vista que lo usa. Mover el foco al error, y no a "Volver a la lista de clases", conserva el contexto, porque el lector de pantalla llega al mensaje.
+- **Hermanos que el programador lista uno por uno**, con si les aplica y si se aplicó:
+  - `ClaseLayout` (rama de error; cubre los dos de maestros, porque comparte la clave del detalle);
+  - `MaestrosDeClaseView`, si tiene su propia rama de error;
+  - la lista del muro en `MuroView` ("Sí, borrar" publicación: el caso heredado de CLASES-c entra en esta misma corrección);
+  - `ComentariosDePublicacion` (el tester dice que ahí no cae en `<body>`: confirmar por qué);
+  - `ClasesAdminView`;
+  - `TablaAlumnos`, que ya lo cumple y es la referencia.
+  - `PersonasView` es de 02d: va a la lista de hermanos de 02d.
+- **Prueba:** los 3 casos de T-04 del tester en verde sin tocarlos. Si el programador agrega casos normales, solo en archivos de PA-16 de 02c.
+
+### O-10 (el aviso de "Sí, quitar" del roster sale al terminar la recarga): unificar, pero **en 02d, no en esta corrección**
+Es incoherente con sus cinco hermanos, pero no viola la regla del aviso único y no es un hallazgo. Para no ampliar la última ronda, se mueve en 02d: el aviso pasa al `onSuccess` de `useQuitarAlumno`, antes de esperar la recarga, y deja el de `mutate` en `tabla-alumnos.tsx`. Es el mismo archivo en el que ya autoricé el `fetchNextPage({ cancelRefetch: false })` para 02d. El programador lo incluye entre sus hermanos de 02d.
+
+### O-11 (`alumnos-b-r2` a 4.5 s, cerca del umbral de 5 s)
+Sin acción en 02c. Ningún `timeout` se sube (PA-06). Si en la ronda 3 o en 02d pasa de 5 s o falla por tiempo, se reporta como PA-12, sin repetir la corrida. Queda junto a M-02 de DESIGN-01b, que sigue pendiente en ESTADO.
+
+### Orden
+1. El programador corrige **solo T-04**, con su lista de hermanos.
+2. El manager verifica su resumen.
+3. El tester hace la **ronda 3 (la última)**: retira o reescribe los 6 casos de T-03 según este arbitraje, ataca la corrección de T-04 y vuelve a correr lo demás.
+4. Si la ronda 3 resiste, sigue la revisión final de 02c.
+5. M-10, O-06, O-07, O-10 y los dos "Cargar más" siguen con destino 02d.
+
+## Verificación del resumen — CLASES-02c — corrección de la ronda 2
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02c — Corrección de la ronda 2" · Hallazgo: T-04 (media). T-03 no se corrige, según el arbitraje de la ronda 2.
+
+Veredicto: **ACEPTADO.** No hay hallazgos nuevos.
+
+### Mis corridas (una sola de cada una; nadie más corría nada)
+La corrida del frontend empezó a las 14:20. Los cinco archivos de la corrección son de las 14:16 y 14:17, y después no cambió ningún archivo de `frontend/src` ni de `shared/src`; solo `npm run build` regeneró el cliente de Prisma, que no se versiona.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 1 failed \| 114 passed (115)` · `Tests 6 failed \| 1650 passed (1656)` | Igual. Los **6 rojos** son exactamente los de T-03, todos en `ventana-02c-r2.ataque.test.tsx` y con el título "…, segundo clic a 0 ms: …": "Agregar a la clase" (roster), "Asignar a la clase" (maestros), "Sí, borrar comentario", "Sí, borrar" (publicación), "Sí, quitar" (maestros) y "Sí, quitar" (roster). El fallo es `peticiones: 2`; los 3 casos de T-04 están en verde |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 (última línea del `lint`: `tsc -b`) |
+| V-01 | 131/131 | 131/131 contra la tabla de la ronda 2 de 02c; hay 131 `*.ataque` entre rastreadas y no rastreadas, y el programador no tocó ninguna |
+
+### Revisión
+- **`useFocoAlPasarAError(esError, destinoRef)`** (`features/clases/hooks.ts`):
+  - Recuerda el estado anterior y solo mueve el foco **en la transición a error**. Una vista que ya nace en error no se toca, ni las recargas siguientes con el error ya pintado.
+  - Solo actúa si `focoPerdido(document)` es cierto: el elemento activo es `<body>`, `null` o un nodo desconectado. Si la persona ya movió el foco a otro lugar, no se lo quita.
+  - Corre en un efecto después del render, no en `onSuccess`, como pide §7.14.
+  - No tiene tipos en el archivo de hooks ni valores por defecto.
+- **Destinos por vista:**
+  - `ClaseLayout` y `MaestrosDeClaseView` usan un contenedor propio con `tabIndex={-1}` que envuelve a `MensajeError`. `MensajeError` no cambia y lleva `role="alert"`, así que al recibir el foco el lector de pantalla lee el mensaje que contiene. El contenedor no necesita nombre propio.
+  - `MuroView` usa su `h2` (`sr-only`, `tabIndex={-1}`), que vive fuera de la rama de error y se conserva.
+  - `ClasesAdminView` usa su `h1` (`tabIndex={-1}`).
+  - Cumple §7.14: el foco va al encabezado o, sin encabezado, a un elemento de la rama de error. Nunca a `<body>`.
+- **El argumento sobre `ComentariosDePublicacion` se sostiene.** Si la lista de comentarios falla tras un borrado, su propia lógica de foco lleva el foco a la publicación que lo contiene (`Card` con `data-publicacion-id` y `tabIndex={-1}`), que sigue montada. La ronda 2 ya observó que ahí el foco no cae en `<body>`. No necesitaba cambio.
+- **Hermanos:** coinciden con mi lista del arbitraje (`ClaseLayout`, `MaestrosDeClaseView`, el muro, `ClasesAdminView`, `ComentariosDePublicacion`, `TablaAlumnos` como referencia). `PersonasView` queda para 02d.
+- **M-10** (`if/else` en `useAgregarAlumno.onSuccess`, `hooks.ts:324-328`): **no se corrigió**, aunque esta corrección tocó `hooks.ts`. No lo devuelvo, porque el arbitraje dejó la corrección de la ronda 2 limitada a T-04. Sigue con destino 02d, junto con O-06, O-07, O-10 y los dos "Cargar más".
+
+### Instrucción para la ronda 3 del tester (la última)
+1. **V-01** contra la tabla de la ronda 2 de 02c (131).
+2. **T-03:** retira o reescribe, citando el arbitraje de la ronda 2, los 6 casos "…, segundo clic a 0 ms: …" de `ventana-02c-r2.ataque.test.tsx`. No los desactiva con `skip`. Si los reescribe, que afirmen lo que sí se exige: segundo clic después del repintado, o con el botón ya en `enEspera`, igual a una sola petición y un solo aviso.
+3. **T-04:** ataca la corrección:
+   - la recarga fallida con el foco en el botón, en los tres casos y en sus hermanos (`ClasesAdminView` con "Cargar más clases", y el muro con "Cargar más");
+   - que el foco **no** se mueva si la persona ya lo puso en otro sitio, ni en una vista que nace en error;
+   - que una segunda recarga fallida no vuelva a robar el foco;
+   - que el contenedor del error no quede como tope de tabulación extra.
+4. Vuelve a correr todo lo demás. PA-12 aplica si `alumnos-b-r2` pasa de 5 s (O-11).
+5. Si la ronda 3 resiste, sigue la revisión final de 02c. Si rompe, se escala al humano (tercera ronda).
+
+## Verificación del resumen — CLASES-02c — corrección de la ronda 3
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02c — Corrección de la ronda 3 (T-05)" · Ronda 4 cerrada, autorizada por el humano ("mover el foco solo tras una recarga")
+
+Veredicto: **ACEPTADO.** Sin hallazgos nuevos.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 116 passed (116)` · `Tests 1672 passed (1672)` | Igual |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 |
+| V-01 | 132/132 | 132/132 contra la tabla de la ronda 3 de 02c; hay 132 `*.ataque` y el programador no tocó ninguna |
+
+Los archivos de producción del frontend son los mismos 27 de 02c (20 modificados y 7 nuevos). La corrección no agrega archivos.
+
+**Revisión del gancho.** `useFocoAlPasarAError(esError, tieneDatos, destinoRef)`:
+- **`tieneDatos` sale del dato de la propia consulta.** Los cuatro usos (`ClaseLayout`, `MaestrosDeClaseView`, la lista del muro y `ClasesAdminView`) pasan `<consulta>.data !== undefined`, no un estado paralelo.
+- **Mueve el foco solo si se cumplen las cuatro condiciones:**
+  - la consulta pasa a error en este render;
+  - antes no lo estaba;
+  - tuvo datos alguna vez (lo recuerda un `useRef`);
+  - el foco se perdió.
+- **Una primera carga que falla no lo mueve (T-05).** Tampoco una vista que se monta con datos y error ya en la caché: `eraError` nace en verdadero.
+- **T-04 se conserva:** si hubo datos y la recarga falla con el foco perdido, el foco va al destino. Los 13 casos de T-04 de la ronda 3 y el caso nuevo siguen en verde en mi corrida.
+- `ComentariosDePublicacion` no usa el gancho (su argumento ya se aceptó en la ronda 2). M-10 sigue con destino 02d.
+
+**Instrucción para la ronda 4 cerrada del tester** (alcance: solo "mover el foco solo tras una recarga"):
+1. V-01 contra las 132 de la ronda 3.
+2. Ataca únicamente el gancho y sus cuatro usos:
+   - primera carga que falla, con y sin foco en la página;
+   - error ya en la caché al montar, con y sin datos;
+   - recarga que falla después de datos (T-04, con el foco en el botón y con el foco movido por la persona);
+   - dos fallos seguidos;
+   - éxito → error → éxito → error (el foco se mueve en cada paso a error tras datos, solo si se perdió);
+   - cambio de clase (de `claseId`) con el gancho montado.
+3. No abre frentes nuevos fuera de ese alcance. Lo que encuentre fuera va como observación con destino.
+4. Corre la suite completa una vez y reporta.
+5. Si resiste, sigue la revisión final de 02c; si rompe, se escala al humano.
+
+## Verificación del resumen — CLASES-02c — corrección de la ronda 4
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02c — Corrección de la ronda 4 (T-06)" · Ronda 5 cerrada, autorizada por el humano ("reiniciar la memoria al cambiar de clase")
+
+Veredicto: **ACEPTADO.** Sin hallazgos nuevos.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 117 passed (117)` · `Tests 1702 passed (1702)` | Igual |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 |
+| V-01 | 133/133 | 133/133 contra la tabla de la ronda 4 de 02c; hay 133 `*.ataque` y el programador no tocó ninguna |
+
+La producción del frontend sigue en los mismos 27 archivos de 02c (20 modificados y 7 nuevos).
+
+**Revisión del gancho.** `useFocoAlPasarAError(esError, tieneDatos, clave, destinoRef)`:
+- **Reinicio sin mover el foco.** Cuando `clave` cambia, el efecto reinicia `eraError` y `huboDatos` con el estado de la consulta nueva y hace `return` antes de evaluar el foco. Así, el render del cambio de clave **nunca** mueve el foco: la primera carga fallida de la clase nueva no lo mueve (T-06), y si la clase nueva ya tenía datos en caché, `huboDatos` nace en verdadero para su próxima recarga.
+- **Fuera del cambio de clave, todo sigue igual:** T-04 (recarga fallida tras datos y con el foco perdido) y T-05 (sin datos nunca) siguen como estaban, y pasan en mi corrida.
+- **La clave sale de la ruta.** `ClaseLayout`, `MaestrosDeClaseView` y la lista del muro pasan `claseId`, el mismo que usa su consulta. No se usa `key={claseId}`, que remontaría la vista y perdería el estado y el foco de §7.14.
+- **`"clases-admin"` en `ClasesAdminView` es adecuada.** Esa vista tiene una sola consulta (`CLAVE_CLASES_ADMIN`, sin parámetros), así que una clave constante es correcta: nunca cambia y el gancho nunca se reinicia ahí. Es un detalle, no un hallazgo: si se quiere, se deriva de `CLAVE_CLASES_ADMIN` para no tener un texto suelto en la vista. Queda para 02d junto con M-10, sin obligación.
+
+**Instrucción para la ronda 5 cerrada del tester** (alcance: solo el cambio de clave):
+1. V-01 contra las 133 de la ronda 4.
+2. Atacar únicamente el reinicio por clave en los tres usos con `claseId` (`ClaseLayout`, `MaestrosDeClaseView` y la lista del muro):
+   - de A con datos a B cuya primera carga falla, con el foco perdido y sin perderlo: no se mueve;
+   - de A a B con datos en caché y después una recarga fallida de B: sí se mueve, si el foco se perdió;
+   - de A en error a B en error;
+   - ida y vuelta A → B → A con A en caché;
+   - cambios rápidos de clase con peticiones en vuelo;
+   - que el render del cambio de clave nunca mueva el foco.
+3. En `ClasesAdminView`, solo confirmar que la clave constante no altera T-04 ni T-05.
+4. Fuera de ese alcance, solo observaciones con destino.
+5. Correr la suite completa una vez.
+6. Si resiste, sigue la revisión final de 02c; si rompe, se escala al humano.
+
+## Revisión final — CLASES-02c
+Fecha: 2026-10-05 · Base dentro de los paquetes: `<K2b>` = `7544fb9`
+
+Tester:
+- ronda 0;
+- ronda 1, ROTO (T-02, media);
+- ronda 2, ROTO (T-03, baja, arbitrado como observación; T-04, media);
+- ronda 3, ROTO (T-05, baja);
+- rondas 4 y 5, cerradas y autorizadas por el humano: la 4 ROTO (T-06, baja), la 5 RESISTE.
+
+Veredicto: **APROBADO CON OBSERVACIONES.** Nada bloquea el commit `<K2c>`. Las observaciones tienen destino (02d o ESTADO) y hay una nota de medición para el humano.
+
+Verificación propia:
+- **Frontend:** `npm test` da `Test Files 118 passed (118)` · `Tests 1725 passed (1725)`, igual que la corrida del tester en la ronda 5; `npm run lint` código 0.
+- **Raíz:** `npm run build` código 0 (`✓ built in 688ms`) y `npm run lint` código 0.
+- **Backend:** no cambió en 02c (`git diff 7544fb9 -- backend shared` vacío), así que no lo corrí. Su última corrida verificada, al cerrar 02b, dio 147 archivos y 1746 casos.
+- **V-01:** 134/134 contra la tabla de la ronda 5 de 02c. Hay 134 `*.ataque` entre rastreadas y no rastreadas. Las 23 cambiadas o nuevas desde `7544fb9` (12 de la ronda 0 y 11 nuevas de las rondas 1 a 5) son todas del tester: el programador no tocó ninguna.
+
+### 1. Lo planeado, solo lo planeado y todo lo planeado (02c)
+"Alcance 02c", punto por punto, contra el código:
+1. **Pantallas del admin.** `/admin/clases` (tabla opaca y densa, "Crear clase" `primary`, vacío con CTA `outline`, "Cargar más clases"), `/admin/clases/nueva` (selector de 1 o 2 maestros) y `/admin/clases/:claseId` con Muro, Alumnos, Maestros y Editar clase.
+2. **Destino "Clases" del admin,** con `Destino.coincidencia` (M-04).
+3. **El maestro pierde "Crear clase" y "Editar clase":** rutas (O-01), enlaces, tarjeta interna y textos. Su vacío dice que la administración asigna las clases.
+4. **Muro.** El botón de borrar sale de `puedeBorrar`, por la ruta general. `useBorrarMiComentario` se retira (A-5). La firma "Administración" se decide solo con `autor.administracion` (O-07).
+5. **Encabezado y tarjetas con uno o dos maestros.**
+6. **Triviales heredados:**
+   - sin `claseId ?? ""` en `features/clases`;
+   - `normalizarTextoLargo` en `formulario-clase.tsx`;
+   - el texto del `400` de "Ver más clases";
+   - los `describe` de `muro-view.test.tsx` dicen "Enmienda 9".
+
+Además, lo arbitrado en las rondas: T-02 (esperar la recarga) con sus hermanos y `cancelRefetch: false` en los cinco "Cargar más" de 02c, y el foco tras una recarga fallida (T-04 a T-06) con `useFocoAlPasarAError`. No falta nada de 02c. A-6 (mover `varianteDeClase` y las claves) queda para 02d, como dice el plan.
+
+### 2. "No se toca", autorizaciones y "Cambios por capa"
+- **Diff contra `7544fb9`** (sin `docs/trabajo/**` ni `docs/ESTADO.md`): 44 archivos rastreados (+1646/−384) y los nuevos.
+  - Producción: 20 archivos modificados y 7 nuevos del frontend, todos de "Cambios por capa" de 02c o de las desviaciones aceptadas (`selector-de-maestros.tsx`).
+  - Pruebas: las de PA-16 de 02c y las `*.ataque` del tester.
+  - Fuera de los paquetes: solo `docs/DESIGN.md` (A-7).
+- **Sin cambios contra `7544fb9`:** `backend/`, `shared/`, `features/admin/**`, `features/auth/**`, `services/**`, `lib/**`, `styles/tokens.css` e `index.css`, los componentes compartidos protegidos (`mensaje-error`, `estado-vacio`, `cargando`, `error-de-campo`, `barra-superior`, `pie-de-pagina`, `layout/lib.ts`), `components/ui/**` salvo `badge.tsx` (y su prueba), `app/` salvo `router.tsx` (y sus pruebas), los `package.json`, `package-lock.json`, `vite.config.ts`, `vitest.config.ts`, `index.html`, `infra/`, `AGENTS.md`, `CLAUDE.md`, `README.md` y `.claude/`.
+
+### 3. `CLAUDE.md` y `DESIGN.md` en el código
+- **Estructura del módulo:** tipos en `types.ts`, textos en `data.ts`, puras en `lib.ts`, hooks en `hooks.ts`. Los componentes solo declaran sus interfaces `Props`.
+- **Reglas de código:** ningún `fetch` fuera de `apiClient`; ningún import entre módulos; ningún `?? []` ni ternario anidado en JSX; ninguna clase de la escala por defecto ni color suelto.
+- **Componentes de `components/ui/`:** `Table`, `Card`, `Button`, `Badge` y `buttonVariants`.
+- **Contexto del admin:** opaco y denso solo desde `ContenedorRol`.
+- **Botones y formularios:** `enEspera`, nunca `disabled`; `autoComplete="off"` en el formulario y el buscador del admin; `ErrorDeCampo`.
+- **Estados:** retornos tempranos en el orden error → cargando → vacío → datos, y una sola acción `primary` por vista.
+- **Insignia "Administración":** texto e icono, nunca solo color.
+- **Foco (§7.14 y §7.16):** al quitar, al llegar al tope, al cargar lo último y al pasar a error tras una recarga. Nunca cae en `<body>`.
+- **Textos:** en español de México, sin emojis.
+- **Excepción conocida:** M-10 (`if/else` en `useAgregarAlumno`), con destino 02d.
+- **`DESIGN.md` (A-7):** 13 marcas "propuesta (CLASES-02c)" y ninguna fila de tokens tocada (ningún bloque del diff cae en §3). Documenta cada patrón visual nuevo:
+  - el alcance opaco de `/admin/clases*` (§7.1);
+  - el indicador en contexto opaco y con tres opciones (§7.3);
+  - el destino "Clases" (§7.4);
+  - el inicio del maestro sin tarjeta interna (§7.5);
+  - los metadatos con uno o dos maestros (§7.6);
+  - la variante `institucional` y la firma (§7.8 y §7.18);
+  - la tabla de clases y "Cargar más clases" (§7.9);
+  - los vacíos (§7.10);
+  - las perspectivas, el encabezado con dos maestros y "Volver a la lista de clases" (§7.16);
+  - el buscador de maestros (§7.17);
+  - el borrado según `puedeBorrar` (§7.18).
+
+### 4. Definición de terminado, para 02c
+- [x] RF-52 (frontend), RF-31, RF-59 (frontend), RN-07 en la interfaz y PRD §7 (vacío del maestro)
+- [x] Capas: la interfaz no decide autorización, solo lee `puedeBorrar` y la perspectiva
+- [x] `lint`, `build` y `test` en verde
+- [x] Pruebas de cada viñeta PR-2C01 a PR-2C12 y las de las correcciones
+- [x] Sin migración ni cambios de `infra/`
+- [x] `DESIGN.md` actualizado con cada patrón nuevo (A-7). "Al cerrar 02c" no deja otros textos al orquestador (abajo)
+
+### Hallazgos
+Ninguno nuevo (ningún M-12).
+
+### Medición del programador en 02c
+- **Rondas del tester:** 0 a 5. Hubo **2 rondas extra** sobre el tope de 3 (las 4 y 5 cerradas), autorizadas por el humano.
+- **Rondas extra por no extender un remedio a sus hermanos: 0.**
+  - En T-02, el remedio se aplicó desde la primera corrección a sus seis hermanos.
+  - T-03 fue un caso sintético, que arbitré como observación.
+  - T-04 es un modo de falla nuevo: la recarga que falla. Uno de sus tres casos venía de CLASES-c.
+- **Nota para el humano.** T-04 → T-05 → T-06 fueron tres rondas seguidas sobre **el mismo mecanismo** (el foco tras una recarga fallida). Cada corrección cubrió el caso pedido sin anticipar el estado vecino: primero la primera carga y luego el cambio de clase. No es el patrón de "hermanos" que fija `AGENTS.md` (controles o rutas análogos), sino **remedios incompletos de un mismo hallazgo**. El umbral literal para pasar al programador a `opus` (2 o más rondas extra por hermanos en una subentrega) **no se alcanzó**. Lo señalo porque es el mismo costo que esa regla quiere evitar: el humano decide si la regla debe cubrir también "estados vecinos del mismo remedio".
+- **Resúmenes devueltos:** 0 de 6 (la implementación y cinco correcciones).
+- **PARADAS:** 0. O-01 se resolvió como desviación aceptada.
+- **Desviaciones:** 5 en la implementación, todas aceptadas.
+- **Hermanos:** correctos en todas las correcciones. La inexactitud M-11 ("Unirme a la clase") se corrigió en el registro.
+
+### Textos que el orquestador aplica al cerrar 02c
+- **"Al cerrar 02c" del plan:** `CLAUDE.md`, "Ubicaciones compartidas", **sin cambios** (lo nuevo vive en `features/clases`). La fila `clases` de la tabla de módulos ya se aplicó al cerrar 02a. `DESIGN.md` ya lo editó el programador (A-7) y está verificado arriba. **No hay otro texto de 02c que aplicar.**
+- **Propuesta del arbitraje de la ronda 2** (no es un texto del plan; requiere el visto bueno del humano): la aclaración de `DESIGN.md` §6, punto 4, sobre `enviandoRef`. Va con los textos de 02d o donde el humano diga.
+
+### Pendientes para `ESTADO.md` §3 (filas nuevas, con destino)
+- **O-05:** `/admin/` con barra final no marca "Cuentas" (venía de antes de 02c). Destino: ADMIN.
+- **Los dos "Cargar más" de `features/admin`** (`registrados-del-enlace.tsx` y `tabla-enlaces.tsx`) sin `fetchNextPage({ cancelRefetch: false })`. Destino: ADMIN.
+- **`formatearFechaDeClase`:** mover a `lib/format.ts` y que una fecha inválida devuelva un valor explícito en lugar del texto ISO. Destino: el próximo encargo que toque `lib/format.ts`.
+- **Aclarar `DESIGN.md` §6, punto 4 (`enviandoRef`):** cuándo hace falta el candado síncrono. Destino: con los textos de 02d, con el visto bueno del humano.
+- **O-11:** `alumnos-b-r2` cerca del umbral de 5 s (4.1 s en la ronda 5). Destino: junto a M-02 de DESIGN-01b; se reporta como PA-12 si pasa de 5 s.
+- **O-14:** en el muro, el foco en una publicación de la clase A pasa al `h2` al cambiar a B. Destino: 02d.
+
+**Pasan a 02d** (no son filas de ESTADO; el orquestador los incluye en la instrucción del programador de 02d):
+- **M-10:** el `if/else` de `useAgregarAlumno`. Autoricé tocar `hooks.ts`.
+- **O-06:** la perspectiva sin distinguir mayúsculas, en `lib.ts` y `lib.test.ts`.
+- **O-07:** `SERVICIO_OCUPADO` en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`.
+- **O-10:** el aviso de "Sí, quitar" del roster pasa al hook.
+- **`tabla-alumnos.tsx` y `personas-view.tsx`:** `cancelRefetch: false` (autoricé `tabla-alumnos.tsx` como hermano).
+- **`"clases-admin"`:** derivarla de `CLAVE_CLASES_ADMIN`, opcional.
+- **O-14.**
+
+### Comprobación humana (H-1 a H-7, al final de 02d): lo que 02c deja listo
+- **Listos desde 02a y 02c:**
+  - H-1 (el maestro con clases anteriores a la migración las sigue viendo);
+  - H-2 (`/admin/clases`: crear con dos maestros, tabla, encabezado y secciones en material opaco con el indicador visible);
+  - H-5 (la insignia "Administración" en el muro del estudiante y el maestro sin "Borrar publicación" en ella);
+  - H-7 (el maestro sin "Crear clase" ni "Editar clase", y su inicio sin la tarjeta interna).
+- **Dependen de 02d:**
+  - H-3 (la barra lateral con la lista de clases);
+  - H-4 (360 px con "Personas" y la barra inferior);
+  - H-6 ("Tipo de publicación" como control segmentado).
+
+### Cifras finales de 02c
+| | Archivos | Casos |
+|---|---|---|
+| Frontend | 118 (desde 104) | 1725 (desde 1396) |
+| Backend (sin cambios en 02c) | 147 | 1746 |
+| `*.ataque` | 134 (desde 123; tabla de la ronda 5 de 02c, base de V-01 de 02d) | |
+
+Siguiente paso:
+1. El orquestador aplica las filas de ESTADO.
+2. El orquestador le pasa al humano la nota de medición.
+3. El humano hace el commit `<K2c>`.
+4. Arranca la ronda 0 de 02d, con los pendientes de arriba en la instrucción del programador.

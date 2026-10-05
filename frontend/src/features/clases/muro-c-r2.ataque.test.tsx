@@ -86,6 +86,13 @@ const comentario = (n: number, propio = false) => ({
   puedeBorrar: true,
 })
 
+// CLASES-02 ronda 0 de 02c (C-13, §D-2C4; O-02 de la ronda 0 de 02b): el botón de borrar sale de
+// puedeBorrar, no del rol. Desde la perspectiva del estudiante, el servidor nunca deja borrar la
+// publicación del maestro: en los casos con renderMuro("estudiante") las publicaciones llevan
+// puedeBorrar: false (el comentario propio que crea el estudiante, true). Ninguna aserción cambia.
+const deEstudiante = (lista: PublicacionFalsa[]): PublicacionFalsa[] =>
+  lista.map((p) => ({ ...p, puedeBorrar: false }))
+
 const diferido = () => {
   let resolver: (respuesta: Response) => void = () => undefined
   const promesa = new Promise<Response>((r) => {
@@ -195,7 +202,7 @@ afterEach(() => {
 
 describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
   it("tras el 400 del cursor en «Ver más publicaciones», la persona ve un mensaje que dice qué pasó (no el «no es válido» técnico) y el foco no cae en <body>", async () => {
-    const { estado } = crearServidor(veinticinco())
+    const { estado } = crearServidor(deEstudiante(veinticinco()))
     renderMuro("estudiante")
     const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
     // Otra persona borra la publicación que es el cursor de la página siguiente.
@@ -214,7 +221,7 @@ describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
   })
 
   it("tras el 400 del cursor, volver a entrar al muro lo recupera sin recargar la página", async () => {
-    const { estado } = crearServidor(veinticinco())
+    const { estado } = crearServidor(deEstudiante(veinticinco()))
     const { vista, cliente } = renderMuro("estudiante")
     const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
     estado.publicaciones = estado.publicaciones.filter((p) => p.id !== idPublicacion(20))
@@ -260,7 +267,7 @@ describe("ataque CLASES-c r2: T-30 con los avisos en los hooks", () => {
   }
 
   it("un error de campo del servidor (400 «texto: …») marca el campo con el formulario montado, sin aviso", async () => {
-    const { pendientes } = crearServidor([publicacion(1)])
+    const { pendientes } = crearServidor(deEstudiante([publicacion(1)]))
     renderMuro("estudiante")
     await abrirYEscribir("Hola")
     pendientes.set(
@@ -276,7 +283,7 @@ describe("ataque CLASES-c r2: T-30 con los avisos en los hooks", () => {
   })
 
   it("un 404 PUBLICACION_NO_ENCONTRADA al comentar avisa una sola vez, sin marcar el campo", async () => {
-    const { pendientes } = crearServidor([publicacion(1)])
+    const { pendientes } = crearServidor(deEstudiante([publicacion(1)]))
     renderMuro("estudiante")
     await abrirYEscribir("Hola")
     pendientes.set(
@@ -294,7 +301,7 @@ describe("ataque CLASES-c r2: T-30 con los avisos en los hooks", () => {
   })
 
   it("cerrar y volver a abrir los comentarios con el POST en vuelo: el aviso de éxito sale una sola vez", async () => {
-    const { pendientes } = crearServidor([publicacion(1)])
+    const { pendientes } = crearServidor(deEstudiante([publicacion(1)]))
     renderMuro("estudiante")
     await abrirYEscribir("Hola")
     const enVuelo = diferido()
@@ -368,7 +375,7 @@ describe("ataque CLASES-c r2: T-31 en los formularios", () => {
   const blancos = "\u{FEFF}\u{A0}\u{3000}\t \n"
 
   it("CR solo y extremos en blanco: el comentario enviado es el normalizado y el campo visible no cambia hasta el éxito", async () => {
-    const { fetchMock, pendientes } = crearServidor([publicacion(1)])
+    const { fetchMock, pendientes } = crearServidor(deEstudiante([publicacion(1)]))
     renderMuro("estudiante")
     fireEvent.click(await screen.findByRole("button", { name: "Ver comentarios (0)" }))
     const campo = await screen.findByLabelText("Escribe un comentario")

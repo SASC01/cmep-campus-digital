@@ -81,13 +81,29 @@ describe("ataque CLASES-a r1: rutas de clase de otro rol", () => {
     expect(pidioAlgoDeLaClase(fetchMock)).toBe(0)
   })
 
-  it("un estudiante en /maestro/clases/:claseId/editar termina en /estudiante sin pedir la clase ni su código", async () => {
+  // CLASES-02 ronda 0 de 02c (C-12, §D-2C3): /maestro/clases/:claseId/editar se retira (el
+  // maestro ya no edita clases) y cae en el `*` → /login, como cualquier ruta desconocida (R-07).
+  // El caso se parte en dos y sigue protegiendo lo mismo: un estudiante en una subpágina de clase
+  // del maestro que sí existe ("Alumnos") vuelve a su inicio sin pedir la clase ni su código, y la
+  // ruta retirada no monta nada de la clase, ni para el estudiante ni para el maestro.
+  it("un estudiante en /maestro/clases/:claseId/alumnos termina en /estudiante sin pedir la clase ni su código", async () => {
     const fetchMock = stubFetch(me())
-    const router = await renderEn(`/maestro/clases/${CLASE_ID}/editar`)
+    const router = await renderEn(`/maestro/clases/${CLASE_ID}/alumnos`)
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/estudiante"))
     expect(pidioAlgoDeLaClase(fetchMock)).toBe(0)
   })
+
+  it.each(["estudiante", "maestro"])(
+    "un %s en la ruta retirada /maestro/clases/:claseId/editar termina en /login sin pedir la clase ni su código",
+    async (rol) => {
+      const fetchMock = stubFetch(me({ rol }))
+      const router = await renderEn(`/maestro/clases/${CLASE_ID}/editar`)
+
+      await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+      expect(pidioAlgoDeLaClase(fetchMock)).toBe(0)
+    },
+  )
 
   it("un estudiante restringido en /estudiante/clases/:claseId termina en /acceso-restringido sin pedir la clase", async () => {
     const fetchMock = stubFetch(me({ accesoRestringido: true, motivoRestriccion: "Adeudo" }))

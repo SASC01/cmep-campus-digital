@@ -448,3 +448,282 @@ Hallazgo atendido: **T-06 (baja): corregido** (quinta ronda cerrada autorizada p
 
 ### Archivos tocados
 `hooks.ts`, `clase-layout.tsx`, `clases-admin-view.tsx`, `maestros-de-clase-view.tsx` y `muro-view.tsx`: los cinco están en la lista de 02c. Sin pruebas, backend ni `shared/`. PARADAS: ninguna.
+
+## CLASES-02d — Implementación
+
+Plan: `docs/trabajo/CLASES-02-clases-administradas/plan.md`, "### 02d", "Cambios por capa / frontend" de 02d, A-6, A-7, PA-16 de 02d, "Pasos de implementación / 02d" (pasos 29 a 32; el 28 es de la ronda 0 del tester, los pasos 33 y 34 son esta verificación y este resumen, y el 35 es del humano). Base `<K2c>` = `ec40db7`, rama `feat/clases-02`. Solo `frontend/` y `docs/DESIGN.md`; ni `backend/` ni `shared/` ni `package*.json`.
+
+### Pasos y pendientes heredados
+- **Paso 29:** `lib/variante-de-clase.ts` (`varianteDeClase` y el tipo `VarianteDeClase`, movidos), `services/clasesService.ts` (las dos claves y `consultaClasesDeLaBarra`); `features/clases/lib.ts`, `types.ts` y `data.ts` reexportan.
+- **Paso 30:** `components/layout/hooks.ts`, `lista-de-clases.tsx`, `barra-navegacion.tsx` (recibe `rol`), `contenedor-rol.tsx`, `data.ts` (textos e `INSIGNIA_POR_VARIANTE`), `types.ts` (`RolConClases`, `ClaseDeLaBarra`).
+- **Paso 31:** `lista-personas.tsx`, `personas-view.tsx` (correo y 1 o 2 maestros), `formulario-publicacion.tsx` (control segmentado).
+- **Paso 32:** `docs/DESIGN.md` con la marca "propuesta (CLASES-02d)" (abajo).
+- **M-10:** el `if/else` de `useAgregarAlumno` pasa a `avisarAlumnoAgregado` con retorno temprano (`hooks.ts`).
+- **O-06:** `perspectivaDeRuta` pasa la ruta por `toLowerCase()` antes de comparar (`lib.ts`).
+- **O-07:** `"SERVICIO_OCUPADO"` en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` (`data.ts`).
+- **O-10:** `useQuitarAlumno` recibe `{ id, nombre }`, da el aviso en su `onSuccess` y luego espera la recarga; el `onError` también vive en el hook. `tabla-alumnos.tsx` llama `quitar.mutate({ id, nombre })` sin callbacks y ya no importa `toast`.
+- **`fetchNextPage({ cancelRefetch: false })`:** en `components/tabla-alumnos.tsx` y `personas-view.tsx`.
+- **`"clases-admin"`:** derivada de `CLAVE_CLASES_ADMIN.join("/")` en `clases-admin-view.tsx`.
+- **O-14:** ver "Decisiones y desviaciones".
+
+### Pruebas requeridas (viñeta del plan, "Pruebas requeridas / 02d" → archivo y título exacto)
+- **PR-2D01** (`ListaDeClases`: estados, nombre accesible y `title`, insignia, `aria-current`, "Ver todas", el admin sin lista), en `components/layout/lista-de-clases.test.tsx` › `ListaDeClases`:
+  - «PR-2D01: cada clase es un enlace con el nombre completo como nombre accesible, su title y una insignia con iniciales aria-hidden»
+  - «PR-2D01: un nombre de 120 caracteres sin espacios y uno con emojis conservan su nombre completo accesible»
+  - «PR-2D01: con una sola clase hay un solo enlace»
+  - «PR-2D01: sin clases no hay ni título, ni lista, ni status (el inicio ya tiene su vacío)»
+  - «PR-2D01: con 15 clases las muestra todas, con desplazamiento propio en la lista»
+  - «PR-2D01: aria-current=page solo en la clase abierta, también en sus subpáginas»
+  - «PR-2D01: en el inicio ninguna clase queda activa»
+  - «PR-2D01: el maestro ve sus clases impartidas con enlaces a /maestro/clases/:id»
+  - «PR-2D01: con más de 100 clases, el último elemento es «Ver todas» hacia el inicio del rol»
+  - «PR-2D01: mientras carga solo hay un status accesible «Cargando tus clases»»
+  - «PR-2D01: con error, «Reintentar» (con el aviso sr-only) vuelve a pedir la lista y queda en enEspera mientras pide»
+  - «PR-2D01: una recarga fallida con datos conserva la lista que ya se veía»
+  - El admin sin lista: `components/layout/contenedor-rol.test.tsx` › `ContenedorRol` › «con rol admin, hay tres enlaces: 'Cuentas' hacia /admin, 'Maestros' hacia /admin/maestros y 'Clases' hacia /admin/clases». `BarraNavegacion` solo monta la lista con `rol !== "admin"`; no hay un caso que cuente las peticiones del admin: **cubierta solo por esa aserción de enlaces**.
+- **PR-2D02** (`limite=100`, invalidación por prefijo, la clase nueva aparece al unirse):
+  - `components/layout/lista-de-clases.test.tsx` › «PR-2D02: pide limite=100 a inscritas, y una invalidación de CLAVE_CLASES_INSCRITAS la alcanza por prefijo»
+  - «PR-2D02: la del maestro cuelga de CLAVE_CLASES_IMPARTIDAS (alta y baja de alumnos la invalidan)»
+  - «PR-2D02: la clave de la barra no pisa la de las listas infinitas del inicio»
+  - `app/marco.test.tsx` › `marco: lista de clases de la barra` › «PR-2D02: al unirse a una clase con su código, la barra del estudiante muestra la clase nueva y la marca como activa» (también cuenta que la barra pidió su lista 2 veces, no una por navegación)
+- **PR-2D03** (`hidden md:flex`; el resto va a H-4): `components/layout/lista-de-clases.test.tsx` › «PR-2D03: la lista y su contenedor llevan hidden md:flex, así que no están en la barra inferior de móvil»
+- **PR-2D04** ("Personas"):
+  - `features/clases/personas-view.test.tsx` › `PersonasView` › «PR-B12c: cada persona muestra su correo, y no hay insignias de pago ni restricción» (reescrita por C-17, con comentario)
+  - «PR-2D04: con un maestro la sección dice «Maestro» y con dos, «Maestros», cada uno con su correo»
+  - «PR-2D04: con un solo maestro la sección dice «Maestro»»
+  - «PR-2D04: un correo largo sin espacios rompe en cualquier punto y no desborda»
+  - `features/clases/lib.test.ts` › `etiquetaDeMaestros` › «PR-2D04: «Maestro» con uno y «Maestros» con dos»
+- **PR-2D05** (control segmentado), todos en `features/clases/formulario-publicacion.test.tsx` › `FormularioPublicacion: tipo de publicación como control segmentado`:
+  - «PR-2D05: el elegido lleva aria-pressed y el Check delante del texto, y cambia con el otro»
+  - «PR-2D05: el indicador es aria-hidden, se traslada con «Material» y no tiene transición con movimiento reducido»
+  - «PR-2D05: el indicador usa --surface y, en contexto opaco, --accent-soft»
+  - «PR-2D05: el grupo va en vidrio fuerte (no en otra Card) y con rounded-card»
+  - «PR-2D05: los dos botones se alcanzan con teclado: son botones nativos, en orden y sin tabindex negativo»
+  - «PR-2D05: el botón principal cambia de texto como hasta ahora»
+  - «PR-2D05: cambiar de tipo con texto escrito no lo borra»
+  - «PR-2D05: cambiar de tipo con la publicación en vuelo no cambia lo que se envía ni quita la espera»
+  - El caso previo `PR-C09a` (aria-pressed) sigue en verde sin tocarlo.
+- **PR-2D06** (`varianteDeClase` igual que antes):
+  - `lib/variante-de-clase.test.ts` › `varianteDeClase (lib/)` › «PR-2D06: da la misma variante que antes para los ids de las pruebas existentes»
+  - «PR-2D06: es determinista, no falla con una cadena vacía o con puntos de código fuera del BMP y usa las tres variantes»
+  - `features/clases/lib.test.ts` › `varianteDeClase reexportada` › «PR-2D06: la de features/clases/lib es la misma función que la de lib/»
+  - Siguen en verde `PR-A17a` y `clases-r1.ataque` (importan de `./lib`).
+- **Pendientes heredados (casos propios, no son viñetas del plan):**
+  - O-06: `features/clases/lib.test.ts` › `perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA` › «PR-2D07: la perspectiva no distingue mayúsculas, como el router, y un prefijo parecido sigue sin valer». El caso PR-2C01 de prefijo parecido pierde `"/Admin"` de su lista, que contradecía O-06. Sigue en verde `estatico-02c-r1.ataque` › «§D-2C1: la perspectiva sale solo de perspectivaDeRuta; ninguna vista mira el prefijo de la ruta por su cuenta».
+  - O-07: `features/clases/lib.test.ts` › `mensajes de los errores de maestros y de autoría (§D-2C2)` › «muestran el mensaje del servidor» (suma `SERVICIO_OCUPADO`).
+  - O-10: lo cubren los seis casos «Sí, quitar» (roster) de `features/clases/ventana-02c-r2.ataque.test.tsx` (los tres patrones de clic, para el roster y para maestros) y los dos de «la recarga falla después del 200»; no escribí casos nuevos.
+  - O-14: `app/marco.test.tsx` › `marco: el foco del muro al cambiar de clase` › «O-14: con la clase nueva ya en la caché, el foco que estaba en una publicación de la anterior va al encabezado «Publicaciones» y no a una publicación de la nueva». Comprobé que falla si quito el remedio.
+  - M-10, `cancelRefetch` en `tabla-alumnos` y `personas-view`, y `"clases-admin"`: sin caso nuevo (no cambian el comportamiento observable); los cubren los casos existentes de agregar alumno, «Ver más alumnos» y la lista del admin, que siguen en verde. **No hay un caso que fije `cancelRefetch: false` en esos dos botones.**
+
+### Pruebas normales cambiadas (PA-16, columna "Cambiar" de 02d)
+- `components/layout/contenedor-rol.test.tsx` (C-16: `QueryClientProvider` y un `fetch` que responde una lista vacía; las aserciones no cambian), `features/clases/lib.test.ts` (O-06 y casos nuevos), `features/clases/personas-view.test.tsx` (C-17: solo PR-B12c reescrito, más casos nuevos), `features/clases/formulario-publicacion.test.tsx` (casos nuevos) y `app/marco.test.tsx` (casos nuevos).
+- No toqué `app/router.test.tsx` ni las cuatro pruebas de `features/auth/` que PA-16 deja cambiar: siguen en verde con la barra en su estado de error (lo reportó la ronda 0), así que no hizo falta.
+
+### Verificación (una suite a la vez; nadie más corrió nada)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`. Prettier corrió con `npx prettier --write src` dentro de `frontend/`, sin tocar fuera; ninguna `*.ataque` cambió de hash (V-01).
+- `cd frontend; npm test` (una corrida completa, salida a un archivo del `TMPDIR`) → `Test Files  120 passed (120)` / `Tests  1759 passed (1759)` / `Duration  73.45s`. Sin rojos: los **8 rojos de la ronda 0 están en verde** (V-06 y V-07 de `styles/clases-r1`, `alumnos-b-r1` «PersonasView muestra el correo…», los 4 de `rutas-02c-r1` y «Sí, quitar» (roster) de `ventana-02c-r2`); `estatico-02c-r1` sigue en verde.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 744ms`.
+- **V-01:** 134 de 134 hashes de `*.ataque` iguales a la "Tabla de SHA-256 de las 134 `*.ataque` después de la ronda 0 de 02d con O-1" (`reporte-tester.md`, desde la línea 3105); no toqué ninguna ni hay `*.ataque` sin rastrear.
+- **Conteos** (`cd frontend; npx vitest list`, salida a un archivo, `grep -c "^src/"`; y `npx vitest list --filesOnly`): **1759 casos** en **120 archivos**. Frente a los 1725 casos y 118 archivos de la ronda 0: +34 casos y +2 archivos (`lista-de-clases.test.tsx` 16, `variante-de-clase.test.ts` 2, `lib.test.ts` +3, `personas-view.test.tsx` +3, `formulario-publicacion.test.tsx` +8 y `marco.test.tsx` +2).
+- **V-04 (búsquedas de texto):** `from "@/features/` en `components/`, `lib/` y `services/` → 0; `claseId ?? ""` en `features/clases` → 0; sin `?? []` nuevos; no agregué ningún `fetch(`; `console.` → 0 en los archivos nuevos. `git status` de `backend/` y `shared/` vacío; `git diff ec40db7` de `features/auth`, `features/admin`, `components/ui`, `services/apiClient.ts`, `app/router.tsx` y `frontend/package.json` vacío.
+
+### Archivos tocados (contra A-6, A-7 y "Cambios por capa / frontend" de 02d)
+- **Nuevos (6):** `frontend/src/lib/variante-de-clase.ts`, `frontend/src/services/clasesService.ts`, `frontend/src/components/layout/hooks.ts`, `frontend/src/components/layout/lista-de-clases.tsx` y las pruebas `frontend/src/components/layout/lista-de-clases.test.tsx` y `frontend/src/lib/variante-de-clase.test.ts`. Todos en la lista del plan.
+- **En la lista del plan:** `components/layout/{barra-navegacion.tsx, contenedor-rol.tsx, data.ts, types.ts}`, `features/clases/{data.ts, lib.ts, types.ts, personas-view.tsx}`, `features/clases/components/{lista-personas.tsx, formulario-publicacion.tsx}` y `docs/DESIGN.md` (A-7).
+- **Pendientes heredados autorizados por el manager o el orquestador:** `features/clases/hooks.ts` (M-10, O-10), `features/clases/components/tabla-alumnos.tsx` (O-10 y `cancelRefetch`), `features/clases/muro-view.tsx` (O-14) y `features/clases/clases-admin-view.tsx` (`"clases-admin"`).
+- **Pruebas normales:** las cinco de arriba, todas de la columna "Cambiar" de PA-16.
+- Ninguno de "No se toca".
+
+### Hermanos y estados vecinos de cada cambio
+- **Lista de clases de la barra** (estados y variantes por los que pasa el mecanismo):
+  - Estudiante y maestro: la misma `ListaDeClases` con `rol`; el maestro pide `impartidas`; cubiertos. Admin: sin lista (P-07), cubierto por la aserción de enlaces del admin.
+  - Sin clases (nada), una clase, 15 con desplazamiento, más de 100 con "Ver todas": cubiertos. 101 exactas es el mismo camino que "Ver todas" (`siguienteCursor` distinto de `null`).
+  - Clase activa en el muro y en una subpágina: cubierto; en el inicio ninguna activa: cubierto.
+  - Carga: cubierta. Error sin datos: cubierto, con `enEspera` y foco conservado. Error con datos de antes: conserva la lista, cubierto.
+  - Primera carga, recarga por invalidación (unirse, alta y baja de alumnos) y caché compartida con el inicio (claves distintas, sin pisarse): cubiertos. Cambio de rol en la misma sesión: la clave lleva `inscritas` o `impartidas` y `cambio-de-identidad` limpia la caché; lo cubre la prueba existente de `features/auth`, que no toqué.
+  - 360 px: la lista no se monta en la barra inferior (`hidden md:flex`); el resultado visual es de la comprobación humana H-4.
+  - **Estado vecino que encontré y el plan no decía:** TanStack Query v5 pone la consulta en `pending` (`isError` en `false`) al reintentar una consulta que nunca tuvo datos. Con `isError`, "Reintentar" habría desaparecido (y el foco, a `<body>`) en cuanto se pulsa. Uso `errorUpdateCount > 0`, que no se reinicia: ver "Desviaciones".
+  - Hermano en el código: la invalidación de `CLAVE_CLASES_IMPARTIDAS` de `invalidarPersonasDeLaClase` y la de unirse (`invalidarListasDeClases`) ahora esperan también la recarga de la barra, así que "Sí, quitar" o "Unirme a la clase" quedan en `enEspera` un poco más si la barra tarda. El aviso de quitar sale antes (O-10); el de unirse lo da el `onSuccess` del formulario, después de la recarga, igual que antes. No lo cambié.
+- **Control segmentado (§D-2D3):**
+  - Teclado: son botones nativos en orden, sin `tabindex` negativo (cubierto). `Espacio` y `Enter` activan un `button` nativo; jsdom no simula esas teclas: H-6.
+  - `prefers-reduced-motion`: el indicador lleva `motion-reduce:transition-none` (cubierto como clase; la media query real, H-6).
+  - Cambio de tipo con texto escrito: el texto y el título se conservan (cubierto). Cambio con la publicación en vuelo: lo enviado no cambia y el botón sigue en `enEspera` (cubierto).
+  - Contexto opaco del admin: el indicador usa `--accent-soft` (cubierto como clase; se ve en H-2).
+  - Hermano: `SeccionesDeClase` ya implementa la misma regla y reutilicé `CLASES_DE_POSICION_DEL_INDICADOR` de `data.ts`; no hay otro grupo de dos botones con `aria-pressed` en `src/` (lo busqué).
+- **"Personas":** el roster del maestro (`tabla-alumnos.tsx`) ya mostraba el correo en su columna y no cambia; los buscadores de alumnos y de maestros ya muestran correo; `lista-personas.tsx` solo se usa en `personas-view.tsx`. Estados: 1 y 2 maestros, correo largo sin espacios (`wrap-anywhere`), sin datos de pago (el esquema los descarta): cubiertos. 360 px real: H-4.
+- **`fetchNextPage({ cancelRefetch: false })`:** en `features/clases` ya quedan los 7 "Ver más" con él (`clases-admin-view`, `comentarios-de-publicacion`, `inicio-estudiante-view`, `inicio-maestro-view`, `muro-view`, y ahora `tabla-alumnos` y `personas-view`). Los dos de `features/admin` (`registrados-del-enlace.tsx`, `tabla-enlaces.tsx`) siguen sin él: están en "No se toca" y el manager los mandó a ADMIN.
+- **O-10 (aviso en el hook):** los cinco hermanos ya lo tenían (`useAsignarMaestro`, `useRetirarMaestro`, `useAgregarAlumno`, `useBorrarPublicacion`, `useBorrarComentario`); con `useQuitarAlumno` son seis. Los estados vecinos del mecanismo (200 y recarga que sigue, recarga que falla con datos, dos clics seguidos, fila que se desmonta con la petición en vuelo) los fija `ventana-02c-r2.ataque` y siguen en verde. `useUnirseAClase`, `useCrearClase`, `useEditarClase`, `useRegenerarCodigo`, `useCrearPublicacion` y `useComentar` no son del patrón (su aviso o su navegación vive en el `mutate` del formulario, o no hay una recarga que esconda la acción); no los toqué.
+- **O-06 (mayúsculas en `perspectivaDeRuta`):** el router no distingue mayúsculas; las comparaciones por prefijo del `pathname` fuera de `lib.ts` son 0 (`estatico-02c-r1`). **Hermano real sin corregir:** `indiceDeSeccionActiva` (secciones de la clase) compara el `pathname` tal cual, sin pasarlo a minúsculas, así que en `/Admin/clases/ID` no marcaría la sección activa. El pendiente del manager nombra solo `perspectivaDeRuta` y `lib.test.ts`, por eso lo reporto y no lo cambié.
+- **O-07 (código con mensaje del servidor):** los demás `503 SERVICIO_OCUPADO` de `features/clases` salen por la misma `mensajeDeErrorClases`; no hay otra lista de códigos en `features/clases`. `features/admin` tiene la suya (`["VALIDACION", "CUPO_DIARIO_INSUFICIENTE"]`) y está en "No se toca".
+- **`"clases-admin"`:** los otros tres usos del gancho pasan el `claseId` de la ruta; ninguna otra constante suelta.
+
+### Decisiones y desviaciones
+- **O-14, decisión (§7.14):** en `muro-view.tsx`, el efecto que lleva el foco a la vecina de una publicación borrada recuerda la clase (`clasePrevia`, un `useRef`, el mismo patrón que el reinicio por cambio de clave de T-06). Si la clase cambió y el foco se perdió, va al encabezado "Publicaciones" (`h2` con `tabIndex={-1}`) y se descarta la fila recordada; nunca a una publicación al azar de la clase nueva. Antes, con la clase nueva ya en la caché, `vecinaDeFila` usaba el índice de la lista de la clase anterior y el foco caía en el «Borrar publicación» de otra publicación.
+  - Estados vecinos del mecanismo:
+    - (a) Clase nueva ya en la caché, el muro se reutiliza: remedio aplicado y probado.
+    - (b) Clase nueva sin cargar: `ClaseLayout` muestra «Cargando» y desmonta todo el muro (también el `h2`), así que el foco queda en `<body>`. **No lo corregí:** es un cambio de página que desmonta la vista, no una acción dentro de la lista, y el plan no pide mover el foco en `ClaseLayout`. Lo decide el manager.
+    - (c) El foco en la barra lateral al hacer clic en otra clase no se pierde (el enlace sigue montado).
+    - (d) Un error de la lista de la clase nueva: ya lo cubre `useFocoAlPasarAError` con su clave.
+- **Desviación 1, `errorUpdateCount` en lugar de `isError` en "Reintentar":** el plan dice que TanStack Query conserva el estado de error durante el reintento. En la versión instalada, una consulta sin datos que se vuelve a pedir pasa a `pending` con `isError` en `false`. El resultado que pide el plan (el botón sigue montado, con `enEspera` mientras pide y con el foco) se logra con `clases.data === undefined && clases.errorUpdateCount > 0`. Lo prueba «PR-2D01: con error, «Reintentar»…» (incluido el foco).
+- **Desviación 2, `hidden md:flex` también en la `ul`:** el plan lo pone en "su contenedor"; lo puse en el contenedor y en la `ul`, para que los dos lo lleven. Sin efecto visual distinto.
+- **Matiz de forma:** el separador usa `border-t-(--glass-border)` (la sintaxis de variable de Tailwind que ya usa `h-(--control-height)`), no un valor arbitrario entre corchetes, para no tocar la lista de valores arbitrarios de `estatico-r1`. `INSIGNIA_POR_VARIANTE` deja el vidrio fuerte en el componente (V-07): un comentario mío de `data.ts` repetía el nombre de la utilidad y V-07 falló una vez; lo reformulé sin el literal.
+- Ninguna otra desviación del plan.
+
+### PARADAS evaluadas
+- PA-01, PA-03, PA-04, PA-07, PA-09 a PA-14, PA-17 y PA-18: no aplican (sin backend, sin migración, sin `middleware/`, sin guarda; no corrí el backend ni hay un proceso ajeno que ocupe un puerto que necesite).
+- PA-02: rama `feat/clases-02`, base `ec40db7`; V-01 134 de 134.
+- PA-05: no se activó; no hay un rojo fuera de la lista y los 8 esperados están en verde.
+- PA-06: no toqué nada de "No se toca" ni agregué dependencias.
+- PA-08: nunca corrí dos suites a la vez.
+- PA-15: no hizo falta.
+- PA-16: no creé ni cambié pruebas fuera de la lista cerrada de 02d. Una duda que declaro: `app/marco.test.tsx` está en la columna "Cambiar" y ahí puse el caso de O-14 (el único lugar permitido donde se monta el router con foco entre clases); `features/clases/muro-view.test.tsx` no está en la lista, así que no lo toqué.
+
+### Textos aplicados en `docs/DESIGN.md` (marca "propuesta (CLASES-02d)")
+- **§7.2, "Lista de compañeros":** el correo bajo el nombre (`--text-small`, `--muted-foreground`, texto plano, `wrap-anywhere`), "Maestro" o "Maestros", y nunca pago ni restricción.
+- **§7.3, "Control segmentado o de pestañas":** se retira la oración "Pendiente de decisión del humano…", y "hoy solo `SeccionesDeClase`… la implementa" pasa a decir que la implementan `SeccionesDeClase` y el grupo "Tipo de publicación".
+- **§7.3, viñeta del grupo de dos botones:** pasa a "Control segmentado de dos botones para elegir un tipo": grupo en vidrio fuerte con `rounded-card` y `p-1` (no otra `Card`), indicador `aria-hidden` en `--surface` (en contexto opaco, `--accent-soft`) y botones `ghost` con `aria-pressed` y `Check`.
+- **§7.4:** se sustituye la viñeta "CLASES-a, R-01 de DESIGN-01…" por "Lista de clases de la barra" (§D-2D1: ubicación, separador, título, insignia de 28 px por variante, recorte, nombre completo y `title`, `aria-current` sin `end`, desplazamiento propio, estados, móvil y el administrador sin lista).
+- Lo agregué yo en esas viñetas, y el manager debe contrastarlo: el foco por dentro (`-outline-offset-2`) de los enlaces de la lista y la frase "sin soltar el foco" del botón "Reintentar".
+
+### Pendiente o fuera de alcance detectado
+- Hermano de O-06 sin corregir: `indiceDeSeccionActiva` no pasa a minúsculas.
+- `ClaseLayout` desmonta el muro (foco en `<body>`) al cambiar a una clase sin cargar (estado (b) de O-14).
+- Los dos "Cargar más" de `features/admin` sin `cancelRefetch: false` (ADMIN).
+- Comprobación humana en navegador: H-3 (barra con varias clases, nombre largo, dos clases con las mismas iniciales, `title`, desplazamiento), H-4 (360 px: barra inferior sin la lista y "Personas" con correos largos) y H-6 (indicador del tipo de publicación, con y sin movimiento reducido). **No las verifiqué** (no abro navegador); en lo que jsdom puede ver, las cubren las pruebas automáticas.
+
+## CLASES-02d — Corrección previa (M-12 y M-13)
+
+- **M-12: corregido.** `indiceDeSeccionActiva` (`features/clases/lib.ts`) pasa el `pathname` y el destino por `toLowerCase()` antes de comparar, como el router y `perspectivaDeRuta` (O-06).
+  - Caso nuevo: `features/clases/lib.test.ts` › «M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar» (ruta, id y base en mayúsculas, con barra final, y `/EDITAR` y un prefijo parecido siguen en -1).
+  - **Hermanos y estados vecinos (todo lo que lee el `pathname`, buscado con `grep -rn pathname frontend/src`, sin pruebas):**
+    - `perspectivaDeRuta` (`features/clases/lib.ts`): ya normaliza (O-06).
+    - `indiceDeSeccionActiva`: normaliza desde esta corrección. Es el único que lee `useLocation().pathname` para el indicador (`secciones-de-clase.tsx`).
+    - `orbesEnMovimiento` (`components/layout/lib.ts`): ya normaliza (`toLowerCase` y barra final); no se toca (está en "No se toca").
+    - La clase activa de la barra lateral no tiene función propia: la decide `NavLink` de react-router (sin `end`), que ya no distingue mayúsculas; por eso la barra y el indicador coincidían mal solo en `indiceDeSeccionActiva`.
+    - `clase-layout.tsx` y `muro-view.tsx` solo pasan el `pathname` a `perspectivaDeRuta` (ya normaliza); `features/auth/hooks.ts` solo lo reenvía a `navigate`; `fondo-de-la-app.tsx` lo pasa a `orbesEnMovimiento`; `services/navegacion.ts` lo devuelve tal cual (no compara).
+    - Estados vecinos de `indiceDeSeccionActiva`: barra final (sigue normalizada), `/editar` (sigue en -1) y mayúsculas en el id de la clase (también normalizado, cubierto en el mismo caso).
+- **M-13: corregido.** El archivo del plan se llama `components/layout/contenedor-rol.test.tsx` (el encargo decía `app/contenedor-rol.test.tsx`, que no existe; es el de PA-16).
+  - Caso: `components/layout/contenedor-rol.test.tsx` › `ContenedorRol` › «con rol admin no existe «Mis clases» en la barra y no se pide inscritas ni impartidas» (sin lista, sin `status`, sin «Reintentar» y ninguna petición a `/api/clases/`).
+  - Contraste que agregué: «con rol estudiante o maestro, la barra pide su lista (contraste del caso del admin)» (pide `inscritas?limite=100` e `impartidas?limite=100`).
+
+### Verificación
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+- `cd frontend; npm test` (una corrida completa) → `Test Files  120 passed (120)` / `Tests  1762 passed (1762)` / `Duration  71.93s`. Sin rojos.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 737ms`.
+- Conteos (`cd frontend; npx vitest list | grep -a -c "^src/"` y `npx vitest list --filesOnly | grep -c "src/"`): 1762 casos en 120 archivos (+3 frente a 1759: M-12 uno y M-13 dos).
+- V-01: 134 de 134 hashes de `*.ataque` iguales a la tabla corregida de la ronda 0 de 02d.
+- Archivos tocados: `frontend/src/features/clases/lib.ts`, `frontend/src/features/clases/lib.test.ts`, `frontend/src/components/layout/contenedor-rol.test.tsx` (los dos de pruebas, de la columna "Cambiar" de PA-16). Nada fuera de la lista; ninguna `*.ataque`.
+
+## CLASES-02d — Corrección de la ronda 1
+
+Hallazgo atendido: **T-07 (media): corregido.**
+
+- **Remedio:** `useFocoDeLaLista(navRef)` en `components/layout/hooks.ts`, llamado al inicio de `ListaDeClases`. Recuerda (con `focusin` y `focusout` del documento, el mismo patrón que `useFilaEnFoco` de `features/clases`, que `components/layout` no puede importar) si el foco estaba dentro del contenedor de la lista (`data-lista-de-clases`, que envuelve a la lista, a «Reintentar» y a «Ver todas»). En un efecto tras cada render, si tenía el foco y se perdió (`<body>`, ningún elemento o un elemento desconectado), lo lleva al primer enlace de la lista o, si ya no hay lista, al primer enlace de la nav («Inicio»). No depende de quién resolvió la consulta. `BarraNavegacion` pasa su `nav` como `navRef` (prop nueva de `ListaDeClases`). Sin `disabled`; `enEspera` no cambió.
+- **Los 2 casos del tester, ahora en verde** (`app/barra-02d-r1.ataque.test.tsx`, `describe` «ataque CLASES-02d r1: «Reintentar» de la barra en sus estados»):
+  - «error → reintento en vuelo (enEspera, foco conservado, sin otra petición) → reintento que falla → reintento que funciona: el foco nunca cae en <body>»
+  - «reintento que funciona con 0 clases: no queda nada en la barra y el foco no cae en <body>»
+
+### Casos nuevos (`components/layout/lista-de-clases.test.tsx` › `ListaDeClases: el foco cuando desaparece el control enfocado`)
+- «T-07: el reintento que trae clases deja el foco en el primer enlace de la lista»
+- «T-07: el reintento que trae 0 clases deja el foco en «Inicio» de la nav»
+- «T-07: el reintento que trae más de 100 clases (con «Ver todas») deja el foco en el primer enlace de la lista»
+- «T-07: el reintento que vuelve a fallar conserva el mismo botón, sin espera y con el foco»
+- «T-07: si «Reintentar» desaparece porque la consulta se resolvió por otra vía (invalidación), el foco también queda dentro de la nav»
+- «T-07: si la clase enfocada sale de la lista tras una recarga, el foco va al primer enlace que queda»
+- «T-07: si «Ver todas» enfocado desaparece (ya caben todas), el foco va al primer enlace de la lista»
+- «T-07: si el foco estaba fuera de la lista, un cambio de la lista no lo mueve»
+- «T-07: si la persona sacó el foco a ningún elemento (clic en blanco), el cambio de la lista no se lo devuelve»
+- Los casos anteriores del archivo ahora montan `ListaDeClases` dentro de una `nav` de prueba con su `navRef` y un enlace «Inicio» (cambio de montaje, sin tocar aserciones).
+
+### Hermanos y estados vecinos del mecanismo («un control enfocado de la lista desaparece»)
+- **Reintento que trae clases:** aplica, corregido y cubierto.
+- **Reintento que trae 0 clases:** aplica, corregido (foco en «Inicio») y cubierto.
+- **Reintento que trae más de 100:** misma rama de datos; corregido y cubierto con «Ver todas» presente.
+- **«Reintentar» desaparece por otra vía** (invalidación al unirse, refetch al enfocar la ventana, otra pestaña): corregido, porque el efecto decide por el render y no por el clic; cubierto con una invalidación.
+- **Reintento que vuelve a fallar:** confirmado, conserva el mismo botón, sin espera y con el foco (caso nuevo; ya estaba en verde).
+- **Una clase enfocada que sale de la lista tras una recarga** (alta o baja del maestro, quitar a un alumno): hermano no listado por el tester; aplica, corregido y cubierto.
+- **«Ver todas» enfocado que desaparece** (la lista pasa a caber entera): aplica, corregido y cubierto.
+- **Foco fuera de la lista, o sacado a ningún elemento por un clic en blanco:** el remedio no lo mueve; cubiertos los dos.
+- **Otros «Reintentar» del frontend:** no hay ninguno (`grep -rn "Reintentar" frontend/src`, sin pruebas: solo `lista-de-clases.tsx` y su texto en `data.ts`); `MensajeError` no lleva acción; el `refetch()` de `muro-view.tsx` es por navegación a «Muro», no un botón que desaparezca.
+- **«Ver más» / «Cargar más» que desaparecen al cargar la última página:** ya los cubre `useFocoAlCargarMas` (§7.14) en `clases-admin-view.tsx`, `comentarios-de-publicacion.tsx`, `panel-mis-clases.tsx` (inicios de estudiante y maestro), `tabla-alumnos.tsx`, `muro-view.tsx` y `personas-view.tsx`: no aplica cambio. Los dos de `features/admin` (`registrados-del-enlace.tsx`, `tabla-enlaces.tsx`) no usan ese gancho; están en "No se toca" y ya van a ADMIN. «Ver todas» de la barra es un enlace, no un «Cargar más»: lo cubre el caso de arriba.
+- **Observaciones del tester no empeoradas:** O-15 (unirse espera la recarga de la barra) y O-16 (doble clic en «Reintentar») no cambian; O-18 (el botón en espera puede decir «Publicar material») no lo toqué.
+
+### Verificación (una suite a la vez; nadie más corrió nada)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+- `cd frontend; npm test` (una corrida completa) → `Test Files  124 passed (124)` / `Tests  1812 passed (1812)` / `Duration  86.25s`. Sin rojos; las 4 `*.ataque` nuevas del tester en verde.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 763ms`.
+- Conteos (`cd frontend; npx vitest list | grep -a -c "^src/"` y `npx vitest list --filesOnly | grep -c "src/"`): 1812 casos en 124 archivos.
+- V-01: 138 de 138 hashes de `*.ataque` iguales a la tabla de la ronda 1 de 02d (`reporte-tester.md`, "Tabla de SHA-256 de las 138"); no toqué ninguna.
+
+### Archivos tocados
+`frontend/src/components/layout/hooks.ts` (el gancho), `lista-de-clases.tsx` (prop `navRef`, la marca `data-lista-de-clases` y la llamada al gancho), `barra-navegacion.tsx` (el `ref` de la `nav`) y `lista-de-clases.test.tsx` (montaje y casos nuevos). Los cuatro están en "Cambios por capa / frontend" de 02d y en la lista de PA-16. Nada de "No se toca", ninguna `*.ataque`, sin dependencias.
+
+### PARADAS
+Ninguna se activó (PA-05: sin rojos fuera de lista; PA-06 y PA-16: sin archivos fuera de lista; PA-08: una suite a la vez).
+
+## CLASES-02d — Corrección de la ronda 2
+
+Hallazgo atendido: **T-08 (baja): corregido.** O-19 (hermano fuera de la lista): **aplicado** a `useFilaEnFoco`.
+
+- **Causa:** al cambiar de pestaña el navegador dispara `focusout` sin `relatedTarget` sobre un control que sigue montado, y `useFocoDeLaLista` lo tomaba por un clic en blanco y olvidaba que el foco estaba en la lista.
+- **Remedio (`components/layout/hooks.ts`):** el `focusout` sin `relatedTarget` ya no borra la memoria al instante. Decide en el siguiente turno (`setTimeout` 0, porque el `blur` de la ventana llega después del `focusout` del control) y solo la borra si el control sigue conectado, la ventana conserva el foco y `document.hasFocus()` es verdadero. La ventana se sigue con `blur` y `focus` de `window` y con `visibilitychange` (`!document.hidden`). El caso del tester (`app/foco-barra-02d-r2.ataque.test.tsx`, «la ventana pierde el foco con el reintento en vuelo y la lista llega mientras tanto: al volver, el foco no está en <body>») pasa a verde, sin tocarlo.
+- **O-19 (`features/clases/hooks.ts`, `useFilaEnFoco`):** mismo criterio, mismo cambio (ya tenía el `setTimeout`; se le suma el seguimiento de la ventana). `features/clases/hooks.ts` no está en "Cambios por capa" de 02d, pero el manager autorizó tocarlo para M-10 y O-10 y el orquestador pidió aplicarlo; lo declaro como la extensión de esa autorización. Lo usan `muro-view`, `tabla-alumnos`, `comentarios-de-publicacion`, `buscador-alumnos`, `buscador-de-maestros`, `lista-maestros-de-clase` y `maestros-de-clase-view`: todos reciben el criterio por estar en el gancho.
+
+### Casos nuevos
+- `components/layout/lista-de-clases.test.tsx` › `ListaDeClases: cambio de pestaña con el foco en la lista`:
+  - «T-08: con «Reintentar» en vuelo, un cambio de pestaña y la lista que llega mientras tanto: el foco va al primer enlace»
+  - «T-08: cambio de pestaña y regreso con el botón aún montado: el foco sigue en el botón»
+  - «T-08: dos cambios de pestaña seguidos conservan la memoria, y al llegar el reintento sin clases el foco va a «Inicio»»
+  - «T-08: visibilitychange (pestaña oculta) también conserva la memoria»
+  - «T-08: cambio de pestaña con una clase enfocada que sale de la lista: el foco va al primer enlace que queda»
+  - «T-08: cambio de pestaña con «Ver todas» enfocado que desaparece: el foco va al primer enlace de la lista»
+  - «T-08: cambio de pestaña con la lista que pasa a 0 clases: el foco va a «Inicio»»
+  - «T-08: un clic en blanco real (la ventana conserva el foco) sigue olvidando la memoria»
+  - «T-08: un focusout con relatedTarget fuera de la nav deja el foco donde la persona lo puso»
+- `app/marco.test.tsx` › `useFilaEnFoco: cambio de pestaña` › «O-19: con la ventana sin foco, el focusout sin relatedTarget conserva la fila; un clic en blanco real la olvida» (archivo de la columna "Cambiar" de PA-16; ahí porque `features/clases/hooks.ts` no tiene un archivo de pruebas permitido propio).
+
+### Estados vecinos y hermanos (uno por uno)
+- `focusout` sin `relatedTarget` con la ventana sin foco (`blur` de `window`): conserva la memoria; cubierto.
+- Clic en blanco real (la ventana conserva el foco): olvida; cubierto en los dos ganchos.
+- `relatedTarget` fuera de la nav: ya lo atendía `focusin` (marca falso); cubierto.
+- Cambio de pestaña y regreso con el botón aún montado: el foco sigue en el botón; cubierto.
+- Cambio de pestaña con una clase enfocada que sale, con «Ver todas» que desaparece y con la lista que pasa a 0 clases: cubiertos, con los destinos de T-07.
+- `visibilitychange`: cubierto. Dos cambios de pestaña seguidos: cubierto.
+- Hermano `useFilaEnFoco`: aplicado (O-19) y cubierto con un caso. Hermano `useFocoAlCargarMas` (`features/clases/hooks.ts`): su marca «tenía el foco» se borra con un `focusout` del botón sin destino mientras sigue conectado, el mismo patrón sin el seguimiento de la ventana. **No lo cambié:** el encargo nombra solo a `useFilaEnFoco`, y su caso (el botón «Ver más» enfocado durante un cambio de pestaña mientras llega la última página) es de la misma forma; lo reporto para que el manager decida.
+- `useFocoAlPasarAError` no usa `focusout` (mira `document.activeElement` en el render): no aplica.
+- Limitación: jsdom no dispara `blur` de `window` ni cambia `document.hasFocus()` por sí solo; los casos simulan los eventos como el tester, y el comportamiento con un navegador real queda como no verificado.
+
+### Verificación (una suite a la vez; nadie más corrió nada)
+- `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+- `cd frontend; npm test` (una corrida completa) → `Test Files  125 passed (125)` / `Tests  1832 passed (1832)` / `Duration  88.35s`. Sin rojos; la `*.ataque` nueva del tester en verde.
+- `npm run build` (raíz) → código 0; última línea `✓ built in 883ms`.
+- Conteos (`cd frontend; npx vitest list | grep -a -c "^src/"` y `--filesOnly | grep -c "src/"`): 1832 casos en 125 archivos.
+- V-01: 139 de 139 hashes de `*.ataque` iguales a la tabla de la ronda 2 de 02d (`reporte-tester.md`, "Tabla de SHA-256 de las 139"); no toqué ninguna.
+
+### Archivos tocados
+`frontend/src/components/layout/hooks.ts`, `frontend/src/features/clases/hooks.ts` (O-19, ver arriba), `frontend/src/components/layout/lista-de-clases.test.tsx` y `frontend/src/app/marco.test.tsx` (los dos de pruebas, de la lista de PA-16). Ninguna `*.ataque`, nada de "No se toca", sin dependencias.
+
+### PARADAS
+Ninguna se activó (PA-05 sin rojos; PA-06 y PA-16 sin archivos fuera de lista; PA-08 una suite a la vez).
+
+### Hermano `useFocoAlCargarMas`
+
+- **Aplicado** en `features/clases/hooks.ts`: el `focusout` del botón sin destino ya no borra la marca «tenía el foco» al instante; se decide en el siguiente turno y solo se borra si el botón sigue conectado, la ventana conserva el foco (`blur`, `focus` y `visibilitychange`) y `document.hasFocus()` es verdadero. Mismo criterio que `useFilaEnFoco` y `useFocoDeLaLista`. Lo usan `clases-admin-view`, `comentarios-de-publicacion`, `panel-mis-clases` (inicios de estudiante y maestro), `tabla-alumnos`, `muro-view` y `personas-view`: todos lo reciben.
+- **Casos** (`app/marco.test.tsx` › `useFocoAlCargarMas: cambio de pestaña`, archivo de la columna "Cambiar" de PA-16):
+  - ««Cargar más» en vuelo, cambio de pestaña, regreso y última página cargada: el foco va a la primera fila nueva»
+  - «con la ventana sin foco cuando llega la última página: el foco también va a la primera fila nueva»
+  - «un clic en blanco real (la ventana conserva el foco) sigue olvidando la marca: el foco no se mueve»
+- **Búsqueda de otros `focusout` o `blur` que decidan memoria de foco** (`grep -rn "focusout\|focusin\|\"blur\"\|onBlur\|onFocus" frontend/src`, sin pruebas): solo hay tres lugares, y los tres ya llevan el criterio:
+  - `components/layout/hooks.ts`, `useFocoDeLaLista` (T-08): aplicado.
+  - `features/clases/hooks.ts`, `useFilaEnFoco` (O-19): aplicado.
+  - `features/clases/hooks.ts`, `useFocoAlCargarMas`: aplicado ahora.
+  - `useFocoAlPasarAError`: no aplica (no escucha eventos; mira `document.activeElement` en el render).
+  - `focoPerdido` (`features/clases/lib.ts`): no aplica (función pura sobre el documento, sin memoria).
+  - Ningún componente usa `onBlur` ni `onFocus`.
+- **Verificación:**
+  - `cd frontend; npm run lint` → código 0; última línea `> tsc -b`.
+  - `cd frontend; npm test` (una corrida completa) → `Test Files  125 passed (125)` / `Tests  1835 passed (1835)` / `Duration  87.92s`.
+  - `npm run build` (raíz) → código 0; última línea `✓ built in 713ms`.
+  - `cd frontend; npx vitest list | grep -a -c "^src/"` → 1835 casos; `--filesOnly | grep -c "src/"` → 125 archivos (+3 casos frente a la subsección anterior).
+  - V-01: 139 de 139 hashes de `*.ataque` iguales a la tabla de la ronda 2.
+- **Archivos tocados:** `frontend/src/features/clases/hooks.ts` y `frontend/src/app/marco.test.tsx`. Ninguna `*.ataque`; sin PARADAS. Limitación: jsdom simula el `blur` de la ventana con eventos; con un navegador real, no verificado.

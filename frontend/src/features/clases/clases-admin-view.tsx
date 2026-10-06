@@ -9,7 +9,7 @@ import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardAction, CardContent, CardHeader } from "@/components/ui/card"
 
 import { TablaClasesAdmin } from "./components/tabla-clases-admin"
-import { TEXTOS_CLASES_ADMIN } from "./data"
+import { CLAVE_CLASES_ADMIN, TEXTOS_CLASES_ADMIN } from "./data"
 import { useClasesAdmin, useFocoAlCargarMas, useFocoAlPasarAError } from "./hooks"
 import { esErrorDeCursor } from "./lib"
 
@@ -23,7 +23,12 @@ export function ClasesAdminView() {
   const navigate = useNavigate()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   // T-04: si la lista se recarga con error con el foco dentro, va al encabezado.
-  useFocoAlPasarAError(clases.isError, clases.data !== undefined, "clases-admin", encabezadoRef)
+  useFocoAlPasarAError(
+    clases.isError,
+    clases.data !== undefined,
+    CLAVE_CLASES_ADMIN.join("/"),
+    encabezadoRef,
+  )
   const filas = clases.data?.pages.flatMap((pagina) => pagina.clases)
 
   const refVerMas = useFocoAlCargarMas(

@@ -110,9 +110,9 @@ describe("PersonasView", () => {
     expect(await screen.findByText("1 alumno")).toBeInTheDocument()
   })
 
-  it("PR-B12c: no hay correos ni insignias de pago", async () => {
-    // Aunque la API mandara de más, la vista solo muestra nombres: el esquema de shared/ descarta
-    // cualquier campo que no sea de un compañero.
+  // CLASES-02d (C-17, §D-2D2): ahora la vista muestra el correo de cada persona, en texto plano.
+  it("PR-B12c: cada persona muestra su correo, y no hay insignias de pago ni restricción", async () => {
+    // Aunque la API mandara de más, el esquema de shared/ descarta lo que no es de "Personas".
     const fetchMock = stubApi(() =>
       respuestaJson(
         200,
@@ -125,13 +125,54 @@ describe("PersonasView", () => {
     renderVista()
 
     await screen.findByText("Ana Díaz")
-    expect(document.body.textContent).not.toContain("@")
+    const lista = screen.getByRole("list", { name: "Alumnos" })
+    const filaDeAna = within(lista).getByText("Ana Díaz").closest("li")
+    expect(filaDeAna).not.toBeNull()
+    expect(within(filaDeAna as HTMLElement).getByText("ana@ejemplo.mx")).toBeInTheDocument()
+    expect(screen.getByText("beto@ejemplo.mx")).toBeInTheDocument()
+    expect(document.querySelector(`a[href^="mailto:"]`)).toBeNull()
     expect(screen.queryByText("Deudor")).not.toBeInTheDocument()
     expect(screen.queryByText("Al corriente")).not.toBeInTheDocument()
     expect(screen.queryByText("Acceso restringido")).not.toBeInTheDocument()
     // Solo pide los compañeros, nunca el roster del maestro.
     const rutas = fetchMock.mock.calls.map(([entrada]) => String(entrada))
     expect(rutas.every((ruta) => ruta.startsWith(`/api/clases/${CLASE_ID}/personas`))).toBe(true)
+  })
+
+  it("PR-2D04: con un maestro la sección dice «Maestro» y con dos, «Maestros», cada uno con su correo", async () => {
+    const segundo = {
+      id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d0a",
+      nombre: "Marta Ríos",
+      email: "marta@x.mx",
+    }
+    stubApi(() => respuestaJson(200, { ...pagina([persona(1)]), maestros: [MAESTRO, segundo] }))
+    renderVista()
+
+    const lista = await screen.findByRole("list", { name: "Maestros" })
+    expect(screen.getByRole("heading", { name: "Maestros" })).toBeInTheDocument()
+    const filas = within(lista).getAllByRole("listitem")
+    expect(filas).toHaveLength(2)
+    expect(within(filas[0] as HTMLElement).getByText("luis@x.mx")).toBeInTheDocument()
+    expect(within(filas[1] as HTMLElement).getByText("marta@x.mx")).toBeInTheDocument()
+    expect(screen.queryByRole("list", { name: "Maestro" })).toBeNull()
+  })
+
+  it("PR-2D04: con un solo maestro la sección dice «Maestro»", async () => {
+    stubApi(() => respuestaJson(200, pagina([persona(1)])))
+    renderVista()
+
+    const lista = await screen.findByRole("list", { name: "Maestro" })
+    expect(screen.getByRole("heading", { name: "Maestro" })).toBeInTheDocument()
+    expect(within(lista).getByText("luis@x.mx")).toBeInTheDocument()
+  })
+
+  it("PR-2D04: un correo largo sin espacios rompe en cualquier punto y no desborda", async () => {
+    const largo = `${"a".repeat(80)}@${"b".repeat(60)}.mx`
+    stubApi(() => respuestaJson(200, pagina([{ ...persona(1), email: largo }])))
+    renderVista()
+
+    const correo = await screen.findByText(largo)
+    expect(correo.className).toContain("wrap-anywhere")
   })
 
   it("PR-B12d: los estados siguen su orden: error → cargando → vacío → datos", async () => {

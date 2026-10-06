@@ -1,5 +1,7 @@
 import { House, School, UserPlus, Users } from "lucide-react"
 
+import type { VarianteDeClase } from "@/lib/variante-de-clase"
+
 import type { ContextoDeRol, Destino, EnlaceDelColegio, Rol } from "./types"
 
 // Nombre del producto, en dos colores (§D-3). Duplica TEXTOS_LOGIN.titulo de features/auth: un
@@ -14,7 +16,22 @@ export const TEXTOS_MARCO = {
   navegacion: "Navegación principal",
   cerrarSesion: "Cerrar sesión",
   enlacesDelColegio: "Enlaces del colegio",
+  // CLASES-02d (§D-2D1): la lista de clases de la barra lateral.
+  misClases: "Mis clases",
+  verTodas: "Ver todas",
+  reintentar: "Reintentar",
+  errorClases: "No pudimos cargar tus clases.",
+  cargandoClases: "Cargando tus clases",
 } as const
+
+// CLASES-02d (§D-2D1, DESIGN.md §7.4 y §7.6): color de la insignia de cada clase, el mismo de su tarjeta. La
+// blanca no lleva fondo aquí: el vidrio fuerte va de base en lista-de-clases.tsx (V-07 de styles/clases-r1,
+// como TarjetaClase).
+export const INSIGNIA_POR_VARIANTE: Record<VarianteDeClase, string> = {
+  verde: "bg-brand text-brand-foreground",
+  azul: "bg-accent text-accent-foreground",
+  blanca: "text-foreground",
+}
 
 // Espaciado entre barra superior, contenido y pie (§D-3, DESIGN.md §5): 20 px para estudiante y
 // maestro, 16 px en el administrador. Propuesta: el maestro pasa de 24 a 20 px.

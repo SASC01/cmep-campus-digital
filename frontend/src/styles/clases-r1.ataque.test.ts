@@ -132,16 +132,23 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // ("Crear clase" o "Guardar cambios"), y el resto de features/clases/components/ sigue en 3 (el
   // buscador de alumnos, el roster o sus filas). El "Crear clase" de /admin/clases es un enlace.
   // Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button,
-  // y que el número y el lugar de los botones con espera cambien solo con el plan. (En 02d, C-20 pasa
-  // a 40 con "Reintentar" de la barra; no se toca ahora.)
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 39 enEspera", () => {
+  // y que el número y el lugar de los botones con espera cambien solo con el plan.
+  // CLASES-02 ronda 0 de 02d (C-20, Enmienda 1, M-03; §D-2D1): de 39 a 40 enEspera=, con la cifra
+  // que fija el plan. Se suma "Reintentar" de la lista de clases de la barra lateral
+  // (components/layout/lista-de-clases.tsx, 1, en la lista fija), en espera mientras la consulta
+  // vuelve a pedir. Ningún otro botón de 02d lo lleva: el control segmentado del tipo de publicación
+  // no espera nada, el botón principal de formulario-publicacion.tsx sigue siendo el mismo (1) y
+  // "Personas" conserva su "Ver más alumnos" (personas-view.tsx, 1). Sigue protegiendo lo mismo:
+  // ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de
+  // los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 40 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(39)
+    expect(usos).toHaveLength(40)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -199,6 +206,8 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/buscador-de-maestros.tsx": 1,
       "/src/features/clases/components/tabla-clases-admin.tsx": 0,
       "/src/features/clases/components/firma-del-autor.tsx": 0,
+      // C-20 (CLASES-02d): "Reintentar" de la lista de clases de la barra lateral.
+      "/src/components/layout/lista-de-clases.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -236,6 +245,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // encabezado de la clase y los formularios usan Card. Sigue protegiendo que ningún archivo gane
   // vidrio fuera de la lista cerrada del plan y que data-material y data-densidad no salgan del
   // contenedor del rol.
+  // CLASES-02 ronda 0 de 02d (C-21, Enmienda 1, M-03; §D-2D1 y §D-2D3): el vidrio fuerte suma la
+  // lista de clases de la barra lateral (components/layout/lista-de-clases.tsx: la insignia de la
+  // variante blanca y el elemento activo, como los destinos) y el grupo "Tipo de publicación"
+  // (features/clases/components/formulario-publicacion.tsx: "Elemento sobre vidrio", porque el
+  // formulario ya es una Card). El vidrio sin variante, el vidrio azul y data-material no cambian.
+  // Sigue protegiendo que ningún archivo gane vidrio fuera de la lista cerrada del plan.
   it("V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)", () => {
     // DESIGN-01b-1, ronda 1 (plan-01b.md, §D-9, texto de referencia de la ronda 1): igualdad
     // exacta con la lista final. toEqual acepta el (string | undefined)[] de rutasDe; una ruta
@@ -253,9 +268,11 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     expect(vidrioFuerte).toEqual([
       "/src/components/cargando.tsx",
       "/src/components/layout/barra-navegacion.tsx",
+      "/src/components/layout/lista-de-clases.tsx",
       "/src/components/ui/button-variants.ts",
       "/src/features/auth/components/panel-anuncios.tsx",
       "/src/features/clases/components/bloque-destacado.tsx",
+      "/src/features/clases/components/formulario-publicacion.tsx",
       "/src/features/clases/components/tarjeta-clase.tsx",
     ])
     expect(rutasDe(coincidencias(/\bvidrio-azul\b/))).toEqual([

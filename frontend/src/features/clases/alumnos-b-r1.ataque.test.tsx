@@ -357,24 +357,28 @@ describe("ataque CLASES-b r1: foco del roster", () => {
 })
 
 describe("ataque CLASES-b r1: las vistas no pintan datos de pago aunque la API los mandara", () => {
-  it("PersonasView descarta estadoPago, accesoRestringido y correos que lleguen de más", async () => {
+  // CLASES-02 ronda 0 de 02d (C-17, §D-2D2): "Personas" muestra el correo completo de cada maestro
+  // y de cada compañero, en texto plano (sin mailto:), así que el «@» deja de estar prohibido en la
+  // vista. Cada persona trae ahora su propio correo, y el caso exige que cada uno salga en la fila de
+  // su persona. Sigue protegiendo lo mismo: nada de pago ni de restricción, ni el correo enmascarado
+  // del buscador, aunque la API los mandara de más.
+  it("PersonasView muestra el correo de cada maestro y compañero, y descarta estadoPago, accesoRestringido y el correo enmascarado que lleguen de más", async () => {
     const extra = {
-      email: "fuga@ejemplo.mx",
       estadoPago: "deudor",
       accesoRestringido: true,
       correoEnmascarado: "fu***@ejemplo.mx",
     }
+    const maestro = { id: idDe(7), nombre: "Profe Luna", email: "luna@ejemplo.mx", ...extra }
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>(() =>
         Promise.resolve(
           respuestaJson(200, {
-            maestro: { id: idDe(7), nombre: "Profe Luna", ...extra },
+            maestro,
             // CLASES-02b ronda 0 (C-11, §D-2B4): personasRespuestaSchema exige maestros (1 o 2) y el
-            // correo de cada persona (ya viene en extra). Con 02b la vista todavía no muestra
-            // correos, así que ninguna aserción cambia; el «@» lo revisa C-17 (02d).
-            maestros: [{ id: idDe(7), nombre: "Profe Luna", ...extra }],
-            alumnos: [{ id: idDe(8), nombre: "Compañera Sol", ...extra }],
+            // correo de cada persona.
+            maestros: [maestro],
+            alumnos: [{ id: idDe(8), nombre: "Compañera Sol", email: "sol@ejemplo.mx", ...extra }],
             totalAlumnos: 1,
             siguienteCursor: null,
             estadoPago: "deudor",
@@ -393,8 +397,17 @@ describe("ataque CLASES-b r1: las vistas no pintan datos de pago aunque la API l
       </QueryClientProvider>,
     )
     expect(await screen.findByText("Compañera Sol")).toBeInTheDocument()
+    const filaMaestro = within(screen.getByRole("list", { name: "Maestro" })).getByRole("listitem")
+    expect(filaMaestro).toHaveTextContent("Profe Luna")
+    expect(filaMaestro).toHaveTextContent("luna@ejemplo.mx")
+    const filaAlumna = within(screen.getByRole("list", { name: "Alumnos" })).getByRole("listitem")
+    expect(filaAlumna).toHaveTextContent("Compañera Sol")
+    expect(filaAlumna).toHaveTextContent("sol@ejemplo.mx")
+    expect(document.querySelectorAll('a[href^="mailto:"]'), "el correo es un enlace").toHaveLength(
+      0,
+    )
     const texto = document.body.textContent ?? ""
-    for (const prohibido of ["Deudor", "deudor", "Acceso restringido", "@", "Al corriente"]) {
+    for (const prohibido of ["Deudor", "deudor", "Acceso restringido", "Al corriente", "***"]) {
       expect(texto, prohibido).not.toContain(prohibido)
     }
   })

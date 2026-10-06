@@ -627,3 +627,140 @@ describe("adjuntos del formulario (CLASES-d)", () => {
     }
   })
 })
+
+// CLASES-02d (§D-2D3, C-18): el grupo "Tipo de publicación" es un control segmentado (DESIGN.md §7.3).
+describe("FormularioPublicacion: tipo de publicación como control segmentado", () => {
+  const indicador = () => {
+    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
+    return grupo.querySelector<HTMLElement>('span[aria-hidden="true"]')
+  }
+
+  it("PR-2D05: el elegido lleva aria-pressed y el Check delante del texto, y cambia con el otro", () => {
+    stubApi()
+    renderFormulario()
+
+    const anuncio = screen.getByRole("button", { name: "Anuncio" })
+    const material = screen.getByRole("button", { name: "Material" })
+    expect(anuncio.querySelector("svg")).not.toBeNull()
+    expect(material.querySelector("svg")).toBeNull()
+
+    fireEvent.click(material)
+
+    expect(screen.getByRole("button", { name: "Anuncio" }).querySelector("svg")).toBeNull()
+    expect(screen.getByRole("button", { name: "Material" }).querySelector("svg")).not.toBeNull()
+    expect(screen.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("PR-2D05: el indicador es aria-hidden, se traslada con «Material» y no tiene transición con movimiento reducido", () => {
+    stubApi()
+    renderFormulario()
+
+    const marca = indicador()
+    expect(marca).not.toBeNull()
+    expect(marca).toHaveAttribute("aria-hidden", "true")
+    expect(marca?.className).not.toContain("translate-x-full")
+    expect(marca?.className).toContain("transition-transform")
+    expect(marca?.className).toContain("duration-200")
+    expect(marca?.className).toContain("motion-reduce:transition-none")
+
+    elegirMaterial()
+    expect(indicador()?.className).toContain("translate-x-full")
+
+    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
+    expect(indicador()?.className).not.toContain("translate-x-full")
+  })
+
+  it("PR-2D05: el indicador usa --surface y, en contexto opaco, --accent-soft", () => {
+    stubApi()
+    renderFormulario()
+
+    const clases = indicador()?.className ?? ""
+    expect(clases).toContain("bg-surface")
+    expect(clases).toContain("in-data-[material=opaco]:bg-accent-soft")
+  })
+
+  it("PR-2D05: el grupo va en vidrio fuerte (no en otra Card) y con rounded-card", () => {
+    stubApi()
+    renderFormulario()
+
+    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
+    expect(grupo.className).toContain("vidrio-fuerte")
+    expect(grupo.className).toContain("rounded-card")
+    expect(grupo).not.toHaveAttribute("data-slot", "card")
+    expect(grupo.closest('[data-slot="card"]')).not.toBe(grupo)
+  })
+
+  it("PR-2D05: los dos botones se alcanzan con teclado: son botones nativos, en orden y sin tabindex negativo", () => {
+    stubApi()
+    renderFormulario()
+
+    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
+    const botones = Array.from(grupo.querySelectorAll("button"))
+    expect(botones.map((boton) => boton.textContent)).toEqual(["Anuncio", "Material"])
+    for (const boton of botones) {
+      expect(boton).toHaveAttribute("type", "button")
+      expect(boton).not.toHaveAttribute("tabindex", "-1")
+      boton.focus()
+      expect(boton).toHaveFocus()
+    }
+  })
+
+  it("PR-2D05: el botón principal cambia de texto como hasta ahora", () => {
+    stubApi()
+    renderFormulario()
+    expect(screen.getByRole("button", { name: "Publicar anuncio" })).toBeInTheDocument()
+
+    elegirMaterial()
+
+    expect(screen.getByRole("button", { name: "Publicar material" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Publicar anuncio" })).toBeNull()
+  })
+
+  it("PR-2D05: cambiar de tipo con texto escrito no lo borra", () => {
+    stubApi()
+    renderFormulario()
+    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Mañana hay examen" } })
+
+    elegirMaterial()
+    expect(screen.getByLabelText("Descripción (opcional)")).toHaveValue("Mañana hay examen")
+    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: "Guía" } })
+
+    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
+    expect(screen.getByLabelText("Anuncio")).toHaveValue("Mañana hay examen")
+    elegirMaterial()
+    expect(screen.getByLabelText("Título del material")).toHaveValue("Guía")
+  })
+
+  it("PR-2D05: cambiar de tipo con la publicación en vuelo no cambia lo que se envía ni quita la espera", async () => {
+    let liberar: (respuesta: Response) => void = () => undefined
+    const fetchMock = vi.fn<typeof fetch>(
+      () =>
+        new Promise<Response>((resolver) => {
+          liberar = resolver
+        }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    renderFormulario()
+    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Mañana hay examen" } })
+    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    elegirMaterial()
+    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
+    elegirMaterial()
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      tipo: "anuncio",
+      texto: "Mañana hay examen",
+      archivoIds: [],
+    })
+    expect(screen.getByRole("button", { name: "Publicar material" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    liberar(respuestaJson(201, publicacionCreada()))
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+  })
+})

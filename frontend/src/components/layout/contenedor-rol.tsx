@@ -34,7 +34,7 @@ export function ContenedorRol({
       data-densidad={contexto.densidad}
       className="min-h-svh p-4 pb-24 text-foreground md:grid md:grid-cols-[6rem_minmax(0,1fr)] md:gap-5 md:p-6"
     >
-      <BarraNavegacion destinos={DESTINOS_POR_ROL[rol]} />
+      <BarraNavegacion rol={rol} destinos={DESTINOS_POR_ROL[rol]} />
       <div
         className={cn(
           "flex min-h-[calc(100svh-7rem)] min-w-0 flex-col md:min-h-[calc(100svh-3rem)]",

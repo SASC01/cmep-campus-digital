@@ -67,16 +67,18 @@ features/
 ### Ubicaciones compartidas
 
 - `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx`, `badge.tsx` (sus variantes son internas y no se exportan) y `textarea.tsx`
-- `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
+- `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/` Incluye la lista de clases de la barra (`ListaDeClases`, con su hook en `components/layout/hooks.ts`).
 - `components/` — piezas de dominio reutilizadas: ya existen `EstadoPagoBadge` (`estado-pago-badge.tsx`), `AccesoRestringidoBadge` (`acceso-restringido-badge.tsx`), `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`), `AvatarUsuario` (`avatar-usuario.tsx`) y `EstadoVacio` (`estado-vacio.tsx`, con la variante de la acción como prop); `EstadoEntregaBadge` llega con ENTREGAS. Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local, incluida `formatearFechaLarga`), porcentajes, tamaños de archivo (`formatearTamano`) e iniciales de un nombre (`inicialesDe`)
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `lib/cache-de-mutaciones.ts` — `sacarDeLaCacheAlAsentar`: saca de la caché de TanStack Query una mutación con datos sensibles (contraseñas, tokens) en cuanto se asienta
+- `lib/variante-de-clase.ts` — `varianteDeClase`, la variante de color de una clase (tarjeta y barra)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
 - `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` o `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)
 - `services/sesionService.ts` — la consulta de `/me` (`consultaMe`), compartida por `features/auth` y `features/clases`
+- `services/clasesService.ts` — las claves de las listas de clases y la consulta de la barra lateral, compartidas por `components/layout` y `features/clases`
 - `services/almacenService.ts` — sube un archivo al almacén con la URL prefirmada que dio la API (`PUT`, sin `Authorization` ni credenciales). Es el único `fetch` fuera de `apiClient`
 - `services/liveService.ts` — conexión con LiveKit
 - `app/` — rutas, layouts, guardas por rol y `FondoDeLaApp` (el fondo con orbes, montado una sola vez en `main.tsx`, fuera del router)

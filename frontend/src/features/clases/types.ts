@@ -18,6 +18,7 @@ export type {
   EditarClase,
   ListaClasesAdminRespuesta,
   MaestrosDeClaseRespuesta,
+  PersonaConCorreo,
   PersonaDeClase,
   Publicacion,
   SolicitarSubida,
@@ -28,7 +29,8 @@ export type {
 } from "@campus/shared"
 
 // Tipos exclusivos de la interfaz de CLASES-a.
-export type VarianteDeClase = "verde" | "azul" | "blanca"
+// A-6 de CLASES-02: se declara en lib/variante-de-clase.ts, que usan la tarjeta y la barra lateral.
+export type { VarianteDeClase } from "@/lib/variante-de-clase"
 
 export type RolDeClases = "estudiante" | "maestro"
 

@@ -29,7 +29,7 @@ Decisión del humano (2026-09-28). Cada vez que el Programador entrega un resume
 1. Ejecuta tú mismo `lint`, `test` y `build` de los paquetes afectados, con las precondiciones del plan (por ejemplo, la del firewall antes del backend).
 2. Contrasta cada cifra del resumen (conteos de archivos, pruebas y casos, y la última línea de salida de `lint`, `test` y `build`) con tu propia corrida. Revisa que cada viñeta de "Pruebas requeridas" tenga su archivo y el título exacto del caso, y que ese caso exista.
 3. Si una cifra no coincide o falta una viñeta, el resumen vuelve al Programador. No la corriges a mano ni la das por buena.
-4. En una corrección, revisa la lista de "hermanos" del hallazgo (decisión del humano, 2026-10-02): que el programador haya buscado los controles, rutas, campos o unidades con el mismo patrón, y que lo que dice de cada uno coincida con el código. Un hermano que falte o que diga "no aplica" sin razón devuelve el resumen.
+4. En una corrección, revisa la lista de "hermanos" del hallazgo (decisión del humano, 2026-10-02): que el programador haya buscado los controles, rutas, campos o unidades con el mismo patrón, y también los estados vecinos del mismo mecanismo (decisión del humano, 2026-10-05: primera carga, recarga, caché, cambio de clave, fallos seguidos, o los que correspondan al mecanismo), y que lo que dice de cada uno coincida con el código. Un hermano o un estado vecino que falte o que diga "no aplica" sin razón devuelve el resumen. En la medición del programador, las rondas extra seguidas sobre el mismo mecanismo cuentan como rondas extra por hermanos.
 
 Escribe el resultado en `revision.md`, en una sección breve "Verificación del resumen — <subentrega> — <entrega>", con tus cifras junto a las del resumen.
 

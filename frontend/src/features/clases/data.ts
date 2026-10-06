@@ -4,8 +4,9 @@ import type { CapacidadesDePerspectiva, Perspectiva } from "./types"
 
 // Claves de consulta de TanStack Query (CLASES-a). Se reutilizan tal cual en las invalidaciones y
 // en la prueba de cambio de identidad (PR-A23a).
-export const CLAVE_CLASES_INSCRITAS = ["clases", "inscritas"] as const
-export const CLAVE_CLASES_IMPARTIDAS = ["clases", "impartidas"] as const
+// A-6 de CLASES-02: las dos claves de las listas viven en services/clasesService.ts (las usa también
+// la barra lateral) y se reexportan aquí para no cambiar a nadie.
+export { CLAVE_CLASES_IMPARTIDAS, CLAVE_CLASES_INSCRITAS } from "@/services/clasesService"
 // CLASES-02c: la lista institucional del administrador y el buscador de maestros.
 export const CLAVE_CLASES_ADMIN = ["clases", "admin"] as const
 export const claveMaestrosCandidatos = (termino: string) =>
@@ -180,6 +181,8 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "CLASE_SIN_MAESTRO",
   "MAESTRO_NO_ENCONTRADO",
   "BORRADO_NO_PERMITIDO",
+  // O-07 (revisión de 02c): el servidor ya lo dice en español (503: el servidor está ocupado).
+  "SERVICIO_OCUPADO",
 ]
 
 export const TEXTOS_CODIGO = {
@@ -229,6 +232,7 @@ export const TEXTOS_CLASE = {
 // §D-B6: textos de CLASES-b (propuesta).
 export const TEXTOS_PERSONAS = {
   maestro: "Maestro",
+  maestros: "Maestros",
   alumnos: "Alumnos",
   verMas: "Ver más alumnos",
   vacio: "Aún no hay alumnos en esta clase",

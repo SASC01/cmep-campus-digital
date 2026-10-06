@@ -45,6 +45,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   )
   const filaEnFocoRef = useFilaEnFoco("data-publicacion-id")
   const idsPrevios = useRef<string[] | undefined>(undefined)
+  const clasePrevia = useRef(claseId)
   const filas = publicaciones.data?.pages.flatMap((pagina) => pagina.publicaciones)
   const ids = filas?.map((publicacion) => publicacion.id)
 
@@ -78,6 +79,17 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
     const previos = idsPrevios.current
     idsPrevios.current = ids
     const idEnFoco = filaEnFocoRef.current
+    // O-14 (02d, DESIGN.md §7.14, ronda 4 de 02c: cambio de clave): al pasar de una clase a otra la
+    // instancia se reutiliza. Una publicación de la clase anterior no tiene "vecina" en la nueva (los
+    // índices de una lista no valen para la otra, aunque la nueva ya esté en la caché): el foco que
+    // se perdió va al encabezado de la lista, nunca a una publicación al azar de la clase nueva.
+    if (clasePrevia.current !== claseId) {
+      clasePrevia.current = claseId
+      if (idEnFoco === null || !focoPerdido(document)) return
+      filaEnFocoRef.current = null
+      encabezadoRef.current?.focus()
+      return
+    }
     if (idEnFoco === null || !focoPerdido(document)) return
     filaEnFocoRef.current = null
     const vecina = ids === undefined ? undefined : vecinaDeFila(previos, ids, idEnFoco)

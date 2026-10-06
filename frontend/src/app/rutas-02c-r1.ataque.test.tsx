@@ -241,16 +241,29 @@ describe("ataque CLASES-02c r1: «Clases» activo en sus subrutas; «Cuentas» y
     ])
   })
 
+  // CLASES-02 ronda 0 de 02d (C-16, §D-2D1): la nav del estudiante y del maestro suma la lista de
+  // sus clases, y el enlace de la clase abierta (NavLink sin `end`) queda activo en su muro y en sus
+  // subpáginas, nombrado con el nombre completo de la clase. Sigue protegiendo que «Inicio» no quede
+  // activo dentro de una clase; ahora el único activo de la nav es el de esa clase.
   it.each([
     ["maestro", `/maestro/clases/${CLASE_ID}`],
     ["maestro", `/maestro/clases/${CLASE_ID}/alumnos`],
     ["estudiante", `/estudiante/clases/${CLASE_ID}`],
-  ] as const)("dentro de una clase, «Inicio» del %s no queda activo (%s)", async (rol, ruta) => {
-    stubFetch(rol)
-    await renderEn(ruta)
-    await screen.findByRole("heading", { level: 1, name: "Álgebra I" })
-    expect(activos()).toEqual([])
-  })
+  ] as const)(
+    "dentro de una clase, «Inicio» del %s no queda activo y solo lo está la clase abierta (%s)",
+    async (rol, ruta) => {
+      stubFetch(rol)
+      await renderEn(ruta)
+      await screen.findByRole("heading", { level: 1, name: "Álgebra I" })
+      const enNav = within(nav())
+      await waitFor(() => expect(enNav.getAllByRole("link", { current: "page" })).toHaveLength(1))
+      expect(enNav.getByRole("link", { name: "Álgebra I", current: "page" })).toHaveAttribute(
+        "href",
+        `/${rol}/clases/${CLASE_ID}`,
+      )
+      expect(enNav.getByRole("link", { name: "Inicio" })).not.toHaveAttribute("aria-current")
+    },
+  )
 })
 
 describe("ataque CLASES-02c r1: el maestro no tiene «Crear clase» ni «Editar clase» en ningún lugar", () => {
@@ -271,10 +284,15 @@ describe("ataque CLASES-02c r1: el maestro no tiene «Crear clase» ni «Editar 
     sinCrearNiEditar()
   })
 
+  // CLASES-02 ronda 0 de 02d (C-16, §D-2D1): la clase también tiene su enlace en la nav (mismo
+  // nombre accesible que su tarjeta), así que la tarjeta se busca dentro de <main> y se espera a que
+  // la lista de la barra esté pintada antes de revisar. Sigue protegiendo lo mismo, ahora también
+  // sobre los enlaces de la barra.
   it("inicio con clases, la tarjeta, el encabezado de la clase y sus alumnos", async () => {
     stubFetch("maestro")
     const router = await renderEn("/maestro")
-    await screen.findByRole("link", { name: "Álgebra I" })
+    await within(await screen.findByRole("main")).findByRole("link", { name: "Álgebra I" })
+    await within(nav()).findByRole("link", { name: "Álgebra I" })
     sinCrearNiEditar()
     await act(() => router.navigate(`/maestro/clases/${CLASE_ID}`))
     await screen.findByText("ABCDEFG")

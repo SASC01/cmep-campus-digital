@@ -65,11 +65,19 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     )
   })
 
+  // CLASES-02 ronda 0 de 02d (O-06, arbitraje del manager en revision.md, "Verificación del resumen
+  // — CLASES-02c — corrección de la ronda 1", que pasó a 02d): perspectivaDeRuta compara el prefijo
+  // sin distinguir mayúsculas, como el router, así que su línea de comparación cambia. El caso ya no
+  // fija esa línea, que es la comparación por prefijo exacto que O-06 retira, y sigue protegiendo lo
+  // mismo: fuera de features/clases/lib.ts (donde vive perspectivaDeRuta), ningún archivo compara el
+  // pathname con un prefijo, ni directo ni pasado a minúsculas.
   it("§D-2C1: la perspectiva sale solo de perspectivaDeRuta; ninguna vista mira el prefijo de la ruta por su cuenta", () => {
     expect(lineasCon(/startsWith\(\s*["'`]\/(maestro|estudiante|admin)/)).toEqual([])
-    expect(lineasCon(/pathname\s*\.\s*(startsWith|includes|match|indexOf)\(/)).toEqual([
-      "/src/features/clases/lib.ts: if (pathname === base || pathname.startsWith(`${base}/`)) return perspectiva",
-    ])
+    expect(
+      lineasCon(
+        /pathname\s*(\.\s*(toLowerCase|toLocaleLowerCase)\(\s*\)\s*)?\.\s*(startsWith|includes|match|indexOf)\(/,
+      ).filter((linea) => !linea.startsWith("/src/features/clases/lib.ts: ")),
+    ).toEqual([])
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/muro-view.tsx",

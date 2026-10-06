@@ -1,3 +1,4 @@
+import { varianteDeClase as varianteDeClaseDeLib } from "@/lib/variante-de-clase"
 import { ApiError } from "@/services/apiClient"
 import { describe, expect, it } from "vitest"
 
@@ -5,6 +6,7 @@ import { CAPACIDADES_POR_PERSPECTIVA } from "./data"
 import {
   avisoDeFalloAlSubir,
   errorDeArchivoElegido,
+  etiquetaDeMaestros,
   focoPerdido,
   indiceDeSeccionActiva,
   mensajeDeErrorClases,
@@ -32,6 +34,13 @@ describe("varianteDeClase", () => {
       expect(varianteDeClase(id)).toBe(varianteDeClase(id))
     }
     expect(variantes).toEqual(new Set(["verde", "azul", "blanca"]))
+  })
+})
+
+describe("varianteDeClase reexportada", () => {
+  // CLASES-02d (A-6): features/clases/lib.ts reexporta la de lib/variante-de-clase.ts.
+  it("PR-2D06: la de features/clases/lib es la misma función que la de lib/", () => {
+    expect(varianteDeClase).toBe(varianteDeClaseDeLib)
   })
 })
 
@@ -243,10 +252,20 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
       "/",
       "",
       "/login",
-      "/Admin",
     ]) {
       expect(perspectivaDeRuta(ruta), ruta).toBe("estudiante")
     }
+  })
+
+  // CLASES-02d, O-06 (revisión de 02c): el router no distingue mayúsculas, así que la perspectiva
+  // tampoco (antes "/Admin" daba «estudiante» aunque el router mostrara la vista del administrador).
+  it("PR-2D07: la perspectiva no distingue mayúsculas, como el router, y un prefijo parecido sigue sin valer", () => {
+    expect(perspectivaDeRuta("/Admin")).toBe("admin")
+    expect(perspectivaDeRuta("/ADMIN/Clases/NUEVA")).toBe("admin")
+    expect(perspectivaDeRuta("/Maestro/clases/x")).toBe("maestro")
+    expect(perspectivaDeRuta("/ESTUDIANTE")).toBe("estudiante")
+    expect(perspectivaDeRuta("/Maestros")).toBe("estudiante")
+    expect(perspectivaDeRuta("/ADMINISTRADOR")).toBe("estudiante")
   })
 
   it("PR-2C01: la tabla de capacidades de §D-2C1, celda por celda", () => {
@@ -283,6 +302,19 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
     ]).toEqual([true, true, false])
   })
 
+  // CLASES-02d, M-12: hermano de O-06. El router no distingue mayúsculas; el indicador tampoco.
+  it("M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar", () => {
+    const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
+    const base = "/admin/clases/2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+    const mayusculas = base.toUpperCase()
+    expect(indiceDeSeccionActiva(mayusculas, base, secciones)).toBe(0)
+    expect(indiceDeSeccionActiva(`${mayusculas}/ALUMNOS`, base, secciones)).toBe(1)
+    expect(indiceDeSeccionActiva(`${mayusculas}/Maestros/`, base, secciones)).toBe(2)
+    expect(indiceDeSeccionActiva(`${base}/ALUMNOS`, mayusculas, secciones)).toBe(1)
+    expect(indiceDeSeccionActiva(`${mayusculas}/EDITAR`, base, secciones)).toBe(-1)
+    expect(indiceDeSeccionActiva(`${mayusculas}X`, base, secciones)).toBe(-1)
+  })
+
   it("indiceDeSeccionActiva: el muro solo en la base exacta, el resto también en sus subrutas, y ninguna en /editar", () => {
     const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
     const base = "/admin/clases/abc"
@@ -317,10 +349,20 @@ describe("mensajes de los errores de maestros y de autoría (§D-2C2)", () => {
       "CLASE_SIN_MAESTRO",
       "MAESTRO_NO_ENCONTRADO",
       "BORRADO_NO_PERMITIDO",
+      // CLASES-02d, O-07 (revisión de 02c): el 503 del servidor ocupado también ya viene en español.
+      "SERVICIO_OCUPADO",
     ]) {
       expect(mensajeDeErrorClases(new ApiError(codigo, "Mensaje del servidor", 409)), codigo).toBe(
         "Mensaje del servidor",
       )
     }
+  })
+})
+
+// CLASES-02d (§D-2D2)
+describe("etiquetaDeMaestros", () => {
+  it("PR-2D04: «Maestro» con uno y «Maestros» con dos", () => {
+    expect(etiquetaDeMaestros(1)).toBe("Maestro")
+    expect(etiquetaDeMaestros(2)).toBe("Maestros")
   })
 })

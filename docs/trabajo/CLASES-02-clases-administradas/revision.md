@@ -1093,3 +1093,410 @@ Siguiente paso:
 2. El orquestador le pasa al humano la nota de medición.
 3. El humano hace el commit `<K2c>`.
 4. Arranca la ronda 0 de 02d, con los pendientes de arriba en la instrucción del programador.
+
+## Verificación del resumen — CLASES-02d — implementación
+Fecha: 2026-10-05 · Base dentro de los paquetes: `<K2c>` = `ec40db7` · Resumen: `resumen-programador.md`, "CLASES-02d — Implementación" · Aplica la regla nueva de hermanos con estados vecinos (`AGENTS.md`, `manager.md` punto 4)
+
+Veredicto: **ACEPTADO CON CORRECCIÓN PREVIA.** Las cifras coinciden y el código cumple. Antes de que ataque el tester, el programador corrige dos puntos pequeños: M-12, un hermano declarado y no corregido, y M-13, una viñeta de PR-2D01 cubierta solo de forma indirecta. No hace falta una nueva verificación completa: basta que el resumen de la corrección traiga sus cifras y yo las contraste.
+
+### Mis corridas (el backend y `shared/` no cambiaron)
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 120 passed (120)` · `Tests 1759 passed (1759)` | Igual |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 |
+| `cd frontend; npx vitest list` | 120 / 1759 (+2 archivos, +34 casos) | 120 archivos y 1759 casos. PR-2D01:12 (`lista-de-clases.test`), 02:4 (3 en `lista-de-clases.test` y 1 en `marco.test`), 03:1, 04:4 (3 en `personas-view.test` y 1 en `lib.test`), 05:8 (`formulario-publicacion.test`), 06:3 (`variante-de-clase.test` y `lib.test`), 07:1 (O-06, `lib.test`). Coinciden con el mapa del resumen |
+| V-01 | 134/134 | 134/134 contra la tabla corregida de la ronda 0 de 02d (la de "O-1 aplicada"). Las 5 `*.ataque` modificadas son las del tester; no hay ninguna sin rastrear |
+
+### Diff contra `ec40db7` (28 archivos rastreados y 6 nuevos, sin `docs/trabajo/**` ni `docs/ESTADO.md`)
+- **Producción:**
+  - `components/layout/{barra-navegacion,contenedor-rol,data,types}.tsx|ts`, más `hooks.ts` y `lista-de-clases.tsx` nuevos;
+  - `services/clasesService.ts` y `lib/variante-de-clase.ts` nuevos (A-6);
+  - en `features/clases`: `data`, `lib`, `types`, `hooks` (M-10, autorizado), `muro-view` (O-14), `personas-view`, `components/lista-personas` y `formulario-publicacion`, `components/tabla-alumnos` (O-10 y `cancelRefetch`, autorizado) y `clases-admin-view` (`CLAVE_CLASES_ADMIN`, autorizado).
+- **Pruebas:** las de PA-16 de 02d (`marco.test`, `contenedor-rol.test`, `formulario-publicacion.test`, `lib.test`, `personas-view.test` y las dos nuevas) y las 5 `*.ataque` del tester.
+- **Fuera de los paquetes:** `docs/DESIGN.md` (A-7). `AGENTS.md`, `.claude/agents/manager.md` y `programador.md` los cambió el orquestador con autorización, y coinciden con los SHA-256 de `aprobacion.md`.
+- **Sin cambios:** `backend/`, `shared/`, `services/` salvo el archivo nuevo, `lib/format.ts`, `utils.ts`, `cache-de-mutaciones.ts`, `components/ui/**`, los componentes compartidos protegidos, `barra-superior`, `pie-de-pagina`, `layout/lib.ts`, `app/router.tsx`, `styles/tokens.css` e `index.css`, `features/admin/**`, `features/auth/**` y los `package.json`.
+- **Ningún import de `@/features/`** en `components/`, `lib/` ni `services/`.
+
+### Revisión del código contra `CLAUDE.md` y `DESIGN.md`
+- **Lista de clases** (`ListaDeClases`):
+  - cada clase es un `NavLink` sin `end`, con `aria-current="page"` en cualquier página de esa clase;
+  - el nombre completo es el nombre accesible y también el `title`; el recorte es visual (`truncate`);
+  - la insignia de 28 px muestra `inicialesDe(nombre)` con `aria-hidden`, en el color de la variante (`INSIGNIA_POR_VARIANTE[varianteDeClase(id)]`);
+  - tiene desplazamiento propio (`min-h-0 flex-1 overflow-y-auto`, `sin-sombra-de-vidrio`) y `hidden md:flex`, así que no aparece en la barra inferior de móvil;
+  - el admin no tiene lista (`rol !== "admin"`);
+  - estados en orden: error con "Reintentar" (`ghost`, `enEspera`, texto `sr-only`), cargando con `role="status"` `sr-only`, vacío sin nada, y datos con "Ver todas" si hay más de 100.
+- **Datos de la barra.** `services/clasesService.ts` concentra las claves y la consulta: la clave `[...CLAVE_CLASES_INSCRITAS | CLAVE_CLASES_IMPARTIDAS, "barra"]` cuelga del prefijo, así que la alcanzan las invalidaciones de siempre, y `components/layout` no importa de `features/`.
+- **Control segmentado** ("Tipo de publicación"):
+  - el grupo va en `vidrio-fuerte` con `rounded-card` y `p-1`;
+  - el indicador es `aria-hidden`, con `rounded-row`, `bg-surface` (en contexto opaco, `bg-accent-soft`), `transition-transform duration-200` y `motion-reduce:transition-none`, y se traslada con `transform` (las clases de `CLASES_DE_POSICION_DEL_INDICADOR`);
+  - los botones conservan `aria-pressed`, el `Check` delante del texto y `--link` en el presionado;
+  - el teclado es el de dos botones (Tab y Enter o Espacio). No es un `role="tablist"`: es una elección con `aria-pressed`, como dice §7.3.
+- **"Personas"** muestra el correo bajo cada nombre (`--text-small`, `--muted-foreground`, `wrap-anywhere`, sin `mailto:`) y la etiqueta "Maestro" o "Maestros". El esquema no trae estado de pago ni restricción, y PR-B12c lo comprueba en el DOM.
+- **Tokens:** ningún color suelto ni clase de la escala por defecto. El borde de la lista usa `border-t-(--glass-border)`, una variable de token y no un valor.
+- **Pendientes heredados hechos:**
+  - M-10: `avisarAlumnoAgregado` con retorno temprano, sin `else`;
+  - O-06: `perspectivaDeRuta` con `toLowerCase()`;
+  - O-07: `SERVICIO_OCUPADO` en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`;
+  - O-10: el aviso en el `onSuccess` del hook, antes de esperar;
+  - `cancelRefetch: false` en `tabla-alumnos` y `personas-view`;
+  - la clave derivada de `CLAVE_CLASES_ADMIN`.
+- **`DESIGN.md` (A-7):** 3 marcas "propuesta (CLASES-02d)" en §7.2 (correo en "Personas"), §7.3 (el control segmentado ya incluye "Tipo de publicación"; se retira el "pendiente de decisión") y §7.4 (lista de clases: estados, móvil y admin). No toca tokens. Cada patrón nuevo de 02d queda documentado.
+
+### Arbitraje de las desviaciones y de los puntos declarados
+1. **"Reintentar" con `data === undefined && errorUpdateCount > 0`.** **Aceptada.** Sale del estado de la propia consulta, no de un estado paralelo. Con eso el botón sigue montado y con el foco mientras reintenta, en lugar de ser reemplazado por "Cargando". Los estados vecinos quedan así:
+   - primera carga: `errorUpdateCount` es 0, así que muestra el *status*;
+   - error: muestra "Reintentar";
+   - reintento en vuelo: "Reintentar" en `enEspera`;
+   - reintento que falla: "Reintentar";
+   - reintento que funciona: la lista;
+   - recarga fallida con datos: conserva la lista.
+   El tester debe atacar los seis.
+2. **O-14 con `clasePrevia` en `MuroView`, y el caso en `app/marco.test.tsx`.** **Aceptada.** El caso vive en un archivo de PA-16 de 02d. `muro-view.test.tsx` no estaba en la lista, y no tocarlo fue lo correcto.
+3. **Estado vecino de O-14 (al cambiar de clase sin datos en caché, `ClaseLayout` desmonta el muro y el foco cae en `<body>`).** **Queda con destino; no se corrige ahora.** Es el mismo comportamiento que ya tiene **cualquier** cambio de ruta en la SPA. Por ejemplo, abrir una clase desde su tarjeta del inicio desmonta la tarjeta, y la página nueva no recibe el foco. Pertenece a la gestión de foco al cambiar de ruta, que el marco hoy no tiene, y no al mecanismo de O-14 (el foco dentro de una lista que no se desmonta). Si se navega desde la barra lateral, el enlace de la clase nueva sigue montado y conserva el foco. El programador lo declaró con su razón, que es lo que pide la regla nueva. **Fila nueva en ESTADO §3:** "Foco al cambiar de ruta en la SPA: con atrás o adelante, o con un enlace del contenido que se desmonta, el foco queda en `<body>` mientras carga la página nueva; decidir un criterio general (por ejemplo, el `h1` de la página al terminar de cargar)", con destino un `chore` de accesibilidad del marco o DESIGN-02. **Para el tester:** no es un hallazgo de 02d. Si lo ve, lo anota como observación de esta fila.
+4. **Hermano de O-06 sin corregir: `indiceDeSeccionActiva` no pasa el `pathname` a minúsculas.** **Se corrige ahora (M-12).** Es el mismo mecanismo que O-06: la ruta en mayúsculas que el router acepta. Hoy, en `/MAESTRO/clases/:id/alumnos` el `NavLink` lleva `aria-current` (el router no distingue mayúsculas) pero el indicador no se monta: el estado y su señal visual se contradicen. Es una línea en `features/clases/lib.ts`, con su caso en `lib.test.ts` (los dos en PA-16 de 02d). Con la regla nueva, dejarlo para que lo encuentre el tester contaría como ronda extra por hermanos.
+5. **Sin caso que fije `cancelRefetch: false` en `tabla-alumnos` y `personas-view`, y el admin sin lista cubierto solo por la aserción de enlaces.**
+   - **`cancelRefetch`:** no hace falta prueba normal. Es el criterio de O-08, que nunca fue requisito (solo con el botón ya en espera), y lo cubre el tester en la ronda 1 si quiere.
+   - **El admin sin lista (M-13): se corrige ahora.** Es una viñeta explícita de PR-2D01 ("el admin no tiene lista"). La aserción de "tres enlaces" no lo prueba por sí sola: con un admin sin clases tampoco habría enlaces de lista. Se espera un caso en `contenedor-rol.test.tsx` (PA-16 de 02d) que afirme, con rol `admin`, que no existe la lista "Mis clases" y que no se pide `/api/clases/inscritas` ni `/api/clases/impartidas`.
+
+### Hallazgos
+- **M-12 (bajo; corrección previa):** `features/clases/lib.ts` › `indiceDeSeccionActiva` compara el `pathname` sin normalizar mayúsculas. Hermano de O-06. Qué se espera: el indicador de secciones coincide con `aria-current` también con la ruta en mayúsculas, con un caso en `lib.test.ts`.
+- **M-13 (bajo; corrección previa):** la viñeta "el admin no tiene lista" de PR-2D01 no tiene caso directo. Qué se espera: un caso en `contenedor-rol.test.tsx` que lo afirme sin depender del número de enlaces.
+
+### Qué sigue
+1. El programador corrige M-12 y M-13. Su resumen de la corrección trae las cifras nuevas, los dos casos con su título, y los hermanos y estados vecinos de M-12: cualquier otra función que compare el `pathname` de una clase.
+2. Verifico ese resumen.
+3. El tester hace la ronda 1 de 02d, con V-01 contra la tabla corregida de su ronda 0 (134). Debe cubrir:
+   - los seis estados de "Reintentar";
+   - la lista con 0, 1, 15 y 101 clases, nombres largos y emojis;
+   - el foco con teclado dentro de la lista con desplazamiento;
+   - `aria-current` en las subpáginas;
+   - el refresco tras unirse, alta y baja, y que la barra no pida dos veces al navegar;
+   - "Personas" a 360 px sin datos de pago;
+   - el control segmentado con `prefers-reduced-motion` y en contexto opaco;
+   - O-14, sin tomar como hallazgo el estado vecino que queda en ESTADO.
+
+## Verificación del resumen — CLASES-02d — corrección previa
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02d — Corrección previa (M-12 y M-13)"
+
+Veredicto: **ACEPTADO.** Sin hallazgos nuevos.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 120 passed (120)` · `Tests 1762 passed (1762)` (+3) | Igual |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 |
+| V-01 | 134/134 | 134/134 contra la tabla corregida de la ronda 0 de 02d; el programador no tocó ninguna `*.ataque` |
+
+La producción del frontend sigue en los mismos archivos de 02d (14 modificados y 4 nuevos). En esta corrección solo cambia `features/clases/lib.ts`; las pruebas cambian en `lib.test.ts` y `components/layout/contenedor-rol.test.tsx`, los dos de PA-16 de 02d.
+
+- **M-12.** `indiceDeSeccionActiva` pasa a minúsculas la ruta y cada destino antes de comparar. El caso "M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar" (`lib.test.ts:306`) lo fija, y comprueba además que `/editar` sigue sin sección activa.
+- **Hermanos de M-12.** Busqué todo `pathname`, `useMatch`, `matchPath` y `startsWith("/` en el código de producción del frontend; la lista del resumen coincide con el código:
+  - `perspectivaDeRuta` (`lib.ts:39`) y `orbesEnMovimiento` (`components/layout/lib.ts:7`) ya normalizaban;
+  - la clase activa de la barra y los destinos los decide `NavLink`, que no distingue mayúsculas;
+  - `features/auth/hooks.ts`, `fondo-de-la-app.tsx` y `services/navegacion.ts` solo reenvían la ruta, sin compararla.
+  No queda ningún `useMatch` ni `startsWith("/…")` sobre la ruta.
+- **M-13.** El caso "con rol admin no existe «Mis clases» en la barra y no se pide inscritas ni impartidas" (`contenedor-rol.test.tsx:127`) afirma la viñeta de PR-2D01 sin depender del número de enlaces. El caso de contraste para estudiante y maestro evita que pase en vacío. La ruta del archivo que di en mi verificación de la implementación era la correcta (`components/layout/contenedor-rol.test.tsx`).
+
+**Instrucción para la ronda 1 del tester (02d):**
+1. V-01 contra la tabla corregida de la ronda 0 de 02d (134).
+2. **"Reintentar", en sus seis estados:** primera carga (solo el *status*); error; reintento en vuelo (en `enEspera` y conservando el foco); reintento que falla; reintento que funciona (la lista); y recarga fallida con datos (conserva la lista).
+3. **La lista de la barra:**
+   - con 0, 1, 15 y 101 clases ("Ver todas");
+   - nombres de 120 caracteres sin espacios y con emojis (nombre accesible y `title` completos);
+   - el foco con teclado dentro de la lista con desplazamiento;
+   - `aria-current` en las subpáginas de la clase, también con la ruta en mayúsculas (M-12);
+   - el admin sin lista;
+   - que la barra no pida dos veces al navegar;
+   - el refresco al unirse, al dar de alta y al dar de baja.
+4. **"Personas":** correos largos a 360 px y nada de datos de pago en el DOM.
+5. **El control segmentado:** `aria-pressed` y `Check`, `prefers-reduced-motion`, contexto opaco del admin, y el cambio rápido de tipo con una publicación en vuelo.
+6. **Los pendientes heredados hechos en 02d:**
+   - M-10: un solo aviso, sin `else`;
+   - O-06 y M-12: perspectiva e indicador sin distinguir mayúsculas;
+   - O-07: el mensaje del servidor ante `503 SERVICIO_OCUPADO`;
+   - O-10: el aviso de "Sí, quitar" del roster antes de la recarga;
+   - `cancelRefetch: false` en `tabla-alumnos` y `personas-view`.
+7. **O-14:** el foco perdido en el muro va al `h2` "Publicaciones" al cambiar de clase. **No** cuenta como hallazgo el estado vecino que va a ESTADO (la página que se desmonta al cambiar de ruta sin caché): lo anota como observación de esa fila.
+8. Una corrida completa de la suite.
+
+## Verificación del resumen — CLASES-02d — corrección de la ronda 1
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02d — Corrección de la ronda 1" · Hallazgo: T-07 (media)
+
+Veredicto: **ACEPTADO.** Sin hallazgos nuevos.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 124 passed (124)` · `Tests 1812 passed (1812)` | Igual |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 |
+| V-01 | 138/138 | 138/138: la tabla corregida de la ronda 0 de 02d, más las 4 nuevas de la tabla de la ronda 1. El programador no tocó ninguna `*.ataque` |
+
+La producción del frontend sigue en los mismos archivos de 02d (14 modificados y 4 nuevos). Esta corrección toca `components/layout/hooks.ts`, `lista-de-clases.tsx` (la prop `navRef` y la marca `data-lista-de-clases`) y `barra-navegacion.tsx` (el `ref` de la `nav`). En pruebas solo cambia `lista-de-clases.test.tsx`.
+
+**Revisión de `useFocoDeLaLista(navRef)`**
+- **No roba el foco.** `focusin` deja `teniaFoco` en verdadero solo si el elemento enfocado está dentro de `[data-lista-de-clases]`. Si la persona enfoca algo fuera de la lista, queda en falso. Un clic en blanco (`focusout` sin `relatedTarget` con el control aún en el documento) también lo apaga. El efecto mueve el foco solo si además el foco se perdió (`<body>`, `null` o un nodo desconectado).
+- **Sin fugas.** Los dos oyentes se registran una vez sobre `document` y se quitan al desmontar.
+- **Primera carga.** `teniaFoco` nace en falso, y en la primera carga el foco no puede estar en la lista. No mueve nada.
+- **Destino.** Va al primer enlace de la lista, si queda alguno. Si no, va al primer enlace de la `nav`, que es "Inicio": los destinos van antes que la lista dentro de la `nav`. "Inicio" es el destino correcto sin lista, porque es el control equivalente más cercano y lleva a las tarjetas de "Mis clases". Al ir a "Inicio", `teniaFoco` vuelve a falso.
+- **Sin tope de tabulación nuevo.** No agrega ningún `tabIndex`.
+- **El criterio del destino** (el primer enlace y no la fila vecina de §7.14) es aceptable aquí. La clase sale de la lista por una recarga, no por una acción de la persona sobre esa fila, así que no aplica la regla de "fila que ocupa su lugar".
+
+**Hermanos y estados vecinos, contra el código y los 9 casos nuevos (T-07)**
+- Reintento con clases → al primer enlace (cubierto).
+- Reintento con 0 clases → a "Inicio" (cubierto).
+- Reintento con más de 100, con "Ver todas" → al primer enlace (cubierto).
+- Reintento que vuelve a fallar → el mismo botón conserva el foco (cubierto).
+- La consulta resuelta por otra vía, por invalidación → cubierto.
+- La clase enfocada sale de la lista → cubierto.
+- "Ver todas" enfocado que desaparece al pasar de 101 a 100 o menos → cubierto. Esto responde la pregunta: **sí, cubre la barra con 101 clases** en la transición en que "Ver todas" deja de existir.
+- El foco fuera de la lista y el clic en blanco → no se mueve (cubiertos).
+- **Estado vecino que no tiene caso propio:** la lista que pasa de tener datos a 0 clases, porque se salió la última, con el foco en esa clase. El código lo cubre: la lista devuelve `null` y el destino cae en "Inicio" por la misma rama que "reintento con 0". No lo pido como corrección; el tester lo incluye en la ronda 2.
+- No hay otro "Reintentar" en el frontend (búsqueda en `frontend/src`). Los "Ver más" y "Cargar más" de `features/clases` usan `useFocoAlCargarMas`. Los dos de `features/admin` siguen con destino ADMIN. Coincide con el resumen.
+
+O-15, O-16 y O-18 quedan como estaban, a la espera de su arbitraje en la revisión final de 02d.
+
+**Instrucción para la ronda 2 del tester (02d)**
+1. V-01 contra la tabla de la ronda 1 de 02d (138).
+2. Atacar la corrección de T-07 y sus estados vecinos:
+   - los nueve casos del programador, con otras secuencias;
+   - datos → 0 clases con el foco en la última clase;
+   - reintentos encadenados (falla, falla, acierta);
+   - foco en "Inicio" o en otro destino de la `nav` durante el reintento (no debe moverse);
+   - otra pestaña que resuelve la consulta mientras el foco está en "Reintentar";
+   - teclado: después del destino nuevo, Tab y Mayús+Tab siguen el orden de la `nav` sin topes nuevos.
+3. Volver a pasar lo que resistió en la ronda 1, sin abrir frentes nuevos fuera de 02d. Lo que encuentre fuera va como observación con destino.
+4. Una corrida completa de la suite.
+
+## Verificación del resumen — CLASES-02d — corrección de la ronda 2
+Fecha: 2026-10-05 · Resumen: `resumen-programador.md`, "CLASES-02d — Corrección de la ronda 2" y "### Hermano `useFocoAlCargarMas`" · Hallazgo: T-08 (baja), estado vecino de T-07
+
+Veredicto: **ACEPTADO.** Hay un hallazgo menor que no bloquea la ronda 3 (M-14, duplicación). Va con destino.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm test` | `Test Files 125 passed (125)` · `Tests 1835 passed (1835)` | Igual |
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 y 0 |
+| V-01 | 139/139 | 139/139 contra las tablas hasta la ronda 2 de 02d; hay 139 `*.ataque` y el programador no tocó ninguna |
+
+La producción del frontend sigue en los mismos archivos de 02d (14 modificados y 4 nuevos). Esta corrección toca `components/layout/hooks.ts` y `features/clases/hooks.ts`; en pruebas, `lista-de-clases.test.tsx` y `app/marco.test.tsx`.
+
+**Revisión de los tres hooks** (`useFocoDeLaLista`, `useFilaEnFoco` y `useFocoAlCargarMas`)
+- **El mecanismo.** Un `focusout` **sin** `relatedTarget` ya no borra la memoria en el acto: se decide en el siguiente turno (`setTimeout(…, 0)`). La memoria solo se borra si el control sigue conectado, la ventana conserva el foco (`ventanaConFoco`, que se sigue con `blur` y `focus` de `window` y con `visibilitychange`) y `document.hasFocus()` es verdadero. Con eso, el cambio de pestaña o de aplicación conserva la memoria, y el clic en blanco la sigue borrando.
+- **Carrera con el render que quita el control.** Si el render desmonta el control antes del turno siguiente, el callback ve `isConnected` falso y no borra: el efecto del render ya tuvo la memoria para mover el foco. Queda una ventana teórica de 0 ms: un clic en blanco seguido, en el mismo turno, por un render que quita el control. En ese caso el foco iría al destino en lugar de quedarse en `<body>`. Es un caso que no se puede producir con dos acciones humanas y su efecto es benigno (el foco queda en la `nav`). Lo acepto.
+- **Foco a otro control dentro de la `nav`.** Ese `focusout` trae `relatedTarget` y sale sin programar nada, y el `focusin` siguiente actualiza la memoria según el control nuevo: dentro o fuera de la lista en `useFocoDeLaLista`, la fila nueva en `useFilaEnFoco` y otro elemento en `useFocoAlCargarMas`. No borra nada indebidamente.
+- **Limpieza.** Los cinco oyentes de cada hook (`focusin`, `focusout` y `visibilitychange` en `document`; `blur` y `focus` en `window`) se quitan en el `return` del efecto. Los `setTimeout` pendientes al desmontar no se cancelan, pero solo escriben un `ref` de una instancia que ya no existe: no hay fuga ni efecto visible.
+- **Instancias.** Cada instancia registra sus propios oyentes y su propio estado. Ya pasaba con `useFilaEnFoco` desde CLASES-b (una instancia por lista de comentarios abierta, acotada por la página de 20). No hay duplicación de estado compartido: cada instancia decide sobre su lista.
+- **Autorización de `features/clases/hooks.ts` en 02d.** La cubre lo que ya autoricé: tocar `hooks.ts` en 02d (M-10 y O-10, verificación de la corrección de la ronda 1 de 02c). Extenderlo a `useFilaEnFoco` y `useFocoAlCargarMas` como hermanos del mismo mecanismo es lo que exige la regla de hermanos con estados vecinos. No toca ningún archivo de "No se toca".
+- **Búsqueda de hermanos.** Repetí la búsqueda de `focusout`, `focusin`, `"blur"`, `onBlur` y `onFocus` en `frontend/src`, sin pruebas: solo esos tres hooks guardan memoria de foco. `tabla-alumnos`, `lista-maestros-de-clase`, `comentarios-de-publicacion` y `muro-view` usan `useFilaEnFoco`; los "Cargar más" de `features/clases`, `useFocoAlCargarMas`; `features/admin` no tiene ninguno. Coincide con el resumen.
+
+**M-14 (bajo; no bloquea; con destino).** El mismo seguimiento de la ventana (`ventanaConFoco` con sus tres oyentes y la decisión diferida) quedó copiado en tres lugares de dos módulos (`components/layout/hooks.ts` y dos veces en `features/clases/hooks.ts`). Es el patrón que la regla 5 de `CLAUDE.md` pide subir a código compartido. No lo pido ahora: la ronda 3 es la última y el cambio sería una refactorización sin cambio de conducta. **Fila nueva en ESTADO §3:** "Unificar el seguimiento del foco de la ventana de `useFocoDeLaLista`, `useFilaEnFoco` y `useFocoAlCargarMas` en una sola utilidad compartida (por ejemplo, en `lib/`, sin React, o como un hook del marco)", con destino el `chore` de accesibilidad del marco, junto a la fila "Foco al cambiar de ruta en la SPA".
+
+**Instrucción para la ronda 3 del tester (02d, la última)**
+1. V-01 contra la tabla de la ronda 2 de 02d (139).
+2. Atacar T-08 y sus estados vecinos en los **tres** hooks:
+   - cambio de pestaña o de aplicación con "Reintentar", "Cargar más" y una fila con el foco, mientras la recarga resuelve (con éxito o con fallo);
+   - volver a la ventana antes y después de que llegue la respuesta;
+   - `visibilitychange` sin `blur` y `blur` sin `visibilitychange`;
+   - el clic en blanco sigue borrando la memoria;
+   - foco a otro control dentro de la `nav` o de la lista (no borra);
+   - desmontar el componente con un `setTimeout` pendiente (sin error ni aviso de React).
+3. Volver a pasar lo que resistió en las rondas 1 y 2, sin abrir frentes nuevos fuera de 02d. Lo que encuentre fuera va como observación con destino.
+4. Una corrida completa de la suite.
+5. Si resiste, sigue la revisión final de 02d. Si rompe, se escala al humano.
+6. **Para la comprobación humana:** H-3 (barra lateral) incluye ahora el **cambio de pestaña real**. Con el foco en "Reintentar" de la barra (simulando un fallo de red) o en una clase, cambiar de pestaña, esperar la respuesta y volver: el foco queda en la barra, nunca en `<body>`. jsdom solo simula el `blur` de la ventana, así que este punto lo verifica el humano en su navegador.
+
+## Revisión final — CLASES-02d y cierre del encargo
+Fecha: 2026-10-05 · Base dentro de los paquetes: `<K2c>` = `ec40db7`; fuera de ellos, `e4396a0`
+
+Tester en 02d:
+- ronda 0, con O-1 aplicada y A-13;
+- verificación del manager con corrección previa (M-12 y M-13);
+- ronda 1, ROTO (T-07, media);
+- ronda 2, ROTO (T-08, baja, estado vecino de T-07);
+- ronda 3, RESISTE.
+
+Veredicto de 02d: **APROBADO CON OBSERVACIONES.** Nada bloquea el commit `<K2d>`.
+Veredicto del encargo CLASES-02: **APROBADO CON OBSERVACIONES.** Las cuatro subentregas cumplen; las observaciones tienen destino en ESTADO §3.
+
+### 1. Revisión final de 02d
+
+**Verificación propia:**
+- **Frontend:** `npm test` da `Test Files 127 passed (127)` · `Tests 1852 passed (1852)`, igual que las tres corridas del tester en la ronda 3; `npm run lint` código 0.
+- **Raíz:** `npm run build` y `npm run lint` código 0.
+- **Backend y `shared/`:** sin cambios desde `<K2b>` (`git diff ec40db7 -- backend shared` vacío; tampoco cambiaron en 02c). Su última corrida verificada, al cerrar 02b, dio 147 archivos y 1746 casos.
+- **V-01:** 141/141 contra la tabla de la ronda 3 de 02d. Hay 141 `*.ataque` (67 del backend y 74 del frontend). Las modificadas y las nuevas de 02d son todas del tester: el programador no tocó ninguna.
+- **Archivos protegidos que cambió el orquestador** con autorización del humano: `AGENTS.md` (`a44207f5…`), `.claude/agents/programador.md` (`3d1ebb9d…`) y `.claude/agents/manager.md` (`5769b945…`). Coinciden con sus SHA-256 de `aprobacion.md`.
+
+**Lo planeado, solo lo planeado y todo lo planeado (02d):**
+1. **Lista de clases en la barra lateral** del estudiante y del maestro, con P-02 (A):
+   - insignia de iniciales en el color de la variante, nombre recortado, nombre accesible completo y `title`;
+   - desplazamiento propio, `aria-current` en la clase abierta y sus subpáginas;
+   - `hidden md:flex`, así que no aparece en la barra inferior de móvil;
+   - el admin sin lista;
+   - estados error ("Reintentar"), cargando, vacío y datos, con "Ver todas" si hay más de 100;
+   - el foco de "Reintentar" y de "Ver todas" (T-07 y T-08).
+2. **"Personas"** con el correo de maestros y compañeros, "Maestro" o "Maestros", y sin estado de pago.
+3. **"Tipo de publicación" como control segmentado** (§7.3), en vidrio fuerte, con indicador `aria-hidden` que se desliza con `transform`, `transition-transform duration-200`, `motion-reduce` y `--accent-soft` en contexto opaco.
+4. **A-6:** `varianteDeClase` y su tipo pasan a `lib/variante-de-clase.ts`, y las claves a `services/clasesService.ts`, con reexportes.
+5. **A-7:** `DESIGN.md` §7.2, §7.3 y §7.4 con la marca "propuesta (CLASES-02d)". Ningún bloque del diff cae en §3, así que no se tocó ningún token.
+6. **Pendientes heredados, todos hechos:**
+   - M-10: aviso sin `else`;
+   - O-06 y M-12: perspectiva e indicador sin distinguir mayúsculas;
+   - O-07: el mensaje del servidor ante `503 SERVICIO_OCUPADO`;
+   - O-10: el aviso de "Sí, quitar" del roster en el hook;
+   - `cancelRefetch: false` en `tabla-alumnos` y `personas-view`;
+   - M-13: caso directo del admin sin lista;
+   - O-14: el foco perdido en el muro va al `h2` al cambiar de clase;
+   - O-19: el mecanismo de T-08 aplicado a `useFilaEnFoco` y `useFocoAlCargarMas`;
+   - la clave derivada de `CLAVE_CLASES_ADMIN`.
+
+No falta nada de 02d, y no entró nada sin autorización. `features/clases/hooks.ts` quedó cubierto por las autorizaciones de M-10/O-10 y por la regla de hermanos con estados vecinos.
+
+**Diff contra `ec40db7`** (28 archivos rastreados, +937/−166, y 6 nuevos, sin `docs/trabajo/**` ni `docs/ESTADO.md`):
+- Producción: 14 modificados y 4 nuevos, todos de "Cambios por capa" de 02d o de lo autorizado.
+- Pruebas: las de PA-16 de 02d.
+- `docs/DESIGN.md`.
+- Los tres archivos protegidos ya verificados por hash.
+
+Sin cambios contra `ec40db7`: `backend/`, `shared/`, `lib/format.ts`, `utils.ts` y `cache-de-mutaciones.ts`, los servicios existentes, `components/ui/**`, los componentes compartidos protegidos, `app/router.tsx`, `styles/**`, `features/admin/**`, `features/auth/**`, los `package.json` e `infra/`. **Ningún import de `@/features/`** en `components/`, `lib/` ni `services/`.
+
+**`CLAUDE.md` y `DESIGN.md`** se cumplen en el código de 02d (detalle en las verificaciones de este encargo, desde la línea 1097):
+- estructura de módulos;
+- tokens, sin clases de la escala por defecto;
+- componentes de `components/ui/`;
+- `enEspera`, nunca `disabled`;
+- retornos tempranos;
+- foco (§7.14);
+- el estado nunca se dice solo con color;
+- textos en español de México, sin emojis.
+
+La única deuda es **M-14**: el seguimiento del foco de la ventana está copiado en tres hooks de dos módulos. Va con destino (abajo).
+
+**Arbitraje de las observaciones abiertas:**
+- **O-15** ("Unirme a la clase" también espera la recarga de la barra). **Aceptada como está.** Es el criterio de T-02: la acción sigue en espera hasta que el dato que la refleja llegó. Antes de 02d, el inicio ya corría el mismo riesgo, y la petición de la barra es pequeña. Fila en ESTADO, de prioridad baja: "Si en `prod` se nota que unirse tarda por la recarga de la barra, no esperar la clave `"barra"` en `invalidarListasDeClases`". Destino: DEPLOY (observar).
+- **O-16** (dos clics en el mismo instante en "Reintentar"). **Sin acción.** Es un `GET` idempotente y cae en el criterio del arbitraje de T-03 (02c). Queda cubierta por la fila ya abierta de `enviandoRef` (`DESIGN.md` §6).
+- **O-17 y O-11** (`alumnos-b-r2` de 4.1 a 4.7 s, y los casos de 101 clases de 3.7 a 4.2 s). **Ninguno llega a 5 s.** Se actualiza la fila existente de O-11 (junto a M-02 de DESIGN-01b) con estas cifras y con los casos de 101 clases. Si alguno pasa de 5 s, es PA-12.
+- **O-18** (el botón en espera dice "Publicar material" mientras se publica un anuncio). **Fila en ESTADO.** Lo enviado es correcto y el aviso es genérico, pero el rótulo de un botón en espera no debe cambiar de objeto. Remedio esperado: durante la petición, el rótulo sigue el tipo que se envió (o el control segmentado no cambia el tipo enviado). Destino: TAREAS, que reutiliza el formulario de publicar material, o carril trivial antes.
+- **O-19:** aplicada en 02d (ronda 2). Se cierra.
+- **O-20** (`blur()` y `focus()` programáticos en el mismo turno borran la memoria con el foco aún dentro). **Fila en ESTADO, junto a M-14.** Ninguna acción humana lo produce. Remedio esperado al unificar: en el turno diferido, borrar solo si `document.activeElement` es `<body>` o `null`.
+- **M-14:** fila en ESTADO. Destino: el `chore` de accesibilidad del marco, junto a "Foco al cambiar de ruta en la SPA" y O-20.
+
+### 2. Cierre del encargo CLASES-02
+
+**Definición de terminado (`AGENTS.md`), por subentrega:**
+
+| Punto | 02a | 02b | 02c | 02d |
+|---|---|---|---|---|
+| Cumple el RF/RN | RF-52 (backend), RF-31, RF-38, RN-04, RN-06 | RF-59, RF-19, RF-33, RN-07 | RF-52 y RF-59 (frontend), RF-31, PRD §7 | RF-10, RF-30, RF-19 (frontend), PRD §7 |
+| Capas y middleware | sí (sexto paso cerrado por defecto) | sí (autoría en `core/` dentro de la transacción) | sí (la interfaz solo lee `puedeBorrar`) | sí |
+| `lint`, `build`, `test` en verde | sí (142 / 1703) | sí (147 / 1746) | sí (118 / 1725) | sí (127 / 1852) |
+| Pruebas de autorización | sí (PR-2A22 a PR-2A24) | sí (PR-2B10 y matrices) | n/a (frontend) | n/a (frontend) |
+| Migración compatible | sí (`20261003191319_clases_administradas`) | sin migración | sin migración | sin migración |
+| `infra/` y `.env.example` | sin cambios | sin cambios | sin cambios | sin cambios |
+| Documentos | aplicados al cierre (A-8) | aplicados al cierre (A-8) | `DESIGN.md` (A-7) | `DESIGN.md` (A-7) y los textos de "Al cerrar 02d" (abajo) |
+
+**Los 7 puntos del alcance del humano:**
+1. **Solo el admin crea clases y les asigna maestros; "Crear clase" desaparece del maestro.** Cumplido (02a y 02c).
+2. **De 1 a 2 maestros (`maestros_de_clase` con migración de datos) y `requireOwnership` como "es maestro de la clase".** Cumplido. Sigue en pie, a propósito, `clases.maestro_id` como columna de compatibilidad (P-06 a, aprobada): se escribe y nunca se lee. Su retiro está en ESTADO, antes del primer DEPLOY. Es el único punto con una parte diferida, y lo es por decisión.
+3. **Inscriben el admin y los maestros, con `movimientos_inscripcion`; el código se conserva.** Cumplido (02a: `actorId`; 02c: el roster del admin).
+4. **El admin publica firmado "Administración", con distintivo y sin nombre.** Cumplido (02b y 02c).
+5. **Autoría.** Cumplido (02b, `core/autoria.ts`). La cascada de comentarios quedó escrita en RN-07 por decisión del humano. La parte "también para TAREAS" la reutilizará ese encargo.
+6. **`/admin/clases`: lista, crear, asignar maestros, inscribir alumnos y entrar al muro de cualquier clase.** Cumplido (02a y 02c).
+7. **Barra lateral con la lista de clases, correo completo en "Personas" y control segmentado del tipo.** Cumplido (02b y 02d).
+
+**Decisiones P-01 a P-11, reflejadas en el código:**
+- **P-01 (b):** `puedeBorrar` con moderación del maestro.
+- **P-02 (A):** la barra de 96 px con insignias.
+- **P-03 (a):** el admin no comenta (`POST …/comentarios` sin `admin`).
+- **P-04 (a):** el admin ve y regenera el código.
+- **P-05 (a):** el buscador del admin enmascara.
+- **P-06 (a):** `maestro_id` con escritura doble, sin lecturas.
+- **P-07 (a):** el destino "Clases" del admin, sin lista.
+- **P-08 (a):** `actorId @map("maestro_id")`.
+- **P-09 (a):** `CASCADE` hacia `clases` y `RESTRICT` hacia `usuarios`.
+- **P-10:** las vistas del admin en `features/clases`.
+- **P-11:** `autor.id` real del admin.
+
+Todas verificadas en las revisiones de cada subentrega.
+
+**Textos que el orquestador aplica al cerrar 02d** (A-8, con el SHA-256 en `aprobacion.md`), de "Textos propuestos → Al cerrar 02d" del plan:
+1. **`docs/ARCHITECTURE-ESSENTIALS.md`, "Interfaz",** la última viñeta. Ancla: "Barra lateral con la lista de clases del usuario: las primeras visibles y desplazamiento para el resto (CLASES-02; P-01 de CLASES-01 la había dejado compacta)." Queda: "Barra lateral con la lista de clases del usuario (estudiante y maestro): las primeras visibles y desplazamiento para el resto, cada una con una insignia de iniciales en el color de su tarjeta y el nombre recortado; en móvil no se muestra. El admin tiene el destino "Clases" (CLASES-02)."
+2. **`CLAUDE.md`, "Ubicaciones compartidas":**
+   - en la viñeta de `components/layout/`, agregar "y la lista de clases de la barra (`ListaDeClases`, con su hook en `components/layout/hooks.ts`)";
+   - nueva viñeta de servicios: "`services/clasesService.ts` — las claves de las listas de clases y la consulta de la barra lateral, compartidas por `components/layout` y `features/clases`";
+   - nueva viñeta de `lib/`: "`lib/variante-de-clase.ts` — `varianteDeClase`, la variante de color de una clase (tarjeta y barra)".
+3. **`README.md`:** sin cambios en todo el encargo (ningún comando cambió).
+4. **`PRD.md` y `ARCHITECTURE.md`:** sin textos de 02d (los de 02a y 02b ya están aplicados: lo comprobé en ESSENTIALS "Autorización" y "Autoría", y en `PRD.md` RN-07, líneas 202 y 203).
+5. **Propuesta para el humano** (no es un texto del plan): `DESIGN.md` §6, punto 4, sobre `enviandoRef`. El texto está en "## Arbitraje — ronda 2 de 02c" de este archivo. Ya tiene fila en ESTADO; el humano decide si se aplica ahora o en DESIGN-02.
+
+**Lista final de pendientes para `ESTADO.md` §3**
+- **Se cierran:**
+  - la contradicción entre PRD §7 y `DESIGN.md` §7.4 (R-01 de DESIGN-01): la lista ya existe y §7.4 la documenta;
+  - el grupo "Tipo de publicación" fuera de la regla del control segmentado: ya la cumple;
+  - la fila de O-14 de 02c: resuelta en 02d;
+  - O-19: aplicada.
+- **Se actualiza:** O-11 y O-17 (duraciones), con las cifras de 02d, junto a M-02 de DESIGN-01b.
+- **Nuevas:**
+  - **"Foco al cambiar de ruta en la SPA"**, el estado vecino de O-14: con atrás o adelante, o con un enlace del contenido que se desmonta, el foco queda en `<body>` mientras carga la página nueva. Destino: `chore` de accesibilidad del marco o DESIGN-02.
+  - **M-14 y O-20** (unificar el seguimiento del foco de la ventana de los tres hooks, y en el turno diferido borrar solo con el foco en `<body>` o `null`). Destino: el mismo `chore`.
+  - **O-15**, unirse espera también la barra. Destino: observar en DEPLOY.
+  - **O-18**, el rótulo del botón en espera con el tipo cambiado. Destino: TAREAS o carril trivial.
+- **Siguen como estaban:**
+  - O-05 de 02c (`/admin/`): ADMIN;
+  - los dos "Cargar más" de `features/admin`: ADMIN;
+  - `formatearFechaDeClase`: próximo encargo que toque `lib/format.ts`;
+  - la aclaración de `enviandoRef`: DESIGN o el humano;
+  - el retiro de compatibilidad (`clases.maestro_id`, el campo `maestro`, `mis-comentarios`): antes del primer DEPLOY;
+  - R-06: ADMIN;
+  - O-04, la consulta en el log: DEPLOY;
+  - la cascada de comentarios si el admin llega a comentar: el encargo que lo habilite.
+
+### 3. Comprobación humana (una sola, máximo 10 minutos y 7 puntos)
+Necesita la API y `campus_dev` con la migración ya aplicada. El humano entra con su admin de desarrollo, un maestro y un estudiante. Ningún agente abre el navegador.
+- **H-1** La migración de datos sobre `campus_dev`: el maestro que ya tenía clases antes de 02a las sigue viendo en su inicio y en su barra lateral.
+- **H-2** `/admin/clases`: crear una clase con dos maestros, abrirla y ver la tabla, el encabezado ("Maestros: … y …") y las secciones Muro, Alumnos y Maestros en material opaco, con el indicador visible.
+- **H-3** La barra lateral del estudiante o del maestro:
+  - con varias clases, un nombre largo y dos clases de iniciales iguales ("Derecho Penal I" y "II"): la insignia, el recorte, si se distinguen, el `title` y el desplazamiento dentro de la barra;
+  - **con el foco en "Reintentar"** (simulando un fallo de red) **o en una clase, cambiar de pestaña, esperar la respuesta y volver:** el foco queda en la barra, nunca en `<body>`.
+- **H-4** A 360 px: la barra inferior sin la lista, y "Personas" con correos largos sin desbordarse.
+- **H-5** Publicar como admin: la insignia "Administración" en el muro del estudiante, y el maestro sin "Borrar publicación" en ella.
+- **H-6** "Tipo de publicación": el indicador se desliza al cambiar de tipo, con y sin movimiento reducido del sistema si el humano quiere.
+- **H-7** El maestro no ve "Crear clase" ni "Editar clase", y su inicio se lee bien sin la tarjeta interna.
+
+Lo demás queda "no verificado en navegador por decisión del humano, cubierto por pruebas automáticas". El contraste lo cubren las pruebas de tokens.
+
+### 4. Medición del programador
+**En 02d:**
+- rondas del tester: 0 a 3, **sin rondas extra sobre el tope**;
+- **rondas extra por hermanos o estados vecinos: 1** (T-08, estado vecino de T-07);
+- M-12, un hermano de O-06, lo detecté yo en la verificación y se corrigió antes de que atacara el tester, así que no costó ronda;
+- resúmenes devueltos: 0 de 4 (la implementación, la corrección previa y dos correcciones);
+- PARADAS: 0.
+
+**En el encargo:**
+
+| Subentrega | Rondas | Extra sobre el tope | Por hermanos o estados vecinos | Resúmenes devueltos | PARADAS |
+|---|---|---|---|---|---|
+| 02a | 0 a 2 | 0 | 0 | 0 de 2 | 1 (PA-06, hueco del plan) |
+| 02b | 0 a 1 | 0 | 0 | 0 de 1 | 0 |
+| 02c | 0 a 5 | 2 (rondas 4 y 5 cerradas, autorizadas) | 1 (T-04 → T-05 → T-06, contada como una por el humano) | 0 de 6 | 0 |
+| 02d | 0 a 3 | 0 | 1 (T-07 → T-08) | 0 de 4 | 0 |
+
+**Umbral para pasar al programador a `opus`:** "2 o más rondas extra por este patrón en CLASES-02d o en TAREAS" (`AGENTS.md`, decisión del humano del 2026-10-05). En 02d hubo **1**: **no se alcanzó**. El programador sigue en `sonnet` y el umbral sigue vigente para TAREAS.
+
+### Cifras finales del encargo CLASES-02
+| | Archivos de prueba | Casos | Partida (`e4396a0`) |
+|---|---|---|---|
+| Backend | 147 | 1746 | 132 / 1623 |
+| Frontend | 127 | 1852 | 104 / 1396 |
+| `*.ataque` | 141 (67 del backend y 74 del frontend; tabla de la ronda 3 de 02d) | | 115 |
+
+Migraciones: una nueva (`20261003191319_clases_administradas`).
+
+### Siguiente paso
+1. El orquestador aplica los textos de "Al cerrar 02d" y las filas de ESTADO, y le presenta al humano la propuesta de `enviandoRef`.
+2. El humano hace la comprobación H-1 a H-7.
+3. El humano hace el commit `<K2d>`.
+4. El humano decide el PR del encargo.

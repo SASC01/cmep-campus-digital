@@ -55,6 +55,7 @@ import {
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_MAESTROS_DE_CLASE,
   TEXTOS_MURO,
+  TEXTOS_TABLA_ALUMNOS,
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
 import {
@@ -308,6 +309,15 @@ const invalidarPersonasDeLaClase = async (
   ])
 }
 
+// M-10 (revisión de 02c): retorno temprano en lugar de if/else.
+const avisarAlumnoAgregado = (yaEstaba: boolean, nombre: string) => {
+  if (yaEstaba) {
+    toast(TEXTOS_BUSCADOR_ALUMNOS.yaEstaba(nombre))
+    return
+  }
+  toast.success(TEXTOS_BUSCADOR_ALUMNOS.agregado(nombre))
+}
+
 export const useAgregarAlumno = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -321,11 +331,7 @@ export const useAgregarAlumno = (claseId: string) => {
     // otro término con el POST en vuelo, la fila se desmonta y TanStack Query no llama a los callbacks
     // de mutate; los de useMutation corren aunque el componente ya no exista.
     onSuccess: async (respuesta) => {
-      if (respuesta.yaEstaba) {
-        toast(TEXTOS_BUSCADOR_ALUMNOS.yaEstaba(respuesta.alumno.nombre))
-      } else {
-        toast.success(TEXTOS_BUSCADOR_ALUMNOS.agregado(respuesta.alumno.nombre))
-      }
+      avisarAlumnoAgregado(respuesta.yaEstaba, respuesta.alumno.nombre)
       // T-02 (hermano): la mutación sigue pendiente hasta que los candidatos recargados ya no ofrecen
       // «Agregar a la clase».
       await invalidarPersonasDeLaClase(queryClient, claseId)
@@ -337,12 +343,20 @@ export const useAgregarAlumno = (claseId: string) => {
 export const useQuitarAlumno = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (alumnoId: string) =>
-      api(`/api/clases/${claseId}/alumnos/${alumnoId}`, {
+    mutationFn: ({ id }: { id: string; nombre: string }) =>
+      api(`/api/clases/${claseId}/alumnos/${id}`, {
         method: "DELETE",
         schema: sinContenidoSchema,
       }),
-    onSuccess: () => invalidarPersonasDeLaClase(queryClient, claseId),
+    // O-10 (revisión de 02c): el aviso sale aquí, una vez, como en sus cinco hermanos, y la mutación
+    // sigue pendiente (botón en enEspera) hasta que el roster recargado ya no trae a la persona. Por
+    // eso tampoco hay callbacks en el mutate de la fila: la fila puede desmontarse con la petición
+    // en vuelo (§D-C5 bis).
+    onSuccess: async (_respuesta, { nombre }) => {
+      toast.success(TEXTOS_TABLA_ALUMNOS.quitado(nombre))
+      await invalidarPersonasDeLaClase(queryClient, claseId)
+    },
+    onError: (error) => toast.error(mensajeDeErrorClases(error)),
   })
 }
 
@@ -365,9 +379,12 @@ export const useTerminoDiferido = (valor: string, ms: number): string => {
 // useFilaEnFoco(atributo) devuelve un ref con el valor del atributo `data-…` de la fila que tiene el
 // foco, o null: focusin lo marca al entrar a una fila (y lo borra al ir a otro lado) y focusout lo
 // borra si la persona se fue a ningún elemento (un clic en blanco) y el control sigue en el
-// documento.
+// documento. O-19 (ronda 2 de 02d, mismo criterio que T-08 de components/layout/hooks.ts): al cambiar
+// de pestaña o de aplicación el navegador también dispara focusout sin relatedTarget sobre un control
+// que sigue montado, y la ventana pierde el foco justo después; en ese caso la memoria se conserva.
 export const useFilaEnFoco = (atributo: string) => {
   const filaEnFoco = useRef<string | null>(null)
+  const ventanaConFoco = useRef(true)
   useEffect(() => {
     const alEntrar = (evento: FocusEvent) => {
       const fila = evento.target instanceof Element ? evento.target.closest(`[${atributo}]`) : null
@@ -377,14 +394,30 @@ export const useFilaEnFoco = (atributo: string) => {
       const objetivo = evento.target
       if (evento.relatedTarget !== null || !(objetivo instanceof Element)) return
       setTimeout(() => {
-        if (objetivo.isConnected) filaEnFoco.current = null
+        if (!objetivo.isConnected || !ventanaConFoco.current || !document.hasFocus()) return
+        filaEnFoco.current = null
       }, 0)
+    }
+    const alPerderLaVentana = () => {
+      ventanaConFoco.current = false
+    }
+    const alRecuperarLaVentana = () => {
+      ventanaConFoco.current = true
+    }
+    const alCambiarLaVisibilidad = () => {
+      ventanaConFoco.current = !document.hidden
     }
     document.addEventListener("focusin", alEntrar)
     document.addEventListener("focusout", alSalir)
+    document.addEventListener("visibilitychange", alCambiarLaVisibilidad)
+    window.addEventListener("blur", alPerderLaVentana)
+    window.addEventListener("focus", alRecuperarLaVentana)
     return () => {
       document.removeEventListener("focusin", alEntrar)
       document.removeEventListener("focusout", alSalir)
+      document.removeEventListener("visibilitychange", alCambiarLaVisibilidad)
+      window.removeEventListener("blur", alPerderLaVentana)
+      window.removeEventListener("focus", alRecuperarLaVentana)
     }
   }, [atributo])
   return filaEnFoco
@@ -395,7 +428,10 @@ export const useFilaEnFoco = (atributo: string) => {
 // está en este y tenía el foco al desmontarse; con el botón montado nunca lo mueve, aunque el foco
 // esté en <body> (un render sin desmontaje no mueve nada). La marca "tenía el foco" se borra con un
 // focusin en otro elemento y con un focusout del botón que no lleva a ningún elemento mientras
-// sigue conectado (un clic en blanco).
+// sigue conectado (un clic en blanco). Hermano de T-08 (ronda 2 de 02d): al cambiar de pestaña el
+// navegador también dispara ese focusout sin destino con el botón conectado, y la ventana pierde el
+// foco justo después; se decide en el siguiente turno y la marca solo se borra si la ventana conserva
+// el foco (document.hasFocus() y el seguimiento de window), igual que useFilaEnFoco.
 // Destino: el primer elemento nuevo (`enfocarFila` devuelve false si no pudo) o, si no llegó nada, el
 // encabezado de la lista (`enfocarEncabezado`). Defensa (T-27): si después de eso el foco sigue
 // perdido (el destino no existía o no estaba conectado), va al primer elemento enfocable y conectado
@@ -410,6 +446,7 @@ export const useFocoAlCargarMas = (
   const estabaMontado = useRef(false)
   const seccionDelBoton = useRef<Element | null>(null)
   const idsPrevios = useRef<string[] | undefined>(undefined)
+  const ventanaConFoco = useRef(true)
 
   useEffect(() => {
     const alEntrar = (evento: FocusEvent) => {
@@ -419,14 +456,30 @@ export const useFocoAlCargarMas = (
       const boton = botonRef.current
       if (boton === null || evento.target !== boton || evento.relatedTarget !== null) return
       setTimeout(() => {
-        if (boton.isConnected) teniaElFoco.current = false
+        if (!boton.isConnected || !ventanaConFoco.current || !document.hasFocus()) return
+        teniaElFoco.current = false
       }, 0)
+    }
+    const alPerderLaVentana = () => {
+      ventanaConFoco.current = false
+    }
+    const alRecuperarLaVentana = () => {
+      ventanaConFoco.current = true
+    }
+    const alCambiarLaVisibilidad = () => {
+      ventanaConFoco.current = !document.hidden
     }
     document.addEventListener("focusin", alEntrar)
     document.addEventListener("focusout", alSalir)
+    document.addEventListener("visibilitychange", alCambiarLaVisibilidad)
+    window.addEventListener("blur", alPerderLaVentana)
+    window.addEventListener("focus", alRecuperarLaVentana)
     return () => {
       document.removeEventListener("focusin", alEntrar)
       document.removeEventListener("focusout", alSalir)
+      document.removeEventListener("visibilitychange", alCambiarLaVisibilidad)
+      window.removeEventListener("blur", alPerderLaVentana)
+      window.removeEventListener("focus", alRecuperarLaVentana)
     }
   }, [])
 

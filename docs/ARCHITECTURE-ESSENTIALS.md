@@ -134,4 +134,4 @@ Restricciones clave: `email` único · un solo `rol = 'admin'` (índice único p
 - Solo modo claro. Colores y tamaños únicamente mediante tokens.
 - Prohibido imitar la marca de Google Classroom. Prohibida la estética genérica de IA/SaaS.
 - Densidad: admin tabular, estudiante ligero, maestro intermedio.
-- Barra lateral con la lista de clases del usuario: las primeras visibles y desplazamiento para el resto (CLASES-02; P-01 de CLASES-01 la había dejado compacta).
+- Barra lateral con la lista de clases del usuario (estudiante y maestro): las primeras visibles y desplazamiento para el resto, cada una con una insignia de iniciales en el color de su tarjeta y el nombre recortado; en móvil no se muestra. El admin tiene el destino "Clases" (CLASES-02).

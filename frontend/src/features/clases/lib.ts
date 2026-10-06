@@ -16,6 +16,7 @@ import {
   TEXTOS_CLASE,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
+  TEXTOS_PERSONAS,
   TEXTOS_TARJETA,
   TEXTOS_UNIRSE,
   TIEMPO_FRESCO_DEL_MURO_MS,
@@ -28,19 +29,24 @@ import type {
   Perspectiva,
   RolDeClases,
   SeccionDeClase,
-  VarianteDeClase,
 } from "./types"
 
 // §D-2C1: la perspectiva sale del prefijo exacto de la ruta (/estudiante, /maestro o /admin, solo o
 // seguido de "/"). Un prefijo parecido (/maestros, /administrador) o cualquier otra ruta da
-// "estudiante", la perspectiva que menos muestra; el backend decide de todas formas.
+// "estudiante", la perspectiva que menos muestra; el backend decide de todas formas. O-06 (revisión
+// de 02c): sin distinguir mayúsculas, como el router (/Admin/clases es la ruta de /admin/clases).
 export const perspectivaDeRuta = (pathname: string): Perspectiva => {
+  const ruta = pathname.toLowerCase()
   for (const perspectiva of ["maestro", "admin"] as const) {
     const base = `/${perspectiva}`
-    if (pathname === base || pathname.startsWith(`${base}/`)) return perspectiva
+    if (ruta === base || ruta.startsWith(`${base}/`)) return perspectiva
   }
   return "estudiante"
 }
+
+// §D-2D2: el título de la sección de maestros de "Personas".
+export const etiquetaDeMaestros = (total: number): string =>
+  total === 1 ? TEXTOS_PERSONAS.maestro : TEXTOS_PERSONAS.maestros
 
 // "A" con uno, "A y B" con dos: los metadatos de las tarjetas y el encabezado de la clase.
 export const unirNombres = (nombres: readonly string[]): string => nombres.join(" y ")
@@ -58,9 +64,12 @@ export const indiceDeSeccionActiva = (
   base: string,
   secciones: readonly SeccionDeClase[],
 ): number => {
-  const sinBarraFinal = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname
+  // M-12 (02d): sin distinguir mayúsculas, como el router y perspectivaDeRuta (O-06). Con la ruta en
+  // mayúsculas NavLink marca el enlace activo, y el indicador también debe aparecer.
+  const ruta = pathname.toLowerCase()
+  const sinBarraFinal = ruta.length > 1 ? ruta.replace(/\/+$/, "") : ruta
   return secciones.findIndex(({ segmento }) => {
-    const destino = segmento === "" ? base : `${base}/${segmento}`
+    const destino = (segmento === "" ? base : `${base}/${segmento}`).toLowerCase()
     if (segmento === "") return sinBarraFinal === destino
     return sinBarraFinal === destino || sinBarraFinal.startsWith(`${destino}/`)
   })
@@ -77,14 +86,8 @@ export const formatearFechaDeClase = (iso: string): string => {
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(fecha)
 }
 
-// S-06: variante determinista a partir del id de la clase (UUID), sin guardarse ni elegirse. La
-// suma de los puntos de código módulo 3 reparte entre las tres variantes.
-export const varianteDeClase = (claseId: string): VarianteDeClase => {
-  let suma = 0
-  for (const caracter of claseId) suma += caracter.codePointAt(0) ?? 0
-  const variantes: VarianteDeClase[] = ["verde", "azul", "blanca"]
-  return variantes[suma % 3] ?? "blanca"
-}
+// A-6 de CLASES-02: la variante de color vive en lib/ porque la usan también la lista de la barra.
+export { varianteDeClase } from "@/lib/variante-de-clase"
 
 const textosPorRol = (rol: RolDeClases) =>
   rol === "estudiante" ? TEXTOS_INICIO_ESTUDIANTE : TEXTOS_INICIO_MAESTRO

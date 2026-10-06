@@ -65,9 +65,6 @@ type Respuesta = () => Response
 interface Escenario {
   nombre: string
   aviso: string
-  // «Sí, quitar» del roster da su aviso en el onSuccess de mutate (tabla-alumnos.tsx), que corre
-  // cuando termina la recarga; los demás lo dan en el hook, antes de esperarla.
-  avisoAlTerminarLaRecarga?: true
   montar: () => void
   // Lleva hasta el botón de la acción (el de confirmar, si lo hay) y lo devuelve.
   llegarAlBoton: () => Promise<HTMLElement>
@@ -306,7 +303,6 @@ const ESCENARIOS: Escenario[] = [
   {
     nombre: "«Sí, quitar» (roster)",
     aviso: "Quitaste a Ana López de la clase",
-    avisoAlTerminarLaRecarga: true,
     montar: () =>
       conRutas(
         `/maestro/clases/${CLASE_ID}/alumnos`,
@@ -448,13 +444,11 @@ describe("ataque CLASES-02c r2: la ventana entre el 200 y la recarga, en los her
       }
       await abrir(servidor.accion)
       if (patron === "después del 200") {
-        if (escenario.avisoAlTerminarLaRecarga) {
-          await esperar(60)
-          expect(avisosDe(escenario.aviso), "aviso antes de la recarga").toBe(0)
-        } else {
-          await waitFor(() => expect(avisosDe(escenario.aviso)).toBe(1))
-          await esperar(30)
-        }
+        // CLASES-02 ronda 0 de 02d (O-10, "Arbitraje — ronda 2 de 02c" en revision.md): el aviso de
+        // «Sí, quitar» del roster pasa al onSuccess de useQuitarAlumno, antes de esperar la recarga,
+        // como en sus cinco hermanos; ya no hay un escenario con el aviso al terminar la recarga.
+        await waitFor(() => expect(avisosDe(escenario.aviso)).toBe(1))
+        await esperar(30)
         expect(boton.isConnected, "el botón desapareció antes de la recarga").toBe(true)
         expect(boton).toHaveAttribute("aria-busy", "true")
         expect(boton).not.toHaveAttribute("disabled")

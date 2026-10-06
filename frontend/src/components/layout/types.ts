@@ -1,7 +1,17 @@
+import type { Rol } from "@campus/shared"
 import type { LucideIcon } from "lucide-react"
 
 // El rol es contrato de la API: se infiere del esquema zod de shared/ (CLAUDE.md, regla 7).
 export type { Rol } from "@campus/shared"
+
+// CLASES-02d: los roles que tienen lista de clases en la barra lateral (el admin no, P-07).
+export type RolConClases = Exclude<Rol, "admin">
+
+// Una clase de la lista de la barra lateral: solo lo que la barra pinta.
+export interface ClaseDeLaBarra {
+  id: string
+  nombre: string
+}
 
 // Un destino de la barra de navegación (§D-3): una ruta por rol, sin destinos nuevos (S-14 y R-01).
 export interface Destino {

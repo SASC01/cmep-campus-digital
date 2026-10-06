@@ -1,6 +1,10 @@
-import { render, screen, within } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { act, cleanup, render, screen, within } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
-import { describe, expect, it, vi } from "vitest"
+import type { ReactNode } from "react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 import { ContenedorRol } from "./contenedor-rol"
 import { DESTINOS_POR_ROL } from "./data"
@@ -11,26 +15,57 @@ const RUTA_DE: Record<"estudiante" | "maestro" | "admin", string> = {
   admin: "/admin",
 }
 
+// CLASES-02d (C-16): la barra del estudiante y del maestro consulta la lista de clases, así que el
+// marco necesita un QueryClientProvider y un fetch que responda una lista vacía (la barra no pinta
+// nada con ella; estos casos son del marco, no de la lista).
+beforeEach(() => {
+  establecerToken("token-de-prueba")
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ clases: [], total: 0, siguienteCursor: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    ),
+  )
+})
+
+afterEach(() => {
+  limpiarToken()
+  vi.unstubAllGlobals()
+})
+
+const conConsultas = (arbol: ReactNode) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    {arbol}
+  </QueryClientProvider>
+)
+
 function renderizar(rol: "estudiante" | "maestro" | "admin", cerrando = false) {
   return render(
-    <MemoryRouter initialEntries={[RUTA_DE[rol]]}>
-      <Routes>
-        <Route
-          path={RUTA_DE[rol]}
-          element={
-            <ContenedorRol
-              rol={rol}
-              nombre="Ana Torres"
-              etiquetaRol="Estudiante"
-              onCerrarSesion={vi.fn()}
-              cerrando={cerrando}
-            />
-          }
-        >
-          <Route index element={<p>Contenido</p>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    conConsultas(
+      <MemoryRouter initialEntries={[RUTA_DE[rol]]}>
+        <Routes>
+          <Route
+            path={RUTA_DE[rol]}
+            element={
+              <ContenedorRol
+                rol={rol}
+                nombre="Ana Torres"
+                etiquetaRol="Estudiante"
+                onCerrarSesion={vi.fn()}
+                cerrando={cerrando}
+              />
+            }
+          >
+            <Route index element={<p>Contenido</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    ),
   )
 }
 
@@ -88,6 +123,37 @@ describe("ContenedorRol", () => {
     ).toEqual(["Cuentas", "Maestros", "Clases"])
   })
 
+  // CLASES-02d, M-13 (PR-2D01, P-07 a): el administrador no tiene lista de clases en la barra.
+  it("con rol admin no existe «Mis clases» en la barra y no se pide inscritas ni impartidas", async () => {
+    renderizar("admin")
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 20))
+    })
+
+    expect(screen.queryByRole("list", { name: "Mis clases" })).toBeNull()
+    expect(screen.queryByText("Mis clases")).toBeNull()
+    expect(screen.queryByRole("status")).toBeNull()
+    expect(screen.queryByRole("button", { name: /Reintentar/ })).toBeNull()
+    const pedidas = vi.mocked(fetch).mock.calls.map(([entrada]) => String(entrada))
+    expect(pedidas.filter((ruta) => ruta.startsWith("/api/clases/"))).toEqual([])
+  })
+
+  it("con rol estudiante o maestro, la barra pide su lista (contraste del caso del admin)", async () => {
+    renderizar("estudiante")
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 20))
+    })
+    cleanup()
+    renderizar("maestro")
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 20))
+    })
+
+    const pedidas = vi.mocked(fetch).mock.calls.map(([entrada]) => String(entrada))
+    expect(pedidas).toContain("/api/clases/inscritas?limite=100")
+    expect(pedidas).toContain("/api/clases/impartidas?limite=100")
+  })
+
   it("el nombre y la etiqueta del rol aparecen una vez cada uno como texto", () => {
     renderizar("estudiante")
     expect(screen.getAllByText("Ana Torres")).toHaveLength(1)
@@ -123,25 +189,27 @@ describe("destinos del administrador y su coincidencia", () => {
 
   const renderizarAdminEn = (ruta: string) =>
     render(
-      <MemoryRouter initialEntries={[ruta]}>
-        <Routes>
-          <Route
-            path="/admin"
-            element={
-              <ContenedorRol
-                rol="admin"
-                nombre="Ana Torres"
-                etiquetaRol="Administrador"
-                onCerrarSesion={vi.fn()}
-                cerrando={false}
-              />
-            }
-          >
-            <Route index element={<p>Contenido</p>} />
-            <Route path="*" element={<p>Contenido</p>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
+      conConsultas(
+        <MemoryRouter initialEntries={[ruta]}>
+          <Routes>
+            <Route
+              path="/admin"
+              element={
+                <ContenedorRol
+                  rol="admin"
+                  nombre="Ana Torres"
+                  etiquetaRol="Administrador"
+                  onCerrarSesion={vi.fn()}
+                  cerrando={false}
+                />
+              }
+            >
+              <Route index element={<p>Contenido</p>} />
+              <Route path="*" element={<p>Contenido</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
   const activos = () =>

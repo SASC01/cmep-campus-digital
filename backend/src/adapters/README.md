@@ -166,7 +166,7 @@ el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
 `buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena
 (`middleware/pertenencia.ts`): `clases` por PK con `inscripciones` filtradas por el `usuarioId` de
-la petición, en una sola llamada. `crearClase` y `regenerarCodigo` reciben un generador de código
+la petición, en una sola llamada. `crearClaseAdministrada` y `regenerarCodigo` reciben un generador de código
 (`() => string`, `node:crypto.randomBytes` + `codigoDesdeBytes` en el handler) y reintentan **una
 sola vez** si el primero choca con el índice único de `codigo_invitacion`, detectado con
 `traducirErrorPrisma` y su `alDuplicar` (§D-A2), sin tocar `adapters/db/errores.ts`: `alDuplicar`
@@ -174,14 +174,30 @@ siempre traduce a `CODIGO_NO_DISPONIBLE` (aparte de la llave primaria, un choque
 `gen_random_uuid()` inviable en la práctica, el único índice único de `clases` es
 `codigo_invitacion`, así que no hay otro P2002 posible en esta tabla); si el traducido no es ese código, se relanza sin
 reintentar (por ejemplo, el `22021` que `traducirErrorPrisma` ya traduce a `400 VALIDACION`). Si el
-segundo intento también choca, `500 CODIGO_NO_DISPONIBLE`. `editarClase` y
-`regenerarCodigo` filtran por `id` **y** `maestro_id` (defensa extra, M-01): si no actualizan
-ninguna fila, devuelven `null` y el handler responde `403 SIN_ACCESO_A_LA_CLASE`, aunque
-`requireOwnership` ya lo hubiera negado antes. `inscribir` (unirse con código) es un `createMany`
+segundo intento también choca, `500 CODIGO_NO_DISPONIBLE`. `editarClase`, `leerCodigo` y
+`regenerarCodigo` filtran solo por `id` desde CLASES-02 (A-10): la única autorización es el sexto
+paso, que deja pasar a los maestros de la clase y al administrador; repetirla aquí sería una segunda
+implementación. Si la clase ya no existe, devuelven `null` y el handler responde
+`403 SIN_ACCESO_A_LA_CLASE`. `buscarDatosDePertenencia` lee la clase por PK con `maestros_de_clase` e
+`inscripciones` filtradas por el usuario (a lo más una fila cada una). `crearClaseAdministrada` valida
+a los maestros (rol `maestro`, activos) y crea la clase con sus asignaciones en un solo `create`
+anidado. `clases.maestro_id` solo se **escribe** (el primer maestro al crear; el que queda al retirar
+al que estaba ahí): ningún código lo lee (P-06 de CLASES-02). `ORDEN_DE_MAESTROS` es la única
+definición del orden de los maestros de una clase. `inscribir` (unirse con código) es un `createMany`
 con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion` (esa tabla llega en
 CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
 `listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
 cursor siguiente, en vez de repetir esa lógica a mano.
+
+## `db/maestros-de-clase.ts` (CLASES-02, §D-2A4)
+
+`asignarMaestro` y `retirarMaestro` corren en una transacción que primero bloquea la fila de la clase
+con un `updateMany` de `actualizado_en` (`FOR NO KEY UPDATE`, sin SQL crudo; no choca con los
+`FOR KEY SHARE` de las FK), después leen los maestros actuales y deciden con
+`core/clases/maestros.ts` (tope de 2, mínimo de 1). Retirar al maestro que está en
+`clases.maestro_id` lo reescribe con el que queda, en la misma transacción. `buscarMaestrosCandidatos`
+busca sobre `nombre_busqueda` con los comodines escapados, solo maestros activos, y selecciona el
+correo completo, que solo ve el administrador.
 
 ## `db/inscripciones.ts` (CLASES-b, §D-B1 a §D-B3 bis y §D-B8)
 
@@ -189,8 +205,13 @@ cursor siguiente, en vez de repetir esa lógica a mano.
 `usuario_id`) con un `where`, sin el `cursor` de Prisma. Con cursor, una lectura de `usuarios` por PK
 trae el `nombre_busqueda` del cursor y solo se rechaza (`400 VALIDACION`) si ese usuario no existe: un
 alumno quitado de la clase o desactivado sigue sirviendo, porque su clave de orden sobrevive.
-`listarAlumnosDeClase` es la **única** función que selecciona el correo completo, el estado de pago y
-la restricción de acceso de un alumno (RN-02); `listarPersonas` solo trae id y nombre.
+`listarAlumnosDeClase` es la **única** función que selecciona el estado de pago y la restricción de
+acceso de un alumno (RN-02), y la única que selecciona el correo completo **junto con** esos datos.
+`listarPersonas` selecciona id, nombre y correo de los maestros y de los alumnos de la clase
+(CLASES-02, RF-19), nunca el estado de pago ni la restricción. Fuera de este archivo, también
+seleccionan correos `buscarMaestrosCandidatos` (`db/maestros-de-clase.ts`, solo maestros, para el
+admin) y las funciones de cuentas de AUTH. El orden de los maestros sale de `ORDEN_DE_MAESTROS`
+(`db/clases.ts`).
 `buscarCandidatos` escapa los comodines de `LIKE` (Prisma no los escapa en `contains`) y selecciona
 el correo solo para que el handler lo enmascare con `enmascararCorreo` antes de responder.
 
@@ -201,6 +222,10 @@ el **último** paso de la transacción: su `secuencia` (`BIGSERIAL`) se toma des
 por otra transacción, y por eso el orden del registro es `secuencia`, nunca `creado_en` (la hora de
 inicio de la transacción). **Ninguna función exportada lee `movimientos_inscripcion`** (el modelo
 solo aparece en `.create(`); su pantalla de consulta es de ADMIN.
+
+`agregarAlumnoManual` y `quitarAlumno` reciben `actorId` (el maestro o el administrador que hizo el
+cambio) y lo escriben en `maestro_id` (`actorId` en Prisma). Desde CLASES-02a, `buscarMaestrosCandidatos`
+(`db/maestros-de-clase.ts`) también selecciona correos completos, de maestros, para el administrador.
 
 ## `db/publicaciones.ts` y las colas de avisos (CLASES-c, §D-C2 y §D-C3)
 
@@ -222,6 +247,12 @@ cascada; si el borrado confirma antes, el `FOR SHARE` ya no ve la fila. Toda con
 `publicacionId` o `comentarioId` filtra además por la clase de la ruta, y «mis comentarios» pone
 `autor_id` dentro de la condición del `deleteMany`. `listarPublicaciones` cuenta los comentarios de
 toda la página con una sola consulta agrupada, fuera de cualquier ciclo.
+
+El autor se selecciona con su `rol` solo para dos cosas: `firmaDelAutor` (la firma
+"Administración") y `puedeBorrar` (`core/autoria.ts`), que se aplica dentro de la transacción de
+`borrarPublicacion` y `borrarComentario` (leer la autoría y borrar en la misma transacción, sin
+candado: la autoría no cambia) y por elemento en `listarPublicaciones` y `listarComentarios`, con el
+`actor` de la petición. El rol no sale en ninguna respuesta.
 
 ## `storage` y `db/archivos.ts` (CLASES-d, §D-D1 a §D-D3)
 

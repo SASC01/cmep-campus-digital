@@ -25,8 +25,18 @@ const navegacion = vi.hoisted(() => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/m
 vi.mock("@/services/navegacion", () => navegacion)
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
-const ALUMNA = { id: "4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Ana López" }
+// CLASES-02b ronda 0 (C-10, §D-2B1): el autor del muro suma administracion (obligatorio); un
+// maestro y una alumna firman con su nombre y false.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
+const ALUMNA = {
+  id: "4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Ana López",
+  administracion: false,
+}
 const idPublicacion = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
 const idComentario = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
 const idAlumno = (n: number) => `7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}`
@@ -48,19 +58,27 @@ interface PublicacionFalsa {
   tipo: "anuncio" | "material"
   titulo: string | null
   texto: string
-  autor: { id: string; nombre: string }
+  autor: { id: string; nombre: string; administracion: boolean }
   creadoEn: string
   comentarios: number
   adjuntos: unknown[]
+  puedeBorrar: boolean
 }
 
 interface ComentarioFalso {
   id: string
   texto: string
-  autor: { id: string; nombre: string }
+  autor: { id: string; nombre: string; administracion: boolean }
   creadoEn: string
   propio: boolean
+  puedeBorrar: boolean
 }
+
+// CLASES-02b ronda 0 (C-10, §D-2B2): cada publicación y comentario suma puedeBorrar (obligatorio).
+// Los dobles llevan el valor de la perspectiva del maestro de la clase, la que muestra «Borrar»
+// desde CLASES-01 (la publicación es suya y el comentario es de una alumna, P-01 b); con 02b la
+// vista todavía decide por el rol, así que ninguna aserción cambia. C-13 (02c) ajusta la otra
+// perspectiva cuando el botón salga de puedeBorrar.
 
 const publicacion = (n: number, extra: Partial<PublicacionFalsa> = {}): PublicacionFalsa => ({
   id: idPublicacion(n),
@@ -71,6 +89,7 @@ const publicacion = (n: number, extra: Partial<PublicacionFalsa> = {}): Publicac
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios: 0,
   adjuntos: [],
+  puedeBorrar: true,
   ...extra,
 })
 
@@ -80,8 +99,16 @@ const comentario = (n: number, extra: Partial<ComentarioFalso> = {}): Comentario
   autor: ALUMNA,
   creadoEn: "2026-09-29T16:30:00.000Z",
   propio: false,
+  puedeBorrar: true,
   ...extra,
 })
+
+// CLASES-02 ronda 0 de 02c (C-13, §D-2C4; O-02 de la ronda 0 de 02b): el botón de borrar sale de
+// puedeBorrar, no del rol. Desde la perspectiva del estudiante, el servidor nunca deja borrar la
+// publicación del maestro ni el comentario de otra persona: en los casos con renderMuro
+// ("estudiante") esos dobles llevan puedeBorrar: false (los comentarios propios, true). Ninguna
+// aserción cambia; los dobles quedan como los mandaría el servidor (core/autoria.ts).
+const COMO_ESTUDIANTE = { puedeBorrar: false } as const
 
 const diferido = () => {
   let resolver: (respuesta: Response) => void = () => undefined
@@ -202,7 +229,9 @@ describe("ataque CLASES-c r1: avisos de crear con el formulario desmontado (N-C5
   ] as const)(
     "comentario con %s: si la persona pulsa «Ocultar comentarios» con el POST en vuelo, el aviso sale igual (una vez)",
     async (_caso, respuesta, tipo, texto) => {
-      const { pendientes } = crearServidor([publicacion(1)], { [idPublicacion(1)]: [] })
+      const { pendientes } = crearServidor([publicacion(1, COMO_ESTUDIANTE)], {
+        [idPublicacion(1)]: [],
+      })
       renderMuro("estudiante")
       fireEvent.click(await screen.findByRole("button", { name: "Ver comentarios (0)" }))
       const campo = await screen.findByLabelText("Escribe un comentario")
@@ -331,7 +360,9 @@ describe("ataque CLASES-c r1: doble envío (enEspera)", () => {
 
 describe("ataque CLASES-c r1: el formulario decide igual que el servidor (§D-C4)", () => {
   it("un comentario de 1,000 caracteres seguido de un salto de línea se envía: el servidor lo recorta y lo acepta", async () => {
-    const { fetchMock } = crearServidor([publicacion(1)], { [idPublicacion(1)]: [] })
+    const { fetchMock } = crearServidor([publicacion(1, COMO_ESTUDIANTE)], {
+      [idPublicacion(1)]: [],
+    })
     renderMuro("estudiante")
     fireEvent.click(await screen.findByRole("button", { name: "Ver comentarios (0)" }))
     fireEvent.change(await screen.findByLabelText("Escribe un comentario"), {
@@ -399,15 +430,25 @@ describe("ataque CLASES-c r1: texto como texto", () => {
           tipo: "material",
           titulo: `Título ${malicioso}`,
           texto: "<script>alert(2)</script>\nsegunda línea",
-          autor: { id: AUTOR.id, nombre: "<b>Maestro</b><svg onload=alert(3)>" },
+          autor: {
+            id: AUTOR.id,
+            nombre: "<b>Maestro</b><svg onload=alert(3)>",
+            administracion: false,
+          },
           comentarios: 1,
+          ...COMO_ESTUDIANTE,
         }),
       ],
       {
         [idPublicacion(1)]: [
           comentario(1, {
             texto: `<iframe src="javascript:alert(4)"></iframe>${malicioso}`,
-            autor: { id: ALUMNA.id, nombre: '<a href="javascript:alert(5)">Ana</a>' },
+            autor: {
+              id: ALUMNA.id,
+              nombre: '<a href="javascript:alert(5)">Ana</a>',
+              administracion: false,
+            },
+            ...COMO_ESTUDIANTE,
           }),
         ],
       },
@@ -491,18 +532,21 @@ describe("ataque CLASES-c r1: foco de §7.14 con dos publicaciones abiertas", ()
 })
 
 describe("ataque CLASES-c r1: las cinco vistas con ConClaseDeLaRuta, sin :claseId (§D-C5 bis)", () => {
+  // CLASES-02 ronda 0 de 02c (C-12, §D-2C2): "Editar clase" pasa del maestro al admin, así que
+  // EditarClaseView se monta bajo /admin/clases; las demás siguen bajo /maestro/clases. Sigue
+  // protegiendo lo mismo: sin :claseId, cada vista muestra el error y no pide nada.
   it.each([
-    ["ClaseLayout", <ClaseLayout key="a" />],
-    ["EditarClaseView", <EditarClaseView key="b" />],
-    ["PersonasView", <PersonasView key="c" />],
-    ["AlumnosView", <AlumnosView key="d" />],
-    ["MuroView", <MuroView key="e" />],
-  ])(
+    ["ClaseLayout", <ClaseLayout key="a" />, "/maestro/clases"],
+    ["EditarClaseView", <EditarClaseView key="b" />, "/admin/clases"],
+    ["PersonasView", <PersonasView key="c" />, "/maestro/clases"],
+    ["AlumnosView", <AlumnosView key="d" />, "/maestro/clases"],
+    ["MuroView", <MuroView key="e" />, "/maestro/clases"],
+  ] as const)(
     "%s sin :claseId muestra «No tienes acceso a esta clase.» y no pide nada",
-    async (_n, vista) => {
+    async (_n, vista, ruta) => {
       const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(error500()))
       vi.stubGlobal("fetch", fetchMock)
-      conProveedores(vista, "/maestro/clases", "/maestro/clases")
+      conProveedores(vista, ruta, ruta)
       expect(await screen.findByRole("alert")).toHaveTextContent("No tienes acceso a esta clase.")
       await esperar(50)
       expect(fetchMock).not.toHaveBeenCalled()
@@ -629,7 +673,10 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
       if (esComentarios) {
         const siguiente = tipo === "comentarios" ? idComentario(1) : null
         return Promise.resolve(
-          respuestaJson(200, { comentarios: [comentario(1)], siguienteCursor: siguiente }),
+          respuestaJson(200, {
+            comentarios: [comentario(1, COMO_ESTUDIANTE)],
+            siguienteCursor: siguiente,
+          }),
         )
       }
       if (tipo === "publicaciones" && ruta.includes(`cursor=${idPublicacion(1)}`))
@@ -637,7 +684,7 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
       const siguiente = tipo === "publicaciones" ? idPublicacion(1) : null
       return Promise.resolve(
         respuestaJson(200, {
-          publicaciones: [publicacion(1, { comentarios: 2 })],
+          publicaciones: [publicacion(1, { comentarios: 2, ...COMO_ESTUDIANTE })],
           siguienteCursor: siguiente,
         }),
       )
@@ -648,7 +695,10 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
 
   it("con más páginas pendientes, «Ver más publicaciones» sigue montado y el foco no se mueve (render sin desmontaje)", async () => {
     conPaginas("publicaciones", () =>
-      respuestaJson(200, { publicaciones: [publicacion(2)], siguienteCursor: idPublicacion(2) }),
+      respuestaJson(200, {
+        publicaciones: [publicacion(2, COMO_ESTUDIANTE)],
+        siguienteCursor: idPublicacion(2),
+      }),
     )
     renderMuro("estudiante")
     const boton = await screen.findByRole("button", { name: "Ver más publicaciones" })

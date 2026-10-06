@@ -19,12 +19,13 @@ export interface OpcionesProtegido {
 
 const pasoDePertenencia = (
   pertenencia: OpcionesProtegido["pertenencia"],
+  admiteAdmin: boolean,
 ): preHandlerAsyncHookHandler[] => {
   if (pertenencia === "inscripcion") {
-    return [marcarPasoDeLaCadena(requireMembership(), "requireMembership")]
+    return [marcarPasoDeLaCadena(requireMembership({ admiteAdmin }), "requireMembership")]
   }
   if (pertenencia === "propiedad") {
-    return [marcarPasoDeLaCadena(requireOwnership(), "requireOwnership")]
+    return [marcarPasoDeLaCadena(requireOwnership({ admiteAdmin }), "requireOwnership")]
   }
   return []
 }
@@ -35,22 +36,27 @@ const pasoDePertenencia = (
 // guarda de rutas solo reconoce los pasos marcados aquí (T-06).
 export const protegido = (
   opciones: OpcionesProtegido = {},
-): { preHandler: preHandlerAsyncHookHandler[] } => ({
-  preHandler: [
-    marcarPasoDeLaCadena(authenticate, "authenticate"),
-    marcarPasoDeLaCadena(withProfile, "withProfile"),
-    marcarPasoDeLaCadena(
-      withPasswordGate({ permitirCambioPendiente: opciones.permitirCambioPendiente ?? false }),
-      "withPasswordGate",
-    ),
-    marcarPasoDeLaCadena(
-      withAccess({ permitirRestringido: opciones.permitirRestringido ?? false }),
-      "withAccess",
-    ),
-    marcarPasoDeLaCadena(requireRole(opciones.roles ?? []), "requireRole"),
-    ...pasoDePertenencia(opciones.pertenencia),
-  ],
-})
+): { preHandler: preHandlerAsyncHookHandler[] } => {
+  // Cerrado por defecto (CLASES-02, M-01): el admin solo pasa el sexto paso si `roles` lo nombra, y se
+  // decide aquí, al construir la cadena: mutar `roles` después no abre nada.
+  const admiteAdmin = (opciones.roles ?? []).includes("admin")
+  return {
+    preHandler: [
+      marcarPasoDeLaCadena(authenticate, "authenticate"),
+      marcarPasoDeLaCadena(withProfile, "withProfile"),
+      marcarPasoDeLaCadena(
+        withPasswordGate({ permitirCambioPendiente: opciones.permitirCambioPendiente ?? false }),
+        "withPasswordGate",
+      ),
+      marcarPasoDeLaCadena(
+        withAccess({ permitirRestringido: opciones.permitirRestringido ?? false }),
+        "withAccess",
+      ),
+      marcarPasoDeLaCadena(requireRole(opciones.roles ?? []), "requireRole"),
+      ...pasoDePertenencia(opciones.pertenencia, admiteAdmin),
+    ],
+  }
+}
 
 // Se llama en app.ts después de los plugins transversales y ANTES de registrar cualquier handler:
 // decora la petición y activa la guarda onRoute (DEC-16).

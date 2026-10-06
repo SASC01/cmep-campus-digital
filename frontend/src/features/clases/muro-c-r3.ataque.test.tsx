@@ -20,7 +20,14 @@ const navegacion = vi.hoisted(() => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/e
 vi.mock("@/services/navegacion", () => navegacion)
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b ronda 0 (C-10, §D-2B1 y §D-2B2): el autor del muro suma administracion (obligatorio;
+// un maestro firma con su nombre y false) y la publicación y el comentario suman puedeBorrar (la
+// vista es la del estudiante: no borra lo del maestro). Ninguna aserción cambia.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
 const ID_PUBLICACION = "5a5b3c4d-1c1f-4b8e-9a1e-000000000001"
 const ID_COMENTARIO = "6a6b3c4d-1c1f-4b8e-9a1e-000000000001"
 const TEXTO_MURO = "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo."
@@ -112,6 +119,7 @@ const stub = (tipo: "publicaciones" | "comentarios", segunda: () => Promise<Resp
                 autor: AUTOR,
                 creadoEn: "2026-09-29T16:30:00.000Z",
                 propio: false,
+                puedeBorrar: false,
               },
             ],
             siguienteCursor: tipo === "comentarios" ? ID_COMENTARIO : null,
@@ -133,6 +141,7 @@ const stub = (tipo: "publicaciones" | "comentarios", segunda: () => Promise<Resp
               // CLASES-d ronda 0, complemento (C-21, §D-R0; §D-D5 y Enmienda 10): adjuntos es
               // obligatorio en publicacionSchema; ninguna aserción cambia.
               adjuntos: [],
+              puedeBorrar: false,
             },
           ],
           siguienteCursor: tipo === "publicaciones" ? ID_PUBLICACION : null,

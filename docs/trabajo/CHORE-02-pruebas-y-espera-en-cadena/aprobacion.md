@@ -163,3 +163,6 @@ El orquestador aplicó T-1 y T-2 (`docs/ARCHITECTURE.md` §6 y §14), T-3 (ESSEN
 
 ## Cierre del encargo (2026-10-03)
 `npm run lint` desde la raíz con código 0 después de aplicar los textos. El orquestador entregó al humano el bloque de comandos del commit único del encargo (`git status`, `git add` con las rutas y `git commit` con el mensaje). El hash del commit y el PR se anotan aquí y en `docs/ESTADO.md` cuando el humano los haga.
+
+## Commit y PR (2026-10-03)
+El humano hizo el commit único del encargo, `18fa4ea` (`chore(pruebas): CHORE-02, espera en cadena cortada, P2028 como 503 SERVICIO_OCUPADO, guarda sobre toda ruta y tipos de las pruebas en lint; modelo de clases de CLASES-02 en PRD, ARCHITECTURE y ESSENTIALS`), renombró la rama a `chore/chore-02` y fusionó el PR #17 en `main` con merge commit `e4396a0`. Hashes leídos por el orquestador con `git log`. El plan queda CERRADO.

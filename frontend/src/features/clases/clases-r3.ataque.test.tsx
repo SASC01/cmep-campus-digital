@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { buttonVariants } from "@/components/ui/button-variants"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
@@ -31,7 +31,7 @@ const errorJson = (estado: number, codigo: string, mensaje = "mensaje del servid
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 
-const ME = (rol: "estudiante" | "maestro") => ({
+const ME = (rol: "estudiante" | "maestro" | "admin") => ({
   id: "5a5d7a3e-1c1f-4b8e-9a1e-0f2a3b4c5d6e",
   nombre: "Ana López",
   email: "ana@ejemplo.mx",
@@ -40,11 +40,13 @@ const ME = (rol: "estudiante" | "maestro") => ({
   accesoRestringido: false,
 })
 
+// CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2) y conserva maestro.
 const claseDetalle = {
   id: CLASE_ID,
   nombre: "Álgebra I",
   descripcion: "Curso",
   maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+  maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
 }
 
 type Manejador = (ruta: string, metodo: string) => Response | Promise<Response>
@@ -89,9 +91,12 @@ describe("ataque CLASES-a r3: errores del formulario de clase que no son de un c
     ["403 SIN_ACCESO_A_LA_CLASE", () => errorJson(403, "SIN_ACCESO_A_LA_CLASE")],
     ["sin conexión", () => Promise.reject(new TypeError("Failed to fetch"))],
   ] as const) {
+    // CLASES-02 ronda 0 de 02c (C-12, §D-2C2): editar la clase pasa al admin con
+    // PUT /api/admin/clases/:claseId. Sigue protegiendo que un error que no es del nombre no marque
+    // el campo "Nombre de la clase".
     it(`con ${caso} al guardar, el campo "Nombre de la clase" no queda marcado como inválido`, async () => {
       stubFetch((ruta, metodo) => {
-        if (ruta === `/api/clases/${CLASE_ID}` && metodo === "PUT") return respuesta()
+        if (ruta === `/api/admin/clases/${CLASE_ID}` && metodo === "PUT") return respuesta()
         return errorJson(500, "ERROR_INTERNO")
       })
       renderEditar()
@@ -125,13 +130,45 @@ describe("ataque CLASES-a r3: una sola acción principal por vista", () => {
     return botones.length + enlaces.length
   }
 
-  const stubVistas = (conClases: boolean, rol: "estudiante" | "maestro") =>
+  // CLASES-02 ronda 0 de 02c (C-12, §D-2C2 y §D-2C3): las pantallas de crear y editar clase pasan
+  // del maestro al admin (/admin/clases/nueva y /admin/clases/:claseId/editar), y el inicio del
+  // maestro pierde el enlace "Crear clase"; el único "Crear clase" con estilo primary es ahora el
+  // enlace de la lista del admin (/admin/clases), que se monta con el router de la aplicación para
+  // no depender del nombre de su componente. Sigue protegiendo lo mismo: a lo sumo una acción
+  // principal en cada vista, con un control de que la clase primaria de un enlace se reconoce.
+  const stubVistas = (conClases: boolean, rol: "estudiante" | "maestro" | "admin") =>
     stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "t" })
       if (ruta === "/api/me") return respuestaJson(200, ME(rol))
+      if (ruta === "/api/admin/clases" || ruta.startsWith("/api/admin/clases?")) {
+        return respuestaJson(200, {
+          clases: conClases
+            ? [
+                {
+                  id: CLASE_ID,
+                  nombre: "Álgebra I",
+                  maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
+                  alumnos: 2,
+                  creadoEn: "2026-10-01T15:00:00.000Z",
+                },
+              ]
+            : [],
+          total: conClases ? 1 : 0,
+          siguienteCursor: null,
+        })
+      }
       if (ruta.startsWith("/api/clases/inscritas")) {
         return respuestaJson(200, {
           clases: conClases
-            ? [{ id: CLASE_ID, nombre: "Álgebra I", maestro: { nombre: "L" } }]
+            ? [
+                // CLASES-02a ronda 0 (C-7): claseInscritaSchema suma maestros (1 o 2).
+                {
+                  id: CLASE_ID,
+                  nombre: "Álgebra I",
+                  maestro: { nombre: "L" },
+                  maestros: [{ nombre: "L" }],
+                },
+              ]
             : [],
           total: conClases ? 1 : 0,
           siguienteCursor: null,
@@ -157,8 +194,11 @@ describe("ataque CLASES-a r3: una sola acción principal por vista", () => {
           <Routes>
             <Route path="/estudiante" element={<InicioEstudianteView />} />
             <Route path="/maestro" element={<InicioMaestroView />} />
-            <Route path="/maestro/clases/nueva" element={<CrearClaseView />} />
             <Route path="/maestro/clases/:claseId" element={<ClaseLayout />}>
+              <Route index element={<MuroView />} />
+            </Route>
+            <Route path="/admin/clases/nueva" element={<CrearClaseView />} />
+            <Route path="/admin/clases/:claseId" element={<ClaseLayout />}>
               <Route index element={<MuroView />} />
               <Route path="editar" element={<EditarClaseView />} />
             </Route>
@@ -167,10 +207,24 @@ describe("ataque CLASES-a r3: una sola acción principal por vista", () => {
       </QueryClientProvider>,
     )
 
-  it("control: la clase primaria de los enlaces se reconoce (el inicio del maestro tiene 'Crear clase')", async () => {
-    stubVistas(true, "maestro")
-    renderRuta("/maestro")
-    await screen.findByRole("link", { name: "Álgebra I" })
+  // La lista del admin, con el router de la aplicación (RequireSesion, RequireRol y el marco).
+  const renderApp = async (ruta: string) => {
+    const { rutas } = await import("@/app/router")
+    render(
+      <QueryClientProvider client={nuevoCliente()}>
+        <RouterProvider router={createMemoryRouter(rutas, { initialEntries: [ruta] })} />
+      </QueryClientProvider>,
+    )
+  }
+
+  beforeAll(async () => {
+    await import("@/app/router")
+  }, 60_000)
+
+  it("control: la clase primaria de los enlaces se reconoce (la lista de clases del admin tiene 'Crear clase')", async () => {
+    stubVistas(true, "admin")
+    await renderApp("/admin/clases")
+    await screen.findAllByText("Álgebra I")
     expect(screen.getByRole("link", { name: "Crear clase" }).className).toBe(clasePrimaria)
   })
 
@@ -179,9 +233,10 @@ describe("ataque CLASES-a r3: una sola acción principal por vista", () => {
     ["/estudiante", "estudiante", true, "Álgebra I"],
     ["/maestro", "maestro", false, "Aún no tienes clases"],
     ["/maestro", "maestro", true, "Álgebra I"],
-    ["/maestro/clases/nueva", "maestro", false, "Nombre de la clase"],
     [`/maestro/clases/${CLASE_ID}`, "maestro", true, "ABCDEFG"],
-    [`/maestro/clases/${CLASE_ID}/editar`, "maestro", true, "Guardar cambios"],
+    ["/admin/clases/nueva", "admin", false, "Nombre de la clase"],
+    [`/admin/clases/${CLASE_ID}`, "admin", true, "ABCDEFG"],
+    [`/admin/clases/${CLASE_ID}/editar`, "admin", true, "Guardar cambios"],
   ] as const) {
     it(`${ruta} (${conClases ? "con" : "sin"} clases): a lo sumo una acción principal`, async () => {
       stubVistas(conClases, rol)

@@ -131,7 +131,13 @@ describe("GET /api/clases/:claseId/personas", () => {
 
     expect(respuesta.statusCode).toBe(200)
     const cuerpo = personasRespuestaSchema.parse(respuesta.json())
-    expect(cuerpo.maestro).toEqual({ id: maestro.id, nombre: "Profe Ramírez" })
+    // CLASES-02b (C-11): "Personas" trae el correo completo del maestro y la lista `maestros`.
+    expect(cuerpo.maestro).toEqual({
+      id: maestro.id,
+      nombre: "Profe Ramírez",
+      email: maestro.email,
+    })
+    expect(cuerpo.maestros).toEqual([cuerpo.maestro])
     expect(cuerpo.alumnos.map((a) => a.id)).toEqual([ana.id, mario.id, zeta.id])
     expect(cuerpo.alumnos.map((a) => a.nombre)).toEqual(["Ana Álvarez", "Mario Mora", "Zeta Zorro"])
     expect(cuerpo.siguienteCursor).toBeNull()
@@ -216,7 +222,7 @@ describe("GET /api/clases/:claseId/personas", () => {
     expect(encontrados.map((a) => a.id)).toEqual([antes.id, ...esperados, despues.id])
   })
 
-  it("PR-B02e: personas: el recorrido recursivo no encuentra estadoPago, accesoRestringido ni email, con un compañero deudor y otro restringido", async () => {
+  it("PR-B02e: personas: el recorrido recursivo no encuentra estadoPago ni accesoRestringido (con el correo completo, C-11), con un compañero deudor y otro restringido", async () => {
     const maestro = await maestroDePrueba()
     const quienPide = await alumno("Quien Pide")
     const deudor = await alumno("Compañero Deudor", { estadoPago: "deudor" })
@@ -235,10 +241,11 @@ describe("GET /api/clases/:claseId/personas", () => {
     expect(respuesta.statusCode).toBe(200)
     expect(personasRespuestaSchema.parse(respuesta.json()).alumnos).toHaveLength(3)
     const claves = clavesDe(respuesta.json())
-    for (const prohibida of ["estadoPago", "estado_pago", "accesoRestringido", "email"]) {
+    for (const prohibida of ["estadoPago", "estado_pago", "accesoRestringido"]) {
       expect(claves).not.toContain(prohibida)
     }
-    expect(respuesta.body).not.toContain(deudor.email)
+    // CLASES-02b (C-11): el correo completo sí sale; el estado de pago, no.
+    expect(respuesta.body).toContain(deudor.email)
     expect(respuesta.body).not.toContain("deudor")
   })
 

@@ -4,7 +4,7 @@ import { errorApiSchema } from "@campus/shared"
 import type { FastifyInstance, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { crearClase, regenerarCodigo } from "../src/adapters/db/clases.js"
+import { crearClaseAdministrada, regenerarCodigo } from "../src/adapters/db/clases.js"
 import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
@@ -88,6 +88,18 @@ const idAdmin = async (): Promise<string> => {
   return admin.id
 }
 
+// CLASES-02a ronda 0 (C-1, C-2, §D-2A3): solo el admin crea y edita clases, por /api/admin/clases.
+const tokenAdmin = async (): Promise<string> => tokenDe({ id: await idAdmin() })
+
+// CLASES-02a ronda 0 (C-1, P-06): los maestros de una clase se leen de maestros_de_clase, en el
+// orden de S-05; clases.maestro_id es solo de escritura doble.
+const maestrosDeLaClase = async (claseId: string): Promise<string[]> => {
+  const filas = await obtenerDb().$queryRaw<{ maestro_id: string }[]>`
+    SELECT maestro_id::text AS maestro_id FROM maestros_de_clase
+    WHERE clase_id = ${claseId}::uuid ORDER BY creado_en, maestro_id`
+  return filas.map((fila) => fila.maestro_id)
+}
+
 const FORMA_CODIGO = /^[A-HJ-NP-Z2-9]{7}$/
 
 beforeAll(async () => {
@@ -101,12 +113,15 @@ afterAll(async () => {
   await app?.close()
 })
 
+// CLASES-02a ronda 0 (C-1, C-2): POST /api/clases y PUT /api/clases/:claseId ya no existen; la
+// misma normalización se exige a POST /api/admin/clases y PUT /api/admin/clases/:claseId.
 describe("ataque CLASES-a r1: descripción con saltos de línea CRLF y CR (§D-C4, también en a)", () => {
-  it("POST /clases con CRLF y CR en la descripción responde 201 y guarda solo LF", async () => {
+  it("POST /admin/clases con CRLF y CR en la descripción responde 201 y guarda solo LF", async () => {
     const dueno = await maestro()
-    const respuesta = await pedir("POST", "/api/clases", await tokenDe(dueno), {
+    const respuesta = await pedir("POST", "/api/admin/clases", await tokenAdmin(), {
       nombre: "Clase con saltos",
       descripcion: "línea 1\r\nlínea 2\rlínea 3",
+      maestroIds: [dueno.id],
     })
     if (respuesta.statusCode === 201)
       idsClases.push(respuesta.json<{ clase: { id: string } }>().clase.id)
@@ -117,10 +132,10 @@ describe("ataque CLASES-a r1: descripción con saltos de línea CRLF y CR (§D-C
     expect((await leerClaseDb(clase.id))?.descripcion).toBe("línea 1\nlínea 2\nlínea 3")
   })
 
-  it("PUT /clases/:claseId con CRLF en la descripción responde 200 y guarda solo LF", async () => {
+  it("PUT /admin/clases/:claseId con CRLF en la descripción responde 200 y guarda solo LF", async () => {
     const dueno = await maestro()
     const clase = await crearClaseDePrueba(idsClases, { maestroId: dueno.id })
-    const respuesta = await pedir("PUT", `/api/clases/${clase.id}`, await tokenDe(dueno), {
+    const respuesta = await pedir("PUT", `/api/admin/clases/${clase.id}`, await tokenAdmin(), {
       nombre: "Clase editada",
       descripcion: "uno\r\ndos",
     })
@@ -131,13 +146,17 @@ describe("ataque CLASES-a r1: descripción con saltos de línea CRLF y CR (§D-C
 })
 
 describe("ataque CLASES-a r1: GET /clases/:claseId como maestro dueño y fugas en las respuestas del dueño", () => {
+  // CLASES-02a ronda 0 (C-1, C-2): la clase la crea y la edita el admin con el dueño asignado; sus
+  // respuestas (crear y editar) siguen sin ninguna clave prohibida ni el valor del código.
   it("el dueño recibe 200 y ninguna respuesta de sus rutas trae codigoInvitacion, estadoPago, accesoRestringido ni email", async () => {
     const dueno = await maestro()
     const alumno = await estudiante()
     const token = await tokenDe(dueno)
-    const creada = await pedir("POST", "/api/clases", token, {
+    const admin = await tokenAdmin()
+    const creada = await pedir("POST", "/api/admin/clases", admin, {
       nombre: "Clase del dueño",
       descripcion: "algo",
+      maestroIds: [dueno.id],
     })
     expect(creada.statusCode).toBe(201)
     const claseId = creada.json<{ clase: { id: string } }>().clase.id
@@ -150,7 +169,7 @@ describe("ataque CLASES-a r1: GET /clases/:claseId como maestro dueño y fugas e
     const respuestas = [
       creada,
       detalle,
-      await pedir("PUT", `/api/clases/${claseId}`, token, { nombre: "Clase del dueño 2" }),
+      await pedir("PUT", `/api/admin/clases/${claseId}`, admin, { nombre: "Clase del dueño 2" }),
       await pedir("GET", "/api/clases/impartidas", token),
     ]
     for (const r of respuestas) {
@@ -192,7 +211,8 @@ describe("ataque CLASES-a r1: fugas hacia el estudiante (claves y valor del cód
       await pedir("GET", "/api/clases/inscritas", token),
       await pedir("GET", `/api/clases/${clase.id}/codigo`, token),
       await pedir("POST", `/api/clases/${clase.id}/codigo`, token),
-      await pedir("PUT", `/api/clases/${clase.id}`, token, { nombre: "x x" }),
+      // CLASES-02a ronda 0 (C-2): la edición vive en la ruta del admin.
+      await pedir("PUT", `/api/admin/clases/${clase.id}`, token, { nombre: "x x" }),
     ]
     expect(respuestas.slice(0, 4).map((r) => r.statusCode)).toEqual([200, 200, 200, 200])
     for (const r of respuestas) {
@@ -246,12 +266,13 @@ describe("ataque CLASES-a r1: HEAD de las rutas GET con :claseId y de /codigo", 
         estado: 403,
         codigo: "ACCESO_RESTRINGIDO",
       },
+      // CLASES-02a ronda 0 (C-3): el admin pasa el sexto paso en el detalle (matriz de
+      // "Autorización"); HEAD sigue sin cuerpo.
       {
         nombre: "detalle admin",
         url: `/api/clases/${clase.id}`,
         token: await tokenDe({ id: adminId }),
-        estado: 403,
-        codigo: "ROL_NO_PERMITIDO",
+        estado: 200,
       },
       { nombre: "codigo sin token", url: `/api/clases/${clase.id}/codigo`, estado: 401 },
       {
@@ -404,13 +425,16 @@ describe("ataque CLASES-a r1: paginación de inscritas e impartidas", () => {
   })
 })
 
+// CLASES-02a ronda 0 (C-1, C-2): los mismos campos extra contra las rutas del admin. Los maestros
+// solo salen de maestroIds (al crear) y nunca de maestroId ni maestro_id; editar no los cambia.
 describe("ataque CLASES-a r1: campos extra del cuerpo no llegan a la base", () => {
-  it("POST /clases ignora maestroId, codigoInvitacion, activa, id y creadoEn", async () => {
+  it("POST /admin/clases ignora maestroId, codigoInvitacion, activa, id y creadoEn", async () => {
     const dueno = await maestro()
     const otro = await maestro()
     const idForzado = randomUUID()
-    const r = await pedir("POST", "/api/clases", await tokenDe(dueno), {
+    const r = await pedir("POST", "/api/admin/clases", await tokenAdmin(), {
       nombre: "Clase con extras",
+      maestroIds: [dueno.id],
       maestroId: otro.id,
       maestro_id: otro.id,
       codigoInvitacion: "HJKLMNP",
@@ -426,18 +450,20 @@ describe("ataque CLASES-a r1: campos extra del cuerpo no llegan a la base", () =
 
     expect(claseId).not.toBe(idForzado)
     expect(fila?.maestroId).toBe(dueno.id)
+    expect(await maestrosDeLaClase(claseId)).toEqual([dueno.id])
     expect(fila?.codigoInvitacion).not.toBe("HJKLMNP")
     expect(fila?.activa).toBe(true)
     expect(fila?.creadoEn.getUTCFullYear()).not.toBe(2000)
   })
 
-  it("PUT /clases/:claseId ignora maestroId, codigoInvitacion, activa e id", async () => {
+  it("PUT /admin/clases/:claseId ignora maestroId, maestroIds, codigoInvitacion, activa e id", async () => {
     const dueno = await maestro()
     const otro = await maestro()
     const clase = await crearClaseDePrueba(idsClases, { maestroId: dueno.id })
-    const r = await pedir("PUT", `/api/clases/${clase.id}`, await tokenDe(dueno), {
+    const r = await pedir("PUT", `/api/admin/clases/${clase.id}`, await tokenAdmin(), {
       nombre: "Nombre nuevo",
       maestroId: otro.id,
+      maestroIds: [otro.id],
       codigoInvitacion: "HJKLMNP",
       activa: false,
       id: randomUUID(),
@@ -445,6 +471,7 @@ describe("ataque CLASES-a r1: campos extra del cuerpo no llegan a la base", () =
     expect(r.statusCode, r.body).toBe(200)
     const fila = await leerClaseDb(clase.id)
     expect(fila?.maestroId).toBe(dueno.id)
+    expect(await maestrosDeLaClase(clase.id)).toEqual([dueno.id])
     expect(fila?.codigoInvitacion).toBe(clase.codigoInvitacion)
     expect(fila?.activa).toBe(true)
     expect(fila?.nombre).toBe("Nombre nuevo")
@@ -494,12 +521,16 @@ describe("ataque CLASES-a r1: pertenencia con claseId manipulado", () => {
     const token = await tokenDe(ajeno)
     for (const id of [clase.id, clase.id.toUpperCase()]) {
       const regen = await pedir("POST", `/api/clases/${id}/codigo`, token)
-      const put = await pedir("PUT", `/api/clases/${id}`, token, { nombre: "Robada" })
       const ver = await pedir("GET", `/api/clases/${id}/codigo`, token)
-      for (const r of [regen, put, ver]) {
+      for (const r of [regen, ver]) {
         expect(r.statusCode).toBe(403)
         expect(codigoDe(r)).toBe("SIN_ACCESO_A_LA_CLASE")
       }
+      // CLASES-02a ronda 0 (C-2): editar es del admin; un maestro (ajeno o no) se queda en el
+      // paso 5 de la ruta nueva.
+      const put = await pedir("PUT", `/api/admin/clases/${id}`, token, { nombre: "Robada" })
+      expect(put.statusCode).toBe(403)
+      expect(codigoDe(put)).toBe("ROL_NO_PERMITIDO")
     }
     const fila = await leerClaseDb(clase.id)
     expect(fila?.codigoInvitacion).toBe(clase.codigoInvitacion)
@@ -554,26 +585,32 @@ describe("ataque CLASES-a r1: concurrencia al unirse", () => {
   })
 })
 
+// CLASES-02a ronda 0 (C-1, A-5): crearClase se retira; crearClaseAdministrada valida los maestros
+// con una lectura antes del create (§D-2A4, punto 5). Lo que se protege no cambia: un maestro
+// inexistente no se reintenta, no se disfraza de CODIGO_NO_DISPONIBLE y no deja fila; un texto
+// que PostgreSQL rechaza sale como 400 sin reintento.
 describe("ataque CLASES-a r1: reintento del código de invitación (adaptador)", () => {
-  it("un P2003 (maestroId inexistente) no se reintenta ni se disfraza de CODIGO_NO_DISPONIBLE", async () => {
+  it("un maestro inexistente devuelve null sin pedir código, sin reintento, sin CODIGO_NO_DISPONIBLE y sin fila", async () => {
     let llamadas = 0
     const generar = () => {
       llamadas += 1
       return codigoDePrueba()
     }
     const maestroFantasma = randomUUID()
-    const error = await crearClase(
-      { maestroId: maestroFantasma, nombre: "Fantasma" },
+    const resultado = await crearClaseAdministrada(
+      { maestroIds: [maestroFantasma], nombre: "Fantasma" },
       generar,
     ).then(
-      () => null,
-      (e: unknown) => e,
+      (valor) => ({ valor, error: null }),
+      (e: unknown) => ({ valor: undefined, error: e }),
     )
 
-    expect(error, "crearClase con un maestro inexistente no falló").not.toBeNull()
-    expect(error instanceof AppError && error.codigo === "CODIGO_NO_DISPONIBLE").toBe(false)
-    expect(error instanceof AppError && error.estado < 500).toBe(false)
-    expect(llamadas).toBe(1)
+    expect(
+      resultado.error,
+      "crearClaseAdministrada con un maestro inexistente lanzó en vez de devolver null",
+    ).toBeNull()
+    expect(resultado.valor).toBeNull()
+    expect(llamadas).toBe(0)
     expect(await obtenerDb().clase.count({ where: { maestroId: maestroFantasma } })).toBe(0)
   })
 
@@ -584,7 +621,10 @@ describe("ataque CLASES-a r1: reintento del código de invitación (adaptador)",
       llamadas += 1
       return codigoDePrueba()
     }
-    const error = await crearClase({ maestroId: dueno.id, nombre: "Nulo\u0000aquí" }, generar).then(
+    const error = await crearClaseAdministrada(
+      { maestroIds: [dueno.id], nombre: "Nulo\u0000aquí" },
+      generar,
+    ).then(
       () => null,
       (e: unknown) => e,
     )
@@ -594,6 +634,10 @@ describe("ataque CLASES-a r1: reintento del código de invitación (adaptador)",
     expect((error as AppError).estado).toBe(400)
     expect(llamadas).toBe(1)
     expect(await obtenerDb().clase.count({ where: { maestroId: dueno.id } })).toBe(0)
+    expect(
+      await obtenerDb().$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM maestros_de_clase WHERE maestro_id = ${dueno.id}::uuid`,
+    ).toEqual([{ n: 0 }])
   })
 
   it("regenerarCodigo: si los dos intentos chocan, 500 CODIGO_NO_DISPONIBLE y el código no cambia; si solo choca el primero, usa el segundo", async () => {
@@ -601,10 +645,9 @@ describe("ataque CLASES-a r1: reintento del código de invitación (adaptador)",
     const clase = await crearClaseDePrueba(idsClases, { maestroId: dueno.id })
     const ocupada = await crearClaseDePrueba(idsClases, { maestroId: dueno.id })
 
-    const error = await regenerarCodigo(
-      { claseId: clase.id, maestroId: dueno.id },
-      () => ocupada.codigoInvitacion,
-    ).then(
+    // CLASES-02a ronda 0 (C-3, §D-2A6 y A-10): regenerarCodigo(claseId, generarCodigo) deja de
+    // filtrar por maestro_id; el reintento que se protege es el mismo.
+    const error = await regenerarCodigo(clase.id, () => ocupada.codigoInvitacion).then(
       () => null,
       (e: unknown) => e,
     )
@@ -615,7 +658,7 @@ describe("ataque CLASES-a r1: reintento del código de invitación (adaptador)",
 
     const libre = codigoDePrueba()
     const codigos = [ocupada.codigoInvitacion, libre]
-    const nuevo = await regenerarCodigo({ claseId: clase.id, maestroId: dueno.id }, () => {
+    const nuevo = await regenerarCodigo(clase.id, () => {
       const siguiente = codigos.shift()
       if (siguiente === undefined) throw new Error("se pidió un tercer código")
       return siguiente
@@ -625,18 +668,23 @@ describe("ataque CLASES-a r1: reintento del código de invitación (adaptador)",
   })
 })
 
+// CLASES-02a ronda 0 (C-1): las 1,000 las crea el admin con el mismo maestro; los códigos se leen
+// por maestros_de_clase (cada clase con su asignación).
 describe("ataque CLASES-a r1: 1,000 creaciones seguidas", () => {
   it(
-    "1,000 POST /clases dan 1,000 códigos distintos, todos del alfabeto sin confusables",
+    "1,000 POST /admin/clases dan 1,000 códigos distintos, todos del alfabeto sin confusables",
     { timeout: 180_000 },
     async () => {
       const dueno = await maestro()
-      const token = await tokenDe(dueno)
+      const token = await tokenAdmin()
       const codigos: string[] = []
       for (let lote = 0; lote < 40; lote++) {
         const respuestas = await Promise.all(
           Array.from({ length: 25 }, (_, i) =>
-            pedir("POST", "/api/clases", token, { nombre: `Masiva ${lote}-${i}` }),
+            pedir("POST", "/api/admin/clases", token, {
+              nombre: `Masiva ${lote}-${i}`,
+              maestroIds: [dueno.id],
+            }),
           ),
         )
         for (const r of respuestas) {
@@ -644,11 +692,11 @@ describe("ataque CLASES-a r1: 1,000 creaciones seguidas", () => {
           idsClases.push(r.json<{ clase: { id: string } }>().clase.id)
         }
       }
-      const filas = await obtenerDb().clase.findMany({
-        where: { maestroId: dueno.id },
-        select: { codigoInvitacion: true },
-      })
-      for (const fila of filas) codigos.push(fila.codigoInvitacion)
+      const filas = await obtenerDb().$queryRaw<{ codigo_invitacion: string }[]>`
+        SELECT c.codigo_invitacion FROM clases c
+        JOIN maestros_de_clase m ON m.clase_id = c.id
+        WHERE m.maestro_id = ${dueno.id}::uuid`
+      for (const fila of filas) codigos.push(fila.codigo_invitacion)
 
       expect(codigos).toHaveLength(1000)
       expect(new Set(codigos).size).toBe(1000)

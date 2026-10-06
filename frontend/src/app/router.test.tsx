@@ -103,15 +103,29 @@ describe("rutas", () => {
     expect(await screen.findByRole("button", { name: "Unirme a la clase" })).toBeInTheDocument()
   })
 
-  it("PR-A26b: /maestro/clases/nueva monta el formulario", async () => {
+  // CLASES-02c (C-12): crear clases es del administrador.
+  it("PR-A26b: /admin/clases/nueva monta el formulario para el admin", async () => {
     stubFetch((ruta) => {
+      if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+      return respuestaJson(200, me({ rol: "admin" }))
+    })
+
+    await renderEn("/admin/clases/nueva")
+
+    expect(await screen.findByRole("heading", { name: "Crear clase" })).toBeInTheDocument()
+    expect(screen.getByLabelText("Buscar maestro por nombre")).toBeInTheDocument()
+  })
+
+  it("PR-2C08: /maestro/clases/nueva no existe: el maestro termina en /login sin pedir una clase llamada nueva", async () => {
+    const fetchMock = stubFetch((ruta) => {
       if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
       return respuestaJson(200, me({ rol: "maestro" }))
     })
 
-    await renderEn("/maestro/clases/nueva")
+    const router = await renderEn("/maestro/clases/nueva")
 
-    expect(await screen.findByRole("heading", { name: "Crear clase" })).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+    expect(fetchMock.mock.calls.some(([entrada]) => String(entrada).includes("/nueva"))).toBe(false)
   })
 
   it("PR-B15: personas y alumnos montan sus vistas", async () => {
@@ -121,6 +135,8 @@ describe("rutas", () => {
       nombre: "Álgebra I",
       descripcion: null,
       maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+      // CLASES-02a (C-7): el esquema ahora exige `maestros`; solo se agrega el campo.
+      maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
     }
     const respuestaDeLaClase = (ruta: string, rol: "estudiante" | "maestro") => {
       if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
@@ -128,7 +144,9 @@ describe("rutas", () => {
       if (ruta === `/api/clases/${claseId}`) return respuestaJson(200, { clase })
       if (ruta.startsWith(`/api/clases/${claseId}/personas`)) {
         return respuestaJson(200, {
-          maestro: clase.maestro,
+          // CLASES-02b (C-11): el esquema ahora exige `email` y `maestros`; solo se agregan.
+          maestro: { ...clase.maestro, email: "luis@x.mx" },
+          maestros: [{ ...clase.maestro, email: "luis@x.mx" }],
           alumnos: [],
           totalAlumnos: 0,
           siguienteCursor: null,

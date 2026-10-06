@@ -9,9 +9,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 import { subirArchivo } from "@/services/almacenService"
 
-import { ACCEPT_DE_ADJUNTOS, TEXTOS_ADJUNTOS, TEXTOS_FORMULARIO_PUBLICACION } from "../data"
+import {
+  ACCEPT_DE_ADJUNTOS,
+  CLASES_DE_POSICION_DEL_INDICADOR,
+  TEXTOS_ADJUNTOS,
+  TEXTOS_FORMULARIO_PUBLICACION,
+} from "../data"
 import { useCrearPublicacion, useSolicitarSubida } from "../hooks"
 import {
   avisoDeFalloAlSubir,
@@ -28,7 +34,7 @@ interface FormularioPublicacionProps {
 }
 
 // §D-C5, §D-D5: formulario del maestro para publicar un anuncio o un material, arriba del muro. El
-// tipo se elige con un grupo de dos botones (aria-pressed); el botón principal cambia su objeto
+// tipo se elige con un control segmentado de dos botones (aria-pressed, §D-2D3); el botón principal cambia su objeto
 // según el tipo. Valida con el mismo esquema que el servidor (crearPublicacionSchema) antes de
 // enviar. Los archivos se eligen aquí, se validan en cliente y, al publicar, cada uno se solicita,
 // se sube directo al almacén y solo entonces se publica con sus ids (siempre en `archivoIds`).
@@ -159,33 +165,46 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
     <Card>
       <CardContent>
         <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* §D-2D3, DESIGN.md §7.3: control segmentado. Grupo en vidrio fuerte (el formulario ya es un
+              panel de vidrio, así que no va otra Card) con un indicador aria-hidden que se desliza bajo
+              el botón presionado; el estado también lo dicen aria-pressed, el Check y el color del
+              texto, nunca solo la posición. */}
           <div
             role="group"
             aria-label={TEXTOS_FORMULARIO_PUBLICACION.grupoTipo}
-            className="flex flex-wrap gap-2"
+            className="vidrio-fuerte w-fit rounded-card p-1"
           >
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-pressed={!esMaterial}
-              onClick={() => setTipo("anuncio")}
-              className="aria-pressed:bg-surface aria-pressed:text-link"
-            >
-              {!esMaterial && <Check aria-hidden="true" />}
-              {TEXTOS_FORMULARIO_PUBLICACION.anuncio}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-pressed={esMaterial}
-              onClick={() => setTipo("material")}
-              className="aria-pressed:bg-surface aria-pressed:text-link"
-            >
-              {esMaterial && <Check aria-hidden="true" />}
-              {TEXTOS_FORMULARIO_PUBLICACION.material}
-            </Button>
+            <div className="relative grid grid-cols-2">
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute inset-y-0 left-0 w-1/2 rounded-row bg-surface transition-transform duration-200 in-data-[material=opaco]:bg-accent-soft motion-reduce:transition-none",
+                  CLASES_DE_POSICION_DEL_INDICADOR[esMaterial ? 1 : 0],
+                )}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-pressed={!esMaterial}
+                onClick={() => setTipo("anuncio")}
+                className="relative w-full aria-pressed:text-link"
+              >
+                {!esMaterial && <Check aria-hidden="true" />}
+                {TEXTOS_FORMULARIO_PUBLICACION.anuncio}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-pressed={esMaterial}
+                onClick={() => setTipo("material")}
+                className="relative w-full aria-pressed:text-link"
+              >
+                {esMaterial && <Check aria-hidden="true" />}
+                {TEXTOS_FORMULARIO_PUBLICACION.material}
+              </Button>
+            </div>
           </div>
 
           {esMaterial && (

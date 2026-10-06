@@ -161,7 +161,12 @@ describe("POST /api/clases/:claseId/publicaciones", () => {
     expect(publicacion.tipo).toBe("anuncio")
     expect(publicacion.titulo).toBeNull()
     expect(publicacion.texto).toBe("Mañana hay examen")
-    expect(publicacion.autor).toEqual({ id: e.maestro.id, nombre: "Maestra Muro" })
+    expect(publicacion.autor).toEqual({
+      id: e.maestro.id,
+      nombre: "Maestra Muro",
+      // CLASES-02b (C-10): la firma suma `administracion`.
+      administracion: false,
+    })
     expect(publicacion.comentarios).toBe(0)
 
     const material = await publicar(e, {
@@ -424,7 +429,12 @@ describe("GET /api/clases/:claseId/publicaciones", () => {
     })
     const { publicaciones } = listaPublicacionesRespuestaSchema.parse(respuesta.json())
     expect(publicaciones).toHaveLength(1)
-    expect(publicaciones[0]?.autor).toEqual({ id: e.maestro.id, nombre: "Maestra Muro" })
+    expect(publicaciones[0]?.autor).toEqual({
+      id: e.maestro.id,
+      nombre: "Maestra Muro",
+      // CLASES-02b (C-10): la firma suma `administracion`.
+      administracion: false,
+    })
   })
 })
 

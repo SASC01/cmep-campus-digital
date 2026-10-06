@@ -41,8 +41,27 @@ describe("ataque (AUTH-03b r1): contraste de las insignias", () => {
     ([, nombre, fondo, texto]) => ({ nombre, fondo, texto }),
   )
 
-  it("se leyeron las cuatro variantes de badge.tsx", () => {
-    expect(variantes.map((v) => v.nombre).sort()).toEqual(["danger", "muted", "success", "warning"])
+  // CLASES-02 ronda 0 de 02c (C-19, Enmienda 1, M-03; §D-2C4): badge.tsx suma la quinta variante,
+  // `institucional` = `bg-accent-soft text-link` (la firma "Administración" del muro). No es un
+  // estado ni pinta rojo. Sigue protegiendo lo mismo: se leen todas las variantes, cada una con su
+  // par de tokens (el caso siguiente mide el contraste de las cinco), y el rojo solo en `danger`.
+  it("se leyeron las cinco variantes de badge.tsx; institucional es accent-soft con link y el rojo solo está en danger", () => {
+    expect(variantes.map((v) => v.nombre).sort()).toEqual([
+      "danger",
+      "institucional",
+      "muted",
+      "success",
+      "warning",
+    ])
+    expect(variantes.find((v) => v.nombre === "institucional")).toEqual({
+      nombre: "institucional",
+      fondo: "accent-soft",
+      texto: "link",
+    })
+    const conRojo = variantes.filter(({ fondo, texto }) =>
+      [fondo, texto].some((token) => /^(danger|destructive)/.test(token ?? "")),
+    )
+    expect(conRojo.map((v) => v.nombre)).toEqual(["danger"])
   })
 
   it("cada variante: texto sobre su fondo ≥ 4.5:1", () => {

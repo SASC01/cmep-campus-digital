@@ -10,6 +10,7 @@ import { ClaseLayout } from "./clase-layout"
 import { BloqueDestacado } from "./components/bloque-destacado"
 import { FormularioClase } from "./components/formulario-clase"
 import bloqueDestacadoFuente from "./components/bloque-destacado.tsx?raw"
+import { CrearClaseView } from "./crear-clase-view"
 
 // Tester, CLASES-a, ronda 4 (regresión final). T-19 en crear y editar, M-06 (texto sobre el vidrio
 // azul del bloque destacado) y N-03 (los mensajes movidos a data.ts no cambian).
@@ -57,29 +58,45 @@ afterEach(() => {
   navegar.mockClear()
 })
 
+// CLASES-02 ronda 0 de 02c (C-12, §D-2C2): crear y editar clases pasan al admin. Crear es
+// CrearClaseView en /admin/clases/nueva (FormularioClase y el selector de maestros), con
+// POST /api/admin/clases y al menos un maestro elegido; editar es PUT /api/admin/clases/:claseId.
+// Sigue protegiendo T-19 en los dos modos: un error que no es de un campo da un toast sin prefijo y
+// no marca ningún campo; un VALIDACION de un campo queda bajo su campo, sin toast.
+const CANDIDATOS = {
+  candidatos: [
+    { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez", email: "luis@x.mx" },
+  ],
+  hayMas: false,
+}
+
 describe("ataque CLASES-a r4: T-19 en crear y editar", () => {
   const renderFormulario = (modo: "crear" | "editar") =>
     render(
       <QueryClientProvider client={nuevoCliente()}>
-        <MemoryRouter>
-          <FormularioClase
-            modo={modo}
-            {...(modo === "editar"
-              ? {
-                  claseId: CLASE_ID,
-                  valoresIniciales: { nombre: "Álgebra I", descripcion: "Curso" },
-                }
-              : {})}
-          />
+        <MemoryRouter initialEntries={[modo === "crear" ? "/admin/clases/nueva" : "/"]}>
+          {modo === "crear" ? (
+            <CrearClaseView />
+          ) : (
+            <FormularioClase
+              modo="editar"
+              claseId={CLASE_ID}
+              valoresIniciales={{ nombre: "Álgebra I", descripcion: "Curso" }}
+            />
+          )}
         </MemoryRouter>
       </QueryClientProvider>,
     )
 
-  const enviar = (modo: "crear" | "editar") => {
+  const enviar = async (modo: "crear" | "editar") => {
     if (modo === "crear") {
       fireEvent.change(screen.getByLabelText("Nombre de la clase"), {
         target: { value: "Historia" },
       })
+      fireEvent.change(screen.getByLabelText("Buscar maestro por nombre"), {
+        target: { value: "Luis" },
+      })
+      fireEvent.click(await screen.findByRole("button", { name: "Elegir Luis Pérez" }))
     }
     fireEvent.click(
       screen.getByRole("button", { name: modo === "crear" ? "Crear clase" : "Guardar cambios" }),
@@ -87,7 +104,10 @@ describe("ataque CLASES-a r4: T-19 en crear y editar", () => {
   }
 
   const rutaYMetodo = (modo: "crear" | "editar") =>
-    modo === "crear" ? ["/api/clases", "POST"] : [`/api/clases/${CLASE_ID}`, "PUT"]
+    modo === "crear" ? ["/api/admin/clases", "POST"] : [`/api/admin/clases/${CLASE_ID}`, "PUT"]
+
+  const candidatos = (ruta: string, metodo: string) =>
+    ruta.startsWith("/api/admin/maestros/candidatos") && metodo === "GET"
 
   for (const modo of ["crear", "editar"] as const) {
     for (const [caso, respuesta] of [
@@ -109,11 +129,12 @@ describe("ataque CLASES-a r4: T-19 en crear y editar", () => {
     ] as const) {
       it(`${modo}: ${caso} da un toast y ningún campo queda inválido`, async () => {
         const [ruta, metodo] = rutaYMetodo(modo)
-        stubFetch((r, m) =>
-          r === ruta && m === metodo ? respuesta() : errorJson(500, "ERROR_INTERNO"),
-        )
+        stubFetch((r, m) => {
+          if (candidatos(r, m)) return respuestaJson(200, CANDIDATOS)
+          return r === ruta && m === metodo ? respuesta() : errorJson(500, "ERROR_INTERNO")
+        })
         renderFormulario(modo)
-        enviar(modo)
+        await enviar(modo)
 
         await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
         const texto = String(aviso.error.mock.calls[0]?.[0])
@@ -133,13 +154,14 @@ describe("ataque CLASES-a r4: T-19 en crear y editar", () => {
     for (const campo of ["nombre", "descripcion"] as const) {
       it(`${modo}: un VALIDACION de ${campo} sigue bajo su campo, sin prefijo y sin toast`, async () => {
         const [ruta, metodo] = rutaYMetodo(modo)
-        stubFetch((r, m) =>
-          r === ruta && m === metodo
+        stubFetch((r, m) => {
+          if (candidatos(r, m)) return respuestaJson(200, CANDIDATOS)
+          return r === ruta && m === metodo
             ? errorJson(400, "VALIDACION", `${campo}: Texto de prueba del servidor`)
-            : errorJson(500, "ERROR_INTERNO"),
-        )
+            : errorJson(500, "ERROR_INTERNO")
+        })
         renderFormulario(modo)
-        enviar(modo)
+        await enviar(modo)
         const etiqueta = campo === "nombre" ? "Nombre de la clase" : "Descripción (opcional)"
         const otra = campo === "nombre" ? "Descripción (opcional)" : "Nombre de la clase"
 
@@ -227,11 +249,13 @@ describe("ataque CLASES-a r4: M-06, texto sobre el vidrio azul", () => {
 })
 
 describe("ataque CLASES-a r4: N-03, los mensajes no cambian", () => {
+  // CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2) y conserva maestro.
   const CLASE = {
     id: CLASE_ID,
     nombre: "Álgebra I",
     descripcion: "Curso",
     maestro: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" },
+    maestros: [{ id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }],
   }
 
   const renderClase = (ruta: string) =>

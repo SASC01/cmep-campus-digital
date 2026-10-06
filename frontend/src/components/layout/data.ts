@@ -1,4 +1,6 @@
-import { House, UserPlus, Users } from "lucide-react"
+import { House, School, UserPlus, Users } from "lucide-react"
+
+import type { VarianteDeClase } from "@/lib/variante-de-clase"
 
 import type { ContextoDeRol, Destino, EnlaceDelColegio, Rol } from "./types"
 
@@ -14,7 +16,22 @@ export const TEXTOS_MARCO = {
   navegacion: "Navegación principal",
   cerrarSesion: "Cerrar sesión",
   enlacesDelColegio: "Enlaces del colegio",
+  // CLASES-02d (§D-2D1): la lista de clases de la barra lateral.
+  misClases: "Mis clases",
+  verTodas: "Ver todas",
+  reintentar: "Reintentar",
+  errorClases: "No pudimos cargar tus clases.",
+  cargandoClases: "Cargando tus clases",
 } as const
+
+// CLASES-02d (§D-2D1, DESIGN.md §7.4 y §7.6): color de la insignia de cada clase, el mismo de su tarjeta. La
+// blanca no lleva fondo aquí: el vidrio fuerte va de base en lista-de-clases.tsx (V-07 de styles/clases-r1,
+// como TarjetaClase).
+export const INSIGNIA_POR_VARIANTE: Record<VarianteDeClase, string> = {
+  verde: "bg-brand text-brand-foreground",
+  azul: "bg-accent text-accent-foreground",
+  blanca: "text-foreground",
+}
 
 // Espaciado entre barra superior, contenido y pie (§D-3, DESIGN.md §5): 20 px para estudiante y
 // maestro, 16 px en el administrador. Propuesta: el maestro pasa de 24 a 20 px.
@@ -34,12 +51,15 @@ export const CONTEXTO_POR_ROL: Record<Rol, ContextoDeRol> = {
 // Un solo destino por rol (respuesta 1 de plan.md; recordatorio en la hoja, H-12). Duplica las
 // rutas de RUTA_POR_ROL de features/auth/data.ts (S-14).
 export const DESTINOS_POR_ROL: Record<Rol, readonly Destino[]> = {
-  estudiante: [{ etiqueta: "Inicio", ruta: "/estudiante", icono: House }],
-  maestro: [{ etiqueta: "Inicio", ruta: "/maestro", icono: House }],
+  estudiante: [{ etiqueta: "Inicio", ruta: "/estudiante", icono: House, coincidencia: "exacta" }],
+  maestro: [{ etiqueta: "Inicio", ruta: "/maestro", icono: House, coincidencia: "exacta" }],
   // AUTH-03b: el admin gana "Maestros" (/admin/maestros), enlaces de registro e invitación masiva.
+  // CLASES-02c (P-07 a): "Clases" lleva a la lista institucional y queda activo en sus subrutas;
+  // "Cuentas" solo en /admin exacto.
   admin: [
-    { etiqueta: "Cuentas", ruta: "/admin", icono: Users },
-    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus },
+    { etiqueta: "Cuentas", ruta: "/admin", icono: Users, coincidencia: "exacta" },
+    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus, coincidencia: "exacta" },
+    { etiqueta: "Clases", ruta: "/admin/clases", icono: School, coincidencia: "prefijo" },
   ],
 }
 

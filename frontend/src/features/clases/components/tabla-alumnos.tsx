@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { toast } from "sonner"
 
 import { AccesoRestringidoBadge } from "@/components/acceso-restringido-badge"
 import { Cargando } from "@/components/cargando"
@@ -54,15 +53,10 @@ function FilaAlumno({ claseId, alumno, registrarQuitar }: FilaAlumnoProps) {
   }, [confirmando])
 
   const handleQuitar = () => {
-    quitar.mutate(alumno.id, {
-      // T-21: la fila desaparece cuando llegan los datos nuevos, así que aquí no se mueve el foco
-      // (enfocar este mismo "Quitar" lo dejaba en <body> al desmontarse); la tabla lo lleva a la
-      // fila vecina cuando la fila ya no está.
-      onSuccess: () => {
-        toast.success(TEXTOS_TABLA_ALUMNOS.quitado(alumno.nombre))
-      },
-      onError: (error) => toast.error(mensajeDeErrorClases(error)),
-    })
+    // T-21: la fila desaparece cuando llegan los datos nuevos, así que aquí no se mueve el foco
+    // (enfocar este mismo "Quitar" lo dejaba en <body> al desmontarse); la tabla lo lleva a la
+    // fila vecina cuando la fila ya no está. El aviso y el error viven en useQuitarAlumno (O-10).
+    quitar.mutate({ id: alumno.id, nombre: alumno.nombre })
   }
 
   return (
@@ -220,7 +214,7 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
             ref={refVerMas}
             type="button"
             variant="outline"
-            onClick={() => void alumnos.fetchNextPage()}
+            onClick={() => void alumnos.fetchNextPage({ cancelRefetch: false })}
             enEspera={alumnos.isFetchingNextPage}
             className="self-start"
           >

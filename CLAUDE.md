@@ -54,29 +54,31 @@ features/
 | Módulo | Contenido | Roles |
 |--------|-----------|-------|
 | `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, registro de maestro por enlace, cambio obligatorio de contraseña, pantalla de acceso restringido | Todos |
-| `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, crear/editar clase, código de invitación, compañeros, roster, buscador y alta manual de alumnos | Estudiante, Maestro |
+| `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, código de invitación, compañeros, roster, buscador y alta manual de alumnos; gestión de clases del administrador (`/admin/clases`: lista, crear y editar clase, maestros de la clase, y alumnos y muro de cualquier clase) | Estudiante, Maestro, Administrador |
 | `tareas` | Detalle de tarea, zona de entrega, crear tarea o material, rúbrica, hilo privado | Estudiante, Maestro |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |
 | `calendario` | Calendario de tareas y clases en vivo | Estudiante, Maestro |
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
-| `admin` | Dashboard institucional, usuarios, clases, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros e invitación masiva (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
+| `admin` | Dashboard institucional, usuarios, analytics, estado de pago, restricción de acceso, configuración, anuncios del login; provisional: invitar maestro, buscar una cuenta por correo, restablecer su contraseña y corregir su correo (índice de `/admin`); enlaces de registro de maestros e invitación masiva (`/admin/maestros`), hasta la gestión de usuarios completa | Administrador |
 | `diagnostico` | Vista temporal de `/api/salud` (prueba de conexión con la API). Se mueve a `admin` o se elimina cuando exista ese módulo | Sin sesión (temporal) |
 
 ### Ubicaciones compartidas
 
 - `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx`, `badge.tsx` (sus variantes son internas y no se exportan) y `textarea.tsx`
-- `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/`
+- `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/` Incluye la lista de clases de la barra (`ListaDeClases`, con su hook en `components/layout/hooks.ts`).
 - `components/` — piezas de dominio reutilizadas: ya existen `EstadoPagoBadge` (`estado-pago-badge.tsx`), `AccesoRestringidoBadge` (`acceso-restringido-badge.tsx`), `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`), `AvatarUsuario` (`avatar-usuario.tsx`) y `EstadoVacio` (`estado-vacio.tsx`, con la variante de la acción como prop); `EstadoEntregaBadge` llega con ENTREGAS. Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local, incluida `formatearFechaLarga`), porcentajes, tamaños de archivo (`formatearTamano`) e iniciales de un nombre (`inicialesDe`)
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `lib/cache-de-mutaciones.ts` — `sacarDeLaCacheAlAsentar`: saca de la caché de TanStack Query una mutación con datos sensibles (contraseñas, tokens) en cuanto se asienta
+- `lib/variante-de-clase.ts` — `varianteDeClase`, la variante de color de una clase (tarjeta y barra)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
 - `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` o `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)
 - `services/sesionService.ts` — la consulta de `/me` (`consultaMe`), compartida por `features/auth` y `features/clases`
+- `services/clasesService.ts` — las claves de las listas de clases y la consulta de la barra lateral, compartidas por `components/layout` y `features/clases`
 - `services/almacenService.ts` — sube un archivo al almacén con la URL prefirmada que dio la API (`PUT`, sin `Authorization` ni credenciales). Es el único `fetch` fuera de `apiClient`
 - `services/liveService.ts` — conexión con LiveKit
 - `app/` — rutas, layouts, guardas por rol y `FondoDeLaApp` (el fondo con orbes, montado una sola vez en `main.tsx`, fuera del router)

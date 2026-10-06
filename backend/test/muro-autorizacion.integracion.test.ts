@@ -44,6 +44,9 @@ interface PreparadoRuta {
   url: string
   payload?: InjectOptions["payload"]
   estatusPermitido: number
+  // CLASES-02b (C-9): la ruta lista a "admin" en sus roles; el administrador recibe lo mismo que el
+  // maestro de la clase. Comentar (P-03 a) y mis-comentarios siguen cerradas para él.
+  admiteAdmin: boolean
   tokenPermitido: string
   // El estudiante inscrito, cuando la ruta es solo del maestro.
   tokenIncorrecto?: string
@@ -124,6 +127,7 @@ const prepararGetPublicaciones = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "GET /clases/:claseId/publicaciones",
+    admiteAdmin: true,
     metodo: "GET",
     url: `/api/clases/${e.claseId}/publicaciones`,
     estatusPermitido: 200,
@@ -137,6 +141,7 @@ const prepararPostPublicaciones = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "POST /clases/:claseId/publicaciones",
+    admiteAdmin: true,
     metodo: "POST",
     url: `/api/clases/${e.claseId}/publicaciones`,
     payload: { tipo: "anuncio", texto: "Un anuncio de prueba" },
@@ -152,6 +157,7 @@ const prepararDeletePublicacion = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "DELETE /clases/:claseId/publicaciones/:publicacionId",
+    admiteAdmin: true,
     metodo: "DELETE",
     url: `/api/clases/${e.claseId}/publicaciones/${e.publicacionId}`,
     estatusPermitido: 204,
@@ -166,6 +172,7 @@ const prepararGetComentarios = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "GET /clases/:claseId/publicaciones/:publicacionId/comentarios",
+    admiteAdmin: true,
     metodo: "GET",
     url: `/api/clases/${e.claseId}/publicaciones/${e.publicacionId}/comentarios`,
     estatusPermitido: 200,
@@ -179,6 +186,7 @@ const prepararPostComentarios = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "POST /clases/:claseId/publicaciones/:publicacionId/comentarios",
+    admiteAdmin: false,
     metodo: "POST",
     url: `/api/clases/${e.claseId}/publicaciones/${e.publicacionId}/comentarios`,
     payload: { texto: "Un comentario de prueba" },
@@ -193,12 +201,15 @@ const prepararDeleteComentario = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "DELETE /clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
+    admiteAdmin: true,
     metodo: "DELETE",
     url: `/api/clases/${e.claseId}/publicaciones/${e.publicacionId}/comentarios/${e.comentarioId}`,
     estatusPermitido: 204,
     tokenPermitido: await tokenDe(e.maestro),
-    tokenIncorrecto: await tokenDe(e.inscrito),
-    tokensAjenos: [await tokenDe(e.otroMaestro)],
+    // CLASES-02b (C-8): la ruta general admite al estudiante inscrito y decide la autoría
+    // (PR-2B05): no tiene "rol incorrecto". El estudiante no inscrito y el maestro ajeno sí son
+    // ajenos a la clase.
+    tokensAjenos: [await tokenDe(e.otroMaestro), await tokenDe(e.noInscrito)],
   }
 }
 
@@ -207,6 +218,7 @@ const prepararDeleteMiComentario = async (): Promise<PreparadoRuta> => {
   return {
     ...base(e),
     nombre: "DELETE /clases/:claseId/mis-comentarios/:comentarioId",
+    admiteAdmin: false,
     metodo: "DELETE",
     url: `/api/clases/${e.claseId}/mis-comentarios/${e.comentarioId}`,
     estatusPermitido: 204,
@@ -309,18 +321,26 @@ describe("autorización de las rutas de CLASES-c", () => {
     },
   )
 
-  it("PR-C08d: cada ruta: admin, 403 ROL_NO_PERMITIDO", { timeout: 60000 }, async () => {
-    const token = await tokenAdminDePrueba()
-    for (const preparar of preparadores) {
-      const prep = await preparar()
-      const respuesta = await pedir(prep, token)
-      expect(respuesta.statusCode, prep.nombre).toBe(403)
-      expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
-    }
-  })
+  it(
+    "PR-C08d: cada ruta: admin, 403 ROL_NO_PERMITIDO en comentar y en mis-comentarios y lo mismo que el maestro en las demás (C-9, CLASES-02b)",
+    { timeout: 60000 },
+    async () => {
+      const token = await tokenAdminDePrueba()
+      for (const preparar of preparadores) {
+        const prep = await preparar()
+        const respuesta = await pedir(prep, token)
+        if (prep.admiteAdmin) {
+          expect(respuesta.statusCode, prep.nombre).toBe(prep.estatusPermitido)
+          continue
+        }
+        expect(respuesta.statusCode, prep.nombre).toBe(403)
+        expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
+      }
+    },
+  )
 
   it(
-    "PR-C08e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en el POST y el DELETE de publicaciones y en el DELETE de comentarios)",
+    "PR-C08e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en el POST y el DELETE de publicaciones; el DELETE de comentarios ya lo admite, C-8)",
     { timeout: 60000 },
     async () => {
       const rutasConRolIncorrecto: string[] = []
@@ -333,7 +353,7 @@ describe("autorización de las rutas de CLASES-c", () => {
         expect(respuesta.statusCode, prep.nombre).toBe(403)
         expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
       }
-      expect(rutasConRolIncorrecto).toHaveLength(3)
+      expect(rutasConRolIncorrecto).toHaveLength(2)
     },
   )
 
@@ -373,8 +393,8 @@ describe("autorización de las rutas de CLASES-c", () => {
           { descripcion: "sin token", token: undefined },
           { descripcion: "cambio pendiente", token: await tokenDe(conCambioPendiente) },
           { descripcion: "restringido", token: await prep.prepararRestringido() },
-          { descripcion: "admin", token: tokenAdmin },
         ]
+        if (!prep.admiteAdmin) negaciones.push({ descripcion: "admin", token: tokenAdmin })
         if (prep.tokenIncorrecto !== undefined) {
           negaciones.push({ descripcion: "rol incorrecto", token: prep.tokenIncorrecto })
         }

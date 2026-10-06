@@ -10,15 +10,15 @@ import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { ListaPersonas } from "./components/lista-personas"
 import { TEXTOS_PERSONAS } from "./data"
 import { useFocoAlCargarMas, usePersonas } from "./hooks"
-import { mensajeDeErrorClases, textoConteoAlumnos } from "./lib"
+import { etiquetaDeMaestros, mensajeDeErrorClases, textoConteoAlumnos } from "./lib"
 
 interface PersonasDeLaClaseProps {
   claseId: string
 }
 
 // §D-B4: compañeros de la clase (RF-19). La ruta es la del estudiante inscrito; el backend también
-// deja pasar al maestro dueño (requireMembership), pero el router no le da una ruta propia. Solo
-// nombres: ni correo, ni estado de pago ni restricción de acceso (S-09).
+// deja pasar al maestro dueño (requireMembership), pero el router no le da una ruta propia. Nombre y
+// correo (texto plano, CLASES-02d §D-2D2): nunca estado de pago ni restricción de acceso (S-09).
 function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
   const personas = usePersonas(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
@@ -60,7 +60,7 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
             ref={refVerMas}
             type="button"
             variant="outline"
-            onClick={() => void personas.fetchNextPage()}
+            onClick={() => void personas.fetchNextPage({ cancelRefetch: false })}
             enEspera={personas.isFetchingNextPage}
             className="self-start"
           >
@@ -77,9 +77,12 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
         {cargada && (
           <section aria-labelledby="personas-maestro" className="flex flex-col gap-2">
             <h2 id="personas-maestro" className="text-h3">
-              {TEXTOS_PERSONAS.maestro}
+              {etiquetaDeMaestros(primera.maestros.length)}
             </h2>
-            <ListaPersonas personas={[primera.maestro]} etiqueta={TEXTOS_PERSONAS.maestro} />
+            <ListaPersonas
+              personas={primera.maestros}
+              etiqueta={etiquetaDeMaestros(primera.maestros.length)}
+            />
           </section>
         )}
 

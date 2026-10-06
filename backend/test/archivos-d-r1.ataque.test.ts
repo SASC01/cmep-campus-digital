@@ -875,7 +875,11 @@ describe("ataque d-r1: alumno restringido, roles y sesión", () => {
     expect(descargasFirmadas.length).toBe(descargas)
   })
 
-  it("estudiante inscrito no solicita ni publica; admin no entra a ninguna; maestro ajeno 403; con cambio de contraseña pendiente, 403; dado de baja, 401. Nada se escribe ni se firma", async () => {
+  // CLASES-02b ronda 0 (C-9, §D-2B3 y matriz de "Autorización"): el admin solicita la subida y la
+  // descarga en cualquier clase. Sale del recorrido de lo negado (que sigue sin escribir ni firmar
+  // nada) y se prueba después: su subida queda pendiente con subidoPor = el admin, y cada una de sus
+  // dos peticiones firma exactamente una URL.
+  it("estudiante inscrito no solicita ni publica; maestro ajeno 403; con cambio de contraseña pendiente, 403; dado de baja, 401. Nada se escribe ni se firma; el admin solicita y descarga (C-9)", async () => {
     const e = await escenario()
     const archivo = await confirmadoEn(e.claseA, e.maestro.id)
     const ajeno = await crearUsuarioDePrueba(idsUsuarios, { rol: "maestro" })
@@ -932,23 +936,6 @@ describe("ataque d-r1: alumno restringido, roles y sesión", () => {
         method: "POST",
         url: urlPublicaciones(e.claseA),
         payload: { tipo: "anuncio", texto: "x", archivoIds: [archivo.id] },
-        estado: 403,
-        codigo: "ROL_NO_PERMITIDO",
-      },
-      {
-        descripcion: "admin solicita",
-        token: await tokenDe({ id: admin }),
-        method: "POST",
-        url: urlArchivos(e.claseA),
-        payload: cuerpo,
-        estado: 403,
-        codigo: "ROL_NO_PERMITIDO",
-      },
-      {
-        descripcion: "admin descarga",
-        token: await tokenDe({ id: admin }),
-        method: "POST",
-        url: urlDescarga(e.claseA, archivo.id),
         estado: 403,
         codigo: "ROL_NO_PERMITIDO",
       },
@@ -1027,6 +1014,32 @@ describe("ataque d-r1: alumno restringido, roles y sesión", () => {
     expect((await leerArchivoDb(pendienteConCambio.id))?.estado).toBe("pendiente")
     expect(subidasFirmadas.length).toBe(subidas)
     expect(descargasFirmadas.length).toBe(descargas)
+
+    const tokenAdmin = await tokenDe({ id: admin })
+    const solicitudAdmin = await inyectar({
+      method: "POST",
+      url: urlArchivos(e.claseA),
+      token: tokenAdmin,
+      payload: cuerpo,
+    })
+    expect(solicitudAdmin.statusCode, `admin solicita: ${solicitudAdmin.body}`).toBe(201)
+    const { archivo: delAdmin } = solicitarSubidaRespuestaSchema.parse(solicitudAdmin.json())
+    expect(await leerArchivoDb(delAdmin.id)).toMatchObject({
+      claseId: e.claseA,
+      subidoPor: admin,
+      estado: "pendiente",
+      publicacionId: null,
+    })
+    const descargaAdmin = await inyectar({
+      method: "POST",
+      url: urlDescarga(e.claseA, archivo.id),
+      token: tokenAdmin,
+    })
+    expect(descargaAdmin.statusCode, `admin descarga: ${descargaAdmin.body}`).toBe(200)
+    expect(firmaValida(descargaRespuestaSchema.parse(descargaAdmin.json()).url, "GET")).toBe(true)
+    expect(subidasFirmadas.length).toBe(subidas + 1)
+    expect(descargasFirmadas.length).toBe(descargas + 1)
+    expect(await obtenerDb().archivo.count({ where: filasDelCaso })).toBe(filasAntes + 1)
   })
 })
 

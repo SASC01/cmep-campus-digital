@@ -1,19 +1,14 @@
-import { Link, useNavigate } from "react-router"
-
-import { buttonVariants } from "@/components/ui/button-variants"
-
-import { TEXTOS_INICIO_MAESTRO, TEXTOS_PANEL } from "./data"
+import { TEXTOS_PANEL } from "./data"
 import { BloqueDestacado } from "./components/bloque-destacado"
 import { PanelMisClases } from "./components/panel-mis-clases"
 import { TarjetaClase } from "./components/tarjeta-clase"
 import { useClasesImpartidas, useNombreDeSesion } from "./hooks"
-import { mensajeDeErrorClases, textoConteoAlumnos } from "./lib"
+import { mensajeDeErrorDeLista, textoConteoAlumnos } from "./lib"
 import type { ClaseDelPanel } from "./types"
 
 export function InicioMaestroView() {
   const nombre = useNombreDeSesion()
   const clases = useClasesImpartidas()
-  const navigate = useNavigate()
   const primeraPagina = clases.data?.pages[0]
   const total = primeraPagina?.total
   // Corrección de la ronda 1 (T-09, segunda pasada): sin valor de respaldo. Mientras `clases.data`
@@ -37,25 +32,21 @@ export function InicioMaestroView() {
         cargando={clases.isLoading}
         esError={clases.isError}
         errorTitular={TEXTOS_PANEL.error}
-        insignia={TEXTOS_INICIO_MAESTRO.insignia}
-      >
-        <Link to="/maestro/clases/nueva" className={buttonVariants({ variant: "primary" })}>
-          {TEXTOS_INICIO_MAESTRO.crearClase}
-        </Link>
-      </BloqueDestacado>
+      />
 
       <PanelMisClases
         isError={clases.isError}
-        errorMensaje={clases.isError ? mensajeDeErrorClases(clases.error) : ""}
+        errorMensaje={
+          clases.isError
+            ? mensajeDeErrorDeLista(clases.error, TEXTOS_PANEL.cambioMientrasLasVeias)
+            : ""
+        }
         isLoading={clases.isLoading}
         clases={filas}
         hasNextPage={clases.hasNextPage}
         isFetchingNextPage={clases.isFetchingNextPage}
-        onVerMas={() => void clases.fetchNextPage()}
-        accionVacio={{
-          texto: TEXTOS_PANEL.accionMaestro,
-          onClick: () => void navigate("/maestro/clases/nueva"),
-        }}
+        onVerMas={() => void clases.fetchNextPage({ cancelRefetch: false })}
+        descripcionVacio={TEXTOS_PANEL.vacioDescripcionMaestro}
         render={(clase) => (
           <TarjetaClase
             key={clase.id}

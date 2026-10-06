@@ -5,39 +5,31 @@ import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { formatearFechaHora } from "@/lib/format"
 
-import { TEXTOS_COMENTARIOS } from "../data"
-import {
-  useBorrarComentario,
-  useBorrarMiComentario,
-  useComentarios,
-  useFilaEnFoco,
-  useFocoAlCargarMas,
-} from "../hooks"
+import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_COMENTARIOS } from "../data"
+import { useBorrarComentario, useComentarios, useFilaEnFoco, useFocoAlCargarMas } from "../hooks"
 import { focoPerdido, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
-import type { Comentario } from "../types"
+import type { Comentario, Perspectiva } from "../types"
+import { FirmaDelAutor } from "./firma-del-autor"
 import { FormularioComentario } from "./formulario-comentario"
 
 interface FilaComentarioProps {
   claseId: string
   publicacionId: string
   comentario: Comentario
-  esMaestro: boolean
 }
 
 // DESIGN.md §7.14: confirmación en línea en el mismo comentario. Al pedirla, el foco va a
 // "Cancelar" (nunca a la acción destructiva) y, al cancelar, vuelve a "Borrar". Se compara contra el
 // valor de "confirmando" que el efecto ya procesó para que el doble montaje de StrictMode no repita
-// el movimiento de foco. El maestro dueño borra cualquier comentario de su clase; cada persona,
-// el suyo («mis comentarios»).
-function FilaComentario({ claseId, publicacionId, comentario, esMaestro }: FilaComentarioProps) {
+// el movimiento de foco. El botón "Borrar" sale de `puedeBorrar` de cada comentario (lo decide el
+// servidor con la regla de autoría); el borrado siempre va a la ruta general (§D-2C4).
+function FilaComentario({ claseId, publicacionId, comentario }: FilaComentarioProps) {
   const [confirmando, setConfirmando] = useState(false)
-  const borrarComoMaestro = useBorrarComentario(claseId, publicacionId)
-  const borrarMio = useBorrarMiComentario(claseId, publicacionId)
-  const borrar = esMaestro ? borrarComoMaestro : borrarMio
+  const borrar = useBorrarComentario(claseId, publicacionId)
   const borrarBtnRef = useRef<HTMLButtonElement>(null)
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
   const confirmandoAnteriorRef = useRef(confirmando)
-  const puedeBorrar = esMaestro || comentario.propio
+  const puedeBorrar = comentario.puedeBorrar
 
   useEffect(() => {
     if (confirmandoAnteriorRef.current === confirmando) return
@@ -56,8 +48,7 @@ function FilaComentario({ claseId, publicacionId, comentario, esMaestro }: FilaC
       className="flex flex-col gap-1 border-b border-border py-3 last:border-0"
     >
       <p className="text-small text-muted-foreground">
-        <span className="wrap-anywhere font-bold text-foreground">{comentario.autor.nombre}</span> ·{" "}
-        {formatearFechaHora(comentario.creadoEn)}
+        <FirmaDelAutor autor={comentario.autor} /> · {formatearFechaHora(comentario.creadoEn)}
       </p>
       <p className="max-w-prose wrap-anywhere whitespace-pre-line text-body">{comentario.texto}</p>
       {puedeBorrar && !confirmando && (
@@ -104,7 +95,7 @@ interface ComentariosDePublicacionProps {
   id: string
   claseId: string
   publicacionId: string
-  esMaestro: boolean
+  perspectiva: Perspectiva
 }
 
 // §D-C5: se monta al abrir "Ver comentarios" y pide la lista solo entonces. Estados en orden: error →
@@ -115,7 +106,7 @@ export function ComentariosDePublicacion({
   id,
   claseId,
   publicacionId,
-  esMaestro,
+  perspectiva,
 }: ComentariosDePublicacionProps) {
   const comentarios = useComentarios(claseId, publicacionId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
@@ -176,7 +167,6 @@ export function ComentariosDePublicacion({
               claseId={claseId}
               publicacionId={publicacionId}
               comentario={comentario}
-              esMaestro={esMaestro}
             />
           ))}
         </ul>
@@ -186,7 +176,7 @@ export function ComentariosDePublicacion({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void comentarios.fetchNextPage()}
+            onClick={() => void comentarios.fetchNextPage({ cancelRefetch: false })}
             enEspera={comentarios.isFetchingNextPage}
             className="self-start"
           >
@@ -203,7 +193,9 @@ export function ComentariosDePublicacion({
         {TEXTOS_COMENTARIOS.titulo}
       </h3>
       {contenido()}
-      <FormularioComentario claseId={claseId} publicacionId={publicacionId} />
+      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioComentario && (
+        <FormularioComentario claseId={claseId} publicacionId={publicacionId} />
+      )}
     </div>
   )
 }

@@ -65,32 +65,33 @@ enum EstadoArchivo {
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
-  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                  String                  @unique
-  hashContrasena         String                  @map("hash_contrasena")
-  debeCambiarContrasena  Boolean                 @default(false) @map("debe_cambiar_contrasena")
-  nombre                 String
-  nombreBusqueda         String                  @map("nombre_busqueda")
-  rol                    Rol
-  activo                 Boolean                 @default(true)
-  estadoPago             EstadoPago              @default(al_corriente) @map("estado_pago")
-  fechaEstadoPago        DateTime?               @map("fecha_estado_pago") @db.Timestamptz(3)
-  accesoRestringido      Boolean                 @default(false) @map("acceso_restringido")
-  motivoRestriccion      String?                 @map("motivo_restriccion")
-  fechaRestriccion       DateTime?               @map("fecha_restriccion") @db.Timestamptz(3)
-  creadoEn               DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn          DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  enlaceRegistroId       String?                 @map("enlace_registro_id") @db.Uuid
-  sesiones               Sesion[]
-  tokensCuenta           TokenCuenta[]
-  enlaceRegistro         EnlaceRegistro?         @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
-  clasesImpartidas       Clase[]                 @relation("ClasesDelMaestro")
-  inscripciones          Inscripcion[]
-  movimientosComoAlumno  MovimientoInscripcion[] @relation("MovimientosDelAlumno")
-  movimientosComoMaestro MovimientoInscripcion[] @relation("MovimientosDelMaestro")
-  publicaciones          Publicacion[]
-  comentarios            Comentario[]
-  archivosSubidos        Archivo[]
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String                  @unique
+  hashContrasena        String                  @map("hash_contrasena")
+  debeCambiarContrasena Boolean                 @default(false) @map("debe_cambiar_contrasena")
+  nombre                String
+  nombreBusqueda        String                  @map("nombre_busqueda")
+  rol                   Rol
+  activo                Boolean                 @default(true)
+  estadoPago            EstadoPago              @default(al_corriente) @map("estado_pago")
+  fechaEstadoPago       DateTime?               @map("fecha_estado_pago") @db.Timestamptz(3)
+  accesoRestringido     Boolean                 @default(false) @map("acceso_restringido")
+  motivoRestriccion     String?                 @map("motivo_restriccion")
+  fechaRestriccion      DateTime?               @map("fecha_restriccion") @db.Timestamptz(3)
+  creadoEn              DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn         DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  enlaceRegistroId      String?                 @map("enlace_registro_id") @db.Uuid
+  sesiones              Sesion[]
+  tokensCuenta          TokenCuenta[]
+  enlaceRegistro        EnlaceRegistro?         @relation(fields: [enlaceRegistroId], references: [id], onDelete: Restrict)
+  clasesImpartidas      Clase[]                 @relation("ClasesDelMaestro")
+  inscripciones         Inscripcion[]
+  movimientosComoAlumno MovimientoInscripcion[] @relation("MovimientosDelAlumno")
+  movimientosComoActor  MovimientoInscripcion[] @relation("MovimientosDelActor")
+  asignacionesDeClase   MaestroDeClase[]        @relation("AsignacionesDelMaestro")
+  publicaciones         Publicacion[]
+  comentarios           Comentario[]
+  archivosSubidos       Archivo[]
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -157,6 +158,10 @@ model EnlaceRegistro {
 // CLASES-a (§D-A1). codigoInvitacion: 7 caracteres de un alfabeto sin I, O, 0 ni 1 (S-03); único
 // para poder buscarlo. activa se crea en true (S-05) pero ninguna ruta de CLASES la usa ni la
 // cambia (RF-50 queda para más adelante).
+// CLASES-02 (P-06 a): los maestros de la clase son maestros_de_clase (de uno a dos). maestro_id se
+// conserva NOT NULL solo por compatibilidad hacia atrás: el código lo ESCRIBE (el primer maestro al
+// crear la clase; el que queda al retirar al que estaba ahí) y NUNCA lo lee. Se retira en una
+// migración posterior, junto con la relación maestro.
 model Clase {
   id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   maestroId        String                  @map("maestro_id") @db.Uuid
@@ -171,8 +176,10 @@ model Clase {
   movimientos      MovimientoInscripcion[]
   publicaciones    Publicacion[]
   archivos         Archivo[]
+  maestros         MaestroDeClase[]
 
   @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@index([creadoEn(sort: Desc), id(sort: Desc)])
   @@map("clases")
 }
 
@@ -192,6 +199,22 @@ model Inscripcion {
   @@map("inscripciones")
 }
 
+// CLASES-02 (§D-2A1). Los maestros de una clase: de uno a dos, el tope y el mínimo se validan en
+// core/ dentro de la transacción que cambia la asignación (con la fila de la clase bloqueada). Solo
+// la escribe el administrador. Orden de los maestros: (creado_en, maestro_id). Las asignaciones
+// mueren con su clase (CASCADE); un usuario con asignaciones no se borra (RESTRICT).
+model MaestroDeClase {
+  claseId   String   @map("clase_id") @db.Uuid
+  maestroId String   @map("maestro_id") @db.Uuid
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  clase     Clase    @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  maestro   Usuario  @relation("AsignacionesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+
+  @@id([claseId, maestroId])
+  @@index([maestroId, creadoEn(sort: Desc), claseId(sort: Desc)])
+  @@map("maestros_de_clase")
+}
+
 // CLASES-b (§D-B8). Registro de las altas manuales y las bajas (P-05 g, S-23): solo se escribe, en
 // la misma transacción que el cambio, y ninguna ruta ni función de CLASES lo lee. El orden del
 // registro es secuencia (toma su valor en el INSERT, que es el último paso de la transacción);
@@ -203,12 +226,12 @@ model MovimientoInscripcion {
   secuencia BigInt                    @default(autoincrement())
   claseId   String                    @map("clase_id") @db.Uuid
   alumnoId  String                    @map("alumno_id") @db.Uuid
-  maestroId String                    @map("maestro_id") @db.Uuid
+  actorId   String                    @map("maestro_id") @db.Uuid
   tipo      TipoMovimientoInscripcion
   creadoEn  DateTime                  @default(now()) @map("creado_en") @db.Timestamptz(3)
   clase     Clase                     @relation(fields: [claseId], references: [id], onDelete: Restrict)
   alumno    Usuario                   @relation("MovimientosDelAlumno", fields: [alumnoId], references: [id], onDelete: Restrict)
-  maestro   Usuario                   @relation("MovimientosDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
+  actor     Usuario                   @relation("MovimientosDelActor", fields: [actorId], references: [id], onDelete: Restrict)
 
   @@map("movimientos_inscripcion")
 }

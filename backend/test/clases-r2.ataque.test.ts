@@ -4,7 +4,7 @@ import { errorApiSchema } from "@campus/shared"
 import type { FastifyInstance, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { crearClase } from "../src/adapters/db/clases.js"
+import { crearClaseAdministrada } from "../src/adapters/db/clases.js"
 import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
@@ -74,6 +74,25 @@ const clavesEn = (cuerpo: string, prohibidas: readonly string[]): string[] => {
   return encontradas
 }
 
+// CLASES-02a ronda 0 (C-1, C-2, §D-2A3): solo el admin crea y edita clases, por /api/admin/clases.
+const tokenAdmin = async (): Promise<string> => {
+  const admin = await obtenerDb().usuario.findFirst({
+    where: { rol: "admin" },
+    select: { id: true },
+  })
+  if (!admin) throw new Error("Precondición: la base desechable no tiene el admin de seed:admin")
+  return tokenDe(admin)
+}
+
+// CLASES-02a ronda 0 (C-1, P-06): las clases de un maestro se cuentan por maestros_de_clase;
+// clases.maestro_id es solo de escritura doble.
+const clasesAsignadasA = async (maestroId: string): Promise<number> => {
+  const [fila] = await obtenerDb().$queryRaw<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM maestros_de_clase WHERE maestro_id = ${maestroId}::uuid`
+  if (fila === undefined) throw new Error("El conteo de maestros_de_clase no devolvió fila")
+  return fila.n
+}
+
 beforeAll(async () => {
   app = await construirApp({ env: cargarEnv() })
   await app.ready()
@@ -85,25 +104,29 @@ afterAll(async () => {
   await app?.close()
 })
 
+// CLASES-02a ronda 0 (C-1, C-2): POST /api/clases y PUT /api/clases/:claseId ya no existen; los
+// mismos límites se exigen a POST /api/admin/clases (con el maestro asignado) y a
+// PUT /api/admin/clases/:claseId, ambas con el token del admin.
 describe("ataque CLASES-a r2: T-01, límites de la normalización", () => {
   // Un CRLF solo en los extremos del nombre lo quita el trim del esquema (comportamiento aceptado):
   // aquí solo los saltos interiores.
   it("un nombre con CRLF, CR o LF interiores se rechaza con 400 y no crea fila", async () => {
     const dueno = await maestro()
-    const token = await tokenDe(dueno)
+    const token = await tokenAdmin()
     for (const nombre of ["Clase\r\nDos", "Clase\rDos", "Clase\nDos"]) {
-      const r = await pedir("POST", "/api/clases", token, { nombre })
+      const r = await pedir("POST", "/api/admin/clases", token, { nombre, maestroIds: [dueno.id] })
       expect(r.statusCode, JSON.stringify(nombre)).toBe(400)
       expect(codigoDe(r)).toBe("VALIDACION")
     }
     expect(await obtenerDb().clase.count({ where: { maestroId: dueno.id } })).toBe(0)
+    expect(await clasesAsignadasA(dueno.id)).toBe(0)
   })
 
   it("un nombre con separador de línea o de párrafo Unicode (U+2028, U+2029) se rechaza: debe ser de una sola línea", async () => {
     const dueno = await maestro()
-    const token = await tokenDe(dueno)
+    const token = await tokenAdmin()
     for (const nombre of ["Clase Dos", "Clase Dos"]) {
-      const r = await pedir("POST", "/api/clases", token, { nombre })
+      const r = await pedir("POST", "/api/admin/clases", token, { nombre, maestroIds: [dueno.id] })
       if (r.statusCode === 201) idsClases.push(r.json<{ clase: { id: string } }>().clase.id)
       expect(r.statusCode, `${JSON.stringify(nombre)}: ${r.body}`).toBe(400)
     }
@@ -111,7 +134,7 @@ describe("ataque CLASES-a r2: T-01, límites de la normalización", () => {
 
   it("CRLF junto con otros caracteres de control o inversores en la descripción sigue dando 400", async () => {
     const dueno = await maestro()
-    const token = await tokenDe(dueno)
+    const token = await tokenAdmin()
     for (const descripcion of [
       "uno\r\ndos\u0007",
       "uno\r\n\u0000dos",
@@ -119,18 +142,24 @@ describe("ataque CLASES-a r2: T-01, límites de la normalización", () => {
       "uno\r\n\u0085dos",
       "\u001Buno\r\n",
     ]) {
-      const r = await pedir("POST", "/api/clases", token, { nombre: "Clase", descripcion })
+      const r = await pedir("POST", "/api/admin/clases", token, {
+        nombre: "Clase",
+        descripcion,
+        maestroIds: [dueno.id],
+      })
       expect(r.statusCode, JSON.stringify(descripcion)).toBe(400)
     }
     expect(await obtenerDb().clase.count({ where: { maestroId: dueno.id } })).toBe(0)
+    expect(await clasesAsignadasA(dueno.id)).toBe(0)
   })
 
   it("una descripción solo de saltos se guarda como null, y tipos no texto siguen dando 400", async () => {
     const dueno = await maestro()
-    const token = await tokenDe(dueno)
-    const vacia = await pedir("POST", "/api/clases", token, {
+    const token = await tokenAdmin()
+    const vacia = await pedir("POST", "/api/admin/clases", token, {
       nombre: "Clase",
       descripcion: "\r\n\r\n \r",
+      maestroIds: [dueno.id],
     })
     expect(vacia.statusCode, vacia.body).toBe(201)
     const id = vacia.json<{ clase: { id: string; descripcion: string | null } }>().clase.id
@@ -138,7 +167,10 @@ describe("ataque CLASES-a r2: T-01, límites de la normalización", () => {
     expect((await leerClaseDb(id))?.descripcion).toBeNull()
 
     for (const descripcion of [123, ["a"], { a: 1 }, true]) {
-      const r = await pedir("PUT", `/api/clases/${id}`, token, { nombre: "Clase", descripcion })
+      const r = await pedir("PUT", `/api/admin/clases/${id}`, token, {
+        nombre: "Clase",
+        descripcion,
+      })
       expect(r.statusCode, JSON.stringify(descripcion)).toBe(400)
     }
   })
@@ -146,9 +178,10 @@ describe("ataque CLASES-a r2: T-01, límites de la normalización", () => {
   it("la normalización no altera el interior (tabuladores, emojis con U+200D, espacios internos)", async () => {
     const dueno = await maestro()
     const texto = "  a\tb  c\r\n👩‍💻 fin  "
-    const r = await pedir("POST", "/api/clases", await tokenDe(dueno), {
+    const r = await pedir("POST", "/api/admin/clases", await tokenAdmin(), {
       nombre: "Clase",
       descripcion: texto,
+      maestroIds: [dueno.id],
     })
     expect(r.statusCode, r.body).toBe(201)
     const id = r.json<{ clase: { id: string } }>().clase.id
@@ -158,24 +191,33 @@ describe("ataque CLASES-a r2: T-01, límites de la normalización", () => {
 })
 
 describe("ataque CLASES-a r2: regresión rápida", () => {
-  it("reintento: P2003 sin reintentar ni traducir; 22021 → 400 sin reintentar", async () => {
+  // CLASES-02a ronda 0 (C-1, A-5): crearClase se retira; crearClaseAdministrada valida los
+  // maestros antes del create (§D-2A4, punto 5): un maestro inexistente devuelve null sin pedir
+  // código ni reintentar; el 22021 sigue saliendo como 400 sin reintento.
+  it("reintento: maestro inexistente sin pedir código ni reintentar; 22021 → 400 sin reintentar", async () => {
     let llamadas = 0
     const generar = () => {
       llamadas += 1
       return codigoDePrueba()
     }
     const fantasma = randomUUID()
-    const p2003 = await crearClase({ maestroId: fantasma, nombre: "Fantasma" }, generar).then(
-      () => null,
-      (e: unknown) => e,
+    const sinMaestro = await crearClaseAdministrada(
+      { maestroIds: [fantasma], nombre: "Fantasma" },
+      generar,
+    ).then(
+      (valor) => ({ valor, error: null }),
+      (e: unknown) => ({ valor: undefined, error: e }),
     )
-    expect(p2003).not.toBeNull()
-    expect(p2003 instanceof AppError && p2003.estado < 500).toBe(false)
-    expect(llamadas).toBe(1)
+    expect(sinMaestro.error).toBeNull()
+    expect(sinMaestro.valor).toBeNull()
+    expect(llamadas).toBe(0)
 
     const dueno = await maestro()
     llamadas = 0
-    const nulo = await crearClase({ maestroId: dueno.id, nombre: "a\u0000b" }, generar).then(
+    const nulo = await crearClaseAdministrada(
+      { maestroIds: [dueno.id], nombre: "a\u0000b" },
+      generar,
+    ).then(
       () => null,
       (e: unknown) => e,
     )
@@ -187,6 +229,8 @@ describe("ataque CLASES-a r2: regresión rápida", () => {
   it("HEAD, paginación, campos extra y fugas siguen como en la ronda 1", async () => {
     // CLASES-a ronda 4 (C-16): adaptación por la regla de T-18 aprobada por el humano; sigue
     // protegiendo que no haya fuga de la clase ajena.
+    // CLASES-02a ronda 0 (C-1): la clase la crea el admin con el dueño en maestroIds; los campos
+    // extra siguen sin llegar a la base.
     const dueno = await maestro()
     const ajeno = await maestro()
     const alumno = await estudiante()
@@ -194,8 +238,9 @@ describe("ataque CLASES-a r2: regresión rápida", () => {
     const tokenD = await tokenDe(dueno)
     const tokenA = await tokenDe(alumno)
 
-    const creada = await pedir("POST", "/api/clases", tokenD, {
+    const creada = await pedir("POST", "/api/admin/clases", await tokenAdmin(), {
       nombre: "Clase r2",
+      maestroIds: [dueno.id],
       maestroId: otro.id,
       codigoInvitacion: "HJKLMNP",
       activa: false,

@@ -220,15 +220,19 @@ describe("autorización de las rutas de CLASES-d", () => {
     },
   )
 
-  it("PR-D09d: cada ruta: admin, 403 ROL_NO_PERMITIDO", { timeout: 60000 }, async () => {
-    const token = await tokenAdminDePrueba()
-    for (const preparar of preparadores) {
-      const prep = await preparar()
-      const respuesta = await pedir(prep, token)
-      expect(respuesta.statusCode, prep.nombre).toBe(403)
-      expect(codigoDe(respuesta), prep.nombre).toBe("ROL_NO_PERMITIDO")
-    }
-  })
+  // CLASES-02b (C-9): las dos rutas de archivos listan a "admin": recibe lo mismo que el maestro.
+  it(
+    "PR-D09d: cada ruta: el admin recibe lo mismo que el maestro de la clase (C-9, CLASES-02b)",
+    { timeout: 60000 },
+    async () => {
+      const token = await tokenAdminDePrueba()
+      for (const preparar of preparadores) {
+        const prep = await preparar()
+        const respuesta = await pedir(prep, token)
+        expect(respuesta.statusCode, prep.nombre).toBe(prep.estatusPermitido)
+      }
+    },
+  )
 
   it(
     "PR-D09e: cada ruta: rol incorrecto, 403 ROL_NO_PERMITIDO (el estudiante inscrito en la solicitud de subida)",
@@ -276,7 +280,6 @@ describe("autorización de las rutas de CLASES-d", () => {
     "PR-D09h: en cada caso negado, los archivos de la clase quedan como estaban",
     { timeout: 60000 },
     async () => {
-      const tokenAdmin = await tokenAdminDePrueba()
       for (const preparar of preparadores) {
         const prep = await preparar()
         const conCambioPendiente = await estudianteDePrueba({ debeCambiarContrasena: true })
@@ -284,7 +287,6 @@ describe("autorización de las rutas de CLASES-d", () => {
           { descripcion: "sin token", token: undefined },
           { descripcion: "cambio pendiente", token: await tokenDe(conCambioPendiente) },
           { descripcion: "restringido", token: await prep.prepararRestringido() },
-          { descripcion: "admin", token: tokenAdmin },
         ]
         if (prep.tokenIncorrecto !== undefined) {
           negaciones.push({ descripcion: "rol incorrecto", token: prep.tokenIncorrecto })

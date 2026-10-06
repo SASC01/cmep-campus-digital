@@ -14,6 +14,12 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b ronda 0 (C-10, §D-2B1 y §D-2B2): el autor del muro suma administracion (obligatorio;
+// un maestro firma con su nombre y false) y cada publicación y comentario suma puedeBorrar (la
+// alumna no borra lo del maestro). Ninguna aserción cambia.
+const FIRMA = { ...AUTOR, administracion: false }
+// CLASES-02b ronda 0 (C-11, §D-2B4): "Personas" trae el correo completo y maestros (1 o 2).
+const MAESTRO_CON_CORREO = { ...AUTOR, email: "luis@ejemplo.mx" }
 const idPublicacion = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-${String(n).padStart(12, "0")}`
 const idComentario = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-${String(n).padStart(12, "0")}`
 const TEXTO_MURO = "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo."
@@ -35,18 +41,20 @@ const publicacion = (n: number, comentarios = 0) => ({
   tipo: "anuncio",
   titulo: null,
   texto: `Publicación ${String(n)}`,
-  autor: AUTOR,
+  autor: FIRMA,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios,
   adjuntos: [],
+  puedeBorrar: false,
 })
 
 const comentario = (n: number) => ({
   id: idComentario(n),
   texto: `Comentario ${String(n)}`,
-  autor: AUTOR,
+  autor: FIRMA,
   creadoEn: "2026-09-29T16:30:00.000Z",
   propio: false,
+  puedeBorrar: false,
 })
 
 // Paginación real (cursor = id de la última fila); un cursor que ya no está responde 400 VALIDACION
@@ -93,14 +101,22 @@ const crearServidor = () => {
     if (url.pathname === `/api/clases/${CLASE_ID}`) {
       return Promise.resolve(
         respuestaJson(200, {
-          clase: { id: CLASE_ID, nombre: "Historia", descripcion: null, maestro: AUTOR },
+          // CLASES-02a ronda 0 (C-7): claseDetalleSchema suma maestros (1 o 2).
+          clase: {
+            id: CLASE_ID,
+            nombre: "Historia",
+            descripcion: null,
+            maestro: AUTOR,
+            maestros: [AUTOR],
+          },
         }),
       )
     }
     if (url.pathname === `/api/clases/${CLASE_ID}/personas`) {
       return Promise.resolve(
         respuestaJson(200, {
-          maestro: AUTOR,
+          maestro: MAESTRO_CON_CORREO,
+          maestros: [MAESTRO_CON_CORREO],
           alumnos: [],
           totalAlumnos: 0,
           siguienteCursor: null,

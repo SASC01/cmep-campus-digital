@@ -5,7 +5,7 @@ import { LONGITUD_CODIGO_CLASE } from "@campus/shared"
 import { obtenerDb } from "../src/adapters/db/cliente.js"
 import { normalizarParaBusqueda } from "../src/core/auth/normalizacion.js"
 import { codigoDesdeBytes } from "../src/core/clases/codigo.js"
-import { crearUsuarioDePrueba, type UsuarioDePrueba } from "./ayudas-auth.js"
+import { crearUsuarioDePrueba, firmarTokenDePrueba, type UsuarioDePrueba } from "./ayudas-auth.js"
 
 // Ayudas compartidas por las pruebas de clases (CLASES-a). Mismo patrón que ayudas-auth.ts:
 // obtenerDb() se usa aquí, y solo aquí fuera de adapters/db, para preparar y limpiar datos.
@@ -13,11 +13,17 @@ import { crearUsuarioDePrueba, type UsuarioDePrueba } from "./ayudas-auth.js"
 export const codigoDePrueba = (): string => codigoDesdeBytes(randomBytes(LONGITUD_CODIGO_CLASE))
 
 export interface OpcionesClaseDePrueba {
+  // El maestro principal: es clases.maestro_id (solo escritura, P-06 a) y, sin maestroIds, el único
+  // maestro asignado.
   maestroId: string
+  // CLASES-02: todos los maestros asignados (de uno a dos), con maestroId entre ellos.
+  maestroIds?: readonly string[]
   nombre?: string
   descripcion?: string | null
   codigoInvitacion?: string
   activa?: boolean
+  // Para ordenar la clase en las listas (la asignación conserva su propia creado_en).
+  creadoEn?: Date
 }
 
 export interface ClaseDePrueba {
@@ -29,20 +35,50 @@ export const crearClaseDePrueba = async (
   registro: string[],
   {
     maestroId,
+    maestroIds,
     nombre = "Clase de prueba",
     descripcion = null,
     codigoInvitacion,
     activa = true,
+    creadoEn,
   }: OpcionesClaseDePrueba,
 ): Promise<ClaseDePrueba> => {
   const codigo = codigoInvitacion ?? codigoDePrueba()
+  const asignados = maestroIds ?? [maestroId]
+  if (!asignados.includes(maestroId)) {
+    throw new Error("crearClaseDePrueba: maestroIds debe incluir a maestroId")
+  }
+  // CLASES-02 (PR-2A09): la clase y sus asignaciones en un solo create anidado, sin ventana entre
+  // las dos y con la misma creado_en. Las clases creadas a mano sin asignación no tienen maestro.
   const { id } = await obtenerDb().clase.create({
-    data: { maestroId, nombre, descripcion, codigoInvitacion: codigo, activa },
+    data: {
+      maestroId,
+      nombre,
+      descripcion,
+      codigoInvitacion: codigo,
+      activa,
+      ...(creadoEn === undefined ? {} : { creadoEn }),
+      maestros: { create: asignados.map((id) => ({ maestroId: id })) },
+    },
     select: { id: true },
   })
   registro.push(id)
   return { id, codigoInvitacion: codigo }
 }
+
+// CLASES-02: el administrador único de la base desechable (lo crea seed:admin en global-setup) y su
+// token, para las rutas de /api/admin/clases y las que se abren al admin.
+export const idDelAdminDePrueba = async (): Promise<string> => {
+  const admin = await obtenerDb().usuario.findFirst({
+    where: { rol: "admin" },
+    select: { id: true },
+  })
+  if (!admin) throw new Error("Precondición: la base desechable no tiene el admin de seed:admin")
+  return admin.id
+}
+
+export const tokenDelAdminDePrueba = async (): Promise<string> =>
+  firmarTokenDePrueba({ usuarioId: await idDelAdminDePrueba() })
 
 export const inscribirDePrueba = async (
   claseId: string,

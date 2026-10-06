@@ -25,6 +25,7 @@ import {
   listarComentarios,
   listarPublicaciones,
   type ArchivoDb,
+  type AutorDb,
 } from "../../adapters/db/index.js"
 import { encolar } from "../../adapters/queue/index.js"
 import type { Almacen } from "../../core/archivos/almacen.js"
@@ -37,7 +38,8 @@ import {
   esImagenConVistaPrevia,
   VIGENCIA_URL_FIRMADA_S,
 } from "../../core/archivos/politica.js"
-import { normalizarTextoLargo } from "../../core/clases/texto.js"
+import { firmaDelAutor } from "../../core/autoria.js"
+import { conTextosNormalizados } from "../../core/clases/texto.js"
 import { AppError } from "../../core/errores.js"
 import {
   COLA_COMENTARIO_CREADO,
@@ -54,18 +56,9 @@ const publicacionNoEncontrada = (): AppError =>
 const comentarioNoEncontrado = (): AppError =>
   new AppError("COMENTARIO_NO_ENCONTRADO", "Ese comentario ya no existe.", 404)
 
-// §D-C4 (T-01 de a): normalizarTextoLargo corre ANTES de validar. Si se validara primero, el CR de
-// un texto escrito en Windows haría fallar el refine de caracteres de control. Solo toca los campos
-// que llegan como cadena; cualquier otra forma se deja intacta para que el esquema la rechace.
-const conTextosNormalizados = (cuerpo: unknown, campos: readonly string[]): unknown => {
-  if (typeof cuerpo !== "object" || cuerpo === null) return cuerpo
-  const objeto: Record<string, unknown> = { ...(cuerpo as Record<string, unknown>) }
-  for (const campo of campos) {
-    const valor = objeto[campo]
-    if (typeof valor === "string") objeto[campo] = normalizarTextoLargo(valor)
-  }
-  return objeto
-}
+// §D-2B1: el autor sale firmado según su rol (la firma "Administración") y el rol nunca sale.
+// puedeBorrar lo decide el adaptador con core/autoria.ts.
+const autorParaResponder = (autor: AutorDb) => firmaDelAutor(autor)
 
 // §D-D3, punto 4: la clave del objeto nunca sale; la vista previa solo existe para las cuatro
 // imágenes y solo con almacén. Firmar es un cálculo local, sin red.
@@ -125,14 +118,16 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 ) => {
   app.get(
     "/clases/:claseId/publicaciones",
-    protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { cursor, limite } = validarParametros(paginacionSchema, request.query)
-      const lista = await listarPublicaciones({ claseId: id, cursor, limite })
+      const actor = perfilDe(request)
+      const lista = await listarPublicaciones({ claseId: id, cursor, limite, actor })
       const publicaciones = await Promise.all(
         lista.publicaciones.map(async (publicacion) => ({
           ...publicacion,
+          autor: autorParaResponder(publicacion.autor),
           creadoEn: publicacion.creadoEn.toISOString(),
           adjuntos: await adjuntosParaResponder(almacen, publicacion.adjuntos),
         })),
@@ -143,7 +138,7 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 
   app.post(
     "/clases/:claseId/publicaciones",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const datos = validarCuerpo(
@@ -176,6 +171,7 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
         publicacionRespuestaSchema.parse({
           publicacion: {
             ...publicacion,
+            autor: autorParaResponder(publicacion.autor),
             creadoEn: publicacion.creadoEn.toISOString(),
             adjuntos: await adjuntosParaResponder(almacen, publicacion.adjuntos),
           },
@@ -186,11 +182,11 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 
   app.delete(
     "/clases/:claseId/publicaciones/:publicacionId",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { publicacionId } = validarParametros(publicacionIdParamSchema, request.params)
-      const borrada = await borrarPublicacion({ claseId, publicacionId })
+      const borrada = await borrarPublicacion({ claseId, publicacionId, actor: perfilDe(request) })
       if (!borrada) throw publicacionNoEncontrada()
       return reply.status(204).send()
     },
@@ -198,19 +194,26 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 
   app.get(
     "/clases/:claseId/publicaciones/:publicacionId/comentarios",
-    protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { publicacionId } = validarParametros(publicacionIdParamSchema, request.params)
       const { cursor, limite } = validarParametros(paginacionSchema, request.query)
       const perfil = perfilDe(request)
-      const lista = await listarComentarios({ claseId, publicacionId, cursor, limite })
+      const lista = await listarComentarios({
+        claseId,
+        publicacionId,
+        cursor,
+        limite,
+        actor: perfil,
+      })
       if (lista === null) throw publicacionNoEncontrada()
       return reply.send(
         listaComentariosRespuestaSchema.parse({
           ...lista,
           comentarios: lista.comentarios.map((comentario) => ({
             ...comentario,
+            autor: autorParaResponder(comentario.autor),
             creadoEn: comentario.creadoEn.toISOString(),
             propio: comentario.autor.id === perfil.id,
           })),
@@ -241,6 +244,7 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
         comentarioRespuestaSchema.parse({
           comentario: {
             ...comentario,
+            autor: autorParaResponder(comentario.autor),
             creadoEn: comentario.creadoEn.toISOString(),
             propio: true,
           },
@@ -251,14 +255,19 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 
   app.delete(
     "/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
-    protegido({ roles: ["maestro"], pertenencia: "propiedad" }),
+    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { publicacionId, comentarioId } = validarParametros(
         publicacionYComentarioParamSchema,
         request.params,
       )
-      const borrado = await borrarComentario({ claseId, publicacionId, comentarioId })
+      const borrado = await borrarComentario({
+        claseId,
+        publicacionId,
+        comentarioId,
+        actor: perfilDe(request),
+      })
       if (!borrado) throw comentarioNoEncontrado()
       return reply.status(204).send()
     },

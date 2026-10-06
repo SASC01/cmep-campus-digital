@@ -1,18 +1,26 @@
+import { varianteDeClase as varianteDeClaseDeLib } from "@/lib/variante-de-clase"
 import { ApiError } from "@/services/apiClient"
 import { describe, expect, it } from "vitest"
 
+import { CAPACIDADES_POR_PERSPECTIVA } from "./data"
 import {
   avisoDeFalloAlSubir,
   errorDeArchivoElegido,
+  etiquetaDeMaestros,
   focoPerdido,
+  indiceDeSeccionActiva,
+  mensajeDeErrorClases,
   mensajeDeErrorDeLista,
+  perspectivaDeRuta,
   siguientePasoInicio,
   terminoDeBusquedaMuyLargo,
   terminoDeBusquedaValido,
   textoConteoAlumnos,
+  textoDeMaestros,
   tiempoFrescoDelMuro,
   tipoDeArchivo,
   titularInicio,
+  unirNombres,
   varianteDeClase,
   vecinaDeFila,
 } from "./lib"
@@ -29,6 +37,13 @@ describe("varianteDeClase", () => {
   })
 })
 
+describe("varianteDeClase reexportada", () => {
+  // CLASES-02d (A-6): features/clases/lib.ts reexporta la de lib/variante-de-clase.ts.
+  it("PR-2D06: la de features/clases/lib es la misma función que la de lib/", () => {
+    expect(varianteDeClase).toBe(varianteDeClaseDeLib)
+  })
+})
+
 describe("titularInicio y siguientePasoInicio", () => {
   it("PR-A17b: en 0, 1 y N, por rol", () => {
     expect(titularInicio("estudiante", 0)).toBe("Aún no estás en ninguna clase")
@@ -40,7 +55,7 @@ describe("titularInicio y siguientePasoInicio", () => {
 
     expect(siguientePasoInicio("estudiante", 0)).toMatch(/código de su clase/)
     expect(siguientePasoInicio("estudiante", 1)).toMatch(/próximas entregas/)
-    expect(siguientePasoInicio("maestro", 0)).toMatch(/Crea tu primera clase/)
+    expect(siguientePasoInicio("maestro", 0)).toMatch(/La administración te asigna tus clases/)
     expect(siguientePasoInicio("maestro", 1)).toMatch(/Comparte el código/)
   })
 })
@@ -163,9 +178,11 @@ describe("tiempoFrescoDelMuro (T-40)", () => {
     tipo: "anuncio" as const,
     titulo: null,
     texto: "x",
-    autor: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis" },
+    autor: { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis", administracion: false },
     creadoEn: "2026-10-02T14:00:00.000Z",
     comentarios: 0,
+    // CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
+    puedeBorrar: true,
     adjuntos: [
       {
         ...ADJUNTO_BASE,
@@ -212,5 +229,140 @@ describe("avisoDeFalloAlSubir (T-41)", () => {
     expect(avisoDeFalloAlSubir(new TypeError("Failed to fetch"), "a.pdf")).toBe(
       "No pudimos subir «a.pdf». Inténtalo de nuevo.",
     )
+  })
+})
+
+// CLASES-02c (§D-2C1)
+describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
+  it("PR-2C01: las tres perspectivas salen de su prefijo exacto", () => {
+    expect(perspectivaDeRuta("/estudiante")).toBe("estudiante")
+    expect(perspectivaDeRuta("/estudiante/clases/x")).toBe("estudiante")
+    expect(perspectivaDeRuta("/maestro")).toBe("maestro")
+    expect(perspectivaDeRuta("/maestro/clases/x/alumnos")).toBe("maestro")
+    expect(perspectivaDeRuta("/admin")).toBe("admin")
+    expect(perspectivaDeRuta("/admin/clases/x/maestros")).toBe("admin")
+  })
+
+  it("PR-2C01: un prefijo parecido o cualquier otra ruta da «estudiante», la perspectiva que menos muestra", () => {
+    for (const ruta of [
+      "/maestros",
+      "/administrador",
+      "/admin-x",
+      "/maestro-x/clases",
+      "/",
+      "",
+      "/login",
+    ]) {
+      expect(perspectivaDeRuta(ruta), ruta).toBe("estudiante")
+    }
+  })
+
+  // CLASES-02d, O-06 (revisión de 02c): el router no distingue mayúsculas, así que la perspectiva
+  // tampoco (antes "/Admin" daba «estudiante» aunque el router mostrara la vista del administrador).
+  it("PR-2D07: la perspectiva no distingue mayúsculas, como el router, y un prefijo parecido sigue sin valer", () => {
+    expect(perspectivaDeRuta("/Admin")).toBe("admin")
+    expect(perspectivaDeRuta("/ADMIN/Clases/NUEVA")).toBe("admin")
+    expect(perspectivaDeRuta("/Maestro/clases/x")).toBe("maestro")
+    expect(perspectivaDeRuta("/ESTUDIANTE")).toBe("estudiante")
+    expect(perspectivaDeRuta("/Maestros")).toBe("estudiante")
+    expect(perspectivaDeRuta("/ADMINISTRADOR")).toBe("estudiante")
+  })
+
+  it("PR-2C01: la tabla de capacidades de §D-2C1, celda por celda", () => {
+    const { estudiante, maestro, admin } = CAPACIDADES_POR_PERSPECTIVA
+    expect([estudiante.base, maestro.base, admin.base]).toEqual([
+      "/estudiante/clases",
+      "/maestro/clases",
+      "/admin/clases",
+    ])
+    expect([estudiante.volverDestino, maestro.volverDestino, admin.volverDestino]).toEqual([
+      "/estudiante",
+      "/maestro",
+      "/admin/clases",
+    ])
+    expect([estudiante.volverTexto, maestro.volverTexto, admin.volverTexto]).toEqual([
+      "Volver a mis clases",
+      "Volver a mis clases",
+      "Volver a la lista de clases",
+    ])
+    expect(estudiante.secciones.map((s) => s.texto)).toEqual(["Muro", "Personas"])
+    expect(maestro.secciones.map((s) => s.texto)).toEqual(["Muro", "Alumnos"])
+    expect(admin.secciones.map((s) => s.texto)).toEqual(["Muro", "Alumnos", "Maestros"])
+    expect([estudiante.verCodigo, maestro.verCodigo, admin.verCodigo]).toEqual([false, true, true])
+    expect([estudiante.editar, maestro.editar, admin.editar]).toEqual([false, false, true])
+    expect([
+      estudiante.formularioPublicacion,
+      maestro.formularioPublicacion,
+      admin.formularioPublicacion,
+    ]).toEqual([false, true, true])
+    expect([
+      estudiante.formularioComentario,
+      maestro.formularioComentario,
+      admin.formularioComentario,
+    ]).toEqual([true, true, false])
+  })
+
+  // CLASES-02d, M-12: hermano de O-06. El router no distingue mayúsculas; el indicador tampoco.
+  it("M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar", () => {
+    const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
+    const base = "/admin/clases/2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+    const mayusculas = base.toUpperCase()
+    expect(indiceDeSeccionActiva(mayusculas, base, secciones)).toBe(0)
+    expect(indiceDeSeccionActiva(`${mayusculas}/ALUMNOS`, base, secciones)).toBe(1)
+    expect(indiceDeSeccionActiva(`${mayusculas}/Maestros/`, base, secciones)).toBe(2)
+    expect(indiceDeSeccionActiva(`${base}/ALUMNOS`, mayusculas, secciones)).toBe(1)
+    expect(indiceDeSeccionActiva(`${mayusculas}/EDITAR`, base, secciones)).toBe(-1)
+    expect(indiceDeSeccionActiva(`${mayusculas}X`, base, secciones)).toBe(-1)
+  })
+
+  it("indiceDeSeccionActiva: el muro solo en la base exacta, el resto también en sus subrutas, y ninguna en /editar", () => {
+    const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
+    const base = "/admin/clases/abc"
+    expect(indiceDeSeccionActiva(base, base, secciones)).toBe(0)
+    expect(indiceDeSeccionActiva(`${base}/`, base, secciones)).toBe(0)
+    expect(indiceDeSeccionActiva(`${base}/alumnos`, base, secciones)).toBe(1)
+    expect(indiceDeSeccionActiva(`${base}/maestros`, base, secciones)).toBe(2)
+    expect(indiceDeSeccionActiva(`${base}/editar`, base, secciones)).toBe(-1)
+    expect(indiceDeSeccionActiva(`${base}/alumnosx`, base, secciones)).toBe(-1)
+  })
+})
+
+describe("textoDeMaestros", () => {
+  it("PR-2C02: uno y dos nombres", () => {
+    expect(textoDeMaestros(["Luis Pérez"])).toBe("Maestro: Luis Pérez")
+    expect(textoDeMaestros(["Dra. Márquez", "Mtro. Ruiz"])).toBe(
+      "Maestros: Dra. Márquez y Mtro. Ruiz",
+    )
+    expect(unirNombres(["Dra. Márquez", "Mtro. Ruiz"])).toBe("Dra. Márquez y Mtro. Ruiz")
+  })
+
+  it("PR-2C02: nombres largos sin espacios se conservan enteros (el corte lo hace el estilo)", () => {
+    const largo = "x".repeat(200)
+    expect(textoDeMaestros([largo, largo])).toBe(`Maestros: ${largo} y ${largo}`)
+  })
+})
+
+describe("mensajes de los errores de maestros y de autoría (§D-2C2)", () => {
+  it("muestran el mensaje del servidor", () => {
+    for (const codigo of [
+      "TOPE_DE_MAESTROS",
+      "CLASE_SIN_MAESTRO",
+      "MAESTRO_NO_ENCONTRADO",
+      "BORRADO_NO_PERMITIDO",
+      // CLASES-02d, O-07 (revisión de 02c): el 503 del servidor ocupado también ya viene en español.
+      "SERVICIO_OCUPADO",
+    ]) {
+      expect(mensajeDeErrorClases(new ApiError(codigo, "Mensaje del servidor", 409)), codigo).toBe(
+        "Mensaje del servidor",
+      )
+    }
+  })
+})
+
+// CLASES-02d (§D-2D2)
+describe("etiquetaDeMaestros", () => {
+  it("PR-2D04: «Maestro» con uno y «Maestros» con dos", () => {
+    expect(etiquetaDeMaestros(1)).toBe("Maestro")
+    expect(etiquetaDeMaestros(2)).toBe("Maestros")
   })
 })

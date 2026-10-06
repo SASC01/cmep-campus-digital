@@ -10,25 +10,42 @@ import { Card } from "@/components/ui/card"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
 import { PublicacionDelMuro } from "./components/publicacion-del-muro"
-import { TEXTOS_MURO } from "./data"
-import { useFilaEnFoco, useFocoAlCargarMas, usePublicaciones } from "./hooks"
-import { focoPerdido, mensajeDeErrorDeLista, vecinaDeFila } from "./lib"
+import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_MURO } from "./data"
+import { useFilaEnFoco, useFocoAlCargarMas, useFocoAlPasarAError, usePublicaciones } from "./hooks"
+import { focoPerdido, mensajeDeErrorDeLista, perspectivaDeRuta, vecinaDeFila } from "./lib"
+import type { Perspectiva } from "./types"
 
 interface MuroDeLaClaseProps {
   claseId: string
 }
 
-// §D-C5: el muro de una clase. El maestro dueño ve arriba el formulario para publicar (su "Publicar
-// anuncio" o "Publicar material" es la única acción principal de la vista); el estudiante solo
-// lee y comenta. La ruta decide el rol por su prefijo, igual que ClaseLayout (§D-A5); el backend lo
-// exige por su cuenta. Estados de la lista en orden: error → cargando → vacío → datos.
+// Lo que dice el muro vacío según quién lo mira (§D-2C4).
+const tituloDelMuroVacio = (perspectiva: Perspectiva): string => {
+  if (perspectiva === "maestro") return TEXTOS_MURO.vacioMaestro
+  if (perspectiva === "admin") return TEXTOS_MURO.vacioAdmin
+  return TEXTOS_MURO.vacioEstudiante
+}
+
+// §D-C5, §D-2C1: el muro de una clase. El maestro y el admin ven arriba el formulario para publicar
+// (su "Publicar anuncio" o "Publicar material" es la única acción principal de la vista); el
+// estudiante solo lee y comenta, y el admin lee sin comentar. La ruta decide la perspectiva por su
+// prefijo, igual que ClaseLayout (§D-A5); el backend lo exige por su cuenta. Estados de la lista en
+// orden: error → cargando → vacío → datos.
 function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   const ubicacion = useLocation()
-  const esMaestro = ubicacion.pathname.startsWith("/maestro")
+  const perspectiva = perspectivaDeRuta(ubicacion.pathname)
   const publicaciones = usePublicaciones(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
+  // T-04: si la lista se recarga con error tras borrar una publicación, el foco va al encabezado.
+  useFocoAlPasarAError(
+    publicaciones.isError,
+    publicaciones.data !== undefined,
+    claseId,
+    encabezadoRef,
+  )
   const filaEnFocoRef = useFilaEnFoco("data-publicacion-id")
   const idsPrevios = useRef<string[] | undefined>(undefined)
+  const clasePrevia = useRef(claseId)
   const filas = publicaciones.data?.pages.flatMap((pagina) => pagina.publicaciones)
   const ids = filas?.map((publicacion) => publicacion.id)
 
@@ -62,6 +79,17 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
     const previos = idsPrevios.current
     idsPrevios.current = ids
     const idEnFoco = filaEnFocoRef.current
+    // O-14 (02d, DESIGN.md §7.14, ronda 4 de 02c: cambio de clave): al pasar de una clase a otra la
+    // instancia se reutiliza. Una publicación de la clase anterior no tiene "vecina" en la nueva (los
+    // índices de una lista no valen para la otra, aunque la nueva ya esté en la caché): el foco que
+    // se perdió va al encabezado de la lista, nunca a una publicación al azar de la clase nueva.
+    if (clasePrevia.current !== claseId) {
+      clasePrevia.current = claseId
+      if (idEnFoco === null || !focoPerdido(document)) return
+      filaEnFocoRef.current = null
+      encabezadoRef.current?.focus()
+      return
+    }
     if (idEnFoco === null || !focoPerdido(document)) return
     filaEnFocoRef.current = null
     const vecina = ids === undefined ? undefined : vecinaDeFila(previos, ids, idEnFoco)
@@ -91,9 +119,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
     if (filas.length === 0) {
       return (
         <Card>
-          <EstadoVacio
-            titulo={esMaestro ? TEXTOS_MURO.vacioMaestro : TEXTOS_MURO.vacioEstudiante}
-          />
+          <EstadoVacio titulo={tituloDelMuroVacio(perspectiva)} />
         </Card>
       )
     }
@@ -105,7 +131,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
               <PublicacionDelMuro
                 claseId={claseId}
                 publicacion={publicacion}
-                esMaestro={esMaestro}
+                perspectiva={perspectiva}
               />
             </li>
           ))}
@@ -115,7 +141,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
             ref={refVerMas}
             type="button"
             variant="outline"
-            onClick={() => void publicaciones.fetchNextPage()}
+            onClick={() => void publicaciones.fetchNextPage({ cancelRefetch: false })}
             enEspera={publicaciones.isFetchingNextPage}
             className="self-start"
           >
@@ -128,7 +154,9 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {esMaestro && <FormularioPublicacion claseId={claseId} />}
+      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioPublicacion && (
+        <FormularioPublicacion claseId={claseId} />
+      )}
       <section className="flex flex-col gap-4">
         <h2 ref={encabezadoRef} tabIndex={-1} className="sr-only">
           {TEXTOS_MURO.tituloLista}

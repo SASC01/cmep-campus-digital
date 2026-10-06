@@ -109,9 +109,17 @@ const crearServidor = (total: number, candidatos: { n: number; nombre: string }[
       }
       const { ids, siguiente } = pagina(url)
       if (url.pathname.endsWith("/personas")) {
+        // CLASES-02b ronda 0 (C-11, §D-2B4): "Personas" trae el correo completo de cada persona y
+        // maestros (1 o 2), obligatorios en personasRespuestaSchema. Ninguna aserción cambia.
+        const maestro = { id: MAESTRO_ID, nombre: "Profe Luna", email: "luna@x.mx" }
         return respuestaJson(200, {
-          maestro: { id: MAESTRO_ID, nombre: "Profe Luna" },
-          alumnos: ids.map((id) => ({ id, nombre: nombreDeId(id) })),
+          maestro,
+          maestros: [maestro],
+          alumnos: ids.map((id) => ({
+            id,
+            nombre: nombreDeId(id),
+            email: `a${id.slice(-3)}@x.mx`,
+          })),
           totalAlumnos: control.inscritos.length,
           siguienteCursor: siguiente,
         })

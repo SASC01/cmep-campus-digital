@@ -1,8 +1,13 @@
-import { render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { act, cleanup, render, screen, within } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
-import { describe, expect, it, vi } from "vitest"
+import type { ReactNode } from "react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 import { ContenedorRol } from "./contenedor-rol"
+import { DESTINOS_POR_ROL } from "./data"
 
 const RUTA_DE: Record<"estudiante" | "maestro" | "admin", string> = {
   estudiante: "/estudiante",
@@ -10,26 +15,57 @@ const RUTA_DE: Record<"estudiante" | "maestro" | "admin", string> = {
   admin: "/admin",
 }
 
+// CLASES-02d (C-16): la barra del estudiante y del maestro consulta la lista de clases, así que el
+// marco necesita un QueryClientProvider y un fetch que responda una lista vacía (la barra no pinta
+// nada con ella; estos casos son del marco, no de la lista).
+beforeEach(() => {
+  establecerToken("token-de-prueba")
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ clases: [], total: 0, siguienteCursor: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    ),
+  )
+})
+
+afterEach(() => {
+  limpiarToken()
+  vi.unstubAllGlobals()
+})
+
+const conConsultas = (arbol: ReactNode) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    {arbol}
+  </QueryClientProvider>
+)
+
 function renderizar(rol: "estudiante" | "maestro" | "admin", cerrando = false) {
   return render(
-    <MemoryRouter initialEntries={[RUTA_DE[rol]]}>
-      <Routes>
-        <Route
-          path={RUTA_DE[rol]}
-          element={
-            <ContenedorRol
-              rol={rol}
-              nombre="Ana Torres"
-              etiquetaRol="Estudiante"
-              onCerrarSesion={vi.fn()}
-              cerrando={cerrando}
-            />
-          }
-        >
-          <Route index element={<p>Contenido</p>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    conConsultas(
+      <MemoryRouter initialEntries={[RUTA_DE[rol]]}>
+        <Routes>
+          <Route
+            path={RUTA_DE[rol]}
+            element={
+              <ContenedorRol
+                rol={rol}
+                nombre="Ana Torres"
+                etiquetaRol="Estudiante"
+                onCerrarSesion={vi.fn()}
+                cerrando={cerrando}
+              />
+            }
+          >
+            <Route index element={<p>Contenido</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    ),
   )
 }
 
@@ -68,8 +104,8 @@ describe("ContenedorRol", () => {
     expect(enlace).toHaveAttribute("aria-current", "page")
   })
 
-  // AUTH-03b: el admin gana un segundo destino, "Maestros" (/admin/maestros).
-  it("con rol admin, hay dos enlaces: 'Cuentas' hacia /admin y 'Maestros' hacia /admin/maestros", () => {
+  // AUTH-03b: el admin gana "Maestros" (/admin/maestros); CLASES-02c (C-14, P-07 a), "Clases".
+  it("con rol admin, hay tres enlaces: 'Cuentas' hacia /admin, 'Maestros' hacia /admin/maestros y 'Clases' hacia /admin/clases", () => {
     renderizar("admin")
     const cuentas = screen.getByRole("link", { name: "Cuentas" })
     expect(cuentas).toHaveAttribute("href", "/admin")
@@ -77,6 +113,45 @@ describe("ContenedorRol", () => {
     const maestros = screen.getByRole("link", { name: "Maestros" })
     expect(maestros).toHaveAttribute("href", "/admin/maestros")
     expect(maestros).not.toHaveAttribute("aria-current")
+    const clases = screen.getByRole("link", { name: "Clases" })
+    expect(clases).toHaveAttribute("href", "/admin/clases")
+    expect(clases).not.toHaveAttribute("aria-current")
+    expect(
+      within(screen.getByRole("navigation", { name: "Navegación principal" }))
+        .getAllByRole("link")
+        .map((enlace) => enlace.textContent),
+    ).toEqual(["Cuentas", "Maestros", "Clases"])
+  })
+
+  // CLASES-02d, M-13 (PR-2D01, P-07 a): el administrador no tiene lista de clases en la barra.
+  it("con rol admin no existe «Mis clases» en la barra y no se pide inscritas ni impartidas", async () => {
+    renderizar("admin")
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 20))
+    })
+
+    expect(screen.queryByRole("list", { name: "Mis clases" })).toBeNull()
+    expect(screen.queryByText("Mis clases")).toBeNull()
+    expect(screen.queryByRole("status")).toBeNull()
+    expect(screen.queryByRole("button", { name: /Reintentar/ })).toBeNull()
+    const pedidas = vi.mocked(fetch).mock.calls.map(([entrada]) => String(entrada))
+    expect(pedidas.filter((ruta) => ruta.startsWith("/api/clases/"))).toEqual([])
+  })
+
+  it("con rol estudiante o maestro, la barra pide su lista (contraste del caso del admin)", async () => {
+    renderizar("estudiante")
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 20))
+    })
+    cleanup()
+    renderizar("maestro")
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 20))
+    })
+
+    const pedidas = vi.mocked(fetch).mock.calls.map(([entrada]) => String(entrada))
+    expect(pedidas).toContain("/api/clases/inscritas?limite=100")
+    expect(pedidas).toContain("/api/clases/impartidas?limite=100")
   })
 
   it("el nombre y la etiqueta del rol aparecen una vez cada uno como texto", () => {
@@ -104,5 +179,65 @@ describe("ContenedorRol", () => {
       expect(clases.some((clase) => clase.startsWith("vidrio"))).toBe(false)
       elemento = elemento.parentElement
     }
+  })
+})
+
+// CLASES-02c (PR-2C11, Enmienda 1, M-04): cada destino declara su coincidencia. "Clases" queda activo
+// en todas sus subrutas; "Cuentas" y "Maestros", solo en su ruta exacta.
+describe("destinos del administrador y su coincidencia", () => {
+  const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+
+  const renderizarAdminEn = (ruta: string) =>
+    render(
+      conConsultas(
+        <MemoryRouter initialEntries={[ruta]}>
+          <Routes>
+            <Route
+              path="/admin"
+              element={
+                <ContenedorRol
+                  rol="admin"
+                  nombre="Ana Torres"
+                  etiquetaRol="Administrador"
+                  onCerrarSesion={vi.fn()}
+                  cerrando={false}
+                />
+              }
+            >
+              <Route index element={<p>Contenido</p>} />
+              <Route path="*" element={<p>Contenido</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      ),
+    )
+
+  const activos = () =>
+    within(screen.getByRole("navigation", { name: "Navegación principal" }))
+      .getAllByRole("link")
+      .filter((enlace) => enlace.getAttribute("aria-current") === "page")
+      .map((enlace) => enlace.textContent)
+
+  it.each([
+    ["/admin", ["Cuentas"]],
+    ["/admin/maestros", ["Maestros"]],
+    ["/admin/clases", ["Clases"]],
+    ["/admin/clases/nueva", ["Clases"]],
+    [`/admin/clases/${CLASE_ID}`, ["Clases"]],
+    [`/admin/clases/${CLASE_ID}/maestros`, ["Clases"]],
+    [`/admin/clases/${CLASE_ID}/editar`, ["Clases"]],
+  ])("en %s solo queda activo %j", (ruta, esperados) => {
+    renderizarAdminEn(ruta)
+    expect(activos()).toEqual(esperados)
+  })
+
+  it("todo destino de DESTINOS_POR_ROL declara su coincidencia, y solo «Clases» es de prefijo", () => {
+    const todos = Object.values(DESTINOS_POR_ROL).flat()
+    for (const destino of todos) {
+      expect(["exacta", "prefijo"], destino.etiqueta).toContain(destino.coincidencia)
+    }
+    expect(todos.filter((d) => d.coincidencia === "prefijo").map((d) => d.etiqueta)).toEqual([
+      "Clases",
+    ])
   })
 })

@@ -73,19 +73,32 @@ export {
 export {
   buscarClasePorCodigo,
   buscarDatosDePertenencia,
-  crearClase,
+  crearClaseAdministrada,
   editarClase,
   inscribir,
   leerClase,
   leerCodigo,
+  listarClasesAdmin,
   listarClasesImpartidas,
   listarClasesInscritas,
+  ORDEN_DE_MAESTROS,
   regenerarCodigo,
+  type ClaseAdminDb,
   type ClaseDb,
   type DatosDePertenencia,
+  type ListaClasesAdminDb,
   type ListaClasesImpartidasDb,
   type ListaClasesInscritasDb,
+  type MaestroDb,
 } from "./clases.js"
+export {
+  asignarMaestro,
+  buscarMaestrosCandidatos,
+  retirarMaestro,
+  type CandidatoMaestroDb,
+  type ListaCandidatosMaestroDb,
+  type MaestrosDeClaseDb,
+} from "./maestros-de-clase.js"
 export {
   agregarAlumnoManual,
   buscarCandidatos,
@@ -97,6 +110,7 @@ export {
   type ListaAlumnosDeClaseDb,
   type ListaCandidatosDb,
   type ListaPersonasDb,
+  type PersonaConCorreoDb,
   type PersonaDb,
 } from "./inscripciones.js"
 export {

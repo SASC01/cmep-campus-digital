@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 import { PublicacionDelMuro } from "./components/publicacion-del-muro"
-import type { Publicacion } from "./types"
+import type { Perspectiva, Publicacion } from "./types"
 
 const aviso = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: aviso }))
@@ -18,7 +18,12 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 const PUBLICACION_ID = "5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d11"
-const AUTOR = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+// CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
+const AUTOR = {
+  id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09",
+  nombre: "Luis Pérez",
+  administracion: false,
+}
 
 const publicacion = (extra: Partial<Publicacion> = {}): Publicacion => ({
   id: PUBLICACION_ID,
@@ -30,6 +35,7 @@ const publicacion = (extra: Partial<Publicacion> = {}): Publicacion => ({
   comentarios: 2,
   // C-21 (Enmienda 10): toda publicación lleva adjuntos.
   adjuntos: [],
+  puedeBorrar: false,
   ...extra,
 })
 
@@ -38,9 +44,14 @@ const idDe = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d${String(10 + n)}
 const comentario = (n: number, extra: Record<string, unknown> = {}) => ({
   id: idDe(n),
   texto: `Comentario ${String(n)}`,
-  autor: { id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01", nombre: `Autor ${String(n)}` },
+  autor: {
+    id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01",
+    nombre: `Autor ${String(n)}`,
+    administracion: false,
+  },
   creadoEn: "2026-09-29T16:30:00.000Z",
   propio: false,
+  puedeBorrar: false,
   ...extra,
 })
 
@@ -66,14 +77,18 @@ const llamadasA = (fetchMock: ReturnType<typeof stubApi>, parte: string, metodo 
     ([entrada, init]) => String(entrada).includes(parte) && (init?.method ?? "GET") === metodo,
   )
 
-const renderPublicacion = (props: { publicacion?: Publicacion; esMaestro?: boolean } = {}) => {
+// CLASES-02c (C-13): la vista ya no decide por el rol: el botón de borrar sale de `puedeBorrar` de la
+// publicación y de cada comentario, y la perspectiva solo decide el formulario de comentario.
+const renderPublicacion = (
+  props: { publicacion?: Publicacion; perspectiva?: Perspectiva } = {},
+) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
       <PublicacionDelMuro
         claseId={CLASE_ID}
         publicacion={props.publicacion ?? publicacion()}
-        esMaestro={props.esMaestro ?? false}
+        perspectiva={props.perspectiva ?? "estudiante"}
       />
     </QueryClientProvider>,
   )
@@ -148,16 +163,21 @@ describe("PublicacionDelMuro", () => {
     )
   })
 
-  it("PR-C10d: «Borrar» aparece en los comentarios propios del alumno y en todos para el maestro, con confirmación en línea", async () => {
+  // CLASES-02c (C-13): «Borrar» sale de `puedeBorrar` de cada comentario, no del rol, y el borrado
+  // siempre va a la ruta general (sin mis-comentarios).
+  it("PR-C10d: «Borrar» aparece solo en los comentarios con puedeBorrar, para cualquier perspectiva, con confirmación en línea y por la ruta general", async () => {
     const fetchMock = stubApi((ruta, metodo) => {
       if (metodo === "DELETE") return new Response(null, { status: 204 })
       return respuestaJson(
         200,
-        listaDeComentarios([comentario(1, { propio: true }), comentario(2)]),
+        listaDeComentarios([
+          comentario(1, { propio: true, puedeBorrar: true }),
+          comentario(2, { puedeBorrar: false }),
+        ]),
       )
     })
 
-    // El alumno: solo el suyo.
+    // El alumno: solo el que el servidor le deja borrar.
     renderPublicacion()
     abrirComentarios()
     await screen.findByText("Comentario 1")
@@ -178,13 +198,22 @@ describe("PublicacionDelMuro", () => {
     fireEvent.click(screen.getByRole("button", { name: "Borrar" }))
     fireEvent.click(screen.getByRole("button", { name: "Sí, borrar comentario" }))
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Comentario borrado"))
-    expect(llamadasA(fetchMock, `/api/clases/${CLASE_ID}/mis-comentarios/`, "DELETE")).toHaveLength(
-      1,
-    )
-    cleanup()
+    expect(llamadasA(fetchMock, `${rutaDeComentarios}/${idDe(1)}`, "DELETE")).toHaveLength(1)
+    expect(llamadasA(fetchMock, "/mis-comentarios/", "DELETE")).toHaveLength(0)
+  })
 
-    // El maestro: todos, por la ruta del dueño.
-    renderPublicacion({ esMaestro: true })
+  it("PR-C10d: un maestro con puedeBorrar en todos los comentarios los ve todos con «Borrar», y borrar usa la ruta general", async () => {
+    const fetchMock = stubApi((ruta, metodo) => {
+      if (metodo === "DELETE") return new Response(null, { status: 204 })
+      return respuestaJson(
+        200,
+        listaDeComentarios([
+          comentario(1, { puedeBorrar: true }),
+          comentario(2, { puedeBorrar: true }),
+        ]),
+      )
+    })
+    renderPublicacion({ perspectiva: "maestro" })
     abrirComentarios()
     await screen.findByText("Comentario 2")
     expect(screen.getAllByRole("button", { name: "Borrar" })).toHaveLength(2)
@@ -281,7 +310,10 @@ describe("PublicacionDelMuro", () => {
 
   it("el maestro borra la publicación con confirmación en línea y el aviso sale aunque la publicación desaparezca", async () => {
     const fetchMock = stubApi(() => new Response(null, { status: 204 }))
-    renderPublicacion({ esMaestro: true })
+    renderPublicacion({
+      perspectiva: "maestro",
+      publicacion: publicacion({ puedeBorrar: true }),
+    })
 
     expect(screen.queryByRole("button", { name: "Sí, borrar" })).toBeNull()
     const borrar = screen.getByRole("button", { name: "Borrar publicación" })
@@ -299,10 +331,60 @@ describe("PublicacionDelMuro", () => {
     ).toHaveLength(1)
   })
 
-  it("el estudiante no ve «Borrar publicación»", () => {
+  it("sin puedeBorrar no hay «Borrar publicación», tampoco para el maestro ni el admin (PR-2C09)", () => {
     stubApi(() => respuestaJson(500, {}))
-    renderPublicacion({ esMaestro: false })
-    expect(screen.queryByRole("button", { name: "Borrar publicación" })).toBeNull()
+    for (const perspectiva of ["estudiante", "maestro", "admin"] as const) {
+      renderPublicacion({ perspectiva })
+      expect(screen.queryByRole("button", { name: "Borrar publicación" }), perspectiva).toBeNull()
+      cleanup()
+    }
+  })
+
+  it("con puedeBorrar sí hay «Borrar publicación» en las tres perspectivas (PR-2C09)", () => {
+    stubApi(() => respuestaJson(500, {}))
+    for (const perspectiva of ["estudiante", "maestro", "admin"] as const) {
+      renderPublicacion({ perspectiva, publicacion: publicacion({ puedeBorrar: true }) })
+      expect(screen.getByRole("button", { name: "Borrar publicación" }), perspectiva).toBeVisible()
+      cleanup()
+    }
+  })
+
+  it("la firma del admin es la insignia «Administración» con su icono y no el nombre; un autor llamado así sin administracion lleva su nombre (PR-2C09)", () => {
+    stubApi(() => respuestaJson(500, {}))
+    renderPublicacion({
+      publicacion: publicacion({
+        autor: { id: AUTOR.id, nombre: "Nombre real del admin", administracion: true },
+      }),
+    })
+    const insignia = screen.getByText("Administración")
+    expect(insignia).toHaveAttribute("data-slot", "badge")
+    expect(insignia.querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+    expect(screen.queryByText("Nombre real del admin")).toBeNull()
+    cleanup()
+
+    renderPublicacion({
+      publicacion: publicacion({
+        autor: { id: AUTOR.id, nombre: "Administración", administracion: false },
+      }),
+    })
+    const comoNombre = screen.getByText("Administración")
+    expect(comoNombre).not.toHaveAttribute("data-slot", "badge")
+    expect(comoNombre).toHaveClass("font-bold")
+  })
+
+  it("el admin no tiene formulario de comentario y el maestro y el estudiante sí (PR-2C07)", async () => {
+    stubApi(() => respuestaJson(200, listaDeComentarios([])))
+    for (const [perspectiva, hay] of [
+      ["estudiante", true],
+      ["maestro", true],
+      ["admin", false],
+    ] as const) {
+      renderPublicacion({ perspectiva })
+      abrirComentarios(2)
+      await screen.findByRole("heading", { name: "Comentarios" })
+      expect(screen.queryByLabelText("Escribe un comentario") !== null, perspectiva).toBe(hay)
+      cleanup()
+    }
   })
 })
 

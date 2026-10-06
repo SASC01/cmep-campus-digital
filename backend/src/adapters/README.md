@@ -162,6 +162,8 @@ muchos clientes a la vez. Hoy solo la usan `registrarMaestroConEnlace` y `revoca
 (10 s, M-08): cada registro del mismo enlace toma una conexión antes de formarse en la fila, y con
 el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
+`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `listarClasesAdmin`, `listarClasesInscritas`, `listarClasesImpartidas`, `leerClase`, `listarPublicaciones` y `listarComentarios`.
+
 ## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
 
 `buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena
@@ -188,6 +190,8 @@ con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion`
 CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
 `listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
 cursor siguiente, en vez de repetir esa lógica a mano.
+
+`listarClasesAdmin`, `listarClasesInscritas`, `listarClasesImpartidas` y `leerClase` (también la relectura de `editarClase`) corren con `enTransaccion(…, { instantaneaUnica: true })`, con sus sentencias en serie: la página, sus relaciones, el cursor y el total salen de una sola instantánea (FIX-CLASES).
 
 ## `db/maestros-de-clase.ts` (CLASES-02, §D-2A4)
 
@@ -247,6 +251,8 @@ cascada; si el borrado confirma antes, el `FOR SHARE` ya no ve la fila. Toda con
 `publicacionId` o `comentarioId` filtra además por la clase de la ruta, y «mis comentarios» pone
 `autor_id` dentro de la condición del `deleteMany`. `listarPublicaciones` cuenta los comentarios de
 toda la página con una sola consulta agrupada, fuera de cualquier ciclo.
+
+`listarPublicaciones` y `listarComentarios` corren con `enTransaccion(…, { instantaneaUnica: true })` (FIX-CLASES, T-01 y T-02 de su ronda 1): la comprobación del cursor (y, en los comentarios, la de la publicación), la página, el conteo de comentarios y los adjuntos salen de una sola instantánea. Así, si la fila del cursor se borra después de comprobarla, la página devuelve las filas que siguen en lugar de quedar vacía; un cursor que ya no existía responde `400` como siempre. Llamadas con el ejecutor de una transacción externa, corren con el aislamiento de esa transacción; hoy solo las llama `handlers/clases/muro.ts`, sin ejecutor.
 
 El autor se selecciona con su `rol` solo para dos cosas: `firmaDelAutor` (la firma
 "Administración") y `puedeBorrar` (`core/autoria.ts`), que se aplica dentro de la transacción de

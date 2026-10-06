@@ -152,7 +152,11 @@ export const crearPublicacion = (
 // Más reciente primero. Cursor de Prisma sobre la PK (el orden es creado_en DESC, id DESC, que
 // sigue el índice de la clase). El conteo de comentarios sale de una sola consulta agrupada para
 // toda la página, fuera de cualquier ciclo.
-export const listarPublicaciones = async (
+// FIX-CLASES (T-01): la comprobación del cursor, la página, el conteo y los adjuntos corren en una
+// sola instantánea; si la publicación del cursor se borra después de comprobarla, la página sigue
+// viéndola y devuelve las que siguen en lugar de quedar vacía. Con el ejecutor de una transacción
+// externa, corre con el aislamiento de esa transacción (hoy solo la llama muro.ts, sin ejecutor).
+export const listarPublicaciones = (
   {
     claseId,
     cursor,
@@ -160,56 +164,61 @@ export const listarPublicaciones = async (
     actor,
   }: { claseId: string; cursor: string | undefined; limite: number; actor: ParticipanteDeAutoria },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<ListaPublicacionesDb> => {
-  if (cursor !== undefined) {
-    const delCursor = await ejecutor.publicacion.findFirst({
-      where: { id: cursor, claseId },
-      select: { id: true },
-    })
-    if (delCursor === null) throw errorCursorInvalido()
-  }
-  const filas = await ejecutor.publicacion.findMany({
-    where: { claseId },
-    select: SELECT_PUBLICACION,
-    orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
-    take: limite + 1,
-    ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
-  })
-  const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
-  if (pagina.length === 0) return { publicaciones: [], siguienteCursor }
+): Promise<ListaPublicacionesDb> =>
+  enTransaccion(
+    ejecutor,
+    async (tx) => {
+      if (cursor !== undefined) {
+        const delCursor = await tx.publicacion.findFirst({
+          where: { id: cursor, claseId },
+          select: { id: true },
+        })
+        if (delCursor === null) throw errorCursorInvalido()
+      }
+      const filas = await tx.publicacion.findMany({
+        where: { claseId },
+        select: SELECT_PUBLICACION,
+        orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
+        take: limite + 1,
+        ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+      })
+      const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
+      if (pagina.length === 0) return { publicaciones: [], siguienteCursor }
 
-  const conteos = await ejecutor.comentario.groupBy({
-    by: ["publicacionId"],
-    where: { publicacionId: { in: pagina.map((fila) => fila.id) } },
-    _count: { _all: true },
-  })
-  const comentariosPorPublicacion = new Map(
-    conteos.map((conteo) => [conteo.publicacionId, conteo._count._all]),
+      const conteos = await tx.comentario.groupBy({
+        by: ["publicacionId"],
+        where: { publicacionId: { in: pagina.map((fila) => fila.id) } },
+        _count: { _all: true },
+      })
+      const comentariosPorPublicacion = new Map(
+        conteos.map((conteo) => [conteo.publicacionId, conteo._count._all]),
+      )
+      // d: una sola consulta para los adjuntos de toda la página (índice archivos(publicacion_id)).
+      const archivos = await tx.archivo.findMany({
+        where: { publicacionId: { in: pagina.map((fila) => fila.id) }, estado: "confirmado" },
+        select: { ...SELECT_ARCHIVO, publicacionId: true },
+        orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+      })
+      const adjuntosPorPublicacion = new Map<string, ArchivoDb[]>()
+      for (const { publicacionId, ...archivo } of archivos) {
+        if (publicacionId === null) continue
+        adjuntosPorPublicacion.set(publicacionId, [
+          ...(adjuntosPorPublicacion.get(publicacionId) ?? []),
+          archivo,
+        ])
+      }
+      return {
+        publicaciones: pagina.map((fila) => ({
+          ...fila,
+          comentarios: comentariosPorPublicacion.get(fila.id) ?? 0,
+          adjuntos: adjuntosPorPublicacion.get(fila.id) ?? [],
+          puedeBorrar: puedeBorrar(actor, fila.autor),
+        })),
+        siguienteCursor,
+      }
+    },
+    { instantaneaUnica: true },
   )
-  // d: una sola consulta para los adjuntos de toda la página (índice archivos(publicacion_id)).
-  const archivos = await ejecutor.archivo.findMany({
-    where: { publicacionId: { in: pagina.map((fila) => fila.id) }, estado: "confirmado" },
-    select: { ...SELECT_ARCHIVO, publicacionId: true },
-    orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
-  })
-  const adjuntosPorPublicacion = new Map<string, ArchivoDb[]>()
-  for (const { publicacionId, ...archivo } of archivos) {
-    if (publicacionId === null) continue
-    adjuntosPorPublicacion.set(publicacionId, [
-      ...(adjuntosPorPublicacion.get(publicacionId) ?? []),
-      archivo,
-    ])
-  }
-  return {
-    publicaciones: pagina.map((fila) => ({
-      ...fila,
-      comentarios: comentariosPorPublicacion.get(fila.id) ?? 0,
-      adjuntos: adjuntosPorPublicacion.get(fila.id) ?? [],
-      puedeBorrar: puedeBorrar(actor, fila.autor),
-    })),
-    siguienteCursor,
-  }
-}
 
 // Borra con id y clase_id; sus comentarios caen en cascada. false: no existe en esa clase. 403
 // BORRADO_NO_PERMITIDO (sin escribir nada) si core/autoria.ts no deja a este actor. d: antes del
@@ -241,7 +250,9 @@ export const borrarPublicacion = (
   })
 
 // null: la publicación no existe en esa clase.
-export const listarComentarios = async (
+// FIX-CLASES (T-02): la comprobación de la publicación, la del cursor y la página corren en una sola
+// instantánea (mismo remedio y misma regla del ejecutor externo que listarPublicaciones).
+export const listarComentarios = (
   {
     claseId,
     publicacionId,
@@ -256,33 +267,41 @@ export const listarComentarios = async (
     actor: ParticipanteDeAutoria
   },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<ListaComentariosDb | null> => {
-  const publicacion = await ejecutor.publicacion.findFirst({
-    where: { id: publicacionId, claseId },
-    select: { id: true },
-  })
-  if (publicacion === null) return null
+): Promise<ListaComentariosDb | null> =>
+  enTransaccion(
+    ejecutor,
+    async (tx) => {
+      const publicacion = await tx.publicacion.findFirst({
+        where: { id: publicacionId, claseId },
+        select: { id: true },
+      })
+      if (publicacion === null) return null
 
-  if (cursor !== undefined) {
-    const delCursor = await ejecutor.comentario.findFirst({
-      where: { id: cursor, publicacionId },
-      select: { id: true },
-    })
-    if (delCursor === null) throw errorCursorInvalido()
-  }
-  const filas = await ejecutor.comentario.findMany({
-    where: { publicacionId },
-    select: SELECT_COMENTARIO,
-    orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
-    take: limite + 1,
-    ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
-  })
-  const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
-  return {
-    comentarios: pagina.map((fila) => ({ ...fila, puedeBorrar: puedeBorrar(actor, fila.autor) })),
-    siguienteCursor,
-  }
-}
+      if (cursor !== undefined) {
+        const delCursor = await tx.comentario.findFirst({
+          where: { id: cursor, publicacionId },
+          select: { id: true },
+        })
+        if (delCursor === null) throw errorCursorInvalido()
+      }
+      const filas = await tx.comentario.findMany({
+        where: { publicacionId },
+        select: SELECT_COMENTARIO,
+        orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+        take: limite + 1,
+        ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+      })
+      const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
+      return {
+        comentarios: pagina.map((fila) => ({
+          ...fila,
+          puedeBorrar: puedeBorrar(actor, fila.autor),
+        })),
+        siguienteCursor,
+      }
+    },
+    { instantaneaUnica: true },
+  )
 
 // N-09: la transacción lee primero la publicación con FOR SHARE (única consulta cruda nueva de la
 // subentrega, etiquetada y parametrizada). Sin fila (la publicación no es de esa clase o ya se

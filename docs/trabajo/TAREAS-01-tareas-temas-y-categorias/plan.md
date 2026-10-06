@@ -1,0 +1,702 @@
+# Plan — TAREAS-01 · tareas, temas y categorías ponderadas
+Estado: LISTO (aprobado por escrito por el humano el 2026-10-06: P-01 a P-05 según la recomendación, S-15 con visto bueno, S-01 a S-18 sin vetos, A-1 a A-12 autorizadas; texto literal en `aprobacion.md`)
+Carril: sensible (migración: `temas`, `categorias`, `tareas`, `criterios_rubrica`, valor nuevo de `tipo_publicacion` y `publicaciones.tema_id`; trabajos diferidos; rutas con `requireOwnership` y `requireMembership`)
+Requisitos: RF-12 (parte de tareas), RF-13, RF-32, RF-34, RF-43, RF-44 (solo guardar y mostrar), RN-05 (solo lo que fija la categoría), RN-06, RN-07 (aplicada a tareas)
+Rama: `feat/tareas`. Base de "No se toca" `<R>` = `ad070b9`.
+
+Decisiones heredadas que este plan no vuelve a preguntar: P-03 de CLASES-01 (temas: (a) "Sin tema" existe; (b) sin orden manual dentro de un tema, por fecha de creación; (c) borrar un tema pasa sus elementos a "Sin tema", con confirmación en línea; (d) el alumno ve "Trabajo de clase" agrupado y de solo lectura, y el muro sigue cronológico) y P-04 (a) de CLASES-01 (RF-32 entra en TAREAS).
+
+## Preguntas bloqueantes
+
+| Id | Pregunta | Opciones (a, b, c…) | Recomendación del arquitecto y por qué |
+|---|---|---|---|
+| P-01 | **Categoría de una tarea y borrado de categorías** (RF-32, RN-05). ¿Una tarea puede quedar sin categoría, y qué pasa al quitar una categoría que tiene tareas? Cambia la llave foránea, la validación y lo que CALIFICACIONES tendrá que calcular. | **(a)** Opcional mientras la clase no tenga categorías; en cuanto tiene al menos una, toda tarea nueva o editada debe llevar una (el servidor la exige). Las tareas creadas antes de que hubiera categorías quedan "Sin categoría" y el maestro las asigna al editarlas. Quitar una categoría que tiene tareas se rechaza hasta mover sus tareas a otra. Para CALIFICACIONES: una clase sin categorías califica por puntos, y una tarea "Sin categoría" en una clase con categorías no cuenta en la calificación general hasta asignarle una.<br>**(b)** Siempre opcional. Quitar una categoría deja sus tareas "Sin categoría" (con confirmación en línea que dice cuántas) y esas tareas no cuentan en la calificación general.<br>**(c)** Obligatoria siempre: no se puede crear una tarea si la clase no tiene categorías. | **(a).** No bloquea al maestro que no usa categorías (puede publicar desde el primer día), y en cuanto las usa ninguna tarea nueva se escapa del cálculo ponderado. Rechazar el borrado evita que una calificación cambie en silencio por quitar una categoría; con (b) un clic deja tareas fuera del promedio. (c) obliga a configurar pesos antes de dejar la primera tarea, y el admin, que también publica, tendría que esperar al maestro. |
+| P-02 | **Quién gestiona categorías y temas, y si mover un elemento de tema es editarlo** (RF-32, RF-43, RN-07). RF-32 y RF-43 son del maestro; el admin también publica tareas (instrucción del humano). | **(a)** Categorías: solo los maestros de la clase (el admin las ve y elige una al publicar). Temas y mover elementos: maestros y admin; mover no es editar.<br>**(b)** Categorías, temas y mover: los maestros de la clase y el admin. Mover un elemento entre temas organiza la clase y no cuenta como editarlo: un maestro puede mover una tarea o un material del admin, y el admin uno de un maestro. Editar el contenido sigue la regla de autoría.<br>**(c)** Solo los maestros gestionan categorías y temas; el admin solo elige al publicar; cada autor mueve solo lo suyo (el maestro nunca mueve lo del admin). | **(b).** Es coherente con CLASES-02 (el admin alcanza y gestiona cualquier clase) y deja una sola regla por ruta: `roles: ["maestro", "admin"]` con `requireOwnership`. Con (c), una tarea del admin quedaría fuera de los temas del maestro y "Trabajo de clase" no se podría ordenar completo; con (a), el admin no podría corregir unos pesos mal capturados. |
+| P-03 | **Cómo se guarda una tarea** (modelo de datos; cambia `ARCHITECTURE.md` §14, no ESSENTIALS). | **(a)** Una tarea es una publicación del muro de tipo `tarea` (título e instrucciones en `publicaciones.titulo` y `publicaciones.texto`) con su fila 1:1 en `tareas`, con el mismo id (fecha límite, puntos, categoría, entregas tardías y trabajo diferido). El muro, "Trabajo de clase", los temas, la firma "Administración", la autoría y los adjuntos reutilizan lo de `publicaciones` y `archivos` sin uniones entre tablas ni SQL a mano para paginar.<br>**(b)** `tareas` como tabla aparte con su propio título e instrucciones (lo que dice hoy §14): el muro y "Trabajo de clase" unen dos tablas con SQL a mano para paginar, `archivos` agrega `tarea_id` y otra condición de "exactamente un contexto", y la firma, la autoría y la confirmación de archivos se escriben dos veces. | **(a).** Reutiliza código ya atacado en CLASES (confirmación de archivos dentro de la transacción, autoría, firma, paginación por cursor) y deja el muro y "Trabajo de clase" como consultas de una sola tabla con índice. `archivos` no cambia. El costo es que `publicaciones` gana un tipo y que el muro y los comentarios deben ignorar el tipo `tarea` donde no aplica (§D-6). |
+| P-04 | **Tarea de un maestro que ya no da la clase.** RN-07 aplicada a tareas: cada autor edita y borra solo lo suyo. Si el admin quita a un maestro de la clase (CLASES-02), ¿quién edita sus tareas? | **(a)** Nadie la edita; solo el admin la borra (regla literal).<br>**(b)** Mientras el autor siga en la clase, solo él la edita y la borra (y el admin la borra). Si ya no está, cualquier maestro actual de la clase la edita y la borra. Lo del admin, nunca.<br>**(c)** Co-docencia abierta: cualquier maestro de la clase edita y borra las tareas de cualquier maestro de la clase; nunca las del admin. | **(b).** Respeta RN-07 entre maestros activos y no deja tareas huérfanas que nadie puede corregir (una fecha límite equivocada del maestro que se fue). Cuesta una lectura por PK en `maestros_de_clase` dentro de la transacción. (c) cambia RN-07 para las tareas; (a) obliga a borrar y volver a crear una tarea solo para cambiar su fecha. |
+| P-05 | **Dónde vive el frontend de tareas.** `CLAUDE.md` asigna el detalle, el formulario y la rúbrica al módulo `tareas`, y la regla 9 prohíbe que un módulo importe de otro; las tareas necesitan piezas que hoy viven en `features/clases`. | **(a)** Módulo `features/tareas` (formulario de crear y editar, detalle y rúbrica). Antes, una subentrega **solo de refactor** (01c) sube a `components/`, `lib/` y `services/` lo que comparten `clases` y `tareas` (adjuntos, firma, `ConClaseDeLaRuta`, perspectiva y base de la ruta de clase, errores de la API, clave del muro), con reexportaciones en `features/clases` para que las `*.ataque` sigan importando igual; solo se reescriben en la ronda 0 los `vi.mock` de archivos movidos. Es un refactor entre dominios: requiere tu confirmación (`AGENTS.md`). "Trabajo de clase", temas y categorías viven en `features/clases` (son secciones y configuración de la clase).<br>**(b)** Todo en `features/clases` por ahora, sin refactor; el módulo `tareas` nace en ENTREGAS y ese encargo hace el refactor, ya más grande. | **(a).** Cumple `CLAUDE.md` desde el principio y deja el refactor aislado en su propio commit, sin mezclarlo con funcionalidad; ENTREGAS (zona de entrega y comentarios privados dentro del detalle) se construye directo sobre `features/tareas`. Con (b), ENTREGAS movería además todo lo que se escriba ahora. |
+
+## Suposiciones
+
+Puedes vetar cualquiera al aprobar; cada una se cambia sin rediseñar.
+
+| Id | Suposición | Por qué |
+|---|---|---|
+| S-01 | **Sin borrador ni publicación programada:** toda tarea se publica al crearla (aparece en el muro y encola `TAREA_CREADA`). | El PRD no menciona borradores; RNF-02 habla de "publicar una tarea". |
+| S-02 | **Fecha límite obligatoria.** Al crear: futura y a no más de 365 días. Al editar: se puede conservar la actual aunque ya pasó; una fecha nueva cumple lo mismo que al crear. | RF-34 la lista; el recordatorio de 24 h, "en riesgo" (RN-05) y el calendario (RF-20) la necesitan. El tope evita años absurdos. |
+| S-03 | **Puntos:** entero de 1 a 1000, obligatorio; el formulario propone 100. Sin "tarea sin calificar". | RF-34 lista "puntos"; RN-05 escala la rúbrica a los puntos de la tarea. |
+| S-04 | **Rúbrica opcional:** de 0 a 20 criterios; cada criterio con texto de 1 a 300 caracteres y puntos máximos enteros de 1 a 1000. La suma de la rúbrica no tiene que igualar los puntos de la tarea (RN-05 escala). Editar la rúbrica reemplaza todos sus criterios (sus ids cambian); CALIFICACIONES restringirá editarla cuando haya calificaciones. | RF-36 permite calificar sin rúbrica; sin calificaciones todavía, reemplazar es lo más simple y seguro. |
+| S-05 | **Textos y topes:** título de la tarea de una sola línea, de 1 a 200 caracteres visibles; instrucciones opcionales, hasta 10 000; nombre de tema de una línea, de 1 a 80 y hasta **30 temas por clase**; nombre de categoría de una línea, de 1 a 60 y hasta **10 categorías por clase**; peso entero de 1 a 100 y suma exacta de 100. Nombres de tema y de categoría no se repiten en la clase (sin distinguir mayúsculas ni acentos). | Mismas reglas de texto visible de CLASES (`contarCaracteresVisibles`, `normalizarTextoLargo`). Un peso de 0 % no tiene sentido; con decimales la suma exacta se vuelve frágil. |
+| S-06 | **Los pesos se guardan en bloque:** el maestro edita la tabla de categorías completa (agregar, renombrar, cambiar pesos, quitar) y guarda una vez; el servidor rechaza el guardado si no suman 100 (o si la lista queda vacía, que es "sin categorías"). | Es la única forma de que la suma sea 100 en todo momento: con altas y bajas sueltas, cada paso intermedio rompería RF-32. |
+| S-07 | **Editar una tarea no avisa a nadie** (no hay evento "tarea editada"); solo cambia el recordatorio si cambió la fecha. | La tabla de avisos de PRD §4.5 no tiene ese evento. |
+| S-08 | **Las tareas no llevan comentarios públicos en el muro.** La tarjeta de la tarea en el muro no tiene "Ver comentarios"; el servidor responde `404` a comentar o listar comentarios de una tarea. La conversación de una tarea será el hilo privado (RF-16). | Evita un segundo hilo dentro del detalle antes de que exista el privado. RF-12 sigue cumplido para anuncios y materiales. |
+| S-09 | **El admin edita solo sus propias tareas** y borra cualquiera (RN-07 tal como la escribió el humano); el maestro nunca edita ni borra las del admin. | Instrucción literal del humano. |
+| S-10 | **Umbral de "fecha límite próxima" (`DESIGN.md` §7.7): 72 horas.** Textos: "Vence hoy a las 23:59", "Vence mañana a las 23:59", "Vence en 2 días" o "Vence en 3 días" (días de calendario en la zona del navegador). Pasada la fecha, en TAREAS-01 la fila dice "Venció el lunes 6 de octubre" en tono `muted`, no "Sin entregar": las entregas aún no existen. ENTREGAS cambia esa fila. | El ejemplo de §7.7 ("Vence en 2 días") encaja; 3 días dan margen para un fin de semana. |
+| S-11 | **Orden dentro de un tema y en "Sin tema": el más reciente primero** (como el muro). "Sin tema" va arriba de los temas y solo se muestra si tiene elementos; un tema vacío se muestra a todos con "Aún no hay nada en este tema.". | P-03 (b) fija "por fecha de creación" sin decir el sentido; así el muro y "Trabajo de clase" ordenan igual. |
+| S-12 | **Lo que ve el alumno donde irá la entrega:** un panel "Tu trabajo" con "Todavía no puedes entregar desde Campus Digital. Sigue las indicaciones de tu maestro para entregar esta tarea." y la política de entregas tardías ("Se aceptan entregas con retraso" o "No se aceptan entregas después de la fecha límite"). | Honesto y accionable, sin prometer fechas. ENTREGAS lo reemplaza. |
+| S-13 | **Entregas tardías en el formulario:** un control segmentado de dos botones ("Aceptar con retraso" y "No aceptar"), con "Aceptar con retraso" elegido por defecto (RF-44), en lugar de una casilla. | Reutiliza el patrón de §7.3 (elegir entre dos) sin agregar un componente de casilla y sin decidir todavía R-10 de DESIGN-01 (radio de las casillas). |
+| S-14 | **Las listas de temas (hasta 30) y de categorías (hasta 10) no se paginan:** el tope del `core/` las mantiene muy por debajo de 100, el máximo de ESSENTIALS. "Trabajo de clase" sí pagina, por tema. | ESSENTIALS: "toda lista se pagina (máx. 100)"; una lista acotada por regla de negocio cumple el máximo. |
+| S-15 | **Se aparta de ESSENTIALS ("Capas del backend"); visto bueno del humano (2026-10-06) (R-16, Enmienda 1, M-03 c).** **Los trabajos diferidos viven en `adapters/queue`** (`encolar` con `inicio` y `cancelar`), no en una carpeta `adapters/scheduler` nueva: `queue` es el único importador de pg-boss y guarda la instancia. `adapters/README.md` lo dice. | Una sola instancia de pg-boss; ESSENTIALS nombra el módulo `scheduler`, pero hoy no existe y crearlo solo para reexportar no aporta. |
+| S-16 | **Despliegue:** el muro empieza a devolver elementos de tipo `tarea`, que el frontend anterior no sabe pintar (su esquema solo conoce anuncio y material). Como aún no hay `prod`, backend y frontend de TAREAS-01 se despliegan juntos en DEPLOY; si para entonces ya hubiera `prod`, se despliegan en la misma ventana, backend primero. | Una puerta de compatibilidad (un parámetro que oculte las tareas) se quedaría para siempre sin haber protegido a nadie. |
+| S-17 | **El alumno ve la categoría (nombre y peso) y el tema en el detalle de la tarea**, pero no la lista de categorías de la clase (`GET …/categorias` es de maestros y admin en este encargo; CALIFICACIONES la abrirá para RF-18). | RF-13 no la pide; el modal de cálculo es de CALIFICACIONES. |
+| S-18 | **"Crear tarea" está en "Trabajo de clase" (acción principal) y también en el muro** del maestro y del admin, como botón `outline` junto al formulario de publicar (la acción principal del muro sigue siendo publicar). | Las dos son puertas naturales; en 01d todavía no existe "Trabajo de clase". |
+
+## Alcance
+
+### Entra, por subentrega (un commit del humano por subentrega)
+
+| Subentrega | Paquetes | Qué entra |
+|---|---|---|
+| **01a** · Base de datos, temas y categorías (backend) | `shared/`, `backend/` | Las dos migraciones de todo el encargo (§D-1). Temas: listar (con conteos), crear, renombrar, reordenar, borrar (§D-2). Mover un material de tema y elegir tema al publicar un material (§D-2). Categorías: listar (con conteo de tareas) y guardar en bloque (§D-3). `bloquearClase` pasa a `adapters/db/bloqueo-clase.ts`. Pruebas unitarias, de integración y de autorización. |
+| **01b** · Tareas (backend) | `shared/`, `backend/` | Crear, ver, editar y borrar tareas con rúbrica, adjuntos, categoría, tema y entregas tardías (§D-4). `TAREA_CREADA` encolado y `RECORDATORIO_24H` diferido, con cancelación y recreación en la misma transacción (§D-5). La tarea en el muro y "Trabajo de clase" paginado por tema (§D-6). Mover una tarea de tema (la ruta de 01a acepta ya el tipo `tarea`). El muro y los comentarios ignoran el tipo `tarea` donde no aplica. Extracción de `adjuntosParaResponder` y `archivosParaPublicar` a `handlers/adjuntos.ts`. |
+| **01c** · Refactor del frontend (solo con P-05 a) | `frontend/` | Sube a ubicaciones compartidas lo que usarán `clases` y `tareas`, con reexportaciones; **sin cambio de comportamiento** (§D-9). |
+| **01d** · Tareas (frontend) | `frontend/` | Módulo `features/tareas`: crear y editar tarea (formulario con rúbrica, adjuntos, fecha, puntos, categoría, tema y entregas tardías) y detalle de la tarea para las tres perspectivas (§D-10). En el muro: la tarjeta de la tarea y "Crear tarea". `components/ui/native-select.tsx`. `DESIGN.md`. |
+| **01e** · Trabajo de clase, temas y categorías (frontend) | `frontend/` | Sección "Trabajo de clase" en las tres perspectivas: agrupado por tema y de solo lectura para el alumno; gestión de temas y mover elementos para maestro y admin. Vista "Categorías de calificación". Tema al publicar un material en el muro y corrección de O-18 (§D-11). `DESIGN.md`. Comprobación humana única al final. |
+
+### No entra (con destino)
+
+| Qué | Destino |
+|---|---|
+| Entregar (RF-14), cerrar la entrega o marcarla "con retraso" (efecto de RF-15 y RF-44), "Marcar como completada" (RF-24), anular entrega | ENTREGAS |
+| Hilo de comentarios privados (RF-16) | ENTREGAS o el encargo que lo planee |
+| Quiénes entregaron (RF-35), calificar (RF-36), gradebook (RF-37), "Mis calificaciones" (RF-17), modal de cálculo (RF-18), el cálculo de RN-05 | ENTREGAS y CALIFICACIONES (con la regla de P-01) |
+| Consumidores de `TAREA_CREADA` y `RECORDATORIO_24H` (avisos) | NOTIFICACIONES (los trabajos esperan en la cola, como los del muro) |
+| Calendario (RF-20, RF-42) y "Próximas entregas" del inicio (RF-10) | CALENDARIO y el encargo de los inicios; el índice `(clase_id, fecha_limite)` ya queda |
+| Editar o mover anuncios; editar materiales | No lo pide el PRD (P-05 c de CLASES-01: no se editan) |
+| Mover el foco al cambiar de ruta en la SPA (pendiente de CLASES-02d) | El `chore` de accesibilidad del marco |
+| Unificar los ganchos de foco (M-14 y O-20 de CLASES-02d) | El `chore` de accesibilidad del marco: 01c los mueve tal cual si hace falta, no los unifica |
+| `LIMPIEZA_DIARIA` (borrar los archivos descartados al editar o borrar una tarea) | Antes de DEPLOY (sin cambio) |
+
+## Diseño
+
+### §D-0 · Decisiones transversales
+1. **Todas las rutas nuevas cuelgan de `/api/clases/:claseId/…`.** `ARCHITECTURE.md` §7 dice `GET/PUT/DELETE /tareas/{id}`, pero una ruta sin `:claseId` no puede llevar el sexto paso (la guarda solo lo resuelve sobre `:claseId`) y tendría que verificar la inscripción a mano en el handler, cosa que prohíbe la regla 2. Toda consulta por un recurso de la clase (tarea, tema, categoría, publicación, archivo) filtra además por el `claseId` de la ruta (regla de CLASES-a): un id de otra clase es "no encontrado", sin escribir ni revelar nada. **No se toca `middleware/`.**
+2. **Modelo (P-03 a):** una tarea es una fila de `publicaciones` con `tipo = 'tarea'` más su fila 1:1 en `tareas` con el mismo `id`. `publicaciones.titulo` es el título y `publicaciones.texto` las instrucciones (`""` si no hay). Solo `adapters/db/tareas.ts` escribe `tipo: "tarea"`; `crearPublicacionSchema` sigue aceptando solo `anuncio` y `material`, así que el muro no puede crear una tarea a medias. La invariante "publicación de tipo `tarea` ⇔ fila en `tareas`" la garantiza que las dos filas nacen en la misma transacción y mueren juntas (la FK `tareas.id → publicaciones.id` es `ON DELETE CASCADE`).
+3. **Los adjuntos de una tarea son archivos de su publicación:** mismo `POST /clases/:claseId/archivos` (clave `materiales/{claseId}/{archivoId}`), misma confirmación por `publicacion_id` dentro de la transacción y misma descarga. `archivos` no cambia y su `CHECK` de "confirmado si y solo si tiene contexto" sigue valiendo.
+4. **Lo lento va por cola y los trabajos diferidos se sincronizan en la misma transacción** que el dato (reglas 5 y 8). `adapters/db` nunca importa `adapters/queue`: el handler pasa callbacks (`alGuardar`, `alReprogramar`, `alBorrar`) que reciben el `EjecutorSql` de la transacción, como el muro.
+5. **Autoría de tareas (RN-07 con P-04 b y S-09)** vive en `core/autoria.ts` y se aplica dentro de la transacción del cambio, después de bloquear la fila de la tarea. Las respuestas devuelven `puedeEditar` y `puedeBorrar`; la interfaz nunca decide por el rol.
+
+### §D-1 · Migraciones (01a; dos carpetas, en este orden)
+PostgreSQL no deja usar un valor nuevo de un `enum` en la misma transacción que lo agrega, y Prisma aplica cada archivo de migración en una sola transacción implícita. Por eso son dos migraciones:
+
+**1. `<fecha>_tipo_publicacion_tarea`** (solo esto):
+```sql
+ALTER TYPE "tipo_publicacion" ADD VALUE 'tarea';
+```
+
+**2. `<fecha>_tareas_temas_y_categorias`** (lo genera `--create-only` desde el esquema y se agregan a mano los `CHECK` del final):
+
+| Tabla | Columnas | Restricciones e índices |
+|---|---|---|
+| `temas` (nueva) | `id` UUID PK `gen_random_uuid()`, `clase_id` UUID NOT NULL, `nombre` TEXT NOT NULL, `orden` INTEGER NOT NULL, `creado_en`, `actualizado_en` | FK `clase_id → clases` `ON DELETE CASCADE` · índice `(clase_id, orden, id)` · `CHECK (orden >= 0)` (a mano) |
+| `categorias` (nueva) | `id` UUID PK, `clase_id` UUID NOT NULL, `nombre` TEXT NOT NULL, `peso` INTEGER NOT NULL, `creado_en`, `actualizado_en` | FK `clase_id → clases` `ON DELETE CASCADE` · índice `(clase_id, creado_en, id)` · `CHECK (peso BETWEEN 1 AND 100)` (a mano). La suma de 100 la valida `core/` (S-06) |
+| `tareas` (nueva) | `id` UUID PK **sin valor por defecto** (es el id de su publicación), `clase_id` UUID NOT NULL, `categoria_id` UUID NULL, `fecha_limite` TIMESTAMPTZ(3) NOT NULL, `puntos` INTEGER NOT NULL, `acepta_tardias` BOOLEAN NOT NULL DEFAULT true, `trabajo_id` UUID NULL (sin FK: es el id del trabajo de pg-boss), `creado_en`, `actualizado_en` | FK `id → publicaciones(id)` `ON DELETE CASCADE` · FK `clase_id → clases` `ON DELETE CASCADE` · FK `categoria_id → categorias` **`ON DELETE NO ACTION`** (P-01 a; con P-01 b sería `SET NULL`). `NO ACTION` y no `RESTRICT`: al borrar una clase, la cascada borra categorías y tareas en la misma sentencia y la comprobación se hace al final (mismo motivo que `archivos.publicacion_id`) · índice `(clase_id, fecha_limite)` (§14; "próximas a vencer" por clase y, con `IN`, de varias clases) · índice `(categoria_id)` (conteo de tareas por categoría y la comprobación de la FK) · `CHECK (puntos BETWEEN 1 AND 1000)` (a mano) |
+| `criterios_rubrica` (nueva) | `id` UUID PK, `tarea_id` UUID NOT NULL, `criterio` TEXT NOT NULL, `puntos_max` INTEGER NOT NULL, `orden` INTEGER NOT NULL, `creado_en` | FK `tarea_id → tareas` `ON DELETE CASCADE` · único `(tarea_id, orden)` (cubre el índice `(tarea_id)` de §14) · `CHECK (puntos_max BETWEEN 1 AND 1000)` y `CHECK (orden >= 0)` (a mano) |
+| `publicaciones` (cambia) | `+ tema_id` UUID NULL | FK `tema_id → temas` `ON DELETE SET NULL` (P-03 c de CLASES-01: borrar un tema deja sus elementos en "Sin tema") · índice `(clase_id, tema_id, creado_en DESC, id DESC)` ("Trabajo de clase" por tema y "Sin tema") · índice `(tema_id)` (el `SET NULL` al borrar un tema) · a mano: se reemplaza `publicaciones_titulo_segun_tipo` por `CHECK (("tipo" = 'anuncio' AND "titulo" IS NULL) OR ("tipo" IN ('material', 'tarea') AND "titulo" IS NOT NULL))` y se agrega `publicaciones_anuncio_sin_tema CHECK ("tipo" <> 'anuncio' OR "tema_id" IS NULL)` |
+
+- **Compatible hacia atrás:** tablas nuevas, una columna nueva que admite nulos, un valor de `enum` agregado y un `CHECK` reemplazado por uno que acepta todo lo que aceptaba el anterior. El backend anterior sigue funcionando mientras no existan filas de tipo `tarea` (su cliente de Prisma no conoce ese valor); por eso la vuelta atrás de TAREAS en `prod`, si alguna vez hiciera falta, exige borrar antes las tareas (R-05).
+- **Prisma:** `Publicacion.tarea Tarea?` (1:1 con `fields: [id]` en `Tarea`), `Publicacion.tema Tema?` (`onDelete: SetNull`), `Tarea.categoria Categoria?` (`onDelete: NoAction`), `Clase.temas`, `Clase.categorias`, `Clase.tareas`. Los `CHECK` no los expresa Prisma: van a mano al final del SQL, con un comentario como los de CLASES-c y CLASES-d. Los comentarios del `schema.prisma` explican el porqué de `NoAction`, del id compartido y del `CHECK`.
+
+### §D-2 · Temas (01a)
+Rutas (handler `handlers/tareas/temas.ts`; cadena completa en "Autorización"):
+
+| Ruta | Respuesta | Transacción y regla |
+|---|---|---|
+| `GET /clases/:claseId/temas` | `200 { temas: [{ id, nombre, orden, elementos }], sinTema }` | Sin transacción. Temas por `(orden, creado_en, id)`; `elementos` y `sinTema` salen de **un** `groupBy` de `publicaciones` por `tema_id` con `clase_id` y `tipo IN ('material', 'tarea')` |
+| `POST /clases/:claseId/temas` `{ nombre }` | `201 { tema }` | `bloquearClase` → leer los temas de la clase (hasta 30) → `core`: tope (`409 TOPE_DE_TEMAS`), nombre repetido (`409 TEMA_REPETIDO`), `siguienteOrden` → insertar |
+| `PUT /clases/:claseId/temas/:temaId` `{ nombre }` | `200 { tema }` | `bloquearClase` → leer los temas → el tema no está (`404 TEMA_NO_ENCONTRADO`) → repetido sin contarse a sí mismo (`409 TEMA_REPETIDO`) → `update` por `id` y `clase_id` |
+| `DELETE /clases/:claseId/temas/:temaId` | `204` | `bloquearClase` → `deleteMany` por `id` y `clase_id`; `count = 0` → `404 TEMA_NO_ENCONTRADO`. La FK pasa sus elementos a "Sin tema" en la misma sentencia |
+| `PUT /clases/:claseId/temas/orden` `{ temaIds }` | `200` igual que el `GET` | `bloquearClase` → leer los ids → `core.validarOrdenDeTemas` (mismo conjunto exacto; si no, `409 ORDEN_DESACTUALIZADO`) → **un** `UPDATE temas SET orden = v.orden, actualizado_en = now() FROM unnest(${ids}::uuid[], ${ordenes}::int[]) AS v(id, orden) WHERE temas.id = v.id AND temas.clase_id = ${claseId}::uuid` (el SQL crudo no activa `@updatedAt`; lo mismo en el `UPDATE … FROM unnest` de categorías) (`$executeRaw` etiquetado y parametrizado) |
+| `PUT /clases/:claseId/publicaciones/:publicacionId/tema` `{ temaId }` (uuid o `null`) | `200 { publicacionId, temaId }` | Transacción: leer la publicación por `id` y `clase_id` (`404 PUBLICACION_NO_ENCONTRADA`); un anuncio → `409 ANUNCIO_SIN_TEMA`; con `temaId`, `bloquearTemaParaUsar` (`adapters/db/referencias.ts`; `404 TEMA_NO_ENCONTRADO` si devuelve `false`) → `update` de `tema_id` por `id` y `clase_id`. Acepta `material` y, desde que existan, `tarea`. Con P-02 b no mira la autoría: mover no es editar |
+
+- `PUT …/temas/orden` y `PUT …/temas/:temaId` conviven: el segmento literal gana al parámetro (find-my-way). Un `DELETE …/temas/orden` llega a `:temaId = "orden"` y responde `400 VALIDACION` (no es un UUID).
+- **Elegir tema al publicar un material:** `crearPublicacionSchema`, rama `material`, gana `temaId: uuid | null` opcional y sin valor por defecto (ausente o `null` es "Sin tema"; el handler hace `?? null`; Enmienda 1, M-01); la rama `anuncio` no lo tiene (un `temaId` en un anuncio se descarta como cualquier campo extra). `crearPublicacion` (`adapters/db/publicaciones.ts`), con `temaId`, lo bloquea con `bloquearTemaParaUsar` dentro de su transacción antes de insertar (`404 TEMA_NO_ENCONTRADO`, nada escrito ni encolado). La respuesta del muro no cambia por esto.
+- `bloquearClase` se mueve tal cual de `adapters/db/maestros-de-clase.ts` a `adapters/db/bloqueo-clase.ts` (no se reexporta en `index.ts`); `maestros-de-clase.ts` lo importa de ahí (A-5).
+
+### §D-3 · Categorías (01a)
+Handler `handlers/tareas/categorias.ts`.
+
+| Ruta | Respuesta | Transacción y regla |
+|---|---|---|
+| `GET /clases/:claseId/categorias` | `200 { categorias: [{ id, nombre, peso, tareas }] }` | Sin transacción. Orden `(creado_en, id)`. `tareas` sale de **un** `groupBy` de `tareas` por `categoria_id` con `categoria_id IN (…)` (índice `(categoria_id)`) |
+| `PUT /clases/:claseId/categorias` `{ categorias: [{ id?, nombre, peso }] }` | `200` igual que el `GET` | `bloquearClase` → leer las actuales → `core.planearReemplazoDeCategorias` (ids ajenos o repetidos, nombres repetidos, tope de 10, pesos que no suman 100) → si hay que quitar: `SELECT id FROM categorias WHERE id = ANY(${quitar}::uuid[]) AND clase_id = … FOR UPDATE` y después contar sus tareas; con alguna, `409 CATEGORIA_CON_TAREAS` con el nombre y el conteo en el mensaje → `deleteMany` → **un** `UPDATE … FROM unnest(ids, nombres, pesos)` para las que cambian → `createMany` para las nuevas → releer |
+
+- Una lista vacía es válida ("esta clase no tiene categorías"). Con P-01 (b), quitar no se rechaza: la FK `SET NULL` deja las tareas "Sin categoría".
+- El `FOR UPDATE` sobre las categorías que se quitan, **antes** de contar sus tareas, cierra la carrera con una tarea que se está creando con esa categoría (§D-7).
+
+### §D-4 · Tareas (01b)
+Handler `handlers/tareas/tareas.ts`.
+
+**Crear: `POST /clases/:claseId/tareas` → `201 { tarea: TareaDetalle }`**
+1. `claseDe(request)`; `validarCuerpo(crearTareaSchema, conTextosDeTareaNormalizados(request.body))` (normaliza `titulo`, `instrucciones` y cada `rubrica[i].criterio` que sea texto; lo demás se deja intacto para que el esquema lo rechace).
+2. `id = randomUUID()` (id de la publicación, de la tarea y del trabajo `TAREA_CREADA`), `idRecordatorio = randomUUID()`, `ahora = new Date()`.
+3. `core.validarFechaLimite({ nueva, anterior: null, ahora })` → `400 FECHA_LIMITE_INVALIDA`.
+4. `archivosParaPublicar(...)` fuera de la transacción, como el muro (lectura acotada y `statObject`).
+5. `momento = core.momentoDelRecordatorio(fechaLimite, ahora)` (`null` si `fecha_limite − 24 h` ya pasó: no se programa, ARCHITECTURE §10).
+6. `crearTarea({ …, trabajoId: momento ? idRecordatorio : null }, alGuardar)`. Dentro de una transacción, en este orden: categoría (con id: `bloquearCategoriaParaUsar`, `404 CATEGORIA_NO_ENCONTRADA` si devuelve `false`; sin id: contar las de la clase y `core.validarCategoriaRequerida`, `409 CATEGORIA_REQUERIDA`) → tema (`bloquearTemaParaUsar`, `404 TEMA_NO_ENCONTRADO`); las dos ayudas son las de `adapters/db/referencias.ts` (Enmienda 1, M-03 a) → `publicacion.create` (`tipo: "tarea"`, `titulo`, `texto`, `temaId`) → `tarea.create` → `criterioRubrica.createMany` (`orden` = posición) → confirmar archivos (el mismo `updateMany` con conteo de `crearPublicacion`; `400 ARCHIVO_INVALIDO`) → `alGuardar(sql)`.
+7. `alGuardar` encola `TAREA_CREADA` (`{ tareaId, claseId }`, id `= id`) y, si hay `momento`, `RECORDATORIO_24H` (`{ tareaId, claseId }`, id `= idRecordatorio`, `inicio = momento`). Si cualquiera lanza, no queda tarea, publicación, criterio, archivo confirmado ni trabajo.
+
+**Ver: `GET /clases/:claseId/tareas/:tareaId` → `200 { tarea }`**, o `404 TAREA_NO_ENCONTRADA` (también si es de otra clase). Lectura de la tarea por `id` y `clase_id` con su publicación (título, texto, autor con rol, tema), categoría, criterios por `orden`, archivos confirmados de la publicación y, para `puedeEditar` y `puedeBorrar`, los maestros de la clase (hasta 2). Sin ciclos de consultas.
+
+**Editar: `PUT /clases/:claseId/tareas/:tareaId` → `200 { tarea }`.** El cuerpo es la tarea completa (`editarTareaSchema` = `crearTareaSchema`); `archivoIds` es la lista final de adjuntos: los que ya tenía y siguen, más los nuevos pendientes.
+1. Validar y normalizar como al crear; `ahora`, `idRecordatorioNuevo = randomUUID()`.
+2. Fuera de la transacción: leer los adjuntos confirmados actuales (`publicacion_id`, `clase_id`); los ids nuevos (los que no están ahí) pasan por `archivosParaPublicar` (pendientes, del mismo usuario, de esa clase, de menos de 24 h, y comprobados en el almacén).
+3. `editarTarea(…, alReprogramar)`. Dentro de una transacción, en este orden: **bloquear la tarea** (`SELECT t.id, t.fecha_limite, t.trabajo_id, p.autor_id FROM tareas t JOIN publicaciones p ON p.id = t.id WHERE t.id = … AND t.clase_id = … FOR NO KEY UPDATE OF t`; sin fila, `null` y el handler responde `404`) → autor (id y rol) y si sigue siendo maestro de la clase (lectura por PK en `maestros_de_clase`) → `core.puedeEditarTarea` (`403 EDICION_NO_PERMITIDA`, nada escrito) → `core.validarFechaLimite({ nueva, anterior, ahora })` → categoría y tema como al crear → `plan = core.planDeRecordatorio({ fechaAnterior, fechaNueva, trabajoActual, ahora })` → `update` de la publicación (título, texto, tema) y de la tarea (fecha, puntos, entregas tardías, categoría y `trabajo_id`: el nuevo si se programa, `null` si solo se cancela, el mismo si no cambia) → criterios: `deleteMany` y `createMany` (S-04) → archivos: los conservados deben seguir confirmados en esa publicación, los nuevos se confirman con el `updateMany` condicionado y conteo, los que salen pasan a `descartado` sin publicación (`400 ARCHIVO_INVALIDO` si un conteo no cuadra) → `alReprogramar(sql, plan)`.
+4. `alReprogramar` cancela `plan.cancelar` (`cancelar(COLA_RECORDATORIO_24H, id, { sql })`) y, con `plan.programarEn`, encola el nuevo recordatorio con `idRecordatorioNuevo`. `TAREA_CREADA` no se vuelve a encolar (S-07). Siempre un id nuevo: pg-boss ignora un `send` con un id que ya usó.
+
+**Borrar: `DELETE /clases/:claseId/tareas/:tareaId` → `204`**, o `404 TAREA_NO_ENCONTRADA`. Transacción: bloquear la tarea con `FOR UPDATE OF t` → autor y si sigue en la clase → `core.puedeBorrarTarea` (`403 BORRADO_NO_PERMITIDO`, nada escrito) → archivos a `descartado` sin publicación (por `publicacion_id` y `clase_id`) → `publicacion.deleteMany` por `id`, `clase_id` y `tipo = 'tarea'` (la cascada borra la tarea y sus criterios) → `alBorrar(sql, trabajoId)`: cancela el `RECORDATORIO_24H` (si hay) y el `TAREA_CREADA` (id `= tareaId`; si ya corrió, no hace nada).
+
+**`TareaDetalle`:** `{ id, titulo, instrucciones, fechaLimite, puntos, aceptaTardias, categoria: { id, nombre, peso } | null, tema: { id, nombre } | null, rubrica: [{ id, criterio, puntosMax }], adjuntos, autor: { id, nombre, administracion }, creadoEn, actualizadoEn, puedeEditar, puedeBorrar }`. Nunca lleva `trabajo_id`, el rol del autor, correos ni estado de pago. Es la misma para las tres perspectivas: nada de la tarea es privado para el alumno inscrito (S-17).
+
+### §D-5 · Colas y recordatorio (01b)
+- `core/eventos/avisos-de-clase.ts`: `COLA_TAREA_CREADA = "TAREA_CREADA"`, `COLA_RECORDATORIO_24H = "RECORDATORIO_24H"`, `datosTareaCreadaSchema` y `datosRecordatorio24hSchema` (`z.strictObject({ tareaId: z.uuid(), claseId: z.uuid() })`). Solo ids.
+- `adapters/queue/colas.ts`: las dos colas, con la política de los avisos del muro (3 reintentos, 30 s con retroceso, 300 s de expiración, `deadLetter: AVISO_FALLIDO`, retención de 7 días). En pg-boss la retención de un trabajo diferido se cuenta desde su `start_after` (`keep_until = start_after + retention`), así que un recordatorio a meses no caduca antes de su hora. Sin consumidor hasta NOTIFICACIONES.
+- `adapters/queue/index.ts`: `encolar(nombre, datos, { id, sql, inicio? })` pasa `startAfter: inicio` cuando viene; `cancelar(nombre, id, { sql })` llama a `cancel(nombre, id, { db: sql })` (pg-boss 12 lo admite). `sql` es obligatorio en `cancelar`: no existe la cancelación fuera de una transacción.
+- `core/tareas/recordatorio.ts`: `momentoDelRecordatorio(fechaLimite: Date, ahora: Date): Date | null` (`fechaLimite − 24 h`, o `null` si no es posterior a `ahora`) y `planDeRecordatorio({ fechaAnterior, fechaNueva, trabajoActual, ahora }): { cancelar: string | null; programarEn: Date | null }` (con la misma fecha, en milisegundos, nada; con otra, cancelar el actual si existe y programar si el momento nuevo es futuro).
+- **Para NOTIFICACIONES (fila nueva en ESTADO §3):** el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` carga la tarea por id y termina sin avisar si ya no existe; el de `RECORDATORIO_24H`, además, si `tareas.trabajo_id` ya no es el id del trabajo (quedó viejo).
+
+### §D-6 · La tarea en el muro y "Trabajo de clase" (01b)
+- **Esquemas (`shared/src/clases.ts`):** `tipoDeElementoDelMuroSchema = z.enum(["anuncio", "material", "tarea"])`; `publicacionSchema.tipo` pasa a ese esquema y gana `tarea: resumenDeTareaSchema.nullable()` (clave obligatoria; `resumenDeTareaSchema = { fechaLimite, puntos }`). `tipoPublicacionSchema` (anuncio o material, lo que se puede publicar) no cambia.
+- **`listarPublicaciones`:** el `select` gana `tarea: { fechaLimite, puntos }`. En un elemento de tipo `tarea`, `puedeBorrar` se calcula con `core.puedeBorrarTarea` (con los maestros de la clase, **una** consulta y solo si la página trae alguna tarea), para que el dato sea cierto aunque la tarjeta del muro no ofrezca borrar.
+- **El muro ignora el tipo `tarea` donde no aplica:** `borrarPublicacion` solo encuentra `anuncio` y `material` (una tarea por `DELETE …/publicaciones/:id` es `404 PUBLICACION_NO_ENCONTRADA` y nada cambia); `listarComentarios` y el `SELECT … FOR SHARE` de `crearComentario` agregan `tipo IN ('anuncio', 'material')` (S-08: `404 PUBLICACION_NO_ENCONTRADA`).
+- **`GET /clases/:claseId/trabajo?tema=<uuid | sin-tema>&cursor=&limite=` → `200 { elementos, siguienteCursor }`** (`trabajoQuerySchema` = `paginacionSchema` + `tema` obligatorio). Con un uuid, el tema se lee por `id` y `clase_id` (`404 TEMA_NO_ENCONTRADO`). El cursor se valida contra la misma lista (misma clase, mismo tema o `null`, tipo `material` o `tarea`): si no, `400 VALIDACION` "cursor: no es válido" (si el elemento se movió de tema, también). Orden `creado_en DESC, id DESC` (S-11), índice `(clase_id, tema_id, creado_en DESC, id DESC)`. Los adjuntos de los materiales de la página salen de **una** consulta.
+- **`ElementoDeTrabajo`:** `{ id, tipo: "material" | "tarea", titulo, autor, creadoEn, material: { texto, adjuntos } | null, tarea: { fechaLimite, puntos } | null, puedeMover }`. `puedeMover` lo decide `core` con la relación que dejó el sexto paso (con P-02 b: `maestro` o `admin`). Los anuncios nunca aparecen.
+- Las funciones `adjuntosParaResponder` y `archivosParaPublicar` salen de `handlers/clases/muro.ts` a `handlers/adjuntos.ts` sin cambiar (A-6), para que las usen el muro y las tareas.
+
+### §D-7 · Concurrencia y bloqueos
+| Operación | Primer bloqueo | Qué cierra |
+|---|---|---|
+| Crear, renombrar, borrar y reordenar temas; guardar categorías | Fila de la clase (`bloquearClase`: `updateMany` de `actualizado_en`, `FOR NO KEY UPDATE`) | Tope de 30 temas, nombres repetidos, orden con el conjunto exacto y la suma de 100, sin carreras entre dos peticiones de la misma clase. No choca con los `FOR KEY SHARE` de las FK |
+| Crear o editar una tarea con categoría o tema; publicar un material con tema; mover de tema | `FOR KEY SHARE` sobre la categoría y el tema al leerlos, siempre con `bloquearCategoriaParaUsar` y `bloquearTemaParaUsar` de `adapters/db/referencias.ts` (Enmienda 1, M-03 a) | Un guardado de categorías que quita esa categoría espera a que la tarea confirme y después la cuenta (`409 CATEGORIA_CON_TAREAS`); si el guardado confirmó antes, la lectura no ve la categoría (`404`). Un tema borrado antes da `404`; uno borrado después pasa el elemento a "Sin tema" por la FK. Nunca un `P2003` ni un `500` |
+| Editar una tarea | `FOR NO KEY UPDATE OF t` sobre la fila de `tareas` | Dos ediciones de la misma tarea quedan en serie: cada una cancela el trabajo que la anterior dejó en `trabajo_id`, y al final hay **un solo** recordatorio vivo, el de `trabajo_id` |
+| Borrar una tarea | `FOR UPDATE OF t` | Choca con la edición: si borrar gana, la edición no encuentra la fila (`404`) y no programa nada; si gana la edición, el borrado cancela el trabajo nuevo |
+
+- Orden de bloqueo en editar y borrar: la fila de `tareas` y después la de `publicaciones`. Mover de tema solo toma la de `publicaciones`. Sin espera circular, sin deadlock.
+- Ninguna de estas transacciones bloquea filas de `usuarios`: quedan fuera del protocolo por usuario de `adapters/README.md`.
+- Las cuatro consultas crudas nuevas (`FOR KEY SHARE` de tema y categoría, el bloqueo de la tarea y el `FOR UPDATE` de las categorías que se quitan) y los dos `UPDATE … FROM unnest` son `$queryRaw` o `$executeRaw` etiquetados y parametrizados; `$queryRawUnsafe` sigue siendo solo el de `ejecutorSqlDe`.
+
+### §D-8 · Errores nuevos (`AppError`, mensajes en español; `CODIGOS_TAREAS` en `shared/src/tareas.ts`)
+| Código | HTTP | Mensaje |
+|---|---|---|
+| `TAREA_NO_ENCONTRADA` | 404 | "Esa tarea ya no existe." |
+| `TEMA_NO_ENCONTRADO` | 404 | "Ese tema ya no existe." |
+| `CATEGORIA_NO_ENCONTRADA` | 404 | "Esa categoría ya no existe. Elige otra." |
+| `CATEGORIA_REQUERIDA` | 409 | "Elige la categoría de la tarea." |
+| `CATEGORIA_CON_TAREAS` | 409 | "«`<nombre>`» tiene `<n>` tareas. Muévelas a otra categoría antes de quitarla." (singular: "1 tarea") |
+| `TOPE_DE_TEMAS` | 409 | "La clase ya tiene 30 temas. Borra uno antes de crear otro." |
+| `TEMA_REPETIDO` | 409 | "Ya hay un tema con ese nombre." |
+| `ORDEN_DESACTUALIZADO` | 409 | "Los temas cambiaron mientras los ordenabas. Vuelve a intentarlo." |
+| `ANUNCIO_SIN_TEMA` | 409 | "Los anuncios no van en temas." |
+| `EDICION_NO_PERMITIDA` | 403 | "No puedes editar lo que publicó otra persona." |
+| `FECHA_LIMITE_INVALIDA` | 400 | "Elige una fecha límite futura, dentro del próximo año." |
+| `VALIDACION` (pesos) | 400 | "categorias: Los pesos deben sumar 100 %" (prefijo de campo, como el resto) |
+| `BORRADO_NO_PERMITIDO` (existente) | 403 | Sin cambio |
+
+### §D-9 · Refactor del frontend (01c; solo con P-05 a)
+Sin cambio de comportamiento. Cada símbolo movido se reexporta desde su lugar anterior en `features/clases` (`export { … } from "@/…"`, precedente de `varianteDeClase` en CLASES-02d), así que las pruebas que importan desde `./lib`, `./hooks`, `./data` o `./components/…` siguen funcionando. Cuando un símbolo usaba `mensajeDeErrorClases`, la versión compartida recibe la función de mensajes como parámetro y `features/clases` reexporta un envoltorio con el mismo nombre y la misma salida.
+
+| Qué | De (`features/clases/`) | A |
+|---|---|---|
+| `ConClaseDeLaRuta` y su texto "No tienes acceso a esta clase." | `components/con-clase-de-la-ruta.tsx`, `data.ts` | `components/clase/con-clase-de-la-ruta.tsx`, `components/clase/data.ts` |
+| `FirmaDelAutor` | `components/firma-del-autor.tsx` | `components/clase/firma-del-autor.tsx` |
+| `Perspectiva`, `perspectivaDeRuta`, `baseDeClase` y las bases por perspectiva | `types.ts`, `lib.ts`, `data.ts` | `lib/ruta-de-clase.ts` (tipo y funciones; `CAPACIDADES_POR_PERSPECTIVA` se queda en `features/clases/data.ts` y lee la base de ahí) |
+| `AdjuntosDePublicacion`, `ListaDeAdjuntosElegidos` | `components/` | `components/adjuntos/` (mismos nombres de archivo) |
+| `useSolicitarSubida`, `useUrlDeDescarga` | `hooks.ts` | `components/adjuntos/hooks.ts` |
+| `tipoDeArchivo`, `errorDeArchivoElegido`, `avisoDeFalloAlSubir` (con el mapeo de mensajes como parámetro), el cálculo de frescura de `tiempoFrescoDelMuro` generalizado a una lista de adjuntos | `lib.ts` | `components/adjuntos/lib.ts` |
+| `TEXTOS_ADJUNTOS`, `ACCEPT_DE_ADJUNTOS`, `MARGEN_DE_VISTA_PREVIA_MS` y los mensajes de error de archivos | `data.ts` | `components/adjuntos/data.ts` |
+| `ArchivoCandidato` | `types.ts` | `components/adjuntos/types.ts` |
+| `erroresPorCampo`, `esErrorDeCursor`, el quitado del prefijo de campo y la versión de `erroresDeFormularioClases` con el mapeo de mensajes como parámetro | `lib.ts` | `lib/errores-de-api.ts` |
+| `clavePublicaciones` | `data.ts` | `services/clasesService.ts` |
+
+- **No se mueven** los ganchos de foco (`useFilaEnFoco`, `useFocoAlCargarMas`, `useFocoAlPasarAError`), `focoPerdido`, `vecinaDeFila` ni nada más: `features/tareas` no los necesita en 01d. Su unificación sigue en el `chore` de accesibilidad.
+- Ningún archivo se borra: los archivos de origen quedan como reexportaciones de una línea por símbolo.
+- Los `vi.mock("./hooks")` o `vi.mock("../hooks")` de las `*.ataque` que deben interceptar ahora `components/adjuntos/hooks` los reescribe el tester en la ronda 0 de 01c (C-10).
+
+### §D-10 · Frontend de tareas (01d)
+**Módulo `features/tareas/`:**
+- `types.ts`: reexporta de `@campus/shared` `TareaDetalle`, `CrearTarea`, `CriterioDeRubrica`, `ResumenDeTarea`, `Categoria`, `Tema` y declara los tipos de la interfaz (estado del formulario: textos crudos de fecha y puntos, criterios con una llave local).
+- `data.ts`: textos (tabla de "Textos de la interfaz"), `LIMITE_*`, el valor propuesto de puntos (100).
+- `lib.ts`: `fechaLocalAIso(valor)` y `isoAFechaLocal(iso)` para `datetime-local` (zona del navegador, RNF-07), `totalDeRubrica`, `cuerpoDeTarea(estado, categoriasEnLaClase)` (arma el cuerpo y lo valida con `crearTareaSchema` antes de enviar; además, con categorías en la clase y sin una elegida, devuelve el error de campo `categoriaId` "Elige la categoría de la tarea.", la misma regla que `core.validarCategoriaRequerida`), `mensajeDeErrorTareas` (sobre `lib/errores-de-api.ts`).
+- `hooks.ts`: `useTarea`, `useCrearTarea`, `useEditarTarea`, `useBorrarTarea` (avisos en el `onSuccess` y `onError` del hook, no del `mutate`, patrón T-30), `useTemasDeLaClase` y `useCategoriasDeLaClase` (con las consultas de `services/trabajoService.ts`). Al crear, editar o borrar invalidan el muro (`clavePublicaciones`, exacta), "Trabajo de clase" (prefijo), temas, categorías y el detalle.
+- `components/formulario-tarea.tsx` (crear y editar), `editor-de-rubrica.tsx`, `rubrica-de-solo-lectura.tsx`, `detalles-de-la-tarea.tsx`, `tu-trabajo.tsx`, `acciones-de-la-tarea.tsx`.
+- `crear-tarea-view.tsx`, `editar-tarea-view.tsx`, `detalle-tarea-view.tsx`, todas con `ConClaseDeLaRuta`.
+
+**`services/trabajoService.ts` (nuevo, compartido por `clases` y `tareas`):** claves `claveTemas(claseId)`, `claveCategorias(claseId)`, `claveTrabajo(claseId, tema)`, `claveTarea(claseId, tareaId)` y las consultas `consultaTemas` y `consultaCategorias` (precedente: `services/clasesService.ts`).
+
+**`lib/vencimiento.ts` (nuevo, puro):** `UMBRAL_FECHA_PROXIMA_MS = 72 h` (S-10) y `vencimientoDe(fechaLimiteIso, ahora)`, que devuelve `{ estado: "pendiente" | "proxima" | "vencida", texto }` con los textos de S-10 (como `lib/format.ts`, que también produce textos). Lo usan el muro y "Trabajo de clase" (`clases`) y el detalle (`tareas`).
+
+**`components/ui/native-select.tsx` (nuevo):** el `native-select` de shadcn reestilizado con los tokens (mismo borde, fondo, altura, foco e inválido que `Input`). Sin dependencias nuevas.
+
+**Formulario (`FormularioTarea`):** "Título" (`Input`), "Instrucciones" (`Textarea`, opcional), "Fecha límite" (`Input type="datetime-local"`, con la ayuda "Hora de tu zona horaria."), "Puntos" (`Input type="number"`, 100 propuesto), "Categoría" (`NativeSelect`; si la clase no tiene categorías, la única opción es "Sin categoría"; si tiene, cada opción es "Examen (40 %)" y, cuando la tarea no tiene categoría (al crear, o al editar una tarea "Sin categoría"), la primera opción es una vacía explícita, "Elige una categoría", que queda seleccionada y no pasa la validación del cliente: `ErrorDeCampo` "Elige la categoría de la tarea."; el navegador nunca elige una categoría en silencio; Enmienda 1, M-03 b), "Tema" (`NativeSelect`, "Sin tema" por defecto), "Entregas después de la fecha límite" (control segmentado de §7.3, "Aceptar con retraso" o "No aceptar", S-13), "Rúbrica (opcional)" (`EditorDeRubrica`: filas con "Criterio" y "Puntos máximos", "Quitar criterio" con el número del criterio como texto `sr-only`, "Agregar criterio", total en vivo "La rúbrica suma 30 puntos. La calificación se escala a los 100 puntos de la tarea."), adjuntos (el mismo flujo del muro con los componentes de `components/adjuntos/`; al editar, los ya publicados aparecen en la lista con "Quitar"). Botones: "Publicar tarea" o "Guardar cambios" (`primary`, `enEspera` desde la primera subida hasta la respuesta) y "Cancelar" (enlace `outline` al detalle o al muro). Todos los campos con `autoComplete="off"`. Errores por campo con `ErrorDeCampo`, también los del servidor (prefijo de campo); los demás, aviso. El foco al quitar un criterio o un adjunto sigue §7.14 (al "Quitar" vecino o a "Agregar criterio"/"Adjuntar archivos"). Al terminar navega al detalle con el aviso "Tarea publicada" o "Cambios guardados".
+
+**Detalle (`DetalleTareaView`):** dos columnas desde 1024 px (PRD §7), una abajo de ese ancho. Izquierda (`Card`): insignia "Tarea" (`ClipboardList`), firma y fecha, título en `h2`, instrucciones (texto plano, `whitespace-pre-line`, `max-w-prose`), adjuntos y la rúbrica de solo lectura (criterio y puntos, con el total). Derecha: "Detalles" (fecha límite con fecha, hora y el texto de `vencimientoDe`; puntos; categoría con su peso o "Sin categoría"; tema o "Sin tema"; entregas tardías) y, para el alumno, "Tu trabajo" (S-12); para maestro y admin, "Editar tarea" (`outline`, solo con `puedeEditar`) y "Borrar tarea" (solo con `puedeBorrar`; confirmación en línea de §7.14: "Se borrará con su rúbrica y sus adjuntos.", "Sí, borrar tarea", "Cancelar"; al borrar navega al muro, o a "Trabajo de clase" desde 01e, con el aviso "Tarea borrada"). Estados: error, cargando, datos (un `404` dice "Esa tarea ya no existe.").
+
+**Muro (en `features/clases`):** `PublicacionDelMuro` pinta un elemento de tipo `tarea` con `TarjetaDeTarea` (`features/clases/components/tarjeta-de-tarea.tsx`): insignia "Tarea" con `ClipboardList`, firma y fecha, el título como enlace al detalle (`h3`) y "`<texto de vencimiento>` · `<n>` puntos". Sin "Ver comentarios" ni "Borrar publicación". `CapacidadesDePerspectiva` gana `crearTarea` (`false`, `true`, `true`): con él, el muro muestra "Crear tarea" (`outline`, icono `Plus`) junto al formulario de publicar.
+
+**Rutas (`app/router.tsx`):** dentro de cada `ClaseLayout`: estudiante `tareas/:tareaId`; maestro y admin `tareas/nueva`, `tareas/:tareaId` y `tareas/:tareaId/editar`. Ninguna activa una sección (como `/editar`).
+
+### §D-11 · Trabajo de clase, temas y categorías (01e, en `features/clases`)
+- **Sección nueva "Trabajo de clase"** (`segmento: "trabajo"`), segunda en las tres perspectivas: estudiante (Muro, Trabajo de clase, Personas), maestro (Muro, Trabajo de clase, Alumnos), admin (Muro, Trabajo de clase, Alumnos, Maestros). Para cuatro: `w-1/4`, `grid-cols-4` y la posición `translate-x-[300%]`; por debajo de 640 px el grupo se desplaza en horizontal dentro de su contenedor (la página nunca).
+- **`TrabajoView`** (`trabajo-view.tsx`): pide `GET …/temas` (temas y conteos) y, por cada tema con elementos y por "Sin tema" si tiene, la primera página de `GET …/trabajo` (20). Cada tema es una `section` con `h2` (nombre y conteo); un tema vacío dice "Aún no hay nada en este tema." sin pedir nada. "Ver más de `<tema>`" (`outline`, `enEspera`) con el foco de §7.14.
+  - **Tarea:** una fila con cuadro de fecha (§7.7, `FilaDeEntrega`, `features/clases/components/fila-de-entrega.tsx`) que enlaza al detalle; el estado sale de `vencimientoDe` (S-10) y el texto del enlace empieza con "Tarea:" (`sr-only`).
+  - **Material:** insignia "Material", título, firma y fecha, y "Ver material" (`ghost`, `aria-expanded`) que despliega el texto y los adjuntos (`AdjuntosDePublicacion`).
+  - **Maestro y admin, además:** arriba, "Crear tarea" (`primary`, la acción principal de la vista), "Nuevo tema" (`outline`; abre en línea "Nombre del tema", "Crear tema" y "Cancelar") y "Categorías de calificación" (enlace `outline`). En cada tema: "Renombrar" (en línea), "Subir" y "Bajar" (iconos con el nombre del tema como texto `sr-only`; no se muestran en el primero y el último; envían el orden completo; con `409 ORDEN_DESACTUALIZADO` la lista se vuelve a pedir y sale el aviso) y "Borrar tema" (confirmación en línea: "Sus `<n>` elementos pasarán a «Sin tema».", "Sí, borrar tema", "Cancelar"). En cada elemento con `puedeMover`: un `NativeSelect` ("Tema de «`<título>`»", `sr-only`) y "Mover" (`outline`, `sm`, `enEspera`).
+  - **Foco:** tras "Subir" o "Bajar", el foco sigue en el mismo botón del tema que se movió (o en el otro botón del mismo tema si ese ya no se muestra); tras borrar un tema o mover un elemento fuera de su sección, el control equivalente de la fila vecina y, sin vecinas, el `h2` de la sección o el de la vista (`tabIndex={-1}`); nunca `<body>` (§7.14).
+- **`CategoriasView`** (`categorias-view.tsx`, ruta `categorias` dentro de `ClaseLayout`, solo maestro y admin; no es una sección): `h2` "Categorías de calificación", la frase "Los pesos deben sumar 100 %. Cada categoría cuenta según su peso en la calificación general.", una fila por categoría ("Nombre" y "Peso" con sufijo "%", el conteo "`<n>` tareas" y "Quitar" con el nombre como texto `sr-only`; con tareas, en lugar de "Quitar", la nota "Tiene `<n>` tareas." por P-01 a), "Agregar categoría", el total en `role="status"` ("Total: 100 %", "Total: 80 %. Faltan 20 %.", "Total: 110 %. Sobran 10 %.") y "Guardar categorías" (`primary`, `enEspera`; valida con el mismo esquema que el servidor). Sin categorías: "Esta clase no tiene categorías. Sus tareas se califican por puntos." con "Agregar categoría".
+- **Muro:** el formulario de publicar gana "Tema" (`NativeSelect`, "Sin tema" por defecto) cuando el tipo es "Material". El cuerpo lleva `temaId` solo cuando se eligió un tema; con "Sin tema" la clave no viaja y el cuerpo es el de hoy (Enmienda 1, M-01). **O-18 de CLASES-02d:** mientras una publicación está en vuelo, el botón conserva el texto del tipo que se envió y los dos botones del tipo no actúan.
+- `useTemas`, `useTrabajo(claseId, tema)`, `useCrearTema`, `useRenombrarTema`, `useBorrarTema`, `useOrdenarTemas`, `useMoverElemento`, `useCategorias`, `useGuardarCategorias` en `features/clases/hooks.ts`, con las claves y consultas de `services/trabajoService.ts`.
+
+### §D-R0 · Cambios que contradicen pruebas existentes (los reescribe el tester en la ronda 0 de cada subentrega)
+| C-n | Subentrega | Cambio | Dónde buscar |
+|---|---|---|---|
+| C-1 | 01a | Dos migraciones, cuatro tablas, una columna, un valor de `enum`, índices y `CHECK` nuevos | listas cerradas de tablas, modelos, enums, migraciones, índices o restricciones (`information_schema`, `pg_indexes`, `pg_constraint`, `_prisma_migrations`, `migrations/`) |
+| C-2 | 01a, 01b | Rutas nuevas (ocho en 01a y cinco en 01b, más el `HEAD` de cada `GET`; V-06) | `printRoutes` y listas cerradas de rutas |
+| C-3 | 01a | `publicaciones_titulo_segun_tipo` cambia de definición; `tipo = 'tarea'` ya es válido en la base | pruebas que lean la definición de ese `CHECK` o que esperen que `'tarea'` no sea un valor del `enum` |
+| C-4 | 01a | `bloquearClase` se mueve de archivo | importaciones directas de `maestros-de-clase.ts` que lo esperen ahí |
+| C-5 | 01b | `publicacionSchema.tipo` admite `tarea` y gana la clave obligatoria `tarea` (`null` en anuncios y materiales) | dobles de publicación con forma completa (backend y frontend) y pruebas que esperen que el muro solo devuelva dos tipos |
+| C-6 | 01b | Dos colas nuevas en `OPCIONES_DE_COLAS` | listas cerradas de colas (`cola.integracion`, pruebas del worker) |
+| C-7 | 01b | `handlers/adjuntos.ts` nuevo con funciones que antes vivían en `muro.ts` | reglas estáticas sobre los archivos de `handlers/` |
+| C-8 | 01c | Símbolos movidos (§D-9) | `vi.mock("./hooks"`, `vi.mock("../hooks"`, `vi.mock("./data"`, `vi.mock("./lib"` con fábrica cerrada; reglas estáticas que listen archivos o importaciones de `features/clases` |
+| C-9 | 01d | Rutas nuevas del router; "Crear tarea" en el muro del maestro y del admin; la tarjeta de tarea | listas cerradas de rutas del router; conteos de botones o de acciones principales del muro |
+| C-10 | 01c | Los `vi.mock` de `useSolicitarSubida` o `useUrlDeDescarga` dejan de interceptar `AdjuntosDePublicacion` y el formulario del muro | `archivos-d-r*.ataque`, `muro-*.ataque` y cualquier otra que simule esos ganchos |
+| C-11 | 01e | Las secciones pasan a tres (estudiante y maestro) y cuatro (admin) | pruebas que esperen exactamente "Muro y Personas", "Muro y Alumnos" o "Muro, Alumnos y Maestros", y las clases del indicador para 2 y 3 |
+| C-12 | 01e | El formulario del muro gana "Tema" en "Material" y el comportamiento de O-18 | listas cerradas de campos del formulario; pruebas que esperen que cambiar de tipo con una publicación en vuelo cambie el texto del botón |
+
+**Casos fuera del inventario:** si el tester encuentra un caso contradicho que no está aquí, lo reescribe y cita el C-n más cercano; si ningún C-n lo contradice, es un hallazgo y no lo reescribe.
+
+## Cambios por capa
+
+### shared/
+- **`src/clases.ts` (01a):** exporta `textoDeUnaLineaSchema(max, mensaje)` = `textoConContenidoSchema(max, mensaje)` más el rechazo de `\r`, `\n`, U+2028 y U+2029 (el mismo criterio de "una sola línea" de `nombreClaseSchema`); exporta `archivoIdsSchema` (hoy privado, sin cambio de reglas); la rama `material` de `crearPublicacionSchema` gana `temaId: z.uuid("temaId: debe ser un identificador válido").nullable().optional()`, **sin `.default`** (Enmienda 1, M-01): un cuerpo sin `temaId` sale de `safeParse` igual que hoy, así que el cuerpo que arma el formulario del muro no cambia hasta 01e. El handler del muro trata la ausencia como `null` (`datos.temaId ?? null`).
+- **`src/clases.ts` (01b):** `resumenDeTareaSchema = z.object({ fechaLimite: z.iso.datetime(), puntos: z.number().int().min(1).max(1000) })`; `tipoDeElementoDelMuroSchema = z.enum(["anuncio", "material", "tarea"])`; `publicacionSchema.tipo` usa este último y gana `tarea: resumenDeTareaSchema.nullable()` (obligatoria, sin `.default` ni `.optional`). Tipos `ResumenDeTarea` y `TipoDeElementoDelMuro`.
+- **`src/tareas.ts` (nuevo; 01a lo de temas y categorías, 01b lo de tareas y trabajo):**
+  - Límites: `MAXIMO_TEMAS_POR_CLASE = 30`, `MAXIMO_CATEGORIAS_POR_CLASE = 10`, `MAXIMO_CRITERIOS_RUBRICA = 20`, `PUNTOS_MAXIMOS = 1000`, `DIAS_MAXIMOS_FECHA_LIMITE = 365`.
+  - Temas: `nombreTemaSchema = textoDeUnaLineaSchema(80, "Escribe el nombre del tema")`, `crearTemaSchema` y `renombrarTemaSchema` (`{ nombre }`), `ordenTemasSchema` (`{ temaIds }`: de 1 a 30 uuids, sin repetidos sin distinguir mayúsculas, pasados a minúsculas), `temaIdParamSchema`, `moverElementoSchema` (`{ temaId: uuid | null }`, la clave es obligatoria), `temaSchema` (`{ id, nombre, orden, elementos }`), `listaTemasRespuestaSchema` (`{ temas, sinTema }`), `temaRespuestaSchema`, `moverElementoRespuestaSchema`.
+  - Categorías: `nombreCategoriaSchema = textoDeUnaLineaSchema(60, "Escribe el nombre de la categoría")`, `pesoCategoriaSchema` (entero de 1 a 100: "El peso debe ser un número entero de 1 a 100"), `categoriaEntradaSchema` (`{ id?, nombre, peso }`), `reemplazarCategoriasSchema` (`{ categorias }`: hasta 10; con al menos una, la suma es 100, "Los pesos deben sumar 100 %"; ids sin repetir; nombres sin repetir comparados con `normalizarTerminoDeBusqueda`, "No repitas el nombre de una categoría"), `categoriaSchema` (`{ id, nombre, peso, tareas }`), `listaCategoriasRespuestaSchema`.
+  - Tareas: `criterioEntradaSchema` (`{ criterio: textoConContenidoSchema(300, "Escribe el criterio"), puntosMax }` con "Los puntos máximos deben ser un número entero de 1 a 1000"), `fechaLimiteSchema = z.iso.datetime({ offset: true, error: "Elige la fecha límite" })` (sin zona se rechaza), `crearTareaSchema` (`titulo: textoDeUnaLineaSchema(200, "Escribe el título de la tarea")`, `instrucciones: textoLargoSchema(10000).optional()`, `fechaLimite`, `puntos` entero de 1 a 1000 sin coerción de texto, `aceptaTardias: boolean` con `.default(true)` (RF-44), `categoriaId` y `temaId` uuid o `null` con `.default(null)`, `rubrica` hasta 20 con `.default([])`, `archivoIds`), `editarTareaSchema = crearTareaSchema`, `tareaIdParamSchema`, `criterioDeRubricaSchema` (`{ id, criterio, puntosMax }`), `tareaDetalleSchema` (§D-4), `tareaRespuestaSchema`, `trabajoQuerySchema` (`paginacionSchema` + `tema: "sin-tema" | uuid`, "tema: elige un tema válido"), `elementoDeTrabajoSchema` (§D-6), `listaTrabajoRespuestaSchema` (`{ elementos, siguienteCursor }`).
+  - `CODIGOS_TAREAS` con los códigos de §D-8 y sus tipos inferidos (`z.infer`), nunca declarados a mano.
+- **`src/index.ts`:** reexportaciones nombradas de lo nuevo de `clases.ts` y de `tareas.ts`, sin tocar las existentes (A-11).
+
+### backend/core/ (puras, con pruebas unitarias)
+| Archivo | Firma | Lanza |
+|---|---|---|
+| `core/autoria.ts` (01b) | `puedeEditarTarea(actor: ParticipanteDeAutoria, autor: ParticipanteDeAutoria, autorSigueEnLaClase: boolean): boolean` — el autor siempre; un maestro, la de un maestro que ya no está en la clase (P-04 b); nadie la del admin salvo el admin; el admin, solo la suya (S-09) | — |
+| `core/autoria.ts` (01b) | `puedeBorrarTarea(actor, autor, autorSigueEnLaClase): boolean` — el admin cualquiera; el autor la suya; un maestro, la de un maestro que ya no está en la clase; nunca la del admin | — |
+| `core/tareas/temas.ts` (01a) | `validarNuevoTema(existentes: readonly { id: string; nombre: string }[], nombre: string): void` · `validarRenombre(existentes, temaId: string, nombre: string): void` · `siguienteOrden(ordenes: readonly number[]): number` (0 sin temas; el mayor más 1) · `validarOrdenDeTemas(actuales: readonly string[], propuestos: readonly string[]): void` · `puedeMoverElemento(relacion: RelacionConClase): boolean` (el tipo de `core/clases/pertenencia.ts`, el mismo que deja `claseDe(request).relacion`) | `TOPE_DE_TEMAS`, `TEMA_REPETIDO`, `TEMA_NO_ENCONTRADO`, `ORDEN_DESACTUALIZADO` |
+| `core/tareas/categorias.ts` (01a) | `validarPesos(pesos: readonly number[]): void` (vacío válido; si no, suma 100) · `planearReemplazoDeCategorias(actuales: readonly { id: string }[], nuevas: readonly { id?: string; nombre: string; peso: number }[]): { crear; actualizar; quitar: string[] }` | `VALIDACION` (pesos, nombres, ids repetidos, tope), `CATEGORIA_NO_ENCONTRADA` (un id que no es de la clase) |
+| `core/tareas/tareas.ts` (01b) | `validarFechaLimite({ nueva: Date; anterior: Date \| null; ahora: Date }): void` (S-02) · `validarCategoriaRequerida({ categoriaId: string \| null; categoriasEnLaClase: number }): void` (P-01 a) | `FECHA_LIMITE_INVALIDA`, `CATEGORIA_REQUERIDA` |
+| `core/tareas/recordatorio.ts` (01b) | `momentoDelRecordatorio(fechaLimite: Date, ahora: Date): Date \| null` · `planDeRecordatorio({ fechaAnterior: Date \| null; fechaNueva: Date \| null; trabajoActual: string \| null; ahora: Date }): { cancelar: string \| null; programarEn: Date \| null }` (`fechaNueva: null` es borrar) | — |
+| `core/tareas/texto.ts` (01b) | `conTextosDeTareaNormalizados(cuerpo: unknown): unknown` (usa `conTextosNormalizados` de `core/clases/texto.ts` y normaliza cada `rubrica[i].criterio` que sea texto; no muta lo recibido; un arreglo o un no-objeto se deja intacto) | — |
+| `core/eventos/avisos-de-clase.ts` (01b) | `COLA_TAREA_CREADA`, `COLA_RECORDATORIO_24H`, `datosTareaCreadaSchema`, `datosRecordatorio24hSchema` y sus tipos | — |
+
+### backend/adapters/
+- `db/bloqueo-clase.ts` (01a, nuevo): `bloquearClase(tx, claseId)`, movido sin cambios desde `maestros-de-clase.ts` (A-5); no se reexporta en `index.ts`.
+- `db/referencias.ts` (01a, nuevo; Enmienda 1, M-03 a): las dos ayudas de bloqueo de una referencia por id dentro de una transacción, únicas en el proyecto: `bloquearTemaParaUsar(tx, { temaId, claseId }): Promise<boolean>` y `bloquearCategoriaParaUsar(tx, { categoriaId, claseId }): Promise<boolean>`, cada una un `SELECT id FROM <tabla> WHERE id = ${id}::uuid AND clase_id = ${claseId}::uuid FOR KEY SHARE` (`$queryRaw` etiquetado) que devuelve `false` si no hay fila. Se crean las dos en 01a aunque la de categoría no tenga uso de producción hasta 01b; no se reexportan en `index.ts`. Las usan `crearPublicacion` y `moverATema` (01a, tema) y `crearTarea` y `editarTarea` (01b, tema y categoría). Nadie más escribe un `FOR KEY SHARE`.
+- `db/temas.ts` (01a, nuevo): `listarTemas`, `crearTema`, `renombrarTema`, `borrarTema`, `ordenarTemas`, `moverATema` (§D-2).
+- `db/categorias.ts` (01a, nuevo): `listarCategorias`, `reemplazarCategorias` (§D-3).
+- `db/publicaciones.ts`: `crearPublicacion` con `temaId` (01a); `listarPublicaciones` con el resumen de la tarea y `puedeBorrarTarea`, `borrarPublicacion` solo sobre anuncios y materiales, `listarComentarios` y `crearComentario` solo sobre anuncios y materiales (01b).
+- `db/tareas.ts` (01b, nuevo): `crearTarea`, `leerTarea`, `adjuntosConfirmadosDe` (los de una publicación de la clase, para preparar la edición), `editarTarea`, `borrarTarea`, `listarTrabajo` (§D-4, §D-6).
+- `db/index.ts`: exportaciones nuevas.
+- `queue/index.ts` (01b): `encolar(…, { id, sql, inicio })` y `cancelar(nombre, id, { sql })` (A-4).
+- `queue/colas.ts` (01b): `TAREA_CREADA` y `RECORDATORIO_24H` (A-4).
+- `README.md`: secciones `db/temas.ts` y `db/categorias.ts` (01a), `db/tareas.ts`, los trabajos diferidos en `queue` (S-15) y los bloqueos de §D-7 (01b). Lo edita el programador.
+
+### backend/handlers/ (ruta, método y cadena exacta en "Autorización")
+- `tareas/temas.ts` (01a, `temasHandler`): las seis rutas de temas y mover.
+- `tareas/categorias.ts` (01a, `categoriasHandler`): `GET` y `PUT …/categorias`.
+- `clases/muro.ts` (01a): `POST …/publicaciones` pasa `temaId` al adaptador; (01b) usa `handlers/adjuntos.ts` y mapea `tarea.fechaLimite` a ISO.
+- `adjuntos.ts` (01b, nuevo): `adjuntosParaResponder` y `archivosParaPublicar`, movidos sin cambios desde `muro.ts` (A-6).
+- `tareas/tareas.ts` (01b, `tareasHandler`, recibe `{ almacen }`): `POST …/tareas`, `GET`, `PUT` y `DELETE …/tareas/:tareaId`, `GET …/trabajo`.
+- `app.ts`: registra `temasHandler` y `categoriasHandler` (01a) y `tareasHandler` con el almacén (01b), con prefijo `/api`, después de `archivosHandler` (A-10).
+- `README.md`: el plugin `tareas/` (01a y 01b). Lo edita el programador.
+- Ningún handler verifica rol, propiedad, inscripción ni autoría a mano; ninguno llama a `adapters/notifier`; ninguno usa `sql` más que para pasarlo a `encolar` o `cancelar`.
+
+### backend/workers/
+Sin cambios: `TAREA_CREADA` y `RECORDATORIO_24H` no tienen consumidor hasta NOTIFICACIONES. `workers/README.md` agrega una línea que lo dice (01b).
+
+### backend/prisma/ (migración: tablas, columnas, restricciones, índices; compatible hacia atrás)
+Las dos migraciones de §D-1, solo en 01a. En 01b, 01c, 01d y 01e, `backend/prisma` no cambia (V-03).
+
+### infra/ y .env.example (servicios, variables de entorno nuevas)
+Sin cambios. Ninguna variable nueva.
+
+### frontend/
+- **01c:** solo los movimientos de §D-9 y sus reexportaciones.
+- **01d:** `features/tareas/**` (nuevo, §D-10); `services/trabajoService.ts` y `lib/vencimiento.ts` (nuevos); `components/ui/native-select.tsx` (nuevo); en `features/clases`: `components/tarjeta-de-tarea.tsx` (nuevo), `components/publicacion-del-muro.tsx`, `muro-view.tsx`, `data.ts`, `types.ts` (capacidad `crearTarea`); `app/router.tsx`.
+- **01e:** en `features/clases`: `trabajo-view.tsx`, `categorias-view.tsx` y sus componentes (`seccion-de-tema.tsx`, `elemento-de-trabajo.tsx`, `fila-de-entrega.tsx`, `formulario-tema.tsx`, `mover-elemento.tsx`, `editor-de-categorias.tsx`), `components/formulario-publicacion.tsx` (tema y O-18), `components/secciones-de-clase.tsx` si hace falta para cuatro secciones, `data.ts`, `lib.ts`, `hooks.ts`, `types.ts`; en `features/tareas`: el destino tras borrar ("Trabajo de clase"); `app/router.tsx`.
+- `docs/DESIGN.md` en 01d y 01e (A-8).
+
+## Acceso a datos
+
+| Consulta | Tablas | Índice | Paginación | Transacción |
+|---|---|---|---|---|
+| Temas de una clase | `temas` | `(clase_id, orden, id)` | No: tope de 30 (S-14) | No |
+| Conteos por tema y "Sin tema" | `publicaciones` (`groupBy tema_id`) | `(clase_id, tema_id, creado_en DESC, id DESC)` | — (una fila por tema) | No |
+| Crear, renombrar, borrar, ordenar tema | `clases` (bloqueo), `temas` | PK de `clases`; `(clase_id, orden, id)` | — | Sí (§D-7) |
+| `UPDATE … FROM unnest` del orden | `temas` | PK | — (hasta 30 filas, una sentencia) | Sí |
+| Mover un elemento | `publicaciones`, `temas` (`FOR KEY SHARE`) | PK de cada una | — | Sí |
+| Categorías de una clase | `categorias` | `(clase_id, creado_en, id)` | No: tope de 10 | No |
+| Conteo de tareas por categoría | `tareas` (`groupBy categoria_id`) | `(categoria_id)` | — | No (y dentro del guardado, tras el `FOR UPDATE`) |
+| Guardar categorías | `clases` (bloqueo), `categorias`, `tareas` (conteo) | PK; `(clase_id, creado_en, id)`; `(categoria_id)` | — | Sí |
+| Crear tarea | `categorias` y `temas` (`FOR KEY SHARE`), `publicaciones`, `tareas`, `criterios_rubrica` (`createMany`), `archivos` (`updateMany`), `pgboss.job` | PK; `(clase_id, creado_en, id)` para contar categorías | — | Sí, con el encolado |
+| Detalle de tarea | `tareas` + `publicaciones` + `usuarios` (autor) + `temas` + `categorias` + `criterios_rubrica` + `archivos` + `maestros_de_clase` | PK de `tareas` filtrada por `clase_id`; `(tarea_id, orden)`; `archivos(publicacion_id)`; PK `(clase_id, maestro_id)` | — | No |
+| Editar tarea | `tareas` (`FOR NO KEY UPDATE`), `publicaciones`, `maestros_de_clase`, `categorias`, `temas`, `criterios_rubrica`, `archivos`, `pgboss.job` | PK; `(tarea_id, orden)`; `archivos(publicacion_id)` | — | Sí, con la reprogramación |
+| Borrar tarea | `tareas` (`FOR UPDATE`), `publicaciones`, `maestros_de_clase`, `archivos`, `pgboss.job` | PK; `archivos(publicacion_id)` | — | Sí, con las cancelaciones |
+| Muro | `publicaciones` + autor + `tareas` (1:1) + conteo de comentarios + `archivos` + (si hay tareas en la página) `maestros_de_clase` | `(clase_id, creado_en DESC, id DESC)`; `comentarios(publicacion_id, …)`; `archivos(publicacion_id)` | Sí, cursor (máx. 100) | No |
+| "Trabajo de clase" por tema | `temas` (existe en la clase), `publicaciones` + autor + `tareas` + `archivos` | PK de `temas`; `(clase_id, tema_id, creado_en DESC, id DESC)`; `archivos(publicacion_id)` | Sí, cursor por tema (máx. 100) | No |
+
+- Ninguna consulta dentro de un ciclo: los conteos, los adjuntos de una página y los maestros de la clase salen de una consulta cada uno; los criterios se escriben con un `createMany`; los cambios de varias filas (orden de temas, categorías) con un `UPDATE … FROM unnest`.
+- El SQL crudo nuevo es etiquetado y parametrizado (§D-7). Ninguna consulta usa `unaccent`.
+
+## Autorización
+
+Cadena fija de `protegido()`: `authenticate → withProfile → withPasswordGate → withAccess → requireRole → requireMembership | requireOwnership → handler`. El admin pasa el sexto paso solo donde `roles` lo nombra.
+
+| Método y ruta (`/api` + …) | `roles` | Sexto paso | Estudiante inscrito | Maestro de la clase | Admin | Maestro o estudiante de otra clase | Alumno restringido |
+|---|---|---|---|---|---|---|---|
+| `GET /clases/:claseId/temas` | `estudiante`, `maestro`, `admin` | `inscripcion` | 200 | 200 | 200 | 403 `SIN_ACCESO_A_LA_CLASE` | 403 `ACCESO_RESTRINGIDO` |
+| `POST /clases/:claseId/temas` | `maestro`, `admin` | `propiedad` | 403 `ROL_NO_PERMITIDO` | 201 | 201 | 403 | 403 |
+| `PUT /clases/:claseId/temas/:temaId` | `maestro`, `admin` | `propiedad` | 403 | 200 | 200 | 403 | 403 |
+| `DELETE /clases/:claseId/temas/:temaId` | `maestro`, `admin` | `propiedad` | 403 | 204 | 204 | 403 | 403 |
+| `PUT /clases/:claseId/temas/orden` | `maestro`, `admin` | `propiedad` | 403 | 200 | 200 | 403 | 403 |
+| `PUT /clases/:claseId/publicaciones/:publicacionId/tema` | `maestro`, `admin` | `propiedad` | 403 | 200 (cualquier material o tarea, P-02 b) | 200 | 403 | 403 |
+| `GET /clases/:claseId/categorias` | `maestro`, `admin` | `propiedad` | 403 | 200 | 200 | 403 | 403 |
+| `PUT /clases/:claseId/categorias` | `maestro`, `admin` | `propiedad` | 403 | 200 | 200 | 403 | 403 |
+| `POST /clases/:claseId/tareas` | `maestro`, `admin` | `propiedad` | 403 | 201 | 201 (firma "Administración") | 403 | 403 |
+| `GET /clases/:claseId/tareas/:tareaId` | `estudiante`, `maestro`, `admin` | `inscripcion` | 200 | 200 | 200 | 403 | 403 |
+| `PUT /clases/:claseId/tareas/:tareaId` | `maestro`, `admin` | `propiedad` + autoría en la transacción | 403 | 200 la suya o la de un maestro que ya no está; 403 `EDICION_NO_PERMITIDA` la del otro maestro o la del admin | 200 la suya; 403 la de un maestro | 403 | 403 |
+| `DELETE /clases/:claseId/tareas/:tareaId` | `maestro`, `admin` | `propiedad` + autoría en la transacción | 403 | 204 la suya o la de un maestro que ya no está; 403 `BORRADO_NO_PERMITIDO` la del otro maestro o la del admin | 204 cualquiera | 403 | 403 |
+| `GET /clases/:claseId/trabajo` | `estudiante`, `maestro`, `admin` | `inscripcion` | 200 (`puedeMover: false`) | 200 | 200 | 403 | 403 |
+| Rutas existentes que cambian (`GET` y `POST …/publicaciones`, comentarios) | Sin cambio | Sin cambio | — | — | — | — | — |
+
+- **Campos que nunca salen:** `estadoPago`, `accesoRestringido`, correos, el rol del autor, `trabajo_id`, la clave del objeto de un archivo. Para el estudiante no se omite nada más: la tarea, sus temas y su categoría no son datos privados (S-17), y `puedeEditar`, `puedeBorrar` y `puedeMover` le llegan en `false`.
+- **Sin token:** `401` en todas. **Con cambio de contraseña pendiente:** `403 CAMBIO_DE_CONTRASENA_REQUERIDO`. **Clase inexistente:** `403 SIN_ACCESO_A_LA_CLASE`, igual que una ajena.
+- **Un id de otra clase** (tarea, tema, categoría, publicación, archivo, cursor) responde como "no encontrado" (o `400` el cursor) y no escribe ni encola nada.
+
+## Pruebas requeridas
+
+Cada ID se mapea en el resumen del programador a su archivo y al título exacto del caso (`AGENTS.md`, "Resúmenes verificables"). Toda prueba ejecuta al menos una aserción; una precondición que falta hace fallar la prueba con un mensaje.
+
+### 01a (backend)
+| ID | Qué cubre | Archivo |
+|---|---|---|
+| PR-1A01 | `core/tareas/temas.ts`: tope de 30 (29 pasa, 30 rechaza), nombre repetido sin distinguir mayúsculas ni acentos y con espacios de más, renombrar a su mismo nombre (pasa) y al de otro (rechaza), tema inexistente al renombrar, `siguienteOrden` (vacío → 0, con huecos → mayor + 1), `validarOrdenDeTemas` (igual en otro orden pasa; faltante, sobrante, repetido, ajeno y lista vacía con temas rechazan), `puedeMoverElemento` por relación | `backend/src/core/tareas/temas.test.ts` |
+| PR-1A02 | `core/tareas/categorias.ts`: `validarPesos` (vacío; 100; 99; 101; una de 100; diez que suman 100), `planearReemplazoDeCategorias` (crear, actualizar, quitar y combinaciones; id ajeno → `CATEGORIA_NO_ENCONTRADA`; id repetido; nombre repetido normalizado; 11 → tope) | `backend/src/core/tareas/categorias.test.ts` |
+| PR-1A03 | Esquemas de 01a: `textoDeUnaLineaSchema` (saltos `\r`, `\n`, U+2028, U+2029; solo invisibles; inversores de dirección; máximo en puntos de código), `nombreTemaSchema`, `nombreCategoriaSchema`, `pesoCategoriaSchema` (0, 1, 100, 101, 1.5, `"40"`), `reemplazarCategoriasSchema` (suma, tope, repetidos), `ordenTemasSchema` (repetidos en mayúsculas y minúsculas, 0 y 31 elementos), `moverElementoSchema` (clave ausente rechaza; `null` pasa), rama `material` de `crearPublicacionSchema` con y sin `temaId` (sin `temaId`, la salida no tiene la clave: Enmienda 1, M-01) | `backend/test/esquemas-tareas.test.ts` |
+| PR-1A04 | Temas de punta a punta: crear (orden al final), listar con `elementos` y `sinTema`, renombrar, reordenar, borrar (un material con ese tema queda con `tema_id` nulo y cuenta en `sinTema`); `TEMA_NO_ENCONTRADO` con un tema de otra clase en `PUT` y `DELETE` | `backend/test/temas.integracion.test.ts` |
+| PR-1A05 | Concurrencia de temas: 2 creaciones simultáneas con 29 temas (una `201`, otra `409 TOPE_DE_TEMAS`); 2 creaciones simultáneas con el mismo nombre (una `409 TEMA_REPETIDO`); un reordenamiento y un borrado simultáneos (o `200` con el orden nuevo sin el borrado, o `409 ORDEN_DESACTUALIZADO`); nunca `500` ni `P2028` | `backend/test/temas.integracion.test.ts` |
+| PR-1A06 | Mover y tema al publicar: material a un tema y a `null`; anuncio → `409 ANUNCIO_SIN_TEMA`; tema de otra clase → `404` sin cambio; publicación de otra clase → `404`; publicar un material con `temaId` (queda en el tema) y con un tema de otra clase (`404`, sin publicación ni trabajo `MATERIAL_CREADO`) | `backend/test/temas.integracion.test.ts` |
+| PR-1A07 | Categorías: `PUT` crea, renombra, cambia pesos y quita en una sola petición; `GET` con `tareas` por categoría (con filas de `tareas` insertadas por la ayuda de pruebas); quitar una con tareas → `409 CATEGORIA_CON_TAREAS` con su nombre y conteo, sin cambiar nada; id de otra clase → `404 CATEGORIA_NO_ENCONTRADA`; suma ≠ 100 → `400`; lista vacía deja la clase sin categorías; dos guardados simultáneos quedan en serie y el resultado suma 100; `bloquearCategoriaParaUsar` llamado directo dentro de una transacción: `true` con una categoría de la clase, `false` con una de otra clase y con un id inexistente (Enmienda 1, M-03 a) | `backend/test/categorias.integracion.test.ts` |
+| PR-1A08 | Migración: `CHECK` de título por tipo (anuncio con título, material o tarea sin título fallan), anuncio con tema falla, peso 0 y 101 fallan, puntos 0 y 1001 fallan; borrar un tema pone `tema_id` en nulo; borrar una clase con temas, categorías y tareas no falla (`NO ACTION`); `tareas.id` sin publicación falla | `backend/test/migracion-tareas.integracion.test.ts` |
+| PR-1A09 | Autorización de las ocho rutas de 01a (tabla de "Autorización"): sin token, estudiante en escritura (`ROL_NO_PERMITIDO`), estudiante en `GET …/categorias`, maestro de otra clase, estudiante no inscrito, alumno restringido, clase inexistente, admin (pasa), cambio de contraseña pendiente; ninguna respuesta lleva `estadoPago`, `accesoRestringido` ni correos | `backend/test/temas-autorizacion.integracion.test.ts` |
+
+### 01b (backend)
+| ID | Qué cubre | Archivo |
+|---|---|---|
+| PR-1B01 | `momentoDelRecordatorio`: 3 días antes → `fecha − 24 h` exacta (milisegundos); 24 h exactas → `null`; 23 h → `null`; fecha pasada → `null` | `backend/src/core/tareas/recordatorio.test.ts` |
+| PR-1B02 | `planDeRecordatorio`: misma fecha (con y sin trabajo) → nada; fecha nueva con trabajo → cancelar y programar; fecha nueva cuyo momento ya pasó → solo cancelar; sin trabajo y fecha nueva futura → solo programar; borrar → cancelar si hay | `backend/src/core/tareas/recordatorio.test.ts` |
+| PR-1B03 | `validarFechaLimite` (crear: pasada, ahora, dentro del año, a 366 días; editar: la misma ya pasada pasa, una nueva pasada falla) y `validarCategoriaRequerida` (con y sin categorías en la clase) | `backend/src/core/tareas/tareas.test.ts` |
+| PR-1B04 | `puedeEditarTarea` y `puedeBorrarTarea`: la matriz completa actor (maestro autor, otro maestro, admin) × autor (maestro en la clase, maestro que ya no está, admin) de "Autorización" (P-04 b y S-09) | `backend/src/core/autoria.test.ts` |
+| PR-1B05 | `conTextosDeTareaNormalizados`: CRLF y CR en título, instrucciones y criterios; criterios que no son texto, `rubrica` que no es arreglo, cuerpo que es arreglo o `null`: intactos; no muta | `backend/src/core/tareas/texto.test.ts` |
+| PR-1B06 | Esquemas de 01b: `crearTareaSchema` (título de una línea, instrucciones de 10 001, fecha con `Z`, con `-06:00` y sin zona, puntos 0, 1, 1000, 1001, 1.5 y `"100"`, `aceptaTardias` ausente → `true`, 21 criterios, criterio vacío o de invisibles, `archivoIds` 6), `trabajoQuerySchema` (`sin-tema`, uuid, otro texto, ausente), `publicacionSchema` con `tarea` | `backend/test/esquemas-tareas.test.ts` |
+| PR-1B07 | Crear: `201` con el detalle; en el muro aparece con `tipo: "tarea"` y su resumen; `TAREA_CREADA` con id = tarea y datos solo con ids; `RECORDATORIO_24H` en `created` con `start_after = fecha − 24 h` y su id en `trabajo_id`; a menos de 24 h, sin recordatorio y `trabajo_id` nulo; adjuntos confirmados; categoría requerida; categoría y tema de otra clase → `404` sin tarea, publicación ni trabajo; admin firma "Administración" | `backend/test/tareas.integracion.test.ts` |
+| PR-1B08 | Editar: cambiar la fecha deja el trabajo anterior en `cancelled` y uno nuevo en `created` con otro id; cambiar solo el título deja el mismo trabajo; mover la fecha a menos de 24 h cancela sin programar; criterios reemplazados; adjuntos conservados, agregados y quitados (`descartado`); `TAREA_CREADA` no se vuelve a encolar; un archivo conservado que ya no es de esa tarea → `400` sin cambios | `backend/test/tareas.integracion.test.ts` |
+| PR-1B09 | Autoría al editar y borrar (P-04 b, S-09): maestro contra la del admin y contra la del otro maestro (`403`, nada escrito, el trabajo sigue igual); maestro contra la de un maestro retirado (pasa); admin edita la de un maestro (`403`) y la borra (`204`); `puedeEditar` y `puedeBorrar` del detalle y del muro coinciden con el resultado real | `backend/test/tareas-autoria.integracion.test.ts` |
+| PR-1B10 | Borrar: `204`; publicación, tarea y criterios fuera; adjuntos en `descartado`; `RECORDATORIO_24H` y `TAREA_CREADA` en `cancelled`; `DELETE …/publicaciones/:id` sobre una tarea → `404` y nada cambia; comentar o listar comentarios de una tarea → `404` | `backend/test/tareas.integracion.test.ts` |
+| PR-1B11 | "Trabajo de clase": por tema y por `sin-tema`, del más reciente al más antiguo, sin anuncios; paginación y cursor de otro tema, de otra clase, de un anuncio y borrado → `400`; tema de otra clase → `404`; `puedeMover` por relación; los materiales traen texto y adjuntos | `backend/test/trabajo.integracion.test.ts` |
+| PR-1B12 | Concurrencia: dos ediciones de fecha simultáneas → un solo `RECORDATORIO_24H` en `created` para la tarea y es el de `trabajo_id`; editar y borrar a la vez → ningún recordatorio vivo; guardar categorías que quita una categoría mientras se crea una tarea con ella → o la tarea existe y el guardado da `409`, o el guardado gana y la creación da `404`; borrar un tema mientras se crea una tarea con él; nunca `500` ni `P2028` | `backend/test/tareas-concurrencia.integracion.test.ts` |
+| PR-1B13 | Reversión con la transacción (Enmienda 1, M-02), llamando al adaptador con callbacks dobles que hacen la operación real de pg-boss y después lanzan (precedente: las pruebas de `crearPublicacion` con un `alGuardar` que lanza). Cuatro casos, con estos títulos exactos: **"editar: si falla el encolado del recordatorio nuevo, el recordatorio viejo sigue en created y la tarea no cambia"** (el callback cancela el recordatorio viejo con `cancelar(…, { sql })` y lanza al encolar el nuevo: la tarea conserva fecha y `trabajo_id`, el trabajo viejo está en `created` y no existe el nuevo); **"borrar: si falla la cancelación de TAREA_CREADA, la tarea sigue y su recordatorio sigue en created"** (el callback cancela el recordatorio y lanza al cancelar `TAREA_CREADA`: la publicación, la tarea, sus criterios y sus adjuntos confirmados siguen, y los dos trabajos están en `created`); **"crear: si falla el encolado de RECORDATORIO_24H, no queda la tarea ni TAREA_CREADA"** (el callback encola `TAREA_CREADA` y lanza al encolar el recordatorio: no hay publicación, tarea, criterios, archivo confirmado ni trabajo con esos ids); **"editar: si falla la cancelación del recordatorio viejo, la edición no se guarda"** (el caso que ya estaba) | `backend/test/tareas.integracion.test.ts` |
+| PR-1B14 | Autorización de las cinco rutas de 01b (tabla de "Autorización"), con los mismos casos de PR-1A09; el detalle para el estudiante sin `trabajo_id`, rol, correos ni `estadoPago` en ninguna profundidad | `backend/test/tareas-autorizacion.integracion.test.ts` |
+
+### 01c (frontend, refactor)
+| ID | Qué cubre | Archivo |
+|---|---|---|
+| PR-1C01 | La suite del frontend en verde, con el mismo número de archivos y de casos que antes de 01c más el archivo y los casos de PR-1C02 (`npx vitest list`), y ninguna `*.ataque` cambiada salvo las reescrituras de la ronda 0 (C-8, C-10) | Corrida completa |
+| PR-1C02 | Las reexportaciones: cada símbolo movido se importa desde su ruta vieja y desde la nueva y es el mismo objeto (`toBe`) | `frontend/src/features/clases/reexportaciones-01c.test.ts` |
+
+### 01d (frontend, tareas)
+| ID | Qué cubre | Archivo |
+|---|---|---|
+| PR-1D01 | `lib/vencimiento.ts`: umbral de 72 h (71 h 59 min próxima; 72 h 1 min pendiente), "Vence hoy a las …", "Vence mañana a las …", "Vence en 2 días", "Vence en 3 días", vencida ("Venció el …"), medianoche local y fecha inválida (valor explícito, no el texto ISO) | `frontend/src/lib/vencimiento.test.ts` |
+| PR-1D02 | `features/tareas/lib.ts`: `fechaLocalAIso` e `isoAFechaLocal` (ida y vuelta, cadena vacía), `totalDeRubrica`, `cuerpoDeTarea` (valida con el esquema de `shared/`), `mensajeDeErrorTareas` (cada código de §D-8, prefijo de campo, error de red) | `frontend/src/features/tareas/lib.test.ts` |
+| PR-1D03 | Formulario al crear: errores por campo con `ErrorDeCampo` (cliente y servidor), categoría obligatoria cuando la clase tiene, "Sin categoría" solo sin categorías, con categorías la opción inicial es "Elige una categoría" (seleccionada; enviar sin cambiarla muestra "Elige la categoría de la tarea." y no hace ninguna petición; Enmienda 1, M-03 b), control segmentado de entregas tardías con `aria-pressed`, agregar y quitar criterios con el foco de §7.14, adjuntos (sube antes de publicar; un fallo nombra el archivo y no publica), botón en `enEspera` sin doble envío, `autoComplete="off"` en todos los campos, navegación y aviso al terminar | `frontend/src/features/tareas/formulario-tarea.test.tsx` |
+| PR-1D04 | Editar: carga los valores (fecha local, categoría, tema, criterios, adjuntos ya publicados); una tarea "Sin categoría" en una clase que ya tiene categorías carga con "Elige una categoría" seleccionada y no se guarda sin elegir una (Enmienda 1, M-03 b); quitar un adjunto publicado, `403 EDICION_NO_PERMITIDA` con su aviso, sin `puedeEditar` la vista no muestra el formulario | `frontend/src/features/tareas/editar-tarea-view.test.tsx` |
+| PR-1D05 | Detalle: estudiante (instrucciones como texto plano, adjuntos, fecha, puntos, categoría y peso, rúbrica de solo lectura, "Tu trabajo" con su texto y la política de entregas tardías; sin "Editar tarea" ni "Borrar tarea"); maestro y admin según `puedeEditar` y `puedeBorrar`; borrar con confirmación en línea (foco a "Cancelar", vuelve al cancelar) y navegación con aviso; estados error → cargando → datos; `404` | `frontend/src/features/tareas/detalle-tarea-view.test.tsx` |
+| PR-1D06 | Muro: la tarjeta de tarea (insignia con texto e icono, enlace al detalle de la perspectiva, vencimiento y puntos, sin comentarios ni borrar); "Crear tarea" para maestro y admin, no para el estudiante | `frontend/src/features/clases/tarjeta-de-tarea.test.tsx` |
+| PR-1D07 | Router: las rutas nuevas por rol; `tareas/nueva` no se pide como id; un estudiante en `…/tareas/nueva` o `…/editar` cae en `*` | `frontend/src/app/router.test.tsx` (existente, casos nuevos) |
+| PR-1D08 | `NativeSelect`: etiqueta asociada, estado inválido con `aria-invalid`, tokens (sin clases de las escalas anuladas), altura por `--control-height` | `frontend/src/components/ui/native-select.test.tsx` |
+
+### 01e (frontend, organización)
+| ID | Qué cubre | Archivo |
+|---|---|---|
+| PR-1E01 | "Trabajo de clase" del estudiante: temas en orden, "Sin tema" arriba solo si tiene, tema vacío con su texto y sin pedir nada, fila de tarea con cuadro de fecha y estado por umbral (texto, no solo color), material desplegable con adjuntos, sin ningún control de gestión | `frontend/src/features/clases/trabajo-view.test.tsx` |
+| PR-1E02 | Maestro y admin: crear tema en línea, renombrar, subir y bajar (envía el orden completo; con `409` vuelve a pedir y avisa), borrar con confirmación en línea, mover un elemento (`enEspera`), "Crear tarea" como única acción principal; foco tras subir, bajar, borrar y mover (§D-11); "Ver más de …" con el foco de §7.14 | `frontend/src/features/clases/trabajo-view.test.tsx` |
+| PR-1E03 | Categorías: agregar, editar y quitar filas; total en vivo en `role="status"` (exacto, faltan, sobran); guardar valida con el esquema de `shared/`; con tareas no se ofrece "Quitar" y se muestra la nota; `409` del servidor con su mensaje; vacío con su texto | `frontend/src/features/clases/categorias-view.test.tsx` |
+| PR-1E04 | Formulario del muro: "Tema" solo con "Material"; con un tema elegido el cuerpo lleva `temaId`, con "Sin tema" el cuerpo no lleva la clave (los dos `toEqual` existentes, líneas 170 y 297, siguen igual); O-18: con una publicación en vuelo, cambiar de tipo no cambia el texto del botón ni el tipo enviado | `frontend/src/features/clases/formulario-publicacion.test.tsx` (existente, casos nuevos) |
+| PR-1E05 | Secciones: tres para estudiante y maestro, cuatro para el admin, con "Trabajo de clase" segunda; indicador de un cuarto; `aria-current` en `…/trabajo` | `frontend/src/features/clases/clase-layout.test.tsx` (existente, casos nuevos) |
+
+### Pruebas existentes que el programador puede cambiar (lista cerrada; cualquier otra es PA-16)
+- **01a:** `backend/test/ayudas-clases.ts` (solo agregar ayudas); `backend/test/ayudas-tareas.ts` (nuevo).
+- **01b:** `backend/src/core/autoria.test.ts` (casos nuevos), `backend/test/cola.integracion.test.ts` (las dos colas nuevas), las pruebas normales del backend y del frontend cuyos dobles de publicación necesitan `tarea: null` (regla "Dobles del frontend" de CLASES-02: solo se completa la forma del doble; el código de producción del frontend no cambia en 01b).
+- **01c:** ninguna normal, salvo las que importen por ruta un símbolo movido sin pasar por su reexportación (se reportan como I-2).
+- **01d:** `frontend/src/app/router.test.tsx`, `frontend/src/features/clases/muro-view.test.tsx` (la tarjeta y "Crear tarea").
+- **01e:** `frontend/src/features/clases/formulario-publicacion.test.tsx`, `clase-layout.test.tsx`, `muro-view.test.tsx` (O-18 si lo cubre).
+- En todas: las que la ronda 0 reporte como I-2 (listas cerradas en pruebas normales).
+
+## Puntos de ataque para el Tester
+
+PA-07 es regla permanente del tester. Este plan fija:
+- **Lista de `P2028` permitidos:** la de CLASES-02 (los de `cuentas-r3.ataque` y `servicio-ocupado.integracion`). Ningún `P2028` de una ruta de TAREAS-01 es permitido.
+- **Inventario I-1:** la lista cerrada de "Error no controlado" sale de la ronda 0 de 01a y de 01b; en 01c, 01d y 01e se usa la de 01b.
+- **Hermanos (`AGENTS.md`):** al reportar un hallazgo, el tester nombra los hermanos y sus estados vecinos: las seis rutas de temas y mover; las tres escrituras de tareas (crear, editar, borrar); las tres referencias por id dentro de un cuerpo (categoría, tema, archivos); los tres bloqueos de §D-7; las dos colas; las tres perspectivas; los tres "Ver más" (muro, comentarios, cada tema); los dos formularios con adjuntos (muro y tarea).
+
+### Ronda 0 (cada subentrega; no cuenta en el tope de 3)
+1. **Precondiciones:** árbol limpio dentro de los paquetes contra la base de la subentrega (`<R>` en 01a, `<K1a>` en 01b, `<K1b>` en 01c, `<K1c>` en 01d, `<K1d>` en 01e); V-01 contra la última tabla de hashes (en 01a, la de la ronda 3 de CLASES-02d: 141 `*.ataque`); PA-01 antes de cualquier prueba del backend.
+2. **Reescritura:** solo los casos que contradice un C-n de §D-R0, conservando lo que protegen; las pruebas normales con listas cerradas, como I-2.
+3. **Reporte:** en `reporte-tester.md`, "TAREAS-01x — Ronda 0": el diff, la lista exacta de rojos esperados, I-1, I-2 y la tabla de hashes de todas las `*.ataque`.
+
+### 01a
+1. **Referencias cruzadas:** tema, publicación y categoría de otra clase en cada ruta y en el cuerpo; ids en mayúsculas, con espacios, con sufijos; `"orden"` como `:temaId` en `PUT` y `DELETE`.
+2. **Topes y repetidos en carrera:** 2 a 10 creaciones simultáneas alrededor del tope de 30; nombres iguales con mayúsculas, acentos, espacios internos, ancho completo o compuestos (NFC frente a NFD); guardados de categorías simultáneos con sumas distintas.
+3. **Orden:** listas con un id repetido en otra capitalización, con 31 ids, con ids de otra clase, con un tema borrado en medio, vacías.
+4. **Pesos:** decimales, negativos, texto, `1e2`, `NaN`, sumas de 100 con flotantes (`33.3`), once categorías, una de 100, `id` de una categoría recién borrada.
+5. **Textos:** nombres con saltos de línea Unicode, inversores de dirección, solo invisibles, emojis compuestos, 80 y 81 puntos de código.
+6. **Muro:** un material con el tema de otra clase, con un tema borrado en carrera, un anuncio con `temaId`.
+
+### 01b
+1. **Autoría:** la matriz completa actor × autor contra la API (crear, editar, borrar), incluido el maestro retirado y vuelto a asignar, y el maestro de otra clase (`403 SIN_ACCESO_A_LA_CLASE`, no `EDICION_NO_PERMITIDA`); `puedeEditar` y `puedeBorrar` de cada lista contra el resultado real.
+2. **Trabajos diferidos:** ediciones de fecha en ráfaga (2 a 10 en paralelo), editar y borrar a la vez, editar una tarea cuya fecha está a 24 h ± 1 s, fechas en el límite de 365 días, fechas con zonas y segundos fraccionarios; al final, exactamente un recordatorio vivo por tarea (el de `trabajo_id`) o ninguno.
+3. **Archivos al editar:** conservar un archivo de otra tarea, de otra clase, de otro usuario, uno descartado, uno pendiente de más de 24 h; seis en total; el mismo id dos veces; quitar todos.
+4. **El muro y los comentarios frente a una tarea:** borrarla por la ruta del muro, comentarla, listar sus comentarios, usar su id como cursor del muro y de "Trabajo de clase".
+5. **Fugas:** `trabajo_id`, rol del autor, correos o `estadoPago` en cualquier respuesta o mensaje de error; datos de la cola con textos.
+6. **Validación:** puntos y criterios con `"100"`, `1.0`, `-0`, `1e3`; `rubrica` como objeto; `categoriaId: ""`; `fechaLimite` como número.
+
+### 01c
+1. **Sin cambio de comportamiento:** que ninguna vista, texto, foco ni petición haya cambiado (las `*.ataque` de CLASES siguen en verde); que ningún archivo compartido importe de `features/`.
+
+### 01d
+1. **Formulario:** doble envío durante la subida; quitar un adjunto o un criterio con la publicación en vuelo; zona horaria del navegador distinta (prueba con `TZ`); fecha vacía; puntos con coma decimal; categoría que desaparece entre cargar y enviar (`404`).
+2. **Detalle:** instrucciones con HTML o URL (texto plano), nombres de adjuntos largos a 360 px, el estudiante que manipula la URL a `…/editar`.
+3. **Perspectivas:** los enlaces del muro y del detalle con el prefijo correcto en las tres.
+
+### 01e
+1. **Gestión de temas:** clics rápidos en "Subir" y "Bajar", borrar el tema que tiene el foco, mover el único elemento de un tema, "Ver más" cuando un elemento cambió de tema.
+2. **Categorías:** pegar valores con `%`, guardar con 99 o 101, quitar una fila con el foco dentro.
+3. **Secciones:** cuatro secciones a 360 px en el admin; `aria-current` en `…/trabajo`, `…/categorias` (ninguna activa) y `…/tareas/:id`.
+
+## Riesgos y desacuerdos
+
+| ID | Riesgo o desacuerdo | Mitigación |
+|---|---|---|
+| R-01 | **`ARCHITECTURE.md` §14 describe `tareas` con su propio título e instrucciones** y `archivos` con `tarea_id`; este plan los guarda en `publicaciones` (P-03 a). No contradice ESSENTIALS (la tabla `tareas` existe; `archivos` sigue con exactamente un contexto) | Decide el humano en P-03. Con (a), los textos de §14 de abajo; todo encargo que lea `publicaciones` (ADMIN, analytics) debe filtrar por `tipo` donde importe, y queda escrito en §14 |
+| R-02 | **`ARCHITECTURE.md` §7 dice `GET/PUT/DELETE /tareas/{id}`**; aquí todo cuelga de `/clases/{claseId}` | Es la única forma de pasar por el sexto paso sin verificar a mano en el handler (regla 2). Texto de §7 abajo |
+| R-03 | **Despliegue:** el frontend anterior no sabe pintar elementos `tarea` del muro (su esquema falla) | S-16: backend y frontend juntos en DEPLOY (no hay `prod`); si ya lo hubiera, en la misma ventana, backend primero |
+| R-04 | **Vuelta atrás:** con filas de tipo `tarea`, el backend anterior falla al leer el muro (su cliente de Prisma no conoce el valor) | Una vuelta atrás exige borrar antes las tareas o no volver atrás el backend; se anota en ESTADO para DEPLOY |
+| R-05 | **pg-boss `cancel` con `db` dentro de una transacción** no se ha usado en el proyecto | PR-1B08, PR-1B10 y PR-1B12 comprueban que la cancelación llega (`cancelled`); PR-1B13 comprueba que se revierte con la transacción (el trabajo vuelve a `created` si algo posterior lanza; Enmienda 1, M-02). Si pg-boss no lo respeta, es la PARADA PA-19 |
+| R-06 | **Ráfaga de peticiones en "Trabajo de clase"**: una por tema con elementos (hasta 31) al abrir la vista | Los conteos de `GET …/temas` evitan pedir los temas vacíos; el tope es 30; cada consulta usa su índice. Si crece, un encargo agrega una lectura agregada |
+| R-07 | **Editar la rúbrica cambia los ids de sus criterios** (S-04) | Hoy no hay calificaciones que apunten a ellos; CALIFICACIONES restringe la edición cuando las haya (fila en ESTADO) |
+| R-08 | **Carrera con la primera categoría:** una tarea sin categoría puede nacer justo cuando otra petición crea las primeras categorías | Queda "Sin categoría", igual que las tareas anteriores a las categorías (P-01 a lo admite); no se bloquea la clase en cada tarea |
+| R-09 | **El refactor de 01c puede romper `vi.mock` de las `*.ataque`** de CLASES | Reexportaciones, sin cambio de comportamiento; la ronda 0 reescribe los `vi.mock` (C-8, C-10); 01c no se mezcla con funcionalidad |
+| R-10 | **`datetime-local`** cambia de aspecto según el navegador y depende de la zona del equipo | La conversión vive en una función probada (PR-1D02); H-2 lo mira en el navegador del humano |
+| R-11 | **Recordatorios sin consumidor** se acumulan en `pgboss.job` hasta 7 días después de su hora | Volumen bajo en la fase experimental; NOTIFICACIONES los consume |
+| R-12 | **`bloquearClase` actualiza `clases.actualizado_en`** al gestionar temas y categorías (precedente de CLASES-02) | Nadie muestra ese dato; evita SQL crudo para el bloqueo de la clase |
+| R-13 | **Cuatro secciones a 360 px** en la clase del admin | El grupo se desplaza en horizontal dentro de su contenedor; H-6 |
+| R-14 | Lección de CHORE-02 sobre reglas estáticas de texto | Este plan no agrega reglas estáticas en pruebas; las búsquedas de V-04 son verificación del manager, con su límite declarado (texto, no analizador) |
+| R-16 | **Apartamiento de ESSENTIALS (S-15):** "Capas del backend" nombra los módulos `queue` y `scheduler`, y `CLAUDE.md` dice "queue y scheduler (pg-boss)". Este plan pone los trabajos diferidos (`encolar` con `inicio`, `cancelar`) en `adapters/queue` y no crea `adapters/scheduler` (Enmienda 1, M-03 c) | `queue` es el único importador de pg-boss y guarda su única instancia; un módulo aparte solo reexportaría. Decide el humano al aprobar (visto bueno explícito). Con su visto bueno, el orquestador aplica al cerrar 01b los textos de "Documentos a actualizar" para ESSENTIALS, `CLAUDE.md` y `adapters/README.md`. Si lo veta, el arquitecto escribe una enmienda con `adapters/scheduler/index.ts` sobre una función de `queue` que exponga la instancia |
+| R-15 | **`DESIGN.md` §7.7 pide "Sin entregar" para una tarea vencida**, pero las entregas aún no existen | S-10: "Venció el …" en tono `muted` hasta ENTREGAS; se anota en §7.7 |
+
+### Documentos a actualizar al cerrar cada subentrega
+Los aplica el orquestador con la autorización del humano (A-9), salvo los README del backend y `DESIGN.md`, que edita el programador (A-8).
+
+**Al cerrar 01a**
+- **ESSENTIALS, "Tablas":** después de "`categorias`" se agrega "· `temas` (TAREAS-01)".
+- **ESSENTIALS, "Restricciones clave":** al final, "· `categorias.peso` de 1 a 100, con la suma de 100 por clase validada en `core/` con la fila de la clase bloqueada · `publicaciones.tema_id` con `ON DELETE SET NULL`; un anuncio no lleva tema (TAREAS-01)".
+- **ESSENTIALS, "Reglas de negocio", viñeta "Temas"** queda: "Temas (RF-43; P-03 de CLASES-01 y P-02 de TAREAS-01): organizan las tareas y los materiales de una clase, con nombre y orden (hasta 30 por clase, sin nombres repetidos). Un elemento puede quedar "Sin tema"; dentro de un tema van del más reciente al más antiguo; borrar un tema pasa sus elementos a "Sin tema". Los gestionan los maestros de la clase y el admin; mover un elemento de tema organiza la clase y no cuenta como editarlo. El alumno ve "Trabajo de clase" agrupado y de solo lectura, y el muro sigue cronológico. Son independientes de las categorías ponderadas y no intervienen en la calificación."
+- **ESSENTIALS, "Reglas de negocio", viñeta nueva** después de "Calificación general": "Categorías ponderadas (RF-32; P-01 de TAREAS-01): hasta 10 por clase, con pesos enteros de 1 a 100 que suman 100; se guardan en bloque y las gestionan los maestros de la clase y el admin. Una clase sin categorías califica por puntos; con categorías, toda tarea nueva o editada lleva una, y una tarea "Sin categoría" no cuenta en la calificación general hasta asignarle una. No se quita una categoría que tiene tareas."
+- **`docs/PRD.md`, RN-05:** viñeta nueva "Una clase sin categorías califica por puntos. Con categorías, toda tarea nueva o editada lleva una; una tarea sin categoría no cuenta en la calificación general hasta asignarle una (TAREAS-01)."
+- **`ARCHITECTURE.md` §7, fila `tareas`** (primera parte): "`GET/POST /clases/{claseId}/temas` · `PUT/DELETE /clases/{claseId}/temas/{temaId}` · `PUT /clases/{claseId}/temas/orden` (el orden completo) · `PUT /clases/{claseId}/publicaciones/{publicacionId}/tema` (mover un material o una tarea) · `GET/PUT /clases/{claseId}/categorias` (en bloque)".
+- **`ARCHITECTURE.md` §14:** en el diagrama, `clases ||--o{ temas : organiza` y `temas |o--o{ publicaciones : agrupa`. Fila nueva `temas`: "`id`, `clase_id`, `nombre`, `orden` · índice `(clase_id, orden, id)` · `CHECK (orden >= 0)` · hasta 30 por clase y sin nombres repetidos, validado en `core/` con la fila de la clase bloqueada". Fila `categorias`: "`id`, `clase_id`, `nombre`, `peso` · índice `(clase_id, creado_en, id)` · `CHECK (peso BETWEEN 1 AND 100)`; la suma de 100 y el tope de 10 se validan en `core/`, con la fila de la clase bloqueada; se guardan en bloque". Fila `publicaciones`: se agrega "· `tema_id` (FK a `temas`, `ON DELETE SET NULL`; un anuncio no lleva tema, `CHECK`) · índices `(clase_id, tema_id, creado_en DESC, id DESC)` y `(tema_id)`".
+- **`backend/src/adapters/README.md`** y **`handlers/README.md`:** las secciones de §D-2, §D-3 y §D-7 que tocan 01a (programador).
+
+**Al cerrar 01b**
+- **ESSENTIALS, "Reglas de negocio", viñeta "Autoría":** "(regla general; hoy publicaciones y comentarios, en TAREAS también las tareas)" pasa a "(regla general: publicaciones, comentarios y tareas)", y se agrega al final: "En las tareas, cada autor edita y borra la suya; el admin edita solo las suyas y borra cualquiera; un maestro nunca edita ni borra la del admin ni la de otro maestro de la clase, salvo que ese maestro ya no dé la clase (P-04 de TAREAS-01). Las respuestas de tareas devuelven `puedeEditar` y `puedeBorrar`."
+- **ESSENTIALS, "Restricciones clave":** "· una tarea es una publicación de tipo `tarea` con su fila 1:1 en `tareas` (mismo id; TAREAS-01)".
+- **ESSENTIALS, "Archivos":** "Materiales y anuncios: solo los sube…" pasa a "Materiales, anuncios y adjuntos de tareas: solo los sube…", y "5 por publicación" a "5 por publicación o tarea".
+- **`docs/PRD.md`, RN-07:** después de "Un maestro **nunca** borra ni edita lo que publicó el Administrador." se agrega "En las tareas, un maestro de la clase edita y borra también las de un maestro que ya no da la clase (TAREAS-01)."
+- **`ARCHITECTURE.md` §7, fila `tareas`** queda: "`POST /clases/{claseId}/tareas` · `GET/PUT/DELETE /clases/{claseId}/tareas/{tareaId}` · `GET /clases/{claseId}/trabajo?tema=` ("Trabajo de clase", por tema o `sin-tema`, paginado) · temas y categorías (arriba) · entregas e hilo privado: ENTREGAS. Todo cuelga de `/clases/{claseId}` para pasar por el sexto paso (TAREAS-01)". Fila `archivos`: "TAREAS y ENTREGAS agregan sus contextos" pasa a "Los adjuntos de una tarea son archivos de su publicación (TAREAS-01); ENTREGAS agrega su contexto".
+- **§8:** al final de la última viñeta: "`TAREA_CREADA` (id del trabajo = id de la tarea) y `RECORDATORIO_24H` (diferido) se encolan desde TAREAS-01 con la misma política, sin consumidor hasta NOTIFICACIONES. Borrar una tarea cancela los dos en su transacción. El consumidor de `RECORDATORIO_24H` descarta un trabajo cuyo id ya no está en `tareas.trabajo_id`."
+- **§10,** fila `RECORDATORIO_24H`, columna "Se crea al": "Crear la tarea; editar su fecha lo cancela y lo recrea con un id nuevo; borrarla lo cancela (en la misma transacción)".
+- **§11,** punto 6: "Materiales y anuncios (CLASES-d)" pasa a "Materiales, anuncios y adjuntos de tareas (CLASES-d, TAREAS-01)".
+- **§14:** en el diagrama, `publicaciones ||--o| tareas : es`. Fila `publicaciones`: "`tipo` (`anuncio` / `material` / `tarea`) · `CHECK`: el anuncio no lleva título; el material y la tarea sí · una tarea es una publicación de tipo `tarea` (título e instrucciones aquí) con su fila 1:1 en `tareas`; el muro y "Trabajo de clase" la leen de aquí; el borrado del muro y los comentarios solo aceptan anuncios y materiales". Fila `tareas`: "`id` (= `publicaciones.id`, FK con `ON DELETE CASCADE`), `clase_id`, `categoria_id` (FK `ON DELETE NO ACTION`; nulo = "Sin categoría"), `fecha_limite`, `puntos`, `acepta_tardias` (por defecto `true`), `trabajo_id` · índices `(clase_id, fecha_limite)` y `(categoria_id)` · `CHECK (puntos BETWEEN 1 AND 1000)`". Fila `criterios_rubrica`: "`id`, `tarea_id`, `criterio`, `puntos_max`, `orden` · único `(tarea_id, orden)` · `CHECK (puntos_max BETWEEN 1 AND 1000)`; editar la rúbrica reemplaza sus criterios". Fila `archivos`: "TAREAS y ENTREGAS agregan `tarea_id` y `entrega_id`" pasa a "Los adjuntos de una tarea usan `publicacion_id` (TAREAS-01); ENTREGAS agrega `entrega_id`".
+- **`backend/src/adapters/README.md`, `handlers/README.md`, `workers/README.md`:** lo de 01b (programador). En `adapters/README.md`, la línea "Módulos: `db`, `auth`, `storage`, `notifier`, `queue`, `scheduler`, `live`." pasa a "Módulos: `db`, `auth`, `storage`, `notifier`, `queue` (cola y trabajos diferidos de pg-boss), `live`." (solo con el visto bueno de S-15).
+- **Por el visto bueno de S-15 (2026-10-06; R-16, Enmienda 1, M-03 c).** El texto de ESSENTIALS lo aplica el orquestador al aprobarse el plan, no al cerrar 01b; los de `CLAUDE.md`, `ARCHITECTURE.md` §10 y `adapters/README.md` siguen al cerrar 01b:
+  - **ESSENTIALS, "Capas del backend"** (se aplica ya), en la viñeta de `adapters/`, "Módulos: `db`, `auth`, `storage`, `notifier`, `queue`, `scheduler`, `live`." pasa a "Módulos: `db`, `auth`, `storage`, `notifier`, `queue` (cola y trabajos diferidos de pg-boss, con su única instancia; no hay un módulo `scheduler` aparte, TAREAS-01), `live`."
+  - **`CLAUDE.md`, "Backend (`backend/src/`)",** la línea de `adapters/` pasa a: "adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue (pg-boss: cola y trabajos diferidos), live (LiveKit)".
+  - **`ARCHITECTURE.md` §10,** después de "Trabajos diferidos de pg-boss (`startAfter`).": "Viven en `adapters/queue` (`encolar` con `inicio` y `cancelar`, dentro de la transacción del dato; TAREAS-01)."
+
+**Al cerrar 01c**
+- **`CLAUDE.md`, "Ubicaciones compartidas":** agregar "`components/clase/` — `ConClaseDeLaRuta` y `FirmaDelAutor`, compartidos por `features/clases` y `features/tareas`", "`components/adjuntos/` — los adjuntos elegidos y publicados, con su subida y descarga (`hooks.ts`, `lib.ts`, `data.ts`)", "`lib/ruta-de-clase.ts` — la perspectiva y la base de la ruta de una clase", "`lib/errores-de-api.ts` — errores por campo y de cursor de la API"; en `services/clasesService.ts`, agregar "y la clave del muro".
+
+**Al cerrar 01d**
+- **`CLAUDE.md`, tabla de módulos, fila `tareas`:** Contenido "Detalle de tarea, crear y editar tarea (rúbrica, adjuntos, categoría, tema y entregas tardías); zona de entrega e hilo privado (ENTREGAS)"; Roles "Estudiante, Maestro, Administrador". **"Ubicaciones compartidas":** "`components/ui/native-select.tsx`", "`lib/vencimiento.ts` — el estado y el texto de la fecha límite (umbral de 72 h)", "`services/trabajoService.ts` — claves y consultas de temas, categorías, "Trabajo de clase" y tareas, compartidas por `features/clases` y `features/tareas`".
+- **`DESIGN.md` (programador, con la marca "propuesta (TAREAS-01d)"):** §7.3, `NativeSelect` y el control segmentado de entregas tardías; §7.7, el umbral de 72 h, los textos de S-10 y la variante de TAREAS-01 ("Venció el …" en `muted`); §7.8, la insignia "Tarea" (`muted`, `ClipboardList`); §7.18, la tarjeta de tarea en el muro y "Crear tarea"; §7.20 nueva "Detalle de tarea"; §7.21 nueva "Formulario de tarea y rúbrica". La tabla de alcance de §7.1 no cambia (las rutas nuevas caen en `/…/clases/*`); se agrega "detalle de tarea, crear y editar tarea" a la lista de pantallas de trabajo.
+
+**Al cerrar 01e**
+- **`CLAUDE.md`, fila `clases`:** se agrega "trabajo de clase con temas y categorías de calificación (TAREAS-01)".
+- **`DESIGN.md` (programador, "propuesta (TAREAS-01e)"):** §7.3, el control segmentado con cuatro opciones y el desplazamiento horizontal; §7.16, las secciones con "Trabajo de clase"; §7.18, "Tema" en el formulario del material y O-18; §7.22 nueva "Trabajo de clase y temas"; §7.23 nueva "Categorías de calificación".
+- **ESTADO (orquestador):** se cierran el umbral de §7.7 y O-18; filas nuevas: el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` (NOTIFICACIONES, §D-5); los ids de criterios al editar la rúbrica y la regla de P-01 (CALIFICACIONES); la fila "Venció" de §7.7 y la zona de entrega (ENTREGAS); R-04 (DEPLOY); y, en 2b, RF-43 y RF-44 (parte de TAREAS) hechos.
+
+### Textos de la interfaz (propuesta; viven en `data.ts`)
+| Dónde | Texto |
+|---|---|
+| Muro | "Crear tarea" · insignia "Tarea" · "`<vencimiento>` · `<n>` puntos" |
+| Formulario de tarea | `h2` "Nueva tarea" / "Editar tarea" · "Título" · "Instrucciones (opcional)" · "Fecha límite" · ayuda "Hora de tu zona horaria." · "Puntos" · "Categoría" · "Sin categoría" · "Elige una categoría" · error "Elige la categoría de la tarea." · "`<nombre>` (`<peso>` %)" · "Tema" · "Sin tema" · grupo "Entregas después de la fecha límite" con "Aceptar con retraso" y "No aceptar" · "Rúbrica (opcional)" · "Criterio" · "Puntos máximos" · "Agregar criterio" · "Quitar criterio" (con "`<n>`" `sr-only`) · "La rúbrica suma `<n>` puntos. La calificación se escala a los `<m>` puntos de la tarea." · "Publicar tarea" · "Guardar cambios" · "Cancelar" · avisos "Tarea publicada" y "Cambios guardados" · errores de los esquemas (§ "Cambios por capa") |
+| Detalle | insignia "Tarea" · "Instrucciones" · "Rúbrica" · "Total: `<n>` puntos" · "Detalles" · "Fecha límite" · "Puntos" · "Categoría" · "Tema" · "Entregas tardías" · "Se aceptan entregas con retraso" / "No se aceptan entregas después de la fecha límite" · "Tu trabajo" · "Todavía no puedes entregar desde Campus Digital. Sigue las indicaciones de tu maestro para entregar esta tarea." · "Editar tarea" · "Borrar tarea" · "Se borrará con su rúbrica y sus adjuntos." · "Sí, borrar tarea" · "Cancelar" · aviso "Tarea borrada" · "No puedes editar esta tarea." · "Esa tarea ya no existe." |
+| Vencimiento (`lib/vencimiento.ts`) | "Vence hoy a las `<hh:mm>`" · "Vence mañana a las `<hh:mm>`" · "Vence en `<n>` días" · "Vence el `<día de la semana> <d> de <mes>`" · "Venció el `<día de la semana> <d> de <mes>`" |
+| Trabajo de clase | sección "Trabajo de clase" · "Sin tema" · "Aún no hay nada en este tema." · vacío de la clase "Aún no hay tareas ni materiales en esta clase." · "Ver material" / "Ocultar material" · "Ver más de `<tema>`" · "Crear tarea" · "Nuevo tema" · "Nombre del tema" · "Crear tema" · "Renombrar" · "Guardar nombre" · "Subir" / "Bajar" (con "tema `<nombre>`" `sr-only`) · "Borrar tema" · "Sus `<n>` elementos pasarán a «Sin tema»." (singular: "Su elemento pasará a «Sin tema».") · "Sí, borrar tema" · "Tema de «`<título>`»" (`sr-only`) · "Mover" · avisos "Tema creado", "Tema renombrado", "Tema borrado", "Moviste «`<título>`» a «`<tema>`»" · cursor "Este tema cambió mientras lo veías. Vuelve a abrir Trabajo de clase para verlo completo." |
+| Categorías | "Categorías de calificación" · "Los pesos deben sumar 100 %. Cada categoría cuenta según su peso en la calificación general." · "Nombre" · "Peso" · "`<n>` tareas" / "1 tarea" · "Quitar" · "Tiene `<n>` tareas." · "Agregar categoría" · "Total: 100 %" · "Total: `<n>` %. Faltan `<m>` %." · "Total: `<n>` %. Sobran `<m>` %." · "Guardar categorías" · aviso "Categorías guardadas" · vacío "Esta clase no tiene categorías. Sus tareas se califican por puntos." |
+| Formulario del muro | "Tema" · "Sin tema" |
+
+## Pasos de implementación
+
+### Antes de empezar (orquestador)
+0. **Cumplido el 2026-10-06:** el humano respondió P-01 (a), P-02 (b), P-03 (a), P-04 (b) y P-05 (a) con 01c de refactor (todas según la recomendación, sin enmienda), dio el visto bueno a S-15, aceptó S-02 y S-10 sin vetar ninguna otra S-nn y autorizó A-1 a A-12, por escrito (texto literal en `aprobacion.md`). Lo que pedía este paso: el humano responde P-01 a P-05. Si alguna respuesta difiere de la recomendación, el arquitecto escribe una enmienda y el manager la revisa antes de seguir (PA-18). El humano aprueba **por escrito** (carril sensible) con las autorizaciones A-1 a A-12 y el visto bueno explícito, o el veto, de S-15 (apartamiento de ESSENTIALS, R-16); el orquestador lo registra en `aprobacion.md` con `<R>` = `ad070b9`. Sin commit de aprobación.
+1. Ronda 0 del tester de 01a (no cuenta en el tope).
+
+### 01a (base `<R>`)
+2. `shared/src/clases.ts` y `shared/src/tareas.ts` (lo de 01a) y sus reexportaciones nombradas en `shared/src/index.ts` (A-11). `cd shared; npm run build` y `npm run lint`.
+3. `core/tareas/temas.ts` y `core/tareas/categorias.ts` con PR-1A01 y PR-1A02.
+4. Migraciones (A-1), en dos pasos: (a) en `prisma/schema.prisma` solo el valor `tarea` del `enum`; `npx prisma format`, `npx prisma validate`, `npx prisma migrate dev --create-only --name tipo_publicacion_tarea`; revisar el SQL (PA-03) y aplicarlo con `npx prisma migrate dev`; (b) el resto del esquema de §D-1; `npx prisma migrate dev --create-only --name tareas_temas_y_categorias`; revisar el SQL (PA-03), agregar a mano los `CHECK` y el reemplazo de `publicaciones_titulo_segun_tipo`, y aplicarlo con `npx prisma migrate dev`; `npx prisma generate`; V-03.
+5. `backend/test/ayudas-tareas.ts` (crear temas, categorías y filas de tarea directo en la base desechable, para 01a).
+6. `adapters/db/bloqueo-clase.ts` (A-5), `referencias.ts` (las dos ayudas, Enmienda 1), `temas.ts`, `categorias.ts`, `publicaciones.ts` (`temaId`), `index.ts`; `adapters/README.md`.
+7. `handlers/tareas/temas.ts`, `handlers/tareas/categorias.ts`, `handlers/clases/muro.ts` (`temaId`); `app.ts` (A-10); `handlers/README.md`.
+8. PR-1A03 a PR-1A09.
+9. Verificación por paquete, una suite a la vez (PA-08): `cd backend; npm run lint`; `cd backend; npm test` (PA-01, PA-07, PA-12); `cd shared; npm run build`; desde la raíz `npm run build` y `npm run lint`; `cd frontend; npm run lint` y `cd frontend; npm test`.
+10. Resumen verificable (cada ID con su caso, conteos con `npx vitest list`, la última línea de cada comando, hermanos si corrige). El manager verifica (V-01 a V-07) → el tester ataca → manager final → el orquestador aplica los textos de 01a (A-9) → commit del humano `<K1a>`.
+
+### 01b (base `<K1a>`)
+11. Ronda 0 del tester de 01b.
+12. `shared/src/clases.ts` y `shared/src/tareas.ts` (lo de 01b), reexportaciones (A-11); build.
+13. `core/autoria.ts`, `core/tareas/tareas.ts`, `recordatorio.ts`, `texto.ts`, `core/eventos/avisos-de-clase.ts` con PR-1B01 a PR-1B05.
+14. `adapters/queue/index.ts` y `colas.ts` (A-4).
+15. `handlers/adjuntos.ts` (A-6, movimiento sin cambios) y `handlers/clases/muro.ts` que lo importa; la suite del muro debe seguir igual antes de seguir.
+16. `adapters/db/tareas.ts`, `publicaciones.ts` (lo de 01b), `index.ts`; `adapters/README.md`.
+17. `handlers/tareas/tareas.ts`; `app.ts`; `handlers/README.md`; `workers/README.md`.
+18. PR-1B06 a PR-1B14 y las pruebas normales de la lista cerrada (los dobles de publicación con `tarea: null`, del backend y del frontend).
+19. Como el paso 9.
+20. Como el paso 10, con los textos de 01b → `<K1b>`.
+
+### 01c (base `<K1b>`; solo con P-05 a)
+21. Ronda 0 del tester de 01c (C-8, C-10).
+22. Los movimientos de §D-9 con sus reexportaciones (A-7), uno por uno, con la suite del frontend en verde después de cada grupo (adjuntos, clase, ruta de clase, errores, clave del muro).
+23. PR-1C02.
+24. `cd frontend; npm run lint`, `npm test`, `npm run build`; desde la raíz `npm run build` y `npm run lint`. El backend no se corre.
+25. Como el paso 10, con los textos de 01c → `<K1c>`.
+
+### 01d (base `<K1c>`)
+26. Ronda 0 del tester de 01d (C-9).
+27. `components/ui/native-select.tsx` (PR-1D08), `lib/vencimiento.ts` (PR-1D01), `services/trabajoService.ts`.
+28. `features/tareas/`: `types.ts`, `data.ts`, `lib.ts` (PR-1D02), `hooks.ts`, componentes y vistas (PR-1D03 a PR-1D05).
+29. `features/clases`: `tarjeta-de-tarea.tsx`, `publicacion-del-muro.tsx`, `muro-view.tsx`, `data.ts`, `types.ts` (PR-1D06).
+30. `app/router.tsx` (PR-1D07).
+31. `docs/DESIGN.md`, textos de 01d (A-8).
+32. Como el paso 24.
+33. Como el paso 10, con los textos de 01d → `<K1d>`.
+
+### 01e (base `<K1d>`)
+34. Ronda 0 del tester de 01e (C-11, C-12).
+35. `features/clases`: `data.ts` (secciones y capacidades), `types.ts`, `lib.ts`, `hooks.ts`; `secciones-de-clase.tsx` si hace falta; `trabajo-view.tsx`, `categorias-view.tsx` y sus componentes; `formulario-publicacion.tsx` (tema y O-18); `app/router.tsx`; en `features/tareas`, el destino tras borrar.
+36. PR-1E01 a PR-1E05.
+37. `docs/DESIGN.md`, textos de 01e.
+38. Como el paso 24.
+39. Como el paso 10, con los textos de 01e; comprobación humana (abajo); commit del humano `<K1e>`.
+
+### PARADAS
+| ID | Te detienes y reportas si… |
+|---|---|
+| PA-01 | La regla del firewall "Campus: bloquear entrada a Docker en redes publicas" no existe, está deshabilitada o no es Inbound/Block/Public, o la red activa no es de confianza (`Get-NetFirewallRule`, `Get-NetConnectionProfile`). No se corre ninguna prueba del backend |
+| PA-02 | La rama no es `feat/tareas`; hay cambios fuera de los permitidos contra la base de la subentrega; la base no existe (`git cat-file -e '<hash>^{commit}'`); un archivo protegido que cambió el orquestador no coincide con su SHA-256 de `aprobacion.md`; o V-01 no coincide con la última tabla del tester |
+| PA-03 | La primera migración contiene algo más que `ALTER TYPE "tipo_publicacion" ADD VALUE 'tarea'`; la segunda contiene un `DROP` (salvo el de `publicaciones_titulo_segun_tipo`), un `ALTER` de una columna existente, o cualquier cambio en `usuarios`, `sesiones`, `tokens_cuenta`, `enlaces_registro`, `clases`, `maestros_de_clase`, `inscripciones`, `movimientos_inscripcion`, `comentarios` o `archivos`; en `publicaciones`, algo distinto de `tema_id`, su FK, sus dos índices y los dos `CHECK`; o `migrate dev` propone `reset` o avisa de deriva |
+| PA-04 | `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` no termina con código 0 |
+| PA-05 | Falla una `*.ataque` que no está en la lista de rojos esperados de la ronda 0, o al terminar sigue en rojo una de esa lista |
+| PA-06 | Necesitas tocar un archivo de "No se toca", agregar una dependencia, cambiar `vitest.config.ts`, `global-setup.ts` o `setup.ts`, o cambiar el `timeout` de una prueba existente para que pase |
+| PA-07 | Regla permanente de `.claude/agents/tester.md`, con la lista de `P2028` permitidos y el inventario I-1 de "Puntos de ataque". Aplica también al programador y al manager en sus corridas completas del backend |
+| PA-08 | Ibas a correr dos suites a la vez |
+| PA-09 | Una prueba nueva tuya da resultados distintos en dos corridas (aislada y completa) |
+| PA-10 | Un log contiene una contraseña, un token, una cookie, una URL prefirmada completa, `STORAGE_SECRET_KEY` o un correo completo |
+| PA-11 | Un proceso de larga vida que no arrancaste ocupa un puerto que necesitas |
+| PA-12 | Una corrida completa del backend cae por tiempos límite o sale un rojo intermitente: no repites la corrida para "limpiarla"; la reportas completa (archivo, caso, duración, PA-07) |
+| PA-13 | Una ruta nueva no arranca con la guarda, o la implementación pide tocar `middleware/` (cualquier archivo), `guarda-de-rutas.ts` o `rutas-publicas.ts` |
+| PA-14 | Una consulta del diseño no encaja en los índices de §D-1 o necesita una consulta dentro de un ciclo |
+| PA-15 | Para demostrar un defecto habría que editar un archivo de producción (en lugar de un doble o una copia en el scratchpad) |
+| PA-16 | Hay que crear o cambiar un archivo de pruebas que no está en "Pruebas requeridas" ni en la lista cerrada de la subentrega en curso |
+| PA-17 | Una ruta existente responde distinto a un estudiante, un maestro o el admin, fuera de lo que dicen §D-6 y §D-R0 (el muro con tareas, borrar o comentar una tarea) |
+| PA-18 | La respuesta del humano a P-01 a P-05 es distinta de la recomendación y no hay enmienda del arquitecto revisada por el manager |
+| PA-19 | pg-boss no cancela dentro de la transacción (`cancel` con `db`), crea el trabajo fuera de ella, una reversión deja un trabajo vivo, o una reversión deja cancelado un trabajo que debía seguir vivo (Enmienda 1, M-02) |
+| PA-20 | (01c) Un movimiento de §D-9 obliga a cambiar el comportamiento de algo, o una `*.ataque` cae por algo distinto de la ruta de un `vi.mock` |
+
+### Verificaciones
+- **V-01 (hashes):** `Get-FileHash -Algorithm SHA256` de todas las `*.ataque`, contra la última tabla del tester (en 01a, la de la ronda 0 de 01a, que parte de las 141 de la ronda 3 de CLASES-02d).
+- **V-02 (paquetes):** el orden del paso 9 (o 24), con el comando exacto y la última línea de salida de cada uno.
+- **V-03 (Prisma):** en 01a, `npx prisma validate`, `npx prisma format --check`, `npx prisma generate`, `npx prisma migrate status` y `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`; `git diff --name-only <R> -- backend/prisma/migrations` lista solo las dos carpetas nuevas. Desde 01b, `git diff --name-only <base> -- backend/prisma` vacío.
+- **V-04 (búsquedas en el código de producción; son texto, no un analizador, y su límite queda declarado):**
+  - `$queryRawUnsafe` → exactamente 1 (`adapters/db/cliente.ts`); `$queryRaw` y `$executeRaw` nuevos solo en `adapters/db/referencias.ts`, `temas.ts`, `categorias.ts`, `tareas.ts` y `publicaciones.ts`, todos etiquetados; `FOR KEY SHARE` → solo `adapters/db/referencias.ts`;
+  - `tipo: "tarea"` en una escritura → solo `adapters/db/tareas.ts`;
+  - `addHook` en `backend/src/handlers/` → 0; `notifier` en `handlers/` → 0;
+  - `estadoPago` en `backend/src/` → los mismos archivos de hoy;
+  - `puedeEditarTarea` y `puedeBorrarTarea` se definen solo en `core/autoria.ts`; en el frontend `puedeEditar`, `puedeBorrar` y `puedeMover` solo se leen del dato;
+  - `trabajoId` o `trabajo_id` en `shared/src/` → 0;
+  - `console.` → 0 en los archivos nuevos; `?? []` → 0 en los archivos nuevos del frontend;
+  - `fetch(` en `frontend/src/` → solo `services/apiClient.ts` y `services/almacenService.ts`;
+  - `from "@/features/` en `components/`, `lib/` y `services/` → 0; `from "@/features/clases` en `features/tareas` → 0; `from "@/features/tareas` en `features/clases` → 0;
+  - `autoComplete="off"` en todos los campos del formulario de tarea, de temas y de categorías;
+  - `dangerouslySetInnerHTML` y `target="_blank"` → 0.
+- **V-05 ("No se toca"), mecánica:** por cada ruta de la lista, `git diff --quiet <base> -- <ruta>` con código 0 y `git status --porcelain -- <ruta>` vacío; `backend/package.json`, `frontend/package.json` y `package-lock.json` sin cambios en las cinco; excluidos `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/` y `docs/ESTADO.md`.
+- **V-06 (rutas):** `printRoutes` de 01a es la de `<R>` **más** exactamente: `GET`, `HEAD` y `POST /api/clases/:claseId/temas`; `PUT` y `DELETE /api/clases/:claseId/temas/:temaId`; `PUT /api/clases/:claseId/temas/orden`; `PUT /api/clases/:claseId/publicaciones/:publicacionId/tema`; `GET`, `HEAD` y `PUT /api/clases/:claseId/categorias`. 01b agrega exactamente: `POST /api/clases/:claseId/tareas`; `GET`, `HEAD`, `PUT` y `DELETE /api/clases/:claseId/tareas/:tareaId`; `GET` y `HEAD /api/clases/:claseId/trabajo`. `RUTAS_PUBLICAS` con las 10 de hoy. Desde 01c, sin cambios.
+- **V-07 (conteos):** `npx vitest list` desde `backend/` y desde `frontend/`, redirigidos a un archivo del scratchpad; cada cifra del resumen sale de ahí o de la corrida, con el comando; cada ID de "Pruebas requeridas" de la subentrega aparece en la lista. El manager lo contrasta con su corrida.
+
+### Autorizaciones que pide el carril sensible (por escrito, al aprobar el plan)
+| ID | Qué autoriza |
+|---|---|
+| A-1 | Crear las dos migraciones de §D-1 (01a) y aplicarlas en `campus_dev` con `npx prisma migrate dev` |
+| A-2 | Que el tester reescriba en la ronda 0 de cada subentrega las `*.ataque` existentes que contradice un C-n de §D-R0, con el procedimiento de "Ronda 0" |
+| A-3 | Que el programador cambie las pruebas normales existentes de la lista cerrada de cada subentrega y las I-2 que reporte la ronda 0 |
+| A-4 | Cambiar `backend/src/adapters/queue/index.ts` (`encolar` con `inicio`, `cancelar`), `adapters/queue/colas.ts` y `core/eventos/avisos-de-clase.ts` (01b) |
+| A-5 | Mover `bloquearClase` de `adapters/db/maestros-de-clase.ts` a `adapters/db/bloqueo-clase.ts` sin cambiarlo (01a) |
+| A-6 | Mover `adjuntosParaResponder` y `archivosParaPublicar` de `handlers/clases/muro.ts` a `handlers/adjuntos.ts` sin cambiarlos (01b) |
+| A-7 | (Solo con P-05 a) El refactor del frontend de §D-9 (01c): un movimiento entre `features/clases` y lo compartido, con reexportaciones y sin borrar archivos |
+| A-8 | Que el programador edite `docs/DESIGN.md` (01d y 01e, con la marca "propuesta (TAREAS-01x)") y los README de `backend/src/adapters`, `handlers` y `workers` |
+| A-9 | Que el orquestador aplique los textos de ESSENTIALS, `ARCHITECTURE.md`, `CLAUDE.md` y `PRD.md` (RN-05 y RN-07) al cerrar cada subentrega, con el SHA-256 resultante en `aprobacion.md` |
+| A-10 | Registrar en `backend/src/app.ts` `temasHandler` y `categoriasHandler` (01a) y `tareasHandler` (01b) |
+| A-11 | Crear `shared/src/tareas.ts`, cambiar `shared/src/clases.ts` como dice "Cambios por capa" y agregar a `shared/src/index.ts` las reexportaciones nombradas nuevas, sin tocar las existentes |
+| A-12 | Crear `components/ui/native-select.tsx` (01d), un componente de shadcn reestilizado sin dependencias nuevas |
+
+### No se toca (base: `<R>` fuera de los paquetes; dentro, la de la subentrega)
+- **Backend, en todas:** `src/middleware/**`; `src/adapters/auth/**`, `notifier/**`, `storage/**`, `live/**`; `src/adapters/db/cliente.ts`, `errores.ts`, `bloqueo-usuario.ts`, `sesiones.ts`, `tokens-cuenta.ts`, `invitaciones.ts`, `enlaces-registro.ts`, `usuarios.ts`, `salud.ts`, `archivos.ts`, `clases.ts`, `inscripciones.ts`; `src/config/**`; `src/workers/**` (salvo `README.md` en 01b); `src/core/auth/**`, `core/correo/**`, `core/archivos/**`, `core/clases/**`, `core/errores.ts`, `core/paginacion.ts`, `core/eventos/correo-de-cuenta.ts`; `src/handlers/auth/**`, `handlers/admin.ts`, `usuarios.ts`, `salud.ts`, `errores.ts`, `validacion.ts`, `archivos.ts`, `clases/clases.ts`, `clases/gestion.ts`, `clases/alumnos.ts`; `test/global-setup.ts`, `test/setup.ts`, `vitest.config.ts`, `backend/package.json`, `tsconfig*.json`, `eslint.config.mjs`.
+- **Backend, además:** en 01a, `src/adapters/queue/**`, `core/eventos/**`, `core/autoria.ts`, `adapters/db/maestros-de-clase.ts` (salvo el movimiento de A-5) y `prisma/migrations/**` salvo las dos carpetas nuevas; en 01b, `prisma/**`, `adapters/db/temas.ts`, `adapters/db/categorias.ts`, `adapters/db/referencias.ts` (01b solo importa sus dos ayudas; Enmienda 1, M-03 a), `adapters/db/bloqueo-clase.ts`, `adapters/db/maestros-de-clase.ts`; desde 01c, todo `backend/**`.
+- **Shared:** en 01a y 01b, todo salvo `src/clases.ts`, `src/tareas.ts` y `src/index.ts` (de este último, solo las reexportaciones nuevas); desde 01c, todo `shared/**`.
+- **Frontend:** en 01a y 01b, todo el código de producción (solo los dobles de las pruebas normales de la lista cerrada en 01b). Desde 01c: `src/services/apiClient.ts`, `authService.ts`, `tokenAcceso.ts`, `navegacion.ts`, `sesionService.ts`, `almacenService.ts`, `liveService.ts`; `src/features/auth/**`, `features/admin/**`, `features/diagnostico/**`; `src/components/ui/**` (salvo `native-select.tsx` y su prueba en 01d); `src/components/layout/**`; `src/components/mensaje-error.tsx`, `estado-vacio.tsx`, `cargando.tsx`, `error-de-campo.tsx`, `avatar-usuario.tsx`, `estado-pago-badge.tsx`, `acceso-restringido-badge.tsx`; `src/app/**` salvo `router.tsx` (01d y 01e); `src/styles/**`; `src/lib/format.ts`, `utils.ts`, `cache-de-mutaciones.ts`, `variante-de-clase.ts`; `index.html`, `vite.config.ts`, `vitest.config.ts`, `frontend/package.json`. En 01c, además, `app/router.tsx` y todo lo que no sea un movimiento de §D-9. En 01e, `features/tareas/**` salvo el destino tras borrar.
+- **Fuera de los paquetes:** `infra/**`, `AGENTS.md`, `.claude/**`, `README.md`, `package.json` y `package-lock.json` de la raíz; `docs/` salvo `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/`, `docs/ESTADO.md` y lo que autorizan A-8 y A-9.
+
+### Comprobación humana en navegador (una sola, al final de 01e; máximo 10 minutos y 7 puntos; solo lo que las pruebas no ven)
+Necesita la API (el worker no) y `campus_dev` con las dos migraciones; el humano entra con su admin de desarrollo, una cuenta de maestro y una de estudiante inscrito en la misma clase. Ningún agente abre el navegador.
+- **H-1** El maestro crea una tarea con fecha, dos criterios de rúbrica y un PDF; el estudiante la ve en el muro y abre el detalle: dos columnas en escritorio, una a 360 px.
+- **H-2** El selector de fecha y hora del navegador del humano: la hora elegida es la que muestra el detalle (zona local).
+- **H-3** "Trabajo de clase" del maestro con tres temas: subir y bajar con el teclado, mover una tarea a otro tema y borrar un tema (sus elementos pasan a "Sin tema").
+- **H-4** Categorías: el total cambia mientras se escribe y "Guardar categorías" solo pasa con 100 %.
+- **H-5** El admin publica una tarea: firma "Administración" en el muro del estudiante, y el maestro no ve "Editar tarea" ni "Borrar tarea" en su detalle.
+- **H-6** La clase en la vista del admin a 360 px: las cuatro secciones con su indicador, desplazables; el formulario de tarea legible en contexto opaco.
+- **H-7** En "Trabajo de clase", la fila de una tarea que vence mañana ("Vence mañana a las …", en tono de aviso) junto a una que vence en dos semanas.
+
+## Enmienda 1 (M-01 a M-03 del manager)
+Respuesta a `revision.md` (veredicto CAMBIOS REQUERIDOS). Sin rediseño: P-01 a P-05, sus recomendaciones y el corte en cinco subentregas no cambian. Los cambios están aplicados en las secciones que se citan; esta tabla es el índice.
+
+| Id | Respuesta | Qué cambia y dónde |
+|---|---|---|
+| **M-01** | Se elige que el esquema **no cambie el cuerpo** hasta 01e (la primera opción del manager), en lugar de un C-n en 01a | "Cambios por capa", `shared/` (01a): `temaId` de la rama `material` es `.nullable().optional()` sin `.default`; el handler del muro hace `datos.temaId ?? null`. §D-2, viñeta "Elegir tema al publicar un material": el mismo criterio. §D-11, "Muro": en 01e el formulario agrega `temaId` solo con un tema elegido; con "Sin tema" el cuerpo es el de hoy. PR-1A03: sin `temaId`, la salida no tiene la clave. PR-1E04: los dos `toEqual` de `formulario-publicacion.test.tsx` (líneas 170 y 297) siguen igual. Así 01a no toca ninguna prueba del frontend y la lista cerrada de 01a queda como estaba. **Hermanos revisados:** ningún otro esquema que el frontend ya use para armar un cuerpo gana un `.default` o una transformación antes de 01d (`archivoIdsSchema` solo se exporta sin cambio de reglas; los `.default` de `crearTareaSchema` los usa por primera vez el formulario nuevo de 01d; `reemplazarCategoriasSchema` y `ordenTemasSchema` son nuevos); `publicacionSchema` (01b) es de respuesta y lo cubre C-5 |
+| **M-02** | Se agregan las pruebas que demuestran que una cancelación de pg-boss se revierte con la transacción | "Pruebas requeridas", 01b, PR-1B13: cuatro casos con título exacto ("editar: si falla el encolado del recordatorio nuevo, el recordatorio viejo sigue en created y la tarea no cambia"; "borrar: si falla la cancelación de TAREA_CREADA, la tarea sigue y su recordatorio sigue en created"; "crear: si falla el encolado de RECORDATORIO_24H, no queda la tarea ni TAREA_CREADA"; y el que ya estaba, "editar: si falla la cancelación del recordatorio viejo, la edición no se guarda"), llamando al adaptador con callbacks dobles que hacen la operación real y después lanzan. "PARADAS", PA-19: se suma "o una reversión deja cancelado un trabajo que debía seguir vivo". "Riesgos", R-05: cita PR-1B13 |
+| **M-03 (a)** | Las dos lecturas `FOR KEY SHARE` viven en un solo archivo, creado en 01a | "Cambios por capa", `backend/adapters/`: `adapters/db/referencias.ts` (01a) con `bloquearTemaParaUsar` y `bloquearCategoriaParaUsar` (la de categoría sin uso de producción hasta 01b; no se reexportan en `index.ts`). §D-2 (mover y tema al publicar), §D-4 (crear; editar remite a "como al crear") y §D-7 (primera fila) las citan. "No se toca" de 01b incluye `referencias.ts` (01b solo lo importa). Paso 6 de 01a. V-04: `FOR KEY SHARE` solo en ese archivo. PR-1A07 prueba `bloquearCategoriaParaUsar` directo en 01a |
+| **M-03 (b)** | El selector de categoría tiene una opción vacía explícita | §D-10, "Formulario": con categorías y sin una elegida (al crear, o al editar una tarea "Sin categoría"), la primera opción es "Elige una categoría", queda seleccionada y no pasa la validación del cliente ("Elige la categoría de la tarea."). `features/tareas/lib.ts`: `cuerpoDeTarea(estado, categoriasEnLaClase)` aplica la regla. PR-1D03 y PR-1D04 lo cubren. "Textos de la interfaz": los dos textos nuevos |
+| **M-03 (c)** | S-15 queda marcada como apartamiento de ESSENTIALS, con sus textos | "Suposiciones", S-15: "Se aparta de ESSENTIALS; requiere visto bueno explícito". "Riesgos y desacuerdos": R-16 nuevo, con la alternativa si el humano lo veta. "Documentos a actualizar", al cerrar 01b: textos para ESSENTIALS ("Capas del backend"), para la línea de `adapters/` de `CLAUDE.md`, para `ARCHITECTURE.md` §10 y para `adapters/README.md`, condicionados al visto bueno. "Pasos de implementación", paso 0: el humano da el visto bueno o veta S-15 al aprobar |
+
+**Detalle menor que se atiende de paso:** los dos `UPDATE … FROM unnest` ponen `actualizado_en = now()` de forma explícita (§D-2), porque el SQL crudo no activa `@updatedAt`. Los demás detalles menores y N-01 a N-04 de la revisión no cambian el plan; el programador y el tester los tienen en `revision.md`.

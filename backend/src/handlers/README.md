@@ -82,3 +82,15 @@ por ESLint, `no-restricted-syntax`).
   confirma los archivos con la publicación; y el muro y la respuesta `201` llevan `adjuntos`
   (siempre, también `[]`), con `vistaPrevia` solo para PNG, JPEG, WebP y GIF. Ninguna respuesta
   lleva la clave del objeto.
+
+- `tareas/temas.ts` (prefijo `/api`, TAREAS-01a, `temasHandler`): `GET` y `POST /clases/:claseId/temas`
+  (listar con `elementos` y `sinTema`, y crear), `PUT` y `DELETE …/temas/:temaId` (renombrar y borrar;
+  sus elementos pasan a «Sin tema»), `PUT …/temas/orden` (el orden completo; el segmento literal gana
+  a `:temaId`) y `PUT …/publicaciones/:publicacionId/tema` (mover un material o una tarea de tema;
+  mover no es editar, P-02 b). Los ven los tres roles solo en el `GET`; el resto es de los maestros de
+  la clase y el admin (`propiedad`).
+- `tareas/categorias.ts` (prefijo `/api`, TAREAS-01a, `categoriasHandler`): `GET` y `PUT
+/clases/:claseId/categorias` (maestros de la clase y admin; el `PUT` guarda la lista completa, con
+  pesos que suman 100). Ningún handler de `tareas/` verifica rol ni pertenencia a mano ni crea avisos.
+- `clases/muro.ts`: `POST …/publicaciones` acepta `temaId` (uuid o `null`) en un material; ausente o
+  `null` es «Sin tema» (`datos.temaId ?? null`) y un anuncio nunca lleva tema.

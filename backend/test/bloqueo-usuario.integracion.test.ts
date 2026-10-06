@@ -678,8 +678,10 @@ describe("E: adaptadores, sin concurrencia", () => {
   // registrarMaestroConEnlace y revocarEnlaceRegistro (Enmienda 6). AUTH-03c, §D-C3/V-04:
   // invitaciones.ts suma el bloqueo consultivo (pg_advisory_xact_lock, M-04), con $executeRaw:
   // por eso el patrón cubre también esa forma, no solo $queryRaw. CLASES-c, §D-C3/V-04:
-  // publicaciones.ts suma el SELECT … FOR SHARE de crearComentario (Enmienda 7).
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts y publicaciones.ts usan SQL etiquetado en adapters/db", async () => {
+  // publicaciones.ts suma el SELECT … FOR SHARE de crearComentario (Enmienda 7). TAREAS-01a: referencias.ts
+  // (las lecturas FOR KEY SHARE de tema y categoría), temas.ts (el UPDATE … FROM unnest del orden) y
+  // categorias.ts (el FOR UPDATE de las que se quitan y su UPDATE … FROM unnest).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts y categorias.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -700,10 +702,13 @@ describe("E: adaptadores, sin concurrencia", () => {
     }
     expect(conCoincidencia.sort()).toEqual([
       "bloqueo-usuario.ts",
+      "categorias.ts",
       "enlaces-registro.ts",
       "invitaciones.ts",
       "publicaciones.ts",
+      "referencias.ts",
       "salud.ts",
+      "temas.ts",
     ])
   })
 

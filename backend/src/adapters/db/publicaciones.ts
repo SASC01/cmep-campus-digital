@@ -11,6 +11,7 @@ import {
   type Ejecutor,
   type EjecutorSql,
 } from "./cliente.js"
+import { bloquearTemaParaUsar } from "./referencias.js"
 
 // CLASES-c (§D-C2, §D-C3). El muro de una clase: publicaciones y comentarios. Toda consulta por
 // publicación o comentario filtra además por la clase de la ruta: un id de otra clase es "no
@@ -26,7 +27,8 @@ export interface AutorDb {
 
 export interface PublicacionDb {
   id: string
-  tipo: "anuncio" | "material"
+  // TAREAS-01a: la base ya admite "tarea" (migración); el muro empieza a pintarla en 01b.
+  tipo: "anuncio" | "material" | "tarea"
   titulo: string | null
   texto: string
   autor: AutorDb
@@ -74,6 +76,9 @@ const errorArchivoInvalido = (): AppError =>
     400,
   )
 
+const errorTemaNoEncontrado = (): AppError =>
+  new AppError("TEMA_NO_ENCONTRADO", "Ese tema ya no existe.", 404)
+
 const SELECT_AUTOR = { select: { id: true, nombre: true, rol: true } } as const
 
 const SELECT_PUBLICACION = {
@@ -107,6 +112,7 @@ export const crearPublicacion = (
     tipo,
     titulo,
     texto,
+    temaId = null,
     archivos = [],
   }: {
     id: string
@@ -115,14 +121,21 @@ export const crearPublicacion = (
     tipo: "anuncio" | "material"
     titulo: string | null
     texto: string
+    // TAREAS-01a (§D-2): solo un material lleva tema; el handler pasa null en un anuncio.
+    temaId?: string | null
     archivos?: readonly ArchivoDb[]
   },
   alGuardar: (sql: EjecutorSql) => Promise<void>,
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<PublicacionDb> =>
   enTransaccion(ejecutor, async (tx) => {
+    // El tema se bloquea FOR KEY SHARE antes de usarlo (referencias.ts): un tema de otra clase o ya
+    // borrado es 404 y no se escribe ni se encola nada.
+    if (temaId !== null && !(await bloquearTemaParaUsar(tx, { temaId, claseId }))) {
+      throw errorTemaNoEncontrado()
+    }
     const creada = await tx.publicacion.create({
-      data: { id, claseId, autorId, tipo, titulo, texto },
+      data: { id, claseId, autorId, tipo, titulo, texto, temaId },
       select: SELECT_PUBLICACION,
     })
     if (archivos.length > 0) {

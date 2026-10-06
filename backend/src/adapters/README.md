@@ -278,3 +278,33 @@ archivos a `descartado` y les quita la publicación. Dos `CHECK` (a mano en la m
 tamaño es positivo y que un archivo está confirmado si y solo si tiene publicación. Los objetos
 descartados o nunca confirmados siguen en el almacén hasta `LIMPIEZA_DIARIA`, prerrequisito de
 DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
+
+## `db/bloqueo-clase.ts`, `db/referencias.ts`, `db/temas.ts` y `db/categorias.ts` (TAREAS-01a, §D-2, §D-3 y §D-7)
+
+`bloqueo-clase.ts` guarda `bloquearClase(tx, claseId)`, movido sin cambios desde
+`maestros-de-clase.ts` (A-5): el candado de la fila de la clase con un `updateMany` de
+`actualizado_en` (`FOR NO KEY UPDATE`, sin SQL crudo). Lo usan las asignaciones de maestros, los temas
+y las categorías, y no se reexporta en `index.ts`.
+
+`referencias.ts` tiene las únicas lecturas `FOR KEY SHARE` del proyecto: `bloquearTemaParaUsar` y
+`bloquearCategoriaParaUsar` (`SELECT id … WHERE id = … AND clase_id = … FOR KEY SHARE`, etiquetadas y
+parametrizadas, `false` si no hay fila; no se reexportan). Todo repositorio que usa un tema o una
+categoría como referencia dentro de una transacción (`crearPublicacion` con `temaId`, `moverATema` y,
+desde 01b, las tareas) la toma con ellas; nadie más escribe un `FOR KEY SHARE`. Un borrado o un
+guardado de categorías que quita esa fila espera a que la transacción confirme; si confirmó antes, la
+lectura no ve la fila y el llamador responde `404`, nunca `P2003` ni `500`.
+
+`temas.ts`: `listarTemas` (temas por `(orden, creado_en, id)` y un solo `groupBy` de `publicaciones`
+por `tema_id` para `elementos` y `sinTema`), `crearTema`, `renombrarTema`, `borrarTema`,
+`ordenarTemas` y `moverATema`. Crear, renombrar, borrar y ordenar bloquean primero la clase y deciden
+con `core/tareas/temas.ts` (tope de 30, nombres repetidos, conjunto exacto del orden); el orden se
+escribe con un solo `UPDATE … FROM unnest` (`$executeRaw` etiquetado, con `actualizado_en = now()` a
+mano). Borrar un tema pasa sus elementos a «Sin tema» por la FK `SET NULL`. Mover no mira la autoría
+(P-02 b): un anuncio es `409 ANUNCIO_SIN_TEMA`.
+
+`categorias.ts`: `listarCategorias` (orden `(creado_en, id)`, `tareas` de un solo `groupBy`) y
+`reemplazarCategorias`, que guarda la lista completa (S-06): bloquea la clase, decide con
+`core/tareas/categorias.ts`, bloquea `FOR UPDATE` las categorías que se quitan **antes** de contar sus
+tareas (con alguna, `409 CATEGORIA_CON_TAREAS`), borra, actualiza solo las que cambian con un
+`UPDATE … FROM unnest` y crea las nuevas con `creado_en` distinto por posición para conservar el orden
+capturado.

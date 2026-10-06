@@ -163,6 +163,8 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
           tipo: datos.tipo,
           titulo: datos.tipo === "material" ? datos.titulo : null,
           texto: datos.texto ?? "",
+          // TAREAS-01a (Enmienda 1, M-01): ausente o null es "Sin tema"; un anuncio nunca lleva tema.
+          temaId: datos.tipo === "material" ? (datos.temaId ?? null) : null,
           archivos,
         },
         (sql) => encolar(colaDePublicacion(datos.tipo), aviso, { id, sql }),

@@ -60,7 +60,7 @@ const SEPARADORES_DE_LINEA_UNICODE = /[\r\n\u2028\u2029]/
 // combinantes y los caracteres de formato (U+200B, U+200D, U+FE0F…) se admiten pero no cuentan:
 // forman parte de emojis y de otros alfabetos, así que rechazarlos rompería textos válidos.
 const CARACTER_VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u
-const CARACTER_QUE_SE_VE_VACIO = /[\p{Default_Ignorable_Code_Point}\u2800\u{1D159}]/u
+export const CARACTER_QUE_SE_VE_VACIO = /[\p{Default_Ignorable_Code_Point}\u2800\u{1D159}]/u
 
 // Normaliza un texto largo (descripción de clase, publicación o comentario) antes de validarlo y
 // guardarlo: CRLF y CR pasan a LF y se recorta en los extremos, sin tocar el interior (§D-C4). Vive
@@ -126,6 +126,14 @@ export const textoConContenidoSchema = (max: number, mensaje: string) =>
   textoLargoCon(max, z.string({ error: mensaje })).refine(
     (texto) => contarCaracteresVisibles(texto) >= MINIMO_VISIBLES_TEXTO,
     mensaje,
+  )
+
+// TAREAS-01 (S-05): nombres de tema y de categoría y título de tarea: texto con contenido visible y
+// de una sola línea (el mismo criterio que nombreClaseSchema, que rechaza \r, \n, U+2028 y U+2029).
+export const textoDeUnaLineaSchema = (max: number, mensaje: string) =>
+  textoConContenidoSchema(max, mensaje).refine(
+    (texto) => !SEPARADORES_DE_LINEA_UNICODE.test(texto),
+    "Debe ser de una sola línea",
   )
 
 // Una descripción vacía después de trim se guarda como null (S-02).
@@ -386,7 +394,7 @@ const MENSAJE_TIPO_PUBLICACION = "Elige si es un anuncio o un material"
 const MENSAJE_DESCRIPCION_MATERIAL = "La descripción debe ser texto"
 
 // CLASES-d (§D-D4, C-22): hasta 5 ids sin repetidos; sin ids, []. El frontend los manda siempre.
-const archivoIdsSchema = z
+export const archivoIdsSchema = z
   .array(z.uuid({ error: "Un archivo adjunto no es válido" }), {
     error: "Los archivos adjuntos deben ser una lista",
   })
@@ -411,6 +419,9 @@ export const crearPublicacionSchema = z.discriminatedUnion(
       titulo: textoConContenidoSchema(200, "Escribe el título del material"),
       texto: textoLargoCon(5000, z.string({ error: MENSAJE_DESCRIPCION_MATERIAL })).optional(),
       archivoIds: archivoIdsSchema,
+      // TAREAS-01 (Enmienda 1, M-01): sin .default. Ausente o null es "Sin tema" (el handler hace
+      // ?? null) y un cuerpo sin la clave sale de safeParse igual que antes.
+      temaId: z.uuid("temaId: debe ser un identificador válido").nullable().optional(),
     }),
   ],
   { error: MENSAJE_TIPO_PUBLICACION },

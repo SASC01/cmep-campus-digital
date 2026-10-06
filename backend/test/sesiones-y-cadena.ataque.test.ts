@@ -502,7 +502,19 @@ describe("ataque: superficie de rutas", () => {
   // printRoutes anida /candidatos bajo /api/admin/maestros, /:claseId bajo /api/admin/clases y
   // /maestros y /:maestroId debajo; /api/clases deja de tener método propio y sus hijas cuelgan de
   // ese nodo; el análisis por sangría las reconstruye igual.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d y CLASES-02a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // TAREAS-01a ronda 0 (C-2, §D-R0; §D-2, §D-3 y V-06 del plan de TAREAS-01): se agregan las 8
+  // rutas de temas y categorías bajo /api/clases/:claseId, más el HEAD de cada GET (10 entradas):
+  // GET, HEAD y POST de /temas; PUT y DELETE de /temas/:temaId; PUT de /temas/orden; PUT de
+  // /publicaciones/:publicacionId/tema; GET, HEAD y PUT de /categorias. Ninguna crea cuentas ni
+  // cambia roles: crean, renombran, ordenan y borran temas, mueven un material de tema y guardan las
+  // categorías de una clase de la que el perfil es maestro (o el admin). Ninguna es pública:
+  // RUTAS_PUBLICAS sigue con las 10 de hoy. La protección queda igual: ninguna ruta crea
+  // administradores; siguen creando maestros solo las tres de hoy (POST /api/admin/maestros,
+  // POST /api/admin/maestros/lote y POST /api/auth/registro-maestro), y cualquier otra ruta nueva
+  // vuelve a poner la prueba en rojo. printRoutes anida /temas y /categorias bajo /:claseId,
+  // /orden y /:temaId bajo /temas, y /tema bajo /publicaciones/:publicacionId; el análisis por
+  // sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a y TAREAS-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -534,6 +546,7 @@ describe("ataque: superficie de rutas", () => {
       "DELETE /api/clases/:claseId/mis-comentarios/:comentarioId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
+      "DELETE /api/clases/:claseId/temas/:temaId",
       "GET /api/admin/clases",
       "GET /api/admin/enlaces-registro",
       "GET /api/admin/enlaces-registro/:id/registrados",
@@ -541,10 +554,12 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId",
       "GET /api/clases/:claseId/alumnos",
       "GET /api/clases/:claseId/alumnos/candidatos",
+      "GET /api/clases/:claseId/categorias",
       "GET /api/clases/:claseId/codigo",
       "GET /api/clases/:claseId/personas",
       "GET /api/clases/:claseId/publicaciones",
       "GET /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "GET /api/clases/:claseId/temas",
       "GET /api/clases/impartidas",
       "GET /api/clases/inscritas",
       "GET /api/me",
@@ -556,10 +571,12 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId",
       "HEAD /api/clases/:claseId/alumnos",
       "HEAD /api/clases/:claseId/alumnos/candidatos",
+      "HEAD /api/clases/:claseId/categorias",
       "HEAD /api/clases/:claseId/codigo",
       "HEAD /api/clases/:claseId/personas",
       "HEAD /api/clases/:claseId/publicaciones",
       "HEAD /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "HEAD /api/clases/:claseId/temas",
       "HEAD /api/clases/impartidas",
       "HEAD /api/clases/inscritas",
       "HEAD /api/me",
@@ -588,9 +605,14 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases/:claseId/codigo",
       "POST /api/clases/:claseId/publicaciones",
       "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "POST /api/clases/:claseId/temas",
       "POST /api/clases/unirse",
       "PUT /api/admin/clases/:claseId",
       "PUT /api/admin/usuarios/:id/correo",
+      "PUT /api/clases/:claseId/categorias",
+      "PUT /api/clases/:claseId/publicaciones/:publicacionId/tema",
+      "PUT /api/clases/:claseId/temas/:temaId",
+      "PUT /api/clases/:claseId/temas/orden",
     ])
   })
 

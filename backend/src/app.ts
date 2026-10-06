@@ -22,6 +22,8 @@ import { gestionDeClasesHandler } from "./handlers/clases/gestion.js"
 import { muroHandler } from "./handlers/clases/muro.js"
 import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
 import { saludHandler } from "./handlers/salud.js"
+import { categoriasHandler } from "./handlers/tareas/categorias.js"
+import { temasHandler } from "./handlers/tareas/temas.js"
 import { usuariosHandler } from "./handlers/usuarios.js"
 import { registrarMiddleware } from "./middleware/index.js"
 
@@ -75,6 +77,8 @@ export const construirApp = async ({
   await app.register(alumnosHandler, { prefix: "/api" })
   await app.register(muroHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(archivosHandler, { prefix: "/api", almacen: almacenDeLaApp })
+  await app.register(temasHandler, { prefix: "/api" })
+  await app.register(categoriasHandler, { prefix: "/api" })
   await app.register(adminHandler, {
     prefix: "/api/admin",
     limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO,

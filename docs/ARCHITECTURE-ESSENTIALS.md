@@ -62,6 +62,7 @@ handlers → middleware → core → (interfaces) ← adapters → librerías de
 - Escrituras compuestas en **transacción**, incluido el encolado del evento.
 - Transacciones que crean, rotan o revocan sesiones en bloque, cambian la contraseña o escriben enlaces de un usuario existente: primero su fila de `usuarios` (`FOR SHARE` para crear o rotar su sesión; `FOR NO KEY UPDATE` para lo demás), en READ COMMITTED. Protocolo en `backend/src/adapters/README.md`.
 - Toda transacción se abre con `enTransaccion` (`adapters/db`). Si expira esperando un bloqueo o una conexión (`P2028`), responde `503 SERVICIO_OCUPADO`, nunca `500`.
+- Una lectura de varias sentencias (Prisma resuelve cada relación anidada con otra sentencia) cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueba la fila del cursor antes de leer la página, se hace en una sola instantánea: `enTransaccion` con `instantaneaUnica` (REPEATABLE READ, solo lecturas). Las transacciones que escriben siguen en READ COMMITTED (FIX-CLASES).
 - Promedios, gradebook, alumnos en riesgo y KPIs: **consultas agregadas**, no contadores guardados.
 - Todo cambio de esquema es una migración de Prisma, **compatible hacia atrás** (frontend y backend se despliegan por separado).
 - Fechas `timestamptz` en UTC; ISO 8601 en la API.

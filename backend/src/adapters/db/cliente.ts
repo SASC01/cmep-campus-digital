@@ -38,16 +38,29 @@ export const obtenerDb = (): PrismaClient => {
 // maxWait (opcional): cuánto espera la transacción para obtener una conexión del pool (2 s por
 // defecto de Prisma). Solo para las que van en serie sobre una fila con muchos clientes a la vez
 // (M-08); un enTransaccion anidado, que ya tiene conexión, lo ignora. El timeout no cambia.
+// instantaneaUnica (opcional, FIX-CLASES): abre la transacción en REPEATABLE READ, así todas sus
+// sentencias (también las que Prisma manda por cada relación anidada) ven la instantánea de la
+// primera; en READ COMMITTED cada una toma la suya. SOLO para lecturas de varias sentencias cuya
+// respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del
+// cursor en una sentencia y leen la página en otra (con el cursor de Prisma, una fila del cursor
+// borrada en medio da una página vacía aunque queden filas detrás: regla T-18): dentro no se escribe (una
+// escritura que choca falla con 40001, hoy un 500) y las sentencias van una tras otra, sin
+// Promise.all. Anidada, ignora la opción: no puede cambiar el aislamiento de la de afuera. Sin
+// opciones, la llamada a Prisma es la de siempre (READ COMMITTED, del que depende el protocolo de
+// bloqueo por usuario).
 export const enTransaccion = <T>(
   ejecutor: Ejecutor,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
-  opciones: { maxWait?: number } = {},
+  opciones: { maxWait?: number; instantaneaUnica?: true } = {},
 ): Promise<T> => {
   if ("$transaction" in ejecutor) {
+    const deLaTransaccion: { maxWait?: number; isolationLevel?: "RepeatableRead" } = {}
+    if (opciones.maxWait !== undefined) deLaTransaccion.maxWait = opciones.maxWait
+    if (opciones.instantaneaUnica === true) deLaTransaccion.isolationLevel = "RepeatableRead"
     const abierta =
-      opciones.maxWait === undefined
+      Object.keys(deLaTransaccion).length === 0
         ? ejecutor.$transaction(fn)
-        : ejecutor.$transaction(fn, { maxWait: opciones.maxWait })
+        : ejecutor.$transaction(fn, deLaTransaccion)
     return abierta.catch(traducirErrorDeTransaccion)
   }
   return fn(ejecutor)

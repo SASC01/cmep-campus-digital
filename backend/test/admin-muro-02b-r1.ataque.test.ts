@@ -388,7 +388,23 @@ describe("ataque CLASES-02b r1: el admin no comenta (P-03 a)", () => {
     )
     if (resultado(mis) !== "403 ROL_NO_PERMITIDO") fallas.push(`mis-comentarios: ${resultado(mis)}`)
     expect(fallas).toEqual([])
-    expect(await obtenerDb().comentario.count({ where: { autorId: admin.id } })).toBe(0)
+    // C-1 (FIX-CLASES, ronda 0): el admin es la cuenta única de la corrida y otros archivos
+    // (muro-admin.integracion) siembran comentarios suyos en paralelo; contar en toda la base daba
+    // rojos intermitentes. Todos los intentos de este caso van a `clase.id` y a estas dos
+    // publicaciones, así que acotar el conteo a ellas no pierde ningún intento.
+    expect(
+      await obtenerDb().comentario.count({
+        where: {
+          autorId: admin.id,
+          publicacion: { claseId: clase.id },
+        },
+      }),
+    ).toBe(0)
+    expect(
+      await obtenerDb().comentario.count({
+        where: { autorId: admin.id, publicacionId: { in: [delMaestro, delAdmin] } },
+      }),
+    ).toBe(0)
     expect(await obtenerDb().comentario.count({ where: { id: deAlumna } })).toBe(1)
   })
 })

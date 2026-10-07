@@ -304,3 +304,98 @@ Pasos completados: 9 de 9 (pasos 12 a 20). Ninguna PARADA activa. PA-01: red `IZ
 - Los textos "Al cerrar 01b" (ESSENTIALS "Autoría", "Restricciones clave" y "Archivos"; PRD RN-07; `ARCHITECTURE.md` §7, §8, §10, §11 y §14; `CLAUDE.md`) los aplica el orquestador (A-9); no los toqué. Sí actualicé los README de `adapters`, `handlers` y `workers`, incluida la línea de módulos de `adapters/README.md` (sin `scheduler`).
 - Fila para ESTADO §3: el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` (NOTIFICACIONES, §D-5).
 - `GET …/tareas/:tareaId` y `GET …/trabajo` ocupan una conexión durante 4 a 6 sentencias (R-06); con el pool lleno más de 2 s responden `503 SERVICIO_OCUPADO`, ya cubierto por la regla.
+
+## TAREAS-01c — Implementación
+
+Plan: `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/plan.md` (01c, solo con P-05 a, A-7; Enmienda 3). Base `<K1b>` = `ebfe126`. Solo frontend; el backend no se corrió.
+Pasos completados: 4 de 4 (pasos 22 a 25).
+Sin PARADAS: ninguna `*.ataque` cayó por algo distinto de la ruta de un `vi.mock` (no hubo ningún `vi.mock` que cambiar) y ningún movimiento obligó a cambiar comportamiento.
+
+### Tabla de movimientos (todos aplicados)
+| Qué | De (`features/clases/`) | A | Reexportación o envoltorio |
+|---|---|---|---|
+| `ConClaseDeLaRuta` y su texto | `components/con-clase-de-la-ruta.tsx`, `TEXTOS_CLASE.sinAcceso` | `components/clase/con-clase-de-la-ruta.tsx`, `components/clase/data.ts` (`TEXTOS_DE_LA_CLASE.sinAcceso`) | `export { ConClaseDeLaRuta } from …` (mismo objeto); `TEXTOS_CLASE.sinAcceso` ahora vale `TEXTOS_DE_LA_CLASE.sinAcceso` |
+| `FirmaDelAutor` y el texto de la firma (Enmienda 3) | `components/firma-del-autor.tsx`, `TEXTOS_MURO.firmaAdministracion`, `import { FIRMA_ADMINISTRACION }` de `data.ts` | `components/clase/firma-del-autor.tsx` y `components/clase/data.ts` (`TEXTOS_DE_LA_CLASE = { sinAcceso, firmaAdministracion: FIRMA_ADMINISTRACION }`) | `export { FirmaDelAutor } from …` (mismo objeto); `data.ts` pierde la clave y el `import` |
+| `Perspectiva`, `perspectivaDeRuta`, `baseDeClase` y las bases | `types.ts`, `lib.ts`, `data.ts` | `lib/ruta-de-clase.ts` (más `BASES_POR_PERSPECTIVA`, que `CAPACIDADES_POR_PERSPECTIVA` lee) | `export … from` en `types.ts` y `lib.ts` (mismos objetos) |
+| `AdjuntosDePublicacion`, `ListaDeAdjuntosElegidos` | `components/` | `components/adjuntos/` (mismos nombres de archivo) | Lista: reexportación (mismo objeto). `AdjuntosDePublicacion`: envoltorio con el mismo nombre y las mismas props, que pasa `mensajeDeErrorClases`; el compartido recibe `mensajeDeError` |
+| `useSolicitarSubida`, `useUrlDeDescarga` | `hooks.ts` | `components/adjuntos/hooks.ts` | `export … from` (mismos objetos) |
+| `tipoDeArchivo`, `errorDeArchivoElegido`, `avisoDeFalloAlSubir`, frescura de `tiempoFrescoDelMuro` | `lib.ts` | `components/adjuntos/lib.ts` (`avisoDeFalloAlSubir` con los mensajes como parámetro; `tiempoFrescoDeAdjuntos(adjuntos, dataUpdatedAt, tiempoSinVistasPrevias)`) | `tipoDeArchivo` y `errorDeArchivoElegido`: reexportación. `avisoDeFalloAlSubir` y `tiempoFrescoDelMuro`: envoltorios con la misma firma y salida |
+| `TEXTOS_ADJUNTOS`, `ACCEPT_DE_ADJUNTOS`, `MARGEN_DE_VISTA_PREVIA_MS` | `data.ts` | `components/adjuntos/data.ts` | `export … from` (mismos objetos) |
+| `ArchivoCandidato` | `types.ts` | `components/adjuntos/types.ts` | `export type … from` |
+| `erroresPorCampo`, `esErrorDeCursor`, el quitado del prefijo, `erroresDeFormularioClases` | `lib.ts`, `types.ts` | `lib/errores-de-api.ts` (más `ErroresFormulario`, `IncidenciaValidacion`, `campoDeErrorDeApi`, `erroresDeFormularioDeApi` con los mensajes como parámetro) | `erroresPorCampo` y `esErrorDeCursor`: reexportación; `erroresDeFormularioClases`: envoltorio con la misma firma y salida; los dos tipos se reexportan |
+| `clavePublicaciones` | `data.ts` | `services/clasesService.ts` | `export … from` en `data.ts` (mismo objeto) |
+
+Ninguna vista, texto, foco, petición ni aserción cambió. Ningún archivo compartido (`components/`, `lib/`, `services/`) importa de `features/` (0 coincidencias). Ningún archivo se borró: los orígenes quedan como reexportación de una línea (o el envoltorio de `AdjuntosDePublicacion`). No se movieron los ganchos de foco ni nada más.
+
+### Verificación (comando exacto y última línea)
+- `cd frontend; npm test` después de cada grupo: adjuntos → `Test Files  1 failed | 126 passed (127)` · `Tests  1 failed | 1851 passed (1852)` (el único rojo era O-07, esperado, y `styles/clases-r1` ya pasó a verde); clase → `Test Files  127 passed (127)` · `Tests  1852 passed (1852)` (O-07 en verde). Los grupos ruta de clase, errores y clave del muro los hice seguidos y corrí la suite una vez al terminar los tres (con `tsc -b` y ESLint tras cada uno): `Test Files  127 passed (127)` · `Tests  1852 passed (1852)`.
+- `cd frontend; npm run lint` → código 0, última línea `> tsc -b`.
+- `cd frontend; npm test` (final) → código 0, `Test Files  128 passed (128)` · `Tests  1864 passed (1864)`.
+- `cd frontend; npm run build` → código 0, `✓ built in 661ms`.
+- `npm run build` (raíz) → código 0, `✓ built in 669ms`; `npm run lint` (raíz) → código 0, última línea `> tsc -b`.
+
+### Rojos esperados de la ronda 0: los dos en verde
+1. `styles/clases-r1.ataque.test.ts` › "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 40 enEspera": verde desde el grupo de adjuntos (`components/adjuntos/adjuntos-de-publicacion.tsx` con 1 `enEspera=`; el envoltorio de origen, 0).
+2. `features/clases/estatico-02c-r1.ataque.test.ts` › "O-07: `administracion` solo se lee en firma-del-autor.tsx, …": verde desde el grupo de clase (las tres líneas de `FIRMA_ADMINISTRACION`/`firmaAdministracion` son dos de `components/clase/data.ts` y una de `components/clase/firma-del-autor.tsx`; quité el nombre de la clave de un comentario para no sumar una línea).
+
+### PR-1C01 (conteos con `npx vitest list`)
+- Antes de 01c: `cd frontend; npx vitest list > <scratchpad>/vl-front-antes-01c.txt` → 1852 pruebas (la corrida da 127 archivos).
+- Después: `… > vl-front-despues-01c.txt` → 1864 pruebas; la corrida da `Test Files  128 passed (128)` · `Tests  1864 passed (1864)`: +1 archivo y +12 casos, exactamente `reexportaciones-01c.test.ts` y sus 12 casos (`grep -c "reexportaciones-01c"` = 12).
+- V-01: sha256 de las 150 `*.ataque` contra la tabla de "Complementaria: O-07 (Enmienda 3)": `diff` vacío, 150 de 150 iguales; no cambié ninguna.
+
+### PR-1C02 → `frontend/src/features/clases/reexportaciones-01c.test.ts` (12 casos)
+- "PR-1C02: adjuntos: ListaDeAdjuntosElegidos, los dos hooks, los textos, el accept y el margen"
+- "PR-1C02: adjuntos: tipoDeArchivo y errorDeArchivoElegido"
+- "PR-1C02: clase: ConClaseDeLaRuta y FirmaDelAutor"
+- "PR-1C02: clase: el texto de la firma y el de «sin acceso» viven en components/clase/data.ts"
+- "PR-1C02: ruta de clase: perspectivaDeRuta, baseDeClase y las bases de CAPACIDADES_POR_PERSPECTIVA"
+- "PR-1C02: errores: erroresPorCampo y esErrorDeCursor"
+- "PR-1C02: clave del muro: clavePublicaciones"
+- "PR-1C02: los tipos movidos son los mismos (Perspectiva, ArchivoCandidato, ErroresFormulario, IncidenciaValidacion)"
+- "PR-1C02: avisoDeFalloAlSubir da lo mismo que la versión compartida con mensajeDeErrorClases"
+- "PR-1C02: erroresDeFormularioClases da lo mismo que la versión compartida con mensajeDeErrorClases"
+- "PR-1C02: tiempoFrescoDelMuro da lo mismo que tiempoFrescoDeAdjuntos sobre los adjuntos de todas las páginas"
+- "PR-1C02: AdjuntosDePublicacion conserva el nombre y sigue siendo un componente distinto del compartido"
+- Con `toBe` van todos los símbolos de reexportación (funciones, hooks, objetos de texto y claves); los envoltorios (`avisoDeFalloAlSubir`, `erroresDeFormularioClases`, `tiempoFrescoDelMuro`, `AdjuntosDePublicacion`) no pueden ser el mismo objeto, por diseño de §D-9, y se comprueban por nombre y salida.
+
+### Archivos
+`git diff --name-only ebfe126` (excluida la carpeta de trabajo): todo dentro de `frontend/src`.
+- Modificados: `features/clases/{data,hooks,lib,types}.ts`, `services/clasesService.ts`, y las dos `*.ataque` que reescribió el tester en la ronda 0 (`features/clases/estatico-02c-r1`, `styles/clases-r1`).
+- Renombrados con `git mv` (quedan en el índice como renombrados): `components/adjuntos/{adjuntos-de-publicacion,lista-de-adjuntos-elegidos}.tsx` y `components/clase/{con-clase-de-la-ruta,firma-del-autor}.tsx`.
+- Nuevos: `components/adjuntos/{data,hooks,lib,types}.ts`, `components/clase/data.ts`, `lib/{errores-de-api,ruta-de-clase}.ts`, las cuatro reexportaciones y el envoltorio de `features/clases/components/` (con los nombres de siempre) y `features/clases/reexportaciones-01c.test.ts`.
+- No toqué `app/router.tsx`, `components/ui/**`, `components/layout/**`, los demás servicios, `features/auth`, `features/admin`, `styles/**`, `lib/format.ts`, `utils.ts`, `cache-de-mutaciones.ts` ni `variante-de-clase.ts`; `package.json` y el lock sin cambios.
+
+### Desviaciones y decisiones donde el plan calla
+1. **`AdjuntosDePublicacion` es un envoltorio, no una reexportación.** El componente compartido necesita `mensajeDeErrorClases` (de `features/clases`) y lo recibe por la prop `mensajeDeError`; el archivo de origen conserva el nombre y las props y se lo pasa. Es lo que §D-9 dice para lo que usaba `mensajeDeErrorClases`, pero el plan también pide `toBe` para cada símbolo movido: para este no puede cumplirse.
+2. **"Los mensajes de error de archivos" (§D-9, fila de `data.ts`):** interpreté que son los `error*` de `TEXTOS_ADJUNTOS` (se movieron con él). `MENSAJES_ERROR_CLASES_GENERALES` (`archivoNoSubido`, `archivoInvalido`, `almacenNoDisponible`) se quedó en `features/clases/data.ts` porque lo usa `mensajeDeErrorClases`, que no se mueve.
+3. **`TIEMPO_FRESCO_DEL_MURO_MS` no se movió:** el cálculo compartido recibe el tiempo sin vistas previas como parámetro y `tiempoFrescoDelMuro` se lo pasa.
+4. **Los grupos 3 a 5 (ruta de clase, errores, clave del muro) no tuvieron la corrida completa de `npm test` cada uno:** los hice seguidos, con `tsc -b` y ESLint después de cada uno, y corrí la suite al terminar los tres (verde, 127 y 1852).
+5. `npx prettier --write` acotado a `frontend/src` (carpetas de `features/clases`, `components/adjuntos`, `components/clase`, `lib`, `services`); comprobé con V-01 que ninguna `*.ataque` cambió.
+
+### Pendiente o fuera de alcance detectado
+- Los textos "Al cerrar 01c" de `CLAUDE.md` (ubicaciones compartidas nuevas) los aplica el orquestador (A-9); no los toqué.
+- O-1 del tester: `features/clases/estatico-r1` revisa `?? []` y los ternarios anidados solo dentro de `features/clases/**`; lo movido a `components/`, `lib/` y `services/` queda fuera de esa revisión (comprobé a mano que los archivos nuevos no tienen `?? []`, `fetch(`, `dangerouslySetInnerHTML` ni `target="_blank"`).
+- 01d puede importar de las ubicaciones compartidas (`components/clase`, `components/adjuntos`, `lib/ruta-de-clase`, `lib/errores-de-api`, `services/clasesService`) sin tocar `features/clases`.
+
+## TAREAS-01c — Corrección de M-01
+
+### M-01 corregido
+Los mensajes de error de archivos ya viven en `components/adjuntos/data.ts` (§D-9): `MENSAJES_ERROR_DE_ARCHIVOS` (`archivoNoSubido`, `archivoInvalido`, `almacenNoDisponible`, con los mismos textos) y `MENSAJES_POR_CODIGO_DE_ARCHIVO` (el mapa de `ARCHIVO_NO_SUBIDO`, `ARCHIVO_INVALIDO`, `ALMACEN_NO_CONFIGURADO` y `ALMACEN_NO_DISPONIBLE`; es un dato, así que va en `data.ts`).
+- `features/clases/data.ts`: `MENSAJES_ERROR_CLASES_GENERALES` conserva sus claves y ahora toma esos tres valores de `MENSAJES_ERROR_DE_ARCHIVOS`; además reexporta `MENSAJES_ERROR_DE_ARCHIVOS` (mismo objeto).
+- `features/clases/lib.ts`: el mapa de `mensajeDeErrorClases` esparce `MENSAJES_POR_CODIGO_DE_ARCHIVO` en lugar de las cuatro líneas. Misma salida, mismas claves.
+- Caso nuevo en `features/clases/reexportaciones-01c.test.ts`: "PR-1C02: los mensajes de error de archivos y su mapa por código viven en components/adjuntos/data.ts y features/clases los usa igual" (mismo objeto por la ruta vieja y la nueva, los tres valores de `MENSAJES_ERROR_CLASES_GENERALES`, las cuatro claves del mapa y la salida de `mensajeDeErrorClases` por cada código).
+
+### Hermanos
+No encontré hermanos. Lo que el formulario de tarea de 01d necesita de los adjuntos ya está en `components/adjuntos/` (`TEXTOS_ADJUNTOS`, `ACCEPT_DE_ADJUNTOS`, `MARGEN_DE_VISTA_PREVIA_MS`, los dos ganchos, `tipoDeArchivo`, `errorDeArchivoElegido`, `avisoDeFalloAlSubir`, `tiempoFrescoDeAdjuntos`, las dos listas) o en servicios compartidos (`subirArchivo` de `services/almacenService.ts`). El resto de `MENSAJES_ERROR_CLASES_GENERALES` y `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` es de CLASES o genérico (no son de adjuntos); el mensaje genérico y los códigos propios de tareas los armará `mensajeDeErrorTareas` en 01d.
+
+### Verificación (comando y última línea)
+- `cd frontend; npm run lint` → código 0, `> tsc -b`.
+- `cd frontend; npm test` → código 0, `Test Files  128 passed (128)` · `Tests  1865 passed (1865)`. Los dos rojos esperados siguen en verde.
+- `cd frontend; npm run build` → código 0, `✓ built in 685ms`.
+- `npm run build` (raíz) → código 0, `✓ built in 691ms`; `npm run lint` (raíz) → código 0, `> tsc -b`.
+- Conteos: `cd frontend; npx vitest list` → 1865 pruebas (1864 + 1 caso nuevo); 13 casos de `reexportaciones-01c.test.ts`.
+- V-01: 150 de 150 iguales; no toqué ninguna `*.ataque`.
+- `git diff --name-only ebfe126` (sin la carpeta de trabajo): los mismos archivos de la sección anterior, ninguno nuevo; de ellos, esta corrección solo editó `components/adjuntos/data.ts`, `features/clases/data.ts`, `features/clases/lib.ts` y `reexportaciones-01c.test.ts`. Recordatorio del manager para el commit `<K1c>`: los cuatro `git mv` exigen `git add` de las dos rutas de cada uno (la nueva y la de origen).
+
+### Desviaciones
+Ninguna. Corrí la suite completa tras el cambio (un solo grupo).

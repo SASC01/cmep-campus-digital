@@ -34,21 +34,27 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
   })
 
   it("O-07: `administracion` solo se lee en firma-del-autor.tsx, y nadie compara un nombre con «Administración»", () => {
-    expect(rutasCon(/\.administracion\b/)).toEqual([
-      "/src/features/clases/components/firma-del-autor.tsx",
-    ])
+    // TAREAS-01c ronda 0 (C-8, §D-R0; §D-9): FirmaDelAutor pasa a components/clase/ y el archivo de
+    // origen queda como reexportación; `administracion` sigue leyéndose en un solo archivo, el de la
+    // firma. Solo cambia la ruta.
+    expect(rutasCon(/\.administracion\b/)).toEqual(["/src/components/clase/firma-del-autor.tsx"])
     // Ninguna comparación (igualdad, includes, startsWith, test) contra la firma o su texto.
     expect(
       lineasCon(
         /(===|!==|==|!=|includes\(|startsWith\(|endsWith\(|\.test\(|localeCompare\()[^;]*(FIRMA_ADMINISTRACION|firmaAdministracion|[Aa]dministraci)|(FIRMA_ADMINISTRACION|firmaAdministracion)\s*(===|!==|==|!=)/,
       ),
     ).toEqual([])
+    // TAREAS-01c ronda 0 complementaria (C-8, Enmienda 3; §D-9): el texto de la firma vive en
+    // components/clase/data.ts (TEXTOS_DE_LA_CLASE.firmaAdministracion: FIRMA_ADMINISTRACION, con el
+    // import de @campus/shared en una línea) y solo lo lee components/clase/firma-del-autor.tsx;
+    // features/clases/data.ts y la reexportación de la firma ya no lo nombran. Siguen siendo tres
+    // líneas en dos archivos: un solo lugar de datos y la firma.
     expect(
       lineasCon(/FIRMA_ADMINISTRACION|firmaAdministracion/).map((l) => l.split(":")[0]),
     ).toEqual([
-      "/src/features/clases/components/firma-del-autor.tsx",
-      "/src/features/clases/data.ts",
-      "/src/features/clases/data.ts",
+      "/src/components/clase/data.ts",
+      "/src/components/clase/data.ts",
+      "/src/components/clase/firma-del-autor.tsx",
     ])
     expect(lineasCon(/"Administración"/)).toEqual([])
   })

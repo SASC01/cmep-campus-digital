@@ -1,4 +1,6 @@
-import { FIRMA_ADMINISTRACION, TIPOS_DE_ARCHIVO_PERMITIDOS } from "@campus/shared"
+import { MENSAJES_ERROR_DE_ARCHIVOS } from "@/components/adjuntos/data"
+import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
 
 import type { CapacidadesDePerspectiva, Perspectiva } from "./types"
 
@@ -6,7 +8,11 @@ import type { CapacidadesDePerspectiva, Perspectiva } from "./types"
 // en la prueba de cambio de identidad (PR-A23a).
 // A-6 de CLASES-02: las dos claves de las listas viven en services/clasesService.ts (las usa también
 // la barra lateral) y se reexportan aquí para no cambiar a nadie.
-export { CLAVE_CLASES_IMPARTIDAS, CLAVE_CLASES_INSCRITAS } from "@/services/clasesService"
+export {
+  CLAVE_CLASES_IMPARTIDAS,
+  CLAVE_CLASES_INSCRITAS,
+  clavePublicaciones,
+} from "@/services/clasesService"
 // CLASES-02c: la lista institucional del administrador y el buscador de maestros.
 export const CLAVE_CLASES_ADMIN = ["clases", "admin"] as const
 export const claveMaestrosCandidatos = (termino: string) =>
@@ -20,7 +26,6 @@ export const claveAlumnos = (claseId: string) => ["clases", claseId, "alumnos"] 
 export const claveCandidatos = (claseId: string) => ["clases", claseId, "candidatos"] as const
 // CLASES-c: el muro y los comentarios de cada publicación. Los comentarios no cuelgan de la clave
 // del muro, para que invalidar la lista no vuelva a pedir los comentarios de todas las abiertas.
-export const clavePublicaciones = (claseId: string) => ["clases", claseId, "publicaciones"] as const
 export const claveComentarios = (claseId: string, publicacionId: string) =>
   ["clases", claseId, "comentarios", publicacionId] as const
 
@@ -209,9 +214,10 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   publicacionNoEncontrada: "Esa publicación ya no existe.",
   comentarioNoEncontrado: "Ese comentario ya no existe.",
   // §D-D6: errores de los archivos adjuntos.
-  archivoNoSubido: "Uno de los archivos no terminó de subir. Inténtalo de nuevo.",
-  archivoInvalido: "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.",
-  almacenNoDisponible: "Los archivos no están disponibles en este momento. Inténtalo más tarde.",
+  // TAREAS-01c (§D-9): los textos de los archivos viven en components/adjuntos/data.ts.
+  archivoNoSubido: MENSAJES_ERROR_DE_ARCHIVOS.archivoNoSubido,
+  archivoInvalido: MENSAJES_ERROR_DE_ARCHIVOS.archivoInvalido,
+  almacenNoDisponible: MENSAJES_ERROR_DE_ARCHIVOS.almacenNoDisponible,
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
 
@@ -226,7 +232,8 @@ export const TEXTOS_CLASE = {
   maestrosDeLaClase: "Maestros",
   editar: "Editar clase",
   secciones: "Secciones de la clase",
-  sinAcceso: "No tienes acceso a esta clase.",
+  // TAREAS-01c (§D-9): el texto vive en components/clase/data.ts, junto a ConClaseDeLaRuta.
+  sinAcceso: TEXTOS_DE_LA_CLASE.sinAcceso,
 } as const
 
 // §D-B6: textos de CLASES-b (propuesta).
@@ -280,8 +287,6 @@ export const TEXTOS_MURO = {
   vacioEstudiante: "Tu maestro aún no ha publicado nada en esta clase.",
   vacioMaestro: "Publica el primer anuncio o material de tu clase.",
   vacioAdmin: "Aún no hay publicaciones en esta clase.",
-  // §D-2C4: la firma de lo que publica la administración sale de shared/, nunca de autor.nombre.
-  firmaAdministracion: FIRMA_ADMINISTRACION,
   verMasPublicaciones: "Ver más publicaciones",
   avisoPublicacionBorrada: "Publicación borrada",
   cambioMientrasLoVeias: "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.",
@@ -328,45 +333,25 @@ export const TEXTOS_COMENTARIOS = {
   verMas: "Ver más comentarios",
 } as const
 
-// §D-D6: textos de CLASES-d (propuesta).
-export const TEXTOS_ADJUNTOS = {
-  adjuntar: "Adjuntar archivos",
-  ayuda: "Hasta 5 archivos de 25 MB: PDF, imágenes, Word, Excel, PowerPoint o texto.",
-  elegidos: "Archivos elegidos",
-  adjuntos: "Archivos adjuntos",
-  quitar: "Quitar",
-  descargar: "Descargar",
-  imagenAdjunta: (nombre: string) => `Imagen adjunta: ${nombre}`,
-  errorPesaMucho: (nombre: string) => `«${nombre}» pesa más de 25 MB.`,
-  errorTipo: (nombre: string) => `«${nombre}» no es de un tipo permitido.`,
-  errorCantidad: "Puedes adjuntar hasta 5 archivos.",
-  errorSubida: (nombre: string) => `No pudimos subir «${nombre}». Inténtalo de nuevo.`,
-  // T-41: la solicitud de subida de un archivo fue rechazada; `motivo` ya viene en español.
-  errorRechazado: (nombre: string, motivo: string) => `No pudimos subir «${nombre}»: ${motivo}`,
-  // T-38: la lista no cambia mientras se publica.
-  listaFija: "Mientras se publica no puedes cambiar los archivos.",
-} as const
-
-// Los tipos y las extensiones que acepta el selector de archivos, salidos de la misma tabla que usa
-// el servidor para validar (shared/).
-export const ACCEPT_DE_ADJUNTOS = Object.entries(TIPOS_DE_ARCHIVO_PERMITIDOS)
-  .flatMap(([tipo, extensiones]) => [tipo, ...extensiones.map((extension) => `.${extension}`)])
-  .join(",")
+// TAREAS-01c (§D-9): los textos de los adjuntos, el accept y el margen de las vistas previas viven en
+// components/adjuntos/data.ts; se reexportan aquí para no cambiar a nadie.
+export {
+  ACCEPT_DE_ADJUNTOS,
+  MARGEN_DE_VISTA_PREVIA_MS,
+  MENSAJES_ERROR_DE_ARCHIVOS,
+  TEXTOS_ADJUNTOS,
+} from "@/components/adjuntos/data"
 
 // Sin vistas previas, el muro se considera fresco 4 minutos. Con ellas, ver tiempoFrescoDelMuro (lib.ts):
 // son URL firmadas que vencen a los 5 minutos de firmarse.
 export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
-
-// T-40: el muro se vuelve a pedir este tiempo antes de que venza la primera vista previa; así las URL
-// viejas siguen vigentes mientras llega la respuesta nueva.
-export const MARGEN_DE_VISTA_PREVIA_MS = 60_000
 
 // §D-2C1: lo que cada perspectiva ve de una clase. La interfaz solo decide qué mostrar; el backend
 // ya decide qué se permite (§D-2.0). Ninguna capacidad sustituye una comprobación del backend. El
 // botón de borrar no está aquí: sale de `puedeBorrar` de cada publicación y comentario.
 export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePerspectiva> = {
   estudiante: {
-    base: "/estudiante/clases",
+    base: BASES_POR_PERSPECTIVA.estudiante,
     volverDestino: "/estudiante",
     volverTexto: TEXTOS_CLASE.volver,
     secciones: [
@@ -379,7 +364,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     formularioComentario: true,
   },
   maestro: {
-    base: "/maestro/clases",
+    base: BASES_POR_PERSPECTIVA.maestro,
     volverDestino: "/maestro",
     volverTexto: TEXTOS_CLASE.volver,
     secciones: [
@@ -392,7 +377,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     formularioComentario: true,
   },
   admin: {
-    base: "/admin/clases",
+    base: BASES_POR_PERSPECTIVA.admin,
     volverDestino: "/admin/clases",
     volverTexto: TEXTOS_CLASE.volverALaLista,
     secciones: [

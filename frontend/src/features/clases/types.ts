@@ -34,9 +34,9 @@ export type { VarianteDeClase } from "@/lib/variante-de-clase"
 
 export type RolDeClases = "estudiante" | "maestro"
 
-// CLASES-02c (§D-2C1): desde dónde se mira una clase. Sale de la ruta (perspectivaDeRuta); decide
-// solo qué se muestra, el backend decide qué se permite.
-export type Perspectiva = "estudiante" | "maestro" | "admin"
+// CLASES-02c (§D-2C1): desde dónde se mira una clase. TAREAS-01c (§D-9): se declara en
+// lib/ruta-de-clase.ts, que usan también las tareas, y se reexporta aquí.
+export type { Perspectiva } from "@/lib/ruta-de-clase"
 
 // Una sección de la clase: `segmento` es la parte de la ruta bajo la base ("" es el muro).
 export interface SeccionDeClase {
@@ -59,14 +59,9 @@ export interface CapacidadesDePerspectiva {
 // Un maestro de una clase, tal como lo devuelve el detalle (uno o dos por clase).
 export type MaestroDeLaClase = ClaseDetalle["maestros"][number]
 
-// Errores de validación en cliente por campo (nombre del campo → primer mensaje). Genérico: lo usan
-// tanto el formulario de clase (nombre, descripcion) como el de unirse (codigo).
-export type ErroresFormulario = Partial<Record<string, string>>
-
-export interface IncidenciaValidacion {
-  path: readonly PropertyKey[]
-  message: string
-}
+// Errores de validación en cliente por campo y las incidencias de safeParse. TAREAS-01c (§D-9): se
+// declaran en lib/errores-de-api.ts, que usan también las tareas, y se reexportan aquí.
+export type { ErroresFormulario, IncidenciaValidacion } from "@/lib/errores-de-api"
 
 // N-03 (ronda 4 del manager): una fila del panel "Mis clases", no un tipo de Props de un
 // componente (regla 6 de CLAUDE.md), así que vive aquí y no en panel-mis-clases.tsx.
@@ -77,12 +72,9 @@ export interface ClaseDelPanel {
   destino: string
 }
 
-// CLASES-d: lo que lib.ts necesita saber de un archivo elegido (un File lo cumple).
-export interface ArchivoCandidato {
-  name: string
-  type: string
-  size: number
-}
+// CLASES-d: lo que lib.ts necesita saber de un archivo elegido (un File lo cumple). TAREAS-01c
+// (§D-9): se declara en components/adjuntos/types.ts y se reexporta aquí.
+export type { ArchivoCandidato } from "@/components/adjuntos/types"
 
 // T-40: una página del muro, tal como la devuelve la API.
 export type PaginaDelMuro = ListaPublicacionesRespuesta

@@ -663,3 +663,197 @@ docs/ESTADO.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md 
 
 ### Problemas que bloquean
 Ninguno.
+
+## Verificación del resumen — TAREAS-01c — implementación
+Veredicto: **resumen DEVUELTO** al programador, por **M-01** (un hueco del movimiento que 01d necesita). Las cifras, la ausencia de cambios de comportamiento, V-01 y la Enmienda 3 están bien. La corrección es pequeña y sigue siendo solo refactor.
+Corrida propia del 2026-10-06, una suite a la vez, en `feat/tareas` con base `<K1b>` = `ebfe126`. El backend no se corre en 01c.
+
+| Comprobación | Resumen del programador | Corrida del manager |
+|---|---|---|
+| `cd frontend; npm run lint` | código 0; `> tsc -b` | código 0 |
+| `cd frontend; npm test` | `128 passed (128)` · `1864 passed (1864)` | `128 passed (128)` · `1864 passed (1864)` |
+| `cd frontend; npm run build` | código 0; `✓ built in 661ms` | código 0; `✓ built in 672ms` |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 |
+| `cd frontend; npx vitest list` | 1864 (antes, 1852) | 1864 casos (las dos líneas de más de la salida son títulos con un salto de línea), 12 de `reexportaciones-01c.test.ts`; la ronda 0 de 01c registró 127 / 1852 antes. **PR-1C01: +1 archivo y +12 casos, exactamente ese** |
+
+- **PR-1C02:** los 12 títulos citados existen literalmente.
+- **Sin cambio de comportamiento:**
+  - Los componentes movidos difieren de su original en `ebfe126` solo en las rutas de importación, en el texto leído de `components/clase/data.ts` y, en `AdjuntosDePublicacion`, en la prop `mensajeDeError`, que el envoltorio rellena con `mensajeDeErrorClases`.
+  - `TEXTOS_ADJUNTOS` y los dos hooks son idénticos a su origen.
+  - `CAPACIDADES_POR_PERSPECTIVA` lee las mismas bases.
+  - No cambia ningún texto, petición, foco ni aserción, y la suite completa sigue en verde.
+- **Lo compartido no importa de `features/`:** `grep 'from "@/features/'` en `components/`, `lib/` y `services/` da 0. Cada origen queda como reexportación de una línea, o como el envoltorio que pide §D-9.
+- **"No se toca":** no se borró nada (los cuatro `git mv` dejan el origen recreado). Siguen intactos `app/router.tsx`, `components/ui` y `layout`, los servicios protegidos, `features/auth`, `admin` y `diagnostico`, `styles` y los `lib/` protegidos, los `package.json` y todo `backend/`, `shared/` e `infra/`.
+- **V-01:** las 150 `*.ataque` coinciden con la tabla de la complementaria (O-07, Enmienda 3). Las únicas `*.ataque` cambiadas respecto de `ebfe126` son las dos del tester (`estatico-02c-r1` y `clases-r1`).
+- **Enmienda 3 en el código:** `components/clase/data.ts` importa `FIRMA_ADMINISTRACION` de `@campus/shared` en una sola línea y define `TEXTOS_DE_LA_CLASE = { sinAcceso, firmaAdministracion }`. `firma-del-autor.tsx` lee `TEXTOS_DE_LA_CLASE.firmaAdministracion`. `features/clases/data.ts` ya no tiene ni la clave ni el `import`. El texto en pantalla es el mismo valor.
+
+### Problemas que bloquean
+
+#### M-01 — Los mensajes de error de archivos se quedaron en `features/clases`, y 01d no podrá usarlos sin duplicarlos
+- **Dónde:** §D-9, fila "`TEXTOS_ADJUNTOS`, `ACCEPT_DE_ADJUNTOS`, `MARGEN_DE_VISTA_PREVIA_MS` y los mensajes de error de archivos" → `components/adjuntos/data.ts`. Hoy siguen en `features/clases/data.ts:215-218` (`MENSAJES_ERROR_CLASES_GENERALES`, bloque "§D-D6: errores de los archivos adjuntos": `archivoNoSubido`, `archivoInvalido` y `almacenNoDisponible`) y en `features/clases/lib.ts:116-119` (la parte del mapa por código de `ARCHIVO_NO_SUBIDO`, `ARCHIVO_INVALIDO`, `ALMACEN_NO_CONFIGURADO` y `ALMACEN_NO_DISPONIBLE`).
+- **Por qué importa:**
+  - **La lectura del plan:** "los mensajes de error de archivos" no puede ser la parte `error*` de `TEXTOS_ADJUNTOS`, porque esa ya se mueve con `TEXTOS_ADJUNTOS`, que la fila nombra aparte. Son los mensajes de los códigos de error de archivos.
+  - **01d los necesita:** el formulario de tarea sube adjuntos y recibe esos mismos códigos (`POST …/archivos` y `crearTarea`/`editarTarea` con `ARCHIVO_INVALIDO`), y `mensajeDeErrorTareas` tiene que traducirlos. Sin el movimiento, 01d tendría que copiarlos ("no dupliques datos entre módulos", `CLAUDE.md`) o importarlos de `features/clases` (regla 9), o hacer este movimiento dentro de 01d y mezclar refactor con funcionalidad, que es justo lo que 01c existe para evitar.
+- **Qué se espera:**
+  - Que esos mensajes, y su relación con los cuatro códigos, vivan en `components/adjuntos/data.ts`.
+  - Que `features/clases` los siga usando con exactamente la misma salida: `MENSAJES_ERROR_CLASES_GENERALES` y el mapa de `mensajeDeErrorClases` apuntan a los valores compartidos y conservan sus claves.
+  - Que `reexportaciones-01c.test.ts` sume un caso que lo compruebe (los mismos valores por la ruta vieja y por la nueva).
+  - Sin cambio de comportamiento: la suite completa sigue en verde, los dos rojos esperados siguen resueltos y V-01 no cambia.
+
+### Arbitraje de las tres desviaciones
+1. **`AdjuntosDePublicacion` como envoltorio: se acepta.** Es lo que §D-9 manda para todo símbolo que usaba `mensajeDeErrorClases`: la versión compartida recibe la función y `features/clases` conserva un envoltorio con el mismo nombre y la misma salida. El `toBe` de PR-1C02 vale para las reexportaciones, y para los envoltorios es imposible por construcción: es una contradicción interna del plan. PR-1C02 los comprueba por nombre y salida (la de `AdjuntosDePublicacion` la cubre la suite del muro y de archivos, en verde). Que el arquitecto corrija el texto de PR-1C02 ("`toBe` para las reexportaciones; nombre y salida para los envoltorios") la próxima vez que toque el plan. No hace falta una enmienda.
+2. **Una sola corrida de la suite para los grupos 3 a 5: se acepta**, declarada. Eran reexportaciones pequeñas (tipos y funciones), cada una verificada con `tsc -b` y ESLint, y el estado final está en verde en mi corrida. Para la corrección de M-01 y para 01d y 01e, que se cumpla el plan tal como está escrito ("después de cada grupo") o que se declare antes de desviarse.
+3. **La interpretación de "mensajes de error de archivos": no se acepta.** Es M-01 (arriba). En cambio, **`TIEMPO_FRESCO_DEL_MURO_MS` quedarse en `features/clases` sí es correcto:** es la frescura propia del muro, y el cálculo compartido (`tiempoFrescoDeAdjuntos`) recibe el tiempo sin vistas previas como parámetro, así que 01d pasa el suyo para el detalle de la tarea. Las demás claves de `MENSAJES_ERROR_CLASES_GENERALES` (sin acceso, alumno, publicación, comentario, genérico) son de CLASES o ya existen en `components/clase` (`sinAcceso`): no hace falta moverlas.
+
+### Nota para el commit `<K1c>`
+Los cuatro `git mv` dejan en el índice un renombrado, y el archivo de origen recreado aparece como nuevo sin seguimiento (`??`). El bloque de `git add` debe incluir **las dos rutas de cada uno** (la nueva en `components/` y la de origen en `features/clases/components/`). Si no, el commit borraría los orígenes.
+
+## Verificación del resumen — TAREAS-01c — corrección de M-01
+Veredicto: **resumen ACEPTADO**. El tester puede atacar la ronda 1 de 01c.
+Corrida propia del 2026-10-06, una suite a la vez (solo frontend y raíz; el backend no se corre en 01c).
+
+| Comprobación | Resumen del programador | Corrida del manager |
+|---|---|---|
+| `cd frontend; npm run lint` | código 0 | código 0 |
+| `cd frontend; npm test` | `128 passed (128)` · `1865 passed (1865)` | `128 passed (128)` · `1865 passed (1865)` |
+| `cd frontend; npm run build` | código 0 | código 0 |
+| `npm run build` y `npm run lint` (raíz) | código 0 | código 0 |
+| `cd frontend; npx vitest list` | 1865 (1864 + 1) | 1865 casos, 13 de `reexportaciones-01c.test.ts` |
+
+- **Título nuevo:** "PR-1C02: los mensajes de error de archivos y su mapa por código viven en components/adjuntos/data.ts y features/clases los usa igual" existe literalmente.
+- **Misma salida de `mensajeDeErrorClases`, texto por texto:**
+  - En `ebfe126`, el mapa traducía `ARCHIVO_NO_SUBIDO`, `ARCHIVO_INVALIDO`, `ALMACEN_NO_CONFIGURADO` y `ALMACEN_NO_DISPONIBLE` a tres textos de `MENSAJES_ERROR_CLASES_GENERALES`.
+  - Hoy el mapa esparce `MENSAJES_POR_CODIGO_DE_ARCHIVO` (`components/adjuntos/data.ts:43-48`): las mismas cuatro claves, y esas claves no se repiten en el resto del mapa.
+  - Los valores salen de `MENSAJES_ERROR_DE_ARCHIVOS` (líneas 37 a 41), con los tres textos idénticos a los de `ebfe126`: "Uno de los archivos no terminó de subir. Inténtalo de nuevo.", "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo." y "Los archivos no están disponibles en este momento. Inténtalo más tarde.".
+  - `MENSAJES_ERROR_CLASES_GENERALES` conserva sus tres claves, ahora tomadas del compartido, y `features/clases/data.ts` reexporta `MENSAJES_ERROR_DE_ARCHIVOS`.
+  - **La salida es la misma para cada código.**
+- **Sin cambio de comportamiento ni nada fuera de §D-9:** la suite completa está en verde. Solo cambiaron los archivos que ya estaban en la entrega (ninguno nuevo); lo compartido sigue sin importar de `features/` (`grep` = 0); `backend/` y `shared/` no cambiaron.
+- **Lo que 01d necesita para adjuntos (§D-10), todo ya compartido:**
+  - `AdjuntosDePublicacion` (el compartido, con `mensajeDeError`) y `ListaDeAdjuntosElegidos`;
+  - `useSolicitarSubida` y `useUrlDeDescarga`;
+  - `tipoDeArchivo`, `errorDeArchivoElegido`, `avisoDeFalloAlSubir` (con los mensajes de cada módulo) y `tiempoFrescoDeAdjuntos`;
+  - `TEXTOS_ADJUNTOS`, `ACCEPT_DE_ADJUNTOS`, `MARGEN_DE_VISTA_PREVIA_MS`, `MENSAJES_ERROR_DE_ARCHIVOS` y `MENSAJES_POR_CODIGO_DE_ARCHIVO`, en `components/adjuntos/`;
+  - `subirArchivo` en `services/almacenService.ts`.
+
+  Además están `ConClaseDeLaRuta` y `FirmaDelAutor` (`components/clase/`), la perspectiva y la base de la ruta (`lib/ruta-de-clase.ts`), los errores de la API (`lib/errores-de-api.ts`) y `clavePublicaciones` (`services/clasesService.ts`). Lo demás que §D-10 nombra (`services/trabajoService.ts`, `lib/vencimiento.ts` y `native-select`) nace en 01d. **No hay hermanos pendientes.**
+- **V-01:** las 150 `*.ataque` coinciden con la tabla de la complementaria (`diff` vacío).
+
+Sin M-nn. Sigue vigente la nota para el commit `<K1c>`: en el `git add` van las dos rutas de cada uno de los cuatro `git mv`.
+
+## Revisión final — TAREAS-01c
+Veredicto: **APROBADO CON OBSERVACIONES, con una condición de corrida.**
+- **El refactor está bien:** lo planeado, sin cambio de comportamiento, V-01 151/151.
+- **Mi corrida completa del frontend salió con 2 rojos por tiempo límite** (5 s) en dos `*.ataque` de la barra lateral de CLASES-02d que 01c no toca, con la máquina cargada. No la repetí (PA-12).
+- **Condición:** antes del bloque del commit `<K1c>`, una repetición de `cd frontend; npm test`, autorizada por el orquestador y con la carga comprobada, debe salir en verde. Si con la máquina descargada vuelven a caer **exactamente** esos dos casos por tiempo, es PA-12 y se escala junto a M-02 de DESIGN-01b (el `testTimeout` del frontend). Cualquier otro rojo bloquea.
+
+Verificación propia del 2026-10-06, una suite a la vez, en `feat/tareas` con base `<K1b>` = `ebfe126`:
+- `cd frontend; npm run lint`, código 0.
+- `cd frontend; npm test`, código 1: `Test Files 2 failed | 127 passed (129)` · `Tests 2 failed | 1874 passed (1876)`, con `Duration 179.52s` (transform 42.55 s y setup 186.15 s, contra unos 80 s, 18 s y 52 s de las corridas del tester). Esperado: 129 / 1876; las cifras coinciden y solo sobran los dos rojos.
+- `cd frontend; npm run build`, código 0 (`✓ built in 2.34s`); raíz `npm run build` y `npm run lint`, código 0.
+
+**Los dos rojos (PA-12, reportados completos):**
+- `src/app/barra-02d-r1.ataque.test.tsx` › "ataque CLASES-02d r1: cuántas clases y cuáles" › "con 101 clases pide una sola página de 100 (sin cursor) y termina en «Ver todas» hacia el inicio": `Test timed out in 5000ms` (6236 ms).
+- `src/app/foco-barra-02d-r2.ataque.test.tsx` › "ataque CLASES-02d r2: T-07 y sus estados vecinos" › "101 → 100 clases con el foco en «Ver todas»: el foco queda en la lista, no en <body>": `Test timed out in 5000ms` (6107 ms).
+- **Diagnóstico:** carga medida justo después, CPU al 68 % y 6867 MB libres de 32 436 (el tester midió 16-20 % y unos 15 200 MB libres antes de sus corridas). Los dos archivos y `components/layout` no cambiaron respecto de `ebfe126`. Corridos aislados: `Test Files 2 passed (2)` · `Tests 33 passed (33)`. Son los casos de 101 clases, los más pesados del grupo que M-02 de DESIGN-01b ya marcaba "cerca del límite de 5 s". **No se deben a 01c.**
+- **El mismo árbol** salió en verde (129 / 1876) en la ronda 1 del tester, con la carga medida antes.
+
+### 1. Lo planeado, solo lo planeado y todo lo planeado
+`git diff ebfe126 --stat`: todo cae en `frontend/src`, más la carpeta del encargo y `docs/ESTADO.md`.
+- **Los nueve movimientos de §D-9** están hechos, con su reexportación o su envoltorio en el origen:
+  - `components/clase/` (`ConClaseDeLaRuta`, `FirmaDelAutor` y `data.ts` con `TEXTOS_DE_LA_CLASE`);
+  - `components/adjuntos/` (los dos componentes, `data.ts` con los textos, el `accept`, el margen y los mensajes de error de archivos con su mapa por código por M-01, `hooks.ts`, `lib.ts` y `types.ts`);
+  - `lib/ruta-de-clase.ts`, `lib/errores-de-api.ts` y `clavePublicaciones` en `services/clasesService.ts`.
+- **La Enmienda 3 y M-01** están aplicados como se verificó en su momento.
+- **Lo que no se movió, y no tocaba:** los ganchos de foco, `focoPerdido` y `vecinaDeFila` (§D-9). `TIEMPO_FRESCO_DEL_MURO_MS` se queda en `features/clases`, como se arbitró.
+- **Nada borrado:** `git diff ebfe126 -M --diff-filter=D` vacío; los cuatro `git mv` dejan su origen recreado.
+- **"No se toca" desde 01c, intacto:** `app/**` (incluido `router.tsx`), `components/ui`, `components/layout`, los componentes protegidos, los servicios protegidos, `features/auth`, `admin` y `diagnostico`, los `lib/` protegidos, `index.html`, `vite.config.ts`, `vitest.config.ts`, `frontend/package.json`, y todo `backend/`, `shared/` e `infra/`. En `styles/` solo cambia la `*.ataque` del tester (`clases-r1`).
+- **Sin cambio de comportamiento:** lo comprueban `reexportaciones-01c.test.ts` (13 casos), `refactor-01c-r1.ataque` del tester (11 casos, contra copias literales del código de `ebfe126`) y la suite completa.
+
+### 3. V-01
+- Las 151 `*.ataque` coinciden con la tabla de la ronda 1 de 01c (`diff` vacío).
+- `git diff ebfe126 --name-only` sobre `*.ataque` da solo las dos que reescribió el tester en la ronda 0 (`features/clases/estatico-02c-r1` y `styles/clases-r1`), y la nueva es `refactor-01c-r1`.
+- No hay borradas ni casos saltados. **El programador no tocó ninguna `*.ataque`.**
+
+### 4. Definición de terminado, para 01c
+- **Requisito:** cumple las reglas 5 y 9 de `CLAUDE.md`. Lo que comparten `clases` y `tareas` vive en `components/`, `lib/` y `services/`, sin importaciones de `features/` en lo compartido (`grep` = 0), así que `features/tareas` puede nacer en 01d sin importar de `features/clases`.
+- **Capas:** frontend solo, siguiendo la estructura de módulos.
+- **`lint`, `build` y `test`:** lint y build en verde. Test, con la condición de arriba: dos corridas completas en verde del mismo árbol (programador y tester) y la mía con dos tiempos límite por carga, ajenos a 01c.
+- **Endpoints y migraciones:** ninguno.
+- **Documentos:** `CLAUDE.md`, "Ubicaciones compartidas", por A-9 (texto abajo).
+
+### 5. Diseño y estilo
+- **Lista de diseño:** no aplica. No cambia nada visual (ningún texto, token, clase ni componente de `ui/`), y `DESIGN.md` no se toca.
+- **Estilo (`CLAUDE.md`):**
+  - **Bien:** los datos van en `data.ts` (`components/adjuntos`, `components/clase`), los hooks en `hooks.ts`, las funciones puras en `lib.ts` y `ArchivoCandidato` en `types.ts`. Las únicas interfaces en componentes son de Props (`AdjuntosDePublicacionProps` se exporta para el envoltorio).
+  - **Por decisión del plan:** `lib/ruta-de-clase.ts` y `lib/errores-de-api.ts` declaran sus tipos y la tabla de bases junto a las funciones. §D-9 lo fija así ("tipo y funciones"), y es como viven los demás `lib/` compartidos.
+  - **Lo que falta, ninguno:** `?? []`, `fetch(`, `console.`, `dangerouslySetInnerHTML` ni `target="_blank"` en lo nuevo (lo vigila `refactor-01c-r1`).
+
+### 6. Observaciones con destino
+- **O-1 de la ronda 0** (`estatico-r1` ya no cubría lo movido): **cerrada.** `refactor-01c-r1` la cubre con su revisión estática de los 12 archivos de destino.
+- **O-2 de la ronda 0** (la exención "`features/clases/lib.ts`, donde vive `perspectivaDeRuta`" en `estatico-02c-r1` › §D-2C1 apunta al archivo viejo): inocua hoy, porque no filtra ninguna línea. Destino: el tester la actualiza a `lib/ruta-de-clase.ts` la próxima vez que reescriba ese archivo por un C-n (fila en ESTADO §3).
+- **Para el arquitecto, la próxima vez que toque el plan:** que PR-1C02 diga "`toBe` para las reexportaciones; nombre y salida para los envoltorios", y que el paso 16 (b) diga que PR-1B16b también salía en rojo por el defecto.
+- **Los dos tiempos límite de esta corrida:** a ESTADO §5 y a la fila de M-02 de DESIGN-01b. Los casos de 101 clases de `barra-02d-r1` y `foco-barra-02d-r2` pasan de 6 s con la máquina cargada.
+
+### 7. Documentos
+**`CLAUDE.md`, "Ubicaciones compartidas"** (A-9, lo aplica el orquestador). Es el texto del plan, ajustado a lo que quedó.
+- Agregar, después de la viñeta de `components/layout/`:
+  - "`components/clase/` — `ConClaseDeLaRuta` y `FirmaDelAutor`, compartidos por `features/clases` y `features/tareas`; sus textos (el de «sin acceso» y el de la firma de la administración) viven en `components/clase/data.ts` (`TEXTOS_DE_LA_CLASE`)"
+  - "`components/adjuntos/` — los adjuntos elegidos y publicados (`ListaDeAdjuntosElegidos` y `AdjuntosDePublicacion`, que recibe los mensajes de error de cada módulo), con su subida y descarga (`hooks.ts`), sus funciones puras (`lib.ts`), sus textos, el `accept`, el margen de las vistas previas y los mensajes de error de archivos con su mapa por código (`data.ts`) y `ArchivoCandidato` (`types.ts`)"
+- Agregar, después de la viñeta de `lib/variante-de-clase.ts`:
+  - "`lib/ruta-de-clase.ts` — la perspectiva (`Perspectiva`, `perspectivaDeRuta`) y la base de la ruta de una clase (`baseDeClase`, `BASES_POR_PERSPECTIVA`)"
+  - "`lib/errores-de-api.ts` — los errores por campo y de cursor de la API (`erroresPorCampo`, `esErrorDeCursor`, y la traducción de un `VALIDACION` a errores de formulario con los mensajes de cada módulo)"
+- En la viñeta de `services/clasesService.ts`, "las claves de las listas de clases y la consulta de la barra lateral, compartidas por `components/layout` y `features/clases`" pasa a "las claves de las listas de clases y la del muro (`clavePublicaciones`), y la consulta de la barra lateral, compartidas por `components/layout`, `features/clases` y `features/tareas`".
+
+**`DESIGN.md`:** no hay que tocarlo (no hay ningún patrón visual nuevo).
+
+**Filas para ESTADO:**
+- **§3:**
+  - O-1 de 01c, cerrada por `refactor-01c-r1`;
+  - O-2 de 01c (la exención de `estatico-02c-r1` › §D-2C1, para el tester, en la próxima reescritura por un C-n);
+  - para el arquitecto: el texto de PR-1C02 y el del paso 16 (b).
+- **§5:** la corrida del manager con dos tiempos límite por carga, junto a M-02 de DESIGN-01b.
+
+### 8. Medición del programador
+- **01c:**
+  - rondas del tester: 1 (RESISTE);
+  - rondas extra por hermanos: 0;
+  - resúmenes devueltos: **1 de 2** (M-01: una lectura de §D-9 que dejaba los mensajes de error de archivos en `features/clases`; no es un caso de hermanos);
+  - PARADAS: 0.
+- **Acumulado de TAREAS-01 (01a a 01c):** 1 ronda extra por hermanos (T-02 → T-05 en 01a). El umbral de 2 no se alcanzó: sigue en `sonnet`.
+
+### 9. Commit `<K1c>` (después de la condición)
+**Mensaje propuesto:**
+```
+refactor(clases): TAREAS-01c, piezas compartidas para clases y tareas (components/clase, components/adjuntos, lib/ruta-de-clase, lib/errores-de-api y la clave del muro en services/clasesService), sin cambio de comportamiento
+```
+(más las líneas de atribución que correspondan).
+
+**Rutas para `git add`**, con las dos rutas de cada `git mv` (el destino y el origen recreado):
+```
+frontend/src/components/adjuntos/adjuntos-de-publicacion.tsx frontend/src/features/clases/components/adjuntos-de-publicacion.tsx
+frontend/src/components/adjuntos/lista-de-adjuntos-elegidos.tsx frontend/src/features/clases/components/lista-de-adjuntos-elegidos.tsx
+frontend/src/components/clase/con-clase-de-la-ruta.tsx frontend/src/features/clases/components/con-clase-de-la-ruta.tsx
+frontend/src/components/clase/firma-del-autor.tsx frontend/src/features/clases/components/firma-del-autor.tsx
+frontend/src/components/adjuntos/data.ts frontend/src/components/adjuntos/hooks.ts frontend/src/components/adjuntos/lib.ts frontend/src/components/adjuntos/types.ts
+frontend/src/components/clase/data.ts
+frontend/src/lib/errores-de-api.ts frontend/src/lib/ruta-de-clase.ts
+frontend/src/services/clasesService.ts
+frontend/src/features/clases/data.ts frontend/src/features/clases/hooks.ts frontend/src/features/clases/lib.ts frontend/src/features/clases/types.ts
+frontend/src/features/clases/reexportaciones-01c.test.ts
+frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx frontend/src/features/clases/estatico-02c-r1.ataque.test.ts frontend/src/styles/clases-r1.ataque.test.ts
+docs/trabajo/TAREAS-01-tareas-temas-y-categorias/ docs/ESTADO.md CLAUDE.md
+```
+`CLAUDE.md` va después de que el orquestador aplique el texto de A-9, con su SHA-256 en `aprobacion.md`. Después del `git add`, `git status` no debe mostrar ningún `D` ni ningún `??` en `frontend/`.
+
+### Problemas que bloquean
+Ninguno en el código. La única condición es la repetición de la suite del frontend descrita arriba.
+
+### Corrida de confirmación (autorizada por el orquestador)
+**No se corrió: la carga no bajó del umbral en los 3 minutos de espera.** La condición de la revisión final de 01c sigue abierta.
+- **Protocolo del orquestador:** medir `LoadPercentage` cada 10 s; correr solo con dos lecturas seguidas en 25 % o menos; esperar hasta 3 minutos.
+- **Medición (2026-10-06):**
+  - 18 lecturas sueltas entre las 20:53:05 y las 20:53:36: de 32 % a 76 %.
+  - Después, 17 lecturas cada 10 s entre las 20:53:49 y las 20:56:47: 38, 62, 85, 63, 60, 60, 62, 65, 73, 58, 65, 48, 56, 7, 79, 56 y 77 %. Nunca hubo dos seguidas en 25 % o menos.
+  - RAM libre al final: 7128 MB.
+- **Procesos con más CPU acumulada:** `ChatGPT` (dos procesos), `com.docker.backend` y `Docker Desktop` (estos dos son normales con Docker encendido), `Warframe.x64` (unos 10 GB de memoria) y `Code` (varios). **Hay actividad del humano ajena al proyecto.** No terminé ningún proceso: no los arranqué yo (`AGENTS.md`).
+- **Sigue:** la corrida de confirmación queda pendiente hasta que el equipo esté descargado (el humano cierra lo que esté usando, o se repite la medición más tarde). Con dos lecturas en 25 % o menos, una sola corrida de `cd frontend; npm test`, con los mismos criterios: 129 / 1876 en verde cierra 01c; los mismos dos casos por tiempo límite son PA-12 y se escalan junto a M-02 de DESIGN-01b; cualquier otro rojo bloquea.

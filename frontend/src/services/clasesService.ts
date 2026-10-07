@@ -12,6 +12,10 @@ import { api } from "@/services/apiClient"
 export const CLAVE_CLASES_INSCRITAS = ["clases", "inscritas"] as const
 export const CLAVE_CLASES_IMPARTIDAS = ["clases", "impartidas"] as const
 
+// TAREAS-01c (§D-9): la clave del muro de una clase, compartida por features/clases (que la pide y la
+// invalida) y features/tareas (que la invalida al crear, editar o borrar una tarea).
+export const clavePublicaciones = (claseId: string) => ["clases", claseId, "publicaciones"] as const
+
 // La barra pide una sola página de hasta 100 clases. Su clave cuelga de la de cada lista, así que
 // toda invalidación por prefijo que ya hace features/clases la alcanza.
 const LIMITE_CLASES_DE_LA_BARRA = 100

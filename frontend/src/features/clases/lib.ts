@@ -1,18 +1,20 @@
-import {
-  estadoDeTerminoDeBusqueda,
-  MAXIMO_ADJUNTOS_POR_PUBLICACION,
-  TAMANO_MAXIMO_ARCHIVO_BYTES,
-  TIPOS_DE_ARCHIVO_PERMITIDOS,
-} from "@campus/shared"
+import { estadoDeTerminoDeBusqueda } from "@campus/shared"
 
+import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
+import {
+  avisoDeFalloAlSubir as avisoDeFalloAlSubirCompartido,
+  tiempoFrescoDeAdjuntos,
+} from "@/components/adjuntos/lib"
+import {
+  campoDeErrorDeApi,
+  erroresDeFormularioDeApi,
+  quitarPrefijoDeCampo,
+} from "@/lib/errores-de-api"
 import { esApiError } from "@/services/apiClient"
 
 import {
-  CAPACIDADES_POR_PERSPECTIVA,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
-  MARGEN_DE_VISTA_PREVIA_MS,
   MENSAJES_ERROR_CLASES_GENERALES,
-  TEXTOS_ADJUNTOS,
   TEXTOS_CLASE,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
@@ -21,28 +23,10 @@ import {
   TEXTOS_UNIRSE,
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
-import type {
-  ArchivoCandidato,
-  PaginaDelMuro,
-  ErroresFormulario,
-  IncidenciaValidacion,
-  Perspectiva,
-  RolDeClases,
-  SeccionDeClase,
-} from "./types"
+import type { PaginaDelMuro, ErroresFormulario, RolDeClases, SeccionDeClase } from "./types"
 
-// §D-2C1: la perspectiva sale del prefijo exacto de la ruta (/estudiante, /maestro o /admin, solo o
-// seguido de "/"). Un prefijo parecido (/maestros, /administrador) o cualquier otra ruta da
-// "estudiante", la perspectiva que menos muestra; el backend decide de todas formas. O-06 (revisión
-// de 02c): sin distinguir mayúsculas, como el router (/Admin/clases es la ruta de /admin/clases).
-export const perspectivaDeRuta = (pathname: string): Perspectiva => {
-  const ruta = pathname.toLowerCase()
-  for (const perspectiva of ["maestro", "admin"] as const) {
-    const base = `/${perspectiva}`
-    if (ruta === base || ruta.startsWith(`${base}/`)) return perspectiva
-  }
-  return "estudiante"
-}
+// TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
+export { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
 
 // §D-2D2: el título de la sección de maestros de "Personas".
 export const etiquetaDeMaestros = (total: number): string =>
@@ -74,10 +58,6 @@ export const indiceDeSeccionActiva = (
     return sinBarraFinal === destino || sinBarraFinal.startsWith(`${destino}/`)
   })
 }
-
-// La ruta base de las secciones de una clase para una perspectiva.
-export const baseDeClase = (perspectiva: Perspectiva, claseId: string): string =>
-  `${CAPACIDADES_POR_PERSPECTIVA[perspectiva].base}/${claseId}`
 
 // "Creada" en la tabla de clases del administrador: fecha corta en la zona local.
 export const formatearFechaDeClase = (iso: string): string => {
@@ -134,19 +114,9 @@ const MENSAJES_ERROR_CLASES: Record<string, string> = {
   ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
   PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
   COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
-  ARCHIVO_NO_SUBIDO: MENSAJES_ERROR_CLASES_GENERALES.archivoNoSubido,
-  ARCHIVO_INVALIDO: MENSAJES_ERROR_CLASES_GENERALES.archivoInvalido,
-  ALMACEN_NO_CONFIGURADO: MENSAJES_ERROR_CLASES_GENERALES.almacenNoDisponible,
-  ALMACEN_NO_DISPONIBLE: MENSAJES_ERROR_CLASES_GENERALES.almacenNoDisponible,
+  // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
+  ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
 }
-
-// T-17 (ronda 2 del tester): el mensaje de un VALIDACION del servidor lleva el nombre técnico del
-// campo como prefijo ("descripcion: No puede tener más de 2000 caracteres"), porque el cliente y el
-// servidor comparten el mismo esquema de shared/. Ese prefijo nunca es para la persona que usa la
-// interfaz (ni siquiera cuando el campo no es uno de un formulario, como claseId).
-const PREFIJO_DE_CAMPO = /^([a-zA-Z_]+):\s*/
-
-const quitarPrefijoDeCampo = (mensaje: string): string => mensaje.replace(PREFIJO_DE_CAMPO, "")
 
 // T-11 (ronda 1 del tester): un claseId con una forma inválida en la URL responde 400 VALIDACION
 // con el nombre técnico del parámetro ("claseId: debe ser un identificador válido"). El mismo
@@ -165,55 +135,23 @@ export const mensajeDeErrorClases = (error: unknown): string => {
   return MENSAJES_ERROR_CLASES[error.codigo] ?? MENSAJES_ERROR_CLASES_GENERALES.generico
 }
 
-// T-17 (ronda 2 del tester): el nombre de campo que trae el prefijo técnico del mensaje, o null si
-// el error no es un VALIDACION con esa forma.
-const campoDeErrorClases = (error: unknown): string | null => {
-  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
-  const coincidencia = PREFIJO_DE_CAMPO.exec(error.message)
-  return coincidencia ? (coincidencia[1] ?? null) : null
-}
-
 // T-34: el 400 "cursor: no es válido" de "Ver más" (el cursor ya no existe) no es un texto para la
 // persona: en su lugar se muestra `textoDelCursor`, que dice qué pasó y qué hacer. Cualquier otro
 // error sigue pasando por mensajeDeErrorClases.
 export const mensajeDeErrorDeLista = (error: unknown, textoDelCursor: string): string => {
-  if (campoDeErrorClases(error) === "cursor") return textoDelCursor
+  if (campoDeErrorDeApi(error) === "cursor") return textoDelCursor
   return mensajeDeErrorClases(error)
 }
 
-// El 400 "cursor: no es válido" de una lista paginada (la fila del cursor ya no existe).
-export const esErrorDeCursor = (error: unknown): boolean => campoDeErrorClases(error) === "cursor"
+// TAREAS-01c (§D-9): erroresPorCampo y esErrorDeCursor viven en lib/errores-de-api.ts; la versión
+// compartida de erroresDeFormularioClases recibe los mensajes de cada módulo, y este envoltorio
+// conserva el nombre, la firma y la salida de siempre (T-19: un error que no es de un campo da null).
+export { erroresPorCampo, esErrorDeCursor } from "@/lib/errores-de-api"
 
-// T-19 (ronda 3 del tester): un error que no es de un campo (500, sin conexión, SIN_ACCESO_A_LA_CLASE
-// al editar) no es un VALIDACION con el prefijo técnico de un campo, así que no debe marcar ningún
-// campo como inválido: es un error del formulario, no de un campo (CLAUDE.md, "Manejo de errores en
-// el frontend"). Devuelve el error asociado al campo del formulario que nombra el VALIDACION del
-// servidor, o `null` si el error no encaja en ninguno de `camposValidos` (porque no es VALIDACION,
-// o porque nombra un campo que ese formulario no tiene); en ese caso, cada formulario decide qué
-// hacer con el error (un aviso del formulario, o su propio error de dominio, como CODIGO_INVALIDO
-// en "Unirme a la clase").
 export const erroresDeFormularioClases = (
   error: unknown,
   camposValidos: readonly string[],
-): ErroresFormulario | null => {
-  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
-  const campo = campoDeErrorClases(error)
-  if (campo === null || !camposValidos.includes(campo)) return null
-  return { [campo]: mensajeDeErrorClases(error) }
-}
-
-// Primer mensaje de cada campo a partir de las incidencias de safeParse de un esquema de shared/.
-export const erroresPorCampo = (
-  incidencias: readonly IncidenciaValidacion[],
-): ErroresFormulario => {
-  const errores: ErroresFormulario = {}
-  for (const incidencia of incidencias) {
-    const campo = incidencia.path[0]
-    if (typeof campo !== "string" || errores[campo] !== undefined) continue
-    errores[campo] = incidencia.message
-  }
-  return errores
-}
+): ErroresFormulario | null => erroresDeFormularioDeApi(error, camposValidos, mensajeDeErrorClases)
 
 // N-04 (ronda 4 de CLASES-a, §D-B4 bis): en "Unirme a la clase" solo CODIGO_INVALIDO y un VALIDACION
 // de "codigo" son errores del campo del código. Cualquier otro (un 500, "sin conexión",
@@ -239,67 +177,25 @@ export const vecinaDeFila = (
   return actuales[Math.min(Math.max(indice, 0), actuales.length - 1)]
 }
 
-const extensionDe = (nombre: string): string => {
-  const punto = nombre.lastIndexOf(".")
-  if (punto < 0) return ""
-  return nombre.slice(punto + 1).toLowerCase()
-}
+// TAREAS-01c (§D-9): tipoDeArchivo y errorDeArchivoElegido viven en components/adjuntos/lib.ts.
+export { errorDeArchivoElegido, tipoDeArchivo } from "@/components/adjuntos/lib"
 
-// Algunos sistemas no informan el tipo de un archivo (File.type vacío): se infiere por la extensión,
-// con la misma tabla que usa el servidor. "" si no se reconoce.
-export const tipoDeArchivo = (archivo: Pick<ArchivoCandidato, "name" | "type">): string => {
-  if (archivo.type !== "") return archivo.type
-  const extension = extensionDe(archivo.name)
-  const entrada = Object.entries(TIPOS_DE_ARCHIVO_PERMITIDOS).find(([, extensiones]) =>
-    extensiones.includes(extension),
-  )
-  return entrada?.[0] ?? ""
-}
-
-// §D-D5: la misma política del servidor, antes de pedirle una URL de subida. `yaElegidos` es el
-// número de archivos que ya estaban en la lista. null: el archivo se puede agregar.
-export const errorDeArchivoElegido = (
-  archivo: ArchivoCandidato,
-  yaElegidos: number,
-): string | null => {
-  if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES)
-    return TEXTOS_ADJUNTOS.errorPesaMucho(archivo.name)
-  const tipo = tipoDeArchivo(archivo)
-  const extensiones = Object.hasOwn(TIPOS_DE_ARCHIVO_PERMITIDOS, tipo)
-    ? TIPOS_DE_ARCHIVO_PERMITIDOS[tipo]
-    : undefined
-  if (extensiones === undefined || !extensiones.includes(extensionDe(archivo.name))) {
-    return TEXTOS_ADJUNTOS.errorTipo(archivo.name)
-  }
-  if (yaElegidos >= MAXIMO_ADJUNTOS_POR_PUBLICACION) return TEXTOS_ADJUNTOS.errorCantidad
-  return null
-}
-
-// T-40 (§D-D5): cuánto tiempo se considera fresco el muro cargado. Las vistas previas son URL firmadas
-// que vencen; el muro se vuelve viejo MARGEN_DE_VISTA_PREVIA_MS antes del `expiraEn` más temprano de
-// todas las páginas cargadas, medido desde `dataUpdatedAt` (que se renueva con cada página). Con un
-// vencimiento ya pasado da 0; sin vistas previas, el valor de siempre.
+// T-40 (§D-D5): cuánto tiempo se considera fresco el muro cargado. El cálculo vive en
+// components/adjuntos/lib.ts (tiempoFrescoDeAdjuntos); aquí solo se juntan los adjuntos de todas las
+// páginas cargadas.
 export const tiempoFrescoDelMuro = (
   paginas: readonly PaginaDelMuro[],
   dataUpdatedAt: number,
-): number => {
-  const vencimientos = paginas
-    .flatMap((pagina) => pagina.publicaciones)
-    .flatMap((publicacion) => publicacion.adjuntos)
-    .flatMap((adjunto) =>
-      adjunto.vistaPrevia === null ? [] : [Date.parse(adjunto.vistaPrevia.expiraEn)],
-    )
-    .filter((vencimiento) => !Number.isNaN(vencimiento))
-  if (vencimientos.length === 0) return TIEMPO_FRESCO_DEL_MURO_MS
-  const primero = Math.min(...vencimientos)
-  return Math.max(0, primero - MARGEN_DE_VISTA_PREVIA_MS - dataUpdatedAt)
-}
+): number =>
+  tiempoFrescoDeAdjuntos(
+    paginas
+      .flatMap((pagina) => pagina.publicaciones)
+      .flatMap((publicacion) => publicacion.adjuntos),
+    dataUpdatedAt,
+    TIEMPO_FRESCO_DEL_MURO_MS,
+  )
 
-// T-41: una solicitud rechazada (ApiError) dice qué archivo y por qué; con ARCHIVO_INVALIDO el motivo es
-// el mensaje del servidor (ya en español y sin valores). Un fallo del PUT al almacén no es un
-// ApiError: conserva el texto de siempre.
-export const avisoDeFalloAlSubir = (error: unknown, nombre: string): string => {
-  if (!esApiError(error)) return TEXTOS_ADJUNTOS.errorSubida(nombre)
-  const motivo = error.codigo === "ARCHIVO_INVALIDO" ? error.message : mensajeDeErrorClases(error)
-  return TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)
-}
+// T-41: el aviso de un fallo al subir vive en components/adjuntos/lib.ts, con los mensajes de cada
+// módulo como parámetro; este envoltorio conserva el nombre, la firma y la salida de siempre.
+export const avisoDeFalloAlSubir = (error: unknown, nombre: string): string =>
+  avisoDeFalloAlSubirCompartido(error, nombre, mensajeDeErrorClases)

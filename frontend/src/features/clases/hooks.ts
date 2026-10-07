@@ -5,7 +5,6 @@ import {
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
   comentarioRespuestaSchema,
-  descargaRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesAdminRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
@@ -16,13 +15,11 @@ import {
   personasRespuestaSchema,
   publicacionRespuestaSchema,
   sinContenidoSchema,
-  solicitarSubidaRespuestaSchema,
   unirseRespuestaSchema,
   type CrearClaseAdmin,
   type CrearComentario,
   type CrearPublicacion,
   type EditarClase,
-  type SolicitarSubida,
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -674,25 +671,5 @@ export const useBorrarComentario = (claseId: string, publicacionId: string) => {
   })
 }
 
-// CLASES-d (§D-D3, §D-D5). Pide una URL prefirmada para subir un archivo directo al almacén. Sin
-// avisos propios: el formulario decide qué decirle a la persona según en qué paso falló.
-export const useSolicitarSubida = (claseId: string) =>
-  useMutation({
-    mutationFn: (datos: SolicitarSubida) =>
-      api(`/api/clases/${claseId}/archivos`, {
-        method: "POST",
-        body: datos,
-        schema: solicitarSubidaRespuestaSchema,
-      }),
-  })
-
-// Pide la URL de descarga de un adjunto (5 minutos de vigencia); quien la usa decide qué hacer con
-// ella y avisa si falla.
-export const useUrlDeDescarga = (claseId: string) =>
-  useMutation({
-    mutationFn: (archivoId: string) =>
-      api(`/api/clases/${claseId}/archivos/${archivoId}/descarga`, {
-        method: "POST",
-        schema: descargaRespuestaSchema,
-      }),
-  })
+// TAREAS-01c (§D-9): useSolicitarSubida y useUrlDeDescarga viven en components/adjuntos/hooks.ts.
+export { useSolicitarSubida, useUrlDeDescarga } from "@/components/adjuntos/hooks"

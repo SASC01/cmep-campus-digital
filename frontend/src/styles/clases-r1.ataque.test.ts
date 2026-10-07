@@ -198,14 +198,17 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/comentarios-de-publicacion.tsx": 2,
       "/src/features/clases/components/formulario-comentario.tsx": 1,
       // C-13 (CLASES-d): "Descargar" de la ficha de cada adjunto (§D-D5).
-      "/src/features/clases/components/adjuntos-de-publicacion.tsx": 1,
+      // TAREAS-01c ronda 0 (C-8, §D-R0; §D-9): AdjuntosDePublicacion pasa a components/adjuntos/ (el
+      // archivo de origen queda como reexportación, sin enEspera=); solo cambia la ruta de la clave.
+      "/src/components/adjuntos/adjuntos-de-publicacion.tsx": 1,
       // C-20 (CLASES-02c): "Cargar más clases", "Sí, quitar" y "Asignar a la clase"; la tabla de
       // clases del admin y la firma del autor sin espera.
       "/src/features/clases/clases-admin-view.tsx": 1,
       "/src/features/clases/components/lista-maestros-de-clase.tsx": 1,
       "/src/features/clases/components/buscador-de-maestros.tsx": 1,
       "/src/features/clases/components/tabla-clases-admin.tsx": 0,
-      "/src/features/clases/components/firma-del-autor.tsx": 0,
+      // TAREAS-01c ronda 0 (C-8, §D-9): FirmaDelAutor pasa a components/clase/; solo cambia la ruta.
+      "/src/components/clase/firma-del-autor.tsx": 0,
       // C-20 (CLASES-02d): "Reintentar" de la lista de clases de la barra lateral.
       "/src/components/layout/lista-de-clases.tsx": 1,
     }

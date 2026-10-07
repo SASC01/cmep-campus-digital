@@ -94,3 +94,18 @@ por ESLint, `no-restricted-syntax`).
   pesos que suman 100). Ningún handler de `tareas/` verifica rol ni pertenencia a mano ni crea avisos.
 - `clases/muro.ts`: `POST …/publicaciones` acepta `temaId` (uuid o `null`) en un material; ausente o
   `null` es «Sin tema» (`datos.temaId ?? null`) y un anuncio nunca lleva tema.
+- `tareas/tareas.ts` (prefijo `/api`, TAREAS-01b, `tareasHandler`, recibe `{ almacen }`): `POST
+/clases/:claseId/tareas` (crea una tarea con rúbrica, adjuntos, categoría, tema y entregas tardías;
+  maestros de la clase y admin, que firma «Administración»), `GET`, `PUT` y `DELETE
+…/tareas/:tareaId` (el `GET` lo ven los tres roles; la autoría de editar y borrar la decide
+  `core/autoria.ts` dentro de la transacción del adaptador: `403 EDICION_NO_PERMITIDA` o
+  `403 BORRADO_NO_PERMITIDO`, `puedeEditar` y `puedeBorrar` salen en la respuesta) y `GET
+/clases/:claseId/trabajo?tema=<uuid | sin-tema>&cursor=&limite=` («Trabajo de clase», paginado por
+  cursor; `puedeMover` lo decide `core/tareas/temas.ts` con la relación del sexto paso). El handler
+  encola `TAREA_CREADA` y `RECORDATORIO_24H` (diferido) y cancela el recordatorio al editar la fecha o
+  borrar, siempre con el `sql` de la transacción del dato; los trabajos no tienen consumidor hasta
+  NOTIFICACIONES. `handlers/adjuntos.ts` guarda `adjuntosParaResponder` y `archivosParaPublicar`,
+  compartidos con `clases/muro.ts` (movidos sin cambios). Ninguna respuesta lleva `trabajo_id`, el rol
+  del autor, correos ni `estadoPago`.
+- `clases/muro.ts`: cada publicación lleva `tarea` (`{ fechaLimite, puntos }` o `null`); el `DELETE`
+  del muro y los comentarios responden `404` ante una tarea (S-08).

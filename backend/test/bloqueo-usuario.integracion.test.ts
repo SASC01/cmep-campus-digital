@@ -680,8 +680,9 @@ describe("E: adaptadores, sin concurrencia", () => {
   // por eso el patrón cubre también esa forma, no solo $queryRaw. CLASES-c, §D-C3/V-04:
   // publicaciones.ts suma el SELECT … FOR SHARE de crearComentario (Enmienda 7). TAREAS-01a: referencias.ts
   // (las lecturas FOR KEY SHARE de tema y categoría), temas.ts (el UPDATE … FROM unnest del orden) y
-  // categorias.ts (el FOR UPDATE de las que se quitan y su UPDATE … FROM unnest).
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts y categorias.ts usan SQL etiquetado en adapters/db", async () => {
+  // categorias.ts (el FOR UPDATE de las que se quitan y su UPDATE … FROM unnest). TAREAS-01b: tareas.ts
+  // (el bloqueo de la fila de la tarea, FOR NO KEY UPDATE y FOR UPDATE OF t, al editar y al borrar).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts y tareas.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -708,6 +709,7 @@ describe("E: adaptadores, sin concurrencia", () => {
       "publicaciones.ts",
       "referencias.ts",
       "salud.ts",
+      "tareas.ts",
       "temas.ts",
     ])
   })

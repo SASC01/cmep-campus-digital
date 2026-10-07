@@ -3,6 +3,8 @@ import {
   COLA_COMENTARIO_CREADO,
   COLA_MATERIAL_CREADO,
   COLA_PUBLICACION_CREADA,
+  COLA_RECORDATORIO_24H,
+  COLA_TAREA_CREADA,
 } from "../../core/eventos/avisos-de-clase.js"
 import {
   COLA_CORREO_DE_CUENTA,
@@ -54,7 +56,9 @@ export const OPCIONES_DE_COLAS: readonly OpcionDeCola[] = [
     },
   },
   // Avisos del muro (CLASES-c, §D-C3). AVISO_FALLIDO va antes que las tres colas que la usan de
-  // deadLetter, sin reintentos. Las tres se crean al arrancar (API y worker) y esperan sin consumidor.
+  // deadLetter, sin reintentos. TAREAS-01b suma TAREA_CREADA y RECORDATORIO_24H con la misma política
+  // (la retención de un trabajo diferido cuenta desde su start_after). Se crean al arrancar (API y
+  // worker) y esperan sin consumidor.
   {
     nombre: COLA_AVISO_FALLIDO,
     opciones: {
@@ -62,18 +66,22 @@ export const OPCIONES_DE_COLAS: readonly OpcionDeCola[] = [
       deleteAfterSeconds: RETENCION_COLAS_DE_AVISOS_S,
     },
   },
-  ...[COLA_PUBLICACION_CREADA, COLA_MATERIAL_CREADO, COLA_COMENTARIO_CREADO].map(
-    (nombre): OpcionDeCola => ({
-      nombre,
-      opciones: {
-        retryLimit: 3,
-        retryDelay: 30,
-        retryBackoff: true,
-        expireInSeconds: 300,
-        deadLetter: COLA_AVISO_FALLIDO,
-        retentionSeconds: RETENCION_COLAS_DE_AVISOS_S,
-        deleteAfterSeconds: RETENCION_COLAS_DE_AVISOS_S,
-      },
-    }),
-  ),
+  ...[
+    COLA_PUBLICACION_CREADA,
+    COLA_MATERIAL_CREADO,
+    COLA_COMENTARIO_CREADO,
+    COLA_TAREA_CREADA,
+    COLA_RECORDATORIO_24H,
+  ].map((nombre): OpcionDeCola => ({
+    nombre,
+    opciones: {
+      retryLimit: 3,
+      retryDelay: 30,
+      retryBackoff: true,
+      expireInSeconds: 300,
+      deadLetter: COLA_AVISO_FALLIDO,
+      retentionSeconds: RETENCION_COLAS_DE_AVISOS_S,
+      deleteAfterSeconds: RETENCION_COLAS_DE_AVISOS_S,
+    },
+  })),
 ]

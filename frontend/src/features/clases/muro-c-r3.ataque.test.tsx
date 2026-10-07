@@ -140,6 +140,8 @@ const stub = (tipo: "publicaciones" | "comentarios", segunda: () => Promise<Resp
               comentarios: 2,
               // CLASES-d ronda 0, complemento (C-21, §D-R0; §D-D5 y Enmienda 10): adjuntos es
               // obligatorio en publicacionSchema; ninguna aserción cambia.
+              // TAREAS-01b ronda 0 (C-5, §D-R0): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+              tarea: null,
               adjuntos: [],
               puedeBorrar: false,
             },

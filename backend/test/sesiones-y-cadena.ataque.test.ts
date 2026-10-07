@@ -514,7 +514,17 @@ describe("ataque: superficie de rutas", () => {
   // vuelve a poner la prueba en rojo. printRoutes anida /temas y /categorias bajo /:claseId,
   // /orden y /:temaId bajo /temas, y /tema bajo /publicaciones/:publicacionId; el análisis por
   // sangría los reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a y TAREAS-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // TAREAS-01b ronda 0 complementaria (C-2, §D-R0; §D-4, §D-6 y V-06 del plan de TAREAS-01): se
+  // agregan las 5 rutas de tareas bajo /api/clases/:claseId, más el HEAD de cada GET (7 entradas):
+  // POST de /tareas; GET, HEAD, PUT y DELETE de /tareas/:tareaId; GET y HEAD de /trabajo. Ninguna
+  // crea cuentas ni cambia roles: crean, leen, editan y borran tareas de una clase a la que el perfil
+  // pertenece (o de la que es maestro, o el admin) y listan "Trabajo de clase". Ninguna es pública:
+  // RUTAS_PUBLICAS sigue con las 10 de hoy. La protección queda igual: ninguna ruta crea
+  // administradores; siguen creando maestros solo las tres de hoy (POST /api/admin/maestros,
+  // POST /api/admin/maestros/lote y POST /api/auth/registro-maestro), y cualquier otra ruta nueva
+  // vuelve a poner la prueba en rojo. printRoutes anida /tareas y /trabajo bajo /:claseId y
+  // /:tareaId bajo /tareas; el análisis por sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a y TAREAS-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -546,6 +556,7 @@ describe("ataque: superficie de rutas", () => {
       "DELETE /api/clases/:claseId/mis-comentarios/:comentarioId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
+      "DELETE /api/clases/:claseId/tareas/:tareaId",
       "DELETE /api/clases/:claseId/temas/:temaId",
       "GET /api/admin/clases",
       "GET /api/admin/enlaces-registro",
@@ -559,7 +570,9 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/personas",
       "GET /api/clases/:claseId/publicaciones",
       "GET /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "GET /api/clases/:claseId/tareas/:tareaId",
       "GET /api/clases/:claseId/temas",
+      "GET /api/clases/:claseId/trabajo",
       "GET /api/clases/impartidas",
       "GET /api/clases/inscritas",
       "GET /api/me",
@@ -576,7 +589,9 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/personas",
       "HEAD /api/clases/:claseId/publicaciones",
       "HEAD /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "HEAD /api/clases/:claseId/tareas/:tareaId",
       "HEAD /api/clases/:claseId/temas",
+      "HEAD /api/clases/:claseId/trabajo",
       "HEAD /api/clases/impartidas",
       "HEAD /api/clases/inscritas",
       "HEAD /api/me",
@@ -605,12 +620,14 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases/:claseId/codigo",
       "POST /api/clases/:claseId/publicaciones",
       "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "POST /api/clases/:claseId/tareas",
       "POST /api/clases/:claseId/temas",
       "POST /api/clases/unirse",
       "PUT /api/admin/clases/:claseId",
       "PUT /api/admin/usuarios/:id/correo",
       "PUT /api/clases/:claseId/categorias",
       "PUT /api/clases/:claseId/publicaciones/:publicacionId/tema",
+      "PUT /api/clases/:claseId/tareas/:tareaId",
       "PUT /api/clases/:claseId/temas/:temaId",
       "PUT /api/clases/:claseId/temas/orden",
     ])

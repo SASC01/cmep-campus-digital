@@ -36,6 +36,8 @@ const publicacion = (extra: Partial<Publicacion> = {}): Publicacion => ({
   // C-21 (Enmienda 10): toda publicación lleva adjuntos.
   adjuntos: [],
   puedeBorrar: false,
+  // TAREAS-01b (C-5): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+  tarea: null,
   ...extra,
 })
 

@@ -24,3 +24,23 @@ export type DatosComentarioCreado = z.infer<typeof datosComentarioCreadoSchema>
 
 export const colaDePublicacion = (tipo: "anuncio" | "material"): string =>
   tipo === "anuncio" ? COLA_PUBLICACION_CREADA : COLA_MATERIAL_CREADO
+
+// TAREAS-01b (§D-5). Colas de las tareas: TAREA_CREADA (id del trabajo = id de la tarea) y
+// RECORDATORIO_24H (diferido a fecha_limite − 24 h; al editar la fecha se cancela y se recrea con un
+// id nuevo, y el consumidor descarta un trabajo cuyo id ya no es tareas.trabajo_id). Sin consumidor
+// hasta NOTIFICACIONES; los datos llevan solo ids.
+export const COLA_TAREA_CREADA = "TAREA_CREADA"
+export const COLA_RECORDATORIO_24H = "RECORDATORIO_24H"
+
+export const datosTareaCreadaSchema = z.strictObject({
+  tareaId: z.uuid(),
+  claseId: z.uuid(),
+})
+
+export const datosRecordatorio24hSchema = z.strictObject({
+  tareaId: z.uuid(),
+  claseId: z.uuid(),
+})
+
+export type DatosTareaCreada = z.infer<typeof datosTareaCreadaSchema>
+export type DatosRecordatorio24h = z.infer<typeof datosRecordatorio24hSchema>

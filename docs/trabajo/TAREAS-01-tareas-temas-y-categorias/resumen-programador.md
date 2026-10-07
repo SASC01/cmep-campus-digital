@@ -180,3 +180,127 @@ Arbitraje y reporte: `reporte-tester.md`, "TAREAS-01a — Ronda 2". PA-01: red `
 - Conteos: `cd backend; npx vitest list` → 1938 líneas y 157 archivos, igual que la corrida (antes de esta corrección, 1931 con la `*.ataque` nueva; +7 míos).
 - V-01: sha256 de las 144 `*.ataque` contra la tabla de la ronda 2: `diff` vacío, 144 de 144.
 - PA-07: `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 10 (I-1) · `"code":"P2028"` 5 (permitidos) · `Unable to start a transaction` 0.
+
+## TAREAS-01b — Parada PA-05 (historial; superada, ver la sección siguiente)
+
+Me detuve en los pasos 12 a 17 hechos y los pasos 18 a 20 sin hacer, por **PA-05**: al registrar `tareasHandler` en `app.ts` (paso 17) cae una `*.ataque` que no está en los rojos esperados de la ronda 0 de 01b.
+
+- **Caso:** `backend/test/sesiones-y-cadena.ataque.test.ts` › "ataque: superficie de rutas" › "bajo /api solo existen las rutas de AUTH-01, …, CLASES-02a y TAREAS-01a: …" (línea 543, `printRoutes`). Salida: `expected [ …(79) ] to deeply equal [ …(72) ]`; las 7 entradas de más son exactamente las de V-06 para 01b: `POST /api/clases/:claseId/tareas`; `GET`, `HEAD`, `PUT` y `DELETE …/tareas/:tareaId`; `GET` y `HEAD …/trabajo`.
+- **Causa:** §D-R0, C-2 dice "01a, 01b" (cinco rutas más los `HEAD` en 01b), pero la ronda 0 de 01b no reescribió esa lista (su tabla de C-n no menciona C-2). No es un defecto de la implementación. Hace falta una ronda 0 complementaria del tester que la reescriba (de 72 a 79 entradas); yo no toco ninguna `*.ataque`.
+
+### Lo hecho (todo en el árbol, sin commit)
+- Paso 12: `shared/src/clases.ts` (`tipoDeElementoDelMuroSchema`, `resumenDeTareaSchema`, `publicacionSchema.tipo` y `tarea`), `tareas.ts` (esquemas y `CODIGOS_TAREAS` de 01b; `archivoIds` pasa los ids a minúsculas) e `index.ts`. `cd shared; npm run build` y `npm run lint` en verde (R-17 cumplida).
+- Paso 13: `core/autoria.ts` (`puedeEditarTarea`, `puedeBorrarTarea`), `core/tareas/{tareas,recordatorio,texto}.ts`, `core/eventos/avisos-de-clase.ts`, con PR-1B01 a PR-1B05 (`npx vitest run src/core`: 35 archivos, 302 pruebas en verde).
+- Paso 14: `adapters/queue/index.ts` (`encolar` con `inicio`, `cancelar` con `sql` obligatorio) y `colas.ts`; probado en `cola.integracion.test.ts` (5 casos nuevos; 16 en total, verde): `cancelar` dentro de una transacción revertida deja el trabajo en `created` (PA-19 no se activa).
+- Paso 15: `handlers/adjuntos.ts` y `muro.ts` que lo importa.
+- Paso 16: (a) `adapters/db/tareas.ts` sin la opción, `publicaciones.ts` con `tarea` y maestros con `tx`, `index.ts`; (b) ayuda `leerConLaClaseBorradaEnMedio` generalizada y PR-1B15 a PR-1B18b (salida en el scratchpad `lc-16b-rojo.txt`); (c) la opción (`instantaneaUnica: true` exactamente 2 veces en `tareas.ts`, ninguna en comentarios); (d) `lecturas-consistentes.integracion.test.ts`: `Tests  20 passed (20)`; `adapters/README.md`.
+- Paso 17: `handlers/tareas/tareas.ts`, `app.ts`, `handlers/README.md`, `workers/README.md`.
+- `cd backend; npm run lint` → código 0 (última línea `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`).
+
+### 16(b): la corrida en rojo antes de la opción
+`cd backend; npx vitest run test/lecturas-consistentes.integracion.test.ts` → `Tests  4 failed | 16 passed (20)`:
+- PR-1B15 en rojo por el defecto: `TypeError: Cannot read properties of null (reading 'autor')` (`publicacion: null`; `lecturas-consistentes…test.ts:694`).
+- PR-1B16a en rojo por el defecto: `AssertionError: expected [] to deeply equal [ …(2) ]` (línea 722; página vacía).
+- PR-1B16c en rojo por el defecto: `AssertionError: expected null to deeply equal { …(2) }` (línea 782; `tarea: null`).
+- **PR-1B16b también salió en rojo** (el plan lo esperaba en verde): `AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]` (línea 743; falta `m3`). Es el mismo defecto: con el elemento del cursor movido de tema, el cursor de Prisma con `skip: 1` salta un elemento legítimo. No es "otra causa" (la función existe y no hay error de tipo ni de la ayuda), por eso no lo traté como PA-21; queda en verde con la opción (d). Lo señalo para el manager: PR-1B16b también es una prueba que demuestra el defecto.
+- PR-1B17, PR-1B18a y PR-1B18b en verde.
+
+### Rojo esperado 5, con la salida exacta
+`lecturas-fx-r1` › "la opción solo se puede activar dentro de adapters/db: …": falla en `expect([...usos].sort()).toEqual(["adapters/db/clases.ts:4", "adapters/db/publicaciones.ts:2"])` solo por `+   "adapters/db/tareas.ts:2",` (Expected/Received: la lista trae además esa línea). Primero cayó por otra cosa, `nivel` (línea 777), porque un comentario mío en `tareas.ts` decía "REPEATABLE READ"; lo quité y la diferencia es solo `tareas.ts:2`.
+
+### Sin ejecutar
+La suite completa del backend (`npm test`), `lecturas-fx-r2` › "O-4" y `temas-01a-r1`/`r3` pasan en la corrida parcial de humo (`muro`, `archivos`, `temas-01a`, `lecturas`, `sesiones-y-cadena`, `guarda-todas`, `admin-muro`, `logs-muro`: `Tests  2 failed | 430 passed (432)`, los 2 rojos son el rojo 5 y este PA-05). Faltan: PR-1B06 a PR-1B14 (`esquemas-tareas`, `tareas.integracion`, `tareas-autoria.integracion`, `trabajo.integracion`, `tareas-concurrencia.integracion`, `tareas-autorizacion.integracion`), la I-2 de E6 (suma `tareas.ts`), los dobles `tarea: null` de las pruebas normales (backend y frontend), la verificación del paso 19 y V-04/V-05.
+
+## TAREAS-01b — Implementación
+
+Plan: `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/plan.md` (01b, base `<M1>` = `07e4ab7`, Enmiendas 1 y 2). La sección anterior, "Parada PA-05", queda como historial y está **superada**: el tester aplicó C-2 (01b) en `sesiones-y-cadena.ataque` (79 rutas, las 7 de V-06) y C-8b en `lecturas-fx-r1.ataque`, y desde ahí el "rojo esperado 5" ya no existe.
+Pasos completados: 9 de 9 (pasos 12 a 20). Ninguna PARADA activa. PA-01: red `IZZI-F281-5G` (Public, de confianza permanente), regla "Campus: bloquear entrada a Docker en redes publicas" Enabled/Inbound/Block/Public, Docker encendido. R-17: `cd shared; npm run build` antes de toda corrida del backend.
+
+### Archivos creados
+- `backend/src/core/tareas/{tareas,recordatorio,texto}.ts` y sus `.test.ts`
+- `backend/src/adapters/db/tareas.ts`, `backend/src/handlers/adjuntos.ts`, `backend/src/handlers/tareas/tareas.ts`
+- `backend/test/{tareas.integracion,tareas-autoria.integracion,trabajo.integracion,tareas-concurrencia.integracion,tareas-autorizacion.integracion}.test.ts`
+
+### Archivos modificados
+- `shared/src/clases.ts`, `shared/src/tareas.ts`, `shared/src/index.ts`
+- `backend/src/core/autoria.ts`, `core/eventos/avisos-de-clase.ts`
+- `backend/src/adapters/queue/{index,colas}.ts`, `adapters/db/{publicaciones,index}.ts`, `adapters/README.md`
+- `backend/src/handlers/clases/muro.ts`, `handlers/README.md`, `backend/src/workers/README.md`, `backend/src/app.ts`
+- Pruebas normales (lista cerrada, A-3): `backend/src/core/autoria.test.ts`, `backend/test/{cola,lecturas-consistentes,bloqueo-usuario}.integracion.test.ts`, `backend/test/{ayudas-tareas.ts,esquemas-tareas.test.ts}`, y en el frontend solo dobles con `tarea: null`: `src/app/marco.test.tsx`, `src/features/clases/{adjuntos-de-publicacion,formulario-publicacion,muro-view,publicacion-del-muro}.test.tsx` y `lib.test.ts`. Ninguna `*.ataque` tocada por mí; el código de producción del frontend no cambió.
+
+### Verificación (comando exacto y última línea)
+- `cd shared; npm run build` → código 0, `> tsc -p tsconfig.json`; `cd shared; npm run lint` → `All matched files use Prettier code style!`.
+- `cd backend; npm run lint` → código 0, `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- `cd backend; npm test` → código 0 (23:52:46Z a 23:54:35Z): `Test Files  169 passed (169)` · `Tests  2123 passed (2123)` · `Duration  103.98s`. Medición de carga antes de la corrida: CPU 12 %, RAM libre 15 285 de 32 436 MB, 3 procesos `node`. Sin rojos: no hubo tiempos límite ni rojos intermitentes (PA-12 no aplica) y `nombres-tokens-r2` pasó sin la excepción arbitrada.
+- `npm run build` (raíz) → código 0, `✓ built in 802ms`; `npm run lint` (raíz) → código 0, última línea `> tsc -b`.
+- `cd frontend; npm run lint` → código 0, `> tsc -b`; `cd frontend; npm test` → código 0, `Test Files  127 passed (127)` · `Tests  1852 passed (1852)`.
+- Después de esas corridas solo cambié un comentario de `shared/src/tareas.ts` (para que V-04 dé 0); comprobé `shared` (build y lint) y volví a correr las cinco `*.ataque` estáticas (`temas-01a-r1`, `temas-01a-r3`, `lecturas-fx-r1`, `lecturas-fx-r2`, `sesiones-y-cadena`): `Test Files  5 passed (5)` · `Tests  115 passed (115)`.
+
+### Rojos esperados de la ronda 0, todos en verde
+1. `lecturas-fx-r2` › "O-4: …": verde (`editarTarea` usa `criterioRubrica.deleteMany`).
+2. `temas-01a-r1` › "FOR KEY SHARE solo en adapters/db/referencias.ts; …": verde (existe `handlers/tareas/tareas.ts`).
+3. `temas-01a-r3` › "ningún archivo nuevo de 01a ni de 01b usa console., …": verde (existen los cuatro archivos).
+4. El `tsc` del frontend en `archivos-d-r2.ataque.test.tsx(486,7)`: verde (`cd frontend; npm run lint` → código 0; `publicacionSchema` ganó `tarea`).
+- Además `lecturas-fx-r1` pasa completa (ocho lecturas, `tareas.ts:2`, exactamente 2 líneas de código con la opción y ninguna en comentario) y `sesiones-y-cadena` pasa con las 79 rutas. No cayó ninguna otra `*.ataque`.
+
+### 16(b): salida de la corrida en rojo antes de la opción (`cd backend; npx vitest run test/lecturas-consistentes.integracion.test.ts`, guardada en `lc-16b-rojo.txt`): `Tests  4 failed | 16 passed (20)`
+- **PR-1B15, rojo por el defecto:** `TypeError: Cannot read properties of null (reading 'autor')` (`publicacion: null`, línea 694 del archivo de pruebas).
+- **PR-1B16a, rojo por el defecto:** `AssertionError: expected [] to deeply equal [ …(2) ]` (línea 722: la página sale vacía).
+- **PR-1B16c, rojo por el defecto:** `AssertionError: expected null to deeply equal { …(2) }` (línea 782: `tarea: null`).
+- **PR-1B16b también salió en rojo, y el plan lo esperaba en verde** (para el manager): `AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]` (línea 743; falta el elemento `m3`). Es el mismo defecto que PR-1B16a: con el elemento del cursor movido a otro tema, el `cursor` de Prisma con `skip: 1` salta un elemento legítimo del tema. No es "otra causa" (la función existe, sin error de tipo ni de la ayuda), así que no lo traté como PA-21; queda en verde con la opción. PR-1B16b es, por tanto, una cuarta prueba que demuestra el defecto.
+- PR-1B17, PR-1B18a y PR-1B18b en verde (PR-1B18a y PR-1B18b son los controles: reproducen el defecto con la lectura anidada en read committed; PA-21 no se activa).
+- Con la opción (paso 16 c y d): `Tests  20 passed (20)` (`lc-16d-verde.txt`).
+
+### Pruebas requeridas (archivo y título exacto; los títulos completos salen de `npx vitest list`)
+- **PR-1B01** → `backend/src/core/tareas/recordatorio.test.ts` (5): "PR-1B01: con la fecha 3 días después, el momento es fecha − 24 h exacta (milisegundos)"; "PR-1B01: a 24 h exactas, null (el momento sería ahora)"; "PR-1B01: a 23 h, null"; "PR-1B01: con la fecha pasada, null"; "PR-1B01: a 24 h y 1 ms, el momento es 1 ms después de ahora".
+- **PR-1B02** → `backend/src/core/tareas/recordatorio.test.ts` (6): "PR-1B02: la misma fecha, con o sin trabajo, no hace nada"; "PR-1B02: una fecha nueva con trabajo cancela el actual y programa el nuevo"; "PR-1B02: una fecha nueva cuyo momento ya pasó solo cancela"; "PR-1B02: sin trabajo y con una fecha nueva futura, solo programa"; "PR-1B02: borrar (fecha nueva null) cancela el trabajo si hay y no hace nada si no"; "PR-1B02: una fecha que difiere por 1 ms cuenta como otra fecha".
+- **PR-1B03** → `backend/src/core/tareas/tareas.test.ts` (10): "PR-1B03: al crear, a 366 días rechaza"; "PR-1B03: al editar, conservar la misma fecha ya pasada pasa"; "PR-1B03: con categorías en la clase y sin una elegida, 409 CATEGORIA_REQUERIDA"; "PR-1B03: sin categorías en la clase, la tarea puede quedar sin categoría"; y seis más.
+- **PR-1B04** → `backend/src/core/autoria.test.ts` (3): "PR-1B04: puedeEditarTarea, matriz completa actor × autor"; "PR-1B04: puedeBorrarTarea, matriz completa actor × autor"; "PR-1B04: el admin edita la suya (S-09) y la borra; el estudiante nunca puede".
+- **PR-1B05** → `backend/src/core/tareas/texto.test.ts` (4): "PR-1B05: pasa CRLF y CR a LF y recorta en título, instrucciones y criterios"; "PR-1B05: lo que no es texto queda intacto (criterios, título, rúbrica que no es arreglo)"; "PR-1B05: un cuerpo que es arreglo, null o texto queda intacto"; "PR-1B05: no muta lo recibido".
+- **PR-1B06** → `backend/test/esquemas-tareas.test.ts` (15): "PR-1B06: la fecha con Z y con desfase pasa; sin zona o de otro tipo rechaza"; "PR-1B06: los puntos son enteros de 1 a 1000 y no se coaccionan desde texto"; "PR-1B06: sin-tema y un uuid pasan; otro texto o la ausencia rechazan"; "PR-1B06: una tarea con su resumen pasa; sin la clave tarea rechaza; en un anuncio o material va null"; y once más.
+- **PR-1B07** → `backend/test/tareas.integracion.test.ts` (10): "PR-1B07: crear responde 201 con el detalle completo, sin trabajo_id ni rol del autor"; "PR-1B07: en el muro aparece con tipo tarea y su resumen"; "PR-1B07: TAREA_CREADA lleva el id de la tarea y solo ids; RECORDATORIO_24H queda en created con start_after = fecha − 24 h y su id en trabajo_id"; "PR-1B07: a menos de 24 h no se programa recordatorio y trabajo_id queda nulo"; "PR-1B07: los adjuntos quedan confirmados en la publicación de la tarea y salen en el detalle"; "PR-1B07: con categorías en la clase se exige una (409 CATEGORIA_REQUERIDA) y sin categorías no"; "PR-1B07: una categoría o un tema de otra clase responde 404 sin tarea, publicación ni trabajo"; "PR-1B07: el admin crea la tarea y sale firmada Administración, sin rol"; y dos más.
+- **PR-1B08** → `backend/test/tareas.integracion.test.ts` (10): "PR-1B08: cambiar la fecha deja el trabajo anterior en cancelled y uno nuevo en created con otro id"; "PR-1B08: cambiar solo el título deja el mismo trabajo y no encola otro TAREA_CREADA"; "PR-1B08: mover la fecha a menos de 24 h cancela el recordatorio sin programar otro"; "PR-1B08: los criterios de la rúbrica se reemplazan"; "PR-1B08: los adjuntos se conservan, se agregan y se quitan (descartado)"; "PR-1B08: TAREA_CREADA no se vuelve a encolar al editar la fecha"; "PR-1B08: un archivo conservado que ya no es de esa tarea responde 400 sin cambiar nada"; y tres más.
+- **PR-1B09** → `backend/test/tareas-autoria.integracion.test.ts` (8): "PR-1B09: un maestro contra la tarea del otro maestro, 403 al editar y al borrar, sin escribir y con el trabajo igual"; "PR-1B09: un maestro contra la tarea del admin, 403 al editar y al borrar, sin escribir y con el trabajo igual"; "PR-1B09: un maestro contra la tarea de un maestro retirado de la clase pasa al editar y al borrar"; "PR-1B09: el admin edita la de un maestro (403 EDICION_NO_PERMITIDA) y la borra (204); edita la suya"; "PR-1B09: puedeEditar y puedeBorrar del detalle y del muro coinciden con el resultado real en cada actor y autor"; y tres más.
+- **PR-1B10** → `backend/test/tareas.integracion.test.ts` (4): "PR-1B10: borrar responde 204 y quita publicación, tarea y criterios; adjuntos a descartado; los dos trabajos a cancelled"; "PR-1B10: DELETE …/publicaciones/:id sobre una tarea responde 404 y nada cambia"; "PR-1B10: comentar o listar los comentarios de una tarea responde 404"; "PR-1B10: borrar una tarea sin recordatorio solo cancela TAREA_CREADA, y una inexistente o de otra clase responde 404".
+- **PR-1B11** → `backend/test/trabajo.integracion.test.ts` (9): "PR-1B11: por tema, del más reciente al más antiguo, con materiales y tareas y sin anuncios"; "PR-1B11: sin-tema trae solo lo que no tiene tema, también del más reciente al más antiguo y sin anuncios"; "PR-1B11: un cursor de otro tema, de otra clase, de un anuncio o borrado responde 400 «cursor: no es válido»"; "PR-1B11: un tema de otra clase o inexistente responde 404 TEMA_NO_ENCONTRADO"; "PR-1B11: puedeMover es true para el maestro y el admin y false para el estudiante"; "PR-1B11: los materiales traen texto y adjuntos y las tareas su resumen, sin la clave del objeto"; y tres más.
+- **PR-1B12** → `backend/test/tareas-concurrencia.integracion.test.ts` (6): "PR-1B12: dos ediciones de fecha simultáneas dejan un solo RECORDATORIO_24H en created y es el de trabajo_id"; "PR-1B12: editar y borrar a la vez no deja ningún recordatorio vivo"; "PR-1B12: guardar categorías que quita una con la que se crea una tarea: o la tarea existe y el guardado da 409, o el guardado gana y la creación da 404"; "PR-1B12: borrar un tema mientras se crea una tarea con él: la tarea queda sin tema o la creación da 404, nunca 500"; y dos más.
+- **PR-1B13** → `backend/test/tareas.integracion.test.ts` (4), con los títulos exactos del plan: "editar: si falla el encolado del recordatorio nuevo, el recordatorio viejo sigue en created y la tarea no cambia"; "borrar: si falla la cancelación de TAREA_CREADA, la tarea sigue y su recordatorio sigue en created"; "crear: si falla el encolado de RECORDATORIO_24H, no queda la tarea ni TAREA_CREADA"; "editar: si falla la cancelación del recordatorio viejo, la edición no se guarda".
+- **PR-1B14** → `backend/test/tareas-autorizacion.integracion.test.ts` (12): "PR-1B14: cada ruta: sin token, 401 NO_AUTENTICADO"; "PR-1B14: cada ruta: con cambio de contraseña pendiente, 403 CAMBIO_DE_CONTRASENA_REQUERIDO"; "PR-1B14: cada ruta: estudiante restringido inscrito, 403 ACCESO_RESTRINGIDO"; "PR-1B14: las tres rutas de escritura: el estudiante inscrito recibe 403 ROL_NO_PERMITIDO"; "PR-1B14: cada ruta: maestro de otra clase y, donde aplica, estudiante no inscrito, 403 SIN_ACCESO_A_LA_CLASE"; "PR-1B14: el detalle y la lista para el estudiante no llevan trabajo_id, rol, correos ni estadoPago en ninguna profundidad"; y seis más.
+- **PR-1B15 a PR-1B18b** → `backend/test/lecturas-consistentes.integracion.test.ts`, en un `describe` nuevo, con estos títulos exactos:
+  - "PR-1B15 · leerTarea con la tarea borrada entre su fila y su publicación devuelve la tarea completa de la instantánea"
+  - "PR-1B16a · listarTrabajo con el elemento del cursor borrado entre su comprobación y la página devuelve los elementos que siguen"
+  - "PR-1B16b · listarTrabajo con el elemento del cursor movido a otro tema entre su comprobación y la página devuelve los elementos que siguen del tema"
+  - "PR-1B16c · listarTrabajo con una tarea de la página borrada entre la página y su fila de tareas devuelve su resumen de la instantánea"
+  - "PR-1B17 · listarPublicaciones con una tarea de la página borrada entre la página y su fila de tareas devuelve su resumen de la instantánea"
+  - "PR-1B18a · control: listarTrabajo anidada en una transacción read committed, con el elemento del cursor borrado tras comprobarlo, devuelve la página vacía"
+  - "PR-1B18b · control: listarPublicaciones anidada en una transacción read committed, con una tarea de la página borrada entre la página y su fila de tareas, devuelve la tarea sin resumen"
+- Todas las viñetas tienen caso; ninguna queda "no cubierta". I-2: `bloqueo-usuario.integracion` › "E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts y tareas.ts usan SQL etiquetado en adapters/db" (suma `tareas.ts`, que bloquea la tarea con `FOR NO KEY UPDATE OF t` y `FOR UPDATE OF t`). Además, en `cola.integracion.test.ts` (A-4) 5 casos nuevos: política de las dos colas, `encolar` con `inicio`, `cancelar` confirmado, `cancelar` revertido (queda en `created`; descarta PA-19) y `cancelar` de un id inexistente.
+
+### Conteos
+- Backend: `cd backend; npx vitest list > <scratchpad>/vl-1b.txt` → 2123 líneas (2123 pruebas) y 169 archivos distintos; coincide con la corrida. Contra la ronda 0 de 01b (161 archivos y 2005 pruebas): +8 archivos (los tres `core/tareas` y los cinco de `test/`) y +118 pruebas = 113 con el prefijo `PR-1B` más los 5 casos de `cola.integracion` (`grep -c "PR-1B"` sobre esa lista da 113; PR-1B13 no lleva el prefijo en su título, que es el exacto del plan).
+- Frontend: `cd frontend; npx vitest list` → 1852 pruebas; la corrida da 127 archivos y 1852 pruebas, igual que antes (solo cambiaron dobles).
+
+### PA-07 (`npm test`, salida completa, `grep -o -F` por término)
+`40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 10 · `"code":"P2028"` 5 · `Unable to start a transaction` 0 · `too_small` 0.
+- Los 10 son exactamente I-1, atribuidos por la última "incoming request" del mismo `pid` y `requestId`: 5 `POST /api/auth/login` "fallo simulado de la base en la búsqueda", 1 `POST /api/auth/login` "…al crear la sesión", `POST …/archivos`, `POST …/archivos/:id/descarga` y `GET …/publicaciones` con `ZodError`, y `GET /api/prueba/error-comun` "boom". Ninguno de una ruta de TAREAS-01.
+- Los 5 `P2028` son los permitidos, con control positivo completo: `cuentas-r3` (`POST /api/auth/login` › `tx.sesion.create()` y `POST /api/auth/restablecer` › `tx.tokenCuenta.updateMany()`) y `servicio-ocupado` (`POST /api/auth/cambiar-contrasena` › `tx.sesion.findFirst()`, `POST /api/auth/refrescar` › `tx.sesion.updateMany()` y `POST …/comentarios` › `$queryRawUnsafe`). Ninguno de rutas de TAREAS-01; `GET /api/admin/clases` no dio ningún error.
+
+### V-01, V-04, V-05, V-06
+- **V-01:** sha256 de las 147 `*.ataque` contra la tabla unificada de "Complementaria: C-2 (01b) y C-8b": `diff` vacío, 147 de 147 iguales (incluidas `sesiones-y-cadena` `6111F6BC…CA1E` y `lecturas-fx-r1` `B8451A76…A9E8`).
+- **V-04** (búsquedas en el código de producción): usos de la opción `instantaneaUnica: true`: `adapters/db/clases.ts:4`, `publicaciones.ts:2`, `tareas.ts:2` (en `tareas.ts` solo en `leerTarea` y `listarTrabajo`, y ningún otro archivo de código la lleva); `$queryRawUnsafe` en código: 1 (`cliente.ts`); `$queryRaw` y `$executeRaw` solo en los archivos de `adapters/db` ya conocidos más `tareas.ts` (etiquetados); `FOR KEY SHARE` solo en `referencias.ts` (en los demás archivos solo aparece en comentarios; lo vigila `temas-01a-r1`); `tipo: "tarea"` en una escritura solo en `adapters/db/tareas.ts`; `addHook` en `handlers/`: 0; `notifier` en `handlers/` (código): 0; `console.` en archivos nuevos: 0; `trabajoId` o `trabajo_id` en `shared/src/`: 0; `puedeEditarTarea` y `puedeBorrarTarea` definidos solo en `core/autoria.ts`; `estadoPago` en `backend/src/`: los mismos archivos de hoy (ninguno nuevo).
+- **V-05:** ningún archivo de "No se toca" cambió contra `07e4ab7` (`git diff --quiet` y `git status --porcelain` por ruta; en `backend/src/workers` solo cambia `README.md`, permitido en 01b); `backend/package.json`, `frontend/package.json` y `package-lock.json` sin cambios; en `frontend/src` solo los seis dobles de pruebas normales y las `*.ataque` que reescribió el tester.
+- **V-06:** las 79 rutas de `printRoutes` (las de `<M1>` más exactamente las 7 de 01b) las verifica `sesiones-y-cadena` (verde); `RUTAS_PUBLICAS` sin cambios.
+
+### Desviaciones y decisiones donde el plan calla
+1. **PR-1B16b salió en rojo antes de la opción**, aunque el plan lo esperaba en verde (arriba, para el manager). No cambia el remedio.
+2. **El paso 15 ("la suite del muro igual antes de seguir") no podía cumplirse hasta el paso 16 (a):** con `publicacionSchema` exigiendo `tarea` (paso 12), el muro responde un `500` hasta que `listarPublicaciones` trae la relación y `muro.ts` mapea `tarea`. Moví ese mapeo (`tareaParaResponder`, fecha en ISO) junto con `publicaciones.ts` y corrí la suite del muro justo después.
+3. **`archivoIds` de `crearTareaSchema` pasa los ids a minúsculas** (`transform`), para que conservar un adjunto al editar compare igual contra la base. `archivoIdsSchema` (compartido con el muro) no cambia.
+4. **`leerTarea` y `listarTrabajo` se escribieron como una función interna que recibe `db`** (`leerTareaCon`, `listarTrabajoCon`) y una exportada que la envuelve: en 16(a) llama directo con el `ejecutor` y en 16(c) la envuelve en `enTransaccion(…, { instantaneaUnica: true })`. Mismo resultado que el plan; hace de la opción un cambio de una línea por función.
+5. **`puedeMover` lo calcula el handler** con `puedeMoverElemento(relacion)` (core) y el adaptador no lo conoce.
+6. Un comentario mío que decía "REPEATABLE READ" en `tareas.ts` hizo caer un caso de `lecturas-fx-r1` por el patrón del nivel; lo quité (el nivel solo vive en `cliente.ts`).
+7. **Ayudas nuevas en `ayudas-tareas.ts`** (permitido, solo se agregan): `crearCriteriosDePrueba`, `trabajosDeTarea`, `trabajosDeLaClase`, `diasDespues` y `cuerpoDeTarea`.
+
+### Pendiente o fuera de alcance detectado
+- Los textos "Al cerrar 01b" (ESSENTIALS "Autoría", "Restricciones clave" y "Archivos"; PRD RN-07; `ARCHITECTURE.md` §7, §8, §10, §11 y §14; `CLAUDE.md`) los aplica el orquestador (A-9); no los toqué. Sí actualicé los README de `adapters`, `handlers` y `workers`, incluida la línea de módulos de `adapters/README.md` (sin `scheduler`).
+- Fila para ESTADO §3: el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` (NOTIFICACIONES, §D-5).
+- `GET …/tareas/:tareaId` y `GET …/trabajo` ocupan una conexión durante 4 a 6 sentencias (R-06); con el pool lleno más de 2 s responden `503 SERVICIO_OCUPADO`, ya cubierto por la regla.

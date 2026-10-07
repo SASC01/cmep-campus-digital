@@ -204,6 +204,8 @@ describe("PublicacionDelMuro con adjuntos", () => {
     adjuntos,
     // CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
     puedeBorrar: true,
+    // TAREAS-01b (C-5): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+    tarea: null,
   })
 
   it("muestra los adjuntos y, al pedir borrar, la frase que también los nombra", () => {

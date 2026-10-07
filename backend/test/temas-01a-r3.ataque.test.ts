@@ -433,7 +433,11 @@ describe("ataque TAREAS-01a r3: revisión estática final", () => {
     ).toEqual([])
   })
 
-  it("ningún archivo nuevo de 01a usa console., menciona estadoPago o compara un rol a mano; shared/src/tareas.ts tampoco usa console.", () => {
+  // TAREAS-01b ronda 0 (C-7, §D-R0, el más cercano: reglas estáticas sobre los archivos nuevos;
+  // "Cambios por capa" de 01b): core/tareas/ gana tareas.ts, recordatorio.ts y texto.ts, y
+  // handlers/tareas/ gana tareas.ts. La lista cerrada los suma; lo que protege no cambia (ni console.,
+  // ni estadoPago, ni roles comparados a mano fuera de core/), y vale también para ellos.
+  it("ningún archivo nuevo de 01a ni de 01b usa console., menciona estadoPago o compara un rol a mano; shared/src/tareas.ts tampoco usa console.", () => {
     const nuevos = fuentes.filter(({ ruta }) =>
       [
         "core/tareas/",
@@ -450,8 +454,12 @@ describe("ataque TAREAS-01a r3: revisión estática final", () => {
       "adapters/db/referencias.ts",
       "adapters/db/temas.ts",
       "core/tareas/categorias.ts",
+      "core/tareas/recordatorio.ts",
+      "core/tareas/tareas.ts",
       "core/tareas/temas.ts",
+      "core/tareas/texto.ts",
       "handlers/tareas/categorias.ts",
+      "handlers/tareas/tareas.ts",
       "handlers/tareas/temas.ts",
     ])
     expect(

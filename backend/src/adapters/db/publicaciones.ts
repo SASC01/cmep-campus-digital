@@ -1,6 +1,6 @@
 import type { Rol } from "@campus/shared"
 
-import { puedeBorrar, type ParticipanteDeAutoria } from "../../core/autoria.js"
+import { puedeBorrar, puedeBorrarTarea, type ParticipanteDeAutoria } from "../../core/autoria.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
@@ -27,7 +27,6 @@ export interface AutorDb {
 
 export interface PublicacionDb {
   id: string
-  // TAREAS-01a: la base ya admite "tarea" (migración); el muro empieza a pintarla en 01b.
   tipo: "anuncio" | "material" | "tarea"
   titulo: string | null
   texto: string
@@ -38,6 +37,8 @@ export interface PublicacionDb {
   adjuntos: ArchivoDb[]
   // CLASES-02b (§D-2B2): core/autoria.ts, con el actor de la petición.
   puedeBorrar: boolean
+  // TAREAS-01b (§D-6): el resumen de la tarea; null en un anuncio o un material.
+  tarea: { fechaLimite: Date; puntos: number } | null
 }
 
 export interface ListaPublicacionesDb {
@@ -80,6 +81,10 @@ const errorTemaNoEncontrado = (): AppError =>
   new AppError("TEMA_NO_ENCONTRADO", "Ese tema ya no existe.", 404)
 
 const SELECT_AUTOR = { select: { id: true, nombre: true, rol: true } } as const
+
+// TAREAS-01b (S-08): el muro ignora el tipo "tarea" donde no aplica: borrar y comentar solo
+// encuentran anuncios y materiales (una tarea tiene su propia ruta).
+const TIPOS_DEL_MURO = ["anuncio", "material"] as const
 
 const SELECT_PUBLICACION = {
   id: true,
@@ -159,6 +164,7 @@ export const crearPublicacion = (
       comentarios: 0,
       adjuntos: [...archivos],
       puedeBorrar: puedeBorrar(creada.autor, creada.autor),
+      tarea: null,
     }
   })
 
@@ -169,6 +175,9 @@ export const crearPublicacion = (
 // sola instantánea; si la publicación del cursor se borra después de comprobarla, la página sigue
 // viéndola y devuelve las que siguen en lugar de quedar vacía. Con el ejecutor de una transacción
 // externa, corre con el aislamiento de esa transacción (hoy solo la llama muro.ts, sin ejecutor).
+// TAREAS-01b (§D-6, §D-12): la relación `tarea` va en el select de la página y los maestros de la
+// clase (para el puedeBorrar de una tarea) se leen con `tx`, después de la página y antes de
+// devolver, una sola consulta y solo si la página trae alguna tarea: todo dentro de la instantánea.
 export const listarPublicaciones = (
   {
     claseId,
@@ -190,7 +199,7 @@ export const listarPublicaciones = (
       }
       const filas = await tx.publicacion.findMany({
         where: { claseId },
-        select: SELECT_PUBLICACION,
+        select: { ...SELECT_PUBLICACION, tarea: { select: { fechaLimite: true, puntos: true } } },
         orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
         take: limite + 1,
         ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
@@ -220,12 +229,24 @@ export const listarPublicaciones = (
           archivo,
         ])
       }
+      // P-04 (b): puedeBorrar de una tarea depende de si su autor sigue en la clase.
+      const hayTareas = pagina.some((fila) => fila.tipo === "tarea")
+      const maestrosDeLaClase = hayTareas
+        ? new Set(
+            (
+              await tx.maestroDeClase.findMany({ where: { claseId }, select: { maestroId: true } })
+            ).map((maestro) => maestro.maestroId),
+          )
+        : new Set<string>()
       return {
         publicaciones: pagina.map((fila) => ({
           ...fila,
           comentarios: comentariosPorPublicacion.get(fila.id) ?? 0,
           adjuntos: adjuntosPorPublicacion.get(fila.id) ?? [],
-          puedeBorrar: puedeBorrar(actor, fila.autor),
+          puedeBorrar:
+            fila.tipo === "tarea"
+              ? puedeBorrarTarea(actor, fila.autor, maestrosDeLaClase.has(fila.autor.id))
+              : puedeBorrar(actor, fila.autor),
         })),
         siguienteCursor,
       }
@@ -248,7 +269,7 @@ export const borrarPublicacion = (
 ): Promise<boolean> =>
   enTransaccion(ejecutor, async (tx) => {
     const publicacion = await tx.publicacion.findFirst({
-      where: { id: publicacionId, claseId },
+      where: { id: publicacionId, claseId, tipo: { in: [...TIPOS_DEL_MURO] } },
       select: { autor: SELECT_AUTOR },
     })
     if (publicacion === null) return false
@@ -258,7 +279,9 @@ export const borrarPublicacion = (
       where: { publicacionId, claseId },
       data: { estado: "descartado", publicacionId: null },
     })
-    const { count } = await tx.publicacion.deleteMany({ where: { id: publicacionId, claseId } })
+    const { count } = await tx.publicacion.deleteMany({
+      where: { id: publicacionId, claseId, tipo: { in: [...TIPOS_DEL_MURO] } },
+    })
     return count > 0
   })
 
@@ -285,7 +308,7 @@ export const listarComentarios = (
     ejecutor,
     async (tx) => {
       const publicacion = await tx.publicacion.findFirst({
-        where: { id: publicacionId, claseId },
+        where: { id: publicacionId, claseId, tipo: { in: [...TIPOS_DEL_MURO] } },
         select: { id: true },
       })
       if (publicacion === null) return null
@@ -335,6 +358,7 @@ export const crearComentario = (
     const publicacion = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM publicaciones
       WHERE id = ${publicacionId}::uuid AND clase_id = ${claseId}::uuid
+        AND tipo IN ('anuncio', 'material')
       FOR SHARE`
     if (publicacion.length === 0) return null
 

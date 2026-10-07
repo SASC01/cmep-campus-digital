@@ -203,6 +203,7 @@ Regla general para todo lo que se publica en una clase: publicaciones y comentar
 - Cada autor borra solo lo suyo. El maestro también borra los comentarios de los alumnos en las clases que imparte; nunca lo que publicó otro maestro de la clase (CLASES-02).
 - Borrar una publicación borra también su hilo de comentarios, de quien sea (CLASES-02).
 - Un maestro **nunca** borra ni edita lo que publicó el Administrador.
+- En las tareas, un maestro de la clase edita y borra también las de un maestro que ya no da la clase (TAREAS-01).
 - El Administrador puede borrar cualquier publicación o comentario de cualquier clase.
 - Lo que publica el Administrador se firma "Administración", con un distintivo visible y sin nombre de persona.
 - La regla se aplica en el backend.

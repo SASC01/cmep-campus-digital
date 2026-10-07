@@ -55,6 +55,8 @@ const publicacionCreada = () => ({
     autor: AUTOR,
     creadoEn: "2026-10-02T15:30:00.000Z",
     comentarios: 0,
+    // TAREAS-01b ronda 0 (C-5, §D-R0): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+    tarea: null,
     adjuntos: [],
     puedeBorrar: true,
   },
@@ -446,6 +448,7 @@ describe("ataque d-r2: T-39 en las tres URL del almacén", () => {
           autor: AUTOR,
           creadoEn: "2026-10-02T15:00:00.000Z",
           comentarios: 0,
+          tarea: null,
           adjuntos: [
             {
               ...adjunto({ nombre: "f.png", tipo: "image/png" }),
@@ -480,6 +483,7 @@ const pagina = (
       autor: AUTOR,
       creadoEn: "2026-10-02T15:00:00.000Z",
       comentarios: 0,
+      tarea: null,
       adjuntos: vencimientos.map((expiraEn, i) =>
         adjunto({
           id: idDeArchivo(i + 1),

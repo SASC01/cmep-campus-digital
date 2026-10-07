@@ -441,9 +441,18 @@ export const autorDelMuroSchema = z.object({
   administracion: z.boolean(),
 })
 
+// TAREAS-01b (§D-6): lo que el muro puede devolver; tipoPublicacionSchema sigue siendo lo que se puede
+// publicar (anuncio o material): una tarea solo nace por su propia ruta.
+export const tipoDeElementoDelMuroSchema = z.enum(["anuncio", "material", "tarea"])
+
+export const resumenDeTareaSchema = z.object({
+  fechaLimite: z.iso.datetime(),
+  puntos: z.number().int().min(1).max(1000),
+})
+
 export const publicacionSchema = z.object({
   id: z.uuid(),
-  tipo: tipoPublicacionSchema,
+  tipo: tipoDeElementoDelMuroSchema,
   titulo: z.string().nullable(),
   texto: z.string(),
   autor: autorDelMuroSchema,
@@ -453,6 +462,8 @@ export const publicacionSchema = z.object({
   adjuntos: z.array(adjuntoSchema),
   // CLASES-02b (§D-2B2): lo decide el servidor con core/autoria.ts; la interfaz solo lo lee.
   puedeBorrar: z.boolean(),
+  // TAREAS-01b (C-5): obligatoria, sin .default ni .optional; null en anuncios y materiales.
+  tarea: resumenDeTareaSchema.nullable(),
 })
 
 export const publicacionRespuestaSchema = z.object({ publicacion: publicacionSchema })
@@ -538,6 +549,8 @@ export type AgregarAlumno = z.infer<typeof agregarAlumnoSchema>
 export type AgregarAlumnoRespuesta = z.infer<typeof agregarAlumnoRespuestaSchema>
 export type AlumnoIdParam = z.infer<typeof alumnoIdParamSchema>
 export type TipoPublicacion = z.infer<typeof tipoPublicacionSchema>
+export type TipoDeElementoDelMuro = z.infer<typeof tipoDeElementoDelMuroSchema>
+export type ResumenDeTarea = z.infer<typeof resumenDeTareaSchema>
 export type CrearPublicacion = z.infer<typeof crearPublicacionSchema>
 export type CrearComentario = z.infer<typeof crearComentarioSchema>
 export type Publicacion = z.infer<typeof publicacionSchema>

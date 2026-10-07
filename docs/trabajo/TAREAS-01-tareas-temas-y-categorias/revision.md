@@ -369,3 +369,297 @@ Si el humano prefiere los textos del plan sin el ajuste, no bloquea.
   - el `500` de la lista del admin y la intermitencia de `admin-muro-02b-r1`, con el destino de (i);
   - "Normalización de nombres para comparar" (O-05, O-06, O-07), con destino al encargo que revise `normalizarTerminoDeBusqueda`;
   - "Ids transversales" (O-04, el UUID máximo en mayúsculas, y el prefijo duplicado "temaId: temaId: …"), carril trivial.
+
+## Revisión de la Enmienda 2 — TAREAS-01b
+Veredicto: **CAMBIOS REQUERIDOS** (M-01 y M-02). Son dos precisiones de ejecución, sin rediseño. El inventario, el remedio, C-8b y R-06 están bien.
+Verificación propia: no aplica: revisión de plan. `plan.md` con la Enmienda 2: 752 líneas, SHA-256 `68d13196eb2fb4029f72b75e87fce6c7b32a45fc577b31a9e7ab3cdff0f7681f`, en `feat/tareas` con `HEAD` = `<M1>` = `07e4ab7`. Contrasté contra el código de `<M1>`: `lecturas-consistentes.integracion.test.ts`, `lecturas-fx-r1` y `lecturas-fx-r2`.
+
+**¿Hace falta el humano?** No. La enmienda no cambia el alcance de 01b ni abre archivos protegidos nuevos:
+- `adapters/db/tareas.ts` y `publicaciones.ts` ya estaban en 01b.
+- `lecturas-consistentes` es una prueba normal que se suma a la lista cerrada (A-3).
+- C-8b es una reescritura de `*.ataque` por C-n (A-2 de TAREAS-01).
+- Aplica una regla de ESSENTIALS que el humano ya aprobó (A-1 de FIX-CLASES).
+
+Basta con informarle al cerrar 01b, como ya prevé el orquestador.
+
+### Problemas que bloquean
+
+#### M-01 — Las pruebas nuevas no pueden reutilizar "sin cambiarla" la ayuda de la tabla retenida, y el borrado de una tarea no puede ir por `borrarPublicacion`
+- **Dónde:** "Pruebas requeridas" de 01b (párrafo "Instantánea única de 01b" y tabla de PR-1B15 a PR-1B18b); lista cerrada de 01b ("solo el `describe` nuevo… usando sus ayudas sin cambiarlas").
+- **Por qué importa:** en `<M1>`, `leerConLaClaseBorradaEnMedio` (`lecturas-consistentes.integracion.test.ts:114-170`) solo acepta `tabla: "clases" | "maestros_de_clase"`, con una rama literal de `LOCK TABLE … NOWAIT` por tabla, y siempre borra la **clase** (`tx.clase.deleteMany`, línea 170).
+  - PR-1B15 retiene `publicaciones`, y PR-1B16c, PR-1B17 y PR-1B18b retienen `tareas`, y las cuatro borran una publicación. Con la ayuda tal como está no se puede, y cambiarla viola la lista cerrada (PA-16). Copiarla en el `describe` nuevo contradice "reutilizar sin copiarlos".
+  - Además, el texto dice que los borrados usan "las funciones reales de los adaptadores (`borrarPublicacion`, `moverATema`)", pero desde 01b `borrarPublicacion` solo encuentra anuncios y materiales (§D-6): sobre una tarea devuelve `false` sin borrar nada.
+  - Y en una retención, el borrado tiene que ir **dentro de la transacción retenedora**: por otra conexión esperaría a la tabla retenida y bloquearía hasta el `timeout`.
+  - El programador tendría que adivinar las tres cosas.
+- **Qué se espera:** que el plan diga cómo se reutiliza la ayuda. Por ejemplo, autorizar en la lista cerrada una generalización mínima: `tabla` gana las ramas literales `"publicaciones"` y `"tareas"` (siempre literales, nunca interpoladas), y la acción de borrado pasa a ser un parámetro con la de hoy por defecto, sin cambiar las llamadas existentes de PR-FX-02 a PR-FX-05. La alternativa es una ayuda nueva en el `describe` nuevo, dicha así. Y que diga con qué se borra cada cosa:
+  - en una retención, dentro de la transacción retenedora (por ejemplo, `tx.publicacion.deleteMany({ where: { id } })`; la cascada borra la tarea y sus criterios; la tarea se siembra sin adjuntos);
+  - con el gancho, `borrarPublicacion` solo para materiales y, para una tarea, la función real que corresponda (`borrarTarea` con un `alBorrar` vacío) o el `deleteMany` directo.
+
+#### M-02 — El orden del paso 16 no produce el "rojo antes del remedio", y C-8b deja un rojo sin declarar entre los pasos 16 y 19
+- **Dónde:** paso 16 ("Antes del adaptador, PR-1B15, PR-1B16a y PR-1B16c… con la corrida en rojo guardada"), paso 17 ("el orquestador lanza la ronda 0 complementaria del tester para C-8b"), PA-21 y PA-05.
+- **Por qué importa:**
+  - **El orden:** `leerTarea` y `listarTrabajo` nacen en el mismo paso 16. Escritas las pruebas "antes del adaptador", fallarían porque la función no existe, no por el defecto, y PA-21 no podría distinguirlo. La sección de pruebas dice lo correcto ("antes de envolver `leerTarea` y `listarTrabajo` en la opción"), pero el paso dice otra cosa.
+  - **C-8b:** desde que `tareas.ts` usa la opción (paso 16), `lecturas-fx-r1` › "la opción solo se puede activar…" queda en rojo hasta que el tester aplique C-8b. Ese rojo no está en la lista de rojos esperados, así que cualquier corrida que lo incluya cae en PA-05 (el precedente de FIX-CLASES fue justo esa PARADA). El plan no dice si el programador se detiene después del paso 17 o si es un rojo esperado.
+- **Qué se espera:**
+  - **Paso 16:** primero `leerTarea` y `listarTrabajo` funcionando **sin** la opción (con el `ejecutor` y sin `enTransaccion`, en el orden de sentencias de §D-12); después las pruebas, con su corrida en rojo por el defecto guardada; después la opción, y en verde.
+  - **C-8b, una de dos, escrita en el plan:** (a) el programador se detiene al terminar el paso 17 con un resumen parcial, el tester aplica C-8b y el programador sigue en el 18; o (b) el caso de `lecturas-fx-r1` entra como rojo esperado desde el paso 16 hasta C-8b, con su título exacto.
+
+### Lo que verifiqué y está bien
+1. **Inventario de §D-12:**
+   - `leerTarea` aplica: la publicación es una relación a uno obligatoria, leída en otra sentencia después de `tareas`.
+   - `listarTrabajo` aplica: comprueba el cursor antes de la página, y la `tarea` es obligatoria en un elemento de tipo tarea.
+   - `listarPublicaciones` ya corre en la instantánea. Lo nuevo de 01b (la relación `tarea` en el `select` de la página y la consulta de los maestros) va con `tx` dentro, sin usos nuevos de la opción.
+   - Las escrituras de tareas, con la relectura `leerTarea(…, tx)`, siguen en READ COMMITTED: anidada, la opción se ignora, y la fila está recién creada o bloqueada por la propia transacción.
+   - `adjuntosConfirmadosDe` es una sola sentencia. `listarComentarios` no cambia de instantánea. `listarTemas` y `listarCategorias` no tienen cursor ni relación obligatoria (un conteo que falta es `0`).
+   - **No falta ninguna lectura de 01b**, y la frontera cursor→página queda cubierta en las dos únicas lecturas paginadas con el `cursor` de Prisma (`listarTrabajo` y `listarPublicaciones`; temas y categorías no paginan, S-14). Los estados vecinos de `listarTrabajo` (el tema borrado entre su comprobación y la página, el cursor movido de tema, la página frente a los adjuntos) quedan dentro de la instantánea. El de los adjuntos no tiene una prueba propia, pero es el mismo mecanismo de PR-FX-06b: no hace falta.
+2. **C-8b:**
+   - Los usos esperados quedan en `clases.ts:4`, `publicaciones.ts:2` y `tareas.ts:2`, con el texto literal solo en las dos llamadas, nunca en un comentario (el caso cuenta el texto del archivo).
+   - Conserva todo lo que protege `lecturas-fx-r1`: ningún archivo fuera de `adapters/db` nombra la opción, `index.ts` no reexporta `enTransaccion`, los niveles de aislamiento solo viven en `cliente.ts` y la lista sigue cerrada.
+   - Revisé `lecturas-fx-r2`. El caso "estático de publicaciones.ts" sigue valiendo: las dos lecturas con la opción y sin escrituras, porque los maestros se leen con Prisma y no con SQL crudo; las cuatro escrituras, sin la opción. "Ningún camino de producción les pasa un ejecutor" también sigue valiendo, porque 01b no llama a esas funciones. Y "O-4" ya está reescrito. **Nada más queda contradicho.**
+3. **Las siete pruebas nuevas** (resuelto M-01):
+   - PR-1B15 y PR-1B16c retienen la tabla de la relación (la lectura pasa por el padre y espera en el hijo), y PR-1B16a usa el gancho tras la comprobación del cursor. Las tres pueden fallar por el defecto sin la opción: `publicacion: null`, la página vacía y `tarea: null`.
+   - PR-1B17 sin "antes" queda justificada: su control PR-1B18b corre la misma carrera anidada en READ COMMITTED y reproduce el defecto. Lo mismo PR-1B18a para PR-1B16a.
+   - Cumplen "Bloqueos en las pruebas": `NOWAIT` con reintento acotado, `timeout` explícito y la formación detectada contra esa tabla con el `application_name` del archivo (`formadasEnLaTabla` es genérica). El gancho no retiene nada.
+   - Una precisión: si el adaptador de `listarPublicaciones` lanza en lugar de devolver `tarea: null`, la expectativa del control PR-1B18b ("devuelve la tarea sin resumen") debe aceptar también el rechazo. Que el arquitecto la deje así, o que el programador lo reporte (no bloquea).
+4. **R-06 y mi recomendación:** **diferir la decisión a 01e es aceptable y no cambia el diseño de 01b.**
+   - Cada `GET …/trabajo` en instantánea ocupa una conexión unos milisegundos (4 sentencias por índice, más `BEGIN`, `SET` y `COMMIT`). Con 31 peticiones de una sola vista y 10 conexiones, la cola se vacía muy por debajo del `maxWait` de 2 s. El `503` solo aparece si el pool ya está saturado por la carga global, y entonces aparecería igual sin la instantánea.
+   - Las salidas posibles son del frontend: una primera página corta por tema (5 en lugar de 20, N-01 de la revisión del plan) y pedir las secciones al hacerse visibles o en tandas de hasta 6. El contrato de 01b no cambia.
+   - **Recomendación para 01e**, que el arquitecto la fije en su plan: primera página de 5 por tema y como máximo 6 peticiones de "Trabajo de clase" en vuelo a la vez. Una lectura agregada en el backend sería otro encargo, solo si las mediciones lo piden.
+5. **R-17** es correcta: `shared/dist` no se versiona y, después del merge, `global-setup` fallaba. `cd shared; npm run build` como precondición de toda corrida del backend sobre `<M1>`, más la nota en ESTADO §5, basta. La tomo como mía: la corro antes de cada corrida del backend de 01b.
+6. **Pasos, PARADAS y commit:** con M-01 y M-02 resueltos, los pasos 12 a 20 son ejecutables por `sonnet`. PA-21 y V-04 (con el conteo de usos) cubren los riesgos de la enmienda, y el commit `<K1b>` sigue siendo uno solo.
+
+### Detalles menores
+- El encabezado "### 01b (base `<K1a>`)" de los pasos debería decir `<M1>`, como fija `aprobacion.md` (la base de 01b dentro de los paquetes es el merge).
+
+## Revisión de las correcciones de la Enmienda 2 — TAREAS-01b
+Veredicto: **APROBADO**. El programador puede arrancar 01b. Sin M-nn.
+Verificación propia: no aplica: revisión de plan. `plan.md`: 780 líneas, SHA-256 `3dac8fc1bca023d0bf63aaba70dde6beeb521ec83c48313e271b288c314724e9`. Contrasté cada punto con su sección, no con el índice.
+
+- **M-01, resuelto.** El párrafo "Ayuda de la tabla retenida" (líneas 433 a 441) generaliza `leerConLaClaseBorradaEnMedio` en el mismo archivo, sin cambiar su nombre ni las llamadas de PR-FX-02 a PR-FX-05:
+  - **Tablas:** dos ramas literales nuevas (`LOCK TABLE publicaciones … NOWAIT` y `LOCK TABLE tareas … NOWAIT`); el nombre de la tabla nunca se interpola.
+  - **Borrado:** un `borrar?: (tx) => Promise<void>` opcional que reemplaza el borrado de la clase solo cuando viene, y que corre **dentro de la transacción retenedora**.
+  - **Lo demás no cambia:** el reintento, el presupuesto, la detección con `formadasEnLaTabla`, el `timeout` y el `maxWait`.
+  - **Cumple "Bloqueos en las pruebas":** el `NOWAIT` y el reintento acotado siguen iguales, la acción queda dentro del `timeout` explícito de la retenedora (15 s, mayor que su espera de 4 s), y la formación se sigue detectando contra esa tabla con el `application_name` del archivo.
+  - **Con qué se borra cada cosa:**
+    - con la tabla retenida, `tx.publicacion.deleteMany({ where: { id, tipo: "tarea" } })` con `count` 1, con la cascada a la tarea y sus criterios y las tareas sembradas sin adjuntos (la FK de `archivos` es `NO ACTION`);
+    - con el gancho, `borrarPublicacion` real solo para materiales, `borrarTarea` real con actor admin y `alBorrar` vacío para una tarea, y `moverATema` real.
+  - **No hay bloqueo mutuo:** repasé PR-1B15 (retiene `publicaciones`; la lectura entra por `tareas`) y PR-1B16c y PR-1B17 (retienen `tareas`; la lectura entra por `publicaciones`). En cada caso la retenedora borra en la tabla que ella misma retiene, y la cascada sobre la otra tabla pide `ROW EXCLUSIVE`, compatible con el `ACCESS SHARE` de la lectura que espera. La lectura no toma bloqueos de fila.
+  - **Lista cerrada de 01b (línea 482):** coherente. Permite el `describe` nuevo y exactamente esa generalización, y declara que los casos existentes no cambian.
+- **M-02, resuelto.**
+  - **Paso 16 (líneas 627 a 636), en este orden:** (a) `tareas.ts` completo, con `leerTarea` y `listarTrabajo` funcionando **sin** la opción; (b) la ayuda y las siete pruebas, con PR-1B15, PR-1B16a y PR-1B16c en rojo por el defecto y la salida guardada (un rojo por otra causa es PA-21); (c) la opción en los dos usos; (d) verde.
+  - **PR-1B16b en verde desde (b) es correcto:** si la fila del cursor sigue existiendo en otro tema, el cursor de Prisma la encuentra y la página no queda vacía. Es una guarda de regresión, no la evidencia del defecto. Esa evidencia la dan PR-1B16a y su control PR-1B18a.
+  - **"Rojo esperado 5"** (línea 638): el título exacto del caso de `lecturas-fx-r1`, esperado **solo** si la diferencia es `adapters/db/tareas.ts:2` (cualquier otra es PA-05). El programador no se detiene: lo declara con la salida del `expect`. El tester aplica C-8b al empezar su ronda 1. Está alineado en §D-R0 (fila C-8b, línea 278), en el índice de la Enmienda 2 y en "Rojo antes del remedio".
+- **Precisión de PR-1B18b, resuelta:** acepta `tarea: null` o el rechazo de la lectura, y rechaza la tarea con su resumen.
+- **Detalle, resuelto:** el encabezado de los pasos dice "01b (base `<M1>` = `07e4ab7`…)".
+- **R-06:** queda escrita mi recomendación para 01e (primera página de 5 por tema y como máximo 6 peticiones en vuelo, solo en el frontend; el contrato de 01b no cambia).
+
+En mis verificaciones de 01b aceptaré el rojo esperado 5 solo con la diferencia exacta `adapters/db/tareas.ts:2`, y antes de cada corrida del backend correré `cd shared; npm run build` (R-17).
+
+## Verificación del resumen — TAREAS-01b — implementación
+Veredicto: **resumen ACEPTADO**. El tester puede atacar la ronda 1 de 01b.
+Corrida propia del 2026-10-06, una suite a la vez, en `feat/tareas` con base `<M1>` = `07e4ab7`. PA-01: red `IZZI-F281-5G` (de confianza permanente), regla del firewall habilitada (Inbound, Block, Public). R-17: corrí `cd shared; npm run build` antes del backend.
+
+| Comprobación | Resumen del programador | Corrida del manager |
+|---|---|---|
+| `cd shared; npm run build` y `npm run lint` | código 0; "All matched files use Prettier code style!" | código 0; igual |
+| `cd backend; npm run lint` | código 0 | código 0 |
+| `cd backend; npm test` | `169 passed (169)` · `2123 passed (2123)` | `169 passed (169)` · `2123 passed (2123)` (100.94 s) |
+| `cd backend; npx vitest list` | 2123 casos, 169 archivos, 113 con `PR-1B` | 2123, 169 y 113. Por viñeta: 1B01 5, 1B02 6, 1B03 10, 1B04 3, 1B05 4, 1B06 15, 1B07 10, 1B08 10, 1B09 8, 1B10 4, 1B11 9, 1B12 6, 1B13 4 (por el nombre de su `describe`, con los cuatro títulos exactos del plan), 1B14 12, y uno cada una de PR-1B15 a PR-1B18b |
+| `npm run build` (raíz) | código 0; `✓ built in 802ms` | código 0; `✓ built in 661ms` |
+| `npm run lint` (raíz) y `cd frontend; npm run lint` | código 0; `> tsc -b` | código 0 |
+| `cd frontend; npm test` | `127 passed (127)` · `1852 passed (1852)` | igual |
+
+- **Títulos:** los 77 títulos que el resumen cita entre comillas existen literalmente en `vitest list`, incluidos los cuatro de PR-1B13 de la Enmienda 1 y los siete de PR-1B15 a PR-1B18b. También existe el título nuevo de E6 (I-2). Cada viñeta de PR-1B01 a PR-1B18b tiene su caso.
+- **PA-07**, sin excepción para `GET /api/admin/clases`:
+  - `40P01`, `deadlock detected`, `could not serialize`, `too many clients`, `Unable to start a transaction`, `too_small` y `timed out`: 0 cada uno.
+  - `"Error no controlado"`: 10, exactamente I-1.
+  - `"code":"P2028"`: 5, los permitidos, con control positivo.
+  - `nombres-tokens-r2` pasó, así que su excepción arbitrada no hizo falta. **Limpia.**
+- **V-01:** las 147 `*.ataque` coinciden con la tabla unificada de la complementaria (C-2 de 01b y C-8b), con `diff` vacío. El programador no tocó ninguna.
+- **V-03:** `backend/prisma` no cambió respecto de `07e4ab7`.
+- **V-04:**
+  - `instantaneaUnica: true` aparece exactamente en `clases.ts` (4), `publicaciones.ts` (2) y `tareas.ts` (2), las dos en código, en `leerTarea` y `listarTrabajo`.
+  - `tipo: "tarea"` solo aparece en `adapters/db/tareas.ts` (la escritura de la línea 281 y dos filtros de borrado).
+  - `trabajoId` o `trabajo_id` en `shared/src`: 0. `$queryRawUnsafe`: solo en `cliente.ts`.
+- **V-05**, respecto de `07e4ab7`:
+  - Intactos: `prisma/**`, `middleware/**`, `adapters/db/{temas,categorias,referencias,bloqueo-clase,maestros-de-clase,cliente,clases}.ts`, `adapters/{auth,notifier,storage}`, `config/`, `core/{clases,archivos,auth}`, los `package.json`, `package-lock.json` e `infra/`. En `workers/` solo cambia `README.md` (permitido).
+  - Frontend: solo cambian los seis dobles normales, que agregan `tarea: null` y un comentario, sin tocar ninguna aserción.
+  - Las pruebas existentes del backend que cambian son las de la lista cerrada, y solo se extienden: en `lecturas-consistentes`, las únicas líneas quitadas son las de la generalización autorizada de la ayuda (el tipo de `tabla` y el borrado de la clase, que pasa a ser el valor por defecto).
+- **V-06:** las cinco rutas de `handlers/tareas/tareas.ts` usan `protegido()` con `roles` explícitos y su sexto paso:
+  - `POST`, `PUT` y `DELETE`: `maestro` y `admin`, con `propiedad`;
+  - los dos `GET`: los tres roles, con `inscripcion`.
+
+  `sesiones-y-cadena` pasa con sus 79 rutas.
+
+**Reglas que no se rompen en lo nuevo, contrastadas con el código:**
+- **Crear:** `crearTarea` encola `TAREA_CREADA` y, si corresponde, `RECORDATORIO_24H` dentro de su transacción (`alGuardar(ejecutorSqlDe(tx))`), después de confirmar los adjuntos y antes de releer.
+- **Editar:** bloquea la tarea con `FOR NO KEY UPDATE OF t`, aplica la autoría en `core` (`puedeEditarTarea`, con P-04 b) y valida la fecha. Con `planDeRecordatorio` guarda el `trabajo_id`, y `alReprogramar` cancela el recordatorio viejo y encola el nuevo con un id nuevo, en la misma transacción.
+- **Borrar:** `FOR UPDATE OF t`, `puedeBorrarTarea`, los adjuntos pasan a `descartado`, borra la publicación y `alBorrar` cancela los dos trabajos dentro de la transacción.
+- **Lo demás:**
+  - ningún handler crea avisos ni llama a `notifier`;
+  - `puedeEditar` y `puedeBorrar` se calculan por elemento en `leerTarea` y en el muro, este último con los maestros leídos con `tx` y solo si la página trae una tarea;
+  - el detalle no lleva `estadoPago`, rol, correos ni `trabajo_id` (PR-1B14);
+  - `borrarPublicacion`, `listarComentarios` y `crearComentario` filtran `tipo IN ('anuncio', 'material')` (§D-6).
+
+### Arbitraje
+- **PR-1B16b: su rojo antes de la opción es el mismo defecto, y no tratarlo como PA-21 fue correcto.**
+  - **Me equivoqué al aprobar las correcciones de la Enmienda 2:** escribí que PR-1B16b "en verde desde (b) es correcto". La fila del cursor movida de tema sigue existiendo, pero el `cursor` de Prisma con `skip: 1` da por hecho que la primera fila del resultado es la del cursor. Como esa fila ya no cumple el filtro del tema, `skip: 1` se salta un elemento legítimo (falta `m3`).
+  - Es la misma frontera cursor→página, con otro síntoma: un elemento de menos en lugar de una página vacía. La instantánea la corrige, porque en ella la fila del cursor sigue en el tema.
+  - PA-21 cubre un rojo "por otra causa" (que la función no exista, un tipo o un error de la ayuda), y este rojo es por el defecto. El programador lo reportó con su salida exacta.
+  - **Basta este arbitraje.** Para que el plan no siga diciendo lo contrario, sugiero que el arquitecto agregue una línea en el paso 16 (b) la próxima vez que toque el plan (PR-1B16b también en rojo por el defecto), sin enmienda propia.
+  - **Hermanos de este síntoma:** solo pasa cuando la fila del cursor puede salir del filtro de la lista entre la comprobación y la página. Eso solo ocurre en `listarTrabajo` (por `tema_id`, también en "Sin tema"), que ya está en la instantánea. En las demás listas con cursor, el filtro es inmutable para la fila (`clase_id`, `publicacion_id`, `maestro_id` o `usuario_id`).
+- **Las siete decisiones donde el plan calla:**
+  1. **PR-1B16b:** se acepta (arriba).
+  2. **El paso 15 verificado después de 16(a):** se acepta. El plan ponía el `publicacionSchema` con `tarea` obligatoria (paso 12) antes del mapeo del muro, y adelantar `tareaParaResponder` y correr la suite del muro justo después es lo correcto.
+  3. **`archivoIds` de `crearTareaSchema` en minúsculas:** se acepta. Sin eso, conservar un adjunto escrito en mayúsculas al editar no se reconocería en `idsActuales` y se trataría como nuevo (un `400`). Sigue el criterio de ids en minúsculas de TAREAS (T-01 y T-04), y `archivoIdsSchema` del muro no cambia.
+  4. **`leerTareaCon` y `listarTrabajoCon` internas:** se acepta. Las sentencias quedan con `db`/`tx`, y la opción es un cambio de una línea por función.
+  5. **`puedeMover` en el handler con `puedeMoverElemento(relacion)` de `core`:** se acepta. La decisión vive en `core` y la relación sale del sexto paso: no es una verificación a mano.
+  6. **Retirar el comentario con "REPEATABLE READ" de `tareas.ts`:** se acepta (el nivel solo vive en `cliente.ts`).
+  7. **Ayudas nuevas en `ayudas-tareas.ts`:** se acepta (la lista cerrada permite agregar).
+
+### Detalles menores (no bloquean)
+- `leerTarea` y `listarTrabajo` usan `titulo: publicacion.titulo ?? ""`. Para una tarea, el `CHECK` garantiza el título, así que no se alcanza, pero es un valor por defecto silencioso. Si algún día se alcanzara, sería mejor fallar que devolver un título vacío. Carril trivial cuando se toque el archivo.
+
+**Para ESTADO §3** (lo aplica el orquestador): el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` (NOTIFICACIONES, §D-5), tal como lo declara el programador.
+
+Sin M-nn.
+
+## Revisión final — TAREAS-01b
+Veredicto: **APROBADO CON OBSERVACIONES**. Nada bloquea: 01b se puede cerrar con el commit `<K1b>`. Las observaciones son pendientes con destino y un detalle de carril trivial.
+Verificación propia del 2026-10-06, una suite a la vez, en `feat/tareas` con base `<M1>` = `07e4ab7`. PA-01: red `IZZI-F281-5G`, regla del firewall habilitada (Block, Public).
+- **Shared** (R-17, antes del backend): `npm run build` y `npm run lint`, código 0.
+- **Backend:** `npm run lint` código 0. `npm test` código 0: `Test Files 172 passed (172)` · `Tests 2159 passed (2159)` (103.95 s), lo esperado.
+- **Raíz:** `npm run build` (`✓ built in 653ms`) y `npm run lint`, código 0.
+- **Frontend:** `npm run lint` código 0; `npm test` `127 passed (127)` · `1852 passed (1852)`, lo esperado.
+- **Prisma:** `npx prisma validate`, válido; `backend/prisma` sin cambios respecto de `07e4ab7` (V-03).
+- **Archivos protegidos fuera de los paquetes,** contra los hashes de `aprobacion.md`: ESSENTIALS `00209816…c2aef`, `ARCHITECTURE.md` `88a01a2e…26da` y `PRD.md` `8f7cf71a…f5f5`.
+
+### 1. Lo planeado, solo lo planeado y todo lo planeado
+`git diff 07e4ab7 --stat`: 54 archivos versionados (2624 inserciones, 122 borrados), más los nuevos. Contra el plan con las Enmiendas 1 y 2:
+- **`shared/` (A-11):** `tipoDeElementoDelMuroSchema`, `resumenDeTareaSchema` y `publicacionSchema` con `tarea` obligatoria (§D-6); los esquemas de tareas y de "Trabajo de clase" en `tareas.ts`, con `archivoIds` en minúsculas (decisión 3 aceptada); y reexportaciones nuevas en `index.ts`, sin quitar ninguna.
+- **`core/`:** `puedeEditarTarea` y `puedeBorrarTarea` en `autoria.ts` (P-04 b, S-09); `tareas.ts`, `recordatorio.ts` y `texto.ts`; las dos colas y sus esquemas en `eventos/avisos-de-clase.ts`.
+- **`adapters/` (A-4):** `queue` con `encolar(…, { inicio })` y `cancelar(…, { sql })`, y las dos colas con la política de los avisos. `db/tareas.ts` (§D-4, §D-6, §D-7 y §D-12). `db/publicaciones.ts` con el resumen de la tarea, `puedeBorrarTarea` y los maestros con `tx` dentro de la instantánea, y el muro y los comentarios limitados a anuncios y materiales.
+- **`handlers/`:**
+  - `adjuntos.ts` (A-6): comparé las dos funciones contra las de `muro.ts` en `07e4ab7`, sin comentarios ni espacios, y son **idénticas**.
+  - `tareas/tareas.ts`: las cinco rutas.
+  - `muro.ts`: importa de `adjuntos.ts` y mapea `tarea` a ISO.
+  - `app.ts`: registra `tareasHandler` (A-10).
+- **README del programador:** `adapters`, `handlers` y `workers` (A-8).
+- **Pruebas:** las de "Pruebas requeridas" y las de la lista cerrada de 01b. `lecturas-consistentes` solo cambia en la generalización autorizada de la ayuda (M-01).
+- **Frontend:** solo dobles `tarea: null` con su comentario, en 6 pruebas normales y en 16 `*.ataque` (C-5 del tester). Ninguna aserción ni archivo de producción cambia.
+- **Lo arbitrado** (las siete decisiones de la verificación) cuenta como planeado. **Nada fuera de 01b ni de más, y nada de 01b faltó.**
+
+### 2 y 3. PA-07 y V-01
+- **PA-07**, sin excepción para `GET /api/admin/clases`:
+  - `40P01`, `deadlock detected`, `could not serialize`, `too many clients`, `Unable to start a transaction`, `too_small` y `timed out`: 0 cada uno.
+  - `"Error no controlado"`: 10, exactamente I-1.
+  - `"code":"P2028"`: 5, los permitidos, con control positivo.
+  - `nombres-tokens-r2` pasó. **Limpia.**
+- **V-01:** las 150 `*.ataque` coinciden con la tabla del cierre de PA-09 (`diff` vacío).
+  - `git diff 07e4ab7 --name-only` sobre `*.ataque` da 21 archivos, todos del tester: los 16 del frontend por C-5, más `temas-01a-r1`, `temas-01a-r3`, `lecturas-fx-r2`, `sesiones-y-cadena` y `lecturas-fx-r1`.
+  - Las nuevas son `tareas-01b-r1`, `instantanea-01b-r1` y `referencias-01b-r1`.
+  - No hay borradas ni casos saltados.
+  - **El programador no tocó ninguna `*.ataque`.**
+
+### 4. Definición de terminado (`AGENTS.md`), para 01b
+- **Cumple los RF y RN:**
+  - RF-34: crear y editar con título, instrucciones, adjuntos, fecha, puntos, categoría y rúbrica propia.
+  - RF-44: solo guardar y mostrar `aceptaTardias`.
+  - RF-12, en su parte de tareas: la tarea en el muro y sin comentarios (S-08).
+  - RF-13, en su parte backend: el detalle con rúbrica de solo lectura.
+  - RN-07 aplicada a tareas, con P-02 (b) y P-04 (b).
+  - RN-06, con el sexto paso.
+- **Capas y middleware:** `core` puro, Prisma solo en `adapters/db`, handlers sin SQL ni verificaciones a mano, y las cinco rutas con `protegido()`, `roles` explícitos y el sexto paso. `middleware/` sin cambios.
+- **`lint`, `build` y `test`:** en verde (corrida propia).
+- **Pruebas de autorización:** las cinco rutas en PR-1B14 (12 casos), con la matriz de autoría contra la API en PR-1B09 y en `tareas-01b-r1` del tester.
+- **Migración:** no hay en 01b (V-03).
+- **`infra/` y `.env.example`:** sin cambios y sin necesidad de tocarlos.
+- **Documentos:** los README están al día. Los textos de "Al cerrar 01b" los aplica el orquestador (punto 7).
+
+### 5. Reglas que no se rompen y estilo
+- **Cola en la misma transacción:** `crearTarea` encola `TAREA_CREADA` y `RECORDATORIO_24H` con el `EjecutorSql` de su transacción.
+- **Trabajos diferidos sincronizados:** editar cancela y recrea el recordatorio con un id nuevo y guarda `trabajo_id`; borrar cancela los dos, todo en la transacción, con la fila de la tarea bloqueada. Lo prueban PR-1B08, PR-1B10, PR-1B12, PR-1B13 y `cola.integracion` (la cancelación revertida queda en `created`).
+- **Sin avisos en la petición:** los handlers no llaman a `notifier`.
+- **Archivos:** los adjuntos se confirman dentro de la transacción y los que salen pasan a `descartado`; el flujo prefirmado no cambia.
+- **UTC:** fechas en ISO en las respuestas y `timestamptz`.
+- **Estado de pago:** ninguna respuesta nueva lo lleva (PR-1B14 lo busca en cualquier profundidad).
+- **Consultas sanas:** cada consulta por índice; `GET …/trabajo` paginado por cursor; sin consultas en ciclos (los maestros, en una consulta y solo si hay tareas); el SQL crudo nuevo es etiquetado.
+- **Instantánea única:** `leerTarea` y `listarTrabajo` con la opción; `listarPublicaciones` con todo lo nuevo dentro de la que ya tenía; las escrituras en READ COMMITTED.
+- **Estilo (`CLAUDE.md`):** retornos tempranos, `AppError` tipados, comentarios del porqué y ningún `console.`.
+
+### 6. Observaciones con destino
+- **`titulo: publicacion.titulo ?? ""`** en `leerTarea` y `listarTrabajo` (inalcanzable por el `CHECK`, pero es un valor por defecto silencioso): carril trivial, la próxima vez que se toque `adapters/db/tareas.ts`.
+- **El consumidor de `TAREA_CREADA` y `RECORDATORIO_24H`:** NOTIFICACIONES (§D-5). Carga la tarea por id y termina sin avisar si ya no existe; el de `RECORDATORIO_24H`, además, si `tareas.trabajo_id` ya no es el id del trabajo.
+- **O-02 de 01a** (sin FK compuesta que obligue a que tema y categoría sean de la misma clase): vigilada en 01b. Toda referencia pasa por `bloquearTemaParaUsar` o `bloquearCategoriaParaUsar` con `clase_id`, y el tester lo atacó en `referencias-01b-r1` sin hallazgo. Sigue cubierta por la aplicación, y queda como nota sin acción.
+- **O-03 de 01a** (una tarea en el muro daba `500`): cerrada por C-5 y el mapeo de `tarea`.
+- **PR-1B16b** (el plan esperaba su verde antes de la opción): arbitrado en la verificación. Es el mismo defecto (`skip: 1` con el cursor movido de tema); que el arquitecto corrija la línea del paso 16 (b) la próxima vez que toque el plan.
+- **R-06** queda diferido a 01e, con la recomendación ya escrita en el plan.
+
+### 7. Documentos
+**Textos que el orquestador aplica con A-9 al cerrar 01b:** los de `plan.md`, "Documentos a actualizar" → "**Al cerrar 01b**" (líneas 565 a 582 del plan vigente), tal cual:
+- **ESSENTIALS:**
+  - viñeta "Autoría": "(regla general; hoy publicaciones y comentarios, en TAREAS también las tareas)" pasa a "(regla general: publicaciones, comentarios y tareas)", y se agrega al final la oración de P-04 que empieza "En las tareas, cada autor edita y borra la suya…" y termina "…devuelven `puedeEditar` y `puedeBorrar`.";
+  - "Restricciones clave": "· una tarea es una publicación de tipo `tarea` con su fila 1:1 en `tareas` (mismo id; TAREAS-01)";
+  - "Archivos": "Materiales, anuncios y adjuntos de tareas: solo los sube…" y "5 por publicación o tarea".
+- **`docs/PRD.md`, RN-07:** "En las tareas, un maestro de la clase edita y borra también las de un maestro que ya no da la clase (TAREAS-01)."
+- **`ARCHITECTURE.md`:**
+  - §7: la fila `tareas`, segunda parte ("`POST /clases/{claseId}/tareas` · `GET/PUT/DELETE /clases/{claseId}/tareas/{tareaId}` · `GET /clases/{claseId}/trabajo?tema=` … Todo cuelga de `/clases/{claseId}` para pasar por el sexto paso (TAREAS-01)"), y la fila `archivos`;
+  - §8: al final de la última viñeta;
+  - §10: la fila `RECORDATORIO_24H` y, por S-15, después de "Trabajos diferidos de pg-boss (`startAfter`).", la oración "Viven en `adapters/queue` (`encolar` con `inicio` y `cancelar`, dentro de la transacción del dato; TAREAS-01).";
+  - §11: punto 6;
+  - §14: diagrama `publicaciones ||--o| tareas : es` y las filas `publicaciones`, `tareas`, `criterios_rubrica` y `archivos`.
+- **`CLAUDE.md`, "Backend (`backend/src/`)", por S-15:** la línea de `adapters/` pasa a "adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue (pg-boss: cola y trabajos diferidos), live (LiveKit)".
+- **ESTADO §5:** "`shared/dist` no se versiona: después de un merge o un cambio de rama que toca `shared/src`, `cd shared; npm run build` antes de correr el backend (R-17 de TAREAS-01)".
+- **No van:** la viñeta de ESSENTIALS "Capas del backend" por S-15 ya está aplicada (hash `00209816…`). Por la Enmienda 2, ESSENTIALS y `ARCHITECTURE.md` no cambian.
+
+**README del programador:**
+- `adapters/README.md`: describe `db/tareas.ts`, los trabajos diferidos en `queue` (S-15), la cancelación revertida, los bloqueos de §D-7 y las lecturas en instantánea única con sus usos (4, 2 y 2). La línea "Módulos" ya dice "`queue` (cola y trabajos diferidos de pg-boss, con su única instancia; no hay un módulo `scheduler` aparte, TAREAS-01)". La sección de `db/categorias.ts` (01a) sigue diciendo que las nuevas se crean "con `creado_en` distinto por posición", que era lo que pedí.
+- `handlers/README.md`: las cinco rutas de `tareas/tareas.ts`.
+- `workers/README.md`: las dos colas sin consumidor.
+
+Describen lo que hay.
+
+**Filas para ESTADO §3:**
+- el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` (NOTIFICACIONES);
+- `titulo ?? ""` en `adapters/db/tareas.ts` (carril trivial);
+- la línea de PR-1B16b del paso 16 (b) (arquitecto, sin urgencia);
+- R-04 para DEPLOY: con filas de tipo `tarea`, volver atrás el backend exige borrarlas antes (si no estaba ya);
+- de §D-5 y del plan: los ids de criterios al editar la rúbrica (CALIFICACIONES restringe la edición cuando haya calificaciones) y la regla de P-01 para el cálculo (CALIFICACIONES).
+
+### 8. Medición del programador
+- **01b:**
+  - rondas del tester: 1 (RESISTE);
+  - rondas extra por hermanos: 0;
+  - resúmenes devueltos: 0 de 1;
+  - PARADAS: 1, correcta (PA-05 en el paso 17 por el caso de rutas de `sesiones-y-cadena`, al que le faltaba C-2 en la ronda 0; resuelta con la complementaria del tester).
+- **Acumulado de TAREAS-01 (01a y 01b):** 1 ronda extra por hermanos (T-02 → T-05 en 01a). El umbral de 2 no se alcanzó: sigue en `sonnet`.
+
+### 9. Para el humano
+- **La Enmienda 2** (las lecturas de tareas en instantánea única) se aplicó sin su firma: aplica una regla de ESSENTIALS que usted ya aprobó en FIX-CLASES (A-1 y A-2), no cambia el alcance de 01b y no abre archivos protegidos. Trajo siete pruebas más y dos usos de la opción en `tareas.ts`.
+- **R-06, diferido a 01e:** "Trabajo de clase" pide una lectura por tema (hasta 31). Con la instantánea, cada una ocupa una conexión unos milisegundos. Mi recomendación, ya escrita en el plan para 01e y solo en el frontend: primera página de 5 elementos por tema y como máximo 6 peticiones en vuelo. Una lectura agregada en el backend sería otro encargo, solo si las mediciones lo piden.
+- **Sin decisiones pendientes** para cerrar 01b.
+
+**Mensaje del commit propuesto:**
+```
+feat(tareas): TAREAS-01b, tareas con rúbrica, adjuntos, categoría, tema y entregas tardías (rutas /api/clases/:claseId/tareas y /trabajo), TAREA_CREADA y RECORDATORIO_24H en la transacción del dato y lecturas de tareas en una sola instantánea
+```
+(más las líneas de atribución que correspondan).
+
+**Rutas para `git add`** (todas las que hoy muestra `git status`, más los documentos que el orquestador aplique con A-9):
+```
+shared/src/clases.ts shared/src/index.ts shared/src/tareas.ts
+backend/src/app.ts backend/src/adapters/README.md backend/src/adapters/db/index.ts backend/src/adapters/db/publicaciones.ts backend/src/adapters/db/tareas.ts backend/src/adapters/queue/colas.ts backend/src/adapters/queue/index.ts
+backend/src/core/autoria.ts backend/src/core/autoria.test.ts backend/src/core/eventos/avisos-de-clase.ts backend/src/core/tareas/recordatorio.ts backend/src/core/tareas/recordatorio.test.ts backend/src/core/tareas/tareas.ts backend/src/core/tareas/tareas.test.ts backend/src/core/tareas/texto.ts backend/src/core/tareas/texto.test.ts
+backend/src/handlers/README.md backend/src/handlers/adjuntos.ts backend/src/handlers/clases/muro.ts backend/src/handlers/tareas/tareas.ts backend/src/workers/README.md
+backend/test/ayudas-tareas.ts backend/test/bloqueo-usuario.integracion.test.ts backend/test/cola.integracion.test.ts backend/test/esquemas-tareas.test.ts backend/test/lecturas-consistentes.integracion.test.ts backend/test/tareas.integracion.test.ts backend/test/tareas-autoria.integracion.test.ts backend/test/tareas-autorizacion.integracion.test.ts backend/test/tareas-concurrencia.integracion.test.ts backend/test/trabajo.integracion.test.ts
+backend/test/instantanea-01b-r1.ataque.test.ts backend/test/referencias-01b-r1.ataque.test.ts backend/test/tareas-01b-r1.ataque.test.ts backend/test/lecturas-fx-r1.ataque.test.ts backend/test/lecturas-fx-r2.ataque.test.ts backend/test/sesiones-y-cadena.ataque.test.ts backend/test/temas-01a-r1.ataque.test.ts backend/test/temas-01a-r3.ataque.test.ts
+frontend/src/app/marco.test.tsx frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx
+frontend/src/features/clases/adjuntos-de-publicacion.test.tsx frontend/src/features/clases/formulario-publicacion.test.tsx frontend/src/features/clases/lib.test.ts frontend/src/features/clases/muro-view.test.tsx frontend/src/features/clases/publicacion-del-muro.test.tsx
+frontend/src/features/clases/archivos-d-r1.ataque.test.tsx frontend/src/features/clases/archivos-d-r2.ataque.test.tsx frontend/src/features/clases/archivos-d-r3.ataque.test.tsx frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx frontend/src/features/clases/foco-02c-r3.ataque.test.tsx frontend/src/features/clases/foco-02c-r4.ataque.test.tsx frontend/src/features/clases/foco-02c-r5.ataque.test.tsx frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx frontend/src/features/clases/muro-02c-r1.ataque.test.tsx frontend/src/features/clases/muro-c-r1.ataque.test.tsx frontend/src/features/clases/muro-c-r2.ataque.test.tsx frontend/src/features/clases/muro-c-r3.ataque.test.tsx frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx
+docs/trabajo/TAREAS-01-tareas-temas-y-categorias/
+docs/ESTADO.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md CLAUDE.md
+```
+`ARCHITECTURE-ESSENTIALS.md` ya trae el ajuste de `claveDeNombre`, que entra en este commit. Esa línea y la de `ARCHITECTURE.md`, `PRD.md` y `CLAUDE.md` van después de que el orquestador aplique los textos de A-9. El SHA-256 resultante de cada uno se anota en `aprobacion.md`.
+
+### Problemas que bloquean
+Ninguno.

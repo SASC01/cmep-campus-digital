@@ -131,3 +131,50 @@ export const listarCategoriasDb = (claseId: string) =>
   })
 
 export const leerTareaDb = (id: string) => obtenerDb().tarea.findUnique({ where: { id } })
+
+// Criterios de rúbrica sembrados directo en la base ("Criterio 1", "Criterio 2", … con 10 puntos
+// máximos), para las pruebas que necesitan una tarea con rúbrica sin pasar por la API.
+export const crearCriteriosDePrueba = async (tareaId: string, cantidad: number): Promise<void> => {
+  await obtenerDb().criterioRubrica.createMany({
+    data: Array.from({ length: cantidad }, (_, orden) => ({
+      tareaId,
+      criterio: `Criterio ${String(orden + 1)}`,
+      puntosMax: 10,
+      orden,
+    })),
+  })
+}
+
+// TAREAS-01b. Trabajos de las colas de tareas (pgboss.job), por el id de la tarea en sus datos: lo
+// que pg-boss guardó, no lo que dice la cola. `state` es created, cancelled, completed…
+export interface TrabajoDeTarea {
+  id: string
+  state: string
+  start_after: Date
+  datos: Record<string, unknown>
+}
+
+export const trabajosDeTarea = (cola: string, tareaId: string) =>
+  obtenerDb().$queryRaw<TrabajoDeTarea[]>`
+    SELECT id::text AS id, state::text AS state, start_after, data AS datos
+    FROM pgboss.job
+    WHERE name = ${cola} AND data ->> 'tareaId' = ${tareaId}::text
+    ORDER BY created_on ASC, id ASC`
+
+export const trabajosDeLaClase = (cola: string, claseId: string) =>
+  obtenerDb().$queryRaw<TrabajoDeTarea[]>`
+    SELECT id::text AS id, state::text AS state, start_after, data AS datos
+    FROM pgboss.job
+    WHERE name = ${cola} AND data ->> 'claseId' = ${claseId}::text
+    ORDER BY created_on ASC, id ASC`
+
+export const diasDespues = (dias: number): Date => new Date(Date.now() + dias * 86_400_000)
+
+// Cuerpo válido de POST …/tareas; cada prueba cambia solo lo que ejerce.
+export const cuerpoDeTarea = (cambios: Record<string, unknown> = {}): Record<string, unknown> => ({
+  titulo: "Ensayo del tema 3",
+  instrucciones: "Escribe dos páginas.",
+  fechaLimite: diasDespues(5).toISOString(),
+  puntos: 100,
+  ...cambios,
+})

@@ -183,6 +183,8 @@ describe("tiempoFrescoDelMuro (T-40)", () => {
     comentarios: 0,
     // CLASES-02b (C-10): el esquema ahora exige `administracion` y `puedeBorrar`; solo se agregan los campos.
     puedeBorrar: true,
+    // TAREAS-01b (C-5): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+    tarea: null,
     adjuntos: [
       {
         ...ADJUNTO_BASE,

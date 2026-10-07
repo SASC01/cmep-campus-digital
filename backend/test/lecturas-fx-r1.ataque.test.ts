@@ -755,7 +755,7 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
     expect(rc.niveles).toEqual(Array.from({ length: CONEXIONES_DEL_POOL }, () => "read committed"))
   }, 60_000)
 
-  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las seis lecturas (cuatro de clases y dos del muro)", () => {
+  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las ocho lecturas (cuatro de clases, dos del muro y dos de tareas)", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const archivos = readdirSync(raiz, { recursive: true, encoding: "utf8" })
       .map((ruta) => ruta.split(sep).join("/"))
@@ -786,7 +786,27 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       })
     // C-2, Enmienda 1 de FIX-CLASES (§D-5, V-04): además de las cuatro lecturas de clases.ts,
     // listarPublicaciones y listarComentarios de publicaciones.ts corren en la instantánea única.
-    expect([...usos].sort()).toEqual(["adapters/db/clases.ts:4", "adapters/db/publicaciones.ts:2"])
+    // C-8b, Enmienda 2 de TAREAS-01 (ronda 0 complementaria de 01b; ESSENTIALS "Reglas de datos"):
+    // leerTarea y listarTrabajo de adapters/db/tareas.ts corren también en la instantánea única. Lo
+    // demás que protege el caso no cambia: nadie fuera de adapters/db nombra la opción ni
+    // enTransaccion, index.ts no lo reexporta y los niveles de aislamiento solo viven en cliente.ts.
+    // Los dos usos de tareas.ts están en código, no en un comentario.
+    const tareas = readFileSync(join(raiz, "adapters/db/tareas.ts"), "utf8").split(/\r?\n/)
+    expect(
+      tareas.filter(
+        (linea) => linea.includes("instantaneaUnica: true") && !linea.trimStart().startsWith("//"),
+      ),
+    ).toHaveLength(2)
+    expect(
+      tareas.filter(
+        (linea) => linea.trimStart().startsWith("//") && linea.includes("instantaneaUnica"),
+      ),
+    ).toEqual([])
+    expect([...usos].sort()).toEqual([
+      "adapters/db/clases.ts:4",
+      "adapters/db/publicaciones.ts:2",
+      "adapters/db/tareas.ts:2",
+    ])
   })
 })
 

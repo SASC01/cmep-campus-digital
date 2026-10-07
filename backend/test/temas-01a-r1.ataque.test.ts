@@ -969,7 +969,13 @@ const fuentes = listar(SRC).map((ruta) => ({
 }))
 
 describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
-  it("FOR KEY SHARE solo en adapters/db/referencias.ts; bloquearClase se define solo en bloqueo-clase.ts; los handlers de tareas no usan SQL, Prisma, roles ni notifier", () => {
+  // TAREAS-01b ronda 0 (C-7, §D-R0: reglas estáticas sobre los archivos de handlers/; §D-4 y
+  // "Cambios por capa" de 01b): handlers/tareas/ gana tareas.ts (tareasHandler). Por diseño, ese
+  // handler encola TAREA_CREADA y RECORDATORIO_24H y cancela recordatorios dentro de los callbacks
+  // que pasa al adaptador (§D-0.4, §D-4, §D-5, como el muro), así que encolar( y cancelar( quedan
+  // prohibidos solo en temas.ts y categorias.ts (organizar la clase no avisa a nadie). Lo demás que
+  // protege no cambia y vale para los tres: ni SQL, ni el cliente de Prisma, ni roles, ni notifier.
+  it("FOR KEY SHARE solo en adapters/db/referencias.ts; bloquearClase se define solo en bloqueo-clase.ts; los handlers de tareas no usan SQL, Prisma, roles ni notifier, y los de temas y categorías tampoco encolan", () => {
     expect(fuentes.length).toBeGreaterThan(20)
     expect(
       fuentes.filter(({ codigo }) => /FOR\s+KEY\s+SHARE/i.test(codigo)).map(({ ruta }) => ruta),
@@ -982,13 +988,20 @@ describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
     const handlers = fuentes.filter(({ ruta }) => ruta.startsWith("handlers/tareas/"))
     expect(handlers.map(({ ruta }) => ruta).sort()).toEqual([
       "handlers/tareas/categorias.ts",
+      "handlers/tareas/tareas.ts",
       "handlers/tareas/temas.ts",
     ])
     const prohibido =
-      /\$queryRaw|\$executeRaw|obtenerDb|adapters\/db\/cliente|@prisma|\.rol\b|"admin"\s*===|===\s*"(admin|maestro|estudiante)"|notifier|encolar\(/
+      /\$queryRaw|\$executeRaw|obtenerDb|adapters\/db\/cliente|@prisma|\.rol\b|"admin"\s*===|===\s*"(admin|maestro|estudiante)"|notifier/
     expect(handlers.filter(({ codigo }) => prohibido.test(codigo)).map(({ ruta }) => ruta)).toEqual(
       [],
     )
+    expect(
+      handlers
+        .filter(({ ruta }) => ruta !== "handlers/tareas/tareas.ts")
+        .filter(({ codigo }) => /encolar\(|cancelar\(/.test(codigo))
+        .map(({ ruta }) => ruta),
+    ).toEqual([])
   })
 
   it("las consultas de temas.ts, categorias.ts y referencias.ts no viven dentro de un ciclo", () => {

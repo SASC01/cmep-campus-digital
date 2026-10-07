@@ -1,15 +1,20 @@
 import {
   claveDeNombre,
   crearPublicacionSchema,
+  crearTareaSchema,
+  editarTareaSchema,
   moverElementoSchema,
   nombreCategoriaSchema,
   nombreTemaSchema,
   ordenTemasSchema,
   pesoCategoriaSchema,
   publicacionDeMoverParamSchema,
+  publicacionSchema,
   reemplazarCategoriasSchema,
+  tareaIdParamSchema,
   temaIdParamSchema,
   textoDeUnaLineaSchema,
+  trabajoQuerySchema,
 } from "@campus/shared"
 import { describe, expect, it } from "vitest"
 
@@ -290,5 +295,202 @@ describe("claveDeNombre con lo que se ve vacío (ronda 2, T-05)", () => {
     for (const espacio of [0xa0, 0x3000, 0x09, 0x2003, 0x2009]) {
       expect(claveDeNombre(`Unidad${String.fromCodePoint(espacio)}1`)).toBe("unidad 1")
     }
+  })
+})
+
+// TAREAS-01b (PR-1B06): esquemas de las tareas, "Trabajo de clase" y la clave `tarea` del muro.
+describe("crearTareaSchema (PR-1B06)", () => {
+  const SALTO = String.fromCharCode(10)
+  const INVISIBLE = String.fromCodePoint(0x200b)
+  const base = {
+    titulo: "Ensayo",
+    fechaLimite: "2030-05-01T10:00:00Z",
+    puntos: 100,
+  }
+  const rechaza = (cambios: Record<string, unknown>) =>
+    crearTareaSchema.safeParse({ ...base, ...cambios })
+
+  it("PR-1B06: un cuerpo mínimo pasa y aplica los valores por defecto", () => {
+    const resultado = crearTareaSchema.safeParse(base)
+    expect(resultado.success).toBe(true)
+    expect(resultado.data).toMatchObject({
+      aceptaTardias: true,
+      categoriaId: null,
+      temaId: null,
+      rubrica: [],
+      archivoIds: [],
+    })
+    expect(resultado.data?.instrucciones).toBeUndefined()
+  })
+
+  it("PR-1B06: el título debe ser de una sola línea, con contenido y de hasta 200 caracteres", () => {
+    expect(rechaza({ titulo: `Uno${SALTO}Dos` }).success).toBe(false)
+    expect(rechaza({ titulo: "" }).success).toBe(false)
+    expect(rechaza({ titulo: INVISIBLE }).success).toBe(false)
+    expect(rechaza({ titulo: "t".repeat(200) }).success).toBe(true)
+    expect(rechaza({ titulo: "t".repeat(201) }).success).toBe(false)
+    expect(primerMensaje(rechaza({ titulo: undefined }))).toBe("Escribe el título de la tarea")
+  })
+
+  it("PR-1B06: las instrucciones admiten 10 000 caracteres y rechazan 10 001", () => {
+    expect(rechaza({ instrucciones: "i".repeat(10_000) }).success).toBe(true)
+    expect(rechaza({ instrucciones: "i".repeat(10_001) }).success).toBe(false)
+    expect(rechaza({ instrucciones: `Línea 1${SALTO}Línea 2` }).success).toBe(true)
+  })
+
+  it("PR-1B06: la fecha con Z y con desfase pasa; sin zona o de otro tipo rechaza", () => {
+    expect(rechaza({ fechaLimite: "2030-05-01T10:00:00Z" }).success).toBe(true)
+    expect(rechaza({ fechaLimite: "2030-05-01T10:00:00-06:00" }).success).toBe(true)
+    expect(rechaza({ fechaLimite: "2030-05-01T10:00:00.123Z" }).success).toBe(true)
+    for (const fechaLimite of [
+      "2030-05-01T10:00:00",
+      "2030-05-01",
+      "mañana",
+      1893492000000,
+      null,
+    ]) {
+      const resultado = rechaza({ fechaLimite })
+      expect(resultado.success, String(fechaLimite)).toBe(false)
+      expect(primerMensaje(resultado)).toBe("Elige la fecha límite")
+    }
+  })
+
+  it("PR-1B06: los puntos son enteros de 1 a 1000 y no se coaccionan desde texto", () => {
+    for (const puntos of [1, 100, 1000])
+      expect(rechaza({ puntos }).success, String(puntos)).toBe(true)
+    for (const puntos of [0, 1001, -1, 1.5, "100", null, Number.NaN]) {
+      const resultado = rechaza({ puntos })
+      expect(resultado.success, String(puntos)).toBe(false)
+      expect(primerMensaje(resultado)).toBe("Los puntos deben ser un número entero de 1 a 1000")
+    }
+  })
+
+  it("PR-1B06: aceptaTardias ausente es true; false se conserva; otro tipo rechaza", () => {
+    expect(rechaza({}).data?.aceptaTardias).toBe(true)
+    expect(rechaza({ aceptaTardias: false }).data?.aceptaTardias).toBe(false)
+    expect(rechaza({ aceptaTardias: "no" }).success).toBe(false)
+  })
+
+  it("PR-1B06: la rúbrica admite 20 criterios y rechaza 21; el criterio vacío o de invisibles y los puntos inválidos rechazan", () => {
+    const criterios = (n: number) =>
+      Array.from({ length: n }, (_, k) => ({ criterio: `C${String(k)}`, puntosMax: 5 }))
+    expect(rechaza({ rubrica: criterios(20) }).success).toBe(true)
+    expect(rechaza({ rubrica: criterios(21) }).success).toBe(false)
+    expect(rechaza({ rubrica: [{ criterio: "", puntosMax: 5 }] }).success).toBe(false)
+    expect(rechaza({ rubrica: [{ criterio: INVISIBLE, puntosMax: 5 }] }).success).toBe(false)
+    expect(rechaza({ rubrica: [{ criterio: "c".repeat(300), puntosMax: 5 }] }).success).toBe(true)
+    expect(rechaza({ rubrica: [{ criterio: "c".repeat(301), puntosMax: 5 }] }).success).toBe(false)
+    for (const puntosMax of [0, 1001, 2.5, "5", null]) {
+      const resultado = rechaza({ rubrica: [{ criterio: "Claridad", puntosMax }] })
+      expect(resultado.success, String(puntosMax)).toBe(false)
+      expect(primerMensaje(resultado)).toBe(
+        "Los puntos máximos deben ser un número entero de 1 a 1000",
+      )
+    }
+    expect(rechaza({ rubrica: { criterio: "x" } }).success).toBe(false)
+  })
+
+  it("PR-1B06: archivoIds admite 5 y rechaza 6 o repetidos, y los pasa a minúsculas", () => {
+    const ids = (n: number) =>
+      Array.from(
+        { length: n },
+        (_, k) => `${String(k).padStart(8, "0")}-1c1f-4b8e-9a1e-0f2a3b4c5d6e`,
+      )
+    expect(rechaza({ archivoIds: ids(5) }).success).toBe(true)
+    expect(rechaza({ archivoIds: ids(6) }).success).toBe(false)
+    expect(rechaza({ archivoIds: [A, A] }).success).toBe(false)
+    expect(rechaza({ archivoIds: ["no-es-uuid"] }).success).toBe(false)
+    expect(rechaza({ archivoIds: [A.toUpperCase()] }).data?.archivoIds).toEqual([A])
+  })
+
+  it("PR-1B06: categoriaId y temaId son uuid o null, y se pasan a minúsculas", () => {
+    const resultado = rechaza({ categoriaId: A.toUpperCase(), temaId: B })
+    expect(resultado.data).toMatchObject({ categoriaId: A, temaId: B })
+    expect(rechaza({ categoriaId: null, temaId: null }).success).toBe(true)
+    expect(rechaza({ categoriaId: "" }).success).toBe(false)
+    expect(rechaza({ temaId: "sin-tema" }).success).toBe(false)
+  })
+
+  it("PR-1B06: editarTareaSchema es el mismo esquema y tareaIdParamSchema pasa el id a minúsculas", () => {
+    expect(editarTareaSchema).toBe(crearTareaSchema)
+    expect(tareaIdParamSchema.safeParse({ tareaId: A.toUpperCase() }).data).toEqual({ tareaId: A })
+    expect(tareaIdParamSchema.safeParse({ tareaId: "nueva" }).success).toBe(false)
+  })
+})
+
+describe("trabajoQuerySchema (PR-1B06)", () => {
+  it("PR-1B06: sin-tema y un uuid pasan; otro texto o la ausencia rechazan", () => {
+    expect(trabajoQuerySchema.safeParse({ tema: "sin-tema" }).data).toMatchObject({
+      tema: "sin-tema",
+      limite: 20,
+    })
+    expect(trabajoQuerySchema.safeParse({ tema: A.toUpperCase() }).data?.tema).toBe(A)
+    for (const consulta of [
+      {},
+      { tema: "" },
+      { tema: "SIN-TEMA" },
+      { tema: "todos" },
+      { tema: 5 },
+    ]) {
+      const resultado = trabajoQuerySchema.safeParse(consulta)
+      expect(resultado.success, JSON.stringify(consulta)).toBe(false)
+      expect(primerMensaje(resultado)).toBe("tema: elige un tema válido")
+    }
+  })
+
+  it("PR-1B06: el cursor y el límite siguen la paginación general (de 1 a 100)", () => {
+    expect(
+      trabajoQuerySchema.safeParse({ tema: "sin-tema", cursor: A, limite: "100" }).success,
+    ).toBe(true)
+    expect(trabajoQuerySchema.safeParse({ tema: "sin-tema", limite: "101" }).success).toBe(false)
+    expect(trabajoQuerySchema.safeParse({ tema: "sin-tema", cursor: "x" }).success).toBe(false)
+  })
+})
+
+describe("publicacionSchema con la clave tarea (PR-1B06)", () => {
+  const autor = { id: A, nombre: "Ana", administracion: false }
+  const publicacion = {
+    id: B,
+    tipo: "tarea",
+    titulo: "Ensayo",
+    texto: "",
+    autor,
+    creadoEn: "2030-05-01T10:00:00.000Z",
+    comentarios: 0,
+    adjuntos: [],
+    puedeBorrar: true,
+    tarea: { fechaLimite: "2030-05-08T10:00:00.000Z", puntos: 50 },
+  }
+
+  it("PR-1B06: una tarea con su resumen pasa; sin la clave tarea rechaza; en un anuncio o material va null", () => {
+    expect(publicacionSchema.safeParse(publicacion).success).toBe(true)
+    const sinClave: Record<string, unknown> = { ...publicacion }
+    delete sinClave.tarea
+    expect(publicacionSchema.safeParse(sinClave).success).toBe(false)
+    expect(
+      publicacionSchema.safeParse({ ...publicacion, tipo: "anuncio", titulo: null, tarea: null })
+        .success,
+    ).toBe(true)
+    expect(
+      publicacionSchema.safeParse({ ...publicacion, tipo: "material", tarea: null }).success,
+    ).toBe(true)
+  })
+
+  it("PR-1B06: el resumen exige fecha ISO y puntos enteros de 1 a 1000, y el tipo desconocido rechaza", () => {
+    for (const tarea of [
+      { fechaLimite: "mañana", puntos: 5 },
+      { fechaLimite: "2030-05-08T10:00:00.000Z", puntos: 0 },
+      { fechaLimite: "2030-05-08T10:00:00.000Z", puntos: 1001 },
+      { fechaLimite: "2030-05-08T10:00:00.000Z", puntos: 1.5 },
+    ]) {
+      expect(publicacionSchema.safeParse({ ...publicacion, tarea }).success).toBe(false)
+    }
+    expect(publicacionSchema.safeParse({ ...publicacion, tipo: "examen" }).success).toBe(false)
+  })
+
+  it("PR-1B06: lo que se puede publicar sigue siendo anuncio o material: crearPublicacionSchema rechaza una tarea", () => {
+    expect(
+      crearPublicacionSchema.safeParse({ tipo: "tarea", titulo: "x", archivoIds: [] }).success,
+    ).toBe(false)
   })
 })

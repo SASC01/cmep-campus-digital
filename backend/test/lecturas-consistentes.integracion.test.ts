@@ -16,6 +16,8 @@ import {
   listarComentarios,
   listarPublicaciones,
 } from "../src/adapters/db/publicaciones.js"
+import { leerTarea, listarTrabajo } from "../src/adapters/db/tareas.js"
+import { moverATema } from "../src/adapters/db/temas.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
 import type { ParticipanteDeAutoria } from "../src/core/autoria.js"
@@ -32,6 +34,12 @@ import {
   inscribirDePrueba,
   tokenDelAdminDePrueba,
 } from "./ayudas-clases.js"
+import {
+  crearCriteriosDePrueba,
+  crearMaterialConTemaDePrueba,
+  crearTareaDePrueba,
+  crearTemaDePrueba,
+} from "./ayudas-tareas.js"
 
 // FIX-CLASES (PR-FX-01 a PR-FX-05). Una lectura con relaciones anidadas manda una sentencia por
 // nivel (sin la vista previa relationJoins de Prisma); si la clase se borra entre dos, la respuesta
@@ -109,16 +117,23 @@ const formadasEnLaTabla = async (tabla: string, pid: number): Promise<number> =>
   return fila?.n ?? 0
 }
 
-// Retiene la tabla, lanza la lectura, espera a que quede formada detrás de la tabla, borra la clase
-// y confirma. Devuelve lo que la lectura terminó dando (o el error que lanzó).
+type TxDePrueba = Parameters<Parameters<typeof enTransaccion>[1]>[0]
+
+// Retiene la tabla, lanza la lectura, espera a que quede formada detrás de la tabla, borra y
+// confirma. Sin `borrar`, borra la clase `claseId` (FIX-CLASES); con `borrar` (TAREAS-01b), corre
+// esa función DENTRO de la transacción retenedora (por otra conexión esperaría a la tabla retenida
+// hasta el timeout) y no toca la clase. Devuelve lo que la lectura terminó dando (o el error que
+// lanzó). El nombre de la tabla nunca se interpola en el SQL: cada una tiene su rama literal.
 const leerConLaClaseBorradaEnMedio = async <T>({
   tabla,
   claseId,
   lanzar,
+  borrar,
 }: {
-  tabla: "clases" | "maestros_de_clase"
+  tabla: "clases" | "maestros_de_clase" | "publicaciones" | "tareas"
   claseId: string
   lanzar: () => Promise<T>
+  borrar?: (tx: TxDePrueba) => Promise<void>
 }): Promise<Resultado<T>> => {
   const inicio = Date.now()
   let intentos = 0
@@ -131,8 +146,12 @@ const leerConLaClaseBorradaEnMedio = async <T>({
         async (tx) => {
           if (tabla === "clases") {
             await tx.$executeRaw`LOCK TABLE clases IN ACCESS EXCLUSIVE MODE NOWAIT`
-          } else {
+          } else if (tabla === "maestros_de_clase") {
             await tx.$executeRaw`LOCK TABLE maestros_de_clase IN ACCESS EXCLUSIVE MODE NOWAIT`
+          } else if (tabla === "publicaciones") {
+            await tx.$executeRaw`LOCK TABLE publicaciones IN ACCESS EXCLUSIVE MODE NOWAIT`
+          } else {
+            await tx.$executeRaw`LOCK TABLE tareas IN ACCESS EXCLUSIVE MODE NOWAIT`
           }
           const [propia] = await tx.$queryRaw<
             { pid: number }[]
@@ -167,8 +186,12 @@ const leerConLaClaseBorradaEnMedio = async <T>({
             "Precondición: la lectura no quedó formada detrás de la tabla en 4 s",
           ).toBe(true)
 
-          const { count } = await tx.clase.deleteMany({ where: { id: claseId } })
-          expect(count).toBe(1)
+          if (borrar !== undefined) {
+            await borrar(tx)
+          } else {
+            const { count } = await tx.clase.deleteMany({ where: { id: claseId } })
+            expect(count).toBe(1)
+          }
         },
         { timeout: 15_000, maxWait: 5_000 },
       )
@@ -596,4 +619,231 @@ describe("lecturas con cursor y la fila borrada en medio (FIX-CLASES, Enmienda 1
     expect(lista?.comentarios.map((c) => c.id)).toEqual([k1, k2])
     expect(await obtenerDb().publicacion.count({ where: { id: publicacionId } })).toBe(0)
   }, 30_000)
+})
+
+// TAREAS-01b (Enmienda 2, §D-12). Las dos lecturas nuevas de tareas y la del muro con la relación
+// `tarea`, con los dos mecanismos de arriba: la tabla retenida (generalizada con las ramas
+// `publicaciones` y `tareas` y el `borrar` opcional) y el doble con gancho. Las tareas se siembran
+// sin adjuntos: la FK archivos.publicacion_id es NO ACTION y un borrado directo de su publicación
+// fallaría. Nadie retiene una fila ni toma un bloqueo sin NOWAIT (CHORE-02).
+describe("lecturas de tareas en una sola instantánea (TAREAS-01b, Enmienda 2)", () => {
+  interface Escenario {
+    claseId: string
+    maestroId: string
+    actor: ParticipanteDeAutoria
+  }
+
+  const preparar = async (): Promise<Escenario> => {
+    const m = await maestroDePrueba(`Maestro ${ficha()}`)
+    const clase = await crearClaseDePrueba(idsClases, {
+      maestroId: m.id,
+      nombre: `Clase 1B ${ficha()}`,
+    })
+    return {
+      claseId: clase.id,
+      maestroId: m.id,
+      actor: { id: await idDelAdminDePrueba(), rol: "admin" },
+    }
+  }
+
+  // Borra la publicación de una tarea dentro de la transacción retenedora: la cascada se lleva la
+  // tarea y sus criterios; la retenedora puede borrar en la tabla que ella misma retiene.
+  const borrarTareaDentro =
+    (tareaId: string) =>
+    async (tx: TxDePrueba): Promise<void> => {
+      const { count } = await tx.publicacion.deleteMany({ where: { id: tareaId, tipo: "tarea" } })
+      expect(count, "Precondición: la retenedora borró la publicación de la tarea").toBe(1)
+    }
+
+  // De la más reciente a la más antigua: M1, M2, M3, M4 (materiales de un mismo tema o sin tema).
+  const crearMateriales = async (
+    claseId: string,
+    autorId: string,
+    temaId: string | null,
+  ): Promise<string[]> => {
+    const ahora = Date.now()
+    const ids: string[] = []
+    for (let k = 1; k <= 4; k += 1) {
+      ids.push(
+        await crearMaterialConTemaDePrueba({
+          claseId,
+          autorId,
+          temaId,
+          titulo: `M${String(k)}`,
+          creadoEn: new Date(ahora - k * 60_000),
+        }),
+      )
+    }
+    return ids
+  }
+
+  it("PR-1B15 · leerTarea con la tarea borrada entre su fila y su publicación devuelve la tarea completa de la instantánea", async () => {
+    const { claseId, maestroId, actor } = await preparar()
+    const titulo = `Tarea 1B15 ${ficha()}`
+    const tareaId = await crearTareaDePrueba({ claseId, autorId: maestroId, titulo, puntos: 40 })
+    await crearCriteriosDePrueba(tareaId, 2)
+    const previa = await leerTarea({ claseId, tareaId, actor })
+    expect(previa?.rubrica, "Precondición (control): sin carrera").toHaveLength(2)
+
+    const resultado = await leerConLaClaseBorradaEnMedio({
+      tabla: "publicaciones",
+      claseId,
+      borrar: borrarTareaDentro(tareaId),
+      lanzar: () => leerTarea({ claseId, tareaId, actor }),
+    })
+    const leida = valorDe(resultado)
+    expect(leida?.titulo).toBe(titulo)
+    expect(leida?.autor.id).toBe(maestroId)
+    expect(leida?.puntos).toBe(40)
+    expect(leida?.rubrica.map((c) => c.criterio)).toEqual(["Criterio 1", "Criterio 2"])
+    expect(await obtenerDb().tarea.count({ where: { id: tareaId } })).toBe(0)
+  }, 75_000)
+
+  it("PR-1B16a · listarTrabajo con el elemento del cursor borrado entre su comprobación y la página devuelve los elementos que siguen", async () => {
+    const { claseId, maestroId, actor } = await preparar()
+    const tema = await crearTemaDePrueba({ claseId, orden: 0 })
+    const [, m2, m3, m4] = await crearMateriales(claseId, maestroId, tema.id)
+    if (m2 === undefined || m3 === undefined || m4 === undefined) {
+      throw new Error("Precondición: se crearon los cuatro materiales")
+    }
+    const parametros = { claseId, tema: tema.id, cursor: m2, limite: 10 }
+    const previa = await listarTrabajo(parametros)
+    expect(
+      previa.elementos.map((e) => e.id),
+      "Precondición (control): sin carrera",
+    ).toEqual([m3, m4])
+
+    const { gancho, disparado } = unaVezDespuesDe("publicacion.findFirst", async () => {
+      const borrada = await borrarPublicacion({ claseId, publicacionId: m2, actor })
+      expect(borrada, "Precondición: el gancho borró el material del cursor").toBe(true)
+    })
+    const lista = await listarTrabajo(parametros, ejecutorConGancho(gancho))
+    expect(disparado(), "Precondición: el gancho corrió tras la comprobación del cursor").toBe(true)
+    expect(lista.elementos.map((e) => e.id)).toEqual([m3, m4])
+    expect(lista.siguienteCursor).toBeNull()
+    expect(await obtenerDb().publicacion.count({ where: { id: m2 } })).toBe(0)
+  }, 30_000)
+
+  it("PR-1B16b · listarTrabajo con el elemento del cursor movido a otro tema entre su comprobación y la página devuelve los elementos que siguen del tema", async () => {
+    const { claseId, maestroId } = await preparar()
+    const tema = await crearTemaDePrueba({ claseId, orden: 0 })
+    const otro = await crearTemaDePrueba({ claseId, orden: 1 })
+    const [, m2, m3, m4] = await crearMateriales(claseId, maestroId, tema.id)
+    if (m2 === undefined || m3 === undefined || m4 === undefined) {
+      throw new Error("Precondición: se crearon los cuatro materiales")
+    }
+    const parametros = { claseId, tema: tema.id, cursor: m2, limite: 10 }
+
+    const { gancho, disparado } = unaVezDespuesDe("publicacion.findFirst", async () => {
+      const movido = await moverATema({ claseId, publicacionId: m2, temaId: otro.id })
+      expect(movido.temaId, "Precondición: el gancho movió el elemento del cursor").toBe(otro.id)
+    })
+    const lista = await listarTrabajo(parametros, ejecutorConGancho(gancho))
+    expect(disparado(), "Precondición: el gancho corrió tras la comprobación del cursor").toBe(true)
+    expect(lista.elementos.map((e) => e.id)).toEqual([m3, m4])
+    expect(lista.siguienteCursor).toBeNull()
+  }, 30_000)
+
+  // Dos tareas con su resumen conocido, T1 (la más reciente) y T2, sin tema.
+  const crearDosTareas = async (
+    claseId: string,
+    autorId: string,
+  ): Promise<{ t1: string; t2: string; fecha1: Date }> => {
+    const ahora = Date.now()
+    const fecha1 = new Date(ahora + 5 * 86_400_000)
+    const t1 = await crearTareaDePrueba({
+      claseId,
+      autorId,
+      titulo: `T1 ${ficha()}`,
+      puntos: 77,
+      fechaLimite: fecha1,
+    })
+    const t2 = await crearTareaDePrueba({ claseId, autorId, titulo: `T2 ${ficha()}`, puntos: 11 })
+    await obtenerDb().publicacion.update({
+      where: { id: t2 },
+      data: { creadoEn: new Date(ahora - 60_000) },
+      select: { id: true },
+    })
+    return { t1, t2, fecha1 }
+  }
+
+  it("PR-1B16c · listarTrabajo con una tarea de la página borrada entre la página y su fila de tareas devuelve su resumen de la instantánea", async () => {
+    const { claseId, maestroId } = await preparar()
+    const { t1, t2, fecha1 } = await crearDosTareas(claseId, maestroId)
+
+    const resultado = await leerConLaClaseBorradaEnMedio({
+      tabla: "tareas",
+      claseId,
+      borrar: borrarTareaDentro(t1),
+      lanzar: () => listarTrabajo({ claseId, tema: "sin-tema", cursor: undefined, limite: 10 }),
+    })
+    const lista = valorDe(resultado)
+    expect(lista.elementos.map((e) => e.id)).toEqual([t1, t2])
+    expect(lista.elementos[0]?.tarea).toEqual({ fechaLimite: fecha1, puntos: 77 })
+    expect(lista.elementos[1]?.tarea?.puntos).toBe(11)
+    expect(await obtenerDb().tarea.count({ where: { id: t1 } })).toBe(0)
+  }, 75_000)
+
+  it("PR-1B17 · listarPublicaciones con una tarea de la página borrada entre la página y su fila de tareas devuelve su resumen de la instantánea", async () => {
+    const { claseId, maestroId, actor } = await preparar()
+    const { t1, t2, fecha1 } = await crearDosTareas(claseId, maestroId)
+
+    const resultado = await leerConLaClaseBorradaEnMedio({
+      tabla: "tareas",
+      claseId,
+      borrar: borrarTareaDentro(t1),
+      lanzar: () => listarPublicaciones({ claseId, cursor: undefined, limite: 10, actor }),
+    })
+    const lista = valorDe(resultado)
+    expect(lista.publicaciones.map((p) => p.id)).toEqual([t1, t2])
+    expect(lista.publicaciones[0]?.tipo).toBe("tarea")
+    expect(lista.publicaciones[0]?.tarea).toEqual({ fechaLimite: fecha1, puntos: 77 })
+    expect(lista.publicaciones[0]?.puedeBorrar).toBe(true)
+    expect(lista.publicaciones[1]?.tarea?.puntos).toBe(11)
+    expect(await obtenerDb().tarea.count({ where: { id: t1 } })).toBe(0)
+  }, 75_000)
+
+  it("PR-1B18a · control: listarTrabajo anidada en una transacción read committed, con el elemento del cursor borrado tras comprobarlo, devuelve la página vacía", async () => {
+    const { claseId, maestroId, actor } = await preparar()
+    const tema = await crearTemaDePrueba({ claseId, orden: 0 })
+    const [, m2, m3, m4] = await crearMateriales(claseId, maestroId, tema.id)
+    if (m2 === undefined || m3 === undefined || m4 === undefined) {
+      throw new Error("Precondición: se crearon los cuatro materiales")
+    }
+    const parametros = { claseId, tema: tema.id, cursor: m2, limite: 10 }
+
+    const { gancho, disparado } = unaVezDespuesDe("publicacion.findFirst", async () => {
+      const borrada = await borrarPublicacion({ claseId, publicacionId: m2, actor })
+      expect(borrada, "Precondición: el gancho borró el material del cursor").toBe(true)
+    })
+    const lista = await enTransaccion(ejecutorConGancho(gancho), (tx) =>
+      listarTrabajo(parametros, tx),
+    )
+    expect(disparado(), "Precondición: el gancho corrió tras la comprobación del cursor").toBe(true)
+    expect(lista.elementos, "el defecto: la página sale vacía aunque quedan M3 y M4").toEqual([])
+  }, 30_000)
+
+  it("PR-1B18b · control: listarPublicaciones anidada en una transacción read committed, con una tarea de la página borrada entre la página y su fila de tareas, devuelve la tarea sin resumen", async () => {
+    const { claseId, maestroId, actor } = await preparar()
+    const { t1 } = await crearDosTareas(claseId, maestroId)
+
+    const resultado = await leerConLaClaseBorradaEnMedio({
+      tabla: "tareas",
+      claseId,
+      borrar: borrarTareaDentro(t1),
+      lanzar: () =>
+        enTransaccion(obtenerDb(), (tx) =>
+          listarPublicaciones({ claseId, cursor: undefined, limite: 10, actor }, tx),
+        ),
+    })
+    // El defecto puede verse de dos formas: la tarea con `tarea: null` o el rechazo de la lectura
+    // (un error del cliente o del esquema). Lo que no se acepta es la tarea con su resumen.
+    if (resultado.ok) {
+      const tarea = resultado.valor.publicaciones.find((p) => p.id === t1)
+      expect(tarea?.tipo).toBe("tarea")
+      expect(tarea?.tarea, "el defecto: la tarea sale sin su resumen").toBeNull()
+    } else {
+      expect(resultado.error, "el defecto: la lectura rechaza").toBeInstanceOf(Error)
+    }
+  }, 75_000)
 })

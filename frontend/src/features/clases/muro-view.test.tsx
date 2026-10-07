@@ -40,6 +40,8 @@ const publicacion = (n: number, extra: Record<string, unknown> = {}) => ({
   // C-21 (Enmienda 10): toda publicación del servidor lleva adjuntos.
   adjuntos: [],
   puedeBorrar: true,
+  // TAREAS-01b (C-5): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+  tarea: null,
   ...extra,
 })
 

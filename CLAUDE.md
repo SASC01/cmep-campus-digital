@@ -89,7 +89,7 @@ features/
 
 ```
 core/        lógica pura, sin I/O ni librerías de infraestructura
-adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue y scheduler (pg-boss), live (LiveKit)
+adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue (pg-boss: cola y trabajos diferidos), live (LiveKit)
 config/      validación de las variables de entorno con zod (env.ts) y opciones del logger (logger.ts); el único código de src/ que lee process.env. No es core/ ni adapters/
 middleware/  authenticate, withProfile, withPasswordGate, withAccess, requireRole, requireMembership, requireOwnership
 handlers/    un plugin de Fastify por dominio

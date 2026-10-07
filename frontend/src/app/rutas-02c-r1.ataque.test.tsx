@@ -267,9 +267,15 @@ describe("ataque CLASES-02c r1: «Clases» activo en sus subrutas; «Cuentas» y
 })
 
 describe("ataque CLASES-02c r1: el maestro no tiene «Crear clase» ni «Editar clase» en ningún lugar", () => {
+  // TAREAS-01d ronda 0 (C-9, §D-R0; §D-10 y S-18): el muro del maestro gana "Crear tarea" (control
+  // outline junto al formulario de publicar), que no es crear ni editar una clase. Es el único nombre
+  // que se admite; cualquier otro control con "crear", "editar" o "nueva clase" sigue prohibido, y los
+  // href de /clases/nueva y /editar también.
+  const nombreProhibido = (nombre: string) =>
+    /crear|editar|nueva clase/i.test(nombre) && nombre !== "Crear tarea"
   const sinCrearNiEditar = () => {
-    expect(screen.queryAllByRole("link", { name: /crear|editar|nueva clase/i })).toEqual([])
-    expect(screen.queryAllByRole("button", { name: /crear|editar|nueva clase/i })).toEqual([])
+    expect(screen.queryAllByRole("link", { name: nombreProhibido })).toEqual([])
+    expect(screen.queryAllByRole("button", { name: nombreProhibido })).toEqual([])
     const hrefs = Array.from(document.querySelectorAll("a")).map(
       (a) => a.getAttribute("href") ?? "",
     )

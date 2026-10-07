@@ -1,11 +1,14 @@
 import { useEffect, useRef, type ReactNode } from "react"
-import { useLocation } from "react-router"
+import { Plus } from "lucide-react"
+import { Link, useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { Card } from "@/components/ui/card"
+import { baseDeClase } from "@/lib/ruta-de-clase"
 
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
@@ -154,6 +157,17 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
 
   return (
     <div className="flex flex-col gap-5">
+      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].crearTarea && (
+        <div>
+          <Link
+            to={`${baseDeClase(perspectiva, claseId)}/tareas/nueva`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <Plus aria-hidden="true" />
+            {TEXTOS_MURO.crearTarea}
+          </Link>
+        </div>
+      )}
       {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioPublicacion && (
         <FormularioPublicacion claseId={claseId} />
       )}

@@ -172,6 +172,126 @@ describe("rutas", () => {
     expect(await screen.findByText(/Aún no hay alumnos\./)).toBeInTheDocument()
   })
 
+  // TAREAS-01d (PR-1D07): las rutas de las tareas dentro de cada ClaseLayout.
+  describe("PR-1D07: rutas de las tareas", () => {
+    const claseId = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
+    const tareaId = "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d77"
+    const maestroDeLaClase = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
+    const clase = {
+      id: claseId,
+      nombre: "Álgebra I",
+      descripcion: null,
+      maestro: maestroDeLaClase,
+      maestros: [maestroDeLaClase],
+    }
+    const tarea = {
+      id: tareaId,
+      titulo: "Ensayo final",
+      instrucciones: "",
+      fechaLimite: "2030-01-15T16:00:00.000Z",
+      puntos: 80,
+      aceptaTardias: true,
+      categoria: null,
+      tema: null,
+      rubrica: [],
+      adjuntos: [],
+      autor: { ...maestroDeLaClase, administracion: false },
+      creadoEn: "2026-10-06T15:30:00.000Z",
+      actualizadoEn: "2026-10-06T15:30:00.000Z",
+      puedeEditar: true,
+      puedeBorrar: true,
+    }
+
+    const stubDeLaClase = (rol: "estudiante" | "maestro" | "admin") =>
+      stubFetch((ruta) => {
+        if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+        if (ruta === "/api/me") return respuestaJson(200, me({ rol }))
+        if (ruta === `/api/clases/${claseId}`) return respuestaJson(200, { clase })
+        if (ruta === `/api/clases/${claseId}/tareas/${tareaId}`) {
+          return respuestaJson(200, { tarea })
+        }
+        if (ruta === `/api/clases/${claseId}/categorias`) {
+          return respuestaJson(200, { categorias: [] })
+        }
+        if (ruta === `/api/clases/${claseId}/temas`) {
+          return respuestaJson(200, { temas: [], sinTema: 0 })
+        }
+        return respuestaJson(500, { error: { codigo: "ERROR_INTERNO", mensaje: "no esperada" } })
+      })
+
+    const pidioAlgunaRutaCon = (fetchMock: ReturnType<typeof stubFetch>, texto: string) =>
+      fetchMock.mock.calls.some(([entrada]) => String(entrada).includes(texto))
+
+    it("PR-1D07: el maestro monta el formulario en tareas/nueva sin pedir una tarea llamada nueva", async () => {
+      const fetchMock = stubDeLaClase("maestro")
+
+      await renderEn(`/maestro/clases/${claseId}/tareas/nueva`)
+
+      expect(await screen.findByRole("heading", { name: "Nueva tarea" })).toBeInTheDocument()
+      expect(pidioAlgunaRutaCon(fetchMock, "/tareas/nueva")).toBe(false)
+    })
+
+    it("PR-1D07: el maestro monta el detalle y el formulario de edición", async () => {
+      stubDeLaClase("maestro")
+      await renderEn(`/maestro/clases/${claseId}/tareas/${tareaId}`)
+      expect(await screen.findByRole("heading", { name: "Ensayo final" })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: "Editar tarea" })).toBeInTheDocument()
+      cleanup()
+      vi.unstubAllGlobals()
+      vi.resetModules()
+
+      stubDeLaClase("maestro")
+      await renderEn(`/maestro/clases/${claseId}/tareas/${tareaId}/editar`)
+      expect(await screen.findByLabelText("Título")).toHaveValue("Ensayo final")
+    })
+
+    it("PR-1D07: el admin monta crear, detalle y editar bajo /admin/clases", async () => {
+      stubDeLaClase("admin")
+      await renderEn(`/admin/clases/${claseId}/tareas/nueva`)
+      expect(await screen.findByRole("heading", { name: "Nueva tarea" })).toBeInTheDocument()
+      cleanup()
+      vi.unstubAllGlobals()
+      vi.resetModules()
+
+      stubDeLaClase("admin")
+      await renderEn(`/admin/clases/${claseId}/tareas/${tareaId}`)
+      expect(await screen.findByRole("heading", { name: "Ensayo final" })).toBeInTheDocument()
+      cleanup()
+      vi.unstubAllGlobals()
+      vi.resetModules()
+
+      stubDeLaClase("admin")
+      await renderEn(`/admin/clases/${claseId}/tareas/${tareaId}/editar`)
+      expect(await screen.findByLabelText("Título")).toHaveValue("Ensayo final")
+    })
+
+    it("PR-1D07: el estudiante monta el detalle con «Tu trabajo»", async () => {
+      stubDeLaClase("estudiante")
+
+      await renderEn(`/estudiante/clases/${claseId}/tareas/${tareaId}`)
+
+      expect(await screen.findByRole("heading", { name: "Ensayo final" })).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: "Tu trabajo" })).toBeInTheDocument()
+    })
+
+    it("PR-1D07: el estudiante en tareas/nueva cae en /login sin pedir una tarea llamada nueva", async () => {
+      const fetchMock = stubDeLaClase("estudiante")
+
+      const router = await renderEn(`/estudiante/clases/${claseId}/tareas/nueva`)
+
+      await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+      expect(pidioAlgunaRutaCon(fetchMock, "/tareas/nueva")).toBe(false)
+    })
+
+    it("PR-1D07: el estudiante en tareas/:id/editar cae en /login", async () => {
+      stubDeLaClase("estudiante")
+
+      const router = await renderEn(`/estudiante/clases/${claseId}/tareas/${tareaId}/editar`)
+
+      await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+    })
+  })
+
   it("PR-A26c: un estudiante en /maestro/... vuelve a /estudiante", async () => {
     stubFetch((ruta) => {
       if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })

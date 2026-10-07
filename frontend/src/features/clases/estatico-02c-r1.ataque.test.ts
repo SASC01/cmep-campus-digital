@@ -62,13 +62,18 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
   it("C-13 y A-5: los botones de borrar leen puedeBorrar del dato; nada decide por el rol, por `propio` ni por mis-comentarios", () => {
     expect(lineasCon(/mis-comentarios|useBorrarMiComentario|esMaestro|esDueno/)).toEqual([])
     expect(lineasCon(/\.propio\b/)).toEqual([])
+    // TAREAS-01d ronda 0 complementaria (C-13, Enmienda 4; §D-10): "Borrar tarea" lee puedeBorrar de
+    // la tarea en acciones-de-la-tarea.tsx, el único lector nuevo (detalle-tarea-view.tsx le pasa el
+    // objeto entero y tarjeta-de-tarea.tsx no lo lee). Sigue protegiendo que el botón decida por el
+    // dato y nunca por el rol, y que nadie más lea puedeBorrar.
     expect(rutasCon(/\.puedeBorrar\b/)).toEqual([
       "/src/features/clases/components/comentarios-de-publicacion.tsx",
       "/src/features/clases/components/publicacion-del-muro.tsx",
+      "/src/features/tareas/components/acciones-de-la-tarea.tsx",
     ])
-    expect(lineasCon(/puedeBorrar\s*[:=]\s*(?!\s*(comentario|publicacion)\.puedeBorrar)/)).toEqual(
-      [],
-    )
+    expect(
+      lineasCon(/puedeBorrar\s*[:=]\s*(?!\s*(comentario|publicacion|tarea)\.puedeBorrar)/),
+    ).toEqual([])
   })
 
   // CLASES-02 ronda 0 de 02d (O-06, arbitraje del manager en revision.md, "Verificación del resumen
@@ -82,11 +87,16 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     expect(
       lineasCon(
         /pathname\s*(\.\s*(toLowerCase|toLocaleLowerCase)\(\s*\)\s*)?\.\s*(startsWith|includes|match|indexOf)\(/,
-      ).filter((linea) => !linea.startsWith("/src/features/clases/lib.ts: ")),
+      ).filter((linea) => !linea.startsWith("/src/lib/ruta-de-clase.ts: ")),
     ).toEqual([])
+    // TAREAS-01d ronda 0 complementaria (C-13, Enmienda 4; §D-9 y §D-10): perspectivaDeRuta vive en
+    // lib/ruta-de-clase.ts desde 01c (la exención de arriba apunta ahí; O-2 de la ronda 0 de 01c), y
+    // features/tareas la llama solo desde su gancho useRutaDeLaClase (hooks.ts). Sigue protegiendo
+    // que nadie más la llame ni compare el pathname por su cuenta.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/muro-view.tsx",
+      "/src/features/tareas/hooks.ts",
     ])
   })
 

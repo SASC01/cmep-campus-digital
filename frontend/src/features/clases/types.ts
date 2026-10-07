@@ -54,6 +54,8 @@ export interface CapacidadesDePerspectiva {
   editar: boolean
   formularioPublicacion: boolean
   formularioComentario: boolean
+  // TAREAS-01d (§D-10): "Crear tarea" en el muro; solo quien publica (maestro y admin).
+  crearTarea: boolean
 }
 
 // Un maestro de una clase, tal como lo devuelve el detalle (uno o dos por clase).

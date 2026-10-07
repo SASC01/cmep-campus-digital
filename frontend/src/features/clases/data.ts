@@ -283,6 +283,7 @@ export const TEXTOS_TABLA_ALUMNOS = {
 
 // §D-C6: textos de CLASES-c (propuesta).
 export const TEXTOS_MURO = {
+  crearTarea: "Crear tarea",
   tituloLista: "Publicaciones",
   vacioEstudiante: "Tu maestro aún no ha publicado nada en esta clase.",
   vacioMaestro: "Publica el primer anuncio o material de tu clase.",
@@ -302,6 +303,12 @@ export const TEXTOS_FORMULARIO_PUBLICACION = {
   publicarAnuncio: "Publicar anuncio",
   publicarMaterial: "Publicar material",
   avisoPublicado: "Publicado",
+} as const
+
+// TAREAS-01d (§D-10, S-10): la tarjeta de una tarea en el muro.
+export const TEXTOS_TARJETA_DE_TAREA = {
+  insignia: "Tarea",
+  puntos: (n: number) => (n === 1 ? "1 punto" : `${n} puntos`),
 } as const
 
 export const TEXTOS_PUBLICACION = {
@@ -362,6 +369,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     editar: false,
     formularioPublicacion: false,
     formularioComentario: true,
+    crearTarea: false,
   },
   maestro: {
     base: BASES_POR_PERSPECTIVA.maestro,
@@ -375,6 +383,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     editar: false,
     formularioPublicacion: true,
     formularioComentario: true,
+    crearTarea: true,
   },
   admin: {
     base: BASES_POR_PERSPECTIVA.admin,
@@ -389,6 +398,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     editar: true,
     formularioPublicacion: true,
     formularioComentario: false,
+    crearTarea: true,
   },
 }
 

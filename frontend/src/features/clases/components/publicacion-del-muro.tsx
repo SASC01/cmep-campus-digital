@@ -12,6 +12,7 @@ import type { Perspectiva, Publicacion } from "../types"
 import { AdjuntosDePublicacion } from "./adjuntos-de-publicacion"
 import { ComentariosDePublicacion } from "./comentarios-de-publicacion"
 import { FirmaDelAutor } from "./firma-del-autor"
+import { TarjetaDeTarea } from "./tarjeta-de-tarea"
 
 interface PublicacionDelMuroProps {
   claseId: string
@@ -25,7 +26,7 @@ interface PublicacionDelMuroProps {
 // botón "Borrar publicación" sale de `puedeBorrar` (lo decide el servidor con la regla de autoría),
 // nunca del rol; pide confirmación en línea (§7.14): el foco va a "Cancelar" al pedirla y vuelve a
 // "Borrar publicación" al cancelar. La firma sale de FirmaDelAutor (§D-2C4).
-export function PublicacionDelMuro({ claseId, publicacion, perspectiva }: PublicacionDelMuroProps) {
+function PublicacionComun({ claseId, publicacion, perspectiva }: PublicacionDelMuroProps) {
   const [abierto, setAbierto] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const idComentarios = useId()
@@ -143,4 +144,23 @@ export function PublicacionDelMuro({ claseId, publicacion, perspectiva }: Public
       </CardContent>
     </Card>
   )
+}
+
+// TAREAS-01d (§D-10): una tarea del muro se pinta con su tarjeta (sin comentarios ni borrado); los
+// anuncios y materiales, con la publicación de siempre. `perspectiva` llega de la vista del muro.
+export function PublicacionDelMuro({ claseId, publicacion, perspectiva }: PublicacionDelMuroProps) {
+  // T-07: un elemento de tipo tarea nunca cae en la publicación común (con "Ver comentarios" y
+  // "Borrar publicación", que el servidor responde con 404): sin su resumen, la tarjeta lo dice.
+  if (publicacion.tipo === "tarea") {
+    return (
+      <TarjetaDeTarea
+        claseId={claseId}
+        publicacion={publicacion}
+        tarea={publicacion.tarea}
+        perspectiva={perspectiva}
+      />
+    )
+  }
+
+  return <PublicacionComun claseId={claseId} publicacion={publicacion} perspectiva={perspectiva} />
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { subirArchivo } from "@/services/almacenService"
@@ -18,7 +19,7 @@ import {
   TEXTOS_ADJUNTOS,
   TEXTOS_FORMULARIO_PUBLICACION,
 } from "../data"
-import { useCrearPublicacion, useSolicitarSubida } from "../hooks"
+import { useCrearPublicacion, useSolicitarSubida, useTemas } from "../hooks"
 import {
   avisoDeFalloAlSubir,
   errorDeArchivoElegido,
@@ -38,11 +39,18 @@ interface FormularioPublicacionProps {
 // según el tipo. Valida con el mismo esquema que el servidor (crearPublicacionSchema) antes de
 // enviar. Los archivos se eligen aquí, se validan en cliente y, al publicar, cada uno se solicita,
 // se sube directo al almacén y solo entonces se publica con sus ids (siempre en `archivoIds`).
+// TAREAS-01e (§D-11, Enmienda 6): con "Material", el campo "Tema" sale de la lista de temas de la clase
+// (la misma consulta de "Trabajo de clase") solo si ya llegó y tiene al menos un tema; pendiente o
+// vacía no se muestra, y fallida deja una nota en línea. Nunca bloquea el envío: sin un tema elegido
+// (o si el elegido ya no está en la lista) el cuerpo va sin `temaId`. O-18: mientras una publicación
+// está en vuelo, los botones del tipo no actúan y el botón principal conserva el texto del tipo enviado.
 export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
   const crear = useCrearPublicacion(claseId)
   const solicitar = useSolicitarSubida(claseId)
   const idBase = useId()
   const [tipo, setTipo] = useState<TipoPublicacion>("anuncio")
+  const temas = useTemas(claseId, tipo === "material")
+  const [temaElegido, setTemaElegido] = useState("")
   const [titulo, setTitulo] = useState("")
   const [texto, setTexto] = useState("")
   const [elegidos, setElegidos] = useState<readonly File[]>([])
@@ -62,6 +70,11 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
   const idTitulo = `${idBase}-titulo`
   const idTexto = `${idBase}-texto`
   const idArchivos = `${idBase}-archivos`
+  const idTema = `${idBase}-tema`
+  const listaDeTemas = temas.data?.temas
+  const hayTemas = listaDeTemas !== undefined && listaDeTemas.length > 0
+  const temaIdEfectivo = listaDeTemas?.some(({ id }) => id === temaElegido) ? temaElegido : ""
+  const temasFallidos = temas.isError && temas.data === undefined
 
   useEffect(() => {
     const vecina = focoTrasQuitarRef.current
@@ -126,6 +139,7 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
       await crear.mutateAsync({ ...datos, archivoIds })
       setTitulo("")
       setTexto("")
+      setTemaElegido("")
       setElegidos([])
     } catch (error) {
       if (archivoEnSubida === null) {
@@ -142,14 +156,22 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
     }
   }
 
+  // O-18: con una publicación en vuelo el tipo no cambia (ni el texto del botón ni lo que se envía).
+  const elegirTipo = (nuevo: TipoPublicacion) => {
+    if (publicandoRef.current || crear.isPending) return
+    setTipo(nuevo)
+  }
+
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
     if (publicandoRef.current || crear.isPending) return
 
     // T-31: se mide lo que el servidor va a medir (normalizado), sin reescribir el campo visible.
     const textoNormalizado = normalizarTextoLargo(texto)
+    // Con "Sin tema" la clave temaId no viaja (Enmienda 1, M-01): el cuerpo es el de siempre.
+    const conTema = temaIdEfectivo === "" ? {} : { temaId: temaIdEfectivo }
     const candidato = esMaterial
-      ? { tipo, titulo: normalizarTextoLargo(titulo), texto: textoNormalizado }
+      ? { tipo, titulo: normalizarTextoLargo(titulo), texto: textoNormalizado, ...conTema }
       : { tipo, texto: textoNormalizado }
     const resultado = crearPublicacionSchema.safeParse(candidato)
     if (!resultado.success) {
@@ -187,7 +209,7 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
                 variant="ghost"
                 size="sm"
                 aria-pressed={!esMaterial}
-                onClick={() => setTipo("anuncio")}
+                onClick={() => elegirTipo("anuncio")}
                 className="relative w-full aria-pressed:text-link"
               >
                 {!esMaterial && <Check aria-hidden="true" />}
@@ -198,7 +220,7 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
                 variant="ghost"
                 size="sm"
                 aria-pressed={esMaterial}
-                onClick={() => setTipo("material")}
+                onClick={() => elegirTipo("material")}
                 className="relative w-full aria-pressed:text-link"
               >
                 {esMaterial && <Check aria-hidden="true" />}
@@ -223,6 +245,33 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
                 <ErrorDeCampo id={`${idTitulo}-error`}>{errores.titulo}</ErrorDeCampo>
               )}
             </div>
+          )}
+
+          {esMaterial && hayTemas && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={idTema}>{TEXTOS_FORMULARIO_PUBLICACION.campoTema}</Label>
+              <NativeSelect
+                id={idTema}
+                name="temaId"
+                autoComplete="off"
+                value={temaIdEfectivo}
+                onChange={(evento) => setTemaElegido(evento.target.value)}
+              >
+                <NativeSelectOption value="">
+                  {TEXTOS_FORMULARIO_PUBLICACION.sinTema}
+                </NativeSelectOption>
+                {listaDeTemas.map((tema) => (
+                  <NativeSelectOption key={tema.id} value={tema.id}>
+                    {tema.nombre}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </div>
+          )}
+          {esMaterial && temasFallidos && (
+            <p className="text-small text-muted-foreground">
+              {TEXTOS_FORMULARIO_PUBLICACION.temasNoCargados}
+            </p>
           )}
 
           <div className="flex flex-col gap-2">

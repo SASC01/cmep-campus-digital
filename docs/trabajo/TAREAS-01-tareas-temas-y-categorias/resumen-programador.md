@@ -805,3 +805,665 @@ Nada de T-15.
 ### M-01 de la revisión final: viñetas de §7.3
 Las dos viñetas de 01d en `docs/DESIGN.md`, "Selector de una lista corta, `components/ui/native-select.tsx`" y "Control segmentado de dos botones para una política", salieron del final de §7.6 (líneas 488-489, con su línea en blanco) y quedaron al final de §7.3, como líneas 415-416, antes de "### 7.4". El texto no cambió.
 Comprobación con `git diff -U0 ad670c9 -- docs/DESIGN.md`: el hunk `@@ -487,0 +488,3 @@` de §7.6 desapareció y quedó `@@ -414,0 +415,2 @@` en §7.3. §7.6 es idéntica a la de `ad670c9` (`diff` vacío de la sección). Sin pruebas, por el carril trivial.
+
+## TAREAS-01e — Implementación
+
+Plan: `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/plan.md` (01e, pasos 35 a 39; Enmiendas 5 y 6, C-14 y C-15). Base `<K1d>` = `1118c1a`. Solo frontend; el backend no se corrió.
+Pasos completados: 5 de 5 (35 a 39; del 39, el resumen; la comprobación humana y el commit son del humano).
+
+**Parada previa.** Me detuve antes de escribir código por PA-16 y PA-05 (el destino tras borrar una tarea chocaba con `detalle-tarea-view.test.tsx` y con `tareas-01d-r1.ataque`). Quedó resuelta con C-15 (rojo esperado 10) y con la I-2 de `detalle-tarea-view.test.tsx`; después retomé los pasos 35 a 39.
+
+### Archivos (todos en `frontend/src` salvo `docs/DESIGN.md`)
+- **Nuevos, en `features/clases/`:**
+  - `trabajo-view.tsx` y `categorias-view.tsx`, que llaman a `perspectivaDeRuta`.
+  - En `components/`: `seccion-de-tema.tsx` (con `ElementosDelTema` y "Ver más de `<tema>`"), `fila-de-entrega.tsx`, `elemento-de-trabajo.tsx`, `formulario-tema.tsx`, `mover-elemento.tsx` y `editor-de-categorias.tsx`.
+  - Pruebas: `trabajo-view.test.tsx` y `categorias-view.test.tsx`.
+- **Modificados, en `features/clases/`:**
+  - `data.ts`: secciones con "Trabajo de clase", la capacidad `gestionarTrabajo`, las clases para cuatro secciones, los límites 5, 20 y 6, los textos, `CLASES_DEL_CUADRO_DE_FECHA` y los códigos con mensaje del servidor.
+  - `types.ts`: los tipos nuevos, todos aquí.
+  - `lib.ts`: `crearLimiteDeConcurrencia`, `seccionesDeTrabajo`, `ordenTrasMover`, `cuadroDeFecha`, `erroresDelTemaDeApi`, las funciones de categorías, `errorQuitaLaVista` y `seccionVecina`.
+  - `hooks.ts`:
+    - la instancia única `limiteDeTrabajo`;
+    - `useTemas`, `useTrabajo`, `useAvisoDeRecargaFallida`, `useCrearTema`, `useRenombrarTema`, `useBorrarTema`, `useOrdenarTemas`, `useMoverElemento`, `useCategorias`, `useCategoriasEnCache` y `useGuardarCategorias`;
+    - en `useCrearPublicacion`, la invalidación de temas y trabajo, y la renovación ante `TEMA_NO_ENCONTRADO`.
+  - En `components/`: `formulario-publicacion.tsx` (el campo "Tema" y O-18) y `secciones-de-clase.tsx` (desplazamiento horizontal).
+- **Fuera de `features/clases`:**
+  - `app/router.tsx`: la ruta `trabajo` en las tres perspectivas y `categorias` en maestro y admin.
+  - `features/tareas/components/acciones-de-la-tarea.tsx`: el destino tras borrar es `${base}/trabajo`. Es lo único que toqué de `features/tareas` en producción.
+- **Pruebas existentes que cambié, todas de la lista cerrada o I-2:**
+  - `features/clases/formulario-publicacion.test.tsx`;
+  - `features/clases/clase-layout.test.tsx`;
+  - `features/clases/lib.test.ts`;
+  - `features/tareas/detalle-tarea-view.test.tsx` (I-2 de C-15).
+- `docs/DESIGN.md`.
+
+### Pruebas requeridas
+(Títulos exactos de `cd frontend; npx vitest list`, guardado en el scratchpad como `list-fe.txt`.)
+- **PR-1E01** → `frontend/src/features/clases/trabajo-view.test.tsx`:
+  - "PR-1E01 · «Sin tema» va arriba solo si tiene elementos y después los temas en su orden"
+  - "PR-1E01 · un tema vacío dice «Aún no hay nada en este tema.» sin pedir su trabajo"
+  - "PR-1E01 · sin temas ni elementos, la vista dice que aún no hay tareas ni materiales"
+  - "PR-1E01 · la fila de una tarea lleva el cuadro de fecha, enlaza a su detalle y dice su estado con texto (próxima, pendiente y vencida)"
+  - "PR-1E01 · un material se despliega con «Ver material» y muestra su texto y sus adjuntos"
+  - "PR-1E01 · el estudiante no ve ningún control de gestión"
+- **PR-1E02** → `frontend/src/features/clases/trabajo-view.test.tsx`:
+  - "PR-1E02 · maestro: «Crear tarea» es la única acción principal y lleva al formulario; «Nuevo tema» y «Categorías de calificación» no lo son" (y la misma para "admin", con `it.each`)
+  - "PR-1E02 · crear un tema en línea: el campo recibe el foco, el nombre vacío no se envía y, al crearlo, el foco vuelve a «Nuevo tema»"
+  - "PR-1E02 · renombrar en línea: un nombre repetido se muestra bajo el campo sin aviso; al guardar, el foco vuelve a «Renombrar»"
+  - "PR-1E02 · «Subir» y «Bajar» envían el orden completo, no aparecen en el primero ni en el último, y el foco sigue en el botón del tema que se movió"
+  - "PR-1E02 · con 409 ORDEN_DESACTUALIZADO la lista se vuelve a pedir y sale el aviso"
+  - "PR-1E02 · borrar un tema pide confirmación en línea (foco a «Cancelar» y de vuelta al cancelar); al borrarlo, el foco va al «Borrar tema» del vecino y, sin temas, al encabezado de la vista"
+  - "PR-1E02 · mover un elemento: «Mover» espera la respuesta y, al salir el elemento de su sección, el foco va al «Mover» de la fila vecina y, sin vecinas, al encabezado de la sección"
+  - "PR-1E02 · «Ver más de <tema>» espera, y al cargar la última página el foco va al primer elemento nuevo"
+  - "PR-1E02 · una recarga fallida de los temas conserva la vista y avisa una vez"
+- **PR-1E03** → `frontend/src/features/clases/categorias-view.test.tsx`:
+  - "PR-1E03 · sin categorías dice que la clase se califica por puntos y ofrece «Agregar categoría»"
+  - "PR-1E03 · agregar, editar y quitar filas; el total en vivo dice si es exacto, si faltan o si sobran"
+  - "PR-1E03 · una categoría con tareas no ofrece «Quitar» y muestra la nota"
+  - "PR-1E03 · guardar valida con el esquema de shared/: con 99 % o un nombre vacío no envía nada y cada error queda en su lugar"
+  - "PR-1E03 · guardar envía la lista completa en bloque (ids de las guardadas, sin id las nuevas, peso con «%» pegado), avisa y adopta los ids nuevos"
+  - "PR-1E03 · un 409 CATEGORIA_CON_TAREAS avisa con el mensaje del servidor y el editor parte de la lista que el servidor acaba de devolver"
+  - "PR-1E03 · un VALIDACION del servidor de una fila queda bajo esa fila, y uno de la lista bajo el total"
+  - "PR-1E03 · al quitar una fila el foco va al «Quitar» de la vecina y, sin filas, a «Agregar categoría»"
+  - "PR-1E03 · desde una ruta de estudiante no pide nada"
+- **PR-1E04** → `frontend/src/features/clases/formulario-publicacion.test.tsx`:
+  - "PR-1E04 · «Tema» solo aparece con «Material», con «Sin tema» elegido por defecto, y con un tema elegido el cuerpo lleva temaId"
+  - "PR-1E04 · con «Sin tema» el cuerpo del material no lleva la clave temaId"
+  - "PR-1E04 · O-18: con una publicación en vuelo, cambiar de tipo no cambia el texto del botón ni el tipo enviado"
+  - "PR-1E04 · si el tema elegido ya no existe, avisa con el mensaje del servidor, vuelve a pedir los temas y el campo deja de ofrecerlo"
+  - Los dos `toEqual` existentes ("un material sin descripción se publica con solo el título" y "PR-C15b: …") siguen iguales: solo cambió el doble.
+- **PR-1E05** → `frontend/src/features/clases/clase-layout.test.tsx`:
+  - "PR-1E05 · tres secciones para el estudiante y el maestro y cuatro para el admin, con «Trabajo de clase» segunda"
+  - "PR-1E05 · en …/trabajo, «Trabajo de clase» lleva aria-current y el indicador se traslada una posición; en el admin mide un cuarto"
+  - "PR-1E05 · en …/categorias ninguna sección está activa y no hay indicador"
+  - "PR-1E05 · el grupo de las secciones se desplaza en horizontal dentro de su panel"
+- **PR-1E06** → `frontend/src/features/clases/lib.test.ts`, los cuatro títulos exactos del plan:
+  - "PR-1E06 · con un tope de 6 y 31 tareas, solo 6 corren a la vez y las demás esperan en orden"
+  - "PR-1E06 · al terminar una tarea, con éxito o con error, entra la siguiente de la cola"
+  - "PR-1E06 · una tarea en espera con su signal abortado sale de la cola sin correr y no ocupa lugar"
+  - "PR-1E06 · un signal ya abortado al llamar a ejecutar rechaza enseguida sin correr la tarea ni ocupar lugar"
+- **PR-1E07** → `frontend/src/features/clases/trabajo-view.test.tsx`, los seis títulos exactos del plan:
+  - "PR-1E07 · con 31 temas con elementos solo hay 6 peticiones de trabajo en vuelo y los temas que esperan muestran que se están cargando"
+  - "PR-1E07 · al resolverse una petición de trabajo entra la del siguiente tema, en el orden de la vista y con Sin tema primero"
+  - "PR-1E07 · la primera página de cada tema pide limite=5 y Ver más pide limite=20"
+  - "PR-1E07 · un fallo en un tema no bloquea a los demás: solo esa sección muestra el error"
+  - "PR-1E07 · al cambiar de clase con peticiones de trabajo en vuelo no se pintan datos de la clase anterior y las que esperaban no se piden"
+  - "PR-1E07 · al cambiar de clase o salir y volver con 6 peticiones de trabajo en vuelo y otras en espera, la clase nueva obtiene sus 6 lugares y las que esperaban nunca se piden"
+- **PR-1E08** → `frontend/src/features/clases/formulario-publicacion.test.tsx`, los tres títulos exactos del plan:
+  - "PR-1E08 · con la lista de temas pendiente el formulario no muestra Tema, se puede publicar y el cuerpo va sin temaId"
+  - "PR-1E08 · con la lista de temas fallida el formulario muestra la nota en línea, no marca ningún campo ni avisa, y publica sin temaId"
+  - "PR-1E08 · con la lista de temas vacía el formulario no muestra Tema y publica sin temaId"
+- **Contrato de los dobles (PR-1E06 y PR-1E07):**
+  - Las promesas son controladas, sin temporizadores.
+  - El doble de `trabajo-view.test.tsx` rechaza con un `DOMException` `AbortError` cuando su `signal` se aborta.
+  - Cuenta las peticiones en vuelo y el máximo con un contador propio.
+  - Cada caso de PR-1E07 resuelve todo o desmonta la vista y termina con `expect(servidor.enVuelo()).toBe(0)`.
+  - No se exporta ningún reinicio del limitador.
+
+### Verificación (comando exacto y última línea)
+Medí la carga antes de la corrida completa: CPU al 5 %, 17.7 GB libres y 0 procesos `node`. Corrí una suite a la vez.
+- `cd frontend; npm run lint` → `> tsc -b` (código 0).
+- `cd frontend; npm test` → `Tests  2188 passed (2188)` (`Test Files  144 passed (144)`, 81.17 s).
+- `cd frontend; npm run build` → `✓ built in 657ms`.
+- raíz `npm run build` → `✓ built in 639ms`.
+- raíz `npm run lint` → `> tsc -b` (código 0).
+- `prisma validate`: n/a.
+
+### Conteos
+- `cd frontend; npx vitest list` da 2188 casos (líneas con " > ") en 144 archivos.
+- Antes de 01e eran 2142 casos en 142 archivos, según la corrida de la ronda 0 del tester (`Tests  9 failed | 2133 passed (2142)`, `Test Files  … (142)`).
+- Diferencia: +46 casos y +2 archivos (`trabajo-view.test.tsx` y `categorias-view.test.tsx`). Los 46 llevan el prefijo PR-1E0x; `grep -ac "PR-1E0[1-8]"` sobre la lista da 46:
+
+| Prueba | Casos |
+|---|---|
+| PR-1E01 | 6 |
+| PR-1E02 | 10 |
+| PR-1E03 | 9 |
+| PR-1E04 | 4 |
+| PR-1E05 | 4 |
+| PR-1E06 | 4 |
+| PR-1E07 | 6 |
+| PR-1E08 | 3 |
+| **Total** | **46** |
+
+### Los 10 rojos esperados, en verde
+Todos pasan en la corrida completa (`Tests  2188 passed`):
+1. `components/layout/estatico-r1` › "los únicos valores arbitrarios…": `translate-x-[300%]` es el único nuevo.
+2. `clases-admin-02c-r1` › "Muro → Alumnos → Maestros → Editar clase…".
+3. a 5. `heredados-02d-r1`, las tres filas.
+6. `segmentado-02d-r1` › "cambiar a «Material» con un anuncio en vuelo…" (O-18).
+7. `styles/clases-r1` › "V-06: … 49 enEspera": `seccion-de-tema.tsx` 4, `formulario-tema.tsx` 1, `mover-elemento.tsx` 1 y `editor-de-categorias.tsx` 1; 0 en `trabajo-view.tsx`, `categorias-view.tsx`, `elemento-de-trabajo.tsx` y `fila-de-entrega.tsx`; `formulario-publicacion.tsx` sigue en 1.
+8. `styles/clases-r1` › "V-07…": `vidrio-fuerte` solo suma `fila-de-entrega.tsx` y `elemento-de-trabajo.tsx`.
+9. `estatico-02c-r1` › "§D-2C1…": `trabajo-view.tsx` y `categorias-view.tsx`.
+10. `tareas-01d-r1` › "doble clic humano (30 ms) en «Sí, borrar tarea» manda un solo DELETE" (C-15).
+
+Las cinco `*.ataque` con dobles que eligen "Material" (`archivos-d-r1`, `archivos-d-r2`, `muro-c-r1`, `muro-c-r2` y `segmentado-02d-r1`) siguen en verde sin tocarlas.
+
+### I-2 cambiadas (A-3)
+- `features/clases/lib.test.ts`: solo los valores que C-11 cambia, con un comentario en cada caso.
+  - "PR-2C01: la tabla de capacidades de §D-2C1, celda por celda": las tres listas de secciones suman "Trabajo de clase".
+  - "M-12: indiceDeSeccionActiva no distingue mayúsculas…": ALUMNOS pasa de 1 a 2 y Maestros de 2 a 3.
+  - "indiceDeSeccionActiva: el muro solo en la base exacta…": alumnos pasa de 1 a 2 y maestros de 2 a 3.
+- `features/tareas/detalle-tarea-view.test.tsx`, I-2 de C-15: el caso pasa a "PR-1D05: confirmar borra con DELETE, avisa «Tarea borrada» y navega a «Trabajo de clase»". El doble del router suma `…/trabajo` y el caso espera esa pantalla y que no se pinte el muro.
+- Dentro de la lista cerrada de 01e, además:
+  - `clase-layout.test.tsx` (C-11): PR-2C07 pasa a cuatro secciones, `w-1/4`, `translate-x-[200%]` y `translate-x-[300%]`; PR-2C08 a 3 enlaces; M-T1 a `translate-x-[200%]` en Alumnos. Cada cambio lleva su comentario.
+  - `formulario-publicacion.test.tsx`: un envoltorio `conTemas` en sus seis dobles, que responde `GET …/temas` aparte, sin tocar ninguna aserción salvo la siguiente. El caso "PR-2D05: cambiar de tipo con la publicación en vuelo…" espera ahora "Publicar anuncio" en espera y «Anuncio» elegido (C-12, O-18).
+
+### V-01
+- Comparé con `diff` las 157 `*.ataque` contra la tabla de "### Complementaria 2: C-15" de `reporte-tester.md` (157 filas, con el hash de `tareas-01d-r1.ataque` `7D1935A2…D5D6`). El hash de cada archivo sale de `sha256sum` sobre `git ls-files -co --exclude-standard`.
+- Resultado: `diff` vacío y `V01-OK`, 157 de 157. No toqué ninguna `*.ataque`.
+
+### `git diff --name-only 1118c1a`
+- **Míos, rastreados:**
+  - `docs/DESIGN.md`;
+  - en `frontend/src`: `app/router.tsx`, `features/clases/clase-layout.test.tsx`, `components/formulario-publicacion.tsx`, `components/secciones-de-clase.tsx`, `data.ts`, `formulario-publicacion.test.tsx`, `hooks.ts`, `lib.test.ts`, `lib.ts` y `types.ts` (todos de `features/clases`), `features/tareas/components/acciones-de-la-tarea.tsx` y `features/tareas/detalle-tarea-view.test.tsx`.
+- **Rastreados que no son míos:**
+  - `docs/ESTADO.md` y los cuatro archivos de `docs/trabajo/TAREAS-01-…/`;
+  - las siete `*.ataque` que reescribió el tester.
+- **Sin rastrear, todos de `frontend/src/features/clases/`:** `trabajo-view.tsx`, `trabajo-view.test.tsx`, `categorias-view.tsx`, `categorias-view.test.tsx` y los seis componentes nuevos.
+- Ningún archivo mío queda fuera de `frontend/src` y `docs/DESIGN.md`.
+- `docs/DESIGN.md` quedó con finales de línea LF, como estaba en la base (el script lo había escrito con CRLF y lo corregí).
+
+### `docs/DESIGN.md` (marca "propuesta (TAREAS-01e)")
+- §7.3: el control segmentado con cuatro opciones (`w-1/4`, `grid-cols-4` y `translate-x-[300%]`) y el desplazamiento horizontal del grupo (`max-w-full overflow-x-auto`, `w-max`).
+- §7.16: las secciones con "Trabajo de clase" segunda en las tres perspectivas; `…/categorias` y `…/tareas/:id` no activan ninguna.
+- §7.18: "Tema" en el formulario del material (pendiente, vacía y fallida) y O-18.
+- §7.22, nueva, "Trabajo de clase y temas":
+  - el orden, la sección de un tema y la carga por tema (primera página de 5, como máximo 6 a la vez, esperar el turno se ve como la carga de §7.10, sin estado visual nuevo);
+  - la fila de tarea de §7.7 con `size-11` y el material;
+  - los controles de maestro y admin, el foco y la recarga fallida.
+- §7.23, nueva, "Categorías de calificación".
+
+### Hermanos y estados vecinos, por mecanismo
+- **Foco del formulario de tema:**
+
+| Estado | Comportamiento |
+|---|---|
+| Crear, guardado o cancelado | El foco vuelve a «Nuevo tema» |
+| Renombrar, guardado o cancelado | El foco vuelve a «Renombrar» |
+| Error de campo (vacío, largo o `TEMA_REPETIDO`) | El formulario queda abierto con el foco en el campo y `ErrorDeCampo` |
+| Error de red o `TOPE_DE_TEMAS` | Aviso, el formulario sigue abierto y los temas se vuelven a pedir |
+| Al abrirse | El foco va al campo |
+
+  Se aplica en todos. Lo cubren PR-1E02 crear y renombrar.
+- **Foco tras "Subir" o "Bajar":**
+
+| Estado | Comportamiento |
+|---|---|
+| Subir o bajar con el botón todavía visible | El mismo botón |
+| El tema llega al primer o al último lugar | El otro botón del mismo tema |
+| Un solo tema | No hay botones |
+| 409 que recarga en otro orden | La misma regla, después de la recarga |
+| La persona llevó el foco a otro lado | No se le quita |
+| Clics rápidos | Mientras uno está en vuelo, los demás "Subir" y "Bajar" no actúan |
+
+  PR-1E02 cubre los dos primeros, el último y el 409; los otros dos están en el código.
+- **Foco al desaparecer un tema:**
+
+| Estado | A dónde va el foco |
+|---|---|
+| Hay un tema siguiente | Su «Borrar tema» |
+| Era el último | El anterior |
+| La vecina es "Sin tema" | Su `h2` |
+| Ninguna vecina | El `h2` de la vista |
+| "Sin tema" aparece en el mismo cambio | No cuenta como vecina (`seccionVecina`) |
+| El tema sigue, pero su lista se vació o falló | El `h2` del tema |
+| Borrado desde otra pestaña y llega por recarga | La misma regla |
+| Cambio de clase | El `h2` de la vista |
+| Se cancela la confirmación | Vuelve a «Borrar tema» |
+
+  PR-1E02 cubre el vecino siguiente, "Sin tema" (que es a la vez la vecina sin «Borrar tema» y la que aparece en el cambio) y la cancelación.
+- **Foco al mover un elemento:**
+
+| Estado | A dónde va el foco |
+|---|---|
+| La fila vecina tiene «Mover» | Ese «Mover» |
+| La vecina no tiene «Mover» | La fila `li` (`tabIndex -1`) |
+| Sin vecinas | El `h2` de la sección |
+| La sección se vacía y la lista se desmonta | El efecto de la vista lleva el foco al `h2` de la sección |
+| "Sin tema" desaparece | La regla de los temas |
+| La lista pasa a error | El `h2` de la sección |
+
+  PR-1E02 cubre la vecina con «Mover» y la sección que se vacía.
+- **"Ver más de `<tema>`":**
+  - el foco va al primer elemento nuevo o, si no llegó ninguno, al `h2` de la sección (`useFocoAlCargarMas`);
+  - el 400 del cursor muestra su texto propio en la sección.
+
+  Los tres "Ver más" (muro, comentarios y cada tema) usan el mismo gancho.
+- **Recarga fallida con datos en caché:**
+  - Temas y categorías conservan la vista y avisan una vez por fallo.
+  - Montar la vista con el fallo ya en caché no avisa: el contador se lee al montar.
+  - Dos fallos seguidos avisan dos veces.
+  - La primera carga fallida muestra `MensajeError`.
+  - `SIN_ACCESO_A_LA_CLASE` o un `VALIDACION` de `claseId` reemplazan la vista sin aviso extra.
+  - Las listas de cada sección siguen el precedente del muro: un error reemplaza la lista de esa sección (ver Desviaciones).
+
+  Lo cubre PR-1E02 › "una recarga fallida de los temas…".
+- **Renovación en `onError`:**
+  - Para los temas: crear, renombrar, borrar, ordenar, mover y publicar un material vuelven a pedir los temas y el trabajo ante `TEMA_NO_ENCONTRADO`, `TEMA_REPETIDO`, `TOPE_DE_TEMAS`, `ORDEN_DESACTUALIZADO`, `PUBLICACION_NO_ENCONTRADA` y `ANUNCIO_SIN_TEMA`.
+  - Para las categorías: ante `CATEGORIA_CON_TAREAS` y `CATEGORIA_NO_ENCONTRADA`, se vuelven a pedir y el editor parte de la lista nueva.
+  - Al tener éxito, renombrar, borrar y guardar categorías invalidan además el detalle de las tareas (nombre del tema, categoría y peso); mover invalida el detalle de ese elemento.
+- **Errores por fila del editor:**
+  - van por llave estable, igual del cliente que del servidor (`categorias.N.campo`, asignado a la fila que tenía esa posición al enviar);
+  - el error de la lista entera va bajo el total;
+  - el error de una fila que ya no está se muestra como error de la lista;
+  - mientras se guarda, la lista no cambia (quitar, agregar y escribir no actúan).
+
+  Lo cubren PR-1E03 › "guardar valida…" y "un VALIDACION del servidor…".
+- **Campo "Tema" del muro:** cada estado lo cubre PR-1E04 o PR-1E08.
+
+| Estado | Comportamiento |
+|---|---|
+| Lista pendiente | No se muestra el campo |
+| Lista vacía | No se muestra el campo |
+| Lista fallida sin datos | Nota en línea |
+| Lista fallida con datos | El selector sigue (decisión 1) |
+| Lista cargada | `NativeSelect` con "Sin tema" elegido por defecto |
+| El tema elegido desaparece | El campo vuelve a "Sin tema" y el cuerpo va sin `temaId` |
+| `TEMA_NO_ENCONTRADO` del servidor | Aviso con su mensaje y los temas se vuelven a pedir |
+| Tras publicar | El campo vuelve a "Sin tema" |
+| Se cambia a «Anuncio» | El campo se oculta y la clave no viaja |
+
+- **O-18:**
+  - con la subida de archivos en vuelo (`publicandoRef`) y con el POST en vuelo (`crear.isPending`), los dos botones del tipo no actúan;
+  - al terminar vuelven a actuar.
+
+  Lo cubren PR-1E04 › "O-18" y PR-2D05.
+- **Limitador:**
+  - pasan por él la primera página, "Ver más", la recarga tras una invalidación y los reintentos de TanStack Query, porque todos llaman a la misma `queryFn`;
+  - una tarea en espera con su `signal` abortado sale de la fila;
+  - una en curso se cancela con el `fetch` real;
+  - un `signal` ya abortado rechaza enseguida;
+  - un 503, un 500, un 400 o la red caída liberan el lugar en el `finally`.
+
+  Lo cubren PR-1E06 y PR-1E07.
+- **Selectores con una opción vieja:** si el tema elegido en `MoverElemento` ya no existe, el selector vuelve a "Sin tema" y no se envía un id inexistente (el mismo criterio que el campo del muro).
+
+### Desviaciones
+1. **Decisión 1, declarada y arbitrada por el manager.** Campo "Tema": con temas ya cargados y una recarga fallida, el selector sigue; la nota solo sale sin datos y con error. Si el tema elegido desaparece de la lista, el cuerpo va sin `temaId`.
+2. **Decisión 2, declarada.** `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` suma `TEMA_NO_ENCONTRADO`, `TEMA_REPETIDO`, `TOPE_DE_TEMAS`, `ORDEN_DESACTUALIZADO`, `CATEGORIA_CON_TAREAS`, `CATEGORIA_NO_ENCONTRADA` y `ANUNCIO_SIN_TEMA`.
+3. **Textos que el plan no listaba**, en `data.ts`:
+   - "El tema no tiene elementos." (confirmación de borrar un tema vacío);
+   - los conteos "1 elemento" / "`<n>` elementos" del `h2`;
+   - "1 tarea" y "Tiene 1 tarea." (singulares);
+   - "de la categoría `<n>`" (`sr-only` de las etiquetas);
+   - "—" (día de un cuadro de fecha ilegible);
+   - los dos avisos de recarga fallida: "No pudimos actualizar Trabajo de clase. Mostramos la última versión que tenemos." y "No pudimos actualizar las categorías. Mostramos la última versión que tenemos.".
+   - "Renombrar", "Borrar tema" y "Quitar" llevan el nombre del tema o de la categoría como texto `sr-only` (§7.9).
+4. **La lista de una sección que falla al recargar se reemplaza por `MensajeError`**, como el muro. Los temas y las categorías, en cambio, conservan la vista. Lo elegí para no apilar 31 avisos.
+5. **La vecina de un tema borrado** se busca entre las secciones que ya estaban (`seccionVecina`, en `lib.ts`), no con `vecinaDeFila`: con esta, "Sin tema", que aparece al borrar, recibía el foco en lugar del tema vecino.
+6. **Editor de categorías:**
+   - durante el guardado la lista no se puede cambiar;
+   - tras un conflicto 409 o 404 parte de la lista del servidor y descarta lo que no se guardó;
+   - el peso admite un "%" pegado ("40 %").
+7. **`CategoriasView` desde una ruta de estudiante** (el router no la monta) muestra "No tienes acceso a esta clase." sin pedir nada.
+8. **El grupo de secciones lleva `w-max` en su contenido** para que el desplazamiento horizontal funcione; no es un valor arbitrario.
+9. **En `lib.ts`, `IncidenciaValidacion` se importa desde `./types`**, porque la expresión de `refactor-01c-r1` cuenta un `type` importado de `@/lib/errores-de-api` como una definición más (el mismo caso del punto 2 de las desviaciones de 01d).
+
+### Pendiente o fuera de alcance detectado
+- `features/tareas/hooks.ts`, línea 153: un comentario todavía dice "navega al muro". No lo toqué porque `features/tareas/**` está en "No se toca" salvo el destino. Es solo el comentario; el destino real ya es "Trabajo de clase".
+- La comprobación humana H-1 a H-7 queda para el humano. No abrí ningún navegador, así que no verifiqué en uno: H-3 (lector de pantalla con muchos temas) y H-6 (cuatro secciones a 360 px).
+- El aviso por cada fallo de recarga de una sección (en lugar de reemplazar su lista) queda para cuando se decida; ver la desviación 4.
+
+### M-01: tipo fuera de types.ts y aserción de PR-1E07
+Corregido. Responde a la revisión del manager del resumen de 01e.
+
+**Diff (resumen):**
+- **(a)** `interface FocoPendiente { llave: string | null; campo: "quitar" | "nombre" }`:
+  - sale de `features/clases/components/editor-de-categorias.tsx`;
+  - pasa a `features/clases/types.ts` como `export interface FocoPendiente`, con su comentario y la cita de M-01;
+  - el editor la importa de `../types`.
+- **Opcional, aplicado:** el cálculo en línea `errorDeLaLista` del editor pasa a una función pura, `errorDeLaListaDeCategorias(errores, llaves)`, en `features/clases/lib.ts`. Hace lo mismo que antes: devuelve el error de la lista o, si no hay, el de una fila que ya no está. El editor solo la llama.
+- **(b)** `features/clases/trabajo-view.test.tsx` › "PR-1E07 · la primera página de cada tema pide limite=5 y Ver más pide limite=20":
+  - el caso termina ahora con `expect(servidor.enVuelo()).toBe(0)`, con un comentario del contrato de los dobles;
+  - el título no cambia.
+  - Con esto, los seis casos de PR-1E07 terminan con esa aserción, como decía el resumen.
+
+**Hermanos.** Revisé los tipos e interfaces declarados en los archivos nuevos y cambiados de 01e con `grep -nE "^\s*(export )?(interface|type) "`:
+- `trabajo-view.tsx`: solo `TrabajoDeLaClaseProps`.
+- `categorias-view.tsx`: solo `CategoriasDeLaClaseProps`.
+- `components/seccion-de-tema.tsx`: solo `ElementosDelTemaProps` y `SeccionDeTemaProps`.
+- Una sola interfaz de Props en cada uno: `formulario-tema.tsx` (`FormularioTemaProps`), `mover-elemento.tsx` (`MoverElementoProps`), `elemento-de-trabajo.tsx` (`ElementoDeTrabajoProps`), `fila-de-entrega.tsx` (`FilaDeEntregaProps`) y `formulario-publicacion.tsx` (`FormularioPublicacionProps`, que ya estaba).
+- `editor-de-categorias.tsx`: tras el remedio, solo `EditorDeCategoriasProps`.
+- `lib.ts` y `data.ts`: ninguna declaración de tipo.
+- `hooks.ts`: ninguna declaración. Las coincidencias son importaciones `type …` de `@campus/shared`. Los parámetros de `mutationFn` llevan anotaciones de objeto en línea, por ejemplo `{ temaId: string; nombre: string }`, que no son declaraciones; siguen el precedente de `useRetirarMaestro` y `useQuitarAlumno`.
+- No quedó ningún otro tipo fuera de `types.ts`.
+- El hermano de (b): revisé los otros cinco casos de PR-1E07 y todos terminan con `vista.unmount()` y `expect(servidor.enVuelo()).toBe(0)`.
+
+**Verificación (comando exacto y última línea):**
+Medí la carga antes de la suite completa: CPU al 20 %, 17.7 GB libres y 0 procesos `node`. Corrí una suite a la vez.
+- `cd frontend; npm run lint` → `> tsc -b` (código 0).
+- `cd frontend; npx vitest run src/features/clases` → `Tests  714 passed (714)` (`Test Files  53 passed (53)`).
+- `cd frontend; npm test` → `Tests  2188 passed (2188)` (`Test Files  144 passed (144)`). Son los mismos conteos que antes: no agregué ningún caso.
+- `cd frontend; npm run build` → `✓ built in 656ms`. Lo corrí porque `lib.ts` ganó una función.
+- V-01: las 157 `*.ataque` coinciden con la tabla de la Complementaria 2 (C-15); `diff` vacío, `V01-OK`.
+
+No toqué el comentario de `features/tareas/hooks.ts:153`.
+
+## TAREAS-01e — Corrección de la ronda 1
+
+Plan: `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/plan.md` (01e). Reporte: `reporte-tester.md`, "## TAREAS-01e — Ronda 1" (ROTO: T-16, T-17 y T-18). No modifiqué ninguna `*.ataque`.
+
+### Hallazgos
+- **T-16, corregido.**
+  - Causa: `ElementosDelTema` (`components/seccion-de-tema.tsx`) pintaba "Mover" solo con `puedeMover`.
+  - Remedio: ahora recibe `gestionar`, la capacidad de la perspectiva que `SeccionDeTema` ya tenía, y solo pinta `MoverElemento` (selector y botón) con `gestionar && elemento.puedeMover`.
+  - Caso del tester: `trabajo-01e-r1.ataque.test.tsx` › "el estudiante nunca ve «Mover» ni el selector de tema, aunque el servidor diga puedeMover: true", en verde.
+  - Casos míos, en `features/clases/trabajo-view.test.tsx`:
+    - "T-16 · el estudiante no ve «Mover» ni el selector de tema en ninguna sección (tampoco en «Sin tema») aunque el servidor diga puedeMover; «Ver más» sí"
+    - "T-16 · maestro: con puedeMover ve «Mover» y su selector en «Sin tema» y en los temas" (y la misma para "admin")
+    - "T-16 · sin puedeMover, el maestro tampoco ve «Mover» en ese elemento"
+- **T-17, corregido.**
+  - Causa: `errorDeLaListaDeCategorias` mostraba bajo el total el error de cualquier llave que ya no estaba entre las filas.
+  - Remedio, en tres partes:
+    - Esa función se elimina de `lib.ts`; el editor muestra bajo el total solo `errores[CAMPO_DE_LA_LISTA]`.
+    - `quitar` borra del estado los errores de la fila quitada con `erroresSinLaFila(errores, llave)`, una función nueva de `lib.ts`.
+    - El respaldo de "error de fila sin fila" se quitó entero, porque ese camino no existe: el editor no deja quitar, agregar ni escribir mientras guarda. Un `VALIDACION` del servidor con un índice que no corresponde a ninguna fila enviada sigue cayendo bajo el total por `errorEnSuFila`, porque es un error de la lista y no de una fila quitada.
+  - Casos del tester: `categorias-01e-r1.ataque.test.tsx` › "quitar la fila con el error del cliente lo hace desaparecer: no reaparece bajo el total como error de la lista" y "quitar la fila con el error del servidor (VALIDACION categorias.1.peso) lo hace desaparecer: no reaparece bajo el total", los dos en verde.
+  - Casos míos, en `features/clases/categorias-view.test.tsx`:
+    - "T-17 · quitar una fila con un error del cliente (nombre o peso) se lleva su error y no aparece bajo el total; el error de otra fila se queda"
+    - "T-17 · quitar la primera fila con un error del servidor se lleva el error; agregar otra fila no lo trae de vuelta"
+    - "T-17 · el error de toda la lista sigue bajo el total al quitar una fila sin error"
+- **T-18, corregido.**
+  - Causa: al adoptar los ids del servidor, la llave de cada fila nueva (`nueva-N`) pasaba a ser su id. React volvía a montar la fila y el campo con el foco desaparecía.
+  - Remedio, en dos capas:
+    - **Llave estable:** la función nueva `filasDelServidor(enviadas, categorias)`, en `lib.ts`, conserva la llave de cada fila. Una guardada la conserva por su id y una nueva por su nombre (la clave de `claveDeNombre`, que no se repite en la clase). Así React no vuelve a montar la fila y el mismo elemento conserva el foco.
+    - **Respaldo:** antes de reemplazar la lista (al guardar o tras un conflicto), el editor anota qué campo de qué fila tenía el foco (`data-campo` = `nombre`, `peso` o `quitar`). Un efecto solo lo recoloca si el reemplazo lo dejó en `<body>` (`soloSiSePerdio`): primero en el mismo campo de la misma fila; si la fila ya no está, en el primer campo de la lista; si no hay filas, en "Agregar categoría".
+    - `FocoPendiente` gana `soloSiSePerdio` y `CampoDeLaFila`, en `types.ts`.
+  - Caso del tester: `categorias-01e-r1.ataque.test.tsx` › "guardar con el foco en el «Peso» de una fila nueva: al adoptar el id que dio el servidor, el foco no cae en <body>", en verde.
+  - Casos míos, en `features/clases/categorias-view.test.tsx`:
+    - "T-18 · guardar con Enter desde el «Nombre» de una fila nueva deja el foco en ese mismo campo, también en un segundo guardado"
+    - "T-18 · guardar con Enter desde el «Peso» de una fila nueva deja el foco en ese mismo campo, también en un segundo guardado"
+    - "T-18 · guardar con el foco en «Guardar categorías» lo deja ahí"
+    - "T-18 · tras un 409 que quita la fila nueva que tenía el foco, el foco va al primer campo de la lista y nunca a <body>"
+
+### Hermanos y estados vecinos
+**T-16 ("Mover" por perspectiva):**
+
+| Vecino | ¿Aplica el remedio? | Estado |
+|---|---|---|
+| "Sin tema" (mismo componente con `tema: null`) | Sí | Aplicado y probado |
+| "Ver más de `<tema>`" | No (es para todos) | El estudiante lo sigue viendo; probado |
+| Renombrar, subir, bajar y borrar tema | Ya dependían de `gestionar` | Probado en el caso del estudiante y en PR-1E01 |
+| "Crear tarea", "Nuevo tema" y "Categorías de calificación" | Ya dependían de la capacidad `gestionarTrabajo` | Cubierto por PR-1E01 |
+| El estudiante en `…/categorias` | Ya cubierto | El router no monta la vista para el estudiante, y la vista, por la perspectiva, muestra "No tienes acceso a esta clase." sin pedir nada (PR-1E03 › "desde una ruta de estudiante no pide nada") |
+| Tarjeta de tarea del muro y detalle de tarea (01d) | Ya cubiertos | No ofrecen acciones al estudiante: `tarjeta-de-tarea.test.tsx` y PR-1D05 "el estudiante ve la tarea completa, «Tu trabajo» y ninguna acción de maestro"; sin cambios |
+
+**T-17 (errores al quitar una fila):**
+
+| Vecino | ¿Aplica el remedio? | Estado |
+|---|---|---|
+| "Nombre" y "Peso" | Sí | Probados los dos |
+| Error del cliente y del servidor | Sí | Probados los dos |
+| Quitar la primera fila | Sí | Probado (servidor) |
+| Quitar la del medio | Sí | Probado (cliente) |
+| Quitar la última | Sí | Probado (cliente) |
+| Quitar y volver a agregar | Sí | Probado: la fila nueva lleva otra llave y no hereda nada |
+| El total (`role="status"`) tras quitar | Sí | Se recalcula en vivo; probado |
+| El error de la lista entera | No | Se queda bajo el total al quitar una fila sin error, hasta el siguiente guardado; probado |
+| La rúbrica de `features/tareas` (T-06 y T-10 de 01d) | No | Allí una fila se puede quitar con el envío en vuelo, así que un error del servidor sí puede llegar sin su fila, y el respaldo "error de la rúbrica entera" es correcto. Además está en "No se toca" |
+
+**T-18 (foco al reemplazar la lista):**
+
+| Vecino | ¿Aplica el remedio? | Estado |
+|---|---|---|
+| "Nombre" de una fila nueva | Sí | Probado |
+| "Peso" de una fila nueva | Sí | Probado (el caso del tester y uno mío) |
+| "Quitar" de una fila nueva | Sí | Recolocado por el mismo `data-campo`; no lo probé aparte, porque una fila nueva sin guardar tiene "Quitar" y el camino es el mismo |
+| Foco en "Guardar categorías" | No hace falta | No está en una fila, sigue montado y en espera; conserva el foco. Probado |
+| Dos guardados seguidos | Sí | El segundo conserva la llave por el id; probado, con el cuerpo del segundo `PUT` con el id adoptado |
+| Tras un 409 o 404 que quita la fila nueva con el foco | Sí | El foco va al primer campo de la lista; probado. Sin filas, va a "Agregar categoría" |
+| Filas ya guardadas | No (no tenían el defecto) | Su llave era su id y lo sigue siendo |
+| Agregar y quitar | Sin cambio | Siguen recolocando el foco siempre, como antes (PR-1E03 de foco) |
+
+### Observaciones declaradas (sin cambio)
+- **"Cancelar" del formulario de tema con el envío en vuelo:**
+  - Qué hace hoy: `FormularioTema` cierra el formulario al pulsar "Cancelar" aunque "Crear tema" o "Guardar nombre" estén en espera. La petición sigue: el tema se crea o se renombra, sale el aviso "Tema creado" o "Tema renombrado" (vive en el hook) y la lista se actualiza.
+  - Qué haría: que "Cancelar" no actúe mientras el envío está en vuelo, con un retorno temprano y sin `enEspera` en "Cancelar". No se puede cancelar en el servidor, y cerrar el formulario sugiere que nada se guardó.
+  - No lo cambié: el plan no lo fija, el `enEspera` de "Cancelar" no falta (§D-11 lo da solo a "Crear tema" o "Guardar nombre") y la lista cerrada de V-06 fija `formulario-tema.tsx` en 1. Decide el manager.
+- **"Sin tema" duplicado** entre `features/clases/data.ts` (`TEXTOS_FORMULARIO_PUBLICACION.sinTema`, del que sale `TEXTOS_TRABAJO.sinTema`) y `features/tareas/data.ts`:
+  - el lugar compartido natural sería `components/clase/data.ts` (`TEXTOS_DE_LA_CLASE`);
+  - moverlo obliga a tocar `features/tareas/data.ts`, que está en "No se toca" en 01e;
+  - queda declarado para que lo decida el manager o un encargo siguiente.
+
+### Verificación (comando exacto y última línea)
+Medí la carga antes de la corrida completa: CPU al 6 %, 17.6 GB libres y 0 procesos `node`. Corrí una suite a la vez.
+- `cd frontend; npm run lint` → `> tsc -b` (código 0).
+- `cd frontend; npm test` → `Tests  2212 passed (2212)` (`Test Files  146 passed (146)`).
+- `cd frontend; npm run build` → `✓ built in 698ms`.
+- raíz `npm run build` → `✓ built in 627ms`.
+- raíz `npm run lint` → `> tsc -b` (código 0).
+
+### Conteos
+- `cd frontend; npx vitest list` da 2212 casos. Antes eran 2201 (la ronda 1 del tester, con sus 13 casos).
+- Diferencia: +11, todos míos: 4 de T-16 en `trabajo-view.test.tsx` y 7 de T-17 y T-18 en `categorias-view.test.tsx`.
+- Archivos: 146, sin cambio respecto de la ronda 1.
+
+### Archivos tocados
+- `frontend/src/features/clases/components/seccion-de-tema.tsx`: T-16.
+- `frontend/src/features/clases/components/editor-de-categorias.tsx`: T-17 y T-18, con `data-campo` en los campos y en "Quitar".
+- `frontend/src/features/clases/lib.ts`:
+  - quita `errorDeLaListaDeCategorias`;
+  - suma `erroresSinLaFila` y `filasDelServidor`;
+  - importa `claveDeNombre` de `@campus/shared`.
+- `frontend/src/features/clases/types.ts`: `FocoPendiente` con `soloSiSePerdio`, y `CampoDeLaFila`.
+- Pruebas: `frontend/src/features/clases/trabajo-view.test.tsx` y `frontend/src/features/clases/categorias-view.test.tsx`.
+- `docs/DESIGN.md`, con la marca "propuesta (TAREAS-01e)":
+  - §7.22: "Mover" solo en la perspectiva de maestro o administrador (T-16);
+  - §7.23: los errores se van con su fila (T-17) y el foco cuando la respuesta reemplaza la lista (T-18).
+  - Quedó en LF.
+- Prettier, solo por rutas explícitas y sin `*.ataque`.
+
+### V-01
+Comparé con `diff` las 159 `*.ataque` contra la tabla de "### Tabla de SHA-256 de las 159 `*.ataque` al cierre de la ronda 1 de 01e": `diff` vacío y `V01-OK`.
+
+### Desviaciones
+- Ninguna respecto del plan.
+- Elegí el remedio de T-18 en dos capas (llave estable más respaldo de foco) entre las dos opciones que dio el coordinador. Para T-17 quité el respaldo de "error de fila sin fila" porque ese camino no existe en este editor.
+
+## TAREAS-01e — Corrección de M-01 y M-02
+
+Responde a la devolución del manager del resumen de la corrección de la ronda 1. No toqué `features/tareas/**` ni ninguna `*.ataque`.
+
+**Corrección a lo que dije en la ronda 1.** Para T-17 escribí que el respaldo de "error de fila sin fila" no aplicaba porque el editor no dejaba quitar mientras guardaba. Era falso: la guarda era `guardar.isPending`, que llega un render después, así que en el mismo turno del envío se podía quitar una fila. Con la guarda síncrona de M-01 esa ventana se cierra, y entonces sí es cierto que ningún error de fila puede llegar sin su fila.
+
+### M-01 — El editor no era inmutable en el mismo turno del envío: corregido
+- **Causa.** `cambiar`, `agregar`, `quitar` y `handleSubmit` se protegían con `guardar.isPending`. TanStack Query lo actualiza en el estado del observador y React solo lo ve en el siguiente render. Entre el envío y ese render, un "Quitar", un "Agregar", una tecla o un segundo Enter pasaban la guarda.
+- **Remedio.** `guardandoRef`, como el `guardandoRef` de `FormularioTarea` en 01d:
+  - se marca de forma síncrona justo antes de `guardar.mutate`;
+  - se libera en el `onSettled` del `mutate`;
+  - las cuatro rutas (`cambiar`, `agregar`, `quitar` y `handleSubmit`) lo consultan en lugar de `isPending`.
+  - El botón sigue con `enEspera={guardar.isPending}`: V-06 no cambia.
+- **Casos, en `features/clases/categorias-view.test.tsx`.** Los dos hacen todo dentro de un solo `act`, sin un render de React en medio:
+  - "M-01 · con el envío en vuelo, «Quitar», «Agregar», una tecla y un segundo Enter del mismo turno no cambian la lista ni mandan otro PUT; si falla, el error queda en su fila"
+  - "M-01 · con el envío en vuelo, «Quitar» del mismo turno no saca la fila y, si sale bien, la respuesta no la trae de vuelta sin que se vea"
+- **Hermanos, uno por uno.**
+
+| Hermano | ¿Guarda con la misma ventana? | ¿Se aplica el ref síncrono? | Caso |
+|---|---|---|---|
+| Formulario de tema, crear y renombrar (`formulario-tema.tsx`) | Sí: `if (guardando) return` con `crear.isPending` y `renombrar.isPending` | Aplicado: `enviandoRef`, marcado antes de `mutate` y liberado en `onSettled` | "M-01 y M-02 · «Crear tema» dos veces en el mismo turno manda un solo POST; …" y "M-01 y M-02 · «Guardar nombre» dos veces en el mismo turno manda un solo PUT; …" |
+| Confirmación de borrar tema (`seccion-de-tema.tsx`) | Sí: "Sí, borrar tema" llamaba a `borrar.mutate` sin más protección que `enEspera`, que también llega en el render siguiente | Aplicado: `borrandoRef` con `confirmarBorrado` | "M-01 y M-02 · «Sí, borrar tema» dos veces en el mismo turno manda un solo DELETE y, en vuelo, «Cancelar» no cierra la confirmación" |
+| "Subir" y "Bajar" (`trabajo-view.tsx`, `handleOrdenar`) | Sí: `ordenar.isPending` | Aplicado: `ordenandoRef`, liberado en el `onSettled` junto con `ordenEnVuelo` | "M-01 · «Bajar» de un tema y «Subir» de otro en el mismo turno mandan un solo PUT del orden" (sale el primero y no el segundo, calculado con la lista vieja) |
+| "Mover" (`mover-elemento.tsx`) | Sí: solo `enEspera` | Aplicado: `moviendoRef` | "M-01 · «Mover» dos veces en el mismo turno manda un solo PUT" |
+| "Ver más de `<tema>`" (`seccion-de-tema.tsx`) | No | No hace falta | TanStack Query no repite una página en curso: `fetchNextPage({ cancelRefetch: false })` devuelve la promesa en vuelo, y lo comprueba de forma síncrona sobre el estado de la consulta. Probado con "M-01 · «Ver más de <tema>» dos veces en el mismo turno pide una sola página: TanStack Query no repite una página en curso" |
+| Rúbrica de 01d (`features/tareas/components/formulario-tarea.tsx`) | No | No aplica, y además está protegido | Su `guardandoRef` ya es síncrono: se marca antes del primer `await`, cubre el doble envío y fija la lista de adjuntos. Quitar un criterio con el envío en vuelo es intencional (T-10 de 01d): el error de una fila quitada se muestra como error de la rúbrica entera |
+
+- **Comprobé que los casos detectan el defecto.**
+  - Volví a poner, en una copia de trabajo, las guardas por `isPending` en los cinco archivos.
+  - Los 7 casos nuevos de guarda síncrona salieron en rojo (`Tests  7 failed`). El de "Ver más" no entra en esa comprobación, porque ese botón no tiene guarda propia.
+  - Restauré los archivos y verifiqué que cada uno conserva sus guardas `…Ref.current`.
+
+### M-02 — "Cancelar" con el envío en vuelo: corregido
+- **Remedio.** En `formulario-tema.tsx`, "Cancelar" llama a `handleCancelar`, que no actúa mientras `enviandoRef` está marcado.
+  - No lleva `enEspera` ni `disabled`: `formulario-tema.tsx` sigue con 1 `enEspera=` (V-06 y C-14 no cambian).
+  - Al llegar la respuesta, el `onSuccess` del `mutate` cierra el formulario y el foco vuelve a "Nuevo tema" o a "Renombrar" (§7.14).
+  - Si la petición falla, el formulario sigue abierto y "Cancelar" vuelve a actuar.
+- **Casos, en `features/clases/trabajo-view.test.tsx`:**
+  - "M-01 y M-02 · «Crear tema» dos veces en el mismo turno manda un solo POST; con el envío en vuelo, «Cancelar» no cierra el formulario y, al llegar la respuesta, el foco vuelve a «Nuevo tema»". Prueba "Cancelar" en el mismo turno y otra vez con "Crear tema" ya en `aria-busy`.
+  - "M-01 y M-02 · «Guardar nombre» dos veces en el mismo turno manda un solo PUT; con el envío en vuelo, «Cancelar» no cierra el formulario y, al llegar la respuesta, el foco vuelve a «Renombrar»".
+- **Hermanos:**
+  - el "Cancelar" de renombrar: el mismo componente; aplicado y probado;
+  - el "Cancelar" de la confirmación de borrar tema: `cancelarBorrado` no actúa con `borrandoRef` marcado; aplicado y probado en el caso de borrar;
+  - `Escape`: ni el formulario de tema ni la confirmación lo escuchan, así que no hay un camino más.
+
+### Verificación (comando exacto y última línea)
+Medí la carga antes de la suite completa: CPU al 14 %, 17.6 GB libres y 0 procesos `node`. Corrí una suite a la vez.
+- `cd frontend; npm run lint` → `> tsc -b` (código 0).
+- `cd frontend; npm test` → `Tests  2220 passed (2220)` (`Test Files  146 passed (146)`).
+- `cd frontend; npm run build` → `✓ built in 641ms`.
+- raíz `npm run build` → `✓ built in 660ms`.
+- raíz `npm run lint` → `> tsc -b` (código 0).
+
+### Conteos
+- `cd frontend; npx vitest list` da 2220 casos; antes eran 2212.
+- Diferencia: +8, todos míos: 2 en `categorias-view.test.tsx` y 6 en `trabajo-view.test.tsx`.
+- Archivos: 146, sin cambio.
+
+### Archivos tocados
+- En `frontend/src/features/clases/`:
+  - `components/editor-de-categorias.tsx`: `guardandoRef`.
+  - `components/formulario-tema.tsx`: `enviandoRef` y `handleCancelar`.
+  - `components/seccion-de-tema.tsx`: `borrandoRef`, `confirmarBorrado` y `cancelarBorrado`.
+  - `components/mover-elemento.tsx`: `moviendoRef`.
+  - `trabajo-view.tsx`: `ordenandoRef`.
+  - Pruebas: `categorias-view.test.tsx` y `trabajo-view.test.tsx`.
+- `docs/DESIGN.md` §7.22: una frase, con la marca "propuesta (TAREAS-01e)": con el envío en vuelo, "Cancelar" no actúa y un segundo clic o Enter no repite la petición.
+- Prettier, solo por rutas explícitas y sin `*.ataque`.
+
+### V-01
+Comparé con `diff` las 159 `*.ataque` contra la tabla de la ronda 1 de 01e: `diff` vacío y `V01-OK`.
+
+### Desviaciones
+Ninguna.
+
+## TAREAS-01e — Corrección de la ronda 2 (T-19)
+
+Reporte: `reporte-tester.md`, "## TAREAS-01e — Ronda 2" (ROTO: T-19, baja). No modifiqué ninguna `*.ataque`.
+
+### T-19 — "Ver más de `<tema>`" pulsado durante una recarga en segundo plano: corregido
+- **Causa.** Con la lista recargándose, `fetchNextPage({ cancelRefetch: false })` se une a la recarga en curso y no pide la página siguiente. El botón solo entraba en espera con `isFetchingNextPage`, así que el clic parecía aceptado y se perdía.
+- **Remedio elegido.** El primero que propuso el coordinador, el más simple:
+  - el botón está en espera con `isFetching`: cubre la página siguiente y también cualquier recarga de esa lista;
+  - mientras dura la recarga, el clic no se acepta (`enEspera` lo anula y conserva el foco);
+  - al terminar, el botón vuelve y el clic pide la página siguiente.
+  - Solo cambia la condición del `enEspera` que el botón ya tenía, en `components/seccion-de-tema.tsx`: V-06 sigue en 49 y `seccion-de-tema.tsx` en 4.
+  - Lo documenté en DESIGN §7.22, con la marca "propuesta (TAREAS-01e)".
+- **Caso del tester:** `trabajo-01e-r2.ataque.test.tsx` › "pulsar «Ver más de <tema>» mientras su lista se recarga no se pierde: o el botón queda en espera, o al terminar la recarga se pide la página siguiente", en verde.
+- **Casos míos:**
+  - `features/clases/trabajo-view.test.tsx` › "T-19 · con la lista del tema recargándose, «Ver más de <tema>» queda en espera, conserva el foco y el clic no pide nada; al terminar la recarga pide la página siguiente". Incluye un doble clic durante la recarga, que no pide nada.
+  - `features/clases/trabajo-view.test.tsx` › "T-19 · si la recarga falla, la sección muestra el error en lugar de «Ver más» y el foco va a su encabezado, no a <body>".
+  - `features/clases/muro-view.test.tsx` › "T-19 · con el muro recargándose, «Ver más publicaciones» queda en espera, conserva el foco y no pide nada; al terminar la recarga pide la página siguiente".
+- **Comprobé que detectan el defecto.** Volví a poner `isFetchingNextPage` en los dos botones, en una copia de trabajo: el caso del tester y mis tres casos salen en rojo (`Tests  4 failed`). Después restauré los archivos.
+
+### Hermanos, uno por uno
+
+| Hermano | Estado | Detalle |
+|---|---|---|
+| "Ver más de `<tema>`" en "Sin tema" y en todos los temas | Aplicado | Es el mismo componente |
+| "Ver más publicaciones" (`features/clases/muro-view.tsx`) | Aplicado | La misma condición (`isFetching`) del `enEspera` que ya tenía; V-06 sin cambio (`muro-view.tsx` sigue en 1). Caso en `muro-view.test.tsx` (lista cerrada de 01e). DESIGN §7.18, viñeta "Ver más" |
+| "Ver más comentarios" (`components/comentarios-de-publicacion.tsx`) | Declarado, no tocado | 01e no abre este archivo. Remedio por analogía, carril trivial: `enEspera={comentarios.isFetching}` |
+| "Ver más alumnos" del roster (`components/tabla-alumnos.tsx`) | Declarado, no tocado | Lo mismo, con `isFetching` de `useAlumnos` |
+| "Ver más alumnos" de compañeros (`personas-view.tsx`) | Declarado, no tocado | Lo mismo, con `isFetching` de `usePersonas` |
+| "Ver más clases" de los dos inicios (`panel-mis-clases.tsx`, por `inicio-estudiante-view.tsx` e `inicio-maestro-view.tsx`) | Declarado, no tocado | Lo mismo, con `isFetching` de la lista de clases |
+| "Cargar más clases" del administrador (`clases-admin-view.tsx`) | Declarado, no tocado | Lo mismo, con `isFetching` de `useClasesAdmin` |
+
+Los cinco declarados quedan para ESTADO §3 (carril trivial): cambiar la condición de un `enEspera` que ya existe, sin cambiar el conteo de V-06. Cada uno con su caso: un clic con la lista recargándose en segundo plano queda en espera y, al terminar, pide la página siguiente.
+
+### Estados vecinos del mismo mecanismo
+
+| Estado | ¿Aplica? | Cómo se cubre |
+|---|---|---|
+| Recarga en segundo plano tras mover, publicar un material, borrar un tema o una tarea, o renombrar un tema | Sí | Todas invalidan el prefijo del trabajo de la clase y ponen la lista en `isFetching`. Probado con la invalidación del prefijo, que es lo que hacen esos hooks |
+| Recarga al volver a la pestaña (`refetchOnWindowFocus`) con el clic en vuelo | Sí | Es el mismo `isFetching`. No tiene un caso propio, porque el mecanismo es idéntico al de la invalidación |
+| Error de la recarga | Sí | La sección pasa a `MensajeError`, el botón desaparece y el foco va al encabezado de la sección, nunca a `<body>`. Probado |
+| Doble clic humano | Sí | En espera, los dos clics se anulan; ya asentada, TanStack Query no repite una página en curso (caso de M-01 › "«Ver más de <tema>» dos veces en el mismo turno…"). Probado |
+| El foco mientras espera | Sí | Sigue en el botón (`enEspera`, no `disabled`) durante la recarga y después. Probado en el tema y en el muro |
+| La primera carga de la sección | No aplica | Sin datos no hay botón (la sección muestra "Cargando `<tema>`") |
+| La espera en la fila del limitador (Enmienda 5) | Sí | Una recarga que espera su turno ya cuenta como `isFetching` |
+
+### Verificación (comando exacto y última línea)
+Medí la carga antes de la corrida completa: CPU al 13 %, 17.7 GB libres y 0 procesos `node`. Corrí una suite a la vez.
+- `cd frontend; npm run lint` → `> tsc -b` (código 0).
+- `cd frontend; npm test` → `Tests  2237 passed (2237)` (`Test Files  148 passed (148)`).
+- `cd frontend; npm run build` → `✓ built in 752ms`.
+- raíz `npm run build` → `✓ built in 614ms`.
+- raíz `npm run lint` → `> tsc -b` (código 0).
+
+### Conteos
+- `cd frontend; npx vitest list` da 2237 casos; antes eran 2234.
+- Diferencia: +3, todos míos: 2 en `trabajo-view.test.tsx` y 1 en `muro-view.test.tsx`.
+- Archivos: 148, sin cambio respecto de la ronda 2.
+
+### Archivos tocados
+- `frontend/src/features/clases/components/seccion-de-tema.tsx`: la condición de `enEspera` de "Ver más de `<tema>`".
+- `frontend/src/features/clases/muro-view.tsx`: la condición de `enEspera` de "Ver más publicaciones".
+- Pruebas: `frontend/src/features/clases/trabajo-view.test.tsx` y `frontend/src/features/clases/muro-view.test.tsx`.
+- `docs/DESIGN.md`: §7.22 ("Carga por tema") y §7.18 (viñeta "Ver más"), con la marca "propuesta (TAREAS-01e)". Quedó en LF.
+- Prettier, solo por rutas explícitas y sin `*.ataque`.
+
+### V-01
+Comparé con `diff` las 161 `*.ataque` contra la tabla de la ronda 2 de 01e: `diff` vacío y `V01-OK`.
+
+### Desviaciones
+- Ninguna respecto del plan.
+- Toqué `muro-view.tsx` porque el coordinador lo autorizó como hermano: es la misma condición de un `enEspera` que ya existía.
+
+## TAREAS-01e — Corrección de la ronda 3 (T-20, A-16)
+
+Reporte: `reporte-tester.md`, "## TAREAS-01e — Ronda 3". Es una ronda 4 cerrada que autorizó el humano, solo para T-20 y A-16. No modifiqué ninguna `*.ataque`.
+
+**Autorización.** `features/tareas/**` está protegido en 01e. El humano autorizó tocar dos cosas ahí: las pruebas normales de 01d, como hermanos de T-20, y la línea del comentario de A-16. Fuera de eso no cambié nada de `features/tareas`.
+
+### T-20 — Una prueba dependía de la hora real: corregido
+- **Causa.** `trabajo-view.test.tsx` › "PR-1E01 · la fila de una tarea lleva el cuadro de fecha, enlaza a su detalle y dice su estado con texto (próxima, pendiente y vencida)" calculaba sus fechas con `Date.now()`. Entre las 18:00 y las 24:00 locales, la tarea "a 30 h" cae dos días de calendario después y dice "Vence en 2 días".
+- **Remedio.** El reloj de la prueba se fija:
+  - `vi.useFakeTimers({ toFake: ["Date"] })`: solo se simula `Date`; los temporizadores siguen reales, para que TanStack Query y `waitFor` funcionen igual;
+  - `vi.setSystemTime(new Date(2026, 9, 6, 9, 0))`, es decir, el 6 de octubre de 2026 a las 09:00 locales;
+  - `onTestFinished(() => vi.useRealTimers())`, para que el reloj se restaure aunque la prueba falle.
+  - Las aserciones no cambian: con el reloj fijo, la tarea a 30 h dice "Vence mañana a las 15:00".
+- **Verificación a la hora del defecto.** Corrí la prueba a las 18:47 locales, dentro de la ventana en que fallaba: `npx vitest run src/features/clases/trabajo-view.test.tsx` → `Tests  34 passed (34)`.
+
+### Hermanos de T-20, archivo por archivo
+Revisé cada archivo con `grep -nE "Date\.now|new Date\(\)|setSystemTime|useFakeTimers|Vence|Venció"`.
+
+| Archivo | Resultado | Detalle |
+|---|---|---|
+| `features/clases/trabajo-view.test.tsx` | Corregido | El caso de T-20. Los demás usan fechas absolutas (`2030-01-01…`) y no comparan textos relativos |
+| `features/clases/categorias-view.test.tsx` | No calcula fechas relativas | — |
+| `features/clases/muro-view.test.tsx` | No calcula fechas relativas | — |
+| `features/clases/lib.test.ts` | No calcula fechas relativas | — |
+| `features/clases/tarjeta-de-tarea.test.tsx` | Corregido | "PR-1D06: la tarjeta lleva la insignia con texto e icono, el título, el vencimiento y los puntos" compara "Venció el …" con una fecha de 2020 y la hora real. Era estable, pero compara un texto relativo al tiempo sin fijar el reloj (regla nueva de `tester.md`): ahora lo fija igual que T-20. El caso "PR-1D06: con un punto, el texto dice «1 punto»" usa la misma fecha, pero solo compara los puntos |
+| `features/tareas/detalle-tarea-view.test.tsx` | Corregido en un caso | "PR-1D05: la fecha límite lleva el texto de vencimiento" compara "Venció el …" sin fijar el reloj: ahora lo fija. Los dos `vi.spyOn(Date, "now").mockReturnValue(Date.now())` (línea 871 y su hermano) fijan `Date.now` para provocar dos fallos en el mismo milisegundo y no comparan textos relativos: fijan el reloj a su modo y se quedan como están |
+| `features/tareas/editar-tarea-view.test.tsx` | No compara textos relativos | Su `vi.spyOn(Date, "now")` (línea 967) fija el milisegundo del fallo, igual que el anterior. La fecha del formulario es absoluta (`FECHA_ISO`) |
+| `features/tareas/formulario-tarea.test.tsx` | No calcula fechas relativas | Usa `FECHA_LOCAL` y `2030-01-15…`, que son absolutas, y no compara textos de vencimiento |
+| `features/tareas/lib.test.ts` | No compara fechas ni textos relativos | `futuro()` arma una fecha válida a 5 días de la hora real para un estado de formulario. Ninguna aserción depende de la hora: el resultado es igual a cualquier hora del día. Se queda como está |
+| `lib/vencimiento.test.ts` | Fija el reloj | Cada caso pasa un `AHORA` explícito a `vencimientoDe`. No usa la hora real |
+
+### A-16 — El comentario del destino tras borrar: corregido
+`frontend/src/features/tareas/hooks.ts`, línea 153: "// navega al muro)." pasa a "// navega a Trabajo de clase).". Es la única línea que cambió en ese archivo (`git diff --stat`: 1 inserción y 1 borrado).
+
+### Verificación (comando exacto, última línea y hora)
+- Carga antes de la suite completa: CPU entre 1 % y 51 % en dos lecturas (la alta coincidió con el lint). Había 6 procesos `node`, que no son suites de pruebas: son servidores de otra aplicación (`…\OpenAI\Codex\runtimes\cua_node\…\server.mjs`). Ninguna otra suite estaba en curso.
+- `cd frontend; npm run lint` → `> tsc -b` (código 0).
+- `cd frontend; npx vitest run src/features/clases/trabajo-view.test.tsx` (aislado, 18:47 locales) → `Tests  34 passed (34)`.
+- `cd frontend; npm test` (empezó a las 18:48:24 locales) → `Tests  2241 passed (2241)` (`Test Files  149 passed (149)`).
+- `cd frontend; npm run build` → `✓ built in 827ms`.
+- raíz `npm run build` → `✓ built in 736ms`.
+- raíz `npm run lint` → `> tsc -b` (código 0).
+
+### Conteos
+- `cd frontend; npx vitest list` da 2241 casos; antes eran 2241.
+- Sin casos nuevos: los remedios fijan el reloj dentro de casos existentes.
+
+### Archivos tocados
+- `frontend/src/features/clases/trabajo-view.test.tsx`
+- `frontend/src/features/clases/tarjeta-de-tarea.test.tsx`
+- `frontend/src/features/tareas/detalle-tarea-view.test.tsx`
+- `frontend/src/features/tareas/hooks.ts` (una línea de comentario)
+- Prettier, solo por rutas explícitas y sin `*.ataque`.
+
+### V-01
+Comparé con `diff` las 162 `*.ataque` contra la tabla de la ronda 3 de 01e: `diff` vacío y `V01-OK`.
+
+### Desviaciones
+Ninguna.

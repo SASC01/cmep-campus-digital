@@ -383,6 +383,12 @@ describe("ataque TAREAS-01d r1: doble envío, tope de la rúbrica y edición sin
           <Routes>
             <Route path="/maestro/clases/:claseId/tareas/:tareaId" element={<DetalleTareaView />} />
             <Route path="/maestro/clases/:claseId" element={<p>Muro</p>} />
+            {/* C-15, §D-10 (destino tras borrar desde 01e): tras borrar, la vista lleva a "Trabajo de
+            clase" y ya no al muro. */}
+            <Route
+              path="/maestro/clases/:claseId/trabajo"
+              element={<p>Destino: trabajo de clase</p>}
+            />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -398,7 +404,10 @@ describe("ataque TAREAS-01d r1: doble envío, tope de la rúbrica y edición sin
     fireEvent.click(si)
     await waitFor(() => expect(llamadas.filter((l) => l.metodo === "DELETE")).toHaveLength(1))
     soltar(new Response(null, { status: 204 }))
-    expect(await screen.findByText("Muro")).toBeInTheDocument()
+    // C-15, §D-10 (destino tras borrar desde 01e; el caso más cercano del inventario es C-12): el
+    // destino tras el éxito pasa del muro a "Trabajo de clase". Sigue protegiendo lo mismo: un solo
+    // DELETE con el doble clic humano y la navegación tras el éxito.
+    expect(await screen.findByText("Destino: trabajo de clase")).toBeInTheDocument()
     expect(llamadas.filter((l) => l.metodo === "DELETE")).toHaveLength(1)
   })
 

@@ -141,14 +141,23 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // "Personas" conserva su "Ver más alumnos" (personas-view.tsx, 1). Sigue protegiendo lo mismo:
   // ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de
   // los botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 42 enEspera", () => {
+  // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): de 42 a 49 enEspera=, con las cifras
+  // que fija el plan. Se suman a la lista fija seccion-de-tema.tsx (4: "Ver más de <tema>", "Subir",
+  // "Bajar" y "Sí, borrar tema"), formulario-tema.tsx (1: "Crear tema" o "Guardar nombre"),
+  // mover-elemento.tsx (1: "Mover") y editor-de-categorias.tsx (1: "Guardar categorías"); con 0
+  // explícito, trabajo-view.tsx, categorias-view.tsx, elemento-de-trabajo.tsx y fila-de-entrega.tsx.
+  // formulario-publicacion.tsx sigue en 1, secciones-de-clase.tsx en 0 y el resto de
+  // features/clases/components/ en 3 (admin, 2). Sigue protegiendo lo mismo: ningún `disabled` en
+  // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
+  // espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 49 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(42)
+    expect(usos).toHaveLength(49)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -223,6 +232,15 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/tareas/detalle-tarea-view.tsx": 0,
       "/src/features/tareas/crear-tarea-view.tsx": 0,
       "/src/features/tareas/editar-tarea-view.tsx": 0,
+      // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): de 42 a 49.
+      "/src/features/clases/components/seccion-de-tema.tsx": 4,
+      "/src/features/clases/components/formulario-tema.tsx": 1,
+      "/src/features/clases/components/mover-elemento.tsx": 1,
+      "/src/features/clases/components/editor-de-categorias.tsx": 1,
+      "/src/features/clases/trabajo-view.tsx": 0,
+      "/src/features/clases/categorias-view.tsx": 0,
+      "/src/features/clases/components/elemento-de-trabajo.tsx": 0,
+      "/src/features/clases/components/fila-de-entrega.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -287,6 +305,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/components/ui/button-variants.ts",
       "/src/features/auth/components/panel-anuncios.tsx",
       "/src/features/clases/components/bloque-destacado.tsx",
+      // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11 y DESIGN §7.7): de 9 a 11. La fila
+      // de entrega (§7.7, vidrio fuerte) y la fila del material, con el mismo material. Las secciones de
+      // tema, la vista de categorías, el editor y los formularios de tema toman su vidrio de Card. El
+      // vidrio sin variante, el vidrio azul y data-material no cambian, y la igualdad sigue exacta.
+      "/src/features/clases/components/elemento-de-trabajo.tsx",
+      "/src/features/clases/components/fila-de-entrega.tsx",
       "/src/features/clases/components/formulario-publicacion.tsx",
       "/src/features/clases/components/tarjeta-clase.tsx",
       // TAREAS-01d ronda 0, complementaria 2 (C-13 (5), Enmienda 4; S-13 y DESIGN §7.3): el control

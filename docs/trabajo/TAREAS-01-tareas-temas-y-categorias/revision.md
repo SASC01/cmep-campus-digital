@@ -1487,3 +1487,723 @@ git status
 git add CLAUDE.md docs/DESIGN.md docs/ESTADO.md docs/trabajo/TAREAS-01-tareas-temas-y-categorias .claude/agents/programador.md frontend/vitest.config.ts frontend/src/app/router.tsx frontend/src/app/router.test.tsx frontend/src/app/rutas-02c-r1.ataque.test.tsx frontend/src/styles/clases-r1.ataque.test.ts frontend/src/components/ui/native-select.tsx frontend/src/components/ui/native-select.test.tsx frontend/src/lib/vencimiento.ts frontend/src/lib/vencimiento.test.ts frontend/src/services/trabajoService.ts frontend/src/features/clases/components/publicacion-del-muro.tsx frontend/src/features/clases/components/tarjeta-de-tarea.tsx frontend/src/features/clases/data.ts frontend/src/features/clases/muro-view.tsx frontend/src/features/clases/types.ts frontend/src/features/clases/estatico-02c-r1.ataque.test.ts frontend/src/features/clases/tarjeta-de-tarea.test.tsx frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx frontend/src/features/tareas
 git commit -m "feat(tareas): TAREAS-01d, detalle, crear y editar tarea con rúbrica, adjuntos, categoría, tema y entregas tardías; tarjeta de tarea en el muro, NativeSelect, vencimiento a 72 h y testTimeout de 15 s del frontend (A-13)"
 ```
+
+## Revisión de la Enmienda 5 — TAREAS-01e
+Fecha: 2026-10-07. Modo 1, revisión de plan. Revisé `plan.md`, "## Enmienda 5", y sus cambios: §D-11 "Lecturas en paralelo", PR-1E06 y PR-1E07, la lista cerrada de 01e, el punto de ataque 1b, §7.22 en "Documentos" y R-06. El diff es contra `<K1d>` = `1118c1a`.
+
+Veredicto: **CAMBIOS REQUERIDOS** (M-01). Es un ajuste pequeño del arquitecto. El diseño es correcto, pero le falta fijar un estado vecino que, con una instancia compartida, puede colgar la suite y dejar la vista sin lugares.
+
+Verificación propia: no aplica (modo plan). Contrasté el código actual:
+- `shared`: `paginacionSchema` y `trabajoQuerySchema`;
+- `services/apiClient.ts`: acepta `signal` y lo pasa a `fetch`;
+- `services/trabajoService.ts`: `claveTrabajo(claseId, tema)`;
+- las pruebas de `features/clases`: crean su `QueryClient` con `retry: false`.
+
+### Problemas que bloquean
+#### M-01 — Liberar los lugares del limitador compartido al desmontar o cambiar de clase no está fijado ni probado
+Dónde: §D-11, viñetas "Como máximo 6 en vuelo" y "Cambiar de clase o desmontar"; PR-1E07, quinto título.
+
+Por qué importa:
+- La instancia es única por módulo (`hooks.ts`), así que la comparten todas las vistas montadas y, en pruebas, **todos los casos del mismo archivo**: Vitest aísla por archivo, no por caso.
+- Una tarea en curso solo suelta su lugar cuando su promesa se asienta. En producción eso ocurre: TanStack Query aborta el `signal` cuando se queda sin observadores (porque el `queryFn` lo lee) y el `fetch` real rechaza con el aborto.
+- En pruebas, un doble de la API que "retiene sus respuestas" y no escucha el `signal` deja la promesa colgada. Los 6 lugares quedan ocupados para el resto del archivo, y PR-1E01, PR-1E02 y las `*.ataque` de 01e que vengan después se cuelgan hasta el tiempo límite. El resultado depende del orden de los casos.
+- El plan dice que las que esperan "salen de la cola sin pedir nada". Pero ninguna prueba requerida comprueba **que la clase nueva obtenga sus 6 lugares**: el quinto título de PR-1E07 solo mira que no se pinten datos viejos ni se pidan los que esperaban. Ese estado vecino ("cambio de clave" y "la cola no queda con lugares ocupados") está en el punto de ataque 1b, pero no en las pruebas del programador. Es justo el patrón de las rondas extra por hermanos de este encargo.
+
+Qué se espera (el texto lo decide el arquitecto):
+1. **Contrato del limitador en §D-11:**
+   - con `signal` ya abortado, `ejecutar` rechaza enseguida, sin formar ni correr la tarea;
+   - al salir de la cola, por turno o por aborto, se quita el oyente de `abort`;
+   - una tarea en curso libera su lugar cuando su promesa se asienta, con éxito, error o aborto, y la siguiente entra en el mismo turno de microtareas.
+2. **Contrato de los dobles en PR-1E06, PR-1E07 y el punto 1b:**
+   - las promesas son controladas (resolvedores guardados), sin temporizadores reales ni `setTimeout`;
+   - el doble de la API **rechaza con el aborto cuando su `signal` se aborta**, como `fetch`;
+   - el número en vuelo se cuenta con un contador del propio doble;
+   - todo caso que retiene respuestas las resuelve o desmonta antes de terminar;
+   - no se exporta un reinicio de la instancia solo para pruebas.
+3. **Un caso requerido más,** en PR-1E07 o como sexto título: "al cambiar de clase (o salir y volver) con 6 peticiones en vuelo y otras en espera, las de la clase nueva obtienen sus 6 lugares y las que esperaban no se piden".
+4. **En PR-1E06,** un caso para la `signal` ya abortada al llamar a `ejecutar`.
+
+### Lo revisado sin problemas
+1. **Pureza y lugar de la instancia.**
+   - `crearLimiteDeConcurrencia(maximo)` en `features/clases/lib.ts` es aceptable. Es una fábrica sin React ni E/S: el estado vive en el cierre del objeto que devuelve, y la función es determinista y se prueba sola.
+   - La instancia de módulo en `hooks.ts` tampoco rompe `CLAUDE.md`. No es estado de React ni una constante (no va en `data.ts`), y solo la usa `features/clases`, así que no corresponde a `services/`.
+   - Con M-01, las pruebas no necesitan reiniciarla.
+2. **Cancelación con el `signal`.**
+   - El `queryFn` lee el `signal`, así que TanStack Query lo aborta al quedarse sin observadores. Su promesa se descarta como cancelada (revierte el estado), por lo que el rechazo del limitador no deja nada colgado ni pinta un error.
+   - `apiClient` pasa el `signal` a `fetch` (`services/apiClient.ts:28` y `:123`).
+   - Con `retry: 1` de producción, un fallo libera su lugar y el reintento vuelve a la cola, al final. Las pruebas usan `retry: false`.
+3. **`limite` contra el backend de 01b.**
+   - `trabajoQuerySchema` extiende `paginacionSchema`: `limite` entero de 1 a 100, por defecto 20. Así que 5 y 20 son válidos.
+   - El cursor es el id del último elemento de cada tema, no un desplazamiento, así que mezclar páginas de 5 y de 20 no salta ni repite elementos.
+   - `limite` se decide por el `pageParam` (primera página sin cursor, 5; con cursor, 20). La recarga de una consulta infinita repite cada página con su propio `pageParam`, en serie y una sola plaza a la vez, así que no hay bloqueo mutuo.
+4. **Determinismo y si `opus` lo puede ejecutar.**
+   - Los títulos son exactos y medibles.
+   - El orden "Sin tema" primero depende de que las secciones se monten en orden: las suscripciones de hermanos se confirman en orden de árbol, así que también es determinista en jsdom.
+   - Con el contrato de dobles de M-01 no queda nada por adivinar.
+5. **Alcance.**
+   - Sin cambios de backend ni de contrato, y nada más de alcance.
+   - ESSENTIALS y `ARCHITECTURE.md` no necesitan nada: las listas siguen paginadas y es una decisión del cliente.
+   - §7.22 de `DESIGN.md`, sin estado visual nuevo, es correcta.
+   - R-06 pasa a decidido con el texto literal del humano.
+
+### Detalles menores
+- **El párrafo final quedó en la enmienda equivocada.** "§D-10 se ajusta para que coincida (el gancho `useRutaDeLaClase`, …)" era el cierre de la Enmienda 4 y, tras insertar la Enmienda 5 antes de él, ahora parece parte de la 5. Hay que devolverlo al final de la Enmienda 4. La Enmienda 5 no toca §D-10, y 01d ya está cerrada.
+- **31 regiones `role="status"` a la vez.** Con 31 temas esperando, la vista monta 31 "Cargando `<tema>`" con `role="status"`. Un lector de pantalla suele no anunciar una región que aparece ya con su texto, así que no bloquea. Se anota para la comprobación humana con lector de pantalla del cierre de 01e.
+
+### Para el humano
+Nada que decidir. M-01 es una precisión del plan, sin cambio de alcance.
+
+## Revisión de las correcciones de la Enmienda 5 — TAREAS-01e
+Fecha: 2026-10-07. Modo 1. Lo verifiqué contra `plan.md`: §D-11 (líneas 243-252), PR-1E06 y PR-1E07 (490-491), el párrafo "Contrato de los dobles" (493-498), el punto de ataque 1b (548-554), H-3 (768), el cierre de la Enmienda 4 (824) y "### Correcciones (M-01 del manager)" (840-852).
+
+Veredicto: **APROBADO.** M-01 queda cerrado. El programador puede arrancar cuando termine la ronda 0 del tester.
+
+### M-01, punto por punto
+1. **Contrato del limitador (§D-11).** Las cuatro reglas están completas y se pueden ejecutar sin adivinar:
+   - (i) con un `signal` ya abortado, `ejecutar` rechaza enseguida, sin formar ni correr la tarea;
+   - (ii) el oyente de `abort` existe solo mientras la tarea espera, y se quita al salir de la cola por turno o por aborto;
+   - (iii) la tarea en curso libera su lugar en un `finally` (éxito, error o aborto) y la primera de la cola entra en el mismo turno de microtareas; en producción el aborto en curso lo da el `fetch` real;
+   - (iv) no hay reinicio ni exportación solo para pruebas.
+2. **Contrato de los dobles.** Lo citan PR-1E06, PR-1E07 y el punto 1b. Cubre todo lo pedido:
+   - promesas controladas, sin temporizadores reales;
+   - `AbortError` igual que `fetch`;
+   - un contador en el propio doble;
+   - cada caso resuelve sus respuestas o desmonta antes de terminar.
+   
+   Además fija que un caso que termina con lugares ocupados es un hallazgo.
+3. **Casos nuevos con título exacto:**
+   - "PR-1E06 · un signal ya abortado al llamar a ejecutar rechaza enseguida sin correr la tarea ni ocupar lugar";
+   - "PR-1E07 · al cambiar de clase o salir y volver con 6 peticiones de trabajo en vuelo y otras en espera, la clase nueva obtiene sus 6 lugares y las que esperaban nunca se piden".
+   
+   Quedan 4 casos en PR-1E06 y 6 en PR-1E07.
+4. **Punto 6 (anuncios).** Conservar un "Cargando `<tema>`" por sección es aceptable: es el patrón de §7.10 y `cargando.tsx` está protegido. Quedó anotado en H-3 para observarlo con lector de pantalla.
+5. **Detalle.** El párrafo de cierre de la Enmienda 4 volvió a su lugar (línea 824).
+
+### Detalle menor (no bloquea)
+- El párrafo "Contrato de los dobles" (líneas 493-498) quedó **dentro de la tabla de "Pruebas requeridas"**, entre la fila de PR-1E07 y la de PR-1E05. En Markdown corta la tabla: la fila de PR-1E05 ya no se muestra como fila. El contenido sigue presente y con su ID, pero conviene mover el párrafo debajo de la tabla, sin cambiar texto, antes de que arranque el programador. Lo hace el arquitecto o el orquestador con transcripción. No requiere otra revisión: lo compruebo cuando verifique el resumen de 01e, y el resumen debe mapear PR-1E05 como cualquier otra prueba requerida.
+
+## Verificación del resumen — TAREAS-01e — implementación
+Fecha: 2026-10-07. Resumen verificado: "## TAREAS-01e — Implementación" de `resumen-programador.md` (línea 809). Base `<K1d>` = `1118c1a`.
+
+**Veredicto: ACEPTADO.** Pasa a la ronda 1 del tester.
+- Las cifras, los títulos, V-01 y "No se toca" coinciden.
+- Las Enmiendas 5 y 6 están en el código tal como las fija el plan.
+- La lista de diseño está en orden.
+- Hay un hallazgo de estilo, **M-01**, que no bloquea la ronda 1 pero sí la revisión final. Lo más barato es corregirlo antes de lanzar al tester: no cambia comportamiento y así el tester ataca el código final.
+
+### Cifras: resumen contra mi corrida
+Carga antes de correr: 4 % y 10 % (10 s de separación), 18 150 MB libres, 0 procesos `node`; antes del test, 8 %. Una suite a la vez.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b` | `> tsc -b`, salida 0 |
+| `cd frontend; npm test` | `Test Files 144 passed (144)` · `Tests 2188 passed (2188)`, 81.17 s | `Test Files 144 passed (144)` · `Tests 2188 passed (2188)`, 81.86 s, sin tiempos límite |
+| `cd frontend; npm run build` | `✓ built in 657ms` | `✓ built in 619ms`, salida 0 |
+| raíz `npm run build` · `npm run lint` | `✓ built in 639ms` · `> tsc -b` | `✓ built in 614ms` · `> tsc -b`, salida 0 en ambos |
+| `npx vitest list` | 2188 en 144 (+46, +2) | 2188 en 144 |
+| Por ID | 1E01 6 · 1E02 10 · 1E03 9 · 1E04 4 · 1E05 4 · 1E06 4 · 1E07 6 · 1E08 3 = 46 | iguales, 46 |
+| Títulos | 45 citados (PR-1E02 "maestro/admin" con `it.each`) | todos existen. Los 13 títulos exactos del plan para PR-1E06, PR-1E07 y PR-1E08 coinciden carácter por carácter |
+| Los 10 rojos esperados | en verde | en verde, dentro de la corrida completa |
+| V-01 | 157/157 | 157/157: `diff` vacío contra la tabla de "Complementaria 2: C-15" de `reporte-tester.md` |
+
+**"No se toca".**
+- En `features/tareas` cambian solo `components/acciones-de-la-tarea.tsx` (el destino `${base}/trabajo` y dos comentarios), `detalle-tarea-view.test.tsx` (I-2 de C-15) y `tareas-01d-r1.ataque` (reescrita por el tester, C-15).
+- `components/ui/**`, `components/cargando.tsx` y `components/layout/**` sin cambios; en `layout` solo cambia `estatico-r1.ataque`, reescrita por el tester.
+- En `app/` solo `router.tsx`.
+- `backend`, `shared` e `infra` sin cambios.
+- Los archivos protegidos por hash coinciden con `aprobacion.md`: ESSENTIALS `9aef6ec5`, `ARCHITECTURE.md` `21638fa4`, `PRD.md` `1b750158`, `CLAUDE.md` `ba2028d4` y `programador.md` `30e26fff`.
+
+**Regla 9.** Ninguna importación `@/features/` fuera de `app/`.
+
+### Enmiendas 5 y 6 en el código
+- **Limitador (`features/clases/lib.ts:227`).** No usa React. Cumple el contrato:
+  - con `signal` ya abortado rechaza con `DOMException` `AbortError` sin formar la tarea;
+  - el oyente de `abort` se agrega solo al formar y se quita al arrancar o al abortar;
+  - `correr` sube `enCurso` en la parte síncrona y lo baja en `finally`, que llama a `entrarLaSiguiente` en el mismo turno;
+  - no hay reinicio ni exportación para pruebas.
+- **Instancia única** `limiteDeTrabajo` en `hooks.ts:717`, usada dentro del `queryFn` de `useTrabajo`. Pide `limite` 5 sin cursor y 20 con cursor; el `signal` de TanStack Query va a la vez a `api` y a `ejecutar`.
+- **Constantes en `data.ts:449-451`:** 5, 20 y 6.
+- **Orden:** "Sin tema" primero, en `seccionesDeTrabajo`.
+- **Espera:** un tema que espera muestra `Cargando` con "Cargando `<tema>`" (§7.10).
+- **Campo "Tema" del muro:**
+  - se pide solo con "Material" (`enabled`);
+  - con la lista pendiente o vacía no aparece;
+  - con la lista fallida y sin datos, una nota en línea (`text-small`, `text-muted-foreground`), sin `role="alert"` ni aviso;
+  - sin `disabled`;
+  - un tema que desaparece no viaja (`temaIdEfectivo`).
+- **PR-1E07:**
+  - el doble rechaza con `AbortError` (línea 191), cuenta lo que tiene en vuelo y no usa temporizadores reales;
+  - los 5 casos que retienen respuestas terminan con `expect(servidor.enVuelo()).toBe(0)`;
+  - el caso 3 ("limite=5 … limite=20") **no retiene respuestas** y termina sin esa aserción (ver M-01).
+
+### Lista de diseño (01e)
+- **Tokens:** sin colores, tamaños, radios ni sombras sueltos; ningún `text-sm`/`rounded-lg`/`shadow-*` ni hex. El único valor arbitrario nuevo es `translate-x-[300%]` (C-14).
+- **Componentes de `ui/`:** `Card`, `Button`/`buttonVariants`, `NativeSelect`, `Input`, `Badge`, `ErrorDeCampo`, `EstadoVacio`, `Cargando` y `MensajeError`. Nada hecho a mano que ya exista.
+- **Vidrio:** `vidrio-fuerte` solo en `fila-de-entrega.tsx` y `elemento-de-trabajo.tsx` (C-14, V-07 en verde). Las secciones, la vista de categorías y los formularios toman su vidrio de `Card`. Las filas del editor de categorías van sobre `--muted`, sin vidrio sobre vidrio.
+- **Rasgos prohibidos:** ninguno (sin degradados ni `backdrop-blur`).
+- **Estado nunca solo con color:**
+  - la fila de entrega dice el estado con el texto de `vencimientoDe`, el cuadro es `aria-hidden` y el enlace empieza con "Tarea:" (`sr-only`);
+  - el total de categorías va en `role="status"` con texto ("Faltan 20 %" / "Sobran 10 %").
+- **Una acción principal por vista:**
+  - "Trabajo de clase": "Crear tarea" (`primary`, S-18); "Nuevo tema" y "Categorías de calificación" son `outline`;
+  - categorías: "Guardar categorías";
+  - el muro sigue con publicar, y su "Crear tarea" es `outline`.
+- **Textos:** todos en `data.ts`, en español de México, concretos, sin emojis. Los mensajes del servidor de los 7 códigos nuevos están en español (`core/tareas/temas.ts` y `categorias.ts`).
+- **Estados:**
+  - error → cargando → vacío → datos en las dos vistas y en cada sección;
+  - tema vacío con su texto;
+  - "Trabajo de clase" vacío con `EstadoVacio`. Su CTA para maestro y admin son "Crear tarea" y "Nuevo tema", siempre visibles arriba. El estudiante no tiene acción posible;
+  - categorías vacías con "Agregar categoría".
+- **360 px:** las cuatro secciones del admin se desplazan dentro de su panel (`max-w-full overflow-x-auto`, `w-max`); `wrap-anywhere` y `line-clamp-2` en los títulos. El aspecto real queda para la comprobación humana (H-6).
+- **Foco y etiquetas:**
+  - el foco sigue §7.14 al crear, renombrar, subir, bajar, borrar tema (`seccionVecina`), mover, "Ver más" y quitar o agregar fila (llave estable);
+  - el destino nunca es `<body>` y tiene casos;
+  - las etiquetas llevan el nombre como `sr-only`;
+  - el encabezado de la vista es un `h2` `sr-only` con `tabIndex={-1}`, igual que el precedente de `muro-view.tsx`. Que el foco se vea sobre él queda para la comprobación humana.
+- **`ErrorDeCampo`:** en el formulario de tema, el editor de categorías (fila y lista) y "Tema".
+- **`enEspera`:** exactamente los 49 de V-06 (en verde).
+- **`autoComplete="off"`:** en el formulario de tema, las dos columnas del editor, "Mover" y "Tema".
+- **`DESIGN.md`:** todo lo nuevo está documentado con la marca "propuesta (TAREAS-01e)" y coincide con el código:
+  - §7.3, cuatro opciones y el desplazamiento;
+  - §7.16, "Trabajo de clase" como segunda sección;
+  - §7.18, "Tema" del material y O-18;
+  - §7.22 nueva: orden, sección, carga de 5 con tope de 6 y espera como §7.10, fila de tarea `size-11`, material, controles, foco y recarga fallida;
+  - §7.23 nueva: el editor, sin categorías, validación y foco.
+
+### Estilo de `CLAUDE.md`
+- **Tipos:** en `hooks.ts`, `lib.ts` y `data.ts` hay 0 declaraciones. La excepción es **`interface FocoPendiente` en `components/editor-de-categorias.tsx:31` (M-01)**.
+- **Otras reglas:** sin `?? []`; sin `disabled`; sin ternarios anidados en JSX; `try/catch` y aviso en los manejadores; avisos en los hooks.
+- **Textos:** `TEXTOS_CLASE.sinAcceso` toma `TEXTOS_DE_LA_CLASE.sinAcceso`. El `sinAccesoALaClase` repetido de `features/clases/data.ts` ya estaba en `1118c1a`: no es de 01e y se suma a O-2 de 01d.
+
+### M-01 — Un tipo que no es de Props en un componente, y una afirmación del resumen que no es exacta
+Dónde:
+- (a) `frontend/src/features/clases/components/editor-de-categorias.tsx:31`, `interface FocoPendiente`;
+- (b) `trabajo-view.test.tsx`, caso "PR-1E07 · la primera página de cada tema pide limite=5 y Ver más pide limite=20" (línea 921).
+
+Por qué importa:
+- (a) `CLAUDE.md`, regla 6: "Las interfaces de Props son los ÚNICOS tipos permitidos en el archivo de un componente". Es el mismo patrón que M-01 de estilo de 01d.
+- (b) El resumen dice que **cada** caso de PR-1E07 termina con `expect(servidor.enVuelo()).toBe(0)`, y el caso 3 no lo hace. Ese caso no retiene respuestas, así que no deja lugares ocupados, pero la afirmación debe ser exacta.
+
+Qué se espera:
+- `FocoPendiente` en `features/clases/types.ts`.
+- El caso 3 termina con la misma aserción, o el resumen dice cuáles la llevan.
+- Sin cambio de comportamiento, con lint y test en verde.
+- Opcional: el cálculo en línea de `errorDeLaLista` (`editor-de-categorias.tsx:55-60`) puede pasar a `lib.ts` como función pura (regla 3).
+
+### Arbitrajes
+1. **Campo "Tema" con temas cargados y una recarga fallida: se acepta.**
+   - La lista que se tenía sigue siendo válida para elegir, y si el tema elegido desapareció no viaja (`temaIdEfectivo`).
+   - Es coherente con M-01 de 01d (no desmontar lo que se está usando por un fallo de recarga).
+   - La nota solo aparece sin datos.
+2. **`CODIGOS_CON_MENSAJE_DEL_SERVIDOR` suma 7 códigos: se acepta.**
+   - Los 7 traen mensajes del backend en español y pensados para la persona ("Ya hay un tema con ese nombre.", "Ese tema ya no existe.", "Esa categoría ya no existe. Elige otra.", etc.).
+   - Es la misma convención que los códigos ya presentes.
+3. **Textos no listados en el plan: se aceptan.**
+   - Son singulares, etiquetas `sr-only`, "—" para un día ilegible y los dos avisos de recarga, que siguen el patrón de 01d.
+   - Viven en `data.ts`, siguen §9 y no duplican `components/clase/data.ts`.
+4. **La lista de una sección que falla al recargar se reemplaza por `MensajeError`, mientras temas y categorías conservan la vista: se acepta.**
+   - Una sección no tiene nada escrito que perder; "Mover" solo guarda una elección.
+   - Sigue el precedente del muro y §7.22 ("Un fallo solo afecta a su sección").
+   - Evita apilar hasta 31 avisos.
+   - Si la persona tenía el foco en la sección, va al `h2` del tema.
+5. **`seccionVecina` solo entre las secciones que ya estaban: se acepta.** Es lo correcto: "Sin tema", que aparece en el mismo cambio, no es la vecina del tema borrado. Tiene su caso.
+6. **Editor de categorías: se acepta.**
+   - Que la lista no cambie mientras guarda es el mismo criterio que T-10 de 01d.
+   - Aceptar un "%" pegado está en el punto de ataque 2.
+   - Partir de la lista del servidor tras un 409 o 404 también se acepta. Es un guardado en bloque de hasta 10 filas cuyo estado ya no coincide con el del servidor, así que reconciliar fila por fila sería más riesgoso que volver a la verdad del servidor con su mensaje.
+   - Queda como observación para el humano: tras ese conflicto se pierden los cambios no guardados de las demás filas. El aviso dice el porqué (el mensaje del servidor), pero no que se descartaron los cambios.
+7. **`CategoriasView` desde una ruta de estudiante dice "No tienes acceso a esta clase." sin pedir nada: se acepta.** Es una defensa extra: el router no la monta y el backend lo niega.
+8. **`w-max`: se acepta.** Es una utilidad de la escala, no un valor arbitrario.
+9. **`IncidenciaValidacion` desde `./types`: se acepta.** Es el mismo precedente aceptado en 01d.
+
+**El comentario de `features/tareas/hooks.ts:153` ("navega al muro"):**
+- El archivo está en "No se toca" de 01e, salvo el destino tras borrar.
+- Ese comentario describe justamente ese destino, así que cambiarlo cabe en el espíritu de la excepción. Aun así, la regla del orquestador es pedir autorización antes de instruir un cambio en un archivo de la lista.
+- Recomiendo que el humano autorice esa sola línea de comentario, que se aplique en el carril trivial al cerrar 01e (junto con la corrección de M-01 si coincide) y que yo la verifique en la revisión final.
+- No bloquea: el comportamiento ya es "Trabajo de clase".
+
+### Para el humano
+- Observación del arbitraje 6: tras un conflicto 409 o 404 al guardar categorías, el editor vuelve a la lista del servidor y se pierden los cambios no guardados de las demás filas.
+- Comprobación final de 01e:
+  - H-3 (lector de pantalla con muchos temas);
+  - H-6 (cuatro secciones a 360 px);
+  - el foco visible sobre los encabezados `sr-only` de las vistas.
+
+## Verificación del resumen — TAREAS-01e — corrección de la ronda 1
+Fecha: 2026-10-07. Resumen verificado: "## TAREAS-01e — Corrección de la ronda 1" de `resumen-programador.md`, contra "## TAREAS-01e — Ronda 1" de `reporte-tester.md` (T-16, T-17 y T-18).
+
+Veredicto: **DEVUELTO**, por M-01 (el estado vecino que pidió revisar el coordinador) y por M-02 (arbitraje a).
+- Las cifras, los títulos, V-01 y "No se toca" coinciden.
+- T-16 y T-18 están bien corregidos.
+- El M-01 de la verificación de la implementación quedó cerrado: `FocoPendiente` y `CampoDeLaFila` están en `types.ts`, y el caso 3 de PR-1E07 ya termina con `enVuelo() === 0`.
+
+### Cifras: resumen contra mi corrida
+Carga antes de correr: 20 % y 15 % (10 s de separación), 17 976 MB libres, 0 procesos `node`; antes del test, 17 %. Una suite a la vez.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b` | `> tsc -b`, salida 0 |
+| `cd frontend; npm test` | `Test Files 146 passed (146)` · `Tests 2212 passed (2212)` | `Test Files 146 passed (146)` · `Tests 2212 passed (2212)`, 82.67 s, sin tiempos límite |
+| `cd frontend; npm run build` | `✓ built in 698ms` | `✓ built in 628ms`, salida 0 |
+| raíz `npm run build` · `npm run lint` | `✓ built in 627ms` · `> tsc -b` | `✓ built in 630ms` · `> tsc -b`, salida 0 en ambos |
+| `npx vitest list` | 2212 en 146 (+11) | 2212 en 146 |
+| Títulos | 11 (T-16 ×4 con `maestro`/`admin`, T-17 ×3, T-18 ×4) | los 11 existen con su título exacto |
+| Los 4 rojos de la ronda 1 | en verde | en verde, dentro de la corrida completa |
+| V-01 | 159/159 | 159/159 (`diff` vacío contra la tabla del cierre de la ronda 1 de 01e). Ninguna `*.ataque` tocada |
+
+"No se toca": fuera de `features/clases`, el diff contra `1118c1a` sigue siendo el mismo de la implementación. En `features/tareas` solo cambian el destino en `acciones-de-la-tarea.tsx`, la I-2 y la `*.ataque` de C-15. `components/ui`, `layout` (salvo su `*.ataque`), `styles`, `vitest.config.ts`, `backend`, `shared` e `infra` no cambian.
+
+### Hermanos y estados vecinos contra el código
+**T-16.**
+- Lo que se pinta según la perspectiva:
+  - "Mover" y su selector solo con `gestionar && elemento.puedeMover` (`seccion-de-tema.tsx:112`);
+  - los controles de tema, con `gestionar && tema !== null` (`:280-292`).
+- Cada caso tiene el suyo: "Sin tema" en estudiante, maestro y admin; "Ver más" visible para el estudiante; sin `puedeMover` no hay "Mover".
+- `…/categorias` del estudiante y las acciones de 01d ya estaban cubiertas.
+- Correcto.
+
+**T-17.**
+- El error que se muestra bajo el total sale ahora solo de `errores[CAMPO_DE_LA_LISTA]`.
+- `quitar` filtra los errores de la llave quitada con `erroresSinLaFila`. El prefijo `${llave}.` lleva el punto, así que "nueva-1" no se lleva los de "nueva-10".
+- Cada caso tiene el suyo: nombre y peso, cliente y servidor, primera, del medio y última fila, quitar y agregar, el total y el error de lista que se conserva.
+- **Pero el "no aplica" del respaldo no es cierto:** ver M-01.
+
+**T-18.** `filasDelServidor` (`lib.ts:457`) busca la llave primero por id y, solo para las filas nuevas (sin id), por `claveDeNombre`. Revisé los casos dudosos:
+- **Dos filas nuevas con el mismo nombre normalizado:** no llegan al reemplazo. El esquema del cliente y el servidor las rechazan con la misma `claveDeNombre`, así que no hay respuesta exitosa que reconciliar.
+- **Una fila guardada renombrada en el mismo guardado:** se reconcilia por id, nunca por nombre.
+- **¿Puede la llave saltar de una fila a otra?** No. Las llaves de las filas nuevas son `nueva-N` y las de las guardadas son su id, así que dos filas del servidor no pueden recibir la misma llave. Tras un conflicto, una categoría ajena con el mismo nombre que una fila nueva toma la llave de esa fila: es la misma fila para la persona, y el foco se queda en ella. Aceptable.
+- **El respaldo de foco** solo actúa si el foco se perdió (`soloSiSePerdio`). Va al mismo campo por `data-campo`; si la fila ya no está, al primer campo; sin filas, a "Agregar categoría".
+- **Lo que tiene caso:** 409 o 404, dos guardados seguidos, "Guardar categorías", y Enter desde "Nombre" y desde "Peso". "Quitar" de una fila nueva sigue el mismo camino por `data-campo`; está declarado sin caso propio y es razonable.
+- Correcto.
+
+### M-01 — El editor de categorías no es inmutable en todos los caminos mientras guarda, y se quitó el respaldo que cubría ese caso
+Dónde: `components/editor-de-categorias.tsx`. `cambiar` (79), `agregar` (86), `quitar` (94) y `handleSubmit` (115) se protegen con `if (guardar.isPending) return`.
+
+Por qué importa:
+- `isPending` llega al componente **en el render siguiente**. TanStack Query 5.103 avisa a sus observadores con `notifyManager`, cuyo programador por defecto es `setTimeout(cb, 0)` (`query-core/build/modern/notifyManager.js:7`).
+- Entre `guardar.mutate(…)` y ese render, un segundo evento pasa la guarda: un "Quitar", otro Enter, escribir o agregar. Por clic, Enter o teclado, todos los caminos tienen la misma ventana. En pruebas basta con dos `fireEvent` seguidos.
+- En ese caso:
+  - el error del servidor de la fila quitada **se pierde en silencio**, porque ya no existe el respaldo que lo mostraba como error de la lista;
+  - si el guardado tiene éxito, `filasDelServidor(enviadas, …)` **devuelve la fila quitada** sin aviso.
+- El resumen dice "ese camino no existe" para justificar quitar el respaldo. Por la regla de hermanos y estados vecinos, un "no aplica" que no coincide con el código devuelve el resumen.
+- **Precedente en el mismo encargo:** el formulario de tarea de 01d marca la guarda **de forma síncrona** con `guardandoRef` antes del primer `await`.
+
+Qué se espera:
+- Una guarda síncrona: un ref que se marca antes de `mutate` y se libera al asentarse. La comparten `cambiar`, `agregar`, `quitar` y `handleSubmit`, así que la lista no cambia entre el envío y la respuesta por ningún camino.
+- Un caso que lo pruebe: el envío y un "Quitar" (o un segundo Enter) en el mismo turno. La fila sigue y se envía un solo `PUT`.
+- **Hermanos que el resumen debe revisar con el mismo criterio:**
+  - `FormularioTema` (`guardando = crear.isPending || renombrar.isPending`): doble Enter, envío y cancelar;
+  - la confirmación de borrar tema;
+  - "Subir" y "Bajar", que ya dicen "mientras uno está en vuelo, los demás no actúan";
+  - "Mover";
+  - "Ver más".
+  
+  Uno por uno, cada uno dice si su guarda es síncrona o por qué no hace falta.
+
+### M-02 (arbitraje a) — "Cancelar" del formulario de tema con el envío en vuelo
+**Decisión: se corrige en 01e.** Como el resumen vuelve por M-01, cuesta una línea y un caso.
+- Hoy el formulario se cierra como si nada se hubiera guardado, pero el tema se crea o se renombra y sale "Tema creado". Esa contradicción, en el mismo formulario, es justo el estado vecino que este encargo viene pagando con rondas extra.
+- **Qué se espera:**
+  - "Cancelar" no actúa mientras el envío está en vuelo: retorno temprano con la guarda síncrona de M-01;
+  - sin `enEspera` y sin `disabled`, así que V-06 y C-14 no cambian;
+  - el botón sigue en el orden de tabulación;
+  - un caso: "Cancelar" con "Crear tema" en espera no cierra el formulario, y al llegar la respuesta el foco vuelve a "Nuevo tema" como al guardar.
+- **Hermanos:** el "Cancelar" de la confirmación de borrar tema con "Sí, borrar tema" en espera, y el de renombrar.
+
+### Arbitraje (b) — "Sin tema" duplicado entre `features/clases/data.ts` y `features/tareas/data.ts`
+**Queda en ESTADO §3 junto con O-2 de 01d** (`categoriaRequerida` y `sinAccesoALaClase` duplicados). Destino: el primer encargo que abra `features/tareas` (ENTREGAS), por el carril trivial, moviendo los textos compartidos a `components/clase/data.ts`.
+- No se mueve al cerrar 01e: tocaría código en un archivo protegido al final de la subentrega, sin necesidad funcional.
+- El comentario de `features/tareas/hooks.ts:153` sigue con lo que recomendé en la verificación de la implementación: una línea de comentario, con autorización del humano al cerrar 01e. Si el humano prefiere no tocar nada protegido en el cierre, va al mismo destino.
+
+### Para el humano
+Nada nuevo que decidir. M-01 y M-02 son correcciones dentro del plan.
+
+## Verificación del resumen — TAREAS-01e — corrección de M-01 y M-02
+Fecha: 2026-10-07. Resumen verificado: "## TAREAS-01e — Corrección de M-01 y M-02" de `resumen-programador.md`.
+
+Veredicto: **ACEPTADO**. Pasa a la ronda 2 del tester, sin M-nn.
+
+### Cifras: resumen contra mi corrida
+Carga antes de correr: 3 % y 7 % (10 s de separación), 18 062 MB libres, 0 procesos `node`. Una suite a la vez.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b` | `> tsc -b`, salida 0 |
+| `cd frontend; npm test` | `Test Files 146 passed (146)` · `Tests 2220 passed (2220)` | `Test Files 146 passed (146)` · `Tests 2220 passed (2220)`, 83.43 s, sin tiempos límite |
+| `cd frontend; npm run build` | `✓ built in 641ms` | `✓ built in 637ms`, salida 0 |
+| raíz `npm run build` · `npm run lint` | `✓ built in 660ms` · `> tsc -b` | `✓ built in 643ms` · salida 0 |
+| `npx vitest list` | 2220 en 146 (+8: 2 en categorías, 6 en trabajo) | 2220 en 146 |
+| Títulos | 8 | los 8 existen con su título exacto |
+| V-01 | 159/159 | 159/159, contra la tabla del cierre de la ronda 1 de 01e. Ninguna `*.ataque` tocada |
+
+"No se toca": fuera de `features/clases`, el diff contra `1118c1a` no cambia. En `features/tareas` siguen solo el destino, la I-2 y la `*.ataque` de C-15. `vitest.config.ts`, `components/ui`, `layout`, `styles`, `backend`, `shared` e `infra` no cambian.
+
+V-06 sigue en 49 (en verde) y no apareció ningún `enEspera` nuevo; `formulario-tema.tsx` sigue con 1.
+
+### Hermanos contra el código
+- **Editor de categorías (`guardandoRef`):** se marca después de validar y justo antes de `guardar.mutate`, y se libera en `onSettled`, que corre en éxito y en error. `cambiar`, `agregar`, `quitar` y `handleSubmit` lo consultan.
+  - Con esto, lo que el resumen dice ahora de T-17 es cierto: ninguna fila sale de la lista entre el envío y la respuesta.
+  - Así que quitar el respaldo de "error de fila sin fila" ya es correcto.
+  - El programador corrigió por escrito su "no aplica" anterior.
+- **Formulario de tema (`enviandoRef`):** se marca antes de `crear.mutate` o `renombrar.mutate` y se libera en `onSettled`. `handleSubmit` y `handleCancelar` lo consultan (M-02). Al llegar la respuesta, `onSuccess` → `onTerminar` cierra el formulario, y el foco vuelve a "Nuevo tema" o a "Renombrar"; los dos tienen caso. Si falla, el formulario sigue abierto y "Cancelar" vuelve a actuar.
+- **Borrar tema (`borrandoRef`):** `confirmarBorrado` lo marca antes de `borrar.mutate` y lo libera en `onSettled`. `cancelarBorrado` no actúa mientras está marcado, así que la confirmación no se dispara dos veces en el mismo turno. Tiene caso.
+- **Subir y Bajar (`ordenandoRef`):** se marca antes de `ordenar.mutate` y se libera en `onSettled` junto con `ordenEnVuelo`. Sale el primer orden y no un segundo calculado con la lista vieja. Tiene caso.
+- **Mover (`moviendoRef`):** se marca antes de `mover.mutate` y se libera en `onSettled`. Tiene caso.
+- **"Ver más":** el "no aplica" es correcto. `fetchNextPage({ cancelRefetch: false })` (`seccion-de-tema.tsx:129`) llega a `Query.fetch`, que mira de forma síncrona el `fetchStatus` de la consulta y, si hay una página en vuelo, devuelve la misma promesa (`query-core/build/modern/query.js:299`). Tiene caso.
+- **Rúbrica de 01d:** el "no aplica" es correcto y está protegida.
+- **`Escape`:** ningún componente lo escucha.
+- **Aborto:** las mutaciones no se abortan al desmontar. Si el componente se desmonta, el ref muere con la instancia, así que no queda ninguna guarda trabada.
+- **Mutación de comprobación:** con las guardas viejas fallan 7 casos, coherente con los 7 casos de guarda síncrona.
+
+### Detalle menor (no bloquea; para la ronda 2 o el carril trivial)
+Con `cancelRefetch: false`, si "Ver más" se pulsa mientras la consulta del tema se está recargando en segundo plano (por ejemplo, tras una invalidación), el clic se une a esa recarga y no pide la página siguiente. El botón no está en `enEspera`, porque `isFetchingNextPage` es falso, así que parece activo y no hace nada. Es un caso raro: basta con volver a pulsar.
+
+## Verificación del resumen — TAREAS-01e — corrección de T-19
+Fecha: 2026-10-07. Resumen verificado: "## TAREAS-01e — Corrección de la ronda 2 (T-19)" de `resumen-programador.md`, contra "## TAREAS-01e — Ronda 2" de `reporte-tester.md`.
+
+Veredicto: **ACEPTADO**. Pasa a la ronda 3, la última del tope. Sin M-nn.
+
+### Cifras: resumen contra mi corrida
+Carga antes de correr: 19 % y 16 % (10 s de separación), 18 129 MB libres, 0 procesos `node`. Una suite a la vez.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b` | salida 0 |
+| `cd frontend; npm test` | `Test Files 148 passed (148)` · `Tests 2237 passed (2237)` | `Test Files 148 passed (148)` · `Tests 2237 passed (2237)`, 84.13 s, sin tiempos límite |
+| `cd frontend; npm run build` | `✓ built in 752ms` | `✓ built in 633ms`, salida 0 |
+| raíz `npm run build` · `npm run lint` | `✓ built in 614ms` · `> tsc -b` | `✓ built in 661ms` · salida 0 |
+| `npx vitest list` | 2237 en 148 (+3) | 2237 en 148 |
+| Títulos | 3 | existen los 3: dos "T-19 · …" en `trabajo-view.test.tsx` y uno en `muro-view.test.tsx` |
+| Rojo de la ronda 2 | en verde | `trabajo-01e-r2.ataque` › "pulsar «Ver más de <tema>» mientras su lista se recarga no se pierde…", en verde |
+| V-01 | 161/161 | 161/161 contra la tabla del cierre de la ronda 2 de 01e. Ninguna `*.ataque` tocada |
+
+**"No se toca":** intacto. Fuera de `features/clases`, el diff contra `1118c1a` no cambia.
+
+**Regresión del muro:** todas las `*.ataque` del muro siguen en verde dentro de la corrida completa (`muro-c-r1`, `muro-c-r2`, `archivos-d-*`, `segmentado-02d-r1`).
+
+### El remedio contra el código
+- `seccion-de-tema.tsx:133` y `muro-view.tsx:150` pasan a `enEspera={….isFetching}`: es la misma condición de un `enEspera` que ya existía.
+- V-06 sigue en 49, con 4 en `seccion-de-tema.tsx` y 1 en `muro-view.tsx`.
+
+**¿El botón se queda "pegado"?** No.
+- `isFetching` incluye la espera en el limitador y el reintento de `retry: 1`. Con 31 temas y una invalidación del prefijo, una sección puede esperar varias tandas de 6, o un reintento de 1 s tras un 503.
+- Es aceptable:
+  - la espera es real, porque la sección se está recargando y pedir la siguiente página antes sería pedirla sobre datos que van a cambiar;
+  - el botón muestra su indicador de carga (`enEspera`, `aria-busy`), que es el motivo visible;
+  - las lecturas son de 5 elementos por índice, así que la espera típica dura poco.
+- No hay sondeo: no hay `refetchInterval` y `refetchOnWindowFocus` está apagado en `app/providers.tsx`. El botón solo entra en espera tras una acción o una reconexión.
+
+**Recarga fallida:** cuando la recarga termina, `isFetching` vuelve a falso. Con error, la sección se reemplaza por `MensajeError` (desviación 4 aceptada) y el botón desaparece, con el foco al `h2` de la sección. Tiene caso, así que la espera no queda abierta para siempre.
+
+### Hermanos
+- **Aplicados y probados:** "Ver más de `<tema>`" (el mismo componente para "Sin tema" y todos los temas) y "Ver más publicaciones" del muro.
+- **Declarados para ESTADO §3, carril trivial:** "Ver más" de comentarios, del roster de alumnos, de compañeros, de los dos inicios y de la lista de clases del admin. Es el mismo cambio de condición, sin cambiar el conteo de V-06, cada uno con su caso.
+  - Destino aceptado: esos archivos no los abre 01e y el remedio es mecánico.
+  - Que hoy el clic se pierda durante una recarga en segundo plano es de severidad baja.
+
+### Detalle menor
+La fila de estados vecinos cita `refetchOnWindowFocus`, pero está apagado en la app (`app/providers.tsx:14`). El caso real es la recarga al reconectar (`refetchOnReconnect`, activo por defecto), con el mismo `isFetching`. No cambia nada del remedio.
+
+## Verificación del resumen — TAREAS-01e — corrección de T-20 y A-16 (ronda 4 cerrada)
+Fecha: 2026-10-07. Resumen verificado: "## TAREAS-01e — Corrección de la ronda 3 (T-20, A-16)" de `resumen-programador.md`, contra "## TAREAS-01e — Ronda 3" de `reporte-tester.md`.
+
+Veredicto: **ACEPTADO**. El tester confirma. Sin M-nn.
+
+### Corrida propia, con hora (zona del equipo, UTC−6)
+- **Carga.** Antes del lint (18:55), 43 % y 27 % con 14 377 MB libres. Antes del test, 7 %.
+- **Procesos `node`.** Había 6, todos ajenos: `cua-repl.mjs` y `server.mjs` de `…\OpenAI\Codex\runtimes\cua_node\…`. Ninguna suite estaba en curso. No los toqué.
+- Corrí una suite a la vez.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b` | salida 0 (18:55) |
+| `cd frontend; npm test` | 149 / 2241 (desde 18:48:24) | `Test Files 149 passed (149)` · `Tests 2241 passed (2241)`, desde las **18:56:18** (dentro de la ventana de 18:00 a 24:00 en que fallaba T-20), 98.84 s, sin tiempos límite |
+| `cd frontend; npm run build` | `✓ built in 827ms` | `✓ built in 754ms` (18:58) |
+| raíz `npm run build` · `npm run lint` | `✓ built in 736ms` · `> tsc -b` | `✓ built in 752ms` · salida 0 |
+| `npx vitest list` | 2241, sin casos nuevos | 2241 en 149 archivos |
+| V-01 | 162/162 | 162/162 contra la tabla del cierre de la ronda 3 de 01e. Ninguna `*.ataque` tocada |
+
+**Zonas horarias.** Corrí los tres archivos corregidos con `TZ=Pacific/Kiritimati`, `Pacific/Pago_Pago` y `America/Santiago`: 86/86 en cada una. Pero en este equipo Node **no aplica** `TZ`: `new Date(2026,9,6,9,0)` siguió saliendo en hora central. Así que esa comprobación **no verifica las zonas**.
+- **Lo que sí se puede afirmar, por construcción:** la fecha fija se arma en hora local (`new Date(2026, 9, 6, 9, 0)`), así que en cualquier zona son las 09:00 locales.
+- Las fechas derivadas (+30 h → 15:00 del día siguiente; −48 h; +10 días) caen lejos de la medianoche. Un cambio de horario de ±1 h no las mueve de día.
+- La aserción de la fila próxima admite "hoy" o "mañana".
+
+### Contra el código
+- **Los tres casos corregidos fijan el reloj igual:** `trabajo-view.test.tsx:326`, `tarjeta-de-tarea.test.tsx:88` y `detalle-tarea-view.test.tsx:166`. Usan `vi.useFakeTimers({ toFake: ["Date"] })` y `vi.setSystemTime(new Date(2026, 9, 6, 9, 0))`, con `onTestFinished(() => vi.useRealTimers())`.
+  - Solo se simula `Date`: no hay temporizadores falsos que puedan quedar colgados, y TanStack Query y `waitFor` siguen con temporizadores reales.
+  - El reloj se restaura aunque la prueba falle.
+- **Hermanos, con `grep` propio** (`Date.now`, `new Date()`, `setSystemTime`, `useFakeTimers`, "Vence" y "Venció") en todas las pruebas normales de 01d y 01e (`features/clases`, `features/tareas`, `lib/vencimiento.test.ts`, `native-select.test.tsx`, `router.test.tsx`):
+  - **Fijan el reloj:** los tres corregidos.
+  - **Usan un `Date.now` congelado** para provocar fallos en el mismo milisegundo, sin comparar textos relativos: `detalle-tarea-view.test.tsx:878` y `editar-tarea-view.test.tsx:967` (`vi.spyOn(Date, "now")`).
+  - **Usan fechas absolutas:** `formulario-tarea.test.tsx` (`FECHA_LOCAL`).
+  - **Pasan un `AHORA` explícito:** `lib/vencimiento.test.ts`.
+  - **`features/tareas/lib.test.ts:24`:** `futuro()` arma una fecha a 5 días de la hora real solo para `estadoValido`. `fechaLimiteSchema` es `z.iso.datetime` y no exige que sea futura, así que la única aserción sobre ella es `toMatch(/Z$/)`. Ninguna aserción depende de la hora: es cierto.
+  - Los demás archivos no calculan fechas relativas.
+- **A-16:** `git diff 1118c1a -- frontend/src/features/tareas/hooks.ts` es exactamente una línea: "// navega al muro)." → "// navega a Trabajo de clase).".
+- **Regla nueva de `.claude/agents/tester.md` (línea 21):** "Toda prueba que compare fechas o textos relativos al tiempo fija el reloj; una prueba que depende de la hora real es hallazgo." SHA-256 `a0899014…38a5`, igual al de `aprobacion.md`.
+- **"No se toca":** intacto salvo lo autorizado.
+  - En `features/tareas` cambian el destino (`acciones-de-la-tarea.tsx`), las pruebas `detalle-tarea-view.test.tsx` (I-2 de C-15 y el hermano de T-20), la línea de A-16 y la `*.ataque` de C-15.
+  - En `.claude` solo cambia `tester.md`.
+  - `CLAUDE.md`, `AGENTS.md`, ESSENTIALS, `ARCHITECTURE.md`, `PRD.md`, `components/ui`, `styles`, `vitest.config.ts`, `backend`, `shared` e `infra` no cambian.
+
+## Revisión final — TAREAS-01e y cierre del encargo
+Fecha: 2026-10-07. Bases: 01e dentro de los paquetes, `<K1d>` = `1118c1a`; encargo `<R>` = `ad070b9`, con FIX-CLASES entrando por `<M1>` = `07e4ab7`.
+
+Veredicto de 01e y del encargo TAREAS-01: **APROBADO CON OBSERVACIONES.** No hay problemas que bloqueen. Las observaciones tienen destino, y el cierre necesita el texto de `CLAUDE.md` (A-9) y el commit `<K1e>`.
+
+Verificación propia, una suite a la vez:
+- **Frontend:** lint 0 · test `Test Files 150 passed (150)` · `Tests 2243 passed (2243)` (19:07:56, 101.74 s, sin tiempos límite) · build `✓ built in 701ms`.
+- **Raíz:** build `✓ built in 706ms` y lint, salida 0.
+- **Backend:** lint 0 · test `Test Files 172 passed (172)` · `Tests 2159 passed (2159)` (19:11:49, 146.93 s), con PA-07 en orden. `shared` build 0.
+
+### Problemas que bloquean
+Ninguno.
+
+### 1. Diff de 01e contra el plan
+- **Tamaño.** `git diff 1118c1a --stat` da 31 archivos versionados, +4576 y −67. Sin versionar hay 16 archivos nuevos, todos en `features/clases`: 10 de producción y pruebas del programador y 6 `*.ataque` del tester.
+- **Fuera de `frontend/src`** solo cambian:
+  - `docs/DESIGN.md`;
+  - `.claude/agents/tester.md`, la regla del reloj: SHA-256 `a0899014…38a5`, igual a `aprobacion.md`;
+  - `docs/ESTADO.md` y la carpeta del encargo.
+- **Sin cambios:**
+  - `backend` y `shared`, desde `<K1b>` (`git diff --quiet ebfe126 -- backend shared`, salida 0);
+  - `infra`, `vitest.config.ts`, `components/ui`, `components/layout` (salvo su `*.ataque`), `styles` y los archivos protegidos por hash: `CLAUDE.md` `ba2028d4`, `AGENTS.md`, ESSENTIALS `9aef6ec5`, `ARCHITECTURE.md` `21638fa4`, `PRD.md` `1b750158` y `programador.md` `30e26fff`.
+- **En `features/tareas`** solo cambian:
+  - el destino tras borrar (`acciones-de-la-tarea.tsx`);
+  - la I-2 de C-15 y el hermano de T-20 (`detalle-tarea-view.test.tsx`);
+  - la línea de A-16 (`hooks.ts`);
+  - la `*.ataque` de C-15.
+- **Contra §D-11 (con las Enmiendas 5 y 6, C-14, C-15, A-15 y A-16).** Está todo lo planeado:
+  - "Trabajo de clase" como segunda sección en las tres perspectivas, con cuatro en el admin y desplazamiento horizontal;
+  - `TrabajoView` con "Sin tema" primero, el tema vacío sin petición y "Ver más" por tema;
+  - la fila de tarea de §7.7 y el material desplegable;
+  - la gestión de temas: crear, renombrar, subir y bajar con el orden completo y el 409, borrar con confirmación en línea, y mover con `puedeMover` y `gestionar`;
+  - `CategoriasView` con el editor en bloque, el total en `role="status"` y P-01 a;
+  - "Tema" en el formulario del muro, con sus estados de C-14;
+  - O-18;
+  - el destino tras borrar una tarea;
+  - el limitador de 6 con la primera página de 5 (Enmienda 5);
+  - las listas cerradas de C-14.
+- **Solo lo planeado.** Lo demás son decisiones aceptadas en las verificaciones: las nueve desviaciones de la implementación, las guardas síncronas de M-01 y M-02, "Ver más" en espera durante las recargas (T-19, con "Ver más publicaciones" como hermano autorizado) y el reloj fijo de T-20.
+
+### 2. Corrida propia
+Carga:
+- antes del frontend, 28 % y 31 %;
+- antes del backend, 45 % y 33 %, con 14 443 MB libres.
+
+Había 6 procesos `node` ajenos (servidores de Codex en `…\OpenAI\Codex\…`), sin otra suite en curso; no los toqué.
+
+| Comando | Resultado |
+|---|---|
+| `cd frontend; npm run lint` | `> tsc -b`, salida 0 (19:07) |
+| `cd frontend; npm test` | `Test Files 150 passed (150)` · `Tests 2243 passed (2243)`, 101.74 s, sin tiempos límite (esperado 150 / 2243) |
+| `cd frontend; npm run build` | `✓ built in 701ms` |
+| raíz `npm run build` · `npm run lint` | `✓ built in 706ms` · salida 0 |
+| `cd shared; npm run build` (R-17) | salida 0 |
+| `cd backend; npm run lint` | salida 0 (`tsc -p tsconfig.test.json` al final) |
+| `cd backend; npm test` | `Test Files 172 passed (172)` · `Tests 2159 passed (2159)`, 146.93 s (esperado 172 / 2159) |
+
+- **PA-01:** la red activa es `IZZI-F281`, perfil Público, que ESTADO §5 declara de confianza. La regla "Campus: bloquear entrada a Docker en redes publicas" está habilitada, Inbound/Block/Public. Docker 28.5.1 encendido.
+- **PA-07, sobre la salida completa del backend:**
+  - `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0;
+  - `"Error no controlado"` = **10** (I-1): 5 "fallo simulado de la base en la búsqueda", 1 "fallo simulado de la base al crear la sesión", 1 "boom" y 3 de validación provocada;
+  - `"code":"P2028"` = **5**, todos de transacción vencida o `timeout` por retención deliberada, ninguno de `maxWait` ("Unable to start a transaction"). Sus llamadas son `tx.sesion.findFirst`, `tx.sesion.create`, `tx.sesion.updateMany`, `tx.tokenCuenta.updateMany` y `$queryRawUnsafe`, los 5 permitidos de `servicio-ocupado` y su control positivo.
+
+### 3. V-01
+- **163/163** contra la tabla de la ronda 4 cerrada de 01e: `diff` vacío.
+- En 01e, `git diff 1118c1a --name-status -- '*.ataque.test.*'` muestra 7 modificadas, todas reescritas por el tester:
+  - C-11: `clases-admin-02c-r1`, `heredados-02d-r1` y `layout/estatico-r1`;
+  - C-12: `segmentado-02d-r1`;
+  - C-14: `styles/clases-r1` y `estatico-02c-r1`;
+  - C-15: `tareas-01d-r1`.
+- Hay 6 nuevas: `trabajo-01e-r1`, `categorias-01e-r1`, `trabajo-01e-r2`, `categorias-01e-r2`, `ver-mas-01e-r3` y `reloj-01e-r4`.
+- Ninguna borrada. Sin `.skip`, `.only`, `.todo` ni `skipIf`. El programador no tocó ninguna.
+
+### 4. Definición de terminado
+**01e:**
+- **RF-43 completo, con las reglas de P-03 de CLASES-01 y P-02:** los temas tienen nombre y orden; "Sin tema" va arriba solo si tiene elementos; borrar un tema pasa sus elementos a "Sin tema"; los gestionan maestros y admin; el alumno los ve agrupados y de solo lectura; el muro sigue cronológico.
+- **RF-32 completo, con S-06:** categorías en bloque, pesos que suman 100, máximo 10, y "Quitar" no se ofrece con tareas.
+- **RF-12:** el muro tiene el campo "Tema" en el material, con sus estados de C-14.
+- **O-18:** cerrado.
+- **Capas y módulos:**
+  - tipos solo en `types.ts`, incluidos los de M-01;
+  - sin `?? []`;
+  - regla 9 sin importaciones entre `features/`;
+  - todo `fetch` por `apiClient` en hooks.
+- **lint, build y test:** en verde.
+- **Endpoint o migración:** no hay.
+- **Documentos:** `DESIGN.md` con la marca (abajo) y `CLAUDE.md` con el texto de abajo.
+
+**Encargo TAREAS-01 (01a a 01e):**
+- **RF-12, parte de tareas:** la tarjeta en el muro (01d) y el campo "Tema" (01e).
+- **RF-13:** el detalle de tarea (01d).
+- **RF-32:** categorías ponderadas (01a, backend; 01e, interfaz).
+- **RF-34:** crear y editar tareas con rúbrica propia (01b, backend; 01d, interfaz).
+- **RF-43:** temas (01a y 01e).
+- **RF-44, guardar y mostrar:** `acepta_tardias` (01b) y el control segmentado y la política (01d). "Con retraso" llega con ENTREGAS.
+- **RN-05, la parte que fija la categoría:** una clase sin categorías califica por puntos; con categorías, toda tarea nueva o editada lleva una. Está en `core` (01b) y en el formulario (01d). El texto ya está en `PRD.md`.
+- **RN-06:** todo cuelga de `/api/clases/:claseId/…`, con el sexto paso (01a y 01b).
+- **RN-07, aplicada a tareas:** la autoría se decide en `core/autoria.ts`, con P-04 b. La interfaz solo lee `puedeEditar` y `puedeBorrar`.
+- **P-01 a P-05 y S-01 a S-18:** reflejados según la recomendación aprobada. Cada subentrega los contrastó en su revisión final; S-15 se aplicó con su visto bueno.
+- **Migraciones compatibles:** las dos de 01a, verificadas en la revisión final de 01a. R-04 queda para DEPLOY.
+- **Pruebas de autorización de las 13 rutas nuevas:** las 8 de 01a en PR-1A09 y las 5 de 01b en PR-1B14, más las matrices del tester.
+- **`infra/` y `.env.example`:** sin cambios en todo el encargo.
+- **Documentos de las cinco subentregas:**
+  - 01a y 01b: ESSENTIALS (tablas, restricciones, temas, categorías, autoría, archivos y `queue`), `PRD.md` (RN-05 y RN-07) y `ARCHITECTURE.md` (§7, §8, §10, §11 y §14), aplicados y comprobados con `grep`;
+  - 01c y 01d: `CLAUDE.md`, aplicado;
+  - 01e: falta solo `CLAUDE.md` (abajo).
+
+### 5. Lista de diseño y estilo, sobre el estado final de 01e
+Lo que cambió en las correcciones:
+- **Guardas síncronas:** `guardandoRef`, `enviandoRef`, `borrandoRef`, `ordenandoRef` y `moviendoRef`. Se marcan antes de `mutate` y se liberan en `onSettled`. Sin `disabled`.
+- **"Cancelar" inerte con el envío en vuelo:** no lleva `enEspera` y sigue en el orden de tabulación.
+- **"Ver más" en espera durante las recargas:** `isFetching` en los dos botones; V-06 sigue en 49.
+- **Foco en el editor de categorías:** llave estable por id o nombre, y respaldo por `data-campo` solo si el foco se perdió.
+
+Lo demás de la lista:
+- **Tokens:** solo tokens; único valor arbitrario, `translate-x-[300%]`.
+- **Componentes:** los de `ui/`.
+- **Vidrio:** solo en las dos filas de C-14 y en `Card`.
+- **Estado y color:** el estado se dice con texto (vencimiento, total).
+- **Acción principal:** una por vista.
+- **Textos:** en `data.ts`, con tono §9 y sin emojis.
+- **Estados:** error → cargando → vacío → datos.
+- **360 px:** resuelto en el código. El aspecto real va a la hoja de comprobación.
+- **Foco visible y etiquetas:** cumplidos.
+- **Formularios:** `ErrorDeCampo`, `enEspera` en los 49 y `autoComplete="off"`.
+- **`DESIGN.md`:** todo lo nuevo documentado con la marca.
+- **Estilo de `CLAUDE.md`:** retornos tempranos, `try/catch` con aviso, avisos en los hooks y sin ternarios anidados.
+
+### 6. Hallazgos
+**01e:** todos corregidos y confirmados por el tester (ronda 4 cerrada: RESISTE).
+- T-16 ("Mover" por perspectiva).
+- T-17 (errores al quitar una fila).
+- T-18 (foco al adoptar ids).
+- T-19 ("Ver más" durante una recarga).
+- T-20 (prueba con la hora real).
+- M-01 de estilo (tipo en un componente y la aserción de PR-1E07).
+- M-01 y M-02 (guardas síncronas y "Cancelar").
+
+**Encargo:**
+- 01a, 01b y 01c: cerrados con sus revisiones finales.
+- 01d: T-06 a T-15 y los M-01, cerrados.
+- 01e: arriba.
+- Lo que queda abierto tiene destino.
+
+**Filas para ESTADO §3** (nuevas o con destino actualizado):
+
+| Pendiente | Destino |
+|---|---|
+| Los demás "Ver más" de CLASES con el patrón de T-19 (`comentarios-de-publicacion.tsx`, `tabla-alumnos.tsx`, `personas-view.tsx`, `panel-mis-clases.tsx`, `clases-admin-view.tsx`): `enEspera={….isFetching}` con un caso cada uno | Carril trivial (o el primer encargo que abra cada archivo) |
+| "Sin tema" duplicado entre `features/clases/data.ts` y `features/tareas/data.ts`, más O-2 de 01d (`categoriaRequerida` y `sinAccesoALaClase`, que también sigue en `features/clases/data.ts`): mover a `components/clase/data.ts` | ENTREGAS (primer encargo que abre `features/tareas`), carril trivial |
+| O-1 de 01d (títulos del `it.each` de PR-1D04) y O-3 de 01d (`aria-describedby` de la nota del tope). Su destino decía "01e", pero `features/tareas` estuvo protegido | ENTREGAS (O-3, o el `chore` de accesibilidad) |
+| Tras un 409 o 404 al guardar categorías, el editor vuelve a la lista del servidor y descarta los cambios no guardados de las demás filas. El aviso dice el porqué, no que se descartaron | CALIFICACIONES o decisión del humano |
+| 31 regiones `role="status"` ("Cargando `<tema>`") con muchos temas esperando | Comprobación humana (punto 7 de la hoja); si satura, el `chore` de accesibilidad |
+| Divergencia del criterio de ventana: `document.activeElement` en `features/tareas` frente a `hasFocus()` en CLASES (O-6 de 01d) | `chore` de accesibilidad del marco |
+| "Gana el último que guarda" al editar una tarea (O-7 de 01d) | ENTREGAS (decisión del humano, 2026-10-07) |
+| Estado vecino real de las recargas en segundo plano: `refetchOnReconnect` (por defecto), no `refetchOnWindowFocus` (apagado) | Nota para quien revise recargas; sin acción |
+
+**Filas que se cierran:**
+- el umbral de §7.7 (fila de la línea 304 de ESTADO);
+- O-18 de CLASES-02d (fila de la línea 269);
+- O-1, O-2 y O-3 de 01d con destino "01e": se reubican, como en la tabla de arriba.
+
+### 7. Documentos
+**`CLAUDE.md`, "Al cerrar 01e" (A-9), texto exacto.** La fila `clases` de la tabla de módulos queda:
+
+`| \`clases\` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, código de invitación, compañeros, roster, buscador y alta manual de alumnos; trabajo de clase con temas y categorías de calificación (TAREAS-01); gestión de clases del administrador (\`/admin/clases\`: lista, crear y editar clase, maestros de la clase, y alumnos y muro de cualquier clase) | Estudiante, Maestro, Administrador |`
+
+Va antes de la gestión del administrador para no romper el paréntesis de `/admin/clases`.
+
+**`DESIGN.md`:** todo lo nuevo de 01e lleva la marca "propuesta (TAREAS-01e)" y es coherente con el código:
+- §7.3: cuatro opciones y el desplazamiento;
+- §7.16: "Trabajo de clase" como segunda sección;
+- §7.18: "Tema" del material, O-18 y "Ver más" en espera durante la recarga (aplicado a "Ver más publicaciones"; "Ver más comentarios" queda pendiente, declarado);
+- §7.22: carga de 5 con tope de 6, espera como §7.10, fila de tarea, material, controles, guardas, "Cancelar", foco y recarga fallida;
+- §7.23: el editor, sin categorías, validación, foco y conflicto.
+
+Las marcas "propuesta (TAREAS-01x)" de 01d y 01e pasan a "propuesta aprobada (fecha)" solo cuando el humano apruebe lo visual tras la comprobación (§11 de `DESIGN.md`).
+
+**ESTADO, "Al cerrar 01e" del plan:**
+- se cierran el umbral de §7.7 y O-18;
+- el consumidor de `TAREA_CREADA` y `RECORDATORIO_24H` (NOTIFICACIONES) ya está (línea 251);
+- los ids de criterios y la regla de P-01 (CALIFICACIONES) ya están (línea 255);
+- **falta:** una fila "Venció el … de §7.7 y la zona de entrega ('Tu trabajo')" con destino ENTREGAS;
+- R-04 (DEPLOY) ya está (línea 254);
+- en §2b: RF-43 y RF-44 (la parte de TAREAS) quedan hechos.
+
+**ESSENTIALS, `ARCHITECTURE.md` y `PRD.md`:** no necesitan nada más para el cierre. Los textos de "Documentos a actualizar" de 01a y 01b están aplicados: lo comprobé con `grep` (temas, categorías ponderadas, autoría con tareas, adjuntos de tareas, `queue` con trabajos diferidos, RN-05, RN-07, §7, §8, §10 y §14). 01c, 01d y 01e solo pedían `CLAUDE.md` y `DESIGN.md`.
+
+### 8. Medición del programador
+**01e:**
+- Rondas: la 0 (con dos complementarias y C-15), 1, 2, 3 y una 4 cerrada (A-15).
+- **0 rondas extra por hermanos.** T-19 era un patrón heredado de CLASES que yo había señalado como detalle; T-20 es una prueba con la hora real.
+- 1 PARADA correcta antes de escribir código (PA-16/PA-05).
+- Resúmenes devueltos, por mi cuenta: **1 de 5**, la corrección de la ronda 1, por M-01 y M-02. `aprobacion.md` dice "2 de 5", pero el M-01 de estilo de la implementación salió **ACEPTADO** con corrección previa a la ronda 1; no devolvió el resumen.
+
+**Acumulado de TAREAS-01:**
+- 3 rondas extra por hermanos: 01a, 1; 01d, 2.
+- Resúmenes devueltos, por mi cuenta: **3** (01c, 01d y 01e, uno cada uno). `aprobacion.md` dice 4. La diferencia viene de contar como devueltos los M-01 de estilo de 01d y de 01e, que salieron ACEPTADO. Conviene que el orquestador lo concilie en ESTADO §6.
+- El programador corre con `opus` desde la ronda 2 de 01d.
+
+**Recomendación para ENTREGAS:**
+- **Seguir con `opus`** (decisión del humano). En 01e no hubo rondas extra por estados vecinos del foco, que era la condición del humano para no rediseñar el mecanismo.
+- **Dos reglas para el plan de ENTREGAS**, que nacieron aquí y costaron rondas:
+  1. Toda acción que dispara una mutación y no debe repetirse usa una guarda síncrona (ref) además de `enEspera`, porque `isPending` llega en el render siguiente.
+  2. Un botón de "Ver más" está en espera con `isFetching`, no solo con `isFetchingNextPage`.
+
+  Propongo que el humano decida si suben a `CLAUDE.md` ("Componentes"), por la regla de "si el humano corrige dos veces lo mismo".
+
+### 9. Para el humano
+**Hoja de comprobación humana final.** La regla del 2026-09-28 fija un máximo de 10 minutos y 7 puntos. Junté H-1 a H-7 con los cuatro puntos de 01d en 7 puntos, en orden de ejecución. Necesita la API (el worker no), `campus_dev` con las migraciones, y tu admin, una cuenta de maestro y una de estudiante inscrito en la misma clase.
+
+1. **Maestro, categorías (H-4).** En "Trabajo de clase", "Categorías de calificación": agrega dos con 60 y 30. El total dice "Faltan 10 %" mientras escribes. "Guardar categorías" no pasa hasta llegar a 100 %.
+   - *Demuestra:* que el total se lee en vivo en pantalla real.
+2. **Maestro, crear tareas (H-1 y H-2).** Crea la tarea A con fecha de mañana a una hora que elijas, dos criterios de rúbrica y un PDF, y una tarea B a dos semanas. Abre el detalle de A: dos columnas en escritorio, y la hora que muestra es la que elegiste. Achica la ventana a 360 px en el detalle y en el formulario de editar: una columna y nada se corta.
+   - *Demuestra:* el selector de fecha de tu navegador y tu zona (ninguna prueba ve un selector nativo), y el diseño a 360 px (jsdom no calcula diseño).
+3. **Maestro, "Trabajo de clase" (H-3 y H-7).** Con tres temas: "Subir" y "Bajar" con el teclado (el foco sigue en el botón), mueve la tarea B a otro tema y borra un tema (sus elementos pasan a "Sin tema"). La fila de A dice "Vence mañana a las …" en tono de aviso, junto a B en tono neutro.
+   - *Demuestra:* que el foco se ve y se mueve bien en un navegador real, y el contraste del tono de aviso.
+4. **Estudiante (H-1, segunda mitad).** Ve A en el muro, abre su detalle y ve "Tu trabajo" sin "Editar" ni "Borrar". En "Trabajo de clase" no hay ningún control de gestión ni "Mover".
+   - *Demuestra:* la vista real del estudiante con sus datos.
+5. **Admin a 360 px (H-5 y H-6, más el contexto opaco de 01d).** Publica una tarea desde la clase: en el muro del estudiante firma "Administración", y el maestro no ve "Editar tarea" ni "Borrar tarea" en su detalle. A 360 px, las cuatro secciones se desplazan dentro de su panel. El formulario y el detalle de tarea en el contexto opaco del admin se leen bien.
+   - *Demuestra:* el desplazamiento horizontal y el material opaco, que jsdom no pinta.
+6. **Foco con el navegador real (01d, `document.activeElement`).** En el formulario de editar una tarea, con el foco en "Título", cambia de pestaña y vuelve: el foco sigue en "Título". Haz clic en un espacio en blanco de la vista y espera unos segundos: el foco no salta a ningún control. Borra una tarea desde su detalle: llegas a "Trabajo de clase" con el aviso "Tarea borrada".
+   - *Demuestra:* el criterio de ventana con `document.activeElement`, que solo se aproximó en jsdom (O-6).
+7. **Lector de pantalla (opcional, si lo usas; H-3 y 01d).**
+   - En el formulario de tarea: el control segmentado "Entregas después de la fecha límite" se anuncia como grupo con el botón presionado, "Quitar criterio" dice su número, y se anuncian el total y la nota del tope.
+   - En una clase con muchos temas, "Trabajo de clase" al abrir no satura los anuncios con muchos "Cargando `<tema>`".
+   - *Demuestra:* lo que solo oye un lector real.
+
+Lo que no esté en la hoja queda "no verificado por decisión del humano, cubierto por pruebas automáticas".
+
+**Decisiones que te tocan al cerrar el encargo:**
+1. Hacer el commit `<K1e>` (abajo) y abrir el PR de `feat/tareas` a `main`.
+2. Tras la hoja, aprobar o ajustar lo visual. Con tu aprobación, las marcas "propuesta (TAREAS-01d/01e)" de `DESIGN.md` pasan a "propuesta aprobada (fecha)".
+3. El conflicto de categorías (409 o 404 descarta los cambios no guardados): aceptarlo como está o pedir conservarlos, en CALIFICACIONES.
+4. Si suben a `CLAUDE.md` las dos reglas de la sección 8 (guarda síncrona y "Ver más" con `isFetching`).
+5. Ya decididos, para recordar: "gana el último que guarda" se decide en ENTREGAS, y el `chore` de accesibilidad rediseña el foco si las rondas no bajan.
+
+**Commit `<K1e>`** (después de aplicar el texto de `CLAUDE.md`):
+```
+git status
+git add CLAUDE.md docs/DESIGN.md docs/ESTADO.md docs/trabajo/TAREAS-01-tareas-temas-y-categorias .claude/agents/tester.md frontend/src/app/router.tsx frontend/src/components/layout/estatico-r1.ataque.test.ts frontend/src/styles/clases-r1.ataque.test.ts frontend/src/features/clases frontend/src/features/tareas/components/acciones-de-la-tarea.tsx frontend/src/features/tareas/hooks.ts frontend/src/features/tareas/detalle-tarea-view.test.tsx frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx
+git commit -m "feat(clases): TAREAS-01e, Trabajo de clase con temas (crear, renombrar, ordenar, borrar y mover), categorías de calificación en bloque, campo Tema del material en el muro y O-18; lecturas de Trabajo de clase con tope de 6 y primera página de 5, y regla del reloj fijo en tester.md"
+```
+
+**PR de `feat/tareas` a `main`:**
+- **Título:** `feat(tareas): TAREAS-01, tareas con rúbrica, temas y categorías ponderadas (01a a 01e)`
+- **Descripción:**
+  - **Qué entra:**
+    - temas y categorías ponderadas (RF-43 y RF-32);
+    - tareas con rúbrica propia, adjuntos, categoría, tema y política de entregas tardías (RF-34 y RF-44, guardar y mostrar), con `TAREA_CREADA` y `RECORDATORIO_24H` encolados en la transacción del dato (sin consumidor hasta NOTIFICACIONES);
+    - el detalle de tarea (RF-13);
+    - la tarea en el muro y "Trabajo de clase" (RF-12);
+    - las categorías de calificación;
+    - el refactor de piezas compartidas (01c).
+  - **Migraciones:** dos, de 01a: el tipo `tarea`, y `temas`, `categorias`, `tareas` y `criterios_rubrica`. Compatibles; R-04 aplica a una vuelta atrás.
+  - **Rutas nuevas:** 13 bajo `/api/clases/:claseId/…`, con la cadena de middleware completa y pruebas de autorización.
+  - **Cifras de cierre:** backend 172 archivos / 2159 pruebas; frontend 150 / 2243; 163 `*.ataque`; lint y build en verde.
+  - **Pendientes con destino:** en `docs/ESTADO.md` §3, entre ellos el consumidor de NOTIFICACIONES, la zona de entrega (ENTREGAS) y los "Ver más" de CLASES por carril trivial.
+  - **Comprobación humana:** la hoja de 7 puntos de `revision.md`.
+  - **Despliegue:** backend y frontend juntos (S-16).
+  - Cierra con la línea de atribución que indique el orquestador.

@@ -1,4 +1,4 @@
-import { estadoDeTerminoDeBusqueda } from "@campus/shared"
+import { claveDeNombre, estadoDeTerminoDeBusqueda, normalizarTextoLargo } from "@campus/shared"
 
 import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
 import {
@@ -13,17 +13,33 @@ import {
 import { esApiError } from "@/services/apiClient"
 
 import {
+  CLAVE_SIN_TEMA,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   MENSAJES_ERROR_CLASES_GENERALES,
+  TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
   TEXTOS_PERSONAS,
   TEXTOS_TARJETA,
+  TEXTOS_TRABAJO,
   TEXTOS_UNIRSE,
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
-import type { PaginaDelMuro, ErroresFormulario, RolDeClases, SeccionDeClase } from "./types"
+import type {
+  Categoria,
+  ControlDeOrden,
+  CuadroDeFecha,
+  ErroresFormulario,
+  FilaDeCategoria,
+  IncidenciaValidacion,
+  LimiteDeConcurrencia,
+  ListaTemasRespuesta,
+  PaginaDelMuro,
+  RolDeClases,
+  SeccionDeClase,
+  SeccionDeTrabajo,
+} from "./types"
 
 // TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
 export { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
@@ -199,3 +215,260 @@ export const tiempoFrescoDelMuro = (
 // módulo como parámetro; este envoltorio conserva el nombre, la firma y la salida de siempre.
 export const avisoDeFalloAlSubir = (error: unknown, nombre: string): string =>
   avisoDeFalloAlSubirCompartido(error, nombre, mensajeDeErrorClases)
+
+// TAREAS-01e (§D-11, Enmienda 5 y corrección M-01). Limitador FIFO de concurrencia: corre la tarea si
+// hay menos de `maximo` en curso y, si no, la forma en una cola. (i) Con un `signal` ya abortado
+// rechaza enseguida, sin formarla ni correrla. (ii) El oyente de `abort` solo vive mientras la tarea
+// espera: se quita al entrar en curso o al salir de la cola por el aborto. (iii) Una tarea en curso
+// libera su lugar al asentarse (con éxito, error o aborto, en el `finally`) y la primera de la cola
+// entra en ese mismo turno. (iv) Sin reinicio: la instancia de hooks.ts es una por módulo.
+const errorDeAborto = (): DOMException => new DOMException("La operación se canceló.", "AbortError")
+
+export const crearLimiteDeConcurrencia = (maximo: number): LimiteDeConcurrencia => {
+  let enCurso = 0
+  const cola: (() => void)[] = []
+
+  const entrarLaSiguiente = () => {
+    while (enCurso < maximo) {
+      const siguiente = cola.shift()
+      if (siguiente === undefined) return
+      siguiente()
+    }
+  }
+
+  const ejecutar = <T>(tarea: () => Promise<T>, signal?: AbortSignal): Promise<T> => {
+    if (signal?.aborted === true) return Promise.reject(errorDeAborto())
+    return new Promise<T>((resolver, rechazar) => {
+      const correr = async () => {
+        enCurso += 1
+        try {
+          resolver(await tarea())
+        } catch (error) {
+          rechazar(error)
+        } finally {
+          enCurso -= 1
+          entrarLaSiguiente()
+        }
+      }
+
+      if (enCurso < maximo) {
+        void correr()
+        return
+      }
+
+      const alAbortar = () => {
+        const indice = cola.indexOf(arrancar)
+        if (indice >= 0) cola.splice(indice, 1)
+        signal?.removeEventListener("abort", alAbortar)
+        rechazar(errorDeAborto())
+      }
+      const arrancar = () => {
+        signal?.removeEventListener("abort", alAbortar)
+        void correr()
+      }
+      cola.push(arrancar)
+      signal?.addEventListener("abort", alAbortar)
+    })
+  }
+
+  return { ejecutar }
+}
+
+// §D-11: las secciones de "Trabajo de clase" en el orden de la vista: "Sin tema" primero, solo si tiene
+// elementos (S-11), y después los temas en el orden en que los da el servidor (`orden`).
+export const seccionesDeTrabajo = (lista: ListaTemasRespuesta): SeccionDeTrabajo[] => {
+  const temas = lista.temas.map((tema) => ({
+    clave: tema.id,
+    nombre: tema.nombre,
+    elementos: tema.elementos,
+    tema,
+  }))
+  if (lista.sinTema === 0) return temas
+  return [
+    { clave: CLAVE_SIN_TEMA, nombre: TEXTOS_TRABAJO.sinTema, elementos: lista.sinTema, tema: null },
+    ...temas,
+  ]
+}
+
+// "Subir" y "Bajar" envían el orden completo (§D-2): los ids con el tema `temaId` intercambiado con su
+// vecino. Si el movimiento no cabe (el primero no sube, el último no baja), devuelve null.
+export const ordenTrasMover = (
+  ids: readonly string[],
+  temaId: string,
+  control: ControlDeOrden,
+): string[] | null => {
+  const indice = ids.indexOf(temaId)
+  const destino = control === "subir" ? indice - 1 : indice + 1
+  if (indice < 0 || destino < 0 || destino >= ids.length) return null
+  const orden = [...ids]
+  const vecino = orden[destino]
+  if (vecino === undefined) return null
+  orden[destino] = temaId
+  orden[indice] = vecino
+  return orden
+}
+
+// DESIGN.md §7.7: el cuadro de fecha (día y mes abreviado, en mayúsculas, en la zona local). Una fecha
+// que no se puede leer da null: la fila no inventa un día.
+export const cuadroDeFecha = (iso: string): CuadroDeFecha | null => {
+  const fecha = new Date(iso)
+  if (Number.isNaN(fecha.getTime())) return null
+  const mes = new Intl.DateTimeFormat("es-MX", { month: "short" })
+    .format(fecha)
+    .replace(".", "")
+    .toLocaleUpperCase("es-MX")
+  return { dia: String(fecha.getDate()), mes }
+}
+
+// El error de un VALIDACION de "nombre" o de TEMA_REPETIDO se muestra bajo el campo del formulario de
+// tema; cualquier otro error lo avisa el hook.
+export const erroresDelTemaDeApi = (error: unknown): ErroresFormulario | null => {
+  if (esApiError(error) && error.codigo === "TEMA_REPETIDO") {
+    return { nombre: mensajeDeErrorClases(error) }
+  }
+  return erroresDeFormularioClases(error, ["nombre"])
+}
+
+// §D-11: las filas del editor a partir de las categorías guardadas; la llave de una guardada es su id.
+export const filasDeCategorias = (categorias: readonly Categoria[]): FilaDeCategoria[] =>
+  categorias.map(({ id, nombre, peso, tareas }) => ({
+    llave: id,
+    id,
+    nombre,
+    peso: String(peso),
+    tareas,
+  }))
+
+// El peso como lo escribió la persona: un entero, con o sin "%" al final (se pega "40%" o "40 %"). Lo
+// demás no es un número y lo rechaza el esquema de shared/ con su mensaje.
+const PESO_ESCRITO = /^\s*(\d+)\s*%?\s*$/
+
+export const pesoDeTexto = (texto: string): number => {
+  const coincidencia = PESO_ESCRITO.exec(texto)
+  if (coincidencia === null) return Number.NaN
+  return Number(coincidencia[1])
+}
+
+// El total en vivo: los pesos que no son un número cuentan 0.
+export const totalDePesos = (filas: readonly FilaDeCategoria[]): number =>
+  filas.reduce((total, { peso }) => {
+    const valor = pesoDeTexto(peso)
+    return Number.isFinite(valor) ? total + valor : total
+  }, 0)
+
+export const textoDelTotal = (total: number): string => {
+  if (total === 100) return TEXTOS_CATEGORIAS.totalExacto
+  if (total < 100) return TEXTOS_CATEGORIAS.totalFaltan(total, 100 - total)
+  return TEXTOS_CATEGORIAS.totalSobran(total, total - 100)
+}
+
+// Lo que se envía al guardar: las filas en su orden, el nombre normalizado como lo normaliza el
+// servidor y el peso convertido a número. La validación es la del servidor (reemplazarCategoriasSchema).
+export const cuerpoDeCategorias = (filas: readonly FilaDeCategoria[]) => ({
+  categorias: filas.map(({ id, nombre, peso }) => ({
+    ...(id === undefined ? {} : { id }),
+    nombre: normalizarTextoLargo(nombre),
+    peso: pesoDeTexto(peso),
+  })),
+})
+
+// Los errores del editor viajan con su fila (patrón T-06 de la rúbrica): "<llave>.nombre" y
+// "<llave>.peso". `categorias` es el error de la lista entera (suma, repetidos, tope).
+export const CAMPO_DE_LA_LISTA = "categorias"
+
+const FILA_DEL_ERROR = /^categorias\.(\d+)\.(nombre|peso)$/
+const PREFIJO_DE_FILA_DE_CATEGORIA = /^(categorias\.\d+\.(?:nombre|peso)):\s*/
+
+const errorEnSuFila = (
+  ruta: string,
+  mensaje: string,
+  llaves: readonly string[],
+  errores: ErroresFormulario,
+) => {
+  const fila = FILA_DEL_ERROR.exec(ruta)
+  const llave = fila === null ? undefined : llaves[Number(fila[1])]
+  const clave = llave === undefined || fila === null ? CAMPO_DE_LA_LISTA : `${llave}.${fila[2]}`
+  errores[clave] ??= mensaje
+}
+
+// Las incidencias del esquema, cada una en la fila que tenía esa posición al validar.
+export const erroresDeCategorias = (
+  incidencias: readonly IncidenciaValidacion[],
+  llaves: readonly string[],
+): ErroresFormulario => {
+  const errores: ErroresFormulario = {}
+  for (const incidencia of incidencias) {
+    errorEnSuFila(incidencia.path.map(String).join("."), incidencia.message, llaves, errores)
+  }
+  return errores
+}
+
+// Un VALIDACION del servidor ("categorias.0.peso: …" o "categorias: …") en su fila o en la lista;
+// null si no es un error de las categorías (ese lo avisa el hook).
+export const erroresDeCategoriasDeApi = (
+  error: unknown,
+  llaves: readonly string[],
+): ErroresFormulario | null => {
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
+  const fila = PREFIJO_DE_FILA_DE_CATEGORIA.exec(error.message)
+  if (fila !== null) {
+    const errores: ErroresFormulario = {}
+    errorEnSuFila(fila[1] ?? "", error.message.slice(fila[0].length), llaves, errores)
+    return errores
+  }
+  if (campoDeErrorDeApi(error) !== CAMPO_DE_LA_LISTA) return null
+  return { [CAMPO_DE_LA_LISTA]: quitarPrefijoDeCampo(error.message) }
+}
+
+// Una recarga fallida conserva la vista con lo último que llegó (y avisa), salvo que diga que ya no hay
+// acceso a la clase (o que el id de la clase no es válido, que es lo mismo): entonces el mensaje
+// reemplaza la vista y deja de ofrecer acciones.
+export const errorQuitaLaVista = (error: unknown): boolean =>
+  esApiError(error) &&
+  (error.codigo === "SIN_ACCESO_A_LA_CLASE" ||
+    (error.codigo === "VALIDACION" && campoDeErrorDeApi(error) === "claseId"))
+
+// §7.14 en "Trabajo de clase": la sección vecina de la que desapareció, entre las que ya estaban antes
+// (la siguiente o, si era la última, la anterior). Una sección que aparece en ese mismo cambio (por
+// ejemplo, "Sin tema", que recibe los elementos del tema borrado) no cuenta como vecina.
+export const seccionVecina = (
+  previas: readonly string[] | undefined,
+  actuales: readonly string[],
+  clave: string,
+): string | undefined => {
+  if (previas === undefined) return undefined
+  const indice = previas.indexOf(clave)
+  const siguen = (candidata: string) => actuales.includes(candidata)
+  const despues = previas.slice(indice + 1).find(siguen)
+  if (despues !== undefined) return despues
+  return [...previas.slice(0, Math.max(indice, 0))].reverse().find(siguen)
+}
+
+// T-17 (ronda 1 de 01e): los errores de una fila se van con ella cuando se quita. El editor no deja
+// quitar filas mientras guarda, así que ningún error de fila puede llegar sin su fila (en la rúbrica de
+// features/tareas sí, porque allí se quita con el envío en vuelo).
+export const erroresSinLaFila = (errores: ErroresFormulario, llave: string): ErroresFormulario =>
+  Object.fromEntries(Object.entries(errores).filter(([clave]) => !clave.startsWith(`${llave}.`)))
+
+// T-18 (ronda 1 de 01e): las filas que deja la respuesta del servidor conservan la llave de la fila de
+// la que salieron (la guardada, por su id; la nueva, por su nombre, que no se repite en la clase), así
+// que React no las vuelve a montar y el campo con el foco lo conserva. Una categoría que no estaba en
+// la lista que se ve (llega tras un conflicto) usa su id.
+export const filasDelServidor = (
+  previas: readonly FilaDeCategoria[],
+  categorias: readonly Categoria[],
+): FilaDeCategoria[] => {
+  const llavePorId = new Map(
+    previas.flatMap(({ id, llave }) => (id === undefined ? [] : [[id.toLowerCase(), llave]])),
+  )
+  const llavePorNombre = new Map(
+    previas
+      .filter(({ id }) => id === undefined)
+      .map(({ nombre, llave }) => [claveDeNombre(normalizarTextoLargo(nombre)), llave]),
+  )
+  return filasDeCategorias(categorias).map((fila) => {
+    const llave =
+      llavePorId.get(fila.llave.toLowerCase()) ?? llavePorNombre.get(claveDeNombre(fila.nombre))
+    return llave === undefined ? fila : { ...fila, llave }
+  })
+}

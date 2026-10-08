@@ -188,6 +188,16 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "BORRADO_NO_PERMITIDO",
   // O-07 (revisión de 02c): el servidor ya lo dice en español (503: el servidor está ocupado).
   "SERVICIO_OCUPADO",
+  // TAREAS-01e (§D-11): los errores de temas y categorías ya llegan en español ("Ya hay un tema con
+  // ese nombre.", "Los temas cambiaron mientras los ordenabas. Vuelve a intentarlo.", el nombre y el
+  // conteo de la categoría con tareas…).
+  "TEMA_NO_ENCONTRADO",
+  "TEMA_REPETIDO",
+  "TOPE_DE_TEMAS",
+  "ORDEN_DESACTUALIZADO",
+  "CATEGORIA_CON_TAREAS",
+  "CATEGORIA_NO_ENCONTRADA",
+  "ANUNCIO_SIN_TEMA",
 ]
 
 export const TEXTOS_CODIGO = {
@@ -227,6 +237,8 @@ export const TEXTOS_CLASE = {
   maestro: (nombre: string) => `Maestro: ${nombre}`,
   maestros: (nombres: string) => `Maestros: ${nombres}`,
   muro: "Muro",
+  // TAREAS-01e (§D-11): la sección nueva, segunda en las tres perspectivas.
+  trabajo: "Trabajo de clase",
   personas: "Personas",
   alumnos: "Alumnos",
   maestrosDeLaClase: "Maestros",
@@ -303,6 +315,10 @@ export const TEXTOS_FORMULARIO_PUBLICACION = {
   publicarAnuncio: "Publicar anuncio",
   publicarMaterial: "Publicar material",
   avisoPublicado: "Publicado",
+  // TAREAS-01e (§D-11, Enmienda 6): el tema de un material.
+  campoTema: "Tema",
+  sinTema: "Sin tema",
+  temasNoCargados: "No pudimos cargar los temas. El material se publicará sin tema.",
 } as const
 
 // TAREAS-01d (§D-10, S-10): la tarjeta de una tarea en el muro.
@@ -363,6 +379,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     volverTexto: TEXTOS_CLASE.volver,
     secciones: [
       { segmento: "", texto: TEXTOS_CLASE.muro },
+      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "personas", texto: TEXTOS_CLASE.personas },
     ],
     verCodigo: false,
@@ -370,6 +387,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     formularioPublicacion: false,
     formularioComentario: true,
     crearTarea: false,
+    gestionarTrabajo: false,
   },
   maestro: {
     base: BASES_POR_PERSPECTIVA.maestro,
@@ -377,6 +395,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     volverTexto: TEXTOS_CLASE.volver,
     secciones: [
       { segmento: "", texto: TEXTOS_CLASE.muro },
+      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
     ],
     verCodigo: true,
@@ -384,6 +403,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     formularioPublicacion: true,
     formularioComentario: true,
     crearTarea: true,
+    gestionarTrabajo: true,
   },
   admin: {
     base: BASES_POR_PERSPECTIVA.admin,
@@ -391,6 +411,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     volverTexto: TEXTOS_CLASE.volverALaLista,
     secciones: [
       { segmento: "", texto: TEXTOS_CLASE.muro },
+      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
       { segmento: "maestros", texto: TEXTOS_CLASE.maestrosDeLaClase },
     ],
@@ -399,21 +420,133 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     formularioPublicacion: true,
     formularioComentario: false,
     crearTarea: true,
+    gestionarTrabajo: true,
   },
 }
 
 // §D-2C1: el indicador de las secciones mide 1/N y se traslada una posición por sección. Clases
-// completas, escritas enteras para que Tailwind las encuentre.
+// completas, escritas enteras para que Tailwind las encuentre. TAREAS-01e (§D-11): con "Trabajo de
+// clase" son tres (estudiante y maestro) o cuatro (admin).
 export const CLASES_DEL_INDICADOR_POR_SECCIONES: Record<number, string> = {
   2: "w-1/2",
   3: "w-1/3",
+  4: "w-1/4",
 }
 export const CLASES_DE_LA_REJILLA_POR_SECCIONES: Record<number, string> = {
   2: "grid-cols-2",
   3: "grid-cols-3",
+  4: "grid-cols-4",
 }
 export const CLASES_DE_POSICION_DEL_INDICADOR = [
   "",
   "translate-x-full",
   "translate-x-[200%]",
+  "translate-x-[300%]",
 ] as const
+
+// TAREAS-01e (§D-11, Enmienda 5): "Trabajo de clase" pide la primera página de cada tema de 5 en 5,
+// "Ver más" de 20 en 20, y como máximo 6 lecturas a la vez (el limitador de hooks.ts).
+export const LIMITE_PRIMERA_PAGINA_TRABAJO = 5
+export const LIMITE_PAGINAS_TRABAJO = 20
+export const MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO = 6
+// El valor de `tema` de GET …/trabajo para los elementos sin tema.
+export const CLAVE_SIN_TEMA = "sin-tema"
+
+// §D-11: textos de "Trabajo de clase" (propuesta).
+export const TEXTOS_TRABAJO = {
+  titulo: TEXTOS_CLASE.trabajo,
+  sinTema: TEXTOS_FORMULARIO_PUBLICACION.sinTema,
+  temaVacio: "Aún no hay nada en este tema.",
+  vacio: "Aún no hay tareas ni materiales en esta clase.",
+  cargandoTema: (nombre: string) => `Cargando ${nombre}`,
+  conteo: (n: number) => (n === 1 ? "1 elemento" : `${n} elementos`),
+  verMaterial: "Ver material",
+  ocultarMaterial: "Ocultar material",
+  verMasDe: (nombre: string) => `Ver más de ${nombre}`,
+  crearTarea: TEXTOS_MURO.crearTarea,
+  nuevoTema: "Nuevo tema",
+  categorias: "Categorías de calificación",
+  tarea: "Tarea:",
+  // El cuadro de fecha de una fecha que no se puede leer (la fila dice "Fecha límite no disponible").
+  diaNoDisponible: "—",
+  insigniaMaterial: TEXTOS_PUBLICACION.insigniaMaterial,
+  cambioMientrasLoVeias:
+    "Este tema cambió mientras lo veías. Vuelve a abrir Trabajo de clase para verlo completo.",
+  recargaFallida:
+    "No pudimos actualizar Trabajo de clase. Mostramos la última versión que tenemos.",
+} as const
+
+export const TEXTOS_TEMAS = {
+  campoNombre: "Nombre del tema",
+  crear: "Crear tema",
+  renombrar: "Renombrar",
+  guardarNombre: "Guardar nombre",
+  cancelar: "Cancelar",
+  subir: "Subir",
+  bajar: "Bajar",
+  delTema: (nombre: string) => `tema ${nombre}`,
+  borrar: "Borrar tema",
+  consecuencia: (n: number) => {
+    if (n === 0) return "El tema no tiene elementos."
+    if (n === 1) return "Su elemento pasará a «Sin tema»."
+    return `Sus ${n} elementos pasarán a «Sin tema».`
+  },
+  siBorrar: "Sí, borrar tema",
+  temaDe: (titulo: string) => `Tema de «${titulo}»`,
+  mover: "Mover",
+  avisoCreado: "Tema creado",
+  avisoRenombrado: "Tema renombrado",
+  avisoBorrado: "Tema borrado",
+  avisoMovido: (titulo: string, tema: string) => `Moviste «${titulo}» a «${tema}»`,
+} as const
+
+// Errores que dicen que la lista de temas que se ve ya no es la del servidor: tras ellos se vuelve a
+// pedir, junto con "Trabajo de clase" (un elemento puede ya no estar donde se veía).
+export const CODIGOS_QUE_RENUEVAN_LOS_TEMAS: readonly string[] = [
+  "TEMA_NO_ENCONTRADO",
+  "TEMA_REPETIDO",
+  "TOPE_DE_TEMAS",
+  "ORDEN_DESACTUALIZADO",
+  "PUBLICACION_NO_ENCONTRADA",
+  "ANUNCIO_SIN_TEMA",
+]
+
+// §D-11: textos de "Categorías de calificación" (propuesta).
+export const TEXTOS_CATEGORIAS = {
+  titulo: TEXTOS_TRABAJO.categorias,
+  frase:
+    "Los pesos deben sumar 100 %. Cada categoría cuenta según su peso en la calificación general.",
+  nombre: "Nombre",
+  peso: "Peso",
+  sufijoPeso: "%",
+  deLaFila: (n: number) => `de la categoría ${n}`,
+  tareas: (n: number) => (n === 1 ? "1 tarea" : `${n} tareas`),
+  quitar: "Quitar",
+  tieneTareas: (n: number) => (n === 1 ? "Tiene 1 tarea." : `Tiene ${n} tareas.`),
+  agregar: "Agregar categoría",
+  totalExacto: "Total: 100 %",
+  totalFaltan: (total: number, faltan: number) => `Total: ${total} %. Faltan ${faltan} %.`,
+  totalSobran: (total: number, sobran: number) => `Total: ${total} %. Sobran ${sobran} %.`,
+  guardar: "Guardar categorías",
+  avisoGuardadas: "Categorías guardadas",
+  vacio: "Esta clase no tiene categorías. Sus tareas se califican por puntos.",
+} as const
+
+export const TEXTOS_CATEGORIAS_RECARGA =
+  "No pudimos actualizar las categorías. Mostramos la última versión que tenemos."
+
+// Errores al guardar que dicen que las categorías que se editaban ya no son las del servidor: la
+// lista se vuelve a pedir y el editor parte de ella.
+export const CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS: readonly string[] = [
+  "CATEGORIA_CON_TAREAS",
+  "CATEGORIA_NO_ENCONTRADA",
+]
+
+// DESIGN.md §7.7 con la variante de TAREAS-01 (S-10): el cuadro de fecha y el texto del estado. Solo la
+// fecha próxima usa warning; una pendiente o una vencida van en muted (hasta ENTREGAS no hay "Sin
+// entregar"), y el texto dice cuál es.
+export const CLASES_DEL_CUADRO_DE_FECHA = {
+  pendiente: { cuadro: "bg-muted text-muted-foreground", estado: "text-muted-foreground" },
+  proxima: { cuadro: "bg-warning-soft text-warning", estado: "text-warning" },
+  vencida: { cuadro: "bg-muted text-muted-foreground", estado: "text-muted-foreground" },
+} as const

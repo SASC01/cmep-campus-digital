@@ -132,6 +132,9 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
   // `translate-x-[200%]`, el indicador de la tercera sección de una clase (Muro, Alumnos y
   // Maestros del admin); `in-data-[material=opaco]` ya estaba. Sigue protegiendo que un valor
   // arbitrario de maquetación solo entre con el plan.
+  // TAREAS-01e ronda 0 (C-11, §D-R0; §D-11): suma `translate-x-[300%]`, la posición del indicador de
+  // la cuarta sección del admin (Muro, Trabajo de clase, Alumnos y Maestros). Sigue protegiendo que
+  // un valor arbitrario de maquetación solo entre con el plan.
   it("los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan", () => {
     const fueraDeUi = soloTs.filter(([ruta]) => !ruta.startsWith("/src/components/ui/"))
     const arbitrarios = lineasCon(/-\[[^\]"]*\]/, fueraDeUi).flatMap(
@@ -147,6 +150,7 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
         "md:min-h-[calc(100svh-3rem)]",
         "min-h-[calc(100svh-7rem)]",
         "translate-x-[200%]",
+        "translate-x-[300%]",
       ].sort(),
     )
   })

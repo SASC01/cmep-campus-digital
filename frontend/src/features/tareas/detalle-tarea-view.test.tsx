@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
 import { StrictMode } from "react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest"
 
 import { clavePublicaciones } from "@/services/clasesService"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
@@ -90,6 +90,11 @@ const renderDetalle = (perspectiva: "estudiante" | "maestro" | "admin") => {
             element={<DetalleTareaView />}
           />
           <Route path={`/${perspectiva}/clases/:claseId`} element={<p>Pantalla del muro</p>} />
+          {/* TAREAS-01e (I-2, A-3; §D-10): al borrar, la vista lleva a "Trabajo de clase". */}
+          <Route
+            path={`/${perspectiva}/clases/:claseId/trabajo`}
+            element={<p>Pantalla de trabajo de clase</p>}
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -156,6 +161,13 @@ describe("PR-1D05: detalle de una tarea", () => {
   })
 
   it("PR-1D05: la fecha límite lleva el texto de vencimiento", async () => {
+    // T-20 (ronda 3 de 01e): el texto de vencimiento depende de la hora; el reloj se fija (solo Date,
+    // los temporizadores siguen reales) a una hora de la mañana para que la prueba pase a cualquier hora.
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(2026, 9, 6, 9, 0))
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     stubApi(() => respuestaJson(200, tareaConId({ fechaLimite: "2020-01-15T16:00:00.000Z" })))
     renderDetalle("estudiante")
 
@@ -206,14 +218,15 @@ describe("PR-1D05: detalle de una tarea", () => {
     expect(llamadas.filter(({ metodo }) => metodo === "DELETE")).toHaveLength(0)
   })
 
-  it("PR-1D05: confirmar borra con DELETE, avisa «Tarea borrada» y navega al muro", async () => {
+  it("PR-1D05: confirmar borra con DELETE, avisa «Tarea borrada» y navega a «Trabajo de clase»", async () => {
     const { llamadas } = stubApi(() => respuestaJson(200, tareaConId({ puedeBorrar: true })))
     renderDetalle("maestro")
     fireEvent.click(await screen.findByRole("button", { name: "Borrar tarea" }))
 
     fireEvent.click(screen.getByRole("button", { name: "Sí, borrar tarea" }))
 
-    expect(await screen.findByText("Pantalla del muro")).toBeInTheDocument()
+    expect(await screen.findByText("Pantalla de trabajo de clase")).toBeInTheDocument()
+    expect(screen.queryByText("Pantalla del muro")).not.toBeInTheDocument()
     expect(aviso.success).toHaveBeenCalledWith("Tarea borrada")
     expect(llamadas.filter(({ metodo }) => metodo === "DELETE").map(({ url }) => url)).toEqual([
       `/api/clases/${CLASE_ID}/tareas/${TAREA_ID}`,

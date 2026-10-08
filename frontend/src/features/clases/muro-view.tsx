@@ -145,7 +145,9 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
             type="button"
             variant="outline"
             onClick={() => void publicaciones.fetchNextPage({ cancelRefetch: false })}
-            enEspera={publicaciones.isFetchingNextPage}
+            // T-19 (ronda 2 de 01e, hermano): en espera también mientras el muro se recarga, para que
+            // el clic no se una a la recarga y se pierda.
+            enEspera={publicaciones.isFetching}
             className="self-start"
           >
             {TEXTOS_MURO.verMasPublicaciones}

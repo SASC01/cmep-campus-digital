@@ -150,7 +150,7 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
     onSuccess: async () => {
       toast.success(TEXTOS_DETALLE_TAREA.avisoBorrada)
       // El detalle ya no existe: se marca vieja sin volver a pedirla (daría 404 mientras la vista
-      // navega al muro).
+      // navega a Trabajo de clase).
       await queryClient.invalidateQueries({
         queryKey: claveTarea(claseId, tareaId),
         refetchType: "none",

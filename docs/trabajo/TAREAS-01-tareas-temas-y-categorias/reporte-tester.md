@@ -4619,3 +4619,1843 @@ El caso del detalle con dos fallos en el mismo milisegundo no lo repetí: ya lo 
 | `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
 | `292F6359683AD0D04859A52D5FAC11E20601B51C1B29E7EE0BE6788A51765C72` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
 | `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## TAREAS-01e — Ronda 0
+Subentrega 01e (frontend): "Trabajo de clase", temas, categorías, "Tema" en el formulario del muro y O-18.
+
+Base `<K1d>` = `1118c1a`. La ronda 0 no cuenta en el tope de 3. No se corre el backend.
+
+### Precondiciones
+- **Rama y base:** `feat/tareas`, `HEAD` = `1118c1a`. `git status --short` solo muestra `docs/ESTADO.md` y `docs/trabajo/TAREAS-01-tareas-temas-y-categorias/aprobacion.md` al empezar; después apareció `plan.md`, con la Enmienda 5 del arquitecto. Los paquetes están limpios.
+- **Protegidos** (SHA-256 iguales a "Commit `<K1d>`" de `aprobacion.md`):
+  - `docs/ARCHITECTURE-ESSENTIALS.md` `9aef6ec5799cc50523c8f9dfd69dbeade3c5d48c3dbe5b36272695fb4c9f9260`;
+  - `docs/ARCHITECTURE.md` `21638fa49b5c826b0288c56fea72a8b7d322a0067c7578d6bb3b43558313fc56`;
+  - `docs/PRD.md` `1b75015894f6fffb9925c1718f75a449cabb93b7fac2ad969c77e3146a53f0d6`;
+  - `CLAUDE.md` `ba2028d45ed4bf12ad698e763c7583831590f95c13ebc238661d92b357613551`.
+- **V-01:** las 157 `*.ataque` coinciden con la tabla de "## TAREAS-01d — Ronda 4 (cerrada, T-15)" (`diff` normalizado vacío) antes de reescribir.
+- **Enmienda 5:** ya estaba en `plan.md` al terminar. Leí §D-11 "Lecturas en paralelo", PR-1E06 y PR-1E07, y el punto 1b de "Puntos de ataque → 01e".
+  - No cambia §D-R0, ni C-11 ni C-12.
+  - Suma `lib.test.ts` (solo los casos nuevos de PR-1E06) a la lista cerrada de 01e.
+  - No contradice ninguna `*.ataque` existente.
+
+### Reescritura (C-11 y C-12)
+Busqué en todas las `*.ataque` del frontend:
+- las listas cerradas de secciones y sus indicadores;
+- las listas cerradas de campos del formulario del muro;
+- la expectativa de que cambiar de tipo con una publicación en vuelo cambie el botón.
+
+Reescribí solo lo que C-11 o C-12 contradicen. Cada cambio lleva su comentario de por qué y conserva lo que protege. Son cuatro archivos, `git diff --stat`: 31 líneas añadidas y 7 quitadas.
+
+**C-11, las secciones pasan a tres (estudiante y maestro) y cuatro (admin), con "Trabajo de clase" segunda:**
+1. `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx`, caso "Muro → Alumnos → Maestros → Editar clase: aria-current sigue a la sección, el foco queda en el enlace pulsado y en «Editar clase» ninguna sección está activa".
+   - La lista exacta pasa de `["Muro", "Alumnos", "Maestros"]` a `["Muro", "Trabajo de clase", "Alumnos", "Maestros"]`.
+   - El recorrido de `aria-current` y del foco no cambia.
+2. `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx`, `it.each` "%s: la perspectiva de su prefijo, su sección activa y el indicador montado". Las tres filas suman "Trabajo de clase" como segunda:
+   - `["Muro", "Trabajo de clase", "Personas"]`;
+   - `["Muro", "Trabajo de clase", "Alumnos"]`;
+   - `["Muro", "Trabajo de clase", "Alumnos", "Maestros"]`.
+   - La perspectiva en mayúsculas, la sección activa y el indicador montado siguen igual.
+3. `frontend/src/components/layout/estatico-r1.ataque.test.ts`, caso "los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan".
+   - La lista exacta suma `translate-x-[300%]`, la posición del indicador de la cuarta sección (§D-11).
+   - `w-1/4` y `grid-cols-4` no son valores arbitrarios y no hace falta tocarlos.
+   - Ninguna `*.ataque` fija las clases `w-1/2`, `w-1/3`, `grid-cols-2` o `grid-cols-3` del indicador: no hubo más que reescribir por C-11.
+
+**C-12, "Tema" en "Material" y O-18:**
+
+4. `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx`, caso "cambiar a «Material» con un anuncio en vuelo no manda otra publicación: un solo POST, el del anuncio, y un solo aviso".
+   - Con O-18, el clic en «Material» con el anuncio en vuelo no actúa. El caso ya no escribe «Título del material», que no aparece. En su lugar comprueba:
+     - «Anuncio» sigue con `aria-pressed="true"` y «Material» con `"false"`;
+     - no aparece «Título del material»;
+     - el botón principal sigue diciendo "Publicar anuncio".
+   - Sigue intentando publicar otra vez en vuelo, con un clic y un `submit`.
+   - Conserva todas sus aserciones: un solo POST, el del anuncio, con su cuerpo exacto `{ tipo: "anuncio", texto: "Aviso importante", archivoIds: [] }`, un solo aviso y el botón fuera de espera al final.
+
+No encontré en ninguna `*.ataque` una lista cerrada de los campos del formulario del muro (por rol, etiqueta o atributo). Los cuerpos de material con `toEqual` y sin `temaId` siguen valiendo con "Sin tema" (§D-11, Enmienda 1, M-01).
+
+Diff completo:
+
+```diff
+--- a/frontend/src/components/layout/estatico-r1.ataque.test.ts
++++ b/frontend/src/components/layout/estatico-r1.ataque.test.ts
++  // TAREAS-01e ronda 0 (C-11, §D-R0; §D-11): suma `translate-x-[300%]`, la posición del indicador de
++  // la cuarta sección del admin (Muro, Trabajo de clase, Alumnos y Maestros). Sigue protegiendo que
++  // un valor arbitrario de maquetación solo entre con el plan.
+   it("los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan", () => {
+@@
+         "translate-x-[200%]",
++        "translate-x-[300%]",
+       ].sort(),
+--- a/frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
++++ b/frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
++    // TAREAS-01e ronda 0 (C-11, §D-R0; §D-11): el admin gana "Trabajo de clase" como segunda
++    // sección (cuatro en total). El recorrido de abajo no cambia: sigue protegiendo que aria-current
++    // siga a la sección pulsada y que el foco quede en el enlace.
+     expect(
+       within(secciones)
+         .getAllByRole("link")
+         .map((e) => e.textContent),
+-    ).toEqual(["Muro", "Alumnos", "Maestros"])
++    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros"])
+--- a/frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
++++ b/frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
++  // TAREAS-01e ronda 0 (C-11, §D-R0; §D-11): las secciones esperadas suman "Trabajo de clase" como
++  // segunda en las tres perspectivas. Sigue protegiendo la perspectiva por el prefijo en mayúsculas,
++  // la sección activa y el indicador montado.
+   const secciones = () => screen.findByRole("list", { name: "Secciones de la clase" })
+@@
+-      ["Muro", "Personas"],
++      ["Muro", "Trabajo de clase", "Personas"],
+@@
+-      ["Muro", "Alumnos"],
++      ["Muro", "Trabajo de clase", "Alumnos"],
+@@
+-      ["Muro", "Alumnos", "Maestros"],
++      ["Muro", "Trabajo de clase", "Alumnos", "Maestros"],
+--- a/frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx
++++ b/frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx
++  // TAREAS-01e ronda 0 (C-12, §D-R0; §D-11, O-18 de CLASES-02d): con una publicación en vuelo, los
++  // dos botones del tipo no actúan y el botón principal conserva el texto del tipo que se envió. El
++  // clic en «Material» ya no cambia el tipo ni muestra «Título del material»: el caso lo comprueba en
++  // lugar de escribir el título. Sigue protegiendo lo mismo: un solo POST, el del anuncio, con su
++  // cuerpo exacto, y un solo aviso, aunque se intente cambiar de tipo y volver a publicar en vuelo.
+   it("cambiar a «Material» con un anuncio en vuelo no manda otra publicación: un solo POST, el del anuncio, y un solo aviso", async () => {
+@@
+     fireEvent.click(within(grupo).getByRole("button", { name: "Material" }))
+-    fireEvent.change(screen.getByLabelText("Título del material"), {
+-      target: { value: "Título nuevo" },
+-    })
++    expect(within(grupo).getByRole("button", { name: "Anuncio" })).toHaveAttribute(
++      "aria-pressed",
++      "true",
++    )
++    expect(within(grupo).getByRole("button", { name: "Material" })).toHaveAttribute(
++      "aria-pressed",
++      "false",
++    )
++    expect(screen.queryByLabelText("Título del material")).toBeNull()
++    expect(screen.getByRole("button", { name: /^Publicar / })).toHaveTextContent("Publicar anuncio")
+     fireEvent.click(screen.getByRole("button", { name: /^Publicar / }))
+```
+
+### Rojos esperados (lista exacta, todos por la implementación pendiente de 01e)
+Comprobado en la corrida completa de abajo: son exactamente estos 6 y cada uno falla por la causa dicha.
+1. `components/layout/estatico-r1.ataque.test.ts` › "los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan". C-11: falta `translate-x-[300%]`.
+2. `features/clases/clases-admin-02c-r1.ataque.test.tsx` › "Muro → Alumnos → Maestros → Editar clase: aria-current sigue a la sección, el foco queda en el enlace pulsado y en «Editar clase» ninguna sección está activa". C-11: `expected [ 'Muro', 'Alumnos', 'Maestros' ]`.
+3. `features/clases/heredados-02d-r1.ataque.test.tsx` › "estudiante en /ESTUDIANTE/Clases/<ID>/PERSONAS: la perspectiva de su prefijo, su sección activa y el indicador montado". C-11.
+4. Mismo archivo › "maestro en /Maestro/clases/<id>: la perspectiva de su prefijo, su sección activa y el indicador montado". C-11.
+5. Mismo archivo › "admin en /ADMIN/CLASES/<id>/MAESTROS: la perspectiva de su prefijo, su sección activa y el indicador montado". C-11.
+6. `features/clases/segmentado-02d-r1.ataque.test.tsx` › "cambiar a «Material» con un anuncio en vuelo no manda otra publicación: un solo POST, el del anuncio, y un solo aviso". C-12 (O-18): hoy el clic en «Material» cambia el tipo y falla `toHaveAttribute("aria-pressed", "true")` (línea 192).
+
+### I-2 (pruebas normales con listas cerradas que C-11 contradice, fuera de lo que permite la lista cerrada de 01e)
+`frontend/src/features/clases/lib.test.ts` está en la lista cerrada de 01e "solo para los casos nuevos de PR-1E06" (Enmienda 5). Sin embargo, tres casos existentes fijan las secciones de hoy y se pondrán en rojo con C-11. Hoy están en verde.
+- "PR-2C01: la tabla de capacidades de §D-2C1, celda por celda". Las líneas 290 a 292 esperan:
+  - `["Muro", "Personas"]`;
+  - `["Muro", "Alumnos"]`;
+  - `["Muro", "Alumnos", "Maestros"]`.
+- "M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar". Con las secciones del admin, `…/ALUMNOS` debe pasar de 1 a 2 y `…/Maestros/` de 2 a 3.
+- "indiceDeSeccionActiva: el muro solo en la base exacta, el resto también en sus subrutas, y ninguna en /editar". `…/alumnos` pasa de 1 a 2 y `…/maestros` de 2 a 3.
+
+El programador los ajusta como I-2: solo los valores que C-11 cambia, conservando lo que protegen. No busqué más listas cerradas de secciones en las pruebas normales: `clase-layout.test.tsx` ya está en la lista cerrada de 01e, y el `grep` de secciones, indicadores y "Material" en las pruebas normales solo da `clase-layout.test.tsx`, `lib.test.ts`, `formulario-publicacion.test.tsx` y `publicacion-del-muro.test.tsx`. Este último solo pinta un material del muro, sin lista cerrada.
+
+### Posibles PA-20 (listas cerradas estáticas o dobles fuera del texto de C-11 y C-12; para el arquitecto, antes de programar)
+1. **`frontend/src/styles/clases-r1.ataque.test.ts`, caso "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 42 enEspera".**
+   - 01e agrega botones con `enEspera` que §D-11 nombra: "Ver más de `<tema>`", "Mover" y "Guardar categorías".
+   - Quizá también "Crear tema", el guardar de "Renombrar", "Sí, borrar tema", "Subir" o "Bajar": §D-11 no dice si esperan.
+   - Fallan el total exacto (42) y el resto de `features/clases/components/`, fijo en 3 (el buscador y el roster). Ahí caerían `seccion-de-tema.tsx`, `mover-elemento.tsx`, `formulario-tema.tsx` y `editor-de-categorias.tsx`.
+   - `secciones-de-clase.tsx` está fijo en 0, cosa que §D-11 no cambia.
+   - **Necesito del plan:** el total nuevo y la cifra por archivo, como hizo la Enmienda 4 en 01d.
+2. **El mismo archivo, caso "V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)".**
+   - DESIGN §7.7 dice que cada fila de entrega lleva "vidrio fuerte". `fila-de-entrega.tsx` (§D-11) entraría a la lista de `vidrio-fuerte`, cerrada con igualdad exacta.
+   - Lo mismo pasa con cualquier archivo nuevo de 01e con vidrio: la tarjeta del material, la sección del tema, la vista de categorías o las secciones desplazables.
+   - **Necesito del plan:** la lista final de archivos con `vidrio`, `vidrio-fuerte` y `vidrio-azul`.
+3. **`frontend/src/features/clases/estatico-02c-r1.ataque.test.ts`, caso "§D-2C1: la perspectiva sale solo de perspectivaDeRuta; ninguna vista mira el prefijo de la ruta por su cuenta".**
+   - La lista exacta de quienes llaman a `perspectivaDeRuta(` es `clase-layout.tsx`, `muro-view.tsx` y `features/tareas/hooks.ts`.
+   - `trabajo-view.tsx` y `categorias-view.tsx` necesitan la perspectiva: si muestran o no la gestión, y la base de los enlaces a `…/tareas/:id` y a `…/categorias`. `muro-view.tsx` la saca llamando a `perspectivaDeRuta`.
+   - **Necesito del plan:** cómo la obtienen las vistas nuevas (contexto del `Outlet`, props o llamada directa) y, si la llaman, que la lista crezca.
+4. **`frontend/src/components/layout/estatico-r1.ataque.test.ts`, caso "los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan"** (ya reescrito por C-11 con `translate-x-[300%]`).
+   - Cualquier otro valor arbitrario de 01e lo pone en rojo: por ejemplo, un ancho mínimo para el desplazamiento horizontal de las cuatro secciones por debajo de 640 px, o un tamaño del cuadro de fecha de §7.7.
+   - 44 × 44 px es `size-11` de la escala, así que no hace falta valor arbitrario.
+   - **Necesito del plan:** confirmar que no hay otro, o listarlo.
+5. **Dobles de las `*.ataque` que eligen "Material" en el formulario del muro** (C-12 dice "Tema" en "Material", pero no cómo se comporta con `GET …/temas` pendiente o fallido). Ninguno de estos dobles responde `GET …/temas`; devuelven 404 o 500 por defecto:
+   - `features/clases/archivos-d-r1.ataque.test.tsx` (`prepararMaterial`, 6 usos; 404 `NO_ENCONTRADO`);
+   - `features/clases/archivos-d-r2.ataque.test.tsx` (`prepararMaterial`, 8 usos; 404);
+   - `features/clases/muro-c-r1.ataque.test.tsx`, caso "solo invisibles: el formulario muestra el mismo mensaje que el servidor y no llama a la API (comentario, anuncio y título)" (500);
+   - `features/clases/muro-c-r2.ataque.test.tsx`, casos "solo blancos: el formulario muestra el mismo mensaje que el servidor y no llama a la API (anuncio, título y comentario)" y "material con extremos en blanco en el título y la descripción: se envían normalizados" (500);
+   - `features/clases/segmentado-02d-r1.ataque.test.tsx`, `it.each` "%s: aria-pressed, Check e indicador cambian juntos; el indicador no tiene transición con movimiento reducido" (500).
+   - Si el campo "Tema", con la lista pendiente o fallida, muestra solo "Sin tema" y no bloquea, ninguno cambia. Si reemplaza los campos del material, bloquea el envío o muestra un error que tape el formulario, todos caen.
+   - **Necesito del plan:** ese comportamiento, o una C-n de dobles, como C-5 en 01b.
+6. **Sin riesgo previsto, para que conste:**
+   - `estatico-02c-r1` › "C-13 y A-5", la lista de lectores de `.puedeBorrar`: §D-11 no ofrece borrar elementos desde "Trabajo de clase" y lee `puedeMover`.
+   - `app/rutas-02c-r1.ataque.test.tsx` › "el maestro no tiene «Crear clase» ni «Editar clase» en ningún lugar": "Crear tema" contiene "crear", pero esos casos solo pintan el inicio, el muro y los alumnos, nunca `…/trabajo`.
+   - Si el plan llevara "Trabajo de clase" a alguna de esas pantallas, sí sería un PA-20.
+
+### Verificación propia (solo frontend; una suite a la vez)
+- **Carga antes de correr:** CPU al 3 %, 18.9 GB libres, ninguna otra suite en curso.
+- **lint:** `cd frontend; npm run lint` termina con código 0. La última línea es `> tsc -b`.
+- **test:** `cd frontend; npm test` da `Test Files  4 failed | 138 passed (142)` · `Tests  6 failed | 2136 passed (2142)` (82.66 s, sin tiempos agotados). Los 6 rojos son exactamente los esperados de arriba.
+
+### Tabla de SHA-256 de las 157 `*.ataque` al cierre de la ronda 0 de 01e (base de V-01 del programador de 01e; 4 reescritas, marcadas)
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | reescrita: C-11 (ronda 0 de 01e) |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | reescrita: C-11 (ronda 0 de 01e) |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `7DD3EE18FAEA65A04BA5EA5E7309FA63D9E3803A6B4B10A553610DA089F7455B` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | reescrita: C-11 (ronda 0 de 01e) |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | reescrita: C-12 (ronda 0 de 01e) |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `BF79214DDDFA5DDE868A71252B2DFC6C6F11D854EF906E136259F9452AD9E0FF` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `292F6359683AD0D04859A52D5FAC11E20601B51C1B29E7EE0BE6788A51765C72` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+### Complementaria: C-14 (Enmienda 6)
+El arquitecto fijó los cinco posibles PA-20 de esta ronda 0 como C-14: Enmienda 6, fila C-14 de §D-R0, el campo "Tema" de §D-11 y PR-1E08.
+
+Reescribí solo los puntos (1) a (3), con el comentario "C-14, Enmienda 6" y conservando lo que cada prueba protege. Los puntos (4) y (5) no se tocan.
+- Formateé solo los dos archivos, desde `frontend/`: `prettier --check` y `eslint` en verde.
+- `git diff --stat`: 2 archivos, 32 líneas añadidas y 2 cambiadas.
+
+**Diffs:**
+1. `frontend/src/styles/clases-r1.ataque.test.ts` › "V-06": el título y el total pasan de "42 enEspera" a **"49 enEspera"** (`toHaveLength(49)`).
+   - Se suman a la lista fija:
+     - `/src/features/clases/components/seccion-de-tema.tsx: 4`;
+     - `/src/features/clases/components/formulario-tema.tsx: 1`;
+     - `/src/features/clases/components/mover-elemento.tsx: 1`;
+     - `/src/features/clases/components/editor-de-categorias.tsx: 1`.
+   - Con `0` explícito: `/src/features/clases/trabajo-view.tsx`, `/src/features/clases/categorias-view.tsx`, `/src/features/clases/components/elemento-de-trabajo.tsx` y `/src/features/clases/components/fila-de-entrega.tsx`.
+   - No cambian:
+     - `formulario-publicacion.tsx` (1) y `secciones-de-clase.tsx` (0);
+     - el resto de `features/clases/components/` (3) y el de admin (2);
+     - las aserciones de `disabled` en JSX y de `aria-busy`/`aria-disabled`, que solo pueden estar en `button.tsx`.
+   - El título queda: "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 49 enEspera".
+2. El mismo archivo › "V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)": la lista de `vidrio-fuerte` pasa de 9 a **11**.
+   - Se suman `/src/features/clases/components/elemento-de-trabajo.tsx` y `/src/features/clases/components/fila-de-entrega.tsx`, en orden alfabético después de `bloque-destacado.tsx`.
+   - `vidrio` (4), `vidrio-azul` (1) y `data-material`/`data-densidad` no cambian, y la igualdad sigue exacta.
+3. `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` › "§D-2C1: la perspectiva sale solo de perspectivaDeRuta; ninguna vista mira el prefijo de la ruta por su cuenta".
+   - La lista de quienes llaman a `perspectivaDeRuta(` queda en orden alfabético, porque `rutasCon` ordena: `categorias-view.tsx`, `clase-layout.tsx`, `muro-view.tsx`, `trabajo-view.tsx` y `features/tareas/hooks.ts`.
+   - La comprobación de que nadie compara el `pathname` con un prefijo no cambia.
+4. **Valores arbitrarios:** no se toca más allá de C-11 (`translate-x-[300%]`). Si al atacar 01e aparece otro, es un hallazgo.
+5. **Dobles que eligen "Material":** no se reescriben. Según §D-11, con la lista pendiente, vacía o fallida, el campo "Tema" no aparece y el material se publica sin `temaId`.
+   - `archivos-d-r1`, `archivos-d-r2`, `muro-c-r1`, `muro-c-r2` y `segmentado-02d-r1` deben seguir en verde tal como están.
+   - El cambio mínimo autorizado (que el doble responda `GET …/temas` con `{ temas: [], sinTema: 0 }`, sin tocar aserciones) queda solo para el caso en que alguno caiga por la forma del doble al terminar 01e. Hoy no lo aplico.
+
+```diff
+--- a/frontend/src/styles/clases-r1.ataque.test.ts
++++ b/frontend/src/styles/clases-r1.ataque.test.ts
++  // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): de 42 a 49 enEspera=, con las cifras
++  // que fija el plan. Se suman a la lista fija seccion-de-tema.tsx (4: "Ver más de <tema>", "Subir",
++  // "Bajar" y "Sí, borrar tema"), formulario-tema.tsx (1: "Crear tema" o "Guardar nombre"),
++  // mover-elemento.tsx (1: "Mover") y editor-de-categorias.tsx (1: "Guardar categorías"); con 0
++  // explícito, trabajo-view.tsx, categorias-view.tsx, elemento-de-trabajo.tsx y fila-de-entrega.tsx.
++  // formulario-publicacion.tsx sigue en 1, secciones-de-clase.tsx en 0 y el resto de
++  // features/clases/components/ en 3 (admin, 2). Sigue protegiendo lo mismo: ningún `disabled` en
++  // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
++  // espera cambien solo con el plan.
+-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 42 enEspera", () => {
++  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 49 enEspera", () => {
+@@
+-    expect(usos).toHaveLength(42)
++    expect(usos).toHaveLength(49)
+@@
+       "/src/features/tareas/editar-tarea-view.tsx": 0,
++      // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): de 42 a 49.
++      "/src/features/clases/components/seccion-de-tema.tsx": 4,
++      "/src/features/clases/components/formulario-tema.tsx": 1,
++      "/src/features/clases/components/mover-elemento.tsx": 1,
++      "/src/features/clases/components/editor-de-categorias.tsx": 1,
++      "/src/features/clases/trabajo-view.tsx": 0,
++      "/src/features/clases/categorias-view.tsx": 0,
++      "/src/features/clases/components/elemento-de-trabajo.tsx": 0,
++      "/src/features/clases/components/fila-de-entrega.tsx": 0,
+     }
+@@
+       "/src/features/clases/components/bloque-destacado.tsx",
++      // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11 y DESIGN §7.7): de 9 a 11. La fila
++      // de entrega (§7.7, vidrio fuerte) y la fila del material, con el mismo material. Las secciones de
++      // tema, la vista de categorías, el editor y los formularios de tema toman su vidrio de Card. El
++      // vidrio sin variante, el vidrio azul y data-material no cambian, y la igualdad sigue exacta.
++      "/src/features/clases/components/elemento-de-trabajo.tsx",
++      "/src/features/clases/components/fila-de-entrega.tsx",
+       "/src/features/clases/components/formulario-publicacion.tsx",
+--- a/frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
++++ b/frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
++    // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): trabajo-view.tsx y
++    // categorias-view.tsx la llaman como muro-view.tsx; sus componentes reciben la perspectiva o la
++    // base por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un prefijo.
+     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
++      "/src/features/clases/categorias-view.tsx",
+       "/src/features/clases/clase-layout.tsx",
+       "/src/features/clases/muro-view.tsx",
++      "/src/features/clases/trabajo-view.tsx",
+       "/src/features/tareas/hooks.ts",
+     ])
+```
+
+#### Rojos esperados de 01e (lista exacta tras la complementaria: 9)
+Los 9 quedan en rojo hasta que 01e esté implementado. Ninguno pasa todavía.
+1. `components/layout/estatico-r1.ataque.test.ts` › "los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan". C-11: falta `translate-x-[300%]`.
+2. `features/clases/clases-admin-02c-r1.ataque.test.tsx` › "Muro → Alumnos → Maestros → Editar clase: aria-current sigue a la sección, el foco queda en el enlace pulsado y en «Editar clase» ninguna sección está activa". C-11.
+3. `features/clases/heredados-02d-r1.ataque.test.tsx` › "estudiante en /ESTUDIANTE/Clases/<ID>/PERSONAS: la perspectiva de su prefijo, su sección activa y el indicador montado". C-11.
+4. Mismo archivo › "maestro en /Maestro/clases/<id>: la perspectiva de su prefijo, su sección activa y el indicador montado". C-11.
+5. Mismo archivo › "admin en /ADMIN/CLASES/<id>/MAESTROS: la perspectiva de su prefijo, su sección activa y el indicador montado". C-11.
+6. `features/clases/segmentado-02d-r1.ataque.test.tsx` › "cambiar a «Material» con un anuncio en vuelo no manda otra publicación: un solo POST, el del anuncio, y un solo aviso". C-12 (O-18).
+7. `styles/clases-r1.ataque.test.ts` › "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 49 enEspera". C-14 (1): `expected [ …(42) ] to have a length of 49 but got 42`. Los cuatro archivos con usos todavía no existen.
+8. Mismo archivo › "V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)". C-14 (2): `expected [ Array(9) ] to deeply equal [ …(11) ]`.
+9. `features/clases/estatico-02c-r1.ataque.test.ts` › "§D-2C1: la perspectiva sale solo de perspectivaDeRuta; ninguna vista mira el prefijo de la ruta por su cuenta". C-14 (3): `expected [ …(3) ] to deeply equal [ …(5) ]`. Hoy hay 3 llamadores y se esperan 5.
+
+Comprobados en la corrida aislada de los dos archivos (`Tests  3 failed | 13 passed (16)`) y en la completa.
+
+#### I-2
+Sin cambio: los 3 casos de `frontend/src/features/clases/lib.test.ts` que ya reporté ("PR-2C01: la tabla de capacidades de §D-2C1, celda por celda", "M-12: indiceDeSeccionActiva no distingue mayúsculas…" e "indiceDeSeccionActiva: el muro solo en la base exacta…"). C-14 no agrega ninguno.
+
+#### Verificación propia (solo frontend; una suite a la vez)
+- **Carga antes de correr:** CPU al 2 % y 0 %, 18.6 GB libres, ninguna otra suite en curso.
+- **Aislados:** `npx vitest run src/styles/clases-r1.ataque.test.ts src/features/clases/estatico-02c-r1.ataque.test.ts` da `Tests  3 failed | 13 passed (16)`. Los 3 rojos son los de C-14.
+- **lint:** `cd frontend; npm run lint` termina con código 0. La última línea es `> tsc -b`.
+- **test:** `cd frontend; npm test` da `Test Files  6 failed | 136 passed (142)` · `Tests  9 failed | 2133 passed (2142)` (82.35 s, sin tiempos agotados). Los 9 rojos son exactamente los de la lista.
+
+#### Hashes nuevos
+- `frontend/src/styles/clases-r1.ataque.test.ts`: `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6`.
+- `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts`: `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8`.
+
+#### Tabla de SHA-256 de las 157 `*.ataque` al cierre de la complementaria C-14 de la ronda 0 de 01e (base de V-01 del programador de 01e; 6 reescritas, marcadas; sustituye a la tabla anterior de esta ronda)
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | reescrita: C-11 (ronda 0 de 01e) |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | reescrita: C-11 (ronda 0 de 01e) |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | reescrita: C-14 (complementaria de la ronda 0 de 01e) |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | reescrita: C-11 (ronda 0 de 01e) |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | reescrita: C-12 (ronda 0 de 01e) |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `BF79214DDDFA5DDE868A71252B2DFC6C6F11D854EF906E136259F9452AD9E0FF` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6` | `frontend/src/styles/clases-r1.ataque.test.ts` | reescrita: C-14 (complementaria de la ronda 0 de 01e) |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+### Complementaria 2: C-15 (destino tras borrar)
+El programador se detuvo antes de escribir código por un conflicto. Desde 01e, el destino tras borrar una tarea pasa del muro a "Trabajo de clase" (§D-10 y "Cambios por capa" de 01e), pero una `*.ataque` mía esperaba el muro.
+- La reescribí como **C-15**. El caso no estaba en el inventario de §D-R0; el más cercano es C-12.
+- Solo cambia un caso, y la reescritura conserva lo que protege: un solo `DELETE` con el doble clic humano, y la navegación tras el éxito.
+
+**Archivo:** `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` › "doble clic humano (30 ms) en «Sí, borrar tarea» manda un solo DELETE".
+- El doble del router monta además `/maestro/clases/:claseId/trabajo` con el texto "Destino: trabajo de clase", y el caso espera ese texto en lugar de "Muro".
+- Mantiene la ruta del muro, para que un destino equivocado se vea como un rojo claro.
+- Formateé solo este archivo, desde `frontend/`: `prettier --check` y `eslint` en verde.
+- Fuera de estos dos bloques el diff no toca nada.
+
+```diff
+--- a/frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx
++++ b/frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx
+@@ -383,6 +383,12 @@
+             <Route path="/maestro/clases/:claseId/tareas/:tareaId" element={<DetalleTareaView />} />
+             <Route path="/maestro/clases/:claseId" element={<p>Muro</p>} />
++            {/* C-15, §D-10 (destino tras borrar desde 01e): tras borrar, la vista lleva a "Trabajo de
++            clase" y ya no al muro. */}
++            <Route
++              path="/maestro/clases/:claseId/trabajo"
++              element={<p>Destino: trabajo de clase</p>}
++            />
+           </Routes>
+@@ -398,7 +404,10 @@
+     soltar(new Response(null, { status: 204 }))
+-    expect(await screen.findByText("Muro")).toBeInTheDocument()
++    // C-15, §D-10 (destino tras borrar desde 01e; el caso más cercano del inventario es C-12): el
++    // destino tras el éxito pasa del muro a "Trabajo de clase". Sigue protegiendo lo mismo: un solo
++    // DELETE con el doble clic humano y la navegación tras el éxito.
++    expect(await screen.findByText("Destino: trabajo de clase")).toBeInTheDocument()
+     expect(llamadas.filter((l) => l.metodo === "DELETE")).toHaveLength(1)
+```
+
+**Corrida aislada:**
+- Comando: `cd frontend; npx vitest run src/features/tareas/tareas-01d-r1.ataque.test.tsx`.
+- Resultado: `Test Files  1 failed (1)` · `Tests  1 failed | 17 passed (18)`.
+- El único rojo es este caso: `Unable to find an element with the text: Destino: trabajo de clase`. El código de hoy navega al muro.
+- Antes de que se ponga en rojo por el destino, la espera de un solo `DELETE` pasa: el rojo llega por la navegación y no por un segundo `DELETE`.
+
+**lint:** `cd frontend; npm run lint` termina con código 0. La última línea es `> tsc -b`.
+
+La suite completa no se corre: solo cambia un caso.
+
+**Rojo esperado 10** (se suma a los 9 de la complementaria C-14):
+
+10. `features/tareas/tareas-01d-r1.ataque.test.tsx` › "doble clic humano (30 ms) en «Sí, borrar tarea» manda un solo DELETE". C-15, §D-10: queda en rojo hasta que 01e cambie el destino tras borrar a `…/trabajo`.
+
+**I-2 nueva (del programador, A-3; no la toco):** `frontend/src/features/tareas/detalle-tarea-view.test.tsx` › el caso PR-1D05 de borrar que espera la navegación al muro ("PR-1D05: … navega al muro"). Con 01e cambia de destino a "Trabajo de clase". Sigue la I-2 de `lib.test.ts` (3 casos), sin cambio.
+
+**Hash nuevo:** `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` → `7D1935A2B9F0EAE45F2382EDFFD1D7C16A1699AF0FC0FF59EC1A68CA64A0D5D6`.
+
+#### Tabla de SHA-256 de las 157 `*.ataque` al cierre de la complementaria 2 (C-15) de la ronda 0 de 01e (base de V-01 del programador de 01e; 7 reescritas, marcadas; sustituye a la tabla de la complementaria C-14)
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | reescrita: C-11 (ronda 0 de 01e) |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | reescrita: C-11 (ronda 0 de 01e) |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | reescrita: C-14 (complementaria de la ronda 0 de 01e) |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | reescrita: C-11 (ronda 0 de 01e) |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | reescrita: C-12 (ronda 0 de 01e) |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `7D1935A2B9F0EAE45F2382EDFFD1D7C16A1699AF0FC0FF59EC1A68CA64A0D5D6` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` | reescrita: C-15 (complementaria 2 de la ronda 0 de 01e) |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6` | `frontend/src/styles/clases-r1.ataque.test.ts` | reescrita: C-14 (complementaria de la ronda 0 de 01e) |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## TAREAS-01e — Ronda 1
+Veredicto: **ROTO**. Hay 3 hallazgos: 1 de severidad media (T-17) y 2 bajos (T-16 y T-18). Ninguno es crítico ni alto.
+
+Verificación propia (solo frontend; 01e no corre el backend):
+- **Carga antes de correr:** CPU al 11 % y 6 %, 18.5 GB libres, ninguna otra suite en curso.
+- **lint:** `cd frontend; npm run lint` termina con código 0. La última línea es `> tsc -b`.
+- **test:** `cd frontend; npm test` da `Test Files  2 failed | 144 passed (146)` · `Tests  4 failed | 2197 passed (2201)` (83.86 s, sin tiempos agotados).
+  - Los 4 rojos son exactamente los de esta ronda.
+  - Todo lo demás pasa, incluidas las pruebas del programador y las 157 `*.ataque` previas.
+- **PA-09:** los dos archivos nuevos, aislados en dos corridas, dieron lo mismo que en la completa: 4 rojos y 9 verdes.
+
+### Precondiciones y regresión
+- **V-01:** las 157 `*.ataque` coinciden con la tabla de "### Complementaria 2: C-15" (`diff` normalizado vacío). El cierre solo agrega las 2 nuevas de esta ronda.
+- **Regresión:** `npx vitest run ataque` da `Test Files  81 passed (81)` · `Tests  1276 passed (1276)`, incluidos los 10 rojos esperados de la ronda 0, ya en verde.
+
+### Hallazgos
+
+#### T-16 — El estudiante ve «Mover» y el selector de tema si el servidor dice `puedeMover: true`
+Severidad: baja
+
+Prueba: `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx`, caso "el estudiante nunca ve «Mover» ni el selector de tema, aunque el servidor diga puedeMover: true".
+
+Esperado: en `/estudiante/clases/:id/trabajo` no hay "Mover" ni el `NativeSelect` "Tema de «…»", diga lo que diga `puedeMover`.
+
+Obtenido: aparece el botón "Mover".
+
+Causa: `ElementosDelTema` (`components/seccion-de-tema.tsx`) pinta `MoverElemento` solo con `elemento.puedeMover`. Las demás acciones de gestión (renombrar, subir, bajar y borrar) sí se condicionan a `gestionar`, pero `ElementosDelTema` no recibe esa prop.
+
+Requisito o regla violada: §D-11 ("Maestro y admin, además: … En cada elemento con `puedeMover`: un `NativeSelect` … y «Mover»"). También el precedente de 01d: el detalle del estudiante ignora `puedeEditar` y `puedeBorrar`, porque la perspectiva decide qué se muestra y el servidor qué se permite. El backend lo negaría, así que no hay salto de autorización.
+
+Hermanos:
+- La misma `ElementosDelTema` en "Sin tema" (la sección con `tema: null`): mismo camino.
+- Los demás controles de la sección ya dependen de `gestionar` y no les aplica.
+- La tarjeta del muro y el detalle de la tarea (01d) no muestran acciones al estudiante.
+
+#### T-17 — El error de una fila de categorías que se quitó reaparece bajo el total como error de la lista
+Severidad: media
+
+Pruebas: `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx`, casos "quitar la fila con el error del cliente lo hace desaparecer: no reaparece bajo el total como error de la lista" y "quitar la fila con el error del servidor (VALIDACION categorias.1.peso) lo hace desaparecer: no reaparece bajo el total".
+
+Reproducción con el error del cliente:
+1. "Examen" 60 y una fila nueva sin nombre con peso 40.
+2. "Guardar categorías": el nombre vacío se marca bajo su fila y no sale el `PUT`.
+3. "Quitar" esa fila.
+
+Obtenido: queda una sola fila, pero el mismo mensaje del nombre vacío reaparece bajo el total, como error de toda la lista. El caso hermano del servidor hace lo mismo: un `400 VALIDACION` "categorias.1.peso: …" en la fila 2, se quita la fila 2 y el mensaje pasa bajo el total.
+
+Causa: `errorDeLaListaDeCategorias` (`lib.ts`) muestra bajo el total el error de cualquier llave que ya no está entre las filas. Pretende cubrir "una fila que se quitó con el envío en vuelo". Ese caso no puede ocurrir: mientras se guarda, `quitar` no actúa (`guardar.isPending`). En la práctica el respaldo solo se dispara cuando la persona quita la fila con error después de la respuesta, que es justo cuando el error dejó de aplicar. El mensaje falso sigue ahí hasta el siguiente "Guardar categorías".
+
+Requisito o regla violada: §D-11 y DESIGN §7.23 (errores por campo con `ErrorDeCampo`, y el de la lista bajo el total). El remedio de T-06 en la rúbrica de 01d hace lo correcto con la fila quitada después de la respuesta: su error se va con ella.
+
+Hermanos:
+- "Nombre" y "Peso" (los dos casos).
+- Los errores del cliente y del servidor (los dos casos).
+- La rúbrica de `features/tareas` (T-06 y T-10) no tiene el defecto, porque allí la fila se puede quitar con el envío en vuelo y el respaldo sí aplica.
+
+#### T-18 — Guardar categorías con el foco en un campo de una fila nueva deja el foco en `<body>`
+Severidad: baja
+
+Prueba: `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx`, caso "guardar con el foco en el «Peso» de una fila nueva: al adoptar el id que dio el servidor, el foco no cae en <body>".
+
+Reproducción:
+1. Sin categorías, "Agregar categoría".
+2. Escribir "Examen" y "100", con el foco en "Peso".
+3. Enviar el formulario con Enter (`submit` con el foco en el campo).
+4. El servidor responde 200 con el id nuevo.
+
+Obtenido: `document.activeElement` es `<body>`.
+
+Causa:
+- La llave de la fila es `nueva-1` y, tras guardar, pasa a ser el id del servidor (`filasDeCategorias(respuesta.categorias)`). React desmonta la fila con el campo enfocado y monta otra.
+- Nada recoloca el foco: el efecto de foco del editor solo actúa con `focoPendienteRef`, que solo ponen agregar y quitar.
+
+Requisito o regla violada: DESIGN §7.14 (nunca `<body>`) y la regla de los estados vecinos del mismo mecanismo (el foco del editor).
+
+Hermanos:
+- "Nombre" de una fila nueva: mismo camino.
+- Tras un `409` o `404`, el editor parte de la lista del servidor y las filas nuevas desaparecen, con el mismo efecto si el foco estaba en una de ellas. No lo automaticé.
+- Las filas ya guardadas no tienen el defecto, porque su llave es su id y no cambia.
+
+### Atacado sin hallazgos
+Todo está en verde en las dos corridas aisladas y en la completa.
+
+**`trabajo-01e-r1.ataque.test.tsx`:**
+- **"Ver más" con 27 elementos:**
+  - la primera página pide `limite=5`; después `limite=20` con el cursor del 5.º y otra vez con el del 25.º;
+  - los 27 títulos salen en orden, sin repetidos ni huecos, y al final no queda "Ver más".
+- **El limitador en la vista:**
+  - con 8 temas retenidos, nunca hay más de 6 en vuelo;
+  - al desmontar, los 6 se abortan y quedan 0 en vuelo;
+  - otra vista monta y obtiene sus 6 lugares; al soltarlos entran los 2 restantes;
+  - el caso termina con 0 en vuelo.
+- **`crearLimiteDeConcurrencia(2)`, sola:**
+  - un `signal` ya abortado rechaza sin correr;
+  - el aborto en espera rechaza y no ocupa lugar;
+  - un error libera su lugar y entra la siguiente;
+  - al final cabe otra tanda completa, así que no se pierden lugares.
+- **Doble clic humano (30 ms) en "Subir":** un solo `PUT` del orden, y las secciones quedan en el orden nuevo.
+- **Mover a un tema que ya no existe** (`404 TEMA_NO_ENCONTRADO`): avisa con el mensaje del servidor, vuelve a pedir los temas y el selector deja de ofrecer el tema borrado.
+
+**`categorias-01e-r1.ataque.test.tsx`:**
+- **Pesos:**
+  - "50%" y " 50 % " suman 100 y viajan como 50 y 50, con el cuerpo exacto;
+  - "1e2", "50.5", "0", "-5", "٥٠" (dígitos arábigos) y "50%%" marcan el campo y no se envían.
+- **11 filas que suman 100:** no sale ningún `PUT` y hay error.
+- **Doble clic humano (30 ms) en "Guardar categorías":** un solo `PUT` y un solo aviso.
+- **Recarga fallida con la lista en caché:** conserva lo escrito ("Examen final") y avisa una vez.
+
+**Revisión estática de 01e:**
+- **Limpio:**
+  - fuera de `types.ts`, sin tipos que no sean Props (M-01 está corregido);
+  - sin `?? []`;
+  - sin `disabled` en JSX (lo vigila V-06);
+  - ningún valor arbitrario nuevo además de `translate-x-[300%]` (lo vigila `estatico-r1`);
+  - sin importaciones entre módulos de `features/` fuera de las que permite ESLint.
+- **Textos duplicados entre `features/clases/data.ts` y `features/tareas/data.ts`:** "Sin tema", "Guardar cambios", "Cambios guardados", "No tienes acceso a esta clase." y "Algo salió mal. Inténtalo de nuevo.".
+  - De ellos, solo "Sin tema" llega con 01e; los demás vienen de antes.
+  - Queda como observación ("No dupliques datos entre módulos"), no como hallazgo: es un texto, sin comportamiento distinto.
+
+### No atacado y por qué
+- **360 px con las cuatro secciones, contraste y lector de pantalla:** necesitan navegador. Quedan como no verificados y los decide el humano en la comprobación de 01e.
+- **La pérdida de cambios no guardados tras un `409` o `404` de categorías:** es la observación del manager ya arbitrada (arbitraje 6). No la cuento como hallazgo.
+- **"Cancelar" en el formulario de tema con el envío en vuelo:** cierra el formulario, pero el tema se crea o se renombra de todos modos. El plan no fija qué debe hacer "Cancelar" en vuelo. Queda como observación para el arquitecto.
+
+### Archivos y conteos
+`npx vitest list 01e-r1`:
+- `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx`: 6 casos.
+- `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx`: 7 casos.
+- Total: 13 casos, 4 en rojo (los hallazgos) y 9 en verde.
+
+### Tabla de SHA-256 de las 159 `*.ataque` al cierre de la ronda 1 de 01e
+157 sin cambio respecto de la complementaria 2 de la ronda 0 y 2 nuevas, marcadas.
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` | nueva (ronda 1 de 01e) |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `D7649925CFB92555B68B952083C3EA7BC4C6348AB0212481A2F49F5A2FE17C34` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` | nueva (ronda 1 de 01e) |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `7D1935A2B9F0EAE45F2382EDFFD1D7C16A1699AF0FC0FF59EC1A68CA64A0D5D6` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## TAREAS-01e — Ronda 2
+Veredicto: **ROTO**. 1 hallazgo de severidad baja (T-19): es el detalle menor que dejó el manager, ahora demostrado con una prueba. Los remedios de T-16, T-17, T-18, M-01 y M-02 resisten todos los bordes que ataqué.
+
+Verificación propia (solo frontend):
+- **Carga antes de correr:** CPU al 16 % y 23 %, 18.6 GB libres, ninguna otra suite en curso.
+- **lint:** `cd frontend; npm run lint` termina con código 0. La última línea es `> tsc -b`.
+- **test:** `cd frontend; npm test` da `Test Files  1 failed | 147 passed (148)` · `Tests  1 failed | 2233 passed (2234)` (84.65 s, sin tiempos agotados).
+  - El único rojo es T-19.
+  - Todo lo demás pasa, incluidos los 13 casos de mi ronda 1 de 01e.
+- **PA-09:** los dos archivos nuevos, aislados en dos corridas, dieron lo mismo que en la completa: 1 rojo y 13 verdes.
+
+### Precondiciones y regresión
+- **V-01:** las 159 `*.ataque` coinciden con la tabla de la ronda 1 de 01e (`diff` normalizado vacío).
+- **Regresión:** mis 13 casos de la ronda 1 (`trabajo-01e-r1` y `categorias-01e-r1`) están en verde dentro de la corrida completa.
+
+### Hallazgos
+
+#### T-19 — «Ver más de <tema>» pulsado durante una recarga en segundo plano se pierde
+Severidad: baja
+
+Prueba: `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx`, caso "pulsar «Ver más de <tema>» mientras su lista se recarga no se pierde: o el botón queda en espera, o al terminar la recarga se pide la página siguiente".
+
+Reproducción:
+1. Un tema tiene 7 elementos; se ven 5 y está "Ver más".
+2. Se invalida el trabajo de la clase, como hacen "Mover", publicar un material o borrar una tarea, y la recarga de la primera página queda en vuelo.
+3. Se pulsa "Ver más de Unidad 1".
+4. Termina la recarga.
+
+Obtenido:
+- El botón nunca entra en espera: `isFetchingNextPage` es falso.
+- Al terminar la recarga, no se pide la página siguiente: no hay ningún `GET …/trabajo` con `cursor`.
+- El clic se pierde sin decir nada, y hay que volver a pulsar.
+
+Causa: `fetchNextPage({ cancelRefetch: false })`, en `components/seccion-de-tema.tsx`, se une a la recarga en curso en lugar de pedir la página siguiente. Mientras tanto, el botón no refleja ninguna espera.
+
+Requisito o regla violada:
+- §D-11 y DESIGN §7.22: "Ver más" lleva `outline` y `enEspera`, con el foco de §7.14.
+- CLAUDE.md, "Componentes": un botón con la petición en vuelo usa `enEspera`. Aquí la acción parece aceptada y no ocurre nada.
+- Es el detalle menor de la verificación del manager, que lo dejó a mi decisión: lo cuento como hallazgo porque la prueba lo demuestra y la regla de `enEspera` lo cubre.
+
+Hermanos:
+- Los otros dos "Ver más" del plan usan el mismo patrón (`fetchNextPage({ cancelRefetch: false })`): "Ver más publicaciones" (`muro-view.tsx`) y "Ver más comentarios" (`components/comentarios-de-publicacion.tsx`). También lo usan `tabla-alumnos.tsx`, `personas-view.tsx`, `inicio-estudiante-view.tsx`, `inicio-maestro-view.tsx` y `clases-admin-view.tsx`.
+  - Todos vienen de CLASES y no de 01e. No los ataqué con un caso propio: el remedio de T-19 les aplica por analogía y queda para que el programador los revise como hermanos.
+- "Ver más" de cada tema: el mismo componente sirve para todos los temas y para "Sin tema".
+
+### Atacado sin hallazgos
+Todo está en verde en las dos corridas aisladas y en la completa.
+
+**`trabajo-01e-r2.ataque.test.tsx`:**
+- **M-01: cada guarda se libera tras un error y permite un segundo intento.**
+  - "Subir": el 500 avisa y el segundo clic manda el PUT.
+  - "Mover": el 500 avisa y el segundo clic manda el PUT.
+  - "Sí, borrar tema": el 500 avisa, la confirmación sigue y el segundo intento manda otro DELETE. Después, "Cancelar" vuelve a actuar y el foco va a «Borrar tema».
+- **M-02, "Crear tema" con un nombre repetido:**
+  - "Cancelar" con el POST en vuelo no cierra el formulario;
+  - al llegar el `409 TEMA_REPETIDO`, el error queda bajo el campo (`aria-invalid`), el formulario sigue abierto y el foco no cae en `<body>`;
+  - después, "Cancelar" cierra el formulario y el foco vuelve a "Nuevo tema";
+  - sale un solo POST.
+- **T-16 en las perspectivas** (con un elemento en un tema y otro en "Sin tema"):
+  - estudiante con `puedeMover: true`: 0 "Mover";
+  - maestro con `puedeMover: false`: 0;
+  - maestro con `true`: 2;
+  - admin con `true`: 2.
+
+**`categorias-01e-r2.ataque.test.tsx`:**
+- **T-17:** con errores en la 1.ª y la 3.ª fila, quitar la 2.ª (sin error) deja cada error en su fila y la fila sin error sigue limpia.
+- **T-18, el servidor devuelve las dos filas nuevas en orden inverso:**
+  - cada nombre conserva su peso ("Beta" 70 y "Alfa" 30);
+  - el foco sigue en un campo de la fila "Beta" y nunca en `<body>`.
+- **T-18, guardar con el foco fuera de las filas** ("Agregar categoría"): el foco se queda ahí.
+- **Una fila nueva con el nombre de una guardada**, con otra capitalización, un acento y espacios ("  ÉXAMEN "): no se envía; el cliente marca el error.
+- **M-01:** un 500 al guardar avisa y libera la guarda; se puede escribir otra vez y el segundo "Guardar categorías" manda otro PUT y avisa "Categorías guardadas".
+
+**Ya cubiertos por los casos del programador (revisé los títulos y no los repito):**
+- el envío y "Quitar", "Agregar", una tecla o Enter en el mismo turno, en cada guarda (`M-01 · …`);
+- el error de la lista que se conserva al quitar una fila sin error (`T-17 · el error de toda la lista…`);
+- el 409 que quita la fila nueva enfocada (`T-18 · tras un 409…`);
+- el cambio de clase con peticiones en vuelo (`PR-1E07`);
+- la recarga fallida de los temas (`PR-1E02 · una recarga fallida…`).
+
+**Revisión estática final de 01e:**
+- sin tipos fuera de `types.ts`, salvo Props;
+- sin `?? []` ni `disabled` en JSX;
+- sin valores arbitrarios nuevos (V-06, V-07 y `estatico-r1` en verde);
+- sin importaciones entre módulos de `features/`.
+- Sigue la observación de "Sin tema" duplicado entre `features/clases/data.ts` y `features/tareas/data.ts`, que el programador ya declaró.
+
+### No atacado y por qué
+- **360 px, contraste y lector de pantalla:** necesitan navegador. Los decide el humano en la comprobación de 01e.
+- **El cambio de pestaña, el clic en blanco y el `focusout` sin destino en "Trabajo de clase":** la vista usa los ganchos de CLASES (`useFilaEnFoco` y `useFocoAlCargarMas`), que ya tienen esos estados cubiertos por sus `*.ataque` de CLASES-02 (en verde). No hay un gancho nuevo que atacar.
+
+### Archivos y conteos
+`npx vitest list 01e-r2`:
+- `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx`: 9 casos.
+- `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx`: 5 casos.
+- Total: 14 casos, 1 en rojo (T-19) y 13 en verde.
+
+### Tabla de SHA-256 de las 161 `*.ataque` al cierre de la ronda 2 de 01e
+159 sin cambio respecto de la ronda 1 de 01e y 2 nuevas, marcadas.
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` | nueva (ronda 2 de 01e) |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `D7649925CFB92555B68B952083C3EA7BC4C6348AB0212481A2F49F5A2FE17C34` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `1B6E87DB28FF213BC7F8585A58118AD156E46E516FD5BC8C9484AEBAF30308B5` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` | nueva (ronda 2 de 01e) |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `7D1935A2B9F0EAE45F2382EDFFD1D7C16A1699AF0FC0FF59EC1A68CA64A0D5D6` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## TAREAS-01e — Ronda 3
+**Nota de interrupción.** La sesión se cortó por un límite de tokens después de dos cosas: de escribir y verificar `ver-mas-01e-r3.ataque.test.tsx`, y de una primera corrida completa en verde (`Start at 15:31:42`, `Tests  2241 passed (2241)`). Faltaba anexar esta sección.
+- Al reanudar comprobé que el archivo nuevo era el mismo: su SHA-256 coincide con el calculado antes del corte. Las 162 `*.ataque` coinciden con la tabla calculada entonces.
+- Volví a correr `lint` y `test`, como pidió el coordinador. Esa segunda corrida (`Start at 18:39:06`) dio un rojo nuevo en una prueba del programador. Es T-20.
+- No repetí la corrida para limpiarla (PA-12). Solo corrí aislado el caso que falla, para diagnosticar la causa.
+
+Veredicto: **ROTO**, con 1 hallazgo de severidad baja (T-20). Es la última ronda del tope, así que se escala al humano.
+- El remedio de T-19 resiste todos los bordes que ataqué. Mis 27 casos de las rondas 1 y 2 de 01e siguen en verde.
+- La revisión estática final de 01e sale limpia.
+- T-20 no está en el código de producción: es una prueba normal de 01e que depende de la hora del día.
+
+Verificación propia (solo frontend; una suite a la vez):
+- **Primera corrida (antes del corte):**
+  - carga: CPU al 10 % y 4 %, 18.6 GB libres;
+  - `cd frontend; npm run lint` termina con código 0 y `> tsc -b`;
+  - `cd frontend; npm test` da `Test Files  149 passed (149)` · `Tests  2241 passed (2241)` (85.71 s, `Start at 15:31:42`).
+- **Segunda corrida (al reanudar):**
+  - carga: CPU al 37 % y 84 %, 12.6 GB libres. Estaba alta y corrí de todos modos; lo dejo dicho. La corrida tardó 145.80 s;
+  - `cd frontend; npm run lint` termina con código 0 y `> tsc -b`;
+  - `cd frontend; npm test` da `Test Files  1 failed | 148 passed (149)` · `Tests  1 failed | 2240 passed (2241)`, sin tiempos agotados (`Start at 18:39:06`);
+  - el único rojo es T-20, que no depende de la carga: es determinista según la hora (abajo).
+- **PA-09:** mi archivo nuevo, aislado en dos corridas, dio `Tests  4 passed (4)` las dos veces, y pasa en las dos completas.
+
+### Precondiciones y regresión
+- **V-01:** las 161 `*.ataque` coinciden con la tabla de la ronda 2 de 01e (`diff` normalizado vacío). Al reanudar, las 162 coinciden con la tabla de abajo.
+- **Regresión:** los 27 casos de `trabajo-01e-r1`, `categorias-01e-r1`, `trabajo-01e-r2` y `categorias-01e-r2` pasan en las dos corridas completas.
+- **Antes de atacar leí los 3 casos del programador para T-19:** la recarga del tema y la del muro con el clic en vuelo, y la recarga del tema que falla.
+
+### Hallazgos
+
+#### T-20 — PR-1E01 falla todos los días entre las 18:00 y las 24:00 (hora local): depende de la hora del día
+Severidad: baja
+
+Prueba: `frontend/src/features/clases/trabajo-view.test.tsx` › "PR-1E01 · la fila de una tarea lleva el cuadro de fecha, enlaza a su detalle y dice su estado con texto (próxima, pendiente y vencida)". Es una prueba normal del programador; no la toqué.
+
+Esperado: la suite completa en verde a cualquier hora.
+
+Obtenido, a las 18:39 hora local:
+- `Expected element to have text content: /Vence (hoy|mañana) a las \d{2}:\d{2}/`;
+- `Received: 9OCTTarea: EnsayoVence en 2 días`.
+- Aislado, a las 18:41, falla igual. A las 15:31 pasó.
+
+Causa:
+- La prueba toma `Date.now()` real y pone la tarea "próxima" a 30 h.
+- Desde las 18:00 locales, 30 h después cae dos días de calendario más tarde, y `vencimientoDe` dice, correctamente, "Vence en 2 días". En el caso: 18:41 del 7 de octubre más 30 h son las 00:41 del 9.
+- La prueba espera "Vence hoy" o "Vence mañana", que solo salen si "ahora" está antes de las 18:00.
+- El código de producción es correcto.
+
+Requisito o regla violada:
+- `AGENTS.md`, "Definición de terminado": `test` en verde.
+- `AGENTS.md`, "Pruebas": no marcar nada como terminado con pruebas en rojo.
+- En las tardes y noches, la suite del frontend falla sin que cambie nada. Eso confunde a cualquier corrida de verificación (PA-12) y al cierre del encargo.
+
+Hermanos:
+- `src/lib/vencimiento.test.ts` (PR-1D01): usa un `AHORA` fijo y no le aplica.
+- `features/tareas/detalle-tarea-view.test.tsx`: fija `Date.now` con `vi.spyOn` y no le aplica.
+- `features/clases/reexportaciones-01c.test.ts`: usa `Date.now()` + 5 min, pero no compara textos de día, así que no le aplica.
+- No encontré otra prueba que compare textos de calendario con la hora real.
+
+### Atacado sin hallazgos
+Todo está en `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` (4 casos), en verde en dos corridas aisladas y en las dos completas.
+
+1. **"Ver más" con su recarga esperando turno en el limitador.**
+   - Hay 8 temas con 7 elementos cada uno, ya cargados. Al invalidar el trabajo de la clase quedan 6 recargas en vuelo y 2 en la fila.
+   - El "Ver más de U8", cuyo tema espera en la fila, está en espera (`aria-busy`), y el clic no pide nada.
+   - Al soltar todo, el botón sale de la espera y un clic pide solo su página siguiente, con `cursor`.
+   - El caso termina con 0 en vuelo.
+2. **Recarga del muro que falla, con el foco en "Ver más publicaciones".**
+   - El botón desaparece y el muro muestra `MensajeError` (`role="alert"`).
+   - El foco no cae en `<body>`.
+3. **Maestro, con un anuncio en vuelo (O-18) y el muro recargándose a la vez.**
+   - "Ver más publicaciones" espera la recarga.
+   - El clic en «Material» con el anuncio en vuelo no cambia el botón principal, que sigue diciendo "Publicar anuncio".
+   - El clic en "Ver más" durante la recarga no pide nada; terminada la recarga, otro clic pide la página siguiente.
+   - Al soltar el POST hay un solo aviso y un solo POST, y la recarga posterior se asienta.
+4. **Revisión estática final de 01e**, sobre los 14 archivos de producción nuevos o cambiados: `trabajo-view`, `categorias-view`, los 8 componentes, `lib.ts`, `hooks.ts`, `data.ts` y `acciones-de-la-tarea.tsx`.
+   - Los 14 existen.
+   - Ninguno tiene declaraciones `interface` o `type … =` fuera de `types.ts`, salvo las Props. Los `type X` dentro de un `import` no cuentan.
+   - Ninguno tiene `?? []`, `disabled` en JSX, `fetch(`, `console.`, `dangerouslySetInnerHTML` ni valores arbitrarios de color o de medida.
+   - `features/clases` no importa de `@/features/` y `acciones-de-la-tarea.tsx` no importa de `features/clases`.
+   - Junto con V-06, V-07 y `estatico-r1`, en verde, la revisión de 01e queda cerrada.
+
+**Estados vecinos de T-19 que no repetí,** porque usan el mismo `isFetching` que los casos de arriba:
+- `refetchOnReconnect` y `refetchOnWindowFocus`: el segundo está apagado en `providers.tsx`.
+- El doble clic durante la recarga: lo cubre el caso T-19 del programador.
+
+### No atacado y por qué
+- **360 px con las cuatro secciones del admin:** jsdom no mide el diseño. Que el grupo lleve `max-w-full overflow-x-auto` y el contenido `w-max` lo fija PR-1E05 del programador. Que la página nunca se desplace en horizontal solo se ve en un navegador y queda para la comprobación humana de 01e.
+- **Contraste y lector de pantalla:** necesitan navegador y quedan para el humano.
+- **Textos duplicados:** sigue la observación de "Sin tema", duplicado entre `features/clases/data.ts` y `features/tareas/data.ts`. El programador la declaró y depende de "No se toca" (`features/tareas/**`); no es un hallazgo.
+- **Los cinco "Ver más" hermanos de CLASES:** comentarios, roster, compañeros, los dos inicios y la lista de clases del admin. Quedaron declarados para ESTADO §3 (carril trivial) y no están abiertos en 01e.
+
+### Archivos y conteos
+`npx vitest list 01e-r3`: `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx`, 4 casos, todos en verde.
+
+Mis `*.ataque` de 01e suman 31 casos en 5 archivos: 13 de la ronda 1, 14 de la ronda 2 y 4 de la ronda 3.
+
+### Tabla de SHA-256 de las 162 `*.ataque` al cierre de la ronda 3 de 01e
+161 sin cambio respecto de la ronda 2 de 01e y 1 nueva, marcada. Si el humano da 01e por cerrada con T-20 resuelto, esta tabla queda como base de V-01 del cierre de 01e y del encargo TAREAS-01: T-20 no toca ninguna `*.ataque`.
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `D7649925CFB92555B68B952083C3EA7BC4C6348AB0212481A2F49F5A2FE17C34` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `1B6E87DB28FF213BC7F8585A58118AD156E46E516FD5BC8C9484AEBAF30308B5` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `323800F232BFF2326F90E55C682A968194F2BB6874B43F8069DACA09CFBC9E21` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` | nueva (ronda 3 de 01e) |
+| `7D1935A2B9F0EAE45F2382EDFFD1D7C16A1699AF0FC0FF59EC1A68CA64A0D5D6` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## TAREAS-01e — Ronda 4 (cerrada, T-20)
+Veredicto: **RESISTE**. T-20 está corregido y no hay hallazgos nuevos.
+
+Es una ronda cerrada que autorizó el humano, solo para T-20. Además rige la regla nueva de `tester.md`: "Toda prueba que compare fechas o textos relativos al tiempo fija el reloj; una prueba que depende de la hora real es hallazgo". La tabla de abajo es la base de V-01 para el cierre de 01e y del encargo TAREAS-01.
+
+Verificación propia (solo frontend; una suite a la vez):
+- **Carga antes de correr:** CPU al 65 % y 52 %, 14.9 GB libres, ninguna otra suite en curso. La carga estaba alta y corrí de todos modos; lo dejo dicho. La corrida tardó 105.75 s, sin tiempos agotados.
+- **lint:** `cd frontend; npm run lint` termina con código 0. La última línea es `> tsc -b`.
+- **test:** `cd frontend; npm test` (`Start at 19:03:24`, hora local, dentro de la ventana de 18:00 a 24:00 en que fallaba PR-1E01) da `Test Files  150 passed (150)` · `Tests  2243 passed (2243)`.
+
+### Regresión
+- **V-01:** las 162 `*.ataque` coinciden con la tabla de la ronda 3 de 01e (`diff` normalizado vacío). El cierre solo agrega la nueva de esta ronda.
+- **Mis 31 casos de 01e y las 162 `*.ataque`:** pasan dentro de la corrida completa.
+- **T-20:** "PR-1E01 · la fila de una tarea lleva el cuadro de fecha, enlaza a su detalle y dice su estado con texto (próxima, pendiente y vencida)" pasa a las 19:03.
+
+### Casos nuevos (solo sobre la regla del reloj)
+Archivo: `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx`, 2 casos, verdes en dos corridas aisladas y en la completa.
+1. **"la fila de una tarea a 30 h dice su día de calendario: a las 00:30 «Vence mañana a las 06:30»; a las 23:30 «Vence en 2 días»".**
+   - Fija el reloj con `vi.useFakeTimers({ toFake: ["Date"] })` y `vi.setSystemTime`, y pinta `FilaDeEntrega` en los dos lados de la frontera que hacía fallar a PR-1E01.
+   - El texto es determinista a cualquier hora real.
+2. **"ninguna prueba del frontend compara textos relativos al día («Vence hoy», «Vence mañana», «Vence en N días») sin fijar el reloj o pasar un «ahora» explícito".**
+   - Es una revisión estática de todos los `*.test.ts(x)` del frontend, excepto el propio archivo.
+   - Toda prueba que mencione esos textos debe fijar el reloj (`useFakeTimers` o `setSystemTime`) o llamar a `vencimientoDe` con su segundo argumento.
+   - Hoy pasan `trabajo-view.test.tsx`, con el reloj fijo, y `lib/vencimiento.test.ts`, con un `AHORA` explícito.
+
+### Tabla de SHA-256 de las 163 `*.ataque` al cierre de la ronda 4 de 01e (base de V-01 del cierre de 01e y del encargo TAREAS-01)
+162 sin cambio respecto de la ronda 3 de 01e y 1 nueva, marcada.
+
+| SHA-256 | Archivo | Cambio |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2292DD1D4CF039FBA0B43E9376DA101A97422AE6CC44020895D64E5E157977BD` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `B8451A764F1A8952A41D4EF49413C9B784F5E28F7607D2790388CF043041A9E8` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `D7FEF40E38A39E7489E3555E5A5ACCDDBED0314578BB02318049CFBC0DC48A24` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `AE66FBCF60E8F66336E77C1055893E60CB85A01BC746B89C68A4D2C70C807AF1` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `DD46C90B7A5DD6F311AA7E4D08A53126B804F1DB06F69E53915125268980C00F` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `6111F6BCAEC5FE2C825894B601DBE6C64BE4F765C3B5FC349F00A6F6A0D8CA1E` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `B104D388325E921E1847DE34353CA53A7D9E7BFF58A9C5208CFE3D447C8D33B9` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `3311E1ADA07AA5F1252C6DA9099FD57F31D38DBDF51A67882E869D5A8D20D6A5` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `BBCF8E18F6A573F2ECD295400B7687595BD6A725743E11D8ABF7880EA261D13A` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `7CF085827D8FA981E56822431B8A5C6B7AB08B44477D43F739EBC269D2B8F899` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `DD4B9C07F940B55085B7EF8113994E3DB60FAD6A2FF3B5809E0DCB8F2568E336` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `0F3F8173AD209418B1B3106C755EC83808581389D65A8549B93C69B29B22F013` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` | nueva (ronda 4 de 01e) |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `D7649925CFB92555B68B952083C3EA7BC4C6348AB0212481A2F49F5A2FE17C34` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `1B6E87DB28FF213BC7F8585A58118AD156E46E516FD5BC8C9484AEBAF30308B5` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `323800F232BFF2326F90E55C682A968194F2BB6874B43F8069DACA09CFBC9E21` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` |  |
+| `7D1935A2B9F0EAE45F2382EDFFD1D7C16A1699AF0FC0FF59EC1A68CA64A0D5D6` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `F9082B05A42410D1F24620B6EEA4F45A731E7A42A8899863E1FCD0EFEDEDFFFC` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `4C0DFDD8AEA100786556F0B2F01F438F7135E786C898547B19930291B3927C0E` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `13E93A4A2D1AF150C196FC28F769635E6512D4544E2BEF795BC228A7D0D7C90D` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `ED2948ADF746726D62823A12F6501B79B37FCA80C3B7622CC88FA779358A52C6` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |

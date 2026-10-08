@@ -40,9 +40,23 @@ const publicacionCreada = (extra: Record<string, unknown> = {}) => ({
   },
 })
 
+// TAREAS-01e (§D-11, C-12): con «Material» el formulario pide los temas de la clase (GET …/temas). Los
+// dobles de este archivo responden esa lectura aparte (por defecto, sin temas), así que lo que cuentan
+// y lo que comparan sigue siendo solo lo de antes: las peticiones de publicar y de los archivos.
+const RUTA_TEMAS = `/api/clases/${CLASE_ID}/temas`
+const sinTemas = () => respuestaJson(200, { temas: [], sinTema: 0 })
+let respuestaDeTemas: () => Response | Promise<Response> = sinTemas
+const conTemas = (fetchMock: typeof fetch) =>
+  vi.fn<typeof fetch>((entrada, init) => {
+    if (String(entrada) === RUTA_TEMAS && (init?.method ?? "GET") === "GET") {
+      return Promise.resolve(respuestaDeTemas())
+    }
+    return fetchMock(entrada, init)
+  })
+
 const stubApi = (respuesta: () => Response = () => respuestaJson(201, publicacionCreada())) => {
   const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(respuesta()))
-  vi.stubGlobal("fetch", fetchMock)
+  vi.stubGlobal("fetch", conTemas(fetchMock))
   return fetchMock
 }
 
@@ -65,6 +79,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  respuestaDeTemas = sinTemas
   limpiarToken()
   vi.unstubAllGlobals()
   aviso.success.mockClear()
@@ -202,7 +217,7 @@ const stubApiDiferida = () => {
         resolver = resolve
       }),
   )
-  vi.stubGlobal("fetch", fetchMock)
+  vi.stubGlobal("fetch", conTemas(fetchMock))
   return { fetchMock, responder: (respuesta: Response) => resolver(respuesta) }
 }
 
@@ -251,7 +266,7 @@ describe("avisos de crear una publicación (Enmienda 8, T-30)", () => {
           setTimeout(() => rechazar(new TypeError("Failed to fetch")), 20)
         }),
     )
-    vi.stubGlobal("fetch", red)
+    vi.stubGlobal("fetch", conTemas(red))
     renderFormulario()
     escribirYPublicarAnuncio("Hola")
     await waitFor(() => expect(red).toHaveBeenCalledTimes(1))
@@ -368,7 +383,7 @@ describe("adjuntos del formulario (CLASES-d)", () => {
       }
       return Promise.resolve(respuestaJson(201, publicacionCreada()))
     })
-    vi.stubGlobal("fetch", fetchMock)
+    vi.stubGlobal("fetch", conTemas(fetchMock))
     return { llamadas }
   }
 
@@ -537,7 +552,7 @@ describe("adjuntos del formulario (CLASES-d)", () => {
     const cuerpos: unknown[] = []
     vi.stubGlobal(
       "fetch",
-      vi.fn<typeof fetch>((entrada, init) => {
+      conTemas((entrada, init) => {
         const url = String(entrada)
         const cuerpo =
           typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined
@@ -612,7 +627,7 @@ describe("adjuntos del formulario (CLASES-d)", () => {
       const fetchMock = vi.fn<typeof fetch>(() =>
         Promise.resolve(respuestaJson(caso.estado, { error: caso.error })),
       )
-      vi.stubGlobal("fetch", fetchMock)
+      vi.stubGlobal("fetch", conTemas(fetchMock))
       renderFormulario()
       fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Con un archivo" } })
       elegirArchivos(archivoDe("a.pdf", "application/pdf"))
@@ -741,7 +756,7 @@ describe("FormularioPublicacion: tipo de publicación como control segmentado", 
           liberar = resolver
         }),
     )
-    vi.stubGlobal("fetch", fetchMock)
+    vi.stubGlobal("fetch", conTemas(fetchMock))
     renderFormulario()
     fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Mañana hay examen" } })
     fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
@@ -756,7 +771,10 @@ describe("FormularioPublicacion: tipo de publicación como control segmentado", 
       texto: "Mañana hay examen",
       archivoIds: [],
     })
-    expect(screen.getByRole("button", { name: "Publicar material" })).toHaveAttribute(
+    // TAREAS-01e (C-12, O-18 de CLASES-02d): con la publicación en vuelo, los botones del tipo no
+    // actúan: «Anuncio» sigue elegido y el botón principal conserva su texto, en espera.
+    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Publicar anuncio" })).toHaveAttribute(
       "aria-busy",
       "true",
     )
@@ -764,5 +782,201 @@ describe("FormularioPublicacion: tipo de publicación como control segmentado", 
 
     liberar(respuestaJson(201, publicacionCreada()))
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+  })
+})
+
+// TAREAS-01e (§D-11, Enmiendas 1 y 6; PR-1E04 y PR-1E08): el campo "Tema" del material y O-18.
+describe("FormularioPublicacion: tema del material y O-18 (TAREAS-01e)", () => {
+  const TEMA_1 = {
+    id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01",
+    nombre: "Unidad 1",
+    orden: 0,
+    elementos: 2,
+  }
+  const TEMA_2 = {
+    id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d02",
+    nombre: "Unidad 2",
+    orden: 1,
+    elementos: 0,
+  }
+  const conDosTemas = () => respuestaJson(200, { temas: [TEMA_1, TEMA_2], sinTema: 0 })
+
+  const cuerpoDelPost = (fetchMock: ReturnType<typeof stubApi>) => {
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")
+    expect(posts, "una sola publicación").toHaveLength(1)
+    return JSON.parse(String(posts[0]?.[1]?.body)) as unknown
+  }
+
+  const publicarMaterial = (titulo: string) => {
+    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: titulo } })
+    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+  }
+
+  const opcionesDe = (campo: HTMLElement) =>
+    Array.from((campo as HTMLSelectElement).options).map((opcion) => opcion.textContent)
+
+  it("PR-1E04 · «Tema» solo aparece con «Material», con «Sin tema» elegido por defecto, y con un tema elegido el cuerpo lleva temaId", async () => {
+    respuestaDeTemas = conDosTemas
+    const fetchMock = stubApi()
+    renderFormulario()
+    expect(screen.queryByLabelText("Tema")).toBeNull()
+
+    elegirMaterial()
+    const campo = await screen.findByLabelText("Tema")
+    expect(campo).toHaveValue("")
+    expect(opcionesDe(campo)).toEqual(["Sin tema", "Unidad 1", "Unidad 2"])
+    expect(campo).toHaveAttribute("autocomplete", "off")
+    fireEvent.change(campo, { target: { value: TEMA_2.id } })
+    publicarMaterial("Guía del tema 2")
+
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    expect(cuerpoDelPost(fetchMock)).toEqual({
+      tipo: "material",
+      titulo: "Guía del tema 2",
+      texto: "",
+      temaId: TEMA_2.id,
+      archivoIds: [],
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
+    expect(screen.queryByLabelText("Tema")).toBeNull()
+  })
+
+  it("PR-1E04 · con «Sin tema» el cuerpo del material no lleva la clave temaId", async () => {
+    respuestaDeTemas = conDosTemas
+    const fetchMock = stubApi()
+    renderFormulario()
+    elegirMaterial()
+    expect(await screen.findByLabelText("Tema")).toHaveValue("")
+    publicarMaterial("Sin tema")
+
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    const cuerpo = cuerpoDelPost(fetchMock)
+    expect(cuerpo).toEqual({ tipo: "material", titulo: "Sin tema", texto: "", archivoIds: [] })
+    expect(cuerpo).not.toHaveProperty("temaId")
+  })
+
+  it("PR-1E04 · O-18: con una publicación en vuelo, cambiar de tipo no cambia el texto del botón ni el tipo enviado", async () => {
+    let liberar: (respuesta: Response) => void = () => undefined
+    const fetchMock = vi.fn<typeof fetch>(
+      () =>
+        new Promise<Response>((resolver) => {
+          liberar = resolver
+        }),
+    )
+    vi.stubGlobal("fetch", conTemas(fetchMock))
+    renderFormulario()
+    elegirMaterial()
+    publicarMaterial("Guía")
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
+
+    expect(screen.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "false")
+    expect(screen.getByRole("button", { name: /^Publicar / })).toHaveTextContent(
+      "Publicar material",
+    )
+    expect(screen.getByLabelText("Título del material")).toHaveValue("Guía")
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      tipo: "material",
+    })
+
+    liberar(respuestaJson(201, publicacionCreada({ tipo: "material", titulo: "Guía" })))
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
+    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("PR-1E04 · si el tema elegido ya no existe, avisa con el mensaje del servidor, vuelve a pedir los temas y el campo deja de ofrecerlo", async () => {
+    let temas = [TEMA_1, TEMA_2]
+    respuestaDeTemas = () => respuestaJson(200, { temas, sinTema: 0 })
+    const fetchMock = stubApi(() =>
+      respuestaJson(404, {
+        error: { codigo: "TEMA_NO_ENCONTRADO", mensaje: "Ese tema ya no existe." },
+      }),
+    )
+    renderFormulario()
+    elegirMaterial()
+    fireEvent.change(await screen.findByLabelText("Tema"), { target: { value: TEMA_2.id } })
+    temas = [TEMA_1]
+    publicarMaterial("Guía")
+
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledWith("Ese tema ya no existe."))
+    await waitFor(() =>
+      expect(opcionesDe(screen.getByLabelText("Tema"))).toEqual(["Sin tema", "Unidad 1"]),
+    )
+    expect(screen.getByLabelText("Tema")).toHaveValue("")
+    expect(screen.getByLabelText("Título del material")).toHaveValue("Guía")
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1)
+  })
+
+  it("PR-1E08 · con la lista de temas pendiente el formulario no muestra Tema, se puede publicar y el cuerpo va sin temaId", async () => {
+    respuestaDeTemas = () => new Promise<Response>(() => undefined)
+    const fetchMock = stubApi()
+    renderFormulario()
+    elegirMaterial()
+
+    expect(screen.queryByLabelText("Tema")).toBeNull()
+    expect(screen.queryByRole("status")).toBeNull()
+    publicarMaterial("Mientras cargan")
+
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    expect(cuerpoDelPost(fetchMock)).toEqual({
+      tipo: "material",
+      titulo: "Mientras cargan",
+      texto: "",
+      archivoIds: [],
+    })
+  })
+
+  it("PR-1E08 · con la lista de temas fallida el formulario muestra la nota en línea, no marca ningún campo ni avisa, y publica sin temaId", async () => {
+    respuestaDeTemas = () =>
+      respuestaJson(500, { error: { codigo: "ERROR_INTERNO", mensaje: "mensaje del servidor" } })
+    const fetchMock = stubApi()
+    renderFormulario()
+    elegirMaterial()
+
+    await screen.findByText("No pudimos cargar los temas. El material se publicará sin tema.")
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(screen.queryByLabelText("Tema")).toBeNull()
+    expect(document.querySelector('[aria-invalid="true"]')).toBeNull()
+    expect(aviso.error).not.toHaveBeenCalled()
+    publicarMaterial("Con la lista fallida")
+
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    expect(aviso.error).not.toHaveBeenCalled()
+    expect(cuerpoDelPost(fetchMock)).toEqual({
+      tipo: "material",
+      titulo: "Con la lista fallida",
+      texto: "",
+      archivoIds: [],
+    })
+  })
+
+  it("PR-1E08 · con la lista de temas vacía el formulario no muestra Tema y publica sin temaId", async () => {
+    let pedidas = 0
+    respuestaDeTemas = () => {
+      pedidas += 1
+      return respuestaJson(200, { temas: [], sinTema: 3 })
+    }
+    const fetchMock = stubApi()
+    renderFormulario()
+    elegirMaterial()
+    await waitFor(() => expect(pedidas).toBe(1))
+
+    expect(screen.queryByLabelText("Tema")).toBeNull()
+    expect(
+      screen.queryByText("No pudimos cargar los temas. El material se publicará sin tema."),
+    ).toBeNull()
+    publicarMaterial("Sin temas en la clase")
+
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    expect(cuerpoDelPost(fetchMock)).toEqual({
+      tipo: "material",
+      titulo: "Sin temas en la clase",
+      texto: "",
+      archivoIds: [],
+    })
   })
 })

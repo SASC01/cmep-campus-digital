@@ -10,16 +10,23 @@ import {
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
   listaComentariosRespuestaSchema,
+  listaCategoriasRespuestaSchema,
   listaPublicacionesRespuestaSchema,
+  listaTemasRespuestaSchema,
+  listaTrabajoRespuestaSchema,
   maestrosDeClaseRespuestaSchema,
+  moverElementoRespuestaSchema,
   personasRespuestaSchema,
   publicacionRespuestaSchema,
   sinContenidoSchema,
+  temaRespuestaSchema,
   unirseRespuestaSchema,
   type CrearClaseAdmin,
   type CrearComentario,
   type CrearPublicacion,
+  type CrearTema,
   type EditarClase,
+  type ReemplazarCategorias,
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -27,7 +34,16 @@ import { useEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
 
 import { consultaMe } from "@/services/sesionService"
-import { api } from "@/services/apiClient"
+import { api, esApiError } from "@/services/apiClient"
+import {
+  claveCategorias,
+  clavePrefijoDelTrabajo,
+  claveTarea,
+  claveTemas,
+  claveTrabajo,
+  consultaCategorias,
+  consultaTemas,
+} from "@/services/trabajoService"
 
 import {
   CLAVE_CLASES_ADMIN,
@@ -41,21 +57,31 @@ import {
   claveMaestrosCandidatos,
   clavePersonas,
   clavePublicaciones,
+  CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS,
+  CODIGOS_QUE_RENUEVAN_LOS_TEMAS,
   LIMITE_CANDIDATOS,
   LIMITE_CLASES,
   LIMITE_CLASES_ADMIN,
   LIMITE_COMENTARIOS,
+  LIMITE_PAGINAS_TRABAJO,
   LIMITE_PERSONAS,
+  LIMITE_PRIMERA_PAGINA_TRABAJO,
   LIMITE_PUBLICACIONES,
+  MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO,
   TEXTOS_BUSCADOR_ALUMNOS,
+  TEXTOS_CATEGORIAS,
   TEXTOS_COMENTARIOS,
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_MAESTROS_DE_CLASE,
   TEXTOS_MURO,
   TEXTOS_TABLA_ALUMNOS,
+  TEXTOS_TEMAS,
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
 import {
+  crearLimiteDeConcurrencia,
+  erroresDeCategoriasDeApi,
+  erroresDelTemaDeApi,
   erroresDeFormularioClases,
   focoPerdido,
   mensajeDeErrorClases,
@@ -578,11 +604,16 @@ export const useCrearPublicacion = (claseId: string) => {
       }),
     // T-30: los avisos viven aquí y no en los callbacks de mutate: los de useMutation corren aunque
     // el formulario ya no esté montado. Un error de campo lo muestra el formulario, no un aviso.
-    onSuccess: () => {
+    onSuccess: (_respuesta, datos) => {
       void invalidarMuro(queryClient, claseId)
+      // TAREAS-01e (§D-11): un material entra a "Trabajo de clase" y cambia los conteos de sus temas.
+      if (datos.tipo === "material") void invalidarTemasYTrabajo(queryClient, claseId)
       toast.success(TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado)
     },
     onError: (error) => {
+      // TAREAS-01e (§D-11): si el tema elegido ya no existe, la lista del campo "Tema" se vuelve a
+      // pedir (el campo deja de ofrecerlo y el material se publica sin él).
+      void renovarTrasError(queryClient, claseId, error)
       if (erroresDeFormularioClases(error, ["titulo", "texto"])) return
       toast.error(mensajeDeErrorClases(error))
     },
@@ -673,3 +704,239 @@ export const useBorrarComentario = (claseId: string, publicacionId: string) => {
 
 // TAREAS-01c (§D-9): useSolicitarSubida y useUrlDeDescarga viven en components/adjuntos/hooks.ts.
 export { useSolicitarSubida, useUrlDeDescarga } from "@/components/adjuntos/hooks"
+
+// TAREAS-01e (§D-11). "Trabajo de clase", temas y categorías, con las claves y las consultas de
+// services/trabajoService.ts (las mismas que usa features/tareas).
+
+// La lista de temas con sus conteos. `enabled`: el formulario del muro solo la pide con "Material".
+export const useTemas = (claseId: string, enabled = true) =>
+  useQuery({ ...consultaTemas(claseId), enabled })
+
+// Enmienda 5: una sola instancia por módulo. Toda lectura de GET …/trabajo (primera página y "Ver más")
+// pasa por aquí: como máximo 6 en vuelo y las demás en fila, en el orden en que se montan las secciones.
+const limiteDeTrabajo = crearLimiteDeConcurrencia(MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO)
+
+// La primera página pide 5 y "Ver más", 20. El `signal` de TanStack Query saca de la fila a la que espera
+// y cancela la que está en curso cuando la sección se desmonta o cambia de clase.
+export const useTrabajo = (claseId: string, tema: string) =>
+  useInfiniteQuery({
+    queryKey: claveTrabajo(claseId, tema),
+    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
+      const limite =
+        pageParam === undefined ? LIMITE_PRIMERA_PAGINA_TRABAJO : LIMITE_PAGINAS_TRABAJO
+      const parametros = new URLSearchParams({ tema, limite: String(limite) })
+      if (pageParam !== undefined) parametros.set("cursor", pageParam)
+      return limiteDeTrabajo.ejecutar(
+        () =>
+          api(`/api/clases/${claseId}/trabajo?${parametros.toString()}`, {
+            schema: listaTrabajoRespuestaSchema,
+            signal,
+          }),
+        signal,
+      )
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// Un aviso por cada fallo nuevo de una recarga que conserva los datos en caché (la vista no se
+// reemplaza por un error). Montar la vista con un fallo ya ocurrido no avisa.
+export const useAvisoDeRecargaFallida = (
+  errorUpdateCount: number,
+  hayDatos: boolean,
+  texto: string,
+) => {
+  const fallosVistos = useRef(errorUpdateCount)
+  useEffect(() => {
+    if (fallosVistos.current === errorUpdateCount) return
+    fallosVistos.current = errorUpdateCount
+    if (!hayDatos) return
+    toast.error(texto)
+  }, [errorUpdateCount, hayDatos, texto])
+}
+
+const invalidarTemas = (queryClient: ReturnType<typeof useQueryClient>, claseId: string) =>
+  queryClient.invalidateQueries({ queryKey: claveTemas(claseId) })
+
+const invalidarTemasYTrabajo = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+) => {
+  await Promise.all([
+    invalidarTemas(queryClient, claseId),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDelTrabajo(claseId) }),
+  ])
+}
+
+// Un error que dice que lo que se ve ya no es lo del servidor (un tema que ya no existe, un nombre que
+// otro tomó, el orden que cambió, el elemento que ya no está) vuelve a pedir los temas y el trabajo.
+const renovarTrasError = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  error: unknown,
+) => {
+  if (!esApiError(error)) return
+  if (!CODIGOS_QUE_RENUEVAN_LOS_TEMAS.includes(error.codigo)) return
+  await invalidarTemasYTrabajo(queryClient, claseId)
+}
+
+// Los avisos viven en los hooks y no en los callbacks de mutate (patrón T-30): corren aunque el
+// componente ya no esté montado. Un error del nombre lo muestra el formulario, sin aviso. El onSuccess
+// espera la lista nueva, así que el botón sigue en espera hasta que el tema ya aparece.
+export const useCrearTema = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: CrearTema) =>
+      api(`/api/clases/${claseId}/temas`, {
+        method: "POST",
+        body: datos,
+        schema: temaRespuestaSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_TEMAS.avisoCreado)
+      await invalidarTemas(queryClient, claseId)
+    },
+    onError: async (error) => {
+      if (erroresDelTemaDeApi(error) === null) toast.error(mensajeDeErrorClases(error))
+      await renovarTrasError(queryClient, claseId, error)
+    },
+  })
+}
+
+export const useRenombrarTema = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ temaId, nombre }: { temaId: string; nombre: string }) =>
+      api(`/api/clases/${claseId}/temas/${temaId}`, {
+        method: "PUT",
+        body: { nombre },
+        schema: temaRespuestaSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_TEMAS.avisoRenombrado)
+      // El nombre del tema también sale en el detalle de sus tareas.
+      await Promise.all([
+        invalidarTemas(queryClient, claseId),
+        queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+      ])
+    },
+    onError: async (error) => {
+      if (erroresDelTemaDeApi(error) === null) toast.error(mensajeDeErrorClases(error))
+      await renovarTrasError(queryClient, claseId, error)
+    },
+  })
+}
+
+// Borrar un tema pasa sus elementos a "Sin tema": cambian los temas y las listas del trabajo.
+export const useBorrarTema = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (temaId: string) =>
+      api(`/api/clases/${claseId}/temas/${temaId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_TEMAS.avisoBorrado)
+      await Promise.all([
+        invalidarTemasYTrabajo(queryClient, claseId),
+        queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+      ])
+    },
+    onError: async (error) => {
+      toast.error(mensajeDeErrorClases(error))
+      await renovarTrasError(queryClient, claseId, error)
+    },
+  })
+}
+
+// "Subir" y "Bajar" envían el orden completo; la respuesta es la lista nueva (la misma forma del GET).
+// Con 409 ORDEN_DESACTUALIZADO la lista se vuelve a pedir y el aviso lo dice.
+export const useOrdenarTemas = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (temaIds: string[]) =>
+      api(`/api/clases/${claseId}/temas/orden`, {
+        method: "PUT",
+        body: { temaIds },
+        schema: listaTemasRespuestaSchema,
+      }),
+    onSuccess: (respuesta) => {
+      queryClient.setQueryData(claveTemas(claseId), respuesta)
+    },
+    onError: async (error) => {
+      toast.error(mensajeDeErrorClases(error))
+      await renovarTrasError(queryClient, claseId, error)
+    },
+  })
+}
+
+// Mover un elemento de tema (P-02 b: organiza la clase, no es editarlo). Cambian los conteos, las dos
+// listas del trabajo y el tema del detalle de la tarea.
+export const useMoverElemento = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      publicacionId,
+      temaId,
+    }: {
+      publicacionId: string
+      temaId: string | null
+      titulo: string
+      nombreDelTema: string
+    }) =>
+      api(`/api/clases/${claseId}/publicaciones/${publicacionId}/tema`, {
+        method: "PUT",
+        body: { temaId },
+        schema: moverElementoRespuestaSchema,
+      }),
+    onSuccess: async (_respuesta, { publicacionId, titulo, nombreDelTema }) => {
+      toast.success(TEXTOS_TEMAS.avisoMovido(titulo, nombreDelTema))
+      await Promise.all([
+        invalidarTemasYTrabajo(queryClient, claseId),
+        queryClient.invalidateQueries({ queryKey: claveTarea(claseId, publicacionId) }),
+      ])
+    },
+    onError: async (error) => {
+      toast.error(mensajeDeErrorClases(error))
+      await renovarTrasError(queryClient, claseId, error)
+    },
+  })
+}
+
+export const useCategorias = (claseId: string, enabled = true) =>
+  useQuery({ ...consultaCategorias(claseId), enabled })
+
+// La lista de categorías que hay en la caché (la que dejó la última respuesta del servidor): el editor
+// parte de ella tras un conflicto.
+export const useCategoriasEnCache = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return () => queryClient.getQueryData(consultaCategorias(claseId).queryKey)
+}
+
+// Las categorías se guardan en bloque (S-06). La respuesta es la lista guardada. Un error de una fila
+// o de la lista lo muestra el editor; un conflicto (una categoría que ganó tareas o que ya no existe)
+// avisa con el mensaje del servidor y vuelve a pedir la lista antes de terminar.
+export const useGuardarCategorias = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: ReemplazarCategorias) =>
+      api(`/api/clases/${claseId}/categorias`, {
+        method: "PUT",
+        body: datos,
+        schema: listaCategoriasRespuestaSchema,
+      }),
+    onSuccess: async (respuesta) => {
+      queryClient.setQueryData(claveCategorias(claseId), respuesta)
+      toast.success(TEXTOS_CATEGORIAS.avisoGuardadas)
+      // La categoría y su peso también salen en el detalle de las tareas.
+      await queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] })
+    },
+    onError: async (error) => {
+      if (erroresDeCategoriasDeApi(error, []) !== null) return
+      toast.error(mensajeDeErrorClases(error))
+      if (!esApiError(error) || !CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS.includes(error.codigo)) return
+      await queryClient.invalidateQueries({ queryKey: claveCategorias(claseId) })
+    },
+  })
+}

@@ -173,6 +173,11 @@ describe("ataque CLASES-02d r1: el control segmentado del tipo", () => {
     },
   )
 
+  // TAREAS-01e ronda 0 (C-12, §D-R0; §D-11, O-18 de CLASES-02d): con una publicación en vuelo, los
+  // dos botones del tipo no actúan y el botón principal conserva el texto del tipo que se envió. El
+  // clic en «Material» ya no cambia el tipo ni muestra «Título del material»: el caso lo comprueba en
+  // lugar de escribir el título. Sigue protegiendo lo mismo: un solo POST, el del anuncio, con su
+  // cuerpo exacto, y un solo aviso, aunque se intente cambiar de tipo y volver a publicar en vuelo.
   it("cambiar a «Material» con un anuncio en vuelo no manda otra publicación: un solo POST, el del anuncio, y un solo aviso", async () => {
     const { posts, soltar } = stubMuro()
     renderMuro("maestro")
@@ -184,9 +189,16 @@ describe("ataque CLASES-02d r1: el control segmentado del tipo", () => {
     await waitFor(() => expect(publicar).toHaveAttribute("aria-busy", "true"))
 
     fireEvent.click(within(grupo).getByRole("button", { name: "Material" }))
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: "Título nuevo" },
-    })
+    expect(within(grupo).getByRole("button", { name: "Anuncio" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+    expect(within(grupo).getByRole("button", { name: "Material" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    )
+    expect(screen.queryByLabelText("Título del material")).toBeNull()
+    expect(screen.getByRole("button", { name: /^Publicar / })).toHaveTextContent("Publicar anuncio")
     fireEvent.click(screen.getByRole("button", { name: /^Publicar / }))
     fireEvent.submit(publicar.closest("form") ?? publicar)
     await act(() => new Promise((r) => setTimeout(r, 30)))

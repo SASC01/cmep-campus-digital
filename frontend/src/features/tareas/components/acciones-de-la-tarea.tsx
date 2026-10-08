@@ -12,14 +12,14 @@ import type { TareaDetalle } from "../types"
 interface AccionesDeLaTareaProps {
   claseId: string
   tarea: TareaDetalle
-  // La ruta base de la clase en la perspectiva actual: el muro, a donde vuelve al borrar.
+  // La ruta base de la clase en la perspectiva actual; al borrar se vuelve a su "Trabajo de clase".
   base: string
 }
 
 // §D-10, DESIGN.md §7.20: "Editar tarea" y "Borrar tarea" de maestro y admin. Cada botón sale de lo que
 // dice el servidor (`puedeEditar`, `puedeBorrar`), nunca del rol. Borrar pide confirmación en línea
 // (§7.14): el foco va a "Cancelar" al pedirla y vuelve a "Borrar tarea" al cancelar; al borrar,
-// navega al muro (el aviso lo da el hook). Sin ninguno de los dos permisos no pinta nada.
+// navega a "Trabajo de clase" (TAREAS-01e, §D-10; el aviso lo da el hook). Sin ninguno de los dos permisos no pinta nada.
 export function AccionesDeLaTarea({ claseId, tarea, base }: AccionesDeLaTareaProps) {
   const navigate = useNavigate()
   const borrar = useBorrarTarea(claseId, tarea.id)
@@ -71,7 +71,9 @@ export function AccionesDeLaTarea({ claseId, tarea, base }: AccionesDeLaTareaPro
               <Button
                 type="button"
                 variant="destructive"
-                onClick={() => borrar.mutate(undefined, { onSuccess: () => navigate(base) })}
+                onClick={() =>
+                  borrar.mutate(undefined, { onSuccess: () => navigate(`${base}/trabajo`) })
+                }
                 enEspera={borrar.isPending}
               >
                 {TEXTOS_DETALLE_TAREA.siBorrar}

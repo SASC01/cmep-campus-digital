@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
@@ -83,6 +83,13 @@ afterEach(() => {
 
 describe("PR-1D06: tarjeta de tarea en el muro", () => {
   it("PR-1D06: la tarjeta lleva la insignia con texto e icono, el título, el vencimiento y los puntos", async () => {
+    // T-20 (ronda 3 de 01e): el texto de vencimiento depende de la hora; el reloj se fija (solo Date,
+    // los temporizadores siguen reales) a una hora de la mañana para que la prueba pase a cualquier hora.
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(2026, 9, 6, 9, 0))
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     stubMuro([elementoTarea()])
     renderMuro("estudiante")
 

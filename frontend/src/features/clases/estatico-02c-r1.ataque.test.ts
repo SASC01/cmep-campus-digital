@@ -93,9 +93,14 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // lib/ruta-de-clase.ts desde 01c (la exención de arriba apunta ahí; O-2 de la ronda 0 de 01c), y
     // features/tareas la llama solo desde su gancho useRutaDeLaClase (hooks.ts). Sigue protegiendo
     // que nadie más la llame ni compare el pathname por su cuenta.
+    // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): trabajo-view.tsx y
+    // categorias-view.tsx la llaman como muro-view.tsx; sus componentes reciben la perspectiva o la
+    // base por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un prefijo.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
+      "/src/features/clases/categorias-view.tsx",
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/muro-view.tsx",
+      "/src/features/clases/trabajo-view.tsx",
       "/src/features/tareas/hooks.ts",
     ])
   })

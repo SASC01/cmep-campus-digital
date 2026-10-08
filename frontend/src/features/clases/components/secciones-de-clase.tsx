@@ -20,12 +20,15 @@ interface SeccionesDeClaseProps {
 }
 
 // §D-A5, §D-2C1: no es una <nav> (esa es la de components/layout, en components/layout/barra-navegacion).
-// Las secciones salen de la perspectiva: "Muro" y "Personas" (estudiante), "Muro" y "Alumnos"
-// (maestro) o "Muro", "Alumnos" y "Maestros" (admin). NavLink pone aria-current="page" en el enlace
+// Las secciones salen de la perspectiva: "Muro", "Trabajo de clase" y "Personas" (estudiante), "Muro",
+// "Trabajo de clase" y "Alumnos" (maestro) o "Muro", "Trabajo de clase", "Alumnos" y "Maestros"
+// (admin; TAREAS-01e, §D-11). NavLink pone aria-current="page" en el enlace
 // activo por su cuenta. El grupo va en vidrio (Card) y el indicador de la activa se desliza con
 // transform: mide 1/N y se traslada una posición por sección. En contexto opaco (el admin) el
 // indicador usa --accent-soft en vez de --surface, que sobre la superficie opaca no se vería; el
 // estado también lo dicen aria-current y el color del texto, no solo la posición del indicador.
+// TAREAS-01e (§D-11): si el grupo no cabe (cuatro secciones a 360 px), se desplaza en horizontal dentro
+// de su panel; la página nunca.
 export function SeccionesDeClase({ claseId, perspectiva }: SeccionesDeClaseProps) {
   const { pathname } = useLocation()
   const { secciones } = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
@@ -38,8 +41,8 @@ export function SeccionesDeClase({ claseId, perspectiva }: SeccionesDeClaseProps
     cn(buttonVariants({ variant: "ghost", size: "sm" }), "relative w-full", isActive && "text-link")
 
   return (
-    <Card className="w-fit gap-0 rounded-card p-1">
-      <div className="relative">
+    <Card className="w-fit max-w-full gap-0 overflow-x-auto rounded-card p-1">
+      <div className="relative w-max">
         {activa >= 0 && (
           <span
             aria-hidden="true"

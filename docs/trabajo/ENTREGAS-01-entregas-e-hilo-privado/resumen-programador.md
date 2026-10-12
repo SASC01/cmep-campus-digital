@@ -860,3 +860,434 @@ Las cinco rutas de comentarios del muro (lista, conteo, `GET`, los dos `DELETE`)
 
 - Los esquemas de respuesta del hilo son `z.strictObject`, pero la regla estática de 7 esquemas de `entregas-01b-r1` no los nombra (lo anotó el tester para su ronda 1).
 - **No verificado:** el hilo en un navegador. Queda para la comprobación humana de 01e (H-5).
+
+
+# Resumen del programador — ENTREGAS-01d — Implementación
+
+> La implementación se interrumpió una vez por un error de red de la API y la retomé desde el árbol, sin rehacer nada. Ya estaban escritos los pasos 1 y 2: `lib/estado-de-entrega.ts`, `components/estado-entrega-badge.tsx` y los tres archivos de `components/adjuntos/`. Los releí, comprobé que compilaban y seguí desde ahí.
+
+- **Base:** `ec1c4b3` dentro de los paquetes; `dd8edcb` fuera de ellos.
+- **Pasos completados:** 6 de 6.
+- **Lo que no hice:** commit, abrir navegadores, instalar dependencias ni tocar el backend.
+
+## PARADA y su resolución
+
+Al correr el frontend con el código de los pasos 1 a 4, la prueba normal `features/clases/trabajo-view.test.tsx` › "PR-1E01 · …" (`:361`) cayó. La prueba esperaba "Venció el …" en la fila vencida del estudiante. Por §D-9.8, sin entrega y vencida, esa fila tiene que decir "Sin entregar". La prueba no estaba en la lista cerrada, así que me detuve sin tocarla.
+
+La resolvió la Enmienda 5: viñeta nueva de "Pruebas existentes que el programador puede cambiar", aprobada por el manager. Apliqué exactamente lo que permite (sección "Pruebas normales cambiadas").
+
+## Pasos
+
+1. **`lib/estado-de-entrega.ts` (nuevo).**
+   - `estadoDeEntregaVisible` y `TEXTOS_ESTADO_DE_ENTREGA`.
+   - Los tipos `EstadoDeEntregaVisible` y `EntregaParaElEstado`.
+   - Prueba nueva: `lib/estado-de-entrega.test.ts`.
+
+   **`components/estado-entrega-badge.tsx` (nuevo).** `EstadoEntregaBadge`: cinco estados con su texto, tono e icono de §7.8; el último `return` es `estado satisfies never`. Prueba nueva: `components/estado-entrega-badge.test.tsx`.
+
+2. **`components/adjuntos/`, solo agregados (R-04).**
+   - `lib.ts`: `rutaDeArchivosDeLaClase`.
+   - `hooks.ts`: `useSolicitarSubidaEn(ruta)` y `useUrlDeDescargaEn(ruta)`. `useSolicitarSubida(claseId)` y `useUrlDeDescarga(claseId)` pasan a ser sus envoltorios con la ruta de la clase: misma firma y misma petición.
+   - `adjuntos-de-publicacion.tsx`: prop opcional `rutaDeArchivos`. La ficha visual se comparte (`VistaDeFicha`, con un solo `enEspera=` en el archivo). `FichaDeAdjunto` sigue usando `useUrlDeDescarga(claseId)` y la ficha nueva `FichaDeAdjuntoEnRuta` usa `useUrlDeDescargaEn(ruta)`.
+   - Prueba nueva: `components/adjuntos/adjuntos-01d.test.tsx`.
+
+3. **`features/tareas`.**
+   - `data.ts`: `TEXTOS_TU_TRABAJO`, `TEXTOS_HILO_PRIVADO`, `LIMITE_DEL_HILO` y `CODIGOS_DE_CONFLICTO_DE_ENTREGA`. Los códigos `ENTREGA_*` entran en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`. Quité `tuTrabajoTexto`, el texto de TAREAS-01 que este paso reemplaza.
+   - `lib.ts`: `claveMiEntrega` (cuelga de `claveTarea`), `claveHilo`, `rutaDeMiEntrega`, `rutaDeMiHilo`, `rutaDePaginaDelHilo`, `yaEsTarde`, `entregaCerradaAhora`, `fraseDeEntrega`, `esConflictoDeEntrega`, `esEntregaVacia`, `errorDeEnlacesDeApi` y `errorDeTextoDeApi`.
+   - `types.ts`: reexporta de `shared/` `ComentarioPrivado`, `CrearComentario`, `Entregar`, `EstadoEntrega`, `ListaComentariosPrivadosRespuesta` y `MiEntrega`.
+   - `hooks.ts`: `useMiEntrega`, `useEntregar`, `useAnularEntrega`, `useHiloPrivado` y `useComentarEnHilo`. Los avisos viven en el gancho; un `409` de la entrega avisa y vuelve a pedirla.
+   - Componentes: `tu-trabajo.tsx` (reescrito), `formulario-de-entrega.tsx`, `campo-de-enlaces.tsx`, `entrega-realizada.tsx`, `lista-de-enlaces.tsx` y `hilo-privado.tsx` (nuevos).
+   - `detalle-tarea-view.tsx`: en la perspectiva del alumno, "Tu trabajo" y "Comentarios privados".
+   - Prueba nueva: `features/tareas/entregas-01d.test.tsx`.
+
+4. **`features/clases` (lo que permite A-3).**
+   - `components/fila-de-entrega.tsx`: prop opcional `entrega`.
+   - `components/seccion-de-tema.tsx`: pasa `entrega` solo cuando no se gestiona el trabajo (la perspectiva del alumno, T-16).
+   - `data.ts`: `CLASES_DEL_CUADRO_DE_ENTREGA`.
+   - `lib.ts`: `segundaLineaDeLaFila`.
+   - `types.ts`: `SegundaLineaDeLaFila`.
+   - Prueba nueva: `features/clases/fila-de-entrega-01d.test.tsx`.
+
+5. **`docs/DESIGN.md`**, todo con la marca "propuesta (ENTREGAS-01d)":
+   - §7.7: la fila del alumno, que reemplaza "Mientras no existan entregas…".
+   - §7.8: la implementación de `EstadoEntregaBadge`.
+   - §7.19: los adjuntos de una entrega.
+   - §7.20: la columna derecha del alumno.
+   - Secciones nuevas §7.24 "Zona de entrega" y §7.25 "Hilo privado".
+
+6. **Verificación:** shared build, y en frontend lint, test y build, de uno en uno (sección "Verificación").
+
+## Las tres condiciones del tester
+
+1. **R-04 y el doble de `refactor-01c-r1`.**
+   - Sin `rutaDeArchivos`, `AdjuntosDePublicacion` monta solo `FichaDeAdjunto`, que llama a `useUrlDeDescarga(claseId)` como antes.
+   - `useUrlDeDescargaEn` solo lo llama `FichaDeAdjuntoEnRuta`, que se monta únicamente cuando hay ruta. No hay ganchos condicionales.
+   - `refactor-01c-r1.ataque` y `reexportaciones-01c.test.ts` pasan en verde. PR-1D13 fija las mismas URL de siempre.
+2. **`entrega` opcional en `FilaDeEntrega`** (`entrega?: ElementoDeTrabajo["entrega"] | undefined`). Sin ella, la fila es la de siempre. `reloj-01e-r4.ataque` pasa en verde.
+3. **El encabezado y la firma.**
+   - El `h3` "Tu trabajo" se pinta en los tres estados: cargando, error y datos.
+   - `HiloPrivado` firma con `FirmaDelAutor` y no lee `.propio` ni `.administracion`.
+   - `tareas-01d-r1.ataque:359` y `estatico-02c-r1.ataque` pasan en verde.
+
+**C-11 (V-06) y C-5 en verde.**
+- C-11: total de 53 `enEspera=`. Por archivo: `formulario-de-entrega.tsx` 1, `entrega-realizada.tsx` 1, `hilo-privado.tsx` 2; `tu-trabajo.tsx`, `campo-de-enlaces.tsx`, `lista-de-enlaces.tsx` y `estado-entrega-badge.tsx` 0. `adjuntos-de-publicacion.tsx` sigue en 1.
+- C-5: el único `target="_blank"` está en `lista-de-enlaces.tsx`, con `rel="noopener noreferrer"` en el mismo elemento. En la corrida intermedia de la PARADA, C-5 cayó porque un comentario del archivo contenía el literal `target="_blank"`. Reescribí el comentario.
+
+## Pruebas requeridas → archivo y título exacto
+
+| Viñeta | Archivo › título exacto |
+|---|---|
+| PR-1D01 | `src/lib/estado-de-entrega.test.ts` › "PR-1D01: los cinco resultados: asignado, sin entregar, entregado, entregado con retraso y calificado"; "PR-1D01: una fila asignado (anulada o solo con hilo) se trata como sin entrega"; "PR-1D01: la frontera de la fecha límite es la de vencimientoDe (vencida desde su milisegundo exacto)" |
+| PR-1D02 | `src/components/estado-entrega-badge.test.tsx` › "PR-1D02: $estado dice «$texto» con su tono y su icono (nunca solo color)" (5 filas: asignado, sin-entregar, entregado, entregado-con-retraso, calificado) |
+| PR-1D03 | `src/features/tareas/entregas-01d.test.tsx` › "PR-1D03: el encabezado se pinta mientras carga y tras un error; error → cargando → datos"; "PR-1D03: abierta y sin entrega muestra el formulario; con adjuntos requeridos el botón dice «Entregar tarea»"; "PR-1D03: sin adjuntos requeridos y vacío dice «Marcar como completada»; con un archivo o un enlace, «Entregar tarea»" |
+| PR-1D04 | mismo archivo › "PR-1D04: cada archivo se pide por la ruta de la entrega, se sube sin el token y después se entrega con sus ids y los enlaces; al terminar, aviso, «Entregado», «Trabajo de clase» viejo y el foco en «Tu trabajo»"; "PR-1D04: el botón está en espera desde la primera subida hasta la respuesta, y un doble clic o un Enter repetido hacen una sola entrega"; "PR-1D04: si falla una subida, el aviso nombra el archivo, no hay POST …/entrega y lo elegido se conserva" |
+| PR-1D05 | mismo archivo › "PR-1D05: un javascript: muestra el error bajo el campo y no se agrega"; "PR-1D05: con 5 enlaces, «Agregar enlace» no agrega y la nota lo dice"; "PR-1D05: «Quitar» lleva el foco al «Quitar» vecino y, sin enlaces, al campo" |
+| PR-1D06 | mismo archivo › "PR-1D06: en una tarea que requiere adjuntos, entregar sin nada muestra el error del grupo y no pide nada" |
+| PR-1D07 | mismo archivo › "PR-1D07: %s avisa con el mensaje del servidor y vuelve a pedir la entrega" (ENTREGA_YA_REALIZADA, ENTREGA_CERRADA y ENTREGA_CALIFICADA); "PR-1D07: ENTREGA_VACIA marca el grupo y un VALIDACION de enlaces.1 marca la lista, sin aviso" |
+| PR-1D08 | mismo archivo › "PR-1D08: vencida y con tardías, la nota de retraso"; "PR-1D08: cerrada sin entrega, la frase y ningún botón ni campo"; "PR-1D08: cerrada con entrega, la entrega sin «Anular entrega»" |
+| PR-1D09 | mismo archivo › "PR-1D09: la fecha en la zona local, los adjuntos descargados por la ruta de la entrega y los enlaces con su href exacto en otra pestaña"; "PR-1D09: sin archivos ni enlaces dice «Marcaste como completada el …»"; "PR-1D09: una respuesta con un enlace javascript: hace fallar el parse y la vista muestra el error (el enlace nunca se pinta)" |
+| PR-1D10 | mismo archivo › "PR-1D10: la confirmación en línea lleva el foco a «Cancelar»; «Cancelar» lo regresa a «Anular entrega»"; "PR-1D10: ya vencida y con tardías, la frase avisa que volver a entregar quedará con retraso"; "PR-1D10: «Sí, anular entrega» en espera y una sola petición con doble clic; al terminar, aviso, formulario vacío y foco en «Tu trabajo»"; "PR-1D10: con puedeAnular falso no hay «Anular entrega»" |
+| PR-1D11 | mismo archivo › "PR-1D11: vacío dice «Aún no hay comentarios privados.»"; "PR-1D11: la lista va en orden ascendente, con la firma del autor y la insignia «Administración» si la da el servidor"; "PR-1D11: «Ver más comentarios» está en espera también durante una recarga (isFetching)"; "PR-1D11: al cargar lo último, el foco va al primer comentario nuevo"; "PR-1D11: enviar hace una sola petición con doble clic; vacío da el error de campo; al enviar, el campo se vacía y recibe el foco" |
+| PR-1D12 | `src/features/clases/fila-de-entrega-01d.test.tsx` › "PR-1D12: $nombre dice «$texto» con el color del cuadro de §7.7" (5 filas: entregada, con retraso, calificada, vencida sin entrega, vencida y anulada); "PR-1D12: una tarea pendiente sin entregar conserva el texto y el color de vencimientoDe"; "PR-1D12: sin entrega (maestro y admin) la fila no cambia: una vencida dice «Venció el …»". También `trabajo-view.test.tsx` (perspectivas de maestro y admin, sin cambio) |
+| PR-1D13 | `src/components/adjuntos/adjuntos-01d.test.tsx` › "PR-1D13: sin rutaDeArchivos, «Descargar» pide /api/clases/:claseId/archivos/:id/descarga, como siempre"; "PR-1D13: con rutaDeArchivos, «Descargar» pide la descarga a esa ruta"; "PR-1D13: useSolicitarSubida(claseId) y useUrlDeDescarga(claseId) siguen pidiendo las mismas URL" |
+| PR-1D14 | `src/features/tareas/entregas-01d.test.tsx` › "PR-1D14: «Detalles», «Tu trabajo» y «Comentarios privados», en ese orden, con el texto de privacidad de P-01" |
+
+- **Reloj:** `entregas-01d.test.tsx` y `fila-de-entrega-01d.test.tsx` fijan el reloj con `vi.useFakeTimers({ toFake: ["Date"] })` en `2030-01-10T12:00:00Z`. Las dos pruebas puras (PR-1D01 y PR-1D02) reciben `ahora` explícito o no dependen de la hora.
+- **Almacén:** usa un origen distinto del de la API.
+
+## Pruebas normales cambiadas
+
+Todas son de la lista cerrada (la viñeta de "Tu trabajo" de TAREAS-01 y la Enmienda 5). No toqué ninguna otra aserción.
+
+- **`features/clases/trabajo-view.test.tsx` › PR-1E01 (`:361`):** la fila vencida de la perspectiva del estudiante pasa de `/Venció el /` a `/Sin entregar/`, con un comentario que cita la Enmienda 5 y §D-9.8.
+- **`features/tareas/detalle-tarea-view.test.tsx`:**
+  - `stubApi` responde `GET …/entrega` con un doble válido (asignado, `puedeEntregar: true`) y `…/entrega/comentarios` con `{ comentarios: [], siguienteCursor: null }`.
+  - En "PR-1D05: el estudiante ve la tarea completa, «Tu trabajo» y ninguna acción de maestro", el encabezado pasa a `await screen.findByRole("heading", { name: "Tu trabajo" })`.
+  - En el mismo caso, el texto de TAREAS-01 pasa a `await screen.findByRole("button", { name: "Entregar tarea" })`.
+- **`app/router.test.tsx` › PR-1D07:** no cambió; pasa en verde.
+
+## Conteos
+
+| | Antes | Después | Comando |
+|---|---|---|---|
+| frontend | 153 archivos / 2271 pruebas | **158 / 2319** | `cd frontend; npx vitest list` (`grep -a -c " > "`; archivos únicos con `sed 's/ > .*//' \| sort -u`) |
+
+El aumento es de 5 archivos y 48 pruebas:
+
+| Archivo | Pruebas |
+|---|---|
+| `entregas-01d.test.tsx` | 30 |
+| `fila-de-entrega-01d.test.tsx` | 7 |
+| `estado-entrega-badge.test.tsx` | 5 |
+| `estado-de-entrega.test.ts` | 3 |
+| `adjuntos-01d.test.tsx` | 3 |
+
+## Verificación
+
+Corrí los pasos de uno en uno, sin el backend.
+
+| Paso | Comando | Resultado (última línea) |
+|---|---|---|
+| shared build | `cd shared; npm run build` | código 0 |
+| frontend lint | `cd frontend; npm run lint` | `> tsc -b` (ESLint y Prettier sin hallazgos) |
+| frontend test | `npm test > <scratchpad>/d-test-front.txt 2>&1`, código 0 | `Test Files  158 passed (158)` · `Tests  2319 passed (2319)` · `Duration  112.49s (transform 28.00s, setup 61.37s, import 287.76s, tests 527.64s, environment 286.65s)` |
+| frontend build | `npm run build` | `✓ built in 758ms` |
+| PA-07 | — | No aplica: no corrí el backend |
+
+## V-01
+
+**169/169** iguales a la tabla de la ronda 0 de 01d (incluye las reescrituras C-5 y C-11). Ninguna `*.ataque` cambió.
+
+## "No se toca"
+
+- **Dentro, contra `ec1c4b3`:** `git diff --stat ec1c4b3 --` sobre `services`, `app`, `styles`, `components/ui`, `components/layout`, `components/clase`, `mensaje-error`, `cargando`, `estado-vacio`, `lib/vencimiento.ts`, `lib/format.ts`, `lib/ruta-de-clase.ts`, `lib/errores-de-api.ts`, `vitest.config.ts`, `features/auth`, `features/admin`, `features/diagnostico`, `backend`, `shared`, los `package.json`, `ARCHITECTURE*`, `PRD.md`. Las `*.ataque` quedan fuera de esta comprobación; las cubre V-01. Resultado: **vacío**.
+- **Fuera, contra `dd8edcb`:** `AGENTS.md`, `CLAUDE.md`, `.claude/agents`, `infra`, `package*.json`: **vacío**.
+- **`features/clases`:** solo cambiaron `fila-de-entrega.tsx`, `seccion-de-tema.tsx`, `data.ts`, `lib.ts` y `types.ts` (A-3), `trabajo-view.test.tsx` (Enmienda 5) y la prueba nueva `fila-de-entrega-01d.test.tsx`.
+- **`components/adjuntos`:** solo agregados.
+
+## Hermanos y estados vecinos
+
+### Foco
+
+| Estado o camino | Destino del foco | Cubierto por |
+|---|---|---|
+| Tras entregar | `h3` "Tu trabajo" (el formulario desaparece) | PR-1D04 |
+| Tras anular | `h3` "Tu trabajo". Uso `mutateAsync` para que el foco no dependa de que `EntregaRealizada` siga montada | PR-1D10 |
+| Tras un `409` | La entrega se vuelve a pedir; si el botón que tenía el foco desaparece, va a la sección (`useFocoAlPerderseElControl`, la misma clave del detalle) | PR-1D07 (nueva lectura). Sin caso propio del foco: el gancho ya está probado en el detalle (T-09) |
+| Tras una subida fallida | Se queda en "Entregar tarea" (no desaparece) | PR-1D04 |
+| Tras quitar el último enlace | Al campo "Enlace"; con vecinos, al "Quitar" vecino | PR-1D05 |
+| Tras quitar el último archivo elegido | A "Adjuntar archivos"; con vecinos, al "Quitar" vecino | Sin caso propio; mismo mecanismo que el formulario de tarea |
+| Recarga que quita el botón enfocado ("Anular entrega" al pasar a cerrada o calificada, el formulario al aparecer una entrega de otra pestaña) | A la sección de "Tu trabajo" | Mismo gancho; sin caso propio |
+| Confirmación de anular | A "Cancelar" al pedirla; de vuelta a "Anular entrega" al cancelar | PR-1D10 |
+| "Ver más comentarios" que desaparece | Al primer comentario nuevo; sin nuevos, al `h3` del hilo | PR-1D11 |
+| Enviar comentario | De vuelta al campo | PR-1D11 |
+| Primera carga | No se mueve | — |
+
+### `enEspera` y guarda síncrona con ref en cada acción
+
+| Acción | Espera | Guarda | Cubierto por |
+|---|---|---|---|
+| "Entregar tarea" / "Marcar como completada" | `enProceso \|\| isPending` | `entregandoRef` | PR-1D04 (doble clic, Enter, `aria-busy`, sin `disabled`) |
+| "Sí, anular entrega" | Sí | `anulandoRef`; "Cancelar" no cierra en vuelo | PR-1D10 |
+| "Enviar comentario" | Sí | `enviandoRef` | PR-1D11 |
+| "Ver más comentarios" | `enEspera={isFetching}` | `pidiendoMasRef` y no pide mientras `isFetching` | PR-1D11, durante la recarga |
+| "Agregar enlace", "Quitar" y "Adjuntar archivos" | No esperan nada (estado local) | No actúan mientras se entrega (`fija`), con la nota `role="status"` | — |
+
+### Cierre y retraso en cada estado de la entrega
+
+| Situación | Qué muestra | Cubierto por |
+|---|---|---|
+| Sin entrega, abierta | Formulario | PR-1D03 |
+| Sin entrega, vencida con tardías | Formulario más la nota de retraso | PR-1D08 |
+| Sin entrega, cerrada | Solo la frase de cierre | PR-1D08 |
+| Entregada, abierta | Entrega más "Anular entrega" | PR-1D09, PR-1D10 |
+| Entregada, vencida con tardías | La frase de anular avisa del retraso | PR-1D10 |
+| Entregada, cerrada | Entrega con la frase de cierre, sin anular | PR-1D08 |
+| Calificada | "Tu entrega ya está calificada." sin anular | PR-1D10 |
+
+Lo que se muestra lo decide el servidor (`puedeEntregar`, `puedeAnular`); el cliente solo elige la frase y la nota.
+
+### Tarea con y sin `requiereAdjuntos`
+
+| Caso | Resultado | Cubierto por |
+|---|---|---|
+| Con adjuntos requeridos | Siempre "Entregar tarea"; vacía, error del grupo sin petición | PR-1D03, PR-1D06 |
+| Sin adjuntos requeridos | "Marcar como completada" mientras no haya nada, y "Entregar tarea" en cuanto hay un archivo o un enlace, también al volver a vaciar | PR-1D03 |
+| Sin adjuntos requeridos, entrega vacía | Aviso "Marcaste la tarea como completada" (lo decide el gancho por el cuerpo enviado) | — |
+| `ENTREGA_VACIA` del servidor | Se marca el grupo, sin aviso | PR-1D07 |
+
+### Fila de "Trabajo de clase"
+
+| Caso | Resultado | Cubierto por |
+|---|---|---|
+| Alumno: cada estado y la anulada vencida | Su texto y su color | PR-1D12 |
+| Alumno: pendiente o próxima sin entregar | Texto de `vencimientoDe` | PR-1D12 |
+| Maestro y admin (sin `entrega`) | La fila de siempre | PR-1D12 y `trabajo-view.test.tsx` |
+
+## Lo no verificado
+
+- **Lo visual en navegador:** 360 px con un enlace de 2048 caracteres, foco visible, lector de pantalla (H-7) y subida y descarga reales contra MinIO (H-1). Queda para la comprobación humana de 01e.
+- **Sin caso propio:** el foco al quitar el último archivo elegido y el foco cuando una recarga quita el botón enfocado (ambos usan mecanismos ya probados).
+
+
+# Resumen del programador — ENTREGAS-01d — Corrección de la ronda 1 (T-01 a T-03)
+
+**T-01, T-02 y T-03 quedan corregidos.**
+
+- No hubo PARADAS ni desviaciones.
+- No toqué `*.ataque` ni pruebas normales de la lista cerrada, `services/` ni ningún archivo de "No se toca".
+- No agregué ganchos nuevos ni `disabled`, y no cambié `enEspera` ni las guardas.
+- No hice commit ni abrí navegadores.
+
+## Cambio exacto por hallazgo
+
+**T-01 y T-02 (`features/tareas/hooks.ts`): una sola regla para lo que se renueva tras un error.**
+- `reaccionarAlErrorDeLaEntrega` pasa a ser `renovarTrasErrorDeLaEntrega`. La usan `useEntregar`, `useAnularEntrega` y ahora también `useComentarEnHilo`.
+- **409 de la entrega** (`esConflictoDeEntrega`: `ENTREGA_YA_REALIZADA`, `ENTREGA_NO_REALIZADA`, `ENTREGA_CALIFICADA`, `ENTREGA_CERRADA`): `Promise.all` de dos invalidaciones.
+  - `claveTarea(claseId, tareaId)`, por prefijo. La llave de la entrega cuelga de la de la tarea, así que se pide una vez la tarea y una vez la entrega.
+  - `clavePrefijoDelTrabajo(claseId)`.
+- **Otro código:** `pedirDeNuevoLaTarea`, la regla de las tareas con `CODIGOS_QUE_RENUEVAN_LA_TAREA`.
+  - Un 404 renueva el muro, "Trabajo de clase", los temas, las categorías y la tarea con su entrega.
+  - `EDICION_NO_PERMITIDA`, `BORRADO_NO_PERMITIDO` y `SIN_ACCESO_A_LA_CLASE` renuevan la tarea y su entrega.
+  - Los demás no renuevan nada.
+- `useComentarEnHilo` recibe `(claseId, tareaId, rutaDelHilo)`. Por eso `HiloPrivado` y su formulario suman las props `claseId` y `tareaId`, y `detalle-tarea-view.tsx` se las pasa.
+
+**T-03 (`features/tareas/components/campo-de-enlaces.tsx`).**
+- El `ErrorDeCampo` del servidor (`idErrorDelServidor`) entra en el `aria-describedby` del campo "Enlace".
+- `aria-invalid` del campo pasa a `error !== null || errorDelServidor !== null`.
+- El error se quita al cambiar los enlaces, como antes.
+
+**`docs/DESIGN.md` §7.24**, viñeta "Errores del servidor": dice qué se renueva ante un 409 y un 404 y la asociación del error de enlaces. Lleva la marca "propuesta (ENTREGAS-01d), ronda 1".
+
+## Pruebas nuevas
+
+Todas en `frontend/src/features/tareas/entregas-01d.test.tsx`, con el reloj fijo del archivo (`vi.useFakeTimers({ toFake: ["Date"] })`):
+
+- "Ronda 1: un 409 ENTREGA_CERRADA al entregar vuelve a pedir la tarea y la entrega (una vez cada una) y marca viejo «Trabajo de clase»; la insignia y «Detalles» dicen la tarea vigente"
+- "Ronda 1: un 409 al anular (ENTREGA_CERRADA y ENTREGA_NO_REALIZADA) vuelve a pedir la tarea y la entrega y marca viejo «Trabajo de clase», con un solo aviso"
+- "Ronda 1: %s al entregar no renueva nada: ni la tarea, ni la entrega, ni «Trabajo de clase»", en 6 filas: 400 ENTREGA_VACIA, 400 VALIDACION de enlaces.0, 400 VALIDACION de archivoIds, 400 ARCHIVO_INVALIDO, 503 ALMACEN_NO_CONFIGURADO y 500
+- "Ronda 1: un 404 TAREA_NO_ENCONTRADA al entregar avisa una vez y renueva la tarea: el detalle dice «Esa tarea ya no existe.» y el foco no queda en <body>"
+- "Ronda 1: un 404 TAREA_NO_ENCONTRADA al comentar en el hilo avisa una vez y renueva la tarea (el detalle dice «Esa tarea ya no existe.»); un VALIDACION del texto se marca bajo el campo, sin aviso ni renovación"
+- "Ronda 1 (T-03): el error de enlaces del servidor describe el campo «Enlace» y lo marca inválido; al cambiar los enlaces se quita"
+
+Las cuatro `*.ataque` rojas del tester (T-01, T-02 ×2 y T-03) pasan en verde, igual que sus controles.
+
+## Hermanos y estados vecinos
+
+### Al entregar (`useEntregar`)
+
+| Código | Se renueva | Se anuncia | Foco | ¿Desaparece un botón? |
+|---|---|---|---|---|
+| `409 ENTREGA_YA_REALIZADA` | Tarea, entrega y "Trabajo de clase" | Un aviso con el mensaje del servidor | A la sección "Tu trabajo" (`useFocoAlPerderseElControl`) | Sí: el formulario (pasa a la entrega hecha) |
+| `409 ENTREGA_CALIFICADA` | Igual | Igual | Igual | Sí: el formulario |
+| `409 ENTREGA_CERRADA` | Igual: la insignia, la nota y "Detalles" usan la tarea nueva | Igual | Igual | Sí: el formulario (pasa a la frase de cierre) |
+| `400 ENTREGA_VACIA` | Nada | `ErrorDeCampo` del grupo, que describe "Entregar tarea" o "Marcar como completada"; sin aviso | Se queda en el botón | No |
+| `VALIDACION` de `enlaces.N` | Nada | `ErrorDeCampo` bajo los enlaces, que describe el campo "Enlace" y lo marca inválido; sin aviso | Se queda en el botón | No |
+| `VALIDACION` de `archivoIds` | Nada | Un aviso con el mensaje sin prefijo | Se queda en el botón | No |
+| `404 TAREA_NO_ENCONTRADA` | Muro, "Trabajo de clase", temas, categorías, tarea y entrega | Un aviso; la vista pasa a "Esa tarea ya no existe." | A la raíz del detalle (`useFocoAlPerderseElControl`), nunca `<body>` | Sí: todo el detalle |
+| `ARCHIVO_INVALIDO` / `ARCHIVO_NO_SUBIDO` al entregar | Nada | Un aviso con su mensaje | Se queda en el botón | No |
+| Fallo al pedir la subida o al subir | Nada | Un aviso que nombra el archivo; no se llega al `POST …/entrega` | Se queda en el botón | No |
+| `503 ALMACEN_NO_CONFIGURADO` | Nada | Un aviso | Se queda en el botón | No |
+| 5xx o red | Nada | Un aviso genérico | Se queda en el botón | No |
+| `403 SIN_ACCESO_A_LA_CLASE` | Tarea y entrega | Un aviso; la vista pasa a "No tienes acceso a esta clase." | A la raíz | Sí |
+
+### Al anular (`useAnularEntrega`)
+
+| Código | Se renueva | Se anuncia | Foco | ¿Desaparece un botón? |
+|---|---|---|---|---|
+| `409 ENTREGA_NO_REALIZADA` | Tarea, entrega y "Trabajo de clase" | Un aviso | A la sección "Tu trabajo" | Sí: la confirmación (pasa al formulario) |
+| `409 ENTREGA_CALIFICADA` | Igual | Un aviso | Igual | Sí: la confirmación y "Anular" |
+| `409 ENTREGA_CERRADA` | Igual: la frase de cierre usa la tarea nueva | Un aviso | Igual | Sí |
+| `404 TAREA_NO_ENCONTRADA` | Muro, "Trabajo de clase", temas, categorías, tarea y entrega | Un aviso; la vista pasa a "Esa tarea ya no existe." | A la raíz | Sí |
+| 5xx o red | Nada | Un aviso | Se queda en "Sí, anular entrega"; la guarda se libera | No |
+
+### Al comentar en el hilo (`useComentarEnHilo`)
+
+| Código | Se renueva | Se anuncia | Foco | ¿Desaparece un botón? |
+|---|---|---|---|---|
+| `404 TAREA_NO_ENCONTRADA` | Lo mismo que al entregar | Un aviso; la vista pasa a "Esa tarea ya no existe." | A la raíz | Sí |
+| `VALIDACION` de `texto` | Nada | `ErrorDeCampo` con el mensaje del servidor (sin prefijo) bajo el campo, sin aviso | Se queda en "Enviar comentario" | No |
+| 5xx o red | Nada | Un aviso | Se queda | No |
+
+Un comentario correcto renueva solo el hilo (sin cambio).
+
+### `useEditarTarea` (01a)
+
+No cambia. Ya seguía la misma regla: `CODIGOS_QUE_RENUEVAN_LA_TAREA` con `pedirDeNuevoLaTarea`, y `409 TAREA_MODIFICADA` con la recarga de la vista. Como ahora `claveMiEntrega` cuelga de `claveTarea`, una renovación de la tarea desde la edición también marca vieja la entrega. Es inocuo: la edición no monta "Tu trabajo".
+
+## Conteos
+
+| Paquete | Antes | Después | Comando |
+|---|---|---|---|
+| frontend | 160 archivos / 2364 pruebas (con las `*.ataque` del tester) | **160 / 2375** (+11, todas en `entregas-01d.test.tsx`) | `cd frontend; npx vitest list` |
+
+## Verificación
+
+| Paso | Comando | Resultado |
+|---|---|---|
+| shared | `cd shared; npm run build` | código 0 |
+| frontend lint | `cd frontend; npm run lint` | `> tsc -b` |
+| frontend test | `npm test > <scratchpad>/r1d-test.txt 2>&1`, código 0 | `Test Files  160 passed (160)` · `Tests  2375 passed (2375)` · `Duration  125.63s (transform 35.49s, setup 70.02s, import 314.78s, tests 592.02s, environment 321.04s)` |
+| frontend build | `npm run build` | `✓ built in 757ms` |
+
+## V-01
+
+**171/171** iguales a la tabla de la ronda 1 de 01d, incluidas `entregas-01d-r1.ataque` y `fila-01d-r1.ataque`.
+
+## "No se toca"
+
+| Comparación | Rutas | Resultado |
+|---|---|---|
+| Dentro, contra `ec1c4b3` | `services`, `app`, `styles`, `components/ui`, `components/layout`, `components/clase`, `lib/vencimiento.ts`, `lib/format.ts`, `lib/ruta-de-clase.ts`, `lib/errores-de-api.ts`, `vitest.config.ts`, `features/auth`, `features/admin`, `features/diagnostico`, `backend`, `shared`, `package.json` | **vacío** |
+| Fuera, contra `dd8edcb` | `AGENTS.md`, `CLAUDE.md`, `.claude/agents`, `infra`, `package*.json` | **vacío** |
+
+Archivos tocados en esta ronda:
+- `features/tareas/hooks.ts`
+- `features/tareas/components/campo-de-enlaces.tsx`
+- `features/tareas/components/hilo-privado.tsx`
+- `features/tareas/detalle-tarea-view.tsx`
+- `features/tareas/entregas-01d.test.tsx`
+- `docs/DESIGN.md`
+
+
+# Resumen del programador — ENTREGAS-01d — Corrección de la ronda 2 (T-04 y T-05)
+
+Plan: `docs/trabajo/ENTREGAS-01-entregas-e-hilo-privado/plan.md` (Enmiendas 1 a 5), subentrega 01d, hallazgos de "Reporte del Tester — ENTREGAS-01d — Ronda 2".
+
+## Hallazgos atendidos
+
+- **T-04 — corregido.** Un solo mensaje por campo.
+  - `campo-de-enlaces.tsx`: prop nueva obligatoria `onDescartarErrorDelServidor: () => void`. Se llama al escribir en "Enlace" (`onChange`) y al intentar agregar (`agregar`, antes de validar, también si el enlace es inválido). Quitar un enlace ya lo descartaba (cambia la lista). Además, si el error local dice lo mismo que el del servidor, el del servidor no se pinta ni se nombra en `aria-describedby` (`errorDelServidorVisible`).
+  - `formulario-de-entrega.tsx`: `handleDescartarErrorDeEnlaces = () => setErrorDeEnlaces(null)`, pasado a `CampoDeEnlaces`.
+  - Hermano aplicado, `hilo-privado.tsx` (`FormularioDelHilo`): el error del texto que da el servidor vive en su propio estado (`errorDelServidor`), se descarta al escribir y al volver a enviar; bajo el campo hay un solo `ErrorDeCampo` (`error ?? errorDelServidor`).
+- **T-05 — corregido.** Un solo aviso por error, con el mecanismo de `features/tareas` y sin ganchos nuevos.
+  - `hilo-privado.tsx`, `handleVerMas`: no avisa si el hilo ya no está montado (`montadoRef`, puesto y quitado en un `useEffect` del componente), si el error reemplaza la vista (`errorQueReemplazaLaVista(true, error)`) o si `apiClient` ya redirigió (`errorQueRedirigeElCliente`, nuevo en `lib.ts`, con `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` en `data.ts`: `ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`, `NO_AUTENTICADO`).
+  - `hooks.ts`, `useHiloPrivado(claseId, tareaId, rutaDelHilo)` (firma ampliada del gancho existente, no es un gancho nuevo): si una página del hilo falla, pasa el error por `pedirDeNuevoLaTarea` (regla T-11). Así un `404`/`403` de "Ver más comentarios" sin otra petición en vuelo no queda mudo: la tarea se renueva y la vista dice su mensaje.
+  - `hooks.ts`, `avisarDelErrorDeLaEntrega` (función, no gancho): el aviso de `useEntregar`, `useAnularEntrega` y `useComentarEnHilo`. Un error que reemplaza la vista se avisa una vez por la consulta de la tarea (WeakMap por instancia de la caché con su `dataUpdatedAt`, el mismo mecanismo que `useAvisoDeRecargaFallida`); los demás errores avisan cada uno. `renovarTrasErrorDeLaEntrega(` sigue con tres llamadas.
+
+## Pruebas nuevas
+
+Archivo `frontend/src/features/tareas/entregas-01d.test.tsx`, describe "un mensaje por campo y un aviso por error (ronda 2, T-04 y T-05)", reloj fijo (`vi.useFakeTimers({ toFake: ["Date"] })` del `beforeEach` del archivo):
+
+1. "Ronda 2 (T-04): con el error de enlaces del servidor puesto, escribir en «Enlace» lo descarta: el campo deja de estar inválido y su descripción ya no lo nombra"
+2. "Ronda 2 (T-04): si el error local y el del servidor dicen lo mismo, el texto aparece una sola vez y la descripción del campo no repite ids"
+3. "Ronda 2 (T-04, hermano): el error del texto que da el servidor al comentar se descarta al escribir; queda un solo mensaje bajo el campo"
+4. "Ronda 2 (T-05): «Ver más comentarios» con un 404 TAREA_NO_ENCONTRADA no avisa: la tarea se renueva y el detalle dice «Esa tarea ya no existe.»"
+5. "Ronda 2 (T-05): «Ver más comentarios» con un 503 y el hilo montado avisa una vez y no renueva la tarea"
+6. "Ronda 2 (T-05): «Ver más comentarios» que responde un 503 después de que el hilo se desmontó no avisa"
+7. "Ronda 2 (T-05): «Ver más comentarios» con un 403 ACCESO_RESTRINGIDO: apiClient redirige y no hay aviso"
+8. "Ronda 2 (T-05, hermano): entregar y comentar a la vez con el mismo 404 dan un solo aviso y el detalle dice «Esa tarea ya no existe.»"
+9. "Ronda 2 (T-05, hermano): anular con «Ver más comentarios» en vuelo, los dos con 404, da un solo aviso"
+10. "Ronda 2 (T-05, hermano): «Ver más comentarios» con un 503 mientras un 409 al entregar renueva la entrega: un aviso por cada error"
+
+Las dos pruebas rojas del tester pasan ahora: `entregas-01d-r2.ataque.test.tsx` › "ataque ENTREGAS-01d r2: errores de enlaces del cliente y del servidor a la vez (T-r2-3)" › "con el error del servidor puesto, un enlace inválido escrito a mano: el mismo texto no aparece dos veces y aria-describedby no repite ids", y › "ataque ENTREGAS-01d r2: comentar con errores (T-r2-4)" › "TAREA_NO_ENCONTRADA al comentar con «Ver más comentarios» en vuelo que también responde 404: un solo aviso". No se tocó ninguna `*.ataque`.
+
+## Hermanos y estados vecinos
+
+### T-04 (mensaje por campo)
+
+| Hermano o estado | Aplica | Estado |
+|---|---|---|
+| "Enlace": escribir con el error del servidor puesto | aplica | aplicado (prueba 1) |
+| "Enlace": intentar agregar (válido o inválido) con el error del servidor puesto | aplica | aplicado (`agregar`; prueba roja del tester) |
+| "Enlace": quitar un enlace | aplica | ya lo hacía (`handleCambiarEnlaces`); prueba del tester "quitar el enlace que rechazó el servidor…" |
+| "Enlace": error local previo idéntico al que luego da el servidor | aplica | aplicado (dedupe por texto; prueba 2) |
+| "Enlace": con la lista fija (entrega en vuelo) | no aplica | `agregar` y `quitar` no actúan; escribir sí descarta, y el `catch` pone el error nuevo |
+| Archivos elegidos (`errorDeArchivos`) | no aplica | solo hay error local (un estado); los errores de archivos del servidor son avisos |
+| Grupo "Entregar tarea" con `ENTREGA_VACIA` | no aplica | un solo estado booleano para el local y el del servidor: nunca dos mensajes; se quita al agregar archivos o enlaces |
+| Comentario del hilo, `VALIDACION texto` | aplica | aplicado (prueba 3) |
+| 01a "Cómo se entrega" (`formulario-tarea.tsx`) | no aplica | un solo mapa `errores` por campo: el local reemplaza al del servidor, nunca dos mensajes. Descartarlo al cambiar sería un cambio de comportamiento de TAREAS/01a, fuera de esta ronda (anotado abajo) |
+
+### T-05 (un aviso por error)
+
+| Hermano o estado | Aplica | Estado |
+|---|---|---|
+| Comentar 404 con "Ver más" en vuelo que responde 404 después | aplica | aplicado (`montadoRef` y reemplazo de vista; prueba roja del tester) |
+| Igual con `403 SIN_ACCESO_A_LA_CLASE` | aplica | aplicado (mismo camino: `errorQueReemplazaLaVista`) |
+| "Ver más" responde 404 antes que el comentario | aplica | aplicado: "Ver más" no avisa y el comentario avisa una vez |
+| "Ver más" solo, con 404 | aplica | aplicado: sin aviso, la tarea se renueva y la vista dice su mensaje (prueba 4) |
+| "Ver más" con 5xx o red, hilo montado | aplica | sigue avisando una vez (prueba 5) |
+| "Ver más" que responde con el hilo desmontado | aplica | aplicado (prueba 6) |
+| "Ver más" con `ACCESO_RESTRINGIDO` / `CAMBIO_DE_CONTRASENA_REQUERIDO` / `401` con refresco fallido | aplica | aplicado: sin aviso (prueba 7 para el primero; los otros dos por el mismo código) |
+| "Ver más" con 5xx mientras un 409 al entregar renueva la entrega | aplica | un aviso por cada error (prueba 10) |
+| "Ver más" con 409 | no aplica | un `GET` no responde 409 de la entrega |
+| Entregar y comentar a la vez con el mismo 404 | aplica | aplicado (`avisarDelErrorDeLaEntrega`; prueba 8) |
+| Anular con "Ver más" en vuelo, los dos 404 | aplica | aplicado (prueba 9) |
+| Entregar y anular a la vez | no aplica | no pueden coexistir: la zona muestra el formulario o la entrega hecha |
+| Zona de entrega con la entrega en recarga y un 404 | no aplica | la consulta de la entrega no avisa (con datos deja ver la última; sin datos, `MensajeError` en la sección); el aviso lo da solo la mutación |
+| Dos mutaciones con errores distintos que no reemplazan la vista (p. ej. 503 y 409) | no aplica el dedupe | son dos errores: un aviso cada uno |
+| Mutaciones con `ACCESO_RESTRINGIDO` | no cambiado | `apiClient` navega con recarga completa; el aviso que puedan dar los ganchos sigue el patrón de todo el proyecto (anotado en la ronda 1) |
+| `useEditarTarea` / `useBorrarTarea` | no aplica | fuera de 01d; no cambiaron |
+
+## Verificación (de uno en uno)
+
+- `cd shared; npm run build` → última línea `> tsc -p tsconfig.json` (código 0).
+- `cd frontend; npm run lint` → última línea `> tsc -b` (código 0).
+- `cd frontend; npm run test` (salida a archivo) → `Test Files  161 passed (161)` · `Tests  2408 passed (2408)` · última línea `Duration  103.61s (transform 27.49s, setup 69.43s, import 221.26s, tests 452.24s, environment 317.00s)`.
+- `cd frontend; npm run build` → última línea `✓ built in 702ms` (código 0).
+
+## Conteos
+
+- `cd frontend; npx vitest list` → 2408 casos (líneas con `.test.ts(x) > `) en 161 archivos. Antes: 161 / 2398. Diferencia: +10 casos, 0 archivos; todos en `entregas-01d.test.tsx` (41 → 51; `grep -c "entregas-01d.test.tsx"` sobre la lista).
+
+## V-01
+
+SHA-256 de las `*.ataque` (`git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | xargs sha256sum`) contra la "Tabla de SHA-256 de las 172 `*.ataque` al cierre de la ronda 2 de 01d" de `reporte-tester.md`: **172/172 coinciden**, sin archivos de más ni de menos.
+
+## "No se toca"
+
+- **Dentro, contra `ec1c4b3`:** `git diff --stat ec1c4b3 --` sobre `services`, `app`, `styles`, `components/ui`, `components/layout`, `components/clase`, `mensaje-error`, `cargando`, `estado-vacio`, `lib/vencimiento.ts`, `lib/format.ts`, `lib/ruta-de-clase.ts`, `lib/errores-de-api.ts`, `vitest.config.ts`, `features/auth`, `features/admin`, `features/diagnostico`, `backend`, `shared`, los `package.json`, `ARCHITECTURE*`, `PRD.md` (sin las `*.ataque`, que cubre V-01): **vacío**. Sin archivos sin seguimiento en esas rutas.
+- **Fuera, contra `dd8edcb`:** `AGENTS.md`, `CLAUDE.md`, `.claude/agents`, `infra`, `package*.json`: **vacío**.
+
+## Archivos modificados en esta ronda
+
+`frontend/src/features/tareas/components/campo-de-enlaces.tsx`, `frontend/src/features/tareas/components/formulario-de-entrega.tsx`, `frontend/src/features/tareas/components/hilo-privado.tsx`, `frontend/src/features/tareas/hooks.ts`, `frontend/src/features/tareas/lib.ts`, `frontend/src/features/tareas/data.ts`, `frontend/src/features/tareas/entregas-01d.test.tsx`, `docs/DESIGN.md` (§7.24 "Errores del servidor" y §7.25 "Ver más comentarios" y formulario, marcadas "propuesta (ENTREGAS-01d), ronda 2").
+
+## Desviaciones del plan
+
+Ninguna. `useHiloPrivado` amplía su firma (recibe `claseId` y `tareaId`, como `useComentarEnHilo`); no es un gancho nuevo.
+
+## Pendiente o fuera de alcance
+
+- 01a "Cómo se entrega" y los demás campos del formulario de tarea conservan el error del servidor hasta el siguiente envío (un solo mensaje, nunca dos). Descartarlo al cambiar el campo sería otro encargo.
+- Dos mutaciones que fallan a la vez con el mismo error que no reemplaza la vista (p. ej. dos 503) dan un aviso cada una, con el mismo texto.

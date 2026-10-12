@@ -150,14 +150,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // features/clases/components/ en 3 (admin, 2). Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 49 enEspera", () => {
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 53 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(49)
+    expect(usos).toHaveLength(53)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -241,6 +241,19 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/categorias-view.tsx": 0,
       "/src/features/clases/components/elemento-de-trabajo.tsx": 0,
       "/src/features/clases/components/fila-de-entrega.tsx": 0,
+      // ENTREGAS-01d ronda 0 (C-11, §D-R0 «01d y 01e»; §D-9.1 a §D-9.6 del plan de ENTREGAS-01): de 49 a
+      // 53. Esperan "Entregar tarea" o "Marcar como completada" (un solo botón, §D-9.3), "Sí, anular
+      // entrega" (§D-9.4, en la entrega realizada) y, en el hilo, "Ver más comentarios" y "Enviar
+      // comentario" (§D-9.6). "Tu trabajo", el campo de enlaces, la lista de enlaces y la insignia
+      // del estado no llevan enEspera=. Sigue protegiendo que el número y el lugar de los botones con
+      // espera cambien solo con el plan.
+      "/src/features/tareas/components/formulario-de-entrega.tsx": 1,
+      "/src/features/tareas/components/entrega-realizada.tsx": 1,
+      "/src/features/tareas/components/hilo-privado.tsx": 2,
+      "/src/features/tareas/components/tu-trabajo.tsx": 0,
+      "/src/features/tareas/components/campo-de-enlaces.tsx": 0,
+      "/src/features/tareas/components/lista-de-enlaces.tsx": 0,
+      "/src/components/estado-entrega-badge.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

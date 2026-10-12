@@ -550,3 +550,12 @@ export const CLASES_DEL_CUADRO_DE_FECHA = {
   proxima: { cuadro: "bg-warning-soft text-warning", estado: "text-warning" },
   vencida: { cuadro: "bg-muted text-muted-foreground", estado: "text-muted-foreground" },
 } as const
+
+// ENTREGAS-01d (§D-9.8, DESIGN.md §7.7): la fila del alumno según el estado de su entrega. "Asignado"
+// no tiene colores propios: usa los del vencimiento (CLASES_DEL_CUADRO_DE_FECHA).
+export const CLASES_DEL_CUADRO_DE_ENTREGA = {
+  entregado: { cuadro: "bg-success-soft text-success", estado: "text-success" },
+  calificado: { cuadro: "bg-success-soft text-success", estado: "text-success" },
+  "entregado-con-retraso": { cuadro: "bg-warning-soft text-warning", estado: "text-warning" },
+  "sin-entregar": { cuadro: "bg-danger-soft text-danger", estado: "text-danger" },
+} as const

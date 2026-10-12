@@ -59,6 +59,18 @@ const tareaConId = (extra: Record<string, unknown> = {}) => ({
   },
 })
 
+const MI_ENTREGA = {
+  entrega: {
+    estado: "asignado",
+    fechaEntrega: null,
+    conRetraso: false,
+    enlaces: [],
+    adjuntos: [],
+    puedeEntregar: true,
+    puedeAnular: false,
+  },
+}
+
 interface Llamada {
   metodo: string
   url: string
@@ -75,6 +87,11 @@ const stubApi = (
       const metodo = init?.method ?? "GET"
       llamadas.push({ metodo, url: String(entrada) })
       if (metodo === "DELETE") return Promise.resolve(alBorrar())
+      // ENTREGAS-01d (Enmienda 5): la entrega del alumno y su hilo privado, con dobles válidos.
+      if (String(entrada).endsWith("/entrega"))
+        return Promise.resolve(respuestaJson(200, MI_ENTREGA))
+      if (String(entrada).includes("/entrega/comentarios"))
+        return Promise.resolve(respuestaJson(200, { comentarios: [], siguienteCursor: null }))
       return Promise.resolve(alVer())
     }),
   )
@@ -131,12 +148,8 @@ describe("PR-1D05: detalle de una tarea", () => {
     expect(
       screen.getByText("No se aceptan entregas después de la fecha límite"),
     ).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Tu trabajo" })).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        "Todavía no puedes entregar desde Campus Digital. Sigue las indicaciones de tu maestro para entregar esta tarea.",
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Tu trabajo" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "Entregar tarea" })).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Editar tarea" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Borrar tarea" })).not.toBeInTheDocument()
   })

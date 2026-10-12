@@ -110,8 +110,6 @@ export const TEXTOS_DETALLE_TAREA = {
   entregaConAdjuntos: "Con archivos o enlaces",
   entregaMarcandoCompletada: "Se marca como completada (los archivos son opcionales)",
   tuTrabajo: "Tu trabajo",
-  tuTrabajoTexto:
-    "Todavía no puedes entregar desde Campus Digital. Sigue las indicaciones de tu maestro para entregar esta tarea.",
   editar: "Editar tarea",
   borrar: "Borrar tarea",
   confirmarBorrar: "Se borrará con su rúbrica y sus adjuntos.",
@@ -155,7 +153,70 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   // ENTREGAS-01a (P-05 a′, §D-8.3.1): el único aviso del 409 es el toast de useEditarTarea.onError,
   // con el mensaje del servidor. No renueva la tarea desde el hook: la recarga la hace la vista.
   "TAREA_MODIFICADA",
+  // ENTREGAS-01d (§D-9.3 y §D-9.4): los de la entrega ya vienen en español (§D-7 del plan).
+  "ENTREGA_YA_REALIZADA",
+  "ENTREGA_NO_REALIZADA",
+  "ENTREGA_CALIFICADA",
+  "ENTREGA_CERRADA",
+  "ENTREGA_VACIA",
 ]
+
+// ENTREGAS-01d (§D-9.3): los 409 de la entrega dicen que la que se ve ya no es la de ahora (se entregó
+// en otra pestaña, se calificó o se cerró): avisan con el mensaje del servidor y se vuelve a pedir.
+export const CODIGOS_DE_CONFLICTO_DE_ENTREGA: readonly string[] = [
+  "ENTREGA_YA_REALIZADA",
+  "ENTREGA_NO_REALIZADA",
+  "ENTREGA_CALIFICADA",
+  "ENTREGA_CERRADA",
+]
+
+// ENTREGAS-01d (§D-9, "Textos de la interfaz (01d)"; tono de DESIGN.md §9).
+export const TEXTOS_TU_TRABAJO = {
+  cargando: "Cargando tu entrega…",
+  entregar: "Entregar tarea",
+  marcarComoCompletada: "Marcar como completada",
+  vacia: "Agrega al menos un archivo o un enlace para entregar.",
+  campoEnlace: "Enlace",
+  ayudaEnlaces: "Hasta 5 enlaces que empiecen con https:// o http://.",
+  agregarEnlace: "Agregar enlace",
+  topeDeEnlaces: "Ya agregaste 5 enlaces. Quita uno para agregar otro.",
+  enlacesAgregados: "Enlaces agregados",
+  enlacesDeLaEntrega: "Enlaces de la entrega",
+  quitar: "Quitar",
+  otraPestana: "(se abre en otra pestaña)",
+  notaDeRetraso: "La fecha límite ya pasó. Tu entrega quedará marcada con retraso.",
+  cerrada: "La fecha límite ya pasó y esta tarea no acepta entregas con retraso.",
+  entregaste: (fecha: string, hora: string) => `Entregaste el ${fecha} a las ${hora}`,
+  marcasteComoCompletada: (fecha: string, hora: string) =>
+    `Marcaste como completada el ${fecha} a las ${hora}`,
+  calificada: "Tu entrega ya está calificada.",
+  anular: "Anular entrega",
+  confirmarAnular: "Se quitarán tus archivos y enlaces. Podrás volver a entregar.",
+  confirmarAnularConRetraso:
+    "Se quitarán tus archivos y enlaces. Si vuelves a entregar, quedará marcada con retraso.",
+  siAnular: "Sí, anular entrega",
+  cancelar: "Cancelar",
+  avisoEntregada: "Tarea entregada",
+  avisoCompletada: "Marcaste la tarea como completada",
+  avisoAnulada: "Entrega anulada",
+  listaFija: "Mientras se entrega no puedes cambiar los archivos ni los enlaces.",
+} as const
+
+// ENTREGAS-01d (§D-9.6, "Textos de la interfaz (Hilo privado)"; P-01 a).
+export const TEXTOS_HILO_PRIVADO = {
+  titulo: "Comentarios privados",
+  privacidadDelAlumno: "Solo tú, tus maestros y la administración pueden verlos.",
+  vacio: "Aún no hay comentarios privados.",
+  cargando: "Cargando los comentarios privados…",
+  campo: "Comentario privado",
+  enviar: "Enviar comentario",
+  escribeTuComentario: "Escribe tu comentario",
+  verMas: "Ver más comentarios",
+  lista: "Comentarios privados",
+} as const
+
+// ENTREGAS-01d (§D-9.6): los comentarios del hilo se piden de 20 en 20 (como en el servidor).
+export const LIMITE_DEL_HILO = 20
 
 // T-08: los códigos que dicen que las opciones que el formulario ofrecía ya no son las de la clase
 // (se borró la categoría o el tema, o la clase ganó categorías): qué lista se vuelve a pedir.
@@ -169,6 +230,14 @@ export const OPCIONES_QUE_CAMBIARON_POR_CODIGO: Readonly<Record<string, "categor
 // ahora (se borró, cambió un permiso o se perdió el acceso): al borrar o guardar, la consulta de la
 // tarea se vuelve a pedir para que la vista reaccione. Solo TAREA_NO_ENCONTRADA toca además el muro, el
 // trabajo de clase, los temas y las categorías (la tarea ya no está en ninguna lista).
+// ENTREGAS-01d, ronda 2 (T-05): los errores con que apiClient ya saca a la persona de la vista (acceso
+// restringido, cambio de contraseña obligatorio, sesión perdida). Quien los recibe no avisa.
+export const CODIGOS_QUE_REDIRIGE_EL_CLIENTE: readonly string[] = [
+  "ACCESO_RESTRINGIDO",
+  "CAMBIO_DE_CONTRASENA_REQUERIDO",
+  "NO_AUTENTICADO",
+]
+
 export const CODIGOS_QUE_RENUEVAN_LA_TAREA: readonly string[] = [
   "TAREA_NO_ENCONTRADA",
   "EDICION_NO_PERMITIDA",

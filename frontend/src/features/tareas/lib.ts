@@ -1,16 +1,22 @@
 import { crearTareaSchema, normalizarTextoLargo } from "@campus/shared"
 
 import { erroresDeFormularioDeApi, quitarPrefijoDeCampo } from "@/lib/errores-de-api"
+import { formatearFechaLarga } from "@/lib/format"
 import { esApiError } from "@/services/apiClient"
+import { claveTarea } from "@/services/trabajoService"
 
 import {
   CAMPO_DE_CADA_CODIGO,
   CAMPOS_DEL_FORMULARIO,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  CODIGOS_DE_CONFLICTO_DE_ENTREGA,
+  CODIGOS_QUE_REDIRIGE_EL_CLIENTE,
+  LIMITE_DEL_HILO,
   MENSAJES_ERROR_TAREAS,
   MENSAJES_POR_CODIGO_DE_TAREAS,
   PUNTOS_PROPUESTOS,
   TEXTOS_FORMULARIO_TAREA,
+  TEXTOS_TU_TRABAJO,
 } from "./data"
 import type {
   CriterioDelFormulario,
@@ -207,6 +213,10 @@ export const errorQueReemplazaLaVista = (hayTarea: boolean, error: unknown): boo
   return error.message.startsWith("claseId:") || error.message.startsWith("tareaId:")
 }
 
+// ENTREGAS-01d, ronda 2 (T-05): un error con que apiClient ya redirigió (CODIGOS_QUE_REDIRIGE_EL_CLIENTE).
+export const errorQueRedirigeElCliente = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_QUE_REDIRIGE_EL_CLIENTE.includes(error.codigo)
+
 // T-13: el aviso de una recarga fallida con el formulario de edición abierto. Sin conexión, o con un
 // 5xx (la API caída o un error interno: para la interfaz es lo mismo, DEC-12 de apiClient y la prueba
 // de ataque de M-01 lo fijan así), dice que revise la conexión; cualquier otra respuesta del servidor
@@ -281,3 +291,79 @@ export const claveDeFocoDeLaTarea = (tareaId: string, consulta: MomentoDeLaConsu
     consulta.errorUpdatedAt,
     consulta.errorUpdateCount,
   ].join(":")
+
+// ENTREGAS-01d (§D-9.9): la llave de la entrega del alumno cuelga de la de la tarea (una renovación de
+// la tarea la renueva también) y la del hilo, de su ruta (la del alumno o la de un alumno para sus
+// maestros, 01e).
+export const claveMiEntrega = (claseId: string, tareaId: string) =>
+  [...claveTarea(claseId, tareaId), "entrega"] as const
+
+export const claveHilo = (rutaDelHilo: string) => ["hilo-privado", rutaDelHilo] as const
+
+// Las rutas de la entrega del alumno que llama (sin :alumnoId: el servidor usa su sesión).
+export const rutaDeMiEntrega = (claseId: string, tareaId: string): string =>
+  `/api/clases/${claseId}/tareas/${tareaId}/entrega`
+
+export const rutaDeMiHilo = (claseId: string, tareaId: string): string =>
+  `${rutaDeMiEntrega(claseId, tareaId)}/comentarios`
+
+// La página de un hilo privado (20 por página, como el servidor).
+export const rutaDePaginaDelHilo = (rutaDelHilo: string, cursor: string | undefined): string => {
+  const consulta = new URLSearchParams({ limite: String(LIMITE_DEL_HILO) })
+  if (cursor !== undefined) consulta.set("cursor", cursor)
+  return `${rutaDelHilo}?${consulta.toString()}`
+}
+
+// P-02 (a): con la tarea vigente, ya es tarde (después de la fecha límite; a tiempo hasta su
+// milisegundo, como el servidor) y, sin entregas tardías, la entrega está cerrada. El servidor decide
+// con su propio reloj; esto solo elige qué frase mostrar.
+export const yaEsTarde = (fechaLimiteIso: string, ahora: Date): boolean =>
+  ahora.getTime() > new Date(fechaLimiteIso).getTime()
+
+export const entregaCerradaAhora = (
+  tarea: { fechaLimite: string; aceptaTardias: boolean },
+  ahora: Date,
+): boolean => !tarea.aceptaTardias && yaEsTarde(tarea.fechaLimite, ahora)
+
+const horaLocal = (fecha: Date): string =>
+  new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(
+    fecha,
+  )
+
+// S-13: "Entregaste el lunes 6 de octubre a las 14:30", o "Marcaste como completada el …" si la entrega
+// no lleva archivos ni enlaces. En la zona local del navegador. null si no hay fecha de entrega.
+export const fraseDeEntrega = (entrega: {
+  fechaEntrega: string | null
+  adjuntos: readonly unknown[]
+  enlaces: readonly string[]
+}): string | null => {
+  if (entrega.fechaEntrega === null) return null
+  const fecha = new Date(entrega.fechaEntrega)
+  if (Number.isNaN(fecha.getTime())) return null
+  const vacia = entrega.adjuntos.length === 0 && entrega.enlaces.length === 0
+  if (vacia)
+    return TEXTOS_TU_TRABAJO.marcasteComoCompletada(formatearFechaLarga(fecha), horaLocal(fecha))
+  return TEXTOS_TU_TRABAJO.entregaste(formatearFechaLarga(fecha), horaLocal(fecha))
+}
+
+// §D-9.3: un 409 de la entrega (ya realizada, no realizada, calificada o cerrada).
+export const esConflictoDeEntrega = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_DE_CONFLICTO_DE_ENTREGA.includes(error.codigo)
+
+export const esEntregaVacia = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "ENTREGA_VACIA"
+
+// Un VALIDACION de un campo con nombre compuesto ("enlaces.1: mensaje", "texto: mensaje"): el
+// mensaje sin el prefijo técnico, o null si el error no es de ese campo.
+const errorDelCampoDeApi = (error: unknown, campo: RegExp): string | null => {
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
+  const coincidencia = campo.exec(error.message)
+  if (coincidencia === null) return null
+  return error.message.slice(coincidencia[0].length)
+}
+
+export const errorDeEnlacesDeApi = (error: unknown): string | null =>
+  errorDelCampoDeApi(error, /^enlaces(\.\d+)?:\s*/)
+
+export const errorDeTextoDeApi = (error: unknown): string | null =>
+  errorDelCampoDeApi(error, /^texto:\s*/)

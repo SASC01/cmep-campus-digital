@@ -13,16 +13,22 @@ import { formatearFechaHora } from "@/lib/format"
 
 import { AccionesDeLaTarea } from "./components/acciones-de-la-tarea"
 import { DetallesDeLaTarea } from "./components/detalles-de-la-tarea"
+import { HiloPrivado } from "./components/hilo-privado"
 import { RubricaDeSoloLectura } from "./components/rubrica-de-solo-lectura"
 import { TuTrabajo } from "./components/tu-trabajo"
-import { MENSAJES_ERROR_TAREAS, TEXTOS_DETALLE_TAREA } from "./data"
+import { MENSAJES_ERROR_TAREAS, TEXTOS_DETALLE_TAREA, TEXTOS_HILO_PRIVADO } from "./data"
 import {
   useAvisoDeRecargaFallida,
   useFocoAlPerderseElControl,
   useRutaDeLaClase,
   useTarea,
 } from "./hooks"
-import { claveDeFocoDeLaTarea, errorQueReemplazaLaVista, mensajeDeErrorTareas } from "./lib"
+import {
+  claveDeFocoDeLaTarea,
+  errorQueReemplazaLaVista,
+  mensajeDeErrorTareas,
+  rutaDeMiHilo,
+} from "./lib"
 
 interface DetalleDeLaTareaProps {
   claseId: string
@@ -30,7 +36,8 @@ interface DetalleDeLaTareaProps {
 }
 
 // §D-10, DESIGN.md §7.20: el detalle de una tarea. Dos columnas desde 1024 px (la tarea a la izquierda,
-// sus detalles y acciones a la derecha) y una debajo de ese ancho. El alumno ve "Tu trabajo"; el
+// sus detalles y acciones a la derecha) y una debajo de ese ancho. El alumno ve "Tu trabajo" y sus
+// "Comentarios privados" (ENTREGAS-01d); el
 // maestro y el admin ven "Editar tarea" y "Borrar tarea" según lo que diga el servidor. Estados en
 // orden: error → cargando → datos (un 404 dice "Esa tarea ya no existe.").
 function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
@@ -103,7 +110,17 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
 
         <div className="flex flex-col gap-5">
           <DetallesDeLaTarea tarea={tarea} />
-          {perspectiva === "estudiante" && <TuTrabajo />}
+          {/* ENTREGAS-01d (§D-9.7): "Detalles", "Tu trabajo" y "Comentarios privados", en ese orden. */}
+          {perspectiva === "estudiante" && <TuTrabajo claseId={claseId} tarea={tarea} />}
+          {perspectiva === "estudiante" && (
+            <HiloPrivado
+              claseId={claseId}
+              tareaId={tarea.id}
+              rutaDelHilo={rutaDeMiHilo(claseId, tarea.id)}
+              puedeEscribir
+              textoDePrivacidad={TEXTOS_HILO_PRIVADO.privacidadDelAlumno}
+            />
+          )}
           {perspectiva !== "estudiante" && (
             <AccionesDeLaTarea claseId={claseId} tarea={tarea} base={base} />
           )}

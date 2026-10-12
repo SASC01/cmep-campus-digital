@@ -10,9 +10,13 @@ import {
   erroresDeFormularioDeApi,
   quitarPrefijoDeCampo,
 } from "@/lib/errores-de-api"
+import { estadoDeEntregaVisible, TEXTOS_ESTADO_DE_ENTREGA } from "@/lib/estado-de-entrega"
+import { vencimientoDe } from "@/lib/vencimiento"
 import { esApiError } from "@/services/apiClient"
 
 import {
+  CLASES_DEL_CUADRO_DE_ENTREGA,
+  CLASES_DEL_CUADRO_DE_FECHA,
   CLAVE_SIN_TEMA,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   MENSAJES_ERROR_CLASES_GENERALES,
@@ -30,6 +34,7 @@ import type {
   Categoria,
   ControlDeOrden,
   CuadroDeFecha,
+  ElementoDeTrabajo,
   ErroresFormulario,
   FilaDeCategoria,
   IncidenciaValidacion,
@@ -39,6 +44,7 @@ import type {
   RolDeClases,
   SeccionDeClase,
   SeccionDeTrabajo,
+  SegundaLineaDeLaFila,
 } from "./types"
 
 // TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
@@ -471,4 +477,24 @@ export const filasDelServidor = (
       llavePorId.get(fila.llave.toLowerCase()) ?? llavePorNombre.get(claveDeNombre(fila.nombre))
     return llave === undefined ? fila : { ...fila, llave }
   })
+}
+
+// ENTREGAS-01d (§D-9.8, DESIGN.md §7.7): la segunda línea de una fila de "Trabajo de clase" y sus
+// colores. Sin `entrega` (maestro y admin) o con una tarea pendiente sin entregar (asignado), el texto
+// y el color del vencimiento de siempre; para el alumno, el estado de su entrega en palabras
+// ("Entregado", "Entregado con retraso", "Calificado" o "Sin entregar"). Puro: recibe `ahora`.
+export const segundaLineaDeLaFila = (
+  fechaLimite: string,
+  entrega: ElementoDeTrabajo["entrega"] | undefined,
+  ahora: Date,
+): SegundaLineaDeLaFila => {
+  const vencimiento = vencimientoDe(fechaLimite, ahora)
+  const deVencimiento = {
+    texto: vencimiento.texto,
+    colores: CLASES_DEL_CUADRO_DE_FECHA[vencimiento.estado],
+  }
+  if (entrega === undefined) return deVencimiento
+  const estado = estadoDeEntregaVisible(entrega, fechaLimite, ahora)
+  if (estado === "asignado") return deVencimiento
+  return { texto: TEXTOS_ESTADO_DE_ENTREGA[estado], colores: CLASES_DEL_CUADRO_DE_ENTREGA[estado] }
 }

@@ -495,11 +495,34 @@ const NUEVOS = Object.entries(fuentes).filter(
 )
 
 describe("ataque TAREAS-01d r1: revisión estática de lo nuevo (sin hallazgo esperado)", () => {
-  it("sin fetch(, console., ?? [], dangerouslySetInnerHTML, target=_blank ni emojis; features/tareas no importa de features/clases y viceversa", () => {
+  // ENTREGAS-01d ronda 0 (C-5, §D-R0; §D-9.5 y S-08 del plan de ENTREGAS-01): el enlace de una entrega
+  // lleva a un sitio externo, y abrirlo en la misma pestaña sacaría a la persona de la entrega y del
+  // hilo a medio leer. Por eso target="_blank" deja de estar prohibido en features/tareas, con dos
+  // condiciones: solo puede vivir en components/lista-de-enlaces.tsx, y cada elemento que lo lleva
+  // trae rel="noopener noreferrer" en el mismo elemento (corta window.opener y no envía el Referer con
+  // la URL interna). Lo demás que protege el caso no cambia.
+  it("sin fetch(, console., ?? [], dangerouslySetInnerHTML ni emojis; target=_blank solo en lista-de-enlaces.tsx y siempre con rel=noopener noreferrer en el mismo elemento; features/tareas no importa de features/clases y viceversa", () => {
     expect(NUEVOS.length).toBeGreaterThan(15)
     const prohibido =
-      /\bfetch\(|console\.|\?\?\s*\[\s*\]|dangerouslySetInnerHTML|target=["']_blank|\p{Extended_Pictographic}/u
+      /\bfetch\(|console\.|\?\?\s*\[\s*\]|dangerouslySetInnerHTML|\p{Extended_Pictographic}/u
     expect(NUEVOS.filter(([, texto]) => prohibido.test(texto)).map(([ruta]) => ruta)).toEqual([])
+    const conTarget = NUEVOS.filter(([, texto]) => /target=\{?["'`]_blank/.test(texto))
+    expect(
+      conTarget
+        .map(([ruta]) => ruta)
+        .filter((ruta) => ruta !== "/src/features/tareas/components/lista-de-enlaces.tsx"),
+    ).toEqual([])
+    const sinRel = conTarget.flatMap(([ruta, texto]) =>
+      [...texto.matchAll(/target=\{?["'`]_blank/g)]
+        .map(({ index }) => {
+          const apertura = texto.lastIndexOf("<", index)
+          const cierre = texto.indexOf(">", index)
+          return texto.slice(apertura, cierre === -1 ? undefined : cierre + 1)
+        })
+        .filter((elemento) => !/\brel=\{?["'`]noopener noreferrer["'`]/.test(elemento))
+        .map((elemento) => `${ruta}: ${elemento.slice(0, 80)}`),
+    )
+    expect(sinRel).toEqual([])
     const cruzadas = Object.entries(fuentes)
       .filter(([ruta]) => !/\.test\.tsx?$/.test(ruta))
       .filter(

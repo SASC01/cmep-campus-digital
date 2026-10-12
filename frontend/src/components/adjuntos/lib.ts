@@ -81,3 +81,7 @@ export const avisoDeFalloAlSubir = (
   const motivo = error.codigo === "ARCHIVO_INVALIDO" ? error.message : mensajeDeError(error)
   return TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)
 }
+
+// ENTREGAS-01d (§D-9.1): la ruta de archivos de una clase (subida y descarga de materiales, anuncios y
+// tareas). La de una entrega la arma quien la usa (…/tareas/:tareaId/entrega o …/entregas/:alumnoId).
+export const rutaDeArchivosDeLaClase = (claseId: string): string => `/api/clases/${claseId}`

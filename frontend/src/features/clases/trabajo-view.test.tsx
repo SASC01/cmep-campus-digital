@@ -358,7 +358,8 @@ describe("TrabajoView: el estudiante (PR-1E01)", () => {
     const proyecto = screen.getByRole("link", { name: /^Tarea: Proyecto/ })
     expect(proyecto).toHaveTextContent(/Vence el /)
     const cuestionario = screen.getByRole("link", { name: /^Tarea: Cuestionario/ })
-    expect(cuestionario).toHaveTextContent(/Venció el /)
+    // ENTREGAS-01d (Enmienda 5, §D-9.8): sin entrega y vencida, la fila del alumno dice "Sin entregar".
+    expect(cuestionario).toHaveTextContent(/Sin entregar/)
   })
 
   it("PR-1E01 · un material se despliega con «Ver material» y muestra su texto y sus adjuntos", async () => {

@@ -429,3 +429,21 @@ descarta primero los archivos de las entregas (la FK `NO ACTION` de `archivos.en
 `500` si quedara uno) y después los de la publicación, y borra la publicación: la cascada se lleva la
 tarea, sus entregas (también las `asignado`) y sus hilos privados. No hay un borrado explícito de
 `entregas`.
+
+## El hilo privado en `db/entregas.ts` (ENTREGAS-01c, §D-4)
+
+Los comentarios del hilo son filas de `comentarios` con `entrega_id` y `publicacion_id` nulo (`CHECK`
+de un solo contexto); se llega a ellos por la entrega, que se llega por la tarea, que se filtra por la
+clase. `listarHiloPrivado` corre en una instantánea única (los usos de la opción en `entregas.ts`
+pasan a 4): la tarea, el alumno de la ruta si se pide (rutas de los maestros: inscrito con cuenta
+activa), la entrega (sin fila, el hilo está vacío y no se crea; un cursor sin fila es `400`), el cursor
+comprobado contra la misma entrega y la página por el índice `(entrega_id, creado_en, id)`, del más
+antiguo al más reciente. `comentarEnHiloPrivado` corre en READ COMMITTED: reutiliza
+`bloquearTareaParaEntregar` (el único `FOR KEY SHARE` del archivo; choca con el `FOR UPDATE` de
+`borrarTarea`, así que un borrado confirmado antes deja el comentario en `404` y uno en curso espera
+al comentario y después lo borra en cascada), comprueba el alumno de la ruta si se pide, crea la fila
+perezosa de la entrega con `asegurarFilaDeEntrega` sin bloquearla (comentar no cambia ni el estado
+ni la versión de la entrega, S-15), inserta el comentario y llama a `alGuardar(sql, { entregaId })`.
+La firma del autor (`firmaDelAutor`) y `propio` se arman aquí; el rol del autor nunca sale. Las
+lecturas y borrados del muro filtran por `publicacionId` o por `publicacion: { claseId }`, que un
+comentario privado nunca cumple.

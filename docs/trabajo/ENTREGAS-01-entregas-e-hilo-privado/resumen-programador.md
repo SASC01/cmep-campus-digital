@@ -643,3 +643,220 @@ Comparé el SHA-256 de las `*.ataque` contra la tabla de la ronda 1 de 01b en `r
 - `git diff --stat 82888dd --` sobre las mismas rutas de la entrega anterior (middleware, adapters protegidos, config, workers, `referencias.ts`, `handlers/archivos.ts`, ayudas compartidas de `backend/test/`, `package.json`, servicios y librerías protegidas del frontend, `features/tareas`, `backend/prisma`, `docs/ARCHITECTURE*.md`, `PRD.md` y `DESIGN.md`) → **vacío**.
 - `git diff --stat dd8edcb -- AGENTS.md CLAUDE.md .claude/agents infra package.json package-lock.json` → **vacío**.
 - Archivos tocados en esta corrección: `shared/src/entregas.ts` y `backend/test/esquemas-entregas.test.ts`.
+
+
+# Resumen del programador — ENTREGAS-01c — Implementación
+
+Hice los 5 pasos de 01c.
+
+- **Plan:** `plan.md`, LISTO.
+- **Base de comparación:** `159cc7e` dentro de los paquetes y `dd8edcb` fuera.
+- **Sin cambios de este tipo:** ninguna PARADA, ninguna desviación, ninguna migración, ninguna dependencia nueva y ningún commit.
+- **Pruebas existentes:** no toqué ninguna `*.ataque` ni ninguna prueba normal; la lista cerrada de 01c no hizo falta.
+
+## Pasos
+
+### 1. Esquemas en `shared/`
+
+En `shared/src/entregas.ts`:
+- `comentarioPrivadoSchema`: `z.strictObject` con `id`, `texto`, `autor` (`autorDelMuroSchema`), `creadoEn` y `propio`. No lleva `puedeBorrar` (S-04).
+- `comentarioPrivadoRespuestaSchema` y `listaComentariosPrivadosRespuestaSchema`, ambos estrictos.
+- Sus tipos, reexportados en `shared/src/index.ts`.
+
+El cuerpo de un comentario reutiliza `crearComentarioSchema` de `clases.ts`: de 1 a 1000 caracteres visibles. Los nombres nuevos no entran en el patrón de la regla de 7 esquemas de `entregas-01b-r1`, como prevé el manager. `npm run build` de `shared` pasa.
+
+### 2. Evento del comentario
+
+En `backend/src/core/eventos/avisos-de-clase.ts`:
+- `datosComentarioCreadoSchema` pasa a ser `z.union([datosComentarioDelMuroSchema, datosComentarioPrivadoSchema])`: dos `z.strictObject` con llaves distintas (`publicacionId` o `entregaId`).
+- `DatosComentarioCreado` conserva el nombre y la forma del muro, y se suman los alias `DatosComentarioDelMuro` y `DatosComentarioPrivado`.
+- `core/eventos/avisos-de-clase.test.ts` no cambió y sigue en verde.
+
+PR-1C08 está en `backend/src/core/eventos/comentario-creado.test.ts`, que es nuevo.
+
+### 3. Adaptador del hilo
+
+En `backend/src/adapters/db/entregas.ts`:
+- **`listarHiloPrivado`** corre en una instantánea única. Es el cuarto literal `instantaneaUnica: true` del archivo (`grep -c` da 4) y ninguno está en comentarios. Lee, en este orden:
+  - la tarea, por `(id, clase_id)`;
+  - el alumno de la ruta, solo si `comprobarInscripcion` (inscripción por PK, cuenta activa, rol estudiante);
+  - la entrega. Sin fila, el hilo sale vacío y no se crea; un cursor sin fila responde `400`;
+  - el cursor, comprobado contra `(id, entrega_id)`;
+  - la página, por `(entrega_id, creado_en, id)` en orden ascendente.
+- **`comentarEnHiloPrivado`** corre en READ COMMITTED. Pasos:
+  - reutiliza `bloquearTareaParaEntregar`, así que `FOR KEY SHARE` sigue apareciendo una sola vez (`grep -c` da 1);
+  - comprueba al alumno, si aplica;
+  - crea la fila perezosa con `asegurarFilaDeEntrega`, sin bloquearla. Eso cumple S-15: comentar no cambia el estado ni la versión de la entrega;
+  - crea el comentario;
+  - llama a `alGuardar(sql, { entregaId })`.
+- La firma (`firmaDelAutor`) y `propio` se arman en el adaptador. El rol nunca sale y ninguna selección toca el correo, el estado de pago ni la restricción.
+- Reexportes en `backend/src/adapters/db/index.ts`.
+
+### 4. Handler y registro
+
+`backend/src/handlers/tareas/hilo-privado.ts` es nuevo (`hiloPrivadoHandler`) y se registra en `backend/src/app.ts` después de `entregasHandler`. Tiene las 4 rutas con la cadena exacta de "Autorización":
+
+| Ruta | `roles` | Sexto paso |
+|---|---|---|
+| `GET` y `POST …/entrega/comentarios` | `["estudiante"]` | `inscripcion` |
+| `GET …/entregas/:alumnoId/comentarios` | `["maestro", "admin"]` | `propiedad` |
+| `POST …/entregas/:alumnoId/comentarios` | `["maestro"]` | `propiedad` |
+
+- El texto pasa por `conTextosNormalizados` y `crearComentarioSchema`.
+- El aviso se encola en la transacción con `encolar(COLA_COMENTARIO_CREADO, { comentarioId, entregaId, claseId }, { id, sql })`; el id del comentario es el id del trabajo.
+- El handler no compara rol ni relación, no lee `.rol`, no usa Prisma ni SQL y no llama a `cancelar(`.
+
+Pruebas nuevas:
+- `backend/test/hilo-privado.integracion.test.ts`
+- `backend/test/hilo-privado-concurrencia.integracion.test.ts`
+- `backend/test/hilo-privado-autorizacion.integracion.test.ts`
+
+### 5. README y verificación
+
+- `backend/src/handlers/README.md`: viñeta de `tareas/hilo-privado.ts`.
+- `backend/src/adapters/README.md`: sección "El hilo privado en `db/entregas.ts`".
+- `lint`, `test` y `build` de cada paquete, de uno en uno (ver "Verificación").
+
+Rojos esperados de la ronda 0 (C-1 a C-4 y C-9): ya pasan. También pasan `entregas-01b-r1` y `entregas-01b-r2`, con la regla de `FOR KEY SHARE` una sola vez y la de los 7 esquemas.
+
+## Pruebas requeridas → archivo y título exacto
+
+| Viñeta | Archivo › título exacto |
+|---|---|
+| PR-1C01 | `backend/test/hilo-privado.integracion.test.ts` › "PR-1C01: sin fila de entrega responde un hilo vacío y no crea la fila"; "PR-1C01: con comentarios, en orden ascendente, con propio correcto y la firma del autor (Administración para el admin, sin rol)"; "PR-1C01: pagina de 20 en 20 con cursor, sin repetir ni saltar"; "PR-1C01: un cursor de otro hilo (de otro alumno o de otra tarea), de un comentario del muro o sin fila de entrega responde 400 VALIDACION" |
+| PR-1C02 | mismo archivo › "PR-1C02: sin fila la crea en asignado (versión 0), responde 201 y encola un COMENTARIO_CREADO con id = id del comentario y solo ids"; "PR-1C02: con la entrega entregada, calificada o cerrada, comentar no cambia su estado ni su versión (S-15)"; "PR-1C02: texto vacío, solo invisibles o de 1001 caracteres visibles responde 400 sin crear fila ni comentario ni trabajo; 1000 visibles se aceptan" |
+| PR-1C03 | mismo archivo › "PR-1C03: el maestro lista y comenta en el hilo de un alumno inscrito; el alumno lo ve con propio falso y el otro maestro de la clase también lo ve"; "PR-1C03: alumno de otra clase, dado de baja, desactivado, inexistente o un maestro como :alumnoId responden 404 ALUMNO_NO_ENCONTRADO al leer y al escribir, sin crear fila, comentario ni trabajo" |
+| PR-1C04 | mismo archivo › "PR-1C04: el alumno no llega al hilo de otro: su ruta usa su propio id y la de los maestros le responde 403"; "PR-1C04: las rutas del muro no ven, no cuentan ni borran un comentario privado". Cubre la lista del muro (conteo de la tarea en 0), los comentarios de un anuncio y de la tarea, `DELETE …/mis-comentarios/:id` y `DELETE …/publicaciones/:publicacionId/comentarios/:id` sobre el anuncio y sobre la tarea, con alumno, maestro y admin: `404` y el comentario sigue |
+| PR-1C05 | mismo archivo › "PR-1C05: el admin lee el hilo de un alumno de cualquier clase y escribir le responde 403 sin crear fila, comentario ni trabajo" |
+| PR-1C06 | mismo archivo › "PR-1C06: con la tarea ya borrada, comentar (alumno y maestro) y leer responden 404 TAREA_NO_ENCONTRADA sin dejar comentario ni entrega huérfanos"; "PR-1C06: una tarea de otra clase responde 404 TAREA_NO_ENCONTRADA al leer y al comentar". Carreras, en `backend/test/hilo-privado-concurrencia.integracion.test.ts` › "PR-1C06: el borrado retiene la tarea y un comentario del alumno que llega espera y responde 404 TAREA_NO_ENCONTRADA, sin comentario, sin fila de entrega y sin trabajo" (la parte de PR-1B22 bis que pidió el manager, con `formadasDetrasDe`); "PR-1C06: lo mismo con el comentario del maestro en el hilo del alumno y el borrado del admin con ?confirmar=entregas: 404 sin comentario ni fila"; "PR-1C06: el comentario llega primero (retiene la tarea con su bloqueo de llave) y el borrado del maestro sin parámetro espera; al confirmar, el comentario responde 201 y el borrado 204, y el hilo se va con la tarea"; "PR-1C06: con una entrega realizada, el comentario primero y el borrado del maestro después responde 409 TAREA_CON_ENTREGAS, y el comentario y la entrega se conservan sin cambiar la versión" |
+| PR-1C07 | `backend/test/hilo-privado-autorizacion.integracion.test.ts` › "PR-1C07: son las cuatro rutas del hilo de la tabla de Autorización"; "PR-1C07: cada ruta: sin token, 401 NO_AUTENTICADO"; "PR-1C07: rol incorrecto: maestro y admin en las del alumno, el alumno en las de los maestros y el admin al escribir como maestro reciben 403 ROL_NO_PERMITIDO sin escribir"; "PR-1C07: clase ajena y clase inexistente responden igual: 403 SIN_ACCESO_A_LA_CLASE"; "PR-1C07: cada ruta: el alumno restringido recibe 403 ACCESO_RESTRINGIDO y no deja comentario, fila de entrega ni trabajo (tampoco en el hilo del restringido)"; "PR-1C07: cada ruta: con cambio de contraseña pendiente, 403 CAMBIO_DE_CONTRASENA_REQUERIDO"; "PR-1C07: con los ids de la ruta en mayúsculas, el alumno escribe y lee, el maestro escribe y lee y el admin lee"; "PR-1C07: ninguna respuesta de este archivo (de ningún rol, también las de error) contiene estadoPago, deudor, al_corriente, accesoRestringido, el rol ni un correo" (los alumnos de la clase son deudores) |
+| PR-1C08 | `backend/src/core/eventos/comentario-creado.test.ts` › "PR-1C08: acepta la forma del muro y la del hilo privado, y cada una solo encaja en su esquema"; "PR-1C08: rechaza una forma con publicacionId y entregaId a la vez, una sin ninguno y una con llaves de más"; "PR-1C08: los ids deben ser uuid en las dos formas" |
+
+Todas las viñetas tienen caso. Las retenciones usan `conFilaDeEntregasRetenida` (`timeout: 30_000`) y ninguna prueba toma `LOCK TABLE`.
+
+## Pruebas normales cambiadas
+
+Ninguna.
+
+## Conteos
+
+| Paquete | Antes | Después | Comando |
+|---|---|---|---|
+| backend | 187 archivos / 2378 pruebas | **191 / 2407** | `cd backend; npx vitest list` (`grep -a -c " > "`; archivos únicos con `sed 's/ > .*//' \| sort -u`) |
+| frontend | — | **2271 pruebas**, sin cambio | `cd frontend; npx vitest list` |
+
+El backend suma 4 archivos y 29 pruebas: `comentario-creado.test.ts` (3), `hilo-privado.integracion` (14), `hilo-privado-concurrencia.integracion` (4) y `hilo-privado-autorizacion.integracion` (8).
+
+## Verificación
+
+| Paquete | Paso | Comando | Última línea |
+|---|---|---|---|
+| shared | build | `cd shared; npm run build` | código 0 |
+| shared | lint | `npm run lint` | `All matched files use Prettier code style!` |
+| backend | lint | `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` |
+| backend | test | `npm test > <scratchpad>/c-test-back.txt 2>&1` (16:58:24Z a 17:00:40Z, código 0) | `Test Files  191 passed (191)` · `Tests  2407 passed (2407)` · `Duration  130.56s (transform 16.95s, setup 5.45s, import 217.51s, tests 1057.69s, environment 70ms)` |
+| backend | build | `npm run build` | `> tsc -p tsconfig.json` |
+| frontend | lint | `cd frontend; npm run lint` | `> tsc -b` |
+| frontend | test | `npm test` | `Test Files  153 passed (153)` · `Tests  2271 passed (2271)` · `Duration  154.86s (transform 38.16s, setup 116.23s, import 388.41s, tests 611.36s, environment 508.54s)` |
+| frontend | build | `npm run build` | `✓ built in 1.29s` |
+
+La primera corrida de `npm run lint` del backend cayó por formato en `hilo-privado.ts`. Lo formateé con `npx prettier --write` solo en ese archivo y la segunda corrida quedó en verde.
+
+## PA-07
+
+Atribución con `pa07-tester.mjs` sobre `c-test-back.txt`. **PA-07 limpia.**
+
+| Término | Cuenta |
+|---|---|
+| `40P01` | 0 |
+| `deadlock detected` | 0 |
+| `could not serialize` | 0 |
+| `too many clients` | 0 |
+| `Unable to start a transaction` | 0 |
+| `"Error no controlado"` | 10, exactamente I-1 |
+| `"code":"P2028"` | 5, los permitidos |
+
+- **I-1:** 6 de `POST /api/auth/login`, 3 `ZodError` de T-39 y 1 `boom`.
+- **Control positivo completo:** los 3 de `servicio-ocupado` (`cambiar-contrasena`, `refrescar` y los comentarios del muro, mismo `pid`) y los 2 de `cuentas-r3` (`login` y `restablecer`).
+- Ninguna línea sale de las rutas del hilo ni de sus carreras.
+
+## V-01
+
+Contra la tabla de 168 de la ronda 0 de 01c en `reporte-tester.md`: **168/168 iguales**, sin faltantes ni sobrantes.
+
+## "No se toca"
+
+- Dentro de los paquetes, `git diff --stat 159cc7e --` sobre middleware, los adaptadores protegidos, `adapters/db/publicaciones.ts`, `adapters/queue`, `referencias.ts`, `cliente.ts`, `errores.ts`, `bloqueo-clase.ts`, `core/autoria.ts`, `core/clases`, `handlers/clases`, `handlers/archivos.ts`, `validacion.ts`, `errores.ts`, las ayudas de `backend/test/` (incluida `ayudas-entregas.ts`), `.env.example`, `package.json`, `frontend/` completo, `backend/prisma`, `docs/ARCHITECTURE*.md`, `PRD.md` y `DESIGN.md`: **vacío**.
+- Fuera de los paquetes, `git diff --stat dd8edcb -- AGENTS.md CLAUDE.md .claude/agents infra package.json package-lock.json`: **vacío**.
+- Archivos tocados en 01c:
+  - **Modificados:** `shared/src/entregas.ts`, `shared/src/index.ts`, `backend/src/core/eventos/avisos-de-clase.ts`, `backend/src/adapters/db/entregas.ts`, `backend/src/adapters/db/index.ts`, `backend/src/app.ts` y los dos README.
+  - **Nuevos:** `backend/src/handlers/tareas/hilo-privado.ts` y los 4 archivos de pruebas.
+
+## Hermanos y estados vecinos
+
+### Comentar según el estado de la entrega y el actor
+
+| Estado de la entrega | Alumno (su hilo) | Maestro (hilo del alumno) | Admin |
+|---|---|---|---|
+| Sin fila | `201`; crea la fila en `asignado`, versión 0 (PR-1C02) | `201`; crea la fila (PR-1C03) | Lee: hilo vacío y no la crea (PR-1C05); escribir: `403` sin fila (PR-1C05) |
+| Fila en `asignado` | `201` sin cambiar la fila (PR-1C06, en carrera) | Mismo camino | Lee |
+| `entregado` | `201`; estado, versión y `actualizado_en` sin cambio (PR-1C02) | Mismo camino: no bloquea ni escribe la entrega | Lee |
+| `calificado` | `201` sin cambio (PR-1C02) | Mismo camino | Lee |
+| Cerrada (sin tardías y vencida), con fila | `201` sin cambio (PR-1C02) | Mismo camino | Lee |
+| Cerrada, sin fila | `201`; la fila nace en `asignado` (PR-1C02) | Mismo camino | — |
+
+Por qué el hilo no cambia la entrega: no mira el cierre ni el estado (S-04) y, salvo crear la fila si falta, nunca la escribe.
+
+### El alumno de la ruta en las rutas de los maestros
+
+Inscrito y activo responde `200`/`201`. Responden `404 ALUMNO_NO_ENCONTRADO`, sin fila, comentario ni trabajo, al leer y al escribir (PR-1C03):
+- un alumno de otra clase;
+- un alumno dado de baja, aunque tenga fila de entrega;
+- un alumno desactivado;
+- un id inexistente;
+- un maestro como `:alumnoId`.
+
+El alumno restringido no llega a ninguna ruta, tampoco a su propio hilo: `403` sin escritura (PR-1C07).
+
+### La tarea borrada antes y después
+
+| Caso | Resultado | Prueba |
+|---|---|---|
+| Borrada antes | `404 TAREA_NO_ENCONTRADA` al leer y al comentar, para alumno, maestro y admin, sin huérfanos | PR-1C06 |
+| De otra clase | `404` | PR-1C06 |
+| El borrado retiene la tarea y el comentario llega (alumno, o maestro con el admin borrando con el parámetro) | `404` sin comentario, fila ni trabajo | PR-1C06 |
+| El comentario retiene la tarea y llega el borrado del maestro | `201` y después `204`: el hilo se va en cascada con la tarea | PR-1C06 |
+| Lo mismo con una entrega realizada | `201` y `409 TAREA_CON_ENTREGAS`, y se conservan el comentario y la versión | PR-1C06 |
+
+Ningún caso dio `500`, `P2003` ni deadlock.
+
+### Cursor del hilo
+
+Responden `400 VALIDACION` "cursor: no es válido", igual en la ruta del alumno y en la de los maestros (PR-1C01):
+- un cursor de otro alumno;
+- un cursor de otra tarea;
+- un comentario del muro;
+- un cursor sin fila de entrega.
+
+La paginación es de 20 por defecto y hasta 100 (PR-1C01). Que el comentario del cursor se borre en medio no puede pasar en 01c, porque no hay borrado de comentarios privados (S-04). La comprobación y la página comparten instantánea igual.
+
+### Texto en la frontera
+
+Responden `400` sin fila, comentario ni trabajo (PR-1C02):
+- vacío;
+- solo espacios;
+- solo invisibles (`U+200B`, `U+2800`);
+- 1001 caracteres visibles;
+- un cuerpo sin `texto`;
+- `texto` que no es cadena.
+
+1000 visibles entre saltos de línea se aceptan después de `normalizarTextoLargo` (PR-1C02). Es la misma regla del muro: `crearComentarioSchema` mide después de normalizar, que solo acorta (el hermano de T-01 ya revisado).
+
+### Aislamiento frente al muro
+
+Las cinco rutas de comentarios del muro (lista, conteo, `GET`, los dos `DELETE`) no ven, no cuentan ni borran un comentario privado (PR-1C04). No hizo falta cambiar `publicaciones.ts`.
+
+## Observaciones y lo no verificado
+
+- Los esquemas de respuesta del hilo son `z.strictObject`, pero la regla estática de 7 esquemas de `entregas-01b-r1` no los nombra (lo anotó el tester para su ronda 1).
+- **No verificado:** el hilo en un navegador. Queda para la comprobación humana de 01e (H-5).

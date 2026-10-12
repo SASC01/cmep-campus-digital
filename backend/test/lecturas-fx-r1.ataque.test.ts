@@ -755,7 +755,7 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
     expect(rc.niveles).toEqual(Array.from({ length: CONEXIONES_DEL_POOL }, () => "read committed"))
   }, 60_000)
 
-  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las once lecturas (cuatro de clases, dos del muro, dos de tareas y tres de entregas)", () => {
+  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las doce lecturas (cuatro de clases, dos del muro, dos de tareas y cuatro de entregas)", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const archivos = readdirSync(raiz, { recursive: true, encoding: "utf8" })
       .map((ruta) => ruta.split(sep).join("/"))
@@ -808,7 +808,8 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       // leerMiEntrega, listarEntregas y leerEntregaDeAlumno corren en la instantánea única. El conteo
       // es del texto del archivo, con sus comentarios (O-2 de la revisión de la Enmienda 1). Lo demás
       // que protege el caso no cambia.
-      "adapters/db/entregas.ts:3",
+      // ENTREGAS-01c ronda 0 (C-2, §D-R0; §D-4): listarHiloPrivado suma la cuarta lectura de entregas.ts.
+      "adapters/db/entregas.ts:4",
       "adapters/db/publicaciones.ts:2",
       "adapters/db/tareas.ts:2",
     ])

@@ -999,6 +999,8 @@ describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
     expect(handlers.map(({ ruta }) => ruta).sort()).toEqual([
       "handlers/tareas/categorias.ts",
       "handlers/tareas/entregas.ts",
+      // ENTREGAS-01c ronda 0 (C-9, regla 2): el handler del hilo privado; la regla prohibido no cambia.
+      "handlers/tareas/hilo-privado.ts",
       "handlers/tareas/tareas.ts",
       "handlers/tareas/temas.ts",
     ])
@@ -1007,7 +1009,13 @@ describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
     expect(handlers.filter(({ codigo }) => prohibido.test(codigo)).map(({ ruta }) => ruta)).toEqual(
       [],
     )
-    const PUEDEN_ENCOLAR = ["handlers/tareas/entregas.ts", "handlers/tareas/tareas.ts"]
+    // ENTREGAS-01c ronda 0 (C-9, regla 3a): el hilo encola COMENTARIO_CREADO en alGuardar (§D-5);
+    // cancelar( sigue siendo solo de tareas.ts (regla 3b, sin cambio).
+    const PUEDEN_ENCOLAR = [
+      "handlers/tareas/entregas.ts",
+      "handlers/tareas/hilo-privado.ts",
+      "handlers/tareas/tareas.ts",
+    ]
     expect(
       handlers
         .filter(({ ruta }) => !PUEDEN_ENCOLAR.includes(ruta))

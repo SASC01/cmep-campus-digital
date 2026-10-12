@@ -13,14 +13,33 @@ export const datosPublicacionCreadaSchema = z.strictObject({
   claseId: z.uuid(),
 })
 
-export const datosComentarioCreadoSchema = z.strictObject({
+export const datosComentarioDelMuroSchema = z.strictObject({
   comentarioId: z.uuid(),
   publicacionId: z.uuid(),
   claseId: z.uuid(),
 })
 
+// ENTREGAS-01c (§D-5): la misma cola sirve al hilo privado. Dos objetos estrictos con llaves
+// distintas (publicacionId o entregaId): ningún dato encaja en los dos, y uno con las dos llaves, sin
+// ninguna o con llaves de más no encaja en ninguno. Para NOTIFICACIONES: el aviso del hilo va a la
+// contraparte (los maestros de la clase si escribió el alumno; el alumno si escribió un maestro) y
+// termina sin avisar si el comentario ya no existe (la tarea se borró con sus entregas).
+export const datosComentarioPrivadoSchema = z.strictObject({
+  comentarioId: z.uuid(),
+  entregaId: z.uuid(),
+  claseId: z.uuid(),
+})
+
+export const datosComentarioCreadoSchema = z.union([
+  datosComentarioDelMuroSchema,
+  datosComentarioPrivadoSchema,
+])
+
 export type DatosPublicacionCreada = z.infer<typeof datosPublicacionCreadaSchema>
-export type DatosComentarioCreado = z.infer<typeof datosComentarioCreadoSchema>
+// El tipo del muro conserva su nombre y su forma; DatosComentarioDelMuro es un alias.
+export type DatosComentarioCreado = z.infer<typeof datosComentarioDelMuroSchema>
+export type DatosComentarioDelMuro = DatosComentarioCreado
+export type DatosComentarioPrivado = z.infer<typeof datosComentarioPrivadoSchema>
 
 export const colaDePublicacion = (tipo: "anuncio" | "material"): string =>
   tipo === "anuncio" ? COLA_PUBLICACION_CREADA : COLA_MATERIAL_CREADO

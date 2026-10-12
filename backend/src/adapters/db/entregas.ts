@@ -1,4 +1,5 @@
 import { prefijoDeEntrega } from "../../core/archivos/politica.js"
+import { firmaDelAutor } from "../../core/autoria.js"
 import {
   accionesDeEntrega,
   alumnoNoEncontrado,
@@ -550,3 +551,166 @@ export const leerEntregaDeAlumno = (
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<EntregaDeAlumnoDb | null> =>
   enTransaccion(ejecutor, (tx) => leerEntregaDeAlumnoCon(tx, params), { instantaneaUnica: true })
+
+// ENTREGAS-01c (§D-4). El hilo privado de una entrega: comentarios con entrega_id y publicacion_id
+// nulo, del más antiguo al más reciente, por el índice (entrega_id, creado_en, id). Se llega siempre
+// por la entrega, que se llega por la tarea, que se filtra por la clase. Las rutas del muro filtran
+// por publicacionId o por la relación con la publicación, que un comentario privado nunca cumple.
+
+export interface ComentarioPrivadoDb {
+  id: string
+  texto: string
+  // Ya firmado (firmaDelAutor): el rol nunca sale.
+  autor: { id: string; nombre: string; administracion: boolean }
+  creadoEn: Date
+  // Si lo escribió quien pide la lista.
+  propio: boolean
+}
+
+export interface ListaComentariosPrivadosDb {
+  comentarios: ComentarioPrivadoDb[]
+  siguienteCursor: string | null
+}
+
+// Mismo código y mensaje que los demás cursores: uno de otro hilo, de otra tarea o del muro responde
+// igual que uno inexistente (sin oráculo).
+const errorCursorInvalido = (): AppError => new AppError("VALIDACION", "cursor: no es válido", 400)
+
+const SELECT_COMENTARIO_PRIVADO = {
+  id: true,
+  texto: true,
+  creadoEn: true,
+  autor: { select: { id: true, nombre: true, rol: true } },
+} as const
+
+const comentarioPrivadoDe = (
+  fila: {
+    id: string
+    texto: string
+    creadoEn: Date
+    autor: { id: string; nombre: string; rol: "estudiante" | "maestro" | "admin" }
+  },
+  actorId: string,
+): ComentarioPrivadoDb => ({
+  id: fila.id,
+  texto: fila.texto,
+  autor: firmaDelAutor(fila.autor),
+  creadoEn: fila.creadoEn,
+  propio: fila.autor.id === actorId,
+})
+
+// Sentencias una tras otra: la tarea (null si no existe en la clase), el alumno de la ruta si se pide
+// (rutas de los maestros: inscrito con cuenta activa, ALUMNO_NO_ENCONTRADO), la entrega (sin fila, el
+// hilo está vacío y no se crea; un cursor sin fila es 400), el cursor contra esta misma entrega y la
+// página. No escribe nada.
+const listarHiloPrivadoCon = async (
+  db: Ejecutor,
+  {
+    claseId,
+    tareaId,
+    alumnoId,
+    comprobarInscripcion,
+    cursor,
+    limite,
+    actorId,
+  }: {
+    claseId: string
+    tareaId: string
+    alumnoId: string
+    comprobarInscripcion: boolean
+    cursor: string | undefined
+    limite: number
+    actorId: string
+  },
+): Promise<ListaComentariosPrivadosDb | null> => {
+  if (!(await existeLaTarea(db, { claseId, tareaId }))) return null
+  if (comprobarInscripcion) await alumnoInscrito(db, { claseId, alumnoId })
+  const entrega = await db.entrega.findUnique({
+    where: { tareaId_alumnoId: { tareaId, alumnoId } },
+    select: { id: true },
+  })
+  if (entrega === null) {
+    if (cursor !== undefined) throw errorCursorInvalido()
+    return { comentarios: [], siguienteCursor: null }
+  }
+  if (cursor !== undefined) {
+    const delCursor = await db.comentario.findFirst({
+      where: { id: cursor, entregaId: entrega.id },
+      select: { id: true },
+    })
+    if (delCursor === null) throw errorCursorInvalido()
+  }
+  const filas = await db.comentario.findMany({
+    where: { entregaId: entrega.id },
+    select: SELECT_COMENTARIO_PRIVADO,
+    orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+    take: limite + 1,
+    ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+  })
+  const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
+  return {
+    comentarios: pagina.map((fila) => comentarioPrivadoDe(fila, actorId)),
+    siguienteCursor,
+  }
+}
+
+// La comprobación del cursor y la página comparten instantánea: si el comentario del cursor
+// desapareciera en medio, la página no saldría vacía (regla T-18).
+export const listarHiloPrivado = (
+  params: {
+    claseId: string
+    tareaId: string
+    alumnoId: string
+    comprobarInscripcion: boolean
+    cursor: string | undefined
+    limite: number
+    actorId: string
+  },
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<ListaComentariosPrivadosDb | null> =>
+  enTransaccion(ejecutor, (tx) => listarHiloPrivadoCon(tx, params), { instantaneaUnica: true })
+
+// Comentar (§D-4), en READ COMMITTED y con el orden de bloqueo del encargo: la tarea con
+// bloquearTareaParaEntregar (null si no existe: si un borrado confirmó antes, ya no hay fila y la
+// respuesta es 404, nunca un P2003), el alumno de la ruta si se pide, la fila perezosa de la entrega
+// (sin bloquearla: el comentario no cambia la entrega, ni su estado ni su versión, S-15), el
+// comentario y alGuardar (el handler encola el aviso con el ejecutor SQL de esta transacción). El id
+// lo genera el handler: es también el id del trabajo de la cola.
+export const comentarEnHiloPrivado = (
+  {
+    id,
+    claseId,
+    tareaId,
+    alumnoId,
+    comprobarInscripcion,
+    autorId,
+    texto,
+  }: {
+    id: string
+    claseId: string
+    tareaId: string
+    alumnoId: string
+    comprobarInscripcion: boolean
+    autorId: string
+    texto: string
+  },
+  alGuardar: (sql: EjecutorSql, comentario: { entregaId: string }) => Promise<void>,
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<ComentarioPrivadoDb | null> =>
+  enTransaccion(ejecutor, async (tx) => {
+    const tarea = await bloquearTareaParaEntregar(tx, { tareaId, claseId })
+    if (tarea === null) return null
+    if (comprobarInscripcion) await alumnoInscrito(tx, { claseId, alumnoId })
+    await asegurarFilaDeEntrega(tx, { tareaId, alumnoId })
+    const entrega = await tx.entrega.findUnique({
+      where: { tareaId_alumnoId: { tareaId, alumnoId } },
+      select: { id: true },
+    })
+    if (entrega === null) throw errorEntregaMalFormada()
+    const comentario = await tx.comentario.create({
+      data: { id, entregaId: entrega.id, autorId, texto },
+      select: SELECT_COMENTARIO_PRIVADO,
+    })
+    await alGuardar(ejecutorSqlDe(tx), { entregaId: entrega.id })
+    return comentarioPrivadoDe(comentario, autorId)
+  })

@@ -85,7 +85,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-13 | Ver el detalle de una tarea: instrucciones, adjuntos, fecha límite, puntos, rúbrica en solo lectura | M |
 | RF-14 | Entregar una tarea con **archivos y/o enlaces**; anular la entrega y volver a entregar mientras no esté calificada | M |
 | RF-15 | Las entregas después de la fecha límite se aceptan y se marcan "con retraso", salvo que el maestro no acepte entregas tardías en esa tarea (RF-44): entonces la entrega se cierra en la fecha límite (TAREAS/ENTREGAS) | M |
-| RF-16 | Hilo de comentarios privados con el maestro dentro de cada tarea | M |
+| RF-16 | Hilo de comentarios privados con el maestro dentro de cada tarea. El Administrador lo lee y no escribe (ENTREGAS-01). En esta fase, los comentarios privados no se borran ni se editan (ENTREGAS-01) | M |
 | RF-17 | "Mis calificaciones" por clase: porcentaje general, lista de tareas con estado/calificación y filtro por estado (todo, asignado, entregado, calificado, sin entregar) | M |
 | RF-18 | Modal "Cálculo de calificación": desglose por categorías ponderadas | S |
 | RF-19 | Ver maestros y compañeros de la clase (solo lectura, maestros separados de alumnos, con contador), con el correo completo de cada uno (CLASES-02) | S |

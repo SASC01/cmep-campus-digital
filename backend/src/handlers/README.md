@@ -138,3 +138,15 @@ claseId, version }`); anular no encola ni cancela nada (S-09). Las respuestas se
   `core/tareas/tareas.ts` y la aplica el adaptador dentro de su transacción. `GET …/trabajo` pasa a
   `listarTrabajo` el alumno que decide `alumnoDeLaRelacion` (`core/entregas/entregas.ts`), y cada
   elemento lleva `entrega` (`{ estado, conRetraso }` o `null`; siempre `null` para maestro y admin).
+- `tareas/hilo-privado.ts` (prefijo `/api`, ENTREGAS-01c, `hiloPrivadoHandler`): el hilo privado de una
+  entrega, con las mismas dos familias. `GET` y `POST …/tareas/:tareaId/entrega/comentarios` son del
+  alumno que llama (`roles: ["estudiante"]`, `inscripcion`; su propio id, sin `:alumnoId`). `GET
+…/entregas/:alumnoId/comentarios` es de los maestros de la clase y el admin (`propiedad`) y `POST
+…/entregas/:alumnoId/comentarios` solo de los maestros (`roles: ["maestro"]`: el admin lee y no
+  escribe, P-01 a). Que `:alumnoId` sea un alumno inscrito con cuenta activa lo filtra el adaptador
+  (`404 ALUMNO_NO_ENCONTRADO`). El texto pasa por `conTextosNormalizados` y `crearComentarioSchema`
+  (de 1 a 1000 caracteres visibles, como en el muro). El handler encola el aviso de comentario dentro
+  de `alGuardar`, con el id del comentario como id del trabajo y datos `{ comentarioId, entregaId,
+claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna respuesta lleva rol,
+  correo ni estado de pago. Sin borrar ni editar (S-04). Las rutas del muro nunca ven, cuentan ni
+  borran un comentario privado: filtran por la publicación.

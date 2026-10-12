@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { adjuntoSchema } from "./archivos.js"
-import { archivoIdsSchema } from "./clases.js"
+import { archivoIdsSchema, autorDelMuroSchema } from "./clases.js"
 
 // ENTREGAS-01b (§D-3.2). La entrega de un alumno en una tarea. Este archivo no importa tareas.ts:
 // tareas.ts toma de aquí el estado de la entrega para "Trabajo de clase" y una importación de ida y
@@ -149,3 +149,31 @@ export type ListaEntregasRespuesta = z.infer<typeof listaEntregasRespuestaSchema
 export type AlumnoDeEntregaParam = z.infer<typeof alumnoDeEntregaParamSchema>
 export type ArchivoDeEntregaParam = z.infer<typeof archivoDeEntregaParamSchema>
 export type ArchivoDeEntregaDeAlumnoParam = z.infer<typeof archivoDeEntregaDeAlumnoParamSchema>
+
+// ENTREGAS-01c (§D-4). El hilo privado de una entrega: uno por alumno y tarea (S-04), entre el alumno
+// y los maestros de la clase; el admin lo lee y no escribe (P-01 a). Sin borrar ni editar en esta
+// fase. El cuerpo de un comentario es crearComentarioSchema (clases.ts), como en el muro. El autor sale
+// firmado (firmaDelAutor) y propio dice si lo escribió quien pide; sin puedeBorrar, sin rol, correo
+// ni estado de pago.
+export const comentarioPrivadoSchema = z.strictObject({
+  id: z.uuid(),
+  texto: z.string(),
+  autor: autorDelMuroSchema,
+  creadoEn: z.iso.datetime(),
+  propio: z.boolean(),
+})
+
+export const comentarioPrivadoRespuestaSchema = z.strictObject({
+  comentario: comentarioPrivadoSchema,
+})
+
+export const listaComentariosPrivadosRespuestaSchema = z.strictObject({
+  comentarios: z.array(comentarioPrivadoSchema),
+  siguienteCursor: z.uuid().nullable(),
+})
+
+export type ComentarioPrivado = z.infer<typeof comentarioPrivadoSchema>
+export type ComentarioPrivadoRespuesta = z.infer<typeof comentarioPrivadoRespuestaSchema>
+export type ListaComentariosPrivadosRespuesta = z.infer<
+  typeof listaComentariosPrivadosRespuestaSchema
+>

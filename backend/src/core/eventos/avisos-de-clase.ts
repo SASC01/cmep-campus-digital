@@ -44,3 +44,18 @@ export const datosRecordatorio24hSchema = z.strictObject({
 
 export type DatosTareaCreada = z.infer<typeof datosTareaCreadaSchema>
 export type DatosRecordatorio24h = z.infer<typeof datosRecordatorio24hSchema>
+
+// ENTREGAS-01b (§D-5, S-09). ENTREGA_REALIZADA se encola en la transacción de la entrega, con un id
+// nuevo por cada entrega (la misma fila puede entregarse varias veces) y solo ids. Anular no encola
+// ni cancela nada: el consumidor (NOTIFICACIONES) carga la entrega por id y termina sin avisar si ya
+// no existe, si no está entregada o si su version ya no es la del evento. Sin consumidor por ahora.
+export const COLA_ENTREGA_REALIZADA = "ENTREGA_REALIZADA"
+
+export const datosEntregaRealizadaSchema = z.strictObject({
+  entregaId: z.uuid(),
+  tareaId: z.uuid(),
+  claseId: z.uuid(),
+  version: z.number().int().min(1),
+})
+
+export type DatosEntregaRealizada = z.infer<typeof datosEntregaRealizadaSchema>

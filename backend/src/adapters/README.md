@@ -292,11 +292,14 @@ DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y d
 `actualizado_en` (`FOR NO KEY UPDATE`, sin SQL crudo). Lo usan las asignaciones de maestros, los temas
 y las categorías, y no se reexporta en `index.ts`.
 
-`referencias.ts` tiene las únicas lecturas `FOR KEY SHARE` del proyecto: `bloquearTemaParaUsar` y
+`referencias.ts` tiene las lecturas `FOR KEY SHARE` de un tema y de una categoría: `bloquearTemaParaUsar` y
 `bloquearCategoriaParaUsar` (`SELECT id … WHERE id = … AND clase_id = … FOR KEY SHARE`, etiquetadas y
 parametrizadas, `false` si no hay fila; no se reexportan). Todo repositorio que usa un tema o una
 categoría como referencia dentro de una transacción (`crearPublicacion` con `temaId`, `moverATema` y,
-desde 01b, las tareas) la toma con ellas; nadie más escribe un `FOR KEY SHARE`. Un borrado o un
+desde 01b, las tareas) la toma con ellas. Desde ENTREGAS-01b hay una sola excepción, sobre la fila de
+la tarea: `bloquearTareaParaEntregar` de `db/entregas.ts` (C-9 de la Enmienda 3 de ENTREGAS-01), que
+devuelve con lo que decide `core/` y por eso vive en el repositorio de entregas. Nadie más escribe un
+`FOR KEY SHARE` (lo fija `temas-01a-r1.ataque`: solo `referencias.ts` y `entregas.ts`). Un borrado o un
 guardado de categorías que quita esa fila espera a que la transacción confirme; si confirmó antes, la
 lectura no ve la fila y el llamador responde `404`, nunca `P2003` ni `500`.
 
@@ -370,11 +373,59 @@ se usa una columna propia y nunca `actualizado_en`.
 **Orden de bloqueo fijo en todo el encargo: primero la fila de `tareas`, después `publicaciones`,
 `entregas` o `archivos`.**
 
-| Operación           | Bloquea, en orden                                                                                           | Choca con                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Editar tarea        | `tareas` `FOR NO KEY UPDATE`; el tema y la categoría `FOR KEY SHARE`; `publicaciones`, criterios y archivos | Otra edición (409 por versión), mover de tema, borrar       |
-| Mover tarea de tema | `tareas` (el `UPDATE` de `version` toma `FOR NO KEY UPDATE`); el tema `FOR KEY SHARE`; `publicaciones`      | Edición (en serie; la edición posterior recibe 409), borrar |
-| Borrar tarea        | `tareas` `FOR UPDATE`; autoría; archivos; publicación (cascada)                                             | Todo lo que toca la tarea                                   |
+| Operación           | Bloquea, en orden                                                                                                         | Choca con                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Editar tarea        | `tareas` `FOR NO KEY UPDATE`; el tema y la categoría `FOR KEY SHARE`; `publicaciones`, criterios y archivos               | Otra edición (409 por versión), mover de tema, borrar       |
+| Mover tarea de tema | `tareas` (el `UPDATE` de `version` toma `FOR NO KEY UPDATE`); el tema `FOR KEY SHARE`; `publicaciones`                    | Edición (en serie; la edición posterior recibe 409), borrar |
+| Borrar tarea        | `tareas` `FOR UPDATE`; autoría; conteo de entregas (01b); archivos de entregas y de la publicación; publicación (cascada) | Todo lo que toca la tarea                                   |
 
 Al revés (publicaciones antes que tareas), una edición y un movimiento simultáneos podrían bloquearse en
 cruz. Las operaciones de entregas (01b y 01c) siguen el mismo orden: la fila de `tareas` primero.
+
+## `db/entregas.ts` y la entrega de un alumno (ENTREGAS-01b, §D-0, §D-3 y §D-6)
+
+**Una fila de `entregas` por alumno y tarea, creada al primer uso** (S-01): entregar (y, en 01c,
+comentar en el hilo privado) la crea con `INSERT … ON CONFLICT (tarea_id, alumno_id) DO NOTHING`
+(`$executeRaw` etiquetado) dentro de su transacción; las lecturas no la crean y, sin fila, la entrega
+está `asignado` con listas vacías. Toda consulta filtra por la clase de la ruta: la tarea por
+`(id, clase_id)`, la entrega por el único `(tarea_id, alumno_id)` de esa tarea, y un archivo por
+`(id, clase_id)` más la entrega de esa tarea y ese alumno. Ninguna función selecciona el correo, el
+estado de pago ni la restricción (RN-02).
+
+**Entregar y anular** corren en READ COMMITTED con el orden de bloqueo del encargo: primero la fila de
+`tareas` con `bloquearTareaParaEntregar` (`FOR KEY SHARE`, la única de este archivo: choca con el
+`FOR UPDATE` de `borrarTarea` y no con el `FOR NO KEY UPDATE` de `editarTarea`), después la fila de
+`entregas` (`FOR NO KEY UPDATE`: dos entregas, o una entrega y una anulación, del mismo alumno quedan
+en serie) y al final los archivos. Decide `core/entregas/entregas.ts` (`decidirEntrega` y
+`decidirAnulacion`, con el cierre y el retraso calculados con la tarea bloqueada y `ahora`). Entregar
+confirma los archivos con un `UPDATE` que repite las condiciones de la lectura del handler (de la
+clase, del alumno, pendientes, sin contexto, de las últimas 24 h y con el prefijo
+`entregas/{tareaId}/{alumnoId}/`), escribe la entrega (`entregado`, fecha, retraso, enlaces y
+`version + 1`) y llama a `alGuardar(sql, { entregaId, version })`, donde el handler encola
+`ENTREGA_REALIZADA`. Anular pasa los archivos a `descartado` sin `entrega_id`, devuelve la fila a
+`asignado` sin fecha, retraso ni enlaces, sube la versión y no encola nada (S-09). Si la tarea ya no
+existe (un borrado confirmado antes), las dos responden `404 TAREA_NO_ENCONTRADA`, nunca un `P2003`.
+
+**Lecturas.** `leerMiEntrega`, `listarEntregas` y `leerEntregaDeAlumno` corren en una instantánea
+única (los usos de la opción pasan a `clases.ts` (4), `publicaciones.ts` (2), `tareas.ts` (2) y
+`entregas.ts` (3)). `listarEntregas` pagina a los alumnos con `condicionesDePaginaDeAlumnos`
+(exportada sin cambios de `db/inscripciones.ts`: mismo orden y mismo cursor que el roster, que basta
+con que el usuario exista, N-04), lee las entregas de la página en una sola consulta y cuenta `total`
+(inscritos con cuenta activa) y `entregadas` (entregado o calificado de inscritos activos) en la
+misma instantánea. Que `:alumnoId` sea un alumno inscrito con cuenta activa es un filtro de datos (por
+la PK de `inscripciones`), con `404 ALUMNO_NO_ENCONTRADO`. `listarTrabajo` (`db/tareas.ts`) recibe
+`alumnoId` opcional y, con él, lee las entregas de las tareas de la página en una sola consulta.
+
+**Archivos (§D-3.6).** `buscarArchivosParaConfirmar` exige `prefijo` (el de materiales o el de una
+entrega, de `core/archivos/politica.ts`; la comparación no distingue mayúsculas) y `entrega_id` nulo:
+un archivo de entrega nunca se confirma en una publicación ni uno de material en una entrega.
+`buscarArchivoConfirmado` (la descarga de la clase) solo sirve archivos con publicación; los de una
+entrega se descargan con `buscarArchivoDeMiEntrega` y `buscarArchivoDeEntregaDeAlumno`.
+
+**Borrar una tarea con entregas (S-06 modificada, §D-3.8).** `borrarTarea` cuenta, después del
+`FOR UPDATE OF t` y de la autoría, las entregas `entregado` o `calificado` de cualquier alumno y
+aplica `exigirBorradoConEntregasPermitido` (`core/tareas/tareas.ts`) antes de escribir nada. Si pasa,
+descarta primero los archivos de las entregas (la FK `NO ACTION` de `archivos.entrega_id` daría un
+`500` si quedara uno) y después los de la publicación, y borra la publicación: la cascada se lleva la
+tarea, sus entregas (también las `asignado`) y sus hilos privados. No hay un borrado explícito de
+`entregas`.

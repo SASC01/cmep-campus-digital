@@ -93,7 +93,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-21 | Ver su propio estado de pago: "Deudor" o "Al corriente" | M |
 | RF-22 | Unirse a una clase en vivo: ver video y pantalla compartida del maestro, participar en el chat | M |
 | RF-23 | Ver las grabaciones de clases pasadas de sus clases | M |
-| RF-24 | Entregar con "Marcar como completada", sin archivos ni enlaces, una tarea que no requiere adjuntos (ENTREGAS) | S |
+| RF-24 | Entregar con "Marcar como completada", sin archivos ni enlaces, una tarea que no requiere adjuntos. El maestro lo indica al crear o editar la tarea ("Cómo se entrega"); el alumno puede adjuntar de todos modos (ENTREGAS-01) | S |
 | RF-25 | Las imágenes adjuntas a publicaciones del muro (anuncios y materiales) se muestran en vista previa dentro de la publicación. Los comentarios del muro siguen siendo solo texto (CLASES) | S |
 
 ### 4.3 Maestro
@@ -114,7 +114,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-41 | Impartir clase en vivo: video, compartir pantalla, chat, iniciar y detener grabación | M |
 | RF-42 | Calendario con sus fechas límite y sus clases en vivo | S |
 | RF-43 | Organizar el trabajo de clase (tareas y materiales) en **temas** o unidades con nombre y orden: crear, renombrar y reordenar temas, y mover elementos entre temas. Los temas son independientes de las categorías ponderadas de RF-32 (CLASES o TAREAS) | M |
-| RF-44 | Al crear o editar una tarea, elegir si acepta entregas después de la fecha límite. Por defecto sí, marcadas "con retraso"; si no las acepta, la entrega se cierra en la fecha límite (TAREAS/ENTREGAS) | M |
+| RF-44 | Al crear o editar una tarea, elegir si acepta entregas después de la fecha límite. Por defecto sí, marcadas "con retraso"; si no las acepta, la entrega se cierra en la fecha límite. Con la entrega cerrada, el alumno ya no entrega ni anula; mover la fecha límite o aceptar entregas tardías la reabre (ENTREGAS-01) | M |
 
 ### 4.4 Administrador
 
@@ -204,6 +204,7 @@ Regla general para todo lo que se publica en una clase: publicaciones y comentar
 - Borrar una publicación borra también su hilo de comentarios, de quien sea (CLASES-02).
 - Un maestro **nunca** borra ni edita lo que publicó el Administrador.
 - En las tareas, un maestro de la clase edita y borra también las de un maestro que ya no da la clase (TAREAS-01).
+- Un maestro no borra una tarea que ya tiene entregas (entregadas o calificadas): el sistema le dice cuántas tiene y que lo pida a administración. El Administrador sí la borra, con una confirmación explícita; ese borrado se lleva las entregas, sus archivos y los comentarios privados, y no se puede deshacer (ENTREGAS-01).
 - El Administrador puede borrar cualquier publicación o comentario de cualquier clase.
 - Lo que publica el Administrador se firma "Administración", con un distintivo visible y sin nombre de persona.
 - La regla se aplica en el backend.
@@ -287,7 +288,7 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió: dirección D3, "Vidrio líquido con fondo flotante" (2026-09-27), que reemplazó a la dirección C (2026-09-26). Siguen abiertos el logo y los colores institucionales.
 2. ¿Se necesitará restringir también a maestros?
 3. ¿Habrá más de un profesor por clase (co-docencia)? **Resuelta el 2026-10-02:** de uno a dos maestros por clase, asignados por el Administrador (RN-06; CLASES-02).
-4. Tamaño máximo de archivo por entrega (propuesta inicial: 100 MB; para video, usar enlace).
+4. Tamaño máximo de archivo por entrega. Resuelta (ENTREGAS-01): 25 MB por archivo, hasta 5 archivos y 5 enlaces por entrega; para video, enlace.
 5. Quién opera el servidor después de la entrega: respaldos, actualizaciones y a quién le llegan las alertas.
 6. Quién en administración tendrá la cuenta de Administrador.
 7. Cuántas clases en vivo simultáneas y cuántas grabaciones se esperan: determina cuándo hará falta un plan de pago de LiveKit Cloud.

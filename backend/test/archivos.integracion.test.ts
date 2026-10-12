@@ -18,6 +18,7 @@ import {
 } from "../src/adapters/db/index.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
+import { prefijoDeMateriales } from "../src/core/archivos/politica.js"
 import { AppError } from "../src/core/errores.js"
 import { crearAlmacenEnMemoria, type AlmacenEnMemoria } from "./almacen-en-memoria.js"
 import {
@@ -442,6 +443,7 @@ describe("POST /api/clases/:claseId/publicaciones con archivoIds", () => {
       ids: [uno.id, dos.id],
       claseId: e.claseId,
       subidoPor: e.maestro.id,
+      prefijo: prefijoDeMateriales(e.claseId),
     })
     expect(archivos).toHaveLength(2)
     const id = randomUUID()

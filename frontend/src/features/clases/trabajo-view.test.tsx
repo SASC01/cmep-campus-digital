@@ -44,6 +44,8 @@ interface Elemento {
   material: { texto: string; adjuntos: unknown[] } | null
   tarea: { fechaLimite: string; puntos: number } | null
   puedeMover: boolean
+  // ENTREGAS-01b (S-07): la entrega del alumno; nula en materiales y para maestro y admin.
+  entrega: null
 }
 
 const tarea = (n: number, titulo: string, fechaLimite: string, puedeMover = false): Elemento => ({
@@ -55,6 +57,7 @@ const tarea = (n: number, titulo: string, fechaLimite: string, puedeMover = fals
   material: null,
   tarea: { fechaLimite, puntos: 10 },
   puedeMover,
+  entrega: null,
 })
 
 const material = (
@@ -71,6 +74,7 @@ const material = (
   material: contenido,
   tarea: null,
   puedeMover,
+  entrega: null,
 })
 
 interface ClaseEnElServidor {

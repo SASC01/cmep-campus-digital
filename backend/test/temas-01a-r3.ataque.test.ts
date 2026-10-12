@@ -459,6 +459,10 @@ describe("ataque TAREAS-01a r3: revisión estática final", () => {
       "core/tareas/temas.ts",
       "core/tareas/texto.ts",
       "handlers/tareas/categorias.ts",
+      // ENTREGAS-01b ronda 0 (C-4, §D-R0; "Cambios por capa" de 01b del plan de ENTREGAS-01): el
+      // handler de entregas. La regla de relacion === se conserva y lo cubre (alumnoDeLaRelacion vive
+      // en core/, M-02 de la Enmienda 1).
+      "handlers/tareas/entregas.ts",
       "handlers/tareas/tareas.ts",
       "handlers/tareas/temas.ts",
     ])

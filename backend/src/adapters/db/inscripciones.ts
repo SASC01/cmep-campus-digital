@@ -62,7 +62,9 @@ const SOLO_CUENTAS_ACTIVAS = { usuario: { activo: true } } as const
 // sin el `cursor` de Prisma. El cursor es un usuarioId; su nombre_busqueda se lee de `usuarios`
 // por PK (una sola consulta, fuera de cualquier ciclo). Solo se rechaza si ese usuario no existe:
 // un alumno quitado de la clase o desactivado sigue sirviendo, porque su clave de orden sobrevive.
-const condicionesDePagina = async (
+// ENTREGAS-01b (§D-3.9): se exporta sin cambios para la lista de entregas de una tarea, que pagina
+// a los alumnos con las mismas condiciones y el mismo cursor que el roster.
+export const condicionesDePaginaDeAlumnos = async (
   { claseId, cursor, limite }: { claseId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor,
 ): Promise<{
@@ -105,7 +107,10 @@ export const listarPersonas = async (
   { claseId, cursor, limite }: { claseId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaPersonasDb | null> => {
-  const { where, orderBy, take } = await condicionesDePagina({ claseId, cursor, limite }, ejecutor)
+  const { where, orderBy, take } = await condicionesDePaginaDeAlumnos(
+    { claseId, cursor, limite },
+    ejecutor,
+  )
   const [clase, filas, totalAlumnos] = await Promise.all([
     ejecutor.clase.findUnique({
       where: { id: claseId },
@@ -151,7 +156,10 @@ export const listarAlumnosDeClase = async (
   { claseId, cursor, limite }: { claseId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaAlumnosDeClaseDb> => {
-  const { where, orderBy, take } = await condicionesDePagina({ claseId, cursor, limite }, ejecutor)
+  const { where, orderBy, take } = await condicionesDePaginaDeAlumnos(
+    { claseId, cursor, limite },
+    ejecutor,
+  )
   const [filas, total] = await Promise.all([
     ejecutor.inscripcion.findMany({
       where,

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto"
 
 import {
+  borrarTareaQuerySchema,
+  CONFIRMAR_BORRADO_CON_ENTREGAS,
   crearTareaSchema,
   editarTareaSchema,
   listaTrabajoRespuestaSchema,
@@ -22,6 +24,7 @@ import {
 import { cancelar, encolar } from "../../adapters/queue/index.js"
 import type { Almacen } from "../../core/archivos/almacen.js"
 import { firmaDelAutor } from "../../core/autoria.js"
+import { alumnoDeLaRelacion } from "../../core/entregas/entregas.js"
 import { AppError } from "../../core/errores.js"
 import {
   COLA_RECORDATORIO_24H,
@@ -195,8 +198,17 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId } = validarParametros(tareaIdParamSchema, request.params)
+      // ENTREGAS-01b (S-06 modificada, §D-3.8): la confirmación del borrado con entregas va en la
+      // consulta. Es un dato de la petición, no un permiso: la regla (solo el admin la puede usar)
+      // la aplica core/ dentro de la transacción.
+      const { confirmar } = validarParametros(borrarTareaQuerySchema, request.query)
       const borrada = await borrarTarea(
-        { claseId, tareaId, actor: perfilDe(request) },
+        {
+          claseId,
+          tareaId,
+          actor: perfilDe(request),
+          confirmarEntregas: confirmar === CONFIRMAR_BORRADO_CON_ENTREGAS,
+        },
         async (sql, trabajoId) => {
           if (trabajoId !== null) await cancelar(COLA_RECORDATORIO_24H, trabajoId, { sql })
           // Si TAREA_CREADA ya corrió, cancelarla no hace nada.
@@ -214,7 +226,10 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
     async (request, reply) => {
       const { id: claseId, relacion } = claseDe(request)
       const { tema, cursor, limite } = validarParametros(trabajoQuerySchema, request.query)
-      const lista = await listarTrabajo({ claseId, tema, cursor, limite })
+      // ENTREGAS-01b (S-07): la entrega que se muestra es la del alumno que pide la lista; core/ lo
+      // decide con la relación del sexto paso (para el maestro y el admin, ninguna).
+      const alumnoId = alumnoDeLaRelacion(relacion, perfilDe(request).id)
+      const lista = await listarTrabajo({ claseId, tema, cursor, limite, alumnoId })
       // puedeMover lo decide core/ con la relación que dejó el sexto paso (P-02 b).
       const puedeMover = puedeMoverElemento(relacion)
       const elementos = await Promise.all(
@@ -239,6 +254,7 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
                   puntos: elemento.tarea.puntos,
                 },
           puedeMover,
+          entrega: elemento.entrega,
         })),
       )
       return reply.send(

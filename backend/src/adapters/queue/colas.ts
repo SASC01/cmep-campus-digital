@@ -1,6 +1,7 @@
 import {
   COLA_AVISO_FALLIDO,
   COLA_COMENTARIO_CREADO,
+  COLA_ENTREGA_REALIZADA,
   COLA_MATERIAL_CREADO,
   COLA_PUBLICACION_CREADA,
   COLA_RECORDATORIO_24H,
@@ -57,8 +58,9 @@ export const OPCIONES_DE_COLAS: readonly OpcionDeCola[] = [
   },
   // Avisos del muro (CLASES-c, §D-C3). AVISO_FALLIDO va antes que las tres colas que la usan de
   // deadLetter, sin reintentos. TAREAS-01b suma TAREA_CREADA y RECORDATORIO_24H con la misma política
-  // (la retención de un trabajo diferido cuenta desde su start_after). Se crean al arrancar (API y
-  // worker) y esperan sin consumidor.
+  // (la retención de un trabajo diferido cuenta desde su start_after). ENTREGAS-01b suma
+  // ENTREGA_REALIZADA con la misma política. Se crean al arrancar (API y worker) y esperan sin
+  // consumidor.
   {
     nombre: COLA_AVISO_FALLIDO,
     opciones: {
@@ -72,6 +74,7 @@ export const OPCIONES_DE_COLAS: readonly OpcionDeCola[] = [
     COLA_COMENTARIO_CREADO,
     COLA_TAREA_CREADA,
     COLA_RECORDATORIO_24H,
+    COLA_ENTREGA_REALIZADA,
   ].map((nombre): OpcionDeCola => ({
     nombre,
     opciones: {

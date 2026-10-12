@@ -12,6 +12,7 @@ import {
   textoLargoSchema,
 } from "./clases.js"
 import { paginacionSchema } from "./enlaces-registro.js"
+import { estadoEntregaSchema } from "./entregas.js"
 
 // TAREAS-01a (S-05, S-06). Temas y categorías ponderadas de una clase. Lo de las tareas y "Trabajo
 // de clase" llega en 01b.
@@ -222,6 +223,17 @@ export const tareaIdParamSchema = z.object({
   tareaId: z.uuid("tareaId: debe ser un identificador válido").transform((id) => id.toLowerCase()),
 })
 
+// ENTREGAS-01b (S-06 modificada, §D-3.8): borrar una tarea con entregas exige ?confirmar=entregas,
+// y solo el admin puede confirmarlo. Estricto a propósito: una llave de más, otro valor o el
+// parámetro repetido (llega como arreglo) responden 400 en lugar de leerse como "sin confirmar".
+export const CONFIRMAR_BORRADO_CON_ENTREGAS = "entregas"
+
+export const borrarTareaQuerySchema = z.strictObject({
+  confirmar: z
+    .literal(CONFIRMAR_BORRADO_CON_ENTREGAS, { error: "confirmar: no es válido" })
+    .optional(),
+})
+
 export const criterioDeRubricaSchema = z.object({
   id: z.uuid(),
   criterio: z.string(),
@@ -267,6 +279,9 @@ export const elementoDeTrabajoSchema = z.object({
   material: z.object({ texto: z.string(), adjuntos: z.array(adjuntoSchema) }).nullable(),
   tarea: resumenDeTareaSchema.nullable(),
   puedeMover: z.boolean(),
+  // ENTREGAS-01b (S-07): la entrega del alumno que pide la lista. Nula en los materiales, para el
+  // maestro y el admin, y para el alumno que aún no tiene fila de entrega.
+  entrega: z.strictObject({ estado: estadoEntregaSchema, conRetraso: z.boolean() }).nullable(),
 })
 
 export const listaTrabajoRespuestaSchema = z.object({
@@ -288,6 +303,8 @@ export const CODIGOS_TAREAS = {
   ANUNCIO_SIN_TEMA: "ANUNCIO_SIN_TEMA",
   // ENTREGAS-01a (P-05 a′).
   TAREA_MODIFICADA: "TAREA_MODIFICADA",
+  // ENTREGAS-01b (S-06 modificada).
+  TAREA_CON_ENTREGAS: "TAREA_CON_ENTREGAS",
 } as const
 
 export type CodigoTareas = (typeof CODIGOS_TAREAS)[keyof typeof CODIGOS_TAREAS]
@@ -307,6 +324,7 @@ export type CriterioEntrada = z.infer<typeof criterioEntradaSchema>
 export type CrearTarea = z.infer<typeof crearTareaSchema>
 export type EditarTarea = z.infer<typeof editarTareaSchema>
 export type TareaIdParam = z.infer<typeof tareaIdParamSchema>
+export type BorrarTareaQuery = z.infer<typeof borrarTareaQuerySchema>
 export type CriterioDeRubrica = z.infer<typeof criterioDeRubricaSchema>
 export type TareaDetalle = z.infer<typeof tareaDetalleSchema>
 export type TareaRespuesta = z.infer<typeof tareaRespuestaSchema>

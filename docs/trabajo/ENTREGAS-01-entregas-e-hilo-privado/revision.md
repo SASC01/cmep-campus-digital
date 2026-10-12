@@ -723,3 +723,371 @@ Ninguno.
   - El remedio es barato: mostrar "Cargando…" en el primer montaje mientras la consulta está en `isFetching`. Toca solo `editar-tarea-view.tsx` y una prueba, y podría entrar en 01e, que ya toca `features/tareas`.
   - Sin el cambio, el riesgo se limita a la ventana entre mover la tarea y abrir "Editar".
   - Recomiendo hacerlo en 01e. Es una decisión de comportamiento, no un defecto del plan aprobado.
+
+## Verificación del resumen — ENTREGAS-01b — implementación
+Veredicto: **ACEPTADO**. El tester puede atacar la ronda 1 de 01b.
+
+### Mis corridas
+Una suite a la vez. PA-01: red `uacam5 2` en perfil Público, regla del firewall habilitada (Inbound, Block, Public) y Docker 28.5.1. El humano la declaró de confianza para hoy (`aprobacion.md`).
+
+| Paso | Mi corrida | Resumen | Coincide |
+|---|---|---|---|
+| `shared` build | código 0 | ídem | sí |
+| `shared` lint | código 0, `All matched files use Prettier code style!` | ídem | sí |
+| `backend` lint | código 0, `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` | ídem | sí |
+| `backend` test (15:18:15Z a 15:21:53Z) | `Test Files  185 passed (185)` · `Tests  2348 passed (2348)` · `Duration  204.15s` | 185 · 2348 · 202.53s | sí |
+| `backend` build | código 0 | ídem | sí |
+| `prisma validate` / `migrate status` / `migrate diff --from-config-datasource --to-schema` | válido / `13 migrations found` · `Database schema is up to date!` / `No difference detected.` | "n/a" | — |
+| Migración nueva | ninguna: `git diff --stat 82888dd -- backend/prisma` vacío y ninguna carpeta no versionada en `migrations/` | ídem | sí |
+| `frontend` lint | código 0, `> tsc -b` | ídem | sí |
+| `frontend` test (15:24:10Z a 15:27:50Z) | `Test Files  153 passed (153)` · `Tests  2271 passed (2271)` · `Duration  210.39s` | 153 · 2271 | sí |
+| `frontend` build | código 0, `✓ built in 720ms` | `✓ built in 8.97s` | sí (el tiempo varía) |
+| `npx vitest list --json` | backend **2348 en 185**; frontend **2271 en 153** | ídem | sí |
+
+**Casos por archivo nuevo (mi lista):**
+
+| Archivo | Casos |
+|---|---|
+| `entregas.integracion` | 43 |
+| `core/entregas/entregas.test` | 18 |
+| `entregas-concurrencia.integracion` | 11 |
+| `esquemas-entregas.test` | 10 |
+| `tareas-borrar-con-entregas.integracion` | 10 |
+| `entregas-autorizacion.integracion` | 10 |
+| `entregas-archivos.integracion` | 5 |
+| `entregas-lecturas.integracion` | 5 |
+
+`core/tareas/tareas.test.ts` llega a 14 casos. Total: 2233 + 115 = 2348, como dice el resumen.
+
+### Verificaciones pedidas
+1. **Tabla PR-1B01 a PR-1B28, con PR-1B03 bis, PR-1B09 bis y PR-1B22 bis: completa.**
+   - **Títulos:** los 115 títulos citados aparecen tal cual en mi `vitest list`, y cada viñeta tiene caso.
+   - **PR-1B17 y PR-1B18:** estuvieron rojas antes del remedio, con comando y última línea (`Tests  4 failed | 1 passed (5)`); la que pasaba es el control.
+   - **PR-1B09 bis:**
+     - usa `conFilaDeEntregasRetenida`, con `formadasDetrasDe` por operación y en orden fijo;
+     - exige que la operación no termine antes de formarse;
+     - lleva `timeout` de 30 s;
+     - el caso (b) parte de una fila existente en `asignado`, con versión 4 (O-3 de la Enmienda 1).
+   - **PR-1B04 (`shared`) y PR-1B28** están en `backend/test/esquemas-entregas.test.ts` (O-1 de la Enmienda 2).
+   - **PR-1B22 bis (c)** es la carrera "comentario primero y después el borrado del maestro → `204`" (O-3 de la Enmienda 2). Fabrica el comentario con SQL dentro de la retenedora, con la tarea en `FOR KEY SHARE` y la fila `asignado`. Es correcto: la ruta del hilo es de 01c.
+     - La variante "el borrado primero y el comentario después → `404`" queda en PR-1C06, que el plan ya pide en 01c ("comentar con la tarea borrada → 404" y "a la vez, uno retenido").
+2. **Pruebas cambiadas: dentro de las listas.**
+   - **Normales:** solo cambian las tres de la lista cerrada, con el cambio mínimo:
+     - `archivos.integracion`: suma `prefijo` y su importación;
+     - E6: el título, la lista con `entregas.ts` y dos líneas de comentario (N-02 de la Enmienda 3);
+     - `trabajo-view.test`: `entrega: null` en la interfaz y en los dos dobles.
+   - **PR-1B27:** suma casos nuevos en `core/tareas/tareas.test.ts`, donde el plan la ubica.
+   - **`*.ataque`:** mi V-01 da **166/166 iguales** a la tabla de la ronda 0 de 01b (`reporte-tester.md`, desde la línea 1166). Contra 01a cambiaron exactamente las 7 reescritas por el tester en esa ronda:
+     - `lecturas-fx-r1` (C-2);
+     - `sesiones-y-cadena` (C-1);
+     - `temas-01a-r1` (C-9);
+     - `temas-01a-r3` (C-4);
+     - `trabajo-01e-r1`, `trabajo-01e-r2` y `ver-mas-01e-r3` (C-10, `entrega` en los dobles).
+3. **"No se toca": vacío.** Corrí `git diff --stat 82888dd` sobre middleware, auth, notifier, storage, live, config, workers, `cliente.ts`, `errores.ts`, `referencias.ts`, `bloqueo-clase.ts`, `temas.ts`, `publicaciones.ts`, `core/autoria.ts`, `core/clases`, `handlers/clases`, `validacion.ts`, `errores.ts`, `handlers/archivos.ts`, las ayudas compartidas de pruebas, los `.env.example`, los `package.json`, `prisma/`, `infra/`, `AGENTS.md`, `CLAUDE.md`, `.claude`, `ARCHITECTURE*`, `PRD.md`, `DESIGN.md`, `frontend/src/{services,app,styles,components,lib}`, `features/{auth,admin,diagnostico,tareas}` y `vitest.config.ts`.
+   - En `features/clases` solo cambian `trabajo-view.test.tsx` y las tres `*.ataque` de C-10.
+   - `ayudas-entregas.ts` es una ayuda nueva en un archivo nuevo, y eso está permitido.
+4. **El código coincide con el plan, sin nada de más.**
+   - **§D-0:**
+     - dos familias de rutas: `…/entrega` usa `perfilDe(request).id` y no lleva `:alumnoId`; `…/entregas/:alumnoId` usa el filtro de datos `alumnoInscrito`, por PK con `activo` y `rol: "estudiante"`;
+     - `alumnoDeLaRelacion` está en `core/`;
+     - toda consulta filtra por clase;
+     - la fila es perezosa: `INSERT … ON CONFLICT DO NOTHING` en `asegurarFilaDeEntrega`;
+     - `ENTREGA_REALIZADA` se encola dentro de `alGuardar` con el `sql` de la transacción;
+     - todas las respuestas usan `z.strictObject`, y del alumno solo se selecciona `nombre` (nunca `email`, `estado_pago` ni `acceso_restringido`).
+   - **§D-3.1 a §D-3.7 y §D-3.9 a §D-3.11:**
+     - los órdenes de `decidirEntrega` y `decidirAnulacion` coinciden;
+     - entregar sigue los pasos 1 a 8: tarea `FOR KEY SHARE`, fila perezosa, entrega `FOR NO KEY UPDATE`, decisión, confirmación con conteo, `UPDATE` con `version + 1`, `alGuardar` y lectura anidada;
+     - anular descarta los archivos sin `entrega_id`, devuelve la fila a `asignado`, sube la versión y no encola nada;
+     - la subida aplica S-10 con `exigirEntregaAbierta`, firma antes de registrar y responde `no-store`;
+     - las descargas filtran por `entrega: { tareaId, alumnoId }`, con `attachment` y `no-store`;
+     - `listarEntregas` usa `condicionesDePaginaDeAlumnos` exportada sin cambiar el cuerpo, con una sola consulta de entregas y los dos conteos de §D-3.9;
+     - `leerEntregaDeAlumno` responde `version` 0 sin fila;
+     - `listarTrabajo` hace una sola `entrega.findMany` por página y solo con `alumnoId`;
+     - los tres `instantaneaUnica: true` están donde dice el plan.
+   - **§D-3.8, `borrarTarea`:**
+     - `?confirmar=entregas` estricto, con `borrarTareaQuerySchema`;
+     - los mensajes en singular y en plural se arman en `core/`, y son exactos;
+     - `exigirBorradoConEntregasPermitido` también vive en `core/`;
+     - el orden es el del plan: `FOR UPDATE OF t`, autoría, conteo (`entregado` y `calificado`), regla, archivos de entrega a `descartado`, archivos de la publicación, `deleteMany` de la publicación;
+     - no hay ningún `delete` explícito de `entregas`.
+   - **§D-3.6:**
+     - `buscarArchivoConfirmado` suma `publicacionId: { not: null }`;
+     - `buscarArchivosParaConfirmar` exige `prefijo` y `entregaId: null`;
+     - `archivosParaPublicar` es el envoltorio con el prefijo de materiales.
+   - **§D-5:** `datosEntregaRealizadaSchema` es estricto, con `{ entregaId, tareaId, claseId, version >= 1 }`, un id nuevo por entrega y la cola en `OPCIONES_DE_COLAS`.
+   - **§D-6 y C-9:**
+     - `FOR KEY SHARE` aparece una sola vez en el código de `entregas.ts`, dentro de `bloquearTareaParaEntregar`;
+     - en `src/` solo lo toman `referencias.ts` y `entregas.ts`, como fija la regla estática (en verde);
+     - `encolar(` está solo en `tareas.ts` y `entregas.ts`, y `cancelar(` solo en `tareas.ts`.
+   - **§D-7:** los códigos y los mensajes son exactos.
+   - **"Autorización":** las ocho rutas tienen los `roles` y el sexto paso de la tabla. Los handlers no comparan roles ni relaciones: `confirmar === CONFIRMAR_BORRADO_CON_ENTREGAS` es un dato de la petición y está aprobado.
+   - **READMEs:** `handlers/README.md` y `adapters/README.md` están al día. El párrafo de `referencias.ts` ya nombra la excepción (N-01 de la Enmienda 3); R-17 queda solo para el comentario del código.
+   - **Desviación 10** (el error de título en `listarTrabajo`) es lo que el plan absorbió de TAREAS-01.
+5. **Desviaciones declaradas:**
+   - **1 (esquemas de parámetros propios en `shared/src/entregas.ts`): se acepta.** La razón es real: el ciclo de importación entre `tareas.ts` y `entregas.ts`, y que `alumnoIdParamSchema` no pasa a minúsculas. Mismo mensaje y mismo paso a minúsculas que `tareaIdParamSchema`.
+   - **2, 3, 4, 5, 7, 9 y 10: se aceptan.** Son de forma y respetan el contrato. La 4 coincide con la viñeta "En todas" de "Autorización".
+   - **6 (prefijo comparado sin distinguir mayúsculas): se acepta; no abre nada.**
+     - La lectura también filtra por `id`, `claseId` (la columna `uuid` de la fila) y `subidoPor`, así que un material de otra clase no entra por mayúsculas.
+     - "materiales" nunca equivale a "entregas".
+     - Los prefijos solo traen hexadecimales, guiones y `/` (ids validados como uuid), así que el `ILIKE` no tiene comodines.
+     - Es lo que hace falta para no romper un material subido con `:claseId` en mayúsculas, porque `claveDeMaterial` (que no se toca) usa el id tal como llegó.
+     - El `UPDATE` de la entrega usa `startsWith` sensible a mayúsculas, que también es correcto: la clave de entrega siempre nace en minúsculas.
+   - **8 (PR-1B26 por el adaptador): N-01.** La razón declarada (no sumar una sexta línea `P2028` a PA-07) tiene salida: `servicio-ocupado-ch-r1.ataque` ya arma una app que registra en nivel `error`, sin ensuciar PA-07. Pero el paso de `AppError` 503 a la respuesta es el manejador común, ya probado. No bloquea.
+   - **Enlace de 2048 caracteres: N-02.** Verificado con `shared/dist`: una entrada de 2048 caracteres con `ñ` pasa el esquema y se guarda como un `href` de **12 188** caracteres. `urlDeEntregaRespuestaSchema` no tiene tope, así que tampoco falla al leer.
+6. **Hermanos y estados vecinos: coinciden con el código.**
+   - La tabla de estado de partida × cierre la decide `core/` con la tarea y la fila bloqueadas.
+   - La tabla de subida y descarga por ruta y usuario coincide con los filtros de `buscarArchivoDeMiEntrega`, `buscarArchivoDeEntregaDeAlumno` y `buscarArchivoConfirmado`.
+   - La tabla de `borrarTarea` (rol × entregas × parámetro) coincide con `exigirBorradoConEntregasPermitido`.
+   - `listarTrabajo` por relación y el cursor del roster, también.
+   - Lo que declara sin prueba propia tiene razón:
+     - entregar mientras cambia la fecha: queda en serie por diseño y está en los "Puntos de ataque";
+     - el admin con el parámetro y sin entregas: la regla con 0 entregas nunca lanza (PR-1B27);
+     - el filtro `tema=<uuid>`: es el mismo código que `sin-tema`.
+7. **PA-07, sobre mi salida completa del backend: limpio.**
+   - **Ceros:** `40P01`, `deadlock detected`, `could not serialize`, `too many clients` y `Unable to start a transaction`.
+   - **10 `"Error no controlado"` (I-1):** 6 de `intentos-r2`, 3 `ZodError` y 1 `boom` de `salud`.
+   - **5 `"code":"P2028"`:** todos de nivel 40, sobre `tx.sesion.*`, `tx.tokenCuenta.updateMany` y `$queryRawUnsafe`; es el control positivo completo.
+   - Ninguno sale de entregas, tareas ni de las retenciones de 01b.
+8. **Regla 2 y pruebas de autorización de cada ruta nueva:**
+   - PR-1B24 cubre las ocho rutas: sin token, rol incorrecto en las dos direcciones, clase ajena igual que inexistente, restringido sin escribir, cambio de contraseña pendiente, ids en mayúsculas y ninguna fuga de `estadoPago`, `deudor`, `al_corriente`, `accesoRestringido` ni correo, con alumnos deudores.
+   - PR-1B25 cubre al admin, y PR-1B22 (j) el `DELETE` con el parámetro.
+   - Ninguna verificación de rol, propiedad ni inscripción está escrita a mano en un handler.
+
+### Problemas que no bloquean
+- **N-01 — PR-1B26 no pasa por HTTP.**
+  - Comprueba el `AppError` 503 y que no se escribe nada, pero no la respuesta `503` de `POST …/entrega`.
+  - El paso del `AppError` a HTTP es el manejador común, probado en `servicio-ocupado`. Se acepta.
+  - Ataque opcional del tester: T-r1-1.
+- **N-02 — un enlace válido puede guardarse mucho más largo que `LONGITUD_MAXIMA_ENLACE`.**
+  - `enlaceDeEntregaSchema` mide antes de normalizar; `new URL(texto).href` codifica lo que no es ASCII y los caracteres de control.
+  - Hasta 5 enlaces de unos 12 000 caracteres por entrega se guardan y se responden.
+  - No hay error ni `500`, pero el dato guardado incumple el tope documentado, y 01d lo va a pintar.
+  - El plan es ambiguo ("de 1 a 2048 … se transforma a `URL.href`"), así que no es un defecto del programador.
+  - Destino: el tester lo ataca en la ronda 1 (T-r1-2). Si lo reporta como hallazgo, el remedio mínimo es medir también el `href` (tope sobre el resultado de la transformación), con su prueba en `esquemas-entregas.test.ts`. No cambia el contrato de la API.
+
+### Detalles menores
+- **`confirmarArchivosDeEntrega` toma la vigencia de 24 h con `Date.now()`,** no con el `ahora` de la entrega. La diferencia es de milisegundos y la lectura del handler usa el mismo criterio.
+- **`archivoNoEncontrado` y `tareaNoEncontrada` están repetidos en `handlers/tareas/entregas.ts`,** como en el resto de los handlers. Es el patrón de la casa.
+
+### Para el tester, ronda 1 de 01b (además de los "Puntos de ataque" del plan)
+- **T-r1-1 (opcional) — PR-1B26 por HTTP.** Con una app que registre en nivel `error`, como `servicio-ocupado-ch-r1`, para no sumar líneas `P2028` a PA-07: la fila de la entrega retenida más allá del `timeout` debe responder `503 SERVICIO_OCUPADO` sin escribir nada (N-01).
+- **T-r1-2 — la longitud guardada de un enlace (N-02).** Probar 2048 caracteres con `ñ`, con espacios, con inversores y con caracteres de control. ¿Cuánto mide lo guardado y lo que vuelve en `GET …/entrega` y en `GET …/entregas/:alumnoId`?
+- **T-r1-3 — mayúsculas en el prefijo.**
+  - Un material subido por `POST /clases/<CLASEID en mayúsculas>/archivos` y publicado con la ruta en minúsculas, y al revés: debe confirmarse igual.
+  - Un archivo de entrega con su id nunca entra en una publicación, aunque se cambien mayúsculas en la ruta o en los ids.
+- **T-r1-4 — orden de errores en las descargas.** Una tarea de otra clase con un `archivoId` válido de esta clase debe dar `404 TAREA_NO_ENCONTRADA` (Desviación 4), y un `:alumnoId` dado de baja con un `archivoId` suyo, `404 ALUMNO_NO_ENCONTRADO`, sin firmar nada.
+
+- **T-r1-5 — universo de la lista frente al detalle.**
+  - La página, `total` y `entregadas` de `listarEntregas` filtran "inscrito con cuenta activa", sin rol, igual que el roster.
+  - `alumnoInscrito`, en cambio, exige además `rol: "estudiante"`.
+  - Si una inscripción puede quedar con un usuario cuyo rol ya no es `estudiante` (por ejemplo, un cambio de rol hecho por el admin), la lista lo muestra pero su entrega y sus descargas responden `404 ALUMNO_NO_ENCONTRADO`.
+  - Hay que confirmar si ese estado es alcanzable. Si lo es, es una incoherencia que hay que reportar.
+- **Para 01c (anotado, no se ataca ahora):** PR-1C06 debe incluir la carrera "el borrado retiene la tarea y llega el comentario → `404` sin comentario ni fila de entrega" con `formadasDetrasDe`. Es la parte del PR-1B22 bis (c) original que 01b no pudo probar.
+
+## Verificación del resumen — ENTREGAS-01b — corrección de la ronda 1 (T-01)
+Veredicto: **ACEPTADO**. El tester puede hacer la ronda 2 de 01b.
+
+### Mis corridas
+Una suite a la vez. PA-01: `uacam5 2` en perfil Público, con la regla del firewall habilitada; el humano declaró la red de confianza el 2026-10-12.
+
+| Paso | Mi corrida | Resumen | Coincide |
+|---|---|---|---|
+| `shared` build / lint | código 0 / código 0 | ídem | sí |
+| `backend` lint | código 0, `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` | ídem | sí |
+| `backend` test (16:03:32Z a 16:05:33Z) | `Test Files  186 passed (186)` · `Tests  2373 passed (2373)` · `Duration  116.61s` | 186 · 2373 · 116.58s | sí |
+| `backend` build | código 0 | ídem | sí |
+| `frontend` lint / test / build | código 0 / `153 passed` · `2271 passed` / `✓ built in 644ms` | 153 · 2271 | sí |
+| `npx vitest list --json` | backend 2373 en 186 (`esquemas-entregas.test.ts`: 14); frontend 2271 en 153 | ídem (+4) | sí |
+
+- **PA-07: limpio.**
+  - Ceros en `40P01`, `deadlock detected`, `could not serialize`, `too many clients` y `Unable to start a transaction`.
+  - 10 `"Error no controlado"` (I-1): 6 de `intentos-r2`, 3 `ZodError` y 1 de `salud`.
+  - 5 `"code":"P2028"`: el control positivo (`tx.sesion.*`, `tx.tokenCuenta.updateMany` y `$queryRawUnsafe`).
+- **V-01: 167/167** iguales a la tabla de la ronda 1 de 01b (`reporte-tester.md`, línea 1504 en adelante).
+- **"No se toca": vacío.** Es la misma lista de mi verificación de 01b.
+
+### El diff de la corrección: solo el hallazgo
+Desde mi verificación anterior (15:28Z), en `backend/src`, `backend/test`, `backend/prisma`, `shared/src` y `frontend/src` solo cambiaron, fuera del cliente generado, tres archivos:
+- `shared/src/entregas.ts`, el remedio;
+- `backend/test/esquemas-entregas.test.ts`, los 4 casos;
+- `backend/test/entregas-01b-r1.ataque.test.ts`, la `*.ataque` nueva del tester.
+
+### El remedio es el de N-02
+- **El orden en `enlaceDeEntregaSchema`:** `trim` → `min(1)` → `max(2048)` sobre el texto crudo (se conserva, para no procesar entradas enormes) → `refine(esEnlaceAceptado)` → `transform(URL.href)` → `pipe(z.string().max(2048, MENSAJE_ENLACE))`.
+- **Qué garantiza:**
+  - lo que se guarda y se devuelve nunca pasa de 2048;
+  - el mensaje es el único del enlace;
+  - dentro de `entregarSchema`, el error sale con la ruta `["enlaces", i]`.
+- **Los 4 casos de "enlaceDeEntregaSchema mide el enlace normalizado (T-01)" cubren lo pedido:**
+  1. Tres crudos de exactamente 2048 que crecen al normalizar (`ñ`, espacios internos, inversor U+202E): rechazados con `MENSAJE_ENLACE`.
+  2. Un crudo corto que normaliza a ≤ 2048: aceptado y normalizado (`%C3%B1`).
+  3. La frontera normalizada: 2048 exactos se aceptan y 2049 se rechazan.
+  4. Dentro de la lista, en la posición 1: ruta `["enlaces", 1]` y mensaje del enlace.
+- **El contrato no cambia:** el frontend de 01d usará el mismo esquema y dará el mismo error.
+
+### Hermanos: los revisé contra el código
+| Hermano | Dónde | ¿Se mide antes de una transformación que alarga? | Coincide con el resumen |
+|---|---|---|---|
+| Tope de 5 enlaces | `entregarSchema`, `.max(5)` del arreglo | La transformación es por elemento y no cambia cuántos hay | sí |
+| Tope de 5 archivos y "sin repetidos" | `archivoIdsSchema` + `refine` en minúsculas + `transform(enMinusculas)` | Pasar un uuid a minúsculas no cambia su largo | sí |
+| Nombre de archivo | `validarArchivoDeclarado` (`core/archivos/politica.ts`) | Se guarda tal como llega; `disposicionDeContenido` lo codifica solo para la cabecera firmada | sí |
+| Textos largos (`normalizarTextoLargo`) | `shared/src/clases.ts:68` y `conTextosNormalizados` (`core/clases/texto.ts`) | Normaliza antes de validar, y solo acorta (CRLF → LF, `trim`) | sí |
+| `descripcionClaseSchema` | `clases.ts:140-145` | `trim` → `transform` → `pipe(textoLargoSchema(2000))`: mide después | sí |
+| Nombres de tema y de categoría | `nombreTemaSchema` = `textoDeUnaLineaSchema(80)`; `claveDeNombre` (NFKC) | NFKC puede alargar (por ejemplo, U+FDFA), pero solo se usa para comparar repetidos; el nombre guardado es el crudo, ya medido | sí |
+| Término de búsqueda | `estadoDeTerminoDeBusqueda` y `busquedaCandidatosSchema` | Mide crudo (1000) y normalizado (120) | sí |
+| Código de clase | `codigoInvitacionSchema`: `max(40)` → `transform` → `pipe(regex de 7)` | Solo acorta, y el regex final mide el resultado | sí |
+| `nombre_busqueda` | `normalizarParaBusqueda` (NFD) | Puede alargar, pero es una columna interna `text` sin tope y no se devuelve | sí |
+| **Agregado:** correo (`correoSchema`, `auth.ts:9-13`) | `trim` → `max(254)` → `pipe(z.email())`; `core/` lo pasa a minúsculas | `z.email` de zod 4 solo acepta ASCII, y `toLowerCase` sobre ASCII no alarga | — (no aplica) |
+| **Agregado:** nombre de persona (`nombreSchema`, `auth.ts:40-49`) | `trim` → `min` → `max(120)` → `refine` | Sin transformación que alargue | — (no aplica) |
+| **Agregado:** columnas con tope en la base | `schema.prisma` y migraciones | No hay ningún `VARCHAR(n)`: ningún alargamiento puede dar un `500` en la base | — (no aplica) |
+
+**Estados vecinos del mecanismo** (validar → normalizar → guardar → responder): los nombra el resumen, y coinciden con el código y con las pruebas:
+- crudo largo que normaliza largo;
+- crudo corto que normaliza corto;
+- la frontera normalizada;
+- crudo de más de 2048;
+- un enlace en otra posición de la lista;
+- la lectura de lo guardado.
+
+Ningún hermano dice "no aplica" sin razón.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+Ninguno nuevo. N-01 de mi verificación de 01b (PR-1B26 por el adaptador) sigue como estaba.
+
+### Para el tester, ronda 2 de 01b
+- **T-r2-1 — la frontera normalizada por HTTP.** En `POST …/entrega`, con 2048 y 2049 normalizados, mezclando `ñ` y `%`, comprobar:
+  - que la respuesta sea `400 VALIDACION` con el mensaje del enlace y su posición;
+  - que no quede ninguna fila de entrega, ningún archivo confirmado ni ningún trabajo nuevo.
+- **T-r2-2 — un enlace ya codificado (`%C3%B1`) frente al mismo con `ñ`.** Deben normalizar igual y medir lo mismo, sin doble codificación.
+- **T-r2-3 (regresión) — `GET …/entrega` y `GET …/entregas/:alumnoId` siguen devolviendo los enlaces que se guardaron antes de la corrección.** No hay datos previos en `dev` de 01b; es un control de que la lectura no se volvió más estricta.
+
+## Revisión final — ENTREGAS-01b
+Veredicto: **APROBADO CON OBSERVACIONES**. Nada bloquea el commit `<K1b>`.
+Verificación propia: lint, test y build en verde en los tres paquetes; cifras abajo.
+
+### Corrida propia
+Una suite a la vez. PA-01: `uacam5 2` en perfil Público, regla del firewall habilitada; el humano declaró la red de confianza el 2026-10-12.
+
+| Paso | Mi corrida | Tester (ronda 2) |
+|---|---|---|
+| `shared` build | código 0 | — |
+| `backend` lint | código 0, `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` | ídem |
+| `backend` test (16:22:12Z a 16:24:16Z) | `Test Files  187 passed (187)` · `Tests  2378 passed (2378)` · `Duration  119.78s` | 187 · 2378 |
+| `backend` build | código 0 | — |
+| `prisma validate` / `migrate status` / `migrate diff --from-config-datasource --to-schema` | válido / `Database schema is up to date!` / `No difference detected.` | — |
+| `frontend` lint / test / build | código 0 / `153 passed` · `2271 passed` / código 0 | 153 · 2271 |
+
+- **Desde mi verificación de T-01 solo cambió `backend/test/entregas-01b-r2.ataque.test.ts`,** la `*.ataque` nueva del tester (comprobado con `find -newermt`). El código de producción es el que ya verifiqué.
+- **El diff contra `82888dd`:** 31 archivos versionados más los 14 no versionados de 01b. Mi lectura contra el plan sigue vigente: §D-0, §D-3 completo con el §D-3.8 de la Enmienda 2, §D-5, §D-6 con C-9, §D-7, "Acceso a datos", "Autorización" y los READMEs con el párrafo de `referencias.ts`. Nada fuera ni de más.
+
+### Regresión, PA-07 y "No se toca"
+- **V-01: 168/168** iguales a la tabla de la ronda 2 (`reporte-tester.md`, SHA-256 `a3b39278…74bf`).
+  - Contra `82888dd` hay 2 `*.ataque` nuevas (`entregas-01b-r1` y `-r2`) y exactamente 7 modificadas:
+    - C-1: `sesiones-y-cadena`;
+    - C-2: `lecturas-fx-r1`;
+    - C-4: `temas-01a-r3`;
+    - C-9: `temas-01a-r1`;
+    - C-10: `trabajo-01e-r1`, `trabajo-01e-r2` y `ver-mas-01e-r3`.
+  - Ninguna borrada.
+  - No hay `.skip`, `.only` ni `.todo` en ninguna prueba.
+- **PA-07: limpio.**
+  - Ceros en `40P01`, `deadlock detected`, `could not serialize`, `too many clients` y `Unable to start a transaction`.
+  - 10 `"Error no controlado"` (I-1): 6 de `intentos-r2`, 3 `ZodError` y 1 de `salud`.
+  - Control positivo: 5 `"code":"P2028"`, de nivel 40, sobre `tx.sesion.*`, `tx.tokenCuenta.updateMany` y `$queryRawUnsafe`.
+- **"No se toca": vacío.**
+  - Dentro de los paquetes, contra `82888dd`, con la lista completa de mi verificación del resumen.
+  - Fuera, contra `dd8edcb`: `AGENTS.md`, `CLAUDE.md`, `.claude`, `infra` y los `package*.json`.
+  - `ARCHITECTURE*`, `PRD.md` y `DESIGN.md` no cambiaron desde `82888dd`. Los cambios de `<K1a>` son los de A-5, con su SHA en `aprobacion.md`.
+
+### Definición de terminado (01b)
+- [x] **RF y RN:**
+  - RF-14: ver, entregar y anular.
+  - RF-15 y RF-44 (parte): `con_retraso`, cierre y reapertura.
+  - RF-24: "Marcar como completada" por `requiereAdjuntos`.
+  - RF-35: la lista del maestro, con total y entregadas.
+  - RN-02: ninguna respuesta lleva estado de pago, correo ni restricción (PR-1B24, con alumnos deudores).
+  - RN-03 y RN-06: el alumno restringido recibe `403` sin escribir nada.
+  - S-06 modificada: el borrado con entregas.
+- [x] **Capas y middleware:**
+  - Las 8 rutas usan `protegido()` con los roles y el sexto paso de la tabla.
+  - Ningún handler compara rol ni relación.
+  - `adapters/db` no importa `adapters/queue` (regla estática del tester).
+  - El evento se encola en la transacción del dato.
+- [x] **lint, build y test:** en verde.
+- [x] **Pruebas de autorización por ruta nueva:** PR-1B24 (sin token, rol incorrecto, clase ajena e inexistente, restringido, cambio de contraseña, mayúsculas, sin fugas), PR-1B25 (admin) y PR-1B22 (j) (el `DELETE` con el parámetro).
+- [x] **Migración:** ninguna; `migrate diff` sin diferencias.
+- [x] **`infra/` y `.env.example`:** sin cambios, y no hacían falta.
+- [ ] **Documentos:** lo aplica el orquestador al cerrar 01b (A-5); la lista exacta va abajo. Los READMEs de `backend/src` ya están al día.
+
+### Problemas que bloquean
+Ninguno.
+
+### Documentos de A-5 que se aplican ahora (cierre de 01b)
+Con los textos de `plan.md`, "Documentos a actualizar". Lo que el plan ata al hilo privado se separa y se deja para 01c.
+
+**ESSENTIALS:**
+1. **"Tablas", restricciones clave:** el texto completo del plan, que cubre `comentarios`, `archivos` y `entregas`. El esquema ya existe desde 01a.
+2. **"Archivos":** la viñeta nueva de Entregas (A-6, R-02), completa.
+3. **"Reglas de negocio":** reemplazar "Entrega tardía" y "Entregas admiten archivos y enlaces" por el texto del plan **sin** su última frase. La frase que queda para 01c es: "Hilo privado (RF-16, al cerrar 01c): uno por alumno y tarea, entre el alumno y los maestros de la clase; el admin lo lee y no escribe.".
+4. **"Reglas de negocio", viñeta "Autoría":** "Una tarea con entregas solo la borra el admin, con confirmación (ENTREGAS-01)."
+5. **"Asíncrono y notificaciones", viñeta "Eventos":** solo la mitad de 01b, con este texto propuesto: "`ENTREGA_REALIZADA` lleva `{ entregaId, tareaId, claseId, version }` con un id nuevo por entrega (ENTREGAS-01)." La otra mitad ("`COMENTARIO_CREADO` sirve al muro y al hilo privado (ENTREGAS-01).") va al cerrar 01c.
+
+**`ARCHITECTURE.md`:**
+
+6. **§7, fila `tareas`:** el texto del plan sin las dos rutas del hilo. Las rutas que quedan para 01c son "`GET/POST …/entrega/comentarios` (hilo privado del alumno)" y "`GET/POST …/entregas/{alumnoId}/comentarios` (el admin solo lee)". Se conservan las frases del `PUT` con `version` y del `DELETE` con `409 TAREA_CON_ENTREGAS` y `?confirmar=entregas`.
+7. **§7, fila `calificaciones`:** el texto del plan.
+8. **§8:** la fila `ENTREGA_REALIZADA`. La de `COMENTARIO_CREADO` va al cerrar 01c.
+9. **§11:** puntos 1 y 6, con el texto del plan.
+   - §14 ya se aplicó en `<K1a>`.
+
+**`PRD.md`:**
+
+10. **RN-07:** la viñeta de S-06 modificada.
+11. **RF-24:** el texto del plan.
+12. **RF-44:** el texto del plan.
+13. **§11, pregunta abierta 4:** "Resuelta (ENTREGAS-01): 25 MB por archivo, hasta 5 archivos y 5 enlaces por entrega; para video, enlace."
+   - **RF-16 se pasa al cierre de 01c.** El plan lo pone en 01b, pero describe el hilo privado, que no existe hasta 01c.
+
+**`docs/ESTADO.md` §3:** se suman R-17 (el comentario de cabecera de `adapters/db/referencias.ts`, carril trivial después de ENTREGAS) y la regla de §D-2.3 (una columna propia para un futuro "Editada el …"), las dos que el plan pide anotar al cerrar 01b. También O-1 y O-2 de esta revisión.
+
+### Problemas que no bloquean
+- **N-01 — PR-1B26 se prueba por el adaptador, no por HTTP (de mi verificación del resumen).** Destino: nada. El paso del `AppError` 503 a la respuesta es el manejador común, ya probado, y el tester no lo atacó como hallazgo.
+- **N-02 — T-01 está cerrado.** El tope se mide sobre el enlace normalizado; T-r2-1 a T-r2-3 resistieron por HTTP y las lecturas no se volvieron más estrictas.
+
+### Observaciones del tester, arbitradas
+- **O-b2-1 — `%c3%b1` en minúsculas se guarda distinto de `ñ` y de `%C3%B1`.** Son URL equivalentes y S-08 solo pide guardar el `href`. Destino: nada, mientras nadie compare enlaces. Si un encargo llega a quitar enlaces repetidos, que normalice la capitalización de los `%XX` (anotado aquí).
+- **O-1 — subidas de archivos pendientes sin tope hasta `LIMPIEZA_DIARIA` (R-07 del plan).**
+  - Ya está aceptado por el plan: S-10 limita la subida a tareas donde se puede entregar, y el tope de 25 MB por archivo sigue.
+  - Destino: `docs/ESTADO.md` §3, con `LIMPIEZA_DIARIA` (y DEPLOY, antes de abrir a alumnos): los pendientes de entregas los borra la misma limpieza que los de materiales.
+  - Si el humano quiere un tope de pendientes por alumno antes de DEPLOY, es una decisión suya.
+- **O-2 — la lista del maestro no filtra por rol y el detalle sí exige `estudiante` (T-r1-5).** Hoy es inalcanzable por la API: solo un estudiante se inscribe y no hay cambio de rol.
+  - Destino: `docs/ESTADO.md` §3, para el encargo de ADMIN que permita cambiar el rol de una cuenta. Ese encargo debe decidir qué pasa con sus inscripciones, o alinear el filtro de la lista con el del detalle.
+
+### Medición del programador (01b)
+- **Rondas del tester:**
+  - ronda 0, que no cuenta;
+  - ronda 1, ROTO con un hallazgo (T-01);
+  - ronda 2, RESISTE.
+- **Rondas extra:** 1. **Por hermanos o estados vecinos: 0.** T-01 era un defecto propio del esquema, anotado como N-02 en mi verificación, no un remedio anterior sin extender. La corrección se aceptó a la primera, con la lista de hermanos completa: los tres que sumé no aplican.
+- **PARADAS:** ninguna.
+- **Resúmenes devueltos:** 0, tanto en la implementación como en la corrección.
+- No se activa la regla del 2026-10-05 (2 o más rondas extra por hermanos).
+
+### Para 01c (lo verifica el orquestador antes de la ronda 0 de 01c)
+- **Ronda 0 del tester:**
+  - C-1: el inventario suma las 4 rutas del hilo.
+  - C-2: `entregas.ts` pasa a 4 usos de `instantaneaUnica`, por `listarHiloPrivado`.
+  - C-3: `muro-c-r1:625` suma `handlers/tareas/hilo-privado.ts`.
+  - C-4: suma `hilo-privado.ts`.
+  - C-9: reglas 2 y 3 con `hilo-privado.ts`.
+  - E6 no cambia: el hilo vive en `entregas.ts`.
+- **Las reglas estáticas de `entregas-01b-r1` siguen valiendo en 01c si `comentarEnHiloPrivado` reutiliza `bloquearTareaParaEntregar`:** `FOR KEY SHARE` aparece una sola vez, y el conteo de 7 esquemas de respuesta no incluye los del hilo. Si 01c escribe otro `FOR KEY SHARE` o cambia esos nombres, es PARADA, no un C-n improvisado.
+- **PR-1C06 debe incluir la carrera "el borrado retiene la tarea y llega el comentario → `404`"** sin comentario ni fila de entrega, con `formadasDetrasDe`. Es la parte del PR-1B22 bis (c) original que 01b no podía probar.
+- **`COMENTARIO_CREADO` compartido (§D-5):** la unión de dos `z.strictObject` con llaves distintas (PR-1C08). El tipo del muro se conserva y no cambia de forma.
+- **Al cerrar 01c, A-5:**
+  - ESSENTIALS: la frase del hilo privado en "Reglas de negocio" y la mitad de `COMENTARIO_CREADO` en "Asíncrono".
+  - `ARCHITECTURE.md`: §7, las dos rutas del hilo; §8, la fila `COMENTARIO_CREADO`.
+  - `PRD.md`: RF-16.

@@ -75,6 +75,19 @@ export const validarArchivoDeclarado = ({
 export const claveDeMaterial = (claseId: string, archivoId: string): string =>
   `materiales/${claseId}/${archivoId}`
 
+// ENTREGAS-01b (§D-3.1, §D-3.6). Toda confirmación exige el prefijo de su contexto: un archivo de
+// entrega nunca se confirma en una publicación ni uno de material en una entrega, aunque alguien
+// conozca su id. Los prefijos van en minúsculas (un UUID es el mismo en mayúsculas); la comparación
+// en la base no distingue mayúsculas, porque la clave de un material lleva el :claseId tal como llegó.
+export const prefijoDeMateriales = (claseId: string): string =>
+  `materiales/${claseId.toLowerCase()}/`
+
+export const prefijoDeEntrega = (tareaId: string, alumnoId: string): string =>
+  `entregas/${tareaId.toLowerCase()}/${alumnoId.toLowerCase()}/`
+
+export const claveDeEntrega = (tareaId: string, alumnoId: string, archivoId: string): string =>
+  `${prefijoDeEntrega(tareaId, alumnoId)}${archivoId.toLowerCase()}`
+
 export const esImagenConVistaPrevia = (tipo: string): boolean =>
   TIPOS_CON_VISTA_PREVIA.includes(tipo)
 

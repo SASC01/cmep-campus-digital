@@ -50,10 +50,19 @@ export const registrarArchivoPendiente = async (
 }
 
 // Una sola consulta por PK, ya acotada a lo que podría confirmarse: de esa clase, de ese usuario,
-// pendiente, sin publicación y de las últimas 24 h. Si falta alguno, el handler no llega a preguntarle
+// pendiente, sin contexto y de las últimas 24 h. Si falta alguno, el handler no llega a preguntarle
 // nada al almacén por un archivo ajeno (sin oráculo). Devuelve las filas en el orden de `ids`.
+// ENTREGAS-01b (§D-3.6): `prefijo` es obligatorio (el de materiales o el de una entrega, de
+// core/archivos/politica.ts): un archivo de entrega nunca se confirma en una publicación ni uno de
+// material en una entrega, aunque alguien conozca su id. La comparación no distingue mayúsculas: la
+// clave de un material lleva el :claseId tal como llegó en la ruta de subida.
 export const buscarArchivosParaConfirmar = async (
-  { ids, claseId, subidoPor }: { ids: readonly string[]; claseId: string; subidoPor: string },
+  {
+    ids,
+    claseId,
+    subidoPor,
+    prefijo,
+  }: { ids: readonly string[]; claseId: string; subidoPor: string; prefijo: string },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ArchivoDb[]> => {
   const filas = await ejecutor.archivo.findMany({
@@ -63,6 +72,8 @@ export const buscarArchivosParaConfirmar = async (
       subidoPor,
       estado: "pendiente",
       publicacionId: null,
+      entregaId: null,
+      claveObjeto: { startsWith: prefijo, mode: "insensitive" },
       creadoEn: { gt: new Date(Date.now() - VIGENCIA_PENDIENTE_MS) },
     },
     select: SELECT_ARCHIVO,
@@ -75,11 +86,14 @@ export const buscarArchivosParaConfirmar = async (
 }
 
 // null: no existe en esa clase o todavía no está confirmado (un pendiente no se descarga).
+// ENTREGAS-01b (§D-3.6, PR-1B17): la descarga de la clase solo sirve archivos de publicaciones; sin
+// esto, cualquier alumno inscrito descargaría el archivo de entrega de un compañero con su id. Los de
+// una entrega se descargan por las rutas de la entrega (db/entregas.ts).
 export const buscarArchivoConfirmado = async (
   { archivoId, claseId }: { archivoId: string; claseId: string },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ArchivoDb | null> =>
   ejecutor.archivo.findFirst({
-    where: { id: archivoId, claseId, estado: "confirmado" },
+    where: { id: archivoId, claseId, estado: "confirmado", publicacionId: { not: null } },
     select: SELECT_ARCHIVO,
   })

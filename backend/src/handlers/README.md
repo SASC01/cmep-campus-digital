@@ -109,3 +109,32 @@ por ESLint, `no-restricted-syntax`).
   del autor, correos ni `estadoPago`.
 - `clases/muro.ts`: cada publicación lleva `tarea` (`{ fechaLimite, puntos }` o `null`); el `DELETE`
   del muro y los comentarios responden `404` ante una tarea (S-08).
+- `tareas/entregas.ts` (prefijo `/api`, ENTREGAS-01b, `entregasHandler`, recibe `{ almacen }`): dos
+  familias bajo `/clases/:claseId/tareas/:tareaId/`, para que ningún handler compare ids ni roles a
+  mano. **`…/entrega`** (singular) es la del alumno que llama (`perfilDe(request).id`, sin
+  `:alumnoId`), con `protegido({ roles: ["estudiante"], pertenencia: "inscripcion" })`: `GET` (su
+  entrega, o `asignado` sin fila; no la crea), `POST` (entregar archivos y enlaces, o «Marcar como
+  completada» si la tarea no requiere adjuntos), `POST …/anular` (sin cuerpo; un cuerpo con campos es
+  `400`), `POST …/archivos` (pide la subida con clave `entregas/{tareaId}/{alumnoId}/{archivoId}`,
+  solo mientras puede entregar: S-10) y `POST …/archivos/:archivoId/descarga`. **`…/entregas`** y
+  **`…/entregas/:alumnoId`** son de los maestros de la clase y el admin (P-01 a: el admin lee), con
+  `protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" })`: `GET …/entregas` (la lista
+  de RF-35, con la paginación y el cursor del roster, `total` y `entregadas`), `GET
+…/entregas/:alumnoId` (con `version`) y `POST …/entregas/:alumnoId/archivos/:archivoId/descarga`.
+  Que `:alumnoId` sea un alumno inscrito con cuenta activa es un filtro de datos del adaptador
+  (`404 ALUMNO_NO_ENCONTRADO`). Las reglas de entregar, anular, el cierre y el retraso son de
+  `core/entregas/entregas.ts`; la subida usa `exigirEntregaAbierta`. El handler encola
+  `ENTREGA_REALIZADA` dentro de `alGuardar` (un id nuevo por entrega, datos `{ entregaId, tareaId,
+claseId, version }`); anular no encola ni cancela nada (S-09). Las respuestas se arman con esquemas
+  estrictos de `shared/src/entregas.ts`: nunca llevan correo, estado de pago, restricción ni la clave
+  del objeto; el alumno no recibe `version`. Los archivos de una entrega solo se descargan por estas
+  rutas: desde ENTREGAS-01b, `POST /clases/:claseId/archivos/:archivoId/descarga` (`archivos.ts`)
+  solo sirve archivos de publicaciones, y `handlers/adjuntos.ts` confirma por prefijo
+  (`archivosParaConfirmar`; `archivosParaPublicar` pasa el de materiales).
+- `tareas/tareas.ts` (ENTREGAS-01b): `DELETE …/tareas/:tareaId` admite `?confirmar=entregas`
+  (`borrarTareaQuerySchema`, estricto: otro valor, el parámetro repetido o una llave de más son
+  `400`) y lo pasa como `confirmarEntregas` sin mirar el rol: la regla (una tarea con entregas solo la
+  borra el admin con la confirmación; si no, `409 TAREA_CON_ENTREGAS` con el conteo) es de
+  `core/tareas/tareas.ts` y la aplica el adaptador dentro de su transacción. `GET …/trabajo` pasa a
+  `listarTrabajo` el alumno que decide `alumnoDeLaRelacion` (`core/entregas/entregas.ts`), y cada
+  elemento lleva `entrega` (`{ estado, conRetraso }` o `null`; siempre `null` para maestro y admin).

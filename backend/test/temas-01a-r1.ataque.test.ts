@@ -975,11 +975,21 @@ describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
   // que pasa al adaptador (§D-0.4, §D-4, §D-5, como el muro), así que encolar( y cancelar( quedan
   // prohibidos solo en temas.ts y categorias.ts (organizar la clase no avisa a nadie). Lo demás que
   // protege no cambia y vale para los tres: ni SQL, ni el cliente de Prisma, ni roles, ni notifier.
-  it("FOR KEY SHARE solo en adapters/db/referencias.ts; bloquearClase se define solo en bloqueo-clase.ts; los handlers de tareas no usan SQL, Prisma, roles ni notifier, y los de temas y categorías tampoco encolan", () => {
+  // ENTREGAS-01b ronda 0 (C-9, §D-R0 y "C-9: cambio por regla", Enmienda 3 del plan de ENTREGAS-01):
+  // (1) el FOR KEY SHARE de la tarea de una entrega vive en adapters/db/entregas.ts (una sola función
+  // privada, bloquearTareaParaEntregar), además de referencias.ts: la lista se compara ordenada;
+  // (2) handlers/tareas/ suma entregas.ts y la regla prohibido no cambia; (3) encolar( se permite en
+  // tareas.ts y entregas.ts (ENTREGA_REALIZADA va en el callback alGuardar, §D-0.4 y §D-5) y cancelar(
+  // sigue siendo solo de tareas.ts (S-09: anular no cancela nada). bloquearClase y el conteo de
+  // fuentes no cambian.
+  it("FOR KEY SHARE solo en adapters/db/referencias.ts y entregas.ts; bloquearClase se define solo en bloqueo-clase.ts; los handlers de tareas no usan SQL, Prisma, roles ni notifier; los de temas y categorías no encolan y solo tareas.ts cancela", () => {
     expect(fuentes.length).toBeGreaterThan(20)
     expect(
-      fuentes.filter(({ codigo }) => /FOR\s+KEY\s+SHARE/i.test(codigo)).map(({ ruta }) => ruta),
-    ).toEqual(["adapters/db/referencias.ts"])
+      fuentes
+        .filter(({ codigo }) => /FOR\s+KEY\s+SHARE/i.test(codigo))
+        .map(({ ruta }) => ruta)
+        .sort(),
+    ).toEqual(["adapters/db/entregas.ts", "adapters/db/referencias.ts"])
     expect(
       fuentes
         .filter(({ codigo }) => /(const|function)\s+bloquearClase\b/.test(codigo))
@@ -988,6 +998,7 @@ describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
     const handlers = fuentes.filter(({ ruta }) => ruta.startsWith("handlers/tareas/"))
     expect(handlers.map(({ ruta }) => ruta).sort()).toEqual([
       "handlers/tareas/categorias.ts",
+      "handlers/tareas/entregas.ts",
       "handlers/tareas/tareas.ts",
       "handlers/tareas/temas.ts",
     ])
@@ -996,10 +1007,17 @@ describe("ataque TAREAS-01a r1: revisión estática de 01a", () => {
     expect(handlers.filter(({ codigo }) => prohibido.test(codigo)).map(({ ruta }) => ruta)).toEqual(
       [],
     )
+    const PUEDEN_ENCOLAR = ["handlers/tareas/entregas.ts", "handlers/tareas/tareas.ts"]
+    expect(
+      handlers
+        .filter(({ ruta }) => !PUEDEN_ENCOLAR.includes(ruta))
+        .filter(({ codigo }) => /encolar\(|cancelar\(/.test(codigo))
+        .map(({ ruta }) => ruta),
+    ).toEqual([])
     expect(
       handlers
         .filter(({ ruta }) => ruta !== "handlers/tareas/tareas.ts")
-        .filter(({ codigo }) => /encolar\(|cancelar\(/.test(codigo))
+        .filter(({ codigo }) => /cancelar\(/.test(codigo))
         .map(({ ruta }) => ruta),
     ).toEqual([])
   })

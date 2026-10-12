@@ -55,6 +55,8 @@ interface PublicacionFalsa {
   autor: { id: string; nombre: string; administracion: boolean }
   creadoEn: string
   comentarios: number
+  // TAREAS-01b ronda 0 (C-5, §D-R0): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+  tarea: null
   adjuntos: unknown[]
   puedeBorrar: boolean
 }
@@ -73,6 +75,7 @@ const publicacion = (n: number, comentarios = 0): PublicacionFalsa => ({
   autor: AUTOR,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios,
+  tarea: null,
   adjuntos: [],
   puedeBorrar: true,
 })

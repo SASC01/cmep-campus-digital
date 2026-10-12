@@ -188,6 +188,7 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - La calificación de una tarea con rúbrica es la suma de los puntos por criterio, escalada a los puntos de la tarea.
 - La calificación general de la clase se calcula por categorías ponderadas. Las categorías sin tareas calificadas no cuentan y su peso se redistribuye proporcionalmente.
 - Las tareas sin calificar no afectan el promedio.
+- Una clase sin categorías califica por puntos. Con categorías, toda tarea nueva o editada lleva una; una tarea sin categoría no cuenta en la calificación general hasta asignarle una (TAREAS-01).
 - "Alumno en riesgo": promedio general menor a 70 % **o** 3 o más tareas vencidas sin entregar. (Umbrales iniciales, ajustables en configuración.)
 
 ### RN-06 Propiedad
@@ -202,6 +203,7 @@ Regla general para todo lo que se publica en una clase: publicaciones y comentar
 - Cada autor borra solo lo suyo. El maestro también borra los comentarios de los alumnos en las clases que imparte; nunca lo que publicó otro maestro de la clase (CLASES-02).
 - Borrar una publicación borra también su hilo de comentarios, de quien sea (CLASES-02).
 - Un maestro **nunca** borra ni edita lo que publicó el Administrador.
+- En las tareas, un maestro de la clase edita y borra también las de un maestro que ya no da la clase (TAREAS-01).
 - El Administrador puede borrar cualquier publicación o comentario de cualquier clase.
 - Lo que publica el Administrador se firma "Administración", con un distintivo visible y sin nombre de persona.
 - La regla se aplica en el backend.

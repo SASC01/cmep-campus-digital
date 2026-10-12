@@ -7,6 +7,7 @@ import {
   maestrosDeFilas,
   type MaestroDb,
 } from "./clases.js"
+import { bloquearClase } from "./bloqueo-clase.js"
 import { enTransaccion, obtenerDb, type Ejecutor } from "./cliente.js"
 import { traducirErrorPrisma } from "./errores.js"
 import type { Prisma } from "./generated/client.js"
@@ -24,21 +25,6 @@ export interface CandidatoMaestroDb {
 export interface ListaCandidatosMaestroDb {
   candidatos: CandidatoMaestroDb[]
   hayMas: boolean
-}
-
-const sinAcceso = (): AppError =>
-  new AppError("SIN_ACCESO_A_LA_CLASE", "No tienes acceso a esta clase.", 403)
-
-// §D-2A4, paso 1: el candado de la fila de la clase sin SQL crudo. Un updateMany de actualizado_en
-// toma FOR NO KEY UPDATE (no es columna de llave), así que pone en serie las asignaciones y los
-// retiros simultáneos de la misma clase y no choca con los FOR KEY SHARE de las FK. count = 0: la
-// clase se borró después del sexto paso.
-const bloquearClase = async (tx: Prisma.TransactionClient, claseId: string): Promise<void> => {
-  const { count } = await tx.clase.updateMany({
-    where: { id: claseId },
-    data: { actualizadoEn: new Date() },
-  })
-  if (count === 0) throw sinAcceso()
 }
 
 const leerIdsDeMaestros = async (

@@ -12,6 +12,7 @@ import { RegistroMaestroView } from "@/features/auth/registro-maestro-view"
 import { RegistroView } from "@/features/auth/registro-view"
 import { RestablecerView } from "@/features/auth/restablecer-view"
 import { AlumnosView } from "@/features/clases/alumnos-view"
+import { CategoriasView } from "@/features/clases/categorias-view"
 import { ClaseLayout } from "@/features/clases/clase-layout"
 import { ClasesAdminView } from "@/features/clases/clases-admin-view"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
@@ -21,7 +22,11 @@ import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
 import { MaestrosDeClaseView } from "@/features/clases/maestros-de-clase-view"
 import { MuroView } from "@/features/clases/muro-view"
 import { PersonasView } from "@/features/clases/personas-view"
+import { TrabajoView } from "@/features/clases/trabajo-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
+import { CrearTareaView } from "@/features/tareas/crear-tarea-view"
+import { DetalleTareaView } from "@/features/tareas/detalle-tarea-view"
+import { EditarTareaView } from "@/features/tareas/editar-tarea-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
 import { RequireRol } from "./require-rol"
@@ -64,7 +69,14 @@ export const rutas: RouteObject[] = [
             element: <ClaseLayout />,
             children: [
               { index: true, element: <MuroView /> },
+              // TAREAS-01e (§D-11): "Trabajo de clase", de solo lectura para el alumno.
+              { path: "trabajo", element: <TrabajoView /> },
               { path: "personas", element: <PersonasView /> },
+              // TAREAS-01d (§D-10): el alumno solo ve el detalle. "nueva" no es un tareaId: sin esta ruta
+              // literal coincidiría con `tareas/:tareaId` y se pediría GET /tareas/nueva; cae donde cae
+              // cualquier ruta desconocida. `tareas/:id/editar` no existe para el alumno y cae en `*`.
+              { path: "tareas/nueva", element: <Navigate to="/login" replace /> },
+              { path: "tareas/:tareaId", element: <DetalleTareaView /> },
             ],
           },
         ],
@@ -83,7 +95,14 @@ export const rutas: RouteObject[] = [
             element: <ClaseLayout />,
             children: [
               { index: true, element: <MuroView /> },
+              // TAREAS-01e (§D-11): "Trabajo de clase" y "Categorías de calificación" (no es una sección).
+              { path: "trabajo", element: <TrabajoView /> },
+              { path: "categorias", element: <CategoriasView /> },
               { path: "alumnos", element: <AlumnosView /> },
+              // TAREAS-01d (§D-10): ninguna activa una sección (como /editar); el literal gana a :tareaId.
+              { path: "tareas/nueva", element: <CrearTareaView /> },
+              { path: "tareas/:tareaId", element: <DetalleTareaView /> },
+              { path: "tareas/:tareaId/editar", element: <EditarTareaView /> },
             ],
           },
         ],
@@ -105,9 +124,14 @@ export const rutas: RouteObject[] = [
                 element: <ClaseLayout />,
                 children: [
                   { index: true, element: <MuroView /> },
+                  { path: "trabajo", element: <TrabajoView /> },
+                  { path: "categorias", element: <CategoriasView /> },
                   { path: "alumnos", element: <AlumnosView /> },
                   { path: "maestros", element: <MaestrosDeClaseView /> },
                   { path: "editar", element: <EditarClaseView /> },
+                  { path: "tareas/nueva", element: <CrearTareaView /> },
+                  { path: "tareas/:tareaId", element: <DetalleTareaView /> },
+                  { path: "tareas/:tareaId/editar", element: <EditarTareaView /> },
                 ],
               },
             ],

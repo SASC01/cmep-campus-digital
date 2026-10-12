@@ -54,8 +54,8 @@ features/
 | Módulo | Contenido | Roles |
 |--------|-----------|-------|
 | `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, registro de maestro por enlace, cambio obligatorio de contraseña, pantalla de acceso restringido | Todos |
-| `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, código de invitación, compañeros, roster, buscador y alta manual de alumnos; gestión de clases del administrador (`/admin/clases`: lista, crear y editar clase, maestros de la clase, y alumnos y muro de cualquier clase) | Estudiante, Maestro, Administrador |
-| `tareas` | Detalle de tarea, zona de entrega, crear tarea o material, rúbrica, hilo privado | Estudiante, Maestro |
+| `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, código de invitación, compañeros, roster, buscador y alta manual de alumnos; trabajo de clase con temas y categorías de calificación (TAREAS-01); gestión de clases del administrador (`/admin/clases`: lista, crear y editar clase, maestros de la clase, y alumnos y muro de cualquier clase) | Estudiante, Maestro, Administrador |
+| `tareas` | Detalle de tarea, crear y editar tarea (rúbrica, adjuntos, categoría, tema y entregas tardías); zona de entrega e hilo privado (ENTREGAS) | Estudiante, Maestro, Administrador |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |
 | `calendario` | Calendario de tareas y clases en vivo | Estudiante, Maestro |
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
@@ -66,19 +66,25 @@ features/
 
 ### Ubicaciones compartidas
 
-- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx`, `badge.tsx` (sus variantes son internas y no se exportan) y `textarea.tsx`
+- `components/ui/` — componentes de shadcn/ui reestilizados, incluidos `label.tsx`, `sonner.tsx` (`Toaster` con el tema; solo lo importa `app/providers.tsx`), `table.tsx`, `badge.tsx` (sus variantes son internas y no se exportan), `textarea.tsx` y `native-select.tsx` (`NativeSelect` y `NativeSelectOption`: el `<select>` nativo reestilizado para listas cortas)
 - `components/layout/` — marco por rol (`ContenedorRol`, con `BarraNavegacion` y `BarraSuperior`), `MarcoPublico` y `LayoutPublico` (pantallas sin rol), `FondoAnimado`, `PieDePagina` y `Monograma`. Sus textos, los destinos por rol y los enlaces del colegio viven en `components/layout/data.ts`: **las URL del pie (`ENLACES_DEL_COLEGIO`) se editan solo ahí**. El tipo `Rol` de `components/layout/types.ts` se reexporta de `shared/` Incluye la lista de clases de la barra (`ListaDeClases`, con su hook en `components/layout/hooks.ts`).
+- `components/clase/` — `ConClaseDeLaRuta` y `FirmaDelAutor`, compartidos por `features/clases` y `features/tareas`; sus textos (el de «sin acceso» y el de la firma de la administración) viven en `components/clase/data.ts` (`TEXTOS_DE_LA_CLASE`)
+- `components/adjuntos/` — los adjuntos elegidos y publicados (`ListaDeAdjuntosElegidos` y `AdjuntosDePublicacion`, que recibe los mensajes de error de cada módulo), con su subida y descarga (`hooks.ts`), sus funciones puras (`lib.ts`), sus textos, el `accept`, el margen de las vistas previas y los mensajes de error de archivos con su mapa por código (`data.ts`) y `ArchivoCandidato` (`types.ts`)
 - `components/` — piezas de dominio reutilizadas: ya existen `EstadoPagoBadge` (`estado-pago-badge.tsx`), `AccesoRestringidoBadge` (`acceso-restringido-badge.tsx`), `MensajeError` (`mensaje-error.tsx`), `Cargando` (`cargando.tsx`), `ErrorDeCampo` (`error-de-campo.tsx`), `AvatarUsuario` (`avatar-usuario.tsx`) y `EstadoVacio` (`estado-vacio.tsx`, con la variante de la acción como prop); `EstadoEntregaBadge` llega con ENTREGAS. Las variantes del botón viven en `components/ui/button-variants.ts`, separadas de `button.tsx`
 - `lib/format.ts` — fechas (UTC → zona local, incluida `formatearFechaLarga`), porcentajes, tamaños de archivo (`formatearTamano`) e iniciales de un nombre (`inicialesDe`)
 - `lib/utils.ts` — `cn` (combinador de clases de Tailwind)
 - `lib/cache-de-mutaciones.ts` — `sacarDeLaCacheAlAsentar`: saca de la caché de TanStack Query una mutación con datos sensibles (contraseñas, tokens) en cuanto se asienta
 - `lib/variante-de-clase.ts` — `varianteDeClase`, la variante de color de una clase (tarjeta y barra)
+- `lib/ruta-de-clase.ts` — la perspectiva (`Perspectiva`, `perspectivaDeRuta`) y la base de la ruta de una clase (`baseDeClase`, `BASES_POR_PERSPECTIVA`)
+- `lib/vencimiento.ts` — el estado y el texto de la fecha límite (`vencimientoDe`, con el umbral de 72 h `UMBRAL_FECHA_PROXIMA_MS` y `TEXTO_FECHA_NO_DISPONIBLE`) y la variante de su insignia (`varianteDeVencimiento`)
+- `lib/errores-de-api.ts` — los errores por campo y de cursor de la API (`erroresPorCampo`, `esErrorDeCursor`, y la traducción de un `VALIDACION` a errores de formulario con los mensajes de cada módulo)
 - `services/apiClient.ts` — cliente HTTP con el token y el formato de error
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
 - `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` o `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)
 - `services/sesionService.ts` — la consulta de `/me` (`consultaMe`), compartida por `features/auth` y `features/clases`
-- `services/clasesService.ts` — las claves de las listas de clases y la consulta de la barra lateral, compartidas por `components/layout` y `features/clases`
+- `services/clasesService.ts` — las claves de las listas de clases y la del muro (`clavePublicaciones`), y la consulta de la barra lateral, compartidas por `components/layout`, `features/clases` y `features/tareas`
+- `services/trabajoService.ts` — claves y consultas de temas, categorías, "Trabajo de clase" y tareas (`claveTemas`, `claveCategorias`, `clavePrefijoDelTrabajo`, `claveTrabajo`, `claveTarea`, `consultaTemas`, `consultaCategorias`, `consultaTarea`), compartidas por `features/clases` y `features/tareas`
 - `services/almacenService.ts` — sube un archivo al almacén con la URL prefirmada que dio la API (`PUT`, sin `Authorization` ni credenciales). Es el único `fetch` fuera de `apiClient`
 - `services/liveService.ts` — conexión con LiveKit
 - `app/` — rutas, layouts, guardas por rol y `FondoDeLaApp` (el fondo con orbes, montado una sola vez en `main.tsx`, fuera del router)
@@ -89,7 +95,7 @@ features/
 
 ```
 core/        lógica pura, sin I/O ni librerías de infraestructura
-adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue y scheduler (pg-boss), live (LiveKit)
+adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue (pg-boss: cola y trabajos diferidos), live (LiveKit)
 config/      validación de las variables de entorno con zod (env.ts) y opciones del logger (logger.ts); el único código de src/ que lee process.env. No es core/ ni adapters/
 middleware/  authenticate, withProfile, withPasswordGate, withAccess, requireRole, requireMembership, requireOwnership
 handlers/    un plugin de Fastify por dominio
@@ -120,6 +126,8 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 - shadcn/ui con su aspecto por defecto es inaceptable: todo componente que se agregue se adapta a los tokens antes de usarse.
 - Botón de acción principal: `variant="primary"`. Por defecto: `variant="outline"`. Destructivo: `variant="destructive"`.
 - Un botón cuya petición está en vuelo usa `enEspera` de `Button` (`aria-disabled`, `aria-busy` e indicador de carga), nunca `disabled`: conserva el foco y no dispara su acción. `disabled` queda para un control que no está disponible.
+- Toda acción que lanza una mutación lleva, además de `enEspera`, una guarda síncrona con una ref (`if (enviandoRef.current) return` antes de `mutate`): `enEspera` llega un render tarde y dos clics seguidos disparaban la petición dos veces (TAREAS-01e, M-01).
+- Un "Ver más" se pone en espera con `enEspera={isFetching}`, no con `isFetchingNextPage`: durante una recarga de la lista el botón seguía activo y pedía una página sobre datos que se estaban reemplazando (TAREAS-01e, T-19).
 - Una sola acción principal por vista.
 - Iconos: `lucide-react`. Avisos: `sonner`.
 

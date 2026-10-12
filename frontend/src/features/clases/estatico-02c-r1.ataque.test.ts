@@ -34,21 +34,27 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
   })
 
   it("O-07: `administracion` solo se lee en firma-del-autor.tsx, y nadie compara un nombre con «Administración»", () => {
-    expect(rutasCon(/\.administracion\b/)).toEqual([
-      "/src/features/clases/components/firma-del-autor.tsx",
-    ])
+    // TAREAS-01c ronda 0 (C-8, §D-R0; §D-9): FirmaDelAutor pasa a components/clase/ y el archivo de
+    // origen queda como reexportación; `administracion` sigue leyéndose en un solo archivo, el de la
+    // firma. Solo cambia la ruta.
+    expect(rutasCon(/\.administracion\b/)).toEqual(["/src/components/clase/firma-del-autor.tsx"])
     // Ninguna comparación (igualdad, includes, startsWith, test) contra la firma o su texto.
     expect(
       lineasCon(
         /(===|!==|==|!=|includes\(|startsWith\(|endsWith\(|\.test\(|localeCompare\()[^;]*(FIRMA_ADMINISTRACION|firmaAdministracion|[Aa]dministraci)|(FIRMA_ADMINISTRACION|firmaAdministracion)\s*(===|!==|==|!=)/,
       ),
     ).toEqual([])
+    // TAREAS-01c ronda 0 complementaria (C-8, Enmienda 3; §D-9): el texto de la firma vive en
+    // components/clase/data.ts (TEXTOS_DE_LA_CLASE.firmaAdministracion: FIRMA_ADMINISTRACION, con el
+    // import de @campus/shared en una línea) y solo lo lee components/clase/firma-del-autor.tsx;
+    // features/clases/data.ts y la reexportación de la firma ya no lo nombran. Siguen siendo tres
+    // líneas en dos archivos: un solo lugar de datos y la firma.
     expect(
       lineasCon(/FIRMA_ADMINISTRACION|firmaAdministracion/).map((l) => l.split(":")[0]),
     ).toEqual([
-      "/src/features/clases/components/firma-del-autor.tsx",
-      "/src/features/clases/data.ts",
-      "/src/features/clases/data.ts",
+      "/src/components/clase/data.ts",
+      "/src/components/clase/data.ts",
+      "/src/components/clase/firma-del-autor.tsx",
     ])
     expect(lineasCon(/"Administración"/)).toEqual([])
   })
@@ -56,13 +62,18 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
   it("C-13 y A-5: los botones de borrar leen puedeBorrar del dato; nada decide por el rol, por `propio` ni por mis-comentarios", () => {
     expect(lineasCon(/mis-comentarios|useBorrarMiComentario|esMaestro|esDueno/)).toEqual([])
     expect(lineasCon(/\.propio\b/)).toEqual([])
+    // TAREAS-01d ronda 0 complementaria (C-13, Enmienda 4; §D-10): "Borrar tarea" lee puedeBorrar de
+    // la tarea en acciones-de-la-tarea.tsx, el único lector nuevo (detalle-tarea-view.tsx le pasa el
+    // objeto entero y tarjeta-de-tarea.tsx no lo lee). Sigue protegiendo que el botón decida por el
+    // dato y nunca por el rol, y que nadie más lea puedeBorrar.
     expect(rutasCon(/\.puedeBorrar\b/)).toEqual([
       "/src/features/clases/components/comentarios-de-publicacion.tsx",
       "/src/features/clases/components/publicacion-del-muro.tsx",
+      "/src/features/tareas/components/acciones-de-la-tarea.tsx",
     ])
-    expect(lineasCon(/puedeBorrar\s*[:=]\s*(?!\s*(comentario|publicacion)\.puedeBorrar)/)).toEqual(
-      [],
-    )
+    expect(
+      lineasCon(/puedeBorrar\s*[:=]\s*(?!\s*(comentario|publicacion|tarea)\.puedeBorrar)/),
+    ).toEqual([])
   })
 
   // CLASES-02 ronda 0 de 02d (O-06, arbitraje del manager en revision.md, "Verificación del resumen
@@ -76,11 +87,21 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     expect(
       lineasCon(
         /pathname\s*(\.\s*(toLowerCase|toLocaleLowerCase)\(\s*\)\s*)?\.\s*(startsWith|includes|match|indexOf)\(/,
-      ).filter((linea) => !linea.startsWith("/src/features/clases/lib.ts: ")),
+      ).filter((linea) => !linea.startsWith("/src/lib/ruta-de-clase.ts: ")),
     ).toEqual([])
+    // TAREAS-01d ronda 0 complementaria (C-13, Enmienda 4; §D-9 y §D-10): perspectivaDeRuta vive en
+    // lib/ruta-de-clase.ts desde 01c (la exención de arriba apunta ahí; O-2 de la ronda 0 de 01c), y
+    // features/tareas la llama solo desde su gancho useRutaDeLaClase (hooks.ts). Sigue protegiendo
+    // que nadie más la llame ni compare el pathname por su cuenta.
+    // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): trabajo-view.tsx y
+    // categorias-view.tsx la llaman como muro-view.tsx; sus componentes reciben la perspectiva o la
+    // base por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un prefijo.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
+      "/src/features/clases/categorias-view.tsx",
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/muro-view.tsx",
+      "/src/features/clases/trabajo-view.tsx",
+      "/src/features/tareas/hooks.ts",
     ])
   })
 

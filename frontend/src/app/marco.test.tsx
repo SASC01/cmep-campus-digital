@@ -229,6 +229,8 @@ describe("marco: el foco del muro al cambiar de clase", () => {
     comentarios: 0,
     adjuntos: [],
     puedeBorrar: false,
+    // TAREAS-01b (C-5): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+    tarea: null,
   })
 
   const stubDeDosClases = () =>

@@ -50,6 +50,7 @@ enum TipoMovimientoInscripcion {
 enum TipoPublicacion {
   anuncio
   material
+  tarea
 
   @@map("tipo_publicacion")
 }
@@ -177,6 +178,9 @@ model Clase {
   publicaciones    Publicacion[]
   archivos         Archivo[]
   maestros         MaestroDeClase[]
+  temas            Tema[]
+  categorias       Categoria[]
+  tareas           Tarea[]
 
   @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
   @@index([creadoEn(sort: Desc), id(sort: Desc)])
@@ -240,6 +244,9 @@ model MovimientoInscripcion {
 // (el anuncio no lleva título y el material sí) se agregó a mano en la migración: Prisma no expresa
 // CHECK ni lo compara al buscar deriva. Las llaves foráneas de autoría son ON DELETE RESTRICT (no
 // hay bajas físicas de usuarios); las de clase y publicación, CASCADE.
+// TAREAS-01a: el tipo `tarea` (con título, como el material) y tema_id; el CHECK de título por tipo
+// se reemplazó a mano y un anuncio no lleva tema (publicaciones_anuncio_sin_tema). Las tareas llevan
+// su fila 1:1 en `tareas`.
 model Publicacion {
   id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   claseId       String          @map("clase_id") @db.Uuid
@@ -253,9 +260,90 @@ model Publicacion {
   autor         Usuario         @relation(fields: [autorId], references: [id], onDelete: Restrict)
   comentarios   Comentario[]
   archivos      Archivo[]
+  temaId        String?         @map("tema_id") @db.Uuid
+  tema          Tema?           @relation(fields: [temaId], references: [id], onDelete: SetNull)
+  tarea         Tarea?
 
   @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@index([claseId, temaId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@index([temaId])
   @@map("publicaciones")
+}
+
+// TAREAS-01a (§D-1). Tema de una clase: agrupa materiales y tareas en "Trabajo de clase" (RF-43).
+// Hasta 30 por clase y sin nombres repetidos: lo valida core/ con la fila de la clase bloqueada. El
+// CHECK (orden >= 0) se agregó a mano en la migración. Borrar un tema deja sus elementos en "Sin
+// tema" (publicaciones.tema_id es ON DELETE SET NULL).
+model Tema {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claseId       String        @map("clase_id") @db.Uuid
+  nombre        String
+  orden         Int
+  creadoEn      DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  clase         Clase         @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  publicaciones Publicacion[]
+
+  @@index([claseId, orden, id])
+  @@map("temas")
+}
+
+// TAREAS-01a (§D-1). Categoría ponderada de una clase (RF-32). El CHECK (peso entre 1 y 100) se
+// agregó a mano en la migración; que los pesos de la clase sumen 100 y el tope de 10 los valida
+// core/ con la fila de la clase bloqueada (S-06: se guardan en bloque).
+model Categoria {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claseId       String   @map("clase_id") @db.Uuid
+  nombre        String
+  peso          Int
+  creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  clase         Clase    @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  tareas        Tarea[]
+
+  @@index([claseId, creadoEn, id])
+  @@map("categorias")
+}
+
+// TAREAS-01a (§D-1, P-03 a). Una tarea es una publicación de tipo `tarea` más esta fila 1:1: el id es
+// el mismo (por eso no tiene valor por defecto) y la FK a publicaciones es CASCADE, así que mueren
+// juntas. categoria_id es ON DELETE NO ACTION (P-01 a: no se quita una categoría con tareas) y no
+// RESTRICT: al borrar una clase, la cascada borra categorías y tareas en la misma sentencia y la
+// comprobación se hace al final (igual que archivos.publicacion_id). trabajo_id es el id del
+// trabajo de pg-boss y no lleva FK. El CHECK (puntos entre 1 y 1000) se agregó a mano.
+model Tarea {
+  id            String            @id @db.Uuid
+  claseId       String            @map("clase_id") @db.Uuid
+  categoriaId   String?           @map("categoria_id") @db.Uuid
+  fechaLimite   DateTime          @map("fecha_limite") @db.Timestamptz(3)
+  puntos        Int
+  aceptaTardias Boolean           @default(true) @map("acepta_tardias")
+  trabajoId     String?           @map("trabajo_id") @db.Uuid
+  creadoEn      DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime          @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publicacion   Publicacion       @relation(fields: [id], references: [id], onDelete: Cascade)
+  clase         Clase             @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  categoria     Categoria?        @relation(fields: [categoriaId], references: [id], onDelete: NoAction)
+  criterios     CriterioRubrica[]
+
+  @@index([claseId, fechaLimite])
+  @@index([categoriaId])
+  @@map("tareas")
+}
+
+// TAREAS-01a (§D-1). Criterio de la rúbrica de una tarea (RF-34): editar la rúbrica reemplaza todos
+// sus criterios (S-04). Los CHECK (puntos_max entre 1 y 1000, orden >= 0) se agregaron a mano.
+model CriterioRubrica {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tareaId   String   @map("tarea_id") @db.Uuid
+  criterio  String
+  puntosMax Int      @map("puntos_max")
+  orden     Int
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  tarea     Tarea    @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+
+  @@unique([tareaId, orden])
+  @@map("criterios_rubrica")
 }
 
 model Comentario {

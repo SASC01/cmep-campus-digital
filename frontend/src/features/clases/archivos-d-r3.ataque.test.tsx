@@ -121,6 +121,8 @@ describe("ataque d-r3: foco al quitar y publicar con el teclado", () => {
               autor: AUTOR,
               creadoEn: "2026-10-02T15:30:00.000Z",
               comentarios: 0,
+              // TAREAS-01b ronda 0 (C-5, §D-R0): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+              tarea: null,
               adjuntos: [],
               puedeBorrar: true,
             },
@@ -171,6 +173,7 @@ describe("ataque d-r3: muro con una página sin vistas previas y otra con ellas"
     autor: AUTOR,
     creadoEn: "2026-10-02T15:00:00.000Z",
     comentarios: 0,
+    tarea: null,
     adjuntos:
       vistaPreviaHasta === null
         ? []

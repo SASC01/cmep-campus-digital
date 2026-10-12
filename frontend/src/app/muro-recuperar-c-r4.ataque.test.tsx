@@ -41,6 +41,8 @@ const publicacion = (n: number, comentarios = 0) => ({
   autor: FIRMA,
   creadoEn: "2026-09-29T15:30:00.000Z",
   comentarios,
+  // TAREAS-01b ronda 0 (C-5, §D-R0): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+  tarea: null,
   adjuntos: [],
   puedeBorrar: false,
 })

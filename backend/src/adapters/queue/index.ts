@@ -49,6 +49,8 @@ export const iniciarCola = async ({
 export interface OpcionesEncolar {
   id: string
   sql?: EjecutorSql
+  // TAREAS-01b (S-15): trabajo diferido; pg-boss lo deja disponible a partir de este momento.
+  inicio?: Date
 }
 
 // El eventId es el id del trabajo (C-02): un segundo encolado con el mismo id no crea otro trabajo
@@ -56,9 +58,25 @@ export interface OpcionesEncolar {
 export const encolar = async (
   nombre: string,
   datos: object,
-  { id, sql }: OpcionesEncolar,
+  { id, sql, inicio }: OpcionesEncolar,
 ): Promise<void> => {
-  await obtenerBoss().send(nombre, datos, { id, ...(sql ? { db: sql } : {}) })
+  await obtenerBoss().send(nombre, datos, {
+    id,
+    ...(sql ? { db: sql } : {}),
+    ...(inicio ? { startAfter: inicio } : {}),
+  })
+}
+
+// TAREAS-01b (S-15): cancela un trabajo (un recordatorio diferido que ya no aplica) dentro de la
+// transacción del dato. `sql` es obligatorio: no existe la cancelación fuera de una transacción (si la
+// transacción se revierte, el trabajo vuelve a estar vivo). Un id que no existe o que ya corrió no
+// hace nada.
+export const cancelar = async (
+  nombre: string,
+  id: string,
+  { sql }: { sql: EjecutorSql },
+): Promise<void> => {
+  await obtenerBoss().cancel(nombre, id, { db: sql })
 }
 
 export const asegurarCola = async (nombre: string, opciones: QueueOptions = {}): Promise<void> => {

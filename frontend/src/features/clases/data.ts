@@ -1,4 +1,6 @@
-import { FIRMA_ADMINISTRACION, TIPOS_DE_ARCHIVO_PERMITIDOS } from "@campus/shared"
+import { MENSAJES_ERROR_DE_ARCHIVOS } from "@/components/adjuntos/data"
+import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
 
 import type { CapacidadesDePerspectiva, Perspectiva } from "./types"
 
@@ -6,7 +8,11 @@ import type { CapacidadesDePerspectiva, Perspectiva } from "./types"
 // en la prueba de cambio de identidad (PR-A23a).
 // A-6 de CLASES-02: las dos claves de las listas viven en services/clasesService.ts (las usa también
 // la barra lateral) y se reexportan aquí para no cambiar a nadie.
-export { CLAVE_CLASES_IMPARTIDAS, CLAVE_CLASES_INSCRITAS } from "@/services/clasesService"
+export {
+  CLAVE_CLASES_IMPARTIDAS,
+  CLAVE_CLASES_INSCRITAS,
+  clavePublicaciones,
+} from "@/services/clasesService"
 // CLASES-02c: la lista institucional del administrador y el buscador de maestros.
 export const CLAVE_CLASES_ADMIN = ["clases", "admin"] as const
 export const claveMaestrosCandidatos = (termino: string) =>
@@ -20,7 +26,6 @@ export const claveAlumnos = (claseId: string) => ["clases", claseId, "alumnos"] 
 export const claveCandidatos = (claseId: string) => ["clases", claseId, "candidatos"] as const
 // CLASES-c: el muro y los comentarios de cada publicación. Los comentarios no cuelgan de la clave
 // del muro, para que invalidar la lista no vuelva a pedir los comentarios de todas las abiertas.
-export const clavePublicaciones = (claseId: string) => ["clases", claseId, "publicaciones"] as const
 export const claveComentarios = (claseId: string, publicacionId: string) =>
   ["clases", claseId, "comentarios", publicacionId] as const
 
@@ -183,6 +188,16 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "BORRADO_NO_PERMITIDO",
   // O-07 (revisión de 02c): el servidor ya lo dice en español (503: el servidor está ocupado).
   "SERVICIO_OCUPADO",
+  // TAREAS-01e (§D-11): los errores de temas y categorías ya llegan en español ("Ya hay un tema con
+  // ese nombre.", "Los temas cambiaron mientras los ordenabas. Vuelve a intentarlo.", el nombre y el
+  // conteo de la categoría con tareas…).
+  "TEMA_NO_ENCONTRADO",
+  "TEMA_REPETIDO",
+  "TOPE_DE_TEMAS",
+  "ORDEN_DESACTUALIZADO",
+  "CATEGORIA_CON_TAREAS",
+  "CATEGORIA_NO_ENCONTRADA",
+  "ANUNCIO_SIN_TEMA",
 ]
 
 export const TEXTOS_CODIGO = {
@@ -209,9 +224,10 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   publicacionNoEncontrada: "Esa publicación ya no existe.",
   comentarioNoEncontrado: "Ese comentario ya no existe.",
   // §D-D6: errores de los archivos adjuntos.
-  archivoNoSubido: "Uno de los archivos no terminó de subir. Inténtalo de nuevo.",
-  archivoInvalido: "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.",
-  almacenNoDisponible: "Los archivos no están disponibles en este momento. Inténtalo más tarde.",
+  // TAREAS-01c (§D-9): los textos de los archivos viven en components/adjuntos/data.ts.
+  archivoNoSubido: MENSAJES_ERROR_DE_ARCHIVOS.archivoNoSubido,
+  archivoInvalido: MENSAJES_ERROR_DE_ARCHIVOS.archivoInvalido,
+  almacenNoDisponible: MENSAJES_ERROR_DE_ARCHIVOS.almacenNoDisponible,
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
 
@@ -221,12 +237,15 @@ export const TEXTOS_CLASE = {
   maestro: (nombre: string) => `Maestro: ${nombre}`,
   maestros: (nombres: string) => `Maestros: ${nombres}`,
   muro: "Muro",
+  // TAREAS-01e (§D-11): la sección nueva, segunda en las tres perspectivas.
+  trabajo: "Trabajo de clase",
   personas: "Personas",
   alumnos: "Alumnos",
   maestrosDeLaClase: "Maestros",
   editar: "Editar clase",
   secciones: "Secciones de la clase",
-  sinAcceso: "No tienes acceso a esta clase.",
+  // TAREAS-01c (§D-9): el texto vive en components/clase/data.ts, junto a ConClaseDeLaRuta.
+  sinAcceso: TEXTOS_DE_LA_CLASE.sinAcceso,
 } as const
 
 // §D-B6: textos de CLASES-b (propuesta).
@@ -276,12 +295,11 @@ export const TEXTOS_TABLA_ALUMNOS = {
 
 // §D-C6: textos de CLASES-c (propuesta).
 export const TEXTOS_MURO = {
+  crearTarea: "Crear tarea",
   tituloLista: "Publicaciones",
   vacioEstudiante: "Tu maestro aún no ha publicado nada en esta clase.",
   vacioMaestro: "Publica el primer anuncio o material de tu clase.",
   vacioAdmin: "Aún no hay publicaciones en esta clase.",
-  // §D-2C4: la firma de lo que publica la administración sale de shared/, nunca de autor.nombre.
-  firmaAdministracion: FIRMA_ADMINISTRACION,
   verMasPublicaciones: "Ver más publicaciones",
   avisoPublicacionBorrada: "Publicación borrada",
   cambioMientrasLoVeias: "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.",
@@ -297,6 +315,16 @@ export const TEXTOS_FORMULARIO_PUBLICACION = {
   publicarAnuncio: "Publicar anuncio",
   publicarMaterial: "Publicar material",
   avisoPublicado: "Publicado",
+  // TAREAS-01e (§D-11, Enmienda 6): el tema de un material.
+  campoTema: "Tema",
+  sinTema: "Sin tema",
+  temasNoCargados: "No pudimos cargar los temas. El material se publicará sin tema.",
+} as const
+
+// TAREAS-01d (§D-10, S-10): la tarjeta de una tarea en el muro.
+export const TEXTOS_TARJETA_DE_TAREA = {
+  insignia: "Tarea",
+  puntos: (n: number) => (n === 1 ? "1 punto" : `${n} puntos`),
 } as const
 
 export const TEXTOS_PUBLICACION = {
@@ -328,75 +356,62 @@ export const TEXTOS_COMENTARIOS = {
   verMas: "Ver más comentarios",
 } as const
 
-// §D-D6: textos de CLASES-d (propuesta).
-export const TEXTOS_ADJUNTOS = {
-  adjuntar: "Adjuntar archivos",
-  ayuda: "Hasta 5 archivos de 25 MB: PDF, imágenes, Word, Excel, PowerPoint o texto.",
-  elegidos: "Archivos elegidos",
-  adjuntos: "Archivos adjuntos",
-  quitar: "Quitar",
-  descargar: "Descargar",
-  imagenAdjunta: (nombre: string) => `Imagen adjunta: ${nombre}`,
-  errorPesaMucho: (nombre: string) => `«${nombre}» pesa más de 25 MB.`,
-  errorTipo: (nombre: string) => `«${nombre}» no es de un tipo permitido.`,
-  errorCantidad: "Puedes adjuntar hasta 5 archivos.",
-  errorSubida: (nombre: string) => `No pudimos subir «${nombre}». Inténtalo de nuevo.`,
-  // T-41: la solicitud de subida de un archivo fue rechazada; `motivo` ya viene en español.
-  errorRechazado: (nombre: string, motivo: string) => `No pudimos subir «${nombre}»: ${motivo}`,
-  // T-38: la lista no cambia mientras se publica.
-  listaFija: "Mientras se publica no puedes cambiar los archivos.",
-} as const
-
-// Los tipos y las extensiones que acepta el selector de archivos, salidos de la misma tabla que usa
-// el servidor para validar (shared/).
-export const ACCEPT_DE_ADJUNTOS = Object.entries(TIPOS_DE_ARCHIVO_PERMITIDOS)
-  .flatMap(([tipo, extensiones]) => [tipo, ...extensiones.map((extension) => `.${extension}`)])
-  .join(",")
+// TAREAS-01c (§D-9): los textos de los adjuntos, el accept y el margen de las vistas previas viven en
+// components/adjuntos/data.ts; se reexportan aquí para no cambiar a nadie.
+export {
+  ACCEPT_DE_ADJUNTOS,
+  MARGEN_DE_VISTA_PREVIA_MS,
+  MENSAJES_ERROR_DE_ARCHIVOS,
+  TEXTOS_ADJUNTOS,
+} from "@/components/adjuntos/data"
 
 // Sin vistas previas, el muro se considera fresco 4 minutos. Con ellas, ver tiempoFrescoDelMuro (lib.ts):
 // son URL firmadas que vencen a los 5 minutos de firmarse.
 export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
-
-// T-40: el muro se vuelve a pedir este tiempo antes de que venza la primera vista previa; así las URL
-// viejas siguen vigentes mientras llega la respuesta nueva.
-export const MARGEN_DE_VISTA_PREVIA_MS = 60_000
 
 // §D-2C1: lo que cada perspectiva ve de una clase. La interfaz solo decide qué mostrar; el backend
 // ya decide qué se permite (§D-2.0). Ninguna capacidad sustituye una comprobación del backend. El
 // botón de borrar no está aquí: sale de `puedeBorrar` de cada publicación y comentario.
 export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePerspectiva> = {
   estudiante: {
-    base: "/estudiante/clases",
+    base: BASES_POR_PERSPECTIVA.estudiante,
     volverDestino: "/estudiante",
     volverTexto: TEXTOS_CLASE.volver,
     secciones: [
       { segmento: "", texto: TEXTOS_CLASE.muro },
+      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "personas", texto: TEXTOS_CLASE.personas },
     ],
     verCodigo: false,
     editar: false,
     formularioPublicacion: false,
     formularioComentario: true,
+    crearTarea: false,
+    gestionarTrabajo: false,
   },
   maestro: {
-    base: "/maestro/clases",
+    base: BASES_POR_PERSPECTIVA.maestro,
     volverDestino: "/maestro",
     volverTexto: TEXTOS_CLASE.volver,
     secciones: [
       { segmento: "", texto: TEXTOS_CLASE.muro },
+      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
     ],
     verCodigo: true,
     editar: false,
     formularioPublicacion: true,
     formularioComentario: true,
+    crearTarea: true,
+    gestionarTrabajo: true,
   },
   admin: {
-    base: "/admin/clases",
+    base: BASES_POR_PERSPECTIVA.admin,
     volverDestino: "/admin/clases",
     volverTexto: TEXTOS_CLASE.volverALaLista,
     secciones: [
       { segmento: "", texto: TEXTOS_CLASE.muro },
+      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
       { segmento: "maestros", texto: TEXTOS_CLASE.maestrosDeLaClase },
     ],
@@ -404,21 +419,134 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     editar: true,
     formularioPublicacion: true,
     formularioComentario: false,
+    crearTarea: true,
+    gestionarTrabajo: true,
   },
 }
 
 // §D-2C1: el indicador de las secciones mide 1/N y se traslada una posición por sección. Clases
-// completas, escritas enteras para que Tailwind las encuentre.
+// completas, escritas enteras para que Tailwind las encuentre. TAREAS-01e (§D-11): con "Trabajo de
+// clase" son tres (estudiante y maestro) o cuatro (admin).
 export const CLASES_DEL_INDICADOR_POR_SECCIONES: Record<number, string> = {
   2: "w-1/2",
   3: "w-1/3",
+  4: "w-1/4",
 }
 export const CLASES_DE_LA_REJILLA_POR_SECCIONES: Record<number, string> = {
   2: "grid-cols-2",
   3: "grid-cols-3",
+  4: "grid-cols-4",
 }
 export const CLASES_DE_POSICION_DEL_INDICADOR = [
   "",
   "translate-x-full",
   "translate-x-[200%]",
+  "translate-x-[300%]",
 ] as const
+
+// TAREAS-01e (§D-11, Enmienda 5): "Trabajo de clase" pide la primera página de cada tema de 5 en 5,
+// "Ver más" de 20 en 20, y como máximo 6 lecturas a la vez (el limitador de hooks.ts).
+export const LIMITE_PRIMERA_PAGINA_TRABAJO = 5
+export const LIMITE_PAGINAS_TRABAJO = 20
+export const MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO = 6
+// El valor de `tema` de GET …/trabajo para los elementos sin tema.
+export const CLAVE_SIN_TEMA = "sin-tema"
+
+// §D-11: textos de "Trabajo de clase" (propuesta).
+export const TEXTOS_TRABAJO = {
+  titulo: TEXTOS_CLASE.trabajo,
+  sinTema: TEXTOS_FORMULARIO_PUBLICACION.sinTema,
+  temaVacio: "Aún no hay nada en este tema.",
+  vacio: "Aún no hay tareas ni materiales en esta clase.",
+  cargandoTema: (nombre: string) => `Cargando ${nombre}`,
+  conteo: (n: number) => (n === 1 ? "1 elemento" : `${n} elementos`),
+  verMaterial: "Ver material",
+  ocultarMaterial: "Ocultar material",
+  verMasDe: (nombre: string) => `Ver más de ${nombre}`,
+  crearTarea: TEXTOS_MURO.crearTarea,
+  nuevoTema: "Nuevo tema",
+  categorias: "Categorías de calificación",
+  tarea: "Tarea:",
+  // El cuadro de fecha de una fecha que no se puede leer (la fila dice "Fecha límite no disponible").
+  diaNoDisponible: "—",
+  insigniaMaterial: TEXTOS_PUBLICACION.insigniaMaterial,
+  cambioMientrasLoVeias:
+    "Este tema cambió mientras lo veías. Vuelve a abrir Trabajo de clase para verlo completo.",
+  recargaFallida:
+    "No pudimos actualizar Trabajo de clase. Mostramos la última versión que tenemos.",
+} as const
+
+export const TEXTOS_TEMAS = {
+  campoNombre: "Nombre del tema",
+  crear: "Crear tema",
+  renombrar: "Renombrar",
+  guardarNombre: "Guardar nombre",
+  cancelar: "Cancelar",
+  subir: "Subir",
+  bajar: "Bajar",
+  delTema: (nombre: string) => `tema ${nombre}`,
+  borrar: "Borrar tema",
+  consecuencia: (n: number) => {
+    if (n === 0) return "El tema no tiene elementos."
+    if (n === 1) return "Su elemento pasará a «Sin tema»."
+    return `Sus ${n} elementos pasarán a «Sin tema».`
+  },
+  siBorrar: "Sí, borrar tema",
+  temaDe: (titulo: string) => `Tema de «${titulo}»`,
+  mover: "Mover",
+  avisoCreado: "Tema creado",
+  avisoRenombrado: "Tema renombrado",
+  avisoBorrado: "Tema borrado",
+  avisoMovido: (titulo: string, tema: string) => `Moviste «${titulo}» a «${tema}»`,
+} as const
+
+// Errores que dicen que la lista de temas que se ve ya no es la del servidor: tras ellos se vuelve a
+// pedir, junto con "Trabajo de clase" (un elemento puede ya no estar donde se veía).
+export const CODIGOS_QUE_RENUEVAN_LOS_TEMAS: readonly string[] = [
+  "TEMA_NO_ENCONTRADO",
+  "TEMA_REPETIDO",
+  "TOPE_DE_TEMAS",
+  "ORDEN_DESACTUALIZADO",
+  "PUBLICACION_NO_ENCONTRADA",
+  "ANUNCIO_SIN_TEMA",
+]
+
+// §D-11: textos de "Categorías de calificación" (propuesta).
+export const TEXTOS_CATEGORIAS = {
+  titulo: TEXTOS_TRABAJO.categorias,
+  frase:
+    "Los pesos deben sumar 100 %. Cada categoría cuenta según su peso en la calificación general.",
+  nombre: "Nombre",
+  peso: "Peso",
+  sufijoPeso: "%",
+  deLaFila: (n: number) => `de la categoría ${n}`,
+  tareas: (n: number) => (n === 1 ? "1 tarea" : `${n} tareas`),
+  quitar: "Quitar",
+  tieneTareas: (n: number) => (n === 1 ? "Tiene 1 tarea." : `Tiene ${n} tareas.`),
+  agregar: "Agregar categoría",
+  totalExacto: "Total: 100 %",
+  totalFaltan: (total: number, faltan: number) => `Total: ${total} %. Faltan ${faltan} %.`,
+  totalSobran: (total: number, sobran: number) => `Total: ${total} %. Sobran ${sobran} %.`,
+  guardar: "Guardar categorías",
+  avisoGuardadas: "Categorías guardadas",
+  vacio: "Esta clase no tiene categorías. Sus tareas se califican por puntos.",
+} as const
+
+export const TEXTOS_CATEGORIAS_RECARGA =
+  "No pudimos actualizar las categorías. Mostramos la última versión que tenemos."
+
+// Errores al guardar que dicen que las categorías que se editaban ya no son las del servidor: la
+// lista se vuelve a pedir y el editor parte de ella.
+export const CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS: readonly string[] = [
+  "CATEGORIA_CON_TAREAS",
+  "CATEGORIA_NO_ENCONTRADA",
+]
+
+// DESIGN.md §7.7 con la variante de TAREAS-01 (S-10): el cuadro de fecha y el texto del estado. Solo la
+// fecha próxima usa warning; una pendiente o una vencida van en muted (hasta ENTREGAS no hay "Sin
+// entregar"), y el texto dice cuál es.
+export const CLASES_DEL_CUADRO_DE_FECHA = {
+  pendiente: { cuadro: "bg-muted text-muted-foreground", estado: "text-muted-foreground" },
+  proxima: { cuadro: "bg-warning-soft text-warning", estado: "text-warning" },
+  vencida: { cuadro: "bg-muted text-muted-foreground", estado: "text-muted-foreground" },
+} as const

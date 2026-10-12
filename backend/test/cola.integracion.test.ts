@@ -13,6 +13,7 @@ import {
 import {
   asegurarCola,
   buscarTrabajo,
+  cancelar,
   describirCola,
   detenerCola,
   encolar,
@@ -21,6 +22,11 @@ import {
 } from "../src/adapters/queue/index.js"
 import { opcionesDeCola } from "../src/config/cola.js"
 import { cargarEnv } from "../src/config/env.js"
+import {
+  COLA_AVISO_FALLIDO,
+  COLA_RECORDATORIO_24H,
+  COLA_TAREA_CREADA,
+} from "../src/core/eventos/avisos-de-clase.js"
 import {
   COLA_CORREO_DE_CUENTA,
   COLA_CORREO_DE_CUENTA_FALLIDO,
@@ -181,6 +187,81 @@ describe("encolado transaccional (DEC-07, la compuerta del encargo)", () => {
       if (!capturado) throw new Error("Precondición: se capturó una consulta")
       expect(capturado.texto).not.toContain("no-debe-viajar-en-el-texto")
       expect(capturado.texto).not.toContain(id)
+    })
+  })
+
+  describe("trabajos diferidos y cancelación (TAREAS-01b, S-15, R-05)", () => {
+    const COLA = COLA_RECORDATORIO_24H
+    const enDias = (dias: number): Date => new Date(Date.now() + dias * 86_400_000)
+
+    it("TAREA_CREADA y RECORDATORIO_24H existen con la política de los avisos: 3 reintentos, 30 s con retroceso, 300 s, AVISO_FALLIDO y 7 días", async () => {
+      for (const nombre of [COLA_TAREA_CREADA, COLA_RECORDATORIO_24H]) {
+        const cola = await describirCola(nombre)
+        expect(cola, nombre).toMatchObject({
+          retryLimit: 3,
+          retryDelay: 30,
+          retryBackoff: true,
+          expireInSeconds: 300,
+          deadLetter: COLA_AVISO_FALLIDO,
+          retentionSeconds: 604_800,
+          deleteAfterSeconds: 604_800,
+        })
+      }
+    })
+
+    it("encolar con inicio deja el trabajo en created con start_after = inicio y la retención contada desde ahí", async () => {
+      const id = randomUUID()
+      const inicio = enDias(30)
+      await enTransaccion(obtenerDb(), async (tx) => {
+        await encolar(COLA, { tareaId: id }, { id, sql: ejecutorSqlDe(tx), inicio })
+      })
+
+      const [fila] = await obtenerDb().$queryRaw<
+        { state: string; start_after: Date; retencion_s: number }[]
+      >`
+        SELECT state::text AS state, start_after,
+               EXTRACT(EPOCH FROM (keep_until - start_after))::int AS retencion_s
+        FROM pgboss.job WHERE id = ${id}::uuid AND name = ${COLA}`
+      expect(fila?.state).toBe("created")
+      expect(fila?.start_after.getTime()).toBe(inicio.getTime())
+      expect(fila?.retencion_s).toBe(604_800)
+    })
+
+    it("cancelar dentro de una transacción confirmada deja el trabajo en cancelled", async () => {
+      const id = randomUUID()
+      await enTransaccion(obtenerDb(), async (tx) => {
+        await encolar(COLA, {}, { id, sql: ejecutorSqlDe(tx), inicio: enDias(10) })
+      })
+
+      await enTransaccion(obtenerDb(), async (tx) => {
+        await cancelar(COLA, id, { sql: ejecutorSqlDe(tx) })
+      })
+
+      expect((await buscarTrabajo(COLA, id))?.estado).toBe("cancelled")
+    })
+
+    it("cancelar dentro de una transacción revertida deja el trabajo en created (la cancelación se revierte)", async () => {
+      const id = randomUUID()
+      await enTransaccion(obtenerDb(), async (tx) => {
+        await encolar(COLA, {}, { id, sql: ejecutorSqlDe(tx), inicio: enDias(10) })
+      })
+
+      await expect(
+        enTransaccion(obtenerDb(), async (tx) => {
+          await cancelar(COLA, id, { sql: ejecutorSqlDe(tx) })
+          throw new Error("fallo deliberado tras cancelar")
+        }),
+      ).rejects.toThrow("fallo deliberado tras cancelar")
+
+      expect((await buscarTrabajo(COLA, id))?.estado).toBe("created")
+    })
+
+    it("cancelar un id que no existe no falla", async () => {
+      await enTransaccion(obtenerDb(), async (tx) => {
+        await expect(
+          cancelar(COLA, randomUUID(), { sql: ejecutorSqlDe(tx) }),
+        ).resolves.toBeUndefined()
+      })
     })
   })
 

@@ -955,7 +955,15 @@ describe("ataque FIX-CLASES r2: el ejecutor de una transacción de afuera", () =
 })
 
 describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y conjunto de claves)", () => {
-  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones y comentarios; nada borra enlaces_registro ni usuarios", () => {
+  // TAREAS-01b ronda 0 (caso fuera del inventario de §D-R0; C-n más cercano: C-7, reglas estáticas
+  // sobre los archivos de backend/src): esta prueba nació en FIX-CLASES sobre main, sin TAREAS-01a.
+  // Con el merge de main en feat/tareas (<M1> = 07e4ab7), los borrados de 01a ya están en la base:
+  // tema.deleteMany (§D-2, borrar un tema) y categoria.deleteMany (§D-3, quitar categorías). 01b
+  // agrega criterioRubrica.deleteMany (§D-4, editar una tarea reemplaza su rúbrica, S-04); borrar una
+  // tarea usa publicacion.deleteMany (cascada), que ya estaba. Lo que protege no cambia: nada borra
+  // enlaces_registro ni usuarios, no hay DELETE FROM ni TRUNCATE crudos, y cualquier otro borrado
+  // vuelve a poner la prueba en rojo.
+  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías y criterios de rúbrica; nada borra enlaces_registro ni usuarios", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const borrados = new Set<string>()
     const crudos: string[] = []
@@ -968,10 +976,13 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
       if (/DELETE\s+FROM|TRUNCATE/i.test(texto)) crudos.push(ruta)
     }
     expect([...borrados].sort()).toEqual([
+      "categoria",
       "comentario",
+      "criterioRubrica",
       "inscripcion",
       "maestroDeClase",
       "publicacion",
+      "tema",
     ])
     expect(crudos).toEqual([])
   })

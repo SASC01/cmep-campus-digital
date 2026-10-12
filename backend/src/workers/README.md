@@ -38,3 +38,10 @@ cuenta. La espera va antes del trabajo siguiente, nunca después de enviar, para
 ventana de reenvío si el worker cae justo tras un envío exitoso. `esperar` es una inyección
 explícita para las pruebas (`DependenciasCorreoDeCuentaConRitmo`); por defecto espera de verdad.
 `workers/correo-de-cuenta.ts` no cambia: el ritmo vive solo en `workers/index.ts`.
+
+## Colas de TAREAS-01b sin consumidor (TAREAS-01b, §D-5)
+
+`TAREA_CREADA` y `RECORDATORIO_24H` los encola la API (`handlers/tareas/tareas.ts`) y esperan en la
+cola, con la política de los avisos del muro, hasta que NOTIFICACIONES agregue sus consumidores. El
+consumidor de ambas carga la tarea por id y termina sin avisar si ya no existe; el de
+`RECORDATORIO_24H`, además, descarta un trabajo cuyo id ya no es `tareas.trabajo_id` (quedó viejo).

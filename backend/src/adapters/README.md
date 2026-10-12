@@ -5,7 +5,7 @@ generado por Prisma (`db/generated/`, no versionado; lo crea `prisma generate`),
 `resend`, `argon2`, `jose` y `livekit-server-sdk` (AGENTS.md, regla 1; ESLint lo vigila con
 `no-restricted-imports`).
 
-Módulos: `db`, `auth`, `storage`, `notifier`, `queue`, `scheduler`, `live`. Cada uno traduce los
+Módulos: `db`, `auth`, `storage`, `notifier`, `queue` (cola y trabajos diferidos de pg-boss, con su única instancia; no hay un módulo `scheduler` aparte, TAREAS-01), `live`. Cada uno traduce los
 errores de su proveedor a `AppError`; nadie fuera de `adapters/db` conoce los códigos de Prisma.
 
 ## `queue` (AUTH-02)
@@ -284,3 +284,69 @@ archivos a `descartado` y les quita la publicación. Dos `CHECK` (a mano en la m
 tamaño es positivo y que un archivo está confirmado si y solo si tiene publicación. Los objetos
 descartados o nunca confirmados siguen en el almacén hasta `LIMPIEZA_DIARIA`, prerrequisito de
 DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
+
+## `db/bloqueo-clase.ts`, `db/referencias.ts`, `db/temas.ts` y `db/categorias.ts` (TAREAS-01a, §D-2, §D-3 y §D-7)
+
+`bloqueo-clase.ts` guarda `bloquearClase(tx, claseId)`, movido sin cambios desde
+`maestros-de-clase.ts` (A-5): el candado de la fila de la clase con un `updateMany` de
+`actualizado_en` (`FOR NO KEY UPDATE`, sin SQL crudo). Lo usan las asignaciones de maestros, los temas
+y las categorías, y no se reexporta en `index.ts`.
+
+`referencias.ts` tiene las únicas lecturas `FOR KEY SHARE` del proyecto: `bloquearTemaParaUsar` y
+`bloquearCategoriaParaUsar` (`SELECT id … WHERE id = … AND clase_id = … FOR KEY SHARE`, etiquetadas y
+parametrizadas, `false` si no hay fila; no se reexportan). Todo repositorio que usa un tema o una
+categoría como referencia dentro de una transacción (`crearPublicacion` con `temaId`, `moverATema` y,
+desde 01b, las tareas) la toma con ellas; nadie más escribe un `FOR KEY SHARE`. Un borrado o un
+guardado de categorías que quita esa fila espera a que la transacción confirme; si confirmó antes, la
+lectura no ve la fila y el llamador responde `404`, nunca `P2003` ni `500`.
+
+`temas.ts`: `listarTemas` (temas por `(orden, creado_en, id)` y un solo `groupBy` de `publicaciones`
+por `tema_id` para `elementos` y `sinTema`), `crearTema`, `renombrarTema`, `borrarTema`,
+`ordenarTemas` y `moverATema`. Crear, renombrar, borrar y ordenar bloquean primero la clase y deciden
+con `core/tareas/temas.ts` (tope de 30, nombres repetidos, conjunto exacto del orden); el orden se
+escribe con un solo `UPDATE … FROM unnest` (`$executeRaw` etiquetado, con `actualizado_en = now()` a
+mano). Borrar un tema pasa sus elementos a «Sin tema» por la FK `SET NULL`. Mover no mira la autoría
+(P-02 b): un anuncio es `409 ANUNCIO_SIN_TEMA`.
+
+`categorias.ts`: `listarCategorias` (orden `(creado_en, id)`, `tareas` de un solo `groupBy`) y
+`reemplazarCategorias`, que guarda la lista completa (S-06): bloquea la clase, decide con
+`core/tareas/categorias.ts`, bloquea `FOR UPDATE` las categorías que se quitan **antes** de contar sus
+tareas (con alguna, `409 CATEGORIA_CON_TAREAS`), borra, actualiza solo las que cambian con un
+`UPDATE … FROM unnest` y crea las nuevas con `creado_en` distinto por posición para conservar el orden
+capturado.
+
+## `db/tareas.ts`, los trabajos diferidos en `queue` y las lecturas de tareas (TAREAS-01b, §D-4 a §D-7 y §D-12)
+
+**Una tarea es una publicación de tipo `tarea` más su fila 1:1 en `tareas` (mismo id).** Solo
+`db/tareas.ts` escribe `tipo: "tarea"`. `crearTarea`, `editarTarea` y `borrarTarea` corren en una
+transacción con estos bloqueos (§D-7): la categoría y el tema con `bloquearCategoriaParaUsar` y
+`bloquearTemaParaUsar` (`FOR KEY SHARE`, `db/referencias.ts`); editar toma `FOR NO KEY UPDATE OF t` sobre
+la fila de `tareas` (dos ediciones quedan en serie y cada una cancela el trabajo que dejó la anterior) y
+borrar toma `FOR UPDATE OF t` (choca con la edición); los dos comprueban la autoría de
+`core/autoria.ts` (`puedeEditarTarea`, `puedeBorrarTarea`) con el autor y su pertenencia a la clase leídos
+en la misma transacción. Orden de bloqueo: la fila de `tareas` y después la de `publicaciones`. Editar la
+rúbrica reemplaza sus criterios (S-04) y los archivos que salen pasan a `descartado` sin publicación.
+Crear y editar responden con `leerTarea(…, tx)`.
+
+**Los trabajos diferidos viven en `queue` (S-15), no en un módulo `scheduler`.** `encolar(nombre, datos,
+{ id, sql, inicio })` pasa `startAfter: inicio` cuando viene; `cancelar(nombre, id, { sql })` llama a
+`cancel(nombre, id, { db: sql })`: `sql` es obligatorio, no existe la cancelación fuera de una
+transacción, y se revierte con ella (comprobado: un trabajo cancelado dentro de una transacción
+revertida sigue en `created`). `adapters/db` nunca importa `adapters/queue`: el handler pasa los
+callbacks `alGuardar`, `alReprogramar` y `alBorrar`, que reciben el `EjecutorSql` de la transacción.
+`TAREA_CREADA` (id del trabajo = id de la tarea) y `RECORDATORIO_24H` (diferido a `fecha_limite − 24 h`;
+al editar la fecha se cancela y se recrea con un id nuevo, porque pg-boss ignora un `send` con un id que
+ya usó) tienen la política de los avisos del muro y no tienen consumidor hasta NOTIFICACIONES; la
+retención de un trabajo diferido se cuenta desde su `start_after`.
+
+**Lecturas de tareas (Enmienda 2, §D-12).** `leerTarea` y `listarTrabajo` corren enteras en una
+instantánea única (`enTransaccion` con la opción de solo lectura, REPEATABLE READ), con las sentencias en
+serie y sin escribir: la publicación de una tarea es una relación obligatoria (un borrado entre la fila
+de la tarea y la de su publicación la dejaría sin título ni autor), y `listarTrabajo` comprueba la fila del
+cursor antes de leer la página (si se borra o se mueve de tema en medio, la página saldría con un
+elemento de menos). `listarPublicaciones` ya corría en una instantánea (FIX-CLASES): la relación `tarea`
+va en el `select` de la página y los maestros de la clase (para el `puedeBorrar` de una tarea) se leen con
+`tx`, sin uso nuevo de la opción. Los usos de la opción son `clases.ts` (4), `publicaciones.ts` (2) y
+`tareas.ts` (2). Las escrituras siguen en READ COMMITTED; `leerTarea(…, tx)` anidada ignora la opción.
+El muro y los comentarios ignoran el tipo `tarea` donde no aplica (S-08): borrar una publicación,
+listar comentarios y comentar solo encuentran anuncios y materiales.

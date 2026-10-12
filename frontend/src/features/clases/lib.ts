@@ -1,48 +1,48 @@
-import {
-  estadoDeTerminoDeBusqueda,
-  MAXIMO_ADJUNTOS_POR_PUBLICACION,
-  TAMANO_MAXIMO_ARCHIVO_BYTES,
-  TIPOS_DE_ARCHIVO_PERMITIDOS,
-} from "@campus/shared"
+import { claveDeNombre, estadoDeTerminoDeBusqueda, normalizarTextoLargo } from "@campus/shared"
 
+import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
+import {
+  avisoDeFalloAlSubir as avisoDeFalloAlSubirCompartido,
+  tiempoFrescoDeAdjuntos,
+} from "@/components/adjuntos/lib"
+import {
+  campoDeErrorDeApi,
+  erroresDeFormularioDeApi,
+  quitarPrefijoDeCampo,
+} from "@/lib/errores-de-api"
 import { esApiError } from "@/services/apiClient"
 
 import {
-  CAPACIDADES_POR_PERSPECTIVA,
+  CLAVE_SIN_TEMA,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
-  MARGEN_DE_VISTA_PREVIA_MS,
   MENSAJES_ERROR_CLASES_GENERALES,
-  TEXTOS_ADJUNTOS,
+  TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
   TEXTOS_PERSONAS,
   TEXTOS_TARJETA,
+  TEXTOS_TRABAJO,
   TEXTOS_UNIRSE,
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
 import type {
-  ArchivoCandidato,
-  PaginaDelMuro,
+  Categoria,
+  ControlDeOrden,
+  CuadroDeFecha,
   ErroresFormulario,
+  FilaDeCategoria,
   IncidenciaValidacion,
-  Perspectiva,
+  LimiteDeConcurrencia,
+  ListaTemasRespuesta,
+  PaginaDelMuro,
   RolDeClases,
   SeccionDeClase,
+  SeccionDeTrabajo,
 } from "./types"
 
-// §D-2C1: la perspectiva sale del prefijo exacto de la ruta (/estudiante, /maestro o /admin, solo o
-// seguido de "/"). Un prefijo parecido (/maestros, /administrador) o cualquier otra ruta da
-// "estudiante", la perspectiva que menos muestra; el backend decide de todas formas. O-06 (revisión
-// de 02c): sin distinguir mayúsculas, como el router (/Admin/clases es la ruta de /admin/clases).
-export const perspectivaDeRuta = (pathname: string): Perspectiva => {
-  const ruta = pathname.toLowerCase()
-  for (const perspectiva of ["maestro", "admin"] as const) {
-    const base = `/${perspectiva}`
-    if (ruta === base || ruta.startsWith(`${base}/`)) return perspectiva
-  }
-  return "estudiante"
-}
+// TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
+export { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
 
 // §D-2D2: el título de la sección de maestros de "Personas".
 export const etiquetaDeMaestros = (total: number): string =>
@@ -74,10 +74,6 @@ export const indiceDeSeccionActiva = (
     return sinBarraFinal === destino || sinBarraFinal.startsWith(`${destino}/`)
   })
 }
-
-// La ruta base de las secciones de una clase para una perspectiva.
-export const baseDeClase = (perspectiva: Perspectiva, claseId: string): string =>
-  `${CAPACIDADES_POR_PERSPECTIVA[perspectiva].base}/${claseId}`
 
 // "Creada" en la tabla de clases del administrador: fecha corta en la zona local.
 export const formatearFechaDeClase = (iso: string): string => {
@@ -134,19 +130,9 @@ const MENSAJES_ERROR_CLASES: Record<string, string> = {
   ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
   PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
   COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
-  ARCHIVO_NO_SUBIDO: MENSAJES_ERROR_CLASES_GENERALES.archivoNoSubido,
-  ARCHIVO_INVALIDO: MENSAJES_ERROR_CLASES_GENERALES.archivoInvalido,
-  ALMACEN_NO_CONFIGURADO: MENSAJES_ERROR_CLASES_GENERALES.almacenNoDisponible,
-  ALMACEN_NO_DISPONIBLE: MENSAJES_ERROR_CLASES_GENERALES.almacenNoDisponible,
+  // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
+  ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
 }
-
-// T-17 (ronda 2 del tester): el mensaje de un VALIDACION del servidor lleva el nombre técnico del
-// campo como prefijo ("descripcion: No puede tener más de 2000 caracteres"), porque el cliente y el
-// servidor comparten el mismo esquema de shared/. Ese prefijo nunca es para la persona que usa la
-// interfaz (ni siquiera cuando el campo no es uno de un formulario, como claseId).
-const PREFIJO_DE_CAMPO = /^([a-zA-Z_]+):\s*/
-
-const quitarPrefijoDeCampo = (mensaje: string): string => mensaje.replace(PREFIJO_DE_CAMPO, "")
 
 // T-11 (ronda 1 del tester): un claseId con una forma inválida en la URL responde 400 VALIDACION
 // con el nombre técnico del parámetro ("claseId: debe ser un identificador válido"). El mismo
@@ -165,55 +151,23 @@ export const mensajeDeErrorClases = (error: unknown): string => {
   return MENSAJES_ERROR_CLASES[error.codigo] ?? MENSAJES_ERROR_CLASES_GENERALES.generico
 }
 
-// T-17 (ronda 2 del tester): el nombre de campo que trae el prefijo técnico del mensaje, o null si
-// el error no es un VALIDACION con esa forma.
-const campoDeErrorClases = (error: unknown): string | null => {
-  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
-  const coincidencia = PREFIJO_DE_CAMPO.exec(error.message)
-  return coincidencia ? (coincidencia[1] ?? null) : null
-}
-
 // T-34: el 400 "cursor: no es válido" de "Ver más" (el cursor ya no existe) no es un texto para la
 // persona: en su lugar se muestra `textoDelCursor`, que dice qué pasó y qué hacer. Cualquier otro
 // error sigue pasando por mensajeDeErrorClases.
 export const mensajeDeErrorDeLista = (error: unknown, textoDelCursor: string): string => {
-  if (campoDeErrorClases(error) === "cursor") return textoDelCursor
+  if (campoDeErrorDeApi(error) === "cursor") return textoDelCursor
   return mensajeDeErrorClases(error)
 }
 
-// El 400 "cursor: no es válido" de una lista paginada (la fila del cursor ya no existe).
-export const esErrorDeCursor = (error: unknown): boolean => campoDeErrorClases(error) === "cursor"
+// TAREAS-01c (§D-9): erroresPorCampo y esErrorDeCursor viven en lib/errores-de-api.ts; la versión
+// compartida de erroresDeFormularioClases recibe los mensajes de cada módulo, y este envoltorio
+// conserva el nombre, la firma y la salida de siempre (T-19: un error que no es de un campo da null).
+export { erroresPorCampo, esErrorDeCursor } from "@/lib/errores-de-api"
 
-// T-19 (ronda 3 del tester): un error que no es de un campo (500, sin conexión, SIN_ACCESO_A_LA_CLASE
-// al editar) no es un VALIDACION con el prefijo técnico de un campo, así que no debe marcar ningún
-// campo como inválido: es un error del formulario, no de un campo (CLAUDE.md, "Manejo de errores en
-// el frontend"). Devuelve el error asociado al campo del formulario que nombra el VALIDACION del
-// servidor, o `null` si el error no encaja en ninguno de `camposValidos` (porque no es VALIDACION,
-// o porque nombra un campo que ese formulario no tiene); en ese caso, cada formulario decide qué
-// hacer con el error (un aviso del formulario, o su propio error de dominio, como CODIGO_INVALIDO
-// en "Unirme a la clase").
 export const erroresDeFormularioClases = (
   error: unknown,
   camposValidos: readonly string[],
-): ErroresFormulario | null => {
-  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
-  const campo = campoDeErrorClases(error)
-  if (campo === null || !camposValidos.includes(campo)) return null
-  return { [campo]: mensajeDeErrorClases(error) }
-}
-
-// Primer mensaje de cada campo a partir de las incidencias de safeParse de un esquema de shared/.
-export const erroresPorCampo = (
-  incidencias: readonly IncidenciaValidacion[],
-): ErroresFormulario => {
-  const errores: ErroresFormulario = {}
-  for (const incidencia of incidencias) {
-    const campo = incidencia.path[0]
-    if (typeof campo !== "string" || errores[campo] !== undefined) continue
-    errores[campo] = incidencia.message
-  }
-  return errores
-}
+): ErroresFormulario | null => erroresDeFormularioDeApi(error, camposValidos, mensajeDeErrorClases)
 
 // N-04 (ronda 4 de CLASES-a, §D-B4 bis): en "Unirme a la clase" solo CODIGO_INVALIDO y un VALIDACION
 // de "codigo" son errores del campo del código. Cualquier otro (un 500, "sin conexión",
@@ -239,67 +193,282 @@ export const vecinaDeFila = (
   return actuales[Math.min(Math.max(indice, 0), actuales.length - 1)]
 }
 
-const extensionDe = (nombre: string): string => {
-  const punto = nombre.lastIndexOf(".")
-  if (punto < 0) return ""
-  return nombre.slice(punto + 1).toLowerCase()
-}
+// TAREAS-01c (§D-9): tipoDeArchivo y errorDeArchivoElegido viven en components/adjuntos/lib.ts.
+export { errorDeArchivoElegido, tipoDeArchivo } from "@/components/adjuntos/lib"
 
-// Algunos sistemas no informan el tipo de un archivo (File.type vacío): se infiere por la extensión,
-// con la misma tabla que usa el servidor. "" si no se reconoce.
-export const tipoDeArchivo = (archivo: Pick<ArchivoCandidato, "name" | "type">): string => {
-  if (archivo.type !== "") return archivo.type
-  const extension = extensionDe(archivo.name)
-  const entrada = Object.entries(TIPOS_DE_ARCHIVO_PERMITIDOS).find(([, extensiones]) =>
-    extensiones.includes(extension),
-  )
-  return entrada?.[0] ?? ""
-}
-
-// §D-D5: la misma política del servidor, antes de pedirle una URL de subida. `yaElegidos` es el
-// número de archivos que ya estaban en la lista. null: el archivo se puede agregar.
-export const errorDeArchivoElegido = (
-  archivo: ArchivoCandidato,
-  yaElegidos: number,
-): string | null => {
-  if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES)
-    return TEXTOS_ADJUNTOS.errorPesaMucho(archivo.name)
-  const tipo = tipoDeArchivo(archivo)
-  const extensiones = Object.hasOwn(TIPOS_DE_ARCHIVO_PERMITIDOS, tipo)
-    ? TIPOS_DE_ARCHIVO_PERMITIDOS[tipo]
-    : undefined
-  if (extensiones === undefined || !extensiones.includes(extensionDe(archivo.name))) {
-    return TEXTOS_ADJUNTOS.errorTipo(archivo.name)
-  }
-  if (yaElegidos >= MAXIMO_ADJUNTOS_POR_PUBLICACION) return TEXTOS_ADJUNTOS.errorCantidad
-  return null
-}
-
-// T-40 (§D-D5): cuánto tiempo se considera fresco el muro cargado. Las vistas previas son URL firmadas
-// que vencen; el muro se vuelve viejo MARGEN_DE_VISTA_PREVIA_MS antes del `expiraEn` más temprano de
-// todas las páginas cargadas, medido desde `dataUpdatedAt` (que se renueva con cada página). Con un
-// vencimiento ya pasado da 0; sin vistas previas, el valor de siempre.
+// T-40 (§D-D5): cuánto tiempo se considera fresco el muro cargado. El cálculo vive en
+// components/adjuntos/lib.ts (tiempoFrescoDeAdjuntos); aquí solo se juntan los adjuntos de todas las
+// páginas cargadas.
 export const tiempoFrescoDelMuro = (
   paginas: readonly PaginaDelMuro[],
   dataUpdatedAt: number,
-): number => {
-  const vencimientos = paginas
-    .flatMap((pagina) => pagina.publicaciones)
-    .flatMap((publicacion) => publicacion.adjuntos)
-    .flatMap((adjunto) =>
-      adjunto.vistaPrevia === null ? [] : [Date.parse(adjunto.vistaPrevia.expiraEn)],
-    )
-    .filter((vencimiento) => !Number.isNaN(vencimiento))
-  if (vencimientos.length === 0) return TIEMPO_FRESCO_DEL_MURO_MS
-  const primero = Math.min(...vencimientos)
-  return Math.max(0, primero - MARGEN_DE_VISTA_PREVIA_MS - dataUpdatedAt)
+): number =>
+  tiempoFrescoDeAdjuntos(
+    paginas
+      .flatMap((pagina) => pagina.publicaciones)
+      .flatMap((publicacion) => publicacion.adjuntos),
+    dataUpdatedAt,
+    TIEMPO_FRESCO_DEL_MURO_MS,
+  )
+
+// T-41: el aviso de un fallo al subir vive en components/adjuntos/lib.ts, con los mensajes de cada
+// módulo como parámetro; este envoltorio conserva el nombre, la firma y la salida de siempre.
+export const avisoDeFalloAlSubir = (error: unknown, nombre: string): string =>
+  avisoDeFalloAlSubirCompartido(error, nombre, mensajeDeErrorClases)
+
+// TAREAS-01e (§D-11, Enmienda 5 y corrección M-01). Limitador FIFO de concurrencia: corre la tarea si
+// hay menos de `maximo` en curso y, si no, la forma en una cola. (i) Con un `signal` ya abortado
+// rechaza enseguida, sin formarla ni correrla. (ii) El oyente de `abort` solo vive mientras la tarea
+// espera: se quita al entrar en curso o al salir de la cola por el aborto. (iii) Una tarea en curso
+// libera su lugar al asentarse (con éxito, error o aborto, en el `finally`) y la primera de la cola
+// entra en ese mismo turno. (iv) Sin reinicio: la instancia de hooks.ts es una por módulo.
+const errorDeAborto = (): DOMException => new DOMException("La operación se canceló.", "AbortError")
+
+export const crearLimiteDeConcurrencia = (maximo: number): LimiteDeConcurrencia => {
+  let enCurso = 0
+  const cola: (() => void)[] = []
+
+  const entrarLaSiguiente = () => {
+    while (enCurso < maximo) {
+      const siguiente = cola.shift()
+      if (siguiente === undefined) return
+      siguiente()
+    }
+  }
+
+  const ejecutar = <T>(tarea: () => Promise<T>, signal?: AbortSignal): Promise<T> => {
+    if (signal?.aborted === true) return Promise.reject(errorDeAborto())
+    return new Promise<T>((resolver, rechazar) => {
+      const correr = async () => {
+        enCurso += 1
+        try {
+          resolver(await tarea())
+        } catch (error) {
+          rechazar(error)
+        } finally {
+          enCurso -= 1
+          entrarLaSiguiente()
+        }
+      }
+
+      if (enCurso < maximo) {
+        void correr()
+        return
+      }
+
+      const alAbortar = () => {
+        const indice = cola.indexOf(arrancar)
+        if (indice >= 0) cola.splice(indice, 1)
+        signal?.removeEventListener("abort", alAbortar)
+        rechazar(errorDeAborto())
+      }
+      const arrancar = () => {
+        signal?.removeEventListener("abort", alAbortar)
+        void correr()
+      }
+      cola.push(arrancar)
+      signal?.addEventListener("abort", alAbortar)
+    })
+  }
+
+  return { ejecutar }
 }
 
-// T-41: una solicitud rechazada (ApiError) dice qué archivo y por qué; con ARCHIVO_INVALIDO el motivo es
-// el mensaje del servidor (ya en español y sin valores). Un fallo del PUT al almacén no es un
-// ApiError: conserva el texto de siempre.
-export const avisoDeFalloAlSubir = (error: unknown, nombre: string): string => {
-  if (!esApiError(error)) return TEXTOS_ADJUNTOS.errorSubida(nombre)
-  const motivo = error.codigo === "ARCHIVO_INVALIDO" ? error.message : mensajeDeErrorClases(error)
-  return TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)
+// §D-11: las secciones de "Trabajo de clase" en el orden de la vista: "Sin tema" primero, solo si tiene
+// elementos (S-11), y después los temas en el orden en que los da el servidor (`orden`).
+export const seccionesDeTrabajo = (lista: ListaTemasRespuesta): SeccionDeTrabajo[] => {
+  const temas = lista.temas.map((tema) => ({
+    clave: tema.id,
+    nombre: tema.nombre,
+    elementos: tema.elementos,
+    tema,
+  }))
+  if (lista.sinTema === 0) return temas
+  return [
+    { clave: CLAVE_SIN_TEMA, nombre: TEXTOS_TRABAJO.sinTema, elementos: lista.sinTema, tema: null },
+    ...temas,
+  ]
+}
+
+// "Subir" y "Bajar" envían el orden completo (§D-2): los ids con el tema `temaId` intercambiado con su
+// vecino. Si el movimiento no cabe (el primero no sube, el último no baja), devuelve null.
+export const ordenTrasMover = (
+  ids: readonly string[],
+  temaId: string,
+  control: ControlDeOrden,
+): string[] | null => {
+  const indice = ids.indexOf(temaId)
+  const destino = control === "subir" ? indice - 1 : indice + 1
+  if (indice < 0 || destino < 0 || destino >= ids.length) return null
+  const orden = [...ids]
+  const vecino = orden[destino]
+  if (vecino === undefined) return null
+  orden[destino] = temaId
+  orden[indice] = vecino
+  return orden
+}
+
+// DESIGN.md §7.7: el cuadro de fecha (día y mes abreviado, en mayúsculas, en la zona local). Una fecha
+// que no se puede leer da null: la fila no inventa un día.
+export const cuadroDeFecha = (iso: string): CuadroDeFecha | null => {
+  const fecha = new Date(iso)
+  if (Number.isNaN(fecha.getTime())) return null
+  const mes = new Intl.DateTimeFormat("es-MX", { month: "short" })
+    .format(fecha)
+    .replace(".", "")
+    .toLocaleUpperCase("es-MX")
+  return { dia: String(fecha.getDate()), mes }
+}
+
+// El error de un VALIDACION de "nombre" o de TEMA_REPETIDO se muestra bajo el campo del formulario de
+// tema; cualquier otro error lo avisa el hook.
+export const erroresDelTemaDeApi = (error: unknown): ErroresFormulario | null => {
+  if (esApiError(error) && error.codigo === "TEMA_REPETIDO") {
+    return { nombre: mensajeDeErrorClases(error) }
+  }
+  return erroresDeFormularioClases(error, ["nombre"])
+}
+
+// §D-11: las filas del editor a partir de las categorías guardadas; la llave de una guardada es su id.
+export const filasDeCategorias = (categorias: readonly Categoria[]): FilaDeCategoria[] =>
+  categorias.map(({ id, nombre, peso, tareas }) => ({
+    llave: id,
+    id,
+    nombre,
+    peso: String(peso),
+    tareas,
+  }))
+
+// El peso como lo escribió la persona: un entero, con o sin "%" al final (se pega "40%" o "40 %"). Lo
+// demás no es un número y lo rechaza el esquema de shared/ con su mensaje.
+const PESO_ESCRITO = /^\s*(\d+)\s*%?\s*$/
+
+export const pesoDeTexto = (texto: string): number => {
+  const coincidencia = PESO_ESCRITO.exec(texto)
+  if (coincidencia === null) return Number.NaN
+  return Number(coincidencia[1])
+}
+
+// El total en vivo: los pesos que no son un número cuentan 0.
+export const totalDePesos = (filas: readonly FilaDeCategoria[]): number =>
+  filas.reduce((total, { peso }) => {
+    const valor = pesoDeTexto(peso)
+    return Number.isFinite(valor) ? total + valor : total
+  }, 0)
+
+export const textoDelTotal = (total: number): string => {
+  if (total === 100) return TEXTOS_CATEGORIAS.totalExacto
+  if (total < 100) return TEXTOS_CATEGORIAS.totalFaltan(total, 100 - total)
+  return TEXTOS_CATEGORIAS.totalSobran(total, total - 100)
+}
+
+// Lo que se envía al guardar: las filas en su orden, el nombre normalizado como lo normaliza el
+// servidor y el peso convertido a número. La validación es la del servidor (reemplazarCategoriasSchema).
+export const cuerpoDeCategorias = (filas: readonly FilaDeCategoria[]) => ({
+  categorias: filas.map(({ id, nombre, peso }) => ({
+    ...(id === undefined ? {} : { id }),
+    nombre: normalizarTextoLargo(nombre),
+    peso: pesoDeTexto(peso),
+  })),
+})
+
+// Los errores del editor viajan con su fila (patrón T-06 de la rúbrica): "<llave>.nombre" y
+// "<llave>.peso". `categorias` es el error de la lista entera (suma, repetidos, tope).
+export const CAMPO_DE_LA_LISTA = "categorias"
+
+const FILA_DEL_ERROR = /^categorias\.(\d+)\.(nombre|peso)$/
+const PREFIJO_DE_FILA_DE_CATEGORIA = /^(categorias\.\d+\.(?:nombre|peso)):\s*/
+
+const errorEnSuFila = (
+  ruta: string,
+  mensaje: string,
+  llaves: readonly string[],
+  errores: ErroresFormulario,
+) => {
+  const fila = FILA_DEL_ERROR.exec(ruta)
+  const llave = fila === null ? undefined : llaves[Number(fila[1])]
+  const clave = llave === undefined || fila === null ? CAMPO_DE_LA_LISTA : `${llave}.${fila[2]}`
+  errores[clave] ??= mensaje
+}
+
+// Las incidencias del esquema, cada una en la fila que tenía esa posición al validar.
+export const erroresDeCategorias = (
+  incidencias: readonly IncidenciaValidacion[],
+  llaves: readonly string[],
+): ErroresFormulario => {
+  const errores: ErroresFormulario = {}
+  for (const incidencia of incidencias) {
+    errorEnSuFila(incidencia.path.map(String).join("."), incidencia.message, llaves, errores)
+  }
+  return errores
+}
+
+// Un VALIDACION del servidor ("categorias.0.peso: …" o "categorias: …") en su fila o en la lista;
+// null si no es un error de las categorías (ese lo avisa el hook).
+export const erroresDeCategoriasDeApi = (
+  error: unknown,
+  llaves: readonly string[],
+): ErroresFormulario | null => {
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
+  const fila = PREFIJO_DE_FILA_DE_CATEGORIA.exec(error.message)
+  if (fila !== null) {
+    const errores: ErroresFormulario = {}
+    errorEnSuFila(fila[1] ?? "", error.message.slice(fila[0].length), llaves, errores)
+    return errores
+  }
+  if (campoDeErrorDeApi(error) !== CAMPO_DE_LA_LISTA) return null
+  return { [CAMPO_DE_LA_LISTA]: quitarPrefijoDeCampo(error.message) }
+}
+
+// Una recarga fallida conserva la vista con lo último que llegó (y avisa), salvo que diga que ya no hay
+// acceso a la clase (o que el id de la clase no es válido, que es lo mismo): entonces el mensaje
+// reemplaza la vista y deja de ofrecer acciones.
+export const errorQuitaLaVista = (error: unknown): boolean =>
+  esApiError(error) &&
+  (error.codigo === "SIN_ACCESO_A_LA_CLASE" ||
+    (error.codigo === "VALIDACION" && campoDeErrorDeApi(error) === "claseId"))
+
+// §7.14 en "Trabajo de clase": la sección vecina de la que desapareció, entre las que ya estaban antes
+// (la siguiente o, si era la última, la anterior). Una sección que aparece en ese mismo cambio (por
+// ejemplo, "Sin tema", que recibe los elementos del tema borrado) no cuenta como vecina.
+export const seccionVecina = (
+  previas: readonly string[] | undefined,
+  actuales: readonly string[],
+  clave: string,
+): string | undefined => {
+  if (previas === undefined) return undefined
+  const indice = previas.indexOf(clave)
+  const siguen = (candidata: string) => actuales.includes(candidata)
+  const despues = previas.slice(indice + 1).find(siguen)
+  if (despues !== undefined) return despues
+  return [...previas.slice(0, Math.max(indice, 0))].reverse().find(siguen)
+}
+
+// T-17 (ronda 1 de 01e): los errores de una fila se van con ella cuando se quita. El editor no deja
+// quitar filas mientras guarda, así que ningún error de fila puede llegar sin su fila (en la rúbrica de
+// features/tareas sí, porque allí se quita con el envío en vuelo).
+export const erroresSinLaFila = (errores: ErroresFormulario, llave: string): ErroresFormulario =>
+  Object.fromEntries(Object.entries(errores).filter(([clave]) => !clave.startsWith(`${llave}.`)))
+
+// T-18 (ronda 1 de 01e): las filas que deja la respuesta del servidor conservan la llave de la fila de
+// la que salieron (la guardada, por su id; la nueva, por su nombre, que no se repite en la clase), así
+// que React no las vuelve a montar y el campo con el foco lo conserva. Una categoría que no estaba en
+// la lista que se ve (llega tras un conflicto) usa su id.
+export const filasDelServidor = (
+  previas: readonly FilaDeCategoria[],
+  categorias: readonly Categoria[],
+): FilaDeCategoria[] => {
+  const llavePorId = new Map(
+    previas.flatMap(({ id, llave }) => (id === undefined ? [] : [[id.toLowerCase(), llave]])),
+  )
+  const llavePorNombre = new Map(
+    previas
+      .filter(({ id }) => id === undefined)
+      .map(({ nombre, llave }) => [claveDeNombre(normalizarTextoLargo(nombre)), llave]),
+  )
+  return filasDeCategorias(categorias).map((fila) => {
+    const llave =
+      llavePorId.get(fila.llave.toLowerCase()) ?? llavePorNombre.get(claveDeNombre(fila.nombre))
+    return llave === undefined ? fila : { ...fila, llave }
+  })
 }

@@ -53,6 +53,8 @@ const cuerpoMuro = (claseId: string) => ({
       autor: { ...LUIS, administracion: false },
       creadoEn: "2026-10-01T15:30:00.000Z",
       comentarios: 0,
+      // TAREAS-01b ronda 0 (C-5, §D-R0): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+      tarea: null,
       adjuntos: [],
       puedeBorrar: false,
     },

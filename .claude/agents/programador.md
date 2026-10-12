@@ -2,7 +2,7 @@
 name: programador
 description: Úsalo para implementar un plan ya aprobado en docs/trabajo/<RF>/plan.md, o para corregir los hallazgos de un reporte del Tester o una revisión del Manager. No lo uses sin un plan en estado LISTO, salvo en cambios del carril trivial.
 tools: Read, Grep, Glob, Write, Edit, Bash
-model: sonnet
+model: opus
 effort: medium
 ---
 

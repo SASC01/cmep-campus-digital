@@ -40,6 +40,8 @@ const publicacion = (n: number, extra: Record<string, unknown> = {}) => ({
   // C-21 (Enmienda 10): toda publicación del servidor lleva adjuntos.
   adjuntos: [],
   puedeBorrar: true,
+  // TAREAS-01b (C-5): publicacionSchema gana la clave obligatoria tarea, null en anuncios y materiales.
+  tarea: null,
   ...extra,
 })
 
@@ -352,5 +354,45 @@ describe("pulsar «Muro» con el muro en error (Enmienda 9, T-35)", () => {
     await new Promise((resolver) => setTimeout(resolver, 50))
     expect(primerasPaginas(sano)).toBe(1)
     expect(screen.getByText("Texto de la publicación 1")).toBeInTheDocument()
+  })
+})
+
+// TAREAS-01e, corrección de la ronda 2 (T-19, hermano): "Ver más publicaciones" queda en espera
+// mientras el muro se recarga en segundo plano; el clic no se une a la recarga ni se pierde.
+describe("MuroView: «Ver más publicaciones» durante una recarga (T-19)", () => {
+  it("T-19 · con el muro recargándose, «Ver más publicaciones» queda en espera, conserva el foco y no pide nada; al terminar la recarga pide la página siguiente", async () => {
+    let soltarRecarga: () => void = () => undefined
+    let primeras = 0
+    const fetchMock = stubApi((ruta) => {
+      if (!ruta.startsWith(rutaDelMuro)) return errorJson(500, "ERROR_INTERNO")
+      if (ruta.includes("cursor=")) {
+        return respuestaJson(200, lista([publicacion(3)], null))
+      }
+      primeras += 1
+      const respuesta = respuestaJson(200, lista([publicacion(1), publicacion(2)], idDe(2)))
+      if (primeras === 1) return respuesta
+      return new Promise<Response>((resolver) => {
+        soltarRecarga = () => resolver(respuesta)
+      })
+    })
+    const { queryClient } = renderMuro("estudiante")
+    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    verMas.focus()
+
+    void queryClient.invalidateQueries({ queryKey: ["clases", CLASE_ID, "publicaciones"] })
+    await waitFor(() => expect(verMas).toHaveAttribute("aria-busy", "true"))
+    fireEvent.click(verMas)
+    expect(verMas).toHaveFocus()
+    expect(fetchMock.mock.calls.filter(([entrada]) => String(entrada).includes("cursor="))).toEqual(
+      [],
+    )
+
+    soltarRecarga()
+    await waitFor(() => expect(verMas).not.toHaveAttribute("aria-busy"))
+    fireEvent.click(verMas)
+    expect(await screen.findByText("Texto de la publicación 3")).toBeInTheDocument()
+    expect(
+      fetchMock.mock.calls.filter(([entrada]) => String(entrada).includes("cursor=")),
+    ).toHaveLength(1)
   })
 })

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto"
 
 import {
-  type Adjunto,
   comentarioIdParamSchema,
   comentarioRespuestaSchema,
   crearComentarioSchema,
@@ -19,25 +18,14 @@ import {
   borrarComentario,
   borrarMiComentario,
   borrarPublicacion,
-  buscarArchivosParaConfirmar,
   crearComentario,
   crearPublicacion,
   listarComentarios,
   listarPublicaciones,
-  type ArchivoDb,
   type AutorDb,
 } from "../../adapters/db/index.js"
 import { encolar } from "../../adapters/queue/index.js"
 import type { Almacen } from "../../core/archivos/almacen.js"
-import {
-  almacenNoConfigurado,
-  archivoNoCoincide,
-  archivoNoSubido,
-  coincideConLoDeclarado,
-  disposicionDeContenido,
-  esImagenConVistaPrevia,
-  VIGENCIA_URL_FIRMADA_S,
-} from "../../core/archivos/politica.js"
 import { firmaDelAutor } from "../../core/autoria.js"
 import { conTextosNormalizados } from "../../core/clases/texto.js"
 import { AppError } from "../../core/errores.js"
@@ -48,6 +36,7 @@ import {
   type DatosPublicacionCreada,
 } from "../../core/eventos/avisos-de-clase.js"
 import { claseDe, perfilDe, protegido } from "../../middleware/index.js"
+import { adjuntosParaResponder, archivosParaPublicar } from "../adjuntos.js"
 import { validarCuerpo, validarParametros } from "../validacion.js"
 
 const publicacionNoEncontrada = (): AppError =>
@@ -60,54 +49,9 @@ const comentarioNoEncontrado = (): AppError =>
 // puedeBorrar lo decide el adaptador con core/autoria.ts.
 const autorParaResponder = (autor: AutorDb) => firmaDelAutor(autor)
 
-// §D-D3, punto 4: la clave del objeto nunca sale; la vista previa solo existe para las cuatro
-// imágenes y solo con almacén. Firmar es un cálculo local, sin red.
-const adjuntosParaResponder = (
-  almacen: Almacen | null,
-  archivos: readonly ArchivoDb[],
-): Promise<Adjunto[]> =>
-  Promise.all(
-    archivos.map(async ({ id, nombre, tipo, tamano, claveObjeto }): Promise<Adjunto> => {
-      if (almacen === null || !esImagenConVistaPrevia(tipo)) {
-        return { id, nombre, tipo, tamano, vistaPrevia: null }
-      }
-      const url = await almacen.urlDeDescarga({
-        clave: claveObjeto,
-        tipo,
-        disposicion: disposicionDeContenido(nombre, "inline"),
-      })
-      const expiraEn = new Date(Date.now() + VIGENCIA_URL_FIRMADA_S * 1000).toISOString()
-      return { id, nombre, tipo, tamano, vistaPrevia: { url, expiraEn } }
-    }),
-  )
-
-// §D-D3, puntos 3.1 y 3.2: los archivos se leen una vez (acotados a la clase y al usuario) y se
-// comprueba en el almacén que lo subido es lo declarado. Sin ids no toca ni la base ni el almacén.
-const archivosParaPublicar = async ({
-  almacen,
-  ids,
-  claseId,
-  subidoPor,
-}: {
-  almacen: Almacen | null
-  ids: readonly string[]
-  claseId: string
-  subidoPor: string
-}): Promise<ArchivoDb[]> => {
-  if (ids.length === 0) return []
-  if (almacen === null) throw almacenNoConfigurado()
-  const archivos = await buscarArchivosParaConfirmar({ ids, claseId, subidoPor })
-  if (archivos.length !== ids.length) throw archivoNoCoincide()
-  const reales = await Promise.all(
-    archivos.map((archivo) => almacen.metadatosDe(archivo.claveObjeto)),
-  )
-  const veredictos = archivos.map((archivo, i) =>
-    coincideConLoDeclarado(archivo, reales[i] ?? null),
-  )
-  if (veredictos.includes("falta")) throw archivoNoSubido()
-  if (veredictos.includes("distinto")) throw archivoNoCoincide()
-  return archivos
-}
+// TAREAS-01b (§D-6): el resumen de la tarea sale con la fecha límite en ISO 8601 (regla 7).
+const tareaParaResponder = (tarea: { fechaLimite: Date; puntos: number } | null) =>
+  tarea === null ? null : { fechaLimite: tarea.fechaLimite.toISOString(), puntos: tarea.puntos }
 
 // Rutas de CLASES-c (§D-C2). Ningún handler verifica rol, propiedad o inscripción a mano: todo pasa
 // por protegido() y por claseDe(request) (sexto paso). Ningún handler crea avisos: encola el evento
@@ -130,6 +74,7 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
           autor: autorParaResponder(publicacion.autor),
           creadoEn: publicacion.creadoEn.toISOString(),
           adjuntos: await adjuntosParaResponder(almacen, publicacion.adjuntos),
+          tarea: tareaParaResponder(publicacion.tarea),
         })),
       )
       return reply.send(listaPublicacionesRespuestaSchema.parse({ ...lista, publicaciones }))
@@ -163,6 +108,8 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
           tipo: datos.tipo,
           titulo: datos.tipo === "material" ? datos.titulo : null,
           texto: datos.texto ?? "",
+          // TAREAS-01a (Enmienda 1, M-01): ausente o null es "Sin tema"; un anuncio nunca lleva tema.
+          temaId: datos.tipo === "material" ? (datos.temaId ?? null) : null,
           archivos,
         },
         (sql) => encolar(colaDePublicacion(datos.tipo), aviso, { id, sql }),
@@ -174,6 +121,7 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
             autor: autorParaResponder(publicacion.autor),
             creadoEn: publicacion.creadoEn.toISOString(),
             adjuntos: await adjuntosParaResponder(almacen, publicacion.adjuntos),
+            tarea: tareaParaResponder(publicacion.tarea),
           },
         }),
       )

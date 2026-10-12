@@ -1,7 +1,7 @@
 import { FIRMA_ADMINISTRACION, type Rol } from "@campus/shared"
 import { describe, expect, it } from "vitest"
 
-import { firmaDelAutor, puedeBorrar } from "./autoria.js"
+import { firmaDelAutor, puedeBorrar, puedeBorrarTarea, puedeEditarTarea } from "./autoria.js"
 
 const ROLES: Rol[] = ["estudiante", "maestro", "admin"]
 const A = "aaaaaaaa-1c1f-4b8e-9a1e-0f2a3b4c5d6e"
@@ -69,5 +69,64 @@ describe("firmaDelAutor", () => {
         "nombre",
       ])
     }
+  })
+})
+
+// TAREAS-01b (P-04 b, S-09): la matriz completa actor × autor de las tareas.
+describe("puedeEditarTarea y puedeBorrarTarea (P-04 b, S-09)", () => {
+  const C = "cccccccc-1c1f-4b8e-9a1e-0f2a3b4c5d6e"
+  const D = "dddddddd-1c1f-4b8e-9a1e-0f2a3b4c5d6e"
+  type Autor = "maestro en la clase" | "maestro retirado" | "admin"
+  type Actor = "maestro autor" | "otro maestro" | "admin"
+  const ACTORES: Record<Actor, { id: string; rol: Rol }> = {
+    "maestro autor": { id: A, rol: "maestro" },
+    "otro maestro": { id: B, rol: "maestro" },
+    admin: { id: C, rol: "admin" },
+  }
+  const AUTORES: Record<Autor, { autor: { id: string; rol: Rol }; sigue: boolean }> = {
+    "maestro en la clase": { autor: { id: A, rol: "maestro" }, sigue: true },
+    "maestro retirado": { autor: { id: A, rol: "maestro" }, sigue: false },
+    admin: { autor: { id: D, rol: "admin" }, sigue: true },
+  }
+  const EDITAR: Record<Actor, Record<Autor, boolean>> = {
+    "maestro autor": { "maestro en la clase": true, "maestro retirado": true, admin: false },
+    "otro maestro": { "maestro en la clase": false, "maestro retirado": true, admin: false },
+    admin: { "maestro en la clase": false, "maestro retirado": false, admin: false },
+  }
+  const BORRAR: Record<Actor, Record<Autor, boolean>> = {
+    "maestro autor": { "maestro en la clase": true, "maestro retirado": true, admin: false },
+    "otro maestro": { "maestro en la clase": false, "maestro retirado": true, admin: false },
+    admin: { "maestro en la clase": true, "maestro retirado": true, admin: true },
+  }
+
+  it("PR-1B04: puedeEditarTarea, matriz completa actor × autor", () => {
+    for (const actor of Object.keys(ACTORES) as Actor[]) {
+      for (const autor of Object.keys(AUTORES) as Autor[]) {
+        const { autor: datos, sigue } = AUTORES[autor]
+        expect(puedeEditarTarea(ACTORES[actor], datos, sigue), `${actor} frente a ${autor}`).toBe(
+          EDITAR[actor][autor],
+        )
+      }
+    }
+  })
+
+  it("PR-1B04: puedeBorrarTarea, matriz completa actor × autor", () => {
+    for (const actor of Object.keys(ACTORES) as Actor[]) {
+      for (const autor of Object.keys(AUTORES) as Autor[]) {
+        const { autor: datos, sigue } = AUTORES[autor]
+        expect(puedeBorrarTarea(ACTORES[actor], datos, sigue), `${actor} frente a ${autor}`).toBe(
+          BORRAR[actor][autor],
+        )
+      }
+    }
+  })
+
+  it("PR-1B04: el admin edita la suya (S-09) y la borra; el estudiante nunca puede", () => {
+    const admin = { id: C, rol: "admin" as const }
+    expect(puedeEditarTarea(admin, admin, true)).toBe(true)
+    expect(puedeBorrarTarea(admin, admin, true)).toBe(true)
+    const estudiante = { id: B, rol: "estudiante" as const }
+    expect(puedeEditarTarea(estudiante, { id: A, rol: "maestro" }, false)).toBe(false)
+    expect(puedeBorrarTarea(estudiante, { id: A, rol: "maestro" }, false)).toBe(false)
   })
 })

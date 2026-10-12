@@ -133,3 +133,28 @@ export {
   type ListaPublicacionesDb,
   type PublicacionDb,
 } from "./publicaciones.js"
+export {
+  borrarTema,
+  crearTema,
+  listarTemas,
+  moverATema,
+  ordenarTemas,
+  renombrarTema,
+  type ElementoMovidoDb,
+  type ListaTemasDb,
+  type TemaDb,
+} from "./temas.js"
+export { listarCategorias, reemplazarCategorias, type CategoriaDb } from "./categorias.js"
+export {
+  adjuntosConfirmadosDe,
+  borrarTarea,
+  crearTarea,
+  editarTarea,
+  leerTarea,
+  listarTrabajo,
+  type CriterioNuevo,
+  type DatosDeTarea,
+  type ElementoDeTrabajoDb,
+  type ListaTrabajoDb,
+  type TareaDetalleDb,
+} from "./tareas.js"

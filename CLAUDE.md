@@ -126,6 +126,8 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 - shadcn/ui con su aspecto por defecto es inaceptable: todo componente que se agregue se adapta a los tokens antes de usarse.
 - Botón de acción principal: `variant="primary"`. Por defecto: `variant="outline"`. Destructivo: `variant="destructive"`.
 - Un botón cuya petición está en vuelo usa `enEspera` de `Button` (`aria-disabled`, `aria-busy` e indicador de carga), nunca `disabled`: conserva el foco y no dispara su acción. `disabled` queda para un control que no está disponible.
+- Toda acción que lanza una mutación lleva, además de `enEspera`, una guarda síncrona con una ref (`if (enviandoRef.current) return` antes de `mutate`): `enEspera` llega un render tarde y dos clics seguidos disparaban la petición dos veces (TAREAS-01e, M-01).
+- Un "Ver más" se pone en espera con `enEspera={isFetching}`, no con `isFetchingNextPage`: durante una recarga de la lista el botón seguía activo y pedía una página sobre datos que se estaban reemplazando (TAREAS-01e, T-19).
 - Una sola acción principal por vista.
 - Iconos: `lucide-react`. Avisos: `sonner`.
 

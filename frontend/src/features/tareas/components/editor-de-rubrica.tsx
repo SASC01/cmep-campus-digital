@@ -138,12 +138,20 @@ export function EditorDeRubrica({
       {errores.rubrica && <ErrorDeCampo id={`${idBase}-error`}>{errores.rubrica}</ErrorDeCampo>}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button ref={agregarRef} type="button" variant="outline" size="sm" onClick={handleAgregar}>
+        {/* O-3 de TAREAS-01d: con la nota del tope visible, el botón la nombra en aria-describedby. */}
+        <Button
+          ref={agregarRef}
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAgregar}
+          aria-describedby={enElTope ? `${idBase}-tope` : undefined}
+        >
           <Plus aria-hidden="true" />
           {TEXTOS_RUBRICA.agregar}
         </Button>
         {enElTope && (
-          <p className="text-small text-muted-foreground">
+          <p id={`${idBase}-tope`} className="text-small text-muted-foreground">
             {TEXTOS_FORMULARIO_TAREA.tope(LIMITE_CRITERIOS)}
           </p>
         )}

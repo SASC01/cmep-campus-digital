@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { useNavigate, useParams } from "react-router"
 
 import { Cargando } from "@/components/cargando"
@@ -37,6 +37,10 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
   const editar = useEditarTarea(claseId, tareaId)
   const detalle = `${base}/tareas/${tareaId}`
   const raizRef = useRef<HTMLDivElement>(null)
+  // ENTREGAS-01a (P-05 a′, §D-8.3.4): cuántas veces se reinició el formulario tras un 409
+  // TAREA_MODIFICADA. Es la `key` del formulario: solo recargarTrasConflicto la cambia, así que ninguna
+  // otra recarga (de fondo, de otra mutación) toca lo escrito ni la versión de apertura.
+  const [reinicios, setReinicios] = useState(0)
   const hayTarea = consulta.data !== undefined
   // M-01: con la tarea en caché, una recarga fallida (que no sea 404) no cambia la vista: se avisa.
   useAvisoDeRecargaFallida(
@@ -66,18 +70,35 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
       return <MensajeError mensaje={TEXTOS_DETALLE_TAREA.sinPermisoParaEditar} />
     }
 
-    const handleGuardar = async (datos: CrearTarea) => {
-      await editar.mutateAsync(datos)
+    // La versión es la de apertura que guarda el formulario, nunca la de consulta.data al enviar.
+    const handleGuardar = async (datos: CrearTarea, version: number | null) => {
+      // Inalcanzable: al editar, el formulario siempre nace de una tarea con su versión.
+      if (version === null) return
+      await editar.mutateAsync({ ...datos, version })
       navigate(detalle)
+    }
+
+    // §D-8.3.3: una sola petición, esperada. Con éxito y con puedeEditar, el formulario se remonta con
+    // la versión nueva (lo escrito y los elegidos se descartan, como en el editor de categorías). Si
+    // falla, o la tarea ya no existe, o se perdió el acceso o puedeEditar, no se reinicia: la vista y
+    // sus ganchos (useAvisoDeRecargaFallida, errorQueReemplazaLaVista, useFocoAlPerderseElControl)
+    // reaccionan como en cualquier recarga.
+    const recargarTrasConflicto = async () => {
+      const resultado = await consulta.refetch()
+      if (!resultado.isSuccess || !resultado.data.tarea.puedeEditar) return
+      setReinicios((n) => n + 1)
     }
 
     return (
       <FormularioTarea
+        key={reinicios}
         claseId={claseId}
         tarea={tarea}
         cancelarA={detalle}
         pendiente={editar.isPending}
         onGuardar={handleGuardar}
+        onConflicto={recargarTrasConflicto}
+        enfocarAlMontar={reinicios > 0}
       />
     )
   }

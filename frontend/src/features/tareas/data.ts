@@ -1,6 +1,7 @@
 import { MAXIMO_CRITERIOS_RUBRICA } from "@campus/shared"
 
 import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
+import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
 
 // §D-10, "Textos de la interfaz" (propuesta, tono de DESIGN.md §9).
 
@@ -19,6 +20,7 @@ export const CAMPOS_DEL_FORMULARIO: readonly string[] = [
   "puntos",
   "categoriaId",
   "temaId",
+  "requiereAdjuntos",
   "rubrica",
 ]
 
@@ -44,7 +46,11 @@ export const TEXTOS_FORMULARIO_TAREA = {
   categoriaRequerida: "Elige la categoría de la tarea.",
   opcionDeCategoria: (nombre: string, peso: number) => `${nombre} (${peso} %)`,
   campoTema: "Tema",
-  sinTema: "Sin tema",
+  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
+  // ENTREGAS-01a (P-03 a): "Cómo se entrega", control segmentado antes del de entregas tardías.
+  grupoComoSeEntrega: "Cómo se entrega",
+  conArchivosOEnlaces: "Con archivos o enlaces",
+  marcarComoCompletada: "Marcar como completada",
   grupoEntregasTardias: "Entregas después de la fecha límite",
   aceptarConRetraso: "Aceptar con retraso",
   noAceptar: "No aceptar",
@@ -95,10 +101,14 @@ export const TEXTOS_DETALLE_TAREA = {
   categoriaConPeso: (nombre: string, peso: number) => `${nombre} (${peso} %)`,
   sinCategoria: "Sin categoría",
   tema: "Tema",
-  sinTema: "Sin tema",
+  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
   entregasTardias: "Entregas tardías",
   aceptaTardias: "Se aceptan entregas con retraso",
   noAceptaTardias: "No se aceptan entregas después de la fecha límite",
+  // ENTREGAS-01a (P-03 a): la fila "Entrega" de "Detalles".
+  entrega: "Entrega",
+  entregaConAdjuntos: "Con archivos o enlaces",
+  entregaMarcandoCompletada: "Se marca como completada (los archivos son opcionales)",
   tuTrabajo: "Tu trabajo",
   tuTrabajoTexto:
     "Todavía no puedes entregar desde Campus Digital. Sigue las indicaciones de tu maestro para entregar esta tarea.",
@@ -119,9 +129,10 @@ export const MENSAJES_ERROR_TAREAS = {
   tareaNoEncontrada: "Esa tarea ya no existe.",
   temaNoEncontrado: "Ese tema ya no existe.",
   categoriaNoEncontrada: "Esa categoría ya no existe. Elige otra.",
-  categoriaRequerida: "Elige la categoría de la tarea.",
+  // O-2 de TAREAS-01d: el mismo texto del formulario, declarado una sola vez.
+  categoriaRequerida: TEXTOS_FORMULARIO_TAREA.categoriaRequerida,
   fechaLimiteInvalida: "Elige una fecha límite futura, dentro del próximo año.",
-  sinAccesoALaClase: "No tienes acceso a esta clase.",
+  sinAccesoALaClase: TEXTOS_DE_LA_CLASE.sinAcceso,
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
 
@@ -141,6 +152,9 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "EDICION_NO_PERMITIDA",
   "BORRADO_NO_PERMITIDO",
   "SERVICIO_OCUPADO",
+  // ENTREGAS-01a (P-05 a′, §D-8.3.1): el único aviso del 409 es el toast de useEditarTarea.onError,
+  // con el mensaje del servidor. No renueva la tarea desde el hook: la recarga la hace la vista.
+  "TAREA_MODIFICADA",
 ]
 
 // T-08: los códigos que dicen que las opciones que el formulario ofrecía ya no son las de la clase

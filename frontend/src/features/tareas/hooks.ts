@@ -24,7 +24,7 @@ import {
   TEXTOS_FORMULARIO_TAREA,
 } from "./data"
 import { erroresDeLaTareaDeApi, mensajeDeErrorTareas } from "./lib"
-import type { CrearTarea, FalloDeLaConsulta } from "./types"
+import type { CrearTarea, EditarTarea, FalloDeLaConsulta } from "./types"
 
 // §D-10 (Enmienda 4, C-13): el único lugar de features/tareas que llama a perspectivaDeRuta. Las tres
 // vistas lo usan para sus enlaces y su navegación; la perspectiva solo decide qué se muestra, el
@@ -120,7 +120,8 @@ export const useCrearTarea = (claseId: string) => {
 export const useEditarTarea = (claseId: string, tareaId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (datos: CrearTarea) =>
+    // ENTREGAS-01a (P-05 a′): el cuerpo lleva la versión con que se abrió el formulario.
+    mutationFn: (datos: EditarTarea) =>
       api(`/api/clases/${claseId}/tareas/${tareaId}`, {
         method: "PUT",
         body: datos,

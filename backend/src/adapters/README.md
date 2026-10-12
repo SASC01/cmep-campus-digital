@@ -350,3 +350,31 @@ va en el `select` de la página y los maestros de la clase (para el `puedeBorrar
 `tareas.ts` (2). Las escrituras siguen en READ COMMITTED; `leerTarea(…, tx)` anidada ignora la opción.
 El muro y los comentarios ignoran el tipo `tarea` donde no aplica (S-08): borrar una publicación,
 listar comentarios y comentar solo encuentran anuncios y materiales.
+
+## Versión de las tareas y orden de bloqueo (ENTREGAS-01a, §D-0.6, §D-2 y §D-6)
+
+**Edición concurrente (P-05 a′).** `tareas.version` (entero, desde 0, `CHECK >= 0`) es la precondición del
+`PUT` de una tarea. `editarTarea` lee `t.version` en su mismo `SELECT … FOR NO KEY UPDATE OF t` y, sin
+escribir nada antes, comprueba en este orden: la tarea no existe en la clase (`null`, 404), autoría (403
+`EDICION_NO_PERMITIDA`), versión (`exigirVersion` de `core/concurrencia.ts`, 409 `TAREA_MODIFICADA`) y
+después fecha, categoría y tema. El `UPDATE` de `tareas` suma `version: { increment: 1 }`. Como la versión
+se compara con la fila ya bloqueada, dos guardados con la misma versión quedan en serie y el segundo
+recibe 409 (nunca dos 200). `actualizado_en` no sirve de precondición.
+
+**Mover de tema sube la versión.** `moverATema` (`db/temas.ts`), si la publicación es de tipo `tarea`,
+hace `tx.tarea.updateMany({ … version: { increment: 1 } })` **antes** de bloquear el tema y de actualizar
+`publicaciones.tema_id`; un material no toca `tareas`. Ese `UPDATE` escribe también
+`tareas.actualizado_en` (`@updatedAt`); está aceptado (§D-2.3): si algún día se muestra "Editada el …",
+se usa una columna propia y nunca `actualizado_en`.
+
+**Orden de bloqueo fijo en todo el encargo: primero la fila de `tareas`, después `publicaciones`,
+`entregas` o `archivos`.**
+
+| Operación           | Bloquea, en orden                                                                                           | Choca con                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Editar tarea        | `tareas` `FOR NO KEY UPDATE`; el tema y la categoría `FOR KEY SHARE`; `publicaciones`, criterios y archivos | Otra edición (409 por versión), mover de tema, borrar       |
+| Mover tarea de tema | `tareas` (el `UPDATE` de `version` toma `FOR NO KEY UPDATE`); el tema `FOR KEY SHARE`; `publicaciones`      | Edición (en serie; la edición posterior recibe 409), borrar |
+| Borrar tarea        | `tareas` `FOR UPDATE`; autoría; archivos; publicación (cascada)                                             | Todo lo que toca la tarea                                   |
+
+Al revés (publicaciones antes que tareas), una edición y un movimiento simultáneos podrían bloquearse en
+cruz. Las operaciones de entregas (01b y 01c) siguen el mismo orden: la fila de `tareas` primero.

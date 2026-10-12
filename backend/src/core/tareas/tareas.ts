@@ -45,3 +45,13 @@ export const validarCategoriaRequerida = ({
   if (categoriaId !== null || categoriasEnLaClase === 0) return
   throw new AppError("CATEGORIA_REQUERIDA", "Elige la categoría de la tarea.", 409)
 }
+
+// ENTREGAS-01a (P-05 a′, §D-7): otra persona guardó o movió la tarea mientras se editaba. El
+// formulario recarga solo, así que el texto no pide cargar nada y sigue siendo cierto si la recarga
+// falla.
+export const tareaModificada = (): AppError =>
+  new AppError(
+    "TAREA_MODIFICADA",
+    "Otra persona guardó cambios en esta tarea mientras la editabas. Tus cambios no se guardaron: vuelve a hacerlos sobre la versión actual.",
+    409,
+  )

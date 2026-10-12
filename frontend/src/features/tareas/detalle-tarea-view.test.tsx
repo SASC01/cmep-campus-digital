@@ -29,6 +29,8 @@ const tareaConId = (extra: Record<string, unknown> = {}) => ({
     fechaLimite: "2030-01-15T16:00:00.000Z",
     puntos: 80,
     aceptaTardias: false,
+    requiereAdjuntos: true,
+    version: 0,
     categoria: { id: "4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d41", nombre: "Examen", peso: 40 },
     tema: { id: "5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d51", nombre: "Unidad 1" },
     rubrica: [

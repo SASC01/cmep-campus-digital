@@ -6,4 +6,6 @@ import { FIRMA_ADMINISTRACION } from "@campus/shared"
 export const TEXTOS_DE_LA_CLASE = {
   sinAcceso: "No tienes acceso a esta clase.",
   firmaAdministracion: FIRMA_ADMINISTRACION,
+  // ENTREGAS-01a (O-2 de TAREAS-01d): "Sin tema", el mismo texto en features/clases y features/tareas.
+  sinTema: "Sin tema",
 } as const

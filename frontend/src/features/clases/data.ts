@@ -317,7 +317,7 @@ export const TEXTOS_FORMULARIO_PUBLICACION = {
   avisoPublicado: "Publicado",
   // TAREAS-01e (§D-11, Enmienda 6): el tema de un material.
   campoTema: "Tema",
-  sinTema: "Sin tema",
+  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
   temasNoCargados: "No pudimos cargar los temas. El material se publicará sin tema.",
 } as const
 

@@ -36,6 +36,8 @@ const tareaConId = (extra: Record<string, unknown> = {}) => ({
     fechaLimite: FECHA_ISO,
     puntos: 80,
     aceptaTardias: false,
+    requiereAdjuntos: true,
+    version: 0,
     categoria: { id: CATEGORIA_ID, nombre: "Examen", peso: 40 },
     tema: { id: TEMA_ID, nombre: "Unidad 1" },
     rubrica: [{ id: "8a8b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d81", criterio: "Claridad", puntosMax: 10 }],
@@ -908,46 +910,48 @@ describe("PR-1D04: el foco tras dos fallos seguidos de distinto tipo (T-15)", ()
     await esperarUnTurno()
   }
 
+  // O-1 de TAREAS-01d (ENTREGAS-01a, PR-1A16): un campo `nombre` por fila, y el título solo lo interpola
+  // a él (antes el segundo %s interpolaba el código de una función).
   it.each([
-    [
-      "500",
-      con(500, "ERROR_INTERNO"),
-      "404",
-      con(404, "TAREA_NO_ENCONTRADA"),
-      "Esa tarea ya no existe.",
-    ],
-    [
-      "500",
-      con(500, "ERROR_INTERNO"),
-      "403 SIN_ACCESO_A_LA_CLASE",
-      con(403, "SIN_ACCESO_A_LA_CLASE"),
-      "No tienes acceso a esta clase.",
-    ],
-    ["la red caída", sinRed, "404", con(404, "TAREA_NO_ENCONTRADA"), "Esa tarea ya no existe."],
-    [
-      "un VALIDACION de campo",
-      con(400, "VALIDACION", "titulo: No es válido"),
-      "un VALIDACION de tareaId",
-      con(400, "VALIDACION", "tareaId: No es válido"),
-      "Esa tarea ya no existe.",
-    ],
-    [
-      "un 429",
-      con(429, "DEMASIADAS_SOLICITUDES"),
-      "un VALIDACION de claseId",
-      con(400, "VALIDACION", "claseId: No es válido"),
-      "No tienes acceso a esta clase.",
-    ],
-    [
-      "SIN_CONEXION (503 sin JSON)",
-      apiCaida,
-      "404",
-      con(404, "TAREA_NO_ENCONTRADA"),
-      "Esa tarea ya no existe.",
-    ],
+    {
+      nombre: "500 y después 404",
+      conserva: con(500, "ERROR_INTERNO"),
+      reemplaza: con(404, "TAREA_NO_ENCONTRADA"),
+      texto: "Esa tarea ya no existe.",
+    },
+    {
+      nombre: "500 y después 403 SIN_ACCESO",
+      conserva: con(500, "ERROR_INTERNO"),
+      reemplaza: con(403, "SIN_ACCESO_A_LA_CLASE"),
+      texto: "No tienes acceso a esta clase.",
+    },
+    {
+      nombre: "red caída y después 404",
+      conserva: sinRed,
+      reemplaza: con(404, "TAREA_NO_ENCONTRADA"),
+      texto: "Esa tarea ya no existe.",
+    },
+    {
+      nombre: "VALIDACION de campo y de tareaId",
+      conserva: con(400, "VALIDACION", "titulo: No es válido"),
+      reemplaza: con(400, "VALIDACION", "tareaId: No es válido"),
+      texto: "Esa tarea ya no existe.",
+    },
+    {
+      nombre: "429 y VALIDACION de claseId",
+      conserva: con(429, "DEMASIADAS_SOLICITUDES"),
+      reemplaza: con(400, "VALIDACION", "claseId: No es válido"),
+      texto: "No tienes acceso a esta clase.",
+    },
+    {
+      nombre: "503 sin JSON y después 404",
+      conserva: apiCaida,
+      reemplaza: con(404, "TAREA_NO_ENCONTRADA"),
+      texto: "Esa tarea ya no existe.",
+    },
   ])(
-    "PR-1D04: %s conserva el formulario con el foco en «Título»; después %s lo reemplaza y el foco va a la raíz, no a <body>",
-    async (_primero, conserva, _segundo, reemplaza, texto) => {
+    "PR-1D04: $nombre: el primer fallo conserva el formulario con el foco en «Título»; el segundo lo reemplaza y el foco va a la raíz, no a <body>",
+    async ({ conserva, reemplaza, texto }) => {
       conLecturas([bien, conserva, reemplaza])
       const { cliente, titulo } = await abrirConFocoEnTitulo()
 

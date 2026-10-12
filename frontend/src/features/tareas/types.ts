@@ -9,6 +9,7 @@ export type {
   Categoria,
   CrearTarea,
   CriterioDeRubrica,
+  EditarTarea,
   ResumenDeTarea,
   TareaDetalle,
   Tema,
@@ -36,6 +37,8 @@ export interface EstadoDelFormulario {
   categoriaId: string
   temaId: string
   aceptaTardias: boolean
+  // ENTREGAS-01a (P-03 a): "Cómo se entrega".
+  requiereAdjuntos: boolean
   rubrica: readonly CriterioDelFormulario[]
 }
 

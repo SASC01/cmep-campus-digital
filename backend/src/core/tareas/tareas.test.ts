@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { validarCategoriaRequerida, validarFechaLimite } from "./tareas.js"
+import { tareaModificada, validarCategoriaRequerida, validarFechaLimite } from "./tareas.js"
 
 const AHORA = new Date("2026-10-06T12:00:00.000Z")
 const DIA_MS = 24 * 60 * 60 * 1000
@@ -75,5 +75,16 @@ describe("validarCategoriaRequerida", () => {
     expect(() =>
       validarCategoriaRequerida({ categoriaId: "id", categoriasEnLaClase: 3 }),
     ).not.toThrow()
+  })
+})
+
+describe("tareaModificada (§D-7)", () => {
+  it("PR-1A03: TAREA_MODIFICADA es un 409 con el mensaje de §D-7", () => {
+    expect(tareaModificada()).toMatchObject({
+      codigo: "TAREA_MODIFICADA",
+      estado: 409,
+      message:
+        "Otra persona guardó cambios en esta tarea mientras la editabas. Tus cambios no se guardaron: vuelve a hacerlos sobre la versión actual.",
+    })
   })
 })

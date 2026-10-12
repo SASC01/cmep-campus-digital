@@ -3,10 +3,15 @@ import {
   puedeEditarTarea,
   type ParticipanteDeAutoria,
 } from "../../core/autoria.js"
+import { exigirVersion } from "../../core/concurrencia.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
 import { planDeRecordatorio, type PlanDeRecordatorio } from "../../core/tareas/recordatorio.js"
-import { validarCategoriaRequerida, validarFechaLimite } from "../../core/tareas/tareas.js"
+import {
+  tareaModificada,
+  validarCategoriaRequerida,
+  validarFechaLimite,
+} from "../../core/tareas/tareas.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
 import {
   ejecutorSqlDe,
@@ -32,6 +37,9 @@ export interface TareaDetalleDb {
   fechaLimite: Date
   puntos: number
   aceptaTardias: boolean
+  // ENTREGAS-01a: "Cómo se entrega" (P-03 a) y la versión de la fila (P-05 a′).
+  requiereAdjuntos: boolean
+  version: number
   categoria: { id: string; nombre: string; peso: number } | null
   tema: { id: string; nombre: string } | null
   rubrica: { id: string; criterio: string; puntosMax: number }[]
@@ -76,6 +84,11 @@ const errorCategoriaNoEncontrada = (): AppError =>
 const errorEdicionNoPermitida = (): AppError =>
   new AppError("EDICION_NO_PERMITIDA", "No puedes editar lo que publicó otra persona.", 403)
 
+// Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a una tarea. Si faltara, es un
+// error explícito y no un título vacío en silencio (pendiente de TAREAS-01, absorbido en ENTREGAS-01a).
+const errorTareaSinTitulo = (): AppError =>
+  new AppError("ERROR_INTERNO", "La tarea no tiene título.", 500)
+
 const errorBorradoNoPermitido = (): AppError =>
   new AppError("BORRADO_NO_PERMITIDO", "No puedes borrar lo que publicó otra persona.", 403)
 
@@ -110,6 +123,8 @@ const leerTareaCon = async (
       fechaLimite: true,
       puntos: true,
       aceptaTardias: true,
+      requiereAdjuntos: true,
+      version: true,
       creadoEn: true,
       actualizadoEn: true,
       publicacion: {
@@ -140,13 +155,16 @@ const leerTareaCon = async (
   })
   const { publicacion } = tarea
   const autorSigueEnLaClase = maestros.some(({ maestroId }) => maestroId === publicacion.autor.id)
+  if (publicacion.titulo === null) throw errorTareaSinTitulo()
   return {
     id: tarea.id,
-    titulo: publicacion.titulo ?? "",
+    titulo: publicacion.titulo,
     instrucciones: publicacion.texto,
     fechaLimite: tarea.fechaLimite,
     puntos: tarea.puntos,
     aceptaTardias: tarea.aceptaTardias,
+    requiereAdjuntos: tarea.requiereAdjuntos,
+    version: tarea.version,
     categoria: tarea.categoria,
     tema: publicacion.tema,
     rubrica: tarea.criterios,
@@ -238,6 +256,7 @@ export interface DatosDeTarea {
   fechaLimite: Date
   puntos: number
   aceptaTardias: boolean
+  requiereAdjuntos: boolean
   categoriaId: string | null
   temaId: string | null
   rubrica: readonly CriterioNuevo[]
@@ -293,6 +312,7 @@ export const crearTarea = (
         fechaLimite: datos.fechaLimite,
         puntos: datos.puntos,
         aceptaTardias: datos.aceptaTardias,
+        requiereAdjuntos: datos.requiereAdjuntos,
         trabajoId,
       },
       select: { id: true },
@@ -321,6 +341,10 @@ interface FilaBloqueada {
   autor_id: string
 }
 
+interface FilaBloqueadaConVersion extends FilaBloqueada {
+  version: number
+}
+
 // El autor (id y rol) y si sigue siendo maestro de la clase (lectura por la PK de maestros_de_clase),
 // para la regla de autoría de las tareas (P-04 b).
 const autorYPertenencia = async (
@@ -342,15 +366,18 @@ const autorYPertenencia = async (
 // Editar (§D-4): el cuerpo es la tarea completa; `archivoIds` es la lista final de adjuntos (los que
 // ya tenía y siguen, más los nuevos, que el handler ya comprobó en `archivosNuevos`). En una
 // transacción: bloquea la fila de la tarea (FOR NO KEY UPDATE OF t: dos ediciones quedan en serie y
-// cada una cancela el trabajo que dejó la anterior), autoría (403 sin escribir), fecha, categoría y
-// tema, plan del recordatorio, publicación y tarea, criterios (se reemplazan), archivos y
-// alReprogramar. null: la tarea no existe en esa clase (o la borraron antes).
+// cada una cancela el trabajo que dejó la anterior), autoría (403 sin escribir), versión (409
+// TAREA_MODIFICADA sin escribir, ENTREGAS-01a §D-2.1: con la fila ya bloqueada, dos guardados con la
+// misma versión nunca dan dos 200), fecha, categoría y tema, plan del recordatorio, publicación y
+// tarea (la versión sube en 1), criterios (se reemplazan), archivos y alReprogramar. null: la tarea no
+// existe en esa clase (o la borraron antes).
 export const editarTarea = (
   {
     claseId,
     tareaId,
     actor,
     ahora,
+    version,
     idRecordatorioNuevo,
     archivoIds,
     archivosNuevos,
@@ -360,6 +387,8 @@ export const editarTarea = (
     tareaId: string
     actor: ParticipanteDeAutoria
     ahora: Date
+    // La versión con que se abrió el formulario (P-05 a′).
+    version: number
     // Id con que se encola el recordatorio nuevo (pg-boss ignora un id que ya usó).
     idRecordatorioNuevo: string
     archivoIds: readonly string[]
@@ -369,8 +398,8 @@ export const editarTarea = (
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<TareaDetalleDb | null> =>
   enTransaccion(ejecutor, async (tx) => {
-    const [fila] = await tx.$queryRaw<FilaBloqueada[]>`
-      SELECT t.id, t.fecha_limite, t.trabajo_id, p.autor_id
+    const [fila] = await tx.$queryRaw<FilaBloqueadaConVersion[]>`
+      SELECT t.id, t.fecha_limite, t.trabajo_id, t.version, p.autor_id
       FROM tareas t
       JOIN publicaciones p ON p.id = t.id
       WHERE t.id = ${tareaId}::uuid AND t.clase_id = ${claseId}::uuid
@@ -382,6 +411,7 @@ export const editarTarea = (
       autorId: fila.autor_id,
     })
     if (!puedeEditarTarea(actor, autor, sigueEnLaClase)) throw errorEdicionNoPermitida()
+    exigirVersion({ leida: version, actual: fila.version }, tareaModificada)
     validarFechaLimite({ nueva: datos.fechaLimite, anterior: fila.fecha_limite, ahora })
     await asegurarReferencias(tx, {
       claseId,
@@ -412,8 +442,10 @@ export const editarTarea = (
         fechaLimite: datos.fechaLimite,
         puntos: datos.puntos,
         aceptaTardias: datos.aceptaTardias,
+        requiereAdjuntos: datos.requiereAdjuntos,
         categoriaId: datos.categoriaId,
         trabajoId,
+        version: { increment: 1 },
       },
     })
 

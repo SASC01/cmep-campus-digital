@@ -34,6 +34,8 @@ const tareaCreada = () => ({
     fechaLimite: "2030-01-15T16:00:00.000Z",
     puntos: 100,
     aceptaTardias: true,
+    requiereAdjuntos: true,
+    version: 0,
     categoria: null,
     tema: null,
     rubrica: [],

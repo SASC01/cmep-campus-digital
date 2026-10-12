@@ -344,7 +344,11 @@ describe("editar una tarea (PR-1B08)", () => {
     const [viejo] = await trabajosDeTarea(COLA_RECORDATORIO_24H, id)
     const nuevaFecha = diasDespues(9)
 
-    const respuesta = await editar(e, id, cuerpoDeTarea({ fechaLimite: nuevaFecha.toISOString() }))
+    const respuesta = await editar(
+      e,
+      id,
+      cuerpoDeTarea({ fechaLimite: nuevaFecha.toISOString(), version: 0 }),
+    )
 
     expect(respuesta.statusCode, respuesta.body).toBe(200)
     const trabajos = await trabajosDeTarea(COLA_RECORDATORIO_24H, id)
@@ -367,7 +371,7 @@ describe("editar una tarea (PR-1B08)", () => {
     const respuesta = await editar(
       e,
       id,
-      cuerpoDeTarea({ fechaLimite: fecha, titulo: "Otro título" }),
+      cuerpoDeTarea({ fechaLimite: fecha, titulo: "Otro título", version: 0 }),
     )
 
     expect(respuesta.statusCode, respuesta.body).toBe(200)
@@ -382,7 +386,7 @@ describe("editar una tarea (PR-1B08)", () => {
     const e = await escenario()
     const id = idDeLaTarea(await crear(e, cuerpoDeTarea()))
 
-    await editar(e, id, cuerpoDeTarea({ fechaLimite: diasDespues(8).toISOString() }))
+    await editar(e, id, cuerpoDeTarea({ fechaLimite: diasDespues(8).toISOString(), version: 0 }))
 
     const creadas = await trabajosDeTarea(COLA_TAREA_CREADA, id)
     expect(creadas).toHaveLength(1)
@@ -398,7 +402,7 @@ describe("editar una tarea (PR-1B08)", () => {
     const respuesta = await editar(
       e,
       id,
-      cuerpoDeTarea({ fechaLimite: new Date(Date.now() + 10 * HORA_MS).toISOString() }),
+      cuerpoDeTarea({ fechaLimite: new Date(Date.now() + 10 * HORA_MS).toISOString(), version: 0 }),
     )
 
     expect(respuesta.statusCode, respuesta.body).toBe(200)
@@ -417,7 +421,7 @@ describe("editar una tarea (PR-1B08)", () => {
     )
     expect(await trabajosDeTarea(COLA_RECORDATORIO_24H, id)).toHaveLength(0)
 
-    await editar(e, id, cuerpoDeTarea({ fechaLimite: diasDespues(6).toISOString() }))
+    await editar(e, id, cuerpoDeTarea({ fechaLimite: diasDespues(6).toISOString(), version: 0 }))
 
     const trabajos = await trabajosDeTarea(COLA_RECORDATORIO_24H, id)
     expect(trabajos.map((t) => t.state)).toEqual(["created"])
@@ -444,6 +448,7 @@ describe("editar una tarea (PR-1B08)", () => {
       cuerpoDeTarea({
         fechaLimite: (await leerTareaDb(id))?.fechaLimite.toISOString(),
         rubrica: [{ criterio: "Nuevo", puntosMax: 20 }],
+        version: 0,
       }),
     )
 
@@ -464,7 +469,11 @@ describe("editar una tarea (PR-1B08)", () => {
     const c = await archivoSubido(e, "c.pdf")
     const fechaLimite = (await leerTareaDb(id))?.fechaLimite.toISOString()
 
-    const respuesta = await editar(e, id, cuerpoDeTarea({ fechaLimite, archivoIds: [a.id, c.id] }))
+    const respuesta = await editar(
+      e,
+      id,
+      cuerpoDeTarea({ fechaLimite, archivoIds: [a.id, c.id], version: 0 }),
+    )
 
     expect(respuesta.statusCode, respuesta.body).toBe(200)
     expect(
@@ -479,7 +488,11 @@ describe("editar una tarea (PR-1B08)", () => {
     expect(salido?.estado).toBe("descartado")
     expect(salido?.publicacionId).toBeNull()
 
-    const sinAdjuntos = await editar(e, id, cuerpoDeTarea({ fechaLimite, archivoIds: [] }))
+    const sinAdjuntos = await editar(
+      e,
+      id,
+      cuerpoDeTarea({ fechaLimite, archivoIds: [], version: 1 }),
+    )
     expect(sinAdjuntos.statusCode).toBe(200)
     expect(tareaRespuestaSchema.parse(sinAdjuntos.json()).tarea.adjuntos).toEqual([])
     expect((await leerArchivoDb(a.id))?.estado).toBe("descartado")
@@ -506,6 +519,7 @@ describe("editar una tarea (PR-1B08)", () => {
           titulo: "Cambiado",
           fechaLimite: antes?.fechaLimite.toISOString(),
           archivoIds,
+          version: 0,
         }),
       )
       expect(respuesta.statusCode, JSON.stringify(archivoIds)).toBe(400)
@@ -529,14 +543,18 @@ describe("editar una tarea (PR-1B08)", () => {
     })
     const pasada = (await leerTareaDb(id))?.fechaLimite.toISOString()
 
-    const deOtraClase = await editar(e, idAjena, cuerpoDeTarea())
-    const inexistente = await editar(e, randomUUID(), cuerpoDeTarea())
+    const deOtraClase = await editar(e, idAjena, cuerpoDeTarea({ version: 0 }))
+    const inexistente = await editar(e, randomUUID(), cuerpoDeTarea({ version: 0 }))
     const nuevaPasada = await editar(
       e,
       id,
-      cuerpoDeTarea({ fechaLimite: new Date(Date.now() - HORA_MS).toISOString() }),
+      cuerpoDeTarea({ fechaLimite: new Date(Date.now() - HORA_MS).toISOString(), version: 0 }),
     )
-    const conservada = await editar(e, id, cuerpoDeTarea({ fechaLimite: pasada, titulo: "Sigue" }))
+    const conservada = await editar(
+      e,
+      id,
+      cuerpoDeTarea({ fechaLimite: pasada, titulo: "Sigue", version: 0 }),
+    )
 
     expect(deOtraClase.statusCode).toBe(404)
     expect(codigoDe(deOtraClase)).toBe("TAREA_NO_ENCONTRADA")
@@ -553,9 +571,17 @@ describe("editar una tarea (PR-1B08)", () => {
     const categoria = await crearCategoriaDePrueba({ claseId: e.claseId, peso: 100 })
     const ajena = await crearCategoriaDePrueba({ claseId: (await escenario()).claseId, peso: 100 })
 
-    const sinCategoria = await editar(e, id, cuerpoDeTarea({ fechaLimite }))
-    const conAjena = await editar(e, id, cuerpoDeTarea({ fechaLimite, categoriaId: ajena.id }))
-    const conPropia = await editar(e, id, cuerpoDeTarea({ fechaLimite, categoriaId: categoria.id }))
+    const sinCategoria = await editar(e, id, cuerpoDeTarea({ fechaLimite, version: 0 }))
+    const conAjena = await editar(
+      e,
+      id,
+      cuerpoDeTarea({ fechaLimite, categoriaId: ajena.id, version: 0 }),
+    )
+    const conPropia = await editar(
+      e,
+      id,
+      cuerpoDeTarea({ fechaLimite, categoriaId: categoria.id, version: 0 }),
+    )
 
     expect(sinCategoria.statusCode).toBe(409)
     expect(codigoDe(sinCategoria)).toBe("CATEGORIA_REQUERIDA")
@@ -708,6 +734,7 @@ describe("reversión con la transacción de los trabajos de pg-boss (PR-1B13)", 
         fechaLimite: fecha,
         puntos: 10,
         aceptaTardias: true,
+        requiereAdjuntos: true,
         categoriaId: null,
         temaId: null,
         rubrica: [{ criterio: "Uno", puntosMax: 10 }],
@@ -740,12 +767,14 @@ describe("reversión con la transacción de los trabajos de pg-boss (PR-1B13)", 
     tareaId: s.id,
     actor: { id: s.e.maestro.id, rol: "maestro" as const },
     ahora: new Date(),
+    version: 0,
     idRecordatorioNuevo: randomUUID(),
     titulo: "Editada",
     instrucciones: "",
     fechaLimite: fecha,
     puntos: 20,
     aceptaTardias: true,
+    requiereAdjuntos: true,
     categoriaId: null,
     temaId: null,
     rubrica: [],
@@ -813,6 +842,7 @@ describe("reversión con la transacción de los trabajos de pg-boss (PR-1B13)", 
           fechaLimite: diasDespues(6),
           puntos: 10,
           aceptaTardias: true,
+          requiereAdjuntos: true,
           categoriaId: null,
           temaId: null,
           rubrica: [{ criterio: "Uno", puntosMax: 10 }],

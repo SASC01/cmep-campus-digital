@@ -90,6 +90,7 @@ export const cuerpoDeTarea = (
     fechaLimite: fechaLocalAIso(estado.fechaLimite),
     puntos: aEntero(estado.puntos),
     aceptaTardias: estado.aceptaTardias,
+    requiereAdjuntos: estado.requiereAdjuntos,
     categoriaId: estado.categoriaId === "" ? null : estado.categoriaId,
     temaId: estado.temaId === "" ? null : estado.temaId,
     rubrica: estado.rubrica.map(({ criterio, puntosMax }) => ({
@@ -170,6 +171,7 @@ export const estadoInicialDelFormulario = (tarea: TareaDetalle | null): EstadoDe
       categoriaId: "",
       temaId: "",
       aceptaTardias: true,
+      requiereAdjuntos: true,
       rubrica: [],
     }
   }
@@ -181,6 +183,7 @@ export const estadoInicialDelFormulario = (tarea: TareaDetalle | null): EstadoDe
     categoriaId: tarea.categoria === null ? "" : tarea.categoria.id,
     temaId: tarea.tema === null ? "" : tarea.tema.id,
     aceptaTardias: tarea.aceptaTardias,
+    requiereAdjuntos: tarea.requiereAdjuntos,
     rubrica: tarea.rubrica.map(({ criterio, puntosMax }) => ({
       llave: nuevaLlaveDeCriterio(),
       criterio,
@@ -259,6 +262,11 @@ export const erroresSinFilasQuitadas = (
   }
   return resultado
 }
+
+// ENTREGAS-01a (P-05 a′, §D-8.3.3): otra persona guardó o movió la tarea mientras se editaba. El
+// formulario lo reconoce para pedirle a la vista que recargue la tarea y lo reinicie.
+export const esTareaModificada = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "TAREA_MODIFICADA"
 
 // T-09, T-14 y T-15: la clave con que el detalle y la edición le dicen a useFocoAlPerderseElControl que
 // la vista pudo cambiar. Cambia con cada respuesta y con cada fallo nuevo (también con dos fallos

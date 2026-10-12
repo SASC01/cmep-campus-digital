@@ -31,6 +31,7 @@ import {
   erroresConLlavesDeFila,
   erroresDeLaTareaDeApi,
   erroresSinFilasQuitadas,
+  esTareaModificada,
   estadoInicialDelFormulario,
   mensajeDeErrorTareas,
   puntosDeLaTarea,
@@ -54,8 +55,14 @@ interface FormularioTareaProps {
   cancelarA: string
   pendiente: boolean
   // Envía el cuerpo (con sus archivoIds) y navega al terminar; si falla, rechaza y el formulario marca
-  // el campo del error. El aviso de los demás errores lo da el hook de la mutación.
-  onGuardar: (datos: CrearTarea) => Promise<void>
+  // el campo del error. El aviso de los demás errores lo da el hook de la mutación. La versión es la
+  // de la tarea con que se abrió el formulario (null al crear; ENTREGAS-01a, P-05 a′).
+  onGuardar: (datos: CrearTarea, versionDeApertura: number | null) => Promise<void>
+  // ENTREGAS-01a (§D-8.3.3): ante 409 TAREA_MODIFICADA, la vista de edición recarga la tarea y reinicia
+  // el formulario. Mientras tanto la guarda sigue marcada y "Guardar cambios" sigue en espera.
+  onConflicto?: () => Promise<void>
+  // ENTREGAS-01a (§D-8.3.5): tras un reinicio por conflicto, el foco va a "Título" al montar.
+  enfocarAlMontar?: boolean
 }
 
 interface CamposDelFormularioProps extends FormularioTareaProps {
@@ -69,6 +76,8 @@ function CamposDelFormulario({
   cancelarA,
   pendiente,
   onGuardar,
+  onConflicto,
+  enfocarAlMontar = false,
   categorias,
   temas,
 }: CamposDelFormularioProps) {
@@ -77,6 +86,9 @@ function CamposDelFormulario({
   const [escrito, setEstado] = useState<EstadoDelFormulario>(() =>
     estadoInicialDelFormulario(tarea),
   )
+  // ENTREGAS-01a (P-05 a′, §D-8.2): la versión nace con el estado, al montar, y ninguna recarga
+  // posterior la cambia: se edita sobre la versión con que se abrió (DESIGN.md §7.21).
+  const [versionDeApertura] = useState(() => (tarea === null ? null : tarea.version))
   // T-08: la categoría o el tema elegidos que ya no están en la lista de la clase (porque se pidió de
   // nuevo tras un 404) dejan el campo en su opción vacía; el navegador nunca conserva en silencio una
   // opción que ya no existe.
@@ -90,6 +102,7 @@ function CamposDelFormulario({
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [errorDeArchivos, setErrorDeArchivos] = useState<string | null>(null)
   const [enProceso, setEnProceso] = useState(false)
+  const tituloRef = useRef<HTMLInputElement>(null)
   const selectorRef = useRef<HTMLInputElement>(null)
   const adjuntarRef = useRef<HTMLButtonElement>(null)
   const listaRef = useRef<HTMLDivElement>(null)
@@ -131,6 +144,14 @@ function CamposDelFormulario({
   useEffect(() => {
     filasVigentesRef.current = escrito.rubrica
   }, [escrito.rubrica])
+
+  // §D-8.3.5: el reinicio por conflicto quita el control que tenía el foco; este efecto corre antes que
+  // los de la vista (useFocoAlPerderseElControl), así que el foco nunca cae en <body>. En la primera
+  // apertura no se mueve.
+  useEffect(() => {
+    if (!enfocarAlMontar) return
+    tituloRef.current?.focus()
+  }, [enfocarAlMontar])
 
   const cambiar = (cambios: Partial<EstadoDelFormulario>) => setEstado({ ...estado, ...cambios })
 
@@ -190,10 +211,16 @@ function CamposDelFormulario({
         archivoIds.push(creado.id)
       }
       archivoEnSubida = null
-      await onGuardar({ ...datos, archivoIds })
+      await onGuardar({ ...datos, archivoIds }, versionDeApertura)
     } catch (error) {
       if (archivoEnSubida !== null) {
         toast.error(avisoDeFalloAlSubir(error, archivoEnSubida, mensajeDeErrorTareas))
+        return
+      }
+      // §D-8.3.3: el aviso ya lo dio el hook; la vista recarga la tarea dentro de este try, así que la
+      // guarda y la espera del botón siguen hasta que la recarga termina (refetch no lanza).
+      if (esTareaModificada(error)) {
+        await onConflicto?.()
         return
       }
       // Falló al guardar: el aviso ya lo dio el hook; aquí solo se marca el campo, si el error es de
@@ -244,6 +271,7 @@ function CamposDelFormulario({
           <div className="flex flex-col gap-2">
             <Label htmlFor={idTitulo}>{TEXTOS_FORMULARIO_TAREA.campoTitulo}</Label>
             <Input
+              ref={tituloRef}
               id={idTitulo}
               name="titulo"
               autoComplete="off"
@@ -369,6 +397,60 @@ function CamposDelFormulario({
                 <ErrorDeCampo id={`${idTema}-error`}>{errores.temaId}</ErrorDeCampo>
               )}
             </div>
+          </div>
+
+          {/* ENTREGAS-01a (P-03 a), DESIGN.md §7.3: "Cómo se entrega", el mismo control segmentado de
+              dos botones que el de entregas tardías, justo antes de él. */}
+          <div className="flex flex-col gap-2">
+            <p id={`${idBase}-como-se-entrega`} className="text-body font-bold text-foreground">
+              {TEXTOS_FORMULARIO_TAREA.grupoComoSeEntrega}
+            </p>
+            <div
+              role="group"
+              aria-labelledby={`${idBase}-como-se-entrega`}
+              aria-describedby={
+                errores.requiereAdjuntos ? `${idBase}-como-se-entrega-error` : undefined
+              }
+              className="vidrio-fuerte w-fit rounded-card p-1"
+            >
+              <div className="relative grid grid-cols-2">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute inset-y-0 left-0 w-1/2 rounded-row bg-surface transition-transform duration-200 in-data-[material=opaco]:bg-accent-soft motion-reduce:transition-none",
+                    CLASES_DE_POSICION_DEL_INDICADOR[estado.requiereAdjuntos ? 0 : 1],
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={estado.requiereAdjuntos}
+                  onClick={() => cambiar({ requiereAdjuntos: true })}
+                  className="relative w-full aria-pressed:text-link"
+                >
+                  {estado.requiereAdjuntos && <Check aria-hidden="true" />}
+                  {TEXTOS_FORMULARIO_TAREA.conArchivosOEnlaces}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={!estado.requiereAdjuntos}
+                  onClick={() => cambiar({ requiereAdjuntos: false })}
+                  className="relative w-full aria-pressed:text-link"
+                >
+                  {!estado.requiereAdjuntos && <Check aria-hidden="true" />}
+                  {TEXTOS_FORMULARIO_TAREA.marcarComoCompletada}
+                </Button>
+              </div>
+            </div>
+            {/* El campo está en CAMPOS_DEL_FORMULARIO: un VALIDACION del servidor se muestra aquí. */}
+            {errores.requiereAdjuntos && (
+              <ErrorDeCampo id={`${idBase}-como-se-entrega-error`}>
+                {errores.requiereAdjuntos}
+              </ErrorDeCampo>
+            )}
           </div>
 
           {/* S-13, DESIGN.md §7.3: control segmentado de dos botones, como el del tipo de publicación.

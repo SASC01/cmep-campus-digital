@@ -151,6 +151,10 @@ export const ordenarTemas = (
 // temaId, el tema se bloquea FOR KEY SHARE antes de usarlo: un borrado simultáneo del tema espera, o
 // si confirmó antes, el tema ya no se ve (404). El UPDATE repite id y clase_id por si la publicación
 // se borró entre la lectura y la escritura.
+// ENTREGAS-01a (§D-2.3): mover una tarea sube su versión (el formulario de la tarea lleva el tema, así
+// que un guardado abierto antes del movimiento recibe 409 TAREA_MODIFICADA). La fila de `tareas` se
+// escribe antes que `publicaciones`, el orden de editarTarea y borrarTarea (§D-0.6): al revés, una
+// edición y un movimiento simultáneos podrían bloquearse en cruz. Mover un material no toca `tareas`.
 export const moverATema = (
   {
     claseId,
@@ -167,6 +171,12 @@ export const moverATema = (
     if (publicacion === null) throw publicacionNoEncontrada()
     if (publicacion.tipo === "anuncio") {
       throw new AppError("ANUNCIO_SIN_TEMA", "Los anuncios no van en temas.", 409)
+    }
+    if (publicacion.tipo === "tarea") {
+      await tx.tarea.updateMany({
+        where: { id: publicacionId, claseId },
+        data: { version: { increment: 1 } },
+      })
     }
     if (temaId !== null && !(await bloquearTemaParaUsar(tx, { temaId, claseId }))) {
       throw temaNoEncontrado()

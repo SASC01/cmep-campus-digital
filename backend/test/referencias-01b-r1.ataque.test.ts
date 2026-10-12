@@ -124,6 +124,11 @@ const crear = (e: Escenario, cambios: Record<string, unknown> = {}) =>
     payload: cuerpoDeTarea(cambios),
   })
 
+// ENTREGAS-01a ronda 0 (C-6, §D-R0 «01a»; §D-2.1 y P-05 a′ del plan de ENTREGAS-01): el PUT de una
+// tarea exige la `version` con que se leyó. Las ediciones de este archivo que llegan al adaptador
+// mandan la 0: cada tarea se edita con éxito a lo más una vez y los rechazos (404, 409 de
+// categoría, 400 de archivo) no la suben. La de «la cadena en las cinco rutas» no cambia: la cadena
+// responde antes de leer el cuerpo. Lo que verifica cada caso no cambia.
 const editar = (e: Escenario, tareaId: string, cambios: Record<string, unknown>) =>
   peticion({
     method: "PUT",
@@ -167,10 +172,19 @@ describe("ataque TAREAS-01b r1: referencias por id al editar (categoría, tema)"
       ],
     ]
     for (const [etiqueta, cambios, codigo] of casos) {
-      const r = await editar(e, tareaId, { ...cambios, titulo: "Cambio", fechaLimite: nuevaFecha })
+      const r = await editar(e, tareaId, {
+        ...cambios,
+        titulo: "Cambio",
+        fechaLimite: nuevaFecha,
+        version: 0,
+      })
       expect([etiqueta, r.statusCode, codigoDe(r)]).toEqual([etiqueta, 404, codigo])
     }
-    const sinCategoria = await editar(e, tareaId, { categoriaId: null, temaId: tema.id })
+    const sinCategoria = await editar(e, tareaId, {
+      categoriaId: null,
+      temaId: tema.id,
+      version: 0,
+    })
     expect([sinCategoria.statusCode, codigoDe(sinCategoria)]).toEqual([409, "CATEGORIA_REQUERIDA"])
     const despues = await leerTareaDb(tareaId)
     expect([despues?.categoriaId, despues?.fechaLimite.getTime(), despues?.trabajoId]).toEqual([
@@ -221,9 +235,9 @@ describe("ataque TAREAS-01b r1: referencias por id al editar (categoría, tema)"
       409,
       "«Exámenes» tiene 2 tareas. Muévelas a otra categoría antes de quitarla.",
     ])
-    expect((await editar(e, t2, { categoriaId: categoria.id, temaId: tema.id })).statusCode).toBe(
-      200,
-    )
+    expect(
+      (await editar(e, t2, { categoriaId: categoria.id, temaId: tema.id, version: 0 })).statusCode,
+    ).toBe(200)
     expect(await temas()).toEqual({
       temas: [expect.objectContaining({ elementos: 2 })],
       sinTema: 0,
@@ -404,8 +418,8 @@ describe("ataque TAREAS-01b r1: el mismo archivo pendiente en dos escrituras a l
       const otra = idDe(await crear(e, { titulo: "Otra" }))
       const y = await subido()
       const ediciones = await Promise.all([
-        editar(e, ganadora, { titulo: "Edita 1", archivoIds: [x, y] }),
-        editar(e, otra, { titulo: "Edita 2", archivoIds: [y] }),
+        editar(e, ganadora, { titulo: "Edita 1", archivoIds: [x, y], version: 0 }),
+        editar(e, otra, { titulo: "Edita 2", archivoIds: [y], version: 0 }),
       ])
       expect(ediciones.map((r) => r.statusCode).sort()).toEqual([200, 400])
       const dueña = (await leerArchivoDb(y))?.publicacionId

@@ -194,6 +194,9 @@ export const crearTareaSchema = z.object({
     .min(1, MENSAJE_PUNTOS)
     .max(PUNTOS_MAXIMOS, MENSAJE_PUNTOS),
   aceptaTardias: z.boolean({ error: "Elige si se aceptan entregas con retraso" }).default(true),
+  // ENTREGAS-01a (P-03 a): "Cómo se entrega". Por defecto pide archivos o enlaces, así que no rompe
+  // a quien no lo envía.
+  requiereAdjuntos: z.boolean({ error: "Elige cómo se entrega la tarea" }).default(true),
   categoriaId: idOpcionalSchema,
   temaId: idOpcionalSchema,
   rubrica: z
@@ -207,7 +210,13 @@ export const crearTareaSchema = z.object({
   archivoIds: archivoIdsSchema.transform((ids) => ids.map((id) => id.toLowerCase())),
 })
 
-export const editarTareaSchema = crearTareaSchema
+// ENTREGAS-01a (P-05 a′): editar exige la versión con que se abrió el formulario; si la fila ya
+// tiene otra, el servidor responde 409 TAREA_MODIFICADA sin escribir nada. Crear no la lleva.
+const MENSAJE_VERSION = "La versión de la tarea debe ser un número entero de 0 en adelante"
+
+export const editarTareaSchema = crearTareaSchema.extend({
+  version: z.number({ error: MENSAJE_VERSION }).int(MENSAJE_VERSION).min(0, MENSAJE_VERSION),
+})
 
 export const tareaIdParamSchema = z.object({
   tareaId: z.uuid("tareaId: debe ser un identificador válido").transform((id) => id.toLowerCase()),
@@ -227,6 +236,9 @@ export const tareaDetalleSchema = z.object({
   fechaLimite: z.iso.datetime(),
   puntos: z.number().int().min(1).max(PUNTOS_MAXIMOS),
   aceptaTardias: z.boolean(),
+  // ENTREGAS-01a: "Cómo se entrega" (P-03 a) y la versión que el formulario envía al guardar (P-05 a′).
+  requiereAdjuntos: z.boolean(),
+  version: z.number().int().min(0),
   categoria: z.object({ id: z.uuid(), nombre: z.string(), peso: z.number().int() }).nullable(),
   tema: z.object({ id: z.uuid(), nombre: z.string() }).nullable(),
   rubrica: z.array(criterioDeRubricaSchema),
@@ -274,6 +286,8 @@ export const CODIGOS_TAREAS = {
   TEMA_REPETIDO: "TEMA_REPETIDO",
   ORDEN_DESACTUALIZADO: "ORDEN_DESACTUALIZADO",
   ANUNCIO_SIN_TEMA: "ANUNCIO_SIN_TEMA",
+  // ENTREGAS-01a (P-05 a′).
+  TAREA_MODIFICADA: "TAREA_MODIFICADA",
 } as const
 
 export type CodigoTareas = (typeof CODIGOS_TAREAS)[keyof typeof CODIGOS_TAREAS]

@@ -78,3 +78,19 @@ export const datosEntregaRealizadaSchema = z.strictObject({
 })
 
 export type DatosEntregaRealizada = z.infer<typeof datosEntregaRealizadaSchema>
+
+// CALIFICACIONES-01a (§D-8, S-11). CALIFICACION_PUBLICADA se encola en la transacción de cada
+// publicación de una calificación (también al recalificar), con un id nuevo por publicación y solo
+// ids. El aviso cubre el comentario de devolución, que entra al hilo sin su propio evento (R-10). Sin
+// consumidor por ahora: el de NOTIFICACIONES avisa al alumno y termina sin avisar si la entrega ya no
+// existe, si no está calificada o si su version ya no es la del evento.
+export const COLA_CALIFICACION_PUBLICADA = "CALIFICACION_PUBLICADA"
+
+export const datosCalificacionPublicadaSchema = z.strictObject({
+  entregaId: z.uuid(),
+  tareaId: z.uuid(),
+  claseId: z.uuid(),
+  version: z.number().int().min(1),
+})
+
+export type DatosCalificacionPublicada = z.infer<typeof datosCalificacionPublicadaSchema>

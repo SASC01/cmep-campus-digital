@@ -1,6 +1,12 @@
 import { prefijoDeEntrega } from "../../core/archivos/politica.js"
 import { firmaDelAutor } from "../../core/autoria.js"
 import {
+  decidirCalificacion,
+  entregaModificada,
+  exigirEntregaCalificable,
+} from "../../core/calificaciones/calificar.js"
+import { exigirVersion } from "../../core/concurrencia.js"
+import {
   accionesDeEntrega,
   alumnoNoEncontrado,
   decidirAnulacion,
@@ -32,6 +38,23 @@ import { condicionesDePaginaDeAlumnos } from "./inscripciones.js"
 // importan aquí: el handler pasa `alGuardar`, que recibe el ejecutor SQL de la transacción.
 // Orden de bloqueo (§D-0.6): primero la fila de `tareas`, después `entregas` y `archivos`.
 
+// CALIFICACIONES-01a (§D-5). La calificación publicada de una entrega: los puntos (escalados con
+// rúbrica), sobre los puntos de la tarea (con P-04 a, los mismos con que se calificó), la fecha y el
+// desglose por criterio en el orden de la rúbrica ([] sin rúbrica).
+export interface PuntajeDeCriterioDb {
+  criterioId: string
+  criterio: string
+  puntosMax: number
+  puntos: number
+}
+
+export interface CalificacionDb {
+  puntos: number
+  sobre: number
+  fecha: Date
+  puntajes: PuntajeDeCriterioDb[]
+}
+
 export interface MiEntregaDb {
   // Con lo que decide core/ (la subida de un archivo de entrega la usa, S-10); nunca se responde.
   tarea: TareaParaEntregar
@@ -42,6 +65,7 @@ export interface MiEntregaDb {
   adjuntos: ArchivoDb[]
   puedeEntregar: boolean
   puedeAnular: boolean
+  calificacion: CalificacionDb | null
 }
 
 export interface AlumnoDeEntregaDb {
@@ -71,6 +95,7 @@ export interface EntregaDeAlumnoDb {
   enlaces: string[]
   adjuntos: ArchivoDb[]
   version: number
+  calificacion: CalificacionDb | null
 }
 
 const errorTareaNoEncontrada = (): AppError =>
@@ -89,9 +114,6 @@ const errorEntregaMalFormada = (): AppError =>
   new AppError("ERROR_INTERNO", "La entrega guardada no tiene una forma válida.", 500)
 
 const ESTADOS_DE_ENTREGA: readonly EstadoEntrega[] = ["asignado", "entregado", "calificado"]
-
-// Las que cuentan como entregas (S-06 y RF-35): entregado y calificado.
-const ESTADOS_ENTREGADOS: EstadoEntrega[] = ["entregado", "calificado"]
 
 const estadoDe = (texto: string): EstadoEntrega => {
   const estado = ESTADOS_DE_ENTREGA.find((posible) => posible === texto)
@@ -114,6 +136,8 @@ const SELECT_ENTREGA = {
   conRetraso: true,
   enlaces: true,
   version: true,
+  calificacion: true,
+  fechaCalificacion: true,
 } as const
 
 const SELECT_TAREA_PARA_ENTREGAR = {
@@ -121,6 +145,56 @@ const SELECT_TAREA_PARA_ENTREGAR = {
   aceptaTardias: true,
   requiereAdjuntos: true,
 } as const
+
+// §D-5. La calificación de una entrega ya leída con SELECT_ENTREGA. Solo si está calificada, una
+// consulta más: sus puntajes con el criterio de cada uno, en el orden de la rúbrica (PK de
+// puntajes_rubrica por entrega_id; los criterios por su PK). Una calificada sin calificación (o al
+// revés) es inalcanzable por entregas_calificacion_segun_estado: error explícito, nunca un valor
+// inventado. El Decimal de Prisma se entrega como number (exacto con dos decimales hasta 1000).
+const calificacionDe = async (
+  db: Ejecutor,
+  {
+    entrega,
+    sobre,
+  }: {
+    entrega: {
+      id: string
+      estado: EstadoEntrega
+      calificacion: Prisma.Decimal | null
+      fechaCalificacion: Date | null
+    }
+    sobre: number
+  },
+): Promise<CalificacionDb | null> => {
+  if (entrega.estado !== "calificado") {
+    if (entrega.calificacion !== null || entrega.fechaCalificacion !== null) {
+      throw errorEntregaMalFormada()
+    }
+    return null
+  }
+  if (entrega.calificacion === null || entrega.fechaCalificacion === null) {
+    throw errorEntregaMalFormada()
+  }
+  const puntajes = await db.puntajeRubrica.findMany({
+    where: { entregaId: entrega.id },
+    select: {
+      puntos: true,
+      criterio: { select: { id: true, criterio: true, puntosMax: true } },
+    },
+    orderBy: { criterio: { orden: "asc" } },
+  })
+  return {
+    puntos: entrega.calificacion.toNumber(),
+    sobre,
+    fecha: entrega.fechaCalificacion,
+    puntajes: puntajes.map((puntaje) => ({
+      criterioId: puntaje.criterio.id,
+      criterio: puntaje.criterio.criterio,
+      puntosMax: puntaje.criterio.puntosMax,
+      puntos: puntaje.puntos.toNumber(),
+    })),
+  }
+}
 
 // Los archivos confirmados de una entrega, en el orden en que se subieron (hasta 5).
 const adjuntosDeEntrega = (
@@ -165,11 +239,12 @@ const leerMiEntregaCon = async (
     ahora,
   }: { claseId: string; tareaId: string; alumnoId: string; ahora: Date },
 ): Promise<MiEntregaDb | null> => {
-  const tarea = await db.tarea.findFirst({
+  const fila = await db.tarea.findFirst({
     where: { id: tareaId, claseId },
-    select: SELECT_TAREA_PARA_ENTREGAR,
+    select: { ...SELECT_TAREA_PARA_ENTREGAR, puntos: true },
   })
-  if (tarea === null) return null
+  if (fila === null) return null
+  const { puntos, ...tarea } = fila
   const entrega = await db.entrega.findUnique({
     where: { tareaId_alumnoId: { tareaId, alumnoId } },
     select: SELECT_ENTREGA,
@@ -183,6 +258,7 @@ const leerMiEntregaCon = async (
       enlaces: [],
       adjuntos: [],
       ...accionesDeEntrega({ tarea, estado: "asignado", ahora }),
+      calificacion: null,
     }
   }
   const adjuntos = await adjuntosDeEntrega(db, { entregaId: entrega.id, claseId })
@@ -194,6 +270,7 @@ const leerMiEntregaCon = async (
     enlaces: enlacesDe(entrega.enlaces),
     adjuntos,
     ...accionesDeEntrega({ tarea, estado: entrega.estado, ahora }),
+    calificacion: await calificacionDe(db, { entrega, sobre: puntos }),
   }
 }
 
@@ -245,6 +322,35 @@ const asegurarFilaDeEntrega = async (
     INSERT INTO entregas (tarea_id, alumno_id)
     VALUES (${tareaId}::uuid, ${alumnoId}::uuid)
     ON CONFLICT (tarea_id, alumno_id) DO NOTHING`
+}
+
+interface FilaTareaParaCalificar {
+  fecha_limite: Date
+  acepta_tardias: boolean
+  puntos: number
+}
+
+// CALIFICACIONES-01a (§D-3.1, §D-9). El bloqueo compartido de la fila de la tarea al calificar: el único
+// de su modo en este archivo (el de bloquearTareaParaEntregar es más débil y sigue siendo el único del
+// suyo). Choca con la edición y el movimiento de tema (FOR NO KEY UPDATE) y con el borrado (FOR UPDATE)
+// de esa tarea, que quedan en serie con la calificación; no choca con entregar, anular, comentar ni con
+// otra calificación de la misma tarea. Lee lo que decide core/: la fecha límite y si acepta tardías
+// (P-03 c′) y los puntos (Enmienda 1, M-02). null: la tarea no existe en esa clase.
+const bloquearTareaParaCalificar = async (
+  tx: Prisma.TransactionClient,
+  { tareaId, claseId }: { tareaId: string; claseId: string },
+): Promise<{ fechaLimite: Date; aceptaTardias: boolean; puntos: number } | null> => {
+  const [fila] = await tx.$queryRaw<FilaTareaParaCalificar[]>`
+    SELECT fecha_limite, acepta_tardias, puntos
+    FROM tareas
+    WHERE id = ${tareaId}::uuid AND clase_id = ${claseId}::uuid
+    FOR SHARE`
+  if (fila === undefined) return null
+  return {
+    fechaLimite: fila.fecha_limite,
+    aceptaTardias: fila.acepta_tardias,
+    puntos: fila.puntos,
+  }
 }
 
 interface FilaDeEntregaBloqueada {
@@ -404,6 +510,106 @@ export const anularEntrega = (
     return leerMiEntrega({ claseId, tareaId, alumnoId, ahora }, tx)
   })
 
+// CALIFICACIONES-01a (§D-3). Calificar (y recalificar) la entrega de un alumno, en READ COMMITTED y con
+// el orden de bloqueo del proyecto (primero la tarea): la tarea bloqueada (null si no existe en la
+// clase), el alumno de la ruta (inscrito con cuenta activa, ALUMNO_NO_ENCONTRADO), los criterios de la
+// rúbrica (estables: la edición que los reemplaza espera al bloqueo de la tarea), la fila perezosa, la
+// fila de la entrega bloqueada (FOR NO KEY UPDATE), la versión que vio quien califica (409
+// ENTREGA_MODIFICADA) y las reglas de core/ (P-03 c′ y decidirCalificacion). Antes de escribir, la
+// única escritura es la fila perezosa: si algo lanza, la transacción se revierte entera y esa fila
+// tampoco queda (N-08). Después: los puntajes se reemplazan (una sentencia para borrar y otra para
+// insertar, nunca en un ciclo), la entrega pasa a calificado con la calificación, la fecha y la versión
+// siguiente (fecha de entrega, retraso y enlaces no cambian), el comentario de devolución entra al hilo
+// privado de esa entrega (P-02 a; sin aviso propio, S-11) y alGuardar (el handler encola
+// CALIFICACION_PUBLICADA con el ejecutor SQL de esta transacción). Responde con la entrega leída en la
+// misma transacción (anidada: la opción de instantánea se ignora).
+export const calificarEntrega = (
+  {
+    claseId,
+    tareaId,
+    alumnoId,
+    autorId,
+    ahora,
+    version,
+    puntosDeLaTarea,
+    puntajes,
+    calificacion,
+    comentario,
+  }: {
+    claseId: string
+    tareaId: string
+    alumnoId: string
+    // Quien califica: el autor del comentario de devolución.
+    autorId: string
+    ahora: Date
+    // La versión de la entrega y los puntos de la tarea con que se abrió el panel.
+    version: number
+    puntosDeLaTarea: number
+    puntajes: readonly { criterioId: string; puntos: number }[]
+    calificacion: number | null
+    // El id lo genera el handler.
+    comentario: { id: string; texto: string } | null
+  },
+  alGuardar: (sql: EjecutorSql, entrega: { entregaId: string; version: number }) => Promise<void>,
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<EntregaDeAlumnoDb | null> =>
+  enTransaccion(ejecutor, async (tx) => {
+    const tarea = await bloquearTareaParaCalificar(tx, { tareaId, claseId })
+    if (tarea === null) return null
+    await alumnoInscrito(tx, { claseId, alumnoId })
+    const criterios = await tx.criterioRubrica.findMany({
+      where: { tareaId },
+      orderBy: { orden: "asc" },
+      select: { id: true, criterio: true, puntosMax: true },
+    })
+    await asegurarFilaDeEntrega(tx, { tareaId, alumnoId })
+    const fila = await bloquearEntrega(tx, { tareaId, alumnoId })
+    if (fila === null) throw errorEntregaMalFormada()
+
+    exigirVersion({ leida: version, actual: fila.version }, entregaModificada)
+    exigirEntregaCalificable({
+      estado: fila.estado,
+      tarea: { fechaLimite: tarea.fechaLimite, aceptaTardias: tarea.aceptaTardias },
+      ahora,
+    })
+    const decidida = decidirCalificacion({
+      criterios,
+      puntosDeLaTarea: tarea.puntos,
+      puntosVistos: puntosDeLaTarea,
+      puntajes,
+      calificacionDirecta: calificacion,
+    })
+
+    await tx.puntajeRubrica.deleteMany({ where: { entregaId: fila.id } })
+    if (decidida.puntajes.length > 0) {
+      await tx.puntajeRubrica.createMany({
+        data: decidida.puntajes.map((puntaje) => ({
+          entregaId: fila.id,
+          criterioId: puntaje.criterioId,
+          puntos: puntaje.puntos,
+        })),
+      })
+    }
+    const actualizada = await tx.entrega.update({
+      where: { id: fila.id },
+      data: {
+        estado: "calificado",
+        calificacion: decidida.calificacion,
+        fechaCalificacion: ahora,
+        version: { increment: 1 },
+      },
+      select: { version: true },
+    })
+    if (comentario !== null) {
+      await tx.comentario.create({
+        data: { id: comentario.id, entregaId: fila.id, autorId, texto: comentario.texto },
+        select: { id: true },
+      })
+    }
+    await alGuardar(ejecutorSqlDe(tx), { entregaId: fila.id, version: actualizada.version })
+    return leerEntregaDeAlumno({ claseId, tareaId, alumnoId }, tx)
+  })
+
 // Descarga del alumno (§D-3.6): un archivo confirmado de su propia entrega en esa tarea de esa clase.
 // La tarea de otra clase es 404 TAREA_NO_ENCONTRADA; null (404 ARCHIVO_NO_ENCONTRADO) es igual para
 // uno inexistente, de otro alumno, de material, pendiente, descartado o de otra tarea.
@@ -479,7 +685,9 @@ const listarEntregasCon = async (
   const entregadas = await db.entrega.count({
     where: {
       tareaId,
-      estado: { in: ESTADOS_ENTREGADOS },
+      // Entregó quien tiene fecha de entrega (RF-35): con P-03 (c′) una calificada puede no tenerla.
+      // Por los CHECK de la migración, solo entregado y calificado la tienen.
+      fechaEntrega: { not: null },
       alumno: { activo: true, inscripciones: { some: { claseId } } },
     },
   })
@@ -512,13 +720,18 @@ export const listarEntregas = (
 ): Promise<ListaEntregasDb | null> =>
   enTransaccion(ejecutor, (tx) => listarEntregasCon(tx, params), { instantaneaUnica: true })
 
-// §D-3.10. La tarea (null si no existe), la inscripción del alumno (ALUMNO_NO_ENCONTRADO), la entrega y
-// sus archivos. Sin fila: asignado, con version 0.
+// §D-3.10. La tarea (null si no existe; con sus puntos, CALIFICACIONES-01a), la inscripción del alumno
+// (ALUMNO_NO_ENCONTRADO), la entrega, sus archivos y su calificación. Sin fila: asignado, con version 0
+// y sin calificación.
 const leerEntregaDeAlumnoCon = async (
   db: Ejecutor,
   { claseId, tareaId, alumnoId }: { claseId: string; tareaId: string; alumnoId: string },
 ): Promise<EntregaDeAlumnoDb | null> => {
-  if (!(await existeLaTarea(db, { claseId, tareaId }))) return null
+  const tarea = await db.tarea.findFirst({
+    where: { id: tareaId, claseId },
+    select: { puntos: true },
+  })
+  if (tarea === null) return null
   const alumno = await alumnoInscrito(db, { claseId, alumnoId })
   const entrega = await db.entrega.findUnique({
     where: { tareaId_alumnoId: { tareaId, alumnoId } },
@@ -533,6 +746,7 @@ const leerEntregaDeAlumnoCon = async (
       enlaces: [],
       adjuntos: [],
       version: 0,
+      calificacion: null,
     }
   }
   return {
@@ -543,6 +757,7 @@ const leerEntregaDeAlumnoCon = async (
     enlaces: enlacesDe(entrega.enlaces),
     adjuntos: await adjuntosDeEntrega(db, { entregaId: entrega.id, claseId }),
     version: entrega.version,
+    calificacion: await calificacionDe(db, { entrega, sobre: tarea.puntos }),
   }
 }
 

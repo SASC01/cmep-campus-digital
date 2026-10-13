@@ -85,6 +85,7 @@ const entregaDeAlumno = (extra: Record<string, unknown> = {}) => ({
     },
   ],
   version: 1,
+  calificacion: null,
   ...extra,
 })
 
@@ -272,6 +273,7 @@ describe("el panel «Entregas» del detalle (PR-1E01)", () => {
             adjuntos: [],
             puedeEntregar: true,
             puedeAnular: false,
+            calificacion: null,
           },
         })
       }
@@ -849,6 +851,7 @@ describe("descargar un adjunto con errores (ronda 1, T-01)", () => {
           adjuntos: [ADJUNTO],
           puedeEntregar: false,
           puedeAnular: true,
+          calificacion: null,
         },
       })
     }

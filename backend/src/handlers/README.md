@@ -150,3 +150,19 @@ claseId, version }`); anular no encola ni cancela nada (S-09). Las respuestas se
 claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna respuesta lleva rol,
   correo ni estado de pago. Sin borrar ni editar (S-04). Las rutas del muro nunca ven, cuentan ni
   borran un comentario privado: filtran por la publicación.
+- `respuestas-de-entrega.ts` (CALIFICACIONES-01a, §D-5): `miEntregaParaResponder`,
+  `entregaDeAlumnoParaResponder` y `calificacionParaResponder`, las respuestas de una entrega con su
+  calificación (`null` sin calificar; fechas en ISO 8601), compartidas por `tareas/entregas.ts` y
+  `calificaciones.ts`. El alumno sigue sin `version`.
+- `calificaciones.ts` (prefijo `/api`, CALIFICACIONES-01a, `calificacionesHandler`, recibe `{ almacen }`):
+  `PUT /clases/:claseId/tareas/:tareaId/entregas/:alumnoId/calificacion`, con
+  `protegido({ roles: ["maestro"], pertenencia: "propiedad" })` (S-01: el admin lee la calificación y no
+  califica). El cuerpo (`calificarEntregaSchema`, estricto) lleva la `version` de la entrega y los
+  `puntosDeLaTarea` con que se abrió el panel, los puntajes por criterio (con rúbrica) o la calificación
+  directa (sin rúbrica) y un comentario de devolución opcional, que pasa por `conTextosNormalizados`.
+  Que `:alumnoId` sea un alumno inscrito con cuenta activa lo filtra el adaptador
+  (`404 ALUMNO_NO_ENCONTRADO`); las reglas (versión, P-03 (c′), forma, rango y escala) son de
+  `core/calificaciones/calificar.ts`. El handler encola `CALIFICACION_PUBLICADA` dentro de `alGuardar`,
+  con un id nuevo por publicación y datos `{ entregaId, tareaId, claseId, version }`; el comentario de
+  devolución no tiene aviso propio (S-11). Responde `200` con la entrega del alumno, su calificación y la
+  versión nueva.

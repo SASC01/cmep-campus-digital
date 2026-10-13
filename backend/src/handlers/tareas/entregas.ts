@@ -27,7 +27,6 @@ import {
   listarEntregas,
   registrarArchivoPendiente,
   type ArchivoDb,
-  type MiEntregaDb,
 } from "../../adapters/db/index.js"
 import { encolar } from "../../adapters/queue/index.js"
 import type { Almacen } from "../../core/archivos/almacen.js"
@@ -46,7 +45,8 @@ import {
   type DatosEntregaRealizada,
 } from "../../core/eventos/avisos-de-clase.js"
 import { claseDe, perfilDe, protegido } from "../../middleware/index.js"
-import { adjuntosParaResponder, archivosParaConfirmar } from "../adjuntos.js"
+import { archivosParaConfirmar } from "../adjuntos.js"
+import { entregaDeAlumnoParaResponder, miEntregaParaResponder } from "../respuestas-de-entrega.js"
 import { validarCuerpo, validarParametros } from "../validacion.js"
 
 const tareaNoEncontrada = (): AppError =>
@@ -56,20 +56,6 @@ const archivoNoEncontrado = (): AppError =>
   new AppError("ARCHIVO_NO_ENCONTRADO", "Ese archivo ya no existe.", 404)
 
 const expiraEn = (): string => new Date(Date.now() + VIGENCIA_URL_FIRMADA_S * 1000).toISOString()
-
-// La entrega del alumno (S-11): sin version ni id de la fila, y sin la tarea con que se decidió. La
-// clave del objeto nunca sale (adjuntosParaResponder). Fechas en ISO 8601 (regla 7).
-const miEntregaParaResponder = async (almacen: Almacen | null, entrega: MiEntregaDb) => ({
-  entrega: {
-    estado: entrega.estado,
-    fechaEntrega: entrega.fechaEntrega === null ? null : entrega.fechaEntrega.toISOString(),
-    conRetraso: entrega.conRetraso,
-    enlaces: entrega.enlaces,
-    adjuntos: await adjuntosParaResponder(almacen, entrega.adjuntos),
-    puedeEntregar: entrega.puedeEntregar,
-    puedeAnular: entrega.puedeAnular,
-  },
-})
 
 // URL de descarga de 5 minutos, siempre como adjunto y sin caché (§D-3.6).
 const responderDescarga = async (
@@ -272,17 +258,7 @@ export const entregasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
       const entrega = await leerEntregaDeAlumno({ claseId, tareaId, alumnoId })
       if (entrega === null) throw tareaNoEncontrada()
       return reply.send(
-        entregaDeAlumnoRespuestaSchema.parse({
-          entrega: {
-            alumno: entrega.alumno,
-            estado: entrega.estado,
-            fechaEntrega: entrega.fechaEntrega === null ? null : entrega.fechaEntrega.toISOString(),
-            conRetraso: entrega.conRetraso,
-            enlaces: entrega.enlaces,
-            adjuntos: await adjuntosParaResponder(almacen, entrega.adjuntos),
-            version: entrega.version,
-          },
-        }),
+        entregaDeAlumnoRespuestaSchema.parse(await entregaDeAlumnoParaResponder(almacen, entrega)),
       )
     },
   )

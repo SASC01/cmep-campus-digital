@@ -56,6 +56,7 @@ const tareaDoble = (extra: Record<string, unknown> = {}) => ({
   },
 })
 
+// C-5 de CALIFICACIONES-01a (§D-R0, A-5): MiEntrega suma calificacion (obligatoria, puede ser null).
 const entregaAsignada = (extra: Record<string, unknown> = {}) => ({
   estado: "asignado",
   fechaEntrega: null,
@@ -64,6 +65,7 @@ const entregaAsignada = (extra: Record<string, unknown> = {}) => ({
   adjuntos: [],
   puedeEntregar: true,
   puedeAnular: false,
+  calificacion: null,
   ...extra,
 })
 
@@ -75,6 +77,7 @@ const entregaRealizada = (extra: Record<string, unknown> = {}) => ({
   adjuntos: [],
   puedeEntregar: false,
   puedeAnular: true,
+  calificacion: null,
   ...extra,
 })
 

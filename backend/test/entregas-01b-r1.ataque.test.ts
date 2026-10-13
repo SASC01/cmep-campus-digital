@@ -646,7 +646,8 @@ describe("ataque ENTREGAS-01b r1: carreras", () => {
         [() => pedir("POST", `${base(e.claseId, t)}/entrega/anular`, e.t.ana)],
         {
           alRetener: async (tx) => {
-            await tx.$executeRaw`UPDATE entregas SET estado = 'calificado' WHERE id = ${fila.id}::uuid`
+            // C-2 de CALIFICACIONES-01a (§D-R0, A-5): calificado exige calificacion y fecha_calificacion (CHECK nuevo).
+            await tx.$executeRaw`UPDATE entregas SET estado = 'calificado', calificacion = 1, fecha_calificacion = now() WHERE id = ${fila.id}::uuid`
           },
         },
       )

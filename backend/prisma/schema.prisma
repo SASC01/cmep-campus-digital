@@ -350,14 +350,17 @@ model Tarea {
 
 // TAREAS-01a (§D-1). Criterio de la rúbrica de una tarea (RF-34): editar la rúbrica reemplaza todos
 // sus criterios (S-04). Los CHECK (puntos_max entre 1 y 1000, orden >= 0) se agregaron a mano.
+// CALIFICACIONES-01a (P-04 a, N-02): con entregas calificadas, la rúbrica ya no se reemplaza, y una
+// rúbrica idéntica nunca se reemplaza (los ids se conservan para los puntajes).
 model CriterioRubrica {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tareaId   String   @map("tarea_id") @db.Uuid
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tareaId   String           @map("tarea_id") @db.Uuid
   criterio  String
-  puntosMax Int      @map("puntos_max")
+  puntosMax Int              @map("puntos_max")
   orden     Int
-  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
-  tarea     Tarea    @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  creadoEn  DateTime         @default(now()) @map("creado_en") @db.Timestamptz(3)
+  tarea     Tarea            @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  puntajes  PuntajeRubrica[]
 
   @@unique([tareaId, orden])
   @@map("criterios_rubrica")
@@ -419,23 +422,49 @@ model Archivo {
 // (fecha_entrega si y solo si no está asignado; asignada sin retraso ni enlaces; enlaces es una lista
 // de hasta 5; version >= 0) se agregaron a mano en la migración. El índice de alumno_id sirve a la
 // FK RESTRICT desde usuarios y a "Mis calificaciones" (CALIFICACIONES).
+// CALIFICACIONES-01a (§D-1): calificacion (NUMERIC(7,2), S-02) y fecha_calificacion están presentes si y
+// solo si la entrega está calificada; los CHECK (calificación según estado y en rango, y la fecha de
+// entrega según estado relajada por P-03) se agregaron a mano en la migración.
 model Entrega {
-  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tareaId       String        @map("tarea_id") @db.Uuid
-  alumnoId      String        @map("alumno_id") @db.Uuid
-  estado        EstadoEntrega @default(asignado)
-  fechaEntrega  DateTime?     @map("fecha_entrega") @db.Timestamptz(3)
-  conRetraso    Boolean       @default(false) @map("con_retraso")
-  enlaces       Json          @default("[]")
-  version       Int           @default(0)
-  creadoEn      DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  tarea         Tarea         @relation(fields: [tareaId], references: [id], onDelete: Cascade)
-  alumno        Usuario       @relation(fields: [alumnoId], references: [id], onDelete: Restrict)
-  archivos      Archivo[]
-  comentarios   Comentario[]
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tareaId           String           @map("tarea_id") @db.Uuid
+  alumnoId          String           @map("alumno_id") @db.Uuid
+  estado            EstadoEntrega    @default(asignado)
+  fechaEntrega      DateTime?        @map("fecha_entrega") @db.Timestamptz(3)
+  conRetraso        Boolean          @default(false) @map("con_retraso")
+  enlaces           Json             @default("[]")
+  version           Int              @default(0)
+  calificacion      Decimal?         @db.Decimal(7, 2)
+  fechaCalificacion DateTime?        @map("fecha_calificacion") @db.Timestamptz(3)
+  creadoEn          DateTime         @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn     DateTime         @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  tarea             Tarea            @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  alumno            Usuario          @relation(fields: [alumnoId], references: [id], onDelete: Restrict)
+  archivos          Archivo[]
+  comentarios       Comentario[]
+  puntajes          PuntajeRubrica[]
 
   @@unique([tareaId, alumnoId])
   @@index([alumnoId])
   @@map("entregas")
+}
+
+// CALIFICACIONES-01a (§D-1). El desglose de una calificación con rúbrica: un puntaje por criterio y
+// entrega (hasta 2 decimales, S-02). entrega_id es CASCADE (el desglose muere con su entrega).
+// criterio_id es NoAction aquí, pero la FK real es NO ACTION DEFERRABLE INITIALLY DEFERRED (Enmienda 1,
+// M-01): Prisma no expresa la diferibilidad, así que la sentencia de la migración se escribió a mano con
+// el mismo nombre. Diferida, la comprobación corre al confirmar, cuando la cascada de borrar una tarea
+// o una clase ya se llevó los puntajes. El CHECK (puntos entre 0 y 1000) se agregó a mano. El índice
+// de criterio_id sirve a esa comprobación.
+model PuntajeRubrica {
+  entregaId  String          @map("entrega_id") @db.Uuid
+  criterioId String          @map("criterio_id") @db.Uuid
+  puntos     Decimal         @db.Decimal(7, 2)
+  creadoEn   DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  entrega    Entrega         @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  criterio   CriterioRubrica @relation(fields: [criterioId], references: [id], onDelete: NoAction)
+
+  @@id([entregaId, criterioId])
+  @@index([criterioId])
+  @@map("puntajes_rubrica")
 }

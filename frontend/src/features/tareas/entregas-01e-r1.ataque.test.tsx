@@ -70,6 +70,7 @@ const fila = (n: number, nombre: string, extra: Record<string, unknown> = {}) =>
   ...extra,
 })
 
+// C-6 de CALIFICACIONES-01a (§D-R0, A-5): EntregaDeAlumno y MiEntrega (doble en línea) suman calificacion: null.
 const entregaDeAlumno = (extra: Record<string, unknown> = {}) => ({
   alumno: { id: ALUMNO_ID, nombre: "Ana Ruiz" },
   estado: "entregado",
@@ -86,6 +87,7 @@ const entregaDeAlumno = (extra: Record<string, unknown> = {}) => ({
     },
   ],
   version: 1,
+  calificacion: null,
   ...extra,
 })
 
@@ -699,6 +701,7 @@ describe("ataque ENTREGAS-01e r1: el panel «Entregas» del detalle", () => {
             adjuntos: [],
             puedeEntregar: true,
             puedeAnular: false,
+            calificacion: null,
           },
         })
       }

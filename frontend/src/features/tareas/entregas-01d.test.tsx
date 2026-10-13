@@ -60,6 +60,7 @@ const entregaAsignada = (extra: Record<string, unknown> = {}) => ({
   adjuntos: [],
   puedeEntregar: true,
   puedeAnular: false,
+  calificacion: null,
   ...extra,
 })
 
@@ -79,6 +80,7 @@ const entregaRealizada = (extra: Record<string, unknown> = {}) => ({
   ],
   puedeEntregar: false,
   puedeAnular: true,
+  calificacion: null,
   ...extra,
 })
 

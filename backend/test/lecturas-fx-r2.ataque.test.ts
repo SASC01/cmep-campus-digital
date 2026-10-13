@@ -963,7 +963,8 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
   // tarea usa publicacion.deleteMany (cascada), que ya estaba. Lo que protege no cambia: nada borra
   // enlaces_registro ni usuarios, no hay DELETE FROM ni TRUNCATE crudos, y cualquier otro borrado
   // vuelve a poner la prueba en rojo.
-  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías y criterios de rúbrica; nada borra enlaces_registro ni usuarios", () => {
+  // C-3 de CALIFICACIONES-01a (§D-R0, A-5): calificar reemplaza el desglose con puntajeRubrica.deleteMany.
+  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica y puntajes de rúbrica; nada borra enlaces_registro ni usuarios", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const borrados = new Set<string>()
     const crudos: string[] = []
@@ -982,6 +983,7 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
       "inscripcion",
       "maestroDeClase",
       "publicacion",
+      "puntajeRubrica",
       "tema",
     ])
     expect(crudos).toEqual([])

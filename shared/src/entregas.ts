@@ -68,7 +68,25 @@ export const anularEntregaSchema = z.strictObject({})
 
 export const estadoEntregaSchema = z.enum(["asignado", "entregado", "calificado"])
 
-// Lo que ve el alumno de su propia entrega (S-11): sin version ni id de la fila.
+// CALIFICACIONES-01a (§D-5, §D-11). La calificación publicada de una entrega: los puntos (ya
+// escalados con rúbrica), sobre cuántos (los puntos de la tarea), la fecha y, con rúbrica, el desglose
+// por criterio en el orden de la rúbrica. Sin rúbrica, puntajes es [].
+export const puntajeDeCriterioSchema = z.strictObject({
+  criterioId: z.uuid(),
+  criterio: z.string(),
+  puntosMax: z.number().int().min(1).max(1000),
+  puntos: z.number().min(0).max(1000),
+})
+
+export const calificacionDeEntregaSchema = z.strictObject({
+  puntos: z.number().min(0).max(1000),
+  sobre: z.number().int().min(1).max(1000),
+  fecha: z.iso.datetime(),
+  puntajes: z.array(puntajeDeCriterioSchema),
+})
+
+// Lo que ve el alumno de su propia entrega (S-11): sin version ni id de la fila. calificacion es
+// obligatoria y null sin calificar (S-16 de CALIFICACIONES-01).
 export const miEntregaSchema = z.strictObject({
   estado: estadoEntregaSchema,
   fechaEntrega: z.iso.datetime().nullable(),
@@ -77,6 +95,7 @@ export const miEntregaSchema = z.strictObject({
   adjuntos: z.array(adjuntoSchema),
   puedeEntregar: z.boolean(),
   puedeAnular: z.boolean(),
+  calificacion: calificacionDeEntregaSchema.nullable(),
 })
 
 export const miEntregaRespuestaSchema = z.strictObject({ entrega: miEntregaSchema })
@@ -93,6 +112,7 @@ export const entregaDeAlumnoSchema = z.strictObject({
   enlaces: z.array(urlDeEntregaRespuestaSchema),
   adjuntos: z.array(adjuntoSchema),
   version: z.number().int().min(0),
+  calificacion: calificacionDeEntregaSchema.nullable(),
 })
 
 export const entregaDeAlumnoRespuestaSchema = z.strictObject({ entrega: entregaDeAlumnoSchema })
@@ -140,6 +160,8 @@ export const CODIGOS_ENTREGAS = {
 export type CodigoEntregas = (typeof CODIGOS_ENTREGAS)[keyof typeof CODIGOS_ENTREGAS]
 export type Entregar = z.infer<typeof entregarSchema>
 export type EstadoEntrega = z.infer<typeof estadoEntregaSchema>
+export type PuntajeDeCriterio = z.infer<typeof puntajeDeCriterioSchema>
+export type CalificacionDeEntrega = z.infer<typeof calificacionDeEntregaSchema>
 export type MiEntrega = z.infer<typeof miEntregaSchema>
 export type MiEntregaRespuesta = z.infer<typeof miEntregaRespuestaSchema>
 export type EntregaDeAlumno = z.infer<typeof entregaDeAlumnoSchema>

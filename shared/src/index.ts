@@ -35,6 +35,14 @@ export {
   type Rol,
   type TokenAccesoRespuesta,
 } from "./auth.js"
+export {
+  calificarEntregaSchema,
+  CODIGOS_CALIFICACIONES,
+  puntosDeCalificacionSchema,
+  tieneHastaDosDecimales,
+  type CalificarEntrega,
+  type CodigoCalificaciones,
+} from "./calificaciones.js"
 export { errorApiSchema, type ErrorApi } from "./errores.js"
 export {
   agregarAlumnoRespuestaSchema,
@@ -227,6 +235,7 @@ export {
   anularEntregaSchema,
   archivoDeEntregaDeAlumnoParamSchema,
   archivoDeEntregaParamSchema,
+  calificacionDeEntregaSchema,
   CODIGOS_ENTREGAS,
   comentarioPrivadoRespuestaSchema,
   comentarioPrivadoSchema,
@@ -242,11 +251,13 @@ export {
   MAXIMO_ENLACES_POR_ENTREGA,
   miEntregaRespuestaSchema,
   miEntregaSchema,
+  puntajeDeCriterioSchema,
   tareaDeEntregaParamSchema,
   urlDeEntregaRespuestaSchema,
   type AlumnoDeEntregaParam,
   type ArchivoDeEntregaDeAlumnoParam,
   type ArchivoDeEntregaParam,
+  type CalificacionDeEntrega,
   type CodigoEntregas,
   type ComentarioPrivado,
   type ComentarioPrivadoRespuesta,
@@ -259,6 +270,7 @@ export {
   type ListaEntregasRespuesta,
   type MiEntrega,
   type MiEntregaRespuesta,
+  type PuntajeDeCriterio,
 } from "./entregas.js"
 export {
   borrarTareaQuerySchema,

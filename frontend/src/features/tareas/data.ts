@@ -112,8 +112,11 @@ export const TEXTOS_DETALLE_TAREA = {
   tuTrabajo: "Tu trabajo",
   editar: "Editar tarea",
   borrar: "Borrar tarea",
-  confirmarBorrar: "Se borrará con su rúbrica y sus adjuntos.",
+  // ENTREGAS-01e (§D-10.5.1 y §D-10.5.7, Enmienda 2): las filas asignadas con hilo se borran con la tarea.
+  confirmarBorrar:
+    "Se borrará con su rúbrica, sus adjuntos y los comentarios privados de los alumnos.",
   siBorrar: "Sí, borrar tarea",
+  borrarConEntregas: "Borrar con las entregas",
   cancelar: "Cancelar",
   avisoBorrada: "Tarea borrada",
   sinPermisoParaEditar: "No puedes editar esta tarea.",
@@ -125,6 +128,8 @@ export const TEXTOS_DETALLE_TAREA = {
 // Mensajes de los códigos de error de TAREAS (§D-8) y de los que ya vienen en español del servidor.
 export const MENSAJES_ERROR_TAREAS = {
   tareaNoEncontrada: "Esa tarea ya no existe.",
+  // ENTREGAS-01e (§D-10.3).
+  alumnoNoEncontrado: "No encontramos a ese alumno en esta clase.",
   temaNoEncontrado: "Ese tema ya no existe.",
   categoriaNoEncontrada: "Esa categoría ya no existe. Elige otra.",
   // O-2 de TAREAS-01d: el mismo texto del formulario, declarado una sola vez.
@@ -137,6 +142,7 @@ export const MENSAJES_ERROR_TAREAS = {
 // Código del servidor → su mensaje fijo en español (§D-8 y los de archivos, de components/adjuntos).
 export const MENSAJES_POR_CODIGO_DE_TAREAS: Readonly<Record<string, string>> = {
   TAREA_NO_ENCONTRADA: MENSAJES_ERROR_TAREAS.tareaNoEncontrada,
+  ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_TAREAS.alumnoNoEncontrado,
   TEMA_NO_ENCONTRADO: MENSAJES_ERROR_TAREAS.temaNoEncontrado,
   CATEGORIA_NO_ENCONTRADA: MENSAJES_ERROR_TAREAS.categoriaNoEncontrada,
   CATEGORIA_REQUERIDA: MENSAJES_ERROR_TAREAS.categoriaRequerida,
@@ -159,6 +165,8 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "ENTREGA_CALIFICADA",
   "ENTREGA_CERRADA",
   "ENTREGA_VACIA",
+  // ENTREGAS-01e (§D-10.5.3, Enmienda 2): el mensaje trae el conteo y se muestra tal cual, en línea.
+  "TAREA_CON_ENTREGAS",
 ]
 
 // ENTREGAS-01d (§D-9.3): los 409 de la entrega dicen que la que se ve ya no es la de ahora (se entregó
@@ -206,6 +214,10 @@ export const TEXTOS_TU_TRABAJO = {
 export const TEXTOS_HILO_PRIVADO = {
   titulo: "Comentarios privados",
   privacidadDelAlumno: "Solo tú, tus maestros y la administración pueden verlos.",
+  // ENTREGAS-01e (§D-10.3; P-01 a): el hilo de un alumno visto por sus maestros y por el admin.
+  privacidadDeLosMaestros:
+    "Solo el alumno, los maestros de la clase y la administración pueden verlos.",
+  soloLecturaDelAdmin: "La administración puede leer este hilo, pero no escribir en él.",
   vacio: "Aún no hay comentarios privados.",
   cargando: "Cargando los comentarios privados…",
   campo: "Comentario privado",
@@ -217,6 +229,39 @@ export const TEXTOS_HILO_PRIVADO = {
 
 // ENTREGAS-01d (§D-9.6): los comentarios del hilo se piden de 20 en 20 (como en el servidor).
 export const LIMITE_DEL_HILO = 20
+
+// ENTREGAS-01e (§D-10, "Textos de la interfaz (Maestro y admin, 01e)"; tono de DESIGN.md §9).
+export const TEXTOS_ENTREGAS = {
+  titulo: "Entregas",
+  verEntregas: "Ver entregas",
+  volverALaTarea: "Volver a la tarea",
+  conteo: (entregadas: number, total: number) =>
+    total === 1
+      ? `Entregaron ${entregadas} de 1 alumno.`
+      : `Entregaron ${entregadas} de ${total} alumnos.`,
+  columnas: {
+    alumno: "Alumno",
+    estado: "Estado",
+    entregada: "Entregada",
+    acciones: "Acciones",
+  },
+  verEntrega: "Ver entrega",
+  sinFecha: "—",
+  vacio: "Aún no hay alumnos en esta clase.",
+  verMas: "Ver más alumnos",
+  cambioMientrasLaVeias:
+    "La lista de alumnos cambió mientras la veías. Vuelve a abrir Entregas para verla completa.",
+  cargando: "Cargando las entregas…",
+  volverALasEntregas: "Volver a las entregas",
+  cargandoEntrega: "Cargando la entrega…",
+  entrego: (fecha: string, hora: string) => `Entregó el ${fecha} a las ${hora}`,
+  marcoComoCompletada: (fecha: string, hora: string) =>
+    `Marcó como completada el ${fecha} a las ${hora}`,
+  todaviaNoEntrega: "Todavía no entrega.",
+} as const
+
+// ENTREGAS-01e (§D-10.2): la lista de entregas se pide de 20 en 20 (como el roster y el servidor).
+export const LIMITE_DE_ENTREGAS = 20
 
 // T-08: los códigos que dicen que las opciones que el formulario ofrecía ya no son las de la clase
 // (se borró la categoría o el tema, o la clase ganó categorías): qué lista se vuelve a pedir.
@@ -236,6 +281,20 @@ export const CODIGOS_QUE_REDIRIGE_EL_CLIENTE: readonly string[] = [
   "ACCESO_RESTRINGIDO",
   "CAMBIO_DE_CONTRASENA_REQUERIDO",
   "NO_AUTENTICADO",
+]
+
+// M-01, T-13 y ENTREGAS-01e (§D-10.3): los errores que reemplazan la vista de una tarea
+// (errorQueReemplazaLaVista): la tarea o el alumno ya no existen, o se perdió el acceso a la clase; un
+// VALIDACION de uno de esos ids dice lo mismo.
+export const CODIGOS_QUE_REEMPLAZAN_LA_VISTA: readonly string[] = [
+  "TAREA_NO_ENCONTRADA",
+  "SIN_ACCESO_A_LA_CLASE",
+  "ALUMNO_NO_ENCONTRADO",
+]
+export const PREFIJOS_QUE_REEMPLAZAN_LA_VISTA: readonly string[] = [
+  "claseId:",
+  "tareaId:",
+  "alumnoId:",
 ]
 
 export const CODIGOS_QUE_RENUEVAN_LA_TAREA: readonly string[] = [

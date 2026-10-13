@@ -704,11 +704,16 @@ describe("ataque ENTREGAS-01d r3: revisión estática del remedio", () => {
     expect(malos).toEqual([])
   })
 
-  it("sin ganchos nuevos exportados en hooks.ts respecto a la ronda 1 (los del hilo y la entrega son los mismos)", () => {
+  // ENTREGAS-01e ronda 0 (C-13, §D-R0 «01d y 01e»; §D-10.2 y §D-10.3): 01e suma a hooks.ts los ganchos de
+  // las entregas del maestro y del admin (la lista y la entrega de un alumno), cuyo nombre puede llevar
+  // "Entrega". El filtro deja de mirar "Entrega" suelto y mira solo los del alumno y del hilo
+  // (MiEntrega, Entregar, Anular, Hilo, Comentar). Sigue protegiendo lo mismo: el remedio de la ronda 2
+  // no sumó ganchos al lado del alumno ni al del hilo, que el maestro reutiliza.
+  it("sin ganchos nuevos del alumno ni del hilo en hooks.ts respecto a la ronda 1 (01e suma solo los de las entregas del maestro y del admin)", () => {
     const hooks = fuentes["/src/features/tareas/hooks.ts"] ?? ""
     const exportados = [...hooks.matchAll(/^export const (use\w+)/gm)].map((m) => m[1])
     const deEntregas = exportados.filter((n) =>
-      /Entrega|Hilo|Comentar|Entregar|Anular/.test(n ?? ""),
+      /MiEntrega|Hilo|Comentar|Entregar|Anular/.test(n ?? ""),
     )
     expect(deEntregas.sort()).toEqual(
       [

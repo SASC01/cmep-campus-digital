@@ -55,7 +55,7 @@ features/
 |--------|-----------|-------|
 | `auth` | Login con panel de anuncios, registro de estudiante, recuperar y restablecer contraseña, establecer contraseña (invitación de maestro) con su nombre corregible, registro de maestro por enlace, cambio obligatorio de contraseña, pantalla de acceso restringido | Todos |
 | `clases` | Inicio de estudiante y maestro, muro con comentarios y adjuntos, código de invitación, compañeros, roster, buscador y alta manual de alumnos; trabajo de clase con temas y categorías de calificación (TAREAS-01); gestión de clases del administrador (`/admin/clases`: lista, crear y editar clase, maestros de la clase, y alumnos y muro de cualquier clase) | Estudiante, Maestro, Administrador |
-| `tareas` | Detalle de tarea, crear y editar tarea (rúbrica, adjuntos, categoría, tema y entregas tardías); zona de entrega e hilo privado (ENTREGAS) | Estudiante, Maestro, Administrador |
+| `tareas` | Detalle de tarea, crear y editar tarea (rúbrica, adjuntos, categoría, tema, entregas tardías, cómo se entrega y recarga tras un conflicto de edición); borrar con entregas (`409` y confirmación del administrador); zona de entrega e hilo privado del alumno; entregas de una tarea y entrega de un alumno para maestro y administrador (ENTREGAS-01) | Estudiante, Maestro, Administrador |
 | `calificaciones` | Mis calificaciones, modal de cálculo, calificar entrega, gradebook, alumnos en riesgo | Estudiante, Maestro |
 | `calendario` | Calendario de tareas y clases en vivo | Estudiante, Maestro |
 | `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |

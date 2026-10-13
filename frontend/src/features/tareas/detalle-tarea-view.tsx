@@ -14,6 +14,7 @@ import { formatearFechaHora } from "@/lib/format"
 import { AccionesDeLaTarea } from "./components/acciones-de-la-tarea"
 import { DetallesDeLaTarea } from "./components/detalles-de-la-tarea"
 import { HiloPrivado } from "./components/hilo-privado"
+import { PanelDeEntregas } from "./components/panel-de-entregas"
 import { RubricaDeSoloLectura } from "./components/rubrica-de-solo-lectura"
 import { TuTrabajo } from "./components/tu-trabajo"
 import { MENSAJES_ERROR_TAREAS, TEXTOS_DETALLE_TAREA, TEXTOS_HILO_PRIVADO } from "./data"
@@ -38,7 +39,8 @@ interface DetalleDeLaTareaProps {
 // §D-10, DESIGN.md §7.20: el detalle de una tarea. Dos columnas desde 1024 px (la tarea a la izquierda,
 // sus detalles y acciones a la derecha) y una debajo de ese ancho. El alumno ve "Tu trabajo" y sus
 // "Comentarios privados" (ENTREGAS-01d); el
-// maestro y el admin ven "Editar tarea" y "Borrar tarea" según lo que diga el servidor. Estados en
+// maestro y el admin ven el panel "Entregas" (ENTREGAS-01e) y "Editar tarea" y "Borrar tarea" según lo
+// que diga el servidor ("Borrar con las entregas", solo el admin). Estados en
 // orden: error → cargando → datos (un 404 dice "Esa tarea ya no existe.").
 function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
   const { perspectiva, base } = useRutaDeLaClase(claseId)
@@ -46,7 +48,8 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
   const raizRef = useRef<HTMLDivElement>(null)
   const hayTarea = consulta.data !== undefined
   // M-01: con la tarea en caché, una recarga fallida (que no sea 404) no cambia la vista: se avisa.
-  useAvisoDeRecargaFallida(
+  // ENTREGAS-01e, ronda 1 (T-01): el mismo gancho da el manejo del error al descargar un adjunto.
+  const alFallarLaDescarga = useAvisoDeRecargaFallida(
     claseId,
     tareaId,
     consulta.isError && hayTarea && !errorQueReemplazaLaVista(hayTarea, consulta.error),
@@ -102,6 +105,7 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
               claseId={claseId}
               adjuntos={tarea.adjuntos}
               mensajeDeError={mensajeDeErrorTareas}
+              alFallarLaDescarga={alFallarLaDescarga}
             />
 
             <RubricaDeSoloLectura rubrica={tarea.rubrica} />
@@ -111,7 +115,9 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
         <div className="flex flex-col gap-5">
           <DetallesDeLaTarea tarea={tarea} />
           {/* ENTREGAS-01d (§D-9.7): "Detalles", "Tu trabajo" y "Comentarios privados", en ese orden. */}
-          {perspectiva === "estudiante" && <TuTrabajo claseId={claseId} tarea={tarea} />}
+          {perspectiva === "estudiante" && (
+            <TuTrabajo claseId={claseId} tarea={tarea} alFallarLaDescarga={alFallarLaDescarga} />
+          )}
           {perspectiva === "estudiante" && (
             <HiloPrivado
               claseId={claseId}
@@ -121,8 +127,15 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
               textoDePrivacidad={TEXTOS_HILO_PRIVADO.privacidadDelAlumno}
             />
           )}
+          {/* ENTREGAS-01e (§D-10.1): "Entregas" antes de las acciones, también si no hay ninguna. */}
+          {perspectiva !== "estudiante" && <PanelDeEntregas base={base} tareaId={tarea.id} />}
           {perspectiva !== "estudiante" && (
-            <AccionesDeLaTarea claseId={claseId} tarea={tarea} base={base} />
+            <AccionesDeLaTarea
+              claseId={claseId}
+              tarea={tarea}
+              base={base}
+              puedeConfirmarEntregas={perspectiva === "admin"}
+            />
           )}
         </div>
       </div>

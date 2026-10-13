@@ -1291,3 +1291,318 @@ Ninguna. `useHiloPrivado` amplía su firma (recibe `claseId` y `tareaId`, como `
 
 - 01a "Cómo se entrega" y los demás campos del formulario de tarea conservan el error del servidor hasta el siguiente envío (un solo mensaje, nunca dos). Descartarlo al cambiar el campo sería otro encargo.
 - Dos mutaciones que fallan a la vez con el mismo error que no reemplaza la vista (p. ej. dos 503) dan un aviso cada una, con el mismo texto.
+
+
+# Resumen del programador — ENTREGAS-01e — Implementación
+
+Plan: `docs/trabajo/ENTREGAS-01-entregas-e-hilo-privado/plan.md` (§D-10 con §D-10.5 de la Enmienda 2; pasos de 01e). Base dentro de los paquetes: `d6794d6`; fuera: `dd8edcb`. Solo frontend. No corrí el backend (PA-01: red `IZZI-F281-5G`).
+
+## Pasos (5 de 5)
+
+1. **`features/tareas`:**
+   - `data.ts`: `TEXTOS_ENTREGAS`; `LIMITE_DE_ENTREGAS`; `confirmarBorrar` nuevo y `borrarConEntregas`; `privacidadDeLosMaestros` y `soloLecturaDelAdmin` en `TEXTOS_HILO_PRIVADO`; `ALUMNO_NO_ENCONTRADO` con su mensaje; `TAREA_CON_ENTREGAS` en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`; `CODIGOS_QUE_REEMPLAZAN_LA_VISTA` y `PREFIJOS_QUE_REEMPLAZAN_LA_VISTA`.
+   - `lib.ts`: `rutaDeBorrarTarea`, `esTareaConEntregas`, llaves y rutas de las entregas (`clavePrefijoDeEntregas`, `claveListaDeEntregas`, `claveEntregaDeAlumno`, `rutaDePaginaDeEntregas`, `rutaDeEntregaDeAlumno`, `rutaDelHiloDeAlumno`, `enlaceAEntregas`, `enlaceAEntregaDeAlumno`), `fraseDeEntregaDeAlumno` y `conteoDeEntregas`. `errorQueReemplazaLaVista` y `mensajeDeErrorTareas` conocen `ALUMNO_NO_ENCONTRADO` y el `VALIDACION` de `alumnoId`.
+   - `hooks.ts`:
+     - `useBorrarTarea` recibe `confirmarEntregas: boolean` como variable de la mutación. Con `TAREA_CON_ENTREGAS` hace un retorno temprano antes del aviso y conserva `pedirDeNuevoLaTarea`.
+     - `useEntregasDeLaTarea` y `useEntregaDeAlumno`, nuevos.
+     - `pedirDeNuevoLaTarea` suma la rama `ALUMNO_NO_ENCONTRADO`: invalida `clavePrefijoDeEntregas`.
+   - `types.ts`: reexporta `EntregaDeAlumno`, `FilaDeEntrega` y `ListaEntregasRespuesta`.
+   - Componentes: `components/panel-de-entregas.tsx`, `components/tabla-de-entregas.tsx`, `entregas-view.tsx`, `entrega-de-alumno-view.tsx`.
+   - `components/acciones-de-la-tarea.tsx`: el segundo paso y la guarda con ref.
+   - `detalle-tarea-view.tsx`: monta `PanelDeEntregas` y pasa `puedeConfirmarEntregas={perspectiva === "admin"}`.
+   - `detalle-tarea-view.test.tsx`: solo el texto de `confirmarBorrar` (`:225` y `:232`).
+2. **`app/router.tsx`:** `tareas/:tareaId/entregas` y `tareas/:tareaId/entregas/:alumnoId` en las ramas de maestro y admin.
+3. **`DESIGN.md`:** §7.20 (frase nueva de borrar, panel "Entregas" y segundo paso), §7.26 nueva ("Entregas de una tarea") y §8 (tabla de entregas con la regla del roster). Todo con la marca "propuesta (ENTREGAS-01e)".
+4. **Verificación** (abajo).
+5. **Hoja de comprobación humana** (al final).
+
+## Las 9 condiciones del tester
+
+1. **Cumplida.** "Ver más alumnos" vive en `entregas-view.tsx`. Conteo de `enEspera=` por archivo: `acciones-de-la-tarea.tsx` 2, `entregas-view.tsx` 1, `tabla-de-entregas.tsx` 0, `entrega-de-alumno-view.tsx` 0, `panel-de-entregas.tsx` 0. V-06 (55) en verde en la corrida completa.
+2. **Cumplida.** Las dos vistas y el detalle toman la perspectiva y la base de `useRutaDeLaClase`. No hay ningún `perspectivaDeRuta(` ni `pathname` nuevo.
+3. **Cumplida.** Sin `vidrio`, `vidrio-fuerte`, `vidrio-azul`, `data-material` ni `data-densidad` en los archivos nuevos (tampoco en comentarios). La tabla es la `Table` opaca dentro del `Card`.
+4. **Cumplida.** `.puedeBorrar` sigue solo en `acciones-de-la-tarea.tsx`, con 3 lecturas, las mismas que en `d6794d6`. Ningún archivo nuevo lo lee.
+5. **Cumplida.** `HiloPrivado`, `FirmaDelAutor`, `ListaDeEnlaces` y `AdjuntosDePublicacion` se usan tal cual, sin cambiar su firma.
+6. **Cumplida.** `PanelDeEntregas` solo pinta un `Link`. Lo prueba PR-1E01 ("sin pedir nada").
+7. **Cumplida.** Importaciones relativas dentro de `features/tareas`. Ningún `@/features/…`.
+8. **Cumplida.** Ni `fixed` (tampoco `table-fixed`) ni `animate-`.
+9. **Cumplida.** `renovarTrasErrorDeLaEntrega(` sigue con 3 llamadas en `hooks.ts`. El maestro reutiliza `useComentarEnHilo` y `useHiloPrivado`.
+
+## Matriz de avisos y recargas
+
+Mecanismos, todos de 01d:
+- `errorQueReemplazaLaVista`, que ahora conoce `ALUMNO_NO_ENCONTRADO`.
+- `errorQueRedirigeElCliente`.
+- `avisarDelErrorDeLaEntrega`: un aviso por tarea perdida.
+- `useAvisoDeRecargaFallida`.
+- `useFocoAlPerderseElControl`, con la clave de la tarea más la de la lista o de la entrega.
+- `montadoRef` en "Ver más".
+
+Ningún gancho de aviso ni de foco nuevo.
+
+| Disparador | Reemplaza la vista (`TAREA_NO_ENCONTRADA`, `ALUMNO_NO_ENCONTRADO`, `SIN_ACCESO_A_LA_CLASE`, `VALIDACION` de un id) | Redirige (`ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`, `NO_AUTENTICADO`) | `409 TAREA_CON_ENTREGAS` | `400` del cursor | 5xx / red |
+|---|---|---|---|---|---|
+| Consulta de la tarea (Entregas y Entrega de un alumno) | `MensajeError` de la vista, sin aviso; el foco va a la raíz | `apiClient` navega; sin aviso | no aplica | no aplica | Primera carga: `MensajeError`. Con caché: un aviso por fallo nuevo (`useAvisoDeRecargaFallida`), datos y foco quietos |
+| Consulta de la lista (primera página o recarga) | `MensajeError` de la vista, sin aviso; el foco va a la raíz; no renueva nada (la llave cuelga de la tarea: renovar desde su `queryFn` la volvería a pedir a ella misma) | igual | no aplica | no aplica | Primera carga: `MensajeError`. Con datos: se conservan las filas, sin aviso |
+| "Ver más alumnos" | Sin aviso; la vista pasa a su mensaje; el foco va a la raíz | Sin aviso | no aplica | Sin aviso; la lista dice "La lista de alumnos cambió…" | Un aviso, solo si la vista sigue montada; las filas y el botón se conservan |
+| Consulta de la entrega del alumno | `MensajeError` (alumno: "No encontramos a ese alumno en esta clase."), sin aviso; el foco va a la raíz | `apiClient` | no aplica | no aplica | Primera carga: `MensajeError`. Con datos: la última, sin aviso |
+| Consulta del hilo (primera página o recarga) | Su `queryFn` renueva con `pedirDeNuevoLaTarea`: tarea → T-11; alumno → entregas de la tarea. La vista se reemplaza por la consulta renovada, sin aviso | `apiClient` | no aplica | no aplica | Sin datos: `MensajeError` dentro del hilo. Con datos: sin aviso |
+| "Ver más comentarios" | Sin aviso (01d), con la renovación de arriba | Sin aviso | no aplica | no aplica | Un aviso, solo con el hilo montado |
+| "Enviar comentario" | `renovarTrasErrorDeLaEntrega` (01d) y un aviso por tarea perdida (`avisarDelErrorDeLaEntrega`), aunque "Ver más" esté en vuelo con el mismo error | Patrón del proyecto | no aplica | no aplica | Un aviso; el texto se conserva |
+| "Sí, borrar tarea" | Un aviso (`useBorrarTarea.onError`); `pedirDeNuevoLaTarea` renueva y la vista se reemplaza; el foco va a la raíz | Patrón del proyecto | Sin aviso: segundo paso con `role="alert"` y el foco en "Cancelar" | no aplica | Un aviso; la confirmación sigue |
+| "Borrar con las entregas" (solo admin) | Igual que arriba (PR-1E08 e) | Patrón del proyecto | Pone el mensaje nuevo en el mismo `role="alert"`, sin aviso | no aplica | Un aviso; el segundo paso sigue y la guarda se libera (PR-1E08 f) |
+
+- **En vuelo a la vez:**
+  - "Enviar comentario" con "Ver más comentarios" y el mismo 404 de la tarea o del alumno: un solo aviso (el del comentario).
+  - "Ver más alumnos" y la recarga: el botón queda en espera con `isFetching` y su guarda con ref no pide otra página.
+  - Los dos botones destructivos comparten `borrandoRef` y `borrar.isPending`.
+- **Con la vista desmontada:**
+  - "Ver más alumnos" y "Ver más comentarios" no avisan (`montadoRef`).
+  - Los avisos de las mutaciones viven en el gancho (patrón T-30) y salen igual.
+  - Los callbacks de `mutate` de `AccionesDeLaTarea` (navegar y segundo paso) no corren si ya se desmontó.
+
+## Pruebas requeridas
+
+| Viñeta | Archivo y título exacto |
+|---|---|
+| PR-1E01 | `src/features/tareas/entregas-01e.test.tsx` › "el panel «Entregas» del detalle (PR-1E01)" › "PR-1E01: maestro ve el panel «Entregas» con «Ver entregas» a la vista de la tarea, sin pedir nada"; "PR-1E01: admin ve el panel «Entregas» con «Ver entregas» a la vista de la tarea, sin pedir nada"; "PR-1E01: el panel aparece también cuando AccionesDeLaTarea no pinta nada (sin puedeEditar ni puedeBorrar)"; "PR-1E01: el alumno no ve el panel «Entregas»" |
+| PR-1E02 | mismo archivo › "la vista «Entregas» (PR-1E02 y PR-1E07)" › "PR-1E02: columnas, conteo, estado con texto («Sin entregar» si venció), fecha o «—» y «Ver entrega» con el nombre sr-only"; "PR-1E02: con la fecha límite futura, una fila sin entregar dice «Asignado»; un solo alumno va en singular"; "PR-1E02: error → cargando → vacío"; "PR-1E02: «Ver más alumnos» está en espera mientras pide la página y también durante una recarga (isFetching)"; "PR-1E02: al cargar la última página, «Ver más alumnos» desaparece y el foco va al «Ver entrega» de la primera fila nueva"; "PR-1E02: si la última página no trae alumnos nuevos, el foco va al encabezado «Entregas»"; "PR-1E02: el 400 del cursor dice que la lista cambió, sin aviso"; "PR-1E02: «Ver más alumnos» con un 503 avisa una vez y conserva las filas; con un 404 de la tarea, la vista dice «Esa tarea ya no existe.» sin aviso" |
+| PR-1E03 | mismo archivo › "la entrega de un alumno (PR-1E03, PR-1E04 y PR-1E07)" › "PR-1E03: nombre, estado, «Entregó el …», adjuntos descargados por la ruta de la entrega del alumno y enlaces"; "PR-1E03: sin entrega dice «Todavía no entrega.»; sin archivos ni enlaces, «Marcó como completada el …»"; "PR-1E03: un 404 ALUMNO_NO_ENCONTRADO reemplaza la vista por «No encontramos a ese alumno en esta clase.»"; "PR-1E03: un 404 TAREA_NO_ENCONTRADA reemplaza la vista por «Esa tarea ya no existe.»" |
+| PR-1E04 | mismo describe › "PR-1E04: el maestro ve el hilo con su formulario y el texto de privacidad de los maestros"; "PR-1E04: el admin ve el hilo sin formulario, con el mismo texto de privacidad y la nota de solo lectura"; "PR-1E04: comentar con un 404 ALUMNO_NO_ENCONTRADO avisa una vez y la vista se reemplaza por su mensaje" |
+| PR-1E05 | `src/app/router-01e.test.tsx` › "PR-1E05: rutas de las entregas" › "PR-1E05: maestro monta «Entregas» y la entrega de un alumno"; "PR-1E05: admin monta «Entregas» y la entrega de un alumno"; "PR-1E05: el alumno en /estudiante/clases/2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01/tareas/7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d77/entregas cae en `*` (a /login) sin pedir entregas"; "PR-1E05: el alumno en /estudiante/clases/2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01/tareas/7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d77/entregas/9a9b3c4d-1c1f-4b8e-9a1e-0f2a3b4c0301 cae en `*` (a /login) sin pedir entregas" |
+| PR-1E06 | `entregas-01e.test.tsx` › "borrar una tarea con entregas (PR-1E06 y PR-1E08)" › "PR-1E06: maestro: el 409 TAREA_CON_ENTREGAS va en role=alert, sin aviso, con el foco en «Cancelar» y sin más botones destructivos; «Cancelar» vuelve a «Borrar tarea» y reintentar da el mismo segundo paso; nunca envía confirmar". La frase nueva de la confirmación la comprueba el ayudante `pedirBorrar` del mismo describe. |
+| PR-1E07 | "PR-1E07: la lista no pinta estado de pago, restricción de acceso ni correos; un doble con estadoPago lo rechaza el esquema estricto"; "PR-1E07: la entrega de un alumno no pinta estado de pago, restricción de acceso ni correos" |
+| PR-1E08 | mismo describe de borrar › "PR-1E08 (a): admin sin entregas: un DELETE sin consulta, aviso «Tarea borrada» y navegación a «Trabajo de clase»"; "PR-1E08 (b, c y d): admin con entregas: segundo paso con «Borrar con las entregas» y el foco en «Cancelar»; un doble clic manda un solo DELETE con confirmar, en espera, y «Cancelar» no cierra nada mientras vuela"; "PR-1E08 (e): 409 y después 404 al confirmar: el aviso «Esa tarea ya no existe.», el detalle se reemplaza y el foco queda en la raíz de la vista"; "PR-1E08 (f): 409 y después 500 al confirmar: un aviso, el segundo paso sigue y otro clic manda otro DELETE"; "PR-1E08 (g): una recarga que trae puedeBorrar en false con el segundo paso a la vista lo quita y el foco va a la raíz" |
+
+Casos adicionales de estados vecinos, en `entregas-01e.test.tsx` › "estados vecinos del borrado y del hilo del alumno (01e)":
+- "borrar, primer paso: mientras «Sí, borrar tarea» vuela, un doble clic manda un solo DELETE y «Cancelar» no cierra la confirmación".
+- "«Ver más comentarios» en la entrega de un alumno con un 404 ALUMNO_NO_ENCONTRADO: sin aviso, se renueva la entrega y la vista dice su mensaje".
+
+Todas las pruebas usan reloj fijo (`vi.useFakeTimers({ toFake: ["Date"] })`). En PR-1E08 (g) el reloj se adelanta 1 s antes de la recarga: con la fecha congelada, la recarga tendría el mismo `dataUpdatedAt` y la clave de foco no cambiaría. Con el reloj real eso no pasa.
+
+## Pruebas normales cambiadas
+
+Solo `frontend/src/features/tareas/detalle-tarea-view.test.tsx:225` y `:232`: el texto esperado pasa a "Se borrará con su rúbrica, sus adjuntos y los comentarios privados de los alumnos.". Es la lista cerrada (Enmienda 2). Nada más.
+
+## Conteos
+
+`cd frontend; npx vitest list`: **2458 casos en 164 archivos** (líneas con `.test.ts(x) > `). Antes: 162 / 2425. Diferencia: +33 casos y +2 archivos, todos en los dos archivos nuevos:
+- `src/features/tareas/entregas-01e.test.tsx`: 29 (`grep -c`).
+- `src/app/router-01e.test.tsx`: 4.
+
+## Verificación (de uno en uno)
+
+| Paquete | Comando | Última línea |
+|---|---|---|
+| shared | `cd shared; npm run build` | `> tsc -p tsconfig.json` (código 0) |
+| frontend | `cd frontend; npm run lint` | `> tsc -b` (código 0) |
+| frontend | `cd frontend; npm run test` (salida a archivo) | `Test Files  164 passed (164)` · `Tests  2458 passed (2458)` · `Duration  105.08s (transform 29.99s, setup 68.24s, import 224.84s, tests 465.47s, environment 319.09s)` |
+| frontend | `cd frontend; npm run build` | `✓ built in 703ms` (código 0) |
+| raíz | `npm run lint` | `> tsc -b` (código 0) |
+| raíz | `npm run build` | `✓ built in 703ms` (código 0) |
+
+La única roja de la ronda 0 (V-06, C-12) pasó a verde.
+
+## V-01
+
+Las `*.ataque` (`git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | xargs sha256sum`), contra la "Tabla de SHA-256 de las 173 `*.ataque` al cierre de la ronda 0 de 01e": **173/173 coinciden**, sin archivos de más ni de menos.
+
+## "No se toca"
+
+- **Dentro, contra `d6794d6`:** `git diff --stat d6794d6 --` sobre las rutas protegidas (sin `*.ataque`, que cubre V-01): **vacío**. Rutas revisadas: `services`, `app/providers.tsx`, `styles`, `components` (todo), `lib` (todo), `features/clases`, `features/auth`, `features/admin`, `features/diagnostico`, `vitest.config.ts`, `.env.example`, `backend`, `shared`, `package*.json`. Tampoco hay archivos sin seguimiento en esas rutas.
+- **En `app/`:** solo `router.tsx` (A-3) y la prueba nueva `router-01e.test.tsx`. `app/` no está protegido salvo `providers.tsx`.
+- **Fuera, contra `dd8edcb`:**
+  - `infra`, `.claude/agents`, `AGENTS.md` y `package*.json`: vacío.
+  - `CLAUDE.md`, `docs/ARCHITECTURE*.md` y `docs/PRD.md` difieren de `dd8edcb` por los cambios del orquestador (A-5) que ya están en commits anteriores. Contra `d6794d6` los cuatro están vacíos: no los toqué.
+
+## `DESIGN.md`
+
+- §7.20: frase nueva de borrar, viñeta "Panel «Entregas»" y viñeta "Borrar una tarea con entregas" (extensión de §7.14).
+- §7.26 nueva: "Entregas de una tarea", con la lista, "Ver más alumnos", la entrega de un alumno y los errores.
+- §8: el párrafo del roster suma la tabla de entregas.
+
+Todo con la marca "propuesta (ENTREGAS-01e)".
+
+## Hermanos y estados vecinos
+
+### Borrado con entregas
+
+| Estado o camino | Comportamiento | Cubierto por |
+|---|---|---|
+| Maestro, sin entregas | Un `DELETE` sin consulta, aviso "Tarea borrada" y navegación (como hoy) | `tareas-01d-r1.ataque` (`:360`) y pruebas del detalle |
+| Maestro, con entregas | Segundo paso solo con "Cancelar"; nunca `confirmar` | PR-1E06 |
+| Admin, sin entregas | Un `DELETE` sin consulta, sin `confirmar` | PR-1E08 (a) |
+| Admin, con entregas | El primer `DELETE` va sin consulta; "Borrar con las entregas" manda `?confirmar=entregas` | PR-1E08 (b, c y d) |
+| Doble clic en "Sí, borrar tarea" | Un `DELETE` (guarda con ref) | "borrar, primer paso: …" y `tareas-01d-r1.ataque` |
+| Doble clic en "Borrar con las entregas" | Un `DELETE` | PR-1E08 (b, c y d) |
+| "Cancelar" con el borrado en vuelo, primer paso (O-2) | No cierra | "borrar, primer paso: …" |
+| "Cancelar" con el borrado en vuelo, segundo paso (O-2) | No cierra | PR-1E08 (b, c y d) |
+| 409 y después 404 | Un aviso; la vista se reemplaza; el foco va a la raíz | PR-1E08 (e) |
+| 409 y después 5xx | Un aviso; el segundo paso sigue; otro clic manda otro `DELETE` | PR-1E08 (f) |
+| Recarga que quita `puedeBorrar` en el segundo paso | El bloque desaparece y el foco va a la raíz | PR-1E08 (g) |
+| Maestro que reintenta después de "Cancelar" | El mismo segundo paso | PR-1E06 |
+| Admin que recibe otro 409 con confirmar | El mensaje nuevo reemplaza al anterior en el mismo `role="alert"` | sin prueba propia (el servidor no lo responde al admin con confirmar) |
+
+### "Ver más alumnos"
+
+| Estado | Comportamiento | Cubierto por |
+|---|---|---|
+| Última página con filas nuevas | El foco va al "Ver entrega" de la primera nueva | PR-1E02 |
+| Última página sin filas nuevas | El foco va al `h2` | PR-1E02 |
+| Recarga en vuelo | En espera (`isFetching`); un clic no pide página | PR-1E02 (`isFetching`) |
+| `400` del cursor | Texto propio, sin aviso | PR-1E02 |
+| 5xx | Un aviso; se conservan las filas | PR-1E02 |
+| 404 de la tarea | Sin aviso; la vista se reemplaza | PR-1E02 |
+| Vista desmontada | Sin aviso | `montadoRef`, el mismo mecanismo que prueba "Ronda 2 (T-05): «Ver más comentarios» que responde un 503 después de que el hilo se desmontó no avisa"; sin caso propio en 01e |
+| Redirección | Sin aviso | código; sin caso propio en 01e |
+
+Hermano aplicado:
+- `ALUMNO_NO_ENCONTRADO` en el hilo del maestro ("Enviar comentario" y "Ver más comentarios"): misma regla que `TAREA_NO_ENCONTRADA`, con la rama de `pedirDeNuevoLaTarea`. Casos: PR-1E04 (comentar) y "«Ver más comentarios» en la entrega de un alumno con un 404 ALUMNO_NO_ENCONTRADO: …".
+
+Hermano no aplicado:
+- `CODIGOS_QUE_RENUEVAN_LA_TAREA` no cambia: la Enmienda 2 dice que no cambia. Por eso `ALUMNO_NO_ENCONTRADO` va en su propia rama.
+
+## Desviaciones del plan
+
+Ninguna en el comportamiento. Decisiones dentro del plan:
+1. `ALUMNO_NO_ENCONTRADO` entra en `errorQueReemplazaLaVista` (lo pidió la revisión del manager) y tiene una rama en `pedirDeNuevoLaTarea` en lugar de entrar en `CODIGOS_QUE_RENUEVAN_LA_TAREA`.
+2. La nota del admin va debajo del `Card` de `HiloPrivado`, porque la firma del componente no cambia (condición 5).
+3. El conteo sale de la página más reciente.
+4. Las consultas de la lista y de la entrega no renuevan nada desde su `queryFn`.
+
+No toqué `editar-tarea-view.tsx` (N-03 no aplica) ni O-r1-2 (decisión del humano pendiente).
+
+## Pendiente o fuera de alcance
+
+- Si una recarga quita `puedeBorrar` con el segundo paso a la vista y otra lo devuelve, el segundo paso reaparece con el mensaje anterior (el estado local no se reinicia). Es raro y no lo pide el plan.
+- PARADAS: ninguna.
+
+## Hoja de comprobación humana (H-1 a H-7; máximo 10 minutos; ningún agente abre navegadores)
+
+- **H-1:** con MinIO local, como alumno, entregar una tarea con un PDF y un enlace, descargar el PDF propio, anular y volver a entregar. **Arrastre de 01d:** usar un enlace largo (cerca de 2048 caracteres) y revisar a 360 px que la lista de enlaces se parte sin desbordar.
+- **H-2:** como maestro, crear una tarea con "Marcar como completada"; como alumno, marcarla sin adjuntar nada y ver "Entregado" en "Trabajo de clase". **Arrastre de 01a:** el formulario a 360 px ("Cómo se entrega" y "Entregas después de la fecha límite").
+- **H-3:** tarea sin entregas tardías con la fecha límite a 2 minutos. Al pasar, recargar el detalle del alumno y ver la frase de entrega cerrada. Como maestro, moverla a mañana y comprobar que el alumno vuelve a poder entregar.
+- **H-4:** como maestro, "Entregas" a 360 px y en escritorio: la tabla se desplaza dentro de su contenedor, las insignias se leen y "Ver entrega" abre la del alumno.
+- **H-5:** hilo privado: el alumno escribe, el maestro responde desde la entrega del alumno y el alumno ve la respuesta. El admin abre la misma entrega y lee el hilo sin formulario, con la nota de solo lectura.
+- **H-6:** conflicto de edición en dos pestañas del mismo maestro: un solo aviso, el formulario de la segunda se recarga con lo de la primera y el foco queda en "Título".
+- **H-7:** con NVDA, en "Tu trabajo": la insignia, la nota mientras se entrega, la confirmación de "Anular entrega" con el foco en "Cancelar" y el enlace "(se abre en otra pestaña)".
+
+
+# Resumen del programador — ENTREGAS-01e — Corrección de la ronda 1 (T-01)
+
+## T-01: corregido
+
+### Prop nueva en `components/adjuntos/adjuntos-de-publicacion.tsx` (R-04: solo se agrega)
+
+- `AdjuntosDePublicacionProps` suma la prop opcional `alFallarLaDescarga?: (error: unknown) => void`.
+- La prop llega a `FichaDeAdjunto` y a `FichaDeAdjuntoEnRuta`, y de ahí a `descargar`.
+- En el `catch` de `descargar`:
+  - con la prop: `alFallarLaDescarga(error)` y `return`;
+  - sin la prop: `toast.error(mensajeDeError(error))`, como hoy.
+- Las 4 líneas que se quitaron son firmas que se reacomodaron, no comportamiento.
+- Sin la prop, la petición, la ficha, el `enEspera` y el aviso son los de siempre. Lo confirman en verde, en la corrida completa:
+  - `refactor-01c-r1.ataque`
+  - `reexportaciones-01c.test.ts`
+  - `adjuntos-de-publicacion.test.tsx` (`features/clases`)
+  - `adjuntos-01d.test.tsx`
+  - `archivos-d-r1/r2.ataque`
+  - V-06 (`adjuntos-de-publicacion.tsx`: 1)
+- No hay PARADA.
+
+### Manejo del error en `features/tareas/hooks.ts`, sin ganchos nuevos
+
+- `useAvisoDeRecargaFallida` (ya existía; lo llaman el detalle, "Entregas" y la entrega de un alumno) ahora devuelve el manejador de la descarga:
+  - si el error redirige (`errorQueRedirigeElCliente`), nada;
+  - si no, `pedirDeNuevoLaTarea`, la regla T-11. `TAREA_NO_ENCONTRADA` y `SIN_ACCESO_A_LA_CLASE` renuevan la tarea y sus entregas; `ALUMNO_NO_ENCONTRADO` renueva las entregas de la tarea. Después, `avisarDelErrorDeLaEntrega`: un aviso por tarea perdida, deduplicado; los demás errores avisan como siempre.
+- `renovarTrasErrorDeLaEntrega(` sigue con 3 llamadas.
+- `editar-tarea-view.tsx`, `entregas-view.tsx`, `trabajo-view` y `categorias-view` ignoran el valor de retorno.
+
+### Vistas que pasan la prop
+
+- `entrega-de-alumno-view.tsx`: sus adjuntos.
+- `detalle-tarea-view.tsx`: los adjuntos de la tarea, y además se los pasa a `TuTrabajo`.
+- `components/tu-trabajo.tsx` y `components/entrega-realizada.tsx`: prop obligatoria nueva `alFallarLaDescarga`, para los archivos de la entrega propia.
+
+**Aviso para el orquestador:** `tu-trabajo.tsx`, `entrega-realizada.tsx` y `components/adjuntos/adjuntos-de-publicacion.tsx` no están en la lista de archivos de 01e del plan. Los toqué porque la corrección pide la prop en `adjuntos/` y la descarga de "Tu trabajo" es un hermano obligatorio. Ninguno de los tres está en "No se toca".
+
+### `DESIGN.md`
+
+- §7.19: viñeta nueva "Error al descargar en las vistas de una tarea".
+- §7.26: "Errores" suma la descarga.
+
+## Pruebas nuevas
+
+En `frontend/src/features/tareas/entregas-01e.test.tsx`, describe "descargar un adjunto con errores (ronda 1, T-01)". Reloj fijo.
+
+1. "Ronda 1 (T-01): en la entrega de un alumno, descargar con $estado $codigo da un aviso, la vista dice «$mensaje» y el foco no cae en <body>". Son 3 casos: 404 `ALUMNO_NO_ENCONTRADO`, 403 `SIN_ACCESO_A_LA_CLASE` y 404 `TAREA_NO_ENCONTRADA`.
+2. "Ronda 1 (T-01): en la entrega de un alumno, descargar con 403 ACCESO_RESTRINGIDO: apiClient redirige y no hay aviso"
+3. "Ronda 1 (T-01): en la entrega de un alumno, descargar con 503 da el aviso de siempre y no renueva nada"
+4. "Ronda 1 (T-01, hermano): descargar y comentar a la vez con el mismo 404 ALUMNO_NO_ENCONTRADO dan un solo aviso"
+5. "Ronda 1 (T-01, estado vecino): una descarga que falla con la vista ya desmontada avisa una vez y no lanza"
+6. "Ronda 1 (T-01, hermano): en el detalle ($perspectiva), descargar un adjunto de la tarea con $estado $codigo da un aviso y la vista dice «$mensaje»". Son 2 casos: maestro con 404 `TAREA_NO_ENCONTRADA` y admin con 403 `SIN_ACCESO_A_LA_CLASE`.
+7. "Ronda 1 (T-01, hermano): en el detalle del alumno, descargar un adjunto de la tarea con 404 TAREA_NO_ENCONTRADA da un aviso y la vista se reemplaza"
+8. "Ronda 1 (T-01, hermano): en «Tu trabajo», descargar un archivo de la entrega propia con 404 TAREA_NO_ENCONTRADA da un aviso y la vista se reemplaza; con ARCHIVO_NO_ENCONTRADO, solo el aviso"
+
+Los 3 rojos del tester (`entregas-01e-r1.ataque.test.tsx` › "descargar un adjunto con $estado $codigo: …") pasan sin tocar la prueba.
+
+## Hermanos y estados vecinos
+
+| Hermano o estado | Aplica | Estado y cobertura |
+|---|---|---|
+| Entrega de un alumno: `ALUMNO_NO_ENCONTRADO`, `SIN_ACCESO_A_LA_CLASE`, `TAREA_NO_ENCONTRADA` | aplica | aplicado (pruebas 1 y tester) |
+| Entrega de un alumno: redirección | aplica | aplicado: sin aviso ni renovación (prueba 2) |
+| Entrega de un alumno: 5xx o red | aplica | aviso de siempre; nada se renueva; el foco no se mueve (prueba 3) |
+| Entrega de un alumno: `ARCHIVO_NO_ENCONTRADO` | aplica | aviso; la vista sigue (caso del tester) |
+| Descarga y "Enviar comentario" a la vez, el mismo 404 | aplica | un solo aviso (prueba 4) |
+| Descarga en vuelo y la vista se desmonta | aplica | un aviso, sin errores en consola y sin navegar (prueba 5). Si la descarga termina bien después de desmontarse, el navegador descarga, como antes. |
+| Detalle, adjuntos de la tarea, maestro y admin (404 y 403) | aplica | aplicado (prueba 6) |
+| Detalle, adjuntos de la tarea, alumno | aplica | aplicado (prueba 7) |
+| Detalle, redirección | aplica | el mismo manejador: sin aviso. Sin caso propio en el detalle; lo cubre la prueba 2 |
+| "Tu trabajo", archivos propios (`TAREA_NO_ENCONTRADA`; `ARCHIVO_NO_ENCONTRADO`) | aplica | aplicado (prueba 8). Un 403 `SIN_ACCESO_A_LA_CLASE` sigue el mismo camino que en el detalle. |
+| "Tu trabajo", códigos `ENTREGA_*` | no aplica | la descarga no los responde: es una lectura, no cambia la entrega |
+| Vistas previas de imágenes (URL de 5 minutos que falla) | no aplica | no hay petición a la API ni error que manejar: la imagen desaparece y queda su ficha con "Descargar" (T-40), que pide una URL nueva |
+| Muro y "Trabajo de clase" (`features/clases`) | no aplica | ahí no hay una vista de tarea que reemplazar y `features/clases` está en "No se toca" para 01e: aviso de siempre (sin la prop) |
+| Vista "Entregas" (lista) | no aplica | no muestra adjuntos |
+| Edición de la tarea | no aplica | la lista de adjuntos publicados no descarga |
+
+## Matriz de avisos y recargas: fila nueva "Descargar un adjunto"
+
+| Vista | Reemplaza la vista (`TAREA_NO_ENCONTRADA`, `ALUMNO_NO_ENCONTRADO`, `SIN_ACCESO_A_LA_CLASE`) | Redirige | 5xx, red u otro (`ARCHIVO_NO_ENCONTRADO`) |
+|---|---|---|---|
+| Entrega de un alumno | `pedirDeNuevoLaTarea` renueva la tarea o las entregas; un aviso deduplicado; la vista se reemplaza y el foco va a la raíz | nada | un aviso; nada se renueva; el foco no se mueve |
+| Detalle (adjuntos de la tarea; maestro, admin y alumno) | igual: la tarea se renueva y se reemplaza el detalle | nada | un aviso |
+| "Tu trabajo" (archivos propios) | igual que el detalle | nada | un aviso |
+| Muro y "Trabajo de clase" | sin cambio: un aviso | sin cambio | sin cambio |
+
+- **En vuelo a la vez:** descargar, comentar, entregar o anular con el mismo error que reemplaza la vista dan un solo aviso (`avisarDelErrorDeLaEntrega`).
+- **Con la vista desmontada:** el manejador corre igual, porque la promesa de la descarga termina; da un solo aviso deduplicado y no lanza.
+
+## Conteos
+
+`cd frontend; npx vitest list`: **2498 casos en 165 archivos**. Antes: 165 / 2487. Diferencia: +11 casos y 0 archivos, todos en `entregas-01e.test.tsx` (29 → 40 según `grep -c`).
+
+## Verificación (de uno en uno)
+
+| Comando | Última línea |
+|---|---|
+| `cd shared; npm run build` | `> tsc -p tsconfig.json` (código 0) |
+| `cd frontend; npm run lint` | `> tsc -b` (código 0) |
+| `cd frontend; npm run test` (salida a archivo) | `Test Files  165 passed (165)` · `Tests  2498 passed (2498)` · `Duration  106.21s (transform 26.21s, setup 69.21s, import 223.72s, tests 478.70s, environment 320.84s)` |
+| `cd frontend; npm run build` | `✓ built in 686ms` |
+| Raíz `npm run lint` | `> tsc -b` (código 0) |
+| Raíz `npm run build` | `✓ built in 694ms` |
+
+## V-01
+
+Contra la "Tabla de SHA-256 de las 174 `*.ataque` al cierre de la ronda 1 de 01e": **174/174 coinciden**, sin archivos de más ni de menos.
+
+## "No se toca"
+
+- **Dentro, contra `d6794d6`** (sin `*.ataque`): **vacío**. Rutas revisadas: `services`, `app/providers.tsx`, `styles`, `components/ui`, `components/layout`, `components/clase`, `mensaje-error`, `cargando`, `estado-vacio`, `lib`, `features/clases`, `features/auth`, `features/admin`, `features/diagnostico`, `vitest.config.ts`, `backend`, `shared` y `package*.json`. Tampoco hay archivos sin seguimiento en esas rutas.
+- **`components/adjuntos`:** solo `adjuntos-de-publicacion.tsx`, con la prop agregada (R-04).
+- **Fuera:** `AGENTS.md`, `CLAUDE.md`, `.claude`, `infra`, `ARCHITECTURE*` y `PRD.md` están vacíos contra `d6794d6`. Contra `dd8edcb` solo difieren por los documentos de A-5 que ya están en commits.
+
+## Desviaciones
+
+- Toqué tres archivos que no están en la lista de 01e del plan (ver "Aviso para el orquestador" arriba).
+- El manejador sale del gancho existente `useAvisoDeRecargaFallida` en lugar de un gancho nuevo. Ningún componente usa `useQueryClient` directamente.

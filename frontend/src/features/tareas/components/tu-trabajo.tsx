@@ -16,6 +16,9 @@ import { FormularioDeEntrega } from "./formulario-de-entrega"
 interface TuTrabajoProps {
   claseId: string
   tarea: TareaDetalle
+  // ENTREGAS-01e, ronda 1 (T-01): el error al descargar un archivo (un solo aviso y la renovación de lo
+  // que el error vuelve viejo); lo da useAvisoDeRecargaFallida del detalle.
+  alFallarLaDescarga: (error: unknown) => void
 }
 
 // ENTREGAS-01d (§D-9.2, DESIGN.md §7.24): el panel "Tu trabajo" del alumno. Pide su entrega y la
@@ -25,7 +28,7 @@ interface TuTrabajoProps {
 // mientras carga y tras un error) y recibe el foco al entregar y al anular. Si una recarga de la entrega
 // quita el control que tenía el foco (un 409, otra pestaña, la entrega que pasa a cerrada o calificada),
 // el foco va a la sección, nunca a <body> (mismo gancho que el detalle).
-export function TuTrabajo({ claseId, tarea }: TuTrabajoProps) {
+export function TuTrabajo({ claseId, tarea, alFallarLaDescarga }: TuTrabajoProps) {
   const consulta = useMiEntrega(claseId, tarea.id)
   const idTitulo = useId()
   const seccionRef = useRef<HTMLElement>(null)
@@ -77,6 +80,7 @@ export function TuTrabajo({ claseId, tarea }: TuTrabajoProps) {
         cerrada={cerrada}
         conRetrasoSiVuelve={tarde && tarea.aceptaTardias}
         onAnulada={enfocarEncabezado}
+        alFallarLaDescarga={alFallarLaDescarga}
       />
     )
   }

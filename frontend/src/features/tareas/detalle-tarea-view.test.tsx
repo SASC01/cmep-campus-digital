@@ -222,14 +222,22 @@ describe("PR-1D05: detalle de una tarea", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Borrar tarea" }))
 
-    expect(screen.getByText("Se borrará con su rúbrica y sus adjuntos.")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Se borrará con su rúbrica, sus adjuntos y los comentarios privados de los alumnos.",
+      ),
+    ).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole("button", { name: "Cancelar" })).toHaveFocus())
     expect(screen.queryByRole("button", { name: "Borrar tarea" })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }))
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Borrar tarea" })).toHaveFocus())
-    expect(screen.queryByText("Se borrará con su rúbrica y sus adjuntos.")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        "Se borrará con su rúbrica, sus adjuntos y los comentarios privados de los alumnos.",
+      ),
+    ).not.toBeInTheDocument()
     expect(llamadas.filter(({ metodo }) => metodo === "DELETE")).toHaveLength(0)
   })
 

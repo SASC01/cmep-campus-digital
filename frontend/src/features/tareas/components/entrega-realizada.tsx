@@ -19,6 +19,9 @@ interface EntregaRealizadaProps {
   conRetrasoSiVuelve: boolean
   // Al anular, "Tu trabajo" lleva el foco a su encabezado (§D-9.4).
   onAnulada: () => void
+  // ENTREGAS-01e, ronda 1 (T-01): el error al descargar un archivo (un solo aviso y la renovación de lo
+  // que el error vuelve viejo); lo da useAvisoDeRecargaFallida del detalle.
+  alFallarLaDescarga: (error: unknown) => void
 }
 
 // ENTREGAS-01d (§D-9.2 y §D-9.4, DESIGN.md §7.24): la entrega hecha. Dice cuándo se entregó (o se marcó
@@ -34,6 +37,7 @@ export function EntregaRealizada({
   cerrada,
   conRetrasoSiVuelve,
   onAnulada,
+  alFallarLaDescarga,
 }: EntregaRealizadaProps) {
   const anular = useAnularEntrega(claseId, tareaId)
   const [confirmando, setConfirmando] = useState(false)
@@ -78,6 +82,7 @@ export function EntregaRealizada({
         adjuntos={entrega.adjuntos}
         mensajeDeError={mensajeDeErrorTareas}
         rutaDeArchivos={rutaDeMiEntrega(claseId, tareaId)}
+        alFallarLaDescarga={alFallarLaDescarga}
       />
       {entrega.enlaces.length > 0 && <ListaDeEnlaces enlaces={entrega.enlaces} />}
       {entrega.estado === "calificado" && (

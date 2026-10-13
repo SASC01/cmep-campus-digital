@@ -1,4 +1,8 @@
-import { crearTareaSchema, normalizarTextoLargo } from "@campus/shared"
+import {
+  CONFIRMAR_BORRADO_CON_ENTREGAS,
+  crearTareaSchema,
+  normalizarTextoLargo,
+} from "@campus/shared"
 
 import { erroresDeFormularioDeApi, quitarPrefijoDeCampo } from "@/lib/errores-de-api"
 import { formatearFechaLarga } from "@/lib/format"
@@ -11,10 +15,14 @@ import {
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   CODIGOS_DE_CONFLICTO_DE_ENTREGA,
   CODIGOS_QUE_REDIRIGE_EL_CLIENTE,
+  CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
+  LIMITE_DE_ENTREGAS,
   LIMITE_DEL_HILO,
   MENSAJES_ERROR_TAREAS,
   MENSAJES_POR_CODIGO_DE_TAREAS,
+  PREFIJOS_QUE_REEMPLAZAN_LA_VISTA,
   PUNTOS_PROPUESTOS,
+  TEXTOS_ENTREGAS,
   TEXTOS_FORMULARIO_TAREA,
   TEXTOS_TU_TRABAJO,
 } from "./data"
@@ -131,6 +139,7 @@ export const mensajeDeErrorTareas = (error: unknown): string => {
   if (error.codigo === "VALIDACION") {
     if (error.message.startsWith("claseId:")) return MENSAJES_ERROR_TAREAS.sinAccesoALaClase
     if (error.message.startsWith("tareaId:")) return MENSAJES_ERROR_TAREAS.tareaNoEncontrada
+    if (error.message.startsWith("alumnoId:")) return MENSAJES_ERROR_TAREAS.alumnoNoEncontrado
     return quitarPrefijoDeCampo(error.message.replace(PREFIJO_DE_FILA, ""))
   }
   return MENSAJES_ERROR_TAREAS.generico
@@ -204,13 +213,15 @@ export const estadoInicialDelFormulario = (tarea: TareaDetalle | null): EstadoDe
 // (lo mismo que un acceso o una tarea inexistentes) sí. Con la tarea ya cargada, cualquier otro error de
 // una recarga (sin conexión, 5xx) deja la vista y lo escrito intactos y solo se avisa. Los 403
 // ACCESO_RESTRINGIDO y CAMBIO_DE_CONTRASENA_REQUERIDO no se distinguen aquí: apiClient redirige antes.
+// ENTREGAS-01e (§D-10.3): en la entrega de un alumno, ALUMNO_NO_ENCONTRADO (o un VALIDACION de
+// alumnoId) reemplaza la vista igual que TAREA_NO_ENCONTRADA, por esta misma regla (un aviso deduplicado
+// y el foco a la raíz); la consulta de la tarea nunca lo responde.
 export const errorQueReemplazaLaVista = (hayTarea: boolean, error: unknown): boolean => {
   if (!hayTarea) return true
   if (!esApiError(error)) return false
-  if (error.codigo === "TAREA_NO_ENCONTRADA" || error.codigo === "SIN_ACCESO_A_LA_CLASE")
-    return true
+  if (CODIGOS_QUE_REEMPLAZAN_LA_VISTA.includes(error.codigo)) return true
   if (error.codigo !== "VALIDACION") return false
-  return error.message.startsWith("claseId:") || error.message.startsWith("tareaId:")
+  return PREFIJOS_QUE_REEMPLAZAN_LA_VISTA.some((prefijo) => error.message.startsWith(prefijo))
 }
 
 // ENTREGAS-01d, ronda 2 (T-05): un error con que apiClient ya redirigió (CODIGOS_QUE_REDIRIGE_EL_CLIENTE).
@@ -367,3 +378,81 @@ export const errorDeEnlacesDeApi = (error: unknown): string | null =>
 
 export const errorDeTextoDeApi = (error: unknown): string | null =>
   errorDelCampoDeApi(error, /^texto:\s*/)
+
+// ENTREGAS-01e (§D-10.5.3, Enmienda 2): sin confirmar, la ruta de siempre (idéntica); con confirmar,
+// la misma con `?confirmar=entregas`. Solo la segunda confirmación del admin la pide.
+export const rutaDeBorrarTarea = (
+  claseId: string,
+  tareaId: string,
+  confirmarEntregas: boolean,
+): string => {
+  const ruta = `/api/clases/${claseId}/tareas/${tareaId}`
+  if (!confirmarEntregas) return ruta
+  return `${ruta}?${new URLSearchParams({ confirmar: CONFIRMAR_BORRADO_CON_ENTREGAS }).toString()}`
+}
+
+export const esTareaConEntregas = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "TAREA_CON_ENTREGAS"
+
+// ENTREGAS-01e (§D-10.2 y §D-10.3): las entregas de una tarea para sus maestros y el admin. Sus llaves
+// cuelgan de la de la tarea (una renovación de la tarea las renueva) y no chocan con la de la entrega
+// propia del alumno (`…, "entrega"`).
+export const clavePrefijoDeEntregas = (claseId: string, tareaId: string) =>
+  [...claveTarea(claseId, tareaId), "entregas"] as const
+
+export const claveListaDeEntregas = (claseId: string, tareaId: string) =>
+  [...clavePrefijoDeEntregas(claseId, tareaId), "lista"] as const
+
+export const claveEntregaDeAlumno = (claseId: string, tareaId: string, alumnoId: string) =>
+  [...clavePrefijoDeEntregas(claseId, tareaId), "alumno", alumnoId] as const
+
+const rutaDeEntregas = (claseId: string, tareaId: string): string =>
+  `/api/clases/${claseId}/tareas/${tareaId}/entregas`
+
+// Una página de la lista (20 por página, como el servidor y el roster).
+export const rutaDePaginaDeEntregas = (
+  claseId: string,
+  tareaId: string,
+  cursor: string | undefined,
+): string => {
+  const consulta = new URLSearchParams({ limite: String(LIMITE_DE_ENTREGAS) })
+  if (cursor !== undefined) consulta.set("cursor", cursor)
+  return `${rutaDeEntregas(claseId, tareaId)}?${consulta.toString()}`
+}
+
+// La entrega de un alumno: también es la ruta de sus archivos (`…/archivos/:id/descarga`).
+export const rutaDeEntregaDeAlumno = (claseId: string, tareaId: string, alumnoId: string): string =>
+  `${rutaDeEntregas(claseId, tareaId)}/${alumnoId}`
+
+export const rutaDelHiloDeAlumno = (claseId: string, tareaId: string, alumnoId: string): string =>
+  `${rutaDeEntregaDeAlumno(claseId, tareaId, alumnoId)}/comentarios`
+
+// Los destinos de la interfaz, desde la base de la clase de la perspectiva actual.
+export const enlaceAEntregas = (base: string, tareaId: string): string =>
+  `${base}/tareas/${tareaId}/entregas`
+
+export const enlaceAEntregaDeAlumno = (base: string, tareaId: string, alumnoId: string): string =>
+  `${enlaceAEntregas(base, tareaId)}/${alumnoId}`
+
+// §D-10.3: "Entregó el lunes 6 de octubre a las 14:30", "Marcó como completada el …" (sin archivos ni
+// enlaces) o "Todavía no entrega." (sin fecha de entrega). En la zona local del navegador.
+export const fraseDeEntregaDeAlumno = (entrega: {
+  fechaEntrega: string | null
+  adjuntos: readonly unknown[]
+  enlaces: readonly string[]
+}): string => {
+  if (entrega.fechaEntrega === null) return TEXTOS_ENTREGAS.todaviaNoEntrega
+  const fecha = new Date(entrega.fechaEntrega)
+  if (Number.isNaN(fecha.getTime())) return TEXTOS_ENTREGAS.todaviaNoEntrega
+  const vacia = entrega.adjuntos.length === 0 && entrega.enlaces.length === 0
+  if (vacia)
+    return TEXTOS_ENTREGAS.marcoComoCompletada(formatearFechaLarga(fecha), horaLocal(fecha))
+  return TEXTOS_ENTREGAS.entrego(formatearFechaLarga(fecha), horaLocal(fecha))
+}
+
+// §D-10.2: "Entregaron 12 de 30 alumnos." con lo que dice la página más reciente.
+export const conteoDeEntregas = (paginas: readonly { entregadas: number; total: number }[]) => {
+  const ultima = paginas.at(-1)
+  if (ultima === undefined) return null
+  return TEXTOS_ENTREGAS.conteo(ultima.entregadas, ultima.total)
+}

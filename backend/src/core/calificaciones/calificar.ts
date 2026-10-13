@@ -55,6 +55,10 @@ export const tareaConCalificaciones = (): AppError =>
 
 const validacion = (mensaje: string): AppError => new AppError("VALIDACION", mensaje, 400)
 
+// Inalcanzable después de formaCorresponde: si pasara, es un error explícito y no un valor inventado.
+const formaInalcanzable = (): AppError =>
+  new AppError("ERROR_INTERNO", "La calificación no corresponde a la rúbrica de la tarea.", 500)
+
 const aCentesimas = (n: number): number => Math.round(n * 100)
 
 // Cociente de dos enteros no negativos redondeado al entero más cercano, con las mitades hacia arriba,
@@ -126,16 +130,17 @@ export const decidirCalificacion = ({
   if (!formaCorresponde({ criterios, puntajes, calificacionDirecta })) throw rubricaModificada()
 
   if (criterios.length === 0) {
-    const directa = calificacionDirecta ?? Number.NaN
-    if (!(directa >= 0 && directa <= puntosDeLaTarea)) {
+    if (calificacionDirecta === null) throw formaInalcanzable()
+    if (!(calificacionDirecta >= 0 && calificacionDirecta <= puntosDeLaTarea)) {
       throw validacion(`calificacion: Escribe de 0 a ${String(puntosDeLaTarea)} puntos.`)
     }
-    return { calificacion: directa, puntajes: [] }
+    return { calificacion: calificacionDirecta, puntajes: [] }
   }
 
   const maximoDe = new Map(criterios.map((criterio) => [criterio.id, criterio.puntosMax]))
   puntajes.forEach((puntaje, posicion) => {
-    const maximo = maximoDe.get(puntaje.criterioId) ?? 0
+    const maximo = maximoDe.get(puntaje.criterioId)
+    if (maximo === undefined) throw formaInalcanzable()
     if (!(puntaje.puntos >= 0 && puntaje.puntos <= maximo)) {
       throw validacion(
         `puntajes.${String(posicion)}.puntos: Escribe de 0 a ${String(maximo)} puntos.`,
@@ -144,10 +149,11 @@ export const decidirCalificacion = ({
   })
 
   const puntosDe = new Map(puntajes.map((puntaje) => [puntaje.criterioId, puntaje.puntos]))
-  const ordenados = criterios.map((criterio) => ({
-    criterioId: criterio.id,
-    puntos: puntosDe.get(criterio.id) ?? 0,
-  }))
+  const ordenados = criterios.map((criterio) => {
+    const puntos = puntosDe.get(criterio.id)
+    if (puntos === undefined) throw formaInalcanzable()
+    return { criterioId: criterio.id, puntos }
+  })
   return {
     calificacion: escalarALaTarea({
       puntos: ordenados.map((puntaje) => puntaje.puntos),

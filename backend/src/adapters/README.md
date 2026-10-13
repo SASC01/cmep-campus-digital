@@ -162,7 +162,7 @@ muchos clientes a la vez. Hoy solo la usan `registrarMaestroConEnlace` y `revoca
 (10 s, M-08): cada registro del mismo enlace toma una conexión antes de formarse en la fila, y con
 el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
-`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `listarClasesAdmin`, `listarClasesInscritas`, `listarClasesImpartidas`, `leerClase`, `listarPublicaciones` y `listarComentarios`.
+`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` (`db/clases.ts`); `listarPublicaciones` y `listarComentarios` (`db/publicaciones.ts`); `leerTarea` y `listarTrabajo` (`db/tareas.ts`); `leerMiEntrega`, `listarEntregas`, `leerEntregaDeAlumno` y `listarHiloPrivado` (`db/entregas.ts`), y `leerGradebook` y `leerMisCalificaciones` (`db/calificaciones.ts`).
 
 ## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
 
@@ -497,3 +497,32 @@ de borrar el desglose en silencio. Por ser diferida, la comprobación de `criter
 `FOR KEY SHARE` sobre los criterios, corre al confirmar, no al insertar ni al borrar (N-16). Tampoco
 ahí hay ciclo: quien borra criterios (`editarTarea`, la cascada de una tarea o una clase) espera antes
 en la fila de `tareas`, que calificar retiene `FOR SHARE` hasta confirmar.
+
+## El gradebook y "Mis calificaciones" en `db/calificaciones.ts` (CALIFICACIONES-01b, §D-6 y §D-7)
+
+Solo lecturas: ninguna función del archivo escribe ni bloquea filas. `leerGradebook` y
+`leerMisCalificaciones` corren cada una en una instantánea única (`enTransaccion` con la opción de solo
+lectura), con las sentencias en serie: los cursores se comprueban antes de la página y los agregados
+salen de la misma instantánea que las celdas, así que una calificación que llega en medio no deja un
+resumen distinto de lo que se ve, y un cursor borrado después de comprobarlo no deja una página vacía.
+
+- **Columnas y "Mis calificaciones"**: `tarea.findMany` por conjunto de claves
+  `(fecha_limite DESC, id DESC)` sobre `tareas(clase_id, fecha_limite)`, sin el `cursor` de Prisma. El
+  cursor es una tarea de la clase, comprobada por `(id, clase_id)` (`400 VALIDACION` si no lo es); su
+  clave sirve aunque la tarea ya no pase el filtro. Los filtros de "Mis calificaciones" van por el
+  estado de la entrega del alumno (`EXISTS` por el único `(tarea_id, alumno_id)`): una calificada sin
+  entrega está en "calificadas" y no en "asignadas" ni en "sin-entregar".
+- **Filas del gradebook**: `condicionesDePaginaDeAlumnos` de `inscripciones.ts` (el roster: inscritos
+  con cuenta activa, por `nombre_busqueda` y `usuario_id`).
+- **Celdas**: una sola consulta de `entregas` por las tareas de la ventana y los alumnos de la página.
+  Sin fila: `asignado`, sin retraso ni calificación.
+- **Agregados** (SQL etiquetado y parametrizado; Prisma no agrupa por un campo de otra tabla): lo
+  calificado por alumno y categoría en toda la clase (§D-6.5) y las vencidas sin entregar por alumno
+  (§D-6.6; una calificada sin entrega no cuenta), y lo calificado del alumno por categoría en "Mis
+  calificaciones" (§D-7.4, por `entregas_alumno_id_idx`). La calificación general, el promedio de la
+  clase y el riesgo salen de `core/calificaciones/` (`calificacionGeneral`, `promedioDeLaClase`,
+  `motivosDeRiesgo`), con la misma suma en los dos lados. Nada se guarda.
+
+El número de sentencias es fijo (siete en el gradebook, nueve con los dos cursores; cuatro en "Mis
+calificaciones", cinco con el cursor): ninguna consulta va dentro de un ciclo. Ninguna selecciona el
+correo, el estado de pago, la restricción, el rol ni la versión.

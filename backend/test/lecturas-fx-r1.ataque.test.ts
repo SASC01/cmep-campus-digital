@@ -755,7 +755,7 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
     expect(rc.niveles).toEqual(Array.from({ length: CONEXIONES_DEL_POOL }, () => "read committed"))
   }, 60_000)
 
-  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las doce lecturas (cuatro de clases, dos del muro, dos de tareas y cuatro de entregas)", () => {
+  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las catorce lecturas (cuatro de clases, dos del muro, dos de tareas, cuatro de entregas y dos de calificaciones)", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const archivos = readdirSync(raiz, { recursive: true, encoding: "utf8" })
       .map((ruta) => ruta.split(sep).join("/"))
@@ -803,6 +803,8 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       ),
     ).toEqual([])
     expect([...usos].sort()).toEqual([
+      // C-4 de CALIFICACIONES-01b (§D-R0, A-5): leerGradebook y leerMisCalificaciones corren en la instantánea única.
+      "adapters/db/calificaciones.ts:2",
       "adapters/db/clases.ts:4",
       // ENTREGAS-01b ronda 0 (C-2, §D-R0; §D-0.7, §D-3.3, §D-3.9 y §D-3.10 del plan de ENTREGAS-01):
       // leerMiEntrega, listarEntregas y leerEntregaDeAlumno corren en la instantánea única. El conteo

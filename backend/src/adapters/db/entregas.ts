@@ -166,12 +166,9 @@ const calificacionDe = async (
     sobre: number
   },
 ): Promise<CalificacionDb | null> => {
-  if (entrega.estado !== "calificado") {
-    if (entrega.calificacion !== null || entrega.fechaCalificacion !== null) {
-      throw errorEntregaMalFormada()
-    }
-    return null
-  }
+  const conCalificacion = entrega.calificacion !== null || entrega.fechaCalificacion !== null
+  if (entrega.estado !== "calificado" && conCalificacion) throw errorEntregaMalFormada()
+  if (entrega.estado !== "calificado") return null
   if (entrega.calificacion === null || entrega.fechaCalificacion === null) {
     throw errorEntregaMalFormada()
   }

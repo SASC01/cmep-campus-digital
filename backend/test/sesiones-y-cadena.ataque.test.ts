@@ -541,7 +541,8 @@ describe("ataque: superficie de rutas", () => {
   // Ninguna crea cuentas ni cambia roles y ninguna es pública. La protección queda igual: cualquier
   // otra ruta nueva vuelve a poner la prueba en rojo.
   // C-1 de CALIFICACIONES-01a (§D-R0, A-5): se agrega exactamente PUT …/tareas/:tareaId/entregas/:alumnoId/calificacion.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c y CALIFICACIONES-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // C-1 de CALIFICACIONES-01b (§D-R0, A-5): se agregan exactamente GET y HEAD de …/gradebook y de …/mis-calificaciones.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a y CALIFICACIONES-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -584,6 +585,8 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/alumnos/candidatos",
       "GET /api/clases/:claseId/categorias",
       "GET /api/clases/:claseId/codigo",
+      "GET /api/clases/:claseId/gradebook",
+      "GET /api/clases/:claseId/mis-calificaciones",
       "GET /api/clases/:claseId/personas",
       "GET /api/clases/:claseId/publicaciones",
       "GET /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
@@ -608,6 +611,8 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/alumnos/candidatos",
       "HEAD /api/clases/:claseId/categorias",
       "HEAD /api/clases/:claseId/codigo",
+      "HEAD /api/clases/:claseId/gradebook",
+      "HEAD /api/clases/:claseId/mis-calificaciones",
       "HEAD /api/clases/:claseId/personas",
       "HEAD /api/clases/:claseId/publicaciones",
       "HEAD /api/clases/:claseId/publicaciones/:publicacionId/comentarios",

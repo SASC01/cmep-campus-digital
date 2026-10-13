@@ -630,3 +630,326 @@ Todas las cifras coinciden. Con esto, el último punto de la definición de term
 - **Resúmenes del programador devueltos:** 0 de 3.
 - **PARADAS:** 0.
 - **Rondas extra por hermanos o estados vecinos:** 0. En esta vuelta el programador encontró por su cuenta el hermano de `calificaciones-migracion`.
+
+## Verificación del resumen — CALIFICACIONES-01b
+Veredicto: **RESUMEN ACEPTADO.** Todas las cifras coinciden con mis corridas. Las ocho viñetas (CAL-1B01 a CAL-1B08) tienen su archivo y el título exacto, y leí el código de cada caso: prueban lo que pide el plan. "No se toca" está vacío y las 179 `*.ataque` son iguales a la tabla de la ronda 0 de 01b. La única prueba normal que cambió es E6, dentro de la lista cerrada. Nada bloquea. La ronda 1 del tester puede empezar. N-21 a N-25 no bloquean y cada una tiene destino.
+
+### Mis corridas (una a la vez; Docker Desktop encendido; sin `--write` ni `--fix`)
+| Paquete | Comando | Código | Última línea / resumen |
+|---|---|---|---|
+| shared | `npm run lint` | 0 | `All matched files use Prettier code style!` |
+| shared | `npm run build` | 0 | `> tsc -p tsconfig.json` |
+| backend | `npm run lint` | 0 | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` |
+| backend | `npm run test` (18:03:10Z a 18:06:09Z) | 0 | `Duration  173.75s (transform 25.64s, setup 6.41s, import 259.03s, tests 1472.13s, environment 55ms)`; `Test Files  212 passed (212)` · `Tests  2579 passed (2579)` |
+| backend | `npm run build` | 0 | `> tsc -p tsconfig.json` |
+| backend | `npx prisma validate` | 0 | `The schema at prisma\schema.prisma is valid 🚀` |
+| backend | `npx vitest run test/calificaciones-lecturas.integracion.test.ts` (archivo de 01a, para comparar los avisos de `pg`) | 0 | `Tests  4 passed (4)` |
+| frontend | `npm run lint` | 0 | `> tsc -b` |
+| frontend | `npm run test` (18:07:51Z a 18:10:08Z, **primera corrida**) | 0 | `Duration  134.07s (transform 37.15s, setup 70.40s, import 361.19s, tests 642.09s, environment 320.25s)`; `Test Files  166 passed (166)` · `Tests  2536 passed (2536)` |
+| frontend | `npm run build` | 0 | `✓ built in 772ms` |
+
+- **Frontend:** pasó en verde a la primera, en 134 s (137 s de reloj). No hubo ningún tiempo de espera. Antes de correrlo, `tasklist /FI "IMAGENAME eq node.exe"` mostraba 9 procesos `node` ajenos, cada uno con 25 a 39 MB, que parecían en reposo. No terminé ninguno. No tengo con qué explicar las dos corridas en rojo del programador. Que los 27 archivos fallidos pasaran solos y que mi corrida completa saliera en verde apunta a algo del momento, no al cambio. Ningún archivo de `frontend/` cambió.
+- **Conteos:** backend `npx vitest list | grep -c ""` → 2579 y `--filesOnly` → 212. Por archivo nuevo (`grep -c` sobre la lista): `gradebook.integracion` 7, `mis-calificaciones.integracion` 5, `calificaciones-lecturas-consistentes.integracion` 6, `calificaciones-lecturas-autorizacion.integracion` 2 y `calificaciones-lecturas-estatico` 6. Frontend `npx vitest list --json`: 2536 casos en 166 archivos, y `--filesOnly` → 166.
+- **Inventarios del backend** (`grep -o -F … | wc -l` sobre mi salida): `"Error no controlado"` 10, `"code":"P2028"` 5, `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0 y `Test timed out` 0.
+- **`DeprecationWarning` de `pg`** («Calling client.query() when the client is already executing a query»):
+  - En mi corrida completa salen 19. Hay uno por proceso de trabajo de Vitest (19 `pid` distintos): Node emite cada aviso de obsolescencia una sola vez por proceso.
+  - Un archivo de 01a solo da 0, igual que los cinco nuevos solos, según el programador.
+  - Las corridas completas anteriores a 01b, guardadas en el scratchpad de la sesión, ya los traían: 18 en la ronda 0 de 01b (código de `<K1a>`), 19 y 19 en las dos de M-04, y 18 y 19 en las dos mías del cierre de 01a. La del inicio del encargo (`d998282` más la ronda 0 de 01a) trae 14.
+  - **Son anteriores a 01b y no los causa el cambio** (N-23).
+
+### Cifras (las suyas, las mías y si coinciden)
+| Cifra | Programador | Mía | Coincide |
+|---|---|---|---|
+| Backend: casos y archivos | 2579 en 212 | 2579 en 212 | Sí |
+| Casos nuevos por archivo | 7 · 5 · 6 · 2 · 6 (+26 en 5) | 7 · 5 · 6 · 2 · 6 | Sí |
+| Frontend: casos y archivos | 2536 en 166 | 2536 en 166 | Sí |
+| `"Error no controlado"` · `P2028` · `40P01` | 10 · 5 · 0 | 10 · 5 · 0 | Sí |
+| `Test timed out` · `deadlock detected` | 0 · 0 | 0 · 0 | Sí |
+| `DeprecationWarning` de `pg` | 19 | 19 (anteriores a 01b) | Sí |
+| Últimas líneas de `lint` y `build` (shared, backend, frontend) y `prisma validate` | las de su tabla | las mismas; `vite build` cambia solo en el tiempo (1.47 s frente a 772 ms) | Sí |
+| `*.ataque` iguales a la tabla de la ronda 0 de 01b | 179 de 179 | 179 de 179 (`sha256sum` en minúsculas contra la tabla; `diff` vacío) | Sí |
+| `instantaneaUnica: true` en `calificaciones.ts` | 2 | 2 (CAL-1B08 y C-4 en verde) | Sí |
+
+### Cotejo viñeta por viñeta de 01b (leí el código de cada caso)
+| Viñeta | Archivo y casos | Juicio |
+|---|---|---|
+| **CAL-1B01** | `gradebook.integracion.test.ts`, tres casos con los títulos citados | **Cubierta.** Las columnas van en orden `(fecha_limite DESC, id DESC)`, con título, puntos y categoría. Las celdas de Ana cubren los cinco estados: calificada, entregada, con retraso, asignada sin fila y **calificada sin entrega** (`calificado`, `conRetraso: false`, 8 puntos). Ana tiene 0 vencidas, así que la calificada sin entrega no cuenta como vencida sin entregar. Los porcentajes de Ana (86.67) y Carla (46, con «Sin categoría» fuera) los comprobé a mano y son correctos; el modo puntos (73.33) está en el tercer caso. Beto tiene 3 vencidas, así que va con el motivo `vencidas`; Carla va con `promedio`. El resumen es `totalAlumnos 3`, `promedioDeLaClase 66.34` y `alumnosEnRiesgo 2`. La dada de baja (50/50) y la desactivada (0/50) habrían cambiado el promedio y el riesgo, y sus filas siguen en la base: la prueba distingue. **El resumen se calcula sobre toda la clase:** el segundo caso recorre la clase de una fila en una y con `limiteTareas=2`, y en cada página exige el mismo resumen y los mismos datos por fila que la lectura completa. |
+| **CAL-1B02** | mismo archivo, tres casos | **Cubierta.** Las filas siguen el cursor del roster hasta el final, y un cursor inexistente da `400 VALIDACION`. **Empates:** hay cinco tareas con la misma fecha límite al milisegundo, más una antes y una después. Con `limiteTareas=2` salen 4 ventanas que suman exactamente la lista esperada, sin repetir ni saltar, con el desempate por id descendente. El orden de texto en minúsculas coincide con el de `uuid` en PostgreSQL. En cada ventana, las celdas van en el orden de sus columnas. Un `cursorTareas` de otra clase o inexistente da `400` con «cursorTareas: no es válido». Límites: 0, 51 y texto (filas y tareas) y los ids mal formados dan `400`; 1 y 50 dan `200`. |
+| **CAL-1B03** | `calificaciones-lecturas-consistentes.integracion.test.ts`, cinco casos | **Cubierta.** El doble del ejecutor envuelve la transacción con sus opciones, así que el REPEATABLE READ se abre de verdad, y corre el gancho después de la llamada indicada. Cada caso comprueba `disparado()` y tiene un control previo sin carrera. Los tres cursores borrados después de comprobarlos (tarea del gradebook, alumno del gradebook y tarea de «Mis calificaciones») devuelven lo que sigue, sin página vacía. Las dos calificaciones que llegan después de leer las celdas o las entregas dejan la celda, el porcentaje, el riesgo y el resumen (o `general`) sin la calificación nueva, y una lectura posterior sí los ve. **Estos dos son los que distinguen la instantánea:** en READ COMMITTED el agregado vería la calificación y la celda no. Ver N-24 sobre los tres de cursor. |
+| **CAL-1B04** | mismo archivo, un caso | **Cubierta.** Usa el gancho de consultas con cuatro tamaños: 2×2, 30×2, 2×30 y 30×30. Las precondiciones comprueban que todas las filas y columnas entran en la página, así que crecen de verdad. La lista exacta de llamadas es de 7 sentencias en el gradebook, 9 con los dos cursores y 4 en «Mis calificaciones», y es igual en los cuatro tamaños. |
+| **CAL-1B05** | `mis-calificaciones.integracion.test.ts`, cinco casos | **Cubierta.** `general` es `toEqual` contra `calificacionGeneral` de `core/` con los agregados a mano (1300/20 y 0/10; 32.5), incluida la calificada sin entrega (D, 0 puntos). Las tareas calificadas del compañero no entran. **Los cinco filtros** van con nueve tareas, vencidas y por vencer, entregadas a tiempo y con retraso, calificadas con y sin entrega, una con fila `asignado` y otras sin fila: `asignadas` → [G]; `entregadas` → [H, B, A]; `calificadas` → [I, C, D]; `sin-entregar` → [F, E]. Los revisé contra §D-7.2 y son correctos. El cursor recorre cada filtro de dos en dos. Una entregada como cursor de «calificadas» sirve. Uno de otra clase o inexistente da `400` con «cursor: no es válido». Los límites 0, 101 y texto y un filtro desconocido dan `400`. **Nunca otro alumno:** el compañero ve solo sus calificaciones, con su `general` (100, con `sinCategoria` 1), y las de la alumna le salen `asignado`. **Nunca `version`:** `leer` exige que el cuerpo no contenga `version` en ninguna respuesta. Las llaves de la respuesta y de cada tarea son exactamente las del esquema. |
+| **CAL-1B06** | `calificaciones-lecturas-autorizacion.integracion.test.ts`, dos casos | **Cubierta, con toda la tabla de "Autorización" de las dos rutas.** Gradebook: sin token `401`; estudiante `403 ROL_NO_PERMITIDO`; maestro ajeno `403 SIN_ACCESO_A_LA_CLASE`; clase inexistente con el mismo cuerpo; `:claseId` mal formado `400`; cambio pendiente `403 CAMBIO_DE_CONTRASENA_REQUERIDO`; maestro y admin `200`, con la deudora restringida, el deudor y la del cambio pendiente en las filas. «Mis calificaciones»: sin token `401`; maestro de la clase y admin `403 ROL_NO_PERMITIDO`; no inscrito `403 SIN_ACCESO_A_LA_CLASE`; restringida `403 ACCESO_RESTRINGIDO`; cambio pendiente `403`; el inscrito deudor `200` (60). **Sin fuga:** `pedir` pasa cada respuesta, de éxito o de error, por `CLAVES_DE_FUGA` en el caso que la produce (el remedio de M-05), con `estadoPago`, `accesoRestringido`, `motivoRestriccion`, `email`, `"rol"`, `deudor` y `@`. |
+| **CAL-1B07** | `gradebook.integracion.test.ts`, un caso | **Cubierta.** Para Ana, Beto y Carla compara `mis.general.porcentaje` con el de su fila del gradebook (Beto con `null`) y el modo. Los dos lados salen de `calificacionGeneral` sobre la misma suma (§D-6.5 y §D-7.4). |
+| **CAL-1B08** | `calificaciones-lecturas-estatico.test.ts`, seis casos | **Cubierta.** Comprueba que no hay escrituras de Prisma, `$executeRaw`, SQL de escritura ni `FOR … UPDATE/SHARE`. Hay exactamente 3 `$queryRaw` etiquetados y ningún `Unsafe`. Los ciclos no consultan (precondición: hay ciclos que revisar); tampoco hay `async` en `map`/`forEach` ni `Promise.all`. `instantaneaUnica: true` aparece 2 veces en el texto crudo y 2 en el código, dentro de `enTransaccion` de cada función. La cadena exacta de las dos rutas aparece literal y `alumnoId: perfilDe(request).id`. Las nueve respuestas nuevas de `shared/` son `z.strictObject`. Los comentarios de los cinco archivos de `src` no nombran las palabras de §D-0.9. |
+| C-1 y C-4 | `sesiones-y-cadena.ataque`, `lecturas-fx-r1.ataque` | En verde en mi corrida completa. Sus hashes son los de la tabla de la ronda 0 (las reescribió el tester). |
+
+### Cotejo del código
+- **`adapters/db/calificaciones.ts` contra §D-6 y §D-7:**
+  - **Instantánea y orden:** cada lectura corre en un solo `enTransaccion(…, { instantaneaUnica: true })`, con las sentencias en serie (todas con `await`, sin `Promise.all`). El único ciclo (`agregadosDeLaClase`, de `:193` a `:197`) agrupa filas en memoria; el `else` dentro del ciclo lo permite `CLAUDE.md`.
+  - **Cursores:** el de tareas se comprueba por `(id, clase_id)` con `tarea.findFirst` y, si falta, da `400 VALIDACION` (`"cursorTareas: no es válido"` y `"cursor: no es válido"`). Después la página va por conjunto de claves sobre los valores leídos, sin el `cursor` de Prisma. El de alumnos va por `condicionesDePaginaDeAlumnos`, importada sin cambiar `inscripciones.ts`, que lo comprueba por PK y da `400`. Las dos páginas usan `paginar`.
+  - **SQL:** los tres `$queryRaw` son plantillas etiquetadas con `${claseId}::uuid`, `${ahora}` y `${alumnoId}::uuid`, y su texto es el de §D-6.5, §D-6.6 y §D-7.4. Los dos agregados del gradebook recorren toda la clase.
+  - **Cálculos de `core/`:** `calificacionGeneral`, `motivosDeRiesgo` y `promedioDeLaClase`. El promedio de la clase se toma sobre los alumnos del agregado y el riesgo sobre los de los dos agregados, como pide §D-6. `totalAlumnos` es `inscripcion.count` con `usuario.activo`.
+  - **Formas imposibles:** una celda `calificado` sin calificación (o al revés), o una tarea sin título, lanza `ERROR_INTERNO` en vez de inventar un dato. Los `?? SIN_ENTREGA`, `?? SIN_AGREGADOS` y `?? 0` son ausencias legítimas (sin fila, sin calificadas o sin vencidas) y no esconden datos.
+  - **Lo que no se lee:** ninguna consulta selecciona correo, estado de pago, restricción, rol ni `version`.
+  - **Decisiones menores del programador:** las acepto las cinco. Los filtros van con `AND: [keyset, filtro]`, porque los dos llevan `fechaLimite`. Las celdas no se consultan con la página vacía. El `modo` sale de `core/`.
+- **`handlers/calificaciones.ts`:**
+  - **Cadena:** el gradebook va con `protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" })` y «Mis calificaciones» con `protegido({ roles: ["estudiante"], pertenencia: "inscripcion" })`.
+  - **Lo que hace el handler:** `alumnoId: perfilDe(request).id`, la consulta con `validarParametros` (el patrón de `admin.ts` y `clases.ts`) y la fecha límite a ISO 8601 con `toISOString()`. Responde con `parse` del esquema estricto. No compara rol ni relación, ni toca Prisma.
+- **`shared/src/calificaciones.ts`:**
+  - **Respuestas:** son `z.strictObject`. La fila del alumno es `alumnoDeEntregaSchema` (`{ id, nombre }`, estricto). No hay `version`, correo, estado de pago, restricción ni rol, y «Mis calificaciones» no trae el promedio de la clase.
+  - **Consultas:** las dos son `paginacionSchema.extend`. Los límites son 1 a 50 (25) y 1 a 50 (20) en el gradebook, y 1 a 100 (20) en «Mis calificaciones».
+  - **Importaciones:** de `enlaces-registro.ts` y `entregas.ts`, y ninguno de los dos importa `calificaciones.ts` (`grep`), así que no hay ciclo. `index.ts` reexporta por nombre.
+- **Paso 0 (N-14 y N-15):**
+  - **Mínimo y sin cambio de comportamiento:** las tres ramas inalcanzables de `decidirCalificacion` lanzan `formaInalcanzable()` (`ERROR_INTERNO`), y `calificacionDe` queda con guardas que dan los mismos cuatro resultados. Las pruebas de 01a no cambiaron y pasan.
+- **E6:** solo el comentario, el título y `"calificaciones.ts"` en la lista ordenada, exactamente lo que dice la lista cerrada. Fuera de E6 no cambió ninguna prueba normal: el `git status` de `backend/test/` solo da `bloqueo-usuario.integracion` y las dos C-n del tester.
+- **READMEs:** las dos secciones nuevas describen lo que hace el código, incluidas las sentencias (7 y 9; 4 y 5). Ver N-21.
+- **`EXPLAIN`:**
+  - **Lo del programador:** lo hizo sobre datos sintéticos (79 823 entregas) y no muestra ningún `Seq Scan` sobre `entregas` ni `tareas`.
+  - **Mi repetición:** corrí §D-6.5 y §D-6.6 contra `campus_dev` por `docker exec … psql`, dentro de `BEGIN READ ONLY … ROLLBACK`, sin `ANALYZE` y sin leer `.env`. La base local es casi vacía (7 clases, 1 tarea y 0 entregas).
+  - **Plan natural de §D-6.5:** el único `Seq Scan` es sobre `usuarios`, lo esperable con tan pocas filas, y no cuenta como PA-04. `tareas` va por `tareas_clase_id_fecha_limite_idx`, `entregas` por `entregas_alumno_id_idx` e `inscripciones` por `inscripciones_pkey`.
+  - **Con `enable_seqscan = off`:** las dos consultas resuelven todo con índices. En §D-6.6, `tareas` va por `tareas_clase_id_fecha_limite_idx` con el rango `fecha_limite < now()`.
+  - **Conclusión:** ningún recorrido secuencial sobre `entregas` ni `tareas`. PA-04 no aplica.
+- **"No se toca":**
+  - **Dentro de los paquetes:** `git diff --stat 216c1b5 -- <todas las rutas de la lista, incluido frontend/ entero>` da vacío.
+  - **Fuera de los paquetes:** `git diff --stat d998282 -- AGENTS.md CLAUDE.md docs/ARCHITECTURE.md docs/ARCHITECTURE-ESSENTIALS.md docs/PRD.md docs/DESIGN.md .claude infra package.json package-lock.json` da solo los dos documentos de A-6. Sus SHA-256 (`f868938f…2cb3` y `f47574dd…d47f`) son los de `aprobacion.md`, y `git diff --stat 216c1b5` sobre esas rutas da vacío, así que no cambiaron después de `<K1a>`.
+  - **Sin archivos nuevos** en esas rutas (`git status --untracked-files=all`).
+
+### Juicios del punto 5
+1. **El `if` anidado del hilo privado (`adapters/db/entregas.ts:844-847`, de ENTREGAS-01):**
+   - **Decisión:** se queda como está en 01b y va a un pendiente con destino (N-22).
+   - **Por qué no se aplana ahora:** es código de ENTREGAS-01, ajeno a las calificaciones y ya atacado. N-15 nombraba solo `calificacionDe`, y el paso 0 era el cambio mínimo. Aplanarlo ahora abriría superficie de ataque por un detalle de estilo.
+   - **El hermano que el programador descartó:** `core/calificaciones/calificar.ts:132-138` (`if (criterios.length === 0) { if … throw; if … throw; return }`) tiene la misma forma que el `calificacionDe` anterior, así que su argumento de que "no es un if/else anidado" no se sostiene. Lo pongo en el mismo pendiente y no devuelvo el resumen. El programador dio una razón, aunque no la comparto. El alcance de N-15 lo fijé yo, y era `calificacionDe`. Y es una rama de 01a con veredicto RESISTE.
+2. **La lista desactualizada de quién usa la instantánea única (`backend/src/adapters/README.md:165`):**
+   - **Decisión:** se corrige en 01b (N-21).
+   - **Por qué ahora:** 01b agrega un usuario más (`calificaciones.ts`), el README es archivo de 01b (paso 4), es una línea de documentación y ninguna prueba lo lee.
+   - **Cuándo:** en la primera corrección del programador en 01b. Si el tester da RESISTE sin hallazgos, va como cambio de documentación antes de mi revisión final, sin ronda del tester.
+3. **Los `DeprecationWarning` de `pg`:**
+   - **Origen:** son anteriores a 01b. Sale uno por proceso de trabajo de Vitest, y ya estaban en las corridas de 01a (18 a 19) y desde el inicio del encargo (14). No los causa el cambio y no bloquean.
+   - **Destino:** pendiente en `docs/ESTADO.md` §3 (N-23).
+
+### Hallazgos
+Ningún `M-nn`: nada bloquea.
+
+- **N-21 — La lista de quién usa la instantánea única en `adapters/README.md` está desactualizada.**
+  - Dónde: `backend/src/adapters/README.md:165`, «Hoy la usan `listarClasesAdmin`, …, `listarPublicaciones` y `listarComentarios`».
+  - Qué falta: no nombra a los usuarios de `tareas.ts` ni de `entregas.ts` (ENTREGAS-01), ni a `leerGradebook` y `leerMisCalificaciones` (01b).
+  - Qué se espera: que la frase nombre a todos los que hoy pasan la opción, o que remita a cada sección en lugar de enumerarlos.
+  - Destino: el programador, en 01b (punto 5.2). De paso, el comentario de `handlers/calificaciones.ts:45-46` corta la frase en «(S-01: el» y sigue en la línea siguiente. Se puede reacomodar en el mismo cambio, sin formateador.
+- **N-22 — Dos `if` anidados sin aplanar, hermanos de N-15.**
+  - Dónde: `adapters/db/entregas.ts:844-847` (ENTREGAS-01) y `core/calificaciones/calificar.ts:132-138` (01a).
+  - Qué se espera: aplanarlos con guardas, como `calificacionDe`, sin cambiar el comportamiento.
+  - Destino: pendiente en `docs/ESTADO.md` §3, para el `chore` posterior a CALIFICACIONES-01 (el mismo de S-15).
+- **N-23 — `DeprecationWarning: Calling client.query() when the client is already executing a query` de `pg` en la suite del backend.**
+  - Qué es: sale uno por proceso de trabajo, y ya estaba antes de 01b. Lo anuncia `pg@9`, que lo quitará.
+  - Qué se espera: localizar quién encadena consultas sobre el mismo cliente (con `--trace-deprecation`) antes de cualquier actualización mayor de `pg` o de `@prisma/adapter-pg`.
+  - Destino: pendiente en `docs/ESTADO.md` §3, con destino «antes de actualizar `pg` a 9».
+- **N-24 — Los tres casos de cursor borrado de CAL-1B03 no distinguen la instantánea.**
+  - Por qué: el conjunto de claves se arma con los valores que ya se leyeron. Por eso esos casos también pasarían en READ COMMITTED; lo que demuestran es que no se usa el `cursor` de Prisma (la regla T-18), que es lo que pide la viñeta («no deja una página vacía»).
+  - Lo que sí distingue la instantánea: los dos casos de la calificación que llega en medio.
+  - Destino: sin acción. Lo anoto para el tester.
+- **N-25 — El resumen dice «fuera: solo `docs/ARCHITECTURE.md`».**
+  - Por qué: su `git diff --stat d998282` no incluía `docs/ARCHITECTURE-ESSENTIALS.md`, que también cambió por A-6. Lo compensó con el `diff` contra `216c1b5` y los SHA-256 de los dos, que coinciden.
+  - Destino: sin acción. En el próximo resumen, que la lista de "fuera" incluya los dos.
+
+### Desacuerdos arbitrados
+- `calificar.ts:132-138`: el programador dice que no es un `if/else` anidado. No estoy de acuerdo, porque tiene la misma forma que N-15. Se resuelve como pendiente (N-22), sin devolver el resumen.
+
+### Veredicto
+**RESUMEN ACEPTADO.** Las cifras coinciden y las ocho viñetas existen y prueban lo que piden. El código cumple §D-6, §D-7, §D-9, §D-10 y §D-11, la cadena de "Autorización" y "Acceso a datos". "No se toca" y las `*.ataque` están intactos. La ronda 1 del tester de 01b puede empezar. N-21 va a la primera corrección del programador en 01b. N-22 y N-23 van a `docs/ESTADO.md` §3, y N-24 y N-25 no piden acción.
+
+## Revisión final — CALIFICACIONES-01b
+Veredicto: **APROBADO CON OBSERVACIONES**
+Verificación propia: lint `0` en shared, backend y frontend · test backend `Test Files  216 passed (216)` · `Tests  2617 passed (2617)`; frontend `Test Files  166 passed (166)` · `Tests  2536 passed (2536)` · build `0` en los tres · `prisma validate` válido
+
+Nada bloquea. El código de 01b es el que acepté en la verificación del resumen, más N-21, que solo cambia texto. El tester dio RESISTE en la ronda 1, sin hallazgos. Las 183 `*.ataque` son iguales a su tabla. "No se toca" está vacío y no hay migración nueva. La subentrega cumple RF-17, la parte de datos de RF-18, RF-37, RN-02, RN-03, RN-05 y RN-06. Las observaciones abiertas tienen destino. Los textos de A-6 de 01b van abajo, con cada fragmento viejo comprobado en su documento.
+
+### Mis corridas (una a la vez; Docker Desktop encendido; sin `--write` ni `--fix`; no terminé ningún proceso)
+Precondición PA-01: `Get-NetConnectionProfile` da la red `uacam5 2` con perfil `Private`; Docker Engine 28.5.1 responde. Es la misma red que usaron el tester y el programador en esta subentrega. PA-01 no aplica.
+
+| Paquete | Comando | Código | Última línea / resumen |
+|---|---|---|---|
+| shared | `npm run lint` | 0 | `All matched files use Prettier code style!` |
+| shared | `npm run build` | 0 | `> tsc -p tsconfig.json` |
+| backend | `npm run lint` | 0 | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` |
+| backend | `npm run test` (18:53:09Z a 18:55:52Z; salida en `<scratchpad>/backend-final-01b.log`) | 0 | `Duration  158.25s (transform 23.25s, setup 7.23s, import 258.64s, tests 1305.21s, environment 64ms)`; `Test Files  216 passed (216)` · `Tests  2617 passed (2617)` |
+| backend | `npm run build` | 0 | `> tsc -p tsconfig.json` |
+| backend | `npx prisma validate` | 0 | `The schema at prisma\schema.prisma is valid 🚀` |
+| backend | `npx vitest list` | 0 | 2617 líneas; 216 archivos distintos (`sed 's/ >.*//' \| sort -u \| wc -l`) |
+| frontend | `npm run lint` | 0 | `> tsc -b` |
+| frontend | `npm run test` (18:57:41Z a 19:00:24Z) | 0 | `Duration  159.73s (transform 48.97s, setup 105.26s, import 449.96s, tests 723.29s, environment 371.88s)`; `Test Files  166 passed (166)` · `Tests  2536 passed (2536)`; 0 `Test timed out` |
+| frontend | `npm run build` | 0 | `✓ built in 1.06s` |
+
+### Cifras
+| Cifra | Esperada (orquestador, tester y programador) | Mía | Coincide |
+|---|---|---|---|
+| Backend: casos y archivos | 2617 en 216 | 2617 en 216 (corrida y `vitest list`) | Sí |
+| Las 4 `*.ataque` de la ronda 1 de 01b | 11 · 18 · 7 · 2 (38) | 11 · 18 · 7 · 2 | Sí |
+| Las 5 pruebas normales de 01b | 7 · 5 · 6 · 2 · 6 (26) | 7 · 5 · 6 · 2 · 6 | Sí |
+| Frontend: casos y archivos | 2536 en 166 | 2536 en 166 | Sí |
+| `"Error no controlado"` · `"code":"P2028"` · `40P01` | 10 · 5 · 0 | 10 · 5 · 0 | Sí |
+| `deadlock detected` · `could not serialize` · `too many clients` · `Test timed out` · `Unable to start a transaction` | 0 en todas | 0 en todas | Sí |
+| `DeprecationWarning` de `pg` (N-23) | 18 a 19, uno por proceso | 19 | Sí, anteriores a 01b |
+| `*.ataque` iguales a la tabla de 183 de la ronda 1 de 01b | 183 de 183 | 183 de 183 (`sha256sum` en minúsculas, ordenado por ruta, `diff` vacío) | Sí |
+| `instantaneaUnica: true` en `adapters/db` | 14 en 5 archivos | 2 + 4 + 4 + 2 + 2 = 14, todas en código | Sí |
+
+### N-21: cotejo del cambio (solo texto)
+- **Qué cambió después de mi verificación del resumen:** por fecha de modificación, solo `backend/src/adapters/README.md` y `backend/src/handlers/calificaciones.ts` (12:44:59, después de la ronda 1 del tester). El resto del código de 01b quedó como estaba cuando lo verifiqué (11:05 a 11:19), y las pruebas de la ronda 1 (12:36) corrieron contra ese código.
+- **`adapters/README.md:165`:** la frase final nombra las 14 lecturas por archivo. La cotejé con un `awk` que asigna cada `instantaneaUnica: true` a su función exportada: `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` (`clases.ts`); `listarPublicaciones` y `listarComentarios`; `leerTarea` y `listarTrabajo`; `leerMiEntrega`, `listarEntregas`, `leerEntregaDeAlumno` y `listarHiloPrivado`; y `leerGradebook` y `leerMisCalificaciones`. Coincide uno por uno. C-4 no lee el README (solo archivos `.ts`/`.js` de `src`) y sigue en verde.
+- **`handlers/calificaciones.ts:44-46`:** el comentario ya no corta la frase en «(S-01: el». El texto es el mismo y el código de las dos rutas también: la cadena, `perfilDe(request).id`, `validarParametros`, `toISOString()` y `parse` del esquema estricto. CAL-1B08 y CAL-T-69 están en verde.
+- **Hermano del programador:** la otra enumeración del README (la de `{ maxWait }`) está al día (`enlaces-registro.ts:128` y `:204`). Lo comprobé.
+
+### "No se toca"
+- **Dentro de los paquetes:** `git diff --stat 216c1b5 -- <todas las rutas de la lista del plan, más backend/prisma, backend/src/app.ts, core/calificaciones/general.ts, core/calificaciones/riesgo.ts, adapters/db/tareas.ts y frontend/ entero>` → vacío.
+- **Fuera de los paquetes:** `git diff --stat d998282 -- AGENTS.md CLAUDE.md docs/ARCHITECTURE.md docs/ARCHITECTURE-ESSENTIALS.md docs/PRD.md docs/DESIGN.md .claude infra package.json package-lock.json` → solo los dos documentos de A-6 de 01a. Sus SHA-256 son `f868938f0a2ac223c9b1140b1b7ac4aaea5971415accfb47755a9f1aa5fb2cb3` (`ARCHITECTURE.md`) y `f47574ddcd79bd0c47530137d6b547ffb6b6d6dd9c3009c77fbd23711b07d47f` (ESSENTIALS), iguales a los de `aprobacion.md`, y contra `216c1b5` el `diff` está vacío.
+- **Archivos nuevos:** `git status --untracked-files=all` da solo el adaptador nuevo, `ayudas-gradebook.ts` (permitido: ayuda nueva en archivo nuevo), las 5 pruebas normales y las 4 `*.ataque` de la ronda 1.
+- **`backend/prisma`:** sin cambios. 01b no trae migración.
+- **Pruebas normales cambiadas:** solo E6 de `bloqueo-usuario.integracion`, dentro de la lista cerrada de 01b. Las dos `*.ataque` modificadas (`sesiones-y-cadena` y `lecturas-fx-r1`) son C-1 y C-4 de la ronda 0 del tester, con los hashes de su tabla.
+
+### Definición de terminado (`AGENTS.md`), punto por punto
+| Punto | ¿Cumple? | Evidencia |
+|---|---|---|
+| **RF-17** "Mis calificaciones" por clase | **Sí (backend)** | `GET /clases/:claseId/mis-calificaciones`: `general` con el porcentaje; tareas con estado y calificación; filtro `todas`, `asignadas`, `entregadas`, `calificadas` y `sin-entregar`, con el cursor por clase. Lo cubren CAL-1B05, CAL-T-60 a CAL-T-64 y CAL-T-54 (borde del milisegundo). La vista llega en 01d. |
+| **RF-18** modal de cálculo, parte de datos | **Sí** | `general` es `CalificacionGeneral` completo: `modo`, `porcentaje`, `puntos`, `categorias` (peso, peso efectivo, porcentaje, obtenido, posible y tareas) y `sinCategoria`. Sale en cada página, de su misma instantánea. Ninguna ruta de categorías se abre al alumno (S-17 de TAREAS-01). El modal es de 01d. |
+| **RF-37** gradebook | **Sí (backend)** | Alumnos × tareas en dos dimensiones paginadas; resumen de toda la clase (`promedioDeLaClase`, `alumnosEnRiesgo`); `motivosDeRiesgo` por fila, para destacar al alumno. Lo cubren CAL-1B01, CAL-1B02, CAL-T-43 a CAL-T-55 y CAL-T-67. |
+| **RN-02** estado de pago | **Sí** | Ninguna consulta de `calificaciones.ts` selecciona correo, estado de pago, restricción, rol ni `version` (CAL-T-68). Las nueve respuestas son `z.strictObject` y la fila del alumno es `{ id, nombre }`. "Sin fuga" se comprueba en cada respuesta, de éxito o de error, con alumnos deudores y restringidos en la clase (CAL-1B06 y CAL-T-59). El gradebook tampoco se lo da al maestro, por S-05. |
+| **RN-03** restricción | **Sí** | El alumno restringido recibe `403 ACCESO_RESTRINGIDO` en "Mis calificaciones" por `GET` (también con consulta inválida) y por `HEAD`, sin datos (CAL-1B06 y CAL-T-65). En el gradebook aparece en su fila, sin el dato de la restricción. |
+| **RN-05** cálculo (P-05 a, S-04, S-08) | **Sí** | Las dos vistas usan `calificacionGeneral`, `promedioDeLaClase` y `motivosDeRiesgo` de `core/` (01a, con los cinco casos de `AGENTS.md`) sobre la misma suma en centésimas (CAL-1B07). P-05 (a): por puntos dentro de la categoría. Redistribución y "Sin categoría" fuera (CAL-T-48). De categorías a puntos (CAL-T-52). Umbral sobre el redondeado: 69.995 → 70, fuera de riesgo (CAL-T-53). S-04: constantes, y el inscrito tarde cuenta las vencidas anteriores (CAL-T-51). S-08 y T-01: una calificada sin entrega cuenta en el promedio y no como vencida (CAL-1B01 y CAL-T-48). Nada se guarda. |
+| **RN-06** propiedad | **Sí** | Gradebook: `protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" })`, así que entran los maestros de la clase y el admin en cualquier clase, y el maestro ajeno o una clase inexistente reciben `403 SIN_ACCESO_A_LA_CLASE`, sin oráculo por la validación (CAL-T-57). "Mis calificaciones": `roles: ["estudiante"], pertenencia: "inscripcion"`, y el alumno sale de `perfilDe(request).id`. |
+| Capas y cadena de middleware | **Sí** | `core/` no cambia de dependencias (el paso 0 solo agrega `formaInalcanzable`). El adaptador importa de `core/` y nunca al revés. Prisma y SQL viven solo en `adapters/db/calificaciones.ts`: tres `$queryRaw` etiquetados, sin `Unsafe`. Los handlers son delgados y no comparan rol ni relación (CAL-1B08 y CAL-T-69). |
+| Consultas sanas | **Sí** | El número de sentencias es fijo: 7 y 9 en el gradebook, 4 y 5 en "Mis calificaciones" (CAL-1B04, y CAL-T-55 con seis tamaños). Las listas tienen tope (50 × 50 y 100). Los cursores se comprueban por llave y la página va por conjunto de claves (regla T-18). `EXPLAIN` sin recorrido secuencial sobre `entregas` ni `tareas` (mi verificación del resumen). |
+| Instantánea única | **Sí** | `instantaneaUnica: true` en las dos lecturas, con las sentencias en serie. La distinguen CAL-1B03, dos casos, y CAL-T-32 a CAL-T-41, con el control negativo en READ COMMITTED (CAL-T-42), que con la tarea movida de categoría da `ERROR_INTERNO`. N-24 queda resuelta. |
+| `lint`, `build` y `test` en verde | **Sí** | Tabla de arriba: los tres paquetes, de uno en uno. |
+| Pruebas de autorización de los dos endpoints | **Sí** | CAL-1B06 cubre la tabla de "Autorización" completa en las dos rutas. CAL-T-56 a CAL-T-58, CAL-T-65 y CAL-T-66 cubren `HEAD`, el maestro ajeno con consultas inválidas, `:claseId` mal formado o en mayúsculas, el alumno dado de baja (`403`) y el desactivado (`401`). |
+| Migración | **No aplica** | `backend/prisma` sin cambios. |
+| `infra/` y `.env.example` | **No aplica** | Sin cambios. Los umbrales son constantes (S-04). |
+| Documentos | **Pendientes de A-6 de 01b** | Textos literales abajo. `adapters/README.md` y `handlers/README.md` ya están actualizados (paso 4 y N-21). |
+
+**Estilo (`CLAUDE.md`):** el estilo se respeta:
+- **Retornos tempranos:** el paso 0 aplanó `calificacionDe`, y las formas imposibles lanzan `ERROR_INTERNO` en vez de inventar un valor.
+- **Valores por defecto:** los `??` de `calificaciones.ts` son ausencias legítimas (sin fila, sin calificadas o sin vencidas).
+- **Errores tipados:** se lanzan en el adaptador, y el handler no lleva `try/catch`.
+- **Pendiente:** los dos `if` anidados de N-22 quedan para el `chore`.
+
+### Hallazgos del tester
+La ronda 1 de 01b terminó **RESISTE con 0 hallazgos**: no hay nada que corregir ni que arbitrar. Revisé sus 38 casos por categoría en el reporte. CAL-T-42, el control negativo, es la prueba más valiosa de la subentrega: demuestra que sin la instantánea la tarea movida de categoría sería un `500` real.
+
+### Documentos a actualizar (textos literales; los aplica el orquestador con A-6 tal cual, después de este APROBADO)
+Cada fragmento viejo existe una sola vez en su documento, en el árbol actual (`grep -c -F` = 1). Los rótulos de `ARCHITECTURE.md` siguen a A-1 a A-5 de 01a y se llaman ARQ-6 y ARQ-7, para no confundirlos con la autorización A-6. Lo que describe la interfaz (la sección "Calificaciones" de la clase y las filas de `CLAUDE.md`) espera a 01c y 01d (N-26). **`CLAUDE.md` no cambia en 01b:** sus cambios son de `frontend/` (filas `tareas` y `calificaciones`, "Ubicaciones compartidas"), y su lista de dominios del backend ya incluye `calificaciones`. `DESIGN.md` tampoco cambia: 01b no tiene interfaz.
+
+**E-5. `docs/ARCHITECTURE-ESSENTIALS.md`, "Reglas de negocio que tocan código" (línea 115).** Es el texto de mi revisión final de 01a; agrego una oración al final por S-04/R-13, que el humano aceptó y CAL-T-51 comprueba. Reemplazar la viñeta literal
+> `- Alumno en riesgo: promedio < 70 % o ≥ 3 tareas vencidas sin entregar.`
+
+por
+> `` - Alumno en riesgo: promedio < 70 % o ≥ 3 tareas vencidas sin entregar. Los umbrales son constantes de `core/` hasta que exista la configuración (RF-56), y el promedio que se compara es el redondeado que se muestra. "Vencidas sin entregar" son las tareas de la clase con la fecha límite pasada y sin entrega `entregado` ni `calificado` del alumno: una calificada sin entrega no cuenta, porque su calificación ya pesa en el promedio. Cuentan también las que vencieron antes de que el alumno se inscribiera, como en "Trabajo de clase" (S-04) (CALIFICACIONES-01). ``
+
+**ARQ-6. `docs/ARCHITECTURE.md`, "Reglas de acceso a datos" (línea 425).** Es el texto del plan, ajustado a lo implementado: el gradebook hace dos `GROUP BY` y "Mis calificaciones", uno. Reemplazar la viñeta literal
+> `- **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan.`
+
+por
+> `` - **Promedios, gradebook, alumnos en riesgo y KPIs se calculan con consultas agregadas**, no se guardan. El gradebook lee en una sola instantánea, con dos `GROUP BY` sobre toda la clase: lo calificado por alumno y categoría, y las vencidas sin entregar por alumno. "Mis calificaciones" lee con uno: lo calificado del alumno por categoría, por `entregas_alumno_id_idx`. Los dos aplican las mismas funciones de `core/calificaciones/` sobre la misma suma, así que el porcentaje de un alumno es el mismo en las dos vistas (CALIFICACIONES-01). ``
+
+**ARQ-7. `docs/ARCHITECTURE.md` §7, fila `calificaciones` (línea 236).** Es el texto del plan, ajustado a lo implementado: los límites, quién entra, qué no sale y los valores de `estado`. Reemplazar el fragmento literal del final de la fila
+> `` · `GET /clases/{id}/gradebook` · `GET /me/calificaciones` | ``
+
+por
+> `` · `GET /clases/{claseId}/gradebook?cursor=&limite=&cursorTareas=&limiteTareas=` (los maestros de la clase y el admin, en cualquier clase. Alumnos × tareas por ventanas: de 1 a 50 alumnos (25) con el cursor del roster, y de 1 a 50 tareas (20) en orden `(fecha_limite DESC, id DESC)`. Cada fila trae sus celdas, su porcentaje, sus vencidas sin entregar y sus motivos de riesgo. El resumen (modo, total de alumnos, promedio de la clase y alumnos en riesgo) es de toda la clase, no de la página. Nunca trae el correo, el estado de pago, la restricción, el rol ni la `version`) · `GET /clases/{claseId}/mis-calificaciones?estado=&cursor=&limite=` (solo el alumno inscrito, y siempre el de la sesión. `estado` = `todas`, `asignadas`, `entregadas`, `calificadas` o `sin-entregar`; de 1 a 100 tareas (20). Cada página trae la calificación general con su desglose por categorías. Sin `version`, sin el promedio de la clase y sin nada de otro alumno) (CALIFICACIONES-01) | ``
+
+**PRD-1. `docs/PRD.md`, RF-17 (línea 89).** Reemplazar el fragmento literal
+> `(todo, asignado, entregado, calificado, sin entregar) | M |`
+
+por
+> `(todo, asignado, entregado, calificado, sin entregar). Solo las calificaciones propias, con el desglose del cálculo de RF-18; sin el promedio de la clase ni datos de otros alumnos (CALIFICACIONES-01) | M |`
+
+El plan proponía además «En la sección "Calificaciones" de la clase». Esa frase describe la interfaz de 01d y se agrega al cerrar 01d (N-26).
+
+**PRD-2. `docs/PRD.md`, RF-36 (línea 109).** Es el texto del plan. Reemplazar el fragmento literal
+> `dejar comentario privado y publicar la calificación | M |`
+
+por
+> `dejar comentario privado y publicar la calificación. Publicar es devolver: el alumno ve la calificación en cuanto se guarda; el comentario va a los comentarios privados de la entrega. Se puede recalificar (CALIFICACIONES-01) | M |`
+
+**PRD-3. `docs/PRD.md`, RN-05 (líneas 190 y 192).** Es el texto del plan, con el ajuste de (c′) de mi revisión final de 01a y la regla de T-01 en "Alumno en riesgo". Son dos reemplazos.
+
+(a) Reemplazar la viñeta literal
+> `- Una clase sin categorías califica por puntos. Con categorías, toda tarea nueva o editada lleva una; una tarea sin categoría no cuenta en la calificación general hasta asignarle una (TAREAS-01).`
+
+por estas dos viñetas, en dos líneas (la primera queda igual):
+> `- Una clase sin categorías califica por puntos. Con categorías, toda tarea nueva o editada lleva una; una tarea sin categoría no cuenta en la calificación general hasta asignarle una (TAREAS-01).`
+> `- Dentro de una categoría, por puntos. Una tarea con entregas calificadas no cambia sus puntos ni su rúbrica. Se puede calificar a quien no entregó solo con la entrega cerrada: la fecha límite vencida en una tarea que no acepta entregas con retraso (CALIFICACIONES-01).`
+
+(b) Reemplazar el fragmento literal
+> `(Umbrales iniciales, ajustables en configuración.)`
+
+por
+> `(Umbrales iniciales, ajustables en configuración; constantes hasta que exista la configuración, RF-56. Una tarea calificada sin entrega no cuenta como vencida sin entregar; CALIFICACIONES-01.)`
+
+**PRD-4. `docs/PRD.md` §11, "Supuestos tomados" (línea 285; Enmienda 1, N-09).** Es el texto del plan. Reemplazar la viñeta literal
+> `- Umbrales de "alumno en riesgo" de RN-05.`
+
+por
+> `- Umbrales de "alumno en riesgo" de RN-05: promedio menor a 70 % o 3 o más tareas vencidas sin entregar, como constantes hasta que exista la configuración (RF-56) (CALIFICACIONES-01).`
+
+**EST-1. `docs/ESTADO.md` §3, fila «Para CALIFICACIONES: los ids de los criterios… y la regla de P-01 para el cálculo» (línea 293).** Esta fila se cierra en 01b. En la columna "Destino", reemplazar el fragmento literal
+> `` La regla de P-01 para el cálculo (`core/calificaciones/general.ts`, con pruebas) la usan las lecturas de 01b: se cierra ahí ``
+
+por
+> `` **Regla de P-01 para el cálculo resuelta en CALIFICACIONES-01b (2026-10-13):** el gradebook y "Mis calificaciones" calculan con `calificacionGeneral` (`core/calificaciones/general.ts`). Una clase sin categorías califica por puntos y, con categorías, una tarea "Sin categoría" no cuenta (CAL-1B01, CAL-1B05, CAL-T-48 y CAL-T-52). Fila cerrada ``
+
+**EST-2. `docs/ESTADO.md` §3, fila de N-14 y N-15 (línea 276).** Se resolvió en el paso 0 de 01b. Reemplazar el fragmento literal
+> `| CALIFICACIONES-01b, primer paso del programador, declarado en su resumen |`
+
+por
+> `` | **Resuelta en CALIFICACIONES-01b (2026-10-13), paso 0:** `formaInalcanzable()` (`ERROR_INTERNO`) en las tres ramas inalcanzables y `calificacionDe` con guardas, sin cambio de comportamiento; las pruebas de 01a pasan sin cambios | ``
+
+**EST-3. `docs/ESTADO.md` §3, dos filas nuevas.** Van inmediatamente después de la fila que empieza con `| N-19 de CALIFICACIONES-01a (O-r1-2 del tester)`:
+> `` | N-22 de CALIFICACIONES-01b: dos `if` anidados sin aplanar, hermanos de N-15: `adapters/db/entregas.ts:844-847` (hilo privado, ENTREGAS-01) y `core/calificaciones/calificar.ts:132-138` (`criterios.length === 0`, 01a). Aplanarlos con guardas, sin cambio de comportamiento | El `chore` posterior a CALIFICACIONES-01 (el mismo de S-15) | `revision.md` de CALIFICACIONES-01, "Verificación del resumen — CALIFICACIONES-01b" | ``
+> `` | N-23 de CALIFICACIONES-01b: `DeprecationWarning: Calling client.query() when the client is already executing a query` de `pg` en la suite del backend (uno por proceso de trabajo de Vitest; 14 al inicio del encargo, 18 a 19 desde 01a; anterior a 01b). `pg@9` quitará ese comportamiento. Localizar quién encadena consultas sobre el mismo cliente, con `--trace-deprecation` | Antes de actualizar `pg` a 9 o `@prisma/adapter-pg` a una versión mayor | ídem, y "Revisión final — CALIFICACIONES-01b" | ``
+
+En los bloques entre dos acentos graves dobles (E-5, ARQ-6, ARQ-7, EST-1, EST-2 y EST-3), lo que se aplica es el texto de dentro, sin el espacio de cada extremo; en los de un solo acento grave, el texto de dentro.
+
+**Errata.** No hay errata del plan en 01b.
+
+### Problemas que bloquean
+Ninguno (sin `M-nn`).
+
+### Observaciones abiertas y su destino (lista cerrada)
+| Id | Qué | Estado y destino |
+|---|---|---|
+| N-21 | Lista de usuarios de la instantánea única en `adapters/README.md` y corte del comentario de `handlers/calificaciones.ts` | **Resuelta** en "01b — N-21". Cotejada arriba. |
+| N-22 | Dos `if` anidados: `entregas.ts:844-847` y `calificar.ts:132-138` | Pendiente para el `chore` posterior a CALIFICACIONES-01 (EST-3). |
+| N-23 | `DeprecationWarning` de `pg`: 19 en mi corrida, uno por proceso, anterior a 01b | Pendiente «antes de actualizar `pg` a 9» (EST-3). |
+| N-24 | Los casos de cursor borrado de CAL-1B03 no distinguían la instantánea | **Resuelta por el tester** en la ronda 1: CAL-T-32 a CAL-T-41 la distinguen, y CAL-T-42 (control negativo en READ COMMITTED) prueba que sin ella fallarían, uno con `ERROR_INTERNO`. Sin acción. |
+| N-25 | La lista de "fuera" del resumen de 01b omitía ESSENTIALS | El resumen de N-21 tampoco nombra ESSENTIALS en "fuera" (dice «las mismas rutas»). Lo comprobé yo y está vacío contra `216c1b5`. Sin acción; queda para el próximo resumen. |
+| N-19 | Texto de `409 TAREA_CON_ENTREGAS` con solo calificadas sin entrega | Sigue para el humano al cierre del encargo (`ESTADO.md` §3). 01b no lo toca. |
+| S-16/R-07 | Desplegar juntos frontend y backend; no revertir el backend a antes de 01a con calificaciones | **01b no suma nada.** Las dos rutas son nuevas: no cambia ninguna respuesta existente ni el esquema, y ningún frontend las consume todavía. Revertir solo 01b no rompe la base. La fila DEPLOY queda como está. |
+| **N-26** | Lo que describe la interfaz no va en los documentos de 01b: «En la sección "Calificaciones" de la clase» de RF-17 (texto del plan) y las filas de `CLAUDE.md` | Al cerrar 01d (RF-17 y la fila `calificaciones` de `CLAUDE.md`) y 01c (fila `tareas` y "Ubicaciones compartidas"), con los textos del plan. |
+| **N-27** | Las dos corridas rojas del frontend que tuvo el programador en la implementación de 01b (tiempos de espera; los 27 archivos pasaban solos) no se reprodujeron: mis dos corridas de 01b salieron en verde a la primera (134 s y 160 s) y ningún archivo de `frontend/` cambió en 01b | Sin acción en 01b. Si se repite en 01c o 01d, se trata como PA-12 (rojo intermitente) con la carga del equipo anotada. |
+
+### Riesgos residuales de 01b
+1. **Agregados sobre toda la clase en cada petición (R-03).** Cada página y cada ventana del gradebook repite los dos `GROUP BY` de la clase completa: recorrer 4 ventanas de tareas son 4 agregados iguales. Es correcto (el resumen no depende de la página, CAL-T-49) y barato con decenas de alumnos, pero el costo crece con alumnos × tareas calificadas. DEPLOY lo mide. Si una clase llega a cientos de alumnos, la salida es una vista materializada, que es una decisión de ESSENTIALS.
+2. **`EXPLAIN` con pocos datos.** El del programador usó 79 823 entregas sintéticas y el mío una base casi vacía (sin `ANALYZE`). Con estadísticas reales, el planificador puede elegir otra cosa. El orden `(fecha_limite DESC, id DESC)` usa `tareas(clase_id, fecha_limite)` y desempata por `id` en memoria. Si DEPLOY ve un ordenamiento caro, el índice `(clase_id, fecha_limite DESC, id DESC)` ya está propuesto en el plan ("Acceso a datos").
+3. **Tope de ventanas.** El máximo por petición es 50 × 50 = 2500 celdas, con una sola consulta `IN` de hasta 50 tareas y 50 alumnos, y 100 tareas en "Mis calificaciones". La respuesta queda acotada. La conexión queda ocupada durante 7 a 9 sentencias en REPEATABLE READ, y con el pool lleno la respuesta es `503 SERVICIO_OCUPADO`, como cualquier lectura con instantánea única.
+4. **`modo` por puntos o por categorías.** Lo decide la existencia de categorías en la instantánea. Cuando una clase pasa de puntos a categorías (o al revés), cambian a la vez todos los porcentajes, el promedio y el riesgo, y una tarea "Sin categoría" empieza o deja de contar (CAL-T-52). Es la regla de P-01 de TAREAS-01, pero el maestro lo verá como un salto. Entre páginas de "Mis calificaciones", `general` puede cambiar si llega una calificación o cambian las categorías (R-09): la vista de 01d muestra el de la última página.
+5. **Inscrito tarde (S-04/R-13, aceptado por el humano).** Cuentan las vencidas anteriores a su alta, así que puede entrar "En riesgo" el día que se inscribe (CAL-T-51). Queda escrito en E-5.
+6. **N+1 interno de Prisma.** CAL-1B04 y CAL-T-55 cuentan llamadas del adaptador, no sentencias SQL reales (el tester lo declaró). Hoy Prisma resuelve `categoria` y `publicacion` por lotes. Un cambio de versión de Prisma que lo hiciera por fila no lo vería ninguna prueba. Es un riesgo bajo y compartido con todas las lecturas anidadas del proyecto.
+
+### Métricas de 01b
+- **Rondas del tester:** 1 (RESISTE), **0 extra**. La ronda 0 no cuenta.
+- **Resúmenes del programador devueltos:** **0 de 2** (implementación y N-21).
+- **PARADAS:** **0**.
+- **Hermanos y estados vecinos:** no hubo correcciones de hallazgos. El único hermano declarado (el `if` del hilo privado) y el que agregué (`calificar.ts:132-138`) van a N-22.
+- **Regla del programador (decisión del humano, 2026-10-05):** 01b no suma rondas extra por hermanos ni por estados vecinos. El `programador` sigue en `sonnet` para 01c.
+
+### Desacuerdos arbitrados
+Ninguno nuevo en 01b. El de `calificar.ts:132-138` ya quedó resuelto en la verificación del resumen (N-22).
+
+### Para el humano
+- **N-19** sigue pendiente para el cierre del encargo. No hace falta decidirlo ahora.
+- No hay decisiones nuevas de producto ni de arquitectura en 01b.
+
+### Veredicto
+**APROBADO CON OBSERVACIONES.** 01b cumple el plan, solo el plan y todo el plan de la subentrega:
+- **Lo implementado:** las dos lecturas en una instantánea única, el cálculo de `core/` en los dos lados, la cadena de "Autorización" y nada del estado de pago ni de otro alumno.
+- **Verificación:** `lint`, `test` y `build` de los tres paquetes, y `prisma validate`, en verde en mi corrida. Las 183 `*.ataque` están intactas y "No se toca" está vacío.
+- **Observaciones:** N-22, N-23, N-26 y N-27 tienen destino. N-19 sigue para el humano.
+- **Siguiente paso:** el orquestador aplica E-5, ARQ-6, ARQ-7, PRD-1 a PRD-4 y EST-1 a EST-3 tal cual, y entrega al humano el bloque de commit de 01b.

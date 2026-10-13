@@ -166,3 +166,13 @@ claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna 
   con un id nuevo por publicación y datos `{ entregaId, tareaId, claseId, version }`; el comentario de
   devolución no tiene aviso propio (S-11). Responde `200` con la entrega del alumno, su calificación y la
   versión nueva.
+  En 01b suma dos lecturas, sin escrituras ni avisos. `GET /clases/:claseId/gradebook`, con
+  `protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" })`: columnas, filas, celdas,
+  porcentaje, vencidas y motivos de riesgo de cada alumno de la página y el resumen de toda la clase
+  (`gradebookQuerySchema`: `cursor` y `limite` de alumnos, de 1 a 50 y 25 por defecto; `cursorTareas` y
+  `limiteTareas`, de 1 a 50 y 20 por defecto). `GET /clases/:claseId/mis-calificaciones`, con
+  `protegido({ roles: ["estudiante"], pertenencia: "inscripcion" })`: siempre el alumno de la sesión
+  (`perfilDe(request).id`; la ruta no lleva id de alumno), su calificación general y sus tareas con su
+  entrega, filtradas por `estado` (`todas`, `asignadas`, `entregadas`, `calificadas` o `sin-entregar`).
+  Las dos responden con esquemas estrictos de `shared/` y fechas en ISO 8601; nunca la versión, el
+  correo, el estado de pago, la restricción ni el rol.

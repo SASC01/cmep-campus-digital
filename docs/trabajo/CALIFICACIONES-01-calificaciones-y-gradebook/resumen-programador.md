@@ -195,3 +195,117 @@ Estados vecinos del mecanismo ("una prueba depende de otra"): orden normal, orde
 
 ### "No se toca"
 `git diff --stat d998282 -- <toda la lista del plan: AGENTS.md, CLAUDE.md, docs/ARCHITECTURE*.md, docs/PRD.md, .claude/agents, infra, los .env.example, los package.json y package-lock.json, middleware, adapters/auth, notifier, storage, live, config, workers, worker.ts, server.ts, los adapters/db listados, core/autoria.ts, core/concurrencia.ts, core/entregas, core/tareas, core/clases, handlers/clases, handlers/adjuntos.ts, validacion.ts, errores.ts, test/setup.ts, test/global-setup.ts, y en frontend services, providers.tsx, styles, components/ui, layout, adjuntos, lib, vitest.config.ts, features/auth, admin y diagnostico>` → **vacío**. En `handlers/tareas/` solo cambia `entregas.ts` (A-2, de la implementación de 01a; no lo toqué en esta vuelta). No toqué ninguna `*.ataque` ni ayuda compartida.
+
+## 01b — implementación
+
+Plan: `docs/trabajo/CALIFICACIONES-01-calificaciones-y-gradebook/plan.md` (LISTO; P-03 en (c′), S-01, S-04 como está). Base de "No se toca": `<K1a>` = `216c1b599e1e63e77ad01f1283f504478eb64796` dentro de los paquetes y `<R>` = `d998282` fuera. Pasos completados: paso 0 y 4 de 4. Ninguna PARADA. Ninguna `*.ataque` tocada (V-01: 179 de 179 iguales a la tabla "al cierre de la ronda 0 de 01b", `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$'`, `diff` vacío).
+
+### Paso 0 (N-14 y N-15/N-20), cambio mínimo
+- `backend/src/core/calificaciones/calificar.ts`: una privada nueva `formaInalcanzable()` = `AppError("ERROR_INTERNO", "La calificación no corresponde a la rúbrica de la tarea.", 500)`, que reemplaza los tres valores inventados de `decidirCalificacion`: `calificacionDirecta ?? Number.NaN` → `if (calificacionDirecta === null) throw formaInalcanzable()`; `maximoDe.get(...) ?? 0` → `if (maximo === undefined) throw formaInalcanzable()`; `puntosDe.get(...) ?? 0` → el `map` lanza si es `undefined`. Las tres son inalcanzables después de `formaCorresponde`.
+- `backend/src/adapters/db/entregas.ts`, `calificacionDe`: el `if` anidado pasa a `const conCalificacion = …`, `if (no calificado && conCalificacion) throw errorEntregaMalFormada()`, `if (no calificado) return null`. Misma lógica.
+- Pruebas de 01a: ninguna cambió. `npx vitest run src/core/calificaciones test/calificaciones-estatico.test.ts test/calificaciones-lecturas-estatico.test.ts test/lecturas-fx-r1.ataque.test.ts test/bloqueo-usuario.integracion.test.ts test/sesiones-y-cadena.ataque.test.ts` → `Tests  129 passed (129)` (8 archivos), y la suite completa en verde (abajo).
+
+### Pruebas requeridas → archivo y título exacto
+- **CAL-1B01** → `backend/test/gradebook.integracion.test.ts`: «CAL-1B01: columnas en orden (fecha_limite DESC, id DESC), celdas en el orden de las columnas, porcentaje por categorías, vencidas, motivos y el resumen de toda la clase sin dados de baja ni desactivados»; «CAL-1B01: el resumen y los datos de cada fila no dependen de la página que se pide»; «CAL-1B01: una clase sin categorías califica por puntos (modo puntos) y la tarea vencida hace una hora cuenta como vencida sin entregar». La calificada sin entrega es `calificado`, `conRetraso: false`, con su calificación, y no cuenta como vencida sin entregar (Ana: 0 vencidas).
+- **CAL-1B02** → mismo archivo: «CAL-1B02: las filas siguen el cursor del roster y un cursor inexistente responde 400»; «CAL-1B02: las ventanas de tareas resuelven los empates de fecha límite por id sin repetir ni saltar tareas; un cursorTareas de otra clase o inexistente responde 400»; «CAL-1B02: límites fuera de rango o que no son números responden 400 (filas de 1 a 50, tareas de 1 a 50)».
+- **CAL-1B03** → `backend/test/calificaciones-lecturas-consistentes.integracion.test.ts`: «CAL-1B03: gradebook con la tarea de cursorTareas borrada entre su comprobación y la ventana devuelve las tareas que siguen»; «CAL-1B03: gradebook con el alumno del cursor borrado entre su comprobación y la página devuelve los alumnos que siguen»; «CAL-1B03: «Mis calificaciones» con la tarea del cursor borrada entre su comprobación y la página devuelve las tareas que siguen»; «CAL-1B03: una calificación que llega después de leer las celdas no cambia el porcentaje, el riesgo ni el resumen de esa misma respuesta»; «CAL-1B03: en «Mis calificaciones», una calificación que llega después de leer las entregas no cambia la calificación general de esa respuesta».
+- **CAL-1B04** → mismo archivo: «CAL-1B04: leerGradebook y leerMisCalificaciones hacen las mismas sentencias con 2 y con 30 alumnos y con 2 y con 30 tareas» (cuatro tamaños: 2×2, 30×2, 2×30 y 30×30; la lista exacta de llamadas: 7 del gradebook, 9 con los dos cursores, 4 de "Mis calificaciones").
+- **CAL-1B05** → `backend/test/mis-calificaciones.integracion.test.ts`: «CAL-1B05: general es el cálculo de core/ sobre lo calificado de la alumna (con la calificada sin entrega y sin lo del compañero)»; «CAL-1B05: los cinco filtros, con tareas vencidas y por vencer, entregadas a tiempo y con retraso, y calificadas con y sin entrega»; «CAL-1B05: el cursor recorre cada filtro sin repetir ni saltar, sirve aunque su tarea no pase el filtro, y uno de otra clase o inexistente responde 400»; «CAL-1B05: límites (1 a 100) y filtros desconocidos responden 400»; «CAL-1B05: el compañero ve solo lo suyo: sus calificaciones y su general, nunca las de la alumna». Cada respuesta se comprueba sin `version`.
+- **CAL-1B06** → `backend/test/calificaciones-lecturas-autorizacion.integracion.test.ts`: «CAL-1B06: gradebook: sin token 401, estudiante 403, maestro ajeno y clase inexistente 403 SIN_ACCESO_A_LA_CLASE, cambio pendiente 403, maestro y admin 200, todo sin fuga»; «CAL-1B06: «Mis calificaciones»: sin token 401, maestro y admin 403 (rol), no inscrito 403 SIN_ACCESO_A_LA_CLASE, restringido 403 ACCESO_RESTRINGIDO, cambio pendiente 403; el inscrito 200, todo sin fuga».
+- **CAL-1B07** → `backend/test/gradebook.integracion.test.ts`: «CAL-1B07: el porcentaje de cada alumno en «Mis calificaciones» es el de su fila del gradebook».
+- **CAL-1B08** → `backend/test/calificaciones-lecturas-estatico.test.ts`: «CAL-1B08: adapters/db/calificaciones.ts no escribe ni bloquea filas (ni create, update, delete, upsert ni SQL de escritura)»; «CAL-1B08: su SQL es etiquetado y sin Unsafe (tres consultas: los dos agregados y las vencidas), y no hay consultas dentro de ciclos»; «CAL-1B08: nombra «instantaneaUnica: true» exactamente 2 veces, en código (leerGradebook y leerMisCalificaciones)»; «CAL-1B08: handlers/calificaciones.ts registra las dos lecturas con su cadena exacta»; «CAL-1B08: las respuestas nuevas de shared/ son z.strictObject»; «CAL-1B08 (§D-0.9): ningún comentario de los archivos nuevos o cambiados de backend/src en 01b nombra las palabras que leen en crudo las listas estáticas».
+- **C-1** (`sesiones-y-cadena.ataque`) y **C-4** (`lecturas-fx-r1.ataque`) pasan a verde (en la corrida completa).
+
+### Conteos
+- Backend: `npx vitest list --json` (longitud del arreglo) → 2579 casos; `npx vitest list | grep -c ""` → 2579; `npx vitest list --filesOnly | grep -c ""` → 212 archivos. Antes (cierre de 01a y ronda 0 de 01b): 2553 en 207. **+26 casos en 5 archivos nuevos** (`npx vitest list <archivo> | grep -c ""`): `gradebook.integracion` 7, `mis-calificaciones.integracion` 5, `calificaciones-lecturas-consistentes.integracion` 6, `calificaciones-lecturas-autorizacion.integracion` 2, `calificaciones-lecturas-estatico` 6. Más un archivo de ayudas nuevo sin casos (`test/ayudas-gradebook.ts`).
+- Frontend: `npx vitest list --json` → 2536 casos; `--filesOnly` → 166 archivos (sin cambio; `npx vitest list | grep -c ""` da 2539 líneas porque hay títulos que ocupan más de una línea).
+
+### Verificación (comando exacto y última línea; una suite a la vez, Docker Desktop encendido)
+| Paquete | Comando | Última línea |
+|---|---|---|
+| shared | `cd shared; npm run lint` | `All matched files use Prettier code style!` |
+| shared | `cd shared; npm run build` | `> tsc -p tsconfig.json` (código 0) |
+| backend | `cd backend; npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (código 0; antes, `All matched files use Prettier code style!`) |
+| backend | `cd backend; npm run test` | `Duration  181.27s (…)`; resumen `Test Files  212 passed (212)` · `Tests  2579 passed (2579)` (código 0) |
+| backend | `cd backend; npm run build` | `> tsc -p tsconfig.json` (código 0) |
+| backend | `cd backend; npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` |
+| frontend | `cd frontend; npm run lint` | `> tsc -b` (código 0) |
+| frontend | `cd frontend; npm run test` (3.ª corrida) | `Duration  126.10s (…)`; resumen `Test Files  166 passed (166)` · `Tests  2536 passed (2536)` (código 0) |
+| frontend | `cd frontend; npm run build` | `✓ built in 1.47s` (código 0) |
+
+- **Inventarios del backend** (`grep -o … | wc -l` sobre la salida completa): `"Error no controlado"` 10, `"code":"P2028"` 5, `40P01` 0 (además `deadlock detected` 0 y `Test timed out` 0). Son los 10 / 5 / 0 de I-1.
+- **Frontend, corridas 1 y 2 en rojo por carga, no por el cambio:** la 1.ª tardó 634.77 s (`Test Files  27 failed | 139 passed (166)`, `Tests  37 failed | 2499 passed (2536)`) y la 2.ª 310.60 s (`15 failed | 151 passed`, `21 failed | 2515 passed`). Todos los rojos son `findBy…` que no encuentran el elemento o `Test timed out in 15000ms`, y los 15 archivos de la 2.ª estaban entre los 27 de la 1.ª. Los 27 archivos juntos, sin nada más: `Test Files  27 passed (27)` · `Tests  348 passed (348)` en 22.49 s. La 3.ª corrida completa sale en verde (tabla). Ningún archivo de `frontend/` cambió y `shared/` solo suma exportaciones que el frontend no importa. Durante esas corridas no corría ninguna otra suite mía; en el equipo había procesos `node` ajenos, que no toqué.
+- **Observación sin verificar contra la base:** la salida del backend trae 19 `DeprecationWarning: Calling client.query() when the client is already executing a query` de `pg`. Mis cinco archivos nuevos, corridos solos, no emiten ninguno; no lo comparé contra una corrida de `<K1a>`.
+
+### Archivos nuevos y cambiados, por capa
+- `shared/`: `src/calificaciones.ts` (los esquemas de 01b de §D-11: `motivoDeRiesgoSchema`, `desgloseDeCategoriaSchema`, `calificacionGeneralSchema`, `columnaDelGradebookSchema`, `celdaDelGradebookSchema`, `filaDelGradebookSchema`, `resumenDelGradebookSchema`, `gradebookRespuestaSchema`, `gradebookQuerySchema`, `filtroDeMisCalificacionesSchema`, `misCalificacionesQuerySchema`, `tareaDeMisCalificacionesSchema`, `misCalificacionesRespuestaSchema` y sus tipos; las respuestas son `z.strictObject`; importa además de `enlaces-registro.ts` y `entregas.ts`, sin ciclo); `src/index.ts` (reexporta por nombre).
+- `core/`: `calificaciones/calificar.ts` (paso 0).
+- `adapters/`: `db/calificaciones.ts` (nuevo: `leerGradebook`, `leerMisCalificaciones` y sus tipos `…Db`; tres `$queryRaw` etiquetados y parametrizados, los de §D-6.5, §D-6.6 y §D-7.4); `db/index.ts` (reexporta); `db/entregas.ts` (paso 0); `README.md` (sección nueva de 01b).
+- `handlers/`: `calificaciones.ts` (los dos `GET`, con `protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" })` y `protegido({ roles: ["estudiante"], pertenencia: "inscripcion" })`; la fecha límite a ISO 8601; el alumno es `perfilDe(request).id`); `README.md`. `app.ts` no cambia (el plugin ya estaba registrado desde 01a).
+- Pruebas: los 5 archivos nuevos de arriba y `test/ayudas-gradebook.ts` (nuevo; las ayudas compartidas no se tocan).
+- **E6** (`backend/test/bloqueo-usuario.integracion.test.ts`, lista cerrada de 01b): el bloque de comentario de `:677-686` suma la línea «CALIFICACIONES-01b: calificaciones.ts (los agregados del gradebook y de "Mis calificaciones").»; el título pasa a «E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts y calificaciones.ts usan SQL etiquetado en adapters/db»; la lista ordenada suma `"calificaciones.ts"` después de `"bloqueo-usuario.ts"`. Nada más.
+
+### "No se toca"
+- Dentro de los paquetes: `git diff --stat 216c1b599e1e63e77ad01f1283f504478eb64796 -- backend/src/middleware backend/src/adapters/auth backend/src/adapters/notifier backend/src/adapters/storage backend/src/adapters/live backend/src/config backend/src/workers backend/src/worker.ts backend/src/server.ts backend/src/adapters/db/cliente.ts backend/src/adapters/db/errores.ts backend/src/adapters/db/referencias.ts backend/src/adapters/db/bloqueo-clase.ts backend/src/adapters/db/inscripciones.ts backend/src/adapters/db/publicaciones.ts backend/src/adapters/db/archivos.ts backend/src/adapters/db/temas.ts backend/src/adapters/db/categorias.ts backend/src/adapters/db/tareas.ts backend/src/core/autoria.ts backend/src/core/concurrencia.ts backend/src/core/entregas backend/src/core/tareas backend/src/core/clases backend/src/handlers/clases backend/src/handlers/tareas backend/src/handlers/adjuntos.ts backend/src/handlers/validacion.ts backend/src/handlers/errores.ts backend/src/app.ts backend/prisma backend/test/setup.ts backend/test/global-setup.ts backend/test/ayudas-auth.ts backend/test/ayudas-clases.ts backend/test/ayudas-tareas.ts backend/test/ayudas-entregas.ts backend/test/ayudas-concurrencia.ts backend/test/ayudas-calificaciones.ts frontend/src frontend/vitest.config.ts backend/package.json frontend/package.json shared/package.json backend/.env.example frontend/.env.example` → vacío.
+- Fuera: `git diff --stat d998282 -- AGENTS.md CLAUDE.md docs/ARCHITECTURE.md docs/PRD.md .claude/agents infra package.json package-lock.json` → solo `docs/ARCHITECTURE.md | 12 ++++++------`, que es el A-6 del orquestador confirmado en `<K1a>`: `git diff --stat 216c1b5 -- docs/ARCHITECTURE.md docs/ARCHITECTURE-ESSENTIALS.md` está vacío y sus SHA-256 (`f868938f…2cb3` y `f47574dd…d47f`) son los que anota `aprobacion.md`. `docs/PRD.md`, `AGENTS.md`, `CLAUDE.md`, `.claude/agents`, `infra/` y los `package*.json`, sin cambio.
+
+### §D-0.9 y `instantaneaUnica: true`
+- `for f in backend/src/adapters/db/calificaciones.ts backend/src/adapters/db/index.ts backend/src/adapters/db/entregas.ts backend/src/core/calificaciones/calificar.ts backend/src/handlers/calificaciones.ts; do grep -nE '^\s*//.*(COMENTARIO_CREADO|AVISO_FALLIDO|PUBLICACION_CREADA|MATERIAL_CREADO|colaDePublicacion|DELETE FROM|TRUNCATE|REPEATABLE READ|RepeatableRead|Serializable|instantaneaUnica: true)' $f; done; grep -nE '^\s*//.*(enTransaccion|instantaneaUnica|isolationLevel)' backend/src/core/calificaciones/calificar.ts backend/src/handlers/calificaciones.ts` → salida vacía. Lo mismo comprueba el último caso de CAL-1B08.
+- `grep -c "instantaneaUnica: true" backend/src/adapters/db/calificaciones.ts` → `2` (en código, en `leerGradebook` y `leerMisCalificaciones`; ninguna en comentarios).
+
+### EXPLAIN (PA-04 no aplica)
+Corrido una vez contra la base desechable de Testcontainers, con un archivo y una configuración de Vitest en el scratchpad (fuera del repositorio): 200 clases, 4000 alumnos, 5000 tareas, 79 823 entregas y 4000 inscripciones, con `ANALYZE`. **Ningún `Seq Scan` sobre `entregas` ni `tareas`.**
+- §D-6.5 (agregado de la clase): `Index Only Scan using inscripciones_pkey` → `Index Scan using entregas_alumno_id_idx` (filtro `estado`) → `Bitmap Index Scan on tareas_clase_id_fecha_limite_idx` → `Index Scan using usuarios_pkey`.
+- §D-6.6 (vencidas): `inscripciones_pkey` → `Bitmap Index Scan on tareas_clase_id_fecha_limite_idx` (`clase_id` y `fecha_limite < ahora`) → `Index Scan using entregas_tarea_id_alumno_id_key` (anti-join) → `usuarios_pkey`.
+- §D-7.4 (agregado del alumno): `Bitmap Index Scan on tareas_clase_id_fecha_limite_idx` e `Index Scan using entregas_alumno_id_idx`.
+- Página de tareas con cursor (SQL equivalente al que arma Prisma: `(fecha_limite < f) OR (fecha_limite = f AND id < c)`, `ORDER BY fecha_limite DESC, id DESC LIMIT 21`): `BitmapOr` de dos `Bitmap Index Scan on tareas_clase_id_fecha_limite_idx`, con `Sort` de las filas de la clase.
+- Filtros de "Mis calificaciones" (`NOT EXISTS` y `EXISTS`): `tareas_clase_id_fecha_limite_idx` y `entregas_alumno_id_idx`. Celdas: `inscripciones_pkey`, `entregas_alumno_id_idx` y `tareas_clase_id_fecha_limite_idx`.
+- Es el plan de esos datos sintéticos (cada alumno en una sola clase), no el de producción; las sentencias de Prisma se aproximaron con SQL equivalente.
+
+### Desviaciones del plan y decisiones fuera de lo literal
+- Ninguna desviación. Decisiones menores, para que el manager las juzgue: (1) el filtro de "Mis calificaciones" combina el cursor y el filtro con `AND: [keyset, filtro]`, porque los dos pueden traer `fechaLimite`; (2) una celda o una entrega `calificado` sin calificación (o al revés) lanza `ERROR_INTERNO` (inalcanzable por `entregas_calificacion_segun_estado`), igual que una tarea sin título; (3) las celdas y las entregas de la página no se consultan si la página o la ventana están vacías (como `listarEntregasCon`); (4) el `modo` del resumen sale de `calificacionGeneral` con las categorías de la clase, para no repetir la regla; (5) los mensajes de cursor son `"cursorTareas: no es válido"` y `"cursor: no es válido"` (`400 VALIDACION`, §D-6.1 y §D-7.1).
+- En la primera versión de CAL-1B06 puse mal el código del rol (`PERMISO_DENEGADO`; el middleware responde `ROL_NO_PERMITIDO`) y usé "Alumno Deudor" como nombre, que la propia regla de fuga detectó (`deudor`). Corregí la prueba (el código real y el nombre "Alumno Saldo"), sin tocar la regla.
+
+### Hermanos del paso 0 y estados vecinos
+- **N-14, valores inventados en ramas inalcanzables:** los tres de `decidirCalificacion`, corregidos. Revisados y **sin aplicar**, porque no son ramas inalcanzables sino ausencias legítimas: `general.ts:118, 124, 131` (`?? VACIA`: una categoría sin agregados suma cero) y, en el archivo nuevo, `agregados.get(id) ?? SIN_AGREGADOS` (alumno sin calificaciones), `vencidas.get(id) ?? 0` (sin vencidas: el SQL solo trae alumnos con al menos una) y `entregaDe.get(…) ?? SIN_ENTREGA` (sin fila es `asignado`, §D-6.3 y §D-7.3). `escalarALaTarea` ya lanzaba `ERROR_INTERNO`.
+- **N-15, `if` anidado:** `calificacionDe`, corregido. Hermano con el mismo patrón, **no aplicado** porque es código de ENTREGAS-01 fuera de lo que pide N-15 (cambio mínimo): `adapters/db/entregas.ts:844-847`, en la lectura del hilo privado (`if (entrega === null) { if (cursor !== undefined) throw …; return … }`). Lo decide el manager. `calificar.ts:132-138` (`if (criterios.length === 0) { guarda; return }`) no es un `if/else` anidado: es una rama con su guarda y su retorno, con la misma estructura de 01a.
+- **Estados de `calificacionDe` tras el cambio:** sin calificar y sin calificación → `null`; sin calificar con calificación o con fecha → `500`; calificada con las dos → la calificación; calificada sin una de las dos → `500`. Son los mismos cuatro de antes.
+
+### Pendiente o fuera de alcance detectado
+- `adapters/README.md` (cerca de la línea 165) enumera quién usa la instantánea única y está desactualizado desde ENTREGAS-01 (no nombra `tareas.ts` ni `entregas.ts`, ni ahora `calificaciones.ts`). No lo toqué; la sección nueva lo dice para 01b.
+- El hermano de N-15 en `entregas.ts:844-847` (arriba).
+- Los 19 `DeprecationWarning` de `pg` en la salida del backend, sin comparar contra `<K1a>`.
+- La matriz de avisos no aplica (sin interfaz).
+
+## 01b — N-21
+Solo texto y comentarios: ningún cambio de código, de pruebas ni de `*.ataque`.
+
+### Diff resumido
+- `backend/src/adapters/README.md` (sección de `enTransaccion`, la frase final de `{ instantaneaUnica: true }`): «Hoy la usan `listarClasesAdmin`, `listarClasesInscritas`, `listarClasesImpartidas`, `leerClase`, `listarPublicaciones` y `listarComentarios`.» pasa a nombrar las catorce, agrupadas por archivo: `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` (`db/clases.ts`); `listarPublicaciones` y `listarComentarios` (`db/publicaciones.ts`); `leerTarea` y `listarTrabajo` (`db/tareas.ts`); `leerMiEntrega`, `listarEntregas`, `leerEntregaDeAlumno` y `listarHiloPrivado` (`db/entregas.ts`), y `leerGradebook` y `leerMisCalificaciones` (`db/calificaciones.ts`). Los nombres salen de la función exportada que contiene cada aparición del grep de abajo.
+- `backend/src/handlers/calificaciones.ts:45-46`: la línea que cortaba en «(S-01: el» se reacomoda a mano (sin formateador): «… (S-01: el admin lee la calificación en la» / «entrega de un alumno y no califica). Ningún handler verifica rol,». El texto no cambia.
+- El README está fuera de `adapters/db/` y no es `.ts`: C-4 (`lecturas-fx-r1.ataque.test.ts:758`) solo lee archivos `\.(ts|mts|cts|js|mjs)$` de `src` y cuenta `instantaneaUnica: true` solo en `adapters/db/`. No agregué esa cadena en ningún comentario de `adapters/db/`.
+
+### `instantaneaUnica: true` por archivo de `adapters/db`
+`grep -rn "instantaneaUnica: true" backend/src/adapters/db/` (todas en código, ninguna en comentarios):
+- `calificaciones.ts`: 2 (349 `leerGradebook`, 441 `leerMisCalificaciones`)
+- `clases.ts`: 4 (206 `leerClase`, 296 `listarClasesImpartidas`, 358 `listarClasesInscritas`, 422 `listarClasesAdmin`)
+- `entregas.ts`: 4 (281 `leerMiEntrega`, 718 `listarEntregas`, 765 `leerEntregaDeAlumno`, 883 `listarHiloPrivado`)
+- `publicaciones.ts`: 2 (254 `listarPublicaciones`, 339 `listarComentarios`)
+- `tareas.ts`: 2 (197 `leerTarea`, 707 `listarTrabajo`)
+Total 14 en 5 archivos, lo que espera C-4.
+
+### §D-0.9
+El mismo grep de la sección de 01b (los cinco archivos cambiados de `backend/src` y el de `enTransaccion|instantaneaUnica|isolationLevel` en `calificar.ts` y `handlers/calificaciones.ts`) → salida vacía.
+
+### Verificación (en `backend/`, una a la vez, Docker Desktop encendido)
+- `npm run lint` → código 0; última línea `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- `npm run test` → código 0; `Test Files  216 passed (216)` · `Tests  2617 passed (2617)`. Inventarios sobre la salida: `grep -c "Error no controlado"` 10, `grep -c P2028` 5, `grep -c 40P01` 0.
+- `npm run build` → código 0; última línea `> tsc -p tsconfig.json`.
+- `npx vitest list` → 2617 líneas (casos), 216 archivos distintos (`sed 's/ >.*//' | sort -u | wc -l`).
+
+### "No se toca"
+- `git diff --stat 216c1b599e1e63e77ad01f1283f504478eb64796 -- <las mismas rutas de la sección "No se toca" de 01b>` → vacío.
+- `git diff --stat 216c1b5… -- '*.ataque.test.ts'` → los mismos 2 archivos de la corrección C-n del tester ya registrada (`lecturas-fx-r1` y `sesiones-y-cadena`); este cambio no tocó ninguna.
+
+### Hermanos
+- Otras enumeraciones de quién usa una opción de `enTransaccion` en el mismo README: la de `{ maxWait }` («Hoy solo la usan `registrarMaestroConEnlace` y `revocarEnlaceRegistro`») la verifiqué con `grep -rn "maxWait" backend/src --include=*.ts` (fuera de `cliente.ts` y `generated/`): solo `enlaces-registro.ts:128` (`revocarEnlaceRegistro`) y `:204` (`registrarMaestroConEnlace`), así que está al día y el remedio no le aplica. No encontré otras enumeraciones de usuarios de `enTransaccion`.

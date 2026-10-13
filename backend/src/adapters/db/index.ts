@@ -179,3 +179,15 @@ export {
   type MiEntregaDb,
   type PuntajeDeCriterioDb,
 } from "./entregas.js"
+export {
+  leerGradebook,
+  leerMisCalificaciones,
+  type CeldaDelGradebookDb,
+  type ColumnaDelGradebookDb,
+  type EntregaResumidaDb,
+  type FiltroDeMisCalificacionesDb,
+  type FilaDelGradebookDb,
+  type GradebookDb,
+  type MisCalificacionesDb,
+  type TareaDeMisCalificacionesDb,
+} from "./calificaciones.js"

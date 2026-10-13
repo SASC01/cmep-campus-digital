@@ -42,6 +42,17 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
   // otra recarga (de fondo, de otra mutación) toca lo escrito ni la versión de apertura.
   const [reinicios, setReinicios] = useState(0)
   const hayTarea = consulta.data !== undefined
+  // O-r1-2 (cierre de ENTREGAS-01): si al abrir la edición la tarea en caché se está recargando (por
+  // ejemplo, alguien la movió de tema y subió su versión), el formulario espera esa primera lectura y
+  // nace con la versión fresca; si no, un 409 diría "otra persona" y se perdería lo escrito. Solo la
+  // primera: las recargas posteriores no desmontan ni reinician el formulario (§D-8.3, key={reinicios}).
+  // Si esa lectura falla, se sigue como en cualquier recarga fallida (aviso, o el error que reemplaza la
+  // vista).
+  const [esperaLaLecturaFresca, setEsperaLaLecturaFresca] = useState(
+    () => hayTarea && consulta.isFetching && consulta.isStale,
+  )
+  if (esperaLaLecturaFresca && !consulta.isFetching) setEsperaLaLecturaFresca(false)
+  const esperando = esperaLaLecturaFresca && consulta.isFetching
   // M-01: con la tarea en caché, una recarga fallida (que no sea 404) no cambia la vista: se avisa.
   useAvisoDeRecargaFallida(
     claseId,
@@ -60,7 +71,7 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
       return <MensajeError mensaje={mensajeDeErrorTareas(consulta.error)} />
     }
 
-    if (consulta.isLoading || !consulta.data) {
+    if (consulta.isLoading || !consulta.data || esperando) {
       return <Cargando texto={TEXTOS_DETALLE_TAREA.cargando} />
     }
 
@@ -71,9 +82,7 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
     }
 
     // La versión es la de apertura que guarda el formulario, nunca la de consulta.data al enviar.
-    const handleGuardar = async (datos: CrearTarea, version: number | null) => {
-      // Inalcanzable: al editar, el formulario siempre nace de una tarea con su versión.
-      if (version === null) return
+    const handleGuardar = async (datos: CrearTarea, version: number) => {
       await editar.mutateAsync({ ...datos, version })
       navigate(detalle)
     }
@@ -97,6 +106,7 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
         cancelarA={detalle}
         pendiente={editar.isPending}
         onGuardar={handleGuardar}
+        version={tarea.version}
         onConflicto={recargarTrasConflicto}
         enfocarAlMontar={reinicios > 0}
       />

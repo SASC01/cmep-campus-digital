@@ -1044,3 +1044,143 @@ describe("PR-1D04: el foco tras dos fallos seguidos de distinto tipo (T-15)", ()
     window.dispatchEvent(new Event("focus"))
   })
 })
+
+// Cierre de ENTREGAS-01 (O-r1-2): al abrir la edición con la tarea en caché que se está recargando, el
+// formulario espera esa primera lectura y nace con la versión fresca. Reloj fijo.
+describe("abrir la edición con la tarea en caché (cierre de ENTREGAS-01, O-r1-2)", () => {
+  const AHORA = new Date("2030-01-10T12:00:00.000Z")
+  const AVISO = "No pudimos actualizar la tarea. Puedes seguir editando; revisa tu conexión."
+  const claveDeLaTarea = ["clases", CLASE_ID, "tareas", TAREA_ID] as const
+
+  const diferido = () => {
+    let resolver: (respuesta: Response) => void = () => undefined
+    const promesa = new Promise<Response>((r) => {
+      resolver = r
+    })
+    return { promesa, resolver }
+  }
+
+  // Un cliente con la tarea ya en caché en su versión 0 (como si se hubiera abierto el detalle antes).
+  const clienteConCache = (staleTime: number) => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime } } })
+    cliente.setQueryData(claveDeLaTarea, tareaConId())
+    return cliente
+  }
+
+  const lecturasDeLaTarea = (llamadas: Llamada[]) =>
+    llamadas.filter(({ metodo, url }) => metodo === "GET" && url.endsWith(`/tareas/${TAREA_ID}`))
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(AHORA)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("O-r1-2: con la caché vieja en recarga, muestra «Cargando la tarea…» hasta la lectura fresca y el formulario guarda con la versión nueva", async () => {
+    const lectura = diferido()
+    const { llamadas } = stubApi({
+      alVer: () => respuestaJson(200, tareaConId()),
+    })
+    const fetchConEspera = vi.mocked(fetch)
+    const original = fetchConEspera.getMockImplementation()
+    fetchConEspera.mockImplementation((entrada, init) => {
+      const url = String(entrada)
+      if ((init?.method ?? "GET") === "GET" && url.endsWith(`/tareas/${TAREA_ID}`)) {
+        llamadas.push({ metodo: "GET", url, cuerpo: undefined })
+        return lectura.promesa
+      }
+      if (original === undefined) throw new Error("Precondición: stubApi instaló fetch")
+      return original(entrada, init)
+    })
+    renderEditar({ cliente: clienteConCache(0) })
+    expect(await screen.findByText("Cargando la tarea…")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Título")).toBeNull()
+
+    lectura.resolver(respuestaJson(200, tareaConId({ version: 3, titulo: "Ensayo movido" })))
+    expect(await screen.findByLabelText("Título")).toHaveValue("Ensayo movido")
+    expect(lecturasDeLaTarea(llamadas)).toHaveLength(1)
+    guardar()
+    await waitFor(() => expect(guardados(llamadas)).toHaveLength(1))
+    expect(guardados(llamadas)[0]?.cuerpo).toMatchObject({ version: 3 })
+  })
+
+  it("O-r1-2: con la caché fresca no espera ni pide la tarea: el formulario nace con la versión de la caché", async () => {
+    const { llamadas } = stubApi()
+    renderEditar({ cliente: clienteConCache(30_000) })
+    expect(await screen.findByLabelText("Título")).toHaveValue("Ensayo final")
+    expect(screen.queryByText("Cargando la tarea…")).toBeNull()
+    expect(lecturasDeLaTarea(llamadas)).toEqual([])
+    guardar()
+    await waitFor(() => expect(guardados(llamadas)).toHaveLength(1))
+    expect(guardados(llamadas)[0]?.cuerpo).toMatchObject({ version: 0 })
+  })
+
+  it("O-r1-2: si la lectura fresca falla con un 5xx, avisa una vez y el formulario nace con lo que hay en caché", async () => {
+    stubApi({
+      alVer: () => respuestaJson(500, { error: { codigo: "ERROR_INTERNO", mensaje: "x" } }),
+    })
+    renderEditar({ cliente: clienteConCache(0) })
+    expect(await screen.findByLabelText("Título")).toHaveValue("Ensayo final")
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledWith(AVISO))
+    expect(aviso.error).toHaveBeenCalledTimes(1)
+  })
+
+  it("O-r1-2: si la lectura fresca responde 404, la vista dice «Esa tarea ya no existe.» sin montar el formulario", async () => {
+    stubApi({
+      alVer: () =>
+        respuestaJson(404, {
+          error: { codigo: "TAREA_NO_ENCONTRADA", mensaje: "Esa tarea ya no existe." },
+        }),
+    })
+    renderEditar({ cliente: clienteConCache(0) })
+    expect(await screen.findByText("Esa tarea ya no existe.")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Título")).toBeNull()
+  })
+
+  it("O-r1-2: sin caché, el «Cargando la tarea…» de siempre y después el formulario", async () => {
+    stubApi()
+    renderEditar()
+    expect(screen.getByText("Cargando la tarea…")).toBeInTheDocument()
+    expect(await screen.findByLabelText("Título")).toHaveValue("Ensayo final")
+  })
+
+  it("O-r1-2: una recarga de fondo después de montar no desmonta el formulario ni cambia lo escrito", async () => {
+    let version = 0
+    stubApi({
+      alVer: () => respuestaJson(200, tareaConId({ version, titulo: `v${String(version)}` })),
+    })
+    const cliente = renderEditar()
+    const titulo = await screen.findByLabelText("Título")
+    fireEvent.change(titulo, { target: { value: "Lo que escribí" } })
+    version = 5
+    vi.setSystemTime(new Date(AHORA.getTime() + 1000))
+    await act(() => cliente.invalidateQueries({ queryKey: claveDeLaTarea }))
+    expect(screen.queryByText("Cargando la tarea…")).toBeNull()
+    expect(screen.getByLabelText("Título")).toBe(titulo)
+    expect(titulo).toHaveValue("Lo que escribí")
+  })
+
+  it("O-r1-2: después de esperar la lectura fresca, un 409 TAREA_MODIFICADA sigue avisando y recargando la tarea", async () => {
+    let guardo = false
+    const { llamadas } = stubApi({
+      alVer: () => respuestaJson(200, tareaConId({ version: guardo ? 4 : 3 })),
+      alGuardar: () => {
+        guardo = true
+        return respuestaJson(409, {
+          error: { codigo: "TAREA_MODIFICADA", mensaje: "Otra persona guardó cambios." },
+        })
+      },
+    })
+    renderEditar({ cliente: clienteConCache(0) })
+    await screen.findByLabelText("Título")
+    guardar()
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledWith("Otra persona guardó cambios."))
+    await waitFor(() => expect(lecturasDeLaTarea(llamadas)).toHaveLength(2))
+    expect(guardados(llamadas)[0]?.cuerpo).toMatchObject({ version: 3 })
+    expect(await screen.findByLabelText("Título")).toBeInTheDocument()
+    expect(screen.queryByText("Cargando la tarea…")).toBeNull()
+  })
+})

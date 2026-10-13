@@ -1606,3 +1606,91 @@ Contra la "Tabla de SHA-256 de las 174 `*.ataque` al cierre de la ronda 1 de 01e
 
 - Toqué tres archivos que no están en la lista de 01e del plan (ver "Aviso para el orquestador" arriba).
 - El manejador sale del gancho existente `useAvisoDeRecargaFallida` en lugar de un gancho nuevo. Ningún componente usa `useQueryClient` directamente.
+
+
+# Resumen del programador — ENTREGAS-01 — Carril trivial de cierre (O-r1-2 y N-03)
+
+Base: `37fcf93`. Solo cambia el frontend.
+
+## Cambios exactos
+
+### O-r1-2 (`frontend/src/features/tareas/editar-tarea-view.tsx`)
+
+- Estado nuevo:
+  ```ts
+  const [esperaLaLecturaFresca, setEsperaLaLecturaFresca] = useState(() => hayTarea && consulta.isFetching && consulta.isStale)
+  ```
+  El inicializador perezoso solo se evalúa en el primer montaje.
+- `if (esperaLaLecturaFresca && !consulta.isFetching) setEsperaLaLecturaFresca(false)`: el estado guardado del render anterior se corrige en el mismo render.
+- `const esperando = esperaLaLecturaFresca && consulta.isFetching`.
+- La rama de carga pasa a ser `if (consulta.isLoading || !consulta.data || esperando)` y muestra `Cargando` con "Cargando la tarea…".
+- `key={reinicios}` y `recargarTrasConflicto` no cambian. No hay ganchos nuevos.
+
+### N-03 (`components/formulario-tarea.tsx`, `editar-tarea-view.tsx`, `crear-tarea-view.tsx`)
+
+- `FormularioTareaProps<Version extends number | null>` y `CamposDelFormularioProps<Version>` son genéricos, y también las funciones `FormularioTarea` y `CamposDelFormulario`.
+- `onGuardar: (datos: CrearTarea, versionDeApertura: Version) => Promise<void>`.
+- Prop nueva `version: Version`. El inicializador perezoso pasa a ser `useState(() => version)` y sigue tomando la versión al montar (§D-8.2).
+- La edición pasa `version={tarea.version}` y su `handleGuardar` recibe `version: number`. Se quitó el `if (version === null) return`.
+- La creación pasa `version={null}`; su manejador no cambia.
+- Solo esas dos vistas montan `FormularioTarea`, así que ninguna prueba cambia por la prop.
+
+### `docs/DESIGN.md` §7.21
+
+Viñeta nueva "Lectura fresca al abrir", con la marca "propuesta (ENTREGAS-01 trivial)".
+
+## Pruebas nuevas
+
+En `frontend/src/features/tareas/editar-tarea-view.test.tsx`, describe "abrir la edición con la tarea en caché (cierre de ENTREGAS-01, O-r1-2)". Reloj fijo: `vi.useFakeTimers({ toFake: ["Date"] })`.
+
+1. "O-r1-2: con la caché vieja en recarga, muestra «Cargando la tarea…» hasta la lectura fresca y el formulario guarda con la versión nueva"
+2. "O-r1-2: con la caché fresca no espera ni pide la tarea: el formulario nace con la versión de la caché"
+3. "O-r1-2: si la lectura fresca falla con un 5xx, avisa una vez y el formulario nace con lo que hay en caché"
+4. "O-r1-2: si la lectura fresca responde 404, la vista dice «Esa tarea ya no existe.» sin montar el formulario"
+5. "O-r1-2: sin caché, el «Cargando la tarea…» de siempre y después el formulario"
+6. "O-r1-2: una recarga de fondo después de montar no desmonta el formulario ni cambia lo escrito"
+7. "O-r1-2: después de esperar la lectura fresca, un 409 TAREA_MODIFICADA sigue avisando y recargando la tarea"
+
+Comprobé que el remedio es necesario: quité la condición `esperando` y corrí `-t "O-r1-2"`. Fallaron los casos 1 y 7 (`Tests  2 failed | 5 passed | 50 skipped (57)`). Restauré el archivo y volví a correr.
+
+**Pruebas normales cambiadas:** ninguna. Las de la vista de edición siguen pasando sin tocarlas: abren sin caché o con la caché recién cargada.
+
+## Hermanos y estados vecinos
+
+| Estado | Comportamiento | Prueba |
+|---|---|---|
+| Primera apertura con caché fresca | Sin espera ni lectura; versión de la caché | 2 |
+| Caché vieja en recarga | "Cargando la tarea…" y luego el formulario con la versión fresca | 1 |
+| Caché en recarga que falla (5xx o red) | Un aviso de recarga fallida y el formulario con lo que hay | 3 |
+| Caché en recarga con un error que reemplaza la vista | "Esa tarea ya no existe." | 4 |
+| Sin caché | El "Cargando la tarea…" de siempre | 5 |
+| Recarga de fondo después de montar | No desmonta ni reinicia; lo escrito se queda | 6 |
+| `409 TAREA_MODIFICADA` después del remedio | Avisa y recarga (`recargarTrasConflicto`), sin volver a "Cargando" | 7, más `conflicto-01a.test.tsx` en verde |
+| Creación | No aplica: no hay tarea en caché. Solo recibe `version={null}` | suite completa en verde |
+| StrictMode (doble montaje) | El inicializador vuelve a evaluar con el mismo resultado de la consulta; sin efectos | suite (T-12 con StrictMode) en verde |
+
+## Conteos
+
+`cd frontend; npx vitest list`: **2536 casos en 166 archivos**. Antes: 166 / 2529. Diferencia: +7 casos y 0 archivos, todos en `editar-tarea-view.test.tsx` (50 → 57, por `grep -c`).
+
+## Verificación (de uno en uno)
+
+| Comando | Última línea |
+|---|---|
+| `cd shared; npm run build` | `> tsc -p tsconfig.json` (código 0) |
+| `cd frontend; npm run lint` | `> tsc -b` (código 0) |
+| `cd frontend; npm run test` (salida a archivo) | `Test Files  166 passed (166)` · `Tests  2536 passed (2536)` · `Duration  106.39s (transform 28.49s, setup 68.08s, import 226.85s, tests 480.12s, environment 318.32s)` |
+| `cd frontend; npm run build` | `✓ built in 982ms` |
+
+## V-01
+
+Contra la "Tabla de SHA-256 de las 175 `*.ataque` al cierre de la ronda 2 de 01e": **175/175 coinciden**.
+
+## "No se toca"
+
+- **Dentro, contra `37fcf93`:** **vacío**. Rutas revisadas: `services`, `app`, `styles`, `components`, `lib`, `features/clases`, `features/auth`, `features/admin`, `features/diagnostico`, `vitest.config.ts`, `backend`, `shared` y `package*.json`.
+- **Fuera:** `AGENTS.md` aparece modificado en el árbol (+4 −1). No lo toqué yo: es un cambio posterior a `37fcf93` que hay que atribuir. `CLAUDE.md`, `.claude`, `infra`, `ARCHITECTURE*` y `PRD.md` están vacíos contra `37fcf93`.
+
+## Desviaciones
+
+Ninguna.

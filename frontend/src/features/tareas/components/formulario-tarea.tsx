@@ -47,7 +47,9 @@ import type {
 import { EditorDeRubrica } from "./editor-de-rubrica"
 import { ListaDeAdjuntosPublicados } from "./lista-de-adjuntos-publicados"
 
-interface FormularioTareaProps {
+// N-03 (cierre de ENTREGAS-01): el tipo de la versión de apertura es `number` al editar y `null` al
+// crear; así la edición recibe siempre una versión y no necesita comprobarlo.
+interface FormularioTareaProps<Version extends number | null> {
   claseId: string
   // La tarea que se edita; null al crear.
   tarea: TareaDetalle | null
@@ -57,7 +59,9 @@ interface FormularioTareaProps {
   // Envía el cuerpo (con sus archivoIds) y navega al terminar; si falla, rechaza y el formulario marca
   // el campo del error. El aviso de los demás errores lo da el hook de la mutación. La versión es la
   // de la tarea con que se abrió el formulario (null al crear; ENTREGAS-01a, P-05 a′).
-  onGuardar: (datos: CrearTarea, versionDeApertura: number | null) => Promise<void>
+  onGuardar: (datos: CrearTarea, versionDeApertura: Version) => Promise<void>
+  // La versión de la tarea que se edita (null al crear). El formulario la guarda al montar.
+  version: Version
   // ENTREGAS-01a (§D-8.3.3): ante 409 TAREA_MODIFICADA, la vista de edición recarga la tarea y reinicia
   // el formulario. Mientras tanto la guarda sigue marcada y "Guardar cambios" sigue en espera.
   onConflicto?: () => Promise<void>
@@ -65,22 +69,25 @@ interface FormularioTareaProps {
   enfocarAlMontar?: boolean
 }
 
-interface CamposDelFormularioProps extends FormularioTareaProps {
+interface CamposDelFormularioProps<
+  Version extends number | null,
+> extends FormularioTareaProps<Version> {
   categorias: readonly Categoria[]
   temas: readonly Tema[]
 }
 
-function CamposDelFormulario({
+function CamposDelFormulario<Version extends number | null>({
   claseId,
   tarea,
   cancelarA,
   pendiente,
   onGuardar,
+  version,
   onConflicto,
   enfocarAlMontar = false,
   categorias,
   temas,
-}: CamposDelFormularioProps) {
+}: CamposDelFormularioProps<Version>) {
   const solicitar = useSolicitarSubida(claseId)
   const idBase = useId()
   const [escrito, setEstado] = useState<EstadoDelFormulario>(() =>
@@ -88,7 +95,7 @@ function CamposDelFormulario({
   )
   // ENTREGAS-01a (P-05 a′, §D-8.2): la versión nace con el estado, al montar, y ninguna recarga
   // posterior la cambia: se edita sobre la versión con que se abrió (DESIGN.md §7.21).
-  const [versionDeApertura] = useState(() => (tarea === null ? null : tarea.version))
+  const [versionDeApertura] = useState(() => version)
   // T-08: la categoría o el tema elegidos que ya no están en la lista de la clase (porque se pidió de
   // nuevo tras un 404) dejan el campo en su opción vacía; el navegador nunca conserva en silencio una
   // opción que ya no existe.
@@ -566,7 +573,9 @@ function CamposDelFormulario({
 // temas de la clase (error → cargando → formulario). Valida con el mismo esquema que el servidor
 // (cuerpoDeTarea) antes de enviar; los archivos se solicitan, se suben directo al almacén y solo
 // entonces se guarda la tarea con sus ids (los ya publicados que siguen, más los nuevos).
-export function FormularioTarea(props: FormularioTareaProps) {
+export function FormularioTarea<Version extends number | null>(
+  props: FormularioTareaProps<Version>,
+) {
   const categorias = useCategoriasDeLaClase(props.claseId)
   const temas = useTemasDeLaClase(props.claseId)
 

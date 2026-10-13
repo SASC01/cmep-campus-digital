@@ -1980,3 +1980,46 @@ Solo lo que las pruebas no ven. Los arrastres van dentro de los 7 puntos.
      - los ids de las pruebas requeridas llevan el prefijo del encargo (por ejemplo, `ENT-1D07`), porque los PR-1D de ENTREGAS chocaron con los de TAREAS-01d;
      - la lista cerrada de pruebas normales de cada subentrega sale de un grep hecho en el plan, por subentrega. Las Enmiendas 4 y 5 fueron por eso.
   3. **La copia del plan antes de cada enmienda (O-3)** ya está adoptada. Conviene escribirla en la regla de "Transcripción con cotejo".
+
+## Verificación del carril trivial de cierre — ENTREGAS-01 (O-r1-2 y N-03)
+Veredicto: **ACEPTADO**. El encargo puede cerrarse: commit de cierre y PR.
+
+### Mis corridas
+- **Cifras:** coinciden con el resumen.
+
+| Paso | Mi corrida | Resumen |
+|---|---|---|
+| `shared` build | código 0 | código 0 |
+| `frontend` lint | código 0 | código 0 |
+| `frontend` test | `Test Files  166 passed (166)` · `Tests  2536 passed (2536)` | 166 · 2536 |
+| `frontend` build | código 0 | código 0 |
+| `npx vitest list --json` | 2536 en 166, +7 en `editar-tarea-view.test.tsx` | ídem |
+
+- **Backend y `shared`:** sin cambios contra `37fcf93`.
+- **V-01: 175/175,** iguales a la tabla de la ronda 2 de 01e. Las `*.ataque` de 01a y 01d (`conflicto`, `tareas-01d-r1` a `-r4`) siguen en verde.
+- **"No se toca", dentro de los paquetes contra `37fcf93`:** solo cambian `formulario-tarea.tsx`, `crear-tarea-view.tsx`, `editar-tarea-view.tsx` y su prueba.
+- **Fuera de los paquetes,** con autorización del humano:
+  - **`AGENTS.md`:** suma exactamente las cuatro reglas y nada más; abajo, cómo quedaron.
+  - **`docs/DESIGN.md`:** 19 marcas "propuesta (ENTREGAS-01x)" pasaron a "propuesta aprobada (2026-10-12)". Antes no había ninguna; ahora hay 19. Es justo el número de marcas de mi revisión final. La única línea nueva es la viñeta "Lectura fresca al abrir" de §7.21, con la marca "propuesta (ENTREGAS-01 trivial)".
+
+### El trivial: solo O-r1-2 y N-03
+- **O-r1-2:** `esperaLaLecturaFresca` nace en el primer montaje solo si hay tarea en caché, está vieja (`isStale`) y se está recargando (`isFetching`). Se apaga para siempre en cuanto termina esa lectura.
+  - Las recargas posteriores no muestran "Cargando" ni desmontan nada.
+  - `key={reinicios}` y `recargarTrasConflicto` (§D-8.3 de la Enmienda 2) no cambiaron, y `conflicto-01a.test.tsx` sigue en verde.
+  - Si la lectura fresca falla, la vista sigue el camino de siempre: el aviso de recarga fallida o el error que reemplaza la vista.
+- **N-03:**
+  - `FormularioTarea` es genérico en `version` (`number | null`) y recibe la versión por prop, que solo lee el inicializador perezoso al montar.
+  - La edición pasa `tarea.version` y su `handleGuardar` recibe `number`, sin el no-op.
+  - "Crear tarea" pasa `version={null}` y se comporta igual: la versión no se envía al crear y la suite de crear sigue en verde.
+- **Hermanos y estados vecinos:** coinciden con el código. Son caché fresca, caché vieja en recarga, recarga que falla, error que reemplaza la vista, sin caché, recarga de fondo después de montar, `409` después del remedio, creación y StrictMode, y cada uno tiene su prueba o el ejemplo de la suite. Ninguno falta.
+- **Nada fuera de O-r1-2 y N-03.**
+
+### Las cuatro reglas de `AGENTS.md`: bien redactadas
+- **Ids con el prefijo del encargo** ("Reglas del equipo"): lo que propuse, con el ejemplo `ENT-1D07` y el motivo.
+- **Lista cerrada de pruebas normales por grep del arquitecto** ("Reglas del equipo"): concreta los tres tipos de búsqueda, que son llamadas directas a funciones con firma nueva, dobles de tipos que cambian y aserciones sobre textos que cambian. Nombra las Enmiendas 4 y 5 como motivo.
+- **Copia del plan antes de cada enmienda** (al final de "Transcripción con cotejo"): con el SHA-256 en `aprobacion.md` y el `git diff --no-index` del manager.
+- **Matriz de avisos y recargas** ("Resúmenes verificables"): desde el primer resumen de toda subentrega con interfaz, con disparadores (mutaciones, consultas, "Ver más" y descargas), clases de error y los estados "en vuelo" y "desmontada". El manager la contrasta antes del tester.
+- **Nada que corregir.**
+
+### Cierre
+Sin problemas que bloqueen ni nuevos N-nn. ENTREGAS-01 queda listo para el commit de cierre y el PR de `feat/entregas` a `main`, que decide el humano.

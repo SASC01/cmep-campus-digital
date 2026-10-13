@@ -150,14 +150,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // features/clases/components/ en 3 (admin, 2). Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 49 enEspera", () => {
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 55 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(49)
+    expect(usos).toHaveLength(55)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -226,7 +226,8 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       // enlace (muro-view.tsx sigue en 1). Sigue protegiendo que el número y el lugar de los botones
       // con espera cambien solo con el plan.
       "/src/features/tareas/components/formulario-tarea.tsx": 1,
-      "/src/features/tareas/components/acciones-de-la-tarea.tsx": 1,
+      // ENTREGAS-01e (C-12): acciones-de-la-tarea.tsx pasa de 1 a 2 ("Borrar con las entregas").
+      "/src/features/tareas/components/acciones-de-la-tarea.tsx": 2,
       "/src/features/clases/components/tarjeta-de-tarea.tsx": 0,
       "/src/features/tareas/components/editor-de-rubrica.tsx": 0,
       "/src/features/tareas/detalle-tarea-view.tsx": 0,
@@ -241,6 +242,30 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/categorias-view.tsx": 0,
       "/src/features/clases/components/elemento-de-trabajo.tsx": 0,
       "/src/features/clases/components/fila-de-entrega.tsx": 0,
+      // ENTREGAS-01d ronda 0 (C-11, §D-R0 «01d y 01e»; §D-9.1 a §D-9.6 del plan de ENTREGAS-01): de 49 a
+      // 53. Esperan "Entregar tarea" o "Marcar como completada" (un solo botón, §D-9.3), "Sí, anular
+      // entrega" (§D-9.4, en la entrega realizada) y, en el hilo, "Ver más comentarios" y "Enviar
+      // comentario" (§D-9.6). "Tu trabajo", el campo de enlaces, la lista de enlaces y la insignia
+      // del estado no llevan enEspera=. Sigue protegiendo que el número y el lugar de los botones con
+      // espera cambien solo con el plan.
+      "/src/features/tareas/components/formulario-de-entrega.tsx": 1,
+      "/src/features/tareas/components/entrega-realizada.tsx": 1,
+      "/src/features/tareas/components/hilo-privado.tsx": 2,
+      "/src/features/tareas/components/tu-trabajo.tsx": 0,
+      "/src/features/tareas/components/campo-de-enlaces.tsx": 0,
+      "/src/features/tareas/components/lista-de-enlaces.tsx": 0,
+      "/src/components/estado-entrega-badge.tsx": 0,
+      // ENTREGAS-01e ronda 0 (C-12, §D-R0 «01d y 01e»; §D-10.2 y §D-10.5 del plan de ENTREGAS-01): de
+      // 53 a 55. Esperan "Ver más alumnos" de la vista "Entregas" (en entregas-view.tsx, como el de
+      // los compañeros en personas-view.tsx; la tabla no lleva espera) y, en acciones-de-la-tarea.tsx,
+      // "Borrar con las entregas" junto a "Sí, borrar tarea" (§D-10.5.5, los dos con
+      // enEspera={borrar.isPending}). El panel "Entregas" (un enlace) y la vista de la entrega de un
+      // alumno (su hilo es HiloPrivado, ya contado) no llevan enEspera=. Sigue protegiendo que el
+      // número y el lugar de los botones con espera cambien solo con el plan.
+      "/src/features/tareas/entregas-view.tsx": 1,
+      "/src/features/tareas/components/tabla-de-entregas.tsx": 0,
+      "/src/features/tareas/entrega-de-alumno-view.tsx": 0,
+      "/src/features/tareas/components/panel-de-entregas.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

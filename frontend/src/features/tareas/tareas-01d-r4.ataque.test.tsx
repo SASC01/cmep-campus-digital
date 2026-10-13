@@ -25,6 +25,9 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const errorApi = (estado: number, codigo: string, mensaje: string) =>
   respuestaJson(estado, { error: { codigo, mensaje } })
 
+// ENTREGAS-01a ronda 0 (C-7, §D-R0 «01a»; §D-2.1, §D-2.2 y P-03 a / P-05 a′ del plan de ENTREGAS-01):
+// tareaDetalleSchema exige `version` y `requiereAdjuntos`. El doble suma la versión de una tarea recién
+// creada (0) y el valor por defecto de «Cómo se entrega» (true). Ninguna aserción cambia.
 const tareaDetalle = (titulo: string) => ({
   id: TAREA_ID,
   titulo,
@@ -32,6 +35,8 @@ const tareaDetalle = (titulo: string) => ({
   fechaLimite: "2030-01-15T16:00:00.000Z",
   puntos: 100,
   aceptaTardias: true,
+  version: 0,
+  requiereAdjuntos: true,
   categoria: null,
   tema: null,
   rubrica: [],

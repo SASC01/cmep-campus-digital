@@ -34,6 +34,7 @@ const estadoValido = (cambios: Partial<EstadoDelFormulario> = {}): EstadoDelForm
   categoriaId: "",
   temaId: "",
   aceptaTardias: true,
+  requiereAdjuntos: true,
   rubrica: [],
   ...cambios,
 })
@@ -139,6 +140,8 @@ const tareaDeEjemplo: TareaDetalle = {
   fechaLimite: "2026-10-06T20:30:00.000Z",
   puntos: 80,
   aceptaTardias: false,
+  requiereAdjuntos: true,
+  version: 0,
   categoria: { id: "22222222-2222-4222-8222-222222222222", nombre: "Examen", peso: 40 },
   tema: null,
   rubrica: [{ id: "33333333-3333-4333-8333-333333333333", criterio: "Claridad", puntosMax: 10 }],

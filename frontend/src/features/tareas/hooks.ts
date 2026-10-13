@@ -1,5 +1,13 @@
-import { sinContenidoSchema, tareaRespuestaSchema } from "@campus/shared"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  comentarioPrivadoRespuestaSchema,
+  entregaDeAlumnoRespuestaSchema,
+  listaComentariosPrivadosRespuestaSchema,
+  listaEntregasRespuestaSchema,
+  miEntregaRespuestaSchema,
+  sinContenidoSchema,
+  tareaRespuestaSchema,
+} from "@campus/shared"
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef, type RefObject } from "react"
 import { useLocation } from "react-router"
 import { toast } from "sonner"
@@ -22,9 +30,30 @@ import {
   OPCIONES_QUE_CAMBIARON_POR_CODIGO,
   TEXTOS_DETALLE_TAREA,
   TEXTOS_FORMULARIO_TAREA,
+  TEXTOS_TU_TRABAJO,
 } from "./data"
-import { erroresDeLaTareaDeApi, mensajeDeErrorTareas } from "./lib"
-import type { CrearTarea, FalloDeLaConsulta } from "./types"
+import {
+  claveEntregaDeAlumno,
+  claveHilo,
+  claveListaDeEntregas,
+  claveMiEntrega,
+  clavePrefijoDeEntregas,
+  errorDeEnlacesDeApi,
+  errorDeTextoDeApi,
+  erroresDeLaTareaDeApi,
+  esConflictoDeEntrega,
+  errorQueRedirigeElCliente,
+  errorQueReemplazaLaVista,
+  esEntregaVacia,
+  esTareaConEntregas,
+  mensajeDeErrorTareas,
+  rutaDeBorrarTarea,
+  rutaDeEntregaDeAlumno,
+  rutaDeMiEntrega,
+  rutaDePaginaDeEntregas,
+  rutaDePaginaDelHilo,
+} from "./lib"
+import type { CrearComentario, CrearTarea, EditarTarea, Entregar, FalloDeLaConsulta } from "./types"
 
 // §D-10 (Enmienda 4, C-13): el único lugar de features/tareas que llama a perspectivaDeRuta. Las tres
 // vistas lo usan para sus enlaces y su navegación; la perspectiva solo decide qué se muestra, el
@@ -86,6 +115,13 @@ const pedirDeNuevoLaTarea = async (
   error: unknown,
 ) => {
   if (!esApiError(error)) return
+  // ENTREGAS-01e (§D-10.3): en el hilo de un alumno, ALUMNO_NO_ENCONTRADO dice que su entrega ya no se
+  // puede ver: se vuelven a pedir las entregas de la tarea (la de ese alumno responde su 404 y la vista
+  // se reemplaza). Solo lo responden las rutas de los maestros y del admin.
+  if (error.codigo === "ALUMNO_NO_ENCONTRADO") {
+    await queryClient.invalidateQueries({ queryKey: clavePrefijoDeEntregas(claseId, tareaId) })
+    return
+  }
   if (!CODIGOS_QUE_RENUEVAN_LA_TAREA.includes(error.codigo)) return
   if (error.codigo === "TAREA_NO_ENCONTRADA") {
     await invalidarTrasCambiar(queryClient, claseId, tareaId)
@@ -120,7 +156,8 @@ export const useCrearTarea = (claseId: string) => {
 export const useEditarTarea = (claseId: string, tareaId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (datos: CrearTarea) =>
+    // ENTREGAS-01a (P-05 a′): el cuerpo lleva la versión con que se abrió el formulario.
+    mutationFn: (datos: EditarTarea) =>
       api(`/api/clases/${claseId}/tareas/${tareaId}`, {
         method: "PUT",
         body: datos,
@@ -139,11 +176,14 @@ export const useEditarTarea = (claseId: string, tareaId: string) => {
   })
 }
 
+// ENTREGAS-01e (§D-10.5.3, Enmienda 2): la variable de la mutación dice si se confirma borrar con las
+// entregas (solo la segunda confirmación del admin la manda en true). Un 409 TAREA_CON_ENTREGAS no
+// avisa: el mensaje va en línea, en la confirmación (un solo anuncio).
 export const useBorrarTarea = (claseId: string, tareaId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () =>
-      api(`/api/clases/${claseId}/tareas/${tareaId}`, {
+    mutationFn: (confirmarEntregas: boolean) =>
+      api(rutaDeBorrarTarea(claseId, tareaId, confirmarEntregas), {
         method: "DELETE",
         schema: sinContenidoSchema,
       }),
@@ -159,6 +199,7 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
     },
     onError: (error) => {
       void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
+      if (esTareaConEntregas(error)) return
       toast.error(mensajeDeErrorTareas(error))
     },
   })
@@ -192,6 +233,18 @@ export const useAvisoDeRecargaFallida = (
     }
     toast.error(texto)
   }, [activo, marca, texto, queryClient, claseId, tareaId])
+
+  // ENTREGAS-01e, ronda 1 (T-01): el error al descargar un adjunto en una vista de la tarea (la tarea,
+  // "Tu trabajo" o la entrega de un alumno), para `alFallarLaDescarga` de AdjuntosDePublicacion. Si
+  // apiClient ya redirigió, nada. Si no, la regla T-11 de las tareas (pedirDeNuevoLaTarea: un 404 de la
+  // tarea, un 403 de la clase o un 404 del alumno vuelven a pedir lo que reemplaza la vista) y un solo
+  // aviso por tarea perdida (avisarDelErrorDeLaEntrega), aunque otra petición en vuelo responda lo
+  // mismo. Los demás errores (archivo, almacén, 5xx, red) avisan como siempre.
+  return (error: unknown) => {
+    if (errorQueRedirigeElCliente(error)) return
+    void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
+    avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+  }
 }
 
 // T-09 y T-14 (DESIGN.md §7.14): si el control que tenía el foco desaparece porque una recarga cambió lo
@@ -261,3 +314,172 @@ export const useFocoAlPerderseElControl = (
     contenedorRef.current?.focus()
   }, [clave, contenedorRef])
 }
+
+// ENTREGAS-01d (§D-9.2 a §D-9.4). La entrega del alumno que llama: verla, entregar y anular. Los
+// avisos viven en el gancho (corren aunque la vista ya no esté montada). La respuesta de entregar y de
+// anular reemplaza la consulta de la entrega y "Trabajo de clase" se marca viejo (la fila del alumno
+// cambia de estado). Un 409 de la entrega avisa con el mensaje del servidor y vuelve a pedir la tarea y
+// la entrega (la vista cambia sola a lo que corresponda); un 404 de la tarea renueva la tarea (T-11).
+export const useMiEntrega = (claseId: string, tareaId: string) =>
+  useQuery({
+    queryKey: claveMiEntrega(claseId, tareaId),
+    queryFn: () => api(rutaDeMiEntrega(claseId, tareaId), { schema: miEntregaRespuestaSchema }),
+  })
+
+// ENTREGAS-01d, ronda 1 (T-01 y T-02): una sola regla para lo que se renueva tras un error al entregar,
+// al anular o al comentar en el hilo. Un 409 de la entrega dice que la que se ve ya no es la de ahora
+// (otra pestaña, el maestro la calificó, o cerró o cambió la tarea): se vuelven a pedir la tarea y su
+// entrega (la llave de la entrega cuelga de la de la tarea: una sola invalidación, una petición de cada
+// una) y "Trabajo de clase" se marca viejo (la fila del alumno dice el estado de su entrega). Un 404 de la
+// tarea, un 403 de la clase o un permiso que cambió siguen la regla de las tareas (T-11, con
+// CODIGOS_QUE_RENUEVAN_LA_TAREA). Los demás (ENTREGA_VACIA, VALIDACION, archivos, almacén, 5xx, red) no
+// renuevan nada: la entrega no cambió.
+const renovarTrasErrorDeLaEntrega = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  tareaId: string,
+  error: unknown,
+) => {
+  if (esConflictoDeEntrega(error)) {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: claveTarea(claseId, tareaId) }),
+      queryClient.invalidateQueries({ queryKey: clavePrefijoDelTrabajo(claseId) }),
+    ])
+    return
+  }
+  await pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
+}
+
+// ENTREGAS-01d, ronda 2 (T-05): un solo aviso por error aunque varias peticiones en vuelo respondan lo
+// mismo. Un error que reemplaza la vista (la tarea ya no existe, se perdió el acceso a la clase) se avisa
+// una vez por la tarea que se tenía: entregar, anular y comentar a la vez con el mismo 404 dan un aviso.
+// Lo avisado se guarda fuera del componente, por consulta de la tarea (la instancia de la caché), con la
+// fecha de sus datos: si la tarea vuelve a cargarse, un fallo nuevo vuelve a avisar (mismo mecanismo que
+// useAvisoDeRecargaFallida). Los demás errores avisan cada uno.
+const tareaPerdidaAvisada = new WeakMap<object, number>()
+
+const avisarDelErrorDeLaEntrega = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  tareaId: string,
+  error: unknown,
+) => {
+  const consulta = errorQueReemplazaLaVista(true, error)
+    ? queryClient.getQueryCache().find({ queryKey: claveTarea(claseId, tareaId), exact: true })
+    : undefined
+  if (consulta !== undefined) {
+    if (tareaPerdidaAvisada.get(consulta) === consulta.state.dataUpdatedAt) return
+    tareaPerdidaAvisada.set(consulta, consulta.state.dataUpdatedAt)
+  }
+  toast.error(mensajeDeErrorTareas(error))
+}
+
+export const useEntregar = (claseId: string, tareaId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: Entregar) =>
+      api(rutaDeMiEntrega(claseId, tareaId), {
+        method: "POST",
+        body: datos,
+        schema: miEntregaRespuestaSchema,
+      }),
+    onSuccess: (respuesta, datos) => {
+      queryClient.setQueryData(claveMiEntrega(claseId, tareaId), respuesta)
+      void queryClient.invalidateQueries({ queryKey: clavePrefijoDelTrabajo(claseId) })
+      const vacia = datos.archivoIds.length === 0 && datos.enlaces.length === 0
+      toast.success(vacia ? TEXTOS_TU_TRABAJO.avisoCompletada : TEXTOS_TU_TRABAJO.avisoEntregada)
+    },
+    onError: (error) => {
+      void renovarTrasErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+      // La entrega vacía y un enlace inválido los marca el formulario bajo su grupo.
+      if (esEntregaVacia(error) || errorDeEnlacesDeApi(error) !== null) return
+      avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+    },
+  })
+}
+
+export const useAnularEntrega = (claseId: string, tareaId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api(`${rutaDeMiEntrega(claseId, tareaId)}/anular`, {
+        method: "POST",
+        schema: miEntregaRespuestaSchema,
+      }),
+    onSuccess: (respuesta) => {
+      queryClient.setQueryData(claveMiEntrega(claseId, tareaId), respuesta)
+      void queryClient.invalidateQueries({ queryKey: clavePrefijoDelTrabajo(claseId) })
+      toast.success(TEXTOS_TU_TRABAJO.avisoAnulada)
+    },
+    onError: (error) => {
+      void renovarTrasErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+      avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+    },
+  })
+}
+
+// ENTREGAS-01d (§D-9.6). El hilo privado de una ruta (la del alumno; en 01e, la de un alumno para sus
+// maestros): del más antiguo al más reciente, de 20 en 20. Ronda 2 (T-05): si una página dice que la
+// tarea ya no existe o que se perdió el acceso a la clase, la tarea se renueva (regla T-11) para que la
+// vista pase a su mensaje; el aviso no sale de aquí.
+export const useHiloPrivado = (claseId: string, tareaId: string, rutaDelHilo: string) => {
+  const queryClient = useQueryClient()
+  return useInfiniteQuery({
+    queryKey: claveHilo(rutaDelHilo),
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      try {
+        return await api(rutaDePaginaDelHilo(rutaDelHilo, pageParam), {
+          schema: listaComentariosPrivadosRespuestaSchema,
+        })
+      } catch (error) {
+        void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
+        throw error
+      }
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+}
+
+export const useComentarEnHilo = (claseId: string, tareaId: string, rutaDelHilo: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: CrearComentario) =>
+      api(rutaDelHilo, { method: "POST", body: datos, schema: comentarioPrivadoRespuestaSchema }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: claveHilo(rutaDelHilo) })
+    },
+    onError: (error) => {
+      // La misma regla que la entrega: un 404 de la tarea o un 403 de la clase renuevan la tarea.
+      void renovarTrasErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+      // Un error del texto lo marca el formulario bajo el campo.
+      if (errorDeTextoDeApi(error) !== null) return
+      avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
+    },
+  })
+}
+
+// ENTREGAS-01e (§D-10.2). Quiénes entregaron una tarea, para sus maestros y el admin: los alumnos de la
+// clase de 20 en 20, con su entrega. Sin avisos ni renovaciones aquí: la vista decide qué reemplaza
+// la lista y qué se avisa (la llave cuelga de la de la tarea, así que renovar desde aquí la volvería a
+// pedir a ella misma).
+export const useEntregasDeLaTarea = (claseId: string, tareaId: string) =>
+  useInfiniteQuery({
+    queryKey: claveListaDeEntregas(claseId, tareaId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeEntregas(claseId, tareaId, pageParam), {
+        schema: listaEntregasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// ENTREGAS-01e (§D-10.3). La entrega de un alumno, para sus maestros y el admin.
+export const useEntregaDeAlumno = (claseId: string, tareaId: string, alumnoId: string) =>
+  useQuery({
+    queryKey: claveEntregaDeAlumno(claseId, tareaId, alumnoId),
+    queryFn: () =>
+      api(rutaDeEntregaDeAlumno(claseId, tareaId, alumnoId), {
+        schema: entregaDeAlumnoRespuestaSchema,
+      }),
+  })

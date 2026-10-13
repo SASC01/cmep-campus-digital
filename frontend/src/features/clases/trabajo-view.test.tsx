@@ -44,6 +44,8 @@ interface Elemento {
   material: { texto: string; adjuntos: unknown[] } | null
   tarea: { fechaLimite: string; puntos: number } | null
   puedeMover: boolean
+  // ENTREGAS-01b (S-07): la entrega del alumno; nula en materiales y para maestro y admin.
+  entrega: null
 }
 
 const tarea = (n: number, titulo: string, fechaLimite: string, puedeMover = false): Elemento => ({
@@ -55,6 +57,7 @@ const tarea = (n: number, titulo: string, fechaLimite: string, puedeMover = fals
   material: null,
   tarea: { fechaLimite, puntos: 10 },
   puedeMover,
+  entrega: null,
 })
 
 const material = (
@@ -71,6 +74,7 @@ const material = (
   material: contenido,
   tarea: null,
   puedeMover,
+  entrega: null,
 })
 
 interface ClaseEnElServidor {
@@ -354,7 +358,8 @@ describe("TrabajoView: el estudiante (PR-1E01)", () => {
     const proyecto = screen.getByRole("link", { name: /^Tarea: Proyecto/ })
     expect(proyecto).toHaveTextContent(/Vence el /)
     const cuestionario = screen.getByRole("link", { name: /^Tarea: Cuestionario/ })
-    expect(cuestionario).toHaveTextContent(/Venció el /)
+    // ENTREGAS-01d (Enmienda 5, §D-9.8): sin entrega y vencida, la fila del alumno dice "Sin entregar".
+    expect(cuestionario).toHaveTextContent(/Sin entregar/)
   })
 
   it("PR-1E01 · un material se despliega con «Ver material» y muestra su texto y sus adjuntos", async () => {

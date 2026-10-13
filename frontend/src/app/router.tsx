@@ -27,6 +27,8 @@ import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
 import { CrearTareaView } from "@/features/tareas/crear-tarea-view"
 import { DetalleTareaView } from "@/features/tareas/detalle-tarea-view"
 import { EditarTareaView } from "@/features/tareas/editar-tarea-view"
+import { EntregaDeAlumnoView } from "@/features/tareas/entrega-de-alumno-view"
+import { EntregasView } from "@/features/tareas/entregas-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
 import { RequireRol } from "./require-rol"
@@ -103,6 +105,11 @@ export const rutas: RouteObject[] = [
               { path: "tareas/nueva", element: <CrearTareaView /> },
               { path: "tareas/:tareaId", element: <DetalleTareaView /> },
               { path: "tareas/:tareaId/editar", element: <EditarTareaView /> },
+              { path: "tareas/:tareaId/entregas", element: <EntregasView /> },
+              {
+                path: "tareas/:tareaId/entregas/:alumnoId",
+                element: <EntregaDeAlumnoView />,
+              },
             ],
           },
         ],
@@ -132,6 +139,11 @@ export const rutas: RouteObject[] = [
                   { path: "tareas/nueva", element: <CrearTareaView /> },
                   { path: "tareas/:tareaId", element: <DetalleTareaView /> },
                   { path: "tareas/:tareaId/editar", element: <EditarTareaView /> },
+                  { path: "tareas/:tareaId/entregas", element: <EntregasView /> },
+                  {
+                    path: "tareas/:tareaId/entregas/:alumnoId",
+                    element: <EntregaDeAlumnoView />,
+                  },
                 ],
               },
             ],

@@ -524,7 +524,23 @@ describe("ataque: superficie de rutas", () => {
   // POST /api/admin/maestros/lote y POST /api/auth/registro-maestro), y cualquier otra ruta nueva
   // vuelve a poner la prueba en rojo. printRoutes anida /tareas y /trabajo bajo /:claseId y
   // /:tareaId bajo /tareas; el análisis por sangría los reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a y TAREAS-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // ENTREGAS-01b ronda 0 (C-1, §D-R0; "Autorización" del plan de ENTREGAS-01 y O-1 de la revisión de
+  // la Enmienda 1): se agregan exactamente las 8 rutas de entregas bajo
+  // /api/clases/:claseId/tareas/:tareaId, más el HEAD de cada GET (11 entradas): GET, HEAD y POST de
+  // /entrega; POST de /entrega/anular, /entrega/archivos y /entrega/archivos/:archivoId/descarga; GET y
+  // HEAD de /entregas y de /entregas/:alumnoId; POST de /entregas/:alumnoId/archivos/:archivoId/descarga.
+  // ?confirmar=entregas va en la consulta del DELETE que ya existe y no suma rutas (Enmienda 2). Ninguna
+  // crea cuentas ni cambia roles y ninguna es pública: RUTAS_PUBLICAS sigue con 10. La protección
+  // queda igual: ninguna ruta crea administradores; siguen creando maestros solo las tres de hoy, y
+  // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /entrega y /entregas
+  // bajo /:tareaId; el análisis por sangría los reconstruye.
+  // ENTREGAS-01c ronda 0 (C-1, §D-R0; "Autorización" del plan de ENTREGAS-01 y O-1 de la revisión de la
+  // Enmienda 1): se agregan exactamente las 4 rutas del hilo privado, más el HEAD de cada GET (6
+  // entradas): GET, HEAD y POST de …/tareas/:tareaId/entrega/comentarios (la alumna) y de
+  // …/tareas/:tareaId/entregas/:alumnoId/comentarios (maestros y admin; escribir, solo el maestro, P-01 a).
+  // Ninguna crea cuentas ni cambia roles y ninguna es pública. La protección queda igual: cualquier
+  // otra ruta nueva vuelve a poner la prueba en rojo.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b y ENTREGAS-01c: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -571,6 +587,11 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/publicaciones",
       "GET /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "GET /api/clases/:claseId/tareas/:tareaId",
+      "GET /api/clases/:claseId/tareas/:tareaId/entrega",
+      "GET /api/clases/:claseId/tareas/:tareaId/entrega/comentarios",
+      "GET /api/clases/:claseId/tareas/:tareaId/entregas",
+      "GET /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId",
+      "GET /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
       "GET /api/clases/:claseId/temas",
       "GET /api/clases/:claseId/trabajo",
       "GET /api/clases/impartidas",
@@ -590,6 +611,11 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/publicaciones",
       "HEAD /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "HEAD /api/clases/:claseId/tareas/:tareaId",
+      "HEAD /api/clases/:claseId/tareas/:tareaId/entrega",
+      "HEAD /api/clases/:claseId/tareas/:tareaId/entrega/comentarios",
+      "HEAD /api/clases/:claseId/tareas/:tareaId/entregas",
+      "HEAD /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId",
+      "HEAD /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
       "HEAD /api/clases/:claseId/temas",
       "HEAD /api/clases/:claseId/trabajo",
       "HEAD /api/clases/impartidas",
@@ -621,6 +647,13 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases/:claseId/publicaciones",
       "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "POST /api/clases/:claseId/tareas",
+      "POST /api/clases/:claseId/tareas/:tareaId/entrega",
+      "POST /api/clases/:claseId/tareas/:tareaId/entrega/anular",
+      "POST /api/clases/:claseId/tareas/:tareaId/entrega/archivos",
+      "POST /api/clases/:claseId/tareas/:tareaId/entrega/archivos/:archivoId/descarga",
+      "POST /api/clases/:claseId/tareas/:tareaId/entrega/comentarios",
+      "POST /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/archivos/:archivoId/descarga",
+      "POST /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
       "POST /api/clases/:claseId/temas",
       "POST /api/clases/unirse",
       "PUT /api/admin/clases/:claseId",

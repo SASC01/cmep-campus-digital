@@ -99,12 +99,13 @@ const crearComo = async (e: Escenario, token: string): Promise<string> => {
 const urlTarea = (e: Escenario, id: string): string => `/api/clases/${e.claseId}/tareas/${id}`
 
 const editar = async (e: Escenario, id: string, token: string, titulo = "Editada") => {
-  const fechaLimite = (await leerTareaDb(id))?.fechaLimite.toISOString()
+  const fila = await leerTareaDb(id)
+  const fechaLimite = fila?.fechaLimite.toISOString()
   return peticion({
     method: "PUT",
     url: urlTarea(e, id),
     token,
-    payload: cuerpoDeTarea({ titulo, fechaLimite }),
+    payload: cuerpoDeTarea({ titulo, fechaLimite, version: fila?.version }),
   })
 }
 
@@ -280,7 +281,7 @@ describe("autoría de las tareas (PR-1B09)", () => {
       method: "PUT",
       url: urlTarea(e, id),
       token: otra.tokenA,
-      payload: cuerpoDeTarea(),
+      payload: cuerpoDeTarea({ version: 0 }),
     })
     const borrada = await borrar(e, id, otra.tokenB)
 

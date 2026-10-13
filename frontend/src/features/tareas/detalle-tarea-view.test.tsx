@@ -29,6 +29,8 @@ const tareaConId = (extra: Record<string, unknown> = {}) => ({
     fechaLimite: "2030-01-15T16:00:00.000Z",
     puntos: 80,
     aceptaTardias: false,
+    requiereAdjuntos: true,
+    version: 0,
     categoria: { id: "4a4b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d41", nombre: "Examen", peso: 40 },
     tema: { id: "5a5b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d51", nombre: "Unidad 1" },
     rubrica: [
@@ -57,6 +59,18 @@ const tareaConId = (extra: Record<string, unknown> = {}) => ({
   },
 })
 
+const MI_ENTREGA = {
+  entrega: {
+    estado: "asignado",
+    fechaEntrega: null,
+    conRetraso: false,
+    enlaces: [],
+    adjuntos: [],
+    puedeEntregar: true,
+    puedeAnular: false,
+  },
+}
+
 interface Llamada {
   metodo: string
   url: string
@@ -73,6 +87,11 @@ const stubApi = (
       const metodo = init?.method ?? "GET"
       llamadas.push({ metodo, url: String(entrada) })
       if (metodo === "DELETE") return Promise.resolve(alBorrar())
+      // ENTREGAS-01d (Enmienda 5): la entrega del alumno y su hilo privado, con dobles válidos.
+      if (String(entrada).endsWith("/entrega"))
+        return Promise.resolve(respuestaJson(200, MI_ENTREGA))
+      if (String(entrada).includes("/entrega/comentarios"))
+        return Promise.resolve(respuestaJson(200, { comentarios: [], siguienteCursor: null }))
       return Promise.resolve(alVer())
     }),
   )
@@ -129,12 +148,8 @@ describe("PR-1D05: detalle de una tarea", () => {
     expect(
       screen.getByText("No se aceptan entregas después de la fecha límite"),
     ).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Tu trabajo" })).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        "Todavía no puedes entregar desde Campus Digital. Sigue las indicaciones de tu maestro para entregar esta tarea.",
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Tu trabajo" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "Entregar tarea" })).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Editar tarea" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Borrar tarea" })).not.toBeInTheDocument()
   })
@@ -207,14 +222,22 @@ describe("PR-1D05: detalle de una tarea", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Borrar tarea" }))
 
-    expect(screen.getByText("Se borrará con su rúbrica y sus adjuntos.")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Se borrará con su rúbrica, sus adjuntos y los comentarios privados de los alumnos.",
+      ),
+    ).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole("button", { name: "Cancelar" })).toHaveFocus())
     expect(screen.queryByRole("button", { name: "Borrar tarea" })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }))
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Borrar tarea" })).toHaveFocus())
-    expect(screen.queryByText("Se borrará con su rúbrica y sus adjuntos.")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        "Se borrará con su rúbrica, sus adjuntos y los comentarios privados de los alumnos.",
+      ),
+    ).not.toBeInTheDocument()
     expect(llamadas.filter(({ metodo }) => metodo === "DELETE")).toHaveLength(0)
   })
 

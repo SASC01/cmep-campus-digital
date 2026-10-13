@@ -226,6 +226,9 @@ describe("ataque TAREAS-01b r1: leerTarea en una sola instantánea (punto 7)", (
     },
   )
 
+  // ENTREGAS-01a ronda 0 (C-6, §D-R0 «01a»; §D-2.1 y P-05 a′ del plan de ENTREGAS-01): el PUT de
+  // una tarea exige la `version` con que se leyó; la tarea recién creada por la API está en la 0.
+  // Lo que verifica el caso (la lectura entera de antes de la edición) no cambia.
   it("con una edición en medio que cambia el título, reemplaza la rúbrica y quita el adjunto: la tarea de antes, entera (nunca la rúbrica de antes con los adjuntos de después)", async () => {
     const e = await escenario()
     const { tareaId, archivoId } = await tareaConAdjuntoYRubrica(e)
@@ -239,6 +242,7 @@ describe("ataque TAREAS-01b r1: leerTarea en una sola instantánea (punto 7)", (
             titulo: "Editada",
             archivoIds: [],
             rubrica: [{ criterio: "Nueva", puntosMax: 10 }],
+            version: 0,
           }),
         }),
         200,

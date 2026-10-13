@@ -174,7 +174,7 @@ const rutas: ((deAdmin: boolean) => Promise<PreparadoRuta>)[] = [
     preparar("PUT /clases/:claseId/tareas/:tareaId", {
       metodo: "PUT",
       ruta: (e) => `/tareas/${e.tareaId}`,
-      payload: () => cuerpoDeTarea({ titulo: "Editada" }),
+      payload: () => cuerpoDeTarea({ titulo: "Editada", version: 0 }),
       estatusPermitido: 200,
       deAdmin,
     }),

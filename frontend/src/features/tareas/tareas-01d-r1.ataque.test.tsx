@@ -30,6 +30,9 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const errorApi = (estado: number, codigo: string, mensaje: string) =>
   respuestaJson(estado, { error: { codigo, mensaje } })
 
+// ENTREGAS-01a ronda 0 (C-7, §D-R0 «01a»; §D-2.1, §D-2.2 y P-03 a / P-05 a′ del plan de ENTREGAS-01):
+// tareaDetalleSchema exige `version` y `requiereAdjuntos`. El doble suma la versión de una tarea recién
+// creada (0) y el valor por defecto de «Cómo se entrega» (true). Ninguna aserción cambia.
 const tareaDetalle = (cambios: Record<string, unknown> = {}) => ({
   id: TAREA_ID,
   titulo: "Ensayo",
@@ -37,6 +40,8 @@ const tareaDetalle = (cambios: Record<string, unknown> = {}) => ({
   fechaLimite: "2030-01-15T16:00:00.000Z",
   puntos: 100,
   aceptaTardias: true,
+  version: 0,
+  requiereAdjuntos: true,
   categoria: null,
   tema: null,
   rubrica: [],
@@ -490,11 +495,34 @@ const NUEVOS = Object.entries(fuentes).filter(
 )
 
 describe("ataque TAREAS-01d r1: revisión estática de lo nuevo (sin hallazgo esperado)", () => {
-  it("sin fetch(, console., ?? [], dangerouslySetInnerHTML, target=_blank ni emojis; features/tareas no importa de features/clases y viceversa", () => {
+  // ENTREGAS-01d ronda 0 (C-5, §D-R0; §D-9.5 y S-08 del plan de ENTREGAS-01): el enlace de una entrega
+  // lleva a un sitio externo, y abrirlo en la misma pestaña sacaría a la persona de la entrega y del
+  // hilo a medio leer. Por eso target="_blank" deja de estar prohibido en features/tareas, con dos
+  // condiciones: solo puede vivir en components/lista-de-enlaces.tsx, y cada elemento que lo lleva
+  // trae rel="noopener noreferrer" en el mismo elemento (corta window.opener y no envía el Referer con
+  // la URL interna). Lo demás que protege el caso no cambia.
+  it("sin fetch(, console., ?? [], dangerouslySetInnerHTML ni emojis; target=_blank solo en lista-de-enlaces.tsx y siempre con rel=noopener noreferrer en el mismo elemento; features/tareas no importa de features/clases y viceversa", () => {
     expect(NUEVOS.length).toBeGreaterThan(15)
     const prohibido =
-      /\bfetch\(|console\.|\?\?\s*\[\s*\]|dangerouslySetInnerHTML|target=["']_blank|\p{Extended_Pictographic}/u
+      /\bfetch\(|console\.|\?\?\s*\[\s*\]|dangerouslySetInnerHTML|\p{Extended_Pictographic}/u
     expect(NUEVOS.filter(([, texto]) => prohibido.test(texto)).map(([ruta]) => ruta)).toEqual([])
+    const conTarget = NUEVOS.filter(([, texto]) => /target=\{?["'`]_blank/.test(texto))
+    expect(
+      conTarget
+        .map(([ruta]) => ruta)
+        .filter((ruta) => ruta !== "/src/features/tareas/components/lista-de-enlaces.tsx"),
+    ).toEqual([])
+    const sinRel = conTarget.flatMap(([ruta, texto]) =>
+      [...texto.matchAll(/target=\{?["'`]_blank/g)]
+        .map(({ index }) => {
+          const apertura = texto.lastIndexOf("<", index)
+          const cierre = texto.indexOf(">", index)
+          return texto.slice(apertura, cierre === -1 ? undefined : cierre + 1)
+        })
+        .filter((elemento) => !/\brel=\{?["'`]noopener noreferrer["'`]/.test(elemento))
+        .map((elemento) => `${ruta}: ${elemento.slice(0, 80)}`),
+    )
+    expect(sinRel).toEqual([])
     const cruzadas = Object.entries(fuentes)
       .filter(([ruta]) => !/\.test\.tsx?$/.test(ruta))
       .filter(

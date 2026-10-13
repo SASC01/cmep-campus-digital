@@ -3,10 +3,17 @@ import {
   puedeEditarTarea,
   type ParticipanteDeAutoria,
 } from "../../core/autoria.js"
+import { exigirVersion } from "../../core/concurrencia.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
 import { planDeRecordatorio, type PlanDeRecordatorio } from "../../core/tareas/recordatorio.js"
-import { validarCategoriaRequerida, validarFechaLimite } from "../../core/tareas/tareas.js"
+import type { EstadoEntrega } from "../../core/entregas/entregas.js"
+import {
+  exigirBorradoConEntregasPermitido,
+  tareaModificada,
+  validarCategoriaRequerida,
+  validarFechaLimite,
+} from "../../core/tareas/tareas.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
 import {
   ejecutorSqlDe,
@@ -32,6 +39,9 @@ export interface TareaDetalleDb {
   fechaLimite: Date
   puntos: number
   aceptaTardias: boolean
+  // ENTREGAS-01a: "Cómo se entrega" (P-03 a) y la versión de la fila (P-05 a′).
+  requiereAdjuntos: boolean
+  version: number
   categoria: { id: string; nombre: string; peso: number } | null
   tema: { id: string; nombre: string } | null
   rubrica: { id: string; criterio: string; puntosMax: number }[]
@@ -57,6 +67,9 @@ export interface ElementoDeTrabajoDb {
   creadoEn: Date
   material: { texto: string; adjuntos: ArchivoDb[] } | null
   tarea: { fechaLimite: Date; puntos: number } | null
+  // ENTREGAS-01b (S-07): la entrega del alumno de la lista; null en los materiales, sin alumno (maestro
+  // y admin) o sin fila de entrega.
+  entrega: { estado: EstadoEntrega; conRetraso: boolean } | null
 }
 
 export interface ListaTrabajoDb {
@@ -75,6 +88,14 @@ const errorCategoriaNoEncontrada = (): AppError =>
 
 const errorEdicionNoPermitida = (): AppError =>
   new AppError("EDICION_NO_PERMITIDA", "No puedes editar lo que publicó otra persona.", 403)
+
+// Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a una tarea. Si faltara, es un
+// error explícito y no un título vacío en silencio (pendiente de TAREAS-01, absorbido en ENTREGAS-01a).
+const errorTareaSinTitulo = (): AppError =>
+  new AppError("ERROR_INTERNO", "La tarea no tiene título.", 500)
+
+const errorElementoSinTitulo = (): AppError =>
+  new AppError("ERROR_INTERNO", "Un elemento de Trabajo de clase no tiene título.", 500)
 
 const errorBorradoNoPermitido = (): AppError =>
   new AppError("BORRADO_NO_PERMITIDO", "No puedes borrar lo que publicó otra persona.", 403)
@@ -110,6 +131,8 @@ const leerTareaCon = async (
       fechaLimite: true,
       puntos: true,
       aceptaTardias: true,
+      requiereAdjuntos: true,
+      version: true,
       creadoEn: true,
       actualizadoEn: true,
       publicacion: {
@@ -140,13 +163,16 @@ const leerTareaCon = async (
   })
   const { publicacion } = tarea
   const autorSigueEnLaClase = maestros.some(({ maestroId }) => maestroId === publicacion.autor.id)
+  if (publicacion.titulo === null) throw errorTareaSinTitulo()
   return {
     id: tarea.id,
-    titulo: publicacion.titulo ?? "",
+    titulo: publicacion.titulo,
     instrucciones: publicacion.texto,
     fechaLimite: tarea.fechaLimite,
     puntos: tarea.puntos,
     aceptaTardias: tarea.aceptaTardias,
+    requiereAdjuntos: tarea.requiereAdjuntos,
+    version: tarea.version,
     categoria: tarea.categoria,
     tema: publicacion.tema,
     rubrica: tarea.criterios,
@@ -238,6 +264,7 @@ export interface DatosDeTarea {
   fechaLimite: Date
   puntos: number
   aceptaTardias: boolean
+  requiereAdjuntos: boolean
   categoriaId: string | null
   temaId: string | null
   rubrica: readonly CriterioNuevo[]
@@ -293,6 +320,7 @@ export const crearTarea = (
         fechaLimite: datos.fechaLimite,
         puntos: datos.puntos,
         aceptaTardias: datos.aceptaTardias,
+        requiereAdjuntos: datos.requiereAdjuntos,
         trabajoId,
       },
       select: { id: true },
@@ -321,6 +349,10 @@ interface FilaBloqueada {
   autor_id: string
 }
 
+interface FilaBloqueadaConVersion extends FilaBloqueada {
+  version: number
+}
+
 // El autor (id y rol) y si sigue siendo maestro de la clase (lectura por la PK de maestros_de_clase),
 // para la regla de autoría de las tareas (P-04 b).
 const autorYPertenencia = async (
@@ -342,15 +374,18 @@ const autorYPertenencia = async (
 // Editar (§D-4): el cuerpo es la tarea completa; `archivoIds` es la lista final de adjuntos (los que
 // ya tenía y siguen, más los nuevos, que el handler ya comprobó en `archivosNuevos`). En una
 // transacción: bloquea la fila de la tarea (FOR NO KEY UPDATE OF t: dos ediciones quedan en serie y
-// cada una cancela el trabajo que dejó la anterior), autoría (403 sin escribir), fecha, categoría y
-// tema, plan del recordatorio, publicación y tarea, criterios (se reemplazan), archivos y
-// alReprogramar. null: la tarea no existe en esa clase (o la borraron antes).
+// cada una cancela el trabajo que dejó la anterior), autoría (403 sin escribir), versión (409
+// TAREA_MODIFICADA sin escribir, ENTREGAS-01a §D-2.1: con la fila ya bloqueada, dos guardados con la
+// misma versión nunca dan dos 200), fecha, categoría y tema, plan del recordatorio, publicación y
+// tarea (la versión sube en 1), criterios (se reemplazan), archivos y alReprogramar. null: la tarea no
+// existe en esa clase (o la borraron antes).
 export const editarTarea = (
   {
     claseId,
     tareaId,
     actor,
     ahora,
+    version,
     idRecordatorioNuevo,
     archivoIds,
     archivosNuevos,
@@ -360,6 +395,8 @@ export const editarTarea = (
     tareaId: string
     actor: ParticipanteDeAutoria
     ahora: Date
+    // La versión con que se abrió el formulario (P-05 a′).
+    version: number
     // Id con que se encola el recordatorio nuevo (pg-boss ignora un id que ya usó).
     idRecordatorioNuevo: string
     archivoIds: readonly string[]
@@ -369,8 +406,8 @@ export const editarTarea = (
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<TareaDetalleDb | null> =>
   enTransaccion(ejecutor, async (tx) => {
-    const [fila] = await tx.$queryRaw<FilaBloqueada[]>`
-      SELECT t.id, t.fecha_limite, t.trabajo_id, p.autor_id
+    const [fila] = await tx.$queryRaw<FilaBloqueadaConVersion[]>`
+      SELECT t.id, t.fecha_limite, t.trabajo_id, t.version, p.autor_id
       FROM tareas t
       JOIN publicaciones p ON p.id = t.id
       WHERE t.id = ${tareaId}::uuid AND t.clase_id = ${claseId}::uuid
@@ -382,6 +419,7 @@ export const editarTarea = (
       autorId: fila.autor_id,
     })
     if (!puedeEditarTarea(actor, autor, sigueEnLaClase)) throw errorEdicionNoPermitida()
+    exigirVersion({ leida: version, actual: fila.version }, tareaModificada)
     validarFechaLimite({ nueva: datos.fechaLimite, anterior: fila.fecha_limite, ahora })
     await asegurarReferencias(tx, {
       claseId,
@@ -412,8 +450,10 @@ export const editarTarea = (
         fechaLimite: datos.fechaLimite,
         puntos: datos.puntos,
         aceptaTardias: datos.aceptaTardias,
+        requiereAdjuntos: datos.requiereAdjuntos,
         categoriaId: datos.categoriaId,
         trabajoId,
+        version: { increment: 1 },
       },
     })
 
@@ -462,11 +502,30 @@ export const editarTarea = (
     return leerTarea({ claseId, tareaId, actor }, tx)
   })
 
-// Borrar (§D-4): bloquea la tarea (FOR UPDATE OF t: choca con la edición), autoría (403 sin escribir),
-// pasa sus archivos a descartado y borra la publicación (la cascada se lleva la tarea y sus
-// criterios), y alBorrar cancela los trabajos con el id que tenía en trabajo_id. false: no existe.
+// Las entregas que impiden borrar sin confirmación (S-06 modificada): entregado y calificado.
+const ESTADOS_QUE_CUENTAN: EstadoEntrega[] = ["entregado", "calificado"]
+
+// Borrar (§D-4): bloquea la tarea (FOR UPDATE OF t: choca con la edición, y con la entrega, la
+// anulación y el comentario en curso, que toman la fila de la tarea antes), autoría (403 sin
+// escribir), y desde ENTREGAS-01b (S-06 modificada, §D-3.8) cuenta las entregas entregadas o
+// calificadas de cualquier alumno y aplica la regla de core/ (409 TAREA_CON_ENTREGAS sin escribir;
+// solo el admin con confirmarEntregas pasa). Nada se escribe antes de ese punto. Después pasa a
+// descartado los archivos de las entregas (siempre: la FK NO ACTION de archivos.entrega_id daría un
+// 500 si quedara uno) y los de la publicación, y borra la publicación: la cascada se lleva la tarea,
+// sus criterios, sus entregas (también las asignado) y sus hilos privados. alBorrar cancela los
+// trabajos con el id que tenía en trabajo_id. false: no existe. confirmarEntregas ausente es false.
 export const borrarTarea = (
-  { claseId, tareaId, actor }: { claseId: string; tareaId: string; actor: ParticipanteDeAutoria },
+  {
+    claseId,
+    tareaId,
+    actor,
+    confirmarEntregas = false,
+  }: {
+    claseId: string
+    tareaId: string
+    actor: ParticipanteDeAutoria
+    confirmarEntregas?: boolean
+  },
   alBorrar: (sql: EjecutorSql, trabajoId: string | null) => Promise<void>,
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<boolean> =>
@@ -485,6 +544,16 @@ export const borrarTarea = (
     })
     if (!puedeBorrarTarea(actor, autor, sigueEnLaClase)) throw errorBorradoNoPermitido()
 
+    // Después de la autoría: a quien no puede borrar la tarea no se le revela cuántas entregas tiene.
+    const entregas = await tx.entrega.count({
+      where: { tareaId, estado: { in: ESTADOS_QUE_CUENTAN } },
+    })
+    exigirBorradoConEntregasPermitido({ rolDelActor: actor.rol, entregas, confirmarEntregas })
+
+    await tx.archivo.updateMany({
+      where: { claseId, entrega: { tareaId } },
+      data: { estado: "descartado", entregaId: null },
+    })
     await tx.archivo.updateMany({
       where: { publicacionId: tareaId, claseId },
       data: { estado: "descartado", publicacionId: null },
@@ -501,7 +570,9 @@ export const borrarTarea = (
 // reciente al más antiguo, con cursor. Las sentencias van una tras otra con `db`: el tema (si es un
 // uuid), la comprobación del cursor contra esta misma lista (misma clase, mismo tema o null, tipo
 // material o tarea), la página (con autor y la relación `tarea`) y los adjuntos de los materiales de
-// la página (una sola consulta). No escribe nada.
+// la página (una sola consulta). ENTREGAS-01b (S-07, §D-3.11): con `alumnoId` (el alumno que pide la
+// lista; ausente o null para el maestro y el admin), una sola consulta más con sus entregas en las
+// tareas de la página, por el único (tarea_id, alumno_id). No escribe nada.
 const listarTrabajoCon = async (
   db: Ejecutor,
   {
@@ -509,7 +580,14 @@ const listarTrabajoCon = async (
     tema,
     cursor,
     limite,
-  }: { claseId: string; tema: string; cursor: string | undefined; limite: number },
+    alumnoId = null,
+  }: {
+    claseId: string
+    tema: string
+    cursor: string | undefined
+    limite: number
+    alumnoId?: string | null
+  },
 ): Promise<ListaTrabajoDb> => {
   const temaId = tema === "sin-tema" ? null : tema
   if (temaId !== null) {
@@ -557,19 +635,33 @@ const listarTrabajoCon = async (
       ])
     }
   }
+  const idsDeTareas = pagina.filter((fila) => fila.tipo === "tarea").map((fila) => fila.id)
+  const entregaPorTarea = new Map<string, { estado: EstadoEntrega; conRetraso: boolean }>()
+  if (alumnoId !== null && idsDeTareas.length > 0) {
+    const entregas = await db.entrega.findMany({
+      where: { alumnoId, tareaId: { in: idsDeTareas } },
+      select: { tareaId: true, estado: true, conRetraso: true },
+    })
+    for (const { tareaId, estado, conRetraso } of entregas) {
+      entregaPorTarea.set(tareaId, { estado, conRetraso })
+    }
+  }
   return {
     elementos: pagina.map((fila) => {
       const esMaterial = fila.tipo === "material"
+      // Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a materiales y tareas.
+      if (fila.titulo === null) throw errorElementoSinTitulo()
       return {
         id: fila.id,
         tipo: esMaterial ? "material" : "tarea",
-        titulo: fila.titulo ?? "",
+        titulo: fila.titulo,
         autor: fila.autor,
         creadoEn: fila.creadoEn,
         material: esMaterial
           ? { texto: fila.texto, adjuntos: adjuntosPorMaterial.get(fila.id) ?? [] }
           : null,
         tarea: fila.tarea,
+        entrega: esMaterial ? null : (entregaPorTarea.get(fila.id) ?? null),
       }
     }),
     siguienteCursor,
@@ -580,7 +672,13 @@ const listarTrabajoCon = async (
 // el elemento del cursor se borra o se mueve de tema en medio, la página sigue viéndolo (regla T-18),
 // y la relación `tarea` de un elemento de tipo tarea nunca sale null.
 export const listarTrabajo = (
-  params: { claseId: string; tema: string; cursor: string | undefined; limite: number },
+  params: {
+    claseId: string
+    tema: string
+    cursor: string | undefined
+    limite: number
+    alumnoId?: string | null
+  },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaTrabajoDb> =>
   enTransaccion(ejecutor, (tx) => listarTrabajoCon(tx, params), { instantaneaUnica: true })

@@ -137,6 +137,15 @@ const crear = (e: Escenario, cambios: Record<string, unknown> = {}, token = e.to
 const crearCrudo = (e: Escenario, cuerpo: string) =>
   peticion({ method: "POST", url: urlTareas(e.claseId), token: e.tokenA, payload: cuerpo })
 
+// ENTREGAS-01a ronda 0 (C-6, §D-R0 «01a»; §D-2.1 y P-05 a′ del plan de ENTREGAS-01): el PUT de una
+// tarea exige la `version` con que se leyó. Cada edición de este archivo que llega al adaptador
+// manda la versión vigente en ese momento: 0 al crear (por la API o con crearTareaDePrueba) y +1
+// por cada edición con éxito anterior. Las que la cadena rechaza antes de leer el cuerpo (maestro
+// ajeno, alumno) no cambian. El 403 de autoría se mira antes que la versión, así que esos casos
+// no cambian de resultado. Lo que verifica cada caso no cambia. Las «seis ediciones de fecha
+// simultáneas» no siguen esta regla: con la misma versión solo una puede pasar (PA-02 de la ronda 0),
+// así que pasaron a C-8 (Enmienda 3), con su propio comentario en el caso.
+
 const editar = (
   e: Escenario,
   tareaId: string,
@@ -181,7 +190,7 @@ describe("ataque TAREAS-01b r1: autoría contra la API (punto 1)", () => {
       return [d.puedeEditar, d.puedeBorrar]
     }
 
-    const editarB1 = await editar(e, tareaId, { titulo: "B mientras A está" }, e.tokenB)
+    const editarB1 = await editar(e, tareaId, { titulo: "B mientras A está", version: 0 }, e.tokenB)
     expect([editarB1.statusCode, codigoDe(editarB1)]).toEqual([403, "EDICION_NO_PERMITIDA"])
     const borrarB1 = await borrar(e, tareaId, e.tokenB)
     expect([borrarB1.statusCode, codigoDe(borrarB1)]).toEqual([403, "BORRADO_NO_PERMITIDO"])
@@ -191,19 +200,19 @@ describe("ataque TAREAS-01b r1: autoría contra la API (punto 1)", () => {
       where: { claseId_maestroId: { claseId: e.claseId, maestroId: e.maestroA.id } },
     })
     expect(await banderas(e.tokenB)).toEqual([true, true])
-    expect((await editar(e, tareaId, { titulo: "B con A retirado" }, e.tokenB)).statusCode).toBe(
-      200,
-    )
+    expect(
+      (await editar(e, tareaId, { titulo: "B con A retirado", version: 0 }, e.tokenB)).statusCode,
+    ).toBe(200)
 
     await obtenerDb().maestroDeClase.create({
       data: { claseId: e.claseId, maestroId: e.maestroA.id },
     })
     expect(await banderas(e.tokenB)).toEqual([false, false])
-    const editarB3 = await editar(e, tareaId, { titulo: "B con A de vuelta" }, e.tokenB)
+    const editarB3 = await editar(e, tareaId, { titulo: "B con A de vuelta", version: 1 }, e.tokenB)
     expect([editarB3.statusCode, codigoDe(editarB3)]).toEqual([403, "EDICION_NO_PERMITIDA"])
     expect(await banderas(e.tokenA)).toEqual([true, true])
     expect(detalleDe(await leer(e, tareaId)).titulo).toBe("B con A retirado")
-    expect((await editar(e, tareaId, { titulo: "A otra vez" })).statusCode).toBe(200)
+    expect((await editar(e, tareaId, { titulo: "A otra vez", version: 1 })).statusCode).toBe(200)
   })
 
   it("la tarea del admin: el maestro no la edita ni la borra (403) y sus banderas son false; el admin edita la suya y borra la de un maestro, pero no edita la del maestro (S-09)", async () => {
@@ -213,7 +222,7 @@ describe("ataque TAREAS-01b r1: autoría contra la API (punto 1)", () => {
     expect(delAdmin.autor.administracion).toBe(true)
     const delMaestro = detalleDe(await crear(e)).id
 
-    const editarM = await editar(e, delAdmin.id, { titulo: "Maestro" })
+    const editarM = await editar(e, delAdmin.id, { titulo: "Maestro", version: 0 })
     const borrarM = await borrar(e, delAdmin.id)
     expect([editarM.statusCode, codigoDe(editarM)]).toEqual([403, "EDICION_NO_PERMITIDA"])
     expect([borrarM.statusCode, codigoDe(borrarM)]).toEqual([403, "BORRADO_NO_PERMITIDO"])
@@ -226,8 +235,10 @@ describe("ataque TAREAS-01b r1: autoría contra la API (punto 1)", () => {
     expect(muro.publicaciones.find(({ id }) => id === delAdmin.id)?.puedeBorrar).toBe(false)
     expect(muro.publicaciones.find(({ id }) => id === delMaestro)?.puedeBorrar).toBe(true)
 
-    expect((await editar(e, delAdmin.id, { titulo: "Admin" }, tokenAdmin)).statusCode).toBe(200)
-    const editarAdm = await editar(e, delMaestro, { titulo: "Admin" }, tokenAdmin)
+    expect(
+      (await editar(e, delAdmin.id, { titulo: "Admin", version: 0 }, tokenAdmin)).statusCode,
+    ).toBe(200)
+    const editarAdm = await editar(e, delMaestro, { titulo: "Admin", version: 0 }, tokenAdmin)
     expect([editarAdm.statusCode, codigoDe(editarAdm)]).toEqual([403, "EDICION_NO_PERMITIDA"])
     expect((await borrar(e, delMaestro, tokenAdmin)).statusCode).toBe(204)
     expect(await leerTareaDb(delMaestro)).toBeNull()
@@ -269,23 +280,48 @@ describe("ataque TAREAS-01b r1: autoría contra la API (punto 1)", () => {
 })
 
 describe("ataque TAREAS-01b r1: trabajos diferidos (punto 2)", () => {
+  // ENTREGAS-01a ronda 0 complementaria (C-8, §D-R0 «C-8: contrato», Enmienda 3; PA-02 de la ronda 0;
+  // §D-2.1 y P-05 a′ del plan de ENTREGAS-01): con la versión comparada sobre la fila bloqueada, de
+  // seis guardados simultáneos con la misma versión pasa exactamente uno, así que «todas 200» y «7
+  // trabajos» dejaron de ser ciertos. Conserva el ataque de concurrencia (seis PUT a la vez sobre la
+  // misma fila) y la invariante que protegía (un solo RECORDATORIO_24H vivo, el de trabajo_id, a
+  // fecha − 24 h), y suma PR-1A03 en carrera: los cinco 409 no escriben la tarea ni tocan la cola.
+  // La versión 1 se mira con toMatchObject y nunca leyendo .version (TS2339 sobre dd8edcb).
   it(
-    "seis ediciones de fecha simultáneas: todas 200 y al final hay exactamente un RECORDATORIO_24H vivo, el de trabajo_id, a fecha \u2212 24 h; un solo TAREA_CREADA",
+    "seis ediciones de fecha simultáneas con la misma versión: una 200 y cinco 409 TAREA_MODIFICADA; al final hay exactamente un RECORDATORIO_24H vivo, el de trabajo_id, a fecha \u2212 24 h de la ganadora; dos RECORDATORIO_24H en total y un solo TAREA_CREADA",
     { timeout: 60_000 },
     async () => {
       const e = await escenario()
       const tareaId = detalleDe(await crear(e)).id
+      const fechas = [6, 7, 8, 9, 10, 11].map((dias) => diasDespues(dias).toISOString())
       const respuestas = await Promise.all(
-        [6, 7, 8, 9, 10, 11].map((dias) =>
-          editar(e, tareaId, { fechaLimite: diasDespues(dias).toISOString() }),
-        ),
+        fechas.map((fechaLimite) => editar(e, tareaId, { fechaLimite, version: 0 })),
       )
-      expect(respuestas.map((r) => r.statusCode)).toEqual([200, 200, 200, 200, 200, 200])
+      for (const r of respuestas) expect(r.statusCode, r.body).toBeLessThan(500)
+      expect(respuestas.map((r) => r.statusCode).sort((a, b) => a - b)).toEqual([
+        200, 409, 409, 409, 409, 409,
+      ])
+      expect(respuestas.filter((r) => r.statusCode === 409).map(codigoDe)).toEqual([
+        "TAREA_MODIFICADA",
+        "TAREA_MODIFICADA",
+        "TAREA_MODIFICADA",
+        "TAREA_MODIFICADA",
+        "TAREA_MODIFICADA",
+      ])
+      const i = respuestas.findIndex((r) => r.statusCode === 200)
+      const ganadora = respuestas[i]
+      if (!ganadora) throw new Error("Precondición: una de las seis ediciones respondió 200")
       const fila = await leerTareaDb(tareaId)
+      if (!fila) throw new Error("Precondición: la tarea editada sigue en la base")
+      expect(fila.fechaLimite.toISOString()).toBe(fechas[i])
+      expect(fila).toMatchObject({ version: 1 })
+      expect(detalleDe(ganadora)).toMatchObject({ version: 1 })
       const vivo = await vivos(COLA_RECORDATORIO_24H, tareaId)
-      expect(vivo.map(({ id }) => id)).toEqual([fila?.trabajoId])
-      expect(vivo[0]?.start_after.getTime()).toBe((fila?.fechaLimite.getTime() ?? 0) - 24 * MS_HORA)
-      expect((await trabajosDeTarea(COLA_RECORDATORIO_24H, tareaId)).length).toBe(7)
+      expect(vivo.map(({ id }) => id)).toEqual([fila.trabajoId])
+      expect(vivo[0]?.start_after.getTime()).toBe(fila.fechaLimite.getTime() - 24 * MS_HORA)
+      expect(
+        (await trabajosDeTarea(COLA_RECORDATORIO_24H, tareaId)).map(({ state }) => state),
+      ).toEqual(["cancelled", "created"])
       expect((await trabajosDeTarea(COLA_TAREA_CREADA, tareaId)).length).toBe(1)
     },
   )
@@ -298,7 +334,7 @@ describe("ataque TAREAS-01b r1: trabajos diferidos (punto 2)", () => {
       for (let i = 0; i < 3; i++) {
         const tareaId = detalleDe(await crear(e)).id
         const [edicion, borrado] = await Promise.all([
-          editar(e, tareaId, { fechaLimite: diasDespues(9).toISOString() }),
+          editar(e, tareaId, { fechaLimite: diasDespues(9).toISOString(), version: 0 }),
           borrar(e, tareaId),
         ])
         expect([200, 404]).toContain(edicion?.statusCode)
@@ -325,13 +361,15 @@ describe("ataque TAREAS-01b r1: trabajos diferidos (punto 2)", () => {
 
     const otraVez = new Date(Date.now() + 24 * MS_HORA - 1_000)
     expect(
-      (await editar(e, conRecordatorio, { fechaLimite: otraVez.toISOString() })).statusCode,
+      (await editar(e, conRecordatorio, { fechaLimite: otraVez.toISOString(), version: 0 }))
+        .statusCode,
     ).toBe(200)
     expect(await vivos(COLA_RECORDATORIO_24H, conRecordatorio)).toEqual([])
     expect((await leerTareaDb(conRecordatorio))?.trabajoId).toBeNull()
     const lejos = new Date(Date.now() + 24 * MS_HORA + 3_000)
     expect(
-      (await editar(e, sinRecordatorio, { fechaLimite: lejos.toISOString() })).statusCode,
+      (await editar(e, sinRecordatorio, { fechaLimite: lejos.toISOString(), version: 0 }))
+        .statusCode,
     ).toBe(200)
     const nuevo = await vivos(COLA_RECORDATORIO_24H, sinRecordatorio)
     expect(nuevo.map(({ id }) => id)).toEqual([(await leerTareaDb(sinRecordatorio))?.trabajoId])
@@ -347,8 +385,8 @@ describe("ataque TAREAS-01b r1: trabajos diferidos (punto 2)", () => {
     for (const r of [
       await crear(e, { fechaLimite: fuera }),
       await crear(e, { fechaLimite: pasada }),
-      await editar(e, tareaId, { fechaLimite: fuera }),
-      await editar(e, tareaId, { fechaLimite: pasada }),
+      await editar(e, tareaId, { fechaLimite: fuera, version: 0 }),
+      await editar(e, tareaId, { fechaLimite: pasada, version: 0 }),
     ]) {
       expect([r.statusCode, codigoDe(r)]).toEqual([400, "FECHA_LIMITE_INVALIDA"])
     }
@@ -361,6 +399,7 @@ describe("ataque TAREAS-01b r1: trabajos diferidos (punto 2)", () => {
     const conserva = await editar(e, antigua, {
       titulo: "Sigue vencida",
       fechaLimite: vencida.toISOString(),
+      version: 0,
     })
     expect(conserva.statusCode).toBe(200)
     expect(await vivos(COLA_RECORDATORIO_24H, antigua)).toEqual([])
@@ -453,7 +492,11 @@ describe("ataque TAREAS-01b r1: archivos al editar (punto 3)", () => {
       ["descartado", descartado.id],
       ["pendiente vencido", viejo.id],
     ] as const) {
-      const r = await editar(e, tareaId, { titulo: "Cambio", archivoIds: [archivoId, id] })
+      const r = await editar(e, tareaId, {
+        titulo: "Cambio",
+        archivoIds: [archivoId, id],
+        version: 0,
+      })
       if (r.statusCode !== 400) fallas.push(`${etiqueta}: ${String(r.statusCode)}`)
     }
     expect(fallas).toEqual([])
@@ -472,13 +515,17 @@ describe("ataque TAREAS-01b r1: archivos al editar (punto 3)", () => {
     const nuevos = await Promise.all([1, 2, 3, 4, 5].map(() => archivoSubido(e)))
     const seis = await editar(e, tareaId, {
       archivoIds: [archivoId, ...nuevos.map(({ id }) => id)],
+      version: 0,
     })
     expect([seis.statusCode, codigoDe(seis)]).toEqual([400, "VALIDACION"])
-    const repetido = await editar(e, tareaId, { archivoIds: [archivoId, archivoId] })
+    const repetido = await editar(e, tareaId, { archivoIds: [archivoId, archivoId], version: 0 })
     expect([repetido.statusCode, codigoDe(repetido)]).toEqual([400, "VALIDACION"])
-    const mayusculas = await editar(e, tareaId, { archivoIds: [archivoId.toUpperCase()] })
+    const mayusculas = await editar(e, tareaId, {
+      archivoIds: [archivoId.toUpperCase()],
+      version: 0,
+    })
     expect(detalleDe(mayusculas).adjuntos.map(({ id }) => id)).toEqual([archivoId])
-    const ninguno = await editar(e, tareaId, { archivoIds: [] })
+    const ninguno = await editar(e, tareaId, { archivoIds: [], version: 1 })
     expect(detalleDe(ninguno).adjuntos).toEqual([])
     const fila = await leerArchivoDb(archivoId)
     expect([fila?.estado, fila?.publicacionId]).toEqual(["descartado", null])
@@ -606,8 +653,8 @@ describe("ataque TAREAS-01b r1: fugas (punto 5)", () => {
       )
     }
     respuestas.push(
-      await editar(e, tareaId, { titulo: "Editada", archivoIds: [archivo.id] }),
-      await editar(e, tareaId, { titulo: "B" }, e.tokenB),
+      await editar(e, tareaId, { titulo: "Editada", archivoIds: [archivo.id], version: 0 }),
+      await editar(e, tareaId, { titulo: "B", version: 1 }, e.tokenB),
       await borrar(e, tareaId, e.tokenB),
       await crear(e, {}, e.tokenAlumno),
       await crear(e, { categoriaId: randomUUID() }),
@@ -727,7 +774,8 @@ describe("ataque TAREAS-01b r1: asíncrono (lista general)", () => {
     const e = await escenario()
     const tareaId = detalleDe(await crear(e)).id
     expect(
-      (await editar(e, tareaId, { fechaLimite: diasDespues(8).toISOString() })).statusCode,
+      (await editar(e, tareaId, { fechaLimite: diasDespues(8).toISOString(), version: 0 }))
+        .statusCode,
     ).toBe(200)
     expect((await borrar(e, tareaId)).statusCode).toBe(204)
     const colas = await obtenerDb().$queryRaw<{ name: string }[]>`

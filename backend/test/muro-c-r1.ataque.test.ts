@@ -622,7 +622,10 @@ describe("ataque CLASES-c r1: cola transaccional (§D-C3, PA-05)", () => {
     }
   })
 
-  it("ningún consumidor: solo core/eventos, adapters/queue/colas.ts y handlers/clases/muro.ts nombran las colas de avisos (workers/ no)", () => {
+  // ENTREGAS-01c ronda 0 (C-3, §D-R0; §D-5 del plan de ENTREGAS-01): el hilo privado reutiliza
+  // COMENTARIO_CREADO y su handler la nombra al encolar en alGuardar. Sigue sin haber consumidor:
+  // workers/ no la nombra, y cualquier otro archivo que lo haga vuelve a poner la prueba en rojo.
+  it("ningún consumidor: solo core/eventos, adapters/queue/colas.ts, handlers/clases/muro.ts y handlers/tareas/hilo-privado.ts nombran las colas de avisos (workers/ no)", () => {
     const raiz = fileURLToPath(new URL("../src", import.meta.url))
     const archivos: string[] = []
     const recorrer = (dir: string) => {
@@ -648,6 +651,7 @@ describe("ataque CLASES-c r1: cola transaccional (§D-C3, PA-05)", () => {
       "adapters/queue/colas.ts",
       "core/eventos/avisos-de-clase.ts",
       "handlers/clases/muro.ts",
+      "handlers/tareas/hilo-privado.ts",
     ])
   })
 })

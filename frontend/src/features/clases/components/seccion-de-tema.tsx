@@ -104,6 +104,9 @@ function ElementosDelTema({
                 titulo={elemento.titulo}
                 fechaLimite={elemento.tarea?.fechaLimite ?? ""}
                 destino={`${base}/tareas/${elemento.id}`}
+                // ENTREGAS-01d (§D-9.8): solo el alumno (la perspectiva que no gestiona el trabajo
+                // de clase, T-16) ve el estado de su entrega; maestro y admin, la fila de siempre.
+                entrega={gestionar ? undefined : elemento.entrega}
               />
             )}
             {elemento.tipo === "material" && (

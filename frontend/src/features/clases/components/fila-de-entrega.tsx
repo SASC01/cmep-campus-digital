@@ -1,26 +1,29 @@
 import { Link } from "react-router"
 
 import { cn } from "@/lib/utils"
-import { vencimientoDe } from "@/lib/vencimiento"
 
-import { CLASES_DEL_CUADRO_DE_FECHA, TEXTOS_TRABAJO } from "../data"
-import { cuadroDeFecha } from "../lib"
+import { TEXTOS_TRABAJO } from "../data"
+import { cuadroDeFecha, segundaLineaDeLaFila } from "../lib"
+import type { ElementoDeTrabajo } from "../types"
 
 interface FilaDeEntregaProps {
   titulo: string
   fechaLimite: string
   // El detalle de la tarea en la perspectiva de quien mira (lo arma la sección con la base de la ruta).
   destino: string
+  // ENTREGAS-01d (§D-9.8): la entrega del alumno (o null si aún no tiene). Solo la perspectiva del
+  // estudiante la pasa; sin ella (maestro y admin) la fila es la de siempre, con el vencimiento.
+  entrega?: ElementoDeTrabajo["entrega"] | undefined
 }
 
 // §D-11, DESIGN.md §7.7: una tarea en "Trabajo de clase". La fila entera es un enlace al detalle, en
 // vidrio fuerte, con el cuadro de fecha a la izquierda (44 × 44 px) y, a la derecha, el título y el
-// estado en palabras (vencimientoDe, S-10). El estado nunca se dice solo con color: el texto lo nombra,
+// estado en palabras (vencimientoDe, S-10; para el alumno, el estado de su entrega desde ENTREGAS-01d,
+// §D-9.8). El estado nunca se dice solo con color: el texto lo nombra,
 // y el enlace empieza con "Tarea:" para quien no ve el cuadro.
-export function FilaDeEntrega({ titulo, fechaLimite, destino }: FilaDeEntregaProps) {
-  const vencimiento = vencimientoDe(fechaLimite, new Date())
+export function FilaDeEntrega({ titulo, fechaLimite, destino, entrega }: FilaDeEntregaProps) {
+  const { texto, colores } = segundaLineaDeLaFila(fechaLimite, entrega, new Date())
   const cuadro = cuadroDeFecha(fechaLimite)
-  const colores = CLASES_DEL_CUADRO_DE_FECHA[vencimiento.estado]
 
   return (
     <Link
@@ -43,7 +46,7 @@ export function FilaDeEntrega({ titulo, fechaLimite, destino }: FilaDeEntregaPro
         <span className="line-clamp-2 font-bold wrap-anywhere">
           <span className="sr-only">{TEXTOS_TRABAJO.tarea}</span> {titulo}
         </span>
-        <span className={cn("text-small", colores.estado)}>{vencimiento.texto}</span>
+        <span className={cn("text-small", colores.estado)}>{texto}</span>
       </span>
     </Link>
   )

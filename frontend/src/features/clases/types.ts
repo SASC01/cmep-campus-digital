@@ -159,3 +159,9 @@ export interface FocoPendiente {
 
 // Los controles de una fila del editor de categorías a los que puede volver el foco.
 export type CampoDeLaFila = "quitar" | "nombre" | "peso"
+
+// ENTREGAS-01d (§D-9.8): la segunda línea de una fila de "Trabajo de clase" y los colores de la fila.
+export interface SegundaLineaDeLaFila {
+  texto: string
+  colores: { cuadro: string; estado: string }
+}

@@ -682,7 +682,9 @@ describe("E: adaptadores, sin concurrencia", () => {
   // (las lecturas FOR KEY SHARE de tema y categoría), temas.ts (el UPDATE … FROM unnest del orden) y
   // categorias.ts (el FOR UPDATE de las que se quitan y su UPDATE … FROM unnest). TAREAS-01b: tareas.ts
   // (el bloqueo de la fila de la tarea, FOR NO KEY UPDATE y FOR UPDATE OF t, al editar y al borrar).
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts y tareas.ts usan SQL etiquetado en adapters/db", async () => {
+  // ENTREGAS-01b: entregas.ts (el FOR KEY SHARE de la tarea en bloquearTareaParaEntregar, el
+  // INSERT … ON CONFLICT DO NOTHING de la fila perezosa y el FOR NO KEY UPDATE de la entrega).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts y entregas.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -705,6 +707,7 @@ describe("E: adaptadores, sin concurrencia", () => {
       "bloqueo-usuario.ts",
       "categorias.ts",
       "enlaces-registro.ts",
+      "entregas.ts",
       "invitaciones.ts",
       "publicaciones.ts",
       "referencias.ts",

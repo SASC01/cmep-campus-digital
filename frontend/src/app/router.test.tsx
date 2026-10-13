@@ -191,6 +191,8 @@ describe("rutas", () => {
       fechaLimite: "2030-01-15T16:00:00.000Z",
       puntos: 80,
       aceptaTardias: true,
+      requiereAdjuntos: true,
+      version: 0,
       categoria: null,
       tema: null,
       rubrica: [],

@@ -7,8 +7,18 @@ import type { ErroresFormulario } from "@/lib/errores-de-api"
 export type {
   Adjunto,
   Categoria,
+  ComentarioPrivado,
+  CrearComentario,
   CrearTarea,
   CriterioDeRubrica,
+  EditarTarea,
+  EntregaDeAlumno,
+  Entregar,
+  EstadoEntrega,
+  FilaDeEntrega,
+  ListaComentariosPrivadosRespuesta,
+  ListaEntregasRespuesta,
+  MiEntrega,
   ResumenDeTarea,
   TareaDetalle,
   Tema,
@@ -36,6 +46,8 @@ export interface EstadoDelFormulario {
   categoriaId: string
   temaId: string
   aceptaTardias: boolean
+  // ENTREGAS-01a (P-03 a): "Cómo se entrega".
+  requiereAdjuntos: boolean
   rubrica: readonly CriterioDelFormulario[]
 }
 

@@ -115,13 +115,19 @@ describe("concurrencia de las tareas (PR-1B12)", () => {
           e,
           "PUT",
           urlTarea(e, id),
-          cuerpoDeTarea({ fechaLimite: diasDespues(dias).toISOString() }),
+          cuerpoDeTarea({ fechaLimite: diasDespues(dias).toISOString(), version: 0 }),
         ),
       ),
     )
 
-    for (const respuesta of respuestas) expect(respuesta.statusCode, respuesta.body).toBe(200)
+    // ENTREGAS-01a (lista cerrada (i), Enmienda 3): con la misma versión, una sola gana (P-05).
+    sinErrorDeServidor(respuestas)
+    expect(respuestas.map((r) => r.statusCode).sort((a, b) => a - b)).toEqual([200, 409])
+    for (const respuesta of respuestas.filter((r) => r.statusCode === 409)) {
+      expect(codigoDe(respuesta)).toBe("TAREA_MODIFICADA")
+    }
     expect(await vivos(id)).toEqual([(await leerTareaDb(id))?.trabajoId])
+    expect((await leerTareaDb(id))?.version).toBe(1)
   })
 
   it("PR-1B12: una ráfaga de diez ediciones de fecha deja un solo recordatorio vivo, el de trabajo_id", async () => {
@@ -134,15 +140,23 @@ describe("concurrencia de las tareas (PR-1B12)", () => {
           e,
           "PUT",
           urlTarea(e, id),
-          cuerpoDeTarea({ fechaLimite: diasDespues(6 + k).toISOString() }),
+          cuerpoDeTarea({ fechaLimite: diasDespues(6 + k).toISOString(), version: 0 }),
         ),
       ),
     )
 
     sinErrorDeServidor(respuestas)
-    for (const respuesta of respuestas) expect(respuesta.statusCode, respuesta.body).toBe(200)
+    // ENTREGAS-01a (lista cerrada (ii), Enmienda 3): con la misma versión, una sola gana (P-05).
+    expect(respuestas.map((r) => r.statusCode).sort((a, b) => a - b)).toEqual([
+      200,
+      ...Array.from({ length: 9 }, () => 409),
+    ])
+    for (const respuesta of respuestas.filter((r) => r.statusCode === 409)) {
+      expect(codigoDe(respuesta)).toBe("TAREA_MODIFICADA")
+    }
     const fila = await leerTareaDb(id)
     expect(await vivos(id)).toEqual([fila?.trabajoId])
+    expect(fila?.version).toBe(1)
   })
 
   it("PR-1B12: editar y borrar a la vez no deja ningún recordatorio vivo", async () => {
@@ -155,7 +169,7 @@ describe("concurrencia de las tareas (PR-1B12)", () => {
           e,
           "PUT",
           urlTarea(e, id),
-          cuerpoDeTarea({ fechaLimite: diasDespues(9).toISOString() }),
+          cuerpoDeTarea({ fechaLimite: diasDespues(9).toISOString(), version: 0 }),
         ),
         peticion(e, "DELETE", urlTarea(e, id)),
       ])
@@ -233,7 +247,12 @@ describe("concurrencia de las tareas (PR-1B12)", () => {
 
     const [borrado, edicion] = await Promise.all([
       peticion(e, "DELETE", `/api/clases/${e.claseId}/temas/${tema.id}`),
-      peticion(e, "PUT", urlTarea(e, id), cuerpoDeTarea({ fechaLimite, temaId: tema.id })),
+      peticion(
+        e,
+        "PUT",
+        urlTarea(e, id),
+        cuerpoDeTarea({ fechaLimite, temaId: tema.id, version: 0 }),
+      ),
     ])
 
     sinErrorDeServidor([borrado, edicion])

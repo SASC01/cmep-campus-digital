@@ -30,6 +30,9 @@ const idTema = (n: number) => uuid("7a7b3c4d", n)
 const idElemento = (n: number) => uuid("5a5b3c4d", n)
 const AUTOR = { id: uuid("3a3b3c4d", 9), nombre: "Luis Pérez", administracion: false }
 
+// ENTREGAS-01b ronda 0 (C-10, §D-R0 «01b»; §D-3.2 y S-07 del plan de ENTREGAS-01): elementoDeTrabajoSchema
+// exige `entrega` (nula para un material, para maestro y admin, y para el alumno sin fila). El doble
+// suma `entrega: null`. Ninguna aserción cambia.
 const material = (n: number, puedeMover: boolean) => ({
   id: idElemento(n),
   tipo: "material" as const,
@@ -38,6 +41,7 @@ const material = (n: number, puedeMover: boolean) => ({
   creadoEn: "2026-10-01T15:00:00.000Z",
   material: { texto: "", adjuntos: [] },
   tarea: null,
+  entrega: null,
   puedeMover,
 })
 

@@ -7,31 +7,20 @@ import { Button } from "@/components/ui/button"
 import { formatearTamano } from "@/lib/format"
 
 import { TEXTOS_ADJUNTOS } from "./data"
-import { useUrlDeDescarga } from "./hooks"
+import { useUrlDeDescarga, useUrlDeDescargaEn } from "./hooks"
 
 // TAREAS-01c (§D-9): movido desde features/clases/components, que conserva un envoltorio con el mismo
 // nombre y las mismas props (mensajeDeErrorClases es de ese módulo y llega por `mensajeDeError`).
-interface FichaDeAdjuntoProps {
-  claseId: string
+interface VistaDeFichaProps {
   adjunto: Adjunto
-  mensajeDeError: (error: unknown) => string
+  pidiendo: boolean
+  onDescargar: () => void
 }
 
-// La ficha sólida de un archivo adjunto (DESIGN.md §7.19): icono, nombre, tamaño y "Descargar". Pide
-// la URL de descarga al hacer clic (los enlaces no se guardan en el DOM: duran 5 minutos) y navega a
-// ella; el navegador descarga con el nombre original porque la disposición es `attachment`.
-function FichaDeAdjunto({ claseId, adjunto, mensajeDeError }: FichaDeAdjuntoProps) {
-  const descarga = useUrlDeDescarga(claseId)
+// La ficha sólida de un archivo adjunto (DESIGN.md §7.19): icono, nombre, tamaño y "Descargar". La
+// pintan las dos fichas de abajo; solo cambia de dónde sale la URL de descarga.
+function VistaDeFicha({ adjunto, pidiendo, onDescargar }: VistaDeFichaProps) {
   const esImagen = adjunto.vistaPrevia !== null
-
-  const handleDescargar = async () => {
-    try {
-      const { url } = await descarga.mutateAsync(adjunto.id)
-      window.location.assign(url)
-    } catch (error) {
-      toast.error(mensajeDeError(error))
-    }
-  }
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-row bg-muted px-3 py-2">
@@ -41,16 +30,86 @@ function FichaDeAdjunto({ claseId, adjunto, mensajeDeError }: FichaDeAdjuntoProp
         {adjunto.nombre}
       </span>
       <span className="text-small text-muted-foreground">{formatearTamano(adjunto.tamano)}</span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        enEspera={descarga.isPending}
-        onClick={handleDescargar}
-      >
+      <Button type="button" variant="outline" size="sm" enEspera={pidiendo} onClick={onDescargar}>
         {TEXTOS_ADJUNTOS.descargar} <span className="sr-only">{adjunto.nombre}</span>
       </Button>
     </div>
+  )
+}
+
+// Pide la URL de descarga al hacer clic (los enlaces no se guardan en el DOM: duran 5 minutos) y navega
+// a ella; el navegador descarga con el nombre original porque la disposición es `attachment`.
+// ENTREGAS-01e (ronda 1, T-01): con `alFallarLaDescarga`, el error lo maneja quien la pasa (avisar una
+// sola vez y renovar lo que el error vuelve viejo); sin ella, el aviso de siempre.
+const descargar = async (
+  pedirUrl: (archivoId: string) => Promise<{ url: string }>,
+  adjunto: Adjunto,
+  mensajeDeError: (error: unknown) => string,
+  alFallarLaDescarga: ((error: unknown) => void) | undefined,
+) => {
+  try {
+    const { url } = await pedirUrl(adjunto.id)
+    window.location.assign(url)
+  } catch (error) {
+    if (alFallarLaDescarga !== undefined) {
+      alFallarLaDescarga(error)
+      return
+    }
+    toast.error(mensajeDeError(error))
+  }
+}
+
+interface FichaDeAdjuntoProps {
+  claseId: string
+  adjunto: Adjunto
+  mensajeDeError: (error: unknown) => string
+  alFallarLaDescarga: ((error: unknown) => void) | undefined
+}
+
+// Un archivo de una publicación de la clase: la descarga de la clase, como siempre.
+function FichaDeAdjunto({
+  claseId,
+  adjunto,
+  mensajeDeError,
+  alFallarLaDescarga,
+}: FichaDeAdjuntoProps) {
+  const descarga = useUrlDeDescarga(claseId)
+  return (
+    <VistaDeFicha
+      adjunto={adjunto}
+      pidiendo={descarga.isPending}
+      onDescargar={() =>
+        void descargar(descarga.mutateAsync, adjunto, mensajeDeError, alFallarLaDescarga)
+      }
+    />
+  )
+}
+
+interface FichaDeAdjuntoEnRutaProps {
+  rutaDeArchivos: string
+  adjunto: Adjunto
+  mensajeDeError: (error: unknown) => string
+  alFallarLaDescarga: ((error: unknown) => void) | undefined
+}
+
+// ENTREGAS-01d (§D-9.1, R-04): un archivo de una entrega, que se descarga por la ruta de la entrega.
+// Es una ficha aparte (y no un gancho condicional en la de arriba): sin `rutaDeArchivos`, la lista
+// sigue montando solo la ficha de la clase.
+function FichaDeAdjuntoEnRuta({
+  rutaDeArchivos,
+  adjunto,
+  mensajeDeError,
+  alFallarLaDescarga,
+}: FichaDeAdjuntoEnRutaProps) {
+  const descarga = useUrlDeDescargaEn(rutaDeArchivos)
+  return (
+    <VistaDeFicha
+      adjunto={adjunto}
+      pidiendo={descarga.isPending}
+      onDescargar={() =>
+        void descargar(descarga.mutateAsync, adjunto, mensajeDeError, alFallarLaDescarga)
+      }
+    />
   )
 }
 
@@ -58,6 +117,11 @@ export interface AdjuntosDePublicacionProps {
   claseId: string
   adjuntos: readonly Adjunto[]
   mensajeDeError: (error: unknown) => string
+  // ENTREGAS-01d (§D-9.1): la ruta de archivos de una entrega. Sin ella, la de la clase (como siempre).
+  rutaDeArchivos?: string
+  // ENTREGAS-01e (ronda 1, T-01): quien la pasa maneja el error de una descarga (un solo aviso y la
+  // renovación de lo que el error vuelve viejo). Sin ella, el aviso de siempre con `mensajeDeError`.
+  alFallarLaDescarga?: (error: unknown) => void
 }
 
 // §D-D5, DESIGN.md §7.19: los archivos de una publicación. Una imagen con vista previa se muestra
@@ -67,6 +131,8 @@ export function AdjuntosDePublicacion({
   claseId,
   adjuntos,
   mensajeDeError,
+  rutaDeArchivos,
+  alFallarLaDescarga,
 }: AdjuntosDePublicacionProps) {
   // T-40: la imagen que falló se recuerda por su URL, no por el id del adjunto: con una URL nueva (el
   // muro se volvió a pedir) se vuelve a intentar.
@@ -88,7 +154,22 @@ export function AdjuntosDePublicacion({
                 onError={() => setUrlsRotas([...urlsRotas, url])}
               />
             )}
-            <FichaDeAdjunto claseId={claseId} adjunto={adjunto} mensajeDeError={mensajeDeError} />
+            {rutaDeArchivos === undefined && (
+              <FichaDeAdjunto
+                claseId={claseId}
+                adjunto={adjunto}
+                mensajeDeError={mensajeDeError}
+                alFallarLaDescarga={alFallarLaDescarga}
+              />
+            )}
+            {rutaDeArchivos !== undefined && (
+              <FichaDeAdjuntoEnRuta
+                rutaDeArchivos={rutaDeArchivos}
+                adjunto={adjunto}
+                mensajeDeError={mensajeDeError}
+                alFallarLaDescarga={alFallarLaDescarga}
+              />
+            )}
           </li>
         )
       })}

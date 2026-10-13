@@ -29,6 +29,7 @@ function CrearTareaDeLaClase({ claseId }: CrearTareaDeLaClaseProps) {
       cancelarA={base}
       pendiente={crear.isPending}
       onGuardar={handleGuardar}
+      version={null}
     />
   )
 }

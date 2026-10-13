@@ -63,6 +63,16 @@ enum EstadoArchivo {
   @@map("estado_archivo")
 }
 
+// ENTREGAS-01a (§D-1). Estado guardado de una entrega: "Sin entregar" no se guarda (es asignado con
+// la fecha límite vencida) y calificado solo lo escribirá CALIFICACIONES (S-12).
+enum EstadoEntrega {
+  asignado
+  entregado
+  calificado
+
+  @@map("estado_entrega")
+}
+
 // Un solo rol = admin: índice único parcial creado a mano en la migración usuarios_y_sesiones
 // (Prisma no expresa índices parciales; DEC-01). nombre_busqueda se normaliza en core/ (DEC-02).
 model Usuario {
@@ -93,6 +103,7 @@ model Usuario {
   publicaciones         Publicacion[]
   comentarios           Comentario[]
   archivosSubidos       Archivo[]
+  entregas              Entrega[]
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -311,20 +322,26 @@ model Categoria {
 // RESTRICT: al borrar una clase, la cascada borra categorías y tareas en la misma sentencia y la
 // comprobación se hace al final (igual que archivos.publicacion_id). trabajo_id es el id del
 // trabajo de pg-boss y no lleva FK. El CHECK (puntos entre 1 y 1000) se agregó a mano.
+// ENTREGAS-01a (§D-1): requiere_adjuntos es "Cómo se entrega" (P-03 a; nace en true, así que las
+// tareas ya creadas siguen pidiendo adjuntos) y version es la precondición del PUT (P-05 a′; sube al
+// editar y al mover de tema). El CHECK (version >= 0) se agregó a mano.
 model Tarea {
-  id            String            @id @db.Uuid
-  claseId       String            @map("clase_id") @db.Uuid
-  categoriaId   String?           @map("categoria_id") @db.Uuid
-  fechaLimite   DateTime          @map("fecha_limite") @db.Timestamptz(3)
-  puntos        Int
-  aceptaTardias Boolean           @default(true) @map("acepta_tardias")
-  trabajoId     String?           @map("trabajo_id") @db.Uuid
-  creadoEn      DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn DateTime          @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  publicacion   Publicacion       @relation(fields: [id], references: [id], onDelete: Cascade)
-  clase         Clase             @relation(fields: [claseId], references: [id], onDelete: Cascade)
-  categoria     Categoria?        @relation(fields: [categoriaId], references: [id], onDelete: NoAction)
-  criterios     CriterioRubrica[]
+  id               String            @id @db.Uuid
+  claseId          String            @map("clase_id") @db.Uuid
+  categoriaId      String?           @map("categoria_id") @db.Uuid
+  fechaLimite      DateTime          @map("fecha_limite") @db.Timestamptz(3)
+  puntos           Int
+  aceptaTardias    Boolean           @default(true) @map("acepta_tardias")
+  requiereAdjuntos Boolean           @default(true) @map("requiere_adjuntos")
+  version          Int               @default(0)
+  trabajoId        String?           @map("trabajo_id") @db.Uuid
+  creadoEn         DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn    DateTime          @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publicacion      Publicacion       @relation(fields: [id], references: [id], onDelete: Cascade)
+  clase            Clase             @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  categoria        Categoria?        @relation(fields: [categoriaId], references: [id], onDelete: NoAction)
+  criterios        CriterioRubrica[]
+  entregas         Entrega[]
 
   @@index([claseId, fechaLimite])
   @@index([categoriaId])
@@ -346,17 +363,22 @@ model CriterioRubrica {
   @@map("criterios_rubrica")
 }
 
+// ENTREGAS-01a (§D-1): un comentario es del muro (publicacion_id) o del hilo privado de una entrega
+// (entrega_id), exactamente uno de los dos: el CHECK comentarios_un_solo_contexto se agregó a mano.
 model Comentario {
-  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  publicacionId String      @map("publicacion_id") @db.Uuid
-  autorId       String      @map("autor_id") @db.Uuid
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicacionId String?      @map("publicacion_id") @db.Uuid
+  entregaId     String?      @map("entrega_id") @db.Uuid
+  autorId       String       @map("autor_id") @db.Uuid
   texto         String
-  creadoEn      DateTime    @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn DateTime    @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  publicacion   Publicacion @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
-  autor         Usuario     @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  creadoEn      DateTime     @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime     @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publicacion   Publicacion? @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  entrega       Entrega?     @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  autor         Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict)
 
   @@index([publicacionId, creadoEn, id])
+  @@index([entregaId, creadoEn, id])
   @@map("comentarios")
 }
 
@@ -366,6 +388,8 @@ model Comentario {
 // en la migración: Prisma no expresa CHECK ni lo compara al buscar deriva. publicacion_id es
 // ON DELETE NO ACTION: al borrar una clase, la cascada borra en la misma sentencia sus publicaciones
 // y sus archivos, y la comprobación se hace al final de la sentencia.
+// ENTREGAS-01a (§D-1): entrega_id es el segundo contexto (NO ACTION, como publicacion_id); el CHECK
+// archivos_confirmado_si_y_solo_si_contexto se reemplazó a mano para contar los dos.
 model Archivo {
   id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   claveObjeto   String        @unique @map("clave_objeto")
@@ -376,12 +400,42 @@ model Archivo {
   estado        EstadoArchivo @default(pendiente)
   claseId       String        @map("clase_id") @db.Uuid
   publicacionId String?       @map("publicacion_id") @db.Uuid
+  entregaId     String?       @map("entrega_id") @db.Uuid
   creadoEn      DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
   actualizadoEn DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
   autor         Usuario       @relation(fields: [subidoPor], references: [id], onDelete: Restrict)
   clase         Clase         @relation(fields: [claseId], references: [id], onDelete: Cascade)
   publicacion   Publicacion?  @relation(fields: [publicacionId], references: [id], onDelete: NoAction)
+  entrega       Entrega?      @relation(fields: [entregaId], references: [id], onDelete: NoAction)
 
   @@index([publicacionId])
+  @@index([entregaId])
   @@map("archivos")
+}
+
+// ENTREGAS-01a (§D-1, S-01). La entrega de un alumno en una tarea: una fila por alumno y tarea, creada
+// al primer uso (entregar o escribir en el hilo privado), nunca al publicar la tarea. tarea_id es
+// CASCADE (muere con su tarea) y alumno_id es RESTRICT (no hay bajas físicas de usuarios). Los CHECK
+// (fecha_entrega si y solo si no está asignado; asignada sin retraso ni enlaces; enlaces es una lista
+// de hasta 5; version >= 0) se agregaron a mano en la migración. El índice de alumno_id sirve a la
+// FK RESTRICT desde usuarios y a "Mis calificaciones" (CALIFICACIONES).
+model Entrega {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tareaId       String        @map("tarea_id") @db.Uuid
+  alumnoId      String        @map("alumno_id") @db.Uuid
+  estado        EstadoEntrega @default(asignado)
+  fechaEntrega  DateTime?     @map("fecha_entrega") @db.Timestamptz(3)
+  conRetraso    Boolean       @default(false) @map("con_retraso")
+  enlaces       Json          @default("[]")
+  version       Int           @default(0)
+  creadoEn      DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime      @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  tarea         Tarea         @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  alumno        Usuario       @relation(fields: [alumnoId], references: [id], onDelete: Restrict)
+  archivos      Archivo[]
+  comentarios   Comentario[]
+
+  @@unique([tareaId, alumnoId])
+  @@index([alumnoId])
+  @@map("entregas")
 }

@@ -411,8 +411,19 @@ describe("crearTareaSchema (PR-1B06)", () => {
     expect(rechaza({ temaId: "sin-tema" }).success).toBe(false)
   })
 
-  it("PR-1B06: editarTareaSchema es el mismo esquema y tareaIdParamSchema pasa el id a minúsculas", () => {
-    expect(editarTareaSchema).toBe(crearTareaSchema)
+  it("PR-1B06: editarTareaSchema tiene los campos de crearTareaSchema con las mismas reglas más version obligatoria, y tareaIdParamSchema pasa el id a minúsculas", () => {
+    // ENTREGAS-01a (lista cerrada (iii), Enmienda 3): editarTareaSchema = crearTareaSchema.extend({ version }).
+    const llavesDeCrear = Object.keys(crearTareaSchema.shape)
+    expect(Object.keys(editarTareaSchema.shape).sort()).toEqual(
+      [...llavesDeCrear, "version"].sort(),
+    )
+    const camposDeCrear: Record<string, unknown> = crearTareaSchema.shape
+    const camposDeEditar: Record<string, unknown> = editarTareaSchema.shape
+    for (const llave of llavesDeCrear) {
+      expect(camposDeEditar[llave], llave).toBe(camposDeCrear[llave])
+    }
+    expect(editarTareaSchema.safeParse(base).success).toBe(false)
+    expect(editarTareaSchema.safeParse({ ...base, version: 0 }).success).toBe(true)
     expect(tareaIdParamSchema.safeParse({ tareaId: A.toUpperCase() }).data).toEqual({ tareaId: A })
     expect(tareaIdParamSchema.safeParse({ tareaId: "nueva" }).success).toBe(false)
   })

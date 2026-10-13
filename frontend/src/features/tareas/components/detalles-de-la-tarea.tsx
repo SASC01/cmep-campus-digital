@@ -13,7 +13,7 @@ interface DetallesDeLaTareaProps {
 // §D-10, DESIGN.md §7.20: el panel "Detalles" de la tarea. La fecha límite lleva su fecha y hora (en la
 // zona del navegador) y, en una insignia, el texto de vencimientoDe: el estado lo dice el texto
 // ("Vence mañana…", "Venció el…"), nunca solo el color. Categoría con su peso o "Sin categoría", tema
-// o "Sin tema", y la política de entregas tardías.
+// o "Sin tema", la política de entregas tardías y cómo se entrega (ENTREGAS-01a).
 export function DetallesDeLaTarea({ tarea }: DetallesDeLaTareaProps) {
   const vencimiento = vencimientoDe(tarea.fechaLimite, new Date())
   const categoria =
@@ -24,6 +24,9 @@ export function DetallesDeLaTarea({ tarea }: DetallesDeLaTareaProps) {
   const tardias = tarea.aceptaTardias
     ? TEXTOS_DETALLE_TAREA.aceptaTardias
     : TEXTOS_DETALLE_TAREA.noAceptaTardias
+  const entrega = tarea.requiereAdjuntos
+    ? TEXTOS_DETALLE_TAREA.entregaConAdjuntos
+    : TEXTOS_DETALLE_TAREA.entregaMarcandoCompletada
 
   return (
     <Card>
@@ -54,6 +57,10 @@ export function DetallesDeLaTarea({ tarea }: DetallesDeLaTareaProps) {
               {TEXTOS_DETALLE_TAREA.entregasTardias}
             </dt>
             <dd className="text-body text-foreground">{tardias}</dd>
+          </div>
+          <div className="flex flex-col gap-1">
+            <dt className="text-small text-muted-foreground">{TEXTOS_DETALLE_TAREA.entrega}</dt>
+            <dd className="text-body text-foreground">{entrega}</dd>
           </div>
         </dl>
       </CardContent>

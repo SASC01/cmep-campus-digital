@@ -158,3 +158,21 @@ export {
   type ListaTrabajoDb,
   type TareaDetalleDb,
 } from "./tareas.js"
+export {
+  anularEntrega,
+  buscarArchivoDeEntregaDeAlumno,
+  buscarArchivoDeMiEntrega,
+  comentarEnHiloPrivado,
+  entregar,
+  leerEntregaDeAlumno,
+  leerMiEntrega,
+  listarEntregas,
+  listarHiloPrivado,
+  type AlumnoDeEntregaDb,
+  type ComentarioPrivadoDb,
+  type EntregaDeAlumnoDb,
+  type FilaDeEntregaDb,
+  type ListaComentariosPrivadosDb,
+  type ListaEntregasDb,
+  type MiEntregaDb,
+} from "./entregas.js"

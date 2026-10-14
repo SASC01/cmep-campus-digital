@@ -5,6 +5,7 @@ import {
   normalizarTextoLargo,
 } from "@campus/shared"
 
+import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
 import { erroresDeFormularioDeApi, quitarPrefijoDeCampo } from "@/lib/errores-de-api"
 import { formatearFechaLarga } from "@/lib/format"
 import { esApiError } from "@/services/apiClient"
@@ -39,7 +40,6 @@ import type {
   EstadoDelPanel,
   EstadoEntrega,
   IncidenciaValidacion,
-  MomentoDeLaConsulta,
   ResultadoDeCalificacion,
   ResultadoDelCuerpo,
   TareaDeApertura,
@@ -300,19 +300,9 @@ export const erroresSinFilasQuitadas = (
 export const esTareaModificada = (error: unknown): boolean =>
   esApiError(error) && error.codigo === "TAREA_MODIFICADA"
 
-// T-09, T-14 y T-15: la clave con que el detalle y la edición le dicen a useFocoAlPerderseElControl que
-// la vista pudo cambiar. Cambia con cada respuesta y con cada fallo nuevo (también con dos fallos
-// seguidos, aunque el estado siga en error y caigan en el mismo milisegundo): un fallo que conserva la
-// vista seguido de otro que la reemplaza vuelve a evaluar el foco. Una sola función para las dos vistas,
-// para que no vuelvan a divergir.
-export const claveDeFocoDeLaTarea = (tareaId: string, consulta: MomentoDeLaConsulta): string =>
-  [
-    tareaId,
-    consulta.status,
-    consulta.dataUpdatedAt,
-    consulta.errorUpdatedAt,
-    consulta.errorUpdateCount,
-  ].join(":")
+// CALIFICACIONES-01d (§D-13.1): la clave de foco vive en components/foco (claveDeFocoDeLaConsulta);
+// se reexporta con su nombre para que ningún importador de este módulo cambie.
+export const claveDeFocoDeLaTarea = claveDeFocoDeLaConsulta
 
 // ENTREGAS-01d (§D-9.9): la llave de la entrega del alumno cuelga de la de la tarea (una renovación de
 // la tarea la renueva también) y la del hilo, de su ruta (la del alumno o la de un alumno para sus

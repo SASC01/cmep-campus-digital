@@ -3591,3 +3591,1612 @@ Calculada con `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '
 | `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
 | `1E9259D9E1B9FA11631FC8A2820441814D9FFEDA1CE5BBBC5202A58064E06044` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
 | `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## Ronda 0 de 01d
+Base: `<K1c>` = `8242ce116c3d9645aab23a7de685574ce81a2b55` (árbol limpio dentro de los paquetes; fuera, `<R>` = `d998282`). El programador no ha escrito nada de 01d. Leí del plan §D-R0 (C-8 a C-12, las filas "Diseño" de 01d y "Rojos esperados"), la lista cerrada de 01d, §D-13, §D-14 (01d), la Enmienda 2 (CAL-1D10 a CAL-1D17), "Puntos de ataque → Ronda 0", "PARADAS" y A-5. **La Enmienda 2 no cambia §D-R0 ni la lista cerrada** (su punto 7 y la viñeta de la lista cerrada de 01d lo dicen; lo confirmé: no suma ningún `enEspera=`, `data-material` ni valor arbitrario, y sus funciones son nuevas en archivos nuevos). Solo escribí las cinco reescrituras C-n en 4 archivos `*.ataque` y esta sección. No toqué código de producción, `shared/`, pruebas normales ni otro `*.ataque`. Mi único formateo fue `npx prettier --check` sobre los 4 archivos, desde `frontend/` (sin cambios que aplicar). No corrí el backend (01d no lo toca). No abrí navegadores, no terminé procesos y no leí `.env`.
+
+### V-01
+- **Base:** "Tabla de SHA-256 de las 193 `*.ataque` al cierre de la ronda 4 cerrada de 01c" de este reporte.
+- **Método:** `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort | xargs sha256sum`, normalizado (hash en minúsculas, sin el `*`), ordenado por ruta y comparado con `diff` contra la tabla extraída por ruta.
+- **Antes de escribir nada:** 193 de 193 iguales, ningún archivo de más ni de menos (`diff` vacío). **V-01 en verde. Sin PARADA.**
+- **Al cierre:** 189 iguales y 4 distintos, exactamente los reescritos (C-8 y C-12 comparten archivo). Ningún archivo nuevo ni borrado. `git diff --stat 8242ce1 -- frontend backend shared` = `4 files changed, 21 insertions(+), 6 deletions(-)`, solo esos 4.
+
+### Reescrituras C-n (A-5, cambio mínimo de §D-R0)
+Cada una lleva el comentario de una línea "C-n de CALIFICACIONES-01d (§D-R0, A-5): …". Las líneas del plan (contadas sobre `d998282`) se corrieron por C-7 de 01c y por mis comentarios; abajo van las de hoy.
+
+| C-n | Archivo y caso | Diff resumido | Motivo |
+|---|---|---|---|
+| C-8 | `frontend/src/styles/clases-r1.ataque.test.ts`, "V-06: … 61 enEspera" (`:154`) | Título "56 enEspera" → "61 enEspera"; `toHaveLength(56)` → `toHaveLength(61)`; la lista fija suma `navegacion-del-gradebook.tsx: 4`, `mis-calificaciones-view.tsx: 1` y, con 0, `gradebook-view.tsx`, `components/tabla-del-gradebook.tsx`, `components/resumen-del-gradebook.tsx`, `components/lista-de-mis-calificaciones.tsx` y `components/calculo-de-calificacion.tsx` (todas bajo `/src/features/calificaciones/`). El resto (`resto`, admin 2, clases 3) no cambia | Las cuatro ventanas del gradebook y "Ver más tareas" (§D-13.3 y §D-13.4) |
+| C-9 | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx`, el `it.each` "%s: la perspectiva de su prefijo, su sección activa y el indicador montado" (`:217-266`) | Las tres listas `esperadas` suman `"Calificaciones"` al final (`:224`, `:231`, `:238`). La sección activa y el indicador no cambian | La sección nueva al final de las tres perspectivas (§D-13.6, S-10) |
+| C-10 | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx`, "Muro → Alumnos → Maestros → Editar clase: …" (`:361-366`) | La lista del admin suma `"Calificaciones"` al final. El recorrido de abajo no cambia | Ídem, perspectiva admin |
+| C-11 | `frontend/src/components/layout/estatico-r1.ataque.test.ts`, "los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan" (`:138`) | La lista suma `"translate-x-[400%]"` | El indicador de la quinta sección del admin (§D-13.6) |
+| C-12 | `frontend/src/styles/clases-r1.ataque.test.ts`, "V-07: …" (`:324`), su última aserción (`:363-366`) | La lista ordenada de `data-material|data-densidad` suma `"/src/features/calificaciones/gradebook-view.tsx"` (después de `contenedor-rol.tsx`). Las listas de vidrio, vidrio fuerte y vidrio azul no cambian | El contexto opaco de la raíz del gradebook (Enmienda 1, M-03) |
+
+### Inventario (grep sobre `<K1c>` + mis reescrituras)
+**Resultado: entre las `*.ataque` del frontend, en 01d solo rompen C-8 a C-12. Ninguna otra `*.ataque` rompe por diseño. Sin PARADA.** Lo confirma la corrida (7 rojos, los cinco C-n, abajo). Recorrido, una por una:
+
+- **`enEspera=` (V-06) y `data-material`/vidrio (V-07):** reescritas (C-8 y C-12). Ningún otro inventario cuenta `enEspera=` ni `data-material` en `features/calificaciones`.
+- **`app/contexto-r1.ataque.test.tsx`:** confirmado que no recorre rutas de clase. Solo monta `/admin` (`:97`, `:118`), `/login`, `/registro`, `/recuperar`, `/restablecer`, `/establecer-contrasena`, `/cambiar-contrasena`, `/acceso-restringido`, `/estudiante`, `/maestro` (`:132-158`) y `/diagnostico` (`:167`). No cambia.
+- **`components/layout/estatico-r1.ataque.test.ts`:** los valores arbitrarios, reescrito (C-11). V-16 (`:102`) no cambia mientras el modal use `DialogContent` (el `fixed` vive en `components/ui/dialog.tsx`, en el portal). V-15 (`:114`) no cambia.
+- **`features/clases/estatico-02c-r1.ataque.test.ts:85`** (`perspectivaDeRuta(`, lista cerrada de 5 archivos): no cambia. `features/calificaciones` usa enlaces relativos (S-14), y la reexportación de `features/tareas/hooks.ts` no toca `useRutaDeLaClase`.
+- **`features/clases/refactor-01c-r1.ataque.test.tsx:417`** (`components/`, `lib/` y `services/` no importan de `features/`): no cambia si `components/foco/` y `services/calificacionesService.ts` no importan de `features/`. **La regla lee el texto crudo:** un comentario con `from "@/features/…"` también la rompe. `:425` (cada símbolo movido se define una sola vez) no cambia: `esErrorDeCursorDeCalificaciones` no casa con `esErrorDeCursor\b`.
+- **`features/clases/ver-mas-01e-r3.ataque.test.tsx:311`** (`features/clases/data.ts` en `DE_01E`): `translate-x-[400%]` no casa con `-\[(?:#|\d+(?:\.\d+)?(?:px|rem|em|vh|vw))`, y `5: "w-1/5"` y `5: "grid-cols-5"` no son tipos, ni `?? []`, ni importaciones. No cambia.
+- **Pruebas de foco de TAREAS y ENTREGAS:** **ninguna prueba importa `useFocoAlPerderseElControl`** (grep sobre `frontend/src`, pruebas incluidas). Las que importan su pareja `claveDeFocoDeLaTarea` son `features/tareas/lib.test.ts:7` (normal, casos `:287-298`) y `features/tareas/tareas-01d-r4.ataque.test.tsx:9` (casos `:77-84`; usa `Parameters<typeof claveDeFocoDeLaTarea>[1]` en `:67`, que sigue tipando con `export const claveDeFocoDeLaTarea = claveDeFocoDeLaConsulta` si la firma es la misma). El gancho se prueba a través de las vistas (`detalle-tarea-view`, `editar-tarea-view`, `entregas-view`, `entrega-de-alumno-view`, `tu-trabajo`): las aserciones `not.toBe(document.body)` están en `detalle-tarea-view.test.tsx:308`, `editar-tarea-view.test.tsx:358, :380, :486, :517`, `entregas-01d.test.tsx:884`, `entregas-01e.test.tsx:695, :741, :879, :968, :1001`, `entregas-01d-r1.ataque:290`, `entregas-01d-r2.ataque:262`, `entregas-01d-r3.ataque:250`, `entregas-01e-r1.ataque:255`, `entregas-01e-r2.ataque:243`, `tareas-01d-r1.ataque:239`, `tareas-01d-r2.ataque:500`, `tareas-01d-r3.ataque:178, :201` y `tareas-01d-r4.ataque:145`. Además leen `document.activeElement` `avisos-01c-r2`, `calificar-01c-r1`, `calificar-01c`, `conflicto-01a`, `cruces-01c-r3` y `forma-01c-r2` (todas en `features/tareas/`). Ningún `vi.mock` de `features/tareas/hooks` (los únicos `vi.mock("./hooks")` son de `features/clases`). Tras la reexportación deben seguir igual. Si alguna cambia de resultado, es PA-07 del plan.
+- **Reglas que leen `features/tareas/hooks.ts`, `lib.ts` o `types.ts`:**
+  - Conteos: `renovarTrasErrorDeLaEntrega(` = 3 (`entregas-01d-r2.ataque:783`, `entregas-01e-r1.ataque:765`, `entregas-01e-r2.ataque:541`, `estatico-01c.test:97`); `avisarDelErrorDeLaEntrega(` = 5 (`aviso-calificar-01c-r3.ataque:530`); ganchos `^export const use…` del alumno y del hilo (`entregas-01d-r3.ataque:715`).
+  - Ninguno cambia con `export { useFocoAlPerderseElControl } from "@/components/foco/hooks"`, que no es `export const use…`.
+  - El cuerpo movido del gancho no contiene ninguno de esos nombres (lo leí, `hooks.ts:296-…`).
+- **Secciones y el indicador:** M-T1 (`clase-layout.test.tsx:222`, "Alumnos" sigue en `translate-x-[200%]`), PR-2C07 de las posiciones (`:294-312`, `translate-x-[200%]` y `[300%]`), `indiceDeSeccionActiva` (`lib.test.ts:321-342`, índices 2 y 3) y PR-B14 (`clase-layout.test.tsx:127`) siguen igual con "Calificaciones" al final. Las únicas listas de secciones en pruebas son la normal de la lista cerrada (`clase-layout.test.tsx:274, :371, :379`; `lib.test.ts:298`) y las dos reescritas (C-9 y C-10). No hay dobles de secciones por perspectiva en ninguna `*.ataque`. Las demás `*.ataque` que montan `ClaseLayout` no cuentan enlaces de secciones: `clases-r1`, `clases-r2`, `clases-r3`, `clases-r4`, `foco-02c-r3`, `foco-02c-r4`, `foco-02c-r5`, `maestros-02c-r1`, `muro-c-r1` y `ventana-02c-r2`, todas en `features/clases/`.
+- **Router:** `router.test.tsx`, `router-01e.test.tsx`, `router.ataque.test.tsx`, `rutas-clases-r1.ataque.test.tsx` y `rutas-02c-r1.ataque.test.tsx` no tienen lista cerrada de rutas ni de vistas por rol. Las listas de `rutas-02c-r1:216-241` son de la navegación principal ("Cuentas", "Maestros", "Clases"), no de secciones. La única regla de texto sobre `app/router.tsx`:
+  - `estatico-r1.ataque:92`: sin `/Fondo|orbe/i`.
+  - `estatico-02c-r1.ataque:108`: la línea exacta de `path: "clases/nueva"`, una sola vez.
+- **`services/`:** no hay lista cerrada de archivos de `services/`. Las reglas que lo tocan son:
+  - `entregas-01d-r1.ataque:896`: `fetch(` solo en `apiClient.ts` y `almacenService.ts`, en todo `src/`, comentarios incluidos.
+  - `refactor-01c-r1.ataque:417`: `services/` no importa de `features/`.
+  - `estatico-01c-r1.ataque:47` (CAL-T-94) y `estatico-01c.test:73` y `:127` (CAL-1C13): sobre `services/calificacionesService.ts`. Aplican si N-30 de la Enmienda 2 cambia su firma.
+- **`lib/`:** `lib/format.ts` no cambia en 01d. `lib/errores-de-api.ts` está en "No se toca".
+- **`*.ataque` del backend que recorren `frontend/src`:** `backend/test/muro-c-r1.ataque.test.ts:1122` (sin `Default_Ignorable_Code_Point`, `\u2800`, `\u{1D159}`, `contarCaracteresVisibles =` ni `CARACTER_VISIBLE`) y `backend/test/muro-c-r2.ataque.test.ts:321` (sin `\r\n|\r` ni `normalizarTextoLargo =`), sobre el código de producción de `frontend/src`. El código de 01d no debería tocarlas, pero **el programador las corre** (con `npx vitest run test/muro-c-r1.ataque.test.ts test/muro-c-r2.ataque.test.ts` desde `backend/`; necesitan Docker por `global-setup`), o el manager decide. Su espejo en el frontend es `estatico-01c-r1.ataque:136` (CAL-T-99).
+- **`docs/DESIGN.md`:** lo lee `styles/tokens-r1.ataque.test.ts` (`:53`, `:104`, `:119`, `:153`, `:162`, `:225`). El paso 6 de 01d edita §7.x y §8: no deben moverse los títulos `### Tokens`, `### Materiales`, `### Radios`, `### Bordes`, `### Escala` ni `## 5.`, ni cambiar sus tablas ni los literales que la prueba busca (por ejemplo "tinta al 40 % (`rgb(22 32 46 / 0.4)`)").
+
+### Reglas estáticas que el código nuevo de §D-13 debe cumplir (para el programador)
+Todas sobre el código de producción (sin pruebas). "Crudo" quiere decir que la regla también lee los comentarios.
+
+**Sobre todo `frontend/src` (incluye `features/calificaciones/`, `components/foco/` y lo que cambie):**
+1. **`styles/clases-r1.ataque.test.ts`:**
+   - `:35` V-02: ningún color de la paleta por defecto ni `dark:`.
+   - `:41` V-03: ninguna escala anulada (`text-sm`, `rounded-lg`, `shadow-md`, `font-semibold`, `tracking-tight`, `leading-none`, `blur-*`, `backdrop-*`, `rounded` suelto).
+   - `:47` V-04: ningún `#hex`, `rgb(`, `hsl(`, `oklch(` ni `text-[`, `rounded-[`, `bg-[`, `border-[` y similares.
+   - `:54`: ningún `bg-surface/NN` ni parecidos.
+   - `:60` V-05: ningún `outline-none`, `ring-` ni `focus:`.
+   - `:154` V-06, crudo en `.tsx`: ningún `disabled` en JSX (un comentario con " disabled " también cuenta); `aria-busy=` y `aria-disabled=` solo en `button.tsx`; los `enEspera=` exactos de C-8 (4 en `navegacion-del-gradebook.tsx`, 1 en `mis-calificaciones-view.tsx` y 0 en los otros cinco).
+   - `:324` V-07, crudo: ninguna cadena con la palabra `vidrio` ni `vidrio-fuerte` o `vidrio-azul`; `data-material` o `data-densidad` solo en `contenedor-rol.tsx` y `features/calificaciones/gradebook-view.tsx` (un comentario que nombre `data-material` en otro archivo del módulo también la rompe).
+   - `:376` V-13: ningún `text-danger` ni `text-destructive` en `.tsx`.
+   - `:401`: ningún `Toaster`.
+2. **`components/layout/estatico-r1.ataque.test.ts`:**
+   - `:58`: ningún `href="#"`, `javascript:` ni `<a href="…">` literal (usa `Link`).
+   - `:96`: ningún `bg-background`.
+   - `:102` V-16, crudo en `.tsx`: la palabra `fixed` solo en `barra-navegacion.tsx` y `dialog.tsx`. **También casa `table-fixed`** y un comentario con "fixed".
+   - `:114` V-15: ningún `animate-`, `@keyframes` ni `will-change` nuevo.
+   - `:138`, crudo: ningún valor arbitrario `-[…]` fuera de `components/ui/` salvo los 10 de la lista (C-11). En el módulo: ninguno; en `features/clases/data.ts`, solo `translate-x-[400%]`.
+   - `:253` V-17: ningún `type="password"` ni la palabra `Ocultar` en `.tsx` (crudo).
+3. **`features/clases/estatico-02c-r1.ataque.test.ts`** (sin comentarios):
+   - `:36`: ningún `.administracion` ni comparación con «Administración»; ningún literal `"Administración"`.
+   - `:62`: ningún `esMaestro`, `esDueno`, `mis-comentarios`, `.propio`, ni lector nuevo de `.puedeBorrar`.
+   - `:85`: ningún `perspectivaDeRuta(` nuevo; ningún `pathname.startsWith|includes|match|indexOf(` ni `startsWith("/maestro…")`.
+   - `:108`: ningún `"Crear clase"` ni `"Editar clase"`.
+4. **`features/clases/refactor-01c-r1.ataque.test.tsx`:**
+   - `:417`, crudo: `components/foco/*` y `services/*` no importan de `features/`.
+   - `:425`: no redefinir `perspectivaDeRuta`, `baseDeClase`, `erroresPorCampo`, `esErrorDeCursor`, `ErroresFormulario`, `IncidenciaValidacion`, `clavePublicaciones`, `TEXTOS_DE_LA_CLASE`, `ConClaseDeLaRuta` ni los demás símbolos de esa tabla.
+5. **`features/tareas/entregas-01d-r1.ataque.test.tsx:896`**, crudo: ningún `fetch(` (ni en comentarios) fuera de `apiClient.ts` y `almacenService.ts`; ningún `_blank` fuera de `lista-de-enlaces.tsx`.
+6. **`features/tareas/estatico-01c-r1.ataque.test.ts:136`** (CAL-T-99) y su espejo del backend (arriba): ninguna copia de la regla de caracteres visibles ni de `normalizarTextoLargo`.
+7. **`features/tareas/estatico-01c.test.ts:52`** (normal, CAL-1C12): el literal «Sin categoría» solo en `components/clase/data.ts`. El módulo usa `TEXTOS_DE_LA_CLASE.sinCategoria`.
+8. **`features/tareas/tareas-01a-r1.ataque.test.tsx:316`:** el literal «Sin tema» solo en `components/clase/data.ts`.
+9. **`features/tareas/aviso-calificar-01c-r3.ataque.test.tsx:530`** (CAL-T-127), crudo: el nombre `mensajeDelAvisoDeCalificar` solo en `features/tareas/hooks.ts` y `lib.ts`.
+10. **`features/clases/reloj-01e-r4.ataque.test.tsx:38`** (sobre las pruebas): toda prueba nueva con «Vence hoy», «Vence mañana» o «Vence en …» fija el reloj (`useFakeTimers` o `setSystemTime`) o pasa un «ahora» en cada `vencimientoDe(…)`.
+
+**Sobre `features/tareas/hooks.ts`, `lib.ts` y `types.ts` (reexportaciones de §D-13.1):**
+
+11. **`entregas-01d-r1.ataque:882`**, crudo: ningún `?? []`, `disabled`, valor por defecto en `estadoPago`, `accesoRestringido`, `rol` ni `calificacion` (`?? ` o `||`), `localStorage`, `sessionStorage` ni `console.`.
+12. **`entregas-01d-r1.ataque:910`** y **`entregas-01d-r3.ataque:675`**: no importar de `@/features/` salvo `tareas`.
+13. **`entregas-01e-r1.ataque:741`**, crudo, también sobre `data.ts`: ningún `vidrio`, `data-material`, `fixed`, `animate-` ni `from "@/features/"`.
+14. **`entregas-01d-r2.ataque:770`** y **`entregas-01e-r2.ataque:530`**: sin `disabled`, `?? []`, `fetch(` ni `from "@/features/"`; `renovarTrasErrorDeLaEntrega(` en 3.
+15. **`tareas-01d-r1.ataque:504`** y **`tareas-01d-r2.ataque:524`**, sobre todo `features/tareas/`: sin emojis, ningún `from "@/features/"` y ningún `-[NN%]`.
+16. **`tareas-01d-r3.ataque:398`**: ningún `type` ni `interface` fuera de `types.ts`. `export type { MomentoDeLaConsulta } from …` va en `types.ts`, como dice §D-13.1.
+17. **`estatico-01c-r1.ataque:47`** (CAL-T-94), crudo: sin escalas anuladas, colores sueltos ni emojis (también en `services/calificacionesService.ts`).
+18. **`estatico-01c.test.ts`** (normal, CAL-1C13):
+    - `:73`: sin `vidrio`, `data-material` ni otro módulo.
+    - `:106`: tipos solo en `types.ts`; `types.ts` conserva `CalificacionDeEntrega,` y `CalificarEntrega,` con su salto de línea.
+    - `:127`: **ningún comentario** de esos archivos ni de `services/calificacionesService.ts` puede tener `vidrio`, `data-material`, `disabled`, `?? []`, `fetch(`, `console.`, `_blank`, `perspectivaDeRuta(`, `correo`, `estadoPago`, `"Sin tema"` ni `"Sin categoría"`.
+
+**Sobre `features/clases/data.ts` (sección y clases del indicador):**
+
+19. **`ver-mas-01e-r3.ataque:311`:** sin tipos, sin `?? []`, `disabled` en JSX, `fetch(`, `console.` ni `dangerouslySetInnerHTML`, sin `-[NNpx|rem|em|vh|vw]` y sin importar de `@/features/`.
+20. **`entregas-01d-r1.ataque:882`** y **`:910`:** lo mismo que la regla 11, crudo, y no importar de `@/features/tareas`.
+21. **`features/clases/estatico-r1.ataque.test.ts`:** ningún `?? []`.
+22. **`estatico-02c-r1.ataque:108`:** «Crear clase» y «Editar clase» siguen con sus cinco líneas exactas.
+
+**Las de CAL-1D09 y de la Enmienda 2 (las escribe el programador como prueba normal; las anoto para que el código las cumpla desde el principio):**
+
+23. En `features/calificaciones`:
+    - Tipos solo en `types.ts` (los componentes, solo Props).
+    - Sin `?? []`, `disabled`, `fetch(`, `console.`, `perspectivaDeRuta(`, clases de vidrio, fondos a mano (salvo `bg-surface` de la columna fija), valores arbitrarios, `estadoPago`, `accesoRestringido` ni correo.
+    - No importa de otro módulo de `features`.
+    - `data-material="opaco"` exactamente una vez, en la raíz de `gradebook-view.tsx`, y ningún `data-densidad`.
+    - **(Enmienda 2) Ningún archivo de producción del módulo contiene `.message`, ninguno llama a `esErrorDeCursor(` y ninguno usa `ErrorDeCampo`.**
+    - Con las reglas 1 (V-06 y V-07) y 2 (`:102` y `:138`) leyendo comentarios, conviene que los comentarios del módulo tampoco nombren `disabled`, `fixed`, `data-material` (salvo en `gradebook-view.tsx`) ni `-[`.
+
+### Corrida y rojos esperados
+Desde `frontend/`, una suite a la vez (sin corrida del backend).
+
+| Comando | Código | Última línea / resumen |
+|---|---|---|
+| `npx prettier --check` sobre los 4 archivos reescritos | 0 | `All matched files use Prettier code style!` |
+| `npm run lint > <scratchpad>/r0d/lint.txt 2>&1` | 0 | `> tsc -b` (antes: `All matched files use Prettier code style!`) |
+| `npm run test > <scratchpad>/r0d/test.txt 2>&1` (03:02:16Z a 03:04:15Z) | 1 | `npm error command C:\WINDOWS\system32\cmd.exe /d /s /c vitest run`. Resumen: `Test Files  4 failed \| 176 passed (180)` · `Tests  7 failed \| 2926 passed (2933)` · `Duration  116.02s (transform 27.65s, setup 78.15s, import 257.88s, tests 503.59s, environment 351.64s)`. `grep -c "Test timed out"` = **0** |
+
+**Los 7 rojos son exactamente C-8 a C-12, cada uno por su causa (ningún otro rojo, sin PARADA):**
+
+| C-n | Caso rojo | Causa en la salida |
+|---|---|---|
+| C-8 | `clases-r1.ataque` › "V-06: … 61 enEspera" | `expected [ …(56) ] to have a length of 61 but got 56`: los archivos de `features/calificaciones` no existen |
+| C-12 | `clases-r1.ataque` › "V-07: …" | Falta `"/src/features/calificaciones/gradebook-view.tsx"` en la lista de `data-material`: el archivo no existe |
+| C-11 | `estatico-r1.ataque` › "los únicos valores arbitrarios de maquetación nuevos son los que prescribe el plan" | Falta `"translate-x-[400%]"` |
+| C-9 | `heredados-02d-r1.ataque` › los 3 casos del `it.each` (estudiante, maestro y admin) | Las secciones no tienen `"Calificaciones"` |
+| C-10 | `clases-admin-02c-r1.ataque` › "Muro → Alumnos → Maestros → Editar clase: …" | Las secciones del admin no tienen `"Calificaciones"` |
+
+Pasan a verde en los pasos 4 (C-8 y C-12) y 5 (C-9, C-10 y C-11) de 01d.
+
+### Veredicto de la ronda 0 de 01d
+**RONDA 0 CERRADA.**
+- V-01 en verde (193 de 193 antes de escribir).
+- Las cinco reescrituras C-8 a C-12 aplicadas con el cambio mínimo, en 4 archivos.
+- El inventario confirma que en 01d solo rompen esas cinco, sin otra `*.ataque` fuera de §D-R0.
+- La suite del frontend tiene exactamente los 7 rojos esperados, cada uno por su causa, y 0 tiempos límite. `lint` en verde.
+- Pendiente del programador: correr las dos `*.ataque` del backend que recorren `frontend/src` (`muro-c-r1.ataque:1122` y `muro-c-r2.ataque:321`) o que el manager decida.
+
+### Tabla de SHA-256 de las 193 `*.ataque` al cierre de la ronda 0 de 01d (base de V-01 de la ronda siguiente)
+Calculada con `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort`. Contra la tabla de la ronda 4 cerrada de 01c, 189 son iguales y 4 están reescritas; ninguna nueva ni borrada.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` |  |
+| `B00C2C10D8D862F6576CB69173F07D190A08A18A25439C296D10B74E9772A454` | `backend/test/calificaciones-01a-r2.ataque.test.ts` |  |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` |  |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` |  |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` |  |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `6F72C7CC1D0F95D60C057D7406A8955C47E834C963ED53D15DF64C83049F5431` | `backend/test/entregas-01b-r1.ataque.test.ts` |  |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` |  |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `2684916C88B9405706F82DA3F9B2FFD0B3626A11AF79E20EA146FDFD1D52C319` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `3790777831A1FACB053D0719D85AB404593954416B1443A1A59530E09E2C81DC` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` |  |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` |  |
+| `D95AB72A3FD3D70CE3A9027A50DB660426976C3DF1A46E92DF75066BEAC78A0C` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `CCEA34C962FC8F14A49C64EAFA8119DAE5030E1302ED94FE369299EC49182BB8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` |  |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `36A104515F2EA87F143B2CFC00AEF9A33E6DDDB666844C1A9C977557EECA20EF` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | Reescrita (C-11, ronda 0 de 01d) |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `5272DE876597EAD9EF838E4D022185C80AA411AAD9E67325573C87F954C5F7A6` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | Reescrita (C-10, ronda 0 de 01d) |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `827B8ABCA664145D51A1BBD1C0B558B0EDDFED8707A21A774222B4972BE14FF2` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | Reescrita (C-9, ronda 0 de 01d) |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `7F9D22E5904192DCC00465FADCABF36AA5DE3CD16D6A319A41A66340BB9BD6A8` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `008E5C606F249D15E3816E27E3E97FD7D7FBA0F8697751A156665A76694B3A18` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` |  |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` |  |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` |  |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` |  |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` |  |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` |  |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` |  |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` |  |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` |  |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` |  |
+| `432DCDDF119DD0E32E49ADC42D5F51D197698C8896E1058C505AB31F4A8EE838` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` |  |
+| `FD66C82D400E0F0A9709960934B555568642D9E4B5E41F31AD6606A620836982` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` |  |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` |  |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` |  |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` |  |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` |  |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `FC4963D3FD93297C427EAD0B85B23615C287E4F2C48079BCA8031D1C2AEE0396` | `frontend/src/styles/clases-r1.ataque.test.ts` | Reescrita (C-8 y C-12, ronda 0 de 01d) |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+
+## Ronda 1 de 01d
+Veredicto: **ROTO** (1 hallazgo, media).
+Verificación propia: lint `0` (`> tsc -b`) · test `1` (`Tests  3 failed | 3216 passed (3219)`; los 3 rojos son los de T-06, nuevos de esta ronda; 0 `Test timed out`).
+
+Base: `<K1c>` = `8242ce116c3d9645aab23a7de685574ce81a2b55` dentro de los paquetes. Leí del plan §D-13 (con la Enmienda 2), §D-14, "Pruebas requeridas → 01d" (CAL-1D01 a CAL-1D17), "Puntos de ataque → 01d", "Textos de la interfaz", "PARADAS", "No se toca" y la Enmienda 2; de `revision.md`, la verificación del resumen de 01d (M-08, M-09, N-44) y la segunda verificación (N-48); del resumen del programador, "## 01d — implementación" y "## 01d — corrección de la verificación (M-08, M-09, N-44)"; y el código de producción de `features/calificaciones/` (once archivos), `components/foco/` (tres), las reexportaciones de `features/tareas`, `services/calificacionesService.ts`, `features/clases/data.ts` y `app/router.tsx`. Solo escribí 5 archivos `*.ataque` nuevos y esta sección. No toqué código de producción, `shared/`, pruebas normales, `*.ataque` existentes ni "No se toca". Mi único formateo fue `npx prettier --write` sobre mis 5 archivos, desde `frontend/`. No corrí el backend (01d no lo toca; PA-07 no aplica). No abrí navegadores, no terminé procesos y no leí `.env`.
+
+### V-01
+- **Base:** "Tabla de SHA-256 de las 193 `*.ataque` al cierre de la ronda 0 de 01d" de este reporte.
+- **Método:** `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort | xargs sha256sum`, normalizado (hash en minúsculas, sin el `*`), ordenado por ruta y comparado con `diff` contra la tabla extraída por ruta.
+- **Antes de escribir nada:** 193 de 193 iguales, ningún archivo de más ni de menos (`diff` vacío). **V-01 en verde. Sin PARADA.**
+- **Al cierre:** las 193 siguen iguales (`join` por ruta: 0 distintos) y hay 5 nuevas, las mías. `git diff --stat 8242ce1 -- frontend backend shared` = `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que en la segunda verificación del manager.
+
+### Archivos nuevos y casos
+Comando: `npx vitest list` sobre los 5 archivos, desde `frontend/` → **104 casos** (40 + 45 + 10 + 7 + 2). Ids CAL-T-143 a CAL-T-199.
+
+| Archivo | Casos | Ids |
+|---|---|---|
+| `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | 40 | CAL-T-143 a CAL-T-159 y CAL-T-193 a CAL-T-195 (CAL-T-153 y CAL-T-154 con 9 entradas cada uno; CAL-T-155 con 5) |
+| `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | 45 | CAL-T-160 a CAL-T-178, CAL-T-196 a CAL-T-198 (CAL-T-163 con 4 entradas; CAL-T-167, CAL-T-168 y CAL-T-169 con 7 cada uno; CAL-T-198 con 3) |
+| `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | 10 | CAL-T-182, CAL-T-184 a CAL-T-192 |
+| `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | 7 | CAL-T-179 (2), CAL-T-180, CAL-T-181 (4) |
+| `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | 2 | CAL-T-183 y CAL-T-199 |
+
+Casos, por id:
+- **CAL-T-143** N-48, red: pulsa «Tareas más antiguas», tabula a «Alumnos siguientes» durante la carga; al llegar la ventana el foco se queda en «Alumnos siguientes», no en el `h2`.
+- **CAL-T-144** N-48, red: un control fuera de la vista enfocado durante la carga conserva el foco.
+- **CAL-T-145** N-48, caché vieja: el botón desaparece al pulsarlo (foco a la raíz), la persona tabula a «Tareas más recientes» durante la recarga y al llegar se queda ahí.
+- **CAL-T-146** N-48, caché fresca: tras el `h2`, una recarga posterior no roba el foco de «Alumnos siguientes» (no queda un «pulsado» colgado).
+- **CAL-T-147** N-48, red: si el control al que tabuló también desaparece (la celda de la columna vieja), el foco va al `h2`.
+- **CAL-T-148** N-48, red: tabuló a «Alumnos siguientes» y la ventana falla con 5xx: un `MensajeError`, foco a la raíz, ningún `aria-busy`.
+- **CAL-T-149** `keepPreviousData`: la tabla anterior se ve, todos los botones de la vista en espera; al llegar, ningún `aria-busy`.
+- **CAL-T-150** La pila tras un error: la ventana fallida se recupera con una recarga y «Alumnos anteriores» regresa sin cursor, foco al `h2`.
+- **CAL-T-151** Una recarga de fondo que cambia el cursor siguiente: «Alumnos siguientes» pide el nuevo.
+- **CAL-T-152** Vista desmontada con una ventana en vuelo (200): ni aviso ni `console.error`; al volver a montar, primera ventana.
+- **CAL-T-153** Enmienda 2, primera carga: `\t`, `\n`, ` \t\n `, `version: Expected…`, `CURSOR: …`, ` cursor: …`, `Cursor: …`, `cursorTareas.0:`, `cursor.0: …` → un `MensajeError` genérico, sin aviso ni rastro, foco no en `<body>`.
+- **CAL-T-154** Las mismas 9 entradas en una ventana nueva → genérico, foco en la raíz.
+- **CAL-T-155** Frontera del cursor en ventana nueva: `cursor:`, `cursorTareas:`, `cursor:   `, `cursorTareas:\t`, `cursorTareas: Invalid UUID` → texto fijo del cursor, sin aviso.
+- **CAL-T-156** `cursor: no es válido` en la primera carga sin cursor → texto del cursor; `claseId:` vacío → «No tienes acceso a esta clase.».
+- **CAL-T-157** Datos: calificada sin entrega con 0 → «0»; asignada 1 s antes del límite → «—» con «Asignado»; 1 s después → «Sin entregar»; dos motivos; «1 alumno», «Promedio de la clase: —», «0 en riesgo».
+- **CAL-T-158** RN-02: el servidor manda de más `estadoPago`, `accesoRestringido` y `email` → el esquema estricto lo rechaza: un `MensajeError` genérico y ningún dato del alumno.
+- **CAL-T-159** 50 × 50 con título de 200 y nombre de 120: 2500 enlaces, `line-clamp-2`, columna fija `sticky left-0 bg-surface`, contenedor `overflow-x-auto`, menos de 15 s en jsdom.
+- **CAL-T-160 a CAL-T-162** N-48 de «Mis calificaciones»: la página de «Todas» en vuelo, ida a «Calificadas» y vuelta; si falla con 5xx o con `limite: Too big…`, un solo aviso con el texto fijo, filas conservadas y foco en el selector; con `cursor:`, el texto del cursor sin aviso.
+- **CAL-T-163** La primera página de «Calificadas» llega tarde (5xx, cursor, fuera de contrato o 200) después de elegir «Entregadas»: nada cambia.
+- **CAL-T-164** «Ver más tareas» durante una recarga de fondo: en espera y sin petición; después pide una.
+- **CAL-T-165** «Ver más tareas» de la última página con el foco movido al selector: el foco se queda en el selector.
+- **CAL-T-166** N-45: al cambiar de filtro desaparece la calificación general, sin `aria-busy` colgado y con el foco en el selector.
+- **CAL-T-167 a CAL-T-169** Enmienda 2 en primera carga, filtro «Sin entregar» y «Ver más tareas» con `\t`, `\n`, ` \t\n `, `version:`, `cursorTareas:` (fuera de contrato aquí), `CURSOR:` y ` cursor:`.
+- **CAL-T-170** `cursor:` en la primera carga → texto del cursor; `claseId:` → sin acceso.
+- **CAL-T-171** «Ver más tareas» con `claseId:` → sin acceso en lugar de la lista, sin aviso, foco a la raíz.
+- **CAL-T-172** Modal: Tab y Mayús+Tab no salen del diálogo; un solo botón.
+- **CAL-T-173** Modal abierto y «Ver más tareas» falla fuera de contrato: sigue abierto, un aviso, foco dentro.
+- **CAL-T-174** Modal abierto y «Ver más tareas» responde `cursor:`: sigue abierto; al cerrarlo, foco a «Ver cálculo».
+- **CAL-T-175** «Ver cálculo» durante una recarga de fondo: abre con la caché y se actualiza sin cerrarse.
+- **CAL-T-176** Redondeo: 87.46 y 33.33 se ven igual en el encabezado y en el modal; nota de «Sin categoría» en plural.
+- **CAL-T-177** Modo categorías sin nada que cuente: la frase de «nada», la nota en singular y sin tabla.
+- **CAL-T-178** RN-02 en «Mis calificaciones»: un campo de más rompe el parse; un `MensajeError` genérico.
+- **CAL-T-179 a CAL-T-181** Router real: `…/CALIFICACIONES/` en maestro y admin (gradebook, `aria-current`, `translate-x-[300%]`/`[400%]`, enlace de celda de su rama); `…/Calificaciones/` del estudiante; cada rol que escribe la URL de la otra rama vuelve a su inicio sin pedir la otra consulta.
+- **CAL-T-182 a CAL-T-192** Estáticas: precondición de conteo; identidad de las reexportaciones (CAL-T-183, en `components/foco`); `components/foco` sin importar de `features/`; sin emojis; sin `primary`; sin textos sueltos en JSX ni en atributos; sin `fixed`, `-[…]`, `text-danger` ni `text-destructive` en el módulo (crudo); el gradebook sin `toast` y un solo `toast.error` sin `id` en «Mis calificaciones»; «Ver cálculo» sin `enEspera` y el modal sin equis ni consultas; reloj fijo en toda prueba de 01d con fechas; ninguna prueba de 01d con `return` temprano.
+- **CAL-T-193 a CAL-T-195** T-06 (abajo).
+- **CAL-T-196 y CAL-T-197** Una recarga de fondo que quita «Ver cálculo» (403) o «Ver más tareas» (sin página siguiente) con el foco: el foco va a la raíz.
+- **CAL-T-198** «Ver más tareas» de «Todas» en vuelo, filtro «Calificadas» y la página vieja con `cursor:`, 403 o `claseId:`: nada cambia en «Calificadas».
+- **CAL-T-199** La clave de foco distingue dos fallos en el mismo milisegundo.
+
+### Hallazgos
+
+#### T-06 — Una ventana vacía del gradebook dice que la clase no tiene alumnos (o tareas) y quita el regreso
+Severidad: **media** (caso borde mal resuelto; alcanzable con un cambio concurrente, sin fuga ni pérdida de datos).
+Pruebas (las tres en rojo): `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx`, describe "ventana vacía por un cambio concurrente (la pila no vacía debe ofrecer el regreso)":
+- "CAL-T-193: «Alumnos siguientes» llega vacía: con la pila no vacía, «Alumnos anteriores» sigue a la vista para regresar (§D-13.3)"
+- "CAL-T-194: «Tareas más antiguas» llega vacía: con la pila no vacía, «Tareas más recientes» sigue a la vista para regresar (§D-13.3)"
+- "CAL-T-195: con 26 alumnos en la clase, una ventana de alumnos vacía no dice «Aún no hay alumnos en esta clase.»"
+
+**Cómo se llega.** El servidor pide `limite + 1` y `paginar` (`backend/src/core/paginacion.ts:3-13`) da como cursor el último de la página. La primera ventana trae `siguienteCursor` porque había un alumno 26 (o una tarea 21). Si ese alumno sale de la clase (o su cuenta se desactiva, o se borra esa tarea) antes de pulsar el botón, el cursor sigue existiendo y la ventana siguiente responde `200` con `alumnos: []` (o `tareas: []`), sin `400` (§D-6.1 y §D-6.2).
+
+**Esperado / Obtenido.**
+- Esperado (§D-13.3, navegación): "«más recientes»/«anteriores» con la pila de la vista no vacía". Con la pila no vacía, «Alumnos anteriores» (o «Tareas más recientes») debe estar para regresar, y la vista no debe afirmar que la clase no tiene alumnos cuando su propio resumen dice 26.
+- Obtenido: la vista pinta «Aún no hay alumnos en esta clase.» (o «Aún no hay tareas en esta clase.») y ningún botón. La persona queda atrapada en un mensaje falso hasta salir de la sección. Salida de la corrida: `Unable to find an accessible element with the role "button" and name "Alumnos anteriores"`, lo mismo con «Tareas más recientes», y `expected <p …(1)></p> to be null` para el texto.
+
+**Causa probable.** `gradebook-view.tsx:102-125`: `cuerpo()` devuelve `EstadoVacio` con `respuesta.alumnos.length === 0` o `respuesta.tareas.length === 0` **antes** de pintar `ResumenDelGradebook` y `NavegacionDelGradebook`, sin distinguir "la clase está vacía" (primera ventana, las dos pilas vacías) de "esta ventana está vacía" (alguna pila no vacía). Los dos textos de §D-13.3 son de la clase.
+
+**Hermanos.** Las dos dimensiones (alumnos y tareas) tienen el mismo camino; el resumen de la clase también desaparece. «Mis calificaciones» no lo tiene: sus páginas se acumulan y una página vacía solo quita «Ver más tareas» (foco al `h2`, ya cubierto). El texto que debería verse en una ventana vacía no está en "Textos de la interfaz": si el remedio necesita uno nuevo, lo decide el manager o el arquitecto (CAL-T-193 y CAL-T-194 solo exigen el botón de regreso; CAL-T-195, que no se afirme que la clase está vacía).
+
+Requisito o regla violada: §D-13.3 (navegación y estados) y RF-37 (el gradebook muestra la información correcta de la clase).
+
+### Atacado sin hallazgos (por categoría)
+- **Foco y recargas del gradebook (N-48 incluido).** La rama `gradebook-view.tsx:72` queda protegida en los tres orígenes: red (CAL-T-143, CAL-T-144, CAL-T-147 y CAL-T-148), caché vieja (CAL-T-145) y caché fresca (CAL-T-146, sin «pulsado» colgado). Si el control al que tabuló también desaparece, el foco va al `h2`; si la ventana falla, a la raíz. `keepPreviousData` deja la tabla vieja con los botones en espera y ningún `aria-busy` colgado al llegar ni al fallar (CAL-T-149, CAL-T-148). La pila sobrevive a un error y a una recarga que cambia los cursores (CAL-T-150, CAL-T-151). Vista desmontada con ventana en vuelo: sin aviso ni `console.error`, y al volver a montar empieza en la primera ventana (CAL-T-152).
+- **«Mis calificaciones», filtro y «Ver más tareas».** N-48 (ida y vuelta al filtro con su página en vuelo): un aviso por 5xx o fuera de contrato, ninguno por el cursor, filas y foco conservados (CAL-T-160 a CAL-T-162). Respuestas viejas que llegan tarde con 200, 5xx, cursor, fuera de contrato, 403 o `claseId:` no tocan la lista observada (CAL-T-163, CAL-T-198). «Ver más tareas» durante una recarga no pide nada (CAL-T-164). En la última página no roba el foco del selector (CAL-T-165). N-45 sin `aria-busy` ni foco en `<body>` (CAL-T-166). Una recarga que quita «Ver cálculo» o «Ver más tareas» con el foco lo lleva a la raíz (CAL-T-196, CAL-T-197).
+- **Modal.** Tab y Mayús+Tab atrapados, un solo botón (CAL-T-172). Sigue abierto si «Ver más tareas» falla (fuera de contrato o cursor), con un solo aviso o ninguno, y el foco vuelve a «Ver cálculo» al cerrar (CAL-T-173, CAL-T-174). Abierto durante una recarga: muestra la caché y se actualiza sin cerrarse (CAL-T-175). Redondeo: la misma centésima del servidor en el encabezado y en el modal (CAL-T-176; `formatearPuntos` usa `maximumFractionDigits: 2` y el servidor redondea a centésimas en `core/calificaciones/general.ts`). Modo categorías sin nada que cuente, con la nota en singular (CAL-T-177) y en plural (CAL-T-176).
+- **Enmienda 2.** Tabuladores, saltos, mezcla de blancos, `version:`, `CURSOR:`, ` cursor:`, `Cursor:`, `cursorTareas.0:` y `cursor.0:` dan un solo mensaje genérico en la primera carga y en la ventana nueva del gradebook (CAL-T-153, CAL-T-154), y en la primera carga, el filtro y «Ver más tareas» de «Mis calificaciones» (CAL-T-167 a CAL-T-169; `cursorTareas:` es fuera de contrato allí). La frontera del cursor da el texto fijo con `cursor:`, `cursorTareas:`, blancos o tabulador tras los dos puntos y `cursorTareas: Invalid UUID` (CAL-T-155); `cursor:` en la primera carga sin cursor da el texto del cursor y `claseId:` vacío da sin acceso, en las dos vistas (CAL-T-156, CAL-T-170, CAL-T-171). Nunca dos mensajes ni cero, nunca el texto del servidor, su prefijo ni inglés, ningún `aria-busy` al terminar.
+- **Datos del gradebook.** Todos los estados de celda (los de CAL-1D01 más la calificada sin entrega con 0 y los dos lados del límite), «Promedio» con 0, «Riesgo» con dos motivos, resumen con 1 alumno, promedio nulo y 0 en riesgo (CAL-T-157); 50 × 50 con título de 200 y nombre de 120 en menos de 15 s en jsdom (CAL-T-159, en verde con su límite de 15 s); `data-material="opaco"` en la raíz y la tabla dentro (CAL-T-159; los demás controles, CAL-1D01).
+- **RN-02.** Un `estadoPago`, `accesoRestringido` o `email` de más en el gradebook o en «Mis calificaciones» no se pinta: el esquema estricto de `shared/` rompe el parse, `apiClient` da `RESPUESTA_INVALIDA` y la vista muestra un solo `MensajeError` genérico, sin aviso (CAL-T-158, CAL-T-178).
+- **Secciones, rutas y perspectivas.** Mayúsculas y barra final en las tres ramas: monta la vista correcta, marca «Calificaciones» con `aria-current` y el indicador en `translate-x-[300%]` (maestro) o `[400%]` (admin), y los enlaces relativos resuelven a su rama (CAL-T-179, CAL-T-180). El estudiante que escribe la URL del maestro o del admin, y el maestro o el admin que escriben la del estudiante, vuelven a su inicio sin pedir la otra consulta (CAL-T-181).
+- **Estáticas y diseño.** Las 23 reglas de mi ronda 0 corren en la suite completa contra el código final y están en verde (las de `clases-r1`, `layout/estatico-r1`, `estatico-02c-r1`, `refactor-01c-r1`, `entregas-01d-r1`/`r2`/`r3`, `entregas-01e-r1`/`r2`, `tareas-01d-r1`/`r2`/`r3`, `estatico-01c-r1`, `tareas-01a-r1`, `aviso-calificar-01c-r3`, `reloj-01e-r4`, `ver-mas-01e-r3`, `clases/estatico-r1` y las normales `estatico-01c` y `estatico-01d`). Además, CAL-T-182 a CAL-T-192: `components/foco` no importa de `features/`, las reexportaciones son los mismos objetos, sin emojis, sin `primary`, sin textos sueltos fuera de `data.ts`, sin `fixed`, `-[…]` ni `text-danger` en el módulo, el gradebook sin `toast`, un solo `toast.error` sin `id`, «Ver cálculo» sin `enEspera`, y reloj fijo y sin `return` temprano en las pruebas de 01d.
+- **Reloj.** Ninguna prueba de 01d depende de la hora real (CAL-T-191 sobre las 8 de 01d con fechas, las del programador y las mías).
+
+### No atacado y por qué
+- **Medidas a 360 px, el recorte real a dos líneas y el desplazamiento horizontal visible:** jsdom no calcula diseño. Comprobé las clases que los producen (CAL-T-159). Queda para la comprobación humana del plan.
+- **La trampa de foco de Radix en un navegador real:** solo en jsdom (CAL-T-172). No abro navegadores.
+- **Backend y PA-07:** 01d no cambia el backend y el encargo no pidió su corrida.
+- **Mutaciones del código de producción** para probar que mis casos de N-48 fallarían sin la rama: no modifico producción. El manager ya hizo esa mutación (`void sinControl`); CAL-T-143, CAL-T-144 y CAL-T-145 exigen el foco en el control elegido, así que con esa mutación irían al `h2` y fallarían.
+
+### Observaciones (no son hallazgos)
+- **O-r1d-1.** `calculo-de-calificacion.tsx:38` declara `porcentajeODato`, una función pura en el archivo del componente. Hay precedente aceptado en otros módulos (`bloque-destacado.tsx:10`, `panel-de-calificacion.tsx:40`, `formulario-clase.tsx:29`), así que no lo cuento como hallazgo.
+- **O-r1d-2.** En el límite exacto, la celda dice «Sin entregar» (`vencimientoDe`: `faltan <= 0` es vencida, de ENTREGAS), mientras el servidor cuenta las vencidas con `fecha_limite < ahora` (§D-6.6). La diferencia es de un instante y viene de `lib/vencimiento.ts`, que no es de 01d. Va como pendiente del `chore` si el humano quiere alinearlo.
+- **O-r1d-3.** La celda fija del encabezado «Alumno» lleva `bg-surface` dentro de un `TableHeader` con `bg-muted`, así que en reposo puede verse distinta del resto del encabezado. Es visual y solo se ve en el navegador: un punto para la comprobación humana si cabe.
+- **O-r1d-4.** Durante la carga de «Tareas más antiguas», «Tareas más recientes» aparece de inmediato sobre la tabla vieja, porque sale de la pila del estado. Está en espera y protegido por la guarda: es inocuo.
+
+### Comandos y última línea
+Desde `frontend/`, una suite a la vez (sin corrida del backend).
+
+| Comando | Código | Última línea / resumen |
+|---|---|---|
+| `npx prettier --write` sobre mis 5 archivos | 0 | Formateados; `npx prettier --check` sobre los 5: `All matched files use Prettier code style!` |
+| `npx eslint` sobre mis 5 archivos | 0 | Sin salida |
+| `npx vitest list` sobre mis 5 archivos | 0 | 104 líneas (40 + 45 + 10 + 7 + 2) |
+| `npm run lint > <scratchpad>/r1d/lint.txt 2>&1` | 0 | `> tsc -b` (antes: `All matched files use Prettier code style!`) |
+| `npm run test > <scratchpad>/r1d/test.txt 2>&1` (05:44:37Z a 05:47:12Z) | 1 | `npm error command C:\WINDOWS\system32\cmd.exe /d /s /c vitest run`. Resumen: `Test Files  1 failed \| 190 passed (191)` · `Tests  3 failed \| 3216 passed (3219)` · `Duration  151.46s (transform 37.82s, setup 100.11s, import 333.86s, tests 674.04s, environment 454.43s)`. `grep -c "Test timed out"` = **0**. Los 3 rojos son CAL-T-193, CAL-T-194 y CAL-T-195 (T-06); ningún otro |
+
+### Veredicto de la ronda 1 de 01d
+**ROTO.** Un hallazgo, T-06 (media), con tres pruebas en rojo. Lo demás resiste: N-48 en sus dos ramas, foco y recargas, filtro y «Ver más tareas» cruzados, modal, Enmienda 2 en sus bordes, RN-02, rutas y estáticas. V-01 en verde, 0 tiempos límite y `lint` en verde.
+
+### Tabla de SHA-256 de las 198 `*.ataque` al cierre de la ronda 1 de 01d (base de V-01 de la ronda siguiente)
+Calculada con `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort`. Contra la tabla de la ronda 0 de 01d, 193 son iguales y 5 son nuevas; ninguna reescrita ni borrada.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` |  |
+| `B00C2C10D8D862F6576CB69173F07D190A08A18A25439C296D10B74E9772A454` | `backend/test/calificaciones-01a-r2.ataque.test.ts` |  |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` |  |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` |  |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` |  |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `6F72C7CC1D0F95D60C057D7406A8955C47E834C963ED53D15DF64C83049F5431` | `backend/test/entregas-01b-r1.ataque.test.ts` |  |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` |  |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `2684916C88B9405706F82DA3F9B2FFD0B3626A11AF79E20EA146FDFD1D52C319` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `3790777831A1FACB053D0719D85AB404593954416B1443A1A59530E09E2C81DC` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` |  |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` |  |
+| `D95AB72A3FD3D70CE3A9027A50DB660426976C3DF1A46E92DF75066BEAC78A0C` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `CCEA34C962FC8F14A49C64EAFA8119DAE5030E1302ED94FE369299EC49182BB8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` |  |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `C67FA558FA7AE23821175478C8CB7D4874EE5F4D6CB84D0851F9A551B8AB455B` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | Nueva (ronda 1 de 01d) |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | Nueva (ronda 1 de 01d) |
+| `36A104515F2EA87F143B2CFC00AEF9A33E6DDDB666844C1A9C977557EECA20EF` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | Nueva (ronda 1 de 01d) |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | Nueva (ronda 1 de 01d) |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | Nueva (ronda 1 de 01d) |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `5272DE876597EAD9EF838E4D022185C80AA411AAD9E67325573C87F954C5F7A6` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `827B8ABCA664145D51A1BBD1C0B558B0EDDFED8707A21A774222B4972BE14FF2` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `7F9D22E5904192DCC00465FADCABF36AA5DE3CD16D6A319A41A66340BB9BD6A8` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `008E5C606F249D15E3816E27E3E97FD7D7FBA0F8697751A156665A76694B3A18` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` |  |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` |  |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` |  |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` |  |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` |  |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` |  |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` |  |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` |  |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` |  |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` |  |
+| `432DCDDF119DD0E32E49ADC42D5F51D197698C8896E1058C505AB31F4A8EE838` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` |  |
+| `FD66C82D400E0F0A9709960934B555568642D9E4B5E41F31AD6606A620836982` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` |  |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` |  |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` |  |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` |  |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` |  |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `FC4963D3FD93297C427EAD0B85B23615C287E4F2C48079BCA8031D1C2AEE0396` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## Ronda 2 de 01d
+Veredicto: **ROTO** (1 hallazgo, media).
+Verificación propia: lint `0` (`> tsc -b`) · test `1` (`Tests  2 failed | 3256 passed (3258)`; los 2 rojos son los de T-07, nuevos de esta ronda; 0 `Test timed out`).
+
+Base: `<K1c>` = `8242ce116c3d9645aab23a7de685574ce81a2b55` dentro de los paquetes. Leí "## 01d — corrección de la ronda 1 (T-06)" del resumen del programador (con su matriz de 46 filas, G20 a G23 nuevas), "## Verificación de la corrección de la ronda 1 — CALIFICACIONES-01d" de `revision.md` (N-50 y N-51), la decisión del orquestador en `aprobacion.md` (el texto `cursorDelGradebook` para la ventana vacía) y el código: `gradebook-view.tsx` (SHA-256 `e53801c3…`, el de la verificación), `mis-calificaciones-view.tsx`, `hooks.ts`, `lib.ts`, `components/calculo-de-calificacion.tsx`, `components/foco/` y `app/providers.tsx` (el `staleTime` de 30 s de la app). Solo escribí 2 archivos `*.ataque` nuevos y esta sección. No toqué código de producción, `shared/`, pruebas normales, `*.ataque` existentes ni "No se toca". Mi único formateo fue `npx prettier --write` sobre mis 2 archivos, desde `frontend/`. No corrí el backend (01d no lo toca; PA-07 no aplica). No abrí navegadores, no terminé procesos y no leí `.env`.
+
+### V-01
+- **Base:** "Tabla de SHA-256 de las 198 `*.ataque` al cierre de la ronda 1 de 01d" de este reporte.
+- **Método:** `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort | xargs sha256sum`, normalizado (hash en minúsculas, sin el `*`), ordenado por ruta y comparado con `diff` contra la tabla extraída por ruta.
+- **Antes de escribir nada:** 198 de 198 iguales, ningún archivo de más ni de menos (`diff` vacío). **V-01 en verde. Sin PARADA.**
+- **CAL-T-193 a CAL-T-195:** sin cambios (su archivo tiene el mismo SHA-256) y en verde: `npx vitest run src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx -t "CAL-T-19[345]"` → `Tests  3 passed | 37 skipped (40)`; también en verde en la suite completa.
+- **Al cierre:** las 198 siguen iguales (`join` por ruta: 0 distintos) y hay 2 nuevas, las mías. `git diff --stat 8242ce1 -- frontend backend shared` = `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que en la verificación del manager; archivos sin seguimiento en los paquetes: 27 (los 25 de antes más mis 2).
+
+### Archivos nuevos y casos
+Comando: `npx vitest list src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx`, desde `frontend/` → **29 casos** (21 + 8). Ids CAL-T-200 a CAL-T-227.
+
+| Archivo | Casos | Ids |
+|---|---|---|
+| `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | 21 | CAL-T-200 a CAL-T-219 (CAL-T-206 con 2 entradas: alumnos y tareas) |
+| `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | 8 | CAL-T-220 a CAL-T-227 |
+
+Casos, por id:
+- **CAL-T-200** (N-50, vecino 1) Ventana vacía y luego una recarga de fondo que trae datos: la tabla vuelve sola, con una sola petición, sin `alert` ni aviso, con «Alumnos anteriores», sin «Alumnos siguientes» y el foco en el `h2`.
+- **CAL-T-201** (N-50, vecino 2) Caché fresca (`staleTime` infinito): regresar y volver a avanzar a la ventana vacía no pide nada, se ve el texto del cursor de la caché y el foco va al `h2`.
+- **CAL-T-202** (N-50, vecino 3) Ventana vacía y luego una recarga de fondo que falla con 503: el mismo nodo `alert` con el texto del cursor, el resumen y la navegación; ni el genérico, ni el texto del servidor, ni aviso (S-19).
+- **CAL-T-203** Una recarga de fondo que deja la ventana vacía como estaba no vuelve a montar el `alert` (el mismo nodo: no se anuncia dos veces).
+- **CAL-T-204** (N-51, G22) Ventana con datos y «Alumnos siguientes» con el foco; una recarga de fondo la vacía: el texto del cursor, el resumen sigue y el foco del botón quitado va a la raíz, nunca a `<body>`.
+- **CAL-T-205** La combinación cruzada: alumnos vacíos con solo el cursor de tareas (por una recarga de la ventana de tareas): el texto del cursor, nunca «Aún no hay alumnos», y «Tareas más recientes» para regresar.
+- **CAL-T-206** (alumnos y tareas) `isPlaceholderData`: regresar desde la ventana vacía a la primera ventana, que ya no está en caché, con la respuesta retenida. Un `MutationObserver` vigila el documento entre renders: nunca aparece «Aún no hay alumnos/tareas en esta clase.». Mientras llega se ve el texto del cursor (un solo `alert`), ninguna tabla vieja, y los botones a la vista en espera; al llegar, la tabla, el foco en el `h2` y ningún aviso.
+- **CAL-T-207** Si la primera ventana a la que se regresa llega vacía de verdad (todos salieron), entonces sí dice «Aún no hay alumnos en esta clase.», sin botones ni el texto del cursor, y el foco no queda en `<body>`.
+- **CAL-T-208** Regresar y volver a avanzar con la ventana anterior recargada con otro `siguienteCursor`: pide el nuevo y nunca el cursor muerto.
+- **CAL-T-209** Durante esa recarga, «Alumnos siguientes» está en espera; dos clics no piden el cursor muerto; al llegar, pide el nuevo.
+- **CAL-T-210** Contrato roto: `siguienteCursor` no nulo con `alumnos: []` en una ventana con cursor: un solo texto, «Alumnos anteriores» y «Alumnos siguientes»; este pide ese cursor y pinta la tabla siguiente.
+- **CAL-T-211** Contrato roto en la primera ventana (`alumnos: []` con `siguienteCursor`): el vacío de la clase, sin botones, sin `alert`, una sola petición.
+- **CAL-T-212** Incoherencia: resumen con `totalAlumnos: 0` y ventana con cursor vacía: «0 alumnos», «Promedio de la clase: —», el texto del cursor y el regreso; nunca «Aún no hay alumnos».
+- **CAL-T-213** La ventana no vive en la URL: con `?cursor=…&cursorTareas=…` en la dirección, la primera carga no los manda y una clase vacía dice su vacío.
+- **CAL-T-214** El `400` de `cursorTareas` y la ventana de tareas vacía tienen el mismo `textContent` en el `alert`; el `400` reemplaza la vista (sin `h2`) y la vacía conserva el `h2`, el resumen y «Tareas más recientes»; ningún `cursorTareas` en el documento.
+- **CAL-T-215** En la ventana vacía, el botón de avanzar de la otra dimensión pide los dos cursores; al desaparecer, el foco va al `h2` y los dos regresos siguen.
+- **CAL-T-216** Vista desmontada mientras se regresa desde la ventana vacía (respuesta retenida): ni aviso ni `console.error`; al volver a montar, la primera ventana sin el texto del cursor.
+- **CAL-T-217 y CAL-T-218** T-07 (abajo).
+- **CAL-T-219** (control de T-07) Pasado el `staleTime`, volver a abrir sí muestra la clase como está.
+- **CAL-T-220** «Mis calificaciones», contrato roto: «Ver más tareas» trae una página vacía con `siguienteCursor` no nulo: las filas siguen, el mismo botón sigue con el foco, sin aviso, sin el vacío del filtro y sin `aria-busy`; otro clic pide el cursor nuevo y, en la última página con filas, el foco va al primer enlace nuevo.
+- **CAL-T-221** Página vacía con `siguienteCursor` nulo: el botón desaparece, las filas siguen, el foco va al `h2` (no a `<body>` ni a la raíz), sin aviso ni vacío del filtro.
+- **CAL-T-222** Última página con filas: el foco va al enlace de la primera fila nueva.
+- **CAL-T-223** Contrato roto en la primera página (vacía con `siguienteCursor`): el vacío del filtro, sin «Ver más tareas», sin `alert`, una sola petición.
+- **CAL-T-224** El `400` del cursor de «Ver más tareas» y volver a abrir antes de 30 s: la consulta se pide de nuevo (hay una petición sin cursor), sin el texto del cursor y sin «Ver más tareas» hacia el cursor muerto. En verde: «Mis calificaciones» no tiene T-07 (la consulta infinita queda en error y se vuelve a pedir al montar).
+- **CAL-T-225** (control) Lo mismo pasado el `staleTime`.
+- **CAL-T-226** Modal abierto y «Ver más tareas» (pulsado antes) trae una página con otro cálculo (pasa a categorías): el modal muestra la tabla nueva sin cerrarse, con el foco dentro y sin aviso; la fila nueva se agrega detrás.
+- **CAL-T-227** Modal abierto y una recarga de fondo deja la calificación sin nada que cuente: el modal lo dice sin cerrarse y Escape devuelve el foco a «Ver cálculo».
+
+### Hallazgos
+
+#### T-07 — "Vuelve a abrir Calificaciones" no funciona en el gradebook durante 30 s: al volver a abrir se ve la misma primera ventana de la caché, con el cursor muerto
+Severidad: **media** (caso borde mal resuelto; sin fuga ni pérdida de datos, pero la instrucción del texto lleva a un ciclo).
+Pruebas (las dos en rojo): `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx`, describe "La instrucción del texto del cursor: «Vuelve a abrir Calificaciones para verlas completas»":
+- "CAL-T-217: tras la ventana vacía, volver a abrir Calificaciones (antes de 30 s) muestra la clase como está: «2 alumnos» y sin «Alumnos siguientes»"
+- "CAL-T-218: tras el 400 del cursor, volver a abrir Calificaciones (antes de 30 s) muestra la clase como está: sin el «Alumnos siguientes» que lleva al cursor muerto"
+
+Control en verde: "CAL-T-219 (control): pasado el staleTime, volver a abrir sí muestra la clase como está (la instrucción funciona cuando la caché ya es vieja)".
+
+**Cómo se llega.** La primera ventana trae 25 alumnos, "26 alumnos" en el resumen y `siguienteCursor`. El alumno 26 sale de la clase. «Alumnos siguientes» llega vacía (o con el `400` del cursor, si el que salió es el del cursor) y la vista dice, por el remedio de T-06: "La clase cambió mientras veías las calificaciones. Vuelve a abrir Calificaciones para verlas completas." La persona hace eso: va a otra sección de la clase y vuelve a Calificaciones (la vista se desmonta y se vuelve a montar con la misma `QueryClient` de la app).
+
+**Esperado / Obtenido.**
+- Esperado: al volver a abrir, la clase como está en el servidor: "25 alumnos" (en la prueba, "2 alumnos") y ningún «Alumnos siguientes». Es lo que promete el texto, y es lo que pasa en «Mis calificaciones» (CAL-T-224, en verde).
+- Obtenido: la misma primera ventana de la caché, con el resumen viejo ("3 alumnos" en la prueba) y «Alumnos siguientes» hacia el cursor muerto. Pulsarlo lleva otra vez a la ventana vacía (de la caché, sin petición: CAL-T-201) o al mismo `400`. Salida de la corrida: `Unable to find an element with the text: 2 alumnos` en las dos pruebas. Pasados 30 s (CAL-T-219), sí funciona.
+
+**Causa probable.** `app/providers.tsx` fija `staleTime: 30_000` y `useGradebook` (`hooks.ts:20-32`) no lo cambia. La primera ventana es su propia entrada en la caché (`claveGradebook(claseId, { cursor: null, cursorTareas: null })`), en éxito y fresca, así que el montaje nuevo la toma de la caché sin pedirla. Ni la ventana vacía (`gradebook-view.tsx:121-126`) ni el `400` del cursor (`gradebook-view.tsx:145-150`) marcan viejo el gradebook de la clase. En «Mis calificaciones» no pasa: la consulta es una sola y el `400` de «Ver más tareas» la deja en error, así que el montaje nuevo la vuelve a pedir (CAL-T-224 lo comprueba con la petición sin cursor).
+
+**Hermanos.**
+- Ventana vacía de alumnos: CAL-T-217, en rojo.
+- `400` del cursor de alumnos: CAL-T-218, en rojo. Este camino viene de la implementación de 01d (G2 y G5), no del remedio de T-06; el remedio lo extendió al reutilizar el texto.
+- Ventana vacía de tareas y `400` de `cursorTareas`: mismo camino (la primera ventana fresca en la caché); sin caso propio.
+- Recargar la página completa: funciona (otra `QueryClient`). No es lo que dice el texto.
+- «Mis calificaciones» (`cursorDeMisCalificaciones`): no aplica, en verde (CAL-T-224 y CAL-T-225).
+
+Requisito o regla violada: §D-13.3 (estados del gradebook) con la decisión del orquestador en `aprobacion.md`: el texto `cursorDelGradebook` dice qué hacer y eso no funciona durante 30 s. También el tono de `DESIGN.md` §9: el texto dice qué hacer, y la acción tiene que funcionar.
+
+### Atacado sin hallazgos (por categoría)
+- **N-50, los tres vecinos.** Ventana vacía y luego una recarga de fondo con datos: la tabla vuelve sola, sin `alert`, y el foco se queda en el `h2` (CAL-T-200). Avanzar otra vez a una ventana vacía en caché fresca: sin petición, el texto del cursor y el foco al `h2` (CAL-T-201). Ventana vacía y luego una recarga que falla con 503: el mismo `alert`, el resumen y la navegación, sin el genérico ni aviso (CAL-T-202). Una recarga que deja la ventana igual de vacía no vuelve a montar el `alert` (CAL-T-203).
+- **N-51 y G22.** Una recarga de fondo con datos que llega vacía y quita «Alumnos siguientes» con el foco lleva el foco a la raíz, nunca a `<body>` (CAL-T-204). Nota: con el reloj fijo, la clave del gancho de foco solo cambia si la respuesta tiene otra hora (`dataUpdatedAt`). Adelanté el reloj 1 s como hace CAL-1D02n; sin eso, mi primera versión del caso falló por la prueba, no por el código. Dos recargas con éxito en el mismo milisegundo no son alcanzables en la aplicación.
+- **Las dos dimensiones y la combinación.** Alumnos (CAL-T-200 a CAL-T-204), tareas (CAL-T-206 de tareas, CAL-T-214), alumnos vacíos con solo el cursor de tareas (CAL-T-205), y el botón de avanzar de la otra dimensión desde la ventana vacía (CAL-T-215).
+- **`isPlaceholderData`.** Al regresar a una ventana fuera de la caché, ni un instante del vacío de la clase (vigilado con `MutationObserver`), ninguna tabla vieja (la ventana de respaldo es la vacía), el texto del cursor y los botones en espera; al llegar, la tabla y el foco en el `h2` (CAL-T-206, en las dos dimensiones). Si la primera ventana llega vacía de verdad, entonces sí, el vacío de la clase (CAL-T-207).
+- **La pila al regresar y volver a avanzar.** Con la ventana anterior recargada con otro `siguienteCursor`, se pide el nuevo; durante la recarga, el botón en espera no pide el muerto (CAL-T-208, CAL-T-209). Con la caché fresca, el cursor muerto sí vuelve a usarse (CAL-T-201, lo que pide N-50); su consecuencia es T-07.
+- **Foco en la ventana vacía.** El botón pulsado que desaparece lleva el foco al `h2` (CAL-T-200, CAL-T-201, CAL-T-215); el que sigue lo conserva (CAL-1D02t y CAL-1D02u del programador, y CAL-T-210).
+- **Contratos rotos e incoherencias.** `siguienteCursor` no nulo con la lista vacía: en ventana con cursor, el texto y los dos botones, y avanzar funciona (CAL-T-210); en la primera ventana, el vacío de la clase sin botones (CAL-T-211). Resumen con 0 alumnos y ventana vacía con cursor: "0 alumnos", el texto y el regreso (CAL-T-212). Nada se cae ni da dos mensajes.
+- **URL.** La ventana vive en el estado, no en la URL: `?cursor` y `?cursorTareas` en la dirección no se mandan (CAL-T-213).
+- **El texto del cursor y el `400`.** El mismo `textContent`; el `400` reemplaza la vista y la vacía conserva el `h2`, el resumen y el regreso (CAL-T-214).
+- **Vista desmontada.** Regreso en vuelo desde la ventana vacía: sin aviso ni `console.error`; al volver a montar, la primera ventana (CAL-T-216).
+- **«Mis calificaciones», «Ver más tareas».** Página vacía con `siguienteCursor` no nulo: el botón y el foco siguen, sin aviso, y el siguiente clic avanza (CAL-T-220). Con `siguienteCursor` nulo: el botón desaparece y el foco va al `h2` (CAL-T-221) o al primer enlace nuevo si llegaron filas (CAL-T-222). La primera página vacía con cursor da el vacío del filtro (CAL-T-223). El texto del cursor sí se resuelve al volver a abrir (CAL-T-224, CAL-T-225).
+- **Modal con datos que cambian mientras está abierto.** Una página de «Ver más tareas» con otro modo de cálculo lo actualiza sin cerrarlo (CAL-T-226); una recarga que deja la calificación sin nada que cuente lo dice sin cerrarlo, y Escape devuelve el foco a «Ver cálculo» (CAL-T-227). Lo demás del modal lo cubren CAL-1D05 y CAL-T-172 a CAL-T-177.
+- **Reloj.** Las 29 pruebas nuevas fijan `Date` con `vi.useFakeTimers({ toFake: ["Date"] })`. La frescura de la caché depende de `Date.now()`, así que T-07 es determinista: CAL-T-217 y CAL-T-218 corren con el reloj fijo (0 s transcurridos) y CAL-T-219 lo adelanta 31 s. Ninguna tiene `return` temprano ni selectores de clases de estilo.
+
+### No atacado y por qué
+- **Escape y Tab en la ventana vacía:** no hay diálogo ni trampa de foco en el gradebook; no aplican.
+- **La tabla de 50 × 50:** sin cambio desde la ronda 1 (CAL-T-159, en verde en esta corrida); no repetí la medición.
+- **Medidas a 360 px y lectores de pantalla reales** (si un `alert` que se queda montado se vuelve a anunciar): jsdom no lo dice. Comprobé que el nodo no se vuelve a montar (CAL-T-202, CAL-T-203). Queda para la comprobación humana si cabe.
+- **Backend y PA-07:** 01d no cambia el backend.
+- **Mutaciones del código de producción:** no modifico producción. Sin `isPlaceholderData`, CAL-T-206 debería fallar por la misma razón que CAL-1D02z, que el manager comprobó por mutación; yo no lo comprobé por mutación.
+- **Una `QueryClient` con `retry: 1` como la de la app:** mis pruebas usan `retry: false`. T-07 no depende de los reintentos: la primera ventana está en éxito y fresca.
+
+### Observaciones (no son hallazgos)
+- **O-r2d-1.** Con un contrato roto (`siguienteCursor` no nulo y la lista vacía en la primera ventana o en la primera página), la vista dice el vacío de la clase o del filtro y no ofrece avanzar (CAL-T-211, CAL-T-223). El servidor no puede mandarlo (`paginar` da el cursor del último de la página); lo anoto por si el contrato cambia.
+- **O-r2d-2.** O-r1d-1 a O-r1d-4 siguen igual.
+
+### Comandos y última línea
+Desde `frontend/`, una suite a la vez (sin corrida del backend).
+
+| Comando | Código | Última línea / resumen |
+|---|---|---|
+| `npx prettier --write` sobre mis 2 archivos | 0 | Formateados; `npx prettier --check src/features/calificaciones/*-01d-r2.ataque.test.tsx`: `All matched files use Prettier code style!` |
+| `npx eslint` sobre mis 2 archivos | 0 | Sin salida |
+| `npx vitest list` sobre mis 2 archivos | 0 | 29 líneas (21 + 8) |
+| `npm run lint > <scratchpad>/r2d/lint.txt 2>&1` | 0 | `> tsc -b` |
+| `npm run test > <scratchpad>/r2d/test.txt 2>&1` (06:31:36Z a 06:34:14Z) | 1 | `npm error command C:\WINDOWS\system32\cmd.exe /d /s /c vitest run`. Resumen: `Test Files  1 failed \| 192 passed (193)` · `Tests  2 failed \| 3256 passed (3258)` · `Duration  153.75s (transform 37.15s, setup 100.58s, import 340.47s, tests 686.80s, environment 459.20s)`. `grep -c "Test timed out"` = **0**. Los 2 rojos son CAL-T-217 y CAL-T-218 (T-07); ningún otro. 3229 de la verificación del manager + 29 nuevos = 3258 |
+| `npx vitest run src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx -t "CAL-T-19[345]"` | 0 | `Tests  3 passed \| 37 skipped (40)` |
+
+### Veredicto de la ronda 2 de 01d
+**ROTO.** Un hallazgo, T-07 (media), con dos pruebas en rojo: el texto del cursor del gradebook (el de la ventana vacía de T-06 y el del `400`) pide volver a abrir Calificaciones, y durante 30 s eso muestra la misma primera ventana de la caché, con el cursor muerto. El remedio de T-06 resiste: las dos dimensiones y su combinación, los tres vecinos de N-50, N-51, `isPlaceholderData`, la pila, los contratos rotos, la URL, el `400` idéntico, la vista desmontada, «Ver más tareas» con páginas vacías y el modal con datos que cambian. V-01 en verde, CAL-T-193 a CAL-T-195 en verde, 0 tiempos límite y `lint` en verde.
+
+### Tabla de SHA-256 de las 200 `*.ataque` al cierre de la ronda 2 de 01d (base de V-01 de la ronda siguiente)
+Calculada con `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort`. Contra la tabla de la ronda 1 de 01d, 198 son iguales y 2 son nuevas; ninguna reescrita ni borrada.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` |  |
+| `B00C2C10D8D862F6576CB69173F07D190A08A18A25439C296D10B74E9772A454` | `backend/test/calificaciones-01a-r2.ataque.test.ts` |  |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` |  |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` |  |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` |  |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `6F72C7CC1D0F95D60C057D7406A8955C47E834C963ED53D15DF64C83049F5431` | `backend/test/entregas-01b-r1.ataque.test.ts` |  |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` |  |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `2684916C88B9405706F82DA3F9B2FFD0B3626A11AF79E20EA146FDFD1D52C319` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `3790777831A1FACB053D0719D85AB404593954416B1443A1A59530E09E2C81DC` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` |  |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` |  |
+| `D95AB72A3FD3D70CE3A9027A50DB660426976C3DF1A46E92DF75066BEAC78A0C` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `CCEA34C962FC8F14A49C64EAFA8119DAE5030E1302ED94FE369299EC49182BB8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` |  |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `C67FA558FA7AE23821175478C8CB7D4874EE5F4D6CB84D0851F9A551B8AB455B` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` |  |
+| `36A104515F2EA87F143B2CFC00AEF9A33E6DDDB666844C1A9C977557EECA20EF` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` |  |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` |  |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | Nueva (ronda 2 de 01d) |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` |  |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | Nueva (ronda 2 de 01d) |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `5272DE876597EAD9EF838E4D022185C80AA411AAD9E67325573C87F954C5F7A6` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `827B8ABCA664145D51A1BBD1C0B558B0EDDFED8707A21A774222B4972BE14FF2` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `7F9D22E5904192DCC00465FADCABF36AA5DE3CD16D6A319A41A66340BB9BD6A8` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `008E5C606F249D15E3816E27E3E97FD7D7FBA0F8697751A156665A76694B3A18` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` |  |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` |  |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` |  |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` |  |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` |  |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` |  |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` |  |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` |  |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` |  |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` |  |
+| `432DCDDF119DD0E32E49ADC42D5F51D197698C8896E1058C505AB31F4A8EE838` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` |  |
+| `FD66C82D400E0F0A9709960934B555568642D9E4B5E41F31AD6606A620836982` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` |  |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` |  |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` |  |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` |  |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` |  |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `FC4963D3FD93297C427EAD0B85B23615C287E4F2C48079BCA8031D1C2AEE0396` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## Ronda 3 de 01d
+Veredicto: **ROTO** (1 hallazgo, baja). Es la última ronda del tope de `AGENTS.md`: se escala al humano.
+Verificación propia: lint `0` (`> tsc -b`) · test `1` (`Tests  3 failed | 3294 passed (3297)`; los 3 rojos son los de T-08, nuevos de esta ronda; 0 `Test timed out`).
+
+Base: `<K1c>` = `8242ce116c3d9645aab23a7de685574ce81a2b55` dentro de los paquetes. Leí "## 01d — corrección de la ronda 2 (T-07)" del resumen del programador (matriz de 50 filas, G24 a G27 nuevas), "## Verificación de la corrección de la ronda 2 — CALIFICACIONES-01d" de `revision.md` (su alcance para esta ronda, N-52 y N-53) y el código: `hooks.ts` (SHA-256 `ee0da18d…`, `useMarcarViejoElGradebook`), `gradebook-view.tsx` (`dd6cae5f…`), `mis-calificaciones-view.tsx` (`ca311d9b…`), `components/navegacion-del-gradebook.tsx`, `services/calificacionesService.ts`, `app/providers.tsx`, `app/router.tsx`, `features/clases/clase-layout.tsx`, `features/clases/components/secciones-de-clase.tsx`, `components/layout/lista-de-clases.tsx` y, por el precedente, `features/clases/muro-view.tsx` (el mecanismo de T-35 de CLASES-01). Solo escribí 3 archivos `*.ataque` nuevos y esta sección. No toqué código de producción, `shared/`, pruebas normales, `*.ataque` existentes ni "No se toca". Mi único formateo fue `npx prettier --write` sobre mis 3 archivos, desde `frontend/`. No corrí el backend (01d no lo toca; PA-07 no aplica). No abrí navegadores, no terminé procesos y no leí `.env`.
+
+### V-01
+- **Base:** "Tabla de SHA-256 de las 200 `*.ataque` al cierre de la ronda 2 de 01d" de este reporte.
+- **Método:** `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort | xargs sha256sum`, normalizado (hash en minúsculas, sin el `*`), ordenado por ruta y comparado con `diff` contra la tabla extraída por ruta.
+- **Antes de escribir nada:** 200 de 200 iguales, ningún archivo de más ni de menos (`diff` vacío). **V-01 en verde. Sin PARADA.**
+- **CAL-T-217, CAL-T-218, CAL-T-219 y CAL-T-224:** sus archivos tienen el SHA-256 de la tabla (sin cambios) y están en verde: `npx vitest run src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx -t "CAL-T-21[789]|CAL-T-224"` → `Tests  4 passed | 25 skipped (29)`; también en verde en la suite completa.
+- **Al cierre:** las 200 siguen iguales (`join` por ruta: 0 distintos) y hay 3 nuevas, las mías. `git diff --stat 8242ce1 -- frontend backend shared` = `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que en la verificación del manager; archivos sin seguimiento en los paquetes: 30 (los 27 de antes más mis 3). Los SHA-256 de `hooks.ts` y `gradebook-view.tsx` son los de la verificación.
+
+### Archivos nuevos y casos
+Comando: `npx vitest list src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx src/features/calificaciones/secciones-01d-r3.ataque.test.tsx`, desde `frontend/` → **28 casos** (18 + 3 + 7). Ids CAL-T-228 a CAL-T-252.
+
+| Archivo | Casos | Ids |
+|---|---|---|
+| `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | 18 | CAL-T-232 a CAL-T-248 (CAL-T-247 con 2 entradas: `400` y `vacia`) |
+| `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | 3 | CAL-T-249 a CAL-T-251 |
+| `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | 7 | CAL-T-228 a CAL-T-231 y CAL-T-252 (CAL-T-228 y CAL-T-230 con 2 entradas cada uno: `400` y `vacia`) |
+
+`gradebook-01d-r3` y `mis-calificaciones-01d-r3` usan una `QueryClient` con el `staleTime` de 30 s y el `refetchOnWindowFocus: false` de `app/providers.tsx` (con `retry: false`, salvo CAL-T-247, que monta los `Providers` reales con `retry: 1`). `secciones-01d-r3` usa el router real (`rutas` de `app/router.tsx` con `createMemoryRouter`), las secciones de la clase de verdad y la misma configuración de caché. Las marcas se cuentan con un espía de `invalidateQueries` filtrado por `refetchType: "none"` (solo las del gancho).
+
+Casos, por id:
+- **CAL-T-228** (T-08, `400` y `vacia`) Con el texto del cursor del gradebook, pulsar la sección «Calificaciones» (la activa, `aria-current="page"`): el clic navega (cambia `location.key`, misma ruta) y se espera la primera ventana pedida otra vez, "1 alumno" y sin «Alumnos siguientes». **En rojo.**
+- **CAL-T-229** (T-08) Lo mismo en «Mis calificaciones» tras el `400` de «Ver más tareas». **En rojo.**
+- **CAL-T-230** (control de T-07 con el router real, `400` y `vacia`) Ir a «Muro» y volver a «Calificaciones» antes de 30 s: una sola petición sin cursor, "1 alumno", sin «Alumnos siguientes», sin el texto y sin aviso. En verde.
+- **CAL-T-231** El cambio de clase con el gradebook montado no es alcanzable: la clase B de la barra lleva a `/maestro/clases/B` (el muro), el gradebook se desmonta, nunca se pide el gradebook de B y las secciones de B apuntan a B.
+- **CAL-T-232** Dos `400` del cursor seguidos (el segundo por una invalidación del prefijo, como la de calificar en `features/tareas`): una petición por invalidación, 2 marcas, un solo texto, la primera ventana `isInvalidated`, y volver a abrir la pide.
+- **CAL-T-233** `400` y después la ventana vacía: el mismo texto, ahora con el `h2`, el resumen y «Alumnos anteriores»; una petición, 2 marcas, nada más en vuelo.
+- **CAL-T-234** Ventana vacía y después un `400` en su recarga: sigue la ventana vacía con el texto y el mismo nodo `alert` (S-19), sin marca nueva (la primera ventana ya quedó marcada), sin bucle, y volver a abrir pide la primera ventana.
+- **CAL-T-235** Invalidación externa con la ventana vacía a la vista, con otra hora: una petición, una marca más, el mismo `alert`, `isFetching() = 0`, sin `aria-busy`, y la ventana a la vista nunca queda marcada.
+- **CAL-T-236** `refetchQueries` de todo el prefijo con el `400` a la vista: 2 peticiones (la rota y la primera ventana inactiva), ninguna más, un solo texto.
+- **CAL-T-237** En `StrictMode` (efectos dobles): una sola petición rota, un solo texto, sin bucle; volver a abrir pide la primera ventana y ningún cursor.
+- **CAL-T-238** Regresar desde la ventana vacía con la recarga de la primera ventana retenida: la tabla de la caché al instante, «Alumnos siguientes» con `aria-busy="true"`, dos clics no piden el cursor muerto, el foco nunca en `<body>`; al llegar, "2 alumnos", sin «Alumnos siguientes», sin `aria-busy`, el foco en el `h2`, sin aviso y una sola petición.
+- **CAL-T-239** Esa recarga falla con 503: la tabla de la caché se queda, sin el genérico, sin el texto del servidor, sin `alert`, sin `aria-busy`, el foco en el `h2` y sin aviso.
+- **CAL-T-240** `isPlaceholderData` por la otra dimensión: desde la ventana vacía, «Tareas más antiguas» con la respuesta retenida no marca mientras se ve la de respaldo; la respuesta real vacía marca una vez.
+- **CAL-T-241** Regresar a una primera ventana fuera de la caché (respuesta retenida): ninguna marca mientras se ve la de respaldo ni al llegar la tabla.
+- **CAL-T-242** Vista desmontada con la ventana rota en vuelo: al llegar el `400`, 0 marcas y sin `console.error`; al volver a montar, la primera ventana sin el texto.
+- **CAL-T-243** Vista desmontada con una invalidación externa en curso sobre la ventana rota: sin `console.error` ni aviso; al volver a montar, la primera ventana se pide.
+- **CAL-T-244** Volver a abrir antes de 30 s con la primera ventana que llega vacía de verdad: mientras llega, «Alumnos siguientes» (de la caché) está en espera y dos clics no piden el cursor muerto; al llegar, "Aún no hay alumnos en esta clase.", sin el texto del cursor, sin botones ni `alert`, el foco dentro de la raíz (no en `<body>`) y ninguna marca nueva.
+- **CAL-T-245** (control) Después de 30 s, tras el `400`, volver a abrir muestra la clase como está.
+- **CAL-T-246** Las dos dimensiones vacías a la vez (ventana con los dos cursores): un solo texto, ninguno de los vacíos de la clase, una marca por la respuesta, `[null, null]` y `[null, cursorTareas]` marcadas, y volver a abrir pide la primera ventana.
+- **CAL-T-247** (`400` y `vacia`) Con los `Providers` reales de la app (`retry: 1`, `staleTime` de 30 s, sin `refetchOnWindowFocus`): el texto del cursor; desmontar y volver a montar con la misma `QueryClient` muestra "2 alumnos" sin «Alumnos siguientes», sin el texto y sin aviso.
+- **CAL-T-248** (evidencia de N-52, en verde a propósito; no es hallazgo) Dos cambios de la clase en menos de 30 s y el mismo cursor en la primera ventana nueva: «Alumnos siguientes» sirve la ventana vacía de la caché sin pedirla (0 peticiones) y vuelve el texto. Reproduce el riesgo residual que describió el manager; hacen falta dos cambios de la clase, no una sola acción.
+- **CAL-T-249** «Mis calificaciones»: tras una página vacía con `siguienteCursor` nulo, volver a abrir antes de 30 s sirve la caché (0 peticiones) con las mismas filas, sin «Ver más tareas», sin el texto ni `alert`. No hay instrucción que cumplir: sin defecto.
+- **CAL-T-250** «Mis calificaciones»: tras el `400` de «Ver más tareas», volver a abrir con la primera página vacía de verdad: el vacío del filtro, sin el texto ni «Ver más tareas», una petición sin cursor y ninguna con cursor.
+- **CAL-T-251** «Mis calificaciones»: tras el `400`, cambiar «Mostrar» a «Asignadas» y volver a «Todas» con la vista montada pide otra vez la primera página y quita el texto.
+- **CAL-T-252** El admin con el router real: la tabla, «Alumnos siguientes» y el `alert` del texto del cursor cuelgan de un `data-material="opaco"` (con `closest`), la sección «Calificaciones» es la activa y no se pide `/mis-calificaciones`.
+
+### Hallazgos
+
+#### T-08 — "Vuelve a abrir Calificaciones" no funciona si la persona pulsa la sección «Calificaciones», la que ya está activa
+Severidad: **baja** (la misma que T-35 de CLASES-01, que es el mismo defecto en el muro; sin fuga ni pérdida de datos; la instrucción sí funciona yendo a otra sección y regresando, CAL-T-230).
+Pruebas (las tres en rojo): `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx`, describe "T-08: «Vuelve a abrir Calificaciones» pulsando la sección «Calificaciones» (la activa)":
+- "CAL-T-228: gradebook con el texto del cursor (400): pulsar la sección «Calificaciones» vuelve a pedir la primera ventana y muestra la clase como está"
+- "CAL-T-228: gradebook con el texto del cursor (vacia): pulsar la sección «Calificaciones» vuelve a pedir la primera ventana y muestra la clase como está"
+- "CAL-T-229: «Mis calificaciones» con el texto del cursor de «Ver más tareas»: pulsar la sección «Calificaciones» vuelve a pedir la primera página"
+
+Controles en verde en el mismo archivo: "CAL-T-230 (control de T-07 con el router real)…", con `400` y con `vacia`: «Muro» y luego «Calificaciones» sí recupera.
+
+**Cómo se llega.** Maestro o admin en `…/clases/:claseId/calificaciones`: la clase cambia y «Alumnos siguientes» da el `400` del cursor o la ventana vacía. La vista dice "La clase cambió mientras veías las calificaciones. Vuelve a abrir Calificaciones para verlas completas." La acción más directa para "abrir Calificaciones" es pulsar «Calificaciones» en las secciones de la clase, que está a la vista. Con el `400` es casi la única: la vista reemplazada no tiene botones. En «Mis calificaciones» pasa lo mismo tras el `400` de «Ver más tareas» ("Tus tareas cambiaron mientras las veías. Vuelve a abrir Calificaciones…").
+
+**Esperado / Obtenido.**
+- Esperado: se pide otra vez la primera ventana (o la primera página) y se ve la clase como está: "1 alumno", sin «Alumnos siguientes», sin el texto. Es lo que promete el texto y lo que se fijó para el muro con T-35 (CLASES-01, cuarta ronda autorizada por el humano: pulsar «Muro» con el muro en error vuelve a pedir la lista; `frontend/src/app/muro-recuperar-c-r3` y `-r4`).
+- Obtenido: el clic sí navega (la prueba comprueba que cambia `router.state.location.key` y que la ruta sigue siendo `…/calificaciones`), pero la vista no se desmonta y no pide nada. Salida: `AssertionError: expected +0 to be 1` en las tres (0 peticiones sin cursor después del clic), y el texto sigue a la vista.
+
+**Causa probable.** `SeccionesDeClase` usa `NavLink` hacia la misma ruta. React Router hace una navegación nueva con la misma ruta y no vuelve a montar el elemento, así que `GradebookDeLaClase` conserva su estado `ventanas` (con el cursor muerto) y su consulta, y `MisCalificacionesDeLaClase` conserva la consulta infinita en error. Ninguna de las dos vistas usa `useLocation()` ni reacciona a una `location.key` nueva, a diferencia de `features/clases/muro-view.tsx` desde T-35. El remedio de T-07 (marcar viejas las demás ventanas) solo actúa cuando la vista se vuelve a montar.
+
+**Hermanos.**
+- Gradebook, `400` del cursor de alumnos: CAL-T-228 (`400`), en rojo.
+- Gradebook, ventana vacía de alumnos: CAL-T-228 (`vacia`), en rojo. Aquí «Alumnos anteriores» permite regresar, pero el texto pide otra cosa.
+- Gradebook, dimensión de tareas (`400` de `cursorTareas` y ventana de tareas vacía) y las dos a la vez: el mismo camino (misma vista, mismo estado); sin caso propio.
+- «Mis calificaciones», `400` de «Ver más tareas»: CAL-T-229, en rojo. El `400` en la primera carga tiene el mismo texto y el mismo camino; sin caso propio.
+- Admin: misma vista y mismas secciones; sin caso propio (CAL-T-252 confirma que su sección «Calificaciones» es la activa).
+- Fuera de 01d (no ataqué, solo lo anoto para el humano): "Vuelve a abrir Trabajo de clase para verlo completo." de `features/clases/data.ts:483` (TAREAS-01e) va en una vista que también es una sección; no comprobé si pulsar «Trabajo de clase» la recupera. "Vuelve a abrir Entregas" (`features/tareas/data.ts:315`) no tiene sección propia.
+
+Requisito o regla violada: §D-13.3 y §D-13.4 con la decisión del orquestador sobre el texto `cursorDelGradebook` en `aprobacion.md` (el texto dice qué hacer y la acción más directa no lo hace) y el tono de `DESIGN.md` §9. Precedente: T-35 y M-23 de CLASES-01 (`docs/trabajo/CLASES-01-clases-y-muro/aprobacion.md`, líneas 207 a 221).
+
+### Atacado sin hallazgos (por categoría)
+- **El remedio de T-07, fallos seguidos.** Dos `400` seguidos: una petición por invalidación, una marca por ocurrencia (el contador de errores cambia la clave aunque el reloj no avance) y un solo texto (CAL-T-232). `400` y después ventana vacía: el mismo texto, una marca más (CAL-T-233). Ventana vacía y después `400`: la ventana vacía se queda (S-19), sin marca nueva y sin bucle, y volver a abrir funciona porque la primera ventana ya estaba marcada (CAL-T-234). Ninguna variante deja peticiones en vuelo ni repite la ventana rota sola.
+- **Recargas e invalidaciones externas.** La invalidación del prefijo que hace `features/tareas` al calificar (`refetchType` por defecto) solo vuelve a pedir la ventana a la vista: una petición, una marca más, el mismo `alert` (CAL-T-232, CAL-T-235). `refetchQueries` de todo el prefijo pide 2 y se detiene (CAL-T-236). `refetchOnWindowFocus` está en `false` en `providers.tsx` (lo leí; CAL-T-247 monta esos `Providers`). En `StrictMode`, los efectos dobles no cambian el número de peticiones (CAL-T-237).
+- **Cambio de clase con la vista montada.** No es alcanzable desde la interfaz: la barra lleva a la raíz de la otra clase (el muro) y desmonta el gradebook; las secciones apuntan a la clase propia (CAL-T-231). Confirmo lo que dijo el manager. En el código: los únicos destinos con `calificaciones` son los segmentos de `CAPACIDADES_POR_PERSPECTIVA` (`features/clases/data.ts:386, 403, 421`), relativos a la base de la misma clase.
+- **Regreso desde la ventana vacía con la recarga en segundo plano.** La tabla de la caché al instante, los botones en espera con `aria-busy`, la guarda de G6 frente a dos clics, el foco nunca en `<body>` y, al llegar, el `h2` con el foco y ningún `aria-busy` colgado (CAL-T-238). Si esa recarga falla, la tabla se queda sin aviso ni genérico y el foco va al `h2` (CAL-T-239).
+- **`isPlaceholderData`.** La ventana de respaldo nunca marca: ni al avanzar por la otra dimensión desde la ventana vacía (CAL-T-240) ni al regresar a una primera ventana fuera de la caché (CAL-T-241). La respuesta real vacía sí marca, una vez.
+- **Vista desmontada.** Con la ventana rota en vuelo: 0 marcas, sin consola, y al volver a montar la primera ventana sin el texto (CAL-T-242, lo declarado en G24). Con una invalidación externa en curso: sin consola ni aviso, y al volver a montar se pide la primera ventana (CAL-T-243).
+- **Volver a abrir antes de 30 s con la clase vacía de verdad.** El vacío de la clase, no el texto del cursor; mientras llega, «Alumnos siguientes» de la caché está en espera y no pide el cursor muerto; el foco queda en la raíz (CAL-T-244). Nota: con el reloj fijo, el gancho de foco necesita que la respuesta nueva tenga otra hora (`dataUpdatedAt`); adelanté el reloj 1 s como en CAL-T-204 y CAL-1D02n. Mi primera versión sin eso falló por la prueba, no por el código.
+- **Volver a abrir después de 30 s (control).** Funciona con el `400` (CAL-T-245) y con la ventana vacía (CAL-T-219).
+- **Las dos dimensiones a la vez.** Un texto, una marca, las dos entradas anteriores marcadas, y volver a abrir funciona (CAL-T-246).
+- **La `QueryClient` real de la app.** Con `Providers` (`retry: 1`), el `400` y la ventana vacía se resuelven al volver a abrir (CAL-T-247).
+- **N-52.** Lo reproduce CAL-T-248 (dos cambios de la clase en menos de 30 s con el mismo cursor). No encontré un camino de una sola acción: con un solo cambio, la primera ventana nueva trae otro cursor siguiente (o ninguno) y no lleva a la ventana vacía de la caché. No es hallazgo.
+- **«Mis calificaciones» al volver a abrir antes de 30 s.** Tras el `400` de «Ver más tareas» se vuelve a pedir desde la primera página (CAL-T-224, de la ronda 2, en verde), también cuando llega vacía de verdad (CAL-T-250). Tras una página vacía con `siguienteCursor` nulo, la caché se sirve sin petición y es coherente: no se mostró ninguna instrucción (CAL-T-249). Cambiar el filtro y regresar con la vista montada también recupera (CAL-T-251). Sin defecto, como dijo el programador.
+- **Pasada final, modal.** Escape con «Ver más tareas» en vuelo, Tab atrapado y la vista reemplazada con el modal abierto: CAL-1D05 ("Escape con «Ver más tareas» en vuelo…", "el foco entra al diálogo y queda atrapado…", "si la vista se reemplaza con el modal abierto…"), CAL-T-172 a CAL-T-175, CAL-T-196, CAL-T-226 y CAL-T-227, todos en verde en esta corrida. El modal no pide nada (CAL-T-190). Sin cambios desde la ronda 2.
+- **Pasada final, tabla 50 × 50, títulos y nombres largos.** CAL-T-159 (2500 celdas enlazadas, título de 200 caracteres y nombre de 120), en verde.
+- **Pasada final, URLs de la otra rama.** El estudiante en la URL del gradebook y el maestro o el admin en la de «Mis calificaciones» vuelven a su inicio y nunca piden la otra ruta (CAL-T-181), en verde; mayúsculas y barra final (CAL-T-179, CAL-T-180).
+- **Pasada final, `data-material="opaco"`.** Con `closest` en el admin y el router real: la tabla, los botones y el `alert` (CAL-T-252); en la vista, los dos casos CAL-1D01 de `gradebook-01d.test.tsx` (maestro y admin).
+- **Pasada final, RN-02.** Estado de pago, restricción o correo de más en el gradebook y en «Mis calificaciones»: el esquema estricto los rechaza y no se pinta nada de eso (CAL-T-158, CAL-T-178). Grep sobre `hooks.ts`, `gradebook-view.tsx` y `mis-calificaciones-view.tsx`: ni `estadoPago` ni `accesoRestringido`.
+- **Pasada final, reloj fijo.** Las 28 pruebas nuevas fijan `Date` con `vi.useFakeTimers({ toFake: ["Date"] })` y `setSystemTime`. CAL-T-191 (las pruebas de 01d que construyen fechas fijan el reloj) y CAL-T-192 (sin `return` temprano) incluyen mis 3 archivos y están en verde. Ninguna prueba nueva tiene `return` temprano ni selectores de clases de estilo.
+- **Pasada final, reglas estáticas sobre el código final.** Las 23 reglas de la ronda 0, CAL-1D09 y CAL-T-182 a CAL-T-192 corren en la suite completa, en verde, contra `hooks.ts` con el gancho nuevo y `gradebook-view.tsx`. Grep propio sobre `hooks.ts`, `gradebook-view.tsx` y `mis-calificaciones-view.tsx`: sin `fetch(`, `?? []`, `console.`, `localStorage`/`sessionStorage`, `fixed`, `dangerouslySetInnerHTML`, `any`, `backdrop-blur` ni importaciones de `@/features/`. `enEspera=`: 0 en `gradebook-view.tsx` (4 en `navegacion-del-gradebook.tsx`) y 1 en `mis-calificaciones-view.tsx`. `toast` solo en `mis-calificaciones-view.tsx`, una vez (`toast.error`). El `if`/`else if` de `ocurrenciaDelCursor` es una asignación de varias ramas, que `CLAUDE.md` permite.
+
+### No atacado y por qué
+- **«Vuelve a abrir Trabajo de clase» (TAREAS-01e) pulsando su sección:** fuera de 01d; lo anoto en los hermanos de T-08 para el humano, sin prueba.
+- **Mutaciones del código de producción:** no modifico producción. El manager ya comprobó por mutación los 11 casos del programador y CAL-T-217 y CAL-T-218.
+- **Lectores de pantalla reales y 360 px:** jsdom no los mide; sin cambio visual en esta corrección.
+- **Backend y PA-07:** 01d no cambia el backend.
+
+### Observaciones (no son hallazgos)
+- **O-r3d-1.** En CAL-T-234, el `400` que llega en la recarga de una ventana vacía no marca de nuevo: la ventana se conserva por S-19, la ocurrencia es la misma (`vacia:<dataUpdatedAt>`) y la primera ventana ya estaba marcada por la primera ocurrencia. Volver a abrir funciona. Lo dejo escrito porque es la única combinación de "fallos seguidos" sin una marca por fallo, y es correcta.
+- **O-r3d-2.** N-52 queda reproducido en CAL-T-248, en verde a propósito: si el humano decide corregirlo, esa prueba cambiará de sentido y habrá que reescribirla (es mía y es una `*.ataque`).
+- **O-r3d-3.** O-r1d-1 a O-r1d-4, O-r2d-1 y O-r2d-2 siguen igual.
+
+### Comandos y última línea
+Desde `frontend/`, una suite a la vez (sin corrida del backend).
+
+| Comando | Código | Última línea / resumen |
+|---|---|---|
+| `npx prettier --write src/features/calificaciones/*-01d-r3.ataque.test.tsx` | 0 | Formateados; `npx prettier --check` sobre los 3: `All matched files use Prettier code style!` |
+| `npx eslint src/features/calificaciones/*-01d-r3.ataque.test.tsx` | 0 | Sin salida |
+| `npx vitest list` sobre mis 3 archivos | 0 | 28 líneas (18 + 3 + 7) |
+| `npm run lint > <scratchpad>/r3d/lint.txt 2>&1` | 0 | `> tsc -b` |
+| `npm run test > <scratchpad>/r3d/test.txt 2>&1` (07:18:44Z a 07:21:25Z) | 1 | `npm error command C:\WINDOWS\system32\cmd.exe /d /s /c vitest run`. Resumen: `Test Files  1 failed \| 195 passed (196)` · `Tests  3 failed \| 3294 passed (3297)` · `Duration  157.20s (transform 39.44s, setup 102.66s, import 343.75s, tests 707.94s, environment 465.01s)`. `grep -c "Test timed out"` = **0**. Los 3 rojos son CAL-T-228 (2) y CAL-T-229 (T-08); ningún otro. 3269 de la verificación del manager + 28 nuevos = 3297 |
+| `npx vitest run src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx -t "CAL-T-21[789]\|CAL-T-224"` | 0 | `Tests  4 passed \| 25 skipped (29)` |
+
+### Veredicto de la ronda 3 de 01d
+**ROTO.** Un hallazgo, T-08 (baja), con tres pruebas en rojo: el texto del cursor del gradebook y el de «Mis calificaciones» piden volver a abrir Calificaciones, y pulsar la sección «Calificaciones», que ya está activa, no hace nada. Es el mismo defecto que T-35 de CLASES-01 en el muro. El remedio de T-07 resiste: fallos seguidos sin bucle y con una marca por ocurrencia, invalidaciones y recargas externas, `StrictMode`, el regreso con la recarga en segundo plano, `isPlaceholderData`, la vista desmontada, la clase vacía de verdad, las dos dimensiones, la `QueryClient` real y los controles de 30 s. N-52 queda reproducido como evidencia (CAL-T-248), sin camino de una sola acción. El cambio de clase con la vista montada no es alcanzable. V-01 en verde, CAL-T-217, CAL-T-218, CAL-T-219 y CAL-T-224 en verde, 0 tiempos límite y `lint` en verde. Es la tercera ronda: según `AGENTS.md`, el orquestador escala al humano.
+
+### Tabla de SHA-256 de las 203 `*.ataque` al cierre de la ronda 3 de 01d (base de V-01 de la ronda siguiente)
+Calculada con `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort`. Contra la tabla de la ronda 2 de 01d, 200 son iguales y 3 son nuevas; ninguna reescrita ni borrada.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` |  |
+| `B00C2C10D8D862F6576CB69173F07D190A08A18A25439C296D10B74E9772A454` | `backend/test/calificaciones-01a-r2.ataque.test.ts` |  |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` |  |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` |  |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` |  |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `6F72C7CC1D0F95D60C057D7406A8955C47E834C963ED53D15DF64C83049F5431` | `backend/test/entregas-01b-r1.ataque.test.ts` |  |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` |  |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `2684916C88B9405706F82DA3F9B2FFD0B3626A11AF79E20EA146FDFD1D52C319` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `3790777831A1FACB053D0719D85AB404593954416B1443A1A59530E09E2C81DC` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` |  |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` |  |
+| `D95AB72A3FD3D70CE3A9027A50DB660426976C3DF1A46E92DF75066BEAC78A0C` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `CCEA34C962FC8F14A49C64EAFA8119DAE5030E1302ED94FE369299EC49182BB8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` |  |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `C67FA558FA7AE23821175478C8CB7D4874EE5F4D6CB84D0851F9A551B8AB455B` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` |  |
+| `36A104515F2EA87F143B2CFC00AEF9A33E6DDDB666844C1A9C977557EECA20EF` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` |  |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` |  |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` |  |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | Nueva (ronda 3 de 01d) |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` |  |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` |  |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | Nueva (ronda 3 de 01d) |
+| `A8790F734402A957534D0F0E660EEF342F9029CDFC1991BE421D9B3E3C3E9CB7` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | Nueva (ronda 3 de 01d) |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `5272DE876597EAD9EF838E4D022185C80AA411AAD9E67325573C87F954C5F7A6` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `827B8ABCA664145D51A1BBD1C0B558B0EDDFED8707A21A774222B4972BE14FF2` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `7F9D22E5904192DCC00465FADCABF36AA5DE3CD16D6A319A41A66340BB9BD6A8` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `008E5C606F249D15E3816E27E3E97FD7D7FBA0F8697751A156665A76694B3A18` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` |  |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` |  |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` |  |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` |  |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` |  |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` |  |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` |  |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` |  |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` |  |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` |  |
+| `432DCDDF119DD0E32E49ADC42D5F51D197698C8896E1058C505AB31F4A8EE838` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` |  |
+| `FD66C82D400E0F0A9709960934B555568642D9E4B5E41F31AD6606A620836982` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` |  |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` |  |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` |  |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` |  |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` |  |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `FC4963D3FD93297C427EAD0B85B23615C287E4F2C48079BCA8031D1C2AEE0396` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## Ronda 4 cerrada de 01d
+Veredicto: **RESISTE**
+Verificación propia: lint `0` (`> tsc -b`) · test `Tests  3318 passed (3318)` en 197 archivos, 0 `Test timed out`
+
+Ronda autorizada por el humano solo para T-08 y sus hermanos (`aprobacion.md`, "Decisión del humano tras la escalada de 01d"), con el alcance que fijó el manager (`revision.md`, "## Verificación de la corrección de la ronda 3 — CALIFICACIONES-01d"). Solo escribí este archivo de ataque y esta sección. No toqué código de producción, `shared/`, pruebas normales, `*.ataque` existentes ni "No se toca". Sin navegadores, sin commit, sin procesos ajenos, sin `.env`. Backend no corrido (01d no lo toca). Decisiones tomadas que no cuento como hallazgo: N-52, N-54, N-55, las diferencias con el muro y lo que queda fuera del mecanismo de pulsar la sección activa.
+
+### V-01
+- Comando: `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort | xargs sha256sum`, normalizado (sin el `*` de modo binario, en minúsculas) y con `diff` contra la tabla "203 `*.ataque` al cierre de la ronda 3 de 01d".
+- Resultado: **203 de 203 iguales**; ninguna reescrita ni borrada. La única de más es la mía (`secciones-01d-r4.ataque.test.tsx`). Sin PARADA.
+- Producción sin cambios respecto a la verificación del manager: SHA-256 de `hooks.ts` `494c6cc0…`, `gradebook-view.tsx` `7a2727b9…`, `mis-calificaciones-view.tsx` `7c4b4863…`; `git diff --stat <K1c> -- frontend backend shared` = `12 files changed, 84 insertions(+), 110 deletions(-)`; sin seguimiento 31 (los 30 del resumen más el mío).
+
+### Los tres rojos de la ronda 3, en verde sin cambiar el archivo
+`npx vitest run src/features/calificaciones/secciones-01d-r3.ataque.test.tsx --reporter=verbose` → `Tests  7 passed (7)`:
+- CAL-T-228 (`400`) y CAL-T-228 (`vacia`): en verde.
+- CAL-T-229: en verde.
+- CAL-T-230 (`400`) y CAL-T-230 (`vacia`), el control: siguen en verde.
+- El SHA-256 del archivo es el de la tabla de la ronda 3 (V-01).
+
+### Archivo nuevo y casos
+`frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx`, con el router real (`rutas` de `app/router`), la `QueryClient` con el `staleTime` de `app/providers.tsx` y el reloj fijo (solo `Date`). Comando: `npx vitest list src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` → 7 casos:
+- "CAL-T-253: gradebook en StrictMode con el 400 del cursor: el montaje pide la primera ventana una vez y pulsar la sección la pide una vez más, sin aviso, sin aria-busy y con el foco en la sección"
+- "CAL-T-254: «Mis calificaciones» en StrictMode con el 400 de «Ver más tareas»: pulsar la sección pide la primera página una sola vez, sin aviso y con el foco en la sección"
+- "CAL-T-255: atrás y adelante entre dos entradas de la misma ruta del gradebook: la vista no se remonta, cada paso vuelve a la primera ventana sin pilas con una sola petición, sin aviso"
+- "CAL-T-256: con «Ver cálculo» abierto, atrás a otra entrada de la misma ruta de «Mis calificaciones» recarga una vez sin cerrar el modal ni sacar el foco de él"
+- "CAL-T-257: el clic que no enfoca el enlace (el foco sigue en «Alumnos anteriores», que desaparece al volver a la primera ventana) deja el foco en la vista, nunca en <body>"
+- "CAL-T-258: las marcas viejas de useMarcarViejoElGradebook: el 400 marca una vez y pulsar la sección dos veces (con el texto y con la tabla sana) no agrega ninguna"
+- "CAL-T-259: con el filtro «Calificadas» y el 400 de «Ver más tareas», dos pulsaciones con la primera página retenida piden una sola, con el mismo filtro; el selector lo conserva y al llegar no queda aria-busy ni aviso"
+
+Los 7 en verde en la primera corrida (`Tests  7 passed (7)`). No hay rojos: no hay hallazgos.
+
+### Pasada mínima, por punto
+| Punto | Resultado | Cobertura |
+|---|---|---|
+| Gradebook tras el `400` del cursor | Una petición sin cursor, la clase como está, sin texto ni pilas, sin aviso, foco en la sección | CAL-T-228 (`400`), CAL-T-253 (StrictMode), CAL-1D03d |
+| Gradebook tras la ventana vacía | Igual | CAL-T-228 (`vacia`), CAL-1D03d |
+| «Mis calificaciones» tras el `400` de «Ver más tareas» | Una petición de la primera página, sin texto ni «Ver más tareas», sin aviso, foco en la sección | CAL-T-229, CAL-T-254 (StrictMode), CAL-T-259 (con filtro) |
+| Datos sanos | Recarga sin aviso ni filas duplicadas; en la ventana siguiente vuelve a la primera sin «Alumnos anteriores» | CAL-T-255, CAL-T-257, CAL-T-258 (segunda pulsación con la tabla sana), CAL-1D03e/f |
+| Petición en vuelo | No duplica ni cancela; sin `aria-busy` colgado al llegar | CAL-T-259 (primera página retenida), CAL-1D03e/h/i, CAL-1D04j/k/m |
+| Dos pulsaciones seguidas | Una sola petición | CAL-T-259, CAL-T-258, CAL-1D03e |
+| StrictMode | El montaje no dispara (una sola primera ventana o página) y la pulsación pide una vez | CAL-T-253, CAL-T-254 |
+| Historial (atrás y adelante entre dos `location.key` de la misma ruta) | Recarga una vez por paso, vuelve a la primera ventana sin pilas, sin remontar (el mismo `h2`). Es lo que hace el muro (también reacciona a `location.key`). En la interfaz no se alcanza con las secciones: el `Link` de React Router 7 a la misma URL **reemplaza** la entrada (`replace = createPath(location) === createPath(path)`, `react-router/dist/development/chunk-OB3PAWPO.mjs:10897`), así que no deja dos entradas de la misma ruta; solo un historial que ya las tenga. Recargar ahí es inofensivo: no es crítico ni alto | CAL-T-255 |
+| Modal abierto | Con el historial, el modal no se cierra y el foco sigue dentro; recarga una vez. Que la sección no se pueda pulsar con el modal abierto: por lectura (Radix vuelve inerte lo de fuera), sin caso propio | CAL-T-256 |
+| Pila vacía y filtro conservado | Pilas vacías tras pulsar desde la ventana siguiente; el filtro «Calificadas» se conserva en la petición (`estado=calificadas`, sin `cursor`) y en el selector | CAL-T-255, CAL-T-257, CAL-T-259 |
+| Foco en la sección, nunca en `<body>` | Con el enlace enfocado, el foco se queda en él. Con el clic que no enfoca el enlace (el foco en «Alumnos anteriores», que desaparece), el foco queda dentro de la vista, nunca en `<body>` (N-55 sigue sin acción) | CAL-T-253, CAL-T-254, CAL-T-259, CAL-T-257 |
+| `useMarcarViejoElGradebook` | Una marca por ocurrencia del `400`; dos pulsaciones (con el texto y con la tabla sana) no agregan ninguna | CAL-T-258 |
+
+### Hallazgos
+Ninguno crítico ni alto. No hay hallazgos en esta ronda.
+
+### Observaciones (no son hallazgos; fuera del alcance cerrado o de severidad menor)
+- **O-r4-1.** En «Mis calificaciones», pulsar la sección con «Ver más tareas» en vuelo no recarga: la pulsación toma la misma promesa (decisión declarada, M27). Si esa página termina en el `400` del cursor, el texto "Vuelve a abrir Calificaciones…" aparece después de que la persona ya pulsó; pulsar otra vez sí recupera. Es la decisión aceptada por el manager, no la levanto.
+- **O-r4-2.** Por lectura, sin caso: la pulsación solo recarga la consulta del filtro elegido. Si el `400` de «Ver más tareas» ocurrió con otro filtro y la persona regresa a él antes de 30 s, la consulta en caché conserva su estado de error y el texto puede volver a verse. Está fuera del mecanismo de pulsar la sección activa y, a lo sumo, sería media: no la ataqué.
+
+### No atacado y por qué
+- Backend: 01d no lo toca; PA-07 no aplica a esta ronda.
+- "Trabajo de clase" y los demás "Vuelve a abrir…" de `features/clases` y `features/tareas`: decisión tomada (N-54).
+- Navegador real (Safari, que no enfoca enlaces al hacer clic): no se abren navegadores; CAL-T-257 simula ese caso en jsdom.
+
+### Comandos y última línea (desde `frontend/`, una suite a la vez)
+| Comando | Código | Última línea |
+|---|---|---|
+| `npx vitest run src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | 0 | `Tests  7 passed (7)` |
+| `npx vitest run src/features/calificaciones/secciones-01d-r3.ataque.test.tsx --reporter=verbose` | 0 | `Tests  7 passed (7)` |
+| `npm run lint` | 0 | `> tsc -b` (antes: `All matched files use Prettier code style!`) |
+| `npm run test` (12:54:26Z a 12:57:09Z) | 0 | `Test Files  197 passed (197)` · `Tests  3318 passed (3318)` · `Duration  158.31s`; `grep -c "Test timed out"` = **0** |
+| `npx vitest list \| grep -c " > "` | 0 | **3318** (3311 de la verificación del manager + 7 míos) |
+| `npx vitest list --filesOnly \| wc -l` | 0 | **197** (196 + 1) |
+
+### Veredicto de la ronda 4 cerrada de 01d
+**RESISTE.** Hallazgos: 0 críticos, 0 altos, 0 medios, 0 bajos. T-08 queda cerrado: CAL-T-228 (las dos variantes) y CAL-T-229 en verde sin cambiar el archivo, CAL-T-230 sigue en verde, y la pasada mínima sobre el mecanismo (7 casos nuevos) no encontró nada crítico ni alto.
+
+### Tabla de SHA-256 de las 204 `*.ataque` al cierre de la ronda 4 cerrada de 01d (base de V-01 de la ronda o subentrega siguiente)
+Calculada con `sha256sum` sobre `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort`. Contra la tabla de la ronda 3 de 01d, 203 son iguales y 1 es nueva; ninguna reescrita ni borrada.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` |  |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` |  |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` |  |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` |  |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` |  |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` |  |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` |  |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` |  |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` |  |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` |  |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` |  |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` |  |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` |  |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` |  |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` |  |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` |  |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` |  |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` |  |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` |  |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` |  |
+| `B00C2C10D8D862F6576CB69173F07D190A08A18A25439C296D10B74E9772A454` | `backend/test/calificaciones-01a-r2.ataque.test.ts` |  |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` |  |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` |  |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` |  |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` |  |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` |  |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` |  |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` |  |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` |  |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` |  |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` |  |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` |  |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` |  |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` |  |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` |  |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` |  |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` |  |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` |  |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` |  |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` |  |
+| `6F72C7CC1D0F95D60C057D7406A8955C47E834C963ED53D15DF64C83049F5431` | `backend/test/entregas-01b-r1.ataque.test.ts` |  |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` |  |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` |  |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` |  |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` |  |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` |  |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` |  |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` |  |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` |  |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` |  |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` |  |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` |  |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` |  |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` |  |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` |  |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` |  |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` |  |
+| `2684916C88B9405706F82DA3F9B2FFD0B3626A11AF79E20EA146FDFD1D52C319` | `backend/test/lecturas-fx-r1.ataque.test.ts` |  |
+| `3790777831A1FACB053D0719D85AB404593954416B1443A1A59530E09E2C81DC` | `backend/test/lecturas-fx-r2.ataque.test.ts` |  |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` |  |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` |  |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` |  |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` |  |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` |  |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` |  |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` |  |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` |  |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` |  |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` |  |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` |  |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` |  |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` |  |
+| `D95AB72A3FD3D70CE3A9027A50DB660426976C3DF1A46E92DF75066BEAC78A0C` | `backend/test/muro-c-r1.ataque.test.ts` |  |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` |  |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` |  |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` |  |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` |  |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` |  |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` |  |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` |  |
+| `CCEA34C962FC8F14A49C64EAFA8119DAE5030E1302ED94FE369299EC49182BB8` | `backend/test/sesiones-y-cadena.ataque.test.ts` |  |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` |  |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` |  |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` |  |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` |  |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` |  |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` |  |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` |  |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` |  |
+| `0DE083DF355129E800D130F33D228835479C25F49ED82B6C2BCF9CF5F6E944CB` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` |  |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` |  |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` |  |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` |  |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` |  |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` |  |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` |  |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` |  |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` |  |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` |  |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` |  |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` |  |
+| `446CE2CC8A4F254F94FF6313EB13837421F98749C2473AA0B8979388E7CE674A` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` |  |
+| `DC0365EDB436B3F2EE256882EF13F2295CDFCB83A63F9BA3939381983E43FDFC` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` |  |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` |  |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` |  |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` |  |
+| `C67FA558FA7AE23821175478C8CB7D4874EE5F4D6CB84D0851F9A551B8AB455B` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` |  |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` |  |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` |  |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` |  |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` |  |
+| `36A104515F2EA87F143B2CFC00AEF9A33E6DDDB666844C1A9C977557EECA20EF` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` |  |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` |  |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` |  |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` |  |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` |  |
+| `86ADAA9A093A987DAFD97E279E600211CBDF6CEF97879D16FA2D8A9D2846F8B5` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` |  |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` |  |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` |  |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` |  |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` |  |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` |  |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` |  |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` |  |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` |  |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` |  |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` |  |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` |  |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` |  |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` |  |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` |  |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` |  |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` |  |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` |  |
+| `A8790F734402A957534D0F0E660EEF342F9029CDFC1991BE421D9B3E3C3E9CB7` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` |  |
+| `FB33F2A27BFCCA906549A12610977478BA72E6E7ED8AFD5C5A0A962DEB3EB802` | `frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | Nueva (ronda 4 de 01d) |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` |  |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` |  |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` |  |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` |  |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` |  |
+| `CC2FDD28CEB3DE642EE01D07773271D7154811B1F3756333F1DFB285A386E6CC` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` |  |
+| `36C32BAD5F632CAD5D76BCA14C74779DDD7CF9B9465A69522886DB770A508B22` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` |  |
+| `14CB04B6B56BF2F83DE04DAB863E7843FACA3A585E70FEBC93EE3588F06AB144` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` |  |
+| `71148A960F7EF6995904B3DB6DFD0B0E3BA6AF697C45399669EC1DD81CC7D1AA` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` |  |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` |  |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` |  |
+| `5272DE876597EAD9EF838E4D022185C80AA411AAD9E67325573C87F954C5F7A6` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` |  |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` |  |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` |  |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` |  |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` |  |
+| `AF15BD75457BB2560E1D60BA3EB369786FE869BC3DCAE5FCE144C52049D7E4E8` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` |  |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` |  |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` |  |
+| `54A5DAA368528F1B64BD809C79964E30C42C3A71F76E2013643695FAAFA6C73E` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` |  |
+| `80EFD85B74264C125683DFB6D631A10DB40887C5E7315D5EF6FF7B49357EAAD7` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` |  |
+| `32C1F6A48BA3241963CF6864BD2236A0675425241D4389B524CBE805C358A5CC` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` |  |
+| `FDC9F0D1D5BDF7D8C6E9E7F15CCFA2D909F717E9465A8279F5540FB704958BB9` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` |  |
+| `827B8ABCA664145D51A1BBD1C0B558B0EDDFED8707A21A774222B4972BE14FF2` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` |  |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` |  |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` |  |
+| `A4DE3A7DC35DAEDFF86FD41349EA09140213E918613603D0985C698FF41D29F7` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` |  |
+| `B487B8C8C95BADC6BC78F3BE72B7B5F809381E8C69127D6600254B872DE62EBC` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` |  |
+| `9D35E0DA961248750C2948E3F69305856BCDD25E78E01C64AA50DCDFEEE93F8D` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` |  |
+| `C50A5D53AD16EAFF69ABEC6F531B6C0EDD74CE4ECDA02380EDFBF66F7E5BA89B` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` |  |
+| `1AC0F4A0474E7F334BC57D4F2BA23954E8C280FA0C3573A26350D0ADE431FF75` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` |  |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` |  |
+| `2911195DC97BF9B25E7E874E0A0B6C9C0D25A9A878C2E821A752D340D219A740` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` |  |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` |  |
+| `A4AA15CEF1A377EED688DAB1B92E5CA4A3943490144CEC861CF7B482845B0362` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` |  |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` |  |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` |  |
+| `7F9D22E5904192DCC00465FADCABF36AA5DE3CD16D6A319A41A66340BB9BD6A8` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` |  |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` |  |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` |  |
+| `008E5C606F249D15E3816E27E3E97FD7D7FBA0F8697751A156665A76694B3A18` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` |  |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` |  |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` |  |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` |  |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` |  |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` |  |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` |  |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` |  |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` |  |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` |  |
+| `432DCDDF119DD0E32E49ADC42D5F51D197698C8896E1058C505AB31F4A8EE838` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` |  |
+| `FD66C82D400E0F0A9709960934B555568642D9E4B5E41F31AD6606A620836982` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` |  |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` |  |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` |  |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` |  |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` |  |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` |  |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` |  |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` |  |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` |  |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` |  |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` |  |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` |  |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` |  |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
+| `FC4963D3FD93297C427EAD0B85B23615C287E4F2C48079BCA8031D1C2AEE0396` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |

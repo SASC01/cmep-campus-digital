@@ -294,13 +294,20 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
       "Muro",
       "Trabajo de clase",
       "Personas",
+      "Calificaciones",
     ])
-    expect(maestro.secciones.map((s) => s.texto)).toEqual(["Muro", "Trabajo de clase", "Alumnos"])
+    expect(maestro.secciones.map((s) => s.texto)).toEqual([
+      "Muro",
+      "Trabajo de clase",
+      "Alumnos",
+      "Calificaciones",
+    ])
     expect(admin.secciones.map((s) => s.texto)).toEqual([
       "Muro",
       "Trabajo de clase",
       "Alumnos",
       "Maestros",
+      "Calificaciones",
     ])
     expect([estudiante.verCodigo, maestro.verCodigo, admin.verCodigo]).toEqual([false, true, true])
     expect([estudiante.editar, maestro.editar, admin.editar]).toEqual([false, false, true])

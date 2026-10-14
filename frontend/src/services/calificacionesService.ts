@@ -1,4 +1,4 @@
-import type { FiltroDeMisCalificaciones } from "@campus/shared"
+import type { FiltroDeMisCalificaciones, GradebookQuery } from "@campus/shared"
 
 // CALIFICACIONES-01c (§D-12.1). Claves de las calificaciones de una clase, compartidas por
 // features/tareas (que las marca viejas al calificar) y features/calificaciones. Cuelgan de
@@ -7,10 +7,11 @@ import type { FiltroDeMisCalificaciones } from "@campus/shared"
 export const clavePrefijoDeCalificaciones = (claseId: string) =>
   ["clases", claseId, "calificaciones"] as const
 
-// La ventana del gradebook: el cursor de alumnos y el de tareas (null en la primera).
+// La ventana del gradebook: el cursor de alumnos y el de tareas (null en la primera). N-30
+// (CALIFICACIONES-01d): su forma se deriva de la consulta de shared/, como VentanaDelGradebook.
 export const claveGradebook = (
   claseId: string,
-  ventana: { cursor: string | null; cursorTareas: string | null },
+  ventana: { [K in "cursor" | "cursorTareas"]: NonNullable<GradebookQuery[K]> | null },
 ) =>
   [
     ...clavePrefijoDeCalificaciones(claseId),

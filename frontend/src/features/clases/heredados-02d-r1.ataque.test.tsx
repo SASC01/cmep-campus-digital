@@ -210,6 +210,7 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
   // TAREAS-01e ronda 0 (C-11, §D-R0; §D-11): las secciones esperadas suman "Trabajo de clase" como
   // segunda en las tres perspectivas. Sigue protegiendo la perspectiva por el prefijo en mayúsculas,
   // la sección activa y el indicador montado.
+  // C-9 de CALIFICACIONES-01d (§D-R0, A-5): las tres listas suman "Calificaciones" al final.
   const secciones = () => screen.findByRole("list", { name: "Secciones de la clase" })
   const indicadorDe = (lista: HTMLElement) =>
     lista.parentElement?.querySelector(':scope > [aria-hidden="true"]') ?? null
@@ -220,21 +221,21 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
       `/ESTUDIANTE/Clases/${CLASE_A.toUpperCase()}/PERSONAS`,
       "/estudiante/clases/:claseId",
       "Personas",
-      ["Muro", "Trabajo de clase", "Personas"],
+      ["Muro", "Trabajo de clase", "Personas", "Calificaciones"],
     ],
     [
       "maestro en /Maestro/clases/<id>",
       `/Maestro/clases/${CLASE_A}`,
       "/maestro/clases/:claseId",
       "Muro",
-      ["Muro", "Trabajo de clase", "Alumnos"],
+      ["Muro", "Trabajo de clase", "Alumnos", "Calificaciones"],
     ],
     [
       "admin en /ADMIN/CLASES/<id>/MAESTROS",
       `/ADMIN/CLASES/${CLASE_A}/MAESTROS`,
       "/admin/clases/:claseId",
       "Maestros",
-      ["Muro", "Trabajo de clase", "Alumnos", "Maestros"],
+      ["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"],
     ],
   ] as const)(
     "%s: la perspectiva de su prefijo, su sección activa y el indicador montado",

@@ -271,7 +271,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
       within(lista)
         .getAllByRole("link")
         .map((e) => e.textContent),
-    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros"])
+    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"])
     expect(screen.getByRole("link", { name: "Muro" })).toHaveAttribute("aria-current", "page")
     expect(screen.getByRole("link", { name: "Maestros" })).toHaveAttribute(
       "href",
@@ -286,7 +286,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     // en la primera posición y usa el color del contexto opaco.
     const indicador = lista.previousElementSibling
     expect(indicador).toHaveAttribute("aria-hidden", "true")
-    expect(indicador).toHaveClass("w-1/4", "in-data-[material=opaco]:bg-accent-soft")
+    expect(indicador).toHaveClass("w-1/5", "in-data-[material=opaco]:bg-accent-soft")
     expect(indicador).not.toHaveClass("translate-x-full")
   })
 
@@ -323,7 +323,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     )
     expect(
       within(screen.getByRole("list", { name: "Secciones de la clase" })).getAllByRole("link"),
-    ).toHaveLength(3)
+    ).toHaveLength(4)
     expect(fetchMock.mock.calls.some(([entrada]) => String(entrada).includes("/admin/"))).toBe(
       false,
     )
@@ -365,10 +365,15 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       .getAllByRole("link")
       .map((enlace) => enlace.textContent)
 
-  it("PR-1E05 · tres secciones para el estudiante y el maestro y cuatro para el admin, con «Trabajo de clase» segunda", async () => {
+  it("PR-1E05 · cuatro secciones para el estudiante y el maestro y cinco para el admin, con «Trabajo de clase» segunda y «Calificaciones» última", async () => {
     stubApi({})
     renderLayout(`/estudiante/clases/${CLASE_ID}`)
-    expect(await nombresDeLasSecciones()).toEqual(["Muro", "Trabajo de clase", "Personas"])
+    expect(await nombresDeLasSecciones()).toEqual([
+      "Muro",
+      "Trabajo de clase",
+      "Personas",
+      "Calificaciones",
+    ])
     expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
       "href",
       `/estudiante/clases/${CLASE_ID}/trabajo`,
@@ -376,7 +381,12 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
     cleanup()
 
     renderLayout(`/maestro/clases/${CLASE_ID}`)
-    expect(await nombresDeLasSecciones()).toEqual(["Muro", "Trabajo de clase", "Alumnos"])
+    expect(await nombresDeLasSecciones()).toEqual([
+      "Muro",
+      "Trabajo de clase",
+      "Alumnos",
+      "Calificaciones",
+    ])
     expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
       "href",
       `/maestro/clases/${CLASE_ID}/trabajo`,
@@ -389,6 +399,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       "Trabajo de clase",
       "Alumnos",
       "Maestros",
+      "Calificaciones",
     ])
     expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
       "href",
@@ -396,7 +407,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
     )
   })
 
-  it("PR-1E05 · en …/trabajo, «Trabajo de clase» lleva aria-current y el indicador se traslada una posición; en el admin mide un cuarto", async () => {
+  it("PR-1E05 · en …/trabajo, «Trabajo de clase» lleva aria-current y el indicador se traslada una posición; en el admin mide un quinto", async () => {
     stubApi({})
     renderLayout(`/estudiante/clases/${CLASE_ID}/trabajo`)
     expect(await screen.findByText("trabajo estudiante")).toBeInTheDocument()
@@ -406,7 +417,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       "page",
     )
     expect(screen.getByRole("link", { name: "Muro" })).not.toHaveAttribute("aria-current")
-    expect(lista.previousElementSibling).toHaveClass("w-1/3", "translate-x-full")
+    expect(lista.previousElementSibling).toHaveClass("w-1/4", "translate-x-full")
     cleanup()
 
     renderLayout(`/admin/clases/${CLASE_ID}/trabajo`)
@@ -416,8 +427,8 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       "aria-current",
       "page",
     )
-    expect(lista.previousElementSibling).toHaveClass("w-1/4", "translate-x-full")
-    expect(lista).toHaveClass("grid-cols-4")
+    expect(lista.previousElementSibling).toHaveClass("w-1/5", "translate-x-full")
+    expect(lista).toHaveClass("grid-cols-5")
   })
 
   it("PR-1E05 · en …/categorias ninguna sección está activa y no hay indicador", async () => {

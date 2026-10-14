@@ -11,6 +11,8 @@ import { RecuperarView } from "@/features/auth/recuperar-view"
 import { RegistroMaestroView } from "@/features/auth/registro-maestro-view"
 import { RegistroView } from "@/features/auth/registro-view"
 import { RestablecerView } from "@/features/auth/restablecer-view"
+import { GradebookView } from "@/features/calificaciones/gradebook-view"
+import { MisCalificacionesView } from "@/features/calificaciones/mis-calificaciones-view"
 import { AlumnosView } from "@/features/clases/alumnos-view"
 import { CategoriasView } from "@/features/clases/categorias-view"
 import { ClaseLayout } from "@/features/clases/clase-layout"
@@ -74,6 +76,8 @@ export const rutas: RouteObject[] = [
               // TAREAS-01e (§D-11): "Trabajo de clase", de solo lectura para el alumno.
               { path: "trabajo", element: <TrabajoView /> },
               { path: "personas", element: <PersonasView /> },
+              // CALIFICACIONES-01d (§D-13.6): "Mis calificaciones" en la rama del alumno.
+              { path: "calificaciones", element: <MisCalificacionesView /> },
               // TAREAS-01d (§D-10): el alumno solo ve el detalle. "nueva" no es un tareaId: sin esta ruta
               // literal coincidiría con `tareas/:tareaId` y se pediría GET /tareas/nueva; cae donde cae
               // cualquier ruta desconocida. `tareas/:id/editar` no existe para el alumno y cae en `*`.
@@ -101,6 +105,8 @@ export const rutas: RouteObject[] = [
               { path: "trabajo", element: <TrabajoView /> },
               { path: "categorias", element: <CategoriasView /> },
               { path: "alumnos", element: <AlumnosView /> },
+              // CALIFICACIONES-01d (§D-13.6): el gradebook en las ramas del maestro y del admin.
+              { path: "calificaciones", element: <GradebookView /> },
               // TAREAS-01d (§D-10): ninguna activa una sección (como /editar); el literal gana a :tareaId.
               { path: "tareas/nueva", element: <CrearTareaView /> },
               { path: "tareas/:tareaId", element: <DetalleTareaView /> },
@@ -135,6 +141,7 @@ export const rutas: RouteObject[] = [
                   { path: "categorias", element: <CategoriasView /> },
                   { path: "alumnos", element: <AlumnosView /> },
                   { path: "maestros", element: <MaestrosDeClaseView /> },
+                  { path: "calificaciones", element: <GradebookView /> },
                   { path: "editar", element: <EditarClaseView /> },
                   { path: "tareas/nueva", element: <CrearTareaView /> },
                   { path: "tareas/:tareaId", element: <DetalleTareaView /> },

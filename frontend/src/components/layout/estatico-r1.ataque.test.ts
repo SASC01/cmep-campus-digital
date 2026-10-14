@@ -151,6 +151,8 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
         "min-h-[calc(100svh-7rem)]",
         "translate-x-[200%]",
         "translate-x-[300%]",
+        // C-11 de CALIFICACIONES-01d (§D-R0, A-5): la quinta sección del admin ("Calificaciones").
+        "translate-x-[400%]",
       ].sort(),
     )
   })

@@ -8,7 +8,7 @@ import {
   tareaRespuestaSchema,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef, type RefObject } from "react"
+import { useEffect, useRef } from "react"
 import { useLocation } from "react-router"
 import { toast } from "sonner"
 
@@ -69,6 +69,10 @@ import type {
   FalloDeLaConsulta,
   VariablesDeCalificar,
 } from "./types"
+
+// CALIFICACIONES-01d (§D-13.1): el gancho de foco vive en components/foco; se reexporta con su
+// nombre para que ningún importador de este módulo cambie.
+export { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 
 // §D-10 (Enmienda 4, C-13): el único lugar de features/tareas que llama a perspectivaDeRuta. Las tres
 // vistas lo usan para sus enlaces y su navegación; la perspectiva solo decide qué se muestra, el
@@ -280,74 +284,6 @@ export const useAvisoDeRecargaFallida = (
     void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
     avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
   }
-}
-
-// T-09 y T-14 (DESIGN.md §7.14): si el control que tenía el foco desaparece porque una recarga cambió lo
-// que la vista muestra (un permiso que pasa a false, la tarea que ya no existe, un error, otra tarea),
-// el foco no cae en <body>: va al contenedor de la vista (tabIndex -1). `clave` resume lo que la vista
-// muestra; el foco se recoloca solo cuando cambia, solo si el control que lo tenía estaba dentro del
-// contenedor y ya no está en el documento. Mismo criterio que useFilaEnFoco de features/clases: dentro
-// lo marca un focusin; un focusout sin destino con el control aún en el documento (un clic en blanco,
-// dentro o fuera de la vista) lo borra, para no robar el foco a quien lo soltó. Al cambiar de pestaña o
-// de aplicación el navegador también dispara ese focusout, pero el control sigue siendo el elemento
-// activo del documento y la ventana pierde el foco: la memoria se conserva. (Aquí el criterio de la
-// ventana es el elemento activo, no document.hasFocus(): en un clic en blanco el elemento activo pasa a
-// <body>, y al cambiar de pestaña sigue siendo el control.)
-export const useFocoAlPerderseElControl = (
-  contenedorRef: RefObject<HTMLElement | null>,
-  clave: string,
-) => {
-  const controlRef = useRef<Element | null>(null)
-  const ventanaConFoco = useRef(true)
-
-  useEffect(() => {
-    const alEnfocar = (evento: FocusEvent) => {
-      const contenedor = contenedorRef.current
-      const destino = evento.target
-      const dentro =
-        contenedor !== null && destino instanceof Element && contenedor.contains(destino)
-      controlRef.current = dentro ? destino : null
-    }
-    const alSalir = (evento: FocusEvent) => {
-      const objetivo = evento.target
-      if (evento.relatedTarget !== null || !(objetivo instanceof Element)) return
-      setTimeout(() => {
-        if (!objetivo.isConnected || !ventanaConFoco.current) return
-        if (document.activeElement === objetivo) return
-        if (controlRef.current === objetivo) controlRef.current = null
-      }, 0)
-    }
-    const alPerderLaVentana = () => {
-      ventanaConFoco.current = false
-    }
-    const alRecuperarLaVentana = () => {
-      ventanaConFoco.current = true
-    }
-    const alCambiarLaVisibilidad = () => {
-      ventanaConFoco.current = !document.hidden
-    }
-    document.addEventListener("focusin", alEnfocar)
-    document.addEventListener("focusout", alSalir)
-    document.addEventListener("visibilitychange", alCambiarLaVisibilidad)
-    window.addEventListener("blur", alPerderLaVentana)
-    window.addEventListener("focus", alRecuperarLaVentana)
-    return () => {
-      document.removeEventListener("focusin", alEnfocar)
-      document.removeEventListener("focusout", alSalir)
-      document.removeEventListener("visibilitychange", alCambiarLaVisibilidad)
-      window.removeEventListener("blur", alPerderLaVentana)
-      window.removeEventListener("focus", alRecuperarLaVentana)
-    }
-  }, [contenedorRef])
-
-  useEffect(() => {
-    const control = controlRef.current
-    if (control === null || control.isConnected) return
-    const activo = document.activeElement
-    if (activo !== null && activo !== document.body && activo.isConnected) return
-    controlRef.current = null
-    contenedorRef.current?.focus()
-  }, [clave, contenedorRef])
 }
 
 // ENTREGAS-01d (§D-9.2 a §D-9.4). La entrega del alumno que llama: verla, entregar y anular. Los

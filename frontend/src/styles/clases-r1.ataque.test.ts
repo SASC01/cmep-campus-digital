@@ -150,14 +150,15 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // features/clases/components/ en 3 (admin, 2). Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 56 enEspera", () => {
+  // C-8 de CALIFICACIONES-01d (§D-R0, A-5): de 56 a 61, las cuatro ventanas del gradebook y "Ver más tareas".
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 61 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(56)
+    expect(usos).toHaveLength(61)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -269,6 +270,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       // C-7 de CALIFICACIONES-01c (§D-R0, A-5): de 55 a 56, el botón principal del panel nuevo.
       "/src/features/tareas/components/panel-de-calificacion.tsx": 1,
       "/src/features/tareas/components/calificacion-de-la-entrega.tsx": 0,
+      // C-8 de CALIFICACIONES-01d (§D-R0, A-5): las cuatro ventanas, "Ver más tareas" y el resto del módulo en 0.
+      "/src/features/calificaciones/components/navegacion-del-gradebook.tsx": 4,
+      "/src/features/calificaciones/mis-calificaciones-view.tsx": 1,
+      "/src/features/calificaciones/gradebook-view.tsx": 0,
+      "/src/features/calificaciones/components/tabla-del-gradebook.tsx": 0,
+      "/src/features/calificaciones/components/resumen-del-gradebook.tsx": 0,
+      "/src/features/calificaciones/components/lista-de-mis-calificaciones.tsx": 0,
+      "/src/features/calificaciones/components/calculo-de-calificacion.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -350,8 +359,10 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     expect(rutasDe(coincidencias(/\bvidrio-azul\b/))).toEqual([
       "/src/features/clases/components/bloque-destacado.tsx",
     ])
+    // C-12 de CALIFICACIONES-01d (§D-R0, A-5): suma el contexto opaco de la raíz del gradebook (M-03).
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
+      "/src/features/calificaciones/gradebook-view.tsx",
     ])
   })
 })

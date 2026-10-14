@@ -60,14 +60,12 @@ export interface EstadoDelFormulario {
 export type ResultadoDelCuerpo =
   { ok: true; datos: CrearTarea } | { ok: false; errores: ErroresFormulario }
 
+// T-15 y CALIFICACIONES-01d (§D-13.1): lo que la clave de foco de las vistas de la tarea lee de su
+// consulta vive en components/foco; se reexporta con su nombre.
+export type { MomentoDeLaConsulta } from "@/components/foco/types"
+
 // T-12: lo que el aviso de recarga fallida lee de la consulta de la tarea para saber si un fallo es
 // nuevo (inferido del resultado de TanStack Query, no declarado a mano).
-// T-15: lo que la clave de foco de las vistas de la tarea lee de su consulta.
-export type MomentoDeLaConsulta = Pick<
-  QueryObserverResult,
-  "status" | "dataUpdatedAt" | "errorUpdatedAt" | "errorUpdateCount"
->
-
 export type FalloDeLaConsulta = Pick<QueryObserverResult, "errorUpdatedAt" | "errorUpdateCount">
 
 // CALIFICACIONES-01c (§D-12.2). Lo que el panel de calificación escribe: todo es texto crudo (los

@@ -963,3 +963,788 @@ Ninguna.
   - los caracteres de ancho cero en los tres caminos de calificar.
   
   Ninguno es alcanzable con el servidor de hoy.
+
+## 01d — implementación
+
+Plan: `docs/trabajo/CALIFICACIONES-01-calificaciones-y-gradebook/plan.md` (LISTO, Enmiendas 1 y 2; base `<K1c>` = `8242ce116c3d9645aab23a7de685574ce81a2b55` dentro de los paquetes y `<R>` = `d998282` fuera). Pasos 1 a 8 de "Pasos → 01d", en orden. No arranqué Vite ni la API, no abrí navegadores, no terminé procesos ajenos (solo un `cat` mío que se quedó esperando la entrada estándar), no leí `.env`, no instalé nada, no hice commit. Los formateadores corrieron solo acotados a `frontend/` (`npx prettier --write` sobre archivos de `frontend/src`).
+
+### Paso 1 (A-4/R-05): `components/foco/`
+- `components/foco/hooks.ts` (`useFocoAlPerderseElControl`, el cuerpo y su comentario copiados tal cual de `features/tareas/hooks.ts:285-351` de `<K1c>`), `lib.ts` (`claveDeFocoDeLaConsulta`, el cuerpo de `claveDeFocoDeLaTarea`) y `types.ts` (`MomentoDeLaConsulta`). Nada de `components/foco/` importa de `features/`.
+- Reexportaciones en el origen: `export { useFocoAlPerderseElControl } from "@/components/foco/hooks"` (`features/tareas/hooks.ts`; `RefObject` deja de importarse), `export const claveDeFocoDeLaTarea = claveDeFocoDeLaConsulta` (`features/tareas/lib.ts`; `MomentoDeLaConsulta` deja de importarse ahí) y `export type { MomentoDeLaConsulta } from "@/components/foco/types"` (`features/tareas/types.ts`). Ningún importador de `features/tareas` cambió.
+- CAL-1D08 y la suite completa del frontend antes de seguir: `npm run test` (desde `frontend/`) → `Tests  7 failed | 2929 passed (2936)`, `Test Files  4 failed | 177 passed (181)`. Los 7 rojos son exactamente C-8 a C-12 de la ronda 0 (los mismos 7 casos y archivos que el reporte del tester); 2926 de la ronda 0 + 3 de CAL-1D08 = 2929. Ninguna prueba de foco de TAREAS ni ENTREGAS cambió de resultado: **sin PA-07**.
+
+### Archivos
+**Nuevos (20: 15 de producción y 5 de pruebas, contados con `git status --short` y `ls`):**
+- `frontend/src/components/foco/hooks.ts`, `lib.ts`, `types.ts`, `foco-01d.test.tsx`.
+- `frontend/src/features/calificaciones/types.ts`, `data.ts`, `lib.ts`, `hooks.ts`, `gradebook-view.tsx`, `mis-calificaciones-view.tsx`, `components/resumen-del-gradebook.tsx`, `components/navegacion-del-gradebook.tsx`, `components/tabla-del-gradebook.tsx`, `components/lista-de-mis-calificaciones.tsx`, `components/calculo-de-calificacion.tsx`.
+- Pruebas: `frontend/src/features/calificaciones/lib.test.ts`, `gradebook-01d.test.tsx`, `mis-calificaciones-01d.test.tsx`, `estatico-01d.test.ts`; `frontend/src/app/router-01d.test.tsx`.
+
+**Cambiados:** `frontend/src/features/tareas/hooks.ts`, `lib.ts`, `types.ts` (las tres reexportaciones); `frontend/src/services/calificacionesService.ts` (solo la firma de `claveGradebook`, N-30/N-39); `frontend/src/features/clases/data.ts` (`TEXTOS_CLASE.calificaciones`, la sección al final de las tres perspectivas, `5: "w-1/5"`, `5: "grid-cols-5"`, `"translate-x-[400%]"`); `frontend/src/app/router.tsx` (dos importaciones y `calificaciones` en las tres ramas); `docs/DESIGN.md` (paso 6). Lista cerrada: `frontend/src/features/clases/lib.test.ts` y `clase-layout.test.tsx` (abajo).
+
+**Cambios exactos en la lista cerrada de 01d:**
+- `features/clases/lib.test.ts`, "PR-2C01: la tabla de capacidades de §D-2C1, celda por celda": las tres listas de secciones suman `"Calificaciones"` al final (la del maestro pasa a varias líneas por Prettier). Nada más.
+- `features/clases/clase-layout.test.tsx`:
+  - "PR-2C07: el admin vuelve a la lista de clases…": la lista suma `"Calificaciones"`; `toHaveClass("w-1/4", …)` → `toHaveClass("w-1/5", …)`. Los comentarios del caso ("mide un cuarto") no se tocaron, porque el plan no lo pide.
+  - "PR-2C08: el maestro ve el código pero no «Editar clase»": `toHaveLength(3)` → `toHaveLength(4)`.
+  - "PR-1E05 · tres secciones…" → título "PR-1E05 · cuatro secciones para el estudiante y el maestro y cinco para el admin, con «Trabajo de clase» segunda y «Calificaciones» última"; las tres listas suman `"Calificaciones"`.
+  - "PR-1E05 · en …/trabajo, … en el admin mide un cuarto" → "…en el admin mide un quinto"; estudiante `"w-1/3"` → `"w-1/4"`; admin `"w-1/4"` → `"w-1/5"` y `"grid-cols-4"` → `"grid-cols-5"`.
+- Ninguna otra prueba normal cayó (sin PA-02). No toqué ninguna `*.ataque`: C-8 y C-12 pasaron a verde en el paso 4; C-9, C-10 y C-11, en el paso 5.
+
+### Verificación (de una en una, nunca dos suites a la vez; las salidas completas están en el scratchpad de la sesión)
+| Paquete | Comando | Código | Última línea / resumen |
+|---|---|---|---|
+| frontend | `npm run lint` | 0 | `> tsc -b` (antes: `All matched files use Prettier code style!`) |
+| frontend | `npm run test` | 0 | `Duration  251.26s (transform 65.03s, setup 181.30s, import 610.76s, tests 1058.50s, environment 739.88s)`; resumen `Test Files  186 passed (186)` · `Tests  3093 passed (3093)`; `grep -c "Test timed out"` = 0; `grep -c "stderr |"` = 0 |
+| frontend | `npm run build` | 0 | `✓ built in 1.37s` |
+| backend | `npm run test` (Docker Desktop encendido; corre `muro-c-r1.ataque:1122` y `muro-c-r2.ataque:321`, que recorren `frontend/src`) | 0 | `Duration  248.29s (transform 30.09s, setup 10.74s, import 466.06s, tests 1955.34s, environment 77ms)`; resumen `Test Files  216 passed (216)` · `Tests  2617 passed (2617)` |
+| raíz | `npm run lint` | 0 | `> tsc -b` (la del typecheck del frontend; antes: `All matched files use Prettier code style!`) |
+| raíz | `npm run build` | 0 | `✓ built in 1.49s` |
+| — | `prisma validate` | n/a | 01d no toca el esquema |
+
+Corrida final, después del último cambio de código (quité una constante sin uso de `data.ts`). Antes había corrido todo una vez, antes de sumar los casos de la matriz que faltaban (en `mis-calificaciones-01d.test.tsx`: CAL-1D05 de Escape con "Ver más tareas" en vuelo, CAL-1D15 del filtro con "Ver más tareas" en vuelo, CAL-1D04 de la primera carga con 403, `claseId`, 500 y sin conexión, y CAL-1D15 de la recarga de fondo con filas; en `gradebook-01d.test.tsx`: CAL-1D03 de una ventana nueva con 500, sin conexión y 403). Las cifras de arriba son todas de la corrida final, en este orden: `lint`, `test` y `build` del frontend; `test` del backend; `lint` y `build` de la raíz.
+
+### Conteos
+- `npx vitest list --json=<scratchpad>/fe-list.json` (desde `frontend/`), contado con `node`: **3093 casos en 186 archivos**. Antes de 01d (ronda 0 del tester, `Tests  2933`, `Test Files  180`): +160 casos y +6 archivos.
+- Por archivo nuevo (mismo comando): `features/calificaciones/mis-calificaciones-01d.test.tsx` 59 · `features/calificaciones/gradebook-01d.test.tsx` 51 · `features/calificaciones/lib.test.ts` 28 · `app/router-01d.test.tsx` 11 · `features/calificaciones/estatico-01d.test.ts` 8 · `components/foco/foco-01d.test.tsx` 3. Total: 160.
+- Casos con cada id en el título (mismo archivo JSON, filtro por `name`): CAL-1D01 10 · 1D02 5 · 1D03 12 · 1D04 19 · 1D05 10 · 1D06 8 · 1D07 3 · 1D08 3 · 1D09 8 · 1D10 23 · 1D11 6 · 1D12 15 · 1D13 6 · 1D14 12 · 1D15 7 · 1D16 7 · 1D17 4. Dos casos de `router-01d.test.tsx` cuentan para 1D07 y 1D01 a la vez. Los 5 casos restantes de `lib.test.ts` ("rutas, celdas, motivos y ventanas del módulo (§D-13.2)") prueban las funciones puras del módulo y no llevan id.
+- Backend: `Test Files  216 passed (216)` · `Tests  2617 passed (2617)`, igual que al cierre de 01c (01d no toca el backend).
+
+### Pruebas requeridas (01d): viñeta → archivo y título exacto
+Rutas relativas a `frontend/src/`. En un `it.each`, cito el título de una entrada y digo cuántas hay (todas salen en `npx vitest list`).
+
+- **CAL-1D01** (encabezados, celdas, promedio, riesgo, resumen; enlaces en las dos ramas con el router real; `data-material="opaco"` en la raíz):
+  - `features/calificaciones/gradebook-01d.test.tsx` › "CAL-1D01: maestro ve los encabezados, las celdas con texto, el promedio, el riesgo y el resumen" y "CAL-1D01: admin ve los encabezados, las celdas con texto, el promedio, el riesgo y el resumen".
+  - Mismo archivo › "CAL-1D01: maestro: cada celda enlaza a …/tareas/:tareaId/entregas/:alumnoId de su rama y abrirla lleva a la entrega" y "CAL-1D01: admin: cada celda enlaza a …/tareas/:tareaId/entregas/:alumnoId de su rama y abrirla lleva a la entrega".
+  - `app/router-01d.test.tsx` (router real) › "CAL-1D07 y CAL-1D01: maestro en …/calificaciones monta el gradebook, no pide «Mis calificaciones» y la celda enlaza a la entrega de su rama" y "CAL-1D07 y CAL-1D01: admin en …/calificaciones monta el gradebook, no pide «Mis calificaciones» y la celda enlaza a la entrega de su rama".
+  - M-03: `gradebook-01d.test.tsx` › "CAL-1D01: la raíz lleva data-material=opaco y todos los botones, enlaces y la tabla cuelgan de ella (maestro)" y "CAL-1D01: en el admin los controles también cuelgan de un contexto opaco (sin contar contextos)".
+  - Vacíos: "CAL-1D01: el vacío sin alumnos y el vacío sin tareas".
+- **CAL-1D02** (ventanas), `features/calificaciones/gradebook-01d.test.tsx`:
+  - "CAL-1D02: al inicio solo aparecen «Tareas más antiguas» y «Alumnos siguientes»; la primera petición lleva los dos tamaños y ningún cursor".
+  - "CAL-1D02: «Tareas más antiguas» pide cursorTareas, la tabla anterior se ve mientras llega y, si el botón desaparece, el foco va al h2".
+  - "CAL-1D02: «Tareas más recientes» regresa con la pila (sin cursorTareas) y conserva el cursor de alumnos" (también "Alumnos siguientes" y "Alumnos anteriores").
+  - "CAL-1D02: dos clics seguidos (o dos botones) durante la carga piden una sola ventana".
+  - "CAL-1D02: durante una recarga de fondo los botones están en espera y no piden nada".
+- **CAL-1D03** (errores según la matriz, foco nunca en `<body>`), `features/calificaciones/gradebook-01d.test.tsx`:
+  - "CAL-1D03: primera carga con 403: un solo MensajeError en lugar de la tabla, sin aviso; el foco, puesto en la raíz antes de la respuesta, no cae en <body>". Son 6 entradas: 403, 400 de claseId, 400 del cursor, 500, 503 y sin conexión.
+  - "CAL-1D03: una ventana nueva con 500 da un solo MensajeError en lugar de la tabla, sin aviso, y el foco va de «Alumnos siguientes» a la raíz". Son 3 entradas: 500, sin conexión y 403.
+  - "CAL-1D03: una recarga de fondo con datos que falla con un 5xx conserva la tabla, sin aviso".
+  - "CAL-1D03: una recarga de fondo con datos que responde 403 reemplaza la vista y el foco va a la raíz, nunca a <body>".
+  - "CAL-1D03: un error con que apiClient redirige no avisa".
+  - N-40: cada caso de primera carga fija el foco en la raíz (que existe mientras carga) antes de responder y comprueba que, tras el error, sigue ahí y no en `<body>`.
+- **CAL-1D04** ("Mis calificaciones"), `features/calificaciones/mis-calificaciones-01d.test.tsx`:
+  - "CAL-1D04: muestra la calificación general en porcentaje y pide la primera página con estado=todas".
+  - "CAL-1D04: sin nada que cuente, dice su frase en lugar del porcentaje".
+  - "CAL-1D04: cada fila dice el estado, la calificación, la categoría y la fecha con el texto de vencimientoDe" (N-06: "Vence…" y "Venció el…").
+  - "CAL-1D04: primera carga con 403: un solo MensajeError en lugar de la lista, sin aviso, con el selector a la vista y el foco, puesto en la raíz antes de la respuesta, fuera de <body>". Son 4 entradas: 403, 400 de claseId, 500 y sin conexión.
+  - "CAL-1D04: el enlace de cada tarea va a su detalle en la clase".
+  - "CAL-1D04: el filtro pide con su estado y el foco se queda en el selector".
+  - "CAL-1D04: el vacío del filtro «todas» dice «Aún no hay tareas en esta clase.»" (5 entradas, una por filtro).
+  - "CAL-1D04: «Ver más tareas» pide la página siguiente; al desaparecer, el foco va al enlace de la primera fila nueva".
+  - "CAL-1D04: si la última página no trae filas nuevas, el foco va al h2".
+  - "CAL-1D04: un 5xx en «Ver más tareas» con la vista montada avisa una vez y conserva las filas".
+  - "CAL-1D04: con la vista desmontada, un fallo de «Ver más tareas» no avisa".
+  - "CAL-1D04: el 400 del cursor en «Ver más tareas» dice su texto en la lista, sin aviso, y el foco va a la raíz".
+- **CAL-1D05** (modal), `features/calificaciones/mis-calificaciones-01d.test.tsx`:
+  - "CAL-1D05: en modo puntos explica el cálculo y dice los puntos y el porcentaje".
+  - "CAL-1D05: en modo categorías muestra la tabla con «Peso que cuenta», «—» en la categoría sin tareas y la nota de una tarea sin categoría".
+  - "CAL-1D05: la nota de «Sin categoría» va en plural con dos o más".
+  - "CAL-1D05: sin nada que cuente, el modal lo dice".
+  - "CAL-1D05: Escape lo cierra y el foco vuelve a «Ver cálculo»".
+  - "CAL-1D05: «Cerrar» lo cierra y el foco vuelve a «Ver cálculo»; es el único botón del diálogo (sin la equis)".
+  - "CAL-1D05: el foco entra al diálogo y queda atrapado; el contenido va en el portal, fuera del panel de la vista".
+  - "CAL-1D05: si la vista se reemplaza con el modal abierto, el diálogo deja de pintarse y el foco va a la raíz".
+  - "CAL-1D05: Escape con «Ver más tareas» en vuelo cierra el modal y deja el foco en «Ver cálculo» aunque después desaparezca «Ver más tareas»".
+  - "CAL-1D05: una recarga con otro cálculo actualiza el modal sin cerrarlo".
+- **CAL-1D06** (secciones), `app/router-01d.test.tsx`:
+  - "CAL-1D06: estudiante ve «Calificaciones» como última sección, con su href y aria-current en …/calificaciones" (3 entradas: estudiante, maestro y admin).
+  - "CAL-1D06: en el admin el indicador mide un quinto (w-1/5, grid-cols-5) y en «Calificaciones» se traslada con translate-x-[400%]".
+  - "CAL-1D06: admin en …/alumnos: el indicador sigue en translate-x-[200%] (las posiciones de Alumnos y Maestros no cambian) y mide w-1/5". Son 4 entradas: admin en alumnos y en maestros; maestro en alumnos y en calificaciones.
+- **CAL-1D07** (router), `app/router-01d.test.tsx`:
+  - "CAL-1D07: el estudiante en …/calificaciones monta «Mis calificaciones» y no pide el gradebook".
+  - "CAL-1D07 y CAL-1D01: maestro en …/calificaciones monta el gradebook, no pide «Mis calificaciones» y la celda enlaza a la entrega de su rama", y el mismo con admin.
+- **CAL-1D08** (`components/foco/`), `components/foco/foco-01d.test.tsx`:
+  - "CAL-1D08: las reexportaciones de features/tareas son los mismos objetos que los de components/foco" (`toBe`).
+  - "CAL-1D08: la clave cambia con cada respuesta y con cada fallo, como la de features/tareas".
+  - "CAL-1D08: si el control con el foco desaparece al cambiar la clave, el foco va al contenedor y nunca a <body>".
+  - Más la suite completa del paso 1, sin cambios en las pruebas de foco de TAREAS y ENTREGAS.
+- **CAL-1D09** (regla estática), `features/calificaciones/estatico-01d.test.ts`. Las reglas de código se aplican sin comentarios:
+  - "CAL-1D09: el módulo tiene exactamente sus once archivos de producción".
+  - "CAL-1D09: los tipos viven en types.ts; los componentes y las vistas solo declaran interfaces de Props".
+  - "CAL-1D09: sin ?? [], disabled, fetch(, console., perspectivaDeRuta(, vidrio, valores arbitrarios, estado de pago, restricción, correo ni importaciones de otro módulo de features" (también `fixed`).
+  - "CAL-1D09: ningún fondo escrito a mano salvo bg-surface en la columna fija de la tabla del gradebook".
+  - "CAL-1D09: data-material=\"opaco\" aparece una sola vez, en la raíz de gradebook-view.tsx; ninguna en «Mis calificaciones» y ningún data-densidad".
+  - "CAL-1D09: (Enmienda 2) ningún archivo de producción del módulo lee .message, llama a esErrorDeCursor( ni usa ErrorDeCampo".
+  - "CAL-1D09: lo compartido de 01d (components/foco y el servicio) no importa de features/".
+  - "CAL-1D09: ningún comentario de lo nuevo y lo cambiado de 01d tiene las palabras de §D-0.9".
+- **CAL-1D10** (unitaria), `features/calificaciones/lib.test.ts`:
+  - "CAL-1D10: «cursor: no es válido» es cursor en el gradebook (true) y en «Mis calificaciones» (true)". Son 4 entradas: `cursor:` con mensaje y sin él, y `cursorTareas:` con mensaje y con solo espacios.
+  - "CAL-1D10: «cursorTareas.0: no es válido» no es cursor en ninguna de las dos vistas". Son 7 entradas: `cursorTareas.0:`, `cursor.0:`, ` cursor:`, `Cursor:`, `""`, `"   "` y un mensaje sin prefijo.
+  - "CAL-1D10: un 500 con «cursor: x» y un error que no es ApiError no son cursor".
+  - "CAL-1D10: el VALIDACION «limiteTareas: Too big: expected number to be <=50» da el respaldo". Son 8 entradas, con las tres clases y un mensaje sin prefijo.
+  - "CAL-1D10: «claseId: Invalid UUID», «claseId:» sin mensaje y SIN_ACCESO_A_LA_CLASE dan el de sin acceso".
+  - "CAL-1D10: un 500, un 503 y un error de red dan el respaldo".
+  - "CAL-1D10: con los respaldos reales, el resultado nunca es vacío ni contiene «:», «Too» ni el mensaje del servidor".
+- **CAL-1D11**, `features/calificaciones/gradebook-01d.test.tsx` › "CAL-1D11: «limiteTareas: Too big: expected number to be <=50» en el maestro da un solo MensajeError con el genérico, sin aviso, sin tabla ni rastro del servidor; el foco, puesto en la raíz antes de la respuesta, no cae en <body>". Son 6 entradas: `limiteTareas:`, `estado:`, `""`, `"   "`, `cursorTareas.0:` y `alumnos.0.id:`.
+- **CAL-1D12**, mismo archivo:
+  - "CAL-1D12: tras «Tareas más antiguas», «limiteTareas: Too big: expected number to be <=50» lleva el cursor correcto, deja ver la tabla anterior mientras llega y da un solo MensajeError con el genérico, sin aviso, con el foco en la raíz". Son 12 entradas: las 6 de CAL-1D11 en "Tareas más antiguas" y en "Alumnos siguientes".
+  - Vecinos del cursor: "CAL-1D12: vecino del cursor: tras «Tareas más antiguas», «cursorTareas: no es válido» da el texto fijo del cursor, sin aviso". Son 3 entradas: `cursorTareas: no es válido` y `cursorTareas:` en "Tareas más antiguas", y `cursor:` en "Alumnos siguientes".
+- **CAL-1D13**, mismo archivo:
+  - N-41, los dos caminos del "o", cada uno como entrada propia: "CAL-1D13: el mismo 400 dos veces seguidas (primera carga y otra petición de la misma clave con refetch del QueryClient) deja un solo MensajeError y ningún aviso; el foco, puesto en la raíz antes de la respuesta, no cae en <body>" y "… al invalidar el prefijo de calificaciones …".
+  - "CAL-1D13: una recarga de fondo con datos que responde «alumnos.0.id: Invalid UUID» conserva la tabla, sin aviso (S-19)" y la misma con «cursorTareas: no es válido».
+  - "CAL-1D13: con la vista desmontada y una ventana en vuelo, un 400 fuera de contrato no avisa ni deja errores en la consola; al volver a montar con la misma QueryClient, tampoco avisa".
+  - "CAL-1D13: en el admin, «limiteTareas: Too big…» da el mismo resultado que en el maestro".
+- **CAL-1D14**, `features/calificaciones/mis-calificaciones-01d.test.tsx`:
+  - "CAL-1D14: en la primera carga, «estado: Invalid option: expected one of "todas"|"asignadas"» da un solo MensajeError con el genérico, sin aviso ni rastro del servidor; el foco, puesto en la raíz antes de la respuesta, no cae en <body>". Son 6 entradas: `estado:`, `limite:`, `""`, `"   "`, `estado.0:` y `tareas.0.id:`.
+  - "CAL-1D14: tras elegir «Calificadas», «…» pide estado=calificadas, conserva la opción y el foco en el selector y da un solo MensajeError con el genérico, sin aviso". Son las mismas 6 entradas.
+- **CAL-1D15**, mismo archivo:
+  - "CAL-1D15: dos filtros seguidos que fallan («Asignadas» y «Sin entregar») dejan un solo MensajeError, el de la última clave, sin aviso".
+  - "CAL-1D15: volver a un filtro que responde 200 trae la lista, quita el MensajeError y deja el foco en el selector".
+  - "CAL-1D15: con la vista desmontada y el filtro en vuelo, un 400 fuera de contrato no avisa".
+  - Fila de la matriz y punto de ataque: "CAL-1D15: un filtro nuevo con «Ver más tareas» en vuelo deja de observar esa página: no se agrega ni avisa si falla, y el foco sigue en el selector".
+  - Fila de la matriz (recarga de fondo con datos, S-19): "CAL-1D15: una recarga de fondo con filas que responde «500» las conserva, sin MensajeError ni aviso (S-19)". Son 3 entradas: 500, `cursor: no es válido` y `limite: Too big`.
+- **CAL-1D16**, mismo archivo:
+  - "CAL-1D16: «limite: Too big: expected number to be <=100» avisa una sola vez con el genérico de «Ver más tareas», conserva las filas y deja el botón sin espera y con el foco". Son 6 entradas: `limite:`, `estado:`, `""`, `"   "`, `cursor.0:` y `tareas.0.id:`.
+  - Vecino: "CAL-1D16: «cursor:» sin mensaje da el texto del cursor y ningún aviso".
+- **CAL-1D17**, mismo archivo:
+  - "CAL-1D17: el mismo 400 fuera de contrato en dos intentos seguidos da dos avisos, uno por intento, con el mismo texto".
+  - "CAL-1D17: un doble clic durante la petición manda una sola petición y da un solo aviso".
+  - "CAL-1D17: un 400 fuera de contrato seguido de un 200 agrega las filas sin aviso nuevo".
+  - "CAL-1D17: con la vista desmontada y «Ver más tareas» en vuelo, un 400 fuera de contrato no avisa, ni al responder ni al volver a montar con la misma QueryClient".
+
+Todas fijan el reloj (`vi.useFakeTimers({ toFake: ["Date"] })` y `setSystemTime`) en `beforeEach` y tienen al menos una aserción. Ninguna localiza elementos por clases de estilo, salvo las que comprueban una clase del plan (`w-1/5`, `w-1/4`, `grid-cols-5`, `translate-x-[…]` en CAL-1D06, y las de CAL-1D09, que leen el texto fuente).
+
+### Matriz de §D-14 para 01d, contra el código
+Los archivos van sin `features/calificaciones/` y los casos, por su id; "MC" es `mis-calificaciones-01d.test.tsx`, "GB" es `gradebook-01d.test.tsx` y "RT" es `app/router-01d.test.tsx`.
+
+Mecanismos en el código:
+- **Gradebook** (`gradebook-view.tsx`): `reemplazada = consulta.isError && (datos === undefined || esErrorDeSinAcceso(error))`. Con `placeholderData: keepPreviousData` (`hooks.ts`), una ventana nueva que falla deja `datos` indefinido, y una recarga de fondo de la misma clave lo conserva.
+  - Orden de decisión: cursor (`esErrorDeCursorDeCalificaciones(error, CAMPOS_DE_CURSOR_DEL_GRADEBOOK)`) → `MensajeError` con `mensajeDeErrorCalificaciones(error, MENSAJES_ERROR_CALIFICACIONES.gradebook)` → cargando → vacío → datos.
+  - Guarda: `pidiendoRef` y `consulta.isFetching` en `handleIr`.
+  - Foco: un efecto declarado antes del gancho lleva el foco al `h2` si el botón pulsado (`data-ventana`) ya no está tras un éxito. Tras un fallo no hace nada, y `useFocoAlPerderseElControl` (`components/foco`) lleva el foco a la raíz.
+- **"Mis calificaciones"** (`mis-calificaciones-view.tsx`): `listaReemplazada = isError && (filas === undefined || esErrorDeSinAcceso(error))`. El texto del cursor sale con `errorDeCursor && (listaReemplazada || isFetchNextPageError)`.
+  - El manejador de "Ver más tareas" decide en este orden: `!isFetchNextPageError || !montado` → cursor → sin acceso → `errorQueRedirigeElCliente` → un `toast.error(mensajeDeErrorCalificaciones(error, verMasTareas))`.
+  - El efecto de foco de "Ver más tareas" está declarado antes del gancho y no actúa si hubo error.
+  - El modal (`calculo-de-calificacion.tsx`) usa `onCloseAutoFocus`: si "Ver cálculo" ya no está en el documento, `preventDefault` y foco a la raíz. Radix lo llama también al desmontar el contenido.
+- Ningún gancho avisa (`hooks.ts`). El único `toast` del módulo está en `handleVerMas`.
+
+**Gradebook (`useGradebook`), 17 filas**
+
+| # | Disparador | Clase de respuesta | Qué se renueva | Aviso | Foco | En vuelo a la vez | Con la vista desmontada | Caso |
+|---|---|---|---|---|---|---|---|---|
+| G1 | Primera carga | `403 SIN_ACCESO_A_LA_CLASE` o `400` de `claseId` | — | Ninguno; un `MensajeError` "No tienes acceso a esta clase." en lugar de la tabla | Se queda en la raíz (puesta antes de la respuesta) | — | Nada | GB CAL-1D03 (403, 400 de claseId) |
+| G2 | Primera carga | `400` de cursor | — | Ninguno; `cursorDelGradebook` | La raíz | — | Nada | GB CAL-1D03 (400 del cursor) |
+| G3 | Primera carga | 5xx, `503`, sin conexión | — | Ninguno; `MensajeError` genérico | La raíz | — | Nada | GB CAL-1D03 (500, 503, sin conexión) |
+| G4 | Ventana nueva | 5xx, sin conexión, `403` | La pila no se toca | Ninguno; un `MensajeError` (genérico o sin acceso) en lugar de la tabla | Del botón pulsado a la raíz | — | Nada | GB "CAL-1D03: una ventana nueva con …" (3 entradas) |
+| G5 | Ventana nueva | `400` de cursor (`cursorTareas:` o `cursor:`, con o sin mensaje) | La pila no se toca | Ninguno; `cursorDelGradebook`, nunca el genérico | La raíz | — | Nada | GB CAL-1D12 vecinos (3 entradas) |
+| G6 | Ventana nueva (uno de los cuatro botones) | `200` | La tabla anterior se ve hasta que llega la nueva | Ninguno | `h2` si el botón pulsado ya no está; si sigue, se queda en él | Un segundo clic o botón no pide nada (guarda con ref y `enEspera` en los cuatro) | Nada | GB CAL-1D02 ("Tareas más antiguas…", "dos clics seguidos…", "Tareas más recientes regresa…") |
+| G7 | Ventana nueva durante una recarga de fondo | — | `isFetching` verdadero: los cuatro en espera, no piden nada | Ninguno | Sin cambio | — | — | GB "CAL-1D02: durante una recarga de fondo…" |
+| G8 | Recarga de fondo con datos | 5xx | Se conserva la tabla (S-19) | Ninguno | Sin cambio | Coincide con una ventana nueva: gana la clave nueva (TanStack ya no observa la anterior; sin caso propio) | Nada | GB "CAL-1D03: una recarga de fondo con datos que falla con un 5xx…" |
+| G9 | Recarga de fondo con datos | `403` | La vista se reemplaza | Ninguno | La raíz (el foco estaba en un enlace de celda) | — | Nada | GB "CAL-1D03: una recarga de fondo con datos que responde 403…" |
+| G10 | Cualquiera | Redirige `apiClient` (`ACCESO_RESTRINGIDO`) | — | Ninguno | — | — | — | GB "CAL-1D03: un error con que apiClient redirige no avisa" |
+| G11 | Primera carga | `400` fuera de contrato (campo no pintable, vacío o espacios, ruta) | — | Ninguno; un `MensajeError` genérico; nada del servidor | La raíz; nunca `<body>`; ningún `aria-busy` | — | Nada | GB CAL-1D11 (6 entradas) |
+| G12 | Ventana nueva | `400` fuera de contrato | La pila no se toca | Ninguno; un `MensajeError` genérico | La raíz | El segundo botón no pidió (G6); ningún `aria-busy` al terminar | Nada | GB CAL-1D12 (12 entradas) |
+| G13 | Primera carga con `400` de cursor con cualquier mensaje | — | — | `cursorDelGradebook` | La raíz | — | Nada | GB CAL-1D03 (400 del cursor); clasificación en CAL-1D10 |
+| G14 | La misma consulta otra vez (`refetch` del `QueryClient` o invalidar el prefijo) con el mismo `400` | — | — | Sigue un solo `MensajeError` | Sin cambio; nunca `<body>` | — | Nada | GB CAL-1D13 (dos entradas, N-41) |
+| G15 | Recarga de fondo con datos | `400` fuera de contrato o de cursor | Se conserva la tabla (S-19) | Ninguno | Sin cambio | Gana la clave nueva | Nada | GB CAL-1D13 ("alumnos.0.id…", "cursorTareas: no es válido") |
+| G16 | Ventana en vuelo y la vista se desmonta | `400` fuera de contrato | — | Ninguno, tampoco al volver a montar con la misma `QueryClient` | — | — | Ningún aviso ni `console.error` | GB CAL-1D13 (desmontada) |
+| G17 | Admin | `400` fuera de contrato | — | Igual que el maestro | La raíz | — | — | GB CAL-1D13 (admin) |
+
+**"Mis calificaciones" (`useMisCalificaciones`) y el modal, 23 filas**
+
+| # | Disparador | Clase de respuesta | Qué se renueva | Aviso | Foco | En vuelo a la vez | Con la vista desmontada | Caso |
+|---|---|---|---|---|---|---|---|---|
+| M1 | Primera carga | `403`, `400` de `claseId`, 5xx, sin conexión | —; el selector sigue con "Todas" | Ninguno; un `MensajeError` en lugar de la lista (sin acceso o genérico) | Se queda en la raíz | — | Nada | MC "CAL-1D04: primera carga con …" (4 entradas) |
+| M2 | Filtro nuevo | `400` fuera de contrato (y por el mismo camino, 5xx o `403`) | —; el selector conserva la opción | Ninguno; un `MensajeError` genérico | En el selector | Dos filtros que fallan: un solo `MensajeError`, el de la última clave | Nada | MC CAL-1D14 (6 entradas), CAL-1D15 (dos filtros) |
+| M3 | Primera carga | `400` fuera de contrato | — | Ninguno; un `MensajeError` genérico; nada del servidor | La raíz; nunca `<body>` | — | Nada | MC CAL-1D14 primera carga (6 entradas) |
+| M4 | Filtro nuevo que responde `200` tras uno fallido | — | La lista vuelve y el `MensajeError` desaparece | Ninguno | En el selector | — | — | MC "CAL-1D15: volver a un filtro que responde 200…" |
+| M5 | Filtro en vuelo y la vista se desmonta | `400` fuera de contrato | — | Ninguno | — | — | Ningún aviso | MC "CAL-1D15: con la vista desmontada y el filtro en vuelo…" |
+| M6 | Filtro nuevo con "Ver más tareas" en vuelo | La página en vuelo falla | La clave cambia: la página en vuelo no se observa ni se agrega | Ninguno (`isFetchNextPageError` del resultado es el de la clave nueva) | En el selector | — | — | MC "CAL-1D15: un filtro nuevo con «Ver más tareas» en vuelo…" |
+| M7 | "Ver más tareas" | `200` | Se agregan filas | Ninguno | Si el botón desaparece, el primer enlace nuevo o, sin filas nuevas, el `h2` | Doble clic: una petición (guarda con ref y `enEspera={isFetching}`) | Nada | MC CAL-1D04 (dos casos de foco), CAL-1D17 (doble clic) |
+| M8 | "Ver más tareas" | `400` de cursor (con mensaje o `cursor:` sin él) | —; la lista dice `cursorDeMisCalificaciones` | Ninguno | La raíz | — | — | MC "CAL-1D04: el 400 del cursor…", CAL-1D16 vecino |
+| M9 | "Ver más tareas" | 5xx con la vista montada | Se conservan las filas | Uno (`verMasTareas`) | Se queda en el botón | — | — | MC "CAL-1D04: un 5xx en «Ver más tareas»…" |
+| M10 | "Ver más tareas" | `400` fuera de contrato con la vista montada | Se conservan las filas | Uno (`verMasTareas`); nada del servidor | En el botón, sin `aria-busy` | Dos clics durante la petición: una petición y un aviso | — | MC CAL-1D16 (6 entradas), CAL-1D17 (doble clic) |
+| M11 | "Ver más tareas" otra vez con el mismo error | Fuera de contrato | Se conservan las filas | Uno por intento: dos llamadas con el mismo texto | En el botón | — | — | MC "CAL-1D17: el mismo 400 fuera de contrato en dos intentos seguidos…" |
+| M12 | "Ver más tareas" | Fuera de contrato y después `200` | Se agregan las filas | Sin aviso nuevo | — | — | — | MC "CAL-1D17: un 400 fuera de contrato seguido de un 200…" |
+| M13 | "Ver más tareas" en vuelo y la vista se desmonta | 5xx o fuera de contrato | — | Ninguno, tampoco al volver a montar con la misma `QueryClient` | — | — | Ningún aviso | MC "CAL-1D04: con la vista desmontada…", "CAL-1D17: con la vista desmontada…" |
+| M14 | "Ver más tareas" | Error que reemplaza la vista (`403`, `claseId`) | La lista se reemplaza por "No tienes acceso a esta clase." | Ninguno (el manejador sale en `esErrorDeSinAcceso`) | La raíz (gancho) | — | — | Sin caso propio: el camino del manejador es el mismo de M8, con otra rama, y la vista reemplazada es la de M1 y M18 |
+| M15 | "Ver más tareas" | Redirige `apiClient` | — | Ninguno (`errorQueRedirigeElCliente`) | — | — | — | Sin caso propio en el módulo; la misma regla que `entregas-view.tsx` |
+| M16 | Recarga de fondo con filas | 5xx, `400` de cursor, `400` fuera de contrato | Se conservan las filas (S-19) | Ninguno; ningún `MensajeError` | Sin cambio | — | — | MC "CAL-1D15: una recarga de fondo con filas que responde …" (3 entradas) |
+| M17 | Recarga de fondo con filas | `403` | La vista se reemplaza por "No tienes acceso a esta clase." | Ninguno | La raíz | — | — | MC "CAL-1D05: si la vista se reemplaza con el modal abierto…" (con el modal abierto) |
+| M18 | Modal abierto | La consulta se reemplaza por un error (`403`) | El diálogo deja de pintarse | Ninguno | La raíz (`onCloseAutoFocus`) | — | — | MC "CAL-1D05: si la vista se reemplaza con el modal abierto…" |
+| M19 | "Ver cálculo", Escape, "Cerrar" | — | — | — | Dentro del diálogo y atrapado; al cerrar, de vuelta a "Ver cálculo" | — | — | MC CAL-1D05 (Escape, Cerrar, foco atrapado) |
+| M20 | Recarga de fondo con el modal abierto | `200` con otro `general` | El contenido del modal se actualiza sin cerrarse | Ninguno | Dentro del modal, sin cambio | "Ver cálculo" no lleva `enEspera` (no pide nada) | — | MC "CAL-1D05: una recarga con otro cálculo actualiza el modal sin cerrarlo" |
+| M21 | Escape con "Ver más tareas" en vuelo | Llega la última página y "Ver más tareas" desaparece | Se agregan filas | Ninguno | Se queda en "Ver cálculo" (el efecto no mueve un foco que está en un control conectado) | — | — | MC "CAL-1D05: Escape con «Ver más tareas» en vuelo…" |
+| M22 | "Ver más tareas" fallido con el modal abierto | Fuera de contrato | Se conservan las filas; el modal sigue abierto (la consulta no se reemplaza) | Uno | Dentro del modal | — | — | Sin caso propio: `general` y `listaReemplazada` no cambian con un fallo de la página siguiente (M10) |
+| M23 | Modal | No aplica: no envía nada | — | — | — | — | — | — |
+
+Total: 40 filas (17 del gradebook y 23 de "Mis calificaciones" y el modal). Cinco filas no tienen caso propio y lo digo en su celda: G8 y G15 por la parte de "gana la clave nueva", M14, M15 y M22.
+
+### "No se toca"
+- `git diff --stat 8242ce116c3d9645aab23a7de685574ce81a2b55 -- frontend backend shared` → `12 files changed, 84 insertions(+), 110 deletions(-)`:
+  - `frontend/src/app/router.tsx`, `frontend/src/features/clases/data.ts`, `frontend/src/features/tareas/hooks.ts`, `lib.ts` y `types.ts`, y `frontend/src/services/calificacionesService.ts`. Todos permitidos por §D-13, A-4 y N-39.
+  - `frontend/src/features/clases/clase-layout.test.tsx` y `lib.test.ts`: lista cerrada de 01d.
+  - `frontend/src/components/layout/estatico-r1.ataque.test.ts`, `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx`, `heredados-02d-r1.ataque.test.tsx` y `frontend/src/styles/clases-r1.ataque.test.ts`: las reescrituras C-8 a C-12 del tester en la ronda 0, que no toqué. Su SHA-256 se puede contrastar con la tabla de la ronda 0.
+  - Nada en `backend/` ni en `shared/`. `git diff --stat` no lista los archivos nuevos sin seguimiento: `git status --short` da `?? frontend/src/app/router-01d.test.tsx`, `?? frontend/src/components/foco/` y `?? frontend/src/features/calificaciones/`.
+- `git diff --stat d998282 -- AGENTS.md CLAUDE.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md .claude/agents` → `6 files changed, 24 insertions(+), 20 deletions(-)` (`.claude/agents/arquitecto.md`, `AGENTS.md`, `CLAUDE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/ARCHITECTURE.md`, `docs/PRD.md`). Todo eso ya estaba confirmado en los commits de 01a a 01c (A-6 y la regla de la Enmienda 2). En 01d no cambió nada: `git diff --stat 8242ce1 -- AGENTS.md CLAUDE.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md .claude/agents infra` sale vacío.
+- Fuera de los paquetes cambié solo `docs/DESIGN.md` (paso 6, permitido al programador de la subentrega) y este resumen. `docs/ESTADO.md`, `aprobacion.md` y `reporte-tester.md` ya estaban cambiados por el orquestador y el tester antes de empezar, y no los toqué.
+
+### Grep de §D-0.9 (comentarios de lo nuevo y lo cambiado del frontend)
+`grep -nE "^\s*(//|\*|/\*|\{/\*).*(vidrio|data-material|disabled|\?\? \[\]|fetch\(|console\.|_blank|perspectivaDeRuta\(|correo|estadoPago|\"Sin tema\"|\"Sin categoría\"|fixed)" features/calificaciones/*.ts features/calificaciones/*.tsx features/calificaciones/components/*.tsx components/foco/*.ts services/calificacionesService.ts features/tareas/hooks.ts features/tareas/lib.ts features/tareas/types.ts app/router.tsx | grep -v "\.test\."` (desde `frontend/src`) → salida vacía, código 1. Lo fija además el caso "CAL-1D09: ningún comentario de lo nuevo y lo cambiado de 01d tiene las palabras de §D-0.9". Tres comentarios míos nombraban el vidrio en el primer borrador; los reescribí antes de la corrida final.
+
+### Las 23 reglas estáticas de la ronda 0, una por una (todas en verde en la corrida final del frontend, `Tests  3093 passed (3093)`)
+1. `styles/clases-r1.ataque`: V-02 a V-05 sin hallazgos. V-06 cuenta 61 `enEspera=`: 4 en `navegacion-del-gradebook.tsx`, 1 en `mis-calificaciones-view.tsx` y 0 en los otros cinco; el prop del gradebook se llama `pidiendo` para no sumar uno en `gradebook-view.tsx`. V-06 tampoco encuentra `disabled` en el código nuevo. V-07: `data-material` solo en `contenedor-rol.tsx` y en `gradebook-view.tsx`, sin la palabra del material en ningún archivo nuevo. V-13 sin `text-danger`. Sin `Toaster`. Cumple.
+2. `components/layout/estatico-r1.ataque`: sin `href="#"`, sin `bg-background`. V-16: ningún "fixed" (el diálogo usa `DialogContent` de `dialog.tsx`; ni `table-fixed` ni comentarios). V-15 sin animaciones nuevas. `:138`: solo `translate-x-[400%]` en `features/clases/data.ts`. V-17 sin `type="password"`. Cumple.
+3. `features/clases/estatico-02c-r1.ataque`: sin «Administración», `esMaestro`, `.puedeBorrar` ni `perspectivaDeRuta(`; «Crear clase» y «Editar clase» intactos. Cumple.
+4. `refactor-01c-r1.ataque:417` y `:425`: `components/foco/*` y `services/*` no importan de `features/`; ningún símbolo de la tabla se redefine. Cumple.
+5. `entregas-01d-r1.ataque:896`: ningún `fetch(` ni `_blank` nuevo. Cumple.
+6. `estatico-01c-r1.ataque:136` y su espejo del backend (`muro-c-r1:1122`, `muro-c-r2:321`): ninguna copia de la regla de caracteres visibles ni de `normalizarTextoLargo`. La suite del backend sale en verde. Cumple.
+7. `estatico-01c.test:52`: el literal «Sin categoría» solo en `components/clase/data.ts`; el módulo usa `TEXTOS_DE_LA_CLASE.sinCategoria`. Cumple.
+8. `tareas-01a-r1.ataque:316`: ningún «Sin tema». Cumple.
+9. `aviso-calificar-01c-r3.ataque:530`: `mensajeDelAvisoDeCalificar` no aparece fuera de `features/tareas`. Cumple.
+10. `reloj-01e-r4.ataque:38`: toda prueba nueva con «Vence…» fija el reloj; los textos esperados salen de `vencimientoDe(FECHA, AHORA)`. Cumple.
+11. `entregas-01d-r1.ataque:882`, sobre `features/tareas/hooks.ts`, `lib.ts` y `types.ts`: sin `?? []`, `disabled`, valores por defecto, almacenamiento ni `console.`. Cumple.
+12. `entregas-01d-r1.ataque:910` y `entregas-01d-r3.ataque:675`: las reexportaciones importan de `@/components/foco/…`, no de `@/features/`. Cumple.
+13. `entregas-01e-r1.ataque:741`: sin el material, `data-material`, "fixed", `animate-` ni `from "@/features/"` en esos archivos. Cumple.
+14. `entregas-01d-r2.ataque:770` y `entregas-01e-r2.ataque:530`: `renovarTrasErrorDeLaEntrega(` sigue en 3 (el cuerpo movido no la nombra). Cumple.
+15. `tareas-01d-r1.ataque:504` y `tareas-01d-r2.ataque:524`: sin emojis, `from "@/features/"` ni `-[NN%]` en `features/tareas`. Cumple.
+16. `tareas-01d-r3.ataque:398`: en `features/tareas/types.ts`, `export type { MomentoDeLaConsulta } from …`; ningún tipo fuera de `types.ts`. Cumple.
+17. `estatico-01c-r1.ataque:47` (CAL-T-94), también sobre `services/calificacionesService.ts`: sin escalas anuladas, colores ni emojis. Cumple.
+18. `estatico-01c.test` (CAL-1C13): sin las palabras prohibidas en los comentarios de `features/tareas/*` y `services/calificacionesService.ts`; `types.ts` conserva `CalificacionDeEntrega,` y `CalificarEntrega,`. Cumple.
+19. `ver-mas-01e-r3.ataque:311`, sobre `features/clases/data.ts`: sin tipos nuevos, `?? []`, `-[NNpx…]` ni importaciones de `@/features/`. Cumple.
+20. `entregas-01d-r1.ataque:882` y `:910`, sobre `features/clases/data.ts`: sin valores por defecto ni importaciones de `@/features/tareas`. Cumple.
+21. `features/clases/estatico-r1.ataque`: ningún `?? []`. Cumple.
+22. `estatico-02c-r1.ataque:108`: «Crear clase» y «Editar clase» con sus líneas exactas (`router.tsx` conserva `path: "clases/nueva"` una sola vez). Cumple.
+23. CAL-1D09, en `features/calificaciones/estatico-01d.test.ts`, 8 casos. Cubre todo lo de §D-13.7 y lo de la Enmienda 2: sin `.message`, sin `esErrorDeCursor(` y sin `ErrorDeCampo`. Además, sin "fixed" ni `-[` en el código del módulo y sin esas palabras en sus comentarios. Cumple.
+
+### Hermanos y estados vecinos de cada mecanismo nuevo
+- **Foco de las ventanas del gradebook:**
+  - El botón pulsado que desaparece tras un `200` lleva el foco al `h2` (CAL-1D02).
+  - Si el botón sigue, el foco se queda en él (el efecto sale en `boton?.isConnected`; "Alumnos siguientes" y "Tareas más recientes" siguen en CAL-1D02).
+  - La ventana nueva fallida, con cualquier clase (5xx, red, `403`, cursor o fuera de contrato), lleva el foco a la raíz por el gancho; el efecto sale en `isError` (CAL-1D03 "ventana nueva", CAL-1D12).
+  - Una vista reemplazada por una recarga de fondo con `403` lleva el foco a la raíz (CAL-1D03).
+  - Una recarga de fondo que falla sin reemplazar no mueve el foco (CAL-1D03 y CAL-1D13).
+  - En la primera carga con error, el foco que estaba en la raíz se queda ahí, nunca en `<body>` (CAL-1D03 y CAL-1D11, N-40).
+  - Dos fallos seguidos de la misma clave dejan el foco sin cambio (CAL-1D13).
+  - Con la vista desmontada no hay efecto ni aviso (CAL-1D13).
+  - El remedio aplica a todos.
+- **"Ver más tareas":**
+  - En la última página con filas nuevas, el foco va al primer enlace nuevo; sin filas nuevas, al `h2` (CAL-1D04).
+  - Un fallo con la vista montada da un aviso por intento y el foco se queda en el botón (CAL-1D04, CAL-1D16, CAL-1D17).
+  - El cursor dice su texto y el foco va a la raíz (CAL-1D04, CAL-1D16).
+  - Un error que reemplaza la vista o que redirige no avisa (M14 y M15, sin caso propio).
+  - Con la vista desmontada no avisa, tampoco al volver a montar (CAL-1D04, CAL-1D17).
+  - Un doble clic manda una petición (CAL-1D17).
+  - Un fallo seguido de un `200` no da aviso nuevo (CAL-1D17).
+  - Un filtro nuevo en medio deja de observar la página en vuelo (CAL-1D15).
+  - Una recarga de fondo en vuelo pone el botón en espera (`enEspera={lista.isFetching}` y la guarda `lista.isFetching`).
+  - El remedio aplica a todos.
+- **Filtro:**
+  - Dos cambios seguidos que fallan dejan un solo `MensajeError` (CAL-1D15).
+  - Volver a un filtro bueno trae la lista y el foco sigue en el selector (CAL-1D15).
+  - El primer filtro fallido y la primera carga fallida muestran el `MensajeError` con el selector a la vista (CAL-1D14 y CAL-1D04).
+  - Con el filtro en vuelo y la vista desmontada, nada (CAL-1D15).
+  - Al cambiar el filtro se anula la espera de foco de "Ver más tareas" (`idsAntesDeVerMasRef.current = null` en `handleFiltro`).
+- **Modal:**
+  - Abierto durante una recarga con otro cálculo: se actualiza sin cerrarse (CAL-1D05).
+  - Con la vista reemplazada y el modal abierto: deja de pintarse y el foco va a la raíz (CAL-1D05).
+  - Escape con una petición en vuelo: el foco vuelve a "Ver cálculo" y se queda ahí al llegar la página (CAL-1D05).
+  - "Cerrar" y Escape: el foco vuelve a "Ver cálculo"; el foco queda atrapado y el contenido va en el portal (CAL-1D05).
+  - Al volver a montar la vista tras un reemplazo, el modal nace cerrado: el estado vive en `Dialog`, dentro de la sección de la calificación general, que se desmonta con la vista.
+- **Clasificación de errores** (`esErrorDeCursorDeCalificaciones` y `mensajeDeErrorCalificaciones`): la frontera del cursor, las tres clases, `claseId:` con mensaje y sin él, 5xx, `503` y red (CAL-1D10). Las tres vistas la usan por el mismo camino: primera carga, ventana y filtro, y "Ver más tareas".
+- **Hermanos fuera de 01d** (R-15): "Ver más" de `features/tareas/entregas-view.tsx` y las listas de `features/clases` siguen mostrando el mensaje del servidor sin prefijo. Están en "No se toca" y van al `chore` de la fila de §3 (N-42). No se aplicaron.
+
+### Desviaciones del plan y decisiones que el plan no fijaba
+1. **Enlaces con `relative="path"`** (S-14): los enlaces son `../tareas/…`, como dice el plan, y se resuelven contra los segmentos de la URL, no contra el árbol de rutas. El resultado es el mismo con el router real (CAL-1D01 y CAL-1D07 lo comprueban con `rutas`), pero no depende de cómo se aniden las rutas.
+2. **`CODIGOS_QUE_REDIRIGE_EL_CLIENTE` repetida** en `features/calificaciones/data.ts`, con la misma lista que `features/tareas/data.ts`. La exige el orden de §D-13.4 ("si lo redirige `apiClient`"), un módulo no importa de otro y `lib/` está en "No se toca". Propongo unificarla en el `chore` de errores (con `esErrorDeCursor` con lista de campos, el arbitraje de la Enmienda 2).
+3. **Ayudas internas que el plan no nombra:** `esErrorDeSinAcceso`, `errorQueRedirigeElCliente`, `VENTANAS_INICIALES` y `DIMENSION_DE_LA_ACCION` en `lib.ts`. Los tipos `LimitesDelGradebook`, `DimensionDelGradebook`, `VentanasDelGradebook`, `AccionDeVentana`, `TextoDeCelda` y `OpcionDelFiltro` van en `types.ts` (los dos primeros, derivados de `GradebookQuery`). En `data.ts`: `TEXTOS_DE_VENTANAS` (los cuatro botones van escritos uno por uno, para que V-06 cuente 4) y `VACIOS_POR_FILTRO`. Además, `UMBRAL_PROMEDIO_EN_RIESGO = 70`, solo para el texto "Promedio menor a 70 %" (el umbral real vive en `core/` del backend).
+4. **Prop `pidiendo`** en `NavegacionDelGradebook`, en lugar de `enEspera`, para que `gradebook-view.tsx` tenga 0 `enEspera=` (C-8).
+5. **Resumen con 0 en riesgo:** insignia `muted` sin icono ("0 en riesgo"). El plan solo describe la `warning`.
+6. **Columna fija:** el encabezado "Alumno" también lleva `sticky left-0 bg-surface`, así que en el encabezado esa celda es `--surface` y el resto, `--muted`. Es el único fondo del módulo y está en `DESIGN.md` §7.28.
+7. **Dos motivos de riesgo** van unidos con " · ".
+8. **"Mis calificaciones" sin `keepPreviousData`:** el plan solo lo pide para el gradebook. Al cambiar de filtro, la calificación general y "Ver cálculo" desaparecen mientras carga la clave nueva y vuelven con ella. El selector y su foco no cambian.
+9. **El modal usa `DialogDescription`** para la frase principal de cada modo, para que Radix no advierta en la consola.
+10. **Los vacíos del gradebook** van dentro del panel, bajo el `h2`.
+11. **Casos de más:** 5 unitarios sin id en `lib.test.ts` y los casos de la matriz sin viñeta propia, agregados bajo el id más cercano: la primera carga de "Mis calificaciones" con 403, `claseId`, 500 y sin conexión (CAL-1D04); la ventana nueva con 500, sin conexión y 403 (CAL-1D03); la recarga de fondo con filas y el filtro con "Ver más tareas" en vuelo (CAL-1D15); y Escape con "Ver más tareas" en vuelo (CAL-1D05).
+Ninguna cambia un contrato, una ruta, un texto del plan ni una prueba del tester.
+
+### Pendiente o fuera de alcance detectado
+- R-15 y N-42: los hermanos de `features/tareas` y `features/clases` van al `chore`. Lo aplica el orquestador en `docs/ESTADO.md` §3 al cerrar 01d.
+- N-26 (para el orquestador con A-6): RF-17 («En la sección "Calificaciones" de la clase»), la fila `calificaciones` de `CLAUDE.md` y la viñeta de `components/foco/` en "Ubicaciones compartidas". No los toqué ("No se toca").
+- Unificar `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` (desviación 2).
+- Los comentarios de PR-2C07 en `clase-layout.test.tsx` siguen diciendo "mide un cuarto". El plan no pedía cambiarlos.
+
+### Hoja de comprobación humana (paso 8; una sola, al final de 01d; máximo 7 puntos y 10 minutos; ningún agente abre navegadores)
+Es para el orquestador. Son los puntos H-1 a H-7 del plan, con los dos agregados de la revisión final de 01c (al final de H-1 y de H-7). Todo lo demás queda como "no verificada por decisión del humano, cubierta por pruebas automáticas".
+
+**Qué preparar antes (en `dev`, con `npm run dev`, `npm run dev:worker` e `infra` arriba):**
+- Una clase con un maestro y al menos un alumno inscrito (cuentas de prueba: maestro, alumno y el admin de `seed:admin`).
+- Categorías de calificación en la clase (por ejemplo, "Tareas" 60 y "Exámenes" 40).
+- Tarea A: con rúbrica de tres criterios (por ejemplo, 5, 5 y 5 puntos sobre 10), en la categoría "Tareas", con la fecha límite en el futuro y una entrega del alumno.
+- Tarea B: sin categoría ("Sin categoría"), con una entrega del alumno que se calificará directo, para que el modal muestre la nota de una tarea sin categoría.
+- Tarea C: vencida, que **no acepta entregas con retraso**, sin entrega del alumno (para H-6).
+- Ninguna tarea en "Exámenes", para que esa categoría salga con "—" en el modal.
+- Dos pestañas del navegador con la sesión del maestro (H-2) y una ventana con la del alumno.
+- NVDA para H-4 y H-7.
+
+**Puntos:**
+1. **H-1 (maestro y alumno):** calificar la entrega de la tarea A con la rúbrica de tres criterios usando medio punto (por ejemplo, 4,5) y con un comentario. Como alumno, ver en "Tu trabajo" la calificación con su desglose y el comentario en los comentarios privados; en "Calificaciones", el porcentaje y la fila "Calificado". A 360 px, el panel de calificación se lee completo: las etiquetas largas de criterio no desbordan y el botón queda a la vista.
+2. **H-2 (maestro, dos pestañas):** abrir la misma entrega en dos pestañas; calificar en una y, después de escribir otros puntos, en la otra. Debe salir un solo aviso, la segunda se recarga con lo de la primera (lo escrito se descarta) y el foco queda en "Calificación".
+3. **H-3 (maestro y admin):** el gradebook ("Calificaciones" de la clase) a 360 px y en escritorio. La tabla se desplaza dentro de su superficie opaca, sin vidrio en los botones (Enmienda 1, M-03), y la columna del alumno queda fija. "En riesgo" y su motivo se leen, y las ventanas de tareas y de alumnos avanzan y regresan. Abrir una celda lleva a la entrega de ese alumno. Como admin a 360 px, las cinco secciones de la clase se desplazan dentro de su panel (O-6).
+4. **H-4 (alumno, teclado y NVDA):** en "Calificaciones", "Ver cálculo" abre el modal en la clase con categorías ("Exámenes" sin tareas calificadas y la tarea B sin categoría). Se leen el título y la tabla, Tab no sale del modal, Escape lo cierra y el foco vuelve a "Ver cálculo".
+5. **H-5 (maestro):** editar la tarea A ya calificada. Cambiar el título se guarda; cambiar los puntos o un criterio da el aviso de `TAREA_CON_CALIFICACIONES` y lo escrito se conserva.
+6. **H-6 (maestro y alumno):** con la tarea C (vencida, sin entrega, no acepta entregas con retraso; P-03 c′), calificarla en cero. El gradebook muestra "0" en esa celda; el alumno ve "No entregaste esta tarea y ya está calificada." y ya no puede entregar.
+7. **H-7 (NVDA, maestro):** en el panel de calificación se leen la etiqueta de cada criterio con su máximo, el error de un campo fuera de rango y la ayuda del comentario; la sección "Calificaciones" se lee como actual en las secciones de la clase. Tras «Calificar y devolver», se anuncia el aviso y el foco queda en «Calificación».
+
+Si todo sale bien, se aprueban las marcas "propuesta (CALIFICACIONES-01c)" y "propuesta (CALIFICACIONES-01d)" de `DESIGN.md`.
+
+### `DESIGN.md` (paso 6)
+`git diff --stat -- docs/DESIGN.md` → `1 file changed, 41 insertions(+), 5 deletions(-)`. Todo va marcado "propuesta (CALIFICACIONES-01d)":
+- §7.1: el gradebook en la fila de las pantallas opacas, con su ruta; "Mis calificaciones" en la de las pantallas de trabajo con vidrio.
+- §7.3: el control segmentado de cinco opciones.
+- §7.11: el primer uso del diálogo.
+- §7.16: la sección "Calificaciones".
+- §7.28 Gradebook y §7.29 Mis calificaciones y cálculo, nuevas.
+- §8: el gradebook con la raíz opaca, sin `data-densidad`.
+
+N-43, en §7.27: reemplacé el fragmento literal por el texto literal de la revisión. No moví ningún título que lea `styles/tokens-r1.ataque.test.ts`, y esa prueba sigue en verde en la corrida final. Sin emojis.
+
+## 01d — corrección de la verificación (M-08, M-09, N-44)
+Base de "No se toca": `8242ce116c3d9645aab23a7de685574ce81a2b55`. Cambian solo dos archivos de producción nuevos de 01d (`gradebook-view.tsx` y `mis-calificaciones-view.tsx`) y dos archivos de pruebas míos de 01d, a los que solo se agregan casos al final; ningún caso existente cambia. `navegacion-del-gradebook.tsx` no necesitó cambios. No se tocó ninguna `*.ataque`, ninguna prueba normal anterior a 01d, nada en `backend/` ni en `shared/` y nada en `DESIGN.md`: §7.28 ya decía el comportamiento que ahora cumple el código.
+
+### Diff resumido por archivo (todos en `frontend/src/features/calificaciones/`)
+- **`gradebook-view.tsx` (M-08).** Dos cambios en el efecto del botón pulsado:
+  1. La raíz cuenta como "sin control", igual que `<body>` o un elemento desconectado: `const sinControl = activo === null || activo === document.body || activo === raizRef.current` y `if (!sinControl && activo.isConnected) return`.
+  2. Se quita `if (consulta.isError) return`. Si un fallo reemplaza la tabla, no hay `h2` (`encabezadoRef.current` es `null`) y el foco se queda en la raíz que puso el gancho. Si la ventana de la caché sigue a la vista (recarga fallida de una ventana vieja), el foco va al `h2`.
+
+  Los comentarios están al día. **Causa:** cuando el botón desaparece al pulsarlo (pila vacía o destino en caché), `useFocoAlPerderseElControl` ya movió el foco a la raíz durante la petición, y el efecto tomaba la raíz por un control elegido por la persona.
+- **`mis-calificaciones-view.tsx` (M-09).** `pidiendoMasRef` (booleano) pasa a `pidiendoMasDeRef`: el filtro cuya página está en vuelo, o `null`. Se agrega `filtroRef`, con el filtro actual.
+  - `handleFiltro` libera la guarda (`pidiendoMasDeRef.current = null`) y actualiza `filtroRef`.
+  - `handleVerMas` guarda el filtro de su petición. Tras el `await`, si `filtroRef.current !== filtroDeLaPeticion`, sale sin avisar.
+  - El `finally` libera la guarda solo si sigue siendo la suya, así que la respuesta vieja no libera la del filtro nuevo.
+  - El foco no cambia: `idsAntesDeVerMasRef` ya se anulaba en `handleFiltro`.
+- **`gradebook-01d.test.tsx`:** importa `claveGradebook` y agrega el bloque "gradebook: foco cuando el botón de ventana pulsado desaparece (M-08, CAL-1D02b a CAL-1D02p)", con 15 casos.
+- **`mis-calificaciones-01d.test.tsx`:** agrega dos bloques: "«Ver más tareas» ante un cambio de filtro (M-09, CAL-1D04b a CAL-1D04f)", con 5 casos, y "«Ver más tareas» con errores que no avisan (N-44, CAL-1D04g y CAL-1D04h)", con 2 casos.
+
+### Casos nuevos (archivo y título exacto)
+**`gradebook-01d.test.tsx`**, describe "gradebook: foco cuando el botón de ventana pulsado desaparece (M-08, CAL-1D02b a CAL-1D02p)". Los tres orígenes del destino:
+- **"Red":** el destino no estaba en caché. En los dos botones de regresar, se quita con `removeQueries`.
+- **"Caché vieja":** hay una entrada previa en el `QueryClient` con `staleTime` 0. Se ve al instante y se vuelve a pedir.
+- **"Caché fresca":** `staleTime: Infinity`. Se ve al instante y no se pide; el caso exige que no haya petición.
+
+Los casos:
+- CAL-1D02b: «Tareas más antiguas» desaparece con la ventana de destino desde la red y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02c: «Tareas más antiguas» desaparece con la ventana de destino desde la caché vieja y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02d: «Tareas más antiguas» desaparece con la ventana de destino desde la caché fresca y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02e: «Alumnos siguientes» desaparece con la ventana de destino desde la red y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02f: «Alumnos siguientes» desaparece con la ventana de destino desde la caché vieja y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02g: «Alumnos siguientes» desaparece con la ventana de destino desde la caché fresca y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02h: «Tareas más recientes» desaparece con la ventana de destino desde la red y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02i: «Tareas más recientes» desaparece con la ventana de destino desde la caché vieja y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02j: «Tareas más recientes» desaparece con la ventana de destino desde la caché fresca y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02k: «Alumnos anteriores» desaparece con la ventana de destino desde la red y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02l: «Alumnos anteriores» desaparece con la ventana de destino desde la caché vieja y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02m: «Alumnos anteriores» desaparece con la ventana de destino desde la caché fresca y el foco termina en el h2, nunca en <body> ni en la raíz
+- CAL-1D02n: una recarga de fondo que quita el botón con el foco sin que se haya pulsado lleva el foco a la raíz, no al h2
+- CAL-1D02o: con la ventana de destino en caché vieja y su recarga fallando con un 5xx, la ventana de la caché sigue a la vista, sin aviso, y el foco del botón desaparecido va al h2
+- CAL-1D02p: con la ventana de destino en caché vieja y su recarga respondiendo 403, la vista se reemplaza y el foco va a la raíz, nunca a <body>
+
+**`mis-calificaciones-01d.test.tsx`**, describe "«Ver más tareas» ante un cambio de filtro (M-09, CAL-1D04b a CAL-1D04f)":
+- CAL-1D04b: con «Ver más tareas» de «Todas» en vuelo, el «Ver más tareas» de «Calificadas» responde al primer clic; la respuesta vieja llega después con 200 y no agrega filas, no avisa ni mueve el foco
+- CAL-1D04c: con «Ver más tareas» de «Todas» en vuelo y otro filtro elegido, la respuesta vieja con error no avisa, no reemplaza la lista ni mueve el foco
+- CAL-1D04d: dos cambios de filtro seguidos («Calificadas» y «Entregadas») con la página de «Todas» en vuelo: el «Ver más tareas» de «Entregadas» responde al primer clic
+- CAL-1D04e: al volver a «Todas» con su página aún en vuelo, su «Ver más tareas» está en espera y no pide otra; al llegar, la página se agrega sin aviso y el foco sigue en el selector
+- CAL-1D04f: con «Ver más tareas» de «Todas» en vuelo, otro filtro elegido y la vista desmontada, la respuesta vieja con error no avisa
+
+**`mis-calificaciones-01d.test.tsx`**, describe "«Ver más tareas» con errores que no avisan (N-44, CAL-1D04g y CAL-1D04h)":
+- CAL-1D04g: un 403 SIN_ACCESO_A_LA_CLASE en «Ver más tareas» reemplaza la lista por «No tienes acceso a esta clase.», sin aviso, y el foco va a la raíz (fila M14)
+- CAL-1D04h: un 403 ACCESO_RESTRINGIDO en «Ver más tareas» lo redirige apiClient y no avisa (fila M15)
+
+**Un detalle de CAL-1D02n.** El reloj está fijo en todas las pruebas. En este caso se adelanta 1 s antes de la recarga, para que la respuesta tenga su propia hora, como en la aplicación. Con el reloj congelado, `dataUpdatedAt` no cambia y la clave del gancho de foco tampoco. Es un artefacto del reloj falso, no del código.
+
+### Cómo comprobé que los casos nuevos fallan con el código anterior
+Sin `git stash`:
+1. Copié las dos vistas anteriores y las nuevas al scratchpad de la sesión (`prog-anterior/` y `prog-nuevo/`).
+2. Puse las anteriores en su lugar dentro del proyecto, junto con las pruebas nuevas.
+3. Corrí `npx vitest run src/features/calificaciones/gradebook-01d.test.tsx src/features/calificaciones/mis-calificaciones-01d.test.tsx`.
+4. Restauré las nuevas desde `prog-nuevo/`. Los SHA-256 coinciden: `gradebook-view.tsx` `e4fc382c…` y `mis-calificaciones-view.tsx` `d3a6f1e6…`, antes de Prettier. Las corridas finales son posteriores.
+
+**Resultado con el código anterior:** `Tests  9 failed | 123 passed (132)`.
+- **Fallan CAL-1D02c, f, h, i, k, l y o** (M-08): la caché vieja en los cuatro botones, la red en los dos de regresar y la recarga fallida de una ventana en caché.
+- **Fallan CAL-1D04b y d** (M-09).
+- **Pasan también con el código anterior**, porque esos caminos ya funcionaban; quedan como guarda de los vecinos:
+  - CAL-1D02b, d, e, g, j y m: la red en los botones de avanzar y la caché fresca, donde el efecto corre antes que el gancho.
+  - CAL-1D02n y p.
+  - CAL-1D04c: la respuesta vieja nunca avisó, porque el resultado era el de la clave observada.
+  - CAL-1D04e, f, g y h.
+
+**N-44, por mutación** sobre la vista nueva:
+- Quité solo `if (esErrorDeSinAcceso(resultado.error)) return` y corrí `-t "CAL-1D04[gh]"`: falla `× CAL-1D04g…` (`Tests  1 failed | 1 passed | 64 skipped (66)`).
+- Quité solo `if (errorQueRedirigeElCliente(resultado.error)) return`: falla `× CAL-1D04h…`, con el mismo conteo.
+- Restauré desde `prog-nuevo/` y comprobé el SHA-256 (`d3a6f1e6…`).
+
+`git diff --stat` contra `8242ce1` es igual antes y después: `12 files changed, 84 insertions(+), 110 deletions(-)`.
+
+### Filas de la matriz cambiadas (las demás siguen como en "## 01d — implementación")
+| # | Disparador | Clase de respuesta | Qué se renueva | Aviso | Foco | En vuelo a la vez | Con la vista desmontada | Caso |
+|---|---|---|---|---|---|---|---|---|
+| G6 | Ventana nueva (uno de los cuatro botones), con el destino de la red, en caché vieja o en caché fresca | `200` (o la ventana de la caché, sin petición) | La tabla anterior (o la de la caché) se ve hasta que llega la nueva | Ninguno | `h2` si el botón pulsado ya no está, haya desaparecido al pulsarlo (pila vacía, destino en caché) o al llegar la respuesta; nunca la raíz ni `<body>`. Si sigue a la vista, se queda en él | Un segundo clic o botón no pide nada (guarda con ref y `enEspera` en los cuatro) | Nada | GB CAL-1D02 (los cinco de la implementación) y CAL-1D02b a CAL-1D02m |
+| G18 (nueva) | Ventana nueva con el destino en caché vieja | La recarga del destino falla: 5xx o `403` | 5xx: la ventana de la caché sigue (S-19). `403`: la vista se reemplaza | Ninguno | 5xx: `h2` (el botón ya no está). `403`: la raíz | — | Nada | GB CAL-1D02o, CAL-1D02p |
+| G19 (nueva) | Recarga de fondo que quita el botón con el foco, sin pulsarlo | `200` | La tabla se renueva | Ninguno | La raíz (gancho de foco), no el `h2`: §D-13.3 manda al `h2` solo el foco del botón pulsado | — | Nada | GB CAL-1D02n |
+| M6 | Filtro nuevo con "Ver más tareas" en vuelo | La página vieja responde `200` o falla | La guarda se libera al cambiar el filtro: el "Ver más tareas" del filtro nuevo responde al primer clic; la página vieja no se agrega a la lista nueva y su respuesta no libera la guarda del filtro nuevo. Al volver al filtro de la página en vuelo, su botón está en espera (`isFetching`) y la página se agrega al llegar | Ninguno por la respuesta vieja (el manejador sale si el filtro cambió) | En el selector o donde lo haya dejado la persona; la respuesta vieja no lo mueve | Dos cambios seguidos: el último filtro responde al primer clic | Ningún aviso | MC "CAL-1D15: un filtro nuevo con «Ver más tareas» en vuelo…", CAL-1D04b a CAL-1D04f |
+| M14 | "Ver más tareas" | `403 SIN_ACCESO_A_LA_CLASE` | La lista se reemplaza por "No tienes acceso a esta clase." | Ninguno (el manejador sale en `esErrorDeSinAcceso`) | La raíz (gancho) | — | — | MC CAL-1D04g |
+| M15 | "Ver más tareas" | Redirige `apiClient` (`ACCESO_RESTRINGIDO`) | — | Ninguno (`errorQueRedirigeElCliente`) | — | — | — | MC CAL-1D04h |
+
+**Total: 42 filas.** Son 19 del gradebook (G1–G19) y 23 de "Mis calificaciones" y el modal (M1–M23). Siguen sin caso propio G8 y G15 (la parte de "gana la clave nueva") y M22, con su motivo en la tabla de la implementación. M14 y M15 ya tienen caso.
+
+### Hermanos y estados vecinos
+**M-08 (foco del botón de ventana que desaparece al pulsarlo):**
+- **Los cuatro botones** («Tareas más antiguas», «Alumnos siguientes», «Tareas más recientes» y «Alumnos anteriores»): el remedio está en el efecto común de la vista y les aplica a los cuatro. Aplicado y probado en cada uno (CAL-1D02b a m).
+- **Red, caché vieja y caché fresca:** aplica a los tres.
+  - Red y caché vieja pasan por `isFetching`, y el gancho ya había movido el foco a la raíz. Ahí estaba el fallo.
+  - Caché fresca no pide nada: el efecto corre antes que el gancho y ya funcionaba. Lo fijan CAL-1D02d, g, j y m.
+- **Recarga de fondo que quita un botón sin pulsarlo:** el remedio **no** aplica, a propósito. `pulsadoRef` es `null` y el gancho lleva el foco a la raíz.
+  - Es lo esperado: §D-13.3 y la fila G6 mandan al `h2` solo el foco del botón pulsado. El comentario de la vista ("si una recarga quita el control con el foco por otra causa, a la raíz") y el patrón de §7.14 dicen lo mismo.
+  - Lo fija CAL-1D02n (fila G19).
+- **Error de la ventana nueva:**
+  - **Sin datos** (destino fuera de caché): el `MensajeError` reemplaza la tabla. No hay `h2`, el efecto no enfoca nada y el foco queda en la raíz (G4, G5 y G12, sin cambio). CAL-1D03 y CAL-1D12 siguen en verde.
+  - **Destino en caché vieja:** un 5xx conserva la ventana de la caché y el foco va al `h2` (CAL-1D02o). Un `403` la reemplaza y el foco va a la raíz (CAL-1D02p).
+  - **Este es el único cambio de comportamiento fuera del caso señalado.** Antes, con `if (consulta.isError) return`, el 5xx dejaba el foco en la raíz. Ahora lo llevo al `h2` porque la ventana sí está a la vista (G6: "con independencia de si vino de la red o de la caché"). Lo marco para que el manager lo confirme.
+- **Vista desmontada con la ventana en vuelo:** el efecto no corre en un componente desmontado, así que no hay nada que enfocar ni avisar. CAL-1D13 ("con la vista desmontada…") sigue en verde.
+- **El mismo mecanismo en "Ver más tareas":** no falla con la página en caché, porque esa caché no existe por página.
+  - `fetchNextPage` de una consulta infinita siempre pide al servidor.
+  - El botón no desaparece al pulsarlo: queda en espera (`enEspera={isFetching}`) y desaparece con la respuesta. En ese render, el efecto de la vista, declarado antes del gancho, corre primero y ve el foco en `<body>`.
+  - Cambiar de filtro sí quita el botón, pero entonces el foco está en el selector y `idsAntesDeVerMasRef` se anula.
+  - Un `400` del cursor quita el botón y el foco va a la raíz (M8, sin cambio).
+  - No apliqué el remedio ahí: ningún caso lo necesita.
+
+**M-09 (guarda de "Ver más tareas" ante un cambio de clave):**
+- **"Ver más tareas" de "Mis calificaciones":** aplicado (CAL-1D04b a f).
+- **Las guardas de los cuatro botones del gradebook ante un cambio de clave:** no aplica.
+  - La clave del gradebook es `claseId` más la ventana, y la ventana solo cambia por `handleIr`, que sale si `pidiendoRef` o `isFetching`.
+  - Mientras una ventana está en vuelo, la vista no tiene forma de cambiar la clave. Así, la guarda nunca queda puesta sobre una clave que ya no se observa: el efecto la libera en cuanto `isFetching` vuelve a falso para la clave observada.
+  - El único otro cambio de clave sería el de `claseId` con la misma instancia montada (siguiente punto).
+- **Cambio de `claseId` sin desmontar** (hermano del cambio de clave, en las dos vistas): hoy no se alcanza.
+  - La lista de clases de la barra y las secciones llevan a otra ruta de la clase (el inicio), y eso desmonta la vista. No hay un enlace de `…/A/calificaciones` a `…/B/calificaciones`.
+  - No lo toqué: el remedio sería un `key={claseId}` en `GradebookView` y `MisCalificacionesView`, fuera de lo pedido. Queda en pendientes.
+- **"Ver cálculo":** no tiene guarda ni hace peticiones (M23). No aplica.
+- **Dos cambios de filtro seguidos:** cada `handleFiltro` libera la guarda (CAL-1D04d).
+- **Volver al filtro de la página en vuelo:** la guarda está libre, pero `isFetching` de esa clave es verdadero, así que el botón se ve en espera y no pide otra. Al llegar, la página se agrega; si falla, avisa una vez, porque vuelve a ser la clave observada. CAL-1D04e cubre el camino con `200`.
+- **Filtro cambiado con "Ver más tareas" en vuelo y la vista desmontada:** sin aviso; el manejador sale por el filtro y por `montadoRef` (CAL-1D04f).
+- **Doble clic en la misma clave** (CAL-1D17) **y recarga de fondo en vuelo** (`enEspera`, CAL-1D02 y M7): sin cambio, en verde.
+
+**N-44:** M14 y M15 ganan CAL-1D04g y CAL-1D04h, y la mutación de arriba muestra que cada línea queda protegida. Hermanos: esas dos ramas no existen en el gradebook, porque no avisa nunca; G9 y G10 ya tienen caso.
+
+### Verificación (en `frontend/`, una a la vez; el backend no cambia y no lo corrí)
+| Comando | Código | Última línea |
+|---|---|---|
+| `npx prettier --write` sobre los 4 archivos tocados (acotado a `frontend/`) | 0 | `src/features/calificaciones/mis-calificaciones-01d.test.tsx 100ms (unchanged)` |
+| `npm run lint` | 0 | `> tsc -b` (antes: `All matched files use Prettier code style!`) |
+| `npm run test` | 0 | `Duration  147.42s (transform 36.71s, setup 98.14s, import 324.67s, tests 649.37s, environment 445.58s)`; `Test Files  186 passed (186)` · `Tests  3115 passed (3115)`; `stderr \|` 0 |
+| `npm run build` | 0 | `✓ built in 824ms` |
+
+### Conteos
+Con `npx vitest list --json=<scratchpad>/fe-list-r.json` (desde `frontend/`), contado con un guion de Node:
+- **Total: 3115 casos en 186 archivos.** Son 22 más que los 3093 de la implementación, sin archivos nuevos.
+- `gradebook-01d.test.tsx`: 66 (51 + 15).
+- `mis-calificaciones-01d.test.tsx`: 66 (59 + 7).
+- Por id: CAL-1D02b a p, 15; CAL-1D04b a f, 5; CAL-1D04g y h, 2.
+
+### Reglas estáticas que el encargo pidió vigilar
+- `grep -c "enEspera="`: 0 en `gradebook-view.tsx`, 4 en `navegacion-del-gradebook.tsx` y 1 en `mis-calificaciones-view.tsx` (C-8 sin cambio).
+- `fixed` y `disabled` en las dos vistas: ninguno.
+- Grep de §D-0.9 en comentarios (el mismo comando de "## 01d — implementación"): salida vacía, código 1.
+- Las 23 reglas de la ronda 0 corren dentro de la suite completa, en verde.
+
+### "No se toca"
+`git diff --stat 8242ce116c3d9645aab23a7de685574ce81a2b55 -- frontend backend shared` da `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que en la implementación. Los cuatro archivos tocados son nuevos de 01d y siguen sin seguimiento; los archivos sin seguimiento en los paquetes siguen siendo los mismos 20.
+
+### Pendientes
+- **Cambio de `claseId` con la vista montada** (hermano de M-09 y del estado de las ventanas): hoy no se alcanza. Si algún día hay un enlace directo entre las calificaciones de dos clases, conviene `key={claseId}` en las dos vistas.
+- **CAL-1D02o** cambia el foco tras una recarga fallida de una ventana en caché, de la raíz al `h2`. Lo dejo a juicio del manager.
+
+
+## 01d — corrección de la ronda 1 (T-06)
+Plan: `docs/trabajo/CALIFICACIONES-01-calificaciones-y-gradebook/plan.md` (§D-13.3, con el remedio que el orquestador registró en `aprobacion.md`). Base de "No se toca": `8242ce116c3d9645aab23a7de685574ce81a2b55`. No toqué ninguna `*.ataque`, ni pruebas normales existentes, ni `shared/` ni el backend. No abrí navegadores, no terminé procesos, no leí `.env` ni hice commit.
+
+**T-06: corregido.**
+
+### Diff resumido
+- `frontend/src/features/calificaciones/gradebook-view.tsx` (SHA-256 `e53801c3d0a51552acb7cf03551fef6bef1f17e7ed6d55069e3199f5c98c4e23`):
+  - Nueva constante `conCursor = ventanas.ventana.cursor !== null || ventanas.ventana.cursorTareas !== null || consulta.isPlaceholderData`, con su comentario del porqué.
+  - En `cuerpo()`, los dos `EstadoVacio` de la clase solo salen si la dimensión llega vacía **y** `!conCursor` (primera ventana, sin cursores). Siguen siendo retornos tempranos, en el orden error → cargando → vacío → datos.
+  - Si no, se pintan `ResumenDelGradebook` y `NavegacionDelGradebook` como antes y, en lugar de `TablaDelGradebook`, una variable `tabla`: `MensajeError` con `MENSAJES_ERROR_CALIFICACIONES.cursorDelGradebook` cuando alumnos o tareas llegan vacíos; la tabla en otro caso. Un ternario de un nivel asignado a una variable, no en el JSX. Sin texto nuevo, sin `enEspera`.
+  - Por qué `consulta.isPlaceholderData`: con `keepPreviousData`, mientras llega otra ventana se ve la anterior y `ventanas` ya es la nueva. Si la anterior era una ventana vacía y se regresa a la primera (sin cursores) que ya no está en caché, sin esa condición la vista diría "Aún no hay alumnos en esta clase." mientras llega. Una ventana en espera solo se pide desde una vista con navegación, así que lo que se ve nunca es la clase vacía. Lo fija CAL-1D02z (mutación: sin esa condición falla solo CAL-1D02z, `Tests  1 failed | 115 passed (116)`).
+- `frontend/src/features/calificaciones/gradebook-01d.test.tsx`: un `describe` nuevo al final con 10 casos y sus ayudas (`servidorConVacias`, `esperarVentanaVacia`). Nada de lo existente cambia.
+- `docs/DESIGN.md` §7.28, viñeta "Estados": el texto decía que el vacío es "Aún no hay alumnos/tareas en esta clase." sin distinguir la ventana; tras la corrección eso ya no describe lo que hace el código. Agregué "solo en la primera ventana, sin cursores" y una frase: la ventana pedida con cursor que llega vacía dice el texto del cursor en el mismo `MensajeError`, con el resumen y los botones de las ventanas. Un solo párrafo cambiado.
+
+### Casos nuevos (`frontend/src/features/calificaciones/gradebook-01d.test.tsx`, describe "gradebook: ventana vacía por un cambio concurrente (T-06, CAL-1D02q a CAL-1D02z)")
+- "CAL-1D02q: la ventana de alumnos con cursor llega vacía: el texto del cursor en lugar de la tabla, el resumen y «Alumnos anteriores» siguen, sin «Alumnos siguientes», y el foco del botón desaparecido va al h2; regresar vuelve a pintar la tabla"
+- "CAL-1D02r: la ventana de tareas con cursorTareas llega vacía: el texto del cursor en lugar de la tabla, el resumen y «Tareas más recientes» siguen, sin «Tareas más antiguas», y el foco va al h2; regresar vuelve a pintar la tabla"
+- "CAL-1D02s: las dos dimensiones vacías: un solo texto del cursor, «Alumnos anteriores» y «Tareas más recientes» a la vista, y regresar por las dos pilas vuelve a la tabla"
+- "CAL-1D02t: desde una ventana vacía, «Alumnos anteriores» que sigue a la vista (pila de dos) regresa a la ventana con datos, la vuelve a pintar y el foco se queda en el botón; la pila no guarda el cursor vacío"
+- "CAL-1D02u: si la ventana a la que se regresa también llega vacía y el botón pulsado sigue a la vista, el foco se queda en él y el texto del cursor se ve una sola vez"
+- "CAL-1D02v: la primera ventana vacía, sin cursores, sigue diciendo el vacío de la clase (alumnos o tareas), sin el texto del cursor ni botones"
+- "CAL-1D02w: una recarga de fondo exitosa de una ventana con cursor que llega vacía pinta el texto del cursor con el resumen y la navegación, sin aviso"
+- "CAL-1D02x: la ventana vacía y el 400 del cursor dicen lo mismo con el mismo MensajeError"
+- "CAL-1D02y: con la vista desmontada y la ventana vacía en vuelo, no avisa ni deja errores en la consola; al volver a montar con la misma QueryClient empieza en la primera ventana"
+- "CAL-1D02z: al regresar desde una ventana vacía a una que ya no está en caché, mientras llega se sigue viendo el texto del cursor (nunca el vacío de la clase) y al llegar se pinta la tabla"
+
+Cada caso de ventana vacía comprueba con `esperarVentanaVacia`: el texto del cursor una sola vez y un solo `alert`, sin tabla, el resumen ("3 alumnos", "Promedio de la clase: 82.4 %"), ninguno de los dos vacíos de la clase, ningún `aria-busy='true'` y ningún aviso (`toast.error` ni `toast.success`).
+
+**Fallan con el código anterior.** Copié la versión previa de la vista (en el scratchpad de la sesión, fuera del proyecto), la puse en su lugar, corrí `npx vitest run src/features/calificaciones/gradebook-01d` y restauré la nueva (comprobado con `cmp`): `Tests  11 failed | 105 passed (116)`. Fallan CAL-T-193, CAL-T-194, CAL-T-195 y 8 de los míos (q, r, s, t, u, w, x, z). Pasan con los dos códigos CAL-1D02v (guarda de no regresión: la clase vacía sigue igual) y CAL-1D02y (con la vista desmontada no se pinta nada).
+
+### Matriz (filas nuevas; las demás siguen como en las secciones anteriores de 01d)
+| # | Disparador | Clase de respuesta | Qué se renueva | Aviso | Foco | En vuelo a la vez | Con la vista desmontada | Caso |
+|---|---|---|---|---|---|---|---|---|
+| G20 (nueva) | Ventana nueva con cursor (cualquiera de los cuatro botones) | `200` con `alumnos: []`, `tareas: []` o los dos | En lugar de la tabla, un `MensajeError` con `cursorDelGradebook`; el resumen y la navegación siguen (regresar si la pila no está vacía; los botones de avanzar no salen porque la ventana vacía no trae cursor siguiente) | Ninguno | `h2` si el botón pulsado ya no está; si sigue, se queda en él | La guarda y `enEspera` de G6, sin cambio | Ningún aviso ni `console.error`; al volver a montar, la primera ventana | GB CAL-1D02q, r, s, u, y |
+| G21 (nueva) | Regresar desde una ventana vacía | `200` (de la caché o de la red) | La tabla vuelve; la pila no guarda el cursor de la ventana vacía | Ninguno | Como G6 | Mientras llega una ventana fuera de caché se sigue viendo el texto del cursor, nunca el vacío de la clase | — | GB CAL-1D02q, r, s, t, z |
+| G22 (nueva) | Recarga de fondo de una ventana con cursor | `200` vacía | Es un éxito, no un fallo: se pinta el texto del cursor en lugar de la tabla, con el resumen y la navegación (S-19 solo conserva la tabla ante un fallo) | Ninguno | Como G19 si se quita el control con el foco | — | — | GB CAL-1D02w |
+| G23 (nueva) | Primera carga, sin cursores | `200` vacía en alumnos o tareas | "Aún no hay alumnos en esta clase." o "Aún no hay tareas en esta clase.", sin resumen ni botones (sin cambio) | Ninguno | Sin cambio | — | — | GB CAL-1D01 ("el vacío sin alumnos y el vacío sin tareas"), CAL-1D02v |
+
+**Total: 46 filas.** Son 23 del gradebook (G1–G23) y 23 de "Mis calificaciones" y el modal (M1–M23); ninguna fila anterior cambia. G2 y G5 (el `400` del cursor) y G20 se ven iguales: el mismo `MensajeError` con el mismo texto (CAL-1D02x compara el `outerHTML` del `alert`); la diferencia es que el `400` reemplaza la vista y la ventana vacía conserva el `h2`, el resumen y la navegación.
+
+### Hermanos y estados vecinos (uno por uno)
+- **Dimensión alumnos:** aplica y aplicado (CAL-1D02q, CAL-T-193, CAL-T-195).
+- **Dimensión tareas:** aplica y aplicado (CAL-1D02r, CAL-T-194).
+- **Las dos a la vez:** aplica y aplicado; un solo texto, los dos botones de regreso (CAL-1D02s).
+- **Alumnos vacíos con solo cursor de tareas (o al revés):** la regla es "algún cursor", como pide el remedio; la clase vacía queda solo para la primera ventana sin cursores. Con la condición `conCursor` común a las dos dimensiones, el caso "alumnos vacíos con solo cursor de tareas" pinta el texto del cursor; no tiene caso propio (los casos cubren cada dimensión vacía con su propio cursor y, en CAL-1D02s, alumnos vacíos con los dos cursores y después con solo el de alumnos).
+- **`siguienteCursor`/`siguienteCursorTareas` nulos en la ventana vacía:** los botones de avanzar de esa dimensión no salen (`hayAlumnosSiguientes`/`hayTareasAntiguas` siguen leyendo el cursor siguiente de la respuesta). Comprobado en q, r y s. El de la otra dimensión sigue si su cursor no es nulo ("Tareas más antiguas" en q, "Alumnos siguientes" en r).
+- **La pila tras regresar desde una ventana vacía:** el cursor de la ventana vacía nunca entra en la pila (la pila guarda los anteriores; el vacío está en `ventana.cursor` y regresar lo saca). No hizo falta tocar `lib.ts`. CAL-1D02t: después de regresar dos veces, ninguna petición lleva el cursor vacío.
+- **Botón pulsado que sigue a la vista con la ventana vacía:** el foco se queda en él (CAL-1D02u; mismo efecto de M-08, sin cambio).
+- **Botón pulsado que desaparece:** foco al `h2`, que ahora sí existe porque el panel sigue (q, r, s).
+- **Recarga de fondo con datos que llega vacía (S-19):** decidí pintar el texto del cursor: es un `200`, y S-19 conserva la tabla solo ante un fallo. Fila G22, CAL-1D02w. Si la recarga es de la primera ventana (sin cursores) y llega vacía, se ve el vacío de la clase, que es lo cierto en ese momento (G23).
+- **Ventana anterior en espera (`keepPreviousData`) siendo vacía:** aplica y aplicado con `isPlaceholderData` (CAL-1D02z, con su mutación arriba).
+- **El `400` del cursor que ya existía:** mismo texto y mismo componente (CAL-1D02x); el código del `400` no cambia (G2, G5, CAL-1D03 y CAL-1D12 siguen en verde).
+- **Vista desmontada con la ventana vacía en vuelo:** sin aviso ni `console.error`; al volver a montar empieza en la primera ventana (CAL-1D02y).
+- **"Ver más tareas" de "Mis calificaciones" con una página vacía:** no cambia y no le aplica. Es una consulta infinita: las páginas se acumulan, una página vacía solo quita el botón y el foco va al `h2` (ya cubierto por "CAL-1D04: si la última página no trae filas nuevas, el foco va al h2", `mis-calificaciones-01d.test.tsx`). No toqué esa vista.
+- **El admin:** la misma vista y el mismo código para las dos perspectivas; no agregué casos por perspectiva.
+
+### Comandos (desde `frontend/`, de uno en uno; formateo solo acotado al paquete)
+| Comando | Código | Última línea útil |
+|---|---|---|
+| `npx prettier --write src/features/calificaciones/gradebook-01d.test.tsx src/features/calificaciones/gradebook-view.tsx` | 0 | `src/features/calificaciones/gradebook-view.tsx 22ms (unchanged)` |
+| `npm run lint` | 0 | `> tsc -b` (antes: `All matched files use Prettier code style!`) |
+| `npm run test` | 0 | `Tests  3229 passed (3229)` · `Test Files  191 passed (191)`; `grep -c "Test timed out"` = 0 |
+| `npm run build` | 0 | `✓ built in 1.73s` |
+
+Los 3 rojos de la ronda 1 (CAL-T-193 a CAL-T-195) pasan a verde; la corrida del tester tenía `Tests  3 failed | 3216 passed (3219)`: 3219 + 10 casos nuevos = 3229, y nada más cambia.
+
+### Conteos
+- `npx vitest list 2>/dev/null | grep -c " > "` (desde `frontend/`): **3229** casos.
+- `npx vitest list --filesOnly 2>/dev/null | wc -l`: **191** archivos (sin archivos nuevos).
+- `npx vitest list src/features/calificaciones/gradebook-01d.test.tsx 2>/dev/null | wc -l`: **76** (66 + 10).
+- `npx vitest list 2>/dev/null | grep -c "CAL-1D02[q-z]"`: **10**.
+- `*.ataque` con `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | wc -l`: 198, ninguna tocada.
+
+### Reglas estáticas que el encargo pidió vigilar
+- `grep -c "enEspera="`: 0 en `gradebook-view.tsx` y 4 en `navegacion-del-gradebook.tsx`.
+- `fixed` en `gradebook-view.tsx`, también en comentarios: ninguno.
+- Grep de §D-0.9 de "## 01d — implementación" (desde `frontend/src`): salida vacía, código 1.
+- Las 23 reglas de la ronda 0 corren dentro de la suite completa, en verde.
+
+### "No se toca"
+`git diff --stat 8242ce116c3d9645aab23a7de685574ce81a2b55 -- frontend backend shared` da `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que antes de la corrección. Los dos archivos que toqué en los paquetes son nuevos de 01d y siguen sin seguimiento; los archivos sin seguimiento en los paquetes son 25 (`git status --short --untracked-files=all frontend backend shared | grep -c '^??'`): los 20 anteriores más las 5 `*.ataque` de la ronda 1. Fuera de los paquetes cambió solo `docs/DESIGN.md` (§7.28, arriba).
+
+### Pendientes y observaciones
+- O-r1d-1 a O-r1d-4: sin cambio, no son hallazgos.
+- O-r1d-4 tiene un vecino que no cambié: mientras se regresa desde una ventana vacía a una fuera de caché, el botón de regreso de esa dimensión puede desaparecer antes de que llegue la respuesta (sale de la pila del estado); el foco pasa por la raíz y termina en el `h2` (CAL-1D02z lo comprueba). Es el mismo comportamiento de cualquier regreso.
+
+## 01d — corrección de la ronda 2 (T-07)
+Plan: `docs/trabajo/CALIFICACIONES-01-calificaciones-y-gradebook/plan.md` (§D-13.3), con el remedio que decidió el orquestador para T-07. Base de "No se toca": `8242ce116c3d9645aab23a7de685574ce81a2b55`. No toqué ninguna `*.ataque` (las 200 tienen el SHA-256 de la tabla de la ronda 2 de 01d: `diff` por ruta sin diferencias de hash), ni `app/providers.tsx`, ni `services/`, ni `lib/`, ni `shared/`, ni el backend, ni `docs/DESIGN.md`. No cambié pruebas normales existentes: solo agregué un `describe` al final de mi archivo de 01d. No abrí navegadores, no terminé procesos, no leí `.env` ni hice commit.
+
+**T-07: corregido.** CAL-T-217 y CAL-T-218 pasan a verde sin tocarlas; CAL-T-219 (control) y CAL-T-224 siguen en verde.
+
+### Diff resumido (los dos archivos de producción son nuevos de 01d y siguen sin seguimiento)
+- `frontend/src/features/calificaciones/hooks.ts` (SHA-256 `ee0da18dae1fde0f8f084b9cd131c94b82d75030c9eabe5d3f4a4a46f82e5c7e`): gancho nuevo `useMarcarViejoElGradebook(claseId, ventana, ocurrencia)`. Con `ocurrencia` no nula, un `useEffect` llama `queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId), predicate: (query) => query.queryHash !== hashKey(claveGradebook(claseId, ventana)), refetchType: "none" })`. Dependencias: `[actual, claseId, ocurrencia, queryClient]` (`actual` es el hash de la ventana a la vista, una cadena). Importa `hashKey` y `useQueryClient` de `@tanstack/react-query` (ya instalada) y `clavePrefijoDeCalificaciones` de `services/calificacionesService.ts` (sin cambiarlo).
+  - **Por qué `refetchType: "none"` y además fuera la ventana a la vista:** no se recarga nada ahora, así que la pantalla actual no cambia, no sale ningún aviso y el foco no se mueve. Con la ventana a la vista fuera del filtro, la ventana rota no queda marcada vieja y nunca se vuelve a pedir sola: no hay bucle. Las demás ventanas (la primera incluida) se piden de nuevo cuando vuelven a mostrarse: al volver a abrir la sección o al regresar con los botones. Si la ventana rota es un `400`, ya queda vieja de todos modos: TanStack Query marca `isInvalidated: true` en todo fallo (`query-core/build/modern/query.js:461`), pero eso solo cuenta al volver a montar; en la vista montada no se repite (CAL-1D02ab, CAL-1D02ad).
+  - **Por qué el prefijo de la clase:** alcanza a todas las ventanas del gradebook de la clase sin repetir el literal `"gradebook"` fuera de `calificacionesService.ts`. También marca viejo "Mis calificaciones" de esa clase en la caché de quien ve el gradebook (maestro o admin, que no la usan); con `"none"` no pide nada.
+- `frontend/src/features/calificaciones/gradebook-view.tsx` (SHA-256 `dd6cae5f0255242991838b085d90197af71cf231a0ceb2489288f5c9208a4833`):
+  - Constante `errorDeCursor` (`reemplazada && esErrorDeCursorDeCalificaciones(…, CAMPOS_DE_CURSOR_DEL_GRADEBOOK)`), la misma condición que ya pintaba el texto del `400`; `contenido()` la usa en lugar de repetir la expresión (mismo resultado).
+  - Constante `ventanaVaciaConCursor`: la ventana pedida con algún cursor, sin `isPlaceholderData` (no la ventana de respaldo mientras llega otra), con datos y con alumnos o tareas vacíos.
+  - `ocurrenciaDelCursor`: `cursor:<errorUpdatedAt>:<errorUpdateCount>` con el `400`, `vacia:<dataUpdatedAt>` con la ventana vacía, `null` en otro caso (asignación con `if`/`else if`, sin ternarios anidados). Se pasa a `useMarcarViejoElGradebook(claseId, ventanas.ventana, ocurrenciaDelCursor)`. Así marca una vez por respuesta o fallo nuevo, no en cada render; un fallo de fondo que conserva la ventana vacía no cambia `dataUpdatedAt` y no vuelve a marcar.
+  - Nada de lo que se pinta cambia: sin texto nuevo, sin `enEspera`, sin aviso, sin foco.
+- `frontend/src/features/calificaciones/gradebook-01d.test.tsx`: un `describe` nuevo al final con 11 casos (5 títulos, dos de ellos con `it.each` de 4 variantes) y sus ayudas (`clienteConStaleDeLaApp` con `staleTime: 30_000`, `CASOS_DE_CURSOR_ROTO`, `primeraVentanaCambiada`, `prepararCursorRoto`, `marcasViejas`). Nada de lo existente cambia.
+
+### Casos nuevos (`frontend/src/features/calificaciones/gradebook-01d.test.tsx`, describe "gradebook: volver a abrir tras el texto del cursor (T-07, CAL-1D02aa a CAL-1D02ae)")
+Todos con la misma `QueryClient` de `staleTime: 30_000` (el de la app) y el reloj fijo: volver a abrir ocurre antes de 30 s.
+- "CAL-1D02aa: $nombre y volver a abrir antes de 30 s con la misma QueryClient: pide la primera ventana al servidor y pinta la clase como está", con `$nombre` = 'ventana vacía de alumnos', 'ventana vacía de tareas', '400 de cursor' y '400 de cursorTareas'. Desmonta la vista con el texto del cursor y la vuelve a montar: una sola petición, la de la primera ventana; "2 alumnos"; ni «Alumnos siguientes» ni «Tareas más antiguas»; sin el texto del cursor; sin aviso.
+- "CAL-1D02ab: $nombre con la vista montada: la ventana rota no se vuelve a pedir, sin aviso, sin mover el foco y sin cambiar lo que se ve", con las mismas 4 variantes: después del texto del cursor, 0 peticiones, el mismo `document.activeElement`, el mismo `document.body.innerHTML`, un solo texto del cursor y ningún `toast`.
+- "CAL-1D02ac: dos ocurrencias seguidas (avanzar a la ventana vacía, regresar y volver a avanzar) marcan viejo el gradebook dos veces y no más, sin tocar la ventana a la vista": con un espía de `invalidateQueries`, 0 marcas antes, 1 tras la primera ventana vacía, sigue en 1 al regresar, 2 tras volver a avanzar (de la caché, 0 peticiones); la ventana vacía no queda `isInvalidated` y la primera sí.
+- "CAL-1D02ad: el 400 de un cursor en la primera carga (sin cursor enviado) da el texto del cursor sin bucle: una sola petición, sin aviso".
+- "CAL-1D02ae: una recarga de fondo de la ventana con cursor que la deja vacía también marca viejo el gradebook: volver a abrir antes de 30 s pide la primera ventana".
+
+**Fallan con el código anterior.** Guardé la vista nueva en el scratchpad de la sesión, quité de la vista la llamada a `useMarcarViejoElGradebook` (el código anterior en su comportamiento), corrí `npx vitest run src/features/calificaciones/gradebook-01d.test.tsx -t "T-07"` y restauré la copia (SHA-256 igual al de arriba): `Tests  7 failed | 4 passed | 76 skipped (87)`. Fallan las 4 variantes de CAL-1D02aa, CAL-1D02ac, CAL-1D02ad y CAL-1D02ae. Pasan con los dos códigos las 4 variantes de CAL-1D02ab: son la guarda contra el bucle, el aviso y el foco (no deben cambiar con el remedio). Además, en la suite completa, CAL-T-217 y CAL-T-218 pasan de rojo a verde.
+
+### Matriz (filas nuevas; las demás siguen como en las secciones anteriores de 01d)
+| # | Disparador | Clase de respuesta | Qué se renueva | Aviso | Foco | En vuelo a la vez | Con la vista desmontada | Caso |
+|---|---|---|---|---|---|---|---|---|
+| G24 (nueva) | Ventana nueva con cursor (alumnos o tareas) | `400` del cursor o `200` vacía (G2, G5, G20) | Lo que se ve, sin cambio. Además, las demás ventanas del gradebook de la clase quedan marcadas viejas (sin pedirlas); la ventana rota no | Ninguno | Sin cambio (G2, G5, G20) | La guarda y `enEspera` de G6, sin cambio | Si la respuesta llega desmontada, no marca nada (no se mostró el texto); al volver a montar empieza en la primera ventana como antes | GB CAL-1D02ab, CAL-1D02ac |
+| G25 (nueva) | Volver a abrir Calificaciones antes de 30 s tras G24 (misma `QueryClient`) | `200` | La primera ventana se pide al servidor; mientras llega se ve la de la caché y luego la nueva (resumen, botones) | Ninguno | Como la primera carga | — | — | GB CAL-1D02aa (4 variantes), CAL-T-217, CAL-T-218 |
+| G26 (nueva) | Recarga de fondo de una ventana con cursor que llega vacía (G22) | `200` vacía | Como G24: marca viejas las demás ventanas | Ninguno | Como G22 | — | — | GB CAL-1D02ae |
+| G27 (nueva) | Primera carga, sin cursores | `400` de un cursor (G2) | El texto del cursor, sin cambio; marca viejas las demás entradas, nunca la propia: una sola petición, sin bucle | Ninguno | Sin cambio | — | — | GB CAL-1D02ad |
+
+**Total: 50 filas.** Son 27 del gradebook (G1–G27) y 23 de "Mis calificaciones" y el modal (M1–M23); ninguna fila anterior cambia. "Mis calificaciones" no gana filas (abajo, hermanos).
+
+### Hermanos y estados vecinos (uno por uno)
+- **Ventana vacía de alumnos:** aplica y aplicado (CAL-1D02aa 'ventana vacía de alumnos', CAL-1D02ab, CAL-1D02ac, CAL-T-217).
+- **`400` del cursor de alumnos:** aplica y aplicado (CAL-1D02aa '400 de cursor', CAL-1D02ab, CAL-T-218).
+- **Ventana vacía de tareas y `400` de `cursorTareas`:** aplica y aplicado; mismas condiciones, la dimensión no importa (CAL-1D02aa y CAL-1D02ab, variantes de tareas).
+- **Las dos dimensiones vacías a la vez:** misma condición (`alumnos` o `tareas` vacíos con algún cursor); una sola ocurrencia por respuesta. Sin caso propio.
+- **`400` del cursor en la primera carga (sin cursor enviado):** aplica; la ventana en error es la primera y queda fuera del filtro, así que no se vuelve a pedir sola: una sola petición (CAL-1D02ad). Al volver a montar se vuelve a pedir, como antes (TanStack Query marca vieja toda consulta en error).
+- **Ventana vacía por una recarga de fondo:** aplica y aplicado (CAL-1D02ae; adelanto el reloj 1 s para que la recarga tenga otro `dataUpdatedAt`, como CAL-1D02n y CAL-T-204).
+- **Recarga de fondo que falla con la ventana vacía a la vista (CAL-T-202):** `dataUpdatedAt` no cambia, no es ocurrencia nueva: no vuelve a marcar. Sigue en verde.
+- **Recarga de fondo que deja la ventana igual de vacía (CAL-T-203):** respuesta nueva, otra ocurrencia: marca otra vez, sin pedir nada ni cambiar el nodo `alert`. Sigue en verde.
+- **Ventana de respaldo (`isPlaceholderData`) vacía mientras llega otra (CAL-1D02z, CAL-T-206):** no cuenta como ocurrencia: esos datos son de la ventana anterior, que ya marcó. Siguen en verde.
+- **Regresar a la primera ventana desde la ventana vacía:** como la primera quedó vieja, se vuelve a pedir en segundo plano; mientras llega se ve la de la caché y los botones están en espera (G6). CAL-T-201 (caché fresca, `staleTime` infinito) sigue en verde: la segunda llegada a la ventana vacía sale de la caché sin petición, porque la ventana vacía nunca se marca. Es la segunda ocurrencia de CAL-1D02ac.
+- **Vista desmontada con la ventana rota en vuelo (CAL-1D02y, CAL-T-216):** el efecto no corre y no marca nada; nunca se mostró el texto, así que no hay instrucción que cumplir. Al volver a montar, la primera ventana como antes. Siguen en verde.
+- **"Mis calificaciones", `400` del cursor en la primera carga:** sin cambio y no le aplica. La consulta queda en error, y TanStack Query marca `isInvalidated: true` en todo fallo (`query.js:461`): al volver a montar se pide de nuevo.
+- **"Mis calificaciones", `400` en "Ver más tareas":** no tiene el defecto y no apliqué el remedio. Es una sola consulta infinita: el fallo de la página siguiente la deja en error y la marca vieja (el mismo `isInvalidated: true`), así que al volver a abrir antes de 30 s se vuelve a pedir desde la primera página. Las páginas viejas con el cursor muerto no se sirven como frescas. Lo demuestra el caso del tester "CAL-T-224" de `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` (petición sin cursor al volver a montar, sin el texto del cursor ni «Ver más tareas» hacia el cursor muerto), en verde con el código de antes y con el de ahora; su control CAL-T-225, también. No agregué un caso propio porque sería el mismo.
+- **`features/tareas/entregas-view.tsx` ("Ver más alumnos" con el `400`, texto "Vuelve a abrir Entregas…"):** no lo cambié (fuera de §D-13). No tiene el defecto: `useEntregasDeLaTarea` (`features/tareas/hooks.ts:438`) es una sola `useInfiniteQuery`, y el `400` de `fetchNextPage` (`entregas-view.tsx:104`) la deja en error y vieja (`query.js:461`). Al volver a montar se vuelve a pedir. No hay pendiente que registrar.
+- **Los demás textos "Vuelve a abrir…" (muro, comentarios, listas y "Ver más de `<tema>`" de `features/clases/data.ts:147, 307, 353, 483`):** todos van sobre consultas infinitas (`features/clases/hooks.ts`), con el mismo mecanismo; no los cambié. El gradebook es la única consulta por ventanas del frontend: `grep -rln "keepPreviousData\|placeholderData"` sin pruebas da solo `features/calificaciones/hooks.ts`.
+- **El admin:** la misma vista y el mismo gancho; sin casos por perspectiva.
+- **`useFocoAlPerderseElControl` y la raíz:** sin cambio.
+- **`docs/DESIGN.md` §7.28:** sigue describiendo el código (no habla de la caché); no lo cambié.
+
+### Comandos (desde `frontend/`, de uno en uno; formateo solo acotado al paquete)
+| Comando | Código | Última línea útil |
+|---|---|---|
+| `npx prettier --write src/features/calificaciones/gradebook-view.tsx src/features/calificaciones/hooks.ts` | 0 | `src/features/calificaciones/hooks.ts 11ms` |
+| `npx prettier --write src/features/calificaciones/gradebook-01d.test.tsx` | 0 | `src/features/calificaciones/gradebook-01d.test.tsx 227ms (unchanged)` |
+| `npm run lint` | 0 | `> tsc -b` |
+| `npm run test` | 0 | `Tests  3269 passed (3269)` · `Test Files  193 passed (193)` · `Duration  154.78s`; `grep -c "Test timed out"` = 0 |
+| `npm run build` | 0 | `✓ built in 908ms` |
+
+La corrida del tester tenía `Tests  2 failed | 3256 passed (3258)`: 3258 + 11 casos nuevos = 3269, los 2 rojos (CAL-T-217, CAL-T-218) en verde, y nada más cambia.
+
+### Conteos
+- `npx vitest list 2>/dev/null | grep -c " > "` (desde `frontend/`): **3269** casos.
+- `npx vitest list --filesOnly 2>/dev/null | wc -l`: **193** archivos (sin archivos nuevos).
+- `npx vitest list src/features/calificaciones/gradebook-01d.test.tsx 2>/dev/null | wc -l`: **87** (76 + 11).
+- `npx vitest list 2>/dev/null | grep -c "CAL-1D02a[a-e]"`: **11**.
+- `git ls-files -co --exclude-standard | grep -cE '\.ataque\.test\.tsx?$'`: **200**, ninguna tocada.
+
+### Reglas estáticas que el encargo pidió vigilar
+- `grep -c "enEspera="`: 0 en `gradebook-view.tsx` y 4 en `components/navegacion-del-gradebook.tsx`.
+- `fixed` en `gradebook-view.tsx` y `hooks.ts`, también en comentarios: ninguno.
+- Grep de §D-0.9 de "## 01d — implementación" (desde `frontend/src`): salida vacía, código 1.
+- Las 23 reglas de la ronda 0 (y CAL-T-189: los ganchos no avisan) corren dentro de la suite completa, en verde.
+
+### "No se toca"
+`git diff --stat 8242ce116c3d9645aab23a7de685574ce81a2b55 -- frontend backend shared` da `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que antes de la corrección. Los tres archivos que toqué son nuevos de 01d y siguen sin seguimiento. Archivos sin seguimiento en los paquetes: 27 (`git status --short --untracked-files=all frontend backend shared | grep -c '^??'`), los mismos que dejó el tester. Fuera de los paquetes no cambié nada salvo esta sección.
+
+### Pendientes y observaciones
+- Ninguno nuevo. `entregas-view.tsx` no tiene el defecto (arriba), así que no queda pendiente para el manager.
+- Observación: tras la ventana vacía, regresar a la primera ventana ahora la vuelve a pedir en segundo plano aunque no hayan pasado 30 s (los botones quedan en espera mientras llega, como en cualquier recarga, G6). Es el efecto buscado: lo que se ve vuelve a ser lo del servidor.
+
+## 01d — corrección de la ronda 3 (T-08, ronda 4 cerrada)
+Plan: `docs/trabajo/CALIFICACIONES-01-calificaciones-y-gradebook/plan.md` (§D-13.3 y §D-13.4), con la ronda 4 cerrada a T-08 que autorizó el humano (`aprobacion.md`, "Decisión del humano tras la escalada de 01d"). Base de "No se toca": `8242ce116c3d9645aab23a7de685574ce81a2b55`. No toqué ninguna `*.ataque` (las 203 tienen el SHA-256 de la tabla de la ronda 3 de 01d: `diff` de los hashes ordenados sin diferencias), ni `features/clases/muro-view.tsx` (solo lo leí), ni `app/`, `services/`, `lib/`, `components/`, `shared/` o el backend. No cambié pruebas normales existentes: agregué un `describe` al final de mis dos archivos de 01d y `Link` a su importación de `react-router`. No abrí navegadores, no terminé procesos, no leí `.env` ni hice commit.
+
+**T-08: corregido.** CAL-T-228 (`400` y `vacia`) y CAL-T-229 pasan a verde sin tocarlas; CAL-T-230 (`400` y `vacia`) sigue en verde.
+
+### Diff resumido (los cuatro archivos de producción y de prueba son nuevos de 01d y siguen sin seguimiento)
+- `frontend/src/features/calificaciones/hooks.ts` (SHA-256 `494c6cc0ae122070f5961e06517ae4e0090e9ac8c3b26bae7e2216c8e5e99d59`): dos ganchos nuevos.
+  - `useAlPulsarLaSeccionActiva(alPulsar)`: el patrón de T-35 del muro (`useLocation().key` y una ref con la última `key`), sacado a un gancho porque las dos vistas lo usan. Corre `alPulsar` una vez por cada `location.key` nueva con la vista montada; la `key` del montaje no cuenta. Importa `useLocation` de `react-router` (ya instalada).
+  - `useRecargarLaPrimeraVentana(claseId)`: devuelve una función que llama `queryClient.invalidateQueries({ queryKey: claveGradebook(claseId, VENTANAS_INICIALES.ventana), exact: true }, { cancelRefetch: false })`. Si la primera ventana es la que se observa, la vuelve a pedir; si no, queda vieja y se pide al volver a ella. `cancelRefetch: false`: una petición en vuelo de esa ventana se aprovecha, no se cancela ni se repite.
+- `frontend/src/features/calificaciones/gradebook-view.tsx` (SHA-256 `7a2727b97e8611de7f1d0ba302e464ef2e4bce8d5a18def0562305eae861272e`): al pulsar la sección activa, `pulsadoRef.current = null` (la ventana que se esperaba ya no mueve el foco), `recargarLaPrimeraVentana()` y `setVentanas(VENTANAS_INICIALES)` (ventana inicial sin cursores y pilas vacías). `pidiendoRef` se libera como siempre, cuando la consulta deja de pedir. Ningún texto, `enEspera`, aviso ni foco nuevo.
+- `frontend/src/features/calificaciones/mis-calificaciones-view.tsx` (SHA-256 `7c4b48632d44df52e03e5410caac3155b857fc6b1b365c949cc3d4d1be37ae82`): al pulsar la sección activa, `void refetch({ cancelRefetch: false })`. La consulta infinita se vuelve a pedir desde la primera página (TanStack Query recalcula el cursor de cada página siguiente con la respuesta nueva). Con el `400` de «Ver más tareas» la caché solo tiene la primera página, así que es una sola petición.
+- `frontend/src/features/calificaciones/gradebook-01d.test.tsx` (SHA-256 `894b0de3fc03c8315841ae683527ba1531670fa80390d6e79c1775bb1370f22a`) y `frontend/src/features/calificaciones/mis-calificaciones-01d.test.tsx` (SHA-256 `ef5ed31911efd389760ccf09066612254bfcf46329ebcf071dc15f18258c4426`): un `describe` nuevo al final de cada uno, con su ayuda `montarConSeccion` (la vista y un `Link` a su misma ruta, como el `NavLink` de `SeccionesDeClase`; CAL-T-228 y CAL-T-229 lo prueban con el router real) y `pulsarLaSeccion` (enfoca el enlace y lo pulsa). La importación de `react-router` suma `Link`. Nada de lo existente cambia.
+- `docs/DESIGN.md`: una frase al final del punto "Estados" de §7.28 y otra al final del de "Estados de la lista" de §7.29, las dos con la marca "propuesta (CALIFICACIONES-01d)" (`git diff docs/DESIGN.md | grep -c "^+.*estando en ella"` = 2).
+
+### Decisiones
+- **Sin remontar la vista (sin `key` en el componente), como el muro.** La vista reacciona a la `key` nueva dentro del mismo montaje. Así el foco se queda en la sección pulsada, donde lo deja el muro, y no va a la raíz ni al `h2`. El enlace está fuera de la raíz de la vista: `useFocoAlPerderseElControl` no lo toca y no hay carrera con él.
+- **Datos sanos también recargan** (lo pide el encargo). El muro solo recarga en error, pero aquí la instrucción es la misma con o sin texto a la vista: pulsar la sección activa recarga, sin aviso.
+- **Filtro de «Mis calificaciones»: se conserva.** El selector sigue a la vista con la opción elegida (§7.29), el `400` ocurrió con ese filtro, y "verlas completas" es recargar esa lista. Volver desde otra sección sí monta la vista otra vez con "Todas", como siempre.
+- **Modal abierto: no se cierra.** El diálogo de §7.11 es modal (Radix vuelve inerte lo de fuera y atrapa el foco), así que con el modal abierto no se puede pulsar la sección. La `key` solo cambiaría por el historial (atrás o adelante). En ese caso la lista se recarga y el contenido del modal se actualiza sin cerrarse, como dice §7.29.
+- **Con una petición en vuelo:** no se cancela ni se duplica (`cancelRefetch: false`). En «Mis calificaciones», si «Ver más tareas» está en vuelo, pulsar la sección se queda con esa petición: no recarga y no cancela (CAL-1D04k). En el gradebook, si hay una ventana en vuelo, la vista vuelve a la primera ventana y la pide. La ventana retenida llega a la caché sin cambiar lo que se ve (CAL-1D03i).
+
+### Casos nuevos
+`frontend/src/features/calificaciones/gradebook-01d.test.tsx`, describe "gradebook: pulsar la sección «Calificaciones» estando en ella (T-08, CAL-1D03d a CAL-1D03i)", con la `QueryClient` de `staleTime: 30_000` y el reloj fijo:
+- "CAL-1D03d: $nombre y pulsar la sección «Calificaciones» (misma ruta, otra location.key): pide la primera ventana una sola vez, pinta la clase como está sin el texto ni las pilas, sin aviso, sin aria-busy ni otra marca, y el foco se queda en la sección", con `$nombre` = 'ventana vacía de alumnos', 'ventana vacía de tareas', '400 de cursor' y '400 de cursorTareas'.
+- "CAL-1D03e: con la tabla sana en la primera ventana, pulsar la sección la vuelve a pedir una vez: dos pulsaciones con la petición en vuelo no la duplican, los botones esperan mientras llega y al llegar no queda aria-busy ni aviso, y el foco sigue en la sección".
+- "CAL-1D03f: con la tabla sana en la ventana siguiente, pulsar la sección vuelve a la primera ventana sin pilas y la pide al servidor aunque esté fresca en la caché, sin aviso".
+- "CAL-1D03g: con el genérico a la vista (5xx en la primera carga), pulsar la sección vuelve a pedir la primera ventana y pinta la tabla, sin aviso".
+- "CAL-1D03h: mientras carga la primera ventana, pulsar la sección no pide otra: al llegar, una sola petición y la tabla".
+- "CAL-1D03i: con «Alumnos siguientes» en vuelo, pulsar la sección vuelve a la primera ventana sin volver a pedir el cursor; al llegar la ventana retenida no cambia lo que se ve ni el foco, la guarda se libera y no hay aviso".
+
+`frontend/src/features/calificaciones/mis-calificaciones-01d.test.tsx`, describe "pulsar la sección «Calificaciones» estando en ella (T-08, CAL-1D04i a CAL-1D04m)":
+- "CAL-1D04i: tras el 400 del cursor de «Ver más tareas», pulsar la sección pide la primera página una sola vez y pinta las tareas como están, sin el texto ni «Ver más tareas», sin aviso ni aria-busy, y el foco se queda en la sección".
+- "CAL-1D04j: con la lista sana y el filtro «Asignadas», pulsar la sección la vuelve a pedir con el mismo filtro una vez: dos pulsaciones con la petición en vuelo no la duplican, «Ver más tareas» espera mientras llega y al llegar no queda aria-busy ni aviso".
+- "CAL-1D04k: con «Ver más tareas» en vuelo, pulsar la sección no la cancela ni pide otra; al llegar se agrega la página sin aviso y la guarda se libera".
+- "CAL-1D04l: con el genérico a la vista (5xx en la primera carga), pulsar la sección vuelve a pedir la primera página y pinta la lista, sin aviso".
+- "CAL-1D04m: mientras carga la primera página, pulsar la sección no pide otra: al llegar, una sola petición y la lista".
+
+**Fallan con el código anterior.** Guardé las dos vistas de antes (SHA-256 `dd6cae5f…` y `ca311d9b…`, los de la ronda 3) y las de después en el scratchpad de la sesión. Puse las de antes, con `hooks.ts` nuevo (solo suma ganchos que nadie más llama), corrí `npx vitest run src/features/calificaciones/gradebook-01d.test.tsx src/features/calificaciones/mis-calificaciones-01d.test.tsx src/features/calificaciones/secciones-01d-r3.ataque.test.tsx -t "T-08"` y restauré las nuevas (SHA-256 iguales a los de arriba). Resultado: `Tests  14 failed | 5 passed | 155 skipped (174)`.
+- Fallan 11 de mis 14 casos: las 4 variantes de CAL-1D03d, CAL-1D03e, CAL-1D03f, CAL-1D03g, CAL-1D03i, CAL-1D04i, CAL-1D04j y CAL-1D04l.
+- Fallan los 3 rojos del tester: CAL-T-228 (`400` y `vacia`) y CAL-T-229.
+- Pasan con los dos códigos CAL-1D03h, CAL-1D04k y CAL-1D04m: son las guardas de "sin duplicar", que no deben cambiar con el remedio. También CAL-T-230 (`400` y `vacia`), el control.
+
+### Matriz (filas nuevas; las demás siguen como en las secciones anteriores de 01d)
+| # | Disparador | Clase de respuesta | Qué se renueva | Aviso | Foco | En vuelo a la vez | Con la vista desmontada | Caso |
+|---|---|---|---|---|---|---|---|---|
+| G28 (nueva) | Pulsar la sección «Calificaciones» estando en ella, con el texto del cursor a la vista (`400` de `cursor` o `cursorTareas`, ventana vacía de alumnos o de tareas) | `200` | Ventana inicial sin cursores y pilas vacías; la primera ventana se pide al servidor una vez. Sin marca nueva de G24 | Ninguno | Se queda en la sección (como el muro) | — | No aplica: la sección se pulsa con la vista montada | GB CAL-1D03d (4 variantes), CAL-T-228 (`400` y `vacia`) |
+| G29 (nueva) | Lo mismo con la tabla sana (primera ventana o ventana siguiente) | `200` | La primera ventana se vuelve a pedir aunque esté fresca; desde otra ventana, pilas vacías. Los botones esperan mientras llega (G6) | Ninguno | Se queda en la sección | Dos pulsaciones seguidas: una sola petición (`cancelRefetch: false`) | — | GB CAL-1D03e, CAL-1D03f |
+| G30 (nueva) | Lo mismo con el genérico o «No tienes acceso a esta clase.» a la vista | `200`, o el mismo error | Vuelve a pedir la primera ventana; con `200` se pinta la tabla; con error, el mismo `MensajeError` (G3, G4) | Ninguno | Se queda en la sección | — | — | GB CAL-1D03g |
+| G31 (nueva) | Lo mismo mientras carga la primera ventana o con otra ventana en vuelo | La que llegue | Primera carga: nada nuevo, la misma petición. Ventana en vuelo: se vuelve a la primera ventana y se pide; la retenida llega a la caché sin cambiar lo que se ve | Ninguno | Se queda en la sección; la ventana retenida no lo mueve (`pulsadoRef` en `null`) | Sin petición duplicada; la guarda se libera al terminar | — | GB CAL-1D03h, CAL-1D03i |
+| M24 (nueva) | Pulsar la sección «Calificaciones» estando en ella tras el `400` de «Ver más tareas» | `200` | La lista desde la primera página, con el filtro elegido; sin el texto del cursor | Ninguno | Se queda en la sección | — | No aplica | MC CAL-1D04i, CAL-T-229 |
+| M25 (nueva) | Lo mismo con la lista sana | `200` | La lista desde la primera página con el mismo filtro; «Ver más tareas» espera mientras llega | Ninguno | Se queda en la sección | Dos pulsaciones seguidas: una sola petición | — | MC CAL-1D04j |
+| M26 (nueva) | Lo mismo con el genérico o sin acceso a la vista | `200`, o el mismo error | Vuelve a pedir la primera página; con `200` se pinta la lista | Ninguno | Se queda en la sección | — | — | MC CAL-1D04l |
+| M27 (nueva) | Lo mismo mientras carga la primera página o con «Ver más tareas» en vuelo | La que llegue | Nada nuevo: se aprovecha la petición en vuelo, sin cancelarla. «Ver más tareas» agrega su página como en M7 | El de «Ver más tareas» si falla, como siempre (M9) | Como M7 | Sin petición nueva; la guarda se libera al terminar | — | MC CAL-1D04k, CAL-1D04m |
+
+**Total: 58 filas.** Son 31 del gradebook (G1–G31) y 27 de "Mis calificaciones" y el modal (M1–M27); ninguna fila anterior cambia.
+
+### Hermanos y estados vecinos (uno por uno)
+- **Gradebook, `400` del cursor de alumnos:** aplica y aplicado (CAL-1D03d '400 de cursor', CAL-T-228 `400`).
+- **Gradebook, `400` de `cursorTareas`:** aplica y aplicado (CAL-1D03d '400 de cursorTareas').
+- **Gradebook, ventana vacía de alumnos y de tareas:** aplica y aplicado; además se vacían las pilas, así que «Alumnos anteriores» y «Tareas más recientes» desaparecen (CAL-1D03d, sus dos variantes vacías; CAL-T-228 `vacia`).
+- **Gradebook, las dos dimensiones vacías a la vez:** el mismo camino: la ventana inicial y las pilas vacías, sin importar cuántas dimensiones estén vacías. Sin caso propio.
+- **Gradebook, datos sanos:** recarga sin aviso ni duplicados, en la primera ventana (CAL-1D03e) y desde una ventana siguiente (CAL-1D03f).
+- **Gradebook, 5xx a la vista:** recupera (CAL-1D03g). Con sin acceso es el mismo camino: si el servidor vuelve a negar, se pinta el mismo `MensajeError`. Sin caso propio.
+- **Gradebook, cargando:** no duplica (CAL-1D03h).
+- **Gradebook, ventana en vuelo:** sin volver a pedir el cursor, la guarda se libera y el botón vuelve a responder (CAL-1D03i).
+- **La pila del gradebook:** se vacía (`VENTANAS_INICIALES`; CAL-1D03d y CAL-1D03f lo comprueban por la ausencia de los botones de regresar).
+- **«Mis calificaciones», `400` de «Ver más tareas»:** aplica y aplicado (CAL-1D04i, CAL-T-229).
+- **«Mis calificaciones», `400` del cursor en la primera carga:** el mismo camino (consulta en error sin filas, `refetch` desde la primera página). Sin caso propio.
+- **«Mis calificaciones», datos sanos:** recarga con el mismo filtro (CAL-1D04j).
+- **«Mis calificaciones», 5xx a la vista:** recupera (CAL-1D04l).
+- **«Mis calificaciones», cargando:** no duplica (CAL-1D04m).
+- **«Mis calificaciones», «Ver más tareas» en vuelo:** no la cancela ni la duplica, y la guarda (`pidiendoMasDeRef`) se libera en el `finally` de siempre (CAL-1D04k).
+- **El filtro de «Mis calificaciones»:** se conserva (arriba, Decisiones; CAL-1D04j comprueba `asignadas` en el selector y en la petición).
+- **El modal abierto:** no se cierra (arriba, Decisiones). Sin caso propio: con el modal abierto no se puede pulsar la sección.
+- **El `h2` y la raíz, `useFocoAlPerderseElControl`:** sin cambio y sin carrera. El foco está en la sección, fuera de la raíz, y el gancho solo recoloca un control de dentro que desaparece. Las pruebas comprueban `document.activeElement` = la sección tras la respuesta.
+- **Otra `location.key` por el historial (atrás o adelante a la misma ruta):** pasa por el mismo efecto y recarga igual. Si el foco estaba en un botón de ventana que desaparece al vaciar la pila, lo lleva a la raíz `useFocoAlPerderseElControl` (la clave cambia con la ventana), como en cualquier recarga. Sin caso propio.
+- **`useMarcarViejoElGradebook`:** no marca por la pulsación. Con la ventana inicial, `ocurrenciaDelCursor` es `null`. La invalidación de la primera ventana no lleva `refetchType: "none"`, así que no cuenta como marca. CAL-1D03d comprueba que el número de marcas no cambia y CAL-1D03e que sigue en 0.
+- **La navegación desde otra sección (CAL-T-230):** sin cambio; la vista se monta de nuevo y la `key` del montaje no cuenta. En verde (`400` y `vacia`), también con el código de antes.
+- **El admin:** la misma vista y los mismos ganchos. CAL-T-252 sigue en verde. Sin caso propio.
+- **Vista desmontada:** el efecto no corre, no hay nada que pulsar.
+- **Fuera de §D-13 (no lo toqué):** "Vuelve a abrir Trabajo de clase…" (`features/clases/data.ts:483`), que el tester anotó para el humano. Queda como pendiente con destino del manager.
+
+### Comandos (desde `frontend/`, de uno en uno; formateo solo acotado al paquete)
+| Comando | Código | Última línea útil |
+|---|---|---|
+| `npx prettier --write src/features/calificaciones/hooks.ts src/features/calificaciones/gradebook-view.tsx src/features/calificaciones/mis-calificaciones-view.tsx src/features/calificaciones/gradebook-01d.test.tsx src/features/calificaciones/mis-calificaciones-01d.test.tsx` | 0 | `src/features/calificaciones/mis-calificaciones-01d.test.tsx 96ms (unchanged)` |
+| `npm run lint` | 0 | `> tsc -b` |
+| `npm run test` | 0 | `Tests  3311 passed (3311)` · `Test Files  196 passed (196)` · `Duration  159.45s`; `grep -c "Test timed out"` = 0 |
+| `npm run build` | 0 | `✓ built in 906ms` |
+
+La corrida del tester tenía `Tests  3 failed | 3294 passed (3297)`. 3297 + 14 casos nuevos = 3311: los 3 rojos (CAL-T-228 ×2, CAL-T-229) pasan a verde y nada más cambia.
+
+### Conteos
+- `npx vitest list 2>/dev/null | grep -c " > "` (desde `frontend/`): **3311** casos.
+- `npx vitest list --filesOnly 2>/dev/null | wc -l`: **196** archivos (sin archivos nuevos).
+- `npx vitest list src/features/calificaciones/gradebook-01d.test.tsx 2>/dev/null | grep -c " > "`: **96** (87 + 9).
+- `npx vitest list src/features/calificaciones/mis-calificaciones-01d.test.tsx 2>/dev/null | grep -c " > "`: **71** (66 + 5).
+- `npx vitest list src/features/calificaciones/gradebook-01d.test.tsx src/features/calificaciones/mis-calificaciones-01d.test.tsx 2>/dev/null | grep -cE "CAL-1D03[d-i]|CAL-1D04[i-m]"`: **14**.
+- `git ls-files -co --exclude-standard | grep -cE '\.ataque\.test\.tsx?$'`: **203**, ninguna tocada.
+
+### Reglas estáticas que el encargo pidió vigilar
+- `grep -c "enEspera="`: 0 en `gradebook-view.tsx`, 4 en `components/navegacion-del-gradebook.tsx` y 1 en `mis-calificaciones-view.tsx`.
+- `grep -c "fixed\|perspectivaDeRuta"` en `gradebook-view.tsx`, `mis-calificaciones-view.tsx` y `hooks.ts`, comentarios incluidos: 0 en los tres.
+- Grep de §D-0.9 de "## 01d — implementación" (desde `frontend/src`): salida vacía, código 1.
+- Las 23 reglas de la ronda 0, CAL-1D09 (once archivos de producción, sin archivos nuevos) y CAL-T-182 a CAL-T-192 corren dentro de la suite completa, en verde.
+
+### "No se toca"
+`git diff --stat 8242ce116c3d9645aab23a7de685574ce81a2b55 -- frontend backend shared` da `12 files changed, 84 insertions(+), 110 deletions(-)`, igual que antes de la corrección. Los cinco archivos que toqué en `frontend/` son nuevos de 01d y siguen sin seguimiento. Archivos sin seguimiento en los paquetes: 30 (`git status --short --untracked-files=all frontend backend shared | grep -c '^??'`), los mismos que dejó el tester. Fuera de los paquetes cambié esta sección y las dos frases de `docs/DESIGN.md` §7.28 y §7.29.
+
+### Pendientes y observaciones
+- Para el manager, fuera de §D-13: "Vuelve a abrir Trabajo de clase para verlo completo." (`features/clases/data.ts:483`, TAREAS-01e). No comprobé si pulsar «Trabajo de clase» estando en ella la recupera.
+- Observación: pulsar la sección activa con datos sanos ahora hace una petición (o una por página cargada en «Mis calificaciones»). Lo pide el encargo. El muro, en cambio, solo recarga en error.

@@ -1,4 +1,5 @@
 import {
+  calificarEntregaSchema,
   CONFIRMAR_BORRADO_CON_ENTREGAS,
   crearTareaSchema,
   normalizarTextoLargo,
@@ -13,7 +14,9 @@ import {
   CAMPO_DE_CADA_CODIGO,
   CAMPOS_DEL_FORMULARIO,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  CODIGOS_DE_CONFLICTO_DE_CALIFICACION,
   CODIGOS_DE_CONFLICTO_DE_ENTREGA,
+  CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR,
   CODIGOS_QUE_REDIRIGE_EL_CLIENTE,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
   LIMITE_DE_ENTREGAS,
@@ -22,18 +25,26 @@ import {
   MENSAJES_POR_CODIGO_DE_TAREAS,
   PREFIJOS_QUE_REEMPLAZAN_LA_VISTA,
   PUNTOS_PROPUESTOS,
+  TEXTOS_CALIFICACION,
+  TEXTOS_CALIFICAR,
   TEXTOS_ENTREGAS,
   TEXTOS_FORMULARIO_TAREA,
   TEXTOS_TU_TRABAJO,
 } from "./data"
 import type {
+  CalificacionDeEntrega,
   CriterioDelFormulario,
   ErroresFormulario,
   EstadoDelFormulario,
+  EstadoDelPanel,
+  EstadoEntrega,
   IncidenciaValidacion,
   MomentoDeLaConsulta,
+  ResultadoDeCalificacion,
   ResultadoDelCuerpo,
+  TareaDeApertura,
   TareaDetalle,
+  TotalDelPanel,
 } from "./types"
 
 const dosDigitos = (n: number): string => String(n).padStart(2, "0")
@@ -456,3 +467,229 @@ export const conteoDeEntregas = (paginas: readonly { entregadas: number; total: 
   if (ultima === undefined) return null
   return TEXTOS_ENTREGAS.conteo(ultima.entregadas, ultima.total)
 }
+
+// CALIFICACIONES-01c (§D-12.2). Calificar la entrega de un alumno: la ruta del PUT.
+export const rutaDeCalificacion = (claseId: string, tareaId: string, alumnoId: string): string =>
+  `${rutaDeEntregaDeAlumno(claseId, tareaId, alumnoId)}/calificacion`
+
+// Los puntos escritos en un campo: dígitos con hasta 2 decimales, con punto o coma decimal, sin
+// espacios alrededor ("8,5", " 8.5 " y "08.50" valen 8.5). Cualquier otra cosa ("8.", ".5", "1e1",
+// "Infinity", "-1", "") da NaN, que la validación rechaza: nunca se coacciona en silencio.
+const PUNTOS_ESCRITOS = /^\d+([.,]\d{1,2})?$/
+const CON_MAS_DE_DOS_DECIMALES = /^\d+[.,]\d{3,}$/
+
+export const aNumeroDePuntos = (texto: string): number => {
+  const limpio = texto.trim()
+  if (!PUNTOS_ESCRITOS.test(limpio)) return Number.NaN
+  return Number(limpio.replace(",", "."))
+}
+
+// Los puntos de un campo si ya son válidos (de 0 al máximo, con hasta 2 decimales), o null.
+const puntosValidos = (texto: string, maximo: number): number | null => {
+  const puntos = aNumeroDePuntos(texto)
+  if (Number.isNaN(puntos) || puntos > maximo) return null
+  return puntos
+}
+
+// El error de un campo de puntos: vacío (con el texto de ese campo), más de 2 decimales, o fuera de
+// rango (también letras o un signo); null si es válido.
+const errorDePuntos = (texto: string, maximo: number, vacio: string): string | null => {
+  const limpio = texto.trim()
+  if (limpio === "") return vacio
+  if (CON_MAS_DE_DOS_DECIMALES.test(limpio)) return TEXTOS_CALIFICAR.hastaDosDecimales
+  if (puntosValidos(limpio, maximo) === null) return TEXTOS_CALIFICAR.fueraDeRango(maximo)
+  return null
+}
+
+// Lo que el formulario muestra al abrirse: los puntos guardados de cada criterio (o la calificación
+// directa) como texto, vacíos sin calificación, y el comentario vacío (el de la devolución ya está en
+// el hilo).
+export const estadoInicialDelPanel = (
+  tarea: TareaDeApertura,
+  entrega: { calificacion: CalificacionDeEntrega | null },
+): EstadoDelPanel => {
+  const guardada = entrega.calificacion
+  if (guardada === null) {
+    return {
+      puntajes: Object.fromEntries(tarea.rubrica.map((criterio) => [criterio.id, ""])),
+      calificacion: "",
+      comentario: "",
+    }
+  }
+  const guardados = new Map(guardada.puntajes.map((p) => [p.criterioId, p.puntos]))
+  return {
+    puntajes: Object.fromEntries(
+      tarea.rubrica.map((criterio) => {
+        const puntos = guardados.get(criterio.id)
+        return [criterio.id, puntos === undefined ? "" : String(puntos)]
+      }),
+    ),
+    calificacion: tarea.rubrica.length === 0 ? String(guardada.puntos) : "",
+    comentario: "",
+  }
+}
+
+// La llave de un error del esquema: "puntajes.<criterioId>" por la posición del criterio en el envío,
+// "calificacion" o "comentario".
+const claveDeIncidencia = (
+  ruta: readonly PropertyKey[],
+  rubrica: TareaDeApertura["rubrica"],
+): string => {
+  const [campo, posicion] = ruta
+  if (campo === "puntajes" && typeof posicion === "number") {
+    const criterio = rubrica[posicion]
+    if (criterio !== undefined) return `puntajes.${criterio.id}`
+  }
+  return ruta.map(String).join(".")
+}
+
+// Arma el cuerpo de calificar con lo escrito y lo valida antes de enviar: los rangos de cada criterio
+// y de la tarea, y el mismo esquema del servidor (calificarEntregaSchema). Enmienda 1 (M-02): con los
+// puntos y la rúbrica de la tarea tal como estaban al abrir el formulario, nunca los de una recarga
+// posterior; los puntajes van en el orden de esa rúbrica. El comentario vacío tras normalizarlo no se
+// envía.
+export const cuerpoDeCalificacion = (
+  estado: EstadoDelPanel,
+  tarea: TareaDeApertura,
+  version: number,
+): ResultadoDeCalificacion => {
+  const errores: ErroresFormulario = {}
+  const conRubrica = tarea.rubrica.length > 0
+  for (const criterio of tarea.rubrica) {
+    const texto = estado.puntajes[criterio.id] ?? ""
+    const error = errorDePuntos(texto, criterio.puntosMax, TEXTOS_CALIFICAR.escribeLosPuntos)
+    if (error !== null) errores[`puntajes.${criterio.id}`] = error
+  }
+  if (!conRubrica) {
+    const error = errorDePuntos(
+      estado.calificacion,
+      tarea.puntos,
+      TEXTOS_CALIFICAR.escribeLaCalificacion,
+    )
+    if (error !== null) errores.calificacion = error
+  }
+  const comentario = normalizarTextoLargo(estado.comentario)
+  const resultado = calificarEntregaSchema.safeParse({
+    version,
+    puntosDeLaTarea: tarea.puntos,
+    puntajes: tarea.rubrica.map((criterio) => ({
+      criterioId: criterio.id,
+      puntos: aNumeroDePuntos(estado.puntajes[criterio.id] ?? ""),
+    })),
+    calificacion: conRubrica ? null : aNumeroDePuntos(estado.calificacion),
+    ...(comentario === "" ? {} : { comentario }),
+  })
+  if (!resultado.success) {
+    for (const incidencia of resultado.error.issues) {
+      const clave = claveDeIncidencia(incidencia.path, tarea.rubrica)
+      errores[clave] ??= incidencia.message
+    }
+  }
+  if (!resultado.success || Object.keys(errores).length > 0) return { ok: false, errores }
+  return { ok: true, datos: resultado.data }
+}
+
+// Cociente redondeado al entero más cercano, con las mitades hacia arriba, sin pasar por un número
+// con decimales: la misma fórmula del servidor.
+const cocienteRedondeado = (numerador: number, denominador: number): number =>
+  Math.floor((2 * numerador + denominador) / (2 * denominador))
+
+// La suma de la rúbrica con lo que ya es válido y la calificación escalada a los puntos de la tarea,
+// en centésimas como el servidor. Solo para mostrar: decide el servidor.
+export const totalDelPanel = (estado: EstadoDelPanel, tarea: TareaDeApertura): TotalDelPanel => {
+  const sumaDeMaximos = tarea.rubrica.reduce((suma, criterio) => suma + criterio.puntosMax, 0)
+  const enCentesimas = tarea.rubrica.reduce((suma, criterio) => {
+    const puntos = puntosValidos(estado.puntajes[criterio.id] ?? "", criterio.puntosMax)
+    return puntos === null ? suma : suma + Math.round(puntos * 100)
+  }, 0)
+  const calificacion =
+    sumaDeMaximos === 0 ? 0 : cocienteRedondeado(enCentesimas * tarea.puntos, sumaDeMaximos) / 100
+  return { suma: enCentesimas / 100, sumaDeMaximos, calificacion }
+}
+
+// P-03 (c′): se califica una entrega entregada o ya calificada; la de quien no entregó, solo con la
+// entrega cerrada (la fecha límite pasó y la tarea no acepta entregas con retraso). El servidor decide
+// con su propio reloj; esto solo elige entre el formulario y la frase.
+export const sePuedeCalificar = (
+  entrega: { estado: EstadoEntrega },
+  tarea: { fechaLimite: string; aceptaTardias: boolean },
+  ahora: Date,
+): boolean => {
+  if (entrega.estado !== "asignado") return true
+  return entregaCerradaAhora(tarea, ahora)
+}
+
+// Enmienda 1 (N-04): los tres 409 de calificar recargan y reinician el panel.
+export const esConflictoDeCalificacion = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_DE_CONFLICTO_DE_CALIFICACION.includes(error.codigo)
+
+// N-11: tras un cambio de la rúbrica o de los puntos, o tras ENTREGA_NO_CALIFICABLE (depende de la
+// fecha límite y de si la tarea acepta tardías), la recarga pide también la tarea.
+export const recargaLaTareaTrasConflicto = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR.includes(error.codigo)
+
+// El prefijo de campo de un VALIDACION de calificar: "puntajes.<posición>.puntos", "calificacion" o
+// "comentario".
+const PREFIJO_DE_CALIFICACION = /^(?:puntajes\.(\d+)\.puntos|(calificacion)|(comentario)):\s*/
+
+export const esErrorDeCampoDeCalificacion = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "VALIDACION" && PREFIJO_DE_CALIFICACION.test(error.message)
+
+// CALIFICACIONES-01c, ronda 1 (T-02): el mensaje, sin el prefijo de campo, de un VALIDACION de un campo
+// de calificar; null si el error no es de un campo. Lo usa el aviso del gancho cuando el panel no
+// tiene dónde pintarlo (erroresDeCalificacionDeApi da null).
+export const mensajeDelCampoDeCalificacion = (error: unknown): string | null => {
+  if (!esApiError(error) || !esErrorDeCampoDeCalificacion(error)) return null
+  const mensaje = error.message.replace(PREFIJO_DE_CALIFICACION, "")
+  return mensaje === "" ? MENSAJES_ERROR_TAREAS.generico : mensaje
+}
+
+// Ronda 2 de 01c (T-04): el prefijo de un VALIDACION de calificar que el panel no reconoce puede ser
+// una ruta con puntos, índices o signos ("puntajes.0.criterioId:", "puntajes.-1.puntos:"), que
+// quitarPrefijoDeCampo no quita. Nunca es para la persona.
+const PREFIJO_DE_RUTA = /^[A-Za-z0-9_.-]+:\s*/
+
+// El aviso de un error de calificar que el panel no pinta: el de mensajeDeErrorTareas y, si es un
+// VALIDACION, sin ningún prefijo de ruta; si no queda mensaje, el genérico (nunca un aviso vacío).
+export const mensajeDelAvisoDeCalificar = (error: unknown): string => {
+  const mensaje = mensajeDeErrorTareas(error)
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return mensaje
+  const sinRuta = mensaje.replace(PREFIJO_DE_RUTA, "")
+  return sinRuta === "" ? MENSAJES_ERROR_TAREAS.generico : sinRuta
+}
+
+// Un VALIDACION de un campo de calificar, en la llave del panel: la posición de un puntaje pasa al id
+// del criterio que iba en esa posición del envío. null si el error no es de un campo o si el panel no
+// tiene ese campo (T-02: una posición que no estaba en el envío, o "calificacion" con rúbrica); el
+// gancho avisa entonces con mensajeDelCampoDeCalificacion. El comentario siempre está en el panel.
+export const erroresDeCalificacionDeApi = (
+  error: unknown,
+  criteriosEnviados: readonly { id: string }[],
+): ErroresFormulario | null => {
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
+  const coincidencia = PREFIJO_DE_CALIFICACION.exec(error.message)
+  if (coincidencia === null) return null
+  // Ronda 3 de 01c (T-05): un prefijo sin mensaje (el prefijo ya se lleva los espacios) da el genérico,
+  // como los otros dos caminos; nunca un ErrorDeCampo vacío.
+  const recortado = error.message.slice(coincidencia[0].length)
+  const mensaje = recortado === "" ? MENSAJES_ERROR_TAREAS.generico : recortado
+  if (coincidencia[2] !== undefined && criteriosEnviados.length > 0) return null
+  const campo = coincidencia[2] ?? coincidencia[3]
+  if (campo !== undefined) return { [campo]: mensaje }
+  const criterio = criteriosEnviados[Number(coincidencia[1])]
+  if (criterio === undefined) return null
+  return { [`puntajes.${criterio.id}`]: mensaje }
+}
+
+// S-13: "Calificación: 8.5 de 10", "Calificada el lunes 6 de octubre a las 14:30" (en la zona local
+// del navegador) y, por criterio, "Claridad: 4 de 5".
+export const fraseDeCalificacion = (calificacion: CalificacionDeEntrega): string =>
+  TEXTOS_CALIFICACION.calificacion(calificacion.puntos, calificacion.sobre)
+
+export const fraseDeFechaDeCalificacion = (calificacion: CalificacionDeEntrega): string => {
+  const fecha = new Date(calificacion.fecha)
+  return TEXTOS_CALIFICACION.calificada(formatearFechaLarga(fecha), horaLocal(fecha))
+}
+
+export const fraseDePuntaje = (puntaje: CalificacionDeEntrega["puntajes"][number]): string =>
+  TEXTOS_CALIFICACION.puntaje(puntaje.criterio, puntaje.puntos, puntaje.puntosMax)

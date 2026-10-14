@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from "react"
 import { AdjuntosDePublicacion } from "@/components/adjuntos/adjuntos-de-publicacion"
 import { Button } from "@/components/ui/button"
 
-import { TEXTOS_TU_TRABAJO } from "../data"
+import { TEXTOS_CALIFICACION, TEXTOS_TU_TRABAJO } from "../data"
 import { useAnularEntrega } from "../hooks"
 import { fraseDeEntrega, mensajeDeErrorTareas, rutaDeMiEntrega } from "../lib"
 import type { MiEntrega } from "../types"
+import { CalificacionDeLaEntrega } from "./calificacion-de-la-entrega"
 import { ListaDeEnlaces } from "./lista-de-enlaces"
 
 interface EntregaRealizadaProps {
@@ -46,6 +47,10 @@ export function EntregaRealizada({
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
   const confirmandoAnteriorRef = useRef(confirmando)
   const frase = fraseDeEntrega(entrega)
+  // CALIFICACIONES-01c (§D-12.8; P-03 c′): "entregó" es tener fecha de entrega, no el estado. Una
+  // calificada sin entrega lo dice con su propia frase.
+  const fraseDeCalificada =
+    entrega.fechaEntrega === null ? TEXTOS_CALIFICACION.sinEntrega : TEXTOS_TU_TRABAJO.calificada
 
   useEffect(() => {
     if (confirmandoAnteriorRef.current === confirmando) return
@@ -86,7 +91,10 @@ export function EntregaRealizada({
       />
       {entrega.enlaces.length > 0 && <ListaDeEnlaces enlaces={entrega.enlaces} />}
       {entrega.estado === "calificado" && (
-        <p className="text-small text-muted-foreground">{TEXTOS_TU_TRABAJO.calificada}</p>
+        <p className="text-small text-muted-foreground">{fraseDeCalificada}</p>
+      )}
+      {entrega.calificacion !== null && (
+        <CalificacionDeLaEntrega calificacion={entrega.calificacion} />
       )}
       {cerrada && <p className="text-small text-muted-foreground">{TEXTOS_TU_TRABAJO.cerrada}</p>}
       {entrega.puedeAnular && !confirmando && (

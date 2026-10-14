@@ -1,4 +1,4 @@
-import type { CrearTarea } from "@campus/shared"
+import type { CalificarEntrega, CriterioDeRubrica, CrearTarea } from "@campus/shared"
 import type { QueryObserverResult } from "@tanstack/react-query"
 
 import type { ErroresFormulario } from "@/lib/errores-de-api"
@@ -6,6 +6,8 @@ import type { ErroresFormulario } from "@/lib/errores-de-api"
 // Tipos de la API: se infieren de los esquemas de shared/, nunca a mano (regla 7 de CLAUDE.md).
 export type {
   Adjunto,
+  CalificacionDeEntrega,
+  CalificarEntrega,
   Categoria,
   ComentarioPrivado,
   CrearComentario,
@@ -67,3 +69,39 @@ export type MomentoDeLaConsulta = Pick<
 >
 
 export type FalloDeLaConsulta = Pick<QueryObserverResult, "errorUpdatedAt" | "errorUpdateCount">
+
+// CALIFICACIONES-01c (§D-12.2). Lo que el panel de calificación escribe: todo es texto crudo (los
+// puntos tal como se teclearon, con punto o coma decimal) y se valida al enviar. Los puntos de la
+// rúbrica van por id de criterio.
+export interface EstadoDelPanel {
+  puntajes: Readonly<Record<string, string>>
+  calificacion: string
+  comentario: string
+}
+
+// Enmienda 1 (M-02): los puntos y la rúbrica de la tarea con que se abrió el formulario. Viajan en el
+// cuerpo y dicen las etiquetas aunque una recarga de fondo traiga otros.
+export interface TareaDeApertura {
+  puntos: number
+  rubrica: readonly CriterioDeRubrica[]
+}
+
+// El cuerpo de calificar ya validado, o los errores por campo ("puntajes.<criterioId>",
+// "calificacion", "comentario").
+export type ResultadoDeCalificacion =
+  { ok: true; datos: CalificarEntrega } | { ok: false; errores: ErroresFormulario }
+
+// La suma de la rúbrica con lo que ya es válido, sobre la suma de los máximos, y la calificación
+// escalada a los puntos de la tarea (solo para mostrar: decide el servidor).
+export interface TotalDelPanel {
+  suma: number
+  sumaDeMaximos: number
+  calificacion: number
+}
+
+// Las variables de la mutación de calificar: el cuerpo y si la entrega ya tenía calificación al abrir
+// el formulario (decide el aviso de éxito).
+export interface VariablesDeCalificar {
+  cuerpo: CalificarEntrega
+  habiaCalificacion: boolean
+}

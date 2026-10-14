@@ -8,4 +8,7 @@ export const TEXTOS_DE_LA_CLASE = {
   firmaAdministracion: FIRMA_ADMINISTRACION,
   // ENTREGAS-01a (O-2 de TAREAS-01d): "Sin tema", el mismo texto en features/clases y features/tareas.
   sinTema: "Sin tema",
+  // CALIFICACIONES-01c (§D-12.1): el texto de una tarea sin categoría, el mismo en features/tareas
+  // y, desde 01d, en features/calificaciones.
+  sinCategoria: "Sin categoría",
 } as const

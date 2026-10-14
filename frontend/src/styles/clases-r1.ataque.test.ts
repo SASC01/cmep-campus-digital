@@ -150,14 +150,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // features/clases/components/ en 3 (admin, 2). Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 55 enEspera", () => {
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 56 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(55)
+    expect(usos).toHaveLength(56)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -266,6 +266,9 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/tareas/components/tabla-de-entregas.tsx": 0,
       "/src/features/tareas/entrega-de-alumno-view.tsx": 0,
       "/src/features/tareas/components/panel-de-entregas.tsx": 0,
+      // C-7 de CALIFICACIONES-01c (§D-R0, A-5): de 55 a 56, el botón principal del panel nuevo.
+      "/src/features/tareas/components/panel-de-calificacion.tsx": 1,
+      "/src/features/tareas/components/calificacion-de-la-entrega.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

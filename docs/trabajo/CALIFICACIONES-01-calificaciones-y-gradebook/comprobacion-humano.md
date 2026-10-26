@@ -32,4 +32,4 @@ El humano llena la columna "Resultado". El orquestador registra abajo el veredic
 
 ## Resultado
 
-Pendiente: el humano hace la comprobación después del commit de 01d (`<K1d>`). El orquestador registra aquí el veredicto, la fecha y las observaciones, y actualiza las marcas de `DESIGN.md`.
+**Veredicto del humano (2026-10-26): puntos 1 a 7 bien, sin observaciones.** Texto literal: "Comprobación humana CALIFICACIONES-01: puntos 1 a 7 bien, sin observaciones." Con eso, las 14 marcas de `DESIGN.md` (4 de 01c y 10 de 01d; lista cerrada en `revision.md`, "Revisión final — CALIFICACIONES-01d y cierre del encargo") pasan a "CALIFICACIONES-01c, propuesta aprobada (2026-10-26)" y "CALIFICACIONES-01d, propuesta aprobada (2026-10-26)", aplicadas por el orquestador en el commit de cierre. N-45 (la calificación general desaparece un momento al cambiar de filtro) no molestó al humano: sin fila en §3. Lo no verificado queda como "no verificada por decisión del humano, cubierta por pruebas automáticas".

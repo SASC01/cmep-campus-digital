@@ -86,7 +86,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-14 | Entregar una tarea con **archivos y/o enlaces**; anular la entrega y volver a entregar mientras no esté calificada | M |
 | RF-15 | Las entregas después de la fecha límite se aceptan y se marcan "con retraso", salvo que el maestro no acepte entregas tardías en esa tarea (RF-44): entonces la entrega se cierra en la fecha límite (TAREAS/ENTREGAS) | M |
 | RF-16 | Hilo de comentarios privados con el maestro dentro de cada tarea. El Administrador lo lee y no escribe (ENTREGAS-01). En esta fase, los comentarios privados no se borran ni se editan (ENTREGAS-01) | M |
-| RF-17 | "Mis calificaciones" por clase: porcentaje general, lista de tareas con estado/calificación y filtro por estado (todo, asignado, entregado, calificado, sin entregar) | M |
+| RF-17 | "Mis calificaciones" por clase: porcentaje general, lista de tareas con estado/calificación y filtro por estado (todo, asignado, entregado, calificado, sin entregar). En la sección "Calificaciones" de la clase. Solo las calificaciones propias, con el desglose del cálculo de RF-18; sin el promedio de la clase ni datos de otros alumnos (CALIFICACIONES-01) | M |
 | RF-18 | Modal "Cálculo de calificación": desglose por categorías ponderadas | S |
 | RF-19 | Ver maestros y compañeros de la clase (solo lectura, maestros separados de alumnos, con contador), con el correo completo de cada uno (CLASES-02) | S |
 | RF-20 | Calendario con tareas pendientes y clases en vivo próximas | M |
@@ -106,7 +106,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-33 | Publicar anuncios y materiales propios en el muro, con adjuntos, y borrar los propios. Nunca borra ni edita lo que publicó el Administrador (RN-07) | M |
 | RF-34 | Crear y editar tareas: título, instrucciones, adjuntos, fecha límite, puntos, categoría y **rúbrica propia** (criterios con puntaje máximo) | M |
 | RF-35 | Ver por tarea quiénes entregaron y quiénes no | M |
-| RF-36 | Calificar una entrega: abrirla, puntuar por criterio de la rúbrica (o asignar calificación directa si no hay rúbrica), dejar comentario privado y publicar la calificación | M |
+| RF-36 | Calificar una entrega: abrirla, puntuar por criterio de la rúbrica (o asignar calificación directa si no hay rúbrica), dejar comentario privado y publicar la calificación. Publicar es devolver: el alumno ve la calificación en cuanto se guarda; el comentario va a los comentarios privados de la entrega. Se puede recalificar (CALIFICACIONES-01) | M |
 | RF-37 | Gradebook: tabla alumnos × tareas, promedio general de la clase y **alumnos en riesgo** destacados | M |
 | RF-38 | Buscar alumnos por nombre completo, agregarlos manualmente a las clases que imparte y darlos de baja. Solo alumnos ya registrados | M |
 | RF-39 | Roster de la clase con el estado de pago de cada alumno y etiqueta si su acceso está restringido | M |
@@ -189,7 +189,8 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - La calificación general de la clase se calcula por categorías ponderadas. Las categorías sin tareas calificadas no cuentan y su peso se redistribuye proporcionalmente.
 - Las tareas sin calificar no afectan el promedio.
 - Una clase sin categorías califica por puntos. Con categorías, toda tarea nueva o editada lleva una; una tarea sin categoría no cuenta en la calificación general hasta asignarle una (TAREAS-01).
-- "Alumno en riesgo": promedio general menor a 70 % **o** 3 o más tareas vencidas sin entregar. (Umbrales iniciales, ajustables en configuración.)
+- Dentro de una categoría, por puntos. Una tarea con entregas calificadas no cambia sus puntos ni su rúbrica. Se puede calificar a quien no entregó solo con la entrega cerrada: la fecha límite vencida en una tarea que no acepta entregas con retraso (CALIFICACIONES-01).
+- "Alumno en riesgo": promedio general menor a 70 % **o** 3 o más tareas vencidas sin entregar. (Umbrales iniciales, ajustables en configuración; constantes hasta que exista la configuración, RF-56. Una tarea calificada sin entrega no cuenta como vencida sin entregar; CALIFICACIONES-01.)
 
 ### RN-06 Propiedad
 - Las clases las crea el Administrador, que les asigna de **uno a dos maestros** y puede agregarlos, quitarlos o reasignarlos en cualquier momento. Una clase nunca queda sin maestro.
@@ -282,7 +283,7 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 - Los maestros los da de alta el Administrador (al no haber verificación de correo, un registro público de maestros sería un riesgo).
 - La restricción de acceso aplica solo a estudiantes.
 - Si restringen a un alumno que ya está dentro de una clase en vivo, permanece hasta que la sesión termine.
-- Umbrales de "alumno en riesgo" de RN-05.
+- Umbrales de "alumno en riesgo" de RN-05: promedio menor a 70 % o 3 o más tareas vencidas sin entregar, como constantes hasta que exista la configuración (RF-56) (CALIFICACIONES-01).
 
 **Preguntas abiertas**
 1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió: dirección D3, "Vidrio líquido con fondo flotante" (2026-09-27), que reemplazó a la dirección C (2026-09-26). Siguen abiertos el logo y los colores institucionales.

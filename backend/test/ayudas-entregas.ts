@@ -21,9 +21,13 @@ export interface OpcionesEntregaDePrueba {
   enlaces?: readonly string[]
   version?: number
   fechaEntrega?: Date
+  // CALIFICACIONES-01a (A-3): la calificación de una fila `calificado` (el CHECK de calificación según
+  // estado la exige, con su fecha). En los demás estados no se escribe.
+  calificacion?: number
 }
 
-// Una fila de `entregas`. En `asignado` va sin fecha, sin retraso y sin enlaces (los CHECK lo exigen).
+// Una fila de `entregas`. En `asignado` va sin fecha, sin retraso y sin enlaces (los CHECK lo exigen);
+// en `calificado`, con calificación y fecha de calificación.
 export const crearEntregaDePrueba = async ({
   tareaId,
   alumnoId,
@@ -32,10 +36,13 @@ export const crearEntregaDePrueba = async ({
   enlaces = [],
   version = 1,
   fechaEntrega = new Date(),
+  calificacion = 1,
 }: OpcionesEntregaDePrueba): Promise<string> => {
   const asignada = estado === "asignado"
+  const calificada = estado === "calificado"
   const [fila] = await obtenerDb().$queryRaw<{ id: string }[]>`
-    INSERT INTO entregas (tarea_id, alumno_id, estado, fecha_entrega, con_retraso, enlaces, version)
+    INSERT INTO entregas (tarea_id, alumno_id, estado, fecha_entrega, con_retraso, enlaces, version,
+                          calificacion, fecha_calificacion)
     VALUES (
       ${tareaId}::uuid,
       ${alumnoId}::uuid,
@@ -43,7 +50,9 @@ export const crearEntregaDePrueba = async ({
       ${asignada ? null : fechaEntrega},
       ${asignada ? false : conRetraso},
       ${JSON.stringify(asignada ? [] : enlaces)}::jsonb,
-      ${version}
+      ${version},
+      ${calificada ? calificacion : null}::numeric,
+      ${calificada ? new Date() : null}::timestamptz
     )
     RETURNING id::text AS id`
   if (!fila) throw new Error("Precondición: no se creó la fila de entregas")

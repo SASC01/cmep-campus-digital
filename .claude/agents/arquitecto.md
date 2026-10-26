@@ -24,6 +24,8 @@ Lee, en este orden:
 - No inventas requisitos. Lo que el PRD no cubre es una pregunta, no una suposición silenciosa.
 - No conversas con el humano: tus preguntas viajan en el plan.
 - Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
+- **Formularios nuevos y `VALIDACION` fuera de contrato (decisión del humano, 2026-10-13).** Por cada formulario o panel nuevo que envía datos al servidor, "Pruebas requeridas" incluye tres casos: un `400 VALIDACION` de un campo que la interfaz no pinta, uno con mensaje vacío o de solo espacios, y uno con prefijo con ruta (`campo.<i>.subcampo:`). En los tres, la persona recibe un mensaje legible (un solo aviso o un `ErrorDeCampo` con texto, nunca ambos ni ninguno), lo escrito se conserva y el botón sale de la espera. Si el módulo ya tiene una función que traduce esos errores, el plan dice cuál y qué cubre; si está en "No se toca", el plan lo resuelve dentro del módulo o pide la autorización. Motivo: las tres rondas del tester en CALIFICACIONES-01c (T-02, T-04 y T-05) fueron vecinos de esa misma clase.
+- **Frases de recuperación (decisión del humano, 2026-10-26).** Por cada texto de la interfaz que pide a la persona una acción para recuperarse ("Vuelve a abrir…", "Inténtalo de nuevo"), "Pruebas requeridas" incluye un caso por cada camino con que la persona puede hacerla, con el router real y la configuración de TanStack Query de `app/providers.tsx`: como mínimo, pulsar el enlace o la sección que el texto nombra estando ya en ella (otra `location.key`), ir a otra sección y regresar antes de que venza el `staleTime`, y repetir el control que falló. En cada caso la acción vuelve a pedir lo prometido y el texto desaparece. Si un camino no puede cumplirla, cambia el texto o el remedio en el plan. Motivo: T-06, T-07 y T-08 de CALIFICACIONES-01d.
 
 ## Preguntas bloqueantes
 Antes de planear, busca activamente lo que no está definido: reglas de negocio ambiguas, casos borde sin respuesta, permisos dudosos, textos de interfaz, límites numéricos.
@@ -54,7 +56,7 @@ Requisitos: RF-xx, RN-xx
 ### frontend/features/<modulo>/  (archivos según la estructura de módulos)
 ## Acceso a datos     (por cada consulta: tablas, índice que usa, paginación y transacción; ningún N+1)
 ## Autorización       (quién puede, quién no, y qué campos se omiten)
-## Pruebas requeridas (unitarias de core + autorización por endpoint)
+## Pruebas requeridas (unitarias de core + autorización por endpoint; con un formulario nuevo, los `VALIDACION` fuera de contrato: campo no pintable, mensaje vacío y prefijo con ruta; por cada frase de recuperación, un caso por camino: la sección activa, otra sección y regreso dentro del `staleTime`, y repetir el control)
 ## Puntos de ataque para el Tester
 ## Riesgos y desacuerdos
 ## Pasos de implementación (numerados, pequeños, en orden)

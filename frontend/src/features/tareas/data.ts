@@ -2,6 +2,7 @@ import { MAXIMO_CRITERIOS_RUBRICA } from "@campus/shared"
 
 import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import { formatearPuntos } from "@/lib/format"
 
 // §D-10, "Textos de la interfaz" (propuesta, tono de DESIGN.md §9).
 
@@ -41,7 +42,7 @@ export const TEXTOS_FORMULARIO_TAREA = {
   ayudaFecha: "Hora de tu zona horaria.",
   campoPuntos: "Puntos",
   campoCategoria: "Categoría",
-  sinCategoria: "Sin categoría",
+  sinCategoria: TEXTOS_DE_LA_CLASE.sinCategoria,
   eligeCategoria: "Elige una categoría",
   categoriaRequerida: "Elige la categoría de la tarea.",
   opcionDeCategoria: (nombre: string, peso: number) => `${nombre} (${peso} %)`,
@@ -99,7 +100,7 @@ export const TEXTOS_DETALLE_TAREA = {
   puntos: "Puntos",
   categoria: "Categoría",
   categoriaConPeso: (nombre: string, peso: number) => `${nombre} (${peso} %)`,
-  sinCategoria: "Sin categoría",
+  sinCategoria: TEXTOS_DE_LA_CLASE.sinCategoria,
   tema: "Tema",
   sinTema: TEXTOS_DE_LA_CLASE.sinTema,
   entregasTardias: "Entregas tardías",
@@ -167,7 +168,68 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "ENTREGA_VACIA",
   // ENTREGAS-01e (§D-10.5.3, Enmienda 2): el mensaje trae el conteo y se muestra tal cual, en línea.
   "TAREA_CON_ENTREGAS",
+  // CALIFICACIONES-01c (§D-12.3 y §D-12.9): los de calificar y el de editar una tarea calificada ya
+  // vienen en español del servidor (§D-10).
+  "ENTREGA_MODIFICADA",
+  "RUBRICA_MODIFICADA",
+  "ENTREGA_NO_CALIFICABLE",
+  "TAREA_CON_CALIFICACIONES",
 ]
+
+// CALIFICACIONES-01c (§D-12.2; Enmienda 1, N-04): los 409 de calificar dicen que lo que se vio ya no
+// es lo de ahora. Avisan con el mensaje del servidor, la vista recarga una sola vez y el panel se
+// reinicia con lo actual.
+export const CODIGOS_DE_CONFLICTO_DE_CALIFICACION: readonly string[] = [
+  "ENTREGA_MODIFICADA",
+  "RUBRICA_MODIFICADA",
+  "ENTREGA_NO_CALIFICABLE",
+]
+
+// De esos, los que dependen de la tarea (la rúbrica o sus puntos; o su fecha límite y si acepta
+// tardías, N-11): con ellos la recarga pide la tarea y la entrega a la vez.
+export const CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR: readonly string[] = [
+  "RUBRICA_MODIFICADA",
+  "ENTREGA_NO_CALIFICABLE",
+]
+
+// "de 5 puntos", o "de 1 punto" en singular.
+const dePuntos = (n: number): string => (n === 1 ? "de 1 punto" : `de ${formatearPuntos(n)} puntos`)
+
+// CALIFICACIONES-01c (§D-12.5, "Textos de la interfaz"; P-03 c′; tono de DESIGN.md §9).
+export const TEXTOS_CALIFICAR = {
+  titulo: "Calificación",
+  campoCriterio: (criterio: string, puntosMax: number) => `${criterio} (${dePuntos(puntosMax)})`,
+  campoCalificacion: (puntos: number) => `Calificación (${dePuntos(puntos)})`,
+  total: (suma: number, sumaDeMaximos: number, calificacion: number, puntos: number) =>
+    `Suma de la rúbrica: ${formatearPuntos(suma)} de ${formatearPuntos(sumaDeMaximos)} · Calificación: ${formatearPuntos(calificacion)} de ${formatearPuntos(puntos)}`,
+  campoComentario: "Comentario para el alumno (opcional)",
+  ayudaComentario: "Se publica en los comentarios privados de esta entrega.",
+  calificarYDevolver: "Calificar y devolver",
+  actualizar: "Actualizar calificación",
+  podrasCalificar: "Podrás calificar cuando el alumno entregue o cuando se cierre la entrega.",
+  notaSinEntrega: "Este alumno no entregó la tarea y la entrega ya está cerrada.",
+  escribeLosPuntos: "Escribe los puntos de este criterio.",
+  fueraDeRango: (maximo: number) =>
+    maximo === 1 ? "Escribe de 0 a 1 punto." : `Escribe de 0 a ${formatearPuntos(maximo)} puntos.`,
+  hastaDosDecimales: "Usa hasta 2 decimales.",
+  escribeLaCalificacion: "Escribe la calificación.",
+  avisoPublicada: "Calificación publicada",
+  avisoActualizada: "Calificación actualizada",
+  avisoRecargaFallida:
+    "No pudimos cargar la entrega actual. Revisa tu conexión e inténtalo de nuevo.",
+  sinCalificar: "Sin calificar todavía.",
+} as const
+
+// CALIFICACIONES-01c (§D-12.6, S-13): la calificación publicada, en solo lectura.
+export const TEXTOS_CALIFICACION = {
+  calificacion: (puntos: number, sobre: number) =>
+    `Calificación: ${formatearPuntos(puntos)} de ${formatearPuntos(sobre)}`,
+  calificada: (fecha: string, hora: string) => `Calificada el ${fecha} a las ${hora}`,
+  puntaje: (criterio: string, puntos: number, puntosMax: number) =>
+    `${criterio}: ${formatearPuntos(puntos)} de ${formatearPuntos(puntosMax)}`,
+  // P-03 (c′): la entrega quedó calificada sin que el alumno entregara.
+  sinEntrega: "No entregaste esta tarea y ya está calificada.",
+} as const
 
 // ENTREGAS-01d (§D-9.3): los 409 de la entrega dicen que la que se ve ya no es la de ahora (se entregó
 // en otra pestaña, se calificó o se cerró): avisan con el mensaje del servidor y se vuelve a pedir.

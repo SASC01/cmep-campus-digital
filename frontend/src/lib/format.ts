@@ -52,3 +52,18 @@ export const formatearTamano = (bytes: number): string => {
   }
   return `${redondeado()} ${UNIDADES_DE_TAMANO[indice]}`
 }
+
+// CALIFICACIONES-01c (S-15, §D-12.1): puntos y porcentajes en es-MX, con hasta 2 decimales, sin ceros
+// de relleno y sin separador de miles ("8.5", "10", "7.78", "1000").
+const FORMATO_DE_PUNTOS = new Intl.NumberFormat("es-MX", {
+  maximumFractionDigits: 2,
+  useGrouping: false,
+})
+
+export const formatearPuntos = (n: number): string => FORMATO_DE_PUNTOS.format(n)
+
+// Con un espacio de no separación antes del signo, para que "%" nunca quede solo en otra línea.
+const ESPACIO_DE_NO_SEPARACION = "\u00a0"
+
+export const formatearPorcentaje = (n: number): string =>
+  `${formatearPuntos(n)}${ESPACIO_DE_NO_SEPARACION}%`

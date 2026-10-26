@@ -231,6 +231,7 @@ describe("ver la entrega propia (PR-1B05)", () => {
         adjuntos: [],
         puedeEntregar,
         puedeAnular: false,
+        calificacion: null,
       })
       expect(await contarEntregasDeTarea(tareaId)).toBe(0)
     }
@@ -586,6 +587,7 @@ describe("anular (PR-1B11 a PR-1B13)", () => {
       adjuntos: [],
       puedeEntregar: true,
       puedeAnular: false,
+      calificacion: null,
     })
     expect(await leerEntregaDb(tareaId, e.alumno.id)).toMatchObject({
       estado: "asignado",

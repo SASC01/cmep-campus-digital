@@ -8,12 +8,13 @@ import {
   tareaRespuestaSchema,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef, type RefObject } from "react"
+import { useEffect, useRef } from "react"
 import { useLocation } from "react-router"
 import { toast } from "sonner"
 
 import { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
 import { api, esApiError } from "@/services/apiClient"
+import { clavePrefijoDeCalificaciones } from "@/services/calificacionesService"
 import { clavePublicaciones } from "@/services/clasesService"
 import {
   claveCategorias,
@@ -28,6 +29,7 @@ import {
 import {
   CODIGOS_QUE_RENUEVAN_LA_TAREA,
   OPCIONES_QUE_CAMBIARON_POR_CODIGO,
+  TEXTOS_CALIFICAR,
   TEXTOS_DETALLE_TAREA,
   TEXTOS_FORMULARIO_TAREA,
   TEXTOS_TU_TRABAJO,
@@ -41,19 +43,36 @@ import {
   errorDeEnlacesDeApi,
   errorDeTextoDeApi,
   erroresDeLaTareaDeApi,
+  esConflictoDeCalificacion,
   esConflictoDeEntrega,
+  erroresDeCalificacionDeApi,
   errorQueRedirigeElCliente,
   errorQueReemplazaLaVista,
   esEntregaVacia,
   esTareaConEntregas,
   mensajeDeErrorTareas,
+  mensajeDelAvisoDeCalificar,
+  mensajeDelCampoDeCalificacion,
   rutaDeBorrarTarea,
+  rutaDeCalificacion,
   rutaDeEntregaDeAlumno,
+  rutaDelHiloDeAlumno,
   rutaDeMiEntrega,
   rutaDePaginaDeEntregas,
   rutaDePaginaDelHilo,
 } from "./lib"
-import type { CrearComentario, CrearTarea, EditarTarea, Entregar, FalloDeLaConsulta } from "./types"
+import type {
+  CrearComentario,
+  CrearTarea,
+  EditarTarea,
+  Entregar,
+  FalloDeLaConsulta,
+  VariablesDeCalificar,
+} from "./types"
+
+// CALIFICACIONES-01d (§D-13.1): el gancho de foco vive en components/foco; se reexporta con su
+// nombre para que ningún importador de este módulo cambie.
+export { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 
 // §D-10 (Enmienda 4, C-13): el único lugar de features/tareas que llama a perspectivaDeRuta. Las tres
 // vistas lo usan para sus enlaces y su navegación; la perspectiva solo decide qué se muestra, el
@@ -211,6 +230,11 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
 // avisado se guarda fuera del componente, por consulta (la instancia de la caché), con el contador de
 // errores de la consulta y su fecha: dos fallos seguidos avisan dos veces aunque caigan en el mismo
 // milisegundo, y StrictMode (que ejecuta el efecto dos veces) no duplica el aviso.
+// CALIFICACIONES-01c (M-07): `callado` es un fallo que la vista tiene a la vista pero no anuncia (la
+// entrega de un alumno la reemplazó, o se está volviendo a pedir y aún no se sabe). Si la vista se
+// desmonta así, el fallo queda como atendido sin aviso: la siguiente vista de la tarea no lo repite y
+// solo anuncia los fallos de sus propias recargas. Si deja de estar callado con la vista montada (la
+// entrega vuelve bien), se anuncia una vez como siempre.
 const ultimoFalloAvisado = new WeakMap<object, string>()
 
 export const useAvisoDeRecargaFallida = (
@@ -219,9 +243,24 @@ export const useAvisoDeRecargaFallida = (
   activo: boolean,
   fallo: FalloDeLaConsulta,
   texto: string,
+  callado = false,
 ) => {
   const queryClient = useQueryClient()
   const marca = `${fallo.errorUpdateCount}:${fallo.errorUpdatedAt}`
+  const alSalirRef = useRef({ callado, marca })
+  useEffect(() => {
+    alSalirRef.current = { callado, marca }
+  })
+  useEffect(() => {
+    const alSalir = alSalirRef
+    return () => {
+      if (!alSalir.current.callado) return
+      const consulta = queryClient
+        .getQueryCache()
+        .find({ queryKey: claveTarea(claseId, tareaId), exact: true })
+      if (consulta !== undefined) ultimoFalloAvisado.set(consulta, alSalir.current.marca)
+    }
+  }, [queryClient, claseId, tareaId])
   useEffect(() => {
     if (!activo) return
     const consulta = queryClient
@@ -245,74 +284,6 @@ export const useAvisoDeRecargaFallida = (
     void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
     avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
   }
-}
-
-// T-09 y T-14 (DESIGN.md §7.14): si el control que tenía el foco desaparece porque una recarga cambió lo
-// que la vista muestra (un permiso que pasa a false, la tarea que ya no existe, un error, otra tarea),
-// el foco no cae en <body>: va al contenedor de la vista (tabIndex -1). `clave` resume lo que la vista
-// muestra; el foco se recoloca solo cuando cambia, solo si el control que lo tenía estaba dentro del
-// contenedor y ya no está en el documento. Mismo criterio que useFilaEnFoco de features/clases: dentro
-// lo marca un focusin; un focusout sin destino con el control aún en el documento (un clic en blanco,
-// dentro o fuera de la vista) lo borra, para no robar el foco a quien lo soltó. Al cambiar de pestaña o
-// de aplicación el navegador también dispara ese focusout, pero el control sigue siendo el elemento
-// activo del documento y la ventana pierde el foco: la memoria se conserva. (Aquí el criterio de la
-// ventana es el elemento activo, no document.hasFocus(): en un clic en blanco el elemento activo pasa a
-// <body>, y al cambiar de pestaña sigue siendo el control.)
-export const useFocoAlPerderseElControl = (
-  contenedorRef: RefObject<HTMLElement | null>,
-  clave: string,
-) => {
-  const controlRef = useRef<Element | null>(null)
-  const ventanaConFoco = useRef(true)
-
-  useEffect(() => {
-    const alEnfocar = (evento: FocusEvent) => {
-      const contenedor = contenedorRef.current
-      const destino = evento.target
-      const dentro =
-        contenedor !== null && destino instanceof Element && contenedor.contains(destino)
-      controlRef.current = dentro ? destino : null
-    }
-    const alSalir = (evento: FocusEvent) => {
-      const objetivo = evento.target
-      if (evento.relatedTarget !== null || !(objetivo instanceof Element)) return
-      setTimeout(() => {
-        if (!objetivo.isConnected || !ventanaConFoco.current) return
-        if (document.activeElement === objetivo) return
-        if (controlRef.current === objetivo) controlRef.current = null
-      }, 0)
-    }
-    const alPerderLaVentana = () => {
-      ventanaConFoco.current = false
-    }
-    const alRecuperarLaVentana = () => {
-      ventanaConFoco.current = true
-    }
-    const alCambiarLaVisibilidad = () => {
-      ventanaConFoco.current = !document.hidden
-    }
-    document.addEventListener("focusin", alEnfocar)
-    document.addEventListener("focusout", alSalir)
-    document.addEventListener("visibilitychange", alCambiarLaVisibilidad)
-    window.addEventListener("blur", alPerderLaVentana)
-    window.addEventListener("focus", alRecuperarLaVentana)
-    return () => {
-      document.removeEventListener("focusin", alEnfocar)
-      document.removeEventListener("focusout", alSalir)
-      document.removeEventListener("visibilitychange", alCambiarLaVisibilidad)
-      window.removeEventListener("blur", alPerderLaVentana)
-      window.removeEventListener("focus", alRecuperarLaVentana)
-    }
-  }, [contenedorRef])
-
-  useEffect(() => {
-    const control = controlRef.current
-    if (control === null || control.isConnected) return
-    const activo = document.activeElement
-    if (activo !== null && activo !== document.body && activo.isConnected) return
-    controlRef.current = null
-    contenedorRef.current?.focus()
-  }, [clave, contenedorRef])
 }
 
 // ENTREGAS-01d (§D-9.2 a §D-9.4). La entrega del alumno que llama: verla, entregar y anular. Los
@@ -363,6 +334,7 @@ const avisarDelErrorDeLaEntrega = (
   claseId: string,
   tareaId: string,
   error: unknown,
+  mensajeDe: (error: unknown) => string = mensajeDeErrorTareas,
 ) => {
   const consulta = errorQueReemplazaLaVista(true, error)
     ? queryClient.getQueryCache().find({ queryKey: claveTarea(claseId, tareaId), exact: true })
@@ -371,7 +343,7 @@ const avisarDelErrorDeLaEntrega = (
     if (tareaPerdidaAvisada.get(consulta) === consulta.state.dataUpdatedAt) return
     tareaPerdidaAvisada.set(consulta, consulta.state.dataUpdatedAt)
   }
-  toast.error(mensajeDeErrorTareas(error))
+  toast.error(mensajeDe(error))
 }
 
 export const useEntregar = (claseId: string, tareaId: string) => {
@@ -483,3 +455,57 @@ export const useEntregaDeAlumno = (claseId: string, tareaId: string, alumnoId: s
         schema: entregaDeAlumnoRespuestaSchema,
       }),
   })
+
+// CALIFICACIONES-01c (§D-12.4). Calificar (o recalificar) la entrega de un alumno: un maestro de la
+// clase. La respuesta reemplaza la entrega en caché; la lista de entregas, el gradebook y "Mis
+// calificaciones" (el prefijo de calificaciones de la clase) y, si hubo comentario, el hilo de ese
+// alumno se marcan viejos. Los avisos viven aquí (corren aunque la vista ya no esté montada).
+// - Un 409 de calificar avisa con el mensaje del servidor y nada más: la recarga la hace la vista,
+//   una sola vez (Enmienda 1, N-04).
+// - Un error de un campo que el panel puede pintar no avisa: lo pinta el panel; uno de un campo que el
+//   panel no tiene avisa con su mensaje (ronda 1, T-02). Si apiClient ya redirigió, nada.
+// - Lo demás sigue la regla de las tareas (T-11: un 404 de la tarea o del alumno, o un 403 de la clase,
+//   renuevan lo que reemplaza la vista) con un solo aviso por tarea perdida.
+export const useCalificarEntrega = (claseId: string, tareaId: string, alumnoId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ cuerpo }: VariablesDeCalificar) =>
+      api(rutaDeCalificacion(claseId, tareaId, alumnoId), {
+        method: "PUT",
+        body: cuerpo,
+        schema: entregaDeAlumnoRespuestaSchema,
+      }),
+    onSuccess: (respuesta, { cuerpo, habiaCalificacion }) => {
+      queryClient.setQueryData(claveEntregaDeAlumno(claseId, tareaId, alumnoId), respuesta)
+      void queryClient.invalidateQueries({ queryKey: claveListaDeEntregas(claseId, tareaId) })
+      void queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) })
+      if (cuerpo.comentario !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: claveHilo(rutaDelHiloDeAlumno(claseId, tareaId, alumnoId)),
+        })
+      }
+      toast.success(
+        habiaCalificacion ? TEXTOS_CALIFICAR.avisoActualizada : TEXTOS_CALIFICAR.avisoPublicada,
+      )
+    },
+    onError: (error, { cuerpo }) => {
+      if (esConflictoDeCalificacion(error)) {
+        toast.error(mensajeDeErrorTareas(error))
+        return
+      }
+      void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
+      if (errorQueRedirigeElCliente(error)) return
+      // Ronda 1 (T-02): calla solo si el panel puede pintar el error (con la misma regla y los mismos
+      // criterios, los del envío, en su orden); un campo que el panel no tiene se avisa una vez.
+      const criteriosEnviados = cuerpo.puntajes.map(({ criterioId }) => ({ id: criterioId }))
+      if (erroresDeCalificacionDeApi(error, criteriosEnviados) !== null) return
+      const sinLugar = mensajeDelCampoDeCalificacion(error)
+      if (sinLugar !== null) {
+        toast.error(sinLugar)
+        return
+      }
+      // Ronda 2 (T-04): sin el prefijo de ruta que el panel no reconoce.
+      avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error, mensajeDelAvisoDeCalificar)
+    },
+  })
+}

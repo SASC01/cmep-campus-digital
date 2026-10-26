@@ -68,6 +68,7 @@ const MI_ENTREGA = {
     adjuntos: [],
     puedeEntregar: true,
     puedeAnular: false,
+    calificacion: null,
   },
 }
 

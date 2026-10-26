@@ -14,6 +14,7 @@ import type { Almacen } from "./core/archivos/almacen.js"
 import { adminHandler } from "./handlers/admin.js"
 import { archivosHandler } from "./handlers/archivos.js"
 import { authHandler } from "./handlers/auth/index.js"
+import { calificacionesHandler } from "./handlers/calificaciones.js"
 import { cuentasHandler } from "./handlers/auth/cuentas.js"
 import { registroMaestroHandler } from "./handlers/auth/registro-maestro.js"
 import { alumnosHandler } from "./handlers/clases/alumnos.js"
@@ -85,6 +86,7 @@ export const construirApp = async ({
   await app.register(tareasHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(entregasHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(hiloPrivadoHandler, { prefix: "/api" })
+  await app.register(calificacionesHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(adminHandler, {
     prefix: "/api/admin",
     limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO,

@@ -357,11 +357,12 @@ describe("ataque CLASES-02c r1: cambiar de sección en la clase del admin", () =
     // TAREAS-01e ronda 0 (C-11, §D-R0; §D-11): el admin gana "Trabajo de clase" como segunda
     // sección (cuatro en total). El recorrido de abajo no cambia: sigue protegiendo que aria-current
     // siga a la sección pulsada y que el foco quede en el enlace.
+    // C-10 de CALIFICACIONES-01d (§D-R0, A-5): la lista del admin suma "Calificaciones" al final.
     expect(
       within(secciones)
         .getAllByRole("link")
         .map((e) => e.textContent),
-    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros"])
+    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"])
     expect(actual()).toEqual(["Muro"])
     for (const [nombre, ruta, encabezado] of [
       ["Alumnos", `/admin/clases/${CLASE_ID}/alumnos`, "Alumnos"],

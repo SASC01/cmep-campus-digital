@@ -242,6 +242,8 @@ export const TEXTOS_CLASE = {
   personas: "Personas",
   alumnos: "Alumnos",
   maestrosDeLaClase: "Maestros",
+  // CALIFICACIONES-01d (§D-13.6, S-10): la sección nueva, última en las tres perspectivas.
+  calificaciones: "Calificaciones",
   editar: "Editar clase",
   secciones: "Secciones de la clase",
   // TAREAS-01c (§D-9): el texto vive en components/clase/data.ts, junto a ConClaseDeLaRuta.
@@ -381,6 +383,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
       { segmento: "", texto: TEXTOS_CLASE.muro },
       { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "personas", texto: TEXTOS_CLASE.personas },
+      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
     ],
     verCodigo: false,
     editar: false,
@@ -397,6 +400,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
       { segmento: "", texto: TEXTOS_CLASE.muro },
       { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
+      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
     ],
     verCodigo: true,
     editar: false,
@@ -414,6 +418,7 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
       { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
       { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
       { segmento: "maestros", texto: TEXTOS_CLASE.maestrosDeLaClase },
+      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
     ],
     verCodigo: true,
     editar: true,
@@ -426,22 +431,26 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
 
 // §D-2C1: el indicador de las secciones mide 1/N y se traslada una posición por sección. Clases
 // completas, escritas enteras para que Tailwind las encuentre. TAREAS-01e (§D-11): con "Trabajo de
-// clase" son tres (estudiante y maestro) o cuatro (admin).
+// clase" son tres (estudiante y maestro) o cuatro (admin). CALIFICACIONES-01d (§D-13.6): con
+// "Calificaciones" son cuatro o cinco.
 export const CLASES_DEL_INDICADOR_POR_SECCIONES: Record<number, string> = {
   2: "w-1/2",
   3: "w-1/3",
   4: "w-1/4",
+  5: "w-1/5",
 }
 export const CLASES_DE_LA_REJILLA_POR_SECCIONES: Record<number, string> = {
   2: "grid-cols-2",
   3: "grid-cols-3",
   4: "grid-cols-4",
+  5: "grid-cols-5",
 }
 export const CLASES_DE_POSICION_DEL_INDICADOR = [
   "",
   "translate-x-full",
   "translate-x-[200%]",
   "translate-x-[300%]",
+  "translate-x-[400%]",
 ] as const
 
 // TAREAS-01e (§D-11, Enmienda 5): "Trabajo de clase" pide la primera página de cada tema de 5 en 5,

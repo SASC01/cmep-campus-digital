@@ -3,6 +3,7 @@ import {
   puedeEditarTarea,
   type ParticipanteDeAutoria,
 } from "../../core/autoria.js"
+import { exigirRubricaCongelada } from "../../core/calificaciones/calificar.js"
 import { exigirVersion } from "../../core/concurrencia.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
@@ -351,6 +352,8 @@ interface FilaBloqueada {
 
 interface FilaBloqueadaConVersion extends FilaBloqueada {
   version: number
+  // CALIFICACIONES-01a (§D-4): los puntos actuales, para congelarlos si hay calificaciones.
+  puntos: number
 }
 
 // El autor (id y rol) y si sigue siendo maestro de la clase (lectura por la PK de maestros_de_clase),
@@ -379,6 +382,10 @@ const autorYPertenencia = async (
 // misma versión nunca dan dos 200), fecha, categoría y tema, plan del recordatorio, publicación y
 // tarea (la versión sube en 1), criterios (se reemplazan), archivos y alReprogramar. null: la tarea no
 // existe en esa clase (o la borraron antes).
+// CALIFICACIONES-01a (§D-4, P-04 a con N-02): después de la versión y antes de la fecha, el conteo de
+// entregas calificadas y la rúbrica actual; con calificaciones, cambiar los puntos o la rúbrica es 409
+// TAREA_CON_CALIFICACIONES sin escribir nada. Una rúbrica idéntica nunca se reemplaza (sus ids se
+// conservan para los puntajes); una distinta, sin calificaciones, sí.
 export const editarTarea = (
   {
     claseId,
@@ -407,7 +414,7 @@ export const editarTarea = (
 ): Promise<TareaDetalleDb | null> =>
   enTransaccion(ejecutor, async (tx) => {
     const [fila] = await tx.$queryRaw<FilaBloqueadaConVersion[]>`
-      SELECT t.id, t.fecha_limite, t.trabajo_id, t.version, p.autor_id
+      SELECT t.id, t.fecha_limite, t.trabajo_id, t.version, t.puntos, p.autor_id
       FROM tareas t
       JOIN publicaciones p ON p.id = t.id
       WHERE t.id = ${tareaId}::uuid AND t.clase_id = ${claseId}::uuid
@@ -420,6 +427,19 @@ export const editarTarea = (
     })
     if (!puedeEditarTarea(actor, autor, sigueEnLaClase)) throw errorEdicionNoPermitida()
     exigirVersion({ leida: version, actual: fila.version }, tareaModificada)
+    const calificadas = await tx.entrega.count({ where: { tareaId, estado: "calificado" } })
+    const rubricaActual = await tx.criterioRubrica.findMany({
+      where: { tareaId },
+      orderBy: { orden: "asc" },
+      select: { criterio: true, puntosMax: true },
+    })
+    const { reemplazarRubrica } = exigirRubricaCongelada({
+      calificadas,
+      puntosActuales: fila.puntos,
+      puntosNuevos: datos.puntos,
+      rubricaActual,
+      rubricaNueva: datos.rubrica,
+    })
     validarFechaLimite({ nueva: datos.fechaLimite, anterior: fila.fecha_limite, ahora })
     await asegurarReferencias(tx, {
       claseId,
@@ -457,17 +477,20 @@ export const editarTarea = (
       },
     })
 
-    // S-04: editar la rúbrica reemplaza todos sus criterios.
-    await tx.criterioRubrica.deleteMany({ where: { tareaId } })
-    if (datos.rubrica.length > 0) {
-      await tx.criterioRubrica.createMany({
-        data: datos.rubrica.map((criterio, orden) => ({
-          tareaId,
-          criterio: criterio.criterio,
-          puntosMax: criterio.puntosMax,
-          orden,
-        })),
-      })
+    // S-04: editar la rúbrica reemplaza todos sus criterios; desde CALIFICACIONES-01a (N-02), solo si
+    // cambió.
+    if (reemplazarRubrica) {
+      await tx.criterioRubrica.deleteMany({ where: { tareaId } })
+      if (datos.rubrica.length > 0) {
+        await tx.criterioRubrica.createMany({
+          data: datos.rubrica.map((criterio, orden) => ({
+            tareaId,
+            criterio: criterio.criterio,
+            puntosMax: criterio.puntosMax,
+            orden,
+          })),
+        })
+      }
     }
 
     // Archivos: los conservados deben seguir confirmados en esta publicación; los nuevos se confirman

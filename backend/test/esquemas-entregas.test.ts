@@ -78,6 +78,7 @@ describe("enlaceDeEntregaSchema (PR-1B04)", () => {
       adjuntos: [],
       puedeEntregar: false,
       puedeAnular: true,
+      calificacion: null,
     }
     expect(miEntregaSchema.safeParse({ ...base, enlaces: ["https://ejemplo.com/"] }).success).toBe(
       true,

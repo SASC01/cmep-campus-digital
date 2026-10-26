@@ -99,6 +99,7 @@ const stubDeLaClase = (rol: "estudiante" | "maestro" | "admin") => {
             enlaces: [],
             adjuntos: [],
             version: 0,
+            calificacion: null,
           },
         }),
       )

@@ -162,7 +162,7 @@ muchos clientes a la vez. Hoy solo la usan `registrarMaestroConEnlace` y `revoca
 (10 s, M-08): cada registro del mismo enlace toma una conexión antes de formarse en la fila, y con
 el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
-`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `listarClasesAdmin`, `listarClasesInscritas`, `listarClasesImpartidas`, `leerClase`, `listarPublicaciones` y `listarComentarios`.
+`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` (`db/clases.ts`); `listarPublicaciones` y `listarComentarios` (`db/publicaciones.ts`); `leerTarea` y `listarTrabajo` (`db/tareas.ts`); `leerMiEntrega`, `listarEntregas`, `leerEntregaDeAlumno` y `listarHiloPrivado` (`db/entregas.ts`), y `leerGradebook` y `leerMisCalificaciones` (`db/calificaciones.ts`).
 
 ## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
 
@@ -447,3 +447,82 @@ ni la versión de la entrega, S-15), inserta el comentario y llama a `alGuardar(
 La firma del autor (`firmaDelAutor`) y `propio` se arman aquí; el rol del autor nunca sale. Las
 lecturas y borrados del muro filtran por `publicacionId` o por `publicacion: { claseId }`, que un
 comentario privado nunca cumple.
+
+## Calificar en `db/entregas.ts` y la rúbrica congelada en `db/tareas.ts` (CALIFICACIONES-01a, §D-3, §D-4, §D-5 y §D-9)
+
+**Calificar** (`calificarEntrega`) corre en READ COMMITTED con el orden de bloqueo del proyecto, en
+este orden: la fila de `tareas` con `bloquearTareaParaCalificar` (`FOR SHARE`, el único de su modo en
+`entregas.ts`; lee `fecha_limite`, `acepta_tardias` y `puntos`), el alumno de la ruta (inscrito con
+cuenta activa, `404 ALUMNO_NO_ENCONTRADO`), los criterios de la rúbrica (estables: quien los reemplaza
+espera al bloqueo de la tarea), la fila perezosa (`asegurarFilaDeEntrega`), la fila de `entregas`
+(`FOR NO KEY UPDATE`), la versión que vio quien califica (`exigirVersion`, `409 ENTREGA_MODIFICADA`) y
+las reglas de `core/calificaciones/calificar.ts` (`exigirEntregaCalificable` con P-03 (c′) y
+`decidirCalificacion`, que compara también los puntos de la tarea con que se abrió el panel). Antes de
+eso la única escritura es la fila perezosa; si algo lanza, se revierte con la transacción. Después:
+`puntajeRubrica.deleteMany` y `createMany` (una sentencia cada una), la entrega a `calificado` con la
+calificación, la fecha y `version + 1`, el comentario de devolución en el hilo privado (sin aviso
+propio) y `alGuardar(sql, { entregaId, version })`, donde el handler encola `CALIFICACION_PUBLICADA`.
+Responde con `leerEntregaDeAlumno` en la misma transacción.
+
+| Operación                  | Bloquea, en orden                                                                                                                                                                         | Choca con                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Calificar                  | `tareas` `FOR SHARE`; `entregas` `FOR NO KEY UPDATE`; `puntajes_rubrica` (la FK diferida comprueba los criterios, y toma su `FOR KEY SHARE`, al confirmar, no al insertar); `comentarios` | Editar y mover de tema (`FOR NO KEY UPDATE`) y borrar (`FOR UPDATE`) esa tarea: en serie |
+| Editar tarea (P-04 a)      | `tareas` `FOR NO KEY UPDATE`; conteo de calificadas y criterios (sin bloqueo); criterios solo si se reemplazan                                                                            | Calificar (la edición posterior ve la calificación: `409 TAREA_CON_CALIFICACIONES`)      |
+| Entregar, anular, comentar | `tareas` `FOR KEY SHARE`; `entregas` `FOR NO KEY UPDATE`                                                                                                                                  | Calificar al mismo alumno, en serie sobre su fila de `entregas`                          |
+
+Calificar no choca con entregar, anular, comentar ni con otra calificación de la misma tarea sobre la
+fila de `tareas` (modos compatibles con `FOR SHARE`); dos operaciones del mismo alumno quedan en serie
+sobre su fila de `entregas` y la segunda decide con lo que dejó la primera. Ninguna operación toma una
+fila hija antes que la tarea: no hay ciclos. Un `P2028` responde `503 SERVICIO_OCUPADO`.
+
+**Lecturas de una entrega (§D-5).** `leerMiEntrega` y `leerEntregaDeAlumno` leen además los puntos de
+la tarea y, solo si la entrega está calificada, sus puntajes con el texto, el máximo y el orden de cada
+criterio (una consulta por petición). Una calificada sin calificación, o al revés, es inalcanzable por
+`entregas_calificacion_segun_estado`: error explícito (500), nunca un valor inventado. El `Decimal` de
+Prisma sale como `number`.
+
+**Editar una tarea calificada (§D-4, P-04 a con N-02).** `editarTarea` suma `t.puntos` a su
+`SELECT … FOR NO KEY UPDATE OF t` y, después de la versión y antes de la fecha, cuenta las entregas
+calificadas y lee la rúbrica actual: `exigirRubricaCongelada` responde `409 TAREA_CON_CALIFICACIONES`
+sin escribir nada si cambian los puntos o la rúbrica de una tarea calificada. Una rúbrica idéntica
+nunca se reemplaza, con o sin calificaciones: sus ids se conservan y los puntajes siguen apuntando a
+ellos.
+
+**La FK diferida de `puntajes_rubrica.criterio_id` (Enmienda 1, M-01).** Es `NO ACTION DEFERRABLE
+INITIALLY DEFERRED`, escrita a mano en la migración con el mismo nombre (Prisma no la expresa y
+`migrate diff` no la ve distinta). Al borrar una tarea o una clase, la cascada se lleva los puntajes
+en la misma sentencia y la comprobación corre al confirmar, sin depender del orden de los disparadores.
+Si un defecto borrara los criterios de una tarea calificada, la transacción falla al confirmar en lugar
+de borrar el desglose en silencio. Por ser diferida, la comprobación de `criterio_id`, y su
+`FOR KEY SHARE` sobre los criterios, corre al confirmar, no al insertar ni al borrar (N-16). Tampoco
+ahí hay ciclo: quien borra criterios (`editarTarea`, la cascada de una tarea o una clase) espera antes
+en la fila de `tareas`, que calificar retiene `FOR SHARE` hasta confirmar.
+
+## El gradebook y "Mis calificaciones" en `db/calificaciones.ts` (CALIFICACIONES-01b, §D-6 y §D-7)
+
+Solo lecturas: ninguna función del archivo escribe ni bloquea filas. `leerGradebook` y
+`leerMisCalificaciones` corren cada una en una instantánea única (`enTransaccion` con la opción de solo
+lectura), con las sentencias en serie: los cursores se comprueban antes de la página y los agregados
+salen de la misma instantánea que las celdas, así que una calificación que llega en medio no deja un
+resumen distinto de lo que se ve, y un cursor borrado después de comprobarlo no deja una página vacía.
+
+- **Columnas y "Mis calificaciones"**: `tarea.findMany` por conjunto de claves
+  `(fecha_limite DESC, id DESC)` sobre `tareas(clase_id, fecha_limite)`, sin el `cursor` de Prisma. El
+  cursor es una tarea de la clase, comprobada por `(id, clase_id)` (`400 VALIDACION` si no lo es); su
+  clave sirve aunque la tarea ya no pase el filtro. Los filtros de "Mis calificaciones" van por el
+  estado de la entrega del alumno (`EXISTS` por el único `(tarea_id, alumno_id)`): una calificada sin
+  entrega está en "calificadas" y no en "asignadas" ni en "sin-entregar".
+- **Filas del gradebook**: `condicionesDePaginaDeAlumnos` de `inscripciones.ts` (el roster: inscritos
+  con cuenta activa, por `nombre_busqueda` y `usuario_id`).
+- **Celdas**: una sola consulta de `entregas` por las tareas de la ventana y los alumnos de la página.
+  Sin fila: `asignado`, sin retraso ni calificación.
+- **Agregados** (SQL etiquetado y parametrizado; Prisma no agrupa por un campo de otra tabla): lo
+  calificado por alumno y categoría en toda la clase (§D-6.5) y las vencidas sin entregar por alumno
+  (§D-6.6; una calificada sin entrega no cuenta), y lo calificado del alumno por categoría en "Mis
+  calificaciones" (§D-7.4, por `entregas_alumno_id_idx`). La calificación general, el promedio de la
+  clase y el riesgo salen de `core/calificaciones/` (`calificacionGeneral`, `promedioDeLaClase`,
+  `motivosDeRiesgo`), con la misma suma en los dos lados. Nada se guarda.
+
+El número de sentencias es fijo (siete en el gradebook, nueve con los dos cursores; cuatro en "Mis
+calificaciones", cinco con el cursor): ninguna consulta va dentro de un ciclo. Ninguna selecciona el
+correo, el estado de pago, la restricción, el rol ni la versión.

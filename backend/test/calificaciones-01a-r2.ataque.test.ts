@@ -605,7 +605,8 @@ describe("ataque CALIFICACIONES-01a r2: la calificada sin entrega como estado (P
       409,
       "TAREA_CON_ENTREGAS",
     )
-    expect(mensajeDe(maestra)).toContain("2 entregas")
+    // N-19 (carril trivial, 2026-10-26): el 409 cuenta alumnos con entrega o calificación
+    expect(mensajeDe(maestra)).toContain("2 alumnos con entrega o calificación")
     // Con una de ellas dada de baja, la regla del plan la sigue contando (de cualquier alumno).
     conEstado(
       await pedir(

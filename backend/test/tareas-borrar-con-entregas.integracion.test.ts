@@ -226,13 +226,13 @@ const foto = async (e: Escenario) => {
 }
 
 const MENSAJE_MAESTRO_1 =
-  "Esta tarea tiene 1 entrega y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración."
+  "Esta tarea tiene 1 alumno con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración."
 const mensajeMaestro = (n: number): string =>
-  `Esta tarea tiene ${String(n)} entregas y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.`
+  `Esta tarea tiene ${String(n)} alumnos con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.`
 const MENSAJE_ADMIN_1 =
-  "Esta tarea tiene 1 entrega. Si la borras, también se borrarán la entrega y los comentarios privados, y no se puede deshacer."
+  "Esta tarea tiene 1 alumno con entrega o calificación. Si la borras, también se borrarán su entrega, su calificación y los comentarios privados, y no se puede deshacer."
 const mensajeAdmin = (n: number): string =>
-  `Esta tarea tiene ${String(n)} entregas. Si la borras, también se borrarán las entregas y los comentarios privados, y no se puede deshacer.`
+  `Esta tarea tiene ${String(n)} alumnos con entrega o calificación. Si la borras, también se borrarán sus entregas, sus calificaciones y los comentarios privados, y no se puede deshacer.`
 
 // Borra y exige el 409 con el mensaje dado, sin ningún cambio en la foto.
 const rechazaSinCambios = async (

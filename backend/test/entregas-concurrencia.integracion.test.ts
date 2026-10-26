@@ -318,7 +318,7 @@ describe("carreras del borrado de una tarea con entregas (PR-1B22 bis)", () => {
     expect(rechazo.statusCode).toBe(409)
     expect(codigoDe(rechazo)).toBe("TAREA_CON_ENTREGAS")
     expect(errorApiSchema.parse(rechazo.json()).error.mensaje).toBe(
-      "Esta tarea tiene 1 entrega y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
+      "Esta tarea tiene 1 alumno con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
     )
     expect(await obtenerDb().tarea.count({ where: { id: e.tareaId } })).toBe(1)
     expect(await leerEntregaDb(e.tareaId, e.alumno.id)).toMatchObject({ estado: "entregado" })

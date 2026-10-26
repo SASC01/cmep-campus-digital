@@ -48,13 +48,18 @@ export const validarCategoriaRequerida = ({
 
 // ENTREGAS-01b (S-06, modificada por el humano el 2026-10-11; §D-3.8). El mensaje del 409, en
 // singular o plural, según quién lo recibe; la interfaz lo muestra tal cual.
+// N-19 de CALIFICACIONES-01 (2026-10-26): con P-03 (c′) una calificada sin entrega cuenta, así que el texto cuenta alumnos con entrega o calificación.
 export const mensajeTareaConEntregas = (entregas: number, rolDelActor: Rol): string => {
-  const cuantas = entregas === 1 ? "1 entrega" : `${String(entregas)} entregas`
+  const cuantos =
+    entregas === 1
+      ? "1 alumno con entrega o calificación"
+      : `${String(entregas)} alumnos con entrega o calificación`
   if (rolDelActor === "admin") {
-    const cuales = entregas === 1 ? "la entrega" : "las entregas"
-    return `Esta tarea tiene ${cuantas}. Si la borras, también se borrarán ${cuales} y los comentarios privados, y no se puede deshacer.`
+    const cuales =
+      entregas === 1 ? "su entrega, su calificación" : "sus entregas, sus calificaciones"
+    return `Esta tarea tiene ${cuantos}. Si la borras, también se borrarán ${cuales} y los comentarios privados, y no se puede deshacer.`
   }
-  return `Esta tarea tiene ${cuantas} y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.`
+  return `Esta tarea tiene ${cuantos} y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.`
 }
 
 // Una tarea con entregas (entregado o calificado) no se borra sin confirmarlo, y solo el admin puede

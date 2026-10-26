@@ -32,9 +32,9 @@ const ALUMNO_ID = uuid(301)
 const RUTA_ALUMNO = `${RUTA_ENTREGAS}/${ALUMNO_ID}`
 const RUTA_HILO_ALUMNO = `${RUTA_ALUMNO}/comentarios`
 const MENSAJE_MAESTRO =
-  "Esta tarea tiene 2 entregas y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración."
+  "Esta tarea tiene 2 alumnos con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración."
 const MENSAJE_ADMIN =
-  "Esta tarea tiene 2 entregas. Si la borras, también se borrarán las entregas y los comentarios privados, y no se puede deshacer."
+  "Esta tarea tiene 2 alumnos con entrega o calificación. Si la borras, también se borrarán sus entregas, sus calificaciones y los comentarios privados, y no se puede deshacer."
 
 type Perspectiva = "estudiante" | "maestro" | "admin"
 

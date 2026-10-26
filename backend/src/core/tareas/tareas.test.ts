@@ -102,15 +102,15 @@ describe("tareaModificada (§D-7)", () => {
 describe("exigirBorradoConEntregasPermitido y mensajeTareaConEntregas (PR-1B27)", () => {
   const mensajeEsperado = (entregas: number, rol: Rol): string => {
     if (rol === "admin" && entregas === 1) {
-      return "Esta tarea tiene 1 entrega. Si la borras, también se borrarán la entrega y los comentarios privados, y no se puede deshacer."
+      return "Esta tarea tiene 1 alumno con entrega o calificación. Si la borras, también se borrarán su entrega, su calificación y los comentarios privados, y no se puede deshacer."
     }
     if (rol === "admin") {
-      return `Esta tarea tiene ${String(entregas)} entregas. Si la borras, también se borrarán las entregas y los comentarios privados, y no se puede deshacer.`
+      return `Esta tarea tiene ${String(entregas)} alumnos con entrega o calificación. Si la borras, también se borrarán sus entregas, sus calificaciones y los comentarios privados, y no se puede deshacer.`
     }
     if (entregas === 1) {
-      return "Esta tarea tiene 1 entrega y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración."
+      return "Esta tarea tiene 1 alumno con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración."
     }
-    return `Esta tarea tiene ${String(entregas)} entregas y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.`
+    return `Esta tarea tiene ${String(entregas)} alumnos con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.`
   }
 
   const resultado = (p: {
@@ -157,22 +157,22 @@ describe("exigirBorradoConEntregasPermitido y mensajeTareaConEntregas (PR-1B27)"
 
   it("PR-1B27: los mensajes exactos de §D-3.8 en singular (1) y en plural (2 y 30), para el admin y para el maestro", () => {
     expect(mensajeTareaConEntregas(1, "admin")).toBe(
-      "Esta tarea tiene 1 entrega. Si la borras, también se borrarán la entrega y los comentarios privados, y no se puede deshacer.",
+      "Esta tarea tiene 1 alumno con entrega o calificación. Si la borras, también se borrarán su entrega, su calificación y los comentarios privados, y no se puede deshacer.",
     )
     expect(mensajeTareaConEntregas(2, "admin")).toBe(
-      "Esta tarea tiene 2 entregas. Si la borras, también se borrarán las entregas y los comentarios privados, y no se puede deshacer.",
+      "Esta tarea tiene 2 alumnos con entrega o calificación. Si la borras, también se borrarán sus entregas, sus calificaciones y los comentarios privados, y no se puede deshacer.",
     )
     expect(mensajeTareaConEntregas(30, "admin")).toBe(
-      "Esta tarea tiene 30 entregas. Si la borras, también se borrarán las entregas y los comentarios privados, y no se puede deshacer.",
+      "Esta tarea tiene 30 alumnos con entrega o calificación. Si la borras, también se borrarán sus entregas, sus calificaciones y los comentarios privados, y no se puede deshacer.",
     )
     expect(mensajeTareaConEntregas(1, "maestro")).toBe(
-      "Esta tarea tiene 1 entrega y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
+      "Esta tarea tiene 1 alumno con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
     )
     expect(mensajeTareaConEntregas(2, "maestro")).toBe(
-      "Esta tarea tiene 2 entregas y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
+      "Esta tarea tiene 2 alumnos con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
     )
     expect(mensajeTareaConEntregas(30, "estudiante")).toBe(
-      "Esta tarea tiene 30 entregas y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
+      "Esta tarea tiene 30 alumnos con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
     )
   })
 

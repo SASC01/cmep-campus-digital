@@ -916,9 +916,10 @@ describe("ataque ENTREGAS-01b r1: borrar una tarea con entregas (§D-3.8)", () =
     }
     expect(fallas).toEqual([])
     const maestro = await pedir("DELETE", `${base(e.claseId, t)}?confirmar=entregas`, e.t.maestro)
+    // N-19 (carril trivial, 2026-10-26): el 409 cuenta alumnos con entrega o calificación
     expect([resultado(maestro), errorApiSchema.parse(maestro.json()).error.mensaje]).toEqual([
       "409 TAREA_CON_ENTREGAS",
-      "Esta tarea tiene 2 entregas y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
+      "Esta tarea tiene 2 alumnos con entrega o calificación y no se puede borrar. Si de verdad hay que borrarla, pídelo a administración.",
     ])
     expect(await foto(t)).toEqual(antes)
   })
@@ -938,9 +939,10 @@ describe("ataque ENTREGAS-01b r1: borrar una tarea con entregas (§D-3.8)", () =
       data: { entregaId: asignada, autorId: e.beto.id, texto: "privado" },
     })
     const sin = await pedir("DELETE", base(e.claseId, t), e.t.admin)
+    // N-19 (carril trivial, 2026-10-26): el 409 cuenta alumnos con entrega o calificación
     expect([resultado(sin), errorApiSchema.parse(sin.json()).error.mensaje]).toEqual([
       "409 TAREA_CON_ENTREGAS",
-      "Esta tarea tiene 1 entrega. Si la borras, también se borrarán la entrega y los comentarios privados, y no se puede deshacer.",
+      "Esta tarea tiene 1 alumno con entrega o calificación. Si la borras, también se borrarán su entrega, su calificación y los comentarios privados, y no se puede deshacer.",
     ])
     expect(
       resultado(await pedir("DELETE", `${base(e.claseId, t)}?confirmar=entregas`, e.t.admin)),

@@ -1,13 +1,9 @@
 import { estadoDeEntregaVisible, TEXTOS_ESTADO_DE_ENTREGA } from "@/lib/estado-de-entrega"
-import { campoDeErrorDeApi } from "@/lib/errores-de-api"
+import { campoDeErrorDeApi, esErrorDeCursor } from "@/lib/errores-de-api"
 import { formatearPuntos } from "@/lib/format"
-import { esApiError } from "@/services/apiClient"
+import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
 
-import {
-  CODIGOS_QUE_REDIRIGE_EL_CLIENTE,
-  MENSAJES_ERROR_CALIFICACIONES,
-  TEXTOS_GRADEBOOK,
-} from "./data"
+import { MENSAJES_ERROR_CALIFICACIONES, TEXTOS_GRADEBOOK } from "./data"
 import type {
   AccionDeVentana,
   CeldaDelGradebook,
@@ -148,14 +144,9 @@ export const DIMENSION_DE_LA_ACCION: Readonly<Record<AccionDeVentana, DimensionD
 
 // Enmienda 2 (§D-13.2): el 400 de un cursor que la vista reconoce. Decide por el prefijo exacto que
 // lee campoDeErrorDeApi ("cursor:" en las dos vistas, más "cursorTareas:" en el gradebook), con
-// cualquier mensaje después; no mira lo que se envió.
-export const esErrorDeCursorDeCalificaciones = (
-  error: unknown,
-  campos: readonly string[],
-): boolean => {
-  const campo = campoDeErrorDeApi(error)
-  return campo !== null && campos.includes(campo)
-}
+// cualquier mensaje después; no mira lo que se envió. CHORE-03 (§D-4): es la misma función de
+// lib/errores-de-api.ts.
+export const esErrorDeCursorDeCalificaciones = esErrorDeCursor
 
 // Se perdió el acceso a la clase (o el id de la clase no sirve): reemplaza la vista.
 export const esErrorDeSinAcceso = (error: unknown): boolean =>

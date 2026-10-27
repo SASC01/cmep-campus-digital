@@ -351,14 +351,6 @@ export const OPCIONES_QUE_CAMBIARON_POR_CODIGO: Readonly<Record<string, "categor
 // ahora (se borró, cambió un permiso o se perdió el acceso): al borrar o guardar, la consulta de la
 // tarea se vuelve a pedir para que la vista reaccione. Solo TAREA_NO_ENCONTRADA toca además el muro, el
 // trabajo de clase, los temas y las categorías (la tarea ya no está en ninguna lista).
-// ENTREGAS-01d, ronda 2 (T-05): los errores con que apiClient ya saca a la persona de la vista (acceso
-// restringido, cambio de contraseña obligatorio, sesión perdida). Quien los recibe no avisa.
-export const CODIGOS_QUE_REDIRIGE_EL_CLIENTE: readonly string[] = [
-  "ACCESO_RESTRINGIDO",
-  "CAMBIO_DE_CONTRASENA_REQUERIDO",
-  "NO_AUTENTICADO",
-]
-
 // M-01, T-13 y ENTREGAS-01e (§D-10.3): los errores que reemplazan la vista de una tarea
 // (errorQueReemplazaLaVista): la tarea o el alumno ya no existen, o se perdió el acceso a la clase; un
 // VALIDACION de uno de esos ids dice lo mismo.

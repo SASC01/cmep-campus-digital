@@ -114,11 +114,3 @@ export const MENSAJES_ERROR_CALIFICACIONES = {
 // Enmienda 2 (§D-13.2): los campos de cursor que cada vista reconoce en un 400.
 export const CAMPOS_DE_CURSOR_DEL_GRADEBOOK: readonly string[] = ["cursor", "cursorTareas"]
 export const CAMPOS_DE_CURSOR_DE_MIS_CALIFICACIONES: readonly string[] = ["cursor"]
-
-// Los errores con que apiClient ya redirigió (la misma lista que features/tareas: un módulo no importa
-// de otro, regla 9 de CLAUDE.md). Ante ellos no se avisa.
-export const CODIGOS_QUE_REDIRIGE_EL_CLIENTE: readonly string[] = [
-  "ACCESO_RESTRINGIDO",
-  "CAMBIO_DE_CONTRASENA_REQUERIDO",
-  "NO_AUTENTICADO",
-]

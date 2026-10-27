@@ -12,7 +12,7 @@ import {
   mensajeDeErrorDeConsulta,
 } from "@/lib/errores-de-api"
 import { formatearFechaLarga } from "@/lib/format"
-import { esApiError } from "@/services/apiClient"
+import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
 import { claveTarea } from "@/services/trabajoService"
 
 import {
@@ -21,7 +21,6 @@ import {
   CODIGOS_DE_CONFLICTO_DE_CALIFICACION,
   CODIGOS_DE_CONFLICTO_DE_ENTREGA,
   CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR,
-  CODIGOS_QUE_REDIRIGE_EL_CLIENTE,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
   LIMITE_DE_ENTREGAS,
   LIMITE_DEL_HILO,

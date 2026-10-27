@@ -6,14 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError } from "@/services/apiClient"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
-import { mensajeDeErrorClases } from "./lib"
+import { mensajeDeConsultaClases, mensajeDeErrorClases } from "./lib"
 import { MuroView } from "./muro-view"
 
 // Ataque del Tester (CLASES-c, ronda 3, punto 2 de la lista del manager): T-34 por la razón
 // correcta. El texto "…cambió mientras lo veías…" sale solo con el 400 VALIDACION del campo cursor
 // en "Ver más publicaciones" y "Ver más comentarios"; un 400 de otro campo (con y sin la palabra
 // cursor en el mensaje), un 400 que no es VALIDACION, un 500, un 403 o la falta de conexión siguen
-// mostrando lo de siempre (mensajeDeErrorClases).
+// mostrando lo de siempre (mensajeDeConsultaClases).
 
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }))
 const navegacion = vi.hoisted(() => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/estudiante") }))
@@ -61,7 +61,7 @@ const CASOS: CasoDeError[] = [
     nombre: "400 VALIDACION de limite",
     respuesta: () =>
       Promise.resolve(errorJson(400, "VALIDACION", "limite: Too big: expected number")),
-    deSiempre: mensajeDeErrorClases(
+    deSiempre: mensajeDeConsultaClases(
       new ApiError("VALIDACION", "limite: Too big: expected number", 400),
     ),
     esCursor: false,
@@ -70,7 +70,7 @@ const CASOS: CasoDeError[] = [
     nombre: "400 VALIDACION de otro campo que menciona el cursor",
     respuesta: () =>
       Promise.resolve(errorJson(400, "VALIDACION", "parámetro: el cursor no es válido")),
-    deSiempre: mensajeDeErrorClases(
+    deSiempre: mensajeDeConsultaClases(
       new ApiError("VALIDACION", "parámetro: el cursor no es válido", 400),
     ),
     esCursor: false,

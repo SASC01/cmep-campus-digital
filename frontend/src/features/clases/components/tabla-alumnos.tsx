@@ -19,7 +19,7 @@ import { formatearFechaHora } from "@/lib/format"
 
 import { TEXTOS_TABLA_ALUMNOS } from "../data"
 import { useAlumnos, useFilaEnFoco, useFocoAlCargarMas, useQuitarAlumno } from "../hooks"
-import { focoPerdido, mensajeDeErrorClases } from "../lib"
+import { focoPerdido, mensajeDeConsultaClases } from "../lib"
 import type { AlumnoDeClase } from "../types"
 
 interface FilaAlumnoProps {
@@ -182,7 +182,7 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
 
   // Estados en orden: error → cargando → vacío → datos.
   const contenido = (): ReactNode => {
-    if (alumnos.isError) return <MensajeError mensaje={mensajeDeErrorClases(alumnos.error)} />
+    if (alumnos.isError) return <MensajeError mensaje={mensajeDeConsultaClases(alumnos.error)} />
     if (alumnos.isLoading || !filas) return <Cargando />
     if (filas.length === 0) return <EstadoVacio titulo={TEXTOS_TABLA_ALUMNOS.vacio} />
     return (

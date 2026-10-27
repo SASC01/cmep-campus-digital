@@ -10,7 +10,7 @@ import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { ListaPersonas } from "./components/lista-personas"
 import { TEXTOS_PERSONAS } from "./data"
 import { useFocoAlCargarMas, usePersonas } from "./hooks"
-import { etiquetaDeMaestros, mensajeDeErrorClases, textoConteoAlumnos } from "./lib"
+import { etiquetaDeMaestros, mensajeDeConsultaClases, textoConteoAlumnos } from "./lib"
 
 interface PersonasDeLaClaseProps {
   claseId: string
@@ -36,7 +36,7 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
 
   // Antes de la primera carga no hay vista que conservar: solo el error o el cargando.
   if (personas.data === undefined) {
-    if (personas.isError) return <MensajeError mensaje={mensajeDeErrorClases(personas.error)} />
+    if (personas.isError) return <MensajeError mensaje={mensajeDeConsultaClases(personas.error)} />
     return <Cargando />
   }
 
@@ -49,7 +49,7 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
   // de la vista (error, cargando, vacío y datos): si la consulta de la página siguiente falla, el foco que estaba en "Ver más
   // alumnos" tiene a dónde ir. Estados en orden: error → cargando → vacío → datos.
   const contenido = (): ReactNode => {
-    if (personas.isError) return <MensajeError mensaje={mensajeDeErrorClases(personas.error)} />
+    if (personas.isError) return <MensajeError mensaje={mensajeDeConsultaClases(personas.error)} />
     if (personas.isLoading || !alumnos) return <Cargando />
     if (alumnos.length === 0) return <EstadoVacio titulo={TEXTOS_PERSONAS.vacio} />
     return (

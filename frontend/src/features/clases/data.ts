@@ -1,8 +1,12 @@
-import { MENSAJES_ERROR_DE_ARCHIVOS } from "@/components/adjuntos/data"
+import {
+  MENSAJES_ERROR_DE_ARCHIVOS,
+  MENSAJES_POR_CODIGO_DE_ARCHIVO,
+} from "@/components/adjuntos/data"
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
 
-import type { CapacidadesDePerspectiva, Perspectiva } from "./types"
+import type { CapacidadesDePerspectiva, Perspectiva, TipoPublicacion } from "./types"
 
 // Claves de consulta de TanStack Query (CLASES-a). Se reutilizan tal cual en las invalidaciones y
 // en la prueba de cambio de identidad (PR-A23a).
@@ -230,6 +234,41 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   almacenNoDisponible: MENSAJES_ERROR_DE_ARCHIVOS.almacenNoDisponible,
   generico: "Algo salió mal. Inténtalo de nuevo.",
 } as const
+
+// CHORE-03 (§D-4): código del servidor → su mensaje fijo en español. Vivía en lib.ts como
+// MENSAJES_ERROR_CLASES, con el mismo contenido.
+export const MENSAJES_POR_CODIGO_DE_CLASES: Readonly<Record<string, string>> = {
+  CODIGO_INVALIDO: TEXTOS_UNIRSE.codigoInvalido,
+  SIN_ACCESO_A_LA_CLASE: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
+  ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
+  PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
+  COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
+  // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
+  ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
+}
+
+// CHORE-03 (§D-4): lo que features/clases le dice al contrato de lib/errores-de-api.ts. Un VALIDACION
+// de claseId dice lo mismo que SIN_ACCESO_A_LA_CLASE (T-11, S-08).
+export const TRADUCCION_DE_ERRORES_CLASES = {
+  generico: MENSAJES_ERROR_CLASES_GENERALES.generico,
+  mensajesPorCodigo: MENSAJES_POR_CODIGO_DE_CLASES,
+  codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  textosPorCampo: {
+    claseId: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
+  },
+} satisfies TraduccionDeErrores
+
+// CHORE-03 (Enmienda 4, T-03 y T-04): los campos que pinta cada modo del formulario. Un VALIDACION de
+// un campo que el modo enviado no pinta se avisa, en lugar de guardarse en un campo que no se ve.
+export const CAMPOS_PINTADOS_DE_LA_CLASE = {
+  crear: ["nombre", "descripcion", "maestroIds"],
+  editar: ["nombre", "descripcion"],
+} as const
+
+export const CAMPOS_PINTADOS_DE_LA_PUBLICACION = {
+  anuncio: ["texto"],
+  material: ["titulo", "texto"],
+} as const satisfies Readonly<Record<TipoPublicacion, readonly string[]>>
 
 export const TEXTOS_CLASE = {
   volver: "Volver a mis clases",

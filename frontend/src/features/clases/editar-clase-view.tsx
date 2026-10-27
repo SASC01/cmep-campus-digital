@@ -4,7 +4,7 @@ import { MensajeError } from "@/components/mensaje-error"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioClase } from "./components/formulario-clase"
 import { useClase } from "./hooks"
-import { mensajeDeErrorClases } from "./lib"
+import { mensajeDeConsultaClases } from "./lib"
 
 interface EditarClaseDeLaRutaProps {
   claseId: string
@@ -15,7 +15,7 @@ function EditarClaseDeLaRuta({ claseId }: EditarClaseDeLaRutaProps) {
   const { data, isError, error, isLoading } = useClase(claseId)
 
   if (isError) {
-    return <MensajeError mensaje={mensajeDeErrorClases(error)} />
+    return <MensajeError mensaje={mensajeDeConsultaClases(error)} />
   }
 
   if (isLoading || !data) {

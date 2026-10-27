@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 
 import { TEXTOS_FORMULARIO_CLASE } from "../data"
 import { useCrearClase, useEditarClase } from "../hooks"
-import { erroresDeFormularioClases, erroresPorCampo, mensajeDeErrorClases } from "../lib"
+import { erroresDeLaClaseDeApi, erroresPorCampo, mensajeDeErrorClases } from "../lib"
 import type { CandidatoMaestro, ErroresFormulario, MaestroDeLista } from "../types"
 import { SelectorDeMaestros } from "./selector-de-maestros"
 
@@ -66,7 +66,7 @@ export function FormularioClase({ modo, claseId, valoresIniciales }: FormularioC
   // SIN_ACCESO_A_LA_CLASE, MAESTRO_NO_ENCONTRADO) no marca ningún campo como inválido; se avisa como
   // error del formulario.
   const alFallar = (error: unknown) => {
-    const erroresDeCampo = erroresDeFormularioClases(error, ["nombre", "descripcion", "maestroIds"])
+    const erroresDeCampo = erroresDeLaClaseDeApi(error, modo)
     if (erroresDeCampo) {
       setErrores(erroresDeCampo)
       return

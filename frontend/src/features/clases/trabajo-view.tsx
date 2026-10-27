@@ -18,7 +18,7 @@ import { useAvisoDeRecargaFallida, useFilaEnFoco, useOrdenarTemas, useTemas } fr
 import {
   errorQuitaLaVista,
   focoPerdido,
-  mensajeDeErrorClases,
+  mensajeDeConsultaClases,
   ordenTrasMover,
   perspectivaDeRuta,
   seccionesDeTrabajo,
@@ -166,7 +166,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
 
   const contenido = (): ReactNode => {
     if (temas.isError && (temas.data === undefined || errorQuitaLaVista(temas.error))) {
-      return <MensajeError mensaje={mensajeDeErrorClases(temas.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaClases(temas.error)} />
     }
     if (secciones === undefined || listaDeTemas === undefined) return <Cargando />
     if (secciones.length === 0) {

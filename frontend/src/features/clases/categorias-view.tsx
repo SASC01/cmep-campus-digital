@@ -13,7 +13,7 @@ import {
   TEXTOS_CLASE,
 } from "./data"
 import { useAvisoDeRecargaFallida, useCategorias } from "./hooks"
-import { errorQuitaLaVista, mensajeDeErrorClases, perspectivaDeRuta } from "./lib"
+import { errorQuitaLaVista, mensajeDeConsultaClases, perspectivaDeRuta } from "./lib"
 
 interface CategoriasDeLaClaseProps {
   claseId: string
@@ -34,7 +34,7 @@ function CategoriasDeLaClase({ claseId }: CategoriasDeLaClaseProps) {
   const contenido = () => {
     if (!gestionarTrabajo) return <MensajeError mensaje={TEXTOS_CLASE.sinAcceso} />
     if (categorias.isError && !conservaLaVista) {
-      return <MensajeError mensaje={mensajeDeErrorClases(categorias.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaClases(categorias.error)} />
     }
     if (categorias.data === undefined) return <Cargando />
     // La llave es la clase: al pasar a otra clase el editor parte de cero.

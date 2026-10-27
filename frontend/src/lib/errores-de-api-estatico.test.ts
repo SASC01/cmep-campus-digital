@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 // CHORE-03: reglas estáticas del contrato de los errores de la API. Leen el texto crudo de los
-// archivos (comentarios incluidos). En 03a cubren features/tareas y components/adjuntos; 03b y 03c las
-// extienden.
+// archivos (comentarios incluidos). En 03a cubren features/tareas y components/adjuntos; 03b las
+// extiende a features/clases y features/calificaciones, y 03c a todo src/.
 
 const fuentes = import.meta.glob<string>("/src/**/*.{ts,tsx}", {
   query: "?raw",
@@ -37,6 +37,7 @@ const MANIPULACIONES: readonly [string, RegExp][] = [
 const EXPRESION_DE_RUTA = /\/\^\[[^\]\n]*\]\+:\\s\*\//
 
 const ALCANCE_03A = ["/src/features/tareas/", "/src/components/adjuntos/"] as const
+const ALCANCE_03B = ["/src/features/clases/", "/src/features/calificaciones/"] as const
 
 describe("CHORE-03 · reglas estáticas del contrato", () => {
   it("CH3-A20: features/tareas y components/adjuntos no manipulan error.message; la expresión de ruta vive solo en el contrato; la tabla común no importa de features/ y ningún archivo de producción la importa", () => {
@@ -63,6 +64,27 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       .filter(([, texto]) => texto.includes("errores-de-api-fuera-de-contrato"))
       .map(([ruta]) => ruta)
     expect(importanLaTabla).toEqual([])
+  })
+
+  it("CH3-B13: features/clases y features/calificaciones tampoco manipulan error.message, ni tienen la expresión de ruta; quitarPrefijoDeCampo ya no existe en el código de producción de src/", () => {
+    const enAlcance = deProduccion.filter(([ruta]) =>
+      ALCANCE_03B.some((prefijo) => ruta.startsWith(prefijo)),
+    )
+    for (const prefijo of ALCANCE_03B) {
+      expect(enAlcance.filter(([ruta]) => ruta.startsWith(prefijo)).length).toBeGreaterThan(10)
+    }
+    const fallas = enAlcance.flatMap(([ruta, texto]) => [
+      ...MANIPULACIONES.filter(([, regla]) => regla.test(texto)).map(
+        ([nombre]) => `${ruta}: ${nombre}`,
+      ),
+      ...(EXPRESION_DE_RUTA.test(texto) ? [`${ruta}: expresión de ruta`] : []),
+    ])
+    expect(fallas).toEqual([])
+
+    const conElNombre = deProduccion
+      .filter(([, texto]) => /quitarPrefijoDeCampo/.test(texto))
+      .map(([ruta]) => ruta)
+    expect(conElNombre).toEqual([])
   })
 
   it("CH3-A24: ni la tabla común, ni el contrato, ni las pruebas nuevas del chore tienen un carácter invisible literal", () => {

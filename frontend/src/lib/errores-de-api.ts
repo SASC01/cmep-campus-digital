@@ -22,9 +22,6 @@ export interface IncidenciaValidacion {
 // interfaz (ni siquiera cuando el campo no es uno de un formulario, como claseId).
 const PREFIJO_DE_CAMPO = /^([a-zA-Z_]+):\s*/
 
-export const quitarPrefijoDeCampo = (mensaje: string): string =>
-  mensaje.replace(PREFIJO_DE_CAMPO, "")
-
 // T-17 (ronda 2 del tester): el nombre de campo que trae el prefijo técnico del mensaje, o null si
 // el error no es un VALIDACION con esa forma.
 export const campoDeErrorDeApi = (error: unknown): string | null => {

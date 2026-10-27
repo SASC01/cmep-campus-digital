@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_CLASE } from "../data"
 import { useCodigoDeClase } from "../hooks"
-import { baseDeClase, mensajeDeErrorClases, textoDeMaestros } from "../lib"
+import { baseDeClase, mensajeDeConsultaClases, textoDeMaestros } from "../lib"
 import type { ClaseDetalle, Perspectiva } from "../types"
 import { CodigoDeClase } from "./codigo-de-clase"
 
@@ -50,7 +50,7 @@ export function EncabezadoClase({ clase, perspectiva }: EncabezadoClaseProps) {
             claseId={clase.id}
             codigo={codigo.data}
             isError={codigo.isError}
-            errorMensaje={codigo.isError ? mensajeDeErrorClases(codigo.error) : ""}
+            errorMensaje={codigo.isError ? mensajeDeConsultaClases(codigo.error) : ""}
           />
         )}
         {capacidades.editar && (

@@ -23,7 +23,7 @@ import { useCrearPublicacion, useSolicitarSubida, useTemas } from "../hooks"
 import {
   avisoDeFalloAlSubir,
   errorDeArchivoElegido,
-  erroresDeFormularioClases,
+  erroresDeLaPublicacionDeApi,
   erroresPorCampo,
   tipoDeArchivo,
 } from "../lib"
@@ -145,7 +145,7 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
       if (archivoEnSubida === null) {
         // Falló al publicar: el aviso ya lo dio el hook; aquí solo se marca el campo, si el error es
         // de un campo.
-        const erroresDeCampo = erroresDeFormularioClases(error, ["titulo", "texto"])
+        const erroresDeCampo = erroresDeLaPublicacionDeApi(error, datos.tipo)
         if (erroresDeCampo) setErrores(erroresDeCampo)
         return
       }

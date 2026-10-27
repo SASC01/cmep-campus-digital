@@ -1,5 +1,6 @@
 # Plan — CHORE-03 · traducción de los errores de la API en el frontend
 Estado: LISTO
+**Enmienda 4 (2026-10-27; DH-8 respondida por el humano el 2026-10-27: opción (a); el orquestador cambió solo la línea de estado, ver aprobacion.md):** bloqueaba solo DH-8 (la autorización para sacar de "No se toca" en 03b los archivos del remedio de T-03 y T-04; la pregunta exacta está en "Preguntas bloqueantes"). Con cualquiera de sus dos opciones respondida, el plan pasa a LISTO sin otro cambio. No toca nada de 03a ni los pasos 0 a 9 de 03b (ver "Enmienda 4" al final).
 **Enmienda 2 (DH-6 respondida por el humano el 2026-10-26: sí; el orquestador cambió solo la línea de estado, ver aprobacion.md):** bloqueaba solo DH-6 (la autorización para sacar `components/adjuntos/adjuntos-de-publicacion.tsx` de "No se toca" en 03a). Con la respuesta del humano, el plan pasa a LISTO sin otro cambio; la pregunta exacta está en "Preguntas bloqueantes".
 **Enmienda 3 (2026-10-26):** sigue LISTO. No quedan preguntas abiertas: DH-5 (sí), DH-6 (sí) y DH-7 (opción b) están respondidas; responde a M-04, M-05 y los detalles menores de la revisión de la Enmienda 2 (ver "Enmienda 3" al final). No toca nada de 03a.
 Carril: normal
@@ -67,6 +68,13 @@ Notas para el orquestador (no las apliqué porque están fuera de lo autorizado)
 - Enmienda 1 (N-05): "No se toca" verifica §2b por el SHA-256 de su texto. Método de extracción: desde la línea que empieza con `## 2b.` (incluida) hasta la línea anterior a la que empieza con `## 3.` (incluida esa última, en blanco o no), con los finales de línea tal como están en el archivo. El orquestador lo anota en `aprobacion.md` junto al hash de `PRD.md` recalculado por M-02.
 
 ## Preguntas bloqueantes
+**Enmienda 4 (ronda 1 del tester en 03b): una pregunta bloqueante, DH-8.**
+> **DH-8.** Para corregir T-03 ("Editar clase" con un `400 VALIDACION` de `maestroIds` no muestra nada) y T-04 ("Publicar un anuncio" con un `400 VALIDACION` de `titulo` no muestra nada), ¿autorizas que en 03b salgan de "No se toca" estos archivos, solo en las líneas de §D-4 (Enmienda 4)?
+> - **(a) Recomendada: tres archivos.** `frontend/src/features/clases/components/formulario-clase.tsx` (la importación y una llamada), `frontend/src/features/clases/components/formulario-publicacion.tsx` (la importación y una llamada) y **`frontend/src/features/clases/hooks.ts`**, que el plan protege como todos los `hooks.ts` (PA-2): solo `useCrearPublicacion`, cuyo `onError` pasa a recibir lo que se envió y a decidir con la misma función que el formulario (una importación y dos líneas). Así el formulario y su gancho deciden en un solo lugar, también con la vista desmontada.
+> - **(b) Sin tocar `hooks.ts`: dos archivos.** Solo los dos formularios. El gancho sigue callando ante un `titulo:` y es el formulario quien avisa cuando su tipo no pinta ese campo. Funciona, pero la decisión queda partida en dos sitios (el gancho con su lista de siempre y el formulario con la nueva), que es justo lo que "Puntos de ataque" pide evitar.
+>
+> Si no autorizas ninguna, las cuatro pruebas rojas de T-03 y T-04 siguen en la suite y 03b no puede cerrarse en verde (ninguna prueba se desactiva para que pase); el remedio iría a un encargo aparte y 03b esperaría a ese encargo.
+
 **Enmienda 3: no queda ninguna abierta.** La única (DH-6, abajo) la respondió el humano el 2026-10-26: sí (`aprobacion.md`, "Decisiones del humano a la Enmienda 2"). Lo que sigue es el historial.
 
 Plan original y Enmienda 1: ninguna. Lo que el alcance deja abierto va en "Suposiciones" con su alternativa; ninguna cambia la forma del contrato.
@@ -220,6 +228,8 @@ El cursor no es un paso del contrato: cada vista lo reconoce antes con `esErrorD
 | `VALIDACION` "`<ruta>`: Debe ser 0: 10" | según el campo | "Debe ser 0: 10" (un solo recorte, N-36; Enmienda 2: lo que sigue a la ruta no es un nombre en camelCase, S-05) | `respaldo` |
 | `VALIDACION` "`<ruta>`: `<nombreDeCampo>`: Mensaje" (el esquema repite su campo; Enmienda 2, T-01; inventario en §D-1) | `ErrorDeCampo` "Mensaje", sin aviso | un aviso "Mensaje" | `respaldo` |
 | `VALIDACION` "`<ruta>`: `<nombreDeCampo>`:" + sin texto visible (Enmienda 2) | `ErrorDeCampo` con el genérico, sin aviso | un aviso con el genérico | `respaldo` |
+| `VALIDACION` "`<campo que el formulario pinta en otro modo, no en este>`: Mensaje" (Enmienda 4, T-03 y T-04: `maestroIds` al editar una clase, `titulo` en un anuncio) | — (en este modo no está pintado) | un aviso "Mensaje" | `respaldo` |
+| Lo mismo + sin texto visible (Enmienda 4) | — | un aviso con el genérico | `respaldo` |
 | `VALIDACION` sin ruta ("Los datos enviados tienen caracteres no permitidos.") | — | ese texto, tal cual | `respaldo` |
 | `VALIDACION` de `claseId`, `tareaId`, `alumnoId` | — | su texto fijo (como hoy) | su texto fijo |
 | Código con mensaje del servidor, mensaje con texto | — | ese mensaje, sin recorte (como hoy) | ese mensaje |
@@ -227,6 +237,8 @@ El cursor no es un paso del contrato: cada vista lo reconoce antes con `esErrorD
 | Código con texto fijo, `5xx`, sin conexión | como hoy | como hoy | como hoy |
 
 En todos los casos de acción: lo escrito se conserva y el botón sale de la espera (nada de esto cambia en los formularios: lo garantiza la mutación, que ya termina en error; las pruebas lo comprueban).
+
+**Enmienda 4 (T-03 y T-04). "Campo pintado" se decide por el modo de lo que se envió.** Un formulario con modos (crear o editar, anuncio o material) pasa a la función de traducción la lista de los campos que pinta **ese** modo, no la de todos sus modos. La lista vive una sola vez en el `data.ts` del módulo, por modo, y el formulario y su gancho la leen con la misma función y con el modo del envío (el `tipo` de los datos enviados, que el gancho recibe como `variables`), nunca con el estado actual del formulario. Un campo que el formulario acepta en otro modo es, en este, un campo que no pinta: un solo aviso (filas nuevas de la tabla). En `features/clases` aplica a crear y editar clase y a publicar un anuncio o un material (§D-4); los demás formularios del módulo y los de `tareas` no tienen campos que dependan del modo o ya lo resuelven (inventario en "Enmienda 4", hermanos).
 
 ### §D-3. La tabla común (`frontend/src/lib/errores-de-api-fuera-de-contrato.ts`)
 Solo datos, exportados; la importan pruebas. Sin `U+2800` ni `U+1D159` (S-07) y sin texto de la interfaz (ningún literal de `data.ts`).
@@ -320,6 +332,42 @@ Hermanos (regla de `AGENTS.md`), revisados por búsqueda de `enEspera=` y de `Re
 | `erroresDeFormularioClases`, `errorDelCampoCodigo`, `erroresDelTemaDeApi` | Sin cambio de código | Campo pintado vacío → `ErrorDeCampo` con el genérico |
 | `erroresDeCategoriasDeApi` | Los dos caminos usan `mensajeDeErrorClases(error)` (la fila y "categorias:") en lugar de `slice` y `quitarPrefijoDeCampo` | Fila o lista vacías → genérico |
 | `avisoDeFalloAlSubir` (envoltorio) | Sin cambio | Hereda el de `components/adjuntos` |
+| `CAMPOS_PINTADOS_DE_LA_CLASE` y `CAMPOS_PINTADOS_DE_LA_PUBLICACION` (nuevas en `data.ts`, Enmienda 4) | Los campos que pinta cada modo (forma exacta abajo) | — |
+| `erroresDeLaClaseDeApi(error, modo)` (nueva en `lib.ts`, Enmienda 4, T-03) | `erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_CLASE[modo])` | Al editar, "maestroIds: …" da un aviso (antes, nada) |
+| `erroresDeLaPublicacionDeApi(error, tipo)` (nueva en `lib.ts`, Enmienda 4, T-04) | `erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_PUBLICACION[tipo])` | En un anuncio, "titulo: …" da un aviso (antes, nada; y el error quedaba guardado y aparecía bajo el título al pasar a "Material") |
+
+**Enmienda 4 (T-03 y T-04): forma exacta del remedio** (§D-2, "Campo pintado se decide por el modo"). Las líneas son las de `1f11d38e`, que estos archivos conservan en la ronda 1 de 03b.
+- `src/features/clases/data.ts`, después de `TRADUCCION_DE_ERRORES_CLASES` (`:252-259`), con un comentario de una o dos líneas que diga el porqué (un `VALIDACION` de un campo que el modo no pinta se avisa):
+  ```ts
+  export const CAMPOS_PINTADOS_DE_LA_CLASE = {
+    crear: ["nombre", "descripcion", "maestroIds"],
+    editar: ["nombre", "descripcion"],
+  } as const
+
+  export const CAMPOS_PINTADOS_DE_LA_PUBLICACION = {
+    anuncio: ["texto"],
+    material: ["titulo", "texto"],
+  } as const satisfies Readonly<Record<TipoPublicacion, readonly string[]>>
+  ```
+  La importación de tipos de `./types` (`:9`) suma `TipoPublicacion`. Ningún tipo nuevo: `satisfies` usa uno que ya existe y, si un tipo de publicación nuevo (por ejemplo, el `foro` de FORO-01) entra en `TipoPublicacion`, no compila hasta que alguien decida qué campos pinta (R-09).
+- `src/features/clases/lib.ts`, después de `erroresDeFormularioClases` (`:156-159`), las dos funciones de la tabla, cada una con un comentario de una línea:
+  ```ts
+  export const erroresDeLaClaseDeApi = (
+    error: unknown,
+    modo: keyof typeof CAMPOS_PINTADOS_DE_LA_CLASE,
+  ): ErroresFormulario | null => erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_CLASE[modo])
+
+  export const erroresDeLaPublicacionDeApi = (
+    error: unknown,
+    tipo: TipoPublicacion,
+  ): ErroresFormulario | null =>
+    erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_PUBLICACION[tipo])
+  ```
+  (Prettier decide el corte de línea; la forma es esta.) `lib.ts` suma las dos constantes a su importación de `./data` y `TipoPublicacion` a la de `./types`. `erroresDeFormularioClases` no cambia (CH3-B04, PR-1C02 y `refactor-01c-r1` la llaman con listas propias).
+- `src/features/clases/components/formulario-clase.tsx` (**solo con DH-8, (a) o (b)**): en la importación de `../lib` (`:16`), `erroresDeFormularioClases` pasa a `erroresDeLaClaseDeApi`; en `alFallar` (`:69`), `const erroresDeCampo = erroresDeLaClaseDeApi(error, modo)`. Nada más del archivo cambia: ni el comentario de `:64-67`, ni el `if (mutacion.isPending) return` de `:79`, que es "sin ref; fuera del chore, CHORE-04" (fila 2 de la lista; §D-6, Enmienda 3), ni el `enEspera=` (`styles/clases-r1.ataque` cuenta uno).
+- `src/features/clases/components/formulario-publicacion.tsx` (**solo con DH-8, (a) o (b)**): en la importación de `../lib` (`:23-29`), `erroresDeFormularioClases` pasa a `erroresDeLaPublicacionDeApi`; en el `catch` de `handlePublicar` (`:148`), `const erroresDeCampo = erroresDeLaPublicacionDeApi(error, datos.tipo)` (el `tipo` de lo enviado, el parámetro `datos` de `:121`; no el estado `tipo`). Con DH-8 (a), nada más cambia.
+- `src/features/clases/hooks.ts` (**solo con DH-8 (a)**): en la importación de `./lib` (`:81-90`) se suma `erroresDeLaPublicacionDeApi` (después de `erroresDeFormularioClases`, que sigue en uso en `useComentar`, `:681`); en `useCrearPublicacion` (`:596-621`), `onError: (error) => {` (`:613`) pasa a `onError: (error, datos) => {` y `if (erroresDeFormularioClases(error, ["titulo", "texto"])) return` (`:617`) pasa a `if (erroresDeLaPublicacionDeApi(error, datos.tipo)) return`. El `renovarTrasError` de `:616`, el comentario de `:605-606`, `onSuccess` y el resto del archivo no cambian.
+- **Con DH-8 (b) (sin `hooks.ts`):** el gancho sigue callando ante `titulo:` y `texto:` (su lista `["titulo", "texto"]` es la de "Material"). En el `catch` de `formulario-publicacion.tsx`, en lugar del `if (erroresDeCampo) setErrores(erroresDeCampo)` de `:149`: si `erroresDeCampo` no es `null`, `setErrores(erroresDeCampo)` y `return`; si no, y `erroresDeLaPublicacionDeApi(error, "material")` no es `null` (el gancho calló), `toast.error(mensajeDeErrorClases(error))` (se suma `mensajeDeErrorClases` a la importación de `../lib`; `toast` ya se importa). Con un comentario que diga por qué el formulario avisa ahí. Es la opción de respaldo: la decisión queda en dos sitios.
 
 Vistas de `clases` cuyo error es de una consulta y pasan a `mensajeDeConsultaClases` (03b): `categorias-view.tsx:37`, `clase-layout.tsx:35`, `editar-clase-view.tsx:18`, `components/buscador-de-maestros.tsx:199`, `components/buscador-alumnos.tsx:131`, `trabajo-view.tsx:169`, `personas-view.tsx:39` y `:52`, `components/encabezado-clase.tsx:53`, `maestros-de-clase-view.tsx:42`, `components/tabla-alumnos.tsx:185`. Las de `mensajeDeErrorDeLista` (`muro-view.tsx:117`, `components/comentarios-de-publicacion.tsx:153`, `inicio-estudiante-view.tsx:46`, `inicio-maestro-view.tsx:41`, `components/seccion-de-tema.tsx:79`) no cambian de llamada. Los `toast.error(mensajeDeErrorClases(…))` de `hooks.ts` y de los formularios son de acciones y no cambian.
 
@@ -361,6 +409,8 @@ No hay vistas nuevas, pero sí disparadores nuevos. Desde el primer resumen de c
 
 **Enmienda 3 (M-05, DH-7 = b). Qué hace el programador con un "sin ref" en 03b y 03c.** Un control de la matriz que solo se protege con `isPending` (o con nada) **no es un hallazgo del chore y no se corrige**: el programador lo declara en su fila de "en vuelo a la vez" como "sin ref; fuera del chore, CHORE-04" y lo nombra en la lista de hermanos del resumen con ese mismo destino. No agrega la ref aunque el archivo se toque en la subentrega (en 03b, `buscador-de-maestros.tsx`, `buscador-alumnos.tsx`, `maestros-de-clase-view.tsx` y `tabla-alumnos.tsx` cambian solo en la línea de su consulta y su importación, §D-4): agregarla es salirse de "Cambios por capa", PA-3. Si encuentra un control sin ref que no está en "Lista para CHORE-04" (Puntos de ataque), lo declara igual y lo marca "nuevo, para la lista de CHORE-04"; el orquestador lo suma a `docs/ESTADO.md`. Un control que **sí** tiene ref la nombra (archivo y nombre), como en la Enmienda 2. En 03a no cambia nada: «Descargar» era el único sin ref y ya tiene la suya (DH-6).
 
+**Enmienda 4 (T-03 y T-04).** En el resumen de la ronda 2 de 03b, las filas de "Crear y editar clase" y de "Publicar anuncio o material" de la matriz se parten por modo (crear, editar; anuncio, material) y suman las filas nuevas de §D-2 ("campo que el formulario pinta en otro modo"), con estas salidas: editar clase con `maestroIds:` → un aviso (desde `alFallar`), sin `ErrorDeCampo`; anuncio con `titulo:` → un aviso (desde el gancho con DH-8 (a); desde el `catch` del formulario con DH-8 (b)), sin `ErrorDeCampo`, y al pulsar «Material» después no aparece ningún error bajo el título. "Con la vista desmontada": en el anuncio, con DH-8 (a) el gancho avisa una vez; con DH-8 (b), el `catch` de `handlePublicar` sigue corriendo tras desmontarse (la promesa de `mutateAsync` no depende del componente) y avisa una vez; el programador dice cuál comprobó y con qué caso. En crear y editar clase no cambia: los avisos viven en los callbacks de `mutate` y, desmontada la vista, no hay aviso, como antes y como con cualquier otro error de ese formulario (fila de la matriz de la primera entrega). "En vuelo a la vez" no cambia: `formulario-clase.tsx` sigue "sin ref; fuera del chore, CHORE-04" aunque el archivo se toque (fila 2 de la lista; agregar la ref es PA-3) y `formulario-publicacion.tsx` sigue con `publicandoRef`.
+
 ### §D-R0. Pruebas existentes que el rediseño rompe (inventario por grep)
 **Cómo se hizo el inventario** (sin terminal: con la herramienta de búsqueda sobre `frontend/src/**/*.test.{ts,tsx}`, en `ad10844` más la parte A, que no toca código):
 1. Funciones cuya firma cambia: `esErrorDeCursor` (gana `campos` con valor por defecto). Patrones `esErrorDeCursor` y `\(esErrorDeCursor\)`. Resultado: `reexportaciones-01c.test.ts` (solo `toBe`: sigue igual), `refactor-01c-r1.ataque` (la pasa a `map`: rompe, C-1), `estatico-01d.test.ts` (texto: no la llama; ver N-L2).
@@ -401,6 +451,15 @@ No hay vistas nuevas, pero sí disparadores nuevos. Desde el primer resumen de c
 
 **Enmienda 3: inventario de CH3-C08 (03c)** (búsqueda sobre `frontend/src/**/*.test.{ts,tsx}` en el estado de la ronda 1 de 03a). Patrones: `identificador v`, `"id: ` y `VALIDACION` en `features/admin/`. Resultado: ninguna prueba de `admin` fija la salida de un `VALIDACION` de `id:` en las cuatro rutas; el único `VALIDACION` de `admin` es C-4 (`cuentas-r1.ataque.test.tsx:474-475`, "nombre: caracteres no permitidos", ya reescrita por el tester en la ronda 0 de 03c). Las demás apariciones de "identificador válido" son de `claseId`, `tareaId`, `alumnoId` y `archivoId` (03a y 03b, sin cambio). **Lista cerrada de la Enmienda 3: ninguna prueba existente cambia.** M-05 no añade pruebas (DH-7 = b).
 
+**Enmienda 4: inventario de lo que rompe el remedio de T-03 y T-04** (búsqueda sobre `frontend/src/**/*.test.{ts,tsx}` en el estado de la ronda 1 de 03b, con las 217 `*.ataque`):
+1. **Función cuya llamada cambia.** Patrón `erroresDeFormularioClases`: `errores-ch3.test.ts` (CH3-B04, `:117-133`), `reexportaciones-01c.test.ts` (PR-1C02, `:187-201`), `refactor-01c-r1.ataque` (`:181-185`) y `clases/errores-ch3-r1.ataque` (`:307`, `:376`). Todas la llaman con su propia lista; la función no cambia, así que ninguna rompe.
+2. **Salidas que cambian** (solo en editar clase con `maestroIds:` y en un anuncio con `titulo:`). Patrones `maestroIds:` y `["'\x60]titulo:` en las pruebas: `maestros-02c-r1.ataque.test.tsx:279-292` ("un VALIDACION de maestroIds del servidor queda bajo el selector, sin prefijo y sin aviso") es de **crear** (`renderCrear`), cuya lista no cambia; `formularios-ch3-r1.ataque.test.tsx:319-411` son los casos del tester (los cuatro rojos de T-03 y T-04 piden justo el remedio; los de crear y material siguen igual); los demás aciertos son de `tareas` (`titulo:` de una tarea, otra función) o cuerpos de petición. Ninguna prueba espera silencio ni un `ErrorDeCampo` de `titulo` en un anuncio, ni de `maestroIds` al editar.
+3. **Ganchos.** Patrones `useCrearPublicacion`, `useCrearClase` y `useEditarClase` en las pruebas: solo un comentario (`clases-r2.ataque.test.tsx:206`); nadie llama al gancho con datos sin `tipo` (el tipo `CrearPublicacion` lo exige).
+4. **Reglas estáticas sobre los archivos que cambian.** `ver-mas-01e-r3.ataque` (`formulario-publicacion.tsx`, `lib.ts`, `hooks.ts` y `data.ts` de `clases`: sin tipos fuera de `types.ts` salvo Props, sin `?? []`, `disabled`, `fetch(`, `console.`, ni importaciones de otro módulo); `entregas-01d-r1.ataque` (`clases/lib.ts` y `data.ts`: sin `?? []`, `disabled` ni valores por defecto de `rol`, `estadoPago`, `accesoRestringido` o `calificacion`); `clases/estatico-r1.ataque` (sin `?? []` ni ternarios anidados en JSX); `styles/clases-r1.ataque` (un `enEspera=` en cada formulario); `clases/errores-ch3-r1.ataque` (O-05: ningún `.message` nuevo, ninguna copia de la expresión de ruta, `new RegExp(`, `.split(":")`). La forma de §D-4 las cumple: `satisfies` y `keyof typeof` no declaran tipos, y `TipoPublicacion` ya existe.
+5. **El conteo de archivos de ataque.** `clases/errores-ch3-r1.ataque.test.ts:494` exige exactamente 4 archivos `-ch3-r1.ataque` en `features/clases`, `features/calificaciones` y `services`: las pruebas nuevas del programador van en sus archivos `*-ch3.test.*`, nunca con ese sufijo.
+
+**Lista cerrada de la Enmienda 4: ninguna prueba existente cambia**, ni normal ni `*.ataque`. El programador solo amplía sus propios archivos de 03b (`errores-ch3.test.ts`, `formularios-ch3.test.tsx`, `recuperar-ch3.test.tsx`) con CH3-B15 a CH3-B17. Si otra prueba falla, es PARADA (PA-1).
+
 ## Cambios por capa
 ### shared/
 Ninguno. Se usa `contarCaracteresVisibles`, ya exportada por nombre en `shared/src/index.ts`.
@@ -428,6 +487,7 @@ Ninguno.
 - `src/features/calificaciones/data.ts` (solo sin `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`; Enmienda 1, M-01: sin `TRADUCCION_DE_ERRORES_CALIFICACIONES`) y `src/features/calificaciones/lib.ts` (§D-4: el alias del cursor y las importaciones exactas; `mensajeDeErrorCalificaciones` no cambia).
 - `src/services/apiClient.ts` (§D-5); `src/features/tareas/data.ts` y `src/features/tareas/lib.ts` (N-46).
 - Pruebas nuevas (03b) y las líneas N-L1 y N-L2.
+- **Enmienda 4 (ronda 2 de 03b, T-03 y T-04):** `src/features/clases/data.ts` (`CAMPOS_PINTADOS_DE_LA_CLASE`, `CAMPOS_PINTADOS_DE_LA_PUBLICACION` y `TipoPublicacion` en su importación de tipos) y `src/features/clases/lib.ts` (`erroresDeLaClaseDeApi`, `erroresDeLaPublicacionDeApi` y sus importaciones), que ya estaban en 03b; **solo con la autorización del humano en DH-8:** `src/features/clases/components/formulario-clase.tsx` y `src/features/clases/components/formulario-publicacion.tsx` (con (a) o (b)) y `src/features/clases/hooks.ts` (solo con (a)), en las líneas exactas de §D-4 (Enmienda 4); las ampliaciones CH3-B15 a CH3-B17 en los archivos de prueba del programador de 03b.
 
 **03c**
 - `src/features/admin/data.ts`, `src/features/admin/lib.ts`, `src/features/admin/components/tabla-enlaces.tsx` (línea 190 e importación) y `components/registrados-del-enlace.tsx` (línea 33 e importación).
@@ -515,6 +575,20 @@ Todas en el frontend (Vitest con jsdom, sin API). Cada título empieza por su id
 `frontend/src/lib/errores-de-api-estatico.test.ts` (extendido):
 - **CH3-B13** La regla de CH3-A20 cubre también `src/features/clases/` y `src/features/calificaciones/`; `quitarPrefijoDeCampo` no aparece en ningún archivo de `src/`.
 
+**Enmienda 4 (ronda 2 de 03b, T-03 y T-04).** Ids con el prefijo del encargo; un `it.each` por módulo (aquí, `features/clases`), como pidió el humano. Las cuatro pruebas rojas de T-03 y T-04 del tester (`formularios-ch3-r1.ataque.test.tsx`, "editar clase con «maestroIds: …»" y "publicar un anuncio con «titulo: …»", dos de cada uno) deben pasar sin tocarlas, igual que los otros 84 casos de ese archivo.
+
+`frontend/src/features/clases/errores-ch3.test.ts` (ampliado):
+- **CH3-B15** "Campo pintado" por modo, en las funciones. (1) Un `it.each` sobre las filas (función, modo, campo, ¿lo pinta?): `erroresDeLaClaseDeApi` con `crear` × `nombre` sí, `descripcion` sí, `maestroIds` sí; con `editar` × `nombre` sí, `descripcion` sí, `maestroIds` **no**; `erroresDeLaPublicacionDeApi` con `anuncio` × `texto` sí, `titulo` **no**; con `material` × `titulo` sí, `texto` sí. Por fila, con `${campo}: ${MENSAJE_DE_PRUEBA}`, con `${campo}: ${campo}: ${MENSAJE_DE_PRUEBA}` (ruta doble) y con `${campo}:` seguido de cada resto de `RESTOS_SIN_TEXTO_VISIBLE`: si lo pinta, `{ [campo]: MENSAJE_DE_PRUEBA }` o `{ [campo]: <genérico> }`; si no, `null`, y `mensajeDeErrorClases` del mismo error da `MENSAJE_DE_PRUEBA` o el genérico (el aviso que reciben el gancho y el formulario: con texto visible y sin ruta). (2) Toda la tabla (`ENTRADAS_FUERA_DE_CONTRATO`) da `null` en los cuatro modos. (3) Las listas exactas: `CAMPOS_PINTADOS_DE_LA_CLASE` es `{ crear: ["nombre", "descripcion", "maestroIds"], editar: ["nombre", "descripcion"] }` y `CAMPOS_PINTADOS_DE_LA_PUBLICACION` es `{ anuncio: ["texto"], material: ["titulo", "texto"] }` (`toEqual`); así "crear" y "material" deciden lo mismo que antes del remedio. (4) Estática, sobre el texto crudo de producción de `src/features/clases/` (`import.meta.glob` con `?raw`): `erroresDeFormularioClases(` solo aparece en `lib.ts` (su definición, `errorDelCampoCodigo`, `erroresDelTemaDeApi` y las dos funciones nuevas), en `components/formulario-comentario.tsx` y, con DH-8 (a), en `hooks.ts` una sola vez (`useComentar`); con DH-8 (b), también en `hooks.ts` en `useCrearPublicacion`. Ningún archivo de producción de `features/clases` salvo `data.ts` escribe `["nombre", "descripcion", "maestroIds"]` ni, con DH-8 (a), `["titulo", "texto"]`.
+
+`frontend/src/features/clases/formularios-ch3.test.tsx` (ampliado):
+- **CH3-B16** Por cada formulario de `clases` con modos, el caso general "un `VALIDACION` de un campo que el formulario acepta en otro modo y no pinta en este da exactamente un aviso legible", y su contrario. Un `it.each` sobre las filas (formulario, modo, campo, ¿lo pinta?): crear clase × `maestroIds` (sí: un `ErrorDeCampo` localizado por el grupo «Maestros de la clase» y su descripción accesible, sin aviso); editar clase × `maestroIds` (no: un aviso, ningún `ErrorDeCampo`); publicar × anuncio × `titulo` (no: un aviso); publicar × material × `titulo` (sí: un `ErrorDeCampo` bajo el título, sin aviso); y el formulario de tema en crear y en renombrar × `nombre` (sí en los dos: el modo no cambia su campo). Por fila, con `${campo}: ${MENSAJE_DE_PRUEBA}` y con `${campo}:\u{200B}`: (a) a (d) de las convenciones (exactamente un mensaje legible, sin ruta ni texto invisible, lo escrito se conserva, el botón sin `aria-busy="true"` ni `aria-disabled="true"`). Además: (e) en el anuncio, tras el aviso, pulsar «Material» no muestra ningún error bajo el título (el error no quedó guardado); (f) en el anuncio, con el formulario desmontado mientras la petición está en vuelo (se suelta después con `titulo: ${MENSAJE_DE_PRUEBA}`), hay exactamente un aviso, `MENSAJE_DE_PRUEBA` (lo da el gancho con DH-8 (a) y el `catch` con DH-8 (b)).
+
+`frontend/src/features/clases/recuperar-ch3.test.tsx` (ampliado):
+- **CH3-B17** Frase de recuperación del aviso genérico ("Algo salió mal. Inténtalo de nuevo.") que nace en CH3-B16 con `${campo}:\u{200B}`, por cada camino:
+  - **Repetir el control:** en editar clase (`maestroIds:\u{200B}`) y en el anuncio (`titulo:\u{200B}`), pulsar otra vez «Guardar cambios» o «Publicar anuncio» manda una petición nueva (`PUT /api/admin/clases/:claseId` o `POST …/publicaciones`) con lo que se conservó; si responde bien, editar clase avisa con el éxito de siempre y navega a `/admin/clases/:claseId`, y el anuncio avisa con su éxito y vacía el campo; no hay un segundo aviso de error.
+  - **Ir a otra sección y regresar antes del `staleTime`:** con `rutas` y `Providers`, en "Editar clase" del admin tras el aviso genérico, salir por «Cancelar» a la clase (`/admin/clases/:claseId`) y volver a `/admin/clases/:claseId/editar` antes de 30 s (por el enlace de la vista de la clase que lleva ahí; si no lo hay, con «atrás» del historial, y el resumen dice cuál usó): el formulario se monta con los valores de la clase, sin error; «Guardar cambios» manda un `PUT` nuevo. En el anuncio, el camino es el de CH3-B10 y O-14 (el estado del formulario es local y el aviso no queda en la vista), sin caso nuevo.
+  - **Pulsar la sección activa:** no aplica. El aviso es un toast que no queda en la vista y el formulario conserva lo escrito y su estado (S-06, O-r1-2); no hay nada cargado que renovar.
+
 ### 03c — `features/admin` y `features/auth`
 `frontend/src/features/auth/errores-ch3.test.ts` y `frontend/src/features/admin/errores-ch3.test.ts` (nuevos):
 - **CH3-C01** `mensajeDeErrorAuth` recorre la tabla (`resto ?? "No pudimos completar la operación. Inténtalo de nuevo."`); sus códigos fijos no cambian; "constructor" y "toString" dan el genérico.
@@ -546,6 +620,10 @@ La autorización por endpoint no aplica (ningún endpoint nuevo). Las pruebas ex
 - **Enmienda 2 (T-02).** A atacar: dos y tres clics seguidos en «Descargar» en los cuatro sitios, también después de que React vuelve a pintar; que la guarda se libere tras un fallo y tras un éxito; la vista desmontada con la descarga en vuelo (sin aviso si quien la pasa maneja `alFallarLaDescarga` con su propia guarda de montaje, como hoy).
 - **Enmienda 3 (M-04, 03c).** A atacar: "id: id: debe ser un identificador válido" en las cuatro rutas de `:id` del administrador (CH3-C08), con separadores raros entre los dos prefijos y con un resto sin texto visible; que ningún `MensajeError` muestre "id:" ni quede vacío.
 - **Enmienda 3 (M-05, DH-7 = b, 03b y 03c). Decisión tomada que no es hallazgo:** los controles de "Lista para CHORE-04" (abajo) solo se protegen con `isPending`, así que dos clics en el mismo render pueden mandar dos peticiones. Es un defecto previo a `ad10844`, fuera del chore por decisión del humano (2026-10-26), con destino **CHORE-04 · guardas de doble clic**. El tester lo anota como observación (`O-…`, con el archivo y el control) y **no escribe pruebas rojas** de doble clic sobre ellos en 03b ni en 03c. Si encuentra otro control sin ref que no está en la lista, también es observación con destino CHORE-04, no hallazgo. Sí es hallazgo que un control que hoy **tiene** ref la pierda, o que la descarga del muro (guardada en 03a por DH-6, CH3-B08) mande dos peticiones.
+
+- **Enmienda 4 (T-03 y T-04).**
+  - **03b, ronda 2:** las cuatro rojas de T-03 y T-04 en verde sin tocarlas; buscar otro formulario de `clases` donde la lista de campos que se pasa a la traducción no dependa del modo, o donde el formulario y su gancho la calculen por separado; que el modo salga de lo enviado (`datos.tipo`) y no del estado (cambiar de tipo con la petición en vuelo no debe cambiar la decisión: `publicandoRef` y `elegirTipo` lo impiden, comprobarlo); anuncio con `titulo:` y luego «Material» (ningún error viejo bajo el título); la vista desmontada con el anuncio en vuelo (un aviso, nunca dos); `maestroIds.0: maestroId:` y `maestroIds:` en los dos modos; que crear clase y material sigan dando exactamente lo de la ronda 1. **Decisiones tomadas que no son hallazgo:** en crear y editar clase, con la vista desmontada no hay aviso de ningún error (callbacks de `mutate`, como en `1f11d38e`); el doble clic en crear y editar clase (fila 2 de la "Lista para CHORE-04").
+  - **03c:** buscar el mismo patrón en `features/admin` y `features/auth`: un formulario con modos (por ejemplo, `formulario-nueva-contrasena.tsx` en restablecer y en establecer con el nombre corregible; registro de estudiante y de maestro) que asocie un `VALIDACION` del servidor a un campo con una lista que no dependa del modo. Hoy ninguno lo hace (sus errores del servidor van a un `MensajeError`; `erroresPorCampo` de `auth` y `erroresPorCampoAdmin` solo leen la validación local), así que un hallazgo ahí sería nuevo de 03c.
 
 **Lista para CHORE-04 (Enmienda 3, M-05 y S-14; la copia el orquestador a `docs/ESTADO.md`).** Búsqueda: todo `.mutate(` y `.mutateAsync(` de producción en `frontend/src/` sin un `if (…Ref.current` antes en el mismo manejador. Todas las rutas son relativas a `frontend/src/`; la línea es la de la llamada.
 
@@ -586,11 +664,12 @@ Las filas 1 a 18 son las del manager (M-05); 19 a 23, las que suma mi búsqueda 
 - **R-06. Pregunta no bloqueante para el cierre:** N-22 (`if` anidados en el backend) y `formatearFechaDeClase` a `lib/format.ts` tienen en §3 el destino "el `chore` posterior a CALIFICACIONES-01 (el mismo de S-15)". CHORE-03 no los absorbe (S-11). Recomiendo darles destino "carril trivial al tocar el archivo" (N-22) y "el próximo encargo que toque `lib/format.ts`" (`formatearFechaDeClase`); lo decide el humano y lo anota el orquestador.
 - **R-07 (Enmienda 2, T-01). El resto de una ruta doble es un fragmento en minúscula** ("debe ser un identificador válido", "no es válido"): es legible y sin tecnicismos de ruta, pero no dice qué hacer. Solo se llega con una URL o un cuerpo manipulados (el cliente arma siempre ids y `?confirmar=` válidos), igual que el `limite:` de R-15. Mejorarlo con un texto por campo es la opción (b) que descarto en la Enmienda 2 (textos nuevos, S-02); si el humano lo quiere, va a un encargo con los textos en `data.ts` y su marca en `DESIGN.md`.
 - **R-08 (Enmienda 2, T-01). La regla del nombre repetido depende de una convención de `shared/`** (los esquemas que repiten su campo lo escriben en camelCase al inicio de su mensaje, y ningún texto para la persona empieza con "palabra:" en minúscula). CH3-A25 la amarra a los esquemas reales: si un esquema nuevo de `shared/` escribe su mensaje de otra forma, la prueba no lo ve hasta que alguien lo sume al inventario. Recomiendo, para un encargo futuro que sí toque `shared/` y el backend, quitar el nombre del mensaje de esos esquemas (la causa) y dejar la regla del contrato como red; está fuera de este chore ("No se toca"). **Enmienda 3 (M-04):** la convención no es solo de `shared/`: también la sigue un esquema local del backend, `parametrosIdSchema` de `backend/src/handlers/admin.ts:60` ("id: debe ser un identificador válido", cuatro rutas de 03c). CH3-A25 no puede verlo porque no se importa de `@campus/shared`; lo amarra CH3-C08 con el mensaje literal, así que un cambio de ese texto en el backend no lo detecta ninguna prueba del frontend. El encargo futuro que quite la causa debe incluir ese esquema (y buscar otros `z.*("campo: …")` locales en `backend/src/handlers/`; hoy es el único, por búsqueda propia).
+- **R-09 (Enmienda 4, T-03 y T-04). Las listas de campos pintados por modo hay que mantenerlas a mano.** Si un formulario gana o pierde un campo en un modo, su lista de `data.ts` cambia en el mismo cambio. CLASES-03 cambiará el formulario de publicación ("Avisos" y "Recursos", con su bloque) y FORO-01 sumará un tipo: `satisfies Readonly<Record<TipoPublicacion, …>>` hace que un tipo nuevo no compile sin su lista, pero un campo nuevo dentro de un tipo no lo detecta nada salvo CH3-B15 (3), que fija las listas de hoy. Recomiendo que esos planes nombren la lista en su "Cambios por capa".
 - **Desacuerdos con ESSENTIALS:** ninguno. Con la parte A, la exportación ya no es un apartamiento de "Archivos" (R-01 decidido).
 
 ## PARADAS (el programador se detiene y reporta; no lo resuelve)
 - **PA-1.** Falla una prueba, normal o `*.ataque`, que no está en §D-R0 (C-1 a C-4, N-L1 a N-L3) ni es nueva de este plan.
-- **PA-2.** Cumplir el plan exigiría cambiar `features/tareas/hooks.ts` (el número de llamadas a `renovarTrasErrorDeLaEntrega` o a `avisarDelErrorDeLaEntrega`, o sus argumentos) o cualquier `hooks.ts`.
+- **PA-2.** Cumplir el plan exigiría cambiar `features/tareas/hooks.ts` (el número de llamadas a `renovarTrasErrorDeLaEntrega` o a `avisarDelErrorDeLaEntrega`, o sus argumentos) o cualquier `hooks.ts`. **Enmienda 4:** salvo, con DH-8 (a), `features/clases/hooks.ts` en las líneas exactas de §D-4 (la importación y `useCrearPublicacion.onError`); cualquier otra línea de ese archivo sigue siendo PA-2.
 - **PA-3.** Haría falta tocar un archivo de "No se toca".
 - **PA-4.** `contarCaracteresVisibles` no se puede importar de `@campus/shared` en el frontend sin cambiar `shared/` (nunca se copia la regla).
 - **PA-5.** `satisfies TraduccionDeErrores` no compila con la forma de una constante existente (no se cambia la constante sin plan).
@@ -599,6 +678,7 @@ Las filas 1 a 18 son las del manager (M-05); 19 a 23, las que suma mi búsqueda 
 - **PA-8.** (Enmienda 1, M-01) `features/calificaciones/lib.ts` necesitaría una importación de `@/lib/errores-de-api` distinta de `import { campoDeErrorDeApi, esErrorDeCursor } from "@/lib/errores-de-api"`, o habría que tocar `mensajeDeErrorCalificaciones`.
 - **PA-9.** (Enmienda 2) La guarda de T-02 exigiría cambiar algo de `adjuntos-de-publicacion.tsx` distinto de lo que dice §D-4 (`AdjuntosDePublicacionProps`, `descargar`, un `enEspera=` de más o de menos, los textos) o tocar `components/adjuntos/hooks.ts`; o el humano no autorizó DH-6 (entonces no se toca el archivo y se reporta).
 - **PA-10.** (Enmienda 2) Un esquema del inventario de §D-1 no da en CH3-A25 el `path` o el `message` que dice su fila (no se corrige la fila ni la regla por cuenta propia).
+- **PA-11.** (Enmienda 4) El humano no respondió DH-8 (entonces no se tocan `formulario-clase.tsx`, `formulario-publicacion.tsx` ni `hooks.ts`, y se reporta); o el remedio de T-03 y T-04 exigiría cambiar algo de esos archivos distinto de lo que dice §D-4 (Enmienda 4), por ejemplo agregar la ref de la fila 2 de la "Lista para CHORE-04", tocar otro gancho o un comentario ajeno; o `satisfies Readonly<Record<TipoPublicacion, readonly string[]>>` no compila porque `TipoPublicacion` no es exactamente `"anuncio" | "material"`; o, tras el remedio, alguna de las cuatro rojas de T-03 y T-04 sigue roja.
 
 **Reglas estáticas que se rompen sin darse cuenta (Enmienda 1, N-06).** Leen el texto crudo, también los comentarios. Antes de cada resumen, el programador las comprueba una por una y el resumen dice, por cada una, el comando o la búsqueda con que la verificó:
 - `mensajeDelAvisoDeCalificar` no aparece, ni en comentarios, en ningún archivo de producción salvo `features/tareas/hooks.ts` y `features/tareas/lib.ts` (CAL-T-127): tampoco en `lib/errores-de-api.ts`, en `lib/errores-de-api-fuera-de-contrato.ts`, en `components/adjuntos/lib.ts` ni en ningún `data.ts`.
@@ -612,7 +692,7 @@ Las filas 1 a 18 son las del manager (M-05); 19 a 23, las que suma mi búsqueda 
 ## No se toca
 Base: `ad10844` fuera de los paquetes; dentro de `frontend/`, `ad10844` para 03a y el commit de la subentrega anterior para 03b y 03c. Fuera de esa verificación: `docs/trabajo/CHORE-03-errores-api/` y `docs/ESTADO.md` salvo su §2b.
 - Todo `backend/`, `shared/`, `infra/`, `.env.example`.
-- En `frontend/`, todo lo que "Cambios por capa" no nombra para la subentrega en curso. En particular: todos los `hooks.ts` de los módulos; `features/calificaciones/gradebook-view.tsx`, `mis-calificaciones-view.tsx` y sus componentes; `features/diagnostico/`; `src/app/`; `src/components/` salvo `components/adjuntos/lib.ts` (03a) y, solo si el humano lo autoriza en DH-6 (Enmienda 2), `components/adjuntos/adjuntos-de-publicacion.tsx` (03a, la guarda de §D-4); `src/services/` salvo `services/apiClient.ts` (03b, solo la exportación de §D-5).
+- En `frontend/`, todo lo que "Cambios por capa" no nombra para la subentrega en curso. En particular: todos los `hooks.ts` de los módulos; `features/calificaciones/gradebook-view.tsx`, `mis-calificaciones-view.tsx` y sus componentes; `features/diagnostico/`; `src/app/`; `src/components/` salvo `components/adjuntos/lib.ts` (03a) y, solo si el humano lo autoriza en DH-6 (Enmienda 2), `components/adjuntos/adjuntos-de-publicacion.tsx` (03a, la guarda de §D-4); `src/services/` salvo `services/apiClient.ts` (03b, solo la exportación de §D-5). **Enmienda 4:** en 03b, y solo si el humano lo autoriza en DH-8, salen `features/clases/components/formulario-clase.tsx` y `features/clases/components/formulario-publicacion.tsx` (con (a) o (b)) y `features/clases/hooks.ts` (solo con (a)), en las líneas exactas de §D-4 (Enmienda 4); el resto de esos archivos sigue en "No se toca".
 - Toda prueba existente, salvo las reescrituras C-1 a C-4 (del tester) y las líneas N-L1 a N-L3 (del programador, en su subentrega).
 - `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/DESIGN.md` y `docs/ESTADO.md` §2b tal como quedaron tras la parte A: el orquestador los verifica por su SHA-256 (de §2b, el del texto de la sección, extraído con el método de la Enmienda 1, N-05, en "Notas para el orquestador"; de `PRD.md`, el recalculado tras M-02), no por el commit. `CLAUDE.md`, `AGENTS.md`, `README.md` y `.claude/` hasta el cierre (A-1 a A-3).
 
@@ -640,6 +720,7 @@ Base: `ad10844` fuera de los paquetes; dentro de `frontend/`, `ad10844` para 03a
 - **A-4.** El programador cambia solo las líneas N-L1 (03b), N-L2 (03b) y N-L3 (03c) de §D-R0.
 - **A-5.** El tester reescribe en la ronda 0 de cada subentrega las `*.ataque` C-1 (03a), C-2 y C-3 (03b) y C-4 (03c), sin cambiar lo que protegen.
 - **A-6 (Enmienda 2, DH-6).** Sacar `frontend/src/components/adjuntos/adjuntos-de-publicacion.tsx` de "No se toca" en 03a, solo para la guarda de `VistaDeFicha` (§D-4). Pendiente del humano; sin ella, PA-9. Enmienda 3: autorizada por el humano el 2026-10-26 (DH-6, sí).
+- **A-7 (Enmienda 4, DH-8).** Sacar de "No se toca" en 03b `frontend/src/features/clases/components/formulario-clase.tsx` y `frontend/src/features/clases/components/formulario-publicacion.tsx` y, con la opción (a), `frontend/src/features/clases/hooks.ts`, solo en las líneas de §D-4 (Enmienda 4), para corregir T-03 y T-04. Pendiente del humano; sin ella, PA-11.
 - **A-1 (ajuste de la Enmienda 2).** El texto de cierre de `CLAUDE.md` cambia solo en la descripción de `quitarRutaDelMensaje` (ver "Documentos a actualizar"); el resto de A-1, como lo aprobó el humano. Enmienda 3: el humano aceptó el cambio en DH-5 (2026-10-26); el texto final, completo y sin instrucciones dentro de la cita, está en "Documentos a actualizar".
 
 ## Pasos de implementación
@@ -673,6 +754,14 @@ Base: `ad10844` fuera de los paquetes; dentro de `frontend/`, `ad10844` para 03a
 7. N-L1 y N-L2 (A-4).
 8. Pruebas CH3-B01 a CH3-B14 (Enmienda 1: B14).
 9. `lint`, `test` y `build` del frontend; resumen con matriz y hermanos. Enmienda 3 (M-05): en la matriz, cada control de la "Lista para CHORE-04" que recorre 03b (filas 1 a 6 y 19 a 22) va como "sin ref; fuera del chore, CHORE-04", sin corregirlo (§D-6).
+
+**03b · ronda 2 del programador (Enmienda 4), solo con DH-8 respondida (si no, PA-11 y se detiene):**
+10. `src/features/clases/data.ts`: `CAMPOS_PINTADOS_DE_LA_CLASE` y `CAMPOS_PINTADOS_DE_LA_PUBLICACION`, y `TipoPublicacion` en la importación de tipos (§D-4, Enmienda 4).
+11. `src/features/clases/lib.ts`: `erroresDeLaClaseDeApi` y `erroresDeLaPublicacionDeApi`, con sus importaciones (§D-4, Enmienda 4).
+12. T-03: `src/features/clases/components/formulario-clase.tsx`, la importación (`:16`) y la llamada de `alFallar` (`:69`).
+13. T-04: con DH-8 (a), `src/features/clases/components/formulario-publicacion.tsx` (importación `:23-29` y `:148`) y `src/features/clases/hooks.ts` (importación `:81-90`, `:613` y `:617`); con DH-8 (b), solo `formulario-publicacion.tsx` con la forma de respaldo de §D-4 (importación y el `catch` de `:145-151`).
+14. Pruebas CH3-B15 a CH3-B17 en los tres archivos de 03b del programador (con la variante de CH3-B15 (4) y CH3-B16 (f) que corresponda a la opción de DH-8).
+15. `npm run lint`, `npm run test` y `npm run build` del frontend, una suite a la vez. Las 4 pruebas rojas de la ronda 1 (T-03 × 2 y T-04 × 2) pasan sin tocarlas. Resumen verificable con: T-03 y T-04 uno por uno; los hermanos de "Enmienda 4" (los doce, uno por uno, con su destino); la matriz de §D-6 con las filas partidas por modo (Enmienda 4), incluidos "con la vista desmontada" y "en vuelo a la vez"; los estados vecinos del mecanismo (crear, editar, anuncio, material, el cambio de tipo después del aviso, la vista desmontada, repetir el envío y volver antes del `staleTime`); y las reglas estáticas de las PARADAS más las del punto 4 del inventario de la Enmienda 4 en §D-R0.
 
 **03c**
 0. Ronda 0 del tester: reescribe C-4 (A-5).
@@ -789,3 +878,59 @@ Los controles que solo se protegen con `isPending` quedan fuera del chore, con d
 ### Lo que el orquestador hace ahora
 - Registrar en `docs/ESTADO.md` el encargo pendiente CHORE-04 con la "Lista para CHORE-04" (23 filas) y la recomendación del manager (carril normal, inventario propio y una regla estática en todo `src/`).
 - Llevar al humano, sin bloquear, la extensión de S-14: los cuatro controles de `features/clases` y el de `app/require-rol.tsx` que no estaban entre los 18.
+
+## Enmienda 4 (ronda 1 del tester en 03b)
+Fecha: 2026-10-27. Responde a `reporte-tester.md`, "## Ronda 1 — 03b" (ROTO: T-03 y T-04, media), con `resumen-programador-03b.md` (matriz de `clases`), `revision.md` ("## Verificación del resumen — 03b — primera entrega", O-15) y `aprobacion.md` ("## 03b · arranque" en adelante) a la vista. Copia del plan antes de esta enmienda: `copias-plan/plan-chore03-antes-enmienda4-ee08bf2a.md` (la guardó el orquestador). Estado: **BLOQUEADO solo por DH-8**; con la respuesta, LISTO. Cada cambio está marcado "Enmienda 4" en su lugar. **No toca nada de 03a** (cerrada) ni los pasos 0 a 9 de 03b: solo suma la ronda 2 (pasos 10 a 15). El contrato de `lib/errores-de-api.ts` no cambia.
+
+### T-03 y T-04 — la lista de campos pintados no dependía del modo
+**Verificación propia en el código** (en `1f11d38e`; ni estos archivos ni `hooks.ts` cambiaron en la ronda 1):
+- **T-03.** `formulario-clase.tsx:68-75`: `alFallar` llama a `erroresDeFormularioClases(error, ["nombre", "descripcion", "maestroIds"])` en los dos modos; `errores.maestroIds` solo lo pinta `SelectorDeMaestros` (`selector-de-maestros.tsx:74`), que se monta con `modo === "crear"` (`formulario-clase.tsx:158-165`). `useCrearClase` y `useEditarClase` (`hooks.ts:156-184`) no tienen `onError`: el formulario es el único que decide, así que el remedio no toca `hooks.ts`.
+- **T-04.** `useCrearPublicacion.onError` (`hooks.ts:613-619`) calla si `erroresDeFormularioClases(error, ["titulo", "texto"])` no es `null`; el `catch` de `handlePublicar` (`formulario-publicacion.tsx:144-151`) guarda `errores.titulo`; el título y su `ErrorDeCampo` solo se pintan con `esMaterial` (`:232-248`). El gancho y el formulario coinciden entre sí, pero no con lo que se pinta. Un efecto más que el reporte no menciona: el error queda guardado y aparece bajo el título al pulsar «Material» (CH3-B16 (e)).
+
+**Remedio (mínimo, en el espíritu del chore).** La lista de campos pintados pasa a depender del modo y vive una sola vez, en `data.ts` (`CAMPOS_PINTADOS_DE_LA_CLASE`, `CAMPOS_PINTADOS_DE_LA_PUBLICACION`), leída por dos funciones de `lib.ts` (`erroresDeLaClaseDeApi(error, modo)`, `erroresDeLaPublicacionDeApi(error, tipo)`), como `erroresDelTemaDeApi` y `erroresDeLaTareaDeApi`: el formulario y su gancho deciden con la misma función y con el modo de lo enviado. En los modos que pintan todo (crear, material) la salida es la de siempre. Forma exacta, archivos y líneas en §D-4 (Enmienda 4).
+- **Por qué funciones en `lib.ts` y no solo la constante:** CH3-B15 prueba la decisión por modo sin montar nada, y la regla estática de CH3-B15 (4) impide que vuelva una lista literal fuera de `data.ts`.
+- **Por qué se toca `hooks.ts` (DH-8 (a)):** el gancho de la publicación decide si avisa y solo él conoce lo enviado cuando la vista ya no está (T-30 de CLASES). Sin tocarlo, el formulario tiene que compensar su silencio (DH-8 (b)), con la decisión en dos sitios. El cambio en `hooks.ts` es una importación y dos líneas de `useCrearPublicacion`; ningún otro gancho.
+- **Descartado:** cambiar `erroresDeFormularioClases` (su firma la fijan CH3-B04, PR-1C02 y `refactor-01c-r1`); dar el genérico a todo `VALIDACION` de un campo no pintado (pierde el texto del servidor, contra §D-2); pintar `maestroIds` al editar o `titulo` en un anuncio (texto y patrón nuevos, S-02, y el servidor no los acepta en esos modos).
+
+### Hermanos inventariados (otros formularios cuya lista de campos podría depender del modo)
+Búsqueda: `erroresDeFormularioClases|erroresDe\w*DeApi|errorDe\w*DeApi|errorDelCampo\w*|CAMPOS_` en producción de `features/` y, por cada acierto, qué pinta el formulario en cada modo.
+
+| # | Formulario (archivo) | ¿Modos? | ¿El patrón aplica? | Destino |
+|---|---|---|---|---|
+| 1 | Crear y editar clase (`clases/components/formulario-clase.tsx:69`) | crear, editar | Sí (T-03) | Esta enmienda |
+| 2 | Publicar anuncio o material (`clases/components/formulario-publicacion.tsx:148`, `clases/hooks.ts:617`) | anuncio, material | Sí (T-04) | Esta enmienda |
+| 3 | Comentar en el muro (`clases/components/formulario-comentario.tsx:46`, `clases/hooks.ts:681`, `["texto"]`) | No | No: `texto` siempre se pinta | Ninguno |
+| 4 | Crear y renombrar un tema (`erroresDelTemaDeApi`: `clases/components/formulario-tema.tsx:51`, `clases/hooks.ts:800` y `:824`) | crear, renombrar | No: los dos modos pintan `nombre` (`formulario-tema.tsx:86-99`) | Lo fija CH3-B16 |
+| 5 | Unirse a una clase (`errorDelCampoCodigo`, `clases/components/formulario-unirse-clase.tsx:50`) | No | No: `codigo` siempre se pinta | Ninguno |
+| 6 | Editor de categorías (`erroresDeCategoriasDeApi`: `clases/components/editor-de-categorias.tsx:143` con las llaves enviadas, `clases/hooks.ts:936` con `[]`) | No | No: la fila o, fuera de rango, la lista, que siempre se pinta; el tester comprobó que gancho y editor deciden igual en 25 entradas | Ninguno |
+| 7 | Controles sin campos de `clases` (CH3-B08) | — | No: no asocian errores a campos | Ninguno |
+| 8 | Crear y editar tarea (`erroresDeLaTareaDeApi` con `CAMPOS_DEL_FORMULARIO`: `tareas/components/formulario-tarea.tsx:235`, `tareas/hooks.ts:169` y `:192`) | crear, editar | No: los dos modos pintan los ocho campos (categoría y tema siempre, `formulario-tarea.tsx:353-406`; "cómo se entrega", `:411-461`; la rúbrica con `EditorDeRubrica`, `:508`, y una fila fuera de rango pasa a `rubrica`, T-10, `tareas/lib.ts:250-288`) | Ninguno (03a cerrada) |
+| 9 | Entregar con y sin adjuntos requeridos (`errorDeEnlacesDeApi`: `tareas/components/formulario-de-entrega.tsx:143`, `tareas/hooks.ts:367`) | Un solo formulario | No: `CampoDeEnlaces` se pinta siempre (`formulario-de-entrega.tsx:200-206`) | Ninguno (03a cerrada) |
+| 10 | Calificar con y sin rúbrica (`erroresDeCalificacionDeApi(error, criteriosEnviados)`: `tareas/components/panel-de-calificacion.tsx:112`, `tareas/hooks.ts:501`) | con rúbrica, sin rúbrica | Ya depende del modo: `calificacion` con rúbrica y una posición fuera del envío dan `null` y el gancho avisa con `mensajeDelCampoDeCalificacion` (T-02 de CALIFICACIONES-01c) | Ninguno (03a cerrada) |
+| 11 | Hilo privado (`errorDeTextoDeApi`: `tareas/components/hilo-privado.tsx:56`, `tareas/hooks.ts:428`) | No | No: `texto` siempre se pinta | Ninguno |
+| 12 | Formularios de `admin` y `auth` (03c) | Algunos (`formulario-nueva-contrasena.tsx`: restablecer y establecer; registro de estudiante y de maestro) | Hoy no: no asocian un `VALIDACION` del servidor a ningún campo (todo va al `MensajeError`; `erroresPorCampo` de `auth` y `erroresPorCampoAdmin` solo leen la validación local) | Punto de ataque de 03c (Enmienda 4) |
+
+Solo 1 y 2 entran. Coincide con los hermanos que revisó el tester (comentario, tema, unirse y categorías).
+
+### Decisiones para el humano (Enmienda 4)
+| # | Pregunta | Recomendación del arquitecto | Si se elige la otra opción |
+|---|---|---|---|
+| DH-8 (T-03 y T-04, **bloquea**) | ¿Autorizas sacar de "No se toca" en 03b `formulario-clase.tsx` y `formulario-publicacion.tsx` y, con la opción (a), `features/clases/hooks.ts` (solo `useCrearPublicacion`), en las líneas de §D-4 (Enmienda 4)? Texto exacto en "Preguntas bloqueantes" | (a): un solo lugar decide por el gancho y el formulario, también con la vista desmontada; el cambio en `hooks.ts` es una importación y dos líneas | (b): sin `hooks.ts`; el formulario avisa cuando el gancho calló, con la decisión en dos sitios. Ninguna: las cuatro rojas siguen y 03b no cierra hasta un encargo aparte |
+
+### Cambios por sección (Enmienda 4)
+- **Encabezado:** estado BLOQUEADO por DH-8 (una línea nueva; las de las Enmiendas 2 y 3 no cambian).
+- **Preguntas bloqueantes:** DH-8, con sus dos opciones, antes del historial.
+- **§D-2:** dos filas nuevas ("campo que el formulario pinta en otro modo") y el párrafo "Campo pintado se decide por el modo de lo que se envió".
+- **§D-4 (`features/clases`):** tres filas en la tabla y la forma exacta del remedio, archivo por archivo, con la variante (b).
+- **§D-6:** las filas de la matriz partidas por modo, "con la vista desmontada" y "en vuelo a la vez".
+- **§D-R0:** el inventario de la Enmienda 4 (lista cerrada vacía).
+- **Cambios por capa (03b):** lo de la ronda 2.
+- **Pruebas requeridas (03b):** CH3-B15, CH3-B16 y CH3-B17.
+- **Puntos de ataque:** una viñeta (03b ronda 2 y 03c).
+- **Riesgos:** R-09.
+- **PARADAS:** PA-2 (la excepción de DH-8 (a)) y PA-11.
+- **No se toca:** la excepción de DH-8.
+- **Autorizaciones:** A-7.
+- **Pasos de implementación:** 03b, pasos 10 a 15 (ronda 2).
+
+`docs/DESIGN.md` no cambia: ningún texto ni patrón nuevo (el aviso es el toast de siempre con el texto del servidor o el genérico, S-02).

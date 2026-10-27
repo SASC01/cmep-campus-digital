@@ -14,7 +14,7 @@ import { formatearFechaHora } from "@/lib/format"
 
 import { TEXTOS_MAESTROS } from "../data"
 import { useRegistradosDelEnlace } from "../hooks"
-import { mensajeDeErrorAdmin, textoOcultoDeFila } from "../lib"
+import { mensajeDeConsultaAdmin, textoOcultoDeFila } from "../lib"
 
 interface RegistradosDelEnlaceProps {
   enlaceId: string
@@ -30,7 +30,7 @@ export function RegistradosDelEnlace({ enlaceId, creadoEnDelEnlace }: Registrado
   const registrados = useRegistradosDelEnlace(enlaceId)
 
   if (registrados.isError) {
-    return <MensajeError mensaje={mensajeDeErrorAdmin(registrados.error)} />
+    return <MensajeError mensaje={mensajeDeConsultaAdmin(registrados.error)} />
   }
 
   if (registrados.isLoading || !registrados.data) {

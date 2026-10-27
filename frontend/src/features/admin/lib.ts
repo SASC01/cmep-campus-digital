@@ -1,13 +1,11 @@
-import { esApiError } from "@/services/apiClient"
+import { mensajeDeErrorDeApi, mensajeDeErrorDeConsulta } from "@/lib/errores-de-api"
 
 import {
   CAMPOS_FORMULARIO_ADMIN,
-  CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   ETIQUETAS_ROL_ADMIN,
-  MENSAJE_ERROR_ADMIN_GENERICO,
-  MENSAJES_ERROR_ADMIN,
   TEXTOS_INVITACION_MASIVA,
   TEXTOS_MAESTROS,
+  TRADUCCION_DE_ERRORES_ADMIN,
 } from "./data"
 import type {
   CampoFormularioAdmin,
@@ -30,19 +28,16 @@ export const focoDisponiblePara = (
 ): boolean =>
   activo === null || activo === cuerpo || (contenedor !== null && contenedor.contains(activo))
 
-const tieneMensajePropio = (codigo: string): codigo is keyof typeof MENSAJES_ERROR_ADMIN =>
-  Object.hasOwn(MENSAJES_ERROR_ADMIN, codigo)
+// CHORE-03 (§D-4): el mensaje de un error de una acción, con el contrato de lib/errores-de-api.ts y la
+// traducción del módulo (data.ts). Un VALIDACION da el mensaje del servidor sin su ruta o, sin texto
+// visible, el genérico; CUPO_DIARIO_INSUFICIENTE (§D-C7), su mensaje en español.
+export const mensajeDeErrorAdmin = (error: unknown): string =>
+  mensajeDeErrorDeApi(error, TRADUCCION_DE_ERRORES_ADMIN)
 
-// VALIDACION y CUPO_DIARIO_INSUFICIENTE (§D-C7) muestran el mensaje que trae el propio servidor.
-const tieneMensajeDelServidor = (codigo: string): boolean =>
-  (CODIGOS_CON_MENSAJE_DEL_SERVIDOR as readonly string[]).includes(codigo)
-
-export const mensajeDeErrorAdmin = (error: unknown): string => {
-  if (!esApiError(error)) return MENSAJE_ERROR_ADMIN_GENERICO
-  if (tieneMensajeDelServidor(error.codigo)) return error.message
-  if (tieneMensajePropio(error.codigo)) return MENSAJES_ERROR_ADMIN[error.codigo]
-  return MENSAJE_ERROR_ADMIN_GENERICO
-}
+// CHORE-03 (§D-4, S-01): el mensaje de un error de lo que se carga (la tabla de enlaces y los
+// registrados de un enlace). Ante un VALIDACION, el genérico, nunca el texto del servidor.
+export const mensajeDeConsultaAdmin = (error: unknown): string =>
+  mensajeDeErrorDeConsulta(error, TRADUCCION_DE_ERRORES_ADMIN)
 
 const esCampoFormularioAdmin = (valor: unknown): valor is CampoFormularioAdmin =>
   CAMPOS_FORMULARIO_ADMIN.some((campo) => campo === valor)

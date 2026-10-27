@@ -79,8 +79,8 @@ features/
 - `lib/ruta-de-clase.ts` — la perspectiva (`Perspectiva`, `perspectivaDeRuta`) y la base de la ruta de una clase (`baseDeClase`, `BASES_POR_PERSPECTIVA`)
 - `lib/estado-de-entrega.ts` — el estado visible de una entrega (`estadoDeEntregaVisible`: asignado, sin entregar, entregado, con retraso o calificado), compartido por `features/clases` y `features/tareas`
 - `lib/vencimiento.ts` — el estado y el texto de la fecha límite (`vencimientoDe`, con el umbral de 72 h `UMBRAL_FECHA_PROXIMA_MS` y `TEXTO_FECHA_NO_DISPONIBLE`) y la variante de su insignia (`varianteDeVencimiento`)
-- `lib/errores-de-api.ts` — los errores por campo y de cursor de la API (`erroresPorCampo`, `esErrorDeCursor`, y la traducción de un `VALIDACION` a errores de formulario con los mensajes de cada módulo)
-- `services/apiClient.ts` — cliente HTTP con el token y el formato de error
+- `lib/errores-de-api.ts` — el contrato único de los errores de la API: `mensajeDeErrorDeApi` (acciones) y `mensajeDeErrorDeConsulta` (consultas: ante un `VALIDACION`, el texto fijo del lugar) sobre la `TraduccionDeErrores` de cada módulo; `quitarRutaDelMensaje` (la ruta, una vez, y el nombre de campo en camelCase que el esquema repite detrás; solo en `VALIDACION`), `textoVisibleOGenerico` (el genérico del módulo ante un texto sin caracteres visibles), `campoDeErrorDeApi`, `esErrorDeCursor(error, campos)`, `erroresDeFormularioDeApi` y `erroresPorCampo`. La tabla común de entradas fuera de contrato, que recorren las pruebas de cada función de traducción, vive en `lib/errores-de-api-fuera-de-contrato.ts` (solo la importan pruebas)
+- `services/apiClient.ts` — cliente HTTP con el token y el formato de error; exporta `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` (los errores con que redirige), que importan los módulos para no avisar de ellos
 - `services/authService.ts` — login, refresco silencioso del token y logout. El token de acceso vive en memoria, nunca en `localStorage`
 - `services/tokenAcceso.ts` — el token de acceso en memoria (`obtenerToken`, `establecerToken`, `limpiarToken`, `haySesion`); vive aparte para que `apiClient` lo lea sin ciclo de importación, y `authService` lo reexporta
 - `services/navegacion.ts` — `irA` y `rutaActual`: único punto de redirección fuera del router (lo usa `apiClient` al perder la sesión o ante `403 ACCESO_RESTRINGIDO` o `403 CAMBIO_DE_CONTRASENA_REQUERIDO`)
@@ -139,6 +139,7 @@ Dominios: `auth`, `publico`, `usuarios`, `clases`, `tareas`, `calificaciones`, `
 - Los formularios donde alguien captura datos de otra persona (el admin invitando o editando usuarios, un maestro agregando alumnos) usan `autoComplete="off"` en sus campos. `autoComplete` con valores como `name` o `email` solo se usa cuando la persona escribe sus propios datos.
 - El error de un campo usa `ErrorDeCampo` (`components/error-de-campo.tsx`, fondo `--danger-soft`), nunca texto rojo suelto: el rojo no llega a AA sobre vidrio al 62 %.
 - Todo campo de contraseña usa `CampoContrasena` (`features/auth/components/campo-contrasena.tsx`), con su botón para mostrarla u ocultarla; nunca un `Input` con `type="password"` suelto. El nombre del botón es fijo, por campo, va como texto `sr-only` dentro del botón (nunca `aria-label`) y el estado va en `aria-pressed`.
+- Un formulario que muestra el error del servidor desde el estado de la mutación (`isError` con su `MensajeError`) lo limpia antes de validar en local, después de su guarda de envío: `if (mutacion.isError) mutacion.reset()`. Sin la condición solo cuando también debe desaparecer lo que la mutación devolvió (la ficha de `BuscadorDeCuenta`). Si el error del servidor vive en un estado del formulario, la validación local lo reemplaza en ese mismo estado o lo limpia antes de validar. Así la persona lee un solo mensaje, el del envío que acaba de hacer, nunca el `MensajeError` viejo junto al `ErrorDeCampo` nuevo (CHORE-03, T-05).
 
 ### Textos
 
@@ -198,6 +199,7 @@ Casos especiales que `apiClient` resuelve en un solo lugar, no cada vista: `403 
 - **En cualquier otro lugar:** `try/catch` y aviso con toast.
 - **Componentes:** siempre manejan `isError` con retorno temprano.
 - **Subidas, descargas y manejadores asíncronos:** `try/catch/finally` y toast en caso de error.
+- **Textos del servidor:** ningún mensaje de la API llega a la persona sin pasar por `lib/errores-de-api.ts`. Cada módulo declara su `TraduccionDeErrores` en `data.ts` y traduce las acciones con `mensajeDeErrorDeApi` y las consultas con `mensajeDeErrorDeConsulta` (ante un `VALIDACION`, el texto fijo del lugar); fuera de ese archivo nadie recorta `error.message`. Las pruebas de cada función de traducción recorren `ENTRADAS_FUERA_DE_CONTRATO` (`lib/errores-de-api-fuera-de-contrato.ts`). Excepciones: `features/diagnostico`, temporal, y `features/calificaciones`, cuyas consultas nunca muestran texto del servidor (el de "sin acceso" o el texto fijo del lugar).
 
 ```tsx
 // BIEN — try/catch en el manejador

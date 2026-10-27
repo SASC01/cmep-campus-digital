@@ -40,6 +40,9 @@ export function FormularioGenerarEnlace({ vigenciaInputRef }: FormularioGenerarE
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
     if (generar.isPending) return
+    // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
+    // para que la persona lea un solo mensaje: el de este envío.
+    if (generar.isError) generar.reset()
 
     const formulario = new FormData(evento.currentTarget)
     const vigenciaDias = formulario.get("vigenciaDias")

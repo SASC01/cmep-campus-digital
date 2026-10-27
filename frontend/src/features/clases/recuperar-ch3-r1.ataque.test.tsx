@@ -100,7 +100,7 @@ const responder = ({ metodo, url }: Llamada): Response | null => {
 
 beforeAll(async () => {
   await import("@/app/router")
-})
+}, 30_000)
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] })

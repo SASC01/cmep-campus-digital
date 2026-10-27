@@ -19,7 +19,7 @@ import { InsigniaEstadoEnlace } from "./insignia-estado-enlace"
 import { RegistradosDelEnlace } from "./registrados-del-enlace"
 import { TEXTOS_MAESTROS } from "../data"
 import { useEnlacesRegistro, useRevocarEnlace } from "../hooks"
-import { mensajeDeErrorAdmin, textoOcultoDeFila } from "../lib"
+import { mensajeDeConsultaAdmin, mensajeDeErrorAdmin, textoOcultoDeFila } from "../lib"
 import type { EnlaceRegistroAdmin } from "../types"
 
 interface FilaEnlaceProps {
@@ -187,7 +187,7 @@ export function TablaEnlaces({ onGenerarPrimero }: TablaEnlacesProps) {
   const enlaces = useEnlacesRegistro()
 
   if (enlaces.isError) {
-    return <MensajeError mensaje={mensajeDeErrorAdmin(enlaces.error)} />
+    return <MensajeError mensaje={mensajeDeConsultaAdmin(enlaces.error)} />
   }
 
   if (enlaces.isLoading || !enlaces.data) {

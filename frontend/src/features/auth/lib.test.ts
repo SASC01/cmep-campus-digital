@@ -62,7 +62,7 @@ describe("rutas y etiquetas por rol", () => {
 })
 
 describe("mensajeDeErrorAuth", () => {
-  it("traduce por código, usa el mensaje del servidor en VALIDACION y un genérico en lo demás", () => {
+  it("traduce por código, usa el mensaje del servidor sin su ruta en VALIDACION y un genérico en lo demás", () => {
     expect(mensajeDeErrorAuth(new ApiError("CREDENCIALES_INVALIDAS", "x", 401))).toBe(
       "Correo o contraseña incorrectos.",
     )
@@ -71,7 +71,7 @@ describe("mensajeDeErrorAuth", () => {
     )
     expect(
       mensajeDeErrorAuth(new ApiError("VALIDACION", "email: Escribe un correo válido", 400)),
-    ).toBe("email: Escribe un correo válido")
+    ).toBe("Escribe un correo válido")
     expect(mensajeDeErrorAuth(new ApiError("ERROR_INTERNO", "detalle", 500))).toBe(
       "No pudimos completar la operación. Inténtalo de nuevo.",
     )

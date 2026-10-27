@@ -20,6 +20,9 @@ export function FormularioInvitarMaestro() {
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
     if (invitar.isPending) return
+    // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
+    // para que la persona lea un solo mensaje: el de este envío.
+    if (invitar.isError) invitar.reset()
 
     const formulario = evento.currentTarget
     const datosFormulario = new FormData(formulario)

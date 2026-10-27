@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest"
 
 // CHORE-03: reglas estáticas del contrato de los errores de la API. Leen el texto crudo de los
 // archivos (comentarios incluidos). En 03a cubren features/tareas y components/adjuntos; 03b las
-// extiende a features/clases y features/calificaciones, y 03c a todo src/.
+// extiende a features/clases y features/calificaciones, y 03c a todo src/. import.meta.glob no
+// incluye al archivo que lo llama (O-r1-3); este es una prueba, fuera de la regla de producción.
 
 const fuentes = import.meta.glob<string>("/src/**/*.{ts,tsx}", {
   query: "?raw",
@@ -38,6 +39,10 @@ const EXPRESION_DE_RUTA = /\/\^\[[^\]\n]*\]\+:\\s\*\//
 
 const ALCANCE_03A = ["/src/features/tareas/", "/src/components/adjuntos/"] as const
 const ALCANCE_03B = ["/src/features/clases/", "/src/features/calificaciones/"] as const
+// 03c (S-09): todo src/ salvo el contrato y features/diagnostico, temporal, que muestra
+// `codigo: mensaje` a propósito.
+const FUERA_DE_03C = (ruta: string) =>
+  ruta === CONTRATO || ruta.startsWith("/src/features/diagnostico/")
 
 describe("CHORE-03 · reglas estáticas del contrato", () => {
   it("CH3-A20: features/tareas y components/adjuntos no manipulan error.message; la expresión de ruta vive solo en el contrato; la tabla común no importa de features/ y ningún archivo de producción la importa", () => {
@@ -85,6 +90,86 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       .filter(([, texto]) => /quitarPrefijoDeCampo/.test(texto))
       .map(([ruta]) => ruta)
     expect(conElNombre).toEqual([])
+  })
+
+  it("CH3-C07: ningún archivo de producción de src/ salvo el contrato y features/diagnostico manipula error.message ni tiene la expresión de ruta", () => {
+    const enAlcance = deProduccion.filter(([ruta]) => !FUERA_DE_03C(ruta))
+    for (const prefijo of ["/src/features/admin/", "/src/features/auth/"]) {
+      expect(enAlcance.filter(([ruta]) => ruta.startsWith(prefijo)).length).toBeGreaterThan(10)
+    }
+    for (const prefijo of ["/src/app/", "/src/components/", "/src/services/", "/src/lib/"]) {
+      expect(enAlcance.filter(([ruta]) => ruta.startsWith(prefijo)).length).toBeGreaterThan(3)
+    }
+    expect(enAlcance.map(([ruta]) => ruta)).not.toContain(CONTRATO)
+    expect(enAlcance.some(([ruta]) => ruta.startsWith("/src/features/diagnostico/"))).toBe(false)
+    expect(enAlcance.map(([ruta]) => ruta)).toContain(TABLA)
+    const fallas = enAlcance.flatMap(([ruta, texto]) => [
+      ...MANIPULACIONES.filter(([, regla]) => regla.test(texto)).map(
+        ([nombre]) => `${ruta}: ${nombre}`,
+      ),
+      ...(EXPRESION_DE_RUTA.test(texto) ? [`${ruta}: expresión de ruta`] : []),
+    ])
+    expect(fallas).toEqual([])
+  })
+
+  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; ninguno gana una ref; en admin y auth solo esos diez y buscador-de-cuenta reinician una mutación", () => {
+    // Sin comentarios: el comentario de T-05 nombra la línea y no debe contar.
+    const sinComentarios = (texto: string) =>
+      texto.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
+    const LINEA_DE_T05 = /if \((\w+)\.isError\) \1\.reset\(\)/g
+    const DIEZ: readonly (readonly [string, string])[] = [
+      ["/src/features/admin/components/formulario-invitar-maestro.tsx", "invitar"],
+      ["/src/features/admin/components/formulario-invitacion-masiva.tsx", "invitar"],
+      ["/src/features/admin/components/formulario-generar-enlace.tsx", "generar"],
+      ["/src/features/admin/components/formulario-corregir-correo.tsx", "corregir"],
+      ["/src/features/auth/components/formulario-login.tsx", "inicioSesion"],
+      ["/src/features/auth/components/formulario-registro.tsx", "alta"],
+      ["/src/features/auth/components/formulario-registro-maestro.tsx", "alta"],
+      ["/src/features/auth/components/formulario-recuperar.tsx", "recuperar"],
+      ["/src/features/auth/components/formulario-nueva-contrasena.tsx", "nuevaContrasena"],
+      ["/src/features/auth/components/formulario-cambiar-contrasena.tsx", "cambiar"],
+    ]
+    const BUSCADOR = "/src/features/admin/components/buscador-de-cuenta.tsx"
+
+    for (const [ruta, mutacion] of DIEZ) {
+      const texto = sinComentarios(leer(ruta))
+      const apariciones = [...texto.matchAll(LINEA_DE_T05)]
+      expect(
+        apariciones.map((aparicion) => aparicion[1]),
+        ruta,
+      ).toEqual([mutacion])
+      const linea = apariciones[0]?.index ?? -1
+      const guarda = texto.indexOf(`if (${mutacion}.isPending) return`)
+      const validacion = texto.indexOf("safeParse(")
+      expect(guarda, ruta).toBeGreaterThan(-1)
+      expect(validacion, ruta).toBeGreaterThan(-1)
+      expect(linea, ruta).toBeGreaterThan(guarda)
+      expect(linea, ruta).toBeLessThan(validacion)
+      expect(texto, ruta).not.toMatch(/Ref\.current\) return/)
+    }
+
+    // D-2 (manager): se cuenta `<m>.reset()` con el nombre de cada mutación del archivo (lo que sale
+    // de un gancho `use…(`), no cualquier `.reset(` (formulario.reset() del <form> no cuenta).
+    const reinicianUnaMutacion = deProduccion
+      .filter(([ruta]) => /^\/src\/features\/(admin|auth)\//.test(ruta))
+      .flatMap(([ruta, crudo]) => {
+        const texto = sinComentarios(crudo)
+        const deGanchos = [...texto.matchAll(/const (\w+) = use[A-Z]\w*\(/g)].map(
+          (declaracion) => declaracion[1],
+        )
+        return deGanchos
+          .filter((nombre) => nombre !== undefined && texto.includes(`${nombre}.reset()`))
+          .map((nombre) => `${ruta}#${String(nombre)}`)
+      })
+      .sort()
+    expect(reinicianUnaMutacion).toEqual(
+      [...DIEZ.map(([ruta, mutacion]) => `${ruta}#${mutacion}`), `${BUSCADOR}#buscar`].sort(),
+    )
+
+    // BuscadorDeCuenta no cambia: su reset sigue sin condición (DEC-19).
+    const buscador = sinComentarios(leer(BUSCADOR))
+    expect(buscador).toContain("buscar.reset()")
+    expect(buscador).not.toMatch(/if \(buscar\.isError\) buscar\.reset\(\)/)
   })
 
   it("CH3-A24: ni la tabla común, ni el contrato, ni las pruebas nuevas del chore tienen un carácter invisible literal", () => {

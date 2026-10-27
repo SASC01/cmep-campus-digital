@@ -1412,3 +1412,669 @@ Usé el comando de V-01 de `reporte-tester.md`, con la base sacada de "Tabla de 
 10. **Queda pendiente, con destino CLASES-03:** si cierras la vista con un envío en vuelo y el servidor responde un error de un campo visible, no hay aviso. Viene de CLASES y no es de este chore.
 11. **Pendiente para 03c:** `admin` y `auth`, la regla estática de todo `src/` y, al cierre, los textos de `CLAUDE.md` (A-1 a A-3).
 12. No se verificó en navegador: no hay nada visual nuevo.
+
+## Verificación del resumen — 03c — primera entrega
+Fecha: 2026-10-27. Resumen: `resumen-programador-03c.md`. Plan `plan.md` `eab43ac5…` (Enmiendas 1 a 4), reproducido. Base de 03c en `frontend/`: `9272501e`; fuera de los paquetes, `ad10844`. Antes de correr comprobé con `Get-CimInstance Win32_Process` que no hubiera ningún `vitest` en marcha: solo había un `node` ajeno de otra herramienta, que no toqué. Corrí todo desde `frontend/`, una suite a la vez. Las salidas están en el scratchpad de la sesión: `03c-mgr-lint.txt`, `03c-mgr-test.txt`, `03c-mgr-build.txt`, `03c-mgr-list.txt`, `v01-base-03c.txt` y `v01-actual-03c.txt`.
+
+**Veredicto: RESUMEN ACEPTADO (el tester puede atacar la ronda 1 de 03c).** No hay `M-xx`. Todas las cifras coinciden, V-01 da 218 de 218, "No se toca" está limpio, cada viñeta de 03c tiene su caso y mi grep confirma que en `admin` y `auth` no hay un PA-6. Las observaciones O-20 a O-24 son para el tester o para el cierre; ninguna bloquea.
+
+### Cifras: resumen contra corrida propia
+| Qué | Resumen | Corrida propia | ¿Coincide? |
+|---|---|---|---|
+| `npm run lint` | exit 0; `All matched files use Prettier code style!` y luego `> tsc -b`; 0 `error TS` | exit 0; las mismas dos líneas; `grep -c "error TS"` = 0 | Sí |
+| `npm run test` | `Test Files  229 passed (229)` · `Tests  4303 passed (4303)`; 0 "timed out" | `Test Files  229 passed (229)` · `Tests  4303 passed (4303)`; arranque 12:08:30, `Duration  281.50s`; `Test timed out` 0, `Hook timed out` 0, cualquier "timed out" 0, `FAIL` o `×` 0 | Sí |
+| `npm run build` | `✓ built in 1.26s` | exit 0; `✓ built in 1.34s`, con el aviso del bloque de más de 500 kB (previo, de FRONT-01) | Sí |
+| `npx vitest list` de los 5 archivos | 124 | 124 líneas `src/…` | Sí |
+| Por archivo | 18 · 29 · 35 · 38 · 4 | `auth/errores-ch3` 18 · `admin/errores-ch3` 29 · `auth/formularios-ch3` 35 · `admin/formularios-ch3` 38 · `lib/errores-de-api-estatico` 4 | Sí |
+| Por id | C01 18, C02 13, C03 35, C04 26, C05 6, C06 2, C07 1, C08 20 | C01 18, C02 13, C03 35, C04 26, C05 6, C06 2, C07 1, C08 20 (16 + 4) | Sí |
+| Delta contra el cierre de 03b | +4 archivos, +121 casos | 225 → 229 y 4182 → 4303 | Sí |
+
+Los 124 títulos son distintos: ninguno se repite en `vitest list` (O-r2-3 atendida; los `%s` van sobre tuplas, y los restos de C08 se nombran por punto de código).
+
+### V-01
+- Base: la tabla "al cierre de la ronda 0 de CHORE-03 03c" de `reporte-tester.md`, en minúsculas. Actual: `git ls-files -co --exclude-standard | grep -E '\.ataque\.test\.tsx?$' | sort | xargs sha256sum`.
+- Base 218, actual 218, `diff` vacío. **218 de 218.**
+- C-4 `admin/cuentas-r1` da `7d080037…`. Las tres endurecidas por PA-12 dan `826a564c…` (`clases/recuperar-ch3-r1`), `07287364…` (`clases/formularios-ch3-r2`) y `e7733a10…` (`tareas/formularios-ch3-r1`). Las cuatro son las de la ronda 0.
+- No hay `.skip`, `.only`, `.todo`, `.fails`, `xit`, `xdescribe`, `fit` ni `fdescribe` en las 218 `*.ataque` ni en las 5 pruebas del programador. El único acierto del grep son cuatro comentarios de `admin/cuentas-r4.ataque` ("sin it.fails"), sin cambios desde `9272501e`.
+- Ninguna prueba nueva termina con un `return` temprano antes de sus aserciones. El `return` de `comprobarUnSoloMensaje` en `admin/formularios-ch3` (consulta sin botón) va después de todas las aserciones comunes. Las precondiciones lanzan con un mensaje.
+
+### "No se toca"
+- `git diff --stat 9272501e -- frontend shared backend infra .env.example` da **12 archivos**:
+  - los 6 de producción de "Cambios por capa › 03c": `admin/data.ts`, `admin/lib.ts`, `admin/components/tabla-enlaces.tsx`, `admin/components/registrados-del-enlace.tsx`, `auth/data.ts` y `auth/lib.ts`;
+  - N-L3 (`auth/lib.test.ts`);
+  - `lib/errores-de-api-estatico.test.ts` (CH3-C07);
+  - las 4 `*.ataque` del tester (C-4 y las tres de PA-12).
+
+  Hay además 4 archivos nuevos sin seguimiento: las 4 pruebas del programador. Nada en `shared/`, `backend/`, `infra/` ni `.env.example`.
+- `tabla-enlaces.tsx` cambia solo en la importación (`:22`) y en la consulta (`:190`); `registrados-del-enlace.tsx`, solo en la importación (`:17`) y en la consulta (`:33`).
+- N-L3 cambia solo el título (`:65`) y la salida esperada (`:74`), con los textos de §D-R0.
+- No cambia ningún `hooks.ts` ni nada de `clases`, `tareas`, `calificaciones`, `components/`, `app/`, `services/`, `diagnostico` ni las vistas de `auth` con consulta.
+- Los documentos coinciden por hash: `PRD.md` `a10c5c23…`, `ARCHITECTURE.md` `75c3c75d…`, `ARCHITECTURE-ESSENTIALS.md` `7c05fd61…`, `DESIGN.md` `8d977dc4…` y §2b de `ESTADO.md` `6ecbc366…` (con `awk`, desde `## 2b.` hasta antes de `## 3.`). El único cambio de `ESTADO.md` contra `9272501e` es la línea de §2 del orquestador.
+- `git diff --stat ad10844 -- CLAUDE.md AGENTS.md .claude README.md` está vacío (A-1 a A-3 quedan para el cierre).
+
+### Contrato y migración (§D-4 › `admin` y `auth`)
+- **`admin/data.ts`:**
+  - `TRADUCCION_DE_ERRORES_ADMIN` lleva `import type` y `satisfies TraduccionDeErrores`, con `generico: MENSAJE_ERROR_ADMIN_GENERICO`, `mensajesPorCodigo: MENSAJES_ERROR_ADMIN`, `codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR` y `textosPorCampo: {}`.
+  - `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` queda en `["CUPO_DIARIO_INSUFICIENTE"]`, sin "VALIDACION", y sus dos comentarios están al día.
+- **`admin/lib.ts`:**
+  - `mensajeDeErrorAdmin` es un envoltorio de una línea de `mensajeDeErrorDeApi`, y `mensajeDeConsultaAdmin` lo es de `mensajeDeErrorDeConsulta`.
+  - Se borraron `tieneMensajePropio`, `tieneMensajeDelServidor`, el `return error.message` y la importación de `esApiError`.
+- **`auth/data.ts`:** `TRADUCCION_DE_ERRORES_AUTH`, con `codigosConMensajeDelServidor: []` y `textosPorCampo: {}`.
+- **`auth/lib.ts`:** `mensajeDeErrorAuth` es un envoltorio de una línea. Se borraron `tieneMensajePropio` y el `return error.message`. `esApiError` sigue porque lo usa `esCambioDeContrasenaRequerido` (`:69`).
+- **S-01:** las dos consultas de `admin` (`tabla-enlaces.tsx:190` y `registrados-del-enlace.tsx:33`) usan `mensajeDeConsultaAdmin`. Las demás llamadas a `mensajeDeErrorAdmin` son acciones: `buscador-de-cuenta:71`, `ficha-de-cuenta:97` y `:123`, `formulario-corregir-correo:50`, `formulario-generar-enlace:81`, `formulario-invitacion-masiva:54`, `formulario-invitar-maestro:47` y `tabla-enlaces:135`.
+- **S-08:** `acceso-restringido-view.tsx:25` y `establecer-contrasena-view.tsx:44` siguen con `mensajeDeErrorAuth` y no cambian.
+- **Orden del contrato frente al de antes:** en `admin`, antes "VALIDACION" iba entre los códigos con mensaje del servidor y salía crudo. Ahora el contrato lo trata primero (pasos 2 y 3 de §D-1). En los demás códigos, los conjuntos son disjuntos (1 código del servidor y 4 del mapa en `admin`; 0 y 11 en `auth`), así que la salida no cambia. C01 y C02 lo fijan contra los textos de `9272501e`.
+- **Fila `id: id:` (M-04):** el literal sigue igual en `backend/src/handlers/admin.ts:60`, y `validacion.ts:16-18` y `:27-29` arman `${campo}: ${mensaje}`. Las cuatro rutas dan lo que dice §D-1: las tres acciones dan "debe ser un identificador válido" y la consulta de los registrados da el genérico. Lo cubre C08 (2).
+
+### Pruebas requeridas, una por una
+Comparé cada viñeta con `vitest list` y leí cada caso.
+
+**CH3-C01** (`auth/errores-ch3.test.ts`, 18 casos). Cumple.
+- Recorre las `ENTRADAS_FUERA_DE_CONTRATO` (más de 50) y espera `resto ?? GENERICO`.
+- Hay un caso por cada uno de los 11 códigos fijos, con `MENSAJE_DE_PRUEBA` y con cada resto sin texto visible.
+- El mapa de los códigos fijos se compara entero contra los textos de `9272501e`.
+- "constructor", "toString", `__proto__` y "hasOwnProperty" dan el genérico.
+- También dan el genérico un código desconocido, un `Error`, `undefined` y una cadena.
+
+**CH3-C02** (`admin/errores-ch3.test.ts`, 13 casos). Cumple.
+- `mensajeDeErrorAdmin` recorre la tabla y, además, "nombre: caracteres no permitidos" da "caracteres no permitidos".
+- `mensajeDeConsultaAdmin` recorre la tabla (siempre el genérico) y "limite: Too big…" también da el genérico.
+- `CUPO_DIARIO_INSUFICIENTE`, en las dos funciones: con texto da su mensaje (también "a.b: c", sin recorte) y con cada resto da el genérico.
+- Los 4 códigos fijos, en las dos funciones.
+- "VALIDACION" no está en la lista de códigos con mensaje del servidor.
+- "constructor", "toString" y `__proto__` dan el genérico.
+
+**CH3-C03** (`auth/formularios-ch3.test.tsx`, 35 casos). Cumple.
+- Son 7 formularios × (F1, F3, F4 y "campo pintado") más 7 casos de "repetir tras F3".
+- (a) Exactamente un `role="alert"`, con `textContent` igual a título + texto esperado, y ningún toast.
+- (b) El texto no lleva la ruta, ni `archivoIds`, ni `<campo>:`.
+- (c) No hay ningún `aria-invalid="true"`, así que no sale ningún `ErrorDeCampo`.
+- (d) Cada campo conserva su valor, también las contraseñas, y el botón termina sin `aria-busy` ni `aria-disabled`.
+- Hay una sola petición y ninguna petición inesperada.
+- "Repetir tras F3" comprueba una segunda petición, que la alerta desaparece y que ya no queda ninguna respuesta pendiente.
+
+**CH3-C04** (`admin/formularios-ch3.test.tsx`, 26 casos). Cumple.
+- Son 5 formularios × 4 entradas más 5 casos de "repetir tras F3", con las mismas comprobaciones que C03.
+- Hay además una precondición que fija la lista de formularios y sus respuestas buenas.
+
+**CH3-C05** (6 casos). Cumple: restablecer desde la ficha (tras «Sí, restablecer») y revocar (tras «Sí, revocar»), con F1, F3 y F4, un solo `MensajeError` y el botón fuera de la espera.
+
+**CH3-C06** (2 casos). Cumple.
+- Con "limite: Too big: expected number", la tabla de enlaces (primera carga) y los registrados (al pulsar «Ver registrados») muestran solo el genérico.
+- Se comprueba que no aparece "Too big".
+
+**CH3-C07** (`lib/errores-de-api-estatico.test.ts`, 1 caso). Cumple.
+- Recorre todo el código de producción de `src/` salvo el contrato y `features/diagnostico/`.
+- Comprueba que el alcance sí incluye `admin`, `auth` (más de 10 archivos cada uno), `app/`, `components/`, `services/` y `lib/` (más de 3 cada uno) y la tabla común, y que excluye el contrato y `diagnostico`.
+- No queda ninguna `MANIPULACIONES` ni `EXPRESION_DE_RUTA` en ese alcance.
+- La nota de O-r1-3 está en el comentario de cabecera.
+
+**CH3-C08** (16 + 4 casos). Cumple.
+- El literal `"id: id: debe ser un identificador válido"` aparece en los dos archivos, con el comentario que cita `backend/src/handlers/admin.ts:60` y la forma `${path.join(".")}: ${message}` de `handlers/validacion.ts`.
+- (1) Las acciones dan exactamente el resto y la consulta, el genérico. Ninguna salida empieza con `/^[\p{L}\p{M}\p{N}_.-]+:/u` ni contiene "id:".
+- (1) Con "id: id:" seguido de cada uno de los 15 restos, y con los separadores "" y " ", las dos funciones dan el genérico.
+- (2) Las cuatro rutas, cada una con su disparo real: confirmar, guardar, «Sí, revocar» y «Ver registrados».
+- (2) Hay un solo `MensajeError` con el texto esperado, ningún toast y ningún "id:" en la alerta. En corregir el correo, se conserva el correo escrito.
+
+**Fila "campo pintado" de C03 y C04.** Es evidencia útil del patrón de T-03 y T-04: un `VALIDACION` de un campo que el formulario sí pinta (por ejemplo, `nombre` en invitar, `vigenciaDias` en generar, `email` en buscar y en corregir, y `nombre` al restablecer, que solo se pinta al establecer) da el `MensajeError` y ningún `aria-invalid`.
+
+### Punto 6: el patrón de T-03 y T-04 en `admin` y `auth` (PA-6)
+Mi grep de `setErrores(`, `setError(`, `erroresPorCampo`, `onError`, `erroresDeFormularioDeApi`, `campoDeErrorDeApi` y `.message` en el código de producción de `features/admin` y `features/auth` da lo mismo que dice el programador:
+- Todo `setErrores(…)` recibe `erroresPorCampoAdmin(resultado.error.issues)` o `erroresPorCampo(resultado.error.issues)`, del `safeParse` local. Pasa en `buscador-de-cuenta:36`, `formulario-corregir-correo:33`, `formulario-generar-enlace:50`, `formulario-invitar-maestro:31`, `formulario-cambiar-contrasena:32`, `formulario-login:33`, `formulario-nueva-contrasena:78`, `formulario-recuperar:30`, `formulario-registro-maestro:39` y `formulario-registro:34`. En los demás casos, `setErrores({})`.
+- `formulario-invitacion-masiva:35` hace `setError(analisis.error.issues[0]?.message)`, que también es local.
+- Ningún archivo usa `erroresDeFormularioDeApi` ni `campoDeErrorDeApi`.
+- Hay dos `onError`:
+  - el de `useCambiarContrasena` (`auth/hooks.ts:200`), solo para `CAMBIO_NO_REQUERIDO`;
+  - el del `mutate` de `AccionRestablecer` (`ficha-de-cuenta.tsx:67`), que solo mueve el foco a «Cancelar» y no asigna nada a un campo. El resumen lo omite al decir "el único `onError` de un gancho": es cierto, porque este no es de un gancho, pero conviene nombrarlo (O-23).
+- Todo error del servidor va a un `MensajeError` con `mensajeDeErrorAdmin`, `mensajeDeConsultaAdmin` o `mensajeDeErrorAuth`, o a un texto fijo de `ENLACE_INVALIDO`.
+
+**No hay PA-6.**
+
+### Matriz §D-6 y hermanos contra el código
+- **"Sin ref; CHORE-04":** mi grep de `.mutate(` y `.mutateAsync(` en el código de producción de `admin` y `auth` da 15 llamadas.
+  - 13 son exactamente las filas 7 a 18 de la "Lista para CHORE-04", en las líneas que dice el plan: `formulario-corregir-correo:39`, `formulario-generar-enlace:56`, `formulario-invitacion-masiva:41`, `formulario-invitar-maestro:36`, `buscador-de-cuenta:42`, `formulario-login:38`, `formulario-registro:39`, `formulario-registro-maestro:44`, `formulario-recuperar:35`, `formulario-nueva-contrasena:90`, `formulario-cambiar-contrasena:44` y `:99`, y `acceso-restringido-view:72`.
+  - Las 2 restantes tienen guarda `if (enviandoRef.current) return`: `ficha-de-cuenta.tsx:56` (`AccionRestablecer`, `:21`) y `tabla-enlaces.tsx:73` (`FilaEnlace`, `:50`).
+  - No hay filas nuevas. No se agregó ninguna ref (DH-7 = b).
+- **Consultas:** las dos de `admin` con `mensajeDeConsultaAdmin` reemplazan la tabla o la subtabla. Las dos de `auth` siguen por S-08. «Cargar más» usa `enEspera={isFetchingNextPage}` en `tabla-enlaces:240` y en `registrados-del-enlace:71`, sin cambio (ver O-22).
+- **`diagnostico`:** excluido por C07 por nombre. Su `${error.codigo}: ${error.message}` (`diagnostico-view.tsx:17`) es lo que S-09 deja a propósito.
+- **Hermanos de M-04:** son las cuatro rutas, con la salida de §D-1. Coinciden con el código y con C08 (2).
+- **Estados vecinos:** primer fallo, repetir con éxito, en vuelo a la vez (sin ref, CHORE-04) y la vista desmontada (el error vive en la mutación del componente; sin aviso, como antes). Son los que corresponden a un mecanismo sin avisos en los ganchos. No falta ninguno.
+- **Reglas estáticas:** las comprobé con mi grep. Los únicos `.message` del código de producción fuera del contrato son `incidencia.message` (zod local), los de `tareas/lib.ts` y `clases/lib.ts` aprobados en 03a y 03b, `adjuntos/lib.ts:85` (aprobado en 03a) y `diagnostico`. No hay tipos nuevos fuera de `types.ts`: `TraduccionDeErrores` solo aparece en `import type` y en `satisfies`.
+- **El cambio visible declarado lo prevé §D-4:**
+  - En `admin`: "nombre: caracteres no permitidos" pasa a "caracteres no permitidos".
+  - En `auth`: "email: Escribe un correo válido" pasa a "Escribe un correo válido".
+  - En la consulta de la invitación ("token: …"), lo prevé §D-4 de `auth` junto con S-08, que dice que esa consulta usa `mensajeDeErrorAuth` "con el contrato". El esquema es `tokenDeEnlaceSchema` (`shared/src/cuentas.ts:7-10`), con un solo prefijo, así que "token: El enlace no es válido" pasa a "El enlace no es válido".
+  - En las dos consultas de `admin`, todo `VALIDACION` pasa a dar el genérico (S-01 con DH-1). El resumen lo pone en la matriz, pero no en "Cambio visible declarado" (O-24).
+
+### Observaciones
+- **O-20 (tester, sigue O-05).** CH3-C07 hereda las `MANIPULACIONES` de CH3-A20: `.message.replace/slice/substring(`, `return error.message`, `? error.message` y `: error.message`. No detecta un uso crudo como `mensaje={error.message}`, `` `${error.message}` ``, `toast.error(error.message)` ni `error.message` pasado como argumento. Hoy no hay ninguno en el código de producción (mi grep), pero la regla de "todo `src/`" no lo impediría mañana. Le toca al tester extenderla, igual que O-05 con las copias de la expresión de ruta.
+- **O-21 (tester).** C08 (2) comprueba que no aparece "id:" solo en la alerta, no en todo el texto visible que pide la viñeta. En estas vistas el error solo sale en la alerta, así que el resultado es el mismo, pero un ataque con `document.body` lo cerraría.
+- **O-22 (cierre, fuera del chore).** «Cargar más enlaces» y el «Cargar más» de los registrados usan `enEspera={isFetchingNextPage}`, contra la regla de `CLAUDE.md` (TAREAS-01e, T-19: `enEspera={isFetching}`). Es previo a CHORE-03 y está en archivos que 03c solo toca en la línea de la consulta: agregarlo sería PA-3. Destino propuesto: ADMIN-01, que rehace esa pantalla, o la lista de CHORE-04. Lo decide el orquestador con el humano.
+- **O-23 (redacción del resumen).** "El único `onError` es `useCambiarContrasena`" es cierto solo para los ganchos. También existe el `onError` del `mutate` de `AccionRestablecer` (`ficha-de-cuenta.tsx:67`), que solo mueve el foco. No cambia la conclusión ni devuelve el resumen.
+- **O-24 (cierre).** En el resumen para el humano y en `aprobacion.md`, el cambio visible de 03c debe tener tres partes:
+  - en las acciones de `admin` y `auth` (incluida la consulta de la invitación), un `VALIDACION` deja de mostrar su ruta;
+  - en la tabla de enlaces y en los registrados, todo `VALIDACION` da el genérico;
+  - en las tres acciones de `:id`, "id: id: …" pasa a "debe ser un identificador válido".
+- **Detalle menor (sin acción).** En `admin/formularios-ch3.test.tsx`, `CAMPO_PINTADO[nombre] ?? ""` arma el mensaje con un respaldo vacío. La precondición de C04 fija las claves, así que el respaldo nunca se usa.
+
+## Revisión de la Enmienda 5 — CHORE-03
+Fecha: 2026-10-27. Modo plan. `plan.md` `91dbbe5d…` (1097 líneas) contra la copia `copias-plan/plan-chore03-antes-enmienda5-eab43ac5.md` (`eab43ac5…`, comprobado). Código en `9272501e`: ninguno de los diez archivos del remedio cambió en 03c (`git diff --stat 9272501e` vacío en los diez). No corrí la suite: es revisión de plan; grep y lectura.
+
+Veredicto: **APROBADO CON OBSERVACIONES.** Sin problemas que bloqueen. Con DH-9 (a), el plan puede pasar a LISTO. Las dos observaciones (N-25 y N-26) no exigen otra enmienda.
+
+### Cotejo mecánico (`git diff --no-index -U0`, 16 hunks)
+| # | Hunk | Sección | Marca |
+|---|---|---|---|
+| 1 | `-2 +2,2` | Encabezado: `Estado: BLOQUEADO` y la línea de la Enmienda 5 | Sí |
+| 2 | `-71 +72,8` | Preguntas bloqueantes: DH-9. **Reemplaza** la línea "Enmienda 4 (ronda 1 del tester en 03b): una pregunta bloqueante, DH-8." por la de la Enmienda 5, que dice que DH-8 ya está respondida con (a) | Sí (ver detalle D-1) |
+| 3 | `-242,0 +251,10` | §D-2: secuencias | Sí |
+| 4 | `-389,0 +408,28` | §D-4: forma del remedio, tabla de diez archivos y razones | Sí |
+| 5 | `-413,0 +460,2` | §D-6: matriz y estados vecinos | Sí |
+| 6 | `-462,0 +511,9` | §D-R0: inventario y lista cerrada vacía | Sí |
+| 7 | `-495,0 +553` | Cambios por capa › frontend › 03c | Sí |
+| 8 | `-608,0 +667,17` | Pruebas requeridas › 03c: CH3-C09 a C13 y frases de recuperación | Sí |
+| 9 | `-627,0 +703,9` | Puntos de ataque | Sí |
+| 10 | `-667,0 +752` | Riesgos: R-10 | Sí |
+| 11 | `-681,0 +767` | PARADAS: PA-13 | Sí |
+| 12 | `-695 +781` | No se toca: frase añadida **al final** de la línea. El texto anterior queda intacto como prefijo (lo comprobé) | Sí |
+| 13 | `-713,0 +800,5` | Documentos a actualizar: A-8 y `ESTADO.md` §3 | Sí |
+| 14 | `-724,0 +816,2` | Autorizaciones: A-8 y A-9 | Sí |
+| 15 | `-775,0 +869,7` | Pasos: 03c ronda 2 (8 a 12), después del paso 7, que no cambia | Sí |
+| 16 | `-936,0 +1037,61` | Sección final "## Enmienda 5" | Sí |
+
+Todo está marcado o en la sección final. Ningún hunk toca 03a, 03b ni los pasos 0 a 6 de 03c. Las únicas líneas quitadas son la línea de estado, el encabezado de DH-8 (D-1) y la línea de "No se toca", que solo crece.
+
+### El remedio (§D-4, Enmienda 5)
+- **Guardas.** Comprobé las diez en `9272501e` con `git show`. `invitar` `:22`, `invitar` `:31`, `generar` `:42`, `corregir` `:28`, `inicioSesion` `:25`, `alta` `:25`, `alta` `:29`, `recuperar` `:25`, `nuevaContrasena` `:66` y `cambiar` `:25` coinciden con la tabla, nombre de la mutación incluido. En los diez, la guarda va antes de `new FormData` o del `safeParse` (en la masiva, que es controlada, antes del `safeParse` `:33`).
+- **Ganchos.** Los diez devuelven `useMutation(...)` sin envolver (`admin/hooks.ts:46`, `:94`, `:125`, `:136`; `auth/hooks.ts:52`, `:71`, `:92`, `:125`, `:136`, `:179`), así que `reset` está expuesto. Ningún `hooks.ts` cambia.
+- **Resuelve T-05.** En los diez, el `MensajeError` depende solo de `<m>.isError`, y el rechazo local solo escribe `errores`, `error` o `errorConfirmacion`. `reset()` deja la mutación en reposo, así que `isError` pasa a `false` en el mismo render en que aparece el `ErrorDeCampo`.
+  - Las rojas de `admin/errores-ch3-r1.ataque.test.tsx:688-707` y de `auth/errores-ch3-r1.ataque.test.tsx:565-587` piden 0 `role="alert"`, 1 `aria-invalid` y que el texto del servidor no esté en pantalla. `ErrorDeCampo` no lleva `role`, como lo demuestra el control de buscar, que ya pasa. Pasan sin tocarlas.
+  - La línea va antes de los dos caminos de rechazo de `formulario-nueva-contrasena.tsx` (`:77-86`) y de `formulario-cambiar-contrasena.tsx` (`:31-40`), y antes del nombre de establecer. Así una sola línea cubre todos.
+- **Camino feliz y error del servidor, sin cambio.**
+  - En el envío válido, `reset()` y luego `mutate` es lo mismo que `mutate` solo: `isPending` sustituye al error en ese render. Es lo que ya hace `BuscadorDeCuenta`.
+  - Los `onSuccess` que se pasan en el `mutate` (`formulario.reset()`, `setResultado`, `setEnlace`, `onCorregido`) son de la mutación nueva y no se pierden.
+  - Los `onSuccess`, `onError` y `onSettled` de los ganchos (navegación, `sacarDeLaCacheAlAsentar`, `CAMBIO_NO_REQUERIDO`) ya corrieron cuando `isError` es `true`. `reset()` no los repite ni los cancela.
+  - `ENLACE_INVALIDO` reemplaza el formulario (`registro-maestro:47-49`, `nueva-contrasena:93-95`), así que el manejador ya no se alcanza.
+- **La condición `isError` sí hace falta.** `reset()` borra también `isSuccess` y `data`: sin la condición, el texto de éxito de invitar maestro (`:48-52`, que lee `invitar.data.nombre`) y el de corregir el correo (`:51-55`) desaparecerían con un rechazo local posterior. Es un cambio que T-05 no pide.
+  - En las otras dos mutaciones con resultado propio, ese resultado vive en el estado del formulario (`resultado` de la masiva y `enlace` de generar). En `recuperar`, `isSuccess` reemplaza el formulario.
+  - Revisé cada `isSuccess` y cada `data` de los diez archivos y no encontré ningún efecto secundario de `reset()`.
+- **Orden respecto de la guarda.** Si `reset()` corriera durante una petición en vuelo, desprendería el observador y su resultado no se vería. Ponerlo después de `isPending` es correcto, y CH3-C13 fija ese orden de forma estática (ver N-25 para la prueba de comportamiento).
+
+### Hermanos (mi grep)
+- **`.isError` en producción de todo `src/`.** Los `MensajeError` que leen una mutación solo existen en `admin` y `auth`. Son los diez archivos, más `buscador-de-cuenta:71` (ya resuelto), `ficha-de-cuenta:97` y `:123` y `tabla-enlaces:135` («Sí, restablecer» y «Sí, revocar», sin validación local, así que no hay secuencia). Todo lo demás son consultas.
+- **`safeParse(` en componentes.** Aparecen los once de `admin` y `auth`, seis de `clases` y dos de `tareas` (`campo-de-enlaces`, `hilo-privado`).
+  - Los seis de `clases` (clase, publicación, tema, comentario, unirse y categorías) guardan el error de campo del servidor en el mismo `errores` que el rechazo local reemplaza (`setErrores(…)` en las dos ramas). Lo demás del servidor son avisos.
+  - En `tareas`, `formulario-tarea` (`:239`/`:257`) y `panel-de-calificacion` (`:114`/`:127`) usan un solo `errores`. `hilo-privado:68` limpia el error del servidor antes de validar. En `formulario-de-entrega`, `errorDeEnlaces` solo existe si se enviaron enlaces, y el único rechazo local (`:152-155`, sin contenido) exige haberlos quitado, lo que lo borra (`:107`). `campo-de-enlaces:64` también descarta el error del servidor antes de su `safeParse` (D-3).
+  - `calificaciones` no tiene formularios.
+- Coincide con la tabla del arquitecto y con la del tester. Ningún hermano queda fuera.
+
+### DH-9: coincido con (a)
+- **Peso de (a):** diez archivos de "No se toca", tres líneas cada uno (dos de comentario), sin ganchos, textos ni pruebas existentes. Tiene precedente en el mismo módulo (`buscar.reset()`) y deja 03c lista para cerrar en verde.
+- **Costo de (b):** CHORE-03 queda abierto y el trabajo de 03c sin commit hasta CHORE-04, que todavía no tiene plan. Eso deja una rama larga con 11 rojas en la suite y bloquea la base de "No se toca" de lo que siga.
+- **¿Hay un (c)?** No uno real:
+  - Poner el `reset()` dentro de cada rama de rechazo, como `BuscadorDeCuenta`, toca los mismos archivos con más líneas: dos ramas en contraseñas.
+  - Un gancho común toca los `hooks.ts` (PA-2) y es un refactor de dos módulos (R-10 lo descarta con razón).
+  - Corregir solo `auth` o solo `admin` deja rojas.
+  - Quitar o relajar las pruebas del tester no está permitido.
+- El carril sigue **normal**: el cambio es estado de la interfaz y no toca la sesión, el token ni las contraseñas.
+
+### A-8: la apruebo, con un ajuste opcional de redacción (N-26)
+- El texto del arquitecto es correcto para el caso de la mutación.
+- La última frase ("la validación local lo reemplaza en el mismo estado") describe, pero no manda. Además, no cubre el caso en que el error del servidor vive en un estado aparte (`hilo-privado`, `campo-de-enlaces`).
+- Tampoco dice cuándo el `reset()` va sin condición (`BuscadorDeCuenta`, que también debe quitar lo que la mutación devolvió).
+- Variante que propongo, misma ubicación (última viñeta de "### Formularios"):
+  > - Un formulario que muestra el error del servidor desde el estado de la mutación (`isError` con su `MensajeError`) lo limpia antes de validar en local, después de su guarda de envío: `if (mutacion.isError) mutacion.reset()`. Sin la condición solo cuando también debe desaparecer lo que la mutación devolvió (la ficha de `BuscadorDeCuenta`). Si el error del servidor vive en un estado del formulario, la validación local lo reemplaza en ese mismo estado o lo limpia antes de validar. Así la persona lee un solo mensaje, el del envío que acaba de hacer, nunca el `MensajeError` viejo junto al `ErrorDeCampo` nuevo (CHORE-03, T-05).
+- El humano elige uno de los dos textos. Cualquiera de los dos cumple.
+
+### Pruebas CH3-C09 a CH3-C13
+- **Cubren:**
+  - servidor → local (C09 y C10, con F1, F3 y un código fijo, en los once formularios, y buscar como control);
+  - local → servidor (C11);
+  - repetir el control (C09 a C11 (e), con éxito y con F1 otra vez);
+  - lo que no cambia (C12: éxito y luego rechazo local, dos errores del servidor seguidos, petición en vuelo);
+  - la regla estática (C13).
+- Llevan un `it.each` por módulo con `%s` sobre tuplas y prefijo `CH3-`.
+- **Lista cerrada vacía: correcta.**
+  - Ninguna prueba llama a `.reset(` de una mutación: en las pruebas solo aparece `vi.resetModules`.
+  - Los rechazos locales de las pruebas existentes (`login-view.test`, `registro-view.test`, `establecer-contrasena-view.test`, `enlace-r1`, `invitacion-r1`, `maestros-view.test`, `cuentas-r1`) parten sin error del servidor, así que `isError` es `false` y no hay `reset`.
+  - Ninguna prueba espera dos mensajes.
+- **Frases de recuperación: lo acepto.** El remedio no crea ni cambia ningún texto. El único camino que cambia es "repetir el control", y C09 a C11 lo prueban en los once formularios.
+  - Ir y volver, y atrás y adelante, montan un componente nuevo. Ya los prueban `admin/rutas-ch3-r1` (20 casos: invitar, buscar, masiva, generar y revocar) y `auth/rutas-ch3-r1` (10 casos: iniciar sesión, registro y recuperar, más la repetición de restablecer).
+  - Los otros cuatro formularios (corregir el correo, registro de maestro, establecer y el cambio obligatorio) no tienen caso de navegación. Pero esos caminos no dependen del manejador que el remedio toca, y la frase existía antes del chore. No pido casos nuevos.
+
+### Destinos de las observaciones
+- O-r1-4 sin acción (no se alcanza y da el genérico): de acuerdo.
+- O-r1-5 a ADMIN-01: de acuerdo. No son dos mensajes de un mismo envío y está fuera de lo que 03c toca (PA-3).
+- O-r1-6 al `chore` de foco y navegación: de acuerdo. El remedio, no pintar los códigos de `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`, toca los mismos once componentes y su matriz; es otro mecanismo.
+- O-r1-7 sin acción: de acuerdo.
+- **O-22 a CHORE-04, con la regla del "Ver más" en su inventario, y ADMIN-01 lo absorbe si llega antes:** coherente con lo que propuse ("ADMIN-01 o la lista de CHORE-04"). Que CHORE-04 lleve además la regla estática de `enEspera={isFetching}` en todo `src/` es lo correcto.
+
+### Problemas que no bloquean
+- **N-25. CH3-C12 (3) no llega al manejador.**
+  - Dónde: `plan.md`, Pruebas requeridas, CH3-C12 (3) ("pulsar otra vez antes de soltarla").
+  - Por qué importa: `Button` con `enEspera` hace `preventDefault()` en el clic (`components/ui/button.tsx:31-32`). Un segundo clic durante la petición nunca dispara el `submit`, así que la prueba pasaría aunque `reset()` quedara antes de la guarda `isPending`, y no fija lo que dice fijar. El orden lo protege hoy solo CH3-C13 (estática).
+  - Qué se espera: en (3), el segundo envío se hace con `fireEvent.submit` sobre el formulario, mientras la primera petición sigue retenida. El manejador corre con `isPending` en `true`, y al soltar con F1 hay exactamente un `MensajeError` y una sola petición. No necesita enmienda: el orquestador lo pasa al programador como precisión del manager al lanzar la ronda 2 y lo anota en `aprobacion.md`.
+- **N-26. Redacción de A-8.**
+  - Dónde: `plan.md`, Documentos a actualizar, A-8.
+  - Por qué importa: es la regla que heredarán CLASES-03 y ADMIN-01 (R-10).
+  - Qué se espera: la variante de arriba u otra que cubra el estado aparte y el `reset()` sin condición. Lo decide el humano; no bloquea.
+
+### Detalles menores
+- **D-1.** El hunk 2 quitó el encabezado histórico de DH-8 ("Enmienda 4 (ronda 1 del tester en 03b): una pregunta bloqueante, DH-8."). Su contenido sigue y la frase nueva dice que DH-8 ya está respondida. Basta con conservar ese encabezado como línea propia en la próxima edición del plan; no amerita una enmienda.
+- **D-2.** CH3-C13 dice "`.reset()` de una mutación solo aparece en esos diez y en `buscador-de-cuenta.tsx`". `formulario-invitar-maestro.tsx:36` tiene `formulario.reset()`, del `<form>` y no de la mutación. La regla debe contar por el nombre de la mutación de cada fila (`<m>.reset()`) y no por cualquier `.reset(`, o el programador caerá en una PARADA falsa.
+- **D-3.** El inventario de hermanos no nombra `campo-de-enlaces.tsx:64` (`onDescartarErrorDelServidor()` antes de su `safeParse`, T-04 r2 de ENTREGAS). Es un segundo precedente del mismo remedio y conviene que el resumen de la ronda 2 lo liste.
+- **D-4.** "Es la forma que ya usa `BuscadorDeCuenta`" vale en sentido amplio. Allí el `reset()` va dentro de la rama del rechazo y sin condición; aquí va antes del `safeParse` y con `isError`. Las dos diferencias están justificadas en §D-4.
+
+### Lista cerrada para el humano
+1. **DH-9 (bloquea la ronda 2 de 03c).** ¿Autorizas que en 03c salgan de "No se toca" los diez archivos de la tabla de §D-4 (Enmienda 5), solo para agregar, justo después de su guarda `if (<mutación>.isPending) return`, un comentario de dos líneas y `if (<mutación>.isError) <mutación>.reset()`?
+   - (a) Sí, en 03c: recomendación del arquitecto y del manager.
+   - (b) Diferirlo a CHORE-04, con 03c y CHORE-03 abiertos y sin commit hasta entonces.
+2. **A-8 (no bloquea; se aplica al cerrar 03c).** ¿Se agrega a `CLAUDE.md` › "Formularios" la regla "antes de validar en local, el formulario limpia el error del servidor del envío anterior"?
+   - Con el texto del arquitecto (Documentos a actualizar, A-8).
+   - Con la variante del manager (esta sección).
+   - No se agrega.
+
+   Recomiendo agregarla, con cualquiera de los dos textos.
+
+## Verificación del resumen — 03c — ronda 2
+Fecha: 2026-10-27. Resumen: `resumen-programador-03c-r2.md` (corrección de T-05). Plan `plan.md` `31d58aec…`, reproducido. `git diff --no-index` contra la copia `copias-plan/plan-chore03-enmienda5-91dbbe5d.md` (`91dbbe5d…`, comprobado): un solo hunk `@@ -2,2 +2,2 @@`, `--numstat` `2 2`. Cambian solo la línea de estado (`BLOQUEADO` → `LISTO`) y la línea de la Enmienda 5 (DH-9 (a) y A-8 con la variante del manager). Base de 03c en `frontend/`: `9272501e`; fuera de los paquetes, `ad10844`. Antes de correr comprobé con `Get-CimInstance Win32_Process` que no hubiera ningún `vitest` en marcha: solo había procesos `node` de otra herramienta, que no toqué. Corrí todo desde `frontend/`, una suite a la vez. Las salidas están en el scratchpad de la sesión, en `mgr-r2/` (`lint.txt`, `test.txt`, `test2.txt`, `aislados.txt`, `build.txt`, `list.txt` y `ataque-r1.txt`).
+
+**Veredicto: DEVUELTO AL PROGRAMADOR (M-06).** El código y las pruebas están bien:
+- las cifras coinciden;
+- V-01 da 223 de 223;
+- "No se toca" está limpio, y los diez diffs son exactamente los de §D-4;
+- las once rojas de T-05 están en verde;
+- CH3-C09 a CH3-C13 cubren cada viñeta, con N-25 y D-2 aplicados.
+
+Lo que falta es del resumen: tres de los estados vecinos que §D-6 (Enmienda 5) manda listar "uno por uno, con su caso" no aparecen. Por la regla de los hermanos (decisión del humano, 2026-10-05), eso devuelve el resumen. No espero cambios de código (ver M-06).
+
+### Cifras: resumen contra corrida propia
+| Qué | Resumen | Corrida propia | ¿Coincide? |
+|---|---|---|---|
+| `npm run lint` | exit 0; `All matched files use Prettier code style!` y luego `> tsc -b` | exit 0; las mismas dos líneas | Sí |
+| `npm run test` | `Test Files  234 passed (234)` · `Tests  5161 passed (5161)`; 0 "timed out" | **1.ª corrida** (arranque 14:46:02): `Test Files  4 failed \| 230 passed (234)` · `Tests  6 failed \| 5155 passed (5161)`; `Test timed out` 0, `Hook timed out` 0. **Los cuatro archivos aislados**: `4 passed (4)` · `308 passed (308)`. **2.ª corrida completa** (arranque 14:53:10): `Test Files  234 passed (234)` · `Tests  5161 passed (5161)` · `Duration  363.93s`; `Test timed out` 0, `Hook timed out` 0, ningún `FAIL` | Sí, en la 2.ª corrida (ver O-25) |
+| `npm run build` | `✓ built in 2.25s` | exit 0; `✓ built in 1.88s`, con el aviso de siempre del tamaño de los bloques | Sí |
+| `npx vitest list` | 77 · 90 · 5 | `admin/formularios-ch3` 77 · `auth/formularios-ch3` 90 · `lib/errores-de-api-estatico` 5; 0 títulos repetidos | Sí |
+| Por id | C09 25, C10 34, C11 11, C12 24, C13 1 | C09 25, C10 34, C11 11 (4 + 7), C12 24 (10 + 14), C13 1 | Sí |
+| Delta | +95 (5066 → 5161) | 172 − 77 = 95; 5161 en las dos corridas | Sí |
+| Las 5 `*.ataque` de la ronda 1 | 344 y 377 | `Test Files  5 passed (5)` · `Tests  763 passed (763)`: `admin/errores-ch3-r1` 344, `auth/errores-ch3-r1` 377, `admin/rutas-ch3-r1` 20, `auth/rutas-ch3-r1` 10, `lib/estatico-ch3-r1` 12 | Sí |
+
+**Las 11 de T-05 están en verde, comprobadas por título** con `--reporter=verbose`, en el describe "ataque CHORE-03 03c r1 · el MensajeError de un envío anterior y el error local del siguiente":
+- `admin`: invitar maestro, generar enlace, corregir el correo e invitación masiva.
+- `auth`: iniciar sesión, registro de estudiante, registro de maestro por enlace, recuperar contraseña, restablecer contraseña, establecer contraseña (invitación) y cambio obligatorio de contraseña.
+- El control, buscar una cuenta, sigue en verde.
+
+### V-01
+- Base: la tabla "de las 223 `*.ataque` al cierre de la ronda 1 de CHORE-03 03c" de `reporte-tester.md` (`:2703`), pasada a minúsculas.
+- Actual: `git ls-files -co --exclude-standard | grep '\.ataque\.'`, con `sha256sum` de cada archivo.
+- Base 223, actual 223, `diff` vacío: **223 de 223**.
+- No hay `.skip`, `.only`, `.todo`, `.fails`, `xit`, `xdescribe`, `fit` ni `fdescribe` en las 223 ni en las tres pruebas del programador. El único acierto son los cuatro comentarios "sin it.fails" de `admin/cuentas-r4.ataque`, que ya estaban.
+
+### "No se toca"
+`git diff --numstat 9272501e` en `frontend/` da 22 archivos con seguimiento:
+- **Los 12 de la ronda 1, sin cambios desde entonces.** Su fecha de modificación es de entre las 11:31 y las 11:50, anterior a la ronda 1 del tester.
+  - `tabla-enlaces.tsx` y `registrados-del-enlace.tsx` siguen en `2 2`.
+  - `lib/errores-de-api-estatico.test.ts` es la excepción: crece con CH3-C13 (`86 1` en total, contando el CH3-C07 de la ronda 1).
+- **Los diez formularios de DH-9, cada uno `3 0`.** Leí los diez diffs: en cada uno, el comentario de dos líneas de §D-4 es literal, seguido de `if (<m>.isError) <m>.reset()`, inmediatamente después de `if (<m>.isPending) return` y antes de `new FormData` o del `safeParse`. La mutación coincide con el `const <m> = use…(` del archivo:
+
+  | Archivo | Mutación | Línea |
+  |---|---|---|
+  | `formulario-invitar-maestro.tsx` | `invitar` | `:25` |
+  | `formulario-invitacion-masiva.tsx` | `invitar` | `:34` |
+  | `formulario-generar-enlace.tsx` | `generar` | `:45` |
+  | `formulario-corregir-correo.tsx` | `corregir` | `:31` |
+  | `formulario-login.tsx` | `inicioSesion` | `:28` |
+  | `formulario-registro.tsx` | `alta` | `:28` |
+  | `formulario-registro-maestro.tsx` | `alta` | `:32` |
+  | `formulario-recuperar.tsx` | `recuperar` | `:28` |
+  | `formulario-nueva-contrasena.tsx` | `nuevaContrasena` | `:69` |
+  | `formulario-cambiar-contrasena.tsx` | `cambiar` | `:28` |
+
+  Uno de los diez, literal (`formulario-cambiar-contrasena.tsx`):
+  ```
+  @@ -23,6 +23,9 @@ export function FormularioCambiarContrasena() {
+     const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
+       evento.preventDefault()
+       if (cambiar.isPending) return
+  +    // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
+  +    // para que la persona lea un solo mensaje: el de este envío.
+  +    if (cambiar.isError) cambiar.reset()
+   
+       const formulario = new FormData(evento.currentTarget)
+       const contrasenaNueva = formulario.get("contrasenaNueva")
+  ```
+- **Nada más cambia.** No cambia ningún `hooks.ts`, `buscador-de-cuenta.tsx`, `ficha-de-cuenta.tsx`, `shared/`, `backend/`, `infra/` ni `.env.example`.
+  - Las líneas añadidas en los componentes no traen `enEspera=`, `disabled` ni `.message`. Las únicas importaciones nuevas son las dos de la ronda 1, en `tabla-enlaces` y `registrados`.
+- **Pruebas:**
+  - Solo cambian las tres del programador. Las dos `formularios-ch3` están sin seguimiento y se modificaron a las 14:23 y a las 14:25.
+  - Las dos `errores-ch3.test.ts` del programador no cambian desde la ronda 1 (11:52 y 11:55).
+  - Las 4 `*.ataque` modificadas son las de la ronda 0 (C-4 y PA-12), con su hash de la tabla.
+- **Documentos, por hash:**
+  - `PRD.md` `a10c5c23…`, `ARCHITECTURE.md` `75c3c75d…`, `ARCHITECTURE-ESSENTIALS.md` `7c05fd61…` y `DESIGN.md` `8d977dc4…`.
+  - En `ESTADO.md`, §2b da `6ecbc366…` (con `awk`, desde `## 2b.` hasta antes de `## 3.`). Su único cambio contra `9272501e` es la línea de §2 del orquestador.
+  - `git diff --stat ad10844 -- CLAUDE.md AGENTS.md .claude README.md` está vacío. A-1 a A-3 y A-8 quedan para el cierre.
+- **Prueba de que las pruebas nuevas detectan el defecto:** el programador quitó la línea en dos archivos y CH3-C09 o CH3-C10 fallaron. No la repetí, porque CH3-C13 ya fija la línea de forma estática en los diez. Los dos archivos quedaron en `3 0`, con el mismo diff que los otros ocho.
+
+### Pruebas CH3-C09 a CH3-C13, leídas
+- **CH3-C09** (`admin/formularios-ch3.test.tsx:663-706`). Son 24 tuplas `%s`:
+  - invitar maestro: 2 rechazos locales × 3 rechazos del servidor;
+  - invitación masiva: 2 × 4 (F1, F3, `CORREO_EN_USO` y `CUPO_DIARIO_INSUFICIENTE`);
+  - generar enlace: 2 × 3;
+  - corregir el correo: 1 × 3;
+  - el control de buscar.
+
+  La precondición fija las 24. Comprueba (a) a (d) (con `document.body`, para el texto del servidor y para el genérico), lo escrito, que el botón no queda en espera y (e) repetir el control: F1 otra vez, con un solo `MensajeError` y sin `aria-invalid`, y después el éxito visible de cada formulario, con 3 peticiones, sin `role="alert"` y sin respuestas sobrantes.
+- **CH3-C10** (`auth/formularios-ch3.test.tsx:566-614`). Son 33 tuplas: los 11 rechazos locales del plan × F1, F3 y `DEMASIADOS_INTENTOS`. Las comprobaciones son las mismas, con el título de cada formulario. Además, el destino se comprueba con `MemoryRouter` y `Destino`, que lee `pathname` y `state.aviso`: `/login` con el `avisoLogin` de restablecer o de establecer, la confirmación de recuperar y la ruta del rol.
+- **CH3-C11** (4 + 7 casos). Primero va el rechazo local, sin petición. Después, F1: un `MensajeError`, ningún `aria-invalid` y una petición. Por último, repetir el control da el éxito o el destino de siempre.
+- **CH3-C12:**
+  - (1) Invitar maestro y corregir el correo: el `role="status"` con su texto sigue junto al `ErrorDeCampo`, sin `role="alert"`. Fija la condición `isError`: con un `reset()` sin condición, el texto de éxito desaparecería.
+  - (2) Los once: un solo `MensajeError`, el del segundo envío, con dos peticiones.
+  - (3) Los once: **N-25 aplicado**. La primera petición queda retenida y el botón, con `aria-busy="true"`. Después va `fireEvent.submit` sobre el `<form>`, sigue habiendo una sola petición y, al soltarla con F1, queda un `MensajeError`. El orden contra `reset()` no lo distingue este caso, porque mientras hay una petición en vuelo `isError` es `false`; lo fija CH3-C13. Es lo que esperaba.
+- **CH3-C13** (`lib/errores-de-api-estatico.test.ts`). Quita los comentarios y comprueba, en los diez:
+  - que la línea aparece una vez con su mutación;
+  - que va después de la guarda y antes del primer `safeParse(`;
+  - que no hay `Ref.current) return`.
+
+  **D-2 aplicado:** cuenta `<m>.reset()` solo para los nombres que salen de `const X = use[A-Z]…(`. En `admin` y `auth` exige exactamente esos diez más `buscador-de-cuenta#buscar`, así que `formulario.reset()` no cuenta. Además comprueba que `buscar.reset()` sigue sin condición.
+- **Los datos elegidos son aceptables:**
+  - `CORREO_EN_USO` (409, el estado real) y `DEMASIADOS_INTENTOS` (429, el estado real) son códigos con texto fijo de sus tablas.
+  - `CUPO_DIARIO_INSUFICIENTE` va con 429 en la prueba, pero el servidor lo responde con **409** (`backend/src/core/auth/invitacion-masiva.ts:140-144`). Ni `apiClient` ni `features/admin` leen el estado de ese código, así que el resultado es el mismo (O-26).
+  - En C12 (1), volver a llenar invitar maestro es necesario, porque el éxito vacía el `<form>`. No cambia lo que el caso fija: el `role="status"` lee `invitar.data`, no los campos.
+
+### Hermanos y estados vecinos, contra el código
+- **Formularios:** mi grep de `\w+\.isError && <MensajeError` en todo `src/` da los diez formularios, más `buscador-de-cuenta:71`, `ficha-de-cuenta:97` y `:123` y `tabla-enlaces:135`. Fuera de `admin` y `auth`, todos los `isError` son de consultas.
+  - Los diez tienen el remedio.
+  - `BuscadorDeCuenta` (`:34`) sigue con `buscar.reset()` sin condición.
+  - «Sí, restablecer» y «Sí, revocar» no validan en local, así que no aplica.
+
+  Coincide con el resumen.
+- **`clases` y `tareas`:**
+  - `hilo-privado.tsx:68` limpia con `setErrorDelServidor(null)` en la rama del rechazo.
+  - `campo-de-enlaces.tsx:64` limpia con `onDescartarErrorDelServidor()` antes de su `safeParse` (D-3, listado).
+  - `formulario-de-entrega.tsx:107` limpia con `setErrorDeEnlaces(null)` al cambiar los enlaces.
+  - `calificaciones` no tiene formularios.
+
+  Coincide.
+- **Estados del mecanismo.** El resumen lista ocho, y los ocho coinciden con el código: servidor → local, local → servidor, dos del servidor, dos locales, éxito → local, en vuelo, vista desmontada y repetir el control. Ir a otra sección y volver, el historial y pulsar la sección activa están en "Frases de recuperación", con su cobertura. **Faltan tres de los que §D-6 (Enmienda 5) enumera** (M-06).
+- **Matriz §D-6:** la fila nueva («envío rechazado en local tras un error del servidor») coincide con el código: se renueva con `reset()`, el único mensaje es el `ErrorDeCampo`, sin toast, el foco no se mueve, la guarda `isPending` va primero y no hay ref. Las demás filas no cambian.
+- **Reglas estáticas** (mi grep):
+  - `mensajeDelAvisoDeCalificar` aparece solo en `tareas/hooks.ts` y `tareas/lib.ts`.
+  - `esErrorDeCursor` se define solo en `lib/errores-de-api.ts:37`, y `calificaciones` no escribe `esErrorDeCursor(`.
+  - No hay ningún `type` ni `interface` en `data.ts` ni `lib.ts` de `admin` y `auth`.
+  - Coincide.
+
+### Problemas que bloquean
+#### M-06 — Faltan tres estados vecinos de §D-6 (Enmienda 5) en "Hermanos y estados vecinos"
+- **Dónde:** `resumen-programador-03c-r2.md`, "Estados del mecanismo", contra `plan.md:460`. El plan pide: "Los estados vecinos del mecanismo que el resumen lista uno por uno, con su caso".
+- **Por qué importa:** es la regla de los hermanos y de los estados vecinos (`AGENTS.md`, "Resúmenes verificables del programador", decisión del humano del 2026-10-05): un estado vecino que falta devuelve el resumen. Estos son los tres que no aparecen:
+  1. **`ENLACE_INVALIDO`** en registro de maestro y en restablecer o establecer: el formulario ya no está.
+  2. **`CAMBIO_NO_REQUERIDO` con la recarga de `/me` fallida**, en el cambio obligatorio: el `MensajeError` queda y el siguiente rechazo local lo quita.
+  3. **El error de un código que `apiClient` redirige** (O-r1-6): el resumen solo lo menciona en "Pendiente" como destino, sin decir qué hace el remedio con él.
+- **Qué se espera:** el resumen vuelve con los tres estados, cada uno con lo que hace el remedio, la línea del código que lo sostiene y su caso (o, si no tiene caso, por qué). No espero cambios de código ni de pruebas. Leí los tres y el comportamiento coincide con el plan:
+  - en `formulario-registro-maestro.tsx` y en `formulario-nueva-contrasena.tsx`, `ENLACE_INVALIDO` reemplaza el formulario;
+  - en `useCambiarContrasena` (`auth/hooks.ts:185-206`), el `onError` asíncrono deja la mutación en `isPending` mientras recarga `/me`, así que la guarda sale primero; si la recarga falla, el `MensajeError` queda hasta el siguiente envío, y un rechazo local lo quita con `reset()`. Con `gcTime: 0` y `sacarDeLaCacheAlAsentar`, el `reset()` del observador sigue funcionando;
+  - los códigos que redirigen sacan a la persona de la vista o, si el componente sigue montado, el siguiente rechazo local quita su `MensajeError`.
+
+  Si al revisarlos el programador encuentra que alguno no se comporta así, es PARADA. Solo se reemplaza el resumen: las cifras de esta sección siguen valiendo mientras el código no cambie (`git diff --numstat 9272501e` igual al de arriba). Al volver, contrasto los tres estados y lo acepto sin otra corrida, salvo que haya cambios.
+
+### Observaciones
+- **O-25 (tester y cierre).** Mi primera corrida completa dio 6 rojas de "no encontrado" (`findBy…`, espera por omisión de 1000 ms, sin "timed out"):
+  - `calificaciones/gradebook-01d.test.tsx` (2) y `calificaciones/secciones-01d-r4.ataque` CAL-T-255 (1): `row` "Carla Gómez";
+  - `clases/formularios-ch3-r1.ataque` (2) y `clases/formularios-ch3.test.tsx` CH3-B07 (1): botón "Elegir Luis Pérez".
+
+  Ninguno de esos archivos ni el código que prueban cambió en 03c. Los cuatro, aislados, dan 308 de 308, y la segunda corrida completa dio 5161 de 5161. Lo atribuyo a la carga, no a T-05. Si el tester o una corrida de cierre lo vuelve a ver en esos mismos casos, conviene anotarlo como fragilidad, con destino a CHORE-04 o a un `chore` de higiene de pruebas. No bloquea.
+- **O-26 (sin acción en 03c).** En las pruebas, `CUPO_DIARIO_INSUFICIENTE` va con 429 y el servidor lo responde con 409. El resultado no cambia, porque nadie lee ese estado. Si el tester amplía con ese código, que use 409.
+- **Detalle menor (sin acción).** En CH3-C10, el destino de "registro de estudiante" es `RUTA_POR_ROL.maestro`, porque el doble de `/me` responde `rol: "maestro"` en todos los casos. Comprueba la navegación por `/me`, que es lo que importa, pero se lee raro.
+- **Detalle menor (sin acción).** El `sinComentarios` de CH3-C13 quita los comentarios de línea completa y los de bloque, no los que van al final de una línea con código. Hoy basta, porque el comentario de T-05 va en líneas propias.
+
+### M-06 sin verificar — la adenda no está en el archivo (03c, ronda 2)
+Fecha: 2026-10-27. El orquestador avisó que la adenda "# Adenda (M-06)" estaba transcrita al final de `resumen-programador-03c-r2.md`. No la encontré:
+- El archivo sigue con 142 líneas, la fecha de modificación de las 14:43 (anterior a mi verificación) y SHA-256 `d1f5780f223c7e7999b40be007078e7dca0c2ce00739b828fa9006398d3c2965`. Termina en "Pendiente o fuera de alcance".
+- `grep` de "Adenda (M-06)" en `docs/trabajo/CHORE-03-errores-api/` y en el scratchpad de la sesión: sin resultados. `aprobacion.md` solo registra la devolución por M-06 (`:294-298`).
+- El código no cambió: `git diff --numstat 9272501e -- frontend` es el mismo de mi verificación, con los diez formularios en `3 0`.
+
+**Veredicto: M-06 sigue abierto y el resumen sigue DEVUELTO.** No tengo nada que contrastar. **Qué falta:** que la adenda quede escrita en `resumen-programador-03c-r2.md`, con los tres estados de M-06 (`ENLACE_INVALIDO`, `CAMBIO_NO_REQUERIDO` con la recarga de `/me` fallida y los códigos que `apiClient` redirige), cada uno con su línea de código y su caso. Con el archivo en disco, la contrasto sin otra corrida y, si coincide, el tester puede atacar la ronda 2.
+
+### M-06 resuelto — resumen aceptado (03c, ronda 2)
+Fecha: 2026-10-27. La adenda "# Adenda (M-06)" ya está en disco: `grep -n "Adenda (M-06)"` da una coincidencia, en `resumen-programador-03c-r2.md:146`. El código no cambió (`git diff --numstat 9272501e -- frontend` es el mismo de mi verificación, con los diez formularios en `3 0`), así que no volví a correr la suite y mis cifras siguen valiendo. Contrasté los 15 estados con el código y con las pruebas:
+- **1 a 8 y 12 a 15.** Son los ocho estados que ya había contrastado más los de navegación de "Frases de recuperación", ahora cada uno con su caso. Coinciden.
+- **9, `ENLACE_INVALIDO`.** Coincide:
+  - `formulario-registro-maestro.tsx:50-52` y `formulario-nueva-contrasena.tsx:96-98` devuelven el reemplazo antes del `<form>`, así que el manejador ya no se alcanza.
+  - El caso es el describe «ataque CHORE-03 03c r1 · ENLACE_INVALIDO reemplaza el formulario con su texto fijo» (`auth/errores-ch3-r1.ataque.test.tsx:438`). En mi corrida de la ronda 2 dio 15 de 15.
+- **10, `CAMBIO_NO_REQUERIDO` con `/me` fallida.** Coincide:
+  - El `onError` asíncrono está en `auth/hooks.ts:200-205`; la adenda dice `:199-205`, pero `:199` es el `onSuccess`, lo que no cambia nada. Ese `onError` mantiene `isPending` mientras corre `avanzarTrasCambio`, y la guarda `:25` sale primero.
+  - Si la recarga falla, el `.catch` la traga y el `MensajeError` de `:57` queda. La línea `:28` lo quita en el siguiente rechazo local.
+  - El estado de partida lo fija `app/cuentas-r1.ataque.test.tsx:407`, con `/me` en 403 `CAMBIO_DE_CONTRASENA_REQUERIDO`. Que la secuencia no dependa del código del error es correcto: el manejador solo lee `isPending` e `isError`. Acepto que no tenga un caso propio de la secuencia completa.
+- **11, códigos que `apiClient` redirige.** Coincide:
+  - `irA` está en `services/apiClient.ts:160`, `:162` y `:176`, y después se lanza el error.
+  - `reset()` solo corre al inicio de un envío siguiente, así que no interviene en la redirección.
+  - Casos en verde en mi corrida de la ronda 2:
+    - `auth/errores-ch3-r1.ataque.test.tsx:533`, `:542` y `:554` (3);
+    - la tabla de `admin/errores-ch3-r1.ataque.test.tsx:521` (14 casos con `ACCESO_RESTRINGIDO` o `CAMBIO_DE_CONTRASENA_REQUERIDO`) más el `401` de `:545`.
+
+**Veredicto: RESUMEN ACEPTADO (el tester puede atacar la ronda 2).** M-06 queda resuelto. Siguen abiertas O-25 y O-26 y los detalles menores de la sección anterior, ninguno bloquea.
+
+## Revisión final — 03c y cierre de CHORE-03
+Fecha: 2026-10-27. Modo 2 (revisión final de 03c y del encargo completo). Plan vigente: `plan.md` `31d58aec72c64758cb113b4f584fac4f53504dcf2607f0d4abd5c348766d05ea` (Enmiendas 1 a 5, DH-9 = (a), A-8 con la variante del manager), reproducido. Rama `chore/chore-03-errores-api`. Base de 03c dentro de `frontend/`: `9272501e`; fuera de los paquetes, `ad10844`. Antes de correr comprobé con `Get-CimInstance Win32_Process` que no hubiera ningún `vitest` en marcha: solo había procesos `node` ajenos (runtimes de otra herramienta), que no toqué. Corrí todo desde `frontend/`, una suite a la vez. Salidas en el scratchpad de la sesión, carpeta `final03c/` (`lint.txt`, `test.txt`, `build.txt`, `list.txt`, `v01-base.txt` y `v01-actual.txt`).
+
+**Veredicto: APROBADO CON OBSERVACIONES.** No hay `M-xx` (ninguno desde M-07): nada bloquea el cierre de 03c ni el del encargo. Las observaciones tienen destino (CHORE-04, ADMIN-01, CLASES-03, el `chore` de foco y navegación, el cierre o ninguno) y hay tres decisiones para el humano que no bloquean el commit.
+
+Verificación propia:
+- **lint:** exit 0; `All matched files use Prettier code style!` y la última línea `> tsc -b`; 0 `error TS`.
+- **test:** `Test Files  237 passed (237)` · `Tests  5310 passed (5310)`; arranque 17:11:31, `Duration  204.73s`. `Test timed out` 0, `Hook timed out` 0, cualquier "timed out" 0, `FAIL` o `×` 0. O-25 no se repitió y no hubo PA-12.
+- **build:** exit 0; `✓ built in 846ms`, con el aviso de siempre del bloque de más de 500 kB (de FRONT-01).
+
+### Cifras: corrida propia contra la del tester (ronda 2 de 03c)
+| Qué | Tester, ronda 2 de 03c | Corrida propia |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` | exit 0, `> tsc -b` |
+| `npm run test` | `Test Files  237 passed (237)` · `Tests  5310 passed (5310)` | Las mismas dos líneas |
+| `Test timed out` / `Hook timed out` | 0 / 0 | 0 / 0 |
+| `npm run build` | — (no lo corre) | exit 0, `✓ built in 846ms` |
+| `npx vitest list`, por archivo (13 de 03c) | r2: 54 · 79 · 16 | Del programador: `auth/errores-ch3` 18 · `admin/errores-ch3` 29 · `auth/formularios-ch3` 90 · `admin/formularios-ch3` 77 · `lib/errores-de-api-estatico` 5 (2 de 03c). Del tester: r1 `admin/errores-ch3-r1` 344 · `admin/rutas-ch3-r1` 20 · `auth/errores-ch3-r1` 377 · `auth/rutas-ch3-r1` 10 · `lib/estatico-ch3-r1` 12; r2 `admin/secuencias-ch3-r2` 54 · `auth/secuencias-ch3-r2` 79 · `lib/estatico-ch3-r2` 16 |
+| Ids en esa lista | — | C01 18 · C02 13 · C03 35 · C04 26 · C05 6 · C06 2 · C07 1 · C08 20 · C09 25 · C10 34 · C11 11 · C12 24 · C13 1. Ningún título repetido (`sort \| uniq -d` vacío) |
+
+Cadena de cifras de 03c, sin huecos:
+
+| Momento | Archivos | Casos | Diferencia |
+|---|---|---|---|
+| Cierre de 03b | 225 | 4182 | — |
+| Primera entrega del programador | 229 | 4303 | +4 y +121 |
+| Ronda 1 del tester (11 rojas de T-05) | 234 | 5066 | +5 y +763 |
+| Ronda 2 del programador | 234 | 5161 | +0 y +95 |
+| Ronda 2 del tester | 237 | 5310 | +3 y +149 |
+
+03c suma 12 archivos y 1128 casos: 216 del programador (CH3-C01 a CH3-C13) y 912 del tester.
+
+Cadena del encargo: 197 / 3318 al arrancar (ronda 0 de 03a) → 213 / 3757 (cierre de 03a) → 225 / 4182 (cierre de 03b) → **237 / 5310** (cierre de 03c): +40 archivos y +1992 casos. `*.ataque`: 204 → 212 → 218 → **226** (+8, +6, +8).
+
+### V-01
+- Comando de V-01 de `reporte-tester.md` contra la "Tabla de SHA-256 de las 226 `*.ataque` al cierre de la ronda 2 de CHORE-03 03c" (solo los hash pasados a minúsculas). Base 226, actual 226 (versionadas y sin seguimiento), `diff` vacío: **226 de 226.**
+- Contra `9272501e` solo cambian cuatro `*.ataque`: C-4 (`admin/cuentas-r1`, la reescritura A-5) y las tres endurecidas por PA-12 (`clases/recuperar-ch3-r1`, `clases/formularios-ch3-r2`, `tareas/formularios-ch3-r1`, una línea cada una: el `30_000` del `beforeAll`).
+- **Contra `ad10844` (encargo completo):** las únicas `*.ataque` anteriores al encargo que cambiaron son C-1 a C-4 (`git diff --diff-filter=M`); ninguna se borró (`--diff-filter=D` vacío); 22 son nuevas (14 versionadas en 03a y 03b y 8 sin seguimiento de 03c). Las únicas pruebas normales anteriores que cambiaron son N-L1, N-L2 y N-L3. El programador no tocó ninguna `*.ataque`.
+- No hay `.skip`, `.only`, `.todo`, `.fails`, `xit`, `xdescribe`, `fit` ni `fdescribe` en las 12 pruebas nuevas de 03c, en N-L3 ni en la estática.
+
+### "No se toca" de 03c contra `9272501e` (dentro de `frontend/`) y `ad10844` (fuera)
+- `git diff --stat 9272501e -- frontend shared backend infra .env.example package.json package-lock.json eslint.config.mjs` da **22 archivos, 175 inserciones y 43 borrados**, todos en `frontend/src`:
+  - **Los 6 de producción de "Cambios por capa › 03c":** `admin/data.ts` (16/4), `admin/lib.ts` (11/16), `admin/components/tabla-enlaces.tsx` (2/2: la importación `:22` y la consulta `:190`), `admin/components/registrados-del-enlace.tsx` (2/2: `:17` y `:33`), `auth/data.ts` (13/1) y `auth/lib.ts` (7/11).
+  - **Los diez de DH-9 (a), cada uno `3 0`** (`--numstat`): el comentario literal de §D-4 (Enmienda 5) y `if (<m>.isError) <m>.reset()` justo después de `if (<m>.isPending) return`, con la mutación de su fila (`invitar` dos veces, `generar`, `corregir`, `inicioSesion`, `alta` dos veces, `recuperar`, `nuevaContrasena`, `cambiar`). Leídos en el diff, uno por uno.
+  - **N-L3** (`auth/lib.test.ts`, 2/2): el título (`:65`) y la salida esperada (`:74`), con los textos de §D-R0.
+  - **`lib/errores-de-api-estatico.test.ts`** (86/1): CH3-C07 y CH3-C13.
+  - **Las 4 `*.ataque` del tester:** C-4 (3/1) y las tres de PA-12 (1/1 cada una).
+- **12 archivos nuevos, todos pruebas:** las 4 del programador (`admin/errores-ch3.test.ts`, `admin/formularios-ch3.test.tsx`, `auth/errores-ch3.test.ts`, `auth/formularios-ch3.test.tsx`) y las 8 `*.ataque` del tester (5 de la ronda 1 y 3 de la ronda 2). `git status --short frontend`: 22 `M` y 12 `??`.
+- **Lo que no cambió:** ningún `hooks.ts`; ni `buscador-de-cuenta.tsx` ni `ficha-de-cuenta.tsx`; nada de `clases`, `tareas`, `calificaciones`, `components/`, `app/`, `services/` ni `diagnostico`; las vistas de `auth` con consulta (S-08). `shared/`, `backend/`, `infra/` y `.env.example` sin cambios desde `ad10844`.
+- **Documentos, por hash:** `PRD.md` `a10c5c23…`, `ARCHITECTURE.md` `75c3c75d…`, `ARCHITECTURE-ESSENTIALS.md` `7c05fd61…`, `DESIGN.md` `8d977dc4…` y §2b de `ESTADO.md` `6ecbc366…` (con `awk`, de `## 2b.` hasta antes de `## 3.`): **los cinco coinciden.** `docs/ESTADO.md` solo cambia contra `9272501e` en la línea de §2 del orquestador.
+- **Hasta el cierre:** `CLAUDE.md` `334e2c86…`, `AGENTS.md` `23f57804…`, `.claude/agents/arquitecto.md` `328a64af…` y `README.md` `2794c7bc…`; `git diff --stat ad10844 -- CLAUDE.md AGENTS.md .claude README.md` vacío. A-1, A-2, A-3 y A-8 los aplica el orquestador después de este veredicto (abajo).
+
+### Revisión final del código de 03c contra el plan y `CLAUDE.md`
+- **§D-4 `admin`:** `TRADUCCION_DE_ERRORES_ADMIN` en `data.ts` con `import type` y `satisfies TraduccionDeErrores`; `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` queda en `["CUPO_DIARIO_INSUFICIENTE"]`, con sus comentarios al día; `textosPorCampo: {}`. `mensajeDeErrorAdmin` y `mensajeDeConsultaAdmin` son envoltorios de una línea; se fueron `tieneMensajePropio`, `tieneMensajeDelServidor`, el `return error.message` y la importación de `esApiError`. Las dos consultas (`tabla-enlaces:190`, `registrados-del-enlace:33`) usan la variante de consulta; las demás llamadas son acciones.
+- **§D-4 `auth`:** `TRADUCCION_DE_ERRORES_AUTH` con `codigosConMensajeDelServidor: []` y `textosPorCampo: {}`; `mensajeDeErrorAuth` es un envoltorio de una línea; `esApiError` sigue solo por `esCambioDeContrasenaRequerido`.
+- **S-08:** `acceso-restringido-view.tsx` y `establecer-contrasena-view.tsx` no cambian y usan `mensajeDeErrorAuth` con el contrato ("token: El enlace no es válido" pasa a "El enlace no es válido").
+- **S-09:** `features/diagnostico` queda fuera por nombre en CH3-C07 (`FUERA_DE_03C`) y en las estáticas del tester; su `${error.codigo}: ${error.message}` sigue a propósito.
+- **Fila `id: id:` (M-04):** las tres acciones de `:id` dan "debe ser un identificador válido" y los registrados, el genérico. Lo fijan CH3-C08 (20 casos) y el tester (O-21: 9 casos sobre `document.body`, con separadores raros; tres prefijos dan "id: …", que es lo que decide el plan).
+- **Remedio de T-05 (Enmienda 5):** idéntico a §D-4 en los diez archivos; ninguna ref nueva, ningún gancho, ningún texto. La condición `isError` conserva el texto de éxito de invitar maestro y de corregir el correo (CH3-C12 (1)). La mutación de confirmación del tester lo respalda: con la línea quitada, 203 rojas (incluidas las 11 de T-05, C09, C10 y C13); con `reset()` sin condición, 19; con la línea antes de la guarda, un mutante equivalente (`isPending` e `isError` se excluyen) que solo detectan las estáticas, y eso basta.
+- **CH3-C01 a CH3-C13:** todas tienen su caso, con el id en el título (cifras arriba). `it.each` por módulo con `%s` sobre tuplas, como indicó el humano y pidió O-r2-3 de 03b; ningún título repetido. N-25 (`fireEvent.submit` en CH3-C12 (3)) y D-2 (CH3-C13 cuenta `<m>.reset()` por el nombre de la mutación) están aplicados.
+- **Reglas estáticas en todo `src/`:** CH3-C07 (manipular `error.message` o copiar la expresión de ruta, salvo el contrato y `diagnostico`), CH3-C13 (la línea de T-05), `lib/estatico-ch3-r1.ataque` (O-20: once formas de mostrar crudo un mensaje, con caso de control; O-05 en `admin` y `auth`) y `lib/estatico-ch3-r2.ataque` (invisibles literales, la tabla común solo en pruebas, los símbolos borrados, la posición de la línea de T-05). Todas en verde en mi corrida.
+- **Estilo:** retornos tempranos (envoltorios de una línea; la línea de T-05 es un `if` de una sentencia, sin `else`); ningún `any` (grep vacío en la producción de `admin` y `auth` y en las cuatro pruebas del programador); ningún tipo nuevo fuera de `types.ts` o `lib/` (`TraduccionDeErrores` solo en `import type` y `satisfies`); ningún texto de interfaz nuevo (las constantes nuevas se arman con los textos que ya existían); ningún `?? []`; los comentarios dicen el porqué. En las pruebas, el `?? -1` de CH3-C13 hace fallar la precondición; no es un valor por defecto silencioso.
+- **Hallazgos del tester:** T-05 corregido con el remedio de la Enmienda 5; las 11 rojas pasan sin tocarlas. No hay desacuerdos entre programador y tester que arbitrar.
+
+### Revisión del encargo completo (03a + 03b + 03c, contra `ad10844`)
+| Punto de "Alcance" | Resultado | Evidencia |
+|---|---|---|
+| 1. Contrato único | Cumple | `lib/errores-de-api.ts` exporta `TraduccionDeErrores`, `mensajeDeErrorDeApi`, `mensajeDeErrorDeConsulta`, `quitarRutaDelMensaje` (la ruta una vez y el nombre en camelCase repetido, máximo dos prefijos, DH-5), `textoVisibleOGenerico` (con `contarCaracteresVisibles` de `shared/`) y `esErrorDeCursor(error, campos)`, y conserva `campoDeErrorDeApi`, `erroresDeFormularioDeApi` y `erroresPorCampo` |
+| 2. Tabla común | Cumple | `lib/errores-de-api-fuera-de-contrato.ts`, importada por 27 archivos, **todos pruebas**; ningún archivo de producción la importa (CH3-A20, CH3-C07 y `estatico-ch3-r2`) |
+| 3. Migración de los cinco módulos | Cumple | `TRADUCCION_DE_ERRORES_*` en el `data.ts` de `tareas`, `clases`, `admin` y `auth`; `calificaciones` solo con el alias del cursor y N-46 (M-01: `mensajeDeErrorCalificaciones` no cambia); `components/adjuntos` con `textoVisibleOGenerico` en `avisoDeFalloAlSubir` |
+| 4. N-46 | Cumple | `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` se declara solo en `services/apiClient.ts:21`; la importan `tareas/lib.ts:15` y `calificaciones/lib.ts:4`; sin ciclo (CH3-B12) |
+| 5. Casos fuera de contrato y regla estática en todo `src/` | Cumple | Cada formulario y cada consulta de los cinco módulos recorre la tabla con `it.each` (CH3-A, CH3-B y CH3-C); CH3-C07 cubre todo `src/` de producción salvo el contrato y `diagnostico` |
+
+- **`quitarPrefijoDeCampo` y `PREFIJO_DE_RUTA`:** 0 apariciones en producción; solo aparecen en pruebas que afirman que no existen.
+- **Lecturas de `error.message` en producción:** el contrato; `components/adjuntos/lib.ts:85` (por `textoVisibleOGenerico`); `clases/lib.ts:418` y `tareas/lib.ts` (`exec`, `test` y `startsWith` para clasificar, aprobadas en 03a y 03b); y `diagnostico` (S-09). Ninguna muestra cruda.
+- **Tamaño del encargo en `frontend/`:** 46 archivos de producción (45 modificados: 11 en 03a, 21 en 03b y 16 en 03c, con tres que se repiten; y 1 nuevo, la tabla común); 40 pruebas nuevas (18 del programador y 22 `*.ataque`); C-1 a C-4 reescritas por el tester (A-5) y N-L1 a N-L3 por el programador (A-4). Salidas de "No se toca" autorizadas por el humano: `adjuntos-de-publicacion.tsx` (DH-6); `formulario-clase.tsx`, `formulario-publicacion.tsx` y `clases/hooks.ts`, este solo en `useCrearPublicacion` (DH-8 (a)); y los diez formularios de T-05 (DH-9 (a)). Fuera de `frontend/`: los cinco documentos de la parte A (DOCS-04) y `docs/`; nada de `shared/`, `backend/` ni `infra/`.
+- **Cambios visibles declarados del encargo:** en 03a, las rutas compuestas, los vacíos y las rutas dobles en `tareas` y en la descarga, y el "Ver más comentarios" del hilo con `cursor:` da el genérico. En 03b, O-12 ("Personas" y el roster con un cursor vencido dan el genérico) y T-03/T-04 (ahora sí hay aviso). En 03c, O-24 en tres partes: (1) en las acciones de `admin` y `auth`, incluida la consulta de la invitación, un `VALIDACION` ya no muestra su ruta; (2) en la tabla de enlaces y en los registrados, todo `VALIDACION` da el genérico; (3) en las tres acciones de `:id`, "id: id: …" pasa a "debe ser un identificador válido". Y T-05: tras un error del servidor, un reenvío rechazado en local ya no deja los dos mensajes. Todos los prevé el plan (S-01/DH-1, §D-4 y la Enmienda 5).
+
+### Definición de terminado (`AGENTS.md`), punto por punto
+| Punto | Resultado |
+|---|---|
+| Cumple el `RF-xx` / `RN-xx` | Sí: la fila de §3 "T-04 y T-05 de CALIFICACIONES-01c…" (puntos 1 a 6 y el remedio, con N-33, N-36, N-38, N-42 y R-15), N-46 y la observación de `esErrorDeCursor` con lista de campos. Sin RF nuevo |
+| Capas y middleware | No aplica: solo frontend; ninguna seguridad queda solo en la interfaz; `apiClient` redirige igual (S-12) |
+| `lint`, `build` y `test` en verde | Sí, en mi corrida |
+| Pruebas de autorización | No aplica: ningún endpoint nuevo |
+| Migración | No aplica |
+| `infra/` y `.env.example` | No aplica |
+| Documentos | Pendientes de este cierre: A-1, A-2, A-3 y A-8 (textos confirmados abajo) y `ESTADO.md`. `DESIGN.md` no cambia |
+
+### Lista de diseño (03c toca `frontend/`)
+- Ningún texto ni patrón visual nuevo (S-02): `DESIGN.md` no cambia y su hash coincide. No hay nada que documentar ahí.
+- Ningún componente visual cambió: ni clases, ni tokens, ni `components/ui/`. Los diez formularios solo ganan una línea en su manejador, y las dos consultas cambian la función que elige el mensaje.
+- El estado no se comunica solo con color: `MensajeError` con título y `ErrorDeCampo` con texto, como antes.
+- Textos sin cambio, en español de México y sin emojis. El foco no se movió (matriz de §D-6). Los estados de error, carga y vacío siguen en su orden.
+- **Sin verificar:** 360 px, lector de pantalla y navegador. Ningún agente abre un navegador, y no hay nada visual nuevo que mirar.
+
+### Arbitraje de las observaciones abiertas de 03c
+| Observación | Arbitraje | Destino |
+|---|---|---|
+| **O-20** (C07 no detectaba `mensaje={error.message}`, plantillas ni `toast.error(error.message)`) | **Cerrada.** `lib/estatico-ch3-r1.ataque` recorre todo `src/` con once formas de muestra cruda y un caso de control; da 0 | Ninguno |
+| **O-21** (C08 (2) buscaba "id:" solo en la alerta) | **Cerrada.** El tester lo comprobó sobre `document.body` en las cuatro rutas (9 casos) | Ninguno |
+| **O-22** (los «Cargar más» de enlaces y registrados usan `enEspera={isFetchingNextPage}`, contra `CLAUDE.md`) | Previo al chore y fuera de sus líneas (PA-3); confirmado por el tester. No es doble clic, pero es la misma familia: la espera de un control que lanza una petición | **CHORE-04**, dos filas nuevas: `features/admin/components/tabla-enlaces.tsx:240` y `features/admin/components/registrados-del-enlace.tsx:71`, con la regla del "Ver más" en su inventario y en su regla estática. Si ADMIN-01 rehace esas tablas antes, las absorbe |
+| **O-23** (el resumen omitía el `onError` de `AccionRestablecer`) | Redacción; no cambia la conclusión (ese `onError` solo mueve el foco) | Ninguno |
+| **O-24** (el cambio visible de 03c en tres partes) | Cambio visible **declarado**, previsto por §D-4 y S-01/DH-1 | Va en el resumen para el humano (abajo), en `aprobacion.md` y en la fila cerrada de §3 |
+| **O-25** (6 `findBy` que vencieron por carga en una corrida completa del manager en la ronda 2) | Carga, no código: aislados pasaron y no se repitió ni en la corrida del tester ni en esta. Con la PA-12 de la ronda 0 son dos incidentes de carga en la misma subentrega, ambos en pruebas que montan el router o vistas pesadas | Sin acción en CHORE-03. Una fila en §3 como nota: "fragilidad de la suite del frontend bajo carga (esperas de 1 s de `findBy` y `beforeAll` que importa el router)", destino: un `chore` de higiene de pruebas del frontend o el próximo encargo que toque `frontend/vitest.config.ts`; se activa si vuelve a pasar |
+| **O-26** (`CUPO_DIARIO_INSUFICIENTE` es 409 en el servidor; las pruebas usaban 429) | **Cerrada.** El tester usó 409 en la ronda 2; la salida no depende del estado | Ninguno |
+| **O-r1-4** (`ENLACE_INVALIDO` con mensaje vacío lo rechaza `errorApiSchema`) | No se alcanza (el backend responde con el mismo esquema) y da el genérico | Ninguno |
+| **O-r1-5** (el error de «Sí, revocar» reaparece al reabrir la confirmación) | Previo; no son dos mensajes de un envío | **ADMIN-01**, en la misma fila que O-r2-2 |
+| **O-r1-6** (los formularios pintan su `MensajeError` un instante mientras `apiClient` redirige) | Previo; otro mecanismo (no pintar los códigos de `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`) | **`chore` de foco y navegación** |
+| **O-r1-7** (`clases/data.ts:239` nombra `MENSAJES_ERROR_CLASES` en un comentario) | Comentario histórico del cambio de nombre de 03b | Ninguno |
+| **O-r2-1 de 03c** (doble clic en el mismo render: invitar maestro, masiva, generar, corregir y recuperar mandan 2 peticiones; los seis con `mutationKey` mandaron 1 en esa ventana, sin verificar después) | Filas 7 a 10 y 12 a 17 de la lista de CHORE-04; el remedio de T-05 no lo cambia (la guarda `isPending` sigue igual) | **CHORE-04**: la medición va como nota de su lista (dato de entrada para su plan, no filas nuevas) |
+| **O-r2-2 de 03c** (en la ficha conviven el error de «Sí, restablecer» y el `ErrorDeCampo` de corregir el correo) | No es hallazgo: dos controles y dos envíos distintos; la regla de §D-2 es por formulario | **ADMIN-01**, con O-r1-5 (mismo componente, `ficha-de-cuenta.tsx`) |
+| **O-r2-3 de 03c** (la masiva y generar enlace conservan su resultado tras un rechazo local) | La misma decisión de §D-2 que para invitar y corregir; el siguiente envío válido lo limpia | Ninguno |
+| **O-r2-4 de 03c** (la línea antes de la guarda es un mutante equivalente) | Correcto; las estáticas fijan el orden y basta | Ninguno |
+| **N-25** (CH3-C12 (3) con `fireEvent.submit`) | **Aplicada** por el programador y atacada por el tester (12 casos en `admin`, 21 en `auth`) | Ninguno |
+| **N-26** (variante de A-8) | **Elegida por el humano** (DH-9 y A-8, 2026-10-27). Texto final abajo | El cierre (A-8) |
+| **D-1** (el encabezado histórico de DH-8 que perdió el plan) | Sin efecto: la historia está en `aprobacion.md`; el plan ya no se enmienda | Ninguno |
+| **D-2** (C13 cuenta `<m>.reset()` por nombre de mutación) | **Aplicada** | Ninguno |
+| **D-3** (`campo-de-enlaces.tsx:64` como precedente) | **Aplicada**: el resumen de la ronda 2 lo lista entre los hermanos | Ninguno |
+| **D-4** ("la forma que usa `BuscadorDeCuenta`" en sentido amplio) | La variante de A-8 lo deja escrito (el `reset()` sin condición solo cuando también debe desaparecer lo devuelto) | Ninguno |
+| **O-r2-1 de 03a** (la guarda de «Descargar» vive en cada ficha montada; `despuesDeReabrir` = 2) | Mi arbitraje de 03a mandó anotarla en la fila de CHORE-04 al cerrar 03c | **CHORE-04**, como nota de su lista |
+| **O-16 y O-r2-1 de 03b** (vista desmontada con un error de campo visible) | Ya en §3 con destino CLASES-03 (con O-r2-2 de 03b como nota) | Sin cambio |
+
+### Textos finales que aplica el orquestador (confirmados)
+Cada texto va tal cual, sin el `> ` inicial. Los comprobé contra el código actual: los nombres que citan existen y hacen lo que dicen.
+
+**A-1, `CLAUDE.md` › "Ubicaciones compartidas".**
+- Sustituye la viñeta de `lib/errores-de-api.ts` (hoy, `CLAUDE.md:82`) por:
+  > - `lib/errores-de-api.ts` — el contrato único de los errores de la API: `mensajeDeErrorDeApi` (acciones) y `mensajeDeErrorDeConsulta` (consultas: ante un `VALIDACION`, el texto fijo del lugar) sobre la `TraduccionDeErrores` de cada módulo; `quitarRutaDelMensaje` (la ruta, una vez, y el nombre de campo en camelCase que el esquema repite detrás; solo en `VALIDACION`), `textoVisibleOGenerico` (el genérico del módulo ante un texto sin caracteres visibles), `campoDeErrorDeApi`, `esErrorDeCursor(error, campos)`, `erroresDeFormularioDeApi` y `erroresPorCampo`. La tabla común de entradas fuera de contrato, que recorren las pruebas de cada función de traducción, vive en `lib/errores-de-api-fuera-de-contrato.ts` (solo la importan pruebas)
+- En la viñeta de `services/apiClient.ts` (hoy, `CLAUDE.md:83`), al final, después de "cliente HTTP con el token y el formato de error":
+  > ; exporta `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` (los errores con que redirige), que importan los módulos para no avisar de ellos
+
+**A-2, `CLAUDE.md` › "Manejo de errores en el frontend"**, viñeta nueva después de "Subidas, descargas y manejadores asíncronos…" (hoy, `CLAUDE.md:200`), con la excepción de `features/calificaciones`:
+  > - **Textos del servidor:** ningún mensaje de la API llega a la persona sin pasar por `lib/errores-de-api.ts`. Cada módulo declara su `TraduccionDeErrores` en `data.ts` y traduce las acciones con `mensajeDeErrorDeApi` y las consultas con `mensajeDeErrorDeConsulta` (ante un `VALIDACION`, el texto fijo del lugar); fuera de ese archivo nadie recorta `error.message`. Las pruebas de cada función de traducción recorren `ENTRADAS_FUERA_DE_CONTRATO` (`lib/errores-de-api-fuera-de-contrato.ts`). Excepciones: `features/diagnostico`, temporal, y `features/calificaciones`, cuyas consultas nunca muestran texto del servidor (el de "sin acceso" o el texto fijo del lugar).
+
+**A-3, `AGENTS.md`**, regla "Todo plan con un formulario nuevo inventaría los `VALIDACION` fuera de contrato…" (hoy, `AGENTS.md:140`), después de «lo escrito se conserva y el botón sale de la espera.» y antes de «Motivo:»; **y en `.claude/agents/arquitecto.md:27`**, después de «…y el botón sale de la espera.» y antes de «Si el módulo ya tiene una función que traduce esos errores…»:
+  > Desde CHORE-03, la función de traducción del módulo es un envoltorio de `lib/errores-de-api.ts` y sus pruebas recorren además `ENTRADAS_FUERA_DE_CONTRATO` de `lib/errores-de-api-fuera-de-contrato.ts`.
+
+**A-8, `CLAUDE.md` › "Formularios"**, viñeta nueva al final de la lista, después de la de `CampoContrasena` (hoy, `CLAUDE.md:141`), con la variante del manager que eligió el humano (N-26):
+  > - Un formulario que muestra el error del servidor desde el estado de la mutación (`isError` con su `MensajeError`) lo limpia antes de validar en local, después de su guarda de envío: `if (mutacion.isError) mutacion.reset()`. Sin la condición solo cuando también debe desaparecer lo que la mutación devolvió (la ficha de `BuscadorDeCuenta`). Si el error del servidor vive en un estado del formulario, la validación local lo reemplaza en ese mismo estado o lo limpia antes de validar. Así la persona lee un solo mensaje, el del envío que acaba de hacer, nunca el `MensajeError` viejo junto al `ErrorDeCampo` nuevo (CHORE-03, T-05).
+
+Orden sugerido para no mover las anclas: en `CLAUDE.md`, primero A-2 (`:200`), después A-8 (`:141`) y al final A-1 (`:82-83`); o por texto, que es como debe hacerse. Hashes antes: `CLAUDE.md` `334e2c869554e4875114b51072391180480971e6fe849e7d23d566c76e828678`, `AGENTS.md` `23f578046960762954c5ef99668e8f1f22b4e89b11ab355c8c0e796f9df82363`, `.claude/agents/arquitecto.md` `328a64afd23e8aac702b88b236ccf91909ed4770fa301465ef12e64be6cfa74e`. Los de después, en `aprobacion.md`, con `git diff --stat` de los tres (A-1 y A-2: una viñeta cambiada, una frase sumada y una viñeta nueva en `CLAUDE.md`; A-8, una viñeta nueva; A-3, una frase en cada uno de los otros dos).
+
+**Propuesta del manager para `AGENTS.md` (la decide el humano; sin respuesta, no se aplica).** La mantengo desde el cierre de 03b y la amplío con T-05, porque las tres rondas extra del encargo vinieron de vecinos de esa misma regla que ningún plan inventarió (T-01 en 03a fue un supuesto del plan; T-03/T-04 en 03b, "un campo que el formulario pinta en otro modo"; T-05 en 03c, "un rechazo local justo después de un rechazo del servidor"). Texto literal, en la misma regla de `AGENTS.md:140`, después de la frase de A-3 y antes de «Motivo:»; y en `.claude/agents/arquitecto.md:27`, después de la frase de A-3:
+  > Esa lista incluye también un campo que el formulario pinta solo en otro modo (crear o editar, un tipo u otro), que en este modo cuenta como no pintado, y la secuencia de un rechazo del servidor seguido de un envío que la validación local rechaza: en los dos, la persona lee un solo mensaje, el del envío que acaba de hacer.
+
+### Rondas y hermanos (para `ESTADO.md` §6)
+| Subentrega | Rondas del tester (sin la 0) | Extra | Extra por hermanos o vecinos | Sobre el tope | Resúmenes devueltos | PARADAS del programador |
+|---|---|---|---|---|---|---|
+| 03a | 2 (ROTO, RESISTE) | 1 (T-01, supuesto del plan; T-02, defecto previo en "No se toca") | 0 | no | 0 de 2 | 0 |
+| 03b | 2 (ROTO, RESISTE) | 1 (T-03 y T-04, patrón no inventariado en "No se toca", PA-6) | 0 | no | 0 de 2 | 0 |
+| 03c | 2 (ROTO, RESISTE) | 1 (T-05, defecto previo en "No se toca", PA-3) | 0 | no | 1 de 2 (M-06, solo texto) | 0 |
+| **CHORE-03** | **6** | **3** | **0** | **no** | **1 de 6** | **0** |
+
+- **03c:** 1 ronda extra y **0 por hermanos o estados vecinos.** T-05 no venía de un remedio sin extender: vivía en diez formularios que no cambiaron entre `9272501e` y la ronda 1, y el programador no podía tocarlos sin una PARADA. Con el remedio en sus manos (Enmienda 5), cubrió los once formularios y los quince estados del mecanismo, y el tester no encontró ninguno abierto en la ronda 2 (149 casos).
+- **M-06** devolvió el resumen de la ronda 2 por texto: faltaban tres de los estados vecinos que §D-6 mandaba listar (`ENLACE_INVALIDO`, `CAMBIO_NO_REQUERIDO` con `/me` fallida y los códigos que redirige `apiClient`). El código ya los cumplía; la adenda los listó con su caso sin cambiar código. No generó ronda del tester. Es el único resumen devuelto del encargo.
+- **Del tester, fuera de la medición del programador:** 1 PARADA en la ronda 0 de 03c (PA-12 por carga, resuelta por el orquestador) y 2 interrupciones de sesión en la ronda 2 de 03c (relanzada desde los archivos en disco).
+- **No se activa la regla de `AGENTS.md`** (2 o más rondas extra por hermanos en una subentrega): el programador sigue con `opus`, esfuerzo `medium`, como desde TAREAS-01d (frontmatter).
+- **Lección del encargo:** las tres rondas extra vinieron de inventarios del plan sobre archivos protegidos, no del programador. Por eso la propuesta de arriba para `AGENTS.md`.
+
+### Lo que el orquestador aplica al cierre (y lo que faltaba en la lista)
+1. **`aprobacion.md`:** el veredicto; **plan vigente al cierre: `plan.md` `31d58aec72c64758cb113b4f584fac4f53504dcf2607f0d4abd5c348766d05ea`** (Enmiendas 1 a 5), reproducido al empezar esta revisión; O-24 como cambio visible declarado en sus tres partes; los SHA-256 antes y después de `CLAUDE.md` (A-1, A-2, A-8), `AGENTS.md` y `.claude/agents/arquitecto.md` (A-3, y la propuesta del manager si el humano la aprueba), con el `git diff --stat` de los tres.
+2. **`docs/ESTADO.md`:**
+   - **§1:** CHORE-03 a completados, pendiente del commit de 03c y del PR, con las cifras del encargo (frontend 237 archivos / 5310 pruebas; 226 `*.ataque`; desde 197 / 3318 y 204) y la medición.
+   - **§2:** quitar CHORE-03. Al hacerlo, desaparece también la frase vieja que hoy se repite al final del párrafo ("Siguen 03b (…) y 03c (…)"), que quedó desfasada.
+   - **§2b** (cambia su hash: el nuevo va a `aprobacion.md`; deja de estar en "No se toca" con el cierre):
+     - el punto "1b. CHORE-03" pasa a "Hecho (sección 1), pendiente del PR";
+     - **lo que faltaba en la lista del encargo:** las líneas de las filas 7 a 10 y 12 a 17 de CHORE-04 se corrieron 3 con T-05. Hoy son `formulario-corregir-correo.tsx:42`, `formulario-generar-enlace.tsx:59`, `formulario-invitacion-masiva.tsx:44`, `formulario-invitar-maestro.tsx:39`, `formulario-login.tsx:41`, `formulario-registro.tsx:42`, `formulario-registro-maestro.tsx:47`, `formulario-recuperar.tsx:38`, `formulario-nueva-contrasena.tsx:93` y `formulario-cambiar-contrasena.tsx:47` y `:102` (las filas 11 y 18 no cambian). Las cotejé con `grep`;
+     - CHORE-04 suma las filas 24 y 25 de O-22 (`features/admin/components/tabla-enlaces.tsx:240` y `features/admin/components/registrados-del-enlace.tsx:71`, «Cargar más» con `enEspera={isFetchingNextPage}`), con la regla del "Ver más" en su inventario, y dos notas: la medición de O-r2-1 de 03c y O-r2-1 de 03a (`despuesDeReabrir` = 2 si elige otra forma de guarda). Su nombre puede seguir siendo "guardas de doble clic" o pasar a "guardas de doble clic y espera de «Ver más»"; lo decide el humano, igual que su lugar en la hoja de ruta (sigue "por decidir").
+   - **§3:** cerrar la fila "T-04 y T-05 de CALIFICACIONES-01c…" con "Hecho en CHORE-03 (2026-10-27)" y las cifras; N-22 con destino "carril trivial cuando se toque el archivo" (DH-4); `formatearFechaDeClase` con destino "el próximo encargo que toque `lib/format.ts`" (DH-4); O-r1-5 y O-r2-2 de 03c en una fila con destino ADMIN-01; O-r1-6 con destino el `chore` de foco y navegación; la nota de O-25; O-16 y O-r2-1 de 03b siguen con CLASES-03 sin cambio.
+   - **§6:** la tabla de "Rondas y hermanos" de arriba.
+3. **Bloque de commit de 03c** (lo arma el orquestador con `git status`):
+   - **`frontend/` modificados (22):**
+     - `frontend/src/features/admin/{data.ts,lib.ts,cuentas-r1.ataque.test.tsx}`
+     - `frontend/src/features/admin/components/{formulario-corregir-correo.tsx,formulario-generar-enlace.tsx,formulario-invitacion-masiva.tsx,formulario-invitar-maestro.tsx,registrados-del-enlace.tsx,tabla-enlaces.tsx}`
+     - `frontend/src/features/auth/{data.ts,lib.ts,lib.test.ts}`
+     - `frontend/src/features/auth/components/{formulario-cambiar-contrasena.tsx,formulario-login.tsx,formulario-nueva-contrasena.tsx,formulario-recuperar.tsx,formulario-registro-maestro.tsx,formulario-registro.tsx}`
+     - `frontend/src/features/clases/{formularios-ch3-r2.ataque.test.tsx,recuperar-ch3-r1.ataque.test.tsx}`
+     - `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx`
+     - `frontend/src/lib/errores-de-api-estatico.test.ts`
+   - **`frontend/` nuevos (12):**
+     - `frontend/src/features/admin/{errores-ch3.test.ts,formularios-ch3.test.tsx,errores-ch3-r1.ataque.test.tsx,rutas-ch3-r1.ataque.test.tsx,secuencias-ch3-r2.ataque.test.tsx}`
+     - `frontend/src/features/auth/{errores-ch3.test.ts,formularios-ch3.test.tsx,errores-ch3-r1.ataque.test.tsx,rutas-ch3-r1.ataque.test.tsx,secuencias-ch3-r2.ataque.test.tsx}`
+     - `frontend/src/lib/{estatico-ch3-r1.ataque.test.ts,estatico-ch3-r2.ataque.test.ts}`
+   - **Documentos:** `CLAUDE.md` (A-1, A-2, A-8), `AGENTS.md` y `.claude/agents/arquitecto.md` (A-3 y, si se aprueba, la propuesta), `docs/trabajo/CHORE-03-errores-api/` (`aprobacion.md`, `plan.md` con la Enmienda 5, `reporte-tester.md`, `revision.md`, `resumen-programador-03c.md` y `resumen-programador-03c-r2.md`) y `docs/ESTADO.md`.
+   - Mensaje sugerido: "feat(frontend): CHORE-03 03c, features/admin y features/auth al contrato de errores de la API, regla estatica en todo src, un solo mensaje por envio en los formularios de admin y auth (T-05); cierre del encargo con CLAUDE.md, AGENTS.md y arquitecto.md".
+   - Después del commit, el orquestador lee el hash con `git log` y lo anota.
+4. **Mensaje del PR** (rama `chore/chore-03-errores-api` a `main`; tres commits, `1f11d38e`, `9272501e` y el de 03c). Sugerencia de cuerpo:
+   - Qué: un contrato único en `frontend/src/lib/errores-de-api.ts` para todo texto de error que viene de la API (acciones y consultas), con la tabla común de entradas fuera de contrato que recorren las pruebas de cada módulo; `tareas`, `components/adjuntos`, `clases`, `calificaciones`, `admin` y `auth` migrados; `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` solo en `services/apiClient.ts` (N-46); regla estática en todo `src/`. Además: guarda de doble clic en «Descargar» (T-02), campos pintados por modo en clase y publicación (T-03 y T-04), un solo mensaje por envío en admin y auth (T-05), y las decisiones de DOCS-04 registradas en los documentos (parte A).
+   - Cambios visibles: un `400 VALIDACION` ya no muestra rutas internas ni texto en inglés; en las consultas da el texto fijo del lugar; "Editar clase" y "Publicar un anuncio" ya avisan; tras un error del servidor, el reenvío rechazado en local deja un solo mensaje.
+   - Cómo se probó: lint, test y build del frontend en verde (237 archivos, 5310 pruebas); 226 `*.ataque` (22 nuevas); tres rondas del tester por subentrega; sin navegador. Sin backend, `shared/` ni `infra/`.
+   - Pendiente: CHORE-04 (23 controles más dos «Cargar más»), O-r1-5/O-r2-2 a ADMIN-01, O-r1-6 al `chore` de foco, O-16 a CLASES-03.
+   - Cierra con las líneas de atribución que pida la sesión.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+- **Las líneas de CHORE-04 en §2b quedaron corridas 3 por T-05** (filas 7 a 10 y 12 a 17). No es del código: es la lista que usará el arquitecto de CHORE-04. Se corrige al cerrar (punto 2, arriba).
+- **O-25:** dos incidentes de carga en la misma subentrega. No bloquea; queda como nota en §3.
+
+### Detalles menores
+- `revision.md` conserva, entre las líneas 1830 y 1855, el intento fallido de anexar la adenda de M-06 y el texto de la resolución dos veces (historial; ya registrado en `aprobacion.md`). No se toca.
+- El conteo de "19 de producción" de mi revisión final de 03b era de 18 archivos (las once vistas de consulta son diez archivos: `personas-view.tsx` tiene dos líneas). El total de 26 modificados era correcto; no cambia nada.
+
+### Para el humano (decisiones que no bloquean el commit)
+1. **La propuesta para `AGENTS.md` y `arquitecto.md`** (texto literal arriba, en "Propuesta del manager"): que la regla de los `VALIDACION` fuera de contrato nombre también "un campo que el formulario pinta solo en otro modo" y "un rechazo local justo después de un rechazo del servidor". Sí o no.
+2. **CHORE-04:** su lugar en la hoja de ruta (sigue "por decidir") y si suma los dos «Cargar más» de O-22 con su nombre actual o con "guardas de doble clic y espera de «Ver más»".
+3. **O-25:** si se registra la nota de fragilidad por carga en §3 (recomiendo que sí, sin encargo propio mientras no se repita).
+
+### Resumen para el humano (máximo 15 líneas)
+1. **03c y CHORE-03: APROBADO CON OBSERVACIONES, sin nada que bloquee.**
+2. Todo texto de error que llega de la API pasa ya por un solo lugar, `lib/errores-de-api.ts`, en `tareas`, `clases`, `calificaciones`, `admin` y `auth`: no se ven rutas internas ("email:", "id: id:") ni texto en inglés, y un mensaje vacío da el genérico del módulo.
+3. En las listas y consultas, un error de validación da el texto fijo del lugar; los mensajes en español del servidor (cupo diario, servicio ocupado) se siguen mostrando.
+4. 03c: `admin` y `auth` migrados; la regla estática cubre todo `src/` (salvo `diagnostico`, temporal).
+5. T-05 con tu DH-9 (a): en los once formularios de `admin` y `auth`, si el servidor rechaza un envío y el siguiente lo rechaza la validación local, ya se ve un solo mensaje (antes, los dos).
+6. Cambio visible de 03c: un error de validación en `admin` y `auth` ya no muestra su ruta; en la tabla de enlaces y los registrados da el genérico; "id: id: …" pasa a "debe ser un identificador válido".
+7. Cómo se probó: lint, test y build en verde en mi corrida (237 archivos, 5310 pruebas, ninguna agotada); en 03c, 216 casos del programador y 912 del tester; V-01 226 de 226; "No se toca" limpio y los documentos coinciden por hash.
+8. Encargo completo: de 197 / 3318 a 237 / 5310 en el frontend; de 204 a 226 `*.ataque`; 46 archivos de producción; nada de backend, `shared/` ni `infra/`.
+9. Rondas: 3 extra en el encargo (una por subentrega), 0 por hermanos; 1 resumen devuelto de 6 (solo texto). El programador sigue en `opus`.
+10. Al cerrar se aplican A-1, A-2, A-3 y A-8 (con mi variante) en `CLAUDE.md`, `AGENTS.md` y `arquitecto.md`.
+11. Pendiente con destino: CHORE-04 (23 controles sin guarda de doble clic más los dos «Cargar más» de admin); ADMIN-01 (errores de «Sí, revocar» y «Sí, restablecer»); el `chore` de foco (el mensaje que se ve un instante al redirigir); CLASES-03 (vista desmontada).
+12. Te toca decidir, sin bloquear el commit: la propuesta de regla para `AGENTS.md`, el lugar de CHORE-04 y la nota de O-25.
+13. No se verificó en navegador: no hay nada visual nuevo.

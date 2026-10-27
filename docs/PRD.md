@@ -17,6 +17,8 @@
 
 **CMEP Campus Digital** es una plataforma web para la gestión de clases de una sola institución educativa (CMEP). El administrador crea las clases y les asigna de uno a dos maestros. Un maestro publica materiales y tareas, califica con rúbricas e imparte clases en vivo. Un estudiante se une a sus clases, entrega tareas, consulta calificaciones, asiste a clases en vivo y ve sus grabaciones. Un administrador único gestiona usuarios, clases, el estado de pago de cada alumno y la restricción de acceso.
 
+Desde el cambio de alcance del 2026-10-26 (DOCS-04), cada clase se organiza en siete secciones: Avisos, Actividades de aprendizaje, Foro, Recursos, Dudas, Personas y Calificaciones (RF-60). El maestro y la administración publican avisos, recursos y actividades (tareas y foros); los alumnos preguntan en "Dudas"; el administrador archiva, restaura, duplica y borra clases.
+
 Toda la funcionalidad es nativa: **no hay integraciones con Google** (ni Calendar, ni Drive, ni inicio de sesión con Google).
 
 ## 2. Objetivos y no-objetivos
@@ -40,8 +42,8 @@ Toda la funcionalidad es nativa: **no hay integraciones con Google** (ni Calenda
 - Verificación de correo por código al registrarse.
 - Preferencias de correo por usuario (en esta fase los avisos por correo se activan a nivel institución).
 - Invitar por correo a personas sin cuenta.
-- Comentarios públicos de la clase dentro de una tarea (solo existen comentarios en el muro y comentarios privados alumno–maestro).
-- Exámenes o cuestionarios en línea con autocalificación.
+- Comentarios públicos de la clase dentro de una tarea (solo existen comentarios en el muro y comentarios privados alumno–maestro). Desde DOCS-04, la participación pública vive en dos lugares que no son una tarea: el foro, que es otra actividad (RF-66 a RF-68), y "Dudas", que es de la clase (RF-64). La tarea sigue sin comentarios públicos.
+- Exámenes o cuestionarios en línea con autocalificación, en la fase 1. EXAMENES-01 y EXAMENES-02 los reconsideran en el hito 3, **pendientes por confirmar** con el cliente (RF-72 a RF-74; DOCS-04).
 
 ## 3. Usuarios
 
@@ -56,6 +58,8 @@ Todos los roles deben iniciar sesión antes de ver cualquier contenido.
 ## 4. Requisitos funcionales
 
 Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
+
+Vocabulario (DOCS-04): **actividad** es lo que se asigna y se califica en una clase: tarea, foro y, por confirmar, examen. Dónde se lee "actividad" aunque el texto diga "tarea", en RN-08. "Grupo" y "clase" son la misma cosa.
 
 ### 4.1 Acceso y cuentas
 
@@ -81,7 +85,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 |---|---|---|
 | RF-10 | Dashboard con próximas entregas de todas sus clases y tarjetas de "Mis clases". Cada tarjeta muestra la siguiente fecha límite. La barra lateral lista sus clases, con las primeras visibles y desplazamiento para el resto (CLASES-02) | M |
 | RF-11 | Unirse a una clase con código de invitación. Además, el Administrador o un maestro de la clase pueden inscribirlo (RN-04) | M |
-| RF-12 | Ver el muro de una clase (anuncios, materiales, tareas) y comentar publicaciones | M |
+| RF-12 | Ver el muro de una clase (anuncios, materiales, tareas) y comentar publicaciones. Desde CLASES-03 el muro se llama "Avisos" y solo lleva anuncios, que se siguen comentando; las tareas pasan a "Actividades de aprendizaje" y los materiales a "Recursos" (RF-60 a RF-63; DOCS-04) | M |
 | RF-13 | Ver el detalle de una tarea: instrucciones, adjuntos, fecha límite, puntos, rúbrica en solo lectura | M |
 | RF-14 | Entregar una tarea con **archivos y/o enlaces**; anular la entrega y volver a entregar mientras no esté calificada | M |
 | RF-15 | Las entregas después de la fecha límite se aceptan y se marcan "con retraso", salvo que el maestro no acepte entregas tardías en esa tarea (RF-44): entonces la entrega se cierra en la fecha límite (TAREAS/ENTREGAS) | M |
@@ -94,7 +98,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-22 | Unirse a una clase en vivo: ver video y pantalla compartida del maestro, participar en el chat | M |
 | RF-23 | Ver las grabaciones de clases pasadas de sus clases | M |
 | RF-24 | Entregar con "Marcar como completada", sin archivos ni enlaces, una tarea que no requiere adjuntos. El maestro lo indica al crear o editar la tarea ("Cómo se entrega"); el alumno puede adjuntar de todos modos (ENTREGAS-01) | S |
-| RF-25 | Las imágenes adjuntas a publicaciones del muro (anuncios y materiales) se muestran en vista previa dentro de la publicación. Los comentarios del muro siguen siendo solo texto (CLASES) | S |
+| RF-25 | Las imágenes adjuntas a publicaciones del muro (anuncios y materiales) se muestran en vista previa dentro de la publicación. Los comentarios del muro siguen siendo solo texto (CLASES). Desde CLASES-03, en "Avisos" y en "Recursos" (DOCS-04) | S |
 
 ### 4.3 Maestro
 
@@ -103,7 +107,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-30 | Dashboard con sus clases y las entregas pendientes de calificar. La barra lateral lista sus clases, con las primeras visibles y desplazamiento para el resto (CLASES-02) | M |
 | RF-31 | Ver y regenerar el código de invitación de las clases que imparte. El maestro no crea clases ni edita su nombre o descripción: lo hace el Administrador (RF-52, RN-06). Cambio del 2026-10-02; antes el maestro creaba y editaba sus clases (CLASES-02) | M |
 | RF-32 | Definir las **categorías ponderadas** de la clase (p. ej. Examen 40 %, Prácticas 40 %, Problemas 20 %). Los pesos deben sumar 100 % | M |
-| RF-33 | Publicar anuncios y materiales propios en el muro, con adjuntos, y borrar los propios. Nunca borra ni edita lo que publicó el Administrador (RN-07) | M |
+| RF-33 | Publicar anuncios y materiales propios en el muro, con adjuntos, y borrar los propios. Nunca borra ni edita lo que publicó el Administrador (RN-07). Desde CLASES-03, los anuncios van a "Avisos" y los materiales son sus "Recursos del docente", que además edita (RF-61, RF-63; DOCS-04) | M |
 | RF-34 | Crear y editar tareas: título, instrucciones, adjuntos, fecha límite, puntos, categoría y **rúbrica propia** (criterios con puntaje máximo) | M |
 | RF-35 | Ver por tarea quiénes entregaron y quiénes no | M |
 | RF-36 | Calificar una entrega: abrirla, puntuar por criterio de la rúbrica (o asignar calificación directa si no hay rúbrica), dejar comentario privado y publicar la calificación. Publicar es devolver: el alumno ve la calificación en cuanto se guarda; el comentario va a los comentarios privados de la entrega. Se puede recalificar (CALIFICACIONES-01) | M |
@@ -113,7 +117,7 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 | RF-40 | Programar una clase en vivo (fecha y hora) o iniciarla en el momento | M |
 | RF-41 | Impartir clase en vivo: video, compartir pantalla, chat, iniciar y detener grabación | M |
 | RF-42 | Calendario con sus fechas límite y sus clases en vivo | S |
-| RF-43 | Organizar el trabajo de clase (tareas y materiales) en **temas** o unidades con nombre y orden: crear, renombrar y reordenar temas, y mover elementos entre temas. Los temas son independientes de las categorías ponderadas de RF-32 (CLASES o TAREAS) | M |
+| RF-43 | Organizar el trabajo de clase (tareas y materiales) en **temas** o unidades con nombre y orden: crear, renombrar y reordenar temas, y mover elementos entre temas. Los temas son independientes de las categorías ponderadas de RF-32 (CLASES o TAREAS). Desde CLASES-03 organizan las actividades de aprendizaje; si siguen organizando los recursos está **pendiente por confirmar** (recomendación: sí, y en "Recursos de aprendizaje" solo el Administrador mueve de tema; DOCS-04) | M |
 | RF-44 | Al crear o editar una tarea, elegir si acepta entregas después de la fecha límite. Por defecto sí, marcadas "con retraso"; si no las acepta, la entrega se cierra en la fecha límite. Con la entrega cerrada, el alumno ya no entrega ni anula; mover la fecha límite o aceptar entregas tardías la reabre (ENTREGAS-01) | M |
 
 ### 4.4 Administrador
@@ -122,14 +126,14 @@ Prioridad: **M** = imprescindible, **S** = importante, **C** = deseable.
 |---|---|---|
 | RF-50 | Dashboard institucional con KPIs: alumnos, maestros, clases activas | M |
 | RF-51 | Alta y baja de maestros y alumnos | M |
-| RF-52 | Gestión de clases (`/admin/clases`): lista institucional de todas las clases; crear clases y editar su nombre y descripción; asignar de uno a dos maestros a cada clase, y agregarlos, quitarlos o reasignarlos en cualquier momento; buscar e inscribir alumnos manualmente en **cualquier** clase y darlos de baja; entrar al muro de cualquier clase (CLASES-02) | M |
+| RF-52 | Gestión de clases (`/admin/clases`): lista institucional de todas las clases; crear clases y editar su nombre y descripción; asignar de uno a dos maestros a cada clase, y agregarlos, quitarlos o reasignarlos en cualquier momento; buscar e inscribir alumnos manualmente en **cualquier** clase y darlos de baja; entrar al muro de cualquier clase (CLASES-02). Desde DOCS-04, además: archivar y restaurar, borrar definitivamente una clase archivada y duplicar una clase (RF-69 a RF-71, ADMIN-01); el muro pasa a ser "Avisos" (CLASES-03) | M |
 | RF-53 | Analytics institucional: progreso y participación a nivel escuela | S |
 | RF-54 | Gestión de estado de pago: tabla con buscador, filtro por estado, cambio desde la fila y **selección múltiple** para cambiar varios a la vez | M |
 | RF-55 | Restringir y restablecer el acceso de un alumno, con motivo opcional y confirmación previa. Disponible desde Gestión de usuarios y como columna en la tabla de estado de pago | M |
 | RF-56 | Configuración general: permisos, anuncios del login e **interruptores de avisos por correo** (uno por tipo de evento) | S |
 | RF-57 | Buscador de Gestión de usuarios: por nombre (cualquier parte, sin importar acentos ni mayúsculas) y por correo parcial, en todos los roles, con filtro por rol (ADMIN) | M |
 | RF-58 | El Administrador puede editar el nombre de cualquier usuario (ADMIN) | M |
-| RF-59 | Publicar anuncios y materiales en el muro de cualquier clase, firmados como "Administración" con un distintivo visible y sin nombre de persona; borrar cualquier publicación o comentario de cualquier clase (RN-07; CLASES-02) | M |
+| RF-59 | Publicar anuncios y materiales en el muro de cualquier clase, firmados como "Administración" con un distintivo visible y sin nombre de persona; borrar cualquier publicación o comentario de cualquier clase (RN-07; CLASES-02). Desde CLASES-03, los anuncios van a "Avisos" y los materiales son los "Recursos de aprendizaje" de la clase (RF-61, RF-63; DOCS-04) | M |
 
 ### 4.5 Notificaciones
 
@@ -137,9 +141,9 @@ Panel de notificaciones (ícono con contador de no leídas) presente para Estudi
 
 | Evento | Destinatario | En la plataforma | Por correo |
 |---|---|---|---|
-| Nueva publicación o anuncio | Alumnos de la clase | Siempre | Si está activado |
-| Nuevo material | Alumnos de la clase | Siempre | Si está activado |
-| Nueva tarea | Alumnos de la clase | Siempre | Si está activado |
+| Nueva publicación o anuncio (desde CLASES-03, nuevo aviso) | Alumnos de la clase | Siempre | Si está activado |
+| Nuevo material (desde CLASES-03, nuevo recurso) | Alumnos de la clase | Siempre | Si está activado |
+| Nueva tarea (desde FORO-01, nueva actividad: tarea o foro) | Alumnos de la clase | Siempre | Si está activado |
 | Calificación publicada | Alumno | Siempre | Si está activado |
 | Faltan 24 h para la fecha límite | Alumnos que **no** han entregado | Siempre | Si está activado |
 | Clase en vivo por comenzar (15 min antes, o al instante si no fue programada) | Alumnos de la clase | Siempre | Si está activado |
@@ -153,6 +157,42 @@ Panel de notificaciones (ícono con contador de no leídas) presente para Estudi
 **Los avisos por correo arrancan apagados.** El Administrador enciende cada tipo por separado desde Configuración (RF-56); se sugiere empezar por "clase por comenzar" y "faltan 24 h". Los correos de cuenta están siempre activos. Como con el correo apagado un aviso solo se ve si el usuario entra, el dashboard del estudiante muestra siempre arriba las próximas entregas y las clases en vivo del día.
 
 Las notificaciones se conservan 90 días.
+
+**Avisos de "Dudas" y del foro (DOCS-04): pendientes por confirmar.** Esta tabla no los incluye. Los decide el plan de NOTIFICACIONES con el humano. Candidatos: duda nueva a los maestros de la clase, respuesta al autor de la duda y participación en un foro a los maestros. El "Faltan 24 h" de un foro va a los alumnos sin participación principal (RN-08).
+
+### 4.6 Organización de la clase, actividades y exámenes (DOCS-04)
+
+Cambio de alcance decidido con el cliente el 2026-10-26, antes de ADMIN. Lo marcado **pendiente por confirmar** no se planea hasta que el humano lo cierre; la recomendación del arquitecto está en `docs/trabajo/DOCS-04-nuevos-requisitos/plan.md` ("Preguntas para el humano"). El orden de los encargos vive en `docs/ESTADO.md` (sección 2b).
+
+**Secciones de la clase (CLASES-03)**
+
+| ID | Requisito | Prioridad |
+|---|---|---|
+| RF-60 | Cada clase tiene siete secciones, en este orden: **Avisos · Actividades de aprendizaje · Foro · Recursos · Dudas · Personas · Calificaciones**, para el estudiante, el maestro y el Administrador. "Avisos" reemplaza a "Muro" y "Actividades de aprendizaje" a "Trabajo de clase". **Pendiente por confirmar:** si "Personas" reúne también el roster del maestro ("Alumnos") y los "Alumnos" y "Maestros" del Administrador, para que los tres roles tengan siete secciones (recomendación: sí), y si "Foro" aparece desde CLASES-03 con un estado vacío o llega con FORO-01 en su posición (recomendación: con FORO-01) | M |
+| RF-61 | **Avisos:** solo los anuncios de la administración y de los maestros de la clase, del más reciente al más antiguo. Los comentarios en los avisos se conservan, con las reglas de hoy (RF-12, RN-07). Las tareas y los materiales ya no aparecen aquí | M |
+| RF-62 | **Actividades de aprendizaje:** las tareas con sus entregas, agrupadas por tema como hoy "Trabajo de clase"; después, los foros (FORO-01) y, por confirmar, los exámenes (hito 3) | M |
+| RF-63 | **Recursos**, en dos bloques. **"Recursos de aprendizaje":** los sube la administración; el maestro no los mueve, no los borra ni los edita. **"Recursos del docente":** cada maestro de la clase sube los suyos; los maestros de la clase los ven y cada quien edita y borra lo propio, con la regla de autoría vigente (RN-07). Los materiales que ya existen se reparten por el rol de su autor: los del Administrador, a "Recursos de aprendizaje"; los de un maestro, a "Recursos del docente". Adjuntos y vista previa como hoy los materiales (RF-25). **Pendiente por confirmar:** que los alumnos vean los dos bloques (recomendación: sí, porque los materiales que hoy ven pasan a "Recursos del docente") y si los recursos conservan los comentarios que hoy tienen los materiales (recomendación: sí). Un bloque de grabaciones se definirá cuando se planee ENVIVO (**pendiente por confirmar**) | M |
+| RF-64 | **Dudas:** un hilo abierto de la clase. Cualquier inscrito pregunta y responde, y todos los de la clase lo ven. Los maestros de la clase y el Administrador pueden marcar una duda como "resuelta" y borrar. No se califica. Es distinto del hilo privado de cada tarea (RF-16), que se conserva. **Pendiente por confirmar:** si el Administrador también escribe (recomendación: lee, marca "resuelta" y borra, sin escribir, como en el muro), si cada autor borra lo suyo (recomendación: sí, RN-07), y que sea solo texto, sin edición (recomendación) | M |
+
+**Exportar, foro y gestión de clases (CALIFICACIONES-02, FORO-01, ADMIN-01)**
+
+| ID | Requisito | Prioridad |
+|---|---|---|
+| RF-65 | **Exportar a Excel (CALIFICACIONES-02):** un maestro de la clase o el Administrador descarga las calificaciones de una clase en un archivo .xlsx: alumnos × actividades, con la categoría de cada actividad y el promedio de cada alumno. **Pendiente por confirmar:** qué identifica al alumno en el archivo (recomendación: su nombre; el correo solo si el colegio lo necesita para cruzar el archivo con sus registros) y si se excluyen el estado de pago y la restricción de acceso (recomendación: excluirlos, porque un archivo descargado sale del control de la plataforma y puede reenviarse; pregunta 17 de §11). Su contenido sale del mismo cálculo que el gradebook (RF-37, RN-05) | M |
+| RF-66 | **Crear un foro (FORO-01):** un maestro de la clase o el Administrador plantea un foro (texto, con adjuntos opcionales), con fecha límite, puntos, rúbrica opcional y si acepta participaciones tardías, igual que una tarea (RF-34, RF-44); también categoría y tema. Se ve en "Actividades de aprendizaje" y en "Foro" | M |
+| RF-67 | **Participar en un foro (FORO-01):** cada alumno publica una participación principal y réplicas libres a las de otros. La "entrega" es participar: el alumno entregó cuando publicó su participación principal (RN-08). **Pendiente por confirmar:** si el alumno edita o borra lo suyo (recomendación: no, como el hilo privado), si ve las participaciones de los demás antes de publicar la suya (recomendación: sí), si las réplicas se cierran con la fecha límite como la principal (recomendación: sí), si los maestros replican (recomendación: sí; el Administrador lee) y si lleva adjuntos (recomendación: solo texto) | M |
+| RF-68 | **Calificar un foro (FORO-01):** un maestro de la clase califica a cada alumno con puntos (por criterio si el foro tiene rúbrica), con las reglas de RF-36 y RN-05. La calificación pondera en la categoría del foro, como cualquier actividad | M |
+| RF-69 | **Archivar y restaurar una clase (ADMIN-01):** el Administrador archiva una clase. Una clase archivada desaparece de las listas de maestros y alumnos (inicio y barra lateral). El alumno conserva la lectura de sus calificaciones de esa clase en "Clases anteriores". El Administrador la ve en una lista de archivadas y puede restaurarla. **Pendiente por confirmar:** que la clase archivada sea de solo lectura para todos, que el maestro deje de entrar, que el código de invitación no sirva y que sus recordatorios no avisen (recomendación: sí a todo); y si el maestro consulta las calificaciones de sus clases archivadas, por ejemplo para aclaraciones (sin recomendación: se le pregunta al cliente; si la respuesta es no, la exportación del Administrador, RF-65, lo cubre) | M |
+| RF-70 | **Borrar definitivamente una clase archivada (ADMIN-01):** solo el Administrador y solo una clase archivada, con una confirmación que dice el conteo de lo que se pierde: alumnos, actividades, entregas, calificaciones y archivos. No se puede deshacer | M |
+| RF-71 | **Duplicar una clase (ADMIN-01):** crea una clase nueva con el mismo nombre, la misma descripción, los recursos de aprendizaje (del Administrador) y las secciones de la original. **No** copia maestros, alumnos, avisos, actividades, recursos del docente ni calificaciones. **Pendiente por confirmar:** que "secciones" sean los temas (recomendación: sí), si se copian las categorías ponderadas (recomendación: sí), que el Administrador elija de uno a dos maestros al duplicar, porque una clase nunca queda sin maestro (RN-06; recomendación), y si se puede duplicar una clase archivada (recomendación: sí; la copia nace activa) | M |
+
+**Exámenes (hito 3): pendientes por confirmar con el cliente, sin planear**
+
+| ID | Requisito | Prioridad |
+|---|---|---|
+| RF-72 | **Banco de preguntas (EXAMENES-01):** cada maestro tiene un banco de preguntas, reutilizable en todas sus clases, con preguntas abiertas y de opción múltiple; las crea, edita y borra | Por confirmar |
+| RF-73 | **Examen (EXAMENES-01):** un examen elige preguntas al azar del banco. El maestro decide si el alumno ve su resultado; por defecto, no. Por confirmar: tiempo límite, número de intentos, quién califica las preguntas abiertas, cuántas preguntas tiene cada examen y si pondera en una categoría como las demás actividades (recomendación: sí) | Por confirmar |
+| RF-74 | **Medidas de disuasión y registro (EXAMENES-02):** cámara encendida obligatoria para iniciar el examen, con detección de que se apaga; detección y registro de cada cambio de pestaña o de ventana, con un aviso al alumno; bloqueo de copiar, pegar y clic derecho en la página; registro de eventos por alumno y examen, visible para el maestro. **Límites, explícitos:** una página web no puede impedir capturas de pantalla ni que el alumno use otro dispositivo, y los bloqueos de copiar, pegar y clic derecho se pueden saltar; son disuasión, no control. **No se graba video:** la cámara solo se usa en el navegador para saber que está encendida, y la imagen no se envía ni se guarda. Por confirmar: el aviso de privacidad y el consentimiento antes de encender la cámara (recomendación: obligatorios; el texto lo da el colegio) | Por confirmar |
 
 ## 5. Reglas de negocio
 
@@ -191,6 +231,7 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - Una clase sin categorías califica por puntos. Con categorías, toda tarea nueva o editada lleva una; una tarea sin categoría no cuenta en la calificación general hasta asignarle una (TAREAS-01).
 - Dentro de una categoría, por puntos. Una tarea con entregas calificadas no cambia sus puntos ni su rúbrica. Se puede calificar a quien no entregó solo con la entrega cerrada: la fecha límite vencida en una tarea que no acepta entregas con retraso (CALIFICACIONES-01).
 - "Alumno en riesgo": promedio general menor a 70 % **o** 3 o más tareas vencidas sin entregar. (Umbrales iniciales, ajustables en configuración; constantes hasta que exista la configuración, RF-56. Una tarea calificada sin entrega no cuenta como vencida sin entregar; CALIFICACIONES-01.)
+- Desde FORO-01, el foro es una actividad calificable más: su calificación cuenta en su categoría como la de una tarea, y un foro vencido sin participación principal cuenta entre las actividades vencidas sin entregar (RN-08; DOCS-04).
 
 ### RN-06 Propiedad
 - Las clases las crea el Administrador, que les asigna de **uno a dos maestros** y puede agregarlos, quitarlos o reasignarlos en cualquier momento. Una clase nunca queda sin maestro.
@@ -198,6 +239,7 @@ Ningún alumno puede ver el estado de otro. **La restricción se aplica en el ba
 - Un alumno solo accede a las clases en las que está inscrito.
 - El Administrador alcanza cualquier clase: la gestiona, inscribe alumnos y entra a su muro.
 - Decisión del 2026-10-02 (CLASES-02); antes cada clase tenía un solo maestro, que la creaba.
+- Una clase archivada sale de las listas de sus maestros y alumnos (inicio y barra lateral). El Administrador la ve en la lista de clases archivadas y la restaura, y el alumno conserva la lectura de sus calificaciones de esa clase en "Clases anteriores" (RF-69, RN-10). Si el maestro sigue entrando a una clase archivada y si consulta sus calificaciones está **pendiente por confirmar** (RF-69; P-08 de DOCS-04, pregunta 14 de §11). Duplicar una clase no copia sus maestros: como una clase nunca queda sin maestro, el Administrador elige de uno a dos al duplicar (**pendiente por confirmar**; ADMIN-01; DOCS-04).
 
 ### RN-07 Autoría
 Regla general para todo lo que se publica en una clase: publicaciones y comentarios del muro hoy, y tareas en TAREAS.
@@ -208,7 +250,29 @@ Regla general para todo lo que se publica en una clase: publicaciones y comentar
 - Un maestro no borra una tarea que ya tiene entregas (entregadas o calificadas): el sistema le dice cuántas tiene y que lo pida a administración. El Administrador sí la borra, con una confirmación explícita; ese borrado se lleva las entregas, sus archivos y los comentarios privados, y no se puede deshacer (ENTREGAS-01).
 - El Administrador puede borrar cualquier publicación o comentario de cualquier clase.
 - Lo que publica el Administrador se firma "Administración", con un distintivo visible y sin nombre de persona.
+- Desde CLASES-03 (DOCS-04): en "Recursos del docente", cada maestro edita y borra lo suyo, nunca lo del otro maestro; el Administrador borra cualquiera. En "Recursos de aprendizaje", solo el Administrador sube, edita, borra y mueve de tema; el maestro no hace nada de eso. En "Dudas", los maestros de la clase y el Administrador marcan "resuelta" y borran las dudas y respuestas de los alumnos; entre maestros rige la regla general (un maestro no borra lo del otro), y si cada alumno borra lo suyo está **pendiente por confirmar** (recomendación: sí). En un foro, el planteamiento sigue la regla de las tareas (FORO-01).
 - La regla se aplica en el backend.
+
+### RN-08 Actividades (DOCS-04)
+- Una **actividad** es lo que se asigna y se califica en una clase: la tarea, el foro (FORO-01) y, por confirmar, el examen (hito 3). "Actividades de aprendizaje" es la sección que las reúne (RF-62).
+- Donde RN-05 y los RF-10, RF-17, RF-20, RF-30, RF-37 y RF-42 dicen "tarea" en el sentido de lo que se califica, vence o cuenta en el riesgo, la regla vale para toda actividad calificable desde que ese tipo exista. Donde se habla de entregar archivos o enlaces (RF-13, RF-14, RF-24, RF-34, RF-44), es la tarea.
+- **Foro:** se crea igual que una tarea (fecha límite, puntos, rúbrica opcional, tardías sí o no, categoría y tema). "La entrega es participar": el alumno entregó cuando publicó su participación principal; si la publica después de la fecha límite en un foro que acepta tardías, es "con retraso", y si no las acepta, la participación se cierra en la fecha límite, con las reglas de RF-15 y RF-44. Se califica por alumno y pondera en su categoría (RF-68, RN-05).
+
+### RN-09 Recursos y dudas (DOCS-04)
+- Los recursos son los materiales de la clase, en dos bloques (RF-63): "Recursos de aprendizaje", del Administrador, y "Recursos del docente", de cada maestro. El bloque de un recurso es el de su autor al publicarlo; los materiales anteriores a CLASES-03 se reparten por el rol de su autor.
+- "Dudas" es pública dentro de la clase (todos los inscritos, sus maestros y el Administrador la leen) y no se califica. No sustituye al hilo privado de una tarea (RF-16).
+- Lo que un alumno restringido no ve (RN-03) incluye recursos, dudas y foros.
+
+### RN-10 Clases archivadas, borradas y duplicadas (DOCS-04; ADMIN-01)
+- Solo el Administrador archiva, restaura, borra y duplica clases.
+- Archivar no borra nada y es reversible. La clase archivada no aparece en el inicio ni en la barra lateral de sus maestros y alumnos; el alumno ve sus calificaciones de esa clase en "Clases anteriores". Lo demás (solo lectura, acceso del maestro, código de invitación, recordatorios) está **pendiente por confirmar** (RF-69).
+- Solo se borra definitivamente una clase archivada, con una confirmación que dice cuántos alumnos, actividades, entregas, calificaciones y archivos se pierden. El borrado no se puede deshacer.
+- Duplicar copia solo el nombre, la descripción, los recursos de aprendizaje y las secciones de la clase. **No** copia maestros, alumnos, avisos, actividades, recursos del docente ni calificaciones, sin importar quién los publicó (RF-71).
+- La regla se aplica en el backend.
+
+### RN-11 Exámenes (DOCS-04; hito 3, pendiente por confirmar)
+- Pendiente por confirmar con el cliente; no se planea hasta que el humano lo cierre (RF-72 a RF-74).
+- Las medidas de EXAMENES-02 disuaden y registran; no impiden. Una página web no puede impedir capturas de pantalla ni el uso de otro dispositivo, y la plataforma no graba video del alumno.
 
 ## 6. Vistas
 
@@ -222,6 +286,13 @@ Estado especial: pantalla de acceso restringido.
 **Administrador (6):** Dashboard institucional · Gestión de usuarios · Gestión de clases (lista, crear, maestros, alumnos y muro de cualquier clase) · Analytics · Gestión de estado de pago · Configuración general.
 
 Total: 25 vistas de rol + 3 compartidas ("Crear/editar clase" del Maestro pasó al Administrador el 2026-10-02).
+
+**Desde DOCS-04 (2026-10-26).** Las listas de arriba quedan como estaban; lo que cambia o se suma:
+- **Secciones de la clase, en los tres roles (CLASES-03):** Avisos (antes "Clase (muro)") · Actividades de aprendizaje · Foro · Recursos · Dudas · Personas (antes "Compañeros y maestros" del estudiante y, por confirmar, "Alumnos de la clase" del maestro y "Alumnos" y "Maestros" del Administrador; RF-60) · Calificaciones ("Mis calificaciones" del estudiante; "Gradebook" del maestro, que suma "Exportar a Excel", RF-65).
+- **Estudiante:** suma "Detalle de un foro" con su participación (FORO-01) y "Clases anteriores" (ADMIN-01).
+- **Maestro:** "Crear tarea o material" pasa a "Crear tarea, foro o recurso"; "Calificar entrega" incluye calificar la participación de un alumno en un foro (FORO-01).
+- **Administrador:** "Gestión de clases" suma la lista de clases archivadas (restaurar, borrar definitivamente) y duplicar (ADMIN-01).
+- Total previsto: 35 vistas de rol (estudiante 16, maestro 13 y administrador 6, que ve las secciones de la clase dentro de "Gestión de clases"; cada sección cuenta como una vista) + 3 compartidas. Las vistas de examen (hito 3) no se cuentan hasta confirmarlas.
 
 ## 7. Experiencia y marca
 
@@ -258,9 +329,11 @@ Total: 25 vistas de rol + 3 compartidas ("Crear/editar clase" del Maestro pasó 
 
 | Hito | Contenido |
 |---|---|
-| **1. Fundación y núcleo educativo** | Login con panel de anuncios, registro, roles y autorización, clases, código de invitación, alta manual de alumnos, muro, materiales, tareas con rúbrica, entregas, calificación, categorías ponderadas, mis calificaciones, estado de pago, restricción de acceso, gestión de usuarios |
+| **1. Fundación y núcleo educativo** | Login con panel de anuncios, registro, roles y autorización, clases, código de invitación, alta manual de alumnos, muro, materiales, tareas con rúbrica, entregas, calificación, categorías ponderadas, mis calificaciones, estado de pago, restricción de acceso, gestión de usuarios. Desde DOCS-04: las siete secciones de la clase (avisos, actividades de aprendizaje, foro, recursos y dudas; RF-60 a RF-64), exportar calificaciones a Excel (RF-65), el foro como actividad (RF-66 a RF-68) y archivar, borrar y duplicar clases (RF-69 a RF-71) |
 | **2. Clases en vivo** | Programar e iniciar clase, sala con video/pantalla/chat, grabación, lista de grabaciones, aviso de clase por comenzar |
-| **3. Integraciones y analytics** | Notificaciones, recordatorio de 24 h, aviso de clase por comenzar, calendarios, gradebook con alumnos en riesgo, dashboard y analytics del administrador, configuración general |
+| **3. Integraciones y analytics** | Notificaciones, recordatorio de 24 h, aviso de clase por comenzar, calendarios, gradebook con alumnos en riesgo, dashboard y analytics del administrador, configuración general. Desde DOCS-04, **pendientes por confirmar con el cliente y sin planear:** exámenes en línea con banco de preguntas (EXAMENES-01; RF-72 y RF-73) y medidas de disuasión y registro (EXAMENES-02; RF-74) |
+
+El orden en que se construyen los encargos no sigue los hitos: vive en `docs/ESTADO.md`, sección 2b (hoja de ruta de DOCS-04, 2026-10-26).
 
 Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificaciones in-app, cuenta única de administrador, restricción de acceso, rúbricas del maestro y panel de anuncios del login; y **retirar** la verificación por código.
 
@@ -284,6 +357,7 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 - La restricción de acceso aplica solo a estudiantes.
 - Si restringen a un alumno que ya está dentro de una clase en vivo, permanece hasta que la sesión termine.
 - Umbrales de "alumno en riesgo" de RN-05: promedio menor a 70 % o 3 o más tareas vencidas sin entregar, como constantes hasta que exista la configuración (RF-56) (CALIFICACIONES-01).
+- DOCS-04: "grupo" y "clase" son lo mismo; "Recursos" es el nombre en la interfaz de lo que hoy es un material; con "Avisos: solo anuncios", las tareas y los materiales dejan de salir en esa sección; los alumnos ven los dos bloques de "Recursos" (estos dos últimos, a confirmar en la pregunta 11).
 
 **Preguntas abiertas**
 1. Identidad visual de CMEP Campus Digital: logo, colores institucionales y dirección creativa (define los tokens del sistema de diseño en `docs/DESIGN.md`). La dirección creativa ya se eligió: dirección D3, "Vidrio líquido con fondo flotante" (2026-09-27), que reemplazó a la dirección C (2026-09-26). Siguen abiertos el logo y los colores institucionales.
@@ -295,3 +369,14 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 7. Cuántas clases en vivo simultáneas y cuántas grabaciones se esperan: determina cuándo hará falta un plan de pago de LiveKit Cloud.
 8. Qué avisos por correo quiere encender el colegio, y cuándo.
 9. Política de retención de grabaciones (se paga por GB almacenado).
+
+**Preguntas abiertas de DOCS-04 (2026-10-26).** Ninguna bloquea los documentos; cada una se cierra antes del plan de su encargo. Detalle y recomendación en `docs/trabajo/DOCS-04-nuevos-requisitos/plan.md` (P-01 a P-13).
+
+10. ¿"Personas" reúne el roster del maestro y los alumnos y maestros del Administrador, para que los tres roles tengan siete secciones? ¿"Foro" aparece desde CLASES-03 o con FORO-01? (RF-60)
+11. ¿Los alumnos ven "Recursos del docente"? ¿Las tareas y los materiales salen de "Avisos"? ¿Los temas organizan también los recursos? ¿Los recursos conservan los comentarios? ¿Cuándo se define el bloque de grabaciones? (RF-61 a RF-63)
+12. "Dudas": ¿escribe el Administrador?, ¿cada autor borra lo suyo?, ¿solo texto y sin edición? (RF-64)
+13. Foro: ¿el alumno edita o borra su participación?, ¿ve las de los demás antes de publicar?, ¿las réplicas se cierran con la fecha límite?, ¿replican los maestros?, ¿adjuntos? (RF-67)
+14. Clase archivada: ¿solo lectura para todos?, ¿el maestro deja de entrar?, ¿el maestro consulta las calificaciones de sus clases archivadas (por ejemplo, para aclaraciones)?, ¿el código deja de servir? (RF-69). Duplicar: ¿"secciones" son los temas?, ¿se copian las categorías?, ¿el Administrador elige los maestros del duplicado?, ¿se duplica una archivada? (RF-71)
+15. ¿Avisos (notificaciones) de "Dudas" y del foro? Los decide el plan de NOTIFICACIONES.
+16. Exámenes (hito 3, preguntas del humano): tiempo límite, número de intentos, quién califica las preguntas abiertas y cuántas preguntas por examen; además, si el examen pondera en una categoría y el aviso de privacidad y consentimiento para la cámara (RF-72 a RF-74).
+17. Exportar a Excel: ¿qué identifica al alumno en el archivo (nombre, correo)? ¿Se excluyen el estado de pago y la restricción de acceso? (RF-65)

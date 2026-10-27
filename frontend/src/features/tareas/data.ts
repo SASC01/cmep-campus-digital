@@ -2,6 +2,7 @@ import { MAXIMO_CRITERIOS_RUBRICA } from "@campus/shared"
 
 import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 import { formatearPuntos } from "@/lib/format"
 
 // §D-10, "Textos de la interfaz" (propuesta, tono de DESIGN.md §9).
@@ -175,6 +176,19 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "ENTREGA_NO_CALIFICABLE",
   "TAREA_CON_CALIFICACIONES",
 ]
+
+// CHORE-03 (§D-4): lo que el módulo le dice al contrato de lib/errores-de-api.ts. Un VALIDACION de
+// claseId, tareaId o alumnoId dice lo mismo que un acceso, una tarea o un alumno inexistentes.
+export const TRADUCCION_DE_ERRORES_TAREAS = {
+  generico: MENSAJES_ERROR_TAREAS.generico,
+  mensajesPorCodigo: MENSAJES_POR_CODIGO_DE_TAREAS,
+  codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  textosPorCampo: {
+    claseId: MENSAJES_ERROR_TAREAS.sinAccesoALaClase,
+    tareaId: MENSAJES_ERROR_TAREAS.tareaNoEncontrada,
+    alumnoId: MENSAJES_ERROR_TAREAS.alumnoNoEncontrado,
+  },
+} satisfies TraduccionDeErrores
 
 // CALIFICACIONES-01c (§D-12.2; Enmienda 1, N-04): los 409 de calificar dicen que lo que se vio ya no
 // es lo de ahora. Avisan con el mensaje del servidor, la vista recarga una sola vez y el panel se

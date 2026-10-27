@@ -175,7 +175,9 @@ describe("ataque TAREAS-01c r1: mismas salidas que en ebfe126 (tablas con entrad
       null,
       undefined,
     ]
-    expect(errores.map(esErrorDeCursor)).toEqual(errores.map((e) => campoDeEbfe126(e) === "cursor"))
+    expect(errores.map((e) => esErrorDeCursor(e))).toEqual(
+      errores.map((e) => campoDeEbfe126(e) === "cursor"),
+    )
     expect(erroresDeFormularioClases(errores[0], ["cursor"])).toEqual({ cursor: "no es válido" })
     expect(erroresDeFormularioClases(errores[4], ["nombre"])).toBeNull()
     expect(erroresDeFormularioClases(errores[6], ["cursor"])).toBeNull()

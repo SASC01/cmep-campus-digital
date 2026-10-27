@@ -27,6 +27,7 @@ import {
 import {
   claveDeFocoDeLaTarea,
   errorQueReemplazaLaVista,
+  mensajeDeConsultaTareas,
   mensajeDeErrorTareas,
   rutaDeMiHilo,
 } from "./lib"
@@ -68,7 +69,7 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
 
   const contenido = (): ReactNode => {
     if (consulta.isError && errorQueReemplazaLaVista(hayTarea, consulta.error)) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(consulta.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(consulta.error)} />
     }
 
     if (consulta.isLoading || !consulta.data) {

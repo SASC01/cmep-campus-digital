@@ -16,6 +16,14 @@ export class ApiError extends Error {
 
 export const esApiError = (error: unknown): error is ApiError => error instanceof ApiError
 
+// Los errores con que apiClient saca a la persona de la vista (acceso restringido, cambio de
+// contraseña obligatorio, sesión perdida). Quien los recibe no avisa.
+export const CODIGOS_QUE_REDIRIGE_EL_CLIENTE: readonly string[] = [
+  "ACCESO_RESTRINGIDO",
+  "CAMBIO_DE_CONTRASENA_REQUERIDO",
+  "NO_AUTENTICADO",
+]
+
 // Tipo estructural: apiClient no importa zod; el hook pasa el esquema que conoce el contrato.
 interface Esquema<T> {
   parse: (dato: unknown) => T

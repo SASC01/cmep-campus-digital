@@ -10,7 +10,7 @@ import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { EncabezadoClase } from "./components/encabezado-clase"
 import { SeccionesDeClase } from "./components/secciones-de-clase"
 import { useClase, useFocoAlPasarAError } from "./hooks"
-import { mensajeDeErrorClases, perspectivaDeRuta } from "./lib"
+import { mensajeDeConsultaClases, perspectivaDeRuta } from "./lib"
 
 interface ClaseDeLaRutaProps {
   claseId: string
@@ -32,7 +32,7 @@ function ClaseDeLaRuta({ claseId }: ClaseDeLaRutaProps) {
   if (isError) {
     return (
       <div ref={errorRef} tabIndex={-1} className="flex flex-col gap-3">
-        <MensajeError mensaje={mensajeDeErrorClases(error)} />
+        <MensajeError mensaje={mensajeDeConsultaClases(error)} />
         <Link
           to={capacidades.volverDestino}
           className={buttonVariants({ variant: "link", size: "enlace" })}

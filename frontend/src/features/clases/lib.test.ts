@@ -131,7 +131,7 @@ describe("mensajeDeErrorDeLista", () => {
     ).toBe(texto)
     expect(
       mensajeDeErrorDeLista(new ApiError("VALIDACION", "limite: debe ser un número", 400), texto),
-    ).toBe("debe ser un número")
+    ).toBe("Algo salió mal. Inténtalo de nuevo.")
     expect(mensajeDeErrorDeLista(new ApiError("PUBLICACION_NO_ENCONTRADA", "x", 404), texto)).toBe(
       "Esa publicación ya no existe.",
     )

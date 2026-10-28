@@ -8,7 +8,12 @@ import { estadoDeEntregaVisible } from "@/lib/estado-de-entrega"
 
 import { TEXTOS_DETALLE_TAREA, TEXTOS_TU_TRABAJO } from "../data"
 import { useFocoAlPerderseElControl, useMiEntrega } from "../hooks"
-import { claveDeFocoDeLaTarea, entregaCerradaAhora, mensajeDeErrorTareas, yaEsTarde } from "../lib"
+import {
+  claveDeFocoDeLaTarea,
+  entregaCerradaAhora,
+  mensajeDeConsultaTareas,
+  yaEsTarde,
+} from "../lib"
 import type { TareaDetalle } from "../types"
 import { EntregaRealizada } from "./entrega-realizada"
 import { FormularioDeEntrega } from "./formulario-de-entrega"
@@ -46,7 +51,7 @@ export function TuTrabajo({ claseId, tarea, alFallarLaDescarga }: TuTrabajoProps
   const contenido = (): ReactNode => {
     // Con la entrega ya cargada, una recarga fallida deja ver la última que se tuvo.
     if (consulta.isError && !consulta.data) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(consulta.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(consulta.error)} />
     }
 
     if (!consulta.data) {

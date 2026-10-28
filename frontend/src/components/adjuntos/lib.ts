@@ -5,6 +5,7 @@ import {
   type Adjunto,
 } from "@campus/shared"
 
+import { textoVisibleOGenerico } from "@/lib/errores-de-api"
 import { esApiError } from "@/services/apiClient"
 
 import { MARGEN_DE_VISTA_PREVIA_MS, TEXTOS_ADJUNTOS } from "./data"
@@ -70,15 +71,19 @@ export const tiempoFrescoDeAdjuntos = (
 }
 
 // T-41: una solicitud rechazada (ApiError) dice qué archivo y por qué; con ARCHIVO_INVALIDO el motivo es
-// el mensaje del servidor (ya en español y sin valores). Un fallo del PUT al almacén no es un
-// ApiError: conserva el texto de siempre. `mensajeDeError` es el de cada módulo para los demás códigos.
+// el mensaje del servidor (ya en español y sin valores) y, si no trae texto visible (CHORE-03), el
+// texto fijo de ARCHIVO_INVALIDO del módulo. Un fallo del PUT al almacén no es un ApiError: conserva
+// el texto de siempre. `mensajeDeError` es el de cada módulo para los demás códigos.
 export const avisoDeFalloAlSubir = (
   error: unknown,
   nombre: string,
   mensajeDeError: (error: unknown) => string,
 ): string => {
   if (!esApiError(error)) return TEXTOS_ADJUNTOS.errorSubida(nombre)
-  const motivo = error.codigo === "ARCHIVO_INVALIDO" ? error.message : mensajeDeError(error)
+  const motivo =
+    error.codigo === "ARCHIVO_INVALIDO"
+      ? textoVisibleOGenerico(error.message, mensajeDeError(error))
+      : mensajeDeError(error)
   return TEXTOS_ADJUNTOS.errorRechazado(nombre, motivo)
 }
 

@@ -1,13 +1,13 @@
+import { mensajeDeErrorDeApi } from "@/lib/errores-de-api"
 import { esApiError } from "@/services/apiClient"
 
 import {
   AVISOS_LOGIN,
   CAMPOS_FORMULARIO_AUTH,
   ETIQUETAS_ROL,
-  MENSAJE_ERROR_AUTH_GENERICO,
-  MENSAJES_ERROR_AUTH,
   RUTA_ACCESO_RESTRINGIDO,
   RUTA_POR_ROL,
+  TRADUCCION_DE_ERRORES_AUTH,
 } from "./data"
 import type {
   Anuncio,
@@ -36,15 +36,11 @@ export const rutaTrasLogin = (me: MeRespuesta): string => {
 
 export const etiquetaDeRol = (rol: Rol): string => ETIQUETAS_ROL[rol]
 
-const tieneMensajePropio = (codigo: string): codigo is keyof typeof MENSAJES_ERROR_AUTH =>
-  Object.hasOwn(MENSAJES_ERROR_AUTH, codigo)
-
-export const mensajeDeErrorAuth = (error: unknown): string => {
-  if (!esApiError(error)) return MENSAJE_ERROR_AUTH_GENERICO
-  if (error.codigo === "VALIDACION") return error.message
-  if (tieneMensajePropio(error.codigo)) return MENSAJES_ERROR_AUTH[error.codigo]
-  return MENSAJE_ERROR_AUTH_GENERICO
-}
+// CHORE-03 (§D-4): el mensaje de un error, con el contrato de lib/errores-de-api.ts y la traducción del
+// módulo (data.ts). Un VALIDACION da el mensaje del servidor sin su ruta o, sin texto visible, el
+// genérico. S-08: auth no tiene variante de consulta (GET /me y la invitación usan esta misma).
+export const mensajeDeErrorAuth = (error: unknown): string =>
+  mensajeDeErrorDeApi(error, TRADUCCION_DE_ERRORES_AUTH)
 
 const esCampoFormulario = (valor: unknown): valor is CampoFormularioAuth =>
   CAMPOS_FORMULARIO_AUTH.some((campo) => campo === valor)

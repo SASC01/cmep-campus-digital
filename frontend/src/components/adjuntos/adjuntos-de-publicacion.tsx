@@ -1,6 +1,6 @@
 import type { Adjunto } from "@campus/shared"
 import { FileText, Image } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -14,13 +14,26 @@ import { useUrlDeDescarga, useUrlDeDescargaEn } from "./hooks"
 interface VistaDeFichaProps {
   adjunto: Adjunto
   pidiendo: boolean
-  onDescargar: () => void
+  onDescargar: () => Promise<void>
 }
 
 // La ficha sólida de un archivo adjunto (DESIGN.md §7.19): icono, nombre, tamaño y "Descargar". La
 // pintan las dos fichas de abajo; solo cambia de dónde sale la URL de descarga.
 function VistaDeFicha({ adjunto, pidiendo, onDescargar }: VistaDeFichaProps) {
   const esImagen = adjunto.vistaPrevia !== null
+  // CHORE-03 (Enmienda 2, T-02): `enEspera` llega un render tarde, así que dos clics seguidos pedían
+  // dos URL y daban dos avisos. La ref deja una sola descarga en vuelo y se libera al asentarse.
+  const descargandoRef = useRef(false)
+
+  const alPulsar = async () => {
+    if (descargandoRef.current) return
+    descargandoRef.current = true
+    try {
+      await onDescargar()
+    } finally {
+      descargandoRef.current = false
+    }
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-row bg-muted px-3 py-2">
@@ -30,7 +43,13 @@ function VistaDeFicha({ adjunto, pidiendo, onDescargar }: VistaDeFichaProps) {
         {adjunto.nombre}
       </span>
       <span className="text-small text-muted-foreground">{formatearTamano(adjunto.tamano)}</span>
-      <Button type="button" variant="outline" size="sm" enEspera={pidiendo} onClick={onDescargar}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        enEspera={pidiendo}
+        onClick={() => void alPulsar()}
+      >
         {TEXTOS_ADJUNTOS.descargar} <span className="sr-only">{adjunto.nombre}</span>
       </Button>
     </div>
@@ -79,7 +98,7 @@ function FichaDeAdjunto({
       adjunto={adjunto}
       pidiendo={descarga.isPending}
       onDescargar={() =>
-        void descargar(descarga.mutateAsync, adjunto, mensajeDeError, alFallarLaDescarga)
+        descargar(descarga.mutateAsync, adjunto, mensajeDeError, alFallarLaDescarga)
       }
     />
   )
@@ -107,7 +126,7 @@ function FichaDeAdjuntoEnRuta({
       adjunto={adjunto}
       pidiendo={descarga.isPending}
       onDescargar={() =>
-        void descargar(descarga.mutateAsync, adjunto, mensajeDeError, alFallarLaDescarga)
+        descargar(descarga.mutateAsync, adjunto, mensajeDeError, alFallarLaDescarga)
       }
     />
   )

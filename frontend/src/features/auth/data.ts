@@ -1,3 +1,5 @@
+import type { TraduccionDeErrores } from "@/lib/errores-de-api"
+
 import type {
   Anuncio,
   AvisoDeLogin,
@@ -65,7 +67,8 @@ export const TEXTOS_RESTRINGIDO = {
   motivo: "Motivo:",
 } as const
 
-// Mensajes por código de error de la API (DEC-14). VALIDACION muestra el mensaje del servidor.
+// Mensajes por código de error de la API (DEC-14). VALIDACION muestra el mensaje del servidor sin
+// su ruta (CHORE-03, lib/errores-de-api.ts).
 export const MENSAJES_ERROR_AUTH = {
   CREDENCIALES_INVALIDAS: "Correo o contraseña incorrectos.",
   DEMASIADOS_INTENTOS: "Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.",
@@ -84,6 +87,15 @@ export const MENSAJES_ERROR_AUTH = {
 } as const
 
 export const MENSAJE_ERROR_AUTH_GENERICO = "No pudimos completar la operación. Inténtalo de nuevo."
+
+// CHORE-03 (§D-4): lo que features/auth le dice al contrato de lib/errores-de-api.ts. Ningún código
+// muestra el mensaje del servidor salvo VALIDACION, que el contrato trata aparte.
+export const TRADUCCION_DE_ERRORES_AUTH = {
+  generico: MENSAJE_ERROR_AUTH_GENERICO,
+  mensajesPorCodigo: MENSAJES_ERROR_AUTH,
+  codigosConMensajeDelServidor: [],
+  textosPorCampo: {},
+} satisfies TraduccionDeErrores
 
 export const RUTA_POR_ROL = {
   estudiante: "/estudiante",

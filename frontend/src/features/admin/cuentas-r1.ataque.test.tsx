@@ -478,7 +478,9 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: carla.email } })
     fireEvent.click(screen.getByRole("button", { name: "Enviar invitación" }))
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("nombre: caracteres no permitidos")
+    const alerta = await screen.findByRole("alert")
+    expect(alerta).toHaveTextContent("caracteres no permitidos")
+    expect(alerta).not.toHaveTextContent("nombre:")
   })
 
   it("invitar: un nombre solo de espacios no se envía y el campo queda marcado y descrito", () => {

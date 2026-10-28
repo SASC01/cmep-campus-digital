@@ -1,3 +1,5 @@
+import type { TraduccionDeErrores } from "@/lib/errores-de-api"
+
 import type { CampoFormularioAdmin, Rol } from "./types"
 
 // DEC-19. Pantalla provisional de admin: invitar maestro y buscar/gestionar una cuenta por correo.
@@ -45,9 +47,9 @@ export const ETIQUETAS_ROL_ADMIN = {
   admin: "Administrador",
 } as const satisfies Record<Rol, string>
 
-// Mensajes por código de error de la API. VALIDACION y CUPO_DIARIO_INSUFICIENTE muestran el
-// mensaje del servidor (§D-C7): CUPO_DIARIO_INSUFICIENTE no tiene un texto fijo, lleva el número de
-// invitaciones que quedan hoy.
+// Mensajes por código de error de la API. CUPO_DIARIO_INSUFICIENTE muestra el mensaje del servidor
+// (§D-C7): no tiene un texto fijo, lleva el número de invitaciones que quedan hoy. Un VALIDACION
+// muestra el mensaje del servidor sin su ruta (CHORE-03, lib/errores-de-api.ts).
 export const MENSAJES_ERROR_ADMIN = {
   CORREO_EN_USO: "Ya existe una cuenta con ese correo.",
   OPERACION_NO_PERMITIDA: "La contraseña del administrador se restablece desde el servidor.",
@@ -56,9 +58,19 @@ export const MENSAJES_ERROR_ADMIN = {
 } as const
 
 // Códigos de error cuyo mensaje lo trae el propio servidor, no una tabla fija (mensajeDeErrorAdmin).
-export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR = ["VALIDACION", "CUPO_DIARIO_INSUFICIENTE"] as const
+// CHORE-03 (§D-4): VALIDACION ya no va aquí; el contrato lo trata antes que los mapas y le quita la
+// ruta.
+export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR = ["CUPO_DIARIO_INSUFICIENTE"] as const
 
 export const MENSAJE_ERROR_ADMIN_GENERICO = "No pudimos completar la operación. Inténtalo de nuevo."
+
+// CHORE-03 (§D-4): lo que features/admin le dice al contrato de lib/errores-de-api.ts.
+export const TRADUCCION_DE_ERRORES_ADMIN = {
+  generico: MENSAJE_ERROR_ADMIN_GENERICO,
+  mensajesPorCodigo: MENSAJES_ERROR_ADMIN,
+  codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  textosPorCampo: {},
+} satisfies TraduccionDeErrores
 
 export const CAMPOS_FORMULARIO_ADMIN = [
   "nombre",

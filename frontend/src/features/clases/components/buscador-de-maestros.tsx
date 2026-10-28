@@ -18,7 +18,7 @@ import {
 } from "../hooks"
 import {
   focoPerdido,
-  mensajeDeErrorClases,
+  mensajeDeConsultaClases,
   terminoDeBusquedaMuyLargo,
   terminoDeBusquedaValido,
 } from "../lib"
@@ -196,7 +196,8 @@ export function BuscadorDeMaestros({
   // resultados.
   const resultados = (): ReactNode => {
     if (!terminoDeBusquedaValido(termino)) return null
-    if (candidatos.isError) return <MensajeError mensaje={mensajeDeErrorClases(candidatos.error)} />
+    if (candidatos.isError)
+      return <MensajeError mensaje={mensajeDeConsultaClases(candidatos.error)} />
     if (candidatos.isLoading || !candidatos.data) return <Cargando />
     const { candidatos: filas, hayMas } = candidatos.data
     if (filas.length === 0) {

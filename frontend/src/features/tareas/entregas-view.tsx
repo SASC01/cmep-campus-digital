@@ -26,7 +26,7 @@ import {
   conteoDeEntregas,
   errorQueRedirigeElCliente,
   errorQueReemplazaLaVista,
-  mensajeDeErrorTareas,
+  mensajeDeConsultaTareas,
 } from "./lib"
 
 interface EntregasDeLaTareaProps {
@@ -108,7 +108,7 @@ function EntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
       if (esErrorDeCursor(resultado.error)) return
       if (errorQueReemplazaLaVista(true, resultado.error)) return
       if (errorQueRedirigeElCliente(resultado.error)) return
-      toast.error(mensajeDeErrorTareas(resultado.error))
+      toast.error(mensajeDeConsultaTareas(resultado.error))
     } finally {
       pidiendoMasRef.current = false
     }
@@ -156,11 +156,11 @@ function EntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
 
   const contenido = (): ReactNode => {
     if (tarea.isError && errorQueReemplazaLaVista(hayTarea, tarea.error)) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(tarea.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(tarea.error)} />
     }
 
     if (listaReemplazada && !esErrorDeCursor(lista.error)) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(lista.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(lista.error)} />
     }
 
     if (!tarea.data) {

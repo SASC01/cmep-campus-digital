@@ -83,6 +83,7 @@ import {
   erroresDeCategoriasDeApi,
   erroresDelTemaDeApi,
   erroresDeFormularioClases,
+  erroresDeLaPublicacionDeApi,
   focoPerdido,
   mensajeDeErrorClases,
   terminoDeBusquedaValido,
@@ -610,11 +611,11 @@ export const useCrearPublicacion = (claseId: string) => {
       if (datos.tipo === "material") void invalidarTemasYTrabajo(queryClient, claseId)
       toast.success(TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado)
     },
-    onError: (error) => {
+    onError: (error, datos) => {
       // TAREAS-01e (§D-11): si el tema elegido ya no existe, la lista del campo "Tema" se vuelve a
       // pedir (el campo deja de ofrecerlo y el material se publica sin él).
       void renovarTrasError(queryClient, claseId, error)
-      if (erroresDeFormularioClases(error, ["titulo", "texto"])) return
+      if (erroresDeLaPublicacionDeApi(error, datos.tipo)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })

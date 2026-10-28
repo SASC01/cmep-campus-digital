@@ -134,7 +134,7 @@ describe("regla estática de features/calificaciones (CAL-1D09)", () => {
     })
     expect(violaciones).toEqual([])
     expect(sinComentarios(fuente("/src/features/calificaciones/lib.ts"))).toMatch(
-      /import \{ campoDeErrorDeApi \} from "@\/lib\/errores-de-api"/,
+      /import \{ campoDeErrorDeApi, esErrorDeCursor \} from "@\/lib\/errores-de-api"/,
     )
   })
 

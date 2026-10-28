@@ -1,6 +1,5 @@
 import { claveDeNombre, estadoDeTerminoDeBusqueda, normalizarTextoLargo } from "@campus/shared"
 
-import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
 import {
   avisoDeFalloAlSubir as avisoDeFalloAlSubirCompartido,
   tiempoFrescoDeAdjuntos,
@@ -8,18 +7,20 @@ import {
 import {
   campoDeErrorDeApi,
   erroresDeFormularioDeApi,
-  quitarPrefijoDeCampo,
+  esErrorDeCursor,
+  mensajeDeErrorDeApi,
+  mensajeDeErrorDeConsulta,
 } from "@/lib/errores-de-api"
 import { estadoDeEntregaVisible, TEXTOS_ESTADO_DE_ENTREGA } from "@/lib/estado-de-entrega"
 import { vencimientoDe } from "@/lib/vencimiento"
 import { esApiError } from "@/services/apiClient"
 
 import {
+  CAMPOS_PINTADOS_DE_LA_CLASE,
+  CAMPOS_PINTADOS_DE_LA_PUBLICACION,
   CLASES_DEL_CUADRO_DE_ENTREGA,
   CLASES_DEL_CUADRO_DE_FECHA,
   CLAVE_SIN_TEMA,
-  CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
-  MENSAJES_ERROR_CLASES_GENERALES,
   TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
   TEXTOS_INICIO_ESTUDIANTE,
@@ -27,8 +28,8 @@ import {
   TEXTOS_PERSONAS,
   TEXTOS_TARJETA,
   TEXTOS_TRABAJO,
-  TEXTOS_UNIRSE,
   TIEMPO_FRESCO_DEL_MURO_MS,
+  TRADUCCION_DE_ERRORES_CLASES,
 } from "./data"
 import type {
   Categoria,
@@ -45,6 +46,7 @@ import type {
   SeccionDeClase,
   SeccionDeTrabajo,
   SegundaLineaDeLaFila,
+  TipoPublicacion,
 } from "./types"
 
 // TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
@@ -129,40 +131,24 @@ export const focoPerdido = (documento: Pick<Document, "activeElement" | "body">)
   return activo === null || activo === documento.body || !activo.isConnected
 }
 
-// N-03 (ronda 4 del manager): los dos textos fijos viven en data.ts, no aquí (regla 2 de CLAUDE.md).
-const MENSAJES_ERROR_CLASES: Record<string, string> = {
-  CODIGO_INVALIDO: TEXTOS_UNIRSE.codigoInvalido,
-  SIN_ACCESO_A_LA_CLASE: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
-  ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
-  PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
-  COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
-  // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
-  ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
-}
+// CHORE-03 (§D-4): el mensaje de un error de una acción, con el contrato de lib/errores-de-api.ts y la
+// traducción del módulo (data.ts). Un VALIDACION de claseId da el texto de SIN_ACCESO_A_LA_CLASE (T-11,
+// S-08); los demás VALIDACION, el mensaje del servidor sin su ruta (T-17) o, sin texto visible, el
+// genérico; los códigos de maestros, temas y categorías, su mensaje en español (CLASES-02c).
+export const mensajeDeErrorClases = (error: unknown): string =>
+  mensajeDeErrorDeApi(error, TRADUCCION_DE_ERRORES_CLASES)
 
-// T-11 (ronda 1 del tester): un claseId con una forma inválida en la URL responde 400 VALIDACION
-// con el nombre técnico del parámetro ("claseId: debe ser un identificador válido"). El mismo
-// mensaje de SIN_ACCESO_A_LA_CLASE (S-08: la misma respuesta visible para lo que no existe) evita
-// mostrar ese texto interno. Los demás VALIDACION (nombre, descripcion, codigo de un formulario)
-// muestran el mensaje del servidor sin el prefijo técnico del campo (T-17).
-export const mensajeDeErrorClases = (error: unknown): string => {
-  if (!esApiError(error)) return MENSAJES_ERROR_CLASES_GENERALES.generico
-  // CLASES-02c: los errores de maestros y de autoría llegan con su mensaje en español.
-  if (CODIGOS_CON_MENSAJE_DEL_SERVIDOR.includes(error.codigo)) return error.message
-  if (error.codigo === "VALIDACION") {
-    if (error.message.startsWith("claseId:"))
-      return MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase
-    return quitarPrefijoDeCampo(error.message)
-  }
-  return MENSAJES_ERROR_CLASES[error.codigo] ?? MENSAJES_ERROR_CLASES_GENERALES.generico
-}
+// CHORE-03 (§D-4, S-01): el mensaje de un error de lo que se carga. Un VALIDACION que no es de claseId
+// da el genérico, nunca el texto del servidor.
+export const mensajeDeConsultaClases = (error: unknown): string =>
+  mensajeDeErrorDeConsulta(error, TRADUCCION_DE_ERRORES_CLASES)
 
 // T-34: el 400 "cursor: no es válido" de "Ver más" (el cursor ya no existe) no es un texto para la
 // persona: en su lugar se muestra `textoDelCursor`, que dice qué pasó y qué hacer. Cualquier otro
-// error sigue pasando por mensajeDeErrorClases.
+// error es el de una consulta (CHORE-03, R-15).
 export const mensajeDeErrorDeLista = (error: unknown, textoDelCursor: string): string => {
-  if (campoDeErrorDeApi(error) === "cursor") return textoDelCursor
-  return mensajeDeErrorClases(error)
+  if (esErrorDeCursor(error)) return textoDelCursor
+  return mensajeDeConsultaClases(error)
 }
 
 // TAREAS-01c (§D-9): erroresPorCampo y esErrorDeCursor viven en lib/errores-de-api.ts; la versión
@@ -174,6 +160,19 @@ export const erroresDeFormularioClases = (
   error: unknown,
   camposValidos: readonly string[],
 ): ErroresFormulario | null => erroresDeFormularioDeApi(error, camposValidos, mensajeDeErrorClases)
+
+// Enmienda 4 (T-03): al editar, la lista de maestros no se pinta; su VALIDACION se avisa.
+export const erroresDeLaClaseDeApi = (
+  error: unknown,
+  modo: keyof typeof CAMPOS_PINTADOS_DE_LA_CLASE,
+): ErroresFormulario | null => erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_CLASE[modo])
+
+// Enmienda 4 (T-04): en un anuncio, el título no se pinta; su VALIDACION se avisa.
+export const erroresDeLaPublicacionDeApi = (
+  error: unknown,
+  tipo: TipoPublicacion,
+): ErroresFormulario | null =>
+  erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_PUBLICACION[tipo])
 
 // N-04 (ronda 4 de CLASES-a, §D-B4 bis): en "Unirme a la clase" solo CODIGO_INVALIDO y un VALIDACION
 // de "codigo" son errores del campo del código. Cualquier otro (un 500, "sin conexión",
@@ -419,11 +418,11 @@ export const erroresDeCategoriasDeApi = (
   const fila = PREFIJO_DE_FILA_DE_CATEGORIA.exec(error.message)
   if (fila !== null) {
     const errores: ErroresFormulario = {}
-    errorEnSuFila(fila[1] ?? "", error.message.slice(fila[0].length), llaves, errores)
+    errorEnSuFila(fila[1] ?? "", mensajeDeErrorClases(error), llaves, errores)
     return errores
   }
   if (campoDeErrorDeApi(error) !== CAMPO_DE_LA_LISTA) return null
-  return { [CAMPO_DE_LA_LISTA]: quitarPrefijoDeCampo(error.message) }
+  return { [CAMPO_DE_LA_LISTA]: mensajeDeErrorClases(error) }
 }
 
 // Una recarga fallida conserva la vista con lo último que llegó (y avisa), salvo que diga que ya no hay

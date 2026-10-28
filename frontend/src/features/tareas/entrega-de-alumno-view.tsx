@@ -36,6 +36,7 @@ import {
   errorQueRedirigeElCliente,
   errorQueReemplazaLaVista,
   fraseDeEntregaDeAlumno,
+  mensajeDeConsultaTareas,
   mensajeDeErrorTareas,
   recargaLaTareaTrasConflicto,
   rutaDeEntregaDeAlumno,
@@ -166,11 +167,11 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
 
   const contenido = (): ReactNode => {
     if (tarea.isError && errorQueReemplazaLaVista(hayTarea, tarea.error)) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(tarea.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(tarea.error)} />
     }
 
     if (consulta.isError && errorQueReemplazaLaVista(hayEntrega, consulta.error)) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(consulta.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(consulta.error)} />
     }
 
     if (!tarea.data || !consulta.data) {

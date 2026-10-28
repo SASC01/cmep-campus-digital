@@ -6,24 +6,24 @@ import {
 } from "@campus/shared"
 
 import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
-import { erroresDeFormularioDeApi, quitarPrefijoDeCampo } from "@/lib/errores-de-api"
+import {
+  erroresDeFormularioDeApi,
+  mensajeDeErrorDeApi,
+  mensajeDeErrorDeConsulta,
+} from "@/lib/errores-de-api"
 import { formatearFechaLarga } from "@/lib/format"
-import { esApiError } from "@/services/apiClient"
+import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
 import { claveTarea } from "@/services/trabajoService"
 
 import {
   CAMPO_DE_CADA_CODIGO,
   CAMPOS_DEL_FORMULARIO,
-  CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   CODIGOS_DE_CONFLICTO_DE_CALIFICACION,
   CODIGOS_DE_CONFLICTO_DE_ENTREGA,
   CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR,
-  CODIGOS_QUE_REDIRIGE_EL_CLIENTE,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
   LIMITE_DE_ENTREGAS,
   LIMITE_DEL_HILO,
-  MENSAJES_ERROR_TAREAS,
-  MENSAJES_POR_CODIGO_DE_TAREAS,
   PREFIJOS_QUE_REEMPLAZAN_LA_VISTA,
   PUNTOS_PROPUESTOS,
   TEXTOS_CALIFICACION,
@@ -31,6 +31,7 @@ import {
   TEXTOS_ENTREGAS,
   TEXTOS_FORMULARIO_TAREA,
   TEXTOS_TU_TRABAJO,
+  TRADUCCION_DE_ERRORES_TAREAS,
 } from "./data"
 import type {
   CalificacionDeEntrega,
@@ -137,24 +138,15 @@ export const cuerpoDeTarea = (
 // dígitos.
 const PREFIJO_DE_FILA = /^rubrica\.(\d+)\.(criterio|puntosMax):\s*/
 
-// §D-8: el mensaje de un error de la API en español. Los de TAREAS y los de archivos tienen su texto
-// fijo; los de autoría y de servicio ocupado ya vienen en español del servidor; un VALIDACION lleva el
-// nombre técnico del campo como prefijo, que nunca es para la persona (el de claseId o tareaId dice lo
-// mismo que un acceso o una tarea inexistente). Sin conexión, o cualquier otro, el aviso genérico.
-export const mensajeDeErrorTareas = (error: unknown): string => {
-  if (!esApiError(error)) return MENSAJES_ERROR_TAREAS.generico
-  if (Object.hasOwn(MENSAJES_POR_CODIGO_DE_TAREAS, error.codigo)) {
-    return MENSAJES_POR_CODIGO_DE_TAREAS[error.codigo] ?? MENSAJES_ERROR_TAREAS.generico
-  }
-  if (CODIGOS_CON_MENSAJE_DEL_SERVIDOR.includes(error.codigo)) return error.message
-  if (error.codigo === "VALIDACION") {
-    if (error.message.startsWith("claseId:")) return MENSAJES_ERROR_TAREAS.sinAccesoALaClase
-    if (error.message.startsWith("tareaId:")) return MENSAJES_ERROR_TAREAS.tareaNoEncontrada
-    if (error.message.startsWith("alumnoId:")) return MENSAJES_ERROR_TAREAS.alumnoNoEncontrado
-    return quitarPrefijoDeCampo(error.message.replace(PREFIJO_DE_FILA, ""))
-  }
-  return MENSAJES_ERROR_TAREAS.generico
-}
+// §D-8 y CHORE-03 (§D-4): el mensaje de un error de una acción, con el contrato de
+// lib/errores-de-api.ts y la traducción del módulo (TRADUCCION_DE_ERRORES_TAREAS).
+export const mensajeDeErrorTareas = (error: unknown): string =>
+  mensajeDeErrorDeApi(error, TRADUCCION_DE_ERRORES_TAREAS)
+
+// CHORE-03 (§D-4, S-01): el mensaje de un error de lo que se carga (incluidos los "Ver más"): ante un
+// VALIDACION que no es de un id con texto fijo, el genérico del módulo.
+export const mensajeDeConsultaTareas = (error: unknown): string =>
+  mensajeDeErrorDeConsulta(error, TRADUCCION_DE_ERRORES_TAREAS)
 
 // El error de un campo del formulario que dice el servidor: por su código (fecha, categoría o tema) o
 // por el prefijo de campo de un VALIDACION. null si el error no es de ningún campo: ese lo avisa un
@@ -366,12 +358,12 @@ export const esEntregaVacia = (error: unknown): boolean =>
   esApiError(error) && error.codigo === "ENTREGA_VACIA"
 
 // Un VALIDACION de un campo con nombre compuesto ("enlaces.1: mensaje", "texto: mensaje"): el
-// mensaje sin el prefijo técnico, o null si el error no es de ese campo.
+// mensaje de mensajeDeErrorTareas (sin la ruta; el genérico si no queda texto visible), o null si el
+// error no es de ese campo.
 const errorDelCampoDeApi = (error: unknown, campo: RegExp): string | null => {
   if (!esApiError(error) || error.codigo !== "VALIDACION") return null
-  const coincidencia = campo.exec(error.message)
-  if (coincidencia === null) return null
-  return error.message.slice(coincidencia[0].length)
+  if (!campo.test(error.message)) return null
+  return mensajeDeErrorTareas(error)
 }
 
 export const errorDeEnlacesDeApi = (error: unknown): string | null =>
@@ -628,25 +620,13 @@ export const esErrorDeCampoDeCalificacion = (error: unknown): boolean =>
 // CALIFICACIONES-01c, ronda 1 (T-02): el mensaje, sin el prefijo de campo, de un VALIDACION de un campo
 // de calificar; null si el error no es de un campo. Lo usa el aviso del gancho cuando el panel no
 // tiene dónde pintarlo (erroresDeCalificacionDeApi da null).
-export const mensajeDelCampoDeCalificacion = (error: unknown): string | null => {
-  if (!esApiError(error) || !esErrorDeCampoDeCalificacion(error)) return null
-  const mensaje = error.message.replace(PREFIJO_DE_CALIFICACION, "")
-  return mensaje === "" ? MENSAJES_ERROR_TAREAS.generico : mensaje
-}
+// CHORE-03 (N-33): el contrato ya quita la ruta y da el genérico si no queda texto visible.
+export const mensajeDelCampoDeCalificacion = (error: unknown): string | null =>
+  esErrorDeCampoDeCalificacion(error) ? mensajeDeErrorTareas(error) : null
 
-// Ronda 2 de 01c (T-04): el prefijo de un VALIDACION de calificar que el panel no reconoce puede ser
-// una ruta con puntos, índices o signos ("puntajes.0.criterioId:", "puntajes.-1.puntos:"), que
-// quitarPrefijoDeCampo no quita. Nunca es para la persona.
-const PREFIJO_DE_RUTA = /^[A-Za-z0-9_.-]+:\s*/
-
-// El aviso de un error de calificar que el panel no pinta: el de mensajeDeErrorTareas y, si es un
-// VALIDACION, sin ningún prefijo de ruta; si no queda mensaje, el genérico (nunca un aviso vacío).
-export const mensajeDelAvisoDeCalificar = (error: unknown): string => {
-  const mensaje = mensajeDeErrorTareas(error)
-  if (!esApiError(error) || error.codigo !== "VALIDACION") return mensaje
-  const sinRuta = mensaje.replace(PREFIJO_DE_RUTA, "")
-  return sinRuta === "" ? MENSAJES_ERROR_TAREAS.generico : sinRuta
-}
+// El aviso de un error de calificar que el panel no pinta. CHORE-03 (N-36): es el de
+// mensajeDeErrorTareas, que quita la ruta una sola vez y nunca deja un aviso sin texto visible.
+export const mensajeDelAvisoDeCalificar = (error: unknown): string => mensajeDeErrorTareas(error)
 
 // Un VALIDACION de un campo de calificar, en la llave del panel: la posición de un puntaje pasa al id
 // del criterio que iba en esa posición del envío. null si el error no es de un campo o si el panel no
@@ -659,10 +639,9 @@ export const erroresDeCalificacionDeApi = (
   if (!esApiError(error) || error.codigo !== "VALIDACION") return null
   const coincidencia = PREFIJO_DE_CALIFICACION.exec(error.message)
   if (coincidencia === null) return null
-  // Ronda 3 de 01c (T-05): un prefijo sin mensaje (el prefijo ya se lleva los espacios) da el genérico,
-  // como los otros dos caminos; nunca un ErrorDeCampo vacío.
-  const recortado = error.message.slice(coincidencia[0].length)
-  const mensaje = recortado === "" ? MENSAJES_ERROR_TAREAS.generico : recortado
+  // Ronda 3 de 01c (T-05) y CHORE-03: un prefijo sin texto visible da el genérico, como los otros dos
+  // caminos; nunca un ErrorDeCampo vacío.
+  const mensaje = mensajeDeErrorTareas(error)
   if (coincidencia[2] !== undefined && criteriosEnviados.length > 0) return null
   const campo = coincidencia[2] ?? coincidencia[3]
   if (campo !== undefined) return { [campo]: mensaje }

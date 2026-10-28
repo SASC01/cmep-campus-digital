@@ -673,15 +673,20 @@ const fuentes = import.meta.glob<string>("/src/**/*.{ts,tsx}", {
 
 describe("ataque ENTREGAS-01d r3: revisión estática del remedio", () => {
   it("CODIGOS_QUE_REDIRIGE_EL_CLIENTE son exactamente los que apiClient redirige; sin disabled, ?? [], fetch( ni importaciones de otros módulos en lo que cambió", () => {
-    const datos = fuentes["/src/features/tareas/data.ts"] ?? ""
-    const bloque = /CODIGOS_QUE_REDIRIGE_EL_CLIENTE[^=]*=\s*\[([^\]]*)\]/.exec(datos)?.[1] ?? ""
+    // CHORE-03 03b, ronda 0 (C-2, A-5): N-46 mueve la constante a services/apiClient.ts; el bloque se
+    // lee de ahí con la misma expresión, y los data.ts de tareas y calificaciones ya no la declaran.
+    const cliente = fuentes["/src/services/apiClient.ts"] ?? ""
+    const bloque = /CODIGOS_QUE_REDIRIGE_EL_CLIENTE[^=]*=\s*\[([^\]]*)\]/.exec(cliente)?.[1] ?? ""
     const codigos = [...bloque.matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]).sort()
     expect(codigos).toEqual([
       "ACCESO_RESTRINGIDO",
       "CAMBIO_DE_CONTRASENA_REQUERIDO",
       "NO_AUTENTICADO",
     ])
-    const cliente = fuentes["/src/services/apiClient.ts"] ?? ""
+    for (const datos of ["/src/features/tareas/data.ts", "/src/features/calificaciones/data.ts"]) {
+      expect(fuentes[datos], `${datos} no existe`).toBeDefined()
+      expect(fuentes[datos]).not.toMatch(/\b(const|let|var)\s+CODIGOS_QUE_REDIRIGE_EL_CLIENTE\b/)
+    }
     expect(cliente).toContain('error.codigo === "ACCESO_RESTRINGIDO"')
     expect(cliente).toContain('error.codigo === "CAMBIO_DE_CONTRASENA_REQUERIDO"')
     expect(cliente).toContain('new ApiError("NO_AUTENTICADO"')

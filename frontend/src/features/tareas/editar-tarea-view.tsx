@@ -18,7 +18,7 @@ import {
   avisoDeRecargaFallidaAlEditar,
   claveDeFocoDeLaTarea,
   errorQueReemplazaLaVista,
-  mensajeDeErrorTareas,
+  mensajeDeConsultaTareas,
 } from "./lib"
 import type { CrearTarea } from "./types"
 
@@ -68,7 +68,7 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
 
   const contenido = (): ReactNode => {
     if (consulta.isError && errorQueReemplazaLaVista(hayTarea, consulta.error)) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(consulta.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(consulta.error)} />
     }
 
     if (consulta.isLoading || !consulta.data || esperando) {

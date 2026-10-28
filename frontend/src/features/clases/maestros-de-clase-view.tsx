@@ -10,7 +10,7 @@ import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { ListaMaestrosDeClase } from "./components/lista-maestros-de-clase"
 import { TEXTOS_MAESTROS_DE_CLASE } from "./data"
 import { useClase, useFilaEnFoco, useFocoAlPasarAError, useRetirarMaestro } from "./hooks"
-import { focoPerdido, mensajeDeErrorClases } from "./lib"
+import { focoPerdido, mensajeDeConsultaClases } from "./lib"
 
 interface MaestrosDeLaClaseProps {
   claseId: string
@@ -39,7 +39,7 @@ function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
   if (clase.isError) {
     return (
       <div ref={errorRef} tabIndex={-1}>
-        <MensajeError mensaje={mensajeDeErrorClases(clase.error)} />
+        <MensajeError mensaje={mensajeDeConsultaClases(clase.error)} />
       </div>
     )
   }

@@ -2,6 +2,7 @@ import { MAXIMO_CRITERIOS_RUBRICA } from "@campus/shared"
 
 import { MENSAJES_POR_CODIGO_DE_ARCHIVO } from "@/components/adjuntos/data"
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 import { formatearPuntos } from "@/lib/format"
 
 // §D-10, "Textos de la interfaz" (propuesta, tono de DESIGN.md §9).
@@ -176,6 +177,19 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "TAREA_CON_CALIFICACIONES",
 ]
 
+// CHORE-03 (§D-4): lo que el módulo le dice al contrato de lib/errores-de-api.ts. Un VALIDACION de
+// claseId, tareaId o alumnoId dice lo mismo que un acceso, una tarea o un alumno inexistentes.
+export const TRADUCCION_DE_ERRORES_TAREAS = {
+  generico: MENSAJES_ERROR_TAREAS.generico,
+  mensajesPorCodigo: MENSAJES_POR_CODIGO_DE_TAREAS,
+  codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  textosPorCampo: {
+    claseId: MENSAJES_ERROR_TAREAS.sinAccesoALaClase,
+    tareaId: MENSAJES_ERROR_TAREAS.tareaNoEncontrada,
+    alumnoId: MENSAJES_ERROR_TAREAS.alumnoNoEncontrado,
+  },
+} satisfies TraduccionDeErrores
+
 // CALIFICACIONES-01c (§D-12.2; Enmienda 1, N-04): los 409 de calificar dicen que lo que se vio ya no
 // es lo de ahora. Avisan con el mensaje del servidor, la vista recarga una sola vez y el panel se
 // reinicia con lo actual.
@@ -337,14 +351,6 @@ export const OPCIONES_QUE_CAMBIARON_POR_CODIGO: Readonly<Record<string, "categor
 // ahora (se borró, cambió un permiso o se perdió el acceso): al borrar o guardar, la consulta de la
 // tarea se vuelve a pedir para que la vista reaccione. Solo TAREA_NO_ENCONTRADA toca además el muro, el
 // trabajo de clase, los temas y las categorías (la tarea ya no está en ninguna lista).
-// ENTREGAS-01d, ronda 2 (T-05): los errores con que apiClient ya saca a la persona de la vista (acceso
-// restringido, cambio de contraseña obligatorio, sesión perdida). Quien los recibe no avisa.
-export const CODIGOS_QUE_REDIRIGE_EL_CLIENTE: readonly string[] = [
-  "ACCESO_RESTRINGIDO",
-  "CAMBIO_DE_CONTRASENA_REQUERIDO",
-  "NO_AUTENTICADO",
-]
-
 // M-01, T-13 y ENTREGAS-01e (§D-10.3): los errores que reemplazan la vista de una tarea
 // (errorQueReemplazaLaVista): la tarea o el alumno ya no existen, o se perdió el acceso a la clase; un
 // VALIDACION de uno de esos ids dice lo mismo.

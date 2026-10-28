@@ -18,7 +18,7 @@ import {
   errorDeTextoDeApi,
   errorQueRedirigeElCliente,
   errorQueReemplazaLaVista,
-  mensajeDeErrorTareas,
+  mensajeDeConsultaTareas,
 } from "../lib"
 import type { CrearComentario } from "../types"
 
@@ -172,7 +172,7 @@ export function HiloPrivado({
       if (!resultado.isError || !montadoRef.current) return
       if (errorQueReemplazaLaVista(true, resultado.error)) return
       if (errorQueRedirigeElCliente(resultado.error)) return
-      toast.error(mensajeDeErrorTareas(resultado.error))
+      toast.error(mensajeDeConsultaTareas(resultado.error))
     } finally {
       pidiendoMasRef.current = false
     }
@@ -180,7 +180,7 @@ export function HiloPrivado({
 
   const contenido = (): ReactNode => {
     if (hilo.isError && comentarios === undefined) {
-      return <MensajeError mensaje={mensajeDeErrorTareas(hilo.error)} />
+      return <MensajeError mensaje={mensajeDeConsultaTareas(hilo.error)} />
     }
 
     if (comentarios === undefined) {

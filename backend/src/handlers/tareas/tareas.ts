@@ -26,6 +26,7 @@ import type { Almacen } from "../../core/archivos/almacen.js"
 import { firmaDelAutor } from "../../core/autoria.js"
 import { alumnoDeLaRelacion } from "../../core/entregas/entregas.js"
 import { AppError } from "../../core/errores.js"
+import { bloqueEfectivo, puedeMoverRecurso } from "../../core/recursos.js"
 import {
   COLA_RECORDATORIO_24H,
   COLA_TAREA_CREADA,
@@ -225,13 +226,17 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
     protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id: claseId, relacion } = claseDe(request)
-      const { tema, cursor, limite } = validarParametros(trabajoQuerySchema, request.query)
+      const { tema, cursor, limite, seccion } = validarParametros(trabajoQuerySchema, request.query)
       // ENTREGAS-01b (S-07): la entrega que se muestra es la del alumno que pide la lista; core/ lo
       // decide con la relación del sexto paso (para el maestro y el admin, ninguna).
       const alumnoId = alumnoDeLaRelacion(relacion, perfilDe(request).id)
-      const lista = await listarTrabajo({ claseId, tema, cursor, limite, alumnoId })
-      // puedeMover lo decide core/ con la relación que dejó el sexto paso (P-02 b).
-      const puedeMover = puedeMoverElemento(relacion)
+      // CLASES-03a (§D-3.3): con ?seccion=actividades, solo tareas; sin ella, lo de hoy.
+      const lista = await listarTrabajo({ claseId, tema, cursor, limite, alumnoId, seccion })
+      // puedeMover lo decide core/: una tarea, con la relación que dejó el sexto paso (P-02 b); un
+      // material, con la regla de su bloque y el actor de la petición (CLASES-03a, T-03), la misma de
+      // la ruta de mover.
+      const actor = perfilDe(request)
+      const puedeMoverTarea = puedeMoverElemento(relacion)
       const elementos = await Promise.all(
         lista.elementos.map(async (elemento) => ({
           id: elemento.id,
@@ -253,7 +258,10 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
                   fechaLimite: elemento.tarea.fechaLimite.toISOString(),
                   puntos: elemento.tarea.puntos,
                 },
-          puedeMover,
+          puedeMover:
+            elemento.tipo === "material"
+              ? puedeMoverRecurso(actor, bloqueEfectivo(elemento.bloque, elemento.autor))
+              : puedeMoverTarea,
           entrega: elemento.entrega,
         })),
       )

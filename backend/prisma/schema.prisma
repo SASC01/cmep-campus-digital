@@ -55,6 +55,15 @@ enum TipoPublicacion {
   @@map("tipo_publicacion")
 }
 
+// CLASES-03a (§D-1, RN-09): el bloque de un recurso (un material). Lo guarda la columna al publicar,
+// por el rol de quien publica: el admin en aprendizaje y un maestro en docente.
+enum BloqueRecurso {
+  aprendizaje
+  docente
+
+  @@map("bloque_recurso")
+}
+
 enum EstadoArchivo {
   pendiente
   confirmado
@@ -274,10 +283,19 @@ model Publicacion {
   temaId        String?         @map("tema_id") @db.Uuid
   tema          Tema?           @relation(fields: [temaId], references: [id], onDelete: SetNull)
   tarea         Tarea?
+  // CLASES-03a (§D-1, DH-02 a): nulo permitido para no romper a un backend anterior; solo un material
+  // lo lleva (CHECK publicaciones_bloque_solo_material, a mano en la migración). `version` solo la
+  // usan los materiales (editar un recurso); las tareas siguen con tareas.version.
+  bloque        BloqueRecurso?
+  version       Int             @default(0)
 
   @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
   @@index([claseId, temaId, creadoEn(sort: Desc), id(sort: Desc)])
   @@index([temaId])
+  // CLASES-03a: "Avisos" (tipo anuncio, sin tema) y "Actividades" (tipo tarea, por tema).
+  @@index([claseId, tipo, temaId, creadoEn(sort: Desc), id(sort: Desc)])
+  // CLASES-03a: "Recursos" por bloque y tema, y sus conteos.
+  @@index([claseId, bloque, temaId, creadoEn(sort: Desc), id(sort: Desc)])
   @@map("publicaciones")
 }
 

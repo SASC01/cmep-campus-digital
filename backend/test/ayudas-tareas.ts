@@ -54,6 +54,8 @@ export interface OpcionesMaterialConTema {
   titulo?: string
   texto?: string
   creadoEn?: Date
+  // CLASES-03a: sin la opción, el material queda con bloque nulo, como antes de la migración.
+  bloque?: "aprendizaje" | "docente"
 }
 
 // Un material (o, con tipo "tarea", la publicación de una tarea sin su fila de `tareas`) con tema.
@@ -64,6 +66,7 @@ export const crearMaterialConTemaDePrueba = async ({
   titulo = "Material de prueba",
   texto = "Texto de prueba",
   creadoEn,
+  bloque,
 }: OpcionesMaterialConTema): Promise<string> => {
   const { id } = await obtenerDb().publicacion.create({
     data: {
@@ -74,6 +77,7 @@ export const crearMaterialConTemaDePrueba = async ({
       texto,
       temaId,
       ...(creadoEn === undefined ? {} : { creadoEn }),
+      ...(bloque === undefined ? {} : { bloque }),
     },
     select: { id: true },
   })

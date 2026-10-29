@@ -7,6 +7,7 @@ import { exigirRubricaCongelada } from "../../core/calificaciones/calificar.js"
 import { exigirVersion } from "../../core/concurrencia.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
+import type { Bloque } from "../../core/recursos.js"
 import { planDeRecordatorio, type PlanDeRecordatorio } from "../../core/tareas/recordatorio.js"
 import type { EstadoEntrega } from "../../core/entregas/entregas.js"
 import {
@@ -68,6 +69,9 @@ export interface ElementoDeTrabajoDb {
   creadoEn: Date
   material: { texto: string; adjuntos: ArchivoDb[] } | null
   tarea: { fechaLimite: Date; puntos: number } | null
+  // CLASES-03a (T-03): el bloque guardado de un material (null en las tareas y en un material sin
+  // bloque), para que el handler decida mover con la regla de los recursos. No sale en la respuesta.
+  bloque: Bloque | null
   // ENTREGAS-01b (S-07): la entrega del alumno de la lista; null en los materiales, sin alumno (maestro
   // y admin) o sin fila de entrega.
   entrega: { estado: EstadoEntrega; conRetraso: boolean } | null
@@ -234,8 +238,8 @@ const asegurarReferencias = async (
 
 // Confirma archivos pendientes del autor en esta publicación: el UPDATE repite las condiciones de la
 // lectura del handler por si algo cambió (otra publicación los reclamó, o pasaron las 24 h); si no
-// confirma todos, 400 y todo se revierte.
-const confirmarArchivos = async (
+// confirma todos, 400 y todo se revierte. CLASES-03a (§D-3.7): editarRecurso la reutiliza.
+export const confirmarArchivos = async (
   tx: Prisma.TransactionClient,
   {
     archivos,
@@ -604,12 +608,15 @@ const listarTrabajoCon = async (
     cursor,
     limite,
     alumnoId = null,
+    seccion,
   }: {
     claseId: string
     tema: string
     cursor: string | undefined
     limite: number
     alumnoId?: string | null
+    // CLASES-03a (§D-3.3): "Actividades de aprendizaje" pide solo tareas; sin ella, lo de hoy.
+    seccion?: "actividades" | undefined
   },
 ): Promise<ListaTrabajoDb> => {
   const temaId = tema === "sin-tema" ? null : tema
@@ -617,7 +624,9 @@ const listarTrabajoCon = async (
     const existe = await db.tema.findFirst({ where: { id: temaId, claseId }, select: { id: true } })
     if (existe === null) throw errorTemaNoEncontrado()
   }
-  const donde = { claseId, temaId, tipo: { in: [...TIPOS_DE_TRABAJO] } }
+  // El mismo filtro vale para el cursor: con la sección, un material como cursor es 400.
+  const tipos = seccion === "actividades" ? (["tarea"] as const) : TIPOS_DE_TRABAJO
+  const donde = { claseId, temaId, tipo: { in: [...tipos] } }
   if (cursor !== undefined) {
     const delCursor = await db.publicacion.findFirst({
       where: { ...donde, id: cursor },
@@ -633,6 +642,7 @@ const listarTrabajoCon = async (
       titulo: true,
       texto: true,
       creadoEn: true,
+      bloque: true,
       autor: SELECT_AUTOR,
       tarea: { select: { fechaLimite: true, puntos: true } },
     },
@@ -684,6 +694,7 @@ const listarTrabajoCon = async (
           ? { texto: fila.texto, adjuntos: adjuntosPorMaterial.get(fila.id) ?? [] }
           : null,
         tarea: fila.tarea,
+        bloque: fila.bloque,
         entrega: esMaterial ? null : (entregaPorTarea.get(fila.id) ?? null),
       }
     }),
@@ -701,6 +712,7 @@ export const listarTrabajo = (
     cursor: string | undefined
     limite: number
     alumnoId?: string | null
+    seccion?: "actividades" | undefined
   },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaTrabajoDb> =>

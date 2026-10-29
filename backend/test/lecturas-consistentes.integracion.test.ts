@@ -735,7 +735,12 @@ describe("lecturas de tareas en una sola instantánea (TAREAS-01b, Enmienda 2)",
     const parametros = { claseId, tema: tema.id, cursor: m2, limite: 10 }
 
     const { gancho, disparado } = unaVezDespuesDe("publicacion.findFirst", async () => {
-      const movido = await moverATema({ claseId, publicacionId: m2, temaId: otro.id })
+      const movido = await moverATema({
+        claseId,
+        publicacionId: m2,
+        temaId: otro.id,
+        actor: { id: maestroId, rol: "maestro" },
+      })
       expect(movido.temaId, "Precondición: el gancho movió el elemento del cursor").toBe(otro.id)
     })
     const lista = await listarTrabajo(parametros, ejecutorConGancho(gancho))

@@ -1,4 +1,8 @@
+import type { SeccionDeTemas } from "@campus/shared"
+
+import type { ParticipanteDeAutoria } from "../../core/autoria.js"
 import { AppError } from "../../core/errores.js"
+import { bloqueEfectivo, puedeMoverRecurso } from "../../core/recursos.js"
 import {
   siguienteOrden,
   validarNuevoTema,
@@ -42,13 +46,21 @@ const temaNoEncontrado = (): AppError =>
 const publicacionNoEncontrada = (): AppError =>
   new AppError("PUBLICACION_NO_ENCONTRADA", "Esa publicación ya no existe.", 404)
 
+const errorMoverNoPermitido = (): AppError =>
+  new AppError(
+    "MOVER_NO_PERMITIDO",
+    "Solo la administración mueve los recursos de aprendizaje.",
+    403,
+  )
+
 const SELECT_TEMA = { id: true, nombre: true, orden: true } as const
 
 // Temas por (orden, creado_en, id) (hasta 30, S-14: sin paginar). `elementos` y `sinTema` salen de
-// un solo groupBy de publicaciones por tema_id (índice (clase_id, tema_id, creado_en, id)).
-export const listarTemas = async (
+// un solo groupBy de publicaciones por tema_id, con el filtro que se le pase.
+const listarTemasCon = async (
   claseId: string,
-  ejecutor: Ejecutor = obtenerDb(),
+  filtro: Prisma.PublicacionWhereInput,
+  ejecutor: Ejecutor,
 ): Promise<ListaTemasDb> => {
   const temas = await ejecutor.tema.findMany({
     where: { claseId },
@@ -57,7 +69,7 @@ export const listarTemas = async (
   })
   const conteos = await ejecutor.publicacion.groupBy({
     by: ["temaId"],
-    where: { claseId, tipo: { in: [...TIPOS_CON_TEMA] } },
+    where: { ...filtro, claseId },
     _count: { _all: true },
   })
   const porTema = new Map(conteos.map((conteo) => [conteo.temaId, conteo._count._all]))
@@ -66,6 +78,28 @@ export const listarTemas = async (
     sinTema: porTema.get(null) ?? 0,
   }
 }
+
+// El total de hoy: materiales y tareas (índice (clase_id, tema_id, creado_en, id)).
+export const listarTemas = (
+  claseId: string,
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<ListaTemasDb> => listarTemasCon(claseId, { tipo: { in: [...TIPOS_CON_TEMA] } }, ejecutor)
+
+// CLASES-03a (§D-3.4): lo que cuenta cada sección. Los materiales con bloque nulo no cuentan en
+// ninguna sección de recursos (DH-02 a), aunque sí en el total.
+const FILTRO_DE_LA_SECCION: Record<SeccionDeTemas, Prisma.PublicacionWhereInput> = {
+  actividades: { tipo: "tarea" },
+  aprendizaje: { tipo: "material", bloque: "aprendizaje" },
+  docente: { tipo: "material", bloque: "docente" },
+}
+
+// Los mismos temas, en el mismo orden, con los conteos de la sección (índices (clase_id, tipo,
+// tema_id, …) y (clase_id, bloque, tema_id, …)). Sin transacción, como listarTemas.
+export const listarTemasDeLaSeccion = (
+  claseId: string,
+  seccion: SeccionDeTemas,
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<ListaTemasDb> => listarTemasCon(claseId, FILTRO_DE_LA_SECCION[seccion], ejecutor)
 
 const leerTemasDeLaClase = (tx: Prisma.TransactionClient, claseId: string) =>
   tx.tema.findMany({
@@ -155,23 +189,35 @@ export const ordenarTemas = (
 // que un guardado abierto antes del movimiento recibe 409 TAREA_MODIFICADA). La fila de `tareas` se
 // escribe antes que `publicaciones`, el orden de editarTarea y borrarTarea (§D-0.6): al revés, una
 // edición y un movimiento simultáneos podrían bloquearse en cruz. Mover un material no toca `tareas`.
+// CLASES-03a (§D-3.9, P-05, S-03): un material (un recurso) sigue la regla de su bloque con el actor
+// de la petición (403 MOVER_NO_PERMITIDO sin escribir) y sube su versión en el mismo UPDATE que
+// cambia el tema (el formulario de edición lleva el tema). Una tarea, como antes.
 export const moverATema = (
   {
     claseId,
     publicacionId,
     temaId,
-  }: { claseId: string; publicacionId: string; temaId: string | null },
+    actor,
+  }: {
+    claseId: string
+    publicacionId: string
+    temaId: string | null
+    actor: ParticipanteDeAutoria
+  },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ElementoMovidoDb> =>
   enTransaccion(ejecutor, async (tx) => {
     const publicacion = await tx.publicacion.findFirst({
       where: { id: publicacionId, claseId },
-      select: { tipo: true },
+      select: { tipo: true, bloque: true, autor: { select: { id: true, rol: true } } },
     })
     if (publicacion === null) throw publicacionNoEncontrada()
     if (publicacion.tipo === "anuncio") {
       throw new AppError("ANUNCIO_SIN_TEMA", "Los anuncios no van en temas.", 409)
     }
+    const esMaterial = publicacion.tipo === "material"
+    const bloque = bloqueEfectivo(publicacion.bloque, publicacion.autor)
+    if (esMaterial && !puedeMoverRecurso(actor, bloque)) throw errorMoverNoPermitido()
     if (publicacion.tipo === "tarea") {
       await tx.tarea.updateMany({
         where: { id: publicacionId, claseId },
@@ -183,7 +229,7 @@ export const moverATema = (
     }
     const { count } = await tx.publicacion.updateMany({
       where: { id: publicacionId, claseId, tipo: { in: [...TIPOS_CON_TEMA] } },
-      data: { temaId },
+      data: esMaterial ? { temaId, version: { increment: 1 } } : { temaId },
     })
     if (count === 0) throw publicacionNoEncontrada()
     return { publicacionId, temaId: temaId?.toLowerCase() ?? null }

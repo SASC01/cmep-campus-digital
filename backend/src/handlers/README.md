@@ -176,3 +176,19 @@ claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna 
   entrega, filtradas por `estado` (`todas`, `asignadas`, `entregadas`, `calificadas` o `sin-entregar`).
   Las dos responden con esquemas estrictos de `shared/` y fechas en ISO 8601; nunca la versión, el
   correo, el estado de pago, la restricción ni el rol.
+- `clases/recursos.ts` (prefijo `/api`, CLASES-03a, `recursosHandler`, recibe `{ almacen }`):
+  `GET /clases/:claseId/recursos` (estudiante, maestro y admin, `inscripcion`; `recursosQuerySchema`:
+  `bloque` y `tema` obligatorios, `cursor` y `limite`), `GET /clases/:claseId/recursos/:recursoId` y
+  `PUT /clases/:claseId/recursos/:recursoId` (maestro y admin, `propiedad`). El `PUT` normaliza `titulo`
+  y `texto` (`conTextosNormalizados`) y comprueba en el almacén solo los archivos que no son ya del
+  recurso (`archivosParaPublicar`), como el `PUT` de una tarea. `puedeEditar`, `puedeBorrar` y
+  `puedeMover` los decide `core/recursos.ts` dentro del adaptador. El autor sale con `firmaDelAutor`;
+  ninguna respuesta lleva correo, estado de pago, restricción ni rol, y la versión solo sale en el
+  detalle. Editar no encola nada (S-04). Publicar, borrar, mover y comentar un recurso siguen en
+  `clases/muro.ts` y `tareas/temas.ts`: el `POST` del muro pasa `bloque: bloqueAlPublicar(perfil)` en un
+  material y `null` en un anuncio; `GET …/publicaciones` acepta `?tipo=anuncio` (`avisosQuerySchema`);
+  `GET …/trabajo` acepta `?seccion=actividades`, y su `puedeMover` es, para un material,
+  `puedeMoverRecurso` con el actor de la petición y `bloqueEfectivo(bloque, autor)` (la misma regla de
+  la ruta de mover, T-03) y, para una tarea, `puedeMoverElemento(relacion)`, como antes; `GET …/temas` acepta
+  `?seccion=actividades|aprendizaje|docente` (`temasQuerySchema`, misma forma de respuesta), y mover
+  pasa `actor: perfilDe(request)`. Sin el parámetro nuevo, cada ruta responde lo de antes.

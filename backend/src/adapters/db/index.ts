@@ -137,6 +137,7 @@ export {
   borrarTema,
   crearTema,
   listarTemas,
+  listarTemasDeLaSeccion,
   moverATema,
   ordenarTemas,
   renombrarTema,
@@ -144,6 +145,14 @@ export {
   type ListaTemasDb,
   type TemaDb,
 } from "./temas.js"
+export {
+  editarRecurso,
+  leerRecurso,
+  listarRecursos,
+  type ListaRecursosDb,
+  type RecursoDb,
+  type RecursoDetalleDb,
+} from "./recursos.js"
 export { listarCategorias, reemplazarCategorias, type CategoriaDb } from "./categorias.js"
 export {
   adjuntosConfirmadosDe,

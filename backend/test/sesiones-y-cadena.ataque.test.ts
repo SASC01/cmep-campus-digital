@@ -542,7 +542,10 @@ describe("ataque: superficie de rutas", () => {
   // otra ruta nueva vuelve a poner la prueba en rojo.
   // C-1 de CALIFICACIONES-01a (§D-R0, A-5): se agrega exactamente PUT …/tareas/:tareaId/entregas/:alumnoId/calificacion.
   // C-1 de CALIFICACIONES-01b (§D-R0, A-5): se agregan exactamente GET y HEAD de …/gradebook y de …/mis-calificaciones.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a y CALIFICACIONES-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // CLASES-03a, C-1 (§D-R0; §D-3.5 a §D-3.7 y "Autorización"): se agregan exactamente GET y HEAD de
+  // …/recursos y de …/recursos/:recursoId, y PUT de …/recursos/:recursoId (5 entradas). Ninguna crea
+  // cuentas ni cambia roles y ninguna es pública; las de dudas (03b) aún no.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b y CLASES-03a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -590,6 +593,8 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/personas",
       "GET /api/clases/:claseId/publicaciones",
       "GET /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "GET /api/clases/:claseId/recursos",
+      "GET /api/clases/:claseId/recursos/:recursoId",
       "GET /api/clases/:claseId/tareas/:tareaId",
       "GET /api/clases/:claseId/tareas/:tareaId/entrega",
       "GET /api/clases/:claseId/tareas/:tareaId/entrega/comentarios",
@@ -616,6 +621,8 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/personas",
       "HEAD /api/clases/:claseId/publicaciones",
       "HEAD /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
+      "HEAD /api/clases/:claseId/recursos",
+      "HEAD /api/clases/:claseId/recursos/:recursoId",
       "HEAD /api/clases/:claseId/tareas/:tareaId",
       "HEAD /api/clases/:claseId/tareas/:tareaId/entrega",
       "HEAD /api/clases/:claseId/tareas/:tareaId/entrega/comentarios",
@@ -666,6 +673,7 @@ describe("ataque: superficie de rutas", () => {
       "PUT /api/admin/usuarios/:id/correo",
       "PUT /api/clases/:claseId/categorias",
       "PUT /api/clases/:claseId/publicaciones/:publicacionId/tema",
+      "PUT /api/clases/:claseId/recursos/:recursoId",
       "PUT /api/clases/:claseId/tareas/:tareaId",
       "PUT /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/calificacion",
       "PUT /api/clases/:claseId/temas/:temaId",

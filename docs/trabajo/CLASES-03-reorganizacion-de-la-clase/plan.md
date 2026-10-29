@@ -1,0 +1,1027 @@
+# Plan — CLASES-03 · reorganización de la clase (Avisos, Actividades de aprendizaje, Recursos, Dudas y Personas)
+Estado: LISTO (Enmiendas 1 a 3 aplicadas)
+Carril: sensible (migraciones en 03a y 03b; ver DH-01: el humano pidió "normal")
+Requisitos: RF-60, RF-61, RF-62, RF-63, RF-64; RN-07, RN-08, RN-09 (P-01 a P-07 de DOCS-04, decididas por el humano el 2026-10-26)
+
+Rama `feat/clases-03` desde `main` = `689c636` (`<R>`). Cinco subentregas (seis si el humano parte 03c en 03c1 y 03c2, DH-14), un commit del humano por subentrega:
+03a backend de recursos y secciones · 03b backend de dudas · 03c frontend de secciones, Avisos, Actividades y Personas · 03d frontend de Recursos · 03e frontend de Dudas.
+
+## Preguntas bloqueantes
+
+Ninguna. P-01 a P-07 cerraron lo que cambiaba el diseño. Lo que el PRD no fija y se puede resolver con una suposición razonable va en "Suposiciones"; lo que el humano debe decidir o autorizar antes de la ronda 0, en "Decisiones para el humano". Si el humano rechaza alguna recomendación de DH-02 a DH-06, el plan vuelve al arquitecto como enmienda antes de programar.
+
+## Decisiones para el humano (antes de la ronda 0 de 03a)
+
+Cada una lleva la recomendación del arquitecto. "Sí" a todas es aprobar el plan tal cual. DH-14, DH-15 y DH-16 llegaron con la Enmienda 1.
+
+| DH | Qué se decide | Recomendación | Alternativa y su costo |
+|---|---|---|---|
+| DH-01 | **Carril.** El humano pidió "normal". Por las reglas del arquitecto, una migración hace sensible el encargo, y 03a y 03b llevan migración (`publicaciones.bloque`, `publicaciones.version`, tabla `dudas`, `comentarios.duda_id` y el `CHECK` de tres contextos). No hay forma de cumplir los RF sin migración: RN-09 y ESSENTIALS piden guardar el bloque al publicar y `version` para editar un recurso, y "Dudas" necesita su tabla (o un tipo nuevo de `publicaciones`, que también es migración). | **Sensible** para todo el encargo (como CALIFICACIONES-01). La única diferencia práctica con "normal" es la aprobación explícita y por escrito del plan, que el humano da de todos modos; la revisión del diff sigue siendo opcional. 03c a 03e no tocan esquema, `middleware/` ni `adapters/auth`. | Sensible solo 03a y 03b y normal 03c a 03e: mismo recorrido, solo cambia la etiqueta. |
+| DH-02 | **Compatibilidad hacia atrás (ESSENTIALS: "Todo cambio de esquema … compatible hacia atrás").** (a) `publicaciones.bloque` nace **nulo permitido** con un `CHECK` de que solo un material lo lleva; la migración llena todos los materiales existentes por el rol de su autor y el código siempre lo escribe. Un material con `bloque` nulo solo lo puede crear un backend anterior o una prueba que inserta a mano: los permisos lo tratan con el bloque del rol de su autor (`bloqueEfectivo`, la misma regla de la migración) y las listas de Recursos no lo muestran. (b) `GET …/publicaciones` y `GET …/trabajo` conservan su respuesta de hoy sin parámetros (anuncios, materiales y tareas; materiales y tareas) y ganan un filtro opcional (`?tipo=anuncio`; `?seccion=actividades`) que usa el frontend nuevo. (c) `GET …/temas` gana `?seccion=` con la misma forma de respuesta. | **Sí.** Nada existente cambia de forma: un frontend anterior sigue funcionando con el backend nuevo y un backend anterior con la base migrada (al revés no: el frontend nuevo necesita el backend nuevo, R-09), y las pruebas que crean materiales o leen el muro, "Trabajo de clase" y los temas (decenas en los dos paquetes) no se tocan. Lo que queda de compatibilidad se retira junto con la de CLASES-02, antes del primer DEPLOY (fila nueva en `docs/ESTADO.md` §3, A-13). | Contratos estrictos ya (`bloque` obligatorio en materiales, `GET …/publicaciones` solo anuncios, `GET …/trabajo` solo tareas, `temaSchema` con conteos por sección): menos código de compatibilidad, pero rompe `ayudas-tareas.ts` (inserta materiales sin bloque), unas 30 pruebas del backend y unos 28 archivos de pruebas del frontend con dobles de temas, muchos `*.ataque`. |
+| DH-03 | **Indicador del control segmentado con seis (y, desde FORO-01, siete) opciones** (`DESIGN.md` §7.3, "propuesta (DOCS-04)"; ESSENTIALS lo deja a este plan). | **Cada opción a su ancho natural y un indicador medido**: toma la posición y el ancho de la opción activa (dos variables CSS en el elemento, `translate-x-(--indicador-x)` y `w-(--indicador-ancho)`); solo la posición se desliza (`transition-transform`, 200 ms, `motion-reduce:transition-none`); el ancho cambia sin transición. Se vuelve a medir al cambiar de sección, al cambiar el tamaño del grupo y al cargar las fuentes. Si el grupo no cabe, se desplaza en horizontal dentro de sí mismo y la opción activa queda a la vista al entrar. jsdom no mide: las pruebas simulan las medidas y lo visual va a la comprobación humana (H-1). | (b) Seis columnas iguales (`grid-cols-6`, `w-1/6`): el grupo se desplaza en horizontal incluso en escritorio (unos 1,400 px). (c) Sin indicador deslizante, con el fondo en la opción activa: lo más simple y robusto, pero cambia la regla del control (§7.3) para todos sus usos futuros. |
+| DH-04 | **Cómo se ven los temas en "Recursos"** (P-05 deja el diseño a este plan). | Dos bloques en este orden, cada uno una `section` con su `h2` visible ("Recursos de aprendizaje", "Recursos del docente"). Dentro de cada bloque, un panel (`Card`) por tema **que tenga recursos de ese bloque**: "Sin tema" primero y después los temas en su orden, como "Actividades". Los temas se crean, renombran, ordenan y borran solo en "Actividades de aprendizaje" (donde ya se gestionan); en "Recursos" solo se mueve un recurso de tema. | Bloques sin agrupar por tema, con el tema como etiqueta de cada recurso: más simple, pero contradice "los temas organizan también los recursos" (P-05). |
+| DH-05 | **Borrar una duda borra sus respuestas**, de quien sean (RN-07 lo dice de una publicación y su hilo). Un alumno que borra su duda se lleva las respuestas de su maestro. | **Sí**, la misma regla del muro (`ON DELETE CASCADE`). | Un `409` si la duda tiene respuestas de otra persona: regla nueva que el PRD no pide. |
+| DH-06 | **Autorización para tocar un módulo vecino:** el gancho `useAlPulsarLaSeccionActiva` (`features/calificaciones/hooks.ts:72-80`) sube a `components/seccion/hooks.ts` (regla 5: lo usan dos módulos), y `features/calificaciones/hooks.ts` lo reexporta en una línea, sin cambio de comportamiento. Hace falta para que las frases "Vuelve a abrir Actividades de aprendizaje / Recursos / Dudas / Avisos" se cumplan al pulsar la sección estando en ella (N-54, regla de frases de recuperación). | **Sí.** Una línea en `features/calificaciones/hooks.ts`; sus pruebas no cambian. | Copiar el gancho en `features/clases` (dos copias: contra la regla 5) o dejar las frases sin ese camino (contra la regla de frases de recuperación). |
+| DH-07 | **O-16 / O-r2-1 de CHORE-03 03b (`docs/ESTADO.md` §3):** con la vista desmontada y un envío en vuelo, un `400 VALIDACION` de un campo pintado no da mensaje. El plan aplica un remedio común (§D-11) a los formularios que rehace o crea (anuncio, recurso al crear y al editar, duda, respuesta) y a sus **hermanos** de la misma fila que no rehace: comentario, crear y editar clase, y crear y renombrar tema. Al tocar `formulario-comentario.tsx` y `formulario-clase.tsx`, les pone la guarda síncrona con ref (filas 1 y 2 de CHORE-04) y el orquestador las tacha. O-r2-2 (el `titulo:` del material que reaparece al cambiar de tipo) desaparece por construcción: el formulario de anuncios ya no tiene tipo ni título (03d). | **Sí**, los siete componentes de formulario (diez ganchos de mutación, §D-11). | Solo los formularios nuevos o rehechos; la fila queda abierta para el `chore` de foco y navegación con clase, tema y comentario. |
+| DH-08 | **Código que queda sin uso en la interfaz nueva y no se borra en este encargo:** la rama de material y la de tarea de `PublicacionDelMuro` (incluida `TarjetaDeTarea`) y la rama de material de `ElementoDeTrabajo`. Solo se alcanzan con los modos de compatibilidad de DH-02 (b), y sus pruebas siguen verdes. | **No borrar ahora**; se borran con el retiro de compatibilidad (A-13), con su autorización para borrar archivos. | Borrarlos en 03c y 03d: hace falta autorización para borrar archivos y el tester reescribe o retira en la ronda 0 unas 6 pruebas `*.ataque` más. |
+| DH-09 | **Rutas viejas:** `…/alumnos` (maestro y admin) y `…/maestros` (admin) redirigen a `…/personas` con `replace`. `…/trabajo` conserva su segmento con el nombre nuevo ("Actividades de aprendizaje"), y los archivos `muro-view.tsx` y `trabajo-view.tsx` conservan su nombre. | **Sí**: no rompe marcadores ni los enlaces de `features/tareas` (que ya navegan a `…/trabajo`), y evita renombrar archivos con sus pruebas. | Segmentos nuevos (`…/actividades`) con redirección desde `…/trabajo`, y archivos renombrados: más cambios en `features/tareas` y en unas 20 pruebas. |
+| DH-10 | **Autorizaciones de documentos** A-01 a A-13 (textos en "Riesgos y desacuerdos" › "Documentos a actualizar"): `DESIGN.md` (§7.3, §7.16, §7.18, §7.22 y las nuevas §7.30 Recursos y §7.31 Dudas, con marcas "propuesta (CLASES-03x)"), `CLAUDE.md` (fila `clases` y "Ubicaciones compartidas"), `ARCHITECTURE.md` §7 y §14, `ARCHITECTURE-ESSENTIALS.md` ("Tablas", restricciones, "Edición concurrente", "Interfaz") y `docs/ESTADO.md` §3. Los aplica el orquestador al cerrar la subentrega indicada. | **Sí.** | — |
+| DH-11 | **Pruebas que cambian:** el tester reescribe en la ronda 0 las `*.ataque` de §D-R0 (C-1 a C-25) y el programador cambia solo las pruebas normales de las listas cerradas de "Pruebas requeridas" › "Pruebas existentes que el programador puede cambiar". Cualquier otra prueba en rojo es PARADA. | **Sí.** | — |
+| DH-12 | **Textos de la interfaz** (propuesta, tono de `DESIGN.md` §9; §D-13). | Aprobarlos o corregirlos antes de 03c. | — |
+| DH-13 | **Dependencias nuevas:** ninguna. | — | — |
+| DH-14 (Enmienda 1, N-02) | **¿03c en una subentrega o en dos?** 03c junta unos 42 archivos `*.ataque` candidatos (C-7 a C-20 y C-25), 9 grupos de pruebas normales y 18 pruebas requeridas con tres mecanismos de riesgo propio: el indicador medido, las frases R1 y R2 con el gancho compartido, y O-16 con las guardas de CHORE-04. El plan ya trae las dos opciones escritas (§D-7, "Pruebas requeridas" › 03c, la lista cerrada, "Rojos esperados" y "Pasos de implementación"). | **Partir** en **03c1 · navegación y nombres** (secciones con sus nombres, indicador y N-47, rutas y redirecciones, Personas, gancho compartido, todos los textos de 03c, "Avisos" sin "Crear tarea", y las frases R1 y R2 con sus caminos: CL3-C01 a C07, C12, C13, C16 a C18; ronda 0 con C-7 a C-20) y **03c2 · contenido** (filtros `?tipo=anuncio` y `?seccion=actividades`, conteos por sección, el total solo para maestro y admin, `useOrdenarTemas` con espera, O-16 y las guardas de clase, comentario y tema: CL3-C08 a C11, C14, C15; ronda 0 casi solo con C-25). Cada mecanismo llega a su ronda del tester con menos ruido, y ninguna `*.ataque` se toca dos veces porque todos los textos van en 03c1. A diferencia de la propuesta del manager, los caminos de R1 y R2 van en 03c1, con sus textos y su gancho: la regla del 2026-10-26 pide los casos junto con la frase renombrada, y comparan el `pathname`, así que 03c2 no los cambia. | Una sola 03c, como estaba: un commit menos, una ronda 0 y unas rondas del tester más cargadas. No bloquea. |
+| DH-15 (Enmienda 1; S-02 y R-12) | **Recursos del docente de un maestro que ya no da la clase.** Con el plan (RN-07 al pie de la letra), nadie los edita y solo el admin los borra; cualquier maestro de la clase sí los **mueve** de tema (mover organiza la clase). En cambio, con las tareas (P-04 de TAREAS-01), otro maestro de la clase sí edita y borra la tarea de quien se fue. El PRD no lo pide para los recursos. | **Dejarlo como el PRD (RN-07):** el maestro nuevo publica sus propios recursos; el admin borra los que sobren. Es lo que el colegio decidió el 2026-10-26 y no agrega reglas. | (b) El trato de las tareas: un maestro de la clase edita y borra el recurso del docente de un maestro retirado (`puedeEditarRecurso` y `puedeBorrarRecurso` ganan "el autor sigue en la clase", con una lectura de `maestros_de_clase` por PK en la transacción, como `autorYPertenencia` de `tareas.ts`); unas 6 pruebas más en 03a y un texto de RN-07 en el PRD. (c) Que el admin, además de borrarlos, los edite. Cualquiera de las dos es una decisión nueva del PRD. |
+| DH-16 (Enmienda 1; R-08) | **Tres cambios frente a la propuesta (DOCS-04) de `DESIGN.md` §7.16**, que se aprueban con A-02, A-05 y A-06: (a) "Editar recurso" (`…/recursos/:id/editar`) **deja activa la sección "Recursos"** (la propuesta decía que no era una sección); (b) **"Publicar duda" es `primary`** (la acción principal de la vista; la propuesta decía `outline` para los dos formularios de Dudas; "Responder" sí queda `outline`); (c) en "Recursos", **cada bloque es una `section` con su `h2` y sus temas son los paneles (`Card`)** (la propuesta decía "cada bloque un panel"), para no poner un `Card` dentro de otro (§7.2). | **Sí a los tres.** (a) sigue lo que hace `NavLink` con una ruta que cuelga del segmento; (b) cumple "una sola acción principal por vista"; (c) cumple §7.2 y P-05. | (a) Una ruta fuera del segmento (`…/recurso/:id/editar`) para que no quede activa; (b) `outline`, y la vista sin acción principal; (c) bloques como `Card` y temas como subsecciones sin panel. |
+
+## Suposiciones
+
+- S-01 · **Bloque al publicar.** El bloque de un recurso es el del rol de su autor al publicarlo: el admin publica en "Recursos de aprendizaje" y un maestro en "Recursos del docente"; no hay control para elegir bloque. Lo guarda la columna (RN-09; ESSENTIALS lo recomienda frente a derivarlo al leer).
+- S-02 · **Editar un recurso** cambia título, descripción, tema y adjuntos (los conservados, los que salen y los nuevos), con `version` (`409 RECURSO_MODIFICADO`). En "Recursos de aprendizaje" edita solo el admin; en "Recursos del docente", solo su autor (el admin no edita lo de un maestro, solo lo borra: RN-07). A diferencia de las tareas (P-04 de TAREAS-01), un maestro no edita ni borra el recurso de un maestro retirado de la clase: RN-07 no lo prevé para los recursos; solo el admin lo borra. Lo decide el humano en DH-15 (Enmienda 1).
+- S-03 · **Mover un recurso** de tema: en "Recursos de aprendizaje", solo el admin (`403 MOVER_NO_PERMITIDO`); en "Recursos del docente", cualquier maestro de la clase o el admin ("mover organiza la clase", P-02 b de TAREAS-01). Mover un recurso sube su `version` (el formulario de edición lleva el tema), como mover una tarea.
+- S-04 · **Editar o mover un recurso no avisa** a nadie (sin evento; P-11: los avisos los decide NOTIFICACIONES). Publicar un recurso sigue encolando `MATERIAL_CREADO` y un anuncio `PUBLICACION_CREADA`, como hoy. Dudas y respuestas **no encolan nada** (P-11; ESSENTIALS: "DOCS-04 no agrega eventos").
+- S-05 · **Comentarios de los recursos** (P-06): las mismas rutas, reglas y textos que los comentarios del muro; el admin lee sin comentar, como hoy.
+- S-06 · **Dudas.** Sin título; texto de 1 a 2000 caracteres visibles, normalizado como los demás textos largos (`normalizarTextoLargo`); respuestas de 1 a 1000 (como un comentario). Lista de la más reciente a la más antigua, de 20 en 20; respuestas de la más antigua a la más reciente, de 20 en 20, plegables como los comentarios. Sin filtro por "resuelta". Una duda resuelta se sigue respondiendo. El alumno autor no marca su duda como resuelta (solo maestros de la clase y admin, P-07). Quién la marcó no se muestra.
+- S-07 · **Personas.** Estudiante: lo de hoy (maestros y compañeros con correo). Maestro: los maestros de la clase (nombre, de `GET /clases/:claseId`, ya en caché del encabezado; solo lectura) y su roster con el buscador de alta manual (hoy "Alumnos"). Admin: la asignación de maestros (hoy "Maestros") y el roster con el buscador (hoy "Alumnos"). Maestros arriba, alumnos abajo, en los tres.
+- S-08 · **"Foro"** no aparece (P-02): seis secciones en CLASES-03, en el orden Avisos · Actividades de aprendizaje · Recursos · Dudas · Personas · Calificaciones. FORO-01 la inserta en tercera posición.
+- S-09 · **"Avisos"** no ofrece "Crear tarea" (las tareas viven en "Actividades de aprendizaje", donde "Crear tarea" ya es la acción principal). El anuncio conserva su nombre de elemento ("Anuncio", "Publicar anuncio"); la sección se llama "Avisos" (RF-61).
+- S-10 · **Pulsar la sección activa** vuelve a pedir solo lo que está en error (la política del muro de hoy, T-35), no todo: una lista sana no se recarga. Es la política que el `chore` de foco y navegación hereda.
+- S-11 · **"Editar recurso" deja activa la sección "Recursos"** (`…/recursos/:recursoId/editar` cuelga de su segmento, y `NavLink` lo marca). `DESIGN.md` §7.16 lo decía al revés como propuesta (DOCS-04); A-02 lo corrige (R-08). "Categorías de calificación" y el detalle de una tarea siguen sin sección activa.
+- S-12 · **Límites:** "Recursos" pide la primera página de cada tema de 5 en 5 y "Ver más" de 20 en 20, con el mismo tope de 6 lecturas a la vez que "Actividades" (un limitador propio). Los recursos usan los límites de los materiales (título 200, descripción 5000, 5 adjuntos de 25 MB).
+- S-13 · Ningún texto de "Avisos", "Recursos" ni "Dudas" dice "Editado el …" (`docs/ESTADO.md` §3 pide una columna propia para eso; no se agrega).
+
+## Alcance
+
+### Entra, por subentrega (un commit del humano por subentrega)
+
+| Sub | Paquetes | Qué entra |
+|---|---|---|
+| 03a | `shared/`, `backend/` (migración) | Migración `clases_03_recursos` (`publicaciones.bloque` con su reparto por rol, `publicaciones.version`, dos índices). Esquemas de recursos y filtros de sección. `core/recursos.ts` (bloque, permisos de editar, borrar y mover). Recursos: `GET …/recursos`, `GET` y `PUT …/recursos/:recursoId`; publicar con bloque; borrar y mover con la regla del bloque; mover sube la versión del material. Filtros: `GET …/publicaciones?tipo=anuncio`, `GET …/trabajo?seccion=actividades`, `GET …/temas?seccion=`. |
+| 03b | `shared/`, `backend/` (migración) | Migración `clases_03_dudas` (tabla `dudas`, `comentarios.duda_id`, `CHECK` de tres contextos, índices). Esquemas de dudas. `core/dudas.ts`. Rutas de dudas y respuestas (`handlers/clases/dudas.ts`). Sin eventos. |
+| 03c (o 03c1 y 03c2, DH-14; reparto en §D-7) | `frontend/` | Secciones (seis, sin "Foro") con el indicador medido (DH-03) y N-47; gancho compartido `components/seccion/` (DH-06); rutas (`…/personas` en los tres roles, redirecciones de DH-09); "Avisos" (lista de anuncios con `?tipo=anuncio`, sin "Crear tarea", textos); "Actividades de aprendizaje" (`?seccion=actividades` en la lista y en los conteos, textos, frase de recuperación con todos sus caminos: N-54 en esta sección); "Personas" por perspectiva; remedio de O-16 en comentario, clase y tema con las guardas de CHORE-04 filas 1 y 2 (DH-07). |
+| 03d | `frontend/` | "Recursos": vista de dos bloques por tema, fila de recurso con comentarios, borrar y mover; formulario para publicar un recurso; vista "Editar recurso" con `version`; el formulario de "Avisos" queda solo para anuncios (sin tipo, título ni tema); remedio de O-16 en anuncio y recurso. |
+| 03e | `frontend/` | "Dudas": lista, formulario de duda, respuestas plegables con su formulario, "Marcar como resuelta" / "Quitar «Resuelta»" y borrar con confirmación en línea; remedio de O-16 en duda y respuesta. Comprobación humana al final. |
+
+### No entra (con destino)
+
+- La sección "Foro" y todo el foro: FORO-01 (P-02).
+- Avisos de "Dudas" y del foro, y cualquier evento nuevo: NOTIFICACIONES (P-11). Ningún consumidor nuevo.
+- El bloque de grabaciones de "Recursos": ENVIVO (pendiente por confirmar).
+- Duplicar los recursos de aprendizaje y los temas: ADMIN-01 (RF-71); este plan solo deja el dato (`bloque`) que lo hace posible.
+- Clases archivadas en solo lectura: ADMIN-01.
+- Retiro de la compatibilidad de DH-02 y del código sin uso de DH-08: antes del primer DEPLOY (A-13).
+- Unificar los ganchos de foco (`useFilaEnFoco`, `useFocoAlCargarMas`, `useFocoDeLaLista`) y las demás filas del `chore` de foco y navegación: ese `chore`. Este plan solo sube `useAlPulsarLaSeccionActiva` (DH-06) porque lo exige la regla de frases de recuperación.
+- Las guardas de doble clic de CHORE-04 que este encargo no reescribe (filas 3 a 6 y 19 a 22: código, unirse, buscadores, quitar maestro, borrar comentario, borrar publicación, quitar alumno): siguen en CHORE-04. Ver §D-12.
+- Extraer una pieza común entre comentarios y respuestas, o entre `editarTarea` y `editarRecurso`: no se mezcla refactor con funcionalidad.
+
+### Pendientes de `docs/ESTADO.md` que este encargo cierra o toca
+
+| Pendiente | Qué hace el plan | Subentrega |
+|---|---|---|
+| N-47 (comentarios de PR-2C07 en `clase-layout.test.tsx:259` y `:285`, "mide un cuarto") | Las aserciones del indicador cambian con DH-03; los comentarios se reescriben con ellas (lista cerrada de 03c). Se cierra. | 03c |
+| O-16 / O-r2-1 de CHORE-03 03b (`VALIDACION` de un campo pintado con la vista desmontada) | Remedio común §D-11 en los siete formularios (DH-07). Se cierra. | 03c, 03d, 03e |
+| O-r2-2 de CHORE-03 03b (`titulo:` del material que reaparece) | Desaparece: el formulario de anuncios ya no tiene tipo ni título, y el de recursos no tiene tipo. Prueba CL3-D21. Se cierra. | 03d |
+| CHORE-04 filas 1 (`formulario-comentario.tsx:40`) y 2 (`formulario-clase.tsx:97` y `:112`) | Guarda síncrona con ref (§D-12). El orquestador las tacha. | 03c |
+| N-54 ("Vuelve a abrir Trabajo de clase…" no se cumple al pulsar la sección) | Se cumple en "Actividades de aprendizaje", "Avisos", "Recursos" y "Dudas" (§D-10). La fila sigue abierta para el `chore` de foco y navegación con lo que no es de esta sección (`features/clases/data.ts:150`, "La lista cambió mientras la veías…", de la lista de clases del admin, y las demás del inventario). | 03c, 03d, 03e |
+| "Retiro de compatibilidad de CLASES-02" | Se suma la de CLASES-03 (A-13). | al cerrar 03e |
+
+## Diseño
+
+### §D-0 · Decisiones transversales
+
+1. **Todo lo de una clase cuelga de `/clases/:claseId`** y pasa por la cadena completa con su sexto paso (`protegido({ roles, pertenencia })` y `claseDe(request)`). Ningún handler mira rol, inscripción ni autoría a mano: los permisos por elemento los decide `core/` dentro de la transacción del adaptador, con el actor de la petición.
+2. **Un recurso es una publicación de tipo `material`** con `bloque` (S-01). Se publica, se borra y se comenta por las rutas de hoy (`POST` y `DELETE …/publicaciones`, `…/publicaciones/:publicacionId/comentarios`); se lista, se lee y se edita por rutas nuevas (`…/recursos`). No hay tabla nueva para los recursos.
+3. **Compatibilidad (DH-02):** ningún contrato existente cambia de forma. Lo nuevo entra como parámetro opcional (`tipo`, `seccion`) o ruta nueva; sin el parámetro, cada ruta responde lo de hoy.
+4. **Lecturas con cursor en una sola instantánea** (`enTransaccion(…, { instantaneaUnica: true })`): las listas nuevas (recursos, dudas, respuestas) y la lectura de un recurso comprueban lo que exigen y leen la página en la misma instantánea, como `listarPublicaciones` y `listarTrabajo` (ESSENTIALS, "Reglas de datos"). Las escrituras, en READ COMMITTED con `enTransaccion`.
+5. **SQL crudo nuevo solo en `adapters/db/recursos.ts` (03a) y `adapters/db/dudas.ts` (03b)**, que entran en la lista de E6 de `bloqueo-usuario.integracion.test.ts` (Enmienda 2); y ningún comentario nuevo de `app.ts`, `adapters/db/tareas.ts` ni `adapters/db/index.ts` nombra las palabras que vigilan CAL-1A18 y CAL-1B08 (§D-R0, barrido de la Enmienda 2). **Ningún bloqueo `FOR KEY SHARE` nuevo**: el tema se sigue bloqueando con `bloquearTemaParaUsar` (`adapters/db/referencias.ts`, sin cambio). Editar un recurso toma `FOR NO KEY UPDATE` de su fila de `publicaciones`; responder una duda toma `FOR SHARE` de su fila de `dudas` (el patrón de `crearComentario`).
+6. **Nada de estado de pago, restricción, correo, rol ni `version` en las listas nuevas.** El autor sale con `firmaDelAutor` (`{ id, nombre, administracion }`). `version` solo sale en `GET …/recursos/:recursoId`, que solo piden los maestros de la clase y el admin.
+7. **Eventos:** publicar un recurso sigue encolando `MATERIAL_CREADO` (sin cambio); nada nuevo se encola (S-04).
+8. **Frontend:** reutilizar antes de crear. `ComentariosDePublicacion` sirve a los recursos tal cual; `MoverElemento` y `useMoverElemento` sirven a los recursos con las invalidaciones ampliadas; `AdjuntosDePublicacion`, `ListaDeAdjuntosElegidos`, `FirmaDelAutor`, `useFocoAlPerderseElControl` y `lib/errores-de-api.ts` se reutilizan sin cambio. Las respuestas de una duda siguen el patrón de `ComentariosDePublicacion` en componentes propios (otra ruta y otras claves), sin extraer una pieza común (no se mezcla refactor).
+9. **Fechas** en UTC ISO 8601 en la API; toda prueba que compare fechas o textos relativos al tiempo fija el reloj.
+
+### §D-1 · Migración de 03a (`<timestamp>_clases_03_recursos`, una sola carpeta)
+
+1. Tipo enumerado `bloque_recurso` con `aprendizaje` y `docente` (Prisma: `enum BloqueRecurso { aprendizaje docente @@map("bloque_recurso") }`).
+2. `publicaciones.bloque bloque_recurso NULL` (Prisma `bloque BloqueRecurso?`).
+3. Reparto de los materiales existentes, en la misma migración y antes del `CHECK`:
+   ```sql
+   UPDATE publicaciones p
+   SET bloque = CASE WHEN u.rol = 'admin' THEN 'aprendizaje'::bloque_recurso ELSE 'docente'::bloque_recurso END
+   FROM usuarios u
+   WHERE p.autor_id = u.id AND p.tipo = 'material';
+   ```
+   Escrito a mano en el `migration.sql` (Prisma no genera datos). No toca `actualizado_en` (el `UPDATE` crudo no activa `@updatedAt`).
+4. `CHECK publicaciones_bloque_solo_material (bloque IS NULL OR tipo = 'material')`, a mano. Un material con `bloque` nulo sigue siendo válido para la base (DH-02 a): solo lo produce un backend anterior o una prueba que inserta a mano.
+5. `publicaciones.version INTEGER NOT NULL DEFAULT 0` (Prisma `version Int @default(0)`) y `CHECK publicaciones_version_no_negativa (version >= 0)`, a mano. Solo la usan los materiales; las tareas siguen con `tareas.version`.
+6. Índices nuevos:
+   - `(clase_id, tipo, tema_id, creado_en DESC, id DESC)`: "Avisos" (`tipo = 'anuncio' AND tema_id IS NULL`; el `CHECK` de TAREAS-01 garantiza que un anuncio no lleva tema) y "Actividades" (`tipo = 'tarea' AND tema_id = …`).
+   - `(clase_id, bloque, tema_id, creado_en DESC, id DESC)`: "Recursos" por bloque y tema, y sus conteos.
+   - Los índices de hoy no se tocan (compatibilidad).
+7. Compatible hacia atrás: columnas nuevas nulas o con valor por defecto, ningún `CHECK` que un backend anterior viole, ningún índice quitado. `prisma validate` y `prisma format` limpios; el `migration.sql` lleva, en comentario, por qué el reparto y los `CHECK` van a mano. Sin bloques `DO $$ … $$` ni sufijos `_calificaciones` o `_clases_administradas` en el nombre (Enmienda 2: condición del patrón de CL3-A01 y de las pruebas que eligen su migración por sufijo; vale también para la de 03b).
+
+### §D-2 · `core/recursos.ts` (puro, con pruebas unitarias; 03a)
+
+```ts
+import type { ParticipanteDeAutoria } from "./autoria.js"
+
+export type Bloque = "aprendizaje" | "docente"
+
+// S-01: el bloque de un recurso nuevo es el del rol de quien lo publica (solo publican maestros y admin).
+export const bloqueAlPublicar = (autor: ParticipanteDeAutoria): Bloque
+
+// DH-02 (a): el bloque guardado o, si es nulo (backend anterior o inserción a mano), el del rol de su
+// autor: la misma regla del reparto de la migración.
+export const bloqueEfectivo = (bloque: Bloque | null, autor: ParticipanteDeAutoria): Bloque
+
+// RN-07 y S-02: aprendizaje → solo el admin; docente → solo su autor.
+export const puedeEditarRecurso = (actor: ParticipanteDeAutoria, autor: ParticipanteDeAutoria, bloque: Bloque): boolean
+
+// RN-07: el admin, cualquiera; aprendizaje → nadie más; docente → su autor. Nunca un maestro lo de otro.
+export const puedeBorrarRecurso = (actor: ParticipanteDeAutoria, autor: ParticipanteDeAutoria, bloque: Bloque): boolean
+
+// P-05 y S-03: aprendizaje → solo el admin; docente → maestro de la clase o admin (que sea de la clase
+// lo garantiza la cadena); un estudiante, nunca. Recibe al actor entero (Enmienda 1, M-02): el
+// adaptador y el handler la llaman sin leer el rol.
+export const puedeMoverRecurso = (actor: ParticipanteDeAutoria, bloque: Bloque): boolean
+```
+
+- **Ningún archivo fuera de `core/` lee `.rol`** (Enmienda 1, M-02): las cinco funciones reciben objetos `ParticipanteDeAutoria`, así `adapters/db/temas.ts`, `publicaciones.ts`, `recursos.ts` y los handlers no escriben `.rol`, `relacion ===` ni comparan un rol, y la regla de `backend/test/temas-01a-r3.ataque.test.ts:474-481` (sin `.rol` fuera de `core/` en sus archivos, entre ellos `adapters/db/temas.ts` y `handlers/tareas/temas.ts`) sigue sin cambio. El mismo criterio vale para los archivos nuevos aunque esa prueba no los nombre.
+- `bloqueAlPublicar` con un autor estudiante es inalcanzable (la ruta no deja publicar a un estudiante): lanza `ERROR_INTERNO` (`AppError` 500), nunca devuelve un bloque por defecto.
+- Las pruebas recorren la tabla completa de actor (admin, autor maestro, otro maestro, estudiante) × autor (admin, maestro) × bloque (los dos, y el nulo con `bloqueEfectivo`), incluido `puedeMoverRecurso` con un actor estudiante (`false`), y muestran que, con `bloque = bloqueAlPublicar(rol del autor)`, `puedeBorrarRecurso` coincide con `puedeBorrar` de `core/autoria.ts`: borrar por la ruta de hoy no cambia para ningún dato existente.
+- `core/autoria.ts` no cambia. `exigirVersion` (`core/concurrencia.ts`) se reutiliza.
+
+### §D-3 · Rutas y adaptadores de 03a
+
+**3.1 Publicar (sin cambio de ruta).** `POST /clases/:claseId/publicaciones` con `tipo: "material"`: el handler pasa `bloque: bloqueAlPublicar(perfil)` a `crearPublicacion` (`null` en un anuncio). **Firma (Enmienda 1, M-03):** `crearPublicacion` gana el campo opcional `bloque?: Bloque | null`, con `null` por defecto, como `temaId`; así las cinco llamadas directas de las pruebas (`archivos.integracion.test.ts:452`, `muro-admin.integracion.test.ts:246`, `muro.integracion.test.ts:260`, `lecturas-fx-r2.ataque.test.ts:684` y `muro-c-r1.ataque.test.ts:472`) no cambian y crean, como hoy, un material con bloque nulo (que `bloqueEfectivo` resuelve, DH-02 a). La única llamada de producción, en `handlers/clases/muro.ts`, lo pasa siempre: lo comprueba CL3-A05. La respuesta (`publicacionSchema`) no cambia. El evento, igual.
+
+**3.2 Avisos.** `GET /clases/:claseId/publicaciones?tipo=anuncio&cursor=&limite=`: `avisosQuerySchema = paginacionSchema.extend({ tipo: z.literal("anuncio", { error: "tipo: no es válido" }).optional() })`. Con `tipo`, `listarPublicaciones` filtra `tipo = 'anuncio' AND tema_id IS NULL`, también en la comprobación del cursor (un cursor que es un material o una tarea responde `400 VALIDACION` "cursor: no es válido"). Sin `tipo`, lo de hoy. `listarPublicaciones` gana el campo opcional `tipo?: "anuncio"` en su objeto: acepta las llamadas de hoy sin cambio.
+
+**3.3 Actividades.** `GET /clases/:claseId/trabajo?tema=&seccion=actividades&cursor=&limite=`: `trabajoQuerySchema` gana `seccion: z.literal("actividades", { error: "seccion: no es válida" }).optional()`. Con `seccion`, `listarTrabajo` filtra `tipo = 'tarea'` (también el cursor); sin ella, materiales y tareas. `listarTrabajo` gana el campo opcional `seccion?: "actividades"`. FORO-01 sumará `foro` al mismo filtro.
+
+**3.4 Conteos por sección.** `GET /clases/:claseId/temas?seccion=actividades|aprendizaje|docente`: `temasQuerySchema = z.object({ seccion: z.enum(SECCIONES_DE_TEMAS, { error: "seccion: no es válida" }).optional() })` (no estricto: hoy la ruta ignora la consulta). La respuesta tiene **la misma forma** (`listaTemasRespuestaSchema`): todos los temas de la clase, en su orden, con `elementos` y `sinTema` contando solo lo de la sección (`tipo = 'tarea'`; `tipo = 'material' AND bloque = 'aprendizaje'`; `… 'docente'`). Sin `seccion`, el total de hoy. Función nueva `listarTemasDeLaSeccion(claseId, seccion, ejecutor = obtenerDb())` en `adapters/db/temas.ts`, que comparte con `listarTemas` la lectura de los temas y solo cambia el filtro del `groupBy`; `listarTemas` no cambia de firma ni de comportamiento.
+
+**3.5 Lista de recursos.** `GET /clases/:claseId/recursos?bloque=&tema=&cursor=&limite=` — `adapters/db/recursos.ts`, `listarRecursos`.
+- `recursosQuerySchema = paginacionSchema.extend({ bloque: z.enum(BLOQUES_DE_RECURSO, { error: "bloque: elige un bloque válido" }), tema: <el mismo campo de trabajoQuerySchema> })`.
+- En una sola instantánea: el tema (si es un id) existe en la clase o `404 TEMA_NO_ENCONTRADO`; el cursor es un recurso de la misma clase, bloque y tema o `400` "cursor: no es válido"; la página (`tipo = 'material' AND bloque = :bloque` y `tema_id = :tema` o, con "sin-tema", `tema_id IS NULL`, en Prisma `temaId: valor | null` como `listarTrabajo` en `adapters/db/tareas.ts:615-620`, para que el orden `creado_en DESC, id DESC` salga del índice `(clase_id, bloque, tema_id, creado_en DESC, id DESC)`; Enmienda 1, N-03; `limite + 1`); los adjuntos confirmados de la página (una consulta, índice `archivos(publicacion_id)`); el conteo de comentarios de la página (un `groupBy`, índice `comentarios(publicacion_id, …)`).
+- Cada recurso (`recursoSchema`): `{ id, titulo, texto, autor, creadoEn, bloque, adjuntos, comentarios, puedeEditar, puedeBorrar, puedeMover }`. `puedeEditar`, `puedeBorrar` y `puedeMover` con `core/recursos.ts` y el actor de la petición (`puedeMoverRecurso(actor, bloque)` ya devuelve `false` para un estudiante; Enmienda 1, M-02). Vistas previas con `adjuntosParaResponder` (sin cambio).
+- Los materiales con `bloque` nulo no salen (DH-02 a).
+
+**3.6 Leer un recurso para editarlo.** `GET /clases/:claseId/recursos/:recursoId` — `leerRecurso`: maestros de la clase y admin. Un id que no es un material de esa clase (un anuncio, una tarea, otra clase) responde `404 RECURSO_NO_ENCONTRADO`. Responde `{ recurso: recursoDetalleSchema }` = `recursoSchema` + `version` + `tema: { id, nombre } | null`. En una sola instantánea (la publicación, sus adjuntos, su tema y su conteo de comentarios).
+
+**3.7 Editar un recurso.** `PUT /clases/:claseId/recursos/:recursoId` — `editarRecurso`. Cuerpo `editarRecursoSchema = { titulo, texto?, temaId (uuid o null, clave obligatoria), archivoIds, version }` con las reglas de los materiales (`textoConContenidoSchema(200, "Escribe el título del recurso")`, descripción hasta 5000, `archivoIdsSchema` con minúsculas, `version` entero ≥ 0 con mensaje propio). El handler normaliza `titulo` y `texto` (`conTextosNormalizados`) y comprueba en el almacén solo los archivos que no son ya de este recurso (`archivosParaPublicar`), como el `PUT` de una tarea. En una transacción:
+1. `SELECT p.autor_id, p.bloque, p.version FROM publicaciones p WHERE p.id = :id AND p.clase_id = :clase AND p.tipo = 'material' FOR NO KEY UPDATE` (crudo, etiquetado y parametrizado). Sin fila: `404 RECURSO_NO_ENCONTRADO`.
+2. El autor (`{ id, rol }`, por PK, con `SELECT_AUTOR`) y `bloqueEfectivo(bloque, autor)`; `puedeEditarRecurso(actor, autor, bloque)` o `403 EDICION_NO_PERMITIDA` sin escribir. El adaptador pasa los objetos; no lee `.rol`.
+3. `exigirVersion` o `409 RECURSO_MODIFICADO` sin escribir.
+4. Con `temaId`: `bloquearTemaParaUsar` o `404 TEMA_NO_ENCONTRADO` sin escribir.
+5. `UPDATE publicaciones SET titulo, texto, tema_id, version = version + 1` por `id` y `clase_id`.
+6. Archivos con el algoritmo de `editarTarea` (`adapters/db/tareas.ts:496-522`): los conservados deben seguir confirmados en esta publicación (si no, `400 ARCHIVO_INVALIDO`); los que salen pasan a `descartado` sin publicación; los nuevos se confirman con `confirmarArchivos`, que se exporta de `tareas.ts` sin cambiar su cuerpo (solo gana `export`). El tope de 5 lo da el esquema.
+7. Devuelve `leerRecurso` con `tx`: `200 { recurso }`. Sin evento.
+
+**3.8 Borrar un recurso (ruta de hoy).** `DELETE /clases/:claseId/publicaciones/:publicacionId`: `borrarPublicacion` lee también `tipo` y `bloque`; si es un material decide con `puedeBorrarRecurso(actor, autor, bloqueEfectivo(bloque, autor))`; un anuncio sigue con `puedeBorrar`. Mismo `403 BORRADO_NO_PERMITIDO`, misma cascada.
+
+**3.9 Mover (ruta de hoy).** `PUT /clases/:claseId/publicaciones/:publicacionId/tema`: `moverATema` gana el campo obligatorio `actor: ParticipanteDeAutoria` (el handler pasa `perfilDe(request)`). Para un material: lee el autor (`SELECT_AUTOR`) y `bloque`, aplica `puedeMoverRecurso(actor, bloqueEfectivo(bloque, autor))` o `403 MOVER_NO_PERMITIDO` sin escribir (sin `.rol` en `temas.ts`: M-02), y sube `publicaciones.version` en el mismo `UPDATE` que cambia el tema. Una tarea, igual que hoy (sube `tareas.version`, primero la fila de `tareas`). Un anuncio, `409 ANUNCIO_SIN_TEMA` como hoy.
+
+**3.10 Comentarios de un recurso:** sin cambio (las rutas ya aceptan materiales; P-06).
+
+### §D-4 · Migración de 03b (`<timestamp>_clases_03_dudas`)
+
+1. Tabla `dudas`: `id uuid PK default gen_random_uuid()`, `clase_id uuid NOT NULL` (FK `clases` `ON DELETE CASCADE`), `autor_id uuid NOT NULL` (FK `usuarios` `ON DELETE RESTRICT`), `texto text NOT NULL`, `resuelta_en timestamptz(3) NULL`, `resuelta_por uuid NULL` (FK `usuarios` `ON DELETE RESTRICT`), `creado_en`, `actualizado_en` (`@updatedAt`).
+2. `CHECK dudas_resuelta_completa ((resuelta_en IS NULL) = (resuelta_por IS NULL))`, a mano.
+3. Índice `(clase_id, creado_en DESC, id DESC)`.
+4. `comentarios.duda_id uuid NULL` (FK `dudas` `ON DELETE CASCADE`) con índice `(duda_id, creado_en, id)`.
+5. El `CHECK comentarios_un_solo_contexto` se **reemplaza con el mismo nombre**: `num_nonnulls(publicacion_id, entrega_id, duda_id) = 1`. Las filas de hoy lo cumplen y las pruebas que buscan su nombre siguen valiendo.
+6. Prisma: `model Duda` (`@@map("dudas")`) con `respuestas Comentario[]`; `Comentario.dudaId String? @map("duda_id")` con `duda Duda? @relation(…, onDelete: Cascade)`; relaciones inversas en `Usuario` (`dudas`, `dudasResueltas`) y `Clase` (`dudas`).
+7. Compatible hacia atrás: tabla y columna nuevas; el `CHECK` nuevo acepta todo lo que aceptaba el viejo.
+
+### §D-5 · Dudas: `core/dudas.ts`, `adapters/db/dudas.ts` y `handlers/clases/dudas.ts` (03b)
+
+`core/dudas.ts` (puro, con pruebas):
+```ts
+// P-07: marcan "resuelta" los maestros de la clase y el admin; nunca un estudiante (tampoco el autor).
+export const puedeMarcarDuda = (relacion: RelacionConClase): boolean
+```
+Borrar una duda o una respuesta usa `puedeBorrar` de `core/autoria.ts` sin cambio (P-07 y RN-07: el admin todo; cada quien lo suyo; un maestro lo de un estudiante, nunca lo de otro maestro).
+
+Rutas (plugin `dudasHandler` en `handlers/clases/dudas.ts`, registrado junto a `muroHandler`):
+
+| Ruta | `roles` · `pertenencia` | Qué hace |
+|---|---|---|
+| `GET /clases/:claseId/dudas?cursor=&limite=` | estudiante, maestro, admin · inscripción | `listarDudas` en una instantánea: cursor (una duda de la clase o `400`), página `creado_en DESC, id DESC`, conteo de respuestas (`groupBy` por `duda_id`). Cada duda (`dudaSchema`): `{ id, texto, autor, creadoEn, resuelta, resueltaEn, respuestas, propia, puedeBorrar, puedeMarcar }`. |
+| `POST /clases/:claseId/dudas` | estudiante, maestro · inscripción | `crearDuda`; cuerpo `{ texto }` normalizado. `201 { duda }`. |
+| `PUT /clases/:claseId/dudas/:dudaId/resuelta` | maestro, admin · propiedad | `marcarDuda`; cuerpo `{ resuelta }`. `true` pone `resuelta_en = now()` y `resuelta_por` solo si estaba sin resolver (idempotente: marcar dos veces no cambia la fecha); `false` los pone nulos. Sin fila: `404 DUDA_NO_ENCONTRADA`. `200 { duda }`. |
+| `DELETE /clases/:claseId/dudas/:dudaId` | estudiante, maestro, admin · inscripción | `borrarDuda`: lee el autor, `puedeBorrar` o `403 BORRADO_NO_PERMITIDO` sin escribir, borra (las respuestas caen en cascada, DH-05). `204`; sin fila `404 DUDA_NO_ENCONTRADA`. |
+| `GET /clases/:claseId/dudas/:dudaId/respuestas?cursor=&limite=` | estudiante, maestro, admin · inscripción | `listarRespuestas` en una instantánea: la duda existe en la clase (o `404 DUDA_NO_ENCONTRADA`), cursor (una respuesta de esa duda o `400`), página `creado_en ASC, id ASC`. Responde con `listaComentariosRespuestaSchema` (la forma de los comentarios). |
+| `POST /clases/:claseId/dudas/:dudaId/respuestas` | estudiante, maestro · inscripción | `crearRespuesta`: `SELECT id FROM dudas WHERE id = :duda AND clase_id = :clase FOR SHARE` (crudo, etiquetado, parametrizado); sin fila `404 DUDA_NO_ENCONTRADA` sin insertar; inserta el comentario con `duda_id`. `201 { comentario }`. |
+| `DELETE /clases/:claseId/dudas/:dudaId/respuestas/:respuestaId` | estudiante, maestro, admin · inscripción | `borrarRespuesta`: busca por `id`, `duda_id` y `duda: { claseId }`; `puedeBorrar` o `403`; `204`; sin fila `404 RESPUESTA_NO_ENCONTRADA`. |
+
+- Los ids de ruta pasan a minúsculas (patrón de `temaIdParamSchema`).
+- `propia` es `autor.id === perfil.id`; `puedeMarcar` sale de `puedeMarcarDuda(relacion)` (dato de la respuesta, no permiso: la ruta lo exige por su cuenta).
+- **Aislamiento de contextos:** una respuesta no se alcanza por las rutas del muro (que buscan por `publicacion_id`) ni por `DELETE …/mis-comentarios/:comentarioId` (que exige `publicacion: { claseId }`), y un comentario del muro o del hilo privado no se alcanza por las rutas de dudas (que exigen `duda_id`). `publicaciones.ts` y `entregas.ts` no cambian por esto.
+- **Sin eventos** (S-04): ningún `encolar` en `handlers/clases/dudas.ts`.
+
+### §D-6 · Esquemas de `shared/` y errores nuevos
+
+- `shared/src/recursos.ts` (nuevo, 03a): `BLOQUES_DE_RECURSO`, `bloqueDeRecursoSchema`, `recursosQuerySchema`, `recursoIdParamSchema` (minúsculas), `recursoSchema`, `listaRecursosRespuestaSchema` (`{ recursos, siguienteCursor }`), `recursoDetalleSchema`, `recursoRespuestaSchema`, `editarRecursoSchema`, `CODIGOS_RECURSOS` y sus tipos.
+- `shared/src/clases.ts` (03a): `avisosQuerySchema`. `shared/src/tareas.ts` (03a): `trabajoQuerySchema` gana `seccion`; `SECCIONES_DE_TEMAS` y `temasQuerySchema`.
+- `shared/src/dudas.ts` (nuevo, 03b): `crearDudaSchema` (`textoConContenidoSchema(2000, "Escribe tu duda")`), `crearRespuestaSchema` (`textoConContenidoSchema(1000, "Escribe tu respuesta")`), `marcarDudaSchema` (`z.strictObject({ resuelta: z.boolean({ error: "resuelta: debe ser verdadero o falso" }) })`), `dudaIdParamSchema`, `dudaYRespuestaParamSchema`, `dudaSchema`, `dudaRespuestaSchema`, `listaDudasRespuestaSchema`, `CODIGOS_DUDAS` y sus tipos.
+- `shared/src/index.ts` reexporta por nombre. `npm run build` de `shared/` en 03a y 03b.
+- Ningún esquema de respuesta existente gana ni pierde campos (DH-02): ningún doble de prueba cambia por `shared/`.
+
+| Código | HTTP | Mensaje del servidor | Dónde |
+|---|---|---|---|
+| `RECURSO_NO_ENCONTRADO` | 404 | "Ese recurso ya no existe." | leer y editar un recurso |
+| `RECURSO_MODIFICADO` | 409 | "Otra persona guardó este recurso mientras lo editabas. Te mostramos la versión actual." | editar |
+| `MOVER_NO_PERMITIDO` | 403 | "Solo la administración mueve los recursos de aprendizaje." | mover |
+| `EDICION_NO_PERMITIDA` (código de tareas, reutilizado) | 403 | "No puedes editar este recurso." | editar |
+| `DUDA_NO_ENCONTRADA` | 404 | "Esa duda ya no existe." | dudas y respuestas |
+| `RESPUESTA_NO_ENCONTRADA` | 404 | "Esa respuesta ya no existe." | borrar una respuesta |
+
+### §D-7 · Frontend de 03c: secciones, indicador, rutas, Avisos, Actividades y Personas
+
+**Reparto si 03c se parte (DH-14, Enmienda 1, N-02).** **03c1 · navegación y nombres:** 7.1, 7.2 (con N-47), 7.3, 7.4, 7.7, todos los textos de §D-13 de 03c, "Avisos" sin "Crear tarea" (S-09) y los caminos de R1 y R2 (el gancho compartido en `MuroView`, `TrabajoView` y `SeccionDeTema`). **03c2 · contenido:** de 7.5 la URL con `tipo=anuncio`; 7.6 entero salvo los textos (filtro `seccion`, `useTemasDeLaSeccion`, el total solo para maestro y admin, `useOrdenarTemas` con espera, recarga fallida sobre la consulta por sección); §D-11 en comentario, clase y tema; §D-12. Sin partir, 03c es la suma de las dos.
+
+**7.1 Secciones** (`CAPACIDADES_POR_PERSPECTIVA`, `features/clases/data.ts`). Las tres perspectivas, en el orden de RF-60 sin "Foro" (S-08). Cada subentrega suma la suya en su lugar:
+
+| Subentrega | Estudiante, maestro y admin (las tres iguales) |
+|---|---|
+| 03c | `""` Avisos · `trabajo` Actividades de aprendizaje · `personas` Personas · `calificaciones` Calificaciones |
+| 03d | + `recursos` Recursos, entre Actividades y Personas |
+| 03e | + `dudas` Dudas, entre Recursos y Personas |
+
+`TEXTOS_CLASE`: `muro` pasa a `avisos` ("Avisos"), `trabajo` a "Actividades de aprendizaje"; suman `recursos` y `dudas`; `alumnos` y `maestrosDeLaClase` salen si ya nadie las lee. `crearTarea` sale de `CapacidadesDePerspectiva` si ya nadie la lee (S-09).
+
+**7.2 Indicador medido (DH-03)** en `SeccionesDeClase` (`components/secciones-de-clase.tsx`):
+- El `ul` deja la rejilla: `relative flex`, cada `li` a su ancho natural (`shrink-0`, el enlace con `whitespace-nowrap`). Se conservan el `Card` (`w-fit max-w-full overflow-x-auto rounded-card p-1`), el contenedor `relative w-max`, el indicador como hermano anterior del `ul` (`aria-hidden="true"`, `absolute inset-y-0 left-0 rounded-row bg-surface in-data-[material=opaco]:bg-accent-soft transition-transform duration-200 motion-reduce:transition-none`), `aria-current` de `NavLink` y `text-link` en el activo.
+- La posición y el ancho van en dos variables CSS del propio indicador (`style={{ "--indicador-x": "…px", "--indicador-ancho": "…px" }}`) y se aplican con `translate-x-(--indicador-x)` y `w-(--indicador-ancho)`: ningún valor arbitrario entre corchetes. Sin sección activa (`indiceDeSeccionActiva` < 0), el indicador no se monta.
+- Funciones puras en `lib.ts`: `medidaDelIndicador(opcion: { offsetLeft: number; offsetWidth: number }): { x: number; ancho: number }` y `desplazamientoParaVer(contenedor: { scrollLeft: number; clientWidth: number }, opcion: { offsetLeft: number; offsetWidth: number }): number | null` (el `scrollLeft` que deja la opción entera a la vista, o `null` si ya lo está).
+- Un `useLayoutEffect` mide el `li` activo (antes de pintar) al montar y al cambiar la sección activa, y aplica `desplazamientoParaVer` al panel solo en esos dos momentos. Un `ResizeObserver` sobre el `ul` (solo si existe en el entorno) y `document.fonts.ready` (solo si existe) vuelven a medir sin desplazar. Se desconectan al desmontar.
+- `CLASES_DEL_INDICADOR_POR_SECCIONES` y `CLASES_DE_LA_REJILLA_POR_SECCIONES` salen de `data.ts`; `CLASES_DE_POSICION_DEL_INDICADOR` queda con sus dos valores que usa `FormularioPublicacion` (`""` y `"translate-x-full"`) y sale en 03d.
+
+**7.3 Gancho compartido (DH-06).** `components/seccion/hooks.ts` exporta `useAlPulsarLaSeccionActiva(alPulsar)` con el cuerpo exacto de `features/calificaciones/hooks.ts:72-80`; `features/calificaciones/hooks.ts` lo reexporta (`export { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"`) y borra su copia. `MuroView` cambia su efecto de T-35 (`muro-view.tsx:61-71`) por el gancho, con el mismo comportamiento.
+
+**7.4 Rutas** (`app/router.tsx`):
+- `personas` en las tres ramas → `PersonasView`.
+- Maestro: `alumnos` → `<Navigate to="../personas" replace />`. Admin: `alumnos` y `maestros` → lo mismo (DH-09).
+- 03d suma `recursos` (tres ramas) y `recursos/:recursoId/editar` (maestro y admin); 03e suma `dudas` (tres ramas). En la rama del estudiante, `recursos/:recursoId/editar` no existe y cae en `*` (como `tareas/:id/editar`).
+
+**7.5 Avisos** (`muro-view.tsx`, sin renombrar el archivo):
+- `usePublicaciones` pide `…/publicaciones?tipo=anuncio&limite=20[&cursor=…]`; la clave no cambia.
+- Sin el enlace "Crear tarea" (S-09). El formulario de publicar no cambia en 03c (lo rehace 03d).
+- Textos de §D-13 (vacíos por perspectiva, "Ver más avisos", el `h2` solo para lectores "Avisos" y la frase del cursor R1).
+
+**7.6 Actividades de aprendizaje** (`trabajo-view.tsx`, `components/seccion-de-tema.tsx`):
+- `useTrabajo` pide `…/trabajo?tema=…&seccion=actividades&limite=…`; la clave no cambia.
+- Gancho nuevo `useTemasDeLaSeccion(claseId, seccion)`: clave `claveTemasDeLaSeccion(claseId, seccion)` = `[...claveTemas(claseId), seccion]` (en `features/clases/data.ts`), `GET …/temas?seccion=…`, `listaTemasRespuestaSchema`. Por colgar de `claveTemas`, toda invalidación de hoy (`features/clases` y `features/tareas`, no exactas) también la alcanza.
+- La vista toma la estructura (temas, orden, nombres, conteos, "Sin tema" si tiene actividades, el vacío) de `useTemasDeLaSeccion(claseId, "actividades")`. `useTemas(claseId)` (el total, ya en caché por los formularios) queda solo para la frase de borrar un tema, que solo ven el maestro y el admin: se pide con `enabled` solo en esas dos perspectivas (`useTemas(claseId, capacidades.gestionarTrabajo)`), así el estudiante no hace una petición sin uso (Enmienda 1, N-08): `SeccionDeTema` recibe `elementosEnTotal: number | null` (del tema en la lista total; `null` si esa lista no llegó, falló o no tiene el tema) y la confirmación dice `TEXTOS_TEMAS.consecuencia(n)` con el total o, con `null`, `TEXTOS_TEMAS.consecuenciaSinConteo`.
+- `useOrdenarTemas`: `onSuccess` escribe la lista total (como hoy) y **espera** la invalidación de las listas por sección (`await`), así "Subir"/"Bajar" siguen en espera hasta que la vista ya muestra el orden nuevo (el patrón de `useCrearTema`) y el foco de §7.22 no cambia.
+- `invalidarTemasYTrabajo` (`hooks.ts:762`) suma `clavePrefijoDeRecursos(claseId)` en 03d (un tema borrado o un elemento movido cambia "Recursos").
+- Recarga fallida: `useAvisoDeRecargaFallida` sobre la consulta por sección, con el texto renombrado. Frase del cursor de un tema: R2 (§D-10).
+
+**7.7 Personas** (`personas-view.tsx`): `PersonasView` decide por la perspectiva de la ruta (S-07):
+- Estudiante: `PersonasDeLaClase`, sin cambio.
+- Maestro: un panel "Maestro" / "Maestros" (`etiquetaDeMaestros`) con los nombres de `useClase(claseId).data.maestros` (la consulta del encabezado, sin petición nueva), en una lista de solo lectura (`ListaMaestrosDeClase` sin quitar, o la fila de `ListaPersonas` sin correo: lo que no obligue a cambiar esos componentes); después, el contenido de `AlumnosView` (buscador y roster).
+- Admin: el contenido de `MaestrosDeClaseView` (lista con "Quitar" y "Asignar maestro") y después el de `AlumnosView`.
+- Se componen las vistas existentes (cada una lee `:claseId` con `ConClaseDeLaRuta`), sin mover su código.
+- **Choque de atributos en la misma pantalla:** `BuscadorAlumnos` y `BuscadorDeMaestros` marcan sus filas con el mismo `data-candidato-id`, y `MaestrosDeLaClase` (`maestros-de-clase-view.tsx:29`) vigila ese atributo para llevar el foco a su `h2`. Juntos en "Personas" del admin, perder el foco en una fila del buscador de alumnos lo mandaría al encabezado de los maestros. Remedio: `BuscadorDeMaestros` usa `data-candidato-maestro-id` (dos filas y su `useFilaEnFoco`, `buscador-de-maestros.tsx:67`, `:91` y `:136`) y `MaestrosDeLaClase` lo vigila. Ninguna prueba usa ese atributo (grep: 0 en `*.test.*`).
+
+### §D-8 · Frontend de 03d: Recursos
+
+**8.1 Vista** `RecursosView` (`features/clases/recursos-view.tsx`), ruta `…/recursos` en las tres perspectivas:
+- Maestro y admin: arriba, `FormularioRecurso` en modo crear (un `Card`), con la frase de destino bajo su título (`TEXTOS_RECURSOS.destinoDocente` o `destinoAprendizaje` según la perspectiva) y su "Publicar recurso" (`primary`, la única acción principal de la vista).
+- Dos bloques en este orden, cada uno una `section` con su `h2` visible ("Recursos de aprendizaje", "Recursos del docente") y `tabIndex={-1}`. Cada bloque pide `useTemasDeLaSeccion(claseId, bloque)` y pinta "Sin tema" (si `sinTema` > 0) y después cada tema con `elementos` > 0, en su orden (DH-04). Sin secciones: `EstadoVacio` del bloque (§D-13). Error: `MensajeError` solo en ese bloque; recarga fallida con datos: un aviso por fallo de cada bloque (`useAvisoDeRecargaFallida`), con un mismo `id` de `sonner` para los dos bloques, así dos fallos seguidos o simultáneos dejan un solo aviso visible. `useAvisoDeRecargaFallida` gana un cuarto parámetro opcional `idDelAviso`: sin él llama `toast.error(texto)` exactamente como hoy (las pruebas de "Actividades" no cambian); con él, `toast.error(texto, { id })`.
+- Estados de cada bloque: error → cargando → vacío → datos.
+
+**8.2 Sección de un tema** `SeccionDeRecursos` (`components/seccion-de-recursos.tsx`): un `Card` con `h3` ("`<tema>` · n recursos", `tabIndex={-1}`, `data-encabezado-tema`), la lista y "Ver más de `<tema>`" (`outline`, `enEspera={isFetching}`, `fetchNextPage({ cancelRefetch: false })`). Pide `useRecursos(claseId, bloque, tema)`: primera página de 5, "Ver más" de 20, con un limitador propio de 6 lecturas a la vez (`crearLimiteDeConcurrencia`, otra instancia que la de "Actividades"), `signal` de TanStack Query. El cursor vencido da la frase R3. Foco de §7.14 al borrar o mover una fila (al control equivalente de la vecina o al `h3`) y al cargar más (`useFocoAlCargarMas`), con `useFilaEnFoco("data-recurso-id")`.
+
+**8.3 Fila** `ElementoDeRecurso` (`components/elemento-de-recurso.tsx`): `li` con `data-recurso-id` y `tabIndex={-1}`, en `vidrio-fuerte rounded-row p-4` (el patrón de §7.22):
+- Insignia "Recurso" (`muted`, `BookOpen`), `FirmaDelAutor` y fecha; título en `h4`.
+- "Ver recurso" / "Ocultar recurso" (`ghost`, `sm`, `aria-expanded`, `aria-controls`): despliega la descripción (texto plano, `whitespace-pre-line`, `max-w-prose`, `wrap-anywhere`), los adjuntos (`AdjuntosDePublicacion`) y "Ver comentarios (n)" con `ComentariosDePublicacion` (sin cambio: el estudiante y el maestro comentan; el admin lee).
+- Acciones, solo con el permiso del servidor y nunca para la perspectiva del estudiante: "Editar recurso" (enlace con aspecto `outline`, `sm`) si `puedeEditar`; "Borrar recurso" (`ghost`, `sm`, `data-borrar-recurso`) si `puedeBorrar`, con la confirmación en línea de §7.14 ("Se borrará con sus comentarios." o "Se borrará con sus comentarios y adjuntos.", "Sí, borrar recurso" `destructive` con `enEspera` y guarda síncrona, "Cancelar" `outline`); `MoverElemento` si `puedeMover`, con los temas de la consulta por sección del bloque.
+
+**8.4 Ganchos y claves** (`hooks.ts`, `data.ts`):
+- `clavePrefijoDeRecursos(claseId)` = `["clases", claseId, "recursos"]`; `claveRecursos(claseId, bloque, tema)` = `[...prefijo, bloque, tema]`; `claveRecurso(claseId, recursoId)` = `["clases", claseId, "recurso", recursoId]` (fuera del prefijo de las listas: invalidar las listas no recarga la edición).
+- `useRecursos`, `useRecurso` (detalle, para editar), `useCrearRecurso` (`POST …/publicaciones` con `tipo: "material"`; al éxito, "Recurso publicado" e invalida `clavePrefijoDeRecursos` y `claveTemas`; ya no el muro), `useEditarRecurso` (`PUT …/recursos/:recursoId`), `useBorrarRecurso` (`DELETE …/publicaciones/:id`; al éxito, "Recurso borrado", invalida recursos y temas y quita `claveRecurso` de la caché).
+- `useMoverElemento`: invalida además `clavePrefijoDeRecursos` (por `invalidarTemasYTrabajo`) y `claveRecurso` del elemento; `MOVER_NO_PERMITIDO` entra en `CODIGOS_QUE_RENUEVAN_LOS_TEMAS` (renueva las listas: `puedeMover` pasa a `false`).
+- `invalidarComentarios` (`hooks.ts:656`) invalida además `clavePrefijoDeRecursos`: el conteo de comentarios de un recurso vive en su lista.
+- `useCrearPublicacion` (Avisos): sin la rama de material.
+
+**8.5 Formulario** `FormularioRecurso` (`components/formulario-recurso.tsx`), un solo componente con dos modos por props (`{ modo: "crear" }` o `{ modo: "editar", recurso, onGuardado }`), modelado sobre la rama de material de `FormularioPublicacion` y la edición de adjuntos de `FormularioTarea`:
+- Campos: "Título del recurso" (`Input`), "Tema" (`NativeSelect` con "Sin tema"; opciones de `useTemas(claseId)`; en crear, solo si la lista llegó y tiene temas, con la nota de lista fallida de §7.18; en editar, con el tema del recurso elegido o "Sin tema" si ya no está), "Descripción (opcional)" (`Textarea`), adjuntos (en editar, los publicados con "Quitar" en su lista; los elegidos, como hoy). Todos con `autoComplete="off"`.
+- Valida en local con el esquema del servidor (`crearPublicacionSchema` con `tipo: "material"` al crear; `editarRecursoSchema` al editar). Sube cada archivo con `subirArchivo` dentro de su `try/catch`. Guarda síncrona `publicandoRef` antes de cualquier `await`. El botón principal en `enEspera` desde la primera subida hasta la respuesta. Antes de validar en local limpia el error del servidor que viva en su estado (regla de `CLAUDE.md` › Formularios).
+- Crear: al éxito limpia los campos. Editar: al éxito, aviso "Cambios guardados" y navega a `…/recursos`.
+- Editar con `409 RECURSO_MODIFICADO`: aviso con el mensaje del servidor; se pide de nuevo el recurso ("Guardar cambios" sigue en espera, sin `disabled`); al llegar, el formulario se reinicia con la versión actual (lo escrito y los elegidos se descartan) y el foco va a "Título del recurso". Si la recarga falla, lo escrito y la versión se conservan y sale el aviso de recarga fallida. Con `404`, `403` o sin `puedeEditar`, la vista se reemplaza (8.6). Es el patrón de §7.21 "Conflicto al guardar".
+- `CAMPOS_PINTADOS_DEL_RECURSO = { crear: ["titulo", "texto"], editar: ["titulo", "texto"] }` y `erroresDelRecursoDeApi(error, modo)` (envoltorio de `erroresDeFormularioClases`): cualquier otro campo (`temaId`, `archivoIds.<i>`, `tipo`, `version`) se avisa (§D-15).
+
+**8.6 Vista** `EditarRecursoView` (`features/clases/editar-recurso-view.tsx`), ruta `…/recursos/:recursoId/editar` (maestro y admin): `ConClaseDeLaRuta` y `useParams`; raíz con `tabIndex={-1}` y `useFocoAlPerderseElControl` con `claveDeFocoDeLaConsulta` (`components/foco/`); "Lectura fresca al abrir" de §7.21; error → cargando ("Cargando el recurso…") → datos. Reemplazan la vista: la primera carga fallida, `404 RECURSO_NO_ENCONTRADO` o un `VALIDACION` de `recursoId` ("Ese recurso ya no existe."), `403 SIN_ACCESO_A_LA_CLASE` o un `VALIDACION` de `claseId` ("No tienes acceso a esta clase.") y `puedeEditar: false` ("No puedes editar este recurso."), cada una con el enlace "Volver a Recursos". Una recarga que falla con el recurso en caché conserva el formulario y avisa una vez por fallo (§D-13, con la variante "revisa tu conexión" o "inténtalo de nuevo en un momento" de §7.21).
+
+**8.7 Avisos: el formulario solo de anuncios.** `FormularioPublicacion` pierde el control "Tipo de publicación", el título, el tema y su consulta de temas: queda "Anuncio" (`Textarea`), los adjuntos y "Publicar anuncio" (`primary`). Envía `{ tipo: "anuncio", texto, archivoIds }`. `CAMPOS_PINTADOS_DE_LA_PUBLICACION` queda `{ anuncio: ["texto"] }` y `erroresDeLaPublicacionDeApi` sin parámetro de tipo (o con `"anuncio"` fijo). `CLASES_DE_POSICION_DEL_INDICADOR` sale de `data.ts`. O-r2-2 desaparece: ya no hay campo que reaparezca (CL3-D21).
+
+### §D-9 · Frontend de 03e: Dudas
+
+**9.1 Vista** `DudasView` (`features/clases/dudas-view.tsx`), ruta `…/dudas` en las tres perspectivas:
+- `h2` "Dudas" visible (`tabIndex={-1}`) y debajo la frase "Lo que escribas aquí lo ve toda la clase." (`--text-small`, `--muted-foreground`). Para estudiante y maestro, `FormularioDuda` en un `Card` ("Escribe tu duda", `Textarea`, `autoComplete="off"`; "Publicar duda" `primary`, la única acción principal de la vista, con `enEspera` y guarda síncrona). El admin no ve el formulario (P-07).
+- La lista en un `Card`: `ul` con divisores de 1 px en `--border`, sin vidrio fuerte (como §7.25), de la más reciente a la más antigua; "Ver más dudas" (`outline`, `enEspera={isFetching}`, `cancelRefetch: false`). Vacío: "Aún no hay dudas en esta clase.". Cursor vencido: R4.
+
+**9.2 Fila** `ElementoDeDuda` (`components/elemento-de-duda.tsx`): `li` con `data-duda-id` y `tabIndex={-1}`:
+- `FirmaDelAutor` · fecha y, si `resuelta`, la insignia `success` "Resuelta" con `CircleCheck` (§7.8; nunca solo color). El texto plano (`whitespace-pre-line`, `max-w-prose`, `wrap-anywhere`).
+- "Ver respuestas (n)" / "Ocultar respuestas" (`ghost`, `sm`, `aria-expanded`, `aria-controls`).
+- Si `puedeMarcar`: un solo botón (el mismo elemento en los dos estados, para que el foco se quede) "Marcar como resuelta" / "Quitar «Resuelta»" (`ghost`, `sm`, `enEspera`, guarda síncrona, `data-marcar-duda`).
+- Si `puedeBorrar`: "Borrar duda" (`ghost`, `sm`, `data-borrar-duda`) con la confirmación en línea de §7.14: "Se borrará con sus respuestas.", "Sí, borrar duda" (`destructive`, `enEspera`, guarda síncrona) y "Cancelar".
+- Foco de §7.14 al borrar (al "Borrar duda" de la vecina o a su fila, y sin vecinas al `h2`), con `useFilaEnFoco("data-duda-id")`, y al cargar más (`useFocoAlCargarMas`).
+
+**9.3 Respuestas** `RespuestasDeDuda` (`components/respuestas-de-duda.tsx`), montado al abrir: el patrón de `ComentariosDePublicacion` con sus propios ganchos: `h3` solo para lectores "Respuestas" (`tabIndex={-1}`), lista ascendente con divisores, "Borrar" por respuesta con `puedeBorrar` ("Sí, borrar respuesta"), "Ver más respuestas" (`enEspera={isFetching}`), y para estudiante y maestro `FormularioRespuesta` ("Escribe una respuesta", "Responder" `outline`, `enEspera`, guarda síncrona). Cursor vencido: R5.
+
+**9.4 Ganchos y claves:** `claveDudas(claseId)` = `["clases", claseId, "dudas"]`; `claveRespuestas(claseId, dudaId)` = `["clases", claseId, "respuestas", dudaId]` (fuera de la lista, como los comentarios). `useDudas`, `useCrearDuda`, `useMarcarDuda` (al éxito: "Marcada como resuelta" o "Ya no está marcada como resuelta"; invalida `claveDudas` exacta), `useBorrarDuda` ("Duda borrada"; invalida la lista y quita las respuestas de esa duda de la caché), `useRespuestas`, `useResponder` ("Respuesta publicada"; invalida las respuestas y la lista, por el conteo), `useBorrarRespuesta` ("Respuesta borrada"). Con `DUDA_NO_ENCONTRADA`, `RESPUESTA_NO_ENCONTRADA` o `BORRADO_NO_PERMITIDO`, además del aviso se renueva la lista (y las respuestas abiertas): la duda que ya no está desaparece y `puedeBorrar` se actualiza.
+- `CAMPOS_PINTADOS_DE_LA_DUDA = ["texto"]`, `CAMPOS_PINTADOS_DE_LA_RESPUESTA = ["texto"]`, con `erroresDeLaDudaDeApi` y `erroresDeLaRespuestaDeApi` (envoltorios de `erroresDeFormularioClases`).
+
+### §D-10 · Frases de recuperación y sus caminos (regla del 2026-10-26)
+
+Inventario de las frases que este encargo crea, renombra o lleva a un lugar nuevo. Cada camino es un caso de "Pruebas requeridas" con el router real (`rutas` de `app/router`) y el `QueryClient` de `app/providers.tsx` (su `staleTime`), y en cada uno la petición prometida sale sin servir de la caché lo que ya se sabe viejo y la frase desaparece.
+
+| R | Frase (§D-13) | Dónde | Caminos y remedio |
+|---|---|---|---|
+| R1 | "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos." | Lista de Avisos, cursor vencido en "Ver más avisos" | (a) pulsar "Avisos" estando en Avisos: `useAlPulsarLaSeccionActiva` vuelve a pedir la lista en error desde la primera página (sin `cursor`); (b) ir a otra sección y regresar antes del `staleTime`: la consulta en error se vuelve a pedir al montar porque TanStack Query 5.103.2 la marca `isInvalidated` al fallar (`query.js:450-462`), así que está vieja aunque el `staleTime` no haya vencido; no depende de `retryOnMount`, que solo actúa sin datos (Enmienda 1, N-04; la versión es supuesto del caso: si se actualiza la librería, este caso lo vigila); (c) atrás y adelante del historial: igual que (b); (d) "Ver más avisos" no se ofrece mientras está la frase (la lista la reemplaza): el caso lo comprueba. |
+| R2 | "Este tema cambió mientras lo veías. Vuelve a abrir Actividades de aprendizaje para verlo completo." | Un tema de Actividades, cursor vencido | (a) pulsar "Actividades de aprendizaje" estando ahí: cada `SeccionDeTema` en error se vuelve a pedir (N-54 en esta sección); la lista por sección de temas, si está en error, también; (b), (c) y (d) como R1 ("Ver más de `<tema>`" no se ofrece). Otros temas sanos no se piden (S-10). |
+| R3 | "Este tema cambió mientras lo veías. Vuelve a abrir Recursos para verlo completo." | Un tema de un bloque de Recursos, cursor vencido | (a) pulsar "Recursos" estando ahí: cada `SeccionDeRecursos` en error, y la lista por sección de su bloque si está en error; (b), (c), (d) como R1. |
+| R4 | "Las dudas cambiaron mientras las veías. Vuelve a abrir Dudas para verlas completas." | Lista de Dudas, cursor vencido | (a) pulsar "Dudas" estando ahí; (b), (c), (d) como R1. |
+| R5 | "Las respuestas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas." | Respuestas de una duda, cursor vencido en "Ver más respuestas" | (a) "Ocultar respuestas" y "Ver respuestas" (el control que la frase nombra): el bloque se desmonta y, al montarse, pide la primera página; (b) pulsar "Dudas" estando ahí: las respuestas abiertas en error se vuelven a pedir (`RespuestasDeDuda` también usa el gancho); (c) ir a otra sección y regresar: al reabrirlas se piden; (d) "Ver más respuestas" no se ofrece mientras está la frase. |
+| R6 | "Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos." (texto de hoy, `TEXTOS_COMENTARIOS.cambioMientrasLosVeias`) | Comentarios de un recurso (lugar nuevo) | (a) "Ocultar comentarios" y "Ver comentarios (n)"; (b) ir a otra sección y regresar y reabrirlos; (c) "Ver más comentarios" no se ofrece mientras está la frase. Sin cambio de código en `ComentariosDePublicacion`. |
+| R7 | "Algo salió mal. Inténtalo de nuevo." (genérico del módulo) y los mensajes del servidor de `503` ("…Inténtalo de nuevo en unos segundos.") | Cada acción nueva: publicar recurso, guardar recurso, borrar recurso, mover recurso, publicar duda, marcar o quitar «Resuelta», borrar duda, responder, borrar respuesta | Repetir el control: tras el aviso el botón sale de la espera, lo escrito se conserva y un segundo clic envía una petición nueva que, si responde `2xx`, termina como un primer envío correcto. |
+| R8 | "No pudimos actualizar el recurso. Puedes seguir editando; inténtalo de nuevo en un momento." | Edición de un recurso, recarga fallida con un `429` u otro error del servidor | Repetir "Guardar cambios" envía el `PUT` con la versión que se abrió; el aviso no se repite por volver a montar la vista. |
+| R9 (Enmienda 1, M-05) | "Algo salió mal. Inténtalo de nuevo." (`MENSAJES_ERROR_CLASES_GENERALES.generico`) o el texto de conexión, en un `MensajeError` sin botón, en la **primera carga** fallida (5xx, `503` o red) | Cinco lugares nuevos: (1) un bloque de Recursos (su lista de temas por sección); (2) la sección de un tema de Recursos; (3) la lista de Dudas; (4) las respuestas de una duda; (5) "Editar recurso" | En los cinco: (a) pulsar la sección estando en ella ("Recursos" o "Dudas"): `useAlPulsarLaSeccionActiva` vuelve a pedir lo que está en error (en (5), "Recursos" lleva a la lista: es salir y entrar); (b) ir a otra sección y regresar antes del `staleTime` (mismo mecanismo que R1 b); (c) atrás y adelante del historial. Además: en (4), "Ocultar respuestas" y "Ver respuestas"; en (5), "Volver a Recursos" y volver a entrar a "Editar recurso" (la lectura fresca al abrir pide el recurso). En cada camino sale la petición y, si responde `200`, el texto desaparece. |
+
+"No pudimos actualizar Actividades de aprendizaje / Recursos. Mostramos la última versión que tenemos." y "No pudimos actualizar el recurso. Puedes seguir editando; revisa tu conexión." no piden una acción de recuperación en la interfaz: no entran en la tabla (su caso es "un aviso por fallo").
+
+### §D-11 · O-16: un `VALIDACION` de un campo pintado con el formulario desmontado (DH-07)
+
+- Gancho nuevo `useMontado()` en `features/clases/hooks.ts`: devuelve un `ref` que vale `true` mientras el componente que llamó al gancho está montado (efecto con limpieza).
+- Cada gancho de mutación de un formulario lo crea dentro de sí (el formulario es quien lo llama) y, en su `onError` (que corre aunque el formulario ya no esté, T-30), calla un error de campo **solo si el formulario sigue montado**; si no, lo avisa con `mensajeDeErrorClases(error)` (ruta quitada, genérico si queda vacío). Ninguna firma cambia.
+- Ganchos con `onError` propio (la variante de arriba): `useComentar`, `useCrearTema`, `useRenombrarTema` (03c); `useCrearPublicacion` (03d, que rehace su formulario y tiene su prueba CL3-D22; Enmienda 1, N-05), `useCrearRecurso`, `useEditarRecurso` (03d); `useCrearDuda`, `useResponder` (03e).
+- **Variante de `useCrearClase` y `useEditarClase` (Enmienda 1, M-01).** Esos dos ganchos (`hooks.ts:157-184`) no tienen `onError`: todos sus errores los maneja `alFallar` de `formulario-clase.tsx:68-75`, y su éxito, `alTerminar` (`:55-62`: aviso y navegación), por los callbacks de `mutate`, que no corren si el formulario se desmonta. Hoy, con el formulario desmontado, se pierde **cualquier** respuesta (5xx, red, `VALIDACION`, y también el éxito). Remedio: cada gancho crea su `useMontado()` y gana
+  - `onError`: si el formulario sigue montado, **no hace nada** (`alFallar` sigue siendo el único que avisa o marca el campo); si se desmontó, avisa una vez **cualquier** error con `mensajeDeErrorClases(error)` (un `VALIDACION` de campo, sin su ruta; un 5xx o la red, su mensaje; vacío, el genérico). Con un código que redirige `apiClient` (`CODIGOS_QUE_REDIRIGE_EL_CLIENTE`, que exporta `services/apiClient.ts`), no avisa: la página se va.
+  - `onSuccess`: además de sus invalidaciones de hoy, si el formulario se desmontó, avisa "Clase creada" o "Cambios guardados" (`TEXTOS_FORMULARIO_CLASE.avisoCreada` / `avisoGuardada`) **sin navegar**: la persona ya está en otra pantalla y llevarla a la clase le quitaría lo que está haciendo, pero debe saber que se guardó. Con el formulario montado, `alTerminar` sigue dando el aviso y navegando, y el gancho no avisa.
+- El aviso sale una sola vez: el formulario desmontado no pinta nada y el gancho no avisa dos veces (con el formulario montado, sigue sin aviso del gancho).
+
+### §D-12 · Guardas de doble clic (CHORE-04)
+
+- Este encargo reescribe dos controles del inventario y les pone la guarda síncrona con ref antes de `mutate` (y la libera en `onSettled`), conservando `if (… .isError) … .reset()` después de la guarda: fila 1 `features/clases/components/formulario-comentario.tsx:40` y fila 2 `features/clases/components/formulario-clase.tsx:97` y `:112`. El orquestador las tacha en `docs/ESTADO.md` §2b al cerrar 03c (03c2 si se parte).
+- No se reescriben (siguen en CHORE-04): filas 3 a 6 y 19 a 22. `buscador-de-maestros.tsx` (fila 6) solo cambia el nombre de un atributo (§D-7.7), no su control.
+- Todo control nuevo con mutación lleva `enEspera` y guarda síncrona con ref desde su primera versión; todo "Ver más" nuevo, `enEspera={isFetching}` y `cancelRefetch: false`.
+
+### §D-13 · Textos de la interfaz (propuesta, tono de `DESIGN.md` §9; viven en `data.ts`; DH-12)
+
+| Clave | Texto |
+|---|---|
+| `TEXTOS_CLASE.avisos` / `.trabajo` / `.recursos` / `.dudas` / `.personas` | "Avisos" / "Actividades de aprendizaje" / "Recursos" / "Dudas" / "Personas" |
+| `TEXTOS_MURO.tituloLista` (h2 solo para lectores) | "Avisos" |
+| `TEXTOS_MURO.vacioEstudiante` / `vacioMaestro` / `vacioAdmin` | "Aún no hay avisos en esta clase." / "Publica el primer aviso de tu clase." / "Aún no hay avisos en esta clase." |
+| `TEXTOS_MURO.verMasPublicaciones` | "Ver más avisos" |
+| `TEXTOS_MURO.cambioMientrasLoVeias` (R1) | "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos." |
+| `TEXTOS_TRABAJO.vacio` | "Aún no hay actividades en esta clase." |
+| `TEXTOS_TRABAJO.cambioMientrasLoVeias` (R2) | "Este tema cambió mientras lo veías. Vuelve a abrir Actividades de aprendizaje para verlo completo." |
+| `TEXTOS_TRABAJO.recargaFallida` | "No pudimos actualizar Actividades de aprendizaje. Mostramos la última versión que tenemos." |
+| `TEXTOS_TEMAS.consecuenciaSinConteo` | "Sus actividades y recursos pasarán a «Sin tema»." |
+| `TEXTOS_MAESTROS_DE_CLASE.consecuencia` | "Dejará de ver la clase. Lo que publicó se queda en la clase." |
+| `TEXTOS_RECURSOS.aprendizaje` / `.docente` (h2) | "Recursos de aprendizaje" / "Recursos del docente" |
+| `TEXTOS_RECURSOS.vacioAprendizaje` / `.vacioDocente` | "Aún no hay recursos de aprendizaje." / "Aún no hay recursos del docente." |
+| `TEXTOS_RECURSOS.insignia` | "Recurso" |
+| `TEXTOS_RECURSOS.conteo(n)` | "1 recurso" / "`n` recursos" |
+| `TEXTOS_RECURSOS.verRecurso` / `.ocultarRecurso` | "Ver recurso" / "Ocultar recurso" |
+| `TEXTOS_RECURSOS.verMasDe(nombre)` | "Ver más de `<nombre>`" |
+| `TEXTOS_RECURSOS.cambioMientrasLoVeias` (R3) | "Este tema cambió mientras lo veías. Vuelve a abrir Recursos para verlo completo." |
+| `TEXTOS_RECURSOS.recargaFallida` | "No pudimos actualizar Recursos. Mostramos la última versión que tenemos." |
+| `TEXTOS_RECURSOS.editar` / `.borrar` / `.siBorrar` / `.cancelar` | "Editar recurso" / "Borrar recurso" / "Sí, borrar recurso" / "Cancelar" |
+| `TEXTOS_RECURSOS.consecuencia` / `.consecuenciaConAdjuntos` | "Se borrará con sus comentarios." / "Se borrará con sus comentarios y adjuntos." |
+| `TEXTOS_RECURSOS.avisoBorrado` | "Recurso borrado" |
+| `TEXTOS_FORMULARIO_RECURSO.tituloCrear` / `.tituloEditar` (h2) | "Nuevo recurso" / "Editar recurso" |
+| `TEXTOS_FORMULARIO_RECURSO.destinoDocente` / `.destinoAprendizaje` | "Se publicará en Recursos del docente." / "Se publicará en Recursos de aprendizaje." |
+| `TEXTOS_FORMULARIO_RECURSO.campoTitulo` / `.campoTema` / `.campoDescripcion` | "Título del recurso" / "Tema" / "Descripción (opcional)" |
+| `TEXTOS_FORMULARIO_RECURSO.publicar` / `.guardar` / `.cancelar` | "Publicar recurso" / "Guardar cambios" / "Cancelar" |
+| `TEXTOS_FORMULARIO_RECURSO.avisoPublicado` / `.avisoGuardado` | "Recurso publicado" / "Cambios guardados" |
+| `TEXTOS_FORMULARIO_RECURSO.temasNoCargados` | "No pudimos cargar los temas. El recurso se publicará sin tema." |
+| `TEXTOS_EDITAR_RECURSO.cargando` / `.volver` / `.noPuedes` | "Cargando el recurso…" / "Volver a Recursos" / "No puedes editar este recurso." |
+| `TEXTOS_EDITAR_RECURSO.recargaRed` / `.recargaServidor` (R8) | "No pudimos actualizar el recurso. Puedes seguir editando; revisa tu conexión." / "No pudimos actualizar el recurso. Puedes seguir editando; inténtalo de nuevo en un momento." |
+| `MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado` / `.dudaNoEncontrada` / `.respuestaNoEncontrada` | "Ese recurso ya no existe." / "Esa duda ya no existe." / "Esa respuesta ya no existe." |
+| `TEXTOS_DUDAS.titulo` / `.frase` | "Dudas" / "Lo que escribas aquí lo ve toda la clase." |
+| `TEXTOS_DUDAS.campo` / `.publicar` / `.avisoPublicada` | "Escribe tu duda" / "Publicar duda" / "Duda publicada" |
+| `TEXTOS_DUDAS.vacio` / `.verMas` | "Aún no hay dudas en esta clase." / "Ver más dudas" |
+| `TEXTOS_DUDAS.resuelta` | "Resuelta" |
+| `TEXTOS_DUDAS.marcar` / `.quitarMarca` / `.avisoMarcada` / `.avisoDesmarcada` | "Marcar como resuelta" / "Quitar «Resuelta»" / "Marcada como resuelta" / "Ya no está marcada como resuelta" |
+| `TEXTOS_DUDAS.verRespuestas(n)` / `.ocultarRespuestas` | "Ver respuestas (`n`)" / "Ocultar respuestas" |
+| `TEXTOS_DUDAS.borrar` / `.consecuencia` / `.siBorrar` / `.avisoBorrada` | "Borrar duda" / "Se borrará con sus respuestas." / "Sí, borrar duda" / "Duda borrada" |
+| `TEXTOS_DUDAS.cambioMientrasLasVeias` (R4) | "Las dudas cambiaron mientras las veías. Vuelve a abrir Dudas para verlas completas." |
+| `TEXTOS_RESPUESTAS.titulo` (h3 solo para lectores) / `.campo` / `.responder` / `.avisoPublicada` | "Respuestas" / "Escribe una respuesta" / "Responder" / "Respuesta publicada" |
+| `TEXTOS_RESPUESTAS.borrar` / `.siBorrar` / `.avisoBorrada` / `.verMas` | "Borrar" / "Sí, borrar respuesta" / "Respuesta borrada" / "Ver más respuestas" |
+| `TEXTOS_RESPUESTAS.cambioMientrasLasVeias` (R5) | "Las respuestas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas." |
+
+`CODIGOS_CON_MENSAJE_DEL_SERVIDOR` suma `RECURSO_MODIFICADO`, `MOVER_NO_PERMITIDO` y `EDICION_NO_PERMITIDA`; `MENSAJES_POR_CODIGO_DE_CLASES` suma `RECURSO_NO_ENCONTRADO`, `DUDA_NO_ENCONTRADA` y `RESPUESTA_NO_ENCONTRADA` con sus textos de arriba; `TRADUCCION_DE_ERRORES_CLASES.textosPorCampo` suma `recursoId` ("Ese recurso ya no existe.", 03d) y `dudaId` ("Esa duda ya no existe.", 03e), como `claseId`. **Enmienda 3 (b), los demás nombres con prefijo de 03a y 03b:** `tipo`, `seccion` y `bloque` solo viajan en consultas `GET`, cuyo `VALIDACION` da el texto fijo del lugar (`mensajeDeErrorDeConsulta`): no necesitan texto por campo. En 03e se suman además `respuestaId` ("Esa respuesta ya no existe.", porque viaja en la ruta de `DELETE …/respuestas/:respuestaId`, una acción) y `resuelta` (el genérico del módulo, "Algo salió mal. Inténtalo de nuevo.": lo que queda tras quitar la ruta, "debe ser verdadero o falso", no dice nada que la persona pueda hacer, y la interfaz siempre envía un booleano). Así lo esperan CL3-E07 (un aviso legible para `resuelta:`) y §D-15.
+
+### §D-14 · Matriz de avisos, recargas y foco esperada (el programador la entrega desde su primer resumen de 03c, 03d y 03e y el manager la contrasta)
+
+Columnas en todas: disparador · respuesta · qué se renueva · aviso (uno) · foco · en vuelo a la vez · con la vista desmontada. Lo que no se nombra sigue el patrón de hoy de la vista que se reutiliza.
+
+**03c · Avisos (lista), Actividades (lista y temas) y Personas.** Igual que hoy (§7.18 y §7.22) salvo: el cursor vencido da R1 o R2 en lugar del texto viejo; pulsar la sección activa vuelve a pedir solo lo que está en error (sin aviso; si el foco estaba en un control que desaparece, al `h2`/`h3` de la vista); "Subir"/"Bajar" siguen en espera hasta que llega la lista por sección (un solo `PUT` por doble clic; con la vista desmontada, sin aviso de éxito). Formularios de comentario y tema con un `VALIDACION` de su campo y la vista desmontada: un aviso (§D-11).
+
+**03c · Crear y editar clase (variante de §D-11, Enmienda 1, M-01)**
+
+| Disparador | Respuesta | Se renueva | Aviso | Foco | En vuelo a la vez | Desmontada |
+|---|---|---|---|---|---|---|
+| "Crear clase" / "Guardar cambios" | `201` / `200` | Lista del admin, listas de clases (y el detalle al editar), como hoy | "Clase creada" / "Cambios guardados" (de `alTerminar`) | Navega a la clase | Doble clic = una petición (guarda de §D-12) | Un aviso del gancho, el mismo texto; no navega |
+| Lo mismo | `400 VALIDACION` de un campo pintado | — | Ninguno: `ErrorDeCampo` | El campo | — | Un aviso del gancho con el mensaje sin ruta |
+| Lo mismo | `400` fuera de contrato, `404 MAESTRO_NO_ENCONTRADO`, `409` | — | Uno (de `alFallar`) | En el botón | — | Uno, del gancho |
+| Lo mismo | 5xx, `503` o red | — | Uno (de `alFallar`) | En el botón | — | Uno, del gancho (hoy, ninguno) |
+| Lo mismo | Redirige `apiClient` | — | Ninguno | — | — | Ninguno |
+
+**03d · Recursos**
+
+| Disparador | Respuesta | Se renueva | Aviso | Foco | En vuelo a la vez | Desmontada |
+|---|---|---|---|---|---|---|
+| Primera carga de un bloque | `403 SIN_ACCESO_A_LA_CLASE` | — | Ninguno: `MensajeError` en el bloque | El `h2` del bloque si estaba dentro | Los dos bloques: un `MensajeError` por bloque, ningún aviso | Nada |
+| Primera carga de un bloque (su lista de temas por sección) (Enmienda 1, M-05) | 5xx, `503` o red | — | Ninguno: `MensajeError` en el bloque con R9 (el genérico o el de conexión) | El `h2` del bloque si estaba dentro | Los dos bloques fallan: un `MensajeError` en cada uno, ningún aviso | Nada |
+| Primera carga de la sección de un tema (Enmienda 1, M-05) | 5xx, `503` o red | — | Ninguno: `MensajeError` en la sección con R9 | El `h3` de la sección si estaba dentro | Las demás secciones siguen | Nada |
+| Primera carga de "Editar recurso" (Enmienda 1, M-05) | 5xx, `503` o red | — | Ninguno: `MensajeError` con R9 y "Volver a Recursos" | La raíz | — | Nada |
+| Recarga de un bloque con datos | 5xx, `503`, red | Se conserva lo último | Uno por fallo, con el mismo `id` para los dos bloques (un solo aviso visible) | Sin cambio | Los dos bloques fallan: un aviso visible | Ninguno |
+| "Ver más de `<tema>`" | `400` del cursor | — | Ninguno: R3 en la sección | El `h3` de la sección | Un clic durante la recarga no pide nada (`isFetching`) | Nada |
+| "Ver más de `<tema>`" | 5xx o red | Se conservan las filas | Uno | En el botón | Doble clic = una petición | Ninguno |
+| "Publicar recurso" | `201` | Recursos (prefijo) y temas | "Recurso publicado" | Sin cambio (el formulario se vacía) | Doble clic = un `POST` (y una subida por archivo) | El aviso sale |
+| "Publicar recurso" | `400 VALIDACION` de `titulo` o `texto` | — | Ninguno: `ErrorDeCampo` | El campo | — | Un aviso (§D-11) |
+| "Publicar recurso" | `400` fuera de contrato (§D-15) | — | Uno | En el botón | — | Uno |
+| "Publicar recurso" | `404 TEMA_NO_ENCONTRADO` | Temas | El mensaje del servidor | En el botón; el tema vuelve a "Sin tema" | — | El aviso sale |
+| "Publicar recurso" | Falla una subida | — | "No pudimos subir «nombre»…" | En el botón | — | — |
+| "Guardar cambios" | `200` | `claveRecurso` (escrita), recursos y temas | "Cambios guardados" | Navega a Recursos | Doble clic = un `PUT` | El aviso sale; no navega |
+| "Guardar cambios" | `409 RECURSO_MODIFICADO` | `GET` del recurso; reinicio con la versión nueva | El mensaje del servidor | "Título del recurso" | — | El aviso sale; sin recarga |
+| La recarga tras el `409` falla | — | Nada: lo escrito y la versión se conservan | El de recarga fallida (además del del `409`) | En el botón | — | — |
+| "Guardar cambios" | `404 RECURSO_NO_ENCONTRADO`, `403 EDICION_NO_PERMITIDA` o `SIN_ACCESO_A_LA_CLASE` | `GET` del recurso: la vista se reemplaza | Uno | La raíz | — | El aviso sale |
+| "Sí, borrar recurso" | `204` | Recursos y temas; `claveRecurso` fuera | "Recurso borrado" | Vecina o `h3` (§7.14) | Doble clic = un `DELETE` | El aviso sale |
+| "Sí, borrar recurso" | `403 BORRADO_NO_PERMITIDO`, `404` | Recursos | El mensaje | Si la fila desaparece, vecina o `h3` | — | El aviso sale |
+| "Mover" | `200` | Temas, recursos, `claveRecurso` | "Moviste «…» a «…»" | Vecina o `h3` si sale de la sección | Doble clic = un `PUT` (guarda de hoy) | El aviso sale |
+| "Mover" | `403 MOVER_NO_PERMITIDO` | Temas y recursos (`puedeMover` pasa a `false`) | El mensaje del servidor | Si el control desaparece, `h3` | — | El aviso sale |
+| Cualquiera | Redirige `apiClient` | — | Ninguno | — | — | — |
+
+**03e · Dudas**
+
+| Disparador | Respuesta | Se renueva | Aviso | Foco | En vuelo a la vez | Desmontada |
+|---|---|---|---|---|---|---|
+| Primera carga | `403`, 5xx, red | — | Ninguno: `MensajeError` (con 5xx o red, R9) | El `h2` | — | Nada |
+| Primera carga de las respuestas de una duda (Enmienda 1, M-05) | 5xx, `503` o red | — | Ninguno: `MensajeError` en el bloque con R9 | El `h3` del bloque | Otras dudas abiertas siguen | Nada |
+| "Ver más dudas" | `400` del cursor | — | Ninguno: R4 | El `h2` | Clic durante la recarga: nada | Nada |
+| "Publicar duda" | `201` | Dudas | "Duda publicada" | Sin cambio (el campo se vacía) | Doble clic = un `POST` | El aviso sale |
+| "Publicar duda" | `400` de `texto` | — | `ErrorDeCampo` | El campo | — | Un aviso (§D-11) |
+| "Marcar como resuelta" / "Quitar «Resuelta»" | `200` | Dudas (exacta) | "Marcada como resuelta" / "Ya no está marcada como resuelta" | Se queda en el mismo botón | Doble clic = un `PUT` | El aviso sale |
+| Marcar | `404 DUDA_NO_ENCONTRADA` | Dudas: la fila desaparece | El mensaje | Vecina o `h2` | — | El aviso sale |
+| "Sí, borrar duda" | `204` | Dudas; respuestas de esa duda fuera | "Duda borrada" | Vecina o `h2` | Doble clic = un `DELETE` | El aviso sale |
+| Borrar duda | `403 BORRADO_NO_PERMITIDO` / `404` | Dudas | El mensaje | Según la fila | — | El aviso sale |
+| "Responder" | `201` | Respuestas y dudas (conteo) | "Respuesta publicada" | Sin cambio | Doble clic = un `POST` | El aviso sale |
+| "Responder" | `404 DUDA_NO_ENCONTRADA` | Dudas: la fila y su bloque desaparecen | El mensaje | Vecina o `h2` | — | El aviso sale |
+| "Ver más respuestas" | `400` del cursor | — | Ninguno: R5 en el bloque | El `h3` del bloque | — | Nada |
+| "Sí, borrar respuesta" | `204` / `403` / `404` | Respuestas y dudas | "Respuesta borrada" o el mensaje | Vecina o `h3` | Doble clic = un `DELETE` | El aviso sale |
+| Cualquiera | Redirige `apiClient` | — | Ninguno | — | — | — |
+
+### §D-15 · `400 VALIDACION` fuera de contrato, por formulario (regla del 2026-10-13)
+
+La función de traducción del módulo es `mensajeDeErrorClases` (envoltorio de `mensajeDeErrorDeApi` con `TRADUCCION_DE_ERRORES_CLASES`) y, para los campos, `erroresDeFormularioClases` (envoltorio de `erroresDeFormularioDeApi`). Los envoltorios nuevos de este encargo (`erroresDelRecursoDeApi`, `erroresDeLaDudaDeApi`, `erroresDeLaRespuestaDeApi`, y `erroresDeLaPublicacionDeApi` con un solo tipo) recorren `ENTRADAS_FUERA_DE_CONTRATO` (`lib/errores-de-api-fuera-de-contrato.ts`) en sus pruebas. En cada caso: un solo mensaje legible (un aviso o un `ErrorDeCampo` con texto, nunca los dos ni ninguno), lo escrito se conserva y el botón sale de la espera.
+
+| Formulario | Campos pintados | Fuera de contrato que se prueban |
+|---|---|---|
+| Anuncio (`FormularioPublicacion`, 03d) | `texto` | `titulo:` (el campo que antes pintaba el modo material; hoy, ningún modo); `temaId:`; mensaje vacío y de solo espacios; `archivoIds.0:` con texto; rechazo del servidor seguido de un envío que la validación local rechaza |
+| Recurso, crear (03d) | `titulo`, `texto` | `temaId:`; `version:` (campo que solo envía el modo editar y ningún modo pinta); vacío y espacios; `archivoIds.0:`; la secuencia |
+| Recurso, editar (03d) | `titulo`, `texto` | `version:`; `tipo:` (campo que solo envía el modo crear y ningún modo pinta); vacío y espacios; `archivoIds.1:`; la secuencia |
+| Duda (03e) | `texto` | `resuelta:`; vacío y espacios; `texto.0:`; la secuencia |
+| Respuesta (03e) | `texto` | `dudaId:` (da "Esa duda ya no existe.", como `claseId` da el de sin acceso); vacío y espacios; `texto.0:`; la secuencia |
+| Marcar o quitar «Resuelta» (03e; acción sin campos) | ninguno | `resuelta:`; vacío y espacios; `resuelta.0:` |
+| Mover un recurso (03d; `MoverElemento` sin cambio) | ninguno | `temaId:`; vacío; `temaId.0:` |
+
+### §D-R0 · Cambios de contrato que rompen pruebas existentes
+
+Inventario por grep sobre `<R>` = `689c636`. Las `*.ataque` las reescribe el tester en la ronda 0 de su subentrega con el cambio mínimo, su motivo y la tabla de SHA-256; las normales están en las listas cerradas de "Pruebas requeridas". Donde el diseño se eligió para no romper una prueba, se dice. Las filas marcadas "confirma" son candidatas por el grep: en la ronda 0 el tester las corre contra el diseño y, si no rompen, las anota como "sin cambio"; si una no listada rompe, es PARADA del orquestador.
+
+Greps usados (raíz del repositorio): `printRoutes`; `instantaneaUnica: true`; `deleteMany` en inventarios de `lecturas-fx-r2`; `moverATema\(|listarTemas\(|listarTrabajo\(|listarPublicaciones\(`; `"Muro"|TEXTOS_CLASE\.muro`; `Trabajo de clase`; `name: "(Alumnos|Maestros|Personas|Calificaciones)"`; `Vuelve a abrir Trabajo de clase|No pudimos actualizar Trabajo de clase|El muro cambió mientras|Aún no hay tareas ni materiales|Tu maestro aún no ha publicado|Publica el primer anuncio o material|Aún no hay publicaciones en esta clase|Ver más publicaciones|Lo que publicó se queda en el muro`; `Tipo de publicación|Publicar material|"Material"|grupoTipo|publicarMaterial`; `translate-x-\[`; `enEspera=`; `vidrio-fuerte`; `perspectivaDeRuta`; `data-candidato-id` (0 en pruebas).
+
+| C-n | Prueba | Qué fija hoy | Decisión | Sub |
+|---|---|---|---|---|
+| C-1 | `backend/test/sesiones-y-cadena.ataque.test.ts:543-680` | Inventario exacto de rutas bajo `/api` | Suma en 03a `GET`, `HEAD` de `/api/clases/:claseId/recursos` y de `/api/clases/:claseId/recursos/:recursoId`, y `PUT /api/clases/:claseId/recursos/:recursoId` (5); en 03b `GET`, `HEAD`, `POST` de `…/dudas`, `PUT …/dudas/:dudaId/resuelta`, `DELETE …/dudas/:dudaId`, `GET`, `HEAD`, `POST` de `…/dudas/:dudaId/respuestas` y `DELETE …/dudas/:dudaId/respuestas/:respuestaId` (9). Ninguna pública. | 03a, 03b |
+| C-2 | `backend/test/lecturas-fx-r1.ataque.test.ts:758-816` | Usos de `instantaneaUnica: true` por archivo de `adapters/db` | Suma `"adapters/db/recursos.ts:2"` (03a: `listarRecursos`, `leerRecurso`) y `"adapters/db/dudas.ts:2"` (03b: `listarDudas`, `listarRespuestas`); el título suma las cuatro. `publicaciones.ts`, `tareas.ts` y `temas.ts` no cambian su cuenta (las lecturas filtradas viven en las funciones de hoy). | 03a, 03b |
+| C-3 | `backend/test/lecturas-fx-r2.ataque.test.ts:966` | Conjunto exacto de modelos que se borran en `backend/src` | Suma `"duda"` (`borrarDuda`). Las respuestas se borran como `comentario`, que ya está. | 03b |
+| C-4 | `backend/test/tareas-01a-r1.ataque.test.ts:738` | Lee el cuerpo de `moverATema` | Confirma: `moverATema` gana `actor`, la lectura del autor y del bloque, y la versión del material. Cambio mínimo para que siga protegiendo lo que protegía (la tarea sube su versión antes que la publicación). | 03a |
+| C-5 | `backend/test/temas-01a-r1.ataque.test.ts:1035` y `temas-01a-r3.ataque.test.ts:440-470` | Inventarios de archivos de `adapters/db` y `handlers/tareas/` | Confirma con `recursos.ts` y `dudas.ts` nuevos en `adapters/db` y `dudas.ts`/`recursos.ts` en `handlers/clases/` (no en `handlers/tareas/`). | 03a, 03b |
+| — | `backend/test/temas-01a-r3.ataque.test.ts:474-481` (Enmienda 1, M-02) | Ni `.rol`, ni `relacion ===`, ni un rol comparado a mano fuera de `core/` en sus archivos (entre ellos `adapters/db/temas.ts` y `handlers/tareas/temas.ts`) | **Diseño (§D-2):** `core/recursos.ts` recibe objetos `ParticipanteDeAutoria`; `moverATema` y los handlers no escriben `.rol`. No cambia. | 03a |
+| — | Las cinco llamadas directas a `crearPublicacion(` (`archivos.integracion.test.ts:452`, `muro-admin.integracion.test.ts:246`, `muro.integracion.test.ts:260`, `lecturas-fx-r2.ataque.test.ts:684`, `muro-c-r1.ataque.test.ts:472`) (Enmienda 1, M-03) | La firma de `crearPublicacion` | **Diseño (§D-3.1):** `bloque` es opcional con `null` por defecto. No cambian. | 03a |
+| C-6 | `backend/test/instantanea-01b-r1.ataque.test.ts:553` | Lista de funciones de lectura que deben llevar la instantánea | Confirma; si es una lista cerrada, suma `listarRecursos`, `leerRecurso` (03a), `listarDudas`, `listarRespuestas` (03b). | 03a, 03b |
+| — | `backend/test/hilo-01c-r1.ataque.test.ts:718` | `FOR KEY SHARE` solo en `entregas.ts` y `referencias.ts` | **Diseño** (§D-0.5): ningún `FOR KEY SHARE` nuevo. No cambia. | 03a, 03b |
+| — | `backend/test/muro-c-r1.ataque.test.ts:628` | Quién nombra las colas de avisos | **Diseño:** `recursos.ts` y `dudas.ts` no nombran colas; publicar un recurso sigue en `muro.ts`. No cambia. | 03a, 03b |
+| — | `backend/test/lecturas-fx-r2.ataque.test.ts:918-952` | Solo `handlers/clases/muro.ts` llama a `listarComentarios` y `listarPublicaciones`, con un argumento | **Diseño:** `muro.ts` sigue llamándolas con un objeto; las respuestas usan `listarRespuestas` de `dudas.ts`. No cambia. | 03a, 03b |
+| — | Pruebas de la migración y de los `CHECK` (`migracion-tareas.integracion`, `migracion-01a-r1.ataque` y las que buscan `comentarios_un_solo_contexto`) | Nombres y efectos de los `CHECK` | **Diseño:** el `CHECK` de comentarios conserva su nombre y acepta lo mismo; `bloque` es nulo permitido (`ayudas-tareas.ts` y las inserciones a mano siguen valiendo). No cambian. | 03a, 03b |
+| C-7 | `frontend/src/components/layout/estatico-r1.ataque.test.ts:138-158` | Lista exacta de valores arbitrarios de maquetación | Quita `translate-x-[200%]`, `translate-x-[300%]` y `translate-x-[400%]` (el indicador medido no los usa y `CLASES_DE_POSICION_DEL_INDICADOR` queda con dos valores). `translate-x-(--indicador-x)` y `w-(--indicador-ancho)` no casan con su patrón (`-\[`). | 03c |
+| C-8 | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx:217-238` | Secciones de las tres perspectivas | Las listas pasan a §D-7.1 (03c: cuatro; 03d: suma "Recursos"; 03e: suma "Dudas"). La sección activa y el indicador montado se comprueban con medidas simuladas. | 03c, 03d, 03e |
+| C-9 | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx:360-364` | Secciones del admin | Igual que C-8. El recorrido de abajo, si entra por "Alumnos" o "Maestros", entra por "Personas". | 03c, 03d, 03e |
+| C-10 | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | Clases del indicador de secciones (`w-1/N`, `translate-x-…`) y el grupo "Tipo de publicación" | 03c: las aserciones del indicador de secciones pasan a medidas simuladas (`--indicador-x`, `--indicador-ancho`). 03d: los casos del grupo "Tipo de publicación" quedan sin objeto (el formulario de anuncios no tiene tipo); el tester los retira con su motivo o los lleva a la regla de §7.3 sobre otro control de dos botones que sí exista ("Entregas después de la fecha límite"). | 03c, 03d |
+| C-11 | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` y `secciones-01d-r4.ataque.test.tsx` | Nombres y posiciones de las secciones con "Calificaciones" | Nombres de §D-7.1; el indicador con medidas simuladas. | 03c, 03d, 03e |
+| C-12 | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx`, `-r2`, `-r3` | Enlaces de sección por nombre | Confirma: cambian solo si nombran "Muro", "Trabajo de clase", "Alumnos" o "Maestros" como sección. | 03c |
+| C-13 | `frontend/src/app/barra-02d-r1.ataque.test.tsx`, `app/foco-barra-02d-r2.ataque.test.tsx`, `app/foco-pestana-02d-r3.ataque.test.tsx`, `features/clases/foco-pestana-02d-r3.ataque.test.tsx` | El enlace "Muro" de la clase | "Muro" → "Avisos" (y lo que dependa de "Alumnos"/"Maestros" como sección, por "Personas"). | 03c |
+| C-14 | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` y `muro-recuperar-c-r4.ataque.test.tsx` | "Muro" y la frase del cursor del muro | "Avisos" y R1. Los caminos que ya prueban quedan como casos de R1. | 03c |
+| C-15 | `frontend/src/app/rutas-01d-r1.ataque.test.tsx`, `app/rutas-02c-r1.ataque.test.tsx`, `app/rutas-clases-r1.ataque.test.tsx`, `app/router.ataque.test.tsx`, `app/registro-maestro-03b-r1.ataque.test.tsx` | Rutas `…/alumnos` y `…/maestros` y el nombre de sus enlaces | Confirma: `…/alumnos` y `…/maestros` redirigen a `…/personas` (DH-09); el contenido sigue ahí. | 03c |
+| C-16 | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx`, `muro-c-r2.ataque.test.tsx`, `muro-c-r3.ataque.test.tsx`, `muro-02c-r1.ataque.test.tsx`, `cargar-mas-02c-r2.ataque.test.tsx`, `foco-02c-r3.ataque.test.tsx`, `archivos-d-r1.ataque.test.tsx`, `archivos-d-r3.ataque.test.tsx` | Textos del muro ("Ver más publicaciones", vacíos, la frase del cursor) y el enlace "Crear tarea" del muro | Textos de §D-13; "Crear tarea" ya no está en Avisos (S-09). | 03c |
+| C-17 | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx`, `trabajo-01e-r2.ataque.test.tsx`, `ver-mas-01e-r3.ataque.test.tsx`, `recuperar-ch3-r1.ataque.test.tsx`, `formularios-ch3-r1.ataque.test.tsx`, `errores-ch3-r1.ataque.test.ts` | Textos de "Trabajo de clase" y su frase del cursor | Textos de §D-13 (R2, recarga fallida, vacío). Los dobles de `…/temas` siguen valiendo para la consulta por sección (misma forma). | 03c |
+| C-18 | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` | "Lo que publicó se queda en el muro." | "Lo que publicó se queda en la clase." | 03c |
+| C-19 | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts:99` | Quién llama a `perspectivaDeRuta` | Suma `personas-view.tsx` (03c), `recursos-view.tsx` (03d) y `dudas-view.tsx` (03e). | 03c, 03d, 03e |
+| C-20 | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx`, `alumnos-b-r1.ataque.test.tsx` a `alumnos-b-r5.ataque.test.tsx` | `PersonasView` o `AlumnosView` montadas en su ruta | Confirma: `PersonasView` decide por la perspectiva de la ruta; con una ruta de estudiante, lo de hoy. | 03c |
+| C-21 | `frontend/src/styles/clases-r1.ataque.test.ts:154` (V-06) | Cuántos `enEspera=` hay y dónde | 03c: sin cambio (ningún control nuevo con espera). 03d: de 61 a 64, la lista suma `features/clases/components/formulario-recurso.tsx: 1`, `components/elemento-de-recurso.tsx: 1` y `components/seccion-de-recursos.tsx: 1`, y `recursos-view.tsx` y `editar-recurso-view.tsx` en 0. 03e: de 64 a 71, suma `dudas-view.tsx: 1`, `components/formulario-duda.tsx: 1`, `components/elemento-de-duda.tsx: 2`, `components/respuestas-de-duda.tsx: 2` y `components/formulario-respuesta.tsx: 1`. | 03d, 03e |
+| C-22 | `frontend/src/styles/clases-r1.ataque.test.ts:324` (V-07) | Archivos con `vidrio`, `vidrio-fuerte` y `vidrio-azul` | 03d: `vidrio-fuerte` suma `features/clases/components/elemento-de-recurso.tsx`. 03e: sin cambio (las dudas van en un `Card` con divisores). | 03d |
+| C-23 | `frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx`, `formularios-ch3-r2.ataque.test.tsx`, `archivos-d-r1.ataque.test.tsx`, `archivos-d-r2.ataque.test.tsx`, `muro-c-r2.ataque.test.tsx`, `app/muro-rutas-c-r1.ataque.test.tsx`, `ver-mas-01e-r3.ataque.test.tsx`, `styles/clases-r1.ataque.test.ts` (textos) | Publicar un material desde el formulario del muro ("Material", "Publicar material", "Tipo de publicación", el `titulo:` y el tema) | El material se publica desde "Recursos" (`FormularioRecurso`, "Publicar recurso", sin grupo de tipo). Cada caso se lleva a `FormularioRecurso` si su propiedad sigue valiendo (subidas, `ErrorDeCampo`, `VALIDACION`, lista fija mientras se publica) o se retira con su motivo si era del cambio de tipo. | 03d |
+| C-24 | `frontend/src/app/router.ataque.test.tsx` y las de C-15 | Inventario de rutas de la clase | Confirma: suma `recursos` y `recursos/:recursoId/editar` (03d) y `dudas` (03e). | 03d, 03e |
+| — | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx:417` | Nada de `components/` importa de `features/` | **Diseño:** `components/seccion/hooks.ts` solo importa de `react-router` y `react`. No cambia. | 03c |
+| — | Pruebas de `features/tareas` que nombran "Trabajo de clase" (`detalle-tarea-view.test`, `entregas-01d.test`, `entregas-01e.test`, `recuperar-ch3.test` y sus `*.ataque`) | Ruta `…/trabajo` tras borrar una tarea y títulos de casos | **Diseño (DH-09):** el segmento `trabajo` no cambia y `features/tareas` no se toca. No cambian salvo que aserten el nombre visible de la sección; si alguna lo hace, es C-n del tester en 03c. | 03c |
+| C-25 (Enmienda 1, N-02) | Las `*.ataque` de `features/clases` y `app/` cuyos dobles comparan exacto la URL completa (con su consulta) de `…/publicaciones`, `…/trabajo` o `…/temas`, o que cuentan las peticiones a `…/temas` (grep: `` `/temas` ``, `"/temas"`, `search`, `searchParams`, `toHaveBeenCalledTimes` junto a `temas`) | La URL y el número de peticiones de Avisos y Actividades | Confirma: con `tipo=anuncio`, `seccion=actividades` y la segunda consulta de temas (solo maestro y admin, N-08), el cambio mínimo en el doble o en la cuenta. Casi todos comparan `pathname` o `startsWith` (verificado por el manager) y no cambian. | 03c2 (o 03c) |
+| C-26 (Enmienda 3, b) | `frontend/src/lib/errores-ch3-r2.ataque.test.ts:231-244` (el `INVENTARIO`) y su caso de `:248-256` ("en shared/src, todo mensaje que empieza con «palabra:» es un nombre del inventario…") | Los nombres con prefijo `"<nombre>: …"` que aparecen en los literales de `shared/src` | Suma los nombres nuevos con prefijo de `shared/src/dudas.ts` (§D-6), confirmados por grep sobre los textos que fija el plan: **`dudaId`** ("dudaId: debe ser un identificador válido", `dudaIdParamSchema`), **`respuestaId`** ("respuestaId: debe ser un identificador válido", `dudaYRespuestaParamSchema`) y **`resuelta`** ("resuelta: debe ser verdadero o falso", `marcarDudaSchema`). `crearDudaSchema` ("Escribe tu duda") y `crearRespuestaSchema` ("Escribe tu respuesta") no llevan prefijo, y la paginación reutiliza `paginacionSchema`. Si el programador escribe otro literal `"<nombre>: …"` en `shared/src`, ese nombre entra en esta misma fila. Los nombres de 03a (`tipo`, `bloque`, `recursoId`, `seccion`) los sumó el tester al empezar la ronda 2 de 03a por el Arbitraje 2; no se repiten aquí. La segunda aserción (`conTercero`) no cambia: tras quitar la ruta y el nombre repetido queda "debe ser un identificador válido" o "debe ser verdadero o falso", sin otro nombre con dos puntos. | 03b |
+
+**Prueba normal con inventario de SQL etiquetado (Enmienda 2, PARADA del programador en 03a).** `backend/test/bloqueo-usuario.integracion.test.ts` › "E6" (`:688`) fija la lista exacta de archivos de `adapters/db` que usan `$queryRaw`/`$executeRaw`. El diseño la amplía en 03a con `recursos.ts` (§D-3.7, paso 1) y en 03b con `dudas.ts` (§D-5, `crearRespuesta`), como ya se hizo en AUTH-03b, CLASES-c, TAREAS-01a, TAREAS-01b, ENTREGAS-01b y CALIFICACIONES-01b. Es una prueba normal: la cambia el programador según su lista cerrada (filas de 03a y 03b) y no va en "Rojos esperados", porque no se pone roja en la ronda 0 sino al escribir el adaptador, igual que `lecturas-consistentes.integracion.test.ts:738`.
+
+**Barrido de pruebas normales del backend (Enmienda 2).** Repetí el grep de §D-R0 sobre `backend/test/*.integracion.test.ts`, `backend/test/*.test.ts` y `backend/src/**/*.test.ts` buscando inventarios estáticos (`readdir`/`readdirSync`/`readFileSync` sobre `src/` o `prisma/migrations`, conteos de `$queryRaw`/`$executeRaw`, `FOR SHARE`/`FOR NO KEY UPDATE`/`FOR UPDATE`/`FOR KEY SHARE`, `encolar(` y colas, `deleteMany`, `printRoutes`, `pg_constraint`/`pg_indexes` por nombre, migraciones por sufijo), y leí el árbol de 03a (pasos 1 a 6) para confirmar.
+
+| Prueba normal | Qué fija | Resultado |
+|---|---|---|
+| `bloqueo-usuario.integracion.test.ts` › E6 | Archivos de `adapters/db` con SQL etiquetado | **Rompe** con 03a (`recursos.ts`) y con 03b (`dudas.ts`): filas nuevas de la lista cerrada. |
+| `calificaciones-estatico.test.ts` › CAL-1A18 (N-01, `:87-127`) y `calificaciones-lecturas-estatico.test.ts` › CAL-1B08 (`:110-135`) | Ningún **comentario** de `app.ts`, `adapters/db/tareas.ts`, `adapters/db/index.ts`, `adapters/db/entregas.ts`, `handlers/tareas/entregas.ts` y otros nombra `COMENTARIO_CREADO`, `AVISO_FALLIDO`, `PUBLICACION_CREADA`, `MATERIAL_CREADO`, `colaDePublicacion`, `DELETE FROM`, `TRUNCATE`, `REPEATABLE READ`, `RepeatableRead`, `Serializable` ni `instantaneaUnica: true` (y fuera de `adapters/db/`, tampoco `enTransaccion`, `instantaneaUnica` ni `isolationLevel`) | **No rompe** hoy: en el árbol de 03a esas palabras solo aparecen en código de `adapters/db/tareas.ts`, no en comentarios. **Condición de diseño:** los comentarios nuevos de 03a y 03b en `app.ts`, `adapters/db/tareas.ts` y `adapters/db/index.ts` no las nombran. |
+| `calificaciones-estatico.test.ts` › CAL-1A18 (`:36-74`) | `handlers/calificaciones.ts`; un `FOR SHARE` en `adapters/db/entregas.ts`; `entregas.ts`, `tareas.ts` e `index.ts` de `adapters/db` no importan `adapters/queue` | No rompe: 03a y 03b no tocan esos archivos salvo `tareas.ts` (un `export` y el filtro) e `index.ts` (exportaciones), sin importar la cola. |
+| `calificaciones-migracion.integracion.test.ts` (CAL-1A01, `:412-508`) y `migracion-maestros-de-clase.integracion.test.ts` (`:23-38`) | Eligen su migración por sufijo (`_calificaciones`, `_clases_administradas`) y aplican las anteriores | No rompe: las nuevas se llaman `…_clases_03_recursos` y `…_clases_03_dudas`. **Condición de diseño:** ningún nombre nuevo termina en esos sufijos; y como CL3-A01 (y su gemelo de 03b, si lo hay) usan el mismo patrón, que parte el SQL en `;` al final de línea, el `migration.sql` de 03a y el de 03b no llevan bloques `DO $$ … $$` ni funciones con `;` internos al final de línea. |
+| `calificaciones-migracion.integracion.test.ts:226-242` y `:573-582`; `migracion-maestros-de-clase.integracion.test.ts:129-160`; `alumnos.integracion.test.ts:642-646` | Restricciones e índices por nombre (de `puntajes_rubrica`, `entregas`, `maestros_de_clase`, `clases`, `inscripciones`) | No rompe: no se quita ni renombra ninguno; el `CHECK` de comentarios conserva su nombre (§D-4). |
+| `higiene-de-pruebas.integracion.test.ts` (`:122`, `:229`, `:251`, `:291`, `:305`, `:541`) | Ningún `LOCK TABLE` sin `NOWAIT` en pruebas; un solo `.$transaction(` (en `cliente.ts`); `setNotFoundHandler`/`setErrorHandler` solo en `handlers/errores.ts`; `.addHook(` solo en `app.ts` y la guarda; ningún método bloqueado; la fábrica de Fastify solo en `app.ts` | No rompe: los adaptadores nuevos usan `enTransaccion` y los handlers `app.get/post/put/delete` con `protegido()`. **Condición de diseño** para las pruebas nuevas de 03a y 03b: sin `LOCK TABLE` (o solo con `NOWAIT`), retenciones con `formadasDetrasDe` y `timeout` explícito. |
+| `guarda-todas-las-rutas.integracion.test.ts`, `middleware-orden.integracion.test.ts`, `gestion-clases-autorizacion.integracion.test.ts` (PR-2A24), `movimientos-inscripcion.integracion.test.ts` (PR-B16g) | Toda ruta bajo `/api` con `protegido()`; rutas de gestión presentes; `RUTAS_PUBLICAS` con 10; ninguna ruta con "movimiento" | No rompe: las rutas nuevas llevan `protegido()`, ninguna es pública y ningún segmento dice "movimiento". |
+| `cola.integracion.test.ts`, `core/eventos/avisos-de-clase.test.ts`, `worker-consumidor.integracion.test.ts` | Las colas declaradas y su política | No rompe: no hay colas nuevas (S-04). |
+| `core/entregas/entregas.test.ts` › PR-1B03 bis (`:329-334`) | `handlers/tareas/tareas.ts` sin `relacion ===` y con `alumnoDeLaRelacion(` | No rompe: el árbol de 03a solo suma `seccion` en ese handler. |
+| `muro.integracion.test.ts:586-599` | Sondea `pg_stat_activity` con `query LIKE '%FOR SHARE%'` mientras retiene su propio comentario | No rompe por inventario; el `FOR SHARE` de `crearRespuesta` (03b) es otra sentencia que esa prueba no dispara. |
+| Las pruebas normales que crean materiales sin bloque (`ayudas-tareas.ts`, `muro.integracion.test.ts:217`, inserciones crudas) o que los mueven o borran | Permisos y listas de hoy | No rompe: `bloque` nulo permitido y `bloqueEfectivo` (DH-02 a); ninguna prueba normal mueve con un maestro un material del admin (grep de `crearMaterialConTemaDePrueba` con autor admin y de `/tema` en `muro-admin.integracion` y `admin-muro-02b-r1`: 0). |
+
+**`*.ataque` de 03b no inventariadas:** el mismo barrido sobre las `*.ataque` (incluidas `arquitectura-cuentas-r1`, `tareas-01b-r1:773-790`, `hilo-01c-r1:718`, `entregas-01b-r1:1002-1031`, `calificaciones-estatico-01a-r1` y `-01b-r1`, `migracion-01a-r1`, `sexto-paso-02a-r1`, `muro-c-r2:321`) no encontró ninguna que rompa con 03b fuera de C-1, C-2, C-3, C-5 y C-6. (Enmienda 3: ese barrido era solo del backend; la `*.ataque` del frontend que rompe con 03b es C-26, abajo.)
+
+**Barrido del frontend contra los cambios de `shared/` y del backend de 03a y 03b (Enmienda 3, c).** Busqué en todas las pruebas de `frontend/src` (normales y `*.ataque`) las que leen fuentes de `shared/src` o de `backend/src` (`import.meta.glob`, `readFileSync`, rutas `../../../shared` o `../../../backend`) y las que fijan códigos, textos o esquemas de `shared/` que 03a o 03b cambian (`Object.keys(CODIGOS…)`, esquemas de consulta, listas exhaustivas). Con el código de 03a ya en el árbol:
+
+| Prueba | Qué lee o fija | Resultado |
+|---|---|---|
+| `lib/errores-ch3-r2.ataque.test.ts` (`:197-209`, `DE_SHARED` y `DEL_BACKEND`) | Los literales `"<nombre>: …"` de `shared/src` contra su `INVENTARIO` (`:248-256`), y que en el backend ningún mensaje con prefijo siga con otro nombre en camelCase (`:258-266`) | **Rompe** con 03a (arbitrado: el tester suma `tipo`, `bloque`, `recursoId` y `seccion` en la ronda 2 de 03a) y con 03b (**C-26**: `dudaId`, `respuestaId`, `resuelta`). El caso del backend no rompe: los mensajes nuevos de 03a y 03b ("Ese recurso ya no existe.", "Esa duda ya no existe.", "cursor: no es válido"…) no siguen con otro nombre, y la lista usa `arrayContaining`. |
+| `lib/errores-de-api.test.ts` (CH3-A25, `INVENTARIO` de `:400-471`, con `trabajoQuerySchema` en `:463-470`) | Casos de rutas dobles reales de esquemas de `shared/` | No rompe: es una lista de casos, no exhaustiva; `trabajoQuerySchema` gana `seccion` opcional y el caso de `tema` da lo mismo. |
+| `features/admin/errores-ch3.test.ts:26-28` y `features/admin/formularios-ch3.test.tsx:42-44` | Citan `backend/src/handlers/admin.ts` y `validacion.ts` solo en comentarios | No rompen: no leen fuentes. |
+| Las demás que usan `import.meta.glob` (`styles/clases-r1`, `components/layout/estatico-r1`, `lib/estatico-ch3-r1` y `-r2`, `lib/errores-de-api-estatico`, `lib/errores-ch3-r1`, `services/apiClient-ch3` y `-r1`, `features/clases/estatico-r1`, `estatico-02c-r1`, `errores-ch3`, `errores-ch3-r1`, `ver-mas-01e-r3`, `refactor-01c-r1`, `reloj-01e-r4`, `features/tareas/*` y `features/calificaciones/estatico-01d*`, `features/admin/cuentas-r1` y `maestros-03b-r1`) | Leen solo `frontend/src` | No rompen con 03a ni con 03b, que no tocan `frontend/`. Las que rompen con 03c a 03e ya están en C-7 a C-25. |
+| Ninguna prueba del frontend recorre `Object.keys`/`Object.values` de un `CODIGOS_…` de `shared/` | — | Los códigos nuevos (`CODIGOS_RECURSOS`, `CODIGOS_DUDAS`) son objetos nuevos; `CODIGOS_CLASES` y `CODIGOS_TAREAS` no cambian. |
+
+Confirmo lo que encontró el manager: solo cuatro archivos del frontend nombran `shared/src` o el backend, y solo `errores-ch3-r2.ataque` los lee y rompe.
+
+**Rojos esperados.** Entre el cierre de la ronda 0 de cada subentrega y la entrega del programador solo pueden estar rojas las de esta tabla; cualquier otra es PARADA del orquestador. Las pruebas normales de la lista cerrada (como E6 de `bloqueo-usuario.integracion`) se ponen rojas al escribir el código y las corrige el programador en su misma entrega (Enmienda 2).
+
+| Sub | Rojas tras la ronda 0 | Pasan a verde en |
+|---|---|---|
+| 03a | C-1, C-2 (y C-4 a C-6 si el tester las cambió) | Pasos 5 a 8 de 03a |
+| 03b | C-1, C-2, C-3 (y C-5, C-6 si cambiaron). **C-26** (Enmienda 3, b) se reescribe en la ronda 0 pero no queda roja: sumar al `INVENTARIO` nombres que todavía no existen en `shared/src` no cambia el resultado; si el tester no la reescribiera, se pondría roja en el paso 1 de 03b (`shared/src/dudas.ts`), y eso sería PARADA | Pasos 3 a 5 de 03b |
+| 03c1 (si se parte, DH-14) | C-7 a C-20 que el tester cambió | Pasos 2 a 7 de 03c1 |
+| 03c2 (si se parte) | C-25 que el tester cambió | Pasos 1 a 4 de 03c2 |
+| 03c (sin partir) | C-7 a C-20 y C-25 que el tester cambió | Pasos 2 a 8 de 03c |
+| 03d | C-8 a C-11, C-19, C-21 a C-24 de 03d | Pasos 2 a 7 de 03d |
+| 03e | C-8, C-9, C-11, C-19, C-21, C-24 de 03e | Pasos 2 a 6 de 03e |
+
+## Cambios por capa
+### shared/
+- 03a: `src/recursos.ts` (nuevo), `src/clases.ts` (`avisosQuerySchema`), `src/tareas.ts` (`seccion` en `trabajoQuerySchema`, `SECCIONES_DE_TEMAS`, `temasQuerySchema`), `src/index.ts` (§D-6).
+- 03b: `src/dudas.ts` (nuevo), `src/index.ts` (§D-6).
+- Ningún esquema de respuesta existente cambia (DH-02).
+
+### backend/core/
+- 03a: `core/recursos.ts` (nuevo, §D-2) con `core/recursos.test.ts`.
+- 03b: `core/dudas.ts` (nuevo, §D-5) con `core/dudas.test.ts`.
+- `core/autoria.ts`, `core/concurrencia.ts` y `core/tareas/temas.ts` no cambian.
+
+### backend/adapters/
+- 03a: `adapters/db/recursos.ts` (nuevo: `listarRecursos`, `leerRecurso`, `editarRecurso`); `adapters/db/publicaciones.ts` (`crearPublicacion` con `bloque`; `listarPublicaciones` con `tipo?`; `borrarPublicacion` con la regla del bloque); `adapters/db/temas.ts` (`listarTemasDeLaSeccion` nueva; `moverATema` con `actor`, regla del bloque y `version` del material); `adapters/db/tareas.ts` (`listarTrabajo` con `seccion?`; `export` en `confirmarArchivos`, sin cambiar su cuerpo); `adapters/db/index.ts`; `adapters/README.md` (las lecturas y escrituras nuevas, la instantánea y los bloqueos).
+- 03b: `adapters/db/dudas.ts` (nuevo: `listarDudas`, `crearDuda`, `marcarDuda`, `borrarDuda`, `listarRespuestas`, `crearRespuesta`, `borrarRespuesta`); `adapters/db/index.ts`; `adapters/README.md`.
+- Ningún error de Prisma sale de `adapters/db` sin traducir (`errores.ts`, sin cambio).
+
+### backend/handlers/
+- 03a: `handlers/clases/recursos.ts` (nuevo plugin `recursosHandler`, registrado en `backend/src/app.ts` junto a `muroHandler`, con `prefix: "/api"` y `almacen`); `handlers/clases/muro.ts` (`avisosQuerySchema` y `bloque` al publicar); `handlers/tareas/tareas.ts` (`seccion`); `handlers/tareas/temas.ts` (`temasQuerySchema` en el `GET`; `actor` al mover); `handlers/README.md`.
+- 03b: `handlers/clases/dudas.ts` (nuevo plugin `dudasHandler`, registrado en `backend/src/app.ts` con `prefix: "/api"`); `handlers/README.md`.
+- Cadena exacta de cada ruta en "Autorización".
+
+### backend/workers/
+Sin cambios: ningún evento nuevo ni consumidor (S-04).
+
+### backend/prisma/
+- 03a: migración `<timestamp>_clases_03_recursos` (§D-1); `schema.prisma` (`enum BloqueRecurso`, `Publicacion.bloque`, `Publicacion.version`, dos `@@index`).
+- 03b: migración `<timestamp>_clases_03_dudas` (§D-4); `schema.prisma` (`model Duda`, `Comentario.dudaId`, relaciones inversas, índices).
+- Compatibles hacia atrás. Crear cada migración (`prisma migrate dev`) pide confirmación del humano (`AGENTS.md`): el programador se detiene y pregunta antes de correrla.
+
+### infra/ y .env.example
+Sin cambios: ningún servicio ni variable nueva.
+
+### frontend/
+- 03c: `components/seccion/hooks.ts` (nuevo); `features/calificaciones/hooks.ts` (la reexportación de DH-06); `features/clases/`: `data.ts`, `types.ts`, `lib.ts`, `hooks.ts`, `components/secciones-de-clase.tsx`, `muro-view.tsx`, `trabajo-view.tsx`, `components/seccion-de-tema.tsx`, `personas-view.tsx`, `maestros-de-clase-view.tsx` (atributo), `components/buscador-de-maestros.tsx` (atributo), `components/formulario-comentario.tsx` y `components/formulario-clase.tsx` (guardas), `components/formulario-tema.tsx` solo si el remedio de §D-11 lo pide (no debería: vive en los ganchos); `app/router.tsx`.
+- 03d: `features/clases/`: `recursos-view.tsx`, `editar-recurso-view.tsx`, `components/seccion-de-recursos.tsx`, `components/elemento-de-recurso.tsx`, `components/formulario-recurso.tsx` (nuevos); `components/formulario-publicacion.tsx` (solo anuncios); `data.ts`, `types.ts`, `lib.ts`, `hooks.ts`; `app/router.tsx`.
+- 03e: `features/clases/`: `dudas-view.tsx`, `components/formulario-duda.tsx`, `components/elemento-de-duda.tsx`, `components/respuestas-de-duda.tsx`, `components/formulario-respuesta.tsx` (nuevos); `data.ts`, `types.ts`, `lib.ts`, `hooks.ts`; `app/router.tsx`.
+- Estructura de módulos de `CLAUDE.md`: tipos en `types.ts` (reexportados de `shared/`), textos y claves en `data.ts`, funciones puras en `lib.ts`, ganchos en `hooks.ts`; ninguna llamada a `fetch` fuera de `apiClient` salvo `subirArchivo`. Sin tokens nuevos: `styles/tokens.css` no cambia.
+- **No se toca** (lista completa en "Pasos de implementación"): `features/tareas`, `features/admin`, `features/auth`, `lib/errores-de-api*.ts`, `services/*`, `app/providers.tsx`, `components/ui/*`, `components/adjuntos/*`, `components/foco/*`, `components/layout/*`, `components/clase/*`.
+
+## Acceso a datos
+
+Ninguna consulta dentro de un ciclo; toda lista paginada (máx. 100); todo SQL crudo etiquetado y parametrizado.
+
+| Consulta | Tablas | Índice | Paginación · transacción |
+|---|---|---|---|
+| Avisos (`listarPublicaciones` con `tipo`) | `publicaciones` (+ `comentarios` agrupado, `archivos` de la página, `maestros_de_clase` solo si hay tareas: nunca con el filtro) | nuevo `(clase_id, tipo, tema_id, creado_en DESC, id DESC)` con `tipo = 'anuncio' AND tema_id IS NULL`; `comentarios(publicacion_id, creado_en, id)`; `archivos(publicacion_id)` | Cursor; instantánea única (la de hoy) |
+| Actividades (`listarTrabajo` con `seccion`) | `publicaciones`, `tareas`, `entregas` del alumno | nuevo `(clase_id, tipo, tema_id, creado_en DESC, id DESC)` con `tipo = 'tarea'`; `entregas (tarea_id, alumno_id)` único | Cursor; instantánea única (la de hoy) |
+| Conteos por sección (`listarTemasDeLaSeccion`) | `temas`, `publicaciones` (un `groupBy` por `tema_id`) | `temas(clase_id, orden, id)`; nuevo `(clase_id, tipo, tema_id, …)` para actividades, nuevo `(clase_id, bloque, tema_id, …)` para recursos | Sin paginar (hasta 30 temas, S-14 de TAREAS-01); sin transacción, como hoy |
+| Recursos (`listarRecursos`) | `temas` (existe), `publicaciones` (página), `archivos` (una consulta), `comentarios` (un `groupBy`), `usuarios` del autor (relación) | nuevo `(clase_id, bloque, tema_id, creado_en DESC, id DESC)`; `archivos(publicacion_id)`; `comentarios(publicacion_id, …)` | Cursor (comprobado contra clase, bloque y tema); instantánea única |
+| Leer un recurso (`leerRecurso`) | `publicaciones` por PK y `clase_id`, `archivos`, `temas` por PK, `comentarios` (`count`) | PK; `archivos(publicacion_id)`; `comentarios(publicacion_id, …)` | Instantánea única |
+| Editar un recurso (`editarRecurso`) | `publicaciones` (`FOR NO KEY UPDATE` por PK), `usuarios` (autor por PK), `temas` (`bloquearTemaParaUsar`), `archivos` (por `publicacion_id` y por ids) | PK; `archivos(publicacion_id)`; PK de `archivos` | Transacción READ COMMITTED (`enTransaccion`) |
+| Borrar un recurso (`borrarPublicacion`) | `publicaciones` por PK y `clase_id` con autor, `archivos`, cascada de `comentarios` | PK; `archivos(publicacion_id)` | Transacción (la de hoy) |
+| Mover (`moverATema`) | `publicaciones` por PK con autor, `tareas` (si es tarea), `temas` | PK | Transacción (la de hoy) |
+| Dudas (`listarDudas`) | `dudas` (página), `comentarios` (un `groupBy` por `duda_id`), `usuarios` (autor) | nuevo `dudas(clase_id, creado_en DESC, id DESC)`; nuevo `comentarios(duda_id, creado_en, id)` | Cursor; instantánea única |
+| Crear, marcar, borrar duda | `dudas` por PK y `clase_id`; cascada de `comentarios` al borrar | PK; `comentarios(duda_id, …)` sirve a la cascada | Transacción READ COMMITTED |
+| Respuestas (`listarRespuestas`) | `dudas` (existe), `comentarios` (página) | PK de `dudas`; nuevo `comentarios(duda_id, creado_en, id)` | Cursor; instantánea única |
+| Responder (`crearRespuesta`) | `dudas` (`FOR SHARE` por PK y `clase_id`), `comentarios` (insert) | PK | Transacción READ COMMITTED |
+| Borrar respuesta | `comentarios` por PK con `duda_id` y `duda.clase_id` | PK | Transacción (lee autor y borra) |
+| Migración de 03a (reparto) | `publicaciones` ⨝ `usuarios`, un `UPDATE` | PK de `usuarios` | Dentro de la migración (una sola sentencia) |
+
+Bloqueos y concurrencia:
+- Editar contra editar: `FOR NO KEY UPDATE` los pone en serie; el segundo ve la versión nueva y responde `409`.
+- Editar contra borrar: el borrado toma la fila; la edición espera y, al confirmar el borrado, no la encuentra (`404`), o el borrado espera a la edición.
+- Editar contra mover: mover hace `UPDATE` de la misma fila (bloqueo de fila): quedan en serie; el que va segundo ve la versión que dejó el primero (mover sube la versión: la edición abierta antes recibe `409`).
+- Comentar un recurso toma `FOR SHARE` de la publicación (hoy): espera a una edición en curso (pocos milisegundos) y no la bloquea en cruz.
+- Responder una duda contra borrarla: `FOR SHARE` contra el `DELETE`; si el borrado confirma antes, la respuesta responde `404` sin insertar; si la respuesta confirma antes, el borrado se la lleva en cascada.
+- Marcar contra borrar: `UPDATE` contra `DELETE` de la misma fila; el que va segundo no encuentra la fila (`404`) o borra la fila marcada.
+- Ninguna transacción de este encargo bloquea `usuarios` ni toma bloqueos consultivos.
+
+## Autorización
+
+Cadena fija en todas las rutas: `authenticate` → `withProfile` → `withPasswordGate` → `withAccess` → `requireRole` → `requireMembership` / `requireOwnership` (sobre `:claseId`) → handler. Nada de esto cambia en `middleware/`.
+
+| Ruta | Puede | No puede (respuesta) | Se omite |
+|---|---|---|---|
+| `GET …/publicaciones?tipo=anuncio`, `GET …/trabajo?seccion=actividades`, `GET …/temas?seccion=` | Lo de hoy (estudiante inscrito, maestro de la clase, admin) | Lo de hoy | — |
+| `GET …/recursos` | Estudiante inscrito (los dos bloques, P-03), maestro de la clase, admin | Sin sesión `401`; alumno restringido `403 ACCESO_RESTRINGIDO`; cambio de contraseña pendiente `403`; clase ajena o inexistente `403 SIN_ACCESO_A_LA_CLASE` | Correo, estado de pago, restricción, rol del autor, `version` |
+| `GET …/recursos/:recursoId` | Maestro de la clase, admin | Estudiante `403 ROL_NO_PERMITIDO`; los demás como arriba | Correo, estado de pago, rol |
+| `PUT …/recursos/:recursoId` | Admin en "aprendizaje"; el autor maestro en "docente" | Estudiante `403 ROL_NO_PERMITIDO`; otro maestro `403 EDICION_NO_PERMITIDA`; admin sobre "docente" `403 EDICION_NO_PERMITIDA`; maestro sobre "aprendizaje" `403 EDICION_NO_PERMITIDA` | — |
+| `POST …/publicaciones` (material) | Maestro de la clase (→ docente), admin (→ aprendizaje) | Lo de hoy | — |
+| `DELETE …/publicaciones/:id` (material) | Admin cualquiera; autor maestro en "docente" | Maestro sobre "aprendizaje" u otro maestro: `403 BORRADO_NO_PERMITIDO` | — |
+| `PUT …/publicaciones/:id/tema` (material) | Admin; en "docente", cualquier maestro de la clase | Maestro sobre "aprendizaje": `403 MOVER_NO_PERMITIDO` | — |
+| `GET …/dudas`, `GET …/dudas/:dudaId/respuestas` | Estudiante inscrito, maestro de la clase, admin | Como `GET …/recursos` | Correo, estado de pago, restricción, rol, quién marcó "resuelta" |
+| `POST …/dudas`, `POST …/dudas/:dudaId/respuestas` | Estudiante inscrito, maestro de la clase | Admin `403 ROL_NO_PERMITIDO` (P-07); los demás como arriba | — |
+| `PUT …/dudas/:dudaId/resuelta` | Maestro de la clase, admin | Estudiante, también el autor: `403 ROL_NO_PERMITIDO` | — |
+| `DELETE …/dudas/:dudaId`, `DELETE …/dudas/:dudaId/respuestas/:respuestaId` | Admin cualquiera; el autor lo suyo; un maestro de la clase lo de un estudiante | Un estudiante lo de otro, un maestro lo de otro maestro: `403 BORRADO_NO_PERMITIDO` | — |
+
+`roles` · `pertenencia` de las rutas nuevas de recursos (Enmienda 1, detalle menor; las de dudas están en §D-5):
+
+| Ruta | `roles` · `pertenencia` |
+|---|---|
+| `GET /clases/:claseId/recursos` | estudiante, maestro, admin · inscripción |
+| `GET /clases/:claseId/recursos/:recursoId` | maestro, admin · propiedad |
+| `PUT /clases/:claseId/recursos/:recursoId` | maestro, admin · propiedad |
+| `POST`, `DELETE …/publicaciones…` y `PUT …/publicaciones/:publicacionId/tema` | las de hoy (maestro, admin · propiedad) |
+
+- `pertenencia: "inscripcion"` en las lecturas y en lo que escriben los inscritos; `pertenencia: "propiedad"` en `GET`/`PUT …/recursos/:recursoId` y en `PUT …/resuelta`. En todas, `roles` nombra al admin donde puede pasar; donde no lo nombra, el sexto paso lo niega (cerrado por defecto).
+- Un id de otra clase (recurso, duda, respuesta, tema) responde lo mismo que uno inexistente: `404` de su código, sin revelar que existe.
+- El frontend solo decide qué mostrar (`puedeEditar`, `puedeBorrar`, `puedeMover`, `puedeMarcar`, la perspectiva); nunca sustituye una de estas comprobaciones.
+
+## Pruebas requeridas
+
+Reglas comunes: ids con prefijo `CL3-`; toda prueba hace al menos una aserción y una precondición que falta la hace fallar con su motivo; las que comparan fechas o textos relativos al tiempo fijan el reloj; las de integración del backend corren contra el PostgreSQL desechable; las de autorización cubren, por endpoint nuevo, rol incorrecto, clase ajena, clase inexistente, alumno restringido, cambio de contraseña pendiente, sin sesión y que no salga el estado de pago, el correo ni el rol. Las frases de recuperación usan el router real (`rutas` de `app/router`) y el `QueryClient` con las opciones de `app/providers.tsx`.
+
+### 03a (backend de recursos y secciones)
+
+- **CL3-A01** migración, con el patrón de CAL-1A01 (`backend/test/calificaciones-migracion.integracion.test.ts:460-508`: un esquema aparte, las migraciones hasta la anterior a la de 03a, sembrar y aplicar la de 03a; Enmienda 1, N-06): con un material del admin, uno de un maestro, un anuncio y una tarea sembrados antes, después: el del admin queda `aprendizaje`, el del maestro `docente`, anuncio y tarea nulos; `actualizado_en` de esas filas no cambia; `version` = 0 en todas.
+- **CL3-A02** `CHECK publicaciones_bloque_solo_material`: un anuncio o una tarea con bloque se rechaza; un material con bloque nulo se acepta (DH-02 a). `CHECK publicaciones_version_no_negativa` rechaza `-1`.
+- **CL3-A03** los dos índices nuevos existen con sus columnas y su orden (`pg_indexes`).
+- **CL3-A04** `core/recursos.ts`: tabla completa de §D-2 (actor × autor × bloque, y nulo con `bloqueEfectivo`); `bloqueAlPublicar("estudiante")` lanza `ERROR_INTERNO`; con `bloque = bloqueAlPublicar(rol del autor)`, `puedeBorrarRecurso` coincide con `puedeBorrar` en todas las combinaciones.
+- **CL3-A05** publicar un material: un maestro lo deja en `docente`, el admin en `aprendizaje` (leído en la base y en `GET …/recursos`); un anuncio sin bloque; la respuesta de `POST` no cambia de forma; `MATERIAL_CREADO` se encola una vez en la misma transacción; ningún material publicado por la API queda con bloque nulo (la llamada de `handlers/clases/muro.ts` siempre pasa `bloque`; M-03); `crearPublicacion` llamada sin `bloque` deja el material con bloque nulo, como hoy.
+- **CL3-A06** `GET …/publicaciones?tipo=anuncio`: solo anuncios, en orden; un cursor que es un material o una tarea responde `400` "cursor: no es válido"; `tipo=material` o repetido responde `400 VALIDACION`; sin `tipo`, la lista de hoy (anuncios, materiales y tareas).
+- **CL3-A07** `GET …/trabajo?seccion=actividades`: solo tareas, con la entrega del alumno; cursor de un material `400`; `seccion=otra` `400`; sin `seccion`, lo de hoy.
+- **CL3-A08** `GET …/temas?seccion=`: mismos temas y mismo orden con cada sección; `elementos` y `sinTema` cuentan solo lo de la sección (actividades, aprendizaje, docente); un material con bloque nulo no cuenta en ninguna sección de recursos y sí en el total; `seccion=otra` `400`; sin `seccion`, el total.
+- **CL3-A09** `GET …/recursos` (autorización): estudiante inscrito ve los dos bloques; maestro de la clase y admin, `200`; sin sesión `401`; restringido `403 ACCESO_RESTRINGIDO`; cambio pendiente `403`; clase ajena e inexistente `403 SIN_ACCESO_A_LA_CLASE`, iguales; ningún cuerpo contiene `estadoPago`, `accesoRestringido`, `email`, `rol` ni `version`.
+- **CL3-A10** `GET …/recursos` (contenido): filtra por bloque y tema ("sin-tema" y un id); orden `creado_en DESC, id DESC`; adjuntos con vista previa (con almacén doble); conteo de comentarios; `puedeEditar`, `puedeBorrar` y `puedeMover` para admin, autor maestro, otro maestro y estudiante en los dos bloques; los materiales con bloque nulo no salen; `bloque` ausente u otro valor `400`; tema de otra clase `404 TEMA_NO_ENCONTRADO`; cursor de otro bloque, de otro tema, de otra clase o inexistente: `400`, el mismo texto; un cursor que se borra entre la comprobación y la página no deja la página vacía (instantánea única, con el gancho de ejecutor de `lecturas-consistentes`).
+- **CL3-A11** `GET …/recursos/:recursoId`: maestro y admin `200` con `version` y `tema`; estudiante `403 ROL_NO_PERMITIDO`; el id de un anuncio, de una tarea o de un material de otra clase `404 RECURSO_NO_ENCONTRADO`, igual que uno inexistente; `recursoId` que no es UUID `400`.
+- **CL3-A12** `PUT …/recursos/:recursoId` (permisos): el autor maestro edita su recurso del docente; otro maestro `403 EDICION_NO_PERMITIDA`; el admin sobre uno del docente `403`; el admin edita uno de aprendizaje; un maestro sobre uno de aprendizaje `403`; un material con bloque nulo sigue `bloqueEfectivo`; en cada `403`, nada cambió (título, versión, archivos).
+- **CL3-A13** `PUT` (versión): con la versión vieja `409 RECURSO_MODIFICADO` sin escribir; dos `PUT` simultáneos con la misma versión dan un `200` y un `409` (retención de la fila con `formadasDetrasDe`, `timeout` explícito); tras mover el recurso de tema, el `PUT` con la versión anterior responde `409`.
+- **CL3-A14** `PUT` (contenido): cambia título, descripción (normalizada: CRLF a LF, recorte) y tema; tema de otra clase o borrado `404` sin escribir; archivos: conserva, quita (pasa a `descartado` sin publicación) y agrega (confirmado, comprobado en el almacén); un id ajeno o de otro recurso `400 ARCHIVO_INVALIDO` sin escribir; más de 5 `400`; título vacío, de invisibles o de 201 `400`; sin `version` o negativa `400`; sin la clave `temaId` `400`.
+- **CL3-A15** borrar un material por la ruta de hoy: el admin borra cualquiera; el autor maestro el suyo del docente; un maestro el de otro maestro o uno de aprendizaje `403 BORRADO_NO_PERMITIDO` sin borrar; un anuncio sigue la regla de hoy.
+- **CL3-A16** mover: un maestro sobre un recurso de aprendizaje `403 MOVER_NO_PERMITIDO` sin cambiar el tema ni la versión; el admin lo mueve y la versión sube 1; un maestro mueve el recurso del docente de otro maestro (organiza la clase) y la versión sube; una tarea sube `tareas.version` y no `publicaciones.version`; un anuncio `409 ANUNCIO_SIN_TEMA`.
+- **CL3-A17** los comentarios de un recurso siguen funcionando (listar, comentar, borrar) para un recurso de cada bloque (P-06).
+- **CL3-A18** inventario de rutas (C-1) y arranque con la guarda `onRoute` sin cambio.
+
+### 03b (backend de dudas)
+
+- **CL3-B01** migración: tabla, columnas, FK (`clases` cascada, `usuarios` restrict), `CHECK dudas_resuelta_completa`, índices; `comentarios_un_solo_contexto` con el mismo nombre rechaza cero o dos contextos entre los tres y acepta cada uno solo; las filas de antes siguen válidas.
+- **CL3-B02** `core/dudas.ts`: `puedeMarcarDuda` para las tres relaciones.
+- **CL3-B03** `GET …/dudas` (autorización, como CL3-A09) y contenido: orden; conteo de respuestas; `resuelta`, `resueltaEn`; `propia`, `puedeBorrar` y `puedeMarcar` para estudiante autor, otro estudiante, maestro y admin; cursor de otra clase o borrado `400`; ningún dato de pago, correo ni rol, ni quién la marcó.
+- **CL3-B04** `POST …/dudas`: estudiante inscrito y maestro `201`; admin `403 ROL_NO_PERMITIDO`; restringido, ajena, sin sesión; texto vacío, de invisibles, de 2001, con controles o inversores `400`; CRLF normalizado; ningún trabajo nuevo en `pgboss.job`.
+- **CL3-B05** `PUT …/resuelta`: maestro y admin marcan y quitan; marcar dos veces no cambia `resueltaEn` (reloj fijo); estudiante, también el autor, `403 ROL_NO_PERMITIDO`; duda de otra clase `404 DUDA_NO_ENCONTRADA`; cuerpo sin `resuelta`, con otro tipo o con una llave de más `400`.
+- **CL3-B06** `DELETE …/dudas/:dudaId`: el autor estudiante la suya; otro estudiante `403 BORRADO_NO_PERMITIDO`; un maestro la de un estudiante; un maestro la de otro maestro `403`; el admin cualquiera; sus respuestas desaparecen (cascada, DH-05); otra vez `404`.
+- **CL3-B07** respuestas: listar (orden ascendente, cursor), responder (estudiante y maestro `201`; admin `403`), responder a una duda borrada `404 DUDA_NO_ENCONTRADA` sin insertar; responder y borrar la duda a la vez (retención con `FOR SHARE`): o `404` sin fila, o la respuesta cae con la duda; responder a una duda resuelta `201` (S-06); texto de 1001 `400`.
+- **CL3-B08** borrar una respuesta: reglas de autoría de CL3-B06; una respuesta de otra duda o de otra clase `404 RESPUESTA_NO_ENCONTRADA`.
+- **CL3-B09** aislamiento de contextos: una respuesta no se lista ni se borra por `…/publicaciones/:id/comentarios…` ni por `DELETE …/mis-comentarios/:id` (`404`); un comentario del muro y uno del hilo privado no se borran por `…/dudas/:dudaId/respuestas/:id` (`404`); los conteos de comentarios del muro no cuentan respuestas.
+- **CL3-B10** inventario de rutas (C-1); ningún `encolar` en `handlers/clases/dudas.ts` ni trabajos nuevos al usar las rutas.
+
+### 03c (frontend: secciones, Avisos, Actividades, Personas)
+
+**Reparto si 03c se parte (DH-14):** **03c1** = CL3-C01 a CL3-C07, CL3-C12, CL3-C13, CL3-C16, CL3-C17 y CL3-C18. **03c2** = CL3-C08, CL3-C09, CL3-C10, CL3-C11, CL3-C14 y CL3-C15. Sin partir, 03c lleva las 18. Los casos de 03c1 que piden una URL (CL3-C12, CL3-C13) comparan el `pathname` y la ausencia de `cursor`, así 03c2 no los cambia.
+
+- **CL3-C01** secciones por perspectiva: los cuatro nombres de §D-7.1 en orden, sin "Foro", en las tres; la activa con `aria-current="page"` y `text-link`.
+- **CL3-C02** indicador medido (medidas simuladas de `offsetLeft`/`offsetWidth`): `--indicador-x` y `--indicador-ancho` son los de la opción activa; cambian al navegar a otra sección; sin indicador en "Editar clase", "Categorías de calificación" y el detalle de una tarea; `in-data-[material=opaco]:bg-accent-soft`; `motion-reduce:transition-none`; un `ResizeObserver` simulado vuelve a medir sin desplazar; sin `ResizeObserver` ni `document.fonts` no falla.
+- **CL3-C03** `medidaDelIndicador` y `desplazamientoParaVer` (puras): opción a la vista (`null`), cortada a la derecha y a la izquierda.
+- **CL3-C04** al entrar con una sección que no cabe, el panel desplaza su `scrollLeft` para dejarla a la vista; la página no se desplaza.
+- **CL3-C05** rutas: `…/personas` en las tres ramas; `…/alumnos` (maestro y admin) y `…/maestros` (admin) redirigen a `…/personas` con `replace` (atrás no vuelve a la ruta vieja); `…/trabajo` sigue montando Actividades.
+- **CL3-C06** Personas: estudiante, lo de hoy; maestro, sus maestros (solo lectura, sin "Quitar") y el roster con el buscador; admin, la asignación de maestros y el roster con el buscador; sin petición nueva para los maestros del maestro.
+- **CL3-C07** Personas del admin: con el foco en una fila del buscador de alumnos que desaparece, el foco no va al encabezado de los maestros (atributo `data-candidato-maestro-id`); el foco del buscador de maestros sigue su regla.
+- **CL3-C08** Avisos pide `…/publicaciones?tipo=anuncio&limite=20` y su "Ver más avisos" lleva `tipo=anuncio` y el cursor.
+- **CL3-C18** (Enmienda 1, separado de CL3-C08 para N-02) Avisos: no hay "Crear tarea" en ninguna perspectiva (S-09); los vacíos por perspectiva; "Ver más avisos" con `enEspera={isFetching}`.
+- **CL3-C09** Actividades pide `…/trabajo?…&seccion=actividades` y `…/temas?seccion=actividades`; "Sin tema" solo con actividades; los conteos son los de la sección; el vacío dice "Aún no hay actividades en esta clase."; la confirmación de borrar un tema usa el total (y la frase sin conteo si el total no llegó o no tiene el tema); el estudiante no pide el total (`GET …/temas` sin `seccion` no sale en su perspectiva; Enmienda 1, N-08).
+- **CL3-C10** "Subir"/"Bajar": el botón sigue en espera hasta que llega la lista por sección; el foco sigue en el botón del tema que se movió; doble clic, un `PUT`.
+- **CL3-C11** recarga fallida de Actividades: un aviso por fallo con el texto nuevo; montar con un fallo ya ocurrido no avisa.
+- **CL3-C12** R1, un caso por camino (§D-10): (a) pulsar "Avisos" estando en Avisos con la frase: sale un `GET` sin `cursor` y la frase desaparece; (b) ir a "Personas" y volver antes de 30 s: sale el `GET` y la frase desaparece; (c) atrás y adelante del historial: igual; (d) con la frase a la vista no hay "Ver más avisos"; además, con la lista sana, pulsar "Avisos" no pide nada.
+- **CL3-C13** R2, un caso por camino: (a) pulsar "Actividades de aprendizaje" estando ahí: el tema en error pide su primera página (su `tema`, sin `cursor`; el filtro `seccion` lo comprueba CL3-C09) y los temas sanos no piden nada; (b) ir y volver antes de 30 s; (c) historial; (d) sin "Ver más de `<tema>`" mientras está la frase; también con la lista por sección en error.
+- **CL3-C14** O-16 (§D-11) en comentario, crear clase, editar clase, crear tema y renombrar tema: con el envío en vuelo, el formulario se desmonta (se navega a otra sección) y el servidor responde `400 VALIDACION` de su campo pintado (`texto:`, `nombre:`): un aviso con el mensaje sin ruta; con el formulario montado, sigue siendo `ErrorDeCampo` sin aviso; con mensaje vacío y desmontado, el genérico. **Crear y editar clase (variante M-01):** desmontado con un `500`, un aviso con el mensaje del servidor, y con la red caída, el de conexión (hoy, ninguno); desmontado con un `201`/`200`, un aviso "Clase creada" / "Cambios guardados" y ninguna navegación; montado, cada uno de esos cuatro casos da exactamente lo de hoy (un aviso de `alFallar` o `alTerminar`, y la navegación al éxito), nunca dos avisos; desmontado con `ACCESO_RESTRINGIDO`, ningún aviso.
+- **CL3-C15** guardas de CHORE-04: dos clics en el mismo render en "Comentar", "Crear clase" y "Guardar cambios" de la clase mandan una sola petición; tras un error del servidor, el siguiente envío vuelve a salir (la guarda se libera) y el `reset()` de T-05 sigue limpiando el error viejo.
+- **CL3-C16** `useAlPulsarLaSeccionActiva` (`components/seccion/`): llama a su función con otra `location.key` en la misma ruta, no al montar ni con la misma clave; `features/calificaciones` lo reexporta y sus pruebas siguen verdes sin cambio.
+- **CL3-C17** textos de §D-13 de 03c en `data.ts` (incluida la consecuencia de quitar un maestro).
+
+### 03d (frontend: Recursos)
+
+- **CL3-D01** estructura: dos bloques en orden con su `h2`; en cada uno, "Sin tema" (si tiene) y los temas con recursos de ese bloque, en su orden; un tema sin recursos de un bloque no aparece en ese bloque; vacío por bloque; error de un bloque no tapa el otro; si los dos bloques fallan su recarga con datos, `toast.error` sale con el mismo `id` (un solo aviso visible) y montar la vista con los fallos ya ocurridos no avisa.
+- **CL3-D02** peticiones: `…/temas?seccion=aprendizaje` y `?seccion=docente`; cada sección pide `…/recursos?bloque=…&tema=…&limite=5` y "Ver más" `limite=20` con cursor; como máximo 6 lecturas a la vez; al desmontar, las que esperan no salen (`signal`).
+- **CL3-D03** fila: insignia "Recurso" con icono y texto, firma ("Administración" con su insignia en aprendizaje), fecha (reloj fijo), título; "Ver recurso" despliega descripción (texto plano, nunca HTML), adjuntos y "Ver comentarios (n)".
+- **CL3-D04** permisos: "Editar recurso", "Borrar recurso" y "Mover" aparecen solo con `puedeEditar`, `puedeBorrar` y `puedeMover`, y nunca para el estudiante aunque el dato diga `true`.
+- **CL3-D05** borrar: confirmación en línea con la frase según adjuntos; foco a "Cancelar"; al confirmar, aviso y foco a la vecina o al `h3`; doble clic, un `DELETE`; con `403`/`404`, aviso y la lista se renueva.
+- **CL3-D06** mover: con `MOVER_NO_PERMITIDO`, aviso y la lista se renueva (el control desaparece; foco al `h3`); con éxito, recursos, temas y `claveRecurso` se renuevan.
+- **CL3-D07** comentarios de un recurso: el estudiante y el maestro comentan, el admin lee; comentar renueva el conteo en la lista de recursos.
+- **CL3-D08** publicar (maestro): la frase "Se publicará en Recursos del docente."; envía `{ tipo: "material", titulo, texto, temaId?, archivoIds }`; al éxito, aviso, campos vacíos y la lista y los conteos se renuevan; el admin ve "Se publicará en Recursos de aprendizaje."; el estudiante no ve el formulario.
+- **CL3-D09** publicar con archivos: subida por archivo, lista fija mientras se publica, falla de una subida avisa con el nombre y no publica; doble clic, un `POST`.
+- **CL3-D10** tema al publicar: sin temas no se muestra; lista fallida deja la nota; `404 TEMA_NO_ENCONTRADO` renueva los temas y el campo vuelve a "Sin tema".
+- **CL3-D11** editar: lectura fresca al abrir; el formulario nace con título, descripción, tema y adjuntos del recurso; "Guardar cambios" envía `version` y la lista final de `archivoIds`; al éxito, aviso y navegación a Recursos; doble clic, un `PUT`.
+- **CL3-D12** editar con `409 RECURSO_MODIFICADO`: aviso del servidor, el botón sigue en espera hasta la recarga, el formulario se reinicia con la versión nueva y el foco va a "Título del recurso"; si la recarga falla, lo escrito y la versión se conservan y sale el aviso de recarga fallida.
+- **CL3-D13** editar con `404`, `403 EDICION_NO_PERMITIDA` o `SIN_ACCESO_A_LA_CLASE` al guardar: la vista se reemplaza por su mensaje con "Volver a Recursos" y el foco va a la raíz; lo mismo en la primera carga, y con `puedeEditar: false`.
+- **CL3-D14** editar, recarga fallida con caché: un aviso por fallo con la variante por error (reloj y red simulados); volver a montar la vista no lo repite (R8: repetir "Guardar cambios" envía el `PUT`).
+- **CL3-D15** `VALIDACION` fuera de contrato, crear (§D-15): `temaId:`, `version:`, vacío, solo espacios, `archivoIds.0:`; en cada uno, un solo mensaje legible, lo escrito se conserva y el botón sale de la espera.
+- **CL3-D16** `VALIDACION` fuera de contrato, editar: `version:`, `tipo:`, vacío, solo espacios, `archivoIds.1:`; mismo criterio.
+- **CL3-D17** secuencia rechazo del servidor → envío que la validación local rechaza, en crear y en editar: se lee un solo mensaje, el del envío nuevo.
+- **CL3-D18** `erroresDelRecursoDeApi` recorre `ENTRADAS_FUERA_DE_CONTRATO` en los dos modos.
+- **CL3-D19** Avisos: el formulario solo tiene "Anuncio", adjuntos y "Publicar anuncio"; no hay grupo "Tipo de publicación", título ni tema, ni se piden temas; envía `{ tipo: "anuncio", texto, archivoIds }`.
+- **CL3-D20** `VALIDACION` fuera de contrato del anuncio: `titulo:`, `temaId:`, vacío, solo espacios, `archivoIds.0:` y la secuencia; `erroresDeLaPublicacionDeApi` recorre `ENTRADAS_FUERA_DE_CONTRATO`.
+- **CL3-D21** O-r2-2: tras un `400` con `titulo:` al publicar un anuncio, ningún campo de título aparece en ningún momento.
+- **CL3-D22** O-16 en anuncio y en recurso (crear y editar): desmontado con un `VALIDACION` de `texto:` o `titulo:`, un aviso; montado, `ErrorDeCampo` sin aviso.
+- **CL3-D23** R3, un caso por camino (como CL3-C13) sobre un tema de cada bloque.
+- **CL3-D24** R6 en un recurso: (a) "Ocultar comentarios" y "Ver comentarios (n)" piden la primera página y la frase desaparece; (b) ir a otra sección, volver y reabrir; (c) sin "Ver más comentarios" mientras está la frase.
+- **CL3-D25** R7 en publicar, guardar, borrar y mover un recurso: tras un `503`, el botón sale de la espera, lo escrito se conserva y un segundo clic envía una petición nueva que termina como un primer envío correcto.
+- **CL3-D26** rutas: `…/recursos` en las tres ramas; `…/recursos/:recursoId/editar` en maestro y admin; en la del estudiante cae en `*`; "Recursos" queda activa al editar (S-11).
+- **CL3-D27** (Enmienda 1, M-05) R9 en Recursos, un caso por camino y por lugar, con el router real y el `QueryClient` de `app/providers.tsx`: primera carga con `500` y con la red caída de (1) la lista de temas de un bloque, (2) la sección de un tema y (5) "Editar recurso"; en (1) y (2): (a) pulsar "Recursos" estando ahí, (b) ir a "Avisos" y volver antes de 30 s, (c) atrás y adelante del historial; en (5): (b), (c) y "Volver a Recursos" y volver a entrar. En cada camino sale la petición y, con `200`, el texto desaparece; lo que no estaba en error no se pide.
+
+### 03e (frontend: Dudas)
+
+- **CL3-E01** vista: `h2` y frase; formulario para estudiante y maestro, no para el admin; lista en orden; vacío; "Ver más dudas" con `enEspera={isFetching}` y cursor.
+- **CL3-E02** fila: firma, fecha (reloj fijo), texto plano (nunca HTML), insignia "Resuelta" con icono y texto solo si `resuelta`; "Ver respuestas (n)".
+- **CL3-E03** publicar una duda: envía `{ texto }` normalizado; aviso; campo vacío; la lista se renueva; texto vacío o de invisibles da `ErrorDeCampo` sin petición; doble clic, un `POST`.
+- **CL3-E04** marcar y quitar: el botón cambia de texto sin desmontarse y el foco se queda en él; aviso; la insignia aparece y desaparece; solo con `puedeMarcar` y nunca para el estudiante; doble clic, un `PUT`; con `404`, aviso y la fila desaparece con el foco a la vecina o al `h2`.
+- **CL3-E05** borrar una duda: confirmación en línea; foco; aviso; las respuestas de esa duda salen de la caché; `403`/`404` renuevan la lista.
+- **CL3-E06** respuestas: se piden al abrir; orden ascendente; "Ver más respuestas"; responder (estudiante y maestro), el conteo de la duda se renueva; el admin no ve el formulario; borrar una respuesta con su confirmación y foco.
+- **CL3-E07** `VALIDACION` fuera de contrato de la duda: `resuelta:`, vacío, solo espacios, `texto.0:` y la secuencia; de la respuesta: `dudaId:` (da "Esa duda ya no existe."), vacío, solo espacios, `texto.0:` y la secuencia; de marcar: `resuelta:`, vacío, `resuelta.0:` (un aviso, el botón sale de la espera). `erroresDeLaDudaDeApi` y `erroresDeLaRespuestaDeApi` recorren `ENTRADAS_FUERA_DE_CONTRATO`.
+- **CL3-E08** O-16 en duda y respuesta: desmontados con un `VALIDACION` de `texto:`, un aviso; montados, `ErrorDeCampo` sin aviso.
+- **CL3-E09** R4, un caso por camino (como CL3-C12).
+- **CL3-E10** R5, un caso por camino: (a) "Ocultar respuestas" y "Ver respuestas"; (b) pulsar "Dudas" estando ahí con el bloque abierto en error; (c) ir a otra sección, volver y reabrir; (d) sin "Ver más respuestas" mientras está la frase.
+- **CL3-E11** R7 en publicar duda, marcar, quitar, borrar duda, responder y borrar respuesta (como CL3-D25).
+- **CL3-E12** ruta `…/dudas` en las tres ramas y la sección "Dudas" entre "Recursos" y "Personas".
+- **CL3-E13** (Enmienda 1, M-05) R9 en Dudas, un caso por camino: primera carga con `500` y con la red caída de (3) la lista de Dudas y (4) las respuestas de una duda; en (3): (a) pulsar "Dudas" estando ahí, (b) ir a otra sección y volver antes de 30 s, (c) historial; en (4): "Ocultar respuestas" y "Ver respuestas", (a) con el bloque abierto, y (b) y (c) reabriéndolas. En cada camino sale la petición y, con `200`, el texto desaparece.
+
+### Pruebas existentes que el programador puede cambiar (lista cerrada, por subentrega; cualquier otra es PARADA)
+
+Salen de los greps de §D-R0. Solo se cambian las aserciones, dobles o llamadas que nombra cada fila; no se borra ni se desactiva ningún caso.
+
+| Sub | Archivo | Qué puede cambiar |
+|---|---|---|
+| 03a | `backend/test/lecturas-consistentes.integracion.test.ts:738` | La llamada a `moverATema` gana `actor` (el maestro de la prueba). |
+| 03a | `backend/test/ayudas-tareas.ts` | `crearMaterialConTemaDePrueba` gana la opción `bloque` (por defecto, sin escribirlo: nulo, como hoy). Solo se agrega. |
+| 03a | `backend/test/bloqueo-usuario.integracion.test.ts`, caso "E6" (`:677-719`) (Enmienda 2) | La lista esperada de archivos de `adapters/db` con SQL etiquetado suma `"recursos.ts"` (el `SELECT … FOR NO KEY UPDATE` de `editarRecurso`, §D-3.7 paso 1), en su orden alfabético; el título del caso suma "recursos.ts"; el bloque de comentarios de `:677-687` suma una línea: "CLASES-03a (§D-3.7): recursos.ts (el FOR NO KEY UPDATE de la fila del recurso al editarlo)." Nada más de esa prueba. |
+| 03b | `backend/test/bloqueo-usuario.integracion.test.ts`, caso "E6" (Enmienda 2) | La lista esperada suma `"dudas.ts"` (el `SELECT … FOR SHARE` de `crearRespuesta`, §D-5), en su orden alfabético; el título del caso suma "dudas.ts"; el bloque de comentarios suma: "CLASES-03b (§D-5): dudas.ts (el FOR SHARE de la duda al responderla)." Nada más de esa prueba. |
+| 03b | (ayudas) | Las ayudas de dudas van en un archivo nuevo (`backend/test/ayudas-dudas.ts`). |
+| 03c1 | `frontend/src/features/clases/clase-layout.test.tsx` | Nombres y orden de las secciones; las aserciones del indicador pasan a medidas simuladas (`--indicador-x`, `--indicador-ancho`); rutas `…/alumnos` y `…/maestros` por `…/personas`; los comentarios de las líneas 258-259 y 285-286 se reescriben con sus aserciones (N-47). |
+| 03c1 | `frontend/src/features/clases/lib.test.ts` | Casos de `indiceDeSeccionActiva` con las secciones nuevas; textos "Muro" y "Trabajo de clase"; casos nuevos de las dos funciones de §D-7.2. |
+| 03c1 | `frontend/src/features/clases/tarjeta-de-tarea.test.tsx` (Enmienda 1, M-04) | El caso PR-1D06 (`:142-156`, "el maestro y el admin ven «Crear tarea» como enlace…" en `MuroView`) pasa a afirmar que "Crear tarea" ya no está en Avisos en ninguna perspectiva (S-09). Nada más. |
+| 03c1 | `frontend/src/features/clases/muro-view.test.tsx` | Solo las aserciones sobre los textos de §D-13 (vacíos, "Ver más avisos", R1, el `h2` "Avisos"). (Corregido en la Enmienda 1, M-04: este archivo no aserta "Crear tarea"; grep 0.) |
+| 03c1 | `frontend/src/features/clases/trabajo-view.test.tsx` | Solo las aserciones sobre los textos de §D-13 (vacío, R2, recarga fallida). |
+| 03c1 | `frontend/src/features/clases/consultas-ch3.test.tsx`, `recuperar-ch3.test.tsx`, `formularios-ch3.test.tsx`, `errores-ch3.test.ts` | Solo las aserciones sobre los textos de §D-13 de 03c ("Trabajo de clase", la frase del muro). |
+| 03c1 | `frontend/src/features/clases/maestros-de-clase-view.test.tsx` | La frase de consecuencia de quitar un maestro. |
+| 03c1 | `frontend/src/features/clases/personas-view.test.tsx`, `alumnos-view.test.tsx` | Solo si montan `PersonasView` o `AlumnosView` fuera de una ruta de su perspectiva: la ruta del montaje. |
+| 03c1 | `frontend/src/app/router-01d.test.tsx`, `app/router-01e.test.tsx`, `app/router.test.tsx` | Nombres de las secciones y rutas `…/alumnos`, `…/maestros` → `…/personas`. |
+| 03c1 | `frontend/src/features/calificaciones/gradebook-01d.test.tsx` | Solo los nombres de las secciones, si los aserta. |
+| 03c2 | `frontend/src/features/clases/trabajo-view.test.tsx` | El doble de `…/temas` responde también a `?seccion=actividades`; la URL de `…/trabajo` con `seccion` y la cuenta de peticiones a `…/temas` (la segunda consulta, solo maestro y admin: N-08), si las aserta. |
+| 03c2 | `frontend/src/features/clases/muro-view.test.tsx` | La URL con `tipo=anuncio`, si la aserta. |
+| 03c2 | `frontend/src/app/router.test.tsx` | El doble de `…/temas` exacto, si monta "Actividades" (según el manager, no la monta). |
+| 03c (sin partir) | La unión de las filas 03c1 y 03c2 | Lo mismo que cada fila. |
+| 03d | `frontend/src/features/clases/formulario-publicacion.test.tsx` | Los casos del tipo, del título y del tema pasan a `formulario-recurso.test.tsx` (nuevo) si su propiedad sigue valiendo; los de anuncio se quedan. |
+| 03d | `frontend/src/features/clases/muro-view.test.tsx`, `recuperar-ch3.test.tsx`, `formularios-ch3.test.tsx` | Solo las aserciones de publicar un material desde el muro. |
+| 03d | `frontend/src/features/clases/clase-layout.test.tsx`, `app/router*.test.tsx` | La sección "Recursos" en su lugar y sus rutas. |
+| 03e | `frontend/src/features/clases/clase-layout.test.tsx`, `app/router*.test.tsx` | La sección "Dudas" en su lugar y su ruta. |
+
+## Puntos de ataque para el Tester
+
+### Ronda 0 (cada subentrega; no cuenta en el tope de 3)
+- Reescribir las `*.ataque` de §D-R0 de esa subentrega con el cambio mínimo, su motivo y la tabla de SHA-256; correr las filas "confirma" contra el diseño y anotarlas ("sin cambio" o el cambio hecho). Las pruebas requeridas las escribe el programador, no el tester.
+
+### 03a
+- Fugas de bloque: publicar como admin y leer como maestro; un cursor de un bloque usado en el otro; un tema de otra clase en `?tema=`; `?bloque=` repetido (llega como arreglo).
+- Permisos por bloque contra datos raros: un material con `bloque` nulo de un autor admin y de un autor maestro (inserción a mano), en editar, borrar y mover; un maestro retirado de la clase autor de un recurso del docente (nadie lo edita, solo el admin lo borra).
+- Carreras: editar contra editar, contra mover, contra borrar y contra comentar (bloqueos de §"Acceso a datos"); la versión que sube al mover.
+- Archivos al editar: un archivo de otro recurso, de una tarea, de una entrega, uno ya descartado, uno pendiente de otro usuario, repetidos, con mayúsculas.
+- Filtros nuevos: que `?tipo=anuncio` nunca devuelva un material ni una tarea, también con un cursor que lo fue; que `?seccion=actividades` nunca devuelva un material; que los conteos por sección sumen el total cuando todo tiene bloque.
+- Que la lista de recursos y la lectura de uno no filtren correo, estado de pago, restricción, rol ni (en la lista) `version`.
+
+### 03b
+- Contextos de `comentarios`: cruzar ids entre muro, hilo privado y respuestas por todas las rutas de borrar y listar; `mis-comentarios` con una respuesta.
+- Autoría fina de P-07: el maestro contra lo de otro maestro; el admin que intenta escribir; el estudiante autor que intenta marcar; un maestro retirado de la clase.
+- Marcar dos veces, marcar y quitar a la vez, marcar una duda que se borra; `resuelta` como texto `"true"`.
+- Respuesta contra borrado de la duda (con retención de la fila y `formadasDetrasDe`).
+- Que no se encole nada.
+
+### 03c
+- El indicador con medidas simuladas en todos los estados: primera carga, cambio de sección, sección sin activa, cambio de clase sin desmontar, cambio de tamaño, fuentes que cargan tarde; que nunca quede un indicador sin opción activa.
+- Las frases R1 y R2 por cada camino de §D-10, incluidos dos fallos seguidos y un fallo durante una recarga en vuelo; que pulsar la sección no recargue lo sano.
+- Personas del admin: foco entre los dos buscadores y las dos listas en la misma pantalla.
+- Las redirecciones con `replace` y el historial.
+- O-16 en los cinco formularios hermanos, con el envío en vuelo al desmontar y al volver a montar con la misma `QueryClient` (sin aviso doble).
+- Las guardas de las filas 1 y 2 de CHORE-04 con dos clics en el mismo render y con Enter repetido.
+
+### 03d
+- `VALIDACION` fuera de contrato y O-16 en los tres formularios; el `409` seguido de otro `409`; el `409` con la vista desmontada; la recarga tras el `409` que trae un `404`.
+- Borrar o mover el recurso que tiene el foco y el último de una sección (la sección desaparece del bloque); mover un recurso a un tema que no tenía recursos de ese bloque (aparece la sección).
+- Comentarios de un recurso dentro de "Ver recurso" plegado y desplegado; borrar el recurso con sus comentarios abiertos.
+- El formulario de anuncios: ningún rastro del tipo, del título ni del tema (O-r2-2).
+- El limitador de 6 con dos bloques y muchos temas; secciones que se desmontan con lecturas en fila.
+
+### 03e
+- Marcar con el foco en el botón y una recarga de fondo que cambia `puedeMarcar`; borrar la duda con sus respuestas abiertas; responder a una duda que otra persona borró.
+- R4 y R5 por cada camino; R5 con dos dudas abiertas y una sola en error.
+- `VALIDACION` fuera de contrato y O-16 en duda, respuesta y marcar.
+
+## Riesgos y desacuerdos
+
+- **R-01 · Carril (DH-01).** El humano pidió "normal"; las reglas del arquitecto lo hacen sensible por las dos migraciones. No hay forma de cumplir RF-63 y RF-64 sin migración (DH-01). Decide el humano; el plan funciona igual con cualquiera de las dos etiquetas.
+- **R-02 · El indicador medido no se ve en jsdom.** Las pruebas simulan las medidas (CL3-C02 a CL3-C04); la posición real, el ancho tras cargar las fuentes y el desplazamiento a 360 px van a la comprobación humana (H-1, H-2). Si el humano prefiere no arriesgar, DH-03 (c) es la salida más simple.
+- **R-03 · Dos listas de temas en "Actividades"** (la de la sección para la estructura y la total para la frase de borrar). Pueden diferir un instante (otra persona crea un tema entre las dos respuestas). La estructura sale siempre de una sola; la frase cae en su versión sin conteo cuando la total no tiene el tema. Lo ataca el tester (03c).
+- **R-04 · Deuda de compatibilidad (DH-02, DH-08):** `GET …/publicaciones` sin `tipo`, `GET …/trabajo` sin `seccion`, `bloque` nulo con su `bloqueEfectivo`, y las ramas de material y tarea del muro y de "Trabajo de clase" en el frontend. Se retiran juntas antes del primer DEPLOY (A-13), con su migración (`bloque` obligatorio en materiales) y su autorización para borrar archivos.
+- **R-05 · Ronda 0 grande en 03c** (C-7 a C-20, unas 25 pruebas `*.ataque` por nombres de secciones, textos y el indicador). Por eso los textos que cambian se limitan a los que nombran una sección o dicen algo que ya no es cierto (§D-13), los segmentos de ruta no cambian (DH-09) y ninguna respuesta de la API cambia de forma (DH-02).
+- **R-06 · Dos pantallas en una (Personas del admin y del maestro).** Cada pieza conserva su gestión del foco; el choque de `data-candidato-id` se resuelve renombrando el del buscador de maestros (§D-7.7). Si aparece otro choque de atributos o de `id` fijos (por ejemplo, `personas-maestro` / `personas-alumnos`), se resuelve igual, dentro de `features/clases`.
+- **R-07 · `useOrdenarTemas` espera la recarga por sección.** Si esa petición tarda o falla, "Subir"/"Bajar" esperan con ella (el patrón ya aceptado de `useCrearTema`); si falla, la vista conserva el orden anterior y avisa una vez (recarga fallida).
+- **R-08 · Desacuerdos con la propuesta (DOCS-04) de `DESIGN.md` §7.16** que este plan corrige y el humano decide en DH-16 (aprobados con A-02, A-05 y A-06): (a) "la edición de un recurso no es una sección": aquí "Recursos" queda activa al editar (S-11), porque la ruta cuelga de su segmento y `NavLink` lo marca; (b) "el formulario de una duda … `outline`": aquí "Publicar duda" es `primary` (la acción principal de la vista; "Responder" sí es `outline`); (c) "Recursos: cada bloque un panel (`Card`)": aquí cada bloque es una `section` con `h2` y sus temas son los paneles, para no poner un `Card` dentro de otro (§7.2).
+- **R-09 · Despliegue (corregido en la Enmienda 1, N-09).** El backend nuevo sirve al frontend anterior (DH-02), pero **el frontend nuevo necesita el backend nuevo**: `…/recursos` y `…/dudas` no existen antes, y como `paginacionSchema` no es estricto, un backend anterior ignora `?tipo=anuncio` y "Avisos" mostraría la lista mezclada. Orden: **primero el backend (con sus migraciones), después el frontend**; va como nota para DEPLOY en A-13. Volver el backend atrás después de 03a deja materiales nuevos con `bloque` nulo, que `bloqueEfectivo` resuelve; después de 03b, la tabla `dudas` queda sin uso y el `CHECK` de comentarios sigue aceptando lo de antes; en los dos casos, volver también el frontend.
+- **R-10 · `confirmarArchivos` se exporta desde `adapters/db/tareas.ts`** (otro dominio): solo gana `export`, sin cambiar su cuerpo ni sus llamadas; el algoritmo de "los que salen" se repite en `recursos.ts` en lugar de extraerse (no se mezcla refactor). Queda como candidato para el retiro de compatibilidad.
+- **R-11 · Comentar un recurso espera a una edición en curso** (`FOR SHARE` contra `FOR NO KEY UPDATE` de la misma fila). Es una espera de milisegundos, sin bloqueo cruzado; lo cubre `enTransaccion` con `503 SERVICIO_OCUPADO` si se pasara de su límite.
+- **R-12 · El admin no edita los recursos del docente** (RN-07 le deja borrarlos, no editarlos). Si el colegio quiere que corrija una errata en lo de un maestro, es una decisión nueva del PRD.
+
+### Documentos a actualizar (texto propuesto; los aplica el orquestador al cerrar la subentrega indicada; DH-10)
+
+- **Marcas de origen (Enmienda 1, N-01 a; `DESIGN.md` §11 y decisión del humano del 2026-09-27):** ningún texto de A-01 a A-06 borra una marca. Donde un texto reemplaza una viñeta marcada "propuesta (DOCS-04)", la marca nueva dice "(propuesta (DOCS-04); fijada en propuesta (CLASES-03x))"; donde la viñeta es nueva, "(propuesta (CLASES-03x))".
+- **Si 03c se parte (DH-14):** lo que dice "al cerrar 03c" se aplica al cerrar 03c1, salvo la frase de los conteos por sección y del total de A-04 y la parte de A-12 de O-16 y CHORE-04, que se aplican al cerrar 03c2.
+- **A-01 · `docs/DESIGN.md` §7.3, viñeta "Con siete opciones" (al cerrar 03c).** Reemplazar la viñeta entera por: "**Secciones de una clase, a su ancho natural (propuesta (DOCS-04); fijada en propuesta (CLASES-03c)):** desde CLASES-03, las secciones de una clase (seis hasta FORO-01, siete después) no usan columnas iguales: cada opción mide su ancho natural (`flex`, `shrink-0`, `whitespace-nowrap`) y el indicador toma la posición y el ancho de la opción activa, medidos en la página, con dos variables CSS del propio indicador (`translate-x-(--indicador-x)` y `w-(--indicador-ancho)`). Solo la posición se desliza (`transition-transform`, 200 ms, `motion-reduce:transition-none`); el ancho cambia sin transición. Se vuelve a medir al cambiar de sección, al cambiar el tamaño del grupo y al cargar las fuentes. Mismo `rounded-row`, mismo color por contexto (`--surface`; en opaco, `--accent-soft`) y mismo estado por `aria-current` y color del texto; sin opción activa no hay indicador. Si el grupo no cabe, se desplaza en horizontal dentro de sí mismo (`max-w-full overflow-x-auto`, contenido `w-max`), nunca la página, y al entrar la opción activa queda a la vista. Las reglas de tres, cuatro y cinco opciones de arriba quedan para los controles de columnas iguales; las secciones de la clase ya no las usan. **Excepción a "ningún valor suelto" (Enmienda 1, N-07):** las dos variables medidas (`--indicador-x` y `--indicador-ancho`), escritas en el atributo `style` del indicador, son la única excepción en `features/`: son una medida de la página en ese momento (posición y ancho de una opción), no un valor de diseño, así que no hay token que las represente. No es precedente para usar `style` en otro lugar; cualquier otro uso necesita su propia decisión en este documento."
+- **A-02 · `docs/DESIGN.md` §7.16 (al cerrar 03c; 03d y 03e solo cambian sus marcas).** Reemplazar "**Siete secciones (propuesta (DOCS-04); se construye en CLASES-03).**" y sus viñetas "Orden", "No son secciones", "Avisos" y "Personas y Calificaciones" por: "**Secciones (propuesta (DOCS-04); fijada en propuesta (CLASES-03c)).** Avisos · Actividades de aprendizaje · Recursos · Dudas · Personas · Calificaciones, iguales en las tres perspectivas; "Foro" entra en tercera posición con FORO-01. "Avisos" es la sección de entrada (la ruta de la clase sin sección). Los segmentos de ruta son `""`, `trabajo`, `recursos`, `dudas`, `personas` y `calificaciones`; `…/alumnos` y `…/maestros` redirigen a `…/personas`. Indicador: §7.3, "Secciones de una clase". **No son secciones** (ninguna queda activa): "Categorías de calificación", el detalle, la edición y las entregas de una tarea y "Editar clase"; "Editar recurso" (`…/recursos/:id/editar`) deja activa "Recursos". **Avisos:** el patrón del muro (§7.18) solo con anuncios; sin "Crear tarea" (vive en "Actividades de aprendizaje"). **Personas:** maestros arriba y alumnos abajo. El estudiante, lo de §7.2 y CLASES-02b; el maestro, los maestros de la clase en solo lectura y su roster con el buscador (§7.17); el administrador, la asignación de maestros (§7.17) y el roster con el buscador. **Calificaciones:** §7.28 y §7.29." Las viñetas "Actividades de aprendizaje", "Recursos" y "Dudas" de esa misma lista **se reemplazan** (no se suman) por una línea cada una, con su marca: "Actividades de aprendizaje: §7.22.", "Recursos: §7.30 (propuesta (DOCS-04); fijada en propuesta (CLASES-03d))." y "Dudas: §7.31 (propuesta (DOCS-04); fijada en propuesta (CLASES-03e))."; así en §7.16 no quedan "cada uno un panel (`Card`)" ni "su botón (`outline` …)", que contradicen R-08 (b) y (c) (Enmienda 1, N-01 b). La viñeta "Foro" se queda como está. En la viñeta "**Perspectivas (propuesta (CLASES-02c))**", la frase "secciones Muro y Personas (estudiante), Muro y Alumnos (maestro) o Muro, Alumnos y Maestros (administrador)" pasa a "las secciones de "Secciones", arriba, iguales en las tres (CLASES-03c)", sin tocar el resto de la viñeta (N-01 d). En §7.17, viñeta "Buscador de maestros del administrador", "Dejará de ver la clase. Lo que publicó se queda en el muro." pasa a "Dejará de ver la clase. Lo que publicó se queda en la clase." (CLASES-03c; N-01 c; es el texto de C-18 y de §D-13).
+- **A-03 · `docs/DESIGN.md` §7.18 (03c y 03d).** La frase de entrada (hoy con la marca "propuesta (DOCS-04)") pasa a: "Desde CLASES-03 (propuesta (DOCS-04); fijada en propuesta (CLASES-03c)), el muro se llama "Avisos" y solo lista anuncios; los materiales viven en "Recursos" (§7.30) y las tareas en "Actividades de aprendizaje" (§7.22). Lo que sigue vale para los anuncios; las viñetas de la tarea en el muro, "Tema" del material, "Tipo con una publicación en vuelo" y "Crear tarea" describen lo construido hasta CLASES-03 y solo se alcanzan por compatibilidad hasta su retiro." Y una viñeta nueva al cerrar 03d: "**Formulario de Avisos (propuesta (CLASES-03d)):** solo el anuncio: "Anuncio" (`Textarea`), los adjuntos de §7.19 y "Publicar anuncio" (`primary`); sin el grupo "Tipo de publicación", sin título y sin tema."
+- **A-04 · `docs/DESIGN.md` §7.22 (al cerrar 03c).** La frase de entrada (hoy con la marca "propuesta (DOCS-04)") pasa a: "Desde CLASES-03 (propuesta (DOCS-04); fijada en propuesta (CLASES-03c)), "Trabajo de clase" se llama "Actividades de aprendizaje" y solo lista actividades (hoy, tareas); los materiales viven en "Recursos" (§7.30). Los conteos de cada tema y "Sin tema" son los de la sección; la confirmación de borrar un tema cuenta todo lo que pasa a «Sin tema» (actividades y recursos) o, si ese total no está, dice "Sus actividades y recursos pasarán a «Sin tema».". Los temas se crean, renombran, ordenan y borran aquí." En "Recarga fallida" y en "Carga por tema", los textos nuevos de R2 y de la recarga fallida.
+- **A-05 · `docs/DESIGN.md` §7.30 nueva, "Recursos (propuesta (DOCS-04); fijada en propuesta (CLASES-03d))", al cerrar 03d:** "`RecursosView` (`features/clases/recursos-view.tsx`). Para el maestro y el administrador, arriba, "Nuevo recurso" en un `Card` (`FormularioRecurso`) con la frase de destino ("Se publicará en Recursos del docente." o "… de aprendizaje.") y "Publicar recurso" (`primary`, la única acción principal). Después, dos bloques en este orden, cada uno una `section` con su `h2` visible: "Recursos de aprendizaje" (lo del administrador, firmado "Administración") y "Recursos del docente" (lo de los maestros). Dentro de cada bloque, un panel (`Card`) por tema con recursos de ese bloque, con su `h3` ("Unidad 1 · 3 recursos"): "Sin tema" primero y después los temas en su orden; un tema sin recursos de ese bloque no aparece. Cada sección pide 5 y "Ver más de `<tema>`" 20 (como §7.22). **Fila (`ElementoDeRecurso`):** vidrio fuerte, `--radius-row`, insignia "Recurso" (`muted`, `BookOpen`), firma y fecha, título en `h4`; "Ver recurso" / "Ocultar recurso" despliega la descripción (texto plano), los adjuntos (§7.19) y "Ver comentarios (n)" (§7.18). Acciones solo con el permiso del servidor y nunca para el estudiante: "Editar recurso" (enlace `outline`, `sm`), "Borrar recurso" (`ghost`, `sm`, con la confirmación de §7.14: "Se borrará con sus comentarios." o "… y adjuntos.", "Sí, borrar recurso") y "Mover" (§7.22). Vacío por bloque: "Aún no hay recursos de aprendizaje." / "Aún no hay recursos del docente.". **Editar recurso** (`…/recursos/:id/editar`): el mismo formulario con "Guardar cambios" y "Cancelar", los adjuntos publicados con "Quitar", lectura fresca al abrir, conflicto al guardar y recarga fallida como §7.21, y "Volver a Recursos" en sus mensajes. El bloque de grabaciones queda para ENVIVO."
+- **A-06 · `docs/DESIGN.md` §7.31 nueva, "Dudas (propuesta (DOCS-04); fijada en propuesta (CLASES-03e))", al cerrar 03e:** "`DudasView` (`features/clases/dudas-view.tsx`). `h2` "Dudas" y debajo "Lo que escribas aquí lo ve toda la clase." (`--text-small`, `--muted-foreground`). Para el estudiante y el maestro, un `Card` con "Escribe tu duda" (`Textarea`) y "Publicar duda" (`primary`, la acción principal de la vista); el administrador no escribe. La lista en un `Card`, con divisores de 1 px en `--border` y sin vidrio fuerte (como §7.25), de la más reciente a la más antigua: firma, fecha, la insignia `success` "Resuelta" con `CircleCheck` (nunca solo color), el texto plano y "Ver respuestas (n)". "Marcar como resuelta" / "Quitar «Resuelta»" es un solo botón (`ghost`, `sm`, en espera) que conserva el foco al cambiar; "Borrar duda" con la confirmación de §7.14 ("Se borrará con sus respuestas.", "Sí, borrar duda"). Las respuestas se despliegan como los comentarios de §7.18 ("Escribe una respuesta", "Responder" `outline`, "Borrar" con "Sí, borrar respuesta"). Cada acción solo donde el servidor la permite."
+- **A-07 · `CLAUDE.md`, tabla de módulos, fila `clases` (al cerrar 03e).** Contenido: "Inicio de estudiante y maestro; las secciones de la clase (CLASES-03): Avisos (anuncios con comentarios y adjuntos), Actividades de aprendizaje (tareas por tema, con temas y categorías de calificación; TAREAS-01), Recursos (de aprendizaje y del docente, por tema, con comentarios, adjuntos y edición), Dudas (preguntas y respuestas de la clase, con «Resuelta») y Personas (compañeros, roster con buscador y alta manual, y maestros de la clase); código de invitación; gestión de clases del administrador (`/admin/clases`: lista, crear y editar clase, y las secciones de cualquier clase)". Roles sin cambio.
+- **A-08 · `CLAUDE.md`, "Ubicaciones compartidas" (al cerrar 03c).** Viñeta nueva después de `components/foco/`: "`components/seccion/` — `useAlPulsarLaSeccionActiva` (`hooks.ts`): llama a su función cuando se pulsa la sección en la que ya se está (otra `location.key` en la misma ruta), para que una frase "Vuelve a abrir …" se cumpla; lo usan `features/clases` (Avisos, Actividades de aprendizaje, Recursos y Dudas) y `features/calificaciones`, que lo reexporta (CLASES-03)."
+- **A-09 · `docs/ARCHITECTURE.md` §7.** Fila `clases`, al final (03a): "Desde CLASES-03a: `GET /clases/{claseId}/publicaciones?tipo=anuncio` ("Avisos"; sin `tipo`, la lista completa, por compatibilidad hasta su retiro) · `GET /clases/{claseId}/recursos?bloque=&tema=` ("Recursos", por bloque y tema, paginado) · `GET/PUT /clases/{claseId}/recursos/{recursoId}` (maestros de la clase y admin; el `PUT` exige `version`: `409 RECURSO_MODIFICADO`). Un recurso es un material: se publica (con el bloque del rol del autor), se borra y se comenta por las rutas de publicaciones." Y (03b): "`GET/POST /clases/{claseId}/dudas` · `PUT /clases/{claseId}/dudas/{dudaId}/resuelta` (maestros de la clase y admin) · `DELETE /clases/{claseId}/dudas/{dudaId}` · `GET/POST /clases/{claseId}/dudas/{dudaId}/respuestas` · `DELETE /clases/{claseId}/dudas/{dudaId}/respuestas/{respuestaId}` (el admin lee, marca y borra, no escribe; CLASES-03b)". Fila `tareas` (03a): "`GET /clases/{claseId}/temas?seccion=actividades|aprendizaje|docente` (conteos por sección, misma forma) · `GET /clases/{claseId}/trabajo?seccion=actividades` ("Actividades de aprendizaje": solo tareas; sin `seccion`, por compatibilidad, también materiales) · mover un recurso de aprendizaje es solo del admin (`403 MOVER_NO_PERMITIDO`) y mover un recurso sube su `version` (CLASES-03a)". En "Rutas previstas (DOCS-04)", se quita la viñeta de CLASES-03 (03b).
+- **A-10 · `docs/ARCHITECTURE.md` §14.** Fila `publicaciones` suma (03a): "`bloque` (`aprendizaje` / `docente`; `CHECK`: solo un material lo lleva; se escribe al publicar con el rol del autor y la migración repartió los existentes; nulo permitido solo por compatibilidad, leído con el bloque del rol del autor) · `version` (entero desde 0; precondición del `PUT` de un recurso; mover un material la sube) · índices `(clase_id, tipo, tema_id, creado_en DESC, id DESC)` y `(clase_id, bloque, tema_id, creado_en DESC, id DESC)` (CLASES-03a)". Fila `comentarios` suma (03b): "`duda_id` (FK `CASCADE`; CLASES-03b) · índice `(duda_id, creado_en, id)` · el `CHECK` de exactamente un contexto cuenta los tres". Fila nueva (03b): "`dudas` | `id`, `clase_id` (FK `CASCADE`), `autor_id` (FK `RESTRICT`), `texto`, `resuelta_en`, `resuelta_por` (FK `RESTRICT`), `creado_en`, `actualizado_en` | índice `(clase_id, creado_en DESC, id DESC)` · `CHECK`: `resuelta_en` y `resuelta_por` juntos · sus respuestas son `comentarios` con `duda_id` (CLASES-03b)". Diagrama (03b): `clases ||--o{ dudas : pregunta`, `usuarios ||--o{ dudas : escribe`, `dudas ||--o{ comentarios : responde`. En "Previsto (DOCS-04)", se quitan las filas `publicaciones.bloque`, `publicaciones.version` (03a) y `dudas` (03b).
+- **A-11 · `docs/ARCHITECTURE-ESSENTIALS.md`.** "Tablas" suma `dudas` (CLASES-03) (03b). La línea "Previsto (DOCS-04)" pierde las piezas de CLASES-03 (03a y 03b). Restricciones (03a y 03b): "`comentarios` con exactamente un contexto: `publicacion_id` (muro y recursos), `entrega_id` (hilo privado; ENTREGAS-01) o `duda_id` (respuestas de una duda; CLASES-03)" y "`publicaciones.bloque` solo en materiales, escrito al publicar con el rol del autor; un nulo (solo por compatibilidad) se lee con el bloque del rol del autor (CLASES-03)". "Edición concurrente" (03a): suma "y `publicaciones` de los recursos (editar la exige; mover un recurso también la sube; `409 RECURSO_MODIFICADO`; CLASES-03)". "Recursos" en "Reglas de negocio" (03a): "(recomendación; decide CLASES-03)" pasa a "(CLASES-03a)", y suma "Los temas se gestionan en "Actividades de aprendizaje"; en "Recursos" solo se mueve un recurso.". "Interfaz", secciones (03c): "Con siete opciones, el mecanismo del indicador es "propuesta (DOCS-04)" y lo fija CLASES-03." pasa a "Hasta FORO-01 son seis; el indicador toma la posición y el ancho de la opción activa (CLASES-03c, `DESIGN.md` §7.3)."
+- **A-12 · `docs/ESTADO.md` (al cerrar cada subentrega).** §3: N-47 y la fila de O-16/O-r2-1 cerradas en 03c y 03d; la fila de N-54 con la nota "cumplido en Avisos, Actividades, Recursos y Dudas (CLASES-03); queda el resto del inventario"; §2b: filas 1 y 2 de CHORE-04 tachadas (03c).
+- **A-13 · `docs/ESTADO.md` §3, fila "Retiro de compatibilidad de CLASES-02" (al cerrar 03e).** Suma: "y de CLASES-03: `GET …/publicaciones` sin `tipo` y `GET …/trabajo` sin `seccion` (las listas mezcladas de antes); `publicaciones.bloque` obligatorio en materiales (migración con `CHECK` estricto) y `bloqueEfectivo` fuera; en el frontend, la rama de material y la de tarea de `PublicacionDelMuro` (`TarjetaDeTarea`) y la de material de `ElementoDeTrabajo`, con su autorización para borrar archivos; y extraer el reemplazo de adjuntos común a `editarTarea` y `editarRecurso`". Y una fila nueva con destino **DEPLOY** (Enmienda 1, N-09): "CLASES-03: desplegar primero el backend (con las migraciones `clases_03_recursos` y `clases_03_dudas`) y después el frontend; el frontend nuevo no funciona con un backend anterior (no existen `…/recursos` ni `…/dudas`, y un backend anterior ignora `?tipo=anuncio`). Si se vuelve atrás el backend, volver también el frontend".
+
+## Pasos de implementación
+
+### Antes de empezar (orquestador)
+1. El humano responde DH-01 a DH-16 y aprueba el plan por escrito (carril sensible si DH-01 lo confirma); el orquestador lo registra en `aprobacion.md`.
+2. Manager en modo plan → `revision.md`. Si pide cambios, enmienda del arquitecto (copia previa de `plan.md` con su SHA-256, regla de "Transcripción con cotejo").
+3. Cada subentrega: ronda 0 del tester (§D-R0) → programador → tester (máximo 3 rondas) → manager final → commit del humano. La siguiente arranca después de ese commit.
+
+### 03a (base `<R>` = `689c636`)
+1. `shared/`: `src/recursos.ts`, `avisosQuerySchema`, `seccion` en `trabajoQuerySchema`, `SECCIONES_DE_TEMAS` y `temasQuerySchema`; `index.ts`. `npm run build` de `shared/`.
+2. `core/recursos.ts` con `core/recursos.test.ts` (CL3-A04).
+3. `schema.prisma` (§D-1); `npx prisma validate` y `npx prisma format`. **PARADA: pedir confirmación al humano antes de `npx prisma migrate dev`** (crear la migración). Con la confirmación, crear la migración y editar a mano su `migration.sql` (reparto, dos `CHECK`, comentario del porqué); `npx prisma generate`.
+4. `backend/test/ayudas-tareas.ts`: la opción `bloque` (lista cerrada).
+5. `adapters/db/publicaciones.ts` (`bloque` al crear, `tipo?` al listar, regla del bloque al borrar), `adapters/db/temas.ts` (`listarTemasDeLaSeccion` y `moverATema` con `actor`), `adapters/db/tareas.ts` (`seccion?`, `export` de `confirmarArchivos`), `adapters/db/recursos.ts` (nuevo), `adapters/db/index.ts`; `lecturas-consistentes.integracion.test.ts:738` (lista cerrada).
+6. Handlers: `muro.ts`, `tareas/tareas.ts`, `tareas/temas.ts`, `clases/recursos.ts` (nuevo) y su registro en `app.ts`.
+7. Pruebas CL3-A01 a CL3-A18 (integración en `backend/test/`, archivos nuevos `recursos*.integracion.test.ts` y `migracion-clases-03a.integracion.test.ts`).
+8. READMEs de `adapters/` y `handlers/`. `npm run lint`, `npm run test` y `npm run build` del backend (con Docker Desktop) y, al terminar, `npm run lint`, `npm run test` y `npm run build` del frontend, porque 03a cambia `shared/src` (Enmienda 3, a); nunca las dos suites a la vez.
+
+### 03b (base `<K3a>`, el commit del humano de 03a)
+1. `shared/src/dudas.ts`; `index.ts`; build.
+2. `core/dudas.ts` con su prueba (CL3-B02).
+3. `schema.prisma` (§D-4); validate y format; **PARADA antes de `prisma migrate dev`**; migración con el `CHECK` de comentarios reemplazado a mano con el mismo nombre y `dudas_resuelta_completa`; generate.
+4. `adapters/db/dudas.ts`, `index.ts`; `handlers/clases/dudas.ts` y su registro en `app.ts`.
+5. `backend/test/ayudas-dudas.ts` (nuevo) y CL3-B01 a CL3-B10.
+6. READMEs; lint, test y build del backend y, al terminar, lint, test y build del frontend, porque 03b cambia `shared/src` (Enmienda 3, a); nunca las dos suites a la vez.
+
+### 03c1 (base `<K3b>`; si se parte, DH-14)
+1. `components/seccion/hooks.ts` y la reexportación en `features/calificaciones/hooks.ts` (DH-06); CL3-C16.
+2. `features/clases/data.ts` (secciones, todos los textos de §D-13 de 03c, `CAPACIDADES_POR_PERSPECTIVA`, constantes del indicador), `types.ts`, `lib.ts` (`medidaDelIndicador`, `desplazamientoParaVer`; CL3-C03). CL3-C17.
+3. `SeccionesDeClase` con el indicador medido (CL3-C01, C02, C04); `clase-layout.test.tsx` y `lib.test.ts` (lista cerrada; N-47).
+4. `app/router.tsx` (personas y redirecciones; CL3-C05) y las pruebas del router de la lista cerrada.
+5. `PersonasView` y los atributos de `BuscadorDeMaestros` y `MaestrosDeLaClase` (CL3-C06, C07).
+6. Avisos: `MuroView` sin "Crear tarea" y con el gancho compartido (CL3-C12, C18; `tarjeta-de-tarea.test.tsx` y `muro-view.test.tsx` de la lista cerrada). Actividades: el gancho compartido en `TrabajoView` y `SeccionDeTema` (CL3-C13).
+7. Matriz de avisos y recargas de 03c1 en el primer resumen. Lint, test y build del frontend.
+
+### 03c2 (base `<K3c1>`; si se parte)
+1. Avisos: `usePublicaciones` con `tipo` (CL3-C08).
+2. Actividades: `useTrabajo` con `seccion`, `useTemasDeLaSeccion`, `TrabajoView` y `SeccionDeTema` (estructura por sección, total solo para maestro y admin para la frase), `useOrdenarTemas` con la espera (CL3-C09 a C11); la lista cerrada de 03c2.
+3. O-16 con `useMontado` en los cinco ganchos de 03c (comentario, tema dos veces y la variante de clase dos veces, §D-11) y las guardas de `formulario-comentario.tsx` y `formulario-clase.tsx` (CL3-C14, C15).
+4. Matriz de avisos y recargas de 03c2 en el primer resumen (con la tabla de clase de §D-14). Lint, test y build del frontend.
+
+### 03c (base `<K3b>`; si no se parte)
+Los pasos de 03c1 y después los de 03c2, en una sola entrega y un solo commit; la matriz completa de 03c en el primer resumen.
+
+### 03d (base `<K3c2>` o `<K3c>`)
+1. `data.ts` (textos de §D-13 de 03d, claves de recursos, sección "Recursos", `CAMPOS_PINTADOS_DEL_RECURSO`, códigos), `types.ts` (reexporta los tipos de `shared/src/recursos.ts`), `lib.ts` (`erroresDelRecursoDeApi`; CL3-D18).
+2. Ganchos (§D-8.4) con `useMontado` en crear y editar recurso y en `useCrearPublicacion` (N-05); invalidaciones ampliadas de mover y de comentarios.
+3. `SeccionDeRecursos`, `ElementoDeRecurso` y `RecursosView` (CL3-D01 a D07, D23, D24, D27).
+4. `FormularioRecurso` en sus dos modos y `EditarRecursoView` (CL3-D08 a D18, D22, D25).
+5. `FormularioPublicacion` solo de anuncios y la salida de `CLASES_DE_POSICION_DEL_INDICADOR` (CL3-D19 a D21); `formulario-publicacion.test.tsx` y el resto de la lista cerrada.
+6. `app/router.tsx` (CL3-D26).
+7. Matriz de 03d en el primer resumen. Lint, test y build.
+
+### 03e (base `<K3d>`)
+1. `data.ts` (textos de §D-13 de 03e, claves, sección "Dudas", campos pintados), `types.ts`, `lib.ts` (`erroresDeLaDudaDeApi`, `erroresDeLaRespuestaDeApi`).
+2. Ganchos de §D-9.4 con `useMontado` en duda y respuesta.
+3. `ElementoDeDuda`, `RespuestasDeDuda`, `FormularioDuda`, `FormularioRespuesta` y `DudasView` (CL3-E01 a E11 y E13).
+4. `app/router.tsx` (CL3-E12).
+5. Matriz de 03e en el primer resumen. Lint, test y build.
+6. Comprobación humana (abajo) y, al cerrar, A-07 y A-13.
+
+### PARADAS (el agente se detiene y pregunta; resolverlo por su cuenta es una desviación)
+- Antes de `prisma migrate dev` (03a y 03b), y ante cualquier comando que borre datos o volúmenes.
+- Una prueba en rojo que no está en "Rojos esperados" de §D-R0 ni en la lista cerrada de su subentrega.
+- Un cambio que el plan no nombra en un archivo de "No se toca", en `middleware/`, `adapters/auth`, `config/`, `infra/` o en otro módulo de `features/`.
+- Una dependencia nueva (DH-13: ninguna).
+- Que un remedio del plan no aplique tal como está escrito (por ejemplo, que `ListaMaestrosDeClase` o `ListaPersonas` no admitan la vista de solo lectura sin cambiarlas, o que el indicador necesite un valor arbitrario entre corchetes).
+- Un puerto ocupado por un proceso ajeno: no se termina, se pregunta.
+
+### Verificaciones (en el resumen del programador, con el comando y la última línea de cada uno)
+- Backend (03a, 03b): `npm run lint`, `npm run test`, `npm run build` desde `backend/`; `npx prisma validate`; `npm run build` de `shared/`. Conteos con `npx vitest list`.
+- **Toda subentrega que cambie `shared/src` (03a y 03b, y cualquier otra que lo haga) corre además, desde `frontend/`, `npm run lint`, `npm run test` y `npm run build`**, después de la suite del backend y nunca a la vez; cada uno va en el resumen con su comando y su última línea. Motivo: hay pruebas del frontend que leen `shared/src` y el backend (`frontend/src/lib/errores-ch3-r2.ataque.test.ts`, §D-R0) y usan los esquemas de `shared/` en sus dobles. Vale para el programador, para el tester en sus rondas y para el manager en su verificación (Enmienda 3, a).
+- Frontend (03c a 03e): `npm run lint`, `npm run test`, `npm run build` desde `frontend/`. Conteos con `npx vitest list`.
+- **Conteo de archivos de `npx vitest list` (Enmienda 3, a):** con `grep -a` (`npx vitest list | grep -a -E "^src/" | sed 's/ > .*//' | sort -u | wc -l` en el frontend; lo mismo con la raíz de sus pruebas en el backend). Sin `-a`, GNU grep toma la salida por binaria (títulos con «», acentos y secuencias de color) y deja de imprimir líneas, aunque `grep -c` las cuente: en 03a dio 197 archivos en lugar de 237.
+- Nunca dos suites a la vez. Formateadores solo sobre el paquete del encargo.
+- Junto a cada viñeta de "Pruebas requeridas", el archivo y el título exacto del caso; la matriz de §D-14 desde el primer resumen de cada subentrega de interfaz; los hermanos de cada hallazgo, con sus estados vecinos, en cada corrección.
+
+### No se toca (base: `<R>` fuera de los paquetes; dentro, la de la subentrega)
+- `backend/src/middleware/`, `backend/src/adapters/auth/`, `backend/src/config/`, `backend/src/workers/`, `backend/src/core/calificaciones/`, `backend/src/core/entregas/`, `backend/src/core/autoria.ts`, `backend/src/handlers/calificaciones.ts`, `backend/src/handlers/tareas/entregas.ts`, `backend/src/handlers/tareas/hilo-privado.ts`, `backend/src/adapters/db/entregas.ts`, `backend/src/adapters/db/calificaciones.ts`, `backend/src/adapters/db/referencias.ts`.
+- `adapters/db/tareas.ts` solo gana `export` en `confirmarArchivos` y el filtro `seccion` en `listarTrabajo` (§D-3.3 y §D-3.7).
+- `frontend/src/features/tareas/`, `features/admin/`, `features/auth/`, `features/diagnostico/`; `features/calificaciones/` salvo la reexportación de `hooks.ts` (DH-06) (sus pruebas, solo las de la lista cerrada); `lib/errores-de-api.ts`, `lib/errores-de-api-fuera-de-contrato.ts` y el resto de `lib/`; `services/`; `app/providers.tsx`, `app/require-*.tsx`; `components/ui/`, `components/adjuntos/`, `components/foco/`, `components/layout/`, `components/clase/`; `styles/`.
+- `infra/`, `.env.example`, `AGENTS.md`, `CLAUDE.md`, `docs/` (salvo `docs/trabajo/CLASES-03-…` y lo que aplique el orquestador con A-01 a A-13).
+- Todas las `*.ataque.test.*` (solo el tester, en su ronda).
+
+### Comprobación humana en navegador (una sola, al final de 03e; máximo 10 minutos y 7 puntos; ningún agente abre navegadores)
+- **H-1** · El indicador de las secciones a 360, 768 y 1440 px en las tres perspectivas: cubre exactamente la sección activa al entrar y al cambiar; a 360 px el grupo se desplaza solo dentro de su panel y la activa queda a la vista.
+- **H-2** · El indicador con zoom al 200 % y tras recargar la página (las fuentes cargan después): sigue cubriendo la opción activa.
+- **H-3** · "Recursos" como maestro y como admin (contexto opaco): los dos bloques, los temas como paneles, la fila desplegada con adjuntos y comentarios, a 360 y 1440 px.
+- **H-4** · "Editar recurso": abrir, cambiar el tema y un adjunto, guardar; volver a "Recursos" y ver el cambio.
+- **H-5** · "Dudas" como estudiante y como maestro: publicar, responder, marcar y quitar «Resuelta» (la insignia se lee sin color), borrar con su confirmación.
+- **H-6** · "Personas" del admin con el teclado: del buscador de alumnos al de maestros y a las dos listas, sin que el foco salte de una pieza a otra.
+- **H-7** · Con un lector de pantalla, las secciones anuncian la activa ("página actual") y "Resuelta" se anuncia en la duda.
+
+## Enmienda 1 (revisión del manager del 2026-10-27, CAMBIOS REQUERIDOS)
+
+Aplicada en su lugar con `Edit`; cada cambio lleva "Enmienda 1" y su id. Resumen:
+
+| Id | Dónde | Qué cambió |
+|---|---|---|
+| M-01 | §D-11, CL3-C14, §D-14 (tabla nueva de clase), DH-07 | Variante de O-16 para `useCrearClase` y `useEditarClase`, que no tienen `onError`: desmontado, el gancho avisa cualquier error (no los que redirige `apiClient`) y el éxito (sin navegar); montado, solo `alFallar`/`alTerminar`, como hoy. |
+| M-02 | §D-2, §D-3.5, §D-3.7 a §D-3.9, §D-R0 | `bloqueAlPublicar`, `bloqueEfectivo` y `puedeMoverRecurso` reciben `ParticipanteDeAutoria`; ningún archivo fuera de `core/` lee `.rol` (`temas-01a-r3.ataque.test.ts:474-481` no cambia); sale "`false` para la relación estudiante" de §D-3.5. |
+| M-03 | §D-3.1, CL3-A05, §D-R0 | `crearPublicacion` gana `bloque?: Bloque \| null` con `null` por defecto; las cinco llamadas directas de las pruebas no cambian; CL3-A05 comprueba que `muro.ts` lo pasa siempre. |
+| M-04 | Lista cerrada de 03c (03c1) | Suma `tarjeta-de-tarea.test.tsx` (PR-1D06, `:142-156`); la fila de `muro-view.test.tsx` deja de hablar de "Crear tarea". |
+| M-05 | §D-10 (R9), §D-14 (03d y 03e), CL3-D27, CL3-E13, pasos | El genérico "Algo salió mal. Inténtalo de nuevo." o el de conexión en la primera carga de un bloque y de una sección de Recursos, de Dudas, de las respuestas y de "Editar recurso", con un caso por camino. |
+| N-01 | A-01 a A-06, "Documentos a actualizar" | Las marcas "propuesta (DOCS-04)" se conservan ("fijada en propuesta (CLASES-03x)"); las viñetas de Recursos y Dudas de §7.16 se reemplazan por su remisión; la viñeta "Perspectivas" de §7.16 y la frase de §7.17 se actualizan. |
+| N-02 | DH-14, §D-7, "Pruebas requeridas" › 03c, lista cerrada, §D-R0 (C-25 y "Rojos esperados"), pasos | Las dos opciones escritas; recomendación: partir en 03c1 y 03c2, con los caminos de R1 y R2 en 03c1 junto a sus textos. CL3-C08 se separa en C08 (URL) y C18 (sin "Crear tarea", vacíos y "Ver más avisos"). |
+| N-03 | §D-3.5 | `tema_id = :tema` o `tema_id IS NULL` (Prisma `temaId: valor \| null`), como `listarTrabajo`. |
+| N-04 | §D-10, R1 (b) | El camino "otra sección y regreso" funciona porque TanStack Query 5.103.2 marca la consulta `isInvalidated` al fallar, no por `retryOnMount`; la versión es supuesto del caso. |
+| N-05 | §D-11, pasos de 03d | `useCrearPublicacion` y su remedio pasan a 03d, con CL3-D22. |
+| N-06 | CL3-A01 | El patrón de CAL-1A01 (`calificaciones-migracion.integracion.test.ts:460-508`). |
+| N-07 | A-01 | El `style` con las dos variables medidas, como única excepción documentada a "valores sueltos". |
+| N-08 | §D-7.6, CL3-C09, lista cerrada de 03c2 | El total de temas solo se pide para maestro y admin (`enabled`). |
+| N-09 | R-09, DH-02, A-13 | En DEPLOY, el backend antes que el frontend; fila nueva para DEPLOY. |
+| Detalles | "Autorización", §D-15 | Tabla de `roles` · `pertenencia` de las rutas de recursos; las etiquetas de `version:` y `tipo:` corregidas ("ningún modo los pinta"). |
+| DH nuevas | "Decisiones para el humano" | DH-14 (partir 03c), DH-15 (recursos de un maestro que ya no da la clase), DH-16 (los tres cambios de R-08 frente a §7.16). |
+
+## Enmienda 2 (PARADA del programador en 03a, 2026-10-28)
+
+Plan aprobado por el humano el 2026-10-28 (SHA-256 `c9efaac1…1a1518`). La PARADA: `backend/test/bloqueo-usuario.integracion.test.ts:688` (E6, prueba normal) fija los archivos de `adapters/db` con SQL etiquetado y queda roja con `recursos.ts` (§D-3.7, paso 1); en 03b pasaría lo mismo con `dudas.ts` (§D-5). Decisión del orquestador (opción a, precedente de las Enmiendas 4 y 5 de ENTREGAS-01): ampliar la lista cerrada, sin cambiar el diseño de concurrencia ni el alcance. Aplicada con `Edit`; cada cambio lleva "Enmienda 2".
+
+| Id | Dónde | Qué cambió |
+|---|---|---|
+| E2-1 | Encabezado | "Estado: LISTO (Enmiendas 1 y 2 aplicadas)". |
+| E2-2 | "Pruebas existentes que el programador puede cambiar", filas de 03a y 03b | E6 de `bloqueo-usuario.integracion.test.ts`: suma `"recursos.ts"` (03a) y `"dudas.ts"` (03b) a la lista esperada, el nombre al título del caso y una línea al bloque de comentarios de `:677-687`. Nada más de esa prueba. |
+| E2-3 | §D-R0 | Nota de E6: es normal, la cambia el programador en su lista cerrada y no va en "Rojos esperados" (se pone roja al escribir el adaptador, no en la ronda 0); la frase de "Rojos esperados" lo dice. |
+| E2-4 | §D-R0, "Barrido de pruebas normales del backend" | Barrido de inventarios estáticos en las pruebas normales: rompe solo E6 de `bloqueo-usuario.integracion` (03a y 03b); no rompen CAL-1A18, CAL-1B08, CAL-1A01, la migración de CLASES-02, las de restricciones e índices por nombre, `higiene-de-pruebas`, las de la guarda y las rutas, las de colas, PR-1B03 bis, `muro.integracion:586-599` ni las que crean materiales sin bloque. Ninguna `*.ataque` nueva para 03b: no hay C-26. |
+| E2-5 | §D-0.5, §D-1.7 y el barrido | Condiciones de diseño que salen del barrido: SQL crudo nuevo solo en `recursos.ts` y `dudas.ts`; ningún comentario nuevo de `app.ts`, `adapters/db/tareas.ts` ni `adapters/db/index.ts` nombra las palabras de CAL-1A18 y CAL-1B08; las migraciones sin bloques `DO $$` ni los sufijos `_calificaciones` o `_clases_administradas`; las pruebas nuevas sin `LOCK TABLE` (o con `NOWAIT`). |
+
+## Enmienda 3 (arbitraje 2 de la corrección de la ronda 1 de 03a, 2026-10-28)
+
+Pedida por el manager en "## Arbitraje 2 — corrección de la ronda 1 de 03a" de `revision.md`. Motivo: `frontend/src/lib/errores-ch3-r2.ataque.test.ts:253` quedó roja desde el paso 1 de 03a por los nombres nuevos con prefijo de `shared/src` (`tipo:`, `bloque:`, `recursoId:`, `seccion:`), y nadie lo vio porque las verificaciones de 03a y 03b solo pedían `backend/` y `shared/`. Para 03a ya está arbitrado (el tester los suma al empezar la ronda 2). No cambian el alcance, el diseño, las pruebas requeridas ni ninguna DH. Aplicada con `Edit`; cada cambio lleva "Enmienda 3".
+
+| Id | Dónde | Qué cambió |
+|---|---|---|
+| E3-1 | Encabezado | "Estado: LISTO (Enmiendas 1 a 3 aplicadas)". |
+| E3-2 (a) | "Verificaciones"; pasos 8 de 03a y 6 de 03b | Si una subentrega cambia `shared/src`, también se corren `lint`, `test` y `build` del frontend, después del backend y nunca a la vez, con su comando y su última línea en el resumen; vale para el programador, el tester y el manager. Los archivos de `npx vitest list` se cuentan con `grep -a`. |
+| E3-3 (b) | §D-R0, fila C-26, y "Rojos esperados" de 03b | `errores-ch3-r2.ataque` suma al `INVENTARIO` `dudaId`, `respuestaId` y `resuelta` (los únicos literales con prefijo nuevos de `shared/src/dudas.ts` según §D-6). Se reescribe en la ronda 0 de 03b y no queda roja. |
+| E3-4 (b) | §D-13, último párrafo | Texto por campo: `tipo`, `seccion` y `bloque` no lo necesitan (solo consultas); `recursoId` ya estaba (03d); en 03e se suman `respuestaId` ("Esa respuesta ya no existe.") y `resuelta` (el genérico del módulo), además de `dudaId`. |
+| E3-5 (c) | §D-R0, "Barrido del frontend…" | Solo cuatro archivos del frontend nombran `shared/src` o el backend; solo `errores-ch3-r2.ataque` los lee y rompe (03a arbitrado, 03b con C-26). `errores-de-api.test.ts` (CH3-A25) y los dos de `features/admin` no rompen; las demás pruebas estáticas leen solo `frontend/src`. |

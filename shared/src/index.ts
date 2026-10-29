@@ -69,6 +69,26 @@ export {
   type ResumenDelGradebook,
   type TareaDeMisCalificaciones,
 } from "./calificaciones.js"
+export {
+  CODIGOS_DUDAS,
+  crearDudaSchema,
+  crearRespuestaSchema,
+  dudaIdParamSchema,
+  dudaRespuestaSchema,
+  dudaSchema,
+  dudaYRespuestaParamSchema,
+  listaDudasRespuestaSchema,
+  marcarDudaSchema,
+  type CodigoDudas,
+  type CrearDuda,
+  type CrearRespuesta,
+  type Duda,
+  type DudaIdParam,
+  type DudaRespuesta,
+  type DudaYRespuestaParam,
+  type ListaDudasRespuesta,
+  type MarcarDuda,
+} from "./dudas.js"
 export { errorApiSchema, type ErrorApi } from "./errores.js"
 export {
   agregarAlumnoRespuestaSchema,

@@ -686,7 +686,8 @@ describe("E: adaptadores, sin concurrencia", () => {
   // INSERT … ON CONFLICT DO NOTHING de la fila perezosa y el FOR NO KEY UPDATE de la entrega).
   // CALIFICACIONES-01b: calificaciones.ts (los agregados del gradebook y de "Mis calificaciones").
   // CLASES-03a (§D-3.7): recursos.ts (el FOR NO KEY UPDATE de la fila del recurso al editarlo).
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts, calificaciones.ts y recursos.ts usan SQL etiquetado en adapters/db", async () => {
+  // CLASES-03b (§D-5): dudas.ts (el FOR SHARE de la duda al responderla).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts, calificaciones.ts, recursos.ts y dudas.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -709,6 +710,7 @@ describe("E: adaptadores, sin concurrencia", () => {
       "bloqueo-usuario.ts",
       "calificaciones.ts",
       "categorias.ts",
+      "dudas.ts",
       "enlaces-registro.ts",
       "entregas.ts",
       "invitaciones.ts",

@@ -247,6 +247,10 @@ const INVENTARIO = new Set([
   "bloque",
   "recursoId",
   "seccion",
+  // CLASES-03b, C-26 (§D-R0, Enmienda 3 b): los prefijos de shared/src/dudas.ts (§D-6).
+  "dudaId",
+  "respuestaId",
+  "resuelta",
 ])
 const NOMBRE_EN_CAMEL_CASE = /^[a-z][A-Za-z0-9]*:/
 

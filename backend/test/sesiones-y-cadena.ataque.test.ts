@@ -544,8 +544,12 @@ describe("ataque: superficie de rutas", () => {
   // C-1 de CALIFICACIONES-01b (§D-R0, A-5): se agregan exactamente GET y HEAD de …/gradebook y de …/mis-calificaciones.
   // CLASES-03a, C-1 (§D-R0; §D-3.5 a §D-3.7 y "Autorización"): se agregan exactamente GET y HEAD de
   // …/recursos y de …/recursos/:recursoId, y PUT de …/recursos/:recursoId (5 entradas). Ninguna crea
-  // cuentas ni cambia roles y ninguna es pública; las de dudas (03b) aún no.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b y CLASES-03a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // cuentas ni cambia roles y ninguna es pública.
+  // CLASES-03b, C-1 (§D-R0; §D-5): se agregan exactamente las 9 entradas de dudas: GET, HEAD y POST de
+  // …/dudas; PUT de …/dudas/:dudaId/resuelta; DELETE de …/dudas/:dudaId; GET, HEAD y POST de
+  // …/dudas/:dudaId/respuestas; DELETE de …/dudas/:dudaId/respuestas/:respuestaId. Ninguna crea cuentas ni
+  // cambia roles y ninguna es pública.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a y CLASES-03b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -574,6 +578,8 @@ describe("ataque: superficie de rutas", () => {
     expect([...rutas].sort()).toEqual([
       "DELETE /api/admin/clases/:claseId/maestros/:maestroId",
       "DELETE /api/clases/:claseId/alumnos/:alumnoId",
+      "DELETE /api/clases/:claseId/dudas/:dudaId",
+      "DELETE /api/clases/:claseId/dudas/:dudaId/respuestas/:respuestaId",
       "DELETE /api/clases/:claseId/mis-comentarios/:comentarioId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
@@ -588,6 +594,8 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/alumnos/candidatos",
       "GET /api/clases/:claseId/categorias",
       "GET /api/clases/:claseId/codigo",
+      "GET /api/clases/:claseId/dudas",
+      "GET /api/clases/:claseId/dudas/:dudaId/respuestas",
       "GET /api/clases/:claseId/gradebook",
       "GET /api/clases/:claseId/mis-calificaciones",
       "GET /api/clases/:claseId/personas",
@@ -616,6 +624,8 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/alumnos/candidatos",
       "HEAD /api/clases/:claseId/categorias",
       "HEAD /api/clases/:claseId/codigo",
+      "HEAD /api/clases/:claseId/dudas",
+      "HEAD /api/clases/:claseId/dudas/:dudaId/respuestas",
       "HEAD /api/clases/:claseId/gradebook",
       "HEAD /api/clases/:claseId/mis-calificaciones",
       "HEAD /api/clases/:claseId/personas",
@@ -657,6 +667,8 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases/:claseId/archivos",
       "POST /api/clases/:claseId/archivos/:archivoId/descarga",
       "POST /api/clases/:claseId/codigo",
+      "POST /api/clases/:claseId/dudas",
+      "POST /api/clases/:claseId/dudas/:dudaId/respuestas",
       "POST /api/clases/:claseId/publicaciones",
       "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "POST /api/clases/:claseId/tareas",
@@ -672,6 +684,7 @@ describe("ataque: superficie de rutas", () => {
       "PUT /api/admin/clases/:claseId",
       "PUT /api/admin/usuarios/:id/correo",
       "PUT /api/clases/:claseId/categorias",
+      "PUT /api/clases/:claseId/dudas/:dudaId/resuelta",
       "PUT /api/clases/:claseId/publicaciones/:publicacionId/tema",
       "PUT /api/clases/:claseId/recursos/:recursoId",
       "PUT /api/clases/:claseId/tareas/:tareaId",

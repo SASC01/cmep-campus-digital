@@ -526,3 +526,165 @@ Verificación propia: `npm run lint` desde `backend/`, exit 0, con la última l�
 - `backend/test/sesiones-y-cadena.ataque.test.ts`, `backend/test/lecturas-fx-r1.ataque.test.ts`, `backend/test/muro-c-r1.ataque.test.ts`, `backend/test/recursos-clases03a-r1.ataque.test.ts`, `backend/test/migracion-clases03a-r1.ataque.test.ts`, `backend/test/recursos-clases03a-r2.ataque.test.ts`
 - `frontend/src/lib/errores-ch3-r2.ataque.test.ts`
 - `docs/trabajo/CLASES-03-reorganizacion-de-la-clase/`, `docs/ESTADO.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`
+
+## Verificación del resumen — 03b — implementación
+Veredicto: ACEPTADO, sin M-nn. El tester puede atacar 03b (ronda 1).
+Fecha: 2026-10-29. CPU al 5 % antes de empezar. Una cosa tras otra, nunca dos suites a la vez. Ningún tiempo agotado.
+
+| Qué | Resumen del programador | Mi corrida |
+|---|---|---|
+| `npm run build` (`shared/`) | exit 0 | exit 0 |
+| `npm run lint` (`shared/`) | `All matched files use Prettier code style!` | Igual |
+| `npm run lint` (`backend/`) | exit 0 | exit 0 |
+| `npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` | Igual |
+| `npx vitest list` (`backend/`, `grep -a`) | 2760 casos, 228 archivos; 1, 6, 24 y 8 por archivo | 2760, 228; `core/dudas.test.ts` 1 · `migracion-clases-03b` 6 · `dudas.integracion` 24 · `dudas-autorizacion` 8 (39 con "CL3-B") |
+| `npm run test` (`backend/`) | `Test Files  228 passed (228)` · `Tests  2760 passed (2760)` | `Test Files  228 passed (228)` · `Tests  2760 passed (2760)` · `Duration  144.72s (transform 15.73s …)` |
+| PA-07 (backend) | 0 `40P01`, deadlock y `P2003` | `40P01` 0 · deadlock 0 · serialización 0 · clientes 0 · `P2003` 0 · "Error no controlado" 10 (el inventario) · `P2028` 5 (los permitidos) |
+| `npm run build` (`backend/`) | exit 0 | exit 0 |
+| `npm run lint` (`frontend/`) | exit 0 | exit 0 |
+| `npx vitest list` (`frontend/`, `grep -a`) | 5310, 237 | 5310, 237 |
+| `npm run test` (`frontend/`) | `Test Files  237 passed (237)` · `Tests  5310 passed (5310)` | Igual · `Duration  184.32s` |
+| `npm run build` (`frontend/`) | `✓ built in 1.42s` | `✓ built in 712ms`, exit 0 |
+
+Todas las cifras coinciden.
+
+### Contraste
+- **CL3-B01 a CL3-B10:** cada viñeta tiene su caso con el título del resumen. Leí el código de:
+  - **CL3-B01:** el patrón de CAL-1A01, con un esquema propio, las migraciones hasta la anterior, datos de antes y la de 03b. Prueba que los comentarios de antes siguen sin duda. `comentarios_un_solo_contexto` rechaza los cinco casos inválidos (ninguno, y dos o tres contextos) y acepta cada contexto solo. También prueba `dudas_resuelta_completa`, las FK (la cascada a respuestas y desde la clase, y `RESTRICT` para el autor y para quien marcó) y los dos índices.
+  - **CL3-B03:** el orden, el cursor y las banderas `propia`, `puedeBorrar` y `puedeMarcar` para cinco personas.
+  - **CL3-B07:** la retención de la fila de `dudas` con `FOR UPDATE`, `formadasDetrasDe` con el pid propio y `timeout: 30_000`, en los dos órdenes: `201` y `204` con la respuesta borrada en cascada; `204` y `404` sin insertar.
+  - **CL3-B10:** una lectura estática de que el handler no encola, y un recorrido de todas las rutas sin trabajos en `pgboss.job`.
+- **E6:** el diff es solo la línea de comentario, el título y `"dudas.ts"` en la lista.
+- **Migración:** `20261029153231_clases_03_dudas/migration.sql`, SHA-256 `91c42c41…0dff`. Es el que registró el orquestador tras la confirmación literal del humano, y coincide con §D-4: tabla `dudas` con sus FK (clase en cascada; autor y `resuelta_por` en `RESTRICT`), índice `(clase_id, creado_en DESC, id DESC)`, `comentarios.duda_id` con FK en cascada e índice `(duda_id, creado_en, id)`, `dudas_resuelta_completa` y el reemplazo de `comentarios_un_solo_contexto` con el mismo nombre y tres contextos. Es compatible hacia atrás, porque toda fila de antes tiene `duda_id` nulo. No tiene `DO $$` y no lleva sufijos vigilados.
+- **Bloqueos:**
+  - `crearRespuesta` toma la duda `FOR SHARE` y no inserta si no la encuentra.
+  - `borrarDuda` toma la fila `FOR UPDATE` antes de leer el autor y borrar; las respuestas caen en cascada.
+  - `marcarDuda` es un solo `UPDATE` condicionado (`resueltaEn: null` al marcar, así que es idempotente) y vuelve a leer; con la fila borrada responde `404`.
+  - `borrarRespuesta` toca una sola fila y no bloquea la duda, así que no hay ciclo con `borrarDuda`.
+  - Es la lección de T-01 y T-02 de 03a, y la suite no muestra ningún interbloqueo.
+- **Cadena de middleware de las siete rutas** (`handlers/clases/dudas.ts`), igual que "Autorización" y §D-5:
+  - `GET …/dudas` y `GET …/respuestas`: estudiante, maestro y admin · inscripción.
+  - `POST …/dudas` y `POST …/respuestas`: estudiante y maestro · inscripción. El admin recibe `403 ROL_NO_PERMITIDO`.
+  - `PUT …/resuelta`: maestro y admin · propiedad. El estudiante, también el autor, recibe `403`.
+  - Los dos `DELETE`: los tres roles · inscripción, con `puedeBorrar` de `core/autoria.ts`.
+  - `puedeMarcarDuda` vive en `core/` y no hay `.rol` en el handler.
+- **Datos que no salen:** `SELECT_DUDA` no lee `resuelta_por` y la respuesta no lleva estado de pago, correo, rol ni quién marcó. Lo prueban CL3-B03 y CL3-B05, y el caso de éxito de `dudas-autorizacion`, que busca también `resueltaPor` y `marcadaPor`.
+- **Cola:** no se encola nada (CL3-B10).
+- **V-01:** las 229 `*.ataque` contra la tabla de la ronda 2 de 03a solo difieren en cuatro, las de la ronda 0 de 03b: `sesiones-y-cadena` (C-1), `lecturas-fx-r1` (C-2), `lecturas-fx-r2` (C-3) y `errores-ch3-r2` (C-26). Las cuatro tienen el SHA-256 de la tabla de la ronda 0 de 03b.
+- **Enmienda 2:**
+  - El SQL crudo nuevo está solo en `adapters/db/dudas.ts`, y hay dos `instantaneaUnica: true`.
+  - Mi réplica de `comentariosDe` sobre `app.ts`, `adapters/db/index.ts` y `adapters/db/tareas.ts` da 0 palabras vigiladas.
+  - No hay `LOCK TABLE` y la retención lleva `timeout`.
+- **"No se toca":** desde `a0ae116` solo cambiaron, fuera de los archivos nuevos de 03b, `schema.prisma`, los dos README, `adapters/db/index.ts`, `app.ts`, `shared/src/index.ts`, E6, las cuatro `*.ataque` del tester y los documentos del orquestador.
+
+### Desviaciones declaradas
+1. **La relación de Prisma se llama `marcadaPor`.** Aceptada: la columna sigue siendo `resuelta_por`; es solo el nombre de la relación, que choca con el del campo.
+2. **`marcarDuda` recibe `ahora` del handler en vez de usar `now()` de la base.** Aceptada: la fecha sigue siendo del servidor, en UTC, y la idempotencia no depende de ella (el `UPDATE` es condicionado). Deja fijar el reloj solo sobre `Date`. Diferencia que se nota: `creado_en` sale del reloj de la base y `resuelta_en` del de Node, que en el mismo Droplet coinciden.
+3. **`borrarDuda` toma la fila `FOR UPDATE` antes de borrar.** Aceptada: va más allá del plan ("lee el autor") en la dirección que enseñaron T-01 y T-02. Deja en serie el borrado y la respuesta en curso, coincide con "Acceso a datos" ("`FOR SHARE` contra el `DELETE`") y no rompe ningún inventario (`dudas.ts` ya está en E6).
+4. **Las ayudas de retención están dentro del archivo de prueba.** Aceptada por el mismo motivo que en 03a. Con esta ya son cuatro copias; se suma a O-4 (`docs/ESTADO.md` §3, el chore de higiene de pruebas).
+
+## Revisión final — 03b
+Veredicto: **APROBADO**, sin M-nn. Puede hacerse el commit de 03b.
+Fecha: 2026-10-29. CPU al 9 % antes de empezar. Una cosa tras otra, nunca dos suites a la vez. Ningún tiempo agotado.
+
+Verificación propia:
+| Qué | Última línea |
+|---|---|
+| `npm run build` (`shared/`) | exit 0 |
+| `npm run lint` (`shared/`) | `All matched files use Prettier code style!` |
+| `npm run lint` (`backend/`) | exit 0 |
+| `npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` |
+| `npx vitest list` (`backend/`, `grep -a`) | 2774 casos, 229 archivos |
+| `npm run test` (`backend/`) | `Test Files  229 passed (229)` · `Tests  2774 passed (2774)` · `Duration  143.80s (transform 15.55s, setup 6.91s, import 281.69s, tests 1135.65s)` |
+| PA-07 (backend) | `40P01` 0 · deadlock 0 · serialización 0 · clientes 0 · `P2003` 0 · "Error no controlado" 10 (el inventario) · `P2028` 5 (los permitidos) |
+| `npm run build` (`backend/`) | exit 0 |
+| `npm run lint` (`frontend/`) | exit 0 |
+| `npx vitest list` (`frontend/`, `grep -a`) | 5310 casos, 237 archivos |
+| `npm run test` (`frontend/`) | `Test Files  237 passed (237)` · `Tests  5310 passed (5310)` · `Duration  174.59s` |
+| `npm run build` (`frontend/`) | `✓ built in 735ms`, exit 0 |
+
+Coinciden con la ronda 1 del tester (229 / 2774 y 237 / 5310).
+
+### Lo que revisé
+- **V-01:** las 230 `*.ataque` del árbol son las 230 de la tabla de la ronda 1 de 03b, con el mismo SHA-256 una por una: 0 diferencias, ninguna de más ni de menos. Desde `<K3a>` solo cambiaron las cuatro de la ronda 0 (C-1, C-2, C-3 y C-26) y se sumó la nueva del tester (`dudas-clases03b-r1`). El programador no tocó ninguna.
+- **"No se toca":**
+  - Dentro de los paquetes, contra `<K3a>` = `a0ae116`: solo cambiaron los archivos nuevos de 03b, `schema.prisma`, `adapters/db/index.ts`, `app.ts`, `shared/src/index.ts`, los dos README, E6 (de la lista cerrada) y las `*.ataque` del tester.
+  - Fuera de los paquetes, contra `<R>` = `689c636`: desde `a0ae116` solo cambiaron `docs/ESTADO.md` y `docs/trabajo/CLASES-03-…/`; `docs/ARCHITECTURE*.md` todavía no.
+  - No se tocó nada de `middleware/`, `adapters/auth/`, `config/`, `workers/`, `core/autoria.ts`, `publicaciones.ts`, `entregas.ts` ni de `infra/`.
+- **Requisitos:**
+  - **RF-64:** un hilo abierto de la clase. Los inscritos y los maestros preguntan y responden; todos los de la clase leen. Los maestros de la clase y el admin marcan y quitan «Resuelta». No se califica, no se edita, es solo texto y está separado del hilo privado (las rutas no alcanzan otros contextos; CL3-B09, CL3b-r1-08).
+  - **P-07:** el admin lee, marca y borra, sin escribir (`403 ROL_NO_PERMITIDO` al crear una duda o responder). El estudiante, incluido el autor, no marca.
+  - **RN-07:** `puedeBorrar` de `core/autoria.ts`. El admin borra todo, cada autor lo suyo y un maestro lo de un estudiante, nunca lo de otro maestro (CL3-B06, CL3-B08, CL3b-r1-11). Borrar la duda se lleva sus respuestas (DH-05).
+  - **RN-09:** un alumno restringido no ve Dudas (CL3b-r1-12).
+- **Autorización:** las siete rutas llevan la cadena de §D-5 y de "Autorización". Ninguna respuesta lleva estado de pago, correo, rol ni quién marcó, y no se encola nada (CL3-B03, CL3-B10, CL3b-r1-14).
+- **Pruebas requeridas:** CL3-B01 a CL3-B10 con su caso; las contrasté en "Verificación del resumen — 03b — implementación". La ronda 1 suma 14 casos `CL3b-r1`, todos en verde.
+- **Migración:** `20261029153231_clases_03_dudas/migration.sql`, SHA-256 `91c42c41…0dff`. Es la que confirmó el humano y coincide con §D-4. Es compatible hacia atrás: tabla y columna nuevas, y un `CHECK` de tres contextos con el mismo nombre que acepta todo lo de antes.
+- **README (la lección de M-01 de 03a):** `adapters/README.md`, sección "Dudas en `db/dudas.ts`", describe lo que hace el código:
+  - `borrarDuda` toma la fila `FOR UPDATE` antes de leer el autor y borrar;
+  - `crearRespuesta` toma la duda `FOR SHARE` y no inserta sin fila;
+  - `marcarDuda` es un `updateMany` condicionado e idempotente, con la fecha que pasa el handler;
+  - `borrarRespuesta` toca una sola fila;
+  - el párrafo de concurrencia y el de aislamiento están completos.
+  
+  La lista de lecturas con instantánea única suma `listarDudas` y `listarRespuestas`. `handlers/README.md` describe las siete rutas con su cadena, que el admin no escribe y que nada se encola. Ninguno describe un orden viejo.
+- **Estilo (`CLAUDE.md`):** `core/` puro. El SQL crudo va etiquetado y parametrizado, solo en `dudas.ts` (Enmienda 2). No hay consultas en ciclos y los handlers son delgados.
+
+### Arbitraje de O-03b-1 (marcar contra quitar «Resuelta» a la vez)
+**Basta con dejarla para 03e; no requiere nada en 03b.**
+- El resultado es siempre el de un orden en serie válido: marcar sin efecto y después quitar. La fila nunca queda a medias (`dudas_resuelta_completa`), y la respuesta de marcar dice la verdad del momento en que se leyó.
+- Tomar la fila `FOR UPDATE` en `marcarDuda` solo cambiaría qué orden en serie gana, no la experiencia: quien marcó vería «Resuelta» y, en la siguiente lectura, ya no.
+- En 03e, el plan ya hace lo que hace falta: `useMarcarDuda` invalida `claveDudas` al tener éxito (§D-9.4) y la lista se vuelve a pedir, así que la persona ve el estado real enseguida.
+- **Destino:** 03e. El tester de 03e lo puede atacar como estado vecino de CL3-E04 (marcar con una recarga que trae la duda sin resolver: el botón y la insignia siguen al dato nuevo, sin perder el foco).
+
+### Documentos a aplicar al cerrar 03b (DH-10, autorizados por el humano)
+**Lista exacta para 03b:** A-09 (las partes de 03b), A-10 (las partes de 03b) y A-11 (las partes de 03b). **A-12 no tiene nada de 03b.** En `docs/ESTADO.md`, el orquestador actualiza el estado del encargo (§2) y las observaciones de abajo (§3). Los textos ya están ajustados a lo que quedó en el código: `borrarDuda` con `FOR UPDATE`, el admin que marca y borra sin escribir y quién marcó nunca en la respuesta.
+
+**A-09 · `docs/ARCHITECTURE.md` §7.**
+1. Fila `clases`: al final de la celda de rutas, después de "…(publicaciones, tareas y recursos)", agregar:
+   > · Desde CLASES-03b: `GET/POST /clases/{claseId}/dudas` (la lista, de la más reciente a la más antigua, paginada; publicar: alumnos inscritos y maestros de la clase) · `PUT /clases/{claseId}/dudas/{dudaId}/resuelta` (marcar y quitar «Resuelta»: maestros de la clase y admin; marcar dos veces no cambia la fecha) · `DELETE /clases/{claseId}/dudas/{dudaId}` (con sus respuestas) · `GET/POST /clases/{claseId}/dudas/{dudaId}/respuestas` · `DELETE /clases/{claseId}/dudas/{dudaId}/respuestas/{respuestaId}`. El admin lee, marca y borra, sin escribir (`403 ROL_NO_PERMITIDO`); un estudiante, también el autor, no marca. Quién marcó una duda no sale en ninguna respuesta, y nada de esto encola avisos (los decide NOTIFICACIONES)
+2. "Rutas previstas (DOCS-04)": quitar entera la viñeta "**CLASES-03 (lo que falta después de 03a):** …".
+
+**A-10 · `docs/ARCHITECTURE.md` §14.**
+1. Fila `comentarios`:
+   - En la columna de columnas, después de "`entrega_id` (FK `CASCADE`; ENTREGAS-01a)", agregar ", `duda_id` (FK `CASCADE`; CLASES-03b)".
+   - En la de restricciones, reemplazar "índices `(publicacion_id, creado_en, id)` y `(entrega_id, creado_en, id)` · `CHECK` de exactamente un contexto (`publicacion_id` o `entrega_id`)" por:
+     > índices `(publicacion_id, creado_en, id)`, `(entrega_id, creado_en, id)` y `(duda_id, creado_en, id)` · `CHECK comentarios_un_solo_contexto`: exactamente un contexto entre `publicacion_id`, `entrega_id` y `duda_id` (CLASES-03b, mismo nombre)
+   - Al final de la celda, después de "…se lee `FOR SHARE` en la misma transacción", agregar:
+     > ; al responder una duda, la duda se lee `FOR SHARE`
+2. Fila nueva `dudas`, justo después de la fila `comentarios`:
+   > | `dudas` | `id`, `clase_id` (FK `CASCADE`), `autor_id` (FK `RESTRICT`), `texto`, `resuelta_en`, `resuelta_por` (FK `RESTRICT`), `creado_en`, `actualizado_en` | índice `(clase_id, creado_en DESC, id DESC)` · `CHECK dudas_resuelta_completa`: `resuelta_en` y `resuelta_por` juntos · sus respuestas son `comentarios` con `duda_id`, que se borran con ella · `resuelta_por` nunca sale en una respuesta · borrar una duda toma primero su fila `FOR UPDATE`, así queda en serie con una respuesta en curso (CLASES-03b) |
+3. Diagrama `erDiagram`: después de la línea `  entregas ||--o{ comentarios : hilo_privado`, agregar:
+   > ```
+   >   clases ||--o{ dudas : pregunta
+   >   usuarios ||--o{ dudas : escribe
+   >   dudas ||--o{ comentarios : responde
+   > ```
+4. Tabla "Previsto (DOCS-04), no migrado": quitar la fila `dudas`.
+
+**A-11 · `docs/ARCHITECTURE-ESSENTIALS.md`.**
+1. "Tablas": en la lista, después de "`comentarios`", agregar " · `dudas` (CLASES-03)".
+2. Línea "Previsto (DOCS-04)": quitar el fragmento "· tabla `dudas`, con sus respuestas en `comentarios` como tercer contexto (`duda_id`) (CLASES-03) " (incluido su separador `·`). El resto no cambia.
+3. "Restricciones clave": reemplazar "`comentarios` con exactamente un contexto: `publicacion_id` (muro) o `entrega_id` (hilo privado; ENTREGAS-01)" por:
+   > `comentarios` con exactamente un contexto: `publicacion_id` (muro y recursos), `entrega_id` (hilo privado; ENTREGAS-01) o `duda_id` (respuestas de una duda; CLASES-03)
+4. "Reglas de negocio que tocan código", viñeta "Dudas (DOCS-04; CLASES-03)": agregar al final (es la lección de 03a, igual que en "Recursos"):
+   > Responder toma la duda `FOR SHARE` y borrarla la toma `FOR UPDATE` antes de borrar, así quedan en serie; quién marcó «Resuelta» no sale en las respuestas (CLASES-03b).
+
+A-01 a A-08, A-12 y A-13 no tocan 03b.
+
+### Rutas del commit de 03b (cotejadas con `git status`)
+- **shared:** `shared/src/dudas.ts`, `shared/src/index.ts`
+- **Esquema:** `backend/prisma/schema.prisma`, `backend/prisma/migrations/20261029153231_clases_03_dudas/`
+- **Código del backend:**
+  - `backend/src/core/dudas.ts`, `backend/src/core/dudas.test.ts`
+  - `backend/src/adapters/db/dudas.ts`, `backend/src/adapters/db/index.ts`, `backend/src/adapters/README.md`
+  - `backend/src/handlers/clases/dudas.ts`, `backend/src/handlers/README.md`
+  - `backend/src/app.ts`
+- **Pruebas del programador:** `backend/test/ayudas-dudas.ts`, `backend/test/migracion-clases-03b.integracion.test.ts`, `backend/test/dudas.integracion.test.ts`, `backend/test/dudas-autorizacion.integracion.test.ts`, `backend/test/bloqueo-usuario.integracion.test.ts`
+- **Pruebas del tester:** `backend/test/sesiones-y-cadena.ataque.test.ts`, `backend/test/lecturas-fx-r1.ataque.test.ts`, `backend/test/lecturas-fx-r2.ataque.test.ts`, `backend/test/dudas-clases03b-r1.ataque.test.ts`, `frontend/src/lib/errores-ch3-r2.ataque.test.ts`
+- **Documentos:** `docs/trabajo/CLASES-03-reorganizacion-de-la-clase/` (`aprobacion.md`, `reporte-tester.md`, `revision.md` y `resumen-programador-03b.md`), `docs/ESTADO.md`, y `docs/ARCHITECTURE.md` y `docs/ARCHITECTURE-ESSENTIALS.md` con A-09 a A-11 aplicados.
+- Antes del `git add`, `git status` no debe mostrar nada más.
+
+### Observaciones con destino (para `docs/ESTADO.md` §3)
+- **O-03b-1 (marcar contra quitar «Resuelta» a la vez):** el resultado es siempre un orden en serie válido. **Destino: 03e**, como estado vecino de CL3-E04: la invalidación de `claveDudas` tras marcar muestra el estado real.
+- **O-4 (se suma a la de 03a):** la retención de una fila con `FOR UPDATE` y `formadasDetrasDe` ya está copiada en cinco archivos de prueba (`recursos.integracion`, `recursos-clases03a-r1` y `-r2`, `dudas.integracion` y `dudas-clases03b-r1`), porque `conFilaRetenida` no admite `publicaciones` ni `dudas`. **Destino:** el `chore` de higiene de pruebas: ampliar `conFilaRetenida` a cualquier tabla y mover allí también `ejecutorEspiado` y `unaVezDespuesDe`.
+- **O-1, O-2 y O-3 de 03a** siguen con su destino (03d, A-13 y FORO-01 o el `chore`).

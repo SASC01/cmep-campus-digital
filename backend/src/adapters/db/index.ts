@@ -153,6 +153,18 @@ export {
   type RecursoDb,
   type RecursoDetalleDb,
 } from "./recursos.js"
+export {
+  borrarDuda,
+  borrarRespuesta,
+  crearDuda,
+  crearRespuesta,
+  listarDudas,
+  listarRespuestas,
+  marcarDuda,
+  type DudaDb,
+  type ListaDudasDb,
+  type ListaRespuestasDb,
+} from "./dudas.js"
 export { listarCategorias, reemplazarCategorias, type CategoriaDb } from "./categorias.js"
 export {
   adjuntosConfirmadosDe,

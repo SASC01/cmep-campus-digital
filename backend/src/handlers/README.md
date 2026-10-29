@@ -192,3 +192,14 @@ claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna 
   la ruta de mover, T-03) y, para una tarea, `puedeMoverElemento(relacion)`, como antes; `GET …/temas` acepta
   `?seccion=actividades|aprendizaje|docente` (`temasQuerySchema`, misma forma de respuesta), y mover
   pasa `actor: perfilDe(request)`. Sin el parámetro nuevo, cada ruta responde lo de antes.
+- `clases/dudas.ts` (prefijo `/api`, CLASES-03b, `dudasHandler`): `GET` y `POST
+/clases/:claseId/dudas`, `PUT …/dudas/:dudaId/resuelta`, `DELETE …/dudas/:dudaId`, y `GET`, `POST` y
+  `DELETE` de `…/dudas/:dudaId/respuestas[/:respuestaId]`. Leer y borrar: estudiante, maestro y admin
+  (`inscripcion`); publicar una duda o una respuesta: estudiante y maestro (`inscripcion`; el admin no
+  escribe, P-07); marcar: maestro y admin (`propiedad`; tampoco el autor estudiante). Los textos pasan
+  por `conTextosNormalizados` (`crearDudaSchema`, hasta 2000; `crearRespuestaSchema`, hasta 1000), el
+  cuerpo de marcar es estricto (`marcarDudaSchema`) y los ids de la ruta pasan a minúsculas. `propia`
+  es un dato de la respuesta; `puedeMarcar` sale de `puedeMarcarDuda(relacion)` (`core/dudas.ts`) y
+  `puedeBorrar` de `core/autoria.ts` dentro del adaptador. Las respuestas tienen la forma de los
+  comentarios. El autor sale con `firmaDelAutor`; ninguna respuesta lleva correo, estado de pago,
+  restricción, rol ni quién marcó la duda. Ninguna ruta encola (S-04).

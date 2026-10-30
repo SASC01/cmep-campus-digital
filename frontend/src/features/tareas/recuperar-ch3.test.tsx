@@ -197,7 +197,7 @@ const instalarServidor = () => {
       if (metodo === "GET" && ruta === `${RUTA_CLASE}/categorias`) {
         return Promise.resolve(respuestaJson(200, { categorias: [] }))
       }
-      if (metodo === "GET" && ruta === `${RUTA_CLASE}/temas`) {
+      if (metodo === "GET" && url.pathname === `${RUTA_CLASE}/temas`) {
         return Promise.resolve(respuestaJson(200, { temas: [], sinTema: 1 }))
       }
       if (metodo === "GET" && url.pathname === `${RUTA_CLASE}/trabajo`) {

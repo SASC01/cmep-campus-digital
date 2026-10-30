@@ -15,8 +15,15 @@ import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioTema } from "./components/formulario-tema"
 import { SeccionDeTema } from "./components/seccion-de-tema"
 import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_TRABAJO } from "./data"
-import { useAvisoDeRecargaFallida, useFilaEnFoco, useOrdenarTemas, useTemas } from "./hooks"
 import {
+  useAvisoDeRecargaFallida,
+  useFilaEnFoco,
+  useOrdenarTemas,
+  useTemas,
+  useTemasDeLaSeccion,
+} from "./hooks"
+import {
+  elementosEnTotalDelTema,
   errorQuitaLaVista,
   focoPerdido,
   mensajeDeConsultaClases,
@@ -46,18 +53,21 @@ const enfocarControlDeOrden = ({ temaId, control }: OrdenEnVuelo): boolean => {
 }
 
 // §D-11, P-03 de CLASES-01: "Trabajo de clase", la sección "Actividades de aprendizaje" desde
-// CLASES-03 (§D-7.6; el archivo y el segmento `trabajo` se conservan, DH-09). El alumno lo ve agrupado por tema y de solo lectura;
-// el maestro y el admin además crean, renombran, ordenan y borran temas y mueven elementos (los
-// botones salen de la perspectiva, y "Mover" de `puedeMover` de cada elemento). "Sin tema" va primero
-// si tiene elementos y después los temas en su orden; cada sección pide su primera página al
-// montarse, así que la fila del limitador respeta ese orden (Enmienda 5). Estados: error → cargando →
-// vacío → datos.
+// CLASES-03 (§D-7.6; el archivo y el segmento `trabajo` se conservan, DH-09). El alumno lo ve
+// agrupado por tema y de solo lectura; el maestro y el admin además crean, renombran, ordenan y borran
+// temas y mueven elementos (los botones salen de la perspectiva, y "Mover" de `puedeMover` de cada
+// elemento). "Sin tema" va primero si tiene actividades y después los temas en su orden; cada sección
+// pide su primera página al montarse, así que la fila del limitador respeta ese orden (Enmienda 5).
+// CLASES-03c2: la estructura (temas, orden, nombres y conteos) sale de la lista de temas de la sección;
+// la lista total solo da la frase de borrar un tema, y solo la piden el maestro y el admin (N-08).
+// Estados: error → cargando → vacío → datos.
 function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   const { pathname } = useLocation()
   const perspectiva = perspectivaDeRuta(pathname)
   const capacidades = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
   const base = baseDeClase(perspectiva, claseId)
-  const temas = useTemas(claseId)
+  const temas = useTemasDeLaSeccion(claseId, "actividades")
+  const temasEnTotal = useTemas(claseId, capacidades.gestionarTrabajo)
   const ordenar = useOrdenarTemas(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const nuevoTemaRef = useRef<HTMLButtonElement>(null)
@@ -190,6 +200,10 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
       <div className="flex flex-col gap-4">
         {secciones.map((seccion) => {
           const posicion = listaDeTemas.findIndex(({ id }) => id === seccion.clave)
+          const elementosEnTotal =
+            seccion.tema === null
+              ? null
+              : elementosEnTotalDelTema(temasEnTotal.data, temasEnTotal.isError, seccion.tema.id)
           return (
             <SeccionDeTema
               key={seccion.clave}
@@ -197,6 +211,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
               base={base}
               seccion={seccion}
               temas={listaDeTemas}
+              elementosEnTotal={elementosEnTotal}
               gestionar={capacidades.gestionarTrabajo}
               esPrimero={posicion === 0}
               esUltimo={posicion === listaDeTemas.length - 1}

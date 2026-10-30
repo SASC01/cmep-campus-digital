@@ -33,6 +33,8 @@ export type {
   ListaTemasRespuesta,
   ListaTrabajoRespuesta,
   Tema,
+  // CLASES-03c2 (§D-7.6): la sección cuyos conteos pide la lista de temas.
+  SeccionDeTemas,
 } from "@campus/shared"
 
 // Tipos exclusivos de la interfaz de CLASES-a.

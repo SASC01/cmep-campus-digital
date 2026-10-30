@@ -52,7 +52,11 @@ describe("ataque CHORE-03 03b r1 · N-46", () => {
     },
   )
 
-  it("fuera de services/apiClient ningún archivo de producción repite los tres códigos juntos (con otro nombre) y solo tareas y calificaciones importan la lista, de @/services/apiClient", () => {
+  // CLASES-03c2 ronda 0 (C-29, §D-R0, Enmienda 7; §D-11): features/clases/lib.ts gana
+  // errorQueRedirigeElCliente con la misma forma que tareas y calificaciones, así que también importa
+  // la lista de @/services/apiClient. Sigue protegiendo que nadie más la importe, la declare ni copie
+  // sus tres códigos.
+  it("fuera de services/apiClient ningún archivo de producción repite los tres códigos juntos (con otro nombre) y solo tareas, calificaciones y clases importan la lista, de @/services/apiClient", () => {
     const conLosTres = deProduccion
       .filter(([, texto]) =>
         ["ACCESO_RESTRINGIDO", "CAMBIO_DE_CONTRASENA_REQUERIDO", "NO_AUTENTICADO"].every((codigo) =>
@@ -74,6 +78,7 @@ describe("ataque CHORE-03 03b r1 · N-46", () => {
       ])
     expect(usan).toEqual([
       ["/src/features/calificaciones/lib.ts", true, false],
+      ["/src/features/clases/lib.ts", true, false],
       ["/src/features/tareas/lib.ts", true, false],
     ])
   })

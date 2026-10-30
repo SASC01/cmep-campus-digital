@@ -1303,7 +1303,8 @@ describe("TrabajoView: guardas síncronas y «Cancelar» en vuelo (M-01 y M-02)"
 
   it("M-01 · «Bajar» de un tema y «Subir» de otro en el mismo turno mandan un solo PUT del orden", async () => {
     const respuesta = retenida()
-    const servidor = crearServidor(tresTemas(), {
+    const datos = tresTemas()
+    const servidor = crearServidor(datos, {
       manejar: ({ metodo, ruta }) => {
         if (metodo !== "PUT" || !ruta.endsWith("/temas/orden")) return undefined
         return respuesta.promesa
@@ -1324,6 +1325,16 @@ describe("TrabajoView: guardas síncronas y «Cancelar» en vuelo (M-01 y M-02)"
       temaIds: [idTema(2), idTema(1), idTema(3)],
     })
 
+    // CLASES-03c2 (Enmienda 11, E11-3; CL3-C10): el doble guarda el orden nuevo antes de soltar el PUT,
+    // como haría el servidor al confirmarlo, porque la vista lo lee de la recarga por sección que
+    // espera useOrdenarTemas.
+    const clase = datos[CLASE_A]
+    if (clase === undefined) throw new Error("la clase A no está en el doble")
+    clase.temas = [
+      { id: idTema(2), nombre: "Unidad 2" },
+      { id: idTema(1), nombre: "Unidad 1" },
+      { id: idTema(3), nombre: "Unidad 3" },
+    ]
     respuesta.soltar(
       respuestaJson(200, {
         temas: [

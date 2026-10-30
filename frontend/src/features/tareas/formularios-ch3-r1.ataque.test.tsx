@@ -237,7 +237,9 @@ const deSiempre = (llamada: Llamada): Response => {
   if (metodo === "GET" && url === `${RUTA_CLASE}/categorias`) {
     return respuestaJson(200, { categorias: [] })
   }
-  if (metodo === "GET" && url === `${RUTA_CLASE}/temas`) {
+  // CLASES-03c2 ronda 0, adenda 2 (C-31, Enmienda 11, con autorización del humano; §D-7.6 y N-08): el
+  // estudiante pide los temas de Actividades con ?seccion=actividades; se compara solo la ruta.
+  if (metodo === "GET" && ruta.pathname === `${RUTA_CLASE}/temas`) {
     return respuestaJson(200, { temas: [], sinTema: 1 })
   }
   const esConsultaQueFalla =

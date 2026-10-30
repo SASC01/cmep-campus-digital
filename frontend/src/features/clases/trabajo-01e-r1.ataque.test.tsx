@@ -308,6 +308,13 @@ describe("ataque TAREAS-01e r1: ordenar y mover (sin hallazgo esperado)", () => 
     await act(() => new Promise((r) => setTimeout(r, 30)))
     expect(servidor.llamadas.filter((l) => l.metodo === "PUT")).toHaveLength(1)
     await act(async () => {
+      // CLASES-03c2 ronda 0, adenda 1 (C-25 por arbitraje del manager; §D-7.6 y CL3-C10): la vista lee
+      // la lista por sección y useOrdenarTemas espera a que se vuelva a pedir. El doble confirma el
+      // orden nuevo, como haría el servidor, antes de responder el PUT.
+      datos.temas = [
+        { id: idTema(2), nombre: "Unidad 2" },
+        { id: idTema(1), nombre: "Unidad 1" },
+      ]
       soltar(
         respuestaJson(200, {
           temas: [

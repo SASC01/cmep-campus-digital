@@ -1,5 +1,5 @@
 import { crearClaseAdminSchema, crearClaseSchema, normalizarTextoLargo } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
 
@@ -40,6 +40,13 @@ export function FormularioClase({ modo, claseId, valoresIniciales }: FormularioC
   const navigate = useNavigate()
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [elegidos, setElegidos] = useState<MaestroDeLista[]>([])
+  // §D-12 (CHORE-04, fila 2): guarda síncrona; `mutacion.isPending` llega un render después y dos clics
+  // seguidos mandarían dos peticiones. Se marca justo antes de `mutate` (después de la validación local
+  // y, al editar, de comprobar el id) y se libera al asentarse.
+  const enviandoRef = useRef(false)
+  const liberarEnvio = () => {
+    enviandoRef.current = false
+  }
 
   const alElegir = (maestro: CandidatoMaestro) => {
     setElegidos((actuales) => [...actuales, maestro])
@@ -76,7 +83,7 @@ export function FormularioClase({ modo, claseId, valoresIniciales }: FormularioC
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
-    if (mutacion.isPending) return
+    if (enviandoRef.current) return
 
     const formulario = new FormData(evento.currentTarget)
     const campos = {
@@ -94,9 +101,11 @@ export function FormularioClase({ modo, claseId, valoresIniciales }: FormularioC
         return
       }
       setErrores({})
+      enviandoRef.current = true
       crear.mutate(resultado.data, {
         onSuccess: (respuesta) => alTerminar(respuesta.clase.id),
         onError: alFallar,
+        onSettled: liberarEnvio,
       })
       return
     }
@@ -109,9 +118,14 @@ export function FormularioClase({ modo, claseId, valoresIniciales }: FormularioC
       return
     }
     setErrores({})
+    enviandoRef.current = true
     editar.mutate(
       { claseId, datos: resultado.data },
-      { onSuccess: (respuesta) => alTerminar(respuesta.clase.id), onError: alFallar },
+      {
+        onSuccess: (respuesta) => alTerminar(respuesta.clase.id),
+        onError: alFallar,
+        onSettled: liberarEnvio,
+      },
     )
   }
 

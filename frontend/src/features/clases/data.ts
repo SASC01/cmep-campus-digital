@@ -5,11 +5,13 @@ import {
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
 import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
+import { claveTemas } from "@/services/trabajoService"
 
 import type {
   CapacidadesDePerspectiva,
   Perspectiva,
   SeccionDeClase,
+  SeccionDeTemas,
   TipoPublicacion,
 } from "./types"
 
@@ -37,6 +39,10 @@ export const claveCandidatos = (claseId: string) => ["clases", claseId, "candida
 // del muro, para que invalidar la lista no vuelva a pedir los comentarios de todas las abiertas.
 export const claveComentarios = (claseId: string, publicacionId: string) =>
   ["clases", claseId, "comentarios", publicacionId] as const
+// CLASES-03c2 (§D-7.6): los temas con los conteos de una sección. Cuelga de la clave de los temas
+// (el total), así que toda invalidación de esa clave, no exacta, también la alcanza.
+export const claveTemasDeLaSeccion = (claseId: string, seccion: SeccionDeTemas) =>
+  [...claveTemas(claseId), seccion] as const
 
 export const LIMITE_CLASES = 20
 // §D-2C2: la lista de clases del administrador se pide de 50 en 50.

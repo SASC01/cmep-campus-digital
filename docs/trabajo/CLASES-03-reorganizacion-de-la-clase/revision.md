@@ -1441,3 +1441,824 @@ docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03c1.md
 docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03c1-r1.md
 ```
 En total son 71 archivos: 15 de código, 16 de pruebas normales, 29 `*.ataque`, 5 documentos y 6 de `docs/trabajo/`. Son exactamente los de `git status -uall` (57 modificados y 14 sin rastrear), sin archivos ajenos. No entra nada de `shared/`, `backend/` ni `infra/`. `AGENTS.md` entra por la regla de `shared/` que autorizó el humano (hash `bb985908…`). `docs/ARCHITECTURE.md` no cambió desde `HEAD`.
+
+## Verificación de la Enmienda 8 — CLASES-03
+Fecha: 2026-10-30. Solo lectura, grep y git. No corrí `lint`, `test` ni `build` porque el tester está corriendo la suite del frontend (ronda 0 de 03c2), y nunca corren dos suites a la vez. La Enmienda 8 solo cambia texto de documentos.
+
+**Veredicto: APROBADA CON M-01 y M-02.** Ninguna de las dos frena el trabajo de 03c2 (la ronda 0, la implementación ni las rondas). Las dos son huecos de documentos, de la misma clase que el M-01 de la revisión final de 03c1. Se resuelven con una enmienda de documentos, que se aplica junto con A-02 bis y A-02 ter al cerrar 03c2. La revisión final de 03c2 lo verifica.
+
+### 1. Hashes y diff
+- `plan.md`: 1188 líneas, SHA-256 `8ae33a509fd5b2b76e2448f5700e8ae283d221e0718d00a22559b52e94e76065` (reproducido).
+- Copia previa `…/scratchpad/copias-plan/plan-clases03-antes-enmienda8-84074f4a.md`: 1170 líneas, SHA-256 `84074f4a5ecda3725b51c52da2a82dfc26195ba021226c462f607d65f6d04fe6` (reproducido).
+- `git diff --no-index` completo: 5 hunks, todos con su E8-n. Nada queda fuera de la tabla.
+
+| Hunk | Líneas del plan nuevo | E8 |
+|---|---|---|
+| 1 | 2 (Estado) | E8-1 |
+| 2 | 957 ("Si 03c se parte"), 960 (A-02 bis), 961 (A-02 ter) | E8-4, E8-2, E8-3 |
+| 3 | 1013 (paso 5 de 03c2) | E8-5 |
+| 4 | 1055 ("No se toca", línea de `docs/`) | E8-6 |
+| 5 | 1174-1188 (sección "Enmienda 8", su tabla y la observación para 03d) | registro de E8-1 a E8-6 |
+
+Ningún hunk toca alcance, diseño, código, pruebas requeridas, conteos, DH, §D-R0 ni las listas cerradas de 03c2 a 03e. La copia congelada sobre la que ataca el tester (`plan-clases03-v8-enmienda7-84074f4a.md`) sigue siendo válida para 03c2.
+
+### 2. A-02 bis corrige M-01
+- **Contra el código de `91756a5`** (`features/clases/components/secciones-de-clase.tsx`), todo coincide:
+  - `<ul aria-label={TEXTOS_CLASE.secciones}>` (`:65`, "Secciones de la clase" en `data.ts:294`).
+  - `NavLink` con `buttonVariants({ variant: "ghost", size: "sm" })` y `text-link` en el activo (`:37-42`), dentro de un `Card` (`:56`).
+  - El indicador medido con `--indicador-x` y `--indicador-ancho` (`:47-63`).
+  - `end={segmento === ""}`: solo "Avisos" (`:70`).
+  - `indiceDeSeccionActiva` (`lib.ts:74-88`): la ruta exacta para `""` y el prefijo `destino/` para las demás. Por eso "Editar recurso" dejará activa "Recursos".
+
+  El texto viejo decía "`NavLink` (`end`)" para todos, y eso ya era falso. A-02 bis lo corrige.
+- **Marcas (DESIGN.md §11, `:942`, y la regla de marcas del plan, `:956`):** la viñeta vieja (`DESIGN.md:662`) lleva tres marcas, y las tres se conservan literales:
+  - "propuesta, decisión del humano (2026-10-02)";
+  - "propuesta aprobada (2026-10-11)", que suma "fijada en propuesta (CLASES-03c)";
+  - "CALIFICACIONES-01d, propuesta aprobada (2026-10-26)", que también suma "fijada en propuesta (CLASES-03c)".
+
+  La frase nueva "Desde CLASES-03" lleva "(propuesta (CLASES-03c))". No se borra ninguna marca.
+- **Lo que la viñeta vieja decía y A-02 bis deja de decir:**
+  - "Categorías de calificación" y el detalle de tarea "no son secciones": quedan en la viñeta "Secciones", que A-02 bis cita.
+  - "Ninguna sección existente cambia de posición": era historia de 01d. Se pierde sin daño.
+- **La nota de "Exportar a Excel"** (RF-65, CALIFICACIONES-02) vuelve, como pedía el detalle menor.
+- **Las anclas** existen tal cual y una sola vez: `:662` empieza y termina con el texto que cita A-02 bis.
+
+### 3. A-02 ter: las cuatro anclas y el barrido
+- Las anclas (1), (2) y (3) de `:413` y la (4) de `:360` existen literales, una vez cada una. La (1) cambia "(viñeta siguiente)" por "(abajo)", y es correcto: desde A-01, la viñeta siguiente (`:414`) es "Secciones de una clase", y "Tipo de publicación" está en `:415`. Ninguna toca marcas.
+- Hice el barrido yo mismo en `docs/DESIGN.md`, con dos greps: uno de "Trabajo de clase", "muro"/"Muro", "Alumnos", "Maestros", "cuatro/cinco opciones" y "cuatro secciones", y otro de "Personas", "secciones", "sección", "indicador", "/alumnos" y "/maestros". Las líneas que A-02 ter enumera son correctas, y su clasificación también (historia, patrón de §7.18, o algo que no es una sección): `:316`, `:318`, `:348`, `:390`, `:445`, `:452`, `:510`, `:538`, `:569`, `:687`, `:698`, `:716`, `:790`, `:791` y `:868`.
+- Hay más menciones de "muro" que no están enumeradas: `:587`, `:706`, `:709`, `:726`, `:732`, `:737`, `:746` y `:755`. Todas nombran el patrón de §7.18 o la clave de su caché, así que entran en la categoría "nombran el patrón de §7.18", aunque no estén en la lista. No pido cambio.
+- La única que no entra en ninguna categoría es `:449` (M-01, abajo).
+
+### 4. Momento de aplicación
+El cierre de 03c2 es coherente por cuatro razones:
+- Cumple el "a más tardar al cerrar 03c2" de M-01.
+- 03c2 no toca `secciones-de-clase.tsx`, `indiceDeSeccionActiva` ni `CAPACIDADES_POR_PERSPECTIVA`, así que lo que afirma A-02 bis sigue siendo cierto en `<K3c2>`.
+- La revisión final de 03c2 lo verifica, con el paso 5 de 03c2 y la viñeta "Si 03c se parte".
+- E8-6 lo deja dentro de la excepción de "No se toca".
+
+### M-01 — El barrido de A-02 ter no ve `DESIGN.md:449`, que nombra "Alumnos" como página de la clase
+Dónde: `docs/DESIGN.md:449`, §7.4, viñeta "Lista de clases de la barra (propuesta (CLASES-02d); …)". Dice: "con `aria-current="page"` en cualquier página de esa clase (muro, Personas o Alumnos)".
+
+Por qué importa: está escrita en presente y enumera las páginas de la clase con los nombres de antes. Desde 03c1, "Alumnos" ya no es una página: `…/alumnos` redirige a `…/personas`. Además faltan "Actividades de aprendizaje" y "Calificaciones". No es historia ni una cosa que no sea sección, que son las dos categorías del barrido. Y "Alumnos" estaba entre las palabras del barrido. Es el mismo defecto que M-01 de 03c1: `DESIGN.md` describe las secciones de antes en presente.
+
+Qué se espera: un cambio literal más en A-02 ter, sin tocar la marca de la viñeta, que haga verdad la enumeración. Por ejemplo, "(muro, Personas o Alumnos)" pasa a "(cualquiera de sus secciones, §7.16, y las pantallas que cuelgan de ellas)". También hay que sumar `:449` a la lista del barrido. Se aplica al cerrar 03c2.
+
+### M-02 — Dos textos de la interfaz que 03c1 ya cambió siguen viejos en `DESIGN.md`, y ningún A-nn los cubre
+Dónde y qué:
+- `docs/DESIGN.md:695`, §7.18, viñeta "Ver más": "Ver más publicaciones", dos veces. El código de `91756a5` dice "Ver más avisos" (`TEXTOS_MURO.verMasPublicaciones`, `features/clases/data.ts:352`; §D-13 del plan).
+- `docs/DESIGN.md:757`, §7.22, viñeta "Orden": el vacío "Aún no hay tareas ni materiales en esta clase.". El código de `91756a5` dice "Aún no hay actividades en esta clase." (`TEXTOS_TRABAJO.vacio`, `data.ts:489`; §D-13; CL3-C09).
+
+Por qué importa: es la misma clase de hueco que M-01 de 03c1, un texto de `DESIGN.md` que contradice lo construido y que la lista de A-nn no reemplaza. A-03 solo cambia la frase de entrada de §7.18. A-04 cambia la frase de entrada de §7.22 y los textos de "Recarga fallida" y "Carga por tema" (R2 y la recarga fallida, ya aplicados en `:759` y `:764`), pero no el vacío de "Orden". El barrido de la Enmienda 8 se limitó a los nombres de las secciones y al indicador, así que tampoco los ve. Los dos son de 03c1, y mi revisión final de 03c1 los dejó pasar: lo anoto como hueco propio. Como `docs/` está en "No se toca", el orquestador no puede corregirlos por su cuenta.
+
+Qué se espera: en la misma enmienda que M-01, dos cambios literales, aplicados al cerrar 03c2:
+- en `:695`, "Ver más publicaciones" pasa a "Ver más avisos" en sus dos apariciones, sin tocar la marca "propuesta aprobada (2026-10-11)";
+- en `:757`, el vacío pasa a "Aún no hay actividades en esta clase.".
+
+Antes, el arquitecto cruza cada texto de §D-13 que cambia en 03c1 y 03c2 con `DESIGN.md` (un grep por cada texto viejo de la tabla) y confirma que no queda otro. Los textos de §D-13 que entran en 03d y 03e (Recursos y Dudas) ya los cubren A-05 y A-06 como secciones nuevas.
+
+### Arbitraje de la observación del arquitecto para 03d
+Dictamen: **hay que enmendar ahora, en la misma enmienda de documentos que M-01 y M-02, con un A-03 bis que se aplica al cerrar 03d.** No conviene esperar a planear el cierre de 03d. Hay tres razones:
+1. **El cambio es seguro, no condicional.** §8.7 del plan (`:318`) y CL3-D19 (`:828`) quitan de `FormularioPublicacion` el grupo "Tipo de publicación", el título y el tema. Con eso, `:415` ("Lo usa `FormularioPublicacion`") y "Publicar material" de `:713` quedan falsos en presente en cuanto cierre 03d.
+2. **Ese momento no existe.** El plan de 03d ya está escrito, y nadie va a "planear el cierre de 03d" otra vez. Si se deja así, aparece como M-nn en la revisión final de 03d y cuesta una enmienda entonces, que es exactamente el patrón de M-01 de 03c1. Hacerlo ahora cuesta un párrafo de documentos.
+3. **Depende del texto que deja A-02 ter (1).** La frase "y, desde CLASES-02d, el grupo "Tipo de publicación" (abajo)" la escribe esta misma enmienda en `:413`. Conviene que A-03 bis ancle sobre ese texto ya enmendado y no sobre el de hoy.
+
+Alcance esperado del A-03 bis (el resultado, no la redacción):
+- `:413`, el grupo "Tipo de publicación", y la viñeta de `:415` ("Lo usa `FormularioPublicacion`") pasan a historia "hasta CLASES-03d", con sus marcas intactas.
+- En `:713`, "("Publicar anuncio" o "Publicar material")" pasa a "Publicar anuncio".
+- Un vecino que la observación no nombra: `:696`, "Errores de campo", el texto "Escribe el título del material", que pierde su campo en 03d.
+
+Las viñetas `:700` ("Tema" del material), `:701` (tipo en vuelo) y `:702` ("Crear tarea") ya están cubiertas por la frase de entrada de A-03 como lo construido hasta CLASES-03. La insignia "Material" de `:540` y `:691` sigue existiendo por DH-08, así que se queda.
+
+### Para el orquestador
+- La ronda 0 de 03c2 no se detiene.
+- La enmienda de M-01, M-02 y A-03 bis puede llegar en cualquier momento antes del cierre de 03c2 (A-03 bis, antes del cierre de 03d). Antes de esa enmienda, guarda la copia del plan con su SHA-256 (`8ae33a50…`) en `aprobacion.md`, y yo la verifico con `git diff --no-index` contra esa copia.
+
+## Verificación de la Enmienda 9 — CLASES-03
+Fecha: 2026-10-30. Solo lectura, grep y git. No corrí `lint`, `test` ni `build` porque el tester sigue con la ronda 0 de 03c2 en la suite del frontend, y nunca corren dos suites a la vez. La Enmienda 9 solo cambia texto de documentos.
+
+**Veredicto: APROBADA CON M-01.** M-01 es una frase de A-03 bis que pone una fecha falsa en `DESIGN.md`. No frena 03c2, porque A-03 bis se aplica al cerrar 03d. Se corrige en la enmienda del arbitraje del título del recurso (abajo), que tiene que llegar antes de la ronda 0 de 03d. M-01 y M-02 de la verificación de la Enmienda 8 quedan cerrados.
+
+### 1. Hashes y diff
+- `plan.md`: 1207 líneas, SHA-256 `d0b9216f4684d65e90426a44fe070db1a3fb973ab3217216a76c7908629592f3`. Lo reproduje y coincide con `aprobacion.md:185`.
+- Copia previa `…/scratchpad/copias-plan/plan-clases03-antes-enmienda9-8ae33a50.md`: 1188 líneas, SHA-256 `8ae33a509fd5b2b76e2448f5700e8ae283d221e0718d00a22559b52e94e76065` (reproducido).
+- `git diff --no-index` completo: 5 hunks, todos con su E9-n. Nada queda fuera de la tabla.
+
+| Hunk | Líneas del plan nuevo | E9 |
+|---|---|---|
+| 1 | 2 (Estado) | E9-1 |
+| 2 | 961 (A-02 ter, reescrita solo con la cola "Enmienda 9": cambios (5) a (8), barrido y cruce de §D-13) y 963 (A-03 bis nueva) | E9-2, E9-3, E9-4, E9-5 y E9-6 |
+| 3 | 1027 (paso 8 de 03d) | E9-7 |
+| 4 | 1057 ("No se toca", línea de `docs/`) | E9-8 |
+| 5 | 1191-1207 (sección "Enmienda 9", su tabla y la observación del título) | registro de E9-1 a E9-8 |
+
+En la línea de A-02 ter, el texto anterior a "**Enmienda 9 (…)**" es idéntico byte por byte al de la Enmienda 8. Ningún hunk toca alcance, código, pruebas requeridas, conteos, DH, §D-R0 ni listas cerradas.
+
+### 2. Anclas, contra `DESIGN.md` en `HEAD`, sin cambios en el árbol
+Conté cada ancla literal con `grep -o -F`. Todas están una sola vez y en la línea que cita el plan:
+
+| Ancla | Línea |
+|---|---|
+| (5) "(muro, Personas o Alumnos);", con su marca "(propuesta (CLASES-02d); decisión del humano P-02 A; …)" | `:449` |
+| (6) "- **"Ver más":** "Ver más publicaciones" y "Ver más comentarios"" y "aplicada a "Ver más publicaciones";" | `:695` |
+| (7) el vacío "Aún no hay tareas ni materiales en esta clase." | `:757` |
+| (8) "dentro de la clase: las tareas y los materiales agrupados por tema." y "El muro sigue cronológico (§7.18)." | `:755` |
+| A-03 bis (2), con el encabezado de la viñeta | `:415` |
+| A-03 bis (3) | `:696` |
+| A-03 bis (4) | `:713` |
+
+- En (6), "Ver más publicaciones" aparece dos veces en `:695` y las dos anclas las distinguen. Tras el primer reemplazo, la segunda sigue siendo única.
+- A-03 bis (1) ancla sobre el texto que deja A-02 ter (1), "y, desde CLASES-02d, el grupo "Tipo de publicación" (abajo).". Hoy `:413` dice "(viñeta siguiente)" una sola vez, así que tras A-02 ter queda una sola vez. El orden que fijan A-03 bis ("después de A-02 ter") y el paso 8 de 03d es correcto.
+- **Marcas:** ningún cambio toca una marca de origen. (5) y (6) lo dicen de forma expresa, y A-03 bis dice "con todas las marcas intactas". Las notas nuevas ("(CLASES-03c)" y "hasta CLASES-03d") se suman, no reemplazan.
+
+### 3. Contra el código de `91756a5`
+- (6): `TEXTOS_MURO.verMasPublicaciones` dice "Ver más avisos" (`data.ts:352`).
+- (7): `TEXTOS_TRABAJO.vacio` dice "Aún no hay actividades en esta clase." (`data.ts:489`).
+- (8): describe lo que será verdad con CL3-C09 (03c2), y se aplica al cerrar 03c2. "La fila "Material" … solo se alcanza por compatibilidad" coincide con DH-08.
+- (5): la lista de la barra (`components/layout/lista-de-clases.tsx:89-90`) es un `NavLink` sin `end` hacia `/${rol}/clases/${id}`. Queda activo en cualquier ruta debajo de la clase. Ver el detalle menor.
+- A-03 bis: §D-8.7 (`:318`) y CL3-D19 (`:828`) quitan el grupo, el título y el tema. El control de dos botones sigue vigente en `FormularioTarea` (`DESIGN.md:417` y `:739`; `features/tareas/data.ts`). Ver M-01.
+
+### 4. Cruce de §D-13 (lo repetí yo)
+Saqué los textos que 03c1 quitó con `git diff e502381 91756a5 -- frontend/src/features/clases/data.ts`, de las líneas `-`. Busqué cada uno en `docs/DESIGN.md` con `grep -F`:
+
+| Texto viejo | Dónde aparece en `DESIGN.md` |
+|---|---|
+| "Aún no hay publicaciones en esta clase." | en ninguna |
+| "Tu maestro aún no ha publicado nada en esta clase." | en ninguna |
+| "Publica el primer anuncio o material de tu clase." | en ninguna |
+| "El muro cambió mientras lo veías. Vuelve a abrirlo…" | en ninguna |
+| "…Vuelve a abrir Trabajo de clase…" | en ninguna |
+| "No pudimos actualizar Trabajo de clase…" | en ninguna |
+| "…se queda en el muro." | en ninguna |
+| `"Publicaciones"` | en ninguna |
+| "Ver más publicaciones" | `:695`, cambio (6) |
+| "Aún no hay tareas ni materiales en esta clase." | `:757`, cambio (7) |
+| "Crear tarea" | `:664` y `:762`, ya verdad; `:685` y `:702`, cubiertas por A-03 |
+
+- Los nombres "Muro", "Trabajo de clase", "Alumnos" y "Maestros" son los del barrido de las Enmiendas 8 y 9.
+- Las clases `grid-cols-N`, `w-1/N` y `translate-x-…` caen en las reglas de columnas de §7.3, que A-01 deja para los controles de columnas iguales.
+- 03c2 solo suma `consecuenciaSinConteo`, un texto nuevo sin texto viejo.
+
+El cruce de E9-5 es correcto y completo.
+
+### M-01 — A-03 bis (1) fecha "desde CLASES-03d" un control que existe desde la propuesta aprobada del 2026-10-11
+Dónde: `plan.md:963`, A-03 bis, cambio (1). Dice que `:413` pasa a "…; desde CLASES-03d, el control de dos botones de "Entregas después de la fecha límite" (abajo).".
+
+Por qué importa: es falso. "Entregas después de la fecha límite" implementa ese patrón desde la "propuesta aprobada (2026-10-11)" de `FormularioTarea` (`DESIGN.md:417`). "Cómo se entrega" lo usa desde la "propuesta aprobada (2026-10-12)" (`:739`). CLASES-03d no les cambia nada. `DESIGN.md` es la fuente única, y una fecha de origen equivocada es justo lo que las marcas buscan evitar (§11). El cambio (2) tiene el mismo defecto a medias: "lo usa "Entregas después de la fecha límite"" deja fuera "Cómo se entrega".
+
+Qué se espera: (1) dice que el patrón también lo usan los controles de dos botones de `FormularioTarea`, sin fecharlos en CLASES-03d. Por ejemplo, "…(abajo); los controles de dos botones de `FormularioTarea` ("Entregas después de la fecha límite" y "Cómo se entrega", abajo) siguen el mismo patrón.". (2) nombra los dos. Se corrige antes del cierre de 03d. Lo más barato es hacerlo en la misma enmienda del título del recurso.
+
+### Arbitraje — el título vacío del recurso ("…del material" al crear, "…del recurso" al editar)
+**Lo decido yo, sin escalar: un solo texto, "Escribe el título del recurso", en crear y en editar.** El humano queda informado.
+
+Por qué no es del humano:
+- DH-12 aprobó los textos de §D-13, y ninguno de los dos está en esa tabla. Los dos son mensajes de esquemas de `shared/`, ya construidos:
+  - "Escribe el título del material" es de `crearPublicacionSchema`, rama `material` (`shared/src/clases.ts:420`), desde CLASES-c.
+  - "Escribe el título del recurso" es de `editarRecursoSchema` (`shared/src/recursos.ts:67`), de 03a, ya en un commit.
+- La decisión no crea un texto ni cambia uno aprobado, y no toca alcance. Quita una incoherencia del plan (§D-8.5 eligió validar con dos esquemas) a favor del texto que ya usa el vocabulario aprobado: "Título del recurso", "Nuevo recurso" y "Publicar recurso" (§D-13). Que el mismo campo diga "material" al crear y "recurso" al editar contradice el tono de `DESIGN.md` §9 (concreto y con el nombre de lo que la persona ve).
+
+Por qué necesita enmienda antes de la ronda 0 de 03d:
+- El tester escribe sus `*.ataque` a partir del plan, y el programador no puede tocarlas.
+- Si el texto se decide después, un ataque que fije "Escribe el título del material" al crear obligaría a otra ronda.
+- No hace falta antes: 03c2 no toca recursos.
+
+Qué se espera de la enmienda (el resultado, no la implementación):
+1. En §D-8.5, el título vacío dice "Escribe el título del recurso" en los dos modos, sin tocar `shared/`. Por ejemplo, validando el título con la regla de `editarRecursoSchema`. Como las dos reglas son `textoConContenidoSchema(200, …)` y solo cambia el mensaje, el envío que pasa la validación local tampoco lo rechaza el servidor por el título.
+2. Un caso en "Pruebas requeridas" de 03d: crear con el título vacío o con solo espacios muestra "Escribe el título del recurso" en un `ErrorDeCampo` y no envía nada. Puede sumarse a CL3-D08 o a CL3-D17. Si sube un conteo, se actualiza en el mismo cambio.
+3. El grep de la lista cerrada de 03d sobre "Escribe el título del material", en las pruebas normales que cubren `FormularioRecurso` o su envoltorio.
+4. En A-05 (§7.30), el error de campo "Escribe el título del recurso". Así, la remisión de A-03 bis (3), "el del recurso vive en "Recursos" (§7.30)", tiene a dónde apuntar.
+
+### Detalle menor
+- (5), `:449`: el paréntesis nuevo "(cualquiera de sus secciones, §7.16, y las pantallas que cuelgan de ellas; CLASES-03c)" se queda corto. El `NavLink` sin `end` también queda activo en "Editar clase" y "Categorías de calificación", que no son secciones ni cuelgan de una. Una forma más exacta sería "(sus secciones, §7.16, y las demás pantallas de la clase; CLASES-03c)". Se puede ajustar en la misma enmienda. No bloquea.
+
+### Para el orquestador y el humano
+- La ronda 0 de 03c2 no se detiene. Los cambios (5) a (8) se aplican al cerrar 03c2, como dice la Enmienda 9.
+- Antes de la ronda 0 de 03d hace falta una enmienda de documentos y plan, con M-01 y el arbitraje del título (§D-8.5, el caso de prueba, la lista cerrada y A-05). Guarda antes la copia del plan, `d0b9216f…`, con su SHA-256.
+- **Para el humano, solo informativo:** el formulario de recursos dirá "Escribe el título del recurso" también al crear, en lugar de "Escribe el título del material". Si prefiere otro texto, lo dice antes de la ronda 0 de 03d.
+
+## Arbitraje de la ronda 0 — 03c2
+Fecha: 2026-10-30. Fuente: `reporte-tester.md`, "## CLASES-03c2 — Ronda 0" (SHA-256 del archivo `6a189e1a3b633fabc6077918946a700e40bdfb9628d3b62b524a559c869a98b0`, reproducido) y la última entrada de `aprobacion.md`. Solo lectura, grep y git; sin suites. No toqué ni verifiqué la Enmienda 10.
+
+**Veredicto: hace falta una Enmienda 11 pequeña (texto abajo) y una autorización del humano para dos líneas de `features/tareas`.** P-03c2-2 se resuelve ya con este arbitraje. Además, encontré dos hermanos que el reporte y el plan no tienen: dos pruebas normales que rompen por las mismas dos causas.
+
+### 1. P-03c2-1 · `features/tareas/formularios-ch3-r1.ataque.test.tsx:240`
+- Confirmado en el código. `:240` compara `` url === `${RUTA_CLASE}/temas` `` y todo lo demás cae en `inesperadas` (`:302-303`). Con §D-7.6 y N-08, el estudiante solo pide `…/temas?seccion=actividades`, así que el caso de `:960-996` se pondrá rojo en el paso 2. El cambio que propone el tester (`` ruta.pathname === `${RUTA_CLASE}/temas` ``) protege lo mismo: el camino de recuperación por el enlace de la tarea.
+- **No cabe en ninguna fila de §D-R0.** La fila "Diseño" de `features/tareas` (plan, §D-R0, "Pruebas de `features/tareas` que nombran «Trabajo de clase»") solo permite cambiar estas pruebas cuando "aserten el nombre visible de la sección". Por eso valió en 03c1 (`:975`, el enlace) y no vale ahora: lo que rompe es la URL. C-25 abarca solo `features/clases` y `app/`. "No se toca" incluye toda la carpeta `frontend/src/features/tareas/`, con una sola excepción, y la autorización del humano del 2026-10-29 está "acotada a esas dos líneas de ese archivo" (`recuperar-ch3.test.tsx:449` y `:470`).
+- **Decisión:** hacen falta las dos cosas. (a) **Autorización del humano**, porque `AGENTS.md` pide preguntar antes de instruir sobre un archivo de "No se toca". (b) **Enmienda 11** con una fila C-30 en §D-R0, condicionada a esa autorización, igual que la Enmienda 5. No hay remedio en el código: N-08, aprobado, quita al estudiante la consulta total.
+- **Hermano que nadie inventarió (bloquea igual):** `features/tareas/recuperar-ch3.test.tsx:200` (prueba normal; CH3-A19, `:449-490`). Su doble compara `` ruta === `${RUTA_CLASE}/temas` ``, y `ruta` es la cadena completa (`:149`). Lo que no casa va a `inesperadas`, con un `400`. CH3-A19 pulsa «Actividades de aprendizaje» como estudiante y espera «Ensayo final». Romperá en el paso 2 de 03c2, igual que P-03c2-1. El barrido de la Enmienda 5 (E5-5) dice "En 03c2 no rompe nada nuevo", y eso es falso. Necesita una fila en la lista cerrada de 03c2 y que el humano amplíe su autorización a `:200`. Cambio mínimo: `` url.pathname === `${RUTA_CLASE}/temas` ``, porque `url` ya es el `URL` de `:151`.
+- Barrido de hermanos (grep de comparaciones exactas de `…/temas` y de pruebas que montan el router fuera de `features/clases` y `app/`): solo estos dos rompen. `features/tareas/formularios-ch3.test.tsx:171` también compara exacto, pero no monta `TrabajoView`: los formularios de la tarea siguen pidiendo el total. `features/clases/formularios-ch3.test.tsx:273` compara la URL exacta, pero su caso de `:344` es el formulario de material, que en 03c2 sigue pidiendo el total. `app/router.test.tsx:218` ya tiene su fila en la lista cerrada de 03c2. `app/clase-03c1.test.tsx`, `consultas-ch3.test.tsx` y las `*.ataque` de `features/clases` comparan el `pathname`.
+
+### 2. P-03c2-2 · `features/clases/trabajo-01e-r1.ataque.test.tsx:276-331`
+- Confirmado. Hoy `useOrdenarTemas` solo hace `setQueryData(claveTemas)` (`features/clases/hooks.ts:869-871`). Con §D-7.6, la vista lee la lista por sección, y la espera de CL3-C10 la vuelve a pedir al doble, que sigue con el orden viejo. El caso falla en `:320-330`.
+- **El cambio propuesto protege lo mismo, y algo más.** Se siguen asertando un solo `PUT` con el doble clic de 30 ms y el orden nuevo en la vista. El orden ahora llega por la recarga por sección, que es el contrato de 03c2. Si el gancho no invalidara esa lista, el caso fallaría. Antes de implementar también pasa, porque `setQueryData` escribe el orden nuevo en la lista total que hoy lee la vista. Así que no entra en "Rojos esperados".
+- **Decisión: cabe en C-25 con este arbitraje, sin enmienda,** igual que `foco-pestana` en C-20. El archivo está en el inventario de C-25, y C-25 autoriza "el cambio mínimo en el doble" que exige la consulta nueva de temas. Lo dejo registrado en la Enmienda 11 (E11-4) para que §D-R0 quede exacto, pero el tester no espera a esa enmienda.
+- **Qué hace el tester (adenda de la ronda 0; cuenta en V-01):** en el caso de `:276`, dentro del `act` de `:310-322` y **antes** de `soltar(…)`, el doble deja `datos.temas` en el orden nuevo, con un literal (`[{ id: idTema(2), nombre: "Unidad 2" }, { id: idTema(1), nombre: "Unidad 1" }]`), como haría el servidor al confirmar. Pone un comentario con el motivo (C-25, CL3-C10) y no cambia ninguna aserción. Nada más del archivo. Actualiza la tabla de SHA-256.
+- **Hermanos de la espera de CL3-C10.** Solo `useOrdenarTemas` escribe `claveTemas` con `setQueryData` (grep en `features/clases/hooks.ts` y `features/tareas/hooks.ts`). Pulsan «Subir», «Bajar» o `…/temas/orden` cinco archivos:
+  - `trabajo-01e-r2.ataque:171-191`: solo cuenta los `PUT`. No rompe.
+  - `styles/clases-r1.ataque`: es estática. No rompe.
+  - `formularios-ch3.test.tsx:587-592`: es la tabla de errores y nunca llega a `onSuccess`. No rompe.
+  - `trabajo-view.test.tsx`, PR-1E02 (`:549-597`): su `manejar` ya guarda el orden en `datos` (`:555-558`). No rompe. El caso del `409` sigue por `onError` y no rompe.
+  - **`trabajo-view.test.tsx` › "M-01 · «Bajar» de un tema y «Subir» de otro en el mismo turno mandan un solo PUT del orden" (`:1304-1341`, prueba normal): ROMPE.** Su `manejar` devuelve la respuesta retenida sin guardar el orden. `crearServidor(tresTemas(), …)` no conserva la referencia a los datos, y `:1337-1339` espera `["Unidad 2", "Unidad 1", "Unidad 3"]`. La fila de la lista cerrada de 03c2 para ese archivo solo nombra el doble del `GET …/temas` con `?seccion`, la URL de `…/trabajo` y la cuenta. No nombra el manejador del `PUT`. **Necesita ampliar la fila (Enmienda 11, E11-3).**
+
+### 3. R-03c2-1 · indicación para el programador (confirmada)
+Confirmado en `services/apiClient-ch3-r1.ataque.test.ts:59-84`. La expresión `\bCODIGOS_QUE_REDIRIGE_EL_CLIENTE\b` corre sobre el texto completo de cada archivo de producción, comentarios incluidos. Hoy ningún archivo de producción de `features/clases`, `components/`, `lib/` ni `app/` nombra la constante, y `lib.ts:16` importa `{ esApiError } from "@/services/apiClient"`. Indicación literal:
+> En `features/clases/lib.ts`, une la constante a la importación que ya existe en la línea 16, exactamente así: `import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"` (comillas dobles, sin alias, sin una segunda importación del mismo módulo), y escribe `errorQueRedirigeElCliente` con el cuerpo de §D-11. No declares la constante ni escribas sus tres códigos entre comillas. **En ningún otro archivo de producción de `src/` (incluidos `features/clases/hooks.ts`, `data.ts`, `types.ts` y los componentes) aparece el texto `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`, tampoco en un comentario.** Los `onError` de `useCrearClase` y `useEditarClase` llaman a `errorQueRedirigeElCliente(error)`. Si un comentario lo explica, di "un error con que `apiClient` ya redirige" o nombra `errorQueRedirigeElCliente`. En tus pruebas (`*.test.*`) sí puedes nombrarla.
+
+### 4. R-03c2-2 · el `reset()` de §D-12 y CL3-C15
+- En el código, ni `formulario-comentario.tsx` ni `formulario-clase.tsx` tienen `.reset()` (grep). Guardan el error del servidor en su estado `errores`, que la validación local reemplaza (`setErrores(erroresPorCampo(…))`) y que `setErrores({})` limpia antes de `mutate` (`formulario-comentario.tsx:34-39`; `formulario-clase.tsx:92-96` y `:105-111`). Es la segunda rama de la regla de `CLAUDE.md` › Formularios: "Si el error del servidor vive en un estado del formulario, la validación local lo reemplaza en ese mismo estado o lo limpia antes de validar".
+- El texto de §D-12 ("conservando `if (… .isError) … .reset()` después de la guarda") pide **conservar**, no agregar: en estos dos archivos no hay nada que conservar. La frase de CL3-C15 ("el `reset()` de T-05 sigue limpiando el error viejo") nombra el mecanismo equivocado. Lo que protege es T-05 de CHORE-03: tras un rechazo del servidor, el envío siguiente muestra un solo mensaje, el suyo. Agregar `reset()` además rompería `lib/estatico-ch3-r2.ataque.test.ts:135-148`, que está fuera de §D-R0.
+- **Decisión: "nada que conservar".** El programador **no agrega `reset()`** y `estatico-ch3-r2` no necesita fila. Indicación literal:
+> En `formulario-comentario.tsx` y `formulario-clase.tsx`, la guarda de §D-12 es una ref que se marca justo antes de `mutate`, después de la validación local y, en editar, después de `if (claseId === undefined) return`. Se libera en el `onSettled` de esa misma llamada a `mutate`, para que una validación local fallida o la falta de `claseId` nunca la dejen tomada. No agregues `mutacion.reset()` ni `if (… .isError) … .reset()`: estos formularios no tienen ese `reset()`, y el error del servidor sigue en el estado `errores`, como hoy (reemplazado por la validación local o limpiado con `setErrores({})` antes de `mutate`). En CL3-C15, "el `reset()` de T-05 sigue limpiando el error viejo" se prueba así: tras un `400 VALIDACION` del servidor en el campo (su `ErrorDeCampo`), (a) un segundo envío válido quita ese `ErrorDeCampo` antes de la respuesta nueva, y (b) un segundo envío que la validación local rechaza muestra un solo `ErrorDeCampo`, el local, y ningún aviso. Además, el siguiente envío sale (la guarda se liberó). Titula el caso por lo que comprueba, sin la palabra `reset()`.
+
+### 5. ¿Cambia el plan? Sí: texto mínimo para la Enmienda 11 (después de la 10)
+Sin cambio de alcance, de diseño ni de DH. Guardar antes la copia de `plan.md` con su SHA-256.
+- **E11-1 · §D-R0, fila nueva C-30 (03c2; condicionada a la autorización del humano, porque `features/tareas` está en "No se toca").** `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx:240` (caso de `:960-996`) | El doble atiende `GET …/temas` solo con la URL exacta | Con §D-7.6 y N-08, el estudiante pide `GET …/temas?seccion=actividades`: `:240` compara `ruta.pathname` en lugar de `url`. Nada más del archivo; no queda roja (pasa antes y después). | 03c2.
+- **E11-2 · Lista cerrada de 03c2, fila nueva condicionada a la misma autorización:** `frontend/src/features/tareas/recuperar-ch3.test.tsx:200` (CH3-A19): `` ruta === `${RUTA_CLASE}/temas` `` → `` url.pathname === `${RUTA_CLASE}/temas` ``. Nada más. En "No se toca", la excepción de `recuperar-ch3.test.tsx` suma `:200` (03c2). En el barrido E5-5, "En 03c2 no rompe nada nuevo" pasa a "En 03c2 rompen `features/tareas/recuperar-ch3.test.tsx:200` (E11-2) y el caso M-01 de `trabajo-view.test.tsx` (E11-3)".
+- **E11-3 · Lista cerrada de 03c2, fila de `features/clases/trabajo-view.test.tsx` ampliada:** en "M-01 · «Bajar» de un tema y «Subir» de otro en el mismo turno mandan un solo PUT del orden" (`:1304-1341`), el doble guarda el orden nuevo en sus datos justo antes de soltar la respuesta retenida del `PUT …/temas/orden` (como PR-1E02 en `:555-558`), para que la recarga por sección que espera `useOrdenarTemas` (CL3-C10) lo devuelva. Las aserciones (un `PUT`, su cuerpo y el orden en pantalla) no cambian.
+- **E11-4 · §D-R0, C-25 (registro del arbitraje):** suma `trabajo-01e-r1.ataque.test.tsx:276-331`. El `PUT` retenido deja `datos.temas` en el orden nuevo antes de soltarse, por la espera de CL3-C10. Las aserciones no cambian.
+- **E11-5 · §D-12 y CL3-C15.** En §D-12, "conservando `if (… .isError) … .reset()` después de la guarda" pasa a "sin `reset()`: los dos formularios guardan el error del servidor en su estado `errores`, que la validación local reemplaza y `setErrores({})` limpia antes de `mutate` (`CLAUDE.md` › Formularios); no se agrega `reset()` (`lib/estatico-ch3-r2.ataque.test.ts:135-148`)". En CL3-C15, "y el `reset()` de T-05 sigue limpiando el error viejo" pasa a "y, tras un `ErrorDeCampo` del servidor, el envío siguiente muestra un solo mensaje, el suyo (T-05 de CHORE-03)".
+
+### Para el orquestador y el humano
+- **Pregunta para el humano (una sola):** "¿Autorizas cambiar, en `features/tareas`, una línea en cada uno de dos archivos de prueba: `formularios-ch3-r1.ataque.test.tsx:240` (la cambia el tester) y `recuperar-ch3.test.tsx:200` (la cambia el programador)? En los dos, el doble de `GET …/temas` pasa a comparar la ruta sin la consulta (`pathname`), porque en 03c2 el estudiante pide `…/temas?seccion=actividades`. No cambia ninguna aserción." Recomiendo que sí. Si no lo autoriza, las dos pruebas quedan rojas y 03c2 no puede cerrar, porque no hay remedio en el código sin revertir N-08.
+- **Orden:** (1) el tester aplica ya la adenda de P-03c2-2 (sección 2 de este arbitraje); (2) la Enmienda 11, después de la 10, con su verificación; (3) con la autorización, el tester aplica C-30 en la misma adenda de la ronda 0; (4) recién entonces entra el programador, con las indicaciones de las secciones 3 y 4. Si entra antes, se detiene en el paso 2 por E11-2 y E11-3.
+
+## Verificación de la Enmienda 10 — CLASES-03
+Fecha: 2026-10-30. Comparé solo las copias del scratchpad, porque `plan.md` cambia en paralelo con la Enmienda 11. Usé lectura, grep y git. No corrí `lint`, `test` ni `build`: el tester está corriendo un archivo.
+
+**Veredicto: APROBADA, sin M-nn.** Quedan cerrados el M-01 y el detalle menor de la verificación de la Enmienda 9. El arbitraje del título del recurso quedó en el plan como lo pedí, y antes de la ronda 0 de 03d, como hacía falta.
+
+### 1. Hashes y diff
+- Copia de antes, `copias-plan/plan-clases03-antes-enmienda10-d0b9216f.md`: 1207 líneas, SHA-256 `d0b9216f4684d65e90426a44fe070db1a3fb973ab3217216a76c7908629592f3` (lo reproduje).
+- Copia de después, `copias-plan/plan-clases03-v11-enmienda10-fe22a798.md`: 1223 líneas, SHA-256 `fe22a7986d8c307c457749c08412f84a7064a4af0f341499fca7e3b340503506` (lo reproduje).
+- `git diff --no-index` completo: 9 hunks, con 24 líneas agregadas y 8 quitadas. Todos tienen su E10-n:
+
+| Hunk | Dónde | E10 |
+|---|---|---|
+| 1 | Estado | E10-1 |
+| 2 | §D-8.5, viñeta de la validación local (`:311`) | E10-4 |
+| 3 | §D-R0, fila C-30 nueva (`:555`) | E10-6 |
+| 4 | "Rojos esperados" de 03d (`:644`) | E10-6 |
+| 5 | CL3-D28 nuevo (`:838`) | E10-5 |
+| 6 | Lista cerrada de 03d, `formulario-publicacion.test.tsx` | E10-6 |
+| 7 | A-02 ter (5), A-03 bis (1), (2) y su nota, y A-05 | E10-3, E10-2 y E10-7 |
+| 8 | Paso 4 de 03d | E10-5 |
+| 9 | Registro de la Enmienda 10 | — |
+
+Ningún hunk toca `shared/`, el backend, ninguna DH ni nada de 03c2. A-02 ter solo cambia el texto de (5), que se sigue aplicando al cerrar 03c2.
+
+### 2. A-03 bis (M-01 de la Enmienda 9)
+- **Fecha corregida.** (1) ya no fecha el control de dos botones en CLASES-03d. Ahora dice "los controles de dos botones de `FormularioTarea` ("Entregas después de la fecha límite", abajo, y "Cómo se entrega", §7.21) siguen el mismo patrón". (2) dice "lo usan los controles de dos botones de `FormularioTarea`, …".
+- **Referencias comprobadas.** "Entregas después de la fecha límite" está en `DESIGN.md:417`, debajo de `:413` y de `:415`. "Cómo se entrega" está en `:739`, que pertenece a §7.21 (`:735`, "Formulario de tarea y rúbrica"), con su marca "propuesta aprobada (2026-10-12)".
+- **Marcas intactas.** A-03 bis sigue diciendo "con todas las marcas intactas", y (2) dice "sin tocar su encabezado". "Hasta CLASES-03d" solo se refiere al grupo "Tipo de publicación", que es lo que 03d quita.
+- **Detalle menor de la Enmienda 9.** A-02 ter (5) pasa a "(sus secciones, §7.16, y las demás pantallas de la clase; CLASES-03c)", conserva la marca de `:449` y ya cubre "Editar clase" y "Categorías de calificación".
+
+### 3. §D-8.5 y el servidor
+- **De dónde sale el título.** Lo valida `editarRecursoSchema.shape.titulo`. `editarRecursoSchema` es un `z.object` sin envoltorio (`shared/src/recursos.ts:66-77`), así que `.shape.titulo` existe.
+- **`shared/` sin cambios.** `git status` y `git diff HEAD -- shared/` no muestran nada.
+- **El servidor no rechaza lo que pasó la validación local.**
+  - La regla del título al crear (`crearPublicacionSchema`, rama `material`, `shared/src/clases.ts:420`) y la de editar (`recursos.ts:67`) son la misma función: `textoConContenidoSchema(200, mensaje)` (`clases.ts:125-129`).
+  - Esa función usa `textoLargoCon`, cuyos mensajes son genéricos (`clases.ts:111-118`), con el mismo máximo y el mismo mínimo de caracteres visibles.
+  - Solo cambia el mensaje del título vacío. Por eso, un título que pasa la validación local tampoco lo rechaza el servidor.
+- **`400 VALIDACION` del servidor.** Si aun así llega uno con `titulo:`, se muestra como el de cualquier campo pintado (§D-15), y CL3-D15 y CL3-D17 lo cubren.
+
+### 4. CL3-D28 y el conteo de 03d
+- **Los casos son consecutivos.** CL3-D28 existe (`:838`). Conté las viñetas de 03d con `grep -c "^- \*\*CL3-D[0-9]"`: dan 28, de D01 a D28, sin saltos ni duplicados. Coincide con "03d pasa de 27 a 28" de E10-5.
+- **Ningún otro conteo cambia.** El único conteo del plan con cifra (03c, 19 pruebas) no se toca. El paso 4 de 03d suma D28.
+- **Lo que pide el caso.** Cubre crear y editar, el título vacío, solo con espacios y solo con invisibles. Pide un único `ErrorDeCampo` con `aria-invalid`, cero `POST` o `PUT`, nunca "…del material", lo escrito conservado y el botón fuera de la espera. Cubre lo que pedí.
+
+### 5. C-30, "Rojos esperados" y el grep
+- **El caso que cita C-30 existe tal cual.** `features/clases/muro-c-r1.ataque.test.tsx:404-425` va de `it(` en `:404` al cierre en `:425`. La parte del título está en `:412-417`: "Material", "Título del material", "Publicar material" y "Escribe el título del material". El hermano `muro-c-r2.ataque.test.tsx:399-419` también coincide, con el título en `:406-411`.
+- **Hacía falta inventariar `muro-c-r1`.** C-23 nombra `muro-c-r2` pero no `muro-c-r1`, así que C-30 sí era necesario.
+- **El resto de `muro-c-r1` no entra en C-30.** Su caso de `:429` (texto como texto) sirve un material en el doble del servidor. No depende del formulario: lo pinta la rama de material de `PublicacionDelMuro`, que DH-08 conserva.
+- **Su lugar en "Rojos esperados".** La fila de 03d (`:644`) suma "C-30 (Enmienda 10)" con "(C-30, en los pasos 4 y 5)". Es coherente: el paso 4 crea `FormularioRecurso` y el paso 5 quita el tipo de `FormularioPublicacion`.
+- **Grep propio de "Escribe el título del material"** (`frontend/src`, `backend/src`, `backend/test` y `shared/src`). Da exactamente el inventario de E10-6:
+
+| Dónde | Archivo y línea | Qué pasa en 03d |
+|---|---|---|
+| Frontend, prueba normal | `features/clases/formulario-publicacion.test.tsx:171` (PR-C12h, `:157-174`; el título en `:166-171`) | Ya está en la lista cerrada de 03d, y la fila dice qué espera |
+| Frontend, ataque | `muro-c-r1.ataque.test.tsx:417` | Entra con C-30 |
+| Frontend, ataque | `muro-c-r2.ataque.test.tsx:411` | Ya estaba en C-23; C-30 fija su texto |
+| Backend | `muro-c-r1.ataque.test.ts:714`, `muro-c-r2.ataque.test.ts:279`, `admin-muro-02b-r1.ataque.test.ts:576` y `muro.integracion.test.ts:789` | Fijan el mensaje del servidor y no cambian, porque `shared/` no cambia |
+| Shared | `shared/src/clases.ts:420` | No cambia |
+
+- **Grep vecino.** Busqué "Título del material", `name: "Material"` y "Publicar material" en las `*.ataque` del frontend. Salen `segmentado-02d-r1` (C-10), `archivos-d-r1`, `archivos-d-r2`, `muro-c-r2` y `ver-mas-01e-r3` (C-23) y `muro-c-r1` (C-30). No hay otra.
+
+### 6. Numeración de C-30
+En mi "## Arbitraje de la ronda 0 — 03c2" (`revision.md`, líneas 1646, 1674 y 1682), "C-30" nombra la fila de `features/tareas/formularios-ch3-r1.ataque.test.tsx:240`. Como la Enmienda 10 ya usó C-30 para `muro-c-r1`, esa fila será **C-31** en la Enmienda 11. No reescribo el arbitraje: esta nota es la que manda. Cuando verifique la Enmienda 11, compruebo que use C-31 y que no queden dos C-30.
+
+## Verificación de la Enmienda 11 — CLASES-03
+Fecha: 2026-10-30. Solo lectura, grep y git; no corrí `lint`, `test` ni `build`. Comparé las copias del scratchpad.
+
+**Veredicto: APROBADA, sin M-nn.** El texto aplica fielmente los puntos 1 a 5 de mi "## Arbitraje de la ronda 0 — 03c2". La fila nueva es C-31; ya no hay dos C-30. Las dos líneas de `features/tareas` siguen condicionadas a la autorización del humano. Hay un detalle menor, que no bloquea.
+
+### 1. Hashes y diff
+- **Copia de antes:** `copias-plan/plan-clases03-antes-enmienda11-fe22a798.md`, 1223 líneas, SHA-256 `fe22a7986d8c307c457749c08412f84a7064a4af0f341499fca7e3b340503506` (reproducido).
+- **Plan vigente:** `plan.md`, 1254 líneas, SHA-256 `5c53894078640e5fa7639e315d4d8481d8b06bb8b81c8d5a5aa222194199ac24` (reproducido). Es idéntico a la copia `copias-plan/plan-clases03-v12-enmienda11-5c538940.md` y coincide con la última entrada de `aprobacion.md`.
+- **Diff:** el `git diff --no-index` completo da 11 hunks (+40 / −9). Todos tienen su E11-n:
+
+| Hunk | Dónde | E11 |
+|---|---|---|
+| 1 | Estado | E11-0 |
+| 2 | §D-12 (`:381`) | E11-5 |
+| 3 | §D-R0, C-25 (registro de `trabajo-01e-r1`) y fila C-31 nueva (`:550` y `:556`) | E11-4 y E11-1 |
+| 4 | Barrido de pruebas normales, después de la tabla de la Enmienda 5 (`:608`) | E11-2 (y nombra E11-3, C-31 y E11-4) |
+| 5 | "Rojos esperados", fila de 03c2 (`:643`) | E11-1 y E11-4 |
+| 6 | CL3-C15 | E11-5 |
+| 7 | Lista cerrada de 03c2: fila de `trabajo-view.test.tsx` ampliada y fila nueva de `recuperar-ch3.test.tsx:200` (`:883`) | E11-3 y E11-2 |
+| 8 | Paso 3 de 03c2: R-03c2-1, R-03c2-2 y el orden de entrada (`:1017-1019`) | E11-5 |
+| 9 | "No se toca", `features/tareas/` (`:1063`) | E11-2 |
+| 10 | Fila E5-5 (`:1153`) | E11-2 |
+| 11 | Registro de la Enmienda 11 | — |
+
+- **Lo que no cambia:** alcance, diseño, DH, `shared/`, backend, nada de 03d ni de 03e, y los conteos. Siguen 19 viñetas CL3-C.
+
+### 2. Contra los puntos del arbitraje
+- **Punto 1 / E11-1 (C-31).**
+  - La fila aparece una sola vez (`:556`). Las únicas C-30 del plan son las de la Enmienda 10 (`muro-c-r1`).
+  - Contra `HEAD` (archivo sin cambios en el árbol), `features/tareas/formularios-ch3-r1.ataque.test.tsx:240` compara `` url === `${RUTA_CLASE}/temas` ``. Las líneas `:302-303` mandan lo demás a `inesperadas`, y el caso empieza en `:960`.
+  - `ruta` es el `URL` de `:188`, así que `ruta.pathname` existe y `:219` ya lo usa.
+  - La fila está condicionada a la autorización y dice "Nada más del archivo".
+- **E11-2 (`recuperar-ch3.test.tsx:200`).**
+  - En `:200` está `` ruta === `${RUTA_CLASE}/temas` ``. `ruta` es la cadena completa (`:149`) y `url` es el `URL` de `:151`. CH3-A19 empieza en `:449`.
+  - La fila está condicionada, y "No se toca" (`:1063`) solo suma `:200` y `:240`, con la condición. No entra nada más de `features/tareas`.
+  - El barrido de §D-R0 (`:608`) y E5-5 (`:1153`) corrigen la frase falsa.
+- **E11-3 (`trabajo-view.test.tsx`, caso M-01, `:1304-1341`).**
+  - Su `manejar` (`:1307-1310`) devuelve la promesa retenida sin guardar el orden. PR-1E02 lo guarda en `:555-558`.
+  - La fila solo toca el doble y dice que las aserciones (`:1322-1325` y `:1337-1340`) no cambian.
+  - Para "guardar el orden en sus datos", el caso necesita conservar la referencia que hoy no conserva (`crearServidor(tresTemas(), …)`). Ese cambio entra en "el doble" de la fila.
+- **E11-4 (C-25).**
+  - Registra `trabajo-01e-r1.ataque.test.tsx:276-331`. Comprobado en `HEAD`: el `act` de la suelta va de `:310` a `:321` y las aserciones (`:309` y `:322-329`) no cambian.
+  - Dice "no queda roja", y coincide con la adenda 1 del tester (`reporte-tester.md:3987`).
+- **E11-5 (§D-12, CL3-C15 y paso 3 de 03c2).**
+  - §D-12 dice "sin `reset()`" y da el motivo y la `*.ataque` que lo fija (`lib/estatico-ch3-r2.ataque.test.ts:135-148`).
+  - CL3-C15 dice "el envío siguiente muestra un solo mensaje, el suyo (T-05 de CHORE-03)", con el procedimiento (a), (b) y la guarda liberada.
+  - Comparé byte por byte las dos indicaciones del paso 3 con mis citas del arbitraje y son **idénticas**: R-03c2-1 (880 caracteres) y R-03c2-2 (1106 caracteres).
+  - El orden de entrada del programador (`:1019`) es el del arbitraje.
+- **"Rojos esperados" de 03c2 (`:643`).**
+  - Sigue "C-25 que el tester cambió y C-29". Suma que C-31 y la adenda de C-25 sobre `trabajo-01e-r1` se reescriben en la ronda 0 y no quedan rojas.
+  - Es coherente con la ronda 0 real (`reporte-tester.md:3725-3743` y `:4002`): el único rojo es C-29. La única C-25 que el tester cambió es `trabajo-01e-r1`, que no queda roja.
+
+### 3. Grep de hermanos (lo repetí)
+- **Comparaciones exactas de `…/temas`** (`===`, `!==`, `toBe(` y `toEqual(` contra una plantilla que termina en `/temas`), en todas las pruebas de `frontend/src`:
+  - Fuera de `features/tareas`, todas comparan el `pathname`: `app/clase-03c1:192`, `personas-03c1-r1.ataque:246`, `features/clases/consultas-ch3:117`, `formularios-ch3*`, `recuperar-ch3*` y `trabajo-view.test.tsx`, donde `ruta` es el `pathname` (`:147`).
+  - `app/router.test.tsx:218` ya tiene su fila.
+  - En `features/tareas` quedan tres:
+    - `:240` de la `*.ataque` (C-31).
+    - `recuperar-ch3.test.tsx:200` (E11-2).
+    - `formularios-ch3.test.tsx:171`, que no monta `TrabajoView`.
+- **`endsWith("/temas")`.**
+  - En `features/clases` (`trabajo-01e-r1:74` y `:359-363`, `trabajo-01e-r2:72`, `ver-mas-01e-r3:95` y `trabajo-view.test.tsx:615` y `:629`), todos van sobre el `pathname`. En `trabajo-01e-r1`, `ruta` es `url.pathname` (`:70`).
+  - En `features/tareas` (13 archivos) van sobre la URL completa, pero ninguno monta `TrabajoView`. El único que nombra `…/trabajo`, `tareas-01d-r1:394`, monta ahí un `<p>` de relleno.
+- **Otras pruebas fuera de `features/clases` y `app/`.**
+  - Ninguna importa `TrabajoView`.
+  - De las que montan el router real, solo `features/tareas/formularios-ch3-r1.ataque` y `recuperar-ch3.test.tsx` llegan a "Actividades de aprendizaje". Son las dos condicionadas.
+  - `features/calificaciones/secciones-01d-r3` y `-r4` montan el router real, pero no nombran "Actividades", `/trabajo` ni `/temas`.
+- **«Subir», «Bajar» y `…/temas/orden`:** las mismas cinco del arbitraje. Solo rompen el M-01 de `trabajo-view.test.tsx` (E11-3) y `trabajo-01e-r1.ataque:276-331` (E11-4).
+- **Resultado:** ningún hermano nuevo. Coincide con el grep del arquitecto (registro de la Enmienda 11).
+
+### Detalle menor (no bloquea)
+- La indicación literal R-03c2-2 (paso 3, `:1018`) dice: `En CL3-C15, "el reset() de T-05 sigue limpiando el error viejo" se prueba así…`. Pero E11-5 ya quitó esa frase de CL3-C15. Como es la cita literal de mi arbitraje, no pido cambiarla: el procedimiento que sigue es el mismo que CL3-C15 trae ahora.
+- Para el programador: esa frase es el nombre viejo del mismo caso. El caso se titula por lo que comprueba, sin `reset()`.
+
+### Para el orquestador
+- Sigue pendiente la única pregunta del arbitraje para el humano: la autorización de `features/tareas/formularios-ch3-r1.ataque.test.tsx:240` (C-31, la aplica el tester) y de `features/tareas/recuperar-ch3.test.tsx:200` (E11-2, la aplica el programador).
+- Sin esa autorización, 03c2 no cierra: las dos se pondrán rojas en el paso 2.
+- El orden es el de `:1019`: primero la adenda del tester (C-31, con la autorización) y después el programador.
+
+## Verificación del resumen del programador — 03c2
+
+Fecha: 2026-10-30. Resumen: `resumen-programador-03c2.md` (SHA-256 `fca5fcfd426939a58689ddf5b8eb8a6d833327af7dd2f277c9728617ee9b991e`, reproducido). Plan: `plan.md` (SHA-256 `5c53894078640e5fa7639e315d4d8481d8b06bb8b81c8d5a5aa222194199ac24`, reproducido). Base dentro de los paquetes: `91756a5` (HEAD); fuera: `689c636`.
+
+**Veredicto: DEVUELTO** por M-01 (un estado vecino de O-16 que la matriz da por cubierto y el código no cubre). Todas las cifras coinciden, no falta ninguna viñeta y la lista cerrada, R-03c2-1, R-03c2-2, V-01 y "No se toca" están limpios. La corrección es pequeña y no toca nada más.
+
+Verificación propia (desde `frontend/`, una tras otra; 03c2 no toca `shared/` ni `backend/`: `git diff 91756a5 -- shared backend infra` vacío y sin archivos nuevos): lint exit 0 · 5501 casos en 251 archivos · `Tests  5501 passed (5501)` · build exit 0.
+
+| Comprobación | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | `> tsc -b` (exit 0), antes `All matched files use Prettier code style!` | Igual (exit 0) |
+| `npx vitest list \| grep -acE "^src/"` | 5501 | 5501 |
+| Archivos (`grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l`) | 251 | 251 |
+| `contenido-03c2.test.tsx` / `formularios-03c2.test.tsx` / `app/redirige-03c2.test.ts` | 17 / 41 / 9 | 17 / 41 / 9 |
+| `npm run test` | `Test Files  251 passed (251)` · `Tests  5501 passed (5501)` | Igual (`Duration  218.80s`); 0 «Hook timed out» |
+| `npm run build` | `✓ built in 1.07s` (exit 0) | `✓ built in 770ms` (exit 0; el aviso de tamaño de bloque de siempre) |
+| `git diff --stat HEAD -- frontend` | 13 archivos, 201 inserciones, 29 borrados | Igual |
+
+### Problemas que bloquean
+
+#### M-01 — Crear y renombrar tema: un `TEMA_REPETIDO` se pierde si el formulario se desmonta mientras el gancho renueva temas y trabajo
+Dónde: `frontend/src/features/clases/hooks.ts`, `onError` de `useCrearTema` (`:872-877`) y de `useRenombrarTema` (`:900-905`).
+Por qué importa: §D-11 manda que un error de un campo pintado se calle "solo si el formulario sigue montado; si no, lo avisa". El gancho decide con `montado.current` **antes** de `await renovarTrasError(…)`. Con `TEMA_REPETIDO` (error del campo `nombre` según `erroresDelTemaDeApi`, y código de `CODIGOS_QUE_RENUEVAN_LOS_TEMAS`), esa espera vuelve a pedir los temas y el trabajo de la vista. En TanStack Query 5.103.2, el `onError` del gancho se espera (`mutation.js:196`) antes del `dispatch` del error (`:211`), y los callbacks de `mutate` solo corren si el observador sigue suscrito (`mutationObserver.js:147`). Si la persona sale de Actividades durante esa recarga, con el botón todavía en espera, el gancho ya decidió callar y el formulario ya no pinta su `ErrorDeCampo`. Resultado: ningún mensaje, y el tema no se creó ni se renombró. Es el mismo hueco de O-16, en el estado "desmontado durante la espera del `onError`". La matriz del resumen dice "Desmontada: uno" para esa fila, y la lista de estados vecinos de O-16 no incluye este estado.
+Qué se espera:
+- Con `TEMA_REPETIDO` en crear y en renombrar tema, si el formulario se desmonta después de la respuesta y antes de que termine la renovación, sale un solo aviso con el mensaje del módulo.
+- Si sigue montado al terminar la renovación, sale su `ErrorDeCampo` sin aviso, como hoy.
+- Se agregan casos nuevos en `formularios-03c2.test.tsx`: renovación retenida, desmontar y soltar; y la variante montada. No se cambia ninguna prueba existente.
+- El resumen de la corrección lista los hermanos: cada gancho de `features/clases` cuyo `onError` u `onSuccess` decide con `montado` y después espera. Según mi lectura, solo estos dos; `useComentar`, `useCrearClase` y `useEditarClase` deciden sin `await`. Anota que `useCrearPublicacion`, `useCrearRecurso`, `useEditarRecurso` (03d), `useCrearDuda` y `useResponder` (03e) deben nacer con la decisión después de su última espera.
+- La lista de estados vecinos del mecanismo incluye este estado. La matriz de crear y renombrar tema se corrige.
+
+### Pruebas requeridas → caso (todas existen en `npx vitest list`, con el título exacto del resumen)
+- CL3-C08: 3 casos (`contenido-03c2.test.tsx`, uno por perspectiva). Afirman la URL completa de la primera página y `tipo`, `limite` y `cursor` de "Ver más avisos".
+- CL3-C09: 10 casos (`contenido-03c2.test.tsx`). Cubren `?seccion=actividades` en temas y en cada tema, los conteos de la sección, "Sin tema", el vacío y el total. Cubren también que el estudiante no pide el total y la frase sin conteo cuando el total falla o no tiene el tema.
+- CL3-C10: 2 casos nuevos. En el primero, la lista por sección se retiene, el botón sigue con `aria-busy` y conserva el foco. Siguen en verde el M-01 de `trabajo-view.test.tsx` (E11-3) y C-25.
+- CL3-C11: 2 casos.
+- CL3-C14: 15 casos de O-16 (5 formularios × desmontado, montado y vacío) y 14 de la variante de clase. Cubren 500, 503, la red, éxito y `ACCESO_RESTRINGIDO` desmontados, y éxito y errores montados.
+- CL3-C15: 12 casos (3 controles × 4). El procedimiento (a) y (b) de E11-5 se cumple, y ningún título dice `reset()`.
+- CL3-C19: 9 casos (`app/redirige-03c2.test.ts`).
+- Total: 3 + 10 + 2 + 2 (17, `contenido`) + 29 + 12 (41, `formularios`) + 9 (`redirige`) = 67, igual que `npx vitest list`.
+
+### Matriz de avisos, recargas y foco contra el código
+Contrastada fila por fila con `hooks.ts`, `trabajo-view.tsx`, `seccion-de-tema.tsx`, `formulario-comentario.tsx` y `formulario-clase.tsx`. Coincide salvo M-01. Confirmado:
+- `useOrdenarTemas` escribe el total y espera solo las listas por sección. El `predicate` (`queryKey.length > 3`) deja fuera el total. Una recarga por sección que falla no rechaza `invalidateQueries`: el botón sale de la espera y avisa la recarga fallida.
+- Con la vista desmontada y el `PUT` en vuelo, la invalidación no tiene observadores y se resuelve.
+- Todas las invalidaciones de temas (`invalidarTemas`, `invalidarTemasYTrabajo`, `features/tareas/hooks.ts:103` y `:122`) usan `claveTemas` sin `exact`, así que alcanzan la clave por sección.
+- En la variante de clase montada, el gancho calla y `alFallar`/`alTerminar` avisan: nunca dos avisos. Desmontada, un aviso, y ninguno con `errorQueRedirigeElCliente`.
+- Las guardas se marcan después de la validación local y de `claseId`, y se liberan en `onSettled`.
+- Lo heredado (O-1d3-2 en comentario, tema, orden, borrar, mover y en la recarga fallida) está declarado como tal, y §D-11 lo deja así.
+
+### Lista cerrada, R-03c2-1 y R-03c2-2
+- Pruebas normales cambiadas: solo `features/clases/trabajo-view.test.tsx`, el caso M-01 de E11-3: el doble guarda el orden antes de `soltar` y ninguna aserción cambia. Y `features/tareas/recuperar-ch3.test.tsx:200`, de E11-2: una línea, `url.pathname`, con la autorización del humano. Las filas de `muro-view.test.tsx` y `app/router.test.tsx` no hicieron falta.
+- R-03c2-1: en producción de `src/`, el texto `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` sale solo en `services/apiClient.ts`, `features/calificaciones/lib.ts`, `features/tareas/lib.ts` (ya estaban en `91756a5`) y `features/clases/lib.ts`, en la importación unida de `:16` (exacta) y en el cuerpo de §D-11 (`:483`). Ningún comentario de `features/clases` la nombra, y ninguno de los tres códigos aparece entre comillas en `features/clases`. Los `onError` de clase llaman a `errorQueRedirigeElCliente`.
+- R-03c2-2: no hay ningún `reset(` en los dos formularios ni en el diff. El error del servidor sigue en `errores`.
+
+### V-01 y "No se toca"
+- V-01: `sha256sum` de las 235 `*.ataque` (rastreadas y no rastreadas) contra la tabla "al cierre de la ronda 0 de CLASES-03c2, con las adendas 1 y 2" de `reporte-tester.md` (SHA-256 `4a94f6b4…`): 235 de 235 iguales. Las tres que aparecen en `git diff` son las del tester: C-29, la adenda 1 (C-25) y la adenda 2 (C-31, `:240`, una línea). El programador no cambió ninguna.
+- Dentro de los paquetes, contra `91756a5`: solo `features/clases`, las dos líneas autorizadas de `features/tareas` (`:200` del programador y `:240` del tester), la `*.ataque` de `services/` del tester (C-29) y un archivo de prueba nuevo en `app/`. `app/providers.tsx` y `app/require-*.tsx` no se tocaron. No hay cambios en `shared/`, `backend/`, `infra/`, `components/`, `lib/`, `services/` (producción) ni `styles/`.
+- Fuera de los paquetes: `AGENTS.md` (`bb985908…`), `CLAUDE.md` (`c9a2f534…`) y `ARCHITECTURE-ESSENTIALS.md` (`b93f7275…`) coinciden con los hashes de `aprobacion.md`. `DESIGN.md` y `PRD.md` no cambian desde HEAD; solo cambian `docs/ESTADO.md` y la carpeta del encargo.
+- `CLAUDE.md`: retornos tempranos, `null` explícito (`elementosEnTotalDelTema`), ningún `?? []` nuevo, tipos de API reexportados en `types.ts` (`SeccionDeTemas`), textos en `data.ts` y nada visual nuevo.
+
+### Puntos del programador (arbitraje)
+(a) **CL3-C19 en `src/app/redirige-03c2.test.ts`: correcto.** La regla 9 de `eslint.config.mjs` (`files: ["frontend/src/features/**/*.{ts,tsx}"]`) alcanza también las pruebas, y la viñeta pide comparar con `features/tareas/lib.ts`. El plan no fija el archivo, `app/` ya tiene pruebas que importan de varios módulos (`marco.test.tsx`) y no está en "No se toca", salvo `providers.tsx` y `require-*.tsx`. Sin enmienda.
+
+(b) **CL3-C14, "500 → el mensaje del servidor; red → el de conexión": el código cumple §D-11 y no hay que corregir código.** Lo que obliga es el mecanismo de §D-11: avisar con `mensajeDeErrorClases(error)`. Además, "montado, cada uno de esos cuatro casos da exactamente lo de hoy, nunca dos avisos", y `CLAUDE.md` pide que ningún texto del servidor llegue sin pasar por `lib/errores-de-api.ts`. Con `TRADUCCION_DE_ERRORES_CLASES`:
+- `ERROR_INTERNO` y `SIN_CONEXION` (`apiClient.ts:134` y `:143-144`) dan el genérico del módulo.
+- `SERVICIO_OCUPADO` está en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` y conserva el texto del servidor.
+- Montado (`alFallar`) y desmontado dan el mismo texto, y los casos lo aseguran.
+
+El paréntesis de la viñeta ("el mensaje del servidor", "el de conexión") describe mal la traducción vigente. Es un detalle de redacción del plan; se registra aquí y no pide enmienda antes de la ronda 1. El tester ataca con la lectura de §D-11: el mismo texto que da `alFallar` con el formulario montado.
+
+### Fuera de alcance, con destino
+- `useGuardarCategorias` (`hooks.ts`, `onError`): un error de fila con el editor de categorías desmontado no da mensaje. Es la misma clase de O-16, en otra vista, y no está en §D-11. Destino: la fila de O-16 de `docs/ESTADO.md` §3 (`:323`), como hermano pendiente. Va al `chore` de foco y navegación del marco, o a CALIFICACIONES-02 si ese encargo rehace el editor de categorías antes. Lo anota el orquestador al cerrar 03c2.
+- O-1d3-2 heredado en `features/clases`: los `onError` de comentario, tema, orden, borrar y mover, y el aviso de recarga fallida de Actividades, no excluyen los códigos que redirige `apiClient`. Destino: la fila de R-3 de CHORE-02 de `docs/ESTADO.md` §3 (`:386`, "chore de `apiClient` y avisos"). Se suma "y los ganchos de `features/clases`, que desde CLASES-03c2 tienen `errorQueRedirigeElCliente` para hacerlo". Lo anota el orquestador al cerrar 03c2.
+
+### M-02 de 03c1
+Cerrado. El comentario de `trabajo-view.tsx:49` (132 caracteres en `91756a5`) quedó partido en `:55-63`. La línea más larga del bloque mide 104 caracteres y el texto es el mismo, actualizado a 03c2.
+
+### Para la ronda 1 del tester (después de la corrección de M-01)
+- O-16 en crear y renombrar tema con `TEMA_REPETIDO`: desmontar en cada momento. Antes de la respuesta, durante la renovación y después. Además, desmontar y volver a montar mientras se renueva. Siempre un solo mensaje.
+- Variante de clase: el orden entre el callback del gancho y los de `mutate` (desmontar en el mismo turno de la respuesta) y `StrictMode`.
+- `useOrdenarTemas`: salir y volver a Actividades con el `PUT` o la recarga por sección en vuelo (foco y `aria-busy` de la vista nueva). "Subir" mientras otra recarga por sección está en vuelo. Un `409` mientras se espera la recarga.
+- El total (maestro y admin): cuando ya estaba en caché y una recarga posterior falla, la frase va sin conteo, sin aviso. Que el total no se vuelva a pedir tras ordenar. Que el estudiante no lo pida por ningún camino, incluidos R2 y el historial.
+- Que la clave por sección se renueve al publicar un material desde Avisos y al crear, editar o borrar una tarea desde `features/tareas` (invalidaciones no exactas).
+- Guardas de §D-12: un tercer clic durante el `onSettled`, y el envío con `Enter` en el campo además del clic.
+
+## Verificación de la corrección de M-01 — 03c2
+
+Fecha: 2026-10-30. Resumen: `resumen-programador-03c2.md`, sección "## Corrección de M-01 (verificación del manager)" (SHA-256 del archivo `699da149311700d61c48fcb8008697a1b17cd214fa13094ca5cdb5b42936628b`, reproducido).
+
+**Veredicto: ACEPTADO.** M-01 queda cerrado; no hay M-nn nuevos. El tester puede atacar (ronda 1 de 03c2).
+
+Verificación propia (desde `frontend/`, una tras otra): lint exit 0 · 5511 casos en 251 archivos · `Tests  5511 passed (5511)` · build exit 0.
+
+| Comprobación | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | `> tsc -b` (exit 0) | Igual (exit 0) |
+| `npx vitest list \| grep -acE "^src/"` | 5511 | 5511 |
+| Archivos (`grep -aE … \| sort -u \| wc -l`) | 251 | 251 |
+| `formularios-03c2.test.tsx` | 51 | 51 |
+| Casos contra mi lista anterior (`comm`, `LC_ALL=C`) | +10 | 10 nuevos y 0 que falten: ningún caso se borró ni cambió de título |
+| `npm run test` | `Tests  5511 passed (5511)`, `Test Files  251 passed (251)` | Igual (`Duration  218.72s`); 0 «Hook timed out» |
+| `npm run build` | `✓ built in 731ms` (exit 0) | `✓ built in 754ms` (exit 0) |
+| `git diff --stat HEAD -- frontend` | 13 archivos, 211 inserciones, 35 borrados | Igual |
+
+**Remedio contra el código.** `avisarErrorDelTema` (`hooks.ts:858-868`):
+- Un error que no es del campo se avisa al momento (`:865`), como antes.
+- Después espera `renovarTrasError` (`:866`).
+- Al final, un error del campo se avisa solo si `!montado.current` (`:867`).
+
+La decisión se toma después de la última espera. Entre esa lectura y el despacho del error quedan solo microtareas: los ganchos de tema no tienen `onSettled` propio. `useCrearTema` (`:887`) y `useRenombrarTema` (`:909`) la llaman en su `onError`, y ninguna firma cambió. Con el formulario montado, el gancho calla y sale el `ErrorDeCampo` de `alFallar` (`formulario-tema.tsx`). Con un `VALIDACION` de `nombre`, que no renueva, la espera termina al instante y el comportamiento es el de antes.
+
+**Los 10 casos nuevos** existen con el título exacto del resumen: 5 estados × crear y renombrar tema. Son: desmontado antes de la respuesta, desmontado durante la renovación, montado al terminar la renovación, desmontado después del `ErrorDeCampo`, y desmontado y vuelto a montar durante la renovación.
+
+El caso "durante la renovación" retiene las lecturas de `…/temas` del doble. Espera la petición de la renovación, afirma que todavía no hay aviso, desmonta, suelta y espera un solo aviso con el mensaje del servidor. El caso montado afirma el `ErrorDeCampo` y ningún aviso. El programador dice que, con el orden anterior, fallaban 4 casos; no lo repetí (exigiría tocar producción), pero la lectura de los casos lo hace creíble.
+
+**Hermanos y estados vecinos contra el código.** Mi grep de `montado.current` en producción de `features/clases` da solo `hooks.ts:170`, `:172` (`useMontado`), `:183` (clase, `onError` síncrono), `:197` y `:218` (clase, `onSuccess` síncrono, invalidaciones con `void`), `:723` (`useComentar`, síncrono) y `:867` (tema, después de la espera). Coincide con la lista del resumen, y su "no aplica" en comentario y clase está razonado: ninguna espera entre la decisión y el despacho. Los ganchos de 03d y 03e quedan anotados con el patrón de `avisarErrorDelTema`, y `useGuardarCategorias` sigue con su destino. La tabla de estados vecinos cubre los de mi M-01 y los que pedí listar.
+
+**Matriz corregida.** Las dos filas nuevas de crear y renombrar tema (`VALIDACION` de `nombre` y `TEMA_REPETIDO`) coinciden con el código.
+
+**Lista cerrada y V-01.**
+- Fuera de los tres archivos de prueba nuevos (sin rastrear), las pruebas normales cambiadas siguen siendo solo `trabajo-view.test.tsx` (E11-3) y `features/tareas/recuperar-ch3.test.tsx:200` (E11-2), con el mismo diff de antes (13 y 2 líneas).
+- V-01: las 235 `*.ataque` son idénticas a la tabla de la adenda 2 (`4a94f6b4…`).
+- Producción: solo cambió `features/clases/hooks.ts` respecto de la verificación anterior. `lib.ts` y `types.ts` siguen igual.
+
+### Para la ronda 1 del tester (sustituye la lista de la verificación anterior)
+- O-16 en tema: desmontar en el mismo turno en que termina la renovación. Una renovación que falla (temas o trabajo con 5xx) tras `TEMA_REPETIDO`, montado y desmontado: un solo mensaje, más el aviso de recarga fallida si la vista sigue. Dos envíos seguidos con `TEMA_REPETIDO` tras volver a montar.
+- Crear y editar clase: desmontar en el mismo turno de la respuesta (el orden entre el gancho y los callbacks de `mutate`) y `StrictMode`.
+- "Subir" y "Bajar": salir y volver con el `PUT` o la recarga por sección en vuelo (foco y `aria-busy` de la vista nueva); "Subir" mientras otra recarga por sección está en vuelo; un `409` mientras se espera la recarga.
+- El total (maestro y admin): ya en caché y con una recarga posterior que falla, la frase va sin conteo y sin aviso. Que el total no se vuelva a pedir tras ordenar. Que el estudiante no lo pida por ningún camino, incluidos R2 y el historial.
+- Que la clave por sección se renueve al publicar un material desde Avisos y al crear, editar o borrar una tarea desde `features/tareas`.
+- Guardas de §D-12: un tercer clic durante el `onSettled`, y el envío con `Enter` además del clic.
+- Comentario: desmontar con `VALIDACION` de `texto` y con otros códigos; `ACCESO_RESTRINGIDO` queda como heredado (O-1d3-2) y no es hallazgo.
+
+## Verificación de la corrección de la ronda 1 — 03c2
+
+Fecha: 2026-10-30. Hallazgo: T-01 (`reporte-tester.md`, "## CLASES-03c2 — Ronda 1", SHA-256 `b86acbb98c64eb5141969fb72c6da9cbab6536e78585a43c9c5da423496a163c`). Resumen: `resumen-programador-03c2.md`, "## Corrección de la ronda 1 (T-01)" (SHA-256 `0a4802b99dc27421543dc72b4895bf3e5a156733acf8821af89dd98ff17b97c8`). Los dos hashes están reproducidos.
+
+**Veredicto: DEVUELTO por M-01.** El remedio de T-01 tapa el hueco de T-01, pero su escritura en la caché trae dos estados vecinos que el resumen no lista y que empeoran lo de antes. Todas las cifras coinciden.
+
+Verificación propia (desde `frontend/`, una tras otra): lint exit 0 · 5547 casos en 254 archivos · `Tests  5547 passed (5547)` · build exit 0.
+
+| Comprobación | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | `> tsc -b` (exit 0) | exit 0 |
+| `npx vitest list \| grep -acE "^src/"` | 5547 | 5547 |
+| Archivos | 254 | 254 |
+| `contenido-03c2.test.tsx` | 19 | 19 |
+| Contra mi lista de la verificación de M-01 (`comm`, `LC_ALL=C`) | +36 | 0 que falten. Nuevos: 34 del tester (11 en `ordenar-03c2-r1`, 19 en `formularios-03c2-r1` y 4 en `invalidaciones-03c2-r1`) y 2 del programador (`contenido-03c2`) |
+| `npm run test` | `Tests  5547 passed (5547)`, `Test Files  254 passed (254)` | Igual (`Duration  218.26s`); 0 «Hook timed out» |
+| `npm run build` | `✓ built in 822ms` (exit 0) | `✓ built in 789ms` (exit 0) |
+| `git diff --stat HEAD -- frontend` | 13 archivos, 245 inserciones, 35 borrados | Igual |
+
+**V-01 y lista cerrada:**
+- Las 238 `*.ataque` tienen el mismo SHA-256 que la tabla "de las 238 … al cierre de la ronda 1 de CLASES-03c2". El programador no cambió ninguna.
+- Las pruebas normales cambiadas siguen siendo solo `trabajo-view.test.tsx` (E11-3) y `features/tareas/recuperar-ch3.test.tsx:200` (E11-2), con el diff de antes (13 y 2 líneas).
+- Producción: solo `hooks.ts` y `lib.ts`.
+
+**El remedio contra el código:**
+- `temasEnElOrdenDe` (`lib.ts:353-365`) es pura. Conserva los conteos de la sección, pone al final los temas que la respuesta no trae y renumera `orden`.
+- `filtroDeLasSecciones` (`hooks.ts:823-830`) es el mismo filtro de antes, compartido.
+- `onSuccess` (`hooks.ts:960-969`) escribe el total, espera la recarga por sección y, después, aplica `setQueriesData` solo a las listas en `error` o sin observadores.
+- CL3-C10 y CL3-2R1-03 siguen verdes: la vista no cambia mientras se espera.
+- Los dos casos nuevos existen con su título exacto y comprueban el orden en pantalla, los conteos de la sección y el `PUT` siguiente.
+- Los hermanos del resumen (crear, renombrar o borrar tema, mover, `useGuardarCategorias`) están bien razonados.
+
+### Problemas que bloquean
+
+#### M-01 — La escritura del orden en la caché borra el error que reemplaza la vista y la marca de "viejo" de las listas por sección
+Dónde: `frontend/src/features/clases/hooks.ts:962-969`, el `setQueriesData` del `onSuccess` de `useOrdenarTemas`.
+
+Por qué importa: en TanStack Query 5.103.2, `setQueryData`/`setQueriesData` despacha `success` con `successState` (`query.js:437-449` y `:497-504`): `error: null`, `status: "success"`, `isInvalidated: false` y `dataUpdatedAt` = ahora. Eso abre dos estados que el resumen no lista:
+1. **Un error que reemplaza la vista vuelve a quedar oculto.** Sigue este orden:
+   - El `PUT` responde `200` y la recarga por sección, que se espera, responde `403 SIN_ACCESO_A_LA_CLASE` (o un `VALIDACION` de `claseId`), porque la persona perdió el acceso entre las dos peticiones.
+   - La vista cambia a `MensajeError` "No tienes acceso a esta clase." (`errorQuitaLaVista`, `trabajo-view.tsx`, `contenido()`).
+   - Enseguida el `setQueriesData` alcanza esa consulta (`status === "error"`) y la pone en `success` con los datos viejos reordenados.
+   - Vuelven los temas con "Subir", "Bajar", "Renombrar" y "Borrar tema" para alguien sin acceso.
+
+   Eso contradice la regla de `lib.ts:500-502` ("el mensaje reemplaza la vista y deja de ofrecer acciones") y el patrón T-11. Antes de esta corrección no pasaba.
+2. **Una lista que se sabe vieja deja de estarlo.** Sigue este orden:
+   - La persona sale de Actividades con el `PUT` en vuelo.
+   - Mientras no se ve, otra acción marca vieja la lista por sección. Por ejemplo, crear o borrar una tarea en `features/tareas`, que invalida `claveTemas` sin `exact` (lo prueba CL3-2R1-19). Sin observadores, la invalidación no vuelve a pedir la lista, solo la marca.
+   - El `PUT` responde y el `setQueriesData` le quita la marca y le pone fecha de ahora.
+   - Si vuelve en menos de 30 s (`staleTime` de `app/providers.tsx`), la vista no la pide y muestra los conteos de antes de la tarea nueva o borrada. Antes de la corrección, la invalidación del `onSuccess` dejaba la lista marcada y la vista la pedía al volver (CL3-2R1-05 y 06).
+
+   El orden escrito es una suposición local, no lo que dijo el servidor; no debe pasar por fresco.
+
+Qué se espera:
+- Si la recarga por sección termina en un error que reemplaza la vista, la vista sigue con su `MensajeError` y sin acciones; nada lo sobrescribe.
+- Toda lista por sección a la que se le escribe el orden del `PUT` queda marcada vieja, igual que antes de escribirla. Al volver a montarse la vista, la vuelve a pedir. Si esa petición falla, el orden que se ve y del que parte el siguiente «Subir»/«Bajar» sigue siendo el del `PUT` (T-01 y el caso nuevo de O-01 en verde).
+- El aviso de recarga fallida sale una vez por fallo, como hoy.
+- Casos nuevos en `contenido-03c2.test.tsx`:
+  - `403 SIN_ACCESO_A_LA_CLASE` en la recarga tras el `PUT`: un `MensajeError` y ningún «Subir».
+  - La lista marcada vieja por otra invalidación mientras el `PUT` responde con la vista desmontada: al volver antes de 30 s, se vuelve a pedir y muestra los conteos nuevos. Este caso va con `staleTime: 30_000`, como `app/providers.tsx`.
+- No se cambia ninguna prueba existente ni ninguna `*.ataque`.
+- El resumen lista los estados vecinos de la escritura en la caché:
+  - error que conserva la vista;
+  - error que la reemplaza;
+  - sin observadores y sin marca;
+  - sin observadores y marcada por otra acción;
+  - vuelta antes y después de 30 s;
+  - y el estudiante.
+
+### O-01 (arbitraje): fuera de 03c2, como observación con destino
+Volver a Actividades **antes** de que responda el `PUT` deja la vista nueva sin saber que hay un orden en vuelo. Un «Subir» en esa ventana parte del orden viejo.
+- **Es heredado:** en `91756a5` pasaba igual con la lista total. 03c2 no lo introduce, y el caso de O-01 que sí agravaba 03c2 (el `PUT` responde con la vista desmontada y se vuelve con la recarga fallando) quedó cubierto con la corrección de T-01.
+- **La ventana es corta:** dura lo que tarda en responder el `PUT`, y la persona tiene que salir, volver y ordenar dentro de ella.
+- **El remedio es otro mecanismo:** una guarda que sobreviva al desmontaje (por ejemplo, `mutationKey` con `useIsMutating`) en `hooks.ts`, `trabajo-view.tsx` y `seccion-de-tema.tsx`. Es una guarda de doble envío entre montajes, que conviene uniformar con las demás.
+
+No entra en 03c2, y la ronda 2 del tester no la ataca como hallazgo. **Destino:** CHORE-04 (guardas de doble clic). El orquestador suma una fila al inventario de `docs/ESTADO.md` §2b al cerrar 03c2: "«Subir»/«Bajar» de Actividades entre montajes de la vista: volver antes de que responda el `PUT` permite otro orden calculado con la lista vieja; guarda con `mutationKey`/`useIsMutating` en `features/clases/hooks.ts`, `trabajo-view.tsx` y `components/seccion-de-tema.tsx`; O-01 de la ronda 1 de CLASES-03c2". Lo mismo aplicará a Recursos (03d) si ordena temas con este gancho.
+
+### Para la ronda 2 del tester (después de la corrección de M-01)
+- La escritura del orden en la caché, para cada error de la recarga por sección tras un `PUT` `200`:
+  - `5xx` y red: la vista se conserva y hay un aviso.
+  - `SIN_ACCESO_A_LA_CLASE` y `VALIDACION` de `claseId`: la vista se reemplaza, sin acciones.
+  - Dos fallos seguidos.
+- Las listas sin observadores, con y sin otra invalidación mientras el `PUT` responde. Volver antes y después de 30 s, con la configuración de `app/providers.tsx` (`staleTime: 30_000` y `retry: 1`).
+- El siguiente «Subir»/«Bajar» después de cada uno de esos estados: nunca deshace el anterior sin aviso. Probarlo también con un tema que el `PUT` trae y la lista por sección no (o al revés): `temasEnElOrdenDe` pone al final los que faltan.
+- Que la recarga sana tras el `PUT` siga mandando: el servidor gana sobre el orden escrito.
+- O-01 (volver antes de que responda el `PUT`) queda fuera: va a CHORE-04.
+
+## Verificación de la corrección de M-01 de la ronda 1 — 03c2
+
+Fecha: 2026-10-30. Resumen: `resumen-programador-03c2.md`, "## Corrección de M-01 de la ronda 1" (SHA-256 del archivo `77ce95d13e647901250ca5dc69f213ac0a75d7dc3a1e14c7a7785a75a0a8ae74`, reproducido).
+
+**Veredicto: ACEPTADO.** M-01 de la ronda 1 queda cerrado y no hay M-nn nuevos. Sigue la ronda 2 del tester.
+
+Verificación propia (desde `frontend/`, una tras otra): lint exit 0 · 5549 casos en 254 archivos · `Tests  5549 passed (5549)` · build exit 0.
+
+| Comprobación | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | `> tsc -b` (exit 0) | exit 0 |
+| `npx vitest list \| grep -acE "^src/"` | 5549 | 5549 |
+| Archivos | 254 | 254 |
+| `contenido-03c2.test.tsx` | 21 | 21 |
+| Contra mi lista de la verificación anterior (`comm`, `LC_ALL=C`) | +2 | 2 nuevos, con el título exacto del resumen; 0 que falten |
+| `npm run test` | `Tests  5549 passed (5549)`, `Test Files  254 passed (254)` | Igual (`Duration  217.45s`); 0 «Hook timed out» |
+| `npm run build` | `✓ built in 756ms` (exit 0) | `✓ built in 749ms` (exit 0) |
+| `git diff --stat HEAD -- frontend` | 13 archivos, 266 inserciones, 35 borrados | Igual |
+
+**V-01 y lista cerrada:**
+- Las 238 `*.ataque` tienen el mismo SHA-256 que la tabla de la ronda 1 de 03c2.
+- Las pruebas normales cambiadas siguen siendo solo E11-3 y E11-2, con el diff de antes (13 y 2 líneas).
+- En producción solo cambió `hooks.ts`. `lib.ts`, `types.ts` y `trabajo-view.tsx` siguen como en la verificación anterior.
+
+**El remedio, contra el código y contra TanStack Query 5.103.2:**
+- `ponerElOrdenEnLasSeccionesSinElNuevo` (`hooks.ts:949-970`) se llama en `onSuccess` (`:991`), después de esperar la recarga por sección.
+- **El error que reemplaza la vista se conserva.** El filtro (`:959`) deja fuera toda lista con `status === "error"` y `errorQuitaLaVista(error)`, así que nada escribe sobre un `403 SIN_ACCESO_A_LA_CLASE` ni sobre un `VALIDACION` de `claseId`. El caso nuevo lo comprueba: el `MensajeError` sigue a la vista, sin «Subir», «Bajar», «Renombrar» ni «Borrar tema», y sin los temas.
+- **Cada lista escrita queda vieja.** Después de `setQueryData`, que según `query.js:497-504` deja `isInvalidated: false`, viene `invalidateQueries({ queryKey, exact: true, refetchType: "none" })` (`:967`). Según `queryClient.js:297-302`, eso la marca vieja con `query.invalidate()` y no la pide. Al montar, `shouldFetchOnMount` llama a `isStaleByTime`, que da `true` con `isInvalidated` (`query.js:217`, `queryObserver.js:434-449`): se pide aunque no hayan pasado 30 s. El segundo caso nuevo lo comprueba con `staleTime: 30_000` y otra invalidación mientras la vista no está.
+- **T-01 sigue cerrado.** Con 5xx o red, la lista montada en error toma el orden del `PUT`. Los casos de T-01 (CL3-2R1-01, las dos variantes, y los dos "CL3-C10 (T-01…)") siguen verdes en mi corrida, igual que CL3-C10, CL3-2R1-02 a 08 y el M-01 de `trabajo-view.test.tsx`.
+
+**Tabla de estados vecinos, uno por uno.** Coincide con el código en las 12 filas:
+- Una recarga que llega no se escribe: tiene observadores y `status` `success`.
+- 5xx y red se escriben y quedan marcados: `SIN_CONEXION` no reemplaza la vista.
+- `403` y `VALIDACION` de `claseId` no se escriben.
+- Dos fallos seguidos: cada `onSuccess` escribe sobre el orden anterior, y `errorUpdateCount` no cambia al escribir, así que sale un aviso por fallo.
+- Las listas desmontadas, con y sin otra invalidación, antes y después de 30 s, se escriben y quedan marcadas.
+- Una lista desmontada con un error que reemplaza la vista no se toca.
+- El estudiante no ordena, y O-01 va a CHORE-04.
+
+La matriz corregida, con sus tres filas, coincide con el código.
+
+**Sin cambio de comportamiento que bloquee (para la ronda 2).** Con la vista montada, después de escribir el orden sobre una recarga fallida, la consulta queda en `success`. Pulsar «Actividades de aprendizaje» estando ahí ya no la vuelve a pedir: `useAlPulsarLaSeccionActiva` solo pide cuando `isError`. La frase de recarga fallida no promete esa acción, así que no rompe la regla del 2026-10-26. Ir a otra sección y volver sí la pide, porque quedó marcada vieja. El tester lo comprueba y no cuenta como hallazgo, salvo que encuentre una frase que lo prometa.
+
+### Para la ronda 2 del tester (sustituye las cinco de la verificación anterior)
+Con `app/providers.tsx` (`staleTime: 30_000`, `retry: 1`, `refetchOnWindowFocus: false`):
+1. Tras un `PUT` `200`, cada error de la recarga por sección:
+   - 5xx y red: la vista se conserva, con un aviso por fallo, el orden del `PUT` y la lista marcada vieja.
+   - `SIN_ACCESO_A_LA_CLASE` y `VALIDACION` de `claseId`: la vista se reemplaza, sin acciones.
+   - Dos fallos seguidos.
+2. Listas por sección con la vista desmontada, con y sin otra invalidación mientras responde el `PUT`. Volver antes y después de 30 s: siempre se piden al montar. Si esa petición falla, queda el orden del `PUT`.
+3. El siguiente «Subir»/«Bajar» después de cada uno de esos estados nunca deshace el anterior sin aviso. Incluye un tema que trae el `PUT` y no la lista por sección, o al revés, y un tema creado o borrado entre medias: `409 ORDEN_DESACTUALIZADO`, aviso y renovación.
+4. Cuando la recarga sí llega tras el `PUT`, manda lo que dice el servidor. También con otra recarga en vuelo, por ejemplo la renovación de un `TEMA_REPETIDO` (como CL3-2R1-04).
+5. Pulsar la sección activa después de escribir el orden sobre una recarga fallida no pide nada. Es lo esperado; solo es hallazgo si alguna frase de la vista promete esa acción. O-01 (volver antes de que responda el `PUT`) no es hallazgo: va a CHORE-04.
+
+## Revisión final — 03c2
+# Revisión del Manager — CLASES-03c2 (contenido) — final
+Veredicto: **APROBADO CON OBSERVACIONES** (nada bloquea; M-01 y M-02 son pasos de cierre del orquestador antes del commit)
+
+Verificación propia (desde `frontend/`, una suite tras otra). 03c2 no toca `shared/` ni el backend: `git diff --stat 91756a5 -- shared backend` sale vacío.
+- `npm run lint`: exit 0. Última línea: `> tsc -b` (antes, `All matched files use Prettier code style!`).
+- `npx vitest list`:
+  - `grep -ac " > "` = **5569** casos.
+  - `grep -a " > " | sed 's/ > .*//' | sort -u | wc -l` = **255** archivos, 146 de ellos `*.ataque` del frontend.
+- `npm run test`: `Test Files  255 passed (255)` · `Tests  5569 passed (5569)` (222.87 s).
+- `npm run build`: exit 0. Última línea: `✓ built in 769ms`.
+- Las cifras coinciden con la ronda 2 del tester (5569 / 255) y con la suma de cada entrega: 5434 de base, +67 de la implementación, +10 de M-01, +34 de la ronda 1, +2 de T-01, +2 de M-01 de la ronda 1 y +20 de la ronda 2.
+- Casos por archivo nuevo: `contenido-03c2` 21, `formularios-03c2` 51, `redirige-03c2` 9, `invalidaciones-03c2-r1.ataque` 4, `formularios-03c2-r1.ataque` 19, `ordenar-03c2-r1.ataque` 11 y `ordenar-03c2-r2.ataque` 20.
+
+Hashes reproducidos:
+- `plan.md` `5c538940…`, `reporte-tester.md` `15f49f8e…` y `resumen-programador-03c2.md` `77ce95d1…`.
+- `AGENTS.md` `bb985908…`, `CLAUDE.md` `c9a2f534…` y `ARCHITECTURE-ESSENTIALS.md` `b93f7275…`, iguales a los de `aprobacion.md`.
+- `DESIGN.md` `47f85120…`, igual al que anotó el orquestador. La copia `DESIGN-antes-03c2.md` (`0c85338b…`) es igual a `91756a5`.
+
+### 1. Cumplimiento de 03c2 (DH-14)
+- **7.5, la URL con `tipo=anuncio`:** `usePublicaciones` (`hooks.ts:614-621`) pide `…/publicaciones?tipo=anuncio&limite=20[&cursor]` y su clave no cambia. Lo prueba CL3-C08, con 3 casos (uno por perspectiva) que comparan la URL exacta de la primera página y la de "Ver más avisos".
+- **7.6 completo, salvo los textos:**
+  - `useTrabajo` pide con `seccion=actividades`.
+  - `useTemasDeLaSeccion` usa `claveTemasDeLaSeccion`, que cuelga de `claveTemas`; así, toda invalidación no exacta del total también la alcanza.
+  - `TrabajoView` saca la estructura de la lista por sección y pide el total solo con `capacidades.gestionarTrabajo` (N-08).
+  - `SeccionDeTema` recibe `elementosEnTotal` y, si es `null`, usa `TEXTOS_TEMAS.consecuenciaSinConteo`.
+  - `useOrdenarTemas` escribe el total y espera la recarga por sección.
+  - La recarga fallida va sobre la consulta por sección.
+  - Lo prueban CL3-C09 (10 casos), CL3-C10 (6) y CL3-C11 (2).
+- **§D-11 (O-16):** cubre el comentario, crear y editar clase, y crear y renombrar tema, con `useMontado`. La variante de clase calla ante `errorQueRedirigeElCliente` (`lib.ts:497-498`), con la misma firma que en tareas y calificaciones. Lo prueban CL3-C14 (39 casos, con los 10 de M-01) y CL3-C19 (9 casos en `src/app/`, lugar aceptado en la verificación del resumen).
+- **§D-12, sin `reset()`:** `formulario-comentario.tsx` y `formulario-clase.tsx` tienen su guarda con ref. Se marca justo antes de `mutate` y se libera en el `onSettled` de esa misma llamada. Ninguno de los dos archivos tiene `reset()`. Lo prueba CL3-C15 (12 casos).
+- **R-03c2-1:** en la producción de `features/clases`, `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` aparece solo dos veces: en la importación de `lib.ts:16` (unida a `esApiError`, con comillas dobles) y en el cuerpo de `errorQueRedirigeElCliente`. `hooks.ts` solo llama a la función. **R-03c2-2:** cumplido (punto anterior).
+- **T-01 (ronda 1):** corregido; CL3-2R1-01 a 08 están en verde.
+- **Las dos correcciones de M-01 siguen como las acepté:** la de la verificación del resumen (`avisarErrorDelTema`) y la de la ronda 1 (`ponerElOrdenEnLasSeccionesSinElNuevo`, que no toca las listas cuyo error quita la vista y deja vieja cada lista que escribe). La ronda 2 las atacó con 20 casos, todos en verde.
+- **Alcance y estilo de `CLAUDE.md`:**
+  - No hay nada fuera del plan.
+  - Usa retornos tempranos.
+  - Los ternarios de `seccion-de-tema.tsx` y `trabajo-view.tsx` no están anidados.
+  - `posicion.get(a.id) ?? fuera` es un respaldo explícito y comentado: un tema que la respuesta no trae va al final. No esconde datos que falten.
+  - Los tipos nuevos se reexportan de `shared/` en `types.ts`.
+- **M-02 de 03c1, cerrado:** las frases "solo lista anuncios" (§7.18, `DESIGN.md:685`) y "solo lista actividades (hoy, tareas)" (§7.22, `:753`) ya son ciertas, porque CL3-C08 y CL3-C09 comprueban los filtros en las tres perspectivas.
+
+### 2. V-01 y "No se toca"
+- **V-01:**
+  - Las 239 `*.ataque` (93 del backend y 146 del frontend, según `git ls-files -co --exclude-standard`) tienen el SHA-256 de la tabla de la ronda 2. El `diff` por ruta da 0 diferencias, 0 faltantes y 0 sobrantes.
+  - Contra `91756a5` cambian tres, todas del tester en la ronda 0: `trabajo-01e-r1` (C-25, adenda 1), `features/tareas/formularios-ch3-r1:240` (C-31, adenda 2) y `services/apiClient-ch3-r1` (C-29). Las cuatro nuevas son de las rondas 1 y 2.
+  - El programador no tocó ninguna.
+- **`features/tareas`:** cambian solo dos líneas, las dos autorizadas por el humano el 2026-10-30, y ninguna aserción cambia:
+  - `recuperar-ch3.test.tsx:200`: una línea, `url.pathname`.
+  - `formularios-ch3-r1.ataque.test.tsx:240`: `ruta.pathname`, más dos líneas de comentario.
+- **Pruebas normales que cambian:** solo `trabajo-view.test.tsx` (E11-3, el caso M-01) y `recuperar-ch3.test.tsx` (E11-2, la de arriba).
+- **Sin cambios contra `91756a5`:** `shared/`, `backend/`, `infra/`, `components/`, `lib/`, `docs/ARCHITECTURE.md`, `docs/PRD.md` y `.claude/`. En `services/` solo cambia C-29, y en `app/` solo hay dos pruebas nuevas.
+- `AGENTS.md`, `CLAUDE.md` y `ARCHITECTURE-ESSENTIALS.md` coinciden con los hashes de `aprobacion.md`.
+
+### 3. Documentos que aplicó el orquestador
+**`DESIGN.md` contra `DESIGN-antes-03c2.md`.** Comparé con `git diff --no-index --word-diff` (5 hunks) y con un script que extrae los textos del plan y los busca como subcadena exacta.
+- **A-02 bis:** la viñeta nueva coincide letra por letra con una línea completa de `DESIGN.md` (`:662`), y la vieja ya no está.
+- **A-02 ter:**
+  - En (1) a (4) y en (8), cada texto nuevo está y cada texto viejo desapareció.
+  - (5), con el texto de la Enmienda 10 ("(sus secciones, §7.16, y las demás pantallas de la clase; CLASES-03c);"), (6) en sus dos apariciones y (7): comprobados con `grep -F`, una coincidencia cada uno.
+  - Ya no queda "muro, Personas o Alumnos" ni "tareas ni materiales". "Ver más publicaciones" solo queda como historia, en `:695`.
+- **A-04, la frase de los conteos:** la frase de entrada completa de §7.22 es una línea exacta del plan. El texto que cita, "Sus actividades y recursos pasarán a «Sin tema».", es igual a `TEXTOS_TEMAS.consecuenciaSinConteo` (`data.ts:532`).
+- **Marcas de origen:** conté todas las marcas "propuesta…)" y "decisión del humano…)" antes y después. Solo cambia "propuesta (CLASES-03c)", que pasa de 4 a 7: la frase nueva "Desde CLASES-03" y los dos "fijada en propuesta (CLASES-03c)" de A-02 bis. No se borró ninguna.
+- **Patrón visual nuevo de 03c2:** no hay.
+  - La frase sin conteo para borrar un tema ya la describe A-04, igual que el total que solo pide quien gestiona (el estudiante no borra temas).
+  - El aviso cuando el formulario ya no está (O-16) es el aviso de siempre, con textos que ya existían ("Clase creada", "Cambios guardados" y el mensaje traducido). Es un comportamiento, no un patrón visual.
+
+**`ESTADO.md` contra `ESTADO-antes-03c2.md`** (4 hunks):
+- **O-16:** dice "Cumplido en CLASES-03c2 … para comentario, crear y editar clase y tema (§D-11); anuncio y recurso, en CLASES-03d", con el hermano `useGuardarCategorias` y su destino, como lo pedí en la verificación del resumen. La fila sigue abierta hasta 03d, porque A-12 dice "cerradas en 03c y 03d". Es correcto.
+- **R-3 de CHORE-02:** suma O-1d3-2 de `features/clases`, con la frase que pedí.
+- **Filas 1 y 2 de CHORE-04:** tachadas, con "Hecho en CLASES-03c2 (2026-10-30, §D-12)".
+- **Fila 29 de CHORE-04:** es el texto literal de mi arbitraje de O-01, más "Lo mismo aplicará a Recursos (03d) si ordena temas con este gancho", que también viene de ese arbitraje.
+- **§2 y la línea 5:** siguen en "03c2 en curso". Ver M-01.
+
+## Problemas que bloquean
+Ninguno.
+
+## Problemas que no bloquean
+### M-01 — `ESTADO.md` §2 y "Última actualización" todavía describen 03c2 en curso
+Dónde: `docs/ESTADO.md:5` ("03c2 en curso") y `:236`, que termina en "03c2 (contenido, base `<K3c1>`): Enmienda 8 (M-01 de la revisión final de 03c1) y ronda 0 en curso. Backend 229 / 2774; frontend 248 / 5434; 235 `*.ataque`.".
+
+Qué se espera, antes del `git add`:
+1. En `:236`, el plan pasa de "Enmiendas 1 a 7 (`plan.md`, SHA-256 `84074f4a…`)" a "Enmiendas 1 a 11 (`plan.md`, SHA-256 `5c538940…`)".
+2. En `:236`, la frase final de 03c2 se reemplaza por esta:
+> 03c2 (contenido, base `<K3c1>`): Enmiendas 8 a 11 (documentos de 03c1, arbitraje de la ronda 0 y título del recurso para 03d); ronda 0 con dos PARADAS resueltas (P-03c2-2 por C-25; P-03c2-1 por C-31 con autorización del humano para `features/tareas/formularios-ch3-r1.ataque.test.tsx:240` y `recuperar-ch3.test.tsx:200`); dos devoluciones del manager (M-01 del resumen y M-01 de la ronda 1, corregidas); ronda 1 ROTO (T-01, corregido), ronda 2 RESISTE; revisión final APROBADO CON OBSERVACIONES; A-02 bis, A-02 ter (1) a (8), la frase de los conteos de A-04 y la parte de A-12 de 03c2 aplicados. **03c2 cerrada el 2026-10-30**, pendiente del commit del humano `<K3c2>`. Backend 229 / 2774 (sin cambios desde 03b); frontend 255 / 5569; 239 `*.ataque`.
+3. En `:5`: "Última actualización: 2026-10-30, por el orquestador (CLASES-03 en curso en `feat/clases-03`: 03c2 cerrada, pendiente del commit `<K3c2>`; sigue 03d)."
+
+No toques otras líneas de `ESTADO.md`, salvo la fila de M-02.
+
+### M-02 — O-03 de la ronda 2 va a `ESTADO.md` §3, no a la comprobación humana
+Dónde: `reporte-tester.md`, "## CLASES-03c2 — Ronda 2", O-03. Incluye el cambio de comportamiento que anoté en "Verificación de la corrección de M-01 de la ronda 1 — 03c2": después de escribir el orden sobre una recarga fallida, pulsar la sección activa no vuelve a pedir nada.
+
+Por qué no va a la comprobación humana:
+- Esa comprobación es solo para lo que las pruebas no ven (AGENTS.md, "Trabajo visual"). Dura 10 minutos, tiene 7 puntos y ya están ocupados (H-1 a H-7).
+- Para ver O-03 hay que forzar un fallo del servidor justo después de «Subir», y el humano no puede hacerlo en el navegador. Además, CL3-2R2-10 ya lo prueba.
+- No aplica la regla de frases de recuperación: ninguna frase de la vista promete esa recarga. "No pudimos actualizar Actividades de aprendizaje. Mostramos la última versión que tenemos." no pide ninguna acción.
+- No es un defecto de 03c2: el orden que se ve es el del servidor. Lo que puede quedar viejo son los conteos, hasta que la vista se vuelva a montar o llegue otra invalidación.
+
+Qué se espera: al cerrar 03c2, el orquestador suma esta fila a la tabla de pendientes de `ESTADO.md` §3:
+> | O-03 de la ronda 2 de CLASES-03c2: tras «Subir»/«Bajar» con la recarga por sección fallida, la vista escribe el orden de la respuesta y deja la lista marcada vieja; con la vista montada no la vuelve a pedir sola, y pulsar «Actividades de aprendizaje» estando ahí tampoco (CL3-2R2-10), así que los conteos de la sección pueden quedar viejos hasta volver a montarla o hasta otra invalidación. Ninguna frase promete la recarga | El `chore` de foco y navegación del marco (una sola política de recarga); si Recursos (03d) ordena temas con `useOrdenarTemas`, hereda lo mismo | `docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md`, "Revisión final — 03c2" (M-02) |
+
+La comprobación humana no cambia.
+
+## Detalles menores
+- La frase que pedí para R-3 de CHORE-02 ("y los ganchos de `features/clases`, que desde CLASES-03c2 tienen `errorQueRedirigeElCliente` para hacerlo") quedó tal cual la escribí. Se entiende; la redacción es mía, no del orquestador, y no hay que cambiarla.
+- R-03c2-2 del plan sigue citando la frase vieja de CL3-C15. Es el detalle menor de la Enmienda 11 y no afecta el código.
+- `reporte-tester.md` tiene finales de línea CRLF, y git avisa que los convertirá a LF. Es cosmético, y su hash es el del árbol de trabajo.
+- **Medición del programador (AGENTS.md, decisión del 2026-10-05):** 03c2 tuvo una sola ronda extra del tester (la ronda 1, por T-01), y vino de un mecanismo nuevo (la lista por sección tras ordenar), no de hermanos sin extender. Las dos devoluciones del manager fueron estados vecinos que encontró la verificación, no rondas del tester. No se llega a 2, así que el `programador` sigue en `sonnet`.
+
+## Desacuerdos arbitrados
+- No hay desacuerdos nuevos entre programador y tester: la ronda 2 no tuvo hallazgos.
+- O-03 queda arbitrado en M-02. O-01 de la ronda 1 ya tiene su fila en CHORE-04 (la 29).
+
+## Documentos a actualizar
+- `ESTADO.md`: §2 y `:5` por M-01, antes del commit; la fila de §3 por M-02, al cerrar 03c2.
+- Lo demás de 03c2 (A-02 bis, A-02 ter (1) a (8), la frase de los conteos de A-04 y la parte de A-12) ya está aplicado y cotejado arriba.
+- Quedan para 03d: A-03 bis, A-05 y la parte de A-12 de 03d (O-16 en anuncio y recurso).
+- `CLAUDE.md`, `AGENTS.md` y ESSENTIALS no cambian en 03c2.
+
+## Para el humano
+- **Comprobación en navegador** (una sola, al final de 03e; ningún agente la hace): ninguno de los puntos H-1 a H-7 es de 03c2. Los filtros (`tipo=anuncio`, `seccion=actividades`), los conteos por sección, la frase de borrar un tema, O-16 y las guardas los cubren las pruebas automáticas, y quedan como "no verificados en navegador, cubiertos por pruebas automáticas". Si al hacer H-3 o H-5 pasa por Avisos o Actividades: Avisos solo debe mostrar anuncios, y Actividades solo tareas.
+- No hay decisiones pendientes para cerrar 03c2.
+
+## Rutas para el `git add` del commit de 03c2
+Código (8 modificados):
+```
+frontend/src/features/clases/components/formulario-clase.tsx
+frontend/src/features/clases/components/formulario-comentario.tsx
+frontend/src/features/clases/components/seccion-de-tema.tsx
+frontend/src/features/clases/data.ts
+frontend/src/features/clases/hooks.ts
+frontend/src/features/clases/lib.ts
+frontend/src/features/clases/trabajo-view.tsx
+frontend/src/features/clases/types.ts
+```
+Pruebas normales (2 modificadas y 3 nuevas):
+```
+frontend/src/features/clases/trabajo-view.test.tsx
+frontend/src/features/tareas/recuperar-ch3.test.tsx
+frontend/src/app/redirige-03c2.test.ts
+frontend/src/features/clases/contenido-03c2.test.tsx
+frontend/src/features/clases/formularios-03c2.test.tsx
+```
+Pruebas `*.ataque` (3 modificadas y 4 nuevas):
+```
+frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx
+frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx
+frontend/src/services/apiClient-ch3-r1.ataque.test.ts
+frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx
+frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx
+frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx
+frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx
+```
+Documentos y carpeta de trabajo:
+```
+docs/DESIGN.md
+docs/ESTADO.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/aprobacion.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/plan.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/reporte-tester.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03c2.md
+```
+En total son 27 archivos: 8 de código, 5 de pruebas normales, 7 `*.ataque`, 2 documentos y 5 de `docs/trabajo/`. Son exactamente los de `git status -uall` (19 modificados y 8 sin rastrear), sin archivos ajenos. No entra nada de `shared/`, `backend/`, `infra/`, `AGENTS.md`, `CLAUDE.md` ni ESSENTIALS.

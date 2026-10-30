@@ -26,7 +26,9 @@ import {
   type CrearPublicacion,
   type CrearTema,
   type EditarClase,
+  type ListaTemasRespuesta,
   type ReemplazarCategorias,
+  type SeccionDeTemas,
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -55,6 +57,7 @@ import {
   claveCodigoDeClase,
   claveComentarios,
   claveMaestrosCandidatos,
+  claveTemasDeLaSeccion,
   clavePersonas,
   clavePublicaciones,
   CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS,
@@ -71,6 +74,7 @@ import {
   TEXTOS_BUSCADOR_ALUMNOS,
   TEXTOS_CATEGORIAS,
   TEXTOS_COMENTARIOS,
+  TEXTOS_FORMULARIO_CLASE,
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_MAESTROS_DE_CLASE,
   TEXTOS_MURO,
@@ -85,10 +89,13 @@ import {
   erroresDelTemaDeApi,
   erroresDeFormularioClases,
   erroresDeLaPublicacionDeApi,
+  errorQueRedirigeElCliente,
+  errorQuitaLaVista,
   focoPerdido,
   medidaDelIndicador,
   mensajeDeErrorClases,
   opcionEnElPanel,
+  temasEnElOrdenDe,
   terminoDeBusquedaValido,
   tiempoFrescoDelMuro,
 } from "./lib"
@@ -157,22 +164,49 @@ const invalidarListasDeClases = async (queryClient: ReturnType<typeof useQueryCl
   ])
 }
 
+// CLASES-03c2 (§D-11, O-16): `true` mientras el componente que llama al gancho está montado. Lo crea
+// cada gancho de mutación de un formulario: su onError corre aunque el formulario ya no esté (T-30), y
+// con él sabe si el formulario sigue ahí para mostrar el error bajo su campo.
+export const useMontado = (): RefObject<boolean> => {
+  const montado = useRef(false)
+  useEffect(() => {
+    montado.current = true
+    return () => {
+      montado.current = false
+    }
+  }, [])
+  return montado
+}
+
+// §D-11, variante de clase (Enmienda 1, M-01): con el formulario montado, `alFallar` y `alTerminar`
+// (los callbacks de mutate) avisan y navegan, y el gancho calla. Con el formulario desmontado esos
+// callbacks no corren: el gancho avisa una vez cualquier error, salvo uno con que apiClient ya redirige
+// (la página se va), y el éxito, sin navegar (la persona ya está en otra pantalla).
+const avisarErrorConElFormularioDesmontado = (montado: RefObject<boolean>, error: unknown) => {
+  if (montado.current || errorQueRedirigeElCliente(error)) return
+  toast.error(mensajeDeErrorClases(error))
+}
+
 // CLASES-02c (§D-2C2): crear y editar una clase son del administrador. El maestro ya no las crea.
 export const useCrearClase = () => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: CrearClaseAdmin) =>
       api("/api/admin/clases", { method: "POST", body: datos, schema: claseRespuestaSchema }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_ADMIN })
       void invalidarListasDeClases(queryClient)
+      if (!montado.current) toast.success(TEXTOS_FORMULARIO_CLASE.avisoCreada)
     },
+    onError: (error) => avisarErrorConElFormularioDesmontado(montado, error),
   })
 }
 
 // El id llega al mutar (§D-2C5): sin un valor de respaldo para un claseId que falte.
 export const useEditarClase = () => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: ({ claseId, datos }: { claseId: string; datos: EditarClase }) =>
       api(`/api/admin/clases/${claseId}`, {
@@ -184,7 +218,9 @@ export const useEditarClase = () => {
       void queryClient.invalidateQueries({ queryKey: claveClaseDetalle(claseId) })
       void queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_ADMIN })
       void invalidarListasDeClases(queryClient)
+      if (!montado.current) toast.success(TEXTOS_FORMULARIO_CLASE.avisoGuardada)
     },
+    onError: (error) => avisarErrorConElFormularioDesmontado(montado, error),
   })
 }
 
@@ -578,9 +614,11 @@ export const usePublicaciones = (claseId: string) =>
   useInfiniteQuery({
     queryKey: clavePublicaciones(claseId),
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      api(`/api/clases/${claseId}/publicaciones?${conCursor(LIMITE_PUBLICACIONES, pageParam)}`, {
-        schema: listaPublicacionesRespuestaSchema,
-      }),
+      // CLASES-03c2 (§D-7.5): Avisos pide solo los anuncios; la clave no cambia.
+      api(
+        `/api/clases/${claseId}/publicaciones?tipo=anuncio&${conCursor(LIMITE_PUBLICACIONES, pageParam)}`,
+        { schema: listaPublicacionesRespuestaSchema },
+      ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
     // d (T-40): las vistas previas del muro son URL firmadas; el muro se vuelve viejo antes de que
@@ -670,6 +708,7 @@ const invalidarComentarios = async (
 
 export const useComentar = (claseId: string, publicacionId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: CrearComentario) =>
       api(`/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios`, {
@@ -682,8 +721,9 @@ export const useComentar = (claseId: string, publicacionId: string) => {
       void invalidarComentarios(queryClient, claseId, publicacionId)
       toast.success(TEXTOS_COMENTARIOS.avisoComentado)
     },
+    // §D-11 (O-16): el error del campo lo muestra el formulario solo si sigue montado; si no, se avisa.
     onError: (error) => {
-      if (erroresDeFormularioClases(error, ["texto"])) return
+      if (montado.current && erroresDeFormularioClases(error, ["texto"])) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -713,9 +753,21 @@ export { useSolicitarSubida, useUrlDeDescarga } from "@/components/adjuntos/hook
 // TAREAS-01e (§D-11). "Trabajo de clase", temas y categorías, con las claves y las consultas de
 // services/trabajoService.ts (las mismas que usa features/tareas).
 
-// La lista de temas con sus conteos. `enabled`: el formulario del muro solo la pide con "Material".
+// La lista de temas con sus conteos. `enabled`: el formulario del muro solo la pide con "Material", y
+// "Actividades de aprendizaje", solo para maestro y admin (la frase de borrar un tema; N-08).
 export const useTemas = (claseId: string, enabled = true) =>
   useQuery({ ...consultaTemas(claseId), enabled })
+
+// CLASES-03c2 (§D-7.6): los mismos temas, en su orden, con los conteos de una sección. De ella sale la
+// estructura de la sección (temas, orden, nombres, conteos y "Sin tema").
+export const useTemasDeLaSeccion = (claseId: string, seccion: SeccionDeTemas) =>
+  useQuery({
+    queryKey: claveTemasDeLaSeccion(claseId, seccion),
+    queryFn: () =>
+      api(`/api/clases/${claseId}/temas?${new URLSearchParams({ seccion }).toString()}`, {
+        schema: listaTemasRespuestaSchema,
+      }),
+  })
 
 // Enmienda 5: una sola instancia por módulo. Toda lectura de GET …/trabajo (primera página y "Ver más")
 // pasa por aquí: como máximo 6 en vuelo y las demás en fila, en el orden en que se montan las secciones.
@@ -729,7 +781,12 @@ export const useTrabajo = (claseId: string, tema: string) =>
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_TRABAJO : LIMITE_PAGINAS_TRABAJO
-      const parametros = new URLSearchParams({ tema, limite: String(limite) })
+      // CLASES-03c2 (§D-7.6): "Actividades de aprendizaje" pide solo las actividades del tema.
+      const parametros = new URLSearchParams({
+        tema,
+        seccion: "actividades",
+        limite: String(limite),
+      })
       if (pageParam !== undefined) parametros.set("cursor", pageParam)
       return limiteDeTrabajo.ejecutar(
         () =>
@@ -763,6 +820,21 @@ export const useAvisoDeRecargaFallida = (
 const invalidarTemas = (queryClient: ReturnType<typeof useQueryClient>, claseId: string) =>
   queryClient.invalidateQueries({ queryKey: claveTemas(claseId) })
 
+// Solo las listas por sección (cuelgan de la clave de los temas, un nivel más abajo); el total no.
+const filtroDeLasSecciones = (claseId: string) => {
+  const prefijo = claveTemas(claseId)
+  return {
+    queryKey: prefijo,
+    predicate: (consulta: { queryKey: readonly unknown[] }) =>
+      consulta.queryKey.length > prefijo.length,
+  }
+}
+
+const invalidarTemasDeLasSecciones = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+) => queryClient.invalidateQueries(filtroDeLasSecciones(claseId))
+
 const invalidarTemasYTrabajo = async (
   queryClient: ReturnType<typeof useQueryClient>,
   claseId: string,
@@ -785,11 +857,28 @@ const renovarTrasError = async (
   await invalidarTemasYTrabajo(queryClient, claseId)
 }
 
+// §D-11 (O-16): el error del nombre lo muestra el formulario solo si sigue montado; cualquier otro se
+// avisa al momento. M-01 de la verificación de 03c2: lo que decide se lee después de la última espera
+// (la renovación de temas y trabajo con TEMA_REPETIDO): TanStack Query espera este onError antes de
+// llamar a los callbacks de mutate, y si el formulario se desmonta durante esa espera ya no pinta nada.
+const avisarErrorDelTema = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  montado: RefObject<boolean>,
+  error: unknown,
+) => {
+  const delCampo = erroresDelTemaDeApi(error) !== null
+  if (!delCampo) toast.error(mensajeDeErrorClases(error))
+  await renovarTrasError(queryClient, claseId, error)
+  if (delCampo && !montado.current) toast.error(mensajeDeErrorClases(error))
+}
+
 // Los avisos viven en los hooks y no en los callbacks de mutate (patrón T-30): corren aunque el
 // componente ya no esté montado. Un error del nombre lo muestra el formulario, sin aviso. El onSuccess
 // espera la lista nueva, así que el botón sigue en espera hasta que el tema ya aparece.
 export const useCrearTema = (claseId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: CrearTema) =>
       api(`/api/clases/${claseId}/temas`, {
@@ -801,15 +890,13 @@ export const useCrearTema = (claseId: string) => {
       toast.success(TEXTOS_TEMAS.avisoCreado)
       await invalidarTemas(queryClient, claseId)
     },
-    onError: async (error) => {
-      if (erroresDelTemaDeApi(error) === null) toast.error(mensajeDeErrorClases(error))
-      await renovarTrasError(queryClient, claseId, error)
-    },
+    onError: (error) => avisarErrorDelTema(queryClient, claseId, montado, error),
   })
 }
 
 export const useRenombrarTema = (claseId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: ({ temaId, nombre }: { temaId: string; nombre: string }) =>
       api(`/api/clases/${claseId}/temas/${temaId}`, {
@@ -825,10 +912,7 @@ export const useRenombrarTema = (claseId: string) => {
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
       ])
     },
-    onError: async (error) => {
-      if (erroresDelTemaDeApi(error) === null) toast.error(mensajeDeErrorClases(error))
-      await renovarTrasError(queryClient, claseId, error)
-    },
+    onError: (error) => avisarErrorDelTema(queryClient, claseId, montado, error),
   })
 }
 
@@ -855,8 +939,43 @@ export const useBorrarTema = (claseId: string) => {
   })
 }
 
+// T-01 (ronda 1 de 03c2) y M-01 de su verificación. Tras "Subir"/"Bajar", una lista por sección que no
+// trajo el orden nuevo (su recarga falló, o no se volvió a pedir porque no hay vista que la use) toma el
+// orden de la respuesta con sus propios conteos, para que el siguiente "Subir"/"Bajar" no parta del
+// orden viejo. Escribirla la daría por recién llegada: por eso queda marcada vieja enseguida (sin
+// pedirla ahora), y se vuelve a pedir al montar aunque no hayan pasado 30 s. Una lista cuyo error
+// reemplaza la vista (sin acceso a la clase) no se toca: su error se sigue mostrando, sin acciones.
+// Una recarga que sí llegó tampoco: lo que dice el servidor manda.
+const ponerElOrdenEnLasSeccionesSinElNuevo = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  respuesta: ListaTemasRespuesta,
+) => {
+  const sinElOrdenNuevo = queryClient
+    .getQueryCache()
+    .findAll(filtroDeLasSecciones(claseId))
+    .filter((consulta) => {
+      const { status, error } = consulta.state
+      if (status === "error" && errorQuitaLaVista(error)) return false
+      return status === "error" || consulta.getObserversCount() === 0
+    })
+  await Promise.all(
+    sinElOrdenNuevo.map(({ queryKey }) => {
+      queryClient.setQueryData<ListaTemasRespuesta>(queryKey, (lista) =>
+        lista === undefined ? lista : temasEnElOrdenDe(lista, respuesta),
+      )
+      return queryClient.invalidateQueries({ queryKey, exact: true, refetchType: "none" })
+    }),
+  )
+}
+
 // "Subir" y "Bajar" envían el orden completo; la respuesta es la lista nueva (la misma forma del GET).
-// Con 409 ORDEN_DESACTUALIZADO la lista se vuelve a pedir y el aviso lo dice.
+// Con 409 ORDEN_DESACTUALIZADO la lista se vuelve a pedir y el aviso lo dice. CLASES-03c2 (§D-7.6): la
+// respuesta trae los conteos totales, así que escribe la lista total y espera la recarga de las listas
+// por sección: el botón sigue en espera hasta que la vista ya muestra el orden nuevo. T-01 (ronda 1 de
+// 03c2): una lista por sección que no pudo traer el orden nuevo (su recarga falló, o no se volvió a
+// pedir porque no hay vista que la use) toma, al terminar la espera, el orden de la respuesta
+// (ponerElOrdenEnLasSeccionesSinElNuevo). Corre aunque la vista esté desmontada.
 export const useOrdenarTemas = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -866,8 +985,10 @@ export const useOrdenarTemas = (claseId: string) => {
         body: { temaIds },
         schema: listaTemasRespuestaSchema,
       }),
-    onSuccess: (respuesta) => {
+    onSuccess: async (respuesta) => {
       queryClient.setQueryData(claveTemas(claseId), respuesta)
+      await invalidarTemasDeLasSecciones(queryClient, claseId)
+      await ponerElOrdenEnLasSeccionesSinElNuevo(queryClient, claseId, respuesta)
     },
     onError: async (error) => {
       toast.error(mensajeDeErrorClases(error))

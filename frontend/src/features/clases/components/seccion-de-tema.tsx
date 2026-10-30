@@ -156,6 +156,9 @@ interface SeccionDeTemaProps {
   base: string
   seccion: SeccionDeTrabajo
   temas: readonly Tema[]
+  // CLASES-03c2 (§D-7.6): los elementos del tema en todas las secciones, para la frase de borrarlo;
+  // null si la lista total no llegó, falló o no tiene el tema (la frase va sin conteo).
+  elementosEnTotal: number | null
   // Maestro y admin: renombrar, subir, bajar y borrar (nunca en "Sin tema").
   gestionar: boolean
   esPrimero: boolean
@@ -174,6 +177,7 @@ export function SeccionDeTema({
   base,
   seccion,
   temas,
+  elementosEnTotal,
   gestionar,
   esPrimero,
   esUltimo,
@@ -320,7 +324,11 @@ export function SeccionDeTema({
 
           {gestionar && tema !== null && confirmando && (
             <div className="flex flex-col gap-2">
-              <p className="text-small">{TEXTOS_TEMAS.consecuencia(seccion.elementos)}</p>
+              <p className="text-small">
+                {elementosEnTotal === null
+                  ? TEXTOS_TEMAS.consecuenciaSinConteo
+                  : TEXTOS_TEMAS.consecuencia(elementosEnTotal)}
+              </p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"

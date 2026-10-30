@@ -13,7 +13,7 @@ import {
 } from "@/lib/errores-de-api"
 import { estadoDeEntregaVisible, TEXTOS_ESTADO_DE_ENTREGA } from "@/lib/estado-de-entrega"
 import { vencimientoDe } from "@/lib/vencimiento"
-import { esApiError } from "@/services/apiClient"
+import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
 
 import {
   CAMPOS_PINTADOS_DE_LA_CLASE,
@@ -334,6 +334,34 @@ export const seccionesDeTrabajo = (lista: ListaTemasRespuesta): SeccionDeTrabajo
   ]
 }
 
+// CLASES-03c2 (§D-7.6): cuántos elementos tiene un tema en total (todas las secciones), para la frase de
+// borrarlo. null si la lista total no llegó, falló o no tiene el tema: la frase va sin conteo.
+export const elementosEnTotalDelTema = (
+  total: ListaTemasRespuesta | undefined,
+  fallo: boolean,
+  temaId: string,
+): number | null => {
+  if (total === undefined || fallo) return null
+  const tema = total.temas.find(({ id }) => id === temaId)
+  if (tema === undefined) return null
+  return tema.elementos
+}
+
+// CLASES-03c2 (T-01 de la ronda 1): una lista de temas por sección puesta en el orden de `ordenada`
+// (la respuesta de "Subir"/"Bajar", con los conteos totales), conservando los conteos de la sección. Un
+// tema que `ordenada` no trae queda al final, en su orden de antes.
+export const temasEnElOrdenDe = (
+  lista: ListaTemasRespuesta,
+  ordenada: ListaTemasRespuesta,
+): ListaTemasRespuesta => {
+  const posicion = new Map(ordenada.temas.map(({ id }, indice) => [id, indice]))
+  const fuera = ordenada.temas.length
+  const temas = [...lista.temas]
+    .sort((a, b) => (posicion.get(a.id) ?? fuera) - (posicion.get(b.id) ?? fuera))
+    .map((tema, orden) => ({ ...tema, orden }))
+  return { ...lista, temas }
+}
+
 // "Subir" y "Bajar" envían el orden completo (§D-2): los ids con el tema `temaId` intercambiado con su
 // vecino. Si el movimiento no cabe (el primero no sube, el último no baja), devuelve null.
 export const ordenTrasMover = (
@@ -463,6 +491,11 @@ export const erroresDeCategoriasDeApi = (
   if (campoDeErrorDeApi(error) !== CAMPO_DE_LA_LISTA) return null
   return { [CAMPO_DE_LA_LISTA]: mensajeDeErrorClases(error) }
 }
+
+// CLASES-03c2 (§D-11, Enmienda 7): un error con que apiClient ya redirigió (o va a redirigir): no se
+// avisa. Mismo nombre y firma que los de features/tareas y features/calificaciones.
+export const errorQueRedirigeElCliente = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_QUE_REDIRIGE_EL_CLIENTE.includes(error.codigo)
 
 // Una recarga fallida conserva la vista con lo último que llegó (y avisa), salvo que diga que ya no hay
 // acceso a la clase (o que el id de la clase no es válido, que es lo mismo): entonces el mensaje

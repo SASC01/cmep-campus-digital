@@ -444,7 +444,7 @@ describe("CHORE-03 · la frase genérica en un ErrorDeCampo de clases: otra secc
     expect(avisos()).toEqual([])
 
     const secciones = await screen.findByRole("list", { name: TEXTOS_CLASE.secciones })
-    fireEvent.click(within(secciones).getByRole("link", { name: new RegExp(TEXTOS_CLASE.muro) }))
+    fireEvent.click(within(secciones).getByRole("link", { name: new RegExp(TEXTOS_CLASE.avisos) }))
     await waitFor(() => expect(router.state.location.pathname).toBe(`/maestro/clases/${CLASE_ID}`))
     await reposar()
     vi.setSystemTime(new Date(AHORA.getTime() + 10_000))

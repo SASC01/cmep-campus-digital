@@ -203,11 +203,12 @@ afterEach(() => {
   aviso.error.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
-  it("tras el 400 del cursor en «Ver más publicaciones», la persona ve un mensaje que dice qué pasó (no el «no es válido» técnico) y el foco no cae en <body>", async () => {
+  it("tras el 400 del cursor en «Ver más avisos», la persona ve un mensaje que dice qué pasó (no el «no es válido» técnico) y el foco no cae en <body>", async () => {
     const { estado } = crearServidor(deEstudiante(veinticinco()))
     renderMuro("estudiante")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     // Otra persona borra la publicación que es el cursor de la página siguiente.
     estado.publicaciones = estado.publicaciones.filter((p) => p.id !== idPublicacion(20))
     verMas.focus()
@@ -226,7 +227,7 @@ describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
   it("tras el 400 del cursor, volver a entrar al muro lo recupera sin recargar la página", async () => {
     const { estado } = crearServidor(deEstudiante(veinticinco()))
     const { vista, cliente } = renderMuro("estudiante")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     estado.publicaciones = estado.publicaciones.filter((p) => p.id !== idPublicacion(20))
     fireEvent.click(verMas)
     await screen.findByRole("alert")
@@ -240,7 +241,7 @@ describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
   it("con dos páginas cargadas, borrar la publicación que era el cursor de la página 2 no vuelve a pedir ese cursor ni muestra un error", async () => {
     const { fetchMock } = crearServidor(veinticinco())
     renderMuro("maestro")
-    fireEvent.click(await screen.findByRole("button", { name: "Ver más publicaciones" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Ver más avisos" }))
     await screen.findByText("Publicación 25")
     const tarjeta = screen.getByText("Publicación 20").closest("li")
     if (!(tarjeta instanceof HTMLElement))

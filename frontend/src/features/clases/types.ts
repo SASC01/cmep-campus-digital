@@ -51,6 +51,38 @@ export interface SeccionDeClase {
   texto: string
 }
 
+// CLASES-03 (§D-7.2, DH-03): lo que se mide de una opción de las secciones y de su panel, y lo que
+// lleva el indicador (en px).
+export interface MedidaDeOpcion {
+  offsetLeft: number
+  offsetWidth: number
+}
+
+export interface MedidaDelPanel {
+  scrollLeft: number
+  clientWidth: number
+}
+
+export interface MedidaDelIndicador {
+  x: number
+  ancho: number
+}
+
+// CLASES-03c1 (T-02 de la ronda 1): dónde está el panel de las secciones en la ventana (el borde
+// izquierdo de su rectángulo), el ancho de su borde y cuánto se ha desplazado, para llevar una opción
+// a las coordenadas de su área desplazable.
+export interface PosicionDelPanel {
+  left: number
+  clientLeft: number
+  scrollLeft: number
+}
+
+// CLASES-03c1 (T-01 de la ronda 1): la medida del indicador con la clase y la perspectiva (la base de
+// la ruta) en que se tomó; la de otra clase no se pinta.
+export interface MedidaDelIndicadorDeLaClase extends MedidaDelIndicador {
+  base: string
+}
+
 // Lo que cada perspectiva ve de una clase (§D-2C1); es una fila de CAPACIDADES_POR_PERSPECTIVA.
 export interface CapacidadesDePerspectiva {
   base: string
@@ -61,8 +93,6 @@ export interface CapacidadesDePerspectiva {
   editar: boolean
   formularioPublicacion: boolean
   formularioComentario: boolean
-  // TAREAS-01d (§D-10): "Crear tarea" en el muro; solo quien publica (maestro y admin).
-  crearTarea: boolean
   // TAREAS-01e (§D-11): crear, renombrar, ordenar y borrar temas, "Crear tarea" como acción principal
   // de "Trabajo de clase" y "Categorías de calificación" (maestro y admin; P-02 b). Mover un elemento
   // no sale de aquí: lo decide `puedeMover` de cada elemento.

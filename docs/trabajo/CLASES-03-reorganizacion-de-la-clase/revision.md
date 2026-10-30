@@ -688,3 +688,756 @@ A-01 a A-08, A-12 y A-13 no tocan 03b.
 - **O-03b-1 (marcar contra quitar «Resuelta» a la vez):** el resultado es siempre un orden en serie válido. **Destino: 03e**, como estado vecino de CL3-E04: la invalidación de `claveDudas` tras marcar muestra el estado real.
 - **O-4 (se suma a la de 03a):** la retención de una fila con `FOR UPDATE` y `formadasDetrasDe` ya está copiada en cinco archivos de prueba (`recursos.integracion`, `recursos-clases03a-r1` y `-r2`, `dudas.integracion` y `dudas-clases03b-r1`), porque `conFilaRetenida` no admite `publicaciones` ni `dudas`. **Destino:** el `chore` de higiene de pruebas: ampliar `conFilaRetenida` a cualquier tabla y mover allí también `ejecutorEspiado` y `unaVezDespuesDe`.
 - **O-1, O-2 y O-3 de 03a** siguen con su destino (03d, A-13 y FORO-01 o el `chore`).
+
+## Verificación de la Enmienda 4 — CLASES-03
+Veredicto: APROBADO, sin M-nn. La ronda 0 de 03c1 puede arrancar.
+Verificación propia: lint, test y build no aplican. Es una enmienda del plan y el código no cambió desde `<K3b>` = `e502381`: `git status` solo muestra `AGENTS.md`, `docs/ESTADO.md`, `aprobacion.md` y `plan.md`.
+
+Fecha: 2026-10-29.
+
+### 1. Integridad y cotejo
+- SHA-256 de `plan.md`: `2ec5f98792f1cab134b5bfb649fb50191c0a72412bb9a30b1809651c7746ee31` (1059 líneas); de la copia previa: `204515a6604c786ae27376d87d5e6c5fd9543b50e0834e3780a41b6791a85971`. Los dos coinciden con `aprobacion.md`.
+- `AGENTS.md`: SHA-256 `bb98590852939b0d5f80a177db57da29f2dffffd99346b2bcaaac67d9a4dc787`, igual al que registró el orquestador con la autorización del humano. El diff es una sola viñeta en "Pruebas" (backend y frontend completos si se toca `shared/`, con `grep -a`), que coincide con la propuesta de "Revisión final — 03a".
+- `git diff --no-index` completo: 17 hunks, cada uno con su id y ninguno fuera de la enmienda:
+
+| Hunk | Dónde | Id |
+|---|---|---|
+| 1 | Encabezado | E4-1 |
+| 2 | DH-12 | E4-11 |
+| 3 | S-14 y S-15 | E4-5 |
+| 4 | §D-9.2 | E4-4 |
+| 5 | §D-9.3 | E4-4 |
+| 6 | §D-13, `TEXTOS_MURO` | E4-2 |
+| 7 | §D-13, `TEXTOS_DUDAS` | E4-6 |
+| 8 | §D-14, matriz de 03e | E4-7 |
+| 9 | §D-R0, C-16 | E4-3 |
+| 10 | CL3-C18 | E4-3 |
+| 11 | CL3-E02 | E4-8 |
+| 12 | CL3-E13 a E15 | E4-8 |
+| 13 | Lista cerrada de 03c1, `muro-view.test.tsx` | E4-3 |
+| 14 | Puntos de ataque de 03e | E4-10 |
+| 15 | A-06 | E4-9 |
+| 16 | Paso 3 de 03e | E4-8 |
+| 17 | Tabla de la Enmienda 4 | — |
+
+- No cambian el alcance, el diseño de datos, las rutas ni ningún DH salvo DH-12, que queda cerrada.
+
+### 2. Corrección 1 (vacío de Avisos del admin)
+- Es literal del humano: "Publica el primer aviso de esta clase.". La condición del humano se cumple: el admin publica anuncios en cualquier clase (RF-59; la ruta `POST …/publicaciones` admite al admin con `propiedad`, `handlers/clases/muro.ts`).
+- **Mi grep de los textos viejos de los vacíos en `frontend/src` (pruebas):** "Aún no hay publicaciones en esta clase." aparece solo en `muro-02c-r1.ataque.test.tsx:239`, en C-16 y nombrada por la enmienda, y en `muro-view.test.tsx:137` y `:140` (PR-2C09). "Publica el primer anuncio o material de tu clase." aparece solo en `muro-view.test.tsx:179`. Ninguna prueba usa las constantes `vacio*` de `TEXTOS_MURO`. **La única `*.ataque` es la de C-16.**
+- **Pruebas normales:** `muro-view.test.tsx` ya está en la lista cerrada de 03c1 ("Solo las aserciones sobre los textos de §D-13 (vacíos, …)"). La nota de la Enmienda 4 nombra `:137-140` y `:179`, y la misma fila cubre también `:173`, el vacío del estudiante ("Tu maestro aún no ha publicado nada en esta clase.", que pasa a "Aún no hay avisos en esta clase." desde el plan original). No hace falta enmendar más: es un "vacío" de la misma fila. El programador lo nombra en su resumen.
+
+### 3. Corrección 2 ("Responder" en una duda sin respuestas), S-14 y S-15
+- **Lo literal del humano se cumple:** "Responder" en lugar de "Ver respuestas (0)" (CL3-E14 exige que "Ver respuestas (0)" no aparezca nunca); al pulsarlo se despliega el bloque con el formulario y el foco va a "Escribe una respuesta"; con n ≥ 1 sigue "Ver respuestas (n)".
+- **Ningún nombre accesible repetido dentro de una duda:** plegado con 0 respuestas no hay formulario, así que "Responder" es uno solo; desplegado, el control se llama "Ocultar respuestas" (S-15) y el único "Responder" es el botón de enviar. Entre dudas distintas cada fila tiene su "Responder", el mismo patrón que "Ver comentarios (n)" en el muro, ya aceptado; cada uno vive dentro de su `li`.
+- **El foco en los estados vecinos:**
+  - El control es un solo elemento en todos sus estados: conserva el foco al cambiar de texto, y CL3-E14 lo comprueba por referencia.
+  - Si el conteo baja a 0 con el bloque desplegado, sigue "Ocultar respuestas" y al plegar pasa a "Responder" (estudiante y maestro), en el mismo botón.
+  - Si el control desaparece para el admin con el foco dentro, el foco va a la fila de la duda (`li` con `tabIndex={-1}`), nunca a `<body>`. Lo cubren S-14 y CL3-E15, en los dos casos: plegado con el conteo que baja a 0 y desplegado que se pliega con 0.
+  - Si llega la primera respuesta, el bloque sigue desplegado y el control sigue en "Ocultar respuestas" (S-15, CL3-E14). Con el bloque plegado, el texto pasa de "Responder" a "Ver respuestas (1)" en el mismo botón.
+  - Si el admin está en una duda con 0 respuestas y llega una, el control aparece; no había foco que perder.
+  - Doble clic en "Responder" despliega y pliega sin ningún `POST` (§D-14).
+  
+  No encuentro un estado vecino sin destino de foco.
+- **Cobertura:** CL3-E02, E13 (R9, el camino "Responder" con 0), E14 y E15. La matriz de §D-14 distingue el control que despliega del botón de enviar y suma la recarga que cambia el conteo. Los puntos de ataque de 03e incluyen el paso de 0 a 1 y de 1 a 0, el admin y "Ver respuestas (0)".
+- **A-06 coincide con §D-13** (`TEXTOS_DUDAS.verRespuestas(n)` solo con n ≥ 1, `.responder` con 0 para estudiante y maestro, `.ocultarRespuestas` desplegado) y con §D-9.2. No los contradice.
+- **S-14 y S-15 bastan como suposiciones; no hace falta una decisión del humano.** Las dos se deducen de reglas que el humano ya decidió:
+  - **S-14:** el admin no escribe (P-07) y, con 0 respuestas, no hay nada que leer, así que un "Responder" para él llevaría a un formulario que no puede usar.
+  - **S-15:** cumple "un solo nombre accesible por control" y la regla de foco del mismo elemento que ya se usa en "Marcar como resuelta".
+  
+  Ninguna cambia lo que el humano pidió. Conviene que el orquestador se las mencione en el próximo resumen al humano, por transparencia, sin pedirle respuesta; las verá en la comprobación H-5 de 03e.
+
+### Detalle menor
+- La nota de E4-3 nombra `muro-view.test.tsx:137-140` y `:179`, pero no `:173` (el vacío del estudiante). Como dije arriba, la fila de la lista cerrada lo cubre; basta con que el programador lo mencione.
+
+## Verificación de la Enmienda 5 — CLASES-03
+Veredicto:
+- **Para 03c1: APROBADA.** Con la autorización del humano para la fila condicionada, el programador puede cerrar 03c1.
+- **Para 03d y 03e: CAMBIOS REQUERIDOS (M-01).** El barrido no encontró una prueba normal que romperá en 03d y en 03e. M-01 no frena 03c1 ni 03c2; debe corregirse antes de la ronda 0 de 03d.
+
+Verificación propia: lint, test y build no aplican. Es una enmienda del plan; verifiqué con el diff completo, greps y lectura del código y de las pruebas.
+
+Fecha: 2026-10-29.
+
+### 1. Integridad y cotejo
+- SHA-256 de `plan.md`: `1e5460951f1a9cf95afca865c1e95967b6d7e5e526687409f6e72addad6a5ae6` (1102 líneas); de la copia previa: `2ec5f98792f1cab134b5bfb649fb50191c0a72412bb9a30b1809651c7746ee31`. Los dos coinciden con `aprobacion.md`.
+- `git diff --no-index` completo: 7 hunks, cada uno con su id y ninguno fuera de la enmienda:
+
+| Hunk | Dónde | Id |
+|---|---|---|
+| 1 | Encabezado | E5-1 |
+| 2 | §D-R0, "Barrido de pruebas normales del frontend…" | E5-5 |
+| 3 | Lista cerrada de 03c1: `router-01d` ampliada, `marco.test.tsx:305` y `features/tareas/recuperar-ch3.test.tsx` (condicionada) | E5-3, E5-2 y E5-4 |
+| 4 | Lista cerrada de 03d y 03e (`lib.test.ts`, `secciones-03c1.test.tsx`, `app/clase-03c1.test.tsx`) | E5-6 |
+| 5 | R-13 | E5-4 |
+| 6 | "No se toca" (la excepción condicionada) | E5-4 |
+| 7 | Tabla de la Enmienda 5 | — |
+
+- No cambian el alcance, el diseño, las pruebas requeridas ni ningún DH.
+
+### 2. Las filas de 03c1
+- **`app/marco.test.tsx:305` (O-14):** solo `"Publicaciones"` → `"Avisos"` en la aserción `heading` y en el título del caso; "Nada más del archivo". Correcto: es el `h2` solo para lectores de §D-13 ("Avisos"), el mismo cambio que C-16 hizo en `foco-02c-r3`, `-r4` y `-r5`.
+- **`app/router-01d.test.tsx:178-200` (CAL-1D06):** las aserciones del indicador (`w-1/5`, `grid-cols-5`, `translate-x-[…]`) pasan a medidas simuladas, como en `clase-layout.test.tsx`, y las rutas `…/alumnos` y `…/maestros`, a `…/personas`. "Ninguna otra aserción". Correcto: es lo que cambió DH-03 (indicador medido) y DH-09 (Personas), y la condición de `vi.restoreAllMocks` evita que las medidas simuladas se filtren a otros casos.
+- **`features/tareas/recuperar-ch3.test.tsx:449/:470` (CH3-A19):** solo el nombre del enlace (`/Trabajo de clase/` → `/Actividades de aprendizaje/`) y el título, condicionado a la autorización del humano. "No se toca" lo dice con su excepción condicionada. Correcto.
+
+### 3. Barrido propio (pruebas normales y `*.ataque` del frontend)
+Grep de "Publicaciones", "Trabajo de clase", "Muro", `name: "Alumnos"`/`"Maestros"`, `w-1/N`, `grid-cols-N`, `translate-x-[`, `translate-x-full`, "Material", "Publicar material", "Tipo de publicación" y "Ver más publicaciones"; y, para 03d, `tipo: "material"`, `erroresDeLaPublicacionDeApi`, `CAMPOS_PINTADOS_DE_LA_PUBLICACION` y `CLASES_DE_POSICION_DEL_INDICADOR`.
+- **03c1:** coincide con E5-5. Las únicas que rompen, fuera de lo que ya cubren C-7 a C-20, son las tres normales de esta enmienda y `foco-pestana-02d-r3` (C-20). Las demás coincidencias son títulos, comentarios, rutas propias del árbol de la prueba o el marco del admin (`/admin/maestros`), y la corrida de 03c1 las dio verdes.
+- **03c2:** no rompe nada nuevo. Las pruebas con materiales en "Trabajo de clase" (`app/clase-03c1.test.tsx`, `consultas-ch3.test.tsx`, `trabajo-view.test.tsx:385` y `formularios-ch3.test.tsx:622-629`) siguen valiendo, porque sus dobles comparan el `pathname` y la rama de material se conserva (DH-08). Las cuentas de `GET …/temas` ya están en C-25 y en la fila de `trabajo-view.test.tsx` de 03c2.
+- **03d y 03e:** las de "Material" y del grupo de tipo están cubiertas por C-10, C-23 y las filas de 03d (`formulario-publicacion`, `muro-view`, `recuperar-ch3` y `formularios-ch3` de `features/clases`). `publicacion-del-muro.test.tsx:136` y `adjuntos-de-publicacion.test.tsx:194` no rompen (DH-08). `lib/errores-de-api.test.ts:389` usa el esquema de `shared/`, que no cambia. La referencia de `estatico-r1.ataque:155` a `CLASES_DE_POSICION_DEL_INDICADOR` es solo un comentario; la lista de valores arbitrarios ya está en C-7. **Falta una: M-01.**
+
+### Problemas que bloquean
+#### M-01 — `features/clases/errores-ch3.test.ts` romperá en 03d y en 03e, y no está en sus listas cerradas
+- **Dónde:** `frontend/src/features/clases/errores-ch3.test.ts` (prueba normal de CHORE-03). Hoy solo figura en la lista de 03c1, y solo para los textos de §D-13.
+- **Por qué:**
+  - Fija los modos de la publicación: `MATERIAL = erroresDeLaPublicacionDeApi(error, "material")` (`:174`), las filas `"material"` de `FILAS_POR_MODO` (`:185-186`) y `MODOS` (`:193`), y `CAMPOS_PINTADOS_DE_LA_PUBLICACION` exacto `{ anuncio: ["texto"], material: ["titulo", "texto"] }` en CH3-B15 (3) (`:246-249`). §D-8.7 (03d) deja `CAMPOS_PINTADOS_DE_LA_PUBLICACION` en `{ anuncio: ["texto"] }` y `erroresDeLaPublicacionDeApi` sin parámetro de tipo (o con `"anuncio"` fijo): rompe en `tsc` (lint) y en la aserción.
+  - Fija también las llamadas a `erroresDeFormularioClases(` en CH3-B15 (4) (`:250-268`): exactamente 4 en `lib.ts`. `erroresDelRecursoDeApi` (03d, §D-8.5) es la quinta; `erroresDeLaDudaDeApi` y `erroresDeLaRespuestaDeApi` (03e, §D-9.4) suman dos más. Rompe en 03d y otra vez en 03e.
+  - Es una PARADA segura en las dos subentregas; justo lo que la regla de listas cerradas por grep quiere evitar. El barrido de E5-5 no la encontró porque buscaba "Material" entre comillas y aquí aparece como `"material"` en un parámetro, y porque no cubría los conteos estáticos de `features/clases`.
+- **Qué se espera (enmienda corta del arquitecto, antes de la ronda 0 de 03d):** filas en las listas cerradas:
+  - **03d:** en `errores-ch3.test.ts`, el modo `"material"` sale de `FILAS_POR_MODO` y `MODOS` (o se reemplaza por el formulario de recursos con `erroresDelRecursoDeApi`, si §D-8 lo deja así); CH3-B15 (3) pasa a `{ anuncio: ["texto"] }` (y suma `CAMPOS_PINTADOS_DEL_RECURSO` si se quiere fijar); y CH3-B15 (4) cuenta 5 llamadas en `lib.ts`. Nada más.
+  - **03e:** CH3-B15 (4) cuenta 7 en `lib.ts`, o las que dé el diseño final de §D-9.4. Si `useCrearDuda` o `useResponder` llaman `erroresDeFormularioClases(` en `hooks.ts`, también cambia el conteo de `hooks.ts`; el arquitecto fija cuál de las dos formas usa el plan, para que el conteo sea exacto.
+  - Además, que el barrido de 03d y 03e incluya los conteos estáticos de `features/clases` (`errores-ch3.test.ts`, `estatico-r1.ataque`, `estatico-02c-r1.ataque`, `errores-ch3-r1.ataque`) contra los archivos nuevos y las funciones nuevas de §D-8 y §D-9, no solo los textos.
+
+### 4. R-13
+**La recomendación es correcta** (autorizar el cambio de una línea y del título). CH3-A19 protege un camino de recuperación ("ir a la sección y volver al detalle quita el error"), no el nombre de la sección. El nombre lo cambió una decisión del humano (DH-12), y su hermana `*.ataque` ya cambió por C-17. Las alternativas están bien costeadas:
+- conservar el nombre viejo en la interfaz contradice §D-13;
+- dejarla roja lo prohíbe `AGENTS.md`;
+- un enlace falso es ruido para el lector de pantalla;
+- moverla a `app/` también toca `features/tareas`, porque borra el caso, y pide además autorización para borrar.
+
+No hay ninguna más barata.
+
+### 5. Adenda 2 del tester (C-20, `foco-pestana-02d-r3.ataque.test.tsx:311`)
+Conserva lo que protegía. El diff es +7/−2: el montaje pasa a la ruta del estudiante, se conservan las dos vistas juntas (`AlumnosView` y `PersonasView`) y se agrega un comentario de motivo. Lo protegido sigue igual: dos instancias de `useFocoAlCargarMas` montadas a la vez, el foco de «Ver más» de «Personas» en su fila nueva y el roster sin tocarla. `AlumnosView` solo lee `:claseId`, así que el roster es el mismo. El montaje anterior tampoco era un camino real de la app. El tester reconoce el error de su ronda 0 ("sin cambio" bajo C-13). Correcto. Su sugerencia de atacar en la ronda 1 la "Personas" compuesta del maestro (sus maestros más el roster) es pertinente: va con CL3-C06 y CL3-C07.
+
+### Qué falta para que el programador cierre 03c1
+**Solo la autorización del humano para `features/tareas/recuperar-ch3.test.tsx`** (una línea y el título de CH3-A19, R-13). Con ella, el programador aplica las tres filas de la Enmienda 5 y vuelve a correr `lint`, `test` y `build` del frontend. `shared/` no cambió en 03c1, así que el backend no hace falta. Las únicas rojas posibles son las de esas filas, ya corregidas. Si el humano no la autoriza, 03c1 no puede cerrar en verde (R-13) y hay que volver a preguntarle. M-01 no afecta a 03c1.
+
+## Verificación de la Enmienda 6 — CLASES-03
+Veredicto: Enmienda 6 **APROBADA**, sin M-nn propios: corrige M-01 de la verificación de la Enmienda 5. Para la observación de 03c2 pido una enmienda corta (**M-01** de esta verificación). Bloquea solo la ronda 0 de 03c2, no el cierre de 03c1.
+Verificación propia: lint, test y build no aplican. Es una enmienda del plan; verifiqué con el diff completo, greps y lectura de las pruebas y del código.
+
+Fecha: 2026-10-29.
+
+### 1. Integridad y cotejo
+- SHA-256 de `plan.md`: `5905780238b9f41033c3353b8f92f40d35bc682dc6f11ad3809f9888d97abce9` (1148 líneas); de la copia previa: `1e5460951f1a9cf95afca865c1e95967b6d7e5e526687409f6e72addad6a5ae6`. Los dos coinciden con `aprobacion.md`.
+- `git diff --no-index` completo: 9 hunks, cada uno con su id y ninguno de 03c1 ni de 03c2:
+
+| Hunk | Dónde | Id |
+|---|---|---|
+| 1 | Encabezado | E6-1 |
+| 2 | §D-8.5, §D-8.6 y §D-8.7 | E6-4 y E6-5 |
+| 3 | §D-9.4 | E6-4 |
+| 4 | C-19 | E6-5 |
+| 5 | C-27 y C-28 | E6-6 |
+| 6 | Barrido de conteos y listas estáticas | E6-7 |
+| 7 | "Rojos esperados" de 03d y 03e | E6-6 |
+| 8 | Lista cerrada de 03d y 03e (`errores-ch3.test.ts`) | E6-2 y E6-3 |
+| 9 | Tabla de la Enmienda 6 y la observación | — |
+
+### 2. Las filas de `errores-ch3.test.ts`
+- **Conteos y forma:** los conteos coinciden con la forma que fija el plan.
+  - Hoy `lib.ts` tiene 4 llamadas a `erroresDeFormularioClases(`: la clase (`:192`), la publicación (`:199`), el código (`:209`) y el tema (`:358`). §D-8.5 pone `erroresDelRecursoDeApi` en `lib.ts`, así que 03d tiene **5**. §D-9.4 pone `erroresDeLaDudaDeApi` y `erroresDeLaRespuestaDeApi` en `lib.ts`, así que 03e tiene **7**.
+  - E6-4 cierra las dos puertas que harían inexacto el conteo: los ganchos y los formularios llaman a los envoltorios, nunca a `erroresDeFormularioClases(` directo (`hooks.ts` sigue con 1, la de `useComentar`), y las listas de campos se escriben solo en `data.ts`.
+  - `erroresDeLaPublicacionDeApi` conserva su parámetro con el tipo literal `"anuncio"`, así la fila `ANUNCIO` y las llamadas de hoy no cambian. Es la forma de menos riesgo.
+- **Fila de 03d:** solo `MATERIAL` → `RECURSO_CREAR`/`RECURSO_EDITAR`; las dos filas `"material"` → cuatro de recurso; `MODOS`; CH3-B15 (3) a `{ anuncio: ["texto"] }` más `CAMPOS_PINTADOS_DEL_RECURSO`; CH3-B15 (4) de 4 a 5 y el título. Todo lo demás queda igual, incluida la regla de las listas literales en `data.ts`, que se sigue cumpliendo porque `["titulo", "texto"]` pasa a vivir en `CAMPOS_PINTADOS_DEL_RECURSO`. Correcto y mínimo.
+- **Fila de 03e:** solo el conteo de 5 a 7. Las filas de duda y respuesta se pueden sumar, pero solo como filas nuevas. Correcto.
+
+### 3. C-27, C-28 y C-19
+- **C-27 y C-28** (`estatico-02c-r1.ataque.test.ts:62-77`): son las dos reglas que leí, la de los lectores de `.puedeBorrar` (`:69-73`) y la de la asignación de `puedeBorrar` solo desde el dato (`:74-76`). Las filas suman los archivos y los nombres que lee §D-8.3, §D-9.2 y §D-9.3. Conservan lo protegido: el botón decide por el dato, nunca por el rol.
+- **Detalle (N-01):** C-28 deja que el tester sume el nombre exacto si el programador nombra distinto el dato (por ejemplo, `fila.puedeBorrar`); C-27 no lo dice. En 03d puede pasar algo igual: si `SeccionDeRecursos` le pasa a la fila `puedeBorrar={recurso.puedeBorrar}`, ese archivo también lee `.puedeBorrar` y la prop casa con `puedeBorrar\s*[:=]`. Basta con que el tester aplique a C-27 el mismo criterio que a C-28 (sumar el archivo o el nombre exacto, anotado). No pido enmienda por esto.
+- **C-19:** suma `editar-recurso-view.tsx`, que según §D-8.6 (E6-5) llama a `perspectivaDeRuta` como `trabajo-view.tsx`. Coherente con la regla de la prueba: solo las vistas la llaman y los componentes la reciben por props.
+
+### 4. Barrido
+Mi grep de conteos y listas estáticas de `features/clases` (y de `lib/` y `services/` que leen `features/`) contra §D-8 y §D-9 coincide con la tabla de E6-7:
+- `errores-ch3.test.ts` rompe (filas nuevas).
+- `estatico-02c-r1.ataque` rompe (C-19, C-27 y C-28).
+- `styles/clases-r1.ataque` rompe (C-21 y C-22).
+- Las listas de secciones rompen (ya cubiertas).
+- Lo demás no rompe si se respetan las reglas que la tabla nombra.
+
+En particular, `estatico-r1.ataque:155` solo nombra `CLASES_DE_POSICION_DEL_INDICADOR` en un comentario; `reexportaciones-01c.test.ts` fija claves de `components/adjuntos` que no cambian; y `lib/estatico-ch3-r1` y `-r2` y `features/clases/errores-ch3-r1.ataque:439` solo prohíben **declarar** `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` fuera de `apiClient`, no importarla. **No falta ninguna fila para 03d ni para 03e.**
+
+### 5. Arbitraje de la observación para 03c2 (`CODIGOS_QUE_REDIRIGE_EL_CLIENTE`)
+- **Lo que hay hoy:** `features/clases` no tiene una forma de saber si un código redirige sin la constante. Sus ganchos avisan `mensajeDeErrorClases(error)` aunque `apiClient` redirija; es el patrón heredado O-1d3-2. Tampoco hay un ayudante en `lib/errores-de-api.ts`. `features/tareas/lib.ts:230-232` y `features/calificaciones/lib.ts:158` resuelven lo mismo con un ayudante propio que importa la constante de `@/services/apiClient`. Esa es la forma establecida y la que permite la regla: la prueba solo prohíbe **declararla** o **copiar los tres códigos** fuera de `apiClient`, y fija **quién la importa**.
+- **Por qué §D-11 debe usar esa vía, y no otra:**
+  - Quitar la cláusula ("con un código que redirige, no avisa") contradice CL3-C14 ("desmontado con `ACCESO_RESTRINGIDO`, ningún aviso") y la matriz de clase de §D-14.
+  - Copiar los códigos lo prohíbe `apiClient-ch3-r1.ataque:55-64`.
+  - Un ayudante nuevo en `lib/` o en `services/` toca archivos de "No se toca".
+- **Por qué no basta con que el tester la sume en la ronda 0:** por la regla de listas cerradas por grep, la prueba que romperá debe estar inventariada en el plan antes de la ronda 0. Si no, su roja es una PARADA del orquestador y una vuelta más. El archivo exacto donde vive la importación lo debe fijar el plan, no el programador: de eso depende la fila.
+
+**M-01 — Enmienda 7, corta, antes de la ronda 0 de 03c2 (no afecta a 03c1):**
+- **(a) §D-11, variante de `useCrearClase` y `useEditarClase`:** la comprobación vive en `features/clases/lib.ts`, como `errorQueRedirigeElCliente(error)` (o el nombre que elija el arquitecto), con `import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"`, igual que `features/tareas/lib.ts:232`. `hooks.ts` la llama y no importa la constante.
+- **(b) §D-R0, fila C-29 (03c2):** `frontend/src/services/apiClient-ch3-r1.ataque.test.ts:55-79`. La lista `usan` suma `["/src/features/clases/lib.ts", true, false]` en su orden (calificaciones, clases, tareas), con su motivo. El título del caso ("solo tareas y calificaciones importan la lista") suma "clases". Nada más. Va en "Rojos esperados" de 03c2.
+- **(c)** Comprobar que no rompe nada más: `services/apiClient-ch3.test.ts` (CH3-B11) solo fija quién declara; `features/clases/errores-ch3-r1.ataque:439` y `lib/estatico-ch3-r1` y `-r2`, lo mismo. Si el ayudante se prueba, sus casos van en las pruebas requeridas de 03c2 (CL3-C14 ya cubre el efecto).
+- **Opcional (decide el arquitecto):** usar el mismo ayudante en los ganchos de 03c2 que hoy avisan con el formulario desmontado (comentario y tema), por coherencia con O-1d3-2. No lo pido; el plan solo lo exige en la variante de clase.
+
+## Verificación de la Enmienda 7 — CLASES-03
+Veredicto: APROBADA, sin M-nn. Corrige el M-01 de la verificación de la Enmienda 6 y la ronda 0 de 03c2 queda desbloqueada.
+Verificación propia: lint, test y build no aplican. Es una enmienda del plan; la verifiqué con el diff completo, con greps y leyendo el código y las pruebas.
+
+Fecha: 2026-10-29.
+
+### 1. Integridad y cotejo
+- SHA-256 de `plan.md`: `84074f4a5ecda3725b51c52da2a82dfc26195ba021226c462f607d65f6d04fe6` (1170 líneas). SHA-256 de la copia previa: `5905780238b9f41033c3353b8f92f40d35bc682dc6f11ad3809f9888d97abce9`. Los dos coinciden con `aprobacion.md`.
+- El `git diff --no-index` completo da 8 hunks. Cada uno corresponde a un E7-n y ninguno toca 03c1, 03d ni 03e:
+
+| Hunk | Dónde | Id |
+|---|---|---|
+| 1 | Encabezado | E7-1 |
+| 2 | §D-11, variante de clase | E7-2 |
+| 3 | §D-R0, C-29 | E7-4 y E7-5 |
+| 4 | "Rojos esperados" de 03c2 y de 03c sin partir | E7-4 |
+| 5 | Reparto de 03c2 | E7-3 |
+| 6 | CL3-C19 | E7-3 |
+| 7 | Paso 3 de 03c2 | E7-3 |
+| 8 | Tabla de la Enmienda 7 | — |
+
+### 2. El ayudante de §D-11
+- **Nombre, firma y cuerpo:** `errorQueRedirigeElCliente = (error: unknown): boolean => esApiError(error) && CODIGOS_QUE_REDIRIGE_EL_CLIENTE.includes(error.codigo)`, idéntico a `features/tareas/lib.ts:231-232` y a `features/calificaciones/lib.ts:157-158`.
+- **La importación cumple la regla de `apiClient-ch3-r1.ataque:70`** (`import { …CODIGOS_QUE_REDIRIGE_EL_CLIENTE… } from "@/services/apiClient"`). `features/clases/lib.ts:16` ya importa `esApiError` de `@/services/apiClient`, y §D-11 dice que la importación se une a esa. Así queda una sola línea, `import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"`, que coincide con la expresión de la prueba.
+- **No declara la constante ni copia los tres códigos.** Las cuatro reglas (`apiClient-ch3-r1:55-64`, `lib/estatico-ch3-r1:197-215`, `lib/estatico-ch3-r2:93-104` y `features/clases/errores-ch3-r1:439`) solo miran declaraciones y los tres literales juntos en el código de producción. El ayudante no tiene ninguno de los dos.
+- `hooks.ts` llama al ayudante y no importa la constante, así que `usan` suma un solo archivo (`lib.ts`).
+
+### 3. CL3-C19
+Cubre el ayudante:
+- `true` con los tres códigos;
+- `false` con otros `ApiError`, con un `Error`, con `null` y con un objeto con `codigo` que no es `ApiError`;
+- el mismo resultado que el de `features/tareas` en todos esos casos.
+
+Está en el reparto y en el paso 3 de 03c2. CL3-C14 ya cubre su efecto: desmontado con `ACCESO_RESTRINGIDO`, ningún aviso.
+
+### 4. C-29
+- Permite solo sumar `["/src/features/clases/lib.ts", true, false]` a `usan`, en su orden (calificaciones, clases, tareas), y "clases" al título.
+- La regla de los tres códigos (`:55-64`) no cambia. "Nada más."
+- Está en "Rojos esperados" de 03c2 y de 03c sin partir.
+- Sus vecinos (`apiClient-ch3.test.ts` CH3-B11, que solo fija quién la declara, y las tres reglas de solo declarar) no cambian.
+
+### 5. Conteos de la Enmienda 6 y de CH3-B15
+Mi grep confirma que no cambian:
+- El ayudante no llama a `erroresDeFormularioClases(`: CH3-B15 (4) sigue en 4 en 03c2, 5 en 03d y 7 en 03e.
+- No escribe listas de campos, y `hooks.ts` sigue con una llamada.
+- Ninguna prueba fija las exportaciones de `features/clases/lib.ts`.
+- Las reglas de `errores-ch3-r1.ataque` (O-05: sin `.message` ni copias de la ruta), `estatico-r1.ataque` (`?? []`, ternarios) y `ver-mas-01e-r3.ataque` (sin importaciones de otro módulo de `features/`) no se ven afectadas, porque importar de `@/services/apiClient` está permitido.
+- `apiClient-ch3-r1.ataque:48` compara solo los ayudantes de tareas y de calificaciones (no es exhaustiva), así que no rompe.
+
+### Para la ronda 0 de 03c2
+Las filas que toca son C-25 y C-29.
+
+## Verificación del resumen del programador — 03c1
+Veredicto: **ACEPTADO** (sin M-nn que bloqueen). El tester puede atacar.
+Resumen verificado: `resumen-programador-03c1.md` (SHA-256 `eb7f0ae4…44f0`), incluida "## Cierre de la PARADA (Enmienda 5)". Plan `84074f4a…` ("LISTO (Enmiendas 1 a 7 aplicadas)").
+
+### 1. Cifras (frontend, una corrida tras otra, nunca dos a la vez)
+`git diff --stat e502381 -- shared backend`: vacío. 03c1 no toca `shared/` ni el backend, así que basta el frontend.
+
+| Comando (desde `frontend/`) | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` | exit 0; `All matched files use Prettier code style!` y `> tsc -b` |
+| `npx vitest list` con `grep -acE "^src/"` | 5367 | 5367 |
+| `npx vitest list` con `grep -aE "^src/"`, `sed 's/ > .*//'`, `sort -u` y `wc -l` | 241 | 241 |
+| `npm run test` | `Test Files  241 passed (241)` · `Tests  5367 passed (5367)` · 179.97s | `Test Files  241 passed (241)` · `Tests  5367 passed (5367)` · `Duration  184.38s`; 0 «Hook timed out» |
+| `npm run build` | `✓ built in 820ms` | exit 0, `✓ built in 808ms` (el aviso de siempre de trozos de más de 500 kB) |
+
+- Desglose de los +57 casos frente a 237/5310: `secciones-03c1.test.tsx` 12, `clase-03c1.test.tsx` 31, `textos-03c1.test.ts` 5, `components/seccion/hooks.test.tsx` 4 (más 5 en `lib.test.ts`), con +4 archivos. Coincide con mi `vitest list`.
+- `git diff --stat` del cierre de la PARADA (3 archivos, +63 −19): coincide. El "+210 −135" de los 8 archivos del primer resumen ya no se puede reproducir, porque `router-01d.test.tsx` sumó después la Enmienda 5. Hoy los 8 archivos dan +262 −146, y la diferencia es consistente con esa enmienda.
+
+### 2. Pruebas requeridas de 03c1, matriz y hermanos
+- **Mapa:** contrasté con `npx vitest list` los títulos de CL3-C01 a C07, C12, C13, C16, C17 y C18. Cada viñeta del resumen tiene su archivo y su título exacto, y el caso existe. CL3-C05 cubre las tres redirecciones con `historyAction` `REPLACE` y atrás/adelante. CL3-C06 (maestro) afirma una sola petición a `…/clases/:id` y ninguna a `…/personas`. CL3-C12 y C13 usan `rutas` y `Providers`, y prueban (a), (b), (c) y (d) más la lista sana y la lista de temas en error. Comparan la ausencia de `cursor` y que la frase desaparece.
+- **Matriz de §D-14 contra el código:** coincide.
+  - `MuroView` y `ElementosDelTema` vuelven a pedir solo con `isError`, por `useAlPulsarLaSeccionActiva`.
+  - "Ver más avisos" y "Ver más de `<tema>`" usan `enEspera={isFetching}` con `cancelRefetch: false`.
+  - R1 y R2 pasan por `mensajeDeErrorDeLista`.
+  - En `TrabajoView`, el gancho vuelve a pedir la lista de temas solo si está en error.
+  - En `PersonasView`, maestro y admin quedan dentro de un solo `ConClaseDeLaRuta`, así que «No tienes acceso…» sale una sola vez. `MaestrosDeLaClaseEnLectura` lee `useClase`, la misma clave del encabezado.
+  - `data-candidato-maestro-id` está en `buscador-de-maestros.tsx:67`, `:91` y `:136` y en `maestros-de-clase-view.tsx:29`. `BuscadorAlumnos` sigue con `data-candidato-id`, y no hay otro vigilante de ese atributo (grep).
+- **Estados vecinos del gancho compartido:** cubiertos.
+  - Montar no cuenta (C16).
+  - Una `key` nueva en la misma ruta sí cuenta (C16, C12 a, C13 a).
+  - Otra ruta desmonta, y al volver montar no cuenta (C16). La consulta en error se pide al montar (C12 b, C13 b).
+  - El historial (C12 c, C13 c).
+  - La lista sana no pide nada (C12) y un tema sano tampoco (C13 a).
+  - La lista de temas en error (C13 a).
+- **Hermanos del cierre de la PARADA:** hice un grep propio de las pruebas normales con "Publicaciones", "Trabajo de clase", "Muro", "Ver más publicaciones", `grid-cols-5`, `w-1/5` y `translate-x-[n00%]`. No queda ninguna aserción viva con esos textos o clases; solo comentarios. `router.test.tsx:170` y `consultas-ch3.test.tsx:300`, `:345` y `:354` siguen entrando por `…/alumnos` o `…/maestros`: pasan por la redirección y siguen probando el roster. Es correcto y no exige cambio.
+
+### 3. Lista cerrada de 03c1
+Pruebas normales cambiadas frente a `e502381`: `clase-layout.test.tsx`, `lib.test.ts`, `tarjeta-de-tarea.test.tsx`, `muro-view.test.tsx`, `trabajo-view.test.tsx`, `features/clases/recuperar-ch3.test.tsx` (`TEXTOS_CLASE.muro` → `.avisos`, la referencia al nombre de la sección), `maestros-de-clase-view.test.tsx`, `router-01d.test.tsx`, `marco.test.tsx` y `features/tareas/recuperar-ch3.test.tsx`. Todas están en la lista cerrada.
+- Las tres filas de la Enmienda 5 se aplicaron literalmente:
+  - `marco.test.tsx` cambia solo el título y la aserción de O-14.
+  - `router-01d.test.tsx` cambia solo el primer `it.each` y los cinco CAL-1D06, con medidas simuladas y `vi.restoreAllMocks`.
+  - `features/tareas/recuperar-ch3.test.tsx` cambia solo `:449` y `:470`, que son las dos líneas que autorizó el humano.
+- `router-01e.test.tsx`, `router.test.tsx`, `gradebook-01d.test.tsx` y las demás normales de `features/calificaciones` no cambian, así que CL3-C16 cumple "sin cambio".
+- **Decisión sobre las dos filas iguales de `router-01d.test.tsx` (`admin/personas/2` dos veces): se quedan.** La lista cerrada dice "no se borra ni se desactiva ningún caso", y quitar una fila borra un caso (5367 → 5366). La fila duplicada no cuesta nada ni oculta nada. La redirección de `…/alumnos` y `…/maestros` la prueba CL3-C05 (las tres rutas con `replace`), no estos casos. Tampoco se cambia la entrada de una fila a `…/maestros`, porque la Enmienda 5 manda entrar por `…/personas`.
+
+### 4. V-01
+Recalculé el SHA-256 de las 230 `*.ataque` del árbol (`git ls-files -co --exclude-standard`). Coinciden 230 de 230 con la tabla "con las adendas 1 y 2" de `reporte-tester.md` (`956ee380…`), sin diferencias. Las 24 `*.ataque` cambiadas frente a `e502381` son exactamente las 24 que esa tabla marca como reescritas por el tester (las 21 de la ronda 0, `foco-02c-r4` y `foco-02c-r5` de la adenda 1, y `foco-pestana-02d-r3` de la adenda 2). Ninguna la cambió el programador.
+
+### 5. "No se toca", capas y estilo
+- **"No se toca":**
+  - Fuera de los paquetes (base `689c636`), los cambios están en `docs/trabajo/CLASES-03-…`, `docs/ESTADO.md`, los documentos de cierre de 03a y 03b que aplicó el orquestador, y `AGENTS.md`. Este último coincide con el hash de `aprobacion.md` (`bb985908…`).
+  - Dentro de `frontend/` (base `e502381`): `features/tareas/` cambia solo en la fila autorizada (y en la `*.ataque` del tester), y `features/calificaciones/hooks.ts` solo en la reexportación de DH-06. Quitar `useRef` y `useLocation` es consecuencia directa y la exige el lint.
+  - Sin cambios en `lib/`, `services/`, `app/providers.tsx`, `components/ui|adjuntos|foco|layout|clase/` ni `styles/`. `components/seccion/` es la ubicación nueva que pide el plan.
+- **Indicador:** `style` solo con `--indicador-x` y `--indicador-ancho` (es el único `style=` de `features/clases` y `components/seccion`). Las clases `translate-x-(--indicador-x)` y `w-(--indicador-ancho)` van sin corchetes. Salieron `CLASES_DEL_INDICADOR_POR_SECCIONES` y `CLASES_DE_LA_REJILLA_POR_SECCIONES`, y `CLASES_DE_POSICION_DEL_INDICADOR` queda con dos valores. La medida se hace con `useLayoutEffect` al montar y al cambiar de sección. `ResizeObserver` y `document.fonts.ready` solo vuelven a medir, si existen, y se desconectan al desmontar.
+- **`useAlPulsarLaSeccionActiva`:** vive en `components/seccion/hooks.ts` con el cuerpo de antes, y `features/calificaciones/hooks.ts` lo reexporta. CL3-C16 confirma que es la misma función.
+- **Capas y estilo:** tipos nuevos en `types.ts`, textos y secciones en `data.ts`, funciones puras en `lib.ts` y el gancho en `hooks.ts`. Retornos tempranos y ningún ternario anidado en JSX. Sin clases de la escala anulada de Tailwind (grep) y solo tokens (`text-h2`, `text-h3`, `text-small`, `rounded-row`, `bg-surface`, `bg-accent-soft`). Los textos coinciden con §D-13 (con la Enmienda 4).
+
+### Detalles menores (no bloquean; no hace falta otra corrida)
+- **M-01 · comentario huérfano en `features/clases/types.ts:54`.** "Lo que cada perspectiva ve de una clase (§D-2C1); es una fila de CAPACIDADES_POR_PERSPECTIVA." quedó encima de `MedidaDeOpcion` y no de `CapacidadesDePerspectiva`. Conviene devolverlo a su lugar la próxima vez que se toque el archivo (03c2).
+- **M-02 · `features/clases/trabajo-view.tsx:49`.** Una línea de comentario de 135 caracteres; Prettier no la reacomoda porque es un comentario. Se puede partir en 03c2, que toca el archivo.
+- **M-03 · `clase-layout.test.tsx`, segundo PR-2C07.** La entrada `…/alumnos` pasó a `…/trabajo` (índice 1) y no a `…/personas`, y su `aria-current` pasó a "Actividades de aprendizaje". La fila de la lista cerrada nombra "rutas `…/alumnos` y `…/maestros` por `…/personas`". El cambio sigue dentro del propósito de la fila: cubre una posición más del indicador medido y evita dos montajes iguales, sin debilitar nada. Se acepta y queda anotado.
+- `MaestrosDeLaClaseEnLectura` pasa `onQuitar` y `alQuedarseSinDestino` como funciones vacías para no cambiar `ListaMaestrosDeClase` (§D-7.7 lo pide así). Con `puedeQuitar={false}` no se alcanzan.
+
+## Arbitraje de la ronda 1 — 03c1
+Fecha: 2026-10-29. Base: `reporte-tester.md` (SHA-256 `35a9ae6b…`), "## CLASES-03c1 — Ronda 1"; plan `84074f4a…`. Arbitraje de solo lectura: no corrí suites, porque para esto no hacía falta. Leí el código, las pruebas y `docs/ESTADO.md`, e hice grep sobre `frontend/src`.
+
+### Decisión en una línea por punto
+- **T-01:** defecto real. Se corrige en 03c1. Sus dos casos rojos son correctos. Ojo: el remedio literal del tester ("pintar el `<span>` solo si `medida.indice === activa`") deja en rojo su propio caso de control.
+- **T-02:** defecto real. Se corrige en 03c1, **pero CL3-R1-02, tal como está escrita, es incorrecta**: contradice a CL3-R1-03 y CL3-R1-08 del mismo archivo, y a CL3-C04. El tester la reescribe en una adenda de la ronda 1 antes de que el programador corrija.
+- **T-03:** se corrige en 03c1 (una línea), junto con su hermano de la misma sección (`personas-view.tsx:73`). Los otros tres hermanos pasan a CHORE-04 como filas nuevas.
+- **O-01 y O-02:** quedan como observaciones, sin remedio en 03c1. O-01 no contradice el plan: es literalmente lo que pide §D-7.4.
+
+### T-01 — confirmado (media)
+- **Es real.** En el navegador, leer `offsetLeft` dentro del `useLayoutEffect` (`hooks.ts`, `useIndicadorDeSecciones`) calcula los estilos con el `<span>` ya insertado. Lo hace sin `--indicador-x`, y entonces `translate` es inválido al calcularse y queda en `none`, o con la medida de la sección anterior (al volver de "Editar clase", la `medida` sigue siendo la de "Avisos"). El `setMedida` siguiente es un cambio de estilo con `transition-transform` activo: el indicador se desliza 200 ms sin que nadie haya cambiado de sección. Antes de 03c1 no pasaba, porque la clase de posición venía en el primer render. Contradice la intención de §D-7.2 ("mide … antes de pintar") y la viñeta de siete opciones de `DESIGN.md` §7.3.
+- **Las pruebas son correctas.** No localizan por clases de estilo: usan `aria-label`, `aria-hidden`, `data-slot="card"` y la variable CSS. La condición que fijan es un resultado observable en jsdom: al medir, el indicador no está o ya tiene su posición. Esa condición deja fuera una variante válida, la de montar el indicador sin posición y activar la transición en un cuadro posterior. Lo acepto: esa variante es la frágil, porque si la transición se activa en el mismo cambio que la posición, el navegador anima igual (la transición usa el estilo de después del cambio). Y el plan ya dice que, sin sección activa, el indicador no se monta.
+- **Qué se espera (resultado):**
+  - Al entrar en una clase en cualquier sección, el indicador aparece ya bajo la opción activa.
+  - Lo mismo al volver a una sección desde una pantalla sin sección activa: "Editar clase", "Categorías", el detalle, la edición o las entregas de una tarea.
+  - Al cambiar de una sección a otra, se sigue deslizando desde la anterior. **El caso de control CL3-R1-01 (`:199`, `fotos[0] === "0px"`) debe seguir verde.** Aviso al programador: con el remedio literal del tester (`medida.indice === activa`), al pasar de "Avisos" a "Calificaciones" el indicador desaparece en el momento de medir y el control se pone rojo. El resultado pedido es que se desmonte (o se olvide su medida) solo cuando no hay sección activa o al entrar, nunca al cambiar de sección.
+- **Hermanos y estados vecinos que el resumen debe declarar uno por uno:**
+  - Primera entrada en cada perspectiva y en cada sección, incluida la primera ("Avisos").
+  - La vuelta desde cada pantalla sin sección activa.
+  - Cambiar de sección (control).
+  - Atrás y adelante del historial (CL3-R1-03).
+  - Pulsar la sección activa (CL3-R1-08).
+  - El aviso tardío del `ResizeObserver` y de `document.fonts.ready` con el indicador sin montar (CL3-R1-06).
+  - **Cambio de clase en otra sección**, por la barra lateral, con la clase nueva en caché: `ClaseLayout` no pone `key` a `SeccionesDeClase`, así que puede heredar la `medida` de la otra clase. Se trata como una entrada: el indicador aparece en su lugar, sin deslizarse desde la sección de la otra clase.
+  - El control de dos botones de `FormularioPublicacion` no aplica: tiene clases fijas y no usa medida.
+
+### T-02 — confirmado (baja); CL3-R1-02 incorrecta tal como está
+- **Es real.** Por §D-7.2, el `<ul>` lleva `relative` y el panel `p-1`. El `offsetLeft` del `<li>` se mide desde el `<ul>`, pero en el área desplazable del panel la opción empieza después del relleno. Con el `scrollLeft` que hoy calcula `desplazamientoParaVer`, la opción activa queda cortada tantos píxeles como mide el relleno (4 px). Incumple "la opción entera a la vista" (§D-7.2) y "la opción activa queda a la vista al entrar" (`DESIGN.md` §7.3).
+- **La prueba es incorrecta: fija una implementación y choca con otras tres.**
+  1. En el modelo del archivo, `offsetLeft` vale 0 en todo lo que no es un `<li>` de las secciones. jsdom no aplica CSS (`vitest.config.ts`: solo `tokens.css?raw`) y `getBoundingClientRect` da ceros. Así, ningún remedio que **mida** el relleno o la posición del `<ul>` en el panel (`getBoundingClientRect`, el `offsetLeft` del contenedor, el relleno calculado) llega a 164. Los dos remedios que sugiere el propio tester siguen en rojo. Lo único que la pone en verde es escribir 4 px fijos en el código, un número que repite `p-1` y se desfasa en silencio si cambia el panel. Eso no es aceptable (CLAUDE.md › Tokens: ningún tamaño suelto).
+  2. Con el mismo modelo y los mismos números (panel de 250, opción de 300 a 410), CL3-R1-03 (`:255`, `toBe(300 + 110 - 250)`) y CL3-R1-08 (`:376`, `toBe(160)`) exigen exactamente 160. CL3-R1-02 exige al menos 164. El archivo no puede quedar entero en verde con ningún remedio.
+  3. CL3-C04 (`secciones-03c1.test.tsx:295`, `toBe(410 - 250)`) modela un panel sin relleno, así que en su modelo 160 es correcto y no cambia.
+  4. Afirmar `toHaveClass("relative")` y `toHaveClass("p-1")` no localiza por clases, pero ata la prueba a la forma del árbol en lugar de a la geometría.
+- **Qué hace el tester (adenda a la ronda 1, solo en `indicador-03c1-r1.ataque.test.tsx`, antes de la corrección):**
+  - Un solo modelo geométrico para todo el archivo. El panel tiene un relleno inicial P, el `<ul>` empieza en P dentro del área desplazable y cada `<li>` se mide desde el `<ul>`.
+  - `getBoundingClientRect` del panel, del `<ul>` y de cada `<li>`, y el relleno calculado del panel (`getComputedStyle`), coherentes con esos desplazamientos y con el `scrollLeft` del momento. Así pasa cualquier remedio que sea correcto en un navegador y midiendo.
+  - Sin las precondiciones de clase.
+  - Que afirme que la opción queda entera a la vista, no un `scrollLeft` exacto, salvo donde el plan pide no desplazar (CL3-R1-08 y la segunda viñeta de CL3-C04).
+  - Que CL3-R1-03 y CL3-R1-08 sigan el mismo modelo. Conviene correr CL3-R1-02 con dos valores de P, para que un número fijo no pase.
+  - Las demás `*.ataque` no se tocan. La tabla de SHA-256 se actualiza para este archivo.
+- **Qué se espera del código (resultado):** la opción activa queda entera dentro del panel al entrar y al cambiar de sección, en el modelo con relleno de la adenda y en el sin relleno de CL3-C04, y sin números de píxeles escritos en el código. `medidaDelIndicador` y `desplazamientoParaVer` conservan su firma y su contrato (CL3-C03 no cambia). Lo que cambia es qué posición de la opción recibe la segunda. El indicador sigue en las coordenadas del `<ul>`. Hermano: el borde izquierdo usa la misma comparación. Hoy deja 4 px de margen, y con el remedio puede quedar alineado con el inicio de la opción; los dos resultados son aceptables. Ningún otro control usa `desplazamientoParaVer` (grep).
+
+### T-03 — se corrige en 03c1; hermanos uno por uno
+Se corrige aquí, no en CHORE-04:
+- Es una línea en `features/clases/`, el módulo del encargo, y ningún archivo cae en "No se toca".
+- 03c1 compone esta tabla dentro de su sección nueva «Personas», junto al buscador que dispara la recarga.
+- §D-12 pide `enEspera={isFetching}` en todo "Ver más" de este encargo.
+- Mandarla a CHORE-04 dejaría CL3-R1-15 en rojo, y una subentrega no se cierra con pruebas en rojo.
+- `docs/ESTADO.md` §3 ya tenía este pendiente ("Los demás «Ver más» de CLASES… pasan a `enEspera={isFetching}`", destino "Carril trivial"), y esta corrección cierra dos de sus cinco controles.
+- Cambiar el valor no altera los conteos de `enEspera=` de `styles/clases-r1.ataque.test.ts`.
+
+| Hermano | Decisión | Por qué |
+|---|---|---|
+| `features/clases/components/tabla-alumnos.tsx:218` («Ver más alumnos» del roster, maestro y admin en «Personas») | **03c1** | Hallazgo T-03; CL3-R1-15 |
+| `features/clases/personas-view.tsx:73` («Ver más alumnos» del estudiante en «Personas») | **03c1** | Misma sección y mismo control. El archivo ya está en el plan de 03c1 (§Cambios por capa) y no en "No se toca". Lleva un caso normal nuevo (abajo) |
+| `features/clases/clases-admin-view.tsx:78` («Cargar más clases» de `/admin/clases`) | **CHORE-04**, fila nueva | Fuera de las secciones de la clase; 03c1 no lo toca |
+| `features/clases/components/comentarios-de-publicacion.tsx:180` («Ver más comentarios») | **CHORE-04**, fila nueva | 03c1 no lo toca, y §D-10 (R6) fija "sin cambio de código en `ComentariosDePublicacion`" para 03d. El tester de 03d y 03e lo anota como observación con esta fila, no como hallazgo |
+| `features/clases/components/panel-mis-clases.tsx:61` (con la prop `isFetchingNextPage` en `inicio-estudiante-view.tsx:52` e `inicio-maestro-view.tsx:47`) | **CHORE-04**, fila nueva | No es una línea: cambia la prop del panel, las dos vistas de inicio y los dobles de dos `*.ataque` (`inicio-sin-datos-02c-r1.ataque.test.tsx:19` e `inicio-sin-datos-r2.ataque.test.tsx:20` pasan `isFetchingNextPage: false`). El §D-R0 de CHORE-04 debe inventariarlos. La misma fila puede llevar el pendiente del texto del cursor de "Ver más clases" (§3, "Carril trivial, en el próximo cambio que toque… `panel-mis-clases.tsx`") |
+| `features/admin/components/tabla-enlaces.tsx:240` y `registrados-del-enlace.tsx:71` | Ya en CHORE-04 (filas 24 y 25) o ADMIN-01 | `features/admin` está en "No se toca" de este plan |
+| `isFetchingNextPage` en `calificaciones/mis-calificaciones-view.tsx:80`, `tareas/components/hilo-privado.tsx:146` y `tareas/entregas-view.tsx:82` | No aplica | No es el `enEspera` de un botón, sino la condición del foco tras cargar más. Sus botones ya usan `isFetching` (`:185`, `:221` y `:146`) |
+| Resto de "Ver más" (`muro-view.tsx:145`, `seccion-de-tema.tsx:144`) | Ya correctos | `enEspera={…isFetching}` |
+
+Grep usado: `isFetchingNextPage` y `fetchNextPage` sobre `frontend/src` sin pruebas. No hay más casos.
+
+### O-01 y O-02
+- **O-01 (la consulta y el hash se pierden en la redirección): observación cerrada, sin destino.** §D-7.4 prescribe literalmente `<Navigate to="../personas" replace />`, y DH-09 solo pide no romper marcadores. Un marcador viejo llega a «Personas», y eso se cumple. «Personas» no lee ni la consulta ni el hash (grep de `useSearchParams`, `location.search` y `.hash` en `features/clases`, `app` y `components`: 0), así que no hay nada que conservar.
+- **O-02 (doble clic en la sección activa con la lista en error: dos `GET`): observación cerrada, sin remedio en 03c1.**
+  - Es una lectura, no una mutación, así que la regla de la guarda con ref no aplica.
+  - `refetch()` cancela la primera petición y solo se aplica una respuesta.
+  - El gancho es el compartido con `features/calificaciones` (DH-06, "con el cuerpo exacto"), y cambiarlo tocaría a ese módulo.
+  - Si en una ronda aparece un aviso doble o un foco perdido por este camino, eso sí sería hallazgo.
+
+### Para el programador: alcance de la corrección de la ronda 1 de 03c1
+**Orden:** primero la adenda del tester a CL3-R1-02, y después la corrección. Las dos van dentro de la ronda 1 y no cuentan como ronda extra.
+
+**Archivos de producción que puede tocar (lista cerrada):**
+1. `frontend/src/features/clases/components/secciones-de-clase.tsx` (T-01).
+2. `frontend/src/features/clases/hooks.ts`, solo `useIndicadorDeSecciones` y sus auxiliares (T-01 y T-02).
+3. `frontend/src/features/clases/lib.ts`, solo para **agregar** una función pura si el remedio la necesita. No cambia la firma ni el contrato de `medidaDelIndicador` ni de `desplazamientoParaVer`.
+4. `frontend/src/features/clases/types.ts`, solo para **agregar** un tipo si hace falta; `MedidaDeOpcion`, `MedidaDelPanel` y `MedidaDelIndicador` no cambian. Si lo toca, puede devolver el comentario de M-01 (`:54`) a su lugar.
+5. `frontend/src/features/clases/components/tabla-alumnos.tsx:218` (T-03), solo esa línea.
+6. `frontend/src/features/clases/personas-view.tsx:73` (hermano), solo esa línea.
+
+**Pruebas:**
+- **Ninguna prueba normal existente cambia.** Siguen como están `secciones-03c1.test.tsx` (CL3-C01, C02 y C04), `lib.test.ts` (CL3-C03) y `clase-layout.test.tsx`.
+- Ninguna `*.ataque` la toca el programador.
+- Pruebas nuevas permitidas, solo en archivos nuevos:
+  - Un caso para el hermano del estudiante: `frontend/src/features/clases/personas-ver-mas-03c1.test.tsx`, «CL3-C1R1-01: «Ver más alumnos» del estudiante en «Personas» queda en espera mientras la lista se vuelve a pedir» (con `aria-busy`, sin selectores de estilo).
+  - Si agrega una función pura a `lib.ts`, sus casos en un archivo nuevo, no en `lib.test.ts`.
+- **PARADA:** cualquier prueba roja que no sea CL3-R1-01 ×2, CL3-R1-02 (ya reescrita) y CL3-R1-15.
+
+**El resumen trae:**
+- Los hermanos y estados vecinos de T-01, T-02 y T-03 de arriba, uno por uno, con lo que pasa en cada uno.
+- La matriz de §D-14 solo para las filas que cambian: el indicador y los dos "Ver más alumnos".
+- Las cifras con su comando, como siempre.
+
+### Documentos a actualizar (orquestador, al cerrar 03c1)
+- `docs/ESTADO.md` §3, fila "Los demás «Ver más» de CLASES…": roster y compañeros, hechos en CLASES-03c1. Comentarios, inicios (`panel-mis-clases.tsx` con las dos vistas) y clases del admin pasan a CHORE-04.
+- `docs/ESTADO.md` §2b, inventario de CHORE-04: filas 26 (`clases-admin-view.tsx:78`), 27 (`comentarios-de-publicacion.tsx:180`) y 28 (`panel-mis-clases.tsx:61` con `inicio-estudiante-view.tsx` e `inicio-maestro-view.tsx`, y la nota de los dos `inicio-sin-datos-*.ataque` para su §D-R0), con la misma razón que las filas 24 y 25 ("Ver más" con `isFetchingNextPage`, contra `CLAUDE.md` › Componentes; T-03 de CLASES-03c1).
+
+### Para el humano (informativo; no bloquea)
+- Mover tres "Ver más" de CLASES del pendiente "Carril trivial" a CHORE-04 sigue el precedente de las filas 24 y 25 (O-22 de CHORE-03). Si prefiere corregirlos antes por carril trivial, se puede hacer en cualquier momento fuera de CLASES-03, salvo `comentarios-de-publicacion.tsx` mientras dure 03d.
+
+## Verificación de la corrección de la ronda 1 — 03c1
+Fecha: 2026-10-29. Veredicto: **ACEPTADO** (sin M-nn que bloqueen). El tester puede atacar la ronda 2.
+Resumen verificado: `resumen-programador-03c1-r1.md` (SHA-256 `841eb6c0…625d3`, reproducido). Bases: plan `84074f4a…` (reproducido), `reporte-tester.md` `6f335866…` (reproducido; ronda 1 y su adenda 1) y "## Arbitraje de la ronda 1 — 03c1" de este archivo.
+
+### 1. Cifras (frontend, una corrida tras otra, nunca dos a la vez)
+`git diff --stat e502381 -- shared backend`: vacío. La corrección no toca `shared/` ni el backend, así que basta el frontend.
+
+| Comando (desde `frontend/`) | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0; `All matched files use Prettier code style!` y `> tsc -b` | exit 0; las mismas dos líneas |
+| `npx vitest list` con `grep -acE "^src/"` | 5410 (5404 + 6) | 5410 |
+| `npx vitest list` con `grep -aE "^src/"`, `sed` que quita lo que va tras ` > `, `sort -u` y `wc -l` | 246 (244 + 2) | 246 |
+| `npm run test` | `Test Files  246 passed (246)` · `Tests  5410 passed (5410)` · 183.38s; 0 «Hook timed out» | `Test Files  246 passed (246)` · `Tests  5410 passed (5410)` · `Duration  182.71s`; 0 «Hook timed out» |
+| `npm run build` | exit 0, `✓ built in 782ms` | exit 0, `✓ built in 741ms` (el aviso de siempre de trozos de más de 500 kB) |
+| `git diff --stat e502381` de los 6 de producción | `6 files changed, 284 insertions(+), 41 deletions(-)` | igual |
+
+- **Títulos:** los 13 títulos de la tabla "Pruebas requeridas" del resumen existen tal cual en `npx vitest list`: CL3-R1-01 ×2 más su control, CL3-R1-02 ×3 más su control, CL3-R1-15, CL3-C1R1-01 y los cinco CL3-C1R1-02. CL3-C1R1-01 lleva el título exacto que fijó el arbitraje.
+
+### 2. Lista cerrada del arbitraje
+- **Qué cambió en la corrección.** No hay un commit intermedio, así que lo acoté por la hora de modificación del árbol. Después de la adenda del tester (17:24) solo cambiaron seis archivos de producción: `types.ts` 17:26, `lib.ts` 17:26, `secciones-de-clase.tsx` 17:27, `tabla-alumnos.tsx` 17:27, `personas-view.tsx` 17:29 y `hooks.ts` 17:29. También aparecieron los dos archivos de prueba nuevos (`opcion-en-el-panel-03c1.test.ts` y `personas-ver-mas-03c1.test.tsx`, 17:28). Ninguna prueba normal ya existente se modificó después de las 16:29, la hora del cierre de la PARADA que ya verifiqué, y el conjunto de pruebas normales cambiadas frente a `e502381` es el mismo de esa verificación. Por tanto, ninguna prueba normal existente cambió.
+- **Cada archivo, dentro de lo permitido:**
+  - `tabla-alumnos.tsx`: frente a `e502381`, una sola línea (`:218`, `isFetchingNextPage` → `isFetching`). Cumple.
+  - `personas-view.tsx:73`: solo esa línea, además de lo de 03c1 ya verificado. Cumple.
+  - `lib.ts`: solo se agrega `opcionEnElPanel`. `medidaDelIndicador` y `desplazamientoParaVer` no cambian de cuerpo ni de firma. Cumple.
+  - `types.ts`: solo se agregan `PosicionDelPanel` y `MedidaDelIndicadorDeLaClase`, que extiende `MedidaDelIndicador` sin cambiarlo. El comentario de M-01 vuelve encima de `CapacidadesDePerspectiva`. Cumple.
+  - `hooks.ts`: **`posicionDelPanel` y el cambio en `conservarSiIgual` caben en "auxiliares".** Las dos son constantes privadas del módulo (no se exportan) y solo las llama `useIndicadorDeSecciones` (grep). `conservarSiIgual` ya existía como auxiliar del gancho, y compararla también por `base` es parte del remedio de T-01: sin eso, una medida igual de otra clase se conservaría con la `base` vieja y el gancho la ocultaría para siempre. Cumple.
+  - `secciones-de-clase.tsx`: pasa `base` al gancho y monta el indicador solo con `medida !== null`. Cumple.
+- **V-01:** 233 de 233 `*.ataque` con el mismo SHA-256 que la tabla "con la adenda 1" de `reporte-tester.md`, sin diferencias. En mi cotejo con `diff`, las dos filas de `services/apiClient*.ataque` aparecieron distintas solo porque mi conversión a minúsculas también cambió la ruta, `apiClient`; sus hash coinciden. El programador no tocó ninguna.
+
+### 3. Contraste con el código
+**T-01** (`hooks.ts:959-1007`, `secciones-de-clase.tsx:45-60`):
+- **Remedio.** Hay tres partes.
+  - Durante el render, `if (activa < 0 && medida !== null) setMedida(null)`. Es el patrón de React para ajustar el estado propio en el render, y el lint lo acepta.
+  - Cada medida guarda la `base` en que se tomó, y el gancho devuelve `null` si la `base` no coincide.
+  - Los dos efectos dependen de `[activa, base]`.
+
+  En cada entrada, el `<span>` no está en el DOM cuando el `useLayoutEffect` mide. El `setMedida` síncrono del efecto de diseño lo monta ya con su posición antes de pintar, y un elemento recién insertado no anima. Al cambiar de sección dentro de la misma `base`, la medida anterior se conserva y el indicador se desliza: el control sigue verde.
+- **Estados vecinos, uno por uno, contra el código:**
+  - **Entrada directa:** `useState(null)`. Correcto.
+  - **Vuelta desde una pantalla sin sección:** las seis pantallas (`editar`, `categorias`, `tareas/nueva`, `tareas/:id`, `…/editar` y `…/entregas[/:alumnoId]`) son hijas de `ClaseLayout` (`router.tsx:70-155`), así que `SeccionesDeClase` sigue montado con `activa < 0` y olvida la medida. Correcto para todas, aunque solo «Editar clase» tiene caso.
+  - **Historial:** es un cambio de sección. Desliza, y es lo que se quiere.
+  - **Pulsar la sección activa:** sin cambio de dependencias. Correcto.
+  - **Aviso tardío del observador:** `vigente = false` en la limpieza. Además, con `activa < 0` el efecto no observa. Correcto.
+  - **Cambio de clase en la misma sección:** la `base` cambia, así que el indicador se desmonta y vuelve a aparecer ya medido. Correcto. Precisión: CL3-R1-07 solo afirma la posición final, no la ausencia del indicador al medir. En el modelo, la posición vieja y la nueva coinciden, así que no hay deslizamiento visible que probar.
+  - **Cambio de clase en otra sección con la clase nueva en caché:** el razonamiento es el mismo. La `base` cambia antes de que corra el efecto, así que en el commit no hay `<span>`. Ni `conservarSiIgual`, que compara la `base`, ni la medida filtrada pueden devolver la medida de la otra clase. El código es correcto. **No tiene caso permanente.** El arbitraje lo nombró como estado vecino y la lista cerrada no le daba archivo al programador, así que **lo fija el tester en la ronda 2** (abajo).
+  - **Ida y vuelta A → B → A** (en secciones distintas): al volver a A, la medida es de B y no se devuelve. Es otra entrada. Correcto.
+- **Estilo:**
+  - `style` solo lleva `--indicador-x` y `--indicador-ancho`; CL3-R1-30 está verde.
+  - No hay ningún número de píxeles ni clases con corchetes.
+  - Los tipos nuevos están en `types.ts` y ninguno en `hooks.ts` (CL3-R1-34 verde).
+  - Hay retornos tempranos en `opcionDeLaLista` y en los dos efectos.
+  - `estiloDelIndicador` es una asignación de dos ramas, no un ternario en JSX, así que la permite CLAUDE.md.
+
+**T-02** (`lib.ts:115-123`, `hooks.ts:971-980` y `:1029-1033`):
+- **Sin píxeles fijos.** La distancia entre la lista y el área desplazable es `lista.left − panel.left − clientLeft + scrollLeft`. Esa expresión es igual al relleno del panel, cualquiera que sea el desplazamiento. Las dos lecturas se hacen seguidas, con el mismo `scrollLeft`.
+- **CL3-C04 sigue con 160.** En jsdom todo da 0.
+- **La adenda prueba relleno 4 y 12.** Un número fijo no pasa las dos, y ambas están verdes.
+- **El indicador sigue en las coordenadas del `<ul>`.** `medidaDelIndicador` recibe la opción sin corregir.
+- **Borde izquierdo:** ahora queda alineado, sin margen. El arbitraje acepta ese resultado.
+
+**T-03:** las dos líneas pasan a `isFetching`, las dos con `cancelRefetch: false`.
+- **CL3-C1R1-01.** No usa selectores de estilo: localiza por rol, nombre y `aria-busy`. Retiene la recarga, pulsa el botón, afirma que no sale ninguna petición con `cursor=` y comprueba la salida de la espera.
+- **Lo que queda con `isFetchingNextPage`** (grep sin pruebas):
+  - Los tres controles de CHORE-04: `clases-admin-view.tsx:78`, `comentarios-de-publicacion.tsx:180` y `panel-mis-clases.tsx:61`, con las dos vistas de inicio.
+  - Los dos de `features/admin`.
+  - Las tres guardas de foco que el arbitraje declaró "no aplica".
+
+  Coincide con el arbitraje.
+
+### 4. Matriz y hermanos
+- **Matriz.** Las cinco filas que cambian coinciden con el código.
+  - El indicador no tiene petición, aviso ni cambio de foco. Su estado lo dicen `aria-current` y el color del texto.
+  - Los dos «Ver más alumnos» quedan en espera durante cualquier `isFetching`. Un clic se une a la recarga y no sale otra petición.
+  - Si la recarga falla, se reemplaza el bloque por su `MensajeError` y el foco va al encabezado «Alumnos» (T-27), sin cambio.
+  - No se agrega ningún `toast`.
+- **Hermanos de «Ver más».** La tabla del resumen es la del arbitraje, fila por fila, y lo que dice de cada uno coincide con el código.
+- **Estados vecinos de «Ver más».** Primera carga, página en vuelo, recarga por invalidación, recarga que falla, doble clic y vista desmontada: coinciden.
+
+### Para la ronda 2 del tester (03c1)
+1. **Que fije el estado vecino sin caso permanente:** cambio de clase **en otra sección**, por la barra lateral o por `router.navigate`, con la clase nueva en caché (por ejemplo, la clase B en «Calificaciones», después la clase A en «Actividades de aprendizaje» y de vuelta a la clase B en «Calificaciones»).
+   - Usar las fotos de CL3-R1-01: en cada lectura de geometría, el indicador no está o ya tiene su posición.
+   - Agregar también la ida y vuelta A → B → A.
+   - Va en un archivo `*.ataque` nuevo de la ronda 2, sobre el modelo de `indicador-03c1-r1`.
+2. **La vuelta desde al menos otra pantalla sin sección que no sea «Editar clase»**, por ejemplo el detalle de una tarea o «Categorías», con las mismas fotos.
+3. **T-02 por los caminos que la adenda dejó con relleno 0:**
+   - El historial con relleno 4 (CL3-R1-03 corre con 0 para no duplicar T-02).
+   - Un cambio de sección con el panel ya desplazado (`scrollLeft` distinto de 0) y relleno distinto de 0, en los dos sentidos: la opción a la derecha y a la izquierda del área visible.
+4. **El «Ver más alumnos» del roster con la página siguiente y la recarga en vuelo a la vez:** que siga saliendo una sola respuesta aplicada y que el foco no caiga en `<body>`.
+5. Fuera de la ronda: los «Ver más» de CHORE-04 (filas 26 a 28) se anotan como observación si aparecen, no como hallazgo.
+
+### Detalles menores (no bloquean)
+- **Precisión del resumen:** la tabla de T-01 da CL3-R1-07 como cobertura del "cambio de clase en la misma sección", pero ese caso no comprueba el indicador en el momento de medir. Por el código, el estado es correcto. Queda anotado; no devuelve el resumen.
+- **M-02** (`trabajo-view.tsx:49`, comentario de 135 caracteres) sigue para 03c2, como dice el resumen.
+
+## Revisión final — 03c1
+Fecha: 2026-10-29. Plan `plan.md`, SHA-256 `84074f4a5ecda3725b51c52da2a82dfc26195ba021226c462f607d65f6d04fe6` (lo reproduje). `reporte-tester.md`, SHA-256 `3d90c37f…` (lo reproduje), "## CLASES-03c1 — Ronda 2": RESISTE. `AGENTS.md`, SHA-256 `bb98590852939b0d5f80a177db57da29f2dffffd99346b2bcaaac67d9a4dc787` (lo reproduje; contra `HEAD`, solo la viñeta de `shared/`). Base dentro de los paquetes: `e502381` (`<K3b>`).
+
+**Veredicto: APROBADO CON OBSERVACIONES.** No hay M-nn que bloqueen. M-01 y M-02 son de documentos y tienen destino. M-03 es un paso de cierre del orquestador antes del commit.
+
+**Verificación propia** (desde `frontend/`, una corrida tras otra, nunca dos a la vez):
+
+| Comando | Mi resultado | Esperado (ronda 2) |
+|---|---|---|
+| `npm run lint` | exit 0 (última línea `> tsc -b`) | exit 0 |
+| `npx vitest list` con `grep -a -c -E "^src/"` | 5434 casos | 5434 |
+| `… \| sed 's/ > .*//' \| sort -u \| wc -l` (con `grep -a`) | 248 archivos | 248 |
+| `npm run test` | `Test Files  248 passed (248)` · `Tests  5434 passed (5434)` · exit 0; 0 «timed out» | igual |
+| `npm run build` | `✓ built in 742ms` · exit 0 | — |
+
+**`shared/` y backend sin tocar:** `git diff --stat e502381 -- shared backend infra .env.example` sale vacío, y no hay archivos sin rastrear fuera de `frontend/` y `docs/trabajo/`. Por eso no aplica la regla de `shared/` de `AGENTS.md` y no corrí el backend.
+
+### 1. Cumplimiento de 03c1 (reparto de DH-14, §D-7)
+- **7.1:** `SECCIONES_DE_LA_CLASE` es una sola lista para las tres perspectivas: Avisos · Actividades de aprendizaje · Personas · Calificaciones, sin "Foro". `crearTarea` sale de `CapacidadesDePerspectiva`, y `TEXTOS_CLASE.alumnos` y `.maestrosDeLaClase` salen del todo. `TEXTOS_CLASE.recursos` y `.dudas` se suman ya (§D-7.1 lo pide), aunque nadie los lee hasta 03d y 03e.
+- **7.2 con N-47:**
+  - `ul` con `relative flex`, `li` con `shrink-0` y enlace con `whitespace-nowrap`.
+  - El indicador usa `translate-x-(--indicador-x)` y `w-(--indicador-ancho)` con las dos variables en `style`, la excepción de A-01; no hay corchetes arbitrarios. Sin sección activa no se monta.
+  - `useLayoutEffect` mide y desplaza solo al montar y al cambiar de sección. `ResizeObserver` y `document.fonts.ready` vuelven a medir sin desplazar, cada uno con su guarda, y se desconectan al desmontar.
+  - `CLASES_DEL_INDICADOR_POR_SECCIONES` y `CLASES_DE_LA_REJILLA_POR_SECCIONES` salen; `CLASES_DE_POSICION_DEL_INDICADOR` queda con `""` y `"translate-x-full"`.
+  - N-47: `clase-layout.test.tsx` ya no habla de cuartos ni quintos (grep 0).
+  - Los remedios de T-01 (la medida ligada a la `base`) y de T-02 (`opcionEnElPanel`, que mide y nunca escribe) siguen en su lugar.
+- **7.3:** `components/seccion/hooks.ts` tiene el cuerpo exacto de la copia que había en `calificaciones`. `features/calificaciones/hooks.ts` solo lo reexporta, y es lo único que cambia en ese módulo fuera de sus pruebas. `MuroView` cambia su efecto de T-35 por el gancho, con el mismo comportamiento: en error, `refetch`; sana, nada.
+- **7.4:** `personas` existe en las tres ramas. `alumnos` (maestro), y `alumnos` y `maestros` (admin), redirigen con `<Navigate to="../personas" replace />`. `trabajo` se conserva.
+- **7.7:** `PersonasView` decide por `perspectivaDeRuta`.
+  - El estudiante ve lo mismo que antes.
+  - El maestro ve `MaestrosDeLaClaseEnLectura`, que sale de `useClase` sin petición nueva y usa `ListaMaestrosDeClase` con `puedeQuitar={false}`, y después `AlumnosView`.
+  - El admin ve `MaestrosDeClaseView` y después `AlumnosView`.
+  - `data-candidato-maestro-id` aparece en las dos filas y en los dos `useFilaEnFoco`.
+- **Textos de §D-13 de 03c**, con la corrección 1 de la Enmienda 4, en `data.ts`:
+  - `TEXTOS_CLASE.avisos`, `.trabajo` y `.personas`.
+  - `TEXTOS_MURO`: el `tituloLista` "Avisos", los tres vacíos (el del admin, "Publica el primer aviso de esta clase."), "Ver más avisos" y R1.
+  - `TEXTOS_TRABAJO`: el vacío, R2 y la recarga fallida.
+  - `TEXTOS_TEMAS.consecuenciaSinConteo`, que se suma ahora y se usa en 03c2.
+  - `TEXTOS_MAESTROS_DE_CLASE.consecuencia`.
+
+  En el código de producción no queda ningún "Muro", "Publicaciones" ni "Trabajo de clase" visible (grep sin pruebas ni comentarios).
+- **"Avisos" sin "Crear tarea":** `MuroView` pierde el enlace y sus importaciones. "Ver más avisos" usa `enEspera={publicaciones.isFetching}` (`muro-view.tsx:145`).
+- **R1 y R2:** el gancho compartido está en `MuroView`, en `TrabajoView` (la lista de temas en error) y en `SeccionDeTema` (cada tema en error; los sanos no piden nada, S-10).
+- **Pruebas requeridas:** encontré con `npx vitest list` todos los casos de 03c1:
+  - `secciones-03c1.test.tsx`: CL3-C01 (3), CL3-C02 (7) y CL3-C04 (también lo cita el tester en `indicador-03c1-r1`).
+  - `lib.test.ts`: CL3-C03 (5).
+  - `app/clase-03c1.test.tsx`: CL3-C05 (9), CL3-C06 (3), CL3-C07 (2), CL3-C12 (5: a, b, c, d y "sana no pide"), CL3-C13 (5: a con un tema en error, a con la lista de temas en error, b, c y d) y CL3-C18 (7).
+  - `components/seccion/hooks.test.tsx`: CL3-C16 (4).
+  - `textos-03c1.test.ts`: CL3-C17 (5).
+  - `personas-ver-mas-03c1.test.tsx`: CL3-C1R1-01 (1).
+  - `opcion-en-el-panel-03c1.test.ts`: los 5 casos de `opcionEnElPanel`.
+- **Lo de 03c2 no entró:** no hay `tipo=anuncio`, `seccion=actividades`, `useTemasDeLaSeccion`, `useMontado` ni guardas de §D-12 en el diff. Es correcto.
+- **Hallazgos y arbitraje:**
+  - T-01, T-02 y T-03 están corregidos. Sus casos de la ronda 1 están verdes en mi corrida, y la ronda 2 fijó los estados vecinos que pedí (24 casos verdes).
+  - T-03 se aplicó solo en `tabla-alumnos.tsx:218` y `personas-view.tsx:73`. Los otros cinco «Ver más» con `isFetchingNextPage` (grep: `clases-admin-view.tsx:78`, `comentarios-de-publicacion.tsx:180`, `panel-mis-clases.tsx:61`, `admin/components/tabla-enlaces.tsx:240` y `registrados-del-enlace.tsx:71`) son las filas 24 a 28 de CHORE-04, que ya están en `ESTADO.md`.
+  - O-01 y O-02 quedan cerradas como observación, sin destino (arbitraje de la ronda 1).
+  - No hay desacuerdos abiertos.
+
+### 2. V-01 y "No se toca"
+- **V-01:** comparé las **235 de 235** `*.ataque` con la tabla de la ronda 2 (`join` por ruta, `sha256sum` de `git ls-files` más las no rastreadas): 0 diferencias, 0 faltantes, 0 sobrantes.
+  - Contra `e502381` cambiaron 24 `*.ataque`. Todas son reescrituras del tester en la ronda 0 de 03c1: 21, más las 2 de P-03c1-1 y la de la adenda 2 (C-20).
+  - Hay 5 nuevas: `estatico-03c1-r1`, `indicador-03c1-r1`, `indicador-03c1-r2`, `app/personas-03c1-r1` y `app/personas-03c1-r2`.
+  - El programador no cambió ninguna `*.ataque`.
+- **Pruebas normales cambiadas:** todas están en la lista cerrada de 03c1, con la Enmienda 5: `marco.test.tsx:302,305`, `router-01d.test.tsx`, `clase-layout.test.tsx`, `lib.test.ts`, `maestros-de-clase-view.test.tsx`, `muro-view.test.tsx`, `features/clases/recuperar-ch3.test.tsx`, `tarjeta-de-tarea.test.tsx` y `trabajo-view.test.tsx`.
+- **Excepción autorizada:** `features/tareas/recuperar-ch3.test.tsx` cambia solo en `:449` (título) y `:470` (`/Actividades de aprendizaje/`), según `git diff -U0`.
+- **Fuera de las pruebas**, en `features/tareas`, `features/admin`, `features/auth`, `features/diagnostico`, `features/calificaciones`, `lib/`, `services/`, `app/providers.tsx`, `app/require-*`, `components/ui|adjuntos|foco|layout|clase` y `styles/`: el único cambio es `features/calificaciones/hooks.ts`, la reexportación permitida. `components/seccion/` es la carpeta nueva de DH-06.
+- **Capas y estilo:**
+  - `useIndicadorDeSecciones` vive en `hooks.ts`; las funciones puras, en `lib.ts`; los tipos, en `types.ts`. En los componentes solo hay interfaces de Props.
+  - Hay retornos tempranos y ningún ternario anidado en JSX.
+  - No hay valores por defecto silenciosos. `MaestrosDeLaClaseEnLectura` sigue el orden error → cargando → datos.
+- **Diseño:** el único valor suelto es el `style` de las dos variables medidas, que A-01 documenta como excepción. El estado de la sección va con `aria-current` y `text-link`, no solo con el indicador. "Personas" junta paneles que ya existían, sin `primary` (grep 0), y no hay patrón visual nuevo fuera de lo que documentan A-01 y A-02.
+
+### 3. Documentos aplicados por el orquestador (contra el plan)
+Hashes reproducidos: `DESIGN.md` `0c85338b…`, `CLAUDE.md` `c9a2f534…` y `ARCHITECTURE-ESSENTIALS.md` `b93f7275…`. La copia `DESIGN-antes-03c1.md` es igual a `HEAD`. La copia `ESTADO-antes-03c1.md` difiere de `HEAD` solo en §2 (el hash de `<K3b>`), que es anterior a 03c1.
+
+**Cotejo literal** (comprobé con Python que cada texto aplicado es una subcadena exacta de `plan.md`):
+- **A-01** (§7.3, la viñeta entera, con la excepción del `style`): literal.
+- **A-02** (§7.16):
+  - La viñeta "Secciones (propuesta (DOCS-04); fijada en propuesta (CLASES-03c))": literal.
+  - Las tres remisiones ("Actividades de aprendizaje: §7.22.", "Recursos: §7.30 (…CLASES-03d).", "Dudas: §7.31 (…CLASES-03e).") reemplazan las viñetas viejas en su lugar.
+  - "Foro" queda intacto.
+  - En "Perspectivas" cambia solo la frase que manda el plan.
+  - La frase de §7.17 (`DESIGN.md:681`) es literal.
+- **A-03** (frase de entrada de §7.18): literal.
+- **A-04** (frase de entrada de §7.22):
+  - Es igual al texto del plan si se le devuelve la frase de los conteos, que es justo la que DH-14 deja para 03c2.
+  - R2 en "Carga por tema" y el texto de "Recarga fallida" coinciden con §D-13.
+- **A-08** (`CLAUDE.md`, después de `components/foco/`): literal. Solo falta el punto final, igual que en las viñetas vecinas.
+- **A-11** ("Interfaz" de ESSENTIALS): literal.
+
+**Marcas de origen:** ninguna se borró.
+- "Con siete opciones (propuesta (DOCS-04)…)" y "Siete secciones (propuesta (DOCS-04)…)" pasan a "(propuesta (DOCS-04); fijada en propuesta (CLASES-03c))".
+- Las frases de entrada de §7.18 y §7.22, que remitían a "propuesta (DOCS-04)", ahora la llevan con su "fijada en".
+- "Perspectivas (propuesta (CLASES-02c))" conserva su marca.
+- Las viñetas hijas que se fueron no tenían marca propia.
+
+**Patrón visual nuevo documentado en DESIGN.md en este encargo:**
+- El indicador medido y la excepción del `style` están en A-01.
+- "Personas" con maestros arriba y alumnos abajo, por perspectiva, está en A-02.
+- "Avisos" sin "Crear tarea" está en A-02 y A-03.
+- No veo otro patrón nuevo en 03c1. `MaestrosDeLaClaseEnLectura` es un `Card` con `h2`, el panel de siempre.
+
+**`ESTADO.md` (contra la copia previa):**
+- N-47 está marcado "Hecho en CLASES-03c1".
+- N-54 dice "Cumplido en Avisos y Actividades de aprendizaje … Recursos y Dudas lo usarán en CLASES-03d y 03e; queda el resto del inventario".
+- La fila de los "Ver más" dice que el roster y los compañeros quedaron hechos y que lo demás pasa a CHORE-04, filas 26 a 28.
+- Las filas 26, 27 y 28 están en el inventario de CHORE-04, con la nota de los dos `inicio-sin-datos-*.ataque` en la 28.
+- Las filas 1 y 2 de CHORE-04 y O-16 siguen abiertas. Es correcto: son de 03c2 (A-12).
+
+## Problemas que bloquean
+Ninguno.
+
+## Problemas que no bloquean
+### M-01 — `DESIGN.md` §7.16 se contradice: la viñeta "Secciones" de `ClaseLayout` sigue con los nombres y el indicador de antes
+Dónde: `docs/DESIGN.md:662`, viñeta "**Secciones** (`SeccionesDeClase`)". Todavía dice:
+- "es la segunda sección de las tres perspectivas: "Muro", "Trabajo de clase" y "Personas" (estudiante), "Muro", "Trabajo de clase" y "Alumnos" (maestro)…";
+- "…con el control segmentado de cuatro opciones de §7.3";
+- "Con cinco opciones, el indicador sigue la regla de §7.3", es decir, columnas iguales.
+
+Tres líneas abajo, la viñeta nueva "Secciones (…CLASES-03c)" y A-01 (§7.3) dicen otra cosa.
+
+Por qué importa: `DESIGN.md` es la fuente única del sistema visual, y quien planee 03d lee dos reglas opuestas en la misma sección. No es un error del orquestador: A-02 no incluyó esa viñeta en lo que se reemplaza, así que es un hueco del plan. Como `docs/` fuera de A-01 a A-13 está en "No se toca", el orquestador no puede corregirlo por su cuenta.
+
+Qué se espera: una enmienda del arquitecto (o un A-nn nuevo) con el texto que cierra esa viñeta como historia de CLASES-02 y CALIFICACIONES-01d. Por ejemplo, una frase final del tipo "Desde CLASES-03, los nombres, el orden y el indicador son los de «Secciones», abajo, y §7.3 «Secciones de una clase»". Debe aplicarse a más tardar al cerrar 03c2, y la revisión final de 03c2 lo verifica. No frena el commit de 03c1.
+
+### M-02 — Frases de A-03 y A-04 que solo se vuelven verdad con 03c2. Se aceptan; no hay que esperar
+Dónde:
+- `DESIGN.md:685`, la frase de entrada de §7.18: "el muro se llama "Avisos" y solo lista anuncios".
+- `DESIGN.md:753`, la frase de entrada de §7.22: "solo lista actividades (hoy, tareas)".
+- Por arrastre, la de §7.18 que dice que la tarea en el muro, "Tema" del material, "Tipo con una publicación en vuelo" y "Crear tarea" "solo se alcanzan por compatibilidad".
+
+Por qué importa: en el commit de 03c1, "Avisos" todavía pide `…/publicaciones` sin `tipo=anuncio` y "Actividades" pide `…/trabajo` sin `seccion=actividades`. Así que la lista de Avisos todavía muestra materiales y tareas, y la de Actividades todavía muestra materiales. Esos filtros son CL3-C08 y CL3-C09, de 03c2.
+
+Dictamen: son aceptables tal como están, y ninguna frase tiene que esperar a 03c2.
+1. DH-14, aprobado por el humano, asigna estas frases a 03c1. Solo deja para 03c2 la frase de los conteos y la parte de O-16 y CHORE-04. Recortarlas ahora sería apartarse del texto aprobado.
+2. La rama no se despliega hasta después de 03e (A-13, DEPLOY), y el commit de 03c2 viene en seguida.
+3. Las referencias hacia adelante (los seis nombres con Recursos y Dudas, los segmentos `recursos` y `dudas`, §7.30, §7.31, "Hasta FORO-01 son seis" de ESSENTIALS y "Recursos y Dudas" en A-08) se escribieron así aposta: el plan las aplicaba al cerrar 03c aunque no se partiera, y 03c nunca iba a traer Recursos ni Dudas.
+
+Qué se espera: que la revisión final de 03c2 compruebe que las dos frases "solo lista…" ya son verdad (CL3-C08 y CL3-C09 verdes). Además, que `aprobacion.md` anote que, entre `<K3c1>` y `<K3c2>`, esas frases se adelantan a 03c2.
+
+### M-03 — `ESTADO.md` §2 sigue en el estado de antes de 03c1. Paso de cierre del orquestador, antes del commit
+Dónde: `docs/ESTADO.md:236`. Todavía dice "03c1 espera la confirmación del humano de los textos de §D-13 (DH-12)" y "DH-12 … pendiente", con las cifras del frontend 237 / 5310 y 230 `*.ataque`.
+
+Qué se espera: antes del `git add`, §2 debe decir:
+- DH-12 cerrada, con la Enmienda 4.
+- Las Enmiendas 4 a 7 y el plan `84074f4a…`.
+- 03c1 cerrada: ronda 1 ROTO (T-01 a T-03, corregidos), ronda 2 RESISTE y revisión final APROBADO CON OBSERVACIONES.
+- Frontend 248 / 5434 y 235 `*.ataque`.
+- Pendiente del commit `<K3c1>`.
+
+## Detalles menores
+- **M-02 de la verificación del resumen**, `trabajo-view.tsx:49`: el comentario de 132 caracteres que agregó este encargo ("…DH-09). El alumno lo ve agrupado por tema y de solo lectura;") sigue sin partir. Va a 03c2, que toca el archivo. Prettier no reacomoda comentarios.
+- **M-01 de la verificación del resumen**, el comentario de `CapacidadesDePerspectiva`: ya se movió en la ronda 1. Está cerrado.
+- El texto que A-02 reemplazó en §7.16 se llevó la nota "'Exportar a Excel' del gradebook lo diseña CALIFICACIONES-02". No se pierde ninguna decisión, porque PRD RF-65 la conserva. Se puede devolver si el arquitecto toca §7.16 por M-01.
+- **O-03 del tester:** los «Ver más» con `isFetchingNextPage` son las filas 24 a 28 de CHORE-04, ya registradas en `ESTADO.md`.
+
+## Desacuerdos arbitrados
+Ninguno nuevo. Siguen el arbitraje de la ronda 1 (T-01, T-02 y T-03 en 03c1; O-01 y O-02 cerradas) y la decisión del orquestador sobre P-03c1-1 (C-16).
+
+## Documentos a actualizar
+- `ESTADO.md` §2: M-03, antes del commit.
+- `DESIGN.md:662`: M-01, con enmienda del arquitecto, a más tardar al cerrar 03c2.
+- Lo demás que corresponde a 03c1 (A-01, A-02, A-03 y A-04 en su parte, A-08, A-11 y la parte de A-12 de 03c1) ya está aplicado. Quedan para 03c2 la frase de los conteos de A-04 y lo de A-12 sobre O-16 y CHORE-04 (filas 1 y 2).
+
+## Para el humano
+- **Comprobación en navegador:** es una sola, al final de 03e, y ningún agente la hace. Solo dejo registrados los puntos que tocan 03c1:
+  - **H-1:** el indicador a 360, 768 y 1440 px en las tres perspectivas. Debe cubrir la activa al entrar y al cambiar, y a 360 px el grupo se desplaza dentro de su panel.
+  - **H-2:** con zoom al 200 % y tras recargar, cuando las fuentes llegan tarde. La ronda 2 dejó anotado que mezclar `getBoundingClientRect` (fraccionario) con `offsetLeft` (entero) puede dejar menos de 1 px.
+  - **H-6:** "Personas" del admin con el teclado (los dos buscadores y las dos listas). El atributo `data-candidato-maestro-id` es de 03c1.
+  - **H-7**, en su parte de las secciones: el lector de pantalla anuncia la activa.
+- M-02 es informativo: entre el commit de 03c1 y el de 03c2, `DESIGN.md` describe "Avisos" y "Actividades" ya filtradas.
+
+## Rutas para el `git add` del commit de 03c1
+Código (14 modificados y 1 nuevo):
+```
+frontend/src/app/router.tsx
+frontend/src/components/seccion/hooks.ts
+frontend/src/features/calificaciones/hooks.ts
+frontend/src/features/clases/components/buscador-de-maestros.tsx
+frontend/src/features/clases/components/seccion-de-tema.tsx
+frontend/src/features/clases/components/secciones-de-clase.tsx
+frontend/src/features/clases/components/tabla-alumnos.tsx
+frontend/src/features/clases/data.ts
+frontend/src/features/clases/hooks.ts
+frontend/src/features/clases/lib.ts
+frontend/src/features/clases/types.ts
+frontend/src/features/clases/maestros-de-clase-view.tsx
+frontend/src/features/clases/muro-view.tsx
+frontend/src/features/clases/personas-view.tsx
+frontend/src/features/clases/trabajo-view.tsx
+```
+Pruebas normales (10 modificadas y 6 nuevas):
+```
+frontend/src/app/marco.test.tsx
+frontend/src/app/router-01d.test.tsx
+frontend/src/app/clase-03c1.test.tsx
+frontend/src/components/seccion/hooks.test.tsx
+frontend/src/features/clases/clase-layout.test.tsx
+frontend/src/features/clases/lib.test.ts
+frontend/src/features/clases/maestros-de-clase-view.test.tsx
+frontend/src/features/clases/muro-view.test.tsx
+frontend/src/features/clases/recuperar-ch3.test.tsx
+frontend/src/features/clases/tarjeta-de-tarea.test.tsx
+frontend/src/features/clases/trabajo-view.test.tsx
+frontend/src/features/clases/opcion-en-el-panel-03c1.test.ts
+frontend/src/features/clases/personas-ver-mas-03c1.test.tsx
+frontend/src/features/clases/secciones-03c1.test.tsx
+frontend/src/features/clases/textos-03c1.test.ts
+frontend/src/features/tareas/recuperar-ch3.test.tsx
+```
+Pruebas `*.ataque` (24 modificadas y 5 nuevas):
+```
+frontend/src/app/barra-02d-r1.ataque.test.tsx
+frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx
+frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx
+frontend/src/app/rutas-01d-r1.ataque.test.tsx
+frontend/src/app/personas-03c1-r1.ataque.test.tsx
+frontend/src/app/personas-03c1-r2.ataque.test.tsx
+frontend/src/components/layout/estatico-r1.ataque.test.ts
+frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx
+frontend/src/features/clases/archivos-d-r1.ataque.test.tsx
+frontend/src/features/clases/archivos-d-r3.ataque.test.tsx
+frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx
+frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
+frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
+frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts
+frontend/src/features/clases/foco-02c-r3.ataque.test.tsx
+frontend/src/features/clases/foco-02c-r4.ataque.test.tsx
+frontend/src/features/clases/foco-02c-r5.ataque.test.tsx
+frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx
+frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
+frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx
+frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx
+frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx
+frontend/src/features/clases/muro-02c-r1.ataque.test.tsx
+frontend/src/features/clases/muro-c-r1.ataque.test.tsx
+frontend/src/features/clases/muro-c-r2.ataque.test.tsx
+frontend/src/features/clases/muro-c-r3.ataque.test.tsx
+frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx
+frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx
+frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx
+```
+Documentos y carpeta de trabajo:
+```
+AGENTS.md
+CLAUDE.md
+docs/ARCHITECTURE-ESSENTIALS.md
+docs/DESIGN.md
+docs/ESTADO.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/aprobacion.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/plan.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/reporte-tester.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03c1.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03c1-r1.md
+```
+En total son 71 archivos: 15 de código, 16 de pruebas normales, 29 `*.ataque`, 5 documentos y 6 de `docs/trabajo/`. Son exactamente los de `git status -uall` (57 modificados y 14 sin rastrear), sin archivos ajenos. No entra nada de `shared/`, `backend/` ni `infra/`. `AGENTS.md` entra por la regla de `shared/` que autorizó el humano (hash `bb985908…`). `docs/ARCHITECTURE.md` no cambió desde `HEAD`.

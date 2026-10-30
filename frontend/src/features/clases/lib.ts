@@ -41,7 +41,11 @@ import type {
   IncidenciaValidacion,
   LimiteDeConcurrencia,
   ListaTemasRespuesta,
+  MedidaDeOpcion,
+  MedidaDelIndicador,
+  MedidaDelPanel,
   PaginaDelMuro,
+  PosicionDelPanel,
   RolDeClases,
   SeccionDeClase,
   SeccionDeTrabajo,
@@ -82,6 +86,41 @@ export const indiceDeSeccionActiva = (
     return sinBarraFinal === destino || sinBarraFinal.startsWith(`${destino}/`)
   })
 }
+
+// CLASES-03 (§D-7.2, DH-03): el indicador de la sección activa toma la posición y el ancho de su
+// opción, cada una a su ancho natural.
+export const medidaDelIndicador = (opcion: MedidaDeOpcion): MedidaDelIndicador => ({
+  x: opcion.offsetLeft,
+  ancho: opcion.offsetWidth,
+})
+
+// El scrollLeft que deja la opción entera a la vista dentro de su panel, o null si ya lo está. Si la
+// opción es más ancha que el panel, se alinea su inicio.
+export const desplazamientoParaVer = (
+  panel: MedidaDelPanel,
+  opcion: MedidaDeOpcion,
+): number | null => {
+  const inicio = opcion.offsetLeft
+  const fin = opcion.offsetLeft + opcion.offsetWidth
+  if (inicio < panel.scrollLeft) return inicio
+  if (fin <= panel.scrollLeft + panel.clientWidth) return null
+  if (opcion.offsetWidth >= panel.clientWidth) return inicio
+  return fin - panel.clientWidth
+}
+
+// CLASES-03c1 (T-02 de la ronda 1): la opción en las coordenadas del área desplazable del panel, la que
+// usa desplazamientoParaVer. Su offsetLeft se mide desde la lista, y la lista empieza dentro del panel
+// después de su borde y de su relleno: esa distancia se mide (el borde izquierdo de la lista en la
+// ventana menos el del panel y su borde, más lo que el panel lleva desplazado), nunca se escribe.
+export const opcionEnElPanel = (
+  opcion: MedidaDeOpcion,
+  inicioDeLaLista: number,
+  panel: PosicionDelPanel,
+): MedidaDeOpcion => ({
+  offsetLeft:
+    inicioDeLaLista - panel.left - panel.clientLeft + panel.scrollLeft + opcion.offsetLeft,
+  offsetWidth: opcion.offsetWidth,
+})
 
 // "Creada" en la tabla de clases del administrador: fecha corta en la zona local.
 export const formatearFechaDeClase = (iso: string): string => {

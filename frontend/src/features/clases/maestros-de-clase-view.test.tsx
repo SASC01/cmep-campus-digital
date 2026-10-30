@@ -178,7 +178,7 @@ describe("MaestrosDeClaseView", () => {
     fireEvent.click(quitar)
 
     expect(
-      screen.getByText("Dejará de ver la clase. Lo que publicó se queda en el muro."),
+      screen.getByText("Dejará de ver la clase. Lo que publicó se queda en la clase."),
     ).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cancelar Luis Pérez" })).toHaveFocus()
     expect(screen.getByRole("button", { name: "Sí, quitar Luis Pérez" })).toHaveAttribute(

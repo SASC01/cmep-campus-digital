@@ -6,7 +6,12 @@ import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
 import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
 
-import type { CapacidadesDePerspectiva, Perspectiva, TipoPublicacion } from "./types"
+import type {
+  CapacidadesDePerspectiva,
+  Perspectiva,
+  SeccionDeClase,
+  TipoPublicacion,
+} from "./types"
 
 // Claves de consulta de TanStack Query (CLASES-a). Se reutilizan tal cual en las invalidaciones y
 // en la prueba de cambio de identidad (PR-A23a).
@@ -175,7 +180,8 @@ export const TEXTOS_MAESTROS_DE_CLASE = {
   titulo: "Maestros de la clase",
   asignarTitulo: "Asignar maestro",
   quitar: "Quitar",
-  consecuencia: "Dejará de ver la clase. Lo que publicó se queda en el muro.",
+  // CLASES-03 (§D-13): "el muro" ya no es el nombre de una sección.
+  consecuencia: "Dejará de ver la clase. Lo que publicó se queda en la clase.",
   siQuitar: "Sí, quitar",
   cancelar: "Cancelar",
   minimo: "Una clase necesita al menos un maestro. Asigna a otro antes de quitar a este.",
@@ -275,12 +281,13 @@ export const TEXTOS_CLASE = {
   volverALaLista: "Volver a la lista de clases",
   maestro: (nombre: string) => `Maestro: ${nombre}`,
   maestros: (nombres: string) => `Maestros: ${nombres}`,
-  muro: "Muro",
-  // TAREAS-01e (§D-11): la sección nueva, segunda en las tres perspectivas.
-  trabajo: "Trabajo de clase",
+  // CLASES-03 (§D-7.1, §D-13, RF-60 y RF-61): las secciones de la clase, iguales en las tres
+  // perspectivas. "Recursos" y "Dudas" entran en la lista en 03d y 03e.
+  avisos: "Avisos",
+  trabajo: "Actividades de aprendizaje",
+  recursos: "Recursos",
+  dudas: "Dudas",
   personas: "Personas",
-  alumnos: "Alumnos",
-  maestrosDeLaClase: "Maestros",
   // CALIFICACIONES-01d (§D-13.6, S-10): la sección nueva, última en las tres perspectivas.
   calificaciones: "Calificaciones",
   editar: "Editar clase",
@@ -335,15 +342,19 @@ export const TEXTOS_TABLA_ALUMNOS = {
 } as const
 
 // §D-C6: textos de CLASES-c (propuesta).
+// CLASES-03 (§D-7.5, §D-13): la sección se llama "Avisos" (el archivo y la clave siguen siendo del
+// muro, DH-09). Sin "Crear tarea" (S-09): las tareas se crean en "Actividades de aprendizaje".
 export const TEXTOS_MURO = {
-  crearTarea: "Crear tarea",
-  tituloLista: "Publicaciones",
-  vacioEstudiante: "Tu maestro aún no ha publicado nada en esta clase.",
-  vacioMaestro: "Publica el primer anuncio o material de tu clase.",
-  vacioAdmin: "Aún no hay publicaciones en esta clase.",
-  verMasPublicaciones: "Ver más publicaciones",
+  tituloLista: "Avisos",
+  vacioEstudiante: "Aún no hay avisos en esta clase.",
+  vacioMaestro: "Publica el primer aviso de tu clase.",
+  vacioAdmin: "Publica el primer aviso de esta clase.",
+  verMasPublicaciones: "Ver más avisos",
   avisoPublicacionBorrada: "Publicación borrada",
-  cambioMientrasLoVeias: "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.",
+  // R1 (§D-10): la acción que pide se cumple al pulsar "Avisos" estando en Avisos, al ir a otra
+  // sección y regresar, y con atrás y adelante del historial.
+  cambioMientrasLoVeias:
+    "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos.",
 } as const
 
 export const TEXTOS_FORMULARIO_PUBLICACION = {
@@ -410,6 +421,15 @@ export {
 // son URL firmadas que vencen a los 5 minutos de firmarse.
 export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
 
+// CLASES-03 (§D-7.1, RF-60, S-08): las secciones de la clase, en este orden y las mismas en las tres
+// perspectivas; "Personas" junta a los maestros y el roster (§D-7.7). Sin "Foro" (FORO-01).
+const SECCIONES_DE_LA_CLASE: readonly SeccionDeClase[] = [
+  { segmento: "", texto: TEXTOS_CLASE.avisos },
+  { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
+  { segmento: "personas", texto: TEXTOS_CLASE.personas },
+  { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
+]
+
 // §D-2C1: lo que cada perspectiva ve de una clase. La interfaz solo decide qué mostrar; el backend
 // ya decide qué se permite (§D-2.0). Ninguna capacidad sustituye una comprobación del backend. El
 // botón de borrar no está aquí: sale de `puedeBorrar` de cada publicación y comentario.
@@ -418,79 +438,40 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     base: BASES_POR_PERSPECTIVA.estudiante,
     volverDestino: "/estudiante",
     volverTexto: TEXTOS_CLASE.volver,
-    secciones: [
-      { segmento: "", texto: TEXTOS_CLASE.muro },
-      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
-      { segmento: "personas", texto: TEXTOS_CLASE.personas },
-      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
-    ],
+    secciones: SECCIONES_DE_LA_CLASE,
     verCodigo: false,
     editar: false,
     formularioPublicacion: false,
     formularioComentario: true,
-    crearTarea: false,
     gestionarTrabajo: false,
   },
   maestro: {
     base: BASES_POR_PERSPECTIVA.maestro,
     volverDestino: "/maestro",
     volverTexto: TEXTOS_CLASE.volver,
-    secciones: [
-      { segmento: "", texto: TEXTOS_CLASE.muro },
-      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
-      { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
-      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
-    ],
+    secciones: SECCIONES_DE_LA_CLASE,
     verCodigo: true,
     editar: false,
     formularioPublicacion: true,
     formularioComentario: true,
-    crearTarea: true,
     gestionarTrabajo: true,
   },
   admin: {
     base: BASES_POR_PERSPECTIVA.admin,
     volverDestino: "/admin/clases",
     volverTexto: TEXTOS_CLASE.volverALaLista,
-    secciones: [
-      { segmento: "", texto: TEXTOS_CLASE.muro },
-      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
-      { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
-      { segmento: "maestros", texto: TEXTOS_CLASE.maestrosDeLaClase },
-      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
-    ],
+    secciones: SECCIONES_DE_LA_CLASE,
     verCodigo: true,
     editar: true,
     formularioPublicacion: true,
     formularioComentario: false,
-    crearTarea: true,
     gestionarTrabajo: true,
   },
 }
 
-// §D-2C1: el indicador de las secciones mide 1/N y se traslada una posición por sección. Clases
-// completas, escritas enteras para que Tailwind las encuentre. TAREAS-01e (§D-11): con "Trabajo de
-// clase" son tres (estudiante y maestro) o cuatro (admin). CALIFICACIONES-01d (§D-13.6): con
-// "Calificaciones" son cuatro o cinco.
-export const CLASES_DEL_INDICADOR_POR_SECCIONES: Record<number, string> = {
-  2: "w-1/2",
-  3: "w-1/3",
-  4: "w-1/4",
-  5: "w-1/5",
-}
-export const CLASES_DE_LA_REJILLA_POR_SECCIONES: Record<number, string> = {
-  2: "grid-cols-2",
-  3: "grid-cols-3",
-  4: "grid-cols-4",
-  5: "grid-cols-5",
-}
-export const CLASES_DE_POSICION_DEL_INDICADOR = [
-  "",
-  "translate-x-full",
-  "translate-x-[200%]",
-  "translate-x-[300%]",
-  "translate-x-[400%]",
-] as const
+// El indicador de un control de dos opciones (el tipo de publicación del formulario del muro) se
+// traslada una posición. Las secciones de la clase ya no lo usan: su indicador se mide (§D-7.2).
+export const CLASES_DE_POSICION_DEL_INDICADOR = ["", "translate-x-full"] as const
 
 // TAREAS-01e (§D-11, Enmienda 5): "Trabajo de clase" pide la primera página de cada tema de 5 en 5,
 // "Ver más" de 20 en 20, y como máximo 6 lecturas a la vez (el limitador de hooks.ts).
@@ -505,23 +486,25 @@ export const TEXTOS_TRABAJO = {
   titulo: TEXTOS_CLASE.trabajo,
   sinTema: TEXTOS_FORMULARIO_PUBLICACION.sinTema,
   temaVacio: "Aún no hay nada en este tema.",
-  vacio: "Aún no hay tareas ni materiales en esta clase.",
+  vacio: "Aún no hay actividades en esta clase.",
   cargandoTema: (nombre: string) => `Cargando ${nombre}`,
   conteo: (n: number) => (n === 1 ? "1 elemento" : `${n} elementos`),
   verMaterial: "Ver material",
   ocultarMaterial: "Ocultar material",
   verMasDe: (nombre: string) => `Ver más de ${nombre}`,
-  crearTarea: TEXTOS_MURO.crearTarea,
+  crearTarea: "Crear tarea",
   nuevoTema: "Nuevo tema",
   categorias: "Categorías de calificación",
   tarea: "Tarea:",
   // El cuadro de fecha de una fecha que no se puede leer (la fila dice "Fecha límite no disponible").
   diaNoDisponible: "—",
   insigniaMaterial: TEXTOS_PUBLICACION.insigniaMaterial,
+  // R2 (§D-10): la acción que pide se cumple al pulsar "Actividades de aprendizaje" estando ahí, al ir
+  // a otra sección y regresar, y con atrás y adelante del historial.
   cambioMientrasLoVeias:
-    "Este tema cambió mientras lo veías. Vuelve a abrir Trabajo de clase para verlo completo.",
+    "Este tema cambió mientras lo veías. Vuelve a abrir Actividades de aprendizaje para verlo completo.",
   recargaFallida:
-    "No pudimos actualizar Trabajo de clase. Mostramos la última versión que tenemos.",
+    "No pudimos actualizar Actividades de aprendizaje. Mostramos la última versión que tenemos.",
 } as const
 
 export const TEXTOS_TEMAS = {
@@ -539,6 +522,8 @@ export const TEXTOS_TEMAS = {
     if (n === 1) return "Su elemento pasará a «Sin tema»."
     return `Sus ${n} elementos pasarán a «Sin tema».`
   },
+  // CLASES-03 (§D-7.6, §D-13): sin el conteo total del tema (no llegó o no tiene el tema).
+  consecuenciaSinConteo: "Sus actividades y recursos pasarán a «Sin tema».",
   siBorrar: "Sí, borrar tema",
   temaDe: (titulo: string) => `Tema de «${titulo}»`,
   mover: "Mover",

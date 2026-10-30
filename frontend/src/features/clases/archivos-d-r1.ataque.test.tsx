@@ -164,6 +164,7 @@ afterEach(() => {
   navegacion.irA.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos». Sigue protegiendo lo mismo.
 describe("ataque d-r1: la lista de archivos con la publicación en vuelo", () => {
   it("«Quitar» un archivo mientras se suben los anteriores: o no se deja quitar, o no se publica", async () => {
     const { llamadas, soltar } = stubFlujo({ retenerSolicitud: 1 })
@@ -483,7 +484,7 @@ describe("ataque d-r1: el muro", () => {
     expect(screen.queryByText("Material 1")).not.toBeInTheDocument()
   })
 
-  it("las vistas previas que pinta el muro siguen vigentes al volver a él después de «Ver más publicaciones» (staleTime frente a los 5 minutos)", async () => {
+  it("las vistas previas que pinta el muro siguen vigentes al volver a él después de «Ver más avisos» (staleTime frente a los 5 minutos)", async () => {
     const t0 = Date.UTC(2026, 9, 2, 15, 0, 0)
     let ahora = t0
     vi.spyOn(Date, "now").mockImplementation(() => ahora)
@@ -510,7 +511,7 @@ describe("ataque d-r1: el muro", () => {
     await screen.findByRole("img", { name: "Imagen adjunta: Imagen 1.png" })
 
     ahora = t0 + 3 * 60_000
-    fireEvent.click(screen.getByRole("button", { name: "Ver más publicaciones" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ver más avisos" }))
     await screen.findByRole("img", { name: "Imagen adjunta: Imagen 2.png" })
     primera.unmount()
 

@@ -1,14 +1,12 @@
 import { useEffect, useRef, type ReactNode } from "react"
-import { Plus } from "lucide-react"
-import { Link, useLocation } from "react-router"
+import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
+import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
-import { buttonVariants } from "@/components/ui/button-variants"
 import { Card } from "@/components/ui/card"
-import { baseDeClase } from "@/lib/ruta-de-clase"
 
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
@@ -29,7 +27,8 @@ const tituloDelMuroVacio = (perspectiva: Perspectiva): string => {
   return TEXTOS_MURO.vacioEstudiante
 }
 
-// §D-C5, §D-2C1: el muro de una clase. El maestro y el admin ven arriba el formulario para publicar
+// §D-C5, §D-2C1: el muro de una clase, la sección "Avisos" desde CLASES-03 (§D-7.5; sin "Crear tarea",
+// S-09). El maestro y el admin ven arriba el formulario para publicar
 // (su "Publicar anuncio" o "Publicar material" es la única acción principal de la vista); el
 // estudiante solo lee y comenta, y el admin lee sin comentar. La ruta decide la perspectiva por su
 // prefijo, igual que ClaseLayout (§D-A5); el backend lo exige por su cuenta. Estados de la lista en
@@ -58,19 +57,15 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
     return fila !== null
   }
 
-  // T-35: pulsar "Muro" estando en el muro agrega una entrada con la misma ruta, pero la vista no se
-  // desmonta. Si la lista estaba en error (el cursor ya no existe), esa navegación la vuelve a pedir
-  // desde la primera página, sin recargar. Con la lista sana no hace nada.
-  const llaveDeLaUbicacion = useRef(ubicacion.key)
-  const { isError, refetch } = publicaciones
-  useEffect(() => {
-    if (llaveDeLaUbicacion.current === ubicacion.key) return
-    llaveDeLaUbicacion.current = ubicacion.key
-    if (!isError) return
-    void refetch()
-  }, [ubicacion.key, isError, refetch])
+  // T-35 y R1 (§D-10 a): pulsar "Avisos" estando en Avisos agrega una entrada con la misma ruta, pero
+  // la vista no se desmonta. Si la lista estaba en error (el cursor ya no existe), esa navegación la
+  // vuelve a pedir desde la primera página, sin recargar. Con la lista sana no hace nada (S-10).
+  useAlPulsarLaSeccionActiva(() => {
+    if (!publicaciones.isError) return
+    void publicaciones.refetch()
+  })
 
-  // "Ver más publicaciones" se desmonta con el foco dentro al cargar la última página (§7.14): el foco
+  // "Ver más avisos" se desmonta con el foco dentro al cargar la última página (§7.14): el foco
   // va a la primera publicación nueva o, si no llegó ninguna, al encabezado de la lista.
   const refVerMas = useFocoAlCargarMas(ids, enfocarPublicacion, () =>
     encabezadoRef.current?.focus(),
@@ -159,17 +154,6 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].crearTarea && (
-        <div>
-          <Link
-            to={`${baseDeClase(perspectiva, claseId)}/tareas/nueva`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <Plus aria-hidden="true" />
-            {TEXTOS_MURO.crearTarea}
-          </Link>
-        </div>
-      )}
       {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioPublicacion && (
         <FormularioPublicacion claseId={claseId} />
       )}

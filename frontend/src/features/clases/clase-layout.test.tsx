@@ -70,13 +70,12 @@ const renderLayout = (ruta: string) => {
             <Route index element={<p>muro maestro</p>} />
             <Route path="trabajo" element={<p>trabajo maestro</p>} />
             <Route path="categorias" element={<p>categorias maestro</p>} />
-            <Route path="alumnos" element={<p>alumnos maestro</p>} />
+            <Route path="personas" element={<p>personas maestro</p>} />
           </Route>
           <Route path="/admin/clases/:claseId" element={<ClaseLayout />}>
             <Route index element={<p>muro admin</p>} />
             <Route path="trabajo" element={<p>trabajo admin</p>} />
-            <Route path="alumnos" element={<p>alumnos admin</p>} />
-            <Route path="maestros" element={<p>maestros admin</p>} />
+            <Route path="personas" element={<p>personas admin</p>} />
             <Route path="editar" element={<p>editar admin</p>} />
           </Route>
         </Routes>
@@ -96,8 +95,42 @@ beforeEach(() => {
 afterEach(() => {
   limpiarToken()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   aviso.success.mockClear()
   aviso.error.mockClear()
+})
+
+// CLASES-03 (DH-03, §D-7.2): jsdom no mide. Cada opción de "Secciones de la clase" simula su posición
+// (índice × 100 px) y su ancho (80 + índice × 10 px); el indicador debe llevar los de la activa en sus
+// dos variables CSS.
+const indiceEnSecciones = (elemento: HTMLElement) => {
+  const lista = elemento.parentElement
+  if (elemento.tagName !== "LI" || lista?.getAttribute("aria-label") !== "Secciones de la clase")
+    return -1
+  return Array.from(lista.children).indexOf(elemento)
+}
+const simularMedidas = () => {
+  vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const i = indiceEnSecciones(this)
+    return i < 0 ? 0 : i * 100
+  })
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const i = indiceEnSecciones(this)
+    return i < 0 ? 0 : 80 + i * 10
+  })
+}
+const medidasDelIndicador = (indicador: Element | null | undefined) => ({
+  x: indicador instanceof HTMLElement ? indicador.style.getPropertyValue("--indicador-x") : null,
+  ancho:
+    indicador instanceof HTMLElement ? indicador.style.getPropertyValue("--indicador-ancho") : null,
+})
+const medidasDeLaOpcion = (i: number) => ({
+  x: `${String(i * 100)}px`,
+  ancho: `${String(80 + i * 10)}px`,
 })
 
 describe("ClaseLayout", () => {
@@ -118,13 +151,14 @@ describe("ClaseLayout", () => {
 
     const lista = await screen.findByRole("list", { name: "Secciones de la clase" })
     expect(lista.tagName).toBe("UL")
-    expect(screen.getByRole("link", { name: "Muro" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "Avisos" })).toHaveAttribute("aria-current", "page")
     expect(
       screen.queryByRole("navigation", { name: "Secciones de la clase" }),
     ).not.toBeInTheDocument()
   })
 
-  it("PR-B14: las secciones suman 'Personas' (estudiante) y 'Alumnos' (maestro)", async () => {
+  // CLASES-03 (§D-7.1, DH-09): "Personas" es la sección de las tres perspectivas; "Alumnos" ya no.
+  it("PR-B14: las secciones suman 'Personas' (estudiante y maestro), sin 'Alumnos'", async () => {
     stubApi({})
     renderLayout(`/estudiante/clases/${CLASE_ID}`)
     await screen.findByRole("list", { name: "Secciones de la clase" })
@@ -139,11 +173,11 @@ describe("ClaseLayout", () => {
     renderLayout(`/maestro/clases/${CLASE_ID}`)
     await screen.findByRole("list", { name: "Secciones de la clase" })
 
-    expect(screen.getByRole("link", { name: "Alumnos" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute(
       "href",
-      `/maestro/clases/${CLASE_ID}/alumnos`,
+      `/maestro/clases/${CLASE_ID}/personas`,
     )
-    expect(screen.queryByRole("link", { name: "Personas" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "Alumnos" })).not.toBeInTheDocument()
   })
 
   it("PR-A22c: el maestro copia el código (portapapeles doble), y un fallo da un toast", async () => {
@@ -203,7 +237,7 @@ describe("indicador de las secciones de la clase", () => {
           <Routes>
             <Route path="/maestro/clases/:claseId" element={<ClaseLayout />}>
               <Route index element={<p>muro maestro</p>} />
-              <Route path="alumnos" element={<p>alumnos maestro</p>} />
+              <Route path="personas" element={<p>personas maestro</p>} />
               <Route path="editar" element={<p>editar maestro</p>} />
             </Route>
           </Routes>
@@ -216,34 +250,35 @@ describe("indicador de las secciones de la clase", () => {
   const indicadoresDe = (lista: HTMLElement) =>
     Array.from(lista.parentElement?.querySelectorAll(':scope > span[aria-hidden="true"]') ?? [])
 
-  // TAREAS-01e (C-11, §D-11): con "Trabajo de clase" segunda, Alumnos pasa a la tercera posición del
-  // maestro (translate-x-[200%]). Sigue protegiendo que el indicador siga a la sección activa y que en
-  // editar no haya indicador.
-  it("M-T1: en el muro el indicador va bajo la primera sección, en alumnos bajo la segunda y en editar no hay indicador", async () => {
+  // CLASES-03 (DH-03, §D-7.2): el indicador toma la posición y el ancho medidos de la opción activa
+  // ("Personas" es la tercera del maestro). Sigue protegiendo que el indicador siga a la sección activa
+  // y que en editar no haya indicador.
+  it("M-T1: en Avisos el indicador va bajo la primera sección, en Personas bajo la tercera y en editar no hay indicador", async () => {
     stubApi({})
+    simularMedidas()
 
     renderMaestro(`/maestro/clases/${CLASE_ID}`)
     let lista = await screen.findByRole("list", { name: "Secciones de la clase" })
-    expect(screen.getByRole("link", { name: "Muro" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "Avisos" })).toHaveAttribute("aria-current", "page")
     let indicadores = indicadoresDe(lista)
     expect(indicadores).toHaveLength(1)
-    // Sin otra forma de ver la posición (aria-hidden): la clase que lo desplaza una columna.
-    expect(indicadores[0]).not.toHaveClass("translate-x-full")
+    // Sin otra forma de ver la posición (aria-hidden): sus dos variables medidas.
+    await waitFor(() => expect(medidasDelIndicador(indicadores[0])).toEqual(medidasDeLaOpcion(0)))
     cleanup()
 
-    renderMaestro(`/maestro/clases/${CLASE_ID}/alumnos`)
+    renderMaestro(`/maestro/clases/${CLASE_ID}/personas`)
     lista = await screen.findByRole("list", { name: "Secciones de la clase" })
-    expect(screen.getByRole("link", { name: "Alumnos" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute("aria-current", "page")
     indicadores = indicadoresDe(lista)
     expect(indicadores).toHaveLength(1)
-    expect(indicadores[0]).toHaveClass("translate-x-[200%]")
+    await waitFor(() => expect(medidasDelIndicador(indicadores[0])).toEqual(medidasDeLaOpcion(2)))
     cleanup()
 
     renderMaestro(`/maestro/clases/${CLASE_ID}/editar`)
     lista = await screen.findByRole("list", { name: "Secciones de la clase" })
     expect(await screen.findByText("editar maestro")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Muro" })).not.toHaveAttribute("aria-current")
-    expect(screen.getByRole("link", { name: "Alumnos" })).not.toHaveAttribute("aria-current")
+    expect(screen.getByRole("link", { name: "Avisos" })).not.toHaveAttribute("aria-current")
+    expect(screen.getByRole("link", { name: "Personas" })).not.toHaveAttribute("aria-current")
     expect(indicadoresDe(lista)).toHaveLength(0)
   })
 })
@@ -255,10 +290,12 @@ const DOS_MAESTROS = [
 
 // CLASES-02c (§D-2C1, PR-2C07, PR-2C08 y PR-2C10): la clase vista desde cada perspectiva.
 describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
-  // TAREAS-01e (C-11, §D-11): el admin ve cuatro secciones, con "Trabajo de clase" segunda, y el
-  // indicador mide un cuarto.
-  it("PR-2C07: el admin vuelve a la lista de clases, ve Muro, Alumnos y Maestros con el indicador y el código, y puede editar", async () => {
+  // CLASES-03 (§D-7.1, DH-03; N-47): el admin ve las cuatro secciones de las tres perspectivas, con
+  // "Personas" en lugar de "Alumnos" y "Maestros", y el indicador lleva la posición y el ancho medidos
+  // de "Avisos".
+  it("PR-2C07: el admin vuelve a la lista de clases, ve Avisos y Personas con el indicador y el código, y puede editar", async () => {
     stubApi({})
+    simularMedidas()
     renderLayout(`/admin/clases/${CLASE_ID}`)
 
     expect(await screen.findByText("ABCDEFG")).toBeInTheDocument()
@@ -271,38 +308,51 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
       within(lista)
         .getAllByRole("link")
         .map((e) => e.textContent),
-    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"])
-    expect(screen.getByRole("link", { name: "Muro" })).toHaveAttribute("aria-current", "page")
-    expect(screen.getByRole("link", { name: "Maestros" })).toHaveAttribute(
+    ).toEqual(["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"])
+    expect(screen.getByRole("link", { name: "Avisos" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute(
       "href",
-      `/admin/clases/${CLASE_ID}/maestros`,
+      `/admin/clases/${CLASE_ID}/personas`,
     )
     expect(screen.getByRole("link", { name: "Editar clase" })).toHaveAttribute(
       "href",
       `/admin/clases/${CLASE_ID}/editar`,
     )
 
-    // El indicador es el elemento aria-hidden que antecede a la lista; mide un cuarto (TAREAS-01e), está
-    // en la primera posición y usa el color del contexto opaco.
+    // El indicador es el elemento aria-hidden que antecede a la lista; lleva el ancho y la posición
+    // medidos de la primera opción (CLASES-03, DH-03) y usa el color del contexto opaco.
     const indicador = lista.previousElementSibling
     expect(indicador).toHaveAttribute("aria-hidden", "true")
-    expect(indicador).toHaveClass("w-1/5", "in-data-[material=opaco]:bg-accent-soft")
-    expect(indicador).not.toHaveClass("translate-x-full")
+    expect(indicador).toHaveClass(
+      "w-(--indicador-ancho)",
+      "translate-x-(--indicador-x)",
+      "in-data-[material=opaco]:bg-accent-soft",
+    )
+    await waitFor(() => expect(medidasDelIndicador(indicador)).toEqual(medidasDeLaOpcion(0)))
   })
 
-  // TAREAS-01e (C-11): Alumnos es la tercera sección del admin y Maestros la cuarta.
-  it("PR-2C07: el indicador se traslada una posición por sección y en «Editar clase» no hay indicador", async () => {
+  // CLASES-03 (DH-03; N-47): "Actividades de aprendizaje" es la segunda sección del admin y
+  // "Personas" la tercera; el indicador lleva la posición y el ancho medidos de cada una.
+  it("PR-2C07: el indicador sigue a la sección activa con sus medidas y en «Editar clase» no hay indicador", async () => {
     stubApi({})
-    renderLayout(`/admin/clases/${CLASE_ID}/alumnos`)
+    simularMedidas()
+    renderLayout(`/admin/clases/${CLASE_ID}/trabajo`)
     const lista = await screen.findByRole("list", { name: "Secciones de la clase" })
-    expect(lista.previousElementSibling).toHaveClass("translate-x-[200%]")
-    expect(screen.getByRole("link", { name: "Alumnos" })).toHaveAttribute("aria-current", "page")
+    await waitFor(() =>
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(1)),
+    )
+    expect(screen.getByRole("link", { name: "Actividades de aprendizaje" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
     cleanup()
 
-    renderLayout(`/admin/clases/${CLASE_ID}/maestros`)
+    renderLayout(`/admin/clases/${CLASE_ID}/personas`)
     const tercera = await screen.findByRole("list", { name: "Secciones de la clase" })
-    expect(tercera.previousElementSibling).toHaveClass("translate-x-[300%]")
-    expect(screen.getByRole("link", { name: "Maestros" })).toHaveAttribute("aria-current", "page")
+    await waitFor(() =>
+      expect(medidasDelIndicador(tercera.previousElementSibling)).toEqual(medidasDeLaOpcion(2)),
+    )
+    expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute("aria-current", "page")
     cleanup()
 
     renderLayout(`/admin/clases/${CLASE_ID}/editar`)
@@ -359,22 +409,24 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
 })
 
 // TAREAS-01e (§D-11, C-11; PR-1E05): "Trabajo de clase" es la segunda sección de las tres perspectivas.
+// CLASES-03 (§D-7.1): se llama "Actividades de aprendizaje" y las tres perspectivas tienen las mismas
+// cuatro secciones.
 describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
   const nombresDeLasSecciones = async () =>
     within(await screen.findByRole("list", { name: "Secciones de la clase" }))
       .getAllByRole("link")
       .map((enlace) => enlace.textContent)
 
-  it("PR-1E05 · cuatro secciones para el estudiante y el maestro y cinco para el admin, con «Trabajo de clase» segunda y «Calificaciones» última", async () => {
+  it("PR-1E05 · cuatro secciones en las tres perspectivas, con «Actividades de aprendizaje» segunda y «Calificaciones» última", async () => {
     stubApi({})
     renderLayout(`/estudiante/clases/${CLASE_ID}`)
     expect(await nombresDeLasSecciones()).toEqual([
-      "Muro",
-      "Trabajo de clase",
+      "Avisos",
+      "Actividades de aprendizaje",
       "Personas",
       "Calificaciones",
     ])
-    expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Actividades de aprendizaje" })).toHaveAttribute(
       "href",
       `/estudiante/clases/${CLASE_ID}/trabajo`,
     )
@@ -382,12 +434,12 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
 
     renderLayout(`/maestro/clases/${CLASE_ID}`)
     expect(await nombresDeLasSecciones()).toEqual([
-      "Muro",
-      "Trabajo de clase",
-      "Alumnos",
+      "Avisos",
+      "Actividades de aprendizaje",
+      "Personas",
       "Calificaciones",
     ])
-    expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Actividades de aprendizaje" })).toHaveAttribute(
       "href",
       `/maestro/clases/${CLASE_ID}/trabajo`,
     )
@@ -395,40 +447,43 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
 
     renderLayout(`/admin/clases/${CLASE_ID}`)
     expect(await nombresDeLasSecciones()).toEqual([
-      "Muro",
-      "Trabajo de clase",
-      "Alumnos",
-      "Maestros",
+      "Avisos",
+      "Actividades de aprendizaje",
+      "Personas",
       "Calificaciones",
     ])
-    expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Actividades de aprendizaje" })).toHaveAttribute(
       "href",
       `/admin/clases/${CLASE_ID}/trabajo`,
     )
   })
 
-  it("PR-1E05 · en …/trabajo, «Trabajo de clase» lleva aria-current y el indicador se traslada una posición; en el admin mide un quinto", async () => {
+  it("PR-1E05 · en …/trabajo, «Actividades de aprendizaje» lleva aria-current y el indicador lleva su posición y su ancho medidos", async () => {
     stubApi({})
+    simularMedidas()
     renderLayout(`/estudiante/clases/${CLASE_ID}/trabajo`)
     expect(await screen.findByText("trabajo estudiante")).toBeInTheDocument()
     let lista = screen.getByRole("list", { name: "Secciones de la clase" })
-    expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Actividades de aprendizaje" })).toHaveAttribute(
       "aria-current",
       "page",
     )
-    expect(screen.getByRole("link", { name: "Muro" })).not.toHaveAttribute("aria-current")
-    expect(lista.previousElementSibling).toHaveClass("w-1/4", "translate-x-full")
+    expect(screen.getByRole("link", { name: "Avisos" })).not.toHaveAttribute("aria-current")
+    await waitFor(() =>
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(1)),
+    )
     cleanup()
 
     renderLayout(`/admin/clases/${CLASE_ID}/trabajo`)
     expect(await screen.findByText("trabajo admin")).toBeInTheDocument()
     lista = screen.getByRole("list", { name: "Secciones de la clase" })
-    expect(screen.getByRole("link", { name: "Trabajo de clase" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Actividades de aprendizaje" })).toHaveAttribute(
       "aria-current",
       "page",
     )
-    expect(lista.previousElementSibling).toHaveClass("w-1/5", "translate-x-full")
-    expect(lista).toHaveClass("grid-cols-5")
+    await waitFor(() =>
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(1)),
+    )
   })
 
   it("PR-1E05 · en …/categorias ninguna sección está activa y no hay indicador", async () => {

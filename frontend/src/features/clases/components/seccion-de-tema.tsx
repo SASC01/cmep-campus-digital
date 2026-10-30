@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } fr
 
 import { Cargando } from "@/components/cargando"
 import { MensajeError } from "@/components/mensaje-error"
+import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -52,6 +53,13 @@ function ElementosDelTema({
   }
 
   const refVerMas = useFocoAlCargarMas(ids, enfocarElemento, () => encabezadoRef.current?.focus())
+
+  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí vuelve a pedir este tema desde
+  // su primera página si está en error (el cursor ya no existe); un tema sano no pide nada (S-10).
+  useAlPulsarLaSeccionActiva(() => {
+    if (!trabajo.isError) return
+    void trabajo.refetch()
+  })
 
   useEffect(() => {
     const previos = idsPrevios.current

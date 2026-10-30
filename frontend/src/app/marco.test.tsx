@@ -299,10 +299,10 @@ describe("marco: el foco del muro al cambiar de clase", () => {
     await screen.findByText("Texto de la publicación 5")
   }
 
-  it("O-14: con la clase nueva ya en la caché, el foco que estaba en una publicación de la anterior va al encabezado «Publicaciones» y no a una publicación de la nueva", async () => {
+  it("O-14: con la clase nueva ya en la caché, el foco que estaba en una publicación de la anterior va al encabezado «Avisos» y no a una publicación de la nueva", async () => {
     await alCambiarDeClase()
 
-    expect(screen.getByRole("heading", { name: "Publicaciones", level: 2 })).toHaveFocus()
+    expect(screen.getByRole("heading", { name: "Avisos", level: 2 })).toHaveFocus()
     const enPublicacion = document.activeElement?.closest("[data-publicacion-id]") ?? null
     expect(enPublicacion).toBeNull()
   })

@@ -139,20 +139,17 @@ describe("PR-1D06: tarjeta de tarea en el muro", () => {
     expect(screen.getAllByRole("button", { name: /Ver comentarios/ })).toHaveLength(1)
   })
 
-  it("PR-1D06: el maestro y el admin ven «Crear tarea» como enlace al formulario; el estudiante no", async () => {
-    for (const rol of ["maestro", "admin"] as const) {
+  // CLASES-03 (S-09, Enmienda 1 M-04): las tareas se crean en "Actividades de aprendizaje"; "Avisos"
+  // (el muro) ya no ofrece "Crear tarea" en ninguna perspectiva.
+  it("PR-1D06: «Crear tarea» ya no está en Avisos en ninguna perspectiva", async () => {
+    for (const rol of ["estudiante", "maestro", "admin"] as const) {
       stubMuro([anuncio])
       renderMuro(rol)
 
-      const enlace = await screen.findByRole("link", { name: "Crear tarea" })
-      expect(enlace).toHaveAttribute("href", `/${rol}/clases/${CLASE_ID}/tareas/nueva`)
+      await screen.findByText("Mañana hay examen")
+      expect(screen.queryByRole("link", { name: "Crear tarea" }), rol).not.toBeInTheDocument()
       cleanup()
     }
-
-    stubMuro([anuncio])
-    renderMuro("estudiante")
-    await screen.findByText("Mañana hay examen")
-    expect(screen.queryByRole("link", { name: "Crear tarea" })).not.toBeInTheDocument()
   })
 
   it("PR-1D06: una tarea sin su resumen (tarea: null) no se pinta como publicación común y lo dice, en las tres perspectivas", async () => {

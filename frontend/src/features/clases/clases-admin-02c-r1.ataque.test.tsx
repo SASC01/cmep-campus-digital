@@ -358,21 +358,25 @@ describe("ataque CLASES-02c r1: cambiar de sección en la clase del admin", () =
     // sección (cuatro en total). El recorrido de abajo no cambia: sigue protegiendo que aria-current
     // siga a la sección pulsada y que el foco quede en el enlace.
     // C-10 de CALIFICACIONES-01d (§D-R0, A-5): la lista del admin suma "Calificaciones" al final.
+    // CLASES-03c1 ronda 0 (C-9, §D-R0; §D-7.1, §D-7.7 y DH-09): el admin tiene las cuatro secciones de
+    // las tres perspectivas; «Alumnos» y «Maestros» se juntan en «Personas», que muestra los maestros
+    // de la clase y el roster. El recorrido entra por «Personas» y sigue protegiendo que aria-current
+    // siga a la sección pulsada y que el foco quede en el enlace.
     expect(
       within(secciones)
         .getAllByRole("link")
         .map((e) => e.textContent),
-    ).toEqual(["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"])
-    expect(actual()).toEqual(["Muro"])
+    ).toEqual(["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"])
+    expect(actual()).toEqual(["Avisos"])
     for (const [nombre, ruta, encabezado] of [
-      ["Alumnos", `/admin/clases/${CLASE_ID}/alumnos`, "Alumnos"],
-      ["Maestros", `/admin/clases/${CLASE_ID}/maestros`, "Maestros de la clase"],
+      ["Personas", `/admin/clases/${CLASE_ID}/personas`, "Maestros de la clase"],
     ] as const) {
       const enlace = within(secciones).getByRole("link", { name: nombre })
       act(() => enlace.focus())
       fireEvent.click(enlace)
       await waitFor(() => expect(router.state.location.pathname).toBe(ruta))
       await screen.findByRole("heading", { name: encabezado })
+      await screen.findByRole("heading", { name: "Alumnos" })
       expect(actual()).toEqual([nombre])
       expect(document.activeElement).toBe(within(secciones).getByRole("link", { name: nombre }))
     }

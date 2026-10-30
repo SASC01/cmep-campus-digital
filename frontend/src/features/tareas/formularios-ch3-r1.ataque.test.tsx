@@ -972,7 +972,9 @@ describe("ataque CHORE-03 03a r1 · O-04: CH3-A19 regresando por un enlace", () 
     expect(avisos()).toEqual([])
 
     const secciones = await screen.findByRole("list", { name: "Secciones de la clase" })
-    fireEvent.click(within(secciones).getByRole("link", { name: /Trabajo de clase/ }))
+    // CLASES-03c1 ronda 0 (fila "Diseño" de features/tareas en §D-R0; §D-7.1): la sección se llama
+    // «Actividades de aprendizaje»; el segmento …/trabajo no cambia (DH-09).
+    fireEvent.click(within(secciones).getByRole("link", { name: /Actividades de aprendizaje/ }))
     await waitFor(() => expect(router.state.location.pathname).toMatch(/\/trabajo$/))
     vi.setSystemTime(new Date(AHORA.getTime() + 10_000))
     fireEvent.click(await screen.findByRole("link", { name: /Ensayo final/ }))

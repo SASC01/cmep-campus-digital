@@ -30,7 +30,7 @@ import {
   type Unirse,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef, useState, type RefObject } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
 
 import { consultaMe } from "@/services/sesionService"
@@ -80,15 +80,19 @@ import {
 } from "./data"
 import {
   crearLimiteDeConcurrencia,
+  desplazamientoParaVer,
   erroresDeCategoriasDeApi,
   erroresDelTemaDeApi,
   erroresDeFormularioClases,
   erroresDeLaPublicacionDeApi,
   focoPerdido,
+  medidaDelIndicador,
   mensajeDeErrorClases,
+  opcionEnElPanel,
   terminoDeBusquedaValido,
   tiempoFrescoDelMuro,
 } from "./lib"
+import type { MedidaDelIndicadorDeLaClase, PosicionDelPanel } from "./types"
 
 // El saludo del bloque destacado depende solo de la sesión (§D-A5): se ve aunque falle la consulta
 // de clases. select evita volver a pedir /me: reutiliza la caché de consultaMe.
@@ -941,3 +945,89 @@ export const useGuardarCategorias = (claseId: string) => {
     },
   })
 }
+
+// CLASES-03 (§D-7.2, DH-03): el indicador de la sección activa toma la posición y el ancho de su
+// opción (cada una a su ancho natural). Se mide antes de pintar al montar y al cambiar la sección
+// activa, y solo entonces el panel se desplaza para dejar la opción a la vista (la página nunca). Un
+// ResizeObserver sobre la lista y la carga de las fuentes vuelven a medir sin desplazar, si existen
+// en el entorno. Sin sección activa (activa < 0) no mide.
+// CLASES-03c1 (T-01 de la ronda 1): el indicador solo se desliza al cambiar de una sección a otra de
+// la misma clase. Sin sección activa se olvida la medida, y la de otra clase (otra `base`) no se
+// devuelve: al entrar, al volver de una pantalla sin sección o al cambiar de clase, el indicador no
+// está en la página cuando se mide y aparece ya en su lugar, sin una posición vieja desde la que
+// deslizarse.
+export const useIndicadorDeSecciones = (activa: number, base: string) => {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const listaRef = useRef<HTMLUListElement>(null)
+  const [medida, setMedida] = useState<MedidaDelIndicadorDeLaClase | null>(null)
+  // Se olvida durante el render (no en un efecto), en cuanto no hay sección activa.
+  if (activa < 0 && medida !== null) setMedida(null)
+
+  useLayoutEffect(() => {
+    const opcion = opcionDeLaLista(listaRef.current, activa)
+    if (opcion === null) return
+    setMedida(conservarSiIgual({ ...medidaDelIndicador(opcion), base }))
+    const panel = panelRef.current
+    const lista = listaRef.current
+    if (panel === null || lista === null) return
+    // T-02: la opción se lleva a las coordenadas del área desplazable del panel (con su relleno).
+    const enElPanel = opcionEnElPanel(
+      opcion,
+      lista.getBoundingClientRect().left,
+      posicionDelPanel(panel),
+    )
+    const destino = desplazamientoParaVer(panel, enElPanel)
+    if (destino === null) return
+    panel.scrollLeft = destino
+  }, [activa, base])
+
+  useEffect(() => {
+    const lista = listaRef.current
+    if (activa < 0 || lista === null) return
+    let vigente = true
+    const volverAMedir = () => {
+      const opcion = opcionDeLaLista(listaRef.current, activa)
+      if (!vigente || opcion === null) return
+      setMedida(conservarSiIgual({ ...medidaDelIndicador(opcion), base }))
+    }
+    const observador =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(volverAMedir)
+    observador?.observe(lista)
+    if ("fonts" in document && document.fonts !== undefined) {
+      void document.fonts.ready.then(volverAMedir)
+    }
+    return () => {
+      vigente = false
+      observador?.disconnect()
+    }
+  }, [activa, base])
+
+  const medidaDeLaClase = medida !== null && medida.base === base ? medida : null
+  return { panelRef, listaRef, medida: medidaDeLaClase }
+}
+
+// El <li> de la sección activa (null sin sección activa o si la lista todavía no está).
+const opcionDeLaLista = (lista: HTMLUListElement | null, activa: number): HTMLElement | null => {
+  if (activa < 0 || lista === null) return null
+  const opcion = lista.children[activa]
+  return opcion instanceof HTMLElement ? opcion : null
+}
+
+// Una medida igual a la anterior (en la misma clase) no vuelve a pintar el indicador.
+const conservarSiIgual =
+  (nueva: MedidaDelIndicadorDeLaClase) =>
+  (previa: MedidaDelIndicadorDeLaClase | null): MedidaDelIndicadorDeLaClase =>
+    previa !== null &&
+    previa.base === nueva.base &&
+    previa.x === nueva.x &&
+    previa.ancho === nueva.ancho
+      ? previa
+      : nueva
+
+// Lo que opcionEnElPanel necesita del panel: su borde izquierdo en la ventana, su borde y su
+// desplazamiento.
+const posicionDelPanel = (panel: HTMLElement): PosicionDelPanel => ({
+  left: panel.getBoundingClientRect().left,
+  clientLeft: panel.clientLeft,
+  scrollLeft: panel.scrollLeft,
+})

@@ -446,7 +446,7 @@ describe("CHORE-03 · la frase genérica en un ErrorDeCampo: repetir el control"
 })
 
 describe("CHORE-03 · la frase genérica en un ErrorDeCampo: otra sección y regreso (rutas y Providers)", () => {
-  it("CH3-A19: con el genérico bajo el comentario del alumno, ir a «Trabajo de clase» y volver al detalle antes de 30 s quita el error y «Enviar comentario» manda un POST nuevo", async () => {
+  it("CH3-A19: con el genérico bajo el comentario del alumno, ir a «Actividades de aprendizaje» y volver al detalle antes de 30 s quita el error y «Enviar comentario» manda un POST nuevo", async () => {
     const { rutas } = await import("@/app/router")
     const esElComentario = ({ metodo, url }: Llamada) =>
       metodo === "POST" && url === `${RUTA_MI_ENTREGA}/comentarios`
@@ -467,7 +467,7 @@ describe("CHORE-03 · la frase genérica en un ErrorDeCampo: otra sección y reg
     await waitFor(() => expect(erroresDeCampo()).toEqual([GENERICO]))
 
     const secciones = await screen.findByRole("list", { name: "Secciones de la clase" })
-    fireEvent.click(within(secciones).getByRole("link", { name: /Trabajo de clase/ }))
+    fireEvent.click(within(secciones).getByRole("link", { name: /Actividades de aprendizaje/ }))
     await waitFor(() => expect(router.state.location.pathname).toMatch(/\/trabajo$/))
     expect(await screen.findByText("Ensayo final")).toBeInTheDocument()
     vi.setSystemTime(new Date(AHORA.getTime() + 10_000))

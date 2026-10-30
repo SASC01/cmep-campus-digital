@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router"
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
+import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
@@ -44,7 +45,8 @@ const enfocarControlDeOrden = ({ temaId, control }: OrdenEnVuelo): boolean => {
   return destino !== null
 }
 
-// §D-11, P-03 de CLASES-01: "Trabajo de clase". El alumno lo ve agrupado por tema y de solo lectura;
+// §D-11, P-03 de CLASES-01: "Trabajo de clase", la sección "Actividades de aprendizaje" desde
+// CLASES-03 (§D-7.6; el archivo y el segmento `trabajo` se conservan, DH-09). El alumno lo ve agrupado por tema y de solo lectura;
 // el maestro y el admin además crean, renombran, ordenan y borran temas y mueven elementos (los
 // botones salen de la perspectiva, y "Mover" de `puedeMover` de cada elemento). "Sin tema" va primero
 // si tiene elementos y después los temas en su orden; cada sección pide su primera página al
@@ -79,6 +81,14 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
     temas.data !== undefined && !errorQuitaLaVista(temas.error),
     TEXTOS_TRABAJO.recargaFallida,
   )
+
+  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí no desmonta la vista. Si la
+  // lista de temas está en error, la vuelve a pedir; cada tema en error lo hace por su cuenta
+  // (SeccionDeTema). Lo que está sano no se pide (S-10).
+  useAlPulsarLaSeccionActiva(() => {
+    if (!temas.isError) return
+    void temas.refetch()
+  })
 
   // "Nuevo tema" abre el formulario; al cerrarlo (guardado o cancelado), el foco vuelve a "Nuevo tema".
   useEffect(() => {

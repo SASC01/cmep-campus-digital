@@ -220,6 +220,7 @@ afterEach(() => {
   navegacion.irA.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos» y el encabezado de la lista «Publicaciones» a «Avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-c r1: avisos de crear con el formulario desmontado (N-C5)", () => {
   it.each([
     ["error", () => error500(), "error", "Algo salió mal. Inténtalo de nuevo."],
@@ -663,7 +664,7 @@ describe("ataque CLASES-c r1: foco de §7.14 cuando el muro y los comentarios ll
   })
 })
 
-describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más comentarios»", () => {
+describe("ataque CLASES-c r1: foco de «Ver más avisos» y «Ver más comentarios»", () => {
   const conPaginas = (
     tipo: "publicaciones" | "comentarios",
     segunda: () => Response,
@@ -696,7 +697,7 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
     return fetchMock
   }
 
-  it("con más páginas pendientes, «Ver más publicaciones» sigue montado y el foco no se mueve (render sin desmontaje)", async () => {
+  it("con más páginas pendientes, «Ver más avisos» sigue montado y el foco no se mueve (render sin desmontaje)", async () => {
     conPaginas("publicaciones", () =>
       respuestaJson(200, {
         publicaciones: [publicacion(2, COMO_ESTUDIANTE)],
@@ -704,26 +705,24 @@ describe("ataque CLASES-c r1: foco de «Ver más publicaciones» y «Ver más co
       }),
     )
     renderMuro("estudiante")
-    const boton = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const boton = await screen.findByRole("button", { name: "Ver más avisos" })
     boton.focus()
     fireEvent.click(boton)
     await screen.findByText("Publicación 2")
     await esperar(50)
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Ver más publicaciones" }),
-    )
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver más avisos" }))
   })
 
-  it("si la página siguiente del muro falla, el foco que estaba en «Ver más publicaciones» no cae en <body>", async () => {
+  it("si la página siguiente del muro falla, el foco que estaba en «Ver más avisos» no cae en <body>", async () => {
     conPaginas("publicaciones", () => error500())
     renderMuro("estudiante")
-    const boton = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const boton = await screen.findByRole("button", { name: "Ver más avisos" })
     boton.focus()
     fireEvent.click(boton)
     await screen.findByRole("alert")
     await esperar(50)
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Publicaciones" }))
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Avisos" }))
   })
 
   it("si la página siguiente de comentarios falla, el foco que estaba en «Ver más comentarios» no cae en <body>", async () => {

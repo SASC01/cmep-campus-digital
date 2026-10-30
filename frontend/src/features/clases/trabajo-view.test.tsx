@@ -319,9 +319,7 @@ describe("TrabajoView: el estudiante (PR-1E01)", () => {
   it("PR-1E01 · sin temas ni elementos, la vista dice que aún no hay tareas ni materiales", async () => {
     crearServidor({ [CLASE_A]: { temas: [], elementos: {} } })
     renderTrabajo(`/estudiante/clases/${CLASE_A}/trabajo`)
-    expect(
-      await screen.findByText("Aún no hay tareas ni materiales en esta clase."),
-    ).toBeInTheDocument()
+    expect(await screen.findByText("Aún no hay actividades en esta clase.")).toBeInTheDocument()
   })
 
   it("PR-1E01 · la fila de una tarea lleva el cuadro de fecha, enlaza a su detalle y dice su estado con texto (próxima, pendiente y vencida)", async () => {
@@ -828,7 +826,7 @@ describe("TrabajoView: maestro y admin (PR-1E02)", () => {
 
     await waitFor(() =>
       expect(aviso.error).toHaveBeenCalledWith(
-        "No pudimos actualizar Trabajo de clase. Mostramos la última versión que tenemos.",
+        "No pudimos actualizar Actividades de aprendizaje. Mostramos la última versión que tenemos.",
       ),
     )
     expect(aviso.error).toHaveBeenCalledTimes(1)

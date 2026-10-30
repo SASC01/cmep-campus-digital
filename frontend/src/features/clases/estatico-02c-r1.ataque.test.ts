@@ -96,10 +96,13 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11): trabajo-view.tsx y
     // categorias-view.tsx la llaman como muro-view.tsx; sus componentes reciben la perspectiva o la
     // base por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un prefijo.
+    // CLASES-03c1 ronda 0 (C-19, §D-R0; §D-7.7): personas-view.tsx la llama para decidir qué mostrar
+    // por perspectiva (estudiante, maestro o admin), como muro-view.tsx.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
       "/src/features/clases/categorias-view.tsx",
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/muro-view.tsx",
+      "/src/features/clases/personas-view.tsx",
       "/src/features/clases/trabajo-view.tsx",
       "/src/features/tareas/hooks.ts",
     ])

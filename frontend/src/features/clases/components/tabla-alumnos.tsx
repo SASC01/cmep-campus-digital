@@ -215,7 +215,7 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
             type="button"
             variant="outline"
             onClick={() => void alumnos.fetchNextPage({ cancelRefetch: false })}
-            enEspera={alumnos.isFetchingNextPage}
+            enEspera={alumnos.isFetching}
             className="self-start"
           >
             {TEXTOS_TABLA_ALUMNOS.verMas}

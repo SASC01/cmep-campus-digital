@@ -21,7 +21,8 @@ const FIRMA = { ...AUTOR, administracion: false }
 const MAESTRO_CON_CORREO = { ...AUTOR, email: "luis@ejemplo.mx" }
 const idPublicacion = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-${String(n).padStart(12, "0")}`
 const idComentario = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-${String(n).padStart(12, "0")}`
-const TEXTO_MURO = "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo."
+const TEXTO_MURO =
+  "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos."
 
 const respuestaJson = (estado: number, cuerpo: unknown) =>
   new Response(JSON.stringify(cuerpo), {
@@ -162,13 +163,13 @@ const renderEn = async (ruta: string) => {
 
 const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms))
 
-// Carga el muro, borra el cursor de la página siguiente y pulsa "Ver más publicaciones".
+// Carga el muro, borra el cursor de la página siguiente y pulsa "Ver más avisos".
 const muroEnError = async () => {
   const servidor = crearServidor()
   const router = await renderEn(`/estudiante/clases/${CLASE_ID}`)
   const verMas = await screen.findByRole(
     "button",
-    { name: "Ver más publicaciones" },
+    { name: "Ver más avisos" },
     {
       timeout: 5000,
     },
@@ -202,26 +203,27 @@ const primerasPaginas = (fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) =>
     )
   }).length
 
+// CLASES-03c1 ronda 0 (C-14, §D-R0; §D-7.1 y §D-13): «Muro» pasa a «Avisos», «Ver más publicaciones» a «Ver más avisos» y la frase del cursor a R1; los caminos que ya se probaban quedan como casos de R1. Sigue protegiendo lo mismo.
 describe("ataque CLASES-c r4: T-35 sin peticiones de más (regresión final)", () => {
-  it("primer render: una sola petición de la primera página; con el error y sin navegación nueva, ninguna más; «Muro» pide una; con el muro ya sano, «Muro» no pide nada; «Ver más» vuelve a funcionar", async () => {
+  it("primer render: una sola petición de la primera página; con el error y sin navegación nueva, ninguna más; «Avisos» pide una; con el muro ya sano, «Avisos» no pide nada; «Ver más» vuelve a funcionar", async () => {
     const { fetchMock, router } = await muroEnError()
     expect(primerasPaginas(fetchMock), "primer render").toBe(1)
     await esperar(300)
     expect(primerasPaginas(fetchMock), "con el error y sin navegación nueva").toBe(1)
 
     const antes = router.state.location.key
-    fireEvent.click(screen.getByRole("link", { name: "Muro" }))
+    fireEvent.click(screen.getByRole("link", { name: "Avisos" }))
     await waitFor(() => expect(router.state.location.key).not.toBe(antes))
     expect(await screen.findByText("Publicación 21", undefined, { timeout: 5000 })).toBeTruthy()
     expect(screen.queryByText(TEXTO_MURO)).toBeNull()
-    expect(primerasPaginas(fetchMock), "«Muro» con la lista en error").toBe(2)
+    expect(primerasPaginas(fetchMock), "«Avisos» con la lista en error").toBe(2)
 
-    fireEvent.click(screen.getByRole("link", { name: "Muro" }))
+    fireEvent.click(screen.getByRole("link", { name: "Avisos" }))
     await esperar(300)
-    expect(primerasPaginas(fetchMock), "«Muro» con la lista sana").toBe(2)
+    expect(primerasPaginas(fetchMock), "«Avisos» con la lista sana").toBe(2)
 
     // El cursor se recalcula desde la página nueva: "Ver más" trae el resto sin error.
-    fireEvent.click(screen.getByRole("button", { name: "Ver más publicaciones" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ver más avisos" }))
     expect(await screen.findByText("Publicación 25", undefined, { timeout: 5000 })).toBeTruthy()
     expect(screen.queryByText(TEXTO_MURO)).toBeNull()
   })

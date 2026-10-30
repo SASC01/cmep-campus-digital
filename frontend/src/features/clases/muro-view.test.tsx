@@ -134,10 +134,10 @@ describe("MuroView", () => {
     expect(screen.queryByLabelText("Escribe un comentario")).toBeNull()
   })
 
-  it("PR-2C09: el vacío del admin dice «Aún no hay publicaciones en esta clase.»", async () => {
+  it("PR-2C09: el vacío del admin dice «Publica el primer aviso de esta clase.»", async () => {
     stubApi(() => respuestaJson(200, lista([], null)))
     renderMuro("admin")
-    expect(await screen.findByText("Aún no hay publicaciones en esta clase.")).toBeInTheDocument()
+    expect(await screen.findByText("Publica el primer aviso de esta clase.")).toBeInTheDocument()
   })
 
   it("PR-2C09: «Borrar publicación» sale de puedeBorrar y no del rol, en las tres perspectivas", async () => {
@@ -169,15 +169,11 @@ describe("MuroView", () => {
     stubApi(() => respuestaJson(200, lista([], null)))
 
     renderMuro("estudiante")
-    expect(
-      await screen.findByText("Tu maestro aún no ha publicado nada en esta clase."),
-    ).toBeInTheDocument()
+    expect(await screen.findByText("Aún no hay avisos en esta clase.")).toBeInTheDocument()
     cleanup()
 
     renderMuro("maestro")
-    expect(
-      await screen.findByText("Publica el primer anuncio o material de tu clase."),
-    ).toBeInTheDocument()
+    expect(await screen.findByText("Publica el primer aviso de tu clase.")).toBeInTheDocument()
     // Sin acción en el vacío: el único botón principal es el del formulario.
     expect(botonesPrimarios()).toHaveLength(1)
   })
@@ -198,11 +194,11 @@ describe("MuroView", () => {
         return respuestaJson(200, lista([publicacion(1)], idDe(1)))
       })
     const cargarMas = async () => {
-      const boton = await screen.findByRole("button", { name: "Ver más publicaciones" })
+      const boton = await screen.findByRole("button", { name: "Ver más avisos" })
       boton.focus()
       fireEvent.click(boton)
       await waitFor(() =>
-        expect(screen.queryByRole("button", { name: "Ver más publicaciones" })).toBeNull(),
+        expect(screen.queryByRole("button", { name: "Ver más avisos" })).toBeNull(),
       )
     }
 
@@ -218,9 +214,7 @@ describe("MuroView", () => {
     conPaginas([])
     renderMuro("estudiante")
     await cargarMas()
-    await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Publicaciones" })).toHaveFocus(),
-    )
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Avisos" })).toHaveFocus())
     expect(document.activeElement).not.toBe(document.body)
   })
 
@@ -261,9 +255,7 @@ describe("MuroView", () => {
       aviso.success.mockClear()
 
       if (destino === null) {
-        await waitFor(() =>
-          expect(screen.getByRole("heading", { name: "Publicaciones" })).toHaveFocus(),
-        )
+        await waitFor(() => expect(screen.getByRole("heading", { name: "Avisos" })).toHaveFocus())
         continue
       }
       await waitFor(() => {
@@ -288,17 +280,15 @@ describe("cursor que ya no existe (Enmienda 9, T-34)", () => {
       return respuestaJson(200, lista([publicacion(1)], idDe(1)))
     })
     renderMuro("estudiante")
-    const boton = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const boton = await screen.findByRole("button", { name: "Ver más avisos" })
     boton.focus()
     fireEvent.click(boton)
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.",
+      "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos.",
     )
     expect(screen.queryByText("no es válido")).toBeNull()
-    await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Publicaciones" })).toHaveFocus(),
-    )
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Avisos" })).toHaveFocus())
     expect(document.activeElement).not.toBe(document.body)
   })
 })
@@ -310,7 +300,7 @@ describe("pulsar «Muro» con el muro en error (Enmienda 9, T-35)", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[ruta]}>
-          <Link to={ruta}>Muro</Link>
+          <Link to={ruta}>Avisos</Link>
           <Routes>
             <Route path="/estudiante/clases/:claseId" element={<MuroView />} />
           </Routes>
@@ -332,32 +322,34 @@ describe("pulsar «Muro» con el muro en error (Enmienda 9, T-35)", () => {
       return respuestaJson(200, lista([publicacion(1)], idDe(1)))
     })
     renderConEnlaceMuro()
-    fireEvent.click(await screen.findByRole("button", { name: "Ver más publicaciones" }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("El muro cambió mientras lo veías.")
+    fireEvent.click(await screen.findByRole("button", { name: "Ver más avisos" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Los avisos cambiaron mientras los veías.",
+    )
     expect(primerasPaginas(fetchMock)).toBe(1)
 
-    const enlace = screen.getByRole("link", { name: "Muro" })
+    const enlace = screen.getByRole("link", { name: "Avisos" })
     enlace.focus()
     fireEvent.click(enlace)
 
     expect(await screen.findByText("Texto de la publicación 1")).toBeInTheDocument()
     expect(screen.queryByRole("alert")).toBeNull()
     expect(primerasPaginas(fetchMock)).toBe(2)
-    expect(screen.getByRole("link", { name: "Muro" })).toHaveFocus()
+    expect(screen.getByRole("link", { name: "Avisos" })).toHaveFocus()
   })
 
   it("PR-C18: con el muro sano, pulsar «Muro» no vuelve a pedir nada", async () => {
     const sano = stubApi(() => respuestaJson(200, lista([publicacion(1)], null)))
     renderConEnlaceMuro()
     await screen.findByText("Texto de la publicación 1")
-    fireEvent.click(screen.getByRole("link", { name: "Muro" }))
+    fireEvent.click(screen.getByRole("link", { name: "Avisos" }))
     await new Promise((resolver) => setTimeout(resolver, 50))
     expect(primerasPaginas(sano)).toBe(1)
     expect(screen.getByText("Texto de la publicación 1")).toBeInTheDocument()
   })
 })
 
-// TAREAS-01e, corrección de la ronda 2 (T-19, hermano): "Ver más publicaciones" queda en espera
+// TAREAS-01e, corrección de la ronda 2 (T-19, hermano): "Ver más avisos" queda en espera
 // mientras el muro se recarga en segundo plano; el clic no se une a la recarga ni se pierde.
 describe("MuroView: «Ver más publicaciones» durante una recarga (T-19)", () => {
   it("T-19 · con el muro recargándose, «Ver más publicaciones» queda en espera, conserva el foco y no pide nada; al terminar la recarga pide la página siguiente", async () => {
@@ -376,7 +368,7 @@ describe("MuroView: «Ver más publicaciones» durante una recarga (T-19)", () =
       })
     })
     const { queryClient } = renderMuro("estudiante")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     verMas.focus()
 
     void queryClient.invalidateQueries({ queryKey: ["clases", CLASE_ID, "publicaciones"] })

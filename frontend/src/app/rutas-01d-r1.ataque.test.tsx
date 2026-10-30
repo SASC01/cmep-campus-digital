@@ -136,6 +136,30 @@ const pidioAlgunaRutaCon = (fetchMock: ReturnType<typeof stubDeLaClase>, texto: 
 
 const secciones = async () => screen.findByRole("list", { name: "Secciones de la clase" })
 
+// CLASES-03c1 ronda 0 (C-15, §D-R0; §D-7.2 y DH-03): el indicador ya no se ubica con
+// translate-x-[N%] sino con la medida de la opción activa. jsdom no mide: cada opción de la lista de
+// secciones simula su posición (índice × 100 px) y su ancho (80 + índice × 10 px).
+const indiceEnSecciones = (elemento: HTMLElement) => {
+  const lista = elemento.parentElement
+  if (elemento.tagName !== "LI" || lista?.getAttribute("aria-label") !== "Secciones de la clase")
+    return -1
+  return Array.from(lista.children).indexOf(elemento)
+}
+const simularMedidas = () => {
+  vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const i = indiceEnSecciones(this)
+    return i < 0 ? 0 : i * 100
+  })
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const i = indiceEnSecciones(this)
+    return i < 0 ? 0 : 80 + i * 10
+  })
+}
+
 beforeAll(async () => {
   await import("./router")
 }, 60_000)
@@ -150,6 +174,7 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 describe("«Calificaciones» con la ruta escrita a mano", () => {
@@ -157,6 +182,7 @@ describe("«Calificaciones» con la ruta escrita a mano", () => {
     "CAL-T-179: %s en …/CALIFICACIONES/ (mayúsculas y barra final) monta el gradebook, marca la sección y la celda enlaza a la entrega de su rama",
     async (rol) => {
       const fetchMock = stubDeLaClase(rol)
+      simularMedidas()
       await renderEn(`${BASES[rol]}/${CLASE_ID}/CALIFICACIONES/`)
       const tabla = await screen.findByRole("table", { name: "Calificaciones por alumno y tarea" })
       expect(within(tabla).getByRole("link", { name: "9 Ana Ruiz, Ensayo final" })).toHaveAttribute(
@@ -168,8 +194,15 @@ describe("«Calificaciones» con la ruta escrita a mano", () => {
         "aria-current",
         "page",
       )
-      const posicion = rol === "admin" ? "translate-x-[400%]" : "translate-x-[300%]"
-      expect(lista.previousElementSibling).toHaveClass(posicion)
+      // Calificaciones es la cuarta sección en las tres perspectivas (§D-7.1).
+      const indicador = lista.previousElementSibling
+      if (!(indicador instanceof HTMLElement)) throw new Error("Precondición: sin indicador")
+      await waitFor(() =>
+        expect({
+          x: indicador.style.getPropertyValue("--indicador-x"),
+          ancho: indicador.style.getPropertyValue("--indicador-ancho"),
+        }).toEqual({ x: "300px", ancho: "110px" }),
+      )
       expect(pidioAlgunaRutaCon(fetchMock, "/mis-calificaciones")).toBe(false)
     },
   )

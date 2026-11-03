@@ -261,7 +261,11 @@ describe("ataque TAREAS-01e r3: «Ver más avisos» y la recarga del muro (sin h
     await waitFor(() => expect(pedidas.filter((p) => p.startsWith("POST"))).toHaveLength(1))
     void cliente.invalidateQueries({ queryKey: ["clases", CLASE, "publicaciones"] })
     await waitFor(() => expect(verMas).toHaveAttribute("aria-busy", "true"))
-    fireEvent.click(screen.getByRole("button", { name: "Material" }))
+    // CLASES-03d ronda 0 (C-23, §D-R0; §D-8.7): el formulario de Avisos ya no tiene tipo, así que el
+    // clic en «Material» con el anuncio en vuelo (del cambio de tipo) se retira; en su lugar, el caso
+    // comprueba que no hay botón «Material». Sigue protegiendo lo mismo: «Ver más» espera la recarga,
+    // después pide su página, y se publica un solo anuncio.
+    expect(screen.queryByRole("button", { name: "Material" })).toBeNull()
     expect(screen.getByRole("button", { name: /^Publicar / })).toHaveTextContent("Publicar anuncio")
     fireEvent.click(verMas)
     await act(async () => {

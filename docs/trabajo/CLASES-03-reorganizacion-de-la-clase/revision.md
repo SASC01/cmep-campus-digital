@@ -2262,3 +2262,866 @@ docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md
 docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03c2.md
 ```
 En total son 27 archivos: 8 de código, 5 de pruebas normales, 7 `*.ataque`, 2 documentos y 5 de `docs/trabajo/`. Son exactamente los de `git status -uall` (19 modificados y 8 sin rastrear), sin archivos ajenos. No entra nada de `shared/`, `backend/`, `infra/`, `AGENTS.md`, `CLAUDE.md` ni ESSENTIALS.
+
+## Arbitraje de la ronda 0 — 03d
+Fecha: 2026-11-03. Fuentes: `reporte-tester.md`, "## CLASES-03d — Ronda 0" (SHA-256 del archivo `ce59a4cbee65c9ed844a74ed2e3e61c66b70ba457c75f3acbe90835c6a1129e9`, reproducido), `plan.md` (`5c53894078640e5fa7639e315d4d8481d8b06bb8b81c8d5a5aa222194199ac24`, reproducido) y la última entrada de `aprobacion.md`. Solo lectura, grep y `git diff`; no corrí suites.
+
+**Veredicto: basta este arbitraje. No hace falta Enmienda 12 ni autorización del humano.**
+- Las cuatro PARADAs caben en filas de §D-R0 que ya existen: son hermanas de esas filas por el mismo cambio de contrato. Es el mismo criterio que P-03c1-1 (sumada a C-16) y P-03c2-2 (sumada a C-25).
+- Ninguna está en "No se toca": son `*.ataque` de `features/clases` y de `app/` (no `providers.tsx` ni `require-*.tsx`), y solo las toca el tester en su ronda.
+- Mi barrido encontró un hermano que nadie tenía. Es una prueba normal de `features/tareas` (en "No se toca") que se rompe si el programador quita una clave de `data.ts`. Se resuelve con una indicación al programador, sin tocar la prueba (sección 3).
+
+### 1. Las cuatro PARADAs
+**P-03d-1 · `features/clases/estatico-03c1-r1.ataque.test.ts:84-95` (CL3-R1-35).** Confirmado: `:88` fija `datos.CLASES_DE_POSICION_DEL_INDICADOR` con sus dos valores, y §D-7.2 y §D-8.7 la sacan de `features/clases/data.ts`. Rompería en la corrida y en el `tsc` de `lint` (TS2339 sobre `typeof import("./data")`).
+- **Decisión: cabe en C-10, ampliada por este arbitraje.** C-10 fija "las clases del indicador (`translate-x-…`) y el grupo «Tipo de publicación»", y la constante solo existe por el indicador de ese grupo.
+- El cambio que propone el tester protege lo mismo. Hoy el caso fija que no quedan restos del indicador de rejilla y que la constante del grupo no tiene valores arbitrarios. Con 03d, lo que corresponde es que la constante ya no exista, y la búsqueda de restos (`:89-93`) no cambia.
+- **Qué hace el tester:** `:88` pasa a `expect(exportados).not.toContain("CLASES_DE_POSICION_DEL_INDICADOR")`, y el título pasa a "…y CLASES_DE_POSICION_DEL_INDICADOR sale (03d)", con su comentario de motivo (C-10, §D-8.7). Nada más del archivo. Queda roja hasta el paso 5.
+- `features/tareas/data.ts:15` tiene su propia constante con el mismo nombre. No se toca, y la regla mira solo `features/clases/data.ts`.
+
+**P-03d-2 · `features/clases/indicador-03c1-r1.ataque.test.tsx` (11 casos) e `indicador-03c1-r2.ataque.test.tsx` (17 casos).** Confirmado. `esperadas(i)` y `opcionDe(lista, i)` van por índice dentro de `CAPACIDADES_POR_PERSPECTIVA`, y «Recursos» entra en el índice 2 (§D-7.1).
+- **Decisión: cabe en C-8, ampliada por este arbitraje.** C-8 fija las secciones de las tres perspectivas y "la sección activa y el indicador montado con medidas simuladas". Es el mismo cambio que el tester ya hizo en `rutas-01d-r1` bajo C-24.
+- El cambio por índice protege lo mismo: lo que atacan estos casos es el ciclo de vida del indicador (aparecer, deslizarse o desplazar el panel), no la posición de cada sección.
+- **Qué hace el tester, en los dos archivos:**
+  - «Calificaciones» pasa del índice 3 al 4 y «Personas» del 2 al 3.
+  - Los literales `"300px"` pasan a `"400px"`; los anchos salen de `esperadas(i)`.
+  - El comentario de `r2:495-496` pasa de "300..410" a "400..520".
+  - CL3-R1-04 y CL3-R1-06 («Actividades», índice 1) no cambian.
+- **El control de CL3-R2-08 (`r2:573-588`):** elijo la primera salida del tester, porque conserva toda la aritmética ya comprobada.
+  - En lugar de «Personas», el caso pulsa **«Recursos»** (índice 2, 200..300 en el `<ul>` y 212..312 en el panel), con `scrollLeft = 90`, `esperadas(2)` y `toBe(90)` sin cambio.
+  - `hijos(rol)` de `r2` suma la ruta `recursos` con un `<p>` que dice "recursos <rol>" (como las demás), y el caso espera "recursos maestro".
+  - El comentario de `:581` cambia «Personas» por «Recursos».
+  - `hijos` de `r1` no cambia, porque `r1` no pulsa «Recursos».
+- Los 28 casos quedan rojos hasta el paso 1.
+
+**P-03d-3 · `features/clases/muro-02c-r1.ataque.test.tsx:242`.** Confirmado: el caso prueba con el grupo "Tipo de publicación" que el admin tiene el formulario de publicar.
+- **Decisión: cabe en C-23** ("Tipo de publicación"), como el resto de esa familia.
+- El cambio propuesto protege lo mismo: el admin tiene el formulario de publicar y no el de comentar.
+- **Qué hace el tester:** `:242` pasa a `expect(screen.getByRole("button", { name: "Publicar anuncio" })).toBeInTheDocument()`, con su comentario de motivo (C-23, §D-8.7). No suma la aserción opcional: CL3-D19, C-10 (2) y `formularios-ch3-r2` ya prueban que el grupo no existe.
+- Queda verde antes y después: "Publicar anuncio" ya es hoy el texto del botón con el tipo por defecto.
+
+**P-03d-4 · `app/invalidaciones-03c2-r1.ataque.test.tsx`, CL3-2R1-19, fila "publicar un material".** Confirmado. §D-8.4 quita de `useCrearPublicacion` la rama del material (`hooks.ts:653`), así que la fila se pondría roja en el paso 2. Además, si la entrada del gancho se acota al anuncio, el `as Parameters<…>[0]` de `:135-141` con `tipo: "material"` puede dejar de compilar (TS2352).
+- **Decisión: cabe en C-23** ("publicar un material desde el formulario del muro"). C-23 pide llevar el caso a `FormularioRecurso` si su propiedad sigue valiendo. La propiedad sí sigue valiendo: publicar un recurso cambia los conteos por sección. Pero hoy no se puede llevar sin romper el `tsc`, porque `useCrearRecurso` todavía no existe.
+- **Acepto retirar la fila ahora y llevarla en la ronda 1.** Llevarla en la ronda 1 es obligatorio, no opcional.
+- **Qué hace el tester ahora:**
+  - Retira la fila de `:103`, la rama `publicar` del `act` (`:135-141`), el gancho `publicar` del `renderHook`, el doble `material()` y la importación de `useCrearPublicacion`.
+  - El comentario de cabecera dice por qué: C-23, §D-8.4, la rama de material sale de Avisos y vuelve con `useCrearRecurso` en la ronda 1.
+  - Las tres filas de tareas no cambian. El archivo pasa de 4 a 3 casos.
+- **El hueco temporal y cómo se cubre:**
+  - Hasta la ronda 1, ninguna `*.ataque` prueba que publicar un recurso deje viejas las listas por sección. Lo cubre la prueba requerida CL3-D08 del programador ("la lista y los conteos se renuevan"), y lo hago exigible: el caso CL3-D08 del programador, con la vista montada, afirma que tras el `201` se vuelven a pedir `GET …/temas?seccion=<bloque>` y la lista `…/recursos` de la sección. No basta un `toast`. Lo contrasto en la verificación del resumen.
+  - **En la ronda 1, el tester suma CL3-2R1-19 "publicar un recurso" con `useCrearRecurso(CLASE_ID)`.** Tras el `201`:
+    - quedan viejas `claveTemasDeLaSeccion(CLASE_ID, "docente")` y `claveTemasDeLaSeccion(CLASE_ID, "aprendizaje")`;
+    - queda vieja una lista bajo `clavePrefijoDeRecursos(CLASE_ID)`;
+    - **no** queda vieja `clavePublicaciones(CLASE_ID)` (§D-8.4: "ya no el muro").
+
+### 2. Decisiones de la ronda 0 que se salen de la letra del plan
+- **(a) Casos retirados en `formularios-ch3-r2` (5569 → 5568): aceptado.** C-23 dice literalmente "…o se retira con su motivo si era del cambio de tipo".
+  - Los tres casos retirados son del cambio de tipo: la secuencia "anuncio → «Material» → «Anuncio» → «Material» sin envío" y los dos casos del material en vuelo, que pulsaban «Anuncio» mientras se publicaba.
+  - Lo único que les quedaba (el `ErrorDeCampo` bajo el título tras un `titulo:`) lo cubren las secuencias "recurso con «titulo:»" y "recurso «titulo:» → éxito", que se conservan.
+  - Los dos casos del anuncio en vuelo se quedan y ganan `sinRastroDelTipo()` en cada microtarea, que es CL3-D21.
+  - Con P-03d-4, la cuenta pasa a 5567.
+- **(b) C-22 saca `formulario-publicacion.tsx` del conteo de `vidrio-fuerte` (R-03d-4): aceptado.** V-07 es una igualdad exacta, y el único `vidrio-fuerte` del archivo es el grupo de tipo (`:197`); el comentario de `:190` dice "vidrio fuerte", sin guion, y `\bvidrio-fuerte\b` no lo cuenta. §D-8.7 deja solo "Anuncio", los adjuntos y "Publicar anuncio". Leer C-22 como "solo suma" obligaría a conservar un vidrio fuerte sin elemento que lo lleve, lo que contradice §D-8.7. La salida la cubren C-22 y C-23, que nombra `styles/clases-r1.ataque.test.ts`. No se devuelve.
+- **(c) C-10 pasa el caso del control segmentado a "Entregas después de la fecha límite" de «Crear tarea» con el router real: aceptado.** Es la segunda salida que C-10 nombra literalmente.
+  - Entra por `rutas` de `@/app/router` y no importa de `features/tareas`, así que la regla 9 se respeta y "No se toca" no se toca.
+  - Sigue fijando DESIGN §7.3: dos botones `type="button"`, `vidrio-fuerte`, `aria-pressed`, el Check y el indicador juntos, y `motion-reduce:transition-none`.
+  - Usa el contexto opaco real (solo el admin) y comprueba `inesperadas` vacío.
+  - Queda verde antes y después: es correcto, porque `features/tareas` no cambia en 03d.
+- **(d) Diferencias entre "Rojos esperados" y los rojos reales: aceptadas.** La tabla es un tope ("solo pueden estar rojas las de esta tabla"), no una obligación de que cada fila quede roja.
+  - **C-11:** lo comprobé con grep. `secciones-01d-r3:328` recorre los enlaces por `href`, y ni r3 ni r4 fijan la lista, el número ni las posiciones (no hay `children[`, `indicador`, `translate` ni `toEqual([` sobre las secciones). Verde, sin cambio.
+  - **C-10:** el caso del control segmentado queda verde, por (c).
+  - **C-23:** `app/muro-rutas-c-r1:97` afirma `toBeNull` del grupo para el estudiante y sigue siendo cierto. Los casos del anuncio de los archivos reescritos siguen verdes.
+  - **C-24:** `app/router.ataque.test.tsx` no tiene `personas`, `trabajo`, `calificaciones` ni `children`: prueba guardas, no inventaría rutas. Rojo solo `rutas-01d-r1` (CAL-T-179 ×2).
+  - **C-30:** los casos del anuncio y del comentario quedan verdes, y solo los dos nuevos del título del recurso quedan rojos.
+
+### 3. Barrido propio (pruebas normales y `*.ataque` del frontend)
+**Búsqueda:**
+- Textos: `"Material"`, `Publicar material`, `Tipo de publicación`, `Título del material` y `Escribe el título del material`.
+- Claves de `TEXTOS_FORMULARIO_PUBLICACION` que §D-8.7 deja sin uso: `grupoTipo`, `material`, `campoTitulo`, `campoDescripcion`, `publicarMaterial`, `campoTema`, `sinTema` y `temasNoCargados`.
+- Lo que sale de §D-8.7: `CLASES_DE_POSICION_DEL_INDICADOR`, `CAMPOS_PINTADOS_DE_LA_PUBLICACION`, `erroresDeLaPublicacionDeApi(` con `"material"` y `useCrearPublicacion`.
+- Posiciones y conteos de las secciones: `indicador-x`, `"300px"`/`"400px"`, `Secciones de la clase`, `getAllByRole("link")[`, `toHaveLength(4)`, `CAPACIDADES_POR_PERSPECTIVA` e `indiceDeSeccionActiva`.
+- Pruebas fuera de `features/clases` que leen `/src/features/clases/…` con `import.meta.glob`.
+
+**Hermano nuevo: `features/tareas/como-se-entrega-01a.test.tsx:241` y `:258-265` (PR-1A17, prueba normal, en "No se toca").**
+- Lee con `import.meta.glob` `features/clases/data.ts` y afirma `TEXTOS_FORMULARIO_PUBLICACION.sinTema === TEXTOS_DE_LA_CLASE.sinTema`.
+- Como el `glob` declara su propio tipo, el `tsc` no lo detecta. Si el programador quita `sinTema` (el formulario de anuncios ya no tiene tema), la prueba se pone roja en la corrida, en un archivo que no puede tocar.
+- Por eso R-03d-3 del tester es incompleto: no todas las claves que lista pueden salir.
+- **Remedio sin autorización:** el programador conserva `TEXTOS_FORMULARIO_PUBLICACION.sinTema: TEXTOS_DE_LA_CLASE.sinTema` (indicación 3, abajo).
+- Queda como detalle con destino: al cerrar 03d, `ESTADO.md` anota que PR-1A17 apunte a `TEXTOS_FORMULARIO_RECURSO.sinTema` la próxima vez que se toque `features/tareas`, y la clave sale entonces.
+
+**Aclaración de la lista cerrada de 03d (sin enmienda):** la fila de `features/clases/clase-layout.test.tsx` y `app/router*.test.tsx` ("La sección «Recursos» en su lugar y sus rutas") incluye lo que depende del lugar de «Recursos», igual que la fila de `lib.test.ts`, `secciones-03c1.test.tsx` y `app/clase-03c1.test.tsx`:
+- índices y posiciones simuladas (`--indicador-x`, `--indicador-ancho`);
+- `toHaveLength(4)` → `5` (`clase-layout.test.tsx:376`);
+- las listas de nombres (`:311`, `:420-453`);
+- los ordinales de los títulos y comentarios de esos casos (M-T1, `:254-256`: «Personas» pasa de "la tercera" a "la cuarta").
+
+Nada más de esos archivos.
+
+**Sin rotura (comprobado):**
+- Los dobles con `tipo: "material"` de `app/clase-03c1.test.tsx:62`, `app/personas-03c1-r1.ataque:70`, `adjuntos-de-publicacion.test.tsx:194`, `archivos-d-r3.ataque:171`, `descarga-ch3-r2.ataque:47,63`, `consultas-ch3.test.tsx:75`, `trabajo-01e-r1`/`-r2` y `lib/errores-de-api.test.ts:389` alimentan `PublicacionDelMuro` o `ElementoDeTrabajo`, que conservan la rama de material (DH-08), o un esquema de `shared/`, que no cambia.
+- `contenido-03c2.test.tsx`, `formularios-03c2.test.tsx`, `consultas-ch3.test.tsx` y `ordenar-03c2-r1.ataque` montan Avisos como estudiante (sin formulario) o comparan URLs relativas a su propio "antes".
+- `foco-*-02d` usan el índice 0.
+- `tareas-01d-r1`/`-r2` y `entregas-01d-r1:864-925` son reglas generales.
+- `components/layout/estatico-r1:155` es un comentario.
+
+No encontré ninguna otra `*.ataque` ni prueba normal de `features/clases` o de `app/` que rompa con 03d fuera de §D-R0, de la lista cerrada y de estas cuatro PARADAs.
+
+### 4. Riesgos R-03d-1 a R-03d-4: confirmados, con indicaciones literales para el programador
+Todas coinciden con §D-8 y §D-13. Las doy literales para que ninguna `*.ataque` reescrita se ponga roja por algo que el plan no fija:
+1. **R-03d-1 (textos y estructura de «Nuevo recurso»):**
+   > `TEXTOS_FORMULARIO_RECURSO` usa exactamente los textos de §D-13: "Título del recurso", "Tema", "Descripción (opcional)", "Publicar recurso", "Guardar cambios", "Cancelar", "Recurso publicado" (`toast.success`) y "Cambios guardados". Los campos van dentro de un elemento `<form>` con `ListaDeAdjuntosElegidos` como en `FormularioPublicacion`, así que la nota `listaFija` ("Mientras se publica no puedes cambiar los archivos.") queda dentro del `<form>`. En `…/recursos`, sin recursos, la página tiene un solo campo de texto "Descripción (opcional)" y un solo "Adjuntar archivos". Al montar la vista del maestro sin temas y con `sinTema: 0`, solo se piden `GET …/temas?seccion=aprendizaje`, `GET …/temas?seccion=docente` y el total `GET …/temas` del formulario. `GET …/recursos` solo se pide por cada sección con `elementos > 0` (§D-8.1 y §D-8.2).
+2. **R-03d-2 (cuerpo del `POST`):**
+   > `useCrearRecurso` envía el `data` del `safeParse` de `crearPublicacionSchema` (normalizado: extremos invisibles fuera y `\r` → `\n`), nunca el estado crudo: `{ tipo: "material", titulo, texto, archivoIds }`, con `archivoIds` siempre presente (`[]` sin adjuntos), y `temaId` solo si se eligió un tema. Con "Sin tema", la clave no viaja (como hoy la rama de material, `formulario-publicacion.tsx:171-172`). Ninguna otra clave: ni `bloque` (lo decide el servidor, S-01) ni `version`. El mensaje del título sigue la Enmienda 10.
+3. **R-03d-3 (claves de `TEXTOS_FORMULARIO_PUBLICACION`), corregido:**
+   > `TEXTOS_FORMULARIO_PUBLICACION` conserva `campoAnuncio`, `publicarAnuncio`, `avisoPublicado` **y `sinTema: TEXTOS_DE_LA_CLASE.sinTema`**. A `sinTema` la lee `features/tareas/como-se-entrega-01a.test.tsx:262` (PR-1A17), que está en "No se toca". Ponle encima un comentario que diga por qué sigue ahí ("la lee PR-1A17 de features/tareas; sale cuando esa prueba apunte a TEXTOS_FORMULARIO_RECURSO"). Las demás claves que el formulario de anuncios ya no usa (`grupoTipo`, `anuncio`, `material`, `campoTitulo`, `campoDescripcion`, `publicarMaterial`, `campoTema` y `temasNoCargados`) pueden salir. Si salen, cambia antes sus usos en las pruebas normales de la lista cerrada de 03d (`formularios-ch3.test.tsx:341-355`, `:782`, `:859`; `recuperar-ch3.test.tsx:322-327`; `formulario-publicacion.test.tsx`; `muro-view.test.tsx`), solo en las aserciones de publicar un material desde el muro.
+4. **R-03d-4 (V-07, vidrio):**
+   > En `formulario-publicacion.tsx` no queda el texto `vidrio-fuerte`, tampoco en un comentario. `\bvidrio-fuerte\b` lo cuenta, y eso pone V-07 en rojo. `elemento-de-recurso.tsx` sí lleva `vidrio-fuerte` (§D-8.3). Ningún otro archivo nuevo (`formulario-recurso.tsx`, `seccion-de-recursos.tsx`, `recursos-view.tsx` ni `editar-recurso-view.tsx`) lleva `vidrio-fuerte` ni una cadena con `vidrio`: el `Card` ya trae su vidrio. `FormularioRecurso` no tiene control segmentado.
+
+**Además, por las filas que el tester ya reescribió (C-19, C-21 y C-27):**
+5. **C-21 (V-06):**
+   > El texto `enEspera=` aparece exactamente una vez en `formulario-recurso.tsx` (un solo `Button` principal con su texto según el modo; "Cancelar" sin `enEspera`), una vez en `elemento-de-recurso.tsx` ("Sí, borrar recurso") y una vez en `seccion-de-recursos.tsx` ("Ver más de <tema>"). En `recursos-view.tsx` y `editar-recurso-view.tsx` no aparece nunca. La cuenta es por texto, así que tampoco puede ir en un comentario. Total: 64. `formulario-publicacion.tsx` sigue en 1.
+6. **C-27:**
+   > Entre los archivos nuevos, solo `elemento-de-recurso.tsx` lee `.puedeBorrar`, siempre como `recurso.puedeBorrar` (la variable se llama `recurso`). Ninguna línea de producción escribe `puedeBorrar=` (prop de JSX) ni `puedeBorrar:` (en un objeto o en `setQueryData`), salvo `puedeBorrar: recurso.puedeBorrar`. La sección y la vista no deciden el foco con `puedeBorrar`: pasan el `recurso` entero.
+7. **C-19:**
+   > `perspectivaDeRuta(` aparece en `recursos-view.tsx` y `editar-recurso-view.tsx` y en ningún otro archivo nuevo. `SeccionDeRecursos` y `ElementoDeRecurso` reciben la perspectiva o la base por props.
+8. **P-03d-4 (exigible en la verificación):**
+   > El caso de CL3-D08, con `RecursosView` montada, comprueba que tras el `201` se vuelve a pedir `GET …/temas?seccion=<bloque>` (`docente` para el maestro, `aprendizaje` para el admin) y la lista `…/recursos` de la sección afectada, además del aviso "Recurso publicado" y los campos vacíos.
+
+### 5. ¿Cambia el plan? No
+- Las cuatro PARADAs se resuelven como ampliaciones de C-10, C-8 y C-23 (dos veces), con el mismo criterio que P-03c1-1 y P-03c2-2.
+- El hermano de `features/tareas` se evita con la indicación 3, sin tocar la prueba.
+- La aclaración de la lista cerrada se lee del texto que ya existe ("en su lugar", "y lo que de ella dependa").
+- Las filas ampliadas ya están en "Rojos esperados" de 03d ("C-8 a C-11 … C-23"), así que esa tabla tampoco cambia.
+- El registro queda en este arbitraje y en `aprobacion.md`. No hay nada que el humano tenga que decidir.
+
+### Para el orquestador
+- **Orden:**
+  1. El tester aplica una adenda de la ronda 0 con P-03d-1 a P-03d-4 tal como dice la sección 1: 5 `*.ataque` más (`estatico-03c1-r1`, `indicador-03c1-r1`, `indicador-03c1-r2`, `muro-02c-r1` e `invalidaciones-03c2-r1`), cada una con su comentario de motivo y la tabla de SHA-256 actualizada (V-01: 18 reescritas en total).
+  2. Después entra el programador, con las indicaciones 1 a 8.
+- **Cifras que espero tras la adenda (el tester las confirma con su corrida):**
+  - 5567 casos en 255 archivos.
+  - Rojos: los 43 de hoy, más los 28 de `indicador-03c1-r1`/`-r2` (hasta el paso 1) y 1 de CL3-R1-35 (hasta el paso 5). En total, unos 72 casos en 16 archivos.
+  - `muro-02c-r1` verde. `invalidaciones-03c2-r1` verde, con 3 casos.
+  - `lint` en verde.
+- **Para la ronda 1 de 03d:** CL3-2R1-19 "publicar un recurso" con `useCrearRecurso` (sección 1, P-03d-4) es obligatoria y cuenta en V-01.
+
+## Arbitraje de la PARADA del programador — 03d
+Fecha: 2026-11-03. Fuentes: la última entrada de `aprobacion.md` (el programador no escribió resumen), `git status` y `git diff e462444 -- frontend`, y `plan.md` (`5c53894078640e5fa7639e315d4d8481d8b06bb8b81c8d5a5aa222194199ac24`). Solo lectura, grep y git; no corrí suites.
+
+**Veredicto: hace falta una Enmienda 12 pequeña (texto en la sección 7). No hace falta autorización del humano.**
+- Los dos archivos que la necesitan (`features/clases/errores-ch3.test.ts` y `formulario-publicacion.test.tsx`) son pruebas normales de `features/clases`, fuera de "No se toca".
+- La enmienda hace falta porque la lista cerrada es del plan. La fila de `errores-ch3.test.ts` dice "Nada más del archivo", y el encabezado de la lista dice "no se borra ni se desactiva ningún caso". Esta es la misma vía que E11-3, que amplió una fila de la lista cerrada. Para las `*.ataque` basta mi arbitraje, porque §D-R0 lo delega; para las normales, no.
+- Las decisiones (1) y (2) del programador caben en sus filas y las acepto ya. Las dos cosas fuera de la letra (punto 5) también se aceptan.
+
+### 1. PARADA: `errores-ch3.test.ts` CH3-B01 (`:79` y `:45-55`, `:90-92`)
+- **Lo que rompe:**
+  - CH3-B01 fija `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` en 12 elementos.
+  - También exige que las claves de `MENSAJES_POR_CODIGO_DE_CLASES` sean las de `TEXTOS_FIJOS_DE_SIEMPRE`, con su texto.
+  - Con 03d, la lista tiene 15 elementos (`data.ts:224-227`), y `MENSAJES_POR_CODIGO_DE_CLASES` suma `RECURSO_NO_ENCONTRADO` (`data.ts:271`).
+- **Los códigos y los textos son exactamente los de §D-13** (`plan.md:431`):
+  - suma `RECURSO_MODIFICADO`, `MOVER_NO_PERMITIDO` y `EDICION_NO_PERMITIDA`;
+  - suma `RECURSO_NO_ENCONTRADO` con `MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado` = "Ese recurso ya no existe.";
+  - `textosPorCampo.recursoId` usa ese mismo texto.
+
+  Nada de más ni de menos.
+- **El origen es un error del plan, no del programador.** El barrido de la Enmienda 6 dice que `features/clases/errores-ch3.test.ts:1-166` "No rompe: los códigos y los `textosPorCampo` nuevos (`recursoId`) no cambian esas entradas". Es falso para CH3-B01, que cuenta la lista y compara las claves.
+- **Vuelve a romper en 03e.** `MENSAJES_POR_CODIGO_DE_CLASES` suma `DUDA_NO_ENCONTRADA` y `RESPUESTA_NO_ENCONTRADA` (`plan.md:431`), y la fila de 03e de ese archivo tampoco lo permite. La enmienda lo cubre ya, para no tener otra PARADA en 03e.
+- **Decisión:** no basta mi arbitraje. Se necesita la **Enmienda 12** (E12-1 y E12-2).
+- Hasta que el orquestador la aplique y yo la verifique, el programador no toca CH3-B01. Puede seguir con lo demás.
+
+### 2. Decisión (1), ya aplicada: `formularios-ch3.test.tsx` y `recuperar-ch3.test.tsx`: aceptada
+- **La cubre la fila de 03d** ("Solo las aserciones de publicar un material desde el muro"). Cada caso cambiado es el de publicar un material, y se lleva al único lugar donde hoy se publica un material: `FormularioRecurso`, en modo crear. Es la regla de C-23 para las `*.ataque`.
+- **El diff es mínimo** (+42 −27):
+  - cambia el montaje, los textos (`TEXTOS_FORMULARIO_RECURSO`) y el nombre de la entrada ("publicar un recurso"), y con él los títulos de CH3-B07, B10, B14 y B16 que lo interpolan;
+  - `FILAS_POR_MODO` conserva `titulo` como campo pintado;
+  - `FORMULARIOS_CON_SUBIDA` cambia el nombre.
+
+  No se borra ningún caso.
+- **Protege lo mismo.** Son los `VALIDACION` fuera de contrato, la recuperación y la subida del formulario que publica materiales. Ahora lo prueban en el formulario que de verdad lo hace.
+- **CH3-B16 (e)** perdió el clic en «Material», porque ese control ya no existe. Ahora afirma que tras el aviso de `titulo:` no aparece ningún campo de título ni el botón «Material», y que no hay ningún `ErrorDeCampo`. Es CL3-D21 en la prueba normal, y protege lo mismo: el error de un envío no reaparece en un campo que la persona no ve.
+- **Detalle sin consecuencia:** `FormularioRecurso` recibe un prop `destino` que §D-8.5 no nombra. Es la frase de §D-8.1, que decide la vista según la perspectiva. Lo acepto. Que vaya en el resumen.
+
+### 3. Decisión (2): `muro-view.test.tsx` PR-2C07 (`:121-136`): aceptada, con un cambio
+- La cubre la fila de 03d de `muro-view.test.tsx`: el grupo "Tipo de publicación" existía solo para elegir el material.
+- **No uso el botón "Publicar anuncio"**: `:130-131` ya afirman que el único primary dice "Publicar anuncio", así que la aserción repetiría. Uso el campo, que prueba que el admin tiene el formulario.
+- **Indicación literal:**
+  > En `muro-view.test.tsx`, `:132` pasa a `expect(screen.getByRole("textbox", { name: TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio })).toBeInTheDocument()`, con la importación que haga falta, y el título de `:121` pasa a "PR-2C07: en la vista del admin hay un solo primary, el formulario de anuncios y ningún formulario de comentario". `:116` (el estudiante sin grupo) no cambia. Nada más del archivo.
+
+### 4. Decisión (3): `formulario-publicacion.test.tsx`, caso por caso (necesita E12-3)
+La fila de 03d dice que "los casos del tipo, del título y del tema pasan a `formulario-recurso.test.tsx` si su propiedad sigue valiendo; los de anuncio se quedan". No dice qué pasa con los casos cuya propiedad ya no existe, y el encabezado prohíbe borrar. **Indicación literal, por grupo:**
+
+> **A. Se quedan sin cambio** (son del anuncio): PR-C09b (`:121`), "un error que no es de un campo (500)…" (`:195`), PR-C14a (`:230`), PR-D11a, b y c (`:393-430`), "Quitar saca el archivo…" (`:524`), "sin archivos elegidos…" (`:538`) y PR-D19 (`:612`).
+>
+> **B. Se quedan y cambian solo las aserciones del material:**
+> - PR-C09a (`:90-106`) pasa a "PR-C09a · CL3-D19: el formulario de Avisos no tiene grupo «Tipo de publicación», ni botón «Material», ni campos «Título…» o «Tema», y no pide los temas": afirma que todo eso es `null` y que no hay `GET …/temas`. Es uno de los casos con que el resumen cubre CL3-D19.
+> - PR-C09c (`:145-155`) se queda con el anuncio: "PR-C09c: el botón dice «Publicar anuncio» y no hay «Publicar material»".
+> - PR-C12h (`:157-174`) y PR-C15b (`:294-328`) conservan la parte del anuncio. La parte del título sale de cada caso y pasa a `formulario-recurso.test.tsx` como un caso nuevo (siguiente grupo). En PR-C12h, con "Escribe el título del recurso", como dice la Enmienda 10.
+> - Los casos de adjuntos que hoy eligen «Material» (PR-D11d `:432`, PR-D12a `:450`, PR-D12b `:479`, PR-D12c `:505` y PR-D16 `:549`) se quedan en este archivo con el anuncio. Escriben en "Anuncio" en lugar de elegir «Material» y escribir el título. El botón es "Publicar anuncio", y donde se compara el cuerpo, este es `{ tipo: "anuncio", texto, archivoIds }`. Lo demás de cada caso no cambia. Así el formulario de Avisos conserva la prueba de su subida (orden, fallo, espera y lista fija), y la del recurso la dan CL3-D09 y las `*.ataque` reescritas.
+>
+> **C. Pasan a `formulario-recurso.test.tsx`** (salen de este archivo y entran allá con la misma propiedad, montando `FormularioRecurso` en modo crear y con los textos de `TEXTOS_FORMULARIO_RECURSO`):
+> - PR-C09f (`:108`: el formulario pide el título);
+> - "un material sin descripción se publica con solo el título" (`:176`), con el cuerpo `tipo: "material"` como hoy;
+> - la parte del título de PR-C12h y la de PR-C15b;
+> - PR-1E04 (`:818`, `:845` y `:891`) y PR-1E08 (`:914`, `:933` y `:957`): el tema, "Sin tema" sin `temaId`, `404 TEMA_NO_ENCONTRADO` y la lista pendiente, fallida o vacía. Con ellos el resumen cubre CL3-D10.
+>
+> Cada caso conserva su id (por ejemplo, "PR-1E04 · …") y suma "(CLASES-03d, antes en formulario-publicacion.test.tsx)".
+>
+> **D. Se retiran, con motivo en un comentario en su lugar** ("CLASES-03d, Enmienda 12: sin el control del tipo no queda propiedad que probar; §7.3 del control segmentado la prueban «Crear tarea» (`features/tareas`) y `segmentado-02d-r1.ataque`"):
+> - los 8 PR-2D05 (`:649-787`, el `describe` entero);
+> - "PR-1E04 · O-18: con una publicación en vuelo, cambiar de tipo no cambia el texto del botón ni el tipo enviado" (`:859`).
+>
+> Son 9 casos. Sin el grupo de tipo no se pueden convertir en algo distinto de CL3-D19, que ya cubre el grupo B. Si `elegirMaterial` (`:74`) y los dobles de temas (`:43-47`) quedan sin uso, salen con ellos. El resumen trae el conteo de casos antes y después de los dos archivos, con `npx vitest list`.
+
+### 5. Lo que está fuera de la letra del plan: se acepta, con dos condiciones
+- **La guarda de redirección en `useMoverElemento` (`hooks.ts:1061-1065`) y en los tres ganchos de recursos (`:1149` en `avisarErrorDelRecurso` y `:1221` en `useBorrarRecurso`).**
+  - Antes, en `e462444`, `useMoverElemento` avisaba siempre (`hooks.ts:1026-1029`).
+  - Lo acepto. `CLAUDE.md` dice que `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` existe "para no avisar de ellos", y la fila "Redirige `apiClient` → Ninguno" de §D-14 ya fija ese criterio para los formularios de 03c. §D-8.4 cambia `useMoverElemento` de todos modos, y un aviso sobre una página que se va es ruido.
+  - Lo que cambia en Actividades es solo eso: con un código que redirige, sin aviso y sin renovar.
+  - **Grep:** ninguna prueba normal ni `*.ataque` fija lo contrario. Ningún archivo de prueba de `features/clases` o de `app/` combina un código que redirige con mover. `apiClient-ch3-r1.ataque:59-84` sigue cumpliéndose: la constante solo aparece en `features/clases/lib.ts`, y `hooks.ts` importa `errorQueRedirigeElCliente`.
+  - **Condiciones:**
+    - (a) El resumen lo declara como cambio fuera de la letra y lo pone en la matriz (disparadores "Mover" de Actividades y de Recursos, y los tres de recursos).
+    - (b) Una prueba nueva lo cubre: mover con `403 ACCESO_RESTRINGIDO`, en Actividades y en Recursos, da ningún aviso y ninguna recarga.
+- **`data-seccion-de-recursos="bloque:clave"`** (`seccion-de-recursos.tsx:137`; `recursos-view.tsx:52` y `:97-100`; `marcaDeSeccionDeRecursos` y `claveDeLaMarcaDeRecursos` en `lib.ts:672`).
+  - Lo acepto. Es el patrón de `data-tema-id` de `trabajo-view.tsx` (`useFilaEnFoco` y la búsqueda de la sección y de su `[data-encabezado-tema]`), con el bloque delante porque el mismo tema puede aparecer en los dos bloques. Sirve al foco de §D-8.2 cuando una sección desaparece.
+  - **Grep:** ninguna prueba fija `data-tema-id`, `data-encabezado-tema` ni `data-seccion-*`, y los dos atributos que nombra el plan (`data-recurso-id` y `data-encabezado-tema`) siguen ahí.
+  - **Condición:** el resumen lo nombra, y CL3-D05 o CL3-D06 prueba el caso que lo usa: se borra o se mueve el último recurso de una sección con el foco dentro, y el foco va a la sección vecina del mismo bloque o, si no hay, a su `h2`.
+
+### 6. Otras normales rotas por 03d fuera de la lista cerrada (grep)
+Busqué:
+- las claves que salieron de `data.ts` (`grupoTipo`, `anuncio`, `material`, `campoTitulo`, `campoDescripcion`, `publicarMaterial`, `campoTema`, `temasNoCargados` y `CLASES_DE_POSICION_DEL_INDICADOR`);
+- los usos de `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`, `MENSAJES_POR_CODIGO_DE_CLASES`, `textosPorCampo`, `CODIGOS_QUE_RENUEVAN_*` y los códigos nuevos;
+- las listas exactas de invalidaciones;
+- las peticiones de mover;
+- `errorQueRedirigeElCliente`;
+- los atributos `data-*` de foco.
+
+**Resultado:** fuera de la lista cerrada, la única normal que rompe es CH3-B01 (sección 1).
+- `errores-ch3-r1.ataque:273` recorre la lista con `it.each`: gana 3 casos y no rompe. Que el resumen lo cuente.
+- `features/tareas/como-se-entrega-01a.test.tsx:262` queda a salvo: `TEXTOS_FORMULARIO_PUBLICACION.sinTema` sigue, con su comentario (`data.ts:395-397`).
+- Los usos de `EDICION_NO_PERMITIDA` en `features/tareas` son de su propia tabla.
+- Ninguna prueba compara la lista exacta de invalidaciones de mover o de comentarios.
+- Las demás que nombra el programador (`clase-layout`, `router-01d`, `lib.test`, `secciones-03c1` y `app/clase-03c1`) están en la lista cerrada. La aclaración de mi arbitraje de la ronda 0 vale para ellas: índices, posiciones, `toHaveLength` y ordinales en los títulos.
+
+**Revisión rápida de los archivos nuevos** contra las reglas estáticas que reescribió el tester: no hay `?? []`, `disabled`, `fetch(` ni valores arbitrarios.
+- `enEspera=`: una vez en `formulario-recurso.tsx:399`, en `elemento-de-recurso.tsx:148` y en `seccion-de-recursos.tsx:125`, y nunca en las vistas.
+- `vidrio-fuerte`: solo en `elemento-de-recurso.tsx:93`.
+- `.puedeBorrar`: solo `recurso.puedeBorrar` (`elemento-de-recurso.tsx:58`).
+- `perspectivaDeRuta(`: solo en las dos vistas.
+
+Lo confirmo con mi corrida en la verificación del resumen.
+
+### 7. Texto mínimo para la Enmienda 12 (después de la 11; guardar antes la copia de `plan.md` con su SHA-256)
+No cambia el alcance, el diseño, ninguna DH ni las pruebas requeridas.
+
+| Id | Dónde | Qué cambia |
+|---|---|---|
+| E12-0 | Encabezado | "Estado: LISTO (Enmiendas 1 a 12 aplicadas)". |
+| E12-1 | Lista cerrada, fila 03d de `features/clases/errores-ch3.test.ts` | Suma "(f) en CH3-B01, `expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(12)` (`:79`) pasa a `15` (`RECURSO_MODIFICADO`, `MOVER_NO_PERMITIDO`, `EDICION_NO_PERMITIDA`, §D-13), y `TEXTOS_FIJOS_DE_SIEMPRE` (`:45-55`) suma `RECURSO_NO_ENCONTRADO: "Ese recurso ya no existe."`, con un comentario de motivo (CLASES-03d, §D-13). El título de CH3-B01 no cambia." Antes de "Nada más del archivo". |
+| E12-2 | Lista cerrada, fila 03e de `features/clases/errores-ch3.test.ts` | Suma "y en CH3-B01, `TEXTOS_FIJOS_DE_SIEMPRE` suma `DUDA_NO_ENCONTRADA: "Esa duda ya no existe."` y `RESPUESTA_NO_ENCONTRADA: "Esa respuesta ya no existe."` (§D-13); la cuenta de `:79` queda en 15". Antes de "Nada más". |
+| E12-3 | Lista cerrada, fila 03d de `features/clases/formulario-publicacion.test.tsx` | Suma, después del texto de la Enmienda 10: "**Enmienda 12:** los casos de adjuntos que eligen «Material» (PR-D11d, PR-D12a, PR-D12b, PR-D12c y PR-D16) se quedan con el anuncio (escriben en "Anuncio" y comparan el cuerpo del anuncio); PR-C09a pasa a la comprobación de CL3-D19 y PR-C09c se queda con «Publicar anuncio»; la parte del título de PR-C15b pasa a `formulario-recurso.test.tsx`, como la de PR-C12h; y, por excepción a "no se borra ningún caso", se retiran con su motivo en un comentario los 8 PR-2D05 y "PR-1E04 · O-18": eran del control del tipo, que ya no existe, y §7.3 la prueban «Crear tarea» y `segmentado-02d-r1.ataque` (C-10)." |
+| E12-4 | Lista cerrada, filas 03d de `muro-view.test.tsx`, `recuperar-ch3.test.tsx` y `formularios-ch3.test.tsx` (registro del arbitraje) | Suma: "Las entradas «publicar un material» de `formularios-ch3.test.tsx` y `recuperar-ch3.test.tsx` pasan a «publicar un recurso» con `FormularioRecurso` en modo crear (con los títulos de los casos que las nombran, CH3-B07, B10, B14 y B16), y CH3-B16 (e) comprueba que tras el aviso de `titulo:` no aparece ningún campo de título; en `muro-view.test.tsx`, PR-2C07 (`:132`) afirma el campo "Anuncio" en lugar del grupo «Tipo de publicación»." |
+| E12-5 | §D-R0, barrido de la Enmienda 6, fila de `errores-ch3-r1.ataque.test.ts:220-239` y `errores-ch3.test.ts:1-166` | "No rompe" pasa a "No rompe, salvo CH3-B01 de `errores-ch3.test.ts` (`:79` y `:45-55`), que cuenta `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` y compara las claves de `MENSAJES_POR_CODIGO_DE_CLASES`: E12-1 (03d) y E12-2 (03e)". |
+
+### Para el orquestador
+**Orden:**
+1. Guarda la copia de `plan.md` y aplica la Enmienda 12.
+2. Yo la verifico con el `git diff --no-index` completo.
+3. Con la verificación, el programador aplica E12-1 y E12-3 y la indicación de la sección 3.
+
+Mientras tanto, puede seguir con CL3-D01 a D28, la matriz y las demás filas de la lista cerrada, sin tocar CH3-B01 ni `formulario-publicacion.test.tsx`.
+
+**Su resumen trae:**
+- las cifras de `npx vitest list` y la última línea de `lint`, `test` y `build`;
+- los dos cambios fuera de la letra (sección 5), con sus pruebas;
+- el conteo de casos de `formulario-publicacion.test.tsx` y `formulario-recurso.test.tsx`, con la lista de los 9 retirados;
+- el aumento de 3 casos de `errores-ch3-r1.ataque`.
+
+## Verificación de la Enmienda 12 — CLASES-03
+**Veredicto: Enmienda 12 APROBADA, sin M-nn.** Aplica fielmente mi arbitraje de la PARADA del programador en 03d (sección 7). El programador puede aplicar E12-1, E12-3 y la indicación de PR-2C07.
+**Verificación propia:** no corrí lint, test ni build (es una enmienda del plan, y el programador está corriendo la suite del frontend). Verifiqué con el diff completo, grep y la lectura de `shared/src/dudas.ts` y de las pruebas citadas.
+
+Fecha: 2026-11-03.
+
+### 1. Integridad y cotejo
+- **Hashes:**
+  - `plan.md`: `49b47f652220bfc7220b936743bdad2daeacad5910d1f2b5f25fdaf004cba6d2` (1290 líneas). Coincide con `aprobacion.md` y con la copia `copias-plan/plan-clases03-v13-enmienda12-49b47f65.md`.
+  - Copia previa `copias-plan/plan-clases03-antes-enmienda12-5c538940.md`: `5c53894078640e5fa7639e315d4d8481d8b06bb8b81c8d5a5aa222194199ac24`. Coincide con `aprobacion.md`.
+- **Diff completo:** `git diff --no-index` da +42 −6, en 7 hunks. Cada hunk tiene su id y ninguno queda sin id:
+
+| Hunk | Dónde | Id |
+|---|---|---|
+| `@@ -2` | Encabezado ("Enmiendas 1 a 12") | E12-0 |
+| `@@ -623` | §D-R0, barrido de la Enmienda 6, fila de `errores-ch3-r1.ataque:220-239` y `errores-ch3.test.ts:1-166` (columnas 03d y 03e) | E12-5 |
+| `@@ -887,2` | Lista cerrada 03d: fila de `formulario-publicacion.test.tsx` y fila de `muro-view`/`recuperar-ch3`/`formularios-ch3` | E12-3 y E12-4 |
+| `@@ -891` | Lista cerrada 03d, `errores-ch3.test.ts`, inciso (f) antes de "Nada más del archivo" | E12-1 |
+| `@@ -893` | Lista cerrada 03e, `errores-ch3.test.ts`, antes de "Nada más" | E12-2 |
+| `@@ -1033` | Paso 7 de 03d (debajo de "Matriz de 03d en el primer resumen"), con las condiciones de la decisión 5 | E12-4 |
+| `@@ -1254` | Sección "## Enmienda 12" nueva, con su tabla y su barrido | Registro |
+
+- No cambian el alcance, el diseño, ninguna DH, ninguna prueba requerida (CL3-D01 a D28), ninguna fila C-n de §D-R0, "Rojos esperados" ni "No se toca". La enmienda tampoco pide tocar ninguna `*.ataque`.
+
+### 2. Fidelidad al arbitraje
+- **E12-1:** es correcta.
+  - `:79` pasa de 12 a 15, con los tres códigos de §D-13 (`plan.md:431`): `RECURSO_MODIFICADO`, `MOVER_NO_PERMITIDO` y `EDICION_NO_PERMITIDA`.
+  - `TEXTOS_FIJOS_DE_SIEMPRE` suma `RECURSO_NO_ENCONTRADO: "Ese recurso ya no existe."`, el texto de `MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado` en §D-13, con su comentario de motivo.
+  - El título no cambia, y "Nada más del archivo" se conserva después del inciso (f).
+  - Coincide con lo que ya está en `data.ts:224-227` y `:271`.
+- **E12-2:** es correcta.
+  - `TEXTOS_FIJOS_DE_SIEMPRE` suma "Esa duda ya no existe." y "Esa respuesta ya no existe.", los textos de §D-13 (`dudaNoEncontrada` y `respuestaNoEncontrada`).
+  - `:79` queda en 15. Lo comprobé: `CODIGOS_DUDAS` (`shared/src/dudas.ts:54-57`) tiene solo `DUDA_NO_ENCONTRADA` y `RESPUESTA_NO_ENCONTRADA`, y §D-13 suma códigos a `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` solo en 03d.
+- **E12-3:** recoge los cuatro grupos.
+  - **Grupo A** (casos del anuncio, sin cambio): lo cubre la frase que la fila ya tenía, "los de anuncio se quedan".
+  - **Grupo B:** PR-C09a pasa a CL3-D19 y PR-C09c se queda con «Publicar anuncio». PR-C12h y PR-C15b conservan la parte del anuncio. Los cinco casos de adjuntos (PR-D11d, D12a, D12b, D12c y D16) pasan al anuncio, con el cuerpo `{ tipo: "anuncio", texto, archivoIds }`.
+  - **Grupo C:** PR-C09f, "un material sin descripción…", la parte del título de PR-C12h (Enmienda 10, misma fila) y la de PR-C15b, y PR-1E04 (sin O-18) y PR-1E08, cada uno con su id y el sufijo de origen.
+  - **Grupo D:** los 9 casos retirados por excepción y con su motivo (los 8 PR-2D05 y "PR-1E04 · O-18"), la salida de `elegirMaterial` y de los dobles sin uso, y el conteo con `npx vitest list`.
+- **E12-4:**
+  - En la lista cerrada están la indicación literal de PR-2C07 (`:121`, `:132` y `:116` sin cambio) y el registro de las entradas «publicar un recurso» y de CH3-B16 (e).
+  - En el paso 7 de 03d están las condiciones de la decisión 5. La guarda de redirección va en la matriz y con la prueba de `403 ACCESO_RESTRINGIDO` en Actividades y en Recursos. `data-seccion-de-recursos` va nombrado, con su caso de foco en CL3-D05 o CL3-D06. También quedan el prop `destino`, los +3 casos de `errores-ch3-r1.ataque` y el conteo con los 9 retirados.
+- **E12-5:** las dos columnas de la fila del barrido dicen ahora "No rompe, salvo CH3-B01", y remiten a E12-1 en 03d y a E12-2 en 03e.
+
+### 3. Barrido repetido
+Repetí la búsqueda de mi arbitraje y comprobé las afirmaciones nuevas del barrido de la enmienda:
+- `reexportaciones-01c.test.ts:128-146` fija solo tres claves de `MENSAJES_ERROR_CLASES_GENERALES` (las de archivos) y las cuatro de `MENSAJES_POR_CODIGO_DE_ARCHIVO`. No rompe en 03d ni en 03e.
+- `features/tareas/errores-ch3.test.ts:44` y `errores-ch3-r1.ataque:109` cuentan la lista de `features/tareas` (14), que 03d y 03e no tocan.
+- `features/clases/errores-ch3-r1.ataque:273` usa `it.each` sobre la lista: gana casos y no rompe.
+- No hay hermanos nuevos. La única prueba normal fuera de la lista cerrada que rompe es CH3-B01, ya cubierta por E12-1 y E12-2.
+
+### Detalles menores (no bloquean)
+- La fila de E12-3 resume los títulos nuevos de PR-C09a y PR-C09c. Su texto literal vive en `revision.md` ("## Arbitraje de la PARADA del programador — 03d", sección 4, grupo B), que la sección de la enmienda cita como origen, y el programador lo sigue de ahí.
+- La cita de `reexportaciones-01c.test.ts` en la enmienda dice `:130-146`; el caso empieza en `:128`. No cambia nada.
+
+### Para el orquestador
+El programador puede aplicar ya:
+- E12-1: CH3-B01, de 12 a 15, y `RECURSO_NO_ENCONTRADO`.
+- E12-3: los grupos B, C y D de `formulario-publicacion.test.tsx`, con los títulos literales de la sección 4 del arbitraje.
+- PR-2C07 de `muro-view.test.tsx`, según E12-4.
+
+Su resumen trae lo que pide el paso 7 de 03d. E12-2 queda para 03e.
+
+## Verificación del resumen del programador — 03d
+**Veredicto: ACEPTADO, sin M-nn.** Todas las cifras coinciden, y cada viñeta CL3-D01 a D28 tiene archivo y título exacto que existen en `npx vitest list`. Las ocho indicaciones de la ronda 0, la Enmienda 12 y las condiciones de la decisión 5 están cumplidas. V-01 da 239 de 239 y "No se toca" está limpio. Lo que queda son detalles y puntos de ataque para la ronda 1 del tester.
+
+Fecha: 2026-11-03. Resumen: `resumen-programador-03d.md` (SHA-256 `869215389304f0736c5c3402bdc1ca6c305577917f2488cdbfe63c6fb787a497`). Plan: `49b47f65…` (Enmiendas 1 a 12). Base: `e462444`.
+
+### 1. Cifras: las mías junto a las del resumen (desde `frontend/`, una tras otra)
+03d no toca `shared/` ni el backend: `git diff --stat e462444 -- shared backend infra` sale vacío. Por eso no corrí sus suites.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | `> tsc -b`, exit 0 (antes, Prettier sin cambios) | `All matched files use Prettier code style!` → `> tsc -b`, **exit 0** |
+| `npx vitest list \| grep -acE "^src/"` | 5694 | **5694** |
+| Archivos (`grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l`) | 261 | **261** |
+| `npm run test` | `1 failed \| 260 passed (261)` · `1 failed \| 5693 passed (5694)`; el rojo fue por tiempo en `features/tareas/tareas-01d-r1.ataque` (pasa solo) | **`Test Files  261 passed (261)` · `Tests  5694 passed (5694)` · `Duration  301.97s`**; 0 «timed out» |
+| `npm run build` | `✓ built in 3.28s` | **`✓ built in 944ms`**, exit 0 |
+
+El rojo del programador no se repite en mi corrida. Lo tomo como carga del equipo y no como un defecto del código: 03d no toca `features/tareas`, y el archivo pasó solo en su corrida y entero en la mía.
+
+**Conteos por archivo (los míos coinciden con los del resumen):**
+- Nuevos: `recursos-03d` 42, `recursos-caminos-03d` 29, `editar-recurso-03d` 31, `avisos-03d` 10, `recursos-lib-03d` 16 y `formulario-recurso.test` 10.
+- Cambiados: `formulario-publicacion.test` 18 (antes 35), `errores-ch3.test` 24 y `errores-ch3-r1.ataque` 94 (gana 3 por su `it.each`).
+- La cuenta 5567 − 17 + 138 + 3 + 3 = 5694 cuadra.
+
+### 2. Pruebas requeridas, condiciones y matriz
+- **Viñetas CL3-D01 a D28:** saqué los 76 títulos que cita el resumen y busqué cada uno en `npx vitest list` por su prefijo, hasta el primer `%s` o `$`. Están todos.
+  - CL3-D23 tiene sus cuatro caminos (a) a (d) por bloque.
+  - CL3-D27 tiene 12 casos en "Recursos" y 6 en "Editar recurso".
+  - CL3-D08 cumple la indicación 8: tras el `201`, se vuelven a pedir los temas del bloque y la lista de la sección.
+- **Condiciones de la decisión 5 y lo que pide el paso 7 de 03d:**
+  - La guarda de redirección está declarada, va en la matriz y tiene sus dos casos de `403 ACCESO_RESTRINGIDO` (en "Recursos" y en "Actividades de aprendizaje": ningún aviso y ninguna petición más).
+  - `data-seccion-de-recursos` está nombrado, y CL3-D05 prueba el foco cuando se borra el último recurso de una sección.
+  - También están el prop `destino`, los +3 casos de `errores-ch3-r1.ataque` y los 9 retirados.
+- **Matriz contra el código (`hooks.ts:1068-1225`, `seccion-de-recursos.tsx`, `recursos-view.tsx`, `editar-recurso-view.tsx`, `formulario-recurso.tsx:167-250` y `formulario-publicacion.tsx`):** coincide fila por fila, incluidas las columnas "en vuelo a la vez" y "desmontada".
+  - **Guardas de doble clic:** `publicandoRef` en los dos formularios, `borrandoRef` en la fila y `enEspera={isFetching}` con `cancelRefetch: false` en "Ver más".
+  - **Avisos con la vista desmontada:**
+    - Los avisos de éxito y de error salen de los ganchos.
+    - "Guardar cambios" navega solo si la vista sigue montada.
+    - Montar la vista con un fallo ya ocurrido no avisa, porque `useAvisoDeRecargaFallida` cuenta los errores por `errorUpdateCount`.
+  - **Aviso de recarga fallida:** los dos bloques y cada sección con filas usan el mismo id (`ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS`), así que solo se ve uno.
+  - **Foco:**
+    - Si cae un bloque o una sección, va a su `h2` o a su `h3`.
+    - Si desaparece la fila, va al control equivalente de la vecina; si desaparece la sección, a la sección vecina del mismo bloque o al `h2`.
+    - Al cambiar de clase, va al `h2`.
+    - En "Editar recurso", va a la raíz (`useFocoAlPerderseElControl`); tras un `409`, a "Título del recurso".
+  - **Fila de Avisos "Redirige `apiClient` → Uno (heredado)":** la acepto como heredada. `useCrearPublicacion` ya avisaba así en `e462444`, y el plan no la cambia. Queda como pendiente con destino (sección 6).
+- **La lección de 03c2 (decidir si se avisa después de la última espera):**
+  - `useCrearRecurso` y `useEditarRecurso` pasan por `avisarErrorDelRecurso` (`hooks.ts:1143-1153`):
+    - un error con que `apiClient` redirige: no se avisa;
+    - un error que no es de campo: se avisa al momento;
+    - un error de campo: se espera la renovación y, solo después, se lee `montado`.
+
+    Como TanStack Query espera este `onError` antes de rechazar `mutateAsync`, el `catch` del formulario pinta el campo después.
+  - `useCrearPublicacion` (`:679-682`) decide sin esperar nada, así que la lección no aplica.
+  - Los estados vecinos que lista el resumen (montado, renovado, desmontado antes y desmontado durante la espera) coinciden con el código.
+- **Hermanos y estados vecinos:** los del resumen (sección "Hermanos y estados vecinos") coinciden con el código. Los ganchos de `features/clases` sin la guarda de redirección son los que nombra el resumen, y quedan pendientes con destino.
+
+### 3. Las ocho indicaciones del arbitraje de la ronda 0: cumplidas (grep sobre la producción)
+1. Los textos de `TEXTOS_FORMULARIO_RECURSO` son los de §D-13, y los campos van dentro de un `<form>` con `ListaDeAdjuntosElegidos`.
+2. El cuerpo es el `data` de `crearPublicacionSchema.safeParse` (`recursoNuevoValidado`, `lib.ts:627-644`). `archivoIds` va siempre, `temaId` solo si se eligió un tema, y nunca van `bloque` ni `version`.
+3. `TEXTOS_FORMULARIO_PUBLICACION` conserva exactamente `campoAnuncio`, `publicarAnuncio`, `avisoPublicado` y `sinTema`, con su comentario (`data.ts:391-398`).
+4. `vidrio-fuerte` aparece en `elemento-de-recurso.tsx` y ya no en `formulario-publicacion.tsx`. Ningún otro archivo nuevo lo lleva.
+5. `enEspera=` aparece 1, 1 y 1 veces en `formulario-recurso`, `elemento-de-recurso` y `seccion-de-recursos`, y 0 en las dos vistas. El total es 64.
+6. `.puedeBorrar` solo se lee como `recurso.puedeBorrar` en `elemento-de-recurso.tsx`. No hay ninguna asignación nueva de `puedeBorrar` (la única existente es `comentario.puedeBorrar`, de antes).
+7. `perspectivaDeRuta(` aparece en `recursos-view.tsx` y `editar-recurso-view.tsx`, y en ningún otro archivo nuevo.
+8. CL3-D08 comprueba las dos peticiones que pide la indicación.
+
+### 4. Lista cerrada, Enmienda 12, V-01 y "No se toca"
+- **E12-1:** CH3-B01 queda en `toHaveLength(15)`, y `TEXTOS_FIJOS_DE_SIEMPRE` suma `RECURSO_NO_ENCONTRADO` con su comentario. Lo demás del archivo son los incisos (a) a (e) de la Enmienda 6. E12-2 no se aplicó, como corresponde, porque es de 03e.
+- **PR-2C07:** coincide con la indicación literal (`:121` y `:132`, con la importación).
+- **E12-3:**
+  - `formulario-publicacion.test` pasa de 35 a 18 casos.
+  - PR-C09a se convirtió en la comprobación de CL3-D19.
+  - PR-C09c se queda con «Publicar anuncio».
+  - Los cinco casos de adjuntos usan el anuncio.
+  - Pasan a `formulario-recurso.test` (10 casos) los del grupo C y las partes del título de PR-C12h y de PR-C15b.
+  - Los 9 retirados tienen su comentario de motivo (`:592-607`).
+- **Las demás filas de la lista cerrada** (`clase-layout`, `router-01d`, `lib.test`, `secciones-03c1`, `formularios-ch3` y `recuperar-ch3`): solo cambian nombres, índices, medidas, `toHaveLength` y ordinales, y las entradas «publicar un recurso». No vi ninguna normal fuera de la lista.
+- **V-01:** las 239 `*.ataque` tienen los mismos SHA-256 que la tabla de la adenda 1 de la ronda 0 de 03d (`diff`: 0 diferencias, 0 faltantes, 0 sobrantes). El programador no tocó ninguna.
+- **"No se toca":** `git diff e462444` está vacío en `features/tareas`, `features/admin`, `features/auth`, `features/diagnostico`, `features/calificaciones`, `lib/`, `services/`, `components/`, `app/providers.tsx`, `app/require-*`, `shared/`, `backend/`, `infra/`, `AGENTS.md` y `CLAUDE.md`. La única excepción es `styles/clases-r1.ataque`, que reescribió el tester en la ronda 0.
+
+### 5. Las dos correcciones de producción que se salen del texto: aceptadas
+- **"Ver más de `<tema>`" con un 5xx o sin red conserva las filas y avisa una vez** (`seccion-de-recursos.tsx`: `reemplazaLaLista` y `useAvisoDeRecargaFallida`).
+  - No se sale del plan: es exactamente la fila de §D-14 ("Se conservan las filas · Uno · En el botón"). Lo que se salía era su primera versión.
+  - Que una recarga de una sección con filas haga lo mismo es la extensión natural.
+  - Tiene prueba: «con un 500 al pedir «Ver más de Unidad 1», las filas se conservan, sale un aviso, el botón sigue y un segundo clic carga la página». Afirma un solo aviso con el id compartido.
+  - Falta la variante sin red: va a la ronda 1.
+- **Foco al `h3` cuando una fila pierde su control** (`seccion-de-recursos.tsx`, efecto de foco).
+  - Lo piden CL3-D06 ("el control desaparece; foco al `h3`") y la fila de §D-14 del borrado.
+  - Tiene prueba para "Mover" (CL3-D06 con `403 MOVER_NO_PERMITIDO`, que afirma el foco).
+  - **El caso del borrado no afirma el foco:** CL3-D05 con `403 BORRADO_NO_PERMITIDO` y con `404` comprueba el aviso, la renovación y la fila, pero no a dónde va el foco. No bloquea, porque la viñeta no lo pide; va a la ronda 1.
+
+### 6. Pendientes del programador: aceptados, con destino
+Los anota el orquestador en `docs/ESTADO.md` al cerrar 03d:
+- **La guarda de redirección en los demás ganchos de `features/clases`** (`useCrearPublicacion`, `useComentar`, `useBorrarComentario`, `useBorrarTema`, `useOrdenarTemas` y los de tema): se anota en la fila de O-1d3-2 o en CHORE-04. Es un patrón heredado que 03d no cambia.
+- **PR-1A17** (`features/tareas/como-se-entrega-01a.test.tsx:262`): que apunte a `TEXTOS_FORMULARIO_RECURSO.sinTema` la próxima vez que se toque `features/tareas`, y entonces sale `TEXTOS_FORMULARIO_PUBLICACION.sinTema`. Es la nota de la sección 3 del arbitraje de la ronda 0.
+
+### Detalles menores (no bloquean)
+- **El título de PR-C12h está viejo.** En `formulario-publicacion.test.tsx:140` dice "un anuncio, o el título de un material, …", pero el caso ya solo prueba el anuncio. Pasa a "PR-C12h: un anuncio hecho solo de caracteres invisibles muestra su ErrorDeCampo y no llama a la API". Cabe en E12-3 y va con la primera corrección que haga falta.
+- **CL3-D03 y CL3-D14 sin reloj fijo.** Las dos viñetas dicen "reloj fijo", pero no se fijó el reloj. `formatearFechaHora` no depende del "ahora" (`lib/format.ts:3-12`) y la variante de CL3-D14 depende del error, no del tiempo, así que el resultado no cambia. Lo acepto. En CL3-D03, la fecha esperada se calcula con la misma función que la produce. Un literal sería mejor, pero no hace falta corregirlo.
+- **Una rama sin salida en `recursoNuevoValidado`** (`lib.ts:640`): si el esquema falla sin un error que `erroresPorCampo` sepa ubicar, devuelve `{ ok: false, errores: {} }` y el botón no hace nada visible. Hoy no se alcanza (`temaId` sale de la lista de temas). Va a la ronda 1.
+
+### Indicaciones para la ronda 1 del tester (03d)
+1. **CL3-2R1-19, "publicar un recurso" (obligatoria; arbitraje de la ronda 0, P-03d-4).** En `app/invalidaciones-03c2-r1.ataque.test.tsx`, suma la fila con `useCrearRecurso(CLASE_ID)` (`@/features/clases/hooks`). Tras el `201`:
+   - `claveTemasDeLaSeccion(CLASE_ID, "docente")` y `claveTemasDeLaSeccion(CLASE_ID, "aprendizaje")` quedan viejas;
+   - una lista sembrada bajo `clavePrefijoDeRecursos(CLASE_ID)` queda vieja;
+   - `clavePublicaciones(CLASE_ID)` **no** queda vieja.
+   Cuenta en V-01.
+2. **El foco en el borrado.** Con «Sí, borrar recurso» enfocado:
+   - con `403 BORRADO_NO_PERMITIDO`, la fila sigue sin "Borrar recurso" y el foco va al `h3`;
+   - con `404`, el foco va al control equivalente de la vecina o al `h3`, y nunca a `<body>`.
+   También cuando es el último recurso de la sección: el foco va a la sección vecina del mismo bloque o al `h2`.
+3. **"Ver más de `<tema>`" sin red.** Además:
+   - un fallo de "Ver más" y la recarga fallida de un bloque en el mismo turno dejan un solo aviso visible;
+   - "Ver más" falla y después hay `403 SIN_ACCESO_A_LA_CLASE` en la recarga del bloque;
+   - el cursor vencido tras una "Ver más" fallida.
+4. **El mismo tema en los dos bloques.** Con secciones del mismo tema en "aprendizaje" y en "docente", borrar o mover el último recurso de una lleva el foco dentro de su bloque y nunca al del otro (`data-seccion-de-recursos`).
+5. **La guarda de redirección.** Prueba `ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO` y `401` sin refresco en publicar, guardar y borrar un recurso: ningún aviso y ninguna renovación. En Avisos, el aviso con un código que redirige es heredado y está anotado como pendiente: no es hallazgo.
+6. **Los puntos de ataque de 03d del plan:**
+   - `409` seguido de otro `409`;
+   - un `409` con la vista desmontada;
+   - la recarga tras un `409` que trae un `404`;
+   - O-16 desmontado *durante* la renovación (con `404 TEMA_NO_ENCONTRADO`);
+   - el limitador de 6 con los dos bloques y muchos temas, y secciones que se desmontan con lecturas en fila;
+   - borrar un recurso con sus comentarios abiertos;
+   - O-r2-2 en Avisos.
+7. **El tema al editar con la lista sin llegar o fallida** (`temaVigente`): guardar conserva el tema del recurso. Cuando la lista llega sin ese tema, el campo pasa a "Sin tema" y el `PUT` lleva `temaId: null`.
+8. **La rama sin salida de `recursoNuevoValidado`** (`lib.ts:640`): busca una entrada que la alcance desde la interfaz. Si existe, es un hallazgo: el botón no puede quedarse sin respuesta.
+
+## Verificación de la corrección de la ronda 1 — 03d
+**Veredicto: ACEPTADO, sin M-nn.** Las cifras coinciden. T-01 y T-02 quedan corregidos, con sus pruebas. Los hermanos y los estados vecinos que lista el resumen coinciden con el código. V-01 da 240 de 240, y no cambió ninguna normal fuera de la lista cerrada. Queda una sola decisión de producto para el humano: la nota de la lista de temas fallida al editar. No bloquea.
+
+Fecha: 2026-11-03. Fuentes:
+- `reporte-tester.md`, "## CLASES-03d — Ronda 1" (SHA-256 `aaef43c845826cb842899736e86b7131cacdd4a649d9b33c56e2654d4d692a63`).
+- `resumen-programador-03d.md`, "## Corrección de la ronda 1 (T-01 y T-02)" (SHA-256 `bbaa5646cc94df929a8a1dc177bf97ce4cd7a723d9821010d0976cee08cd70d3`).
+
+### 1. Cifras: mías junto a las del resumen (desde `frontend/`, una tras otra)
+`shared/`, el backend e `infra/` no cambian (`git diff --stat e462444` sale vacío).
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | `> tsc -b`, exit 0 | Prettier sin cambios → `> tsc -b`, **exit 0** |
+| `npx vitest list \| grep -acE "^src/"` | 5733 | **5733** |
+| Archivos (`sort -u \| wc -l`) | 262 | **262** |
+| `npm run test` | `262 passed (262)` · `5733 passed (5733)` | **`Test Files  262 passed (262)` · `Tests  5733 passed (5733)` · `Duration  295.64s`**; 0 «timed out» |
+| `npm run build` | `✓ built in 888ms` | **`✓ built in 908ms`**, exit 0 |
+
+- `editar-recurso-03d.test.tsx` pasa de 31 a **35** casos. Los cuatro títulos nuevos ("T-01: …" y tres "T-02: …") están en `npx vitest list`.
+- CL3-3R1-14, CL3-3R1-22 y CL3-3R1-23 están verdes en mi corrida.
+
+### 2. T-01: corregido
+- **Remedio:** `editar-recurso-view.tsx:113` agrega `if (!montado.current) return` al inicio de `recargarTrasConflicto`, igual que hace `alGuardar` (`:101-104`). Es el remedio que propuso el tester, y deja la fila de §D-14 "«Guardar cambios» · `409` · Desmontada: «El aviso sale; sin recarga»" igual que el código.
+- **Lo que no cambia:** el aviso del `409` lo sigue dando `avisarErrorDelRecurso`, que no depende de la vista.
+- **Estados vecinos:**
+  - Montada, la recarga da el recurso: el formulario se reinicia (CL3-D12 y CL3-3R1-13, verdes).
+  - Montada, la recarga falla: se conserva lo escrito y sale el aviso de recarga fallida (CL3-D12).
+  - Montada, la recarga da `404`, `403` o `puedeEditar: false`: la vista se reemplaza (CL3-3R1-15).
+  - Desmontada antes de la respuesta: no se pide nada (este remedio).
+  - Desmontada con la recarga ya en vuelo: `setReinicios` sobre un componente desmontado no pinta nada.
+
+  Todos coinciden con el código.
+- **Hermano:** `features/tareas/editar-tarea-view.tsx:96` tiene el mismo patrón. Es heredado y está en "No se toca". Queda con destino en `ESTADO.md`.
+
+### 3. T-02: corregido con la opción (b). La acepto
+- **Remedio** (`formulario-recurso.tsx`):
+  - `:75`: `abiertoEn` guarda cuándo se abrió el formulario.
+  - `:136-142`: al editar, el formulario vuelve a pedir la lista total de temas una sola vez, salvo que ya se esté pidiendo (la ref `pidioLosTemasRef`).
+  - `:110-113`: la lista solo cuenta si `temas.dataUpdatedAt >= abiertoEn`.
+  - Mientras tanto, `temaVigente` recibe `undefined`, así que el recurso conserva su tema y `hayTemas` es falso.
+  - `:319`: las opciones salen de la lista vigente.
+  - Al crear no cambia nada (`edicion === null`).
+- **Por qué (b) y no (a):** la opción (a) ofrecería un tema que una lista fresca ya no trae y pondría rojo CL3-3R1-22. La (b) es la "lectura fresca al abrir" de §7.21 y §D-8.6 aplicada a los temas.
+- **Detalle de TanStack Query que lo hace funcionar:** un `refetch` con éxito actualiza `dataUpdatedAt` aunque los datos sean iguales. Si falla, deja el valor anterior. Por eso una lista vieja nunca confirma que el tema "ya no está".
+- **Estados vecinos (la tabla del resumen):** coinciden con el código.
+  - Sin lista, o con una vieja: una sola petición.
+  - Fresca pero anterior al formulario: se vuelve a pedir (CL3-3R1-23).
+  - Pendiente o fallida: sin campo y con el tema conservado (dos casos "T-02").
+  - Llega con el tema: el tema queda elegido (caso "T-02").
+  - Llega sin el tema: "Sin tema" y `null` (CL3-3R1-22).
+  - Reinicio por `409`: el formulario se monta de nuevo, con un `abiertoEn` nuevo y otra lectura.
+- **Hermanos:**
+  - **«Mover» (Recursos y Actividades): no aplica, y estoy de acuerdo.**
+    - El tema actual sale de la misma lista por sección que pinta la fila, y "Mover" no envía nada si el destino es el tema actual.
+    - Una lista vieja solo puede ofrecer un destino que ya no existe, y eso lo resuelve el `404 TEMA_NO_ENCONTRADO`. No hay ningún camino en que un tema cambie sin que la persona lo elija.
+    - Queda para la ronda 2 (indicación 3).
+  - **Crear: no aplica.** La persona elige el tema de la lista que ve.
+  - **`features/tareas/components/formulario-tarea.tsx:105`:** es el mismo patrón al editar una tarea. Está en "No se toca", así que queda con destino en `ESTADO.md`.
+
+### 4. ¿Es aceptable que, al editar, «Tema» no se muestre mientras la lista está pendiente o falla?
+**Sí para 03d. La lista fallida sin nota queda como decisión del humano.**
+- **Lista pendiente.** §D-8.5 dice "en editar, con el tema del recurso elegido o «Sin tema» si ya no está", pero no dice qué pasa mientras la lista se pide. El patrón aprobado del campo "Tema" (DESIGN §7.18, "«Tema» del material") ya dice: "mientras se pide o si está vacía, el campo no se muestra y no hay texto de carga". La corrección aplica ese mismo patrón en editar, y el campo aparece con el tema elegido en cuanto la lista llega. Nada del plan pide mostrarlo antes, ni un aviso. §D-14 no tiene ninguna fila para la lista de temas al editar.
+- **Lista fallida.**
+  - **Qué ve la persona:** no ve el campo "Tema" ni ninguna nota. Puede editar el título, la descripción y los adjuntos, y guardar. El `PUT` conserva el tema del recurso (caso "T-02: si la recarga de los temas falla…"), así que no se pierde ningún dato. Lo que no puede es cambiar el tema hasta volver a abrir la edición.
+  - **Lo que pide el patrón:** §7.18 pide, cuando la lista falla, "una nota en línea" en lugar del campo. Pero el único texto aprobado (§D-13, `TEXTOS_FORMULARIO_RECURSO.temasNoCargados`: "…El recurso se publicará sin tema.") sería falso al editar, porque el recurso conserva su tema. Mostrarlo sería peor que no decir nada. Agregar un texto nuevo es una decisión del humano (DH-12: los textos de §D-13 los aprueba él).
+  - **Antes de la corrección ya era así:** al editar, con la lista fallida y sin caché, el campo tampoco se mostraba y tampoco había nota. La corrección no crea el silencio. Solo lo extiende al caso en que había una lista vieja en la caché, que antes mostraba opciones que podían ser falsas (el defecto de T-02).
+  - **Decisión:** no lo devuelvo. Va a "Para el humano".
+- **Documentación:** el comportamiento al editar ("Tema" aparece cuando llega la lista pedida al abrir; mientras se pide o si falla no se muestra y el recurso conserva su tema) debe quedar en DESIGN §7.30 al cerrar 03d (A-03 bis), con la decisión del humano sobre la nota.
+
+### 5. Matriz, lista cerrada, V-01 y "No se toca"
+- **Matriz:** la fila nueva de "Editar recurso" ("Abrir el formulario (editar)") y la columna "Desmontada" del `409` coinciden con el código.
+- **Lista cerrada:** el conjunto de pruebas normales tocadas es el mismo que en mi verificación del resumen (`git status`). La única normal fuera de los archivos propios de 03d que cambió en esta corrección es el título de PR-C12h (`formulario-publicacion.test.tsx:140`), que cabe en E12-3 y cierra el detalle de esa verificación.
+- **V-01:** las 240 `*.ataque` tienen los mismos SHA-256 que la tabla del cierre de la ronda 1 de 03d (`diff` por ruta: 0 diferencias, 0 faltantes, 0 sobrantes). El programador no tocó ninguna.
+- **"No se toca":** `features/tareas` y el resto de la lista no tienen cambios.
+
+### Para el humano (no bloquea 03d)
+Al editar un recurso, si la lista de temas no se pudo pedir, el campo "Tema" no aparece y no hay ninguna nota. El recurso conserva su tema al guardar. Hay dos caminos:
+- **(a) Dejarlo así.** No se pierde nada, y para cambiar el tema basta con volver a abrir la edición.
+- **(b) Aprobar una nota en línea solo para editar**, con el estilo de §7.18. Texto propuesto: "No pudimos cargar los temas. El recurso conserva su tema." Sería una línea en `TEXTOS_FORMULARIO_RECURSO` y la condición de la nota en modo editar, con su prueba. Lo haría el programador en la siguiente corrección o como trivial al cerrar 03d, con una enmienda de una línea en §D-13.
+
+Recomiendo (b): cumple el patrón de §7.18 y le dice a la persona por qué no puede cambiar el tema.
+
+### Indicaciones para la ronda 2 del tester
+1. **T-02 con lecturas cruzadas.**
+   - La lista total ya está en vuelo desde «Recursos» (pedida antes de la lectura fresca del recurso) y llega después de abrir el formulario. Hoy cuenta como confirmada (`dataUpdatedAt >= abiertoEn`), aunque se pidió antes. Comprueba si puede dar "Sin tema" para un tema que el recurso fresco trae.
+   - Una invalidación de temas por otra acción mientras el formulario está abierto: la lista nueva llega sin el tema y el campo pasa a "Sin tema", o se conserva lo que la persona eligió.
+2. **T-02 y el `409`.** Abre la edición, recibe un `409`, el formulario se reinicia y la nueva lectura de temas falla. Comprueba que el tema se conserva, que no hay campo ni un aviso de más, y que el foco va a "Título del recurso".
+3. **«Mover» con la lista por sección vieja** (Recursos y Actividades; el hermano que no se atacó en la ronda 1). Otra persona crea un tema y mueve allí un recurso dentro del `staleTime`. Ningún tema cambia sin que la persona lo elija, y un destino que ya no existe da el aviso del servidor y renueva las listas.
+4. **T-01, estados vecinos.**
+   - El `PUT` responde `409` con la vista desmontada y la persona vuelve a «Editar recurso» antes de 30 s: la vista nace con la lectura fresca y no hay un aviso doble.
+   - Un `409` con la vista montada y, durante la recarga, la persona sale: no queda un reinicio ni un foco suelto.
+5. **O-01 de la ronda 1** (`useBorrarRecurso` con `404` deja `claveRecurso` en la caché): busca si alguna ruta sirve de la caché un recurso ya borrado (por ejemplo, atrás del historial a «Editar recurso» antes de 30 s). Si se ve algo incorrecto, es hallazgo.
+6. **Repite V-01 y las regresiones de la ronda 1** (CL3-3R1-01 a 25), sobre todo CL3-3R1-20 a 22 con el remedio nuevo.
+
+## Verificación de la corrección de la ronda 2 — 03d
+**Veredicto: ACEPTADO, sin M-nn.**
+- Las cifras coinciden, y T-03, T-04 y T-05 quedan corregidos con sus pruebas.
+- El remedio de T-03 descansa en un comportamiento de TanStack Query 5.103.2 que comprobé en su código.
+- Las dos tablas de estados vecinos coinciden con el código, con un matiz en una fila de la de temas (detalle 1).
+- V-01 da 241 de 241, y no cambió ninguna normal fuera de la lista cerrada.
+- Hay dos ineficiencias de `useTemasDelRecurso` que acepto como detalles; las dejo dichas al tester para que no las cuente como hallazgos.
+
+Fecha: 2026-11-03. Fuentes:
+- `reporte-tester.md`, "## CLASES-03d — Ronda 2" (SHA-256 `088b2c96721df6dbf8a4f7ee3a0662acd511e1f8f40eb944b76ce644fe09a473`).
+- `resumen-programador-03d.md`, "## Corrección de la ronda 2 (T-03, T-04 y T-05)" (SHA-256 `5c3f4ea7a5d6d504ded315dfbde145fbf293e4cdddab1454887f838297ea255b`).
+
+### 1. Cifras: las mías junto a las del resumen (desde `frontend/`, una tras otra)
+`shared/`, el backend e `infra/` siguen sin cambios.
+
+| Comando | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0 | Prettier sin cambios y después `> tsc -b`: **exit 0** |
+| `npx vitest list \| grep -acE "^src/"` | 5750 | **5750** |
+| Archivos | 263 | **263** |
+| `npm run test` | `263 passed (263)` · `5750 passed (5750)` | **`Test Files  263 passed (263)` · `Tests  5750 passed (5750)` · `Duration  342.05s`**; 0 «timed out» |
+| `npm run build` | `✓ built in 1.04s` | **`✓ built in 1.09s`**, exit 0 |
+
+`editar-recurso-03d.test.tsx` pasa de 35 a **41** casos. Los seis títulos nuevos ("T-03" ×3, "T-04" ×1 y "T-05" ×2) están en `npx vitest list`. CL3-3R2-01, CL3-3R2-06 y CL3-3R2-08 están verdes en mi corrida.
+
+### 2. T-03: `useTemasDelRecurso` (`hooks.ts:790-815`), contrastado con TanStack Query 5.103.2
+- **Es cierto que `cancelRefetch` no cancela una petición sin datos.** En `query-core/build/modern/query.js:297-303`, `fetch` solo hace `cancel({ silent: true })` si `this.state.data !== void 0 && fetchOptions?.cancelRefetch`. Sin datos, se une al `retryer` en curso (`continueRetry()`; `return this.#retryer.promise`). La versión es la 5.103.2 (`package.json` de `query-core` y de `react-query`).
+- **El remedio es correcto:**
+  - `peticionPrevia` se lee en el inicializador de `useState`, antes de la llamada a `useTemas`. Así que lee el estado de la consulta antes de que el formulario se suscriba, y no confunde su propia petición del montaje con una previa.
+  - **Con petición previa y sin datos:** el primer `refetch` espera esa petición y el segundo pide una nueva. Solo la respuesta de esa segunda confirma la lista (CL3-3R2-01 y "T-03: …Actividades…").
+  - **Sin petición previa:** `refetch({ cancelRefetch: false })` se une a la petición del montaje, que ya es posterior a abrir, o pide una si la caché estaba fresca. Hay una sola petición.
+  - **Con fallo:** `observer.refetch` no lanza, `isSuccess` es falso y la lista no se confirma. El tema se conserva.
+  - **Al crear no cambia nada:** `confirmada` nace en `true`.
+- **Detalle 1: con una petición previa y con datos en la caché, salen dos peticiones nuevas en lugar de una.**
+  - El primer `refetch({ cancelRefetch: true })` cancela la previa y pide otra, que ya es posterior a abrir y sola bastaría.
+  - Al terminar, el segundo `refetch` pide una más.
+  - La tabla del resumen ("Se cancela y se pide otra") se queda corta.
+  - No hay ningún efecto visible: el resultado es correcto y el resto de la vista no hace peticiones de más.
+- **Detalle 2: una petición puede salir después de desmontar.**
+  - Si la persona sale de la edición mientras `pedir` espera la petición previa, el segundo `refetch` sale igual, sobre un observador ya desmontado, y `setConfirmada` cae sobre un componente que ya no está.
+  - Pinta nada y no avisa. La fila "Abrir el formulario (editar)" de la matriz no promete nada con la vista desmontada ("—").
+- **Decisión sobre los detalles 1 y 2:** los acepto en 03d. No contradicen §D-8, §D-14 ni la matriz, y no cambian ningún dato, aviso ni foco. Cambiar ahora un gancho que ya resistió dos rondas, antes de la última, cuesta más de lo que vale. Quedan anotados para una limpieza futura (destino: `ESTADO.md`, junto a los hermanos de `features/tareas`).
+- **Estados vecinos (la tabla de 14 filas):** coinciden con el código, salvo el matiz del detalle 1 en la fila "Petición en vuelo con datos en caché".
+- **Hermanos:**
+  - En `features/tareas/components/formulario-tarea.tsx:105` está el mismo patrón. Es heredado y está en "No se toca", y queda con destino en `ESTADO.md`.
+
+### 3. T-04 (`hooks.ts:1163-1170`): corregido
+- Ante `RECURSO_MODIFICADO`, `invalidateQueries` sobre `claveRecurso` con `refetchType: "none"`: la marca vieja sin pedirla.
+- **Con la vista desmontada** se cumple §D-14 ("El aviso sale; sin recarga"). La próxima apertura hace la "lectura fresca al abrir" de §7.21, porque `isStale` es verdadero y la consulta se recarga al montar.
+- **Con la vista montada** no cambia nada: `recargarTrasConflicto` sigue pidiendo el recurso y reiniciando el formulario (CL3-D12, CL3-3R1-13 y CL3-3R2-07, todos verdes).
+- **El orden es correcto:** primero la marca, después el `return`. `RECURSO_MODIFICADO` no está en `CODIGOS_QUE_RENUEVAN_EL_RECURSO` ni en la lista de temas, así que no pide nada más.
+
+### 4. T-05 (`hooks.ts:1263-1276`): corregido
+- **Con `PUBLICACION_NO_ENCONTRADA`:** `removeQueries` exacto de `claveRecurso`, como el `204`.
+- **Con `BORRADO_NO_PERMITIDO`:** la marca vieja sin pedirla.
+- Después, en los dos casos, se renuevan las listas como antes. La guarda de redirección y el aviso único no cambian.
+- **Tabla de `claveRecurso` (11 filas):** coincide fila por fila con `useEditarRecurso`, `useBorrarRecurso`, `useMoverElemento` y la vista.
+
+### 5. El texto del aviso del `404` al borrar un recurso
+- **El plan no lo pide.** Hoy sale "Esa publicación ya no existe.", el texto que `MENSAJES_POR_CODIGO_DE_CLASES` da a `PUBLICACION_NO_ENCONTRADA`. Ese es el código que devuelve `DELETE …/publicaciones/:id`, la ruta que fija §D-8.4 para borrar un recurso.
+  - §D-13 fija "Ese recurso ya no existe." solo para `RECURSO_NO_ENCONTRADO`, que da la ruta de leer y editar un recurso.
+  - La fila de §D-14 "«Sí, borrar recurso» · `403`/`404`" dice "El mensaje".
+  - El código hace lo que dice el plan.
+- **Unificarlo es una decisión de texto del humano** (DH-12): en «Recursos» la persona nunca ve la palabra "publicación".
+  - Si lo decide, el cambio es mínimo: en `useBorrarRecurso`, ante `PUBLICACION_NO_ENCONTRADA`, avisar con `MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado`.
+  - Hace falta una enmienda de una línea en §D-13 y §D-14, y los casos que hoy esperan el texto viejo: CL3-D05, CL3-3R1-02 a 04 y CL3-3R2-08. Algunos son `*.ataque`, así que los reescribe el tester.
+  - Recomiendo hacerlo después de cerrar 03d, por el carril trivial o en 03e, no en la ronda 3. No bloquea.
+
+### 6. Matriz, lista cerrada, V-01 y "No se toca"
+- **Matriz:** las tres filas que cambian coinciden con el código: el `409` de «Editar recurso», "Abrir el formulario (editar)" y "«Sí, borrar recurso» · `403`/`404`".
+- **Lista cerrada:** el conjunto de pruebas normales tocadas es el mismo que en las verificaciones anteriores (`git status`). Esta corrección solo suma casos a `editar-recurso-03d.test.tsx`, que es propio de 03d.
+- **V-01:** las 241 `*.ataque` tienen el mismo SHA-256 que la tabla del cierre de la ronda 2 de 03d (0 diferencias, 0 faltantes, 0 sobrantes). El programador no tocó ninguna.
+- **"No se toca":** limpio.
+
+### Medición del programador (rondas extra por hermanos)
+- La ronda 2 encontró estados vecinos de los mecanismos que corrigió la ronda 1:
+  - T-03 es la "petición en vuelo desde antes de abrir", que le faltaba a la tabla de T-02.
+  - T-04 es el estado vecino de T-01 con la vista desmontada.
+  - T-05 viene de O-01.
+
+  Según la regla del 2026-10-02 y del 2026-10-05, la ronda 2 cuenta como **una ronda extra por hermanos** en 03d.
+- Si la ronda 3 encuentra otro estado vecino de estos mismos mecanismos, serían dos. Entonces se aplica la regla de `AGENTS.md` sobre el modelo del programador. La decide el orquestador.
+
+### Para el humano (no bloquea)
+- Sigue pendiente la decisión de la verificación de la ronda 1: la nota al editar con la lista de temas fallida.
+- Se suma una decisión nueva: el texto del `404` al borrar un recurso (sección 5). Las opciones son dejar "Esa publicación ya no existe." o unificarlo a "Ese recurso ya no existe." después de cerrar 03d. Recomiendo unificar.
+
+### Indicaciones para la ronda 3 del tester (la última antes de escalar)
+Lo que **no** es hallazgo, por decisión del manager: los detalles 1 y 2 (las peticiones de más de `useTemasDelRecurso` sin efecto visible), la lista de temas fallida sin nota y el texto "Esa publicación ya no existe.". Un efecto **visible** de los detalles 1 y 2 sí sería hallazgo: un tema que cambia, un aviso, un foco que se mueve o un error en consola.
+
+1. **`useTemasDelRecurso` en las combinaciones que no se probaron:**
+   - (a) Un reinicio por `409` con otra petición de temas en vuelo en ese momento. Por ejemplo, la lanza una invalidación justo antes de soltar el `409`, y otra persona movió el recurso. El formulario remontado no confirma "Sin tema" con una lista anterior a su apertura.
+   - (b) Salir de la edición mientras espera la petición previa y volver antes de 30 s. Comprueba:
+     - el tema no cambia;
+     - no hay un aviso ni un error en consola;
+     - el formulario nuevo confirma con su propia petición;
+     - cuenta las peticiones, solo para el reporte, sin que sean hallazgo por sí solas.
+   - (c) La petición previa falla y la segunda llega bien. La confirmación sale de la segunda.
+   - (d) La petición previa llega bien y la segunda falla. No hay confirmación, no hay campo y el tema se conserva.
+2. **T-04, estados vecinos:**
+   - (a) Un `409` con la vista desmontada y volver con **atrás del historial** en lugar del enlace.
+   - (b) Un `409` desmontado y después **«Mover»** del mismo recurso desde «Recursos», antes de volver a editar: la versión que se abre es la del servidor.
+   - (c) Dos `409` seguidos con la vista desmontada entre ellos: un aviso por `409` y ninguna lectura sin vista.
+3. **T-05, estados vecinos:**
+   - (a) Un `403 BORRADO_NO_PERMITIDO` y después entrar por **«Editar recurso»** (el enlace de la fila): la lectura fresca.
+   - (b) Un `404` y después **adelante** del historial hacia la edición.
+   - (c) Un `404` al borrar con la edición del mismo recurso abierta en la caché con cambios sin guardar de otra visita: no hay ningún formulario de un recurso que ya no existe.
+4. **Regresiones:** repite V-01 y deja en verde los CL3-3R1-01 a 25 y los CL3-3R2-01 a 08. Deja también en verde las pruebas requeridas de editar (CL3-D11 a D17, D22, D25, D27 y D28).
+
+## Revisión final — 03d
+# Revisión del Manager — CLASES-03d (frontend de Recursos) — final
+Veredicto: **APROBADO CON OBSERVACIONES**. El código, las pruebas y la mayor parte de los documentos están aprobados. **M-01 es solo documental:** el orquestador lo aplica con el texto literal de abajo y no hace falta otra revisión. Con eso, 03d cierra.
+Verificación propia (desde `frontend/`, una tras otra): lint exit 0 · `npx vitest list` 5760 casos en 264 archivos · test `Test Files  264 passed (264)` · `Tests  5760 passed (5760)` (312.91 s, 0 «timed out») · build `✓ built in 975ms`, exit 0.
+
+Fecha: 2026-11-03. Fuentes:
+- Plan: `49b47f652220bfc7220b936743bdad2daeacad5910d1f2b5f25fdaf004cba6d2` (Enmiendas 1 a 12).
+- Reporte del tester: `b253a93c7f9b2c73537c4f63778d3f56038913814a0aaccbd26c1254899ac134` (ronda 3: RESISTE).
+- Bases: `e462444` dentro de los paquetes y `689c636` fuera.
+
+### 1. Verificación propia y alcance de los paquetes
+- **Las cifras coinciden con la ronda 3 del tester:** 5760 casos, 264 archivos y 242 `*.ataque`.
+- **`shared/`, `backend/` e `infra/` no cambiaron:** `git diff --stat e462444 -- shared backend infra` sale vacío. Los `.env.example` tampoco cambian desde `689c636`.
+- **"No se toca":** `git diff e462444` está vacío en `features/tareas`, `features/admin`, `features/auth`, `features/diagnostico`, `features/calificaciones`, `lib/`, `services/`, `components/`, `app/providers.tsx` y `app/require-*`.
+- **Documentos protegidos:** `AGENTS.md` (`bb985908…`), `CLAUDE.md` (`c9a2f534…`) y `ARCHITECTURE-ESSENTIALS.md` (`b93f7275…`) tienen el mismo hash que `aprobacion.md` (líneas 121, 169 y 170) y no tienen cambios en el árbol.
+
+### 2. Cumplimiento de 03d
+- **§D-8, punto por punto:**
+  - **8.1, 8.2, 8.3, 8.6 y 8.7:** `RecursosView` pinta los dos bloques en orden, con su `h2`, sus secciones por tema, su vacío y su error. `SeccionDeRecursos` usa su propio limitador de 6, pide 5 y "Ver más" pide 20. `ElementoDeRecurso` y `EditarRecursoView` están construidas como se pidió. `FormularioPublicacion` publica solo anuncios. `CLASES_DE_POSICION_DEL_INDICADOR` ya no existe.
+  - **8.4, claves e invalidaciones:** `useCrearRecurso` invalida recursos y temas, y ya no el muro (CL3-2R1-19 en verde). `MOVER_NO_PERMITIDO` está en `CODIGOS_QUE_RENUEVAN_LOS_TEMAS`. `invalidarTemasYTrabajo` incluye `clavePrefijoDeRecursos`.
+  - **8.5, el formulario:** tiene los dos modos y `CAMPOS_PINTADOS_DEL_RECURSO`. `erroresDelRecursoDeApi` es la única entrada. El título vacío da "Escribe el título del recurso" (Enmienda 10).
+  - **Rutas (§D-7.4):** `recursos` en las tres ramas, y `recursos/:recursoId/editar` solo en maestro y admin.
+- **Pruebas requeridas:** CL3-D01 a D28 tienen archivo y título exacto (comprobado en la verificación del resumen) y siguen en verde.
+- **Enmiendas 10 y 12, y mis arbitrajes:** todo aplicado.
+  - Enmienda 10: el título del recurso.
+  - Enmienda 12: E12-1, E12-3 y E12-4. E12-2 se aplicará en 03e.
+  - Arbitraje de la ronda 0: P-03d-1 a P-03d-4 y las ocho indicaciones literales.
+  - Arbitraje de la PARADA del programador: las decisiones 1 a 5.
+- **Hallazgos del tester:** T-01 a T-05 corregidos. La ronda 3 resistió, con `console.error` y `console.warn` vigilados.
+- **Desacuerdos:** no quedan.
+- **V-01:** las 242 `*.ataque` tienen los mismos SHA-256 que la tabla de cierre de la ronda 3 de 03d (`diff` por ruta: 0 diferencias, 0 faltantes, 0 sobrantes). El programador no cambió ninguna.
+- **Lista cerrada:** las únicas normales cambiadas son las de sus filas de 03d (`clase-layout`, `router-01d`, `lib.test`, `secciones-03c1`, `errores-ch3`, `formularios-ch3`, `recuperar-ch3`, `muro-view` y `formulario-publicacion`). Las demás son archivos nuevos de 03d.
+- **Reglas que no se rompen:**
+  - Sin `fetch` fuera de `apiClient`.
+  - La seguridad la decide el servidor: los botones dependen de `puedeEditar`, `puedeBorrar` y `puedeMover`, y la perspectiva solo esconde lo que el estudiante no ve.
+  - El estado de pago no aparece.
+  - Las listas van paginadas.
+  - Nada toca `infra/`.
+- **Estilo (`CLAUDE.md`):** tipos en `types.ts`, retornos tempranos, `enEspera` con guardas síncronas en todos los botones que mandan algo, y ninguna `?? []`.
+- **Lista de diseño:**
+  - Solo tokens: grep sin colores, escalas anuladas ni valores arbitrarios en los archivos nuevos.
+  - Usa los componentes de `components/ui/`.
+  - El vidrio fuerte solo está en la fila.
+  - El estado nunca va solo en color: la insignia "Recurso" lleva texto e icono.
+  - Una sola acción principal ("Publicar recurso").
+  - Textos de §D-13, sin emojis.
+  - Cada bloque y cada sección tienen sus estados de error, carga y vacío.
+  - Lo que no se pudo verificar: el diseño a 360 px, porque necesita un navegador. Queda para la comprobación humana al final de 03e.
+
+### 3. Documentos que aplicó el orquestador
+- **`docs/DESIGN.md`** (`8c864417…`). La copia previa, `DESIGN-antes-03d.md` (`47f85120…`), es igual a `HEAD`: `git diff -- docs/DESIGN.md` y `git diff --no-index` contra la copia dan los mismos 4 hunks (+9 −4). Comparé cada texto con el plan, letra por letra:
+  - **A-03 bis (1) y (2) en §7.3:** literales, con el ajuste de la Enmienda 10 (los dos controles de `FormularioTarea`, sin fecha nueva). El encabezado y las marcas no cambiaron.
+  - **A-03 bis (3) en §7.18 ("Errores de campo") y (4) en §7.19 ("Publicar con archivos"):** literales.
+  - **A-03, viñeta "Formulario de Avisos (propuesta (CLASES-03d))":** literal. **El lugar es correcto.** Queda al final de las viñetas que describen los anuncios (después de "Errores de campo") y antes del bloque, separado por una línea en blanco, de las viñetas que la frase de entrada declara "construidas hasta CLASES-03" (tarea en el muro, "Tema" del material, tipo en vuelo, "Crear tarea").
+  - **A-05, §7.30 nueva después de §7.29:** literal, con la frase de la Enmienda 10. El encabezado lleva la marca del plan.
+  - **Marcas:** ninguna se tocó.
+- **`docs/ESTADO.md`** (`45e09dd1…`, contra `ESTADO-antes-03d.md`, `39c4f242…`). Conformes:
+  - O-16 ("cumplido … en CLASES-03d (2026-11-03) para anuncio y recurso").
+  - N-54 ("y en Recursos (CLASES-03d, 2026-11-03)"; queda Dudas para 03e).
+  - La fila de R-3 (la guarda ya está en mover y en los ganchos de recursos; faltan los heredados).
+  - Las tres filas nuevas de §3, con destinos coherentes con los míos: los hermanos de `features/tareas` y PR-1A17 van al próximo encargo que toque `features/tareas`; los detalles de `useTemasDelRecurso`, a la próxima vez que se toque el gancho o al `chore` de foco y navegación.
+  - Lo que falta va en M-01.
+
+### Problemas que bloquean
+Ninguno en código ni en pruebas. M-01 se resuelve en los documentos antes del commit, sin otra revisión.
+
+#### M-01 — Documentos de cierre de 03d incompletos
+**Dónde:** `docs/DESIGN.md` §7.30, y `docs/ESTADO.md` (línea 5, §2 y §3).
+
+**Por qué importa:**
+- `AGENTS.md` dice "Todo patrón visual nuevo que cree un encargo se documenta en `docs/DESIGN.md` en ese mismo encargo". 03d creó tres comportamientos que §7.30 no describe:
+  - el campo "Tema" del recurso, al crear y al editar (con la lista confirmada de T-02 y T-03);
+  - el foco cuando una fila, un control o una sección salen de la vista;
+  - los errores de carga, con un solo aviso para toda la vista.
+- El patrón de "Tema" del material de §7.18 queda en el bloque "construido hasta CLASES-03", así que el formulario vigente no tiene dónde leerlo.
+- `ESTADO.md` todavía dice "03d en curso", no anota las dos decisiones de texto pendientes y deja abierta O-1 de CLASES-03a, que 03d resolvió.
+
+**Qué se espera (textos literales; el orquestador los aplica tal cual):**
+
+1. **`docs/DESIGN.md` §7.30.** Después del párrafo que termina en "El bloque de grabaciones queda para ENVIVO.", agregar estas tres viñetas, en este orden:
+
+   > - **"Tema" en el formulario (propuesta (CLASES-03d)):** al crear, como "Tema" del material en §7.18: solo con la lista de temas de la clase ya llegada y con al menos un tema, y si no se pudo pedir, la nota "No pudimos cargar los temas. El recurso se publicará sin tema.". Al editar, el formulario vuelve a pedir la lista al abrirse y el campo aparece, con el tema del recurso elegido, solo cuando llega esa respuesta (una lista anterior a la apertura no cuenta); si esa lista ya no trae el tema, el campo dice "Sin tema". Mientras se pide, o si no se pudo pedir, el campo no se muestra, no hay texto de carga y al guardar el recurso conserva su tema.
+   > - **Foco cuando algo sale de la vista (propuesta (CLASES-03d); §7.14):** al borrar o mover un recurso, el foco va al mismo control de la fila vecina ("Borrar recurso" o "Mover") o a la fila y, sin vecinas, al `h3` de su sección. Si la fila sigue pero el control con el foco desaparece (ya no hay permiso de borrar o de mover), va al `h3`. Si la sección se queda sin recursos y desaparece, va al `h3` de la sección vecina del mismo bloque y, sin vecinas, al `h2` del bloque. Nunca a `<body>`. Al editar, si la vista se reemplaza por un mensaje, el foco va a su raíz; tras un conflicto al guardar, a "Título del recurso".
+   > - **Errores de carga (propuesta (CLASES-03d)):** un error en un bloque o en una sección solo afecta a ese bloque o a esa sección. Una recarga que falla con datos a la vista (la lista de un bloque, una sección o "Ver más de `<tema>`") conserva lo que hay y da un aviso por fallo, con el mismo identificador en toda la vista: se ve uno a la vez. "Ver más" sigue a la vista para repetir. El cursor vencido reemplaza la lista de su sección con "Este tema cambió mientras lo veías. Vuelve a abrir Recursos para verlo completo.".
+
+2. **`docs/ESTADO.md` §3, fila de O-1 de CLASES-03a** (empieza con "O-1 de CLASES-03a (O-r1-1 del tester)"). Al final de la columna "Destino", después de "…el manager decide si basta con que el control no lo ofrezca", agregar:
+
+   > **Resuelto en CLASES-03d (2026-11-03):** `MoverElemento` ofrece el tema actual elegido y no envía nada si no cambia (`features/clases/components/mover-elemento.tsx:42`; CL3-3R2-04), así que nadie recibe un `409` por un movimiento sin cambio.
+
+3. **`docs/ESTADO.md` §3, dos filas nuevas** después de la fila de `useTemasDelRecurso`:
+
+   > | Decisión de texto del humano (CLASES-03d): al editar un recurso con la lista de temas fallida, el campo "Tema" no aparece y no hay nota (el recurso conserva su tema al guardar). (a) Dejarlo así; (b) una nota en línea solo al editar, "No pudimos cargar los temas. El recurso conserva su tema." (recomendada por el manager) | Decisión del humano. Si elige (b), entra en CLASES-03e: una enmienda de una línea en §D-13, una clave en `TEXTOS_FORMULARIO_RECURSO`, la condición en modo editar con su prueba y la frase en `DESIGN.md` §7.30 | `revision.md` de CLASES-03, "Verificación de la corrección de la ronda 1 — 03d", sección 4 |
+   > | Decisión de texto del humano (CLASES-03d): el `404` al borrar un recurso avisa "Esa publicación ya no existe." (`PUBLICACION_NO_ENCONTRADA`, como pide el plan); en «Recursos» la persona no ve la palabra "publicación". (a) Dejarlo; (b) "Ese recurso ya no existe." en `useBorrarRecurso` (recomendada por el manager) | Decisión del humano. Si elige (b), entra en CLASES-03e: una enmienda de una línea en §D-13 y §D-14, CL3-D05 y la reescritura por el tester de las `*.ataque` que fijan el texto (CL3-3R1-02 a 04, CL3-3R2-08) | `revision.md` de CLASES-03, "Verificación de la corrección de la ronda 2 — 03d", sección 5 |
+
+4. **`docs/ESTADO.md` línea 5:** reemplazar toda la línea por:
+
+   > Última actualización: 2026-11-03, por el orquestador (CLASES-03 en curso en `feat/clases-03`: 03d cerrada, con el commit `<K3d>` del humano pendiente; sigue 03e).
+
+5. **`docs/ESTADO.md` §2, párrafo de CLASES-03:**
+   - "con las Enmiendas 1 a 11 (`plan.md`, SHA-256 `5c538940…`)" pasa a "con las Enmiendas 1 a 12 (`plan.md`, SHA-256 `49b47f65…`)".
+   - El tramo "03d (frontend de Recursos, base `<K3c2>`): ronda 0 en curso. Backend 229 / 2774 (sin cambios desde 03b); frontend 255 / 5569; 239 `*.ataque`." pasa a:
+
+   > 03d (frontend de Recursos, base `<K3c2>`): ronda 0 con cuatro PARADAS resueltas por arbitraje del manager (C-8, C-10 y C-23 ampliadas); Enmienda 12 por la PARADA del programador (CH3-B01 y `formulario-publicacion.test.tsx`); ronda 1 ROTO (T-01 y T-02) y ronda 2 ROTO (T-03 a T-05), corregidos; ronda 3 RESISTE; revisión final APROBADO CON OBSERVACIONES (M-01: documentos de cierre); A-03, A-03 bis (1) a (4), A-05 y la parte de A-12 de 03d aplicados. **03d cerrada el 2026-11-03; falta el commit del humano `<K3d>`.** Dos decisiones de texto del humano pendientes (sección 3). Backend 229 / 2774 (sin cambios desde 03b); frontend 264 / 5760; 242 `*.ataque`. Historial en `docs/trabajo/CLASES-03-reorganizacion-de-la-clase/aprobacion.md`.
+
+   Si la frase final de "Historial en …" ya está en el párrafo, no se repite.
+
+### Problemas que no bloquean
+- **Las dos decisiones de texto del humano** (la nota al editar con la lista de temas fallida y el aviso del `404` al borrar) **no impiden cerrar 03d.** El código cumple la letra del plan, no se pierde ningún dato y las dos quedan anotadas con destino (M-01, punto 3). Si el humano elige (b) en alguna, entra en 03e con su enmienda. Ninguna tiene que entrar antes del commit de 03d.
+- **Detalles aceptados de `useTemasDelRecurso`** (dos peticiones con datos en caché; un `refetch` después de desmontar), ya anotados en `ESTADO.md` §3.
+
+### Detalles menores
+- Las viñetas CL3-D03 y CL3-D14 sin reloj fijo: aceptado en la verificación del resumen (la fecha es absoluta).
+- El `aria-controls` de "Ver recurso" apunta al bloque aunque esté plegado. Es el mismo patrón que `elemento-de-trabajo.tsx`.
+
+### Desacuerdos arbitrados
+Ninguno nuevo en esta revisión. Siguen valiendo los arbitrajes de la ronda 0 y de la PARADA del programador, y la Enmienda 12.
+
+### Documentos a actualizar
+Los de M-01. A-06, A-07, A-13 y la parte de A-12 de 03e se aplican al cerrar 03e.
+
+### Medición del programador
+- **03d tuvo una sola ronda extra por hermanos:** la ronda 2, con T-03 y T-04, estados vecinos de los remedios de T-02 y T-01. T-05 venía de O-01.
+- **La ronda 1 no cuenta:** T-01 y T-02 eran hallazgos nuevos.
+- **La ronda 3 resistió.**
+- **El programador sigue en `sonnet`:** no se llegó a 2 rondas extra por este patrón (`AGENTS.md`, decisiones del 2026-10-02 y del 2026-10-05).
+
+### Para el humano
+- Las dos decisiones de texto del punto 3 de M-01, (a) o (b) en cada una. Recomiendo (b) en las dos, dentro de 03e.
+- El commit de 03d, con las rutas de abajo y después de aplicar M-01.
+
+### Rutas para el `git add` del commit de 03d
+Las saqué de `git status -uall` después de M-01. Son **54 rutas**: 39 modificadas y 15 sin rastrear, sin archivos ajenos.
+
+```
+docs/DESIGN.md
+docs/ESTADO.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/aprobacion.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/plan.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/reporte-tester.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03d.md
+frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx
+frontend/src/app/router-01d.test.tsx
+frontend/src/app/router.tsx
+frontend/src/app/rutas-01d-r1.ataque.test.tsx
+frontend/src/features/clases/archivos-d-r1.ataque.test.tsx
+frontend/src/features/clases/archivos-d-r2.ataque.test.tsx
+frontend/src/features/clases/avisos-03d.test.tsx
+frontend/src/features/clases/clase-layout.test.tsx
+frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
+frontend/src/features/clases/components/elemento-de-recurso.tsx
+frontend/src/features/clases/components/formulario-publicacion.tsx
+frontend/src/features/clases/components/formulario-recurso.tsx
+frontend/src/features/clases/components/seccion-de-recursos.tsx
+frontend/src/features/clases/data.ts
+frontend/src/features/clases/editar-recurso-03d.test.tsx
+frontend/src/features/clases/editar-recurso-view.tsx
+frontend/src/features/clases/errores-ch3.test.ts
+frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
+frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts
+frontend/src/features/clases/formulario-publicacion.test.tsx
+frontend/src/features/clases/formulario-recurso.test.tsx
+frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx
+frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx
+frontend/src/features/clases/formularios-ch3.test.tsx
+frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
+frontend/src/features/clases/hooks.ts
+frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx
+frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx
+frontend/src/features/clases/lib.test.ts
+frontend/src/features/clases/lib.ts
+frontend/src/features/clases/muro-02c-r1.ataque.test.tsx
+frontend/src/features/clases/muro-c-r1.ataque.test.tsx
+frontend/src/features/clases/muro-c-r2.ataque.test.tsx
+frontend/src/features/clases/muro-view.test.tsx
+frontend/src/features/clases/recuperar-ch3.test.tsx
+frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx
+frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx
+frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx
+frontend/src/features/clases/recursos-03d.test.tsx
+frontend/src/features/clases/recursos-caminos-03d.test.tsx
+frontend/src/features/clases/recursos-lib-03d.test.ts
+frontend/src/features/clases/recursos-view.tsx
+frontend/src/features/clases/secciones-03c1.test.tsx
+frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx
+frontend/src/features/clases/types.ts
+frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx
+frontend/src/styles/clases-r1.ataque.test.ts
+```
+
+Por tipo de archivo:
+- 11 archivos de producción: 5 nuevos y 6 modificados.
+- 15 pruebas normales: 9 modificadas y 6 nuevas.
+- 21 `*.ataque`: 18 reescritas por el tester y 3 nuevas.
+- 2 documentos (`DESIGN.md` y `ESTADO.md`).
+- 5 archivos de `docs/trabajo/`.
+
+No entra nada de `shared/`, `backend/`, `infra/`, `AGENTS.md`, `CLAUDE.md` ni ESSENTIALS.

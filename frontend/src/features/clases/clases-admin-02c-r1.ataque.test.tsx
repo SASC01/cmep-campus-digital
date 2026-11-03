@@ -362,11 +362,14 @@ describe("ataque CLASES-02c r1: cambiar de sección en la clase del admin", () =
     // las tres perspectivas; «Alumnos» y «Maestros» se juntan en «Personas», que muestra los maestros
     // de la clase y el roster. El recorrido entra por «Personas» y sigue protegiendo que aria-current
     // siga a la sección pulsada y que el foco quede en el enlace.
+    // CLASES-03d ronda 0 (C-9, §D-R0; §D-7.1): el admin suma «Recursos» entre «Actividades de
+    // aprendizaje» y «Personas». El recorrido no cambia: sigue entrando por «Personas» y protegiendo que
+    // aria-current siga a la sección pulsada y que el foco quede en el enlace.
     expect(
       within(secciones)
         .getAllByRole("link")
         .map((e) => e.textContent),
-    ).toEqual(["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"])
+    ).toEqual(["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"])
     expect(actual()).toEqual(["Avisos"])
     for (const [nombre, ruta, encabezado] of [
       ["Personas", `/admin/clases/${CLASE_ID}/personas`, "Maestros de la clase"],

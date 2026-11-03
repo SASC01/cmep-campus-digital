@@ -11,6 +11,7 @@ import { ApiError } from "@/services/apiClient"
 import {
   CAMPOS_PINTADOS_DE_LA_CLASE,
   CAMPOS_PINTADOS_DE_LA_PUBLICACION,
+  CAMPOS_PINTADOS_DEL_RECURSO,
   CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   MENSAJES_POR_CODIGO_DE_CLASES,
 } from "./data"
@@ -21,6 +22,7 @@ import {
   erroresDeFormularioClases,
   erroresDeLaClaseDeApi,
   erroresDeLaPublicacionDeApi,
+  erroresDelRecursoDeApi,
   erroresDelTemaDeApi,
   mensajeDeConsultaClases,
   mensajeDeErrorClases,
@@ -50,6 +52,8 @@ const TEXTOS_FIJOS_DE_SIEMPRE: Readonly<Record<string, string>> = {
   ARCHIVO_INVALIDO: "Uno de los archivos no coincide con lo que elegiste. Vuelve a adjuntarlo.",
   ALMACEN_NO_CONFIGURADO: "Los archivos no están disponibles en este momento. Inténtalo más tarde.",
   ALMACEN_NO_DISPONIBLE: "Los archivos no están disponibles en este momento. Inténtalo más tarde.",
+  // CLASES-03d (§D-13, Enmienda 12, E12-1): el recurso que se abre o se edita y ya no existe.
+  RECURSO_NO_ENCONTRADO: "Ese recurso ya no existe.",
 }
 
 // Las rutas dobles de features/clases del inventario de §D-1 (Enmienda 2, T-01): el servidor arma
@@ -74,7 +78,7 @@ describe("CHORE-03 · traducción de errores de features/clases", () => {
         TEXTOS_ADJUNTOS.errorRechazado(NOMBRE, entrada.resto ?? GENERICO),
       )
     }
-    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(12)
+    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(15)
     for (const codigo of CODIGOS_CON_MENSAJE_DEL_SERVIDOR) {
       for (const resto of RESTOS_SIN_TEXTO_VISIBLE) {
         expect(mensajeDeErrorClases(new ApiError(codigo, resto, 409))).toBe(GENERICO)
@@ -171,7 +175,8 @@ type FuncionPorModo = (error: unknown) => ErroresFormulario | null
 const CLASE_CREAR: FuncionPorModo = (error) => erroresDeLaClaseDeApi(error, "crear")
 const CLASE_EDITAR: FuncionPorModo = (error) => erroresDeLaClaseDeApi(error, "editar")
 const ANUNCIO: FuncionPorModo = (error) => erroresDeLaPublicacionDeApi(error, "anuncio")
-const MATERIAL: FuncionPorModo = (error) => erroresDeLaPublicacionDeApi(error, "material")
+const RECURSO_CREAR: FuncionPorModo = (error) => erroresDelRecursoDeApi(error, "crear")
+const RECURSO_EDITAR: FuncionPorModo = (error) => erroresDelRecursoDeApi(error, "editar")
 
 const FILAS_POR_MODO = [
   ["erroresDeLaClaseDeApi", "crear", "nombre", true, CLASE_CREAR],
@@ -182,15 +187,18 @@ const FILAS_POR_MODO = [
   ["erroresDeLaClaseDeApi", "editar", "maestroIds", false, CLASE_EDITAR],
   ["erroresDeLaPublicacionDeApi", "anuncio", "texto", true, ANUNCIO],
   ["erroresDeLaPublicacionDeApi", "anuncio", "titulo", false, ANUNCIO],
-  ["erroresDeLaPublicacionDeApi", "material", "titulo", true, MATERIAL],
-  ["erroresDeLaPublicacionDeApi", "material", "texto", true, MATERIAL],
+  ["erroresDelRecursoDeApi", "crear", "titulo", true, RECURSO_CREAR],
+  ["erroresDelRecursoDeApi", "crear", "texto", true, RECURSO_CREAR],
+  ["erroresDelRecursoDeApi", "editar", "titulo", true, RECURSO_EDITAR],
+  ["erroresDelRecursoDeApi", "editar", "texto", true, RECURSO_EDITAR],
 ] as const
 
 const MODOS = [
   ["crear", CLASE_CREAR],
   ["editar", CLASE_EDITAR],
   ["anuncio", ANUNCIO],
-  ["material", MATERIAL],
+  ["recurso-crear", RECURSO_CREAR],
+  ["recurso-editar", RECURSO_EDITAR],
 ] as const
 
 const fuentesDeClases = import.meta.glob<string>(["./**/*.{ts,tsx}", "!./**/*.test.{ts,tsx}"], {
@@ -243,13 +251,14 @@ describe("CHORE-03 (Enmienda 4) · campo pintado por modo en features/clases", (
       crear: ["nombre", "descripcion", "maestroIds"],
       editar: ["nombre", "descripcion"],
     })
-    expect(CAMPOS_PINTADOS_DE_LA_PUBLICACION).toEqual({
-      anuncio: ["texto"],
-      material: ["titulo", "texto"],
+    expect(CAMPOS_PINTADOS_DE_LA_PUBLICACION).toEqual({ anuncio: ["texto"] })
+    expect(CAMPOS_PINTADOS_DEL_RECURSO).toEqual({
+      crear: ["titulo", "texto"],
+      editar: ["titulo", "texto"],
     })
   })
 
-  it("CH3-B15 (4): erroresDeFormularioClases( solo se llama en lib.ts, formulario-comentario.tsx y una vez en hooks.ts; las listas de campos de la clase y del material solo se escriben en data.ts", () => {
+  it("CH3-B15 (4): erroresDeFormularioClases( solo se llama en lib.ts, formulario-comentario.tsx y una vez en hooks.ts; las listas de campos de la clase y del recurso solo se escriben en data.ts", () => {
     const llamada = "erroresDeFormularioClases("
     const archivos = Object.keys(fuentesDeClases)
     expect(archivos.length).toBeGreaterThan(10)
@@ -259,7 +268,7 @@ describe("CHORE-03 (Enmienda 4) · campo pintado por modo en features/clases", (
     expect(conLlamada).toEqual(["./components/formulario-comentario.tsx", "./hooks.ts", "./lib.ts"])
     expect(contarApariciones(fuentesDeClases["./hooks.ts"] ?? "", llamada)).toBe(1)
     expect(fuentesDeClases["./hooks.ts"]).toContain('erroresDeFormularioClases(error, ["texto"])')
-    expect(contarApariciones(fuentesDeClases["./lib.ts"] ?? "", llamada)).toBe(4)
+    expect(contarApariciones(fuentesDeClases["./lib.ts"] ?? "", llamada)).toBe(5)
     for (const lista of ['["nombre", "descripcion", "maestroIds"]', '["titulo", "texto"]']) {
       const conLista = archivos.filter((archivo) =>
         (fuentesDeClases[archivo] ?? "").includes(lista),

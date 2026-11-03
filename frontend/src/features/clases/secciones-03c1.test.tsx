@@ -16,7 +16,8 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 const TAREA_ID = "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d77"
 const MAESTRO = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d09", nombre: "Luis Pérez" }
-const NOMBRES = ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"]
+// CLASES-03d (§D-7.1): "Recursos" entre "Actividades de aprendizaje" y "Personas".
+const NOMBRES = ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"]
 const BASES = {
   estudiante: "/estudiante/clases",
   maestro: "/maestro/clases",
@@ -141,7 +142,7 @@ const esperadas = (i: number) => ({
 
 describe("secciones de la clase (CL3-C01)", () => {
   it.each(["estudiante", "maestro", "admin"] as const)(
-    "CL3-C01: %s ve las cuatro secciones en orden, sin «Foro», y la activa lleva aria-current y text-link",
+    "CL3-C01: %s ve las cinco secciones en orden, sin «Foro», y la activa lleva aria-current y text-link",
     async (rol) => {
       stubClase()
       montar(`${BASES[rol]}/${CLASE_ID}/personas`)
@@ -172,7 +173,7 @@ describe("indicador medido de las secciones (CL3-C02)", () => {
 
     fireEvent.click(within(lista).getByRole("link", { name: "Calificaciones" }))
     expect(await screen.findByText("calificaciones maestro")).toBeInTheDocument()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
 
     fireEvent.click(within(lista).getByRole("link", { name: "Avisos" }))
     expect(await screen.findByText("avisos maestro")).toBeInTheDocument()
@@ -231,7 +232,7 @@ describe("indicador medido de las secciones (CL3-C02)", () => {
     stubClase()
     montar(`${BASES.estudiante}/${CLASE_ID}/personas`)
     const lista = await secciones()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(2)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
     expect(avisos.length).toBeGreaterThan(0)
     const panel = lista.closest<HTMLElement>('[data-slot="card"]')
     if (panel === null) throw new Error("Precondición: el panel de las secciones")
@@ -243,8 +244,8 @@ describe("indicador medido de las secciones (CL3-C02)", () => {
     act(() => {
       for (const avisar of avisos) avisar()
     })
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(2)))
-    expect(medidasDe(indicadorDe(lista))).toEqual({ x: "260px", ancho: "115px" })
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+    expect(medidasDe(indicadorDe(lista))).toEqual({ x: "390px", ancho: "125px" })
     expect(panel.scrollLeft).toBe(37)
   })
 
@@ -264,14 +265,14 @@ describe("indicador medido de las secciones (CL3-C02)", () => {
     try {
       fireEvent.click(within(lista).getByRole("link", { name: "Personas" }))
       expect(await screen.findByText("personas estudiante")).toBeInTheDocument()
-      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(2)))
+      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
       medidas.anchoBase = 120
       await act(async () => {
         fuentesListas()
         await Promise.resolve()
       })
-      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(2)))
-      expect(medidasDe(indicadorDe(lista)).ancho).toBe("140px")
+      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+      expect(medidasDe(indicadorDe(lista)).ancho).toBe("150px")
     } finally {
       Reflect.deleteProperty(document, "fonts")
     }
@@ -280,7 +281,7 @@ describe("indicador medido de las secciones (CL3-C02)", () => {
 
 describe("la sección activa a la vista (CL3-C04)", () => {
   it("CL3-C04: al entrar con una sección que no cabe, el panel desplaza su scrollLeft para dejarla a la vista; la página no se desplaza", async () => {
-    // El panel deja ver 250 px; «Calificaciones» ocupa de 300 a 410 px.
+    // El panel deja ver 250 px; «Calificaciones» (la quinta, tras «Recursos») ocupa de 400 a 520 px.
     medidas.panel = 250
     const desplazarPagina = vi.fn()
     vi.stubGlobal("scrollTo", desplazarPagina)
@@ -292,7 +293,7 @@ describe("la sección activa a la vista (CL3-C04)", () => {
       const lista = await secciones()
       const panel = lista.closest<HTMLElement>('[data-slot="card"]')
       if (panel === null) throw new Error("Precondición: el panel de las secciones")
-      await waitFor(() => expect(panel.scrollLeft).toBe(410 - 250))
+      await waitFor(() => expect(panel.scrollLeft).toBe(520 - 250))
       expect(desplazarPagina).not.toHaveBeenCalled()
       expect(llevarALaVista).not.toHaveBeenCalled()
       expect(window.scrollY).toBe(0)

@@ -194,14 +194,17 @@ describe("«Calificaciones» con la ruta escrita a mano", () => {
         "aria-current",
         "page",
       )
-      // Calificaciones es la cuarta sección en las tres perspectivas (§D-7.1).
+      // CLASES-03d ronda 0 (C-24, §D-R0; §D-7.1): con «Recursos» entre «Actividades de aprendizaje» y
+      // «Personas», Calificaciones pasa a ser la quinta sección en las tres perspectivas (índice 4:
+      // 400 px de posición y 120 px de ancho simulados). Sigue protegiendo que el indicador quede en la
+      // sección activa con la ruta escrita a mano.
       const indicador = lista.previousElementSibling
       if (!(indicador instanceof HTMLElement)) throw new Error("Precondición: sin indicador")
       await waitFor(() =>
         expect({
           x: indicador.style.getPropertyValue("--indicador-x"),
           ancho: indicador.style.getPropertyValue("--indicador-ancho"),
-        }).toEqual({ x: "300px", ancho: "110px" }),
+        }).toEqual({ x: "400px", ancho: "120px" }),
       )
       expect(pidioAlgunaRutaCon(fetchMock, "/mis-calificaciones")).toBe(false)
     },

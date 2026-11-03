@@ -218,6 +218,10 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
   // (índice × 100 px) y su ancho (80 + índice × 10 px), y el indicador montado debe llevar las de la
   // activa en --indicador-x y --indicador-ancho. Sigue protegiendo la perspectiva por el prefijo en
   // mayúsculas, la sección activa y el indicador montado.
+  // CLASES-03d ronda 0 (C-8, §D-R0; §D-7.1): las tres perspectivas suman «Recursos» entre
+  // «Actividades de aprendizaje» y «Personas» (cinco secciones). «Personas» pasa a la cuarta posición,
+  // y su posición y ancho simulados salen del mismo índice en la lista esperada. Sigue protegiendo la
+  // perspectiva por el prefijo en mayúsculas, la sección activa y el indicador montado.
   const secciones = () => screen.findByRole("list", { name: "Secciones de la clase" })
   const indicadorDe = (lista: HTMLElement) =>
     lista.parentElement?.querySelector<HTMLElement>(':scope > [aria-hidden="true"]') ?? null
@@ -248,21 +252,21 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
       `/ESTUDIANTE/Clases/${CLASE_A.toUpperCase()}/PERSONAS`,
       "/estudiante/clases/:claseId",
       "Personas",
-      ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
     ],
     [
       "maestro en /Maestro/clases/<id>",
       `/Maestro/clases/${CLASE_A}`,
       "/maestro/clases/:claseId",
       "Avisos",
-      ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
     ],
     [
       "admin en /ADMIN/CLASES/<id>/PERSONAS",
       `/ADMIN/CLASES/${CLASE_A}/PERSONAS`,
       "/admin/clases/:claseId",
       "Personas",
-      ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
     ],
   ] as const)(
     "%s: la perspectiva de su prefijo, su sección activa y el indicador montado",

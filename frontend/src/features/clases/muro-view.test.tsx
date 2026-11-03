@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
+import { TEXTOS_FORMULARIO_PUBLICACION } from "./data"
 import { MuroView } from "./muro-view"
 
 const aviso = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }))
@@ -118,7 +119,7 @@ describe("MuroView", () => {
 
   // CLASES-02c (§D-2C4, PR-2C07 y PR-2C09): el admin publica (su «Publicar anuncio» es la única
   // acción principal) y lee sin comentar; el vacío del admin tiene su texto.
-  it("PR-2C07: en la vista del admin hay un solo primary, el grupo del tipo de publicación y ningún formulario de comentario", async () => {
+  it("PR-2C07: en la vista del admin hay un solo primary, el formulario de anuncios y ningún formulario de comentario", async () => {
     stubApi((ruta) => {
       if (ruta.startsWith(rutaDelMuro)) return respuestaJson(200, lista([publicacion(1)], null))
       return errorJson(500, "ERROR_INTERNO")
@@ -129,7 +130,9 @@ describe("MuroView", () => {
     await screen.findByText("Texto de la publicación 1")
     expect(botonesPrimarios()).toHaveLength(1)
     expect(botonesPrimarios()[0]).toHaveTextContent("Publicar anuncio")
-    expect(screen.getByRole("group", { name: "Tipo de publicación" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("textbox", { name: TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio }),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Ver comentarios (0)" }))
     expect(screen.queryByLabelText("Escribe un comentario")).toBeNull()
   })

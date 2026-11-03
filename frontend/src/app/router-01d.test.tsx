@@ -188,10 +188,13 @@ const medidasDeLaOpcion = (i: number) => ({
 
 describe("la sección «Calificaciones» (CAL-1D06)", () => {
   it.each([
-    // CLASES-03 (§D-7.1): las mismas cuatro secciones en las tres perspectivas.
-    ["estudiante", ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"]],
-    ["maestro", ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"]],
-    ["admin", ["Avisos", "Actividades de aprendizaje", "Personas", "Calificaciones"]],
+    // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos".
+    [
+      "estudiante",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
+    ],
+    ["maestro", ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"]],
+    ["admin", ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"]],
   ] as const)(
     "CAL-1D06: %s ve «Calificaciones» como última sección, con su href y aria-current en …/calificaciones",
     async (rol, esperadas) => {
@@ -219,15 +222,15 @@ describe("la sección «Calificaciones» (CAL-1D06)", () => {
     const lista = await secciones()
     expect(lista.previousElementSibling).toHaveAttribute("aria-hidden", "true")
     await waitFor(() =>
-      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(3)),
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(4)),
     )
   })
 
   it.each([
-    ["admin", "personas", 2],
-    ["admin", "personas", 2],
-    ["maestro", "personas", 2],
-    ["maestro", "calificaciones", 3],
+    ["admin", "personas", 3],
+    ["admin", "personas", 3],
+    ["maestro", "personas", 3],
+    ["maestro", "calificaciones", 4],
   ] as const)(
     "CAL-1D06: %s en …/%s: el indicador lleva la posición y el ancho medidos de la opción %i",
     async (rol, segmento, indice) => {

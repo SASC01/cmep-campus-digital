@@ -8,11 +8,11 @@ import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
 import { claveTemas } from "@/services/trabajoService"
 
 import type {
+  BloqueDeRecurso,
   CapacidadesDePerspectiva,
   Perspectiva,
   SeccionDeClase,
   SeccionDeTemas,
-  TipoPublicacion,
 } from "./types"
 
 // Claves de consulta de TanStack Query (CLASES-a). Se reutilizan tal cual en las invalidaciones y
@@ -43,6 +43,13 @@ export const claveComentarios = (claseId: string, publicacionId: string) =>
 // (el total), así que toda invalidación de esa clave, no exacta, también la alcanza.
 export const claveTemasDeLaSeccion = (claseId: string, seccion: SeccionDeTemas) =>
   [...claveTemas(claseId), seccion] as const
+// CLASES-03d (§D-8.4): las listas de "Recursos" cuelgan de un prefijo (invalidarlo las alcanza a todas)
+// y el recurso que se edita vive fuera de él: invalidar las listas no recarga la edición.
+export const clavePrefijoDeRecursos = (claseId: string) => ["clases", claseId, "recursos"] as const
+export const claveRecursos = (claseId: string, bloque: BloqueDeRecurso, tema: string) =>
+  [...clavePrefijoDeRecursos(claseId), bloque, tema] as const
+export const claveRecurso = (claseId: string, recursoId: string) =>
+  ["clases", claseId, "recurso", recursoId] as const
 
 export const LIMITE_CLASES = 20
 // §D-2C2: la lista de clases del administrador se pide de 50 en 50.
@@ -214,6 +221,10 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "CATEGORIA_CON_TAREAS",
   "CATEGORIA_NO_ENCONTRADA",
   "ANUNCIO_SIN_TEMA",
+  // CLASES-03d (§D-13): los errores de "Recursos" que ya llegan en español.
+  "RECURSO_MODIFICADO",
+  "MOVER_NO_PERMITIDO",
+  "EDICION_NO_PERMITIDA",
 ]
 
 export const TEXTOS_CODIGO = {
@@ -239,6 +250,8 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   // §D-C6: errores del muro.
   publicacionNoEncontrada: "Esa publicación ya no existe.",
   comentarioNoEncontrado: "Ese comentario ya no existe.",
+  // CLASES-03d (§D-13): el recurso que se abre o se edita.
+  recursoNoEncontrado: "Ese recurso ya no existe.",
   // §D-D6: errores de los archivos adjuntos.
   // TAREAS-01c (§D-9): los textos de los archivos viven en components/adjuntos/data.ts.
   archivoNoSubido: MENSAJES_ERROR_DE_ARCHIVOS.archivoNoSubido,
@@ -255,6 +268,7 @@ export const MENSAJES_POR_CODIGO_DE_CLASES: Readonly<Record<string, string>> = {
   ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
   PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
   COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
+  RECURSO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado,
   // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
   ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
 }
@@ -267,6 +281,8 @@ export const TRADUCCION_DE_ERRORES_CLASES = {
   codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   textosPorCampo: {
     claseId: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
+    // CLASES-03d (§D-13): un VALIDACION de recursoId dice lo mismo que RECURSO_NO_ENCONTRADO.
+    recursoId: MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado,
   },
 } satisfies TraduccionDeErrores
 
@@ -277,10 +293,18 @@ export const CAMPOS_PINTADOS_DE_LA_CLASE = {
   editar: ["nombre", "descripcion"],
 } as const
 
+// CLASES-03d (§D-8.7): el formulario de Avisos solo publica anuncios; el título de un recurso vive en
+// "Nuevo recurso" (CAMPOS_PINTADOS_DEL_RECURSO).
 export const CAMPOS_PINTADOS_DE_LA_PUBLICACION = {
   anuncio: ["texto"],
-  material: ["titulo", "texto"],
-} as const satisfies Readonly<Record<TipoPublicacion, readonly string[]>>
+} as const satisfies Readonly<Record<"anuncio", readonly string[]>>
+
+// CLASES-03d (§D-8.5, §D-15): los campos que pintan "Nuevo recurso" y "Editar recurso". Cualquier otro
+// (temaId, archivoIds.<i>, tipo, version) se avisa.
+export const CAMPOS_PINTADOS_DEL_RECURSO = {
+  crear: ["titulo", "texto"],
+  editar: ["titulo", "texto"],
+} as const
 
 export const TEXTOS_CLASE = {
   volver: "Volver a mis clases",
@@ -363,20 +387,14 @@ export const TEXTOS_MURO = {
     "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos.",
 } as const
 
+// CLASES-03d (§D-8.7): el formulario de Avisos solo publica anuncios (sin tipo, título ni tema).
 export const TEXTOS_FORMULARIO_PUBLICACION = {
-  grupoTipo: "Tipo de publicación",
-  anuncio: "Anuncio",
-  material: "Material",
-  campoTitulo: "Título del material",
   campoAnuncio: "Anuncio",
-  campoDescripcion: "Descripción (opcional)",
   publicarAnuncio: "Publicar anuncio",
-  publicarMaterial: "Publicar material",
   avisoPublicado: "Publicado",
-  // TAREAS-01e (§D-11, Enmienda 6): el tema de un material.
-  campoTema: "Tema",
+  // La lee PR-1A17 de features/tareas (como-se-entrega-01a.test.tsx); sale cuando esa prueba apunte a
+  // TEXTOS_FORMULARIO_RECURSO.
   sinTema: TEXTOS_DE_LA_CLASE.sinTema,
-  temasNoCargados: "No pudimos cargar los temas. El material se publicará sin tema.",
 } as const
 
 // TAREAS-01d (§D-10, S-10): la tarjeta de una tarea en el muro.
@@ -432,6 +450,8 @@ export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
 const SECCIONES_DE_LA_CLASE: readonly SeccionDeClase[] = [
   { segmento: "", texto: TEXTOS_CLASE.avisos },
   { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
+  // CLASES-03d (§D-7.1): "Recursos", entre "Actividades de aprendizaje" y "Personas".
+  { segmento: "recursos", texto: TEXTOS_CLASE.recursos },
   { segmento: "personas", texto: TEXTOS_CLASE.personas },
   { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
 ]
@@ -474,10 +494,6 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     gestionarTrabajo: true,
   },
 }
-
-// El indicador de un control de dos opciones (el tipo de publicación del formulario del muro) se
-// traslada una posición. Las secciones de la clase ya no lo usan: su indicador se mide (§D-7.2).
-export const CLASES_DE_POSICION_DEL_INDICADOR = ["", "translate-x-full"] as const
 
 // TAREAS-01e (§D-11, Enmienda 5): "Trabajo de clase" pide la primera página de cada tema de 5 en 5,
 // "Ver más" de 20 en 20, y como máximo 6 lecturas a la vez (el limitador de hooks.ts).
@@ -548,6 +564,101 @@ export const CODIGOS_QUE_RENUEVAN_LOS_TEMAS: readonly string[] = [
   "ORDEN_DESACTUALIZADO",
   "PUBLICACION_NO_ENCONTRADA",
   "ANUNCIO_SIN_TEMA",
+  // CLASES-03d (§D-8.4): un recurso de aprendizaje que el maestro no puede mover. Al renovar las listas,
+  // su `puedeMover` pasa a false y el control desaparece.
+  "MOVER_NO_PERMITIDO",
+]
+
+// CLASES-03d (§D-8.2): "Recursos" pide la primera página de cada tema de 5 en 5, "Ver más" de 20 en 20,
+// y como máximo 6 lecturas a la vez (su propio limitador, otra instancia que el de "Actividades").
+export const LIMITE_PRIMERA_PAGINA_RECURSOS = 5
+export const LIMITE_PAGINAS_RECURSOS = 20
+export const MAXIMO_LECTURAS_DE_RECURSOS_EN_VUELO = 6
+// §D-8.1: las recargas fallidas de los dos bloques avisan con el mismo id de sonner, así dos fallos
+// seguidos o simultáneos dejan un solo aviso a la vista.
+export const ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS = "recarga-fallida-de-recursos"
+
+// CLASES-03d (§D-13): textos de "Recursos".
+export const TEXTOS_RECURSOS = {
+  aprendizaje: "Recursos de aprendizaje",
+  docente: "Recursos del docente",
+  vacioAprendizaje: "Aún no hay recursos de aprendizaje.",
+  vacioDocente: "Aún no hay recursos del docente.",
+  insignia: "Recurso",
+  conteo: (n: number) => (n === 1 ? "1 recurso" : `${n} recursos`),
+  verRecurso: "Ver recurso",
+  ocultarRecurso: "Ocultar recurso",
+  verMasDe: (nombre: string) => `Ver más de ${nombre}`,
+  cargandoTema: TEXTOS_TRABAJO.cargandoTema,
+  // R3 (§D-10): la acción que pide se cumple al pulsar "Recursos" estando ahí, al ir a otra sección y
+  // regresar, y con atrás y adelante del historial.
+  cambioMientrasLoVeias:
+    "Este tema cambió mientras lo veías. Vuelve a abrir Recursos para verlo completo.",
+  recargaFallida: "No pudimos actualizar Recursos. Mostramos la última versión que tenemos.",
+  editar: "Editar recurso",
+  borrar: "Borrar recurso",
+  siBorrar: "Sí, borrar recurso",
+  cancelar: "Cancelar",
+  consecuencia: "Se borrará con sus comentarios.",
+  consecuenciaConAdjuntos: "Se borrará con sus comentarios y adjuntos.",
+  avisoBorrado: "Recurso borrado",
+} as const
+
+// El título y el vacío de cada bloque, en el orden de la vista (BLOQUES_DE_RECURSO de shared/).
+export const TEXTOS_DE_LOS_BLOQUES: Record<BloqueDeRecurso, { titulo: string; vacio: string }> = {
+  aprendizaje: { titulo: TEXTOS_RECURSOS.aprendizaje, vacio: TEXTOS_RECURSOS.vacioAprendizaje },
+  docente: { titulo: TEXTOS_RECURSOS.docente, vacio: TEXTOS_RECURSOS.vacioDocente },
+}
+
+export const TEXTOS_FORMULARIO_RECURSO = {
+  tituloCrear: "Nuevo recurso",
+  tituloEditar: "Editar recurso",
+  destinoDocente: "Se publicará en Recursos del docente.",
+  destinoAprendizaje: "Se publicará en Recursos de aprendizaje.",
+  campoTitulo: "Título del recurso",
+  campoTema: "Tema",
+  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
+  campoDescripcion: "Descripción (opcional)",
+  publicar: "Publicar recurso",
+  guardar: "Guardar cambios",
+  cancelar: "Cancelar",
+  avisoPublicado: "Recurso publicado",
+  avisoGuardado: "Cambios guardados",
+  temasNoCargados: "No pudimos cargar los temas. El recurso se publicará sin tema.",
+} as const
+
+export const TEXTOS_EDITAR_RECURSO = {
+  cargando: "Cargando el recurso…",
+  volver: "Volver a Recursos",
+  noPuedes: "No puedes editar este recurso.",
+  // R8 (§D-10) y DESIGN.md §7.21: sin conexión o con un 5xx, "revisa tu conexión"; con cualquier otra
+  // respuesta del servidor (por ejemplo, un 429), "inténtalo de nuevo en un momento".
+  recargaRed: "No pudimos actualizar el recurso. Puedes seguir editando; revisa tu conexión.",
+  recargaServidor:
+    "No pudimos actualizar el recurso. Puedes seguir editando; inténtalo de nuevo en un momento.",
+} as const
+
+// Errores que reemplazan "Editar recurso" con su mensaje (§D-8.6): el recurso ya no existe o se perdió
+// el acceso a la clase; un VALIDACION de uno de estos ids dice lo mismo.
+export const CODIGOS_QUE_REEMPLAZAN_EL_RECURSO: readonly string[] = [
+  "RECURSO_NO_ENCONTRADO",
+  "SIN_ACCESO_A_LA_CLASE",
+]
+export const CAMPOS_QUE_REEMPLAZAN_EL_RECURSO: readonly string[] = ["claseId", "recursoId"]
+
+// Errores al guardar que dicen que el recurso abierto ya no es el del servidor: se vuelve a pedir (la
+// vista se reemplaza o pierde `puedeEditar`).
+export const CODIGOS_QUE_RENUEVAN_EL_RECURSO: readonly string[] = [
+  "RECURSO_NO_ENCONTRADO",
+  "EDICION_NO_PERMITIDA",
+  "SIN_ACCESO_A_LA_CLASE",
+]
+
+// §D-14: un borrado que el servidor niega (otro autor, otro bloque) o que ya no encuentra el recurso
+// renueva las listas: la fila que ya no está desaparece y `puedeBorrar` se actualiza.
+export const CODIGOS_QUE_RENUEVAN_LOS_RECURSOS: readonly string[] = [
+  "BORRADO_NO_PERMITIDO",
+  "PUBLICACION_NO_ENCONTRADA",
 ]
 
 // §D-11: textos de "Categorías de calificación" (propuesta).

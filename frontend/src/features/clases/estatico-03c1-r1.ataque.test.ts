@@ -81,11 +81,15 @@ describe("ataque CLASES-03c1 r1: reglas estáticas de lo nuevo", () => {
     expect(texto).not.toMatch(/^\s*(?:export\s+)?(?:interface|type)\s+Medida\w*/m)
   })
 
-  it("CL3-R1-35: salen las clases de la rejilla y CLASES_DE_POSICION_DEL_INDICADOR queda con sus dos valores", () => {
+  // CLASES-03d ronda 0, adenda 1 (C-10 ampliada por el arbitraje de la ronda 0 de 03d; §D-7.2 y
+  // §D-8.7): la constante solo existía por el indicador del grupo "Tipo de publicación", que sale con
+  // el formulario solo de anuncios; ahora se comprueba que ya no se exporta. La búsqueda de restos de
+  // la rejilla no cambia. Sigue protegiendo que no queden restos del indicador viejo.
+  it("CL3-R1-35: salen las clases de la rejilla y CLASES_DE_POSICION_DEL_INDICADOR sale (03d)", () => {
     const exportados = Object.keys(datos)
     expect(exportados).not.toContain("CLASES_DEL_INDICADOR_POR_SECCIONES")
     expect(exportados).not.toContain("CLASES_DE_LA_REJILLA_POR_SECCIONES")
-    expect(datos.CLASES_DE_POSICION_DEL_INDICADOR).toEqual(["", "translate-x-full"])
+    expect(exportados).not.toContain("CLASES_DE_POSICION_DEL_INDICADOR")
     const restos = Object.entries(fuentes)
       .filter(([ruta]) => !/\.test\.tsx?$/.test(ruta))
       .filter(([, texto]) => /grid-cols-[45]\b|w-1\/[45]\b|translate-x-\[[234]00%\]/.test(texto))

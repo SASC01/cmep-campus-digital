@@ -114,6 +114,10 @@ const respuestaNormal = ({ metodo, url }: Llamada): Response | null => {
   if (pathname === RUTA_CLASE) return respuestaJson(200, claseDoble)
   if (pathname === `${RUTA_CLASE}/codigo`) return respuestaJson(200, { codigo: "ABCD234" })
   if (pathname === `${RUTA_CLASE}/temas`) return respuestaJson(200, { temas: [], sinTema: 0 })
+  // CLASES-03d ronda 0 (C-23): las listas de recursos de «Recursos», donde vive «Nuevo recurso».
+  if (pathname === `${RUTA_CLASE}/recursos`) {
+    return respuestaJson(200, { recursos: [], siguienteCursor: null })
+  }
   if (pathname === `${RUTA_CLASE}/trabajo`) {
     return respuestaJson(200, { elementos: [], siguienteCursor: null })
   }
@@ -236,6 +240,8 @@ interface Formulario {
   exito: string
   // Lo escrito sigue en el formulario (no se llama tras un éxito).
   conservado: () => void
+  // CLASES-03d ronda 0 (C-23): se monta con el router real en `ruta` y no con `elemento`.
+  conLasRutas?: true
 }
 
 interface Paso {
@@ -247,45 +253,38 @@ interface Paso {
   control?: () => HTMLElement
 }
 
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5 y §D-8.7): el material se publica desde «Nuevo recurso» en
+// «Recursos» (FormularioRecurso, sin grupo de tipo), con sus textos literales de §D-13 porque sus
+// constantes todavía no existen; el formulario de Avisos queda solo para anuncios. Salen `pulsarTipo`
+// y `tipoPresionado`: ya no hay tipo que pulsar en ningún formulario.
+const TITULO_DEL_RECURSO = "Título del recurso"
+const DESCRIPCION_DEL_RECURSO = "Descripción (opcional)"
+const PUBLICAR_RECURSO = "Publicar recurso"
 const campoAnuncio = () => screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio)
-const campoTitulo = () => screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo)
-const campoDescripcionMaterial = () =>
-  screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion)
+const campoTitulo = () => screen.getByLabelText(TITULO_DEL_RECURSO)
+const campoDescripcionMaterial = () => screen.getByLabelText(DESCRIPCION_DEL_RECURSO)
 const campoNombreClase = () => screen.getByLabelText(TEXTOS_FORMULARIO_CLASE.campoNombre)
 const campoDescripcionClase = () => screen.getByLabelText(TEXTOS_FORMULARIO_CLASE.campoDescripcion)
 const grupoDeMaestros = () => screen.getByRole("group", { name: TEXTOS_BUSCADOR_MAESTROS.grupo })
-// El botón principal y el campo de texto de la publicación cambian de nombre con el tipo elegido.
+// El botón principal y el campo de texto: el de Avisos o el de «Nuevo recurso», uno solo por pantalla.
 const botonDePublicar = () => {
-  const botones = [
-    TEXTOS_FORMULARIO_PUBLICACION.publicarAnuncio,
-    TEXTOS_FORMULARIO_PUBLICACION.publicarMaterial,
-  ].flatMap((nombre) => screen.queryAllByRole("button", { name: nombre }))
+  const botones = [TEXTOS_FORMULARIO_PUBLICACION.publicarAnuncio, PUBLICAR_RECURSO].flatMap(
+    (nombre) => screen.queryAllByRole("button", { name: nombre }),
+  )
   expect(botones, "un solo botón principal de publicar").toHaveLength(1)
   const [boton] = botones
   if (boton === undefined) throw new Error("falta el botón de publicar")
   return boton
 }
 const textoDeLaPublicacion = () => {
-  const campos = [
-    TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio,
-    TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion,
-  ].flatMap((nombre) => screen.queryAllByRole("textbox", { name: nombre }))
+  const campos = [TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio, DESCRIPCION_DEL_RECURSO].flatMap(
+    (nombre) => screen.queryAllByRole("textbox", { name: nombre }),
+  )
   expect(campos, "un solo campo de texto de la publicación").toHaveLength(1)
   const [campo] = campos
   if (campo === undefined) throw new Error("falta el campo de texto de la publicación")
   return campo
 }
-const pulsarTipo = (nombre: string) => {
-  const botones = screen
-    .getAllByRole("button", { name: nombre })
-    .filter((boton) => boton.hasAttribute("aria-pressed"))
-  expect(botones, `un solo botón de tipo «${nombre}»`).toHaveLength(1)
-  const [boton] = botones
-  if (boton === undefined) throw new Error(`falta el botón de tipo «${nombre}»`)
-  fireEvent.click(boton)
-}
-const tipoPresionado = () =>
-  screen.getAllByRole("button", { pressed: true }).map((boton) => (boton.textContent ?? "").trim())
 
 const ANUNCIO: Formulario = {
   nombre: "el anuncio",
@@ -303,21 +302,24 @@ const ANUNCIO: Formulario = {
   conservado: () => expect(textoDeLaPublicacion()).toHaveValue("Mañana hay examen"),
 }
 
+// CLASES-03d ronda 0 (C-23): «el material» pasa a «el recurso», en …/recursos con el router real. Al
+// publicar, el aviso es "Recurso publicado" (§D-13). Sigue protegiendo lo mismo.
 const MATERIAL: Formulario = {
-  nombre: "el material",
+  nombre: "el recurso",
   rol: "maestro",
-  ruta: `/maestro/clases/${CLASE_ID}`,
-  elemento: () => <FormularioPublicacion claseId={CLASE_ID} />,
+  ruta: `/maestro/clases/${CLASE_ID}/recursos`,
+  elemento: () => null,
+  conLasRutas: true,
   llenar: async () => {
-    pulsarTipo(TEXTOS_FORMULARIO_PUBLICACION.material)
-    escribir(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo, "Lectura")
-    escribir(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion, "Capítulo 3")
+    await screen.findByLabelText(TITULO_DEL_RECURSO, {}, { timeout: 3000 })
+    escribir(TITULO_DEL_RECURSO, "Lectura")
+    escribir(DESCRIPCION_DEL_RECURSO, "Capítulo 3")
     await waitFor(() => expect(llamadas.some(es("GET", `${RUTA_CLASE}/temas`))).toBe(true))
   },
   boton: () => botonDePublicar(),
   envio: es("POST", `${RUTA_CLASE}/publicaciones`),
   bien: () => respuestaJson(201, publicacionDoble("material")),
-  exito: TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado,
+  exito: "Recurso publicado",
   conservado: () => expect(textoDeLaPublicacion()).toHaveValue("Capítulo 3"),
 }
 
@@ -380,15 +382,7 @@ const pasoDeCampo = (
   ...(antes === undefined ? {} : { antes }),
 })
 
-const aMaterial = async () => {
-  pulsarTipo(TEXTOS_FORMULARIO_PUBLICACION.material)
-  escribir(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo, "Lectura")
-  await Promise.resolve()
-}
-const aAnuncio = async () => {
-  pulsarTipo(TEXTOS_FORMULARIO_PUBLICACION.anuncio)
-  await Promise.resolve()
-}
+// CLASES-03d ronda 0 (C-23): salen `aMaterial` y `aAnuncio` (cambiaban de tipo entre envíos).
 
 interface Secuencia {
   titulo: string
@@ -444,8 +438,9 @@ const SECUENCIAS: readonly Secuencia[] = [
       pasoDeCampo(`nombre: maestroIds: ${M3}`, M3, campoNombreClase),
     ],
   },
+  // CLASES-03d ronda 0 (C-23): las secuencias del material pasan al recurso (mismos pasos).
   {
-    titulo: "material: «titulo:» → «temaId: temaId:» → «titulo:titulo:» con U+0085",
+    titulo: "recurso: «titulo:» → «temaId: temaId:» → «titulo:titulo:» con U+0085",
     formulario: MATERIAL,
     pasos: [
       pasoDeCampo(`titulo: ${M1}`, M1, campoTitulo),
@@ -462,23 +457,18 @@ const SECUENCIAS: readonly Secuencia[] = [
       pasoDeCampo(`nombre: ${M3}`, M3, campoNombreClase),
     ],
   },
-  // Cambiar de tipo entre envíos: el error de un envío anterior no reaparece.
+  // CLASES-03d ronda 0 (C-23, §D-8.7): sale la secuencia "anuncio «titulo:» → «Material» con
+  // «titulo:» → «Anuncio» con «titulo:» → «Material» sin envío": era del cambio de tipo, que ya no
+  // existe (Avisos solo publica anuncios y «Nuevo recurso» no tiene tipo). La de "material «texto:» →
+  // «Anuncio» con «titulo:» invisible" pierde el cambio de tipo y se queda en el recurso, donde el
+  // título sí se pinta: el resto invisible da el genérico bajo el título y el error de la descripción
+  // del envío anterior desaparece. Sigue protegiendo un mensaje por envío, sin el del anterior.
   {
-    titulo:
-      "anuncio «titulo:» → «Material» con «titulo:» → «Anuncio» con «titulo:» → «Material» sin envío",
-    formulario: ANUNCIO,
-    pasos: [
-      pasoDeAviso(`titulo: ${M1}`, M1),
-      pasoDeCampo(`titulo: ${M2}`, M2, campoTitulo, aMaterial),
-      pasoDeAviso(`titulo: ${M3}`, M3, aAnuncio),
-    ],
-  },
-  {
-    titulo: "material «texto:» → «Anuncio» con «titulo:» invisible",
+    titulo: "recurso «texto:» → «titulo:» invisible",
     formulario: MATERIAL,
     pasos: [
       pasoDeCampo(`texto: ${M1}`, M1, campoDescripcionMaterial),
-      pasoDeAviso("titulo:\u{3000}\u{2060}", GENERICO, aAnuncio),
+      pasoDeCampo("titulo:\u{3000}\u{2060}", GENERICO, campoTitulo),
     ],
   },
   // El envío siguiente responde bien: no queda el error del anterior.
@@ -491,7 +481,7 @@ const SECUENCIAS: readonly Secuencia[] = [
     ],
   },
   {
-    titulo: "material «titulo:» → éxito",
+    titulo: "recurso «titulo:» → éxito",
     formulario: MATERIAL,
     pasos: [
       pasoDeCampo(`titulo: ${M1}`, M1, campoTitulo),
@@ -537,7 +527,7 @@ const SECUENCIAS: readonly Secuencia[] = [
       ["titulo:", GENERICO, campoTitulo],
     ] as const
   ).map(([mensaje, esperado, control]) => ({
-    titulo: `material con «${mensaje}»`,
+    titulo: `recurso con «${mensaje}»`,
     formulario: MATERIAL,
     pasos: [pasoDeCampo(esperado === M1 ? `${mensaje}${M1}` : mensaje, esperado, control)],
   })),
@@ -582,11 +572,15 @@ const montarEnRouter = async (formulario: Formulario) => {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
+  // CLASES-03d ronda 0 (C-23): «Nuevo recurso» se monta con las rutas de la app, en …/recursos.
+  const { rutas } = await import("@/app/router")
   const router = createMemoryRouter(
-    [
-      { path: formulario.ruta, element: formulario.elemento() },
-      { path: "/admin/clases/:claseId", element: <p>La clase</p> },
-    ],
+    formulario.conLasRutas
+      ? rutas
+      : [
+          { path: formulario.ruta, element: formulario.elemento() },
+          { path: "/admin/clases/:claseId", element: <p>La clase</p> },
+        ],
     { initialEntries: [formulario.ruta] },
   )
   render(
@@ -655,14 +649,9 @@ describe("ataque CHORE-03 03b r2 · un mensaje legible por envío en los formula
         anteriores.push(paso.esperado)
       }
 
-      // Tras un cambio de tipo, volver al material no trae ningún error de un envío anterior.
-      if (formulario === ANUNCIO && pasos.some((paso) => paso.antes === aAnuncio)) {
-        pulsarTipo(TEXTOS_FORMULARIO_PUBLICACION.material)
-        await reposar()
-        expect(campoTitulo()).not.toHaveAttribute("aria-invalid", "true")
-        expect(campoTitulo()).not.toHaveAccessibleDescription()
-        for (const previo of anteriores) expect(screen.queryAllByText(previo)).toHaveLength(0)
-      }
+      // CLASES-03d ronda 0 (C-23): sale la comprobación de "volver al material tras un cambio de
+      // tipo"; ya no hay tipo. En Avisos, en su lugar, al terminar no hay ningún campo de título.
+      if (formulario === ANUNCIO) expect(screen.queryByLabelText(/^Título/)).toBeNull()
       expect(respuestas, "se usaron todas las respuestas preparadas").toEqual([])
       expect(inesperadas).toEqual([])
     },
@@ -671,6 +660,11 @@ describe("ataque CHORE-03 03b r2 · un mensaje legible por envío en los formula
 
 // ---------------------------------------------------------------------------------------------------
 // 2. Cambiar de tipo con la publicación en vuelo y justo al asentarse.
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.7): ya no hay tipo que cambiar. Los dos casos del material
+// salen: eran del cambio de tipo, y lo que les queda (el error bajo el título del recurso) ya lo cubren
+// las secuencias del recurso. Los dos del anuncio se quedan sin pulsar ningún tipo: con la publicación
+// en vuelo y al asentarse no aparece ningún grupo de tipo ni campo de título, la decisión es la del
+// anuncio (un solo aviso) y se manda un solo POST. Siguen protegiendo lo mismo.
 
 interface Retenida {
   soltar: (respuesta: Response) => void
@@ -686,49 +680,31 @@ const retener = (): { respuesta: Respuesta; retenida: Retenida } => {
   return { respuesta: () => promesa, retenida: { soltar: (r) => soltar(r) } }
 }
 
-interface CambioDeTipo {
+interface AnuncioEnVuelo {
   nombre: string
-  formulario: Formulario
-  mensaje: string
-  // El tipo que se intenta pulsar mientras la publicación está en vuelo o se asienta.
-  otroTipo: string
-  // El tipo enviado, que debe seguir presionado.
-  tipoEnviado: string
-  donde: "aviso" | "campo"
   momento: "en vuelo" | "al asentarse"
 }
 
-const CAMBIOS_DE_TIPO: readonly CambioDeTipo[] = (["en vuelo", "al asentarse"] as const).flatMap(
-  (momento) => [
-    {
-      nombre: `anuncio con «titulo:», «Material» ${momento}`,
-      formulario: ANUNCIO,
-      mensaje: `titulo: ${M1}`,
-      otroTipo: TEXTOS_FORMULARIO_PUBLICACION.material,
-      tipoEnviado: TEXTOS_FORMULARIO_PUBLICACION.anuncio,
-      donde: "aviso" as const,
-      momento,
-    },
-    {
-      nombre: `material con «titulo:», «Anuncio» ${momento}`,
-      formulario: MATERIAL,
-      mensaje: `titulo: ${M1}`,
-      otroTipo: TEXTOS_FORMULARIO_PUBLICACION.anuncio,
-      tipoEnviado: TEXTOS_FORMULARIO_PUBLICACION.material,
-      donde: "campo" as const,
-      momento,
-    },
-  ],
+const ANUNCIOS_EN_VUELO: readonly AnuncioEnVuelo[] = (["en vuelo", "al asentarse"] as const).map(
+  (momento) => ({ nombre: `anuncio con «titulo:» ${momento}`, momento }),
 )
 
+const sinRastroDelTipo = () => {
+  expect(screen.queryByRole("group", { name: "Tipo de publicación" })).toBeNull()
+  expect(screen.queryByLabelText(/^Título/)).toBeNull()
+}
+
 describe("ataque CHORE-03 03b r2 · cambiar de tipo con la publicación en vuelo o al asentarse", () => {
-  it.each(CAMBIOS_DE_TIPO.map((caso) => [caso.nombre, caso] as const))(
-    "%s: el tipo no cambia y la decisión es la del tipo enviado (exactamente un mensaje)",
-    async (_nombre, { formulario, mensaje, otroTipo, tipoEnviado, donde, momento }) => {
+  it.each(ANUNCIOS_EN_VUELO.map((caso) => [caso.nombre, caso] as const))(
+    "%s: sin tipo que cambiar, la decisión es la del anuncio (exactamente un mensaje) y no aparece ningún campo de título",
+    async (_nombre, { momento }) => {
+      const formulario = ANUNCIO
+      const mensaje = `titulo: ${M1}`
       esElEnvio = formulario.envio
       const { cliente } = await montarEnRouter(formulario)
       await formulario.llenar()
       await asentar(cliente)
+      sinRastroDelTipo()
       const { respuesta, retenida } = retener()
       respuestas.push(respuesta)
       fireEvent.click(formulario.boton())
@@ -737,42 +713,28 @@ describe("ataque CHORE-03 03b r2 · cambiar de tipo con la publicación en vuelo
       expect(formulario.boton()).toHaveAttribute("aria-busy", "true")
 
       if (momento === "en vuelo") {
-        pulsarTipo(otroTipo)
-        await reposar()
-        expect(tipoPresionado()).toEqual([tipoEnviado])
+        sinRastroDelTipo()
         await act(async () => {
           retenida.soltar(validacion(mensaje)())
           await Promise.resolve()
         })
       }
       if (momento === "al asentarse") {
-        // Se pulsa el otro tipo en cada microtarea mientras la respuesta se procesa.
+        // En cada microtarea mientras la respuesta se procesa, ningún rastro del tipo.
         await act(async () => {
           retenida.soltar(validacion(mensaje)())
           for (let i = 0; i < 40; i += 1) {
             await Promise.resolve()
-            pulsarTipo(otroTipo)
+            sinRastroDelTipo()
           }
         })
       }
       await asentar(cliente)
 
-      expect(tipoPresionado()).toEqual([tipoEnviado])
-      if (donde === "aviso") {
-        expect(avisos()).toEqual([M1])
-        expect(screen.queryAllByText(M1)).toHaveLength(0)
-        expect(portadoresDeError()).toHaveLength(0)
-        // Al pasar ahora al material, ningún error bajo el título.
-        pulsarTipo(TEXTOS_FORMULARIO_PUBLICACION.material)
-        await reposar()
-        expect(campoTitulo()).not.toHaveAttribute("aria-invalid", "true")
-        expect(screen.queryAllByText(M1)).toHaveLength(0)
-      }
-      if (donde === "campo") {
-        expect(avisos()).toEqual([])
-        expect(screen.queryAllByText(M1)).toHaveLength(1)
-        expect(campoTitulo()).toHaveAccessibleDescription(M1)
-      }
+      sinRastroDelTipo()
+      expect(avisos()).toEqual([M1])
+      expect(screen.queryAllByText(M1)).toHaveLength(0)
+      expect(portadoresDeError()).toHaveLength(0)
       expect(formulario.boton()).not.toHaveAttribute("aria-busy", "true")
       expect(llamadas.filter(formulario.envio)).toHaveLength(1)
       expect(inesperadas).toEqual([])

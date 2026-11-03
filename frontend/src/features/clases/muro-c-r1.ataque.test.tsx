@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
@@ -206,6 +206,81 @@ const renderMuro = (rol: "maestro" | "estudiante") =>
 
 const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms))
 
+// CLASES-03d ronda 0 (C-30, §D-R0, Enmienda 10; §D-8.5): el título de un material se escribe en
+// «Nuevo recurso» de «Recursos». Se monta con el router real (la ruta …/recursos), sin importar el
+// formulario, que todavía no existe: así la prueba compila y queda roja hasta que exista. La API
+// responde lo que pide el marco y las listas vacías de temas y recursos.
+const stubDeRecursos = () => {
+  const fetchMock = vi.fn<typeof fetch>((entrada, init) => {
+    const metodo = init?.method ?? "GET"
+    const { pathname } = new URL(String(entrada), "http://local")
+    const base = `/api/clases/${CLASE_ID}`
+    if (pathname === "/api/auth/refrescar") {
+      return Promise.resolve(respuestaJson(200, { tokenAcceso: "restaurado" }))
+    }
+    if (pathname === "/api/me") {
+      return Promise.resolve(
+        respuestaJson(200, {
+          id: AUTOR.id,
+          nombre: AUTOR.nombre,
+          email: "luis@ejemplo.mx",
+          rol: "maestro",
+          debeCambiarContrasena: false,
+          accesoRestringido: false,
+        }),
+      )
+    }
+    if (metodo !== "GET") return Promise.resolve(error500())
+    if (pathname === "/api/clases/impartidas") {
+      return Promise.resolve(respuestaJson(200, { clases: [], total: 0, siguienteCursor: null }))
+    }
+    if (pathname === base) {
+      const maestro = { id: AUTOR.id, nombre: AUTOR.nombre }
+      return Promise.resolve(
+        respuestaJson(200, {
+          clase: {
+            id: CLASE_ID,
+            nombre: "Álgebra I",
+            descripcion: null,
+            maestro,
+            maestros: [maestro],
+          },
+        }),
+      )
+    }
+    if (pathname === `${base}/codigo`) {
+      return Promise.resolve(respuestaJson(200, { codigo: "ABCD234" }))
+    }
+    if (pathname === `${base}/temas`) {
+      return Promise.resolve(respuestaJson(200, { temas: [], sinTema: 0 }))
+    }
+    if (pathname === `${base}/recursos`) {
+      return Promise.resolve(respuestaJson(200, { recursos: [], siguienteCursor: null }))
+    }
+    return Promise.resolve(error500())
+  })
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+const renderRecursos = async () => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, {
+    initialEntries: [`/maestro/clases/${CLASE_ID}/recursos`],
+  })
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+}
+
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
 beforeEach(() => {
   establecerToken("token-de-prueba")
 })
@@ -401,7 +476,11 @@ describe("ataque CLASES-c r1: el formulario decide igual que el servidor (§D-C4
     )
   })
 
-  it("solo invisibles: el formulario muestra el mismo mensaje que el servidor y no llama a la API (comentario, anuncio y título)", async () => {
+  // CLASES-03d ronda 0 (C-30, §D-R0, Enmienda 10; §D-8.5 y §D-8.7): el anuncio y el comentario se
+  // quedan en Avisos; el formulario de Avisos ya no tiene «Material» ni título, así que la parte del
+  // título pasa al caso siguiente, en «Nuevo recurso», con "Escribe el título del recurso". Sigue
+  // protegiendo lo mismo: el mismo mensaje que el servidor y ninguna llamada a la API.
+  it("solo invisibles: el formulario muestra el mismo mensaje que el servidor y no llama a la API (comentario y anuncio)", async () => {
     const { fetchMock } = crearServidor([publicacion(1)], { [idPublicacion(1)]: [] })
     renderMuro("maestro")
     await screen.findByText("Publicación 1")
@@ -409,18 +488,26 @@ describe("ataque CLASES-c r1: el formulario decide igual que el servidor (§D-C4
     fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: invisibles } })
     fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
     expect(await screen.findByText("Escribe el anuncio")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Material" }))
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: invisibles },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
-    expect(await screen.findByText("Escribe el título del material")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Ver comentarios (0)" }))
     fireEvent.change(await screen.findByLabelText("Escribe un comentario"), {
       target: { value: invisibles },
     })
     fireEvent.click(screen.getByRole("button", { name: "Comentar" }))
     expect(await screen.findByText("Escribe tu comentario")).toBeInTheDocument()
+    expect(llamadas(fetchMock, "POST")).toHaveLength(0)
+  })
+
+  // CLASES-03d ronda 0 (C-30): la parte del título del caso anterior, en «Nuevo recurso» («Título
+  // del recurso», «Publicar recurso»), con el texto del arbitraje de la Enmienda 10.
+  it("solo invisibles en «Título del recurso»: el formulario muestra «Escribe el título del recurso», nunca «…del material», y no llama a la API", async () => {
+    const fetchMock = stubDeRecursos()
+    await renderRecursos()
+    const invisibles = "\u{2800}\u{3164}\u{1D159}\u{200B}\u{E0041}\u{301}\u{3000}"
+    const titulo = await screen.findByLabelText("Título del recurso", {}, { timeout: 3000 })
+    fireEvent.change(titulo, { target: { value: invisibles } })
+    fireEvent.click(screen.getByRole("button", { name: "Publicar recurso" }))
+    expect(await screen.findByText("Escribe el título del recurso")).toBeInTheDocument()
+    expect(screen.queryByText("Escribe el título del material")).toBeNull()
     expect(llamadas(fetchMock, "POST")).toHaveLength(0)
   })
 })

@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
@@ -81,6 +81,40 @@ interface Llamada {
   cuerpo: unknown
 }
 
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5): el material se publica desde «Nuevo recurso» en
+// «Recursos», que se monta con el router real. El marco pide la sesión, la barra del maestro, la
+// clase, su código y las listas (vacías) de temas y recursos.
+const respuestaDelMarco = (url: string): Response | null => {
+  const { pathname } = new URL(url, "http://local")
+  const base = `/api/clases/${CLASE_ID}`
+  if (pathname === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+  if (pathname === "/api/me") {
+    return respuestaJson(200, {
+      id: AUTOR.id,
+      nombre: AUTOR.nombre,
+      email: "luis@ejemplo.mx",
+      rol: "maestro",
+      debeCambiarContrasena: false,
+      accesoRestringido: false,
+    })
+  }
+  if (pathname === "/api/clases/impartidas") {
+    return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+  }
+  if (pathname === base) {
+    const maestro = { id: AUTOR.id, nombre: AUTOR.nombre }
+    return respuestaJson(200, {
+      clase: { id: CLASE_ID, nombre: "Álgebra I", descripcion: null, maestro, maestros: [maestro] },
+    })
+  }
+  if (pathname === `${base}/codigo`) return respuestaJson(200, { codigo: "ABCD234" })
+  if (pathname === `${base}/temas`) return respuestaJson(200, { temas: [], sinTema: 0 })
+  if (pathname === `${base}/recursos`) {
+    return respuestaJson(200, { recursos: [], siguienteCursor: null })
+  }
+  return null
+}
+
 // Servidor doble del flujo de publicar: pedir la subida (API), subir al almacén y publicar (API).
 // `retener` deja en vuelo la petición número n de solicitar; `responderSolicitud` cambia la
 // respuesta de la n-ésima solicitud; `responderPublicar` la de publicar.
@@ -122,6 +156,9 @@ const stubFlujo = ({
     if (url.endsWith("/publicaciones")) {
       return responderPublicar ? responderPublicar() : respuestaJson(201, publicacionCreada())
     }
+    // CLASES-03d ronda 0 (C-23): lo que pide el marco de «Recursos» con el router real.
+    const marco = respuestaDelMarco(url)
+    if (marco) return marco
     return respuestaJson(404, { error: { codigo: "NO_ENCONTRADO", mensaje: "No existe" } })
   })
   vi.stubGlobal("fetch", fetchMock)
@@ -142,12 +179,35 @@ const renderFormulario = () => {
   )
 }
 
-const prepararMaterial = (titulo = "Con adjuntos") => {
-  fireEvent.click(screen.getByRole("button", { name: "Material" }))
-  fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: titulo } })
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5): el material se publica desde «Nuevo recurso» en
+// «Recursos» («Título del recurso», «Publicar recurso», sin grupo de tipo), con el router real y sin
+// importar el formulario, que todavía no existe (así la prueba compila y queda roja hasta que exista).
+// Los casos del material siguen valiendo para el recurso (subidas, lista fija mientras se publica,
+// doble envío, fallos y desmontaje) y siguen protegiendo lo mismo; al publicar, el aviso es "Recurso
+// publicado" (§D-13).
+const renderNuevoRecurso = async () => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, {
+    initialEntries: [`/maestro/clases/${CLASE_ID}/recursos`],
+  })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
 }
 
-const botonPublicar = () => screen.getByRole("button", { name: "Publicar material" })
+const prepararRecurso = async (titulo = "Con adjuntos") => {
+  const campo = await screen.findByLabelText("Título del recurso", {}, { timeout: 3000 })
+  fireEvent.change(campo, { target: { value: titulo } })
+}
+
+const botonPublicar = () => screen.getByRole("button", { name: "Publicar recurso" })
+
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
 
 beforeEach(() => {
   establecerToken("token-de-prueba")
@@ -168,8 +228,8 @@ afterEach(() => {
 describe("ataque d-r1: la lista de archivos con la publicación en vuelo", () => {
   it("«Quitar» un archivo mientras se suben los anteriores: o no se deja quitar, o no se publica", async () => {
     const { llamadas, soltar } = stubFlujo({ retenerSolicitud: 1 })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(
       archivoDe("a.pdf", "application/pdf"),
       archivoDe("privado.pdf", "application/pdf"),
@@ -181,7 +241,7 @@ describe("ataque d-r1: la lista de archivos con la publicación en vuelo", () =>
     const seQuitoDeLaLista = screen.queryByRole("button", { name: "Quitar privado.pdf" }) === null
     soltar()
 
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Recurso publicado"))
     const nombresSolicitados = solicitudesDe(llamadas).map(
       (l) => (l.cuerpo as { nombre: string }).nombre,
     )
@@ -196,8 +256,8 @@ describe("ataque d-r1: la lista de archivos con la publicación en vuelo", () =>
 
   it("«Adjuntar archivos» con la publicación en vuelo: el archivo nuevo o se publica o se queda en la lista; nunca desaparece en silencio", async () => {
     const { llamadas, soltar } = stubFlujo({ retenerSolicitud: 1 })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"))
 
     fireEvent.click(botonPublicar())
@@ -206,7 +266,7 @@ describe("ataque d-r1: la lista de archivos con la publicación en vuelo", () =>
     const aceptadoEnLaLista = screen.queryByRole("button", { name: "Quitar tardio.pdf" }) !== null
     soltar()
 
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
+    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Recurso publicado"))
     const publicado = solicitudesDe(llamadas).some(
       (l) => (l.cuerpo as { nombre: string }).nombre === "tardio.pdf",
     )
@@ -221,8 +281,8 @@ describe("ataque d-r1: la lista de archivos con la publicación en vuelo", () =>
 describe("ataque d-r1: doble envío, fallos por paso y desmontaje", () => {
   it("dos envíos seguidos del formulario (submit doble y clic en espera) solicitan cada archivo una vez y publican una vez", async () => {
     const { llamadas } = stubFlujo()
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.png", "image/png"))
 
     const formulario = botonPublicar().closest("form")
@@ -234,7 +294,11 @@ describe("ataque d-r1: doble envío, fallos por paso y desmontaje", () => {
     await waitFor(() => expect(aviso.success).toHaveBeenCalledTimes(1))
     expect(solicitudesDe(llamadas)).toHaveLength(2)
     expect(publicacionesDe(llamadas)).toHaveLength(1)
-    expect(publicacionesDe(llamadas)[0]?.cuerpo).toEqual({
+    // CLASES-03d ronda 0 (C-23): sin temas en la clase, el tema no viaja o viaja en null («Sin
+    // tema»; CL3-D08 lo deja opcional); el resto del cuerpo, exacto.
+    const { temaId, ...cuerpo } = publicacionesDe(llamadas)[0]?.cuerpo as Record<string, unknown>
+    expect(temaId ?? null).toBeNull()
+    expect(cuerpo).toEqual({
       tipo: "material",
       titulo: "Con adjuntos",
       texto: "",
@@ -252,8 +316,8 @@ describe("ataque d-r1: doble envío, fallos por paso y desmontaje", () => {
           },
         }),
     })
-    renderFormulario()
-    prepararMaterial("Se queda")
+    await renderNuevoRecurso()
+    await prepararRecurso("Se queda")
     elegirArchivos(archivoDe("a.pdf", "application/pdf"))
     fireEvent.click(botonPublicar())
 
@@ -265,14 +329,14 @@ describe("ataque d-r1: doble envío, fallos por paso y desmontaje", () => {
     )
     expect(aviso.success).not.toHaveBeenCalled()
     expect(publicacionesDe(llamadas)).toHaveLength(1)
-    expect(screen.getByLabelText("Título del material")).toHaveValue("Se queda")
+    expect(screen.getByLabelText("Título del recurso")).toHaveValue("Se queda")
     expect(screen.getByRole("button", { name: "Quitar a.pdf" })).toBeInTheDocument()
   })
 
   it("desmontar el formulario con la subida en vuelo: termina, publica una vez, avisa una vez y no lanza", async () => {
     const { llamadas, soltar } = stubFlujo({ retenerSolicitud: 1 })
-    const vista = renderFormulario()
-    prepararMaterial()
+    const vista = await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"))
     fireEvent.click(botonPublicar())
     await waitFor(() => expect(solicitudesDe(llamadas)).toHaveLength(1))
@@ -327,8 +391,8 @@ describe("ataque d-r1: límites en el cliente y el aviso de un rechazo del servi
             error: { codigo: "ARCHIVO_INVALIDO", mensaje: mensajeDelServidor },
           }),
       })
-      renderFormulario()
-      prepararMaterial()
+      await renderNuevoRecurso()
+      await prepararRecurso()
       elegirArchivos(archivoDe(nombre, "application/pdf", tamano))
       // El cliente lo deja pasar (no lo rechaza al elegirlo): lo rechaza el servidor.
       expect(screen.getByRole("button", { name: `Quitar ${nombre}` })).toBeInTheDocument()

@@ -11,6 +11,7 @@ import { EditorDeCategorias } from "./components/editor-de-categorias"
 import { FormularioClase } from "./components/formulario-clase"
 import { FormularioComentario } from "./components/formulario-comentario"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
+import { FormularioRecurso } from "./components/formulario-recurso"
 import { FormularioTema } from "./components/formulario-tema"
 import { FormularioUnirseClase } from "./components/formulario-unirse-clase"
 import {
@@ -20,6 +21,7 @@ import {
   TEXTOS_COMENTARIOS,
   TEXTOS_FORMULARIO_CLASE,
   TEXTOS_FORMULARIO_PUBLICACION,
+  TEXTOS_FORMULARIO_RECURSO,
   TEXTOS_TEMAS,
   TEXTOS_TRABAJO,
   TEXTOS_UNIRSE,
@@ -315,19 +317,26 @@ const FORMULARIOS: readonly Formulario[] = [
     prefijo: "texto",
     bien: conExito(TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado),
   },
+  // CLASES-03d (§D-8.5, §D-8.7): el material ya no se publica desde el formulario del muro; se
+  // publica como recurso desde «Nuevo recurso» (FormularioRecurso), con los mismos campos.
   {
-    nombre: "publicar un material",
-    elemento: () => <FormularioPublicacion claseId={CLASE_ID} />,
+    nombre: "publicar un recurso",
+    elemento: () => (
+      <FormularioRecurso
+        modo="crear"
+        claseId={CLASE_ID}
+        destino={TEXTOS_FORMULARIO_RECURSO.destinoDocente}
+      />
+    ),
     llenar: async () => {
-      fireEvent.click(screen.getByRole("button", { name: TEXTOS_FORMULARIO_PUBLICACION.material }))
-      escribir(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo, "Lectura")
-      escribir(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion, "Capítulo 3")
+      escribir(TEXTOS_FORMULARIO_RECURSO.campoTitulo, "Lectura")
+      escribir(TEXTOS_FORMULARIO_RECURSO.campoDescripcion, "Capítulo 3")
       await reposar()
     },
-    boton: TEXTOS_FORMULARIO_PUBLICACION.publicarMaterial,
+    boton: TEXTOS_FORMULARIO_RECURSO.publicar,
     envio: es("POST", `${RUTA_CLASE}/publicaciones`),
     prefijo: "texto",
-    bien: conExito(TEXTOS_FORMULARIO_PUBLICACION.avisoPublicado),
+    bien: conExito(TEXTOS_FORMULARIO_RECURSO.avisoPublicado),
   },
   {
     nombre: "comentar en el muro",

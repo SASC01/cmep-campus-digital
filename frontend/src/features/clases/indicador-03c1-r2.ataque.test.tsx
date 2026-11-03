@@ -75,6 +75,8 @@ const stubClases = () =>
 const hijos = (rol: keyof typeof BASES) => [
   { index: true, element: <p>{`avisos ${rol}`}</p> },
   { path: "trabajo", element: <p>{`trabajo ${rol}`}</p> },
+  // CLASES-03d ronda 0, adenda 1 (C-8): la sección «Recursos», para el control de CL3-R2-08.
+  { path: "recursos", element: <p>{`recursos ${rol}`}</p> },
   { path: "personas", element: <p>{`personas ${rol}`}</p> },
   { path: "calificaciones", element: <p>{`calificaciones ${rol}`}</p> },
   { path: "categorias", element: <p>{`categorias ${rol}`}</p> },
@@ -291,6 +293,10 @@ const medidasDe = (indicador: HTMLElement | null) => ({
   x: indicador?.style.getPropertyValue("--indicador-x") ?? null,
   ancho: indicador?.style.getPropertyValue("--indicador-ancho") ?? null,
 })
+// CLASES-03d ronda 0, adenda 1 (C-8 ampliada por el arbitraje de la ronda 0 de 03d; §D-7.1): con
+// «Recursos» en el índice 2, «Personas» pasa del índice 2 al 3 y «Calificaciones» del 3 al 4 (posición
+// simulada "300px" → "400px"); «Avisos» (0) y «Actividades de aprendizaje» (1) no cambian. Siguen
+// protegiendo lo mismo: el ciclo de vida del indicador, no la posición de cada sección.
 const esperadas = (i: number) => ({
   x: `${String(i * medidas.posicion)}px`,
   ancho: `${String(medidas.anchoBase + i * 10)}px`,
@@ -369,7 +375,7 @@ describe("cambio de clase con la clase nueva en caché (CL3-R2-01 a CL3-R2-03)",
       router,
       `${BASES.maestro}/${CLASE_B}/calificaciones`,
       "calificaciones maestro",
-      3,
+      4,
     )
 
     const haciaA = await fotosAjenasAlNavegar(
@@ -390,7 +396,7 @@ describe("cambio de clase con la clase nueva en caché (CL3-R2-01 a CL3-R2-03)",
       () => router.navigate(`${BASES.maestro}/${CLASE_B}/calificaciones`),
       "calificaciones maestro",
       lista,
-      3,
+      4,
     )
     expect(await secciones()).toBe(lista)
     expect(haciaB).toEqual([])
@@ -406,7 +412,7 @@ describe("cambio de clase con la clase nueva en caché (CL3-R2-01 a CL3-R2-03)",
       () => router.navigate(`${BASES.admin}/${CLASE_B}/personas`),
       "personas admin",
       lista,
-      2,
+      3,
     )
     expect(await secciones()).toBe(lista)
     expect(haciaB).toEqual([])
@@ -415,7 +421,7 @@ describe("cambio de clase con la clase nueva en caché (CL3-R2-01 a CL3-R2-03)",
       () => router.navigate(`${BASES.admin}/${CLASE_A}/calificaciones`),
       "calificaciones admin",
       lista,
-      3,
+      4,
     )
     expect(await secciones()).toBe(lista)
     expect(deVueltaEnA).toEqual([])
@@ -425,14 +431,14 @@ describe("cambio de clase con la clase nueva en caché (CL3-R2-01 a CL3-R2-03)",
     stubClases()
     const { router } = montar([`${BASES.estudiante}/${CLASE_A}/calificaciones`])
     const lista = await secciones()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
     const enB = await visitar(router, `${BASES.estudiante}/${CLASE_B}`, "avisos estudiante", 0)
     // B no estaba en caché: las secciones se remontaron tras el Cargando. Desde aquí, A sí lo está.
     const atras = await fotosAjenasAlNavegar(
       () => router.navigate(-1),
       "calificaciones estudiante",
       enB,
-      3,
+      4,
     )
     expect(await secciones()).toBe(enB)
     expect(atras).toEqual([])
@@ -452,7 +458,7 @@ describe("la vuelta desde otras pantallas sin sección (CL3-R2-04 y CL3-R2-05)",
       () => router.navigate(`${BASES.maestro}/${CLASE_A}/calificaciones`),
       "calificaciones maestro",
       lista,
-      3,
+      4,
     )
     expect(ajenas).toEqual([])
   })
@@ -461,7 +467,7 @@ describe("la vuelta desde otras pantallas sin sección (CL3-R2-04 y CL3-R2-05)",
     stubClases()
     const { router } = montar([`${BASES.estudiante}/${CLASE_A}/calificaciones`])
     const lista = await secciones()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
     await visitar(router, `${BASES.estudiante}/${CLASE_A}`, "avisos estudiante", 0)
     await act(() => router.navigate(`${BASES.estudiante}/${CLASE_A}/tareas/${TAREA_ID}`))
     expect(await screen.findByText("detalle de tarea estudiante")).toBeInTheDocument()
@@ -470,7 +476,7 @@ describe("la vuelta desde otras pantallas sin sección (CL3-R2-04 y CL3-R2-05)",
       () => router.navigate(-2),
       "calificaciones estudiante",
       lista,
-      3,
+      4,
     )
     expect(ajenas).toEqual([])
   })
@@ -485,14 +491,14 @@ describe("la vuelta desde otras pantallas sin sección (CL3-R2-04 y CL3-R2-05)",
       () => router.navigate(`${BASES.admin}/${CLASE_A}/personas`),
       "personas admin",
       lista,
-      2,
+      3,
     )
     expect(ajenas).toEqual([])
   })
 })
 
 describe("T-02 por los caminos con relleno (CL3-R2-06 a CL3-R2-08)", () => {
-  // Con 250 px visibles: «Avisos» (0..80) a la izquierda y «Calificaciones» (300..410) a la derecha,
+  // Con 250 px visibles: «Avisos» (0..80) a la izquierda y «Calificaciones» (400..520) a la derecha,
   // en coordenadas del <ul>; el relleno las corre P px dentro del área desplazable.
   it.each([4, 12])(
     "CL3-R2-06: atrás y adelante del historial con un relleno de %i px dejan la opción entera a la vista",
@@ -510,9 +516,9 @@ describe("T-02 por los caminos con relleno (CL3-R2-06 a CL3-R2-08)", () => {
       expect(cortesDe(panel, opcionDe(lista, 0))).toEqual(ENTERA)
       await act(() => router.navigate(-1))
       expect(await screen.findByText("calificaciones estudiante")).toBeInTheDocument()
-      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
       expect(panel.scrollLeft).toBeGreaterThan(0)
-      expect(cortesDe(panel, opcionDe(lista, 3))).toEqual(ENTERA)
+      expect(cortesDe(panel, opcionDe(lista, 4))).toEqual(ENTERA)
       // Adelante: «Avisos» queda a la izquierda del área visible.
       await act(() => router.navigate(1))
       expect(await screen.findByText("avisos estudiante")).toBeInTheDocument()
@@ -538,11 +544,11 @@ describe("T-02 por los caminos con relleno (CL3-R2-06 a CL3-R2-08)", () => {
       await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(1)))
       // La persona desplazó el panel a mano antes de elegir otra sección.
       panel.scrollLeft = desplazado
-      expect(cortesDe(panel, opcionDe(lista, 3)).derecha).toBeGreaterThan(0)
+      expect(cortesDe(panel, opcionDe(lista, 4)).derecha).toBeGreaterThan(0)
       fireEvent.click(within(lista).getByRole("link", { name: "Calificaciones" }))
       expect(await screen.findByText("calificaciones maestro")).toBeInTheDocument()
-      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
-      expect(cortesDe(panel, opcionDe(lista, 3))).toEqual(ENTERA)
+      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
+      expect(cortesDe(panel, opcionDe(lista, 4))).toEqual(ENTERA)
     },
   )
 
@@ -560,7 +566,7 @@ describe("T-02 por los caminos con relleno (CL3-R2-06 a CL3-R2-08)", () => {
       montar([`${BASES.admin}/${CLASE_A}/calificaciones`])
       const lista = await secciones()
       const panel = panelDe(lista)
-      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(3)))
+      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
       expect(panel.scrollLeft).toBeGreaterThan(0)
       expect(cortesDe(panel, opcionDe(lista, indice)).izquierda).toBeGreaterThan(0)
       fireEvent.click(within(lista).getByRole("link", { name: nombre }))
@@ -578,11 +584,13 @@ describe("T-02 por los caminos con relleno (CL3-R2-06 a CL3-R2-08)", () => {
     const lista = await secciones()
     const panel = panelDe(lista)
     await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(1)))
-    // Con 90 px desplazados, «Personas» (200..300 en el <ul>, 212..312 en el panel) cabe entera en 90..340.
+    // CLASES-03d ronda 0, adenda 1 (C-8 ampliada por el arbitraje de la ronda 0 de 03d): «Recursos»
+    // ocupa ahora el índice 2 que tenía «Personas»; el control la pulsa a ella y conserva su aritmética.
+    // Con 90 px desplazados, «Recursos» (200..300 en el <ul>, 212..312 en el panel) cabe entera en 90..340.
     panel.scrollLeft = 90
     expect(cortesDe(panel, opcionDe(lista, 2))).toEqual(ENTERA)
-    fireEvent.click(within(lista).getByRole("link", { name: "Personas" }))
-    expect(await screen.findByText("personas maestro")).toBeInTheDocument()
+    fireEvent.click(within(lista).getByRole("link", { name: "Recursos" }))
+    expect(await screen.findByText("recursos maestro")).toBeInTheDocument()
     await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(2)))
     expect(panel.scrollLeft).toBe(90)
   })

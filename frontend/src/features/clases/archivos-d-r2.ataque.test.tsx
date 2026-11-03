@@ -1,13 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 import { AdjuntosDePublicacion } from "./components/adjuntos-de-publicacion"
-import { FormularioPublicacion } from "./components/formulario-publicacion"
 import { tiempoFrescoDelMuro } from "./lib"
 import { MuroView } from "./muro-view"
 import type { Adjunto, PaginaDelMuro } from "./types"
@@ -85,6 +84,40 @@ interface Llamada {
   cuerpo: unknown
 }
 
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5): el material se publica desde «Nuevo recurso» en
+// «Recursos», que se monta con el router real. El marco pide la sesión, la barra del maestro, la
+// clase, su código y las listas (vacías) de temas y recursos.
+const respuestaDelMarco = (url: string): Response | null => {
+  const { pathname } = new URL(url, "http://local")
+  const base = `/api/clases/${CLASE_ID}`
+  if (pathname === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
+  if (pathname === "/api/me") {
+    return respuestaJson(200, {
+      id: AUTOR.id,
+      nombre: AUTOR.nombre,
+      email: "luis@ejemplo.mx",
+      rol: "maestro",
+      debeCambiarContrasena: false,
+      accesoRestringido: false,
+    })
+  }
+  if (pathname === "/api/clases/impartidas") {
+    return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+  }
+  if (pathname === base) {
+    const maestro = { id: AUTOR.id, nombre: AUTOR.nombre }
+    return respuestaJson(200, {
+      clase: { id: CLASE_ID, nombre: "Álgebra I", descripcion: null, maestro, maestros: [maestro] },
+    })
+  }
+  if (pathname === `${base}/codigo`) return respuestaJson(200, { codigo: "ABCD234" })
+  if (pathname === `${base}/temas`) return respuestaJson(200, { temas: [], sinTema: 0 })
+  if (pathname === `${base}/recursos`) {
+    return respuestaJson(200, { recursos: [], siguienteCursor: null })
+  }
+  return null
+}
+
 const stubFlujo = ({
   retenerSolicitud,
   responderSolicitud,
@@ -123,6 +156,9 @@ const stubFlujo = ({
     if (url.endsWith("/publicaciones")) {
       return responderPublicar ? responderPublicar() : respuestaJson(201, publicacionCreada())
     }
+    // CLASES-03d ronda 0 (C-23): lo que pide el marco de «Recursos» con el router real.
+    const marco = respuestaDelMarco(url)
+    if (marco) return marco
     return respuestaJson(404, { error: { codigo: "NO_ENCONTRADO", mensaje: "No existe" } })
   })
   vi.stubGlobal("fetch", fetchMock)
@@ -137,21 +173,37 @@ const subidasDe = (llamadas: Llamada[]) => llamadas.filter((l) => l.metodo === "
 const nombresSolicitados = (llamadas: Llamada[]) =>
   solicitudesDe(llamadas).map((l) => (l.cuerpo as { nombre: string }).nombre)
 
-const renderFormulario = () => {
+// CLASES-03d ronda 0 (C-23): sale `renderFormulario` (montaba FormularioPublicacion para el
+// material); todos sus casos eran del material y pasan a `renderNuevoRecurso`.
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5): el material se publica desde «Nuevo recurso» en
+// «Recursos» («Título del recurso», «Publicar recurso», sin grupo de tipo), con el router real y sin
+// importar el formulario, que todavía no existe (así la prueba compila y queda roja hasta que exista).
+// Los casos del material siguen valiendo para el recurso (la lista fija por la referencia, la nota
+// mientras se publica, el finally, los rechazos al solicitar y las URL del almacén) y siguen
+// protegiendo lo mismo.
+const renderNuevoRecurso = async () => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, {
+    initialEntries: [`/maestro/clases/${CLASE_ID}/recursos`],
+  })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <FormularioPublicacion claseId={CLASE_ID} />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
 }
 
-const prepararMaterial = (titulo = "Con adjuntos") => {
-  fireEvent.click(screen.getByRole("button", { name: "Material" }))
-  fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: titulo } })
+const prepararRecurso = async (titulo = "Con adjuntos") => {
+  const campo = await screen.findByLabelText("Título del recurso", {}, { timeout: 3000 })
+  fireEvent.change(campo, { target: { value: titulo } })
 }
 
-const botonPublicar = () => screen.getByRole("button", { name: "Publicar material" })
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
+const botonPublicar = () => screen.getByRole("button", { name: "Publicar recurso" })
 const formulario = () => {
   const form = botonPublicar().closest("form")
   if (!form) throw new Error("Precondición: el botón no está dentro de un formulario")
@@ -176,8 +228,8 @@ afterEach(() => {
 describe("ataque d-r2: T-38 por la referencia, no por el estado", () => {
   it("«Quitar» y elegir en el mismo lote que el envío (antes de que React vuelva a pintar): la lista no cambia y se publica la que se veía", async () => {
     const { llamadas } = stubFlujo()
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.pdf", "application/pdf"))
     const quitarB = screen.getByRole("button", { name: "Quitar b.pdf" })
     const selector = screen.getByLabelText("Adjuntar archivos")
@@ -193,7 +245,11 @@ describe("ataque d-r2: T-38 por la referencia, no por el estado", () => {
     await waitFor(() => expect(aviso.success).toHaveBeenCalledTimes(1))
     expect(nombresSolicitados(llamadas)).toEqual(["a.pdf", "b.pdf"])
     expect(publicacionesDe(llamadas)).toHaveLength(1)
-    expect(publicacionesDe(llamadas)[0]?.cuerpo).toEqual({
+    // CLASES-03d ronda 0 (C-23): sin temas en la clase, el tema no viaja o viaja en null («Sin
+    // tema»; CL3-D08 lo deja opcional); el resto del cuerpo, exacto.
+    const { temaId, ...cuerpo } = publicacionesDe(llamadas)[0]?.cuerpo as Record<string, unknown>
+    expect(temaId ?? null).toBeNull()
+    expect(cuerpo).toEqual({
       tipo: "material",
       titulo: "Con adjuntos",
       texto: "",
@@ -203,8 +259,8 @@ describe("ataque d-r2: T-38 por la referencia, no por el estado", () => {
 
   it("con la publicación en vuelo, «Quitar» no saca el archivo, el foco se queda en ese botón y la nota se anuncia; al terminar, la nota desaparece", async () => {
     const { llamadas, soltar } = stubFlujo({ retenerSolicitud: 1 })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.pdf", "application/pdf"))
     fireEvent.click(botonPublicar())
     await waitFor(() => expect(solicitudesDe(llamadas)).toHaveLength(1))
@@ -214,14 +270,16 @@ describe("ataque d-r2: T-38 por la referencia, no por el estado", () => {
     fireEvent.keyDown(quitarB, { key: "Enter" })
     fireEvent.click(quitarB)
     expect(screen.getByRole("button", { name: "Quitar b.pdf" })).toHaveFocus()
-    expect(screen.getByRole("status")).toHaveTextContent(
+    // CLASES-03d ronda 0 (C-23): con el router real, la página tiene otros estados (la barra de
+    // clases mientras carga); la nota se busca dentro del formulario.
+    expect(within(formulario()).getByRole("status")).toHaveTextContent(
       "Mientras se publica no puedes cambiar los archivos.",
     )
     soltar()
 
     await waitFor(() => expect(aviso.success).toHaveBeenCalledTimes(1))
     expect(nombresSolicitados(llamadas)).toEqual(["a.pdf", "b.pdf"])
-    expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    expect(within(formulario()).queryByRole("status")).not.toBeInTheDocument()
   })
 
   it.each([
@@ -251,8 +309,8 @@ describe("ataque d-r2: T-38 por la referencia, no por el estado", () => {
           return base(entrada, init)
         }),
       )
-      renderFormulario()
-      prepararMaterial()
+      await renderNuevoRecurso()
+      await prepararRecurso()
       elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.pdf", "application/pdf"))
       fireEvent.click(botonPublicar())
       await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
@@ -262,15 +320,16 @@ describe("ataque d-r2: T-38 por la referencia, no por el estado", () => {
       expect(screen.queryByRole("button", { name: "Quitar a.pdf" })).not.toBeInTheDocument()
       elegirArchivos(archivoDe("c.pdf", "application/pdf"))
       expect(screen.getByRole("button", { name: "Quitar c.pdf" })).toBeInTheDocument()
-      expect(screen.queryByRole("status")).not.toBeInTheDocument()
+      // CLASES-03d ronda 0 (C-23): la nota se busca dentro del formulario (ver arriba).
+      expect(within(formulario()).queryByRole("status")).not.toBeInTheDocument()
       expect(publicacionesDe(llamadas).length).toBe(fallaPublicar ? 1 : 0)
     },
   )
 
   it("después de publicar con éxito la lista queda vacía y se puede elegir de nuevo", async () => {
     stubFlujo()
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"))
     fireEvent.click(botonPublicar())
     await waitFor(() => expect(aviso.success).toHaveBeenCalledTimes(1))
@@ -290,8 +349,8 @@ describe("ataque d-r2: T-41 con varios archivos, un 503 y textos inesperados", (
               error: { codigo: "ARCHIVO_INVALIDO", mensaje: `Motivo de ${nombre}.` },
             }),
     })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(
       archivoDe("bien.pdf", "application/pdf"),
       archivoDe("malo1.pdf", "application/pdf"),
@@ -314,8 +373,8 @@ describe("ataque d-r2: T-41 con varios archivos, un 503 y textos inesperados", (
           error: { codigo: "ALMACEN_NO_DISPONIBLE", mensaje: "Texto del servidor" },
         }),
     })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"))
     fireEvent.click(botonPublicar())
     await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
@@ -334,8 +393,8 @@ describe("ataque d-r2: T-41 con varios archivos, un 503 y textos inesperados", (
             })
           : respuestaJson(400, { error: { codigo: "ARCHIVO_INVALIDO", mensaje: "" } }),
     })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe(nombre, "application/pdf"))
     fireEvent.click(botonPublicar())
     await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
@@ -426,8 +485,8 @@ describe("ataque d-r2: T-39 en las tres URL del almacén", () => {
           },
         }),
     })
-    renderFormulario()
-    prepararMaterial()
+    await renderNuevoRecurso()
+    await prepararRecurso()
     elegirArchivos(archivoDe("a.pdf", "application/pdf"))
     fireEvent.click(botonPublicar())
     await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))

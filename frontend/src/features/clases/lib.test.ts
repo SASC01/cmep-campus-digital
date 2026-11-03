@@ -292,11 +292,12 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
       "Volver a mis clases",
       "Volver a la lista de clases",
     ])
-    // CLASES-03 (§D-7.1): las mismas cuatro secciones en las tres perspectivas.
+    // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos".
     for (const perspectiva of [estudiante, maestro, admin]) {
       expect(perspectiva.secciones.map((s) => s.texto)).toEqual([
         "Avisos",
         "Actividades de aprendizaje",
+        "Recursos",
         "Personas",
         "Calificaciones",
       ])
@@ -316,28 +317,29 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
   })
 
   // CLASES-02d, M-12: hermano de O-06. El router no distingue mayúsculas; el indicador tampoco.
-  // CLASES-03 (§D-7.1): "Personas" es la tercera sección (2) y "Calificaciones" la cuarta (3).
+  // CLASES-03 (§D-7.1): "Personas" es la cuarta sección (3) y "Calificaciones" la quinta (4), tras
+  // "Recursos" (03d).
   it("M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar", () => {
     const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
     const base = "/admin/clases/2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
     const mayusculas = base.toUpperCase()
     expect(indiceDeSeccionActiva(mayusculas, base, secciones)).toBe(0)
-    expect(indiceDeSeccionActiva(`${mayusculas}/PERSONAS`, base, secciones)).toBe(2)
-    expect(indiceDeSeccionActiva(`${mayusculas}/Calificaciones/`, base, secciones)).toBe(3)
-    expect(indiceDeSeccionActiva(`${base}/PERSONAS`, mayusculas, secciones)).toBe(2)
+    expect(indiceDeSeccionActiva(`${mayusculas}/PERSONAS`, base, secciones)).toBe(3)
+    expect(indiceDeSeccionActiva(`${mayusculas}/Calificaciones/`, base, secciones)).toBe(4)
+    expect(indiceDeSeccionActiva(`${base}/PERSONAS`, mayusculas, secciones)).toBe(3)
     expect(indiceDeSeccionActiva(`${mayusculas}/EDITAR`, base, secciones)).toBe(-1)
     expect(indiceDeSeccionActiva(`${mayusculas}X`, base, secciones)).toBe(-1)
   })
 
-  // CLASES-03 (§D-7.1): "Personas" pasa a 2 y "Calificaciones" a 3; "…/alumnos" y "…/maestros" ya no
+  // CLASES-03 (§D-7.1): "Personas" pasa a 3 y "Calificaciones" a 4 (03d suma "Recursos" en 2); "…/alumnos" y "…/maestros" ya no
   // son secciones (redirigen, DH-09).
   it("indiceDeSeccionActiva: el muro solo en la base exacta, el resto también en sus subrutas, y ninguna en /editar", () => {
     const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
     const base = "/admin/clases/abc"
     expect(indiceDeSeccionActiva(base, base, secciones)).toBe(0)
     expect(indiceDeSeccionActiva(`${base}/`, base, secciones)).toBe(0)
-    expect(indiceDeSeccionActiva(`${base}/personas`, base, secciones)).toBe(2)
-    expect(indiceDeSeccionActiva(`${base}/calificaciones`, base, secciones)).toBe(3)
+    expect(indiceDeSeccionActiva(`${base}/personas`, base, secciones)).toBe(3)
+    expect(indiceDeSeccionActiva(`${base}/calificaciones`, base, secciones)).toBe(4)
     expect(indiceDeSeccionActiva(`${base}/alumnos`, base, secciones)).toBe(-1)
     expect(indiceDeSeccionActiva(`${base}/maestros`, base, secciones)).toBe(-1)
     expect(indiceDeSeccionActiva(`${base}/editar`, base, secciones)).toBe(-1)

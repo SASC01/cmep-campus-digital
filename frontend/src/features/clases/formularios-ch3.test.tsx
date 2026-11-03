@@ -27,6 +27,7 @@ import { ElementoDeTrabajo } from "./components/elemento-de-trabajo"
 import { FormularioClase } from "./components/formulario-clase"
 import { FormularioComentario } from "./components/formulario-comentario"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
+import { FormularioRecurso } from "./components/formulario-recurso"
 import { FormularioTema } from "./components/formulario-tema"
 import { FormularioUnirseClase } from "./components/formulario-unirse-clase"
 import {
@@ -36,6 +37,7 @@ import {
   TEXTOS_COMENTARIOS,
   TEXTOS_FORMULARIO_CLASE,
   TEXTOS_FORMULARIO_PUBLICACION,
+  TEXTOS_FORMULARIO_RECURSO,
   TEXTOS_TEMAS,
   TEXTOS_TRABAJO,
   TEXTOS_UNIRSE,
@@ -334,25 +336,30 @@ const FORMULARIOS: readonly Formulario[] = [
         "Mañana hay examen",
       ),
   },
+  // CLASES-03d (§D-8.5, §D-8.7): el material ya no se publica desde el formulario del muro; se
+  // publica como recurso desde «Nuevo recurso» (FormularioRecurso), con los mismos campos.
   {
-    nombre: "publicar un material",
-    elemento: () => <FormularioPublicacion claseId={CLASE_ID} />,
+    nombre: "publicar un recurso",
+    elemento: () => (
+      <FormularioRecurso
+        modo="crear"
+        claseId={CLASE_ID}
+        destino={TEXTOS_FORMULARIO_RECURSO.destinoDocente}
+      />
+    ),
     llenar: async () => {
-      fireEvent.click(screen.getByRole("button", { name: TEXTOS_FORMULARIO_PUBLICACION.material }))
-      escribir(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo, "Lectura")
-      escribir(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion, "Capítulo 3")
+      escribir(TEXTOS_FORMULARIO_RECURSO.campoTitulo, "Lectura")
+      escribir(TEXTOS_FORMULARIO_RECURSO.campoDescripcion, "Capítulo 3")
       await waitFor(() => expect(llamadas.some(es("GET", `${RUTA_CLASE}/temas`))).toBe(true))
     },
-    boton: porNombre(TEXTOS_FORMULARIO_PUBLICACION.publicarMaterial),
+    boton: porNombre(TEXTOS_FORMULARIO_RECURSO.publicar),
     envio: es("POST", `${RUTA_CLASE}/publicaciones`),
     camposPintados: [
-      { prefijo: "texto", control: porEtiqueta(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion) },
+      { prefijo: "texto", control: porEtiqueta(TEXTOS_FORMULARIO_RECURSO.campoDescripcion) },
     ],
     conservado: () => {
-      expect(screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo)).toHaveValue(
-        "Lectura",
-      )
-      expect(screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion)).toHaveValue(
+      expect(screen.getByLabelText(TEXTOS_FORMULARIO_RECURSO.campoTitulo)).toHaveValue("Lectura")
+      expect(screen.getByLabelText(TEXTOS_FORMULARIO_RECURSO.campoDescripcion)).toHaveValue(
         "Capítulo 3",
       )
     },
@@ -736,7 +743,7 @@ describe("CHORE-03 · controles de clases sin campos", () => {
 })
 
 const FORMULARIOS_CON_SUBIDA = FORMULARIOS.filter((formulario) =>
-  ["publicar un anuncio", "publicar un material"].includes(formulario.nombre),
+  ["publicar un anuncio", "publicar un recurso"].includes(formulario.nombre),
 )
 
 const casosDeSubida = FORMULARIOS_CON_SUBIDA.flatMap((formulario) =>
@@ -779,7 +786,7 @@ const formularioLlamado = (nombre: string): Formulario => {
 }
 
 const grupoDeMaestros = () => screen.getByRole("group", { name: TEXTOS_BUSCADOR_MAESTROS.grupo })
-const campoTitulo = () => screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo)
+const campoTitulo = () => screen.getByLabelText(TEXTOS_FORMULARIO_RECURSO.campoTitulo)
 
 interface FilaPorModo {
   formulario: Formulario
@@ -792,7 +799,7 @@ const FILAS_POR_MODO: readonly FilaPorModo[] = [
   { formulario: formularioLlamado("crear clase"), campo: "maestroIds", control: grupoDeMaestros },
   { formulario: formularioLlamado("editar clase"), campo: "maestroIds", control: null },
   { formulario: formularioLlamado("publicar un anuncio"), campo: "titulo", control: null },
-  { formulario: formularioLlamado("publicar un material"), campo: "titulo", control: campoTitulo },
+  { formulario: formularioLlamado("publicar un recurso"), campo: "titulo", control: campoTitulo },
   {
     formulario: formularioLlamado("crear un tema"),
     campo: "nombre",
@@ -850,19 +857,18 @@ describe("CHORE-03 (Enmienda 4) · campo pintado por modo en los formularios de 
     },
   )
 
-  it("CH3-B16 (e): en el anuncio, tras el aviso de «titulo:», pulsar «Material» no muestra ningún error bajo el título", async () => {
+  // CLASES-03d (§D-8.7, CL3-D21): el formulario de Avisos ya no tiene «Material» ni título; tras el
+  // aviso de «titulo:», ningún campo de título aparece ni queda un error bajo él.
+  it("CH3-B16 (e): en el anuncio, tras el aviso de «titulo:», no aparece ningún campo de título ni un error bajo él", async () => {
     respuestas = [() => validacion(`titulo: ${MENSAJE_DE_PRUEBA}`)]
     const cliente = await abrir(anuncio)
     await enviar(anuncio, cliente)
     expect(avisos()).toEqual([MENSAJE_DE_PRUEBA])
 
-    fireEvent.click(screen.getByRole("button", { name: TEXTOS_FORMULARIO_PUBLICACION.material }))
     await asentar(cliente)
 
-    expect(campoTitulo()).not.toHaveAttribute("aria-invalid", "true")
-    expect(campoTitulo()).not.toHaveAccessibleDescription(
-      expect.stringContaining(MENSAJE_DE_PRUEBA),
-    )
+    expect(screen.queryByLabelText(/^Título/)).toBeNull()
+    expect(screen.queryByRole("button", { name: "Material" })).toBeNull()
     expect(erroresDeCampo()).toEqual([])
     expect(screen.queryAllByText(MENSAJE_DE_PRUEBA)).toHaveLength(0)
     expect(avisos()).toEqual([MENSAJE_DE_PRUEBA])

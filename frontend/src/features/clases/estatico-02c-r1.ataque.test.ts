@@ -66,13 +66,18 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // la tarea en acciones-de-la-tarea.tsx, el único lector nuevo (detalle-tarea-view.tsx le pasa el
     // objeto entero y tarjeta-de-tarea.tsx no lo lee). Sigue protegiendo que el botón decida por el
     // dato y nunca por el rol, y que nadie más lea puedeBorrar.
+    // CLASES-03d ronda 0 (C-27, §D-R0, Enmienda 6; §D-8.3): "Borrar recurso" lee puedeBorrar del
+    // recurso en elemento-de-recurso.tsx, el único lector nuevo, y `recurso` entra a los nombres
+    // admitidos de la segunda regla. Sigue protegiendo que el botón decida por el dato y nunca por el
+    // rol, y que nadie más lea puedeBorrar.
     expect(rutasCon(/\.puedeBorrar\b/)).toEqual([
       "/src/features/clases/components/comentarios-de-publicacion.tsx",
+      "/src/features/clases/components/elemento-de-recurso.tsx",
       "/src/features/clases/components/publicacion-del-muro.tsx",
       "/src/features/tareas/components/acciones-de-la-tarea.tsx",
     ])
     expect(
-      lineasCon(/puedeBorrar\s*[:=]\s*(?!\s*(comentario|publicacion|tarea)\.puedeBorrar)/),
+      lineasCon(/puedeBorrar\s*[:=]\s*(?!\s*(comentario|publicacion|tarea|recurso)\.puedeBorrar)/),
     ).toEqual([])
   })
 
@@ -98,11 +103,17 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // base por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un prefijo.
     // CLASES-03c1 ronda 0 (C-19, §D-R0; §D-7.7): personas-view.tsx la llama para decidir qué mostrar
     // por perspectiva (estudiante, maestro o admin), como muro-view.tsx.
+    // CLASES-03d ronda 0 (C-19, §D-R0, Enmienda 6; §D-8.1 y §D-8.6): recursos-view.tsx y
+    // editar-recurso-view.tsx la llaman como trabajo-view.tsx; SeccionDeRecursos y ElementoDeRecurso
+    // reciben la perspectiva o la base por props. Sigue protegiendo que nadie más la llame ni compare
+    // el pathname con un prefijo.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
       "/src/features/clases/categorias-view.tsx",
       "/src/features/clases/clase-layout.tsx",
+      "/src/features/clases/editar-recurso-view.tsx",
       "/src/features/clases/muro-view.tsx",
       "/src/features/clases/personas-view.tsx",
+      "/src/features/clases/recursos-view.tsx",
       "/src/features/clases/trabajo-view.tsx",
       "/src/features/tareas/hooks.ts",
     ])

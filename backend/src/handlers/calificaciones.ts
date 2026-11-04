@@ -4,6 +4,8 @@ import {
   alumnoDeEntregaParamSchema,
   calificarEntregaSchema,
   entregaDeAlumnoRespuestaSchema,
+  exportacionDeCalificacionesRespuestaSchema,
+  exportacionQuerySchema,
   gradebookQuerySchema,
   gradebookRespuestaSchema,
   misCalificacionesQuerySchema,
@@ -13,6 +15,7 @@ import type { FastifyPluginAsync } from "fastify"
 
 import {
   calificarEntrega,
+  leerExportacionDeCalificaciones,
   leerGradebook,
   leerMisCalificaciones,
   type ColumnaDelGradebookDb,
@@ -145,6 +148,35 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
             ...columnaParaResponder(tarea),
             entrega: tarea.entrega,
           })),
+        }),
+      )
+    },
+  )
+
+  // CALIFICACIONES-02 (§D-3). La exportación a Excel: los maestros de la clase y el admin. Una ventana
+  // de hasta 100 alumnos y 100 actividades con el nombre de la clase y el correo de cada alumno; el
+  // navegador recorre las ventanas y arma el archivo. Nunca el estado de pago ni la restricción (P-13).
+  app.get(
+    "/clases/:claseId/calificaciones/exportacion",
+    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    async (request, reply) => {
+      const claseId = claseDe(request).id.toLowerCase()
+      const { cursor, limite, cursorTareas, limiteTareas } = validarParametros(
+        exportacionQuerySchema,
+        request.query,
+      )
+      const exportacion = await leerExportacionDeCalificaciones({
+        claseId,
+        cursor,
+        limite,
+        cursorTareas,
+        limiteTareas,
+        ahora: new Date(),
+      })
+      return reply.send(
+        exportacionDeCalificacionesRespuestaSchema.parse({
+          ...exportacion,
+          tareas: exportacion.tareas.map(columnaParaResponder),
         }),
       )
     },

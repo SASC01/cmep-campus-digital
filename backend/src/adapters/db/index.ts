@@ -212,3 +212,9 @@ export {
   type MisCalificacionesDb,
   type TareaDeMisCalificacionesDb,
 } from "./calificaciones.js"
+export {
+  leerExportacionDeCalificaciones,
+  type AlumnoDeExportacionDb,
+  type ExportacionDeCalificacionesDb,
+  type FilaDeExportacionDb,
+} from "./exportacion-de-calificaciones.js"

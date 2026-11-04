@@ -193,3 +193,58 @@ export type FiltroDeMisCalificaciones = z.infer<typeof filtroDeMisCalificaciones
 export type MisCalificacionesQuery = z.infer<typeof misCalificacionesQuerySchema>
 export type TareaDeMisCalificaciones = z.infer<typeof tareaDeMisCalificacionesSchema>
 export type MisCalificacionesRespuesta = z.infer<typeof misCalificacionesRespuestaSchema>
+
+// CALIFICACIONES-02a (§D-1). La exportación a Excel: la lectura del gradebook por ventanas, con el
+// nombre de la clase, el correo de cada alumno y los totales. Respuestas estrictas (P-13).
+
+// Ventanas de hasta 100 alumnos y 100 actividades (la regla de paginación de ESSENTIALS).
+export const LIMITE_DE_LA_EXPORTACION = 100
+
+export const exportacionQuerySchema = paginacionSchema.extend({
+  limite: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIMITE_DE_LA_EXPORTACION)
+    .optional()
+    .default(LIMITE_DE_LA_EXPORTACION),
+  cursorTareas: z.uuid().transform(enMinusculas).optional(),
+  limiteTareas: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIMITE_DE_LA_EXPORTACION)
+    .optional()
+    .default(LIMITE_DE_LA_EXPORTACION),
+})
+
+// P-13: el alumno con su nombre y su correo, nada más.
+export const alumnoDeExportacionSchema = z.strictObject({
+  id: z.uuid(),
+  nombre: z.string(),
+  email: z.string(),
+})
+
+export const filaDeExportacionSchema = z.strictObject({
+  alumno: alumnoDeExportacionSchema,
+  // En el orden de las columnas.
+  celdas: z.array(celdaDelGradebookSchema),
+  porcentaje: z.number().min(0).max(100).nullable(),
+})
+
+export const exportacionDeCalificacionesRespuestaSchema = z.strictObject({
+  clase: z.strictObject({ nombre: z.string() }),
+  tareas: z.array(columnaDelGradebookSchema),
+  siguienteCursorTareas: z.uuid().nullable(),
+  totalTareas: z.number().int().min(0),
+  alumnos: z.array(filaDeExportacionSchema),
+  siguienteCursor: z.uuid().nullable(),
+  totalAlumnos: z.number().int().min(0),
+})
+
+export type ExportacionQuery = z.infer<typeof exportacionQuerySchema>
+export type AlumnoDeExportacion = z.infer<typeof alumnoDeExportacionSchema>
+export type FilaDeExportacion = z.infer<typeof filaDeExportacionSchema>
+export type ExportacionDeCalificacionesRespuesta = z.infer<
+  typeof exportacionDeCalificacionesRespuestaSchema
+>

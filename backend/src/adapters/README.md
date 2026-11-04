@@ -529,6 +529,10 @@ El número de sentencias es fijo (siete en el gradebook, nueve con los dos curso
 calificaciones", cinco con el cursor): ninguna consulta va dentro de un ciclo. Ninguna selecciona el
 correo, el estado de pago, la restricción, el rol ni la versión.
 
+## La exportación en `db/exportacion-de-calificaciones.ts` (CALIFICACIONES-02a, §D-2)
+
+Solo lectura, en una instantánea única: el nombre de la clase (PK), la lectura del gradebook de la ventana (`leerGradebookCon` de `calificaciones.ts`, sin cambios: las mismas sentencias, cursores y agregados), el total de actividades (`COUNT` sobre `tareas(clase_id, fecha_limite)`) y los correos de los alumnos de la página (PK de `usuarios`, una consulta con `IN`). De 9 a 12 sentencias, sin SQL crudo y sin consultas dentro de ciclos. Es el único archivo de `adapters/db` que lee el correo para una respuesta de calificaciones: `calificaciones.ts` sigue sin nombrarlo. Ninguna sentencia selecciona el estado de pago, la restricción, el rol ni la versión.
+
 ## Recursos y filtros por sección (CLASES-03a, §D-1 a §D-3)
 
 Un recurso es una publicación de tipo `material` con `bloque` (`aprendizaje` o `docente`, columna

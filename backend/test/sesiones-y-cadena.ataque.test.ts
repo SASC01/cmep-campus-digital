@@ -549,7 +549,8 @@ describe("ataque: superficie de rutas", () => {
   // …/dudas; PUT de …/dudas/:dudaId/resuelta; DELETE de …/dudas/:dudaId; GET, HEAD y POST de
   // …/dudas/:dudaId/respuestas; DELETE de …/dudas/:dudaId/respuestas/:respuestaId. Ninguna crea cuentas ni
   // cambia roles y ninguna es pública.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a y CLASES-03b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // C-1 de CALIFICACIONES-02a (§D-R0): se agregan exactamente GET y HEAD de …/calificaciones/exportacion. No crea cuentas ni cambia roles y no es pública.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b y CALIFICACIONES-02a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -592,6 +593,7 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId",
       "GET /api/clases/:claseId/alumnos",
       "GET /api/clases/:claseId/alumnos/candidatos",
+      "GET /api/clases/:claseId/calificaciones/exportacion",
       "GET /api/clases/:claseId/categorias",
       "GET /api/clases/:claseId/codigo",
       "GET /api/clases/:claseId/dudas",
@@ -622,6 +624,7 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId",
       "HEAD /api/clases/:claseId/alumnos",
       "HEAD /api/clases/:claseId/alumnos/candidatos",
+      "HEAD /api/clases/:claseId/calificaciones/exportacion",
       "HEAD /api/clases/:claseId/categorias",
       "HEAD /api/clases/:claseId/codigo",
       "HEAD /api/clases/:claseId/dudas",

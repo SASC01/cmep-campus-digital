@@ -8,6 +8,7 @@ import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
 import { MensajeError } from "@/components/mensaje-error"
 import { Card, CardContent } from "@/components/ui/card"
 
+import { ExportarAExcel } from "./components/exportar-a-excel"
 import { NavegacionDelGradebook } from "./components/navegacion-del-gradebook"
 import { ResumenDelGradebook } from "./components/resumen-del-gradebook"
 import { TablaDelGradebook } from "./components/tabla-del-gradebook"
@@ -162,6 +163,7 @@ function GradebookDeLaClase({ claseId }: GradebookDeLaClaseProps) {
     return (
       <>
         <ResumenDelGradebook resumen={respuesta.resumen} />
+        <ExportarAExcel claseId={claseId} pidiendoLaVentana={consulta.isFetching} />
         <NavegacionDelGradebook
           hayTareasRecientes={ventanas.anterioresDeTareas.length > 0}
           hayTareasAntiguas={respuesta.siguienteCursorTareas !== null}

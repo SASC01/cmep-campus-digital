@@ -217,7 +217,7 @@ const vencidasDeLaClase = async (
   return new Map(filas.map((fila) => [fila.alumno_id, fila.vencidas]))
 }
 
-const leerGradebookCon = async (
+export const leerGradebookCon = async (
   tx: Prisma.TransactionClient,
   {
     claseId,

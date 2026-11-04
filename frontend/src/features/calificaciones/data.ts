@@ -114,3 +114,47 @@ export const MENSAJES_ERROR_CALIFICACIONES = {
 // Enmienda 2 (§D-13.2): los campos de cursor que cada vista reconoce en un 400.
 export const CAMPOS_DE_CURSOR_DEL_GRADEBOOK: readonly string[] = ["cursor", "cursorTareas"]
 export const CAMPOS_DE_CURSOR_DE_MIS_CALIFICACIONES: readonly string[] = ["cursor"]
+
+// CALIFICACIONES-02b (§D-8, DH-06 a). Los textos de la exportación a Excel y los de su hoja.
+export const TEXTOS_EXPORTACION = {
+  boton: "Exportar a Excel",
+  listo: (archivo: string) => `Se descargó «${archivo}».`,
+  hoja: "Calificaciones",
+  alumno: "Alumno",
+  correo: "Correo",
+  categoria: "Categoría",
+  puntos: "Puntos",
+  promedio: "Promedio (%)",
+  sinCategoria: TEXTOS_DE_LA_CLASE.sinCategoria,
+  sinDato: SIN_DATO,
+  prefijoDelArchivo: "Calificaciones",
+} as const
+
+export const MENSAJES_ERROR_EXPORTACION = {
+  generico: "No pudimos preparar el archivo de calificaciones. Inténtalo de nuevo.",
+  cambio: "Las calificaciones cambiaron mientras preparábamos el archivo. Inténtalo de nuevo.",
+  vacio: "No hay calificaciones que exportar: la clase no tiene alumnos o tareas.",
+  // M-03: repetir no lo resuelve; por eso no promete un reintento.
+  demasiado: "Esta clase tiene demasiadas calificaciones para exportarlas en un solo archivo.",
+} as const
+
+// Un solo aviso a la vez: el de cada intento reemplaza al anterior.
+export const ID_DEL_AVISO_DE_EXPORTACION = "exportar-calificaciones"
+
+// El tope de peticiones de un recorrido (§D-4, M-03).
+export const MAXIMO_DE_PETICIONES_DE_EXPORTACION = 200
+
+// La forma de la hoja (§D-5.2): los anchos en caracteres y lo que queda inmovilizado.
+export const ANCHOS_DE_LA_EXPORTACION = {
+  primeraColumna: 32,
+  segundaColumna: 36,
+  tarea: 16,
+  promedio: 14,
+} as const
+export const INMOVILIZADO_DE_LA_EXPORTACION = { filas: 3, columnas: 2 } as const
+// T-02: las columnas de la hoja que no son tareas (las dos primeras y la del promedio).
+export const COLUMNAS_FIJAS_DE_LA_HOJA = 3
+
+// §D-6: lo que no puede ir en el nombre de un archivo en Windows y la medida del nombre de la clase.
+export const RESERVADOS_DEL_NOMBRE_DE_ARCHIVO = /[\\/:*?"<>|]/g
+export const LARGO_MAXIMO_DE_LA_CLASE_EN_EL_ARCHIVO = 80

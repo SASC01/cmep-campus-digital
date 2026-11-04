@@ -82,7 +82,7 @@ describe("reglas estáticas de las lecturas de calificaciones (CAL-1B08)", () =>
     expect(handler).toMatch(
       /app\.get\(\s*"\/clases\/:claseId\/mis-calificaciones",\s*protegido\(\{ roles: \["estudiante"\], pertenencia: "inscripcion" \}\)/,
     )
-    expect(handler.match(/app\.get\(/g)?.length).toBe(2)
+    expect(handler.match(/app\.get\(/g)?.length).toBe(3)
     // El alumno de "Mis calificaciones" es siempre el de la sesión.
     expect(handler).toMatch(/alumnoId: perfilDe\(request\)\.id/)
   })

@@ -176,6 +176,7 @@ claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna 
   entrega, filtradas por `estado` (`todas`, `asignadas`, `entregadas`, `calificadas` o `sin-entregar`).
   Las dos responden con esquemas estrictos de `shared/` y fechas en ISO 8601; nunca la versión, el
   correo, el estado de pago, la restricción ni el rol.
+  CALIFICACIONES-02a suma `GET /clases/:claseId/calificaciones/exportacion`, con la misma cadena que el gradebook: una ventana de hasta 100 alumnos y 100 actividades (`exportacionQuerySchema`, 100 por omisión en las dos) con el nombre de la clase, el correo de cada alumno, sus celdas y su porcentaje, y los totales de alumnos y actividades (`exportacionDeCalificacionesRespuestaSchema`, estricto). Nunca el estado de pago, la restricción, el rol ni la versión (P-13). El navegador recorre las ventanas y arma el .xlsx; el servidor no escribe archivos ni encola nada (R-01).
 - `clases/recursos.ts` (prefijo `/api`, CLASES-03a, `recursosHandler`, recibe `{ almacen }`):
   `GET /clases/:claseId/recursos` (estudiante, maestro y admin, `inscripcion`; `recursosQuerySchema`:
   `bloque` y `tema` obligatorios, `cursor` y `limite`), `GET /clases/:claseId/recursos/:recursoId` y

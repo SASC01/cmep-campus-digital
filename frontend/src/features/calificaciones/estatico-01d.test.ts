@@ -38,6 +38,7 @@ const ESPERADOS = [
   "/src/features/calificaciones/components/tabla-del-gradebook.tsx",
   "/src/features/calificaciones/components/lista-de-mis-calificaciones.tsx",
   "/src/features/calificaciones/components/calculo-de-calificacion.tsx",
+  "/src/features/calificaciones/components/exportar-a-excel.tsx",
 ]
 
 const CAMBIADOS_FUERA = [
@@ -54,7 +55,7 @@ const fuente = (ruta: string): string => {
 }
 
 describe("regla estática de features/calificaciones (CAL-1D09)", () => {
-  it("CAL-1D09: el módulo tiene exactamente sus once archivos de producción", () => {
+  it("CAL-1D09: el módulo tiene exactamente sus doce archivos de producción", () => {
     expect(MODULO.map(([ruta]) => ruta).sort()).toEqual([...ESPERADOS].sort())
   })
 
@@ -84,8 +85,37 @@ describe("regla estática de features/calificaciones (CAL-1D09)", () => {
       ["otro módulo", /from\s+["'](@\/features\/|\.\.\/\.\.\/)/],
       ["fixed", /\bfixed\b/],
     ]
+    // CALIFICACIONES-02b (Enmienda 1, M-01): la regla del correo se aplica después de quitar la lista
+    // única de §D-5.2, cada declaración hasta la siguiente de nivel superior.
+    const LISTA_UNICA: Readonly<Record<string, readonly [string, RegExp][]>> = {
+      "/src/features/calificaciones/lib.ts": [
+        ["export const filasDeLaHojaDeExportacion =", /\bemail\b/],
+        ["export const mismoAlumnoDeExportacion =", /\bemail\b/],
+      ],
+      "/src/features/calificaciones/data.ts": [["export const TEXTOS_EXPORTACION =", /"Correo"/]],
+    }
+    const declaracion = (codigo: string, inicio: string): string => {
+      const desde = codigo.indexOf(inicio)
+      expect(desde, `Precondición: existe ${inicio}`).toBeGreaterThanOrEqual(0)
+      const siguiente = codigo
+        .slice(desde + 1)
+        .search(/\n(export )?(const|function|type|interface) /)
+      return siguiente < 0 ? codigo.slice(desde) : codigo.slice(desde, desde + 1 + siguiente)
+    }
+    const sinLaListaUnica = (ruta: string, codigo: string): string =>
+      (LISTA_UNICA[ruta] ?? []).reduce((resto, [inicio, nombra]) => {
+        const cuerpo = declaracion(codigo, inicio)
+        expect(cuerpo, `Precondición: ${inicio} lo nombra`).toMatch(nombra)
+        return resto.replace(cuerpo, "")
+      }, codigo)
     const violaciones = MODULO.flatMap(([ruta, texto]) =>
-      reglas.filter(([, r]) => r.test(sinComentarios(texto))).map(([n]) => `${ruta}: ${n}`),
+      reglas
+        .filter(([n, r]) =>
+          r.test(
+            n === "correo" ? sinLaListaUnica(ruta, sinComentarios(texto)) : sinComentarios(texto),
+          ),
+        )
+        .map(([n]) => `${ruta}: ${n}`),
     )
     expect(MODULO.length).toBe(ESPERADOS.length)
     expect(violaciones).toEqual([])
@@ -169,7 +199,7 @@ describe("regla estática de features/calificaciones (CAL-1D09)", () => {
         ].map((palabra) => `${ruta}: ${palabra}`),
       ),
     )
-    expect(archivos.length).toBe(15)
+    expect(archivos.length).toBe(16)
     expect(violaciones).toEqual([])
   })
 })

@@ -167,14 +167,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // duda", "Borrar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 71 enEspera", () => {
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 72 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(71)
+    expect(usos).toHaveLength(72)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -306,6 +306,8 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/elemento-de-duda.tsx": 2,
       "/src/features/clases/components/respuestas-de-duda.tsx": 2,
       "/src/features/clases/components/formulario-respuesta.tsx": 1,
+      // C-4 de CALIFICACIONES-02b (§D-R0; §D-7): de 71 a 72, «Exportar a Excel». Sigue protegiendo que el número y el lugar de los botones con espera cambien solo con el plan.
+      "/src/features/calificaciones/components/exportar-a-excel.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

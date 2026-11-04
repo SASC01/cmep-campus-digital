@@ -49,6 +49,11 @@ export type {
   ListaRecursosRespuesta,
   Recurso,
   RecursoDetalle,
+  // CLASES-03e (§D-9): "Dudas" (las respuestas tienen la forma de los comentarios).
+  CrearDuda,
+  CrearRespuesta,
+  Duda,
+  ListaDudasRespuesta,
 } from "@campus/shared"
 
 // Tipos exclusivos de la interfaz de CLASES-a.

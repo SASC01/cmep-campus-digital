@@ -3125,3 +3125,882 @@ Por tipo de archivo:
 - 5 archivos de `docs/trabajo/`.
 
 No entra nada de `shared/`, `backend/`, `infra/`, `AGENTS.md`, `CLAUDE.md` ni ESSENTIALS.
+
+## Verificación de la Enmienda 13 — CLASES-03
+**Veredicto: Enmienda 13 APROBADA, salvo un hueco de especificación (M-01).**
+- La enmienda aplica las dos decisiones (b) del humano con los textos literales y cuadra con el código de `028569f`.
+- **M-01:** el apartado (c) de CL3-E16 promete algo que el gancho actual no hace. Lo corrige una adenda corta (E13-9, texto abajo).
+- **Qué bloquea:** solo el paso 2 bis de 03e. La ronda 0 de 03e (C-32 y C-33) puede empezar ya.
+- **No hace falta autorización del humano.**
+
+No corrí suites. Verifiqué con el diff completo, grep sobre `028569f` y la lectura del código.
+
+Fecha: 2026-11-03.
+
+### 1. Integridad y cotejo
+- **Hashes:**
+  - `plan.md`: `0502f6be4281729d8a9048008de494caf475bd3fab3cee438cef1d2ad5446027` (1357 líneas). Es igual a la copia `copias-plan/plan-clases03-v14-enmienda13-0502f6be.md` y al de `aprobacion.md`.
+  - La copia previa da `49b47f652220bfc7220b936743bdad2daeacad5910d1f2b5f25fdaf004cba6d2`, igual a la del commit `028569f`: `git diff HEAD -- plan.md` y `git diff --no-index` contra la copia dan los mismos +74 −7.
+- **Hunks:** 14, todos con id y ninguno sin id.
+
+| Hunk | Dónde | Id |
+|---|---|---|
+| `@@ -2` | Encabezado | E13-0 |
+| `@@ -304` | §D-8.4, `useBorrarRecurso` | E13-2 |
+| `@@ -310` | §D-8.5, "Tema" en editar | E13-2 |
+| `@@ -415` | §D-13, dos filas | E13-1 |
+| `@@ -470` | §D-14, fila del borrado y fila nueva de la lectura de temas | E13-3 |
+| `@@ -556` | §D-R0, C-32 y C-33 | E13-6 |
+| `@@ -646` | "Rojos esperados" de 03e | E13-6 |
+| `@@ -857` | Pruebas requeridas de 03e, CL3-E16 y CL3-E17 | E13-4 |
+| `@@ -894` | Lista cerrada de 03e, dos filas | E13-5 |
+| `@@ -977` | A-14 | E13-7 |
+| `@@ -1049` | Paso 2 bis de 03e | E13-8 |
+| `@@ -1053` | Paso 6 de 03e (A-13 y A-14) | E13-7 |
+| `@@ -1075` | "No se toca" (A-14) | E13-7 |
+| `@@ -1290` | Sección "## Enmienda 13", su tabla, el grep y la observación | Registro |
+
+- **Lo que no cambia:** ninguna DH, el alcance de 03a a 03d, `shared/` ni el backend.
+- **Lo que no toca ahora:** ninguna `*.ataque`. C-32 y C-33 las reescribe el tester en la ronda 0 de 03e.
+
+### 2. Fidelidad a las decisiones del humano
+- **Decisión (1):**
+  - El texto es "No pudimos cargar los temas. El recurso conserva su tema.", igual a la fila de `ESTADO.md` §3 (línea 328) y a mi verificación de la ronda 1.
+  - Va en una clave nueva, `TEXTOS_FORMULARIO_RECURSO.temasNoCargadosAlEditar`, en un `<p>` sin `role` y con el estilo de §7.18.
+  - Sale solo al editar. Al crear no cambia nada (CL3-E16 (e)).
+- **Decisión (2):**
+  - El texto es "Ese recurso ya no existe.". Reutiliza `MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado`, sin clave nueva, y solo en `useBorrarRecurso` ante `PUBLICACION_NO_ENCONTRADA`.
+  - **No cambia Avisos ni CH3-B01:** `MENSAJES_POR_CODIGO_DE_CLASES.PUBLICACION_NO_ENCONTRADA` sigue "Esa publicación ya no existe.", y `errores-ch3.test.ts:49` (`TEXTOS_FIJOS_DE_SIEMPRE`) no cambia. Lo confirma la última frase de CL3-E17 ("En Avisos, borrar un anuncio con `404` sigue avisando «Esa publicación ya no existe.»").
+- **CL3-E16 y CL3-E17:** cubren los dos modos, las dos perspectivas, los dos bloques, el `403` y Avisos. 03e pasa de 15 a 17 casos requeridos.
+
+### 3. Contraste con el código de `028569f` (repetí los greps)
+- **"Esa publicación ya no existe." en las pruebas.** Lo asertan en contexto de recursos exactamente las cuatro que nombra la enmienda, en sus líneas:
+  - `recursos-03d.test.tsx:739` (`toContain`);
+  - `editar-recurso-03d.test.tsx:1096`;
+  - `recursos-03d-r1.ataque.test.tsx:464`;
+  - `recursos-03d-r2.ataque.test.tsx:815`.
+
+  El resto son dobles que responden el `404` (`recursos-03d:337,733`; `recursos-caminos-03d:330`; `editar-recurso-03d:339`; `r1.ataque:311,454,475,505`; `r2.ataque:346`; `r3.ataque:346`) o casos de Avisos, comentario, `lib` o la tabla (`avisos-03d:329`, `publicacion-del-muro:309`, `muro-c-r2.ataque:377,380`, `formularios-03c2-r1.ataque:470-471`, `lib.test:138`, `errores-ch3:49`). CL3-3R1-03 y -04 y CL3-3R3-09 y -10 no asertan el texto del aviso.
+- **La nota en recursos.** "No pudimos cargar los temas" solo aparece en `formulario-recurso.test.tsx:245,274` y `recursos-03d.test.tsx:1027`, los tres en crear. Ninguna prueba de editar busca que no haya nota ni el texto "conserva su tema". `formulario-recurso.test.tsx:227` (`queryByRole("status")`, en crear con la lista pendiente) sigue valiendo, porque la nota no lleva `role`.
+- **El texto "publicación" en la interfaz de Recursos.** Ningún archivo de producción de Recursos tiene un texto visible con esa palabra (grep). Así que la aserción `/publicaci/i` de CL3-E17 es alcanzable.
+- **Lista cerrada (E13-5), C-32 y C-33 (E13-6):** el cambio es mínimo, con "Nada más del archivo". "Rojos esperados" de 03e suma C-32 y C-33, que pasan a verde en el paso 2 bis. Es coherente.
+
+### 4. A-14
+- La frase que reemplaza ("Mientras se pide, o si no se pudo pedir, el campo no se muestra, no hay texto de carga y al guardar el recurso conserva su tema.") está una sola vez en `DESIGN.md` (`87c8256b…`, el de `028569f`), en la viñeta "«Tema» en el formulario (propuesta (CLASES-03d))", línea 892.
+- El texto nuevo no toca la marca de la viñeta ni la parte de crear, y marca la nota con "propuesta (CLASES-03e)". Las marcas quedan intactas.
+- La última frase de A-14 ("Si después llega una lista pedida tras la apertura, el campo aparece y la nota se va.") depende de M-01.
+
+### Problemas que bloquean
+#### M-01 — CL3-E16 (c) promete un comportamiento que `useTemasDelRecurso` no tiene, y el plan no dice cómo lograrlo
+**Dónde:** §D-8.5 (E13-2), CL3-E16 (c) y A-14 (su última frase). Gancho: `features/clases/hooks.ts:790-815` en `028569f`.
+
+**Por qué importa:**
+- Hoy la lista solo se confirma con `setConfirmada(true)` en el callback del `refetch` del propio gancho, cuando sale bien. Si esa lectura falla, `confirmada` queda en `false` para siempre.
+- Una lista que llegue después (la de una invalidación, o la de `refetchOnReconnect`, que sigue activo; `app/providers.tsx` solo apaga `refetchOnWindowFocus`) nunca se vuelve "vigente". La nota se quedaría a la vista con una lista buena en la caché, y CL3-E16 (c) no se podría cumplir sin cambiar el gancho.
+- El plan tampoco dice:
+  - qué cuenta como "lista vigente" después de un fallo;
+  - si una lectura posterior en vuelo quita la nota.
+
+  El programador tendría que adivinarlo o detenerse en el paso 2 bis. Es la clase de vecino que costó T-02 y T-03 en 03d.
+
+**Qué se espera** (adenda **E13-9** de la Enmienda 13, o Enmienda 14; texto mínimo):
+- **§D-8.5, en el texto de la Enmienda 13, después de "cuando llega una lista vigente, el campo aparece y la nota se va;":**
+  > "una lista es vigente si la confirmó la lectura pedida al abrir o, si esa lectura falló, cualquier respuesta correcta posterior de la lista total de temas (de una invalidación, de recuperar la red o de otra lectura): sale después de abrir, porque la petición previa ya terminó antes de la lectura fallida. `useTemasDelRecurso` expone además si su lectura falló (para la nota) y confirma con esa respuesta posterior. Una lectura posterior en vuelo no quita la nota; una que falla tampoco;"
+- **CL3-E16 (c) pasa a:**
+  > "(c) Con la nota a la vista tras la lectura fallida, una lectura posterior correcta de la lista total (en la prueba, con `invalidateQueries` de `claveTemas` o con el evento `online`) hace aparecer el campo con el tema del recurso elegido y quita la nota; guardar envía el tema elegido. Mientras esa lectura está en vuelo, la nota sigue; si también falla, sigue."
+- **A-14:** su última frase queda igual. Con E13-9, "una lista pedida tras la apertura" ya está definida.
+- **Fila nueva de §D-14** ("Lectura de temas al abrir «Editar recurso»"): en "Se renueva", "Nada (la siguiente lectura que haga la consulta)" pasa a "Nada; una lectura posterior correcta la confirma (§D-8.5)".
+
+### Arbitraje: «Mover», comentar y «Ver comentarios» sobre un recurso ya borrado siguen diciendo "publicación"
+**Es una decisión del humano. No entra por coherencia.**
+- **Lo que el humano decidió:** el humano eligió (b) sobre una pregunta acotada: "el `404` al borrar un recurso avisa…" (`ESTADO.md` §3, línea 329). El motivo que yo di ("en «Recursos» la persona no ve la palabra «publicación»") alcanza a esos tres caminos, pero la decisión no.
+- **Por qué no entra solo:**
+  - Extenderla cambia textos aprobados de §D-13 (DH-12) en tres ganchos que comparten Avisos y Actividades (`useMoverElemento`, `useComentar` y `mensajeDeErrorDeLista`).
+  - Pide un mensaje distinto según el contexto, en lugar del texto único por código, y rehacer `formularios-03c2-r1.ataque:470-471` y casos de `lib.test.ts`.
+  - Es más alcance para 03e en un camino raro: otra persona borró el recurso mientras se le ve, y la fila desaparece con la renovación que sigue al aviso.
+- **Qué hacer ahora:** la observación del arquitecto queda bien escrita en la enmienda, y el tester no la cuenta como hallazgo de CL3-E17. Para que no se pierda, propongo que el orquestador la registre en `ESTADO.md` §3:
+  > | Decisión de texto del humano (CLASES-03, observación de la Enmienda 13): en «Recursos», "Mover", comentar y "Ver comentarios" sobre un recurso que otra persona ya borró avisan "Esa publicación ya no existe." (ganchos compartidos con Avisos y Actividades); solo el borrado dice "Ese recurso ya no existe." (decisión (2)). (a) Dejarlo (recomendada por el manager: camino raro y cambio en ganchos compartidos); (b) un texto por contexto en esos tres ganchos | Decisión del humano; con (b), una enmienda en 03e o el `chore` de avisos de `apiClient` (fila de R-3 de CHORE-02) | `plan.md` de CLASES-03, "Enmienda 13", observación para el orquestador; `revision.md`, "Verificación de la Enmienda 13 — CLASES-03" |
+- Recomiendo (a).
+
+### Problemas que no bloquean
+Ninguno más.
+
+### Para el orquestador
+1. **Ahora:** la ronda 0 de 03e puede empezar ya con C-32 y C-33, que no dependen de M-01.
+2. **Antes del paso 2 bis:** aplica E13-9 (guardando antes la copia de `plan.md` con su SHA-256). Yo la verifico con el diff completo. El programador no llega al paso 2 bis sin esa verificación.
+3. **En cualquier momento:** registra la fila del arbitraje en `ESTADO.md` §3 y pásale al humano la pregunta, con la recomendación (a). No bloquea.
+
+## Verificación de la adenda E13-9 — CLASES-03
+**Veredicto: adenda E13-9 APROBADA, sin M-nn.** Cierra M-01 de la verificación de la Enmienda 13. El programador puede llegar al paso 2 bis de 03e. No corrí lint, test ni build: el tester corre la ronda 0 de 03e. Verifiqué con el diff completo, grep y la lectura de las pruebas.
+
+Fecha: 2026-11-03.
+
+### 1. Integridad y cotejo
+- **Hashes:**
+  - `plan.md`: `711c23a30ca99afdb7fe22d94b1b3b9276ae5abddafa251f7f26fb96d4f1a541` (1358 líneas). Es igual a la copia `copias-plan/plan-clases03-v15-e13-9-711c23a3.md` y a `aprobacion.md`.
+  - Copia previa: `0502f6be4281729d8a9048008de494caf475bd3fab3cee438cef1d2ad5446027`, que es la versión que aprobé en la verificación de la Enmienda 13.
+- **`git diff --no-index` completo:** +5 −4, en 5 hunks. Todos son de E13-9 y no cambia nada más.
+
+| Hunk | Dónde | Qué |
+|---|---|---|
+| `@@ -2` | Encabezado | "Enmiendas 1 a 13 aplicadas, con E13-9" |
+| `@@ -310` | §D-8.5 | Suma la frase de la lista vigente tras un fallo |
+| `@@ -473` | §D-14, fila "Lectura de temas al abrir «Editar recurso»" | Columna "Se renueva" |
+| `@@ -866` | CL3-E16 (c) | Se reescribe |
+| `@@ -1326` | Tabla de la Enmienda 13 | Fila E13-9, con su grep |
+
+### 2. Los textos coinciden con los míos
+- **§D-8.5:** la frase "una lista es vigente si la confirmó la lectura pedida al abrir o, si esa lectura falló, … Una lectura posterior en vuelo no quita la nota; una que falla tampoco;" es literal. Va después de "cuando llega una lista vigente, el campo aparece y la nota se va;" y antes de "al guardar, el recurso conserva su tema como hoy". Lleva solo la marca de origen "(Enmienda 13, E13-9; M-01 …)".
+- **CL3-E16 (c):** literal: "Con la nota a la vista tras la lectura fallida, … Mientras esa lectura está en vuelo, la nota sigue; si también falla, sigue.", con la marca "(Enmienda 13, E13-9)".
+- **§D-14:** "Nada; una lectura posterior correcta la confirma (§D-8.5; …)". Es literal, más la marca.
+- **A-14:** sin cambio, como pedí.
+
+### 3. Grep del arquitecto: ninguna prueba choca
+Revisé los casos que cita:
+- T-02 y T-03 de `editar-recurso-03d.test.tsx`;
+- CL3-3R1-20 y -21;
+- CL3-3R2-02 "falla" y CL3-3R2-03;
+- CL3-3R3-01 a -04 (`recursos-03d-r3.ataque:521-657`).
+
+En ninguno hay una respuesta correcta posterior a la lectura fallida del propio gancho.
+- En CL3-3R3-04, la previa llegó bien, pero *antes* de la lectura fallida, así que no confirma por la regla nueva. Lo que afirma (sin campo «Tema», con el tema conservado) sigue valiendo.
+- CL3-3R2-02 "falla" ya había confirmado al abrir.
+- Ninguna prueba de editar afirma que falte la nota (grep de "No pudimos" y de `role="status"`, igual que en mi verificación de la Enmienda 13).
+
+No hacen falta filas nuevas en la lista cerrada ni en §D-R0. La ronda 0 de 03e (C-32 y C-33, sobre la copia v14) no depende de E13-9.
+
+### Para el orquestador
+- El programador puede entrar al paso 2 bis de 03e con el plan `711c23a3…`.
+- **CL3-E16 (c)** se prueba con `invalidateQueries` de `claveTemas` o con el evento `online`.
+- **Cuidado para el programador:** "posterior" quiere decir que la respuesta llega después de que termina la lectura fallida del gancho, no "después de abrir". En el código basta con comparar `dataUpdatedAt` contra el momento de esa falla.
+
+## Arbitraje de la ronda 0 — 03e
+Fecha: 2026-11-03. Fuentes:
+- `reporte-tester.md`, "## CLASES-03e — Ronda 0" (SHA-256 del archivo `7b2c818e8e657a2a6d5fe0134b3b14cf6c6a8f7c417de8d8f6af18dd5d33b826`, reproducido).
+- La última entrada de `aprobacion.md`.
+- `plan.md` vigente `711c23a3…`. El tester usó la copia `0502f6be…`, que solo difiere en E13-9; E13-9 no toca §D-R0, "Rojos esperados" ni la lista cerrada.
+
+Solo lectura, grep y git; no corrí suites.
+
+**Veredicto: basta este arbitraje. No hace falta enmienda ni autorización del humano.**
+
+### 1. P-03e-1 · `indicador-03c1-r1.ataque.test.tsx` (11) e `indicador-03c1-r2.ataque.test.tsx` (16)
+- **Lo confirmé.** Las posiciones van por índice dentro de `CAPACIDADES_POR_PERSPECTIVA`. Con «Dudas» en el índice 3 (§D-7.1, paso 1 de 03e), «Personas» pasa al 4 y «Calificaciones» al 5.
+- **Decisión: entra en C-8 de 03e, ampliada por este arbitraje, igual que P-03d-2 entró en C-8 de 03d.** La propiedad que protegen es el ciclo de vida del indicador, no la posición de cada sección. Las filas de 03e ya están en "Rojos esperados" ("C-8, C-9, C-11 …"), así que la tabla no cambia.
+- **El cambio propuesto es correcto, y es el mismo de P-03d-2 con un índice más:**
+  - «Calificaciones» pasa de 4 a 5 en `esperadas`, `opcionDe`, `visitar` y `fotosAjenasAlNavegar`, y `"400px"` pasa a `"500px"`;
+  - «Personas» pasa de 3 a 4;
+  - el comentario de `r2` (`:501`, "400..520") pasa a "500..630";
+  - se agrega un comentario de motivo: "CLASES-03e ronda 0, adenda (C-8 ampliada por el arbitraje de la ronda 0 de 03e; §D-7.1)".
+- **Revisé la aritmética con 6 secciones.** El `<ul>` simulado mide 5 × 100 + 80 + 50 = 630 px.
+  - Con el panel de 250 px y un relleno de 4 o 12, el desplazamiento máximo es de 388 a 404 px. Basta para dejar «Calificaciones» (500..630, más el relleno) entera a la vista.
+  - En CL3-R2-07, «Calificaciones» sigue a la derecha del área visible con 7, 30 o 50 px desplazados.
+  - En CL3-R2-08, con el panel desplazado hasta «Calificaciones», «Avisos» (0..80) y «Actividades» (100..190) siguen a la izquierda del área visible.
+- **El control de CL3-R2-08 no rompe.** Pulsa «Recursos» en el índice 2, que no cambia, con `scrollLeft = 90` y 212..312 dentro de 90..340. `hijos(rol)` de `r2` ya tiene `recursos` desde 03d, y no hace falta sumar `dudas`: ningún caso la pulsa.
+- **Qué hace el tester:** una adenda de la ronda 0 de 03e con ese cambio en los dos archivos, y nada más. Actualiza la tabla de SHA-256 (V-01: 9 reescritas en total). Los 27 casos quedan rojos hasta el paso 1. Los rojos esperados tras la adenda son **38 casos en 9 archivos** (los 11 de hoy más los 27).
+- **Barrido de hermanos (`*.ataque` y normales con índices de secciones):**
+  - **`*.ataque`:** fuera de C-8, C-9, C-24 y P-03e-1, solo hay búsquedas por nombre o por `href`. `recursos-03d-r*` y `recursos-lib-03d.test.ts:167` fijan «Recursos» en el índice 2, que no cambia. El grep del tester coincide con el mío.
+  - **Normales: rompen en 03e y están en la lista cerrada de 03e:**
+    - `clase-layout.test.tsx`: `:376` `toHaveLength(5)` → 6, las listas de `:311` y `:420-453`, los ordinales de `:254-256` y `:335` («Personas» pasa a "la quinta"), y los índices de `medidasDeLaOpcion`;
+    - `app/router-01d.test.tsx`: lista e índices;
+    - `lib.test.ts:320-330`: «Personas» 4 y «Calificaciones» 5;
+    - `secciones-03c1.test.tsx`: `NOMBRES`, "cinco secciones" → "seis", el comentario de `:284` (400..520 → 500..630) y `esperadas(…)`;
+    - `app/clase-03c1.test.tsx`: no fija índices.
+
+    Las cubren las filas "`clase-layout.test.tsx`, `app/router*.test.tsx` · La sección «Dudas» en su lugar y su ruta" y "`lib.test.ts`, `secciones-03c1.test.tsx` y `app/clase-03c1.test.tsx` · … y lo que de ella dependa". **Aclaración (la misma de 03d, sin enmienda):** la primera fila incluye lo que depende del lugar de «Dudas»: índices, posiciones simuladas, `toHaveLength`, listas de nombres y ordinales en títulos y comentarios. Nada más de esos archivos.
+
+### 2. Decisiones por fila del tester
+Las acepto todas.
+- **C-21 (V-06), de 64 a 71 con 1/1/2/2/1:** es exactamente la fila de §D-R0 de 03e. Coincide con §D-9:
+  - `dudas-view.tsx`: "Ver más dudas" (9.1);
+  - `formulario-duda.tsx`: "Publicar duda";
+  - `elemento-de-duda.tsx`: el botón único de marcar o quitar y "Sí, borrar duda" (9.2);
+  - `respuestas-de-duda.tsx`: "Ver más respuestas" y "Sí, borrar respuesta" (9.3);
+  - `formulario-respuesta.tsx`: "Responder" (9.3).
+- **C-24, `500px` y `130px`:** «Calificaciones» queda en el índice 5, así que x = 5 × 100 y el ancho es 80 + 5 × 10. Las medidas simuladas son las de 03d.
+- **C-28, `duda.puedeBorrar` y `respuesta.puedeBorrar`:** es la fila tal cual. Si el programador usa otro nombre, el tester lo suma en la ronda 1 y lo anota, como autoriza la fila. Con la indicación 2 de abajo no debería hacer falta.
+- **C-19:** `dudas-view.tsx` en la lista de `perspectivaDeRuta(`, como dice la fila.
+- **C-32 y C-33:** son los literales de la Enmienda 13.
+- **C-11 sigue verde:** igual que en 03d, "Rojos esperados" es un tope y no una obligación. Las pruebas de `secciones-01d-r3` y `-r4` no fijan la lista ni las posiciones (su grep y el mío coinciden).
+- **C-22 sin cambio:** §D-R0 dice "03e: sin cambio".
+
+### 3. Riesgos R-03e-1 a R-03e-5: los cinco son correctos. Indicaciones literales para el programador
+1. **R-03e-1 (`lib/estatico-ch3-r2.ataque:135-148`):**
+   > En `FormularioDuda` y `FormularioRespuesta` no escribas `mutacion.reset()` ni `if (… .isError) … .reset()`. El error del servidor vive en el estado `errores` del formulario: la validación local lo reemplaza (`setErrores(erroresPorCampo(…))`) y `setErrores({})` lo limpia antes de `mutate`, como `FormularioComentario` (§D-12 y E11-5).
+2. **R-03e-2 (C-28):**
+   > La variable que lee el permiso de borrar se llama exactamente `duda` en `elemento-de-duda.tsx` y `respuesta` en `respuestas-de-duda.tsx` (`duda.puedeBorrar`, `respuesta.puedeBorrar`). Ningún otro archivo nuevo lee `.puedeBorrar`. Ninguna línea escribe `puedeBorrar=` (prop de JSX) ni `puedeBorrar:` (objeto o `setQueryData`), salvo `puedeBorrar: duda.puedeBorrar` o `puedeBorrar: respuesta.puedeBorrar`. Pasa el objeto entero.
+3. **R-03e-3 (C-21):**
+   > El texto `enEspera=` aparece exactamente así, comentarios incluidos:
+   > - `dudas-view.tsx`: 1 ("Ver más dudas", en la vista, no en otro componente).
+   > - `elemento-de-duda.tsx`: 2 (el botón único de marcar o quitar, con una sola expresión, y "Sí, borrar duda").
+   > - `respuestas-de-duda.tsx`: 2 ("Ver más respuestas" y "Sí, borrar respuesta").
+   > - `formulario-duda.tsx`: 1. `formulario-respuesta.tsx`: 1.
+   >
+   > El control que despliega las respuestas, "Borrar duda", "Borrar" y "Cancelar" no lo llevan. No crees otro componente con `enEspera=`. El total queda en 71.
+4. **R-03e-4 (C-19):**
+   > `dudas-view.tsx` llama a `perspectivaDeRuta(` (como `recursos-view.tsx`). `ElementoDeDuda`, `RespuestasDeDuda` y los dos formularios reciben la perspectiva o la base por props y no la llaman.
+5. **R-03e-5 (V-07 y V-13):**
+   > Ningún archivo nuevo de 03e contiene `vidrio-fuerte`, `vidrio-azul` ni una cadena con `vidrio` (la lista va en un `Card` con divisores, §D-9.1), ni `text-danger` ni `text-destructive`. La insignia "Resuelta" es `<Badge variant="success">` con `CircleCheck` y texto.
+6. **E13-9, cómo implementar "posterior" (decisión (1) del humano, paso 2 bis):**
+   > En `useTemasDelRecurso`, cuando el `refetch` del propio gancho termina sin éxito, guarda el contador de datos de la consulta en ese momento (`queryClient.getQueryState(consultaTemas(claseId).queryKey)?.dataUpdateCount`). Expón `lecturaFallida` (verdadero desde ese fallo hasta que la lista se confirma). Confirma la lista cuando ese contador, leído en el render, sea **mayor** que el guardado, es decir, cuando haya llegado una respuesta correcta después de la lectura fallida. No compares relojes (`Date.now()`, `dataUpdatedAt`): con `vi.useFakeTimers` el reloj no avanza y la confirmación no llegaría. No uses tampoco "después de abrir", que fue T-03 de 03d. La nota va con `lecturaFallida && lista === undefined`, sin mirar `isFetching`, así que una lectura posterior en vuelo no la quita.
+
+### Para el orquestador
+1. El tester aplica la adenda de P-03e-1 (sección 1) sobre los dos archivos `indicador-03c1-r*`.
+2. Después entra el programador, con las indicaciones 1 a 6.
+
+No hay preguntas para el humano.
+
+## Verificación del resumen del programador — 03e
+Fecha: 2026-11-03. Resumen: `resumen-programador-03e.md` (SHA-256 `a3a94964c58d5ba6d416a0ad68409f013727e1f5e1f5ba8e124081cb809a14f2`, reproducido). Plan `711c23a3…` (reproducido). Base dentro de los paquetes `028569f`.
+
+**Veredicto: ACEPTADO, sin M-nn.** Todas las cifras coinciden con mi corrida, las 17 viñetas tienen archivo y título exacto, y las seis indicaciones del arbitraje de la ronda 0 se cumplen. La desviación (`notifyOnChangeProps: "all"`) y el foco a la fila de S-14 se aceptan. Dejo dos observaciones de la matriz y un estado vecino de S-14 sin cubrir para la ronda 1 del tester (abajo). El tester puede atacar.
+
+### 1. Cifras: las del resumen junto a las mías
+Corrí todo desde `frontend/`, un comando detrás de otro. 03e no toca `shared/`, el backend ni `features/tareas`: `git diff 028569f` fuera de `frontend/` solo muestra `docs/ESTADO.md` y `docs/trabajo/CLASES-03-…/`. Así que no hace falta correr el backend.
+
+| Comando | Resumen | Mío |
+|---|---|---|
+| `npm run lint` | `> tsc -b` (exit 0; antes, `All matched files use Prettier code style!`) | Igual: `All matched files use Prettier code style!` y `> tsc -b`, exit 0 |
+| `npx vitest list \| grep -acE "^src/"` | `5881` | `5881` |
+| `… \| sed 's/ > .*//' \| sort -u \| wc -l` | `268` | `268` |
+| Casos por archivo nuevo (`grep -ac`) | 63 / 27 / 9 / 22 = 121 | 63 / 27 / 9 / 22 = 121 |
+| `npm run test` | `Test Files  268 passed (268)` · `Tests  5881 passed (5881)` · «timed out»: 0 | `Test Files  268 passed (268)` · `Tests  5881 passed (5881)` · `Duration  274.42s`; «timed out»: 0 |
+| `npm run build` | `✓ built in 880ms` | `✓ built in 847ms` |
+| `git diff 028569f --stat -- frontend` | 22 archivos, +529 −97 | Igual |
+
+- **Ids:** los 121 casos nuevos llevan su id CL3-E. Por id: E01 8, E02 3, E03 5, E04 5, E05 5, E06 5, E07 22, E08 4, E09 4, E10 4, E11 6, E12 3, E13 16, E14 6, E15 3, E16 16, E17 6. Suman 121.
+- **Títulos:** busqué en mi `vitest list`, con `grep -F`, los 72 títulos entre comillas que cita el resumen. Están todos. Los gemelos de `it.each` que el resumen nombra entre paréntesis también existen: `maestro`/`admin`, `500`/`red`, caché vieja `false`/`true`, `""`, `"   "` y dos U+200B.
+
+### 2. Pruebas requeridas → caso
+Cada viñeta de CL3-E01 a CL3-E17 tiene su archivo y su caso. Las propiedades de la viñeta están en el caso. Leí los que cargan más riesgo:
+- **CL3-E09:** `conR4`/`sinR4` usan el router real y `Providers`. La petición nueva sale sin `cursor` y la frase desaparece.
+- **CL3-E14:** el control se compara por referencia (`toBe(control)`) y el foco se queda.
+- **CL3-E15 (b) y (c):** el foco va al `li` y nunca a `<body>`.
+- **CL3-E16 (a) a (e):** la nota es un `<p>`, sin `alert` ni `status`. (c) prueba el tramo en vuelo, el tramo que falla y el que sale bien, con `invalidateQueries` y con `online`.
+- **CL3-E17:** cubre los dos bloques del admin, el `403`, "atrás" y Avisos.
+
+La nota del resumen sobre CL3-E17 es correcta: el maestro no tiene "Borrar recurso" en «Recursos de aprendizaje» (RN-07). "Los dos bloques" queda cubierto con el admin.
+
+### 3. Las seis indicaciones del arbitraje de la ronda 0 y las dos decisiones de la Enmienda 13 (grep sobre el árbol)
+1. **Sin `reset()`:** 0 apariciones en los cinco archivos nuevos. El error del servidor vive en `errores`. `setErrores(erroresPorCampo(…))` lo reemplaza y `setErrores({})` lo limpia antes de `mutate`, en `formulario-duda.tsx:38-46` y `formulario-respuesta.tsx:47-55`.
+2. **`puedeBorrar`:** solo lo leen `duda.puedeBorrar` (`elemento-de-duda.tsx:167,181`) y `respuesta.puedeBorrar` (`respuestas-de-duda.tsx:69,83`). Ninguna línea tiene `puedeBorrar=` ni `puedeBorrar:`.
+3. **`enEspera=`:** 1 / 2 / 2 / 1 / 1 en `dudas-view`, `elemento-de-duda`, `respuestas-de-duda`, `formulario-duda` y `formulario-respuesta`. El control de las respuestas, "Borrar duda", "Borrar" y "Cancelar" no lo llevan. V-06 da 71 en mi corrida verde.
+4. **`perspectivaDeRuta(`:** entre los archivos nuevos solo la llama `dudas-view.tsx:29`. Los componentes reciben `perspectiva` por props.
+5. **Vidrio y rojo:** ninguna cadena con `vidrio`, ni `text-danger` ni `text-destructive`. "Resuelta" es `<Badge variant="success" icon={<CircleCheck aria-hidden="true" />}>` con texto. Detalle: la frase del resumen "ningún archivo nuevo tiene `vidrio`" no es literal, porque `elemento-de-duda.tsx:30` dice "sin vidrio" en un comentario. La indicación hablaba de cadenas, y V-07 solo mira cadenas entre comillas, así que no cuenta.
+6. **E13-9:**
+   - Al fallar el `refetch` propio, `useTemasDelRecurso` guarda `dataUpdateCount` (`hooks.ts`, `setDatosAlFallar`). Confirma la lista cuando el contador del render es **mayor** que el guardado.
+   - No usa `Date.now()` ni `dataUpdatedAt`. Las dos apariciones de `dataUpdatedAt` en `hooks.ts` son del muro, de antes.
+   - La nota se muestra con `edicion !== null && lecturaFallida && listaVigente === undefined` (`formulario-recurso.tsx`), sin `isFetching`.
+
+**Decisiones de la Enmienda 13:**
+- **Avisos sin cambio:** `MENSAJES_POR_CODIGO_DE_CLASES.PUBLICACION_NO_ENCONTRADA` no cambia, y lo fija el último caso de CL3-E17.
+- **CH3-B01 sin cambio:** la entrada `PUBLICACION_NO_ENCONTRADA` de `TEXTOS_FIJOS_DE_SIEMPRE` y `toHaveLength(15)` no cambian. Solo se suman `DUDA_NO_ENCONTRADA` y `RESPUESTA_NO_ENCONTRADA`, con su comentario (E12-2).
+- **El texto nuevo:** solo `useBorrarRecurso` dice "Ese recurso ya no existe.", ante `PUBLICACION_NO_ENCONTRADA`.
+
+### 4. Lista cerrada, V-01 y "No se toca"
+- **Las siete normales cambiadas están en la lista cerrada de 03e, y solo en lo que nombra cada fila.** Leí el diff completo de cada una:
+  - `errores-ch3.test.ts`: `5` → `7` y E12-2.
+  - `recursos-03d.test.tsx:739` y `editar-recurso-03d.test.tsx:1096`: solo el texto.
+  - `clase-layout.test.tsx`, `router-01d.test.tsx`, `lib.test.ts` y `secciones-03c1.test.tsx`: «Dudas» en las listas, los índices 3 → 4 y 4 → 5, `toHaveLength(6)`, las medidas que salen del índice y los ordinales de títulos y comentarios.
+
+  Ningún caso se borró ni se desactivó: 5760 + 121 = 5881.
+- **V-01:** comparé el `sha256sum` de las 242 `*.ataque` (las de `git ls-files` más las no rastreadas) con la tabla de la adenda 1 de la ronda 0 de 03e. Hay 0 diferencias, 0 faltantes y 0 sobrantes, así que el programador no tocó ninguna. Las 9 `*.ataque` que aparecen en `git status` son las reescrituras del tester.
+- **"No se toca":** respecto a `028569f`, no cambia nada en `shared/`, `backend/`, `features/tareas/`, `components/`, `lib/`, `services/`, `styles/` (salvo la `*.ataque` del tester), `app/providers.tsx`, `docs/DESIGN.md`, `AGENTS.md` ni `CLAUDE.md`. En producción solo cambian `features/clases/` y `app/router.tsx` (las tres ramas).
+
+- **El rojo intermedio de V-17** (`components/layout/estatico-r1.ataque`, "0 «Ocultar»" en los `.tsx`) **no es una PARADA mal resuelta.** Lo provocó un comentario del propio código nuevo, que escribía un texto de la interfaz fuera de `data.ts`. El programador corrigió su código, no la prueba (V-01 lo confirma), y lo declaró. Hoy, `grep Ocultar` sobre los `.tsx` de producción da 0.
+
+### 5. La matriz contra el código (incluye "en vuelo a la vez" y "desmontada")
+- **`DudasView` y respuestas:** casan con el código fila por fila en lo que se renueva, en los avisos (uno), en las guardas (`enviandoRef`, `marcandoRef`, `borrandoRef`; "Cancelar" no cierra en vuelo) y en el foco tras borrar o marcar con `404` (vecina por `[data-marcar-duda]` o `[data-borrar-duda]`, y `h2`/`h3` sin vecinas).
+  - Los códigos con que redirige `apiClient` se callan en los cinco ganchos de mutación.
+  - Con la vista desmontada, `useMarcarDuda`, `useBorrarDuda` y `useBorrarRespuesta` avisan desde el gancho.
+- **La regla de decidir después de la última espera se cumple.** En `avisarErrorDelTexto` (`useCrearDuda` y `useResponder`):
+  - un error que no es del campo se avisa enseguida, y eso no depende del montaje;
+  - uno del campo se decide con `montado.current` *después* de `await renovar()`;
+  - `useMontado` se llama dentro del gancho, que vive en el formulario, así que lo que se mide es el montaje del formulario. Lo cubre CL3-E08 (montado y desmontado, duda y respuesta).
+- **Formulario de recurso al editar:** casa con el código (ver indicación 6).
+
+**Dos filas de la matriz no describen bien el código. No bloquean: el código sigue el patrón ya aceptado.**
+- **O-1 · "Publicar duda" y "Responder" con `400` de `texto`: la matriz dice "Foco: El campo", pero el código deja el foco en el botón.** Los dos formularios ponen `aria-invalid` y `aria-describedby` en el campo, pero no lo enfocan. Es el patrón de `FormularioComentario` y `FormularioRecurso`; en 03d el programador lo escribió bien ("En el botón", `resumen-programador-03d.md:106`) y se aceptó. Para la ronda 1, el comportamiento esperado es el del código: el foco en el botón, que sale de la espera, con el `ErrorDeCampo` asociado al campo.
+- **O-2 · Primera carga (de la lista y de las respuestas) con error: el plan (§D-14 de 03e) dice "El `h2`" y "El `h3` del bloque"; el resumen y el código, "no se mueve".** Lo acepto con la lectura que el plan hizo explícita en 03d ("…si estaba dentro") y con el precedente de 03c1 ("el foco no se mueve"):
+  - en la primera carga de la lista, el foco está en el enlace de la sección, que sigue montado;
+  - en la de las respuestas, está en el control (que sigue montado y pasa a "Ocultar respuestas") o en el campo de la respuesta (con "Responder");
+  - moverlo al `h3` solo para lectores le quitaría el control a la persona.
+
+  El resumen debió declararlo como lectura del plan. No cambia nada.
+
+### 6. Hermanos y estados vecinos
+- **E13-9:** los once estados que lista el resumen casan con el código. Los cubren CL3-E16 (a)–(e), T-02 y T-03 de 03d, y el `setQueryData` de "Subir"/"Bajar", que sube el contador con datos del servidor.
+- **Texto del `404` al borrar:** solo `useBorrarRecurso`. `useMoverElemento`, `useComentar` y "Ver comentarios" siguen diciendo "Esa publicación ya no existe.". **El pendiente que menciona el resumen está cerrado:** el humano eligió (a), dejarlo así (`aprobacion.md`, "escoge la recomendacion del manager"). No hace falta cambio ni prueba.
+- **O-16:** `useCrearDuda` y `useResponder` deciden después de su espera. `useComentar`, `useCrearPublicacion` y los de tema y clase no cambian (diff).
+- **S-14, el control desaparece con el foco:** aplicado en `ElementoDeDuda` y, de respaldo, en `DudasView`. **Falta un estado vecino (O-3, abajo).**
+
+### 7. La desviación y el agregado
+- **`useTemasDelRecurso` con `useQuery({ ...consultaTemas(claseId), notifyOnChangeProps: "all" })`: se acepta.**
+  - Es la misma consulta, con la misma clave y la misma `queryFn`, que `useTemas(claseId)` con `enabled` en `true` (`hooks.ts:794-795`). Solo cambia cuándo se vuelve a pintar el formulario. Sin esa opción, al editar no se lee `temas.isError` (`temasFallidos` hace cortocircuito con `edicion === null`). Una respuesta correcta con los mismos datos que la caché vieja no cambia la referencia de `data` (por el *structural sharing*), así que no volvería a pintar, y el contador que sube no se vería.
+  - No cambia ninguna otra llamada a `useTemas`. El costo es volver a pintar en cada cambio de estado de esa consulta, solo mientras el formulario está montado.
+  - **¿Tiene prueba?** No una directa. CL3-E16 (c) parte sin caché: `data` pasa de `undefined` a la lista, así que vuelve a pintar con o sin la opción. CL3-E16 (a) con caché vieja no trae una lectura correcta después. El caso que justifica la opción va abajo como indicación 1 para el tester.
+- **El foco a la fila cuando desaparece el control de las respuestas (S-14): se acepta. No es un agregado:** lo pide §D-9.2 ("si el control desaparece con el foco dentro … el foco va a la fila") y CL3-E15. Lo prueban CL3-E15 (b) y (c), que comprueban el foco en el `li` y que no queda en `<body>`.
+
+### Observación sin prueba roja (para la ronda 1; no bloquea la aceptación)
+- **O-3 · `ElementoDeDuda`, la marca de S-14 no se borra cuando la persona sale del control a ningún lado con el control montado. Una recarga posterior le roba el foco.**
+  - **Dónde:** `elemento-de-duda.tsx:109-111`: `if (evento.relatedTarget !== null) controlConFocoRef.current = false`.
+  - **El caso:** el admin enfoca "Ver respuestas (1)" y hace clic en el fondo de la página. El `blur` llega con `relatedTarget === null` y el control sigue conectado, así que la marca queda. Después, una recarga baja el conteo a 0: el control desaparece, `focoPerdido(document)` es verdadero (el foco ya estaba en `<body>`) y el efecto de `:62-69` enfoca la fila, que se desplaza a la vista.
+  - **Por qué es un vecino:** el mecanismo hermano, `useFilaEnFoco` (`hooks.ts:491-497`), ya resuelve este estado: tras un `setTimeout(0)`, si el elemento sigue conectado y la ventana tiene el foco, borra la marca. S-14 debía seguir esa misma regla.
+
+### Indicaciones para la ronda 1 del tester
+1. **La desviación.** Abre "Editar recurso" con una lista vieja en la caché, igual a la que va a responder el servidor. Haz fallar la lectura al abrir y comprueba que la nota está. Después, `invalidateQueries` de `claveTemas` con una respuesta `200` **idéntica**: el campo «Tema» aparece con el tema del recurso y la nota se va. Haz la variante con el evento `online`.
+2. **O-3.** Admin, duda con 1 respuesta: enfoca el control y llama a `control.blur()`, con lo que el control queda montado y el foco en `<body>`. Después, el conteo baja a 0 con una recarga. Se espera que el foco no vaya a la fila. Haz la variante con el bloque desplegado, plegado con el mouse (el foco en el control) y luego `blur()` antes de que la recarga lo quite.
+3. **Matriz (O-1 y O-2).** Ataca la matriz como la describe el código.
+4. **La recarga de la lista con un bloque de respuestas abierto y algo escrito en su formulario.** Una recarga de la lista que falla (`5xx`) después de marcar o borrar otra duda reemplaza la lista por el `MensajeError` (patrón del muro, T-04): el bloque y lo escrito se desmontan. Es el patrón que el plan hereda ("lo que no se nombra"). Repórtalo como observación, no como hallazgo, salvo que contradiga una fila escrita de §D-14.
+5. **Puntos de ataque de 03e del plan:**
+   - marcar con el foco en el botón mientras una recarga de fondo cambia `puedeMarcar`;
+   - borrar una duda con sus respuestas abiertas;
+   - responder a una duda que otra persona borró. Ojo: `invalidarRespuestasYDudas` vuelve a pedir las respuestas de una duda que ya no existe. Mira que no salga un aviso ni un `MensajeError` visible antes de que la fila desaparezca;
+   - la transición de 0 a 1 y de 1 a 0 respuestas, con el bloque plegado y desplegado;
+   - R5 con dos dudas abiertas y una sola en error.
+6. **Para V-01,** la base es la tabla de la adenda 1 de la ronda 0 de 03e (242, reproducida hoy sin diferencias).
+
+### Para el orquestador
+- El tester puede entrar a la ronda 1 de 03e sobre el árbol actual.
+- No hay preguntas para el humano: la de «Mover», comentar y «Ver comentarios» ya la decidió (a).
+
+## Verificación de la corrección de la ronda 1 — 03e
+Fecha: 2026-11-03. Fuentes (hashes reproducidos):
+- `reporte-tester.md` `17ea0fd583f7211c6a9c016e9fd94ea4cb6a61c013922683ba6c42201aa8ca9c`, "## CLASES-03e — Ronda 1";
+- `resumen-programador-03e.md` `859b092e646013363c21433b9abfb7e63c342ab911e6fcbb06bbe61a7b7f74d2`, "## Corrección de la ronda 1 (T-01 y T-02)";
+- TanStack Query instalado: `@tanstack/query-core` 5.103.2.
+
+**Veredicto: ACEPTADO, sin M-nn.** Las cifras coinciden. T-01 y T-02 quedan corregidos en lo que reportó el tester. Las tablas de hermanos casan con el código. Queda un estado vecino de T-02 sin cubrir (O-4) y dos menores (O-5 y O-6), que van como indicaciones para la ronda 2 (abajo). El tester puede atacar.
+
+### 1. Cifras: las del resumen junto a las mías (desde `frontend/`, una tras otra)
+| Comando | Resumen | Mío |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0 (`All matched files use Prettier code style!`, `> tsc -b`) |
+| `npx vitest list \| grep -acE "^src/"` | 5906 | 5906 |
+| archivos (`grep -a … \| sort -u \| wc -l`) | 270 | 270 |
+| `dudas-03e.test.tsx` | 63 → 69 | 69. Los 6 títulos del `describe` "corrección de la ronda 1 de 03e (T-01 y T-02)" existen tal como los cita el resumen |
+| `*.ataque` de la ronda 1 | — | `dudas-03e-r1` 16 y `recursos-03e-r1` 3 (= 19). 5881 + 19 + 6 = 5906 |
+| `npm run test` | `270 passed (270)` · `5906 passed (5906)` · «timed out» 0 | `Test Files  270 passed (270)` · `Tests  5906 passed (5906)` · `Duration  272.40s`; «timed out» 0 |
+| `npm run build` | `✓ built in 892ms` | `✓ built in 881ms` |
+
+**V-01:** comparé el `sha256sum` de las 244 `*.ataque` (las de `git ls-files` más las no rastreadas) con la tabla de la ronda 1 de 03e. No hay ninguna diferencia, faltante ni sobrante: el programador no tocó ninguna.
+
+**Lista cerrada y "No se toca":**
+- Las pruebas normales rastreadas tienen el mismo diff que en mi verificación anterior (las siete de la lista cerrada, sin cambios nuevos).
+- Lo único nuevo es el `describe` del programador en su propio archivo, `dudas-03e.test.tsx`.
+- En producción solo cambian `features/clases`: `hooks.ts` (+39), `lib.ts` (+4), `elemento-de-duda.tsx` y `respuestas-de-duda.tsx`.
+- Nada en `shared/`, el backend, `features/tareas`, `components/` ni `lib/`.
+
+### 2. T-01: corregido
+- **Remedio:** `elemento-de-duda.tsx:62` usa `useFilaEnFoco("data-desplegar-respuestas")`, el mecanismo hermano, sin cambiarlo. El control lleva el id de su duda (`:147`), y el efecto (`:70-77`) solo enfoca la fila si la marca es la de esta duda y el foco se perdió.
+- **El estado del hallazgo:** un clic en blanco, con el elemento todavía conectado y la ventana enfocada, borra la marca por el `setTimeout(0)` de `hooks.ts:494-497`. Lo cubren CL3-4R1-01 y -02.
+- **Los estados vecinos, contra el código:**
+  - el foco pasa a otro control: la marca cambia (CL3-4R1-03 y la prueba nueva "…a «Marcar como resuelta» y vuelve");
+  - el foco está en el control de otra duda: cada fila compara su `duda.id` (prueba nueva);
+  - el control se desmonta: la marca se conserva y va a la fila (CL3-E15);
+  - cambio de pestaña: lo conserva `ventanaConFoco`/`hasFocus` (O-19);
+  - en Safari, un clic no enfoca el botón, así que no hay marca: el foco no se mueve, que es lo correcto.
+- **El efecto de respaldo de `DudasView`** ya usaba la misma marca (`data-duda-id`) y no lo duplica en el caso del clic en blanco.
+- **Costo:** un par de oyentes de `focusin`/`focusout` por fila. Es aceptable con listas de 20 en 20.
+- **La tabla de hermanos de T-01 casa con el código.**
+  - `conMarcarEnFocoRef` de `DudasView` y `conMoverEnFocoRef` de Recursos solo eligen *a dónde* va el foco, no *si* se mueve, así que el "no aplica" está bien razonado.
+  - Recursos y comentarios ya usaban `useFilaEnFoco`.
+
+### 3. T-02: corregido en los cuatro caminos del tester
+- **Borrar la duda (`204` y `404`):** `dudaQueSeVa` (`elemento-de-duda.tsx:67-68`) pasa `pedir={false}` (`:215`) a `useRespuestas` (`enabled`, `hooks.ts:1345-1347`) desde que el `DELETE` sale.
+  - En 5.103.2, cuando `removeQueries` le quita la consulta a un observador montado, este la vuelve a construir en su siguiente render. Con `enabled: false` no la pide.
+  - El `GET` que pintaba el error ya no sale (CL3-4R1-06 y -07).
+  - Con `503`, `pedir` vuelve a `true` y la consulta, que no se quitó, se queda en la caché sin pedirse si está fresca (la prueba nueva del `503`).
+- **Responder o borrar una respuesta con `DUDA_NO_ENCONTRADA`:** `renovarTrasErrorDeRespuesta` (`hooks.ts:1381-1393`) renueva solo la lista (CL3-4R1-08 y -09). Los demás códigos que renuevan conservan "respuestas y lista" (la prueba nueva de `RESPUESTA_NO_ENCONTRADA`).
+  - En `useResponder`, la decisión del aviso del campo sigue *después* de esa espera (`avisarErrorDelTexto`), así que se mantiene la regla de 03c2/03d.
+  - **Lectura de §D-9.4:** "se renueva la lista (y las respuestas abiertas)" aplica a los códigos con los que la duda sigue existiendo. Con `DUDA_NO_ENCONTRADA`, el bloque sale con la fila. Lo acepto: es la única forma de cumplir "un solo mensaje" de §D-14 y de la matriz.
+- **El hermano agregado, abrir las respuestas o "Ver más respuestas" con `DUDA_NO_ENCONTRADA`:** `useRenovarSiLaDudaYaNoEsta` (`hooks.ts:1398-1411`, usado en `respuestas-de-duda.tsx:142`) renueva la lista una sola vez por fallo, comparando `errorUpdateCount`, así que no entra en un ciclo. El bloque muestra su `MensajeError` "Esa duda ya no existe." y no avisa. **Es aceptable:**
+  - hay un solo mensaje, en el lugar donde la persona actuó;
+  - una consulta no avisa (CLAUDE.md, errores en el frontend);
+  - la fila sale cuando llega la lista.
+
+  Lo cubren las dos pruebas nuevas.
+- **`esDudaNoEncontrada` (`lib.ts:713`)** es una función pura y está en `lib.ts`.
+- **Los estados vecinos que pidió el orquestador:**
+  - **La duda vuelve a existir:** no aplica. Una duda borrada no vuelve con el mismo id (UUID). La marca `dudaQueSeVa` vive en el estado de la mutación de *esa* instancia de `ElementoDeDuda`, que lleva por `key` el `duda.id`. Si la recarga falla, la lista se reemplaza por su `MensajeError` y, al volver, las instancias son nuevas.
+  - **`pedir=false` y después un cambio de clave:** no aplica. `claveRespuestas(claseId, dudaId)` es fija dentro de cada instancia (por la `key` de la fila), y otra duda u otra clase montan otra instancia, con su propia mutación.
+  - **Una duda que otra persona borró, sin acción local, solo con una recarga:** la recarga de la lista desmonta la fila y su bloque, sin ningún `GET` de respuestas ni aviso. Si el bloque estaba abierto y no hay recarga, no se pide nada mientras está fresco. Si la persona abre o pide "Ver más", entra el hermano agregado. Si responde o borra una respuesta, entra `renovarTrasErrorDeRespuesta`.
+- **La tabla de hermanos de T-02 y las filas nuevas de la matriz casan con el código.** La conclusión sobre los comentarios de Avisos y Recursos (fuera de 03e) está bien razonada:
+  - sus ganchos no renuevan nada con `PUBLICACION_NO_ENCONTRADA`;
+  - lo que queda es el `MensajeError` de una consulta, que es la misma clase de caso que se acepta aquí.
+
+  Queda anotado como observación y no pide cambio en 03e.
+
+### 4. Estados vecinos sin cubrir (para la ronda 2; no bloquean la aceptación)
+- **O-4 · Mientras llega la lista después de borrar (`204` o `404`), las respuestas que se veían pueden cambiar a "Cargando…" (`role="status"`) dentro de la fila.** Esto contradice "lo que ya se ve se queda" del resumen y la fila de la matriz.
+  - **Mecanismo (5.103.2):** `removeQueries` quita la consulta, pero `RespuestasDeDuda` sigue mostrando el último resultado mientras nada lo vuelve a pintar. En cuanto algo lo hace, `getOptimisticResult` construye una consulta nueva sin datos (con `enabled: false` queda `isPending` sin `isFetching`). Entonces `!filas` lleva a `<Cargando />` (`respuestas-de-duda.tsx`, rama "cargando"), un `role="status"` con `aria-live="polite"` que anuncia "Cargando…" después de "Duda borrada".
+  - **Cuándo se vuelve a pintar durante la espera:**
+    - Cuando la lista tiene más de una página, `DudasView` lee `dudas.isFetching` por el `enEspera` de "Ver más dudas". El inicio de la recarga lo vuelve a pintar y con él a todas las filas.
+    - También, cuando otra mutación o consulta de la vista cambia en ese intervalo.
+  - **Por qué no lo ve CL3-4R1-06/-07:** usa una sola duda (sin "Ver más dudas") y solo afirma que no hay `role="alert"` ni un `GET`, no que las respuestas sigan a la vista.
+- **O-5 · "Ver más respuestas" no respeta `pedir=false`:** `fetchNextPage` no mira `enabled`. Si la persona lo pulsa mientras el `DELETE` de la duda está en vuelo, sale un `GET`. Con la duda ya borrada, ese `GET` responde `404` y el bloque pinta su `MensajeError` junto con el aviso del borrado. Es un camino raro, pero es el mismo mecanismo de T-02.
+- **O-6 · `retry: 1`:** `app/providers.tsx` reintenta una vez las consultas. Un `404 DUDA_NO_ENCONTRADA` al abrir las respuestas pide dos veces, y el mensaje y la renovación llegan después de la espera del reintento. Es un ajuste global anterior (fuera de "No se toca" de 03e), no un hallazgo; solo explica tiempos en las pruebas.
+
+### Indicaciones para la ronda 2 del tester
+1. **O-4.** Arma una lista con 21 dudas o más, de modo que exista "Ver más dudas". Abre las respuestas de una duda con al menos una respuesta, borra la duda (`204`) y retén el `GET …/dudas` que sigue.
+   - **Mientras está retenido:** en la fila no hay `role="status"` ni "Cargando…", la respuesta sigue a la vista y hay un solo aviso, "Duda borrada".
+   - **Variantes:**
+     - lo mismo con `404 DUDA_NO_ENCONTRADA` al borrar;
+     - con una sola página, forzando el nuevo pintado con otra acción en vuelo (por ejemplo, marcar otra duda) durante la espera.
+2. **O-5.** Con el `DELETE` de la duda retenido y el bloque abierto con "Ver más respuestas", pulsa "Ver más respuestas". Después, suelta el `DELETE` con `204` y retén la lista.
+   - **Se espera:** un solo mensaje, sin `MensajeError` en la fila, o que el botón no pida nada mientras la duda se borra.
+3. **T-01 por teclado.**
+   - Tab desde el control hacia "Marcar como resuelta" y Shift+Tab de vuelta, y después una recarga a 0: el foco va a la fila.
+   - Tab fuera de la lista (a "Ver más dudas" o al pie), y después una recarga a 0: el foco no se mueve.
+   - Con dos dudas que bajan a 0 en la misma recarga, y el foco en el control de una: el foco va solo a esa fila.
+4. **El hermano agregado.**
+   - "Ver más respuestas" con `404 DUDA_NO_ENCONTRADA`, con el foco en ese botón: el foco va al `h3` y, cuando la fila sale, a la vecina o al `h2`, nunca a `<body>`. Hay un solo mensaje.
+   - Lo mismo cuando la recarga de la lista que dispara falla (`5xx`): se espera un solo `MensajeError` de la lista y ningún aviso.
+5. **Para V-01,** la base es la tabla de la ronda 1 de 03e (244, reproducida hoy sin diferencias).
+
+### Para el orquestador
+- El tester puede entrar a la ronda 2 de 03e sobre el árbol actual.
+- **Rondas extra por hermanos:**
+  - T-01 fue el estado vecino O-3, que yo había señalado antes de la ronda 1.
+  - T-02 fue un camino de la indicación 5 de mi verificación.
+  - Ninguno es una ronda seguida sobre el mismo mecanismo: es la primera ronda de 03e.
+- No hay preguntas para el humano.
+
+## Verificación de la corrección de la ronda 2 — 03e
+Fecha: 2026-11-03. Fuentes (reproduje sus hashes):
+- `reporte-tester.md` `f85e780fd457b5bf7a89a2fbd27b645bf64fbd632fd102ce9e6e7599e3173e8c`, "## CLASES-03e — Ronda 2".
+- `resumen-programador-03e.md` `e03d62b8c460567f2e5aa451c59e81241b2b8731e0d445f41c4ad93767ac6010`, "## Corrección de la ronda 2 (T-03 y T-04)".
+- Código de TanStack Query 5.103.2 (`query-core/build/modern`).
+
+**Veredicto: DEVUELTO al programador, por M-01 (falta un estado vecino del mecanismo).**
+- Las cifras coinciden con las mías.
+- T-03 y T-04 están corregidos en los caminos que atacó el tester.
+- `quitarRespuestasAlCerrarseSuBloque` no deja suscripciones colgadas.
+- Pero la tabla de 15 estados omite dos estados del mismo mecanismo, y los dos reproducen en otro camino lo que el tester reportó en T-03 y T-04.
+
+Es la regla de "Hermanos de un hallazgo" (estados vecinos): un estado vecino que falta devuelve el resumen. Devolverlo ahora no gasta la tercera y última ronda del tester.
+
+### 1. Cifras: las del resumen junto a las mías (desde `frontend/`, una tras otra)
+| Comando | Resumen | Mío |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0 |
+| `npx vitest list \| grep -acE "^src/"` | 5919 | 5919 |
+| Archivos (`grep -a … \| sort -u \| wc -l`) | 271 | 271 |
+| `dudas-03e.test.tsx` | 69 → 73 | 73; los 4 títulos del `describe` "corrección de la ronda 2 de 03e (T-03 y T-04)" existen tal como se citan |
+| `dudas-03e-r2.ataque` | — | 9 (5906 + 9 + 4 = 5919) |
+| `npm run test` | `271 passed (271)` · `5919 passed (5919)` · «timed out» 0 | `Test Files  271 passed (271)` · `Tests  5919 passed (5919)` · `Duration  300.61s`; «timed out» 0 |
+| `npm run build` | `✓ built in 832ms` | `✓ built in 1.15s` |
+
+- **V-01:** el `sha256sum` de las 245 `*.ataque` es igual a la tabla de la ronda 2 de 03e: 0 diferencias, 0 faltantes y 0 sobrantes. El programador no tocó ninguna.
+- **Lista cerrada:** las pruebas normales rastreadas tienen el mismo diff que en las verificaciones anteriores. Lo único nuevo es el `describe` del programador en `dudas-03e.test.tsx`.
+- **Producción:** solo cambian `hooks.ts` (+25) y `respuestas-de-duda.tsx`.
+- **"No se toca":** sin cambios.
+- **`enEspera=`:** sigue en 1/2/2/1/1, el total de V-06 sigue en 71 y V-06 está verde. T-04 cambió la expresión, no el número de atributos.
+
+### 2. `quitarRespuestasAlCerrarseSuBloque` (`hooks.ts:1481`) contra TanStack Query 5.103.2
+- **Orden de los eventos.** `Query.removeObserver` (`query.js:243-260`) saca al observador, programa el `gc` si se quedó sin observadores y *después* notifica `observerRemoved`. Así, `getObserversCount()` ya da 0 dentro del oyente.
+- **Quitarse dentro del oyente es seguro.** `QueryCache.notify` (`queryCache.js:191-197`) recorre un `Set` dentro de `notifyManager.batch`, y borrar el elemento actual de un `Set` mientras se recorre no rompe el recorrido. `removeQueries` también llama a `destroy()`, que limpia el `gc` programado.
+- **Se desuscribe siempre, sin fugas:**
+  - **Sin observadores** al llegar el `204`/`404` (la vista ya se desmontó): la consulta se quita al momento y no se suscribe.
+  - **Con el bloque montado:** se quita cuando el observador se va. Pasa al salir la fila con la lista nueva, al reemplazarse la lista por un error, al desmontarse la vista, al cerrar sesión (aunque `queryClient.clear()` haya quitado antes la consulta de la caché, `removeObserver` notifica por su `#cache`) o al plegar el bloque.
+  - **Borrar dos veces** (un `404` y otro clic en "Sí, borrar duda" mientras llega la lista): quedan dos oyentes. En el mismo `observerRemoved`, los dos ven 0 observadores y los dos se quitan. El segundo `removeQueries` no hace nada.
+  - **Errores `503` y `403`:** no se suscribe.
+  - **El peor caso** es un oyente vivo mientras la fila siga montada después del borrado. Siempre termina al desmontarse.
+- **Clave:** `removeQueries(filtro)` usa la clave exacta, y `consulta` es la misma instancia que `find` encontró. No veo un camino en que, con la suscripción viva, otra consulta con la misma clave tome su lugar. Lo que sí existe es el caso inverso, abajo en M-01 (a).
+
+### 3. T-03 y T-04: corregidos en lo atacado
+- **T-03:** mientras el bloque está montado, la consulta conserva sus datos y no se pide (`pedir={false}`), así que la fila no cambia a «Cargando…». Lo cubren CL3-4R2-01, -02 y -03, y las tres pruebas nuevas, entre ellas "la vista desmontada" y "otra persona la borra".
+- **T-04:** `enEspera={respuestas.isFetching || !pedir}` (`respuestas-de-duda.tsx:223`). En espera, `Button` no ejecuta su acción y conserva el foco. Con un `503`, `pedir` vuelve a ser verdadero y el botón pide de nuevo. Lo cubren CL3-4R2-04 y la prueba nueva.
+- **Tabla de 15 estados:** las filas que trae casan con el código y con sus pruebas. También el "no aplica" de los comentarios de Avisos y Recursos, que no quitan nada de la caché.
+
+### Problemas que bloquean
+#### M-01 — La tabla de estados vecinos omite dos estados del mecanismo "una duda que se está borrando, con su bloque de respuestas", y los dos repiten T-03 y T-04 en otro camino
+- **Dónde:**
+  - `components/elemento-de-duda.tsx`: el control de las respuestas sigue activo mientras la duda se borra, y `pedir={!dudaQueSeVa}`.
+  - `components/respuestas-de-duda.tsx:159-162`: `useAlPulsarLaSeccionActiva` llama a `refetch()`.
+  - `respuestas-de-duda.tsx:198`: `!filas` → `<Cargando />`.
+  - Los dos estados faltan en la tabla de "Estados vecinos" de la corrección de la ronda 2.
+- **(a) Plegar y volver a desplegar mientras llega la lista.** Después del `204`, o de un `404 DUDA_NO_ENCONTRADA`, con la lista todavía en vuelo:
+  1. La persona pulsa «Ocultar respuestas». El observador se va y `quitarRespuestasAlCerrarseSuBloque` quita la consulta, como está diseñado.
+  2. Pulsa «Ver respuestas (n)». `RespuestasDeDuda` se monta con `pedir={false}`, porque `borrar` sigue pendiente: su `onSuccess` espera la lista.
+  3. Se construye una consulta sin datos, que queda `isPending` y nunca se pide.
+  4. El bloque muestra «Cargando…» (`role="status"`, `aria-live="polite"`) hasta que la fila sale.
+
+  Es el síntoma de T-03 por otro camino. La variante es más simple: si el bloque estaba plegado cuando llegó el `204`, la consulta se quita al momento, y desplegarlo antes de que llegue la lista da lo mismo. Este estado lo crea el remedio de esta ronda: quitar la consulta cuando su observador se va.
+- **(b) Un `refetch()` que no respeta `pedir=false`.** Es hermano de T-04: `fetchNextPage` y `refetch` no miran `enabled`, y el remedio solo cubrió `fetchNextPage`. El caso:
+  1. El bloque está abierto en error: su primera carga falló con `500` y muestra R9.
+  2. La persona borra la duda y, mientras llega la lista, pulsa «Dudas» estando ahí.
+  3. `useAlPulsarLaSeccionActiva` de `RespuestasDeDuda` ve `isError` y llama a `respuestas.refetch()`. Sale un `GET` de las respuestas de una duda borrada.
+  4. Responde `404 DUDA_NO_ENCONTRADA`, el `MensajeError` del bloque (`role="alert"`) pasa a "Esa duda ya no existe." y `useRenovarSiLaDudaYaNoEsta` pide otra recarga de la lista.
+
+  La persona lee "Duda borrada" y, en la fila, una alerta que la contradice: es el síntoma de T-02 y T-04. Las demás formas de pedir sí respetan `enabled`: `invalidateQueries` solo vuelve a pedir las consultas activas, y `refetchOnReconnect` igual. Las dos imperativas sobre esta clave son estas dos: `fetchNextPage`, ya cubierta, y `refetch`.
+- **Por qué importa:**
+  - Es la regla de los hermanos y de los estados vecinos (`AGENTS.md`, "Resúmenes verificables del programador": decisiones del 2026-10-02 y del 2026-10-05).
+  - Es la regla de un solo mensaje de la matriz.
+  - Es la fila de la matriz de esta corrección: "las respuestas no se piden, lo que se veía se queda sin estado vivo".
+  - La próxima ronda del tester es la última antes de escalar.
+- **Qué se espera** (el resultado, no la implementación):
+  - **En el estado (a)**, mientras la duda se borra o ya no existe, desplegar su bloque no muestra «Cargando…» ni ningún `role="status"` o `role="alert"`, y no pide nada. La persona lee un solo mensaje, el del borrado. Cuando llega la lista, la fila sale con el foco de §7.14.
+  - **En el estado (b)**, mientras la duda se borra o ya no existe, pulsar «Dudas» estando ahí no pide las respuestas de esa duda ni cambia el mensaje del bloque. Con un `503` del borrado, sí vuelve a pedirlas, como en R9.
+  - **Pruebas:** una prueba normal por estado, con su variante `204` y `404`, y la de `503` en (b).
+  - **Resumen:** la tabla de estados vecinos suma las dos filas. Repasa también si hay otra llamada imperativa (`refetch` o `fetchNextPage`) sobre `claveRespuestas` y dilo explícitamente, aunque la respuesta sea "ninguna más".
+
+### Medición del programador (rondas extra por hermanos)
+- **Ronda 1 (T-01 y T-02):** no cuenta. Eran defectos de la implementación inicial (O-3 y la indicación 5 de mi primera verificación), no un remedio que no se extendió a sus hermanos.
+- **Ronda 2 (T-03 y T-04):** **cuenta como 1 ronda extra por hermanos.** Son dos estados vecinos del remedio de T-02 (el mismo mecanismo: `pedir=false` y la consulta que sale de la caché). La tabla de la ronda 1 afirmaba "lo que ya se ve se queda" sin el estado "la vista se vuelve a pintar", y sin las llamadas imperativas que no miran `enabled`. Que yo los hubiera señalado como O-4 y O-5 antes de la ronda 2 no cambia la cuenta: los produjo un remedio incompleto.
+- **Esta devolución (M-01)** no es una ronda del tester. Pero si la ronda 3 vuelve a encontrar un estado de este mecanismo, serían **2 rondas extra seguidas**, que alcanzan el umbral de `AGENTS.md`. Lo decide el orquestador según esa regla.
+
+### Indicaciones para la ronda 3 del tester (cuando el programador entregue M-01; es la última antes de escalar)
+1. **M-01 (a):** con dos o más páginas de dudas y con una sola, borra la duda (`204` y `404`) y retén la lista. Pulsa «Ocultar respuestas» y luego «Ver respuestas (n)». Sin estado vivo ni alerta en la fila, ningún `GET` de respuestas y un solo aviso. Haz la variante con el bloque plegado al llegar la respuesta del `DELETE`, que la persona despliega después.
+2. **M-01 (b):** con el bloque en error R9 y el `DELETE` (`204`), y luego la lista, retenidos, pulsa «Dudas» estando ahí. Ningún `GET` de respuestas, el texto del bloque no cambia y un solo aviso. Haz la variante con `503` del borrado: después, pulsar «Dudas» sí pide y el texto R9 desaparece con `200`.
+3. **Suscripción de `quitarRespuestasAlCerrarseSuBloque`:**
+   - `404` y un segundo clic en «Sí, borrar duda» mientras llega la lista. Al salir la fila, las respuestas no quedan en la caché y no queda ningún oyente: compara `getQueryCache()` antes y después, por ejemplo contando las consultas con `claveRespuestas`.
+   - Cierra sesión durante la espera, si el doble lo permite.
+4. **No repitas** lo que ya está en verde: CL3-4R2-01 a -09 y las pruebas de las rondas 1 y 2. Céntrate en el mecanismo de M-01 y en cualquier otra llamada imperativa que el programador declare.
+5. **Base de V-01:** la tabla de la ronda 2 de 03e (245).
+
+### Para el orquestador
+- El resumen vuelve al programador solo por M-01. Ninguna `*.ataque` cambia y no hace falta enmienda.
+- Cuando entregue, verifico la corrección y después entra la ronda 3 del tester.
+- No hay preguntas para el humano.
+
+## Verificación de la corrección de M-01 de la ronda 2 — 03e
+Fecha: 2026-11-03. Fuente: `resumen-programador-03e.md` (SHA-256 `a0b18c64bd5c69378c65a75b82a5e22291a420d697e76993c2796324c7111757`, reproducido), "## Corrección de M-01 de la verificación de la ronda 2". Contrasté el código con TanStack Query 5.103.2 (`query-core/build/modern`).
+
+**Veredicto: ACEPTADO, sin M-nn.**
+- Las cifras coinciden con mi corrida.
+- M-01 (a) y (b) están corregidos y probados.
+- El inventario de llamadas imperativas está completo.
+- Los dos estados vecinos que faltaban ya están en la tabla, más la fila del `503`.
+- Quedan tres estados que no bloquean (O-7 a O-9). Van como indicaciones para la ronda 3 del tester, que es la última antes de escalar.
+
+### 1. Cifras: las del resumen junto a las mías (desde `frontend/`, una tras otra)
+| Comando | Resumen | Mío |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0 |
+| `npx vitest list \| grep -acE "^src/"` | 5926 | 5926 |
+| Archivos (`grep -a … \| sort -u \| wc -l`) | 271 | 271 |
+| `dudas-03e.test.tsx` | 73 → 80 | 80. Los 7 títulos de M-01 existen: (a) ×4 (`204`/`404`, plegar y desplegar; plegado al llegar) y (b) ×3 (`204`/`404` y `503`) |
+| `npm run test` | `271 passed (271)` · `5926 passed (5926)` · «timed out» 0 | `Test Files  271 passed (271)` · `Tests  5926 passed (5926)` · `Duration  272.61s`; «timed out» 0 |
+| `npm run build` | `✓ built in 1.52s` | `✓ built in 823ms` |
+
+- **V-01:** el `sha256sum` de las 245 `*.ataque` es igual a la tabla de la ronda 2 de 03e: 0 diferencias, 0 faltantes y 0 sobrantes. El programador no cambió ninguna.
+- **Lista cerrada y "No se toca":** los 22 archivos rastreados dan el mismo `git diff --stat 028569f` que en la verificación anterior (+597 −97). Lo único nuevo está en dos archivos sin rastrear: `components/respuestas-de-duda.tsx` y el `describe` nuevo del programador en `dudas-03e.test.tsx`. No cambia nada en `shared/`, el backend, `features/tareas`, `components/` ni `lib/`.
+- **V-06:** `enEspera=` no cambia: 2 en `respuestas-de-duda.tsx` y 71 en total.
+
+### 2. Lo corregido, contra el código
+- **(b) `respuestas-de-duda.tsx:161-162`:** `if (!pedir || !respuestas.isError) return` antes de `refetch()`. Mientras la duda se borra o ya no existe, pulsar «Dudas» no pide nada y el `MensajeError` que ya estaba no cambia. Con `503` o un error de red, `pedir` vuelve a ser verdadero y pulsar sí pide. Las tres pruebas de (b) lo comprueban.
+- **"Ver más respuestas", `:221-222`:** además del `enEspera` de T-04, una guarda `if (!pedir) return` en el `onClick`. Repite por si acaso lo que ya garantiza `Button` en espera. No cuenta como otro `enEspera=`.
+- **(a) `:242`:** `if (!pedir && filas === undefined && !respuestas.isError) return null`, después de todos los ganchos, así que no rompe su orden. Un bloque que se despliega sin datos mientras la duda se va no pinta nada: ni «Cargando…», ni alerta, ni el formulario. Lo que ya se veía, con datos o con error, sigue como en T-03. Las cuatro pruebas de (a) afirman que no hay `status`, `alert` ni «Cargando», que no sale ningún `GET` de respuestas y que hay un solo aviso, también con el `404`.
+
+### 3. El inventario de llamadas imperativas: completo
+Repetí el grep en la producción de `frontend/src`, sin pruebas: `refetch`, `fetchNextPage`, `fetchPreviousPage`, `fetchQuery`, `prefetch*`, `ensure*`, `fetchInfiniteQuery`, `refetchQueries`, `resetQueries` y `claveRespuestas`.
+- **Sobre la clave de las respuestas**, las únicas llamadas imperativas son `respuestas.refetch` (`:162`) y `respuestas.fetchNextPage` (`:222`), y las dos tienen guarda. `fetchQuery` solo aparece en `features/auth` (`consultaMe`). No hay `prefetch`, `ensure`, `refetchQueries` ni `resetQueries`.
+- **Las declarativas respetan `enabled`.** Comprobé en `queryClient.js:297-335` que `invalidateQueries` termina en `refetchQueries` con `type: "active"`, que descarta las consultas desactivadas (`!query.isDisabled()`). Eso cubre `invalidarRespuestasYDudas` (`hooks.ts:1366`) y la invalidación sin `exact` de `claveClaseDetalle` (`hooks.ts:253` y `:294`), que también alcanza `["clases", claseId, "respuestas", …]`. Detectar este segundo prefijo estuvo bien.
+- **El montaje, `refetchOnReconnect` y `refetchOnWindowFocus`** (este último apagado en `providers.tsx`) respetan `enabled`.
+
+### 4. Estados del mecanismo que quedan (no bloquean)
+- **O-7 · El bloque abierto por primera vez mientras el `DELETE` está en vuelo y, después, un `503`.**
+  - **Mientras está en vuelo:** la consulta no existe y `pedir` es falso, así que `:242` no pinta nada.
+  - **Con el `503`:** `pedir` vuelve a ser verdadero, el bloque aparece, pide su primera página y pasa por «Cargando…» a los datos.
+  - **Variante con «Responder»** (estudiante o maestro, con 0 respuestas): `enfocarCampo` sigue verdadero. Cuando por fin se monta `FormularioRespuesta`, el foco salta al campo en el momento del `503`, no en el del clic.
+  - **Juicio:** las dos cosas parecen coherentes con lo que la persona pidió, pero ninguna prueba las fija. Las pruebas de (b) con `503` parten de un bloque ya cargado.
+- **O-8 · `aria-controls` sin destino.** Mientras `:242` devuelve `null`, el control dice «Ocultar respuestas» con `aria-expanded="true"` y `aria-controls` apunta a un id que no está en el documento (`elemento-de-duda.tsx`). Dura poco, hasta que la fila sale, y solo pasa en un camino raro. Es un detalle de accesibilidad: lo anoto y no pido cambio.
+- **O-9 · `retry: 1`** (O-6) sigue igual. Es un ajuste global y no se toca en 03e.
+
+### 5. Medición del programador
+La devolución de M-01 no fue una ronda del tester y no cambia la cuenta: **1 ronda extra por hermanos** en 03e, la ronda 2. **Si la ronda 3 encuentra otro estado del mismo mecanismo** ("una duda que se borra con su bloque de respuestas", `pedir` y la consulta que sale de la caché), serían 2 rondas extra seguidas y se alcanzaría el umbral de `AGENTS.md`. Ese umbral es para el humano y el orquestador, no para mí.
+
+### Indicaciones para la ronda 3 del tester (la tercera y última antes de escalar)
+Céntrate en el mecanismo "una duda que se está borrando o ya no existe, con su bloque de respuestas". No repitas lo que ya está en verde: CL3-4R1, CL3-4R2 y las pruebas normales de T-01 a T-04 y de M-01.
+1. **M-01 (a) con dos o más páginas de dudas.** Retén la lista tras el `204` y tras el `404`, y pliega y despliega. En la fila no debe aparecer `status`, `alert` ni «Cargando…», no debe salir ningún `GET` de respuestas y debe haber un solo aviso. Las pruebas del programador usan una sola página: con dos, `DudasView` se vuelve a pintar por `isFetching`, el camino de T-03.
+2. **M-01 (b) con «Ver más respuestas» además del error.** El bloque tiene una página cargada y «Ver más respuestas» falla con `400` (R5). Borra la duda (`204`/`404`) con la lista retenida y pulsa «Dudas»: no sale ningún `GET` y el texto R5 no cambia. Con un `503` del borrado, pulsar «Dudas» sí pide y R5 desaparece con `200`.
+3. **O-7.** Abre por primera vez el bloque de una duda (con 1 respuesta, y con 0 vía «Responder») con el `DELETE` retenido y sin las respuestas en la caché.
+   - Mientras tanto, la fila no muestra nada vivo y no se pide nada.
+   - Suelta un `503`: el bloque aparece, pide una vez y muestra la respuesta. Con «Responder», el foco va al campo y el aviso del `503` sale una sola vez.
+   - Variante con `404`: nada se pide y la fila sale con la lista.
+4. **La suscripción de `quitarRespuestasAlCerrarseSuBloque`.**
+   - Con un `404` y un segundo clic en «Sí, borrar duda» mientras llega la lista, al salir la fila no deben quedar consultas con `claveRespuestas` de esa duda en `getQueryCache()`.
+   - Si el doble lo permite, cierra sesión durante la espera. Después no debe quedar la consulta y no debe salir ningún `GET` de respuestas.
+5. **Un solo mensaje en todo el mecanismo.** Por cada acción con la duda que se va (marcar, quitar «Resuelta», borrar la duda, responder, borrar una respuesta, "Ver más" y pulsar «Dudas») cuenta los avisos y los `role="alert"`/`role="status"` dentro de la fila, desde la acción hasta que la fila sale. Debe haber un solo mensaje para la persona. El `MensajeError` que ya estaba antes de la acción no cuenta, siempre que no cambie.
+6. **Base de V-01:** la tabla de la ronda 2 de 03e (245).
+
+### Para el orquestador
+- El tester puede entrar a la ronda 3 de 03e sobre el árbol actual. Es la última: si sale `ROTO`, se escala.
+- No hay preguntas para el humano.
+
+## Verificación de la corrección de T-05 — 03e
+Fecha: 2026-11-03. Fuentes (hashes reproducidos):
+- `reporte-tester.md` `201feb28576536f723cc5b4ebd42a6c59456e6d0365b3e0640275c1ac7d9d0d7`, "## CLASES-03e — Ronda 3".
+- `resumen-programador-03e.md` `4bc6831b90658a1f87930fca34dd873fa19c636231549bbf6d44db24a9a24462`, "## Corrección de la ronda 3 (T-05)".
+- Decisión del humano en `aprobacion.md`: el programador corrige y el manager verifica con su corrida, sin cuarta ronda del tester.
+
+Contrasté el código con TanStack Query 5.103.2 (`query-core/build/modern`). Como no habrá más rondas, revisé a fondo los estados vecinos del mecanismo.
+
+**Veredicto: ACEPTADO, sin M-nn.**
+- CL3-4R3-09 (`204` y `404`) queda en verde en mi corrida, junto con todas las `*.ataque` de 03e (`r1`, `r2` y `r3`).
+- `quitarRespuestasDeUnaDudaQueSeVa` nunca quita una consulta que alguien observa.
+- Siempre deja de escuchar, aunque en dos caminos raros tarda como máximo el `gcTime` (O-10, sin efecto visible).
+- El caso "fuera de T-05" es aceptable sin destino.
+
+### 1. Cifras: las del resumen junto a las mías (desde `frontend/`, una tras otra)
+| Comando | Resumen | Mío |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0 |
+| `npx vitest list \| grep -acE "^src/"` | 5953 | 5953 |
+| Archivos (`grep -a … \| sort -u \| wc -l`) | 272 | 272 |
+| `dudas-03e.test.tsx` | 80 → 86 | 86. Los 6 títulos del `describe` "corrección de la ronda 3 de 03e (T-05)" existen como se citan |
+| `*.ataque` de 03e | — | `dudas-03e-r1` 16, `-r2` 9, `-r3` 21 y `recursos-03e-r1` 3 |
+| `npx vitest run --reporter=verbose` | `272 passed (272)` · `5953 passed (5953)` · «timed out» 0 | `Test Files  272 passed (272)` · `Tests  5953 passed (5953)` · `Duration  275.57s`; «timed out» 0 |
+| CL3-4R3-09 (`204` y `404`) | verde | Verde, los dos (✓ en la salida verbose). `dudas-03e-r1` 16/16, `-r2` 9/9, `-r3` 21/21 y `recursos-03e-r1` 3/3 |
+| `npm run build` | `✓ built in 848ms` | `✓ built in 783ms` |
+
+- **V-01:** comparé el `sha256sum` de las 246 `*.ataque` con la tabla de la ronda 3 de 03e. Hay 0 diferencias, 0 faltantes y 0 sobrantes: el programador no cambió ninguna.
+- **Lista cerrada:** los 22 archivos rastreados de `frontend/` son los de siempre. Lo nuevo es `hooks.ts` (el diff rastreado pasa de +597 −97 a +619 −98, todo en ese archivo) y el `describe` nuevo de `dudas-03e.test.tsx`.
+- **"No se toca":**
+  - `CLAUDE.md` (`f0fe4e53…`) y `docs/DESIGN.md` (`67158764…`) cambiaron, pero los aplicó el orquestador con A-06, A-07 y A-14, y sus hashes coinciden con los de `aprobacion.md`.
+  - Nada en `shared/`, el backend, `features/tareas`, `components/` ni `lib/`.
+
+### 2. `quitarRespuestasDeUnaDudaQueSeVa` (`hooks.ts:1492`; usos `:1537` en el `204` y `:1544` en el `404`)
+- **Filtra solo las consultas de esa duda:**
+  - Compara `evento.query.queryHash` con `hashKey(claveRespuestas(claseId, dudaId))`. Sin `queryKeyHashFn` propia (grep: ninguna), `queryHash` es exactamente `hashKey(queryKey)`.
+  - Quita con `removeQueries({ queryKey, exact: true })`.
+  - La de la lista se reconoce con `hashKey(claveDudas(claseId))`.
+  - Cada borrado tiene su propio cierre (`claseId` y `dudaId`). **Si se borran varias dudas a la vez,** son oyentes independientes y ninguno toca las consultas de otra duda.
+- **Nunca quita una consulta observada:** `quitarSiNadieLaObserva` sale si `getObserversCount() > 0`. `Query.removeObserver` (`query.js:243-260`) notifica `observerRemoved` *después* de sacar al observador, así que la cuenta ya está al día. Se mantienen T-03 (lo que se veía no pasa a «Cargando…»), T-04 y M-01.
+- **Deja de escuchar en todos los caminos:**
+  - **La fila sale con la lista (camino normal):**
+    1. Al llegar la lista, el evento `updated` de la lista encuentra la duda fuera, pero su consulta todavía existe (el bloque aún no se desmontó), así que sigue escuchando.
+    2. Al desmontarse el bloque, `observerRemoved` provoca `removeQueries`. Su `removed` anidado (`notify` corre dentro de `notifyManager.batch`, de forma síncrona) ya no encuentra ni la duda ni la consulta, y deja de escuchar.
+    3. La segunda llamada a `dejarDeEscuchar` (al volver del evento exterior) solo hace `Set.delete` sobre un oyente que ya no está: no tiene efecto.
+  - **Plegar y desplegar una o varias veces (T-05):** cada consulta que se queda sin observadores sale, y la escucha sigue mientras la duda esté en la lista. Lo cubren CL3-4R3-09 y las pruebas "tres veces" y "plegado cuando llega".
+  - **El bloque nunca se abrió:** no hay consulta. Termina con la primera lista que ya no trae la duda.
+  - **Cerrar sesión:** `queryClient.clear()` emite `removed` de la lista y la escucha termina. Si las respuestas se quitan antes que la lista, el oyente sigue hasta el `removed` de la lista. Lo cubre CL3-4R3-10.
+  - **Si la lista sale de la caché por `gc`,** también termina.
+  - **Si la duda vuelve a aparecer en la lista:** no puede pasar. Con `204` o `DUDA_NO_ENCONTRADA` la duda no existe en el servidor, y los ids son UUID. Aun así, el oyente solo quitaría consultas sin observadores, nunca una a la vista.
+  - **Con el `503` o el `403`:** no se llama.
+
+### 3. Estados vecinos (revisión propia; no habrá más rondas)
+- **La tabla de 10 caminos del resumen casa con el código y con sus pruebas.** El oyente aparece y se quita en cada camino como dice la tabla.
+- **O-10 · Dos caminos en que la escucha dura hasta el `gcTime` (5 min) y no hasta que sale la fila.**
+  1. **La recarga de la lista falla.** La consulta de respuestas sí sale (prueba nueva), pero la lista conserva sus datos viejos con la duda. El oyente sigue hasta la siguiente lista correcta (por ejemplo, al pulsar «Dudas») o hasta que la lista salga de la caché.
+  2. **La vista se desmonta antes del `204`.** `invalidarDudas` marca vieja la lista pero no la pide, porque no está activa, así que sus datos todavía traen la duda. El oyente sigue hasta volver a «Dudas», que la pide al montar, o hasta el `gc` de la lista.
+
+  En los dos casos no hay efecto visible, ni de red, ni consultas que queden: solo un oyente que, en cada evento de la caché, revisa la lista (`getQueryData` y un recorrido de las páginas) y hace un `find`. Con listas de 20 en 20 y pocas consultas, el costo es despreciable, y la escucha termina sola. Por eso no pido cambio. Ninguna prueba fija cuánto dura el oyente; si se quiere fijar, iría en la revisión final como prueba de observación, no como hallazgo.
+- **Solo en desarrollo (`StrictMode`):** un bloque que se despliega *durante* la escucha se suscribe, se desuscribe y se vuelve a suscribir. El `observerRemoved` intermedio puede quitar la consulta vacía, y en el siguiente pintado el observador construye otra, igual de vacía y desactivada (M-01 a). Esa segunda consulta sale con su `observerRemoved` cuando la fila sale. No pinta nada, no pide y no queda colgada. En producción no pasa. Es una nota, no un hallazgo.
+- **"Fuera de T-05" (otra persona la borra y solo hay una recarga): aceptable, sin destino.**
+  - La fila sale y la consulta de respuestas queda inactiva, sin observadores y sin pedirse. El `gcTime` la recoge, que es el ciclo normal de TanStack Query para cualquier consulta que deja de verse.
+  - Con `pedir` verdadero y sin observador, nadie la vuelve a pedir: `invalidateQueries` solo pide las activas.
+  - No hay borrado propio que prometa "las respuestas salen de la caché" (§D-14 habla de "Sí, borrar duda"). Es el mismo caso que los comentarios de una publicación que otra persona borró.
+
+### 4. Medición del programador
+- **T-05 cuenta como una ronda extra seguida sobre el mismo mecanismo.** El mecanismo es una duda que se borra con su bloque de respuestas: T-02, después T-03 y T-04, M-01 y ahora T-05.
+- **03e queda con 2 rondas extra por hermanos** (las rondas 2 y 3) y **alcanza el umbral de `AGENTS.md`.**
+- Según `aprobacion.md`, el programador ya está en `opus`, así que el umbral no cambia el modelo. Queda para el registro del orquestador en `ESTADO.md` y en el cierre de 03e.
+
+### Para el orquestador
+- No hace falta otra ronda del tester (decisión del humano). Sigue la revisión final de 03e.
+- No hay preguntas para el humano.
+
+## Revisión final — 03e y cierre de CLASES-03
+Fecha: 2026-11-03. Esta revisión es de modo final. Plan `711c23a3…` (Enmiendas 1 a 13, con E13-9). Base dentro de los paquetes: `028569f` (`<K3d>`); fuera de ellos, `689c636`.
+
+**Veredicto: APROBADO CON OBSERVACIONES.**
+- El código y las pruebas de 03e están aprobados.
+- Quedan dos M-nn, los dos documentales y sin código:
+  - **M-01** documenta en §7.31 el foco y los errores de "Dudas". Es la regla de `AGENTS.md`: todo patrón visual nuevo se documenta en el mismo encargo.
+  - **M-02** limpia una redundancia de A-12 en `ESTADO.md`.
+- El orquestador los aplica antes del commit de 03e, con el texto literal de abajo. No hace falta volver a pasar por el programador ni por el tester.
+
+**Verificación propia:** lint, test y build de la corrida de la verificación de T-05 (abajo). Desde entonces no cambió nada en `frontend/`, `shared/`, el backend ni `infra/`.
+
+### 1. Verificación propia
+- **Corrida** (desde `frontend/`, una tras otra; la misma de "Verificación de la corrección de T-05 — 03e"):
+  - `npm run lint`: exit 0.
+  - `npx vitest list`: 5953 casos en 272 archivos.
+  - `npx vitest run --reporter=verbose`: `Test Files  272 passed (272)` · `Tests  5953 passed (5953)` · `Duration  275.57s`, sin «timed out».
+  - `npm run build`: `✓ built in 783ms`.
+- **Nada cambió desde esa corrida:**
+  - `find frontend/src shared/src backend/src backend/prisma infra -newer` (la marca de la salida de esa corrida) no devuelve nada. Lo único más nuevo es `shared/dist`, que es salida del `build` e ignorada por git.
+  - `git status -uall` muestra los mismos 35 archivos de `frontend/` que verifiqué.
+- **`shared/`, backend e `infra/`:** `git diff 028569f -- shared backend infra` está vacío. No hacía falta correr la suite del backend: no cambió desde 03b (229 / 2774).
+
+### 2. Cumplimiento de 03e
+- **§D-9 (vista, fila, respuestas, ganchos y claves), §D-10 (R4, R5 y R9 por camino), CL3-E01 a CL3-E17:** cubiertos con su caso, como verifiqué en "Verificación del resumen del programador — 03e" (121 casos, todos con su id) y con las correcciones posteriores.
+- **E12-2:** CH3-B01 suma `DUDA_NO_ENCONTRADA` y `RESPUESTA_NO_ENCONTRADA`; `:79` sigue en 15.
+- **Enmienda 13:** decisión (1), la nota al editar; decisión (2), "Ese recurso ya no existe." solo en `useBorrarRecurso`. Avisos y CH3-B01 no cambian.
+- **E13-9:** `dataUpdateCount`, sin relojes. La desviación `notifyOnChangeProps: "all"` la acepté y la probó CL3-4R1-17/-18.
+- **Arbitrajes:** las seis indicaciones de la ronda 0, más O-1 y O-2, según lo dicho.
+- **Hallazgos corregidos:**
+  - T-01: la marca de S-14 ahora es `useFilaEnFoco`.
+  - T-02: no se piden las respuestas de una duda que ya no existe.
+  - T-03 y T-04: la consulta no sale con observador, y "Ver más respuestas" queda en espera.
+  - M-01 de la ronda 2: el bloque no pinta nada sin datos, y `refetch` tiene guarda.
+  - T-05: `quitarRespuestasDeUnaDudaQueSeVa`.
+- **V-01:** las 246 `*.ataque` son iguales a la tabla de la ronda 3. Ninguna `*.ataque` la cambió el programador en ninguna entrega de 03e.
+- **"No se toca":**
+  - Dentro de `frontend/`: solo `features/clases/` y `app/router.tsx`, más las `*.ataque` del tester y las normales de la lista cerrada de 03e.
+  - Fuera de `frontend/`: solo `CLAUDE.md`, `docs/DESIGN.md` y `docs/ESTADO.md` (A-06, A-07, A-12, A-13 y A-14, que aplicó el orquestador) y `docs/trabajo/CLASES-03-…/`.
+- **Reglas que no se rompen y estilo (`CLAUDE.md`):**
+  - Tipos reexportados de `shared/` en `types.ts`, y textos en `data.ts`.
+  - Ningún `fetch` fuera de `apiClient`.
+  - Retornos tempranos; el orden error → cargando → vacío → datos.
+  - Sin `?? []` que oculte datos.
+  - Solo tokens, sin vidrio ni rojo sueltos.
+  - "Resuelta" con texto e icono.
+  - Una sola acción principal.
+  - `autoComplete="off"`.
+  - `ErrorDeCampo`.
+  - `enEspera` con guarda síncrona.
+
+### 3. Documentos que aplicó el orquestador (cotejados letra por letra)
+- **Copias previas:**
+  - `DESIGN-antes-03e.md` (`87c8256b…`) es igual a `028569f:docs/DESIGN.md`.
+  - `CLAUDE-antes-03e.md` (`c9a2f534…`) es igual a `028569f:CLAUDE.md`.
+  - `ESTADO-antes-03e.md` es `8ecfdf96…`.
+- **A-06 (`DESIGN.md` §7.31 nueva, después de §7.30):** el cuerpo es igual, carácter por carácter, al texto entre comillas del plan (comparación de cadenas con un script). El título lleva la marca "(propuesta (DOCS-04); fijada en propuesta (CLASES-03e))". El diff contra la copia solo suma la sección (+4 líneas).
+- **A-07 (`CLAUDE.md`, fila `clases`):** el contenido es igual al del plan y los roles no cambian. El diff contra la copia es de una sola línea. Hash `f0fe4e53…`, el mismo que registra `aprobacion.md`.
+- **A-14 (`DESIGN.md` §7.30, viñeta "Tema"):**
+  - La frase nueva es igual a la del plan y la vieja ("Mientras se pide, o si no se pudo pedir…") ya no está.
+  - La marca de la viñeta "(propuesta (CLASES-03d))" y la parte de crear no cambian, y la nota lleva "propuesta (CLASES-03e)". Las marcas quedan intactas.
+  - Hash de `DESIGN.md`: `67158764…`, igual al de `aprobacion.md`.
+  - **"Una lista pedida tras la apertura" sigue siendo exacto en lo que ve la persona** tras E13-9: lo que confirma es una respuesta correcta de la lista que llega después de la lectura fallida (invalidación, recuperar la red u otra lectura). La única respuesta "no pedida" que también confirma es la lista que escribe «Subir»/«Bajar» con datos del servidor, y eso no cambia lo que la frase promete. No pido cambio.
+- **A-13 (`ESTADO.md` §3):**
+  - La fila de retiro de compatibilidad suma el texto del plan, literal.
+  - La fila nueva **DEPLOY** es literal, con su origen (R-09, A-13, N-09).
+- **A-12 (N-54):** la nota "cumplido en Avisos, Actividades, Recursos y Dudas (CLASES-03); queda el resto del inventario" está, pero junto a la frase anterior forma una redundancia. Ver M-02.
+
+**¿Falta documentar algún patrón visual de 03e? Sí: el foco y los errores de "Dudas" (M-01).** §7.30 (Recursos) los documenta en dos viñetas: "Foco cuando algo sale de la vista" y "Errores de carga". §7.31 no dice:
+- a dónde va el foco al borrar, al marcar con `404` o cuando un control desaparece (S-14, T-01);
+- qué pasa cuando la lista o las respuestas fallan;
+- los textos R4 y R5;
+- el vacío;
+- el bloque de una duda que se está borrando.
+
+El bloque que no pinta nada mientras la duda se va no es un patrón visual por sí solo (la persona no ve nada nuevo), pero va en la misma viñeta para que el comportamiento quede escrito.
+
+### Problemas que bloquean
+Ninguno en el código. Los dos M-nn son documentales y el orquestador los aplica antes del commit de 03e.
+
+#### M-01 — `DESIGN.md` §7.31 no documenta el foco ni los errores de "Dudas" (documental)
+- **Dónde:** `docs/DESIGN.md`, §7.31, al final de la sección (después del párrafo de A-06 y antes de la línea en blanco que la cierra).
+- **Por qué importa:** es la regla de `AGENTS.md` ("Todo patrón visual nuevo que cree un encargo se documenta en `docs/DESIGN.md` en ese mismo encargo"), con el precedente de §7.30 en 03d. Fuera de A-01 a A-14, el cambio queda autorizado por esa regla y por esta revisión. El orquestador lo registra en `aprobacion.md` como A-06 bis, con el SHA-256 resultante.
+- **Texto literal** (dos viñetas nuevas):
+
+> - **Foco cuando algo sale de la vista (propuesta (CLASES-03e); §7.14):** al borrar una duda, o si ya no existía al marcarla, al responderla o al borrar una de sus respuestas, el foco va al mismo control de la duda vecina ("Marcar como resuelta" si estaba en ese botón; si no, "Borrar duda") o a la vecina y, sin vecinas, al `h2` "Dudas". Al borrar una respuesta, va al "Borrar" de la respuesta vecina o a la vecina y, sin vecinas, al `h3` "Respuestas" (solo para lectores). Si la duda sigue pero el control con el foco desaparece (ya no hay permiso de marcar o de borrar, o el administrador se queda sin el control de las respuestas porque la duda ya no tiene ninguna), va a la fila de la duda. Si la persona ya había salido de ese control, el foco no se mueve. "Responder", con la duda sin respuestas, lleva el foco al campo "Escribe una respuesta". Nunca a `<body>`.
+> - **Errores y vacío (propuesta (CLASES-03e)):** sin dudas, "Aún no hay dudas en esta clase."; una duda sin respuestas, al abrirse, solo muestra el formulario, sin texto de vacío. El texto vacío o sin caracteres visibles dice "Escribe tu duda" o "Escribe tu respuesta" (`ErrorDeCampo`, §7.3). Como en Avisos, una recarga de la lista que falla la reemplaza por el mensaje de error, sin aviso. El error de las respuestas solo afecta a su bloque. El cursor vencido reemplaza la lista con "Las dudas cambiaron mientras las veías. Vuelve a abrir Dudas para verlas completas." y el bloque con "Las respuestas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas."; mientras se ven, "Ver más dudas" o "Ver más respuestas" no se ofrece. Mientras una duda se borra, su bloque de respuestas conserva lo que mostraba, no se vuelve a pedir y "Ver más respuestas" queda en espera; si se despliega sin respuestas cargadas, no muestra nada hasta que la duda sale de la lista.
+
+- **Qué se espera:** las dos viñetas en §7.31 tal cual, con su marca, y el SHA-256 de `DESIGN.md` en `aprobacion.md`. Yo verifico el diff contra `67158764…` si el orquestador me lo pide; si no, basta el cotejo mecánico de la regla de transcripción.
+
+#### M-02 — `ESTADO.md` §3, fila de N-54 ("Vuelve a abrir Trabajo de clase…"): el estado en negrita se repite (documental)
+- **Dónde:** `docs/ESTADO.md:378`, columna "Destino", el texto en negrita.
+- **Por qué importa:** A-12 se aplicó sumando su nota a la frase de 03d, y "cumplido en Avisos…" aparece dos veces, la primera con un "y en Recursos … y Dudas" que no se lee bien. Es el tablero que se lee al inicio de cada sesión.
+- **Texto literal.** Reemplaza el bloque en negrita entero:
+  > **Cumplido en Avisos y Actividades de aprendizaje (CLASES-03c1, 2026-10-29), Recursos (CLASES-03d, 2026-11-03) y Dudas (CLASES-03e, 2026-11-03): el gancho subió a `components/seccion/` y `features/calificaciones` lo reexporta; queda el resto del inventario**
+
+  El resto de la fila no cambia.
+
+### Problemas que no bloquean
+- **O-1 a O-10 de 03e, O-r1-1 y O-r1-2 del tester y el hermano de los comentarios:** van a `ESTADO.md` §3 con su destino (sección 4).
+- **El `useTemasDelRecurso` que pide dos veces (fila de `ESTADO.md` §3, CL3-3R3-02):** el gancho se tocó en 03e (E13-9), pero sin corregir eso. La fila sigue abierta y su destino no cambia.
+
+### 4. Pendientes de 03e para `ESTADO.md` (texto literal)
+**Filas nuevas de §3** (columnas: Pendiente | Destino | Dónde está anotado):
+
+> | O-1 y O-2 de CLASES-03e (manager): en «Dudas», un `400` de `texto` deja el foco en el botón (el error va bajo el campo, unido por `aria-describedby`), como en comentarios y recursos; y una primera carga con error (la lista o las respuestas) no mueve el foco, porque ningún control se perdió. El plan (§D-14 de 03e) decía "El campo", "El `h2`" y "El `h3`"; se aceptó el patrón de 03c y 03d | El `chore` de foco y navegación del marco: decidir una regla única (foco al campo con error o en el botón; foco en la primera carga) para todos los formularios y vistas | `revision.md` de CLASES-03, "Verificación del resumen del programador — 03e", sección 5 |
+> | O-r1-1 de CLASES-03e (tester): en «Dudas», una recarga de la lista que falla la reemplaza por el error (el patrón del muro, T-04 de 02c) y desmonta un bloque de respuestas abierto con lo que la persona había escrito sin enviar | Decisión de diseño del humano; si se quiere conservar lo escrito, el `chore` de foco y navegación del marco (afecta también a Avisos) | `reporte-tester.md` de CLASES-03, "CLASES-03e — Ronda 1", observaciones |
+> | O-r1-2 de CLASES-03e (tester): el bloque de respuestas abierto con 0 respuestas pide su primera página y puede traer respuestas que la lista no contaba; al plegar, el control usa el conteo de la lista ("Responder" con una respuesta ya vista) hasta la siguiente recarga de la lista; para el administrador, el control desaparece al plegar | FORO-01 (las réplicas usan el mismo control) o el carril trivial la próxima vez que se toque `ElementoDeDuda` | `reporte-tester.md` de CLASES-03, "CLASES-03e — Ronda 1", observaciones |
+> | O-7 y O-8 de CLASES-03e (manager): (O-7) si una duda se despliega por primera vez mientras su borrado está en vuelo y el borrado falla con `503`, el bloque aparece, pide y, si se abrió con "Responder", el foco va al campo en ese momento (sin prueba que lo fije); (O-8) mientras el bloque de una duda que se borra no pinta nada, `aria-controls` del control apunta a un id que no está en la página | El `chore` de foco y navegación del marco | `revision.md` de CLASES-03, "Verificación de la corrección de M-01 de la ronda 2 — 03e", sección 4 |
+> | O-6/O-9 de CLASES-03e (manager): con `retry: 1` en `app/providers.tsx`, una consulta que responde `404` (por ejemplo, las respuestas de una duda que otra persona borró) se pide dos veces y su mensaje llega después de la espera del reintento | Decidir con la fila R-3 de CHORE-02 (avisos de `apiClient`) si las consultas reintentan los `4xx` | `revision.md` de CLASES-03, "Verificación de la corrección de la ronda 1 — 03e", O-6 |
+> | O-10 de CLASES-03e (manager): `quitarRespuestasDeUnaDudaQueSeVa` (`features/clases/hooks.ts`) sigue escuchando la caché hasta el `gcTime` (5 min) si la recarga de la lista falla o si la vista se desmonta antes de que responda el borrado; sin efecto visible, de red ni de memoria más allá de ese plazo | Nota, sin encargo; el carril trivial la próxima vez que se toque ese gancho | `revision.md` de CLASES-03, "Verificación de la corrección de T-05 — 03e", sección 3 |
+> | Hermano de T-02 de CLASES-03e en Avisos y Recursos (programador, ronda 1): "Ver más comentarios" o abrir los comentarios de una publicación o recurso que otra persona ya borró pinta el `MensajeError` del bloque de comentarios ("Esa publicación ya no existe."), sin renovar la lista para que la fila salga | El `chore` de foco y navegación del marco, junto al punto 27 de CHORE-04 ("Ver más comentarios" con `isFetchingNextPage`) | `resumen-programador-03e.md`, "Corrección de la ronda 1 (T-01 y T-02)", hermanos de T-02 |
+
+**Filas de §3 que cierra 03e** (columna "Destino"):
+- **Decisión (1)** ("al editar un recurso con la lista de temas fallida…"): agregar al final "**Cumplido en CLASES-03e (2026-11-03): nota «No pudimos cargar los temas. El recurso conserva su tema.» al editar; E13-9 (la nota se va con una lectura posterior correcta).**". O borrar la fila, según la costumbre del tablero con las filas cerradas.
+- **Decisión (2)** ("el `404` al borrar un recurso…"): agregar "**Cumplido en CLASES-03e (2026-11-03): «Ese recurso ya no existe.» en `useBorrarRecurso`.**".
+
+**§6 · Medición en CLASES-03e (datos del manager):**
+> **Medición en CLASES-03e (datos del manager, `docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md`, "Revisión final — 03e y cierre de CLASES-03"):** 3 rondas del tester (r1 ROTO por T-01 y T-02; r2 ROTO por T-03 y T-04; r3 ROTO por T-05, bajo) y una corrección final verificada por el manager sin cuarta ronda (decisión del humano). **2 rondas extra por hermanos o estados vecinos** (r2 y r3), las dos del mismo mecanismo: una duda que se borra con su bloque de respuestas abierto (`pedir=false` y la consulta que sale de la caché). Se alcanzó el umbral de `AGENTS.md`; el `programador` ya estaba en `opus`, así que no cambia el modelo. 1 resumen devuelto de 5 entregas (M-01 de la verificación de la ronda 2: dos estados vecinos que faltaban en la tabla). Lectura del manager: los cinco hallazgos fueron estados que el manager había señalado como observación o indicación (O-3, la indicación 5, O-4, O-5) o que creó el remedio anterior (T-05); faltó que cada corrección recorriera el mecanismo entero (llamadas imperativas que no miran `enabled`, montar y desmontar el observador, escucha de la caché) en lugar de solo el camino del hallazgo.
+
+**§2, el párrafo de CLASES-03** (reemplaza su última frase, desde "03e (frontend de Dudas, base `<K3d>`)…"):
+> 03e (frontend de Dudas y las dos decisiones de texto de 03d, base `<K3d>`): Enmienda 13 con E13-9; ronda 0 con una PARADA resuelta por arbitraje (P-03e-1, C-8 ampliada); rondas 1, 2 y 3 ROTO (T-01 a T-05, todos corregidos; T-05 verificado por el manager sin cuarta ronda, por decisión del humano) y una devolución del manager (M-01 de la ronda 2); revisión final APROBADO CON OBSERVACIONES (M-01 y M-02 documentales, aplicados); A-06, A-06 bis, A-07, A-12, A-13 y A-14 aplicados. **03e cerrada el 2026-11-03; commit del humano `<K3e>` pendiente.** Comprobación humana en navegador (H-1 a H-7) pendiente del humano. Backend 229 / 2774 (sin cambios desde 03b); frontend 272 / 5953; 246 `*.ataque`. **CLASES-03: las seis subentregas cerradas; falta el commit de 03e, la comprobación humana y el PR a `main`.** Historial en `docs/trabajo/CLASES-03-reorganizacion-de-la-clase/aprobacion.md`.
+
+**Línea 5:**
+> Última actualización: 2026-11-03, por el orquestador (CLASES-03 en `feat/clases-03`: las seis subentregas cerradas; 03e aprobada, con su commit `<K3e>`, la comprobación humana H-1 a H-7 y el PR a `main` pendientes).
+
+Cuando el humano haga el commit, el orquestador cambia "`<K3e>` pendiente" por el hash (leído con `git log`). Al fusionar, mueve CLASES-03 a §1 con su PR.
+
+### 5. Cierre del encargo CLASES-03
+**Definición de terminado de `AGENTS.md`:**
+
+| Punto | Estado |
+|---|---|
+| Cumple RF-60 a RF-64 y sus RN | Sí, por subentrega (revisiones finales de 03a a 03e) |
+| Capas y middleware | Sí (03a y 03b: rutas con su cadena; 03c a 03e: sin backend) |
+| `lint`, `build` y `test` en verde | Sí: frontend en esta revisión; backend y `shared/` en 03b, sin cambios desde entonces |
+| Pruebas de autorización de los endpoints nuevos | Sí (03a y 03b) |
+| Migraciones compatibles hacia atrás | Sí (`clases_03_recursos`, `clases_03_dudas`). El retiro de la compatibilidad queda en `ESTADO.md` §3 (A-13), y el orden del despliegue en la fila **DEPLOY** |
+| `infra/` y `.env.example` | Sin cambio de configuración en todo el encargo: no aplica |
+| Documentos | `ARCHITECTURE.md` y ESSENTIALS (A-09 a A-11, en 03a y 03b), README del backend (M-01 de 03a), `DESIGN.md` (A-01 a A-06, A-14 y M-01 de esta revisión), `CLAUDE.md` (A-07, A-08) y `ESTADO.md` (A-12, A-13 y M-02). **Abierto solo M-01 y M-02 de esta revisión** |
+
+No queda abierto nada más de la definición de terminado. El `.env.example`, `infra/` y el README del frontend no cambian, porque no hay ni variables ni comandos nuevos.
+
+**Comprobación humana (H-1 a H-7).** El plan la pone en el paso 6 de 03e, antes de A-07, A-13 y A-14 ("Comprobación humana (abajo) y, al cerrar, …"). Recomiendo:
+- **Lo recomendado:** hacerla **antes del commit de 03e**. Si sale un ajuste visual, va por el carril trivial (AGENTS.md, "Trabajo visual") y entra en el mismo commit; así `<K3e>` cierra la subentrega con la comprobación hecha.
+- **Si el humano prefiere hacer el commit primero:** también es válido, porque las pruebas están en verde y la revisión del diff no es obligatoria. Pero entonces el PR a `main` espera la comprobación, y cualquier ajuste va en un commit aparte por el carril trivial antes del PR.
+- **En cualquier caso,** ningún agente abre el navegador. Lo que no se pueda ver se registra como "no verificada por decisión del humano, cubierta por pruebas automáticas".
+
+### 6. Rutas para el `git add` del commit de 03e
+Cotejadas con `git status -uall` (43 rutas: 29 modificadas y 14 nuevas). `docs/DESIGN.md` y `docs/ESTADO.md` van con M-01 y M-02 aplicados, y `aprobacion.md` con las entradas del cierre.
+
+```
+CLAUDE.md
+docs/DESIGN.md
+docs/ESTADO.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/aprobacion.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/plan.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/reporte-tester.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/revision.md
+docs/trabajo/CLASES-03-reorganizacion-de-la-clase/resumen-programador-03e.md
+frontend/src/app/router-01d.test.tsx
+frontend/src/app/router.tsx
+frontend/src/app/rutas-01d-r1.ataque.test.tsx
+frontend/src/features/clases/clase-layout.test.tsx
+frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
+frontend/src/features/clases/components/elemento-de-duda.tsx
+frontend/src/features/clases/components/formulario-duda.tsx
+frontend/src/features/clases/components/formulario-recurso.tsx
+frontend/src/features/clases/components/formulario-respuesta.tsx
+frontend/src/features/clases/components/respuestas-de-duda.tsx
+frontend/src/features/clases/data.ts
+frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx
+frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx
+frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx
+frontend/src/features/clases/dudas-03e.test.tsx
+frontend/src/features/clases/dudas-caminos-03e.test.tsx
+frontend/src/features/clases/dudas-lib-03e.test.ts
+frontend/src/features/clases/dudas-view.tsx
+frontend/src/features/clases/editar-recurso-03d.test.tsx
+frontend/src/features/clases/errores-ch3.test.ts
+frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
+frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
+frontend/src/features/clases/hooks.ts
+frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx
+frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx
+frontend/src/features/clases/lib.test.ts
+frontend/src/features/clases/lib.ts
+frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx
+frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx
+frontend/src/features/clases/recursos-03d.test.tsx
+frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx
+frontend/src/features/clases/recursos-enmienda13-03e.test.tsx
+frontend/src/features/clases/secciones-03c1.test.tsx
+frontend/src/features/clases/types.ts
+frontend/src/styles/clases-r1.ataque.test.ts
+```
+
+Fuera de la lista, nada: ni `shared/dist`, que está ignorada, ni `.env`, ni volcados.
+
+### Para el humano
+- La comprobación en navegador H-1 a H-7: antes del commit de 03e (recomendado) o antes del PR.
+- El commit de 03e y el PR de CLASES-03 a `main`.

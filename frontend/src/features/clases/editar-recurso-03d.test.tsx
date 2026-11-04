@@ -1093,7 +1093,7 @@ describe("corrección de la ronda 2 de 03d (T-03, T-04 y T-05)", () => {
     if (fila === null) throw new Error("Precondición: la fila del recurso 2")
     fireEvent.click(within(fila).getByRole("button", { name: "Borrar recurso" }))
     fireEvent.click(within(fila).getByRole("button", { name: "Sí, borrar recurso" }))
-    await waitFor(() => expect(avisosDeError()).toEqual(["Esa publicación ya no existe."]))
+    await waitFor(() => expect(avisosDeError()).toEqual(["Ese recurso ya no existe."]))
     await act(() => router.navigate(-1))
     expect(await screen.findByRole("alert", undefined, ESPERA)).toHaveTextContent(
       "Ese recurso ya no existe.",

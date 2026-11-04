@@ -18,6 +18,7 @@ import { ClaseLayout } from "@/features/clases/clase-layout"
 import { ClasesAdminView } from "@/features/clases/clases-admin-view"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
 import { EditarClaseView } from "@/features/clases/editar-clase-view"
+import { DudasView } from "@/features/clases/dudas-view"
 import { EditarRecursoView } from "@/features/clases/editar-recurso-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
@@ -79,6 +80,8 @@ export const rutas: RouteObject[] = [
               // CLASES-03d (§D-7.4): "Recursos", de solo lectura para el alumno (comenta). Editar un
               // recurso no existe en esta rama y cae en `*`.
               { path: "recursos", element: <RecursosView /> },
+              // CLASES-03e (§D-9.1): "Dudas", en las tres perspectivas.
+              { path: "dudas", element: <DudasView /> },
               { path: "personas", element: <PersonasView /> },
               // CALIFICACIONES-01d (§D-13.6): "Mis calificaciones" en la rama del alumno.
               { path: "calificaciones", element: <MisCalificacionesView /> },
@@ -111,6 +114,7 @@ export const rutas: RouteObject[] = [
               // CLASES-03d (§D-7.4, S-11): "Recursos" y su edición, que deja activa la sección.
               { path: "recursos", element: <RecursosView /> },
               { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
+              { path: "dudas", element: <DudasView /> },
               // CLASES-03 (§D-7.4, §D-7.7, DH-09): "Personas" junta a los maestros y el roster; la
               // ruta vieja de "Alumnos" redirige sin dejar entrada en el historial.
               { path: "personas", element: <PersonasView /> },
@@ -151,6 +155,7 @@ export const rutas: RouteObject[] = [
                   { path: "categorias", element: <CategoriasView /> },
                   { path: "recursos", element: <RecursosView /> },
                   { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
+                  { path: "dudas", element: <DudasView /> },
                   // CLASES-03 (§D-7.4, DH-09): "Alumnos" y "Maestros" se juntan en "Personas".
                   { path: "personas", element: <PersonasView /> },
                   { path: "alumnos", element: <Navigate to="../personas" replace /> },

@@ -812,7 +812,10 @@ describe("CL3-3R2 · O-01: después del 404 al borrar (indicación 5)", () => {
       () => expect(screen.queryByRole("heading", { level: 4, name: "Recurso 2" })).toBeNull(),
       ESPERA,
     )
-    expect(errores().map(([texto]) => texto)).toEqual(["Esa publicación ya no existe."])
+    // CLASES-03e ronda 0 (C-33, §D-R0, Enmienda 13, decisión (2) del humano; §D-8.4): el aviso del
+    // 404 al borrar un recurso es "Ese recurso ya no existe.". Sigue protegiendo un solo aviso y lo
+    // que muestra «atrás» a la edición.
+    expect(errores().map(([texto]) => texto)).toEqual(["Ese recurso ya no existe."])
     await act(() => router.navigate(-1))
     await waitFor(
       () => expect(router.state.location.pathname).toBe(RUTA_EDITAR("maestro", 2)),

@@ -461,7 +461,10 @@ describe("CL3-3R1 · el foco al borrar un recurso (indicación 2)", () => {
       ESPERA,
     )
     await reposar()
-    expect(errores().map(([texto]) => texto)).toEqual(["Esa publicación ya no existe."])
+    // CLASES-03e ronda 0 (C-32, §D-R0, Enmienda 13, decisión (2) del humano; §D-8.4): el aviso del
+    // 404 al borrar un recurso es "Ese recurso ya no existe." (el doble sigue respondiendo
+    // PUBLICACION_NO_ENCONTRADA). Sigue protegiendo un solo aviso, la fila fuera y el foco.
+    expect(errores().map(([texto]) => texto)).toEqual(["Ese recurso ya no existe."])
     expect(foco()).toBe(within(filaDe("Recurso 3")).getByRole("button", { name: "Borrar recurso" }))
   })
 

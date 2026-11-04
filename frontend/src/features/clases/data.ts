@@ -50,6 +50,11 @@ export const claveRecursos = (claseId: string, bloque: BloqueDeRecurso, tema: st
   [...clavePrefijoDeRecursos(claseId), bloque, tema] as const
 export const claveRecurso = (claseId: string, recursoId: string) =>
   ["clases", claseId, "recurso", recursoId] as const
+// CLASES-03e (§D-9.4): la lista de "Dudas" y las respuestas de cada duda. Las respuestas no cuelgan de la
+// lista (como los comentarios del muro): invalidar la lista no vuelve a pedir las respuestas abiertas.
+export const claveDudas = (claseId: string) => ["clases", claseId, "dudas"] as const
+export const claveRespuestas = (claseId: string, dudaId: string) =>
+  ["clases", claseId, "respuestas", dudaId] as const
 
 export const LIMITE_CLASES = 20
 // §D-2C2: la lista de clases del administrador se pide de 50 en 50.
@@ -61,6 +66,9 @@ export const LIMITE_CANDIDATOS = 20
 // §D-C2: el muro y los comentarios se piden de 20 en 20.
 export const LIMITE_PUBLICACIONES = 20
 export const LIMITE_COMENTARIOS = 20
+// CLASES-03e (S-06): las dudas y sus respuestas se piden de 20 en 20.
+export const LIMITE_DUDAS = 20
+export const LIMITE_RESPUESTAS = 20
 export const ESPERA_BUSQUEDA_MS = 300
 
 // DESIGN.md §7.6: variantes de la tarjeta de clase, según la identidad de la clase (S-06), nunca un
@@ -252,6 +260,9 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   comentarioNoEncontrado: "Ese comentario ya no existe.",
   // CLASES-03d (§D-13): el recurso que se abre o se edita.
   recursoNoEncontrado: "Ese recurso ya no existe.",
+  // CLASES-03e (§D-13): la duda o la respuesta que ya no está.
+  dudaNoEncontrada: "Esa duda ya no existe.",
+  respuestaNoEncontrada: "Esa respuesta ya no existe.",
   // §D-D6: errores de los archivos adjuntos.
   // TAREAS-01c (§D-9): los textos de los archivos viven en components/adjuntos/data.ts.
   archivoNoSubido: MENSAJES_ERROR_DE_ARCHIVOS.archivoNoSubido,
@@ -269,6 +280,8 @@ export const MENSAJES_POR_CODIGO_DE_CLASES: Readonly<Record<string, string>> = {
   PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
   COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
   RECURSO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado,
+  DUDA_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.dudaNoEncontrada,
+  RESPUESTA_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.respuestaNoEncontrada,
   // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
   ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
 }
@@ -283,6 +296,12 @@ export const TRADUCCION_DE_ERRORES_CLASES = {
     claseId: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
     // CLASES-03d (§D-13): un VALIDACION de recursoId dice lo mismo que RECURSO_NO_ENCONTRADO.
     recursoId: MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado,
+    // CLASES-03e (§D-13): los ids de la ruta de una duda y de una respuesta dicen lo mismo que su código.
+    dudaId: MENSAJES_ERROR_CLASES_GENERALES.dudaNoEncontrada,
+    respuestaId: MENSAJES_ERROR_CLASES_GENERALES.respuestaNoEncontrada,
+    // Tras quitar la ruta queda "debe ser verdadero o falso", que no dice nada que la persona pueda hacer
+    // (la interfaz siempre envía un booleano): el genérico.
+    resuelta: MENSAJES_ERROR_CLASES_GENERALES.generico,
   },
 } satisfies TraduccionDeErrores
 
@@ -298,6 +317,10 @@ export const CAMPOS_PINTADOS_DE_LA_CLASE = {
 export const CAMPOS_PINTADOS_DE_LA_PUBLICACION = {
   anuncio: ["texto"],
 } as const satisfies Readonly<Record<"anuncio", readonly string[]>>
+
+// CLASES-03e (§D-9.4, §D-15): la duda y la respuesta solo pintan su texto; cualquier otro campo se avisa.
+export const CAMPOS_PINTADOS_DE_LA_DUDA = ["texto"] as const
+export const CAMPOS_PINTADOS_DE_LA_RESPUESTA = ["texto"] as const
 
 // CLASES-03d (§D-8.5, §D-15): los campos que pintan "Nuevo recurso" y "Editar recurso". Cualquier otro
 // (temaId, archivoIds.<i>, tipo, version) se avisa.
@@ -452,6 +475,8 @@ const SECCIONES_DE_LA_CLASE: readonly SeccionDeClase[] = [
   { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
   // CLASES-03d (§D-7.1): "Recursos", entre "Actividades de aprendizaje" y "Personas".
   { segmento: "recursos", texto: TEXTOS_CLASE.recursos },
+  // CLASES-03e (§D-7.1): "Dudas", entre "Recursos" y "Personas".
+  { segmento: "dudas", texto: TEXTOS_CLASE.dudas },
   { segmento: "personas", texto: TEXTOS_CLASE.personas },
   { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
 ]
@@ -625,6 +650,8 @@ export const TEXTOS_FORMULARIO_RECURSO = {
   avisoPublicado: "Recurso publicado",
   avisoGuardado: "Cambios guardados",
   temasNoCargados: "No pudimos cargar los temas. El recurso se publicará sin tema.",
+  // Enmienda 13 (decisión (1) del humano): al editar, con la lectura de temas fallida y sin lista vigente.
+  temasNoCargadosAlEditar: "No pudimos cargar los temas. El recurso conserva su tema.",
 } as const
 
 export const TEXTOS_EDITAR_RECURSO = {
@@ -659,6 +686,60 @@ export const CODIGOS_QUE_RENUEVAN_EL_RECURSO: readonly string[] = [
 export const CODIGOS_QUE_RENUEVAN_LOS_RECURSOS: readonly string[] = [
   "BORRADO_NO_PERMITIDO",
   "PUBLICACION_NO_ENCONTRADA",
+]
+
+// CLASES-03e (§D-13, Enmienda 4): textos de "Dudas".
+export const TEXTOS_DUDAS = {
+  titulo: TEXTOS_CLASE.dudas,
+  frase: "Lo que escribas aquí lo ve toda la clase.",
+  campo: "Escribe tu duda",
+  publicar: "Publicar duda",
+  avisoPublicada: "Duda publicada",
+  vacio: "Aún no hay dudas en esta clase.",
+  verMas: "Ver más dudas",
+  resuelta: "Resuelta",
+  marcar: "Marcar como resuelta",
+  quitarMarca: "Quitar «Resuelta»",
+  avisoMarcada: "Marcada como resuelta",
+  avisoDesmarcada: "Ya no está marcada como resuelta",
+  // Solo con n ≥ 1; plegado con 0 respuestas el control dice "Responder" (estudiante y maestro) y,
+  // desplegado, "Ocultar respuestas" con cualquier número (S-14, S-15).
+  verRespuestas: (n: number) => `Ver respuestas (${n})`,
+  responder: "Responder",
+  ocultarRespuestas: "Ocultar respuestas",
+  borrar: "Borrar duda",
+  consecuencia: "Se borrará con sus respuestas.",
+  siBorrar: "Sí, borrar duda",
+  cancelar: "Cancelar",
+  avisoBorrada: "Duda borrada",
+  // R4 (§D-10): la acción que pide se cumple al pulsar "Dudas" estando ahí, al ir a otra sección y
+  // regresar, y con atrás y adelante del historial.
+  cambioMientrasLasVeias:
+    "Las dudas cambiaron mientras las veías. Vuelve a abrir Dudas para verlas completas.",
+} as const
+
+export const TEXTOS_RESPUESTAS = {
+  titulo: "Respuestas",
+  campo: "Escribe una respuesta",
+  responder: "Responder",
+  avisoPublicada: "Respuesta publicada",
+  borrar: "Borrar",
+  siBorrar: "Sí, borrar respuesta",
+  cancelar: "Cancelar",
+  avisoBorrada: "Respuesta borrada",
+  verMas: "Ver más respuestas",
+  // R5 (§D-10): se cumple con "Ocultar respuestas" y "Ver respuestas", al pulsar "Dudas" estando ahí y
+  // al ir a otra sección, volver y reabrirlas.
+  cambioMientrasLasVeias:
+    "Las respuestas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas.",
+} as const
+
+// §D-9.4: un error que dice que lo que se ve de "Dudas" ya no es lo del servidor (la duda o la respuesta
+// ya no está, o `puedeBorrar` cambió) renueva la lista y las respuestas abiertas.
+export const CODIGOS_QUE_RENUEVAN_LAS_DUDAS: readonly string[] = [
+  "DUDA_NO_ENCONTRADA",
+  "RESPUESTA_NO_ENCONTRADA",
+  "BORRADO_NO_PERMITIDO",
 ]
 
 // §D-11: textos de "Categorías de calificación" (propuesta).

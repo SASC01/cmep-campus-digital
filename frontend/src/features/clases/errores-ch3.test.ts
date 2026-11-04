@@ -54,6 +54,9 @@ const TEXTOS_FIJOS_DE_SIEMPRE: Readonly<Record<string, string>> = {
   ALMACEN_NO_DISPONIBLE: "Los archivos no están disponibles en este momento. Inténtalo más tarde.",
   // CLASES-03d (§D-13, Enmienda 12, E12-1): el recurso que se abre o se edita y ya no existe.
   RECURSO_NO_ENCONTRADO: "Ese recurso ya no existe.",
+  // CLASES-03e (§D-13, Enmienda 12, E12-2): la duda o la respuesta que ya no existe.
+  DUDA_NO_ENCONTRADA: "Esa duda ya no existe.",
+  RESPUESTA_NO_ENCONTRADA: "Esa respuesta ya no existe.",
 }
 
 // Las rutas dobles de features/clases del inventario de §D-1 (Enmienda 2, T-01): el servidor arma
@@ -268,7 +271,7 @@ describe("CHORE-03 (Enmienda 4) · campo pintado por modo en features/clases", (
     expect(conLlamada).toEqual(["./components/formulario-comentario.tsx", "./hooks.ts", "./lib.ts"])
     expect(contarApariciones(fuentesDeClases["./hooks.ts"] ?? "", llamada)).toBe(1)
     expect(fuentesDeClases["./hooks.ts"]).toContain('erroresDeFormularioClases(error, ["texto"])')
-    expect(contarApariciones(fuentesDeClases["./lib.ts"] ?? "", llamada)).toBe(5)
+    expect(contarApariciones(fuentesDeClases["./lib.ts"] ?? "", llamada)).toBe(7)
     for (const lista of ['["nombre", "descripcion", "maestroIds"]', '["titulo", "texto"]']) {
       const conLista = archivos.filter((archivo) =>
         (fuentesDeClases[archivo] ?? "").includes(lista),

@@ -251,9 +251,9 @@ describe("indicador de las secciones de la clase", () => {
     Array.from(lista.parentElement?.querySelectorAll(':scope > span[aria-hidden="true"]') ?? [])
 
   // CLASES-03 (DH-03, §D-7.2): el indicador toma la posición y el ancho medidos de la opción activa
-  // ("Personas" es la cuarta del maestro, tras "Recursos" desde 03d). Sigue protegiendo que el indicador siga a la sección activa
+  // ("Personas" es la quinta del maestro, tras "Recursos" desde 03d y "Dudas" desde 03e). Sigue protegiendo que el indicador siga a la sección activa
   // y que en editar no haya indicador.
-  it("M-T1: en Avisos el indicador va bajo la primera sección, en Personas bajo la cuarta y en editar no hay indicador", async () => {
+  it("M-T1: en Avisos el indicador va bajo la primera sección, en Personas bajo la quinta y en editar no hay indicador", async () => {
     stubApi({})
     simularMedidas()
 
@@ -271,7 +271,7 @@ describe("indicador de las secciones de la clase", () => {
     expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute("aria-current", "page")
     indicadores = indicadoresDe(lista)
     expect(indicadores).toHaveLength(1)
-    await waitFor(() => expect(medidasDelIndicador(indicadores[0])).toEqual(medidasDeLaOpcion(3)))
+    await waitFor(() => expect(medidasDelIndicador(indicadores[0])).toEqual(medidasDeLaOpcion(4)))
     cleanup()
 
     renderMaestro(`/maestro/clases/${CLASE_ID}/editar`)
@@ -308,7 +308,14 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
       within(lista)
         .getAllByRole("link")
         .map((e) => e.textContent),
-    ).toEqual(["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"])
+    ).toEqual([
+      "Avisos",
+      "Actividades de aprendizaje",
+      "Recursos",
+      "Dudas",
+      "Personas",
+      "Calificaciones",
+    ])
     expect(screen.getByRole("link", { name: "Avisos" })).toHaveAttribute("aria-current", "page")
     expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute(
       "href",
@@ -332,7 +339,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
   })
 
   // CLASES-03 (DH-03; N-47): "Actividades de aprendizaje" es la segunda sección del admin y
-  // "Personas" la cuarta (03d suma "Recursos" en la tercera); el indicador lleva la posición y el ancho medidos de cada una.
+  // "Personas" la quinta (03d suma "Recursos" en la tercera y 03e, "Dudas" en la cuarta); el indicador lleva la posición y el ancho medidos de cada una.
   it("PR-2C07: el indicador sigue a la sección activa con sus medidas y en «Editar clase» no hay indicador", async () => {
     stubApi({})
     simularMedidas()
@@ -350,7 +357,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     renderLayout(`/admin/clases/${CLASE_ID}/personas`)
     const cuarta = await screen.findByRole("list", { name: "Secciones de la clase" })
     await waitFor(() =>
-      expect(medidasDelIndicador(cuarta.previousElementSibling)).toEqual(medidasDeLaOpcion(3)),
+      expect(medidasDelIndicador(cuarta.previousElementSibling)).toEqual(medidasDeLaOpcion(4)),
     )
     expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute("aria-current", "page")
     cleanup()
@@ -373,7 +380,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     )
     expect(
       within(screen.getByRole("list", { name: "Secciones de la clase" })).getAllByRole("link"),
-    ).toHaveLength(5)
+    ).toHaveLength(6)
     expect(fetchMock.mock.calls.some(([entrada]) => String(entrada).includes("/admin/"))).toBe(
       false,
     )
@@ -410,20 +417,21 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
 
 // TAREAS-01e (§D-11, C-11; PR-1E05): "Trabajo de clase" es la segunda sección de las tres perspectivas.
 // CLASES-03 (§D-7.1): se llama "Actividades de aprendizaje" y las tres perspectivas tienen las mismas
-// secciones (03d suma "Recursos").
+// secciones (03d suma "Recursos" y 03e, "Dudas").
 describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
   const nombresDeLasSecciones = async () =>
     within(await screen.findByRole("list", { name: "Secciones de la clase" }))
       .getAllByRole("link")
       .map((enlace) => enlace.textContent)
 
-  it("PR-1E05 · cinco secciones en las tres perspectivas, con «Actividades de aprendizaje» segunda y «Calificaciones» última", async () => {
+  it("PR-1E05 · seis secciones en las tres perspectivas, con «Actividades de aprendizaje» segunda y «Calificaciones» última", async () => {
     stubApi({})
     renderLayout(`/estudiante/clases/${CLASE_ID}`)
     expect(await nombresDeLasSecciones()).toEqual([
       "Avisos",
       "Actividades de aprendizaje",
       "Recursos",
+      "Dudas",
       "Personas",
       "Calificaciones",
     ])
@@ -438,6 +446,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       "Avisos",
       "Actividades de aprendizaje",
       "Recursos",
+      "Dudas",
       "Personas",
       "Calificaciones",
     ])
@@ -452,6 +461,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       "Avisos",
       "Actividades de aprendizaje",
       "Recursos",
+      "Dudas",
       "Personas",
       "Calificaciones",
     ])

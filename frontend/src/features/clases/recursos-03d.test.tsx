@@ -736,7 +736,7 @@ describe("CL3-D05 · borrar un recurso", () => {
     await waitFor(() =>
       expect(screen.queryByRole("heading", { level: 4, name: "Recurso 3" })).toBeNull(),
     )
-    expect(avisosDeError()).toContain("Esa publicación ya no existe.")
+    expect(avisosDeError()).toContain("Ese recurso ya no existe.")
   })
 })
 

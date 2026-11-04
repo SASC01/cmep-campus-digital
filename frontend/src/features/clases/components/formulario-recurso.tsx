@@ -56,8 +56,8 @@ interface FormularioRecursoEditarProps {
 
 // CLASES-03d (§D-8.5, DESIGN.md §7.30): "Nuevo recurso" y "Editar recurso", un solo formulario con dos
 // modos. Campos: "Título del recurso", "Tema" (solo si la lista de temas de la clase llegó y tiene temas;
-// en crear, si falló, una nota en línea), "Descripción (opcional)" y los adjuntos (al editar, los
-// publicados con "Quitar"). Valida en local con el esquema del servidor; el título vacío o sin contenido
+// si falló, una nota en línea: al crear, que se publicará sin tema; al editar, que conserva su tema),
+// "Descripción (opcional)" y los adjuntos (al editar, los publicados con "Quitar"). Valida en local con el esquema del servidor; el título vacío o sin contenido
 // visible dice "Escribe el título del recurso" en los dos modos (Enmienda 10). Cada archivo se solicita, se
 // sube directo al almacén y solo entonces se guarda el recurso con sus ids. "Publicar recurso" o "Guardar
 // cambios" sigue en espera desde la primera subida hasta la respuesta; la guarda síncrona evita un
@@ -72,7 +72,11 @@ export function FormularioRecurso(
   const solicitar = useSolicitarSubida(claseId)
   // T-02 y T-03: al editar, solo una lista de temas pedida después de abrir el formulario decide que el
   // tema del recurso "ya no está" (useTemasDelRecurso).
-  const { temas, lista: listaVigente } = useTemasDelRecurso(claseId, edicion !== null)
+  const {
+    temas,
+    lista: listaVigente,
+    lecturaFallida,
+  } = useTemasDelRecurso(claseId, edicion !== null)
   const idBase = useId()
   const [titulo, setTitulo] = useState(() => edicion?.recurso.titulo ?? "")
   const [texto, setTexto] = useState(() => edicion?.recurso.texto ?? "")
@@ -104,6 +108,10 @@ export function FormularioRecurso(
   const hayTemas = listaVigente !== undefined && listaVigente.length > 0
   const temaIdEfectivo = temaVigente(temaElegido, listaVigente)
   const temasFallidos = edicion === null && temas.isError && temas.data === undefined
+  // Enmienda 13 (decisión (1) del humano, E13-9): al editar, con la lectura de temas pedida al abrir
+  // fallida y sin lista vigente, una nota en lugar del campo. Con la lectura pendiente, ni campo ni nota;
+  // una lectura posterior en vuelo no la quita.
+  const temasFallidosAlEditar = edicion !== null && lecturaFallida && listaVigente === undefined
   const pendiente = enProceso || crear.isPending || editar.isPending
 
   useEffect(() => {
@@ -310,6 +318,11 @@ export function FormularioRecurso(
           {temasFallidos && (
             <p className="text-small text-muted-foreground">
               {TEXTOS_FORMULARIO_RECURSO.temasNoCargados}
+            </p>
+          )}
+          {temasFallidosAlEditar && (
+            <p className="text-small text-muted-foreground">
+              {TEXTOS_FORMULARIO_RECURSO.temasNoCargadosAlEditar}
             </p>
           )}
 

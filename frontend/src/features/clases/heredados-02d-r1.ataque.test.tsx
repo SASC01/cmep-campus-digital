@@ -222,6 +222,9 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
   // «Actividades de aprendizaje» y «Personas» (cinco secciones). «Personas» pasa a la cuarta posición,
   // y su posición y ancho simulados salen del mismo índice en la lista esperada. Sigue protegiendo la
   // perspectiva por el prefijo en mayúsculas, la sección activa y el indicador montado.
+  // CLASES-03e ronda 0 (C-8, §D-R0; §D-7.1): las tres perspectivas suman «Dudas» entre «Recursos» y
+  // «Personas» (seis secciones). «Personas» pasa a la quinta posición y su medida simulada sale del
+  // mismo índice en la lista esperada. Sigue protegiendo lo mismo.
   const secciones = () => screen.findByRole("list", { name: "Secciones de la clase" })
   const indicadorDe = (lista: HTMLElement) =>
     lista.parentElement?.querySelector<HTMLElement>(':scope > [aria-hidden="true"]') ?? null
@@ -252,21 +255,21 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
       `/ESTUDIANTE/Clases/${CLASE_A.toUpperCase()}/PERSONAS`,
       "/estudiante/clases/:claseId",
       "Personas",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
     [
       "maestro en /Maestro/clases/<id>",
       `/Maestro/clases/${CLASE_A}`,
       "/maestro/clases/:claseId",
       "Avisos",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
     [
       "admin en /ADMIN/CLASES/<id>/PERSONAS",
       `/ADMIN/CLASES/${CLASE_A}/PERSONAS`,
       "/admin/clases/:claseId",
       "Personas",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
   ] as const)(
     "%s: la perspectiva de su prefijo, su sección activa y el indicador montado",

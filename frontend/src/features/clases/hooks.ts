@@ -5,12 +5,14 @@ import {
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
   comentarioRespuestaSchema,
+  dudaRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesAdminRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
   listaComentariosRespuestaSchema,
   listaCategoriasRespuestaSchema,
+  listaDudasRespuestaSchema,
   listaPublicacionesRespuestaSchema,
   listaRecursosRespuestaSchema,
   listaTemasRespuestaSchema,
@@ -26,7 +28,10 @@ import {
   type CrearClaseAdmin,
   type BloqueDeRecurso,
   type CrearComentario,
+  type CrearDuda,
+  type CrearRespuesta,
   type CrearTema,
+  type ListaDudasRespuesta,
   type EditarRecurso,
   type EditarClase,
   type ListaTemasRespuesta,
@@ -34,7 +39,14 @@ import {
   type SeccionDeTemas,
   type Unirse,
 } from "@campus/shared"
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  hashKey,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query"
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
 
@@ -59,14 +71,17 @@ import {
   claveClaseDetalle,
   claveCodigoDeClase,
   claveComentarios,
+  claveDudas,
   claveMaestrosCandidatos,
   clavePrefijoDeRecursos,
   claveRecurso,
   claveRecursos,
+  claveRespuestas,
   claveTemasDeLaSeccion,
   clavePersonas,
   clavePublicaciones,
   CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS,
+  CODIGOS_QUE_RENUEVAN_LAS_DUDAS,
   CODIGOS_QUE_RENUEVAN_EL_RECURSO,
   CODIGOS_QUE_RENUEVAN_LOS_RECURSOS,
   CODIGOS_QUE_RENUEVAN_LOS_TEMAS,
@@ -74,23 +89,28 @@ import {
   LIMITE_CLASES,
   LIMITE_CLASES_ADMIN,
   LIMITE_COMENTARIOS,
+  LIMITE_DUDAS,
   LIMITE_PAGINAS_RECURSOS,
   LIMITE_PAGINAS_TRABAJO,
   LIMITE_PERSONAS,
   LIMITE_PRIMERA_PAGINA_RECURSOS,
   LIMITE_PRIMERA_PAGINA_TRABAJO,
   LIMITE_PUBLICACIONES,
+  LIMITE_RESPUESTAS,
+  MENSAJES_ERROR_CLASES_GENERALES,
   MAXIMO_LECTURAS_DE_RECURSOS_EN_VUELO,
   MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO,
   TEXTOS_BUSCADOR_ALUMNOS,
   TEXTOS_CATEGORIAS,
   TEXTOS_COMENTARIOS,
+  TEXTOS_DUDAS,
   TEXTOS_FORMULARIO_CLASE,
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_FORMULARIO_RECURSO,
   TEXTOS_MAESTROS_DE_CLASE,
   TEXTOS_MURO,
   TEXTOS_RECURSOS,
+  TEXTOS_RESPUESTAS,
   TEXTOS_TABLA_ALUMNOS,
   TEXTOS_TEMAS,
   TIEMPO_FRESCO_DEL_MURO_MS,
@@ -101,10 +121,13 @@ import {
   erroresDeCategoriasDeApi,
   erroresDelTemaDeApi,
   erroresDeFormularioClases,
+  erroresDeLaDudaDeApi,
   erroresDeLaPublicacionDeApi,
+  erroresDeLaRespuestaDeApi,
   erroresDelRecursoDeApi,
   errorQueRedirigeElCliente,
   errorQuitaLaVista,
+  esDudaNoEncontrada,
   focoPerdido,
   medidaDelIndicador,
   mensajeDeErrorClases,
@@ -785,15 +808,24 @@ export const useTemas = (claseId: string, enabled = true) =>
 // formulario: al abrir se pide la lista y la que llega de esa petición la confirma. Si ya había una
 // petición en vuelo antes de abrir (por ejemplo, la de «Recursos», que salió antes de la lectura fresca
 // del recurso), no cuenta: se espera (o se cancela) y sale otra; si la que está en vuelo es la del propio
-// montaje (no había lista o estaba vieja), se espera esa, sin una segunda. Mientras no llega, o si falla, `lista` es undefined: el
-// formulario no decide que el tema del recurso "ya no está".
+// montaje (no había lista o estaba vieja), se espera esa, sin una segunda. Mientras no llega, o si falla,
+// `lista` es undefined: el formulario no decide que el tema del recurso "ya no está".
+// Enmienda 13 (E13-9): si la lectura pedida al abrir falla, `lecturaFallida` lo dice (la nota del
+// formulario) y cualquier respuesta correcta que llegue DESPUÉS de esa falla (una invalidación, recuperar
+// la red, otra lectura) confirma la lista. "Después" se cuenta con el contador de datos de la consulta
+// (`dataUpdateCount`), nunca con relojes: una respuesta que llegó antes de la falla no cuenta. Una
+// lectura posterior en vuelo o fallida no confirma nada.
 export const useTemasDelRecurso = (claseId: string, editar: boolean) => {
   const queryClient = useQueryClient()
   const [peticionPrevia] = useState(
     () => queryClient.getQueryState(consultaTemas(claseId).queryKey)?.fetchStatus === "fetching",
   )
   const [confirmada, setConfirmada] = useState(!editar)
-  const temas = useTemas(claseId)
+  // El contador de datos de la consulta cuando falló la lectura pedida al abrir; null si no falló.
+  const [datosAlFallar, setDatosAlFallar] = useState<number | null>(null)
+  // "all": el componente se vuelve a pintar al terminar cada lectura, aunque traiga los mismos datos, y
+  // así lee el contador de datos al día (por omisión TanStack Query solo avisa de lo que se lee).
+  const temas = useQuery({ ...consultaTemas(claseId), notifyOnChangeProps: "all" })
   const pidioRef = useRef(false)
 
   useEffect(() => {
@@ -805,12 +837,26 @@ export const useTemasDelRecurso = (claseId: string, editar: boolean) => {
       // solo la respuesta de esa confirma la lista.
       if (peticionPrevia) await temas.refetch({ cancelRefetch: true })
       const resultado = await temas.refetch({ cancelRefetch: false })
-      if (resultado.isSuccess) setConfirmada(true)
+      if (resultado.isSuccess) {
+        setConfirmada(true)
+        return
+      }
+      setDatosAlFallar(
+        queryClient.getQueryState(consultaTemas(claseId).queryKey)?.dataUpdateCount ?? 0,
+      )
     }
     void pedir()
-  }, [editar, peticionPrevia, temas])
+  }, [editar, peticionPrevia, temas, queryClient, claseId])
 
-  return { temas, lista: confirmada ? temas.data?.temas : undefined }
+  const datosAhora =
+    queryClient.getQueryState(consultaTemas(claseId).queryKey)?.dataUpdateCount ?? 0
+  const confirmadaTrasFallar = datosAlFallar !== null && datosAhora > datosAlFallar
+  const vigente = confirmada || confirmadaTrasFallar
+  return {
+    temas,
+    lista: vigente ? temas.data?.temas : undefined,
+    lecturaFallida: datosAlFallar !== null && !vigente,
+  }
 }
 
 // CLASES-03c2 (§D-7.6): los mismos temas, en su orden, con los conteos de una sección. De ella sale la
@@ -1262,9 +1308,16 @@ export const useBorrarRecurso = (claseId: string) => {
     },
     // T-05 (ronda 2 de 03d): con 404 el recurso ya no existe y su edición sale de la caché, como con el
     // 204; con 403 sigue existiendo y su edición se marca vieja, sin pedirla.
+    // Enmienda 13 (decisión (2) del humano): el 404 de esta ruta (PUBLICACION_NO_ENCONTRADA) dice "Ese
+    // recurso ya no existe.", no el texto de Avisos.
     onError: async (error, recursoId) => {
       if (errorQueRedirigeElCliente(error)) return
-      toast.error(mensajeDeErrorClases(error))
+      const recursoQueYaNoEsta = esApiError(error) && error.codigo === "PUBLICACION_NO_ENCONTRADA"
+      toast.error(
+        recursoQueYaNoEsta
+          ? MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado
+          : mensajeDeErrorClases(error),
+      )
       if (!esApiError(error) || !CODIGOS_QUE_RENUEVAN_LOS_RECURSOS.includes(error.codigo)) return
       const deSuEdicion = { queryKey: claveRecurso(claseId, recursoId), exact: true }
       if (error.codigo === "PUBLICACION_NO_ENCONTRADA") {
@@ -1273,6 +1326,264 @@ export const useBorrarRecurso = (claseId: string) => {
         await queryClient.invalidateQueries({ ...deSuEdicion, refetchType: "none" })
       }
       await invalidarRecursosYTemas(queryClient, claseId)
+    },
+  })
+}
+
+// CLASES-03e (§D-9.4). "Dudas": la lista, de la más reciente a la más antigua, de 20 en 20.
+export const useDudas = (claseId: string) =>
+  useInfiniteQuery({
+    queryKey: claveDudas(claseId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(`/api/clases/${claseId}/dudas?${conCursor(LIMITE_DUDAS, pageParam)}`, {
+        schema: listaDudasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// Solo la lista (exact): las respuestas abiertas viven fuera de su clave.
+const invalidarDudas = async (queryClient: ReturnType<typeof useQueryClient>, claseId: string) => {
+  await queryClient.invalidateQueries({ queryKey: claveDudas(claseId), exact: true })
+}
+
+// Las respuestas de una duda: se piden solo mientras su bloque está desplegado (el componente que usa
+// este gancho se monta al abrirlo), de la más antigua a la más reciente. `pedir` es false mientras la
+// duda se borra o si ya no existe (T-02 de la ronda 1): la consulta no se vuelve a pedir.
+export const useRespuestas = (claseId: string, dudaId: string, pedir = true) =>
+  useInfiniteQuery({
+    enabled: pedir,
+    queryKey: claveRespuestas(claseId, dudaId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(
+        `/api/clases/${claseId}/dudas/${dudaId}/respuestas?${conCursor(LIMITE_RESPUESTAS, pageParam)}`,
+        { schema: listaComentariosRespuestaSchema },
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// El conteo de respuestas de cada duda vive en la lista: tras responder o borrar una respuesta se
+// renuevan las respuestas de esa duda y la lista.
+const invalidarRespuestasYDudas = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  dudaId: string,
+) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: claveRespuestas(claseId, dudaId) }),
+    invalidarDudas(queryClient, claseId),
+  ])
+}
+
+// §D-9.4: con DUDA_NO_ENCONTRADA, RESPUESTA_NO_ENCONTRADA o BORRADO_NO_PERMITIDO lo que se ve ya no es lo
+// del servidor: la lista (y las respuestas de esa duda) se renuevan; la duda que ya no está desaparece y
+// `puedeBorrar` se actualiza.
+const renuevaLasDudas = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_QUE_RENUEVAN_LAS_DUDAS.includes(error.codigo)
+
+// T-02 (ronda 1 de 03e): tras un error de una acción sobre una respuesta. Si la duda ya no existe, solo se
+// renueva la lista (la fila y su bloque salen con ella): volver a pedir sus respuestas daría otro 404 que
+// el bloque pintaría como un error en la fila, además del aviso. Con cualquier otro código que renueva, la
+// duda sigue y se renuevan sus respuestas y la lista.
+const renovarTrasErrorDeRespuesta = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  dudaId: string,
+  error: unknown,
+) => {
+  if (!renuevaLasDudas(error)) return
+  if (esDudaNoEncontrada(error)) {
+    await invalidarDudas(queryClient, claseId)
+    return
+  }
+  await invalidarRespuestasYDudas(queryClient, claseId, dudaId)
+}
+
+// T-02 (ronda 1 de 03e): un GET de las respuestas que dice que la duda ya no existe (se abrió o se pidió
+// "Ver más" de una duda que otra persona borró) renueva la lista, para que la fila salga. Una vez por
+// fallo; el bloque muestra mientras tanto su único mensaje, sin aviso.
+export const useRenovarSiLaDudaYaNoEsta = (
+  claseId: string,
+  errorUpdateCount: number,
+  error: unknown,
+) => {
+  const queryClient = useQueryClient()
+  const fallosVistos = useRef(errorUpdateCount)
+  useEffect(() => {
+    if (fallosVistos.current === errorUpdateCount) return
+    fallosVistos.current = errorUpdateCount
+    if (!esDudaNoEncontrada(error)) return
+    void invalidarDudas(queryClient, claseId)
+  }, [errorUpdateCount, error, queryClient, claseId])
+}
+
+// §D-11 (O-16) en "Publicar duda" y "Responder": un error del texto lo muestra el formulario solo si
+// sigue montado; cualquier otro se avisa al momento, salvo uno con que apiClient ya redirige (la página
+// se va). Lo que decide si el formulario sigue montado se lee DESPUÉS de la última espera (la
+// renovación), porque TanStack Query espera este onError antes de llamar a los callbacks de mutate y el
+// formulario puede desmontarse durante esa espera (M-01 de la verificación de 03c2).
+const avisarErrorDelTexto = async (
+  montado: RefObject<boolean>,
+  delCampo: boolean,
+  error: unknown,
+  renovar: () => Promise<void>,
+) => {
+  if (errorQueRedirigeElCliente(error)) return
+  if (!delCampo) toast.error(mensajeDeErrorClases(error))
+  await renovar()
+  if (delCampo && !montado.current) toast.error(mensajeDeErrorClases(error))
+}
+
+// Los avisos viven en los ganchos (patrón T-30): corren aunque el formulario ya no esté montado.
+export const useCrearDuda = (claseId: string) => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: (datos: CrearDuda) =>
+      api(`/api/clases/${claseId}/dudas`, {
+        method: "POST",
+        body: datos,
+        schema: dudaRespuestaSchema,
+      }),
+    onSuccess: () => {
+      void invalidarDudas(queryClient, claseId)
+      toast.success(TEXTOS_DUDAS.avisoPublicada)
+    },
+    onError: (error) =>
+      avisarErrorDelTexto(montado, erroresDeLaDudaDeApi(error) !== null, error, async () => {
+        if (renuevaLasDudas(error)) await invalidarDudas(queryClient, claseId)
+      }),
+  })
+}
+
+// "Marcar como resuelta" / "Quitar «Resuelta»" (P-07: maestros de la clase y admin). La mutación sigue
+// pendiente hasta que la lista nueva llegó: el botón sigue en espera y cambia de texto con el dato del
+// servidor, sin desmontarse.
+export const useMarcarDuda = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ dudaId, resuelta }: { dudaId: string; resuelta: boolean }) =>
+      api(`/api/clases/${claseId}/dudas/${dudaId}/resuelta`, {
+        method: "PUT",
+        body: { resuelta },
+        schema: dudaRespuestaSchema,
+      }),
+    onSuccess: async (_respuesta, { resuelta }) => {
+      toast.success(resuelta ? TEXTOS_DUDAS.avisoMarcada : TEXTOS_DUDAS.avisoDesmarcada)
+      await invalidarDudas(queryClient, claseId)
+    },
+    onError: async (error) => {
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorClases(error))
+      if (renuevaLasDudas(error)) await invalidarDudas(queryClient, claseId)
+    },
+  })
+}
+
+// T-03 (ronda 2 de 03e) y T-05 (ronda 3): las respuestas de una duda que se va (se borró o ya no existe)
+// salen de la caché cuando nadie las observa, nunca antes. Con TanStack Query 5.103.2, quitar la consulta con
+// su observador montado hace que el siguiente pintado construya una consulta nueva sin datos (isPending) y
+// el bloque cambie lo que se veía por "Cargando…". Y como plegar y desplegar el bloque mientras llega la
+// lista crea otra consulta (vacía, desactivada), la escucha no termina con el primer observador que se va:
+// cada consulta de esa clave que se queda sin observadores sale, hasta que la duda ya no está en la lista
+// y no queda ninguna consulta de sus respuestas. Si la lista sale de la caché (cerrar sesión), deja de
+// escuchar: la caché ya se vació.
+const quitarRespuestasDeUnaDudaQueSeVa = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  dudaId: string,
+) => {
+  const filtro = { queryKey: claveRespuestas(claseId, dudaId), exact: true }
+  const hashDeLasRespuestas = hashKey(claveRespuestas(claseId, dudaId))
+  const hashDeLaLista = hashKey(claveDudas(claseId))
+  const cache = queryClient.getQueryCache()
+  const quitarSiNadieLaObserva = () => {
+    const consulta = cache.find(filtro)
+    if (consulta === undefined || consulta.getObserversCount() > 0) return
+    queryClient.removeQueries(filtro)
+  }
+  const sigueEnLaLista = () =>
+    queryClient
+      .getQueryData<InfiniteData<ListaDudasRespuesta>>(claveDudas(claseId))
+      ?.pages.some((pagina) => pagina.dudas.some(({ id }) => id === dudaId)) === true
+  quitarSiNadieLaObserva()
+  const dejarDeEscuchar = cache.subscribe((evento) => {
+    if (evento.query.queryHash === hashDeLaLista && evento.type === "removed") {
+      dejarDeEscuchar()
+      return
+    }
+    if (evento.query.queryHash === hashDeLasRespuestas && evento.type === "observerRemoved") {
+      quitarSiNadieLaObserva()
+    }
+    if (sigueEnLaLista() || cache.find(filtro) !== undefined) return
+    dejarDeEscuchar()
+  })
+}
+
+// Borrar una duda borra sus respuestas (DH-05): al éxito, sus respuestas salen de la caché (cuando su
+// bloque se cierra, T-03 y T-05) y la lista se renueva; con 404 también salen (la duda ya no está). La mutación
+// sigue pendiente hasta que la lista nueva llegó, así que "Sí, borrar duda" espera con ella.
+export const useBorrarDuda = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dudaId: string) =>
+      api(`/api/clases/${claseId}/dudas/${dudaId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async (_respuesta, dudaId) => {
+      toast.success(TEXTOS_DUDAS.avisoBorrada)
+      quitarRespuestasDeUnaDudaQueSeVa(queryClient, claseId, dudaId)
+      await invalidarDudas(queryClient, claseId)
+    },
+    onError: async (error, dudaId) => {
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorClases(error))
+      if (!renuevaLasDudas(error)) return
+      if (esDudaNoEncontrada(error)) quitarRespuestasDeUnaDudaQueSeVa(queryClient, claseId, dudaId)
+      await invalidarDudas(queryClient, claseId)
+    },
+  })
+}
+
+export const useResponder = (claseId: string, dudaId: string) => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: (datos: CrearRespuesta) =>
+      api(`/api/clases/${claseId}/dudas/${dudaId}/respuestas`, {
+        method: "POST",
+        body: datos,
+        schema: comentarioRespuestaSchema,
+      }),
+    onSuccess: () => {
+      void invalidarRespuestasYDudas(queryClient, claseId, dudaId)
+      toast.success(TEXTOS_RESPUESTAS.avisoPublicada)
+    },
+    onError: (error) =>
+      avisarErrorDelTexto(montado, erroresDeLaRespuestaDeApi(error) !== null, error, () =>
+        renovarTrasErrorDeRespuesta(queryClient, claseId, dudaId, error),
+      ),
+  })
+}
+
+export const useBorrarRespuesta = (claseId: string, dudaId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (respuestaId: string) =>
+      api(`/api/clases/${claseId}/dudas/${dudaId}/respuestas/${respuestaId}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_RESPUESTAS.avisoBorrada)
+      await invalidarRespuestasYDudas(queryClient, claseId, dudaId)
+    },
+    onError: async (error) => {
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorClases(error))
+      await renovarTrasErrorDeRespuesta(queryClient, claseId, dudaId, error)
     },
   })
 }

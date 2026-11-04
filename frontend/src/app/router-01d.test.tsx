@@ -188,13 +188,20 @@ const medidasDeLaOpcion = (i: number) => ({
 
 describe("la sección «Calificaciones» (CAL-1D06)", () => {
   it.each([
-    // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos".
+    // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos" y 03e,
+    // "Dudas".
     [
       "estudiante",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
-    ["maestro", ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"]],
-    ["admin", ["Avisos", "Actividades de aprendizaje", "Recursos", "Personas", "Calificaciones"]],
+    [
+      "maestro",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+    ],
+    [
+      "admin",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+    ],
   ] as const)(
     "CAL-1D06: %s ve «Calificaciones» como última sección, con su href y aria-current en …/calificaciones",
     async (rol, esperadas) => {
@@ -222,15 +229,15 @@ describe("la sección «Calificaciones» (CAL-1D06)", () => {
     const lista = await secciones()
     expect(lista.previousElementSibling).toHaveAttribute("aria-hidden", "true")
     await waitFor(() =>
-      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(4)),
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(5)),
     )
   })
 
   it.each([
-    ["admin", "personas", 3],
-    ["admin", "personas", 3],
-    ["maestro", "personas", 3],
-    ["maestro", "calificaciones", 4],
+    ["admin", "personas", 4],
+    ["admin", "personas", 4],
+    ["maestro", "personas", 4],
+    ["maestro", "calificaciones", 5],
   ] as const)(
     "CAL-1D06: %s en …/%s: el indicador lleva la posición y el ancho medidos de la opción %i",
     async (rol, segmento, indice) => {

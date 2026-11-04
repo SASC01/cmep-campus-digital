@@ -6903,3 +6903,1738 @@ Formateo: `npx prettier --write` solo sobre ese archivo, dentro de `frontend/`.
 | `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` |  |
 | `21889742CFAF47C1C995809BFE4E6BBD2AB87D1E2760E82BA71DEBBDF6C4AE78` | `frontend/src/styles/clases-r1.ataque.test.ts` |  |
 | `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` |  |
+
+## CLASES-03e — Ronda 0
+
+Fecha: 2026-11-03. Plan: copia congelada `plan-clases03-v14-enmienda13-0502f6be.md` del scratchpad de la sesión, SHA-256 `0502f6be4281729d8a9048008de494caf475bd3fab3cee438cef1d2ad5446027` ("LISTO (Enmiendas 1 a 13 aplicadas)"; reproduje el hash). No usé el `plan.md` vigente porque el arquitecto le está aplicando la adenda E13-9. Base dentro de los paquetes: `028569f` (`<K3d>`). Árbol limpio salvo `docs/ESTADO.md`, `aprobacion.md`, `plan.md` y `revision.md`. Base de este reporte: SHA-256 `b253a93c7f9b2c73537c4f63778d3f56038913814a0aaccbd26c1254899ac134` (reproducido). Todavía no hay código de 03e. Según §Alcance y "Cambios por capa", 03e toca solo `frontend/`: no corrí `shared/` ni el backend, y PA-07 no aplica.
+
+Veredicto: no aplica (ronda 0). La reescritura quedó hecha y verificada con la suite del frontend. **Hay una PARADA (P-03e-1, abajo).**
+
+### V-01
+- Antes de tocar nada, las 242 `*.ataque` tenían el mismo SHA-256 que la tabla del cierre de la ronda 3 de 03d.
+  - Cotejo: `diff` por ruta entre esa tabla y `sha256sum` de `git ls-files '*.ataque.test.*'` más los no rastreados.
+  - Resultado: 0 diferencias, 0 faltantes y 0 sobrantes. El commit `028569f` no las cambió.
+- Al cierre siguen siendo 242: 7 reescritas en esta ronda (marcadas en la tabla) y 235 iguales. No hay archivos nuevos.
+
+### Decisión por fila de §D-R0 (parte de 03e)
+| Fila | Archivo | Decisión | Detalle |
+|---|---|---|---|
+| C-8 | `features/clases/heredados-02d-r1.ataque.test.tsx:252-274` | **Cambiada** | Las tres listas suman «Dudas» entre «Recursos» y «Personas» (§D-7.1). La posición y el ancho simulados salen del índice en la lista esperada, así que «Personas» pasa sola a la quinta posición. Lleva comentario de motivo. Rojos (3) hasta el paso 1. |
+| C-9 | `features/clases/clases-admin-02c-r1.ataque.test.tsx:368-381` | **Cambiada** | La lista del admin suma «Dudas» en su lugar (Prettier la parte en varias líneas). El recorrido por «Personas» no cambia. Rojo (1) hasta el paso 1. |
+| C-11 | `features/calificaciones/secciones-01d-r3.ataque.test.tsx` y `-r4` | **Sin cambio** | Igual que en 03d: solo nombran «Avisos» y «Calificaciones», y `r3` recorre los enlaces por su `href`. Ninguna fija la lista, el número ni la posición de las secciones (grep de `indicador`, `toEqual([`, `toHaveLength` y `"Personas"`: nada sobre secciones). Verdes. |
+| C-19 | `features/clases/estatico-02c-r1.ataque.test.ts:119-134` | **Cambiada** | La lista de llamadores de `perspectivaDeRuta(` suma `/src/features/clases/dudas-view.tsx`, en el orden de `rutasCon` (`.sort()`). Rojo (1) hasta el paso 3. |
+| C-21 | `styles/clases-r1.ataque.test.ts` (V-06) | **Cambiada** | `enEspera=` pasa de 64 a 71 y el título del caso dice "71 enEspera". La lista fija suma `dudas-view.tsx: 1`, `components/formulario-duda.tsx: 1`, `components/elemento-de-duda.tsx: 2`, `components/respuestas-de-duda.tsx: 2` y `components/formulario-respuesta.tsx: 1`. El resto de `features/clases/components/` (3) y el de admin (2) no cambian. Rojo (1) hasta el paso 3. |
+| C-22 | `styles/clases-r1.ataque.test.ts` (V-07) | **Sin cambio** (no es fila de 03e) | §D-R0 dice "03e: sin cambio": las dudas van en un `Card` con divisores. |
+| C-24 | `app/rutas-01d-r1.ataque.test.tsx:197-213` (CAL-T-179) | **Cambiada** | Con «Dudas», «Calificaciones» pasa a ser la sexta sección: `--indicador-x` `400px`→`500px` y `--indicador-ancho` `120px`→`130px`, con las mismas medidas simuladas (índice × 100 y 80 + índice × 10). Rojos (2, maestro y admin) hasta el paso 1. |
+| C-24 | `app/router.ataque.test.tsx`, `app/rutas-02c-r1`, `app/rutas-clases-r1`, `app/registro-maestro-03b-r1` | **Sin cambio** | Igual que en 03d: no inventarían las secciones ni las rutas de la clase; sus listas exactas son las de la navegación principal o la barra. Ninguna `*.ataque` del frontend nombra `dudas` como ruta (grep `-i duda` en `*.test.*`: solo textos de comentarios de ejemplo). |
+| C-28 | `features/clases/estatico-02c-r1.ataque.test.ts:62-91` | **Cambiada** | Los lectores de `.puedeBorrar` suman `components/elemento-de-duda.tsx` y `components/respuestas-de-duda.tsx` en su lugar del orden. La segunda regla admite `duda.puedeBorrar` y `respuesta.puedeBorrar`. Si el programador nombra de otra forma el dato (por ejemplo, `fila.puedeBorrar`), sumo ese nombre exacto en la ronda 1 y lo anoto, como autoriza la fila. Rojo (1) hasta el paso 3. |
+| C-32 | `features/clases/recursos-03d-r1.ataque.test.tsx:464` (CL3-3R1-02) | **Cambiada** | La aserción pasa a `["Ese recurso ya no existe."]`. El doble sigue respondiendo `PUBLICACION_NO_ENCONTRADA` con "Esa publicación ya no existe.". Nada más del archivo cambia: CL3-3R1-03 y -04 no asertan el texto. Rojo (1) hasta el paso 2 bis. |
+| C-33 | `features/clases/recursos-03d-r2.ataque.test.tsx:815` (CL3-3R2-08) | **Cambiada** | La aserción pasa a `["Ese recurso ya no existe."]`. Nada más cambia; `:823` (ahora `:826`) ya esperaba "Ese recurso ya no existe." en la vista. Rojo (1) hasta el paso 2 bis. |
+| Diseño, Enmiendas 6 y 12 | `components/layout/estatico-r1`, `features/clases/estatico-r1`, `estatico-03c1-r1`, `ver-mas-01e-r3:285-337`, `errores-ch3-r1` (clases, `:273` sobre `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`, y lib), `lib/estatico-ch3-r1` y `-r2`, `services/apiClient-ch3-r1`, `refactor-01c-r1`, `reloj-01e-r4`, `features/tareas/*estatico*` y `tareas-01a-r1:317`, `calificaciones/estatico-01d-r1`, `app/invalidaciones-03c2-r1` | **Sin cambio** | Fijan reglas generales que una 03e conforme a `CLAUDE.md` y al plan respeta. 03e no suma códigos a `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` (E12-2), así que el `it.each` de `errores-ch3-r1:273` no gana casos. Ninguna `*.ataque` recorre claves de `TEXTOS_*`, `MENSAJES_*`, `CODIGOS_*` ni `CAMPOS_PINTADOS_*` de `features/clases`, ni cuenta `erroresDeFormularioClases(`. El grep solo encuentra llamadas directas con entradas fijas en `errores-ch3-r1` y `refactor-01c-r1`. Ver R-03e-1 a R-03e-5. |
+
+Cada reescritura lleva un comentario "CLASES-03e ronda 0 (C-n, §D-R0; …)" con el motivo y lo que sigue protegiendo.
+
+### PARADAs para el orquestador (no toqué los archivos)
+**P-03e-1 — `frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx` (11 casos) e `indicador-03c1-r2.ataque.test.tsx` (16 casos).**
+- **Qué fijan:** la posición del indicador por índice, con cinco secciones: «Personas» en el índice 3 y «Calificaciones» en el 4. Usan `esperadas(3)`, `esperadas(4)`, `opcionDe(lista, 4)`, `"400px"` y los destinos literales de `visitar` y `fotosAjenasAlNavegar`.
+- **Por qué rompen:** con «Dudas» en el índice 3 (§D-7.1, paso 1 de 03e), «Personas» pasa al 4 y «Calificaciones» al 5. Hoy están verdes; se ponen rojas en el paso 1.
+- **Por qué es PARADA:** no están en §D-R0 ni en "Rojos esperados" de 03e. En 03d el manager las arbitró bajo C-8 (P-03d-2, "Arbitraje de la ronda 0 — 03d"), pero las filas de 03e (C-8 y C-9) siguen nombrando solo `heredados-02d-r1` y `clases-admin-02c-r1`.
+- **Casos que rompen en r1** (los mismos de P-03d-2):
+  - CL3-R1-01 ×3, CL3-R1-02 ×4, CL3-R1-03, CL3-R1-07 y CL3-R1-08 («Calificaciones»);
+  - CL3-R1-05 («Personas», `:518`).
+  - CL3-R1-04 y -06 no rompen: miden «Actividades», índice 1.
+- **Casos que rompen en r2:** CL3-R2-01, -02, -03, -04, -05, -05 (hermano), -06 ×2, -07 ×4 y -08 ×4.
+  - **El control de CL3-R2-08 ya no rompe:** desde 03d pulsa «Recursos», cuyo índice 2 no cambia, y su aritmética (212..312 dentro de 90..340) sigue valiendo.
+- **Cambio mínimo propuesto** (el mismo de P-03d-2, un índice más):
+  - «Calificaciones» pasa de 4 a 5 en `esperadas`, `opcionDe`, `visitar` y `fotosAjenasAlNavegar`, y `"400px"` pasa a `"500px"`.
+  - «Personas» pasa de 3 a 4.
+  - El comentario de coordenadas de r2 (`:501`, "400..520") pasa a "500..630".
+  - Un comentario de motivo junto al de 03d sobre `esperadas`.
+  - Con 6 secciones, el `<ul>` simulado mide 630 px, y CL3-R2-06 a -08 siguen probando lo mismo con el panel de 250 px. Al entrar por «Actividades», «Calificaciones» queda a la derecha del área visible. Con el panel desplazado, «Avisos» y «Actividades» quedan a la izquierda.
+- Si se autoriza, las reescribo en una adenda de esta ronda 0. Decide el orquestador.
+
+**Barrido hecho para encontrar otras PARADAs (sin resultado):**
+- **Listas e índices de secciones.** Grep en todas las `*.ataque` del frontend de `indicador`, `Secciones de la clase`, `"Calificaciones"`, `"Personas"`, `"Recursos"`, `toHaveLength(5|6)` y `.children.length`. Fuera de las filas de §D-R0 y de P-03e-1, solo hay búsquedas por nombre o por `href`: `app/personas-03c1-r1`, `app/barra-02d-r1`, `muro-recuperar-c-r3`/`-r4`, `gradebook-01d-r1` a `-r3`, `features/tareas/formularios-ch3-r1:976` y `recursos-03d-r*`.
+- **Conteos estáticos.** Busqué `erroresDeFormularioClases(`, `CAMPOS_PINTADOS`, `Object.keys/values/entries` sobre `TEXTOS_*`, `MENSAJES_*`, `CODIGOS_*` y `CAMPOS_*`, `MENSAJES_POR_CODIGO_DE_CLASES`, `textosPorCampo`, `TRADUCCION_DE_ERRORES_CLASES`, `useMontado`, `useAlPulsarLaSeccionActiva`, `useFilaEnFoco` y `useFocoAlCargarMas`. Solo aparecen usos con entradas fijas o reglas generales.
+- **Las 33 `*.ataque` que leen el código** (`import.meta.glob`, `readFileSync`, `?raw`). Revisé sus listas exactas (`toEqual(["/src…`): `fixed`, `animate-`, `data-fondo`, «Sin tema», `.version`, el `variant="primary"` de `features/tareas`, `CampoContrasena`, vidrio y rojo. Fuera de C-19, C-21 y C-28, ninguna cambia con los cinco archivos nuevos de 03e.
+- **Rutas.** Ninguna `*.ataque` monta ni nombra `…/dudas`.
+
+### Riesgos para el programador (sin prueba roja; no son PARADA)
+- **R-03e-1 (`lib/estatico-ch3-r2.ataque.test.ts:135-148`).** Fuera de los diez formularios de admin y auth, ningún archivo de producción puede tener `if (x.isError) x.reset()`. `FormularioDuda` y `FormularioRespuesta` deben guardar el error del servidor en su estado (`errores`) y limpiarlo con la validación local, como `FormularioComentario` (§D-12, E11-5).
+- **R-03e-2 (C-28).** La regla solo admite leer `duda.puedeBorrar` y `respuesta.puedeBorrar`, y no admite ninguna asignación de `puedeBorrar` salvo desde esos nombres. Con otro nombre queda rojo hasta que yo lo sume en la ronda 1.
+- **R-03e-3 (C-21).** La cuenta exige exactamente:
+  - `dudas-view.tsx`: 1 ("Ver más dudas" en la vista, no en un componente de lista aparte).
+  - `elemento-de-duda.tsx`: 2 (el botón de marcar o quitar, en una sola expresión, y "Sí, borrar duda").
+  - `respuestas-de-duda.tsx`: 2 ("Ver más respuestas" y "Sí, borrar respuesta").
+  - `formulario-duda.tsx` y `formulario-respuesta.tsx`: 1 cada uno.
+  - El control que despliega las respuestas, "Borrar duda", "Borrar" y "Cancelar" no la llevan.
+  - Un componente nuevo con `enEspera=` fuera de esos cinco contaría en el resto de `features/clases/components/`, que debe sumar 3.
+- **R-03e-4 (C-19).** `dudas-view.tsx` debe llamar a `perspectivaDeRuta(`, como da por hecho la fila. Si la vista toma la perspectiva de otra forma, el caso sigue rojo. `ElementoDeDuda`, `RespuestasDeDuda` y los formularios no la llaman.
+- **R-03e-5 (V-07 y V-13 de `styles/clases-r1`).** Los cinco archivos nuevos no pueden usar `vidrio`, `vidrio-fuerte` ni `vidrio-azul`: la igualdad es exacta y 03e no la cambia. Tampoco `text-danger` ni `text-destructive`; la insignia "Resuelta" es `success`.
+
+### Rojos esperados contra rojos reales
+Corrida completa con el código de `028569f` y las 7 reescrituras: **11 casos rojos en 7 archivos**, todos de filas de §D-R0 de 03e. Cada uno falla por la razón prevista: la lista sin «Dudas», `400px` frente a `500px`, el texto del aviso o las cuentas. No hay ningún otro rojo.
+
+| Fila de "Rojos esperados" (03e) | Real | Casos rojos | Pasa a verde en |
+|---|---|---|---|
+| C-8 | Rojo | 3 (`heredados-02d-r1`: estudiante, maestro y admin) | Paso 1 (sección «Dudas» en `data.ts`) |
+| C-9 | Rojo | 1 (`clases-admin-02c-r1`, "Muro → Alumnos → Maestros → Editar clase…") | Paso 1 |
+| C-11 | **Verde** (sin cambio) | 0 | — (la tabla del plan la nombra, pero sus pruebas no fijan la lista ni la posición) |
+| C-19 | Rojo | 1 (`estatico-02c-r1`, "§D-2C1: la perspectiva sale solo de perspectivaDeRuta…") | Paso 3 |
+| C-21 | Rojo | 1 (`styles/clases-r1`, "V-06: … 71 enEspera") | Paso 3 |
+| C-24 | Rojo | 2 (`rutas-01d-r1`, CAL-T-179 maestro y admin) | Paso 1 |
+| C-28 | Rojo | 1 (`estatico-02c-r1`, "C-13 y A-5: los botones de borrar leen puedeBorrar del dato…") | Paso 3 |
+| C-32 | Rojo | 1 (`recursos-03d-r1`, CL3-3R1-02) | Paso 2 bis |
+| C-33 | Rojo | 1 (`recursos-03d-r2`, CL3-3R2-08) | Paso 2 bis |
+| P-03e-1 (fuera de la tabla) | Verde hoy | 0 hoy; 27 desde el paso 1 (11 en `indicador-03c1-r1` y 16 en `-r2`) | Según el arbitraje |
+
+### Comandos de la verificación propia (desde `frontend/`, una tras otra)
+| Comando | Última línea |
+|---|---|
+| `npx prettier --check` sobre los 7 archivos reescritos | `All matched files use Prettier code style!` (no hizo falta `--write`) |
+| `npm run lint` | `> tsc -b` (exit 0; antes, `All matched files use Prettier code style!`) |
+| `npx vitest list \| grep -acE "^src/"` | `5760` casos (igual que la base: ninguno nuevo ni retirado) |
+| `npx vitest list \| grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l` | `264` archivos (igual que la base) |
+| `npm run test` | `Test Files  7 failed \| 257 passed (264)` · `Tests  11 failed \| 5749 passed (5760)` · `Duration  288.41s`. Sin «timed out» (0) |
+
+### Tabla de SHA-256 de las 242 `*.ataque` al cierre de la ronda 0 de CLASES-03e
+- Comando: `sha256sum` sobre `git ls-files '*.ataque.test.*'` más los no rastreados, con los hash en mayúsculas.
+- Hay 7 reescritas en esta ronda; las otras 235 son iguales a la tabla de la ronda 3 de 03d.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` | igual |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` | igual |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` | igual |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` | igual |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` | igual |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` | igual |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` | igual |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` | igual |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` | igual |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` | igual |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` | igual |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` | igual |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` | igual |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` | igual |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | igual |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` | igual |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` | igual |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` | igual |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` | igual |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` | igual |
+| `AFB531E7CCAB1CB53F0322D7D099A7F435DBD42325DE8C225525E3784B93F6CC` | `backend/test/calificaciones-01a-r2.ataque.test.ts` | igual |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` | igual |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` | igual |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` | igual |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` | igual |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` | igual |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` | igual |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` | igual |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` | igual |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` | igual |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` | igual |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` | igual |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` | igual |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` | igual |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` | igual |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` | igual |
+| `4EA45EAA95C5EA2E1EC91E04D2BBA32689A30BD341ADE16625B28AABDB96D6D9` | `backend/test/dudas-clases03b-r1.ataque.test.ts` | igual |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` | igual |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` | igual |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` | igual |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` | igual |
+| `47B02C6D3916713BF9236A619FDB59A641D2E805F1F0B7E9B2C161FE719DDC3A` | `backend/test/entregas-01b-r1.ataque.test.ts` | igual |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` | igual |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` | igual |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` | igual |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` | igual |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` | igual |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` | igual |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` | igual |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` | igual |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` | igual |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` | igual |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` | igual |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` | igual |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` | igual |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` | igual |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` | igual |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` | igual |
+| `287B224CBAF468E3891C13E4F38A09D5A860D6CFE29AD35541C71076D7AAE28C` | `backend/test/lecturas-fx-r1.ataque.test.ts` | igual |
+| `4090A21F3B389A24BC67D5F585440A55C39C8387112BDB35116863C5E609662C` | `backend/test/lecturas-fx-r2.ataque.test.ts` | igual |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` | igual |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` | igual |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` | igual |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` | igual |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` | igual |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` | igual |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` | igual |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` | igual |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` | igual |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` | igual |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` | igual |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` | igual |
+| `2AFD58E1EAD0A293AA7BD58C639F3E5126D153A418F9A26450228468E12B2BED` | `backend/test/migracion-clases03a-r1.ataque.test.ts` | igual |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` | igual |
+| `D23BF1312777BDC000810E403A5B4D99C9C0E12998E4CC11BE5EF5A2253F6935` | `backend/test/muro-c-r1.ataque.test.ts` | igual |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` | igual |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` | igual |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` | igual |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` | igual |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` | igual |
+| `42F4E113762EF26459E95642FF4B814613353D64D462AB2B01ECDEEF4B9E160D` | `backend/test/recursos-clases03a-r1.ataque.test.ts` | igual |
+| `FF4D112AFF8685FCD9C5CA933A0B359E2B4E9BEDAD8F1B5D3D787CFDEC711516` | `backend/test/recursos-clases03a-r2.ataque.test.ts` | igual |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` | igual |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` | igual |
+| `1920263A7207AA2655B6588F25592CB87366FA8A49539D79B8EF5EACAEB32558` | `backend/test/sesiones-y-cadena.ataque.test.ts` | igual |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` | igual |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` | igual |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` | igual |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` | igual |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` | igual |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` | igual |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` | igual |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` | igual |
+| `0E49B62B73B2EF55E8C0B2BA26E1D136A3ADB674761FDA2C11453EB5C2FAF7CC` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` | igual |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` | igual |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` | igual |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` | igual |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` | igual |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` | igual |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` | igual |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` | igual |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` | igual |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` | igual |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` | igual |
+| `29782507D18FF96315E4030E890B21FDF1EB1C5550C3D1CFE5C92664D30B64DD` | `frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx` | igual |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` | igual |
+| `C8A9812F21CB24DB50CC2AFD945B7B38ABACB468FBF4F4DF16C07A52C48426AC` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` | igual |
+| `D7608D7FC7767F53DB3971672FC99FDB8BBD33F303F41E321BCC48AD25F511FD` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` | igual |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` | igual |
+| `6ACC49A2E3B649868CCF9A9337143F991B655DAFBCFF2E5916BCA0269BD23A7C` | `frontend/src/app/personas-03c1-r1.ataque.test.tsx` | igual |
+| `A3E3DADD35C40E9A11A0BDEF8CD716DACEEB254E5307A837C6598213BA803A7B` | `frontend/src/app/personas-03c1-r2.ataque.test.tsx` | igual |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` | igual |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` | igual |
+| `FC820217BC3BAA3749C077FE16A4ABD7AE10E92C84494FFB2A215133C19DF36A` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` | igual |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` | igual |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` | igual |
+| `11C6D9C55BE91AA41E8525345E3795E34B8E1E661FF7CDD901F729760A033CFD` | `frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts` | igual |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | igual |
+| `36D605F79169E16A5AFADC7E07FC3781472DD393406430277CEB147FC2DA1FA5` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | igual |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` | igual |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` | igual |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` | igual |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` | igual |
+| `7D080037D9A64EEBCEBB789D1DFD94B787652103E6F9C84F968F9C9F64C3B30C` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | igual |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | igual |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | igual |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | igual |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | igual |
+| `C21EDB5A06B43808CE2BE23058409B7FF887E66D60E842C500A3714A90EBCB25` | `frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx` | igual |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` | igual |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` | igual |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` | igual |
+| `761F54F183540D8AE222F97940FA6C2355FF33E515771E627F8EFDE49261EDA2` | `frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `14EAD3DCE027B433D51A9D635B0FA35718EE3875BFFC3E1949F96ECB8D2F7135` | `frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | igual |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | igual |
+| `AF3F0D474F8052B402C8959A64ACF9E730F9AE60F09D90996A6306E9C2440F08` | `frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx` | igual |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` | igual |
+| `96B6AB55F0A7BF9B66F8EDBCB5CEFFA7E4FE35935C6CB12ECAB93FC04BC02856` | `frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `0CE580976EA894EE4BD9C4ADBE3D7D1D524354A8FF22FC7E7CC6ACF89057AA53` | `frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `4BCD3E34B62726FEA718EFB9C482D8C1F504BBE85EF32427BDF4D65A6832D8F1` | `frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts` | igual |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | igual |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | igual |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | igual |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | igual |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | igual |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | igual |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | igual |
+| `6AC36CE1EB4DF953626415B3ED431A8F4809DC29CF259F755F1F8509DD54B7EF` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | igual |
+| `FB33F2A27BFCCA906549A12610977478BA72E6E7ED8AFD5C5A0A962DEB3EB802` | `frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | igual |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` | igual |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` | igual |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` | igual |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` | igual |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` | igual |
+| `A9DC00D9CF6E8684113EEB824658C7FB2F3077EE8A54DEB0CCE47AC802C74F44` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` | igual |
+| `98E645DF89C9736EE33F440C1D83F342BE84F30CAABEC0310B1B5185E538FBD6` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` | igual |
+| `F1B2B7D3C2A2BFBC2C2AA31CCE4B120E306681C0CC9EFB85AC2A954C8F8F8AFE` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` | igual |
+| `C6C85AC2F6E7418E81D7817F9C455C0E0973025A15AE2A5378E00C9A71C45620` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` | igual |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` | igual |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` | igual |
+| `87DAE1927669B46BB52AAD94DB5107A5284F772FA9B29E225AACE19C1A1E8DEF` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` | igual |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` | igual |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` | igual |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` | igual |
+| `DCE7FD019A6E32B8E4DF37DD0728E265F5E9449E9EE2723F372EA174FE312464` | `frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `DDC9DFACCC8230EC612126FDF29939A8E4311188566E5CFCAA724BD119E959E8` | `frontend/src/features/clases/errores-ch3-r1.ataque.test.ts` | igual |
+| `5E20EEFE0104B510A3002DE084B6162162B5BF20797622C8D92B350853494B53` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | **reescrita en la ronda 0 de 03e** |
+| `3CB8E0D7BB13B57638D65AA74EC5FF0F9306F024CF6996B7737232243A0B82F8` | `frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts` | igual |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` | igual |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` | igual |
+| `46383E1F3EDE03CB204DBF602373D0A07E513D8DAC7EC4179A203EA6EE270FA3` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` | igual |
+| `1D2BFE93DB13219086246E21307223229A89416484A09AC69DA14460E54E47BB` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` | igual |
+| `8B8EA2D21597BC0444709A9D26FD795D05BC964EF7B5094240628C63018C091B` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` | igual |
+| `B819D6BBDE4BD47E3EC724FCDEA5E77EB66B12076B8A9A083691B52EF0BDD182` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `AB006DC1711E9A652643930A7010C25F442D1FFDD137ADBB093EB5BD98DA90D6` | `frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx` | igual |
+| `5224976752A14C3E003B246FA97ABF25356E370CB46DA1CDFF9526BF3BE86B4E` | `frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `7F4A935DE29C3C519AAD697EDB1470C4CFCEAD600F5C1516C5FFF948995D4434` | `frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx` | igual |
+| `8BC578EF17D2731F388C14CA19BC719A2B8D04D8A41009FADEE15227379047BC` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `BFAFCCB534138CA6F89020A7D2CD6475CB6E6C646629254FAA6F70E3D541CC81` | `frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx` | igual |
+| `7FB6CADD93137337CE9A0A407848D48C129160434FD68946CACD3250166BD8CF` | `frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx` | igual |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` | igual |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` | igual |
+| `99DF138B24D4ABA97B9F714C32BA226E82C7403CF73AA2E9E2B0B028B28E283E` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` | igual |
+| `4817262EF6E4DADFF56857E50BAB2E06EC479E62D5EAF45B34D70D683736B637` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` | igual |
+| `8DA38DBCB605CE3D90ACE8117CE2CC5C838D71EB24BDD76FAD3A53B82DA93901` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` | igual |
+| `D0ACB3527AAFA6F687E3EB00563E37BE93768E7D7F742694A4D5CE05B75B7E28` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` | igual |
+| `D08E51D451EBAEB2D7086C75DC1F73D52C5B4A6B8DFB979932828BED5F5D459D` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` | igual |
+| `558212B46641DE0794D0CE90E3944A99CB5BAA7FAB4B09BBAC5EA7CAC41EAA34` | `frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx` | igual |
+| `AEC8C4131E5DC733246B33E8189E2DC595387324BDD2081D1D245641C20C380A` | `frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx` | igual |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` | igual |
+| `7677E0571587C89DE1CB76788D499AC545255CA64C8AFCB38A8AD6E39C02E2C6` | `frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx` | igual |
+| `60541290248812CFCE5591DDF33D01125D60C33257743A7EC48A445013D3D8C1` | `frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `4AAFAA73980BA1BC29BE043623A030C9EAA730825EB61A403BF54F9AC700B42D` | `frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `70B1A49A6A0E471422BE987466228E5BEB87E25BAEE2906790651C94ED214A3A` | `frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx` | igual |
+| `85A7926A0F6831A8375F544CF38FE5585A8E2DCBF73D9726E9A3CFAAB7F76511` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` | igual |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` | igual |
+| `09435ABBB9A26DD71C52B4D95487C6D38594F1BA062AEFB60F73B7EB7308F991` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | igual |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` | igual |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` | igual |
+| `DB42C88D5B0BFB1125BF122C03A2E019D6F5365C128AC4BFADD413A26A934845` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` | igual |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` | igual |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` | igual |
+| `EA58EB11C3157A33C5730F87F2CF562AE178589B30264902B165C4439CEBC2EE` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` | igual |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` | igual |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` | igual |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` | igual |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` | igual |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` | igual |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` | igual |
+| `2938AE2F1C00F63A0372997C7BA68BDC0AB097895769BF9060072A4AC2674C5A` | `frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` | igual |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` | igual |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` | igual |
+| `08A5E1A5642E7FC7553632DD5CF4E07F0EA35C3EF1E7293D010BBC49B09465AA` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` | igual |
+| `172BE3EFD919C0D3948ECA17C7E808968E2370AFE1F9C2A28CEF7D2DED584B81` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` | igual |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` | igual |
+| `4E6950F0FE571D6AE41A78380C59C20459FDF19F34C57E9777E4E34A6BC61C58` | `frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts` | igual |
+| `94D6E6253B266C7F21099AA593AAC7B2600EDCA22AB403AA365DCD789B1C6A97` | `frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts` | igual |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` | igual |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` | igual |
+| `7A7C7BA922F77DA22D0F765ED5EA9CCF9216D1900E4B5F18365DA9D46437495F` | `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` | igual |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` | igual |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` | igual |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` | igual |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` | igual |
+| `72B19B6A00B4ADE43B06829BB5BEF1A5CDECF5A7D2AF57369F1E857A1D4A17F5` | `frontend/src/lib/errores-ch3-r1.ataque.test.ts` | igual |
+| `5D41A2AF073DCAA2B8B016D835D36D5EBAE9278863DB048484A192A88BB31A30` | `frontend/src/lib/errores-ch3-r2.ataque.test.ts` | igual |
+| `66513D957E524AF5E336A2C7E656DF37F51106507A3984B691DF47CD825D4D10` | `frontend/src/lib/estatico-ch3-r1.ataque.test.ts` | igual |
+| `A9529CEFBD27CBB94376A6548EF1B8B247FB1F4155938298AE5D10EAEE81008A` | `frontend/src/lib/estatico-ch3-r2.ataque.test.ts` | igual |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` | igual |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` | igual |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` | igual |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` | igual |
+| `B6265BF6EEC25B7F2C34DCD93DD4D8B23D07CA6214576921A50A66FF16346FFB` | `frontend/src/services/apiClient-ch3-r1.ataque.test.ts` | igual |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` | igual |
+| `87DA1CF759AC639BB168AB352CD28814B5C6C85B46B86A033FC22F147D6E6D15` | `frontend/src/styles/clases-r1.ataque.test.ts` | **reescrita en la ronda 0 de 03e** |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` | igual |
+
+### Adenda 1 de la ronda 0 de 03e: P-03e-1
+
+Fecha: 2026-11-03.
+- **Origen:** `revision.md`, "## Arbitraje de la ronda 0 — 03e", punto 1 (SHA-256 del archivo `d3f471d62526d9b0645a9c2b60b50499c70679b3c304be16ea34f3553d4b30e7`, reproducido). P-03e-1 entra en **C-8 de 03e ampliada por arbitraje**.
+- **Base de esta adenda:** `reporte-tester.md` con SHA-256 `7b2c818e8e657a2a6d5fe0134b3b14cf6c6a8f7c417de8d8f6af18dd5d33b826`.
+- **Alcance:** solo `frontend/`.
+
+#### Cambios (solo los dos archivos; nada más)
+| Archivo | Cambio |
+|---|---|
+| `features/clases/indicador-03c1-r1.ataque.test.tsx` | «Calificaciones» 4→5: `esperadas(4)`→`esperadas(5)` (11) y `opcionDe(lista, 4)`→`opcionDe(lista, 5)` (4). `"400px"`→`"500px"` en las dos fotos de CL3-R1-01 (`:357` y `:376`). «Personas» 3→4: `esperadas(3)`→`esperadas(4)` en CL3-R1-05 (`:523`), con comentario en línea. Comentario de motivo sobre `esperadas`, debajo del de 03d (`:301-304`). El comentario de 03d no cambia. |
+| `features/clases/indicador-03c1-r2.ataque.test.tsx` | «Calificaciones» 4→5: `esperadas` (5), `opcionDe` (3) y los destinos de `visitar` y `fotosAjenasAlNavegar` (6: CL3-R2-01 ×3, -02, -03, -04 y -05). «Personas» 3→4 en `fotosAjenasAlNavegar` (2: CL3-R2-02 y -05 hermano). El comentario de coordenadas pasa de "400..520" a "500..630", con su línea de motivo. Comentario de motivo sobre `esperadas`. Los rellenos de `it.each` (`[4, 30]`, `[4, "Avisos", …]`…) no son índices y no cambian. El control de CL3-R2-08 («Recursos», índice 2) y `hijos(rol)` no cambian. |
+
+Los comentarios dicen "CLASES-03e ronda 0, adenda (C-8 ampliada por el arbitraje de la ronda 0 de 03e; §D-7.1)". `npx prettier --check` sobre los dos archivos: `All matched files use Prettier code style!`. No hizo falta `--write`.
+
+#### Salida (desde `frontend/`, una tras otra)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | `> tsc -b` (exit 0) |
+| `npx vitest list \| grep -acE "^src/"` | `5760` casos (esperado 5760) |
+| `npx vitest list \| grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l` | `264` archivos (esperado 264) |
+| `npm run test` | `Test Files  9 failed \| 255 passed (264)` · `Tests  38 failed \| 5722 passed (5760)` · `Duration  348.31s`. Sin «timed out» (0) |
+
+#### Rojos reales contra esperados
+Esperado: 38 casos en 9 archivos. Real: **38 casos en 9 archivos**, los mismos. Todos fallan por la razón prevista. En los de `indicador-03c1-*`, el fallo es, por ejemplo, `expected { x: '300px', ancho: '110px' } to deeply equal { x: '400px', ancho: '120px' }`: «Personas» sigue en el índice 3 hasta el paso 1. No hay ningún otro rojo. El control de CL3-R2-08 está verde.
+
+| Archivo | Rojos | Casos |
+|---|---|---|
+| `app/rutas-01d-r1.ataque.test.tsx` (C-24) | 2 | CAL-T-179 maestro y admin |
+| `features/clases/clases-admin-02c-r1.ataque.test.tsx` (C-9) | 1 | "Muro → Alumnos → Maestros → Editar clase…" |
+| `features/clases/estatico-02c-r1.ataque.test.ts` (C-19, C-28) | 2 | "§D-2C1: la perspectiva sale solo de perspectivaDeRuta…" y "C-13 y A-5: los botones de borrar leen puedeBorrar del dato…" |
+| `features/clases/heredados-02d-r1.ataque.test.tsx` (C-8) | 3 | Estudiante, maestro y admin |
+| `features/clases/indicador-03c1-r1.ataque.test.tsx` (C-8 ampliada) | 11 | CL3-R1-01 ×3 (incluido el control), CL3-R1-02 ×4 (incluido el control), CL3-R1-03, CL3-R1-05, CL3-R1-07 y CL3-R1-08 |
+| `features/clases/indicador-03c1-r2.ataque.test.tsx` (C-8 ampliada) | 16 | CL3-R2-01, -02, -03, -04, -05, -05 (hermano), -06 ×2 (relleno 4 y 12), -07 ×4 (4/30, 12/30, 4/7 y 12/50) y -08 ×4 (4 y 12 hacia «Avisos» y hacia «Actividades de aprendizaje») |
+| `features/clases/recursos-03d-r1.ataque.test.tsx` (C-32) | 1 | CL3-3R1-02 |
+| `features/clases/recursos-03d-r2.ataque.test.tsx` (C-33) | 1 | CL3-3R2-08 |
+| `styles/clases-r1.ataque.test.ts` (C-21) | 1 | "V-06: … 71 enEspera" |
+
+En qué paso se ponen verdes:
+- C-8 (con la ampliación), C-9 y C-24: en el paso 1.
+- C-32 y C-33: en el paso 2 bis.
+- C-19, C-21 y C-28: en el paso 3.
+
+#### V-01 y tabla de SHA-256 de las 242 `*.ataque` al cierre de la adenda 1
+- **V-01:** comparé por ruta contra la tabla del cierre de la ronda 3 de 03d.
+  - 9 reescritas en la ronda 0 de 03e: las 7 de la ronda 0 y las 2 de esta adenda.
+  - 233 iguales.
+  - 0 faltantes y 0 sobrantes.
+- **Las 7 de la ronda 0** conservan el SHA-256 de la tabla de la ronda 0 de 03e.
+- **Comando:** `sha256sum` sobre `git ls-files '*.ataque.test.*'` más los no rastreados, con los hash en mayúsculas.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` | igual |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` | igual |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` | igual |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` | igual |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` | igual |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` | igual |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` | igual |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` | igual |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` | igual |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` | igual |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` | igual |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` | igual |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` | igual |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` | igual |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | igual |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` | igual |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` | igual |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` | igual |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` | igual |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` | igual |
+| `AFB531E7CCAB1CB53F0322D7D099A7F435DBD42325DE8C225525E3784B93F6CC` | `backend/test/calificaciones-01a-r2.ataque.test.ts` | igual |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` | igual |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` | igual |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` | igual |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` | igual |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` | igual |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` | igual |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` | igual |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` | igual |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` | igual |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` | igual |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` | igual |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` | igual |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` | igual |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` | igual |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` | igual |
+| `4EA45EAA95C5EA2E1EC91E04D2BBA32689A30BD341ADE16625B28AABDB96D6D9` | `backend/test/dudas-clases03b-r1.ataque.test.ts` | igual |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` | igual |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` | igual |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` | igual |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` | igual |
+| `47B02C6D3916713BF9236A619FDB59A641D2E805F1F0B7E9B2C161FE719DDC3A` | `backend/test/entregas-01b-r1.ataque.test.ts` | igual |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` | igual |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` | igual |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` | igual |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` | igual |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` | igual |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` | igual |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` | igual |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` | igual |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` | igual |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` | igual |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` | igual |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` | igual |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` | igual |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` | igual |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` | igual |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` | igual |
+| `287B224CBAF468E3891C13E4F38A09D5A860D6CFE29AD35541C71076D7AAE28C` | `backend/test/lecturas-fx-r1.ataque.test.ts` | igual |
+| `4090A21F3B389A24BC67D5F585440A55C39C8387112BDB35116863C5E609662C` | `backend/test/lecturas-fx-r2.ataque.test.ts` | igual |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` | igual |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` | igual |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` | igual |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` | igual |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` | igual |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` | igual |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` | igual |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` | igual |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` | igual |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` | igual |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` | igual |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` | igual |
+| `2AFD58E1EAD0A293AA7BD58C639F3E5126D153A418F9A26450228468E12B2BED` | `backend/test/migracion-clases03a-r1.ataque.test.ts` | igual |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` | igual |
+| `D23BF1312777BDC000810E403A5B4D99C9C0E12998E4CC11BE5EF5A2253F6935` | `backend/test/muro-c-r1.ataque.test.ts` | igual |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` | igual |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` | igual |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` | igual |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` | igual |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` | igual |
+| `42F4E113762EF26459E95642FF4B814613353D64D462AB2B01ECDEEF4B9E160D` | `backend/test/recursos-clases03a-r1.ataque.test.ts` | igual |
+| `FF4D112AFF8685FCD9C5CA933A0B359E2B4E9BEDAD8F1B5D3D787CFDEC711516` | `backend/test/recursos-clases03a-r2.ataque.test.ts` | igual |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` | igual |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` | igual |
+| `1920263A7207AA2655B6588F25592CB87366FA8A49539D79B8EF5EACAEB32558` | `backend/test/sesiones-y-cadena.ataque.test.ts` | igual |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` | igual |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` | igual |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` | igual |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` | igual |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` | igual |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` | igual |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` | igual |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` | igual |
+| `0E49B62B73B2EF55E8C0B2BA26E1D136A3ADB674761FDA2C11453EB5C2FAF7CC` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` | igual |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` | igual |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` | igual |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` | igual |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` | igual |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` | igual |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` | igual |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` | igual |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` | igual |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` | igual |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` | igual |
+| `29782507D18FF96315E4030E890B21FDF1EB1C5550C3D1CFE5C92664D30B64DD` | `frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx` | igual |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` | igual |
+| `C8A9812F21CB24DB50CC2AFD945B7B38ABACB468FBF4F4DF16C07A52C48426AC` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` | igual |
+| `D7608D7FC7767F53DB3971672FC99FDB8BBD33F303F41E321BCC48AD25F511FD` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` | igual |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` | igual |
+| `6ACC49A2E3B649868CCF9A9337143F991B655DAFBCFF2E5916BCA0269BD23A7C` | `frontend/src/app/personas-03c1-r1.ataque.test.tsx` | igual |
+| `A3E3DADD35C40E9A11A0BDEF8CD716DACEEB254E5307A837C6598213BA803A7B` | `frontend/src/app/personas-03c1-r2.ataque.test.tsx` | igual |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` | igual |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` | igual |
+| `FC820217BC3BAA3749C077FE16A4ABD7AE10E92C84494FFB2A215133C19DF36A` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` | igual |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` | igual |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` | igual |
+| `11C6D9C55BE91AA41E8525345E3795E34B8E1E661FF7CDD901F729760A033CFD` | `frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts` | igual |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | igual |
+| `36D605F79169E16A5AFADC7E07FC3781472DD393406430277CEB147FC2DA1FA5` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | igual |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` | igual |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` | igual |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` | igual |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` | igual |
+| `7D080037D9A64EEBCEBB789D1DFD94B787652103E6F9C84F968F9C9F64C3B30C` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | igual |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | igual |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | igual |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | igual |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | igual |
+| `C21EDB5A06B43808CE2BE23058409B7FF887E66D60E842C500A3714A90EBCB25` | `frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx` | igual |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` | igual |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` | igual |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` | igual |
+| `761F54F183540D8AE222F97940FA6C2355FF33E515771E627F8EFDE49261EDA2` | `frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `14EAD3DCE027B433D51A9D635B0FA35718EE3875BFFC3E1949F96ECB8D2F7135` | `frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | igual |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | igual |
+| `AF3F0D474F8052B402C8959A64ACF9E730F9AE60F09D90996A6306E9C2440F08` | `frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx` | igual |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` | igual |
+| `96B6AB55F0A7BF9B66F8EDBCB5CEFFA7E4FE35935C6CB12ECAB93FC04BC02856` | `frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `0CE580976EA894EE4BD9C4ADBE3D7D1D524354A8FF22FC7E7CC6ACF89057AA53` | `frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `4BCD3E34B62726FEA718EFB9C482D8C1F504BBE85EF32427BDF4D65A6832D8F1` | `frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts` | igual |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | igual |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | igual |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | igual |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | igual |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | igual |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | igual |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | igual |
+| `6AC36CE1EB4DF953626415B3ED431A8F4809DC29CF259F755F1F8509DD54B7EF` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | igual |
+| `FB33F2A27BFCCA906549A12610977478BA72E6E7ED8AFD5C5A0A962DEB3EB802` | `frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | igual |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` | igual |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` | igual |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` | igual |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` | igual |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` | igual |
+| `A9DC00D9CF6E8684113EEB824658C7FB2F3077EE8A54DEB0CCE47AC802C74F44` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` | igual |
+| `98E645DF89C9736EE33F440C1D83F342BE84F30CAABEC0310B1B5185E538FBD6` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` | igual |
+| `F1B2B7D3C2A2BFBC2C2AA31CCE4B120E306681C0CC9EFB85AC2A954C8F8F8AFE` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` | igual |
+| `C6C85AC2F6E7418E81D7817F9C455C0E0973025A15AE2A5378E00C9A71C45620` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` | igual |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` | igual |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` | igual |
+| `87DAE1927669B46BB52AAD94DB5107A5284F772FA9B29E225AACE19C1A1E8DEF` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` | igual |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` | igual |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` | igual |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` | igual |
+| `DCE7FD019A6E32B8E4DF37DD0728E265F5E9449E9EE2723F372EA174FE312464` | `frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `DDC9DFACCC8230EC612126FDF29939A8E4311188566E5CFCAA724BD119E959E8` | `frontend/src/features/clases/errores-ch3-r1.ataque.test.ts` | igual |
+| `5E20EEFE0104B510A3002DE084B6162162B5BF20797622C8D92B350853494B53` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | **reescrita en la ronda 0 de 03e** |
+| `3CB8E0D7BB13B57638D65AA74EC5FF0F9306F024CF6996B7737232243A0B82F8` | `frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts` | igual |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` | igual |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` | igual |
+| `46383E1F3EDE03CB204DBF602373D0A07E513D8DAC7EC4179A203EA6EE270FA3` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` | igual |
+| `1D2BFE93DB13219086246E21307223229A89416484A09AC69DA14460E54E47BB` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` | igual |
+| `8B8EA2D21597BC0444709A9D26FD795D05BC964EF7B5094240628C63018C091B` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` | igual |
+| `B819D6BBDE4BD47E3EC724FCDEA5E77EB66B12076B8A9A083691B52EF0BDD182` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `AB006DC1711E9A652643930A7010C25F442D1FFDD137ADBB093EB5BD98DA90D6` | `frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx` | igual |
+| `5224976752A14C3E003B246FA97ABF25356E370CB46DA1CDFF9526BF3BE86B4E` | `frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `7F4A935DE29C3C519AAD697EDB1470C4CFCEAD600F5C1516C5FFF948995D4434` | `frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx` | igual |
+| `8BC578EF17D2731F388C14CA19BC719A2B8D04D8A41009FADEE15227379047BC` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `479430B848CF3D21A0187138944DEEC46BB36653071BBD2790ED57620F012976` | `frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx` | **reescrita en la adenda 1 de la ronda 0 de 03e** |
+| `4D94CCBE786A46CA1D82A280956F1146D5C302A9F83DFAC45F39B3B2F94B753F` | `frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx` | **reescrita en la adenda 1 de la ronda 0 de 03e** |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` | igual |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` | igual |
+| `99DF138B24D4ABA97B9F714C32BA226E82C7403CF73AA2E9E2B0B028B28E283E` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` | igual |
+| `4817262EF6E4DADFF56857E50BAB2E06EC479E62D5EAF45B34D70D683736B637` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` | igual |
+| `8DA38DBCB605CE3D90ACE8117CE2CC5C838D71EB24BDD76FAD3A53B82DA93901` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` | igual |
+| `D0ACB3527AAFA6F687E3EB00563E37BE93768E7D7F742694A4D5CE05B75B7E28` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` | igual |
+| `D08E51D451EBAEB2D7086C75DC1F73D52C5B4A6B8DFB979932828BED5F5D459D` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` | igual |
+| `558212B46641DE0794D0CE90E3944A99CB5BAA7FAB4B09BBAC5EA7CAC41EAA34` | `frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx` | igual |
+| `AEC8C4131E5DC733246B33E8189E2DC595387324BDD2081D1D245641C20C380A` | `frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx` | igual |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` | igual |
+| `7677E0571587C89DE1CB76788D499AC545255CA64C8AFCB38A8AD6E39C02E2C6` | `frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx` | igual |
+| `60541290248812CFCE5591DDF33D01125D60C33257743A7EC48A445013D3D8C1` | `frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `4AAFAA73980BA1BC29BE043623A030C9EAA730825EB61A403BF54F9AC700B42D` | `frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx` | **reescrita en la ronda 0 de 03e** |
+| `70B1A49A6A0E471422BE987466228E5BEB87E25BAEE2906790651C94ED214A3A` | `frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx` | igual |
+| `85A7926A0F6831A8375F544CF38FE5585A8E2DCBF73D9726E9A3CFAAB7F76511` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` | igual |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` | igual |
+| `09435ABBB9A26DD71C52B4D95487C6D38594F1BA062AEFB60F73B7EB7308F991` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | igual |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` | igual |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` | igual |
+| `DB42C88D5B0BFB1125BF122C03A2E019D6F5365C128AC4BFADD413A26A934845` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` | igual |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` | igual |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` | igual |
+| `EA58EB11C3157A33C5730F87F2CF562AE178589B30264902B165C4439CEBC2EE` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` | igual |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` | igual |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` | igual |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` | igual |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` | igual |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` | igual |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` | igual |
+| `2938AE2F1C00F63A0372997C7BA68BDC0AB097895769BF9060072A4AC2674C5A` | `frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` | igual |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` | igual |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` | igual |
+| `08A5E1A5642E7FC7553632DD5CF4E07F0EA35C3EF1E7293D010BBC49B09465AA` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` | igual |
+| `172BE3EFD919C0D3948ECA17C7E808968E2370AFE1F9C2A28CEF7D2DED584B81` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` | igual |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` | igual |
+| `4E6950F0FE571D6AE41A78380C59C20459FDF19F34C57E9777E4E34A6BC61C58` | `frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts` | igual |
+| `94D6E6253B266C7F21099AA593AAC7B2600EDCA22AB403AA365DCD789B1C6A97` | `frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts` | igual |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` | igual |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` | igual |
+| `7A7C7BA922F77DA22D0F765ED5EA9CCF9216D1900E4B5F18365DA9D46437495F` | `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` | igual |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` | igual |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` | igual |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` | igual |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` | igual |
+| `72B19B6A00B4ADE43B06829BB5BEF1A5CDECF5A7D2AF57369F1E857A1D4A17F5` | `frontend/src/lib/errores-ch3-r1.ataque.test.ts` | igual |
+| `5D41A2AF073DCAA2B8B016D835D36D5EBAE9278863DB048484A192A88BB31A30` | `frontend/src/lib/errores-ch3-r2.ataque.test.ts` | igual |
+| `66513D957E524AF5E336A2C7E656DF37F51106507A3984B691DF47CD825D4D10` | `frontend/src/lib/estatico-ch3-r1.ataque.test.ts` | igual |
+| `A9529CEFBD27CBB94376A6548EF1B8B247FB1F4155938298AE5D10EAEE81008A` | `frontend/src/lib/estatico-ch3-r2.ataque.test.ts` | igual |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` | igual |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` | igual |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` | igual |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` | igual |
+| `B6265BF6EEC25B7F2C34DCD93DD4D8B23D07CA6214576921A50A66FF16346FFB` | `frontend/src/services/apiClient-ch3-r1.ataque.test.ts` | igual |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` | igual |
+| `87DA1CF759AC639BB168AB352CD28814B5C6C85B46B86A033FC22F147D6E6D15` | `frontend/src/styles/clases-r1.ataque.test.ts` | **reescrita en la ronda 0 de 03e** |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` | igual |
+
+## CLASES-03e — Ronda 1
+
+Fecha: 2026-11-03. Documentos que usé (los cuatro hashes los reproduje):
+- Plan: `plan.md`, SHA-256 `711c23a30ca99afdb7fe22d94b1b3b9276ae5abddafa251f7f26fb96d4f1a541`.
+- Resumen del programador: `resumen-programador-03e.md`, SHA-256 `a3a94964c58d5ba6d416a0ad68409f013727e1f5e1f5ba8e124081cb809a14f2`.
+- Revisión: `revision.md`, SHA-256 `c8bf0252544d831eae6b33f33c262c93ff660a18eca7397a6f6541ddac90793e`. Seguí "## Verificación del resumen del programador — 03e": O-1 a O-3 y sus seis indicaciones.
+- Base de este reporte: SHA-256 `f441e0529adf8cd036f79fb1a5ed5f8d2106e22e2c93b9f4019f0ce0678e487e`.
+
+Toqué solo `frontend/`. 03e no toca `shared/` ni el backend.
+
+**Veredicto: ROTO.** 2 hallazgos: 0 críticos, 0 altos, 2 medios (T-01 y T-02) y 0 bajos.
+- Los ids de esta ronda son `CL3-4R1-nn`; el prefijo no choca con ningún otro (grep: 0 antes de esta ronda).
+- La numeración de hallazgos de 03e empieza en T-01.
+
+Verificación propia (desde `frontend/`, una suite a la vez):
+- lint: `exit 0`.
+- test: `Test Files  1 failed | 269 passed (270)` · `Tests  6 failed | 5894 passed (5900)`. Los 6 rojos son los casos de T-01 y T-02.
+
+### V-01
+- **Antes de tocar nada:** las 242 `*.ataque` tenían el mismo SHA-256 que la tabla de la adenda 1 de la ronda 0 de 03e. Hice un `diff` por ruta: 0 diferencias, 0 faltantes y 0 sobrantes. La implementación no tocó ninguna.
+- **Al cierre son 244:** las 2 nuevas de esta ronda y 242 iguales.
+
+### Hallazgos
+
+### T-01 — La marca de S-14 sobrevive a un clic en blanco y una recarga posterior le roba el foco a la persona (O-3)
+Severidad: media
+Prueba: `frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx`:
+- `:348` › "CL3-4R1-01: el admin deja el control plegado con un clic en blanco y una recarga baja el conteo a 0: el foco no va a la fila"
+- `:366` › "CL3-4R1-02: el admin despliega, pliega con el ratón, hace clic en blanco y una recarga baja el conteo a 0: el foco no va a la fila"
+
+**Escenario.** El admin enfoca el control "Ver respuestas (1)". Después hace clic en blanco: `blur()` con `relatedTarget` nulo y la ventana con el foco. Para eso, `document.hasFocus()` se fija en `true`, porque jsdom lo responde `false` cuando ningún elemento tiene el foco. El foco queda en `<body>`. Luego una recarga de la lista baja el conteo a 0 y el control desaparece.
+- **Esperado:** el foco se queda en `<body>`. La persona ya había salido del control, así que el foco no se mueve. Así lo resuelve el mecanismo hermano `useFilaEnFoco`, `hooks.ts:491-497`.
+- **Obtenido:** el foco salta a la fila de la duda (`li` con `tabIndex={-1}`), que se desplaza a la vista.
+
+En CL3-4R1-02 (desplegar, plegar con el ratón con el foco en el control, clic en blanco, recarga) pasa lo mismo.
+
+**Causa.** En `elemento-de-duda.tsx:109-111` solo se borra la marca (`controlConFocoRef`) si `relatedTarget !== null`. El efecto de `:62-69` la encuentra viva y enfoca la fila. La marca de `DudasView` (`useFilaEnFoco`) sí se borra, así que el foco no lo mueve `DudasView`.
+
+**Control (verde):** CL3-4R1-03 (`:390`). Si el foco pasa del control a «Marcar como resuelta», `relatedTarget` es ese botón y el foco se queda donde está.
+
+Requisito o regla violada:
+- §D-9.2: "si el control desaparece **con el foco dentro** … el foco va a la fila". Aquí el foco ya no estaba dentro.
+- La regla de los hermanos de `AGENTS.md`: el estado "clic en blanco" de `useFilaEnFoco` y `useFocoAlCargarMas` no se aplicó.
+- Es O-3 de la verificación del manager.
+
+### T-02 — Con el bloque de respuestas abierto, una duda que ya no existe muestra un `MensajeError` «Esa duda ya no existe.» (role="alert") dentro de la fila hasta que llega la lista
+Severidad: media
+Prueba: `frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx`:
+- `:447` › "CL3-4R1-06: borrar una duda con sus respuestas abiertas: mientras llega la lista no se piden sus respuestas ni sale un error en la fila; después, la fila sale, un aviso y el foco al h2"
+- `:477` › "CL3-4R1-07: borrar una duda que otra persona ya borró, con sus respuestas abiertas: un solo aviso «Esa duda ya no existe.» y ningún error en la fila mientras llega la lista"
+- `:504` › "CL3-4R1-08: responder a una duda que otra persona borró: un solo aviso «Esa duda ya no existe.» y ningún MensajeError en la fila antes de que la fila desaparezca"
+- `:532` › "CL3-4R1-09: borrar una respuesta de una duda que otra persona borró: un solo aviso «Esa duda ya no existe.» y ningún MensajeError en la fila antes de que la fila desaparezca"
+
+**Cómo se prueba.** En cada caso retengo la recarga de la lista (`GET …/dudas`) que sigue a la acción. Así queda a la vista lo que la persona vería mientras esa petición está en vuelo con una red real. Las respuestas no se retienen.
+- **Esperado:** mientras la fila sigue a la vista, no hay error dentro de ella. Hay un solo aviso: "Duda borrada" en CL3-4R1-06, y "Esa duda ya no existe." en CL3-4R1-07 a -09. Cuando llega la lista, la fila sale.
+- **Obtenido:** dentro de la fila aparece el `MensajeError` de las respuestas, con `role="alert"` y el texto "Error · Esa duda ya no existe.". Lo produce un `GET …/dudas/:id/respuestas` que responde `404 DUDA_NO_ENCONTRADA`.
+
+Cómo llega ese `GET` en cada camino:
+- **Borrar la duda, con éxito (`204`) o con `404`** (CL3-4R1-06 y -07): `useBorrarDuda` quita las respuestas de la caché con `removeQueries` mientras `RespuestasDeDuda` sigue montado. En el siguiente render, el observador vuelve a crear la consulta y pide las respuestas de la duda ya borrada.
+  - En CL3-4R1-06, la persona acaba de borrarla y recibe "Duda borrada" junto con una alerta roja que dice "Esa duda ya no existe.", dos mensajes que se contradicen.
+- **Responder o borrar una respuesta con `404 DUDA_NO_ENCONTRADA`** (CL3-4R1-08 y -09): `invalidarRespuestasYDudas` vuelve a pedir las respuestas abiertas (`404`) a la vez que la lista. El lector de pantalla anuncia dos veces "Esa duda ya no existe.": el aviso y la alerta.
+
+**Control (verde):** CL3-4R1-10 (`:559`). Marcar con `404` invalida solo la lista (`exact`), así que no pide las respuestas ni pinta el error. El foco va al `h2`.
+
+Requisito o regla violada:
+- §D-14, fila "Sí, borrar duda · 204": "las respuestas de esa duda salen de la caché", con un aviso.
+- La regla de "un solo aviso" de la matriz (`AGENTS.md`, "Matriz de avisos y recargas").
+- La indicación 5 del manager: "que no salga un aviso ni un `MensajeError` visible antes de que la fila desaparezca".
+- §D-9.4 pide renovar "las respuestas abiertas" con `DUDA_NO_ENCONTRADA`. Pedir de nuevo una lista que se sabe borrada es justo lo que pinta el error.
+
+### Atacado sin hallazgos (casos verdes de esta ronda)
+**Indicación 1 (la desviación `notifyOnChangeProps: "all"`).** En `frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx`:
+- `:482` CL3-4R1-17:
+  - **Preparación:** pongo en la caché la lista total de temas con la consulta real (`fetchQuery(consultaTemas)`). La lectura al abrir «Editar recurso» falla con 500 y aparece la nota.
+  - **Después:** `invalidateQueries` responde 200 con los mismos datos.
+  - **Precondición que se afirma:** la referencia de los datos en la caché no cambia (`toBe`). Es justo el caso que la desviación atiende.
+  - **Resultado:** aparece «Tema» con el tema del recurso, la nota se va, no hay avisos y guardar envía `Unidad 1`.
+- `:510` CL3-4R1-18: la misma lista idéntica, la lectura sin red y el evento `online`. Aparece «Tema», la referencia de los datos no cambia y la nota se va.
+- `:537` CL3-4R1-19 (decisión (1), un vecino de CL3-E16 (d)):
+  - **Escenario:** otra persona movió el recurso a «Unidad 2» (versión 1). Guardar da `409` y la relectura de temas falla.
+  - **Resultado:** la nota está, no hay campo «Tema», y el segundo `PUT` envía `temaId: Unidad 2` con `version: 1`.
+
+**Indicación 5 (puntos de ataque de 03e).** En `dudas-03e-r1.ataque.test.tsx`:
+- `:407` CL3-4R1-04: con el foco en «Marcar como resuelta», una recarga de fondo quita `puedeMarcar`. El botón desaparece, el foco va a la fila y no hay avisos.
+- `:424` CL3-4R1-05: el `PUT` de marcar en vuelo y una recarga que quita `puedeMarcar`. Al responder 200 hay un solo aviso de éxito, ninguno de error, y el foco no cae en `<body>`.
+- `:586` CL3-4R1-11: de 0 a 1 respuestas por otra persona con el bloque abierto (estudiante que entró por «Responder»).
+  - El mismo control sigue en «Ocultar respuestas» (`aria-expanded="true"`), y hay un solo botón «Responder» en la duda.
+  - Al plegar dice «Ver respuestas (1)» y ya no queda ningún «Responder».
+- `:614` CL3-4R1-12: doble clic en el control «Responder» con 0 respuestas. Despliega y pliega, el control vuelve a «Responder» (`aria-expanded="false"`) y no sale ningún `POST`.
+- R5 con dos dudas abiertas y una sola en error: lo cubre ya CL3-E10 (b), verde. No lo dupliqué.
+- De 1 a 0 respuestas con el bloque plegado y desplegado, para el admin y el estudiante: lo cubren ya CL3-E14 y CL3-E15. El estado vecino que faltaba es T-01.
+
+**Indicación 3 (la matriz como la describe el código):**
+- `:631` CL3-4R1-13 (O-1): «Publicar duda» con `400` de `texto`.
+  - El error queda bajo el campo, unido por `aria-describedby`, y no hay aviso.
+  - El foco se queda en el botón, que sale de la espera, y lo escrito se conserva.
+- `:654` CL3-4R1-14 (O-1): «Responder» con `400` de `texto`. Lo mismo, dentro de la fila.
+- `:677` CL3-4R1-15 (O-2): entrar a «Dudas» desde «Avisos» con la primera carga en 500. Aparece el `MensajeError` con el genérico, no hay aviso y el foco se queda en el enlace «Dudas».
+
+**Indicación 4:** `:691` CL3-4R1-16.
+- **Escenario:** hay un bloque de respuestas abierto con "Borrador sin enviar" escrito. La persona marca otra duda (200) y la recarga de la lista responde 500.
+- **Resultado:** hay un solo aviso (el de éxito), una sola alerta (el `MensajeError` que reemplaza la lista) y el foco va al `h2`, nunca a `<body>`.
+
+### Observaciones (sin prueba roja)
+- **O-r1-1 (indicación 4).** En CL3-4R1-16, la recarga fallida de la lista desmonta el bloque abierto y su formulario, y lo escrito ("Borrador sin enviar") se pierde. Es el patrón heredado del muro (T-04 de 02c): §D-14 de 03e dice "la lista se reemplaza por el `MensajeError`" y ninguna fila promete conservar lo escrito en otra duda. No lo cuento como hallazgo. Si el humano quiere conservarlo, es una decisión de diseño.
+- **O-r1-2 (conteo viejo en el control).** El bloque que se abre con 0 respuestas pide igual su primera página (Enmienda 4), y en ese momento pueden llegar respuestas que la lista no contaba. El texto del control al plegar sale del conteo de la lista, que no se renueva: puede decir «Responder» con una respuesta a la vista un momento antes. Para el admin, el control desaparece al plegar. El plan no pide renovar el conteo en ese caso (§D-9.2 lo toma de la lista), así que lo dejo como observación.
+- **Decisión (a) del humano:** "Esa publicación ya no existe." en «Mover», comentar y «Ver comentarios» de un recurso borrado no se cuenta.
+
+### No atacado y por qué
+- **Navegador real:** ningún agente abre navegadores. Lo visual queda para la comprobación humana (H-1 a H-7).
+- **Backend y `shared/`:** 03e no los toca, así que no corrí sus suites. PA-07 no aplica.
+- **Si la prueba de la indicación 1 detecta que falta la opción:** no pude comprobar que CL3-4R1-17 falla sin `notifyOnChangeProps: "all"`, porque no toco producción. Lo que sí comprueba es la precondición del caso: la referencia idéntica.
+
+### Archivos `*.ataque` de esta ronda
+| SHA-256 | Archivo | Casos | Rojos |
+|---|---|---|---|
+| `3B5A9FAC5CD20A881BF6B38597B752725A7F6BBFDDCF103B7BF1239A76353DFC` | `frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx` (nuevo) | 16 | 6 (T-01: 2, T-02: 4) |
+| `29A3125CC70969F2FC2BB1F012BEEB81840E1A00EA08D5B588B10D190342AE7F` | `frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx` (nuevo) | 3 | 0 |
+
+Formateo: `npx prettier --write` solo sobre esos dos archivos, dentro de `frontend/`. Sin selectores de estilo: los controles se buscan por rol, nombre, etiqueta o `aria-expanded`, y la fila por su `li`.
+
+### Comandos de la verificación propia (desde `frontend/`, una tras otra)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | `> tsc -b` (exit 0; antes, `All matched files use Prettier code style!`) |
+| `npx vitest list \| grep -acE "^src/"` | `5900` casos (5881 + 19) |
+| `npx vitest list \| grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l` | `270` archivos (268 + 2) |
+| `npm run test` | `Test Files  1 failed \| 269 passed (270)` · `Tests  6 failed \| 5894 passed (5900)` · `Duration  268.46s`. Sin «timed out» (0). Los 6 rojos son CL3-4R1-01, -02, -06, -07, -08 y -09 |
+
+### Tabla de SHA-256 de las 244 `*.ataque` al cierre de la ronda 1 de CLASES-03e
+- Comando: `sha256sum` sobre `git ls-files '*.ataque.test.*'` más los no rastreados, con los hash en mayúsculas.
+- 2 nuevas; las otras 242 son iguales a la tabla de la adenda 1 de la ronda 0 de 03e.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` | igual |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` | igual |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` | igual |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` | igual |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` | igual |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` | igual |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` | igual |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` | igual |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` | igual |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` | igual |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` | igual |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` | igual |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` | igual |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` | igual |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | igual |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` | igual |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` | igual |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` | igual |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` | igual |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` | igual |
+| `AFB531E7CCAB1CB53F0322D7D099A7F435DBD42325DE8C225525E3784B93F6CC` | `backend/test/calificaciones-01a-r2.ataque.test.ts` | igual |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` | igual |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` | igual |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` | igual |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` | igual |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` | igual |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` | igual |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` | igual |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` | igual |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` | igual |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` | igual |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` | igual |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` | igual |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` | igual |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` | igual |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` | igual |
+| `4EA45EAA95C5EA2E1EC91E04D2BBA32689A30BD341ADE16625B28AABDB96D6D9` | `backend/test/dudas-clases03b-r1.ataque.test.ts` | igual |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` | igual |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` | igual |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` | igual |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` | igual |
+| `47B02C6D3916713BF9236A619FDB59A641D2E805F1F0B7E9B2C161FE719DDC3A` | `backend/test/entregas-01b-r1.ataque.test.ts` | igual |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` | igual |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` | igual |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` | igual |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` | igual |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` | igual |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` | igual |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` | igual |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` | igual |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` | igual |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` | igual |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` | igual |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` | igual |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` | igual |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` | igual |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` | igual |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` | igual |
+| `287B224CBAF468E3891C13E4F38A09D5A860D6CFE29AD35541C71076D7AAE28C` | `backend/test/lecturas-fx-r1.ataque.test.ts` | igual |
+| `4090A21F3B389A24BC67D5F585440A55C39C8387112BDB35116863C5E609662C` | `backend/test/lecturas-fx-r2.ataque.test.ts` | igual |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` | igual |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` | igual |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` | igual |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` | igual |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` | igual |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` | igual |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` | igual |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` | igual |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` | igual |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` | igual |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` | igual |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` | igual |
+| `2AFD58E1EAD0A293AA7BD58C639F3E5126D153A418F9A26450228468E12B2BED` | `backend/test/migracion-clases03a-r1.ataque.test.ts` | igual |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` | igual |
+| `D23BF1312777BDC000810E403A5B4D99C9C0E12998E4CC11BE5EF5A2253F6935` | `backend/test/muro-c-r1.ataque.test.ts` | igual |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` | igual |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` | igual |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` | igual |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` | igual |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` | igual |
+| `42F4E113762EF26459E95642FF4B814613353D64D462AB2B01ECDEEF4B9E160D` | `backend/test/recursos-clases03a-r1.ataque.test.ts` | igual |
+| `FF4D112AFF8685FCD9C5CA933A0B359E2B4E9BEDAD8F1B5D3D787CFDEC711516` | `backend/test/recursos-clases03a-r2.ataque.test.ts` | igual |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` | igual |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` | igual |
+| `1920263A7207AA2655B6588F25592CB87366FA8A49539D79B8EF5EACAEB32558` | `backend/test/sesiones-y-cadena.ataque.test.ts` | igual |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` | igual |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` | igual |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` | igual |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` | igual |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` | igual |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` | igual |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` | igual |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` | igual |
+| `0E49B62B73B2EF55E8C0B2BA26E1D136A3ADB674761FDA2C11453EB5C2FAF7CC` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` | igual |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` | igual |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` | igual |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` | igual |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` | igual |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` | igual |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` | igual |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` | igual |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` | igual |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` | igual |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` | igual |
+| `29782507D18FF96315E4030E890B21FDF1EB1C5550C3D1CFE5C92664D30B64DD` | `frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx` | igual |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` | igual |
+| `C8A9812F21CB24DB50CC2AFD945B7B38ABACB468FBF4F4DF16C07A52C48426AC` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` | igual |
+| `D7608D7FC7767F53DB3971672FC99FDB8BBD33F303F41E321BCC48AD25F511FD` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` | igual |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` | igual |
+| `6ACC49A2E3B649868CCF9A9337143F991B655DAFBCFF2E5916BCA0269BD23A7C` | `frontend/src/app/personas-03c1-r1.ataque.test.tsx` | igual |
+| `A3E3DADD35C40E9A11A0BDEF8CD716DACEEB254E5307A837C6598213BA803A7B` | `frontend/src/app/personas-03c1-r2.ataque.test.tsx` | igual |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` | igual |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` | igual |
+| `FC820217BC3BAA3749C077FE16A4ABD7AE10E92C84494FFB2A215133C19DF36A` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | igual |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` | igual |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` | igual |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` | igual |
+| `11C6D9C55BE91AA41E8525345E3795E34B8E1E661FF7CDD901F729760A033CFD` | `frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts` | igual |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | igual |
+| `36D605F79169E16A5AFADC7E07FC3781472DD393406430277CEB147FC2DA1FA5` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | igual |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` | igual |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` | igual |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` | igual |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` | igual |
+| `7D080037D9A64EEBCEBB789D1DFD94B787652103E6F9C84F968F9C9F64C3B30C` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | igual |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | igual |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | igual |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | igual |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | igual |
+| `C21EDB5A06B43808CE2BE23058409B7FF887E66D60E842C500A3714A90EBCB25` | `frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx` | igual |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` | igual |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` | igual |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` | igual |
+| `761F54F183540D8AE222F97940FA6C2355FF33E515771E627F8EFDE49261EDA2` | `frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `14EAD3DCE027B433D51A9D635B0FA35718EE3875BFFC3E1949F96ECB8D2F7135` | `frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | igual |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | igual |
+| `AF3F0D474F8052B402C8959A64ACF9E730F9AE60F09D90996A6306E9C2440F08` | `frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx` | igual |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` | igual |
+| `96B6AB55F0A7BF9B66F8EDBCB5CEFFA7E4FE35935C6CB12ECAB93FC04BC02856` | `frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `0CE580976EA894EE4BD9C4ADBE3D7D1D524354A8FF22FC7E7CC6ACF89057AA53` | `frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `4BCD3E34B62726FEA718EFB9C482D8C1F504BBE85EF32427BDF4D65A6832D8F1` | `frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts` | igual |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | igual |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | igual |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | igual |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | igual |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | igual |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | igual |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | igual |
+| `6AC36CE1EB4DF953626415B3ED431A8F4809DC29CF259F755F1F8509DD54B7EF` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | igual |
+| `FB33F2A27BFCCA906549A12610977478BA72E6E7ED8AFD5C5A0A962DEB3EB802` | `frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | igual |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` | igual |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` | igual |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` | igual |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` | igual |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` | igual |
+| `A9DC00D9CF6E8684113EEB824658C7FB2F3077EE8A54DEB0CCE47AC802C74F44` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` | igual |
+| `98E645DF89C9736EE33F440C1D83F342BE84F30CAABEC0310B1B5185E538FBD6` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` | igual |
+| `F1B2B7D3C2A2BFBC2C2AA31CCE4B120E306681C0CC9EFB85AC2A954C8F8F8AFE` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` | igual |
+| `C6C85AC2F6E7418E81D7817F9C455C0E0973025A15AE2A5378E00C9A71C45620` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` | igual |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` | igual |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` | igual |
+| `87DAE1927669B46BB52AAD94DB5107A5284F772FA9B29E225AACE19C1A1E8DEF` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | igual |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` | igual |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` | igual |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` | igual |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` | igual |
+| `DCE7FD019A6E32B8E4DF37DD0728E265F5E9449E9EE2723F372EA174FE312464` | `frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `3B5A9FAC5CD20A881BF6B38597B752725A7F6BBFDDCF103B7BF1239A76353DFC` | `frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx` | **nueva en la ronda 1 de 03e** |
+| `DDC9DFACCC8230EC612126FDF29939A8E4311188566E5CFCAA724BD119E959E8` | `frontend/src/features/clases/errores-ch3-r1.ataque.test.ts` | igual |
+| `5E20EEFE0104B510A3002DE084B6162162B5BF20797622C8D92B350853494B53` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | igual |
+| `3CB8E0D7BB13B57638D65AA74EC5FF0F9306F024CF6996B7737232243A0B82F8` | `frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts` | igual |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` | igual |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` | igual |
+| `46383E1F3EDE03CB204DBF602373D0A07E513D8DAC7EC4179A203EA6EE270FA3` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` | igual |
+| `1D2BFE93DB13219086246E21307223229A89416484A09AC69DA14460E54E47BB` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` | igual |
+| `8B8EA2D21597BC0444709A9D26FD795D05BC964EF7B5094240628C63018C091B` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` | igual |
+| `B819D6BBDE4BD47E3EC724FCDEA5E77EB66B12076B8A9A083691B52EF0BDD182` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `AB006DC1711E9A652643930A7010C25F442D1FFDD137ADBB093EB5BD98DA90D6` | `frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx` | igual |
+| `5224976752A14C3E003B246FA97ABF25356E370CB46DA1CDFF9526BF3BE86B4E` | `frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `7F4A935DE29C3C519AAD697EDB1470C4CFCEAD600F5C1516C5FFF948995D4434` | `frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx` | igual |
+| `8BC578EF17D2731F388C14CA19BC719A2B8D04D8A41009FADEE15227379047BC` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | igual |
+| `479430B848CF3D21A0187138944DEEC46BB36653071BBD2790ED57620F012976` | `frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx` | igual |
+| `4D94CCBE786A46CA1D82A280956F1146D5C302A9F83DFAC45F39B3B2F94B753F` | `frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx` | igual |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` | igual |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` | igual |
+| `99DF138B24D4ABA97B9F714C32BA226E82C7403CF73AA2E9E2B0B028B28E283E` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` | igual |
+| `4817262EF6E4DADFF56857E50BAB2E06EC479E62D5EAF45B34D70D683736B637` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` | igual |
+| `8DA38DBCB605CE3D90ACE8117CE2CC5C838D71EB24BDD76FAD3A53B82DA93901` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` | igual |
+| `D0ACB3527AAFA6F687E3EB00563E37BE93768E7D7F742694A4D5CE05B75B7E28` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` | igual |
+| `D08E51D451EBAEB2D7086C75DC1F73D52C5B4A6B8DFB979932828BED5F5D459D` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` | igual |
+| `558212B46641DE0794D0CE90E3944A99CB5BAA7FAB4B09BBAC5EA7CAC41EAA34` | `frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx` | igual |
+| `AEC8C4131E5DC733246B33E8189E2DC595387324BDD2081D1D245641C20C380A` | `frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx` | igual |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` | igual |
+| `7677E0571587C89DE1CB76788D499AC545255CA64C8AFCB38A8AD6E39C02E2C6` | `frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx` | igual |
+| `60541290248812CFCE5591DDF33D01125D60C33257743A7EC48A445013D3D8C1` | `frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx` | igual |
+| `4AAFAA73980BA1BC29BE043623A030C9EAA730825EB61A403BF54F9AC700B42D` | `frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx` | igual |
+| `70B1A49A6A0E471422BE987466228E5BEB87E25BAEE2906790651C94ED214A3A` | `frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx` | igual |
+| `29A3125CC70969F2FC2BB1F012BEEB81840E1A00EA08D5B588B10D190342AE7F` | `frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx` | **nueva en la ronda 1 de 03e** |
+| `85A7926A0F6831A8375F544CF38FE5585A8E2DCBF73D9726E9A3CFAAB7F76511` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` | igual |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` | igual |
+| `09435ABBB9A26DD71C52B4D95487C6D38594F1BA062AEFB60F73B7EB7308F991` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | igual |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` | igual |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` | igual |
+| `DB42C88D5B0BFB1125BF122C03A2E019D6F5365C128AC4BFADD413A26A934845` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` | igual |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` | igual |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` | igual |
+| `EA58EB11C3157A33C5730F87F2CF562AE178589B30264902B165C4439CEBC2EE` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` | igual |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` | igual |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` | igual |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` | igual |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` | igual |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` | igual |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` | igual |
+| `2938AE2F1C00F63A0372997C7BA68BDC0AB097895769BF9060072A4AC2674C5A` | `frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` | igual |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` | igual |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` | igual |
+| `08A5E1A5642E7FC7553632DD5CF4E07F0EA35C3EF1E7293D010BBC49B09465AA` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` | igual |
+| `172BE3EFD919C0D3948ECA17C7E808968E2370AFE1F9C2A28CEF7D2DED584B81` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` | igual |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` | igual |
+| `4E6950F0FE571D6AE41A78380C59C20459FDF19F34C57E9777E4E34A6BC61C58` | `frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts` | igual |
+| `94D6E6253B266C7F21099AA593AAC7B2600EDCA22AB403AA365DCD789B1C6A97` | `frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts` | igual |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` | igual |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` | igual |
+| `7A7C7BA922F77DA22D0F765ED5EA9CCF9216D1900E4B5F18365DA9D46437495F` | `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` | igual |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` | igual |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` | igual |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` | igual |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` | igual |
+| `72B19B6A00B4ADE43B06829BB5BEF1A5CDECF5A7D2AF57369F1E857A1D4A17F5` | `frontend/src/lib/errores-ch3-r1.ataque.test.ts` | igual |
+| `5D41A2AF073DCAA2B8B016D835D36D5EBAE9278863DB048484A192A88BB31A30` | `frontend/src/lib/errores-ch3-r2.ataque.test.ts` | igual |
+| `66513D957E524AF5E336A2C7E656DF37F51106507A3984B691DF47CD825D4D10` | `frontend/src/lib/estatico-ch3-r1.ataque.test.ts` | igual |
+| `A9529CEFBD27CBB94376A6548EF1B8B247FB1F4155938298AE5D10EAEE81008A` | `frontend/src/lib/estatico-ch3-r2.ataque.test.ts` | igual |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` | igual |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` | igual |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` | igual |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` | igual |
+| `B6265BF6EEC25B7F2C34DCD93DD4D8B23D07CA6214576921A50A66FF16346FFB` | `frontend/src/services/apiClient-ch3-r1.ataque.test.ts` | igual |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` | igual |
+| `87DA1CF759AC639BB168AB352CD28814B5C6C85B46B86A033FC22F147D6E6D15` | `frontend/src/styles/clases-r1.ataque.test.ts` | igual |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` | igual |
+
+## CLASES-03e — Ronda 2
+
+Fecha: 2026-11-03. Fuentes (los cuatro hashes los reproduje):
+- Plan: `plan.md`, SHA-256 `711c23a30ca99afdb7fe22d94b1b3b9276ae5abddafa251f7f26fb96d4f1a541`.
+- Resumen del programador: `resumen-programador-03e.md`, SHA-256 `859b092e646013363c21433b9abfb7e63c342ab911e6fcbb06bbe61a7b7f74d2`, sección "## Corrección de la ronda 1 (T-01 y T-02)".
+- Revisión: `revision.md`, SHA-256 `2dac08e8c3f6b5caa1b1fda7626e95bb558e271f137db406a28e42f4c8eb5692`. Seguí "## Verificación de la corrección de la ronda 1 — 03e": O-4 a O-6 y sus cinco indicaciones.
+- Base de este reporte: SHA-256 `17ea0fd583f7211c6a9c016e9fd94ea4cb6a61c013922683ba6c42201aa8ca9c`.
+
+Solo trabajé en `frontend/`.
+
+**Veredicto: ROTO.** 2 hallazgos: 0 críticos, 0 altos, 1 medio (T-03) y 1 bajo (T-04). Los ids de esta ronda son `CL3-4R2-nn`; el prefijo no choca con ningún otro (grep: 0 antes de esta ronda). La numeración de hallazgos sigue en T-03.
+
+Verificación propia (desde `frontend/`, una suite a la vez):
+- lint: `exit 0`.
+- test: `Test Files  1 failed | 270 passed (271)` · `Tests  4 failed | 5911 passed (5915)`. Los 4 rojos son los casos de T-03 y T-04.
+
+### T-01 y T-02 de la ronda 1: corregidos
+- En la corrida completa, todo `dudas-03e-r1.ataque.test.tsx` pasa. Eso incluye CL3-4R1-01 y -02 (T-01), CL3-4R1-06, -07, -08 y -09 (T-02) y los controles CL3-4R1-03 y -10.
+- El único archivo rojo de la corrida es el nuevo de esta ronda.
+
+### V-01
+- **Antes de tocar nada:** las 244 `*.ataque` tenían el mismo SHA-256 que la tabla de la ronda 1 de 03e. `diff` por ruta: 0 diferencias, 0 faltantes y 0 sobrantes. La corrección no tocó ninguna.
+- **Al cierre:** son 245 (la nueva de esta ronda y 244 iguales).
+
+### Hallazgos
+
+### T-03 — Mientras llega la lista después de borrar la duda, las respuestas que se veían cambian a «Cargando…» (role="status") dentro de la fila (O-4)
+Severidad: media
+Prueba: `frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx`:
+- `:387` › "CL3-4R2-01: 21 dudas (con «Ver más dudas»), respuestas abiertas, «Sí, borrar duda» 204 y la lista retenida: en la fila sigue la respuesta, sin «Cargando…» ni role=status, y un solo aviso"
+- `:412` › "CL3-4R2-02: lo mismo con 404 DUDA_NO_ENCONTRADA al borrar: la respuesta sigue a la vista, sin «Cargando…» ni role=status, y un solo aviso «Esa duda ya no existe.»"
+- `:435` › "CL3-4R2-03: una sola página y la persona pulsa «Dudas» mientras llega la lista (la vista se vuelve a pintar): la respuesta sigue a la vista, sin «Cargando…» ni role=status"
+
+**Escenario:** el bloque de respuestas está abierto, la persona borra la duda (`204` o `404 DUDA_NO_ENCONTRADA`) y retengo el `GET …/dudas` que sigue.
+- **Esperado:** mientras la lista no llega, la fila sigue mostrando "Respuesta 1", sin `role="status"` ni «Cargando…». Lo dicen el resumen ("lo que ya se ve se queda") y la fila nueva de la matriz ("las respuestas no se vuelven a pedir"). Debe salir un solo aviso.
+- **Obtenido:** dentro de la fila, el bloque dice «Cargando…» (`role="status"`, que el lector de pantalla anuncia después de "Duda borrada") y la respuesta desaparece. Pasa en los tres caminos:
+  - con dos páginas, porque `DudasView` se vuelve a pintar cuando arranca la recarga: lee `isFetching` por el `enEspera` de «Ver más dudas»;
+  - con `404`, por la misma razón;
+  - con una sola página, cuando la vista se vuelve a pintar por otra causa. Aquí la persona pulsa «Dudas» estando ahí, y la `location.key` nueva hace que `DudasView` se vuelva a pintar.
+- **Causa:** `useBorrarDuda` quita la consulta de respuestas con `removeQueries` mientras `RespuestasDeDuda` sigue montado. En el siguiente render, el observador construye una consulta nueva sin datos. Con `enabled: false` no se pide, pero queda `isPending`, y `!filas` lleva a `<Cargando />` (`respuestas-de-duda.tsx`, rama "cargando").
+- **Requisito o regla violada:** la fila de la matriz de la corrección ("Sí, borrar duda, bloque abierto · 204 · …las respuestas no se vuelven a pedir…") y la regla de un solo aviso (`AGENTS.md`, "Matriz de avisos y recargas"): además del aviso, un estado vivo anuncia «Cargando…». Es O-4 del manager.
+
+### T-04 — «Ver más respuestas» pide la página siguiente aunque la duda se esté borrando, y pinta un `MensajeError` «Esa duda ya no existe.» en la fila además del aviso del borrado (O-5)
+Severidad: baja
+Prueba: `frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx:459` › "CL3-4R2-04: con el DELETE de la duda retenido (ya hecho en el servidor), «Ver más respuestas» y después 204 con la lista retenida: un solo mensaje y ningún MensajeError en la fila"
+
+**Escenario:** el bloque está abierto con «Ver más respuestas». La persona pulsa «Sí, borrar duda» y retengo el `DELETE`, que el servidor doble ya aplicó, como haría un servidor real con la respuesta todavía en camino. Antes de que llegue la respuesta, pulsa «Ver más respuestas».
+- **Esperado:** «Ver más respuestas» no pide nada mientras la duda se borra (`pedir=false`), y la persona lee un solo mensaje, "Duda borrada".
+- **Obtenido:** sale un `GET …/respuestas?cursor=…`, responde `404 DUDA_NO_ENCONTRADA` y la fila muestra `role="alert"` con "Error · Esa duda ya no existe.". Después llega "Duda borrada": son dos mensajes que se contradicen.
+- **Causa:** `fetchNextPage` no mira `enabled`, así que `pedir={false}` no lo detiene.
+- **Severidad baja:** el camino es raro, porque hay que pulsar «Ver más» con el `DELETE` en vuelo.
+- **Requisito o regla violada:** la regla de un solo aviso y la fila de la matriz de la corrección ("Las respuestas no se piden mientras el `DELETE` y la lista están en vuelo"). Es O-5 del manager.
+
+### Atacado sin hallazgos (casos verdes de esta ronda)
+En `dudas-03e-r2.ataque.test.tsx`:
+- **Indicación 3 (T-01 por teclado):**
+  - `:497` CL3-4R2-05: Tab del control a «Marcar como resuelta» y Shift+Tab de vuelta, y después una recarga a 0. El foco va a la fila.
+  - `:514` CL3-4R2-06: con 21 dudas, Tab del control a «Ver más dudas», fuera de la lista, y después una recarga a 0. El foco se queda en «Ver más dudas».
+  - `:530` CL3-4R2-07: dos dudas bajan a 0 en la misma recarga, con el foco en el control de una. El foco va solo a esa fila; la otra no lo recibe.
+- **Indicación 4 (el hermano agregado):**
+  - `:572` CL3-4R2-08: con el foco en «Ver más respuestas» y `404 DUDA_NO_ENCONTRADA`:
+    - el foco va al `h3` «Respuestas»;
+    - hay un solo mensaje (el `MensajeError` del bloque) y ningún aviso;
+    - cuando llega la lista, la fila sale y el foco va a la vecina («Duda 1»), nunca a `<body>`, sin alertas ni avisos.
+  - `:586` CL3-4R2-09: lo mismo, pero la recarga de la lista responde 500. Queda un solo `MensajeError` (el de la lista, con el genérico), ningún aviso, y el foco va al `h2`.
+
+### Observaciones
+- O-6 (`retry: 1` en `app/providers.tsx`) no se cuenta: es una decisión del manager. Mis casos usan un `QueryClient` sin reintentos.
+
+### No atacado y por qué
+- **Navegador real:** ningún agente abre navegadores.
+- **Backend y `shared/`:** 03e no los toca; no corrí sus suites. PA-07 no aplica.
+
+### Archivos `*.ataque` de esta ronda
+| SHA-256 | Archivo | Casos | Rojos |
+|---|---|---|---|
+| `FEC2FFC2691BD297DCA5F90233D498D10DFD689A5D9A8819BC30E757C6F67C26` | `frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx` (nuevo) | 9 | 4 (T-03: 3, T-04: 1) |
+
+- **Formateo:** `npx prettier --write` solo sobre ese archivo, dentro de `frontend/`.
+- **Selectores:** ninguno de estilo. Los elementos se buscan por rol, nombre, etiqueta o `aria-expanded`.
+
+### Comandos de la verificación propia (desde `frontend/`, una tras otra)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | `> tsc -b` (exit 0) |
+| `npx vitest list \| grep -acE "^src/"` | `5915` casos (5906 + 9) |
+| `npx vitest list \| grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l` | `271` archivos (270 + 1) |
+| `npm run test` | `Test Files  1 failed \| 270 passed (271)` · `Tests  4 failed \| 5911 passed (5915)` · `Duration  274.28s`. Sin «timed out» (0). Los 4 rojos son CL3-4R2-01, -02, -03 y -04 |
+
+### Tabla de SHA-256 de las 245 `*.ataque` al cierre de la ronda 2 de CLASES-03e
+- Comando: `sha256sum` sobre `git ls-files '*.ataque.test.*'` más los no rastreados, con los hash en mayúsculas.
+- Hay 1 nueva; las otras 244 son iguales a la tabla de la ronda 1 de 03e.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` | igual |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` | igual |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` | igual |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` | igual |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` | igual |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` | igual |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` | igual |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` | igual |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` | igual |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` | igual |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` | igual |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` | igual |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` | igual |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` | igual |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | igual |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` | igual |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` | igual |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` | igual |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` | igual |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` | igual |
+| `AFB531E7CCAB1CB53F0322D7D099A7F435DBD42325DE8C225525E3784B93F6CC` | `backend/test/calificaciones-01a-r2.ataque.test.ts` | igual |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` | igual |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` | igual |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` | igual |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` | igual |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` | igual |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` | igual |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` | igual |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` | igual |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` | igual |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` | igual |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` | igual |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` | igual |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` | igual |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` | igual |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` | igual |
+| `4EA45EAA95C5EA2E1EC91E04D2BBA32689A30BD341ADE16625B28AABDB96D6D9` | `backend/test/dudas-clases03b-r1.ataque.test.ts` | igual |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` | igual |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` | igual |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` | igual |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` | igual |
+| `47B02C6D3916713BF9236A619FDB59A641D2E805F1F0B7E9B2C161FE719DDC3A` | `backend/test/entregas-01b-r1.ataque.test.ts` | igual |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` | igual |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` | igual |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` | igual |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` | igual |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` | igual |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` | igual |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` | igual |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` | igual |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` | igual |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` | igual |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` | igual |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` | igual |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` | igual |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` | igual |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` | igual |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` | igual |
+| `287B224CBAF468E3891C13E4F38A09D5A860D6CFE29AD35541C71076D7AAE28C` | `backend/test/lecturas-fx-r1.ataque.test.ts` | igual |
+| `4090A21F3B389A24BC67D5F585440A55C39C8387112BDB35116863C5E609662C` | `backend/test/lecturas-fx-r2.ataque.test.ts` | igual |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` | igual |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` | igual |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` | igual |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` | igual |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` | igual |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` | igual |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` | igual |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` | igual |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` | igual |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` | igual |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` | igual |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` | igual |
+| `2AFD58E1EAD0A293AA7BD58C639F3E5126D153A418F9A26450228468E12B2BED` | `backend/test/migracion-clases03a-r1.ataque.test.ts` | igual |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` | igual |
+| `D23BF1312777BDC000810E403A5B4D99C9C0E12998E4CC11BE5EF5A2253F6935` | `backend/test/muro-c-r1.ataque.test.ts` | igual |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` | igual |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` | igual |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` | igual |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` | igual |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` | igual |
+| `42F4E113762EF26459E95642FF4B814613353D64D462AB2B01ECDEEF4B9E160D` | `backend/test/recursos-clases03a-r1.ataque.test.ts` | igual |
+| `FF4D112AFF8685FCD9C5CA933A0B359E2B4E9BEDAD8F1B5D3D787CFDEC711516` | `backend/test/recursos-clases03a-r2.ataque.test.ts` | igual |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` | igual |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` | igual |
+| `1920263A7207AA2655B6588F25592CB87366FA8A49539D79B8EF5EACAEB32558` | `backend/test/sesiones-y-cadena.ataque.test.ts` | igual |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` | igual |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` | igual |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` | igual |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` | igual |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` | igual |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` | igual |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` | igual |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` | igual |
+| `0E49B62B73B2EF55E8C0B2BA26E1D136A3ADB674761FDA2C11453EB5C2FAF7CC` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` | igual |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` | igual |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` | igual |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` | igual |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` | igual |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` | igual |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` | igual |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` | igual |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` | igual |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` | igual |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` | igual |
+| `29782507D18FF96315E4030E890B21FDF1EB1C5550C3D1CFE5C92664D30B64DD` | `frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx` | igual |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` | igual |
+| `C8A9812F21CB24DB50CC2AFD945B7B38ABACB468FBF4F4DF16C07A52C48426AC` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` | igual |
+| `D7608D7FC7767F53DB3971672FC99FDB8BBD33F303F41E321BCC48AD25F511FD` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` | igual |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` | igual |
+| `6ACC49A2E3B649868CCF9A9337143F991B655DAFBCFF2E5916BCA0269BD23A7C` | `frontend/src/app/personas-03c1-r1.ataque.test.tsx` | igual |
+| `A3E3DADD35C40E9A11A0BDEF8CD716DACEEB254E5307A837C6598213BA803A7B` | `frontend/src/app/personas-03c1-r2.ataque.test.tsx` | igual |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` | igual |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` | igual |
+| `FC820217BC3BAA3749C077FE16A4ABD7AE10E92C84494FFB2A215133C19DF36A` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | igual |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` | igual |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` | igual |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` | igual |
+| `11C6D9C55BE91AA41E8525345E3795E34B8E1E661FF7CDD901F729760A033CFD` | `frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts` | igual |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | igual |
+| `36D605F79169E16A5AFADC7E07FC3781472DD393406430277CEB147FC2DA1FA5` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | igual |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` | igual |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` | igual |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` | igual |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` | igual |
+| `7D080037D9A64EEBCEBB789D1DFD94B787652103E6F9C84F968F9C9F64C3B30C` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | igual |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | igual |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | igual |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | igual |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | igual |
+| `C21EDB5A06B43808CE2BE23058409B7FF887E66D60E842C500A3714A90EBCB25` | `frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx` | igual |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` | igual |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` | igual |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` | igual |
+| `761F54F183540D8AE222F97940FA6C2355FF33E515771E627F8EFDE49261EDA2` | `frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `14EAD3DCE027B433D51A9D635B0FA35718EE3875BFFC3E1949F96ECB8D2F7135` | `frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | igual |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | igual |
+| `AF3F0D474F8052B402C8959A64ACF9E730F9AE60F09D90996A6306E9C2440F08` | `frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx` | igual |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` | igual |
+| `96B6AB55F0A7BF9B66F8EDBCB5CEFFA7E4FE35935C6CB12ECAB93FC04BC02856` | `frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `0CE580976EA894EE4BD9C4ADBE3D7D1D524354A8FF22FC7E7CC6ACF89057AA53` | `frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `4BCD3E34B62726FEA718EFB9C482D8C1F504BBE85EF32427BDF4D65A6832D8F1` | `frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts` | igual |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | igual |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | igual |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | igual |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | igual |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | igual |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | igual |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | igual |
+| `6AC36CE1EB4DF953626415B3ED431A8F4809DC29CF259F755F1F8509DD54B7EF` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | igual |
+| `FB33F2A27BFCCA906549A12610977478BA72E6E7ED8AFD5C5A0A962DEB3EB802` | `frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | igual |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` | igual |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` | igual |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` | igual |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` | igual |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` | igual |
+| `A9DC00D9CF6E8684113EEB824658C7FB2F3077EE8A54DEB0CCE47AC802C74F44` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` | igual |
+| `98E645DF89C9736EE33F440C1D83F342BE84F30CAABEC0310B1B5185E538FBD6` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` | igual |
+| `F1B2B7D3C2A2BFBC2C2AA31CCE4B120E306681C0CC9EFB85AC2A954C8F8F8AFE` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` | igual |
+| `C6C85AC2F6E7418E81D7817F9C455C0E0973025A15AE2A5378E00C9A71C45620` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` | igual |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` | igual |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` | igual |
+| `87DAE1927669B46BB52AAD94DB5107A5284F772FA9B29E225AACE19C1A1E8DEF` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | igual |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` | igual |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` | igual |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` | igual |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` | igual |
+| `DCE7FD019A6E32B8E4DF37DD0728E265F5E9449E9EE2723F372EA174FE312464` | `frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `3B5A9FAC5CD20A881BF6B38597B752725A7F6BBFDDCF103B7BF1239A76353DFC` | `frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx` | igual |
+| `FEC2FFC2691BD297DCA5F90233D498D10DFD689A5D9A8819BC30E757C6F67C26` | `frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx` | **nueva en la ronda 2 de 03e** |
+| `DDC9DFACCC8230EC612126FDF29939A8E4311188566E5CFCAA724BD119E959E8` | `frontend/src/features/clases/errores-ch3-r1.ataque.test.ts` | igual |
+| `5E20EEFE0104B510A3002DE084B6162162B5BF20797622C8D92B350853494B53` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | igual |
+| `3CB8E0D7BB13B57638D65AA74EC5FF0F9306F024CF6996B7737232243A0B82F8` | `frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts` | igual |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` | igual |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` | igual |
+| `46383E1F3EDE03CB204DBF602373D0A07E513D8DAC7EC4179A203EA6EE270FA3` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` | igual |
+| `1D2BFE93DB13219086246E21307223229A89416484A09AC69DA14460E54E47BB` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` | igual |
+| `8B8EA2D21597BC0444709A9D26FD795D05BC964EF7B5094240628C63018C091B` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` | igual |
+| `B819D6BBDE4BD47E3EC724FCDEA5E77EB66B12076B8A9A083691B52EF0BDD182` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `AB006DC1711E9A652643930A7010C25F442D1FFDD137ADBB093EB5BD98DA90D6` | `frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx` | igual |
+| `5224976752A14C3E003B246FA97ABF25356E370CB46DA1CDFF9526BF3BE86B4E` | `frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `7F4A935DE29C3C519AAD697EDB1470C4CFCEAD600F5C1516C5FFF948995D4434` | `frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx` | igual |
+| `8BC578EF17D2731F388C14CA19BC719A2B8D04D8A41009FADEE15227379047BC` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | igual |
+| `479430B848CF3D21A0187138944DEEC46BB36653071BBD2790ED57620F012976` | `frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx` | igual |
+| `4D94CCBE786A46CA1D82A280956F1146D5C302A9F83DFAC45F39B3B2F94B753F` | `frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx` | igual |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` | igual |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` | igual |
+| `99DF138B24D4ABA97B9F714C32BA226E82C7403CF73AA2E9E2B0B028B28E283E` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` | igual |
+| `4817262EF6E4DADFF56857E50BAB2E06EC479E62D5EAF45B34D70D683736B637` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` | igual |
+| `8DA38DBCB605CE3D90ACE8117CE2CC5C838D71EB24BDD76FAD3A53B82DA93901` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` | igual |
+| `D0ACB3527AAFA6F687E3EB00563E37BE93768E7D7F742694A4D5CE05B75B7E28` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` | igual |
+| `D08E51D451EBAEB2D7086C75DC1F73D52C5B4A6B8DFB979932828BED5F5D459D` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` | igual |
+| `558212B46641DE0794D0CE90E3944A99CB5BAA7FAB4B09BBAC5EA7CAC41EAA34` | `frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx` | igual |
+| `AEC8C4131E5DC733246B33E8189E2DC595387324BDD2081D1D245641C20C380A` | `frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx` | igual |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` | igual |
+| `7677E0571587C89DE1CB76788D499AC545255CA64C8AFCB38A8AD6E39C02E2C6` | `frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx` | igual |
+| `60541290248812CFCE5591DDF33D01125D60C33257743A7EC48A445013D3D8C1` | `frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx` | igual |
+| `4AAFAA73980BA1BC29BE043623A030C9EAA730825EB61A403BF54F9AC700B42D` | `frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx` | igual |
+| `70B1A49A6A0E471422BE987466228E5BEB87E25BAEE2906790651C94ED214A3A` | `frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx` | igual |
+| `29A3125CC70969F2FC2BB1F012BEEB81840E1A00EA08D5B588B10D190342AE7F` | `frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx` | igual |
+| `85A7926A0F6831A8375F544CF38FE5585A8E2DCBF73D9726E9A3CFAAB7F76511` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` | igual |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` | igual |
+| `09435ABBB9A26DD71C52B4D95487C6D38594F1BA062AEFB60F73B7EB7308F991` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | igual |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` | igual |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` | igual |
+| `DB42C88D5B0BFB1125BF122C03A2E019D6F5365C128AC4BFADD413A26A934845` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` | igual |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` | igual |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` | igual |
+| `EA58EB11C3157A33C5730F87F2CF562AE178589B30264902B165C4439CEBC2EE` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` | igual |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` | igual |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` | igual |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` | igual |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` | igual |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` | igual |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` | igual |
+| `2938AE2F1C00F63A0372997C7BA68BDC0AB097895769BF9060072A4AC2674C5A` | `frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` | igual |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` | igual |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` | igual |
+| `08A5E1A5642E7FC7553632DD5CF4E07F0EA35C3EF1E7293D010BBC49B09465AA` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` | igual |
+| `172BE3EFD919C0D3948ECA17C7E808968E2370AFE1F9C2A28CEF7D2DED584B81` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` | igual |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` | igual |
+| `4E6950F0FE571D6AE41A78380C59C20459FDF19F34C57E9777E4E34A6BC61C58` | `frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts` | igual |
+| `94D6E6253B266C7F21099AA593AAC7B2600EDCA22AB403AA365DCD789B1C6A97` | `frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts` | igual |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` | igual |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` | igual |
+| `7A7C7BA922F77DA22D0F765ED5EA9CCF9216D1900E4B5F18365DA9D46437495F` | `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` | igual |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` | igual |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` | igual |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` | igual |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` | igual |
+| `72B19B6A00B4ADE43B06829BB5BEF1A5CDECF5A7D2AF57369F1E857A1D4A17F5` | `frontend/src/lib/errores-ch3-r1.ataque.test.ts` | igual |
+| `5D41A2AF073DCAA2B8B016D835D36D5EBAE9278863DB048484A192A88BB31A30` | `frontend/src/lib/errores-ch3-r2.ataque.test.ts` | igual |
+| `66513D957E524AF5E336A2C7E656DF37F51106507A3984B691DF47CD825D4D10` | `frontend/src/lib/estatico-ch3-r1.ataque.test.ts` | igual |
+| `A9529CEFBD27CBB94376A6548EF1B8B247FB1F4155938298AE5D10EAEE81008A` | `frontend/src/lib/estatico-ch3-r2.ataque.test.ts` | igual |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` | igual |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` | igual |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` | igual |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` | igual |
+| `B6265BF6EEC25B7F2C34DCD93DD4D8B23D07CA6214576921A50A66FF16346FFB` | `frontend/src/services/apiClient-ch3-r1.ataque.test.ts` | igual |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` | igual |
+| `87DA1CF759AC639BB168AB352CD28814B5C6C85B46B86A033FC22F147D6E6D15` | `frontend/src/styles/clases-r1.ataque.test.ts` | igual |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` | igual |
+
+## CLASES-03e — Ronda 3
+
+Fecha: 2026-11-03. Es la última ronda antes de escalar al humano. Hashes que reproduje:
+- Plan `plan.md`: `711c23a30ca99afdb7fe22d94b1b3b9276ae5abddafa251f7f26fb96d4f1a541`.
+- Resumen del programador: `resumen-programador-03e.md`, `a0b18c64bd5c69378c65a75b82a5e22291a420d697e76993c2796324c7111757`, secciones "## Corrección de la ronda 2 (T-03 y T-04)" y "## Corrección de M-01 de la verificación de la ronda 2".
+- Revisión: `revision.md`, `a5e6577ecd831b1c5006a278454bffe172cf28c0969cdb33240d35870f66ab37`. Seguí sus dos verificaciones, O-7 a O-9 y las seis indicaciones.
+- Base de este reporte: `f85e780fd457b5bf7a89a2fbd27b645bf64fbd632fd102ce9e6e7599e3173e8c`.
+
+Solo trabajé en `frontend/`.
+
+**Veredicto: ROTO.** 1 hallazgo baja (T-05); 0 críticos, 0 altos y 0 medios.
+- T-05 es del mismo mecanismo de T-02 a T-04 y M-01: "una duda que se borra con su bloque de respuestas", con la consulta que sale de la caché.
+- No tiene efecto visible ni de red: es una consulta vacía que se queda en la caché hasta el `gcTime`. El conteo de rondas extra por hermanos lo decide el orquestador según `AGENTS.md`.
+- Ids de esta ronda: `CL3-4R3-nn` (el grep no encontró ese prefijo antes de esta ronda). La numeración de hallazgos sigue en T-05.
+
+Verificación propia (desde `frontend/`, una suite a la vez):
+- lint `exit 0`.
+- test `Test Files  1 failed | 271 passed (272)` · `Tests  2 failed | 5945 passed (5947)`. Los 2 rojos son los de T-05.
+
+### T-03 y T-04 de la ronda 2: corregidos
+En la corrida completa pasa todo `dudas-03e-r2.ataque.test.tsx`: CL3-4R2-01, -02 y -03 (T-03), CL3-4R2-04 (T-04) y CL3-4R2-05 a -09. También pasa todo `dudas-03e-r1.ataque.test.tsx`. El único archivo rojo es el nuevo de esta ronda.
+
+### V-01
+- Antes de tocar nada, las 245 `*.ataque` tenían el mismo SHA-256 que la tabla de la ronda 2 de 03e. Lo comprobé con un `diff` por ruta: 0 diferencias, 0 faltantes y 0 sobrantes. Ni la corrección ni la interrupción tocaron ninguna.
+- Al cierre son 246: la nueva de esta ronda y 245 iguales.
+
+### Hallazgos
+
+### T-05 — Desplegar el bloque mientras la duda se borra deja en la caché una consulta de respuestas vacía de la duda borrada, que no sale cuando la fila sale
+Severidad: baja
+Prueba: `frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx:634` › "CL3-4R3-09: tras el 204, plegar y desplegar mientras llega la lista: al salir la fila, ninguna consulta de sus respuestas en la caché" (y su gemelo con `404`).
+
+**Escenario:** 21 dudas y el bloque de respuestas abierto. Borro la duda (con `204`, y con `404`), retengo la lista, pliego y despliego el bloque. Después suelto la lista y la fila sale.
+
+**Esperado:** que en `getQueryCache()` no quede ninguna consulta con `claveRespuestas` de esa duda. Así lo dicen:
+- la fila de la matriz de la corrección de T-03 ("la consulta sale de la caché cuando su último observador se va");
+- §D-14 ("las respuestas de esa duda salen de la caché");
+- la indicación 4 de la verificación de M-01.
+
+**Obtenido:** queda una consulta `{ conDatos: false, estado: "pending", observadores: 0 }`.
+
+**Cómo se forma:**
+1. Al plegar, `quitarRespuestasAlCerrarseSuBloque` quita la consulta y se desuscribe.
+2. Al desplegar con `pedir={false}`, el observador de `RespuestasDeDuda` crea otra consulta, vacía.
+3. Nadie vigila esa segunda consulta, así que cuando la fila sale se queda en la caché hasta que vence el `gcTime`.
+
+Pasa lo mismo si el bloque estaba plegado cuando llegó el `204`/`404` y la persona lo despliega antes de que llegue la lista (M-01 (a)).
+
+**Impacto:**
+- No hay efecto visible ni de red. Está desactivada y sin datos, `invalidateQueries` (`type: "active"`) no la pide y el `gcTime` la recoge.
+- Lo que falla es el contrato declarado del mecanismo: la caché queda limpia en todos los caminos salvo en este, que es justo el estado M-01 (a) que creó el remedio.
+- Por eso la severidad es baja.
+
+**Control (verde):** CL3-4R3-08 (`:620`). Con el `404`, un segundo clic en «Sí, borrar duda» y sin plegar, sale un solo `DELETE` y la caché queda sin la consulta.
+
+Requisito o regla violada:
+- La fila de la matriz de la corrección de T-03.
+- §D-14, "Sí, borrar duda", que pide que las respuestas de esa duda salgan de la caché.
+- La regla de los estados vecinos (`AGENTS.md`, "Hermanos de un hallazgo").
+
+### Atacado sin hallazgos (casos verdes de esta ronda)
+Todo en `dudas-03e-r3.ataque.test.tsx`, con el router real y un `QueryClient` sin reintentos (O-9 no cuenta).
+
+**Indicación 1, M-01 (a) con dos páginas de dudas:**
+- `:450` CL3-4R3-01 ×2 (`204` y `404`): con la lista retenida, pliego y despliego.
+  - En la fila no hay `status`, `alert` ni «Cargando…».
+  - No sale ningún `GET` de respuestas.
+  - Sale un solo aviso, "Duda borrada" o "Esa duda ya no existe.".
+- `:470` CL3-4R3-02 ×2: el bloque estaba plegado cuando llegó el `204`/`404` y lo despliego antes de la lista. El resultado es el mismo.
+
+**Indicación 2, M-01 (b) con R5:**
+- `:519` CL3-4R3-03 ×2: el bloque muestra R5 («Ver más respuestas» con `400`). Borro la duda (`204`/`404`) con la lista retenida y pulso «Dudas».
+  - No sale ningún `GET` de respuestas.
+  - La única alerta de la fila sigue diciendo R5.
+  - Sale un solo aviso.
+- `:539` CL3-4R3-04: con R5 y un `503` al borrar, pulsar «Dudas» pide desde la primera página (sin `cursor`). Con `200`, R5 desaparece y la respuesta vuelve. Sale un solo aviso.
+
+**Indicación 3, O-7, el bloque abierto por primera vez con el `DELETE` retenido:**
+- `:579` CL3-4R3-05, con una respuesta.
+  - Mientras tanto: nada vivo en la fila y ningún `GET`.
+  - Con `503`: una sola petición, la respuesta a la vista y un solo aviso.
+- `:591` CL3-4R3-06, con «Responder» (0 respuestas).
+  - Mientras tanto: nada vivo, ni el campo ni un `GET`.
+  - Con `503`: una sola petición, el foco va a "Escribe una respuesta" y un solo aviso.
+- `:605` CL3-4R3-07, con `404`: ningún `GET` de respuestas y la fila sale con la lista. Sale un solo aviso.
+
+**Indicación 4, la suscripción:**
+- `:620` CL3-4R3-08 (arriba): un solo `DELETE` y ninguna consulta en la caché.
+- `:649` CL3-4R3-10: cierro sesión mientras llega la lista tras el `204`.
+  - El doble responde `204` a `POST /api/auth/logout` y `401` a `/api/auth/refrescar` después de salir.
+  - La fila sale, no queda la consulta de sus respuestas antes ni después de soltar la lista y no sale ningún `GET` de respuestas.
+
+**Indicación 5, un solo mensaje por acción:**
+- `:702` CL3-4R3-11 ×7: marcar, quitar «Resuelta», borrar la duda, responder, borrar una respuesta, «Ver más respuestas» y pulsar «Dudas» con el bloque en R9.
+- Cada acción se hace sobre una duda que otra persona borró, con su bloque abierto y la lista retenida.
+- Cuento los avisos y los `status`/`alert` nuevos dentro de la fila, desde la acción hasta que la fila sale. El `MensajeError` que ya estaba antes no cuenta si no cambia.
+- En las siete acciones la persona lee **un solo mensaje**:
+  - el aviso, en las cinco acciones;
+  - el `MensajeError` del bloque, en «Ver más» y en pulsar «Dudas», sin aviso.
+
+### Observaciones
+- O-8 (`aria-controls` sin destino) y O-9 (`retry: 1`) no los cuento, como indicó el orquestador.
+
+### No atacado y por qué
+- **Navegador real:** ningún agente abre navegadores.
+- **Backend y `shared/`:** 03e no los toca; no corrí sus suites. PA-07 no aplica.
+
+### Archivos `*.ataque` de esta ronda
+| SHA-256 | Archivo | Casos | Rojos |
+|---|---|---|---|
+| `18EDCFFC8E48073362B98C784D5BF64E3335709AE6E1C6425B32AA3310E24B56` | `frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx` (nuevo) | 21 | 2 (T-05) |
+
+- **Formateo:** `npx prettier --write` solo sobre ese archivo, dentro de `frontend/`.
+- **Selectores:** ninguno es de estilo. Uso rol, nombre, etiqueta o `aria-expanded`.
+
+### Comandos de la verificación propia (desde `frontend/`, una tras otra)
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | `> tsc -b` (exit 0) |
+| `npx vitest list \| grep -acE "^src/"` | `5947` casos (5926 + 21) |
+| `npx vitest list \| grep -aE "^src/" \| sed 's/ > .*//' \| sort -u \| wc -l` | `272` archivos (271 + 1) |
+| `npm run test` | `Test Files  1 failed \| 271 passed (272)` · `Tests  2 failed \| 5945 passed (5947)` · `Duration  271.08s`. Sin «timed out» (0). Los 2 rojos son CL3-4R3-09 (`204` y `404`) |
+
+### Tabla de SHA-256 de las 246 `*.ataque` al cierre de la ronda 3 de CLASES-03e
+- Comando: `sha256sum` sobre `git ls-files '*.ataque.test.*'` más los no rastreados, con los hash en mayúsculas.
+- 1 nueva; las otras 245 son iguales a la tabla de la ronda 2 de 03e.
+
+| SHA-256 | Archivo | Nota |
+|---|---|---|
+| `BCCE2CAE771F97957D8691BEF7FFF4EC42412DAAEABF726AEB0AFC59F6F25671` | `backend/src/config/correo.ataque.test.ts` | igual |
+| `DCB78D222544E8DC4FBECE59468F555B04ABE971B70016E9BB17FCAE3E958580` | `backend/src/config/env.ataque.test.ts` | igual |
+| `71E7F049447D2D1ECEDD897C55EA0B6D31221753F0A7E7473C7AC6E8667F0A95` | `backend/src/config/logger.ataque.test.ts` | igual |
+| `91F620C1A27778EEBC2BED5EEC1BC9B0E3FE1199B32ED00F9DD910011D6A1805` | `backend/src/core/clases/codigo-r1.ataque.test.ts` | igual |
+| `262691F5786AD63B2393D0BA5FF97538F6DACF43343BED019AD23C12A07D8686` | `backend/src/core/clases/codigo-r2.ataque.test.ts` | igual |
+| `E769CBFCC3A83A64B51C6437F80684640A7C928AD6B8C5C1671FDFF005D7B734` | `backend/src/workers/ritmo-03c-r1.ataque.test.ts` | igual |
+| `294BE1AF0BF69D6C05F54E2F0D8E587C78A5527D0B64D1A224C058E31CE013D0` | `backend/test/admin-muro-02b-r1.ataque.test.ts` | igual |
+| `388AD0E585639B8C3E0E0A6657FB42C1B9CB83DB721C4863C4FA19E0BE42EC85` | `backend/test/admin-unico.ataque.test.ts` | igual |
+| `D2CC28B62BF988AE14BA975A9BC8D534AEC0EEBCE30DA93D7DED9A26026B0857` | `backend/test/alumnos-b-r1.ataque.test.ts` | igual |
+| `00346D471355ABC7971B921649E7192B8987FE27912C00CB7E41AEF2065369E9` | `backend/test/alumnos-b-r2.ataque.test.ts` | igual |
+| `FC11AB4B914D4A88612953F82DB354E2B9CEA9BEF86E24321EF7E031F3AC3837` | `backend/test/alumnos-b-r3.ataque.test.ts` | igual |
+| `441A766A94E7D9B26807790402E06ED94D4CC378D8F6ECF0BCCC3259C7FF55FB` | `backend/test/api-real.ataque.test.ts` | igual |
+| `D9E1DE5B1BD43F54CF3A4DCF153D1EEABDC36B4DEC02FBEB9D8A0239F298DFE9` | `backend/test/archivos-d-r1.ataque.test.ts` | igual |
+| `1637EB447CD12AC5BDDDC7634980DBC10A25CBAD5DE01BF6C09F40ED930FF1A9` | `backend/test/archivos-d-r2.ataque.test.ts` | igual |
+| `42BB7BF3086230C6EDC65AB73976AC8A801956336561AADBEE65CC3B40EB8612` | `backend/test/arquitectura-cuentas-r1.ataque.test.ts` | igual |
+| `38ADB0984744A0810287711F57BA0498287D0BC96344B8948BA1C490CA807716` | `backend/test/arranque-r1.ataque.test.ts` | igual |
+| `2C83D82D10BDD9B7A969768774D75B18B7A71A594BBAAC5FAE36A0E134D2336C` | `backend/test/auth-login.ataque.test.ts` | igual |
+| `73D3A2AE708A0EF676547A8094115B1419423057378387269BC3EADB34C7724E` | `backend/test/auth-registro.ataque.test.ts` | igual |
+| `6F557E8E860BCE6374671E90086E9C14B1861A308B6FBB434564612647892713` | `backend/test/autoria-02b-r1.ataque.test.ts` | igual |
+| `5E02A27716D63E8CE0FE6B6171BFF089EB3EE2548260349B16950D7E65A1BCF9` | `backend/test/calificaciones-01a-r1.ataque.test.ts` | igual |
+| `AFB531E7CCAB1CB53F0322D7D099A7F435DBD42325DE8C225525E3784B93F6CC` | `backend/test/calificaciones-01a-r2.ataque.test.ts` | igual |
+| `DD919EBD74A2C6AC60C244A1563B46895821B0D25E5051CDA25FFFB72B653416` | `backend/test/calificaciones-carreras-01a-r1.ataque.test.ts` | igual |
+| `B09BAAEC53455CEA1A0674890EBD9353007E6F2628001446E873B09279FFBA07` | `backend/test/calificaciones-estatico-01a-r1.ataque.test.ts` | igual |
+| `29EED2E93AF2775A4605160EA533BD462FD03CB1CFE4C47154898358A7255869` | `backend/test/calificaciones-estatico-01b-r1.ataque.test.ts` | igual |
+| `6E4C0EB47FF8020B0A539E5B70B24C8C1D05F7773EA092CD513E39C68CF4534E` | `backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts` | igual |
+| `6E3C92C13F146A01C8DCFDC7DD04BEA59F0E2562051F6AC65F95F924EF73E4DB` | `backend/test/categorias-01a-r1.ataque.test.ts` | igual |
+| `95BBA9BAC44366AD5A361E93DD2F278CB0A1CC889FA479049ACC7B45A9A5E71B` | `backend/test/clases-r1.ataque.test.ts` | igual |
+| `A87817D56C236C0BA3597214CAC23B10483BBC28AE44800C592ED5CE2EF97F38` | `backend/test/clases-r2.ataque.test.ts` | igual |
+| `72DE7D8AF3D3F772ABC19DB065F6E418F6EB76CE78D87FE6EBB51335FC99825A` | `backend/test/clases-r3.ataque.test.ts` | igual |
+| `BE97C4E48AC9551BED1D01552E90AB8CDF085CF928AE6C8C3D81809E35F7CE62` | `backend/test/clases-r4.ataque.test.ts` | igual |
+| `000EC9008C73D25121C82A46F5EA0F67E6C8C387CB04E361EF82812B57956098` | `backend/test/concurrencia-02a-r1.ataque.test.ts` | igual |
+| `530546B4D70A2B9AD36F98F37E2AF45480E81A1101EE3516D15426F78350BF82` | `backend/test/cuentas-03a-r1.ataque.test.ts` | igual |
+| `6303DDC170545F616C66773C3F5475CB3BE1FEA9347D8059354D6ADE8D676C16` | `backend/test/cuentas-r1.ataque.test.ts` | igual |
+| `3A4E81C111B8EEB7DF065804AA85062FA3FC607F0147149B71AC21C14E7818D9` | `backend/test/cuentas-r2.ataque.test.ts` | igual |
+| `F54F79F7B2A83E95FE440053CCAF15CB3EBB01CE5DFD4C6655E22159A5FD7E6B` | `backend/test/cuentas-r3.ataque.test.ts` | igual |
+| `A2F9BFF596330A7D55D1CA9D47197FC831EB132F52C759610E2D667895C3332F` | `backend/test/cuerpos-02a-r2.ataque.test.ts` | igual |
+| `4EA45EAA95C5EA2E1EC91E04D2BBA32689A30BD341ADE16625B28AABDB96D6D9` | `backend/test/dudas-clases03b-r1.ataque.test.ts` | igual |
+| `D7A9DA854CE8AB8AD8D2437DB2E8C2A642A777EA3261A6B038DA28BE022DF848` | `backend/test/enlaces-03b-r1.ataque.test.ts` | igual |
+| `DC1B7EE7EA58966F5DB33CCB4581885A9669DEA2263954AE46D17A83E1EF6EAF` | `backend/test/enlaces-03b-r2.ataque.test.ts` | igual |
+| `B051B1986496E35E3E306C4C6BC306A763542BCA4B350574D0C02E2C484DEB35` | `backend/test/enlaces-ch-r2.ataque.test.ts` | igual |
+| `D28CC4DE621A680E6B54B2BFF889700300D558EC7849717584518D2F03EC8CAE` | `backend/test/entorno-ch-r1.ataque.test.ts` | igual |
+| `47B02C6D3916713BF9236A619FDB59A641D2E805F1F0B7E9B2C161FE719DDC3A` | `backend/test/entregas-01b-r1.ataque.test.ts` | igual |
+| `5BAAF6F8FB76320620ED4A84EFACA2B2D473460F62360E0D48738B97A0AC584A` | `backend/test/entregas-01b-r2.ataque.test.ts` | igual |
+| `BA1AC9B17CC9BF747522BD4EC8B87DF436008482E643B18EEA8E9A8C041C59B3` | `backend/test/formada-ch-r1.ataque.test.ts` | igual |
+| `EC9602D5F109B45A6D428E708D9B6CDD37A7509A6FF9031FA6FD8A2DA0E25E9B` | `backend/test/gestion-02a-r1.ataque.test.ts` | igual |
+| `E4E9365EA010F3F670B6C1194D1A592E95DB43BFF0496D4EA1646FC5225CA8B4` | `backend/test/gradebook-01b-r1.ataque.test.ts` | igual |
+| `5F4133F949D2F337A8F63B75CF82CB77114DB7812D67C1960105F5000C31A326` | `backend/test/guarda-ch-r1.ataque.test.ts` | igual |
+| `7A7DAC6D87EDF81059FCFF9C07471AAF49D690EC159BE4B9FD4AA32B0909A215` | `backend/test/guarda-ch-r2.ataque.test.ts` | igual |
+| `610EE44E5D0BCEA46EB4E3645F9ADF1998A76947A25AF7E3F8248EA3A633DF79` | `backend/test/guarda-ch-r3.ataque.test.ts` | igual |
+| `E5D149F3AC52B726E1FE08908249706341330F88EAA6674B9A9AC67B98B1E864` | `backend/test/guarda-clase-r1.ataque.test.ts` | igual |
+| `C979D2C9C420A2177FA6EBDDB78EB2CE84D5F043B94270F690916A6FC75D6F8F` | `backend/test/guarda-clase-r2.ataque.test.ts` | igual |
+| `20982E2B98F1B162146A211923F3D5EC19D4E170C4AA3A5BFC6F82C3B6173AAD` | `backend/test/guarda-r2.ataque.test.ts` | igual |
+| `2649F3D357DCB806361AC101C57FCB504B9C798B631048F0B3E200F63DA7DC30` | `backend/test/hilo-01c-r1.ataque.test.ts` | igual |
+| `2D2216EE9DB290B318825A6F73C346D4767CACC12D95F5CA76457A78B63FEDC3` | `backend/test/instantanea-01b-r1.ataque.test.ts` | igual |
+| `A8B79D5AD98270BE3747F493865708A78BB73ADD08D832584DB4464C3582777A` | `backend/test/intentos-r2.ataque.test.ts` | igual |
+| `2619B44EEA3370494C95AC128FCFD9E3FFC20D1581A19F549BF371F603A11D7D` | `backend/test/invitacion-flujo-03a-r2.ataque.test.ts` | igual |
+| `704155928183AEC193AE7E157B86B3E9361D2B63C7A47BE1ED859605FAB4FFA6` | `backend/test/invitacion-masiva-03c-r1.ataque.test.ts` | igual |
+| `DD9B7454E8786BF0B833D265900CCAECF595808CEBC8E9A77C9AEF15298A1038` | `backend/test/invitacion-masiva-03c-r2.ataque.test.ts` | igual |
+| `287B224CBAF468E3891C13E4F38A09D5A860D6CFE29AD35541C71076D7AAE28C` | `backend/test/lecturas-fx-r1.ataque.test.ts` | igual |
+| `4090A21F3B389A24BC67D5F585440A55C39C8387112BDB35116863C5E609662C` | `backend/test/lecturas-fx-r2.ataque.test.ts` | igual |
+| `F9F9EC59EC8D1A5CCB180522798140C45604440F48EDCD68A3E02863D90AE347` | `backend/test/logs-02a-r1.ataque.test.ts` | igual |
+| `A2006C163D9E6CD3E4A2A773D1501826DAF3C8E7BB184D205BFC6442318FB59C` | `backend/test/logs-02b-r1.ataque.test.ts` | igual |
+| `BD8B303C434EFEC0785E0691D31D6F6E87DBF3305F50FA27CCE0F78CBB251E3A` | `backend/test/logs-03a-r1.ataque.test.ts` | igual |
+| `B58D5D013658433FE5839634E2DB5A31B8D2B8F69587BC36958752D3CD33BBF7` | `backend/test/logs-03b-r1.ataque.test.ts` | igual |
+| `0E4ABF3BC5D92FA0C380805453190703862567930DD74B9E7FCC1809564D181F` | `backend/test/logs-03c-r1.ataque.test.ts` | igual |
+| `1E775A19682F3A5995D7C035BCC810A36BF50C22045B6FFBFC5A98B821255DB0` | `backend/test/logs-archivos-d-r1.ataque.test.ts` | igual |
+| `E9CE866D511E3EE6029015B74E20B4D342A60BE99B3AAC97E86F00283A3C77F1` | `backend/test/logs-archivos-d-r3.ataque.test.ts` | igual |
+| `E008935B107752D203F6423B2F1C9E0F5A4339F0A77154746BF262CECB90351A` | `backend/test/logs-cuentas-r1.ataque.test.ts` | igual |
+| `690E30ED39111C0A074FC159015967CD9F0FDC24D9A340E6A0D7BE4B980A9D45` | `backend/test/logs-muro-c-r1.ataque.test.ts` | igual |
+| `0809C60700E26183E7771B4B1A40B05CBF554C2ED7929190CF4D89A52722E551` | `backend/test/logs-muro-c-r2.ataque.test.ts` | igual |
+| `5AF3909E4B7CA485E78979567872EA78BF41E6D679B9EC2C761EAA0B250DF689` | `backend/test/logs-r2.ataque.test.ts` | igual |
+| `D6B9ADAF1C14A61FE369F510774EF702CFA20F28F3CB19B0EB7357440DCB0783` | `backend/test/migracion-01a-r1.ataque.test.ts` | igual |
+| `2AFD58E1EAD0A293AA7BD58C639F3E5126D153A418F9A26450228468E12B2BED` | `backend/test/migracion-clases03a-r1.ataque.test.ts` | igual |
+| `BC6D49F9FC1F5EB20E305945FEF57CAEEBEB108BFF5D5CF4BA10B8040687D69C` | `backend/test/mis-calificaciones-01b-r1.ataque.test.ts` | igual |
+| `D23BF1312777BDC000810E403A5B4D99C9C0E12998E4CC11BE5EF5A2253F6935` | `backend/test/muro-c-r1.ataque.test.ts` | igual |
+| `7825CFC9B484DF740FA0E9562A195D1BBCAF4CAF72EA55FA847B5394AB96C125` | `backend/test/muro-c-r2.ataque.test.ts` | igual |
+| `8B733B86FC6D54ECE008389A59793FAE4EC4A65146EB37215E900E50A5337D46` | `backend/test/nombres-guarda-r3.ataque.test.ts` | igual |
+| `3FD2583A4DE7CD432B2E09A5130C23D6A59FA475E5E0AA69F23739351ACBF9CF` | `backend/test/nombres-ids-01a-r2.ataque.test.ts` | igual |
+| `00A6EB6F7CCD7D8790C356BEFCC96DDFDA6EACCE0BE53DE255CFE3626D8F2ADB` | `backend/test/nombres-tokens-r2.ataque.test.ts` | igual |
+| `80B5A848F69B429E7DADEC86C07BEC1D3E3EED8A042EFBA41CE912DED39E7BAB` | `backend/test/nowait-ch-r1.ataque.test.ts` | igual |
+| `42F4E113762EF26459E95642FF4B814613353D64D462AB2B01ECDEEF4B9E160D` | `backend/test/recursos-clases03a-r1.ataque.test.ts` | igual |
+| `FF4D112AFF8685FCD9C5CA933A0B359E2B4E9BEDAD8F1B5D3D787CFDEC711516` | `backend/test/recursos-clases03a-r2.ataque.test.ts` | igual |
+| `AD0DAB1952E509237ACAC12BB1F6774FA9C5DE8B44D1E6928EDC65CC67A78C21` | `backend/test/referencias-01b-r1.ataque.test.ts` | igual |
+| `6F2ABC2CEFD77D74CD1E3ABBDCE9C41BB53D00BD4D8E5BA7E496C4441C2697E5` | `backend/test/servicio-ocupado-ch-r1.ataque.test.ts` | igual |
+| `1920263A7207AA2655B6588F25592CB87366FA8A49539D79B8EF5EACAEB32558` | `backend/test/sesiones-y-cadena.ataque.test.ts` | igual |
+| `70AC720F2E7FCADEE5BBCB6414887AB08129DEA7CD91DF012046953B1584E8B6` | `backend/test/sexto-paso-02a-r1.ataque.test.ts` | igual |
+| `C89C30851E6B409CD045017181147BF674DF947762A8DEA3F3FB981BD9B36E09` | `backend/test/tareas-01a-r1.ataque.test.ts` | igual |
+| `79BC7AAFC11676D36129610A4B5CD5FE5D8234D0D748487FD2F3E48C5F772C79` | `backend/test/tareas-01b-r1.ataque.test.ts` | igual |
+| `AE60C11CFF5C82DF4954DB48582DF4BD5A64957FF9AFAF9712AA43A038F8E189` | `backend/test/temas-01a-r1.ataque.test.ts` | igual |
+| `DC7B86A621062ED671C1E7174A745019133FBD410C7A2E78114B2A2C50AFFE95` | `backend/test/temas-01a-r3.ataque.test.ts` | igual |
+| `F09E9A0038C47D1A2223376A0AF260BAF573F0C45BF770201C48C9E30296F04B` | `backend/test/worker-03c-r1.ataque.test.ts` | igual |
+| `9F60F9D65D52D2021A1EB04E9F01D3CC68F22744C845BF93D6621AA4FE9713A8` | `backend/test/worker-r1.ataque.test.ts` | igual |
+| `77D11BD85F202A9EEC92A363DF82E63FB9A784CA9D368D49F62E61C1A2AA967B` | `backend/test/worker-r2.ataque.test.ts` | igual |
+| `0E49B62B73B2EF55E8C0B2BA26E1D136A3ADB674761FDA2C11453EB5C2FAF7CC` | `frontend/src/app/barra-02d-r1.ataque.test.tsx` | igual |
+| `B89EDE0F6AED45DFCB5E64C8909A822156CE43FD80948E72419CDCE9D4541A87` | `frontend/src/app/cache-03a-r1.ataque.test.tsx` | igual |
+| `E85743C0FBB8E476874A2C67334342D8D69D14153579FC1E4CCE0AE6E2B29616` | `frontend/src/app/contexto-r1.ataque.test.tsx` | igual |
+| `BC2BE5541006887E2A5A4A89B33046180F607D54474B0F96A73D615AFBCAC385` | `frontend/src/app/contrasena-r1.ataque.test.tsx` | igual |
+| `F38BCACB716D8A39ACDB3535A95603CD0D8AB02572CA57A7DF5268B01CEB6EAC` | `frontend/src/app/contrasena-r2.ataque.test.tsx` | igual |
+| `68FB5D092C0C8ECFCF282477EF023AAAE26F6B869656E05109DC3EFA276D842A` | `frontend/src/app/cuentas-r1.ataque.test.tsx` | igual |
+| `41930017715D3D6869DC7ACEFD75DE8EC3684F1F035B845ABDF8EC0F6B734DEE` | `frontend/src/app/cuentas-r2.ataque.test.tsx` | igual |
+| `1506C27E5F7418B5E087FD30F8809645A2FC3E2761C7249DE78F02E24AA6C7A5` | `frontend/src/app/en-espera-r1.ataque.test.tsx` | igual |
+| `DB48DAD405C27062621A44D3744C84CC5903892A51E5A8DF18F41383CB9C88A3` | `frontend/src/app/errores-r1.ataque.test.tsx` | igual |
+| `0E1D93E4DD3CBC7B5E9475A17B5CA66F0DF056BA25CB117249F4C2E2F5887A51` | `frontend/src/app/foco-barra-02d-r2.ataque.test.tsx` | igual |
+| `2154B5C15F696A0C7F884BFF774CF4E2A4208A5281DB9076653F8253E2385AB9` | `frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `F95321E604E20B533EBF2DB3C1C6C66BA2F2D87A48F075415B766551F6EE30F4` | `frontend/src/app/fondo-r1.ataque.test.tsx` | igual |
+| `29782507D18FF96315E4030E890B21FDF1EB1C5550C3D1CFE5C92664D30B64DD` | `frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx` | igual |
+| `57CB54AFD3B79464F0DF01B88FC388CEBBEAC5657D936C4C204CBAE6034B0834` | `frontend/src/app/marco-r1.ataque.test.tsx` | igual |
+| `C8A9812F21CB24DB50CC2AFD945B7B38ABACB468FBF4F4DF16C07A52C48426AC` | `frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx` | igual |
+| `D7608D7FC7767F53DB3971672FC99FDB8BBD33F303F41E321BCC48AD25F511FD` | `frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx` | igual |
+| `2F8056A770397C1601647277944555A48AFC4B9A2BABEB75E5898F0CC92562BB` | `frontend/src/app/muro-rutas-c-r1.ataque.test.tsx` | igual |
+| `6ACC49A2E3B649868CCF9A9337143F991B655DAFBCFF2E5916BCA0269BD23A7C` | `frontend/src/app/personas-03c1-r1.ataque.test.tsx` | igual |
+| `A3E3DADD35C40E9A11A0BDEF8CD716DACEEB254E5307A837C6598213BA803A7B` | `frontend/src/app/personas-03c1-r2.ataque.test.tsx` | igual |
+| `0EEFED2C05D76B0790A437E9465A898A9076083B1F046F8785145CFAAD0DA379` | `frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx` | igual |
+| `053E867A904AFA3C09EEF92CA2E03E929D9F9C93F714040856F40C7418721BBE` | `frontend/src/app/router.ataque.test.tsx` | igual |
+| `FC820217BC3BAA3749C077FE16A4ABD7AE10E92C84494FFB2A215133C19DF36A` | `frontend/src/app/rutas-01d-r1.ataque.test.tsx` | igual |
+| `F0657FB91F7B3ACCF64726292F9324C6742C1AC537C6C4A1985EC4E32AE09C83` | `frontend/src/app/rutas-02c-r1.ataque.test.tsx` | igual |
+| `C7946F5F5D5D16D36B395ADC2AD9928ACC7FD9839875FB64532B51489756730B` | `frontend/src/app/rutas-clases-r1.ataque.test.tsx` | igual |
+| `F090CBD8E8C9B0AF52D4FC19547B07E9B6413F5414CC4B10862F01E29818DDDC` | `frontend/src/app/sesion-r2.ataque.test.tsx` | igual |
+| `11C6D9C55BE91AA41E8525345E3795E34B8E1E661FF7CDD901F729760A033CFD` | `frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts` | igual |
+| `48F5FF8FEF35FAA6D8500FAE4A53CA953D7F661100A5C4879BA58E68972AB2DE` | `frontend/src/components/foco/foco-01d-r1.ataque.test.ts` | igual |
+| `36D605F79169E16A5AFADC7E07FC3781472DD393406430277CEB147FC2DA1FA5` | `frontend/src/components/layout/estatico-r1.ataque.test.ts` | igual |
+| `0AAA18CD70465293B6FCA6CC051B8E4AC360A838D02FEDE848C35376C3D0066C` | `frontend/src/components/layout/pie-r1.ataque.test.tsx` | igual |
+| `00A707429AF6B5326F9A96DEF6382823CF4A6A092AAC7E7BD7CBCB8DC9AA1D21` | `frontend/src/components/layout/pie-r2.ataque.test.tsx` | igual |
+| `472E1F46D0C899496AA334909B02988962AAB07B9BD29A8D7B8AF3987FAC6C76` | `frontend/src/components/layout/pie-r3.ataque.test.tsx` | igual |
+| `A1814D281DAFD8243989C9F9A462A4F33A86B1FB70EEEBF29E99BCB0F340D82A` | `frontend/src/components/ui/badge-03b-r1.ataque.test.ts` | igual |
+| `7D080037D9A64EEBCEBB789D1DFD94B787652103E6F9C84F968F9C9F64C3B30C` | `frontend/src/features/admin/cuentas-r1.ataque.test.tsx` | igual |
+| `B948E9359FD3981E08B850540027F536F345A3F48D7C0749BA0C16C2C1DF1184` | `frontend/src/features/admin/cuentas-r2.ataque.test.tsx` | igual |
+| `72BF9AF4CE8F52A114897E038CEFB0947841A37F74074F4C5F8DEC68A71B654A` | `frontend/src/features/admin/cuentas-r3.ataque.test.tsx` | igual |
+| `942DF3015424AED56E83661993BA015E871CD6BE8E797920D47E8CBF0C56EAC4` | `frontend/src/features/admin/cuentas-r4.ataque.test.tsx` | igual |
+| `3BD26E7E3BF019D462DB4837861ED22017BBB9E9A6276720BF0DEA6C2B5B0998` | `frontend/src/features/admin/en-espera-r1.ataque.test.tsx` | igual |
+| `C21EDB5A06B43808CE2BE23058409B7FF887E66D60E842C500A3714A90EBCB25` | `frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx` | igual |
+| `8219C864E7BDC1315E6A0F0FF1CD6F54E4710CEBDCEB8E316F4E53AACC0CFF35` | `frontend/src/features/admin/foco-r1.ataque.test.tsx` | igual |
+| `30F45BBA30D9348EC1587B42E84CA370274E1BF0AF0F310B8A6BBD79FA982669` | `frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx` | igual |
+| `D477A809E55E603D3EF6C02CA43B21372B75D0947FA303F1539D48BDF32841F8` | `frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx` | igual |
+| `761F54F183540D8AE222F97940FA6C2355FF33E515771E627F8EFDE49261EDA2` | `frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `14EAD3DCE027B433D51A9D635B0FA35718EE3875BFFC3E1949F96ECB8D2F7135` | `frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `3CEDA51DB8F67F40C26615FBC4CD7D082035B00F38713C6CA4C7DB58E47926C8` | `frontend/src/features/auth/enlace-r1.ataque.test.tsx` | igual |
+| `1F5D1147637C09DAA6FDF1384E4395EDD69DFDAB84AAE5D602A362DABD3295BD` | `frontend/src/features/auth/enlace-r2.ataque.test.tsx` | igual |
+| `AF3F0D474F8052B402C8959A64ACF9E730F9AE60F09D90996A6306E9C2440F08` | `frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx` | igual |
+| `991B115524D8DADE8D6EA2C51FB753DC8832EE410DB2161A0CE761D011CFCA4A` | `frontend/src/features/auth/invitacion-r1.ataque.test.tsx` | igual |
+| `96B6AB55F0A7BF9B66F8EDBCB5CEFFA7E4FE35935C6CB12ECAB93FC04BC02856` | `frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx` | igual |
+| `0CE580976EA894EE4BD9C4ADBE3D7D1D524354A8FF22FC7E7CC6ACF89057AA53` | `frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx` | igual |
+| `4BCD3E34B62726FEA718EFB9C482D8C1F504BBE85EF32427BDF4D65A6832D8F1` | `frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts` | igual |
+| `F0CBA6F9B6C4CF1D74ED52AD89943088661370F5A784502F851CD6230912F606` | `frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts` | igual |
+| `5991D8E3D4E694973309F178E5341A2285584CF9ED6006FBB658D7F5A61DE5DD` | `frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx` | igual |
+| `C744FB831FA9992C2A9ED0729F9EC3CC089F3167CA19133C6EEE0133382607A1` | `frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx` | igual |
+| `8DEA1C2ADC5D228E166CE6037A1A1A827D26E2BDC6D7C8534F146517EBC1AC44` | `frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx` | igual |
+| `6F7496CA7652E7B4441A7EB9822E74270D50127AC40BA27B86C83EDFCD5CC3FA` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx` | igual |
+| `24751F358FC5ECD485C475E7025DD881B87FE892F025459A6FF29F615FC5CC66` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx` | igual |
+| `C504D0AD3690781275A6FFB78638A6148550B2FD4EE1ED25A4B154054FC4F80D` | `frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx` | igual |
+| `6AC36CE1EB4DF953626415B3ED431A8F4809DC29CF259F755F1F8509DD54B7EF` | `frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx` | igual |
+| `FB33F2A27BFCCA906549A12610977478BA72E6E7ED8AFD5C5A0A962DEB3EB802` | `frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx` | igual |
+| `932E76314E0447DA1790C3C86CA48545EEA834FEAF6F706C4D405B7EA62BE872` | `frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx` | igual |
+| `55DC274ECA96DA4360848B88F9F2A839AC815031490AB57FF38DE074512D632C` | `frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx` | igual |
+| `371518E4309F14201A92D29F9436A97A19801B506D45114964FBCFE3F5CD4183` | `frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx` | igual |
+| `266D088DD727F18AF8C8A106B8D9C4DBED75753E4B1B4ABB12F3A4DF870ECB7F` | `frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx` | igual |
+| `856CFFBD9C743F9815DAF731487E29DC5F5272545DC15820A70BAF86ECFA6527` | `frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx` | igual |
+| `A9DC00D9CF6E8684113EEB824658C7FB2F3077EE8A54DEB0CCE47AC802C74F44` | `frontend/src/features/clases/archivos-d-r1.ataque.test.tsx` | igual |
+| `98E645DF89C9736EE33F440C1D83F342BE84F30CAABEC0310B1B5185E538FBD6` | `frontend/src/features/clases/archivos-d-r2.ataque.test.tsx` | igual |
+| `F1B2B7D3C2A2BFBC2C2AA31CCE4B120E306681C0CC9EFB85AC2A954C8F8F8AFE` | `frontend/src/features/clases/archivos-d-r3.ataque.test.tsx` | igual |
+| `C6C85AC2F6E7418E81D7817F9C455C0E0973025A15AE2A5378E00C9A71C45620` | `frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx` | igual |
+| `A3880B67FFAA0D15763D1C761CEF1FF8472029C77BFB2211AB079EADB1685325` | `frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx` | igual |
+| `66C0B873BC8B9D8E9E01AC871BD6AAAB4328508BEB5EC9371D69463D7C12430D` | `frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx` | igual |
+| `87DAE1927669B46BB52AAD94DB5107A5284F772FA9B29E225AACE19C1A1E8DEF` | `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | igual |
+| `5F0679D8CFACC8BCE01989C04A415DC5B546625EB7DEC92F03959DE5A0F89815` | `frontend/src/features/clases/clases-r1.ataque.test.tsx` | igual |
+| `C7AD5EDC733E374117A9277F1C2987E84CC2930C77EB4C720CCF15CC9F5FAB45` | `frontend/src/features/clases/clases-r2.ataque.test.tsx` | igual |
+| `A835A11D29AEDB8F77F91E826A22C2B7CF5322FCED3F6BED0C1ACBF7C75A4E61` | `frontend/src/features/clases/clases-r3.ataque.test.tsx` | igual |
+| `86B04D234527ECEEFCA35B07CE89E6B7CE0B6AFE5CCDEE2F005E6A4219F0495A` | `frontend/src/features/clases/clases-r4.ataque.test.tsx` | igual |
+| `DCE7FD019A6E32B8E4DF37DD0728E265F5E9449E9EE2723F372EA174FE312464` | `frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `3B5A9FAC5CD20A881BF6B38597B752725A7F6BBFDDCF103B7BF1239A76353DFC` | `frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx` | igual |
+| `FEC2FFC2691BD297DCA5F90233D498D10DFD689A5D9A8819BC30E757C6F67C26` | `frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx` | igual |
+| `18EDCFFC8E48073362B98C784D5BF64E3335709AE6E1C6425B32AA3310E24B56` | `frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx` | **nueva en la ronda 3 de 03e** |
+| `DDC9DFACCC8230EC612126FDF29939A8E4311188566E5CFCAA724BD119E959E8` | `frontend/src/features/clases/errores-ch3-r1.ataque.test.ts` | igual |
+| `5E20EEFE0104B510A3002DE084B6162162B5BF20797622C8D92B350853494B53` | `frontend/src/features/clases/estatico-02c-r1.ataque.test.ts` | igual |
+| `3CB8E0D7BB13B57638D65AA74EC5FF0F9306F024CF6996B7737232243A0B82F8` | `frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts` | igual |
+| `CDD1ED8890859AE3E884822FC7074852A2173105114745D83FE9A15C1C47C626` | `frontend/src/features/clases/estatico-r1.ataque.test.ts` | igual |
+| `DE23D395DFE7A6F3D6D15EB48CB574599DC9D8204E5A90B255C0C10D25A186FA` | `frontend/src/features/clases/fila-01d-r1.ataque.test.tsx` | igual |
+| `46383E1F3EDE03CB204DBF602373D0A07E513D8DAC7EC4179A203EA6EE270FA3` | `frontend/src/features/clases/foco-02c-r3.ataque.test.tsx` | igual |
+| `1D2BFE93DB13219086246E21307223229A89416484A09AC69DA14460E54E47BB` | `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` | igual |
+| `8B8EA2D21597BC0444709A9D26FD795D05BC964EF7B5094240628C63018C091B` | `frontend/src/features/clases/foco-02c-r5.ataque.test.tsx` | igual |
+| `B819D6BBDE4BD47E3EC724FCDEA5E77EB66B12076B8A9A083691B52EF0BDD182` | `frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx` | igual |
+| `AB006DC1711E9A652643930A7010C25F442D1FFDD137ADBB093EB5BD98DA90D6` | `frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx` | igual |
+| `5224976752A14C3E003B246FA97ABF25356E370CB46DA1CDFF9526BF3BE86B4E` | `frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `7F4A935DE29C3C519AAD697EDB1470C4CFCEAD600F5C1516C5FFF948995D4434` | `frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx` | igual |
+| `8BC578EF17D2731F388C14CA19BC719A2B8D04D8A41009FADEE15227379047BC` | `frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx` | igual |
+| `479430B848CF3D21A0187138944DEEC46BB36653071BBD2790ED57620F012976` | `frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx` | igual |
+| `4D94CCBE786A46CA1D82A280956F1146D5C302A9F83DFAC45F39B3B2F94B753F` | `frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx` | igual |
+| `0F60F1582FCE6E5EFAF9BF6856133DC30F1DC4EB9C3B7FEA19F90A330F8335B3` | `frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx` | igual |
+| `7C434A0E54E70B12D4B2A3DE22FFB4DBF5F28A1CFBD2290C22E8A2B59EDF0E16` | `frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx` | igual |
+| `99DF138B24D4ABA97B9F714C32BA226E82C7403CF73AA2E9E2B0B028B28E283E` | `frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx` | igual |
+| `4817262EF6E4DADFF56857E50BAB2E06EC479E62D5EAF45B34D70D683736B637` | `frontend/src/features/clases/muro-02c-r1.ataque.test.tsx` | igual |
+| `8DA38DBCB605CE3D90ACE8117CE2CC5C838D71EB24BDD76FAD3A53B82DA93901` | `frontend/src/features/clases/muro-c-r1.ataque.test.tsx` | igual |
+| `D0ACB3527AAFA6F687E3EB00563E37BE93768E7D7F742694A4D5CE05B75B7E28` | `frontend/src/features/clases/muro-c-r2.ataque.test.tsx` | igual |
+| `D08E51D451EBAEB2D7086C75DC1F73D52C5B4A6B8DFB979932828BED5F5D459D` | `frontend/src/features/clases/muro-c-r3.ataque.test.tsx` | igual |
+| `558212B46641DE0794D0CE90E3944A99CB5BAA7FAB4B09BBAC5EA7CAC41EAA34` | `frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx` | igual |
+| `AEC8C4131E5DC733246B33E8189E2DC595387324BDD2081D1D245641C20C380A` | `frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx` | igual |
+| `67B60A9A5363F88E6CEBA210C27452B8D639F6DF798AA4E506DC54BB2312249A` | `frontend/src/features/clases/personas-02d-r1.ataque.test.tsx` | igual |
+| `7677E0571587C89DE1CB76788D499AC545255CA64C8AFCB38A8AD6E39C02E2C6` | `frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx` | igual |
+| `60541290248812CFCE5591DDF33D01125D60C33257743A7EC48A445013D3D8C1` | `frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx` | igual |
+| `4AAFAA73980BA1BC29BE043623A030C9EAA730825EB61A403BF54F9AC700B42D` | `frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx` | igual |
+| `70B1A49A6A0E471422BE987466228E5BEB87E25BAEE2906790651C94ED214A3A` | `frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx` | igual |
+| `29A3125CC70969F2FC2BB1F012BEEB81840E1A00EA08D5B588B10D190342AE7F` | `frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx` | igual |
+| `85A7926A0F6831A8375F544CF38FE5585A8E2DCBF73D9726E9A3CFAAB7F76511` | `frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx` | igual |
+| `4303EAC77B98E8978495D9E68FD7725AC436F9DB757DBC0C02C59051436908FA` | `frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx` | igual |
+| `09435ABBB9A26DD71C52B4D95487C6D38594F1BA062AEFB60F73B7EB7308F991` | `frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx` | igual |
+| `D899C19BA982FBDE2208BBC7FA009869556C84BD4650586DBD9EE90B22234E47` | `frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx` | igual |
+| `97AF503E763F7DFF9FCFBDC72862CD21DE6AF8E51D3EC41134F8475D98AE2DF6` | `frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx` | igual |
+| `DB42C88D5B0BFB1125BF122C03A2E019D6F5365C128AC4BFADD413A26A934845` | `frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx` | igual |
+| `F6924BC272A5240CF97D35729C797CC10960ED7CF94FE1BE1B69CA2DF6C1CF8F` | `frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx` | igual |
+| `9866EF34167061E2715B65A352C55D08C7E9268033E879AE633C7FD568E4D49F` | `frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx` | igual |
+| `EA58EB11C3157A33C5730F87F2CF562AE178589B30264902B165C4439CEBC2EE` | `frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx` | igual |
+| `2EF258E946084F17E33936E8FA257551A90323B589859DD2E1F70AABEAF711BF` | `frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx` | igual |
+| `E2FEFD7D744F77C7BDD2BA73A08CC51076D0F6130BF4D0A225E0E972A1DCE111` | `frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx` | igual |
+| `11BB5433FB30F268B6D93E1E7814D826BBAB8FB1F173E574FAF52F5A96B5A41E` | `frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx` | igual |
+| `D8DACCB56C8DE8D9F1B0F8D1B0907C110E327F4F55B016FC0FE7FC0F25CCC79C` | `frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx` | igual |
+| `EF86C46708F0682BCA5A023E85794639C396EC94D207CAC23CEB13585AB39E75` | `frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx` | igual |
+| `5FF367EDBA10C9BA9C7E50F8ED874032654FA2ABDC0DD8F4A122A000355472AB` | `frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx` | igual |
+| `2938AE2F1C00F63A0372997C7BA68BDC0AB097895769BF9060072A4AC2674C5A` | `frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx` | igual |
+| `0963F14F4842D6D57288876C932496AC09D44B872FC049492EE6E8BA539F3235` | `frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx` | igual |
+| `4F486CA37D2A2BB6CC26754281D2ADCE086A9D8D4485A069DE7AE5D54E360ACF` | `frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx` | igual |
+| `93A5A0A648669E9C96494A62B2B16082B07296F279E2892BF2C8D47834EE2FC1` | `frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx` | igual |
+| `08A5E1A5642E7FC7553632DD5CF4E07F0EA35C3EF1E7293D010BBC49B09465AA` | `frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx` | igual |
+| `172BE3EFD919C0D3948ECA17C7E808968E2370AFE1F9C2A28CEF7D2DED584B81` | `frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx` | igual |
+| `496652BC59817166F53E00CB828F2119C857C2834063A31764D7876DC150C930` | `frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx` | igual |
+| `4E6950F0FE571D6AE41A78380C59C20459FDF19F34C57E9777E4E34A6BC61C58` | `frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts` | igual |
+| `94D6E6253B266C7F21099AA593AAC7B2600EDCA22AB403AA365DCD789B1C6A97` | `frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts` | igual |
+| `F614E7369F8C47C40A87AD1F8867FB8EDF7EBC76E94D0BA6C5C59C92CB6347F0` | `frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts` | igual |
+| `FB387ECBB7E5272D2FFB53D626B51FFD9C57B409D10C560E6A5ECBFA6A2A8C19` | `frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx` | igual |
+| `7A7C7BA922F77DA22D0F765ED5EA9CCF9216D1900E4B5F18365DA9D46437495F` | `frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx` | igual |
+| `BFDED7507BC684EA9858CD76517EF0E4C23CBC69E5A19F381E6EC522FD6156E6` | `frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx` | igual |
+| `B778FC2E6BB0A8F8715A56877B3B781439CA214C8A9C8AE126F610C95229882A` | `frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx` | igual |
+| `BF3C999033195CAC778A82A579E44729FB07A405F5CDB41D8E7DC932CB71F942` | `frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx` | igual |
+| `3567D7C23D2CF6A2FD538CD6822EF60AC3CFFEAC036394ED1E3559DEBE492C57` | `frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx` | igual |
+| `6BBE2BD85E2B5500FBAB4D0F51630C0C8E9D65B1A63045AD1FA906298A92A435` | `frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx` | igual |
+| `72B19B6A00B4ADE43B06829BB5BEF1A5CDECF5A7D2AF57369F1E857A1D4A17F5` | `frontend/src/lib/errores-ch3-r1.ataque.test.ts` | igual |
+| `5D41A2AF073DCAA2B8B016D835D36D5EBAE9278863DB048484A192A88BB31A30` | `frontend/src/lib/errores-ch3-r2.ataque.test.ts` | igual |
+| `66513D957E524AF5E336A2C7E656DF37F51106507A3984B691DF47CD825D4D10` | `frontend/src/lib/estatico-ch3-r1.ataque.test.ts` | igual |
+| `A9529CEFBD27CBB94376A6548EF1B8B247FB1F4155938298AE5D10EAEE81008A` | `frontend/src/lib/estatico-ch3-r2.ataque.test.ts` | igual |
+| `60BC1FC7011E9A0FE5A4C4AA45420F2C7D38ADB9EE2F8D235D09847DBE13AC3A` | `frontend/src/lib/format-01c-r1.ataque.test.ts` | igual |
+| `C71CBA65DD284D7AF11CBC812B6BCF75BAA373939EDB8318E731858D9C50173F` | `frontend/src/lib/format-d-r1.ataque.test.ts` | igual |
+| `89DBBB70D5DC404C3D74DB5391D10855C8CB1D6B4C643B6147B3CE6FFB2637AF` | `frontend/src/lib/format-d-r2.ataque.test.ts` | igual |
+| `BFA7DED62F7A1402590D438A1CC51060A63FA019AD47D3EB5740E43383064A2A` | `frontend/src/lib/format-d-r3.ataque.test.ts` | igual |
+| `B6265BF6EEC25B7F2C34DCD93DD4D8B23D07CA6214576921A50A66FF16346FFB` | `frontend/src/services/apiClient-ch3-r1.ataque.test.ts` | igual |
+| `10C730348D18FF8DAE7B3623751D31122AA58560B564AD191717FA1938A6F8CE` | `frontend/src/services/apiClient.ataque.test.ts` | igual |
+| `87DA1CF759AC639BB168AB352CD28814B5C6C85B46B86A033FC22F147D6E6D15` | `frontend/src/styles/clases-r1.ataque.test.ts` | igual |
+| `B8085BCBBC7F4B6276BF3A87FB7BA0BC887953A8C6CE372354A7F3F1B5037582` | `frontend/src/styles/tokens-r1.ataque.test.ts` | igual |

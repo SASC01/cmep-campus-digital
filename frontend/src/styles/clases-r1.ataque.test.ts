@@ -159,14 +159,22 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // formulario-publicacion.tsx sigue en 1 ("Publicar anuncio"). Sigue protegiendo lo mismo: ningún
   // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
   // botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 64 enEspera", () => {
+  // CLASES-03e ronda 0 (C-21, §D-R0; §D-9.1 a §D-9.3): de 64 a 71. Se suman a la lista fija
+  // dudas-view.tsx (1: "Ver más dudas"), formulario-duda.tsx (1: "Publicar duda"),
+  // elemento-de-duda.tsx (2: "Marcar como resuelta" o "Quitar «Resuelta»", un solo botón, y "Sí,
+  // borrar duda"), respuestas-de-duda.tsx (2: "Ver más respuestas" y "Sí, borrar respuesta") y
+  // formulario-respuesta.tsx (1: "Responder"). El control que despliega las respuestas, "Borrar
+  // duda", "Borrar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en
+  // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
+  // espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 71 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(64)
+    expect(usos).toHaveLength(71)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -292,6 +300,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/seccion-de-recursos.tsx": 1,
       "/src/features/clases/recursos-view.tsx": 0,
       "/src/features/clases/editar-recurso-view.tsx": 0,
+      // C-21 de CLASES-03e (§D-R0): los siete botones con espera de "Dudas".
+      "/src/features/clases/dudas-view.tsx": 1,
+      "/src/features/clases/components/formulario-duda.tsx": 1,
+      "/src/features/clases/components/elemento-de-duda.tsx": 2,
+      "/src/features/clases/components/respuestas-de-duda.tsx": 2,
+      "/src/features/clases/components/formulario-respuesta.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

@@ -24,7 +24,9 @@ import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClien
 
 import {
   CAMPOS_PINTADOS_DE_LA_CLASE,
+  CAMPOS_PINTADOS_DE_LA_DUDA,
   CAMPOS_PINTADOS_DE_LA_PUBLICACION,
+  CAMPOS_PINTADOS_DE_LA_RESPUESTA,
   CAMPOS_PINTADOS_DEL_RECURSO,
   CAMPOS_QUE_REEMPLAZAN_EL_RECURSO,
   CLASES_DEL_CUADRO_DE_ENTREGA,
@@ -237,6 +239,14 @@ export const erroresDelRecursoDeApi = (
   error: unknown,
   modo: ModoDelRecurso,
 ): ErroresFormulario | null => erroresDeFormularioClases(error, CAMPOS_PINTADOS_DEL_RECURSO[modo])
+
+// CLASES-03e (§D-9.4, §D-15): "Publicar duda" y "Responder" pintan solo el texto; cualquier otro campo
+// (resuelta, dudaId, una ruta con índice) se avisa.
+export const erroresDeLaDudaDeApi = (error: unknown): ErroresFormulario | null =>
+  erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_DUDA)
+
+export const erroresDeLaRespuestaDeApi = (error: unknown): ErroresFormulario | null =>
+  erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_RESPUESTA)
 
 // N-04 (ronda 4 de CLASES-a, §D-B4 bis): en "Unirme a la clase" solo CODIGO_INVALIDO y un VALIDACION
 // de "codigo" son errores del campo del código. Cualquier otro (un 500, "sin conexión",
@@ -698,6 +708,10 @@ export const avisoDeRecargaFallidaDelRecurso = (error: unknown): string => {
   }
   return TEXTOS_EDITAR_RECURSO.recargaServidor
 }
+
+// CLASES-03e (T-02 de la ronda 1): la duda ya no existe (404 DUDA_NO_ENCONTRADA).
+export const esDudaNoEncontrada = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "DUDA_NO_ENCONTRADA"
 
 // 409 RECURSO_MODIFICADO: otra persona guardó o movió el recurso mientras se editaba.
 export const esRecursoModificado = (error: unknown): boolean =>

@@ -755,7 +755,7 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
     expect(rc.niveles).toEqual(Array.from({ length: CONEXIONES_DEL_POOL }, () => "read committed"))
   }, 60_000)
 
-  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las catorce lecturas (cuatro de clases, dos del muro, dos de tareas, cuatro de entregas y dos de calificaciones)", () => {
+  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las dieciocho lecturas (cuatro de clases, dos del muro, dos de tareas, cuatro de entregas, dos de calificaciones, dos de recursos y dos de dudas)", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const archivos = readdirSync(raiz, { recursive: true, encoding: "utf8" })
       .map((ruta) => ruta.split(sep).join("/"))
@@ -806,6 +806,9 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       // C-4 de CALIFICACIONES-01b (§D-R0, A-5): leerGradebook y leerMisCalificaciones corren en la instantánea única.
       "adapters/db/calificaciones.ts:2",
       "adapters/db/clases.ts:4",
+      // CLASES-03b, C-2 (§D-R0; §D-0.4 y §D-5): listarDudas y listarRespuestas corren en la instantánea
+      // única. El conteo sigue siendo del texto del archivo.
+      "adapters/db/dudas.ts:2",
       // ENTREGAS-01b ronda 0 (C-2, §D-R0; §D-0.7, §D-3.3, §D-3.9 y §D-3.10 del plan de ENTREGAS-01):
       // leerMiEntrega, listarEntregas y leerEntregaDeAlumno corren en la instantánea única. El conteo
       // es del texto del archivo, con sus comentarios (O-2 de la revisión de la Enmienda 1). Lo demás
@@ -813,6 +816,9 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       // ENTREGAS-01c ronda 0 (C-2, §D-R0; §D-4): listarHiloPrivado suma la cuarta lectura de entregas.ts.
       "adapters/db/entregas.ts:4",
       "adapters/db/publicaciones.ts:2",
+      // CLASES-03a, C-2 (§D-R0; §D-0.4, §D-3.5 y §D-3.6): listarRecursos y leerRecurso corren en la
+      // instantánea única. El conteo sigue siendo del texto del archivo.
+      "adapters/db/recursos.ts:2",
       "adapters/db/tareas.ts:2",
     ])
   })

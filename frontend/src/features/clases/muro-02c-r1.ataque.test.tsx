@@ -236,8 +236,13 @@ describe("ataque CLASES-02c r1: los botones de borrar existen si y solo si el se
       ),
     )
     renderMuro("admin")
-    expect(await screen.findByText("Aún no hay publicaciones en esta clase.")).toBeInTheDocument()
-    expect(screen.getByRole("group", { name: "Tipo de publicación" })).toBeInTheDocument()
+    // CLASES-03c1 ronda 0 (C-16, §D-R0; §D-13 y Enmienda 4): el vacío de Avisos del admin pasa a
+    // "Publica el primer aviso de esta clase." (el admin publica avisos en cualquier clase, RF-59).
+    expect(await screen.findByText("Publica el primer aviso de esta clase.")).toBeInTheDocument()
+    // CLASES-03d ronda 0, adenda 1 (C-23 ampliada por el arbitraje de la ronda 0 de 03d; §D-8.7): el
+    // formulario de Avisos ya no tiene el grupo "Tipo de publicación"; el formulario de publicar del
+    // admin se reconoce por su botón «Publicar anuncio». Sigue protegiendo lo mismo.
+    expect(screen.getByRole("button", { name: "Publicar anuncio" })).toBeInTheDocument()
     await act(() => new Promise((r) => setTimeout(r, 30)))
     expect(screen.queryByLabelText("Escribe un comentario")).toBeNull()
   })

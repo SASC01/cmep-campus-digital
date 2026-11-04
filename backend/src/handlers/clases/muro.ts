@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 
 import {
+  avisosQuerySchema,
   comentarioIdParamSchema,
   comentarioRespuestaSchema,
   crearComentarioSchema,
@@ -28,6 +29,7 @@ import { encolar } from "../../adapters/queue/index.js"
 import type { Almacen } from "../../core/archivos/almacen.js"
 import { firmaDelAutor } from "../../core/autoria.js"
 import { conTextosNormalizados } from "../../core/clases/texto.js"
+import { bloqueAlPublicar } from "../../core/recursos.js"
 import { AppError } from "../../core/errores.js"
 import {
   COLA_COMENTARIO_CREADO,
@@ -65,9 +67,10 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
     protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id } = claseDe(request)
-      const { cursor, limite } = validarParametros(paginacionSchema, request.query)
+      // CLASES-03a (§D-3.2): con ?tipo=anuncio, solo anuncios ("Avisos"); sin él, lo de hoy.
+      const { cursor, limite, tipo } = validarParametros(avisosQuerySchema, request.query)
       const actor = perfilDe(request)
-      const lista = await listarPublicaciones({ claseId: id, cursor, limite, actor })
+      const lista = await listarPublicaciones({ claseId: id, cursor, limite, actor, tipo })
       const publicaciones = await Promise.all(
         lista.publicaciones.map(async (publicacion) => ({
           ...publicacion,
@@ -110,6 +113,8 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
           texto: datos.texto ?? "",
           // TAREAS-01a (Enmienda 1, M-01): ausente o null es "Sin tema"; un anuncio nunca lleva tema.
           temaId: datos.tipo === "material" ? (datos.temaId ?? null) : null,
+          // CLASES-03a (§D-3.1, S-01): el bloque de un material es el del rol de quien lo publica.
+          bloque: datos.tipo === "material" ? bloqueAlPublicar(perfil) : null,
           archivos,
         },
         (sql) => encolar(colaDePublicacion(datos.tipo), aviso, { id, sql }),

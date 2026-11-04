@@ -211,9 +211,43 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
   // segunda en las tres perspectivas. Sigue protegiendo la perspectiva por el prefijo en mayúsculas,
   // la sección activa y el indicador montado.
   // C-9 de CALIFICACIONES-01d (§D-R0, A-5): las tres listas suman "Calificaciones" al final.
+  // CLASES-03c1 ronda 0 (C-8, §D-R0; §D-7.1, §D-7.2 y DH-03): las tres perspectivas tienen las mismas
+  // cuatro secciones (Avisos, Actividades de aprendizaje, Personas y Calificaciones); el admin en
+  // …/PERSONAS tiene «Personas» activa (…/maestros ya no es una sección: redirige, DH-09). El
+  // indicador ya no se ubica con clases: jsdom no mide, así que cada opción simula su posición
+  // (índice × 100 px) y su ancho (80 + índice × 10 px), y el indicador montado debe llevar las de la
+  // activa en --indicador-x y --indicador-ancho. Sigue protegiendo la perspectiva por el prefijo en
+  // mayúsculas, la sección activa y el indicador montado.
+  // CLASES-03d ronda 0 (C-8, §D-R0; §D-7.1): las tres perspectivas suman «Recursos» entre
+  // «Actividades de aprendizaje» y «Personas» (cinco secciones). «Personas» pasa a la cuarta posición,
+  // y su posición y ancho simulados salen del mismo índice en la lista esperada. Sigue protegiendo la
+  // perspectiva por el prefijo en mayúsculas, la sección activa y el indicador montado.
+  // CLASES-03e ronda 0 (C-8, §D-R0; §D-7.1): las tres perspectivas suman «Dudas» entre «Recursos» y
+  // «Personas» (seis secciones). «Personas» pasa a la quinta posición y su medida simulada sale del
+  // mismo índice en la lista esperada. Sigue protegiendo lo mismo.
   const secciones = () => screen.findByRole("list", { name: "Secciones de la clase" })
   const indicadorDe = (lista: HTMLElement) =>
-    lista.parentElement?.querySelector(':scope > [aria-hidden="true"]') ?? null
+    lista.parentElement?.querySelector<HTMLElement>(':scope > [aria-hidden="true"]') ?? null
+  const indiceEnSecciones = (elemento: HTMLElement) => {
+    const lista = elemento.parentElement
+    if (elemento.tagName !== "LI" || lista?.getAttribute("aria-label") !== "Secciones de la clase")
+      return -1
+    return Array.from(lista.children).indexOf(elemento)
+  }
+  const simularMedidas = () => {
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const i = indiceEnSecciones(this)
+      return i < 0 ? 0 : i * 100
+    })
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const i = indiceEnSecciones(this)
+      return i < 0 ? 0 : 80 + i * 10
+    })
+  }
 
   it.each([
     [
@@ -221,21 +255,21 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
       `/ESTUDIANTE/Clases/${CLASE_A.toUpperCase()}/PERSONAS`,
       "/estudiante/clases/:claseId",
       "Personas",
-      ["Muro", "Trabajo de clase", "Personas", "Calificaciones"],
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
     [
       "maestro en /Maestro/clases/<id>",
       `/Maestro/clases/${CLASE_A}`,
       "/maestro/clases/:claseId",
-      "Muro",
-      ["Muro", "Trabajo de clase", "Alumnos", "Calificaciones"],
+      "Avisos",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
     [
-      "admin en /ADMIN/CLASES/<id>/MAESTROS",
-      `/ADMIN/CLASES/${CLASE_A}/MAESTROS`,
+      "admin en /ADMIN/CLASES/<id>/PERSONAS",
+      `/ADMIN/CLASES/${CLASE_A}/PERSONAS`,
       "/admin/clases/:claseId",
-      "Maestros",
-      ["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"],
+      "Personas",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
     ],
   ] as const)(
     "%s: la perspectiva de su prefijo, su sección activa y el indicador montado",
@@ -244,6 +278,7 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
         "fetch",
         vi.fn<typeof fetch>((entrada) => Promise.resolve(responderClase(String(entrada)))),
       )
+      simularMedidas()
       conRutas(
         ruta,
         <Route path={patron} element={<ClaseLayout />}>
@@ -263,13 +298,24 @@ describe("ataque CLASES-02d r1: M-12 y O-06 con la ruta en mayúsculas", () => {
         "aria-current",
         "page",
       )
-      expect(indicadorDe(lista), "sin indicador con la ruta en mayúsculas").not.toBeNull()
+      const indicador = indicadorDe(lista)
+      expect(indicador, "sin indicador con la ruta en mayúsculas").not.toBeNull()
+      const i = esperadas.indexOf(activa)
+      await waitFor(() =>
+        expect({
+          x: indicador?.style.getPropertyValue("--indicador-x"),
+          ancho: indicador?.style.getPropertyValue("--indicador-ancho"),
+        }).toEqual({ x: `${String(i * 100)}px`, ancho: `${String(80 + i * 10)}px` }),
+      )
+      vi.restoreAllMocks()
     },
   )
 })
 
+// CLASES-03c1 ronda 0 (C-8, §D-R0; §D-13): el encabezado de la lista, solo para lectores, pasa de
+// «Publicaciones» a «Avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-02d r1: O-14, de una publicación de A a la clase B en caché", () => {
-  it("el foco que estaba en una publicación de A va al encabezado «Publicaciones» de B, no a <body> ni a una publicación de B", async () => {
+  it("el foco que estaba en una publicación de A va al encabezado «Avisos» de B, no a <body> ni a una publicación de B", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>((entrada) => Promise.resolve(responderClase(String(entrada)))),
@@ -295,6 +341,6 @@ describe("ataque CLASES-02d r1: O-14, de una publicación de A a la clase B en c
     await act(() => router.navigate(`/estudiante/clases/${CLASE_B}`))
     await screen.findByText("Publicación de Clase B")
     await act(() => new Promise((r) => setTimeout(r, 50)))
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Publicaciones" }))
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Avisos" }))
   })
 })

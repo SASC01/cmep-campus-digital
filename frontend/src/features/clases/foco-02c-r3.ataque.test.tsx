@@ -16,7 +16,7 @@ import { MuroView } from "./muro-view"
 // que no se mueva si la persona ya lo puso en otro lado, ni en una vista que nace en error; que una
 // segunda recarga fallida no lo vuelva a robar; que el contenedor del error no sea un tope de Tab
 // extra; y que MensajeError conserve role="alert" y su texto. En ClaseLayout (los dos de maestros),
-// MaestrosDeClaseView sola, la lista del muro (y su «Ver más publicaciones») y /admin/clases (y su
+// MaestrosDeClaseView sola, la lista del muro (y su «Ver más avisos») y /admin/clases (y su
 // «Cargar más clases»). Sin selectores de clases de estilo.
 
 const aviso = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }))
@@ -129,6 +129,7 @@ afterEach(() => {
   aviso.error.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos» y el encabezado de la lista «Publicaciones» a «Avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-02c r3: ClaseLayout y «Maestros de la clase» cuando la recarga falla", () => {
   const rutasConLayout = (
     <Route path="/admin/clases/:claseId" element={<ClaseLayout />}>
@@ -283,7 +284,7 @@ describe("ataque CLASES-02c r3: ClaseLayout y «Maestros de la clase» cuando la
   })
 })
 
-describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más publicaciones» fallan", () => {
+describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más avisos» fallan", () => {
   const rutasMuro = <Route path="/maestro/clases/:claseId" element={<MuroView />} />
 
   const montarMuro = (opciones: {
@@ -319,13 +320,13 @@ describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más
   const conUna = () =>
     respuestaJson(200, { publicaciones: [publicacion(1)], siguienteCursor: null })
 
-  it("tras borrar, con la recarga en 500 y el foco perdido, el foco va al encabezado «Publicaciones», fuera del orden de Tab, y el alerta conserva su texto", async () => {
+  it("tras borrar, con la recarga en 500 y el foco perdido, el foco va al encabezado «Avisos», fuera del orden de Tab, y el alerta conserva su texto", async () => {
     montarMuro({ primera: conUna, despues: [error500] })
     await borrarConFoco()
     await screen.findByText(GENERICO)
     await esperar(30)
     const destino = document.activeElement
-    expect(destino).toBe(screen.getByRole("heading", { name: "Publicaciones" }))
+    expect(destino).toBe(screen.getByRole("heading", { name: "Avisos" }))
     comprobarRamaDeError(destino)
   })
 
@@ -372,23 +373,23 @@ describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más
     expect(document.activeElement).toBe(document.body)
   })
 
-  it("«Ver más publicaciones» que falla: con el foco en el botón, va al encabezado; si la persona se fue al campo del anuncio, se queda ahí", async () => {
+  it("«Ver más avisos» que falla: con el foco en el botón, va al encabezado; si la persona se fue al campo del anuncio, se queda ahí", async () => {
     const conDos = () =>
       respuestaJson(200, {
         publicaciones: [publicacion(1), publicacion(2)],
         siguienteCursor: `5a5b3c4d-1c1f-4b8e-9a1e-${String(2).padStart(12, "0")}`,
       })
     montarMuro({ primera: conDos, despues: [error500] })
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     act(() => verMas.focus())
     fireEvent.click(verMas)
     await screen.findByText(GENERICO)
     await esperar(30)
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Publicaciones" }))
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Avisos" }))
     cleanup()
 
     montarMuro({ primera: conDos, despues: [error500] })
-    const otraVez = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const otraVez = await screen.findByRole("button", { name: "Ver más avisos" })
     act(() => otraVez.focus())
     fireEvent.click(otraVez)
     const anuncio = screen.getByLabelText("Anuncio")

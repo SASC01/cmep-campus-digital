@@ -55,6 +55,15 @@ enum TipoPublicacion {
   @@map("tipo_publicacion")
 }
 
+// CLASES-03a (§D-1, RN-09): el bloque de un recurso (un material). Lo guarda la columna al publicar,
+// por el rol de quien publica: el admin en aprendizaje y un maestro en docente.
+enum BloqueRecurso {
+  aprendizaje
+  docente
+
+  @@map("bloque_recurso")
+}
+
 enum EstadoArchivo {
   pendiente
   confirmado
@@ -104,6 +113,8 @@ model Usuario {
   comentarios           Comentario[]
   archivosSubidos       Archivo[]
   entregas              Entrega[]
+  dudas                 Duda[]                  @relation("DudasDelAutor")
+  dudasResueltas        Duda[]                  @relation("DudasResueltasPor")
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -192,6 +203,7 @@ model Clase {
   temas            Tema[]
   categorias       Categoria[]
   tareas           Tarea[]
+  dudas            Duda[]
 
   @@index([maestroId, creadoEn(sort: Desc), id(sort: Desc)])
   @@index([creadoEn(sort: Desc), id(sort: Desc)])
@@ -274,10 +286,19 @@ model Publicacion {
   temaId        String?         @map("tema_id") @db.Uuid
   tema          Tema?           @relation(fields: [temaId], references: [id], onDelete: SetNull)
   tarea         Tarea?
+  // CLASES-03a (§D-1, DH-02 a): nulo permitido para no romper a un backend anterior; solo un material
+  // lo lleva (CHECK publicaciones_bloque_solo_material, a mano en la migración). `version` solo la
+  // usan los materiales (editar un recurso); las tareas siguen con tareas.version.
+  bloque        BloqueRecurso?
+  version       Int             @default(0)
 
   @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
   @@index([claseId, temaId, creadoEn(sort: Desc), id(sort: Desc)])
   @@index([temaId])
+  // CLASES-03a: "Avisos" (tipo anuncio, sin tema) y "Actividades" (tipo tarea, por tema).
+  @@index([claseId, tipo, temaId, creadoEn(sort: Desc), id(sort: Desc)])
+  // CLASES-03a: "Recursos" por bloque y tema, y sus conteos.
+  @@index([claseId, bloque, temaId, creadoEn(sort: Desc), id(sort: Desc)])
   @@map("publicaciones")
 }
 
@@ -379,10 +400,35 @@ model Comentario {
   publicacion   Publicacion? @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
   entrega       Entrega?     @relation(fields: [entregaId], references: [id], onDelete: Cascade)
   autor         Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  // CLASES-03b (§D-4): la respuesta a una duda es un comentario con duda_id. Un comentario tiene
+  // exactamente un contexto (CHECK comentarios_un_solo_contexto, a mano en la migración).
+  dudaId        String?      @map("duda_id") @db.Uuid
+  duda          Duda?        @relation(fields: [dudaId], references: [id], onDelete: Cascade)
 
   @@index([publicacionId, creadoEn, id])
   @@index([entregaId, creadoEn, id])
+  @@index([dudaId, creadoEn, id])
   @@map("comentarios")
+}
+
+// CLASES-03b (§D-4, P-07, S-06): una duda de una clase, sin título. resuelta_en y resuelta_por van
+// juntos (CHECK dudas_resuelta_completa, a mano en la migración); quién la marcó nunca sale.
+model Duda {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claseId       String       @map("clase_id") @db.Uuid
+  autorId       String       @map("autor_id") @db.Uuid
+  texto         String
+  resueltaEn    DateTime?    @map("resuelta_en") @db.Timestamptz(3)
+  resueltaPor   String?      @map("resuelta_por") @db.Uuid
+  creadoEn      DateTime     @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime     @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  clase         Clase        @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  autor         Usuario      @relation("DudasDelAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  marcadaPor    Usuario?     @relation("DudasResueltasPor", fields: [resueltaPor], references: [id], onDelete: Restrict)
+  respuestas    Comentario[]
+
+  @@index([claseId, creadoEn(sort: Desc), id(sort: Desc)])
+  @@map("dudas")
 }
 
 // CLASES-d (§D-D1). Metadatos de un archivo del almacén; el objeto vive en R2 o MinIO, nunca en la

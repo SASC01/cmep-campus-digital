@@ -201,6 +201,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// CLASES-03c1 ronda 0 (C-13, §D-R0; §D-7.1 y §D-13): el enlace «Muro» de la clase pasa a «Avisos» y su encabezado «Publicaciones» a «Avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-02d r1: «Reintentar» de la barra en sus estados", () => {
   it("primera carga: solo el status «Cargando tus clases»; ni lista ni «Reintentar»", async () => {
     const servidor = crearServidor({ ana: estudiante([ALGEBRA]) }, "ana")
@@ -465,8 +466,8 @@ describe("ataque CLASES-02d r1: la barra al navegar, al unirse y al cambiar de c
     await screen.findByRole("heading", { level: 1, name: "Álgebra I" })
     fireEvent.click(screen.getByRole("link", { name: "Personas" }))
     await screen.findByRole("heading", { name: "Alumnos" })
-    fireEvent.click(screen.getByRole("link", { name: "Muro" }))
-    await screen.findByRole("heading", { name: "Publicaciones" })
+    fireEvent.click(screen.getByRole("link", { name: "Avisos" }))
+    await screen.findByRole("heading", { name: "Avisos" })
     const historia = within(ul).getByRole("link", { name: "Historia" })
     act(() => historia.focus())
     fireEvent.click(historia)

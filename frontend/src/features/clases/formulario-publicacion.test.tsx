@@ -40,9 +40,12 @@ const publicacionCreada = (extra: Record<string, unknown> = {}) => ({
   },
 })
 
-// TAREAS-01e (§D-11, C-12): con «Material» el formulario pide los temas de la clase (GET …/temas). Los
+// TAREAS-01e (§D-11, C-12): con «Material» el formulario pedía los temas de la clase (GET …/temas). Los
 // dobles de este archivo responden esa lectura aparte (por defecto, sin temas), así que lo que cuentan
 // y lo que comparan sigue siendo solo lo de antes: las peticiones de publicar y de los archivos.
+// CLASES-03d (§D-8.7, Enmienda 12, E12-3): el formulario de Avisos solo publica anuncios y ya no pide
+// los temas (PR-C09a lo comprueba). Los casos del material pasan a formulario-recurso.test.tsx; los de
+// adjuntos se quedan con el anuncio; los del control del tipo se retiran (ver abajo).
 const RUTA_TEMAS = `/api/clases/${CLASE_ID}/temas`
 const sinTemas = () => respuestaJson(200, { temas: [], sinTema: 0 })
 let respuestaDeTemas: () => Response | Promise<Response> = sinTemas
@@ -71,8 +74,6 @@ const renderFormulario = () => {
   return { invalidar }
 }
 
-const elegirMaterial = () => fireEvent.click(screen.getByRole("button", { name: "Material" }))
-
 beforeEach(() => {
   establecerToken("token-de-prueba")
 })
@@ -87,35 +88,21 @@ afterEach(() => {
 })
 
 describe("FormularioPublicacion", () => {
-  it("PR-C09a: el grupo de tipo usa aria-pressed", () => {
+  // CLASES-03d (Enmienda 12, E12-3): sin el grupo del tipo, PR-C09a comprueba CL3-D19. PR-C09f pasó a
+  // formulario-recurso.test.tsx.
+  it("PR-C09a · CL3-D19: el formulario de Avisos no tiene grupo «Tipo de publicación», ni botón «Material», ni campos «Título…» o «Tema», y no pide los temas", async () => {
     stubApi()
     renderFormulario()
 
-    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
-    const anuncio = screen.getByRole("button", { name: "Anuncio" })
-    const material = screen.getByRole("button", { name: "Material" })
-    expect(grupo).toContainElement(anuncio)
-    expect(grupo).toContainElement(material)
-    expect(anuncio).toHaveAttribute("aria-pressed", "true")
-    expect(material).toHaveAttribute("aria-pressed", "false")
-
-    fireEvent.click(material)
-
-    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "false")
-    expect(screen.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true")
-  })
-
-  it("PR-C09f: con «Material», el formulario pide el título", () => {
-    stubApi()
-    renderFormulario()
-    expect(screen.queryByLabelText("Título del material")).toBeNull()
     expect(screen.getByLabelText("Anuncio")).toBeInTheDocument()
-
-    elegirMaterial()
-
-    expect(screen.getByLabelText("Título del material")).toBeInTheDocument()
-    expect(screen.getByLabelText("Descripción (opcional)")).toBeInTheDocument()
-    expect(screen.queryByLabelText("Anuncio")).toBeNull()
+    expect(screen.queryByRole("group", { name: "Tipo de publicación" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Material" })).toBeNull()
+    expect(screen.queryByLabelText(/^Título/)).toBeNull()
+    expect(screen.queryByLabelText("Tema")).toBeNull()
+    await new Promise((resolver) => setTimeout(resolver, 50))
+    expect(
+      vi.mocked(fetch).mock.calls.filter(([entrada]) => String(entrada).startsWith(RUTA_TEMAS)),
+    ).toEqual([])
   })
 
   it("PR-C09b: publicar limpia el formulario, avisa e invalida la lista", async () => {
@@ -142,19 +129,15 @@ describe("FormularioPublicacion", () => {
     ])
   })
 
-  it("PR-C09c: el botón dice «Publicar anuncio» o «Publicar material» según el tipo", () => {
+  it("PR-C09c: el botón dice «Publicar anuncio» y no hay «Publicar material»", () => {
     stubApi()
     renderFormulario()
     expect(screen.getByRole("button", { name: "Publicar anuncio" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Publicar material" })).toBeNull()
-
-    elegirMaterial()
-
-    expect(screen.getByRole("button", { name: "Publicar material" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Publicar anuncio" })).toBeNull()
   })
 
-  it("PR-C12h: un anuncio, o el título de un material, hechos solo de caracteres invisibles muestran su ErrorDeCampo y no llaman a la API", async () => {
+  // CLASES-03d (Enmienda 12, E12-3): la parte del título de PR-C12h pasó a formulario-recurso.test.tsx.
+  it("PR-C12h: un anuncio hecho solo de caracteres invisibles muestra su ErrorDeCampo y no llama a la API", async () => {
     const fetchMock = stubApi()
     renderFormulario()
 
@@ -163,34 +146,11 @@ describe("FormularioPublicacion", () => {
     expect(await screen.findByText("Escribe el anuncio")).toBeInTheDocument()
     expect(screen.getByLabelText("Anuncio")).toHaveAttribute("aria-invalid", "true")
 
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: "\u3164" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
-    expect(await screen.findByText("Escribe el título del material")).toBeInTheDocument()
-
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("un material sin descripción se publica con solo el título", async () => {
-    const fetchMock = stubApi()
-    renderFormulario()
-    elegirMaterial()
-
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: "Guía del tema 3" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
-
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
-      tipo: "material",
-      titulo: "Guía del tema 3",
-      texto: "",
-      archivoIds: [],
-    })
-  })
+  // CLASES-03d (Enmienda 12, E12-3): "un material sin descripción se publica con solo el título" pasó a
+  // formulario-recurso.test.tsx.
 
   it("un error que no es de un campo (500) se avisa y no marca ningún campo", async () => {
     stubApi(() =>
@@ -303,30 +263,20 @@ describe("el formulario normaliza antes de validar (Enmienda 8, T-31)", () => {
       archivoIds: [],
     })
 
-    // El título de un material se normaliza igual.
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: `  ${"t".repeat(200)} \r\n` },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
-      tipo: "material",
-      titulo: "t".repeat(200),
-      texto: "",
-      archivoIds: [],
-    })
+    // CLASES-03d (Enmienda 12, E12-3): la normalización del título pasó a formulario-recurso.test.tsx.
 
     // 5,001 sin saltos: el formulario lo rechaza con el mensaje del servidor y no llama a la API.
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
     escribirYPublicarAnuncio("a".repeat(5001))
     expect(await screen.findByText("No puede tener más de 5000 caracteres")).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 
 // CLASES-d (§D-D5): adjuntos. El doble del servidor reconoce las tres peticiones del flujo: pedir la
 // subida (API), subir al almacén (otro origen) y publicar (API).
+// CLASES-03d (Enmienda 12, E12-3): los casos de adjuntos que elegían «Material» (PR-D11d, PR-D12a,
+// PR-D12b, PR-D12c y PR-D16) se quedan con el anuncio: escriben en "Anuncio" y comparan el cuerpo del
+// anuncio. Lo demás de cada caso no cambia.
 describe("adjuntos del formulario (CLASES-d)", () => {
   const ORIGEN_ALMACEN = "https://almacen.ejemplo.mx"
   const MB = 1024 * 1024
@@ -432,12 +382,11 @@ describe("adjuntos del formulario (CLASES-d)", () => {
   it("PR-D11d: infiere el tipo por la extensión cuando File.type viene vacío", async () => {
     const { llamadas } = stubFlujo()
     renderFormulario()
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: "Informe" } })
+    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Informe" } })
 
     elegirArchivos(archivoDe("informe.docx", ""))
     expect(screen.getByRole("button", { name: "Quitar informe.docx" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
 
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
     expect(llamadas[0]?.cuerpo).toEqual({
@@ -450,13 +399,12 @@ describe("adjuntos del formulario (CLASES-d)", () => {
   it("PR-D12a: el orden es solicitar, subir y publicar, con los ids en el orden de subida", async () => {
     const { llamadas } = stubFlujo()
     renderFormulario()
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), {
+    fireEvent.change(screen.getByLabelText("Anuncio"), {
       target: { value: "Con dos archivos" },
     })
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.png", "image/png"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
 
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
     expect(resumen(llamadas)).toEqual([
@@ -467,9 +415,8 @@ describe("adjuntos del formulario (CLASES-d)", () => {
       `POST /api/clases/${CLASE_ID}/publicaciones`,
     ])
     expect(llamadas[4]?.cuerpo).toEqual({
-      tipo: "material",
-      titulo: "Con dos archivos",
-      texto: "",
+      tipo: "anuncio",
+      texto: "Con dos archivos",
       archivoIds: [idDeArchivo(1), idDeArchivo(2)],
     })
     // Con el éxito, el formulario se limpia, también la lista de archivos.
@@ -479,13 +426,12 @@ describe("adjuntos del formulario (CLASES-d)", () => {
   it("PR-D12b: si falla la subida del segundo archivo, aparece el toast y no se llama a publicar", async () => {
     const { llamadas } = stubFlujo({ fallaLaSubidaNumero: 2 })
     renderFormulario()
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), {
+    fireEvent.change(screen.getByLabelText("Anuncio"), {
       target: { value: "Se queda escrito" },
     })
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.pdf", "application/pdf"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
 
     await waitFor(() =>
       expect(aviso.error).toHaveBeenCalledWith("No pudimos subir «b.pdf». Inténtalo de nuevo."),
@@ -493,10 +439,10 @@ describe("adjuntos del formulario (CLASES-d)", () => {
     expect(llamadas.some(({ url }) => url.endsWith("/publicaciones"))).toBe(false)
     expect(aviso.success).not.toHaveBeenCalled()
     // El formulario conserva lo escrito y los archivos elegidos, y el botón vuelve a estar libre.
-    expect(screen.getByLabelText("Título del material")).toHaveValue("Se queda escrito")
+    expect(screen.getByLabelText("Anuncio")).toHaveValue("Se queda escrito")
     expect(screen.getAllByRole("listitem")).toHaveLength(2)
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Publicar material" })).not.toHaveAttribute(
+      expect(screen.getByRole("button", { name: "Publicar anuncio" })).not.toHaveAttribute(
         "aria-busy",
       ),
     )
@@ -505,18 +451,17 @@ describe("adjuntos del formulario (CLASES-d)", () => {
   it("PR-D12c: el botón principal sigue en enEspera durante todo el proceso", async () => {
     const { llamadas } = stubFlujo()
     renderFormulario()
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: "Espera" } })
+    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Espera" } })
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.pdf", "application/pdf"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
 
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
     expect(llamadas).toHaveLength(5)
     // En cada una de las cinco peticiones (solicitar, subir, solicitar, subir y publicar), el botón
     // ya estaba en espera.
     expect(llamadas.map(({ ocupado }) => ocupado)).toEqual(["true", "true", "true", "true", "true"])
-    expect(screen.getByRole("button", { name: "Publicar material" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Publicar anuncio" })).not.toHaveAttribute(
       "aria-busy",
     )
   })
@@ -579,10 +524,9 @@ describe("adjuntos del formulario (CLASES-d)", () => {
       }),
     )
     renderFormulario()
-    elegirMaterial()
-    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: "Fija" } })
+    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Fija" } })
     elegirArchivos(archivoDe("a.pdf", "application/pdf"), archivoDe("b.pdf", "application/pdf"))
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
     await waitFor(() => expect(solicitudes).toBe(1))
 
     // En vuelo: la lista no cambia y la nota lo dice.
@@ -645,338 +589,16 @@ describe("adjuntos del formulario (CLASES-d)", () => {
   })
 })
 
-// CLASES-02d (§D-2D3, C-18): el grupo "Tipo de publicación" es un control segmentado (DESIGN.md §7.3).
-describe("FormularioPublicacion: tipo de publicación como control segmentado", () => {
-  const indicador = () => {
-    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
-    return grupo.querySelector<HTMLElement>('span[aria-hidden="true"]')
-  }
+// CLASES-03d, Enmienda 12: sin el control del tipo no queda propiedad que probar; §7.3 del control
+// segmentado la prueban «Crear tarea» (`features/tareas`) y `segmentado-02d-r1.ataque`. Se retiran
+// los 8 casos PR-2D05 del describe "FormularioPublicacion: tipo de publicación como control
+// segmentado" (el elegido con aria-pressed y Check; el indicador aria-hidden que se traslada; su color
+// por contexto; el grupo en vidrio fuerte; los dos botones con teclado; el botón principal que cambiaba
+// de texto; cambiar de tipo con texto escrito; cambiar de tipo con la publicación en vuelo).
 
-  it("PR-2D05: el elegido lleva aria-pressed y el Check delante del texto, y cambia con el otro", () => {
-    stubApi()
-    renderFormulario()
-
-    const anuncio = screen.getByRole("button", { name: "Anuncio" })
-    const material = screen.getByRole("button", { name: "Material" })
-    expect(anuncio.querySelector("svg")).not.toBeNull()
-    expect(material.querySelector("svg")).toBeNull()
-
-    fireEvent.click(material)
-
-    expect(screen.getByRole("button", { name: "Anuncio" }).querySelector("svg")).toBeNull()
-    expect(screen.getByRole("button", { name: "Material" }).querySelector("svg")).not.toBeNull()
-    expect(screen.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true")
-  })
-
-  it("PR-2D05: el indicador es aria-hidden, se traslada con «Material» y no tiene transición con movimiento reducido", () => {
-    stubApi()
-    renderFormulario()
-
-    const marca = indicador()
-    expect(marca).not.toBeNull()
-    expect(marca).toHaveAttribute("aria-hidden", "true")
-    expect(marca?.className).not.toContain("translate-x-full")
-    expect(marca?.className).toContain("transition-transform")
-    expect(marca?.className).toContain("duration-200")
-    expect(marca?.className).toContain("motion-reduce:transition-none")
-
-    elegirMaterial()
-    expect(indicador()?.className).toContain("translate-x-full")
-
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
-    expect(indicador()?.className).not.toContain("translate-x-full")
-  })
-
-  it("PR-2D05: el indicador usa --surface y, en contexto opaco, --accent-soft", () => {
-    stubApi()
-    renderFormulario()
-
-    const clases = indicador()?.className ?? ""
-    expect(clases).toContain("bg-surface")
-    expect(clases).toContain("in-data-[material=opaco]:bg-accent-soft")
-  })
-
-  it("PR-2D05: el grupo va en vidrio fuerte (no en otra Card) y con rounded-card", () => {
-    stubApi()
-    renderFormulario()
-
-    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
-    expect(grupo.className).toContain("vidrio-fuerte")
-    expect(grupo.className).toContain("rounded-card")
-    expect(grupo).not.toHaveAttribute("data-slot", "card")
-    expect(grupo.closest('[data-slot="card"]')).not.toBe(grupo)
-  })
-
-  it("PR-2D05: los dos botones se alcanzan con teclado: son botones nativos, en orden y sin tabindex negativo", () => {
-    stubApi()
-    renderFormulario()
-
-    const grupo = screen.getByRole("group", { name: "Tipo de publicación" })
-    const botones = Array.from(grupo.querySelectorAll("button"))
-    expect(botones.map((boton) => boton.textContent)).toEqual(["Anuncio", "Material"])
-    for (const boton of botones) {
-      expect(boton).toHaveAttribute("type", "button")
-      expect(boton).not.toHaveAttribute("tabindex", "-1")
-      boton.focus()
-      expect(boton).toHaveFocus()
-    }
-  })
-
-  it("PR-2D05: el botón principal cambia de texto como hasta ahora", () => {
-    stubApi()
-    renderFormulario()
-    expect(screen.getByRole("button", { name: "Publicar anuncio" })).toBeInTheDocument()
-
-    elegirMaterial()
-
-    expect(screen.getByRole("button", { name: "Publicar material" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Publicar anuncio" })).toBeNull()
-  })
-
-  it("PR-2D05: cambiar de tipo con texto escrito no lo borra", () => {
-    stubApi()
-    renderFormulario()
-    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Mañana hay examen" } })
-
-    elegirMaterial()
-    expect(screen.getByLabelText("Descripción (opcional)")).toHaveValue("Mañana hay examen")
-    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: "Guía" } })
-
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
-    expect(screen.getByLabelText("Anuncio")).toHaveValue("Mañana hay examen")
-    elegirMaterial()
-    expect(screen.getByLabelText("Título del material")).toHaveValue("Guía")
-  })
-
-  it("PR-2D05: cambiar de tipo con la publicación en vuelo no cambia lo que se envía ni quita la espera", async () => {
-    let liberar: (respuesta: Response) => void = () => undefined
-    const fetchMock = vi.fn<typeof fetch>(
-      () =>
-        new Promise<Response>((resolver) => {
-          liberar = resolver
-        }),
-    )
-    vi.stubGlobal("fetch", conTemas(fetchMock))
-    renderFormulario()
-    fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Mañana hay examen" } })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-
-    elegirMaterial()
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
-    elegirMaterial()
-
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
-      tipo: "anuncio",
-      texto: "Mañana hay examen",
-      archivoIds: [],
-    })
-    // TAREAS-01e (C-12, O-18 de CLASES-02d): con la publicación en vuelo, los botones del tipo no
-    // actúan: «Anuncio» sigue elegido y el botón principal conserva su texto, en espera.
-    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("button", { name: "Publicar anuncio" })).toHaveAttribute(
-      "aria-busy",
-      "true",
-    )
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-
-    liberar(respuestaJson(201, publicacionCreada()))
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-  })
-})
-
-// TAREAS-01e (§D-11, Enmiendas 1 y 6; PR-1E04 y PR-1E08): el campo "Tema" del material y O-18.
-describe("FormularioPublicacion: tema del material y O-18 (TAREAS-01e)", () => {
-  const TEMA_1 = {
-    id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01",
-    nombre: "Unidad 1",
-    orden: 0,
-    elementos: 2,
-  }
-  const TEMA_2 = {
-    id: "7a7b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d02",
-    nombre: "Unidad 2",
-    orden: 1,
-    elementos: 0,
-  }
-  const conDosTemas = () => respuestaJson(200, { temas: [TEMA_1, TEMA_2], sinTema: 0 })
-
-  const cuerpoDelPost = (fetchMock: ReturnType<typeof stubApi>) => {
-    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")
-    expect(posts, "una sola publicación").toHaveLength(1)
-    return JSON.parse(String(posts[0]?.[1]?.body)) as unknown
-  }
-
-  const publicarMaterial = (titulo: string) => {
-    fireEvent.change(screen.getByLabelText("Título del material"), { target: { value: titulo } })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
-  }
-
-  const opcionesDe = (campo: HTMLElement) =>
-    Array.from((campo as HTMLSelectElement).options).map((opcion) => opcion.textContent)
-
-  it("PR-1E04 · «Tema» solo aparece con «Material», con «Sin tema» elegido por defecto, y con un tema elegido el cuerpo lleva temaId", async () => {
-    respuestaDeTemas = conDosTemas
-    const fetchMock = stubApi()
-    renderFormulario()
-    expect(screen.queryByLabelText("Tema")).toBeNull()
-
-    elegirMaterial()
-    const campo = await screen.findByLabelText("Tema")
-    expect(campo).toHaveValue("")
-    expect(opcionesDe(campo)).toEqual(["Sin tema", "Unidad 1", "Unidad 2"])
-    expect(campo).toHaveAttribute("autocomplete", "off")
-    fireEvent.change(campo, { target: { value: TEMA_2.id } })
-    publicarMaterial("Guía del tema 2")
-
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    expect(cuerpoDelPost(fetchMock)).toEqual({
-      tipo: "material",
-      titulo: "Guía del tema 2",
-      texto: "",
-      temaId: TEMA_2.id,
-      archivoIds: [],
-    })
-
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
-    expect(screen.queryByLabelText("Tema")).toBeNull()
-  })
-
-  it("PR-1E04 · con «Sin tema» el cuerpo del material no lleva la clave temaId", async () => {
-    respuestaDeTemas = conDosTemas
-    const fetchMock = stubApi()
-    renderFormulario()
-    elegirMaterial()
-    expect(await screen.findByLabelText("Tema")).toHaveValue("")
-    publicarMaterial("Sin tema")
-
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    const cuerpo = cuerpoDelPost(fetchMock)
-    expect(cuerpo).toEqual({ tipo: "material", titulo: "Sin tema", texto: "", archivoIds: [] })
-    expect(cuerpo).not.toHaveProperty("temaId")
-  })
-
-  it("PR-1E04 · O-18: con una publicación en vuelo, cambiar de tipo no cambia el texto del botón ni el tipo enviado", async () => {
-    let liberar: (respuesta: Response) => void = () => undefined
-    const fetchMock = vi.fn<typeof fetch>(
-      () =>
-        new Promise<Response>((resolver) => {
-          liberar = resolver
-        }),
-    )
-    vi.stubGlobal("fetch", conTemas(fetchMock))
-    renderFormulario()
-    elegirMaterial()
-    publicarMaterial("Guía")
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
-
-    expect(screen.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "false")
-    expect(screen.getByRole("button", { name: /^Publicar / })).toHaveTextContent(
-      "Publicar material",
-    )
-    expect(screen.getByLabelText("Título del material")).toHaveValue("Guía")
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
-      tipo: "material",
-    })
-
-    liberar(respuestaJson(201, publicacionCreada({ tipo: "material", titulo: "Guía" })))
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    fireEvent.click(screen.getByRole("button", { name: "Anuncio" }))
-    expect(screen.getByRole("button", { name: "Anuncio" })).toHaveAttribute("aria-pressed", "true")
-  })
-
-  it("PR-1E04 · si el tema elegido ya no existe, avisa con el mensaje del servidor, vuelve a pedir los temas y el campo deja de ofrecerlo", async () => {
-    let temas = [TEMA_1, TEMA_2]
-    respuestaDeTemas = () => respuestaJson(200, { temas, sinTema: 0 })
-    const fetchMock = stubApi(() =>
-      respuestaJson(404, {
-        error: { codigo: "TEMA_NO_ENCONTRADO", mensaje: "Ese tema ya no existe." },
-      }),
-    )
-    renderFormulario()
-    elegirMaterial()
-    fireEvent.change(await screen.findByLabelText("Tema"), { target: { value: TEMA_2.id } })
-    temas = [TEMA_1]
-    publicarMaterial("Guía")
-
-    await waitFor(() => expect(aviso.error).toHaveBeenCalledWith("Ese tema ya no existe."))
-    await waitFor(() =>
-      expect(opcionesDe(screen.getByLabelText("Tema"))).toEqual(["Sin tema", "Unidad 1"]),
-    )
-    expect(screen.getByLabelText("Tema")).toHaveValue("")
-    expect(screen.getByLabelText("Título del material")).toHaveValue("Guía")
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1)
-  })
-
-  it("PR-1E08 · con la lista de temas pendiente el formulario no muestra Tema, se puede publicar y el cuerpo va sin temaId", async () => {
-    respuestaDeTemas = () => new Promise<Response>(() => undefined)
-    const fetchMock = stubApi()
-    renderFormulario()
-    elegirMaterial()
-
-    expect(screen.queryByLabelText("Tema")).toBeNull()
-    expect(screen.queryByRole("status")).toBeNull()
-    publicarMaterial("Mientras cargan")
-
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    expect(cuerpoDelPost(fetchMock)).toEqual({
-      tipo: "material",
-      titulo: "Mientras cargan",
-      texto: "",
-      archivoIds: [],
-    })
-  })
-
-  it("PR-1E08 · con la lista de temas fallida el formulario muestra la nota en línea, no marca ningún campo ni avisa, y publica sin temaId", async () => {
-    respuestaDeTemas = () =>
-      respuestaJson(500, { error: { codigo: "ERROR_INTERNO", mensaje: "mensaje del servidor" } })
-    const fetchMock = stubApi()
-    renderFormulario()
-    elegirMaterial()
-
-    await screen.findByText("No pudimos cargar los temas. El material se publicará sin tema.")
-    expect(screen.queryByRole("alert")).toBeNull()
-    expect(screen.queryByLabelText("Tema")).toBeNull()
-    expect(document.querySelector('[aria-invalid="true"]')).toBeNull()
-    expect(aviso.error).not.toHaveBeenCalled()
-    publicarMaterial("Con la lista fallida")
-
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    expect(aviso.error).not.toHaveBeenCalled()
-    expect(cuerpoDelPost(fetchMock)).toEqual({
-      tipo: "material",
-      titulo: "Con la lista fallida",
-      texto: "",
-      archivoIds: [],
-    })
-  })
-
-  it("PR-1E08 · con la lista de temas vacía el formulario no muestra Tema y publica sin temaId", async () => {
-    let pedidas = 0
-    respuestaDeTemas = () => {
-      pedidas += 1
-      return respuestaJson(200, { temas: [], sinTema: 3 })
-    }
-    const fetchMock = stubApi()
-    renderFormulario()
-    elegirMaterial()
-    await waitFor(() => expect(pedidas).toBe(1))
-
-    expect(screen.queryByLabelText("Tema")).toBeNull()
-    expect(
-      screen.queryByText("No pudimos cargar los temas. El material se publicará sin tema."),
-    ).toBeNull()
-    publicarMaterial("Sin temas en la clase")
-
-    await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Publicado"))
-    expect(cuerpoDelPost(fetchMock)).toEqual({
-      tipo: "material",
-      titulo: "Sin temas en la clase",
-      texto: "",
-      archivoIds: [],
-    })
-  })
-})
+// CLASES-03d (Enmienda 12, E12-3): el describe "FormularioPublicacion: tema del material y O-18
+// (TAREAS-01e)" sale de este archivo. PR-1E04 (tres casos) y PR-1E08 (tres casos) pasaron a
+// formulario-recurso.test.tsx. "PR-1E04 · O-18: con una publicación en vuelo, cambiar de tipo no cambia
+// el texto del botón ni el tipo enviado" se retira (CLASES-03d, Enmienda 12: sin el control del tipo no
+// queda propiedad que probar; §7.3 del control segmentado la prueban «Crear tarea» (`features/tareas`)
+// y `segmentado-02d-r1.ataque`).

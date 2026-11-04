@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -150,13 +150,58 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.useRealTimers()
+  vi.restoreAllMocks()
+})
+
+// CLASES-03 (DH-03, §D-7.2; Enmienda 5): jsdom no mide. Como en features/clases/clase-layout.test.tsx,
+// cada opción de "Secciones de la clase" simula su posición (índice × 100 px) y su ancho
+// (80 + índice × 10 px); el indicador debe llevar los de la activa en sus dos variables CSS.
+const indiceEnSecciones = (elemento: HTMLElement) => {
+  const lista = elemento.parentElement
+  if (elemento.tagName !== "LI" || lista?.getAttribute("aria-label") !== "Secciones de la clase")
+    return -1
+  return Array.from(lista.children).indexOf(elemento)
+}
+const simularMedidas = () => {
+  vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const i = indiceEnSecciones(this)
+    return i < 0 ? 0 : i * 100
+  })
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const i = indiceEnSecciones(this)
+    return i < 0 ? 0 : 80 + i * 10
+  })
+}
+const medidasDelIndicador = (indicador: Element | null | undefined) => ({
+  x: indicador instanceof HTMLElement ? indicador.style.getPropertyValue("--indicador-x") : null,
+  ancho:
+    indicador instanceof HTMLElement ? indicador.style.getPropertyValue("--indicador-ancho") : null,
+})
+const medidasDeLaOpcion = (i: number) => ({
+  x: `${String(i * 100)}px`,
+  ancho: `${String(80 + i * 10)}px`,
 })
 
 describe("la sección «Calificaciones» (CAL-1D06)", () => {
   it.each([
-    ["estudiante", ["Muro", "Trabajo de clase", "Personas", "Calificaciones"]],
-    ["maestro", ["Muro", "Trabajo de clase", "Alumnos", "Calificaciones"]],
-    ["admin", ["Muro", "Trabajo de clase", "Alumnos", "Maestros", "Calificaciones"]],
+    // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos" y 03e,
+    // "Dudas".
+    [
+      "estudiante",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+    ],
+    [
+      "maestro",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+    ],
+    [
+      "admin",
+      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+    ],
   ] as const)(
     "CAL-1D06: %s ve «Calificaciones» como última sección, con su href y aria-current en …/calificaciones",
     async (rol, esperadas) => {
@@ -171,31 +216,40 @@ describe("la sección «Calificaciones» (CAL-1D06)", () => {
       const enlace = within(lista).getByRole("link", { name: "Calificaciones" })
       expect(enlace).toHaveAttribute("href", `${BASES[rol]}/${CLASE_ID}/calificaciones`)
       expect(enlace).toHaveAttribute("aria-current", "page")
-      expect(within(lista).getByRole("link", { name: "Muro" })).not.toHaveAttribute("aria-current")
+      expect(within(lista).getByRole("link", { name: "Avisos" })).not.toHaveAttribute(
+        "aria-current",
+      )
     },
   )
 
-  it("CAL-1D06: en el admin el indicador mide un quinto (w-1/5, grid-cols-5) y en «Calificaciones» se traslada con translate-x-[400%]", async () => {
+  it("CAL-1D06: en el admin, en «Calificaciones» el indicador lleva la posición y el ancho medidos de esa opción (--indicador-x, --indicador-ancho)", async () => {
+    simularMedidas()
     stubDeLaClase("admin")
     await renderEn(`${BASES.admin}/${CLASE_ID}/calificaciones`)
     const lista = await secciones()
-    expect(lista).toHaveClass("grid-cols-5")
     expect(lista.previousElementSibling).toHaveAttribute("aria-hidden", "true")
-    expect(lista.previousElementSibling).toHaveClass("w-1/5", "translate-x-[400%]")
+    await waitFor(() =>
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(5)),
+    )
   })
 
   it.each([
-    ["admin", "alumnos", "translate-x-[200%]", "w-1/5"],
-    ["admin", "maestros", "translate-x-[300%]", "w-1/5"],
-    ["maestro", "alumnos", "translate-x-[200%]", "w-1/4"],
-    ["maestro", "calificaciones", "translate-x-[300%]", "w-1/4"],
+    ["admin", "personas", 4],
+    ["admin", "personas", 4],
+    ["maestro", "personas", 4],
+    ["maestro", "calificaciones", 5],
   ] as const)(
-    "CAL-1D06: %s en …/%s: el indicador sigue en %s (las posiciones de Alumnos y Maestros no cambian) y mide %s",
-    async (rol, segmento, posicion, ancho) => {
+    "CAL-1D06: %s en …/%s: el indicador lleva la posición y el ancho medidos de la opción %i",
+    async (rol, segmento, indice) => {
+      simularMedidas()
       stubDeLaClase(rol)
       await renderEn(`${BASES[rol]}/${CLASE_ID}/${segmento}`)
       const lista = await secciones()
-      expect(lista.previousElementSibling).toHaveClass(posicion, ancho)
+      await waitFor(() =>
+        expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(
+          medidasDeLaOpcion(indice),
+        ),
+      )
     },
   )
 })

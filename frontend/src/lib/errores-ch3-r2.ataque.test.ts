@@ -241,6 +241,16 @@ const INVENTARIO = new Set([
   "confirmar",
   "tema",
   "${campo}",
+  // CLASES-03a r2 (Arbitraje 2 del manager): los prefijos nuevos de shared/src en 03a (§D-3.2 a
+  // §D-3.5 y §D-6); quitarRutaDelMensaje deja texto legible en los cinco mensajes.
+  "tipo",
+  "bloque",
+  "recursoId",
+  "seccion",
+  // CLASES-03b, C-26 (§D-R0, Enmienda 3 b): los prefijos de shared/src/dudas.ts (§D-6).
+  "dudaId",
+  "respuestaId",
+  "resuelta",
 ])
 const NOMBRE_EN_CAMEL_CASE = /^[a-z][A-Za-z0-9]*:/
 

@@ -6,8 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { useCallback, useEffect, useRef } from "react"
-import { useLocation } from "react-router"
+import { useCallback, useEffect } from "react"
 
 import { api } from "@/services/apiClient"
 import {
@@ -66,18 +65,7 @@ export const useMarcarViejoElGradebook = (
   }, [actual, claseId, ocurrencia, queryClient])
 }
 
-// T-08: pulsar la sección "Calificaciones" estando en ella navega a la misma ruta con otra
-// location.key, pero la vista no se desmonta (el mismo caso que T-35 del muro). Corre `alPulsar` una vez
-// por cada location.key nueva con la vista montada; la primera no cuenta.
-export const useAlPulsarLaSeccionActiva = (alPulsar: () => void) => {
-  const { key } = useLocation()
-  const llaveRef = useRef(key)
-  useEffect(() => {
-    if (llaveRef.current === key) return
-    llaveRef.current = key
-    alPulsar()
-  }, [key, alPulsar])
-}
+export { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 
 // T-08: marca vieja la primera ventana del gradebook y, si es la que se observa, la vuelve a pedir;
 // si no, se pide al volver a ella. Nunca cancela ni duplica una petición en vuelo de esa ventana.

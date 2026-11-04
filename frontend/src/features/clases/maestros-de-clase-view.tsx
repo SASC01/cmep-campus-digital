@@ -26,7 +26,7 @@ function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
   const clase = useClase(claseId)
   const retirar = useRetirarMaestro(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
-  const filaDelBuscadorRef = useFilaEnFoco("data-candidato-id")
+  const filaDelBuscadorRef = useFilaEnFoco("data-candidato-maestro-id")
   const errorRef = useRef<HTMLDivElement>(null)
   useFocoAlPasarAError(clase.isError, clase.data !== undefined, claseId, errorRef)
 

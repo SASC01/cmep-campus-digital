@@ -559,8 +559,10 @@ describe("ataque CLASES-02c r1: «Maestros de la clase»", () => {
     act(() => quitar.focus())
     fireEvent.click(quitar)
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancelar Luis Pérez" }))
+    // CLASES-03c1 ronda 0 (C-18, §D-R0; §D-13): el muro ya no existe como sección; lo publicado se
+    // queda en la clase.
     expect(
-      screen.getByText("Dejará de ver la clase. Lo que publicó se queda en el muro."),
+      screen.getByText("Dejará de ver la clase. Lo que publicó se queda en la clase."),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Cancelar Luis Pérez" }))
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Quitar Luis Pérez" }))

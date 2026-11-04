@@ -74,6 +74,7 @@ afterEach(() => {
   aviso.error.mockReset()
 })
 
+// CLASES-03c1 ronda 0 (C-17, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos». Sigue protegiendo lo mismo.
 describe("ataque TAREAS-01e r3: «Ver más de <tema>» con su recarga esperando turno en el limitador (sin hallazgo esperado)", () => {
   it("con 8 temas recargándose (6 en vuelo y 2 en fila), «Ver más» del 8.\u00BA está en espera; al terminar todo, el clic pide su página siguiente y no quedan lugares ocupados", async () => {
     const temas = Array.from({ length: 8 }, (_, i) => ({
@@ -189,8 +190,8 @@ const renderMuro = (rol: "maestro" | "estudiante") => {
   return cliente
 }
 
-describe("ataque TAREAS-01e r3: «Ver más publicaciones» y la recarga del muro (sin hallazgo esperado)", () => {
-  it("con el foco en «Ver más publicaciones», una recarga en segundo plano que falla quita el botón y el foco no cae en <body>", async () => {
+describe("ataque TAREAS-01e r3: «Ver más avisos» y la recarga del muro (sin hallazgo esperado)", () => {
+  it("con el foco en «Ver más avisos», una recarga en segundo plano que falla quita el botón y el foco no cae en <body>", async () => {
     let primeras = 0
     vi.stubGlobal(
       "fetch",
@@ -210,12 +211,10 @@ describe("ataque TAREAS-01e r3: «Ver más publicaciones» y la recarga del muro
       }),
     )
     const cliente = renderMuro("estudiante")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     act(() => verMas.focus())
     await act(() => cliente.invalidateQueries({ queryKey: ["clases", CLASE, "publicaciones"] }))
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Ver más publicaciones" })).toBeNull(),
-    )
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Ver más avisos" })).toBeNull())
     expect(screen.getByRole("alert")).toBeInTheDocument()
     expect(document.activeElement).not.toBe(document.body)
   })
@@ -256,13 +255,17 @@ describe("ataque TAREAS-01e r3: «Ver más publicaciones» y la recarga del muro
       }),
     )
     const cliente = renderMuro("maestro")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: "Aviso" } })
     fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
     await waitFor(() => expect(pedidas.filter((p) => p.startsWith("POST"))).toHaveLength(1))
     void cliente.invalidateQueries({ queryKey: ["clases", CLASE, "publicaciones"] })
     await waitFor(() => expect(verMas).toHaveAttribute("aria-busy", "true"))
-    fireEvent.click(screen.getByRole("button", { name: "Material" }))
+    // CLASES-03d ronda 0 (C-23, §D-R0; §D-8.7): el formulario de Avisos ya no tiene tipo, así que el
+    // clic en «Material» con el anuncio en vuelo (del cambio de tipo) se retira; en su lugar, el caso
+    // comprueba que no hay botón «Material». Sigue protegiendo lo mismo: «Ver más» espera la recarga,
+    // después pide su página, y se publica un solo anuncio.
+    expect(screen.queryByRole("button", { name: "Material" })).toBeNull()
     expect(screen.getByRole("button", { name: /^Publicar / })).toHaveTextContent("Publicar anuncio")
     fireEvent.click(verMas)
     await act(async () => {

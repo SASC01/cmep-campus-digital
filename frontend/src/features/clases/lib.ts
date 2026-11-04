@@ -1,4 +1,10 @@
-import { claveDeNombre, estadoDeTerminoDeBusqueda, normalizarTextoLargo } from "@campus/shared"
+import {
+  claveDeNombre,
+  crearPublicacionSchema,
+  editarRecursoSchema,
+  estadoDeTerminoDeBusqueda,
+  normalizarTextoLargo,
+} from "@campus/shared"
 
 import {
   avisoDeFalloAlSubir as avisoDeFalloAlSubirCompartido,
@@ -7,22 +13,29 @@ import {
 import {
   campoDeErrorDeApi,
   erroresDeFormularioDeApi,
+  erroresPorCampo,
   esErrorDeCursor,
   mensajeDeErrorDeApi,
   mensajeDeErrorDeConsulta,
 } from "@/lib/errores-de-api"
 import { estadoDeEntregaVisible, TEXTOS_ESTADO_DE_ENTREGA } from "@/lib/estado-de-entrega"
 import { vencimientoDe } from "@/lib/vencimiento"
-import { esApiError } from "@/services/apiClient"
+import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
 
 import {
   CAMPOS_PINTADOS_DE_LA_CLASE,
+  CAMPOS_PINTADOS_DE_LA_DUDA,
   CAMPOS_PINTADOS_DE_LA_PUBLICACION,
+  CAMPOS_PINTADOS_DE_LA_RESPUESTA,
+  CAMPOS_PINTADOS_DEL_RECURSO,
+  CAMPOS_QUE_REEMPLAZAN_EL_RECURSO,
   CLASES_DEL_CUADRO_DE_ENTREGA,
   CLASES_DEL_CUADRO_DE_FECHA,
   CLAVE_SIN_TEMA,
+  CODIGOS_QUE_REEMPLAZAN_EL_RECURSO,
   TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
+  TEXTOS_EDITAR_RECURSO,
   TEXTOS_INICIO_ESTUDIANTE,
   TEXTOS_INICIO_MAESTRO,
   TEXTOS_PERSONAS,
@@ -32,8 +45,12 @@ import {
   TRADUCCION_DE_ERRORES_CLASES,
 } from "./data"
 import type {
+  CamposDelRecurso,
   Categoria,
   ControlDeOrden,
+  CrearAnuncio,
+  CrearRecurso,
+  EditarRecurso,
   CuadroDeFecha,
   ElementoDeTrabajo,
   ErroresFormulario,
@@ -41,12 +58,18 @@ import type {
   IncidenciaValidacion,
   LimiteDeConcurrencia,
   ListaTemasRespuesta,
+  MedidaDeOpcion,
+  MedidaDelIndicador,
+  MedidaDelPanel,
   PaginaDelMuro,
+  PosicionDelPanel,
   RolDeClases,
   SeccionDeClase,
   SeccionDeTrabajo,
+  ModoDelRecurso,
   SegundaLineaDeLaFila,
-  TipoPublicacion,
+  Tema,
+  ValidacionDelCuerpo,
 } from "./types"
 
 // TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
@@ -82,6 +105,41 @@ export const indiceDeSeccionActiva = (
     return sinBarraFinal === destino || sinBarraFinal.startsWith(`${destino}/`)
   })
 }
+
+// CLASES-03 (§D-7.2, DH-03): el indicador de la sección activa toma la posición y el ancho de su
+// opción, cada una a su ancho natural.
+export const medidaDelIndicador = (opcion: MedidaDeOpcion): MedidaDelIndicador => ({
+  x: opcion.offsetLeft,
+  ancho: opcion.offsetWidth,
+})
+
+// El scrollLeft que deja la opción entera a la vista dentro de su panel, o null si ya lo está. Si la
+// opción es más ancha que el panel, se alinea su inicio.
+export const desplazamientoParaVer = (
+  panel: MedidaDelPanel,
+  opcion: MedidaDeOpcion,
+): number | null => {
+  const inicio = opcion.offsetLeft
+  const fin = opcion.offsetLeft + opcion.offsetWidth
+  if (inicio < panel.scrollLeft) return inicio
+  if (fin <= panel.scrollLeft + panel.clientWidth) return null
+  if (opcion.offsetWidth >= panel.clientWidth) return inicio
+  return fin - panel.clientWidth
+}
+
+// CLASES-03c1 (T-02 de la ronda 1): la opción en las coordenadas del área desplazable del panel, la que
+// usa desplazamientoParaVer. Su offsetLeft se mide desde la lista, y la lista empieza dentro del panel
+// después de su borde y de su relleno: esa distancia se mide (el borde izquierdo de la lista en la
+// ventana menos el del panel y su borde, más lo que el panel lleva desplazado), nunca se escribe.
+export const opcionEnElPanel = (
+  opcion: MedidaDeOpcion,
+  inicioDeLaLista: number,
+  panel: PosicionDelPanel,
+): MedidaDeOpcion => ({
+  offsetLeft:
+    inicioDeLaLista - panel.left - panel.clientLeft + panel.scrollLeft + opcion.offsetLeft,
+  offsetWidth: opcion.offsetWidth,
+})
 
 // "Creada" en la tabla de clases del administrador: fecha corta en la zona local.
 export const formatearFechaDeClase = (iso: string): string => {
@@ -167,12 +225,28 @@ export const erroresDeLaClaseDeApi = (
   modo: keyof typeof CAMPOS_PINTADOS_DE_LA_CLASE,
 ): ErroresFormulario | null => erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_CLASE[modo])
 
-// Enmienda 4 (T-04): en un anuncio, el título no se pinta; su VALIDACION se avisa.
+// Enmienda 4 (T-04): en un anuncio, el título no se pinta; su VALIDACION se avisa. CLASES-03d (§D-8.7):
+// Avisos solo publica anuncios; el parámetro se conserva con su único valor.
 export const erroresDeLaPublicacionDeApi = (
   error: unknown,
-  tipo: TipoPublicacion,
+  tipo: "anuncio",
 ): ErroresFormulario | null =>
   erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_PUBLICACION[tipo])
+
+// CLASES-03d (§D-8.5, §D-15): "Nuevo recurso" y "Editar recurso" pintan el título y la descripción;
+// cualquier otro campo (temaId, archivoIds.<i>, tipo, version) se avisa.
+export const erroresDelRecursoDeApi = (
+  error: unknown,
+  modo: ModoDelRecurso,
+): ErroresFormulario | null => erroresDeFormularioClases(error, CAMPOS_PINTADOS_DEL_RECURSO[modo])
+
+// CLASES-03e (§D-9.4, §D-15): "Publicar duda" y "Responder" pintan solo el texto; cualquier otro campo
+// (resuelta, dudaId, una ruta con índice) se avisa.
+export const erroresDeLaDudaDeApi = (error: unknown): ErroresFormulario | null =>
+  erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_DUDA)
+
+export const erroresDeLaRespuestaDeApi = (error: unknown): ErroresFormulario | null =>
+  erroresDeFormularioClases(error, CAMPOS_PINTADOS_DE_LA_RESPUESTA)
 
 // N-04 (ronda 4 de CLASES-a, §D-B4 bis): en "Unirme a la clase" solo CODIGO_INVALIDO y un VALIDACION
 // de "codigo" son errores del campo del código. Cualquier otro (un 500, "sin conexión",
@@ -293,6 +367,34 @@ export const seccionesDeTrabajo = (lista: ListaTemasRespuesta): SeccionDeTrabajo
     { clave: CLAVE_SIN_TEMA, nombre: TEXTOS_TRABAJO.sinTema, elementos: lista.sinTema, tema: null },
     ...temas,
   ]
+}
+
+// CLASES-03c2 (§D-7.6): cuántos elementos tiene un tema en total (todas las secciones), para la frase de
+// borrarlo. null si la lista total no llegó, falló o no tiene el tema: la frase va sin conteo.
+export const elementosEnTotalDelTema = (
+  total: ListaTemasRespuesta | undefined,
+  fallo: boolean,
+  temaId: string,
+): number | null => {
+  if (total === undefined || fallo) return null
+  const tema = total.temas.find(({ id }) => id === temaId)
+  if (tema === undefined) return null
+  return tema.elementos
+}
+
+// CLASES-03c2 (T-01 de la ronda 1): una lista de temas por sección puesta en el orden de `ordenada`
+// (la respuesta de "Subir"/"Bajar", con los conteos totales), conservando los conteos de la sección. Un
+// tema que `ordenada` no trae queda al final, en su orden de antes.
+export const temasEnElOrdenDe = (
+  lista: ListaTemasRespuesta,
+  ordenada: ListaTemasRespuesta,
+): ListaTemasRespuesta => {
+  const posicion = new Map(ordenada.temas.map(({ id }, indice) => [id, indice]))
+  const fuera = ordenada.temas.length
+  const temas = [...lista.temas]
+    .sort((a, b) => (posicion.get(a.id) ?? fuera) - (posicion.get(b.id) ?? fuera))
+    .map((tema, orden) => ({ ...tema, orden }))
+  return { ...lista, temas }
 }
 
 // "Subir" y "Bajar" envían el orden completo (§D-2): los ids con el tema `temaId` intercambiado con su
@@ -425,6 +527,11 @@ export const erroresDeCategoriasDeApi = (
   return { [CAMPO_DE_LA_LISTA]: mensajeDeErrorClases(error) }
 }
 
+// CLASES-03c2 (§D-11, Enmienda 7): un error con que apiClient ya redirigió (o va a redirigir): no se
+// avisa. Mismo nombre y firma que los de features/tareas y features/calificaciones.
+export const errorQueRedirigeElCliente = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_QUE_REDIRIGE_EL_CLIENTE.includes(error.codigo)
+
 // Una recarga fallida conserva la vista con lo último que llegó (y avisa), salvo que diga que ya no hay
 // acceso a la clase (o que el id de la clase no es válido, que es lo mismo): entonces el mensaje
 // reemplaza la vista y deja de ofrecer acciones.
@@ -496,4 +603,124 @@ export const segundaLineaDeLaFila = (
   const estado = estadoDeEntregaVisible(entrega, fechaLimite, ahora)
   if (estado === "asignado") return deVencimiento
   return { texto: TEXTOS_ESTADO_DE_ENTREGA[estado], colores: CLASES_DEL_CUADRO_DE_ENTREGA[estado] }
+}
+
+// CLASES-03d (§D-8.7): el anuncio de Avisos, validado con el esquema del servidor sobre lo que el
+// servidor va a medir (normalizado), sin reescribir el campo visible. Con éxito, el cuerpo es el `data`
+// del esquema (archivoIds va siempre: [] sin adjuntos, C-22).
+export const anuncioValidado = (texto: string): ValidacionDelCuerpo<CrearAnuncio> => {
+  const resultado = crearPublicacionSchema.safeParse({
+    tipo: "anuncio",
+    texto: normalizarTextoLargo(texto),
+  })
+  if (!resultado.success) return { ok: false, errores: erroresPorCampo(resultado.error.issues) }
+  // El candidato lleva su tipo: el esquema no devuelve otro.
+  if (resultado.data.tipo !== "anuncio") return { ok: false, errores: {} }
+  return { ok: true, datos: resultado.data }
+}
+
+// Enmienda 10 (§D-8.5): el título de un recurso vacío o sin contenido visible dice "Escribe el título del
+// recurso" al crear y al editar: su error sale siempre de la regla del título de editarRecursoSchema.
+const errorDelTituloDelRecurso = (titulo: string): ErroresFormulario => {
+  const resultado = editarRecursoSchema.pick({ titulo: true }).safeParse({ titulo })
+  if (resultado.success) return {}
+  return erroresPorCampo(resultado.error.issues)
+}
+
+const sinElTitulo = (errores: ErroresFormulario): ErroresFormulario =>
+  Object.fromEntries(Object.entries(errores).filter(([campo]) => campo !== "titulo"))
+
+// CLASES-03d (§D-8.5, R-03d-2): "Nuevo recurso". El cuerpo es el `data` del safeParse de
+// crearPublicacionSchema (normalizado): { tipo: "material", titulo, texto, archivoIds }, y temaId solo si
+// se eligió un tema (con "Sin tema" la clave no viaja). Nunca `bloque` (lo decide el servidor) ni
+// `version`. El error del título es el del recurso (Enmienda 10); el resto, el del esquema.
+export const recursoNuevoValidado = (
+  campos: CamposDelRecurso,
+): ValidacionDelCuerpo<CrearRecurso> => {
+  const titulo = normalizarTextoLargo(campos.titulo)
+  const conTema = campos.temaId === "" ? {} : { temaId: campos.temaId }
+  const resultado = crearPublicacionSchema.safeParse({
+    tipo: "material",
+    titulo,
+    texto: normalizarTextoLargo(campos.texto),
+    ...conTema,
+  })
+  const delEsquema = resultado.success ? {} : erroresPorCampo(resultado.error.issues)
+  const errores = { ...sinElTitulo(delEsquema), ...errorDelTituloDelRecurso(titulo) }
+  if (!resultado.success || Object.keys(errores).length > 0) return { ok: false, errores }
+  // El candidato lleva su tipo: el esquema no devuelve otro.
+  if (resultado.data.tipo !== "material") return { ok: false, errores: {} }
+  return { ok: true, datos: resultado.data }
+}
+
+// CLASES-03d (§D-8.5): "Editar recurso", con editarRecursoSchema. `archivoIds` son los adjuntos
+// publicados que siguen (los nuevos se suman después de subirlos) y `version`, la de apertura. "Sin
+// tema" viaja como null (la clave es obligatoria al editar).
+export const recursoEditadoValidado = (
+  campos: CamposDelRecurso,
+  archivoIds: readonly string[],
+  version: number,
+): ValidacionDelCuerpo<EditarRecurso> => {
+  const resultado = editarRecursoSchema.safeParse({
+    titulo: normalizarTextoLargo(campos.titulo),
+    texto: normalizarTextoLargo(campos.texto),
+    temaId: campos.temaId === "" ? null : campos.temaId,
+    archivoIds,
+    version,
+  })
+  if (!resultado.success) return { ok: false, errores: erroresPorCampo(resultado.error.issues) }
+  return { ok: true, datos: resultado.data }
+}
+
+// CLASES-03d (§D-8.1, DH-04): las secciones de un bloque de "Recursos": "Sin tema" si tiene recursos y
+// después cada tema con recursos de ese bloque, en su orden. Un tema sin recursos del bloque no aparece.
+export const seccionesDeRecursos = (lista: ListaTemasRespuesta): SeccionDeTrabajo[] =>
+  seccionesDeTrabajo(lista).filter(({ elementos }) => elementos > 0)
+
+// Cada sección de un bloque se marca con el bloque y su clave: un mismo tema puede tener sección en los
+// dos bloques. Devuelve la clave de la sección si la marca es de ese bloque; null si es del otro.
+export const marcaDeSeccionDeRecursos = (bloque: string, clave: string): string =>
+  `${bloque}:${clave}`
+
+export const claveDeLaMarcaDeRecursos = (marca: string, bloque: string): string | null => {
+  const prefijo = `${bloque}:`
+  return marca.startsWith(prefijo) ? marca.slice(prefijo.length) : null
+}
+
+// CLASES-03d (§D-8.6): cuándo un error de la consulta del recurso reemplaza "Editar recurso". Sin el
+// recurso (la primera carga falló), con RECURSO_NO_ENCONTRADO o SIN_ACCESO_A_LA_CLASE, o con un
+// VALIDACION de claseId o recursoId, sí. Con el recurso cargado, cualquier otro error de una recarga
+// (sin conexión, 5xx, 429) deja el formulario y lo escrito intactos y solo se avisa.
+export const errorQueReemplazaElRecurso = (hayRecurso: boolean, error: unknown): boolean => {
+  if (!hayRecurso) return true
+  if (!esApiError(error)) return false
+  if (CODIGOS_QUE_REEMPLAZAN_EL_RECURSO.includes(error.codigo)) return true
+  if (error.codigo !== "VALIDACION") return false
+  const campo = campoDeErrorDeApi(error)
+  return campo !== null && CAMPOS_QUE_REEMPLAZAN_EL_RECURSO.includes(campo)
+}
+
+// R8 (§D-10) y DESIGN.md §7.21 (T-13): sin conexión o con un 5xx, "revisa tu conexión"; cualquier otra
+// respuesta del servidor (un 429, una respuesta inválida), "inténtalo de nuevo en un momento".
+export const avisoDeRecargaFallidaDelRecurso = (error: unknown): string => {
+  if (!esApiError(error) || error.codigo === "SIN_CONEXION" || error.estado >= 500) {
+    return TEXTOS_EDITAR_RECURSO.recargaRed
+  }
+  return TEXTOS_EDITAR_RECURSO.recargaServidor
+}
+
+// CLASES-03e (T-02 de la ronda 1): la duda ya no existe (404 DUDA_NO_ENCONTRADA).
+export const esDudaNoEncontrada = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "DUDA_NO_ENCONTRADA"
+
+// 409 RECURSO_MODIFICADO: otra persona guardó o movió el recurso mientras se editaba.
+export const esRecursoModificado = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "RECURSO_MODIFICADO"
+
+// §D-8.5: el tema que se envía. Con la lista de temas ya llegada, el elegido si sigue en ella o "Sin
+// tema" si ya no está; sin la lista (pendiente o fallida), el elegido tal cual: al editar, el recurso
+// conserva su tema en lugar de pasar a "Sin tema" por una lista que no llegó.
+export const temaVigente = (elegido: string, temas: readonly Tema[] | undefined): string => {
+  if (temas === undefined) return elegido
+  return temas.some(({ id }) => id === elegido) ? elegido : ""
 }

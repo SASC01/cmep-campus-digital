@@ -162,7 +162,7 @@ muchos clientes a la vez. Hoy solo la usan `registrarMaestroConEnlace` y `revoca
 (10 s, M-08): cada registro del mismo enlace toma una conexión antes de formarse en la fila, y con
 el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
-`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` (`db/clases.ts`); `listarPublicaciones` y `listarComentarios` (`db/publicaciones.ts`); `leerTarea` y `listarTrabajo` (`db/tareas.ts`); `leerMiEntrega`, `listarEntregas`, `leerEntregaDeAlumno` y `listarHiloPrivado` (`db/entregas.ts`), y `leerGradebook` y `leerMisCalificaciones` (`db/calificaciones.ts`).
+`enTransaccion` acepta `{ instantaneaUnica: true }` (FIX-CLASES) para las **lecturas** de varias sentencias cuya respuesta exige una relación obligatoria o una cardinalidad mínima, o que comprueban la fila del cursor en una sentencia y leen la página en otra (con el `cursor` de Prisma, una fila del cursor borrada en medio da una página vacía aunque queden filas detrás: la regla T-18): abre la transacción en REPEATABLE READ, así todas sus sentencias, incluidas las que Prisma usa para resolver cada relación anidada (sin la vista previa `relationJoins`, una por nivel), ven la instantánea de la primera. En READ COMMITTED cada sentencia toma la suya, y un borrado confirmado entre dos deja, por ejemplo, una clase sin maestros (un `500`). Dentro no se escribe: en REPEATABLE READ, una escritura que choca falla con `40001`. Una transacción de solo lectura en ese nivel no falla por serialización ni toma bloqueos de fila, pero ocupa una conexión durante toda la lectura y, sin conexión dentro del `maxWait`, responde `503` como cualquier otra. Anidada en otra transacción, la opción no cambia el aislamiento de la de afuera. Sin opciones, `enTransaccion` sigue abriendo READ COMMITTED, del que depende el protocolo de bloqueo por usuario. Hoy la usan `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` (`db/clases.ts`); `listarPublicaciones` y `listarComentarios` (`db/publicaciones.ts`); `leerTarea` y `listarTrabajo` (`db/tareas.ts`); `leerMiEntrega`, `listarEntregas`, `leerEntregaDeAlumno` y `listarHiloPrivado` (`db/entregas.ts`); `leerGradebook` y `leerMisCalificaciones` (`db/calificaciones.ts`); `listarRecursos` y `leerRecurso` (`db/recursos.ts`, CLASES-03a), y `listarDudas` y `listarRespuestas` (`db/dudas.ts`, CLASES-03b).
 
 ## `db/clases.ts` (CLASES-a, §D-0.1 y §D-A2)
 
@@ -256,8 +256,9 @@ toda la página con una sola consulta agrupada, fuera de cualquier ciclo.
 
 El autor se selecciona con su `rol` solo para dos cosas: `firmaDelAutor` (la firma
 "Administración") y `puedeBorrar` (`core/autoria.ts`), que se aplica dentro de la transacción de
-`borrarPublicacion` y `borrarComentario` (leer la autoría y borrar en la misma transacción, sin
-candado: la autoría no cambia) y por elemento en `listarPublicaciones` y `listarComentarios`, con el
+`borrarPublicacion` y `borrarComentario` (leer la autoría y borrar en la misma transacción; la
+autoría no cambia, y `borrarComentario` no toma candado; `borrarPublicacion`, desde CLASES-03a, toma
+antes la fila de la publicación `FOR UPDATE`, ver "Recursos y filtros por sección") y por elemento en `listarPublicaciones` y `listarComentarios`, con el
 `actor` de la petición. El rol no sale en ninguna respuesta.
 
 ## `storage` y `db/archivos.ts` (CLASES-d, §D-D1 a §D-D3)
@@ -279,8 +280,9 @@ al publicar: `buscarArchivosParaConfirmar` lee los ids en una consulta por PK, a
 al usuario, al estado `pendiente` y a las últimas 24 h; el handler comprueba en el almacén que el
 objeto existe y coincide con lo declarado; y `crearPublicacion` inserta la publicación y hace el
 `UPDATE` a `confirmado` en la misma transacción, repitiendo esas condiciones. Si el conteo no
-coincide, lanza `400 ARCHIVO_INVALIDO` y todo se revierte. `borrarPublicacion` primero pasa sus
-archivos a `descartado` y les quita la publicación. Dos `CHECK` (a mano en la migración) fijan que el
+coincide, lanza `400 ARCHIVO_INVALIDO` y todo se revierte. `borrarPublicacion` toma primero la fila
+de la publicación `FOR UPDATE` (CLASES-03a, T-01 y T-02) y después pasa sus archivos a `descartado` y
+les quita la publicación. Dos `CHECK` (a mano en la migración) fijan que el
 tamaño es positivo y que un archivo está confirmado si y solo si tiene publicación. Los objetos
 descartados o nunca confirmados siguen en el almacén hasta `LIMPIEZA_DIARIA`, prerrequisito de
 DEPLOY (P-02): borra el objeto y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
@@ -526,3 +528,84 @@ resumen distinto de lo que se ve, y un cursor borrado después de comprobarlo no
 El número de sentencias es fijo (siete en el gradebook, nueve con los dos cursores; cuatro en "Mis
 calificaciones", cinco con el cursor): ninguna consulta va dentro de un ciclo. Ninguna selecciona el
 correo, el estado de pago, la restricción, el rol ni la versión.
+
+## Recursos y filtros por sección (CLASES-03a, §D-1 a §D-3)
+
+Un recurso es una publicación de tipo `material` con `bloque` (`aprendizaje` o `docente`, columna
+nula permitida: solo un material la lleva, `CHECK publicaciones_bloque_solo_material`) y `version`
+(`CHECK publicaciones_version_no_negativa`). Los permisos los decide `core/recursos.ts`
+(`bloqueAlPublicar`, `bloqueEfectivo`, `puedeEditarRecurso`, `puedeBorrarRecurso`,
+`puedeMoverRecurso`) con las personas enteras: ningún adaptador lee ni compara un rol. Un material
+con `bloque` nulo (un backend anterior o una inserción a mano) se trata con el bloque del rol de su
+autor (`bloqueEfectivo`, la misma regla del reparto de la migración) y no sale en las listas de
+Recursos.
+
+- `db/publicaciones.ts`: `crearPublicacion` acepta `bloque` (opcional, `null` por defecto; el handler
+  del muro lo pasa siempre). `listarPublicaciones` acepta `tipo: "anuncio"` ("Avisos"): filtra
+  `tipo = 'anuncio' AND tema_id IS NULL` también al comprobar el cursor, por el índice
+  `(clase_id, tipo, tema_id, creado_en DESC, id DESC)`. `borrarPublicacion` lee además `tipo` y
+  `bloque` con la fila tomada `FOR UPDATE` antes de tocar sus archivos (SQL etiquetado y
+  parametrizado, el mismo orden que `borrarTarea`): un material decide con `puedeBorrarRecurso` y un
+  anuncio con `puedeBorrar`, como antes. Así editar un recurso, mover y comentar quedan en serie con
+  el borrado: si el borrado va segundo, al reanudar ve los archivos que dejó la edición; si va
+  primero, la edición y el movimiento ya no encuentran la fila (`404`).
+- `db/tareas.ts`: `listarTrabajo` acepta `seccion: "actividades"` (solo tareas, también el cursor) y
+  lee además el `bloque` de cada elemento (T-03; no sale en la respuesta), para que el handler decida
+  `puedeMover` de un material con la regla de los recursos; `confirmarArchivos` se exporta sin
+  cambiar su cuerpo.
+- `db/temas.ts`: `listarTemasDeLaSeccion(claseId, seccion)` comparte con `listarTemas` la lectura de los
+  temas y solo cambia el filtro del `groupBy` (`tipo = 'tarea'`, o `tipo = 'material'` con el bloque
+  de la sección), sin transacción, como `listarTemas`. `moverATema` recibe el `actor`: lee el autor y
+  el bloque de la publicación y, si es un material, aplica `puedeMoverRecurso` (`403
+MOVER_NO_PERMITIDO` sin escribir) y sube `publicaciones.version` en el mismo `UPDATE` que cambia el
+  tema. El orden del cuerpo no cambia: la fila de `tareas` antes que el tema y que `publicaciones`.
+- `db/recursos.ts`:
+  - `listarRecursos` (instantánea única): el tema, si es un id (`404 TEMA_NO_ENCONTRADO`); el cursor,
+    comprobado contra la misma lista (clase, bloque y tema; `400 VALIDACION`); la página por el índice
+    `(clase_id, bloque, tema_id, creado_en DESC, id DESC)`; los adjuntos confirmados de la página (una
+    consulta) y el conteo de comentarios (un `groupBy`).
+  - `leerRecurso` (instantánea única): el material de la clase con su versión y su tema, sus adjuntos
+    y su conteo de comentarios; `null` si no es un material de esa clase.
+  - `editarRecurso` (READ COMMITTED): `SELECT … FOR NO KEY UPDATE` de la fila del material (SQL
+    etiquetado y parametrizado), el autor por PK, `puedeEditarRecurso` con el bloque efectivo (`403
+EDICION_NO_PERMITIDA`), `exigirVersion` (`409 RECURSO_MODIFICADO`), el tema con
+    `bloquearTemaParaUsar` (`404 TEMA_NO_ENCONTRADO`), el `UPDATE` con `version + 1` y los archivos con
+    el algoritmo de `editarTarea` (conservados, descartados y nuevos con `confirmarArchivos`). Nada se
+    escribe antes de las tres comprobaciones. Sin evento.
+
+Concurrencia: dos ediciones, o una edición y un movimiento, quedan en serie por la fila de
+`publicaciones` y la que va segunda ve la versión nueva (`409`). Comentar un recurso toma `FOR SHARE`
+de la publicación, como en el muro. Ningún bloqueo `FOR KEY SHARE` nuevo.
+
+## Dudas en `db/dudas.ts` (CLASES-03b, §D-4 y §D-5)
+
+Una duda es una fila de `dudas` (sin título; `resuelta_en` y `resuelta_por` van juntos, `CHECK
+dudas_resuelta_completa`). Sus respuestas son filas de `comentarios` con `duda_id`: un comentario
+tiene exactamente un contexto entre publicación, entrega y duda (`CHECK comentarios_un_solo_contexto`,
+reemplazado con el mismo nombre). La autoría la decide `puedeBorrar` (`core/autoria.ts`) con el actor
+de la petición; quién marcó una duda (`resuelta_por`) nunca se selecciona. Nada de esto encola.
+
+- `listarDudas` (instantánea única): el cursor (una duda de la clase, `400 VALIDACION`), la página
+  por el índice `(clase_id, creado_en DESC, id DESC)` y el conteo de respuestas de la página (un
+  `groupBy` por `duda_id`).
+- `crearDuda`: una sola sentencia.
+- `marcarDuda` (READ COMMITTED): un `updateMany` por `id` y `clase_id`. Marcar solo escribe si
+  `resuelta_en` es nulo (marcar dos veces no cambia la fecha, que pasa el handler); quitar la marca
+  pone las dos columnas en nulo. Después lee la duda con su conteo; `null` si no existe en la clase.
+- `borrarDuda` (READ COMMITTED): toma primero la fila de la duda con `SELECT … FOR UPDATE` (SQL
+  etiquetado y parametrizado), lee el autor por PK, aplica `puedeBorrar` (`403 BORRADO_NO_PERMITIDO`
+  sin escribir) y borra; sus respuestas caen en cascada (DH-05).
+- `listarRespuestas` (instantánea única): la duda en la clase (`null` si no), el cursor (una respuesta
+  de esa duda) y la página por `(duda_id, creado_en, id)`, de la más antigua a la más reciente.
+- `crearRespuesta` (READ COMMITTED): `SELECT id FROM dudas … FOR SHARE` (SQL etiquetado y
+  parametrizado); sin fila, `null` sin insertar. Una duda resuelta se sigue respondiendo (S-06).
+- `borrarRespuesta` (READ COMMITTED): busca por `id`, `duda_id` y `duda.clase_id`, aplica
+  `puedeBorrar` y borra con la misma condición. Toca una sola fila.
+
+Concurrencia: responder (`FOR SHARE`) y borrar la duda (`FOR UPDATE`, antes de borrar) quedan en
+serie por la fila de la duda. Si la respuesta va primero, el borrado espera y se la lleva en cascada;
+si el borrado va primero, la respuesta ya no encuentra la duda y no inserta (`404`). Marcar contra
+borrar: el que va segundo no encuentra la fila (`404`) o borra la fila ya marcada. Aislamiento: las
+rutas del muro buscan por `publicacion_id` y «mis comentarios» exige la publicación de la clase, así
+que no alcanzan una respuesta; las rutas de respuestas exigen `duda_id`, así que no alcanzan un
+comentario del muro ni del hilo privado.

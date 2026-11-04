@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } fr
 
 import { Cargando } from "@/components/cargando"
 import { MensajeError } from "@/components/mensaje-error"
+import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -52,6 +53,13 @@ function ElementosDelTema({
   }
 
   const refVerMas = useFocoAlCargarMas(ids, enfocarElemento, () => encabezadoRef.current?.focus())
+
+  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí vuelve a pedir este tema desde
+  // su primera página si está en error (el cursor ya no existe); un tema sano no pide nada (S-10).
+  useAlPulsarLaSeccionActiva(() => {
+    if (!trabajo.isError) return
+    void trabajo.refetch()
+  })
 
   useEffect(() => {
     const previos = idsPrevios.current
@@ -148,6 +156,9 @@ interface SeccionDeTemaProps {
   base: string
   seccion: SeccionDeTrabajo
   temas: readonly Tema[]
+  // CLASES-03c2 (§D-7.6): los elementos del tema en todas las secciones, para la frase de borrarlo;
+  // null si la lista total no llegó, falló o no tiene el tema (la frase va sin conteo).
+  elementosEnTotal: number | null
   // Maestro y admin: renombrar, subir, bajar y borrar (nunca en "Sin tema").
   gestionar: boolean
   esPrimero: boolean
@@ -166,6 +177,7 @@ export function SeccionDeTema({
   base,
   seccion,
   temas,
+  elementosEnTotal,
   gestionar,
   esPrimero,
   esUltimo,
@@ -312,7 +324,11 @@ export function SeccionDeTema({
 
           {gestionar && tema !== null && confirmando && (
             <div className="flex flex-col gap-2">
-              <p className="text-small">{TEXTOS_TEMAS.consecuencia(seccion.elementos)}</p>
+              <p className="text-small">
+                {elementosEnTotal === null
+                  ? TEXTOS_TEMAS.consecuenciaSinConteo
+                  : TEXTOS_TEMAS.consecuencia(elementosEnTotal)}
+              </p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"

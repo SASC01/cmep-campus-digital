@@ -1,4 +1,12 @@
-import type { ClaseDetalle, ListaPublicacionesRespuesta, Tema } from "@campus/shared"
+import type {
+  ClaseDetalle,
+  CrearPublicacion,
+  EditarRecurso as RecursoEditado,
+  ListaPublicacionesRespuesta,
+  Tema,
+} from "@campus/shared"
+
+import type { ErroresFormulario as ErroresDelFormulario } from "@/lib/errores-de-api"
 
 // Tipos de la API: se infieren de los esquemas de shared/, nunca a mano (regla 7 de CLAUDE.md).
 export type {
@@ -33,6 +41,19 @@ export type {
   ListaTemasRespuesta,
   ListaTrabajoRespuesta,
   Tema,
+  // CLASES-03c2 (§D-7.6): la sección cuyos conteos pide la lista de temas.
+  SeccionDeTemas,
+  // CLASES-03d (§D-8): "Recursos".
+  BloqueDeRecurso,
+  EditarRecurso,
+  ListaRecursosRespuesta,
+  Recurso,
+  RecursoDetalle,
+  // CLASES-03e (§D-9): "Dudas" (las respuestas tienen la forma de los comentarios).
+  CrearDuda,
+  CrearRespuesta,
+  Duda,
+  ListaDudasRespuesta,
 } from "@campus/shared"
 
 // Tipos exclusivos de la interfaz de CLASES-a.
@@ -51,6 +72,38 @@ export interface SeccionDeClase {
   texto: string
 }
 
+// CLASES-03 (§D-7.2, DH-03): lo que se mide de una opción de las secciones y de su panel, y lo que
+// lleva el indicador (en px).
+export interface MedidaDeOpcion {
+  offsetLeft: number
+  offsetWidth: number
+}
+
+export interface MedidaDelPanel {
+  scrollLeft: number
+  clientWidth: number
+}
+
+export interface MedidaDelIndicador {
+  x: number
+  ancho: number
+}
+
+// CLASES-03c1 (T-02 de la ronda 1): dónde está el panel de las secciones en la ventana (el borde
+// izquierdo de su rectángulo), el ancho de su borde y cuánto se ha desplazado, para llevar una opción
+// a las coordenadas de su área desplazable.
+export interface PosicionDelPanel {
+  left: number
+  clientLeft: number
+  scrollLeft: number
+}
+
+// CLASES-03c1 (T-01 de la ronda 1): la medida del indicador con la clase y la perspectiva (la base de
+// la ruta) en que se tomó; la de otra clase no se pinta.
+export interface MedidaDelIndicadorDeLaClase extends MedidaDelIndicador {
+  base: string
+}
+
 // Lo que cada perspectiva ve de una clase (§D-2C1); es una fila de CAPACIDADES_POR_PERSPECTIVA.
 export interface CapacidadesDePerspectiva {
   base: string
@@ -61,8 +114,6 @@ export interface CapacidadesDePerspectiva {
   editar: boolean
   formularioPublicacion: boolean
   formularioComentario: boolean
-  // TAREAS-01d (§D-10): "Crear tarea" en el muro; solo quien publica (maestro y admin).
-  crearTarea: boolean
   // TAREAS-01e (§D-11): crear, renombrar, ordenar y borrar temas, "Crear tarea" como acción principal
   // de "Trabajo de clase" y "Categorías de calificación" (maestro y admin; P-02 b). Mover un elemento
   // no sale de aquí: lo decide `puedeMover` de cada elemento.
@@ -165,3 +216,28 @@ export interface SegundaLineaDeLaFila {
   texto: string
   colores: { cuadro: string; estado: string }
 }
+
+// CLASES-03d (§D-8.5, §D-8.7): lo que envía cada formulario, inferido del esquema de shared/
+// (crearPublicacionSchema): el anuncio de Avisos y el recurso (un material) de "Nuevo recurso".
+export type CrearAnuncio = Extract<CrearPublicacion, { tipo: "anuncio" }>
+export type CrearRecurso = Extract<CrearPublicacion, { tipo: "material" }>
+
+// El resultado de validar en local lo que se va a enviar: el cuerpo normalizado o los errores por campo.
+export type ValidacionDelCuerpo<Cuerpo> =
+  { ok: true; datos: Cuerpo } | { ok: false; errores: ErroresDelFormulario }
+
+// Lo escrito en "Nuevo recurso" o "Editar recurso" (sin los archivos, que se suben después).
+export interface CamposDelRecurso {
+  titulo: string
+  texto: string
+  // "" es "Sin tema".
+  temaId: string
+}
+
+// El modo del formulario del recurso (§D-8.5).
+export type ModoDelRecurso = "crear" | "editar"
+
+// Lo que "Nuevo recurso" o "Editar recurso" envía tras validarlo en local (los ids de los archivos
+// nuevos se suman al subirlos).
+export type EnvioDelRecurso =
+  { modo: "crear"; datos: CrearRecurso } | { modo: "editar"; datos: RecursoEditado }

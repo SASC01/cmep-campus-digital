@@ -3,6 +3,7 @@ import type { Rol } from "@campus/shared"
 import { puedeBorrar, puedeBorrarTarea, type ParticipanteDeAutoria } from "../../core/autoria.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
+import { bloqueEfectivo, puedeBorrarRecurso, type Bloque } from "../../core/recursos.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
 import {
   enTransaccion,
@@ -118,6 +119,7 @@ export const crearPublicacion = (
     titulo,
     texto,
     temaId = null,
+    bloque = null,
     archivos = [],
   }: {
     id: string
@@ -128,6 +130,9 @@ export const crearPublicacion = (
     texto: string
     // TAREAS-01a (§D-2): solo un material lleva tema; el handler pasa null en un anuncio.
     temaId?: string | null
+    // CLASES-03a (§D-3.1, M-03): el bloque de un material (el handler lo pasa siempre); null en un
+    // anuncio. Opcional para que las llamadas de antes sigan creando, como hoy, sin bloque.
+    bloque?: Bloque | null
     archivos?: readonly ArchivoDb[]
   },
   alGuardar: (sql: EjecutorSql) => Promise<void>,
@@ -140,7 +145,7 @@ export const crearPublicacion = (
       throw errorTemaNoEncontrado()
     }
     const creada = await tx.publicacion.create({
-      data: { id, claseId, autorId, tipo, titulo, texto, temaId },
+      data: { id, claseId, autorId, tipo, titulo, texto, temaId, bloque },
       select: SELECT_PUBLICACION,
     })
     if (archivos.length > 0) {
@@ -178,27 +183,37 @@ export const crearPublicacion = (
 // TAREAS-01b (§D-6, §D-12): la relación `tarea` va en el select de la página y los maestros de la
 // clase (para el puedeBorrar de una tarea) se leen con `tx`, después de la página y antes de
 // devolver, una sola consulta y solo si la página trae alguna tarea: todo dentro de la instantánea.
+// CLASES-03a (§D-3.2): con `tipo`, solo anuncios (que nunca llevan tema), también en la comprobación
+// del cursor: un cursor que es un material o una tarea responde 400. Sin él, lo de hoy.
 export const listarPublicaciones = (
   {
     claseId,
     cursor,
     limite,
     actor,
-  }: { claseId: string; cursor: string | undefined; limite: number; actor: ParticipanteDeAutoria },
+    tipo,
+  }: {
+    claseId: string
+    cursor: string | undefined
+    limite: number
+    actor: ParticipanteDeAutoria
+    tipo?: "anuncio" | undefined
+  },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaPublicacionesDb> =>
   enTransaccion(
     ejecutor,
     async (tx) => {
+      const donde = tipo === undefined ? { claseId } : { claseId, tipo, temaId: null }
       if (cursor !== undefined) {
         const delCursor = await tx.publicacion.findFirst({
-          where: { id: cursor, claseId },
+          where: { ...donde, id: cursor },
           select: { id: true },
         })
         if (delCursor === null) throw errorCursorInvalido()
       }
       const filas = await tx.publicacion.findMany({
-        where: { claseId },
+        where: donde,
         select: { ...SELECT_PUBLICACION, tarea: { select: { fechaLimite: true, puntos: true } } },
         orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
         take: limite + 1,
@@ -254,11 +269,25 @@ export const listarPublicaciones = (
     { instantaneaUnica: true },
   )
 
+interface FilaDePublicacionBloqueada {
+  tipo: "anuncio" | "material"
+  bloque: Bloque | null
+  autor_id: string
+}
+
 // Borra con id y clase_id; sus comentarios caen en cascada. false: no existe en esa clase. 403
 // BORRADO_NO_PERMITIDO (sin escribir nada) si core/autoria.ts no deja a este actor. d: antes del
 // DELETE, en la misma transacción, sus archivos pasan a descartado y pierden la publicación (el
 // CHECK de §D-D1 lo exige, y publicacion_id es NO ACTION); los objetos siguen en el almacén hasta la
 // limpieza diaria. El filtro por clase_id evita descartar los archivos de una publicación ajena.
+// CLASES-03a (§D-3.8, RN-07): un material (un recurso) decide con la regla de su bloque; con el
+// bloque que le dio su autor al publicar coincide con puedeBorrar. Un anuncio, como hoy.
+// CLASES-03a (T-01, T-02): la fila de la publicación se bloquea FOR UPDATE antes de tocar sus
+// archivos, como borrarTarea. Editar un recurso mueve sus archivos con la fila bloqueada: sin este
+// orden, el borrado tomaba los archivos y esperaba la fila mientras la edición, con la fila, esperaba
+// los archivos (40P01), o la edición confirmaba un archivo nuevo que el DELETE ya no veía (P2003).
+// Ahora quedan en serie: si la edición va primero, el borrado ve sus archivos al reanudar; si el
+// borrado va primero, la edición ya no encuentra la fila (404).
 export const borrarPublicacion = (
   {
     claseId,
@@ -268,12 +297,24 @@ export const borrarPublicacion = (
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<boolean> =>
   enTransaccion(ejecutor, async (tx) => {
-    const publicacion = await tx.publicacion.findFirst({
-      where: { id: publicacionId, claseId, tipo: { in: [...TIPOS_DEL_MURO] } },
-      select: { autor: SELECT_AUTOR },
+    const [fila] = await tx.$queryRaw<FilaDePublicacionBloqueada[]>`
+      SELECT p.tipo::text AS tipo, p.bloque::text AS bloque, p.autor_id
+      FROM publicaciones p
+      WHERE p.id = ${publicacionId}::uuid AND p.clase_id = ${claseId}::uuid
+        AND p.tipo IN ('anuncio', 'material')
+      FOR UPDATE`
+    if (fila === undefined) return false
+    const autor = await tx.usuario.findUnique({
+      where: { id: fila.autor_id },
+      select: { id: true, rol: true },
     })
-    if (publicacion === null) return false
-    if (!puedeBorrar(actor, publicacion.autor)) throw errorBorradoNoPermitido()
+    if (autor === null) return false
+    const { tipo, bloque } = fila
+    const permitido =
+      tipo === "material"
+        ? puedeBorrarRecurso(actor, autor, bloqueEfectivo(bloque, autor))
+        : puedeBorrar(actor, autor)
+    if (!permitido) throw errorBorradoNoPermitido()
 
     await tx.archivo.updateMany({
       where: { publicacionId, claseId },

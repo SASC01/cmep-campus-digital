@@ -241,6 +241,7 @@ const llegarAlTextoDelGradebook = async (modo: "400" | "vacia") => {
   return router
 }
 
+// CLASES-03c1 ronda 0 (C-11, §D-R0; §D-7.1 y §D-13): la sección «Muro» pasa a «Avisos». Sigue protegiendo lo mismo.
 describe("T-08: «Vuelve a abrir Calificaciones» pulsando la sección «Calificaciones» (la activa)", () => {
   it.each(["400", "vacia"] as const)(
     "CAL-T-228: gradebook con el texto del cursor (%s): pulsar la sección «Calificaciones» vuelve a pedir la primera ventana y muestra la clase como está",
@@ -289,10 +290,10 @@ describe("T-08: «Vuelve a abrir Calificaciones» pulsando la sección «Calific
   })
 
   it.each(["400", "vacia"] as const)(
-    "CAL-T-230 (control de T-07 con el router real): con el texto del cursor (%s), ir a «Muro» y volver a «Calificaciones» antes de 30 s muestra la clase como está",
+    "CAL-T-230 (control de T-07 con el router real): con el texto del cursor (%s), ir a «Avisos» y volver a «Calificaciones» antes de 30 s muestra la clase como está",
     async (modo) => {
       await llegarAlTextoDelGradebook(modo)
-      fireEvent.click(await seccion("Muro"))
+      fireEvent.click(await seccion("Avisos"))
       await waitFor(() => expect(screen.queryByText(CURSOR_GRADEBOOK)).toBeNull())
       const desde = pedidasDelGradebook().length
       fireEvent.click(await seccion("Calificaciones"))

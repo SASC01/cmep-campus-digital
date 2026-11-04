@@ -142,7 +142,9 @@ const USOS: Uso[] = [
     ruta: (letra) => `/estudiante/clases/${CLASES[letra]}`,
     conDatos: (letra) => screen.findByText(`Publicación de ${letra}`),
     controlInterno: () => screen.findByRole("button", { name: "Ver comentarios (0)" }),
-    destino: () => screen.getByRole("heading", { name: "Publicaciones" }),
+    // CLASES-03c1 ronda 0 (C-16, P-03c1-1; §D-13): el encabezado de la lista, solo para lectores, pasa
+    // de «Publicaciones» a «Avisos», como en foco-02c-r3.
+    destino: () => screen.getByRole("heading", { name: "Avisos" }),
     clave: (letra) => ["clases", CLASES[letra], "publicaciones"],
   },
 ]

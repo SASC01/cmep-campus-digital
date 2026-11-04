@@ -190,6 +190,11 @@ const repetirYQueSalgaBien = async () => {
   expect(inesperadas).toEqual([])
 }
 
+// CLASES-03c1 ronda 0 (C-17, §D-R0; §D-7.1 y §D-13): la sección del muro se llama «Avisos» y
+// TEXTOS_CLASE.muro pasa a TEXTOS_CLASE.avisos; el nombre va literal para que la prueba no dependa de
+// la clave. TEXTOS_CLASE.trabajo conserva su clave con el nombre nuevo.
+const AVISOS = "Avisos"
+
 describe("ataque CHORE-03 03b r1 · la frase genérica del tema por los caminos de O-14 (rutas y Providers)", () => {
   it("pulsar «Trabajo de clase» en la barra estando en ella (otra location.key): el formulario conserva lo escrito y su error (S-06), y repetir «Crear tema» manda un POST nuevo que lo quita", async () => {
     const router = await conElErrorEnElTema()
@@ -215,7 +220,7 @@ describe("ataque CHORE-03 03b r1 · la frase genérica del tema por los caminos 
   it("ir al muro con la barra y volver con la barra antes de 30 s: sin el error, y «Crear tema» manda un POST nuevo", async () => {
     const router = await conElErrorEnElTema()
 
-    await enLaBarra(TEXTOS_CLASE.muro)
+    await enLaBarra(AVISOS)
     await waitFor(() => expect(router.state.location.pathname).toBe(MURO))
     vi.setSystemTime(new Date(AHORA.getTime() + 10_000))
     await enLaBarra(TEXTOS_CLASE.trabajo)
@@ -228,7 +233,7 @@ describe("ataque CHORE-03 03b r1 · la frase genérica del tema por los caminos 
   it("atrás y adelante del historial (trabajo → muro → atrás → adelante → atrás) antes de 30 s: sin el error, y «Crear tema» manda un POST nuevo", async () => {
     const router = await conElErrorEnElTema()
 
-    await enLaBarra(TEXTOS_CLASE.muro)
+    await enLaBarra(AVISOS)
     await waitFor(() => expect(router.state.location.pathname).toBe(MURO))
     for (const [paso, destino] of [
       [-1, TRABAJO],

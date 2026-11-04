@@ -13,17 +13,18 @@ import { RegistroView } from "@/features/auth/registro-view"
 import { RestablecerView } from "@/features/auth/restablecer-view"
 import { GradebookView } from "@/features/calificaciones/gradebook-view"
 import { MisCalificacionesView } from "@/features/calificaciones/mis-calificaciones-view"
-import { AlumnosView } from "@/features/clases/alumnos-view"
 import { CategoriasView } from "@/features/clases/categorias-view"
 import { ClaseLayout } from "@/features/clases/clase-layout"
 import { ClasesAdminView } from "@/features/clases/clases-admin-view"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
 import { EditarClaseView } from "@/features/clases/editar-clase-view"
+import { DudasView } from "@/features/clases/dudas-view"
+import { EditarRecursoView } from "@/features/clases/editar-recurso-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
-import { MaestrosDeClaseView } from "@/features/clases/maestros-de-clase-view"
 import { MuroView } from "@/features/clases/muro-view"
 import { PersonasView } from "@/features/clases/personas-view"
+import { RecursosView } from "@/features/clases/recursos-view"
 import { TrabajoView } from "@/features/clases/trabajo-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
 import { CrearTareaView } from "@/features/tareas/crear-tarea-view"
@@ -72,9 +73,15 @@ export const rutas: RouteObject[] = [
             path: "clases/:claseId",
             element: <ClaseLayout />,
             children: [
+              // CLASES-03 (§D-7.1): "Avisos" (el muro) y "Actividades de aprendizaje" (el segmento
+              // `trabajo` se conserva, DH-09), de solo lectura para el alumno.
               { index: true, element: <MuroView /> },
-              // TAREAS-01e (§D-11): "Trabajo de clase", de solo lectura para el alumno.
               { path: "trabajo", element: <TrabajoView /> },
+              // CLASES-03d (§D-7.4): "Recursos", de solo lectura para el alumno (comenta). Editar un
+              // recurso no existe en esta rama y cae en `*`.
+              { path: "recursos", element: <RecursosView /> },
+              // CLASES-03e (§D-9.1): "Dudas", en las tres perspectivas.
+              { path: "dudas", element: <DudasView /> },
               { path: "personas", element: <PersonasView /> },
               // CALIFICACIONES-01d (§D-13.6): "Mis calificaciones" en la rama del alumno.
               { path: "calificaciones", element: <MisCalificacionesView /> },
@@ -104,7 +111,14 @@ export const rutas: RouteObject[] = [
               // TAREAS-01e (§D-11): "Trabajo de clase" y "Categorías de calificación" (no es una sección).
               { path: "trabajo", element: <TrabajoView /> },
               { path: "categorias", element: <CategoriasView /> },
-              { path: "alumnos", element: <AlumnosView /> },
+              // CLASES-03d (§D-7.4, S-11): "Recursos" y su edición, que deja activa la sección.
+              { path: "recursos", element: <RecursosView /> },
+              { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
+              { path: "dudas", element: <DudasView /> },
+              // CLASES-03 (§D-7.4, §D-7.7, DH-09): "Personas" junta a los maestros y el roster; la
+              // ruta vieja de "Alumnos" redirige sin dejar entrada en el historial.
+              { path: "personas", element: <PersonasView /> },
+              { path: "alumnos", element: <Navigate to="../personas" replace /> },
               // CALIFICACIONES-01d (§D-13.6): el gradebook en las ramas del maestro y del admin.
               { path: "calificaciones", element: <GradebookView /> },
               // TAREAS-01d (§D-10): ninguna activa una sección (como /editar); el literal gana a :tareaId.
@@ -139,8 +153,13 @@ export const rutas: RouteObject[] = [
                   { index: true, element: <MuroView /> },
                   { path: "trabajo", element: <TrabajoView /> },
                   { path: "categorias", element: <CategoriasView /> },
-                  { path: "alumnos", element: <AlumnosView /> },
-                  { path: "maestros", element: <MaestrosDeClaseView /> },
+                  { path: "recursos", element: <RecursosView /> },
+                  { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
+                  { path: "dudas", element: <DudasView /> },
+                  // CLASES-03 (§D-7.4, DH-09): "Alumnos" y "Maestros" se juntan en "Personas".
+                  { path: "personas", element: <PersonasView /> },
+                  { path: "alumnos", element: <Navigate to="../personas" replace /> },
+                  { path: "maestros", element: <Navigate to="../personas" replace /> },
                   { path: "calificaciones", element: <GradebookView /> },
                   { path: "editar", element: <EditarClaseView /> },
                   { path: "tareas/nueva", element: <CrearTareaView /> },

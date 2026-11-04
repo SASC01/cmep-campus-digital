@@ -149,10 +149,10 @@ describe("ataque (DESIGN-01b-1 r1): lo fijo y el movimiento solo en su sitio (V-
         "md:h-[calc(100svh-3rem)]",
         "md:min-h-[calc(100svh-3rem)]",
         "min-h-[calc(100svh-7rem)]",
-        "translate-x-[200%]",
-        "translate-x-[300%]",
-        // C-11 de CALIFICACIONES-01d (§D-R0, A-5): la quinta sección del admin ("Calificaciones").
-        "translate-x-[400%]",
+        // CLASES-03c1 ronda 0 (C-7, §D-R0; §D-7.2 y DH-03): salen translate-x-[200%], [300%] y [400%].
+        // El indicador de secciones toma su posición y su ancho medidos de dos variables CSS
+        // (translate-x-(--indicador-x) y w-(--indicador-ancho), sin corchetes), y
+        // CLASES_DE_POSICION_DEL_INDICADOR queda con "" y "translate-x-full".
       ].sort(),
     )
   })

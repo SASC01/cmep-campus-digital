@@ -268,6 +268,16 @@ export const trabajoQuerySchema = paginacionSchema.extend({
   tema: z.union([z.literal("sin-tema"), z.uuid().transform((id) => id.toLowerCase())], {
     error: "tema: elige un tema válido",
   }),
+  // CLASES-03a (§D-3.3, DH-02 b): opcional para no cambiar la respuesta de hoy; con él, solo tareas.
+  seccion: z.literal("actividades", { error: "seccion: no es válida" }).optional(),
+})
+
+// CLASES-03a (§D-3.4): los conteos de los temas por sección. Sin la sección, el total de hoy; no es
+// estricto porque la ruta ignoraba la consulta y un parámetro de más no debe romperla.
+export const SECCIONES_DE_TEMAS = ["actividades", "aprendizaje", "docente"] as const
+
+export const temasQuerySchema = z.object({
+  seccion: z.enum(SECCIONES_DE_TEMAS, { error: "seccion: no es válida" }).optional(),
 })
 
 export const elementoDeTrabajoSchema = z.object({
@@ -329,6 +339,8 @@ export type CriterioDeRubrica = z.infer<typeof criterioDeRubricaSchema>
 export type TareaDetalle = z.infer<typeof tareaDetalleSchema>
 export type TareaRespuesta = z.infer<typeof tareaRespuestaSchema>
 export type TrabajoQuery = z.infer<typeof trabajoQuerySchema>
+export type SeccionDeTemas = (typeof SECCIONES_DE_TEMAS)[number]
+export type TemasQuery = z.infer<typeof temasQuerySchema>
 export type ElementoDeTrabajo = z.infer<typeof elementoDeTrabajoSchema>
 export type ListaTrabajoRespuesta = z.infer<typeof listaTrabajoRespuestaSchema>
 export type ListaCategoriasRespuesta = z.infer<typeof listaCategoriasRespuestaSchema>

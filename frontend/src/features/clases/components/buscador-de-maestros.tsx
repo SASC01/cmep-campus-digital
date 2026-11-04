@@ -64,7 +64,7 @@ const CLASES_DE_LA_FILA =
 // "Elegir" (crear clase): solo cambia el estado del formulario, no pide nada y no espera.
 function FilaParaElegir({ candidato, yaEsta, registrarBoton, onElegir }: FilaParaElegirProps) {
   return (
-    <li data-candidato-id={candidato.id} className={CLASES_DE_LA_FILA}>
+    <li data-candidato-maestro-id={candidato.id} className={CLASES_DE_LA_FILA}>
       <DatosDelCandidato candidato={candidato} />
       {yaEsta && <Badge variant="muted">{TEXTOS_BUSCADOR_MAESTROS.yaElegido}</Badge>}
       {!yaEsta && (
@@ -88,7 +88,7 @@ function FilaParaAsignar({ candidato, yaEsta, registrarBoton, claseId }: FilaPar
   const asignar = useAsignarMaestro(claseId)
 
   return (
-    <li data-candidato-id={candidato.id} className={CLASES_DE_LA_FILA}>
+    <li data-candidato-maestro-id={candidato.id} className={CLASES_DE_LA_FILA}>
       <DatosDelCandidato candidato={candidato} />
       {yaEsta && <Badge variant="muted">{TEXTOS_BUSCADOR_MAESTROS.yaDaLaClase}</Badge>}
       {!yaEsta && (
@@ -133,7 +133,7 @@ export function BuscadorDeMaestros({
   const campoPropio = useRef<HTMLInputElement>(null)
   const campo = campoRef ?? campoPropio
   const botones = useRef(new Map<string, HTMLButtonElement>())
-  const filaEnFocoRef = useFilaEnFoco("data-candidato-id")
+  const filaEnFocoRef = useFilaEnFoco("data-candidato-maestro-id")
   const idsDeFilas = candidatos.data?.candidatos.map((candidato) => candidato.id)
 
   const registrarBoton = (id: string, nodo: HTMLButtonElement | null) => {

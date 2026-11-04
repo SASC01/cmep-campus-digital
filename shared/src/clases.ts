@@ -393,7 +393,8 @@ export const tipoPublicacionSchema = z.enum(["anuncio", "material"])
 const MENSAJE_TIPO_PUBLICACION = "Elige si es un anuncio o un material"
 const MENSAJE_DESCRIPCION_MATERIAL = "La descripción debe ser texto"
 
-// CLASES-d (§D-D4, C-22): hasta 5 ids sin repetidos; sin ids, []. El frontend los manda siempre.
+// CLASES-d (§D-D4, C-22): hasta 5 ids sin repetidos; sin ids, []. CLASES-03a (T-04): los repetidos se
+// comparan en minúsculas, porque un UUID es el mismo en mayúsculas y en minúsculas. El frontend los manda siempre.
 export const archivoIdsSchema = z
   .array(z.uuid({ error: "Un archivo adjunto no es válido" }), {
     error: "Los archivos adjuntos deben ser una lista",
@@ -401,7 +402,7 @@ export const archivoIdsSchema = z
   .max(MAXIMO_ADJUNTOS_POR_PUBLICACION, {
     error: `Puedes adjuntar hasta ${MAXIMO_ADJUNTOS_POR_PUBLICACION} archivos`,
   })
-  .refine((ids) => new Set(ids).size === ids.length, {
+  .refine((ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length, {
     error: "No repitas un archivo adjunto",
   })
   .default([])
@@ -471,6 +472,12 @@ export const publicacionRespuestaSchema = z.object({ publicacion: publicacionSch
 export const listaPublicacionesRespuestaSchema = z.object({
   publicaciones: z.array(publicacionSchema),
   siguienteCursor: z.uuid().nullable(),
+})
+
+// CLASES-03a (§D-3.2, DH-02 b): "Avisos" pide solo anuncios. Opcional para que la lista de hoy no
+// cambie; otro valor o el parámetro repetido (llega como arreglo) responden 400.
+export const avisosQuerySchema = paginacionSchema.extend({
+  tipo: z.literal("anuncio", { error: "tipo: no es válido" }).optional(),
 })
 
 export const comentarioSchema = z.object({
@@ -556,6 +563,7 @@ export type CrearComentario = z.infer<typeof crearComentarioSchema>
 export type Publicacion = z.infer<typeof publicacionSchema>
 export type PublicacionRespuesta = z.infer<typeof publicacionRespuestaSchema>
 export type ListaPublicacionesRespuesta = z.infer<typeof listaPublicacionesRespuestaSchema>
+export type AvisosQuery = z.infer<typeof avisosQuerySchema>
 export type Comentario = z.infer<typeof comentarioSchema>
 export type ComentarioRespuesta = z.infer<typeof comentarioRespuestaSchema>
 export type ListaComentariosRespuesta = z.infer<typeof listaComentariosRespuestaSchema>

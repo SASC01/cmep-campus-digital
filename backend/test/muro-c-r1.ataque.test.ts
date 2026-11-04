@@ -383,10 +383,15 @@ describe("ataque CLASES-c r1: concurrencia comentar y borrar (orden inverso a PR
         token: e.tokenMaestro,
       })
       let esperando = 0
+      // CLASES-03a r2 (Arbitraje 1 del manager): borrarPublicacion toma primero la fila con
+      // SELECT … FOR UPDATE (remedio de T-01/T-02), así que la espera puede estar en esa sentencia o en
+      // el DELETE. Cuenta solo la espera de una fila (criterio de CHORE-02: transactionid o tuple).
       for (let intento = 0; intento < 120 && esperando === 0; intento++) {
         const [fila] = await obtenerDb().$queryRaw<{ n: number }[]>`
           SELECT count(*)::int AS n FROM pg_stat_activity
-          WHERE wait_event_type = 'Lock' AND query ILIKE '%DELETE%' AND query ILIKE '%publicaciones%'
+          WHERE wait_event_type = 'Lock' AND wait_event IN ('transactionid', 'tuple')
+            AND query ILIKE '%publicaciones%'
+            AND (query ILIKE '%DELETE%' OR query ILIKE '%FOR UPDATE%')
             AND pid <> pg_backend_pid()`
         esperando = fila?.n ?? 0
         if (esperando === 0) await esperar(25)

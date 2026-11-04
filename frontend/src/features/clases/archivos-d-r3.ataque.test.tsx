@@ -55,6 +55,7 @@ afterEach(() => {
   navegacion.irA.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos». Sigue protegiendo lo mismo.
 describe("ataque d-r3: avisoDeFalloAlSubir desde lib.ts", () => {
   it("ARCHIVO_INVALIDO lleva el mensaje del servidor; otro código, el texto propio; un error que no es ApiError, el texto de la subida", () => {
     expect(
@@ -230,7 +231,7 @@ describe("ataque d-r3: muro con una página sin vistas previas y otra con ellas"
       const primera = muro()
       await screen.findByText("Material 1")
       ahora = T0 + 3 * 60_000
-      fireEvent.click(screen.getByRole("button", { name: "Ver más publicaciones" }))
+      fireEvent.click(screen.getByRole("button", { name: "Ver más avisos" }))
       await screen.findByRole("img", { name: "Imagen adjunta: Imagen 2.png" })
       expect(pedidas).toBe(2)
       primera.unmount()

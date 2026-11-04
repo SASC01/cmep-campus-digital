@@ -20,7 +20,9 @@ import { registroMaestroHandler } from "./handlers/auth/registro-maestro.js"
 import { alumnosHandler } from "./handlers/clases/alumnos.js"
 import { clasesHandler } from "./handlers/clases/clases.js"
 import { gestionDeClasesHandler } from "./handlers/clases/gestion.js"
+import { dudasHandler } from "./handlers/clases/dudas.js"
 import { muroHandler } from "./handlers/clases/muro.js"
+import { recursosHandler } from "./handlers/clases/recursos.js"
 import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
 import { saludHandler } from "./handlers/salud.js"
 import { categoriasHandler } from "./handlers/tareas/categorias.js"
@@ -80,6 +82,8 @@ export const construirApp = async ({
   await app.register(gestionDeClasesHandler, { prefix: "/api" })
   await app.register(alumnosHandler, { prefix: "/api" })
   await app.register(muroHandler, { prefix: "/api", almacen: almacenDeLaApp })
+  await app.register(recursosHandler, { prefix: "/api", almacen: almacenDeLaApp })
+  await app.register(dudasHandler, { prefix: "/api" })
   await app.register(archivosHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(temasHandler, { prefix: "/api" })
   await app.register(categoriasHandler, { prefix: "/api" })

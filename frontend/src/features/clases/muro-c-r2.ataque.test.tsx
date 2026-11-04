@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
@@ -190,6 +190,88 @@ const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, m
 
 const veinticinco = () => Array.from({ length: 25 }, (_, i) => publicacion(i + 1))
 
+// CLASES-03d ronda 0 (C-23 y C-30, §D-R0, Enmienda 10; §D-8.5): el material se publica desde «Nuevo
+// recurso» de «Recursos». Se monta con el router real (la ruta …/recursos), sin importar el
+// formulario, que todavía no existe: así la prueba compila y queda roja hasta que exista. La API
+// responde lo que pide el marco, las listas vacías de temas y recursos y un 201 al publicar.
+const stubDeRecursos = () => {
+  const fetchMock = vi.fn<typeof fetch>((entrada, init) => {
+    const metodo = init?.method ?? "GET"
+    const { pathname } = new URL(String(entrada), "http://local")
+    const base = `/api/clases/${CLASE_ID}`
+    if (pathname === "/api/auth/refrescar") {
+      return Promise.resolve(respuestaJson(200, { tokenAcceso: "restaurado" }))
+    }
+    if (pathname === "/api/me") {
+      return Promise.resolve(
+        respuestaJson(200, {
+          id: AUTOR.id,
+          nombre: AUTOR.nombre,
+          email: "luis@ejemplo.mx",
+          rol: "maestro",
+          debeCambiarContrasena: false,
+          accesoRestringido: false,
+        }),
+      )
+    }
+    if (metodo === "POST" && pathname === `${base}/publicaciones`) {
+      return Promise.resolve(
+        respuestaJson(201, {
+          publicacion: { ...publicacion(77), tipo: "material", titulo: "Unidad 1" },
+        }),
+      )
+    }
+    if (metodo !== "GET") return Promise.resolve(errorApi(500, "ERROR_INTERNO", "x"))
+    if (pathname === "/api/clases/impartidas") {
+      return Promise.resolve(respuestaJson(200, { clases: [], total: 0, siguienteCursor: null }))
+    }
+    if (pathname === base) {
+      const maestro = { id: AUTOR.id, nombre: AUTOR.nombre }
+      return Promise.resolve(
+        respuestaJson(200, {
+          clase: {
+            id: CLASE_ID,
+            nombre: "Álgebra I",
+            descripcion: null,
+            maestro,
+            maestros: [maestro],
+          },
+        }),
+      )
+    }
+    if (pathname === `${base}/codigo`) {
+      return Promise.resolve(respuestaJson(200, { codigo: "ABCD234" }))
+    }
+    if (pathname === `${base}/temas`) {
+      return Promise.resolve(respuestaJson(200, { temas: [], sinTema: 0 }))
+    }
+    if (pathname === `${base}/recursos`) {
+      return Promise.resolve(respuestaJson(200, { recursos: [], siguienteCursor: null }))
+    }
+    return Promise.resolve(errorApi(500, "ERROR_INTERNO", "x"))
+  })
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+const renderRecursos = async () => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, {
+    initialEntries: [`/maestro/clases/${CLASE_ID}/recursos`],
+  })
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+}
+
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
 beforeEach(() => {
   establecerToken("token-de-prueba")
 })
@@ -203,11 +285,12 @@ afterEach(() => {
   aviso.error.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
-  it("tras el 400 del cursor en «Ver más publicaciones», la persona ve un mensaje que dice qué pasó (no el «no es válido» técnico) y el foco no cae en <body>", async () => {
+  it("tras el 400 del cursor en «Ver más avisos», la persona ve un mensaje que dice qué pasó (no el «no es válido» técnico) y el foco no cae en <body>", async () => {
     const { estado } = crearServidor(deEstudiante(veinticinco()))
     renderMuro("estudiante")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     // Otra persona borra la publicación que es el cursor de la página siguiente.
     estado.publicaciones = estado.publicaciones.filter((p) => p.id !== idPublicacion(20))
     verMas.focus()
@@ -226,7 +309,7 @@ describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
   it("tras el 400 del cursor, volver a entrar al muro lo recupera sin recargar la página", async () => {
     const { estado } = crearServidor(deEstudiante(veinticinco()))
     const { vista, cliente } = renderMuro("estudiante")
-    const verMas = await screen.findByRole("button", { name: "Ver más publicaciones" })
+    const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     estado.publicaciones = estado.publicaciones.filter((p) => p.id !== idPublicacion(20))
     fireEvent.click(verMas)
     await screen.findByRole("alert")
@@ -240,7 +323,7 @@ describe("ataque CLASES-c r2: T-29 en la interfaz", () => {
   it("con dos páginas cargadas, borrar la publicación que era el cursor de la página 2 no vuelve a pedir ese cursor ni muestra un error", async () => {
     const { fetchMock } = crearServidor(veinticinco())
     renderMuro("maestro")
-    fireEvent.click(await screen.findByRole("button", { name: "Ver más publicaciones" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Ver más avisos" }))
     await screen.findByText("Publicación 25")
     const tarjeta = screen.getByText("Publicación 20").closest("li")
     if (!(tarjeta instanceof HTMLElement))
@@ -395,19 +478,17 @@ describe("ataque CLASES-c r2: T-31 en los formularios", () => {
     await waitFor(() => expect((campo as HTMLTextAreaElement).value).toBe(""))
   })
 
-  it("solo blancos: el formulario muestra el mismo mensaje que el servidor y no llama a la API (anuncio, título y comentario)", async () => {
+  // CLASES-03d ronda 0 (C-30, §D-R0, Enmienda 10; §D-8.5 y §D-8.7): el anuncio y el comentario se
+  // quedan en Avisos; el formulario de Avisos ya no tiene «Material» ni título, así que la parte del
+  // título pasa a un caso propio en «Nuevo recurso» (abajo), con "Escribe el título del recurso".
+  // Sigue protegiendo lo mismo: el mismo mensaje que el servidor y ninguna llamada a la API.
+  it("solo blancos: el formulario muestra el mismo mensaje que el servidor y no llama a la API (anuncio y comentario)", async () => {
     const { fetchMock } = crearServidor([publicacion(1)])
     renderMuro("maestro")
     await screen.findByText("Publicación 1")
     fireEvent.change(screen.getByLabelText("Anuncio"), { target: { value: `${blancos}\r` } })
     fireEvent.click(screen.getByRole("button", { name: "Publicar anuncio" }))
     expect(await screen.findByText("Escribe el anuncio")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Material" }))
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: "\u{FEFF}\u{3000} " },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
-    expect(await screen.findByText("Escribe el título del material")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Ver comentarios (0)" }))
     fireEvent.change(await screen.findByLabelText("Escribe un comentario"), {
       target: { value: blancos },
@@ -417,23 +498,42 @@ describe("ataque CLASES-c r2: T-31 en los formularios", () => {
     expect(llamadas(fetchMock, "POST")).toHaveLength(0)
   })
 
-  it("material con extremos en blanco en el título y la descripción: se envían normalizados", async () => {
-    const { fetchMock } = crearServidor([publicacion(1)])
-    renderMuro("maestro")
-    await screen.findByText("Publicación 1")
-    fireEvent.click(screen.getByRole("button", { name: "Material" }))
-    fireEvent.change(screen.getByLabelText("Título del material"), {
-      target: { value: "\u{FEFF}  Unidad 1\t" },
-    })
+  // CLASES-03d ronda 0 (C-30): la parte del título del caso anterior, en «Nuevo recurso» («Título
+  // del recurso», «Publicar recurso»), con el texto del arbitraje de la Enmienda 10.
+  it("solo blancos en «Título del recurso»: el formulario muestra «Escribe el título del recurso», nunca «…del material», y no llama a la API", async () => {
+    const fetchMock = stubDeRecursos()
+    await renderRecursos()
+    const titulo = await screen.findByLabelText("Título del recurso", {}, { timeout: 3000 })
+    fireEvent.change(titulo, { target: { value: "\u{FEFF}\u{3000} " } })
+    fireEvent.click(screen.getByRole("button", { name: "Publicar recurso" }))
+    expect(await screen.findByText("Escribe el título del recurso")).toBeInTheDocument()
+    expect(screen.queryByText("Escribe el título del material")).toBeNull()
+    expect(llamadas(fetchMock, "POST")).toHaveLength(0)
+  })
+
+  // CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5): el material se publica desde «Nuevo recurso» («Título
+  // del recurso», «Descripción (opcional)», «Publicar recurso»). Sin temas en la clase, el tema no
+  // viaja o viaja en null («Sin tema»; CL3-D08 lo deja opcional). Sigue protegiendo la normalización
+  // de T-31 del título y la descripción, con el cuerpo completo.
+  it("material (recurso) con extremos en blanco en el título y la descripción: se envían normalizados", async () => {
+    const fetchMock = stubDeRecursos()
+    await renderRecursos()
+    const titulo = await screen.findByLabelText("Título del recurso", {}, { timeout: 3000 })
+    fireEvent.change(titulo, { target: { value: "\u{FEFF}  Unidad 1\t" } })
     fireEvent.change(screen.getByLabelText("Descripción (opcional)"), {
       target: { value: `${blancos}línea 1\rlínea 2${blancos}` },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Publicar material" }))
+    fireEvent.click(screen.getByRole("button", { name: "Publicar recurso" }))
     await waitFor(() => expect(llamadas(fetchMock, "POST")).toHaveLength(1))
     // CLASES-d ronda 0, complemento (C-22, §D-R0; §D-D5 "Forma de los datos" y Enmienda 10): el
     // formulario envía siempre archivoIds, [] si no hay adjuntos. Sigue protegiendo la normalización
     // de T-31 del título y la descripción, con el cuerpo completo.
-    expect(cuerpoDe(llamadas(fetchMock, "POST")[0])).toEqual({
+    const { temaId, ...cuerpo } = cuerpoDe(llamadas(fetchMock, "POST")[0]) as Record<
+      string,
+      unknown
+    >
+    expect(temaId ?? null).toBeNull()
+    expect(cuerpo).toEqual({
       tipo: "material",
       titulo: "Unidad 1",
       texto: "línea 1\nlínea 2",

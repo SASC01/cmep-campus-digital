@@ -11,7 +11,7 @@ import { MuroView } from "./muro-view"
 
 // Ataque del Tester (CLASES-c, ronda 3, punto 2 de la lista del manager): T-34 por la razón
 // correcta. El texto "…cambió mientras lo veías…" sale solo con el 400 VALIDACION del campo cursor
-// en "Ver más publicaciones" y "Ver más comentarios"; un 400 de otro campo (con y sin la palabra
+// en "Ver más avisos" y "Ver más comentarios"; un 400 de otro campo (con y sin la palabra
 // cursor en el mensaje), un 400 que no es VALIDACION, un 500, un 403 o la falta de conexión siguen
 // mostrando lo de siempre (mensajeDeConsultaClases).
 
@@ -30,7 +30,8 @@ const AUTOR = {
 }
 const ID_PUBLICACION = "5a5b3c4d-1c1f-4b8e-9a1e-000000000001"
 const ID_COMENTARIO = "6a6b3c4d-1c1f-4b8e-9a1e-000000000001"
-const TEXTO_MURO = "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo."
+const TEXTO_MURO =
+  "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos."
 const TEXTO_COMENTARIOS =
   "Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos."
 
@@ -176,6 +177,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos» y la frase del cursor a R1. Sigue protegiendo lo mismo.
 describe("ataque CLASES-c r3: T-34 solo con el 400 del cursor", () => {
   it("los casos de «lo de siempre» no son el texto nuevo (precondición del cotejo)", () => {
     for (const caso of CASOS.filter((c) => !c.esCursor)) {
@@ -185,11 +187,11 @@ describe("ataque CLASES-c r3: T-34 solo con el 400 del cursor", () => {
   })
 
   it.each(CASOS.map((caso) => [caso.nombre, caso] as const))(
-    "«Ver más publicaciones» con %s",
+    "«Ver más avisos» con %s",
     async (_nombre, caso) => {
       stub("publicaciones", caso.respuesta)
       renderMuro()
-      fireEvent.click(await screen.findByRole("button", { name: "Ver más publicaciones" }))
+      fireEvent.click(await screen.findByRole("button", { name: "Ver más avisos" }))
       const alerta = await screen.findByRole("alert")
       const esperado = caso.esCursor ? TEXTO_MURO : caso.deSiempre
       expect(within(alerta).getByText(esperado)).toBeInTheDocument()

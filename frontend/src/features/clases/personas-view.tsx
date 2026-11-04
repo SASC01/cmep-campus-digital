@@ -1,16 +1,25 @@
 import { useRef, type ReactNode } from "react"
+import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
+import { AlumnosView } from "./alumnos-view"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
+import { ListaMaestrosDeClase } from "./components/lista-maestros-de-clase"
 import { ListaPersonas } from "./components/lista-personas"
 import { TEXTOS_PERSONAS } from "./data"
-import { useFocoAlCargarMas, usePersonas } from "./hooks"
-import { etiquetaDeMaestros, mensajeDeConsultaClases, textoConteoAlumnos } from "./lib"
+import { useClase, useFocoAlCargarMas, usePersonas } from "./hooks"
+import {
+  etiquetaDeMaestros,
+  mensajeDeConsultaClases,
+  perspectivaDeRuta,
+  textoConteoAlumnos,
+} from "./lib"
+import { MaestrosDeClaseView } from "./maestros-de-clase-view"
 
 interface PersonasDeLaClaseProps {
   claseId: string
@@ -61,7 +70,7 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
             type="button"
             variant="outline"
             onClick={() => void personas.fetchNextPage({ cancelRefetch: false })}
-            enEspera={personas.isFetchingNextPage}
+            enEspera={personas.isFetching}
             className="self-start"
           >
             {TEXTOS_PERSONAS.verMas}
@@ -104,7 +113,79 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
   )
 }
 
-// El :claseId lo lee ConClaseDeLaRuta (§D-C5 bis).
+interface MaestrosDeLaClaseEnLecturaProps {
+  claseId: string
+}
+
+// CLASES-03 (§D-7.7, S-07): los maestros de la clase para el maestro, de solo lectura (sin "Quitar":
+// asignar y quitar es del admin). Los nombres salen del detalle de la clase, la misma consulta del
+// encabezado, ya en caché: ninguna petición nueva. Estados en orden: error → cargando → datos.
+function MaestrosDeLaClaseEnLectura({ claseId }: MaestrosDeLaClaseEnLecturaProps) {
+  const clase = useClase(claseId)
+  const titulo =
+    clase.data === undefined
+      ? TEXTOS_PERSONAS.maestros
+      : etiquetaDeMaestros(clase.data.maestros.length)
+
+  const contenido = (): ReactNode => {
+    if (clase.isError) return <MensajeError mensaje={mensajeDeConsultaClases(clase.error)} />
+    if (clase.isLoading || !clase.data) return <Cargando />
+    return (
+      <ListaMaestrosDeClase
+        etiqueta={titulo}
+        maestros={clase.data.maestros}
+        confirmar={false}
+        quitando={false}
+        puedeQuitar={false}
+        onQuitar={() => undefined}
+        alQuedarseSinDestino={() => undefined}
+      />
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="text-h2">{titulo}</h2>
+      </CardHeader>
+      <CardContent>{contenido()}</CardContent>
+    </Card>
+  )
+}
+
+// CLASES-03 (§D-7.7, S-07, DH-09): "Personas" decide por la perspectiva de la ruta. El estudiante ve a
+// sus maestros y compañeros (lo de antes); el maestro, a los maestros de la clase (solo lectura) y su
+// roster con el buscador (lo que era "Alumnos"); el admin, la asignación de maestros (lo que era
+// "Maestros") y el roster con el buscador. Maestros arriba, alumnos abajo. Se componen las vistas que
+// ya existían; cada una lee :claseId con ConClaseDeLaRuta. Sin :claseId válido, la vista dice una sola
+// vez que no hay acceso: las vistas compuestas solo se montan dentro de la comprobación de afuera.
 export function PersonasView() {
+  const { pathname } = useLocation()
+  const perspectiva = perspectivaDeRuta(pathname)
+  if (perspectiva === "admin") {
+    return (
+      <ConClaseDeLaRuta>
+        {() => (
+          <div className="flex flex-col gap-5">
+            <MaestrosDeClaseView />
+            <AlumnosView />
+          </div>
+        )}
+      </ConClaseDeLaRuta>
+    )
+  }
+  if (perspectiva === "maestro") {
+    return (
+      <ConClaseDeLaRuta>
+        {(claseId) => (
+          <div className="flex flex-col gap-5">
+            <MaestrosDeLaClaseEnLectura claseId={claseId} />
+            <AlumnosView />
+          </div>
+        )}
+      </ConClaseDeLaRuta>
+    )
+  }
+  // El :claseId lo lee ConClaseDeLaRuta (§D-C5 bis).
   return <ConClaseDeLaRuta>{(claseId) => <PersonasDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
 }

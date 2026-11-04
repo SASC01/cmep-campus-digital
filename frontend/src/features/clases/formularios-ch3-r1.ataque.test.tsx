@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
@@ -86,7 +86,16 @@ const alumno = (n: number) => ({
 const respuestaNormal = ({ metodo, url }: Llamada, rol: string): Response | null => {
   const { pathname } = new URL(url, "http://local")
   if (pathname === "/api/me") return respuestaJson(200, ME(rol))
+  // CLASES-03d ronda 0 (C-23): «Nuevo recurso» se monta con el router real, que pide además el
+  // refresco, la barra de clases del maestro y las listas de recursos de cada bloque.
+  if (pathname === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "restaurado" })
   if (metodo !== "GET") return null
+  if (pathname === "/api/clases/impartidas") {
+    return respuestaJson(200, { clases: [], total: 0, siguienteCursor: null })
+  }
+  if (pathname === `${RUTA_CLASE}/recursos`) {
+    return respuestaJson(200, { recursos: [], siguienteCursor: null })
+  }
   if (pathname === "/api/admin/maestros/candidatos") {
     return respuestaJson(200, {
       candidatos: [{ id: MAESTRO.id, nombre: MAESTRO.nombre, email: "luis@x.mx" }],
@@ -203,6 +212,27 @@ const montar = async (ruta: string, patron: string, elemento: ReactNode) => {
   return cliente
 }
 
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5): «Nuevo recurso» vive en la vista de «Recursos», que se
+// monta con el router real por su ruta, sin importar el formulario (todavía no existe: así la prueba
+// compila y queda roja hasta que exista). Un cliente sin reintentos, como `montar`.
+const montarConLasRutas = async (ruta: string) => {
+  const { rutas } = await import("@/app/router")
+  const cliente = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  render(
+    <QueryClientProvider client={cliente}>
+      <RouterProvider router={createMemoryRouter(rutas, { initialEntries: [ruta] })} />
+    </QueryClientProvider>,
+  )
+  await reposar()
+  return cliente
+}
+
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
 const asentar = async (cliente: QueryClient) => {
   await waitFor(() => expect(cliente.isFetching() + cliente.isMutating()).toBe(0))
   await reposar()
@@ -228,6 +258,8 @@ interface Formulario {
   boton: () => HTMLElement
   envio: (llamada: Llamada) => boolean
   conservado: () => void
+  // CLASES-03d ronda 0 (C-23): se monta con el router real en `ruta` y no con `elemento`.
+  conLasRutas?: true
 }
 
 const es = (metodo: string, ruta: string) => (llamada: Llamada) =>
@@ -281,29 +313,32 @@ const ANUNCIO: Formulario = {
     ),
 }
 
-const MATERIAL: Formulario = {
-  nombre: "publicar un material",
-  ruta: `/maestro/clases/${CLASE_ID}`,
-  patron: "/maestro/clases/:claseId",
-  elemento: () => <FormularioPublicacion claseId={CLASE_ID} />,
+// CLASES-03d ronda 0 (C-23, §D-R0; §D-8.5 y §D-15): el material se publica desde «Nuevo recurso» en
+// «Recursos» (FormularioRecurso, sin grupo de tipo). Sus textos van literales (§D-13) porque sus
+// constantes todavía no existen. Los casos del material siguen valiendo para el recurso: el título sí
+// se pinta y temaId se avisa. Siguen protegiendo lo mismo.
+const RECURSO: Formulario = {
+  nombre: "publicar un recurso",
+  ruta: `/maestro/clases/${CLASE_ID}/recursos`,
+  patron: "/maestro/clases/:claseId/recursos",
+  elemento: () => null,
+  conLasRutas: true,
   llenar: async () => {
-    fireEvent.click(screen.getByRole("button", { name: TEXTOS_FORMULARIO_PUBLICACION.material }))
-    escribir(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo, "Lectura")
-    escribir(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion, "Capítulo 3")
+    await screen.findByLabelText("Título del recurso", {}, { timeout: 3000 })
+    escribir("Título del recurso", "Lectura")
+    escribir("Descripción (opcional)", "Capítulo 3")
     await waitFor(() => expect(llamadas.some(es("GET", `${RUTA_CLASE}/temas`))).toBe(true))
   },
-  boton: () => screen.getByRole("button", { name: TEXTOS_FORMULARIO_PUBLICACION.publicarMaterial }),
+  boton: () => screen.getByRole("button", { name: "Publicar recurso" }),
   envio: es("POST", `${RUTA_CLASE}/publicaciones`),
   conservado: () => {
-    expect(screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo)).toHaveValue("Lectura")
-    expect(screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion)).toHaveValue(
-      "Capítulo 3",
-    )
+    expect(screen.getByLabelText("Título del recurso")).toHaveValue("Lectura")
+    expect(screen.getByLabelText("Descripción (opcional)")).toHaveValue("Capítulo 3")
   },
 }
 
 const grupoDeMaestros = () => screen.getByRole("group", { name: TEXTOS_BUSCADOR_MAESTROS.grupo })
-const campoTitulo = () => screen.getByLabelText(TEXTOS_FORMULARIO_PUBLICACION.campoTitulo)
+const campoTitulo = () => screen.getByLabelText("Título del recurso")
 
 interface CasoDeFormulario {
   formulario: Formulario
@@ -387,23 +422,23 @@ const CASOS_DE_FORMULARIO: readonly CasoDeFormulario[] = [
     esperado: ID_INVALIDO,
     donde: "aviso",
   },
-  // Material: el título sí se pinta.
+  // Recurso (antes, material; CLASES-03d ronda 0, C-23): el título sí se pinta.
   {
-    formulario: MATERIAL,
+    formulario: RECURSO,
     mensaje: `titulo: ${M}`,
     esperado: M,
     donde: "campo",
     control: campoTitulo,
   },
   {
-    formulario: MATERIAL,
+    formulario: RECURSO,
     mensaje: "titulo:\u{200B}\n",
     esperado: GENERICO,
     donde: "campo",
     control: campoTitulo,
   },
   {
-    formulario: MATERIAL,
+    formulario: RECURSO,
     mensaje: `temaId: temaId: ${ID_INVALIDO}`,
     esperado: ID_INVALIDO,
     donde: "aviso",
@@ -419,10 +454,12 @@ describe("ataque CHORE-03 03b r1 · un solo mensaje legible en los formularios (
   it.each(casosNombrados.map((caso) => [caso.titulo, caso.donde, caso] as const))(
     "%s da exactamente un mensaje legible (%s), sin ruta; lo escrito se conserva y el botón sale de la espera",
     async (_titulo, _donde, { formulario, mensaje, esperado, donde, control }) => {
-      rolDeSesion = formulario === ANUNCIO || formulario === MATERIAL ? "maestro" : "admin"
+      rolDeSesion = formulario === ANUNCIO || formulario === RECURSO ? "maestro" : "admin"
       falla = formulario.envio
       mensajeDeFalla = mensaje
-      const cliente = await montar(formulario.ruta, formulario.patron, formulario.elemento())
+      const cliente = formulario.conLasRutas
+        ? await montarConLasRutas(formulario.ruta)
+        : await montar(formulario.ruta, formulario.patron, formulario.elemento())
       await formulario.llenar()
       await asentar(cliente)
 

@@ -151,14 +151,30 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
   // C-8 de CALIFICACIONES-01d (§D-R0, A-5): de 56 a 61, las cuatro ventanas del gradebook y "Ver más tareas".
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 61 enEspera", () => {
+  // CLASES-03d ronda 0 (C-21, §D-R0; §D-8.2, §D-8.3 y §D-8.5): de 61 a 64. Se suman a la lista fija
+  // formulario-recurso.tsx (1: "Publicar recurso" o "Guardar cambios", un solo botón),
+  // elemento-de-recurso.tsx (1: "Sí, borrar recurso") y seccion-de-recursos.tsx (1: "Ver más de
+  // <tema>"); con 0 explícito, recursos-view.tsx y editar-recurso-view.tsx. "Mover" sigue en
+  // mover-elemento.tsx y los comentarios en comentarios-de-publicacion.tsx (sin cambio), y
+  // formulario-publicacion.tsx sigue en 1 ("Publicar anuncio"). Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  // CLASES-03e ronda 0 (C-21, §D-R0; §D-9.1 a §D-9.3): de 64 a 71. Se suman a la lista fija
+  // dudas-view.tsx (1: "Ver más dudas"), formulario-duda.tsx (1: "Publicar duda"),
+  // elemento-de-duda.tsx (2: "Marcar como resuelta" o "Quitar «Resuelta»", un solo botón, y "Sí,
+  // borrar duda"), respuestas-de-duda.tsx (2: "Ver más respuestas" y "Sí, borrar respuesta") y
+  // formulario-respuesta.tsx (1: "Responder"). El control que despliega las respuestas, "Borrar
+  // duda", "Borrar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en
+  // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
+  // espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 71 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(61)
+    expect(usos).toHaveLength(71)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -278,6 +294,18 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/calificaciones/components/resumen-del-gradebook.tsx": 0,
       "/src/features/calificaciones/components/lista-de-mis-calificaciones.tsx": 0,
       "/src/features/calificaciones/components/calculo-de-calificacion.tsx": 0,
+      // C-21 de CLASES-03d (§D-R0): los tres botones nuevos de "Recursos" y sus dos vistas en 0.
+      "/src/features/clases/components/formulario-recurso.tsx": 1,
+      "/src/features/clases/components/elemento-de-recurso.tsx": 1,
+      "/src/features/clases/components/seccion-de-recursos.tsx": 1,
+      "/src/features/clases/recursos-view.tsx": 0,
+      "/src/features/clases/editar-recurso-view.tsx": 0,
+      // C-21 de CLASES-03e (§D-R0): los siete botones con espera de "Dudas".
+      "/src/features/clases/dudas-view.tsx": 1,
+      "/src/features/clases/components/formulario-duda.tsx": 1,
+      "/src/features/clases/components/elemento-de-duda.tsx": 2,
+      "/src/features/clases/components/respuestas-de-duda.tsx": 2,
+      "/src/features/clases/components/formulario-respuesta.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -346,9 +374,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       // de entrega (§7.7, vidrio fuerte) y la fila del material, con el mismo material. Las secciones de
       // tema, la vista de categorías, el editor y los formularios de tema toman su vidrio de Card. El
       // vidrio sin variante, el vidrio azul y data-material no cambian, y la igualdad sigue exacta.
+      // CLASES-03d ronda 0 (C-22 y C-23, §D-R0; §D-8.3 y §D-8.7): suma la fila de un recurso
+      // (elemento-de-recurso.tsx, vidrio fuerte como la fila del material, §7.22) y sale
+      // formulario-publicacion.tsx: su único vidrio fuerte era el grupo "Tipo de publicación", que deja
+      // de existir con el formulario solo de anuncios. El vidrio sin variante, el vidrio azul y
+      // data-material no cambian, y la igualdad sigue exacta.
+      "/src/features/clases/components/elemento-de-recurso.tsx",
       "/src/features/clases/components/elemento-de-trabajo.tsx",
       "/src/features/clases/components/fila-de-entrega.tsx",
-      "/src/features/clases/components/formulario-publicacion.tsx",
       "/src/features/clases/components/tarjeta-clase.tsx",
       // TAREAS-01d ronda 0, complementaria 2 (C-13 (5), Enmienda 4; S-13 y DESIGN §7.3): el control
       // segmentado de entregas tardías del formulario de tarea, copia del de "Tipo de publicación"

@@ -22,7 +22,8 @@ const FIRMA = { ...AUTOR, administracion: false }
 const MAESTRO_CON_CORREO = { ...AUTOR, email: "luis@ejemplo.mx" }
 const idPublicacion = (n: number) => `5a5b3c4d-1c1f-4b8e-9a1e-${String(n).padStart(12, "0")}`
 const idComentario = (n: number) => `6a6b3c4d-1c1f-4b8e-9a1e-${String(n).padStart(12, "0")}`
-const TEXTO_MURO = "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo."
+const TEXTO_MURO =
+  "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos."
 const TEXTO_COMENTARIOS =
   "Los comentarios cambiaron mientras los veías. Vuelve a abrirlos para verlos completos."
 
@@ -165,13 +166,13 @@ const renderEn = async (ruta: string) => {
 
 const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms))
 
-// Carga el muro, borra el cursor de la página siguiente y pulsa "Ver más publicaciones".
+// Carga el muro, borra el cursor de la página siguiente y pulsa "Ver más avisos".
 const muroEnError = async () => {
   const servidor = crearServidor()
   const router = await renderEn(`/estudiante/clases/${CLASE_ID}`)
   const verMas = await screen.findByRole(
     "button",
-    { name: "Ver más publicaciones" },
+    { name: "Ver más avisos" },
     {
       timeout: 5000,
     },
@@ -196,25 +197,26 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// CLASES-03c1 ronda 0 (C-14, §D-R0; §D-7.1 y §D-13): «Muro» pasa a «Avisos», «Ver más publicaciones» a «Ver más avisos» y la frase del cursor a R1; los caminos que ya se probaban quedan como casos de R1. Sigue protegiendo lo mismo.
 describe("ataque CLASES-c r3: qué recupera la lista tras el 400 del cursor (sin recargar)", () => {
-  it("muro: cambiar a «Personas» y regresar a «Muro» recupera la lista", async () => {
+  it("muro: cambiar a «Personas» y regresar a «Avisos» recupera la lista", async () => {
     await muroEnError()
     fireEvent.click(screen.getByRole("link", { name: "Personas" }))
     await screen.findByRole("heading", { name: "Alumnos" }, { timeout: 5000 })
-    fireEvent.click(screen.getByRole("link", { name: "Muro" }))
+    fireEvent.click(screen.getByRole("link", { name: "Avisos" }))
     expect(await screen.findByText("Publicación 21", undefined, { timeout: 5000 })).toBeTruthy()
     expect(screen.queryByText(TEXTO_MURO)).toBeNull()
   })
 
-  it("muro: estando en el muro, «Vuelve a abrirlo» pulsando «Muro» recupera la lista", async () => {
+  it("muro: estando en el muro, «Vuelve a abrirlo» pulsando «Avisos» recupera la lista", async () => {
     const { router } = await muroEnError()
     const antes = router.state.location.key
-    fireEvent.click(screen.getByRole("link", { name: "Muro" }))
+    fireEvent.click(screen.getByRole("link", { name: "Avisos" }))
     await waitFor(() => expect(router.state.location.key).not.toBe(antes))
     await esperar(500)
     expect(
       screen.queryByText(TEXTO_MURO),
-      "pulsar «Muro» (abrir el muro estando en él) no hace nada: la vista no se desmonta ni se vuelve a pedir la lista; lo que recupera es cambiar de sección y regresar",
+      "pulsar «Avisos» (abrir el muro estando en él) no hace nada: la vista no se desmonta ni se vuelve a pedir la lista; lo que recupera es cambiar de sección y regresar",
     ).toBeNull()
     expect(screen.queryByText("Publicación 1")).toBeTruthy()
   })

@@ -5,8 +5,15 @@ import {
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
 import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 import { BASES_POR_PERSPECTIVA } from "@/lib/ruta-de-clase"
+import { claveTemas } from "@/services/trabajoService"
 
-import type { CapacidadesDePerspectiva, Perspectiva, TipoPublicacion } from "./types"
+import type {
+  BloqueDeRecurso,
+  CapacidadesDePerspectiva,
+  Perspectiva,
+  SeccionDeClase,
+  SeccionDeTemas,
+} from "./types"
 
 // Claves de consulta de TanStack Query (CLASES-a). Se reutilizan tal cual en las invalidaciones y
 // en la prueba de cambio de identidad (PR-A23a).
@@ -32,6 +39,22 @@ export const claveCandidatos = (claseId: string) => ["clases", claseId, "candida
 // del muro, para que invalidar la lista no vuelva a pedir los comentarios de todas las abiertas.
 export const claveComentarios = (claseId: string, publicacionId: string) =>
   ["clases", claseId, "comentarios", publicacionId] as const
+// CLASES-03c2 (§D-7.6): los temas con los conteos de una sección. Cuelga de la clave de los temas
+// (el total), así que toda invalidación de esa clave, no exacta, también la alcanza.
+export const claveTemasDeLaSeccion = (claseId: string, seccion: SeccionDeTemas) =>
+  [...claveTemas(claseId), seccion] as const
+// CLASES-03d (§D-8.4): las listas de "Recursos" cuelgan de un prefijo (invalidarlo las alcanza a todas)
+// y el recurso que se edita vive fuera de él: invalidar las listas no recarga la edición.
+export const clavePrefijoDeRecursos = (claseId: string) => ["clases", claseId, "recursos"] as const
+export const claveRecursos = (claseId: string, bloque: BloqueDeRecurso, tema: string) =>
+  [...clavePrefijoDeRecursos(claseId), bloque, tema] as const
+export const claveRecurso = (claseId: string, recursoId: string) =>
+  ["clases", claseId, "recurso", recursoId] as const
+// CLASES-03e (§D-9.4): la lista de "Dudas" y las respuestas de cada duda. Las respuestas no cuelgan de la
+// lista (como los comentarios del muro): invalidar la lista no vuelve a pedir las respuestas abiertas.
+export const claveDudas = (claseId: string) => ["clases", claseId, "dudas"] as const
+export const claveRespuestas = (claseId: string, dudaId: string) =>
+  ["clases", claseId, "respuestas", dudaId] as const
 
 export const LIMITE_CLASES = 20
 // §D-2C2: la lista de clases del administrador se pide de 50 en 50.
@@ -43,6 +66,9 @@ export const LIMITE_CANDIDATOS = 20
 // §D-C2: el muro y los comentarios se piden de 20 en 20.
 export const LIMITE_PUBLICACIONES = 20
 export const LIMITE_COMENTARIOS = 20
+// CLASES-03e (S-06): las dudas y sus respuestas se piden de 20 en 20.
+export const LIMITE_DUDAS = 20
+export const LIMITE_RESPUESTAS = 20
 export const ESPERA_BUSQUEDA_MS = 300
 
 // DESIGN.md §7.6: variantes de la tarjeta de clase, según la identidad de la clase (S-06), nunca un
@@ -175,7 +201,8 @@ export const TEXTOS_MAESTROS_DE_CLASE = {
   titulo: "Maestros de la clase",
   asignarTitulo: "Asignar maestro",
   quitar: "Quitar",
-  consecuencia: "Dejará de ver la clase. Lo que publicó se queda en el muro.",
+  // CLASES-03 (§D-13): "el muro" ya no es el nombre de una sección.
+  consecuencia: "Dejará de ver la clase. Lo que publicó se queda en la clase.",
   siQuitar: "Sí, quitar",
   cancelar: "Cancelar",
   minimo: "Una clase necesita al menos un maestro. Asigna a otro antes de quitar a este.",
@@ -202,6 +229,10 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "CATEGORIA_CON_TAREAS",
   "CATEGORIA_NO_ENCONTRADA",
   "ANUNCIO_SIN_TEMA",
+  // CLASES-03d (§D-13): los errores de "Recursos" que ya llegan en español.
+  "RECURSO_MODIFICADO",
+  "MOVER_NO_PERMITIDO",
+  "EDICION_NO_PERMITIDA",
 ]
 
 export const TEXTOS_CODIGO = {
@@ -227,6 +258,11 @@ export const MENSAJES_ERROR_CLASES_GENERALES = {
   // §D-C6: errores del muro.
   publicacionNoEncontrada: "Esa publicación ya no existe.",
   comentarioNoEncontrado: "Ese comentario ya no existe.",
+  // CLASES-03d (§D-13): el recurso que se abre o se edita.
+  recursoNoEncontrado: "Ese recurso ya no existe.",
+  // CLASES-03e (§D-13): la duda o la respuesta que ya no está.
+  dudaNoEncontrada: "Esa duda ya no existe.",
+  respuestaNoEncontrada: "Esa respuesta ya no existe.",
   // §D-D6: errores de los archivos adjuntos.
   // TAREAS-01c (§D-9): los textos de los archivos viven en components/adjuntos/data.ts.
   archivoNoSubido: MENSAJES_ERROR_DE_ARCHIVOS.archivoNoSubido,
@@ -243,6 +279,9 @@ export const MENSAJES_POR_CODIGO_DE_CLASES: Readonly<Record<string, string>> = {
   ALUMNO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.alumnoNoEncontrado,
   PUBLICACION_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.publicacionNoEncontrada,
   COMENTARIO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.comentarioNoEncontrado,
+  RECURSO_NO_ENCONTRADO: MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado,
+  DUDA_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.dudaNoEncontrada,
+  RESPUESTA_NO_ENCONTRADA: MENSAJES_ERROR_CLASES_GENERALES.respuestaNoEncontrada,
   // TAREAS-01c (§D-9): los cuatro códigos de error de archivos vienen de components/adjuntos/data.ts.
   ...MENSAJES_POR_CODIGO_DE_ARCHIVO,
 }
@@ -255,6 +294,14 @@ export const TRADUCCION_DE_ERRORES_CLASES = {
   codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
   textosPorCampo: {
     claseId: MENSAJES_ERROR_CLASES_GENERALES.sinAccesoALaClase,
+    // CLASES-03d (§D-13): un VALIDACION de recursoId dice lo mismo que RECURSO_NO_ENCONTRADO.
+    recursoId: MENSAJES_ERROR_CLASES_GENERALES.recursoNoEncontrado,
+    // CLASES-03e (§D-13): los ids de la ruta de una duda y de una respuesta dicen lo mismo que su código.
+    dudaId: MENSAJES_ERROR_CLASES_GENERALES.dudaNoEncontrada,
+    respuestaId: MENSAJES_ERROR_CLASES_GENERALES.respuestaNoEncontrada,
+    // Tras quitar la ruta queda "debe ser verdadero o falso", que no dice nada que la persona pueda hacer
+    // (la interfaz siempre envía un booleano): el genérico.
+    resuelta: MENSAJES_ERROR_CLASES_GENERALES.generico,
   },
 } satisfies TraduccionDeErrores
 
@@ -265,22 +312,35 @@ export const CAMPOS_PINTADOS_DE_LA_CLASE = {
   editar: ["nombre", "descripcion"],
 } as const
 
+// CLASES-03d (§D-8.7): el formulario de Avisos solo publica anuncios; el título de un recurso vive en
+// "Nuevo recurso" (CAMPOS_PINTADOS_DEL_RECURSO).
 export const CAMPOS_PINTADOS_DE_LA_PUBLICACION = {
   anuncio: ["texto"],
-  material: ["titulo", "texto"],
-} as const satisfies Readonly<Record<TipoPublicacion, readonly string[]>>
+} as const satisfies Readonly<Record<"anuncio", readonly string[]>>
+
+// CLASES-03e (§D-9.4, §D-15): la duda y la respuesta solo pintan su texto; cualquier otro campo se avisa.
+export const CAMPOS_PINTADOS_DE_LA_DUDA = ["texto"] as const
+export const CAMPOS_PINTADOS_DE_LA_RESPUESTA = ["texto"] as const
+
+// CLASES-03d (§D-8.5, §D-15): los campos que pintan "Nuevo recurso" y "Editar recurso". Cualquier otro
+// (temaId, archivoIds.<i>, tipo, version) se avisa.
+export const CAMPOS_PINTADOS_DEL_RECURSO = {
+  crear: ["titulo", "texto"],
+  editar: ["titulo", "texto"],
+} as const
 
 export const TEXTOS_CLASE = {
   volver: "Volver a mis clases",
   volverALaLista: "Volver a la lista de clases",
   maestro: (nombre: string) => `Maestro: ${nombre}`,
   maestros: (nombres: string) => `Maestros: ${nombres}`,
-  muro: "Muro",
-  // TAREAS-01e (§D-11): la sección nueva, segunda en las tres perspectivas.
-  trabajo: "Trabajo de clase",
+  // CLASES-03 (§D-7.1, §D-13, RF-60 y RF-61): las secciones de la clase, iguales en las tres
+  // perspectivas. "Recursos" y "Dudas" entran en la lista en 03d y 03e.
+  avisos: "Avisos",
+  trabajo: "Actividades de aprendizaje",
+  recursos: "Recursos",
+  dudas: "Dudas",
   personas: "Personas",
-  alumnos: "Alumnos",
-  maestrosDeLaClase: "Maestros",
   // CALIFICACIONES-01d (§D-13.6, S-10): la sección nueva, última en las tres perspectivas.
   calificaciones: "Calificaciones",
   editar: "Editar clase",
@@ -335,31 +395,29 @@ export const TEXTOS_TABLA_ALUMNOS = {
 } as const
 
 // §D-C6: textos de CLASES-c (propuesta).
+// CLASES-03 (§D-7.5, §D-13): la sección se llama "Avisos" (el archivo y la clave siguen siendo del
+// muro, DH-09). Sin "Crear tarea" (S-09): las tareas se crean en "Actividades de aprendizaje".
 export const TEXTOS_MURO = {
-  crearTarea: "Crear tarea",
-  tituloLista: "Publicaciones",
-  vacioEstudiante: "Tu maestro aún no ha publicado nada en esta clase.",
-  vacioMaestro: "Publica el primer anuncio o material de tu clase.",
-  vacioAdmin: "Aún no hay publicaciones en esta clase.",
-  verMasPublicaciones: "Ver más publicaciones",
+  tituloLista: "Avisos",
+  vacioEstudiante: "Aún no hay avisos en esta clase.",
+  vacioMaestro: "Publica el primer aviso de tu clase.",
+  vacioAdmin: "Publica el primer aviso de esta clase.",
+  verMasPublicaciones: "Ver más avisos",
   avisoPublicacionBorrada: "Publicación borrada",
-  cambioMientrasLoVeias: "El muro cambió mientras lo veías. Vuelve a abrirlo para verlo completo.",
+  // R1 (§D-10): la acción que pide se cumple al pulsar "Avisos" estando en Avisos, al ir a otra
+  // sección y regresar, y con atrás y adelante del historial.
+  cambioMientrasLoVeias:
+    "Los avisos cambiaron mientras los veías. Vuelve a abrir Avisos para verlos completos.",
 } as const
 
+// CLASES-03d (§D-8.7): el formulario de Avisos solo publica anuncios (sin tipo, título ni tema).
 export const TEXTOS_FORMULARIO_PUBLICACION = {
-  grupoTipo: "Tipo de publicación",
-  anuncio: "Anuncio",
-  material: "Material",
-  campoTitulo: "Título del material",
   campoAnuncio: "Anuncio",
-  campoDescripcion: "Descripción (opcional)",
   publicarAnuncio: "Publicar anuncio",
-  publicarMaterial: "Publicar material",
   avisoPublicado: "Publicado",
-  // TAREAS-01e (§D-11, Enmienda 6): el tema de un material.
-  campoTema: "Tema",
+  // La lee PR-1A17 de features/tareas (como-se-entrega-01a.test.tsx); sale cuando esa prueba apunte a
+  // TEXTOS_FORMULARIO_RECURSO.
   sinTema: TEXTOS_DE_LA_CLASE.sinTema,
-  temasNoCargados: "No pudimos cargar los temas. El material se publicará sin tema.",
 } as const
 
 // TAREAS-01d (§D-10, S-10): la tarjeta de una tarea en el muro.
@@ -410,6 +468,19 @@ export {
 // son URL firmadas que vencen a los 5 minutos de firmarse.
 export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
 
+// CLASES-03 (§D-7.1, RF-60, S-08): las secciones de la clase, en este orden y las mismas en las tres
+// perspectivas; "Personas" junta a los maestros y el roster (§D-7.7). Sin "Foro" (FORO-01).
+const SECCIONES_DE_LA_CLASE: readonly SeccionDeClase[] = [
+  { segmento: "", texto: TEXTOS_CLASE.avisos },
+  { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
+  // CLASES-03d (§D-7.1): "Recursos", entre "Actividades de aprendizaje" y "Personas".
+  { segmento: "recursos", texto: TEXTOS_CLASE.recursos },
+  // CLASES-03e (§D-7.1): "Dudas", entre "Recursos" y "Personas".
+  { segmento: "dudas", texto: TEXTOS_CLASE.dudas },
+  { segmento: "personas", texto: TEXTOS_CLASE.personas },
+  { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
+]
+
 // §D-2C1: lo que cada perspectiva ve de una clase. La interfaz solo decide qué mostrar; el backend
 // ya decide qué se permite (§D-2.0). Ninguna capacidad sustituye una comprobación del backend. El
 // botón de borrar no está aquí: sale de `puedeBorrar` de cada publicación y comentario.
@@ -418,79 +489,36 @@ export const CAPACIDADES_POR_PERSPECTIVA: Record<Perspectiva, CapacidadesDePersp
     base: BASES_POR_PERSPECTIVA.estudiante,
     volverDestino: "/estudiante",
     volverTexto: TEXTOS_CLASE.volver,
-    secciones: [
-      { segmento: "", texto: TEXTOS_CLASE.muro },
-      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
-      { segmento: "personas", texto: TEXTOS_CLASE.personas },
-      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
-    ],
+    secciones: SECCIONES_DE_LA_CLASE,
     verCodigo: false,
     editar: false,
     formularioPublicacion: false,
     formularioComentario: true,
-    crearTarea: false,
     gestionarTrabajo: false,
   },
   maestro: {
     base: BASES_POR_PERSPECTIVA.maestro,
     volverDestino: "/maestro",
     volverTexto: TEXTOS_CLASE.volver,
-    secciones: [
-      { segmento: "", texto: TEXTOS_CLASE.muro },
-      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
-      { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
-      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
-    ],
+    secciones: SECCIONES_DE_LA_CLASE,
     verCodigo: true,
     editar: false,
     formularioPublicacion: true,
     formularioComentario: true,
-    crearTarea: true,
     gestionarTrabajo: true,
   },
   admin: {
     base: BASES_POR_PERSPECTIVA.admin,
     volverDestino: "/admin/clases",
     volverTexto: TEXTOS_CLASE.volverALaLista,
-    secciones: [
-      { segmento: "", texto: TEXTOS_CLASE.muro },
-      { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
-      { segmento: "alumnos", texto: TEXTOS_CLASE.alumnos },
-      { segmento: "maestros", texto: TEXTOS_CLASE.maestrosDeLaClase },
-      { segmento: "calificaciones", texto: TEXTOS_CLASE.calificaciones },
-    ],
+    secciones: SECCIONES_DE_LA_CLASE,
     verCodigo: true,
     editar: true,
     formularioPublicacion: true,
     formularioComentario: false,
-    crearTarea: true,
     gestionarTrabajo: true,
   },
 }
-
-// §D-2C1: el indicador de las secciones mide 1/N y se traslada una posición por sección. Clases
-// completas, escritas enteras para que Tailwind las encuentre. TAREAS-01e (§D-11): con "Trabajo de
-// clase" son tres (estudiante y maestro) o cuatro (admin). CALIFICACIONES-01d (§D-13.6): con
-// "Calificaciones" son cuatro o cinco.
-export const CLASES_DEL_INDICADOR_POR_SECCIONES: Record<number, string> = {
-  2: "w-1/2",
-  3: "w-1/3",
-  4: "w-1/4",
-  5: "w-1/5",
-}
-export const CLASES_DE_LA_REJILLA_POR_SECCIONES: Record<number, string> = {
-  2: "grid-cols-2",
-  3: "grid-cols-3",
-  4: "grid-cols-4",
-  5: "grid-cols-5",
-}
-export const CLASES_DE_POSICION_DEL_INDICADOR = [
-  "",
-  "translate-x-full",
-  "translate-x-[200%]",
-  "translate-x-[300%]",
-  "translate-x-[400%]",
-] as const
 
 // TAREAS-01e (§D-11, Enmienda 5): "Trabajo de clase" pide la primera página de cada tema de 5 en 5,
 // "Ver más" de 20 en 20, y como máximo 6 lecturas a la vez (el limitador de hooks.ts).
@@ -505,23 +533,25 @@ export const TEXTOS_TRABAJO = {
   titulo: TEXTOS_CLASE.trabajo,
   sinTema: TEXTOS_FORMULARIO_PUBLICACION.sinTema,
   temaVacio: "Aún no hay nada en este tema.",
-  vacio: "Aún no hay tareas ni materiales en esta clase.",
+  vacio: "Aún no hay actividades en esta clase.",
   cargandoTema: (nombre: string) => `Cargando ${nombre}`,
   conteo: (n: number) => (n === 1 ? "1 elemento" : `${n} elementos`),
   verMaterial: "Ver material",
   ocultarMaterial: "Ocultar material",
   verMasDe: (nombre: string) => `Ver más de ${nombre}`,
-  crearTarea: TEXTOS_MURO.crearTarea,
+  crearTarea: "Crear tarea",
   nuevoTema: "Nuevo tema",
   categorias: "Categorías de calificación",
   tarea: "Tarea:",
   // El cuadro de fecha de una fecha que no se puede leer (la fila dice "Fecha límite no disponible").
   diaNoDisponible: "—",
   insigniaMaterial: TEXTOS_PUBLICACION.insigniaMaterial,
+  // R2 (§D-10): la acción que pide se cumple al pulsar "Actividades de aprendizaje" estando ahí, al ir
+  // a otra sección y regresar, y con atrás y adelante del historial.
   cambioMientrasLoVeias:
-    "Este tema cambió mientras lo veías. Vuelve a abrir Trabajo de clase para verlo completo.",
+    "Este tema cambió mientras lo veías. Vuelve a abrir Actividades de aprendizaje para verlo completo.",
   recargaFallida:
-    "No pudimos actualizar Trabajo de clase. Mostramos la última versión que tenemos.",
+    "No pudimos actualizar Actividades de aprendizaje. Mostramos la última versión que tenemos.",
 } as const
 
 export const TEXTOS_TEMAS = {
@@ -539,6 +569,8 @@ export const TEXTOS_TEMAS = {
     if (n === 1) return "Su elemento pasará a «Sin tema»."
     return `Sus ${n} elementos pasarán a «Sin tema».`
   },
+  // CLASES-03 (§D-7.6, §D-13): sin el conteo total del tema (no llegó o no tiene el tema).
+  consecuenciaSinConteo: "Sus actividades y recursos pasarán a «Sin tema».",
   siBorrar: "Sí, borrar tema",
   temaDe: (titulo: string) => `Tema de «${titulo}»`,
   mover: "Mover",
@@ -557,6 +589,157 @@ export const CODIGOS_QUE_RENUEVAN_LOS_TEMAS: readonly string[] = [
   "ORDEN_DESACTUALIZADO",
   "PUBLICACION_NO_ENCONTRADA",
   "ANUNCIO_SIN_TEMA",
+  // CLASES-03d (§D-8.4): un recurso de aprendizaje que el maestro no puede mover. Al renovar las listas,
+  // su `puedeMover` pasa a false y el control desaparece.
+  "MOVER_NO_PERMITIDO",
+]
+
+// CLASES-03d (§D-8.2): "Recursos" pide la primera página de cada tema de 5 en 5, "Ver más" de 20 en 20,
+// y como máximo 6 lecturas a la vez (su propio limitador, otra instancia que el de "Actividades").
+export const LIMITE_PRIMERA_PAGINA_RECURSOS = 5
+export const LIMITE_PAGINAS_RECURSOS = 20
+export const MAXIMO_LECTURAS_DE_RECURSOS_EN_VUELO = 6
+// §D-8.1: las recargas fallidas de los dos bloques avisan con el mismo id de sonner, así dos fallos
+// seguidos o simultáneos dejan un solo aviso a la vista.
+export const ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS = "recarga-fallida-de-recursos"
+
+// CLASES-03d (§D-13): textos de "Recursos".
+export const TEXTOS_RECURSOS = {
+  aprendizaje: "Recursos de aprendizaje",
+  docente: "Recursos del docente",
+  vacioAprendizaje: "Aún no hay recursos de aprendizaje.",
+  vacioDocente: "Aún no hay recursos del docente.",
+  insignia: "Recurso",
+  conteo: (n: number) => (n === 1 ? "1 recurso" : `${n} recursos`),
+  verRecurso: "Ver recurso",
+  ocultarRecurso: "Ocultar recurso",
+  verMasDe: (nombre: string) => `Ver más de ${nombre}`,
+  cargandoTema: TEXTOS_TRABAJO.cargandoTema,
+  // R3 (§D-10): la acción que pide se cumple al pulsar "Recursos" estando ahí, al ir a otra sección y
+  // regresar, y con atrás y adelante del historial.
+  cambioMientrasLoVeias:
+    "Este tema cambió mientras lo veías. Vuelve a abrir Recursos para verlo completo.",
+  recargaFallida: "No pudimos actualizar Recursos. Mostramos la última versión que tenemos.",
+  editar: "Editar recurso",
+  borrar: "Borrar recurso",
+  siBorrar: "Sí, borrar recurso",
+  cancelar: "Cancelar",
+  consecuencia: "Se borrará con sus comentarios.",
+  consecuenciaConAdjuntos: "Se borrará con sus comentarios y adjuntos.",
+  avisoBorrado: "Recurso borrado",
+} as const
+
+// El título y el vacío de cada bloque, en el orden de la vista (BLOQUES_DE_RECURSO de shared/).
+export const TEXTOS_DE_LOS_BLOQUES: Record<BloqueDeRecurso, { titulo: string; vacio: string }> = {
+  aprendizaje: { titulo: TEXTOS_RECURSOS.aprendizaje, vacio: TEXTOS_RECURSOS.vacioAprendizaje },
+  docente: { titulo: TEXTOS_RECURSOS.docente, vacio: TEXTOS_RECURSOS.vacioDocente },
+}
+
+export const TEXTOS_FORMULARIO_RECURSO = {
+  tituloCrear: "Nuevo recurso",
+  tituloEditar: "Editar recurso",
+  destinoDocente: "Se publicará en Recursos del docente.",
+  destinoAprendizaje: "Se publicará en Recursos de aprendizaje.",
+  campoTitulo: "Título del recurso",
+  campoTema: "Tema",
+  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
+  campoDescripcion: "Descripción (opcional)",
+  publicar: "Publicar recurso",
+  guardar: "Guardar cambios",
+  cancelar: "Cancelar",
+  avisoPublicado: "Recurso publicado",
+  avisoGuardado: "Cambios guardados",
+  temasNoCargados: "No pudimos cargar los temas. El recurso se publicará sin tema.",
+  // Enmienda 13 (decisión (1) del humano): al editar, con la lectura de temas fallida y sin lista vigente.
+  temasNoCargadosAlEditar: "No pudimos cargar los temas. El recurso conserva su tema.",
+} as const
+
+export const TEXTOS_EDITAR_RECURSO = {
+  cargando: "Cargando el recurso…",
+  volver: "Volver a Recursos",
+  noPuedes: "No puedes editar este recurso.",
+  // R8 (§D-10) y DESIGN.md §7.21: sin conexión o con un 5xx, "revisa tu conexión"; con cualquier otra
+  // respuesta del servidor (por ejemplo, un 429), "inténtalo de nuevo en un momento".
+  recargaRed: "No pudimos actualizar el recurso. Puedes seguir editando; revisa tu conexión.",
+  recargaServidor:
+    "No pudimos actualizar el recurso. Puedes seguir editando; inténtalo de nuevo en un momento.",
+} as const
+
+// Errores que reemplazan "Editar recurso" con su mensaje (§D-8.6): el recurso ya no existe o se perdió
+// el acceso a la clase; un VALIDACION de uno de estos ids dice lo mismo.
+export const CODIGOS_QUE_REEMPLAZAN_EL_RECURSO: readonly string[] = [
+  "RECURSO_NO_ENCONTRADO",
+  "SIN_ACCESO_A_LA_CLASE",
+]
+export const CAMPOS_QUE_REEMPLAZAN_EL_RECURSO: readonly string[] = ["claseId", "recursoId"]
+
+// Errores al guardar que dicen que el recurso abierto ya no es el del servidor: se vuelve a pedir (la
+// vista se reemplaza o pierde `puedeEditar`).
+export const CODIGOS_QUE_RENUEVAN_EL_RECURSO: readonly string[] = [
+  "RECURSO_NO_ENCONTRADO",
+  "EDICION_NO_PERMITIDA",
+  "SIN_ACCESO_A_LA_CLASE",
+]
+
+// §D-14: un borrado que el servidor niega (otro autor, otro bloque) o que ya no encuentra el recurso
+// renueva las listas: la fila que ya no está desaparece y `puedeBorrar` se actualiza.
+export const CODIGOS_QUE_RENUEVAN_LOS_RECURSOS: readonly string[] = [
+  "BORRADO_NO_PERMITIDO",
+  "PUBLICACION_NO_ENCONTRADA",
+]
+
+// CLASES-03e (§D-13, Enmienda 4): textos de "Dudas".
+export const TEXTOS_DUDAS = {
+  titulo: TEXTOS_CLASE.dudas,
+  frase: "Lo que escribas aquí lo ve toda la clase.",
+  campo: "Escribe tu duda",
+  publicar: "Publicar duda",
+  avisoPublicada: "Duda publicada",
+  vacio: "Aún no hay dudas en esta clase.",
+  verMas: "Ver más dudas",
+  resuelta: "Resuelta",
+  marcar: "Marcar como resuelta",
+  quitarMarca: "Quitar «Resuelta»",
+  avisoMarcada: "Marcada como resuelta",
+  avisoDesmarcada: "Ya no está marcada como resuelta",
+  // Solo con n ≥ 1; plegado con 0 respuestas el control dice "Responder" (estudiante y maestro) y,
+  // desplegado, "Ocultar respuestas" con cualquier número (S-14, S-15).
+  verRespuestas: (n: number) => `Ver respuestas (${n})`,
+  responder: "Responder",
+  ocultarRespuestas: "Ocultar respuestas",
+  borrar: "Borrar duda",
+  consecuencia: "Se borrará con sus respuestas.",
+  siBorrar: "Sí, borrar duda",
+  cancelar: "Cancelar",
+  avisoBorrada: "Duda borrada",
+  // R4 (§D-10): la acción que pide se cumple al pulsar "Dudas" estando ahí, al ir a otra sección y
+  // regresar, y con atrás y adelante del historial.
+  cambioMientrasLasVeias:
+    "Las dudas cambiaron mientras las veías. Vuelve a abrir Dudas para verlas completas.",
+} as const
+
+export const TEXTOS_RESPUESTAS = {
+  titulo: "Respuestas",
+  campo: "Escribe una respuesta",
+  responder: "Responder",
+  avisoPublicada: "Respuesta publicada",
+  borrar: "Borrar",
+  siBorrar: "Sí, borrar respuesta",
+  cancelar: "Cancelar",
+  avisoBorrada: "Respuesta borrada",
+  verMas: "Ver más respuestas",
+  // R5 (§D-10): se cumple con "Ocultar respuestas" y "Ver respuestas", al pulsar "Dudas" estando ahí y
+  // al ir a otra sección, volver y reabrirlas.
+  cambioMientrasLasVeias:
+    "Las respuestas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas.",
+} as const
+
+// §D-9.4: un error que dice que lo que se ve de "Dudas" ya no es lo del servidor (la duda o la respuesta
+// ya no está, o `puedeBorrar` cambió) renueva la lista y las respuestas abiertas.
+export const CODIGOS_QUE_RENUEVAN_LAS_DUDAS: readonly string[] = [
+  "DUDA_NO_ENCONTRADA",
+  "RESPUESTA_NO_ENCONTRADA",
+  "BORRADO_NO_PERMITIDO",
 ]
 
 // §D-11: textos de "Categorías de calificación" (propuesta).

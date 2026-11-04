@@ -310,9 +310,14 @@ describe("ataque CLASES-02d r3: «Ver más alumnos» con cambio de pestaña (use
 describe("ataque CLASES-02d r3: dos instancias a la vez y desmontar con el turno pendiente", () => {
   it("roster y «Personas» montados juntos: el foco de «Ver más» de «Personas» va a su fila nueva y el roster no lo toca", async () => {
     const control = crearServidor()
+    // CLASES-03c1 ronda 0 (C-20, PARADA del programador; §D-7.1 y §D-7.7): PersonasView decide por la
+    // perspectiva de la ruta, y en la del maestro ya no es la lista del estudiante (muestra sus
+    // maestros y el roster). Las dos vistas se montan juntas en la ruta del estudiante, donde
+    // PersonasView sigue siendo la lista con data-persona-id; AlumnosView solo lee :claseId, así que el
+    // roster es el mismo. Sigue protegiendo lo mismo: dos instancias de los ganchos de foco a la vez.
     montar(
-      `/maestro/clases/${CLASE_ID}/alumnos`,
-      "/maestro/clases/:claseId/alumnos",
+      `/estudiante/clases/${CLASE_ID}/personas`,
+      "/estudiante/clases/:claseId/personas",
       <>
         <AlumnosView />
         <PersonasView />

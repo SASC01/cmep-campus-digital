@@ -6,10 +6,12 @@ import { CAPACIDADES_POR_PERSPECTIVA } from "./data"
 import {
   avisoDeFalloAlSubir,
   crearLimiteDeConcurrencia,
+  desplazamientoParaVer,
   errorDeArchivoElegido,
   etiquetaDeMaestros,
   focoPerdido,
   indiceDeSeccionActiva,
+  medidaDelIndicador,
   mensajeDeErrorClases,
   mensajeDeErrorDeLista,
   perspectivaDeRuta,
@@ -290,25 +292,18 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
       "Volver a mis clases",
       "Volver a la lista de clases",
     ])
-    expect(estudiante.secciones.map((s) => s.texto)).toEqual([
-      "Muro",
-      "Trabajo de clase",
-      "Personas",
-      "Calificaciones",
-    ])
-    expect(maestro.secciones.map((s) => s.texto)).toEqual([
-      "Muro",
-      "Trabajo de clase",
-      "Alumnos",
-      "Calificaciones",
-    ])
-    expect(admin.secciones.map((s) => s.texto)).toEqual([
-      "Muro",
-      "Trabajo de clase",
-      "Alumnos",
-      "Maestros",
-      "Calificaciones",
-    ])
+    // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos" y 03e,
+    // "Dudas".
+    for (const perspectiva of [estudiante, maestro, admin]) {
+      expect(perspectiva.secciones.map((s) => s.texto)).toEqual([
+        "Avisos",
+        "Actividades de aprendizaje",
+        "Recursos",
+        "Dudas",
+        "Personas",
+        "Calificaciones",
+      ])
+    }
     expect([estudiante.verCodigo, maestro.verCodigo, admin.verCodigo]).toEqual([false, true, true])
     expect([estudiante.editar, maestro.editar, admin.editar]).toEqual([false, false, true])
     expect([
@@ -324,29 +319,68 @@ describe("perspectivaDeRuta y CAPACIDADES_POR_PERSPECTIVA", () => {
   })
 
   // CLASES-02d, M-12: hermano de O-06. El router no distingue mayúsculas; el indicador tampoco.
-  // TAREAS-01e (I-2, A-3; C-11): con "Trabajo de clase" segunda, Alumnos pasa a 2 y Maestros a 3.
+  // CLASES-03 (§D-7.1): "Personas" es la quinta sección (4) y "Calificaciones" la sexta (5), tras
+  // "Recursos" (03d) y "Dudas" (03e).
   it("M-12: indiceDeSeccionActiva no distingue mayúsculas en la ruta ni en el id, y sigue sin activar nada en /editar", () => {
     const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
     const base = "/admin/clases/2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
     const mayusculas = base.toUpperCase()
     expect(indiceDeSeccionActiva(mayusculas, base, secciones)).toBe(0)
-    expect(indiceDeSeccionActiva(`${mayusculas}/ALUMNOS`, base, secciones)).toBe(2)
-    expect(indiceDeSeccionActiva(`${mayusculas}/Maestros/`, base, secciones)).toBe(3)
-    expect(indiceDeSeccionActiva(`${base}/ALUMNOS`, mayusculas, secciones)).toBe(2)
+    expect(indiceDeSeccionActiva(`${mayusculas}/PERSONAS`, base, secciones)).toBe(4)
+    expect(indiceDeSeccionActiva(`${mayusculas}/Calificaciones/`, base, secciones)).toBe(5)
+    expect(indiceDeSeccionActiva(`${base}/PERSONAS`, mayusculas, secciones)).toBe(4)
     expect(indiceDeSeccionActiva(`${mayusculas}/EDITAR`, base, secciones)).toBe(-1)
     expect(indiceDeSeccionActiva(`${mayusculas}X`, base, secciones)).toBe(-1)
   })
 
-  // TAREAS-01e (I-2, A-3; C-11): con "Trabajo de clase" segunda, Alumnos pasa a 2 y Maestros a 3.
+  // CLASES-03 (§D-7.1): "Personas" pasa a 4 y "Calificaciones" a 5 (03d suma "Recursos" en 2 y 03e, "Dudas" en 3); "…/alumnos" y "…/maestros" ya no
+  // son secciones (redirigen, DH-09).
   it("indiceDeSeccionActiva: el muro solo en la base exacta, el resto también en sus subrutas, y ninguna en /editar", () => {
     const secciones = CAPACIDADES_POR_PERSPECTIVA.admin.secciones
     const base = "/admin/clases/abc"
     expect(indiceDeSeccionActiva(base, base, secciones)).toBe(0)
     expect(indiceDeSeccionActiva(`${base}/`, base, secciones)).toBe(0)
-    expect(indiceDeSeccionActiva(`${base}/alumnos`, base, secciones)).toBe(2)
-    expect(indiceDeSeccionActiva(`${base}/maestros`, base, secciones)).toBe(3)
+    expect(indiceDeSeccionActiva(`${base}/personas`, base, secciones)).toBe(4)
+    expect(indiceDeSeccionActiva(`${base}/calificaciones`, base, secciones)).toBe(5)
+    expect(indiceDeSeccionActiva(`${base}/alumnos`, base, secciones)).toBe(-1)
+    expect(indiceDeSeccionActiva(`${base}/maestros`, base, secciones)).toBe(-1)
     expect(indiceDeSeccionActiva(`${base}/editar`, base, secciones)).toBe(-1)
-    expect(indiceDeSeccionActiva(`${base}/alumnosx`, base, secciones)).toBe(-1)
+    expect(indiceDeSeccionActiva(`${base}/personasx`, base, secciones)).toBe(-1)
+  })
+})
+
+// CLASES-03 (§D-7.2, DH-03): las medidas del indicador de las secciones.
+describe("medidaDelIndicador y desplazamientoParaVer (CL3-C03)", () => {
+  it("CL3-C03: el indicador toma la posición y el ancho de la opción activa", () => {
+    expect(medidaDelIndicador({ offsetLeft: 0, offsetWidth: 72 })).toEqual({ x: 0, ancho: 72 })
+    expect(medidaDelIndicador({ offsetLeft: 184, offsetWidth: 211 })).toEqual({
+      x: 184,
+      ancho: 211,
+    })
+  })
+
+  it("CL3-C03: una opción ya a la vista no desplaza el panel (null), tampoco en sus bordes exactos", () => {
+    const panel = { scrollLeft: 100, clientWidth: 300 }
+    expect(desplazamientoParaVer(panel, { offsetLeft: 150, offsetWidth: 80 })).toBeNull()
+    expect(desplazamientoParaVer(panel, { offsetLeft: 100, offsetWidth: 300 })).toBeNull()
+    expect(desplazamientoParaVer(panel, { offsetLeft: 320, offsetWidth: 80 })).toBeNull()
+  })
+
+  it("CL3-C03: una opción cortada a la derecha deja su borde derecho en el borde del panel", () => {
+    const panel = { scrollLeft: 0, clientWidth: 300 }
+    expect(desplazamientoParaVer(panel, { offsetLeft: 260, offsetWidth: 100 })).toBe(60)
+    expect(desplazamientoParaVer(panel, { offsetLeft: 400, offsetWidth: 120 })).toBe(220)
+  })
+
+  it("CL3-C03: una opción cortada a la izquierda deja su borde izquierdo en el borde del panel", () => {
+    const panel = { scrollLeft: 200, clientWidth: 300 }
+    expect(desplazamientoParaVer(panel, { offsetLeft: 150, offsetWidth: 100 })).toBe(150)
+    expect(desplazamientoParaVer(panel, { offsetLeft: 0, offsetWidth: 80 })).toBe(0)
+  })
+
+  it("CL3-C03: una opción más ancha que el panel alinea su inicio", () => {
+    const panel = { scrollLeft: 0, clientWidth: 100 }
+    expect(desplazamientoParaVer(panel, { offsetLeft: 50, offsetWidth: 140 })).toBe(50)
   })
 })
 

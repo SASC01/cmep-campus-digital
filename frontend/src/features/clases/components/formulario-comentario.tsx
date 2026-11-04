@@ -1,5 +1,5 @@
 import { crearComentarioSchema, normalizarTextoLargo } from "@campus/shared"
-import { useId, useState, type FormEvent } from "react"
+import { useId, useRef, useState, type FormEvent } from "react"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { Button } from "@/components/ui/button"
@@ -25,10 +25,13 @@ export function FormularioComentario({ claseId, publicacionId }: FormularioComen
   const idError = `${idCampo}-error`
   const [texto, setTexto] = useState("")
   const [errores, setErrores] = useState<ErroresFormulario>({})
+  // §D-12 (CHORE-04, fila 1): guarda síncrona; `comentar.isPending` llega un render después y dos
+  // clics seguidos mandarían dos comentarios. Se marca justo antes de `mutate` y se libera al asentarse.
+  const enviandoRef = useRef(false)
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
-    if (comentar.isPending) return
+    if (enviandoRef.current) return
 
     const resultado = crearComentarioSchema.safeParse({ texto: normalizarTextoLargo(texto) })
     if (!resultado.success) {
@@ -37,6 +40,7 @@ export function FormularioComentario({ claseId, publicacionId }: FormularioComen
     }
 
     setErrores({})
+    enviandoRef.current = true
     comentar.mutate(resultado.data, {
       onSuccess: () => {
         setTexto("")
@@ -45,6 +49,9 @@ export function FormularioComentario({ claseId, publicacionId }: FormularioComen
         // Los avisos los da el hook; aquí solo se marca el campo, si el error es de un campo.
         const erroresDeCampo = erroresDeFormularioClases(error, ["texto"])
         if (erroresDeCampo) setErrores(erroresDeCampo)
+      },
+      onSettled: () => {
+        enviandoRef.current = false
       },
     })
   }

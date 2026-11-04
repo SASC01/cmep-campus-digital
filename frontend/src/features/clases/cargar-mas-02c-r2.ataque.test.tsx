@@ -179,8 +179,8 @@ const LUGARES: Lugar[] = [
     textos: ["Clase 1", "Clase 2", "Clase 3"],
   },
   {
-    nombre: "«Ver más publicaciones» (muro)",
-    boton: "Ver más publicaciones",
+    nombre: "«Ver más avisos» (muro)",
+    boton: "Ver más avisos",
     ruta: `/estudiante/clases/${CLASE_ID}`,
     patron: "/estudiante/clases/:claseId",
     vista: <MuroView />,
@@ -268,6 +268,7 @@ afterEach(() => {
   aviso.error.mockClear()
 })
 
+// CLASES-03c1 ronda 0 (C-16, §D-R0; §D-7.1 y §D-13): «Ver más publicaciones» pasa a «Ver más avisos». Sigue protegiendo lo mismo.
 describe("ataque CLASES-02c r2: los cinco «Cargar más» con dos clics y la página en vuelo", () => {
   const casos = LUGARES.flatMap((lugar) =>
     (["el mismo instante", "30 ms"] as const).map(

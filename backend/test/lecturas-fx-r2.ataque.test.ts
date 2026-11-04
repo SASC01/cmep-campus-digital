@@ -964,7 +964,7 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
   // enlaces_registro ni usuarios, no hay DELETE FROM ni TRUNCATE crudos, y cualquier otro borrado
   // vuelve a poner la prueba en rojo.
   // C-3 de CALIFICACIONES-01a (§D-R0, A-5): calificar reemplaza el desglose con puntajeRubrica.deleteMany.
-  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica y puntajes de rúbrica; nada borra enlaces_registro ni usuarios", () => {
+  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica, puntajes de rúbrica y dudas; nada borra enlaces_registro ni usuarios", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const borrados = new Set<string>()
     const crudos: string[] = []
@@ -980,6 +980,8 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
       "categoria",
       "comentario",
       "criterioRubrica",
+      // CLASES-03b, C-3 (§D-R0; §D-5): borrarDuda borra la duda (sus respuestas caen en cascada).
+      "duda",
       "inscripcion",
       "maestroDeClase",
       "publicacion",

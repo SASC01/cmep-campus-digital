@@ -1,57 +1,40 @@
-import { crearPublicacionSchema, normalizarTextoLargo, type CrearPublicacion } from "@campus/shared"
-import { Check, Paperclip } from "lucide-react"
+import { Paperclip } from "lucide-react"
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { toast } from "sonner"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
 import { subirArchivo } from "@/services/almacenService"
 
+import { ACCEPT_DE_ADJUNTOS, TEXTOS_ADJUNTOS, TEXTOS_FORMULARIO_PUBLICACION } from "../data"
+import { useCrearPublicacion, useSolicitarSubida } from "../hooks"
 import {
-  ACCEPT_DE_ADJUNTOS,
-  CLASES_DE_POSICION_DEL_INDICADOR,
-  TEXTOS_ADJUNTOS,
-  TEXTOS_FORMULARIO_PUBLICACION,
-} from "../data"
-import { useCrearPublicacion, useSolicitarSubida, useTemas } from "../hooks"
-import {
+  anuncioValidado,
   avisoDeFalloAlSubir,
   errorDeArchivoElegido,
   erroresDeLaPublicacionDeApi,
-  erroresPorCampo,
   tipoDeArchivo,
 } from "../lib"
-import type { ErroresFormulario, TipoPublicacion } from "../types"
+import type { CrearAnuncio, ErroresFormulario } from "../types"
 import { ListaDeAdjuntosElegidos } from "./lista-de-adjuntos-elegidos"
 
 interface FormularioPublicacionProps {
   claseId: string
 }
 
-// §D-C5, §D-D5: formulario del maestro para publicar un anuncio o un material, arriba del muro. El
-// tipo se elige con un control segmentado de dos botones (aria-pressed, §D-2D3); el botón principal cambia su objeto
-// según el tipo. Valida con el mismo esquema que el servidor (crearPublicacionSchema) antes de
-// enviar. Los archivos se eligen aquí, se validan en cliente y, al publicar, cada uno se solicita,
-// se sube directo al almacén y solo entonces se publica con sus ids (siempre en `archivoIds`).
-// TAREAS-01e (§D-11, Enmienda 6): con "Material", el campo "Tema" sale de la lista de temas de la clase
-// (la misma consulta de "Trabajo de clase") solo si ya llegó y tiene al menos un tema; pendiente o
-// vacía no se muestra, y fallida deja una nota en línea. Nunca bloquea el envío: sin un tema elegido
-// (o si el elegido ya no está en la lista) el cuerpo va sin `temaId`. O-18: mientras una publicación
-// está en vuelo, los botones del tipo no actúan y el botón principal conserva el texto del tipo enviado.
+// §D-C5, §D-D5: formulario del maestro y del admin para publicar un anuncio, arriba de "Avisos".
+// CLASES-03d (§D-8.7): solo anuncios: "Anuncio", los adjuntos y "Publicar anuncio"; sin tipo, título ni
+// tema (los recursos se publican en "Recursos"). Valida con el mismo esquema que el servidor
+// (crearPublicacionSchema) antes de enviar. Los archivos se eligen aquí, se validan en cliente y, al
+// publicar, cada uno se solicita, se sube directo al almacén y solo entonces se publica con sus ids
+// (siempre en `archivoIds`).
 export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
   const crear = useCrearPublicacion(claseId)
   const solicitar = useSolicitarSubida(claseId)
   const idBase = useId()
-  const [tipo, setTipo] = useState<TipoPublicacion>("anuncio")
-  const temas = useTemas(claseId, tipo === "material")
-  const [temaElegido, setTemaElegido] = useState("")
-  const [titulo, setTitulo] = useState("")
   const [texto, setTexto] = useState("")
   const [elegidos, setElegidos] = useState<readonly File[]>([])
   const [errores, setErrores] = useState<ErroresFormulario>({})
@@ -66,15 +49,8 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
   const publicandoRef = useRef(false)
   // Fila a la que va el foco cuando la lista ya se pintó sin la fila quitada; -1 es "Adjuntar".
   const focoTrasQuitarRef = useRef<number | null>(null)
-  const esMaterial = tipo === "material"
-  const idTitulo = `${idBase}-titulo`
   const idTexto = `${idBase}-texto`
   const idArchivos = `${idBase}-archivos`
-  const idTema = `${idBase}-tema`
-  const listaDeTemas = temas.data?.temas
-  const hayTemas = listaDeTemas !== undefined && listaDeTemas.length > 0
-  const temaIdEfectivo = listaDeTemas?.some(({ id }) => id === temaElegido) ? temaElegido : ""
-  const temasFallidos = temas.isError && temas.data === undefined
 
   useEffect(() => {
     const vecina = focoTrasQuitarRef.current
@@ -118,7 +94,7 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
     focoTrasQuitarRef.current = indice < elegidos.length - 1 ? indice : indice - 1
   }
 
-  const handlePublicar = async (datos: CrearPublicacion) => {
+  const handlePublicar = async (datos: CrearAnuncio) => {
     publicandoRef.current = true
     setEnProceso(true)
     let archivoEnSubida: string | null = null
@@ -137,15 +113,13 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
       archivoEnSubida = null
       // C-22: la clave archivoIds va siempre, [] si no hay adjuntos.
       await crear.mutateAsync({ ...datos, archivoIds })
-      setTitulo("")
       setTexto("")
-      setTemaElegido("")
       setElegidos([])
     } catch (error) {
       if (archivoEnSubida === null) {
         // Falló al publicar: el aviso ya lo dio el hook; aquí solo se marca el campo, si el error es
         // de un campo.
-        const erroresDeCampo = erroresDeLaPublicacionDeApi(error, datos.tipo)
+        const erroresDeCampo = erroresDeLaPublicacionDeApi(error, "anuncio")
         if (erroresDeCampo) setErrores(erroresDeCampo)
         return
       }
@@ -156,130 +130,27 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
     }
   }
 
-  // O-18: con una publicación en vuelo el tipo no cambia (ni el texto del botón ni lo que se envía).
-  const elegirTipo = (nuevo: TipoPublicacion) => {
-    if (publicandoRef.current || crear.isPending) return
-    setTipo(nuevo)
-  }
-
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
     if (publicandoRef.current || crear.isPending) return
 
     // T-31: se mide lo que el servidor va a medir (normalizado), sin reescribir el campo visible.
-    const textoNormalizado = normalizarTextoLargo(texto)
-    // Con "Sin tema" la clave temaId no viaja (Enmienda 1, M-01): el cuerpo es el de siempre.
-    const conTema = temaIdEfectivo === "" ? {} : { temaId: temaIdEfectivo }
-    const candidato = esMaterial
-      ? { tipo, titulo: normalizarTextoLargo(titulo), texto: textoNormalizado, ...conTema }
-      : { tipo, texto: textoNormalizado }
-    const resultado = crearPublicacionSchema.safeParse(candidato)
-    if (!resultado.success) {
-      setErrores(erroresPorCampo(resultado.error.issues))
+    const resultado = anuncioValidado(texto)
+    if (!resultado.ok) {
+      setErrores(resultado.errores)
       return
     }
 
     setErrores({})
-    void handlePublicar(resultado.data)
+    void handlePublicar(resultado.datos)
   }
 
   return (
     <Card>
       <CardContent>
         <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* §D-2D3, DESIGN.md §7.3: control segmentado. Grupo en vidrio fuerte (el formulario ya es un
-              panel de vidrio, así que no va otra Card) con un indicador aria-hidden que se desliza bajo
-              el botón presionado; el estado también lo dicen aria-pressed, el Check y el color del
-              texto, nunca solo la posición. */}
-          <div
-            role="group"
-            aria-label={TEXTOS_FORMULARIO_PUBLICACION.grupoTipo}
-            className="vidrio-fuerte w-fit rounded-card p-1"
-          >
-            <div className="relative grid grid-cols-2">
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "absolute inset-y-0 left-0 w-1/2 rounded-row bg-surface transition-transform duration-200 in-data-[material=opaco]:bg-accent-soft motion-reduce:transition-none",
-                  CLASES_DE_POSICION_DEL_INDICADOR[esMaterial ? 1 : 0],
-                )}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-pressed={!esMaterial}
-                onClick={() => elegirTipo("anuncio")}
-                className="relative w-full aria-pressed:text-link"
-              >
-                {!esMaterial && <Check aria-hidden="true" />}
-                {TEXTOS_FORMULARIO_PUBLICACION.anuncio}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-pressed={esMaterial}
-                onClick={() => elegirTipo("material")}
-                className="relative w-full aria-pressed:text-link"
-              >
-                {esMaterial && <Check aria-hidden="true" />}
-                {TEXTOS_FORMULARIO_PUBLICACION.material}
-              </Button>
-            </div>
-          </div>
-
-          {esMaterial && (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={idTitulo}>{TEXTOS_FORMULARIO_PUBLICACION.campoTitulo}</Label>
-              <Input
-                id={idTitulo}
-                name="titulo"
-                autoComplete="off"
-                value={titulo}
-                onChange={(evento) => setTitulo(evento.target.value)}
-                aria-invalid={errores.titulo !== undefined}
-                aria-describedby={errores.titulo ? `${idTitulo}-error` : undefined}
-              />
-              {errores.titulo && (
-                <ErrorDeCampo id={`${idTitulo}-error`}>{errores.titulo}</ErrorDeCampo>
-              )}
-            </div>
-          )}
-
-          {esMaterial && hayTemas && (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={idTema}>{TEXTOS_FORMULARIO_PUBLICACION.campoTema}</Label>
-              <NativeSelect
-                id={idTema}
-                name="temaId"
-                autoComplete="off"
-                value={temaIdEfectivo}
-                onChange={(evento) => setTemaElegido(evento.target.value)}
-              >
-                <NativeSelectOption value="">
-                  {TEXTOS_FORMULARIO_PUBLICACION.sinTema}
-                </NativeSelectOption>
-                {listaDeTemas.map((tema) => (
-                  <NativeSelectOption key={tema.id} value={tema.id}>
-                    {tema.nombre}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </div>
-          )}
-          {esMaterial && temasFallidos && (
-            <p className="text-small text-muted-foreground">
-              {TEXTOS_FORMULARIO_PUBLICACION.temasNoCargados}
-            </p>
-          )}
-
           <div className="flex flex-col gap-2">
-            <Label htmlFor={idTexto}>
-              {esMaterial
-                ? TEXTOS_FORMULARIO_PUBLICACION.campoDescripcion
-                : TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio}
-            </Label>
+            <Label htmlFor={idTexto}>{TEXTOS_FORMULARIO_PUBLICACION.campoAnuncio}</Label>
             <Textarea
               id={idTexto}
               name="texto"
@@ -334,9 +205,7 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
 
           <div>
             <Button type="submit" variant="primary" enEspera={enProceso || crear.isPending}>
-              {esMaterial
-                ? TEXTOS_FORMULARIO_PUBLICACION.publicarMaterial
-                : TEXTOS_FORMULARIO_PUBLICACION.publicarAnuncio}
+              {TEXTOS_FORMULARIO_PUBLICACION.publicarAnuncio}
             </Button>
           </div>
         </form>

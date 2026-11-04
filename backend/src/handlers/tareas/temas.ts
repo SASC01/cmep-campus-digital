@@ -8,6 +8,7 @@ import {
   renombrarTemaSchema,
   temaIdParamSchema,
   temaRespuestaSchema,
+  temasQuerySchema,
 } from "@campus/shared"
 import type { FastifyPluginAsync } from "fastify"
 
@@ -15,12 +16,13 @@ import {
   borrarTema,
   crearTema,
   listarTemas,
+  listarTemasDeLaSeccion,
   moverATema,
   ordenarTemas,
   renombrarTema,
 } from "../../adapters/db/index.js"
 import { conTextosNormalizados } from "../../core/clases/texto.js"
-import { claseDe, protegido } from "../../middleware/index.js"
+import { claseDe, perfilDe, protegido } from "../../middleware/index.js"
 import { validarCuerpo, validarParametros } from "../validacion.js"
 
 // Rutas de temas de TAREAS-01a (§D-2). Ningún handler verifica rol, propiedad o inscripción a mano:
@@ -33,7 +35,13 @@ export const temasHandler: FastifyPluginAsync = async (app) => {
     protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
-      return reply.send(listaTemasRespuestaSchema.parse(await listarTemas(claseId)))
+      // CLASES-03a (§D-3.4): con ?seccion=, los mismos temas con los conteos de esa sección.
+      const { seccion } = validarParametros(temasQuerySchema, request.query)
+      const lista =
+        seccion === undefined
+          ? await listarTemas(claseId)
+          : await listarTemasDeLaSeccion(claseId, seccion)
+      return reply.send(listaTemasRespuestaSchema.parse(lista))
     },
   )
 
@@ -91,7 +99,8 @@ export const temasHandler: FastifyPluginAsync = async (app) => {
   )
 
   // P-02 (b): mover un elemento de tema organiza la clase y no cuenta como editarlo, así que no mira
-  // la autoría: basta ser maestro de la clase o admin.
+  // la autoría: basta ser maestro de la clase o admin. CLASES-03a (§D-3.9): un recurso sigue además la
+  // regla de su bloque, que decide core/ dentro de la transacción con el actor de la petición.
   app.put(
     "/clases/:claseId/publicaciones/:publicacionId/tema",
     protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
@@ -99,7 +108,7 @@ export const temasHandler: FastifyPluginAsync = async (app) => {
       const { id: claseId } = claseDe(request)
       const { publicacionId } = validarParametros(publicacionDeMoverParamSchema, request.params)
       const { temaId } = validarCuerpo(moverElementoSchema, request.body)
-      const movido = await moverATema({ claseId, publicacionId, temaId })
+      const movido = await moverATema({ claseId, publicacionId, temaId, actor: perfilDe(request) })
       return reply.send(moverElementoRespuestaSchema.parse(movido))
     },
   )

@@ -323,3 +323,420 @@ Revisé las cuatro anclas sobre el árbol actual. Todas existen una sola vez y *
 - **Umbrales de duración en la `*.ataque` nueva** (T-01 `< 4.5 s` y T-09 `< 15 s`): pasan con margen en el equipo descargado. Con carga alta podrían fallar por tiempo y no por un defecto, como ya pasó otras veces (ESTADO §5). La regla de medir la carga antes de cada corrida lo cubre. No pide cambio.
 - **Línea del orquestador en el `aprobacion.md` de CLASES-03:** sigue pendiente decidir si va en el commit de 02a o en uno de documentos aparte (ver mi verificación del resumen).
 - **Carga en las corridas del programador:** ya registrada y sin efecto (mis tres corridas con el equipo descargado dan las mismas cifras).
+
+## Verificación del resumen — 02b
+
+Veredicto: **ACEPTADO.** Puede atacar el tester. No hay M-nn que bloqueen. Hay dos observaciones (N-07 y N-08) y el arbitraje del punto 9, abajo.
+Resumen verificado: la sección de 02b de `resumen-programador.md` (SHA-256 del archivo `7c035686d87c7c61bec23313303b3fb4f1f5ee11fec381137996d307840ce4fe`, reproducido). Plan `a25ccc63…`. Base de 02b dentro de los paquetes: `<K2a>` = `57192e2`.
+
+### Mis corridas (una cada vez, sin nada en paralelo)
+Carga antes de la suite: 20 % y 9 % (dos lecturas seguidas en 25 % o menos). Antes del lint hubo una lectura de 52 % seguida de una de 10 %. Por eso el lint no cuenta como corrida en frío, aunque es determinista y sus cifras no dependen de la carga.
+`git diff --quiet 57192e2 -- shared backend` sale con 0: 02b no toca `shared/` ni el backend. Por eso no corrí sus suites; las 94 `*.ataque` del backend siguen iguales a la tabla de la ronda 1 de 02a.
+
+| Comando | Mi corrida (última línea) | Resumen | ¿Coincide? |
+|---|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b`, salida 0 | igual | Sí |
+| `cd frontend; npm run test` | `Test Files  279 passed (279)` · `Tests  6034 passed (6034)` · 401.05 s | 279 / 6034 · 361.69 s | Sí |
+| `cd frontend; npm run build` | `✓ built in 1.61s`, salida 0 (solo el aviso de siempre del tamaño de los chunks) | `✓ built in 1.10s` | Sí (el tiempo varía) |
+
+Conteos con `cd frontend; npx vitest list` (contados con `grep -a`), todos iguales a los del resumen:
+- **Archivos:** 279.
+- **`*.ataque`:** 153.
+- **Casos `CAL2-B`:** 81, por archivo: `lib/xlsx.test.ts` 15, `lib/xlsx-muestra.test.ts` 1, `services/descargaService.test.ts` 1, `exportacion-02b.test.ts` 15, `exportar-02b.test.tsx` 30, `recuperar-exportacion-02b.test.tsx` 13 y `estatico-02b.test.ts` 6.
+- **Por viñeta:** B01 3, B02 5, B03 7, B04 5, B05 4, B06 4, B07 2, B08 4, B09 1, B10 16, B11 4, B12 4, B13 13, B14 1, B15 6, B16 1 y B17 1.
+- **Total:** 5953 + 81 = 6034.
+
+### Pruebas requeridas
+Cotejé los 59 títulos del resumen contra la lista:
+- Los 50 títulos fijos existen tal cual, en el archivo que dice.
+- Los 9 de `it.each` o `describe.each` (B10 ×2, B11, B12, B13 (1) a (5)) existen con su prefijo literal y dan el número de casos que el resumen declara.
+
+CAL2-B01 a CAL2-B17 tienen cada una al menos un caso. Lo que verifiqué en el contenido:
+- **B04:** la regla de §D-4 trae 14 casos con nombre, de la regla 1 a la 6, entre ellos "otra dirección" y "otro porcentaje" en la segunda ventana.
+- **B09:** lee el archivo con el lector, revisa "Deudor", "Al corriente" y "estring", y revisa la caché de mutaciones.
+- **B13:** usa el router real (`rutas` con `createMemoryRouter`), el `QueryClient` de `app/providers.tsx` (`retry: 1`, `refetchOnWindowFocus: false`, `staleTime: 30_000`, comprobado contra el archivo) y el `Toaster` de `components/ui/sonner`. Recorre los seis caminos, con el 5 en sus dos dimensiones.
+- **B12:** la recarga es `router.navigate(ruta)` sobre la ruta activa, con otra `location.key`: es pulsar la sección.
+
+### "No se toca" de 02b contra `57192e2`
+- **Producción:**
+  - Nuevos: `lib/xlsx.ts`, `lib/lector-xlsx-de-prueba.ts`, `services/descargaService.ts` y `components/exportar-a-excel.tsx`.
+  - Cambiados en el módulo: `types.ts`, `data.ts`, `lib.ts`, `hooks.ts` y `gradebook-view.tsx`. Este último solo tiene el `import` y la inserción entre `ResumenDelGradebook` y `NavegacionDelGradebook`.
+- **Nada en:** `app/`, `components/`, `styles/` (fuera de C-4), los demás módulos, los cinco componentes vedados de `features/calificaciones/`, `package*.json`, `tsconfig*`, ni la configuración de Vite o Vitest.
+- **Lista cerrada** (`estatico-01d.test.ts`): `ESPERADOS` suma el componente; el título pasa a "doce archivos"; la regla del correo se aplica después de quitar las tres declaraciones de la lista única, con su precondición; y `toBe(15)` pasa a `toBe(16)`. Nada más.
+- **V-01:** las 153 `*.ataque` del frontend coinciden byte a byte con la tabla de la ronda 0 de 02b (`diff` sin diferencias; hash conjunto `81e3fa12…`). Las únicas con cambios contra `57192e2` son C-3 y C-4, del tester. Las dos líneas del `N-05` (`/// <reference types="node" />`) están en las dos pruebas nuevas de `lib/`, sin tocar `tsconfig`.
+
+### La matriz de avisos, recargas y foco contra el código
+Coincide con `exportar-a-excel.tsx`, `hooks.ts` y `lib.ts`:
+- **El aviso:** `toast.dismiss(id)` al empezar; un solo `success` o `error` con `id` fijo; `cancelado` no avisa; el `catch` calla si la señal se abortó o si `errorQueRedirigeElCliente`.
+- **La espera y la guarda:** `enEspera={exportar.isPending || pidiendoLaVentana}`, guarda con ref que se libera en el `finally`.
+- **La señal:** `exportarCalificaciones` mira `signal.aborted` antes de descargar, y el `useEffect` de limpieza aborta el controlador.
+- **La mutación:** sin `onSuccess`, `onError` ni `invalidateQueries`.
+- **"En vuelo a la vez":** una ventana del gradebook pone el botón en espera y no aborta la exportación (B14). Una recarga que quita el botón lo desmonta, aborta sin aviso ni descarga, y el foco va a la raíz por el gancho sin cambio (B12).
+- **"Con la vista desmontada":** el recorrido abortado no avisa ni aunque la respuesta llegue después, y entre el último `fetch` y la descarga devuelve `cancelado` (B12, casos 1 y 2). Al volver, el componente nuevo tiene sus propias refs y su controlador.
+- **El recorrido:** pide la ventana 200 y para antes de la 201. La comprobación de los totales corre solo con la primera respuesta. Los cursores de alumnos se recuerdan por ventana de tareas y los de tareas en todo el recorrido. Es la lectura correcta de §D-4.
+
+### Las decisiones donde el plan calla (1 a 12)
+Acepto las doce:
+- **1 a 3:** son tipos de interfaz en `types.ts`, una función pura en `lib.ts` y constantes en `data.ts`, conforme a las reglas 1 a 3. Las claves `primeraColumna` y `segundaColumna` evitan nombrar el correo fuera de la lista única.
+- **4:** el recorrido descrito arriba.
+- **5 y 6:** lanzan, como pide la Enmienda 1.
+- **7:** la copia a `Uint8Array` es por el tipo de `BlobPart`; `self-start` es de colocación, no un valor visual suelto.
+- **8:** el `Toaster` de `sonner` en `exportar-02b`, y el de `components/ui/sonner` en B13, como pide el plan.
+- **10 a 12:** correctas.
+- **9:** se arbitra abajo.
+
+### Arbitraje del punto 9 (el reloj en el caso de B12 que deja la vista en su vacío)
+1. **¿Es aceptable en la prueba? Sí.**
+   - CAL-T-191 y la regla de `tester.md` piden que el reloj esté fijo, no que sea un solo instante. `vi.setSystemTime(AHORA + 1 s)` deja el reloj fijo y determinista.
+   - `beforeEach` lo vuelve a poner en `AHORA` y `afterEach` hace `useRealTimers`.
+   - Modela lo que pasa en el navegador: entre la respuesta que pintó el botón y la recarga pasa tiempo.
+   - La prueba sigue demostrando lo que pide el plan: el aborto, sin aviso ni descarga, y el foco en la raíz, nunca en `<body>`.
+   - El avance cae dentro del `it.each` y también corre en el caso del `403`, donde no hace falta: ahí la clave cambia por `errorUpdatedAt` y `errorUpdateCount`. No estorba.
+2. **¿El hueco es real? Sí, y es anterior a 02b.**
+   - `claveDeFocoDeLaConsulta` (`components/foco/lib.ts`, desde CALIFICACIONES-01d) lee `status`, `dataUpdatedAt`, `errorUpdatedAt` y `errorUpdateCount`.
+   - Entre dos respuestas exitosas en el mismo milisegundo, con el mismo `status`, la clave no cambia. Si la segunda quita el control enfocado, el foco no se recoloca.
+   - Vale para cualquier vista que use el gancho, no solo para «Exportar a Excel».
+   - **Para este botón es prácticamente inalcanzable:** el botón tiene que recibir el foco después de la respuesta que lo pintó, y la respuesta de la recarga tendría que llegar con el mismo `Date.now()` que esa respuesta anterior. Enfocar, pulsar la sección y la ida y vuelta por la red no caben en un milisegundo.
+   - Ni siquiera con un reloj reducido a 100 ms (Firefox con `resistFingerprinting`) es un camino realista, aunque en teoría no es imposible.
+3. **¿Es un pendiente o una decisión del humano? Es un pendiente con destino.** No pide una decisión ahora.
+   - El arreglo toca `components/foco/`, que está en "No se toca" de este encargo. 02b no lo introduce ni lo empeora.
+   - Destino: el `chore` de foco y navegación del marco, junto a N-52 y N-54.
+   - El orquestador agrega su fila en `docs/ESTADO.md` §3 al cerrar 02b, con referencia a este arbitraje y al punto 9 del resumen.
+   - La forma del arreglo la decide el plan de ese `chore`, que aprueba el humano. No hace falta tocar "No se toca" en CALIFICACIONES-02.
+
+### Problemas que no bloquean
+- **N-07 · Dos valores de respaldo inalcanzables en `combinarVentanasDeExportacion`** (`features/calificaciones/lib.ts`, regla 8 y la preparación de las reglas 2 y 4).
+  - En la regla 8, una celda que falta se omite sin aviso (`celda === undefined ? [] : [celda]`). Si se alcanzara, `filasDeLaHojaDeExportacion` emparejaría las celdas con columnas equivocadas sin lanzar.
+  - `respuestas[0]?.tareas ?? primera.tareas` y `porVentana[0]?.filas ?? primera.alumnos` son respaldos del mismo tipo.
+  - Las reglas 3 a 5 los hacen inalcanzables, y la fila que falta ya lanza. Por coherencia con "sin valores por defecto silenciosos" (`CLAUDE.md`) y con la Enmienda 1 ("lanza, nunca un valor inventado"), lo esperado es que la celda que falta lance como la fila.
+  - Se corrige en la misma ronda si el tester devuelve algo. Si no, va como detalle a la revisión final; no amerita una ronda propia.
+- **N-08 · El punto 9 del resumen** dice "segundo caso (el vacío)", pero el avance del reloj corre en los dos casos del `it.each`. Es solo precisión del resumen: el código es correcto.
+
+### Para el orquestador
+- Al cerrar 02b, además de A-01, A-05 a A-09 y la verificación de A-02 a A-04 y A-10 (los verifico en la revisión final), va la fila nueva de ESTADO §3 del punto 9, con destino el `chore` de foco y navegación del marco.
+- La comprobación humana H-1 a H-7 sigue al final de 02b. H-0 ya se hizo: «H-0 bien», muestra `a56f9a56…`.
+
+## Arbitraje de la ronda 1 — 02b
+
+Reporte arbitrado: `reporte-tester.md`, "## Ronda 1 — 02b" (SHA-256 del archivo `ccf297d5e6c547cf35e6b9bccdd36c78d49b73b3295a80621c30d694a0459721`). Ataque nueva: `frontend/src/features/calificaciones/exportacion-02b-r1.ataque.test.tsx`.
+Veredicto del arbitraje: **T-01 y T-02 son hallazgos válidos.** Los corrige el programador en esta ronda junto con N-07. **No hace falta una enmienda del arquitecto:** los dos remedios aplican decisiones que ya están aprobadas (DH-03 y M-03) y no cambian contratos, textos, dependencias ni "No se toca". Este arbitraje queda como su registro, y el orquestador lo anota en `aprobacion.md`. **CAL2-T-20 tal como está escrita es incorrecta** (ver T-02): la reescribe el tester antes de que el programador corrija. **O-r1b-1 va al humano.**
+
+### T-01 (CAL2-T-18) — el nombre parte un grafema en el borde de 80
+- **Manda DH-03 (a).** Es la decisión del humano y dice «hasta 80 caracteres (sin partir un emoji)». §D-6, punto 2 («sin partir un par sustituto») es un detalle del arquitecto más débil que la decisión que desarrolla. Entre los dos, se cumple la decisión aprobada. No hay desacuerdo con ESSENTIALS ni decisión nueva.
+- **La medida no cambia: como máximo 80 puntos de código, sin partir nunca un grafema.** No uso 80 grafemas porque un grafema no tiene tope de puntos de código: una familia con ZWJ ocupa de 5 a 7, y una letra con marcas combinantes, cuantos se quiera. Con 80 grafemas, el nombre del archivo no tendría largo acotado. Así se conserva la medida de §D-6 y se cumple la condición de DH-03.
+- **Remedio** (`nombreDelArchivoDeExportacion`, `features/calificaciones/lib.ts`):
+  1. Después de la limpieza actual (reservados, control y dirección a espacio, espacios colapsados, sin espacios al inicio, sin puntos ni espacios al final), se divide en grafemas con `Intl.Segmenter` (`granularity: "grapheme"`). Está en `lib` ES2022 del `tsconfig`, sin dependencia nueva.
+  2. Se toman grafemas enteros mientras la suma de sus puntos de código no pase de 80; el primero que no cabe se descarta entero, con todo lo que sigue.
+  3. Después, otra vez sin puntos ni espacios al final (como hoy). Si no queda nada: `Calificaciones - AAAA-MM-DD.xlsx` (§D-6.3).
+  4. Si `Intl.Segmenter` no existe en el navegador (Firefox anterior a 125), el recorte sigue siendo el de hoy (80 puntos de código, sin partir un par sustituto). Así, un detalle del nombre nunca hace fallar la exportación. Va con un comentario que lo explique.
+  5. Se respetan §D-0.6 y O-05: sin `new RegExp(`, `\p{L}`, `.split(":")`, `.indexOf(":")` ni `/^…:`. Tampoco invisibles literales en el código (`lib/estatico-ch3`): la prueba escribe los emojis y el ZWJ con escapes `\u{…}`.
+- **Casos nuevos en CAL2-B06** (en `exportacion-02b.test.ts`, el archivo del programador), cada uno en el borde:
+  - una bandera, una familia con ZWJ, una tecla con número y un tono de piel que quedarían partidos: se quitan enteros;
+  - el mismo emoji que termina exactamente en el punto de código 80: se conserva entero;
+  - una clase que es un solo grafema de más de 80 puntos de código: el nombre sin clase;
+  - `Intl.Segmenter` ausente (sustituido en la prueba y restaurado): el recorte por puntos de código, sin lanzar.
+- **Hermanos y estados vecinos que el resumen tiene que listar:** no hay otro recorte de texto en 02b (la hoja no recorta y el nombre de la hoja es fijo). Los estados son: el grafema que cabe exacto; el que cruza el 80; la clase que queda vacía tras el recorte; un punto o espacio que queda al final tras el recorte; y el navegador sin `Intl.Segmenter`.
+
+### T-02 (CAL2-T-20) — más de 16,381 tareas dan columnas después de `XFD`
+- **El hallazgo es válido.** M-03, aprobada por el humano, le da a «demasiado» el papel de detener lo que no cabe en un solo archivo, y el tope de columnas de la hoja no estaba en esa cuenta. Es muy improbable, pero hoy produce un archivo roto en silencio en lugar de avisar.
+- **Remedio en dos capas** (las dos, sin texto nuevo):
+  1. **El recorrido** (`recorrerLaExportacion`, `hooks.ts`). En la misma comprobación que ya hace con la primera respuesta, además de `necesarias > MAXIMO_DE_PETICIONES_DE_EXPORTACION`, devuelve `{ tipo: "demasiado" }` si la hoja no cabe: `totalTareas` + las 3 columnas fijas (Alumno, Correo y Promedio) > 16,384. No pide nada más, y el aviso es el de M-03 («Esta clase tiene demasiadas calificaciones para exportarlas en un solo archivo.», sin promesa de reintento). Con 16,381 tareas cabe (la última columna es `XFD`); con 16,382, no. Va como función pura en `lib.ts` (por ejemplo, `cabeEnUnaHoja(totalAlumnos, totalTareas)`), con las 3 columnas fijas como constante en `data.ts` sin nombrar el correo. Si las tareas crecen a mitad del recorrido, la regla 1 de §D-4 ya da `cambio`, así que las columnas de la matriz nunca pasan de las de la primera respuesta. Por filas no hace falta en el recorrido: con el tope de 200 ventanas, los alumnos no pasan de 20,000.
+  2. **El escritor** (`armarLibroXlsx`, `lib/xlsx.ts`). Lanza (`Error`, error de programación, como los demás de §D-5.1) si una fila tiene más de 16,384 celdas, si hay más de 16,384 anchos o si hay más de 1,048,576 filas, antes de armar nada. Exporta `MAXIMO_DE_COLUMNAS_XLSX = 16_384` y `MAXIMO_DE_FILAS_XLSX = 1_048_576` para que lo use la capa 1. Es el mismo criterio con que ya lanza ante los otros límites de Excel (nombre de 31 y texto de 32,767). La salida de CAL2-B01 a B03 no cambia.
+- **Casos nuevos** (archivos del programador):
+  - CAL2-B03: 16,384 columnas no lanza y la última referencia es `XFD`; 16,385 lanza; 16,385 anchos lanzan; más de 1,048,576 filas lanza. Sin armar un millón de filas de verdad: basta un arreglo de ese largo, porque el escritor lanza antes de recorrerlo.
+  - CAL2-B04, o la prueba de la función pura: 16,381 tareas caben y 16,382 no, también con 0 alumnos.
+  - CAL2-B10: una primera respuesta con `totalAlumnos: 1` y `totalTareas: 16382` da una sola petición, el aviso de demasiadas, ninguna descarga y el botón fuera de la espera.
+- **Por qué CAL2-T-20 es incorrecta:** exige que `armarLibroXlsx(hojaDeExportacion(matriz))` con 16,382 tareas dé una hoja sin referencias después de `XFD`. Eso solo se cumple quitando columnas sin avisar, es decir, perdiendo calificaciones en silencio, que es justo lo que el plan prohíbe («sin valor inventado», Enmienda 1). Su propio «Esperado» admite la otra salida: «o la exportación se detiene con un aviso». **Decisión:** antes de que corrija el programador, el tester reescribe CAL2-T-20 para que afirme el comportamiento arbitrado:
+  - (a) con esa matriz, `armarLibroXlsx(hojaDeExportacion(…))` lanza y nunca devuelve una hoja que pase de `XFD`;
+  - (b) por la vista, una primera respuesta con 16,382 tareas da una sola petición y el aviso de demasiadas, sin descarga.
+
+  El programador no la toca (`AGENTS.md`). Esa reescritura no cuenta como ronda.
+- **¿Cabe en §D-4, §D-5.1 y §D-8 tal como están?**
+  - §D-8: sí, sin cambios (el texto `demasiado` ya existe).
+  - §D-4 y §D-5.1: son extensiones de la condición de «demasiado» y de la lista de «Lanza», dentro de la intención de M-03 y de la forma de §D-5.1. No hace falta enmienda; queda registrado aquí.
+- **Hermanos que el resumen tiene que listar:** los demás límites de Excel y cómo los cubre cada uno:
+  - filas: escritor; en el recorrido es inalcanzable;
+  - texto de una celda (32,767): ya lanza;
+  - nombre de la hoja: fijo y ya validado;
+  - ancho de columna (máximo 255): los anchos son fijos de 14 a 36.
+
+  Los estados vecinos de la comprobación del recorrido son: la primera respuesta con 201 ventanas; con 16,382 tareas; con las dos condiciones a la vez; la clase que crece a mitad del recorrido (`cambio`); y la que llega a 200 peticiones.
+
+### N-07 — sí, en esta misma ronda
+Lo dije en la verificación del resumen y se mantiene. CAL2-T-21 confirma que es inalcanzable, pero un respaldo silencioso que, si se alcanzara, mezclaría celdas y columnas contradice `CLAUDE.md` y la Enmienda 1. En `combinarVentanasDeExportacion`:
+- la celda que falta en la regla 8 lanza (`Error`), como ya hace la fila;
+- `respuestas[0]?.tareas ?? primera.tareas` y `porVentana[0]?.filas ?? primera.alumnos` dejan su respaldo: lanzan, o el código se reordena para que no haga falta.
+
+El programador lista como hermanos los demás `??` del código nuevo de 02b (por ejemplo, `ENTIDADES[c] ?? c` y `tabla[…] ?? 0` en `lib/xlsx.ts`) y dice de cada uno si oculta un dato. Los de un índice que siempre está en rango por construcción pueden quedarse, con un comentario que diga por qué.
+
+### O-r1b-1 — es un riesgo nuevo y va al humano
+- **No está dentro de R-02 tal como se le presentó al humano.** R-02 dice que §D-4 «rechaza lo que se ve (alumnos, actividades, totales, promedios)» y que solo se escapa «un cambio de estado sin calificación». DH-02 (a) prometió lo mismo («si entre dos ventanas cambió algo que se ve»). El caso del tester sí se ve: una baja y un alta que se compensan entre dos páginas de alumnos dejan en el archivo a un alumno ya dado de baja y sin el nuevo.
+- **No se puede detectar con lo que da la API.** Sería un cambio de diseño en el backend de 02a, ya cerrado, por ejemplo una marca de la lista de inscritos en cada respuesta. Solo pasa en clases de más de 100 alumnos (el piloto ronda 30) y en el instante del recorrido.
+- **Mi recomendación al humano:** aceptarlo como una ampliación de R-02. Si lo acepta:
+  - el orquestador actualiza el texto de R-02 en el cierre de 02b;
+  - el texto de A-02 ya aplicado en ESSENTIALS («no arma el archivo si la clase cambió entre dos ventanas») pasa a «no arma el archivo si detecta que la clase cambió entre dos ventanas (riesgo residual R-02 de CALIFICACIONES-02)».
+
+  Si no lo acepta, es un encargo de backend aparte, no una corrección de 02b. **No frena la corrección de esta ronda.**
+
+### O-r1b-2 — no pide nada
+El retorno de carro se conserva como pide §D-5.1, y cualquier lector de XML lo normaliza a salto de línea al abrir el archivo. No se pierde texto, y hoy no se alcanza porque el servidor normaliza los saltos. Queda como observación, sin cambio y sin fila en ESTADO.
+
+### Lo que el programador puede tocar en esta corrección
+- **Producción:**
+  - `frontend/src/features/calificaciones/lib.ts`: `nombreDelArchivoDeExportacion`, la función pura de la hoja que cabe y N-07 en `combinarVentanasDeExportacion`.
+  - `frontend/src/features/calificaciones/hooks.ts`: solo la comprobación de la primera respuesta en `recorrerLaExportacion`.
+  - `frontend/src/features/calificaciones/data.ts`: la constante de las 3 columnas fijas, sin nombrar el correo.
+  - `frontend/src/lib/xlsx.ts`: los dos máximos exportados y sus `throw`.
+- **Pruebas:** solo sus propios archivos de 02b (`exportacion-02b.test.ts`, `exportar-02b.test.tsx`, `lib/xlsx.test.ts`) con los casos de arriba. Ninguna `*.ataque`. Ningún archivo de la lista "No se toca" de 02b.
+- **El resumen** trae lo de siempre: cada caso nuevo con su título, las cifras de `npx vitest list` y de la corrida, y lint, test y build con su última línea. Trae además los hermanos y los estados vecinos de T-01, T-02 y N-07 que listé arriba, uno por uno.
+
+### Orden
+1. El tester reescribe CAL2-T-20 según la decisión de arriba, sin tocar CAL2-T-18 ni las demás.
+2. El programador corrige T-01, T-02 y N-07.
+3. Manager: verificación del resumen.
+4. Tester: ronda 2.
+
+## Verificación de la corrección de la ronda 1 — 02b
+
+Veredicto: **ACEPTADO.** Puede ir la ronda 2 del tester. No hay M-nn.
+Resumen verificado: "Corrección de la ronda 1 — 02b" en `resumen-programador.md` (SHA-256 del archivo `f10e565844e8c6366e5eb18da8f07c9af9dcd29408879b7ac182c502a7c03a14`, reproducido). Remedio de referencia: "## Arbitraje de la ronda 1 — 02b" de este archivo.
+
+### Mis corridas (una cada vez, sin nada en paralelo)
+- **Carga:** antes del lint, 19 % y 13 %. Antes de la suite subió a 37 % y 45 %; esperé con un ciclo de lecturas hasta tener dos seguidas en 25 % o menos (17 % y 21 %), y entonces la lancé.
+- **Paquetes sin cambios:** `git diff --quiet 57192e2 -- shared backend` sale con 0. Las 94 `*.ataque` del backend siguen iguales a la tabla de la ronda 1 de 02a.
+
+| Comando | Mi corrida (última línea) | Resumen | ¿Coincide? |
+|---|---|---|---|
+| `cd frontend; npm run lint` | `> tsc -b`, salida 0 | igual | Sí |
+| `cd frontend; npm run test` | `Test Files  280 passed (280)` · `Tests  6054 passed (6054)` · 259.18 s | 280 / 6054 · 385.90 s | Sí |
+| `cd frontend; npm run build` | `✓ built in 820ms`, salida 0 | `✓ built in 2.32s` | Sí (el tiempo varía) |
+
+Conteos con `cd frontend; npx vitest list` (contados con `grep -a`): todos coinciden con el resumen.
+- 280 archivos y 154 `*.ataque`.
+- 89 casos `CAL2-B` y 12 `CAL2-T`.
+- `CAL2-B` por archivo: `lib/xlsx.test.ts` 16, `lib/xlsx-muestra.test.ts` 1, `services/descargaService.test.ts` 1, `exportacion-02b.test.ts` 21, `exportar-02b.test.tsx` 31, `recuperar-exportacion-02b.test.tsx` 13 y `estatico-02b.test.ts` 6.
+- La cuenta 6045 + 1 (CAL2-T-20 b) + 8 = 6054 cuadra.
+
+Los 8 títulos nuevos del resumen existen tal cual (cotejo literal con " > <título>"):
+- 4 de CAL2-B06;
+- CAL2-B03 (T-02), CAL2-B04 (`cabeEnUnaHoja`), CAL2-B05 (T-02) y CAL2-B10 (T-02).
+
+CAL2-T-18 y CAL2-T-20 (a) y (b) están en verde en mi corrida.
+
+La muestra de CAL2-B17 que escribió mi corrida (`C:\Users\Carlos\AppData\Local\Temp\cmep-calificaciones-muestra.xlsx`, 18,628 bytes, 12:51) tiene SHA-256 `a56f9a56…`, el de H-0. Una hoja válida sale con los mismos bytes.
+
+### V-01 y "No se toca"
+- **Frontend:** las 154 `*.ataque` coinciden byte a byte con la tabla de la ronda 1 de 02b, en la que puse el hash nuevo de la reescritura de CAL2-T-20 (`bef8aa53…`, antes `0cab4d2b…`; "Reescritura de CAL2-T-20" del reporte). La comparación con `diff` no da diferencias.
+- **Archivos que tocó el programador:** todos están en la lista del arbitraje.
+  - Producción: `lib.ts`, `hooks.ts`, `data.ts` y `lib/xlsx.ts`.
+  - Pruebas: `exportacion-02b.test.ts`, `exportar-02b.test.tsx` y `lib/xlsx.test.ts`.
+- **El resto:** `git status` sobre los paquetes muestra el mismo conjunto de 02b de antes, más la `*.ataque` del tester. Nada en "No se toca".
+
+### Los remedios contra el arbitraje
+- **T-01** (`recortarSinPartirGrafemas`):
+  - Recorta con `Intl.Segmenter` por grafemas enteros hasta 80 puntos de código. El primero que no cabe corta todo lo que sigue.
+  - Después vuelve a quitar los puntos y espacios del final, y sin clase da el nombre sin clase.
+  - Sin `Intl.Segmenter` recorta por puntos de código y no lanza.
+  - No usa `new RegExp(`, `\p{L}` ni invisibles literales; las pruebas arman los emojis con `String.fromCodePoint`.
+  - Los cuatro casos nuevos de B06 cubren lo que pedí, incluida la restauración de `Intl.Segmenter` en el `finally`.
+- **T-02, las dos capas:**
+  - El recorrido devuelve `demasiado` con la primera respuesta si `necesarias > 200 || !cabeEnUnaHoja(…)`.
+  - `armarLibroXlsx` valida el tamaño (`validarTamano`) antes de armar nada, con las dos constantes exportadas.
+  - B03, B04 y B10 cubren los bordes que pedí: 16,384 columnas llegan a `XFD`; 16,385 lanzan; 16,381 tareas caben y 16,382 no.
+- **N-07:** los tres respaldos lanzan.
+  - La celda que falta en la regla 8 lanza.
+  - El grupo sin respuestas lanza.
+  - La exportación sin ventana de referencia lanza.
+- **Hermanos y estados vecinos:** están completos y coinciden con el código.
+  - De T-01, los siete: otro recorte, grafema exacto, grafema que cruza, clase vacía, punto o espacio final, sin `Intl.Segmenter` y emoji de un solo punto.
+  - De T-02, los cinco límites de Excel y los cinco estados del recorrido.
+  - De N-07, los seis `??`. Lo comprobé con `grep`: el código nuevo de 02b no tiene otros.
+- **La matriz de avisos:** solo cambian la fila de `demasiado` (también cuando la hoja no cabe) y la del genérico (también cuando `hojaDeExportacion` o `armarLibroXlsx` lanzan, y los respaldos de N-07). Es lo que hace el componente: lo que se lanza dentro de la mutación da el genérico y `demasiado` da el texto de M-03.
+
+### Las tres decisiones que me pidieron
+1. **`hojaDeExportacion` también lanza si la matriz no cabe: la acepto.**
+   - Es el mismo criterio de «antes de armar nada» del arbitraje, en `lib.ts`, que el programador podía tocar.
+   - No agrega texto, contrato ni camino nuevo: si se alcanzara, el error se lanza dentro de la mutación y da el aviso genérico, como cualquier otro.
+   - Desde la interfaz es inalcanzable, porque el recorrido ya lo detiene con `demasiado`. Evita recorrer miles de celdas para después tirar el resultado.
+   - Que `cabeEnUnaHoja` también cuente las filas también lo acepto: así el recorrido, la hoja y el escritor usan el mismo criterio.
+   - El motivo que da (el tiempo de CAL2-T-20 (a) con el equipo cargado) no sería suficiente por sí solo, pero el cambio se sostiene sin él.
+2. **Los tres `??` que se quedan en `lib/xlsx.ts`: aceptables.**
+   - La regla de `CLAUDE.md` es contra los respaldos que ocultan datos que faltan (`data ?? []`, o `estadoPago`, `rol` y `calificacion` sin dato). Estos tres solo satisfacen `noUncheckedIndexedAccess` sobre índices que están en rango por construcción:
+     - las cinco llaves que encuentra la expresión;
+     - la máscara `& 0xff` sobre una tabla de 256;
+     - un desplazamiento por parte, en el mismo orden.
+   - Cada uno lleva su comentario y ninguno toca un dato de la persona.
+   - Si alguno se equivocara, CAL2-B01, que compara byte a byte y con `crc32` de `node:zlib`, lo detectaría.
+   - `columna.categoria?.nombre ?? sinCategoria` es un valor explícito válido (§D-5.2), igual que `instrucciones ?? ""` en `CLAUDE.md`.
+3. **N-07 sin prueba propia: basta.**
+   - Los tres `throw` no se alcanzan ni llamando a la función pura con entradas fabricadas: las reglas 3 a 5 se comprueban antes, y los grupos nacen con una respuesta.
+   - Probarlos exigiría un doble de la propia función.
+   - Lo que importa (toda matriz aceptada tiene una celda por columna, en orden) lo cubre CAL2-T-21 con 3,000 combinaciones, y sigue en verde.
+
+### Observaciones (no bloquean)
+- El escritor no valida el ancho máximo de columna (255). Con los anchos fijos del encargo (de 14 a 36) es inalcanzable. Queda como observación del resumen, sin fila en ESTADO.
+- La primera corrida acotada del programador, con la carga en 59 % y 46 %, tuvo rojos por tiempo (CAL2-T-20 a y CAL-T-159). Él los declaró y repitió con el equipo descargado. Mi suite con el equipo descargado está en verde. Es otro ejemplo de por qué se mide la carga antes de correr, no un defecto.
+- El punto 3 de "Decisiones" del resumen dice que los escapes `\u202E` y `\u2066` de `exportacion-02b.test.ts` habían quedado como caracteres literales en la primera versión de 02b. Ya están de vuelta como escapes. Ninguna regla estática los atrapó porque las de invisibles leen producción y CAL-T-185 solo busca emojis. Es un detalle para el tester en la ronda 2, no un hallazgo: hoy el archivo está bien.
+- O-r1b-1 sigue con el humano (ver el arbitraje).
+
+## Revisión final — 02b y cierre de CALIFICACIONES-02
+
+Veredicto: **APROBADO.** No hay problemas que bloqueen ni M-nn. 02b puede ir al commit del humano (`<K2b>`) y CALIFICACIONES-02 queda listo para la comprobación humana H-1 a H-7.
+
+**Verificación propia** (una cosa cada vez, sin nada en paralelo):
+- **Carga:** antes del lint, 18 % y 17 %; antes de la suite, 10 % y 11 % (las dos con dos lecturas seguidas en 25 % o menos).
+- **Paquetes sin cambios:** `git diff --quiet 57192e2 -- shared backend` sale con 0. Las 94 `*.ataque` del backend siguen iguales a la tabla de la ronda 1 de 02a.
+
+| Comando | Última línea |
+|---|---|
+| `cd frontend; npm run lint` | `> tsc -b`, salida 0 |
+| `cd frontend; npm run test` | `Test Files  281 passed (281)` · `Tests  6062 passed (6062)` · 263.51 s |
+| `cd frontend; npm run build` | `✓ built in 840ms`, salida 0 (solo el aviso de siempre del tamaño de los chunks) |
+
+Conteos con `cd frontend; npx vitest list` (contados con `grep -a`): 281 archivos, 155 `*.ataque`, 89 casos `CAL2-B` y 20 `CAL2-T` (12 de la ronda 1 y 8 de la ronda 2). Coinciden con el tester (281 / 6062) y con la cuenta 6054 + 8.
+
+### 1. El diff contra el plan
+- **02b hizo lo planeado, solo lo planeado y todo lo planeado:**
+  - `lib/xlsx.ts` con los literales de §D-5.1, comprobados byte a byte por B01 a B03; H-0 bien.
+  - `lib/lector-xlsx-de-prueba.ts`, que solo importan pruebas.
+  - `services/descargaService.ts`.
+  - `types.ts`, `data.ts`, `lib.ts` y `hooks.ts` del módulo (§D-4 a §D-8).
+  - `ExportarAExcel` y su única inserción en `gradebook-view.tsx`.
+  - La lista cerrada de `estatico-01d.test.ts`.
+  - CAL2-B01 a B17.
+- **Lo que se agregó después del plan**, cada cosa con su registro:
+  - T-01: el recorte por grafemas, que aplica DH-03.
+  - T-02: el tope de la hoja en el recorrido, `hojaDeExportacion` y el escritor, dentro de M-03.
+  - N-07.
+
+  Están en "Arbitraje de la ronda 1 — 02b" y en "Verificación de la corrección de la ronda 1 — 02b" de este archivo, y en `aprobacion.md`. Sin dependencias nuevas: `package.json` y `package-lock.json` no cambian.
+
+### 2. V-01 y las `*.ataque`
+- **Frontend:** las 155 `*.ataque` coinciden byte a byte con la tabla de la ronda 2 de 02b (`diff` sin diferencias; hash conjunto `a2f82829…`).
+- **Cambios contra `57192e2`:**
+  - Las únicas `*.ataque` cambiadas son C-3 y C-4, del tester en la ronda 0.
+  - Las dos nuevas son `exportacion-02b-r1` (con CAL2-T-20 reescrita por el arbitraje) y `exportacion-02b-r2`, las dos del tester.
+- **El programador no modificó, saltó ni borró ninguna.**
+- **`exportacion-02b-r2.ataque.test.tsx`:** fija el reloj (`useFakeTimers` y `setSystemTime`) y no usa selectores de estilo.
+
+### 3. "No se toca"
+- **Dentro de los paquetes, contra `<K2a>` = `57192e2`:** solo cambian los archivos permitidos de 02b (sección 1).
+  - Nada en `app/`, `components/` (ni `foco/`), `styles/` fuera de C-4, los demás módulos, los cinco componentes vedados de `features/calificaciones/`, `package*.json`, `tsconfig*`, ni la configuración de Vite o Vitest.
+  - Nada en `shared/` ni en el backend.
+- **Fuera de los paquetes, contra `ff09e69`:**
+  - Cambian `CLAUDE.md` (A-09), `docs/ARCHITECTURE-ESSENTIALS.md` (A-01 y A-02), `docs/ARCHITECTURE.md` (A-03 a A-07), `docs/DESIGN.md` (A-08), `docs/ESTADO.md` (excluido) y esta carpeta.
+  - La línea de cierre de CLASES-03 en su `aprobacion.md` ya entró en `<K2a>`.
+  - `AGENTS.md`, `.claude/`, `infra/`, `.github/` y los archivos de la raíz no cambian.
+- **Hashes actuales:** ESSENTIALS `1cc016f5…`, ARCHITECTURE `72126105…`, DESIGN `a03be967…` y CLAUDE `f87cd7b0…`. Coinciden con los que dio el orquestador.
+
+### 4. Los documentos de cierre, contra el plan y el código
+- **A-02 (de 02a), con el ajuste de R-02:** la ruta, las ventanas de 100 × 100, la instantánea, `leerGradebookCon` y «no arma el archivo si detecta que la clase cambió entre dos ventanas (riesgo residual R-02 de CALIFICACIONES-02)». Coincide con la decisión del humano sobre O-r1b-1 (opción A, en `aprobacion.md`).
+- **A-03:** es el texto literal del plan, insertado antes de « (CALIFICACIONES-01) |», como pedía. La fila queda terminada en «…CALIFICACIONES-02) (CALIFICACIONES-01) |»; ver "Detalles".
+- **A-04:** la viñeta de CALIFICACIONES-02 se quitó de "Rutas previstas" y el párrafo quedó intacto.
+- **A-10:**
+  - las filas de ADMIN-01 (P-08), FORO-01 y DEPLOY (R-07);
+  - la frase de N-52;
+  - la fila del punto 9, con destino el `chore` de foco y navegación del marco.
+- **A-01, A-05, A-06 y A-07:** literales del plan y ciertos para el código: escritor propio en `lib/xlsx.ts`, sin dependencia, y JSON por ventanas.
+- **A-08 (`DESIGN.md` §7.28):**
+  - Están la viñeta nueva, el «Panel» de N-03 y la frase del correo solo en el archivo.
+  - Los textos coinciden con `data.ts`: «Se descargó «…».», el aviso de vacío, el de demasiadas, «Correo», «Promedio (%)», «Sin categoría» y «—».
+  - También coinciden con el componente: `outline` `sm`, `FileSpreadsheet`, `enEspera` y la guarda.
+  - **El patrón visual nuevo quedó documentado en el mismo encargo**, como pide `AGENTS.md`. No hay pantalla nueva para §7.1.
+- **A-09 (`CLAUDE.md`):**
+  - la fila `calificaciones` de la tabla de módulos;
+  - `lib/xlsx.ts`, después de `lib/errores-de-api.ts`;
+  - `services/descargaService.ts`, después de `services/almacenService.ts`;
+  - «cuyas consultas y cuya exportación nunca muestran texto del servidor», con DH-12 (a).
+
+### 5. Definición de terminado
+- [x] RF-65: alumnos × actividades con categorías, puntos y promedio, el mismo cálculo que el gradebook (CAL2-A04), para los maestros de la clase y el admin, con nombre y correo y nunca estado de pago ni restricción (P-13; CAL2-A02, B05, B09 y T-15).
+- [x] Capas y middleware: la ruta de 02a con la cadena del gradebook; nada de seguridad solo en el frontend.
+- [x] `lint`, `test` y `build` en verde (corrida propia; el backend en la revisión final de 02a, sin cambios desde entonces).
+- [x] Pruebas de autorización del endpoint (02a).
+- [x] Sin migración, sin cambios en `infra/` ni en `.env.example`.
+- [x] Documentos actualizados (sección 4).
+
+### 6. Reglas que no se rompen y estilo
+- **Archivos:** no pasan por Node ni por el almacén: el .xlsx se arma en la página y se entrega con un `Blob`.
+- **Red:** sin `fetch(` fuera de `apiClient` y `almacenService`.
+- **Errores:** ningún texto del servidor llega a la persona.
+- **Caché:** en la de mutaciones solo queda el nombre del archivo.
+- **Estilo de módulos:** tipos en `types.ts`, textos y constantes en `data.ts`, funciones puras en `lib.ts`, ganchos en `hooks.ts`, y el componente solo con su `Props`.
+- **Errores en el frontend:** `throw` solo dentro de la mutación; `try/catch/finally` con aviso en el manejador.
+- **Valores por defecto:** sin respaldos silenciosos sobre datos (N-07 corregida; los tres `??` de índices en rango están justificados).
+- **Sin anidar:** ni if/else anidados ni ternarios anidados en JSX.
+
+### Lista de diseño (02b toca `frontend/`)
+- **Coincide con `DESIGN.md` §7.28 y el patrón quedó documentado** (A-08).
+- **Solo tokens:** el botón no trae color, tamaño, radio ni sombra sueltos. `self-start` es colocación. El .xlsx no declara colores (V-02 a V-05 en verde).
+- **Componentes:** `Button` de `components/ui/`, `outline` `sm`, sin `disabled`, con `enEspera`. Nada hecho a mano y nada con el aspecto por defecto de shadcn/ui.
+- **Rasgos prohibidos:** ningún degradado, mancha ni vidrio nuevo; el gradebook sigue opaco.
+- **Estado:** no se comunica solo con color; el botón no tiene estados de color, y la espera va en `aria-busy` con su indicador.
+- **Densidad y acción principal:** acorde al rol, y una sola acción principal por vista (el botón es `outline`; CAL-T-186).
+- **Textos:** en español de México, concretos, sin emojis. Los avisos sin promesa falsa de reintento son el de vacío y el de demasiadas.
+- **Errores, carga y vacío:** el botón no aparece en los vacíos, en la carga ni con un error que reemplaza la vista; los avisos cubren cada error.
+- **Foco y accesibilidad:** el foco se queda en el botón, va a la raíz si la vista se reemplaza (B12), y el botón tiene su nombre accesible.
+- **360 px:** el botón es `sm` y `self-start`. No lo puedo ver sin navegador; queda dentro de H-6.
+
+### 7. Medición del programador en 02b (y en el encargo)
+- **02a:** 0 rondas extra (la ronda 1 RESISTE); 1 resumen, aceptado; 0 PARADAS.
+- **02b:** 1 ronda extra (la ronda 1 ROTO; la ronda 2 RESISTE), **0 por hermanos o estados vecinos**.
+  - T-01 fue una contradicción del plan (§D-6 contra DH-03).
+  - T-02 fue un tope que el plan no incluyó en la cuenta de M-03.
+  - Ninguno vino de un remedio que no se extendiera.
+- **Resúmenes:** 2 (implementación y corrección), los dos aceptados, 0 devueltos.
+- **PARADAS:** 1, la de control H-0, prevista por el plan (DH-10). No es un incidente.
+- **Encargo completo:** 3 rondas del tester, 1 extra y 0 por hermanos; 3 resúmenes, 0 devueltos; 0 PARADAS imprevistas.
+- **Desviaciones de proceso, declaradas por el programador:** corridas lanzadas con la carga por encima del 25 % (en 02a y en la primera corrida acotada de la corrección de 02b). No cambiaron ninguna cifra, porque mis corridas con el equipo descargado dan lo mismo.
+- **La regla de `AGENTS.md`** (2 o más rondas extra por hermanos pasan al `programador` a `opus`) **no se activa.**
+
+### 8. Pendientes con destino y observaciones
+**Con destino (ESTADO §3, ya escritos):**
+- P-08 en la exportación → ADMIN-01.
+- El foro en la exportación → FORO-01.
+- Desplegar primero el backend (R-07) → DEPLOY.
+- El punto 9 (la clave de foco con dos respuestas en el mismo milisegundo) → el `chore` de foco y navegación del marco.
+
+**Aceptado por el humano:** R-02 ampliado con O-r1b-1 (opción A).
+
+**Observaciones sin fila:**
+- O-r1-1: `z.coerce` acepta `0x64` y `1e2`, como el gradebook.
+- O-r1b-2: el retorno de carro se normaliza al abrir.
+- El ancho máximo de columna (255) no se valida; es inalcanzable con los anchos fijos.
+- El navegador sin `Intl.Segmenter` solo se probó en jsdom.
+
+### Detalles (no bloquean; el orquestador puede ajustarlos antes del commit)
+- **La marca de A-08 en `DESIGN.md` §7.28.** Dice «(CALIFICACIONES-02, propuesta)». Los encargos anteriores usan «propuesta (CLASES-03e)», «propuesta (CLASES-02c)», etc., la forma que §11 convierte después en «propuesta aprobada (fecha)».
+  - Recomiendo «(propuesta (CALIFICACIONES-02b))» en la viñeta nueva.
+  - Recomiendo la misma marca al final del «Panel» que reescribió N-03, que hoy no lleva ninguna.
+  - Cuando el humano dé por buena H-1 a H-7, las dos pasan a «propuesta aprobada (fecha)».
+- **`DESIGN.md:662` quedó desactualizada.** La viñeta «Secciones» de §7.3 termina en «"Exportar a Excel" del gradebook (RF-65) lo diseña CALIFICACIONES-02.» Propongo «… lo diseñó CALIFICACIONES-02 (§7.28).». El plan no la listaba en A-08.
+- **El cierre de la fila `calificaciones` de `ARCHITECTURE.md` §7** queda «…; CALIFICACIONES-02) (CALIFICACIONES-01) |». Es literal del plan; se lee raro, pero es correcto. Opcional: «(CALIFICACIONES-01 y CALIFICACIONES-02) |».
+
+### Hoja de comprobación humana (máximo 10 minutos y 7 puntos; H-0 ya se hizo)
+**Preparación:** una clase con al menos dos alumnos (uno con acento o ñ en el nombre), dos categorías, una tarea sin categoría, una calificada con retraso, una entregada sin calificar y una vencida sin entregar.
+
+1. **H-1 · Maestro, descarga:** en Calificaciones, «Exportar a Excel» está entre el resumen y los botones de las ventanas. Al pulsarlo se ve la espera; se descarga `Calificaciones - <clase> - <fecha de hoy>.xlsx` y aparece «Se descargó «…».» una sola vez.
+2. **H-2 · Excel (escritorio o web):** abre sin el aviso de reparar; los acentos y la ñ se ven bien. Al seleccionar las calificaciones de una actividad, la barra de estado muestra su suma (son números).
+3. **H-3 · Otro programa:** el mismo archivo abre sin error en LibreOffice Calc, Numbers o Google Sheets (importar).
+4. **H-4 · Contenido:**
+   - las tres filas de encabezado en negrita y fijas al bajar, y «Alumno» y «Correo» fijas al ir a la derecha;
+   - las actividades de la más antigua a la más reciente, con su categoría («Sin categoría» en la que no tiene) y sus puntos;
+   - los estados en palabras («Asignado», «Entregado», «Entregado con retraso», «Sin entregar»);
+   - «Promedio (%)» igual al del gradebook en dos alumnos, y «—» donde no hay;
+   - ninguna columna de estado de pago ni de restricción.
+5. **H-5 · Administrador:** lo mismo desde `/admin/clases/<id>/calificaciones`, con una clase cuyo nombre lleve `/` o `:`. En el nombre del archivo pasan a espacio.
+6. **H-6 · Teléfono (Safari en iOS o Chrome en Android), como maestro:** el botón cabe en la pantalla sin desbordar, y el archivo se descarga o se ofrece para abrir, y abre.
+7. **H-7 · Lector de pantalla (NVDA o VoiceOver):** el botón se anuncia «Exportar a Excel», ocupado mientras exporta, y el aviso de éxito se lee.
+
+Lo que las pruebas ya cubren, y no se repite a mano:
+- los textos de error y de demasiadas;
+- el doble clic;
+- salir a mitad de la exportación;
+- el escape de fórmulas y caracteres raros;
+- el recorte del nombre;
+- los topes de Excel;
+- el contraste.
+
+Quedan como «no verificadas por decisión del humano, cubiertas por pruebas automáticas».

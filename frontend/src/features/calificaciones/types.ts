@@ -1,7 +1,17 @@
-import type { FiltroDeMisCalificaciones, GradebookQuery } from "@campus/shared"
+import type {
+  AlumnoDeExportacion,
+  CeldaDelGradebook,
+  ColumnaDelGradebook,
+  ExportacionDeCalificacionesRespuesta,
+  FiltroDeMisCalificaciones,
+  GradebookQuery,
+} from "@campus/shared"
 
 // Tipos de la API: se infieren de los esquemas de shared/, nunca a mano (regla 7 de CLAUDE.md).
 export type {
+  AlumnoDeExportacion,
+  ExportacionDeCalificacionesRespuesta,
+  FilaDeExportacion,
   CalificacionGeneral,
   CeldaDelGradebook,
   ColumnaDelGradebook,
@@ -52,5 +62,56 @@ export interface TextoDeCelda {
 // Una opción del selector "Mostrar".
 export interface OpcionDelFiltro {
   valor: FiltroDeMisCalificaciones
+  texto: string
+}
+
+// CALIFICACIONES-02b (§D-4 y §D-7). Tipos exclusivos de la interfaz de la exportación a Excel.
+
+// Una respuesta de la exportación y el índice de su ventana de tareas (0 la primera).
+export interface VentanaDeExportacion {
+  ventanaDeTareas: number
+  respuesta: ExportacionDeCalificacionesRespuesta
+}
+
+// Un alumno con sus celdas en el orden de las columnas de la matriz.
+export interface FilaDeLaMatriz {
+  alumno: AlumnoDeExportacion
+  celdas: CeldaDelGradebook[]
+  porcentaje: number | null
+}
+
+// Toda la clase, ya combinada: las columnas de la más antigua a la más reciente.
+export interface MatrizDeExportacion {
+  clase: string
+  columnas: ColumnaDelGradebook[]
+  filas: FilaDeLaMatriz[]
+}
+
+export type CombinacionDeExportacion =
+  { tipo: "matriz"; matriz: MatrizDeExportacion } | { tipo: "cambio" } | { tipo: "vacio" }
+
+// Lo que deja el recorrido de las ventanas antes de combinarlas.
+export type RecorridoDeExportacion =
+  | { tipo: "ventanas"; ventanas: VentanaDeExportacion[] }
+  | { tipo: "cambio" }
+  | { tipo: "demasiado" }
+
+// Lo que recibe la mutación: la señal para abortar y el reloj del clic.
+export interface PeticionDeExportacion {
+  signal: AbortSignal
+  ahora: Date
+}
+
+// El resultado de la mutación: solo el nombre del archivo, nunca sus datos.
+export type ResultadoDeLaExportacion =
+  | { tipo: "descargado"; nombre: string }
+  | { tipo: "cambio" }
+  | { tipo: "vacio" }
+  | { tipo: "demasiado" }
+  | { tipo: "cancelado" }
+
+// El aviso que corresponde a un resultado.
+export interface AvisoDeLaExportacion {
+  tipo: "exito" | "error"
   texto: string
 }

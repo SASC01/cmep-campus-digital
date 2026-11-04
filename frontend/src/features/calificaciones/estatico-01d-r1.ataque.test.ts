@@ -44,7 +44,7 @@ const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/u
 
 describe("estática de 01d (ronda 1 del tester)", () => {
   it("CAL-T-182: hay código que revisar (precondición de las reglas siguientes)", () => {
-    expect(MODULO.length).toBe(11)
+    expect(MODULO.length).toBe(12)
     expect(FOCO.length).toBe(3)
     expect(PRUEBAS_DE_01D.length).toBeGreaterThanOrEqual(8)
   })

@@ -550,13 +550,7 @@ describe("ataque: superficie de rutas", () => {
   // …/dudas/:dudaId/respuestas; DELETE de …/dudas/:dudaId/respuestas/:respuestaId. Ninguna crea cuentas ni
   // cambia roles y ninguna es pública.
   // C-1 de CALIFICACIONES-02a (§D-R0): se agregan exactamente GET y HEAD de …/calificaciones/exportacion. No crea cuentas ni cambia roles y no es pública.
-  // FORO-01a, C-1 (§D-R0; §D-3.1): se agregan exactamente las 26 entradas de las 16 rutas del foro bajo
-  // /api/clases/:claseId/foros: 10 GET con su HEAD (la lista, el foro, mi-participacion y sus
-  // devoluciones, participaciones, las réplicas de una participación, participantes, un participante,
-  // sus participaciones y sus devoluciones), 3 POST (el foro, la participación y la réplica), 2 PUT (el
-  // foro y la calificación de un participante) y 1 DELETE (el foro). Ninguna crea cuentas ni cambia
-  // roles y ninguna es pública.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a y FORO-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b y CALIFICACIONES-02a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -587,7 +581,6 @@ describe("ataque: superficie de rutas", () => {
       "DELETE /api/clases/:claseId/alumnos/:alumnoId",
       "DELETE /api/clases/:claseId/dudas/:dudaId",
       "DELETE /api/clases/:claseId/dudas/:dudaId/respuestas/:respuestaId",
-      "DELETE /api/clases/:claseId/foros/:foroId",
       "DELETE /api/clases/:claseId/mis-comentarios/:comentarioId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",
@@ -605,16 +598,6 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/codigo",
       "GET /api/clases/:claseId/dudas",
       "GET /api/clases/:claseId/dudas/:dudaId/respuestas",
-      "GET /api/clases/:claseId/foros",
-      "GET /api/clases/:claseId/foros/:foroId",
-      "GET /api/clases/:claseId/foros/:foroId/mi-participacion",
-      "GET /api/clases/:claseId/foros/:foroId/mi-participacion/devoluciones",
-      "GET /api/clases/:claseId/foros/:foroId/participaciones",
-      "GET /api/clases/:claseId/foros/:foroId/participaciones/:participacionId/replicas",
-      "GET /api/clases/:claseId/foros/:foroId/participantes",
-      "GET /api/clases/:claseId/foros/:foroId/participantes/:alumnoId",
-      "GET /api/clases/:claseId/foros/:foroId/participantes/:alumnoId/devoluciones",
-      "GET /api/clases/:claseId/foros/:foroId/participantes/:alumnoId/participaciones",
       "GET /api/clases/:claseId/gradebook",
       "GET /api/clases/:claseId/mis-calificaciones",
       "GET /api/clases/:claseId/personas",
@@ -646,16 +629,6 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/codigo",
       "HEAD /api/clases/:claseId/dudas",
       "HEAD /api/clases/:claseId/dudas/:dudaId/respuestas",
-      "HEAD /api/clases/:claseId/foros",
-      "HEAD /api/clases/:claseId/foros/:foroId",
-      "HEAD /api/clases/:claseId/foros/:foroId/mi-participacion",
-      "HEAD /api/clases/:claseId/foros/:foroId/mi-participacion/devoluciones",
-      "HEAD /api/clases/:claseId/foros/:foroId/participaciones",
-      "HEAD /api/clases/:claseId/foros/:foroId/participaciones/:participacionId/replicas",
-      "HEAD /api/clases/:claseId/foros/:foroId/participantes",
-      "HEAD /api/clases/:claseId/foros/:foroId/participantes/:alumnoId",
-      "HEAD /api/clases/:claseId/foros/:foroId/participantes/:alumnoId/devoluciones",
-      "HEAD /api/clases/:claseId/foros/:foroId/participantes/:alumnoId/participaciones",
       "HEAD /api/clases/:claseId/gradebook",
       "HEAD /api/clases/:claseId/mis-calificaciones",
       "HEAD /api/clases/:claseId/personas",
@@ -699,9 +672,6 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases/:claseId/codigo",
       "POST /api/clases/:claseId/dudas",
       "POST /api/clases/:claseId/dudas/:dudaId/respuestas",
-      "POST /api/clases/:claseId/foros",
-      "POST /api/clases/:claseId/foros/:foroId/participaciones",
-      "POST /api/clases/:claseId/foros/:foroId/participaciones/:participacionId/replicas",
       "POST /api/clases/:claseId/publicaciones",
       "POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios",
       "POST /api/clases/:claseId/tareas",
@@ -718,8 +688,6 @@ describe("ataque: superficie de rutas", () => {
       "PUT /api/admin/usuarios/:id/correo",
       "PUT /api/clases/:claseId/categorias",
       "PUT /api/clases/:claseId/dudas/:dudaId/resuelta",
-      "PUT /api/clases/:claseId/foros/:foroId",
-      "PUT /api/clases/:claseId/foros/:foroId/participantes/:alumnoId/calificacion",
       "PUT /api/clases/:claseId/publicaciones/:publicacionId/tema",
       "PUT /api/clases/:claseId/recursos/:recursoId",
       "PUT /api/clases/:claseId/tareas/:tareaId",

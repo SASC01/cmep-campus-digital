@@ -13,6 +13,8 @@ Lee: `docs/ARCHITECTURE-ESSENTIALS.md`, `AGENTS.md`, `CLAUDE.md`, `docs/DESIGN.m
 
 Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.
 
+Antes de correr una suite, confirma que la otra copia de trabajo no está corriendo una (`AGENTS.md`, "Trabajo en paralelo"): si el orquestador no te pasó la respuesta del humano, detente y pídela.
+
 ## Modo 1 — Revisión de plan
 Es el momento más barato para detectar un error. Verifica:
 - ¿Cubre completo el `RF-xx` y respeta cada `RN-xx`? ¿Agrega algo que nadie pidió?
@@ -23,10 +25,11 @@ Es el momento más barato para detectar un error. Verifica:
 - ¿Lo lento va por cola? ¿Los archivos evitan Node? ¿Los trabajos diferidos se sincronizan? ¿El evento se encola en la misma transacción?
 - ¿El carril es correcto? Si toca algo sensible y dice "normal", corrígelo.
 - ¿Los pasos son lo bastante pequeños para que el Programador no tenga que adivinar?
+- ¿Cada corte en subentregas se justifica con el conteo estimado de archivos (más de unos 30), no por tema? (`AGENTS.md`, "Tamaño de subentregas").
 
 ## Verificación del resumen del programador
 Decisión del humano (2026-09-28). Cada vez que el Programador entrega un resumen (implementación o corrección), antes de aceptarlo y de que el Tester ataque:
-1. Ejecuta tú mismo `lint`, `test` y `build` de los paquetes afectados, con las precondiciones del plan (por ejemplo, la del firewall antes del backend).
+1. Ejecuta tú mismo `lint`, la suite de los módulos tocados y `build` de los paquetes afectados, con las precondiciones del plan (por ejemplo, la del firewall antes del backend). La suite completa queda para el cierre de la subentrega (Modo 2).
 2. Contrasta cada cifra del resumen (conteos de archivos, pruebas y casos, y la última línea de salida de `lint`, `test` y `build`) con tu propia corrida. Revisa que cada viñeta de "Pruebas requeridas" tenga su archivo y el título exacto del caso, y que ese caso exista.
 3. Si una cifra no coincide o falta una viñeta, el resumen vuelve al Programador. No la corriges a mano ni la das por buena.
 4. En una corrección, revisa la lista de "hermanos" del hallazgo (decisión del humano, 2026-10-02): que el programador haya buscado los controles, rutas, campos o unidades con el mismo patrón, y también los estados vecinos del mismo mecanismo (decisión del humano, 2026-10-05: primera carga, recarga, caché, cambio de clave, fallos seguidos, o los que correspondan al mecanismo), y que lo que dice de cada uno coincida con el código. Un hermano o un estado vecino que falte o que diga "no aplica" sin razón devuelve el resumen. En la medición del programador, las rondas extra seguidas sobre el mismo mecanismo cuentan como rondas extra por hermanos.
@@ -35,7 +38,7 @@ Escribe el resultado en `revision.md`, en una sección breve "Verificación del 
 
 ## Modo 2 — Revisión final
 1. `git diff` contra el plan: ¿se hizo lo planeado, solo lo planeado y todo lo planeado?
-2. Ejecuta `lint`, `test` y `build`. No confíes en los resúmenes.
+2. Ejecuta `lint`, `test` y `build`. No confíes en los resúmenes. Esta es la única corrida de la suite completa de cada paquete en la subentrega (`AGENTS.md`, "Pruebas", "Suites por ronda"): si el encargo tocó `shared/`, corres las dos completas, una después de otra, nunca a la vez. En la del backend aplicas PA-07 completa, como la describe `.claude/agents/tester.md` (conteo, control positivo, inventario y permitidos).
 3. Revisa que ninguna prueba `*.ataque.test.ts` fue modificada, saltada o borrada por el Programador.
 4. Pasa la definición de terminado de `AGENTS.md`, punto por punto.
 5. Reglas que no se rompen: capas, middleware, estado de pago, consultas sanas, cola, archivos, UTC, trabajos diferidos, secretos, infraestructura solo en `infra/` y migraciones, sin AWS ni proveedores no aprobados, avisos y correos solo por `notifier`, autenticación sin atajos.

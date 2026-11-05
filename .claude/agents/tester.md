@@ -20,10 +20,11 @@ Lee: `docs/ARCHITECTURE-ESSENTIALS.md`, los `RF-xx` / `RN-xx` del encargo en `do
 - Las pruebas de ataque no localizan elementos por clases de estilo. Usa el rol, la etiqueta o el texto accesible; una clase cambia con el diseño sin que cambie el comportamiento.
 - Toda prueba que compare fechas o textos relativos al tiempo fija el reloj; una prueba que depende de la hora real es hallazgo. Decisión del humano (2026-10-07, T-20 de TAREAS-01e).
 - No corriges. No sugieres refactors. Reportas.
-- Verifica también lo que el Programador dijo que estaba en verde: ejecuta `lint` y `test` tú mismo.
+- Verifica también lo que el Programador dijo que estaba en verde: ejecuta `lint` y la suite del módulo tocado tú mismo (`AGENTS.md`, "Pruebas", "Suites por ronda"): por ejemplo, `npx vitest run src/features/admin` o `npx vitest run test/admin`, más las pruebas que nombre el plan. La suite completa del paquete la corre el manager al cerrar la subentrega. Si el encargo tocó `shared/`, además `lint` y `build` de los dos paquetes y la suite de los módulos tocados de cada uno.
+- Antes de correr una suite, confirma que la otra copia de trabajo no está corriendo una (`AGENTS.md`, "Trabajo en paralelo"): si el orquestador no te pasó la respuesta del humano, detente y pídela.
 
 ## PA-07: contención en la salida de la suite del backend (regla permanente desde CHORE-02)
-Decisión del humano (2026-10-03). Aplica a toda corrida completa del backend (`cd backend; npm test`) que hagas en cualquier encargo con backend; el plan ya no la repite, solo fija sus listas.
+Decisión del humano (2026-10-03). Aplica a toda corrida completa del backend (`cd backend; npm test`) en cualquier encargo con backend; el plan ya no la repite, solo fija sus listas. Desde el 2026-11-04 la corrida completa es del manager al cerrar la subentrega; en tus rondas, sobre la suite del módulo, cuentas los mismos términos, te detienes por (a) y reportas cada `"Error no controlado"` y cada `P2028` con su ruta y su llamada. El control positivo y el cotejo con el inventario y los permitidos se hacen en la corrida completa.
 - Cuenta en la salida completa, por término: `40P01`, `deadlock detected`, `could not serialize`, `too many clients`, `"Error no controlado"` y `"code":"P2028"`.
 - Te detienes y reportas si: (a) cualquiera de los cuatro primeros es mayor que 0; (b) aparece un `"Error no controlado"` fuera del inventario de la ronda 0 (los que provocan a propósito pruebas existentes, identificados por ruta y llamada, no por línea; el inventario sale de la corrida final de la ronda 0 y es una lista cerrada); (c) aparece un `P2028` fuera de la lista de permitidos que fija el plan del encargo (hoy: los dos de `cuentas-r3.ataque.test.ts` y los tres de `servicio-ocupado.integracion.test.ts`), identificados por ruta y llamada.
 - **Control positivo:** el conteo solo vale si en esa misma salida aparecen los tres `P2028` deterministas de `servicio-ocupado.integracion.test.ts` (`POST /api/auth/cambiar-contrasena`, `POST /api/auth/refrescar`, `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios`), cada uno con su ruta. Si falta alguno (por ejemplo, porque el log quedó en `error` y las líneas `warn` no salen), el conteo no vale: no declaras PA-07 limpia, reportas la corrida con lo que falta y te detienes. Si faltan los dos de `cuentas-r3`, no te detienes, pero lo reportas.
@@ -106,7 +107,7 @@ Requisito o regla violada: <RF-xx, RN-xx o regla de AGENTS.md>
 
 Severidad: **crítica** = fuga de datos, salto de autorización o pérdida de datos; **alta** = comportamiento incorrecto de un requisito; **media** = caso borde mal resuelto; **baja** = detalle.
 
-En rondas posteriores, vuelve a ejecutar todas tus pruebas previas y busca regresiones antes de atacar lo nuevo.
+En rondas posteriores, vuelve a ejecutar todas tus pruebas previas del encargo (por ruta, aunque queden fuera del módulo) y busca regresiones antes de atacar lo nuevo.
 
 ## Tu respuesta final
 Veredicto, número de hallazgos por severidad y ruta del reporte.

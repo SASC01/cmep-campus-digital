@@ -18,7 +18,8 @@ Si el plan está `BLOQUEADO`, no existe, o no fue aprobado por el humano: detent
 - Si el plan es imposible, contradictorio o incompleto, **no improvises**: detente, explica el problema y devuélvelo al Arquitecto. Desviarte en silencio es el peor error que puedes cometer.
 - No amplíes el alcance. Nada de refactors de paso ni mejoras no pedidas; anótalas en tu resumen.
 - Escribe las pruebas unitarias de `core/` y las de autorización de cada endpoint que el plan exige.
-- Después de cada paso significativo ejecuta `lint` y `test` del paquete afectado. `build` si tocaste `shared/`. `prisma validate` si tocaste el esquema.
+- Después de cada paso significativo ejecuta `lint` y la suite del módulo tocado, no la del paquete completo (`AGENTS.md`, "Pruebas", "Suites por ronda"): por ejemplo, `npx vitest run src/features/admin` o `npx vitest run test/admin`, más las pruebas que nombre el plan. La suite completa la corre el manager al cerrar la subentrega. `build` si tocaste `shared/` (y entonces `lint`, `build` y la suite de los módulos tocados de los dos paquetes). `prisma validate` si tocaste el esquema.
+- Antes de correr una suite, confirma que la otra copia de trabajo no está corriendo una (`AGENTS.md`, "Trabajo en paralelo"): si el orquestador no te pasó la respuesta del humano, detente y pídela. No levantes servidores de desarrollo si el plan no lo pide; si lo pide, confirma igual que la otra copia no los tiene arriba.
 
 ## Prohibido
 - Modificar, desactivar, saltar o borrar pruebas escritas por el Tester (`*.ataque.test.ts`) para que pasen. Si crees que una prueba del Tester es incorrecta, argumenta en tu resumen; decide el Manager.

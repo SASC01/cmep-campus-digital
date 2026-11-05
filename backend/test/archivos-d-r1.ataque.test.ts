@@ -756,7 +756,9 @@ describe("ataque d-r1: el nombre", () => {
 describe("ataque d-r1: la URL prefirmada", () => {
   it("subida: firmada para PUT y para su clave; no sirve como GET ni para otra clave; 300 s y solo host firmado", async () => {
     const e = await escenario()
+    const antes = Date.now()
     const respuesta = await solicitar(e, { nombre: "a.pdf", tipo: "application/pdf", tamano: 10 })
+    const despues = Date.now()
     expect(respuesta.statusCode, respuesta.body).toBe(201)
     expect(respuesta.headers["cache-control"]).toBe("no-store")
     const { archivo, subida } = solicitarSubidaRespuestaSchema.parse(respuesta.json())
@@ -773,12 +775,19 @@ describe("ataque d-r1: la URL prefirmada", () => {
     expect(
       firmaValida(subida.url, "PUT", `/campus-privado/materiales/${e.claseB}/${archivo.id}`),
     ).toBe(false)
-    // La vigencia que anuncia la API no supera en más de un segundo la de la firma.
+    // La vigencia que anuncia la API no supera la de la firma más de lo que tardó la petición.
+    // N-20 (ADMIN-01a, ronda 1 del tester): X-Amz-Date se trunca al segundo, y medir contra ella con
+    // un margen fijo de 1000 ms dejaba menos de un segundo (fracción incluida) entre la firma y
+    // expiraEn(); con carga falló sin defecto (1026 ms). Se acota con la hora de la propia petición:
+    // la firma no es anterior al segundo en que empezó, y expiraEn se calcula antes de responder.
     const fecha = url.searchParams.get("X-Amz-Date") ?? ""
     const firmadaEn = Date.parse(
       `${fecha.slice(0, 4)}-${fecha.slice(4, 6)}-${fecha.slice(6, 8)}T${fecha.slice(9, 11)}:${fecha.slice(11, 13)}:${fecha.slice(13, 15)}Z`,
     )
-    expect(Date.parse(subida.expiraEn) - (firmadaEn + 300_000)).toBeLessThan(1000)
+    expect(firmadaEn).toBeGreaterThanOrEqual(Math.floor(antes / 1000) * 1000)
+    expect(firmadaEn).toBeLessThanOrEqual(despues)
+    expect(Date.parse(subida.expiraEn)).toBeGreaterThanOrEqual(firmadaEn + 300_000)
+    expect(Date.parse(subida.expiraEn)).toBeLessThanOrEqual(despues + 300_000)
     expect(subida.cabeceras).toEqual({ "Content-Type": "application/pdf" })
   })
 
@@ -902,10 +911,15 @@ describe("ataque d-r1: alumno restringido, roles y sesión", () => {
     // archivos de pruebas insertan en `archivos` en paralelo. Toda clase que aparece en una URL del
     // caso, o todo usuario que hace una petición: una escritura indebida con otro claseId también
     // cuenta.
+    // ADMIN-01b ronda 2, C-34: el admin es único y otros archivos suben como admin en paralelo
+    // (duplicado-de-clase, borrado-duplicado-r1, admin-muro-02b-r1, muro-admin), así que contar por
+    // su subidoPor movía el conteo. El admin no hace ninguna petición negada en este caso, y su única
+    // escritura (la solicitud final) cae en e.claseA, que se cuenta por clase. Lo que protege no
+    // cambia: ninguna petición negada escribe, en ninguna clase, y la del admin escribe exactamente una.
     const filasDelCaso = {
       OR: [
         { claseId: { in: [e.claseA, claseConCambio.id, claseDeBaja.id] } },
-        { subidoPor: { in: [e.alumno.id, admin, ajeno.id, conCambio.id, deBaja.id] } },
+        { subidoPor: { in: [e.alumno.id, ajeno.id, conCambio.id, deBaja.id] } },
       ],
     }
     const filasAntes = await obtenerDb().archivo.count({ where: filasDelCaso })

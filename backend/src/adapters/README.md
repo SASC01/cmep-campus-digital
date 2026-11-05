@@ -168,7 +168,10 @@ el `maxWait` por defecto (2 s) los últimos de una ráfaga recibían `503`.
 
 `buscarDatosDePertenencia` es la única consulta del sexto paso de la cadena
 (`middleware/pertenencia.ts`): `clases` por PK con `inscripciones` filtradas por el `usuarioId` de
-la petición, en una sola llamada. `crearClaseAdministrada` y `regenerarCodigo` reciben un generador de código
+la petición, en una sola llamada a Prisma (que la resuelve con varias sentencias; no necesita una
+sola instantánea porque solo decide con la existencia de la clase, su fecha de archivo y dos
+conjuntos acotados a un usuario, E-04 de ADMIN-01). Desde ADMIN-01a devuelve además `archivada`, que
+el sexto paso decide con la política de la ruta (`enClaseArchivada`, `middleware/README.md`). `crearClaseAdministrada` y `regenerarCodigo` reciben un generador de código
 (`() => string`, `node:crypto.randomBytes` + `codigoDesdeBytes` en el handler) y reintentan **una
 sola vez** si el primero choca con el índice único de `codigo_invitacion`, detectado con
 `traducirErrorPrisma` y su `alDuplicar` (§D-A2), sin tocar `adapters/db/errores.ts`: `alDuplicar`
@@ -185,13 +188,27 @@ implementación. Si la clase ya no existe, devuelven `null` y el handler respond
 a los maestros (rol `maestro`, activos) y crea la clase con sus asignaciones en un solo `create`
 anidado. `clases.maestro_id` solo se **escribe** (el primer maestro al crear; el que queda al retirar
 al que estaba ahí): ningún código lo lee (P-06 de CLASES-02). `ORDEN_DE_MAESTROS` es la única
-definición del orden de los maestros de una clase. `inscribir` (unirse con código) es un `createMany`
-con `skipDuplicates`, idempotente, y **no** escribe en `movimientos_inscripcion` (esa tabla llega en
-CLASES-b y solo registra altas manuales y bajas, S-23). `listarClasesImpartidas` y
+definición del orden de los maestros de una clase. `unirseConCodigo` (ADMIN-01a, §D-3; sustituye a
+`buscarClasePorCodigo` e `inscribir`) lee la clase por `codigo_invitacion` con `FOR SHARE` (SQL
+etiquetado y parametrizado) dentro de su transacción y decide ahí: sin clase o con la clase archivada
+devuelve `null` (el handler responde `404 CODIGO_INVALIDO`, el mismo cuerpo que un código
+inexistente); si no, un `createMany` con `skipDuplicates`, idempotente, que **no** escribe en
+`movimientos_inscripcion` (esa tabla solo registra altas manuales y bajas, S-23). `FOR SHARE` queda
+en serie con archivar (`UPDATE`) y con regenerar el código. `editarClase` filtra además
+`archivada_en IS NULL` (la ruta ya es cerrada en una archivada; el filtro cubre la carrera). Si su
+`updateMany` no cambia ninguna fila, relee la clase por id: devuelve `null` si no existe (el handler
+responde `403 SIN_ACCESO_A_LA_CLASE`) y lanza `409 CLASE_ARCHIVADA` si existe, el mismo de la ruta
+cerrada (T-01 de la ronda 1 de ADMIN-01a; N-22). `listarClasesImpartidas` y
 `listarClasesInscritas` usan `paginar` (`core/paginacion.ts`, §D-A4) para el corte de página y el
 cursor siguiente, en vez de repetir esa lógica a mano.
 
 `listarClasesAdmin`, `listarClasesInscritas`, `listarClasesImpartidas` y `leerClase` (también la relectura de `editarClase`) corren con `enTransaccion(…, { instantaneaUnica: true })`, con sus sentencias en serie: la página, sus relaciones, el cursor y el total salen de una sola instantánea (FIX-CLASES).
+
+ADMIN-01a (§D-2): `listarClasesInscritas` y `listarClasesImpartidas` dejan fuera las clases archivadas, también en `total`; `listarClasesAdmin` admite `estado` (`activas` por `clases_activas_idx`, `archivadas` por `(archivada_en DESC, id DESC)` con `clases_archivadas_idx`; sin `estado`, todas, DH-11). En las tres, el cursor sigue siendo un `findUnique` por PK con la fecha de archivo de la clase en el `select` (M-01), y un cursor que no cumple el filtro responde `400 VALIDACION` "cursor: no es válido" (el `skip: 1` de Prisma saltaría una fila ajena; R-04). `ClaseDb` y `ClaseAdminDb` suman `archivadaEn`. Enmienda 5 (§D-2, T-02): con `estado=archivadas`, `listarClasesAdmin` exige `cursorArchivadaEn` junto con `cursor` (y al revés) y la compara como texto con `archivadaEn.toISOString()` de la fila del cursor, leída con el mismo `findUnique`; sin `estado` o con `activas` la posición no se admite. Todo fallo responde `400 VALIDACION` "cursor: no es válido". `siguienteCursorArchivadaEn` es el `archivadaEn` de la última fila con `archivadas` y página siguiente; si no, `null`.
+
+## `db/clases-archivadas.ts` (ADMIN-01a, §D-2)
+
+`archivarClase` y `restaurarClase` hacen un solo `updateMany` condicionado por el estado (`archivada_en IS NULL` o `IS NOT NULL`) que escribe `activa` y `archivada_en` juntos (el `CHECK clases_activa_segun_archivada` los ata); si no cambia ninguna fila, releen por PK y deciden con `core/clases/archivada.ts`: `403 SIN_ACCESO_A_LA_CLASE` si ya no existe, `409 CLASE_YA_ARCHIVADA` o `409 CLASE_NO_ARCHIVADA` sin escribir. No encolan nada (S-02). `listarClasesAnteriores` lee las archivadas del alumno (por `inscripciones`) o del maestro (por `maestros_de_clase`), de la archivada más recientemente a la más antigua (`archivada_en DESC, id DESC`); el cursor es un `claseId` leído por PK que debe ser una archivada del perfil (si no, `400`), y la página sigue por `(archivada_en, id)` menores que los del cursor. Corre en la instantánea única. Enmienda 5 (§D-2, T-02): el cursor viaja con su posición (`cursorArchivadaEn`, obligatoria con él y solo con él), que se compara como texto con `archivadaEn.toISOString()` de la fila del cursor; si la clase se restauró y se volvió a archivar entre dos páginas, `400 VALIDACION` "cursor: no es válido". `siguienteCursorArchivadaEn` es el `archivadaEn` de la última clase de la página cuando hay siguiente; si no, `null`.
 
 ## `db/maestros-de-clase.ts` (CLASES-02, §D-2A4)
 
@@ -613,3 +630,36 @@ borrar: el que va segundo no encuentra la fila (`404`) o borra la fila ya marcad
 rutas del muro buscan por `publicacion_id` y «mis comentarios» exige la publicación de la clase, así
 que no alcanzan una respuesta; las rutas de respuestas exigen `duda_id`, así que no alcanzan un
 comentario del muro ni del hilo privado.
+
+## Borrar y duplicar clases y las copias de archivos (ADMIN-01b, §D-4 a §D-6)
+
+`db/borrado-de-clase.ts`: `contarParaBorrar` (cinco conteos en la instantánea única; de una activa,
+`409 CLASE_NO_ARCHIVADA`) y `borrarClaseDefinitivamente` (READ COMMITTED, `timeout` de 30 s, R-12):
+toma la clase con `FOR UPDATE` (`bloquearClaseParaBorrar`; queda en serie con unirse, duplicar y toda
+escritura que inserte una fila hija), comprueba las copias en curso (de la clase o de otra que apunta a
+un archivo de esta) y decide con `decidirBorrado` (`core/clases/borrado.ts`): activa, copias en curso
+y falta de confirmación, en ese orden. Después lee las claves de todos los archivos de la clase (en
+cualquier estado) y los `trabajo_id` de sus tareas, cancela los recordatorios y encola el borrado de
+objetos con las funciones que recibe del handler (sobre `ejecutorSqlDe(tx)`; `adapters/db` no importa
+`adapters/queue`), borra los movimientos de inscripción (FK `RESTRICT`, DH-04 a) y al final la clase,
+cuya cascada se lleva lo demás.
+
+`db/duplicado-de-clase.ts`: `duplicarClase` (READ COMMITTED, `timeout` de 30 s): la original
+`FOR SHARE`, los maestros con `bloquearMaestrosActivos` (`db/bloqueo-maestros.ts`, `FOR SHARE` en orden
+de id, N-03; no se reexporta), `409 CLASE_CON_COPIAS_EN_CURSO` si la original tiene copias en curso
+(M-02), cuatro lecturas (temas, categorías, recursos de aprendizaje y sus archivos confirmados), el
+plan puro de `core/clases/duplicado.ts` y un `createMany` por tabla; si hay archivos, encola
+`COPIAR_OBJETOS` con la función del handler. Como en crear, un choque del código de invitación
+reintenta una vez la transacción entera.
+
+`db/copias-de-archivos.ts`: `leerCopiasPendientes` (una sola sentencia con la clave del original),
+`terminarCopias` y `descartarCopias` (un `updateMany` cada una, por lote). Los descartes de
+`borrarPublicacion` (`db/publicaciones.ts`) y de editar un recurso (`db/recursos.ts`) ponen también
+`copiaDe: null` (M-02). `buscarArchivoConfirmado` devuelve `copiaDe` para el `409 ARCHIVO_EN_COPIA`.
+
+`cliente.ts`: `enTransaccion` admite `timeout` (sin él, los 5 s de Prisma). `queue/index.ts`:
+`cancelarVarios` (un solo `cancel` con la lista, dentro de la transacción), `inicio` por trabajo en
+`encolarVarios` y `datos` en `TrabajoFallidoRecibido`. `queue/colas.ts`: `BORRAR_OBJETOS` y
+`COPIAR_OBJETOS` con la política de los avisos y sus colas de fallidos. `storage/index.ts`:
+`crearAlmacenDeObjetos` (copia y borrado del lado del almacén, sin pasar por Node; `NoSuchKey` del
+origen es `origen_inexistente`, cualquier otro fallo, `503 ALMACEN_NO_DISPONIBLE`).

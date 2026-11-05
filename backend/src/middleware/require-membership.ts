@@ -1,5 +1,6 @@
 import type { preHandlerAsyncHookHandler } from "fastify"
 
+import type { PoliticaDeClaseArchivada } from "../core/clases/archivada.js"
 import { resolverClaseDeLaRuta } from "./pertenencia.js"
 
 // Paso 6 (variante inscripción, §D-0.1): deja pasar al estudiante inscrito, a cualquier maestro de
@@ -7,9 +8,16 @@ import { resolverClaseDeLaRuta } from "./pertenencia.js"
 // Deja la clase resuelta en request.clase, que el handler lee con claseDe(request).
 export const requireMembership = ({
   admiteAdmin,
+  enClaseArchivada,
 }: {
   admiteAdmin: boolean
+  enClaseArchivada?: PoliticaDeClaseArchivada | undefined
 }): preHandlerAsyncHookHandler =>
   async function requireMembership(request) {
-    request.clase = await resolverClaseDeLaRuta(request, "inscripcion", admiteAdmin)
+    request.clase = await resolverClaseDeLaRuta(
+      request,
+      "inscripcion",
+      admiteAdmin,
+      enClaseArchivada,
+    )
   }

@@ -51,7 +51,7 @@ const listaParaResponder = (lista: ListaComentariosPrivadosDb) =>
 export const hiloPrivadoHandler: FastifyPluginAsync = async (app) => {
   app.get(
     "/clases/:claseId/tareas/:tareaId/entrega/comentarios",
-    protegido({ roles: ["estudiante"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante"], pertenencia: "inscripcion", enClaseArchivada: "lectura" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId } = validarParametros(tareaDeEntregaParamSchema, request.params)
@@ -109,7 +109,11 @@ export const hiloPrivadoHandler: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId, alumnoId } = validarParametros(alumnoDeEntregaParamSchema, request.params)

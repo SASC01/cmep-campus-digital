@@ -51,7 +51,11 @@ export const recursosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 ) => {
   app.get(
     "/clases/:claseId/recursos",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { bloque, tema, cursor, limite } = validarParametros(recursosQuerySchema, request.query)
@@ -72,7 +76,11 @@ export const recursosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.get(
     "/clases/:claseId/recursos/:recursoId",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { recursoId } = validarParametros(recursoIdParamSchema, request.params)

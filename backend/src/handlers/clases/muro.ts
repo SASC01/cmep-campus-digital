@@ -64,7 +64,11 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 ) => {
   app.get(
     "/clases/:claseId/publicaciones",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id } = claseDe(request)
       // CLASES-03a (§D-3.2): con ?tipo=anuncio, solo anuncios ("Avisos"); sin él, lo de hoy.
@@ -147,7 +151,11 @@ export const muroHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asyn
 
   app.get(
     "/clases/:claseId/publicaciones/:publicacionId/comentarios",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { publicacionId } = validarParametros(publicacionIdParamSchema, request.params)

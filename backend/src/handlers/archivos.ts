@@ -10,6 +10,7 @@ import type { FastifyPluginAsync } from "fastify"
 
 import { buscarArchivoConfirmado, registrarArchivoPendiente } from "../adapters/db/index.js"
 import type { Almacen } from "../core/archivos/almacen.js"
+import { errorArchivoEnCopia } from "../core/archivos/objetos.js"
 import {
   almacenNoConfigurado,
   claveDeMaterial,
@@ -73,13 +74,19 @@ export const archivosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.post(
     "/clases/:claseId/archivos/:archivoId/descarga",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { archivoId } = validarParametros(archivoIdParamSchema, request.params)
       if (almacen === null) throw almacenNoConfigurado()
       const archivo = await buscarArchivoConfirmado({ archivoId, claseId })
       if (archivo === null) throw archivoNoEncontrado()
+      // ADMIN-01b (§D-5): una copia de una clase duplicada cuyo objeto todavía no existe.
+      if (archivo.copiaDe !== null) throw errorArchivoEnCopia()
 
       const url = await almacen.urlDeDescarga({
         clave: archivo.claveObjeto,

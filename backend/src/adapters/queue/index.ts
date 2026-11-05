@@ -79,6 +79,18 @@ export const cancelar = async (
   await obtenerBoss().cancel(nombre, id, { db: sql })
 }
 
+// ADMIN-01b (§D-4): cancela una lista de trabajos con un solo `cancel` de pg-boss, dentro de la
+// transacción del dato (`sql` obligatorio, como en `cancelar`): si la transacción se revierte, los
+// trabajos siguen vivos. Una lista vacía no hace nada.
+export const cancelarVarios = async (
+  nombre: string,
+  ids: readonly string[],
+  { sql }: { sql: EjecutorSql },
+): Promise<void> => {
+  if (ids.length === 0) return
+  await obtenerBoss().cancel(nombre, [...ids], { db: sql })
+}
+
 export const asegurarCola = async (nombre: string, opciones: QueueOptions = {}): Promise<void> => {
   await obtenerBoss().createQueue(nombre, opciones)
 }
@@ -86,6 +98,8 @@ export const asegurarCola = async (nombre: string, opciones: QueueOptions = {}):
 export interface TrabajoParaEncolarEnLote {
   id: string
   datos: object
+  // ADMIN-01b (N-09): trabajo diferido; pg-boss lo deja disponible a partir de este momento.
+  inicio?: Date
 }
 
 // AUTH-03c, §D-C4: encolado en lote dentro de una transacción. `sql` es obligatorio: no existe el
@@ -99,7 +113,11 @@ export const encolarVarios = async (
 ): Promise<void> => {
   await obtenerBoss().insert(
     nombre,
-    trabajos.map(({ id, datos }) => ({ id, data: datos })),
+    trabajos.map(({ id, datos, inicio }) => ({
+      id,
+      data: datos,
+      ...(inicio ? { startAfter: inicio } : {}),
+    })),
     { db: sql },
   )
 }
@@ -156,6 +174,8 @@ export const trabajar = async (
 export interface TrabajoFallidoRecibido {
   id: string
   idOriginal: string | null
+  // ADMIN-01b (N-02): pg-boss copia los datos del trabajo original al de la cola de fallidos.
+  datos: unknown
 }
 
 // T-02: el consumidor de la cola de fallidos necesita el id del trabajo original (el eventId,
@@ -175,7 +195,7 @@ export const trabajarFallidos = async (
     },
     async (trabajos) => {
       for (const trabajo of trabajos) {
-        await manejador({ id: trabajo.id, idOriginal: trabajo.sourceId })
+        await manejador({ id: trabajo.id, idOriginal: trabajo.sourceId, datos: trabajo.data })
       }
     },
   )

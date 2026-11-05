@@ -98,7 +98,7 @@ describe("reglas estáticas de la exportación (CAL2-A08)", () => {
     const handlerCrudo = leerCrudo("handlers/calificaciones.ts")
     const handler = sinComentarios(handlerCrudo)
     expect(handler).toMatch(
-      /app\.get\(\s*"\/clases\/:claseId\/calificaciones\/exportacion",\s*protegido\(\{ roles: \["maestro", "admin"\], pertenencia: "propiedad" \}\)/,
+      /app\.get\(\s*"\/clases\/:claseId\/calificaciones\/exportacion",\s*protegido\(\{\s*roles: \["maestro", "admin"\],\s*pertenencia: "propiedad",\s*enClaseArchivada: "lectura",?\s*\}\)/,
     )
     const desde = handler.indexOf('"/clases/:claseId/calificaciones/exportacion"')
     expect(desde, "Precondición: existe la ruta").toBeGreaterThanOrEqual(0)

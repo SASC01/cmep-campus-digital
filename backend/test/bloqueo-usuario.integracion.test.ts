@@ -687,7 +687,12 @@ describe("E: adaptadores, sin concurrencia", () => {
   // CALIFICACIONES-01b: calificaciones.ts (los agregados del gradebook y de "Mis calificaciones").
   // CLASES-03a (§D-3.7): recursos.ts (el FOR NO KEY UPDATE de la fila del recurso al editarlo).
   // CLASES-03b (§D-5): dudas.ts (el FOR SHARE de la duda al responderla).
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts, calificaciones.ts, recursos.ts y dudas.ts usan SQL etiquetado en adapters/db", async () => {
+  // ADMIN-01a (§D-3): clases.ts (el FOR SHARE de la clase por su código en unirseConCodigo).
+  // ADMIN-01b (§D-4, §D-5): bloqueo-maestros.ts (el FOR SHARE de los maestros activos, en orden de id),
+  // borrado-de-clase.ts (el FOR UPDATE de la clase que se borra), duplicado-de-clase.ts (el FOR SHARE
+  // de la original) y copias-de-archivos.ts (la lectura de las copias pendientes con la clave de su
+  // original, en una sola sentencia).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts, calificaciones.ts, recursos.ts, dudas.ts, clases.ts, bloqueo-maestros.ts, borrado-de-clase.ts, duplicado-de-clase.ts y copias-de-archivos.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -707,10 +712,15 @@ describe("E: adaptadores, sin concurrencia", () => {
       if (patron.test(lineasDeCodigo)) conCoincidencia.push(archivo)
     }
     expect(conCoincidencia.sort()).toEqual([
+      "bloqueo-maestros.ts",
       "bloqueo-usuario.ts",
+      "borrado-de-clase.ts",
       "calificaciones.ts",
       "categorias.ts",
+      "clases.ts",
+      "copias-de-archivos.ts",
       "dudas.ts",
+      "duplicado-de-clase.ts",
       "enlaces-registro.ts",
       "entregas.ts",
       "invitaciones.ts",

@@ -1,6 +1,8 @@
 import {
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
+  listaClasesAnterioresConsultaSchema,
+  listaClasesAnterioresRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
   LONGITUD_CODIGO_CLASE,
@@ -12,13 +14,13 @@ import type { FastifyPluginAsync } from "fastify"
 import { randomBytes } from "node:crypto"
 
 import {
-  buscarClasePorCodigo,
-  inscribir,
   leerClase,
   leerCodigo,
+  listarClasesAnteriores,
   listarClasesImpartidas,
   listarClasesInscritas,
   regenerarCodigo,
+  unirseConCodigo,
   type ClaseDb,
 } from "../../adapters/db/index.js"
 import { codigoDesdeBytes } from "../../core/clases/codigo.js"
@@ -31,13 +33,15 @@ import { validarCuerpo, validarParametros } from "../validacion.js"
 export const generarCodigo = (): string => codigoDesdeBytes(randomBytes(LONGITUD_CODIGO_CLASE))
 
 // CLASES-02 (P-06 a): `maestro` (el principal, el primero de `maestros`) es un campo de
-// compatibilidad con el frontend anterior; se retira junto con clases.maestro_id.
+// compatibilidad con el frontend anterior; se retira junto con clases.maestro_id. ADMIN-01a (S-14):
+// `archivadaEn` siempre va, en ISO o null.
 export const conMaestroPrincipal = (clase: ClaseDb) => {
   const [maestro] = clase.maestros
   if (maestro === undefined) {
     throw new AppError("ERROR_INTERNO", "La clase no tiene maestros asignados.", 500)
   }
-  return { ...clase, maestro }
+  const archivadaEn = clase.archivadaEn === null ? null : clase.archivadaEn.toISOString()
+  return { ...clase, maestro, archivadaEn }
 }
 
 const codigoInvalido = (): AppError =>
@@ -73,22 +77,55 @@ export const clasesHandler: FastifyPluginAsync = async (app) => {
     return reply.send(listaClasesImpartidasRespuestaSchema.parse(resultado))
   })
 
+  // ADMIN-01a (§D-2, DH-02): las clases archivadas del perfil (inscripciones del alumno o
+  // asignaciones del maestro); el adaptador elige cuáles con el rol del perfil autenticado.
+  app.get(
+    "/clases/anteriores",
+    protegido({ roles: ["estudiante", "maestro"] }),
+    async (request, reply) => {
+      const { cursor, cursorArchivadaEn, limite } = validarParametros(
+        listaClasesAnterioresConsultaSchema,
+        request.query,
+      )
+      const perfil = perfilDe(request)
+      const resultado = await listarClasesAnteriores({
+        usuarioId: perfil.id,
+        rol: perfil.rol,
+        cursor,
+        cursorArchivadaEn,
+        limite,
+      })
+      return reply.send(
+        listaClasesAnterioresRespuestaSchema.parse({
+          ...resultado,
+          clases: resultado.clases.map((clase) => ({
+            ...clase,
+            archivadaEn: clase.archivadaEn.toISOString(),
+          })),
+          siguienteCursorArchivadaEn: resultado.siguienteCursorArchivadaEn?.toISOString() ?? null,
+        }),
+      )
+    },
+  )
+
+  // ADMIN-01a (§D-3): el código de una clase archivada responde como un código inexistente.
   app.post("/clases/unirse", protegido({ roles: ["estudiante"] }), async (request, reply) => {
     const datos = validarCuerpo(unirseSchema, request.body)
     const perfil = perfilDe(request)
-    const clase = await buscarClasePorCodigo(datos.codigo)
-    if (clase === null) throw codigoInvalido()
-    const { yaEstaba } = await inscribir({
-      claseId: clase.id,
-      usuarioId: perfil.id,
-      origen: "codigo",
-    })
-    return reply.send(unirseRespuestaSchema.parse({ clase, yaEstabas: yaEstaba }))
+    const resultado = await unirseConCodigo({ codigo: datos.codigo, usuarioId: perfil.id })
+    if (resultado === null) throw codigoInvalido()
+    return reply.send(
+      unirseRespuestaSchema.parse({ clase: resultado.clase, yaEstabas: resultado.yaEstaba }),
+    )
   })
 
   app.get(
     "/clases/:claseId",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura-del-alumno",
+    }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const clase = await leerClase(id)

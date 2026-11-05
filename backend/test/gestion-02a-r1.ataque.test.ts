@@ -3,7 +3,8 @@ import { randomBytes, randomUUID } from "node:crypto"
 import type { FastifyInstance, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { obtenerDb } from "../src/adapters/db/cliente.js"
+import { enTransaccion, obtenerDb } from "../src/adapters/db/cliente.js"
+import { listarClasesAdmin } from "../src/adapters/db/index.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
 import { normalizarParaBusqueda } from "../src/core/auth/normalizacion.js"
@@ -790,13 +791,34 @@ describe("ataque CLASES-02a r1: lista institucional del admin (punto 9)", () => 
     }
     expect(fallas).toEqual([])
 
-    const antes = await obtenerDb().clase.count()
+    // ADMIN-01b ronda 2, C-33 (E8-3; remedio de E8-2): otros archivos crean, duplican y borran clases
+    // a la vez, así que el total no se compara con conteos de antes y de después. Se comprueba contra
+    // las filas de su propia respuesta (la misma instantánea, FIX-CLASES) y, aparte, el total de la
+    // lista contra clase.count() dentro de una misma instantánea. Lo que protege no cambia: el total
+    // de la primera página sin cursor es el de toda la tabla.
     const sinCursor = await pedir("GET", "/api/admin/clases?limite=2", tokenAdmin)
-    const despues = await obtenerDb().clase.count()
     expect(sinCursor.statusCode, sinCursor.body).toBe(200)
-    const total = sinCursor.json<{ total: number }>().total
-    expect(total).toBeGreaterThanOrEqual(Math.min(antes, despues))
-    expect(total).toBeLessThanOrEqual(Math.max(antes, despues))
+    const pagina = sinCursor.json<{
+      clases: unknown[]
+      total: number
+      siguienteCursor: string | null
+    }>()
+    expect(pagina.total).toBeGreaterThanOrEqual(
+      pagina.clases.length + (pagina.siguienteCursor === null ? 0 : 1),
+    )
+    if (pagina.siguienteCursor === null) expect(pagina.total).toBe(pagina.clases.length)
+    const misma = await enTransaccion(
+      obtenerDb(),
+      async (tx) => ({
+        total: (await listarClasesAdmin({ cursor: undefined, limite: 2 }, tx)).total,
+        contadas: await tx.clase.count(),
+      }),
+      { instantaneaUnica: true, timeout: 10_000 },
+    )
+    expect(misma.total).toBe(misma.contadas)
+    expect(misma.contadas, "las clases del caso están en la instantánea").toBeGreaterThanOrEqual(
+      clases.length + 1,
+    )
 
     const p1 = await pedir("GET", `/api/admin/clases?limite=2&cursor=${centinela.id}`, tokenAdmin)
     expect(p1.statusCode, p1.body).toBe(200)

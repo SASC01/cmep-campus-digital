@@ -68,7 +68,11 @@ const respuestaParaResponder = (respuesta: ComentarioDb, personaId: string) => (
 export const dudasHandler: FastifyPluginAsync = async (app) => {
   app.get(
     "/clases/:claseId/dudas",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId, relacion } = claseDe(request)
       const { cursor, limite } = validarParametros(paginacionSchema, request.query)
@@ -135,7 +139,11 @@ export const dudasHandler: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/clases/:claseId/dudas/:dudaId/respuestas",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { dudaId } = validarParametros(dudaIdParamSchema, request.params)

@@ -30,7 +30,11 @@ const sinAcceso = (): AppError =>
 export const alumnosHandler: FastifyPluginAsync = async (app) => {
   app.get(
     "/clases/:claseId/personas",
-    protegido({ roles: ["estudiante", "maestro"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { cursor, limite } = validarParametros(paginacionRosterSchema, request.query)
@@ -44,7 +48,11 @@ export const alumnosHandler: FastifyPluginAsync = async (app) => {
   // maestro de la clase y el administrador (CLASES-02).
   app.get(
     "/clases/:claseId/alumnos",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id } = claseDe(request)
       const { cursor, limite } = validarParametros(paginacionRosterSchema, request.query)

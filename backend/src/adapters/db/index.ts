@@ -71,11 +71,9 @@ export {
   type ResultadoInvitacionEnLote,
 } from "./invitaciones.js"
 export {
-  buscarClasePorCodigo,
   buscarDatosDePertenencia,
   crearClaseAdministrada,
   editarClase,
-  inscribir,
   leerClase,
   leerCodigo,
   listarClasesAdmin,
@@ -83,6 +81,7 @@ export {
   listarClasesInscritas,
   ORDEN_DE_MAESTROS,
   regenerarCodigo,
+  unirseConCodigo,
   type ClaseAdminDb,
   type ClaseDb,
   type DatosDePertenencia,
@@ -91,6 +90,25 @@ export {
   type ListaClasesInscritasDb,
   type MaestroDb,
 } from "./clases.js"
+export {
+  archivarClase,
+  listarClasesAnteriores,
+  restaurarClase,
+  type ClaseAnteriorDb,
+  type ListaClasesAnterioresDb,
+} from "./clases-archivadas.js"
+export {
+  borrarClaseDefinitivamente,
+  contarParaBorrar,
+  type BorradoDeClase,
+} from "./borrado-de-clase.js"
+export { duplicarClase, type DuplicadoDeClase } from "./duplicado-de-clase.js"
+export {
+  descartarCopias,
+  leerCopiasPendientes,
+  terminarCopias,
+  type CopiaPendiente,
+} from "./copias-de-archivos.js"
 export {
   asignarMaestro,
   buscarMaestrosCandidatos,

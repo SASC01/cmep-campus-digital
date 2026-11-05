@@ -4,12 +4,15 @@ import { inicializarAuth } from "./adapters/auth/index.js"
 import { cerrarConexion, inicializarDb } from "./adapters/db/index.js"
 import { crearNotifier } from "./adapters/notifier/index.js"
 import { detenerCola, iniciarCola } from "./adapters/queue/index.js"
+import { crearAlmacenDeObjetos } from "./adapters/storage/index.js"
+import { opcionesDeAlmacen } from "./config/almacen.js"
 import { opcionesDeAuth } from "./config/auth.js"
 import { opcionesDeCola } from "./config/cola.js"
 import { cargarEnvCorreo, opcionesDeCorreo } from "./config/correo.js"
 import { cargarEnv } from "./config/env.js"
 import { opcionesDeLogger } from "./config/logger.js"
 import { registrarConsumidores } from "./workers/index.js"
+import { registrarConsumidoresDeObjetos } from "./workers/objetos.js"
 
 const env = cargarEnv()
 const envCorreo = cargarEnvCorreo(env.NODE_ENV)
@@ -26,6 +29,14 @@ await registrarConsumidores({
   notifier,
   urlPublicaFrontend: opciones.urlPublicaFrontend,
   reloj: () => new Date(),
+  log,
+})
+
+// ADMIN-01b (§D-6): sin STORAGE_* (fuera de production) no hay almacén y los trabajos de objetos
+// fallan con un error controlado hasta su cola de fallidos.
+const opcionesDelAlmacen = opcionesDeAlmacen(env)
+await registrarConsumidoresDeObjetos({
+  almacenDeObjetos: opcionesDelAlmacen === null ? null : crearAlmacenDeObjetos(opcionesDelAlmacen),
   log,
 })
 

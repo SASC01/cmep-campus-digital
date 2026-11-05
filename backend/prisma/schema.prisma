@@ -179,8 +179,14 @@ model EnlaceRegistro {
 }
 
 // CLASES-a (§D-A1). codigoInvitacion: 7 caracteres de un alfabeto sin I, O, 0 ni 1 (S-03); único
-// para poder buscarlo. activa se crea en true (S-05) pero ninguna ruta de CLASES la usa ni la
-// cambia (RF-50 queda para más adelante).
+// para poder buscarlo.
+// ADMIN-01a (S-01, RN-10): archivar pone activa = false y archivada_en = now(); restaurar, activa =
+// true y archivada_en = NULL. Las dos columnas las ata el CHECK clases_activa_segun_archivada
+// (activa = (archivada_en IS NULL)), y la lista del administrador por estado usa los índices
+// parciales clases_activas_idx (creado_en DESC, id DESC) WHERE archivada_en IS NULL y
+// clases_archivadas_idx (archivada_en DESC, id DESC) WHERE archivada_en IS NOT NULL. Los tres se
+// agregaron a mano en la migración admin_01_clases_archivadas: Prisma no expresa CHECK ni índices
+// parciales y no los compara al buscar deriva.
 // CLASES-02 (P-06 a): los maestros de la clase son maestros_de_clase (de uno a dos). maestro_id se
 // conserva NOT NULL solo por compatibilidad hacia atrás: el código lo ESCRIBE (el primer maestro al
 // crear la clase; el que queda al retirar al que estaba ahí) y NUNCA lo lee. Se retira en una
@@ -194,6 +200,7 @@ model Clase {
   activa           Boolean                 @default(true)
   creadoEn         DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
   actualizadoEn    DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  archivadaEn      DateTime?               @map("archivada_en") @db.Timestamptz(3)
   maestro          Usuario                 @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
   inscripciones    Inscripcion[]
   movimientos      MovimientoInscripcion[]
@@ -246,8 +253,10 @@ model MaestroDeClase {
 // la misma transacción que el cambio, y ninguna ruta ni función de CLASES lo lee. El orden del
 // registro es secuencia (toma su valor en el INSERT, que es el último paso de la transacción);
 // creado_en es la hora de inicio de la transacción y no sirve para ordenar. Llaves foráneas con
-// ON DELETE RESTRICT: un registro no desaparece en silencio con una cascada. Sin índices
-// secundarios: ninguna consulta lo lee todavía (los propondrá la pantalla de ADMIN).
+// ON DELETE RESTRICT: un registro no desaparece en silencio con una cascada.
+// ADMIN-01b (§D-4, DH-04 a): el borrado definitivo de una clase archivada borra sus movimientos en
+// su misma transacción, justo antes de la clase; el índice (clase_id, secuencia DESC) le sirve a ese
+// borrado (y lo reutilizará la consulta de movimientos de ADMIN-01e).
 model MovimientoInscripcion {
   id        String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   secuencia BigInt                    @default(autoincrement())
@@ -260,6 +269,7 @@ model MovimientoInscripcion {
   alumno    Usuario                   @relation("MovimientosDelAlumno", fields: [alumnoId], references: [id], onDelete: Restrict)
   actor     Usuario                   @relation("MovimientosDelActor", fields: [actorId], references: [id], onDelete: Restrict)
 
+  @@index([claseId, secuencia(sort: Desc)])
   @@map("movimientos_inscripcion")
 }
 
@@ -439,6 +449,11 @@ model Duda {
 // y sus archivos, y la comprobación se hace al final de la sentencia.
 // ENTREGAS-01a (§D-1): entrega_id es el segundo contexto (NO ACTION, como publicacion_id); el CHECK
 // archivos_confirmado_si_y_solo_si_contexto se reemplazó a mano para contar los dos.
+// ADMIN-01b (§D-5, DH-03 a): copia_de apunta al archivo original de una copia de una clase duplicada
+// cuyo objeto todavía no se copia en el almacén (COPIAR_OBJETOS lo limpia al terminar). Solo un
+// archivo confirmado la lleva (CHECK archivos_copia_solo_confirmado, a mano en la migración); la FK es
+// ON DELETE RESTRICT: un original con una copia en curso no se borra. El índice (clase_id, estado)
+// sirve al conteo y al borrado definitivo de una clase.
 model Archivo {
   id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   claveObjeto   String        @unique @map("clave_objeto")
@@ -456,9 +471,14 @@ model Archivo {
   clase         Clase         @relation(fields: [claseId], references: [id], onDelete: Cascade)
   publicacion   Publicacion?  @relation(fields: [publicacionId], references: [id], onDelete: NoAction)
   entrega       Entrega?      @relation(fields: [entregaId], references: [id], onDelete: NoAction)
+  copiaDe       String?       @map("copia_de") @db.Uuid
+  original      Archivo?      @relation("CopiasDeArchivo", fields: [copiaDe], references: [id], onDelete: Restrict)
+  copias        Archivo[]     @relation("CopiasDeArchivo")
 
   @@index([publicacionId])
   @@index([entregaId])
+  @@index([copiaDe])
+  @@index([claseId, estado])
   @@map("archivos")
 }
 

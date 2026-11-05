@@ -1,5 +1,6 @@
-import { MAXIMO_MAESTROS_POR_CLASE } from "@campus/shared"
+import { MAXIMO_MAESTROS_POR_CLASE, type EstadoDeClases } from "@campus/shared"
 
+import { errorClaseArchivada } from "../../core/clases/archivada.js"
 import { paginar } from "../../core/paginacion.js"
 import { AppError } from "../../core/errores.js"
 import { enTransaccion, obtenerDb, type Ejecutor } from "./cliente.js"
@@ -17,11 +18,16 @@ export const ORDEN_DE_MAESTROS: Prisma.MaestroDeClaseOrderByWithRelationInput[] 
 export interface DatosDePertenencia {
   esMaestro: boolean
   inscrito: boolean
+  // ADMIN-01a (§D-1): la clase está archivada; el sexto paso lo decide con la política de la ruta.
+  archivada: boolean
 }
 
-// Sexto paso de la cadena (§D-0.1, §D-2A2): una sola consulta, clase por PK con sus maestros y sus
-// inscripciones filtrados por el usuario de la petición (a lo más una fila cada uno, por sus PK
-// compuestas).
+// Sexto paso de la cadena (§D-0.1, §D-2A2): una sola llamada a Prisma, la clase por PK con sus
+// maestros y sus inscripciones filtrados por el usuario de la petición (a lo más una fila cada uno,
+// por sus PK compuestas). Prisma la resuelve con varias sentencias (N-01 de FIX-CLASES, E-04 de
+// ADMIN-01): no hace falta una sola instantánea, porque la decisión solo usa la existencia de la
+// clase, su fecha de archivo y dos conjuntos acotados a un usuario; un borrado en medio deja, como
+// mucho, una relación sin conceder.
 export const buscarDatosDePertenencia = async (
   claseId: string,
   usuarioId: string,
@@ -30,12 +36,17 @@ export const buscarDatosDePertenencia = async (
   const clase = await ejecutor.clase.findUnique({
     where: { id: claseId },
     select: {
+      archivadaEn: true,
       maestros: { where: { maestroId: usuarioId }, select: { maestroId: true } },
       inscripciones: { where: { usuarioId }, select: { usuarioId: true } },
     },
   })
   if (clase === null) return null
-  return { esMaestro: clase.maestros.length > 0, inscrito: clase.inscripciones.length > 0 }
+  return {
+    esMaestro: clase.maestros.length > 0,
+    inscrito: clase.inscripciones.length > 0,
+    archivada: clase.archivadaEn !== null,
+  }
 }
 
 export interface MaestroDb {
@@ -49,6 +60,8 @@ export interface ClaseDb {
   descripcion: string | null
   // De uno a dos, en el orden de ORDEN_DE_MAESTROS.
   maestros: MaestroDb[]
+  // ADMIN-01a (S-14): null en una clase activa.
+  archivadaEn: Date | null
 }
 
 export const SELECT_MAESTROS_DE_CLASE = {
@@ -60,6 +73,7 @@ const SELECT_CLASE_DETALLE = {
   id: true,
   nombre: true,
   descripcion: true,
+  archivadaEn: true,
   maestros: SELECT_MAESTROS_DE_CLASE,
 } as const
 
@@ -74,6 +88,7 @@ interface FilaDeClase {
   id: string
   nombre: string
   descripcion: string | null
+  archivadaEn: Date | null
   maestros: FilaDeMaestros[]
 }
 
@@ -82,6 +97,7 @@ const aClaseDb = (fila: FilaDeClase): ClaseDb => ({
   nombre: fila.nombre,
   descripcion: fila.descripcion,
   maestros: maestrosDeFilas(fila.maestros),
+  archivadaEn: fila.archivadaEn,
 })
 
 const errorCodigoNoDisponible = (): AppError =>
@@ -172,6 +188,9 @@ export const crearClaseAdministrada = async (
 
 // Sin filtro por maestro_id desde CLASES-02 (A-10): la única autorización es el sexto paso, que
 // deja pasar a los maestros de la clase y al administrador. null: la clase ya no existe.
+// ADMIN-01a (E-04, T-01): la ruta ya es cerrada en una archivada; el filtro cubre la carrera con un
+// archivado que confirma después del sexto paso. Si no cambia ninguna fila, se relee por PK para
+// responder lo mismo que la ruta cerrada (409 CLASE_ARCHIVADA) y no un 403 a quien sí tiene acceso.
 export const editarClase = async (
   {
     claseId,
@@ -181,10 +200,17 @@ export const editarClase = async (
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ClaseDb | null> => {
   const { count } = await ejecutor.clase.updateMany({
-    where: { id: claseId },
+    where: { id: claseId, archivadaEn: null },
     data: { nombre, descripcion: descripcion ?? null },
   })
-  if (count === 0) return null
+  if (count === 0) {
+    const fila = await ejecutor.clase.findUnique({
+      where: { id: claseId },
+      select: { archivadaEn: true },
+    })
+    if (fila === null) return null
+    throw errorClaseArchivada()
+  }
   return leerClase(claseId, ejecutor)
 }
 
@@ -248,6 +274,9 @@ export interface ListaClasesImpartidasDb {
 // Lee maestros_de_clase con su índice (maestro_id, creado_en DESC, clase_id DESC); el cursor (un
 // claseId) se comprueba por la PK (clase_id, maestro_id) y la lista va en el orden de la asignación.
 // FIX-CLASES: una sola instantánea para el cursor, la página con su clase y el total, en serie.
+// ADMIN-01a (§D-2, R-04): sin las clases archivadas, también en el total. El cursor sigue siendo la
+// lectura por PK (M-01) y trae la fecha de archivo de su clase: si se archivó entre dos páginas, 400
+// (el skip: 1 de Prisma saltaría una fila ajena si el cursor no cumple el filtro).
 export const listarClasesImpartidas = (
   { maestroId, cursor, limite }: { maestroId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor = obtenerDb(),
@@ -258,12 +287,13 @@ export const listarClasesImpartidas = (
       if (cursor !== undefined) {
         const asignacionDelCursor = await tx.maestroDeClase.findUnique({
           where: { claseId_maestroId: { claseId: cursor, maestroId } },
-          select: { claseId: true },
+          select: { claseId: true, clase: { select: { archivadaEn: true } } },
         })
         if (asignacionDelCursor === null) throw errorCursorInvalido()
+        if (asignacionDelCursor.clase.archivadaEn !== null) throw errorCursorInvalido()
       }
       const filas = await tx.maestroDeClase.findMany({
-        where: { maestroId },
+        where: { maestroId, clase: { archivadaEn: null } },
         select: {
           claseId: true,
           clase: {
@@ -279,7 +309,9 @@ export const listarClasesImpartidas = (
           ? {}
           : { cursor: { claseId_maestroId: { claseId: cursor, maestroId } }, skip: 1 }),
       })
-      const total = await tx.maestroDeClase.count({ where: { maestroId } })
+      const total = await tx.maestroDeClase.count({
+        where: { maestroId, clase: { archivadaEn: null } },
+      })
 
       const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.claseId)
 
@@ -303,7 +335,7 @@ export interface ListaClasesInscritasDb {
 }
 
 // FIX-CLASES: una sola instantánea para el cursor, la página con su clase y sus maestros, y el
-// total, en serie.
+// total, en serie. ADMIN-01a (§D-2, R-04): sin las clases archivadas, como en impartidas.
 export const listarClasesInscritas = (
   { usuarioId, cursor, limite }: { usuarioId: string; cursor: string | undefined; limite: number },
   ejecutor: Ejecutor = obtenerDb(),
@@ -314,12 +346,13 @@ export const listarClasesInscritas = (
       if (cursor !== undefined) {
         const inscripcionDelCursor = await tx.inscripcion.findUnique({
           where: { claseId_usuarioId: { claseId: cursor, usuarioId } },
-          select: { claseId: true },
+          select: { claseId: true, clase: { select: { archivadaEn: true } } },
         })
         if (inscripcionDelCursor === null) throw errorCursorInvalido()
+        if (inscripcionDelCursor.clase.archivadaEn !== null) throw errorCursorInvalido()
       }
       const filas = await tx.inscripcion.findMany({
-        where: { usuarioId },
+        where: { usuarioId, clase: { archivadaEn: null } },
         select: {
           claseId: true,
           clase: {
@@ -339,7 +372,9 @@ export const listarClasesInscritas = (
           ? {}
           : { cursor: { claseId_usuarioId: { claseId: cursor, usuarioId } }, skip: 1 }),
       })
-      const total = await tx.inscripcion.count({ where: { usuarioId } })
+      const total = await tx.inscripcion.count({
+        where: { usuarioId, clase: { archivadaEn: null } },
+      })
 
       const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.claseId)
 
@@ -358,18 +393,40 @@ export const listarClasesInscritas = (
     { instantaneaUnica: true },
   )
 
+const cumpleElEstado = (archivadaEn: Date | null, estado: EstadoDeClases | undefined): boolean => {
+  if (estado === "activas") return archivadaEn === null
+  if (estado === "archivadas") return archivadaEn !== null
+  return true
+}
+
+const filtroDeEstado = (estado: EstadoDeClases | undefined): Prisma.ClaseWhereInput => {
+  if (estado === "activas") return { archivadaEn: null }
+  if (estado === "archivadas") return { archivadaEn: { not: null } }
+  return {}
+}
+
+const ordenDeEstado = (
+  estado: EstadoDeClases | undefined,
+): Prisma.ClaseOrderByWithRelationInput[] => {
+  if (estado === "archivadas") return [{ archivadaEn: "desc" }, { id: "desc" }]
+  return [{ creadoEn: "desc" }, { id: "desc" }]
+}
+
 export interface ClaseAdminDb {
   id: string
   nombre: string
   maestros: MaestroDb[]
   alumnos: number
   creadoEn: Date
+  archivadaEn: Date | null
 }
 
 export interface ListaClasesAdminDb {
   clases: ClaseAdminDb[]
   total: number
   siguienteCursor: string | null
+  // Enmienda 5: el archivadaEn de la última fila, solo con "archivadas" y página siguiente.
+  siguienteCursorArchivadaEn: Date | null
 }
 
 // Lista institucional (§D-2A3, S-07): de la más reciente a la más antigua por el índice
@@ -377,35 +434,68 @@ export interface ListaClasesAdminDb {
 // lugar de una página vacía. Prisma resuelve los maestros de la página con otra sentencia (una para
 // toda la página, no una por fila); por eso la lectura corre en una sola instantánea (FIX-CLASES):
 // un borrado de la clase entre las dos sentencias dejaría una clase sin maestros.
+// ADMIN-01a (§D-2, DH-11): sin `estado`, todas las clases, como antes. "activas" va por
+// (creado_en DESC, id DESC) con el índice parcial clases_activas_idx; "archivadas", por
+// (archivada_en DESC, id DESC) con clases_archivadas_idx. El cursor sigue siendo la lectura por PK
+// (M-01) y debe cumplir el mismo filtro; si no, 400 (R-04).
+// Enmienda 5 (§D-2, T-02): con "archivadas", el cursor viaja con su posición (cursorArchivadaEn),
+// que se compara como texto con la fecha de archivo actual de la fila del cursor: si la clase se
+// restauró y se volvió a archivar entre dos páginas, 400 en vez de repetir o saltar filas. Sin
+// estado o con "activas" la clave de orden no cambia y la posición no se admite.
 export const listarClasesAdmin = (
-  { cursor, limite }: { cursor: string | undefined; limite: number },
+  {
+    cursor,
+    cursorArchivadaEn,
+    limite,
+    estado,
+  }: {
+    cursor: string | undefined
+    cursorArchivadaEn?: string | undefined
+    limite: number
+    estado?: EstadoDeClases | undefined
+  },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaClasesAdminDb> =>
   enTransaccion(
     ejecutor,
     async (tx) => {
+      const conPosicion = estado === "archivadas"
+      if (!conPosicion && cursorArchivadaEn !== undefined) throw errorCursorInvalido()
+      if (conPosicion && (cursor === undefined) !== (cursorArchivadaEn === undefined)) {
+        throw errorCursorInvalido()
+      }
       if (cursor !== undefined) {
         const claseDelCursor = await tx.clase.findUnique({
           where: { id: cursor },
-          select: { id: true },
+          select: { id: true, archivadaEn: true },
         })
         if (claseDelCursor === null) throw errorCursorInvalido()
+        if (!cumpleElEstado(claseDelCursor.archivadaEn, estado)) throw errorCursorInvalido()
+        if (conPosicion && claseDelCursor.archivadaEn?.toISOString() !== cursorArchivadaEn) {
+          throw errorCursorInvalido()
+        }
       }
+      const where = filtroDeEstado(estado)
       const filas = await tx.clase.findMany({
+        where,
         select: {
           id: true,
           nombre: true,
           creadoEn: true,
+          archivadaEn: true,
           maestros: SELECT_MAESTROS_DE_CLASE,
           _count: { select: { inscripciones: { where: { usuario: { activo: true } } } } },
         },
-        orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
+        orderBy: ordenDeEstado(estado),
         take: limite + 1,
         ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
       })
-      const total = await tx.clase.count()
+      const total = await tx.clase.count({ where })
 
       const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
+      const ultima = pagina.at(-1)
+      const siguienteCursorArchivadaEn =
+        conPosicion && siguienteCursor !== null && ultima !== undefined ? ultima.archivadaEn : null
 
       return {
         clases: pagina.map((fila) => ({
@@ -414,36 +504,35 @@ export const listarClasesAdmin = (
           maestros: maestrosDeFilas(fila.maestros),
           alumnos: fila._count.inscripciones,
           creadoEn: fila.creadoEn,
+          archivadaEn: fila.archivadaEn,
         })),
         total,
         siguienteCursor,
+        siguienteCursorArchivadaEn,
       }
     },
     { instantaneaUnica: true },
   )
 
-export const buscarClasePorCodigo = (
-  codigo: string,
+// ADMIN-01a (§D-3, E-04): unirse con código decide dentro de una transacción con la fila de la
+// clase tomada en modo compartido, en serie con archivarla y con borrarla. El código de una clase
+// archivada no sirve: null, igual que un código inexistente (el handler responde 404 CODIGO_INVALIDO
+// sin revelar que existe). No registra movimientos_inscripcion (eso es solo para el alta manual y la
+// baja, CLASES-b); insertar sin duplicados hace la operación idempotente.
+export const unirseConCodigo = (
+  { codigo, usuarioId }: { codigo: string; usuarioId: string },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<{ id: string; nombre: string } | null> =>
-  ejecutor.clase.findUnique({
-    where: { codigoInvitacion: codigo },
-    select: { id: true, nombre: true },
+): Promise<{ clase: { id: string; nombre: string }; yaEstaba: boolean } | null> =>
+  enTransaccion(ejecutor, async (tx) => {
+    const filas = await tx.$queryRaw<{ id: string; nombre: string; archivada_en: Date | null }[]>`
+      SELECT id, nombre, archivada_en FROM clases
+      WHERE codigo_invitacion = ${codigo}
+      FOR SHARE`
+    const [clase] = filas
+    if (clase === undefined || clase.archivada_en !== null) return null
+    const { count } = await tx.inscripcion.createMany({
+      data: [{ claseId: clase.id, usuarioId, origen: "codigo" }],
+      skipDuplicates: true,
+    })
+    return { clase: { id: clase.id, nombre: clase.nombre }, yaEstaba: count === 0 }
   })
-
-// Unirse con código (S-04, S-23): no registra movimientos_inscripcion (eso es solo para el alta
-// manual y la baja, CLASES-b). skipDuplicates hace la operación idempotente.
-export const inscribir = async (
-  {
-    claseId,
-    usuarioId,
-    origen,
-  }: { claseId: string; usuarioId: string; origen: "codigo" | "manual" },
-  ejecutor: Ejecutor = obtenerDb(),
-): Promise<{ yaEstaba: boolean }> => {
-  const { count } = await ejecutor.inscripcion.createMany({
-    data: [{ claseId, usuarioId, origen }],
-    skipDuplicates: true,
-  })
-  return { yaEstaba: count === 0 }
-}

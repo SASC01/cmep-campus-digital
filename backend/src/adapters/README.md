@@ -630,3 +630,36 @@ borrar: el que va segundo no encuentra la fila (`404`) o borra la fila ya marcad
 rutas del muro buscan por `publicacion_id` y «mis comentarios» exige la publicación de la clase, así
 que no alcanzan una respuesta; las rutas de respuestas exigen `duda_id`, así que no alcanzan un
 comentario del muro ni del hilo privado.
+
+## Borrar y duplicar clases y las copias de archivos (ADMIN-01b, §D-4 a §D-6)
+
+`db/borrado-de-clase.ts`: `contarParaBorrar` (cinco conteos en la instantánea única; de una activa,
+`409 CLASE_NO_ARCHIVADA`) y `borrarClaseDefinitivamente` (READ COMMITTED, `timeout` de 30 s, R-12):
+toma la clase con `FOR UPDATE` (`bloquearClaseParaBorrar`; queda en serie con unirse, duplicar y toda
+escritura que inserte una fila hija), comprueba las copias en curso (de la clase o de otra que apunta a
+un archivo de esta) y decide con `decidirBorrado` (`core/clases/borrado.ts`): activa, copias en curso
+y falta de confirmación, en ese orden. Después lee las claves de todos los archivos de la clase (en
+cualquier estado) y los `trabajo_id` de sus tareas, cancela los recordatorios y encola el borrado de
+objetos con las funciones que recibe del handler (sobre `ejecutorSqlDe(tx)`; `adapters/db` no importa
+`adapters/queue`), borra los movimientos de inscripción (FK `RESTRICT`, DH-04 a) y al final la clase,
+cuya cascada se lleva lo demás.
+
+`db/duplicado-de-clase.ts`: `duplicarClase` (READ COMMITTED, `timeout` de 30 s): la original
+`FOR SHARE`, los maestros con `bloquearMaestrosActivos` (`db/bloqueo-maestros.ts`, `FOR SHARE` en orden
+de id, N-03; no se reexporta), `409 CLASE_CON_COPIAS_EN_CURSO` si la original tiene copias en curso
+(M-02), cuatro lecturas (temas, categorías, recursos de aprendizaje y sus archivos confirmados), el
+plan puro de `core/clases/duplicado.ts` y un `createMany` por tabla; si hay archivos, encola
+`COPIAR_OBJETOS` con la función del handler. Como en crear, un choque del código de invitación
+reintenta una vez la transacción entera.
+
+`db/copias-de-archivos.ts`: `leerCopiasPendientes` (una sola sentencia con la clave del original),
+`terminarCopias` y `descartarCopias` (un `updateMany` cada una, por lote). Los descartes de
+`borrarPublicacion` (`db/publicaciones.ts`) y de editar un recurso (`db/recursos.ts`) ponen también
+`copiaDe: null` (M-02). `buscarArchivoConfirmado` devuelve `copiaDe` para el `409 ARCHIVO_EN_COPIA`.
+
+`cliente.ts`: `enTransaccion` admite `timeout` (sin él, los 5 s de Prisma). `queue/index.ts`:
+`cancelarVarios` (un solo `cancel` con la lista, dentro de la transacción), `inicio` por trabajo en
+`encolarVarios` y `datos` en `TrabajoFallidoRecibido`. `queue/colas.ts`: `BORRAR_OBJETOS` y
+`COPIAR_OBJETOS` con la política de los avisos y sus colas de fallidos. `storage/index.ts`:
+`crearAlmacenDeObjetos` (copia y borrado del lado del almacén, sin pasar por Node; `NoSuchKey` del
+origen es `origen_inexistente`, cualquier otro fallo, `503 ALMACEN_NO_DISPONIBLE`).

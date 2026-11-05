@@ -10,7 +10,8 @@ import {
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { obtenerDb } from "../src/adapters/db/cliente.js"
+import { enTransaccion, obtenerDb } from "../src/adapters/db/cliente.js"
+import { listarClasesAdmin } from "../src/adapters/db/index.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
 import {
@@ -350,7 +351,6 @@ describe("GET /api/admin/clases", () => {
     expect(recorrido.slice(0, esperado.length)).toEqual(esperado)
     expect(new Set(recorrido).size).toBe(recorrido.length)
 
-    const totalAntes = await obtenerDb().clase.count()
     const completa = await peticion({
       method: "GET",
       url: "/api/admin/clases?limite=50",
@@ -359,11 +359,22 @@ describe("GET /api/admin/clases", () => {
     const cuerpo = listaClasesAdminRespuestaSchema.parse(completa.json())
     expect(cuerpo.clases.length).toBeLessThanOrEqual(50)
     expect(cuerpo.clases.slice(0, 5).map((c) => c.id)).toEqual(esperado)
-    const totalDespues = await obtenerDb().clase.count()
-    // Otros archivos crean y borran clases a la vez: total queda entre los dos conteos, pero otras
-    // pruebas pueden mover la tabla en cualquier dirección, así que se acota por el mínimo y el máximo.
-    expect(cuerpo.total).toBeGreaterThanOrEqual(Math.min(totalAntes, totalDespues))
-    expect(cuerpo.total).toBeLessThanOrEqual(Math.max(totalAntes, totalDespues))
+    // Enmienda 8: otros archivos crean, duplican y borran clases a la vez; el total se comprueba
+    // contra sus filas (la misma instantánea, FIX-CLASES) y contra un conteo en la misma
+    // instantánea, nunca entre conteos hechos fuera de ella.
+    expect(cuerpo.total).toBeGreaterThanOrEqual(
+      cuerpo.clases.length + (cuerpo.siguienteCursor === null ? 0 : 1),
+    )
+    if (cuerpo.siguienteCursor === null) expect(cuerpo.total).toBe(cuerpo.clases.length)
+    const misma = await enTransaccion(
+      obtenerDb(),
+      async (tx) => ({
+        total: (await listarClasesAdmin({ cursor: undefined, limite: 1 }, tx)).total,
+        contadas: await tx.clase.count(),
+      }),
+      { instantaneaUnica: true, timeout: 10_000 },
+    )
+    expect(misma.total).toBe(misma.contadas)
     expect(cuerpo.total).toBeGreaterThanOrEqual(5)
     const primera = cuerpo.clases.find((c) => c.id === clases[0]?.id)
     claseAdminSchema.parse(primera)

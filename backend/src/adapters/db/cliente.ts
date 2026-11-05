@@ -37,7 +37,9 @@ export const obtenerDb = (): PrismaClient => {
 // o no obtuvo conexión) se traduce aquí, para todos, a 503 SERVICIO_OCUPADO (CHORE-02).
 // maxWait (opcional): cuánto espera la transacción para obtener una conexión del pool (2 s por
 // defecto de Prisma). Solo para las que van en serie sobre una fila con muchos clientes a la vez
-// (M-08); un enTransaccion anidado, que ya tiene conexión, lo ignora. El timeout no cambia.
+// (M-08); un enTransaccion anidado, que ya tiene conexión, lo ignora.
+// timeout (opcional, ADMIN-01b, R-12): cuánto puede durar la transacción (5 s por defecto de Prisma).
+// Solo el borrado definitivo y el duplicado de una clase lo suben (30 s); anidada, lo ignora.
 // instantaneaUnica (opcional, FIX-CLASES): abre la transacción en REPEATABLE READ, así todas sus
 // sentencias (también las que Prisma manda por cada relación anidada) ven la instantánea de la
 // primera; en READ COMMITTED cada una toma la suya. SOLO para lecturas de varias sentencias cuya
@@ -51,11 +53,16 @@ export const obtenerDb = (): PrismaClient => {
 export const enTransaccion = <T>(
   ejecutor: Ejecutor,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
-  opciones: { maxWait?: number; instantaneaUnica?: true } = {},
+  opciones: { maxWait?: number; timeout?: number; instantaneaUnica?: true } = {},
 ): Promise<T> => {
   if ("$transaction" in ejecutor) {
-    const deLaTransaccion: { maxWait?: number; isolationLevel?: "RepeatableRead" } = {}
+    const deLaTransaccion: {
+      maxWait?: number
+      timeout?: number
+      isolationLevel?: "RepeatableRead"
+    } = {}
     if (opciones.maxWait !== undefined) deLaTransaccion.maxWait = opciones.maxWait
+    if (opciones.timeout !== undefined) deLaTransaccion.timeout = opciones.timeout
     if (opciones.instantaneaUnica === true) deLaTransaccion.isolationLevel = "RepeatableRead"
     const abierta =
       Object.keys(deLaTransaccion).length === 0

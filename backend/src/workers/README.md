@@ -45,3 +45,21 @@ explícita para las pruebas (`DependenciasCorreoDeCuentaConRitmo`); por defecto 
 cola, con la política de los avisos del muro, hasta que NOTIFICACIONES agregue sus consumidores. El
 consumidor de ambas carga la tarea por id y termina sin avisar si ya no existe; el de
 `RECORDATORIO_24H`, además, descarta un trabajo cuyo id ya no es `tareas.trabajo_id` (quedó viejo).
+
+## Objetos del almacén (ADMIN-01b, §D-4 a §D-6)
+
+`objetos.ts` consume `COPIAR_OBJETOS`, `BORRAR_OBJETOS` y `COPIAR_OBJETOS_FALLIDO`;
+`registrarConsumidoresDeObjetos(deps, colas?)` se llama desde `src/worker.ts` después de
+`registrarConsumidores` (que no cambia). Las colas son un parámetro para que las pruebas usen las
+suyas.
+
+- `COPIAR_OBJETOS` (M-03): una lectura (`leerCopiasPendientes`); en el ciclo solo el almacén
+  (`copiar`, del lado del almacén); después, `terminarCopias` y `descartarCopias` en lote. Un error a
+  mitad escribe lo ya hecho (`finally`) y se relanza para que pg-boss reintente; el reintento solo copia
+  lo pendiente. Un original sin objeto deja la copia `descartado`.
+- `BORRAR_OBJETOS`: borra las claves en lote; borrar una clave que no existe no falla. Sus trabajos
+  nacen diferidos 10 min (N-09). `BORRAR_OBJETOS_FALLIDO` no tiene consumidor.
+- `COPIAR_OBJETOS_FALLIDO` (N-02): lee los `archivoIds` de los datos del trabajo y descarta las copias
+  que siguen en curso; registra `warn` con el `trabajoId` original. Datos fuera del esquema: `warn`.
+- Sin `STORAGE_*` (fuera de production), cada trabajo falla con `ALMACEN_NO_CONFIGURADO` hasta su
+  cola de fallidos.

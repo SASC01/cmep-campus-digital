@@ -59,6 +59,10 @@ const POLITICAS: Readonly<Record<string, Politica>> = {
   [`POST ${C}/tareas/:tareaId/entregas/:alumnoId/archivos/:archivoId/descarga`]: "lectura",
   "POST /api/admin/clases/:claseId/archivar": "gestion",
   "POST /api/admin/clases/:claseId/restaurar": "gestion",
+  // ADMIN-01b (§D-4, §D-5): el conteo de borrado, el borrado definitivo y duplicar.
+  "GET /api/admin/clases/:claseId/conteo-de-borrado": "gestion",
+  "DELETE /api/admin/clases/:claseId": "gestion",
+  "POST /api/admin/clases/:claseId/duplicar": "gestion",
   // Cerradas: escrituras, el código (no sirve en una archivada), los candidatos (solo sirven para
   // inscribir), editar la clase y la gestión de maestros (P-01 a′).
   [`GET ${C}/codigo`]: "cerrada",

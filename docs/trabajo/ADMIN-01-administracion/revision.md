@@ -1639,3 +1639,818 @@ Además:
 13. Antes de la ronda 0 de 01e hace falta una enmienda corta del plan (O-3: una prueba de ataque que choca con «Cuenta desactivada»).
 14. El commit lleva 50 archivos (lista en `revision.md`), con `docs/ESTADO.md` (la decisión de ADMIN-02) y sin el archivo ajeno de DEPLOY.
 15. Recomendación: cierra la app de escritorio de ChatGPT/Codex durante las suites. Puede tumbar corridas por carga.
+
+## Verificación de la Enmienda 6 — ADMIN-01
+
+Veredicto: **APROBADO.** La enmienda hace solo lo que decidió el humano: deja `RESTRICT`, explica por qué y agrega ADM-1B24. No hay problemas que bloqueen. Quedan tres observaciones (N-28 a N-30) para el programador de 01b y dos detalles.
+
+Insumos:
+- `plan.md`: 1353 líneas; SHA-256 `7118c2283f47e6bfc146f219c795b68d6d502bcbf69ab601e5e44498d97e71eb` (comprobado). Es igual a la copia `copias-plan/plan-admin01-v8-enmienda6-7118c228.md`. Sin CR.
+- Copia previa: `copias-plan/plan-admin01-antes-enmienda6-066d9476.md`; SHA-256 `066d9476fb1bb17301babf505eaeae1b6d904c227c7ac8cdd0c56a33a23f8a68` (comprobado). Es el plan aprobado por el humano.
+- Decisión del humano: al final de `aprobacion.md` están su pregunta y su respuesta literales ("Dejar RESTRICT" y la prueba pedida).
+
+Verificación propia:
+- `git diff --no-index` completo contra la copia previa.
+- Lectura de §D-4, §D-5, §D-6, ADM-1B04 a ADM-1B23, §D-R0 (01b) y la regla general de §D-R0.
+- Grep en `backend/src`, `backend/prisma/migrations` y `backend/test`: borrados físicos de `archivos`, FK de `archivos`, `leerTrabajosDeCola`, `almacen-en-memoria.ts`, `higiene-de-pruebas` y las rutas de archivar, recursos y descarga.
+- `git diff --name-only 69057f7 -- backend/test`: las únicas `*.ataque` cambiadas son C-3, C-4 y C-5, las de la ronda 0.
+- **No corrí pruebas**, como pidió el orquestador: el cambio es solo de texto y el código de 01b está a medias.
+
+### Cotejo del diff
+`--numstat`: 24 inserciones y 3 borrados, en 5 hunks con `-U0`. Coincide con `aprobacion.md`.
+
+| Hunk (`-U0`) | Sección | E6-n |
+|---|---|---|
+| `-2 +2` | Encabezado, Estado ("Enmiendas 1 a 6 aplicadas" y la Enmienda 6 descrita) | E6-4 |
+| `-522 +522` | §Cambios `backend/prisma/`, 01b `admin_01_copias_de_archivos`: la frase del porqué de `RESTRICT`. La FK, el `CHECK`, los índices y la compatibilidad siguen igual | E6-1 |
+| `-655,0 +656,6` | Pruebas requeridas 01b: ADM-1B24, con los incisos (a) a (e) | E6-2 |
+| `-1173 +1179` | Paso 13: "ADM-1B02 a ADM-1B24" | E6-3 |
+| `-1332,0 +1339,15` | Tabla de la Enmienda 6 | — |
+
+No cambia nada fuera de E6-1 a E6-4. "Se toca", "No se toca", la lista cerrada, las vigiladas, C-3 a C-5, §D-4, §D-5 y ADM-1B01 a ADM-1B23 quedan idénticos. La migración en disco (`20261105163205_admin_01_copias_de_archivos/migration.sql:14`) declara `ON DELETE RESTRICT`, como dicen el plan y la decisión.
+
+### (a) ADM-1B24 frente a la petición literal y su realizabilidad
+**Petición literal:** "duplicar una clase y luego borrar definitivamente la original debe funcionar y dejar la copia intacta".
+- Los incisos (b) a (d) la cumplen. El worker termina, el `DELETE` responde `204` y la copia queda intacta: clase activa, recurso visible en `GET …/recursos`, fila `confirmado` con `copia_de` nulo y la misma publicación, clase y clave, objeto en el almacén y descarga `200`. Coincide también con el resumen que el orquestador anotó en `aprobacion.md`.
+- El inciso (a) va más allá de la letra, pero responde la duda del propio humano ("borrar la clase original con copias existentes fallaría"). Muestra por el camino real que, mientras hay copias en curso, el borrado se rechaza con `409` sin borrar nada. Es barato, no toca ADM-1B06 y lo acepto.
+- El inciso (e) también va más allá. Prueba que el borrado de objetos no alcanza el de la copia, que es la otra mitad de "dejar la copia intacta" (el objeto, no solo la fila). Lo acepto.
+
+**Realizable con lo que define el plan para 01b.** Comprobado punto por punto:
+- **Rutas:** `POST /admin/clases/:claseId/archivar` ya existe (`handlers/clases/gestion.ts:119`, 01a). `GET /clases/:claseId/recursos` ya existe (`handlers/clases/recursos.ts:53`). La descarga `POST /clases/:claseId/archivos/:archivoId/descarga` ya existe (`handlers/archivos.ts:75`) y 01b la modifica. `duplicar` y el `DELETE` son de 01b y ya están en C-3. No hace falta ninguna ruta nueva.
+- **Almacenes:** `objetos-en-memoria.ts` (nuevo en 01b) necesita poder sembrar un objeto, pero eso ya lo exige ADM-1B11 ("copia y limpia"). La descarga firma con el doble existente `almacen-en-memoria.ts`, que no comprueba si el objeto existe (`urlDeDescarga` solo registra). Por eso el `200` de (d) prueba la puerta de `copia_de`, y la existencia del objeto la prueba el doble de `AlmacenDeObjetos`. Las dos aserciones están en (d).
+- **Consumidores:** `registrarConsumidoresDeObjetos({ almacenDeObjetos, log }, colas?)` recibe las colas como parámetro "para que las pruebas usen las suyas" (§Cambios `backend/workers/`). Con eso, (b) y (e) se pueden correr igual que en ADM-1B11 y ADM-1B12. Ver N-29 sobre cómo invocarlos sin competir con otros archivos.
+- **Filas de pg-boss:** `leerTrabajosDeCola` (`ayudas-clases.ts:239`) filtra con `data ->> clave = valor`, que solo casa valores escalares. No sirve para `archivoIds` ni para `claves`, que son arreglos. Se resuelve con un `$queryRaw` de plantilla en el archivo de la prueba o con una ayuda nueva. Las dos cosas las permite la regla general de §D-R0 ("archivos nuevos de prueba y ayudas nuevas en `backend/test/`; una ayuda existente solo gana exportaciones"). Esto ya lo necesitaban ADM-1B04, ADM-1B08 y ADM-1B23; no lo introduce la enmienda.
+- **Archivo de la prueba:** "en el archivo de ADM-1B04 o de ADM-1B11, o en uno nuevo de 01b". Los tres son archivos nuevos de 01b. No pide nada fuera de "Se toca" ni toca la lista cerrada.
+
+### (b) El inciso (e): `datos` de `BORRAR_OBJETOS` al consumidor sin esperar el `startAfter`
+**Es correcto.** El consumidor de `BORRAR_OBJETOS` (§D-4, "Worker") solo lee `{ claves }` de los datos y llama a `almacenDeObjetos.borrar(claves)`. El retraso de 10 minutos es una propiedad del trabajo encolado, no del consumidor, y ya lo prueba ADM-1B23 leyendo la fila de pg-boss. Esperar el `startAfter` no agregaría cobertura: solo haría la prueba lenta o la obligaría a manipular la fila de pg-boss.
+
+**Es suficiente** para lo que el humano pidió (el objeto de la copia sobrevive al borrado de la original), siempre que se cumplan dos cosas:
+- (e) cubre los dos lados: "suman exactamente las claves de la original" y "ningún trabajo tiene la clave de la copia". Si un trabajo trajera de más (la clave de la copia), la segunda condición lo detecta antes de correr el consumidor.
+- Corre el consumidor sobre **todos** los trabajos del borrado ("con sus `datos`", en plural), no sobre uno.
+
+Lo que le falta es afirmar sus precondiciones para que no pase en vacío; ver N-30.
+
+### (c) La frase de E6-1 sobre `RESTRICT` frente a §D-4 y §D-5
+Cada afirmación, contrastada:
+- **"`copia_de` es transitorio (el worker lo pone en nulo al terminar)".** Exacta: lo dice §D-5 en `terminarCopias`. También lo ponen en nulo `descartarCopias`, los dos descartes de M-02 y el consumidor de fallidos, y la frase no lo niega.
+- **"el borrado definitivo ya responde `409 CLASE_CON_COPIAS_EN_CURSO` mientras haya copias en curso (§D-4, paso 2)".** Exacta: el paso 2 cubre las dos direcciones con dos `EXISTS`.
+- **"con `SET NULL` esa carrera dejaría una copia 'terminada' sin objeto".** Exacta. `leerCopiasPendientes` solo lee filas con `copia_de` no nulo, así que la copia quedaría fuera del worker. La descarga solo mira `copia_de`, así que firmaría una URL hacia un objeto que nunca se creó. El borrado de objetos de la original va diferido 10 minutos, pero eso no ayuda: el worker ya no copiaría.
+- **"con `RESTRICT` el borrado falla sin borrar nada".** Exacta. No existe ningún borrado físico de filas de `archivos` fuera de la cascada desde `clases` (grep en `backend/src`), así que la FK solo puede actuar en el borrado definitivo, y la transacción se revierte entera.
+
+**Dos precisiones (detalle; no bloquean, ver "Detalles menores"):**
+- **"la FK solo actúa en una carrera" se queda corto.** Con el diseño del plan esa carrera no se puede alcanzar. El borrado toma la clase `FOR UPDATE` (§D-4, paso 1) y el duplicado la toma `FOR SHARE` (§D-5, paso 1), así que quedan en serie (ADM-1B10). Además, en READ COMMITTED el `EXISTS` del paso 2 se ejecuta después de obtener el bloqueo y ve las copias ya confirmadas. Lo exacto sería "solo actuaría si una carrera escapara a la comprobación del paso 2". La FK es una defensa en profundidad. La decisión no cambia: ante un defecto así, `RESTRICT` falla de forma visible y `SET NULL` dejaría una copia rota en silencio.
+- **Ese fallo sería un `500`, no un `409`.** Un `P2003` no se traduce (§D-4, nota de la Enmienda 1, "Sin cambio en `errores.ts`"). La frase no promete un código, así que no es inexacta. Es coherente con aceptar que esa rama no se puede alcanzar.
+
+### (d) Choques con la lista cerrada, las vigiladas y C-3 a C-5
+No hay ninguno:
+- **Lista cerrada de 01b:** sigue siendo "ninguna" más E6 de `bloqueo-usuario.integracion` (E4-4), que depende solo del SQL etiquetado de `adapters/db`. ADM-1B24 vive en `backend/test` y en un archivo nuevo de 01b.
+- **C-3 (inventario de rutas):** ADM-1B24 no agrega rutas. Usa `duplicar` y el `DELETE`, que ya están en C-3, y rutas que ya existían.
+- **C-4 (borrados en `backend/src`):** la prueba no está en `src`.
+- **C-5 (instantáneas en `src`):** tampoco cuenta.
+- **Vigiladas:**
+  - `worker-*.ataque`: no se toca `registrarConsumidores`.
+  - `higiene-de-pruebas`: la prueba no pide `LOCK TABLE`, y el `.$transaction(` vigilado es de `backend/src`.
+  - `arquitectura-cuentas-r1`, `hilo-01c-r1`, `muro-c-r1`, `temas-01a-r1/r3`, `entregas-01b-r1` y `lecturas-fx-r2:1072-1108` leen `backend/src`, no las pruebas.
+- **V-01:** ADM-1B24 no es `*.ataque`, así que el conteo no cambia.
+
+### (e) Precondiciones que conviene afirmar con mensaje
+ADM-1B24 afirma con aserción una sola precondición: la de (b), que el archivo de la copia tenga `copia_de` nulo y su objeto exista en el almacén. Hay otras tres que hoy quedan implícitas. Si alguna falla en silencio, la prueba se rompe con un mensaje que engaña, o pasa en vacío. Las agrupo en N-28 a N-30.
+
+## Problemas que bloquean
+Ninguno.
+
+## Problemas que no bloquean
+
+### N-28 — ADM-1B24 (a): afirmar que la copia está en curso antes de archivar
+**Dónde:** `plan.md:657`, inciso (a).
+
+**Por qué importa:** el `409` de (a) depende de que nadie haya procesado todavía el trabajo de `COPIAR_OBJETOS`. Hoy la prueba lo comprueba después del `DELETE` ("el archivo de la copia sigue con `copia_de` = …"). Si algo ya procesó la copia, el `DELETE` responde `204` y borra la original. El fallo diría "esperaba 409, recibió 204", que apunta al borrado cuando el problema está en otra parte.
+
+**Qué se espera:** justo después del `201`, y antes de archivar, la prueba afirma con un mensaje propio dos cosas:
+- el archivo de la copia tiene `copia_de` igual al id del archivo original;
+- hay exactamente un trabajo de `COPIAR_OBJETOS` cuyos `archivoIds` contienen ese id.
+
+Ese trabajo es el que lee (b), y así (b) no tiene que buscarlo de nuevo.
+
+### N-29 — ADM-1B24 (b) y (e): los consumidores nunca se registran en las colas de producción
+**Dónde:** `plan.md:658` y `:660`; §Cambios `backend/workers/` (`registrarConsumidoresDeObjetos(…, colas?)`).
+
+**Por qué importa:** Vitest corre los archivos en paralelo contra la misma base desechable. Si una prueba registra un consumidor con sondeo real sobre `COPIAR_OBJETOS` o `BORRAR_OBJETOS`, tomaría trabajos que encolan otros archivos (ADM-1B08, ADM-1B19 y los demás duplicados) y los procesaría con un almacén en memoria que no tiene sus objetos. Por "origen inexistente", descartaría esas copias, y los otros archivos fallarían de forma intermitente. El riesgo existe para ADM-1B11 y ADM-1B12 tanto como para ADM-1B24, pero ADM-1B24 es la primera prueba que procesa el trabajo **real** que encoló el duplicado, y es la que más tienta a registrar el consumidor en la cola de producción.
+
+**Qué se espera:** el programador elige una de dos formas y la declara en su resumen:
+- llamar directamente a la función que procesa un trabajo, con los `datos` leídos de la fila;
+- volver a encolar esos `datos` en una cola propia de la prueba y registrar ahí `registrarConsumidoresDeObjetos`, como hacen `worker-correo-de-cuenta` y los `worker-*.ataque`.
+
+Ninguna prueba registra un consumidor con los nombres `COPIAR_OBJETOS` o `BORRAR_OBJETOS`. Destino: programador de 01b y punto de ataque para el tester.
+
+### N-30 — ADM-1B24 (e): afirmar el conjunto esperado y el control positivo antes de comparar
+**Dónde:** `plan.md:660`, inciso (e).
+
+**Por qué importa:** "suman exactamente las claves de la original" pasa en vacío si el conjunto esperado está vacío: cero trabajos y cero claves coinciden. Lo mismo pasa con "el objeto de la original desaparece" si el objeto nunca estuvo en el almacén. Además, las claves de la original solo se pueden leer **antes** de (c), porque después sus filas ya no existen, y el plan no dice cuándo leerlas.
+
+**Qué se espera:** con aserción y mensaje, nunca con un `return` temprano (`AGENTS.md`, "Pruebas"):
+1. Antes del `DELETE` de (c), la prueba lee las claves de todos los archivos de la original, en cualquier estado. Afirma que el conjunto no está vacío y que contiene la clave del archivo sembrado.
+2. Después de (c), afirma que hay al menos un trabajo de `BORRAR_OBJETOS` con alguna de esas claves.
+3. Antes de correr el consumidor, afirma que el objeto de la original sigue en el almacén en memoria.
+
+## Detalles menores
+- **E6-1, la carrera (ver (c)).** "la FK solo actúa en una carrera" se puede precisar como "solo actuaría si una carrera escapara a la comprobación del paso 2, que el `FOR UPDATE` del borrado y el `FOR SHARE` del duplicado ya ponen en serie (ADM-1B10); en ese caso, el borrado fallaría con un `500` sin borrar nada". No cambia la implementación ni la decisión. Si nadie lo corrige en una enmienda posterior, se puede dejar como está.
+- **E6-4, "con su porqué en la migración de 01b".** El encabezado se puede leer como si pidiera un comentario en `migration.sql`. E6-1 aclara que la FK, el SQL y el esquema no cambian y que el porqué vive en el plan. Si el programador quiere poner un comentario SQL en la migración, la carpeta está en "Se toca" y O-01b-1 solo lee archivos `.ts`. No hace falta.
+- **ADM-1B24 (d), la descarga.** El `200` no dice qué clave se firmó. Conviene afirmar también que la última entrada de `descargasFirmadas` del doble de `Almacen` tiene la clave de la copia. Es opcional.
+
+## Desacuerdos arbitrados
+Ninguno.
+
+## Documentos a actualizar
+Ninguno por la enmienda. La migración ya está en disco con `RESTRICT`.
+
+## Para el humano
+No hay decisiones pendientes. Solo una nota informativa sobre "Dejar RESTRICT": con los bloqueos del plan, la carrera de la que protege la FK no se puede alcanzar (ver (c)), así que `RESTRICT` funciona como defensa ante un defecto futuro. Tu decisión se sostiene. Ante ese defecto, `RESTRICT` falla de forma visible y revierte todo; `SET NULL` dejaría una copia rota sin aviso.
+
+### Veredicto de esta verificación
+**APROBADO.** Las cuatro ediciones corresponden exactamente a E6-1, E6-2, E6-3 y E6-4. ADM-1B24 cumple la petición literal del humano y se puede hacer con lo que el plan define para 01b, sin salir de "Se toca". No choca con la lista cerrada, las vigiladas ni C-3 a C-5.
+
+N-28, N-29 y N-30 pasan al programador de 01b, que los aplica al escribir ADM-1B24 y declara en su resumen cómo invoca los consumidores. El tester los tiene como puntos de ataque.
+
+## Verificación de la Enmienda 7 — ADMIN-01
+
+Veredicto: **APROBADO.** E7-1 es el cambio mínimo. El grep de E7-2 y E7-3 es completo en lo que importa: ninguna otra prueba compara el árbol de rutas de la app con una lista fija. Fuera de E7-1 a E7-5 no cambia nada. No hay problemas que bloqueen; queda un detalle.
+
+Insumos:
+- `plan.md`: 1386 líneas; SHA-256 `4f46a1a6bb59bdab789eef4b7fb693c5b6f43a22d7e38c86e1364b0470b2a6c1`. Lo calculé yo y coincide con la entrada "Enmienda 7 del arquitecto" de `aprobacion.md`. Sin CR.
+- Copia previa: `copias-plan/plan-admin01-antes-enmienda7-7118c228.md`; SHA-256 `7118c228…` (comprobado).
+- La PARADA del programador está al final de `aprobacion.md`: ADM-1A09 (a), `expected [ …(88) ] to deeply equal [ …(84) ]`.
+
+Verificación propia:
+- `git diff --no-index` completo contra la copia previa.
+- Lectura completa de `backend/test/clases-archivadas-matriz.integracion.test.ts`, que no tiene cambios en el árbol de trabajo (`git diff` vacío).
+- Lectura de las tres rutas de 01b en `handlers/clases/gestion.ts:160-215`.
+- Grep de las pruebas que enumeran rutas, para 01b y 01e.
+- Corrida acotada a dos archivos, con estas precondiciones comprobadas antes:
+  - Red `IZZI-F281-5G`, perfil Público (`Get-NetConnectionProfile`).
+  - Ningún `node.exe` en ejecución, así que no había otro vitest.
+  - La otra copia de trabajo no corre nada, según la respuesta del humano del 2026-11-05 que consta en `aprobacion.md`.
+
+### Cotejo del diff
+`--numstat`: 35 inserciones y 2 borrados, en 5 hunks con `-U0`.
+
+| Hunk (`-U0`) | Sección | E7-n |
+|---|---|---|
+| `-2 +2` | Encabezado, Estado ("Enmiendas 1 a 7 aplicadas" y la Enmienda 7 descrita) | E7-5 |
+| `-962,0 +963,14` | §D-R0 01b, lista cerrada: la viñeta de E7-1 (las cuatro líneas, 84 → 88, por qué (b) a (e) no cambian) y la de E7-2 (grep y vigiladas) | E7-1 y E7-2 |
+| `-969,0 +984,5` | §D-R0 01e, después de la lista cerrada: la viñeta de E7-3 | E7-3 |
+| `-1179 +1198` | Paso 13: ADM-1A09 (a) con las cuatro líneas antes de la suite completa | E7-4 |
+| `-1353,0 +1373,14` | Tabla de la Enmienda 7 | — |
+
+### (a) E7-1 es el cambio mínimo
+Lo contrasté con el archivo real:
+- **Ancla:** la línea 61 es `"POST /api/admin/clases/:claseId/restaurar": "gestion",`, la 60 es archivar y la 62 abre el comentario de las cerradas. Las cuatro líneas de E7-1 van entre las dos políticas `gestion` y ese comentario, con la sangría de las vecinas.
+- **Conteo:** `POLITICAS` tiene hoy 61 entradas, 23 de ellas `GET` (`:36-56`, `:64` y `:66`). Con el `HEAD` que `TABLA` agrega por cada `GET`, son 61 + 23 = 84. Con las tres entradas nuevas, una de ellas `GET`, son 64 + 24 = **88**.
+- **Corrida.** `npx vitest run test/clases-archivadas-matriz.integracion.test.ts test/clases-archivadas-r1.ataque.test.ts` dio `Test Files 1 failed | 1 passed (2)` · `Tests 1 failed | 19 passed (20)`. La única roja es ADM-1A09 (a), y su diff tiene exactamente cuatro líneas `+`:
+  - `DELETE /api/admin/clases/:claseId`
+  - `GET …/conteo-de-borrado`
+  - `HEAD …/conteo-de-borrado`
+  - `POST …/duplicar`
+
+  No sobra ni falta ninguna otra ruta, así que `noReconocidas` sigue vacío. Los otros cuatro casos de la matriz y los 15 de `clases-archivadas-r1.ataque` pasan. El SHA-256 de esa `*.ataque` es `f2cff9c7…`, el de la ronda 2, sin cambio.
+- **(b), (c) y (d) no recorren `"gestion"`:** usan `rutasCon("cerrada")` (`:241`), `rutasCon("lectura")` (`:269`) y `rutasCon("lectura-del-alumno")` (`:292`). El `toHaveLength(4)` de (d) no cambia, porque las rutas nuevas no son de esa política.
+- **(e) sí las recorre:** pasa por todo `TABLA` sin los `HEAD` (`:306-307`), con `actores.ajeno`, un estudiante no inscrito. Las tres rutas declaran `protegido({ roles: ["admin"], … })` (`gestion.ts:162`, `:172` y `:202`). El `confirmar` (`:175`) y el cuerpo de duplicar (`:205`) se validan dentro del handler, así que el estudiante recibe `403 ROL_NO_PERMITIDO` en `requireRole`, antes de cualquier efecto. Ese código ya está en la lista de (e) (`:311`) y no suma a `revisadas` (`:312`), así que la precondición `> 10` no cambia. No ejecuté (e) con las cuatro líneas, porque no edito pruebas. La conclusión sale del código y de ADM-T1A09, que ya recorre esas rutas con el maestro ajeno, el restringido, el de cambio pendiente y sin token, y pasa.
+- **Nada más del archivo cambia.** E7-1 lo dice de forma explícita (títulos, tipos, ayudas, cuerpos y precondiciones) y lo protege con una PARADA si otro caso falla o (a) no da 88.
+
+### (b) El grep de E7-2 y E7-3 está completo
+Repetí el grep de `printRoutes|rutasDeLaApp|hasRoute|onRoute|RUTAS_PUBLICAS` en `backend/test` y `backend/src/**/*.test.ts`. Encontró 15 archivos.
+- **Nueve los nombra la enmienda:** la matriz, `clases-archivadas-r1.ataque`, `gestion-clases-autorizacion`, `guarda-todas-las-rutas`, `protegido-clase-archivada`, `recursos-autorizacion`, `movimientos-inscripcion`, `autorizacion-cuentas` y `sesiones-y-cadena.ataque`.
+- **Los otros seis no enumeran el árbol de la app:**
+  - `src/middleware/index.test.ts:91`, `guarda-ch-r1.ataque:12,67`, `guarda-clase-r1.ataque:11` y `middleware-orden.integracion:36,186-191`: comentarios sobre la guarda `onRoute`, o pruebas de esa guarda con rutas propias.
+  - `guarda-ch-r3.ataque:143`: `"onRoute"` es un nombre en una lista de hooks bloqueados.
+  - `higiene-de-pruebas:264`: es un título.
+
+  Ninguno cambia con rutas nuevas.
+- **`duplicar` y `conteo-de-borrado`** solo aparecen en las tres pruebas nuevas de 01b, en C-3 (`sesiones-y-cadena.ataque`) y en C-5 (`lecturas-fx-r1.ataque:806`, un comentario). Las otras dos coincidencias, `enlaces.test.ts:38` y `migracion-maestros-de-clase:48`, son la palabra "duplicar" en un título ajeno.
+- **01e:** ninguna prueba existente pide las nueve rutas de §D-7 y §D-8 ni espera un `404` en ellas. La única prueba sobre `/api/admin/usuarios/:id/…` que no es de restablecer ni de correo es `cuentas-r2.ataque:310-319` (`/borrar`, que sigue sin existir), y E7-3 ya la vigila. Ninguna de esas rutas lleva `:claseId`, así que ADM-1A09 no cambia en 01e. El único riesgo, `noReconocidas` sobre el árbol completo, ya está como vigilada.
+
+### (c) No cambia nada más
+- Los cinco hunks son solo E7-1 a E7-5.
+- "Se toca", "No se toca", §D-1, las demás listas cerradas, C-3 a C-8, C-25 a C-32 y las pruebas requeridas quedan idénticos.
+- La matriz y `clases-archivadas-r1.ataque` están sin cambios en el árbol de trabajo.
+
+## Problemas que bloquean
+Ninguno.
+
+## Detalles menores
+- **E7-2, la lista de patrones.** Incluye `onRoute`, que también encuentra los seis archivos de (b) que la enmienda no nombra. Ninguno enumera rutas, así que la conclusión no cambia. Si se quiere que el grep sea reproducible tal cual, bastaría con una nota de que esos seis se descartan como comentario, guarda propia o lista de hooks.
+
+## Para el humano
+Nada que decidir.
+
+### Veredicto de esta verificación
+**APROBADO.** El programador aplica las cuatro líneas de E7-1 y vuelve a correr ADM-1A09 completo: los cinco casos deben pasar y (a) debe dar 88. Después sigue con el paso 13.
+
+## Verificación del resumen — ADMIN-01b
+
+Plan: `plan.md` = `4f46a1a6bb59bdab789eef4b7fb693c5b6f43a22d7e38c86e1364b0470b2a6c1` (Enmiendas 1 a 7, comprobado). Resumen: `resumen-programador.md` = `986ec2bd90ee5f2b182155324a7b6c730adc69f26fb4fc3e9dd41bef188df5a2`, 514 líneas (comprobado), sección "ADMIN-01b — Implementación" con "Reanudación" y "Cierre del paso 13". Base: `68242f3` fuera de los paquetes; `69057f7` dentro.
+
+Entorno: red `IZZI-F281-5G`, perfil Público; regla "Campus: bloquear entrada a Docker en redes publicas" habilitada (Inbound, Block, Public); Docker 28.5.1. Trabajo en paralelo: respuesta del humano transmitida por el orquestador (la otra copia no se usa). Ningún `node` corriendo antes de cada suite; una suite después de otra.
+- **Puerta de carga: no se cumplió.** La CPU estuvo entre 40 % y 62 % en todas las lecturas (antes y después de la suite), por un proceso ajeno: `ZenlessZoneZero` (PID 8004, un juego). No lo terminé (no es mío). Corrí igual la suite de módulos: la carga solo puede producir rojos falsos por tiempo, no verdes falsos, y la corrida salió en verde y con las mismas cifras del resumen. Para la suite completa del cierre, la puerta sí importa (ver "Para el humano").
+
+### Cifras: resumen frente a mi corrida
+
+| Comprobación | Resumen | Mi corrida |
+|---|---|---|
+| backend `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, exit 0 | igual, exit 0 |
+| backend, suite de módulos (`npx vitest run test/{muro,recursos,archivos,gestion,cola,clases,bloqueo,lecturas,worker,sesiones-y-cadena,arquitectura,hilo-01c,temas-01a,entregas-01b-r1,calificaciones-estatico,arranque,logs-archivos,borrado,duplicado,copias,colas-objetos,guarda,sexto,db-cliente,servicio-ocupado,higiene}* src/workers/ritmo-03c-r1.ataque.test.ts src/adapters/storage src/core`, desde `backend/`) | `Tests  1427 passed (1427)` · `Test Files  121 passed (121)` | `Tests  1427 passed (1427)` · `Test Files  121 passed (121)` (138.19 s) |
+| Las tres con `printRoutes` (`movimientos-inscripcion`, `gestion-clases-autorizacion`, `recursos-autorizacion`) | `Tests  31 passed (31)` | `Tests  31 passed (31)` · `Test Files  3 passed (3)` |
+| ADM-1A09 (`clases-archivadas-matriz.integracion`) | `5 passed (5)` | `Tests  5 passed (5)` |
+| backend `npm run build` | exit 0 | exit 0 (`> tsc -p tsconfig.json`) |
+| shared `npm run build` | exit 0 | exit 0 |
+| shared `npm run lint` | `All matched files use Prettier code style!` | igual, exit 0 |
+| frontend `npm run lint` | `> tsc -b`, exit 0 | igual, exit 0 |
+| frontend `npm run build` | `✓ built in 1.26s` | `✓ built in 1.65s`, exit 0 (el tiempo varía) |
+| frontend `errores-ch3-r2.ataque` | `Tests  84 passed (84)` | `Tests  84 passed (84)` |
+| `npx vitest list` de los 11 archivos de 01b | 51 casos · 11 archivos · 46 "ADM-1B" | 51 (`grep -a -c " > "`) · 11 (`cut -d' ' -f1 \| sort -u`) · 46 (`grep -a -c "ADM-1B"`) |
+| PA-07 sobre la corrida de módulos | 0/0/0/0 · 3 "Error no controlado" · 3 `P2028` | `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 3 (los tres `ZodError` "La URL del almacén debe ser http o https", los mismos de 01a) · `"code":"P2028"` 3 (nivel 40, de `servicio-ocupado`: `tx.sesion.findFirst` de `usuarios.ts:293`, `tx.sesion.updateMany` de `sesiones.ts:72` y el `$queryRawUnsafe` del comentario) |
+| `prisma validate` | válido | `The schema at prisma\schema.prisma is valid` |
+| `prisma migrate status` | — | `18 migrations found in prisma/migrations` · `Database schema is up to date!` |
+| Deriva (E1-11) | `No difference detected.`, exit 0 | `No difference detected.`, exit 0 (comprobado sin tubería) |
+
+Además, como vigiladas de E7-2 que la corrida de módulos no incluye: `protegido-clase-archivada.test.ts` y `autorizacion-cuentas.integracion.test.ts`, `Tests  26 passed (26)`.
+
+**Las "73 rutas".** El resumen no trae la lista literal, solo los 26 prefijos. En Git Bash esos prefijos dan 70 archivos distintos de `test/` (71 con la repetición de `cola*` y `colas-objetos*`), no 73. Con `ritmo-03c-r1` (1) y los 50 de `src/core` y `src/adapters/storage` suman exactamente los 121 archivos del resumen, y la corrida da los mismos 1427 casos. Es el mismo conjunto; solo el "73" no se puede reproducir. No devuelvo el resumen por esto (N-31).
+
+### Pruebas requeridas (ADM-1B01 a 1B24)
+Saqué con un script los 45 títulos entre comillas del resumen (los 11 de ADM-1B01 y los 34 de ADM-1B02 a 1B24) y busqué cada uno, exacto, en la salida de `npx vitest list`: **los 45 existen tal cual**, en el archivo que dice el resumen. Cada viñeta del plan tiene al menos un caso. El caso número 46 con "ADM-1B" es "las colas de objetos existen con la política de los avisos y su cola de fallidos (§D-6)", que solo lleva "ADM-1B16" en el `describe`. El resumen lo cuenta entre los 5 restantes ("la política de las colas"), pero en realidad está dentro de los 46. Es un detalle de redacción; las cifras coinciden.
+
+**ADM-1B24** (`duplicado-de-clase.integracion.test.ts:668-778`) cumple (a) a (e) y N-28 a N-30:
+- (a) `copiaDe` igual al id del original y un solo trabajo de `COPIAR_OBJETOS`, los dos con mensaje (N-28), antes de archivar. Después, archivar → `200`, borrar → `409 CLASE_CON_COPIAS_EN_CURSO`, y la original, el recurso, el archivo y `copia_de` siguen; ningún `BORRAR_OBJETOS` lleva su clave.
+- (b) `procesarCopiaDeObjetos` se llama directo con el trabajo que se lee de pg-boss (N-29). Antes, se afirma con mensaje que el objeto original existe (N-30), y después que la copia terminó y que su objeto existe.
+- (c) `204`, y la clase, el recurso y el archivo de la original ya no existen.
+- (d) La copia sigue activa y sin `archivadaEn`. Su recurso, con su adjunto, sale en `GET …/recursos` como su maestro. La fila sigue `confirmado`, con `copia_de` nulo y la misma publicación, clase y clave. El objeto existe, y la descarga da `200` con la clave firmada.
+- (e) Las claves de los trabajos de borrado son exactamente las de la original, comparadas ordenadas, con el conjunto no vacío afirmado (N-30). Ningún trabajo lleva la clave de la copia. El consumidor, llamado directo, borra el original y deja la copia.
+- N-29 en todo 01b: ningún archivo registra consumidores en las colas reales. `worker-objetos` usa `PRUEBA_*` y `colas-objetos` usa `PRUEBA_CANCELAR_VARIOS`; lo comprobé con grep.
+
+### Migración `20261105163205_admin_01_copias_de_archivos`
+- El SQL trae `ADD COLUMN "copia_de" UUID`, los tres índices (`archivos_copia_de_idx`, `archivos_clase_id_estado_idx`, `movimientos_inscripcion_clase_id_secuencia_idx` con `"secuencia" DESC`), la FK `archivos_copia_de_fkey … ON DELETE RESTRICT ON UPDATE CASCADE` y, al final, el bloque a mano `CHECK archivos_copia_solo_confirmado ("copia_de" IS NULL OR "estado" = 'confirmado')` con su comentario (R-02). Es el mismo SQL que el programador mostró en su PARADA y que el humano confirmó; la Enmienda 6 deja la FK en `RESTRICT`.
+- El esquema coincide: la relación `CopiasDeArchivo` con `onDelete: Restrict`, `@@index([copiaDe])`, `@@index([claseId, estado])` y `@@index([claseId, secuencia(sort: Desc)])`. Los comentarios de `Archivo` y `MovimientoInscripcion` están al día (ya no dice "Sin índices secundarios").
+- `migrate status` está al día (18 migraciones) y la deriva no tiene diferencias. ADM-1B14 prueba el `CHECK`, la FK y los índices contra la base desechable.
+- Es compatible hacia atrás: la columna es nula y las filas existentes cumplen el `CHECK`.
+
+### E4-4 y E7-1, exactos
+- **E4-4** (`bloqueo-usuario.integracion.test.ts`): el título suma los cuatro archivos; el arreglo suma exactamente `bloqueo-maestros.ts`, `borrado-de-clase.ts`, `copias-de-archivos.ts` y `duplicado-de-clase.ts` en orden alfabético; y el comentario de ADMIN-01b va después de la línea de ADMIN-01a. Nada más cambia: el patrón, la lectura y la comparación siguen iguales. Mi grep de `$queryRaw`/`$executeRaw` sobre el primer nivel de `adapters/db` da los mismos 18 archivos del arreglo, y ningún archivo existente ganó SQL etiquetado.
+  - `copias-de-archivos.ts` entra porque `leerCopiasPendientes` es un `$queryRaw`, no por las escrituras, que sí son `updateMany`. La previsión de E4-4 ("solo si no expresa sus dos sentencias con `updateMany`") pensaba en las escrituras. La regla que manda, "exactamente los archivos nuevos que usen SQL etiquetado, declarados por el programador", se cumple.
+  - El `$queryRaw` es una sola sentencia parametrizada (`copia.id = ANY($1::uuid[])` por PK, `LEFT JOIN` por la PK del original), que es lo que piden M-03 y ADM-1B21. Lo acepto.
+  - El comentario ocupa cuatro líneas y no una, porque nombra cuatro archivos sin pasar de 100 columnas. Es un detalle.
+- **E7-1** (`clases-archivadas-matriz.integracion.test.ts`): un solo hunk, `@@ -61,0 +62,4 @@`, con las cuatro líneas literales de la enmienda. (a) da las 88 rutas y los cinco casos pasan.
+
+### V-01, C-3 a C-5 y "No se toca"
+- **V-01:** saqué la tabla de la ronda 0 de 01b (`reporte-tester.md:822-1077`) en formato `sha256sum -c`. Tiene 251 filas y su lista da `24fb3fe3108411588388b6e7c75cd335dae64c4021968ddff43c12602f3dd18e`, igual a la declarada. `sha256sum -c` no da diferencias. `git ls-files` lista las mismas 251 `*.ataque` y no hay ninguna sin rastrear: el programador no tocó ninguna.
+- **C-3 a C-5:** `sesiones-y-cadena` `71c54a11…`, `lecturas-fx-r2` `b008263d…` y `lecturas-fx-r1` `82fe8c49…`, iguales a los del tester. Las tres pasan en la corrida de módulos.
+- **Dentro de los paquetes, contra `69057f7`:** cambian 22 archivos rastreados y hay 23 nuevos (la migración incluida), todos de "Se toca" de 01b (incluidos `bloqueo-maestros.ts`, los dos descartes y `objetos-en-memoria.ts`), de la lista cerrada (E4-4 y E7-1), de C-3 a C-5 del tester, o pruebas y ayudas nuevas. Tampoco cambian `workers/index.ts`, `config/`, `middleware/`, `app.ts`, `adapters/db/clases.ts` ni `frontend/`.
+- **Fuera de los paquetes, contra `68242f3`:** solo cambia `docs/trabajo/ADMIN-01-administracion/`. `AGENTS.md`, `CLAUDE.md` y los cuatro `.claude/agents/*.md` coinciden con los SHA-256 que anotó `aprobacion.md` (`5b818b82…`, `b5cde043…`, `92bd117a…`, `41a4fa3e…`, `b1d0965c…`, `f33831f0…`). Sigue sin rastrear el archivo ajeno `docs/trabajo/DEPLOY-investigacion-vps.md`, que no entra en el commit de 01b.
+
+### Decisiones donde el plan calla
+- **Copia local de `conReintentoDeCodigo` (y de `traducirErrorDeCodigo`) en `duplicado-de-clase.ts`. Aceptada.** Para compartir la de `clases.ts` habría que tocar ese archivo, que no está en "Se toca" de 01b, y eso es PARADA. La copia es idéntica a la de `crearClaseAdministrada`: un reintento que envuelve la transacción entera, que es lo que pide §D-5, paso 4. Deja duplicadas unas 30 líneas (N-32).
+- **`confirmado` en `borrarClaseDefinitivamente`. Aceptada, y es la única forma correcta.** El orden de ADM-1B01 (activa → copias en curso → confirmación) exige leer la clase con `FOR UPDATE` antes de decidir sobre la confirmación. Así, una activa sin `confirmar` responde `409 CLASE_NO_ARCHIVADA` (ADM-1B03), y en una archivada la decisión se toma dentro de la transacción, con la fila retenida. La firma de "Cambios por capa" solo omitía el campo.
+- **Las colas de fallidos nuevas no fijan `retryLimit`. Aceptada.** Es la forma de `AVISO_FALLIDO` y `CORREO_DE_CUENTA_FALLIDO` en `colas.ts`. §D-6 fija la política de las colas que reintentan (3 reintentos con espera exponencial y 7 días de retención), y las dos colas nuevas la cumplen (lo prueba el caso de política de `colas-objetos`). El consumidor de `COPIAR_OBJETOS_FALLIDO` es idempotente: `descartarCopias` filtra `copiaDe` no nulo.
+- **El mensaje "no es válido" de `confirmarBorradoClaseSchema`. Aceptada.** `validarParametros` lo arma como `confirmar: no es válido`, en español y con la forma de `cursor: no es válido`. `confirmar` está en el `INVENTARIO` de `errores-ch3-r2.ataque` (O-01b-10), que da `84 passed`.
+- Las demás también se aceptan: el repositorio como parámetro para contar sentencias; datos inválidos en las colas principales registrados en `error` y completados, como `CORREO_DE_CUENTA`; `503 ALMACEN_NO_CONFIGURADO` sin almacén, que es el "error controlado" de §D-4; el original sin fila, inalcanzable con `RESTRICT`, probado como original descartado y sin objeto; y las decisiones de `planDeDuplicado`.
+
+### §D-4 a §D-7.9, R-02 y O-01b-1 a O-01b-11, contra el código
+- **§D-4:**
+  - El conteo lee la clase y hace cinco `count` en `instantaneaUnica` (exactamente uno en `borrado-de-clase.ts`, como pide C-5).
+  - El borrado sigue los pasos 1 a 7 en orden: `bloquearClaseParaBorrar` con `$queryRaw … FOR UPDATE` (no se llama `bloquearClase`); dos `findFirst` de copias (`copiaDe` no nulo y `copias: { some }`); `decidirBorrado`; las claves de todos los estados y los `trabajo_id`; `cancelarVarios` y `encolarVarios` con la conexión de la transacción y `inicio = ahora + 600 000 ms` en lotes de 1000; `movimientoInscripcion.deleteMany`; y `clase.deleteMany`. Todo con `timeout` de 30 s.
+  - `adapters/db` no importa `adapters/queue`: el handler arma las dos funciones (O-01b-5).
+- **§D-5:**
+  - Pasos 1 a 5 en orden. La original va `FOR SHARE`; después, `bloquearMaestrosActivos` (`FOR SHARE`, `ORDER BY id`); el paso 2b (copias en curso → `409`); cuatro lecturas sin ciclo; un `create` con los maestros y un `createMany` por tabla; y `encolarCopias` en lotes de 100, solo si hay archivos.
+  - No encola `MATERIAL_CREADO` ni lo nombra (O-01b-4). La descarga de la clase responde `409 ARCHIVO_EN_COPIA` solo si `copiaDe` no es nulo; las de entregas no cambian.
+  - Los dos descartes de M-02 suman `copiaDe: null`, y los de `tareas.ts` y `entregas.ts` no cambian, como dicen el plan y los hermanos del resumen.
+  - El worker cumple M-03: una lectura; en el ciclo, solo el almacén; dos `updateMany` en el `finally`; y relanza.
+- **§D-6:** colas y esquemas en `core/eventos/objetos.ts`, el puerto aparte en `core/archivos/objetos.ts`, `crearAlmacenDeObjetos` con `copyObject` y `removeObjects`, y `registrarConsumidoresDeObjetos` llamado desde `worker.ts` después de `registrarConsumidores`. `workers/index.ts` no cambia, y no hay variables ni proveedores nuevos.
+- **§D-7.9:** el orden de bloqueos del duplicado es la original y después los maestros, los dos `FOR SHARE`. `bloquearMaestrosActivos` no se reexporta en `index.ts`.
+- **R-02:** el `CHECK` va a mano en la migración y la deriva no tiene diferencias.
+- **O-01b-1 a O-01b-11:**
+  - No hay `DELETE FROM` ni `TRUNCATE` en `backend/src`, y el conjunto de modelos borrados solo suma `clase` y `movimientoInscripcion`. C-4 está en verde.
+  - Hay un solo `instantaneaUnica: true`. C-5 está en verde.
+  - Las rutas son exactas. C-3 está en verde.
+  - No se nombra `MATERIAL_CREADO`. `muro-c-r1` está en verde.
+  - `adapters/db` no importa `adapters/queue`. `hilo-01c-r1` y `entregas-01b-r1` están en verde.
+  - `workers/objetos.ts` usa funciones de `adapters/db`, sin `obtenerDb` ni `console.`. `arquitectura-cuentas-r1` está en verde.
+  - Los comentarios de `colas.ts` no nombran lo prohibido. CAL-T-20 está en verde.
+  - `worker.ts` carga `cargarEnv()` y `cargarEnvCorreo()` antes del almacén, no registra sus opciones y termina con `worker_listo`. `arranque-r1` está en verde.
+  - ADM-T1A09 está en verde. `confirmar` está en el inventario. E4-4 está aplicado.
+  - N-18 se cumple: las clases nuevas tienen uno o dos maestros, y `maestroIdsSchema` ya rechaza los repetidos sin distinguir mayúsculas.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+- **N-31. El comando de la suite de módulos va abreviado y el "73" no se reproduce.** El resumen dice "73 rutas", pero sus 26 prefijos dan 70 archivos de `test/`. Aun así, el total coincide (121 archivos, 1427 casos), así que es el mismo conjunto. La regla de "Resúmenes verificables" pide el comando incluido. Desde 01c, el resumen trae el comando literal (o la lista de archivos) y no un marcador `<…>`.
+- **N-32. Hay unas 30 líneas duplicadas** (`conReintentoDeCodigo` y `traducirErrorDeCodigo`) entre `adapters/db/clases.ts` y `duplicado-de-clase.ts`. Destino: 01e, que toca `crearClaseAdministrada` en `clases.ts` (§D-7.9). Si el arquitecto lo admite sin enmienda, una sola copia exportada; si no, carril trivial al cierre. No cambia el comportamiento.
+
+### Detalles menores
+- ADM-1B17: el plan dice `200` y la ruta real responde `204`. El resumen lo declara, y el texto del plan es el que está mal.
+- `procesarCopiaDeObjetos`: si `terminarCopias` o `descartarCopias` fallan dentro del `finally` mientras se propaga un error del almacén, el error que llega a pg-boss es el de la base y no el del almacén. Los dos provocan el reintento y ninguno se traga.
+- `duplicado-de-clase.ts`: la guarda `if (primero === undefined) return null` no se puede alcanzar, porque los ids ya se validaron de 1 a 2.
+- ADM-1B24: `terminada.publicacionId ?? ""` en una prueba propia. Si fuera nulo, el `toHaveLength(1)` siguiente fallaría con ruido, así que no oculta nada. Se suma a los `?? ""` del carril trivial del cierre. La variable `recursoOriginal` nombra en realidad el recurso de la copia.
+- `handlers/README.md`: una línea de la viñeta de ADMIN-01b (`archivos }`…) empieza en la columna 0 y rompe la sangría de la lista.
+
+### Para el humano
+- **Carga para la suite completa del cierre de 01b.** Hoy un juego (`ZenlessZoneZero`) mantiene la CPU entre 40 % y 62 %. La corrida de módulos pasó igual, pero la suite completa del backend (unos 2900 casos) ya cayó dos veces en 01a por carga ajena, con `Hook timed out`. Para la revisión final conviene cerrarlo (es el mismo caso que N-21).
+
+### Recomendaciones para el tester (ronda 1 de 01b)
+1. Carreras entre duplicar y borrar, y entre cualquiera de los dos y la descarga o el worker: que nunca quede una copia sin objeto ni un `500` por `P2003` (la FK `RESTRICT` es defensa en profundidad; si actuara, el error no está traducido).
+2. El conteo (`HEAD` incluido) y el borrado con una FK que no se previó, más de 1000 claves, archivos `pendiente`, `descartado` y de entregas, y recordatorios vivos. También el `503` del `timeout` de 30 s, que debe dejarlo todo como estaba.
+3. Lo que se cuela al duplicar: un material sin bloque de un maestro, temas con huecos o empates, un recurso con el tema borrado, archivos que no están `confirmado`, claves fuera de `materiales/{claseNueva}/` y la descripción.
+4. El worker de copias: reintentos con éxito parcial, un descarte en vuelo (R-14), datos fuera del esquema en las tres colas y el consumidor de fallidos.
+5. `confirmar` repetido, vacío o en mayúsculas, y las tres rutas con un rol incorrecto, una clase ajena o un alumno restringido. Comprobar también que ninguna respuesta del admin lleve `estadoPago`.
+6. Los datos de los trabajos: solo claves o ids, nunca nombres ni texto.
+
+### Veredicto de esta verificación
+**ACEPTADO.** Todas las cifras del resumen coinciden con mi corrida, y cada viñeta de ADM-1B01 a 1B24 tiene su caso con el título exacto. La migración, E4-4, E7-1, V-01 (251) y "No se toca" están limpios. N-31 y N-32 no bloquean. El tester puede atacar 01b.
+
+## Verificación de la Enmienda 8 — ADMIN-01
+
+Plan enmendado: `plan.md` = `e539dbcd877f0da7b2e895dff4d8ac099d400ca1fadd66d9f7b36d0a1838b183`, igual al de la entrada "Enmienda 8 del arquitecto" de `aprobacion.md`, sin CR. Copia previa: `copias-plan/plan-admin01-antes-enmienda8-4f46a1a6.md` = `4f46a1a6bb59bdab789eef4b7fb693c5b6f43a22d7e38c86e1364b0470b2a6c1`, la de la Enmienda 7.
+
+Entorno, para las dos corridas de abajo: red `IZZI-F281-5G`, perfil Público. La carga dio 24 % y 23 %, y no había ningún `node` corriendo. El juego de la verificación anterior ya estaba cerrado.
+
+### Cotejo del diff
+`git diff --no-index` completo contra la copia previa: 133 inserciones y 4 borrados, en 7 hunks. Todos pertenecen a un E8-n:
+
+| Hunk | Sección | E8-n |
+|---|---|---|
+| `@@ -2 +2 @@` | Estado | E8-6 ("Enmiendas 1 a 8" y la nota de la Enmienda 8) |
+| `@@ -752 +752 @@` | Pruebas requeridas, ADM-1E10 | E8-4 (tacha "acotado por conteos antes y después" y remite a la regla E8) |
+| `@@ -976,0 +977,99 @@` | §D-R0 01b, lista cerrada | E8-1, E8-2 y E8-3 |
+| `@@ -990,0 +1090,15 @@` | §D-R0 01e | E8-4 (la regla, ADM-1E11 y las vigiladas) |
+| `@@ -1198 +1312 @@` | Paso 13 | E8-5 |
+| `@@ -1218 +1332 @@` | Paso 25 | E8-4 |
+| `@@ -1386,0 +1501,15 @@` | Tabla de la Enmienda 8 | E8-1 a E8-6 |
+
+Las referencias de línea coinciden con los archivos de hoy:
+- `clases-archivadas.integracion.test.ts`: los imports `:13` y `:14`; `contar` en `:454`; `listar` en `:455-461`; `entre` en `:462-465`; las tres llamadas a `entre` en `:477`, `:499` y `:526`; `sinEstadoConCursorArchivado` en `:527`.
+- `gestion-clases.integracion.test.ts`: el import `:13` (no tiene otro import de `adapters/db/index.js`); `:353`, `:362` y `:363-366`.
+
+Corrida de hoy de los dos archivos, sin cambios: `Tests  35 passed (35)`, 14 casos en `clases-archivadas.integracion` y 21 en `gestion-clases.integracion`. Es la línea base para el "mismo número de casos" de E8-5.
+
+### (a) E8-1, ADM-1A11
+- **Sigue probando lo que pide §D-2.** No cambian el filtro y el orden de las tres listas por HTTP, la posición de la Enmienda 5, los `400` del cursor del otro estado y de la posición, el `200` sin estado con cursor archivado, ni `estado=otra`.
+  - El `total` por estado pasa de una cota a una igualdad exacta contra el conteo por el mismo filtro, en la misma instantánea.
+  - El caso se vuelve más estricto. Si `listarClasesAdmin` no filtrara el `total`, `activas` daría al menos `activasContadas + 2` (las dos archivadas del caso están ahí, y lo afirman las cotas `≥ 1` y `≥ 2`), y el caso fallaría.
+  - El transporte queda cubierto por HTTP con `totalDeLaPrimeraPagina`: `total` y filas salen de la misma instantánea, y con página siguiente hay al menos `limite + 1` filas. El handler pasa `total` tal cual (`handlers/clases/gestion.ts:61-75`, `...resultado`).
+  - Lo único que deja de verse por HTTP es el filtro del `total`, y lo cubre la comparación de la misma instantánea. Es correcto.
+- **Es determinista.** En `adapters/db/cliente.ts:53-74`, `enTransaccion` solo abre una transacción si el ejecutor tiene `$transaction`. Con un `TransactionClient` corre `fn(ejecutor)` sobre él, y las opciones de la llamada anidada (la `instantaneaUnica` de `listarClasesAdmin`) no aplican.
+  - Hay precedente de que funciona en tiempo de ejecución: `lecturas-fx-r1.ataque:449-470` y `lecturas-consistentes.integracion:825` y `:841` pasan `tx` a `listarClasesInscritas`, `listarClasesImpartidas`, `listarTrabajo` y `listarPublicaciones`. Sus controles en READ COMMITTED prueban que la lectura corre sobre la transacción de afuera.
+  - En REPEATABLE READ, las seis sentencias en serie ven la instantánea de la primera.
+  - La transacción solo lee. No retiene filas ni pide `LOCK TABLE`, y lleva un `timeout` explícito de 10 s (la regla de bloqueos de `AGENTS.md`). Los `LOCK TABLE … NOWAIT` con reintento la encuentran igual que a la petición HTTP de hoy.
+  - El `pool` en READ COMMITTED que mide `lecturas-fx-r1:755` es por proceso. Cada archivo de Vitest tiene el suyo, así que no le alcanza.
+- **El cambio es mínimo:** solo los dos imports, `listar` y `totalDeLaPrimeraPagina` en lugar de `contar`, `listar` y `entre`, las tres llamadas y el bloque de la misma instantánea. Ninguna otra línea del caso usa `antes`, `despues`, `contar` ni `entre`; lo comprobé con grep.
+- **Reglas estáticas:**
+  - `lecturas-fx-r1.ataque:758-834` recorre solo `backend/src` y quita los `*.test.ts`. La regla de que nada fuera de `adapters/db` nombre `enTransaccion` o `instantaneaUnica` (O-01b-2 de la ronda 0) no alcanza a `backend/test`. Ya hay pruebas que llaman a `enTransaccion` (`cola.integracion`, `colas-objetos.integracion`, `categorias-01a-r1.ataque:450`).
+  - PR-CH-04h (`higiene-de-pruebas.integracion:228-246`) cuenta `.$transaction(` solo en `backend/src`, y el bloque nuevo no tiene ninguno.
+  - PR-CH-01c (`LOCK TABLE` sin `NOWAIT` en `backend/test`) no aplica, porque el bloque no bloquea tablas.
+  - Las demás pruebas estáticas que nombran estos términos (`calificaciones-estatico*`, `calificaciones-lecturas-estatico`, `exportacion-calificaciones-estatico`, `hilo-01c-r1`, `instantanea-01b-r1`, `lecturas-fx-r2`) leen solo `backend/src` o `shared/src`, según su `readdirSync` o `readFileSync`.
+
+### (b) E8-2, PR-2A12
+- Tiene el mismo defecto que ADM-1A11 (`:353` y `:362-366`) y el mismo remedio. Por HTTP, `total ≥ filas + (hay siguiente ? 1 : 0)`, con igualdad sin página siguiente. Además, `listarClasesAdmin` con `tx` y `clase.count()` en la misma instantánea REPEATABLE READ, con `timeout` de 10 s.
+- No cambian el título, el recorrido por páginas (`:333-351`), la página de 50 y su orden (`:354-361`), `total ≥ 5` ni las aserciones de maestros y alumnos.
+- El import nuevo va después de `:13` y sigue el orden de las rutas. Las mismas condiciones de PARADA. Mismo análisis de determinismo y de reglas estáticas que en (a).
+
+### (c) El grep de las hermanas
+Repetí la búsqueda en `backend/test` y `backend/src/**/*.test.ts`:
+- `Math.min(`/`Math.max(` con un `total`: solo `clases-archivadas.integracion:463-464` (E8-1), `gestion-clases.integracion:365-366` (E8-2) y `gestion-02a-r1.ataque:798-799`.
+- `.count()` sin filtro, o con `rol`, `activo`, `archivadaEn` o `estado`: `clase.count()` solo en esas tres. El resto son `usuario.count({ where: { rol: "admin" } })` igual a 1 (`admin-unico.integracion:50` y siete `*.ataque`) y `cuentas-r1.ataque:790` (`> 0`).
+- Las 27 líneas con `.total)`: fuera de las tres de PR-2A12 (`gestion-clases.integracion:365-367`), todas son por usuario, tarea o clase del caso (`clases-archivadas.integracion:240-255`, `:348` y `:375`; `lecturas-consistentes:333`, `:356` y `:372`; `lecturas-fx-r1:398-523`; entregas y calificaciones; `clases-r1`, `clases-r4`), o exactas sobre datos propios.
+- Las lecturas de la lista global `/api/admin/clases` sin cursor: `clases-archivadas.integracion:167` solo mira propiedades de las filas; `gestion-clases-autorizacion:116`, `logs-02a-r1:168` y `lecturas-fx-r1:943` no comparan cuántas son; y las de `?estado=archivadas` en `clases-archivadas-r1` y `-r2` se ordenan por fechas fijas propias (2019, 2020 y 2026-01), que el archivado por la API de 01b, con la hora real, no intercala delante.
+
+El grep del plan está completo. Las vigiladas de E8-3 están bien elegidas.
+
+**`gestion-02a-r1.ataque:793-799` como observación para el tester es la salida correcta.** Tiene el mismo patrón exacto (`total` de `?limite=2` entre dos `clase.count()`), así que puede fallar de forma intermitente. Es una `*.ataque`, y la regla es que solo el tester la cambia, con un C-n. El programador no puede tocarla, y no hacía falta otra ronda 0 para un rojo que todavía no se ha visto. Si cae en la corrida de módulos de la próxima entrega o en la suite completa del cierre, cuenta como interferencia conocida (E8-3), no como un defecto de 01b. Recomiendo que el tester la acote en su ronda 2 con el remedio de E8-2, como un C-n declarado: así la suite completa del cierre no depende de la suerte.
+
+### (d) E8-4, para 01e
+- **No amplía el alcance.** Es una regla sobre cómo se escriben las pruebas nuevas que el plan ya pedía (ADM-1E02, 1E10 y 1E11), con el texto de ADM-1E10 y el paso 25 al día. No suma pruebas requeridas, rutas, campos ni contratos. La lista cerrada de 01e no crece: ninguna prueba existente lee las tres rutas, que nacen en 01e.
+- **El `ejecutor` no cambia firmas fuera de "Se toca" de 01e.** Las lecturas que nombra (`leerResumenAdmin`, `listarUsuarios` y la de movimientos) viven en `adapters/db/gestion-de-usuarios.ts` y `adapters/db/movimientos.ts`, dos archivos nuevos de "Se toca" de 01e (§D-R0 01e). Son funciones nuevas, con el mismo patrón que `listarClasesAdmin` (`ejecutor: Ejecutor = obtenerDb()`): no se cambia ninguna firma existente.
+- Las escrituras de la misma instantánea (crear un estudiante, desactivar un maestro y archivar una clase del caso) se pueden hacer con Prisma directo sobre `tx`, o con funciones que ya reciben `ejecutor` (`archivarClase(claseId, ejecutor)`, `clases-archivadas.ts:25-28`). No obligan a tocar archivos de fuera.
+- El centinela que deshace la transacción sale tal cual de `enTransaccion`: `traducirErrorDeTransaccion` (`errores.ts:65-70`) solo traduce `P2028`. Es el precedente de `colas-objetos.integracion:66-76`.
+- ADM-1E11 (buscar sus movimientos por `id`, recorriendo páginas con un límite y un mensaje, con orden relativo y `secuencia` descendente) es determinista con el cursor por `secuencia`, que nunca cambia.
+
+### (e) Nada más cambia
+Los siete hunks son todos E8-n. No cambian §D-2, "Se toca", "No se toca", el contrato, el código de producción, las `*.ataque`, los C-n (C-3 a C-5 de 01b; C-6 a C-8 y C-25 a C-32 de 01e) ni las demás listas cerradas y vigiladas. El paso 13 nombra el orden de verificación y pide el `git diff -U0` de los dos archivos en el resumen.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores
+- E8-4 (b): si una prueba de 01e hace el cambio esperado con una escritura que sigue el protocolo PB (`cambiarActivo`, con `bloquearUsuarioParaEscribir`), esa escritura corre en REPEATABLE READ. `cliente.ts:50-52` dice que PB depende de READ COMMITTED. Con filas solo del caso no hay carrera, pero conviene que el programador de 01e haga esos cambios con Prisma directo sobre `tx`, sobre las filas del caso, y que deje las rutas de baja y acceso para sus pruebas propias en READ COMMITTED. No es un defecto del plan; es una nota para el resumen de 01e.
+- E8-5 pide "el mismo número de casos que antes": hoy son 14 y 21 (35 en total).
+
+### Para el humano
+Nada que decidir. La Enmienda 8 es una ampliación mínima de la lista cerrada, como la 4 y la 7, y no cambia contrato ni alcance.
+
+### Veredicto de esta verificación
+**APROBADO.** El programador aplica E8-1 y E8-2 con el alcance exacto. Primero corre solos los dos archivos (deben dar 14 y 21 casos, todos en verde) y después la suite de módulos, con el `git diff -U0` de los dos en el resumen. Para el tester queda la observación de `gestion-02a-r1.ataque:793-799` (recomendado acotarla con un C-n en su ronda 2).
+
+## Verificación de la corrección de la ronda 1 — ADMIN-01b
+
+Plan: `plan.md` = `e539dbcd877f0da7b2e895dff4d8ac099d400ca1fadd66d9f7b36d0a1838b183` (Enmiendas 1 a 8, comprobado). Resumen: `resumen-programador.md` = `e343edb1d7b3f3996935b082221efc1b4a54c50449feda1c5813d91036c78a44`, 742 líneas (comprobado). Se revisan las secciones "ADMIN-01b — Corrección ronda 1" y "Enmienda 8".
+
+Entorno:
+- Red `IZZI-F281-5G`, perfil Público, con la regla del firewall habilitada (Public). Docker 28.5.1.
+- Puerta de carga cumplida: 24/0/17 % antes del `lint` y de los dos archivos, y 15/14 % antes de la suite de módulos.
+- Ningún `node` corriendo antes de las corridas, y una suite después de otra. La otra copia de trabajo no se usa (respuesta del humano).
+
+### Cifras: resumen frente a mi corrida
+
+| Comprobación | Resumen | Mi corrida |
+|---|---|---|
+| backend `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, exit 0 | igual, exit 0 |
+| Los dos archivos de E8 solos | `Tests  35 passed (35)` (14 y 21) | `Tests  35 passed (35)` |
+| Suite de módulos (el comando literal de `resumen-programador.md:578`, ejecutado tal cual desde `backend/`) | `Tests  1446 passed (1446)` · `Test Files  124 passed (124)` (segunda corrida) | `Tests  1446 passed (1446)` · `Test Files  124 passed (124)`, a la primera (108.48 s) |
+| backend `npm run build` | `> tsc -p tsconfig.json`, exit 0 | igual, exit 0 |
+| PA-07 (módulos) | 0/0/0/0 · 3 "Error no controlado" · 3 `P2028` | `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 3 (los `ZodError` de la URL del almacén, del inventario) · `"code":"P2028"` 3 (`tx.sesion.findFirst`, `tx.sesion.updateMany` y `$queryRawUnsafe`, los tres de `servicio-ocupado`) |
+| V-01 | 251 sin diferencias más `objetos-r1` `65c1d9d9…` y `borrado-duplicado-r1` `3520057d…`; 253 en total | `sha256sum -c` de la tabla de 251 sin diferencias. Las dos nuevas dan exactamente esos hashes, que son los de la ronda 1 del tester en `aprobacion.md`. Hay 253 `*.ataque` (251 rastreadas y 2 nuevas sin rastrear, ambas del tester). Ninguna otra cambió |
+
+El comando literal de N-31 ya viene en el resumen (76 rutas), así que N-31 queda cerrado. En la primera corrida del programador falló ADM-1A11, que es lo que originó la Enmienda 8; en la tercera, por la interferencia con `archivos-d-r1`, se explica abajo. La mía salió en verde a la primera.
+
+### T-01: el remedio en `adapters/storage/index.ts`
+- **Las dos formas de error por clave.** Lo comprobé en `node_modules/minio` 8.0.7: `removeObjects` manda `Quiet: true` (`dist/esm/internal/client.mjs:2264`), y `removeObjectsParser` (`xml-parser.mjs:671-678`) devuelve solo `DeleteResult.Error`, como un arreglo de `{ Key, Code, Message }`.
+  - `codigoDeErrorDeBorrado` lee `Code` en la forma real y `Error.Code` en la forma de los tipos.
+  - `null` y `undefined` no son error.
+  - Cualquier otro objeto sí lo es: sin código reconocible devuelve `""`, que no está en el conjunto de ausentes, y lanza. Con `Quiet`, la respuesta nunca trae éxitos, así que esto no produce falsos rojos.
+- **`503` sin secretos.** Tanto un error global como uno por clave lanzan `almacenNoDisponible()`, con un texto fijo, sin URL, llave ni mensaje del proveedor. ADM-1B15 comprueba que el mensaje no contiene el secreto de prueba.
+- **`NoSuchKey`/`NotFound` es idempotente:** se filtra con el mismo `CODIGOS_DE_OBJETO_AUSENTE` de `esObjetoAusente`.
+- **Un lote con otros errores lanza igual:** basta un código fuera de ese conjunto. ADM-1B15 lo cubre con un `NoSuchKey` junto a un `AccessDenied`.
+- **ADM-1B15** (`src/adapters/storage/objetos.test.ts:80-146`) cubre las dos formas para cada código:
+  - `NoSuchKey` y `NotFound` resuelven.
+  - `AccessDenied` e `InternalError` lanzan con todas las claves fallidas y con una de dos.
+  - Un elemento sin código lanza.
+  - La mezcla de una clave ausente con un error real lanza.
+  - `[null, undefined]` resuelve.
+  - La lista vacía no llama al almacén.
+  - Un error global da `503`.
+  
+  La `*.ataque` del tester (ADM-T1B01, 01b y 02, con el cliente real de `minio`) está en verde en mi corrida.
+- **Hermanos y estados vecinos.**
+  - La tabla de las llamadas a `minio` coincide con el código: `copyObject` no usa el valor de retorno y su error llega como `S3Error` con `code`; `statObject` y las prefirmas no leen la forma de los tipos.
+  - Los estados de `borrar` (vacío, todas con error, algunas, error global, clave ausente y reintento tras un fallo parcial) tienen cada uno su caso o su razón.
+  - `procesarBorradoDeObjetos` sigue dejando propagar el error.
+  - Nada falta.
+
+### T-02: ADM-1B23 y su hermano ADM-1B16
+- **ADM-1B23** (`test/borrado-de-clase.integracion.test.ts:388-410`) toma `antes` y `despues` alrededor del `DELETE` y exige `antes + 600 000 ≤ start_after ≤ despues + 600 000`. Es la forma de N-20 y ya no depende de lo que tarde la petición. Que no tenga tolerancia es correcto: la API y la prueba comparten proceso y reloj, el handler calcula `Date.now() + RETRASO` entre las dos marcas, y pg-boss guarda el `Date` sin perder milisegundos. El `?? 0` de `:407` no oculta nada, porque `toHaveLength(1)` ya lo exigió.
+- **ADM-1B16** (`test/colas-objetos.integracion.test.ts:88-109`). **15 s y 30 s son razonables.**
+  - Los dos casos que esperan un `503` solo pueden tardar más, así que la carga no los rompe.
+  - El que espera éxito duerme 5.5 s. Con un `timeout` de 15 s le quedan unos 9.5 s de margen para la conexión y la carga, el triple de antes (3.5 s).
+  - Sigue probando lo que pide el plan: con la opción, la transacción dura más de los 5 s por omisión, y sin ella expira en 5 s.
+  - Los 30 s del caso cubren la corrida en paralelo de las dos transacciones (unos 6 s), más los 1.5 s de la corta, con holgura.
+  - No es una espera de bloqueo: no toca `LOCK TABLE` ni retiene filas.
+- Los demás hermanos que miden contra la hora real (`encolarDiferido`, `esperarHasta` y ADM-1B20) no miden duraciones, como dice el resumen.
+
+### E8-1 y E8-2, aplicados exactamente
+- El `git diff -U0` del resumen (sin las líneas `index`) es idéntico al que da `git diff -U0 69057f7` de los dos archivos; lo comparé con `diff`.
+- Cada una de las 63 líneas añadidas aparece literal en el texto de E8-1 o de E8-2 del plan. Las quitadas son exactamente las que nombran las viñetas: los dos imports, `contar`, `antes`, `despues`, el `return` con `antes` y `despues`, `entre`, las tres llamadas, `totalAntes` y `totalDespues`, y el comentario con los dos `expect` de `:363-366`.
+- No cambia ninguna otra línea: son 63 inserciones y 23 borrados, todos en esos hunks.
+- Los dos archivos dan los mismos 14 y 21 casos, en verde, y las igualdades de la misma instantánea pasan.
+
+### El cambio fuera de la enmienda: `duplicado-de-clase.integracion.test.ts`
+**Lo acepto.**
+- Es una prueba nueva de 01b, del propio programador, en "Se toca" como prueba nueva (§D-R0: "más archivos nuevos de prueba"). No es una prueba normal anterior ni está en una lista cerrada, así que no requería PARADA.
+- El cambio no debilita nada: los cinco archivos que antes subía el admin los sube ahora el maestro de la clase. Ninguna aserción del archivo lee `subidoPor`; lo comprobé con grep, que solo encuentra las líneas `subidoPor: maestro.id` de `:181`, `:335`, `:436` y `:490`. Los recursos siguen siendo del admin (`autorId: idAdmin`), que es lo que los hace de aprendizaje. El duplicado copia `subido_por` igual que antes.
+- La causa está bien leída. `archivos-d-r1.ataque:914-920` (C-23 de su ronda 2) acota su conteo a `subidoPor` en la lista que incluye al admin único, y cualquier archivo que suba el admin en paralelo lo mueve. Es la misma familia de lecturas sin un filtro propio del caso que E8-4.
+
+**Con esto, la familia de `archivos-d-r1` queda en manos del tester.** Las otras pruebas que suben archivos como admin son:
+- `borrado-duplicado-r1.ataque:135`, `:451` y `:537`, del tester;
+- `admin-muro-02b-r1.ataque:506`, `*.ataque`;
+- `muro-admin.integracion:289` y `:618`, normales y fuera de la lista cerrada.
+
+Las dos primeras son `*.ataque` y no las puede tocar el programador. `muro-admin.integracion` lleva al admin como autor por diseño. El remedio de fondo está en la `*.ataque` que cuenta: acotar `filasDelCaso` por ids propios del caso o por una ventana propia, en lugar del admin único. Eso es un C-n del tester.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores
+- La primera corrida de los dos archivos del programador se hizo con la carga en 32/25 %, sin una segunda lectura de 25 % o menos. Él lo declara. Mi corrida, con la puerta cumplida, da las mismas cifras.
+
+### Puntos para la ronda 2 del tester
+1. **`gestion-02a-r1.ataque:793-799`** (observación de E8-3): el mismo patrón que tenía PR-2A12, con el `total` entre dos `clase.count()`. Recomiendo acotarla con un C-n declarado y el remedio de E8-2 (el `total` contra las filas de la respuesta y contra `clase.count()` en la misma instantánea), para que la suite completa del cierre no dependa de la suerte.
+2. **La familia de `archivos-d-r1`** (`:914-920`): su conteo por `subidoPor` del admin único se mueve con cualquier subida del admin en paralelo (`borrado-duplicado-r1:135`, `:451` y `:537`, `admin-muro-02b-r1:506` y `muro-admin.integracion:289` y `:618`). Recomiendo acotarla, también con un C-n, a filas que solo puede escribir el caso: claseIds propios, o subidas del admin con una clave o una ventana propia. Si no se acota y cae en la suite completa del cierre, cuenta como interferencia conocida y no como defecto de 01b, pero habría que repetir la corrida.
+3. **T-01:** el borrado por lotes contra el almacén real (MinIO local) con claves mezcladas (existentes, ausentes, y sin permiso si se puede simular). Más de 1000 claves en un trabajo ya no es posible por el esquema (`max(1000)`), pero conviene confirmar que un `datos` con 1000 claves sale en una sola llamada. Y el reintento de pg-boss tras un `503` por clave: que borre lo que faltaba y termine.
+4. **T-02:** que ningún otro caso de 01b mida duraciones con la hora real sin acotar (los hermanos que declaró el programador).
+5. Lo que quedó de la verificación del resumen de 01b y no se atacó en la ronda 1: carreras entre duplicar, borrar y el worker (y si `P2003` puede aparecer como `500`), lo que se cuela al duplicar, datos fuera del esquema en las tres colas, y `confirmar` manipulado.
+
+### Veredicto de esta verificación
+**ACEPTADO.** Las cifras coinciden: `35 passed`; módulos `1446 passed (1446)` en 124 archivos; `lint` y `build` en 0; PA-07 limpia; V-01 con 253. T-01 y T-02 están corregidos, con sus hermanos y estados vecinos. E8-1 y E8-2 se aplicaron exactamente. El cambio de `duplicado-de-clase.integracion` se acepta. Contra `69057f7`, solo cambian archivos de "Se toca" de 01b, las cuatro pruebas de la lista cerrada (E4-4, E7-1, E8-1 y E8-2), C-3 a C-5 y las dos `*.ataque` nuevas del tester, o pruebas y ayudas nuevas. Fuera de los paquetes, solo `docs/trabajo/ADMIN-01-administracion/`. El tester puede empezar la ronda 2.
+
+## Revisión final — ADMIN-01b
+
+Fecha: 2026-11-05. Plan: `plan.md`, SHA-256 `e539dbcd877f0da7b2e895dff4d8ac099d400ca1fadd66d9f7b36d0a1838b183` (Enmiendas 1 a 8), comprobado. Tester: `reporte-tester.md`, SHA-256 `4717095580166206656813b2a7e464de12b6143d962eae19d96f084c87e41711` (comprobado), "## Ronda 2 — ADMIN-01b" RESISTE desde la línea 1262. Programador: `resumen-programador.md`, SHA-256 `e343edb1d7b3f3996935b082221efc1b4a54c50449feda1c5813d91036c78a44`. Bases de "No se toca": `69057f7` dentro de los paquetes y `68242f3` fuera de ellos, con los seis archivos de proceso contra sus SHA-256 de `aprobacion.md`. Ignoré `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.
+
+Veredicto: **APROBADO**
+Verificación propia: lint 0 en los tres paquetes · test backend `2933 passed (2933)` en 258 archivos, frontend `6062 passed (6062)` en 281 · build 0 en los tres paquetes (frontend `✓ built in 1.26s`)
+
+### Entorno y corridas
+- **PA-01:** red `IZZI-F281-5G`, perfil Public. La regla "Campus: bloquear entrada a Docker en redes publicas" está habilitada (Inbound, Block, Public), y el perfil Public del firewall está activo. Docker 28.5.1.
+- **Trabajo en paralelo:** la otra copia de trabajo no se usa (respuesta del humano, transmitida por el orquestador).
+- **Puerta de carga:**
+  - Al empezar, la carga estaba entre 34 % y 80 %. La causa fue un `git ls-files --others` sobre todo el perfil del usuario, lanzado por la app de escritorio de ChatGPT (PID 17544), no por mí. No lo terminé (N-21).
+  - Antes del backend: 10 %, 8 % y 17 %.
+  - Antes del frontend: 25 % y 21 %.
+  - En los dos casos no había ningún `node` con `vitest`.
+- Corrí una suite después de otra, una sola vez cada una, y ninguna cayó.
+  - Backend: 213.64 s.
+  - Frontend: 402.17 s, contra 272 s en 01a. La diferencia es la carga intermitente de la misma app, sin ningún rojo.
+
+| Paquete | Comando | Tester (ronda 2) | Manager |
+|---|---|---|---|
+| shared | `npm run build` | — | exit 0 (`> tsc -p tsconfig.json`) |
+| shared | `npm run lint` | — | `All matched files use Prettier code style!`, exit 0 |
+| backend | `npm run lint` | exit 0 | exit 0 (`> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`) |
+| backend | `npm test` (suite completa, la única de la subentrega) | módulos: `Tests 1453 passed (1453)` · 127 archivos | `Tests  2933 passed (2933)` · `Test Files  258 passed (258)`, a la primera |
+| backend | `npx vitest list` con `grep -a` | 7 `ADM-T2B` | 2933 casos · 258 archivos · 46 `ADM-1B` · 11 `ADM-T1B` · 7 `ADM-T2B` (y 37 `ADM-1A`, 15 `ADM-T1A`, 6 `ADM-T2A`, sin cambio) |
+| backend | `npm run build` | — | exit 0 (`> tsc -p tsconfig.json`) |
+| backend | PA-07 completa | módulos: 0/0/0/0 · 3 · 3 | ver abajo: limpia, con control positivo |
+| backend | `prisma migrate status` y deriva (E1-11) | — | `18 migrations found` · `Database schema is up to date!`; `No difference detected.`, exit 0 |
+| frontend | `npm run lint` | — | exit 0 (`> tsc -b`) |
+| frontend | `npm run test` (suite completa) | — | `Tests  6062 passed (6062)` · `Test Files  281 passed (281)` |
+| frontend | `npm run build` | — | `✓ built in 1.26s`, exit 0 |
+
+**Cuadre con 01a.** 01a cerró con 2864 casos en 242 archivos.
+- Suma 16 archivos, 258 − 242:
+  - 11 del programador, con 51 casos (los 46 `ADM-1B` y 5 más);
+  - 5 del tester, con 18 casos (11 `ADM-T1B` y 7 `ADM-T2B`).
+- 51 + 18 = 69 = 2933 − 2864. Las demás pruebas cambiadas no suman casos.
+- El frontend sigue igual: 01b no lo toca, y lo único que comparte es `shared/`.
+
+### PA-07 sobre la suite completa del backend
+Comando: `npm test`, desde `backend/`, con la salida completa en un archivo.
+- **Conteo por término:**
+  - `40P01`: 0
+  - `deadlock detected`: 0
+  - `could not serialize`: 0
+  - `too many clients`: 0
+  - `"Error no controlado"`: 10
+  - `"code":"P2028"`: 5
+- **Control positivo:** están los tres `P2028` deterministas de `servicio-ocupado.integracion`, en nivel 40 y en la misma app (pid 11240). Atribuí cada uno por `requestId` dentro de su app:
+  - `POST /api/auth/cambiar-contrasena`: `tx.sesion.findFirst()` (`usuarios.ts:293`), desde `handlers/auth/cuentas.ts:202`, `503`.
+  - `POST /api/auth/refrescar`: `tx.sesion.updateMany()` (`sesiones.ts:72`), desde `handlers/auth/index.ts:180`, `503`.
+  - `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios`: `$queryRawUnsafe` de `encolar` (`adapters/queue/index.ts:63`), `503`.
+- **Los otros dos `P2028`** son los permitidos de `cuentas-r3.ataque` (pid 25572):
+  - `POST /api/auth/login`: `tx.sesion.create()` (`sesiones.ts:39`).
+  - `POST /api/auth/restablecer`: `tx.tokenCuenta.updateMany()` (`tokens-cuenta.ts:116`).
+  - Ninguno es de `maxWait`.
+- **Inventario:** los 10 "Error no controlado" son los mismos 10 del cierre de 01a, identificados por ruta y llamada:
+  - 5 "fallo simulado de la base en la búsqueda" (`POST /api/auth/login`, `handlers/auth/index.ts:125`);
+  - 1 "fallo simulado de la base al crear la sesión" (`POST /api/auth/login`, `:134`);
+  - 1 "boom" (`GET /api/prueba/error-comun`);
+  - 3 `ZodError` de la URL del almacén (`handlers/archivos.ts:62`, `:97` y `handlers/clases/muro.ts:87`).
+  - Ninguno sale de una ruta, un adaptador o un worker de 01b.
+
+**PA-07 limpia.**
+
+### Problemas que bloquean
+Ninguno.
+
+### (a) 01b contra su parte del plan: cumple
+Revisé `git diff 69057f7` y los archivos nuevos contra los pasos 8 a 13. **Se hizo lo planeado, solo lo planeado y todo lo planeado.** El detalle, caso por caso, está en mis dos verificaciones anteriores ("Verificación del resumen — ADMIN-01b" y "Verificación de la corrección de la ronda 1 — ADMIN-01b").
+- **El código de producción no cambió desde que lo verifiqué.**
+  - El último cambio a código de producción fue a las 11:57 (`adapters/storage/index.ts`, la corrección de T-01). Mi verificación de esa corrección es posterior (`revision.md` escrito a las 12:33).
+  - Desde entonces solo cambiaron archivos del tester: C-33, C-34 y las tres `*.ataque` de la ronda 2.
+  - Hoy releí la migración, `borrado-de-clase.ts`, `bloqueo-maestros.ts`, `copias-de-archivos.ts`, `workers/objetos.ts`, `worker.ts` y los diffs de `handlers/clases/gestion.ts` y `handlers/archivos.ts`, y coinciden con lo que aprobé.
+- **§D-4, borrado definitivo:**
+  - El conteo usa una instantánea única y cinco `count` por índices de la clase. De una activa responde `409 CLASE_NO_ARCHIVADA`.
+  - El `DELETE` sigue los pasos 1 a 7 en orden, dentro de una transacción con `timeout` de 30 s (R-12):
+    - `FOR UPDATE` de la clase, con `bloquearClaseParaBorrar`;
+    - los dos `findFirst` de copias en curso;
+    - `decidirBorrado` con el orden de ADM-1B01;
+    - las claves de todos los estados y los `trabajo_id`;
+    - `cancelarVarios` y `encolarVarios`, con la conexión de la transacción, en lotes de 1000 y diferidos 10 min (N-09);
+    - `movimientos_inscripcion` y, por último, la clase.
+  - El worker de `BORRAR_OBJETOS` deja propagar el error. La corrección de T-01 también lanza ante un error por clave.
+- **§D-5, duplicar:**
+  - La original se toma `FOR SHARE` y después `bloquearMaestrosActivos` (`FOR SHARE`, `ORDER BY id`).
+  - Paso 2b: con copias en curso responde `409`.
+  - Hace cuatro lecturas sin ciclo y un `createMany` por tabla.
+  - `COPIAR_OBJETOS` va en lotes de 100, solo si hay archivos, y nunca encola `MATERIAL_CREADO`.
+  - El worker cumple M-03: una lectura, solo el almacén dentro del ciclo, y dos `updateMany` en el `finally` antes de relanzar.
+  - El consumidor de `COPIAR_OBJETOS_FALLIDO` lee `datos` (N-02).
+  - Los dos descartes de M-02 suman `copiaDe: null`.
+  - La descarga de la clase responde `409 ARCHIVO_EN_COPIA`; las de entregas no cambian.
+- **§D-6:**
+  - El puerto `AlmacenDeObjetos` va aparte del `Almacen` de hoy.
+  - `crearAlmacenDeObjetos` usa `copyObject` y `removeObjects`, del lado del almacén: ningún objeto pasa por Node.
+  - `registrarConsumidoresDeObjetos` se llama desde `worker.ts`, después de `registrarConsumidores`. `workers/index.ts` no cambia.
+  - Sin variables ni proveedores nuevos.
+- **§D-7.9:**
+  - En 01b solo nace `bloquearMaestrosActivos`, sin reexportarse en `index.ts`, y lo usa el duplicado.
+  - `asignarMaestro` y `crearClaseAdministrada` son de 01e. `maestros-de-clase.ts` y `clases.ts` no cambiaron.
+- **Migración `20261105163205_admin_01_copias_de_archivos`:**
+  - Tiene la columna `copia_de UUID` nula y los tres índices (`archivos_copia_de_idx`, `archivos_clase_id_estado_idx` y `movimientos_inscripcion_clase_id_secuencia_idx` con `secuencia DESC`).
+  - La FK `archivos_copia_de_fkey` es **`ON DELETE RESTRICT`**, como decidió el humano (Enmienda 6).
+  - El `CHECK archivos_copia_solo_confirmado` va a mano y con su comentario (R-02).
+  - Hoy la deriva no tiene diferencias y `migrate status` está al día (18 migraciones).
+  - **Es compatible hacia atrás:** la columna es nula, las filas existentes cumplen el `CHECK` y un backend anterior no la lee ni la escribe. Revertir el código no rompe la base. Lo único que pasaría con el código revertido está en R-09 (una copia en curso se serviría con `404` del almacén), y su orden de despliegue va a ESTADO §3 al cierre (A-07).
+- **ADM-1B01 a 1B24:**
+  - Hay 46 casos `ADM-1B` en los 11 archivos del programador (51 casos en total).
+  - Cada viñeta tiene su caso con el título exacto (verificación del resumen).
+  - **ADM-1B24**, la prueba que pidió el humano, cumple (a) a (e) por el camino real. Está en verde en la suite completa: duplicar, `409` antes del worker, `204` después, la copia intacta con descarga `200`, y `BORRAR_OBJETOS` solo con las claves de la original.
+- **Enmiendas 6 a 8:**
+  - E6 se cumple con ADM-1B24.
+  - E7-1 es un solo hunk de cuatro líneas, y ADM-1A09 (a) da las 88 rutas.
+  - E8-1 y E8-2 se aplicaron literalmente (lo cotejé con `diff`).
+  - E8-3 dejó la observación de `gestion-02a-r1.ataque`, que el tester cerró con C-33.
+  - E8-4 queda para 01e (ver (d)).
+- **Lista cerrada y vigiladas:**
+  - Entre las pruebas normales existentes solo cambiaron las cuatro de la lista cerrada: E4-4 (`bloqueo-usuario`), E7-1 (`clases-archivadas-matriz`), E8-1 (`clases-archivadas`) y E8-2 (`gestion-clases`).
+  - Ya acepté el cambio del programador en su propia prueba nueva, `duplicado-de-clase.integracion` (los archivos los sube el maestro).
+  - Todas las vigiladas de §D-R0 01b pasan en la suite completa.
+- **R-02:** el `CHECK` va a mano y la deriva no lo propone borrar.
+
+**Reglas que no se rompen:**
+- **Capas.** `core/` es puro. `adapters/db` no importa `adapters/queue`: el handler arma las funciones de cola. Los handlers validan, llaman y serializan.
+- **Middleware.** Las tres rutas usan `protegido({ roles: ["admin"], pertenencia: "propiedad", enClaseArchivada: "gestion" })`, y ningún handler compara roles ni estados.
+- **Estado de pago.** ADM-1B07 comprueba que ni el conteo ni la copia llevan `estadoPago`, `accesoRestringido`, `email` ni `codigoInvitacion`.
+- **Consultas sanas.**
+  - Ninguna consulta va dentro de un ciclo: el worker hace una lectura y dos escrituras por lote.
+  - Toda lectura va por índice (los tres nuevos cubren `archivos.clase_id`, `copia_de` y el `DELETE` de movimientos).
+  - El SQL crudo va con plantilla parametrizada.
+  - La única lectura sin paginar es la de todas las claves de una clase en el borrado, que el plan prevé y reparte en trabajos de 1000.
+- **Cola en la misma transacción.** El encolado y la cancelación usan la conexión del `tx`. ADM-1B16 prueba que una cancelación se revierte con la transacción, y ADM-1B24 (a), que un `409` no deja trabajos de borrado.
+- **Archivos.** Los objetos se copian y se borran del lado del almacén.
+- **UTC.** Sin cambios.
+- **Trabajos diferidos sincronizados.** Los recordatorios de las tareas se cancelan en la misma transacción del borrado.
+- **Secretos.** El `503` sale sin URL, llave ni mensaje del proveedor (ADM-1B15 y ADM-T2B01).
+- **`infra/`, `.env.example`, proveedores, `notifier` y autenticación:** sin cambios.
+
+**Estilo de `CLAUDE.md`:**
+- Hay retornos tempranos en el worker, el adaptador y los handlers.
+- `core/` y `adapters/` lanzan `AppError`.
+- Los workers dejan propagar los errores.
+- No hay `?? []` en producción. Los `?? null` de `bloquearClaseParaBorrar` y de la fila leída son guardas explícitas.
+
+**Definición de terminado:**
+- Cumple §D-4 a §D-6 y su parte de §D-7.9.
+- Respeta capas y middleware.
+- `lint`, `test` y `build` están en verde en los tres paquetes.
+- Tiene pruebas de autorización (ADM-1B07, más ADM-T1B03 y los demás casos del tester).
+- La migración es compatible.
+- `infra/` y `.env.example` no aplican.
+- Los README de A-06 (`adapters/`, `handlers/` y `workers/`) y los comentarios del esquema de A-09 están al día. Lo demás es del cierre.
+
+### (b) T-01 y T-02 de la ronda 1: cerrados
+- **T-01 (alta)**: `borrar` descartaba los errores por clave de `DeleteObjects`.
+  - **Corregido** en `adapters/storage/index.ts`: reconoce la forma real de `minio` 8.0.7 (`{ Key, Code, Message }`) y la de los tipos (`{ Error: { Code } }`). Cualquier error por clave lanza `503 ALMACEN_NO_DISPONIBLE`, sin secretos. `NoSuchKey`/`NotFound` es idempotente.
+  - ADM-1B15 cubre las dos formas.
+  - El tester lo confirmó contra el cliente real de `minio` y un servidor S3 falso local:
+    - ADM-T2B01: claves mezcladas, incluidos `<Code>500</Code>` y `<Error>` sin código;
+    - ADM-T2B02: lote de 1000 en una sola llamada con `Quiet`;
+    - ADM-T2B03 y T2B04: reintento por pg-boss de punta a punta, que termina `completed` con la cola de fallidos vacía.
+  - Todo en verde en la suite completa.
+- **T-02 (baja)**: ADM-1B23 dependía de la hora real.
+  - **Corregido:** la cota va entre `antes` y `despues`, sin tolerancia, con razón (proceso y reloj compartidos).
+  - Su hermano ADM-1B16 tiene más margen de `timeout`.
+  - El tester no encontró otra duración medida con la hora real sin acotar (punto 4 de su ronda 2).
+
+### (c) V-01: 256 `*.ataque`, ninguna tocada por el programador
+- La tabla de la ronda 0 de 01b (`reporte-tester.md:822-1077`) en formato `sha256sum -c` tiene 251 filas, y su lista da `24fb3fe3…`, igual a la declarada. `sha256sum -c` solo marca diferencias en las dos que cambió el tester en la ronda 2:
+  - **C-33** `gestion-02a-r1.ataque`: `73c55120814b8d6bbcceda5d4a3b5c8f1ed1ab58f54400831ac1a710d3b4584a`, igual al declarado. Su diff es exactamente el remedio de E8-2: quita los dos `clase.count()` de fuera de la instantánea, compara el `total` con sus filas y con `clase.count()` en la misma instantánea, y suma dos imports.
+  - **C-34** `archivos-d-r1.ataque`: `f76ce52002e295f2bda6e7a7a7f796415e08013e6d4c1fbe2c9c686671fe8252`, igual al declarado. Su diff quita `admin` de `subidoPor` en `filasDelCaso` y agrega el comentario del porqué; la condición por clase no cambia.
+- C-3, C-4 y C-5 coinciden con los hashes que ya están en la tabla: `71c54a11…`, `b008263d…` y `82fe8c49…`.
+- **Las cinco nuevas, sin rastrear, todas del tester**, coinciden con sus hashes:
+  - `objetos-r1` `65c1d9d9…`;
+  - `borrado-duplicado-r1` `3520057d…`;
+  - `objetos-r2` `935a7211…`;
+  - `objetos-reintento-r2` `fd2ae2e9…`;
+  - `borrado-duplicado-r2` `b8fc0db0…`.
+- **Total:** 256, de las que 101 son del backend y 155 del frontend. `git ls-files` da 251, y no falta ni sobra ninguna frente a la tabla.
+- Contra `69057f7` cambian solo cinco `*.ataque`, C-3, C-4, C-5, C-33 y C-34, y no se borró ninguna. Ninguna se saltó: la suite completa no tiene casos `skip` ni `todo` nuevos, porque los 2933 de `vitest list` son los 2933 que pasan.
+
+### (d) Lo abierto, con destino
+
+| Id | Qué | Destino |
+|---|---|---|
+| N-32 | Unas 30 líneas duplicadas (`conReintentoDeCodigo` y `traducirErrorDeCodigo`) entre `adapters/db/clases.ts` y `duplicado-de-clase.ts` | **Programador de 01e**, que ya toca `crearClaseAdministrada` en `clases.ts` (§D-7.9). Si el arquitecto lo admite sin enmienda, una sola copia exportada. Si no, carril trivial al cierre de ADMIN-01. No cambia el comportamiento |
+| O-R2-1 | Un `<Error>` con texto en lugar de hijos (`<Error>AccessDenied</Error>`) se lee como éxito en `borrar` | **No se corrige en 01b.** No es una respuesta posible de S3, MinIO ni R2: el protocolo siempre manda `<Key>`, `<Code>` y `<Message>`. Destino: **DEPLOY**, que es cuando se usa R2 de verdad. Entra como fila de ESTADO §3 al cierre de ADMIN-01 (A-07 bis), con el remedio de una línea anotado: tratar como error todo elemento que no sea `null` ni `undefined`. Si el humano prefiere cerrarlo antes, va como enmienda en una subentrega con backend (01e); no es carril trivial, porque cambia el comportamiento |
+| Regla E8-4 | Las pruebas nuevas de 01e no usan conteos de antes y después ni suponen las primeras filas de una lista global | **Arquitecto, programador y tester de 01e.** Ya está en el plan (ADM-1E10, ADM-1E11, §D-R0 01e y paso 25). La verifico en el resumen de 01e, con la nota de mi verificación de la Enmienda 8: los cambios de la misma instantánea, con Prisma directo sobre `tx` y sin el protocolo PB |
+| O-3 (ronda 0 de 01a) | `gestion-02a-r1.ataque:693-734` exige `["id", "nombre"]` en los maestros del detalle, y S-16 suma `cuentaDesactivada` en 01e | **Orquestador, antes de la ronda 0 de 01e:** una enmienda corta del arquitecto que la sume como C-n del tester, verificada por mí por `git diff --no-index`. C-33 cambió otro caso de ese archivo (`:793-799`), así que la enmienda debe partir del hash nuevo `73c55120…`, y el caso de O-3 está ahora en `:694-735` (C-33 sumó un import) |
+| N-21 | Carga ajena de la app de escritorio de ChatGPT/Codex | **Humano.** Hoy volvió a subir la carga al 60-80 % con un `git ls-files` sobre todo el perfil del usuario, y alargó la suite del frontend de 272 s a 402 s. No tumbó nada. Sigue la recomendación de cerrarla durante las suites |
+| N-24 | El foco tras el descarte por `id` | **Programador de 01c** (y 01d2, 01f y 01g) |
+| N-25 | A-05 no nombra `lib/unir-paginas.ts` | **Cierre de ADMIN-01**, con A-05 |
+| N-26 | Secreto de un carácter en el caso unitario de `opcionesDeLogger` (ADM-1E22) | **Programador de 01e** |
+| N-27 | PA-01 en cada resumen | **Cerrado en 01b.** Todos los resúmenes y rondas de 01b registran `IZZI-F281-5G` Público. Se sigue exigiendo |
+| N-28 a N-30 | Precondiciones con mensaje, sin colas reales y conjuntos no vacíos | **Cerrados.** Cubiertos en ADM-1B24 y en todo 01b (verificación del resumen). El tester los respetó en la ronda 2 (colas `ATAQUE_T2B_*`) |
+| N-31 | El comando de la suite de módulos va abreviado | **Cerrado** desde la corrección de la ronda 1 (comando literal) |
+| N-18 y O-R1-1 | Una clase sin maestros, y el `500` por `min(1)` en `GET /clases/anteriores` | **Tester de 01e**, ronda 1. 01b no crea clases sin maestros: duplicar exige de uno a dos maestros activos |
+| NB-1 y los `?? ""` de pruebas propias (los dos de 01a y `terminada.publicacionId ?? ""` de ADM-1B24) | Valores por defecto que disfrazan una decisión, y estilo | **Carril trivial al cierre de ADMIN-01**, sin cambio de comportamiento |
+| Sangría de `handlers/README.md` | Una línea de la viñeta de ADMIN-01b (`archivos }`…) empieza en la columna 0 | **Carril trivial al cierre de ADMIN-01** (o el programador de 01e, si toca ese README; A-06) |
+| R-07, R-09 y R-16 a R-19 | `LIMPIEZA_DIARIA` y `copia_de`; orden de despliegue; cursores | **Cierre de ADMIN-01** (A-07 y A-07 bis), como ya estaba |
+| O-R2-2 | ADM-T1B07 (retención de 30 s) sigue retirado | Sin destino. El tester lo retiró por interferir con los `LOCK TABLE … NOWAIT`, y la serialización entre duplicar y borrar la cubren ADM-1B10 y ADM-T2B05 a T2B07, sin retenciones |
+
+### Problemas que no bloquean
+Ninguno nuevo. N-32 y O-R2-1 tienen su destino en (d).
+
+### Detalles menores
+Ya estaban en mi verificación del resumen y no cambian el veredicto:
+- ADM-1B17 dice `200` en el plan, y la ruta real responde `204`. Lo que está mal es el texto del plan.
+- En `procesarCopiaDeObjetos`, si `terminarCopias` o `descartarCopias` fallan dentro del `finally` mientras se propaga un error del almacén, a pg-boss le llega el error de la base. Los dos provocan el reintento, y ninguno se traga.
+- En `duplicado-de-clase.ts`, la guarda `if (primero === undefined) return null` no se puede alcanzar.
+- En ADM-1B24, la variable `recursoOriginal` nombra el recurso de la copia.
+
+### Desacuerdos arbitrados
+Ninguno. En 01b no hubo desacuerdo entre el programador y el tester. ADM-T1B07 lo retiró el propio tester.
+
+### Documentos a actualizar
+- **En 01b, nada pendiente:**
+  - A-06: los README de `adapters/`, `handlers/` y `workers/` describen las rutas, las colas, el puerto y los consumidores nuevos.
+  - A-09: los comentarios de `Archivo` y `MovimientoInscripcion` en `schema.prisma` están al día.
+  - El detalle de sangría de `handlers/README.md` va en (d).
+- **Al cierre de ADMIN-01:**
+  - A-01: `archivos.copia_de`, los eventos `BORRAR_OBJETOS` y `COPIAR_OBJETOS`, y la copia del lado del almacén.
+  - A-02: §8, §11 y §14 con los índices nuevos, y §20 con DH-03.
+  - A-07: R-07 y R-09.
+  - A-07 bis, con la fila nueva de O-R2-1.
+  - Los demás de la revisión de 01a.
+- `AGENTS.md`, "Comandos" (A-10): sin cambio. El worker de siempre (`npm run dev:worker`) ya registra los consumidores de objetos, y no hay variables nuevas.
+
+### (e) Archivos del commit de 01b
+Son **55 entradas de `git add`** (59 archivos):
+- 54 rutas de los paquetes, con la carpeta de la migración como una sola entrada (contiene solo `migration.sql`);
+- la carpeta `docs/trabajo/ADMIN-01-administracion/`, con sus cinco archivos.
+
+Salen de `git diff --name-only HEAD` y `git ls-files --others --exclude-standard`, sin el archivo ajeno. Las cotejé con un script contra `git status`: no falta ni sobra nada. `shared/dist` y `backend/src/adapters/db/generated` están en `.gitignore` y no entran.
+
+**shared (2):** `shared/src/clases.ts` y `shared/src/index.ts`.
+
+**backend, esquema y migración (2):** `backend/prisma/schema.prisma` y `backend/prisma/migrations/20261105163205_admin_01_copias_de_archivos`.
+
+**backend, `src/` (30):**
+- `core/` (8): `archivos/objetos.ts` y su prueba, `clases/borrado.ts` y su prueba, `clases/duplicado.ts` y su prueba, `eventos/objetos.ts` y su prueba.
+- `adapters/` (16):
+  - `README.md`;
+  - en `db/`: `archivos.ts`, `bloqueo-maestros.ts`, `borrado-de-clase.ts`, `cliente.ts`, `copias-de-archivos.ts`, `duplicado-de-clase.ts`, `index.ts`, `publicaciones.ts` y `recursos.ts`;
+  - en `queue/`: `colas.ts` e `index.ts`;
+  - en `storage/`: `index.ts`, `objetos.test.ts`, y `objetos-r1.ataque.test.ts` y `objetos-r2.ataque.test.ts`, del tester.
+- `handlers/` (3): `README.md`, `archivos.ts` y `clases/gestion.ts`.
+- `worker.ts`, `workers/README.md` y `workers/objetos.ts` (3).
+
+**backend, `test/` (20):**
+- Nuevas del programador (8): `ayudas-borrado-duplicado.ts`, `objetos-en-memoria.ts`, `borrado-de-clase.integracion.test.ts`, `borrado-duplicado-autorizacion.integracion.test.ts`, `colas-objetos.integracion.test.ts`, `copias-de-archivos-migracion.integracion.test.ts`, `duplicado-de-clase.integracion.test.ts` y `worker-objetos.integracion.test.ts`.
+- Lista cerrada (4): `bloqueo-usuario.integracion.test.ts` (E4-4), `clases-archivadas-matriz.integracion.test.ts` (E7-1), `clases-archivadas.integracion.test.ts` (E8-1) y `gestion-clases.integracion.test.ts` (E8-2).
+- Del tester, cambiadas (5): `sesiones-y-cadena.ataque.test.ts` (C-3), `lecturas-fx-r2.ataque.test.ts` (C-4), `lecturas-fx-r1.ataque.test.ts` (C-5), `gestion-02a-r1.ataque.test.ts` (C-33) y `archivos-d-r1.ataque.test.ts` (C-34).
+- Del tester, nuevas (3): `borrado-duplicado-r1.ataque.test.ts`, `borrado-duplicado-r2.ataque.test.ts` y `objetos-reintento-r2.ataque.test.ts`. Con las dos de `src/adapters/storage`, son las cinco `*.ataque` nuevas del tester.
+
+**docs (1 entrada, 5 archivos):** `docs/trabajo/ADMIN-01-administracion/`, completa:
+- `plan.md`;
+- `aprobacion.md`, con la nota de la fusión de `main` (`68242f3`) y los SHA-256 de los seis archivos de proceso;
+- `resumen-programador.md`;
+- `reporte-tester.md`;
+- `revision.md`.
+
+`docs/ESTADO.md` no cambió desde `68242f3`, así que no entra.
+
+**Fuera del commit:** `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.
+
+```
+git status
+git add shared/src/clases.ts shared/src/index.ts backend/prisma/schema.prisma backend/prisma/migrations/20261105163205_admin_01_copias_de_archivos backend/src/core/archivos/objetos.ts backend/src/core/archivos/objetos.test.ts backend/src/core/clases/borrado.ts backend/src/core/clases/borrado.test.ts backend/src/core/clases/duplicado.ts backend/src/core/clases/duplicado.test.ts backend/src/core/eventos/objetos.ts backend/src/core/eventos/objetos.test.ts backend/src/adapters/README.md backend/src/adapters/db/archivos.ts backend/src/adapters/db/bloqueo-maestros.ts backend/src/adapters/db/borrado-de-clase.ts backend/src/adapters/db/cliente.ts backend/src/adapters/db/copias-de-archivos.ts backend/src/adapters/db/duplicado-de-clase.ts backend/src/adapters/db/index.ts backend/src/adapters/db/publicaciones.ts backend/src/adapters/db/recursos.ts backend/src/adapters/queue/colas.ts backend/src/adapters/queue/index.ts backend/src/adapters/storage/index.ts backend/src/adapters/storage/objetos.test.ts backend/src/adapters/storage/objetos-r1.ataque.test.ts backend/src/adapters/storage/objetos-r2.ataque.test.ts backend/src/handlers/README.md backend/src/handlers/archivos.ts backend/src/handlers/clases/gestion.ts backend/src/worker.ts backend/src/workers/README.md backend/src/workers/objetos.ts backend/test/ayudas-borrado-duplicado.ts backend/test/objetos-en-memoria.ts backend/test/borrado-de-clase.integracion.test.ts backend/test/borrado-duplicado-autorizacion.integracion.test.ts backend/test/colas-objetos.integracion.test.ts backend/test/copias-de-archivos-migracion.integracion.test.ts backend/test/duplicado-de-clase.integracion.test.ts backend/test/worker-objetos.integracion.test.ts backend/test/bloqueo-usuario.integracion.test.ts backend/test/clases-archivadas-matriz.integracion.test.ts backend/test/clases-archivadas.integracion.test.ts backend/test/gestion-clases.integracion.test.ts backend/test/sesiones-y-cadena.ataque.test.ts backend/test/lecturas-fx-r1.ataque.test.ts backend/test/lecturas-fx-r2.ataque.test.ts backend/test/gestion-02a-r1.ataque.test.ts backend/test/archivos-d-r1.ataque.test.ts backend/test/borrado-duplicado-r1.ataque.test.ts backend/test/borrado-duplicado-r2.ataque.test.ts backend/test/objetos-reintento-r2.ataque.test.ts docs/trabajo/ADMIN-01-administracion
+```
+
+Después del `git add`, `git status` no debe mostrar nada sin preparar ni sin rastrear, salvo `docs/trabajo/DEPLOY-investigacion-vps.md`.
+
+### Para el humano
+- **N-21:** la app de escritorio de ChatGPT lanza un `git ls-files` sobre todo tu perfil, que subió la carga al 60-80 %. Esperé a que bajara y no lo terminé. Conviene cerrarla durante las suites.
+- **O-R2-1:** recomiendo dejarla para DEPLOY, con su fila en ESTADO §3 al cierre. Si prefieres cerrarla antes, es un cambio de una línea en `adapters/storage`, pero necesita enmienda: no es carril trivial, porque cambia el comportamiento.
+- **Antes de la ronda 0 de 01e,** el orquestador pide la enmienda corta de O-3 (partiendo del hash nuevo de `gestion-02a-r1.ataque`).
+
+### Veredicto
+**APROBADO.** 01b cumple su parte del plan `e539dbcd…`:
+- §D-4 a §D-6, y de §D-7.9 lo que le toca a 01b (`bloquearMaestrosActivos`);
+- la migración `admin_01_copias_de_archivos`, con la FK `RESTRICT`, el `CHECK` a mano y sin deriva;
+- ADM-1B01 a 1B24, ADM-1B24 incluida;
+- las Enmiendas 6 a 8;
+- R-02.
+
+Además:
+- T-01 y T-02 están cerrados.
+- El tester dio RESISTE en la ronda 2, sin hallazgos.
+- V-01 da 256: 251 rastreadas y 5 nuevas del tester. Solo cambiaron `*.ataque` del tester (C-3, C-4, C-5, C-33 y C-34).
+- "No se toca" está limpio.
+- Mi suite completa da backend 2933/2933 en 258 archivos y frontend 6062/6062 en 281, con `lint` y `build` en verde en los tres paquetes.
+- PA-07 está limpia, con control positivo.
+- Todo lo abierto tiene destino.
+
+### Resumen para el humano (15 líneas)
+1. ADMIN-01b (backend de borrar y duplicar clases) está **APROBADA**. El tester dio RESISTE en la ronda 2, sin hallazgos.
+2. El admin ve un conteo de lo que se pierde y borra para siempre una clase archivada, con `confirmar=borrar`.
+3. Los archivos del almacén se borran por la cola, 10 minutos después.
+4. Duplicar copia temas, categorías y recursos de aprendizaje con sus archivos. La copia nace activa, con los maestros elegidos, y sin alumnos, tareas ni avisos.
+5. Los objetos se copian del lado del almacén, con un worker. Mientras se copian, la descarga responde «en copia».
+6. Migración `admin_01_copias_de_archivos`: columna `copia_de`, tres índices, FK `RESTRICT` (tu decisión) y un `CHECK`. Es compatible hacia atrás y no tiene deriva.
+7. Tu prueba ADM-1B24 pasa: duplicar y después borrar la original deja la copia intacta y descargable.
+8. T-01 (el borrado ignoraba errores por archivo) y T-02 (una prueba dependía de la hora) quedaron corregidos.
+9. Mi corrida, en `IZZI-F281-5G` Público: backend 2933/2933 en 258 archivos, frontend 6062/6062 en 281. `lint` y `build` en verde en los tres paquetes.
+10. Las 256 pruebas de ataque coinciden con sus hashes, y el programador no tocó ninguna. PA-07 está limpia.
+11. Pendiente: N-32 (unas 30 líneas duplicadas) va con el programador de 01e. O-R2-1 (una respuesta que ningún proveedor real envía) va a DEPLOY.
+12. Antes de la ronda 0 de 01e hace falta la enmienda corta de O-3.
+13. El commit lleva 55 entradas de `git add` (59 archivos), incluidas las 5 pruebas nuevas del tester y la carpeta del encargo con la nota de la fusión.
+14. No entra `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.
+15. Recomendación: cierra la app de ChatGPT durante las suites. Hoy subió la carga al 80 %.

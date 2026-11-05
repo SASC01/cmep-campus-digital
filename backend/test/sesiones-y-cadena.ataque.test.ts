@@ -560,7 +560,15 @@ describe("ataque: superficie de rutas", () => {
   // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /archivar y
   // /restaurar bajo /api/admin/clases/:claseId y /anteriores bajo /api/clases; el análisis por
   // sangría los reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a y ADMIN-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // ADMIN-01b, C-3 (§D-R0; §D-4, §D-5 y "backend/handlers/"): se agregan exactamente GET y HEAD de
+  // /api/admin/clases/:claseId/conteo-de-borrado, DELETE de /api/admin/clases/:claseId y POST de
+  // /api/admin/clases/:claseId/duplicar (4 entradas). Ninguna crea cuentas ni cambia roles: cuentan
+  // y borran una clase archivada, o crean una clase nueva con maestros que ya existen (duplicar crea
+  // una clase, no cuentas). Ninguna es pública. La protección queda igual: ninguna ruta crea
+  // administradores; siguen creando maestros solo las tres de hoy, y cualquier otra ruta nueva
+  // vuelve a poner la prueba en rojo. printRoutes pone DELETE junto al PUT de /:claseId y anida
+  // /conteo-de-borrado y /duplicar bajo /api/admin/clases/:claseId.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a, ADMIN-01a y ADMIN-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -587,6 +595,7 @@ describe("ataque: superficie de rutas", () => {
     }
     expect(noReconocidas, "líneas del árbol de rutas que no se pudieron analizar").toEqual([])
     expect([...rutas].sort()).toEqual([
+      "DELETE /api/admin/clases/:claseId",
       "DELETE /api/admin/clases/:claseId/maestros/:maestroId",
       "DELETE /api/clases/:claseId/alumnos/:alumnoId",
       "DELETE /api/clases/:claseId/dudas/:dudaId",
@@ -597,6 +606,7 @@ describe("ataque: superficie de rutas", () => {
       "DELETE /api/clases/:claseId/tareas/:tareaId",
       "DELETE /api/clases/:claseId/temas/:temaId",
       "GET /api/admin/clases",
+      "GET /api/admin/clases/:claseId/conteo-de-borrado",
       "GET /api/admin/enlaces-registro",
       "GET /api/admin/enlaces-registro/:id/registrados",
       "GET /api/admin/maestros/candidatos",
@@ -629,6 +639,7 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/me",
       "GET /api/salud",
       "HEAD /api/admin/clases",
+      "HEAD /api/admin/clases/:claseId/conteo-de-borrado",
       "HEAD /api/admin/enlaces-registro",
       "HEAD /api/admin/enlaces-registro/:id/registrados",
       "HEAD /api/admin/maestros/candidatos",
@@ -662,6 +673,7 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/salud",
       "POST /api/admin/clases",
       "POST /api/admin/clases/:claseId/archivar",
+      "POST /api/admin/clases/:claseId/duplicar",
       "POST /api/admin/clases/:claseId/maestros",
       "POST /api/admin/clases/:claseId/restaurar",
       "POST /api/admin/enlaces-registro",

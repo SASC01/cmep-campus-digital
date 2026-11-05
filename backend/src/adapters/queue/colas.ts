@@ -9,6 +9,12 @@ import {
   COLA_TAREA_CREADA,
 } from "../../core/eventos/avisos-de-clase.js"
 import {
+  COLA_BORRAR_OBJETOS,
+  COLA_BORRAR_OBJETOS_FALLIDO,
+  COLA_COPIAR_OBJETOS,
+  COLA_COPIAR_OBJETOS_FALLIDO,
+} from "../../core/eventos/objetos.js"
+import {
   COLA_CORREO_DE_CUENTA,
   COLA_CORREO_DE_CUENTA_FALLIDO,
 } from "../../core/eventos/correo-de-cuenta.js"
@@ -89,4 +95,30 @@ export const OPCIONES_DE_COLAS: readonly OpcionDeCola[] = [
       deleteAfterSeconds: RETENCION_COLAS_DE_AVISOS_S,
     },
   })),
+  // Objetos del almacén (ADMIN-01b, §D-6): la política de los avisos (3 reintentos con espera
+  // exponencial y 7 días de retención). Cada cola de fallidos va antes que la cola que la usa.
+  ...[
+    { nombre: COLA_BORRAR_OBJETOS, fallidos: COLA_BORRAR_OBJETOS_FALLIDO },
+    { nombre: COLA_COPIAR_OBJETOS, fallidos: COLA_COPIAR_OBJETOS_FALLIDO },
+  ].flatMap(({ nombre, fallidos }): OpcionDeCola[] => [
+    {
+      nombre: fallidos,
+      opciones: {
+        retentionSeconds: RETENCION_COLAS_DE_AVISOS_S,
+        deleteAfterSeconds: RETENCION_COLAS_DE_AVISOS_S,
+      },
+    },
+    {
+      nombre,
+      opciones: {
+        retryLimit: 3,
+        retryDelay: 30,
+        retryBackoff: true,
+        expireInSeconds: 300,
+        deadLetter: fallidos,
+        retentionSeconds: RETENCION_COLAS_DE_AVISOS_S,
+        deleteAfterSeconds: RETENCION_COLAS_DE_AVISOS_S,
+      },
+    },
+  ]),
 ]

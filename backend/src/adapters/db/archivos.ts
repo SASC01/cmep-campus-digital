@@ -89,11 +89,13 @@ export const buscarArchivosParaConfirmar = async (
 // ENTREGAS-01b (§D-3.6, PR-1B17): la descarga de la clase solo sirve archivos de publicaciones; sin
 // esto, cualquier alumno inscrito descargaría el archivo de entrega de un compañero con su id. Los de
 // una entrega se descargan por las rutas de la entrega (db/entregas.ts).
+// ADMIN-01b (§D-5): `copiaDe` no nulo es una copia de una clase duplicada cuyo objeto todavía no
+// existe; el handler responde 409 ARCHIVO_EN_COPIA.
 export const buscarArchivoConfirmado = async (
   { archivoId, claseId }: { archivoId: string; claseId: string },
   ejecutor: Ejecutor = obtenerDb(),
-): Promise<ArchivoDb | null> =>
+): Promise<(ArchivoDb & { copiaDe: string | null }) | null> =>
   ejecutor.archivo.findFirst({
     where: { id: archivoId, claseId, estado: "confirmado", publicacionId: { not: null } },
-    select: SELECT_ARCHIVO,
+    select: { ...SELECT_ARCHIVO, copiaDe: true },
   })

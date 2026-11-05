@@ -169,6 +169,30 @@ export const maestroIdsSchema = z
 
 export const crearClaseAdminSchema = crearClaseSchema.extend({ maestroIds: maestroIdsSchema })
 
+// ADMIN-01b (§D-5, S-08): duplicar pide el nombre de la copia (editable) y de uno a dos maestros; la
+// descripción se copia tal cual de la original.
+export const duplicarClaseSchema = z.object({
+  nombre: nombreClaseSchema,
+  maestroIds: maestroIdsSchema,
+})
+
+// ADMIN-01b (§D-4, S-06): lo que se pierde al borrar definitivamente una clase archivada.
+export const conteoDeBorradoRespuestaSchema = z.object({
+  alumnos: z.number().int().min(0),
+  actividades: z.number().int().min(0),
+  entregas: z.number().int().min(0),
+  calificaciones: z.number().int().min(0),
+  archivos: z.number().int().min(0),
+})
+
+// ADMIN-01b (§D-4): sin `confirmar`, el borrado responde 409 CONFIRMACION_REQUERIDA; con otro valor,
+// 400 VALIDACION.
+export const CONFIRMAR_BORRADO_DE_CLASE = "borrar"
+
+export const confirmarBorradoClaseSchema = z.object({
+  confirmar: z.literal(CONFIRMAR_BORRADO_DE_CLASE, { error: "no es válido" }).optional(),
+})
+
 export const asignarMaestroSchema = z.object({
   maestroId: z.uuid("maestroId: debe ser un identificador válido"),
 })
@@ -570,6 +594,9 @@ export type CodigoClases = (typeof CODIGOS_CLASES)[keyof typeof CODIGOS_CLASES]
 export type CrearClase = z.infer<typeof crearClaseSchema>
 export type EditarClase = z.infer<typeof editarClaseSchema>
 export type CrearClaseAdmin = z.infer<typeof crearClaseAdminSchema>
+export type DuplicarClase = z.infer<typeof duplicarClaseSchema>
+export type ConteoDeBorradoRespuesta = z.infer<typeof conteoDeBorradoRespuestaSchema>
+export type ConfirmarBorradoClase = z.infer<typeof confirmarBorradoClaseSchema>
 export type AsignarMaestro = z.infer<typeof asignarMaestroSchema>
 export type MaestroIdParam = z.infer<typeof maestroIdParamSchema>
 export type Unirse = z.infer<typeof unirseSchema>

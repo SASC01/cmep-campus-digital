@@ -261,7 +261,8 @@ const reemplazarArchivos = async (
   if (salen.length > 0) {
     await tx.archivo.updateMany({
       where: { id: { in: salen }, publicacionId: recursoId, claseId },
-      data: { estado: "descartado", publicacionId: null },
+      // ADMIN-01b (M-02): un adjunto descartado deja de ser una copia en curso.
+      data: { estado: "descartado", publicacionId: null, copiaDe: null },
     })
   }
   await confirmarArchivos(tx, {

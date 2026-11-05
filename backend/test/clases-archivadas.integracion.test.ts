@@ -10,8 +10,8 @@ import {
 import type { FastifyInstance } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { obtenerDb } from "../src/adapters/db/cliente.js"
-import { editarClase } from "../src/adapters/db/index.js"
+import { enTransaccion, obtenerDb } from "../src/adapters/db/cliente.js"
+import { editarClase, listarClasesAdmin } from "../src/adapters/db/index.js"
 import { AppError } from "../src/core/errores.js"
 import { construirApp } from "../src/app.js"
 import { cargarEnv } from "../src/config/env.js"
@@ -451,17 +451,24 @@ describe("GET /admin/clases?estado= (ADM-1A11)", () => {
     await archivarClaseDePrueba(archivadaA.id, new Date("2099-01-01T00:00:00.000Z"))
     await archivarClaseDePrueba(archivadaB.id, new Date("2099-01-02T00:00:00.000Z"))
 
-    const contar = (where: object) => obtenerDb().clase.count({ where })
     const listar = async (consulta: string) => {
-      const antes = { activas: await contar({ archivadaEn: null }), todas: await contar({}) }
       const respuesta = await pedir("GET", `/api/admin/clases?${consulta}`, tokenAdmin)
-      const despues = { activas: await contar({ archivadaEn: null }), todas: await contar({}) }
       expect(respuesta.statusCode, consulta).toBe(200)
-      return { cuerpo: listaClasesAdminRespuestaSchema.parse(respuesta.json()), antes, despues }
+      return { cuerpo: listaClasesAdminRespuestaSchema.parse(respuesta.json()) }
     }
-    const entre = (valor: number, a: number, b: number) => {
-      expect(valor).toBeGreaterThanOrEqual(Math.min(a, b))
-      expect(valor).toBeLessThanOrEqual(Math.max(a, b))
+    // Enmienda 8: otros archivos crean, archivan, restauran, duplican y borran clases a la vez, así
+    // que el total no se compara con conteos hechos fuera de su instantánea. El de una primera página
+    // sale de la misma que sus filas (FIX-CLASES): igual a ellas sin página siguiente, mayor con ella.
+    const totalDeLaPrimeraPagina = (cuerpo: {
+      clases: readonly unknown[]
+      total: number
+      siguienteCursor: string | null
+    }) => {
+      if (cuerpo.siguienteCursor === null) {
+        expect(cuerpo.total).toBe(cuerpo.clases.length)
+        return
+      }
+      expect(cuerpo.total).toBeGreaterThan(cuerpo.clases.length)
     }
 
     const fechaA = "2099-01-01T00:00:00.000Z"
@@ -474,11 +481,7 @@ describe("GET /admin/clases?estado= (ADM-1A11)", () => {
     for (const fila of archivadas.cuerpo.clases) expect(fila.archivadaEn).not.toBeNull()
     const ordenArchivadas = archivadas.cuerpo.clases.map((c) => `${c.archivadaEn ?? ""}|${c.id}`)
     expect(ordenArchivadas).toEqual([...ordenArchivadas].sort().reverse())
-    entre(
-      archivadas.cuerpo.total,
-      archivadas.antes.todas - archivadas.antes.activas,
-      archivadas.despues.todas - archivadas.despues.activas,
-    )
+    totalDeLaPrimeraPagina(archivadas.cuerpo)
 
     // Enmienda 5: con "archivadas" y página siguiente, la posición es el archivadaEn de la última fila.
     const primeraArchivada = await listar("estado=archivadas&limite=1")
@@ -496,7 +499,7 @@ describe("GET /admin/clases?estado= (ADM-1A11)", () => {
     }
     const ordenActivas = activas.cuerpo.clases.map((c) => `${c.creadoEn}|${c.id}`)
     expect(ordenActivas).toEqual([...ordenActivas].sort().reverse())
-    entre(activas.cuerpo.total, activas.antes.activas, activas.despues.activas)
+    totalDeLaPrimeraPagina(activas.cuerpo)
 
     const siguienteArchivada = await listar(
       `estado=archivadas&limite=1&cursor=${archivadaB.id}&cursorArchivadaEn=${encodeURIComponent(fechaB)}`,
@@ -523,7 +526,33 @@ describe("GET /admin/clases?estado= (ADM-1A11)", () => {
     }
 
     const todas = await listar("limite=100")
-    entre(todas.cuerpo.total, todas.antes.todas, todas.despues.todas)
+    totalDeLaPrimeraPagina(todas.cuerpo)
+    // Enmienda 8: el total por estado (§D-2), contra conteos de la misma instantánea. La transacción
+    // de la prueba va en REPEATABLE READ y la lectura de la lista corre sobre ella (un enTransaccion
+    // anidado no abre otra): las seis sentencias, en serie, ven las mismas filas. Solo lee y no
+    // espera nada; el timeout explícito queda muy por encima de lo que dura.
+    const misma = await enTransaccion(
+      obtenerDb(),
+      async (tx) => {
+        const primera = { cursor: undefined, limite: 1 }
+        return {
+          activas: (await listarClasesAdmin({ ...primera, estado: "activas" }, tx)).total,
+          archivadas: (await listarClasesAdmin({ ...primera, estado: "archivadas" }, tx)).total,
+          todas: (await listarClasesAdmin(primera, tx)).total,
+          activasContadas: await tx.clase.count({ where: { archivadaEn: null } }),
+          archivadasContadas: await tx.clase.count({ where: { archivadaEn: { not: null } } }),
+          todasContadas: await tx.clase.count(),
+        }
+      },
+      { instantaneaUnica: true, timeout: 10_000 },
+    )
+    expect(misma.activas).toBe(misma.activasContadas)
+    expect(misma.archivadas).toBe(misma.archivadasContadas)
+    expect(misma.todas).toBe(misma.todasContadas)
+    expect(misma.activasContadas + misma.archivadasContadas).toBe(misma.todasContadas)
+    // La activa y las dos archivadas del caso están en la instantánea: el filtro separa algo.
+    expect(misma.activasContadas).toBeGreaterThanOrEqual(1)
+    expect(misma.archivadasContadas).toBeGreaterThanOrEqual(2)
     const sinEstadoConCursorArchivado = await pedir(
       "GET",
       `/api/admin/clases?limite=1&cursor=${archivadaA.id}`,

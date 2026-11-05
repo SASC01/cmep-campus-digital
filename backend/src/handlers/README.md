@@ -45,7 +45,8 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   `GET /clases/:claseId/mis-calificaciones`. `"lectura"`: las lecturas de personas, roster,
   publicaciones y comentarios, recursos, dudas y respuestas, temas, categorías, una tarea, trabajo,
   entrega y entregas, los dos hilos privados, el gradebook, la exportación y las tres descargas.
-  `"gestion"`: archivar y restaurar. Todas las demás (escrituras, `GET …/codigo`,
+  `"gestion"`: archivar y restaurar; desde ADMIN-01b, también el conteo de borrado, el borrado
+  definitivo y duplicar. Todas las demás (escrituras, `GET …/codigo`,
   `GET …/alumnos/candidatos`, `PUT /admin/clases/:claseId` y asignar o quitar maestros) quedan
   cerradas: `409 CLASE_ARCHIVADA`.
 - `clases/gestion.ts` (prefijo `/api`, CLASES-02a): las seis rutas de gestión del administrador, todas
@@ -58,7 +59,17 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   `POST /admin/clases/:claseId/restaurar` (`propiedad`, `enClaseArchivada: "gestion"`; responden
   `{ clase }` con `archivadaEn`) y `?estado=activas|archivadas` en la lista (sin `estado`, todas; con `archivadas`, la página
   siguiente lleva `cursorArchivadaEn` y la respuesta `siguienteCursorArchivadaEn`, Enmienda 5). El código de la clase usa el mismo `generarCodigo` de
-  `clases/clases.ts`.
+  `clases/clases.ts`. ADMIN-01b (§D-4, §D-5) suma, con `propiedad` y `enClaseArchivada: "gestion"`:
+  `GET /admin/clases/:claseId/conteo-de-borrado` (`{ alumnos, actividades, entregas, calificaciones,
+archivos }`; de una activa, `409 CLASE_NO_ARCHIVADA`), `DELETE /admin/clases/:claseId?confirmar=borrar`
+  (`204`; sin `confirmar`, `409 CONFIRMACION_REQUERIDA`; otro valor, `400`; con copias en curso,
+  `409 CLASE_CON_COPIAS_EN_CURSO`) y `POST /admin/clases/:claseId/duplicar` (`{ nombre, maestroIds }`,
+  `201 { clase }`; también desde una archivada; maestros inválidos, `404 MAESTRO_NO_ENCONTRADO`). El
+  handler arma las funciones de cola que el adaptador llama dentro de su transacción: cancela los
+  recordatorios de las tareas con `cancelarVarios` y encola `BORRAR_OBJETOS` (lotes de 1000 claves,
+  diferidos 10 min, N-09) o `COPIAR_OBJETOS` (lotes de 100 archivos). Ningún handler mira el estado de
+  la clase ni compara roles. `archivos.ts`: la descarga de la clase responde `409 ARCHIVO_EN_COPIA`
+  si el archivo es una copia en curso (`copia_de` no nulo); las descargas de entregas no cambian.
 - `clases/alumnos.ts` (prefijo `/api`, CLASES-b): `GET /clases/:claseId/personas` (compañeros y
   maestros, uno o dos; `requireMembership`, id, nombre y correo completo, nunca estado de pago ni
   restricción; no se abre al admin), `GET` y `POST /clases/:claseId/alumnos` (roster del maestro de la

@@ -98,6 +98,18 @@ export {
   type ListaClasesAnterioresDb,
 } from "./clases-archivadas.js"
 export {
+  borrarClaseDefinitivamente,
+  contarParaBorrar,
+  type BorradoDeClase,
+} from "./borrado-de-clase.js"
+export { duplicarClase, type DuplicadoDeClase } from "./duplicado-de-clase.js"
+export {
+  descartarCopias,
+  leerCopiasPendientes,
+  terminarCopias,
+  type CopiaPendiente,
+} from "./copias-de-archivos.js"
+export {
   asignarMaestro,
   buscarMaestrosCandidatos,
   retirarMaestro,

@@ -755,7 +755,7 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
     expect(rc.niveles).toEqual(Array.from({ length: CONEXIONES_DEL_POOL }, () => "read committed"))
   }, 60_000)
 
-  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las veinte lecturas (cuatro de clases, una de clases archivadas, dos del muro, dos de tareas, cuatro de entregas, dos de calificaciones, dos de recursos, dos de dudas y una de la exportación)", () => {
+  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las veintiuna lecturas (cuatro de clases, una de clases archivadas, una del conteo de borrado, dos del muro, dos de tareas, cuatro de entregas, dos de calificaciones, dos de recursos, dos de dudas y una de la exportación)", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const archivos = readdirSync(raiz, { recursive: true, encoding: "utf8" })
       .map((ruta) => ruta.split(sep).join("/"))
@@ -803,6 +803,10 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       ),
     ).toEqual([])
     expect([...usos].sort()).toEqual([
+      // ADMIN-01b, C-5 (§D-R0; §D-4): contarParaBorrar (GET /admin/clases/:claseId/conteo-de-borrado)
+      // corre sus cinco COUNT en la instantánea única. borrarClaseDefinitivamente, en el mismo archivo,
+      // es una escritura y no la usa. El conteo sigue siendo del texto del archivo, con sus comentarios.
+      "adapters/db/borrado-de-clase.ts:1",
       // C-4 de CALIFICACIONES-01b (§D-R0, A-5): leerGradebook y leerMisCalificaciones corren en la instantánea única.
       "adapters/db/calificaciones.ts:2",
       // ADMIN-01a, C-2 (§D-R0; §D-2): listarClasesAnteriores corre en la instantánea única. Archivar y

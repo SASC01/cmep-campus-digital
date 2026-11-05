@@ -964,7 +964,12 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
   // enlaces_registro ni usuarios, no hay DELETE FROM ni TRUNCATE crudos, y cualquier otro borrado
   // vuelve a poner la prueba en rojo.
   // C-3 de CALIFICACIONES-01a (§D-R0, A-5): calificar reemplaza el desglose con puntajeRubrica.deleteMany.
-  it("O-4: en backend/src solo se borran inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica, puntajes de rúbrica y dudas; nada borra enlaces_registro ni usuarios", () => {
+  // ADMIN-01b, C-4 (§D-R0; §D-4, pasos 6 y 7): el borrado definitivo de una clase archivada
+  // (adapters/db/borrado-de-clase.ts) borra sus movimientos con movimientoInscripcion.deleteMany (FK
+  // RESTRICT) y la clase con clase.delete o clase.deleteMany (lo demás cae en cascada), los dos con
+  // Prisma. Lo que protege no cambia: sigue sin DELETE FROM ni TRUNCATE crudos, nada borra
+  // enlaces_registro ni usuarios, y cualquier otro borrado vuelve a poner la prueba en rojo.
+  it("O-4: en backend/src solo se borran clases, movimientos de inscripción, inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica, puntajes de rúbrica y dudas; nada borra enlaces_registro ni usuarios", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const borrados = new Set<string>()
     const crudos: string[] = []
@@ -978,12 +983,16 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
     }
     expect([...borrados].sort()).toEqual([
       "categoria",
+      // ADMIN-01b, C-4: borrarClaseDefinitivamente borra la fila de la clase.
+      "clase",
       "comentario",
       "criterioRubrica",
       // CLASES-03b, C-3 (§D-R0; §D-5): borrarDuda borra la duda (sus respuestas caen en cascada).
       "duda",
       "inscripcion",
       "maestroDeClase",
+      // ADMIN-01b, C-4: borrarClaseDefinitivamente borra los movimientos de la clase antes que la clase.
+      "movimientoInscripcion",
       "publicacion",
       "puntajeRubrica",
       "tema",

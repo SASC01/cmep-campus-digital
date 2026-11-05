@@ -316,9 +316,10 @@ export const borrarPublicacion = (
         : puedeBorrar(actor, autor)
     if (!permitido) throw errorBorradoNoPermitido()
 
+    // ADMIN-01b (M-02): un archivo descartado deja de ser una copia en curso.
     await tx.archivo.updateMany({
       where: { publicacionId, claseId },
-      data: { estado: "descartado", publicacionId: null },
+      data: { estado: "descartado", publicacionId: null, copiaDe: null },
     })
     const { count } = await tx.publicacion.deleteMany({
       where: { id: publicacionId, claseId, tipo: { in: [...TIPOS_DEL_MURO] } },

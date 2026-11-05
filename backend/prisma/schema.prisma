@@ -179,8 +179,14 @@ model EnlaceRegistro {
 }
 
 // CLASES-a (§D-A1). codigoInvitacion: 7 caracteres de un alfabeto sin I, O, 0 ni 1 (S-03); único
-// para poder buscarlo. activa se crea en true (S-05) pero ninguna ruta de CLASES la usa ni la
-// cambia (RF-50 queda para más adelante).
+// para poder buscarlo.
+// ADMIN-01a (S-01, RN-10): archivar pone activa = false y archivada_en = now(); restaurar, activa =
+// true y archivada_en = NULL. Las dos columnas las ata el CHECK clases_activa_segun_archivada
+// (activa = (archivada_en IS NULL)), y la lista del administrador por estado usa los índices
+// parciales clases_activas_idx (creado_en DESC, id DESC) WHERE archivada_en IS NULL y
+// clases_archivadas_idx (archivada_en DESC, id DESC) WHERE archivada_en IS NOT NULL. Los tres se
+// agregaron a mano en la migración admin_01_clases_archivadas: Prisma no expresa CHECK ni índices
+// parciales y no los compara al buscar deriva.
 // CLASES-02 (P-06 a): los maestros de la clase son maestros_de_clase (de uno a dos). maestro_id se
 // conserva NOT NULL solo por compatibilidad hacia atrás: el código lo ESCRIBE (el primer maestro al
 // crear la clase; el que queda al retirar al que estaba ahí) y NUNCA lo lee. Se retira en una
@@ -194,6 +200,7 @@ model Clase {
   activa           Boolean                 @default(true)
   creadoEn         DateTime                @default(now()) @map("creado_en") @db.Timestamptz(3)
   actualizadoEn    DateTime                @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  archivadaEn      DateTime?               @map("archivada_en") @db.Timestamptz(3)
   maestro          Usuario                 @relation("ClasesDelMaestro", fields: [maestroId], references: [id], onDelete: Restrict)
   inscripciones    Inscripcion[]
   movimientos      MovimientoInscripcion[]

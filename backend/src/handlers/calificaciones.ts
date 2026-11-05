@@ -98,7 +98,11 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
   // El resumen es de toda la clase; las filas y las columnas se paginan por separado.
   app.get(
     "/clases/:claseId/gradebook",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const claseId = claseDe(request).id.toLowerCase()
       const { cursor, limite, cursorTareas, limiteTareas } = validarParametros(
@@ -126,7 +130,11 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
   // (la ruta no lleva un id de alumno). Nunca la versión, el estado de pago ni nada de otro alumno.
   app.get(
     "/clases/:claseId/mis-calificaciones",
-    protegido({ roles: ["estudiante"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura-del-alumno",
+    }),
     async (request, reply) => {
       const claseId = claseDe(request).id.toLowerCase()
       const { estado, cursor, limite } = validarParametros(
@@ -158,7 +166,11 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
   // navegador recorre las ventanas y arma el archivo. Nunca el estado de pago ni la restricción (P-13).
   app.get(
     "/clases/:claseId/calificaciones/exportacion",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const claseId = claseDe(request).id.toLowerCase()
       const { cursor, limite, cursorTareas, limiteTareas } = validarParametros(

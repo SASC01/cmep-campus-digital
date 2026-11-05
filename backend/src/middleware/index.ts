@@ -1,6 +1,7 @@
 import type { Rol } from "@campus/shared"
 import type { FastifyInstance, preHandlerAsyncHookHandler } from "fastify"
 
+import type { PoliticaDeClaseArchivada } from "../core/clases/archivada.js"
 import { authenticate } from "./authenticate.js"
 import { marcarPasoDeLaCadena, registrarGuardaDeRutas } from "./guarda-de-rutas.js"
 import { requireMembership } from "./require-membership.js"
@@ -15,19 +16,45 @@ export interface OpcionesProtegido {
   permitirRestringido?: boolean
   permitirCambioPendiente?: boolean
   pertenencia?: "inscripcion" | "propiedad"
+  // ADMIN-01a (§D-1, DH-01): qué hace la ruta con una clase archivada. Sin declararlo, la ruta queda
+  // cerrada en una archivada: 409 CLASE_ARCHIVADA para todos.
+  enClaseArchivada?: PoliticaDeClaseArchivada
 }
 
 const pasoDePertenencia = (
   pertenencia: OpcionesProtegido["pertenencia"],
   admiteAdmin: boolean,
+  enClaseArchivada: PoliticaDeClaseArchivada | undefined,
 ): preHandlerAsyncHookHandler[] => {
   if (pertenencia === "inscripcion") {
-    return [marcarPasoDeLaCadena(requireMembership({ admiteAdmin }), "requireMembership")]
+    return [
+      marcarPasoDeLaCadena(
+        requireMembership({ admiteAdmin, enClaseArchivada }),
+        "requireMembership",
+      ),
+    ]
   }
   if (pertenencia === "propiedad") {
-    return [marcarPasoDeLaCadena(requireOwnership({ admiteAdmin }), "requireOwnership")]
+    return [
+      marcarPasoDeLaCadena(requireOwnership({ admiteAdmin, enClaseArchivada }), "requireOwnership"),
+    ]
   }
   return []
+}
+
+// ADMIN-01a (§D-1, ADM-1A03): una política de clase archivada sin sexto paso no tendría efecto, y
+// "gestion" abre la clase archivada a todo rol que la ruta admita, así que solo vale para rutas
+// exclusivas del admin. Se comprueba al construir la ruta: la API no arranca.
+const comprobarPoliticaDeClaseArchivada = (opciones: OpcionesProtegido): void => {
+  if (opciones.enClaseArchivada === undefined) return
+  if (opciones.pertenencia === undefined) {
+    throw new Error("protegido(): enClaseArchivada exige pertenencia.")
+  }
+  if (opciones.enClaseArchivada !== "gestion") return
+  const roles = opciones.roles ?? []
+  if (roles.length !== 1 || roles[0] !== "admin") {
+    throw new Error('protegido(): enClaseArchivada "gestion" exige roles exactamente ["admin"].')
+  }
 }
 
 // Cadena con orden fijo por construcción (DEC-08, ESSENTIALS > Autorización):
@@ -37,6 +64,7 @@ const pasoDePertenencia = (
 export const protegido = (
   opciones: OpcionesProtegido = {},
 ): { preHandler: preHandlerAsyncHookHandler[] } => {
+  comprobarPoliticaDeClaseArchivada(opciones)
   // Cerrado por defecto (CLASES-02, M-01): el admin solo pasa el sexto paso si `roles` lo nombra, y se
   // decide aquí, al construir la cadena: mutar `roles` después no abre nada.
   const admiteAdmin = (opciones.roles ?? []).includes("admin")
@@ -53,7 +81,7 @@ export const protegido = (
         "withAccess",
       ),
       marcarPasoDeLaCadena(requireRole(opciones.roles ?? []), "requireRole"),
-      ...pasoDePertenencia(opciones.pertenencia, admiteAdmin),
+      ...pasoDePertenencia(opciones.pertenencia, admiteAdmin, opciones.enClaseArchivada),
     ],
   }
 }

@@ -5,19 +5,21 @@ import {
   claseRespuestaSchema,
   crearClaseAdminSchema,
   editarClaseSchema,
+  listaClasesAdminConsultaSchema,
   listaClasesAdminRespuestaSchema,
   maestroIdParamSchema,
   maestrosDeClaseRespuestaSchema,
-  paginacionSchema,
 } from "@campus/shared"
 import type { FastifyPluginAsync } from "fastify"
 
 import {
+  archivarClase,
   asignarMaestro,
   buscarMaestrosCandidatos,
   crearClaseAdministrada,
   editarClase,
   listarClasesAdmin,
+  restaurarClase,
   retirarMaestro,
 } from "../../adapters/db/index.js"
 import { prepararTerminoDeBusqueda } from "../../core/clases/busqueda.js"
@@ -38,15 +40,20 @@ const maestroNoEncontrado = (): AppError =>
 // resuelve que la clase existe y deja pasar al admin porque `roles` lo nombra.
 export const gestionDeClasesHandler: FastifyPluginAsync = async (app) => {
   app.get("/admin/clases", protegido({ roles: ["admin"] }), async (request, reply) => {
-    const { cursor, limite } = validarParametros(paginacionSchema, request.query)
-    const resultado = await listarClasesAdmin({ cursor, limite })
+    const { cursor, cursorArchivadaEn, limite, estado } = validarParametros(
+      listaClasesAdminConsultaSchema,
+      request.query,
+    )
+    const resultado = await listarClasesAdmin({ cursor, cursorArchivadaEn, limite, estado })
     return reply.send(
       listaClasesAdminRespuestaSchema.parse({
         ...resultado,
         clases: resultado.clases.map((clase) => ({
           ...clase,
           creadoEn: clase.creadoEn.toISOString(),
+          archivadaEn: clase.archivadaEn === null ? null : clase.archivadaEn.toISOString(),
         })),
+        siguienteCursorArchivadaEn: resultado.siguienteCursorArchivadaEn?.toISOString() ?? null,
       }),
     )
   })
@@ -103,6 +110,28 @@ export const gestionDeClasesHandler: FastifyPluginAsync = async (app) => {
       const { maestroId } = validarParametros(maestroIdParamSchema, request.params)
       const resultado = await retirarMaestro({ claseId: id, maestroId })
       return reply.send(maestrosDeClaseRespuestaSchema.parse(resultado))
+    },
+  )
+
+  // ADMIN-01a (§D-2, S-01): archivar y restaurar. El estado de la clase lo deciden core/ y el
+  // adaptador dentro de su transacción (409 CLASE_YA_ARCHIVADA o CLASE_NO_ARCHIVADA, sin escribir).
+  app.post(
+    "/admin/clases/:claseId/archivar",
+    protegido({ roles: ["admin"], pertenencia: "propiedad", enClaseArchivada: "gestion" }),
+    async (request, reply) => {
+      const { id } = claseDe(request)
+      const clase = await archivarClase(id)
+      return reply.send(claseRespuestaSchema.parse({ clase: conMaestroPrincipal(clase) }))
+    },
+  )
+
+  app.post(
+    "/admin/clases/:claseId/restaurar",
+    protegido({ roles: ["admin"], pertenencia: "propiedad", enClaseArchivada: "gestion" }),
+    async (request, reply) => {
+      const { id } = claseDe(request)
+      const clase = await restaurarClase(id)
+      return reply.send(claseRespuestaSchema.parse({ clase: conMaestroPrincipal(clase) }))
     },
   )
 

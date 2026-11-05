@@ -86,7 +86,7 @@ export const entregasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 ) => {
   app.get(
     "/clases/:claseId/tareas/:tareaId/entrega",
-    protegido({ roles: ["estudiante"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante"], pertenencia: "inscripcion", enClaseArchivada: "lectura" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId } = validarParametros(tareaDeEntregaParamSchema, request.params)
@@ -208,7 +208,7 @@ export const entregasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.post(
     "/clases/:claseId/tareas/:tareaId/entrega/archivos/:archivoId/descarga",
-    protegido({ roles: ["estudiante"], pertenencia: "inscripcion" }),
+    protegido({ roles: ["estudiante"], pertenencia: "inscripcion", enClaseArchivada: "lectura" }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId, archivoId } = validarParametros(archivoDeEntregaParamSchema, request.params)
@@ -226,7 +226,11 @@ export const entregasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.get(
     "/clases/:claseId/tareas/:tareaId/entregas",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId } = validarParametros(tareaDeEntregaParamSchema, request.params)
@@ -251,7 +255,11 @@ export const entregasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.get(
     "/clases/:claseId/tareas/:tareaId/entregas/:alumnoId",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId, alumnoId } = validarParametros(alumnoDeEntregaParamSchema, request.params)
@@ -265,7 +273,11 @@ export const entregasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.post(
     "/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/archivos/:archivoId/descarga",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId, alumnoId, archivoId } = validarParametros(

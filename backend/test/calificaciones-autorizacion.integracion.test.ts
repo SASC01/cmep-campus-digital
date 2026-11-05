@@ -142,6 +142,12 @@ describe("autorización de calificar (CAL-1A17)", () => {
       rol: "maestro",
       debeCambiarContrasena: true,
     })
+    // ADMIN-01a (E4-2): la clase nunca tiene más de dos maestros. Otros archivos leen en paralelo la
+    // lista del admin, cuyo esquema admite dos; se retira al segundo antes de sumar al pendiente.
+    await obtenerDb().maestroDeClase.delete({
+      where: { claseId_maestroId: { claseId: e.claseId, maestroId: e.otroMaestro.id } },
+      select: { claseId: true },
+    })
     await obtenerDb().maestroDeClase.create({
       data: { claseId: e.claseId, maestroId: pendiente.id },
       select: { claseId: true },

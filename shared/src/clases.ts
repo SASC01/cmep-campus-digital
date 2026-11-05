@@ -194,6 +194,9 @@ export const claseDetalleSchema = z.object({
   descripcion: z.string().nullable(),
   maestro: maestroDeClaseSchema,
   maestros: z.array(maestroDeClaseSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
+  // ADMIN-01a (S-14, DH-08): el backend nuevo siempre lo manda (null en una activa). Opcional para
+  // que un frontend lea "ausente" como activa, que es lo que significa con un backend anterior.
+  archivadaEn: z.iso.datetime().nullable().optional(),
 })
 
 export const claseInscritaSchema = z.object({
@@ -241,12 +244,54 @@ export const claseAdminSchema = z.object({
   maestros: z.array(maestroDeClaseSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
   alumnos: z.number().int().min(0),
   creadoEn: z.iso.datetime(),
+  // ADMIN-01a (S-14): como en claseDetalleSchema.
+  archivadaEn: z.iso.datetime().nullable().optional(),
 })
 
 export const listaClasesAdminRespuestaSchema = z.object({
   clases: z.array(claseAdminSchema),
   total: z.number().int().min(0),
   siguienteCursor: z.uuid().nullable(),
+  // ADMIN-01a, Enmienda 5: solo con `estado=archivadas` y página siguiente; si no, null. Opcional
+  // (como S-14) para un backend anterior al despliegue.
+  siguienteCursorArchivadaEn: z.iso.datetime().nullable().optional(),
+})
+
+// ADMIN-01a (§D-2, DH-11). Sin `estado`, la lista del administrador trae todas las clases, como
+// antes; con él, solo las activas o solo las archivadas.
+export const estadoDeClasesSchema = z.enum(["activas", "archivadas"])
+
+// ADMIN-01a, Enmienda 5 (§D-2, T-02): con `estado=archivadas`, la página siguiente se pide con la
+// posición del cursor (`cursorArchivadaEn`, el `siguienteCursorArchivadaEn` recibido). Se compara
+// como texto en el servidor; sin formato ni mensaje propio aquí.
+export const listaClasesAdminConsultaSchema = paginacionSchema.extend({
+  estado: estadoDeClasesSchema.optional(),
+  cursorArchivadaEn: z.string().optional(),
+})
+
+// ADMIN-01a (§D-2, DH-02). Las clases archivadas del alumno o del maestro que las pide, de la
+// archivada más recientemente a la más antigua. Sin estado de pago, restricción, correo ni versión.
+export const claseAnteriorSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  maestros: z
+    .array(z.object({ nombre: z.string() }))
+    .min(1)
+    .max(MAXIMO_MAESTROS_POR_CLASE),
+  archivadaEn: z.iso.datetime(),
+})
+
+// ADMIN-01a, Enmienda 5 (§D-2, T-02): la página siguiente se pide con el cursor y su posición.
+export const listaClasesAnterioresConsultaSchema = paginacionSchema.extend({
+  cursorArchivadaEn: z.string().optional(),
+})
+
+export const listaClasesAnterioresRespuestaSchema = z.object({
+  clases: z.array(claseAnteriorSchema),
+  total: z.number().int().min(0),
+  siguienteCursor: z.uuid().nullable(),
+  // El archivadaEn de la última clase de la página cuando hay siguiente; null si no.
+  siguienteCursorArchivadaEn: z.iso.datetime().nullable(),
 })
 
 export const maestrosDeClaseRespuestaSchema = z.object({
@@ -539,6 +584,11 @@ export type CodigoClaseRespuesta = z.infer<typeof codigoClaseRespuestaSchema>
 export type ClaseRespuesta = z.infer<typeof claseRespuestaSchema>
 export type ClaseAdmin = z.infer<typeof claseAdminSchema>
 export type ListaClasesAdminRespuesta = z.infer<typeof listaClasesAdminRespuestaSchema>
+export type EstadoDeClases = z.infer<typeof estadoDeClasesSchema>
+export type ListaClasesAdminConsulta = z.infer<typeof listaClasesAdminConsultaSchema>
+export type ClaseAnterior = z.infer<typeof claseAnteriorSchema>
+export type ListaClasesAnterioresConsulta = z.infer<typeof listaClasesAnterioresConsultaSchema>
+export type ListaClasesAnterioresRespuesta = z.infer<typeof listaClasesAnterioresRespuestaSchema>
 export type MaestrosDeClaseRespuesta = z.infer<typeof maestrosDeClaseRespuestaSchema>
 export type CandidatoMaestro = z.infer<typeof candidatoMaestroSchema>
 export type CandidatosMaestroRespuesta = z.infer<typeof candidatosMaestroRespuestaSchema>

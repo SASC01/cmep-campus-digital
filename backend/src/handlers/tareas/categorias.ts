@@ -11,7 +11,11 @@ import { validarCuerpo } from "../validacion.js"
 export const categoriasHandler: FastifyPluginAsync = async (app) => {
   app.get(
     "/clases/:claseId/categorias",
-    protegido({ roles: ["maestro", "admin"], pertenencia: "propiedad" }),
+    protegido({
+      roles: ["maestro", "admin"],
+      pertenencia: "propiedad",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const categorias = await listarCategorias(claseId)

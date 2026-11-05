@@ -73,7 +73,11 @@ export const archivosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = 
 
   app.post(
     "/clases/:claseId/archivos/:archivoId/descarga",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { archivoId } = validarParametros(archivoIdParamSchema, request.params)

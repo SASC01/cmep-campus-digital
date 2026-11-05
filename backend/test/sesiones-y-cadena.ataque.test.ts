@@ -84,7 +84,9 @@ const actualizarPropio = async (
 
 beforeAll(async () => {
   app = await construirApp({ env })
-  // Fuera de /api (la guarda no aplica): rutas de prueba para la cadena completa.
+  // Rutas de prueba fuera de /api para la cadena completa. Desde CHORE-02 (M-15) la guarda revisa
+  // toda ruta, con cualquier URL: estas arrancan porque pasan por protegido(), no por estar fuera de
+  // /api (ADMIN-01a ronda 0, C-1; E-30).
   app.get("/prueba-ataque/solo-admin", protegido({ roles: ["admin"] }), async () => ({ ok: true }))
   app.get("/prueba-ataque/solo-maestro", protegido({ roles: ["maestro"] }), async () => ({
     ok: true,
@@ -550,7 +552,15 @@ describe("ataque: superficie de rutas", () => {
   // …/dudas/:dudaId/respuestas; DELETE de …/dudas/:dudaId/respuestas/:respuestaId. Ninguna crea cuentas ni
   // cambia roles y ninguna es pública.
   // C-1 de CALIFICACIONES-02a (§D-R0): se agregan exactamente GET y HEAD de …/calificaciones/exportacion. No crea cuentas ni cambia roles y no es pública.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b y CALIFICACIONES-02a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // ADMIN-01a, C-1 (§D-R0; §D-2 y "backend/handlers/"): se agregan exactamente POST de
+  // /api/admin/clases/:claseId/archivar y de /api/admin/clases/:claseId/restaurar, y GET y HEAD de
+  // /api/clases/anteriores (4 entradas). Ninguna crea cuentas ni cambia roles: archivan o restauran
+  // una clase que ya existe y listan las archivadas del perfil. Ninguna es pública. La protección
+  // queda igual: ninguna ruta crea administradores; siguen creando maestros solo las tres de hoy, y
+  // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /archivar y
+  // /restaurar bajo /api/admin/clases/:claseId y /anteriores bajo /api/clases; el análisis por
+  // sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a y ADMIN-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -613,6 +623,7 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
       "GET /api/clases/:claseId/temas",
       "GET /api/clases/:claseId/trabajo",
+      "GET /api/clases/anteriores",
       "GET /api/clases/impartidas",
       "GET /api/clases/inscritas",
       "GET /api/me",
@@ -644,12 +655,15 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
       "HEAD /api/clases/:claseId/temas",
       "HEAD /api/clases/:claseId/trabajo",
+      "HEAD /api/clases/anteriores",
       "HEAD /api/clases/impartidas",
       "HEAD /api/clases/inscritas",
       "HEAD /api/me",
       "HEAD /api/salud",
       "POST /api/admin/clases",
+      "POST /api/admin/clases/:claseId/archivar",
       "POST /api/admin/clases/:claseId/maestros",
+      "POST /api/admin/clases/:claseId/restaurar",
       "POST /api/admin/enlaces-registro",
       "POST /api/admin/enlaces-registro/:id/revocar",
       "POST /api/admin/maestros",

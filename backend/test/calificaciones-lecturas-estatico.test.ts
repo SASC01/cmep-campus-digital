@@ -77,10 +77,10 @@ describe("reglas estáticas de las lecturas de calificaciones (CAL-1B08)", () =>
   it("CAL-1B08: handlers/calificaciones.ts registra las dos lecturas con su cadena exacta", () => {
     const handler = sinComentarios(leerCrudo("handlers/calificaciones.ts"))
     expect(handler).toMatch(
-      /app\.get\(\s*"\/clases\/:claseId\/gradebook",\s*protegido\(\{ roles: \["maestro", "admin"\], pertenencia: "propiedad" \}\)/,
+      /app\.get\(\s*"\/clases\/:claseId\/gradebook",\s*protegido\(\{\s*roles: \["maestro", "admin"\],\s*pertenencia: "propiedad",\s*enClaseArchivada: "lectura",?\s*\}\)/,
     )
     expect(handler).toMatch(
-      /app\.get\(\s*"\/clases\/:claseId\/mis-calificaciones",\s*protegido\(\{ roles: \["estudiante"\], pertenencia: "inscripcion" \}\)/,
+      /app\.get\(\s*"\/clases\/:claseId\/mis-calificaciones",\s*protegido\(\{\s*roles: \["estudiante"\],\s*pertenencia: "inscripcion",\s*enClaseArchivada: "lectura-del-alumno",?\s*\}\)/,
     )
     expect(handler.match(/app\.get\(/g)?.length).toBe(3)
     // El alumno de "Mis calificaciones" es siempre el de la sesión.

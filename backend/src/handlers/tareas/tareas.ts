@@ -120,7 +120,11 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
 
   app.get(
     "/clases/:claseId/tareas/:tareaId",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       const { tareaId } = validarParametros(tareaIdParamSchema, request.params)
@@ -223,7 +227,11 @@ export const tareasHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = as
 
   app.get(
     "/clases/:claseId/trabajo",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId, relacion } = claseDe(request)
       const { tema, cursor, limite, seccion } = validarParametros(trabajoQuerySchema, request.query)

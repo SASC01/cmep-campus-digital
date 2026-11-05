@@ -32,7 +32,11 @@ import { validarCuerpo, validarParametros } from "../validacion.js"
 export const temasHandler: FastifyPluginAsync = async (app) => {
   app.get(
     "/clases/:claseId/temas",
-    protegido({ roles: ["estudiante", "maestro", "admin"], pertenencia: "inscripcion" }),
+    protegido({
+      roles: ["estudiante", "maestro", "admin"],
+      pertenencia: "inscripcion",
+      enClaseArchivada: "lectura",
+    }),
     async (request, reply) => {
       const { id: claseId } = claseDe(request)
       // CLASES-03a (§D-3.4): con ?seccion=, los mismos temas con los conteos de esa sección.

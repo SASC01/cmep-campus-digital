@@ -248,7 +248,7 @@ const handleEntregar = async () => {
 - Orden de implementación: esquemas en `shared/` → `core/` con pruebas → migración de Prisma → `adapters/` → `handlers/` → `workers/` → módulo de `features/`.
 - Sin preguntar: `lint`, `test`, `build`, `prisma generate`, `prisma validate`, `prisma format`, `docker compose up/ps/logs` en local y git de solo lectura.
 - Preguntando antes: `prisma migrate dev`, `prisma migrate reset`, `docker compose down -v`, cualquier SSH o despliegue, `git commit`, `git push`, instalar dependencias, borrar archivos. Nunca contra `prod`. No leas ni imprimas `.env` ni secretos.
-- Tras cada cambio: `lint` y `test` del paquete afectado; `build` si tocaste `shared/`; `prisma validate` si tocaste el esquema. Si no pudiste verificar, dilo.
+- Tras cada cambio: `lint` y la suite del módulo afectado (la completa del paquete, una vez por subentrega: `AGENTS.md`, "Suites por ronda"); `build` si tocaste `shared/`; `prisma validate` si tocaste el esquema. Si no pudiste verificar, dilo.
 - Para explorar el repositorio, usa subagentes y conserva solo el resumen.
 - Si el humano corrige dos veces lo mismo, propón agregar la regla aquí o en `AGENTS.md`.
 

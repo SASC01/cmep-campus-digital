@@ -162,7 +162,7 @@ describe("ClasesAdminView", () => {
     await waitFor(() => expect(boton).toHaveAttribute("aria-busy", "true"))
     fireEvent.click(boton)
     expect(fetchMock.mock.calls.filter(([e]) => String(e).includes("cursor="))).toHaveLength(1)
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/api/admin/clases?limite=50")
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/api/admin/clases?estado=activas&limite=50")
 
     respuestaDeLaSegunda(respuestaJson(200, pagina([clase(2)])))
 

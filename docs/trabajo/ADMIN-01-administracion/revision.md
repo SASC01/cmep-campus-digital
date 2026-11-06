@@ -2454,3 +2454,1193 @@ Además:
 13. El commit lleva 55 entradas de `git add` (59 archivos), incluidas las 5 pruebas nuevas del tester y la carpeta del encargo con la nota de la fusión.
 14. No entra `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.
 15. Recomendación: cierra la app de ChatGPT durante las suites. Hoy subió la carga al 80 %.
+
+## Verificación de la Enmienda 9 — ADMIN-01
+
+Plan enmendado: `plan.md` = `9e678ef4d34af4fa5990e396c0d1f13f941e303998b188240a42e9aa32556f26` (1712 líneas, sin CR), igual al de la entrada "Enmienda 9 del arquitecto" de `aprobacion.md` y a su copia `copias-plan/plan-admin01-v11-enmienda9-9e678ef4.md`. Copia previa: `copias-plan/plan-admin01-antes-enmienda9-e539dbcd.md` = `e539dbcd877f0da7b2e895dff4d8ac099d400ca1fadd66d9f7b36d0a1838b183`, la de la Enmienda 8. Contexto: `reporte-tester.md` = `06a7c4fd…` ("## Ronda 0 — ADMIN-01c", línea 1385). `styles/clases-r1.ataque.test.ts` en el árbol = `5b8d13d3…`, el de C-9 del tester.
+
+No corrí ninguna suite: todo lo de abajo es lectura del código y de las pruebas. Sin navegadores.
+
+### Cotejo del diff
+`git diff --no-index` completo contra la copia previa: 203 inserciones y 6 borrados, en 11 hunks. Todos pertenecen a un E9-n. Los 6 borrados son el encabezado, las dos celdas de la matriz y los pasos 14, 27 y 29; las celdas viejas quedan tachadas, no se pierden. Sin caracteres invisibles ni escapes `\uXXXX` en lo agregado (comprobado con `node`).
+
+| Hunk | Sección | E9-n |
+|---|---|---|
+| `@@ -1,5 +1,5 @@` | Estado | E9-13 |
+| `@@ -411,6 +411,14 @@` | §D-9, final (01d1 y 01d2 sin vidrio ni contexto; lectores de `puedeBorrar`) | E9-6 |
+| `@@ -422,6 +430,28 @@` | §D-10 (P-01c-1, P-01c-2, traducción de duplicar, sin línea de T-05) | E9-1, E9-2, E9-5 |
+| `@@ -440,6 +470,45 @@` | §D-11, bloque "Enmienda 9" (diálogos, vidrio, `MensajeError`, ref, reinicios, `errorQueRedirigeElCliente`, `components/foco/`) | E9-7 a E9-11 |
+| `@@ -1134,6 +1203,36 @@` | §D-R0 01c (C-9b, C-9c, C-9d, lista cerrada CH3-B15, vigiladas) | E9-1, E9-2, E9-3, E9-4 (vigiladas de foco), E9-5 |
+| `@@ -1141,12 +1240,24 @@` | §D-R0 01d1 y 01d2, vigiladas | E9-6 |
+| `@@ -1164,12 +1275,63 @@` | §D-R0 01f (C-13b, C-17b, C-35, C-36, C-37, CH3-C13, vigiladas) y 01g (C-19b, C-19c, C-38, C-39, CH3-C13, vigiladas) | E9-7 a E9-11 |
+| `@@ -1208,8 +1370,8 @@` | Matriz, dos celdas de 01c | E9-4 |
+| `@@ -1312,7 +1474,7 @@` | Paso 14 | E9-12 (remite a E9-1, E9-2 y E9-5) |
+| `@@ -1333,11 +1495,11 @@` | Pasos 27 y 29 | E9-12 (y E9-7 en el 29) |
+| `@@ -1513,3 +1675,38 @@` | Tabla de la Enmienda 9 | E9-1 a E9-13 |
+
+### (a) Las PARADAS
+
+**P-01c-1: correcto; los atributos sí hacen falta en el diálogo.**
+- `components/ui/dialog.tsx:44-50`: `DialogContent` se envuelve en `DialogPortal` (`DialogPrimitive.Portal` de `radix-ui`, sin `container`), que Radix monta en `document.body`. El contenido queda fuera de la raíz de `ContenedorRol`, que es la única que lleva `data-material` y `data-densidad` (`contenedor-rol.tsx:33-34`).
+- Todo lo que el contexto cambia se resuelve por los ancestros del DOM, no por el árbol de React:
+  - las variables de `tokens.css:83-98` (`[data-material="opaco"]` y `[data-densidad="densa"]`) se heredan por la cascada;
+  - `in-data-[material=opaco]:` de `button-variants.ts:14-17` es la variante `in-*` de Tailwind 4 (`frontend/package.json`: `^4.3.3`), un selector de ancestro.
+- Sin los atributos, «Cancelar» (`outline`) saldría con `--glass-strong` al 78 %, desenfoque de 32 px y borde blanco, en vez de `--surface` con borde de 2 px en tinta (§7.3), y mediría 44 px desde 768 px en vez de 36 (§8). El fondo del propio `DialogContent` ya es `bg-surface` (`dialog.tsx:47`), así que el defecto sería de sus controles. El diagnóstico de E9-1 es exacto.
+- "Sin `forceMount`" cuadra con las vigiladas que cuentan un solo elemento con contexto con el diálogo cerrado (`clases-admin-02c-r1:458`, `marco-r1:389-391`).
+
+**P-01c-2: `vidrio-fuerte` en el contexto opaco no se aparta de lo aprobado. No va al humano.**
+- §7.3, "Control segmentado de dos botones para elegir un tipo", pide `vidrio-fuerte`, `rounded-card` y `p-1` para el grupo dentro de una `Card`, y el indicador `--surface` que pasa a `--accent-soft` en contexto opaco. E9-2 lo copia tal cual.
+- §8 ("Opacas, sin vidrio") y §7.2 ("En pantallas densas no hay vidrio") se cumplen por el mecanismo aprobado de §3 ("Materiales", implementación) y de §7.2 (implementación): el contenedor del rol pasa las utilidades a `--surface` "sin que sus consumidores cambien de clase". En `tokens.css:83-91`, `vidrio-fuerte` queda en `--surface`, borde `--border`, sin brillo, sombra ni filtro.
+- Es lo mismo que ya hacen `Card` (vidrio) y los botones `outline` (vidrio fuerte) en todo `/admin`. Escribir `bg-surface` a mano sería la desviación.
+- El control vive en `/admin/clases`, dentro del contenedor del rol (no en un portal), así que sí recibe el contexto. Lo mismo vale para el control de `estado-de-pago-de-cuenta.tsx` (01f, C-17b): la ficha también cuelga del contenedor del rol.
+
+**P-01c-3: correcto.** `foco-02c-r4.ataque:178-187` declara `clave: () => ["clases", "admin"]`, y el caso de `:245-255` siembra el error con `prefetchQuery` en esa clave exacta. Con `[...CLAVE_CLASES_ADMIN, estado]`, el error sembrado quedaría en otra entrada y el caso pasaría por la primera carga propia de la vista. C-9d lo devuelve a la clave que lee la vista.
+
+**P-01c-4: "como hoy" coincide con el código y con las vigiladas.**
+- `clases-admin-view.tsx:43-53`: con `clases.isError` (también tras un `fetchNextPage` fallido) la vista entera pasa a `MensajeError` con `TEXTOS_CLASES_ADMIN.error`, o con el texto del cursor; sin aviso. Es lo que pide `foco-02c-r3:417-431`.
+- `:24-30` y `features/clases/hooks.ts:631-650`: `useFocoAlPasarAError` lleva el foco al `h1` (`tabIndex={-1}`, `:94`) solo si hubo datos, la consulta pasa a error y `focoPerdido(document)`. Una primera carga que falla no lo mueve, y un segundo fallo tampoco. Es lo que piden `foco-02c-r3:462-483` y `foco-02c-r4:229-311`.
+- Las celdas nuevas lo dicen con precisión ("solo si la lista ya tenía datos y el foco se perdió"). Sin C-n: bien, porque no cambia ningún comportamiento.
+
+### (b) Los C-n
+Cada uno es el cambio mínimo, conserva lo que protege su prueba y dice qué pasa a esperar. Comprobé el orden de cada lista contra `rutasDe(...).sort()` o el `.sort()` del caso.
+
+| C-n | Prueba | Juicio |
+|---|---|---|
+| C-9b | V-07, `data-material\|data-densidad` (`clases-r1:412-415`) | Suma solo `dialogo-borrar-clase.tsx`, en su lugar del orden (3 rutas). Sigue exigiendo igualdad exacta: nada más se marca opaco por su cuenta. Rojo hasta que exista el diálogo |
+| C-9c | V-07, `vidrioFuerte` (`:381-407`, hoy 11 rutas) | Suma `clases-admin-view.tsx` entre `panel-anuncios.tsx` y `components/bloque-destacado.tsx` (`clases-admin-view` < `components/`): 12 rutas. El vidrio sin variante, el azul y el contexto no cambian |
+| C-9d | `foco-02c-r4:185` | Lo endurece: el caso vuelve a probar "error ya en la caché". Las recargas de `:263-311` usan también `uso.clave`, que después del cambio es la clave exacta de la vista; siguen invalidando lo mismo |
+| C-13b | `cuentas-r1:532-534` | De "ningún archivo" a una lista exacta de dos. `infractores` lee el texto crudo, comentarios incluidos; §D-11 ya prohíbe nombrar la ruta en un comentario de otro archivo. Las tres excepciones son las de `CLAUDE.md` y §7.9 (dar de baja, restringir, cambio masivo) |
+| C-17b | V-07, las dos listas | 5 rutas de contexto y 13 de vidrio fuerte (`features/admin/…` < `features/auth/…`). Exacto |
+| C-19b, C-19c | V-07 y `cuentas-r1:532` | `dialogo-estado-pago-lote.tsx` entre `dar-de-baja` y `restringir-acceso` en las dos: 6 rutas y 3 archivos |
+| C-35, C-38 | `estatico-ch3-r2:114-133` y `:135-150` | `CON_REF` exige exactamente una guarda `…Ref.current` entre `preventDefault()` y la guarda `isPending`; los demás conservan la expresión de hoy. Lo endurece. El porqué del lugar es correcto: con la ref después de la línea de T-05, el segundo clic, con `isPending` todavía falso en su cierre y el error viejo a la vista, reiniciaría la mutación en vuelo. `:135-150` solo suma los cuatro (y en 01g, uno) archivos que el plan nombra; `otros` sigue en `[]` y la regla del render no cambia |
+| C-36, C-39 | `estatico-ch3-r1:172-182` | Suma los nombres fijos de §D-11 y las claves anidadas de texto fijo. No admite llamadas nuevas, ternarios ni `.message`. `usos.length >= 18`: hoy hay 18 en una línea; sale el de `buscador-de-cuenta.tsx` y entran los de 01f, así que el piso no cae |
+| C-37 | `apiClient-ch3-r1:59-84` | `features/admin/lib.ts` entra al principio de `usan` (`admin` < `calificaciones`), con `true, false`. `conLosTres` y las declaraciones (`estatico-ch3-r1:197`, `estatico-ch3-r2:93-104`, `apiClient-ch3:30-47`) no cambian |
+
+Listas cerradas de pruebas normales (no son C-n, las cambia el programador):
+- **CH3-B15 de `features/clases/errores-ch3.test.ts` (01c), choque real.** El formulario de duplicar necesita la clave `duplicar` en `CAMPOS_PINTADOS_DE_LA_CLASE`, y `:252-256` exige igualdad exacta. Las filas y el modo de `:178-205` son el mismo patrón de crear y editar. `:264-281` sigue en verde: `["nombre", "maestroIds"]` no es ninguna de las dos listas vigiladas, y `lib.ts` conserva sus 7 llamadas porque el cuerpo de `erroresDeLaClaseDeApi` no cambia.
+- **CH3-C13 (`errores-de-api-estatico.test.ts:115-173`).** `reinicianUnaMutacion` solo mira `admin` y `auth`, así que los reinicios sin condición de 01c (`features/clases`) no le llegan. Bien que no se nombren. `ficha-de-cuenta.tsx#restablecer` y `tabla-enlaces.tsx#revocar` son exactos: `const restablecer = useRestablecerContrasena()` (`ficha-de-cuenta.tsx:22`) y `const revocar = useRevocarEnlace()` (`tabla-enlaces.tsx:53`) están en el mismo archivo, y hoy ninguno llama a `reset()`.
+
+### (c) Los seis choques nuevos y el grep repetido
+Los seis son reales y cada remedio es correcto:
+1. **CH3-B15 en 01c:** arriba.
+2. **`estatico-ch3-r2:114-133`:** la expresión de hoy exige que la guarda `isPending` siga **inmediatamente** a `preventDefault()`. La ref de las filas 7 a 10 de CHORE-04 la rompe en `formulario-corregir-correo.tsx` (01f) y en los tres formularios de 01g. C-35 y C-38.
+3. **`estatico-ch3-r1:172-182`:** los `MensajeError` nuevos de admin pasan expresiones que hoy no admite el patrón. C-36 y C-39, con nombres fijos.
+4. **`apiClient-ch3-r1:59-84`:** la lista `usan` es exacta. C-37. Es la cuarta copia de `errorQueRedirigeElCliente`; ver los detalles.
+5. **CH3-C13:** arriba.
+6. **El filtro de 01g:** con tres opciones, el indicador necesita `translate-x-[200%]`, que prohíben `estatico-03c1-r1:93-97` (`translate-x-\[[234]00%\]`) y la lista exacta de `components/layout/estatico-r1:138-158`. El `NativeSelect` lo evita sin C-n.
+
+**Grep repetido** sobre las 36 pruebas que leen el código con `import.meta.glob` y las 6 que lo leen con `readFileSync` o `?raw`, buscando listas exactas de archivos, atributos de contexto, vidrio, diálogos, reinicios, `MensajeError`, importadores y nombres de ganchos, para lo que dibujan los "Se toca" de 01c, 01d1, 01d2, 01f y 01g. **No falta ningún choque:** ninguna otra prueba se pone en rojo con el diseño bien hecho. Comprobé además:
+- `refactor-01c-r1:221-262` compara `TEXTOS_ADJUNTOS` con `toMatchObject` y cuatro códigos de archivo sueltos. `ARCHIVO_EN_COPIA` no le llega (su lista cerrada sigue siendo `reexportaciones-01c:139-145`).
+- `estatico-02c-r1:62-90`: las filas 4, 6, 18, 24, 26 y 32 de §D-9 son exactamente los seis lectores de hoy.
+- Ninguna otra prueba vigila `components/ui/dialog` fuera de `cuentas-r1:532` y V-05/V-16 (que ya admiten `dialog.tsx`).
+- CAL-T-95 y CAL-T-97 (`tareas/estatico-01c-r1:55-104`), `estatico-03c1-r1:44-65` y CAL-1D09 alcanzan a 01d2 como dice E9-6.
+
+Sí hay **trampas** que el grep de E9 no nombra. No son choques, porque el diseño no obliga a caer en ellas, pero conviene que el tester las deje como observación en la ronda 0 de cada subentrega (N-03).
+
+### (d) Alcance, "Se toca", "No se toca" y lo visual
+- **Nada cambia fuera de lo necesario.** No cambian el alcance, el contrato, el backend, "Se toca" ni "No se toca" de ninguna subentrega, ni los textos de §D-12. Todo lo que E9 pide escribir cae en archivos que ya estaban en "Se toca":
+  - 01c: `clases-admin-view.tsx` y `dialogo-borrar-clase.tsx`.
+  - 01f: `features/admin/lib.ts`, `components/foco/hooks.ts` y los diálogos.
+  - 01g: `dialogo-estado-pago-lote.tsx` y los tres formularios.
+  - E9-2 deja el control en la vista justamente porque "Se toca" no tiene otro archivo.
+  - La lista cerrada de 01c crece en CH3-B15, una prueba normal, con un grep del arquitecto. Es la vía de las Enmiendas 4, 7 y 8.
+- **Lo visual aprobado no cambia.** El control segmentado sigue §7.3, el contexto opaco sigue §3, §7.2 y §8, y los diálogos llevan E-23, ya aprobado ("los de 01f y 01g igual").
+- **El `NativeSelect` de 01g ya lo cubre el plan aprobado. No es una decisión nueva.**
+  - §D-11 (`plan.md:460`) ya fija el filtro por rol de `/admin/usuarios` como `NativeSelect`.
+  - `DESIGN.md` §7.3 aprueba el `NativeSelect` como "Selector de una lista corta".
+  - §7.29 ya lo usa como filtro de una lista: "Mostrar" de "Mis calificaciones", propuesta aprobada (2026-10-26).
+  - §7.9 solo dice "Los filtros", sin nombrar el control. `plan.md:462` nombra las opciones ("Todos / Deudores / Al corriente"), no el control.
+  - Es información para el humano: puede cambiarla si quiere, pero no hace falta esperar su respuesta. Si la cambiara a un control segmentado de tres, haría falta otra enmienda: V-07, CL3-R1-35 y la lista de valores arbitrarios, o el indicador medido de §7.3.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+**N-01 — CH3-C13 de 01f no queda del todo cerrada.**
+- Dónde: §D-R0 01f, "la lista cerrada de 01f, CH3-C13": "y los que el programador declare en los diálogos y en `acciones-de-cuenta.tsx`".
+- Por qué importa: `reinicianUnaMutacion` cuenta `<archivo>#<m>` solo si `const <m> = use…(` y `<m>.reset()` están en el mismo archivo. Si la mutación de la baja se crea en `acciones-de-cuenta.tsx` y se pasa al diálogo por props, el `reset()` del diálogo no cuenta. Las entradas dependen de dónde la ponga el programador, y la regla de `AGENTS.md` pide la lista del grep del arquitecto.
+- Qué se espera: el programador declara en su resumen cada entrada nueva (`archivo#mutación`). Cada una tiene que ser un archivo de "Se toca" de 01f con un nombre fijo de §D-11 (`baja`, `reactivar`, `restringir`, `restablecerAcceso`, `editar`, `alta`, `cambiar`). Cualquier otra es PARADA. Lo contrasto en la verificación del resumen; no hace falta otra enmienda.
+
+**N-02 — "se eligen por código en `lib.ts`" admite dos lecturas, y una choca con C-36.**
+- Dónde: §D-11, "`MensajeError` en `features/admin`", último punto.
+- Por qué importa: si `lib.ts` devuelve el texto (`mensaje={textoDeLaFicha(usuario.error)}`), sería una cuarta forma que C-36 no admite, y saldría una PARADA en 01f.
+- Qué se espera: `lib.ts` da un predicado por código (por ejemplo, si la cuenta no existe). La vista hace el retorno temprano y pasa a `mensaje` el texto de `data.ts`. Así se lee junto con la frase anterior del mismo punto ("la vista hace un retorno temprano por caso").
+
+**N-03 — Trampas para la ronda 0 de cada subentrega (no son choques).** El diseño no obliga a caer en ellas, pero un programador puede hacerlo sin darse cuenta:
+- **01f y 01g, V-16 (`components/layout/estatico-r1:102-112`):** `\bfixed\b` también encuentra `table-fixed`, y una barra de lote fija. §7.9 la pone "Arriba".
+- **01f, CL3-R1-35 (`estatico-03c1-r1:93-97`):** `grid-cols-[45]\b` y `w-1/[45]` alcanzan también `md:grid-cols-4` o `lg:grid-cols-5` en los cinco accesos del dashboard, y cualquier columna `w-1/4`.
+- **01g, O-07 (`estatico-02c-r1:36-58`):** "Hecho por" de `/admin/movimientos` pinta `actor.nombre` o usa `FirmaDelAutor`. Nunca lee `.administracion` ni escribe "Administración".
+- **01d2, estáticas de `features/tareas` que enumeran archivos que 01d2 toca:**
+  - `entregas-01e-r1:741-768`: `NUEVOS_01E` incluye `detalle-tarea-view.tsx`, `entrega-de-alumno-view.tsx`, `acciones-de-la-tarea.tsx`, `hooks.ts` y `lib.ts`. Sin vidrio, `data-material`, `fixed` ni `from "@/features/`, y `renovarTrasErrorDeLaEntrega(` exactamente 3 veces en `hooks.ts`.
+  - `entregas-01e-r2:530-560`: sin `@/features/` en `entrega-de-alumno-view.tsx` ni en `detalle-tarea-view.tsx`.
+  - `entregas-01d-r3:675-718`: la lista de ganchos del alumno y del hilo exportados por `hooks.ts`.
+  - Con E9-6 y M-06 no hacen falta cambios (`esClaseArchivada` llega de `@/components/clase/lib`), pero no están nombradas.
+
+### Detalles menores
+- **`errorQueRedirigeElCliente` en `features/admin/lib.ts` es la cuarta copia idéntica** (tareas, calificaciones, clases). Va contra la regla 5 de `CLAUDE.md`, con el precedente de C-29 de CLASES-03c2. Subirla a `lib/` es un refactor de varios dominios, fuera de ADMIN-01. Candidata a un chore.
+- **O-01c-6, estado vecino del foco:** `useFocoAlPasarAError` recibe hoy `CLAVE_CLASES_ADMIN.join("/")`. Si la vista cambia de "Activas" a "Archivadas" sin desmontarse, la clave debería llevar el estado. E9-4 dice "como hoy" y no lo nombra; queda como observación del tester para el programador, y lo miro en la matriz del primer resumen de 01c.
+- **"Restablecer" (acceso) de la tabla de 01g** no tiene nombre fijo en la lista de 01g. Si pinta un `MensajeError`, usa `restablecerAcceso`, que C-36 ya admite.
+- **C-36 y C-39, "verde antes y después":** se lee como "antes y después de aplicar el C-n, con el código de hoy". Con el código de 01f y sin el C-n, el caso estaría en rojo.
+
+### Para el humano
+Nada que decidir. P-01c-2 no se aparta de lo aprobado, y el `NativeSelect` de 01g ya lo cubre el plan (§D-11, filtro por rol) y `DESIGN.md` (§7.3 y §7.29). Si prefieres un control segmentado en `/admin/estado-pago`, dilo antes de 01g: hace falta otra enmienda corta.
+
+### Veredicto de esta verificación
+**APROBADO.** El tester reanuda la ronda 0 de 01c con C-9 ya aplicado y suma C-9b, C-9c y C-9d. Los C-n de 01f y 01g van en sus rondas 0. N-01 y N-02 los contrasto en la verificación del resumen de 01f. N-03 queda para las observaciones del tester en cada ronda 0.
+
+## Arbitraje de P-01c-5 — ADMIN-01c
+
+Origen: `reporte-tester.md`, "### Tras la Enmienda 9" (línea 1813; `7dec660b…`). `foco-02c-r4.ataque.test.tsx` en el árbol = `0165d4e2…` (C-9d aplicado tal como lo escribe el plan; el diff contra `52f1c97` solo cambia `:185` y agrega su comentario). No corrí pruebas: el diagnóstico del tester se comprueba leyendo el archivo y `features/clases/hooks.ts:271-280`.
+
+**Decisión: (a).** C-9d se queda como está en el árbol, y sus tres casos (`:260`, `:283` y `:302`, que fallan en `:267`, `:290` y `:310`) son rojo esperado de 01c, como C-9, C-9b y C-9c. Así se corrige la frase "Debe esperar: verde antes y después" de C-9d en §D-R0 01c, sin otra enmienda. Lo que pasa a esperar:
+- **Rojo hoy, porque las recargas no alcanzan la consulta.** La vista de hoy guarda la lista en `["clases", "admin"]` (`hooks.ts:273`). `recargar` invalida `uso.clave(…)`, que con C-9d es `["clases", "admin", "activas"]`, una clave más larga que no es prefijo de la de hoy: no hay nueva petición y el texto de error nunca aparece.
+- **Verde con 01c**, cuando la consulta de "Activas" sea exactamente `[...CLAVE_CLASES_ADMIN, "activas"]` (§D-10). Con cualquier otra forma, por ejemplo con el estado delante del prefijo, siguen en rojo. Eso es correcto: fija la clave que el plan ya fijó.
+
+**Mi error en la verificación de la Enmienda 9.** En la fila de C-9d escribí que las recargas "siguen invalidando lo mismo". Eso solo es cierto con el código de 01c, no con el de hoy. Debí ver que la frase "verde antes y después" era falsa.
+
+**Por qué no (b)** (sembrar en `["clases", "admin", "activas"]` solo en `:245-255` y dejar `["clases", "admin"]` en las recargas):
+- **Hoy no prueba nada.** Con el código de hoy, el caso de la caché sembraría en una clave que la vista no lee y pasaría por su primera carga propia. Es el mismo hueco de P-01c-3, solo que al revés. Ese "verde antes" sería vacío.
+- **No fija la clave de "Activas".** `["clases", "admin"]` es prefijo de las dos claves por estado, así que las recargas pasarían con cualquier clave que empiece por él. El uso "/admin/clases" quedaría con dos claves distintas en el mismo bloque.
+- **Cambia más líneas** de las que fija C-9d y necesita texto nuevo. (a) ya está en el árbol.
+- **Un rojo esperado en la ronda 0 es el estado normal** de un C-n cuyo remedio aún no existe.
+
+**Con (a), cada caso del uso "/admin/clases" sigue probando lo mismo una vez implementado 01c.** Lo comprobé en el archivo:
+- **`:233-246` (dos primeras cargas que fallan):** no usan `clave`, así que no cambian.
+- **`:248-258` (error ya en la caché):** siembra en la clave exacta que lee la vista, como cuando se escribió el caso con `["clases", "admin"]`.
+- **`:260-281` (recarga que falla tras tener datos):** las dos mitades esperan el texto de error (`findByText`) antes de mirar el foco. Ninguna pasa sin la recarga real.
+- **`:283-300` (dos fallos seguidos):**
+  - el primer fallo espera el texto;
+  - el segundo y el tercero vuelven a pedir porque la clave alcanza la consulta, que es justo lo que hoy no pasa;
+  - la afirmación "no mueve el foco" se hace sobre una recarga que de verdad falló.
+- **`:302-320` (éxito, error, éxito, error):** espera el texto de error y su desaparición en cada vuelta.
+- **El otro bloque (`:323-353`)** excluye a "/admin/clases".
+- **El doble** (`:105-107`) responde a todo `/api/admin/clases?`, así que acepta `?estado=activas&limite=50`.
+- **La vigilada `foco-02c-r3:478`** invalida `["clases", "admin"]`, que es prefijo de las dos claves por estado. Sigue alcanzando la consulta con 01c.
+- **Ningún otro caso de la `*.ataque` queda sin probar nada.**
+
+**El comentario de C-9d no cambia.** "Las recargas invalidan por prefijo, como antes" es cierto con 01c: `invalidateQueries` sin `exact` compara por prefijo, y la clave de "Activas" es la clave completa de la consulta. Cambiarlo pediría otro texto de C-n y no aporta.
+
+**Para el programador de 01c:**
+- El rojo esperado completo de la ronda 0 es:
+  - V-06 (C-9);
+  - V-07 (C-9c y, detrás, C-9b);
+  - los tres casos de `foco-02c-r4` del uso "/admin/clases" (C-9d).
+- Los cinco pasan a verde con la implementación.
+- El resumen los nombra uno por uno, con su título exacto.
+- La llave de reinicio de `useFocoAlPasarAError` lleva el estado (O-01c-6).
+
+**Veredicto:** P-01c-5 resuelta con (a). La ronda 0 de 01c queda cerrada sin más cambios del tester; sigue el programador.
+
+## Verificación de la Enmienda 10 — ADMIN-01
+
+Plan enmendado: `plan.md` = `3822b6c0adb9823edb9c552dd6cfac78f4e0ffa2f4eca9fcade0be07d4fbdd78` (1768 líneas, sin CR). Es igual a la entrada "Enmienda 10 del arquitecto" de `aprobacion.md` y a su copia `copias-plan/plan-admin01-v12-enmienda10-3822b6c0.md`. Copia previa: `plan-admin01-antes-enmienda10-9e678ef4.md` = `9e678ef4…`, la de la Enmienda 9. Contexto: `resumen-programador.md`, "ADMIN-01c — PARADA en el paso 14" (línea 744).
+
+Entorno: la carga dio 24 % y 25 %, y después 21 % y 21 %. No había ningún `node` con `vitest`. Corrí una sola prueba acotada, sin cambiar nada del árbol. Sin navegadores.
+
+### Cotejo del diff
+`git diff --no-index` completo contra la copia previa: 68 inserciones y 12 borrados, en 14 hunks. Los 12 borrados son líneas reemplazadas, y lo que retiran queda tachado:
+- el encabezado;
+- §D-9;
+- dos de §D-10;
+- §D-12;
+- ADM-1C01 y ADM-1C03;
+- "Nada más del archivo cambia";
+- tres filas de la matriz;
+- el paso 14.
+
+Sin caracteres invisibles ni escapes `\uXXXX` en lo agregado (comprobado con `node`).
+
+| Hunk | Sección | E10-n |
+|---|---|---|
+| `@@ -1,5 +1,5 @@` | Estado | E10-7 |
+| `@@ -410,7 +410,7 @@` | §D-9, lista compartida | E10-6 |
+| `@@ -426,7 +426,7 @@` | §D-10, Duplicar (aviso siempre; foco como al crear o editar) | E10-4, E10-3 |
+| `@@ -437,7 +437,7 @@` | §D-10, nombre del grupo | E10-5 |
+| `@@ -520,9 +520,10 @@` | §D-12 (avisos; texto nuevo) | E10-4, E10-5 |
+| `@@ -730,9 +731,9 @@` | Pruebas ADM-1C01 y ADM-1C03 | E10-5; E10-3 y E10-4 |
+| `@@ -1224,7 +1225,23 @@` | §D-R0 01c (CH3-B01 y grep de mapas) | E10-1, E10-2 |
+| `@@ -1244,6 +1261,9 @@` | §D-R0 01d1, vigiladas | E10-2, E10-6 |
+| `@@ -1258,6 +1278,10 @@` | §D-R0 01d2, vigiladas | E10-2, E10-6 |
+| `@@ -1306,6 +1330,7 @@` | §D-R0 01f, vigiladas | E10-2 |
+| `@@ -1332,6 +1357,7 @@` | §D-R0 01g, vigiladas | E10-2 |
+| `@@ -1372,14 +1398,14 @@` | Matriz: archivar y restaurar (01c), «Duplicar clase», «Restaurar» del aviso (01d1) | E10-6; E10-3 y E10-4 |
+| `@@ -1474,7 +1500,7 @@` | Paso 14 | E10-1 (y remite a E10-3 a E10-6) |
+| `@@ -1710,3 +1736,33 @@` | Tabla de la Enmienda 10 | E10-1 a E10-7 |
+
+### (a) E10-1, CH3-B01
+- **Corrida de hoy**, desde `frontend/`, sin cambiar nada: `npx vitest run src/features/clases/errores-ch3.test.ts src/features/clases/reexportaciones-01c.test.ts src/components/adjuntos/errores-ch3.test.ts` (14:52:08) da `Test Files  1 failed | 2 passed (3)` y `Tests  1 failed | 37 passed (38)`. El único rojo es CH3-B01: `expected [ 'ALMACEN_NO_CONFIGURADO', …(12) ] to deeply equal [ 'ALMACEN_NO_CONFIGURADO', …(11) ]`. Coincide con la PARADA del programador.
+- **La causa es la que dice la enmienda.** `features/clases/data.ts:286` esparce `MENSAJES_POR_CODIGO_DE_ARCHIVO` en `MENSAJES_POR_CODIGO_DE_CLASES`, y `errores-ch3.test.ts:95-97` compara sus claves con las de `TEXTOS_FIJOS_DE_SIEMPRE` (`:45-60`) con igualdad exacta.
+- **El alcance es mínimo y pasa a verde.** Las dos líneas van después de `RESPUESTA_NO_ENCONTRADA` (`:59`) y antes de la llave (`:60`), con un comentario por entrada, como las de CLASES-03d y 03e (`:55-59`).
+  - Con ellas, las claves vuelven a coincidir (12 y 12).
+  - El bucle de `:98-100` pide `mensajeDeErrorClases(new ApiError("ARCHIVO_EN_COPIA", "x", 400))`, que sale del mapa por código: `ARCHIVO_EN_COPIA` no está entre los cinco códigos nuevos con mensaje del servidor de 01c.
+  - El texto de la línea es carácter por carácter el de `components/adjuntos/data.ts` (diff del programador) y el de §D-12.
+  - La corrida acotada queda en 38 de 38. El número de casos no cambia, porque CH3-B01 es un solo caso.
+- **El comentario de `reexportaciones-01c.test.ts:146`** ("cuatro códigos" pasa a "cinco") es la única otra línea. `:139-145` ya está en la lista cerrada y el programador ya la cambió.
+
+### (b) E10-2, el grep de mapas
+Repetí el grep en todos los `*.test.*` de `frontend/src`: `MENSAJES_POR_CODIGO`, `MENSAJES_ERROR_*`, `TEXTOS_FIJOS` y `mensajesPorCodigo`. Está completo. Solo enumeran las claves de un mapa con igualdad exacta:
+- CH3-B01 de clases (`:95`, E10-1);
+- `reexportaciones-01c:139-145` (ya en la lista cerrada);
+- `features/admin/errores-ch3.test.ts:98` (`MENSAJES_ERROR_ADMIN`);
+- `features/auth/errores-ch3.test.ts:57` (`MENSAJES_ERROR_AUTH`).
+
+Los dos últimos no cambian en ninguna subentrega, y E10-2 los deja vigilados con PARADA. El resto recorre el mapa (`reexportaciones-01c:147`, `components/adjuntos/errores-ch3.test.ts:17`, `admin/errores-ch3-r1:438`, `auth/errores-ch3-r1:373`), nombra claves sueltas (`dudas-lib-03e:91-93`, `formularios-ch3`, `secuencias-ch3-r2`, `como-se-entrega-01a:248-255`, `calificaciones/errores-ch3:18-28`) o usa `toMatchObject` (`refactor-01c-r1:222`). Ninguna prueba nombra `MENSAJES_POR_CODIGO_DE_TAREAS`. Las reglas de PARADA por subentrega cierran el hueco que dejó la Enmienda 1.
+
+### (c) E10-3, el foco tras duplicar
+- **Lo comprobé en el código.** `FormularioClase.alTerminar` (`formulario-clase.tsx:62-68`) avisa con `toast.success` y hace `navigate`, sin mover el foco. Crear (`/admin/clases/nueva`) y editar (`…/editar`, dentro de `ClaseLayout`) lo usan.
+- **Es la práctica de todo el proyecto.** Tras una mutación que navega, ninguna vista mueve el foco a mano:
+  - `crear-tarea-view.tsx:22`;
+  - `editar-tarea-view.tsx:87`;
+  - `editar-recurso-view.tsx:104`;
+  - `formulario-unirse-clase.tsx:43`;
+  - `acciones-de-la-tarea.tsx:71`.
+- **El aviso anuncia el resultado.** `sonner` es una región viva.
+- **`ClaseLayout` no mueve el foco al cambiar de clase.** `useFocoAlPasarAError(…, claseId, errorRef)` (`clase-layout.tsx:30`) reinicia su memoria cuando cambia la clave, y en ese render no mueve el foco.
+- **Ninguna regla del sistema de foco pide otra cosa.** "Nunca a `<body>`" de `DESIGN.md` §7.14 y de `components/foco` cubre un control que desaparece dentro de la misma vista, por una acción en línea o por una recarga. No cubre el cambio de ruta tras una acción que termina, y el proyecto no tiene un gestor de foco por ruta.
+- **"Como hoy" no incumple una razón de accesibilidad que la matriz aprobada protegiera.** El `h1` de la clase nueva era una mejora: sería el único flujo de navegación con foco dirigido, y pediría `encabezado-clase.tsx` (01d1) en 01c. Si el humano lo quiere, conviene decidirlo para todas las navegaciones tras una acción (un chore), no solo para duplicar. Lo dejo para el humano, sin bloquear.
+
+### (d) E10-6, `claveClasesAnteriores`
+- **Correcto.**
+  - `consultarMeDeLaCuentaNueva` (`features/auth/hooks.ts:45-48`) hace `queryClient.removeQueries()` al entrar, y el cierre de sesión hace `queryClient.clear()` (`:118`). La caché es de cada pestaña y cada cuenta.
+  - `GET /clases/anteriores` es solo del alumno y del maestro. Archivar y restaurar son solo del admin. En la sesión del admin esa clave nunca tiene datos, e invalidarla no renovaría nada.
+- **El alumno y el maestro sí ven el cambio.** `app/providers.tsx:14` fija `staleTime: 30_000`, con `refetchOnMount` en su valor por defecto. Al montar la lista con datos vencidos, la vuelven a pedir. Es lo mismo que pasa hoy con una clase nueva o una baja en inscritas e impartidas.
+- **01c ya no tiene que tocar `services/clasesService.ts`**, que no estaba en su "Se toca". La matriz quita la clave de las tres filas (archivar y restaurar en 01c, «Restaurar» del aviso en 01d1), y ADM-1C14 no la nombraba.
+
+### (e) E10-4 y E10-5, los textos
+- **"Estado de las clases"** (nombre accesible del grupo "Activas" / "Archivadas"): sin problema de tono (§9). Es concreto, en español de México, con mayúscula solo en la primera palabra y sin palabras prohibidas.
+  - Sigue el precedente de `aria-label={TEXTOS_CLASE.secciones}` ("Secciones de la clase", `secciones-de-clase.tsx:65`) y el "Tipo de publicación" de §7.3. Es un grupo, no un botón: la regla del `sr-only` de los botones no aplica.
+  - Lo aprueba el humano. Bien que el paso 14 diga que el programador no lo escribe antes.
+- **"Clase duplicada. Los archivos de los recursos pueden tardar unos minutos en estar disponibles."**, ahora siempre: sin problema de tono. Dice qué pasó y qué puede esperar, y "pueden" lo mantiene cierto aunque la original no tuviera archivos.
+  - Su único costo es una segunda frase sin objeto cuando no había recursos con archivos.
+  - La alternativa (saber si los había) cambiaría `shared/` y el backend en una subentrega de frontend. Es razonable llevarlo al humano como está.
+
+### (f) Nada más cambia
+Los 14 hunks pertenecen a E10-1 a E10-7. No cambian:
+- el alcance, el contrato, el backend ni `shared/`;
+- "Se toca" ni "No se toca" de ninguna subentrega, ni el conteo de archivos de 01c. `errores-ch3.test.ts` ya estaba en la lista cerrada por la Enmienda 9, y `services/clasesService.ts` sale de lo que 01c habría tenido que tocar;
+- los C-n ni las cifras de V-06 y V-07;
+- las `*.ataque`;
+- los demás textos de §D-12.
+
+ADM-1C01 y ADM-1C03 solo ganan lo que piden E10-5, E10-3 y E10-4.
+
+El árbol tiene, además de las `*.ataque` de la ronda 0, los dos archivos de la PARADA del programador: `components/adjuntos/data.ts` y `reexportaciones-01c.test.ts:142`. Los dos están dentro de lo que pide el plan.
+
+### Problemas que bloquean
+Ninguno.
+
+### Detalles menores
+- El comentario de la constante en `errores-ch3.test.ts:44` ("Lo que cada código con texto fijo daba antes de CHORE-03") ya no es exacto desde CLASES-03d. E10-1 hace bien en no tocarlo: cada entrada posterior lleva su comentario de origen.
+- `ARCHIVO_EN_COPIA` se escribe como literal en `components/adjuntos/data.ts`, no como una clave de `MENSAJES_ERROR_DE_ARCHIVOS`. Es lo que pide §D-10 y no hay prueba que lo exija de otra forma. Lo anoto para la verificación del resumen de 01c, por si el programador lo mueve: `refactor-01c-r1:445` fija dónde se define `MENSAJES_ERROR_DE_ARCHIVOS`.
+
+### Para el humano
+- **Aprobar el texto nuevo "Estado de las clases"** (E10-5). El programador no lo escribe antes.
+- **El aviso "Clase duplicada…" sale siempre** (E10-4). El texto ya estaba aprobado; solo cae su condición.
+- **Opcional, sin bloquear:** si quieres que, tras crear, editar o duplicar, el foco vaya al título de la página nueva, es una decisión para todas las navegaciones tras una acción (un chore), no solo para duplicar.
+
+### Veredicto de esta verificación
+**APROBADO.** Con el texto de E10-5 aprobado por el humano, el programador reanuda el paso 14 de 01c: aplica CH3-B01 y el comentario de `:146` con el alcance exacto de §D-R0 01c, y la corrida acotada debe dar 38 de 38 antes de seguir.
+
+## Verificación del resumen — ADMIN-01c — implementación
+
+Veredicto: **ACEPTADO** (tras la corrección de M-01; ver "Re-verificación de M-01" al final de esta sección). Primero salió DEVUELTO por una cifra (M-01), que solo cambiaba el resumen: el código, las pruebas, la matriz, los textos y "No se toca" estaban bien.
+
+Plan: `plan.md` = `3822b6c0…` (Enmiendas 1 a 10), comprobado. Resumen: `resumen-programador.md` = `06c3c770…`, sección "ADMIN-01c — Implementación (2026-11-05)" (línea 783). Base dentro de los paquetes: `52f1c97`. Ronda 0: `reporte-tester.md`, "Ronda 0 — ADMIN-01c" con "Tras la Enmienda 9", y mi arbitraje de P-01c-5.
+
+Entorno: 01c es solo frontend (PA-01 no aplica). La otra copia de trabajo no se usa. Sin navegadores. Puerta de carga: 17 % y 20 % a las 15:38:47, sin ningún `vitest`, antes de la suite de módulos; 25 % y 18 % antes de la corrida acotada. Corrí una cosa a la vez. Huella del árbol entregado (`git diff 52f1c97 -- frontend` más los ocho archivos sin rastrear, concatenados): `6eb27b0a1a0dd3b82060cd52771a695d4633642fba53402799b593e2c9045a94`.
+
+### Cifras: resumen contra mi corrida (desde `frontend/`)
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0; `All matched files use Prettier code style!`; última línea `> tsc -b` | Igual: exit 0, la misma línea de Prettier y `> tsc -b` sin errores |
+| `npm run build` | exit 0, `✓ built in 1.22s` | exit 0, `✓ built in 859ms` (el tiempo no es una cifra que contrastar) |
+| Suite de módulos, comando literal del resumen | `Test Files 133 passed (133)` · `Tests 2456 passed (2456)` | **Igual:** `Test Files 133 passed (133)` · `Tests 2456 passed (2456)` (15:39:00, 135 s). Sin avisos de React ni `stderr` en la salida |
+| Corrida acotada de E10-1 | `Tests 38 passed (38)` (14:56:55) | **`Test Files 3 passed (3)` · `Tests 42 passed (42)`** (15:41:41). Por archivo, con `npx vitest list` y `grep -a`: `features/clases/errores-ch3.test.ts` 28, `reexportaciones-01c.test.ts` 13, `components/adjuntos/errores-ch3.test.ts` 1. **No coincide (M-01)** |
+| `npx vitest list` de los tres archivos nuevos | 78: 51, 22 y 5 | **Igual:** 78 (51, 22 y 5); los 78 llevan "ADM-1C" en su ruta de títulos |
+| V-01 | 256; lista vigente `ac79306a…`; `sha256sum -c` sin diferencias | **Igual:** 256 rastreadas, ninguna sin rastrear; `sha256sum -c` de la lista `ac79306a…` da 0 diferencias. Contra `52f1c97` solo cambian `styles/clases-r1.ataque.test.ts` (`550ccd96…`) y `foco-02c-r4.ataque.test.tsx` (`0165d4e2…`), las de C-9 a C-9d |
+
+### Problemas que bloquean
+
+#### M-01 — La corrida acotada de E10-1 da 42, no 38
+- **Dónde:** `resumen-programador.md`, "Verificación", viñeta "Corrida acotada de E10-1" (`Tests 38 passed (38)`, 14:56:55).
+- **Por qué importa:** `.claude/agents/manager.md`, "Verificación del resumen del programador", punto 3, y `AGENTS.md`, "Resúmenes verificables del programador": toda cifra sale de una corrida sobre lo que se entrega, y una que no coincide devuelve el resumen.
+- **La causa, comprobada:** los 4 casos que faltan son de CH3-B15, en el mismo `errores-ch3.test.ts`:
+  - tres de CH3-B15 (1) en el modo `duplicar` (`nombre`, `maestroIds` y `descripcion`);
+  - uno de CH3-B15 (2), "toda la tabla fuera de contrato da null en el modo duplicar".
+  La Enmienda 9 los sumó a la lista cerrada. Quedan 38 + 4 = 42. La corrida de las 14:56:55 es anterior a esos cambios (la suite de módulos es de las 15:28:50), así que la cifra es de otro árbol.
+- **Lo que me toca:** el "38" lo dicen también el plan (E10-1, "Debe esperar: … 38 casos") y mi verificación de la Enmienda 10 ("La corrida acotada queda en 38 de 38"). Ninguno contó los cuatro casos de CH3-B15. El error del plan y el mío no cambian la regla: la cifra del resumen tiene que ser la de su árbol.
+- **Qué se espera:**
+  - El programador vuelve a correr la acotada sobre el árbol entregado, sin cambiar nada.
+  - Reporta en el resumen el comando, la hora y la última línea.
+  - Si el árbol cambia por cualquier motivo, lo dice: la huella de arriba ya no valdría.
+  - **Re-verificación:** con la misma huella, solo repito la acotada; el resto de esta verificación se mantiene.
+
+### Pruebas requeridas: ADM-1C01 a 1C17, 1C04b y N-24
+Cotejé cada título del resumen con los 78 de `npx vitest list`, uno por uno. Todos existen con el texto exacto, en el archivo que dice el resumen.
+
+| Id | Casos |
+|---|---|
+| ADM-1C01 | 1 |
+| ADM-1C02 | 3 |
+| ADM-1C03 | 2 |
+| ADM-1C04 | 4 |
+| ADM-1C04b | 1 |
+| ADM-1C05 | 5 |
+| ADM-1C06 | 4 |
+| ADM-1C07 y ADM-1C16 (c) | 8 (cuatro caminos en cada pestaña) |
+| ADM-1C08 y ADM-1C16 (d) | 2 |
+| ADM-1C09 | 1 |
+| ADM-1C10 | 3 |
+| ADM-1C11 | 3 |
+| ADM-1C12 | 4 |
+| ADM-1C13 | 1 |
+| ADM-1C14 | 5 |
+| ADM-1C15 | 15 |
+| ADM-1C16 (a), (b) y (c) | 1, 3 y 1 |
+| ADM-1C17 (a) y (b) | 5 y 2 |
+| N-24 | 2 |
+| Matriz | 2 |
+| **Total** | **78** |
+
+- Los caminos de ADM-1C06, 1C07, 1C10, 1C11, 1C12 y 1C16 (c) están en `clases-admin-01c-rutas.test.tsx`, que monta `Providers` de `app/providers.tsx` y el router real.
+- ADM-1C05 recorre `ENTRADAS_FUERA_DE_CONTRATO` en el modo `duplicar` por CH3-B15 (2). ADM-1C10 lo recorre por CH3-B01 y por la vigilada `components/adjuntos/errores-ch3.test.ts`. Los dos, como dice el resumen.
+- **Los cinco rojos esperados** existen con su título exacto y están en verde en mi corrida de módulos:
+  - V-06 (`styles/clases-r1.ataque.test.ts:178`);
+  - V-07 (`:368`, con C-9c y C-9b);
+  - los tres casos del uso "/admin/clases" de `foco-02c-r4.ataque.test.tsx` (`:260`, `:283` y `:302`), dentro de "ataque CLASES-02c r4: useFocoAlPasarAError en $nombre".
+- **`enEspera=` por archivo:** el que dice el resumen y C-9 (76 en total): `tabla-clases-admin.tsx` 1, `confirmar-archivado.tsx` 1, `dialogo-borrar-clase.tsx` 1, `formulario-duplicar-clase.tsx` 1, `duplicar-clase-view.tsx` 0 y `clases-admin-view.tsx` 1.
+
+### La matriz de avisos y recargas, contra el código y contra la del plan
+Coincide celda por celda con `hooks.ts`, `clases-admin-view.tsx`, `tabla-clases-admin.tsx`, `confirmar-archivado.tsx`, `dialogo-borrar-clase.tsx` y `formulario-duplicar-clase.tsx`. También coincide con la matriz del plan, incluidas sus dos celdas "como hoy" (Enmienda 9).
+
+- **Lista y «Cargar más clases».**
+  - El `400` del cursor y el `5xx` reemplazan el contenido con `MensajeError`, con retornos tempranos por caso: predicado `esErrorDeCursor` y textos de `data.ts`, como pide O-01c-15. No hay aviso.
+  - `useFocoAlPasarAError` recibe la llave por estado (`claveClasesAdmin(estado).join("/")`, O-01c-6).
+  - El control segmentado queda fuera de `contenido()`, así que sigue en pantalla con la lista en error.
+- **Archivar y restaurar.**
+  - Los avisos viven en el gancho, uno por intento. No avisan de un error con que `apiClient` redirige.
+  - `renovarTrasGestionar` corre en el `onSuccess` y en los `409`/`SIN_ACCESO_A_LA_CLASE` (`esCambioDeLaClaseEnGestion`). Renueva el prefijo `CLAVE_CLASES_ADMIN`, `invalidarListasDeClases` y el detalle (`exact`), sin `claveClasesAnteriores` (E10-6).
+  - La mutación sigue pendiente hasta que la lista renovada llega. Así `enEspera` cubre la ventana, y el foco lo decide `useFocoAlQuitarUnaClase`, que lee la fila con foco.
+- **Conteo.** `staleTime` y `gcTime` en 0, y `removeQueries` al cerrar.
+  - `CLASE_NO_ARCHIVADA` muestra el texto del servidor (`mensajeDeConsultaClases`). Cualquier otro error muestra `TEXTOS_BORRAR_CLASE.errorConteo`.
+  - Sin `conteo.data`, no se pinta «Sí, borrar definitivamente».
+- **Borrado.**
+  - El error va en el `MensajeError` del diálogo, sin aviso. Con el diálogo desmontado avisa el gancho (`useMontado`).
+  - El éxito avisa desde el gancho y renueva las listas.
+  - `reset()` sin condición, en `cerrar()`.
+- **Duplicar.**
+  - `alFallar` sigue el orden de la matriz: redirige, `MAESTRO_NO_ENCONTRADO` en el selector, campo pintado, y aviso con los errores de campo limpios.
+  - En el éxito, el aviso y `navigate` los hace el formulario montado; el gancho avisa solo si el formulario ya no está.
+- **«Descargar».** `ARCHIVO_EN_COPIA` entra en `MENSAJES_POR_CODIGO_DE_ARCHIVO` y no cambia nada más.
+- **"En vuelo a la vez" y "con la vista desmontada".**
+  - Cada fila tiene su mutación de restaurar y su ref.
+  - El diálogo es modal (la página queda inerte).
+  - Archivar y restaurar avisan también desmontados. El borrado avisa su error solo sin el diálogo. Las listas en error salen de la caché al desmontarse (`useRecuperarListaDeClasesAdmin`).
+- **Comprobación extra del foco tras borrar desde el diálogo.** ADM-1C04 solo borra la primera fila, y en ese caso "vecina" e "índice 0" coinciden. Por eso corrí una sonda propia, fuera del repositorio y sin tocar el árbol: borrar la primera, la de en medio y la última de `[5, 6, 7]`. El foco quedó en el «Borrar definitivamente» de 6, 7 y 6, respectivamente: 3 de 3, como pide §7.14.
+
+### Textos (§D-12 y Enmienda 10)
+- El título del diálogo es exactamente `Borrar definitivamente «{nombre}»` (`TEXTOS_BORRAR_CLASE.titulo`), sin comillas exteriores. ADM-1C04b lo compara por `textContent`.
+- «Estado de las clases» va como `aria-label={TEXTOS_CLASES_ADMIN.estadoDeLasClases}` en el `role="group"`, sin rótulo visible.
+- El aviso de duplicado sale siempre, con el texto aprobado, desde el formulario montado o desde el gancho, nunca desde los dos.
+- Los demás coinciden carácter por carácter con §D-12:
+  - la consecuencia, con singulares y ceros;
+  - la confirmación de archivar;
+  - "Aún no hay clases archivadas";
+  - los tres avisos;
+  - la frase del conteo;
+  - "Archivada".
+- Ningún texto nuevo es "Crear clase" ni "Editar clase" (O-01c-8). Sin emojis.
+
+### E10-2
+`MENSAJES_POR_CODIGO_DE_CLASES` no gana ningún código fijo propio: `ARCHIVO_EN_COPIA` llega solo por el mapa que esparce, como pide §D-10. `features/tareas/data.ts` y `features/admin/` no están en el diff. Los cinco códigos nuevos van a `CODIGOS_CON_MENSAJE_DEL_SERVIDOR`, como fija la lista cerrada (`:84`, de 15 a 20).
+
+### Decisiones donde el plan calla
+Las once son aceptables. Comento las que pidió el orquestador y las que tienen consecuencia.
+- **Foco al cancelar el diálogo, de vuelta a «Borrar definitivamente»** (`useFocoAlCerrarElBorrado`, con `onCloseAutoFocus` prevenido): cumple §7.11 ("el foco vuelve al botón que lo abrió") y §7.14. Sin `DialogTrigger`, Radix lo dejaría en `<body>`. ADM-1C09 lo comprueba.
+- **El diálogo no se cierra con el borrado en vuelo:** correcto. El `DELETE` no se puede cancelar. Si el diálogo se cerrara, su error se perdería o saldría como aviso, en contra de la matriz ("en el diálogo, sin aviso"). Escape y el velo no hacen nada mientras tanto. Detalle abajo: «Cancelar» tampoco responde, sin decir por qué.
+- **Recargas solo de las listas en error y su salida de la caché al desmontar:** correcto, y mejor que "marcar vieja" (§D-11, Enmienda 1).
+  - `invalidateQueries` sobre una consulta infinita vuelve a pedir cada página con su `pageParam` guardado, así que repetiría el cursor vencido.
+  - `resetQueries` y `removeQueries` empiezan desde la primera página, sin cursor ni posición, que es lo que prometen ADM-1C07, 1C12 y 1C16 (c).
+  - Una lista sana no se vuelve a pedir, así que las pruebas que cuentan peticiones no cambian.
+  - Cumple la regla de frases de recuperación de `AGENTS.md` por cada camino probado.
+- **El detalle se renueva al archivar o restaurar** (`exact`): correcto y barato. Es lo que leerá el aviso de clase archivada de 01d1 cuando el admin entre a la clase, y no toca `claveClasesAnteriores` (E10-6).
+- **Renovar también ante `SIN_ACCESO_A_LA_CLASE` al archivar o restaurar:** correcto (otra pestaña la borró). La analogía no se extendió al conteo ni al borrado: ver N-01c-1.
+- **Nombres accesibles** (texto visible `aria-hidden` y un `sr-only` con la acción y la clase): resuelve O-01c-3, y el nombre contiene el texto visible al inicio (WCAG 2.5.3). Se aparta de la letra de §7.9 ("nunca `aria-hidden` ni `aria-label`"): ver N-01c-3.
+- **`noSeEncontroElMaestro`**: el cambio de nombre por `estatico-02c-r1:63` es legítimo y no tocó pruebas.
+
+### O-01c-1 a O-01c-15
+Todas atendidas.
+
+| Obs. | Qué comprobé |
+|---|---|
+| O-01c-1 | Cifras por archivo como C-9. Sin `disabled`, `aria-busy` ni `aria-disabled` en los archivos nuevos. El diálogo no tiene «Reintentar» |
+| O-01c-2 | Solo clases de la escala propia: `text-small`, `rounded-card`, `rounded-row`, `bg-surface`, `in-data-[material=opaco]:bg-accent-soft`, `aria-pressed:text-link`, `w-1/2` y `translate-x-full`. Sin texto rojo ni corchetes nuevos (el grep de colores y medidas sueltas dio vacío) |
+| O-01c-3 | Ver la decisión de los nombres accesibles |
+| O-01c-4 | «Abrir» es el primer enlace de la fila. Se conserva `data-clase-id` |
+| O-01c-5 | "Como hoy" |
+| O-01c-6 | `CLAVE_CLASES_ADMIN` conserva `["clases", "admin"]`. Hay una clave por estado y la llave del foco va por estado |
+| O-01c-7 | No escribe `?estado=` al montar. `setParametros` agrega al historial. La URL es `estado=activas&limite=50` |
+| O-01c-8 | "Crear clase" sigue en la vista. Sin `perspectivaDeRuta(` |
+| O-01c-9 | `CursorDeClasesAdmin` y `AccionDeFilaDeClase` están en `types.ts`. Quedan tipos de objeto en línea (detalle) |
+| O-01c-10 | Sin `?? []` y sin ternarios anidados en JSX |
+| O-01c-11 | Los cinco códigos están en la lista. Sin `.message`, sin `if (m.isError) m.reset()` y sin redefinir `esErrorDeCursor` |
+| O-01c-12 | `lib/unir-paginas.ts`: puro, sin `@/features/`, `.message`, `?? []` ni `console.` |
+| O-01c-13 | En `components/adjuntos/data.ts` solo cambian el comentario y la línea |
+| O-01c-14 | Sin `forceMount`. `Dialog` y sus atributos solo en `dialogo-borrar-clase.tsx`, y la tabla no importa `components/ui/dialog`. La confirmación en línea no lleva atributos. ADM-1C09 cuenta 0 elementos con contexto mientras el diálogo está cerrado (la vista va sin `ContenedorRol`) |
+| O-01c-15 | Predicados en `lib.ts` (`esClaseNoArchivada`, `noSeEncontroElMaestro`, `esCambioDeLaClaseEnGestion`) y textos en `data.ts` |
+
+### "No se toca" y lista cerrada, contra `52f1c97`
+- `git diff --name-only 52f1c97 -- backend shared infra AGENTS.md CLAUDE.md .claude docs/DESIGN.md docs/ESTADO.md docs/PRD.md docs/ARCHITECTURE.md docs/ARCHITECTURE-ESSENTIALS.md` sale vacío.
+- En `frontend/` cambian 13 archivos rastreados y hay 8 sin rastrear. Todos son de "Se toca" de 01c (con `lib/unir-paginas.ts` y su prueba), pruebas nuevas del encargo, la lista cerrada o las dos `*.ataque` de C-9 a C-9d.
+- `services/clasesService.ts` y `encabezado-clase.tsx` no se tocan.
+- **Lista cerrada, por `git diff -U0`:**
+  - `clases-admin-view.test.tsx` cambia solo en `:165`;
+  - `errores-ch3.test.ts` cambia solo en las dos líneas de CH3-B01, `:84` (15 → 20) y CH3-B15 (1) a (3), exactas;
+  - `reexportaciones-01c.test.ts` cambia solo en `ARCHIVO_EN_COPIA` en `:139-145` y en el comentario «cinco códigos».
+- La vigilada `clases-admin-view.test.tsx:104-127` no cambia.
+- Fuera de los paquetes solo cambian archivos de `docs/trabajo/ADMIN-01-administracion/`. El archivo sin rastrear `docs/trabajo/DEPLOY-investigacion-vps.md` es ajeno al encargo.
+
+### `docs/DESIGN.md`: el patrón nuevo va al cierre (A-04)
+Lo confirmo.
+- `AGENTS.md` pide documentar todo patrón visual nuevo "en ese mismo encargo", y el encargo es ADMIN-01, no la subentrega.
+- El plan lo fija así: §D-R0 01c ("`docs/DESIGN.md` no (va al cierre)"), A-04 y el paso 31.
+- Lo verifico en la revisión final del encargo, no en la de 01c.
+- Para que A-04 no se quede corto, debe recoger, además de su lista:
+  - el control segmentado de dos opciones en contexto opaco, el primero de dos opciones de un admin;
+  - las acciones de la fila y la columna "Archivada";
+  - la confirmación en línea de archivar;
+  - el diálogo con conteo y contexto propio en el portal (`data-material` y `data-densidad` en el `DialogContent`), primer diálogo del admin;
+  - el foco devuelto al botón que abrió un diálogo sin `DialogTrigger`;
+  - la variante de nombre accesible de N-01c-3, o la decisión contraria.
+
+### Problemas que no bloquean (para el tester, después de aceptar)
+- **N-01c-1 — Una clase que ya no existe, en el diálogo de borrar.** Con una sola cuenta de administrador, solo pasa desde otra pestaña.
+  - El admin recibe `403 SIN_ACCESO_A_LA_CLASE` también por una clase inexistente (`middleware/index.test.ts`, PR-2A06). Con la clase borrada en otra pestaña:
+    - el conteo muestra "No pudimos contar lo que se borraría. Cierra y vuelve a intentarlo.", que no se puede cumplir;
+    - el `DELETE` deja el error en el diálogo y la fila sigue en la tabla.
+  - Lo mismo con `409 CLASE_NO_ARCHIVADA` en el `DELETE`: el plan no pide renovar, y la matriz del plan lo dice así.
+  - Hay salida: «Restaurar» de esa fila renueva la lista (decisión 3). Pero la frase del conteo promete otra cosa.
+  - Es el hermano de la decisión 3 que no se extendió. Si el tester lo confirma, el remedio natural es el mismo: renovar las listas ante `esCambioDeLaClaseEnGestion` en el conteo y en el borrado.
+- **N-01c-2 — El conteo se vuelve a pedir con el diálogo abierto.** Con `staleTime` 0 y `refetchOnWindowFocus` por defecto, volver a la ventana pide el conteo otra vez.
+  - Si esa recarga falla con datos ya pintados, el diálogo muestra a la vez el `MensajeError` y «Sí, borrar definitivamente» (`conteo.data` sigue definido). Con el reintento de la app, eso pasa después de dos fallos.
+  - Si responde, la cifra puede cambiar mientras la persona la lee.
+- **N-01c-3 — El nombre accesible de las acciones de la fila.** El texto visible va con `aria-hidden` y el `sr-only` lleva "Archivar Clase 1". La línea de §7.9 (arbitraje de T-10) dice "como texto `sr-only` dentro del botón (nunca `aria-hidden` ni `aria-label`)".
+  - Funciona y cumple 2.5.3. Hay un precedente sin `aria-hidden` que también resuelve O-01c-3: `textoOcultoDeFila` de `tabla-enlaces.tsx`, un `sr-only` que no es solo el dato.
+  - No bloquea. Se decide al cierre, en A-04: se documenta la variante o se cambia.
+
+### Detalles menores
+- **Tipos de objeto en línea** fuera de `types.ts`, en contra de la regla 1 de `CLAUDE.md`. Las pruebas estáticas no los ven porque solo buscan `type` e `interface`:
+  - `useRef<{ id: string; accion: AccionDeFilaDeClase } | null>` en `hooks.ts`;
+  - el parámetro `partes` de `TEXTOS_BORRAR_CLASE.consecuencia` y `ESTADOS_DE_LA_LISTA` en `data.ts`;
+  - `unidad` de `cantidadCon` en `lib.ts`.
+  Destino: el programador de 01d1, que vuelve a tocar esos archivos, o el carril trivial al cierre.
+- **«Cancelar» del diálogo no responde mientras el borrado está en vuelo**, y no dice por qué. No puede usar `aria-disabled` (V-06). Basta con que el tester confirme que el foco no se pierde.
+- **`aria-describedby={undefined}` en el diálogo:** la consecuencia ("… No se puede deshacer.") no se anuncia como descripción al entrar. Lo anoto para A-04 y H-4. El conteo llega después, así que no se arregla solo con un `DialogDescription`.
+- El título de ADM-1C04b escribe «Borrar definitivamente «{nombre}»» entre comillas exteriores. Su aserción es correcta, sin comillas.
+- La columna usa `TEXTOS_CLASES_ADMIN.archivada`, fuera de `columnas.*`.
+- El resumen admite corridas sin repetir la puerta de carga. Salieron en verde y no se reportan como cifras.
+
+### Puntos de ataque para el tester (cuando el resumen quede aceptado)
+1. **N-01c-1:** el conteo y el `DELETE` con `403 SIN_ACCESO_A_LA_CLASE` y con `409 CLASE_NO_ARCHIVADA` (la clase borrada o restaurada en otra pestaña). ¿Se cumple la frase "Cierra y vuelve a intentarlo"? ¿La fila queda para siempre?
+2. **N-01c-2:** un evento `focus` de la ventana con el diálogo abierto: recarga del conteo que falla con datos pintados (¿error y botón a la vez?) y recarga que responde otra cifra.
+3. **El foco tras borrar desde el diálogo**, en estados vecinos:
+   - fila de en medio y última, con varias páginas cargadas;
+   - la última fila de la lista, que debe ir al `h1`;
+   - una fila repetida descartada por `unirPaginasSinRepetidas`;
+   - cerrar con Escape;
+   - la vista desmontada con el `DELETE` en vuelo (el botón atrás del navegador).
+4. **Cambiar de pestaña con una mutación en vuelo:** «Restaurar» o «Sí, archivar» pendiente y clic en la otra pestaña. Un solo aviso, sin foco en `<body>`, y la fila no reaparece.
+5. **`useRecuperarListaDeClasesAdmin`:**
+   - error en las dos pestañas a la vez, y salir y volver: deben salir las dos de la caché;
+   - error de "Cargar más" con páginas en la caché: `removeQueries` las tira y la lista vuelve desde la primera;
+   - el doble montaje de `StrictMode` no debe quitar una lista sana.
+6. **El control segmentado:**
+   - pulsar la pestaña activa no escribe en el historial;
+   - `?estado=` con un valor inválido da "Activas" sin reescribir la URL;
+   - el estado no depende solo del color: `Check`, `aria-pressed` y texto `--link`.
+7. **Duplicar:**
+   - la ruta con una clase archivada y con una inexistente;
+   - dos envíos con Enter;
+   - `MAESTRO_NO_ENCONTRADO` seguido de elegir otro maestro: el error del selector se limpia;
+   - aviso único con la vista desmontada antes de responder.
+8. **Nombres accesibles (N-01c-3):** cada botón de la fila y de la confirmación, por `getByRole(name)`, con nombres hostiles (los de `clases-admin-02c-r1:249-285`).
+
+### Para el humano
+Nada que decidir en esta verificación. N-01c-3 (el patrón del nombre accesible) se decide al cierre, con A-04.
+
+### Cierre
+**DEVUELTO** por M-01: la corrida acotada de E10-1 da `Tests 42 passed (42)`, no 38.
+- Solo corrige el resumen. Las demás cifras coinciden con mi corrida: lint, build, `2456` en `133` archivos, 78 casos (51, 22 y 5) y V-01 256.
+- Mapeo, rojos esperados, matriz, textos, E10-2, decisiones, O-01c-1 a O-01c-15 y "No se toca": bien.
+- Cuando el programador traiga la cifra corregida sobre la misma huella (`6eb27b0a…`), repito solo la acotada. Con eso, ACEPTADO, y el tester ataca con los puntos de arriba.
+
+### Re-verificación de M-01
+- **Resumen corregido:** `resumen-programador.md` tiene 954 líneas, SHA-256 `303996f6baf5e99c99a9d5c2846f6eb8df6461cba00f9347e9ee6dca437a8e0b` (el orquestador dio el mismo). La viñeta "Corrida acotada de E10-1" (línea 800) ahora trae:
+  - el comando literal;
+  - la puerta de carga (3 % y 0 %);
+  - `Test Files 3 passed (3)` y `Tests 42 passed (42)`, de las 15:52:47;
+  - la causa: los cuatro casos de CH3-B15 en modo `duplicar`.
+  Coincide con lo que encontré.
+- **Huella del árbol entregado:** sigue en `6eb27b0a1a0dd3b82060cd52771a695d4633642fba53402799b593e2c9045a94`. El código y las pruebas no cambiaron, así que el resto de esta verificación sigue valiendo.
+- **Mi corrida:** la puerta de carga dio 20 % y 17 % (15:53:30 y 15:53:32), sin ningún `vitest`. Desde `frontend/`, `npx vitest run src/features/clases/errores-ch3.test.ts src/features/clases/reexportaciones-01c.test.ts src/components/adjuntos/errores-ch3.test.ts` dio `Test Files 3 passed (3)` · `Tests 42 passed (42)` (15:53:34). **Coincide.**
+- **Veredicto final: ACEPTADO.** M-01 queda cerrado. El tester ataca con los ocho puntos de "Puntos de ataque para el tester" de arriba (N-01c-1, N-01c-2, foco tras borrar en estados vecinos, cambio de pestaña con mutación en vuelo, `useRecuperarListaDeClasesAdmin`, control segmentado, duplicar y nombres accesibles por N-01c-3). N-01c-3 y los detalles menores siguen con el destino que dice arriba.
+
+## Verificación de la corrección de la ronda 1 — ADMIN-01c
+
+Veredicto: **ACEPTADO** tras la corrección de M-02 (ver "Re-verificación de M-02" al final de esta sección). Primero salió DEVUELTO por M-02. El remedio del foco del hermano de T-01 lleva el foco a la primera fila, no a la vecina, aunque la matriz del resumen dice "la fila vecina". T-01, T-02 y T-03 están bien corregidos, y las cifras coinciden.
+
+- **Documentos:**
+  - `resumen-programador.md` = `3615a7b0…`, sección "ADMIN-01c — Corrección ronda 1" (línea 956);
+  - `reporte-tester.md` = `e380be6e…`, "Ronda 1 — ADMIN-01c" (línea 1902);
+  - plan `3822b6c0…`, comprobado.
+- **Entorno:**
+  - Puerta de carga: 20 % y 15 % a las 16:23:06, sin ningún `vitest`. Antes hubo lecturas de 26 % a 31 %, y esperé.
+  - Una cosa a la vez. Sin navegadores; la otra copia de trabajo no se usa.
+- **Huella del árbol entregado** (`git diff 52f1c97 -- frontend` más los archivos sin rastrear): `64cb69e32c324a2d9c15e6785202da6dae13ab8b729e62a2f3652e6e95fcb0ca`.
+
+### Cifras (desde `frontend/`)
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0, Prettier bien, `> tsc -b` | Igual |
+| `npm run build` | exit 0, `✓ built in 887ms` | exit 0, `✓ built in 875ms` |
+| Suite de módulos (comando literal) | `134 passed (134)` · `2482 passed (2482)` | **Igual** (16:23:17, 138 s): 2456 + 23 del tester + 3 propios. Sin avisos de claves repetidas ni de `act` |
+| `npx vitest list` del archivo propio | 54 (78 + 3 en los tres archivos) | **Igual:** `clases-admin-01c.test.tsx` 54, `-rutas` 22, `unir-paginas` 5 (81). La del tester: 23 |
+| V-01 | 257 | **Igual:** `sha256sum -c` de `ac79306a…` da 0 diferencias, y la nueva `clases-admin-01c-r1.ataque.test.tsx` es `1cc30b08…`, la del tester. 257 en total. El programador no tocó ninguna |
+| "No se toca" contra `52f1c97` | Limpio | **Limpio:** el diff fuera de `frontend/` es vacío. Los archivos de producción de esta ronda son de "Se toca" de 01c. La lista cerrada conserva las mismas 15 líneas de antes. Las tres pruebas nuevas van en el archivo propio |
+
+### M-02 — Al cerrar el diálogo cuando su fila ya salió, el foco va a la primera fila, no a la vecina
+- **Dónde:** `clases-admin-view.tsx`, en `alCerrarElBorrado`, que llama a `marcarBorrada(id)`; y en `useFocoAlQuitarUnaClase` (`hooks.ts`), que calcula la vecina con `previos.indexOf(objetivo.id)`.
+- **Lo que pasa:**
+  - Con T-01, la fila sale de la lista cuando falla el conteo (o el `DELETE` con `403`) **con el diálogo todavía abierto**.
+  - Al cerrar, varios renders después, `idsPrevios` ya no contiene ese `id`. `indexOf` da −1, que se acota a 0, y el foco va a la **primera** fila.
+  - Tras un borrado con éxito no pasa (mi sonda de la verificación anterior): ahí la salida de la fila y `onBorrada` caen en el mismo lote.
+- **Comprobado con una sonda** fuera del repositorio, sin tocar el árbol. Lista `[5, 6, 7]`; el conteo de una de ellas responde `403` y el servidor la quita; después, «Cancelar»:
+
+  | Fila | Foco obtenido | Foco esperado |
+  |---|---|---|
+  | Clase 5 | «Borrar definitivamente» de 6 | 6 |
+  | Clase 6 | 5 | 7 |
+  | Clase 7 | 5 | 6 |
+
+  Dos de tres fallan.
+  - La prueba propia "hermano de T-01: al cerrar el diálogo cuando su fila ya salió…" borra la primera de `[5, 6]`, donde la vecina y el índice 0 coinciden. Es el mismo punto ciego que tenía ADM-1C04.
+  - El `DELETE` con `403` (T-01) toma el mismo camino, porque también renueva con el diálogo abierto.
+- **Por qué importa:**
+  - `DESIGN.md` §7.14: "va al mismo control de la fila que ocupa su lugar (la siguiente o, si era la última, la anterior)".
+  - La matriz del resumen promete "al cerrar, la fila vecina si la fila ya salió", y el código no lo hace.
+  - `.claude/agents/manager.md`, punto 4: lo que el resumen dice de cada estado vecino tiene que coincidir con el código. El foco nunca cae en `<body>`, pero va a otra fila.
+- **Qué se espera:**
+  - Al cerrar el diálogo de una fila que ya salió, el foco va al «Borrar definitivamente» de la fila que ocupa su lugar: la siguiente o, si era la última, la anterior. Si no queda ninguna, al `h1`.
+  - Vale para los dos caminos: el conteo con `403` o con `409 CLASE_NO_ARCHIVADA`, y el `DELETE` con `403`.
+  - Casos para la primera, una de en medio y la última fila, y para la lista que queda vacía.
+  - En el resumen, los hermanos y estados vecinos: cerrar con Escape y con «Cancelar»; varias páginas cargadas; la fila que sale por el conteo que se vuelve a pedir al reconectar (T-03).
+
+### T-01, T-02 y T-03: el remedio, contra el código
+
+#### T-01: bien
+- **El conteo.** Ante `esCambioDeLaClaseEnGestion`, `useConteoDeBorrado` renueva las listas y el detalle (`exact`) y relanza el error.
+  - La fila sale de la lista y la frase "Cierra y vuelve a intentarlo" se cumple por cada camino:
+    - al cerrar;
+    - al pulsar «Clases» o cambiar de pestaña, con la lista ya renovada;
+    - al ir y volver.
+  - Ya no queda un ciclo sin salida.
+- **El borrado.** `useBorrarClase` renueva ante `403` (`esClaseQueYaNoExiste`).
+- **El `409 CLASE_NO_ARCHIVADA` del `DELETE` sigue la matriz del plan:** el mensaje va en el diálogo y no se renueva; lo prueba "matriz de 01c: …". Hay salida: al reabrir, el conteo da el mismo `409` y renueva. Es correcto no apartarse de la matriz aprobada.
+- **Detalles:**
+  - El efecto vive en el `queryFn`. Con el `retry: 1` de `app/providers.tsx`, un `403` del conteo pide y renueva dos veces. Es inocuo.
+  - Con un `403`, la frase "vuelve a intentarlo" sobra, porque la clase ya no existe. Un texto propio sería un texto nuevo que tiene que aprobar el humano; no lo pido como cambio.
+
+#### T-02: bien
+- **El remedio:** una `mutationKey` por clase (`claveGestionDeClase`) y `useGestionEnVuelo`, que lee `useIsMutating` y `queryClient.isMutating`.
+- **Sobrevive al desmontaje.** La mutación sigue pendiente en la `MutationCache` hasta que termina su `onSuccess` o su `onError`, renovación incluida. La espera dura hasta que la fila sale.
+- **Evita el segundo `POST`** por cada camino de la misma sesión:
+  - cambiar de pestaña (ADM-T1C06 y 08);
+  - «Cancelar» (07);
+  - salir de la vista y volver (el `QueryClient` es el mismo);
+  - el doble clic (la ref).
+- **Lo que el cliente no puede evitar:** otra pestaña del navegador, con otra caché. Ahí el servidor responde `409` y la lista se renueva, que es lo correcto.
+- **Cumple `CLAUDE.md`:** `enEspera={…isPending || enVuelo}` y una guarda síncrona (la ref más `sigueEnVuelo()`) antes de `mutate`.
+- **Para 01d1:** «Restaurar» del aviso de la clase archivada debe usar `useRestaurarClase(claseId)`, con la misma `mutationKey`. Así se cubre "«Restaurar» desde el aviso y desde la tabla" de N-15 (Enmienda 2).
+
+#### «Cancelar» de la confirmación con archivar en vuelo
+No cierra y no se pone en espera.
+- **Cumple la regla de `disabled` contra `enEspera`.** Esa regla es para el control cuya petición está en vuelo, y «Cancelar» no tiene petición. Ponerlo en `enEspera` diría algo falso ("se está cancelando"). Además, `disabled` lo prohíbe V-06 en JSX.
+- **`DESIGN.md` §7.14 no cubre el caso.** La decisión es la misma que la del diálogo de borrar, que el tester dio por buena (ADM-T1C04).
+- **¿Debe comunicar por qué no responde?** Sería mejor, pero hoy no es obligatorio:
+  - el botón de al lado anuncia la espera, con `aria-busy` y su indicador;
+  - el aviso cierra el ciclo en segundos;
+  - el foco nunca se pierde.
+- **No bloquea.** Va a A-04 como parte del patrón (confirmación en línea y diálogo con una acción en vuelo), con tres opciones que decide el humano al cierre:
+  - dejarlo así;
+  - ocultar «Cancelar» en vuelo cuando no tiene el foco;
+  - un texto de estado.
+- **Un detalle vecino:** si se vuelve a «Activas» con archivar en vuelo, la fila se monta otra vez con «Archivar», sin la confirmación abierta y sin indicar la espera, hasta que se abre la confirmación. No manda otra petición: aceptable.
+
+#### T-03: bien
+- `conteoFallo = conteo.isError && !borrar.isPending`: el error sustituye al conteo y al botón. Nunca se ven a la vez la frase y «Sí, borrar definitivamente».
+- Con el borrado en vuelo, el conteo confirmado se queda. Así el botón en espera no desaparece con el foco dentro. Correcto.
+- **Estado vecino que queda:** al reconectar con el `DELETE` en vuelo, el conteo falla; después el `DELETE` falla (`5xx`).
+  - El diálogo muestra dos `MensajeError`: el del conteo y el del borrado.
+  - El botón desaparece con el foco dentro, y Radix lo devuelve al contenido del diálogo, nunca a `<body>`.
+  - Son dos fallos encadenados: va a la ronda 2.
+
+### Hermanos y matriz actualizada
+- **La tabla de hermanos coincide con el código en lo que afirma, salvo el foco de M-02.**
+  - El remedio de T-01: archivar y restaurar ya lo tenían; se suman el conteo y el borrado (este, solo ante `403`).
+  - El remedio de T-02: archivar y restaurar. No aplica al borrado, porque el diálogo es modal y no se cierra en vuelo. Tampoco a duplicar: un formulario nuevo es otra copia.
+  - El remedio de T-03: solo el conteo.
+- **Los estados vecinos coinciden** (vista desmontada, cambio de pestaña, `403`, `409`, `5xx` y reconexión), salvo "al cerrar, la fila vecina".
+- **La matriz actualizada** (cuatro filas) coincide con el código, salvo la columna de foco de las dos filas que dicen "al cerrar, la fila vecina" (M-02).
+- **Corrijo una afirmación mía de la verificación anterior.** El tester tiene razón: `invalidateQueries` sobre una consulta infinita no repite el cursor vencido. TanStack Query 5 vuelve a pedir desde el primer `pageParam` y recalcula los siguientes con las páginas nuevas. La decisión de usar `resetQueries` y `removeQueries` sigue siendo buena, porque empieza desde una sola página, pero no por la razón que di.
+
+### Puntos de ataque para la ronda 2 (cuando se corrija M-02)
+1. **M-02:** el foco al cerrar con la fila ya fuera:
+   - en la primera, en una de en medio y en la última fila;
+   - con varias páginas cargadas;
+   - cerrando con Escape;
+   - con el `DELETE` que responde `403`.
+2. **El estado vecino de T-03:** reconexión con el `DELETE` en vuelo, con el conteo que falla y el `DELETE` que falla después.
+3. **T-02 con dos acciones sobre la misma clase:**
+   - «Restaurar» en vuelo y, a la vez, «Borrar definitivamente» de esa clase: el diálogo pide el conteo de una clase que está saliendo.
+   - Archivar en vuelo, cambio de pestaña y regreso: un solo aviso, y dónde queda el foco cuando sale la fila.
+4. **El conteo con `403` y `retry: 1`:** un solo mensaje. Las dos renovaciones no deben causar parpadeos ni mover el foco.
+5. **`useGestionEnVuelo` después de un error:** archivar responde `5xx`; luego «Cancelar» y «Sí, archivar» deben volver a responder, porque la mutación ya no está pendiente.
+
+### Cierre
+**DEVUELTO** por M-02, en la ronda de corrección 1 de 3.
+- Las cifras coinciden con mi corrida:
+  - lint;
+  - build;
+  - `2482` en `134` archivos;
+  - 54 casos (81 con los otros dos archivos, más 23 del tester);
+  - V-01 257.
+- T-01, T-02 y T-03 están bien corregidos, y "No se toca" está limpio.
+- Lo que falta: el foco del hermano de T-01 va a la primera fila en vez de la vecina, en dos de tres posiciones de mi sonda.
+- **Para el humano:**
+  - No hay nada nuevo que decidir. El comportamiento de «Cancelar» con una acción en vuelo va con A-04 al cierre.
+  - M-02 es un estado vecino del mismo mecanismo (el foco al quitar una fila). Para la medida de "hermanos" de `AGENTS.md`, el orquestador decide si cuenta como ronda extra por hermanos.
+
+### Re-verificación de M-02
+- **Resumen:** `resumen-programador.md` = `72fd6be2…`, subsección "### M-02" (línea 1030).
+- **Archivos que cambiaron desde la huella `64cb69e3…`:** solo `frontend/src/features/clases/hooks.ts` y `frontend/src/features/clases/clases-admin-01c.test.tsx`.
+  - Lo comprobé con `find -newermt` desde el cierre de mi verificación anterior, sobre `frontend`, `backend`, `shared` e `infra`.
+  - La lista de cambios contra `52f1c97` sigue teniendo las mismas 22 entradas.
+  - Huella nueva: `3203493e0940aa3a6f4eb7811dab2683a3fd8f95a3b133fc50934be6b940cfdd`.
+- **Entorno:** puerta de carga de 10 % y 10 % (16:41:26), sin ningún `vitest`. Una corrida a la vez. Sin navegadores.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0; Prettier bien; `> tsc -b` sin errores |
+| `npm run build` | exit 0, `✓ built in 866ms` | exit 0, `✓ built in 794ms` |
+| Suite de módulos (comando literal) | `134 passed (134)` · `2497 passed (2497)` | **Igual** (16:41:34, 136 s), sin avisos de claves repetidas ni de `act` |
+| `npx vitest list clases-admin-01c.test.tsx`, `grep -a -c "M-02"` | 15 | **15** (69 casos en el archivo) |
+| V-01 | 257 | **257**: `sha256sum -c` de `ac79306a…` da 0 diferencias, y la del tester sigue en `1cc30b08…` |
+| "No se toca" | Limpio | Limpio: fuera de `frontend/` no hay nada |
+
+- **Mi sonda, repetida fuera del repositorio:** 9 de 9.
+  - Lista `[5, 6, 7]`, por los dos caminos (conteo con `403` y `DELETE` con `403`), cerrando con «Cancelar»: el foco va a 6, 7 y 6, en la primera, la de en medio y la última. Son los 6 casos que antes fallaban en 2 de 3.
+  - Los 3 del borrado con éxito siguen bien.
+- **El remedio contra el código.** `ultimoLugar` (un `Map` de `id` a índice) se actualiza con los `ids` de cada render. Lee el lugar del objetivo **antes** de actualizar y borra la entrada al usarla.
+  - **Varias páginas:** los `ids` son la unión sin repetidos de todas las páginas, así que el índice es el de la lista que se ve. Lo prueba "con dos páginas cargadas…".
+  - **Cambio de pestaña:** el mapa conserva entradas de la otra pestaña, pero no dejan un lugar viejo.
+    - Una fila solo llega a ser objetivo si está en la lista visible cuando gana el foco o se abre su diálogo. En ese render, su entrada se reescribe.
+    - El diálogo es modal: con él abierto no se puede cambiar de pestaña.
+    - Los `id` son UUID, así que una clase de otra pestaña no choca con una fila de esta.
+    - Cuando una clase pasa de «Activas» a «Archivadas», su entrada se borra al salir como objetivo, o se reescribe al aparecer.
+  - **Aproximación aceptable:** si, con el diálogo abierto, salen otras filas además de la del diálogo, el lugar guardado es el de la última vez que se vio la fila. El foco cae en la fila que hoy ocupa ese índice, nunca en `<body>`, y como máximo se corre un lugar.
+  - El `?? 0` solo aplica a un objetivo que nunca se vio, lo que no puede pasar con el diálogo montado dentro de la vista.
+- **Hermanos y estados vecinos:** la tabla del resumen coincide con el código, fila por fila.
+  - Pasan por el mismo gancho:
+    - cerrar con «Cancelar» y con Escape (el mismo `onCerrar`);
+    - el conteo con `403` o `409`;
+    - el `DELETE` con `403`;
+    - la lista vacía;
+    - varias páginas;
+    - la reconexión con el foco en la fila;
+    - borrar, restaurar y archivar con éxito;
+    - el `409` de archivar y restaurar.
+  - No aplica: cerrar sin que la fila haya salido (`useFocoAlCerrarElBorrado`), ni la lista en error o el cambio de pestaña (sin `ids`, manda `useFocoAlPasarAError`).
+  - Los 15 casos cubren la primera fila, la de en medio y la última por los tres caminos. El programador demostró que detectan el defecto: con el cálculo viejo, 11 de 15 fallan.
+- **La matriz** (columna de foco de las filas del conteo `403`/`409` y del `DELETE` `403`) ahora coincide con el código.
+
+### Veredicto final de esta sección
+**ACEPTADO.** M-02 cerrado, con T-01, T-02 y T-03 corregidos.
+
+Las cifras coinciden:
+
+| Qué | Resultado |
+|---|---|
+| lint y build | 0 |
+| Suite de módulos | `2497` casos en `134` archivos |
+| Casos de M-02 | 15 |
+| V-01 | 257 |
+
+Lo que no bloquea sigue con el destino ya anotado:
+- «Cancelar» con una acción en vuelo, y N-01c-3, van a A-04 al cierre.
+- Para 01d1, la misma `mutationKey` en «Restaurar» del aviso.
+- El doble pedido del conteo con `retry: 1`.
+
+**Puntos de ataque para la ronda 2:**
+1. **El foco de M-02 en lo que no cubren los casos:**
+   - con el diálogo abierto, salen dos filas a la vez: la del diálogo y otra anterior a ella;
+   - una lista de una sola página después de haber cargado dos;
+   - cambiar de pestaña, volver y quitar una fila: comprobar que `ultimoLugar` no use un índice de antes.
+2. **El estado vecino de T-03:** reconectar con el `DELETE` en vuelo; el conteo falla y después el `DELETE` falla. Comprobar que no salgan dos `MensajeError` y adónde va el foco.
+3. **Dos acciones sobre la misma clase:** «Restaurar» en vuelo y, a la vez, abrir «Borrar definitivamente» de esa clase. Archivar en vuelo, cambiar de pestaña y regresar: un solo aviso, y el foco al salir la fila.
+4. **El conteo con `403` y `retry: 1`:** un solo mensaje, sin parpadeos ni foco movido por las dos renovaciones.
+5. **`useGestionEnVuelo` después de un error:** archivar responde `5xx`; luego «Cancelar» y «Sí, archivar» vuelven a responder.
+
+## Verificación de la corrección de la ronda 2 — ADMIN-01c
+
+Veredicto: **ACEPTADO**. T-04 está bien corregido, la tabla del mecanismo coincide con el código y las cifras coinciden. Dejo tres estados vecinos para la ronda 3, la última. Ninguno bloquea.
+
+**Lo que revisé:**
+- `resumen-programador.md` = `42f1dccb…`, "ADMIN-01c — Corrección ronda 2" (línea 1093);
+- `reporte-tester.md`, "Ronda 2 — ADMIN-01c" (línea 2065);
+- plan `3822b6c0…`.
+
+**Entorno:**
+- La verificación anterior se cortó por el límite de la API antes de escribir aquí. Repetí todo limpio.
+- Puerta de carga: 25 % y 24 % a las 19:00:14, sin ningún `vitest`. Antes hubo una lectura de 30 % y esperé.
+- Una corrida a la vez. Sin navegadores.
+
+### Cifras (desde `frontend/`)
+**Archivos cambiados desde la huella `3203493e…`** (`find -newermt` desde el cierre de M-02, en `frontend`, `backend`, `shared` e `infra`):
+- `components/dialogo-borrar-clase.tsx` y `clases-admin-01c.test.tsx`, del programador;
+- `clases-admin-01c-r2.ataque.test.tsx`, del tester.
+
+Nada más. Huella nueva: `ca4ee1d8bd4bbe803aa4514b76c0fa82a700d2c583b838139ac204affd4c4af6`.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0; Prettier bien; `> tsc -b` sin errores |
+| `npm run build` | exit 0, `✓ built in 789ms` | exit 0, `✓ built in 1.05s` |
+| Suite de módulos, comando literal | `135 passed (135)` · `2513 passed (2513)` | **Igual** (19:00:24, 150 s). Sin avisos de claves repetidas ni de `act` |
+| `npx vitest list clases-admin-01c.test.tsx` con `grep -a -c "T-04"` | 8 | **8** (77 casos en el archivo) |
+| V-01 | 258 | **258**: `sha256sum -c` de `ac79306a…` da 0 diferencias; `clases-admin-01c-r1` = `1cc30b08…` y `clases-admin-01c-r2` = `76b5b252…`, las del tester |
+| "No se toca" | Limpio | Limpio: fuera de `frontend/` no cambia nada |
+
+### La regla: un solo mensaje, el del último envío de la persona
+Es la regla correcta y coincide con `CLAUDE.md`, "Formularios" (CHORE-03 T-05): la persona lee un solo mensaje, el del envío que acaba de hacer.
+- El conteo no es un envío de la persona. Es la consulta que la prepara, y al reconectar se vuelve a pedir solo.
+- Antes de pulsar, manda el conteo, porque es lo único que hay a la vista.
+- Desde que pulsa, manda el borrado.
+
+`conteoFallo = conteo.isError && borrar.isIdle` lo dice tal cual.
+
+### La tabla del mecanismo, contra el código, combinación por combinación
+Coincide en sus 17 filas.
+
+- **`isIdle` después de `reset()` al cerrar.**
+  - `cerrar()` llama a `reset()`, pero además `DialogoBorrarClase` desmonta `DialogoAbierto` al cerrar (`clase === null`), y lo vuelve a montar con `key={clase.id}`.
+  - La siguiente apertura empieza con una mutación nueva, en reposo, y con el conteo fuera de la caché.
+  - Está cubierto por dos lados. Lo prueban ADM-1C11 (b) y (c), ADM-1C15 (e) y "T-04: tras un error del borrado, cerrar y volver a abrir…".
+- **Un `DELETE` con error seguido de un segundo intento.**
+  - Durante el segundo, `isIdle` es falso y `status` es `pending`.
+  - `borrar.isError` también es falso, así que **no queda a la vista el mensaje del primer intento**.
+  - `conteoFallo` es falso, así que tampoco el error del conteo.
+  - Se ve el conteo con el botón en espera, y el foco sigue en el botón. Al responder, sale un solo mensaje, el del segundo intento, o el diálogo se cierra con `204`.
+  - Lo prueban ADM-1C04 y ADM-1C11 (a), ambos con un segundo `DELETE`.
+- **`VALIDACION` fuera de contrato.**
+  - Del `DELETE`: un mensaje legible (`mensajeDeErrorClases`), el conteo y el botón. ADM-1C15, con 5 casos.
+  - Del conteo (consulta): no da el texto del servidor. Da la frase fija `errorConteo`, salvo `CLASE_NO_ARCHIVADA`. Es legible y es uno solo.
+- **El orden de llegada.**
+  - Si el conteo falla antes de que el `DELETE` responda, gana el `DELETE`: con `500`, `409`, red y `204`.
+  - Si el conteo falla después del error del `DELETE`, gana el `DELETE`: con `500`, `409` y `403`.
+  - Si el conteo falla antes de pulsar, gana el conteo.
+  - Los ocho casos nuevos y ADM-T2C04 cubren los dos órdenes. El programador demostró que detectan el defecto: con la condición vieja, 5 de 8 fallan.
+- **El foco.**
+  - Con el `DELETE` en vuelo o después de su error, el botón ya no desaparece (`!conteoFallo` sigue verdadero), así que el foco no se mueve.
+  - Antes de pulsar, el error del conteo quita el botón, pero el foco está en «Cancelar» (el inicial).
+
+### Estados vecinos que no cubre la tabla (para la ronda 3)
+Ninguno rompe la regla de un solo mensaje. Los dejo dichos ahora porque la ronda 3 es la última.
+
+1. **El conteo que, después del error del `DELETE`, se vuelve a pedir y responde con otras cifras.**
+   - La tabla dice que "se ve el conteo que la persona confirmó". Pero `conteo.data` se reemplaza con la respuesta nueva, y el texto cambia mientras se ve el error del borrado.
+   - Sigue siendo un solo mensaje. Es una inexactitud del resumen, no un defecto: las cifras nuevas son las vigentes para el siguiente intento.
+2. **El `DELETE` con un error con que `apiClient` redirige** (`401` sin refresco, `ACCESO_RESTRINGIDO` o `CAMBIO_DE_CONTRASENA_REQUERIDO`).
+   - `borrar.isError` pinta un `MensajeError` en el diálogo hasta que la navegación desmonta la vista.
+   - La matriz dice "Redirige: nada" para las acciones de la vista. Conviene que el tester mire si el texto llega a pintarse o a anunciarse (`role="alert"`) antes de la redirección.
+3. **El conteo que, después del error del `DELETE`, responde `403`** porque otra pestaña borró la clase.
+   - El conteo renueva las listas y la fila sale. Su error no se muestra, por la regla.
+   - El diálogo sigue ofreciendo «Sí, borrar definitivamente» con el mensaje anterior. El siguiente intento da `403` y el mensaje "No tienes acceso…".
+   - Hay salida y siempre un solo mensaje. Lo anoto para que el tester confirme el foco al cerrar (M-02).
+
+### Puntos de ataque para la ronda 3
+1. Los tres estados vecinos de arriba.
+2. Los hermanos que anunció el tester: el error del conteo junto a cualquier otro mensaje del diálogo.
+   - `409 CLASE_CON_COPIAS_EN_CURSO` seguido de una reconexión que falla;
+   - el `403` del `DELETE` después de una reconexión;
+   - dos reconexiones, una antes y otra después del error del `DELETE`.
+3. Un segundo intento después de un error, con la reconexión en medio. Que el mensaje viejo no reaparezca durante el vuelo y que, al responder, quede solo el nuevo.
+4. Cerrar con Escape justo cuando el `DELETE` responde con error. El diálogo debe cerrarse limpio, y al reabrir no debe quedar nada.
+
+### Cierre
+**ACEPTADO.** T-04 queda cerrado. El tester ataca la ronda 3 con los puntos de arriba.
+
+**Detalles que siguen pendientes, con su destino:**
+- «Cancelar» con una acción en vuelo y N-01c-3: A-04, al cierre.
+- La misma `mutationKey` en «Restaurar» del aviso: 01d1.
+- El doble pedido del conteo con `retry: 1`: inocuo.
+- La lectura de §7.14 cuando salen dos filas a la vez (ADM-T2C01): A-04, para precisar la regla.
+
+### Estados vecinos antes de la ronda 3
+Veredicto: **DEVUELTO** por M-03. Uno de los diez casos nuevos falla en mi corrida, así que la cifra `2523 passed` no coincide. El código de producción está bien y cubre los tres estados vecinos y los cinco puntos de ataque.
+
+**Qué revisé:**
+- `resumen-programador.md` = `2ec5ffde…`, "### Estados vecinos antes de la ronda 3" (línea 1169).
+- **Archivos cambiados desde la huella `ca4ee1d8…`:** solo `components/dialogo-borrar-clase.tsx` (19:09:41) y `clases-admin-01c.test.tsx` (19:07:52), por `find -newermt`. Los dos son anteriores a la corrida del programador (19:12:57). Huella nueva: `ddb3f7238121a1d1db4f28a67380028e920e48b01cb76b6c79cf0e6ca3b97012`.
+- **Puerta de carga:** hubo lecturas de 27 %, 74 % y 29 %. Esperé hasta tener dos seguidas de 25 % o menos: 13 % y 11 % a las 19:17:45, sin ningún `vitest`. Corrí una cosa a la vez y sin navegadores.
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0; Prettier bien |
+| `npm run build` | exit 0, `✓ built in 854ms` | exit 0, `✓ built in 839ms` |
+| Suite de módulos (comando literal) | `135 passed (135)` · `2523 passed (2523)` | **`Test Files 1 failed \| 134 passed (135)` · `Tests 1 failed \| 2522 passed (2523)`** (19:17:52). **No coincide** (M-03) |
+| `vitest list` del archivo | 87; 12 con "vecino" (10 nuevos) | Igual: 87 y 12; 10 en el bloque "estados vecinos antes de la ronda 3" |
+| V-01 | 258 | **258**: 0 diferencias con `ac79306a…`, y `r1` = `1cc30b08…` y `r2` = `76b5b252…` sin cambios |
+| "No se toca" | Limpio | Limpio |
+
+#### M-03 — "vecino: Escape justo cuando el DELETE responde con error…" falla siempre en mi equipo
+- **Dónde:** `frontend/src/features/clases/clases-admin-01c.test.tsx`, el último caso del bloque "estados vecinos antes de la ronda 3" (aserción en `:1583`).
+- **Lo que obtuve:** `expected <div role="dialog" …> to be null`.
+  - Falla en la suite de módulos.
+  - Falla en el archivo solo (`Tests 1 failed | 86 passed (87)`).
+  - Falla tres de tres veces solo, con `-t "vecino: Escape justo"`.
+  - El archivo no cambió después de la corrida del programador.
+- **Causa:** la prueba depende del tiempo.
+  - Suelta la respuesta `500` del `DELETE` y espera un solo `setTimeout(0)` antes del primer Escape.
+  - Si el error no se procesó todavía (`fetch`, el `json` de la respuesta, la mutación y el render), el diálogo sigue en vuelo y, por diseño, no se cierra.
+  - El segundo Escape sale enseguida, sin esperar a que el botón salga de la espera, y puede volver a caer en vuelo.
+  - Cuántos turnos tarda la respuesta depende del equipo y de la carga.
+  - El comportamiento del diálogo es el decidido: Escape en vuelo no cierra (ADM-T1C04). El defecto es de la prueba, no del producto.
+- **Por qué importa:**
+  - `.claude/agents/manager.md`, punto 3: una cifra que no coincide devuelve el resumen.
+  - `AGENTS.md`, "Pruebas": no se da nada por terminado con pruebas en rojo.
+  - Una prueba que depende del reloj del equipo deja la suite sin verificar en la revisión final y en la ronda 3.
+- **Qué se espera:**
+  - El caso pasa en cada corrida, solo o en la suite, con cualquier carga.
+  - Los dos órdenes quedan comprobados por separado y sin depender del tiempo:
+    - Escape que llega con el `DELETE` en vuelo: no cierra;
+    - Escape después de que el error se ve: cierra limpio, sin aviso, con el foco en «Borrar definitivamente» y sin mensajes al reabrir.
+  - Comprobar el estado (por ejemplo, que el botón ya no esté en espera) en lugar de suponer un número de turnos.
+  - Los hermanos del mismo patrón: buscar en los casos nuevos de 01c y en los de la ronda 2 (T-04) otros `setTimeout(resolver, 0)` o esperas fijas que supongan el orden de llegada, y decir uno por uno si les pasa lo mismo.
+  - Después, repetir la suite de módulos y reportar la cifra.
+
+#### Lo que sí está bien (contra el código de `dialogo-borrar-clase.tsx`)
+- **Vecino 1, el conteo congelado.**
+  - `confirmado` se fija en el primer clic de la apertura (`borrar.isIdle && conteo.data`).
+  - `conteoVisible` lo usa mientras el borrado no está en reposo.
+  - En el segundo intento se sigue viendo el mismo conteo.
+  - **No deja un conteo viejo en una apertura nueva:** `confirmado` es estado de `DialogoAbierto`, que se desmonta al cerrar (`clase === null`) y se vuelve a montar con `key={clase.id}`. Toda apertura empieza en `null`.
+- **Vecino 2, los errores que redirigen.**
+  - Ni el error del borrado ni el del conteo se pintan si `apiClient` redirige (`borradoFallo` y `conteoQueRedirige`). Con la vista desmontada, el gancho ya callaba.
+  - Usa `errorQueRedirigeElCliente` de `../lib`, su propio módulo. No nombra `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` ni los tres códigos, así que no choca con `apiClient-ch3-r1.ataque:59-84`, que sigue en verde en la suite: la lista de importadores sigue siendo calificaciones, clases y tareas.
+- **Vecino 3, el `403` del conteo con el borrado ya respondido.**
+  - `yaNoExiste` exige un borrado que respondió con error (ni en reposo ni en vuelo).
+  - `conteoFallo` gana, y `borradoFallo` se apaga.
+  - Queda una sola frase, sin botón. Las listas ya se renovaron (T-01), así que al cerrar la fila no está y el foco va a la vecina (M-02).
+  - **Detalle:** con `409 CLASE_NO_ARCHIVADA` del conteo en la misma situación, gana el borrado (su mensaje y el botón). Volver a borrar tampoco puede servir, pero la matriz del plan deja el `409` en el diálogo y no hay dos mensajes. No bloquea.
+- **El foco a «Cancelar».**
+  - El efecto solo actúa con `conteoFallo`, y solo si el foco se perdió (`focoPerdido`) o quedó en el contenedor del diálogo, que es adonde lo lleva Radix cuando el botón desaparece.
+  - Si la persona tiene el foco en otro control, no lo mueve. Fuera del diálogo no puede tenerlo, porque es modal.
+  - Si la ventana pierde el foco, `activeElement` no cambia y el efecto no actúa.
+  - **Detalle:** si la persona hace clic en el texto del diálogo, el contenedor (`tabIndex=-1`) recibe el foco, y el siguiente render con `conteoFallo` lo lleva a «Cancelar». Es raro e inofensivo. Va como punto de ataque.
+- **Los cinco puntos de ataque de la ronda 2**, con su caso cada uno:
+  - el `409` de copias con reconexión;
+  - el `403` del `DELETE` tras una reconexión;
+  - dos reconexiones;
+  - el segundo intento con reconexión en medio (vecino 1);
+  - Escape (M-03).
+- **Reglas de `CLAUDE.md`:**
+  - los tipos vienen de `types.ts` (`ConteoDeBorradoRespuesta`);
+  - los predicados están en `lib.ts` y los textos en `data.ts`;
+  - no hay `disabled`, `aria-busy` ni `aria-disabled`, y `enEspera=` sigue en 1 (V-06 en verde);
+  - no hay ternarios anidados en el JSX;
+  - no se usa `?? []`.
+- **La tabla actualizada coincide con el código, fila por fila.** La fila de Escape describe bien el comportamiento: si Escape llega en vuelo, no cierra; si llega después, cierra. Lo que falla es la prueba que la cubre.
+
+#### Puntos de ataque para la ronda 3 (cuando se acepte M-03)
+1. El orden de llegada con esperas reales: Escape, «Cancelar» y el segundo clic justo antes y justo después de cada respuesta del `DELETE` (`500`, `403`, `409` y red).
+2. El efecto de foco: el foco en el contenedor del diálogo por un clic en el texto, seguido de una recarga del conteo que falla.
+3. El conteo congelado con dos intentos y una reconexión que responde otras cifras entre los dos; y al reabrir, el conteo nuevo.
+4. Un error que redirige en el conteo antes de pulsar, sin datos: el diálogo queda en `Cargando` hasta que la página se va. Comprobar que no se anuncia nada y que la redirección ocurre.
+5. Vecino 3 con varias páginas y con la lista vacía: el foco al cerrar.
+
+#### Cierre
+**DEVUELTO** por M-03.
+- Solo hay que volver determinista el caso de Escape y revisar sus hermanos en las pruebas propias. El código de producción no necesita cambios.
+- La ronda 3 espera a que la suite de módulos dé verde completo en mi corrida.
+
+### Re-verificación de M-03
+
+**Entrega revisada.** `resumen-programador.md` = `48213c88…`, subsección "### M-03" (línea 1236).
+
+**Archivos que cambiaron desde la huella `ddb3f723…`.** Solo `clases-admin-01c.test.tsx` y `clases-admin-01c-rutas.test.tsx`, según `find -newermt`.
+- `dialogo-borrar-clase.tsx` sigue con la hora 19:09:41: no cambió.
+- Huella nueva: `f6ef3c17885a4056729e91a4ddf913d5e0fa284d20a7f6f22ddc0b2a1dbbb2bb`.
+
+**Entorno.**
+- Antes de cada corrida, dos lecturas seguidas de carga de 25 % o menos y ningún `vitest`:
+  - 19:43:01, 24 %;
+  - 19:43:53, 19 %;
+  - 19:44:46, 0 %.
+- Una corrida a la vez. Sin navegadores.
+
+**Cifras.**
+
+| Qué | Resumen | Mi corrida |
+|---|---|---|
+| `npm run lint` | exit 0 | exit 0, Prettier bien |
+| `npm run build` | exit 0, `✓ built in 807ms` | exit 0, `✓ built in 807ms` |
+| `clases-admin-01c.test.tsx` solo, dos veces | `88 passed (88)` | **`88 passed (88)`** las dos (19:43:03 y 19:43:54) |
+| Suite de módulos (comando literal) | `135 passed (135)` · `2524 passed (2524)` | **Igual** (19:44:48, 136 s). Sin avisos de claves repetidas ni de `act` |
+| V-01 | 258 | **258**: 0 diferencias con `ac79306a…`; `r1` = `1cc30b08…`, `r2` = `76b5b252…` |
+| "No se toca" | Limpio | Limpio |
+
+#### Los dos casos de Escape prueban lo que dicen, sin depender del tiempo
+- **"Escape con el DELETE en vuelo no cierra el diálogo".**
+  - Antes de Escape, espera el estado y no un tiempo: `waitFor(aria-busy="true")`.
+  - `fireEvent` va envuelto en `act`, así que si Escape cerrara, el desmontaje ya se vería en las aserciones que siguen. Esas aserciones exigen el mismo diálogo, el botón en espera y el foco dentro.
+  - Después suelta el `500` y comprueba un solo `alert` y la salida de la espera.
+  - Su control positivo es el otro caso: el mismo Escape, fuera del vuelo, sí cierra. Así que "no cierra" no pasa porque Escape no llegue.
+- **"Escape en cuanto el DELETE respondió con error".**
+  - Espera el estado (el `alert` y que el botón no esté en espera) antes de Escape.
+  - Después comprueba: que el diálogo se cerró; que no hubo aviso, tras `asentado()`; el foco en «Borrar definitivamente»; y una apertura nueva sin mensajes y con el botón disponible.
+
+#### Las ayudas no dejan pasar un caso sin probar nada
+- **Qué hacen.**
+  - `asentado()` y `sinConsultasEnVuelo()` solo esperan a que la caché no tenga peticiones en vuelo.
+  - Se llaman después de que el caso ya vio, con `findBy` o `waitFor`, el estado que quiere comprobar. No reemplazan esa espera ni pueden saltarse un estado intermedio que el caso necesite.
+  - En las afirmaciones negativas (que el error del conteo no se ve), `sinConsultasEnVuelo()` es **más estricta** que el `reposar()` de antes: obliga a que la respuesta del conteo se procese antes de afirmar.
+  - `enLaPestana()` espera `aria-pressed`, que es el estado que el siguiente clic necesita.
+- **Comprobado con una mutación**, fuera del repositorio y sin tocar el árbol.
+  - Corrí el `clases-admin-01c.test.tsx` real contra una copia de `dialogo-borrar-clase.tsx` con la condición de antes de T-04 (`conteo.isError && !borrar.isPending`), con un alias de una configuración en el scratchpad.
+  - Con `-t "T-04|vecino"`: `Tests 7 failed | 14 passed | 67 skipped (88)`.
+  - Fallan los cinco de T-04 con reconexión y los dos vecinos que pasan por ella (el `409` de copias y las dos reconexiones). Es decir, los casos de afirmación negativa que ahora usan `sinConsultasEnVuelo()` sí detectan el defecto.
+- **Las esperas revisadas.** Las 23 del resumen están bien juzgadas. Las que se quedan en `clases-admin-01c-rutas.test.tsx` solo marcan el ritmo entre navegaciones, y lo que comprueban después va con `findBy` o `waitFor`.
+
+#### Veredicto
+**ACEPTADO.** M-03 cerrado.
+- Las cifras coinciden: lint y build en 0, `88 passed` dos veces, `2524` en `135` y V-01 258.
+- El código de producción de los estados vecinos ya estaba bien (subsección anterior).
+- 01c queda lista para la ronda 3 del tester, la última.
+
+**Puntos de ataque para la ronda 3**
+1. El orden de llegada con esperas reales: Escape, «Cancelar» y el segundo clic, justo antes y justo después de cada respuesta del `DELETE` (`500`, `403`, `409` y red).
+2. El efecto de foco: un clic en el texto del diálogo deja el foco en el contenedor; después, una recarga del conteo que falla.
+3. El conteo congelado con dos intentos y una reconexión entre ellos que trae otras cifras; y al reabrir, el conteo nuevo.
+4. Un error que redirige en el conteo, sin datos: sin anuncio, y la redirección ocurre.
+5. El vecino 3 con varias páginas y con la lista que queda vacía: el foco al cerrar.
+6. Las pruebas nuevas del programador bajo carga: que ninguna dependa del orden de llegada. Si el tester ve otra espera fija o una afirmación negativa sin control, la reporta.
+
+## Revisión final — ADMIN-01c
+
+Fecha: 2026-11-05. Plan: `plan.md`, SHA-256 `3822b6c0adb9823edb9c552dd6cfac78f4e0ffa2f4eca9fcade0be07d4fbdd78` (Enmiendas 1 a 10), comprobado. Tester: `reporte-tester.md`, "## Ronda 3 — ADMIN-01c" (línea 2187), RESISTE sin hallazgos. Programador: `resumen-programador.md`, secciones de 01c desde "ADMIN-01c — PARADA en el paso 14" (línea 744). Base de "No se toca": `52f1c97` (commit de 01b), con los seis archivos de proceso contra sus SHA-256 de `aprobacion.md`. Ignoré `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.
+
+Veredicto: **APROBADO**
+Verificación propia: lint exit 0 · test frontend `Tests 6229 passed (6229)` · `Test Files 287 passed (287)` a la primera · build exit 0 (`✓ built in 917ms`)
+
+### Entorno y corridas
+- 01c no toca `shared/` ni el backend: basta la suite completa del frontend (CHORE-05). PA-01 no aplica.
+- **Trabajo en paralelo:** la otra copia de trabajo no se usa (respuesta del humano en `aprobacion.md`, 2026-11-05). Sin navegadores.
+- **Puerta de carga:** a las 20:04 la carga estaba en 29 % y 29 %, así que no arranqué la suite. Corrí primero `lint` y `build`, que no dan rojos por carga. Antes de la suite: 20:05:37 `20 %` y 20:05:38 `15 %`, sin ningún `node` con `vitest`.
+- Una sola corrida de la suite, sin repeticiones: ningún archivo cayó.
+- **Huella del árbol:** `git diff 52f1c97 -- frontend` más los archivos sin rastrear de `frontend/` sin `r3` da `f6ef3c17885a4056729e91a4ddf913d5e0fa284d20a7f6f22ddc0b2a1dbbb2bb`, la misma de mi re-verificación de M-03. Desde entonces solo se sumó `clases-admin-01c-r3.ataque.test.tsx`; con él, `e3828ac8221833d4bfa6407c1bd0b219701eb12be9dfd390905fe529de4f109b`. El código de producción que reviso es el que ya acepté.
+
+### Cifras (desde `frontend/`)
+
+| Qué | Comando | Resultado |
+|---|---|---|
+| lint | `npm run lint` | exit 0; `All matched files use Prettier code style!`; última línea `> tsc -b` sin errores |
+| build | `npm run build` | exit 0; `✓ built in 917ms` |
+| test | `npm run test` (20:05:49, 296 s) | `Test Files 287 passed (287)` · `Tests 6229 passed (6229)`. Sin avisos de claves repetidas, de `act` ni `stderr` |
+| Conteo | `npx vitest list` con `grep -a -c "\.test\.ts"` y rutas únicas | 6229 casos y 287 archivos, iguales a la corrida |
+
+**Cuadre contra 01b (6062 casos, 281 archivos):**
+- Pruebas nuevas del programador, 3 archivos y 115 casos: `clases-admin-01c.test.tsx` 88, `clases-admin-01c-rutas.test.tsx` 22 y `lib/unir-paginas.test.ts` 5.
+- `*.ataque` nuevas del tester, 3 archivos y 43 casos: `r1` 23, `r2` 8 y `r3` 12.
+- Casos que crecen en archivos existentes, 9:
+  - CH3-B15 de la lista cerrada (Enmienda 9), en `features/clases/errores-ch3.test.ts`: 4 (tres de (1) en modo `duplicar` y uno de (2));
+  - `features/clases/errores-ch3-r1.ataque.test.ts:273` (vigilada), `it.each(CODIGOS_CON_MENSAJE_DEL_SERVIDOR)`: los cinco códigos nuevos "entran solos", como dice §D-R0 01c. El archivo no cambia.
+- C-9, C-9b, C-9c y C-9d no cambian el número de casos (V-06 y V-07 siguen siendo un caso cada una).
+- 6062 + 115 + 43 + 9 = **6229**; 281 + 6 = **287**.
+
+### (a) 01c cumple su parte del plan
+`git diff 52f1c97` contra §D-R0 01c: se hizo lo planeado, solo lo planeado y todo lo planeado.
+- **"Se toca":** los 13 archivos rastreados que cambian y los 8 nuevos del programador están todos en "Se toca" de 01c (con `lib/unir-paginas.ts` y su prueba, de la corrección de la Enmienda 5), en la lista cerrada o son pruebas nuevas del encargo. `services/clasesService.ts` y `encabezado-clase.tsx` no se tocan (E10-3 y E10-6).
+- **§D-9:** a 01c solo le toca dejar listo lo que usa 01d1. `useRestaurarClase(claseId)` existe, con su `mutationKey` por clase (`claveGestionDeClase`); el aviso de la clase archivada es de 01d1.
+- **§D-10:** control segmentado con `?estado=`, dos tablas con «Cargar más clases» (`enEspera={isFetching}`, ref, `cancelRefetch: false`), acciones de cada estado, confirmación en línea de archivar, diálogo de borrar con conteo y contexto propio en el `DialogContent` (E-23, P-01c-1), duplicar dentro de `ClaseLayout` (`app/router.tsx`, solo la ruta `duplicar`), `ARCHIVO_EN_COPIA` en `components/adjuntos/data.ts` y `CLASE_CON_COPIAS_EN_CURSO` en el diálogo y en el formulario. Todo lo comprobé en la verificación de la implementación y no ha cambiado.
+- **§D-11:** no tiene parte en 01c (es de 01f y 01g). Lo único compartido, `unirPaginasSinRepetidas`, vive en `lib/` y no importa de `features/`.
+- **§D-12 y textos aprobados por el humano**, en `features/clases/data.ts`:
+  - el título del diálogo es `Borrar definitivamente «${nombre}»` (`TEXTOS_BORRAR_CLASE.titulo`), sin comillas exteriores (Enmienda 4); ADM-1C04b lo compara por `textContent`;
+  - «Estado de las clases» va como `aria-label` del `role="group"` (`clases-admin-view.tsx:163-164`), sin rótulo visible (Enmienda 10);
+  - el aviso "Clase duplicada. Los archivos de los recursos pueden tardar unos minutos en estar disponibles." sale **siempre**, sin condición: desde el formulario montado (`formulario-duplicar-clase.tsx:60`) o, si ya se desmontó, desde el gancho (`hooks.ts:468`), nunca desde los dos;
+  - los demás, carácter por carácter, como los cotejé en la verificación de la implementación.
+- **Matriz de avisos y recargas:** coincidía con el código desde el primer resumen; las correcciones la cambiaron solo donde los hallazgos lo pedían (T-01: el conteo y el borrado renuevan ante una clase que ya no existe; T-03 y T-04: un solo mensaje en el diálogo, el del último envío; los tres estados vecinos de la ronda 2). Las dos celdas "como hoy" de la Enmienda 9 siguen igual.
+- **ADM-1C01 a 1C17, con 1C04b y N-24:** cada viñeta tiene su caso con el título exacto (78 títulos cotejados uno por uno en la implementación). Los casos posteriores (M-02, T-04, estados vecinos y M-03) suman, no reemplazan: los 88 de `clases-admin-01c.test.tsx` contienen los 51 originales con sus títulos.
+- **Enmienda 4:** título del borrado (arriba).
+- **Enmienda 5:** cursor con posición solo en "Archivadas" (ADM-1C16 a y b), frase de lista cambiada por los cuatro caminos (ADM-1C16 c), descarte por `id` (ADM-1C17 a y b) y N-24.
+- **Enmienda 9:** C-9, C-9b, C-9c y C-9d aplicados por el tester y en verde; P-01c-2 (`vidrio-fuerte` del control dentro del contexto opaco); P-01c-4 ("como hoy"); CH3-B15 con `erroresDeLaClaseDeApi(error, "duplicar")`; sin `if (m.isError) m.reset()`.
+- **Enmienda 10:** CH3-B01 exacto (dos líneas en `TEXTOS_FIJOS_DE_SIEMPRE` y el comentario «cinco códigos»); foco tras duplicar como al crear o editar (`toast.success` y `navigate`, sin mover el foco a mano); `claveClasesAnteriores` fuera de 01c.
+
+### Reglas que no se rompen y estilo
+- **Capas y seguridad:** 01c es solo frontend. Ninguna regla de acceso se decide en la interfaz: el `403`, los `409` y el `400` del cursor los da el backend de 01a y 01b, y la interfaz solo los traduce.
+- **`fetch`:** ninguno nuevo; todo por `apiClient` en `hooks.ts`.
+- **Errores:** todo texto del servidor pasa por `lib/errores-de-api.ts` (envoltorios del módulo); predicados en `lib.ts` y textos en `data.ts`. Sin `.message` fuera de ese archivo.
+- **Sin valores por defecto silenciosos:** sin `?? []`, sin ternarios anidados en JSX, retornos tempranos error → cargando → vacío → datos.
+- **Estado de pago, cola, archivos, UTC, trabajos diferidos, secretos, `infra/`, migraciones, proveedores y `notifier`:** no aplican; nada de eso cambia.
+- **`*.ataque`:** el programador no modificó, saltó ni borró ninguna (V-01, abajo). Sin `.skip`, `.only` ni `.todo` en las pruebas nuevas.
+
+### (b) Hallazgos cerrados
+| Hallazgo | Qué era | Cierre |
+|---|---|---|
+| T-01 (media) | Una clase borrada en otra pestaña se quedaba en «Archivadas»; la frase del conteo no se cumplía | El conteo y el `DELETE` renuevan listas y detalle ante una clase que ya no existe. Los 23 casos de `r1` en verde en mi suite |
+| T-02 (media) | «Restaurar» o «Sí, archivar» se mandaban dos veces al desmontar y volver a montar la fila | `mutationKey` por clase y `useGestionEnVuelo` sobre la caché de mutaciones. En verde (`r1`) |
+| T-03 (baja) | Error del conteo y «Sí, borrar definitivamente» a la vez | El error sustituye conteo y botón. En verde (`r1`) |
+| T-04 (baja) | Dos `role="alert"` al reconectar con el `DELETE` en vuelo | Regla del último envío (`conteo.isError && borrar.isIdle`). ADM-T2C04 en verde (`r2`), y ADM-T3C01 a T3C07 lo atacan por cada orden de llegada (`r3`) |
+| M-01 | Cifra de la corrida acotada (38 por 42) | Resumen corregido; cifra igual a la mía |
+| M-02 | Foco al cerrar el diálogo de una fila que ya salió: caía en la primera fila | `useFocoAlQuitarUnaClase` con `ultimoLugar`; 15 casos, sonda 9 de 9; ADM-T3C06 y T3C07 lo confirman con dos páginas y con la lista vacía |
+| M-03 | Caso propio dependiente del tiempo (Escape) | Partido en dos casos deterministas; sin esperas fijas en `clases-admin-01c.test.tsx`; orden aleatorio con dos semillas en verde (tester) |
+| Tres estados vecinos de la ronda 2 | Conteo que cambia junto al error; error que redirige pintado antes de redirigir; `403` del conteo tras el error del `DELETE` | Cubiertos antes de la ronda 3 (conteo congelado, `errorQueRedirigeElCliente`, la frase sin botón con foco en «Cancelar»); ADM-T3C02 a T3C07 los atacan sin hallazgo |
+
+No hay desacuerdos abiertos entre programador y tester: el tester no impugnó ninguna decisión del programador y el programador no pidió cambiar ninguna `*.ataque`.
+
+### (c) V-01: 259 `*.ataque`
+- **Rastreadas, 256:** reconstruí la lista `ac79306a…` desde la tabla de `reporte-tester.md:1548-1805` (lista `e1c89304…`, comprobada) con las dos filas de "Tras la Enmienda 9". Su SHA-256 da `ac79306abdf63ad4…`; `sha256sum -c` no da ninguna diferencia, y sus rutas son exactamente las de `git ls-files '*.ataque.test.ts' '*.ataque.test.tsx'`.
+- **C-9, C-9b y C-9c:** `frontend/src/styles/clases-r1.ataque.test.ts` = `550ccd969fe3dc3735933656583c99f5c18d1f4e32668585293c5a337083d53d`.
+- **C-9d:** `frontend/src/features/clases/foco-02c-r4.ataque.test.tsx` = `0165d4e27b1fff9230d17bec740d89c380b6f322923c7e5a044ac010f4b9358b`.
+- **Nuevas del tester, sin rastrear, 3:**
+  - `clases-admin-01c-r1.ataque.test.tsx` = `1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65`;
+  - `clases-admin-01c-r2.ataque.test.tsx` = `76b5b2522f60795c0e7672da7b10ea95a3ce61d1aa26f102ef8eb057bd3ce6d9`;
+  - `clases-admin-01c-r3.ataque.test.tsx` = `cffce654ebfb37dc10f8ce8bf7026fc982a8c3f79b677fa2eb82c4476e113f83`.
+- Total **259**. Contra `52f1c97` solo cambian las dos de C-9 a C-9d, que son del tester. Las 259 están en verde en mi suite.
+
+### Definición de terminado
+- [x] Cumple la parte de interfaz de RF-69 (archivar y restaurar), RF-70 (borrar con conteo) y RF-71 (duplicar) que el plan asigna a 01c (§D-0.2 y §D-10).
+- [x] Respeta las capas; la seguridad sigue en el middleware del backend (01a y 01b).
+- [x] `lint`, `build` y `test` del frontend en verde, en mi corrida.
+- [x] Pruebas de autorización: no hay endpoint nuevo en 01c (las de los endpoints están en 01a y 01b).
+- [x] Migración: no aplica.
+- [x] `infra/` y `.env.example`: no aplica.
+- [ ] Documentos: `docs/DESIGN.md` (A-04) y `CLAUDE.md` (A-05, con `lib/unir-paginas.ts` de N-25) quedan para el cierre del encargo, como fija el plan (§D-R0 01c, paso 31). No bloquea 01c.
+
+### Lista de diseño (01c toca `frontend/`)
+- **`DESIGN.md`:** lo implementado sigue §7.3 (control segmentado), §7.9 (tabla y acciones), §7.11 (diálogo), §7.14 (confirmación en línea y foco al quitar una fila) y §8 (admin opaco y denso). Los patrones nuevos se documentan **al cierre del encargo** (A-04), no en 01c: `AGENTS.md` pide hacerlo "en ese mismo encargo" y el plan lo fija en §D-R0 01c ("`docs/DESIGN.md` no (va al cierre)"). `docs/DESIGN.md` no cambió desde `52f1c97`.
+- **Solo tokens:** sin colores, tamaños, radios ni sombras sueltos (O-01c-2, grep vacío); el vidrio solo con `vidrio-fuerte`, que en el contexto opaco vale `--surface`.
+- **Componentes de `components/ui/`:** `Dialog`, `Button`, `Card` y la tabla; nada hecho a mano que ya exista, y nada con el aspecto por defecto.
+- **Sin rasgos prohibidos.** El estado no se comunica solo con color: el control segmentado lleva `Check`, `aria-pressed` y texto; "Archivada" es una columna con fecha.
+- **Una sola acción principal por vista:** «Crear clase» en `/admin/clases` (las acciones de la fila son `outline` o `ghost`, y «Sí, archivar» es `destructive`); «Duplicar clase» en su vista; en el diálogo, la destructiva.
+- **Textos:** español de México, sin emojis, los de §D-12.
+- **Estados:** error, carga y vacío en las dos tablas, el diálogo y el formulario. El vacío de «Archivadas» ("Aún no hay clases archivadas") no lleva CTA propio, como lo aprobó §D-12: archivar se hace desde «Activas», y «Crear clase» sigue a la vista.
+- **360 px y foco visible:** el título largo en varias líneas queda para H-4 (navegador, lo decide el humano); el foco tras cada acción está probado (ADM-1C02, 1C04, 1C09, M-02 y ADM-T3C).
+
+### (d) Todo lo abierto tiene destino
+| Pendiente | Destino |
+|---|---|
+| Patrón visual nuevo: control segmentado de dos opciones en contexto opaco, acciones de la fila y columna "Archivada", confirmación en línea de archivar, diálogo con conteo y contexto propio en el portal (primer diálogo del admin) y foco devuelto al botón que abrió un diálogo sin `DialogTrigger` | **A-04 al cierre** (`docs/DESIGN.md`) |
+| N-01c-3: nombre accesible con el texto visible `aria-hidden` y un `sr-only` con la acción y la clase, contra la letra de §7.9 | **A-04 al cierre**: se documenta la variante o se cambia (decisión del humano) |
+| «Cancelar» que no responde con una acción en vuelo (confirmación de archivar y diálogo de borrar) | **A-04 al cierre**, con las tres opciones para el humano: dejarlo así, ocultarlo en vuelo cuando no tiene el foco, o un texto de estado |
+| §7.14 cuando salen dos filas a la vez (ADM-T2C01: el foco va a la que ocupa el lugar) | **A-04 al cierre**, para precisar la regla |
+| `aria-describedby={undefined}` en el diálogo (la consecuencia no se anuncia como descripción) | **A-04 al cierre** y H-4 |
+| «Restaurar» del aviso de la clase archivada con la misma `mutationKey` que la tabla (`useRestaurarClase(claseId)`) | **Programador de 01d1** (N-15 de la Enmienda 2) |
+| Tipos de objeto en línea fuera de `types.ts`: `useRef<{ id; accion }>` (`hooks.ts:858`), el parámetro `partes` de `consecuencia` y `unidades` (`data.ts:217-225`), `unidad` de `cantidadCon` (`lib.ts`) y los parámetros desestructurados de `mutationFn`/`queryFn` nuevos (`{ id }`, `{ claseId, datos }`, `{ pageParam }`; el mismo patrón que ya usa el módulo, p. ej. `useMoverElemento`) | **Programador de 01d1**, que vuelve a tocar `hooks.ts`, `data.ts` y `lib.ts`, o **carril trivial al cierre** |
+| Chore opcional de foco tras navegar (el `h1` de la clase tras duplicar, crear o editar; E10-3) | **ESTADO §3 al cierre**, junto al `chore` de foco y navegación del marco de la hoja de ruta |
+| H-4: el título largo del diálogo a 360 px | **Comprobación humana al cierre** (máx. 7 puntos) |
+| N-25: `lib/unir-paginas.ts` en "Ubicaciones compartidas" de `CLAUDE.md` | **A-05 al cierre** |
+| Detalles: `TEXTOS_CLASES_ADMIN.archivada` fuera de `columnas.*`; el título de la prueba ADM-1C04b con comillas exteriores (su aserción es correcta); el doble pedido del conteo con `retry: 1` | **Carril trivial al cierre**; el último es inocuo y no requiere acción |
+
+### (e) Medición del programador para ESTADO §6
+Con la convención de las mediciones anteriores (CLASES-03e, CHORE-03): una ronda extra es toda ronda del tester después de la primera, y "por hermanos o estados vecinos" se cuenta la ronda en que el tester encuentra un vecino de un remedio anterior.
+
+| Subentrega | Rondas del tester | Rondas extra | Por hermanos o estados vecinos | PARADAS | Resúmenes devueltos |
+|---|---|---|---|---|---|
+| **ADMIN-01c** | **3** (r1 ROTO por T-01 a T-03; r2 ROTO por T-04; r3 RESISTE) | **2** (r2 y r3) | **1** (r2: T-04, estado vecino del remedio de T-03, los errores del diálogo de borrar) | **1** (paso 14: CH3-B01, prueba normal que el plan no inventarió; resuelta con la Enmienda 10) | **3 de 7** (M-01, cifra de la implementación; M-02, estado vecino del foco en la corrección de la ronda 1; M-03, caso propio dependiente del tiempo en la entrega de los estados vecinos) |
+
+- **Hermanos no extendidos que no costaron ronda del tester** (los detuvo la verificación del manager):
+  - M-02 (foco al quitar una fila, vecino del remedio de T-01);
+  - los tres estados vecinos de la corrección de la ronda 2 (mismo mecanismo que T-03 y T-04), cubiertos antes de la ronda 3 por decisión del orquestador.
+  El orquestador registró M-02 y T-04 como estados vecinos; coincido.
+- **T-01 de la ronda 1** era N-01c-1, el hermano de la decisión 3 que ya señalé al aceptar la implementación. No cuenta por la regla, que mide correcciones, no la primera entrega; lo anoto porque el aviso previo no bastó para que se extendiera antes del ataque.
+- **Umbral de `AGENTS.md`:** 1 ronda extra por este patrón en 01c, menos de 2. Además el `programador` ya corre con `opus` (frontmatter de `.claude/agents/programador.md`), así que no hay cambio de modelo que aplicar.
+- **Lo que hizo bien:** cifras iguales a las mías en cinco de siete entregas (no en M-01 ni en M-03, donde un caso suyo dependía del tiempo); se detuvo en el paso 14 en vez de tocar una prueba fuera de la lista cerrada; en la corrección de M-02 y de T-04 demostró que sus casos nuevos fallan con el código anterior (`cmp` y restaurado); M-03 lo resolvió con esperas por estado, sin tocar producción.
+- **A vigilar:** los remedios del diálogo de borrar se extendieron por partes (T-03 → T-04 → tres vecinos), siempre sobre el mismo mecanismo: los mensajes del diálogo según el orden de llegada de dos peticiones.
+
+
+### (f) Rutas del commit de 01c
+25 entradas de `git add` (29 archivos). Cotejadas por programa contra `git status --porcelain --untracked-files=all`: la única ruta que queda fuera es `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajena.
+
+**frontend, producción (13):**
+- `app/router.tsx` y `components/adjuntos/data.ts`;
+- en `features/clases/`: `clases-admin-view.tsx`, `duplicar-clase-view.tsx` (nuevo), `data.ts`, `hooks.ts`, `lib.ts` y `types.ts`;
+- en `features/clases/components/`: `tabla-clases-admin.tsx`, y los nuevos `confirmar-archivado.tsx`, `dialogo-borrar-clase.tsx` y `formulario-duplicar-clase.tsx`;
+- `lib/unir-paginas.ts` (nuevo).
+
+**frontend, pruebas del programador (6):**
+- nuevas: `features/clases/clases-admin-01c.test.tsx`, `features/clases/clases-admin-01c-rutas.test.tsx` y `lib/unir-paginas.test.ts`;
+- lista cerrada: `features/clases/clases-admin-view.test.tsx`, `features/clases/errores-ch3.test.ts` y `features/clases/reexportaciones-01c.test.ts`.
+
+**frontend, `*.ataque` del tester (5):**
+- cambiadas por C-n: `styles/clases-r1.ataque.test.ts` (C-9, C-9b y C-9c) y `features/clases/foco-02c-r4.ataque.test.tsx` (C-9d);
+- nuevas: `features/clases/clases-admin-01c-r1.ataque.test.tsx`, `-r2` y `-r3`.
+
+**docs (1 entrada, 5 archivos):** `docs/trabajo/ADMIN-01-administracion/` (`plan.md`, `aprobacion.md`, `resumen-programador.md`, `reporte-tester.md` y `revision.md`).
+
+`docs/ESTADO.md` no cambió desde `52f1c97`, así que no entra.
+
+```
+git status
+git add frontend/src/app/router.tsx frontend/src/components/adjuntos/data.ts frontend/src/features/clases/clases-admin-view.tsx frontend/src/features/clases/duplicar-clase-view.tsx frontend/src/features/clases/data.ts frontend/src/features/clases/hooks.ts frontend/src/features/clases/lib.ts frontend/src/features/clases/types.ts frontend/src/features/clases/components/tabla-clases-admin.tsx frontend/src/features/clases/components/confirmar-archivado.tsx frontend/src/features/clases/components/dialogo-borrar-clase.tsx frontend/src/features/clases/components/formulario-duplicar-clase.tsx frontend/src/lib/unir-paginas.ts frontend/src/lib/unir-paginas.test.ts frontend/src/features/clases/clases-admin-01c.test.tsx frontend/src/features/clases/clases-admin-01c-rutas.test.tsx frontend/src/features/clases/clases-admin-view.test.tsx frontend/src/features/clases/errores-ch3.test.ts frontend/src/features/clases/reexportaciones-01c.test.ts frontend/src/styles/clases-r1.ataque.test.ts frontend/src/features/clases/foco-02c-r4.ataque.test.tsx frontend/src/features/clases/clases-admin-01c-r1.ataque.test.tsx frontend/src/features/clases/clases-admin-01c-r2.ataque.test.tsx frontend/src/features/clases/clases-admin-01c-r3.ataque.test.tsx docs/trabajo/ADMIN-01-administracion
+```
+
+Después del `git add`, `git status` no debe mostrar nada sin preparar ni sin rastrear, salvo `docs/trabajo/DEPLOY-investigacion-vps.md`.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+Ninguno nuevo. Los abiertos están en la tabla de (d), con su destino.
+
+### Desacuerdos arbitrados
+Ninguno en esta revisión. P-01c-5 (opción a) se arbitró en la ronda 0 y sus tres casos están en verde.
+
+### Documentos a actualizar
+- Al cierre del encargo: `docs/DESIGN.md` (A-04, con lo de la tabla de (d)) y `CLAUDE.md` (A-05, con N-25).
+- `docs/ESTADO.md` §3 (chore de foco tras navegar) y §6 (la medición de arriba), por el orquestador al cierre.
+
+### Para el humano
+- Nada que decidir para cerrar 01c.
+- Al cierre del encargo decides, con A-04: N-01c-3 (el nombre accesible de las acciones de la fila) y qué hace «Cancelar» con una acción en vuelo (las tres opciones de la tabla de (d)).
+
+### Veredicto
+**APROBADO.** 01c cumple su parte del plan `3822b6c0…`:
+- §D-9 (lo que deja listo para 01d1), §D-10 y §D-12, con los tres textos que aprobaste (el título del borrado, «Estado de las clases» y el aviso de duplicado, que sale siempre);
+- la matriz de avisos y recargas;
+- ADM-1C01 a 1C17, con 1C04b y N-24;
+- las Enmiendas 4, 5, 9 y 10.
+
+Además:
+- T-01 a T-04, M-01 a M-03 y los tres estados vecinos de la ronda 2 están cerrados, y el tester dio RESISTE en la ronda 3.
+- V-01 da 259: 256 rastreadas iguales a `ac79306a…` (con C-9 a C-9d) y las tres nuevas del tester.
+- "No se toca" está limpio contra `52f1c97`, y los seis archivos de proceso coinciden con sus SHA-256.
+- Mi suite completa del frontend da 6229/6229 en 287 archivos a la primera, con `lint` y `build` en verde.
+- Todo lo abierto tiene destino.
+
+### Resumen para el humano (15 líneas)
+1. ADMIN-01c (pantalla de gestión de clases del admin) está **APROBADA**. El tester dio RESISTE en la ronda 3, sin hallazgos.
+2. `/admin/clases` tiene ahora «Activas» y «Archivadas», con su URL y su historial.
+3. El admin archiva con confirmación en línea, restaura, duplica en una vista propia y borra para siempre desde un diálogo que muestra lo que se pierde.
+4. Tus textos están tal cual: `Borrar definitivamente «{nombre}»`, «Estado de las clases» y el aviso de duplicado en todo duplicado.
+5. Se corrigieron T-01 (clase borrada en otra pestaña), T-02 (doble envío al cambiar de pestaña), T-03 y T-04 (dos mensajes a la vez en el diálogo).
+6. También M-01 (una cifra), M-02 (el foco al cerrar el diálogo de una fila que ya salió) y M-03 (una prueba que dependía del tiempo).
+7. Mi corrida completa del frontend: 6229/6229 en 287 archivos a la primera; `lint` y `build` en verde.
+8. Las 259 pruebas de ataque coinciden con sus hashes; el programador no tocó ninguna.
+9. No cambia `shared/`, el backend ni `infra/`; "No se toca" está limpio.
+10. Medición: 3 rondas, 2 extra, 1 por estados vecinos (T-04). Por debajo del umbral, y el programador ya usa `opus`.
+11. Pendiente para 01d1: «Restaurar» del aviso con la misma clave que la tabla, y los tipos en línea.
+12. Pendiente para el cierre: `DESIGN.md` con el patrón nuevo (A-04) y `CLAUDE.md` (A-05).
+13. Al cierre decides N-01c-3 (nombre accesible) y qué hace «Cancelar» con una acción en vuelo.
+14. El commit lleva 25 entradas de `git add` (29 archivos), incluidas las 3 pruebas nuevas del tester y la carpeta del encargo.
+15. No entra `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.

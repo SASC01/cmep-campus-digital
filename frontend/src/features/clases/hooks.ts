@@ -1,10 +1,12 @@
 import {
+  CONFIRMAR_BORRADO_DE_CLASE,
   agregarAlumnoRespuestaSchema,
   candidatosMaestroRespuestaSchema,
   candidatosRespuestaSchema,
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
   comentarioRespuestaSchema,
+  conteoDeBorradoRespuestaSchema,
   dudaRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesAdminRespuestaSchema,
@@ -42,6 +44,7 @@ import {
 import {
   hashKey,
   useInfiniteQuery,
+  useIsMutating,
   useMutation,
   useQuery,
   useQueryClient,
@@ -64,6 +67,9 @@ import {
 
 import {
   CLAVE_CLASES_ADMIN,
+  claveClasesAdmin,
+  claveConteoDeBorrado,
+  claveGestionDeClase,
   CLAVE_CLASES_IMPARTIDAS,
   CLAVE_CLASES_INSCRITAS,
   claveAlumnos,
@@ -87,7 +93,6 @@ import {
   CODIGOS_QUE_RENUEVAN_LOS_TEMAS,
   LIMITE_CANDIDATOS,
   LIMITE_CLASES,
-  LIMITE_CLASES_ADMIN,
   LIMITE_COMENTARIOS,
   LIMITE_DUDAS,
   LIMITE_PAGINAS_RECURSOS,
@@ -100,10 +105,13 @@ import {
   MENSAJES_ERROR_CLASES_GENERALES,
   MAXIMO_LECTURAS_DE_RECURSOS_EN_VUELO,
   MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO,
+  TEXTOS_BORRAR_CLASE,
   TEXTOS_BUSCADOR_ALUMNOS,
   TEXTOS_CATEGORIAS,
+  TEXTOS_CLASES_ADMIN,
   TEXTOS_COMENTARIOS,
   TEXTOS_DUDAS,
+  TEXTOS_DUPLICAR_CLASE,
   TEXTOS_FORMULARIO_CLASE,
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_FORMULARIO_RECURSO,
@@ -116,6 +124,7 @@ import {
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
 import {
+  consultaDeClasesAdmin,
   crearLimiteDeConcurrencia,
   desplazamientoParaVer,
   erroresDeCategoriasDeApi,
@@ -127,18 +136,25 @@ import {
   erroresDelRecursoDeApi,
   errorQueRedirigeElCliente,
   errorQuitaLaVista,
+  esCambioDeLaClaseEnGestion,
+  esClaseQueYaNoExiste,
   esDudaNoEncontrada,
   focoPerdido,
   medidaDelIndicador,
   mensajeDeErrorClases,
   opcionEnElPanel,
+  siguienteCursorDeClasesAdmin,
   temasEnElOrdenDe,
   terminoDeBusquedaValido,
   tiempoFrescoDelMuro,
 } from "./lib"
 import type {
+  AccionDeFilaDeClase,
   CrearAnuncio,
   CrearRecurso,
+  CursorDeClasesAdmin,
+  DuplicarClase,
+  EstadoDeClases,
   MedidaDelIndicadorDeLaClase,
   ModoDelRecurso,
   PosicionDelPanel,
@@ -267,17 +283,193 @@ export const useEditarClase = () => {
   })
 }
 
-// La lista institucional (§D-2C2): de 50 en 50, de la más reciente a la más antigua.
-export const useClasesAdmin = () =>
+// La lista institucional (§D-2C2): de 50 en 50. ADMIN-01c (§D-10, §D-2 y Enmienda 5): una consulta por
+// estado; en "Archivadas", la página siguiente lleva la posición de la fila del cursor.
+export const useClasesAdmin = (estado: EstadoDeClases) =>
   useInfiniteQuery({
-    queryKey: CLAVE_CLASES_ADMIN,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      api(`/api/admin/clases?${conCursor(LIMITE_CLASES_ADMIN, pageParam)}`, {
+    queryKey: claveClasesAdmin(estado),
+    queryFn: ({ pageParam }: { pageParam: CursorDeClasesAdmin | undefined }) =>
+      api(`/api/admin/clases?${consultaDeClasesAdmin(estado, pageParam)}`, {
         schema: listaClasesAdminRespuestaSchema,
       }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    initialPageParam: undefined as CursorDeClasesAdmin | undefined,
+    getNextPageParam: (ultimaPagina) => siguienteCursorDeClasesAdmin(estado, ultimaPagina),
   })
+
+// ADMIN-01c (ADM-1C07, ADM-1C12): las frases de error y de lista cambiada piden volver a abrir la lista.
+// Pulsar "Clases" estando ahí, cambiar de pestaña o ir atrás y adelante (otra location.key con la vista
+// montada) llaman a la función que devuelve: si la lista visible quedó en error, se vuelve a pedir desde
+// la primera página. Al desmontarse, las listas en error salen de la caché, así que regresar antes de que
+// venza el staleTime las pide de nuevo. Una lista sana no se vuelve a pedir.
+export const useRecuperarListaDeClasesAdmin = (estado: EstadoDeClases) => {
+  const queryClient = useQueryClient()
+  useEffect(
+    () => () => {
+      for (const clave of [claveClasesAdmin("activas"), claveClasesAdmin("archivadas")]) {
+        if (queryClient.getQueryState(clave)?.status !== "error") continue
+        queryClient.removeQueries({ queryKey: clave, exact: true })
+      }
+    },
+    [queryClient],
+  )
+  return () => {
+    const clave = claveClasesAdmin(estado)
+    if (queryClient.getQueryState(clave)?.status !== "error") return
+    void queryClient.resetQueries({ queryKey: clave, exact: true })
+  }
+}
+
+// ADMIN-01c (matriz de 01c): tras archivar, restaurar o borrar, las dos listas del administrador y las
+// listas propias de maestros y alumnos (con la barra lateral, que cuelga de ellas). Con el `claseId`,
+// también el detalle de esa clase. Enmienda 10 (E10-6): sin claveClasesAnteriores.
+const renovarTrasGestionar = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId?: string,
+) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_ADMIN }),
+    invalidarListasDeClases(queryClient),
+    claseId === undefined
+      ? Promise.resolve()
+      : queryClient.invalidateQueries({ queryKey: claveClaseDetalle(claseId), exact: true }),
+  ])
+}
+
+// Un aviso por error, salvo uno con que apiClient ya redirige; si la clase ya no está como la fila la
+// mostraba (otra sesión la archivó, la restauró o la borró), las listas se renuevan.
+const avisarErrorDeGestion = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  error: unknown,
+  claseId: string,
+) => {
+  if (!errorQueRedirigeElCliente(error)) toast.error(mensajeDeErrorClases(error))
+  if (esCambioDeLaClaseEnGestion(error)) await renovarTrasGestionar(queryClient, claseId)
+}
+
+// ADMIN-01c (§D-10): archivar y restaurar. Los avisos viven aquí (la fila se desmonta al salir de la
+// lista); la mutación sigue pendiente hasta que la lista renovada ya no tiene la fila (T-02 de 02c).
+// Corrección de la ronda 1 (T-02): cada una lleva la clave de su clase (`claveGestionDeClase`), así que
+// la fila o la confirmación que se vuelven a montar con la petición en vuelo la ven en la caché de
+// mutaciones (useGestionEnVuelo) y no mandan otra.
+export const useArchivarClase = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: claveGestionDeClase("archivar", claseId),
+    mutationFn: () =>
+      api(`/api/admin/clases/${claseId}/archivar`, {
+        method: "POST",
+        schema: claseRespuestaSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_CLASES_ADMIN.avisoArchivada)
+      await renovarTrasGestionar(queryClient, claseId)
+    },
+    onError: (error) => avisarErrorDeGestion(queryClient, error, claseId),
+  })
+}
+
+export const useRestaurarClase = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: claveGestionDeClase("restaurar", claseId),
+    mutationFn: () =>
+      api(`/api/admin/clases/${claseId}/restaurar`, {
+        method: "POST",
+        schema: claseRespuestaSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_CLASES_ADMIN.avisoRestaurada)
+      await renovarTrasGestionar(queryClient, claseId)
+    },
+    onError: (error) => avisarErrorDeGestion(queryClient, error, claseId),
+  })
+}
+
+// Corrección de la ronda 1 (T-02): si archivar o restaurar esa clase sigue en vuelo, aunque la haya
+// lanzado otra instancia de la fila o de la confirmación que ya se desmontó. `enVuelo` sirve para pintar
+// la espera; `sigueEnVuelo` se lee en el manejador, sin esperar otro render.
+export const useGestionEnVuelo = (accion: "archivar" | "restaurar", claseId: string) => {
+  const queryClient = useQueryClient()
+  const mutationKey = claveGestionDeClase(accion, claseId)
+  const enVuelo = useIsMutating({ mutationKey, exact: true }) > 0
+  const sigueEnVuelo = () => queryClient.isMutating({ mutationKey, exact: true }) > 0
+  return { enVuelo, sigueEnVuelo }
+}
+
+// ADMIN-01c (§D-10, ADM-1C06): el conteo se pide cada vez que el diálogo se abre y nunca se sirve de la
+// caché: staleTime y gcTime en 0, y el diálogo lo saca al cerrarse (useOlvidarConteoDeBorrado).
+// Corrección de la ronda 1 (T-01): si la clase ya no está como la fila la muestra (otra pestaña la
+// borró o la restauró), las listas y el detalle se renuevan, como al archivar o restaurar: al cerrar el
+// diálogo, la fila ya no se ofrece.
+export const useConteoDeBorrado = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: claveConteoDeBorrado(claseId),
+    queryFn: async () => {
+      try {
+        return await api(`/api/admin/clases/${claseId}/conteo-de-borrado`, {
+          schema: conteoDeBorradoRespuestaSchema,
+        })
+      } catch (error) {
+        if (esCambioDeLaClaseEnGestion(error)) void renovarTrasGestionar(queryClient, claseId)
+        throw error
+      }
+    },
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export const useOlvidarConteoDeBorrado = () => {
+  const queryClient = useQueryClient()
+  return (claseId: string) =>
+    queryClient.removeQueries({ queryKey: claveConteoDeBorrado(claseId), exact: true })
+}
+
+// ADMIN-01c (§D-10): el borrado definitivo, siempre con la confirmación. Con el diálogo abierto, su
+// error se muestra dentro de él; con el diálogo desmontado, el gancho avisa una vez. Corrección de la
+// ronda 1 (T-01): si la clase ya no existe (otra pestaña la borró), las listas se renuevan; el `409
+// CLASE_NO_ARCHIVADA` sigue la matriz del plan (solo en el diálogo).
+export const useBorrarClase = () => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api(`/api/admin/clases/${id}?confirmar=${CONFIRMAR_BORRADO_DE_CLASE}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_BORRAR_CLASE.avisoBorrada)
+      await renovarTrasGestionar(queryClient)
+    },
+    onError: async (error, { id }) => {
+      avisarErrorConElFormularioDesmontado(montado, error)
+      if (esClaseQueYaNoExiste(error)) await renovarTrasGestionar(queryClient, id)
+    },
+  })
+}
+
+// ADMIN-01c (§D-10): duplicar, como crear una clase: con el formulario montado, sus callbacks avisan y
+// navegan; desmontado, el gancho avisa (Enmienda 10: el aviso de duplicado sale siempre).
+export const useDuplicarClase = () => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: ({ claseId, datos }: { claseId: string; datos: DuplicarClase }) =>
+      api(`/api/admin/clases/${claseId}/duplicar`, {
+        method: "POST",
+        body: datos,
+        schema: claseRespuestaSchema,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_ADMIN })
+      void invalidarListasDeClases(queryClient)
+      if (!montado.current) toast.success(TEXTOS_DUPLICAR_CLASE.avisoDuplicada)
+    },
+    onError: (error) => avisarErrorConElFormularioDesmontado(montado, error),
+  })
+}
 
 // Solo pregunta con un término que el servidor aceptaría; con menos de 3 letras no pide nada.
 export const useCandidatosMaestro = (termino: string) =>
@@ -650,6 +842,67 @@ export const useFocoAlPasarAError = (
     if (!esError || habiaError || !huboDatos.current || !focoPerdido(document)) return
     destinoRef.current?.focus()
   })
+}
+
+// ADMIN-01c (DESIGN.md §7.14, T-21): cuando una fila sale de la lista con el foco dentro (archivar,
+// restaurar) o después de borrarla desde el diálogo, el foco va al mismo control de la fila que ocupa su
+// lugar (la siguiente o, si era la última, la anterior) y, si no queda ninguna, al encabezado. Se decide
+// después de cada render, cuando la fila ya no está en los datos. Devuelve con qué marcar la fila borrada
+// desde el diálogo, porque entonces el foco estaba en el diálogo y no en la fila.
+export const useFocoAlQuitarUnaClase = (
+  ids: string[] | undefined,
+  accion: AccionDeFilaDeClase,
+  enfocarEncabezado: () => void,
+) => {
+  const filaEnFocoRef = useFilaEnFoco("data-clase-id")
+  const pendiente = useRef<{ id: string; accion: AccionDeFilaDeClase } | null>(null)
+  // Corrección de la ronda 1 (M-02): el último lugar en que se vio cada fila. La fila puede haber salido
+  // varios renders antes de que se decida el foco (la lista se renovó con el diálogo abierto), así que su
+  // lugar no se lee de la lista anterior sino de aquí.
+  const ultimoLugar = useRef(new Map<string, number>())
+  useEffect(() => {
+    if (ids === undefined) return
+    const enFoco = filaEnFocoRef.current
+    const objetivo = pendiente.current ?? (enFoco === null ? null : { id: enFoco, accion })
+    const lugar = objetivo === null ? undefined : ultimoLugar.current.get(objetivo.id)
+    ids.forEach((id, indice) => ultimoLugar.current.set(id, indice))
+    if (objetivo === null || ids.includes(objetivo.id)) return
+    pendiente.current = null
+    filaEnFocoRef.current = null
+    ultimoLugar.current.delete(objetivo.id)
+    if (!focoPerdido(document)) return
+    const vecina = ids[Math.min(lugar ?? 0, ids.length - 1)]
+    const destino =
+      vecina === undefined
+        ? null
+        : document.querySelector<HTMLElement>(
+            `[data-clase-id="${vecina}"] [data-accion="${objetivo.accion}"]`,
+          )
+    if (destino !== null) {
+      destino.focus()
+      return
+    }
+    enfocarEncabezado()
+  })
+  return (id: string) => {
+    pendiente.current = { id, accion: "borrar" }
+  }
+}
+
+// ADMIN-01c (DESIGN.md §7.14): al cerrar el diálogo de borrado sin borrar, el foco vuelve al «Borrar
+// definitivamente» que lo abrió; se mueve después del render en que el diálogo ya no está. Devuelve con
+// qué marcar la clase de ese botón al cerrarlo.
+export const useFocoAlCerrarElBorrado = (abierto: boolean) => {
+  const devolverA = useRef<string | null>(null)
+  useEffect(() => {
+    const id = devolverA.current
+    if (id === null || abierto) return
+    devolverA.current = null
+    document.querySelector<HTMLElement>(`[data-clase-id="${id}"] [data-accion="borrar"]`)?.focus()
+  })
+  return (id: string) => {
+    devolverA.current = id
+  }
 }
 
 // CLASES-c (§D-C2, §D-C5). El muro y los comentarios paginan de 20 en 20, con el cursor del servidor.

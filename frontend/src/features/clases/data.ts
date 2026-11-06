@@ -10,6 +10,7 @@ import { claveTemas } from "@/services/trabajoService"
 import type {
   BloqueDeRecurso,
   CapacidadesDePerspectiva,
+  EstadoDeClases,
   Perspectiva,
   SeccionDeClase,
   SeccionDeTemas,
@@ -26,6 +27,15 @@ export {
 } from "@/services/clasesService"
 // CLASES-02c: la lista institucional del administrador y el buscador de maestros.
 export const CLAVE_CLASES_ADMIN = ["clases", "admin"] as const
+// ADMIN-01c (§D-10): una lista por estado, colgada del prefijo (invalidarlo alcanza a las dos).
+export const claveClasesAdmin = (estado: EstadoDeClases) => [...CLAVE_CLASES_ADMIN, estado] as const
+// ADMIN-01c (§D-10): el conteo del diálogo de borrado definitivo.
+export const claveConteoDeBorrado = (claseId: string) =>
+  ["clases", claseId, "conteo-de-borrado"] as const
+// ADMIN-01c, corrección de la ronda 1 (T-02): la clave de la mutación de archivar o restaurar una clase,
+// para saber si sigue en vuelo aunque la fila que la lanzó ya se haya desmontado.
+export const claveGestionDeClase = (accion: "archivar" | "restaurar", claseId: string) =>
+  ["clases", "admin", "gestion", accion, claseId] as const
 export const claveMaestrosCandidatos = (termino: string) =>
   ["clases", "maestros-candidatos", termino] as const
 export const claveClaseDetalle = (claseId: string) => ["clases", claseId] as const
@@ -175,6 +185,64 @@ export const TEXTOS_CLASES_ADMIN = {
   error: "No pudimos cargar las clases. Revisa tu conexión e inténtalo de nuevo.",
   cambioMientrasLasVeias:
     "La lista cambió mientras la veías. Vuelve a abrirla para verla completa.",
+  // ADMIN-01c (§D-10, §D-12; Enmienda 10, E10-5): el control segmentado y las acciones de cada fila.
+  estadoDeLasClases: "Estado de las clases",
+  activas: "Activas",
+  archivadas: "Archivadas",
+  archivada: "Archivada",
+  duplicar: "Duplicar",
+  archivar: "Archivar",
+  restaurar: "Restaurar",
+  borrar: "Borrar definitivamente",
+  // El nombre accesible de un botón de la fila: la acción y la clase en un solo texto (sr-only).
+  accionSobre: (accion: string, nombre: string) => `${accion} ${nombre}`,
+  vacioArchivadas: "Aún no hay clases archivadas",
+  confirmarArchivado:
+    "La clase saldrá de las listas de sus maestros y alumnos. Podrás restaurarla.",
+  siArchivar: "Sí, archivar",
+  cancelar: "Cancelar",
+  avisoArchivada: "Clase archivada",
+  avisoRestaurada: "Clase restaurada",
+} as const
+
+// ADMIN-01c (§D-10): las dos pestañas de /admin/clases, en orden.
+export const ESTADOS_DE_LA_LISTA: readonly { estado: EstadoDeClases; texto: string }[] = [
+  { estado: "activas", texto: TEXTOS_CLASES_ADMIN.activas },
+  { estado: "archivadas", texto: TEXTOS_CLASES_ADMIN.archivadas },
+]
+
+// ADMIN-01c (§D-10, §D-12; Enmienda 4, E4-3): el diálogo de borrado definitivo.
+export const TEXTOS_BORRAR_CLASE = {
+  titulo: (nombre: string) => `Borrar definitivamente «${nombre}»`,
+  consecuencia: (partes: {
+    alumnos: string
+    actividades: string
+    entregas: string
+    calificaciones: string
+    archivos: string
+  }) =>
+    `Se perderán las inscripciones de ${partes.alumnos}, ${partes.actividades}, ${partes.entregas}, ${partes.calificaciones} y ${partes.archivos}, y el registro de altas y bajas de la clase. No se puede deshacer.`,
+  unidades: {
+    alumnos: { una: "alumno", varias: "alumnos" },
+    actividades: { una: "actividad", varias: "actividades" },
+    entregas: { una: "entrega", varias: "entregas" },
+    calificaciones: { una: "calificación", varias: "calificaciones" },
+    archivos: { una: "archivo", varias: "archivos" },
+  },
+  siBorrar: "Sí, borrar definitivamente",
+  cancelar: "Cancelar",
+  errorConteo: "No pudimos contar lo que se borraría. Cierra y vuelve a intentarlo.",
+  avisoBorrada: "Clase borrada",
+} as const
+
+// ADMIN-01c (§D-10, §D-12; Enmienda 10, E10-4): duplicar una clase. El aviso sale siempre.
+export const TEXTOS_DUPLICAR_CLASE = {
+  titulo: "Duplicar clase",
+  campoNombre: "Nombre de la clase",
+  boton: "Duplicar clase",
+  cancelar: "Cancelar",
+  avisoDuplicada:
+    "Clase duplicada. Los archivos de los recursos pueden tardar unos minutos en estar disponibles.",
 } as const
 
 // El selector de maestros de "Crear clase" y el buscador de "Asignar maestro" (§D-2C2, §7.17).
@@ -233,6 +301,12 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "RECURSO_MODIFICADO",
   "MOVER_NO_PERMITIDO",
   "EDICION_NO_PERMITIDA",
+  // ADMIN-01c (§D-10, §D-12): archivar, restaurar, borrar y duplicar, ya en español.
+  "CLASE_YA_ARCHIVADA",
+  "CLASE_NO_ARCHIVADA",
+  "CLASE_CON_COPIAS_EN_CURSO",
+  "CONFIRMACION_REQUERIDA",
+  "CLASE_ARCHIVADA",
 ]
 
 export const TEXTOS_CODIGO = {
@@ -310,6 +384,8 @@ export const TRADUCCION_DE_ERRORES_CLASES = {
 export const CAMPOS_PINTADOS_DE_LA_CLASE = {
   crear: ["nombre", "descripcion", "maestroIds"],
   editar: ["nombre", "descripcion"],
+  // ADMIN-01c (Enmienda 9): duplicar pinta el nombre y los maestros; la descripción se copia tal cual.
+  duplicar: ["nombre", "maestroIds"],
 } as const
 
 // CLASES-03d (§D-8.7): el formulario de Avisos solo publica anuncios; el título de un recurso vive en

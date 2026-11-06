@@ -57,6 +57,8 @@ const TEXTOS_FIJOS_DE_SIEMPRE: Readonly<Record<string, string>> = {
   // CLASES-03e (§D-13, Enmienda 12, E12-2): la duda o la respuesta que ya no existe.
   DUDA_NO_ENCONTRADA: "Esa duda ya no existe.",
   RESPUESTA_NO_ENCONTRADA: "Esa respuesta ya no existe.",
+  // ADMIN-01c (§D-10, Enmienda 1, M-04): la descarga de un archivo cuya copia no ha terminado.
+  ARCHIVO_EN_COPIA: "Este archivo todavía se está copiando. Inténtalo en unos minutos.",
 }
 
 // Las rutas dobles de features/clases del inventario de §D-1 (Enmienda 2, T-01): el servidor arma
@@ -81,7 +83,7 @@ describe("CHORE-03 · traducción de errores de features/clases", () => {
         TEXTOS_ADJUNTOS.errorRechazado(NOMBRE, entrada.resto ?? GENERICO),
       )
     }
-    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(15)
+    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(20)
     for (const codigo of CODIGOS_CON_MENSAJE_DEL_SERVIDOR) {
       for (const resto of RESTOS_SIN_TEXTO_VISIBLE) {
         expect(mensajeDeErrorClases(new ApiError(codigo, resto, 409))).toBe(GENERICO)
@@ -177,6 +179,7 @@ type FuncionPorModo = (error: unknown) => ErroresFormulario | null
 
 const CLASE_CREAR: FuncionPorModo = (error) => erroresDeLaClaseDeApi(error, "crear")
 const CLASE_EDITAR: FuncionPorModo = (error) => erroresDeLaClaseDeApi(error, "editar")
+const CLASE_DUPLICAR: FuncionPorModo = (error) => erroresDeLaClaseDeApi(error, "duplicar")
 const ANUNCIO: FuncionPorModo = (error) => erroresDeLaPublicacionDeApi(error, "anuncio")
 const RECURSO_CREAR: FuncionPorModo = (error) => erroresDelRecursoDeApi(error, "crear")
 const RECURSO_EDITAR: FuncionPorModo = (error) => erroresDelRecursoDeApi(error, "editar")
@@ -188,6 +191,9 @@ const FILAS_POR_MODO = [
   ["erroresDeLaClaseDeApi", "editar", "nombre", true, CLASE_EDITAR],
   ["erroresDeLaClaseDeApi", "editar", "descripcion", true, CLASE_EDITAR],
   ["erroresDeLaClaseDeApi", "editar", "maestroIds", false, CLASE_EDITAR],
+  ["erroresDeLaClaseDeApi", "duplicar", "nombre", true, CLASE_DUPLICAR],
+  ["erroresDeLaClaseDeApi", "duplicar", "maestroIds", true, CLASE_DUPLICAR],
+  ["erroresDeLaClaseDeApi", "duplicar", "descripcion", false, CLASE_DUPLICAR],
   ["erroresDeLaPublicacionDeApi", "anuncio", "texto", true, ANUNCIO],
   ["erroresDeLaPublicacionDeApi", "anuncio", "titulo", false, ANUNCIO],
   ["erroresDelRecursoDeApi", "crear", "titulo", true, RECURSO_CREAR],
@@ -199,6 +205,7 @@ const FILAS_POR_MODO = [
 const MODOS = [
   ["crear", CLASE_CREAR],
   ["editar", CLASE_EDITAR],
+  ["duplicar", CLASE_DUPLICAR],
   ["anuncio", ANUNCIO],
   ["recurso-crear", RECURSO_CREAR],
   ["recurso-editar", RECURSO_EDITAR],
@@ -253,6 +260,7 @@ describe("CHORE-03 (Enmienda 4) · campo pintado por modo en features/clases", (
     expect(CAMPOS_PINTADOS_DE_LA_CLASE).toEqual({
       crear: ["nombre", "descripcion", "maestroIds"],
       editar: ["nombre", "descripcion"],
+      duplicar: ["nombre", "maestroIds"],
     })
     expect(CAMPOS_PINTADOS_DE_LA_PUBLICACION).toEqual({ anuncio: ["texto"] })
     expect(CAMPOS_PINTADOS_DEL_RECURSO).toEqual({

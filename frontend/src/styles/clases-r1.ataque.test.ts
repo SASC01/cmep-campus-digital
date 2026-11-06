@@ -167,14 +167,22 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // duda", "Borrar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 72 enEspera", () => {
+  // ADMIN-01c ronda 0 (C-9, §D-R0 «Frontend — Enmienda 1», 01c; §D-10): de 72 a 76 enEspera=, con
+  // las cifras que fija el plan. tabla-clases-admin.tsx pasa de 0 a 1 («Restaurar»), y entran a la
+  // lista fija confirmar-archivado.tsx (1: «Sí, archivar»), dialogo-borrar-clase.tsx (1: «Sí, borrar
+  // definitivamente»), formulario-duplicar-clase.tsx (1: «Duplicar clase») y duplicar-clase-view.tsx
+  // (0). clases-admin-view.tsx sigue en 1 («Cargar más clases»). «Archivar», «Duplicar» (enlace),
+  // «Borrar definitivamente» y «Cancelar» no esperan nada. Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 76 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(72)
+    expect(usos).toHaveLength(76)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -232,7 +240,13 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/clases-admin-view.tsx": 1,
       "/src/features/clases/components/lista-maestros-de-clase.tsx": 1,
       "/src/features/clases/components/buscador-de-maestros.tsx": 1,
-      "/src/features/clases/components/tabla-clases-admin.tsx": 0,
+      // C-9 de ADMIN-01c: «Restaurar» en la tabla; la confirmación de archivar, el diálogo de borrar
+      // y el formulario de duplicar con su botón; la vista de duplicar sin espera.
+      "/src/features/clases/components/tabla-clases-admin.tsx": 1,
+      "/src/features/clases/components/confirmar-archivado.tsx": 1,
+      "/src/features/clases/components/dialogo-borrar-clase.tsx": 1,
+      "/src/features/clases/components/formulario-duplicar-clase.tsx": 1,
+      "/src/features/clases/duplicar-clase-view.tsx": 0,
       // TAREAS-01c ronda 0 (C-8, §D-9): FirmaDelAutor pasa a components/clase/; solo cambia la ruta.
       "/src/components/clase/firma-del-autor.tsx": 0,
       // C-20 (CLASES-02d): "Reintentar" de la lista de clases de la barra lateral.
@@ -371,6 +385,11 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/components/layout/lista-de-clases.tsx",
       "/src/components/ui/button-variants.ts",
       "/src/features/auth/components/panel-anuncios.tsx",
+      // ADMIN-01c ronda 0 (C-9c, Enmienda 9, P-01c-2; §D-10 y DESIGN §7.3): de 11 a 12. El control
+      // segmentado "Activas" / "Archivadas" de /admin/clases es un grupo en vidrio fuerte dentro de la
+      // Card de la vista ("Elemento sobre vidrio"); en el contexto opaco del admin vale --surface. El
+      // vidrio sin variante y el vidrio azul no cambian, y la igualdad sigue exacta.
+      "/src/features/clases/clases-admin-view.tsx",
       "/src/features/clases/components/bloque-destacado.tsx",
       // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11 y DESIGN §7.7): de 9 a 11. La fila
       // de entrega (§7.7, vidrio fuerte) y la fila del material, con el mismo material. Las secciones de
@@ -395,9 +414,14 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/bloque-destacado.tsx",
     ])
     // C-12 de CALIFICACIONES-01d (§D-R0, A-5): suma el contexto opaco de la raíz del gradebook (M-03).
+    // ADMIN-01c ronda 0 (C-9b, Enmienda 9, P-01c-1; E-23 y §D-10): suma el diálogo de borrar una
+    // clase. Su DialogContent se monta en el portal, fuera de la raíz de ContenedorRol, así que lleva
+    // data-material="opaco" y data-densidad="densa" propios. Sigue protegiendo que los atributos del
+    // contexto solo entran con el plan y que ningún componente se marca opaco por su cuenta.
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
       "/src/features/calificaciones/gradebook-view.tsx",
+      "/src/features/clases/components/dialogo-borrar-clase.tsx",
     ])
   })
 })

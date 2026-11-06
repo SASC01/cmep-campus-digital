@@ -33,6 +33,8 @@ import {
   CLASES_DEL_CUADRO_DE_FECHA,
   CLAVE_SIN_TEMA,
   CODIGOS_QUE_REEMPLAZAN_EL_RECURSO,
+  LIMITE_CLASES_ADMIN,
+  TEXTOS_BORRAR_CLASE,
   TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
   TEXTOS_EDITAR_RECURSO,
@@ -47,7 +49,11 @@ import {
 import type {
   CamposDelRecurso,
   Categoria,
+  ConteoDeBorradoRespuesta,
   ControlDeOrden,
+  CursorDeClasesAdmin,
+  EstadoDeClases,
+  ListaClasesAdminRespuesta,
   CrearAnuncio,
   CrearRecurso,
   EditarRecurso,
@@ -724,3 +730,75 @@ export const temaVigente = (elegido: string, temas: readonly Tema[] | undefined)
   if (temas === undefined) return elegido
   return temas.some(({ id }) => id === elegido) ? elegido : ""
 }
+
+// ADMIN-01c (§D-10): la pestaña de /admin/clases sale de `?estado=`. Que falte vale "Activas" (la vista
+// no lo escribe al montar); cualquier otro valor, también.
+export const estadoDeLaLista = (valor: string | null): EstadoDeClases =>
+  valor === "archivadas" ? "archivadas" : "activas"
+
+// ADMIN-01c (§D-2, Enmienda 5): la consulta de una página de la lista del administrador, siempre con el
+// estado primero; la posición va después del cursor, codificada.
+export const consultaDeClasesAdmin = (
+  estado: EstadoDeClases,
+  pagina: CursorDeClasesAdmin | undefined,
+): string => {
+  const parametros = new URLSearchParams({ estado, limite: String(LIMITE_CLASES_ADMIN) })
+  if (pagina === undefined) return parametros.toString()
+  parametros.set("cursor", pagina.cursor)
+  if (pagina.cursorArchivadaEn !== undefined) {
+    parametros.set("cursorArchivadaEn", pagina.cursorArchivadaEn)
+  }
+  return parametros.toString()
+}
+
+// ADMIN-01c (§D-2, Enmienda 5): la página siguiente sale de la última respuesta. Solo en "Archivadas"
+// lleva la posición, y solo si el servidor la mandó como texto (sin una posición inventada).
+export const siguienteCursorDeClasesAdmin = (
+  estado: EstadoDeClases,
+  ultima: ListaClasesAdminRespuesta,
+): CursorDeClasesAdmin | undefined => {
+  if (ultima.siguienteCursor === null) return undefined
+  const posicion = ultima.siguienteCursorArchivadaEn
+  if (estado === "archivadas" && typeof posicion === "string") {
+    return { cursor: ultima.siguienteCursor, cursorArchivadaEn: posicion }
+  }
+  return { cursor: ultima.siguienteCursor }
+}
+
+const cantidadCon = (n: number, unidad: { una: string; varias: string }): string =>
+  `${String(n)} ${n === 1 ? unidad.una : unidad.varias}`
+
+// ADMIN-01c (§D-12, Enmienda 2): lo que se pierde, en palabras; cada cifra con su singular y las que
+// valen 0 dichas igual, para que el texto no cambie de forma según la clase.
+export const consecuenciaDelBorrado = (conteo: ConteoDeBorradoRespuesta): string => {
+  const unidades = TEXTOS_BORRAR_CLASE.unidades
+  return TEXTOS_BORRAR_CLASE.consecuencia({
+    alumnos: cantidadCon(conteo.alumnos, unidades.alumnos),
+    actividades: cantidadCon(conteo.actividades, unidades.actividades),
+    entregas: cantidadCon(conteo.entregas, unidades.entregas),
+    calificaciones: cantidadCon(conteo.calificaciones, unidades.calificaciones),
+    archivos: cantidadCon(conteo.archivos, unidades.archivos),
+  })
+}
+
+const esCodigo = (error: unknown, codigos: readonly string[]): boolean =>
+  esApiError(error) && codigos.includes(error.codigo)
+
+// ADMIN-01c (matriz de 01c): el maestro elegido ya no se puede asignar; el error va en el selector.
+export const noSeEncontroElMaestro = (error: unknown): boolean =>
+  esCodigo(error, ["MAESTRO_NO_ENCONTRADO"])
+
+// ADMIN-01c (matriz de 01c): el estado de la clase ya no es el que la fila mostraba (otra pestaña u otra
+// sesión la archivó, la restauró o la borró): las listas se renuevan además de avisar.
+export const esCambioDeLaClaseEnGestion = (error: unknown): boolean =>
+  esCodigo(error, ["CLASE_YA_ARCHIVADA", "CLASE_NO_ARCHIVADA", "SIN_ACCESO_A_LA_CLASE"])
+
+// ADMIN-01c, corrección de la ronda 1 (T-01): la clase ya no existe (otra pestaña la borró); para el
+// administrador, una clase inexistente responde lo mismo que una sin acceso.
+export const esClaseQueYaNoExiste = (error: unknown): boolean =>
+  esCodigo(error, ["SIN_ACCESO_A_LA_CLASE"])
+
+// ADMIN-01c (matriz de 01c): el conteo de una clase que ya no está archivada dice eso, no la frase de
+// recuperación.
+export const esClaseNoArchivada = (error: unknown): boolean =>
+  esCodigo(error, ["CLASE_NO_ARCHIVADA"])

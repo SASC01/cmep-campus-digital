@@ -139,10 +139,11 @@ describe("reexportaciones de 01c: el mismo objeto desde la ruta vieja y la nueva
     expect(Object.keys(MENSAJES_POR_CODIGO_DE_ARCHIVO).sort()).toEqual([
       "ALMACEN_NO_CONFIGURADO",
       "ALMACEN_NO_DISPONIBLE",
+      "ARCHIVO_EN_COPIA",
       "ARCHIVO_INVALIDO",
       "ARCHIVO_NO_SUBIDO",
     ])
-    // mensajeDeErrorClases conserva la misma salida por cada uno de los cuatro códigos.
+    // mensajeDeErrorClases conserva la misma salida por cada uno de los cinco códigos.
     for (const [codigo, mensaje] of Object.entries(MENSAJES_POR_CODIGO_DE_ARCHIVO)) {
       expect(mensajeDeErrorClases(new ApiError(codigo, "texto del servidor", 400)), codigo).toBe(
         mensaje,

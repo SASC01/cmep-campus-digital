@@ -54,7 +54,21 @@ export type {
   CrearRespuesta,
   Duda,
   ListaDudasRespuesta,
+  // ADMIN-01c (§D-10): las dos listas del administrador, el conteo de borrado y duplicar.
+  ConteoDeBorradoRespuesta,
+  DuplicarClase,
+  EstadoDeClases,
 } from "@campus/shared"
+
+// ADMIN-01c (§D-2, Enmienda 5): la página siguiente de /admin/clases. En "Archivadas" lleva además la
+// posición de la fila del cursor, tal como la emitió el servidor.
+export interface CursorDeClasesAdmin {
+  cursor: string
+  cursorArchivadaEn?: string
+}
+
+// ADMIN-01c (DESIGN.md §7.14): el control de una fila que recibe el foco cuando otra fila sale.
+export type AccionDeFilaDeClase = "archivar" | "restaurar" | "borrar"
 
 // Tipos exclusivos de la interfaz de CLASES-a.
 // A-6 de CLASES-02: se declara en lib/variante-de-clase.ts, que usan la tarjeta y la barra lateral.

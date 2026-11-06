@@ -19,6 +19,7 @@ import { ClasesAdminView } from "@/features/clases/clases-admin-view"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
 import { EditarClaseView } from "@/features/clases/editar-clase-view"
 import { DudasView } from "@/features/clases/dudas-view"
+import { DuplicarClaseView } from "@/features/clases/duplicar-clase-view"
 import { EditarRecursoView } from "@/features/clases/editar-recurso-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
@@ -162,6 +163,8 @@ export const rutas: RouteObject[] = [
                   { path: "maestros", element: <Navigate to="../personas" replace /> },
                   { path: "calificaciones", element: <GradebookView /> },
                   { path: "editar", element: <EditarClaseView /> },
+                  // ADMIN-01c (§D-10): duplicar, dentro de la clase como "editar".
+                  { path: "duplicar", element: <DuplicarClaseView /> },
                   { path: "tareas/nueva", element: <CrearTareaView /> },
                   { path: "tareas/:tareaId", element: <DetalleTareaView /> },
                   { path: "tareas/:tareaId/editar", element: <EditarTareaView /> },

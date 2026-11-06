@@ -740,3 +740,550 @@ Ningún `node` estaba corriendo antes y no terminé ningún proceso.
 **V-01:** las 251 de la tabla de la ronda 0 no tienen diferencias. Las dos del tester siguen igual: `objetos-r1` `65c1d9d9…` y `borrado-duplicado-r1` `3520057d…`. En el árbol hay 253.
 
 **Archivos de esta entrega:** `backend/test/clases-archivadas.integracion.test.ts` (E8-1), `backend/test/gestion-clases.integracion.test.ts` (E8-2) y `backend/test/duplicado-de-clase.integracion.test.ts` (los archivos de mis pruebas, que ahora sube el maestro).
+
+## ADMIN-01c — PARADA en el paso 14 (2026-11-05)
+
+Plan: `docs/trabajo/ADMIN-01-administracion/plan.md`, SHA-256 `9e678ef4d34af4fa5990e396c0d1f13f941e303998b188240a42e9aa32556f26` (comprobado al empezar). Base dentro de los paquetes: `52f1c97`. Trabajo en paralelo: la otra copia no se usa (aprobacion.md). Sin navegadores.
+
+### Qué pasó
+El paso 14 pide `ARCHIVO_EN_COPIA` en `MENSAJES_POR_CODIGO_DE_ARCHIVO` (`components/adjuntos/data.ts`, §D-10 "Enmienda 1 (M-04)"), y la lista cerrada de 01c ya prevé su efecto en `reexportaciones-01c.test.ts:139-145`. Pero `features/clases/data.ts:286` esparce ese mapa en `MENSAJES_POR_CODIGO_DE_CLASES`, y **CH3-B01** (`features/clases/errores-ch3.test.ts:95-97`, prueba normal) compara sus claves con igualdad exacta contra `TEXTOS_FIJOS_DE_SIEMPRE` (`:45-60`). De `errores-ch3.test.ts`, la lista cerrada solo admite `:84` y CH3-B15 (1) a (3) ("Nada más del archivo cambia"). Con el diseño bien hecho, CH3-B01 cae: PARADA.
+
+### Lo único que cambié (para comprobarlo)
+- `frontend/src/components/adjuntos/data.ts`: `ARCHIVO_EN_COPIA: "Este archivo todavía se está copiando. Inténtalo en unos minutos."` en `MENSAJES_POR_CODIGO_DE_ARCHIVO`, con su comentario. SHA-256 `1aba642068d97902acbcfadfe8341b9e9c4e512bd9c7efb6749494dff0f01077`.
+- `frontend/src/features/clases/reexportaciones-01c.test.ts` (lista cerrada): `"ARCHIVO_EN_COPIA"` en la lista de `:139-145`. SHA-256 `1bd735b3730fdfc7a1cef7a654742cf7ead8b6f79c9beb3e5ea10057f54eee82`.
+- Nada más: `git diff --stat 52f1c97 -- frontend backend shared` lista estos dos archivos y los dos `*.ataque` de la ronda 0 (sin tocar por mí: `foco-02c-r4` `0165d4e2…` y `styles/clases-r1` `550ccd96…`, los vigentes de la lista `ac79306a…`).
+
+### Corrida
+Puerta de carga: lecturas de 35 a 85 % desde las 14:35; dos seguidas de 25 % o menos a las 14:40:34 (23) y 14:40:44 (15), sin ningún `vitest`. No terminé procesos.
+
+Comando, desde `frontend/`: `npx vitest run src/features/clases/errores-ch3.test.ts src/features/clases/reexportaciones-01c.test.ts src/components/adjuntos/errores-ch3.test.ts`
+
+```
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 37 passed (38)
+```
+
+El rojo es CH3-B01: `expected [ 'ALMACEN_NO_CONFIGURADO', …(12) ] to deeply equal [ 'ALMACEN_NO_CONFIGURADO', …(11) ]`, con `+ "ARCHIVO_EN_COPIA"` como única diferencia (`errores-ch3.test.ts:95:63`). `reexportaciones-01c` (con su cambio de la lista cerrada) y la vigilada `components/adjuntos/errores-ch3.test.ts` en verde.
+
+### Grep de hermanos (para que la enmienda los cierre de una vez)
+- Pruebas que enumeran las claves de un mapa que esparce `MENSAJES_POR_CODIGO_DE_ARCHIVO`: solo CH3-B01 (`features/clases`). `features/tareas/data.ts:153` también lo esparce, pero ninguna prueba compara sus claves (grep de `Object.keys(MENSAJES_POR_CODIGO`, `TEXTOS_FIJOS` y `ALMACEN_NO_CONFIGURADO` en `*.test.*`: solo `errores-ch3.test.ts`, `reexportaciones-01c.test.ts`, `refactor-01c-r1.ataque` con `toMatchObject` y `entregas-01d.test.tsx:845`, que no enumera).
+- Pruebas que enumeran `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` de clases: `errores-ch3.test.ts:84` (ya en la lista cerrada, 15 → 20) y la vigilada `errores-ch3-r1.ataque:273` (los recorre). Ninguna otra.
+
+### Remedio que propondría (no lo apliqué)
+Sumar CH3-B01 a la lista cerrada de 01c con un solo cambio: `ARCHIVO_EN_COPIA: "Este archivo todavía se está copiando. Inténtalo en unos minutos."` en `TEXTOS_FIJOS_DE_SIEMPRE` (`:45-60`), con su comentario de ADMIN-01c. El bucle de `:98-100` lo recorre solo y comprueba el texto.
+
+### Otros huecos del plan que encontré al leer, antes de escribir código (no bloquean por sí solos; los anoto para la misma enmienda)
+1. **Foco tras duplicar.** La matriz de 01c dice "Éxito: `h1` de la clase nueva". El `h1` vive en `features/clases/components/encabezado-clase.tsx:36`, sin `tabIndex`, y ese archivo es de 01d1 (no está en "Se toca" de 01c). Duplicar navega de `/admin/clases/:id/duplicar` a `/admin/clases/:nueva` dentro del mismo `ClaseLayout`: sin tocar el encabezado, el foco queda como hoy al crear una clase (`FormularioClase` solo navega). O la enmienda suma `encabezado-clase.tsx` (`tabIndex={-1}` y un destino) a 01c, o la celda pasa a "como al crear una clase".
+2. **`claveClasesAnteriores`.** La matriz de 01c (archivar y restaurar) la nombra en "Se renueva", pero la clave nace en 01d2 en `services/clasesService.ts`, que no está en "Se toca" de 01c. Sin enmienda, 01c renovaría las dos listas del admin, el detalle de la clase y las listas inscritas e impartidas (con la barra lateral, que cuelga de ellas), y 01d2 sumaría la de anteriores.
+3. **Aviso de duplicado.** §D-10: "avisa «Clase duplicada. Los archivos de los recursos pueden tardar unos minutos en estar disponibles.» cuando la original tenía recursos con archivos". La respuesta de `POST …/duplicar` es `claseRespuestaSchema` (sin dato de archivos) y el formulario no pide los recursos de la original, así que el cliente no sabe si los había. Opciones: el texto completo siempre, o "Clase duplicada" siempre; cualquiera necesita que la enmienda lo fije.
+4. **Nombre accesible del control segmentado.** §D-10 pide un `role="group"` "con nombre accesible", pero §D-12 no trae el texto. Propuesta: "Estado de las clases".
+
+Pasos completados: 0 de 2 (14 y 15). Quedo a la espera de la enmienda.
+
+## ADMIN-01c — Implementación (2026-11-05)
+
+Plan: `docs/trabajo/ADMIN-01-administracion/plan.md`, SHA-256 `3822b6c0adb9823edb9c552dd6cfac78f4e0ffa2f4eca9fcade0be07d4fbdd78` (Enmiendas 1 a 10; comprobado al reanudar). Base dentro de los paquetes: `52f1c97`. La otra copia de trabajo no se usa. Sin navegadores. Sin commit. 01c no toca `shared/` ni el backend.
+
+Pasos completados: 2 de 2 (14 y 15).
+
+### Archivos
+- **Nuevos:** `frontend/src/lib/unir-paginas.ts`, `frontend/src/lib/unir-paginas.test.ts`, `frontend/src/features/clases/duplicar-clase-view.tsx`, `features/clases/components/confirmar-archivado.tsx`, `components/dialogo-borrar-clase.tsx`, `components/formulario-duplicar-clase.tsx`, `features/clases/clases-admin-01c.test.tsx`, `features/clases/clases-admin-01c-rutas.test.tsx`.
+- **Modificados:** `features/clases/clases-admin-view.tsx`, `components/tabla-clases-admin.tsx`, `hooks.ts`, `data.ts`, `lib.ts`, `types.ts`; `components/adjuntos/data.ts` (`ARCHIVO_EN_COPIA`); `app/router.tsx` (`duplicar`).
+- **Lista cerrada (pruebas normales):** `clases-admin-view.test.tsx:165` (URL con `estado=activas`); `errores-ch3.test.ts` (`:84` de 15 a 20; CH3-B15 (1) a (3); CH3-B01 con las dos líneas de E10-1, exactas); `reexportaciones-01c.test.ts` (`:139-145` y el comentario de `:146`, «cinco códigos»). `git diff -U0 52f1c97` de los tres: solo esas líneas.
+
+### Verificación (comando literal y última línea)
+Puerta de carga antes de cada corrida (script propio en el scratchpad: dos lecturas de 25 % o menos y ningún `vitest`). Excepciones: dos corridas cortas de un solo archivo que lancé justo después de una puerta pasada (15:15) sin repetirla, y dos de depuración de ADM-1C10 (borradas; ninguna se reporta como cifra).
+- **lint:** `cd frontend; npm run lint` → exit 0; `All matched files use Prettier code style!` y la última línea es `> tsc -b`, sin errores.
+- **build:** `cd frontend; npm run build` → exit 0, `✓ built in 1.22s`.
+- **test (módulos tocados y vigiladas de fuera, por ruta):** `cd frontend; npx vitest run src/features/clases src/lib src/styles src/components/adjuntos src/app/rutas-02c-r1.ataque.test.tsx src/components/layout/estatico-r1.ataque.test.ts src/app/marco-r1.ataque.test.tsx src/app/barra-02d-r1.ataque.test.tsx src/components/layout/contenedor-rol.test.tsx` (15:28:50) → `Test Files  133 passed (133)` · `Tests  2456 passed (2456)`.
+  - Después corregí solo las letras de los títulos de ADM-1C11 en `clases-admin-01c-rutas.test.tsx`; ese archivo solo: `npx vitest run src/features/clases/clases-admin-01c-rutas.test.tsx` → `Tests  22 passed (22)`; `lint` otra vez exit 0.
+- **Corrida acotada de E10-1** (corregida por M-01 del manager). Desde `frontend/`: `npx vitest run src/features/clases/errores-ch3.test.ts src/features/clases/reexportaciones-01c.test.ts src/components/adjuntos/errores-ch3.test.ts`.
+  - Puerta de carga: 15:52:34 `cpu=3` y 15:52:45 `cpu=0`, sin ningún `vitest`.
+  - Resultado (15:52:47): `Test Files  3 passed (3)` y `Tests  42 passed (42)`.
+  - Por qué cambió: antes reporté `Tests  38 passed (38)`, de la corrida de las 14:56:55. Esa corrida fue anterior a los cuatro casos de CH3-B15 en modo `duplicar` de la Enmienda 9, que apliqué después (tres filas en `FILAS_POR_MODO` y una en `MODOS`). El "38" del plan tampoco los contaba.
+- prisma validate: n/a.
+
+### Rojo esperado de la ronda 0, ahora en verde (en la corrida de módulos)
+- `styles/clases-r1.ataque.test.ts` > "V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 76 enEspera" (C-9). `enEspera=` por archivo: `tabla-clases-admin.tsx` 1, `confirmar-archivado.tsx` 1, `dialogo-borrar-clase.tsx` 1, `formulario-duplicar-clase.tsx` 1, `duplicar-clase-view.tsx` 0, `clases-admin-view.tsx` 1.
+- `styles/clases-r1.ataque.test.ts` > "V-07: vidrio, vidrio fuerte y vidrio azul solo en la lista final del plan (igualdad exacta)" (C-9c y C-9b).
+- `features/clases/foco-02c-r4.ataque.test.tsx` > "ataque CLASES-02c r4: useFocoAlPasarAError en /admin/clases" > "recarga que falla tras tener datos, con el foco en un control de la vista: el foco va al destino del error; con el foco movido por la persona, no se mueve".
+- ídem > "dos fallos seguidos: el segundo no mueve el foco, ni desde el destino ni desde <body>".
+- ídem > "éxito, error, éxito, error: cada paso a error con el foco en un control de la vista lleva el foco al destino".
+
+### Conteos
+`cd frontend; npx vitest list src/features/clases/clases-admin-01c.test.tsx src/features/clases/clases-admin-01c-rutas.test.tsx src/lib/unir-paginas.test.ts`, contado con `grep -a`: 78 casos en 3 archivos (51 en `clases-admin-01c.test.tsx`, 22 en `clases-admin-01c-rutas.test.tsx`, 5 en `unir-paginas.test.ts`). Los 78 llevan "ADM-1C" en su ruta de títulos; 4 son de la matriz y N-24.
+
+### Pruebas requeridas → archivo y título exacto
+Abreviaturas: **[A]** `frontend/src/features/clases/clases-admin-01c.test.tsx`; **[R]** `frontend/src/features/clases/clases-admin-01c-rutas.test.tsx` (router real y `app/providers.tsx`); **[U]** `frontend/src/lib/unir-paginas.test.ts`.
+- **ADM-1C01** → [A] "ADM-1C01: los dos botones están en el grupo «Estado de las clases»; «Archivadas» escribe ?estado= en el historial y atrás y adelante cambian de tabla".
+- **ADM-1C02** → [A] "ADM-1C02: la confirmación lleva el foco a «Cancelar» y cancelar lo regresa a «Archivar»; «Sí, archivar» con dos clics hace una sola petición, la fila sale, un aviso y el foco va al «Archivar» de la fila vecina"; "ADM-1C02: al archivar la última clase de la lista, el foco va al encabezado «Clases», nunca a <body>"; "ADM-1C02: 409 CLASE_YA_ARCHIVADA da un solo aviso con el texto del servidor y la lista se renueva".
+- **ADM-1C03** → [A] "ADM-1C03: «Restaurar» con dos clics hace una sola petición, la fila sale de «Archivadas», un aviso y el foco va al «Restaurar» vecino"; "ADM-1C03: «Duplicar» lleva a la vista de duplicar con el nombre prellenado; con éxito, la ruta pasa a la clase de la respuesta y hay un solo aviso, también sin recursos en la original (Enmienda 10)".
+- **ADM-1C04** → [A] "ADM-1C04: pide el conteo al abrirse y lo dice en palabras; el foco empieza en «Cancelar»; dos clics, un solo DELETE con la confirmación; la fila sale, el diálogo se cierra, un aviso y el foco va al «Borrar definitivamente» vecino"; "ADM-1C04: cada cifra con su singular y las que valen 0 dichas igual (…)" (2 casos); "ADM-1C04: 409 CLASE_CON_COPIAS_EN_CURSO da un solo mensaje en el diálogo, que sigue abierto con el conteo; el botón sale de la espera y repetirlo pide otro DELETE".
+- **ADM-1C04b** → [A] "ADM-1C04b: el título es «Borrar definitivamente «{nombre}»» completo, sin comillas exteriores; un nombre de 120 caracteres sin espacios se conserva entero y el título parte palabras (wrap-anywhere)". Compara `textContent` con `Borrar definitivamente «Clase 5»` y con el nombre largo; la clase por `toHaveClass`, sin medir.
+- **ADM-1C05** → [A] "ADM-1C05 (a) un campo que este modo no pinta (descripcion:, pintado solo al crear): …", "ADM-1C05 (b) mensaje vacío: …", "ADM-1C05 (b) mensaje de solo espacios: …", "ADM-1C05 (c) prefijo con ruta: …" (cada uno termina en "un solo mensaje legible, lo escrito se conserva y «Duplicar clase» sale de la espera"); "ADM-1C05 (d): un rechazo del servidor bajo «Nombre» seguido de un envío que la validación local rechaza (nombre vacío): un solo mensaje, el del último envío, sin otro POST". El recorrido de `ENTRADAS_FUERA_DE_CONTRATO` con la función del módulo en modo `duplicar` lo hace CH3-B15 (2) "toda la tabla fuera de contrato da null en el modo duplicar" (lista cerrada).
+- **ADM-1C06** → [R] "ADM-1C06 (a) cerrar y volver a abrir: …", "ADM-1C06 (b) pulsar «Clases» en la barra estando ahí: …", "ADM-1C06 (c) ir a otra sección y regresar antes del staleTime: …", "ADM-1C06 (d) cambiar a «Activas» y volver: …" (cada uno: "al volver a abrir el diálogo pide otra vez el conteo (no lo sirve de la caché) y el texto desaparece").
+- **ADM-1C07** → [R] "en «activas», (a) pulsar «Clases» en la barra estando ahí: la primera página vuelve a pedirse sin cursor ni posición, responde y el texto desaparece", y los mismos con "(b) ir a otra sección y regresar antes del staleTime", "(c) cambiar de pestaña y volver" y "(d) atrás y adelante del historial".
+- **ADM-1C08** → [A] "ADM-1C08 y ADM-1C16 (d): en «activas», dos clics en «Cargar más clases» hacen una sola petición" (y "en «archivadas»"). `enEspera={isFetching}` y `cancelRefetch: false` en el código.
+- **ADM-1C09** → [A] "ADM-1C09: el contenido del diálogo lleva data-material=opaco y data-densidad=densa, y solo existe mientras está abierto (sin forceMount)".
+- **ADM-1C10** → [R] "ADM-1C10 (a) repetir «Descargar»: …", "ADM-1C10 (b) pulsar «Recursos» estando en la sección: …", "ADM-1C10 (c) ir a «Avisos» y regresar antes del staleTime: …" (cada uno: "sale otra petición de la URL; un solo aviso por intento fallido y, con 200, el aviso no vuelve y la descarga sigue"). El recorrido de `ENTRADAS_FUERA_DE_CONTRATO` con el código nuevo lo hacen CH3-B01 (lista cerrada) y la vigilada `components/adjuntos/errores-ch3.test.ts`.
+- **ADM-1C11** → [R] "ADM-1C11 (a): repetir «Sí, borrar definitivamente» pide otro DELETE; con 204 la fila sale y el texto desaparece"; "ADM-1C11 (b) cerrar y volver a abrir: al volver a abrir, el error ya no está, se vuelve a pedir el conteo y el botón está disponible"; "ADM-1C11 (c) pulsar «Clases» en la barra estando ahí: …" (mismo final).
+- **ADM-1C12** → [R] "ADM-1C12 (a) pulsar «Clases» en la barra estando ahí: …", "ADM-1C12 (b) ir a otra sección y regresar antes del staleTime: …", "ADM-1C12 (c) cambiar de pestaña y volver: …", "ADM-1C12 (d) atrás y adelante del historial: …" (cada uno: "vuelve a pedir la primera página de la lista visible y, si responde, el texto desaparece").
+- **ADM-1C13** → [A] "ADM-1C13: 409 CLASE_CON_COPIAS_EN_CURSO da un solo aviso con el texto del servidor, lo escrito se conserva, «Duplicar clase» sale de la espera y repetir el envío pide otro POST".
+- **ADM-1C14** → [A] "ADM-1C14: la lista pide ?estado=activas&limite=50 en «Activas» y ?estado=archivadas&limite=50 en «Archivadas»"; "ADM-1C14: archivar marca viejas las dos listas del admin (prefijo) y las listas de la barra lateral" (y "restaurar", "borrar", "duplicar"). Comprueban además que ninguna clave con "anteriores" se invalida (E10-6).
+- **ADM-1C15** → [A] "ADM-1C15 (a) claseId: en «Sí, archivar»: un solo aviso legible y el botón sale de la espera; (e) al cancelar y volver a abrir no queda ningún mensaje viejo", con (b) vacío, (b) espacios, (c) confirmar.0: y (d) nombre: (pintado solo al duplicar); los cinco en «Restaurar» ("…: un solo aviso legible y el botón sale de la espera") y los cinco en «Sí, borrar definitivamente» ("…: un solo mensaje legible en el diálogo, sin aviso; el botón sale de la espera; (e) al cerrar y volver a abrir el mensaje viejo no está"). 15 casos.
+- **ADM-1C16** → (a) [A] "ADM-1C16 (a): en «Archivadas», la página siguiente lleva el cursor y la posición codificada, exactamente"; (b) [A] "ADM-1C16 (b): en «Activas», la segunda página sale sin cursorArchivadaEn con la posición en null", "… sin la posición (dobles de hoy)" y "… aunque el servidor mandara una posición"; (c) [A] "ADM-1C16 (c): con el 400 de la posición vieja, la frase de lista cambiada una sola vez y sin aviso", y por los caminos de ADM-1C07: [R] "en «archivadas», (a) …", "(b) …", "(c) …", "(d) …" (comprueban `cursorArchivadaEn` en la petición que falla y que las nuevas salen sin `cursor` ni `cursorArchivadaEn`); (d) [A] "ADM-1C08 y ADM-1C16 (d): en «archivadas», dos clics en «Cargar más clases» hacen una sola petición".
+- **ADM-1C17** → (a) [U] "ADM-1C17 (a): sin repetidas, devuelve todas las filas en el orden de las páginas", "ADM-1C17 (a): un id repetido en una página posterior se queda en su primera aparición y sale de la posterior", "ADM-1C17 (a): una repetida dentro de la misma página sale igual", "ADM-1C17 (a): páginas vacías", "ADM-1C17 (a): no muta la entrada"; (b) [A] "ADM-1C17 (b): en «activas», la fila que la segunda página repite se pinta una sola vez, en su lugar; React no avisa de claves repetidas y la tercera página sale con el cursor y la posición de la segunda respuesta" (y "en «archivadas»").
+- **N-24 del manager** → [A] "N-24: si la última página trae solo filas repetidas, el foco va al encabezado «Clases»"; "N-24: si la primera fila de la última página es repetida, el foco va al «Abrir» de la primera fila de verdad nueva".
+- Casos de la matriz que no son ADM: [A] "matriz de 01c: 404 MAESTRO_NO_ENCONTRADO va en el selector de maestros, sin aviso"; "matriz de 01c: duplicar sin elegir maestro no pide nada y marca el selector".
+
+### V-01 y "No se toca"
+- **V-01:** reconstruí la lista de la ronda 0 de 01c (las 256 filas de `reporte-tester.md:1548-1805`, con las dos filas de "Tras la Enmienda 9"). Su SHA-256 en formato `sha256sum -c` da `ac79306abdf63ad495a3a985f01cc18f142f380b94b27f35e70316f872696c03`, el de la lista vigente. `sha256sum -c` no da diferencias. `git ls-files '*.ataque.test.ts' '*.ataque.test.tsx'` da 256 y no hay ninguna `*.ataque` sin rastrear. No toqué ninguna `*.ataque`.
+- **"No se toca" contra `52f1c97`:** `git diff --name-only 52f1c97 -- backend shared infra AGENTS.md CLAUDE.md .claude docs/DESIGN.md docs/ESTADO.md` está vacío. En `frontend/` cambian solo archivos de "Se toca" de 01c, los tres de la lista cerrada y las dos `*.ataque` del tester (C-9 a C-9d). `services/clasesService.ts` y `encabezado-clase.tsx` no se tocan (E10-3, E10-6). `docs/DESIGN.md` no se toca: el plan lo deja para el cierre (A-04, §D-R0 01c). Fuera de los paquetes, solo `docs/trabajo/ADMIN-01-administracion/resumen-programador.md` (el `DEPLOY-investigacion-vps.md` sin rastrear ya estaba y no es mío).
+- Vigiladas: todas en verde dentro de la corrida de módulos. `clases-admin-view.test.tsx:104-127` no cambió. Ningún código fijo nuevo en `MENSAJES_POR_CODIGO_DE_CLASES` (E10-2): `ARCHIVO_EN_COPIA` llega por `MENSAJES_POR_CODIGO_DE_ARCHIVO`, como pide §D-10. Lo escribí como literal en el mapa, no como clave de `MENSAJES_ERROR_DE_ARCHIVOS` (detalle menor del manager en la verificación de E10).
+
+### Decisiones donde el plan calla
+1. **Recuperar la lista** (`useRecuperarListaDeClasesAdmin`, `hooks.ts`):
+   - Con otra `location.key` y la vista montada (pulsar «Clases», cambiar de pestaña, atrás o adelante), se hace `resetQueries` exacto de la lista visible, solo si está en error. Pide la primera página sin cursor ni posición.
+   - Al desmontarse la vista, las listas en error salen de la caché (`removeQueries`), así que regresar antes del `staleTime` las pide de nuevo.
+   - Una lista sana no se vuelve a pedir, así que las pruebas existentes que cuentan peticiones no cambian.
+2. **«Clases» de la barra** abre `/admin/clases`, es decir, «Activas». Desde «Archivadas», ADM-1C07 y ADM-1C16 (c), camino (a), vuelven después a su pestaña: así la lista archivada en error se pide otra vez desde la primera página.
+3. **Qué se renueva al archivar o restaurar:**
+   - También el detalle de esa clase (`exact: true`).
+   - Además de los dos `409` de la matriz, también ante `SIN_ACCESO_A_LA_CLASE`, por si otra sesión la borró; si no, la fila quedaría para siempre.
+4. **El conteo:**
+   - `staleTime` y `gcTime` en 0, y se saca de la caché al cerrar el diálogo.
+   - `CLASE_NO_ARCHIVADA` muestra el texto del servidor. Cualquier otro error muestra la frase de recuperación y no ofrece «Sí, borrar definitivamente».
+   - Usa el `retry` de la app (uno).
+5. **El diálogo:**
+   - No se cierra mientras el borrado está en vuelo.
+   - Se monta solo abierto, con `key` por clase.
+   - Al cancelar, el foco vuelve a «Borrar definitivamente» de esa fila (`useFocoAlCerrarElBorrado`). Radix solo lo devuelve a un `DialogTrigger`, que aquí no hay; sin esto quedaba en `<body>`.
+   - Tras borrar, el foco va al mismo control de la fila vecina, o al `h1`.
+6. **Foco al quitar una fila** (§7.14; `useFocoAlQuitarUnaClase`): va al mismo control de la fila que ocupa su lugar.
+   - En «Activas», «Archivar»; en «Archivadas», «Restaurar»; tras el diálogo, «Borrar definitivamente».
+   - Sin filas, va al `h1` «Clases».
+   - Lo marca `data-accion` en cada botón.
+7. **Nombres accesibles:** el texto visible de cada botón de la tabla va `aria-hidden`, y la acción con el nombre de la clase va en un solo nodo `sr-only` ("Archivar Clase 1"). Es O-01c-3: el nombre de la clase nunca queda como nodo de texto propio dentro de un botón. Los enlaces «Abrir» y «Duplicar» conservan el patrón de hoy.
+8. **Variantes:** «Archivar» y «Borrar definitivamente» en `ghost`; «Abrir», «Duplicar» y «Restaurar» en `outline`; «Sí, archivar» en `destructive` (§7.14); «Sí, borrar definitivamente» en `destructive`.
+9. **Formulario de duplicar:**
+   - «Cancelar» lleva a `/admin/clases`.
+   - Un error con que `apiClient` redirige no avisa.
+   - Un error que va como aviso limpia los errores de campo anteriores, para que se lea un solo mensaje.
+   - El `id` del campo es `nombre-de-la-copia`, para no repetir el de crear.
+10. **Columna «Archivada»:** pinta la fecha corta solo si `archivadaEn` es texto; ausente, la celda va vacía. No hay valor inventado.
+11. **Nombre de la función del selector:** `noSeEncontroElMaestro` (`lib.ts`). El primer nombre, `esMaestroNoEncontrado`, chocaba con `/esMaestro/` de `estatico-02c-r1.ataque:63`. Lo cambié yo; ninguna prueba cambió.
+
+### Desviaciones del plan
+Ninguna. Los textos son los de §D-10 y §D-12, con «Estado de las clases» ya aprobado (E10-5).
+
+### Matriz de avisos y recargas (vistas nuevas de 01c)
+"Redirige" = `401`, `ACCESO_RESTRINGIDO` o `CAMBIO_DE_CONTRASENA_REQUERIDO`, que resuelve `apiClient`: ninguna de estas vistas avisa de ellos.
+
+**`/admin/clases` (`ClasesAdminView`)**
+
+| Disparador | Clase de error | Qué se renueva | Qué se anuncia | Foco |
+|---|---|---|---|---|
+| Lista, primera página | `5xx` o red; `VALIDACION` | Nada al instante. La renuevan pulsar «Clases», cambiar de pestaña, atrás y adelante (`resetQueries`), o salir y volver (`removeQueries`) | Reemplaza el contenido con `MensajeError` (`TEXTOS_CLASES_ADMIN.error`); sin aviso. El control segmentado sigue | Como hoy: al `h1` solo si hubo datos y el foco se perdió (llave por estado, O-01c-6) |
+| Lista, primera página | Redirige | — | Nada | — |
+| «Cargar más clases» | `400` del cursor, también con la posición vieja | Igual que arriba; vuelve sin cursor ni posición | `MensajeError` con la frase de lista cambiada; sin aviso | El `h1`, si el botón tenía el foco |
+| «Cargar más clases» | `5xx` o red | Igual | `MensajeError` con `TEXTOS_CLASES_ADMIN.error`, como hoy (E9-4); sin aviso | Ídem |
+| «Sí, archivar» / «Restaurar» | `VALIDACION` | Nada | Un aviso traducido | Se queda en el botón, que sale de la espera |
+| «Sí, archivar» / «Restaurar» | `409 CLASE_YA_ARCHIVADA` / `CLASE_NO_ARCHIVADA`; `SIN_ACCESO_A_LA_CLASE` | Las dos listas del admin, inscritas e impartidas (con la barra) y el detalle (`exact`) | Un aviso con el texto del servidor | La fila sale: el mismo control de la vecina, o el `h1` |
+| «Sí, archivar» / «Restaurar» | `5xx` o red | Nada | Un aviso | Se queda en el botón |
+| «Sí, archivar» / «Restaurar» | Redirige | Nada | Nada | — |
+| «Sí, archivar» / «Restaurar» | Éxito | Ídem `409` | "Clase archivada" / "Clase restaurada" | Vecina o `h1` |
+| Conteo, al abrir el diálogo | `409 CLASE_NO_ARCHIVADA` | Al reabrir | `MensajeError` en el diálogo con el texto del servidor; sin botón de borrar | Se queda en «Cancelar» |
+| Conteo, al abrir el diálogo | `5xx`, red u otro | Al reabrir: se saca de la caché al cerrar | `MensajeError` con "No pudimos contar lo que se borraría. Cierra y vuelve a intentarlo."; sin botón de borrar | «Cancelar» |
+| «Sí, borrar definitivamente» | `VALIDACION`, `409 CLASE_CON_COPIAS_EN_CURSO` o `CLASE_NO_ARCHIVADA`, `5xx` o red | Nada; el conteo se conserva | Un `MensajeError` en el diálogo, sin aviso; al cerrar se limpia (`reset()`) | Se queda en el botón, que sale de la espera |
+| «Sí, borrar definitivamente» | Éxito | Las dos listas del admin e inscritas e impartidas | "Clase borrada" | El diálogo se cierra: «Borrar definitivamente» de la vecina, o el `h1` |
+| Cerrar el diálogo sin borrar | — | Se saca el conteo | — | El «Borrar definitivamente» que lo abrió |
+
+**En vuelo a la vez, en `/admin/clases`:**
+- Cada fila tiene su propia mutación de restaurar y su ref. Dos «Restaurar» de filas distintas salen los dos, y cada uno avisa una vez.
+- El foco lo decide la fila que lo tenía.
+- «Cargar más clases» durante una renovación por archivar o restaurar queda en espera (`isFetching`), y `cancelRefetch: false` no corta la renovación.
+- Mientras el diálogo está abierto, el resto de la página es inerte (modal).
+
+**Con la vista desmontada, en `/admin/clases`:**
+- Archivar y restaurar avisan desde el gancho, una vez, también al desmontarse.
+- El borrado avisa su error solo si el diálogo ya no está (`useMontado`); su éxito avisa siempre.
+- Ninguno avisa de un error con que `apiClient` redirige.
+- Las listas en error salen de la caché.
+
+**`/admin/clases/:claseId/duplicar` (`DuplicarClaseView`)**
+- **Detalle de la clase (`GET`):** como "editar". Ante un error, `MensajeError` con `mensajeDeConsultaClases`, que reemplaza la vista. Si el `401` no se recupera, redirige.
+- **«Duplicar clase»:**
+  - `VALIDACION` de un campo pintado (`nombre`, `maestroIds`): `ErrorDeCampo`.
+  - `VALIDACION` de otro campo, vacía o con ruta: un aviso.
+  - `MAESTRO_NO_ENCONTRADO`: en el selector, sin aviso.
+  - `409 CLASE_CON_COPIAS_EN_CURSO`, `5xx` o red: un aviso, y se limpian los errores de campo viejos.
+  - En todos, lo escrito y los maestros elegidos se conservan, y el foco se queda en el botón.
+  - Si redirige, nada.
+  - Éxito: se marcan viejas las listas del admin e inscritas e impartidas, sale el aviso "Clase duplicada. Los archivos de los recursos pueden tardar unos minutos en estar disponibles." y navega a la clase nueva sin mover el foco, como al crear (E10-3 y E10-4).
+- **En vuelo a la vez:** la ref impide un segundo `POST`.
+- **Con la vista desmontada:** el gancho avisa el error, salvo si redirige, y el éxito sin navegar.
+
+**«Descargar» de un recurso (componente compartido, sin cambio salvo el texto)**
+- `409 ARCHIVO_EN_COPIA`: un aviso, "Este archivo todavía se está copiando. Inténtalo en unos minutos.".
+- Cada «Descargar» vuelve a pedir la URL: es una mutación y no hay caché.
+- El foco se queda en «Descargar».
+- Los demás errores, como hoy.
+
+### Hermanos
+1. **La guarda con ref en cada acción nueva:** «Cargar más clases», «Sí, archivar», «Restaurar», «Sí, borrar definitivamente» y «Duplicar clase». Las cinco con ref y `enEspera`, y cada una con su caso de dos clics y una sola petición (ADM-1C08 y 1C16 d, 1C02, 1C03, 1C04; el formulario de duplicar, por la ref de CHORE-04). «Archivar», «Borrar definitivamente» y «Cancelar» no piden nada: no aplica.
+2. **El cursor con posición:** «Activas» nunca la manda, ni con `null`, ni sin el campo, ni si el servidor la mandara. «Archivadas» la manda solo si llega como texto. El `400` de cualquiera de las dos lleva al mismo texto. Probado en las dos pestañas.
+3. **El descarte por `id`:** las dos pestañas usan `unirPaginasSinRepetidas` en el único lugar donde se unen las páginas. Los `ids` que recibe `useFocoAlCargarMas` ya vienen sin repetidos (N-24). 01d2, 01f y 01g lo usarán desde sus archivos; no aplica en 01c.
+4. **Estados vecinos de la recuperación de la lista:**
+   - primera carga que falla, recarga que falla y página siguiente que falla con `5xx` o con `400`, en cada pestaña;
+   - error ya en la caché al montar (`foco-02c-r4`, C-9d);
+   - cambiar de pestaña con error en la otra;
+   - atrás y adelante;
+   - desmontar y volver;
+   - pulsar «Clases» desde «Archivadas».
+   El remedio aplica a todos. Una lista sana no se vuelve a pedir.
+5. **Estados vecinos del foco:**
+   - fila que sale por archivar, restaurar, borrar o un `409`;
+   - última fila;
+   - lista vacía;
+   - lista que pasa a error (manda `useFocoAlPasarAError`; el gancho nuevo no actúa sin `ids`);
+   - cambio de pestaña (la llave del gancho de error lleva el estado);
+   - cancelar la confirmación en línea (vuelve a «Archivar»);
+   - cerrar el diálogo sin borrar (vuelve al botón que lo abrió).
+   Probados, salvo el cambio de pestaña con foco en una fila, que no existe: el foco está en el botón de la pestaña.
+6. **El conteo y los errores del diálogo:** reabrir (incluye pulsar «Clases», ir y volver, y cambiar de pestaña), reabrir tras un `400` (ADM-1C15 e) y reabrir tras un `409` (ADM-1C11 b y c). En todos se pide el conteo otra vez y no queda el error viejo.
+7. **`ARCHIVO_EN_COPIA`:** la descarga de la clase usa `mensajeDeErrorClases`, y la tabla de clases lo esparce. La de las entregas (`features/tareas`) también lo esparce, pero el servidor solo lo responde en la descarga de la clase (E1-21): no aplica más.
+
+## ADMIN-01c — Corrección ronda 1 (2026-11-05)
+
+Plan: `plan.md`, SHA-256 `3822b6c0adb9823edb9c552dd6cfac78f4e0ffa2f4eca9fcade0be07d4fbdd78`. Fuente: `reporte-tester.md`, "## Ronda 1 — ADMIN-01c" (línea 1902), y `frontend/src/features/clases/clases-admin-01c-r1.ataque.test.tsx`, que no toqué. Es la ronda de corrección 1 de 3. Sin navegadores y sin commit.
+
+### Hallazgos
+- **T-01: corregido.**
+  - `useConteoDeBorrado` (`hooks.ts`): si el conteo falla con `esCambioDeLaClaseEnGestion` (`SIN_ACCESO_A_LA_CLASE`, `CLASE_NO_ARCHIVADA` o `CLASE_YA_ARCHIVADA`), renueva las dos listas del admin, inscritas e impartidas y el detalle (`renovarTrasGestionar`), igual que archivar y restaurar. Lo hace dentro del `queryFn` y relanza el error.
+  - `useBorrarClase`: ante `SIN_ACCESO_A_LA_CLASE` (`esClaseQueYaNoExiste`, nueva en `lib.ts`), avisa como antes y renueva lo mismo.
+  - El `409 CLASE_NO_ARCHIVADA` del `DELETE` sigue la matriz del plan: solo el mensaje en el diálogo, sin renovar.
+  - Así la frase "No pudimos contar lo que se borraría. Cierra y vuelve a intentarlo." se cumple: al cerrar, la fila de la clase que ya no existe salió de la lista. Por cada camino:
+    - cerrar: la fila ya no está;
+    - pulsar «Clases», cambiar de pestaña, ir y volver: la lista ya está renovada;
+    - reabrir otra fila: su conteo propio.
+- **T-02: corregido.**
+  - `useArchivarClase(claseId)` y `useRestaurarClase(claseId)` llevan una `mutationKey` por clase (`claveGestionDeClase`, `data.ts`).
+  - `useGestionEnVuelo(accion, claseId)` lee de la caché de mutaciones:
+    - `enVuelo` (`useIsMutating`), para pintar la espera;
+    - `sigueEnVuelo()` (`queryClient.isMutating`), para la guarda síncrona.
+  - Así la fila o la confirmación que se vuelven a montar con la petición en vuelo siguen en espera y no mandan otra. Las refs se quedan para el doble clic dentro de la misma instancia.
+  - **«Cancelar» con archivar en vuelo:** no cierra la confirmación, porque la petición ya salió y no se puede retirar. Es lo mismo que hace «Cancelar» del diálogo de borrar (decisión 5 de la implementación; el tester lo dio por bueno en ADM-T1C04).
+  - No pongo «Cancelar» en espera: sumaría un `enEspera=` y V-06 fija 76, lo que sería PARADA. Ningún texto del plan cambia.
+- **T-03: corregido.** El error del conteo sustituye al conteo y al botón (`conteoFallo` en `dialogo-borrar-clase.tsx`). Nunca salen "Cierra y vuelve a intentarlo" y «Sí, borrar definitivamente» a la vez.
+  - El conteo sí se vuelve a pedir al reconectar: ADM-T1C19 lo exige.
+  - Con el borrado ya en vuelo, el conteo confirmado se queda a la vista hasta que responda, para que el botón en espera no desaparezca con el foco dentro.
+- **Hermano de T-01, el foco:** al cerrar el diálogo cuando su fila ya salió (la lista se renovó con el diálogo abierto), el foco va a la fila que quedó, como tras borrar (`useFocoAlQuitarUnaClase`). Antes buscaba el botón de una fila que ya no existía y quedaba en `<body>`. Lo resuelve `alCerrarElBorrado` en `clases-admin-view.tsx`.
+
+### Archivos cambiados en esta ronda
+- Producción: `features/clases/hooks.ts`, `data.ts` (`claveGestionDeClase`), `lib.ts` (`esClaseQueYaNoExiste`), `clases-admin-view.tsx`, `components/tabla-clases-admin.tsx`, `components/confirmar-archivado.tsx` y `components/dialogo-borrar-clase.tsx`. Todos de "Se toca" de 01c.
+- Pruebas: `features/clases/clases-admin-01c.test.tsx`, mío, con 3 casos nuevos:
+  - "hermano de T-01: el conteo con 409 CLASE_NO_ARCHIVADA (otra pestaña la restauró) muestra el texto del servidor, sin «Sí, borrar definitivamente», y la lista de «Archivadas» se renueva";
+  - "hermano de T-01: al cerrar el diálogo cuando su fila ya salió de la lista, el foco va a la fila que quedó, nunca a <body>";
+  - "matriz de 01c: «Sí, borrar definitivamente» con 409 CLASE_NO_ARCHIVADA muestra el mensaje en el diálogo y no renueva las listas".
+- No toqué ninguna `*.ataque` ni ninguna prueba normal fuera de la mía.
+
+### Verificación (desde `frontend/`; puerta de carga antes de cada corrida)
+- **lint:** `npm run lint` → exit 0; `All matched files use Prettier code style!` y `> tsc -b` sin errores.
+- **build:** `npm run build` → exit 0, `✓ built in 887ms`.
+- **test:** `npx vitest run src/features/clases src/lib src/styles src/components/adjuntos src/app/rutas-02c-r1.ataque.test.tsx src/components/layout/estatico-r1.ataque.test.ts src/app/marco-r1.ataque.test.tsx src/app/barra-02d-r1.ataque.test.tsx src/components/layout/contenedor-rol.test.tsx` (16:18:40; puerta 16:18:27 `cpu=25` y 16:18:38 `cpu=12`) → `Test Files  134 passed (134)` · `Tests  2482 passed (2482)`.
+  - Las cuentas: 2479 de la corrida del tester más mis 3 casos.
+  - Los 6 rojos del tester ya pasan: ADM-T1C01, 02, 06, 07, 08 y 19.
+- Antes, solo los tres archivos de 01c (`clases-admin-01c-r1.ataque`, `clases-admin-01c` y `clases-admin-01c-rutas`): `Tests  96 passed (96)`. Después de sumar mis casos, `clases-admin-01c.test.tsx` solo: `Tests  54 passed (54)`.
+
+### V-01
+- Las 256 de la lista `ac79306a…` no tienen diferencias (`sha256sum -c`).
+- Se suma la del tester sin rastrear: `frontend/src/features/clases/clases-admin-01c-r1.ataque.test.tsx` = `1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65`.
+- En total, 257. No toqué ninguna.
+
+### Hermanos y estados vecinos, por mutación de 01c
+
+| Mutación o consulta | Remedio de T-01 (renovar si la clase cambió o ya no existe) | Remedio de T-02 (en vuelo sobrevive al desmontaje) | Remedio de T-03 (el error sustituye a la acción) |
+|---|---|---|---|
+| Archivar | Ya lo tenía (`409` y `403`) | Aplicado: `mutationKey` por clase, la espera y la guarda leen la caché; «Cancelar» no cierra en vuelo | No aplica: no hay consulta previa en la confirmación |
+| Restaurar | Ya lo tenía | Aplicado, igual | No aplica |
+| Conteo | Aplicado: `403`, `409 CLASE_NO_ARCHIVADA` y `409 CLASE_YA_ARCHIVADA` | No aplica: es una consulta. Al reabrir se pide de nuevo, y se saca de la caché al cerrar | Aplicado |
+| Borrar | Aplicado solo a `403`; el `409 CLASE_NO_ARCHIVADA` sigue la matriz (sin renovar) | Ya cubierto: el diálogo no se cierra en vuelo y es modal, así que ni cambiar de pestaña ni Escape lo desmontan (ADM-T1C04) | Con el borrado en vuelo, el conteo confirmado se queda y no se mezcla con un error de recarga |
+| Duplicar | No aplica: la vista no tiene una fila que quede vieja. Una clase que ya no existe da `403` en el detalle y no pinta el formulario (ADM-T1C16) | No aplica: un formulario nuevo es otra copia que la persona pide. La misma instancia ya tiene su ref y `isPending` (ADM-T1C13) | No aplica |
+
+**Estados vecinos:**
+- **En vuelo con la vista desmontada:** archivar y restaurar avisan desde las opciones de la mutación, una vez. Al volver, la fila ve la petición en vuelo, si sigue, y no deja mandar otra. El borrado avisa el éxito una vez y su error solo con el diálogo desmontado (ADM-T1C05).
+- **En vuelo al cambiar de pestaña:** archivar y restaurar quedan en espera al volver (ADM-T1C06 y 08). El diálogo de borrar no deja cambiar de pestaña (modal).
+- **`403`:** archivar, restaurar, conteo y borrar renuevan las listas.
+- **`409`:** archivar, restaurar y conteo renuevan. El `409` de borrar solo se muestra en el diálogo (matriz).
+- **`5xx` y red:** sin cambios. Un aviso en archivar y restaurar, y en el diálogo el error, sin botón de borrar si el que falló es el conteo.
+- **Reconexión:** el conteo se vuelve a pedir; si falla, solo el error. La lista se vuelve a pedir como hoy: `refetchOnReconnect` en la caché.
+
+### Matriz de avisos y recargas (filas que cambian)
+
+| Disparador | Clase de error | Qué se renueva | Qué se anuncia | Foco |
+|---|---|---|---|---|
+| Conteo, al abrir o al reconectar | `403 SIN_ACCESO_A_LA_CLASE`, `409 CLASE_NO_ARCHIVADA` o `CLASE_YA_ARCHIVADA` | **Las dos listas del admin, inscritas e impartidas y el detalle** (antes: solo al reabrir) | `403`: la frase de recuperación; `409 CLASE_NO_ARCHIVADA`: el texto del servidor. Sin botón de borrar | «Cancelar»; al cerrar, la fila vecina si la fila ya salió |
+| Conteo, al reconectar | `5xx` o red | Al reabrir | La frase de recuperación **en lugar** del conteo y del botón | Se queda en el diálogo |
+| «Sí, borrar definitivamente» | `403 SIN_ACCESO_A_LA_CLASE` | **Las dos listas del admin, inscritas e impartidas y el detalle** | Un `MensajeError` en el diálogo | En el botón; al cerrar, la fila vecina |
+| «Sí, archivar» / «Restaurar», en vuelo | Cualquiera | Igual que antes | Igual que antes | Tras volver a montar la fila: el botón en espera. «Cancelar» de la confirmación no la cierra |
+
+### M-02 (verificación del manager, `revision.md:2989`): corregido
+
+**Defecto.** Al cerrar el diálogo de una fila que ya había salido de la lista, `useFocoAlQuitarUnaClase` buscaba su lugar con `previos.indexOf`. Esa fila ya no estaba en la lista anterior, así que daba −1, se acotaba a 0 y el foco iba a la primera fila.
+
+**Remedio.** En `features/clases/hooks.ts`, el gancho guarda el último lugar en que vio cada fila (`ultimoLugar`, un `Map` de `id` a índice), actualizado en cada render con datos. Al decidir el foco, lee el lugar de la fila que salió de ese mapa, aunque haya salido varios renders antes, y va a:
+- la que ocupa ese lugar ahora, que es la siguiente;
+- la anterior, si era la última;
+- el `h1`, si la lista quedó vacía.
+
+`idsPrevios` desaparece. No cambia ningún otro archivo de producción.
+
+**Comprobación de que los casos detectan el defecto.** Cambié a mano el cálculo a `Math.min(0, …)`, que es el comportamiento viejo, y corrí `npx vitest run src/features/clases/clases-admin-01c.test.tsx -t "M-02"` → `Tests  11 failed | 4 passed | 54 skipped (69)`. Después restauré el archivo desde una copia y `cmp` dio igual. Los cuatro que pasan con el cálculo viejo son los de la primera fila y el de la lista vacía, que no distinguen el defecto.
+
+**Casos nuevos**, en `frontend/src/features/clases/clases-admin-01c.test.tsx`, 15 en total (`npx vitest list src/features/clases/clases-admin-01c.test.tsx`, `grep -a -c "M-02"` = 15):
+- "M-02: con la primera de tres filas, el conteo responde 403 y se cierra con «Cancelar»: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la primera de tres filas, el conteo responde 403 y se cierra con Escape: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la primera de tres filas, el DELETE responde 403 y se cierra con «Cancelar»: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la de en medio de tres filas, el conteo responde 403 y se cierra con «Cancelar»: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la de en medio de tres filas, el conteo responde 403 y se cierra con Escape: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la de en medio de tres filas, el DELETE responde 403 y se cierra con «Cancelar»: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la última de tres filas, el conteo responde 403 y se cierra con «Cancelar»: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la última de tres filas, el conteo responde 403 y se cierra con Escape: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: con la última de tres filas, el DELETE responde 403 y se cierra con «Cancelar»: el foco va al «Borrar definitivamente» de la vecina"
+- "M-02: si la fila era la única, el foco va al encabezado «Clases»"
+- "M-02: con dos páginas cargadas, la fila de la segunda página que ya salió deja el foco en su vecina"
+- "M-02: al reconectar, si la fila con el foco ya no está en la lista renovada, el foco va al mismo control de la vecina"
+- "M-02: borrar con éxito la fila de en medio lleva el foco al mismo control de la siguiente"
+- "M-02: restaurar con éxito la fila de en medio lleva el foco al mismo control de la siguiente"
+- "M-02: archivar con éxito la fila de en medio lleva el foco al mismo control de la siguiente"
+
+Las vecinas que comprueban los tres casos de cada lugar:
+- con la primera fila, la vecina es Clase 6;
+- con la de en medio, Clase 7, la siguiente;
+- con la última, Clase 6, la anterior.
+
+**Hermanos y estados vecinos del mecanismo (foco al quitar una fila; un solo gancho, `useFocoAlQuitarUnaClase`):**
+
+| Estado o camino | ¿Pasa por el gancho? | ¿El remedio aplica? | Caso |
+|---|---|---|---|
+| Diálogo cerrado con «Cancelar»; la fila salió por el conteo `403` | Sí (`marcarBorrada` desde `alCerrarElBorrado`) | Sí | Primera, de en medio y última |
+| Ídem, cerrado con Escape | Sí, por el mismo `onCerrar` (`onOpenChange`) | Sí | Primera, de en medio y última |
+| La fila salió por el `DELETE` con `403` | Sí | Sí | Primera, de en medio y última |
+| Conteo con `409 CLASE_NO_ARCHIVADA` o `CLASE_YA_ARCHIVADA` | Sí: renueva igual que el `403` | Sí, mismo cálculo | Cubierto por los del `403` (mismo camino de código); el caso de la ronda 1 "hermano de T-01: el conteo con 409 CLASE_NO_ARCHIVADA…" comprueba que la fila sale |
+| La lista queda vacía | Sí: no hay vecina → `h1` | Sí | "si la fila era la única" |
+| Varias páginas cargadas | Sí: los `ids` son la unión sin repetidos | Sí | "con dos páginas cargadas…" |
+| La fila que sale al reconectar con el foco dentro | Sí (`useFilaEnFoco`) | Sí; antes también caía a la primera si la fila había salido antes | "al reconectar…" |
+| Borrar con éxito | Sí: la fila sale después de que el diálogo se cierra | Sí, no se rompe | "borrar con éxito la fila de en medio…" |
+| Restaurar con éxito, «Archivadas» | Sí, por el foco en la fila | Sí | "restaurar con éxito…" |
+| Archivar con éxito, «Activas» | Sí | Sí | "archivar con éxito…" |
+| `409` de archivar o restaurar (la fila sale al renovarse) | Sí, por el foco en la fila | Sí, mismo cálculo | El caso de 01c "ADM-1C02: 409 CLASE_YA_ARCHIVADA…" (vecina siguiente) |
+| Cerrar el diálogo sin que la fila haya salido | No (`useFocoAlCerrarElBorrado` devuelve el foco al botón que lo abrió) | No aplica | ADM-1C09 y ADM-T1C04 |
+| Lista en error o cambio de pestaña | El gancho no actúa sin `ids`: manda `useFocoAlPasarAError` | No aplica | Vigiladas `foco-02c-r3` y `-r4` |
+
+### Verificación de M-02 (desde `frontend/`; puerta de carga 16:36:39 `cpu=4` y 16:36:49 `cpu=15`)
+- **lint:** `npm run lint` → exit 0; `All matched files use Prettier code style!` y `> tsc -b` sin errores.
+- **build:** `npm run build` → exit 0, `✓ built in 866ms`.
+- **test:** `npx vitest run src/features/clases src/lib src/styles src/components/adjuntos src/app/rutas-02c-r1.ataque.test.tsx src/components/layout/estatico-r1.ataque.test.ts src/app/marco-r1.ataque.test.tsx src/app/barra-02d-r1.ataque.test.tsx src/components/layout/contenedor-rol.test.tsx` (16:36:52) → `Test Files  134 passed (134)` · `Tests  2497 passed (2497)`, es decir, 2482 más los 15 casos de M-02.
+- Antes, `clases-admin-01c.test.tsx` solo: `Tests  69 passed (69)`.
+- **V-01:** las 256 de la lista `ac79306a…` dan 0 diferencias con `sha256sum -c`. Con `clases-admin-01c-r1.ataque.test.tsx` = `1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65`, son 257. No toqué ninguna `*.ataque`.
+- **Archivos de esta corrección:** `frontend/src/features/clases/hooks.ts` y `frontend/src/features/clases/clases-admin-01c.test.tsx`, mío (casos nuevos y el import de `onlineManager`).
+
+**Matriz (columna de foco, filas que corrige M-02).** Conteo con `403` o `409`, y «Sí, borrar definitivamente» con `403`: al cerrar el diálogo, el foco va a la fila siguiente, a la anterior si era la última, o al `h1` si no queda ninguna.
+
+## ADMIN-01c — Corrección ronda 2 (2026-11-05)
+
+Plan `3822b6c0…`. Fuente: `reporte-tester.md`, "## Ronda 2 — ADMIN-01c" (línea 2065), y ADM-T2C04 de `frontend/src/features/clases/clases-admin-01c-r2.ataque.test.tsx`, que no toqué. Es la ronda de corrección 2 de 3. Sin navegadores y sin commit.
+
+### T-04: corregido
+
+**Causa:** `conteoFallo = conteo.isError && !borrar.isPending`. En cuanto el `DELETE` dejaba de estar pendiente, el error del conteo, pedido otra vez al reconectar, volvía a la vista junto al error del borrado.
+
+**Regla de qué mensaje gana:** el diálogo muestra un solo mensaje, el del último envío de la persona.
+1. Antes de pulsar «Sí, borrar definitivamente» en esta apertura, manda el conteo. Si falla, también cuando se vuelve a pedir al reconectar, su error sustituye al conteo y al botón (T-03).
+2. Desde que lo pulsa (el borrado en vuelo o ya respondido con error), manda el borrado. Se ven el conteo que la persona confirmó, el botón y, si falló, solo el error del borrado. Un error posterior del conteo ya no se muestra.
+3. Al cerrar el diálogo, el borrado vuelve a reposo (`reset()`) y el conteo sale de la caché: la siguiente apertura empieza en el punto 1.
+
+**Remedio:** en `frontend/src/features/clases/components/dialogo-borrar-clase.tsx`, la condición pasa a `conteoFallo = conteo.isError && borrar.isIdle`, con la regla escrita en el comentario. El conteo se sigue pidiendo al reconectar, como exigen ADM-T1C19 y ADM-T2C04; solo cambia qué se muestra. No cambia ningún otro archivo de producción.
+
+**Comprobación de que los casos detectan el defecto:** devolví a mano la condición vieja (`!borrar.isPending`) y corrí `npx vitest run src/features/clases/clases-admin-01c.test.tsx -t "T-04"` → `Tests  5 failed | 3 passed | 69 skipped (77)`. Después restauré el archivo desde una copia y `cmp` dio igual. Los tres que pasan con la condición vieja son el `204`, el de antes de enviar y el de cerrar y reabrir, que no dependen del orden de llegada.
+
+### Tabla completa del mecanismo (qué muestra el diálogo y dónde queda el foco)
+"Conteo + botón" = el texto del conteo y «Sí, borrar definitivamente». Una sola fila por combinación; la regla es la de arriba.
+
+| Estado del conteo | Estado del `DELETE` | Qué se muestra | Foco | Caso que lo cubre |
+|---|---|---|---|---|
+| Cargando (primera vez) | Sin enviar | `Cargando`, sin botón | «Cancelar» (inicial) | ADM-1C04 |
+| Con datos | Sin enviar | Conteo + botón | «Cancelar» | ADM-1C04 |
+| Error (sin datos) | Sin enviar | Un mensaje: la frase de recuperación, o el texto del servidor con `409 CLASE_NO_ARCHIVADA`; sin botón | «Cancelar» | ADM-1C06, ADM-T1C01, "hermano de T-01: el conteo con 409…" |
+| Error tras tener datos (reconexión) | Sin enviar | Un mensaje, la frase; sin conteo ni botón | Se queda en el diálogo | ADM-T1C19; "T-04: antes de enviar…" |
+| Nueva petición en vuelo con datos | Sin enviar | Conteo + botón (los datos que ya había) | Sin cambio | "T-04: antes de enviar…" (la segunda reconexión) |
+| Con datos, o nueva petición en vuelo | En vuelo | Conteo + botón en espera, sin mensaje | El botón | ADM-1C04; ADM-T2C04 (antes de responder) |
+| Error tras tener datos (reconexión durante el envío) | En vuelo | Conteo confirmado + botón en espera, sin mensaje | El botón | ADM-T2C04; "T-04: el conteo que se vuelve a pedir al reconectar falla con el DELETE en vuelo…" (los 3) |
+| Cualquiera | `204` | El diálogo se cierra; aviso "Clase borrada" | «Borrar definitivamente» de la vecina, o el `h1` | ADM-1C04; M-02 "borrar con éxito…"; "T-04: … y después el DELETE responde 204…" |
+| Con datos, o error del conteo antes o después | `403` | Un mensaje, "No tienes acceso a esta clase."; conteo + botón; las listas se renuevan | El botón; al cerrar, la vecina (M-02) | ADM-T1C02; M-02 (`DELETE` 403); "T-04: el DELETE responde 403… y después el conteo… falla" |
+| Con datos, o error del conteo antes o después | `409 CLASE_CON_COPIAS_EN_CURSO` | Un mensaje, el texto del servidor; conteo + botón | El botón | ADM-1C04, ADM-1C11 (a) |
+| Con datos, o error del conteo antes o después | `409 CLASE_NO_ARCHIVADA` | Un mensaje, el texto del servidor; conteo + botón; sin renovar (matriz) | El botón | "matriz de 01c: … 409 CLASE_NO_ARCHIVADA…"; los dos de T-04 con `409` (conteo falla antes y después) |
+| Con datos, o error del conteo antes o después | `5xx` | Un mensaje, el genérico; conteo + botón | El botón | ADM-T2C04 (el conteo falla antes); "T-04: el DELETE responde 500 y después el conteo…" |
+| Con datos, o error del conteo antes | Red | Un mensaje, el de red del módulo; conteo + botón | El botón | "T-04: … y después el DELETE responde sin conexión…" |
+| Con datos | `VALIDACION` fuera de contrato | Un mensaje legible; conteo + botón | El botón | ADM-1C15 (5 casos) |
+| Después de cerrar y volver a abrir | Reposo otra vez | Como "Cargando" y después "Con datos"; ningún mensaje viejo | «Cancelar» | ADM-1C11 (b) y (c), ADM-1C15 (e), "T-04: tras un error del borrado, cerrar y volver a abrir…" |
+| Cualquiera | En vuelo y la persona cierra (Escape o «Cancelar») | No se cierra | Se queda en el diálogo | ADM-T1C04 |
+| Cualquiera | En vuelo y la vista se desmonta | Sin diálogo; el gancho avisa el éxito, y el error solo con el diálogo desmontado | — | ADM-T1C05 |
+
+**Órdenes de llegada, uno por uno:**
+- El conteo falla antes de que el `DELETE` responda: gana el `DELETE` (500, 409, red y 204 probados).
+- El conteo falla después de que el `DELETE` respondió con error: gana el `DELETE` (500, 409 y 403 probados).
+- El conteo falla antes de pulsar: gana el conteo (T-03).
+
+### Casos nuevos
+En `frontend/src/features/clases/clases-admin-01c.test.tsx`, que es mío; son 8, del bloque "T-04: qué mensaje muestra el diálogo de borrado (un solo mensaje, el del último envío)":
+- "T-04: el DELETE responde 500 y después el conteo que se vuelve a pedir al reconectar falla: un solo mensaje, el del borrado, con el conteo confirmado y el botón, y el foco en el botón"
+- "T-04: el DELETE responde 409 CLASE_NO_ARCHIVADA y después el conteo que se vuelve a pedir al reconectar falla: un solo mensaje, el del borrado, con el conteo confirmado y el botón, y el foco en el botón"
+- "T-04: el DELETE responde 403 SIN_ACCESO_A_LA_CLASE y después el conteo que se vuelve a pedir al reconectar falla: un solo mensaje, el del borrado, con el conteo confirmado y el botón, y el foco en el botón"
+- "T-04: el conteo que se vuelve a pedir al reconectar falla con el DELETE en vuelo y después el DELETE responde 409 CLASE_NO_ARCHIVADA: un solo mensaje, el del borrado, y el foco en el botón"
+- "T-04: el conteo que se vuelve a pedir al reconectar falla con el DELETE en vuelo y después el DELETE responde sin conexión: un solo mensaje, el del borrado, y el foco en el botón"
+- "T-04: el conteo que se vuelve a pedir falla con el DELETE en vuelo y después el DELETE responde 204: sin mensajes, el diálogo se cierra, un aviso y el foco en la fila vecina"
+- "T-04: antes de enviar, el conteo que se vuelve a pedir y falla sustituye al conteo y al botón; si después responde, vuelven el conteo y el botón, sin mensaje"
+- "T-04: tras un error del borrado, cerrar y volver a abrir empieza sin mensajes, con el conteo nuevo y el botón disponible"
+
+El caso de 500 con el conteo fallando antes es ADM-T2C04, del tester.
+
+### Verificación (desde `frontend/`; puerta de carga antes de cada corrida)
+- **lint:** `npm run lint` → exit 0; `All matched files use Prettier code style!` y `> tsc -b` sin errores.
+- **build:** `npm run build` → exit 0, `✓ built in 789ms`.
+- **test:** `npx vitest run src/features/clases src/lib src/styles src/components/adjuntos src/app/rutas-02c-r1.ataque.test.tsx src/components/layout/estatico-r1.ataque.test.ts src/app/marco-r1.ataque.test.tsx src/app/barra-02d-r1.ataque.test.tsx src/components/layout/contenedor-rol.test.tsx` (17:07:36; puerta 17:07:23 `cpu=21` y 17:07:33 `cpu=20`) → `Test Files  135 passed (135)` · `Tests  2513 passed (2513)`.
+  - Son 2505 de la corrida del tester más mis 8. ADM-T2C04 ya pasa.
+  - Una corrida anterior de la misma suite (17:04:53; puerta 17:04:40 `cpu=8` y 17:04:51 `cpu=12`) dio `Tests  2513 passed (2513)`. Durante ella lancé por error un `npx vitest list` del archivo mío. Por eso la repetí limpia, sin nada en paralelo, y la que vale es la de arriba.
+- Antes: `npx vitest run src/features/clases/clases-admin-01c.test.tsx src/features/clases/clases-admin-01c-r2.ataque.test.tsx src/features/clases/clases-admin-01c-r1.ataque.test.tsx` → `Tests  108 passed (108)` (77 + 8 + 23).
+- **Conteo:** `npx vitest list src/features/clases/clases-admin-01c.test.tsx`, con `grep -a "T-04"`: 8 casos.
+
+### V-01
+- Las 256 de la lista `ac79306a…` dan 0 diferencias con `sha256sum -c`.
+- Más las dos del tester, sin rastrear:
+  - `clases-admin-01c-r1.ataque.test.tsx` = `1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65`;
+  - `clases-admin-01c-r2.ataque.test.tsx` = `76b5b2522f60795c0e7672da7b10ea95a3ce61d1aa26f102ef8eb057bd3ce6d9`.
+- En total, 258. No toqué ninguna `*.ataque`.
+
+**Archivos de esta corrección:** `frontend/src/features/clases/components/dialogo-borrar-clase.tsx` y `frontend/src/features/clases/clases-admin-01c.test.tsx`.
+
+### Estados vecinos antes de la ronda 3
+
+Fuente: `revision.md`, "## Verificación de la corrección de la ronda 2 — ADMIN-01c" (línea 3194), con sus tres estados vecinos y sus puntos de ataque. Ninguna decisión cambia un texto ni un comportamiento que fije el plan: el `409 CLASE_NO_ARCHIVADA` del `DELETE` sigue sin renovar (matriz), y la frase del conteo es la de §D-10. No es PARADA.
+
+**Regla ampliada (en el comentario de `dialogo-borrar-clase.tsx`):** un solo mensaje, el del último envío de la persona.
+1. **Antes de pulsar** «Sí, borrar definitivamente» en esta apertura, manda el conteo. Si falla, su error sustituye al conteo y al botón.
+2. **Desde que se pulsa,** manda el borrado:
+   - se ve el **conteo confirmado, congelado** desde el primer clic de esta apertura (vecino 1);
+   - se ven también el botón y, si falló, solo el error del borrado;
+   - un error posterior del conteo no se muestra.
+3. **Excepción (vecino 3):** con el borrado ya respondido, si el conteo dice que la clase ya no existe (`403 SIN_ACCESO_A_LA_CLASE`, porque otra pestaña la borró), eso gana:
+   - la frase "No pudimos contar lo que se borraría. Cierra y vuelve a intentarlo." sustituye al mensaje del borrado y al botón, porque volver a borrar no puede servir;
+   - el foco va a «Cancelar»;
+   - las listas ya se renovaron (T-01), así que al cerrar la fila ya no está y la frase se cumple;
+   - con el borrado en vuelo, se espera a que responda.
+4. **Vecino 2:** un error con que `apiClient` redirige (`CODIGOS_QUE_REDIRIGE_EL_CLIENTE`: `ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`, `NO_AUTENTICADO`) no se pinta ni se anuncia, ni del borrado ni del conteo. Usa el mismo `errorQueRedirigeElCliente` que ya usan `mis-calificaciones-view.tsx:126`, `hilo-privado.tsx:174`, `entrega-de-alumno-view.tsx:122` y `entregas-view.tsx:110`. El aviso con la vista desmontada ya lo omitía (`avisarErrorConElFormularioDesmontado`).
+5. **Al cerrar,** el borrado vuelve a reposo y el conteo sale de la caché. La siguiente apertura es un diálogo nuevo (`key`), sin conteo congelado.
+
+**Remedio**, solo en `frontend/src/features/clases/components/dialogo-borrar-clase.tsx`:
+- `confirmado` (estado): el conteo a la vista en el primer clic de la apertura. `conteoVisible` lo usa mientras el borrado no está en reposo.
+- `conteoQueRedirige`, `yaNoExiste`, `conteoFallo` (reposo **o** `yaNoExiste`, y nunca con código que redirige) y `borradoFallo` (error del borrado, sin `conteoFallo` ni código que redirige).
+- Un efecto lleva el foco a «Cancelar» cuando el botón desaparece con el foco dentro.
+
+No cambia ningún otro archivo de producción.
+
+**Comprobación de que los casos detectan el comportamiento anterior:** puse la versión del diálogo de la ronda 2 (copia) y corrí `npx vitest run src/features/clases/clases-admin-01c.test.tsx -t "vecino"` → `Tests  7 failed | 5 passed | 75 skipped (87)`. Después restauré el archivo y `cmp` dio igual.
+- Fallan los 7 casos que cubren cambios: vecino 1, los 4 de vecino 2, vecino 3 y la sustitución por la frase tras el `403` del `DELETE`.
+- Pasan, y quedan como cobertura de los órdenes que pidió el manager: `409` de copias con reconexión, dos reconexiones y Escape.
+- El filtro "vecino" también alcanza dos títulos viejos de 01c (ADM-1C03 y ADM-1C04).
+
+**Casos nuevos:** 10, en `frontend/src/features/clases/clases-admin-01c.test.tsx`, bloque "estados vecinos antes de la ronda 3: el diálogo de borrado".
+- "vecino 1: tras un error del DELETE, el conteo que se vuelve a pedir responde otras cifras: se sigue viendo el conteo confirmado, con un solo mensaje, también durante el segundo intento"
+- "vecino 2: el DELETE responde 403 ACCESO_RESTRINGIDO, con que apiClient redirige: el diálogo no pinta ni anuncia ningún mensaje y no hay aviso"
+- "vecino 2: el DELETE responde 403 CAMBIO_DE_CONTRASENA_REQUERIDO, con que apiClient redirige: el diálogo no pinta ni anuncia ningún mensaje y no hay aviso"
+- "vecino 2: el DELETE responde 401 sin refresco (NO_AUTENTICADO), con que apiClient redirige: el diálogo no pinta ni anuncia ningún mensaje y no hay aviso"
+- "vecino 2: el conteo que se vuelve a pedir responde con un código con que apiClient redirige: el diálogo no pinta ni anuncia ningún mensaje"
+- "vecino 3: tras un error del DELETE, el conteo responde 403 (otra pestaña la borró): un solo mensaje, la frase del conteo, sin «Sí, borrar definitivamente», el foco en «Cancelar», la fila sale y al cerrar el foco va a la vecina"
+- "vecino: 409 CLASE_CON_COPIAS_EN_CURSO y después una reconexión cuyo conteo falla: un solo mensaje, el del borrado, con el conteo confirmado y el botón"
+- "vecino: una reconexión con el conteo sano y después el DELETE responde 403: un solo mensaje, el del borrado; otra reconexión cuyo conteo responde 403 lo sustituye por la frase, sin botón"
+- "vecino: dos reconexiones, una con el DELETE en vuelo y otra después de su error, con el conteo fallando las dos veces: un solo mensaje, el del borrado"
+- "vecino: Escape justo cuando el DELETE responde con error: el diálogo se cierra limpio, sin aviso; el foco vuelve a «Borrar definitivamente» y al volver a abrir no queda ningún mensaje"
+
+"Un segundo intento con una reconexión en medio" lo cubre vecino 1: el segundo `DELETE` sale después de la reconexión, sin el mensaje viejo durante el vuelo y con solo el nuevo al responder.
+
+**Tabla del mecanismo actualizada.** Filas nuevas o cambiadas respecto de la tabla de la ronda 2; las demás no cambian.
+
+| Estado del conteo | Estado del `DELETE` | Qué se muestra | Foco | Caso |
+|---|---|---|---|---|
+| Se vuelve a pedir y responde otras cifras | Con error (o en vuelo, en el segundo intento) | El conteo **confirmado** (congelado), el botón y un solo mensaje, el del borrado; en vuelo, ninguno | El botón | vecino 1 |
+| Cualquiera | Error con código que redirige (`ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`, `NO_AUTENTICADO`) | Ningún mensaje ni aviso; conteo y botón (la página se va) | El botón | vecino 2 (3 casos) |
+| Error con código que redirige | Sin enviar | Ningún mensaje: el conteo que había, o `Cargando` sin datos | Sin cambio | vecino 2 (conteo) |
+| `403` (la clase ya no existe) tras el error del `DELETE` | Con error (`500` o `403`) | **Un mensaje, la frase del conteo; sin botón**; la fila sale de la lista | «Cancelar»; al cerrar, la vecina (M-02) | vecino 3; "vecino: una reconexión con el conteo sano y después el DELETE responde 403…" |
+| `403` con el `DELETE` en vuelo | En vuelo | Conteo confirmado y botón en espera; se decide al responder | El botón | Por la regla (`yaNoExiste` exige que no esté en vuelo); con `204` se cierra (ronda 2) |
+| Falla (`500`) tras una reconexión | `409 CLASE_CON_COPIAS_EN_CURSO` | Un mensaje, el del borrado; conteo confirmado y botón | El botón | "vecino: 409 CLASE_CON_COPIAS_EN_CURSO y después una reconexión…" |
+| Falla en dos reconexiones (con el `DELETE` en vuelo y después de su error) | `500` | Un mensaje, el genérico del borrado | El botón | "vecino: dos reconexiones…" |
+| Con datos | `500` y Escape en el mismo instante | Si el error llega primero, el diálogo se cierra con Escape, sin aviso; si Escape llega en vuelo, no se cierra y se cierra con el siguiente | Al cerrar, «Borrar definitivamente» de esa fila; al reabrir, sin mensajes | "vecino: Escape justo cuando…" |
+
+**Verificación** (desde `frontend/`; puerta de carga 19:12:44 `cpu=4` y 19:12:54 `cpu=7`):
+- **lint:** `npm run lint` → exit 0; `All matched files use Prettier code style!` y `> tsc -b` sin errores.
+- **build:** `npm run build` → exit 0, `✓ built in 854ms`.
+- **test:** `npx vitest run src/features/clases src/lib src/styles src/components/adjuntos src/app/rutas-02c-r1.ataque.test.tsx src/components/layout/estatico-r1.ataque.test.ts src/app/marco-r1.ataque.test.tsx src/app/barra-02d-r1.ataque.test.tsx src/components/layout/contenedor-rol.test.tsx` (19:12:57) → `Test Files  135 passed (135)` · `Tests  2523 passed (2523)`, es decir, 2513 más los 10 nuevos.
+- **Conteo:** `npx vitest list src/features/clases/clases-admin-01c.test.tsx`, corrido después de la suite y solo, con `grep -a "vecino"`: 12 títulos, que son los 10 nuevos más los dos viejos de ADM-1C03 y ADM-1C04 que dicen "vecino".
+- Antes: `npx vitest run src/features/clases/clases-admin-01c.test.tsx src/features/clases/clases-admin-01c-r2.ataque.test.tsx src/features/clases/clases-admin-01c-r1.ataque.test.tsx` → `Tests  118 passed (118)` (87 + 8 + 23).
+- **V-01:** 258. Las 256 de `ac79306a…` dan 0 diferencias con `sha256sum -c`; `clases-admin-01c-r1` = `1cc30b08…` y `clases-admin-01c-r2` = `76b5b252…`, del tester, sin cambios. No toqué ninguna `*.ataque`.
+- Fuera de `frontend/` no cambia nada: `git diff --name-only 52f1c97 -- backend shared infra` está vacío.
+- **Archivos:** `frontend/src/features/clases/components/dialogo-borrar-clase.tsx` y `frontend/src/features/clases/clases-admin-01c.test.tsx`.
+
+### M-03 (verificación del manager, `revision.md:3289`): corregido
+
+**Causa:** el caso "vecino: Escape justo cuando el DELETE responde con error…" soltaba el `500`, esperaba un solo `setTimeout(0)` y mandaba Escape. Si la respuesta aún no se había procesado, el diálogo seguía en vuelo y, como está decidido, no se cerraba. A mí me pasó en verde por azar del orden; al manager le falló siempre.
+
+**Remedio**, solo en pruebas mías. No toqué código de producción: `cmp` contra la copia de `dialogo-borrar-clase.tsx` de la ronda anterior da igual. Tampoco toqué ninguna `*.ataque`.
+- El caso se parte en dos, deterministas. El estado del borrado se lee del botón (`aria-busy`) y de la aparición del `MensajeError` con `findBy` y `waitFor`, nunca de una espera fija.
+  - "vecino: Escape con el DELETE en vuelo no cierra el diálogo: el botón sigue en espera y el foco dentro; al responder con error, un solo mensaje y el botón sale de la espera"
+  - "vecino: Escape en cuanto el DELETE respondió con error: el diálogo se cierra limpio, sin aviso; el foco vuelve a «Borrar definitivamente» y al volver a abrir no queda ningún mensaje"
+- Nuevas ayudas en `clases-admin-01c.test.tsx`:
+  - `asentado()` espera a que la caché no tenga ninguna consulta ni mutación en vuelo (`isFetching() === 0` e `isMutating() === 0`);
+  - `sinConsultasEnVuelo()` espera solo las consultas, para cuando el `DELETE` sigue retenido a propósito.
+  - Las dos sustituyen a `reposar(…)`, que sale del archivo.
+
+**Esperas revisadas, una por una**
+`clases-admin-01c.test.tsx` (con los números de línea de antes de esta corrección):
+
+| Línea | Lo que hacía | ¿Le pasaba lo mismo? | Cambio |
+|---|---|---|---|
+| 351 (ADM-1C02) | `reposar()` y luego `aria-busy` y una sola petición | Sí, podía comprobar `aria-busy` antes del render | `waitFor(aria-busy)`, un tercer clic y la cuenta |
+| 387 (ADM-1C02, `409`) | `reposar()` tras `waitFor` de la fila | No: el aviso sale antes de renovar | `asentado()` |
+| 406 (ADM-1C03) | `reposar()` y una sola petición | Sí, igual que 351 | `waitFor(aria-busy)`, un tercer clic y la cuenta |
+| 466 (ADM-1C04) | `reposar()` y un solo `DELETE` | Sí, igual | `waitFor(aria-busy)`, un tercer clic y la cuenta |
+| 475 (ADM-1C04) | `reposar()` y el foco | Sí: el foco se mueve en un efecto | `waitFor(toHaveFocus)` |
+| 512 (ADM-1C04, `409`) | `reposar()` tras `findByRole("alert")` | No, pero arreglado igual | `asentado()` |
+| 603 (ADM-1C05) | `reposar()` tras el `POST` y luego el aviso o el error de campo | Sí: la respuesta podía no haberse procesado | `waitFor(no aria-busy)` y `asentado()` |
+| 784 (ADM-1C08/1C16 d) | `reposar()` y `aria-busy` | Sí, igual que 351 | `waitFor(aria-busy)` |
+| 851 (ADM-1C16 c) | `reposar()` tras `findByRole("alert")` | No, pero arreglado igual | `asentado()` |
+| 994 (matriz, `409` del `DELETE`) | `reposar()` tras `findByRole("alert")` | No, pero arreglado igual | `asentado()` |
+| 1215, 1259, 1301, 1400, 1454, 1502, 1552, 1559 (T-04 y vecinos) | `reposar(100/150)` tras la nueva petición del conteo, antes de afirmar que su error no se ve | Sí: la respuesta del conteo podía no haberse procesado y la afirmación negativa pasaba sin probar nada | `sinConsultasEnVuelo()` |
+| 1268 (T-04, `204`) | `act` con `await Promise.resolve()` y `reposar(150)` | Sí, por el mismo motivo | `soltar` sin `act` y `asentado()` |
+| 1439 (vecino 2, `DELETE` que redirige) | `reposar(150)` tras `waitFor(no aria-busy)` | No, pero arreglado igual | `asentado()` |
+| 1577 y 1584 (Escape) | `setTimeout(0)` dentro de `act`, un segundo Escape condicional y `reposar(150)` | Sí: es M-03 | Dos casos nuevos (arriba) |
+| 171 (`retener`) | `new Promise` de la respuesta retenida | No es una espera: la prueba la suelta | Sin cambio |
+
+`clases-admin-01c-rutas.test.tsx`:
+- `reposar()` en los caminos de 259, 276, 379 y 398: tras cambiar de pestaña, el siguiente clic dependía de que el cambio ya se hubiera aplicado. Sí podía fallar: un clic sobre la pestaña que todavía figuraba como activa no hace nada. Pasan a `enLaPestana(nombre)`, un `waitFor` sobre `aria-pressed`.
+- Los demás `reposar()` del archivo (268, 284 a 288, 389, 510, 520, 522) solo marcan el ritmo entre navegaciones. Lo que se comprueba después va con `findBy` o `waitFor` y espera hasta 6 s, así que no les pasa lo mismo. Sin cambio.
+
+`unir-paginas.test.ts`: no tiene ninguna espera (es una función pura).
+
+**Verificación** (desde `frontend/`, con la puerta de carga antes de cada corrida)
+- **lint:** `npm run lint` → exit 0; `All matched files use Prettier code style!` y `> tsc -b` sin errores.
+- **build:** `npm run build` → exit 0, `✓ built in 807ms`.
+- **El archivo solo, tres veces:** `npx vitest run src/features/clases/clases-admin-01c.test.tsx`
+  - 19:28:54 (puerta 19:28:41 `cpu=1` y 19:28:51 `cpu=11`) → `Tests  88 passed (88)`;
+  - 19:29:44 (19:29:31 `cpu=23` y 19:29:42 `cpu=15`) → `Tests  88 passed (88)`;
+  - 19:30:16 (19:30:03 `cpu=25` y 19:30:13 `cpu=20`) → `Tests  88 passed (88)`.
+  - Son 87 de antes más 1, porque el caso de Escape se partió en dos.
+- **Suite de módulos, dos veces:** `npx vitest run src/features/clases src/lib src/styles src/components/adjuntos src/app/rutas-02c-r1.ataque.test.tsx src/components/layout/estatico-r1.ataque.test.ts src/app/marco-r1.ataque.test.tsx src/app/barra-02d-r1.ataque.test.tsx src/components/layout/contenedor-rol.test.tsx`
+  - 19:32:44 (puerta 19:32:31 `cpu=23` y 19:32:42 `cpu=11`) → `Test Files  135 passed (135)` · `Tests  2524 passed (2524)`;
+  - 19:35:55 (puerta 19:35:42 `cpu=23` y 19:35:53 `cpu=23`) → `Test Files  135 passed (135)` · `Tests  2524 passed (2524)`.
+  - Son 2523 más 1, por el caso partido. Las dos corridas incluyen `clases-admin-01c-rutas.test.tsx` y las dos `*.ataque` del tester.
+- **V-01:** 258. Las 256 de `ac79306a…` dan 0 diferencias con `sha256sum -c`; `clases-admin-01c-r1` = `1cc30b08…` y `clases-admin-01c-r2` = `76b5b252…`, sin cambios.
+- **Archivos:** `frontend/src/features/clases/clases-admin-01c.test.tsx` y `frontend/src/features/clases/clases-admin-01c-rutas.test.tsx`, los dos míos.

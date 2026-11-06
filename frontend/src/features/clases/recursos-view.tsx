@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react"
 import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
@@ -166,6 +167,8 @@ function RecursosDeLaClase({ claseId }: RecursosDeLaClaseProps) {
   const perspectiva = perspectivaDeRuta(pathname)
   const capacidades = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
   const base = baseDeClase(perspectiva, claseId)
+  // ADMIN-01d1 (§D-9, fila 16): en una clase archivada no se publica un recurso.
+  const soloLectura = useSoloLecturaDeLaClase()
   const destino =
     perspectiva === "admin"
       ? TEXTOS_FORMULARIO_RECURSO.destinoAprendizaje
@@ -173,7 +176,7 @@ function RecursosDeLaClase({ claseId }: RecursosDeLaClaseProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      {capacidades.gestionarTrabajo && (
+      {capacidades.gestionarTrabajo && !soloLectura && (
         <FormularioRecurso modo="crear" claseId={claseId} destino={destino} />
       )}
       {BLOQUES_DE_RECURSO.map((bloque) => (

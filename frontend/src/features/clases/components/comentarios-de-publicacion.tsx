@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
 import { formatearFechaHora } from "@/lib/format"
@@ -30,6 +31,11 @@ function FilaComentario({ claseId, publicacionId, comentario }: FilaComentarioPr
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
   const confirmandoAnteriorRef = useRef(confirmando)
   const puedeBorrar = comentario.puedeBorrar
+  // ADMIN-01d1 (§D-9, fila 6): en una clase archivada no se ofrece borrar el comentario.
+  const soloLectura = useSoloLecturaDeLaClase()
+  // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
+  // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
+  if (soloLectura && confirmando) setConfirmando(false)
 
   useEffect(() => {
     if (confirmandoAnteriorRef.current === confirmando) return
@@ -51,7 +57,7 @@ function FilaComentario({ claseId, publicacionId, comentario }: FilaComentarioPr
         <FirmaDelAutor autor={comentario.autor} /> · {formatearFechaHora(comentario.creadoEn)}
       </p>
       <p className="max-w-prose wrap-anywhere whitespace-pre-line text-body">{comentario.texto}</p>
-      {puedeBorrar && !confirmando && (
+      {puedeBorrar && !soloLectura && !confirmando && (
         <div>
           <Button
             ref={borrarBtnRef}
@@ -65,7 +71,7 @@ function FilaComentario({ claseId, publicacionId, comentario }: FilaComentarioPr
           </Button>
         </div>
       )}
-      {puedeBorrar && confirmando && (
+      {puedeBorrar && !soloLectura && confirmando && (
         <div className="flex flex-wrap gap-2 py-1">
           <Button
             type="button"
@@ -109,6 +115,8 @@ export function ComentariosDePublicacion({
   perspectiva,
 }: ComentariosDePublicacionProps) {
   const comentarios = useComentarios(claseId, publicacionId)
+  // ADMIN-01d1 (§D-9, fila 5): en una clase archivada no se comenta; los comentarios se leen.
+  const soloLectura = useSoloLecturaDeLaClase()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const filaEnFocoRef = useFilaEnFoco("data-comentario-id")
   const idsPrevios = useRef<string[] | undefined>(undefined)
@@ -193,7 +201,7 @@ export function ComentariosDePublicacion({
         {TEXTOS_COMENTARIOS.titulo}
       </h3>
       {contenido()}
-      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioComentario && (
+      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioComentario && !soloLectura && (
         <FormularioComentario claseId={claseId} publicacionId={publicacionId} />
       )}
     </div>

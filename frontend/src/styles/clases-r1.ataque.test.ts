@@ -175,14 +175,21 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // «Borrar definitivamente» y «Cancelar» no esperan nada. Sigue protegiendo lo mismo: ningún
   // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
   // botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 76 enEspera", () => {
+  // ADMIN-01d1 ronda 0 (C-10, §D-R0 «Frontend — Enmienda 1», 01d1; §D-9): de 76 a 77 enEspera=.
+  // Entran a la lista fija aviso-de-clase-archivada.tsx (1: «Restaurar» del aviso del admin) y
+  // categorias-de-solo-lectura.tsx (0: nombre y peso, sin controles). El enlace «Duplicar» del aviso
+  // no espera nada, y los controles de las filas 1 a 21 que dejan de pintarse en una archivada no
+  // cambian su texto. Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y
+  // aria-disabled solo en Button, y que el número y el lugar de los botones con espera cambien solo
+  // con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 77 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(76)
+    expect(usos).toHaveLength(77)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -247,6 +254,10 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/dialogo-borrar-clase.tsx": 1,
       "/src/features/clases/components/formulario-duplicar-clase.tsx": 1,
       "/src/features/clases/duplicar-clase-view.tsx": 0,
+      // C-10 de ADMIN-01d1: «Restaurar» del aviso de la clase archivada; las categorías de solo
+      // lectura sin espera.
+      "/src/features/clases/components/aviso-de-clase-archivada.tsx": 1,
+      "/src/features/clases/components/categorias-de-solo-lectura.tsx": 0,
       // TAREAS-01c ronda 0 (C-8, §D-9): FirmaDelAutor pasa a components/clase/; solo cambia la ruta.
       "/src/components/clase/firma-del-autor.tsx": 0,
       // C-20 (CLASES-02d): "Reintentar" de la lista de clases de la barra lateral.

@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from "lucide-react"
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
@@ -41,6 +42,9 @@ function ElementosDelTema({
   encabezadoRef,
 }: ElementosDelTemaProps) {
   const trabajo = useTrabajo(claseId, seccion.clave)
+  // ADMIN-01d1 (§D-9, filas 13 y 14): en una clase archivada no se mueve una tarea ni un material.
+  // `gestionar` sigue decidiendo qué fila ve cada perspectiva (la entrega del alumno).
+  const soloLectura = useSoloLecturaDeLaClase()
   const filaEnFocoRef = useFilaEnFoco("data-elemento-id")
   const idsPrevios = useRef<string[] | undefined>(undefined)
   const elementos = trabajo.data?.pages.flatMap((pagina) => pagina.elementos)
@@ -120,7 +124,7 @@ function ElementosDelTema({
             {elemento.tipo === "material" && (
               <ElementoDeTrabajo claseId={claseId} elemento={elemento} />
             )}
-            {gestionar && elemento.puedeMover && (
+            {gestionar && !soloLectura && elemento.puedeMover && (
               <MoverElemento
                 claseId={claseId}
                 publicacionId={elemento.id}
@@ -185,6 +189,9 @@ export function SeccionDeTema({
   onOrdenar,
 }: SeccionDeTemaProps) {
   const borrar = useBorrarTema(claseId)
+  // ADMIN-01d1 (§D-9, filas 9 a 12): en una clase archivada no se renombra, ordena ni borra un tema.
+  const soloLectura = useSoloLecturaDeLaClase()
+  const editarTema = gestionar && !soloLectura
   const idTitulo = useId()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const renombrarRef = useRef<HTMLButtonElement>(null)
@@ -192,6 +199,10 @@ export function SeccionDeTema({
   const cancelarRef = useRef<HTMLButtonElement>(null)
   const [renombrando, setRenombrando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
+  // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
+  // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
+  if (soloLectura && renombrando) setRenombrando(false)
+  if (soloLectura && confirmando) setConfirmando(false)
   // El control al que vuelve el foco cuando se cierra lo que abrió (el formulario o la confirmación).
   const focoAlCerrarRef = useRef<RefObject<HTMLButtonElement | null> | null>(null)
   const tema = seccion.tema
@@ -310,10 +321,10 @@ export function SeccionDeTema({
                 · {TEXTOS_TRABAJO.conteo(seccion.elementos)}
               </span>
             </h2>
-            {gestionar && tema !== null && !renombrando && controles(tema)}
+            {editarTema && tema !== null && !renombrando && controles(tema)}
           </div>
 
-          {gestionar && tema !== null && renombrando && (
+          {editarTema && tema !== null && renombrando && (
             <FormularioTema
               claseId={claseId}
               temaId={tema.id}
@@ -322,7 +333,7 @@ export function SeccionDeTema({
             />
           )}
 
-          {gestionar && tema !== null && confirmando && (
+          {editarTema && tema !== null && confirmando && (
             <div className="flex flex-col gap-2">
               <p className="text-small">
                 {elementosEnTotal === null

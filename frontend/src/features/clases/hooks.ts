@@ -53,6 +53,8 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
 
+import { esClaseArchivada } from "@/components/clase/lib"
+import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { consultaMe } from "@/services/sesionService"
 import { api, esApiError } from "@/services/apiClient"
 import {
@@ -109,6 +111,7 @@ import {
   TEXTOS_BUSCADOR_ALUMNOS,
   TEXTOS_CATEGORIAS,
   TEXTOS_CLASES_ADMIN,
+  TEXTOS_CODIGO,
   TEXTOS_COMENTARIOS,
   TEXTOS_DUDAS,
   TEXTOS_DUPLICAR_CLASE,
@@ -211,6 +214,73 @@ export const useCodigoDeClase = (claseId: string, enabled: boolean) =>
     gcTime: 0,
   })
 
+// ADMIN-01d1 (§D-9, §D-R0 y Enmienda 3): una escritura o una lectura de la clase que recibe 409
+// CLASE_ARCHIVADA marca viejo el detalle de esa clase (solo esa consulta, `exact`). Con ClaseLayout
+// montado, el detalle se vuelve a pedir y aparece el aviso de archivada sin los controles de escritura;
+// desmontado, queda viejo y se pide al volver a abrir la clase. No avisa ni reinicia nada: el aviso es
+// el de quien recibió el error. Con `cancelRefetch: false`, una segunda llamada por el mismo error (el
+// gancho de la mutación y la escucha de ClaseLayout) se une a la petición en vuelo en lugar de repetirla.
+const marcarViejoElDetalleAnteClaseArchivada = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  error: unknown,
+) => {
+  if (!esClaseArchivada(error)) return
+  void queryClient.invalidateQueries(
+    { queryKey: claveClaseDetalle(claseId), exact: true },
+    { cancelRefetch: false },
+  )
+}
+
+// ADMIN-01d1 (§D-9, Enmienda 3, M-07): mientras ClaseLayout está montado, escucha las dos cachés del
+// QueryClient y, ante cualquier consulta o mutación que termina en 409 CLASE_ARCHIVADA (la solicitud de
+// subida o la descarga de components/adjuntos, el código de la clase, una escritura de cualquier módulo),
+// marca viejo el detalle de la clase abierta. No crea ni quita entradas de las cachés. Se da de baja al
+// desmontarse o al cambiar de clase.
+export const useDetalleViejoAnteClaseArchivada = (claseId: string) => {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    const dejarLasConsultas = queryClient.getQueryCache().subscribe((evento) => {
+      if (evento.type !== "updated" || evento.action.type !== "error") return
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, evento.action.error)
+    })
+    const dejarLasMutaciones = queryClient.getMutationCache().subscribe((evento) => {
+      if (evento.type !== "updated" || evento.action.type !== "error") return
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, evento.action.error)
+    })
+    return () => {
+      dejarLasConsultas()
+      dejarLasMutaciones()
+    }
+  }, [queryClient, claseId])
+}
+
+// ADMIN-01d1 (§D-9, DESIGN.md §7.14): si la clase pasa a archivada o deja de estarlo (`clave` cambia) y el
+// control que tenía el foco desapareció con ello (un formulario, «Restaurar» del aviso), el foco va al
+// título de la clase y nunca a <body>. useFocoAlPerderseElControl decide si el control se perdió y lleva
+// el foco a la raíz de la clase; desde ahí pasa al título. Si la persona soltó el foco o lo tiene en otro
+// control, no se mueve. M-01 (a) de la verificación de 01d1: la raíz es enfocable (`tabIndex={-1}`), así
+// que un clic en un espacio en blanco de la clase deja ahí el foco; esa es la forma de soltarlo dentro de
+// la clase, y tampoco se mueve. Para distinguirla de la raíz que acaba de enfocar el gancho, se mira dónde
+// estaba el foco al pintarse el cambio, antes de que corra el efecto del gancho.
+export const useFocoAlTituloDeLaClase = (
+  raizRef: RefObject<HTMLElement | null>,
+  tituloRef: RefObject<HTMLElement | null>,
+  clave: string,
+) => {
+  const raizYaTeniaElFoco = useRef(false)
+  useLayoutEffect(() => {
+    raizYaTeniaElFoco.current =
+      raizRef.current !== null && document.activeElement === raizRef.current
+  }, [clave, raizRef])
+  useFocoAlPerderseElControl(raizRef, clave)
+  useEffect(() => {
+    if (raizYaTeniaElFoco.current) return
+    if (raizRef.current === null || document.activeElement !== raizRef.current) return
+    tituloRef.current?.focus()
+  }, [clave, raizRef, tituloRef])
+}
+
 // Invalida las listas propias del rol tras crear, editar o unirse: los inicios y el panel quedan
 // al día sin recargar.
 // T-02 (ronda 1 de 02c): los helpers devuelven la recarga que disparan. invalidateQueries se resuelve
@@ -279,7 +349,10 @@ export const useEditarClase = () => {
       void invalidarListasDeClases(queryClient)
       if (!montado.current) toast.success(TEXTOS_FORMULARIO_CLASE.avisoGuardada)
     },
-    onError: (error) => avisarErrorConElFormularioDesmontado(montado, error),
+    onError: (error, { claseId }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      avisarErrorConElFormularioDesmontado(montado, error)
+    },
   })
 }
 
@@ -514,7 +587,10 @@ export const useAsignarMaestro = (claseId: string) => {
       toast.success(TEXTOS_MAESTROS_DE_CLASE.asignado(nombre))
       await invalidarMaestrosDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -530,10 +606,17 @@ export const useRetirarMaestro = (claseId: string) => {
       toast.success(TEXTOS_MAESTROS_DE_CLASE.quitado(nombre))
       await invalidarMaestrosDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
+// T-03 (ronda 3 de 01d1): los avisos viven aquí y no en los callbacks de mutate: la clase puede archivarse
+// con la petición en vuelo, o la persona salir de ella, y entonces CodigoDeClase ya no está. T-06 de
+// CLASES: un fallo siempre avisa, para que nadie crea que el código viejo ya no sirve. Con la clase
+// archivada, "Inténtalo de nuevo" no se cumpliría: dice por qué no se puede.
 export const useRegenerarCodigo = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -544,6 +627,14 @@ export const useRegenerarCodigo = (claseId: string) => {
       }),
     onSuccess: (respuesta) => {
       queryClient.setQueryData(claveCodigoDeClase(claseId), respuesta)
+      toast.success(TEXTOS_CODIGO.avisoRegenerado)
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(
+        esClaseArchivada(error) ? mensajeDeErrorClases(error) : TEXTOS_CODIGO.avisoErrorRegenerar,
+      )
     },
   })
 }
@@ -635,7 +726,10 @@ export const useAgregarAlumno = (claseId: string) => {
       // «Agregar a la clase».
       await invalidarPersonasDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -655,7 +749,10 @@ export const useQuitarAlumno = (claseId: string) => {
       toast.success(TEXTOS_TABLA_ALUMNOS.quitado(nombre))
       await invalidarPersonasDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -953,6 +1050,7 @@ export const useCrearPublicacion = (claseId: string) => {
     // §D-11 (O-16, N-05): el error del campo lo muestra el formulario solo si sigue montado; si no, se
     // avisa. No hay ninguna espera antes de decidirlo.
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (montado.current && erroresDeLaPublicacionDeApi(error, "anuncio")) return
       toast.error(mensajeDeErrorClases(error))
     },
@@ -973,7 +1071,10 @@ export const useBorrarPublicacion = (claseId: string) => {
       toast.success(TEXTOS_MURO.avisoPublicacionBorrada)
       await invalidarMuro(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -1021,6 +1122,7 @@ export const useComentar = (claseId: string, publicacionId: string) => {
     },
     // §D-11 (O-16): el error del campo lo muestra el formulario solo si sigue montado; si no, se avisa.
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (montado.current && erroresDeFormularioClases(error, ["texto"])) return
       toast.error(mensajeDeErrorClases(error))
     },
@@ -1041,7 +1143,10 @@ export const useBorrarComentario = (claseId: string, publicacionId: string) => {
       toast.success(TEXTOS_COMENTARIOS.avisoComentarioBorrado)
       await invalidarComentarios(queryClient, claseId, publicacionId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -1253,7 +1358,10 @@ export const useCrearTema = (claseId: string) => {
       toast.success(TEXTOS_TEMAS.avisoCreado)
       await invalidarTemas(queryClient, claseId)
     },
-    onError: (error) => avisarErrorDelTema(queryClient, claseId, montado, error),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTema(queryClient, claseId, montado, error)
+    },
   })
 }
 
@@ -1275,7 +1383,10 @@ export const useRenombrarTema = (claseId: string) => {
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
       ])
     },
-    onError: (error) => avisarErrorDelTema(queryClient, claseId, montado, error),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTema(queryClient, claseId, montado, error)
+    },
   })
 }
 
@@ -1296,6 +1407,7 @@ export const useBorrarTema = (claseId: string) => {
       ])
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
     },
@@ -1354,6 +1466,7 @@ export const useOrdenarTemas = (claseId: string) => {
       await ponerElOrdenEnLasSeccionesSinElNuevo(queryClient, claseId, respuesta)
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
     },
@@ -1391,6 +1504,7 @@ export const useMoverElemento = (claseId: string) => {
     // CLASES-03d (§D-14): con un error con que apiClient ya redirige, la página se va y no se avisa.
     // MOVER_NO_PERMITIDO renueva las listas (CODIGOS_QUE_RENUEVAN_LOS_TEMAS): el control desaparece.
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
@@ -1511,10 +1625,12 @@ export const useCrearRecurso = (claseId: string) => {
       void invalidarRecursosYTemas(queryClient, claseId)
       toast.success(TEXTOS_FORMULARIO_RECURSO.avisoPublicado)
     },
-    onError: (error) =>
-      avisarErrorDelRecurso(montado, "crear", error, () =>
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelRecurso(montado, "crear", error, () =>
         renovarTrasError(queryClient, claseId, error),
-      ),
+      )
+    },
   })
 }
 
@@ -1535,10 +1651,12 @@ export const useEditarRecurso = (claseId: string) => {
       void invalidarRecursosYTemas(queryClient, claseId)
       toast.success(TEXTOS_FORMULARIO_RECURSO.avisoGuardado)
     },
-    onError: (error, { recursoId }) =>
-      avisarErrorDelRecurso(montado, "editar", error, () =>
+    onError: (error, { recursoId }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelRecurso(montado, "editar", error, () =>
         renovarTrasErrorDelRecurso(queryClient, claseId, recursoId, error),
-      ),
+      )
+    },
   })
 }
 
@@ -1564,6 +1682,7 @@ export const useBorrarRecurso = (claseId: string) => {
     // Enmienda 13 (decisión (2) del humano): el 404 de esta ruta (PUBLICACION_NO_ENCONTRADA) dice "Ese
     // recurso ya no existe.", no el texto de Avisos.
     onError: async (error, recursoId) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       const recursoQueYaNoEsta = esApiError(error) && error.codigo === "PUBLICACION_NO_ENCONTRADA"
       toast.error(
@@ -1703,10 +1822,12 @@ export const useCrearDuda = (claseId: string) => {
       void invalidarDudas(queryClient, claseId)
       toast.success(TEXTOS_DUDAS.avisoPublicada)
     },
-    onError: (error) =>
-      avisarErrorDelTexto(montado, erroresDeLaDudaDeApi(error) !== null, error, async () => {
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTexto(montado, erroresDeLaDudaDeApi(error) !== null, error, async () => {
         if (renuevaLasDudas(error)) await invalidarDudas(queryClient, claseId)
-      }),
+      })
+    },
   })
 }
 
@@ -1727,6 +1848,7 @@ export const useMarcarDuda = (claseId: string) => {
       await invalidarDudas(queryClient, claseId)
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       if (renuevaLasDudas(error)) await invalidarDudas(queryClient, claseId)
@@ -1791,6 +1913,7 @@ export const useBorrarDuda = (claseId: string) => {
       await invalidarDudas(queryClient, claseId)
     },
     onError: async (error, dudaId) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       if (!renuevaLasDudas(error)) return
@@ -1814,10 +1937,12 @@ export const useResponder = (claseId: string, dudaId: string) => {
       void invalidarRespuestasYDudas(queryClient, claseId, dudaId)
       toast.success(TEXTOS_RESPUESTAS.avisoPublicada)
     },
-    onError: (error) =>
-      avisarErrorDelTexto(montado, erroresDeLaRespuestaDeApi(error) !== null, error, () =>
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTexto(montado, erroresDeLaRespuestaDeApi(error) !== null, error, () =>
         renovarTrasErrorDeRespuesta(queryClient, claseId, dudaId, error),
-      ),
+      )
+    },
   })
 }
 
@@ -1834,6 +1959,7 @@ export const useBorrarRespuesta = (claseId: string, dudaId: string) => {
       await invalidarRespuestasYDudas(queryClient, claseId, dudaId)
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasErrorDeRespuesta(queryClient, claseId, dudaId, error)
@@ -1856,6 +1982,7 @@ export const useCategoriasEnCache = (claseId: string) => {
 // avisa con el mensaje del servidor y vuelve a pedir la lista antes de terminar.
 export const useGuardarCategorias = (claseId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: ReemplazarCategorias) =>
       api(`/api/clases/${claseId}/categorias`, {
@@ -1870,7 +1997,10 @@ export const useGuardarCategorias = (claseId: string) => {
       await queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] })
     },
     onError: async (error) => {
-      if (erroresDeCategoriasDeApi(error, []) !== null) return
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      // T-03 (ronda 3 de 01d1), como useComentar: el error de una fila lo pinta el editor solo si sigue
+      // montado; si no (la clase se archivó o la persona salió), se avisa.
+      if (montado.current && erroresDeCategoriasDeApi(error, []) !== null) return
       toast.error(mensajeDeErrorClases(error))
       if (!esApiError(error) || !CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS.includes(error.codigo)) return
       await queryClient.invalidateQueries({ queryKey: claveCategorias(claseId) })

@@ -49,6 +49,7 @@ import {
 import type {
   CamposDelRecurso,
   Categoria,
+  ClaseDetalle,
   ConteoDeBorradoRespuesta,
   ControlDeOrden,
   CursorDeClasesAdmin,
@@ -80,6 +81,11 @@ import type {
 
 // TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
 export { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
+
+// ADMIN-01d1 (S-14, N-11): el único lugar que lee `archivadaEn`. Ausente es lo que manda un backend
+// anterior al despliegue, que no sabe de clases archivadas: la clase está activa.
+export const estaArchivada = (clase: Pick<ClaseDetalle, "archivadaEn">): boolean =>
+  clase.archivadaEn !== undefined && clase.archivadaEn !== null
 
 // §D-2D2: el título de la sección de maestros de "Personas".
 export const etiquetaDeMaestros = (total: number): string =>

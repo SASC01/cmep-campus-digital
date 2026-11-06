@@ -2,15 +2,22 @@ import { useRef } from "react"
 import { Link, Outlet, useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { ContextoDeSoloLectura } from "@/components/clase/contexto-de-solo-lectura"
 import { MensajeError } from "@/components/mensaje-error"
 import { buttonVariants } from "@/components/ui/button-variants"
 
 import { CAPACIDADES_POR_PERSPECTIVA } from "./data"
+import { AvisoDeClaseArchivada } from "./components/aviso-de-clase-archivada"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { EncabezadoClase } from "./components/encabezado-clase"
 import { SeccionesDeClase } from "./components/secciones-de-clase"
-import { useClase, useFocoAlPasarAError } from "./hooks"
-import { mensajeDeConsultaClases, perspectivaDeRuta } from "./lib"
+import {
+  useClase,
+  useDetalleViejoAnteClaseArchivada,
+  useFocoAlPasarAError,
+  useFocoAlTituloDeLaClase,
+} from "./hooks"
+import { estaArchivada, mensajeDeConsultaClases, perspectivaDeRuta } from "./lib"
 
 interface ClaseDeLaRutaProps {
   claseId: string
@@ -28,6 +35,14 @@ function ClaseDeLaRuta({ claseId }: ClaseDeLaRutaProps) {
   // T-04: si la clase se recarga con error después de una acción (asignar o quitar un maestro), el
   // botón con el foco desaparece con la vista; el foco va a este contenedor.
   useFocoAlPasarAError(isError, data !== undefined, claseId, errorRef)
+  // ADMIN-01d1 (§D-9): la clase archivada es de solo lectura para todos. Un 409 CLASE_ARCHIVADA de
+  // cualquier petición de la clase marca viejo su detalle (Enmienda 3); al llegar, el aviso aparece y los
+  // controles de escritura dejan de pintarse. Si el control con el foco desaparece, el foco va al título.
+  useDetalleViejoAnteClaseArchivada(claseId)
+  const soloLectura = data !== undefined && estaArchivada(data)
+  const raizRef = useRef<HTMLDivElement>(null)
+  const tituloRef = useRef<HTMLHeadingElement>(null)
+  useFocoAlTituloDeLaClase(raizRef, tituloRef, `${claseId}:${String(soloLectura)}`)
 
   if (isError) {
     return (
@@ -48,11 +63,20 @@ function ClaseDeLaRuta({ claseId }: ClaseDeLaRutaProps) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <EncabezadoClase clase={data} perspectiva={perspectiva} />
-      <SeccionesDeClase claseId={data.id} perspectiva={perspectiva} />
-      <Outlet />
-    </div>
+    <ContextoDeSoloLectura value={soloLectura}>
+      <div ref={raizRef} tabIndex={-1} className="flex flex-col gap-5">
+        <EncabezadoClase clase={data} perspectiva={perspectiva} tituloRef={tituloRef} />
+        {soloLectura && data.archivadaEn && (
+          <AvisoDeClaseArchivada
+            claseId={data.id}
+            archivadaEn={data.archivadaEn}
+            perspectiva={perspectiva}
+          />
+        )}
+        <SeccionesDeClase claseId={data.id} perspectiva={perspectiva} />
+        <Outlet />
+      </div>
+    </ContextoDeSoloLectura>
   )
 }
 

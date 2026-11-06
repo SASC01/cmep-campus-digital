@@ -1287,3 +1287,674 @@ No cambia ningún otro archivo de producción.
   - Son 2523 más 1, por el caso partido. Las dos corridas incluyen `clases-admin-01c-rutas.test.tsx` y las dos `*.ataque` del tester.
 - **V-01:** 258. Las 256 de `ac79306a…` dan 0 diferencias con `sha256sum -c`; `clases-admin-01c-r1` = `1cc30b08…` y `clases-admin-01c-r2` = `76b5b252…`, sin cambios.
 - **Archivos:** `frontend/src/features/clases/clases-admin-01c.test.tsx` y `frontend/src/features/clases/clases-admin-01c-rutas.test.tsx`, los dos míos.
+
+## ADMIN-01d1 — Implementación (2026-11-05)
+
+Plan: `docs/trabajo/ADMIN-01-administracion/plan.md`, SHA-256 `3822b6c0adb9823edb9c552dd6cfac78f4e0ffa2f4eca9fcade0be07d4fbdd78` (Enmiendas 1 a 10; comprobado al empezar). Base dentro de los paquetes: `3ae6a00`. Ronda 0 leída (O-01d1-1 a O-01d1-14). La otra copia de trabajo no se usa. Sin navegadores. Sin commit. 01d1 no toca `shared/` ni el backend.
+
+Pasos completados: 3 de 3 (16, 17 y 18). Sin PARADA:
+- ninguna prueba normal fuera de la lista cerrada (vacía) cambió ni falló;
+- ningún archivo fuera de "Se toca";
+- ninguna vigilada cambió;
+- C-10 en verde por la razón esperada;
+- ningún texto fuera del plan;
+- ningún código fijo nuevo en los mapas de errores.
+
+### Archivos
+- **Nuevos (producción):**
+  - `frontend/src/components/clase/contexto-de-solo-lectura.ts`;
+  - `components/clase/hooks.ts` (`useSoloLecturaDeLaClase`);
+  - `components/clase/lib.ts` (`esClaseArchivada`);
+  - `features/clases/components/aviso-de-clase-archivada.tsx`;
+  - `features/clases/components/categorias-de-solo-lectura.tsx`.
+- **Modificados (producción):**
+  - `components/clase/data.ts` (`TEXTOS_DE_LA_CLASE.archivada`);
+  - `features/clases/clase-layout.tsx`;
+  - `features/clases/lib.ts` (`estaArchivada`);
+  - `features/clases/data.ts` (`TEXTOS_CLASE_ARCHIVADA`);
+  - `features/clases/hooks.ts`: el ayudante, `useDetalleViejoAnteClaseArchivada`, `useFocoAlTituloDeLaClase` y el ayudante en 24 `onError`;
+  - en `features/clases/`: `components/encabezado-clase.tsx`, `muro-view.tsx`, `components/publicacion-del-muro.tsx`, `components/comentarios-de-publicacion.tsx`, `trabajo-view.tsx`, `components/seccion-de-tema.tsx`, `categorias-view.tsx`, `recursos-view.tsx`, `components/elemento-de-recurso.tsx`, `editar-recurso-view.tsx` y `editar-clase-view.tsx`.
+- **Sin cambios aunque estaban en "Se toca":** `components/elemento-de-trabajo.tsx` (fila 14; abajo, decisión 3).
+- **Nuevos (pruebas):** `frontend/src/features/clases/clase-archivada-01d1.test.ts` y `frontend/src/features/clases/clase-archivada-01d1-vista.test.tsx`.
+- **Lista cerrada:** vacía (§D-R0 01d1); ninguna prueba normal existente cambió.
+
+### Verificación
+Todo se corrió desde `frontend/`. Antes de cada corrida, la puerta de carga: dos lecturas de 25 % o menos y ningún `node` con `vitest`.
+- **lint:** `npm run lint` → exit 0. Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -b`, sin errores (21:26:42).
+- **test (módulos tocados y vigiladas de la ronda 0, por ruta):**
+  - Comando: `npx vitest run src/features/clases src/features/tareas src/components/clase src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts src/features/calificaciones/estatico-01d.test.ts src/features/calificaciones/estatico-01d-r1.ataque.test.ts src/features/calificaciones/gradebook-01d.test.tsx src/app/rutas-02c-r1.ataque.test.tsx src/app/marco-r1.ataque.test.tsx src/app/clase-03c1.test.tsx`.
+  - Puerta de carga: 21:26:48 `21` y 21:26:54 `9`. Inicio: 21:27:02.
+  - Resultado: `Test Files  158 passed (158)` · `Tests  3477 passed (3477)`.
+  - Por qué 3477: es la misma selección que corrió el tester en la ronda 0 (sus tres corridas suman 3067 + 232 + 96 = 3395) más mis dos archivos (82 casos).
+  - Antes de escribir mis pruebas, la misma corrida con el código ya cambiado (21:08:42) dio `Tests  3395 passed (3395)`: ninguna prueba existente cayó.
+- **build:** `npm run build` → exit 0, última línea `✓ built in 969ms`.
+- **prisma validate:** n/a.
+- **Rojo esperado de la ronda 0, ahora en verde:** `styles/clases-r1.ataque.test.ts` > V-06, con 77 `enEspera=` (C-10).
+  - `aviso-de-clase-archivada.tsx` lleva 1 y `categorias-de-solo-lectura.tsx`, 0.
+  - Ningún control se copió en dos ramas.
+
+### Conteos
+- **Comando:** `npx vitest list src/features/clases/clase-archivada-01d1.test.ts src/features/clases/clase-archivada-01d1-vista.test.tsx`, contado con `grep -a -c`.
+- **Resultado:** 82 casos en 2 archivos (5 en `clase-archivada-01d1.test.ts` y 77 en `clase-archivada-01d1-vista.test.tsx`).
+- **Los 77 de la vista:**
+  - ADM-1D102: 6;
+  - ADM-1D103: 4;
+  - ADM-1D104: 43 (1 de cobertura del inventario, 21 en activa y 21 en archivada);
+  - ADM-1D105: 2;
+  - ADM-1D106: 8;
+  - ADM-1D107: 4;
+  - ADM-1D108: 1;
+  - ADM-1D109: 4;
+  - estados vecinos del foco: 5.
+
+### Pruebas requeridas → archivo y título exacto
+Abreviaturas:
+- **[L]** `frontend/src/features/clases/clase-archivada-01d1.test.ts`.
+- **[V]** `frontend/src/features/clases/clase-archivada-01d1-vista.test.tsx`: router real (`rutas`) y `app/providers.tsx`. Los que necesitan la caché a mano usan un cliente propio con las mismas opciones y sin reintento: ADM-1D102, ADM-1D108, ADM-1D109 y el caso de vista desmontada de ADM-1D105.
+
+Viñetas:
+- **ADM-1D101** → [L]:
+  - "ADM-1D101: con archivadaEn ISO es true";
+  - "ADM-1D101: con archivadaEn null es false";
+  - "ADM-1D101: sin la clave (un backend anterior al despliegue) es false".
+- **ADM-1D102:**
+  - [V] "ADM-1D102: perspectiva %s, archivada %s: lo que lee una sección es exactamente si la clase está archivada" (6 casos: estudiante, maestro y admin, con true y false);
+  - [L] "ADM-1D102: un componente montado sin proveedor lee false".
+- **ADM-1D103** → [V]:
+  - "ADM-1D103: maestro: el aviso con la fecha larga, sin código, sin «Editar clase», sin «Restaurar» ni «Duplicar»";
+  - "ADM-1D103: admin: el aviso «Es de solo lectura.» con la fecha larga, «Restaurar» y «Duplicar», sin código ni «Editar clase»";
+  - "ADM-1D103: %s: en una clase activa no hay aviso y el código y sus controles siguen" (maestro y admin).
+  - La fecha se compara con `formatearFechaLarga` sobre un instante a mediodía UTC (O-01d1-9).
+- **ADM-1D104** → [V]:
+  - "ADM-1D104: el inventario cubre las filas 1 a 21, una vez cada una";
+  - "ADM-1D104 fila %i (%s): en una activa se pinta" y "ADM-1D104 fila %i (%s): en una archivada no se pinta" (21 y 21, con `it.each` por fila).
+  - Además, en una archivada:
+    - fila 1: no sale ningún `GET …/codigo`;
+    - fila 15: las categorías en solo lectura (nombre y peso, sin campos ni botones);
+    - fila 20: el texto de archivada con "Volver a Recursos";
+    - fila 21: el texto con "Volver a la clase" (`/admin/clases/<id>`).
+- **ADM-1D105** → [V]:
+  - "ADM-1D105: el envío recibe 409 CLASE_ARCHIVADA: un solo aviso, lo escrito se conserva hasta el detalle nuevo, que se pide una vez; después, el aviso fijo, sin formulario, y el foco en el título";
+  - su estado vecino: "ADM-1D105 (vista desmontada): el 409 llega cuando la persona ya salió de la clase: un solo aviso, el detalle queda viejo sin pedirse y, al volver, se pide y aparece el aviso fijo".
+- **ADM-1D106** → [V]:
+  - "ADM-1D106: dos clics, una petición; aviso «Clase restaurada»; el aviso fijo desaparece, vuelven los controles y el foco va al título";
+  - "ADM-1D106: con 409 CLASE_NO_ARCHIVADA (otra pestaña ya la restauró): un solo aviso y se renueva el detalle; el aviso fijo desaparece";
+  - los casos (a) a (c) de ADM-1C15: "ADM-1D106 (ADM-1C15 %s) en «Restaurar» del aviso: un solo aviso legible y el botón sale de la espera", con (a) `claseId:`, (b) vacío, (b) espacios y (c) `confirmar.0:`;
+  - además, "ADM-1D106 (matriz, 5xx): un solo aviso, el aviso fijo se queda y el botón sale de la espera";
+  - y "ADM-1D106 (en vuelo a la vez): con la restauración de esa clase en vuelo desde otra instancia (la tabla), «Restaurar» del aviso espera con ella y no manda otra".
+- **ADM-1D107** → [V]:
+  - "ADM-1D107 $nombre: no sale la publicación ni el PUT; un solo aviso; lo escrito y el archivo se conservan hasta el detalle nuevo; después, el aviso fijo y el formulario deja de pintarse" (aviso y recurso);
+  - "ADM-1D107 $nombre en una clase activa: la subida sigue como hoy (solicitud, PUT y publicación), sin pedir el detalle" (aviso y recurso).
+  - El `exact` se comprueba: la lista de Avisos no se vuelve a pedir.
+- **ADM-1D108** → [V] "ADM-1D108: el detalle se marca viejo y se pide una sola vez; el código deja de pintarse y aparece el aviso fijo; nada entra en ciclo".
+- **ADM-1D109:**
+  - [V] "ADM-1D109: con ClaseLayout montado, %s con CLASE_ARCHIVADA renueva el detalle una vez; con 409 TAREA_MODIFICADA o 500, no" (una consulta y una mutación);
+  - [V] "ADM-1D109: con ClaseLayout desmontado, %s con CLASE_ARCHIVADA no toca el detalle" (una consulta y una mutación);
+  - [L] "ADM-1D109 (clasificación): solo el código CLASE_ARCHIVADA de la API cuenta, sin mirar el texto".
+
+### Las afirmaciones negativas detectan el defecto
+Hice mutaciones temporales en el árbol. Cada una la restauré con `cp` desde la copia y la comprobé con `cmp`, sin diferencias.
+
+| Mutación | Rojos |
+|---|---|
+| `useSoloLecturaDeLaClase` siempre devuelve `false` | 28: los 3 de ADM-1D102 en archivada, los 2 de ADM-1D103 en archivada, las filas 2 a 21 en archivada, ADM-1D105 y los dos de ADM-1D107 en archivada |
+| La escucha de `ClaseLayout` no hace nada | 5: los dos de ADM-1D107 en archivada, ADM-1D108 y los dos de ADM-1D109 con `ClaseLayout` montado |
+| Sin el ayudante en `useCrearPublicacion` | 1: "ADM-1D105 (vista desmontada) …" |
+| Sin darse de baja al desmontar | 2: los dos "ADM-1D109: con ClaseLayout desmontado …" |
+| Sin pasar el foco de la raíz al título | 3: ADM-1D105 y los dos primeros de ADM-1D106 |
+| «Restaurar» sin la guarda con ref ni la lectura de la caché de mutaciones | 1: "ADM-1D106: dos clics, una petición …" |
+
+- **La fila 1** no caía con la primera mutación: en la archivada, el código responde 409 y tampoco se ve. La reforcé comprobando que no sale ningún `GET …/codigo`, y con la mutación ya cae.
+- **"En vuelo a la vez"** no cae con la última mutación. Lo sostiene `enEspera`, que llega por `useGestionEnVuelo` y bloquea el clic en `Button`.
+- **Sin tiempos fijos.** Las pruebas esperan con `findBy` o `waitFor` sobre el DOM, `aria-busy`, los avisos, `isFetching()` o `isInvalidated` de la caché. Las respuestas que hay que sostener se retienen con una promesa.
+
+### V-01 (lista de la ronda 0 de 01d1)
+- Corrí `sha256sum -c` con la lista reconstruida de `reporte-tester.md`: 259 líneas, y la lista tiene SHA-256 `825acabd5f732dec57c0e06839b3f584d00e9bc325fa7a758e5e045a8445d73f`, igual a la del tester.
+- Resultado: 259 `OK` y 0 diferencias.
+- `git ls-files` da 259 `*.ataque`; ninguna sin rastrear. No toqué ninguna `*.ataque`.
+
+### "No se toca" contra `3ae6a00`
+Comandos: `git diff --name-status 3ae6a00 -- frontend backend shared` y `git ls-files --others --exclude-standard -- frontend backend shared`.
+- **Dentro de los paquetes** solo aparecen:
+  - los archivos de "Archivos", todos en "Se toca" de 01d1 (con la suma de la Enmienda 3);
+  - `frontend/src/styles/clases-r1.ataque.test.ts`, que es el C-10 del tester, con el hash de V-01.
+- Sin cambios en `backend/` ni en `shared/`.
+- **Fuera de los paquetes** solo escribo esta sección. `aprobacion.md`, `reporte-tester.md` y `docs/trabajo/DEPLOY-investigacion-vps.md` ya estaban cambiados o sin rastrear al empezar y no son míos.
+- **No toqué:** `components/adjuntos/`, los cuatro formularios con adjuntos, `components/foco/`, `app/router.tsx` ni `services/`.
+
+### Pendientes de la revisión final de 01c
+1. **«Restaurar» del aviso con la misma `mutationKey` que la tabla:** hecho.
+   - Usa `useRestaurarClase(claseId)`, con `claveGestionDeClase("restaurar", claseId)`, y `useGestionEnVuelo("restaurar", claseId)` para `enEspera` y la guarda.
+   - Caso: "ADM-1D106 (en vuelo a la vez) …".
+2. **Tipos en línea y parámetros desestructurados de `mutationFn`/`queryFn` a `types.ts`:** no movidos.
+   - `features/clases/types.ts` no está en "Se toca" de 01d1. Quedan para 01d2, que sí lo tiene.
+   - Los de 01c, en `features/clases/hooks.ts`:
+     - `useClasesAdmin`: `{ pageParam: CursorDeClasesAdmin | undefined }`;
+     - `useBorrarClase`: `{ id: string }`;
+     - `useDuplicarClase`: `{ claseId: string; datos: DuplicarClase }`;
+     - `useFocoAlQuitarUnaClase`: `useRef<{ id: string; accion: AccionDeFilaDeClase } | null>`.
+   - Los anteriores a ADMIN-01 son 19 más, contados con `grep -n "mutationFn: (\(.*\)\?{\|queryFn: ({ pageParam }: {\|: { [a-zA-Z]*: " frontend/src/features/clases/hooks.ts` (24 líneas: menos las tres de 01c que coinciden con el patrón, `useClasesAdmin`, `useBorrarClase` y `useDuplicarClase`, porque la cuarta, el `useRef`, no coincide; y menos dos líneas que no son tipos, `body: { maestroId: id }` y el objeto de `:942`): los diez `{ pageParam … }` de las listas (dos con `signal`), `useEditarClase` (`{ claseId; datos: EditarClase }`), los tres `({ id }: { id: string; nombre: string })`, `{ temaId; nombre }`, el de `useMoverElemento`, `{ recursoId; datos }`, `{ dudaId; resuelta }` y el `predicate` de `filtroDeLasSecciones`.
+   - 01d1 no sumó ninguno: `estaArchivada` recibe `Pick<ClaseDetalle, "archivadaEn">`.
+
+### O-01d1-8: por dónde pasa la invalidación del detalle ante `409 CLASE_ARCHIVADA`, mutación por mutación (`features/clases/hooks.ts`)
+- **El ayudante común** es `marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)`. Invalida `claveClaseDetalle(claseId)` con `exact: true` y `cancelRefetch: false`, y no avisa.
+- **Cada `onError` propio** lo llama en su primera línea, antes de su aviso. El resto de cada `onError` no cambia.
+- **Con `ClaseLayout` montado,** la escucha (`useDetalleViejoAnteClaseArchivada`) llama al mismo ayudante con el mismo error.
+- **Una sola petición:** por `cancelRefetch: false`, la segunda llamada se une a la que ya está en vuelo. ADM-1D105 cuenta una sola.
+- **Con la vista desmontada,** lo único que cubre es el ayudante.
+
+| Mutación | ¿Recibe `CLASE_ARCHIVADA`? | Ayudante en su `onError` | Escucha de `ClaseLayout` |
+|---|---|---|---|
+| `useCrearClase` | No (sin `:claseId`) | No | — |
+| `useEditarClase` | Sí (`PUT /admin/clases/:id`, cerrada) | Sí, con el `claseId` de las variables, antes de `avisarErrorConElFormularioDesmontado` | Sí (fila 21: la ruta ya no pinta el formulario) |
+| `useArchivarClase`, `useRestaurarClase` | No (`gestion`: `CLASE_YA_ARCHIVADA` o `CLASE_NO_ARCHIVADA`, que ya renuevan el detalle por `avisarErrorDeGestion`) | No | No aplica |
+| `useBorrarClase`, `useDuplicarClase` (y la consulta `useConteoDeBorrado`) | No (`gestion`) | No | No aplica |
+| `useAsignarMaestro`, `useRetirarMaestro` | Sí (cerradas, P-01 a′) | Sí, antes de `toast.error` | Sí |
+| `useRegenerarCodigo` | Sí | Sí: un `onError` nuevo que solo invalida (su aviso sigue en el componente) | Sí |
+| `useUnirseAClase` | No (sin `:claseId`; `404 CODIGO_INVALIDO`) | No | — |
+| `useAgregarAlumno`, `useQuitarAlumno` | Sí | Sí, antes de `toast.error` | Sí |
+| `useCrearPublicacion`, `useComentar` | Sí | Sí, al inicio de su `onError` | Sí |
+| `useBorrarPublicacion`, `useBorrarComentario` | Sí | Sí, antes de `toast.error` | Sí |
+| `useCrearTema`, `useRenombrarTema` | Sí | Sí, antes de `avisarErrorDelTema` | Sí |
+| `useBorrarTema`, `useOrdenarTemas`, `useMoverElemento` | Sí | Sí, al inicio de su `onError` | Sí |
+| `useCrearRecurso`, `useEditarRecurso` | Sí | Sí, antes de `avisarErrorDelRecurso` | Sí |
+| `useBorrarRecurso` | Sí | Sí, al inicio de su `onError` | Sí |
+| `useCrearDuda`, `useResponder` | Sí | Sí, antes de `avisarErrorDelTexto` | Sí |
+| `useMarcarDuda`, `useBorrarDuda`, `useBorrarRespuesta` | Sí | Sí, al inicio de su `onError` | Sí |
+| `useGuardarCategorias` | Sí | Sí, al inicio de su `onError` | Sí |
+| `useSolicitarSubida`, `useUrlDeDescarga` (reexportados de `components/adjuntos/hooks.ts`, que no se toca) | Sí en la subida; en la descarga, solo el alumno | No (§D-9, Enmienda 3) | Sí: es su único camino |
+
+- **Cuenta:** son 24 llamadas al ayudante en `onError`, contadas con `grep -c "marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)"`. Aparte están la definición y las dos llamadas de la escucha, que pasan `evento.action.error`.
+- **Consultas:** las de la clase que reciben el código (`GET …/codigo`, `GET …/alumnos/candidatos` y, desde 01d2, las del alumno) solo pasan por la escucha.
+
+### Decisiones donde el plan calla
+1. **Foco al título.**
+   - `useFocoAlPerderseElControl` (`components/foco/`) se usa tal cual. Su contenedor es la raíz de `ClaseLayout`, que ahora lleva `tabIndex={-1}`, y su clave es `${claseId}:${soloLectura}`.
+   - Ese gancho decide si el control con el foco se perdió y, si se perdió, lleva el foco a la raíz. Desde ahí, `useFocoAlTituloDeLaClase` lo pasa al `h1`.
+   - El `h1` ahora lleva `tabIndex={-1}` y recibe su ref por la prop `tituloRef` de `EncabezadoClase`.
+   - Si la persona soltó el foco o lo tiene en otro control, no se mueve (casos vecinos).
+2. **Precedencia con los mecanismos de foco que ya existen por fila.**
+   - Si el control que desaparece está dentro de una publicación, un tema o una sección de recursos, el mecanismo de esa vista deja el foco en la fila o en su encabezado.
+   - Corre antes porque es un efecto hijo. Cuando llega el de `ClaseLayout`, el foco ya no está perdido y no se mueve. Lo fijan tres casos vecinos.
+   - El `h1` aplica al resto: los formularios de publicar, «Restaurar», las rutas de editar, el editor de categorías y el código.
+   - Lo señalo para el manager: la matriz dice "si el control desaparece, `h1`", sin distinguir este caso.
+3. **Fila 14.**
+   - `ElementoDeTrabajo` no tiene ninguna acción de escritura: su único botón, «Ver material», es de lectura y se queda.
+   - Su acción de escritura es el «Mover» del material, que pinta `seccion-de-tema.tsx` en la misma línea que el de la tarea (fila 13).
+   - `elemento-de-trabajo.tsx` queda sin cambios. La prueba de la fila 14 mira el «Mover» dentro de la fila del material y que «Ver material» sigue.
+4. **El código no se pide en una archivada.** `useCodigoDeClase` recibe `enabled` falso, además de no pintarse, porque la ruta está cerrada y respondería 409.
+5. **El alumno en 01d1.** Mientras no llega la redirección de N-05 (01d2), ve el aviso con el texto del maestro: "Solo puedes consultarla.", el mismo que §D-12 da para el alumno.
+6. **El aviso.**
+   - Va en una `Card` propia bajo la del encabezado, con el icono `Archive` en `text-muted-foreground` (sin rojo) y el texto.
+   - Para el admin lleva dos acciones:
+     - «Restaurar»: `outline`, `size="sm"`, `enEspera` y ref;
+     - el enlace «Duplicar»: `outline`, `size="sm"`, hacia `/admin/clases/<id>/duplicar`.
+   - Los textos «Restaurar» y «Duplicar» son los de `TEXTOS_CLASES_ADMIN` de 01c.
+   - «Restaurar» no llama a `reset()`: su error no se pinta en línea, va en un aviso.
+7. **Categorías de solo lectura.**
+   - Cada fila lleva el nombre y "{peso} %" (`TEXTOS_CATEGORIAS.sufijoPeso`), con divisores y sin conteo de tareas.
+   - Sin categorías, se pinta `TEXTOS_CATEGORIAS.vacio`.
+   - El encabezado y la frase de la vista no cambian.
+8. **Filas 20 y 21.**
+   - Fila 20: el texto de archivada gana sobre los errores del recurso, porque es la primera rama de `contenido()`.
+   - Fila 21: un `MensajeError` con el texto y el enlace "Volver a la clase" (`outline`) hacia `baseDeClase("admin", claseId)`, como el "noPuedes" de editar recurso. La ruta solo existe para el admin.
+9. **Volver a una clase cuyo detalle quedó viejo** (con la vista desmontada).
+   - Mientras llega el detalle nuevo, se pinta el viejo.
+   - Con el viejo, el encabezado puede pedir el código y recibir 409, que vuelve a marcar el detalle.
+   - Son, a lo sumo, una petición más y sin ciclo, porque el detalle nunca recibe ese código. La prueba lo acota entre +1 y +2.
+10. **"Volver a mis clases" del maestro hacia `/maestro/clases-archivadas`** (§D-9) no entra en 01d1: la ruta nace en 01d2 (ADM-1D203).
+
+### Hermanos y estados vecinos de cada mecanismo
+**A. Solo lectura (contexto):**
+
+| Estado o camino | ¿Aplica? | Cómo queda |
+|---|---|---|
+| Primera carga de una archivada (maestro, admin y alumno) | Sí | Aviso y ningún control de las filas 1 a 21; el código no se pide (ADM-1D102 a ADM-1D104) |
+| Clase activa | Sí | Todo como hoy (ADM-1D104 en activa; ninguna prueba existente cambió) |
+| Backend anterior sin `archivadaEn` | Sí | Activa (ADM-1D101) |
+| Componente montado sin proveedor | Sí | `false` (ADM-1D102 [L]); los 23 archivos con dobles sin la clave siguen en verde |
+| Pasa a archivada con la vista abierta (409 de una escritura, de la subida o del código) | Sí | El detalle se renueva: aparece el aviso y salen los controles (ADM-1D105, ADM-1D107, ADM-1D108) |
+| Pasa a activa («Restaurar» o 409 `CLASE_NO_ARCHIVADA`) | Sí | Sale el aviso y vuelven los controles (ADM-1D106) |
+| Detalle cargando o en error | Sí | El proveedor solo se pinta con datos; el error es la rama de hoy |
+| Cambio de clase sin desmontar el marco | Sí | El valor sale de los datos de la clase nueva; la clave del foco cambia con el `claseId` |
+| Control a medio usar (confirmación de borrar abierta, formulario de tema o de renombrar abierto, edición de categorías) | Sí | Deja de pintarse con su estado; no se manda nada |
+
+**B. Detalle viejo ante `409 CLASE_ARCHIVADA` (escucha y ayudante):**
+
+| Estado o camino | ¿Aplica? | Cómo queda |
+|---|---|---|
+| Escritura con la vista montada | Sí | Un aviso (el de la mutación); el detalle se pide una vez (ADM-1D105) |
+| Escritura que llega con la vista desmontada | Sí | Un aviso (el del gancho); el detalle queda viejo sin pedirse y se pide al volver (ADM-1D105, vista desmontada) |
+| Solicitud de subida (aviso y recurso) | Sí | Un aviso del `catch` del formulario; no sale ni la publicación ni el `PUT`; lo escrito y el archivo se conservan (ADM-1D107) |
+| Consulta cerrada (`GET …/codigo`) | Sí | El detalle se pide una vez, sin ciclo (ADM-1D108) |
+| Dos errores a la vez (gancho y escucha, o dos peticiones) | Sí | Por `cancelRefetch: false`, una sola petición (ADM-1D105 cuenta 1) |
+| Otro código (409 `TAREA_MODIFICADA`, 500) | No reacciona | ADM-1D109 |
+| Error de red o que no es `ApiError` | No reacciona | `esClaseArchivada` da falso (ADM-1D109 [L]) |
+| Código con que `apiClient` redirige (401, `ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`) | No reacciona | No es `CLASE_ARCHIVADA` |
+| Reintento de una consulta (`retry: 1`) | Sí | Solo dispara el `error` final; el intento fallido intermedio es `failed` |
+| Reconexión (`refetchOnReconnect`) | Sí | Si la recarga recibe el código, la escucha lo atiende igual |
+| Cambio de clase | Sí | La escucha se vuelve a suscribir con el `claseId` nuevo (dependencia del efecto) |
+| `ClaseLayout` desmontado | Sí | Se da de baja de las dos cachés (ADM-1D109) |
+| El propio detalle | Nunca recibe el código (`lectura-del-alumno`) | Sin ciclo |
+| Volver con el detalle viejo | Sí | Puede pedir el detalle una vez más (decisión 9) |
+
+**C. Foco al título:**
+
+| Estado o camino | ¿Aplica? | Cómo queda |
+|---|---|---|
+| Desaparece el formulario de publicar (fuera de una fila) | Sí | `h1` (ADM-1D105) |
+| Desaparece «Restaurar» del aviso (éxito o 409 `CLASE_NO_ARCHIVADA`) | Sí | `h1` (ADM-1D106) |
+| «Restaurar» con 5xx, red o `VALIDACION` | No desaparece | El foco se queda en «Restaurar» (ADM-1D106, 5xx) |
+| Control dentro de una publicación, un tema o una sección de recursos | Gana el mecanismo de la fila | La publicación, el encabezado del tema o un control conectado; nunca `<body>` (tres casos vecinos) |
+| Foco soltado (en `<body>`) | No se mueve | Caso vecino |
+| Foco en un control que sigue (la barra) | No se mueve | Caso vecino |
+| Rutas 20 y 21 con el formulario abierto cuando la clase pasa a archivada | Sí | El formulario sale. La raíz de editar recurso sigue y su clave no cambia, así que `ClaseLayout` lleva el foco al `h1` |
+| Vista desmontada | No aplica | — |
+| Dos cambios seguidos (archivar y restaurar) | Sí | Cada cambio de la clave vuelve a evaluar |
+
+**D. «Restaurar» del aviso (doble envío):**
+
+| Estado o camino | Qué lo evita |
+|---|---|
+| Dos clics en el mismo render | La guarda con ref |
+| La restauración ya está en vuelo desde la tabla o desde otra instancia del aviso que se desmontó | `useGestionEnVuelo`: `enEspera` y `sigueEnVuelo()` |
+| El aviso se vuelve a montar con la petición en vuelo | La mutación vive en la caché con su clave |
+
+Casos: "dos clics" y "en vuelo a la vez".
+
+### Matriz de avisos y recargas (01d1)
+| Disparador | `VALIDACION` / `4xx` | `409` | `5xx` o red | Redirige | Se renueva | Foco | En vuelo a la vez | Vista desmontada |
+|---|---|---|---|---|---|---|---|---|
+| «Restaurar» del aviso | Un aviso (`mensajeDeErrorClases`, ADM-1C15 a–c). Con `403 SIN_ACCESO_A_LA_CLASE` (borrada en otra pestaña): un aviso; se renuevan el detalle y las listas, y el detalle pasa a su error de hoy | `CLASE_NO_ARCHIVADA`: un aviso; se renuevan el detalle y las listas del admin | Un aviso; nada se renueva | Sin aviso (`errorQueRedirigeElCliente`) | Éxito: "Clase restaurada"; el detalle (`exact`), las listas del admin, inscritas e impartidas; sin `claveClasesAnteriores` (E10-6) | Éxito o `409`: `h1`. Un error que deja el aviso: se queda en «Restaurar» | La misma `mutationKey` que la tabla: una sola petición y los dos botones en espera | El gancho avisa y renueva igual |
+| Enlace «Duplicar» del aviso | — | — | — | — | Navega a `/admin/clases/<id>/duplicar` | El de una navegación | — | — |
+| Cualquier escritura de `features/clases` | (de hoy) | `CLASE_ARCHIVADA`: un aviso, el de hoy de cada gancho, con el texto del servidor; lo escrito se conserva hasta el detalle nuevo | (de hoy) | (de hoy) | Solo el detalle (`exact`), por el ayudante y la escucha, en una petición | `h1` si el control desaparece fuera de una fila; dentro de una fila, el mecanismo de la fila | Dos `409` a la vez: una sola petición del detalle | El ayudante deja el detalle viejo sin pedirlo; un aviso, el del gancho |
+| Solicitud de subida (aviso y recurso) | (de hoy) | `CLASE_ARCHIVADA`: el aviso del `catch` ("No pudimos subir «…»: …"), uno solo; sin publicación ni `PUT` | (de hoy) | (de hoy) | Solo el detalle, por la escucha | Al llegar el detalle: `h1` | — | Sin escucha (el formulario ya no está) |
+| `GET …/codigo` (maestro y admin) | — | `CLASE_ARCHIVADA`: el error en su lugar del encabezado hasta que llega el detalle; sin aviso | (de hoy) | (de hoy) | Solo el detalle, por la escucha | Sin cambio (el código no tiene foco) | — | — |
+| Aviso fijo, categorías de solo lectura, rutas 20 y 21 | Sin peticiones nuevas | — | — | — | — | — | — | — |
+
+### Desviaciones del plan
+Ninguna de alcance. El manager debe revisar tres lecturas:
+- la fila 14 sin cambio de código (decisión 3);
+- la precedencia del foco de las filas sobre el `h1` (decisión 2);
+- la posible petición extra del detalle al volver con el detalle viejo (decisión 9).
+
+### Pendiente o fuera de alcance
+- **`docs/DESIGN.md`:** el patrón del aviso de clase archivada (§7.16) y las categorías de solo lectura van en A-04, al cierre. `docs/` fuera de `trabajo/` está en "No se toca".
+- **Tipos en línea:** los de `features/clases/hooks.ts` van a `types.ts` en 01d2 (arriba).
+- **La raíz de `ClaseLayout` gana `tabIndex={-1}`.**
+  - Un clic en un espacio vacío dentro de la clase la enfoca, como ya pasa en otras raíces con `tabIndex={-1}` (editar recurso, tareas).
+  - No cambia ninguna prueba.
+
+### M-01 (verificación del manager, `revision.md:3648`): corregido
+
+#### Decisión de (a): con la raíz enfocada por la persona, el foco no se mueve
+- **Por qué esta opción.** La raíz de `ClaseLayout` es enfocable (`tabIndex={-1}`). En un navegador, un clic en un espacio en blanco dentro de la clase deja ahí el foco: dentro de la clase, esa es la forma de soltarlo.
+  - `DESIGN.md` §7.14 pide "no se le quita el foco a un control que la persona eligió".
+  - El contrato de `components/foco` (`useFocoAlPerderseElControl`) es el mismo: a quien soltó el foco no se le mueve. La raíz con `tabIndex={-1}` es el destino de respaldo cuando el control se pierde, no un lugar del que haya que sacar a la persona.
+  - Con esta opción, el comentario del gancho y la tabla C ya dicen lo que hace el código.
+- **Cambio** (`features/clases/hooks.ts`, `useFocoAlTituloDeLaClase`): un `useLayoutEffect` con la misma clave guarda si la raíz ya tenía el foco al pintarse el cambio. Corre antes que los efectos pasivos y, por tanto, antes de que `useFocoAlPerderseElControl` enfoque la raíz.
+  - El efecto que pasa el foco al `h1` no hace nada si la raíz ya lo tenía.
+  - Si la raíz la acaba de enfocar el gancho porque el control se perdió, el foco sigue yendo al `h1`, como antes: ADM-1D105 y ADM-1D106 siguen en verde.
+  - El comentario del gancho lo explica. No cambia ningún otro archivo de producción.
+- **El caso vecino de antes**, "con el foco soltado (en `<body>`)", se queda: cubre lo que hace jsdom y el foco que sale de la clase. El estado de un navegador lo fijan ahora los dos casos de (a).
+- **Detección:** sin la guarda nueva (mutación temporal, restaurada y comprobada con `cmp`), caen exactamente los dos casos de (a) y nada más: `Tests  2 failed | 19 passed | 62 skipped (83)` con `-t "M-01|ADM-1D105|ADM-1D106|vecino"`.
+
+#### Casos nuevos (`frontend/src/features/clases/clase-archivada-01d1-vista.test.tsx`, `describe` "M-01: estados vecinos del foco al título y de la escucha")
+- "M-01 (a): con el foco en la raíz de la clase (un clic en un espacio en blanco), la clase pasa a archivada y el foco se queda en la raíz"
+- "M-01 (a): con el foco en la raíz de una clase archivada, la clase pasa a activa (restaurada en otra pestaña) y el foco se queda en la raíz"
+- "M-01 (b): cambio de clase sin la nueva en caché, con el foco en un campo que desaparece: el marco pinta «Cargando» y el foco queda en <body>, como antes de 01d1"
+- "M-01 (b): cambio de clase con la nueva en caché, con el foco en un campo que desaparece y sin mecanismo de fila: el foco va al título de la clase nueva"
+- "M-01 (b): cambio de clase con la nueva en caché y el foco en «Borrar publicación»: gana el mecanismo de Avisos (O-14), el encabezado de la lista"
+- "M-01 (c): un 409 CLASE_ARCHIVADA de una escritura de otra clase, con esta abierta, pide una vez más el detalle de esta, sin aviso de más ni ciclo"
+
+Ninguno usa tiempos fijos. La otra clase la responde un manejador propio de la prueba (`responderLaOtra`).
+
+#### Tabla B, filas que cambian o se suman
+| Estado o camino | ¿Aplica? | Cómo queda |
+|---|---|---|
+| (c) Un `409 CLASE_ARCHIVADA` de otra clase con esta abierta | Sí (la escucha reacciona a cualquier error con ese código, Enmienda 3) | El detalle de la clase abierta se pide una vez más, sin aviso de más ni ciclo; el de la otra clase lo marca su propio ayudante. Inofensivo. Caso "M-01 (c) …" |
+| Solicitud de subida que recibe el `409` con la vista desmontada (N-01d1-1) | Sin escucha y sin ayudante (`components/adjuntos` no se toca, Enmienda 3) | El detalle no queda marcado viejo. Si la persona vuelve antes de los 30 s de `staleTime`, ve la clase activa con sus controles hasta la siguiente escritura (que recibe el `409` y la corrige) o hasta que vencen los datos. Lo acepta el plan |
+
+#### Tabla C completa (foco al título al cambiar el estado de archivada)
+| Estado o camino | ¿Aplica? | Cómo queda |
+|---|---|---|
+| Desaparece el formulario de publicar (fuera de una fila) | Sí | `h1` (ADM-1D105) |
+| Desaparece «Restaurar» del aviso (éxito o 409 `CLASE_NO_ARCHIVADA`) | Sí | `h1` (ADM-1D106) |
+| Desaparece otro control del aviso (el enlace «Duplicar») porque otra pestaña restauró | Sí | `h1` (mismo camino que «Restaurar»: control perdido dentro de la raíz) |
+| «Restaurar» con 5xx, red o `VALIDACION` | No desaparece | El foco se queda en «Restaurar» (ADM-1D106, 5xx) |
+| Control dentro de una publicación, un tema o una sección de recursos | Gana el mecanismo de la fila | La publicación, el encabezado del tema o un control conectado; nunca `<body>` (tres casos vecinos; sondas del manager con «Mover» y renombrar tema) |
+| Editor de categorías, ruta 20 o ruta 21 con el foco dentro | Sí | `h1` |
+| **(a) Foco en la raíz de la clase (clic en un espacio en blanco), la clase pasa a archivada o a activa** | **No se mueve** | **Se queda en la raíz (dos casos "M-01 (a)")** |
+| Foco en el `h1` (lo dejó ahí un cambio anterior o la persona) | No se mueve | El `h1` sigue conectado |
+| Foco soltado fuera de la clase (en `<body>`) | No se mueve | Caso vecino de antes |
+| Foco en un control que sigue (la barra) | No se mueve | Caso vecino de antes |
+| **(b) Cambio de clase sin la nueva en caché, con el foco en un control que desaparece** | No aplica | `ClaseLayout` pinta «Cargando», la raíz no existe cuando corre el efecto y el foco queda en `<body>`, como antes de 01d1 (caso "M-01 (b) … sin la nueva en caché") |
+| **(b) Cambio de clase con la nueva en caché y un control sin mecanismo de fila** | Sí | `h1` de la clase nueva (caso "M-01 (b) … sin mecanismo de fila") |
+| **(b) Cambio de clase con la nueva en caché y un control dentro de una fila** | Gana el mecanismo de la vista al cambiar de clase | En Avisos, el encabezado de la lista (O-14; caso "M-01 (b) … «Borrar publicación»"). Trabajo y Recursos tienen el mismo mecanismo al cambiar de clase |
+| Cambio de clase con el foco en la raíz | No se mueve | La raíz es el mismo elemento y la foto dice que ya tenía el foco |
+| Atrás y adelante entre una clase archivada y una activa | Sí | Es un cambio de clase: lo mismo que las tres filas (b) |
+| El detalle pasa a error | No aplica | La raíz se desmonta; el foco lo lleva `useFocoAlPasarAError` al contenedor del error, como hoy |
+| Vista desmontada | No aplica | — |
+| Dos cambios seguidos (archivar y restaurar) | Sí | Cada cambio de la clave vuelve a evaluar, con su propia foto |
+
+#### Verificación (desde `frontend/`; puerta de carga antes de cada corrida)
+- **lint:** `npm run lint` → exit 0. Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -b`, sin errores (21:55:07).
+- **test:** el mismo comando literal de la implementación (`npx vitest run src/features/clases src/features/tareas src/components/clase src/styles/clases-r1.ataque.test.ts … src/app/clase-03c1.test.tsx`, completo arriba). Puerta de carga: 21:56:43, `2`. Inicio: 21:56:45. Resultado: `Test Files  158 passed (158)` · `Tests  3483 passed (3483)`, que son 3477 + los 6 casos nuevos.
+- **build:** `npm run build` → exit 0, última línea `✓ built in 812ms`.
+- **Conteos:** `npx vitest list src/features/clases/clase-archivada-01d1.test.ts src/features/clases/clase-archivada-01d1-vista.test.tsx`, contado con `grep -a -c`: 88 casos en 2 archivos (5 y 83). De ellos, 6 tienen `M-01 (` en el título.
+- **V-01:** `sha256sum -c` con la lista `825acabd…`: 259 `OK` y 0 diferencias.
+- **"No se toca":** igual que en la implementación. Esta corrección solo cambió `features/clases/hooks.ts` (producción) y `features/clases/clase-archivada-01d1-vista.test.tsx` (mi prueba). No toqué ninguna `*.ataque`.
+
+#### N-01d1-1 y N-01d1-2
+- **N-01d1-1:** declarado en la tabla B (arriba). Sin cambio de código.
+- **N-01d1-2:** queda para 01d2, como sugiere el manager. Si `estaArchivada` pasa a ser un predicado de tipo, `ClaseLayout` deja de leer `archivadaEn` por su cuenta.
+
+## ADMIN-01d1 — Corrección ronda 1 (2026-11-05)
+
+Plan `3822b6c0…`. Reporte: `reporte-tester.md`, "## Ronda 1 — ADMIN-01d1" (línea 2766). La prueba nueva del tester es `frontend/src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx` (`8d58d05c…`); no la toqué. La otra copia de trabajo no se usa. Sin navegadores. Sin commit.
+
+### T-01: corregido
+
+#### Remedio
+Un solo mecanismo, igual en todos: el componente que guarda el estado de abierto lo reinicia en el mismo render en que ve la clase en solo lectura, `if (soloLectura && <abierto>) set<Abierto>(false)`. Es el patrón de estado derivado que ya usa `editar-recurso-view.tsx` (`esperaLaLecturaFresca`).
+
+**Por qué este y no desmontar.** Desmontar el componente (por ejemplo, con una `key` por solo lectura) también cerraría los estados de lectura, que en una archivada deben seguir: «Ver comentarios», «Ver recurso», «Ver material». Además movería el foco de las filas.
+
+**Qué pasa al cerrar.** Los efectos de foco que siguen al cerrar no hacen nada:
+- `confirmandoAnteriorRef`: el botón de borrar no está pintado y su ref es `null`.
+- `focoAlCerrarRef`: solo lo marca un manejador de la persona.
+
+Así, el reinicio no mueve el foco. En una archivada el control ya no se pinta, y al volver a activa se ve como al abrir la clase.
+
+**Dónde se aplicó:**
+- `components/publicacion-del-muro.tsx`: `confirmando`;
+- `components/comentarios-de-publicacion.tsx` (`FilaComentario`): `confirmando`;
+- `trabajo-view.tsx`: `creando`;
+- `components/seccion-de-tema.tsx`: `renombrando` y `confirmando`;
+- `components/elemento-de-recurso.tsx`: `confirmando`;
+- `editar-recurso-view.tsx`: `reinicios` vuelve a 0. Es un hermano que encontré al recorrer los controles (abajo, fila 20).
+
+Ningún otro archivo de producción cambió.
+
+#### Hermanos: los controles 1 a 21 de §D-9, uno por uno
+| # | Control | Estado propio de abierto, edición o borrador | ¿Le aplica? | ¿Aplicado? |
+|---|---|---|---|---|
+| 1 | Código y «Regenerar código» | `confirmando` y `copiando`, en `CodigoDeClase` | No: en una archivada `CodigoDeClase` se desmonta y su estado se pierde. Al volver nace cerrado | No hace falta |
+| 2 | «Editar clase» | Ninguno (enlace) | — | — |
+| 3 | Formulario de publicar aviso | Texto, archivos elegidos y errores, en `FormularioPublicacion` | No: se desmonta en una archivada. Lo escrito se conserva hasta el detalle nuevo y después se pierde (§D-9, Enmienda 2). Al volver nace vacío | No hace falta |
+| 4 | «Borrar publicación» y su confirmación | `confirmando`, en `PublicacionComun`, que sigue montado | **Sí** | **Sí** |
+| 5 | Formulario de comentar | Texto y errores, en `FormularioComentario` | No: se desmonta | No hace falta |
+| 6 | «Borrar» comentario y su confirmación | `confirmando`, en `FilaComentario`, que sigue montado | **Sí** | **Sí** |
+| 7 | «Crear tarea» | Ninguno (enlace) | — | — |
+| 8 | «Nuevo tema» y su formulario | `creando`, en `TrabajoDeLaClase`, que sigue montado. El nombre escrito vive en `FormularioTema`, que se desmonta | **Sí** | **Sí** |
+| 9, 10 | «Subir» y «Bajar» | `ordenEnVuelo` y `ordenandoRef`: una petición en vuelo, no un estado de abierto. Se limpian en `onSettled`; el `409` también los limpia | No | — |
+| 11 | Renombrar tema | `renombrando`, en `SeccionDeTema`, que sigue montado. El nombre escrito vive en `FormularioTema`, que se desmonta | **Sí** | **Sí** |
+| 12 | «Borrar tema» y su confirmación | `confirmando`, en `SeccionDeTema` | **Sí** | **Sí** |
+| 13, 14 | «Mover» de una tarea o un material | `destino`, en `MoverElemento` | No: se desmonta. Al volver, el selector nace con su tema actual | No hace falta |
+| 15 | Editor de categorías | Filas y errores, en `EditorDeCategorias` | No: se desmonta (lo reemplazan las categorías de solo lectura). Al volver nace con la lista del servidor | No hace falta |
+| 16 | Formulario de publicar recurso | Título, texto, tema, archivos y errores, en `FormularioRecurso` | No: se desmonta | No hace falta |
+| 17 | «Editar recurso» | Ninguno (enlace) | — | — |
+| 18 | «Borrar recurso» y su confirmación | `confirmando`, en `ElementoDeRecurso`, que sigue montado | **Sí** | **Sí** |
+| 19 | «Mover» recurso | `destino`, en `MoverElemento` | No: se desmonta | No hace falta |
+| 20 | Ruta de editar un recurso | Lo escrito vive en `FormularioRecurso`, que se desmonta. **Pero `reinicios`** (la `key` tras un `409 RECURSO_MODIFICADO`) vive en la vista, que sigue montada: al volver a activa, el formulario nacía con `enfocarAlMontar` y le quitaba el foco a la persona | **Sí** | **Sí**: `reinicios` vuelve a 0 en solo lectura |
+| 21 | Ruta de editar la clase | Lo escrito y los errores, en `FormularioClase`, que se desmonta. La vista no guarda estado | No | No hace falta |
+
+**Otros que pedía el encargo:**
+- **Confirmaciones de archivar de la tabla de 01c:** no aplican. Viven en `/admin/clases`, fuera del `ClaseLayout`. Una fila archivada sale de "Activas", y su confirmación se desmonta con ella.
+- **Menús:** no hay ninguno en las filas 1 a 21.
+- **Aviso de la clase archivada:** «Restaurar» no tiene estado de abierto; su ref de guarda se limpia en `onSettled`.
+- **Estados de lectura que no se reinician a propósito:** «Ver comentarios» (`abierto` en la publicación), «Ver recurso», sus comentarios (`abierto` y `comentariosAbiertos`) y «Ver material». Son lectura, y en una archivada siguen.
+- **01d2:** Dudas, Personas y `features/tareas` (filas 22 a 37) llevarán el mismo mecanismo en sus controles con estado de abierto.
+
+#### Estados vecinos del mismo mecanismo
+| Estado o camino | ¿Aplica? | Cómo queda | Caso |
+|---|---|---|---|
+| Archivar con el `409` de una escritura y restaurar con «Restaurar» (admin) | Sí | Cerrado al volver | ADM-T1D111 (tester) |
+| Otra pestaña o sesión archiva y restaura (admin) | Sí | Cerrado al volver | ADM-T1D112 (tester) |
+| Otra sesión (el admin) archiva y restaura con el maestro en la clase | Sí | Cerrado al volver: confirmaciones de borrar recurso y tema, y «Nuevo tema» | "T-01 vecino, maestro, otra sesión archiva y restaura: …" (3) |
+| Archivar, restaurar, volver a abrir, archivar y restaurar otra vez | Sí | Cerrado en cada vuelta; ningún `DELETE` | "T-01 vecino: archivar, restaurar, volver a abrir …" |
+| Restaurar con la vista desmontada | El componente se desmonta | Cerrado al volver (el estado ya no existe) | "T-01 vecino: restaurar con la vista desmontada …" |
+| Cambiar de clase entre archivar y restaurar | Al cambiar de sección o de clase, el componente se desmonta | Cerrado al volver | "T-01 vecino: cambiar de clase entre archivar y restaurar …" |
+| Un `409` en vuelo cuando llega la restauración | Sí | Un aviso; al volver a activa, la confirmación sigue cerrada; un solo `DELETE` y nada se reabre | "T-01 vecino: un 409 en vuelo cuando llega la restauración …" |
+| Ruta 20 tras un conflicto, archivar y restaurar | Sí (hermano) | El formulario vuelve sin quitarle el foco a la persona | "T-01 vecino, ruta 20: …" |
+| Borrado de un tema o un recurso en vuelo (ref de guarda marcada) cuando la clase pasa a archivada | Sí | La confirmación se cierra. La guarda sigue hasta que la petición se asienta (`onSettled`); con un `409` no sale otro `DELETE` | Cubierto por la guarda de hoy |
+
+**Detección.** Sin las seis líneas del remedio (mutación temporal, restaurada y comprobada con `cmp`), caen 5 de mis 7 casos de T-01: los tres del maestro, "volver a archivar" y "409 en vuelo". El resultado fue `5 failed | 2 passed | 83 skipped (90)`. Los dos que pasan igual son la vista desmontada y el cambio de clase: ahí el componente se desmonta y el remedio no interviene, así que fijan el estado vecino, no el remedio.
+
+El caso de la ruta 20 lo corrí antes de cambiar `editar-recurso-view.tsx` y falló en `expect(cerrar).toHaveFocus()`. Con el cambio pasa.
+
+#### Casos nuevos (en `frontend/src/features/clases/clase-archivada-01d1-vista.test.tsx`)
+Del `describe` "T-01: lo abierto a medio usar no reaparece al volver a activa (estados vecinos)":
+- "T-01 vecino, maestro, otra sesión archiva y restaura: $nombre no reaparece abierto". Son tres casos: 'la confirmación de borrar un recurso (fila 18)', 'el formulario de «Nuevo tema» (fila 8)' y 'la confirmación de borrar un tema (fila 12)'.
+- "T-01 vecino: archivar, restaurar, volver a abrir la confirmación, archivar y restaurar otra vez: tampoco reaparece"
+- "T-01 vecino: restaurar con la vista desmontada: al volver, la confirmación está cerrada"
+- "T-01 vecino: cambiar de clase entre archivar y restaurar: al volver a la clase restaurada, «Nuevo tema» está cerrado"
+- "T-01 vecino: un 409 en vuelo cuando llega la restauración: un aviso, la confirmación sigue cerrada y no sale otro DELETE"
+
+Del `describe` "T-01, hermano de la ruta 20: el formulario reiniciado tras un conflicto no se lleva el foco al volver a activa":
+- "T-01 vecino, ruta 20: tras un 409 RECURSO_MODIFICADO, la clase se archiva y se restaura con el foco fuera del formulario: el formulario vuelve sin quitarle el foco a la persona"
+
+Son 8 casos. Ninguno usa tiempos fijos: las esperas son `findBy` y `waitFor` sobre el DOM, los avisos y `isFetching()`, y el `DELETE` se retiene con una promesa.
+
+#### N-01d1-3 (precisión)
+La fila "cambio de clase con el foco en la raíz" de la tabla C (M-01) solo vale con la clase nueva en caché. Sin caché, `ClaseLayout` pinta «Cargando», la raíz se desmonta y el foco queda en `<body>`, como en la fila (b) sin caché.
+
+#### Verificación (desde `frontend/`; puerta de carga antes de cada corrida)
+- **lint:** `npm run lint` → exit 0. Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -b`, sin errores (22:40:17).
+- **test:** `npx vitest run src/features/clases src/features/tareas src/components/clase src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts src/features/calificaciones/estatico-01d.test.ts src/features/calificaciones/estatico-01d-r1.ataque.test.ts src/features/calificaciones/gradebook-01d.test.tsx src/app/rutas-02c-r1.ataque.test.tsx src/app/marco-r1.ataque.test.tsx src/app/clase-03c1.test.tsx`. Puerta de carga: 22:40:47; inicio: 22:40:49. Resultado: `Test Files  159 passed (159)` · `Tests  3536 passed (3536)`. Cuadra así: los 3483 de M-01, más los 45 del tester (el filtro `src/features/clases` ya incluye su archivo) y mis 8 nuevos.
+- **build:** `npm run build` → exit 0, última línea `✓ built in 919ms`.
+- **Conteos:** corrí `npx vitest list src/features/clases/clase-archivada-01d1.test.ts src/features/clases/clase-archivada-01d1-vista.test.tsx src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx` y conté con `grep -a -c`. Salen 5, 91 y 45. Mis dos archivos suman 96 casos; de ellos, 8 tienen "T-01 " en el título.
+- **Los siete rojos del tester** (ADM-T1D111 ×3 y ADM-T1D112 ×4) están en verde. Su archivo solo, a las 22:32:42 (con la puerta), dio `Tests  45 passed (45)`.
+- **Corridas sin puerta nueva:** dos corridas cortas de un solo caso. Una con la mutación, a las 22:33:42, justo después de la puerta de mis casos; otra la del caso de la ruta 20, a las 22:39:16 y después. Las lancé sin repetir la puerta, sin ningún otro `vitest` corriendo, y no se reportan como cifra.
+- **V-01:** `sha256sum -c` sobre la lista de la ronda 0 (`825acabd…`, 259 líneas) más la línea de `clase-archivada-01d1-r1.ataque.test.tsx` = `8d58d05c409c560d115a7ea51bc29a028d0f201658b3db979b1c53d2ec2d2e6a`. Resultado: 260 `OK` y 0 diferencias. Hay 259 rastreadas y 1 sin rastrear (la nueva del tester).
+- **"No se toca" contra `3ae6a00`:** en esta ronda solo cambiaron los seis archivos de producción del remedio (todos en "Se toca" de 01d1) y mi archivo de pruebas. No toqué ninguna `*.ataque`.
+
+## ADMIN-01d1 — Corrección ronda 2 (2026-11-06)
+
+Plan `3822b6c0…`. Reporte: `reporte-tester.md`, "## Ronda 2 — ADMIN-01d1" (línea 2922). La prueba nueva del tester es `frontend/src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx` (`32fd1be4…`); no la toqué. La otra copia de trabajo no se usa. Sin navegadores. Sin commit. Las cifras son todas de después de la pausa del humano.
+
+### T-02: corregido
+
+#### Remedio
+Un solo mecanismo: **la generación de solo lectura**, en el gancho `useGeneracionDeSoloLectura()` de `components/clase/hooks.ts` (archivo de "Se toca").
+- La generación sube cada vez que la clase entra en solo lectura. El gancho devuelve `generacion` (el valor de este render) y `sigueVigente(anotada)` (se lee al llegar el efecto).
+- Un efecto asíncrono anota la generación del control que lo lanzó. Si al llegar ya no es la vigente, no hace nada.
+- **La generación se captura en el render del control, no al lanzar la recarga.** Lo que dejé antes de la pausa la leía al lanzar la recarga, y no cubría un `409 RECURSO_MODIFICADO` que llega después de restaurar: la recarga salía con la generación nueva y reiniciaba el formulario. Lo prueba el caso "T-02 hermano: el 409 RECURSO_MODIFICADO …".
+- El remedio de T-01 (el `setReinicios(0)` en solo lectura) se queda: cubre el reinicio que ya se asentó antes de archivar.
+
+**Dónde se aplicó (los tres efectos que resultaron afectados):**
+- `features/clases/editar-recurso-view.tsx`, `recargarTrasConflicto`: comprueba antes de pedir la recarga y otra vez al llegar.
+- `features/clases/editar-recurso-view.tsx`, `alGuardar`: no navega si la generación ya no es la vigente. El aviso de éxito lo da el gancho, como con la vista desmontada.
+- `features/clases/trabajo-view.tsx`, el foco diferido tras «Subir» o «Bajar»: no mueve el foco si el orden se lanzó en una generación anterior.
+
+#### Tabla de efectos asíncronos de las filas 1 a 21
+"Se desmonta" quiere decir que el control sale del árbol en una archivada y que TanStack Query no llama a los callbacks de `mutate` de un observador desmontado, así que su efecto no llega a nadie.
+
+| Fila | Efecto al resolver | ¿Qué cambiaría? | ¿Le aplica? | ¿Aplicado? |
+|---|---|---|---|---|
+| 1 | `regenerar.mutate` → `onSuccess`/`onError`: aviso y `setConfirmando(false)` (`codigo-de-clase.tsx`) | Solo cierra | No: se desmonta. El gancho (`useRegenerarCodigo`) solo escribe el código en la caché | No hace falta |
+| 1 | `handleCopiar`: `await clipboard`; `finally` con `setCopiando(false)` | Solo su propio estado | No: instancia desmontada, sin efecto en la nueva | No hace falta |
+| 3 | `handlePublicar` (`mutateAsync`): `setTexto("")`, `setElegidos([])` y `finally` (`formulario-publicacion.tsx`) | Limpia el formulario | No: el manejador sigue, pero sobre la instancia desmontada; la que nace al restaurar es otra y no cambia | No hace falta |
+| 4 | `useBorrarPublicacion` (`DELETE`): aviso e invalidar el muro; sin callbacks de `mutate` | Nada abierto; la fila sale y el foco lo lleva la vecina | No | ADM-T2D101 (tester) |
+| 5 | `comentar.mutate` → `setTexto("")`, errores y ref (`formulario-comentario.tsx`) | Limpia | No: se desmonta | No hace falta |
+| 6 | `useBorrarComentario` (`DELETE`): aviso e invalidar | Nada abierto | No | ADM-T2D101 (tester) |
+| 8, 11 | `FormularioTema`: `onSuccess: onTerminar` (cierra y lleva el foco a «Nuevo tema» o «Renombrar») y `onSettled` con su ref | Foco | No: se desmonta y sus callbacks de `mutate` no corren | No hace falta |
+| 9, 10 | `ordenar.mutate` → `onSettled`: ref y `setOrdenEnVuelo(null)`; y el foco diferido (`focoTrasOrdenarRef`) | **Mueve el foco** | **Sí**: `trabajo-view` sigue montado, y al llegar con la persona en otro control del mismo tema le quitaba el foco | **Sí** |
+| 12 | `borrar.mutate` → `onSettled`: `borrandoRef` (`seccion-de-tema.tsx`) | Solo la guarda. Mientras está en vuelo, «Sí, borrar tema» no manda otro `DELETE` | No: no abre ni enfoca | ADM-T2D101 (tester) |
+| 13, 14, 19 | `mover.mutate` → `onSettled` y su ref (`mover-elemento.tsx`) | Nada abierto | No: se desmonta | No hace falta |
+| 15 | `guardar.mutate` → `onSuccess`/`onError`: reemplaza las filas y deja un foco pendiente (`editor-de-categorias.tsx`) | Reinicia y enfoca | No: se desmonta, sus callbacks no corren, y el editor nace de nuevo al restaurar | No hace falta |
+| 16 | `handleSubmit` en modo crear (`mutateAsync`): limpia el formulario | Limpia | No: el manejador sigue, sobre la instancia desmontada | No hace falta |
+| 18 | `borrar.mutate` → `onSettled`: `borrandoRef` (`elemento-de-recurso.tsx`) | Solo la guarda | No | ADM-T2D101 (tester) |
+| 20 | `recargarTrasConflicto`: `setReinicios(n + 1)`, con `enfocarAlMontar` | **Reinicia y enfoca** | **Sí** (T-02). La vista sigue montada y el manejador del formulario, con `mutateAsync`, sigue corriendo | **Sí** |
+| 20 | `alGuardar` (`onGuardado` tras el `mutateAsync`): `navigate(destino)` | **Navega y descarta lo escrito** | **Sí**: hermano encontrado en este recorrido | **Sí** |
+| 20 | `useAvisoDeRecargaFallida`: un aviso si la recarga vieja falla | Solo un aviso | No: no abre, no reinicia ni enfoca | — |
+| 21 | `editar.mutate` → `onSuccess: alTerminar` (aviso y `navigate`) y `onSettled` (`formulario-clase.tsx`) | Navegaría | No: usa `mutate`, no `mutateAsync`; se desmonta y el callback no corre. El gancho avisa una vez. Lo fija un caso | No hace falta |
+| 21 | `recargar tras conflicto` | — | No existe: `editar-clase-view.tsx` no recarga tras un conflicto | — |
+| Aviso | `restaurar.mutate` → `onSettled`: la ref | Solo la guarda | No | — |
+| — | Foco diferido de `ClaseLayout` (`useFocoAlTituloDeLaClase`) | Enfoca | No: corre en el mismo commit del cambio, no al llegar una petición | — |
+| — | `setTimeout(0)` de `useFilaEnFoco`, `useFocoAlCargarMas` y `useFocoAlPerderseElControl` | Solo borran su memoria | No: no mueven el foco | — |
+| 2, 7, 17 | Enlaces | Sin efecto asíncrono | — | — |
+
+**`editar-tarea-view.tsx` (fila 36, 01d2): sin PARADA en 01d1, con aviso para 01d2.**
+- Tiene el mismo patrón (`recargarTrasConflicto` con `setReinicios`).
+- En 01d1, `features/tareas` no lee el contexto de solo lectura (`grep`: ningún `useSoloLecturaDeLaClase` ahí) y su formulario no se oculta en una archivada. Sin esa transición, T-02 no ocurre: no le aplica en 01d1 y no lo toqué. Está fuera de "Se toca".
+- **Lo señalo para el arquitecto y el manager antes de 01d2.** Cuando la fila 36 oculte el formulario, T-02 sí le aplicará. Pero §D-9 (Enmienda 2) condiciona E-31 y E-32: la guarda de `editar-tarea-view.tsx` "no toca `recargarTrasConflicto`". Las dos cosas chocan, y hace falta decidirlo en el plan de 01d2. `useGeneracionDeSoloLectura` ya queda en `components/clase/` para que `features/tareas` pueda usarlo. Lo mismo vale para las filas 22 a 34 de 01d2 que usen `mutateAsync` y sigan montadas.
+
+#### Órdenes de llegada
+| Orden | Recarga del conflicto | Guardado con éxito | `409` del guardado | Orden de «Subir» |
+|---|---|---|---|---|
+| Llega sin archivar (control) | Reinicia y enfoca, como hoy | Navega a Recursos, como hoy | Pide la recarga, como hoy | El foco vuelve al botón del tema |
+| Llega con la clase archivada | No hace nada. Al restaurar, el formulario nace con la versión nueva y sin quitar el foco | No navega; sigue el texto de archivada y un aviso | No pide la recarga | No mueve el foco |
+| Llega después de restaurar | No reinicia ni enfoca | No navega; lo escrito sigue y un aviso | Un aviso; no pide la recarga ni reinicia | No mueve el foco |
+| Llega después de archivar y restaurar dos veces | No reinicia ni enfoca | Igual que la fila anterior (la generación solo sube) | Igual | Igual |
+| Vista desmontada y vuelta a montar | La vista nueva espera la lectura fresca en vuelo (§7.21) y nace con la versión nueva, sin quitar el foco | `montado.current` falso en la vista vieja: no navega; el gancho avisa | Ídem: no pide la recarga | La instancia vieja no pinta nada |
+
+**Una decisión que el manager debe ver.** Con un `PUT` con éxito en vuelo, ahora la persona se queda en la ruta. Si llega con la clase restaurada, su formulario conserva lo escrito y la versión con que nació, así que el siguiente guardado recibe `409 RECURSO_MODIFICADO` y sigue el camino de siempre. Elegí no sacarla de la pantalla: preferí conservar lo que escribió después a llevarla a Recursos.
+
+#### Casos nuevos (en `frontend/src/features/clases/clase-archivada-01d1-vista.test.tsx`)
+Del `describe` "T-02: la recarga tras un conflicto en vuelo al pasar a solo lectura (ruta 20)":
+- "T-02 control: sin archivar, la recarga del conflicto sigue reiniciando el formulario con la versión nueva y llevándose el foco"
+- "T-02: la recarga llega después de archivar y restaurar: el formulario no se reinicia ni se lleva el foco"
+- "T-02: la recarga llega después de archivar y restaurar dos veces: tampoco reinicia ni se lleva el foco"
+- "T-02: la recarga llega con la vista desmontada y vuelta a montar: el formulario nuevo no se reinicia ni se lleva el foco"
+
+Del `describe` "T-02: órdenes de llegada y hermanos del efecto asíncrono viejo":
+- "T-02: la recarga llega con la clase archivada: el formulario no se pinta y, al restaurar, nace con la versión nueva sin llevarse el foco"
+- "T-02 hermano: el 409 RECURSO_MODIFICADO del guardado llega después de restaurar: un aviso, no se pide la recarga, no se reinicia ni se lleva el foco"
+- "T-02 hermano: el guardado con éxito llega después de restaurar: un aviso, no navega y lo escrito sigue"
+- "T-02 hermano: el guardado con éxito llega con la clase archivada: un aviso, no navega y sigue el texto de archivada con «Volver a Recursos»"
+- "T-02 control: sin archivar, el guardado con éxito sigue navegando a Recursos"
+- "T-02 hermano, ruta 21: el guardado de la clase llega después de restaurar: un aviso, no navega y lo escrito en el formulario nuevo sigue"
+- "T-02 hermano, «Subir»: el orden llega después de restaurar, con la persona en otro control del mismo tema: el foco no se mueve"
+- "T-02 control, «Subir»: sin archivar, el foco vuelve al botón del tema que se movió"
+
+Son 12 casos. Ninguno usa tiempos fijos: las esperas son `findBy` y `waitFor` sobre el DOM, los avisos, las peticiones, `isFetching()` e `isMutating()`, y lo que hay que sostener se retiene con una promesa.
+
+#### Detección
+- **Sin `sigueVigente`** (mutación temporal en `components/clase/hooks.ts`, restaurada y comprobada con `cmp`): `npx vitest run src/features/clases/clase-archivada-01d1-vista.test.tsx src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx -t "T-02|ADM-T2D103"` da `Tests  7 failed | 7 passed | 108 skipped (122)`.
+- **Los 7 rojos:** ADM-T2D103b y seis míos: la recarga después de restaurar, después de dos vueltas, el `409` del guardado, el éxito después de restaurar, el éxito con la clase archivada y «Subir».
+- **Los 7 que pasan igual, y por qué:**
+  - los tres controles, que fijan que el camino sin archivar no cambió;
+  - ADM-T2D103 y "la recarga llega con la clase archivada", que los absorbe el `setReinicios(0)` de T-01;
+  - la vista desmontada y la ruta 21, donde el efecto viejo ya no llega a nadie.
+
+  Esos cuatro últimos fijan estados vecinos, no este remedio.
+- **Antes del remedio final,** con el código de antes de la pausa, cayeron cuatro de los hermanos: `409` del guardado, éxito después de restaurar, éxito con la clase archivada y «Subir».
+
+#### Verificación (desde `frontend/`; puerta de carga antes de cada corrida)
+- **lint:** `npm run lint` → exit 0 (10:22:48), con el árbol final. En la corrida de las 09:16:56, con el mismo árbol, la última línea con texto fue `> tsc -b`, sin errores; en la de las 10:22:48 mi `tail -1` solo recogió la línea en blanco final.
+- **test:** `npx vitest run src/features/clases src/features/tareas src/components/clase src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts src/features/calificaciones/estatico-01d.test.ts src/features/calificaciones/estatico-01d-r1.ataque.test.ts src/features/calificaciones/gradebook-01d.test.tsx src/app/rutas-02c-r1.ataque.test.tsx src/app/marco-r1.ataque.test.tsx src/app/clase-03c1.test.tsx`.
+  - **Con ese comando literal no quedó verificado hoy.** Las dos corridas (puertas 09:17:05 y 09:40:52) dieron `Tests  8 failed | 3559 passed (3567)` y `Tests  9 failed | 3558 passed (3567)`, con duraciones de 1018 s y 1080 s, contra unos 190 s de anoche. **No las reporto como verde.**
+  - **Causa probable:** el equipo está a batería (`Win32_Battery.BatteryStatus` = 1, descargando, 66 %), con el procesador limitado y otras aplicaciones activas. Ninguna la toqué. Los rojos cambian de una corrida a otra y vienen sobre todo de pruebas de otros encargos (`alumnos-b-r2`, `clases-admin-02c-r1`, `tareas-01d-r1`, `clases-r4`, `crear-clase-view`, `formularios-ch3`, `tarjeta-de-tarea`), con `Test timed out` y esperas vencidas. En las dos cayó además ADM-T1D110 (abajo).
+  - **Corrida que sí vale, el mismo comando más `--maxWorkers=4`:** `npx vitest run --maxWorkers=4 src/features/clases src/features/tareas src/components/clase src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts src/features/calificaciones/estatico-01d.test.ts src/features/calificaciones/estatico-01d-r1.ataque.test.ts src/features/calificaciones/gradebook-01d.test.tsx src/app/rutas-02c-r1.ataque.test.tsx src/app/marco-r1.ataque.test.tsx src/app/clase-03c1.test.tsx`. Puerta de carga: 10:04:48. Inicio: 10:04:54. Duración: 740.70 s. Resultado: `Test Files  160 passed (160)` · `Tests  3567 passed (3567)`.
+  - **Cuadre:** 3536 de la ronda 1 + 19 del tester + 12 míos = 3567.
+  - **Para el manager:** con el equipo conectado a la corriente, el comando literal debería volver a tardar unos 190 s; no lo pude comprobar. A batería, conviene `--maxWorkers=4`.
+  - **ADM-T1D110 (`clase-archivada-01d1-r1.ataque.test.tsx:1060`), lo señalo para el manager y el tester.** Es de este encargo y cayó en las dos corridas lentas, las dos veces con `expected 3 to be 2` en `expect(detallesDe(A)).toBe(detallesAntes + 1)`. Solo, tras la puerta de las 10:24:04, pasó 3 de 3 (`Tests  1 passed | 44 skipped (45)`), y también en la corrida con 4 trabajadores.
+    - **Lectura del código (no lo comprobé con una sonda):** al volver con el detalle viejo, el encabezado pide `GET …/codigo`, que recibe 409. Con `retry: 1`, su error final llega cerca de 1 s después. Si la prueba tarda más que eso, la escucha pide el detalle una vez más. Es la petición extra de la decisión 9 de la implementación, ya aceptada por el manager, sin ciclo. No lo introduce esta ronda.
+    - **Consecuencia:** esa aserción exacta depende del tiempo. No toqué la prueba: `*.ataque`. Decide el manager.
+    - **Precisión a N-01d1-1:** por ese mismo camino, el maestro y el admin que vuelven antes del `staleTime` no siempre esperan a la siguiente escritura: si el código recibe el 409, el detalle se corrige solo en cuanto llega su error final.
+- **build:** `npm run build` → exit 0, última línea `✓ built in 3.00s`.
+- **Conteos:** `npx vitest list src/features/clases/clase-archivada-01d1.test.ts src/features/clases/clase-archivada-01d1-vista.test.tsx`, contado con `grep -a -c`: 108 casos en 2 archivos (5 y 103). De ellos, 12 tienen "T-02" en el título.
+- **El rojo del tester** (ADM-T2D103b) está en verde.
+- **V-01:** `sha256sum -c` sobre la lista de la ronda 0 (`825acabd…`, 259 líneas) más `clase-archivada-01d1-r1.ataque.test.tsx` = `8d58d05c409c560d115a7ea51bc29a028d0f201658b3db979b1c53d2ec2d2e6a` y `clase-archivada-01d1-r2.ataque.test.tsx` = `32fd1be4f0b957965e60cff91d01e4e5012dad150873f9a51d72a9a02eca2a43`. Resultado: 261 `OK` y 0 diferencias. Hay 259 rastreadas y 2 sin rastrear (las dos del tester en este encargo).
+- **"No se toca" contra `3ae6a00`:** en esta ronda solo cambiaron `components/clase/hooks.ts`, `features/clases/editar-recurso-view.tsx` y `features/clases/trabajo-view.tsx` (los tres en "Se toca" de 01d1) y mi archivo de pruebas. `features/tareas` sin cambios. No toqué ninguna `*.ataque`.
+- **Prisma:** n/a. Tampoco corrí el backend: 01d1 es solo frontend.
+
+## ADMIN-01d1 — Corrección ronda 3 (2026-11-06)
+
+Plan `3822b6c0…`. Reporte: `reporte-tester.md`, "## Ronda 3 — ADMIN-01d1" (línea 3035). La prueba nueva del tester es `frontend/src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx` (`a188c90d…`); no la toqué. **Autorización del humano (2026-11-06):** tocar `features/clases/components/codigo-de-clase.tsx`, fuera de "Se toca", solo para esto. Sin navegadores. Sin commit. La otra copia de trabajo no se usa. Sin cuarta ronda del tester: verifica el manager.
+
+### T-03: corregido
+
+#### Remedio
+- **`features/clases/hooks.ts`, `useRegenerarCodigo`:** los avisos pasan al gancho, como en las demás mutaciones, porque los callbacks de `useMutation` corren aunque el componente ya no esté.
+  - Éxito: `TEXTOS_CODIGO.avisoRegenerado` («Código nuevo listo»).
+  - Fallo: `TEXTOS_CODIGO.avisoErrorRegenerar`, también en un `VALIDACION` o `SERVICIO_OCUPADO` (T-06 de CLASES y CH3-B08 no cambian).
+  - `409 CLASE_ARCHIVADA`: `mensajeDeErrorClases(error)`, "Esta clase está archivada: solo se puede consultar.". **Decisión:** "Inténtalo de nuevo" no se cumpliría en una archivada, y este texto ya es el de §D-12 y el de la matriz. No hay texto nuevo.
+  - Códigos con que `apiClient` redirige: sin aviso (decisión abajo).
+- **`features/clases/components/codigo-de-clase.tsx`:** `regenerar.mutate` solo cierra la confirmación, con `onSettled`. El foco no cambia: `debeEnfocarRegenerar` solo lo marca «Cancelar», como hoy. No hay aviso doble.
+
+**Lo que dijo el encargo que revisara: los códigos que redirigen.** Las mutaciones del módulo no hacen todas lo mismo:
+- no avisan: `useMoverElemento`, las de recursos y dudas, `avisarErrorDeGestion` y `avisarErrorConElFormularioDesmontado`;
+- sí avisan, y son anteriores: `useAsignarMaestro`, `useRetirarMaestro`, `useAgregarAlumno`, `useQuitarAlumno`, `useCrearPublicacion`, `useBorrarPublicacion`, `useComentar`, `useBorrarComentario`, `useBorrarTema`, `useOrdenarTemas`, `avisarErrorDelTema` y `useGuardarCategorias`.
+
+`useRegenerarCodigo` sigue a las primeras (CLASES-03c2, Enmienda 7: la página se va). Antes de este cambio avisaba, así que para esos códigos el comportamiento cambia a propósito. No cambié las otras: queda en "Pendiente".
+
+#### Hermano corregido: `useGuardarCategorias` (fila 15, `hooks.ts`, en "Se toca")
+- El error de una fila (`400 VALIDACION` "categorias.0.nombre: …") lo pinta `EditorDeCategorias` desde su callback de `mutate`, y el gancho callaba sin mirar si el editor seguía montado. Con el editor desmontado, por archivar o por salir de la clase, no quedaba ningún mensaje.
+- Remedio, como `useComentar`: `if (montado.current && erroresDeCategoriasDeApi(error, []) !== null) return`. Desmontado, avisa con `mensajeDeErrorClases`, sin la ruta.
+- `editor-de-categorias.tsx` no cambia.
+
+#### Tabla corregida: dónde vive el aviso de cada mutación de las filas 1 a 21
+Pregunta de cada fila: ¿este aviso vive en un callback de `mutate` del componente, que se puede desmontar al archivar? **Desmontar por archivar y por salir de la clase es el mismo camino:** el observador se va y los callbacks de `mutate` no corren. El tester señaló que salir de la clase con «Regenerar código» en vuelo era anterior a 01d1; también queda corregido, con caso.
+
+Sustituye a la fila 1 de la tabla de la ronda 2 ("Solo cierra — No hace falta"), que estaba mal, y a su fila 15. También corrige la tabla de O-01d1-8, donde `useRegenerarCodigo` decía "su aviso sigue en el componente".
+
+| Fila | Mutación o acción | Dónde vive su aviso | ¿Se pierde con el componente desmontado? | Remedio |
+|---|---|---|---|---|
+| 1 | `useRegenerarCodigo` | **Antes, en los callbacks de `mutate`; ahora, en el gancho** | **Se perdía (T-03)**; ya no | **Aplicado** |
+| 1 | Copiar el código (sin mutación) | En el manejador `async` del componente, con `try/catch` | No: el manejador sigue corriendo | No aplica |
+| 3 | `useCrearPublicacion` | Gancho. El error del campo lo pinta el formulario solo si sigue montado; si no, avisa el gancho | No | Ya estaba |
+| 3, 16, 20 | `useSolicitarSubida` y el `PUT` al almacén | `catch` del manejador del formulario (`mutateAsync`), que sigue corriendo | No (ADM-T3D101 a ADM-T3D103) | No aplica |
+| 4 | `useBorrarPublicacion` | Gancho | No | Ya estaba |
+| 5 | `useComentar` | Gancho, con `montado` para el error del campo | No (caso "T-03 hermano, comentar") | Ya estaba |
+| 6 | `useBorrarComentario` | Gancho | No | Ya estaba |
+| 8, 11 | `useCrearTema`, `useRenombrarTema` | Gancho (`avisarErrorDelTema`), con `montado` para el error del nombre | No (ADM-T3D112) | Ya estaba |
+| 9, 10 | `useOrdenarTemas` | Gancho | No | Ya estaba |
+| 12 | `useBorrarTema` | Gancho | No | Ya estaba |
+| 13, 14, 19 | `useMoverElemento` | Gancho | No (caso "T-03 hermano, mover") | Ya estaba |
+| 15 | `useGuardarCategorias` | Éxito y conflicto, en el gancho. **El error de una fila vivía solo en el callback de `mutate` del editor** | **Se perdía**; ya no | **Aplicado** |
+| 16 | `useCrearRecurso` | Gancho (`avisarErrorDelRecurso`), con `montado` para el error del campo | No | Ya estaba |
+| 18 | `useBorrarRecurso` | Gancho | No | Ya estaba |
+| 20 | `useEditarRecurso` | Gancho (`avisarErrorDelRecurso`), con `montado` para el error del campo | No (ADM-T3D105, ADM-T3D107) | Ya estaba |
+| 21 | `useEditarClase` | Montado: en los callbacks de `mutate` (`alTerminar`, `alFallar`). Desmontado: en el gancho (`if (!montado.current)` y `avisarErrorConElFormularioDesmontado`) | No (caso "T-02 hermano, ruta 21") | Ya estaba |
+| Aviso | `useRestaurarClase` | Gancho | No | Ya estaba |
+| 2, 7, 17 | Enlaces | Sin mutación | — | — |
+
+**Límite de la fila 21, por lectura del código.** La decisión se toma con `montado.current` al llegar la respuesta. Si el formulario se desmonta justo entre el `onSuccess` del gancho y la notificación de los callbacks de `mutate`, el aviso se perdería. Es la misma ventana de todas las mutaciones con `montado`, anterior a 01d1, y no la reproduje. No la cambio.
+
+**N-01d1-4, declarado (decisión del orquestador; sin cambio de código; va a ESTADO §3 al cierre).** Un `409 RECURSO_MODIFICADO` que llega con la clase archivada no pide la recarga. Al restaurar, el formulario nace de una caché que ya se sabe vieja (versión anterior). El siguiente guardado recibe otro `409` y se pierde lo escrito después de restaurar. Nada se sobrescribe, y el `409` dice la verdad. Fila que falta en la tabla de órdenes de la ronda 2:
+
+| Orden | `409` del guardado |
+|---|---|
+| Llega con la clase archivada | No pide la recarga. **Consecuencia (N-01d1-4):** al restaurar, el formulario nace con la versión de la caché; el siguiente guardado recibe otro `409`, un aviso por envío, se reinicia con la versión del servidor y el foco va al campo. Lo fija ADM-T3D108 |
+
+#### Casos nuevos (en `frontend/src/features/clases/clase-archivada-01d1-vista.test.tsx`, `describe` "T-03: el aviso no se pierde con el componente desmontado")
+- "T-03 (a): «Regenerar código» recibe 409 CLASE_ARCHIVADA con la clase ya archivada: un aviso con el texto de archivada, no «Inténtalo de nuevo»"
+- "T-03: con el componente montado, un 409 CLASE_ARCHIVADA da un solo aviso y la confirmación se cierra"
+- "T-03 (T-06 de CLASES): con el componente montado, un 500 da un solo aviso y la confirmación se cierra con «Regenerar código» de vuelta"
+- "T-03: con el componente montado, un 200 da un solo aviso, el código nuevo y la confirmación cerrada"
+- "T-03: la persona sale de la clase con «Regenerar código» en vuelo y la respuesta es %s: un solo aviso" (500 y 200)
+- "T-03: «Regenerar código» con %s, con que apiClient redirige: sin aviso, como useMoverElemento y las de recursos y dudas" (`ACCESO_RESTRINGIDO` y `CAMBIO_DE_CONTRASENA_REQUERIDO`)
+- "T-03 hermano, categorías: un VALIDACION de una fila llega con el editor desmontado por archivar: un aviso legible, sin la ruta"
+- "T-03 hermano, categorías (control): con el editor montado, ese VALIDACION va en su fila, sin aviso"
+- "T-03 hermano, comentar: el 409 llega con el formulario desmontado por archivar: un solo aviso"
+- "T-03 hermano, mover: el 409 llega con el selector desmontado por archivar: un solo aviso"
+
+Son 12 casos, sin tiempos fijos. Salir de la clase con categorías en vuelo no tiene caso propio: pasa por la misma condición que archivar.
+
+#### Detección (mutaciones temporales; cada una restaurada y comprobada con `cmp`)
+Comando: `npx vitest run src/features/clases/clase-archivada-01d1-vista.test.tsx src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx -t "T-03|ADM-T3D111"`. Sin mutación: `Tests  17 passed | 141 skipped (158)`.
+
+| Mutación | Resultado | Caen |
+|---|---|---|
+| Los avisos de regenerar vuelven a los callbacks de `mutate` (el defecto original) | `Tests  9 failed | 8 passed | 141 skipped (158)` | **ADM-T3D111 (a), (b) y (c)**; T-03 (a); el 409 con el componente montado; salir de la clase con 500 y con 200; los dos códigos que redirigen |
+| `useGuardarCategorias` sin `montado` | `Tests  1 failed | 16 passed | 141 skipped (158)` | "T-03 hermano, categorías: …" |
+
+- Los controles de ADM-T3D111, el 500 y el 200 con el componente montado siguen en verde con la primera mutación: con el componente montado, el aviso sale igual en los dos sitios.
+- Los casos de comentar y mover no los pone en rojo ninguna de las dos: ya avisaban desde el gancho. Cubren lo que el tester leyó sin correr; no prueban este remedio.
+- Esas corridas se hicieron con el título anterior de los casos de redirección; el cambio de título es lo único distinto.
+
+#### Verificación (desde `frontend/`; antes de cada corrida, `BatteryStatus` 2 y la puerta de carga)
+- **lint:** `npm run lint` → exit 0 (11:17:01). Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -b`, sin errores.
+- **test:** `npx vitest run src/features/clases src/features/tareas src/components/clase src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts src/features/calificaciones/estatico-01d.test.ts src/features/calificaciones/estatico-01d-r1.ataque.test.ts src/features/calificaciones/gradebook-01d.test.tsx src/app/rutas-02c-r1.ataque.test.tsx src/app/marco-r1.ataque.test.tsx src/app/clase-03c1.test.tsx`, sin bandera. Puerta de carga: 11:18:01 `7` y 11:18:08 `6`, `BatteryStatus` 2 antes y después. Inicio: 11:18:10. Duración: 170.69 s. Resultado: `Test Files  161 passed (161)` · `Tests  3622 passed (3622)`. Cuadra así: 3567 de la ronda 2, más los 43 del tester y mis 12.
+- **build:** `npm run build` → exit 0, última línea `✓ built in 925ms` (11:15, antes del cambio de título, que solo toca una prueba).
+- **Conteos:** `npx vitest list src/features/clases/clase-archivada-01d1.test.ts src/features/clases/clase-archivada-01d1-vista.test.tsx`, contado con `grep -a -c`: 120 casos en 2 archivos (5 y 115). De ellos, 12 tienen "T-03" en el título.
+- **V-01:** `sha256sum -c` sobre la lista de la ronda 0 (`825acabd…`, 259 líneas) más `clase-archivada-01d1-r1.ataque.test.tsx` = `b465fd900c2a12681681f04b6ce3c54b23f1028d8b0fdc8545681bdf47e33d60` (el C-n del tester), `-r2` = `32fd1be4f0b957965e60cff91d01e4e5012dad150873f9a51d72a9a02eca2a43` y `-r3` = `a188c90deb61bafedabc50b76c77b02507964297cd6b155f905114839f728493`. Resultado: 262 `OK` y 0 diferencias. Hay 259 rastreadas y 3 sin rastrear (las tres del tester en este encargo). No toqué ninguna `*.ataque`.
+- **"No se toca" contra `3ae6a00`:** en esta ronda solo cambiaron `features/clases/hooks.ts` (en "Se toca"), `features/clases/components/codigo-de-clase.tsx` (autorizado por el humano, solo para esto) y mi archivo de pruebas. `backend/` y `shared/` sin cambios. Ninguna prueba normal fuera de la lista cerrada cayó: sin PARADA.
+- **Prisma:** n/a.
+
+#### Pendiente o fuera de alcance
+- **«Sí, regenerar» sigue sin guarda con ref** (`codigo-de-clase.tsx`, `handleRegenerar`), contra la regla de `CLAUDE.md` de que toda acción que lanza una mutación lleva una. Ya era así, y la autorización solo cubre los avisos, así que no la agregué. Hoy lo sostiene `enEspera` (`clases-r1.ataque`: "'Sí, regenerar' en espera no manda un segundo POST /codigo"). Dos clics en el mismo render podrían mandar dos `POST`; no lo reproduje. Necesita un destino.
+- **Las mutaciones anteriores que avisan ante un código con que `apiClient` redirige** (lista de arriba). Es una incoherencia anterior a ADMIN-01. Necesita un destino.
+- **Los tipos en línea** van a `types.ts` en 01d2, y **N-01d1-2**, también en 01d2. **N-01d1-4** va a ESTADO §3 al cierre.

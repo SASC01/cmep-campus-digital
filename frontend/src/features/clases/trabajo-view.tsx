@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Link, useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
@@ -66,14 +67,23 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   const perspectiva = perspectivaDeRuta(pathname)
   const capacidades = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
   const base = baseDeClase(perspectiva, claseId)
+  // ADMIN-01d1 (§D-9, filas 7 y 8): en una clase archivada no se crean tareas ni temas; las
+  // categorías de calificación siguen, para leerlas.
+  const soloLectura = useSoloLecturaDeLaClase()
   const temas = useTemasDeLaSeccion(claseId, "actividades")
   const temasEnTotal = useTemas(claseId, capacidades.gestionarTrabajo)
   const ordenar = useOrdenarTemas(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const nuevoTemaRef = useRef<HTMLButtonElement>(null)
   const [creando, setCreando] = useState(false)
+  // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
+  // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
+  if (soloLectura && creando) setCreando(false)
   const [ordenEnVuelo, setOrdenEnVuelo] = useState<OrdenEnVuelo | null>(null)
   const focoTrasOrdenarRef = useRef<OrdenEnVuelo | null>(null)
+  // T-02 (ronda 2 de 01d1): un orden lanzado antes de pasar a solo lectura no mueve el foco al llegar.
+  const { generacion, sigueVigente } = useGeneracionDeSoloLectura()
+  const generacionDelOrdenRef = useRef(generacion)
   // M-01 (revisión de la ronda 1): guarda síncrona de "Subir" y "Bajar"; `ordenar.isPending` llega un
   // render después, y en esa ventana otro clic mandaría un orden calculado con la lista vieja.
   const ordenandoRef = useRef(false)
@@ -114,6 +124,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
     const pendiente = focoTrasOrdenarRef.current
     if (pendiente === null || ordenar.isPending) return
     focoTrasOrdenarRef.current = null
+    if (!sigueVigente(generacionDelOrdenRef.current)) return
     const activo = document.activeElement
     const seccion = document.querySelector(`[data-tema-id="${pendiente.temaId}"]`)
     if (!focoPerdido(document) && (seccion === null || !seccion.contains(activo))) return
@@ -170,6 +181,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
     const enVuelo = { temaId, control }
     setOrdenEnVuelo(enVuelo)
     focoTrasOrdenarRef.current = enVuelo
+    generacionDelOrdenRef.current = generacion
     ordenandoRef.current = true
     ordenar.mutate(orden, {
       onSettled: () => {
@@ -232,11 +244,13 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
       {capacidades.gestionarTrabajo && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={`${base}/tareas/nueva`} className={buttonVariants({ variant: "primary" })}>
-              <Plus aria-hidden="true" />
-              {TEXTOS_TRABAJO.crearTarea}
-            </Link>
-            {!creando && (
+            {!soloLectura && (
+              <Link to={`${base}/tareas/nueva`} className={buttonVariants({ variant: "primary" })}>
+                <Plus aria-hidden="true" />
+                {TEXTOS_TRABAJO.crearTarea}
+              </Link>
+            )}
+            {!soloLectura && !creando && (
               <Button
                 ref={nuevoTemaRef}
                 type="button"
@@ -250,7 +264,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
               {TEXTOS_TRABAJO.categorias}
             </Link>
           </div>
-          {creando && (
+          {!soloLectura && creando && (
             <Card>
               <CardContent>
                 <FormularioTema claseId={claseId} onTerminar={cerrarFormulario} />

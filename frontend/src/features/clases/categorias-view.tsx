@@ -1,9 +1,11 @@
 import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { Card, CardContent } from "@/components/ui/card"
 
+import { CategoriasDeSoloLectura } from "./components/categorias-de-solo-lectura"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { EditorDeCategorias } from "./components/editor-de-categorias"
 import {
@@ -27,6 +29,8 @@ function CategoriasDeLaClase({ claseId }: CategoriasDeLaClaseProps) {
   const perspectiva = perspectivaDeRuta(pathname)
   const { gestionarTrabajo } = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
   const categorias = useCategorias(claseId, gestionarTrabajo)
+  // ADMIN-01d1 (§D-9, fila 15): en una clase archivada las categorías se leen, sin el editor.
+  const soloLectura = useSoloLecturaDeLaClase()
   // Una recarga fallida conserva el editor (y lo que se está escribiendo) y avisa una vez por fallo.
   const conservaLaVista = categorias.data !== undefined && !errorQuitaLaVista(categorias.error)
   useAvisoDeRecargaFallida(categorias.errorUpdateCount, conservaLaVista, TEXTOS_CATEGORIAS_RECARGA)
@@ -37,6 +41,7 @@ function CategoriasDeLaClase({ claseId }: CategoriasDeLaClaseProps) {
       return <MensajeError mensaje={mensajeDeConsultaClases(categorias.error)} />
     }
     if (categorias.data === undefined) return <Cargando />
+    if (soloLectura) return <CategoriasDeSoloLectura categorias={categorias.data.categorias} />
     // La llave es la clase: al pasar a otra clase el editor parte de cero.
     return (
       <EditorDeCategorias key={claseId} claseId={claseId} categorias={categorias.data.categorias} />

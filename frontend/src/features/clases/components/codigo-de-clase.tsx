@@ -55,17 +55,9 @@ export function CodigoDeClase({ claseId, codigo, isError, errorMensaje }: Codigo
   }
 
   const handleRegenerar = () => {
+    // T-03 (ronda 3 de 01d1): los avisos viven en useRegenerarCodigo; aquí solo se cierra la confirmación.
     regenerar.mutate(undefined, {
-      onSuccess: () => {
-        toast.success(TEXTOS_CODIGO.avisoRegenerado)
-        setConfirmando(false)
-      },
-      // T-06 (ronda 1 del tester): un fallo cerraba la confirmación sin avisar; el maestro podía
-      // creer que regeneró el código.
-      onError: () => {
-        toast.error(TEXTOS_CODIGO.avisoErrorRegenerar)
-        setConfirmando(false)
-      },
+      onSettled: () => setConfirmando(false),
     })
   }
 

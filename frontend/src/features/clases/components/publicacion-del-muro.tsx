@@ -1,6 +1,7 @@
 import { BookOpen, Megaphone } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -31,6 +32,11 @@ function PublicacionComun({ claseId, publicacion, perspectiva }: PublicacionDelM
   const [confirmando, setConfirmando] = useState(false)
   const idComentarios = useId()
   const borrar = useBorrarPublicacion(claseId)
+  // ADMIN-01d1 (§D-9, fila 4): en una clase archivada no se ofrece borrar, aunque el dato lo permita.
+  const soloLectura = useSoloLecturaDeLaClase()
+  // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
+  // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
+  if (soloLectura && confirmando) setConfirmando(false)
   const borrarBtnRef = useRef<HTMLButtonElement>(null)
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
   const confirmandoAnteriorRef = useRef(confirmando)
@@ -93,7 +99,7 @@ function PublicacionComun({ claseId, publicacion, perspectiva }: PublicacionDelM
               ? TEXTOS_PUBLICACION.ocultarComentarios
               : TEXTOS_PUBLICACION.verComentarios(publicacion.comentarios)}
           </Button>
-          {publicacion.puedeBorrar && !confirmando && (
+          {publicacion.puedeBorrar && !soloLectura && !confirmando && (
             <Button
               ref={borrarBtnRef}
               type="button"
@@ -107,7 +113,7 @@ function PublicacionComun({ claseId, publicacion, perspectiva }: PublicacionDelM
           )}
         </div>
 
-        {publicacion.puedeBorrar && confirmando && (
+        {publicacion.puedeBorrar && !soloLectura && confirmando && (
           <div className="flex flex-col gap-2">
             <p className="text-small">{textoDeConfirmacion}</p>
             <div className="flex flex-wrap gap-2">

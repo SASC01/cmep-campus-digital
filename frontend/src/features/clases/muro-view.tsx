@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react"
 import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
@@ -37,6 +38,8 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   const ubicacion = useLocation()
   const perspectiva = perspectivaDeRuta(ubicacion.pathname)
   const publicaciones = usePublicaciones(claseId)
+  // ADMIN-01d1 (§D-9, fila 3): en una clase archivada no se publica.
+  const soloLectura = useSoloLecturaDeLaClase()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   // T-04: si la lista se recarga con error tras borrar una publicación, el foco va al encabezado.
   useFocoAlPasarAError(
@@ -154,7 +157,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioPublicacion && (
+      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioPublicacion && !soloLectura && (
         <FormularioPublicacion claseId={claseId} />
       )}
       <section className="flex flex-col gap-4">

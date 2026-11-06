@@ -425,6 +425,15 @@ export const TEXTOS_CLASE = {
   sinAcceso: TEXTOS_DE_LA_CLASE.sinAcceso,
 } as const
 
+// ADMIN-01d1 (§D-9, §D-12): el aviso de una clase archivada bajo su encabezado (el del admin, junto a
+// «Restaurar» y «Duplicar») y el enlace de vuelta de "Editar clase" en una archivada (fila 21). El texto
+// de las rutas de escritura vive en components/clase/data.ts (TEXTOS_DE_LA_CLASE.archivada).
+export const TEXTOS_CLASE_ARCHIVADA = {
+  aviso: (fecha: string) => `Clase archivada el ${fecha}. Solo puedes consultarla.`,
+  avisoAdmin: (fecha: string) => `Clase archivada el ${fecha}. Es de solo lectura.`,
+  volverALaClase: "Volver a la clase",
+} as const
+
 // §D-B6: textos de CLASES-b (propuesta).
 export const TEXTOS_PERSONAS = {
   maestro: "Maestro",

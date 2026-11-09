@@ -55,6 +55,7 @@ import { calcularExpiracionToken } from "../core/auth/tokens-cuenta.js"
 import { AppError } from "../core/errores.js"
 import { COLA_CORREO_DE_CUENTA } from "../core/eventos/correo-de-cuenta.js"
 import { protegido } from "../middleware/index.js"
+import { usuariosAdminHandler } from "./admin/usuarios.js"
 import { validarCuerpo, validarParametros } from "./validacion.js"
 
 const parametrosIdSchema = z.object({ id: z.uuid("id: debe ser un identificador válido") })
@@ -79,6 +80,9 @@ export const adminHandler: FastifyPluginAsync<{ limiteDiarioInvitaciones: number
   app,
   { limiteDiarioInvitaciones },
 ) => {
+  // ADMIN-01e (§D-7, §D-8): la gestión de usuarios vive en su propio archivo, bajo el mismo prefijo.
+  await app.register(usuariosAdminHandler)
+
   app.post("/maestros", protegido({ roles: ["admin"] }), async (request, reply) => {
     const datos = validarCuerpo(invitarMaestroSchema, request.body)
     const cuenta = prepararRegistro(datos)

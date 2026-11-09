@@ -189,7 +189,10 @@ beforeAll(async () => {
     )
     await enviar("borrar publicación", "DELETE", `${muro}/${publicacion.id}`, comoMaestra)
 
-    const urlCentinela = `/api/salud?centinela=${randomBytes(8).toString("hex")}`
+    // ADMIN-01e, C-30 (§D-R0; M-09, §D-7.11): desde 01e el log registra la URL sin la consulta, así
+    // que el valor único del centinela va en el camino de una ruta que no existe (responde 404 y se
+    // registra con su camino completo), no en la consulta. Lo demás que protege el caso no cambia.
+    const urlCentinela = `/api/salud-centinela/${randomBytes(8).toString("hex")}`
     await fetch(`${base}${urlCentinela}`)
     const espera = Date.now()
     while (faltanteEnElLog(log, urlCentinela) !== null && Date.now() - espera < 20_000) {

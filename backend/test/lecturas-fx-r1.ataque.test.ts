@@ -755,7 +755,7 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
     expect(rc.niveles).toEqual(Array.from({ length: CONEXIONES_DEL_POOL }, () => "read committed"))
   }, 60_000)
 
-  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las veintiuna lecturas (cuatro de clases, una de clases archivadas, una del conteo de borrado, dos del muro, dos de tareas, cuatro de entregas, dos de calificaciones, dos de recursos, dos de dudas y una de la exportación)", () => {
+  it("la opción solo se puede activar dentro de adapters/db: ningún archivo fuera de adapters/db nombra enTransaccion, instantaneaUnica o isolationLevel, index.ts no reexporta enTransaccion, isolationLevel solo vive en cliente.ts y la opción solo se pide en las veinticuatro lecturas (cuatro de clases, una de clases archivadas, una del conteo de borrado, dos del muro, dos de tareas, cuatro de entregas, dos de calificaciones, dos de recursos, dos de dudas, una de la exportación, dos de gestión de usuarios y una de movimientos)", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const archivos = readdirSync(raiz, { recursive: true, encoding: "utf8" })
       .map((ruta) => ruta.split(sep).join("/"))
@@ -825,6 +825,12 @@ describe("ataque FIX-CLASES r1 (punto 3): aislamiento", () => {
       "adapters/db/entregas.ts:4",
       // CALIFICACIONES-02a, C-2 (§D-R0; §D-2): leerExportacionDeCalificaciones corre en la instantánea única.
       "adapters/db/exportacion-de-calificaciones.ts:1",
+      // ADMIN-01e, C-8 (§D-R0; §D-7.1, §D-7.6 y §D-7.7): listarUsuarios (GET /admin/usuarios) y
+      // leerResumenAdmin (GET /admin/resumen) corren en la instantánea única; la ficha y las escrituras
+      // del mismo archivo no la usan. listarMovimientosDeInscripcion (GET /admin/movimientos-inscripcion)
+      // también. El conteo sigue siendo del texto de cada archivo, con sus comentarios.
+      "adapters/db/gestion-de-usuarios.ts:2",
+      "adapters/db/movimientos.ts:1",
       "adapters/db/publicaciones.ts:2",
       // CLASES-03a, C-2 (§D-R0; §D-0.4, §D-3.5 y §D-3.6): listarRecursos y leerRecurso corren en la
       // instantánea única. El conteo sigue siendo del texto del archivo.

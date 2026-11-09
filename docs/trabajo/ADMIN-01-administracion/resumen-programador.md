@@ -2812,3 +2812,347 @@ Ninguna. Un caso de más: "T-04: la lista salió en vuelo hacia una clase que ya
 ### Pendiente
 
 Sin cambio: lo de ESTADO §3 al cierre (barra lateral y listas del inicio, `aria-controls`, N-01d1-4 y el foco de N-05). El estado "sin datos, quieta" no tiene caso mío: se apoya en la sonda del manager y en ADM-T2D203.
+
+## ADMIN-01e — Implementación (2026-11-09)
+
+**Estado: PARADA** antes de `prisma migrate dev` (paso 22): la migración `admin_01_usuarios_y_movimientos` la confirma el humano (`AGENTS.md`, "Pide confirmación antes de"; encargo del orquestador). Retomo con su confirmación: aplicar la migración, la verificación de deriva (N-06) y los pasos 23 a 25.
+
+- Plan: `docs/trabajo/ADMIN-01-administracion/plan.md`, SHA-256 `7018e1f321364350554c1a2fdd2cd2e5f0c54ea18c3586ce8c62a1ad2b4e97cf` (Enmiendas 1 a 13), comprobado al empezar con `sha256sum`.
+- Base de "No se toca" dentro de los paquetes: `ea718bc`.
+- Entorno: sin otra copia de trabajo ni otra suite corriendo (respuesta del humano de hoy, por el orquestador; antes de cada corrida comprobé que no había ningún `node` con `vitest`). Docker Desktop encendido. **Red `uacam5 2`, perfil Privado: PA-01 resuelta para la sesión de hoy por autorización del humano** (la regla del firewall solo cubre el perfil Público). `BatteryStatus` 2 (corriente). Sin navegadores. No terminé procesos. Sin commit.
+- Lecturas: `reporte-tester.md`, "## Ronda 0 — ADMIN-01e" (O-01e-1 a O-01e-10 y OA-01e-1); `aprobacion.md` (Enmienda 13, ronda 0 de 01e, OA-01e-1); N-26, N-32 y E8-4 en `revision.md`.
+
+### Pasos completados: 2 de 6 (20 y 21), y el 22 preparado sin aplicar
+
+| Paso | Estado |
+|---|---|
+| 20. `shared/src/usuarios-admin.ts` | Hecho, con `index.ts` y `build` de `shared` |
+| 21. `core/usuarios/` con ADM-1E01 | Hecho: `baja.ts`, `acceso.ts`, `busqueda.ts`, `textos.ts`, cada uno con su prueba |
+| 22. Migración | **Preparada, sin aplicar (PARADA):** `schema.prisma` editado, `prisma format` y `prisma validate` en verde, SQL calculado con `prisma migrate diff` entre esquemas (sin base). Falta `prisma migrate dev`, `prisma generate`, la verificación de deriva (N-06) y ADM-1E16 |
+| 23 a 25 | Pendientes |
+
+### Archivos (solo de "Se toca" de 01e)
+- Nuevos: `shared/src/usuarios-admin.ts`; `backend/src/core/usuarios/{baja,acceso,busqueda,textos}.ts` y sus cuatro `*.test.ts`.
+- Modificados: `shared/src/index.ts` (exporta los esquemas y tipos nuevos), `backend/prisma/schema.prisma` (tres índices en `usuarios`, uno en `movimientos_inscripcion` y los dos comentarios de `MovimientoInscripcion`, A-09).
+- `git status --short -- shared backend frontend` (sin las once `*.ataque` de la ronda 0): ` M backend/prisma/schema.prisma`, ` M shared/src/index.ts`, `?? backend/src/core/usuarios/`, `?? shared/src/usuarios-admin.ts`. Ninguna `*.ataque` tocada; ninguna prueba normal existente tocada.
+- SHA-256: `shared/src/usuarios-admin.ts` `465fdd571bec922fbaa566af2453f9827d826bfdd6256a18853e535f8e3555ce`; `backend/prisma/schema.prisma` `394760a44d5482a21398fae1862db2f711dcba01d743400d0ee36f6b3fb26dd9`.
+
+### La migración que pido aplicar: `admin_01_usuarios_y_movimientos` (§Cambios, prisma, 01e)
+
+**SQL** (salida de `npx prisma migrate diff --from-schema <schema de ea718bc> --to-schema prisma/schema.prisma --script`, desde `backend/`; el esquema de `ea718bc` sale de `git show ea718bc:backend/prisma/schema.prisma`; no toca ninguna base). Copia en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\migracion-01e-propuesta.sql`, SHA-256 `14b918bf57ac070eac6cef4683ac4e7e43e1201c168bcebc92f8140ebd1e39cf`:
+
+```sql
+-- CreateIndex
+CREATE INDEX "usuarios_email_idx" ON "usuarios" USING GIN ("email" gin_trgm_ops);
+
+-- CreateIndex
+CREATE INDEX "usuarios_nombre_busqueda_id_idx" ON "usuarios"("nombre_busqueda", "id");
+
+-- CreateIndex
+CREATE INDEX "usuarios_rol_nombre_busqueda_id_idx" ON "usuarios"("rol", "nombre_busqueda", "id");
+
+-- CreateIndex
+CREATE INDEX "movimientos_inscripcion_secuencia_idx" ON "movimientos_inscripcion"("secuencia" DESC);
+```
+
+| Qué | Detalle |
+|---|---|
+| Tablas nuevas | Ninguna |
+| Columnas nuevas o cambiadas | Ninguna |
+| Índices nuevos | `usuarios_email_idx` (GIN `gin_trgm_ops` sobre `email`: la búsqueda por parte del correo, S-12, ADM-1E16); `usuarios_nombre_busqueda_id_idx` (orden de la lista sin filtro de rol); `usuarios_rol_nombre_busqueda_id_idx` (orden con `rol`; también la tabla de estado de pago de 01g); `movimientos_inscripcion_secuencia_idx` (`secuencia DESC`, S-09). El de `(alumno_id, secuencia DESC)` no va (Enmienda 1) |
+| Restricciones (`CHECK`, FK, únicos) | Ninguna. Nada escrito a mano: Prisma expresa los cuatro índices, así que la verificación de deriva (N-06) no debería proponer cambios; si propone borrar los índices parciales o los `CHECK` de 01a y 01b, PARADA |
+| Extensión | `pg_trgm` ya existe (la usa `usuarios_nombre_busqueda_idx`, GIN); la migración no la crea |
+| Compatibilidad hacia atrás | Solo índices: un backend anterior no los nota y no cambia ninguna consulta. `CREATE INDEX` (no `CONCURRENTLY`, Prisma corre la migración en una transacción) bloquea las escrituras de `usuarios` y `movimientos_inscripcion` mientras se construye; con las tablas del piloto es un instante |
+| Comentarios del esquema (A-09) | `MovimientoInscripcion` dice ahora que la lee la consulta de movimientos del admin, sin filtros, con el índice `(secuencia DESC)` (el comentario ya no decía "Sin índices secundarios…": 01b lo había cambiado) |
+| Diff del esquema | `git diff -U0 -- backend/prisma/schema.prisma`: `@@ -121,0 +122,5` (los tres `@@index` de `Usuario` con su comentario), `@@ -253 +258,2` y `@@ -259 +265,2` (comentarios de `MovimientoInscripcion`), `@@ -272,0 +280` (`@@index([secuencia(sort: Desc)])`) |
+
+**Al retomar, con la confirmación:** desde `backend/`, `npx prisma migrate dev --name admin_01_usuarios_y_movimientos` contra la base local de desarrollo; `npx prisma validate`, `npx prisma generate`; `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` (N-06) sin diferencias; después ADM-1E16 y los pasos 23 a 25.
+
+### Decisiones de detalle dentro del plan (para que el manager las contraste)
+1. **`decidirCambioDeActivo`, orden de las guardas:** admin → `409 CUENTA_DE_ADMINISTRACION` (también al pedir `activo: true`); después "mismo estado → `{ escribir: false }`"; después la baja de un maestro con clases activas → `409 MAESTRO_CON_CLASES`. §D-7.4 enumera los tres casos sin fijar el orden; puse "mismo estado" antes del conflicto para que repetir la baja de un maestro ya inactivo, al que una clase restaurada dejó con una clase activa (N-14), no sea un `409` sino "sin escribir" (ADM-1E05: "repetir → sin escribir"). Caso: "ADM-1E01: mismo estado → sin escribir (también la baja repetida de un maestro que ya tiene clases)".
+2. **`decidirCambioDeAcceso`:** restablecer a quien ya tiene acceso no escribe aunque el pedido traiga motivo (S-10: restablecer borra el motivo); restringir de nuevo escribe si el motivo pedido (`undefined` → `null`) es distinto del guardado, sin revocar sesiones (ya se revocaron al restringir; la fecha la conserva el adaptador, §D-8).
+3. **`prepararBusquedaDeUsuarios`:** `nombre` = `prepararTerminoDeBusqueda` (la normalización de `shared/` y el mínimo de 3) con `escaparComodinesLike`; `email` = el término recortado y en minúsculas (como `normalizarCorreo`), escapado, sin quitar acentos ni juntar espacios, para que `+` y `_` de un correo se busquen tal cual. `null` si el normalizado tiene menos de 3. Reutiliza `core/clases/busqueda.ts` sin cambiarlo.
+4. **`textos.ts`** reúne los textos de §D-7, §D-8 y §D-12 (con el singular y el plural de `MAESTRO_CON_CLASES`), más `usuarioNoEncontrado` con el texto que ya usa `handlers/admin.ts` y el `400` del lote ("alumnoIds: hay cuentas que no son de alumnos", S-11; su resto no empieza con un nombre en camelCase, así que `errores-ch3-r2.ataque` sigue en verde).
+5. **`shared/src/usuarios-admin.ts`:**
+   - `GET /admin/usuarios/:id`, `PUT …/nombre` y `PUT …/activo` (y el acceso) responden **la fila** (`usuarioAdminFilaSchema`), sin envoltorio: §D-7.2 dice "la misma forma de una fila" y §D-7.3 "Responde la fila". El alta responde `{ usuario, contrasenaTemporal }` (§D-7.5).
+   - `listaUsuariosConsultaSchema`: límite 1..100 por omisión 50; `q` valida aquí solo el máximo (120 normalizados o 1000 crudos, el mismo texto que el buscador de candidatos) y el mínimo lo decide `core/` (`400 BUSQUEDA_MUY_CORTA`); `estadoPago` sin `rol=estudiante` → `superRefine` con ruta `estadoPago`, que `validarParametros` responde como `400 VALIDACION` "estadoPago: Solo se filtra por estado de pago entre los alumnos"; `cursorNombre` es `z.string().optional()` sin mensaje (Enmienda 5). Ningún literal con la forma `"<nombre>: …"` en `shared/src` (`errores-ch3-r2.ataque:258`, en verde).
+   - `usuarioAdminFilaSchema`: los cinco campos de alumno, opcionales, con un `superRefine` que los exige en las filas de estudiantes y los prohíbe en las demás (§Cambios, shared, 01e). Las respuestas son `z.object`, que descarta `hashContrasena`, `nombreBusqueda`, `debeCambiarContrasena` y `enlaceRegistroId` (ADM-1E15).
+   - `estadoPagoLoteSchema`: 1 a 100 ids, sin repetidos también con otra capitalización (como `archivoIdsSchema`).
+   - **`accesoSchema.motivo`:** `normalizarTextoLargo` → `textoLargoSchema(1000)` (prohíbe controles e inversores de dirección) → hasta 300 visibles ("El motivo no puede tener más de 300 caracteres") → sin visibles, `undefined`. **El tope crudo de 1000 no está en el plan:** S-10 mide en visibles y no dice nada de controles; sin un tope, `textoLargoSchema` no se puede usar y un `\0` en el motivo daría `500` de PostgreSQL. Sigue el precedente de `LONGITUD_MAXIMA_BUSQUEDA_CRUDA` ("solo para no procesar entradas absurdas"). Si el manager prefiere otro tope o medir sin él, es una línea.
+   - No agregué un `CODIGOS_…` para los códigos nuevos: el plan no lo pide en 01e (lo verá 01f si lo necesita).
+   - S-16 (`cuentaDesactivada` en `shared/src/clases.ts`) queda para el paso 23, como dice el plan; por eso C-42 sigue en rojo.
+
+### Verificación (comando exacto y última línea; una corrida después de otra)
+- **build `shared`:** `cd shared; npm run build` → exit 0; última línea `> tsc -p tsconfig.json` (sin errores).
+- **lint `shared`:** `cd shared; npm run lint` → exit 0; `All matched files use Prettier code style!`.
+- **lint backend:** `cd backend; npm run lint` → exit 0; `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (sin errores; corrido después de editar el esquema).
+- **prisma:** `cd backend; npx prisma format` → `Formatted prisma\schema.prisma in 39ms 🚀`; `npx prisma validate` → `The schema at prisma\schema.prisma is valid 🚀`. `prisma generate` no corrió: va con `migrate dev`, al retomar.
+- **test backend (módulo tocado y estáticas que leen `backend/src` o `shared/src`):** `cd backend; npx vitest run src/core/usuarios test/arquitectura-cuentas-r1.ataque.test.ts test/temas-01a-r1.ataque.test.ts test/temas-01a-r3.ataque.test.ts test/lecturas-fx-r2.ataque.test.ts test/nombres-ids-01a-r2.ataque.test.ts test/entregas-01b-r1.ataque.test.ts test/esquemas-exportacion.test.ts test/alumnos-b-r1.ataque.test.ts` → `Test Files  12 passed (12)` · `Tests  145 passed (145)`. Antes, solo `npx vitest run src/core/usuarios` → `Tests  17 passed (17)`.
+- **lint frontend:** `cd frontend; npm run lint` → exit 0; `> tsc -b`.
+- **build frontend:** `cd frontend; npm run build` → exit 0; `✓ built in 1.66s`.
+- **test frontend:** 01e no toca `frontend/`; la única prueba del frontend que lee `shared/src` (grep de `shared/src` en `*.test.{ts,tsx}`) es `src/lib/errores-ch3-r2.ataque.test.ts`: `cd frontend; npx vitest run src/lib/errores-ch3-r2.ataque.test.ts` → `Tests  85 passed (85)`.
+- No corrí las suites completas (las corre el manager al cerrar) ni los once archivos de los C-n (ver abajo).
+
+### Pruebas requeridas (01e)
+- **ADM-1E01** → cubierta, 17 casos:
+  - `backend/src/core/usuarios/baja.test.ts`: "ADM-1E01: la cuenta de administración → 409 CUENTA_DE_ADMINISTRACION, al darla de baja y al reactivarla"; "ADM-1E01: maestro con 1 clase activa → 409 MAESTRO_CON_CLASES con el texto en singular"; "ADM-1E01: maestro con 3 clases activas → 409 MAESTRO_CON_CLASES con el texto en plural"; "ADM-1E01: baja de un maestro sin clases activas y de un alumno → escribe"; "ADM-1E01: reactivar escribe, también a un maestro con clases asignadas"; "ADM-1E01: mismo estado → sin escribir (también la baja repetida de un maestro que ya tiene clases)".
+  - `backend/src/core/usuarios/acceso.test.ts`: "ADM-1E01: un maestro o el admin → 409 NO_ES_ALUMNO, al restringir y al restablecer"; "ADM-1E01: restringir a un alumno con acceso → escribe y revoca sus sesiones, con motivo o sin él"; "ADM-1E01: restablecer a un alumno restringido → escribe y no revoca"; "ADM-1E01: mismo estado → sin escribir (restringido con el mismo motivo o sin motivo; con acceso)"; "ADM-1E01: restringir de nuevo con otro motivo (o quitándolo) → escribe el motivo, sin revocar".
+  - `backend/src/core/usuarios/busqueda.test.ts`: "ADM-1E01: quita acentos, pasa a minúsculas y junta espacios en el nombre; el correo, recortado y en minúsculas"; "ADM-1E01: menos de 3 caracteres normalizados → null (también con espacios o acentos de sobra)"; "ADM-1E01: escapa %, _ y \ en el nombre y en el correo"; "ADM-1E01: errorBusquedaMuyCorta → 400 BUSQUEDA_MUY_CORTA con su texto".
+  - `backend/src/core/usuarios/textos.test.ts`: "ADM-1E01: MAESTRO_CON_CLASES en singular con 1 y en plural con 2 y con 10"; "ADM-1E01: los textos de §D-7 y §D-8, literales".
+- **ADM-1E02 a ADM-1E22** → **no cubiertas todavía** (paso 25, después de la migración, los adaptadores y las rutas). ADM-1E16 necesita la migración aplicada.
+- **Lista cerrada** (`movimientos-inscripcion.integracion:243-281`, PR-B16g y PR-B16h; E6 de `bloqueo-usuario.integracion`) → sin tocar todavía (paso 25).
+
+**Conteos:** `cd backend; npx vitest list src/core/usuarios` → 17 líneas con "ADM-1E01" (`grep -ac "ADM-1E01"`): `acceso.test.ts` 5, `baja.test.ts` 6, `busqueda.test.ts` 4, `textos.test.ts` 2; 4 archivos.
+
+### C-n de la ronda 0 (rojo → verde)
+No corrí los once archivos en esta entrega: nada de lo que hice cambia su estado. Según la ronda 0 del tester: **C-6** (`sesiones-y-cadena`, faltan las 13 rutas) pasa a verde en el paso 24; **C-8** (`lecturas-fx-r1`, faltan `gestion-de-usuarios.ts:2` y `movimientos.ts:1`) en el paso 23; **C-42** (`gestion-02a-r1`, claves de `b`) en el paso 23 con S-16 y el `build` de `shared` (O-01e-5); **C-7** es comentario; **C-25 a C-32**, en verde hoy, se comprueban en el paso 25 con `serializers.req`. Los declaro con su salida al terminar.
+
+### Vigiladas
+- En verde en la corrida de arriba: `arquitectura-cuentas-r1.ataque:100-124` (ningún `console.` ni `estadoPago` en `handlers/admin.ts` ni `adapters/db/tokens-cuenta.ts`, que no toqué), `temas-01a-r1.ataque:985-997`, `temas-01a-r3.ataque:426-428`, `lecturas-fx-r2.ataque:967`, `alumnos-b-r1.ataque:1149-1162` y `:1156`; y `frontend/src/lib/errores-ch3-r2.ataque.test.ts:258` (prefijos de `shared/src` y del backend).
+- Las demás (Enmiendas 1, 4, 7, 8 y 13, y M-09) dependen de los pasos 23 a 25: las corro al terminar.
+- OA-01e-1: las rutas de §D-7 y §D-8 irán en `backend/src/handlers/admin/usuarios.ts`, registrado por el plugin de `handlers/admin.ts`, sin la palabra `estadoPago` en `admin.ts` ni en `tokens-cuenta.ts`.
+
+### Matriz de §D-1 (backend) y hermanos
+- **Matriz:** 01e no suma rutas con `:claseId` (§D-R0 01e, E7-3), así que la tabla de §D-1 no gana filas; la matriz de las nueve rutas de §D-7 y §D-8 (rol incorrecto, sin token, restringido, estado de pago) va en el resumen final, con las rutas ya escritas.
+- **Hermanos:** no aplica (no es una corrección de hallazgo).
+
+### Pendientes para los pasos que siguen (no hechos aquí)
+- **N-26** (ADM-1E22): el caso unitario de `opcionesDeLogger` usará un secreto distintivo (`secreto-cuerpo-1e22`), no `"s"`.
+- **E8-4**: ADM-1E02, ADM-1E10 y ADM-1E11 con filtro propio, misma instantánea (`ejecutor` como último parámetro de `leerResumenAdmin`, `listarUsuarios` y `listarMovimientosDeInscripcion`) o propiedades de la respuesta.
+- **N-32** (las ~30 líneas duplicadas de `conReintentoDeCodigo` y `traducirErrorDeCodigo` entre `adapters/db/clases.ts` y `duplicado-de-clase.ts`): `duplicado-de-clase.ts` no está en "Se toca" de 01e y la revisión lo condiciona a que el arquitecto lo admita sin enmienda; no lo toco. Queda para el carril trivial al cierre, salvo que el orquestador traiga esa admisión.
+- O-01e-2 (conteo exacto de `instantaneaUnica: true`), O-01e-3 (ayudas nuevas de `clases.ts` fuera de los tramos vigilados), O-01e-4 (13 rutas exactas, parámetro `:id`), O-01e-5 (`build` de `shared` antes de la suite), O-01e-7 (revocar con `UPDATE`, nunca `DELETE`), O-01e-8 (`listarPersonas` con Prisma) y O-01e-9: leídas, se aplican en los pasos 23 a 25.
+
+### Desviaciones del plan
+Ninguna. Una interpretación declarada para el manager: el tope crudo de 1000 del motivo (punto 5 de "Decisiones de detalle"). El orden de las guardas de `decidirCambioDeActivo` (punto 1) está dentro de §D-7.4, que no lo fija.
+
+### Continuación tras la confirmación de la migración (2026-11-09)
+
+**Estado: terminado** (pasos 22 a 25). El humano autorizó la migración ("Autorizo", por el orquestador). El orquestador indicó: el tope de 1000 del motivo se queda y lo arbitra el manager; N-32 queda fuera de 01e (carril trivial al cierre). Entorno sin cambios: sin otra suite ni otra copia, Docker encendido, red `uacam5 2` autorizada hoy (PA-01 resuelta para la sesión), `BatteryStatus` 2. Antes de cada corrida comprobé que ningún `node` corría `vitest`. Pasos completados: **6 de 6** (20 a 25).
+
+#### Paso 22: la migración
+- `npx prisma migrate dev --name admin_01_usuarios_y_movimientos --create-only` (contra `campus_dev`, `127.0.0.1:5433`; no pidió resetear) creó `backend/prisma/migrations/20261109150104_admin_01_usuarios_y_movimientos/migration.sql` (SHA-256 `6b427bd4b98ae15e4631765858a6a39c094c7f131443b876d6010aa2ffc8685d`). **Mismo SQL que el propuesto (`14b918bf…`): los mismos cuatro `CREATE INDEX`, línea por línea** (`diff` de las líneas ordenadas: solo difiere una línea vacía); **el orden cambia**: `migrate dev` pone primero el de `movimientos_inscripcion` (orden alfabético de tablas) y `migrate diff` lo ponía al final. Sin efecto: son cuatro índices independientes. Lo declaro por si el orquestador lo cuenta como "otro SQL".
+- `npx prisma migrate dev` → `Applying migration 20261109150104_admin_01_usuarios_y_movimientos` · `Your database is now in sync with your schema.`
+- `npx prisma generate` → `✔ Generated Prisma Client (7.10.0) to .\src\adapters\db\generated in 221ms`; `npx prisma validate` → `The schema at prisma\schema.prisma is valid 🚀`.
+- **Deriva (N-06):** `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → `No difference detected.`, exit 0 (no propone borrar los índices parciales ni los `CHECK` de 01a y 01b).
+
+#### Pasos 23 a 25: archivos
+- **shared:** `shared/src/clases.ts` (S-16: `cuentaDesactivada: z.literal(true).optional()` en `maestroDeClaseSchema` y en los maestros de `personasRespuestaSchema`, con `personaConCorreoSchema.extend`; `personaConCorreoSchema` de los compañeros no cambia).
+- **core:** `backend/src/core/usuarios/fila.ts` (nuevo): `filaDeUsuarioAdmin`, la fila que ve el admin (datos de pago y acceso solo con `rol = estudiante`, fechas en ISO). Va en `core/` para que el handler no compare roles.
+- **adapters:** `adapters/db/gestion-de-usuarios.ts` y `movimientos.ts` (nuevos), `index.ts`; `clases.ts` (`crearClaseAdministrada` con cada intento en `enTransaccion` y `bloquearMaestrosActivos`; `SELECT_MAESTROS_DE_CLASE` y `maestrosDeFilas` con `activo` opcional y la marca; `MaestroDb` gana `cuentaDesactivada?: true`); `maestros-de-clase.ts` (`asignarMaestro` con `bloquearMaestrosActivos`); `inscripciones.ts` (solo `listarPersonas`: `activo` en el `select` de Prisma y la marca; tipo `MaestroDePersonasDb`); `tokens-cuenta.ts` (M-18: `if (usuario === null || !usuario.activo) return false` tras el bloqueo, sin cambio de firma); `adapters/README.md`.
+- **config:** `backend/src/config/logger.ts`: solo `serializers: { req: peticionSinConsulta }` (los campos del serializador por omisión de Fastify 5.12.5, `url` cortada en el primer `?`; tolera un objeto sin `url` ni `method` y no devuelve el cuerpo). `redact`, `level` y la firma no cambian.
+- **handlers:** `backend/src/handlers/admin/usuarios.ts` (nuevo, `usuariosAdminHandler`, las nueve rutas con parámetro `:id` y `protegido({ roles: ["admin"] })` en cada una); `handlers/admin.ts` solo suma el `import` y `await app.register(usuariosAdminHandler)` con un comentario (OA-01e-1: ni `admin.ts` ni `tokens-cuenta.ts` nombran `estadoPago`); `handlers/README.md`.
+- **Lista cerrada:** `backend/test/movimientos-inscripcion.integracion.test.ts` (PR-B16g: título y `:248` → `printRoutes({ commonPrefix: false })` con una sola aparición de «movimiento», en `admin/movimientos-inscripcion`, y `403` para el maestro; lo demás del caso igual. PR-B16h: título y el único export `listarMovimientosDeInscripcion`; hunks `@@ -243 +243,3`, `@@ -248 +250,10`, `@@ -277 +288,2`, `@@ -280 +292,3`) y `backend/test/bloqueo-usuario.integracion.test.ts` E6 (las tres partes: título, `"gestion-de-usuarios.ts"` en su lugar alfabético y la línea `// ADMIN-01e (§D-7): …`; `movimientos.ts` no usa SQL etiquetado). Por qué `commonPrefix: false` en PR-B16g: con el árbol comprimido, "movimientos-inscripcion" se parte bajo el prefijo común `m` de `maestros` y la cuenta daba 0 (la primera corrida falló por eso).
+- **Pruebas nuevas:** `backend/test/usuarios-admin.integracion.test.ts`, `usuarios-admin-baja.integracion.test.ts`, `usuarios-admin-pago-acceso.integracion.test.ts`, `usuarios-admin-resumen-movimientos.integracion.test.ts`, `usuarios-admin-autorizacion.integracion.test.ts`, `usuarios-admin-migracion.integracion.test.ts`, `logs-usuarios-admin.integracion.test.ts`, `backend/src/config/logger-sin-consulta.test.ts` y la ayuda nueva `backend/test/ayudas-usuarios-admin.ts`.
+- **"No se toca":** `git diff --name-only ea718bc -- shared backend frontend` (sin las once `*.ataque` de la ronda 0) lista solo archivos de "Se toca" de 01e más `config/logger.ts` (la excepción de M-09). Ninguna `*.ataque` tocada; ninguna prueba normal fuera de la lista cerrada. Conteo de `instantaneaUnica: true` (C-8, O-01e-2): `gestion-de-usuarios.ts` 2, `movimientos.ts` 1, `clases.ts` 4 (`grep -c`).
+
+#### Verificación final (comando exacto y última línea; una corrida después de otra, `BatteryStatus` 2)
+- **lint `shared`:** `cd shared; npm run lint` → `All matched files use Prettier code style!`. **build `shared`:** `cd shared; npm run build` → exit 0 (`> tsc -p tsconfig.json`).
+- **lint backend:** `cd backend; npm run lint` → exit 0; última línea `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (el `prelint` reconstruye `shared` y corre `prisma generate`).
+- **test backend (módulos de 01e):** desde `backend/`, `npx vitest run $(cat modulos-01e.txt)` con la lista de 70 rutas guardada en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\modulos-01e.txt`: `src/core/usuarios`, `src/config/logger-sin-consulta.test.ts`, `src/config/logger.ataque.test.ts`, las siete pruebas nuevas de `test/`, las dos de la lista cerrada, los once archivos de los C-n, las 31 vigiladas de la ronda 0 del tester, los demás archivos del patrón 1 de la Enmienda 13 (`duplicado-de-clase.integracion`, `clases-archivadas.integracion`, `borrado-duplicado-r1`, `lecturas-consistentes.integracion`, `entregas-01b-r1`, `calificaciones.integracion`, `muro-admin.integracion`, `concurrencia-02a-r1`, `autoria-02b-r1`), `hilo-01c-r1` (O-01e-9), los de tokens de cuenta (`cuentas-r3`, `invitacion-flujo-03a-r2`, `invitacion.integracion`, `restablecer.integracion`, `admin-restablecimiento.integracion`), `higiene-de-pruebas.integracion` y `cuerpos-02a-r2`. Última corrida (09:38:56): `Test Files  73 passed (73)` · `Tests  1027 passed (1027)` (la de las 09:27:04 dio lo mismo; entre las dos solo cambió ADM-1E15). Contención: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0, `"code":"P2028"` 5: los tres deterministas de `servicio-ocupado` (`req-1`, `req-3`, `req-5`, `SERVICIO_OCUPADO`) y dos de `cuentas-r3.ataque` (`:713-800`, el login y el restablecimiento formados detrás de una fila retenida más de 5 s), `503`, a propósito.
+- **lint frontend:** `cd frontend; npm run lint` → exit 0; `> tsc -b`. **build frontend:** `cd frontend; npm run build` → `✓ built in 1.08s`.
+- **test frontend:** 01e no toca `frontend/`; el módulo que consume los esquemas que cambiaron (S-16: `personasRespuestaSchema` y `claseRespuestaSchema`, que usa `features/clases/hooks.ts`) más la prueba que lee `shared/src`: `cd frontend; npx vitest run src/features/clases src/lib/errores-ch3-r2.ataque.test.ts` → `Test Files  114 passed (114)` · `Tests  2482 passed (2482)`.
+- **prisma:** `npx prisma validate` → `The schema at prisma\schema.prisma is valid 🚀`; deriva → `No difference detected.`.
+
+#### Pruebas requeridas (01e)
+**Conteo:** desde `backend/`, `npx vitest list src/core/usuarios src/config/logger-sin-consulta.test.ts test/usuarios-admin.integracion.test.ts test/usuarios-admin-baja.integracion.test.ts test/usuarios-admin-pago-acceso.integracion.test.ts test/usuarios-admin-resumen-movimientos.integracion.test.ts test/usuarios-admin-autorizacion.integracion.test.ts test/usuarios-admin-migracion.integracion.test.ts test/logs-usuarios-admin.integracion.test.ts` → **77** casos con "ADM-1E" (`grep -ac`), en 12 archivos: `acceso.test.ts` 5, `baja.test.ts` 6, `busqueda.test.ts` 4, `textos.test.ts` 2, `logger-sin-consulta.test.ts` 3, `usuarios-admin` 21, `usuarios-admin-baja` 17, `usuarios-admin-pago-acceso` 9, `usuarios-admin-resumen-movimientos` 4, `usuarios-admin-autorizacion` 1, `usuarios-admin-migracion` 2, `logs-usuarios-admin` 3. Por id (`grep -ac "ADM-1E<n>:"`): 1E01 17, 1E02 7, 1E03 1, 1E04 2, 1E05 6, 1E06 1, 1E07 3, 1E08 5, 1E09 4, 1E10 2, 1E11 2, 1E12 1, 1E13 2, 1E14 1, 1E15 1, 1E16 2, 1E17 3, 1E18 2, 1E19 2, 1E20 1, 1E21 7, 1E22 5.
+
+- **ADM-1E01** → los 17 casos de `src/core/usuarios/*.test.ts`, con sus títulos en la primera entrega de esta sección.
+- **ADM-1E02** → `test/usuarios-admin.integracion.test.ts`: "ADM-1E02: busca por parte del nombre sin acentos ni mayúsculas y por parte del correo"; "ADM-1E02: filtro por rol, y estadoPago solo con rol=estudiante (si no, 400 VALIDACION)"; "ADM-1E02: término de menos de 3 caracteres normalizados → 400 BUSQUEDA_MUY_CORTA"; "ADM-1E02: los comodines se escapan: % y _ solo se encuentran a sí mismos"; "ADM-1E02: ordena por nombre y pagina con cursor y cursorNombre; siguienteCursorNombre es el nombre de la última fila y es null exactamente cuando siguienteCursor lo es"; "ADM-1E02: un cursor que no cumple los filtros (mandado con su nombre real) → 400"; "ADM-1E02: las cuentas dadas de baja salen con activo: false; los datos de pago y acceso solo en las filas de estudiantes". Todo con un `q` propio (E8-4 (a)).
+- **ADM-1E03** → mismo archivo: "ADM-1E03: la ficha de un id inexistente → 404 USUARIO_NO_ENCONTRADO; la de una cuenta existente, su fila".
+- **ADM-1E04** → mismo archivo: "ADM-1E04: editar el nombre cambia nombre y nombre_busqueda: la búsqueda encuentra el nuevo y no el viejo"; "ADM-1E04: un nombre que nombreSchema rechaza → 400 VALIDACION sin escribir; una cuenta inexistente → 404".
+- **ADM-1E05** → `test/usuarios-admin-baja.integracion.test.ts`: "ADM-1E05: la baja revoca el refresco, el login responde lo mismo que una contraseña incorrecta y el enlace vivo ya no sirve; reactivar devuelve el login con su contraseña"; "ADM-1E05: la baja de un maestro también revoca su invitación viva"; "ADM-1E05: la cuenta de administración → 409 CUENTA_DE_ADMINISTRACION, sin escribir"; "ADM-1E05: un maestro con una clase activa → 409 MAESTRO_CON_CLASES (singular) y sigue activo"; "ADM-1E05: un maestro solo con clases archivadas → baja 200; sigue asignado y sale con cuentaDesactivada: true en el detalle (admin) y en «Personas» (el otro maestro)"; "ADM-1E05: un maestro sin clases → baja; repetirla responde la fila sin escribir".
+- **ADM-1E06** → mismo archivo: "ADM-1E06: con la fila retenida, el refresco y la baja quedan en serie y la sesión rotada también queda revocada".
+- **ADM-1E07** → `test/usuarios-admin.integracion.test.ts`: "ADM-1E07: 201 con la temporal y Cache-Control: no-store; la cuenta nace estudiante, activa, al corriente y con el cambio obligatorio; el login con la temporal lleva al cambio obligatorio" (el login responde `200`; `/me` y las demás rutas, `403 CAMBIO_DE_CONTRASENA_REQUERIDO`, el contrato de `admin-restablecimiento.integracion:56`); "ADM-1E07: un correo repetido, también con otra capitalización → 409 CORREO_EN_USO sin crear otra cuenta"; y `test/logs-usuarios-admin.integracion.test.ts`: "ADM-1E07: la contraseña temporal del alta no aparece en los logs (ni el hash de las cuentas)".
+- **ADM-1E08** → `test/usuarios-admin-pago-acceso.integracion.test.ts`: "ADM-1E08: con 1 id y con 100 ids responde 200 con los actualizados"; "ADM-1E08: 101 ids, una lista vacía o ids repetidos (también con otra capitalización) → 400 VALIDACION sin escribir"; "ADM-1E08: un id de maestro o inexistente → 400 «alumnoIds: hay cuentas que no son de alumnos» sin escribir ninguna fila"; "ADM-1E08: fecha_estado_pago cambia solo en las filas cuyo estado cambia"; "ADM-1E08: dos lotes cruzados con los mismos ids en orden inverso, a la vez → los dos 200, sin deadlock" (30 ids, cinco vueltas).
+- **ADM-1E09** → mismo archivo: "ADM-1E09: restringir con motivo → la siguiente petición con el token vivo responde 403 ACCESO_RESTRINGIDO, las sesiones quedan revocadas y /me (tras volver a entrar) trae el motivo; restablecer lo borra"; "ADM-1E09: restringir de nuevo con otro motivo cambia el motivo y conserva la fecha; repetir con el mismo no escribe"; "ADM-1E09: a un maestro → 409 NO_ES_ALUMNO sin escribir; una cuenta inexistente → 404"; "ADM-1E09: un motivo de 301 caracteres visibles → 400 sin escribir; 300 visibles con espacios de más pasan; uno de solo espacios queda sin motivo".
+- **ADM-1E10** → `test/usuarios-admin-resumen-movimientos.integracion.test.ts`: "ADM-1E10: las tres cifras son las de sus conteos en la misma instantánea, y cambian exactamente al crear un alumno, dar de baja a un maestro y archivar una clase (transacción que se deshace)" (E8-4 (b): `enTransaccion(obtenerDb(), …, { instantaneaUnica: true, timeout: 10_000 })`, `leerResumenAdmin(tx)` y un error centinela); "ADM-1E10: por HTTP, la forma de la respuesta y alumnos ≥ 1 tras crear un alumno activo" (E8-4 (c)).
+- **ADM-1E11** → mismo archivo: "ADM-1E11: orden por secuencia descendente dentro y entre páginas, sin ids repetidos; los movimientos del caso en su orden relativo; el actor admin firmado «Administración»; sin estado de pago; claseId y alumnoId en la consulta se ignoran" (recorre hasta 40 páginas buscando sus movimientos por id); "ADM-1E11: un cursor inexistente → 400 cursor: no es válido".
+- **ADM-1E12** → `test/usuarios-admin-baja.integracion.test.ts`: "ADM-1E12: crear una clase o asignar un maestro dado de baja → 404 MAESTRO_NO_ENCONTRADO".
+- **ADM-1E13** → mismo archivo: "ADM-1E13: con la baja formada antes, tras confirmarla el uso del token se rechaza y la contraseña no cambia"; "ADM-1E13: la cuenta desactivada justo antes de soltar la fila (sin revocar el token): el uso relee activo bajo el bloqueo y se rechaza sin escribir". El segundo es el que solo cierra M-18: la baja ya revoca el token, así que el primero pasaría también sin M-18.
+- **ADM-1E14** → `test/usuarios-admin-autorizacion.integracion.test.ts`: "ADM-1E14: sin token 401; estudiante y maestro 403 ROL_NO_PERMITIDO; alumno restringido 403 ACCESO_RESTRINGIDO; nada se escribe; ninguna respuesta lleva el estado de pago" (las 9 rutas y los 4 `HEAD`; ninguna lleva `:claseId`, así que no hay caso de clase ajena).
+- **ADM-1E15** → `test/usuarios-admin.integracion.test.ts`: "ADM-1E15: las claves de todo el JSON de cada ruta de 01e (lista, ficha, nombre, activo, alta, estado de pago, acceso, resumen y movimientos) no incluyen hashContrasena, nombreBusqueda, debeCambiarContrasena ni enlaceRegistroId" (con `clavesDe`, a cualquier profundidad).
+- **ADM-1E16** → `test/usuarios-admin-migracion.integracion.test.ts`: "ADM-1E16: la migración está aplicada y los cuatro índices nuevos existen con su definición"; "ADM-1E16: la búsqueda por parte del correo usa el índice GIN (EXPLAIN sin Seq Scan sobre usuarios con enable_seqscan = off)".
+- **ADM-1E17** → `test/usuarios-admin-baja.integracion.test.ts`: "ADM-1E17: alumno del alta: con A creada, restablecer da B; A ya no entra y B sí; restablecer otra vez da C y B deja de servir"; "ADM-1E17: un login con la temporal que verificó el hash antes del restablecimiento y crea la sesión después no crea sesión"; "ADM-1E17: un maestro invitado: restablecer da B, B entra; restablecer da C y B deja de servir; la cuenta del admin sigue en 403 OPERACION_NO_PERMITIDA".
+- **ADM-1E18** → mismo archivo: "ADM-1E18: con la baja formada primero sobre la fila del maestro, asignar, crear y duplicar esperan y responden 404 MAESTRO_NO_ENCONTRADO sin escribir"; "ADM-1E18: con la escritura formada primero, la baja responde 409 MAESTRO_CON_CLASES y el maestro sigue activo". Los dos con `conFilaRetenida`; cada uno recorre asignar, crear y duplicar, y comprueba que nunca queda un maestro inactivo asignado a una clase activa.
+- **ADM-1E19** → mismo archivo: "ADM-1E19: un maestro activo sale sin la clave cuentaDesactivada y uno inactivo con cuentaDesactivada: true en el detalle, en asignar y quitar y en «Personas»"; "ADM-1E19: en la lista del admin, la clase con un maestro inactivo lo marca y el activo sale sin la clave" (recorre la lista global por páginas, con tope, hasta encontrar su clase).
+- **ADM-1E20** → `test/usuarios-admin.integracion.test.ts`: "ADM-1E20: POST /admin/usuarios/buscar sigue respondiendo como hoy".
+- **ADM-1E21** → mismo archivo, (a) a (i): "ADM-1E21: página 1 [N1, N2] con la posición de N2; (a) la siguiente → [N3, N4]"; "ADM-1E21: (b) N2 renombrada hacia delante, hacia atrás o solo en mayúsculas → 400 cursor: no es válido, nunca 200; (c) devuelta a su nombre exacto → 200 [N3, N4]"; "ADM-1E21: (d) un cursorNombre que no coincide → 400: otro nombre, el mismo con espacios de más, el texto vacío"; "ADM-1E21: (e) cursor sin cursorNombre → 400; (f) cursorNombre sin cursor → 400"; "ADM-1E21: (g) un nombre con espacios, +, &, %, ñ y acentos como cursorNombre codificado → 200 con la página siguiente"; "ADM-1E21: (h) con rol=estudiante&estadoPago=deudor, el mismo (a) y (b)"; "ADM-1E21: (i) R-19, lo que la posición no cubre: con la página 1 [N1, N2], renombrar N4 antes de N1 hace que la página 2 responda 200 [N3, N5]" (con el comentario que cita R-19).
+- **ADM-1E22** → `src/config/logger-sin-consulta.test.ts`: «ADM-1E22: registrar { req: { method: "GET", url: "/a/b?x=1&y=2" } } deja "url":"/a/b" y el método»; "ADM-1E22: el camino completo, con sus ids, se conserva; una URL sin consulta no cambia"; "ADM-1E22: un objeto { req: { body } } sin url ni method no lanza y no deja el cuerpo (secreto distintivo, N-26)" (N-26: `secreto-cuerpo-1e22`); y `test/logs-usuarios-admin.integracion.test.ts`: "ADM-1E22: precondición: las peticiones respondieron lo esperado y hay una línea «incoming request» por petición, con su método y su ruta sin consulta"; "ADM-1E22: ningún req.url del log lleva «?», y el log no contiene el estado de pago, los nombres de los parámetros, los nombres ni los correos de las alumnas, el término buscado ni ningún cursor (tampoco codificados para URL)".
+- **Lista cerrada** → `test/movimientos-inscripcion.integracion.test.ts`: "PR-B16g: solo /api/admin/movimientos-inscripcion contiene «movimiento» en printRoutes, y exige admin; ninguna respuesta de las rutas de b contiene el id ni la secuencia de una fila de movimientos_inscripcion" y "PR-B16h: el único export de adapters/db/index cuyo nombre contiene «movimiento» es listarMovimientosDeInscripcion"; `test/bloqueo-usuario.integracion.test.ts`: "E6: solo salud.ts, …, copias-de-archivos.ts y gestion-de-usuarios.ts usan SQL etiquetado en adapters/db". Los tres en verde en la corrida de módulos.
+
+**Una diferencia con la letra de ADM-1E22:** la primera lista con `estadoPago=deudor` lleva además `q=<marca>`. Sin el `q`, la página 1 de la lista global de deudores trae la cuenta de otra prueba, y el `cursorNombre` de la página 2 no sería el nombre de nuestras alumnas: la aserción "el log no contiene su nombre" no probaría nada. Con el `q`, el cursor es de ellas; las tres listas siguen siendo `/api/admin/usuarios` con `rol=estudiante&estadoPago=…`.
+
+**Mutaciones** (en memoria, con el archivo restaurado después; guion `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\mutar.py`): quitar el `activo` de M-18 → ADM-1E13 `1 failed`; `asignarMaestro` sin el bloqueo → ADM-1E18 `2 failed`; `crearClaseAdministrada` sin el `return null` del bloqueo → ADM-1E18 `1 failed`; sin `serializers.req` → ADM-1E22 `4 failed`; sin la marca de S-16 → ADM-1E19 `2 failed`; la baja sin revocar → ADM-1E05 `1 failed`; el cursor sin comparar `cursorNombre` → ADM-1E21 `3 failed`. Después, `git diff --stat` sin restos de las mutaciones.
+
+#### C-n de la ronda 0 (rojo → verde)
+Corrida de los once archivos de los C-n más la lista cerrada (09:09:17), y después dentro de la corrida de módulos (09:38:56):
+- **C-6** (`sesiones-y-cadena.ataque`, las 13 rutas): rojo → **verde**. `noReconocidas` vacío.
+- **C-7**: comentario; el caso de C-6, en verde.
+- **C-8** (`lecturas-fx-r1.ataque`, `"adapters/db/gestion-de-usuarios.ts:2"` y `"adapters/db/movimientos.ts:1"`): rojo → **verde**, con el número que el tester previó (2 y 1).
+- **C-42** (`gestion-02a-r1.ataque`, claves de `b`): rojo → **verde** tras S-16 en `adapters/db/clases.ts` y `shared/src/clases.ts` con el `build` de `shared` (O-01e-5).
+- **C-25 a C-32** (centinela por camino): verdes antes y **verdes** con `serializers.req`.
+Esa corrida dio `1 failed | 125 passed (126)`: el único rojo fue mi primera versión de PR-B16g (lista cerrada, `printRoutes` comprimido), corregida con `commonPrefix: false`; después `Tests  8 passed (8)` en ese archivo y todo en verde en la de módulos.
+
+#### Vigiladas
+Todas en verde en la corrida de módulos, sin tocarlas: Enmienda 1 y Enmienda 13 (`clases-r1.ataque:593-641`, `clases.integracion:178-191`, `gestion-02a-r1.ataque:269`, `:674-675`, `:681-682` y `:688`, `admin-muro-02b-r1.ataque:740-741`, `:779` y `:812`, `alumnos-b-r1.ataque:459-460`, `alumnos.integracion:135-140`, `clases-archivadas-r1.ataque:848-856`, `gestion-clases.integracion:429-435` y `:484-488`); Enmienda 4 (`alumnos-b-r1.ataque:1149-1162` y `:1156`, `temas-01a-r1.ataque:985-997`, `temas-01a-r3.ataque:426-428`); Enmienda 7 (`clases-archivadas-matriz.integracion:222-233`, `gestion-clases-autorizacion.integracion:395-425`, `autorizacion-cuentas.integracion:40-53`, `guarda-todas-las-rutas.integracion:141`, `recursos-autorizacion.integracion:580-598`, `clases-archivadas-r1.ataque:622-628`, `cuentas-r2.ataque:310-319`); generales (`arquitectura-cuentas-r1.ataque:100-124`, `lecturas-fx-r2.ataque:967`); Enmienda 8 (`admin-unico.integracion:50`, `admin-unico.ataque:32` y `:56`, `cuentas-r1.ataque:592`, `cuentas-03a-r1.ataque:496`, `enlaces-03b-r1.ataque:234`, `invitacion-masiva-03c-r1.ataque:297` y `:354`, `sesiones-y-cadena.ataque:769`); M-09 (`logs-02a-r1.ataque:200-211`, `logs-03b-r1.ataque:259-261`, `logs-03c-r1.ataque:228-229`, `logs-muro-c-r1.ataque:230`, `logs-muro-c-r2.ataque:243`, `logs-02b-r1`, `logs-archivos-d-r1`, `logs-archivos-d-r3`, `config/logger.ataque.test.ts:60-82`, `worker-r1.ataque:52`, `worker-r2.ataque:42`, `servicio-ocupado.integracion:274-…`); `hilo-01c-r1.ataque:705-753` (O-01e-9). Ninguna PARADA.
+
+#### Matriz del backend (§D-1 y las rutas nuevas)
+- **§D-1:** 01e no suma rutas con `:claseId` (E7-3), así que la tabla de §D-1 no gana filas; ADM-1A09 (`clases-archivadas-matriz.integracion`) y ADM-T1A09 siguen en verde con las 13 entradas nuevas en el árbol (`noReconocidas` vacío).
+- **Rutas nuevas** (todas `protegido({ roles: ["admin"] })`, sin `pertenencia` ni `enClaseArchivada`), según ADM-1E14 y los casos de cada una:
+
+| Ruta | Sin token | Estudiante | Maestro | Alumno restringido | Admin | Estado de pago en la respuesta |
+|---|---|---|---|---|---|---|
+| `GET` y `HEAD /admin/usuarios` | 401 | 403 `ROL_NO_PERMITIDO` | 403 `ROL_NO_PERMITIDO` | 403 `ACCESO_RESTRINGIDO` | 200; 400 `BUSQUEDA_MUY_CORTA`; 400 `VALIDACION` (cursor, `estadoPago` sin `rol=estudiante`) | Solo en filas de estudiantes |
+| `GET` y `HEAD /admin/usuarios/:id` | 401 | 403 | 403 | 403 | 200; 404 `USUARIO_NO_ENCONTRADO` | Solo si es estudiante |
+| `PUT /admin/usuarios/:id/nombre` | 401 | 403 | 403 | 403 | 200; 400 `VALIDACION`; 404 | Ídem |
+| `PUT /admin/usuarios/:id/activo` | 401 | 403 | 403 | 403 | 200; 409 `CUENTA_DE_ADMINISTRACION`, `MAESTRO_CON_CLASES`; 404 | Ídem |
+| `POST /admin/alumnos` | 401 | 403 | 403 | 403 | 201 (`no-store`); 409 `CORREO_EN_USO`; 400 | Sí (es estudiante) |
+| `PUT /admin/alumnos/estado-pago` | 401 | 403 | 403 | 403 | 200 `{ actualizados }`; 400 `VALIDACION` | No (solo el conteo) |
+| `PUT /admin/alumnos/:id/acceso` | 401 | 403 | 403 | 403 | 200; 409 `NO_ES_ALUMNO`; 400; 404 | Sí (es estudiante) |
+| `GET` y `HEAD /admin/resumen` | 401 | 403 | 403 | 403 | 200 | No |
+| `GET` y `HEAD /admin/movimientos-inscripcion` | 401 | 403 | 403 | 403 | 200; 400 cursor | No |
+
+Ninguna respuesta para estudiantes o maestros lleva estado de pago (ninguna de estas rutas los admite; ADM-1E14 lo comprueba en los cuerpos `403`).
+
+#### Hermanos
+No hay hallazgos que corregir en esta entrega. Sí revisé por analogía los hermanos de los remedios del plan:
+- **N-03 (bloqueo de los maestros):** asignar (aplicado), crear (aplicado), duplicar (ya en 01b, sin cambio). Los tres con ADM-1E18 en los dos órdenes.
+- **S-16 (`cuentaDesactivada`):** detalle, lista del admin, crear y editar (todas por `maestrosDeFilas` con `SELECT_MAESTROS_DE_CLASE`), asignar y quitar (`leerMaestros`, mismo `select`) y «Personas» (`listarPersonas`): aplicado en todas. No aplica a inscritas ni a `GET /clases/anteriores` (leen solo `nombre`; C-42 exige que inscritas no cambie) ni al duplicado (su `select` no pide `activo` y sus maestros son activos por el bloqueo; `duplicado-de-clase.ts` no está en "Se toca").
+- **M-18 (`activo` bajo el bloqueo):** `usarTokenYCambiarContrasena` es la única que consume un token; `prepararTokenDeRecuperacion` crea un token, no lo consume (no lo cambié: un token de una cuenta inactiva ya no se puede usar, por M-18 y por `decidirUsoDeToken`) y `cambiarContrasenaPropia` exige una sesión viva, que la baja ya revocó.
+- **M-09 (la consulta en el log):** el serializador vale para todas las peticiones de la API; el worker no registra `req`. Las listas con consulta de otras rutas (`/admin/clases`, `/admin/maestros/candidatos`, `/clases/:claseId/alumnos/candidatos`, enlaces) quedan cubiertas por el mismo remedio (ADM-1E22 pide tres de ellas).
+- **Cursor con posición:** `cursorNombre` solo en `GET /admin/usuarios` (la tabla de §D-2); movimientos sin posición (`secuencia` no cambia), como dice el plan.
+
+#### Decisiones de detalle (además de las de la primera entrega)
+6. **`core/usuarios/fila.ts`** (nuevo, dentro de `core/usuarios/`): la fila que ve el admin. Así el handler no compara `rol` para decidir qué campos manda.
+7. **`cambiarActivo` y `cambiarAcceso` reciben la decisión de `core/` por parámetro** (`decidir`), como pide §Cambios ("la decisión de `core/` por parámetro").
+8. **El lote compara los ids en minúsculas** antes del `SELECT … FOR NO KEY UPDATE`, igual que el esquema compara los repetidos.
+9. **PR-B16g usa `printRoutes({ commonPrefix: false })`** (arriba).
+10. **La primera lista de ADM-1E22 lleva `q`** (arriba).
+11. **El tope crudo de 1000 del motivo** se queda, por indicación del orquestador; lo arbitra el manager.
+
+#### Pendientes
+- **N-32:** fuera de 01e (`duplicado-de-clase.ts` no está en "Se toca"); va al carril trivial al cierre, como indicó el orquestador.
+- **O-R1-1 y N-18 de la ronda 1** son del tester. N-18 se respetó en todas las pruebas nuevas: ninguna clase queda con 0 o con 3 maestros. Una clase activa puede quedar con su único maestro inactivo (ADM-1E19, como tras restaurar, N-14), que es un estado que el plan admite.
+- Documentos de cierre (A-01 a A-09) los aplica el orquestador; los README de `adapters/` y `handlers/` ya están al día (A-06), y el comentario de `MovimientoInscripcion` del esquema (A-09).
+
+#### Desviaciones del plan
+Ninguna de alcance. Declaradas para el manager: el orden de los `CREATE INDEX` de la migración generada (mismo SQL, otro orden), el `q` en la primera lista de ADM-1E22, `commonPrefix: false` en PR-B16g, `core/usuarios/fila.ts` y el tope crudo de 1000 del motivo.
+
+## ADMIN-01e — Corrección de la verificación (2026-11-09)
+
+Origen: `revision.md`, "## Verificación del resumen — ADMIN-01e" (línea 5698), **DEVUELTO** por M-14, más la decisión del humano sobre el arbitraje 1 (el tope del motivo): **"Quitarlo"** (opción (c) del manager), transmitida por el orquestador. Plan sin cambios: `7018e1f3…`. Entorno igual (sin otra suite ni otra copia, Docker encendido, red `uacam5 2` autorizada hoy, `BatteryStatus` 2); antes de cada corrida, ningún `vitest` corriendo. Sin commit.
+
+### M-14 — corregido
+- **Nuevo:** `backend/src/core/usuarios/fila.test.ts`, con tres casos de prefijo `ADM-1E01`:
+  - "ADM-1E01: un estudiante trae las seis claves comunes y los cinco datos de pago y acceso, con las fechas en ISO" (`toEqual` exacto, fechas en ISO);
+  - "ADM-1E01: un estudiante sin fechas ni motivo los trae en null, nunca sin la clave" (las once claves, con `null`);
+  - "ADM-1E01: un maestro y el admin traen exactamente las seis claves comunes, aunque la cuenta tenga datos de pago o de acceso" (`Object.keys` igual a `activo`, `creadoEn`, `email`, `id`, `nombre`, `rol`, y `toEqual` exacto).
+- `fila.ts` no cambia.
+
+### Tope del motivo — quitado (decisión del humano)
+- `shared/src/usuarios-admin.ts`: se borra `MAXIMO_CRUDO_MOTIVO = 1000` con su comentario, y `motivoRestriccionSchema` pasa de `.pipe(textoLargoSchema(MAXIMO_CRUDO_MOTIVO))` a `.pipe(textoLargoSchema(Number.POSITIVE_INFINITY))`. Ya no existe el mensaje "No puede tener más de 1000 caracteres" para el motivo: con un máximo infinito, `.max` nunca falla. Se conservan, con su texto de siempre ("El texto tiene caracteres no permitidos"), el rechazo de los caracteres de control (el carácter nulo nunca llega a PostgreSQL) y el de los inversores de dirección, que son las otras dos reglas de `textoLargoSchema`. La medida de S-10 sigue igual: hasta 300 visibles ("El motivo no puede tener más de 300 caracteres"), y sin visibles equivale a sin motivo. No hay texto nuevo.
+- Por qué `textoLargoSchema(Number.POSITIVE_INFINITY)` y no copiar sus dos reglas: `textoLargoCon` y la regex de inversores son privados de `shared/src/clases.ts`, que en 01e solo se toca para S-16; reusar el esquema exportado evita duplicar las reglas y conserva sus textos. Comprobado en memoria: `textoLargoSchema(Number.POSITIVE_INFINITY)` acepta 5000 caracteres y rechaza `\u0000` y `\u202e` con "El texto tiene caracteres no permitidos".
+- **Pruebas mías ajustadas** (ninguna `*.ataque`), en `backend/test/usuarios-admin-pago-acceso.integracion.test.ts`:
+  - nuevo: "ADM-1E09: sin tope crudo: 300 visibles con mucho relleno (más de 1000 caracteres en total, también emojis de dos unidades) se aceptan y se guardan tal cual". Son 300 visibles separados por cinco espacios y un salto de línea (1795 caracteres): `200`, guardados tal cual. 300 emojis (600 unidades de UTF-16): `200`. Y 301 visibles con el mismo relleno: `400` "motivo: El motivo no puede tener más de 300 caracteres";
+  - nuevo: "ADM-1E09: un motivo con el carácter nulo, otro carácter de control o un inversor de dirección → 400 VALIDACION (nunca 500) sin escribir". Con `\u0000`, `\u0007` y `\u202e`: `400` "motivo: El texto tiene caracteres no permitidos", y la fila sin restringir y sin motivo;
+  - el caso anterior, "ADM-1E09: un motivo de 301 caracteres visibles → 400 sin escribir; 300 visibles con espacios de más pasan; uno de solo espacios queda sin motivo", no cambia: no dependía del tope.
+- **Arreglo de forma en dos pruebas mías (sin cambio de comportamiento):** al escribirlas, la herramienta de edición convirtió el escape `\u202e` en el carácter invisible literal U+202E dentro de `"Ana\u202eRuiz"` (ADM-1E04, `usuarios-admin.integracion.test.ts:323`) y del nuevo `"Adeudo\u202emarzo"`. Los volví a escribir como el escape `\u202e` en el texto del archivo. Ninguno de los dos casos probaba otra cosa: la cadena en memoria es la misma. Lo encontré con un barrido de caracteres de control e inversores en todos los archivos de 01e (`shared/src/usuarios-admin.ts`, `src/core/usuarios/*`, `src/config/logger-sin-consulta.test.ts`, `test/usuarios-admin*.ts`, `test/logs-usuarios-admin…`, `test/ayudas-usuarios-admin.ts`); ya no queda ninguno. Lo mismo pasó con un comentario de `shared/src/usuarios-admin.ts` (un `\0` escrito como byte nulo literal), corregido a "el carácter nulo" antes de compilar.
+
+### Hermanos del cambio del tope
+Busqué en los archivos de 01e los textos o esquemas con un `.max` crudo junto a un límite de visibles o normalizado:
+- **`listaUsuariosConsultaSchema.q`** (`shared/src/usuarios-admin.ts`): un tope crudo de 1000 puntos de código junto al de 120 normalizados. **No aplica:** es la regla de S-12 y del buscador que ya existía (`busquedaCandidatosSchema` y `estadoDeTerminoDeBusqueda` en `shared/src/clases.ts`, con `LONGITUD_MAXIMA_BUSQUEDA_CRUDA`). Responde con el mismo texto que el de 120, "La búsqueda no puede tener más de 120 caracteres", así que no agrega ningún texto nuevo. Además lo usa la misma tabla que reutiliza 01g. No lo cambié; si el manager quiere alinearlo, es una línea.
+- **`editarNombreSchema` y `altaAlumnoSchema`** (`nombreSchema` y `correoSchema` de `auth.ts`): sus `.max(120)` y `.max(254)` son los límites de siempre de las cuentas, sin cambio en 01e. No aplica.
+- **`estadoPagoLoteSchema.alumnoIds`:** el `.max(100)` cuenta ids, no texto. No aplica.
+- **`cursorNombre`:** `z.string()` sin tope ni mensaje (Enmienda 5). No aplica.
+- **Fuera de `shared/`:** `core/usuarios/` no valida longitudes; los handlers usan los esquemas. Ningún otro hermano.
+- **Estados vecinos del mismo mecanismo (el motivo):** restringir por primera vez, restringir de nuevo con otro motivo, restablecer (que ignora el motivo) y el motivo de solo espacios pasan por el mismo esquema y no cambian salvo por el tope quitado. Los cubren los casos de ADM-1E09 de arriba y los dos nuevos.
+
+### Mutaciones (en memoria; los archivos y `shared/dist` quedan restaurados después)
+Guion: `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\mutar2.py`.
+- `fila.ts` sin la guarda `if (cuenta.rol !== "estudiante") return comun` (el maestro y el admin recibirían los datos de pago): `npx vitest run src/core/usuarios/fila.test.ts` → `Tests  1 failed | 2 passed (3)`.
+- `fila.ts` con `fechaEstadoPago` sin ISO (`String(fecha)`): → `Tests  1 failed | 2 passed (3)`.
+- El tope de 1000 de vuelta (`textoLargoSchema(1000)`, con el `build` de `shared`): `npx vitest run test/usuarios-admin-pago-acceso.integracion.test.ts -t ADM-1E09` → `Tests  1 failed | 5 passed | 5 skipped (11)`.
+- Sin el `.pipe(textoLargoSchema(…))` (sin el rechazo de controles e inversores): mismo comando → `Tests  1 failed | 5 passed | 5 skipped (11)`.
+- Después: `shared/src/usuarios-admin.ts` y `shared/dist/usuarios-admin.js` con `Number.POSITIVE_INFINITY` (`grep -c` 1 y 1), y `fila.ts` sin cambios.
+
+### Verificación (comando exacto y última línea; una corrida después de otra)
+- **build `shared`:** `cd shared; npm run build` → exit 0 (`> tsc -p tsconfig.json`). **lint `shared`:** `cd shared; npm run lint` → `All matched files use Prettier code style!`.
+- **lint backend:** `cd backend; npm run lint` → exit 0; `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- **test backend (módulos tocados):** `cd backend; npx vitest run src/core/usuarios test/usuarios-admin-pago-acceso.integracion.test.ts test/usuarios-admin.integracion.test.ts test/usuarios-admin-autorizacion.integracion.test.ts` → `Test Files  8 passed (8)` · `Tests  53 passed (53)`. Incluye `src/core/usuarios` con `fila.test.ts`, las integraciones del motivo (ADM-1E09 y ADM-1E14, que lo manda) y el archivo de ADM-1E04, cuyo escape arreglé.
+- **lint frontend:** `cd frontend; npm run lint` → exit 0. **build frontend:** `cd frontend; npm run build` → `✓ built in 1.48s`. **test frontend** (la prueba que lee `shared/src`; ningún módulo del frontend consume todavía `usuarios-admin.ts`): `cd frontend; npx vitest run src/lib/errores-ch3-r2.ataque.test.ts` → `Tests  85 passed (85)`.
+
+### Conteos
+- `cd backend; npx vitest list src/core/usuarios test/usuarios-admin-pago-acceso.integracion.test.ts`: 20 líneas con "ADM-1E01" (antes 17; suma las 3 de `fila.test.ts`, contadas con `grep -ac "fila.test.ts"`) y 6 con "ADM-1E09" (antes 4).
+- El mismo `npx vitest list` de los doce archivos de pruebas de 01e de la entrega anterior: **82** casos con "ADM-1E" (`grep -ac`; antes 77: +3 de M-14 y +2 de ADM-1E09).
+
+### Archivos de esta corrección
+- Nuevo: `backend/src/core/usuarios/fila.test.ts` (SHA-256 `78752dcb43e51c407840edcd51efac0d3d83b91d836ee938409cc652b34eb404`).
+- Modificados: `shared/src/usuarios-admin.ts` (`f5b08d47771ac2b6eda88fc59ec25e236fff7b09fe326253b3931ec058180966`), `backend/test/usuarios-admin-pago-acceso.integracion.test.ts` (`b2ebe59f38d79639babf6d3e97c1449f90f7d696007b7cda16b1a88b0248194a`) y `backend/test/usuarios-admin.integracion.test.ts` (`db8512816ca43d25ac717e12499c34180f668502cb21e899b3ab1faf9e9f8fd6`; solo el escape `\u202e` de `:323`).
+- Ninguna `*.ataque` ni prueba normal fuera de 01e; código de producción, solo `shared/src/usuarios-admin.ts`.
+
+### Hallazgos atendidos
+- **M-14:** corregido.
+- **Arbitraje 1 (tope del motivo):** aplicada la decisión del humano, "Quitarlo".
+
+### Desviaciones
+Ninguna. Uso `textoLargoSchema(Number.POSITIVE_INFINITY)` para conservar el rechazo de controles e inversores con su texto de siempre, sin tope crudo (arriba). El hermano `q` de la lista de usuarios queda como está y declarado.
+
+## ADMIN-01e — Corrección ronda 1 (2026-11-09)
+
+Origen: `reporte-tester.md`, "## Ronda 1 — ADMIN-01e" (línea 5054), **ROTO** por T-01. Ronda de corrección 1 de 3. Plan sin cambios: `7018e1f3…`. Entorno: sin otra suite ni otra copia (antes de cada corrida, ningún `vitest` corriendo), Docker encendido, red `uacam5 2` autorizada hoy. **Energía: `BatteryStatus` 1 (a batería) en esta corrección; se corre igual, por la instrucción del humano del 2026-11-06.** Sin commit. No toqué las pruebas del tester (`usuarios-admin-01e-r1.ataque.test.ts` y `logs-usuarios-01e-r1.ataque.test.ts`).
+
+### T-01 — corregido
+- **Remedio, en `shared/src/usuarios-admin.ts`:** el `superRefine` de `q` en `listaUsuariosConsultaSchema` rechaza ahora un término que contiene el carácter nulo, con `400 VALIDACION` "q: Los datos enviados tienen caracteres no permitidos.". El nulo nunca llega a PostgreSQL. El carácter se construye con `String.fromCharCode(0)` (constante `CARACTER_NULO`), así que no aparece literal en el archivo. Si el término también pasa del máximo, se responde primero el de longitud (un solo mensaje).
+- **Mismo criterio y mismo texto que el buscador de candidatos, y una precisión:** el buscador de candidatos **no** rechaza el nulo en su esquema. Lo deja llegar a PostgreSQL y traduce el `22021` a `400 VALIDACION` "Los datos enviados tienen caracteres no permitidos." con `traducirErrorPrisma`, dentro de `buscarMaestrosCandidatos` (`adapters/db/maestros-de-clase.ts:126-129`; el texto sale de `adapters/db/errores.ts:44-47`). Para cumplir "en el esquema" y "el nulo nunca debe llegar a PostgreSQL" sin inventar texto:
+  - **criterio:** el mismo carácter que PostgreSQL rechaza (el nulo; los demás controles los acepta, y el buscador de candidatos también);
+  - **texto:** literalmente el mismo, "Los datos enviados tienen caracteres no permitidos.";
+  - **diferencia:** como sale de `validarParametros`, lleva delante la ruta del campo ("q: …"), igual que cualquier `VALIDACION` de un esquema; el del buscador de candidatos sale sin ruta. En el frontend, `quitarRutaDelMensaje` deja el mismo texto.
+  - No hay texto nuevo, así que no hay PARADA. Lo declaro por si el manager prefiere también la traducción en el adaptador, como en candidatos. No la agregué porque, con el esquema, ya no hay forma de que el nulo llegue a la consulta.
+- **Caso propio, en `backend/test/usuarios-admin.integracion.test.ts`:** "ADM-1E02: q con el carácter nulo, en cada forma en que llega (sola, con rol, con rol y estadoPago, y en la página 2 con cursor y cursorNombre) → 400 VALIDACION «q: Los datos enviados tienen caracteres no permitidos.», nunca 500". Prueba siete consultas: nulo al final, al principio y en medio; con `rol`; con `rol` y `estadoPago`; en la página 2 con `cursor` y `cursorNombre` válidos; y `q` hecho solo de nulos (que, sin la regla, caería en `BUSQUEDA_MUY_CORTA` o en la base). El nulo se construye con `String.fromCharCode(0)`.
+- **Mutación** (en memoria, con el archivo y `shared/dist` restaurados después; guion `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\mutar3.py`): con la condición anulada (`texto.includes(CARACTER_NULO) && false`), `npx vitest run test/usuarios-admin.integracion.test.ts test/usuarios-admin-01e-r1.ataque.test.ts -t "ADM-1E02: q con el|ADM-T1E01"` → `Tests  2 failed | 36 skipped (38)` (mi caso y ADM-T1E01). Restaurado: `grep -c "&& false" shared/dist/usuarios-admin.js` → 0.
+
+### Hermanos: cada campo de 01e que llega a SQL como texto
+| Campo | Cómo llega a la base | ¿El nulo llega a PostgreSQL? | ¿Aplica el remedio? |
+|---|---|---|---|
+| `q` (`GET /admin/usuarios`) | `$queryRaw` con `LIKE` sobre `nombre_busqueda` y `email` | Antes sí (T-01) | **Sí, aplicado** |
+| `cursorNombre` | No va a SQL: se compara en JS con el `nombre` de la fila del cursor (`gestion-de-usuarios.ts`, `fila.nombre !== cursorNombre`) | No | No aplica: un nulo da `400` "cursor: no es válido" (lo confirmó el tester en el punto 4) |
+| `cursor` (usuarios y movimientos) | `${cursor}::uuid` / `findUnique` por PK | No: el esquema exige `z.uuid()` | No aplica |
+| `rol`, `estadoPago` (consulta y lote) | `::rol_usuario`, `::estado_pago` / Prisma | No: `z.enum` | No aplica |
+| `nombre` (`PUT …/nombre`, `POST /admin/alumnos`) | Prisma `update`/`create` | No: `nombreSchema` rechaza `\p{Cc}` ("El nombre tiene caracteres no permitidos") | No aplica: ya rechazado; lo prueba ADM-1E04 con `"Ana\u0000Ruiz"` |
+| `email` (`POST /admin/alumnos`) | Prisma `create` | No: `correoSchema` (`z.email`) no admite el nulo | No aplica; además, cualquier `22021` de ese `create` lo traduce `traducirErrorPrisma` a `400` en `crearAlumnoConTemporal` |
+| `motivo` (`PUT …/acceso`) | Prisma `update` | No: `textoLargoSchema` rechaza los controles | No aplica: ya rechazado; lo prueba ADM-1E09 ("un motivo con el carácter nulo…") |
+| `alumnoIds` | `id = ANY(${ids}::uuid[])` | No: `z.uuid()` | No aplica |
+| `id` de la ruta | `::uuid` / PK | No: `z.uuid()` | No aplica |
+
+**Estados vecinos: cada forma en que llega `q`.** Todas pasan por el mismo esquema antes de `core/` y del adaptador, así que el remedio aplica a cada una. Las siete van en mi caso:
+- `q` solo: aplica.
+- `q` con `rol`: aplica.
+- `q` con `rol` y `estadoPago` (la tabla de 01g): aplica.
+- `q` en la página 2, con `cursor` y `cursorNombre`: aplica. El esquema rechaza antes de leer la fila del cursor.
+- `q` que, sin la regla, sería corto (solo nulos): aplica. El esquema corre antes que `prepararBusquedaDeUsuarios`.
+- `q` demasiado largo y con nulo: aplica, con el mensaje de longitud, porque va primero (uno solo).
+- `q` repetido (`q=a&q=b`): ya era `400` por tipo, sin cambio.
+- Fuera de 01e, el buscador de candidatos de maestros y el de alumnos (`/clases/:claseId/alumnos/candidatos`) siguen como estaban: los dos traducen el `22021` en su adaptador (no son de 01e y no se tocan).
+
+### Barrido de escapes
+Revisé 25 archivos de 01e (sin `*.ataque`): `shared/src/usuarios-admin.ts`, `shared/src/clases.ts`, `src/core/usuarios/*`, `src/adapters/db/gestion-de-usuarios.ts`, `movimientos.ts`, `src/handlers/admin/*`, `src/config/logger.ts`, `logger-sin-consulta.test.ts`, `test/usuarios-admin*.ts`, `test/logs-usuarios-admin*.ts` y `test/ayudas-usuarios-admin.ts`. Busqué caracteres de las categorías Cc, Cf, Zl y Zp, salvo `\n` y `\t`: 0 archivos con alguno.
+
+### Verificación (comando exacto y última línea; una corrida después de otra, `BatteryStatus` 1)
+- **build `shared`:** `cd shared; npm run build` → exit 0 (`> tsc -p tsconfig.json`). **lint `shared`:** `cd shared; npm run lint` → `All matched files use Prettier code style!`.
+- **lint backend:** `cd backend; npm run lint` → exit 0; `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- **test backend:** `cd backend; npx vitest run $(cat modulos-01e.txt) src/core/usuarios test/usuarios-admin-01e-r1.ataque.test.ts test/logs-usuarios-01e-r1.ataque.test.ts`, con la misma lista de 70 rutas (`C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\modulos-01e.txt`) más los dos archivos del tester → `Test Files  76 passed (76)` · `Tests  1051 passed (1051)` (inicio 11:41:00, 119 s). ADM-T1E01 en verde. Contención: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0, `"code":"P2028"` 5: los mismos deterministas de antes, `servicio-ocupado` (`req-1`, `req-3`, `req-5`) y `cuentas-r3.ataque` (`req-1m`, `req-20`).
+- **test frontend** (cambió `shared/src`): `cd frontend; npx vitest run src/lib/errores-ch3-r2.ataque.test.ts` → `Tests  85 passed (85)`. El texto nuevo del esquema no empieza con "palabra:", así que la regla de prefijos de `shared/src` no cambia. **build frontend:** `cd frontend; npm run build` → `✓ built in 2.58s`.
+
+### Conteos
+`cd backend; npx vitest list` de los doce archivos de pruebas de 01e (`src/core/usuarios`, `src/config/logger-sin-consulta.test.ts` y los siete de `test/`) → **83** casos con "ADM-1E" (`grep -ac`; antes 82, suma uno). ADM-1E02 pasa de 7 a **8** (`grep -ac "ADM-1E02:"`).
+
+### Archivos de esta corrección
+- `shared/src/usuarios-admin.ts` (SHA-256 `2b12cc149ab1567335abd077769d7801313be33199a25a596a8aea700d88df75`): la constante `CARACTER_NULO` y la regla del nulo en el `superRefine` de `q`, con un `return` después del mensaje de longitud para que salga uno solo.
+- `backend/test/usuarios-admin.integracion.test.ts` (`30f4f20d80eb593994aac71513bd9795bf81b06ea8bc3d333fbbc5d48897ee0a`): el caso nuevo de ADM-1E02.
+- Nada más: ni adaptadores ni handlers, ni pruebas del tester.
+
+### Hallazgos atendidos
+- **T-01:** corregido.
+
+### Desviaciones
+Ninguna de alcance. Declarado arriba: el buscador de candidatos rechaza el nulo en su adaptador y no en su esquema. Aquí va en el esquema, como pidió el orquestador, con el mismo criterio y el mismo texto; la única diferencia es el prefijo "q:" que agrega `validarParametros`.

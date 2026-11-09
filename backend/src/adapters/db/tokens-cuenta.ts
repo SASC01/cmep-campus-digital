@@ -112,7 +112,10 @@ export const usarTokenYCambiarContrasena = (
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<boolean> =>
   enTransaccion(ejecutor, async (tx) => {
-    await bloquearUsuarioParaEscribir(tx, usuarioId)
+    // ADMIN-01e (M-18): el activo se relee bajo el bloqueo. Una baja que confirmó mientras se
+    // esperaba ya revocó el token; con la cuenta inactiva, el uso se rechaza sin escribir.
+    const usuario = await bloquearUsuarioParaEscribir(tx, usuarioId)
+    if (usuario === null || !usuario.activo) return false
     const { count } = await tx.tokenCuenta.updateMany({
       where: { id: tokenId, usadoEn: null, revocadoEn: null, expiraEn: { gt: ahora } },
       data: { usadoEn: ahora },

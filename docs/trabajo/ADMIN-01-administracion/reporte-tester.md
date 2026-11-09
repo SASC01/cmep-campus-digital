@@ -4523,3 +4523,761 @@ No cambié ninguna `*.ataque` existente, ni código de producción, ni pruebas n
 - **Hallazgos:** ninguno.
 - **Suite:** `Tests 4802 passed (4802)` · `Test Files 216 passed (216)`. **Orden aleatorio:** 128 de 128 con las dos semillas. **`lint`:** exit 0. **V-01:** 262 sin cambio, más 5 sin rastrear. **`BatteryStatus`:** 2.
 - **Para el manager:** la precisión sobre "sin datos, en pausa", por si la tabla del arbitraje pasa a los documentos.
+
+## Ronda 0 — ADMIN-01e
+
+Veredicto: **LISTA PARA EL PROGRAMADOR** (sin PARADA). Apliqué C-6, C-7, C-8, C-25 a C-32 y C-42 tal como los escribe §D-R0 → 01e, y nada más. C-6, C-8 y C-42 quedan en rojo por la razón esperada y solo por ella; C-7 es un comentario; C-25 a C-32 siguen en verde con el código de hoy y también con el serializador de M-09 aplicado en memoria. Las vigiladas de 01e, en verde. Dejo una observación para el arquitecto (OA-01e-1: una vigilada que el plan describe a medias y que, sin cuidado, lleva la ruta del estado de pago a una PARADA) y diez para el programador (O-01e-1 a O-01e-10).
+
+Plan: `plan.md`, SHA-256 `7018e1f321364350554c1a2fdd2cd2e5f0c54ea18c3586ce8c62a1ad2b4e97cf` (Enmiendas 1 a 13; comprobado al empezar). Base dentro de los paquetes: `ea718bc` (01d2). Antes de tocar nada, los once archivos de los C-n coincidían con `git show ea718bc:<ruta>`, y `gestion-02a-r1.ataque.test.ts` tenía el hash de partida de C-42 (`73c55120…`). Al terminar, `git diff --name-only ea718bc -- backend frontend shared` lista solo esos once `*.ataque`.
+
+Verificación propia (regla "Suites por ronda": lo que toco, las vigiladas que nombra el plan para 01e y `lint` del backend):
+- **lint del backend:** `cd backend; npm run lint` → exit 0, dos veces (después de los C-n y después de mover el comentario de C-42). Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, sin errores.
+- **test:** los once archivos de los C-n, las 31 vigiladas y dos sondas en memoria. Abajo van las corridas.
+- No corrí la suite completa del backend ni la del frontend: las corre el manager al cerrar la subentrega. 01e toca `shared/`, pero en esta ronda no cambió nada de `shared/` ni del frontend.
+
+### Entorno y trabajo en paralelo
+- **Trabajo en paralelo:** por el orquestador (respuesta del humano de hoy, 2026-11-09), no hay otra copia de trabajo activa ni otra suite corriendo.
+- **Red (PA-01):** `uacam5 2`, perfil Privado, autorizada por el humano para la sesión de hoy (dato del orquestador).
+- **Docker:** 28.5.1, encendido. Los contenedores de `infra/` (`campus-dev-*`) siguen arriba; no los toqué.
+- **Energía:** `BatteryStatus` **2** (corriente) en todas las lecturas.
+- **Carga antes de cada corrida** (`Win32_Processor.LoadPercentage`, dos lecturas a 9 s, ningún `node` con `vitest`): 08:22:35 `18` y `12` (C-n); entre 08:25:04 y 08:27:24, entre `10` y `62`, por las aplicaciones del humano (VS Code, Docker Desktop y otras), así que corrí las vigiladas a las 08:27:34 con `31` y `40`, sin esperar más; 08:29:52 `15` y `12` (sonda M-09, primera); 08:32:30 `17` (sonda M-09, la que cuenta; la segunda lectura no salió); 08:35:11 `2` y `5` (C-n, segunda); 08:37:14 `8` y `5` (sonda S-16). Una corrida después de otra.
+- **Una corrida que no cuento:** la primera de la sonda M-09 (08:30:01) cayó entera por un error mío: el serializador que inyecta la sonda tenía un salto de línea dentro de una cadena (`Unterminated string literal` en `src/config/logger.ts`, en memoria). La corregí y la repetí; solo cuento la segunda.
+- Sin navegadores ni aplicaciones gráficas. No terminé ningún proceso.
+
+### Cambios (solo C-6 a C-8, C-25 a C-32 y C-42)
+
+| C-n | Archivo | Cambio | `git diff -U0 ea718bc` |
+|---|---|---|---|
+| C-6 | `backend/test/sesiones-y-cadena.ataque.test.ts` | El inventario de rutas suma exactamente las 13 entradas de §D-7 y §D-8, cada una en su lugar del orden de `sort()`: `GET` y `HEAD` de `/api/admin/movimientos-inscripcion`, `/api/admin/resumen`, `/api/admin/usuarios` y `/api/admin/usuarios/:id`; `POST /api/admin/alumnos`; `PUT /api/admin/alumnos/:id/acceso`, `PUT /api/admin/alumnos/estado-pago`, `PUT /api/admin/usuarios/:id/activo` y `PUT /api/admin/usuarios/:id/nombre`. Comprobé con `node` que quedan 138 entradas (125 + 13), ordenadas y sin repetir. Además, el comentario de C-6 antes del caso y "ADMIN-01e" en el título, como C-1 en 01a y C-3 en 01b. El comentario dice que solo `POST /api/admin/alumnos` y `POST /api/auth/registro` crean estudiantes; el título no lo suma, porque la prueba no enumera quién crea estudiantes ("si la prueba lo enumera", §D-R0). Lo que protege no cambia | `@@ -571 +573,13` (comentario y título); `@@ -612,0 +627,4`, `@@ -645,0 +664,4`, `@@ -673,0 +696`, `@@ -712,0 +736,2`, `@@ -713,0 +739`, `@@ -714,0 +741` (las 13 entradas) |
+| C-7 | el mismo archivo | El comentario de V-06 de CLASES-b (`:464`) pasa de "Ninguna ruta expone movimientos_inscripcion" a "Ninguna de estas rutas…" y suma que, desde ADMIN-01e, la única que contiene «movimiento» es `GET /api/admin/movimientos-inscripcion`, solo para el admin, y que las rutas de alumnos de la clase siguen sin exponer sus filas. Solo comentario | `@@ -464 +464,3` |
+| C-8 | `backend/test/lecturas-fx-r1.ataque.test.ts` | La lista de usos de `instantaneaUnica: true` suma `"adapters/db/gestion-de-usuarios.ts:2"` (lista y resumen) y `"adapters/db/movimientos.ts:1"`, en su lugar del orden y con su comentario. El título pasa de "veintiuna" a "veinticuatro lecturas (…, dos de gestión de usuarios y una de movimientos)". Lo demás que protege no cambia | `@@ -758 +758` (título); `@@ -827,0 +828,6` |
+| C-25 | `backend/test/logs-r2.ataque.test.ts` | El centinela pasa de `/api/salud?centinela=<uuid>` a `/api/salud-centinela/<uuid>`, con su comentario. Así el valor único va en el camino de una ruta que no existe (`404`), que el log conserva entero, y no en la consulta. El reconocimiento (`:86`, `req.url === urlCentinela`) no cambia: compara con un camino sin consulta | `@@ -197 +197,4` |
+| C-26 | `backend/test/logs-03a-r1.ataque.test.ts` | Ídem (`:65` sin cambio) | `@@ -241 +241,4` |
+| C-27 | `backend/test/logs-03b-r1.ataque.test.ts` | Ídem (`:62` sin cambio) | `@@ -222 +222,4` |
+| C-28 | `backend/test/logs-03c-r1.ataque.test.ts` | Ídem (`:62` sin cambio) | `@@ -197 +197,4` |
+| C-29 | `backend/test/logs-cuentas-r1.ataque.test.ts` | Ídem (`:62` sin cambio) | `@@ -246 +246,4` |
+| C-30 | `backend/test/logs-muro-c-r1.ataque.test.ts` | Ídem (`:67` sin cambio) | `@@ -192 +192,4` |
+| C-31 | `backend/test/logs-muro-c-r2.ataque.test.ts` | Ídem (`:67` sin cambio) | `@@ -203 +203,4` |
+| C-32 | `backend/test/api-real.ataque.test.ts` | Ídem (`:67` sin cambio) | `@@ -233 +233,4` |
+| C-42 | `backend/test/gestion-02a-r1.ataque.test.ts` | Título de `:694`: suma "(el dado de baja, además, con `cuentaDesactivada: true`)". `:729` se reemplaza por el bloque de §D-R0: el detalle trae exactamente los ids de `a` y `b` (`arrayContaining` más `toHaveLength(2)`); cada maestro se busca por `id`, con mensaje y sin `return` temprano; `a` con `["id", "nombre"]`; `b` con `["cuentaDesactivada", "id", "nombre"]` y `cuentaDesactivada` con `toBe(true)`. `:728` (`const delDetalle = …`) queda igual, con el comentario de C-42 debajo. No cambian `prohibidas` (con `"activo"`), correos, "deudor" ni inscritas (`:730-735`). El archivo sigue con 13 casos | `@@ -694 +694` (título); `@@ -729 +729,16` (el bloque). Ningún otro hunk |
+
+En C-25 a C-32 ninguna precondición cambia: ninguno de los ocho afirmaba el código de respuesta del centinela, y ninguno cuenta líneas de forma que una petición `404` más las altere (los recuentos de `logs-muro-c-r1:230` y `logs-muro-c-r2:243` filtran por `/api/clases/`; el de `logs-03c-r1` por `/api/admin/maestros/lote`). No toqué código de producción, pruebas normales ni ninguna otra `*.ataque`.
+
+#### SHA-256 antes y después
+
+| Archivo | C-n | Antes (= `ea718bc`) | Después |
+|---|---|---|---|
+| `backend/test/sesiones-y-cadena.ataque.test.ts` | C-6, C-7 | `71c54a113611a3097baa03691f316f5e3d49dbe6532d058a453aaf0641434db1` | `e177959b61b1f93fa60d72b260465d4b53b66745fcf51e3befd8e5c7383a7f51` |
+| `backend/test/lecturas-fx-r1.ataque.test.ts` | C-8 | `82fe8c49674a3cc8328e7951236c0c8f442fcba3890b716013369785b202cf40` | `e3e7d53e2cec2d70e5321d2452939a5e9d71dbe5421b1e6856beb3c8e1bf4e56` |
+| `backend/test/logs-r2.ataque.test.ts` | C-25 | `5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689` | `a2507bb8a5f031143a08e9570c1299f7fa1effcf54b006358da2b4a99dc21ec8` |
+| `backend/test/logs-03a-r1.ataque.test.ts` | C-26 | `bd8b303c434efec0785e0691d31d6f6e87dbf3305f50fa27cce0f78cbb251e3a` | `01ad4e952282047f4826d6d86fc21fd464143752c8d8901b4063607930d9c1d5` |
+| `backend/test/logs-03b-r1.ataque.test.ts` | C-27 | `b58d5d013658433fe5839634e2db5a31b8d2b8f69587bc36958752d3cd33bbf7` | `3a626786bdb37eb05744b50c9c2c03b4037bf947991a9905f015ca04560464a0` |
+| `backend/test/logs-03c-r1.ataque.test.ts` | C-28 | `0e4abf3bc5d92fa0c380805453190703862567930dd74b9e7fcc1809564d181f` | `9f0f965dac2650b722520550386df12a27d39d65c6c4ee2bfdc3279925777334` |
+| `backend/test/logs-cuentas-r1.ataque.test.ts` | C-29 | `e008935b107752d203f6423b2f1c9e0f5a4339f0a77154746bf262cecb90351a` | `5ff85c4346a45d04974ced7dc62f0222135baa70fc3e2e64dd58d3568ad38bb3` |
+| `backend/test/logs-muro-c-r1.ataque.test.ts` | C-30 | `690e30ed39111c0a074fc159015967cd9f0fdc24d9a340e6a0d7be4b980a9d45` | `1f044c28108fc77f5cdad9056eb758be194c44b40f398bc818f473d79954b95c` |
+| `backend/test/logs-muro-c-r2.ataque.test.ts` | C-31 | `0809c60700e26183e7771b4b1a40b05cbf554c2ed7929190cf4d89a52722e551` | `9cdb901292f5a5a5060dc1d5de4ce35b6fdbe5d41b61d345eeb4f870186d3735` |
+| `backend/test/api-real.ataque.test.ts` | C-32 | `441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb` | `e75114dc84a076b8f0a3471bacdb63175adbb62223dd041039992c2348eee438` |
+| `backend/test/gestion-02a-r1.ataque.test.ts` | C-42 | `73c55120814b8d6bbcceda5d4a3b5c8f1ed1ab58f54400831ac1a710d3b4584a` | `f12aef58da6e9c1efb134c8667b8c6ee8cde3401c9ff6b444164882f664a225e` |
+
+Los once archivos son LF (`git ls-files --eol`: `i/lf w/lf`), como en `ea718bc`.
+
+### Corrida de los C-n (rojo esperado)
+
+Comando, desde `backend/`: `npx vitest run --reporter=verbose test/sesiones-y-cadena.ataque.test.ts test/lecturas-fx-r1.ataque.test.ts test/gestion-02a-r1.ataque.test.ts test/logs-r2.ataque.test.ts test/logs-03a-r1.ataque.test.ts test/logs-03b-r1.ataque.test.ts test/logs-03c-r1.ataque.test.ts test/logs-cuentas-r1.ataque.test.ts test/logs-muro-c-r1.ataque.test.ts test/logs-muro-c-r2.ataque.test.ts test/api-real.ataque.test.ts`
+
+```
+ Test Files  3 failed | 8 passed (11)
+      Tests  3 failed | 94 passed (97)
+   Start at  08:35:12
+   Duration  25.86s (transform 4.84s, setup 388ms, import 16.51s, tests 82.30s, environment 2ms)
+```
+
+La primera corrida (08:22:53, sin `--reporter=verbose` y con C-42 antes de mover su comentario) dio lo mismo: `3 failed | 94 passed (97)`, con los mismos tres rojos y el mismo mensaje en cada uno.
+
+- **C-6**, `sesiones-y-cadena.ataque.test.ts`, caso "bajo /api solo existen las rutas de … ADMIN-01a, ADMIN-01b y ADMIN-01e…": `AssertionError: expected [ …(125) ] to deeply equal [ …(138) ]` en `:611`. El diff solo marca como faltantes las 13 entradas nuevas (líneas `-`) y ninguna sobrante (ninguna `+`). `noReconocidas` pasa (vacío). Pasa a verde cuando el programador registre exactamente esas 13.
+- **C-8**, `lecturas-fx-r1.ataque.test.ts`, caso "la opción solo se puede activar dentro de adapters/db… veinticuatro lecturas…": `AssertionError: expected [ …(10) ] to deeply equal [ …(12) ]` en `:805`. Solo faltan `"adapters/db/gestion-de-usuarios.ts:2"` y `"adapters/db/movimientos.ts:1"`. Las aserciones anteriores del caso (nadie fuera de `adapters/db` nombra la opción, niveles solo en `cliente.ts`, `index.ts` sin `enTransaccion`, los dos usos de `tareas.ts` en código) pasan. Pasa a verde cuando existan los dos archivos con esos conteos, comentarios incluidos.
+- **C-42**, `gestion-02a-r1.ataque.test.ts`, caso "detalle e inscritas del alumno… (el dado de baja, además, con `cuentaDesactivada: true`)": `AssertionError: expected [ 'id', 'nombre' ] to deeply equal [ 'cuentaDesactivada', 'id', 'nombre' ]` en `:743`, que es la aserción de las claves de `b`. Antes pasaron, en este orden: los dos ids (`arrayContaining`), `toHaveLength(2)`, los dos `toBeDefined` y las claves de `a` (`["id", "nombre"]`). Es la razón que dice el "Debe esperar" de §D-R0 (`b` sale sin la clave) y no otra: ni la clave en `a`, ni `false`, ni la clave en inscritas, ni un maestro de menos. Hoy `prohibidas`, correos, "deudor" e inscritas pasan antes y después. El paso 23 lo pone en verde (lo comprobé con la sonda S-16, abajo).
+- **C-7:** solo comentario; el caso de C-6 es el único que lo contiene.
+- **C-25 a C-32:** los ocho archivos, en verde con el código de hoy: `logs-r2` 5 de 5, `logs-03a-r1` 2 de 2, `logs-03b-r1` 2 de 2, `logs-03c-r1` 2 de 2, `logs-cuentas-r1` 2 de 2, `logs-muro-c-r1` 3 de 3, `logs-muro-c-r2` 3 de 3 y `api-real` 6 de 6. Con la consulta en el log, como hoy, el centinela por camino se reconoce igual.
+- Los demás casos de los tres archivos con rojo, en verde: `sesiones-y-cadena` 34 de 35, `lecturas-fx-r1` 23 de 24 y `gestion-02a-r1` 12 de 13. Entre ellos, las vigiladas de la Enmienda 13 en `gestion-02a-r1` (`:269`, `:674-675`, `:681-682` y `:688`) y la de E8-4 en `sesiones-y-cadena:769` (un solo admin).
+- **Contención en esa salida** (informativo; PA-07 aplica a la corrida completa): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0, `"code":"P2028"` 0. El `"Error no controlado"` que provoca a propósito `logs-r2` (el `500` de `GET /api/me` con el uuid raro) vive en el log del proceso hijo, que la prueba captura y no imprime.
+
+### Vigiladas de §D-R0 → 01e (línea base con el código de hoy)
+
+Comando, desde `backend/`: `npx vitest run test/clases-r1.ataque.test.ts test/clases.integracion.test.ts test/admin-muro-02b-r1.ataque.test.ts test/alumnos-b-r1.ataque.test.ts test/alumnos.integracion.test.ts test/clases-archivadas-r1.ataque.test.ts test/gestion-clases.integracion.test.ts test/temas-01a-r1.ataque.test.ts test/temas-01a-r3.ataque.test.ts test/clases-archivadas-matriz.integracion.test.ts test/gestion-clases-autorizacion.integracion.test.ts test/autorizacion-cuentas.integracion.test.ts test/guarda-todas-las-rutas.integracion.test.ts test/recursos-autorizacion.integracion.test.ts test/cuentas-r2.ataque.test.ts test/arquitectura-cuentas-r1.ataque.test.ts test/lecturas-fx-r2.ataque.test.ts test/admin-unico.integracion.test.ts test/admin-unico.ataque.test.ts test/cuentas-r1.ataque.test.ts test/cuentas-03a-r1.ataque.test.ts test/enlaces-03b-r1.ataque.test.ts test/invitacion-masiva-03c-r1.ataque.test.ts test/logs-02a-r1.ataque.test.ts test/logs-02b-r1.ataque.test.ts test/logs-archivos-d-r1.ataque.test.ts test/logs-archivos-d-r3.ataque.test.ts src/config/logger.ataque.test.ts test/worker-r1.ataque.test.ts test/worker-r2.ataque.test.ts test/servicio-ocupado.integracion.test.ts`
+
+```
+ Test Files  31 passed (31)
+      Tests  605 passed (605)
+   Start at  08:27:35
+   Duration  42.65s (transform 7.91s, setup 979ms, import 64.60s, tests 198.59s, environment 6ms)
+```
+
+Son las vigiladas de §D-R0 → 01e por grupo:
+- **Enmienda 1 (N-03) y Enmienda 13 (S-16):** `clases-r1.ataque` (`:593-641`), `clases.integracion` (`:178-191`), `admin-muro-02b-r1.ataque` (`:740-741`, `:779`, `:812`), `alumnos-b-r1.ataque` (`:459-460`), `alumnos.integracion` (`:135-140`), `clases-archivadas-r1.ataque` (`:848-856`) y `gestion-clases.integracion` (`:429-435`, `:484-488`). Las de `gestion-02a-r1` corrieron con los C-n.
+- **Enmienda 4:** `alumnos-b-r1.ataque` (`:1156` y `:1149-1162`), `temas-01a-r1.ataque` (`:985-997`), `temas-01a-r3.ataque` (`:426-428`).
+- **Enmienda 7 (E7-3):** `clases-archivadas-matriz.integracion` (`:222-233`), `gestion-clases-autorizacion.integracion` (`:395-425`), `autorizacion-cuentas.integracion` (`:40-53`), `guarda-todas-las-rutas.integracion` (`:141`), `recursos-autorizacion.integracion` (`:580-598`), `clases-archivadas-r1.ataque` (`:622-628`) y `cuentas-r2.ataque` (`:310-319`).
+- **Generales:** `arquitectura-cuentas-r1.ataque` (`:100-124`; ver OA-01e-1 y O-01e-1), `lecturas-fx-r2.ataque` (`:967`).
+- **Enmienda 8 (E8-4), un solo admin:** `admin-unico.integracion` (`:50`), `admin-unico.ataque` (`:32`, `:56`), `cuentas-r1.ataque` (`:592`), `cuentas-03a-r1.ataque` (`:496`), `enlaces-03b-r1.ataque` (`:234`) e `invitacion-masiva-03c-r1.ataque` (`:297`, `:354`).
+- **M-09:** `logs-02a-r1`, `logs-02b-r1`, `logs-archivos-d-r1`, `logs-archivos-d-r3`, `src/config/logger.ataque` (`:60-82`), `worker-r1`, `worker-r2` y `servicio-ocupado.integracion` (`:274-…`). Las de `logs-03b-r1:259-261`, `logs-03c-r1:228-229`, `logs-muro-c-r1:230` y `logs-muro-c-r2:243` están en los archivos de C-27, C-28, C-30 y C-31 y corrieron con los C-n.
+
+**Contención en esa salida** (informativo): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0, `"code":"P2028"` 3. Los tres son los deterministas de `servicio-ocupado.integracion.test.ts`, todos `"msg":"Error controlado del servidor"`, `codigo` `SERVICIO_OCUPADO` y cierre `503`. Los atribuí por proceso (`pid` 7836) y `requestId`: el "incoming request" anterior y el "request completed" siguiente del mismo `pid` y `requestId`, más la pila de cada uno:
+- `req-1`: `POST /api/auth/cambiar-contrasena` (pila en `handlers/auth/cuentas.ts:202`; `tx.sesion.findFirst()` de `adapters/db/usuarios.ts:293`, `timeTaken` 5665 ms);
+- `req-3`: `POST /api/auth/refrescar` (pila en `handlers/auth/index.ts:180`; `tx.sesion.updateMany()` de `adapters/db/sesiones.ts:72`, 5664 ms);
+- `req-5`: `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios` (pila en `encolar` de `adapters/queue/index.ts:63`, 5641 ms).
+
+Es el control positivo de PA-07, completo, en una corrida acotada. El conteo de PA-07 que vale es el de la corrida completa del manager.
+
+### Sonda M-09 (en memoria): el serializador de §D-7.11 con C-25 a C-32 y las vigiladas del log
+
+El grep no alcanza para saber si C-25 a C-32 siguen en verde cuando el log pierda la consulta. Por eso apliqué el remedio de §D-7.11 **en memoria**: un `serializers.req` con los mismos campos que el de Fastify por omisión (`method`, `url` cortada en el primer `?`, `version`, `host`, `remoteAddress`, `remotePort`), insertado antes de `redact` en el texto de `src/config/logger.ts`. Llega por dos caminos:
+- un complemento de Vite en una configuración de Vitest fuera del repositorio, para las pruebas que construyen la app en el mismo proceso (`logs-02a-r1`, `logs-02b-r1`, `logs-archivos-d-*`, `logger.ataque`, `worker-r*`);
+- un gancho de carga de Node (`NODE_OPTIONS=--import=…`), para las APIs reales que arrancan como procesos hijos (`src/server.ts` con `tsx`), que heredan `process.env`.
+
+**Ningún archivo del repositorio cambia.** Los archivos son `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-m09\serializador.mjs`, `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-m09\ganchos.mjs`, `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-m09\registro.mjs` y `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-m09\vitest.sonda-m09.config.mjs`.
+
+Comando, desde `backend/`: `NODE_OPTIONS="--import=file:///<scratchpad>/sonda-m09/registro.mjs" npx vitest run --config <scratchpad>/sonda-m09/vitest.sonda-m09.config.mjs --reporter=verbose` con los ocho archivos de C-25 a C-32, `logs-02a-r1`, `logs-02b-r1`, `logs-archivos-d-r1`, `logs-archivos-d-r3`, `src/config/logger.ataque`, `worker-r1` y `worker-r2`.
+
+```
+ Test Files  15 passed (15)
+      Tests  48 passed (48)
+   Start at  08:32:32
+   Duration  26.75s (transform 4.65s, setup 609ms, import 28.61s, tests 91.41s, environment 4ms)
+```
+
+- **La sonda sí actuó.** Su archivo de marcas registra `aplicada` 9 veces por el gancho de Node (las ocho APIs de los logs y el arranque en `production` de `api-real`) y 1 por Vite (el módulo transformado se comparte). También registra 6 URL cortadas, todas `GET` con consulta: `/api/admin/maestros/candidatos`, `/api/clases/<uuid>/alumnos/candidatos` y `/api/admin/clases` (en proceso, `logs-02a-r1`), `/api/admin/enlaces-registro` (un hijo) y `/api/clases/<uuid>/publicaciones` y `…/comentarios` (otro hijo). El serializador estaba en efecto en los dos caminos.
+- **Resultado:** los ocho de C-25 a C-32 siguen en verde sin la consulta. `logs-02a-r1:200-211` sigue encontrando `/api/admin/maestros/candidatos`. `logger.ataque:60-82` (el objeto `{ req: { body } }`) no lanza y no deja ningún secreto. Los recuentos de `logs-muro-c-r1:230` y `logs-muro-c-r2:243` no cambian. Es lo que predice §D-R0 → 01e.
+- **Por qué hacía falta C-25 a C-32 (razonado, sin corrida):** con la consulta cortada, el centinela viejo `/api/salud?centinela=<valor>` queda en el log como `/api/salud`. `req.url === urlCentinela` ya no lo encuentra, y `faltanteEnElLog` devuelve "falta el centinela" en los ocho.
+- Contención en esa salida: los seis términos, en 0.
+
+### Sonda S-16 (en memoria): C-42 y el grep de hermanos de la Enmienda 13
+
+Apliqué S-16 (§D-7.10) en memoria, con el mismo mecanismo (Vite y gancho de Node), sobre tres archivos:
+- `adapters/db/clases.ts`: `SELECT_MAESTROS_DE_CLASE` suma `activo`, y `maestrosDeFilas` quita `activo` y agrega `cuentaDesactivada: true` solo si es `false`;
+- `adapters/db/inscripciones.ts`: solo `listarPersonas`, con el mismo mapeo;
+- `shared/dist/clases.js`: `maestroDeClaseSchema` gana `cuentaDesactivada: z.literal(true).optional()`, y la lista `maestros` de "Personas" usa `personaConCorreoSchema.extend(…)`.
+
+Los archivos son `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-s16\transformar.mjs`, `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-s16\ganchos.mjs`, `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-s16\registro.mjs` y `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\sonda-s16\vitest.sonda-s16.config.mjs`.
+
+Comando, desde `backend/`: `NODE_OPTIONS="--import=file:///<scratchpad>/sonda-s16/registro.mjs" npx vitest run --config <scratchpad>/sonda-s16/vitest.sonda-s16.config.mjs` con los 18 archivos del patrón 1 de la Enmienda 13 (`gestion-02a-r1`, `duplicado-de-clase.integracion`, `gestion-clases.integracion`, `clases-archivadas.integracion`, `borrado-duplicado-r1`, `lecturas-fx-r1`, `clases-archivadas-r1`, `lecturas-consistentes.integracion`, `entregas-01b-r1`, `calificaciones.integracion`, `admin-muro-02b-r1`, `muro-admin.integracion`, `concurrencia-02a-r1`, `clases-r1`, `autoria-02b-r1`, `alumnos.integracion`, `alumnos-b-r1` y `cuentas-03a-r1`), más `clases.integracion`.
+
+```
+ Test Files  1 failed | 18 passed (19)
+      Tests  1 failed | 335 passed (336)
+   Start at  08:37:24
+   Duration  43.40s (transform 12.50s, setup 1.14s, import 75.35s, tests 237.57s, environment 5ms)
+```
+
+- La sonda aplicó los tres cambios por los dos caminos (3 marcas de Vite y 3 de Node).
+- **C-42 pasa a verde** con S-16. El único rojo es C-8 (`expected [ …(10) ] to deeply equal [ …(12) ]`), que no depende de S-16: los dos archivos nuevos todavía no existen.
+- Ninguna otra prueba de los 19 archivos cae. Eso confirma el resultado del grep de la Enmienda 13 y de la verificación del manager (el único choque es C-42), incluidas las vigiladas de `admin-muro-02b-r1`, `alumnos-b-r1`, `alumnos.integracion`, `clases-archivadas-r1` y `gestion-clases.integracion`, y `cuentas-03a-r1`, el hueco N-1 que señaló el manager.
+- **Hallazgo de la sonda, para el programador (O-01e-5):** sin el cambio de `shared/dist/clases.js`, C-42 sigue en rojo aunque el adaptador ya marque al maestro. `maestroDeClaseSchema` es `z.object` (descarta claves desconocidas), y el handler del detalle responde con `claseRespuestaSchema.parse(…)` (`handlers/clases/clases.ts:133`). Además, el backend consume `@campus/shared` por `./dist` (`shared/package.json`, `exports`), no por `src`.
+- Contención en esa salida: los seis términos, en 0.
+
+### Barrido del resto de las `*.ataque` y de las lecturas del log
+
+- **Quién lee la URL del log:** repetí el grep de M-09 (`req?.url`, `req.url`, `"url"` e `"incoming request"` en `backend/test` y `backend/src`). Además de los ocho de C-25 a C-32 y de `logs-02a-r1`, los demás leen `r.raw.req.url` de la respuesta de `inject` (`admin-muro-02b-r1:272-276`, `tareas-01b-r1:668-671`), tipos de las pruebas de autorización (`"url"` de `PreparadoRuta`) o la clave `url` de una descarga (`archivos-d-r1:847`, `archivos-autorizacion:318`). Ninguno lee el log. `servicio-ocupado:274` cuenta niveles. La lista de C-25 a C-32 está completa.
+- **Quién arranca la API real:** `api-real`, `arranque-r1` y los siete `logs-*` de C-25 a C-31. `arranque-r1` no usa centinela.
+- **Rutas nuevas:** solo `sesiones-y-cadena` (C-6) y las de `printRoutes` ya vigiladas (`clases-archivadas-matriz` ADM-1A09 (a) y `clases-archivadas-r1` ADM-T1A09) enumeran rutas. Ninguna `*.ataque` pide `GET /api/admin/usuarios`, `…/usuarios/:id`, `…/nombre`, `…/activo`, `/api/admin/alumnos…`, `/api/admin/resumen` ni `/api/admin/movimientos-inscripcion`. Las que hay bajo `/api/admin/usuarios/` son de `buscar`, `correo`, `restablecer-contrasena` y `borrar` (`cuentas-r2:310-319`, que sigue esperando `404`). `cuentas-r2:328-339` (`PUT …/:id/correo` con un `:id` de 5 KB → `414`) no cambia con `GET /api/admin/usuarios/:id`.
+- **Revisiones estáticas que leen `backend/src`** (18 archivos con `readFileSync` o `readdirSync`): las que miran archivos de 01e son `arquitectura-cuentas-r1` (OA-01e-1, O-01e-1), `lecturas-fx-r1:758-834` (C-8, O-01e-2) y `:1129-1155` (O-01e-3), `lecturas-fx-r2:972` (O-01e-7), `alumnos-b-r1:1149-1162` (O-01e-8), `hilo-01c-r1:705-753`, `temas-01a-r1:985-997` y `temas-01a-r3:426-428` (O-01e-9). Las migraciones: `migracion-01a-r1` y `migracion-clases03a-r1` aplican solo las anteriores a la suya, y `sexto-paso-02a-r1:163` busca solo `_clases_administradas`. La migración de 01e no las alcanza.
+- **Claves de los maestros y `/activo/i`:** lo verificó la sonda S-16 (arriba). Las expresiones `/activo/i` (`cuentas-03a-r1:556`, `sesiones-y-cadena:303`) no reconocen `cuentaDesactivada`.
+
+### Observaciones para el arquitecto (no bloquean por sí solas)
+
+- **OA-01e-1. Una vigilada que el plan describe a medias: `arquitectura-cuentas-r1.ataque.test.ts:100-124`.** §D-R0 → 01e la vigila como "ningún archivo nuevo usa `console.`", pero el mismo caso exige también que `handlers/admin.ts` y `adapters/db/tokens-cuenta.ts`, entre otros, no nombren `estadoPago` en su código (sin comentarios; `/estadoPago/`, que también reconoce `estadoPagoLoteSchema` o `estadoPagoSchema`). En 01e, `PUT /admin/alumnos/estado-pago` (§D-8) recibe `{ alumnoIds, estadoPago }`, y `GET /admin/usuarios` filtra por `estadoPago` (§D-7.1). Si esas rutas viven en `handlers/admin.ts`, la vigilada cae y es PARADA del programador. El plan ya ofrece la salida: `handlers/admin/usuarios.ts`, nuevo, registrado por el mismo plugin (§D-R0 → 01e, "si hace falta"; "Cambios por capa", "si `admin.ts` pasa de 400 líneas", y hoy tiene 283). Con esa ruta de archivo, el caso sigue en verde, porque `"handlers/admin/usuarios.ts".startsWith("handlers/admin.ts")` es falso. Conviene que el orquestador se lo diga al programador antes del paso 24: las rutas de usuarios, estado de pago y acceso van en `handlers/admin/usuarios.ts`, y `admin.ts` solo lo registra, sin importar nada cuyo nombre contenga `estadoPago`. Si el arquitecto prefiere `admin.ts`, hace falta un C-n, que debilitaría lo que protege el caso. No escribí ningún C-n para esto.
+
+### Observaciones para el programador (trampas; no son hallazgos)
+
+**O-01e-1 (`arquitectura-cuentas-r1`, vigilada; ver OA-01e-1).**
+- `handlers/admin.ts` y `adapters/db/tokens-cuenta.ts` (M-18) no nombran `estadoPago` en código ni usan `console.`. Pon las rutas de §D-7 y §D-8 en `handlers/admin/usuarios.ts`.
+- En el mismo archivo: ningún handler usa `obtenerDb(` ni importa `adapters/db/cliente`. `$queryRawUnsafe` aparece solo en `adapters/db/cliente.ts`, así que la lista de usuarios (SQL crudo, §D-7.1) va con `$queryRaw` de plantilla y los filtros opcionales con `Prisma.sql`, `Prisma.join` o `Prisma.empty`, nunca con `$queryRawUnsafe`. Ningún handler declara `: PoliticaIntentos =`.
+
+**O-01e-2 (C-8, `lecturas-fx-r1:758-834`). El conteo es del texto, comentarios incluidos.**
+- `adapters/db/gestion-de-usuarios.ts`: exactamente 2 `instantaneaUnica: true` (`listarUsuarios` y `leerResumenAdmin`). `adapters/db/movimientos.ts`: exactamente 1. Si usas otro número (por ejemplo, la ficha también en la instantánea), decláralo y lo ajusto con el mismo C-8.
+- `clases.ts` sigue en 4: el `enTransaccion` de `crearClaseAdministrada` (N-03) no lleva la opción, y ningún comentario nuevo escribe `instantaneaUnica: true`. `maestros-de-clase.ts`, `tokens-cuenta.ts` e `inscripciones.ts` siguen en 0.
+- Fuera de `adapters/db/` nada nombra `enTransaccion`, `instantaneaUnica`, `isolationLevel` ni `RepeatableRead`, ni en un comentario: `core/usuarios/`, `handlers/admin*` y `config/logger.ts`.
+- `isolationLevel`, `RepeatableRead`, `REPEATABLE READ` y `Serializable` solo en `cliente.ts`. Un comentario como "en REPEATABLE READ" en `gestion-de-usuarios.ts` o en `movimientos.ts` lo rompe. `adapters/db/index.ts` no nombra `enTransaccion`.
+
+**O-01e-3 (`lecturas-fx-r1:1129-1155`, cuerpos de `clases.ts`).** El caso corta el cuerpo de `leerClase`, `listarClasesImpartidas`, `listarClasesInscritas` y `listarClasesAdmin` desde `export const <nombre> =` hasta el siguiente `\nexport `, sin quitar comentarios. Una función privada nueva colocada entre una de ellas y el siguiente `export` cuenta como parte de su cuerpo: si escribe (`.create(`, `.update(`, `$executeRaw`…) o bloquea (`FOR UPDATE`, `FOR SHARE`, `FOR NO KEY`, también en un comentario), el caso cae. Hoy `crearClaseAdministrada` (`:149`) y `conReintentoDeCodigo` (`:127`) están antes de esas cuatro. N-03 y N-32 deben dejar sus ayudas nuevas fuera de esos tramos (`:219-235`, `:280-331`, `:339-415` y `:445-522`).
+
+**O-01e-4 (C-6, inventario exacto).**
+- Son las 13 entradas de la tabla, con el parámetro `:id` (no `:usuarioId` ni `:alumnoId`) y `estado-pago` literal.
+- Cualquier otra ruta o método lo pone en rojo, por ejemplo un `GET` de `/api/admin/alumnos`, un `PATCH`, `/borrar` o una variante con otra forma.
+- El `HEAD` de cada `GET` lo agrega Fastify; ningún `PUT` ni `POST` lo tiene.
+- `noReconocidas` debe quedar vacío, aquí y en ADM-1A09 (a) y ADM-T1A09. `printRoutes` mezcla el estático `estado-pago` y el paramétrico `:id` bajo `/api/admin/alumnos`. El análisis por sangría ya reconstruye casos así, como `/temas/orden` y `/temas/:temaId`, pero si una línea sale con otra forma, cae.
+
+**O-01e-5 (C-42 y S-16).**
+- C-42 queda en verde solo si cambian a la vez el adaptador y `shared/`. `maestroDeClaseSchema` es `z.object` y descarta claves desconocidas, y `GET /clases/:claseId` responde con `claseRespuestaSchema.parse(…)` (`handlers/clases/clases.ts:133`). Además, el backend lee `@campus/shared` de `shared/dist` (`exports` de `shared/package.json`). Corre `npm run build` en `shared/` antes de la suite del backend; si no, C-42 sigue en rojo con `expected [ 'id', 'nombre' ]` aunque el adaptador esté bien (comprobado con la sonda S-16).
+- La marca va solo en el inactivo y siempre `true`: nunca `cuentaDesactivada: false` en el activo, porque `a` exige `["id", "nombre"]` exacto. El campo crudo `activo` no sale en ninguna respuesta (`prohibidas` lo busca con `clavesDe` en todo el JSON).
+- `listarClasesInscritas` no cambia: inscritas sigue con `["nombre"]`.
+- `maestrosDeFilas` también la usan `duplicado-de-clase.ts:207`, con su propio `select`, y `maestros-de-clase.ts:48-50`, con `SELECT_MAESTROS_DE_CLASE`. Si su entrada pasa a exigir `activo`, el `select` del duplicado debe pedirlo.
+
+**O-01e-6 (C-25 a C-32 y M-09, el serializador).**
+- `serializers.req` corta solo en el primer `?` y conserva el camino completo, ids incluidos, y `method`. `lineasDe` de `logs-r2` filtra por método y URL, y los ocho buscan su centinela con `req.url === <camino>`.
+- No cambia los mensajes `"incoming request"` ni `"request completed"`, no apaga el registro de peticiones y tolera un objeto sin `url` ni `method` sin lanzar y sin devolver `body` (`logger.ataque:60-82`).
+- Con el serializador de §D-7.11 en memoria, los 15 archivos del log dan 48 de 48 (sonda M-09).
+- Las pruebas de ADM-1E22 van en archivos nuevos (§D-R0).
+
+**O-01e-7 (`lecturas-fx-r2:972`, O-4; vigilada `:967`).**
+- La baja revoca sesiones y `tokens_cuenta` con `UPDATE … revocado_en`, nunca con `.delete(` ni `.deleteMany(`: el conjunto de modelos borrados es exacto.
+- `/DELETE\s+FROM|TRUNCATE/i` se aplica al texto completo de cada `.ts` de `backend/src`, comentarios incluidos.
+
+**O-01e-8 (`alumnos-b-r1:1149-1162`).**
+- `inscripciones.ts` sigue con exactamente dos `movimientoInscripcion.create`, sin `$queryRaw` ni `$executeRaw` y sin `orderBy` con `creadoEn` en la misma línea. `listarPersonas` lee `activo` con Prisma.
+- La lectura de movimientos vive en `movimientos.ts`.
+- `handlers/clases/alumnos.ts` no se toca (no puede contener «movimiento»).
+
+**O-01e-9 (`hilo-01c-r1:705-753`, `temas-01a-r1:985-997`, `temas-01a-r3:426-428`).**
+- `FOR KEY SHARE` sigue solo en `entregas.ts` y `referencias.ts` (en código). Los bloqueos de 01e son `FOR NO KEY UPDATE` y `FOR SHARE`.
+- `adapters/db` no importa `adapters/queue` (ni `../queue`).
+- `bloquearClase` sigue definida solo en `bloqueo-clase.ts`: un bloqueo nuevo lleva otro nombre.
+- `$queryRawUnsafe` y `$executeRawUnsafe`, solo en `cliente.ts`.
+
+**O-01e-10 (recordatorios del encargo, no son míos).**
+- **N-18:** en las pruebas nuevas de 01e (baja de maestro, S-16, ADM-1E*), ninguna clase queda confirmada con 0 o con 3 maestros.
+- **E8-4:** ADM-1E02, ADM-1E10 y ADM-1E11, con filtro propio, misma instantánea o propiedades de la respuesta. Nota del manager: los cambios de la misma instantánea, con Prisma directo sobre `tx`.
+- **Lista cerrada:** `movimientos-inscripcion.integracion:243-281` y E6 de `bloqueo-usuario.integracion` son del programador. No los toqué.
+
+### Para la ronda 1 de 01e (del manager, `revision.md`)
+- **O-R1-1** (una clase archivada con 0 maestros daría `500` por `min(1)` en `GET /clases/anteriores` y en `conMaestroPrincipal`) y **N-18** son para mi ronda 1: 01e es la subentrega que da de baja cuentas. En la ronda 0 no hay código que atacar. Los anoto aquí para no perderlos.
+- **"Verificación de la Enmienda 13"** (`revision.md:5624-5696`): el manager acepta del diff de `gestion-02a-r1.ataque` "solo el título de `:694` y el bloque que reemplaza `:728-729`". El diff queda en dos hunks: `@@ -694 +694` (título) y `@@ -729 +729,16` (`:729` reemplazada por el bloque, con su comentario). `:728` no cambia. Su N-1 (el hueco de `desactivarUsuarioDePrueba`) queda cubierto por la sonda S-16: `cuentas-03a-r1` sigue en verde con S-16.
+
+### V-01: SHA-256 de todas las `*.ataque` (base para el programador de 01e)
+
+Son 267 archivos: 101 del backend y 166 del frontend, todos rastreados (`git ls-files`; ninguno sin rastrear). Es el mismo conjunto que en `ea718bc` (`git ls-tree -r ea718bc`, 267).
+
+- **Comprobación de entrada:** antes de tocar nada, los once archivos de los C-n coincidían con `git show ea718bc:<ruta>`.
+- **Después de los C-n:** comparé las 267, una por una, contra `git show ea718bc:<ruta>`. Solo cambian las once de la tabla "SHA-256 antes y después"; las otras 256 son idénticas a `ea718bc`.
+- **Formato:** `<hash>  <ruta>` (dos espacios), en el orden de `git ls-files`.
+- **Lista:** `sha256sum` de la lista de abajo en ese formato, con salto de línea final: `b17af275a66e713514190bf5d07c1ed50811b2f059fecc6548c62992cb5ca8dc` (267 líneas; comprobada con `sha256sum -c`).
+
+```
+65c1d9d9e6cea8ba8cf98bc522c6ba6d7122376d0201ccf3fc3048d24b60543f  backend/src/adapters/storage/objetos-r1.ataque.test.ts
+935a721160f978e35d45d2c9392fe8cb169fae32f43b9df583bda46215707e22  backend/src/adapters/storage/objetos-r2.ataque.test.ts
+bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671  backend/src/config/correo.ataque.test.ts
+dcb78d222544e8dc4fbece59468f555b04abe971b70016e9bb17fcae3e958580  backend/src/config/env.ataque.test.ts
+71e7f049447d2d1ecedd897c55ea0b6d31221753f0a7e7473c7ac6e8667f0a95  backend/src/config/logger.ataque.test.ts
+91f620c1a27778eebc2bed5eec1bc9b0e3fe1199b32ed00f9dd910011d6a1805  backend/src/core/clases/codigo-r1.ataque.test.ts
+262691f5786ad63b2393d0ba5ff97538f6dacf43343bed019ad23c12a07d8686  backend/src/core/clases/codigo-r2.ataque.test.ts
+e769cbfcc3a83a64b51c6437f80684640a7c928ad6b8c5c1671fdff005d7b734  backend/src/workers/ritmo-03c-r1.ataque.test.ts
+294be1af0bf69d6c05f54e2f0d8e587c78a5527d0b64d1a224c058e31ce013d0  backend/test/admin-muro-02b-r1.ataque.test.ts
+388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85  backend/test/admin-unico.ataque.test.ts
+d2cc28b62bf988ae14ba975a9bc8d534aec0eebce30da93d7ded9a26026b0857  backend/test/alumnos-b-r1.ataque.test.ts
+00346d471355abc7971b921649e7192b8987fe27912c00cb7e41aef2065369e9  backend/test/alumnos-b-r2.ataque.test.ts
+fc11ab4b914d4a88612953f82db354e2b9cea9bef86e24321ef7e031f3ac3837  backend/test/alumnos-b-r3.ataque.test.ts
+e75114dc84a076b8f0a3471bacdb63175adbb62223dd041039992c2348eee438  backend/test/api-real.ataque.test.ts
+f76ce52002e295f2bda6e7a7a7f796415e08013e6d4c1fbe2c9c686671fe8252  backend/test/archivos-d-r1.ataque.test.ts
+1637eb447cd12ac5bdddc7634980dbc10a25cbad5de01bf6c09f40ed930ff1a9  backend/test/archivos-d-r2.ataque.test.ts
+42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612  backend/test/arquitectura-cuentas-r1.ataque.test.ts
+38adb0984744a0810287711f57ba0498287d0bc96344b8948ba1c490ca807716  backend/test/arranque-r1.ataque.test.ts
+2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c  backend/test/auth-login.ataque.test.ts
+73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e  backend/test/auth-registro.ataque.test.ts
+6f557e8e860bce6374671e90086e9c14b1861a308b6fbb434564612647892713  backend/test/autoria-02b-r1.ataque.test.ts
+3520057d0f1a27739eaa701aacd9c18d5c0728fc6a3d55374f43f63a5e6f5336  backend/test/borrado-duplicado-r1.ataque.test.ts
+b8fc0db0ea3ec7ff2b89cd9e345c57a9b4ef73afe16fb1aa3e6fdf73c27c16a1  backend/test/borrado-duplicado-r2.ataque.test.ts
+5e02a27716d63e8ce0fe6b6171bff089eb3ee2548260349b16950d7e65a1bcf9  backend/test/calificaciones-01a-r1.ataque.test.ts
+afb531e7ccab1cb53f0322d7d099a7f435dbd42325de8c225525e3784b93f6cc  backend/test/calificaciones-01a-r2.ataque.test.ts
+dd919ebd74a2c6ac60c244a1563b46895821b0d25e5051cda25fffb72b653416  backend/test/calificaciones-carreras-01a-r1.ataque.test.ts
+b09baaec53455cea1a0674890ebd9353007e6f2628001446e873b09279ffba07  backend/test/calificaciones-estatico-01a-r1.ataque.test.ts
+29eed2e93af2775a4605160ea533bd462fd03cb1cfe4c47154898358a7255869  backend/test/calificaciones-estatico-01b-r1.ataque.test.ts
+6e4c0eb47ff8020b0a539e5b70b24c8c1d05f7773ea092cd513e39c68cf4534e  backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts
+6e3c92c13f146a01c8dcfdc7dd04bea59f0e2562051f6ac65f95f924ef73e4db  backend/test/categorias-01a-r1.ataque.test.ts
+f2cff9c7d70b053d48e654aa2402d2c1d5d6694de8bb49538049a49a4eab48b2  backend/test/clases-archivadas-r1.ataque.test.ts
+62e4c2ce2ddf293797c0b08021bcd22c5da3c958e7b99521cc47fbd003377933  backend/test/clases-archivadas-r2.ataque.test.ts
+95bba9bac44366ad5a361e93dd2f278cb0a1cc889fa479049acc7b45a9a5e71b  backend/test/clases-r1.ataque.test.ts
+a87817d56c236c0ba3597214cac23b10483bbc28ae44800c592ed5ce2ef97f38  backend/test/clases-r2.ataque.test.ts
+72de7d8af3d3f772abc19db065f6e418f6eb76ce78d87fe6ebb51335fc99825a  backend/test/clases-r3.ataque.test.ts
+be97c4e48ac9551bed1d01552e90ab8cdf085cf928ae6c8c3d81809e35f7ce62  backend/test/clases-r4.ataque.test.ts
+000ec9008c73d25121c82a46f5ea0f67e6c8c387cb04e361ef82812b57956098  backend/test/concurrencia-02a-r1.ataque.test.ts
+530546b4d70a2b9ad36f98f37e2af45480e81a1101ee3516d15426f78350bf82  backend/test/cuentas-03a-r1.ataque.test.ts
+6303ddc170545f616c66773c3f5475cb3be1fea9347d8059354d6ade8d676c16  backend/test/cuentas-r1.ataque.test.ts
+3a4e81c111b8eeb7df065804aa85062fa3fc607f0147149b71ac21c14e7818d9  backend/test/cuentas-r2.ataque.test.ts
+f54f79f7b2a83e95fe440053ccaf15cb3ebb01ce5dfd4c6655e22159a5fd7e6b  backend/test/cuentas-r3.ataque.test.ts
+a2f9bff596330a7d55d1ca9d47197fc831eb132f52c759610e2d667895c3332f  backend/test/cuerpos-02a-r2.ataque.test.ts
+4ea45eaa95c5ea2e1ec91e04d2bba32689a30bd341ade16625b28aabdb96d6d9  backend/test/dudas-clases03b-r1.ataque.test.ts
+d7a9da854ce8ab8ad8d2437db2e8c2a642a777ea3261a6b038da28be022df848  backend/test/enlaces-03b-r1.ataque.test.ts
+dc1b7ee7ea58966f5db33ccb4581885a9669dea2263954ae46d17a83e1ef6eaf  backend/test/enlaces-03b-r2.ataque.test.ts
+b051b1986496e35e3e306c4c6bc306a763542bca4b350574d0c02e2c484deb35  backend/test/enlaces-ch-r2.ataque.test.ts
+d28cc4de621a680e6b54b2bff889700300d558ec7849717584518d2f03ec8cae  backend/test/entorno-ch-r1.ataque.test.ts
+47b02c6d3916713bf9236a619fdb59a641d2e805f1f0b7e9b2c161fe719ddc3a  backend/test/entregas-01b-r1.ataque.test.ts
+5baaf6f8fb76320620ed4a84efaca2b2d473460f62360e0d48738b97a0ac584a  backend/test/entregas-01b-r2.ataque.test.ts
+885668a621af11f17b4ac706db705aef33231b7773e4783147d21b318bdd0f9a  backend/test/exportacion-02a-r1.ataque.test.ts
+ba1ac9b17cc9bf747522bd4ec8b87df436008482e643b18eea8e9a8c041c59b3  backend/test/formada-ch-r1.ataque.test.ts
+f12aef58da6e9c1efb134c8667b8c6ee8cde3401c9ff6b444164882f664a225e  backend/test/gestion-02a-r1.ataque.test.ts
+e4e9365ea010f3f670b6c1194d1a592e95db43bff0496d4ea1646fc5225ca8b4  backend/test/gradebook-01b-r1.ataque.test.ts
+5f4133f949d2f337a8f63b75cf82cb77114db7812d67c1960105f5000c31a326  backend/test/guarda-ch-r1.ataque.test.ts
+7a7dac6d87edf81059fcff9c07471aaf49d690ec159be4b9fd4aa32b0909a215  backend/test/guarda-ch-r2.ataque.test.ts
+610ee44e5d0bcea46eb4e3645f9adf1998a76947a25af7e3f8248ea3a633df79  backend/test/guarda-ch-r3.ataque.test.ts
+e5d149f3ac52b726e1fe08908249706341330f88eaa6674b9a9ac67b98b1e864  backend/test/guarda-clase-r1.ataque.test.ts
+c979d2c9c420a2177fa6ebddb78eb2ce84d5f043b94270f690916a6fc75d6f8f  backend/test/guarda-clase-r2.ataque.test.ts
+20982e2b98f1b162146a211923f3d5ec19d4e170c4aa3a5bfc6f82c3b6173aad  backend/test/guarda-r2.ataque.test.ts
+2649f3d357dcb806361ac101c57fcb504b9c798b631048f0b3e200f63da7dc30  backend/test/hilo-01c-r1.ataque.test.ts
+2d2216ee9db290b318825a6f73c346d4767cacc12d95f5ca76457a78b63fedc3  backend/test/instantanea-01b-r1.ataque.test.ts
+a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a  backend/test/intentos-r2.ataque.test.ts
+2619b44eea3370494c95ac128fcfd9e3ffc20d1581a19f549bf371f603a11d7d  backend/test/invitacion-flujo-03a-r2.ataque.test.ts
+704155928183aec193ae7e157b86b3e9361d2b63c7a47be1ed859605fab4ffa6  backend/test/invitacion-masiva-03c-r1.ataque.test.ts
+dd9b7454e8786bf0b833d265900ccaecf595808cebc8e9a77c9aef15298a1038  backend/test/invitacion-masiva-03c-r2.ataque.test.ts
+e3e7d53e2cec2d70e5321d2452939a5e9d71dbe5421b1e6856beb3c8e1bf4e56  backend/test/lecturas-fx-r1.ataque.test.ts
+b008263d6fac9b031bdb03251da25545611f863d0cf405de21fa4514caff60ea  backend/test/lecturas-fx-r2.ataque.test.ts
+f9f9ec59ec8d1a5ccb180522798140c45604440f48edcd68a3e02863d90ae347  backend/test/logs-02a-r1.ataque.test.ts
+a2006c163d9e6cd3e4a2a773d1501826daf3c8e7bb184d205bfc6442318fb59c  backend/test/logs-02b-r1.ataque.test.ts
+01ad4e952282047f4826d6d86fc21fd464143752c8d8901b4063607930d9c1d5  backend/test/logs-03a-r1.ataque.test.ts
+3a626786bdb37eb05744b50c9c2c03b4037bf947991a9905f015ca04560464a0  backend/test/logs-03b-r1.ataque.test.ts
+9f0f965dac2650b722520550386df12a27d39d65c6c4ee2bfdc3279925777334  backend/test/logs-03c-r1.ataque.test.ts
+1e775a19682f3a5995d7c035bcc810a36bf50c22045b6ffbfc5a98b821255db0  backend/test/logs-archivos-d-r1.ataque.test.ts
+e9ce866d511e3ee6029015b74e20b4d342a60be99b3aac97e86f00283a3c77f1  backend/test/logs-archivos-d-r3.ataque.test.ts
+5ff85c4346a45d04974ced7dc62f0222135baa70fc3e2e64dd58d3568ad38bb3  backend/test/logs-cuentas-r1.ataque.test.ts
+1f044c28108fc77f5cdad9056eb758be194c44b40f398bc818f473d79954b95c  backend/test/logs-muro-c-r1.ataque.test.ts
+9cdb901292f5a5a5060dc1d5de4ce35b6fdbe5d41b61d345eeb4f870186d3735  backend/test/logs-muro-c-r2.ataque.test.ts
+a2507bb8a5f031143a08e9570c1299f7fa1effcf54b006358da2b4a99dc21ec8  backend/test/logs-r2.ataque.test.ts
+d6b9adaf1c14a61fe369f510774ef702cfa20f28f3cb19b0eb7357440dcb0783  backend/test/migracion-01a-r1.ataque.test.ts
+2afd58e1ead0a293aa7bd58c639f3e5126d153a418f9a26450228468e12b2bed  backend/test/migracion-clases03a-r1.ataque.test.ts
+bc6d49f9fc1f5eb20e305945fef57caeebeb108bff5d5cf4ba10b8040687d69c  backend/test/mis-calificaciones-01b-r1.ataque.test.ts
+d23bf1312777bdc000810e403a5b4d99c9c0e12998e4cc11be5ef5a2253f6935  backend/test/muro-c-r1.ataque.test.ts
+7825cfc9b484df740fa0e9562a195d1bbcaf4caf72ea55fa847b5394ab96c125  backend/test/muro-c-r2.ataque.test.ts
+8b733b86fc6d54ece008389a59793fae4ec4a65146eb37215e900e50a5337d46  backend/test/nombres-guarda-r3.ataque.test.ts
+3fd2583a4de7cd432b2e09a5130c23d6a59fa475e5e0aa69f23739351acbf9cf  backend/test/nombres-ids-01a-r2.ataque.test.ts
+00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb  backend/test/nombres-tokens-r2.ataque.test.ts
+80b5a848f69b429e7dadec86c07bec1d3e3eed8a042efba41ce912ded39e7bab  backend/test/nowait-ch-r1.ataque.test.ts
+fd2ae2e9792db81d838580b0ef2769ce8ef08059e3353aa5ab927c62295da9e8  backend/test/objetos-reintento-r2.ataque.test.ts
+42f4e113762ef26459e95642ff4b814613353d64d462ab2b01ecdeef4b9e160d  backend/test/recursos-clases03a-r1.ataque.test.ts
+ff4d112aff8685fcd9c5ca933a0b359e2b4e9bedad8f1b5d3d787cfdec711516  backend/test/recursos-clases03a-r2.ataque.test.ts
+ad0dab1952e509237acac12bb1f6774fa9c5de8b44d1e6928edc65cc67a78c21  backend/test/referencias-01b-r1.ataque.test.ts
+6f2abc2cefd77d74cd1e3abbdce9c41bb53d00bd4d8e5ba7e496c4441c2697e5  backend/test/servicio-ocupado-ch-r1.ataque.test.ts
+e177959b61b1f93fa60d72b260465d4b53b66745fcf51e3befd8e5c7383a7f51  backend/test/sesiones-y-cadena.ataque.test.ts
+70ac720f2e7fcadee5bbcb6414887ab08129dea7cd91df012046953b1584e8b6  backend/test/sexto-paso-02a-r1.ataque.test.ts
+c89c30851e6b409cd045017181147bf674df947762a8dea3f3fb981bd9b36e09  backend/test/tareas-01a-r1.ataque.test.ts
+79bc7aafc11676d36129610a4b5cd5fe5d8234d0d748487fd2f3e48c5f772c79  backend/test/tareas-01b-r1.ataque.test.ts
+ae60c11cff5c82df4954db48582df4bd5a64957ff9afaf9712aa43a038f8e189  backend/test/temas-01a-r1.ataque.test.ts
+dc7b86a621062ed671c1e7174a745019133fbd410c7a2e78114b2a2c50affe95  backend/test/temas-01a-r3.ataque.test.ts
+f09e9a0038c47d1a2223376a0af260baf573f0c45bf770201c48c9e30296f04b  backend/test/worker-03c-r1.ataque.test.ts
+9f60f9d65d52d2021a1eb04e9f01d3cc68f22744c845bf93d6621aa4fe9713a8  backend/test/worker-r1.ataque.test.ts
+77d11bd85f202a9eec92a363df82e63fb9a784ca9d368d49f62e61c1a2aa967b  backend/test/worker-r2.ataque.test.ts
+0e49b62b73b2ef55e8c0b2ba26e1d136a3adb674761fda2c11453eb5c2faf7cc  frontend/src/app/barra-02d-r1.ataque.test.tsx
+b89ede0f6aed45dfcb5e64c8909a822156ce43fd80948e72419cdce9d4541a87  frontend/src/app/cache-03a-r1.ataque.test.tsx
+e85743c0fbb8e476874a2c67334342d8d69d14153579fc1e4cce0ae6e2b29616  frontend/src/app/contexto-r1.ataque.test.tsx
+bc2be5541006887e2a5a4a89b33046180f607d54474b0f96a73d615afbcac385  frontend/src/app/contrasena-r1.ataque.test.tsx
+f38bcacb716d8a39acdb3535a95603cd0d8ab02572ca57a7df5268b01ceb6eac  frontend/src/app/contrasena-r2.ataque.test.tsx
+68fb5d092c0c8ecfcf282477ef023aaae26f6b869656e05109dc3efa276d842a  frontend/src/app/cuentas-r1.ataque.test.tsx
+41930017715d3d6869dc7acefd75de8ec3684f1f035b845abdf8ec0f6b734dee  frontend/src/app/cuentas-r2.ataque.test.tsx
+1506c27e5f7418b5e087fd30f8809645a2fc3e2761c7249de78f02e24aa6c7a5  frontend/src/app/en-espera-r1.ataque.test.tsx
+db48dad405c27062621a44d3744c84cc5903892a51e5a8df18f41383cb9c88a3  frontend/src/app/errores-r1.ataque.test.tsx
+0e1d93e4dd3cbc7b5e9475a17b5ca66f0df056ba25cb117249f4c2e2f5887a51  frontend/src/app/foco-barra-02d-r2.ataque.test.tsx
+2154b5c15f696a0c7f884bff774cf4e2a4208a5281db9076653f8253e2385ab9  frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx
+f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4  frontend/src/app/fondo-r1.ataque.test.tsx
+29782507d18ff96315e4030e890b21fdf1eb1c5550c3d1cfe5c92664d30b64dd  frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx
+57cb54afd3b79464f0df01b88fc388cebbeac5657d936c4c204cbae6034b0834  frontend/src/app/marco-r1.ataque.test.tsx
+c8a9812f21cb24db50cc2afd945b7b38abacb468fbf4f4df16c07a52c48426ac  frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx
+d7608d7fc7767f53db3971672fc99fdb8bbd33f303f41e321bcc48ad25f511fd  frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx
+2f8056a770397c1601647277944555a48afc4b9a2babeb75e5898f0cc92562bb  frontend/src/app/muro-rutas-c-r1.ataque.test.tsx
+6acc49a2e3b649868ccf9a9337143f991b655dafbcff2e5916bca0269bd23a7c  frontend/src/app/personas-03c1-r1.ataque.test.tsx
+a3e3dadd35c40e9a11a0bdef8cd716daceeb254e5307a837c6598213ba803a7b  frontend/src/app/personas-03c1-r2.ataque.test.tsx
+0eefed2c05d76b0790a437e9465a898a9076083b1f046f8785145cfaad0da379  frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx
+053e867a904afa3c09eef92ca2e03e929d9f9c93f714040856f40c7418721bbe  frontend/src/app/router.ataque.test.tsx
+fc820217bc3baa3749c077fe16a4abd7ae10e92c84494ffb2a215133c19df36a  frontend/src/app/rutas-01d-r1.ataque.test.tsx
+f0657fb91f7b3accf64726292f9324c6742c1ac537c6c4a1985ec4e32ae09c83  frontend/src/app/rutas-02c-r1.ataque.test.tsx
+c7946f5f5d5d16d36b395adc2ad9928acc7fd9839875fb64532b51489756730b  frontend/src/app/rutas-clases-r1.ataque.test.tsx
+f090cbd8e8c9b0af52d4fc19547b07e9b6413f5414cc4b10862f01e29818dddc  frontend/src/app/sesion-r2.ataque.test.tsx
+11c6d9c55be91aa41e8525345e3795e34b8e1e661ff7cdd901f729760a033cfd  frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts
+48f5ff8fef35faa6d8500fae4a53ca953d7f661100a5c4879ba58e68972ab2de  frontend/src/components/foco/foco-01d-r1.ataque.test.ts
+36d605f79169e16a5afadc7e07fc3781472dd393406430277ceb147fc2da1fa5  frontend/src/components/layout/estatico-r1.ataque.test.ts
+0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c  frontend/src/components/layout/pie-r1.ataque.test.tsx
+00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21  frontend/src/components/layout/pie-r2.ataque.test.tsx
+472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76  frontend/src/components/layout/pie-r3.ataque.test.tsx
+a1814d281dafd8243989c9f9a462a4f33a86b1fb70eeebf29e99bcb0f340d82a  frontend/src/components/ui/badge-03b-r1.ataque.test.ts
+7d080037d9a64eebcebb789d1dfd94b787652103e6f9c84f968f9c9f64c3b30c  frontend/src/features/admin/cuentas-r1.ataque.test.tsx
+b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184  frontend/src/features/admin/cuentas-r2.ataque.test.tsx
+72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a  frontend/src/features/admin/cuentas-r3.ataque.test.tsx
+942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4  frontend/src/features/admin/cuentas-r4.ataque.test.tsx
+3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998  frontend/src/features/admin/en-espera-r1.ataque.test.tsx
+c21edb5a06b43808ce2be23058409b7ff887e66d60e842c500a3714a90ebcb25  frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx
+8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35  frontend/src/features/admin/foco-r1.ataque.test.tsx
+30f45bba30d9348ec1587b42e84ca370274e1bf0af0f310b8a6bbd79fa982669  frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx
+d477a809e55e603d3ef6c02ca43b21372b75d0947fa303f1539d48bdf32841f8  frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx
+761f54f183540d8ae222f97940fa6c2355ff33e515771e627f8efde49261eda2  frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx
+14ead3dce027b433d51a9d635b0fa35718ee3875bffc3e1949f96ecb8d2f7135  frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx
+3ceda51db8f67f40c26615fbc4cd7d082035b00f38713c6ca4c7db58e47926c8  frontend/src/features/auth/enlace-r1.ataque.test.tsx
+1f5d1147637c09daa6fdf1384e4395edd69dfdab84aae5d602a362dabd3295bd  frontend/src/features/auth/enlace-r2.ataque.test.tsx
+af3f0d474f8052b402c8959a64acf9e730f9ae60f09d90996a6306e9c2440f08  frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx
+991b115524d8dade8d6ea2c51fb753dc8832ee410db2161a0ce761d011cfca4a  frontend/src/features/auth/invitacion-r1.ataque.test.tsx
+96b6ab55f0a7bf9b66f8edbcb5ceffa7e4fe35935c6cb12ecab93fc04bc02856  frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx
+0ce580976ea894ee4bd9c4adbe3d7d1d524354a8ff22fc7e7cc6acf89057aa53  frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx
+4bcd3e34b62726fea718efb9c482d8c1f504bbe85ef32427bdf4d65a6832d8f1  frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts
+812ee5f1b04a1218e2b96cdb97fb5a964a4a21b0d81b95bb4889beaa4a3894bb  frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts
+bef8aa53d338fde15e251d53756b76e3381ef9f6de4943c4db83c8e2b3d258dd  frontend/src/features/calificaciones/exportacion-02b-r1.ataque.test.tsx
+d15e821c212bb268c65bd9dee36293b02f5bde4dedd4bf9926dbbf99b9971f57  frontend/src/features/calificaciones/exportacion-02b-r2.ataque.test.tsx
+5991d8e3d4e694973309f178e5341a2285584cf9ed6006fbb658d7f5a61de5dd  frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx
+c744fb831fa9992c2a9ed0729f9ec3cc089f3167ca19133c6eee0133382607a1  frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx
+8dea1c2adc5d228e166ce6037a1a1a827d26e2bdc6d7c8534f146517ebc1ac44  frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx
+6f7496ca7652e7b4441a7eb9822e74270d50127ac40ba27b86c83edfcd5cc3fa  frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx
+24751f358fc5ecd485c475e7025dd881b87fe892f025459a6ff29f615fc5cc66  frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx
+c504d0ad3690781275a6ffb78638a6148550b2fd4ee1ed25a4b154054fc4f80d  frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx
+6ac36ce1eb4df953626415b3ed431a8f4809dc29cf259f755f1f8509dd54b7ef  frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx
+fb33f2a27bfcca906549a12610977478ba72e6e7ed8afd5c5a0a962deb3eb802  frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx
+932e76314e0447da1790c3c86ca48545eea834feaf6f706c4d405b7ea62be872  frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx
+55dc274eca96da4360848b88f9f2a839ac815031490ab57ff38de074512d632c  frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx
+371518e4309f14201a92d29f9436a97a19801b506d45114964fbcfe3f5cd4183  frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx
+266d088dd727f18af8c8a106b8d9c4dbed75753e4b1b4abb12f3a4df870ecb7f  frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx
+856cffbd9c743f9815daf731487e29dc5f5272545dc15820a70baf86ecfa6527  frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx
+a9dc00d9cf6e8684113eeb824658c7fb2f3077ee8a54deb0cce47ac802c74f44  frontend/src/features/clases/archivos-d-r1.ataque.test.tsx
+98e645df89c9736ee33f440c1d83f342be84f30caabec0310b1b5185e538fbd6  frontend/src/features/clases/archivos-d-r2.ataque.test.tsx
+f1b2b7d3c2a2bfbc2c2aa31cce4b120e306681c0cc9efb85ac2a954c8f8f8afe  frontend/src/features/clases/archivos-d-r3.ataque.test.tsx
+c6c85ac2f6e7418e81d7817f9c455c0e0973025a15ae2a5378e00c9a71c45620  frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx
+a3880b67ffaa0d15763d1c761cef1ff8472029c77bfb2211ab079eadb1685325  frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx
+66c0b873bc8b9d8e9e01ac871bd6aaab4328508beb5ec9371d69463d7c12430d  frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx
+53909e72f161cb3494086fff21b521f8dea1425b687258bd14d4e8b401ece3c1  frontend/src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx
+907f9ba5b6881a4831fc4062c27d685b5daa19e690eff7a3a40b02b5fbec6a72  frontend/src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx
+a188c90deb61bafedabc50b76c77b02507964297cd6b155f905114839f728493  frontend/src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx
+0fc7408a9c9e039c700956c8132790e689b84db3714f52080df86aecb387d88b  frontend/src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx
+4e3a45f7672489373d6d1ad3f2309c572e9b7930e846fa9596b60a858c933294  frontend/src/features/clases/clase-archivada-01d2-r2.ataque.test.tsx
+6f30bd0fc683631483ca1f35943e932f8883e83a3f4559f72110d67ce1590a8b  frontend/src/features/clases/clase-archivada-01d2-r3.ataque.test.tsx
+1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65  frontend/src/features/clases/clases-admin-01c-r1.ataque.test.tsx
+76b5b2522f60795c0e7672da7b10ea95a3ce61d1aa26f102ef8eb057bd3ce6d9  frontend/src/features/clases/clases-admin-01c-r2.ataque.test.tsx
+cffce654ebfb37dc10f8ce8bf7026fc982a8c3f79b677fa2eb82c4476e113f83  frontend/src/features/clases/clases-admin-01c-r3.ataque.test.tsx
+87dae1927669b46bb52aad94db5107a5284f772fa9b29e225aace19c1a1e8def  frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
+5f0679d8cfacc8bce01989c04a415dc5b546625eb7dec92f03959de5a0f89815  frontend/src/features/clases/clases-r1.ataque.test.tsx
+c7ad5edc733e374117a9277f1c2987e84cc2930c77eb4c720ccf15cc9f5fab45  frontend/src/features/clases/clases-r2.ataque.test.tsx
+a835a11d29aedb8f77f91e826a22c2b7cf5322fced3f6bed0c1acbf7c75a4e61  frontend/src/features/clases/clases-r3.ataque.test.tsx
+86b04d234527eceefca35b07ce89e6b7ce0b6afe5ccdee2f005e6a4219f0495a  frontend/src/features/clases/clases-r4.ataque.test.tsx
+dce7fd019a6e32b8e4df37dd0728e265f5e9449e9ee2723f372ea174fe312464  frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx
+3b5a9fac5cd20a881bf6b38597b752725a7f6bbfddcf103b7bf1239a76353dfc  frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx
+fec2ffc2691bd297dca5f90233d498d10dfd689a5d9a8819bc30e757c6f67c26  frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx
+18edcffc8e48073362b98c784d5bf64e3335709ae6e1c6425b32aa3310e24b56  frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx
+ddc9dfaccc8230ec612126fdf29939a8e4311188566e5cfcaa724bd119e959e8  frontend/src/features/clases/errores-ch3-r1.ataque.test.ts
+5e20eefe0104b510a3002de084b6162162b5bf20797622c8d92b350853494b53  frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
+3cb8e0d7bb13b57638d65aa74ec5ff0f9306f024cf6996b7737232243a0b82f8  frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts
+cdd1ed8890859ae3e884822fc7074852a2173105114745d83fe9a15c1c47c626  frontend/src/features/clases/estatico-r1.ataque.test.ts
+de23d395dfe7a6f3d6d15eb48cb574599dc9d8204e5a90b255c0c10d25a186fa  frontend/src/features/clases/fila-01d-r1.ataque.test.tsx
+46383e1f3ede03cb204dbf602373d0a07e513d8dac7ec4179a203ea6ee270fa3  frontend/src/features/clases/foco-02c-r3.ataque.test.tsx
+0165d4e27b1fff9230d17bec740d89c380b6f322923c7e5a044ac010f4b9358b  frontend/src/features/clases/foco-02c-r4.ataque.test.tsx
+8b8ea2d21597bc0444709a9d26fd795d05bc964ef7b5094240628c63018c091b  frontend/src/features/clases/foco-02c-r5.ataque.test.tsx
+b819d6bbde4bd47e3ec724fcdea5e77eb66b12076b8a9a083691b52ef0bdd182  frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx
+ab006dc1711e9a652643930a7010c25f442d1ffdd137adbb093eb5bd98da90d6  frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx
+5224976752a14c3e003b246fa97abf25356e370cb46da1cdff9526bf3be86b4e  frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx
+7f4a935de29c3c519aad697edb1470c4cfcead600f5c1516c5fff948995d4434  frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx
+8bc578ef17d2731f388c14ca19bc719a2b8d04d8a41009fadee15227379047bc  frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
+479430b848cf3d21a0187138944deec46bb36653071bbd2790ed57620f012976  frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx
+4d94ccbe786a46ca1d82a280956f1146d5c302a9f83dfac45f39b3b2f94b753f  frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx
+0f60f1582fce6e5efaf9bf6856133dc30f1dc4eb9c3b7fea19f90a330f8335b3  frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx
+7c434a0e54e70b12d4b2a3de22ffb4dbf5f28a1cfbd2290c22e8a2b59edf0e16  frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx
+99df138b24d4aba97b9f714c32ba226e82c7403cf73aa2e9e2b0b028b28e283e  frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx
+4817262ef6e4dadff56857e50bab2e06ec479e62d5eaf45b34d70d683736b637  frontend/src/features/clases/muro-02c-r1.ataque.test.tsx
+8da38dbcb605ce3d90ace8117ce2cc5c838d71eb24bdd76fad3a53b82da93901  frontend/src/features/clases/muro-c-r1.ataque.test.tsx
+d0acb3527aafa6f687e3eb00563e37be93768e7d7f742694a4d5ce05b75b7e28  frontend/src/features/clases/muro-c-r2.ataque.test.tsx
+d08e51d451ebaeb2d7086c75dc1f73d52c5b4a6b8dfb979932828bed5f5d459d  frontend/src/features/clases/muro-c-r3.ataque.test.tsx
+558212b46641de0794d0ce90e3944a99cb5baa7fab4b09bbac5ea7cac41eaa34  frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx
+aec8c4131e5dc733246b33e8189e2dc595387324bdd2081d1d245641c20c380a  frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx
+67b60a9a5363f88e6ceba210c27452b8d639f6df798aa4e506dc54bb2312249a  frontend/src/features/clases/personas-02d-r1.ataque.test.tsx
+7677e0571587c89de1cb76788d499ac545255ca64c8afcb38a8ad6e39c02e2c6  frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx
+60541290248812cfce5591ddf33d01125d60c33257743a7ec48a445013d3d8c1  frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx
+4aafaa73980ba1bc29be043623a030c9eaa730825eb61a403bf54f9ac700b42d  frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx
+70b1a49a6a0e471422be987466228e5beb87e25baee2906790651c94ed214a3a  frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx
+29a3125cc70969f2fc2bb1f012beeb81840e1a00ea08d5b588b10d190342ae7f  frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx
+85a7926a0f6831a8375f544cf38fe5585a8e2dcbf73d9726e9a3cfaab7f76511  frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx
+4303eac77b98e8978495d9e68fd7725ac436f9db757dbc0c02c59051436908fa  frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx
+09435abbb9a26dd71c52b4d95487c6d38594f1ba062aefb60f73b7eb7308f991  frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx
+d899c19ba982fbde2208bbc7fa009869556c84bd4650586dbd9ee90b22234e47  frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx
+97af503e763f7dff9fcfbdc72862cd21de6af8e51d3ec41134f8475d98ae2df6  frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx
+db42c88d5b0bfb1125bf122c03a2e019d6f5365c128ac4bfadd413a26a934845  frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx
+f6924bc272a5240cf97d35729c797cc10960ed7cf94fe1be1b69ca2df6c1cf8f  frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx
+9866ef34167061e2715b65a352c55d08c7e9268033e879ae633c7fd568e4d49f  frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx
+ea58eb11c3157a33c5730f87f2cf562ae178589b30264902b165c4439cebc2ee  frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx
+2ef258e946084f17e33936e8fa257551a90323b589859dd2e1f70aabeaf711bf  frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx
+e2fefd7d744f77c7bdd2ba73a08cc51076d0f6130bf4d0a225e0e972a1dce111  frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx
+11bb5433fb30f268b6d93e1e7814d826bbab8fb1f173e574faf52f5a96b5a41e  frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx
+d8daccb56c8de8d9f1b0f8d1b0907c110e327f4f55b016fc0fe7fc0f25ccc79c  frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx
+ef86c46708f0682bca5a023e85794639c396ec94d207cac23ceb13585ab39e75  frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx
+af127fae8354906737c857aa497a29a53514c928fa4dcfbfc79a41e3fbc13eee  frontend/src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx
+940817a89a4aaa1703187248e6c53dcbfe97c1af053b2f78c265e34f0ce50e7a  frontend/src/features/tareas/clase-archivada-01d2-r2.ataque.test.tsx
+5ff367edba10c9ba9c7e50f8ed874032654fa2abdc0dd8f4a122a000355472ab  frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx
+2938ae2f1c00f63a0372997c7ba68bdc0ab097895769bf9060072a4ac2674c5a  frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx
+0963f14f4842d6d57288876c932496ac09d44b872fc049492ee6e8ba539f3235  frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx
+4f486ca37d2a2bb6cc26754281d2adce086a9d8d4485a069de7ae5d54e360acf  frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx
+93a5a0a648669e9c96494a62b2b16082b07296f279e2892bf2c8d47834ee2fc1  frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx
+08a5e1a5642e7fc7553632dd5cf4e07f0ea35c3ef1e7293d010bbc49b09465aa  frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx
+172be3efd919c0d3948eca17c7e808968e2370afe1f9c2a28cef7d2ded584b81  frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx
+496652bc59817166f53e00cb828f2119c857c2834063a31764d7876dc150c930  frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx
+edf4d96e4b884eab718d06811877c17b611099a66d6857502f71eedb96026dda  frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts
+94d6e6253b266c7f21099aa593aac7b2600edca22ab403aa365dcd789b1c6a97  frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts
+f614e7369f8c47c40a87ad1f8867fb8edf7ebc76e94d0ba6c5c59c92cb6347f0  frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts
+fb387ecbb7e5272d2ffb53d626b51ffd9c57b409d10c560e6a5ecbfa6a2a8c19  frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx
+7a7c7ba922f77da22d0f765ed5ea9ccf9216d1900e4b5f18365da9d46437495f  frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx
+bfded7507bc684ea9858cd76517ef0e4c23cbc69e5a19f381e6ec522fd6156e6  frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx
+b778fc2e6bb0a8f8715a56877b3b781439ca214c8a9c8ae126f610c95229882a  frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx
+bf3c999033195cac778a82a579e44729fb07a405f5cdb41d8e7dc932cb71f942  frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx
+3567d7c23d2cf6a2fd538cd6822ef60ac3cffeac036394ed1e3559debe492c57  frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx
+6bbe2bd85e2b5500fbab4d0f51630c0c8e9d65b1a63045ad1fa906298a92a435  frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx
+72b19b6a00b4ade43b06829bb5bef1a5cdecf5a7d2af57369f1e857a1d4a17f5  frontend/src/lib/errores-ch3-r1.ataque.test.ts
+5d41a2af073dcaa2b8b016d835d36d5ebae9278863db048484a192a88bb31a30  frontend/src/lib/errores-ch3-r2.ataque.test.ts
+66513d957e524af5e336a2c7e656df37f51106507a3984b691df47cd825d4d10  frontend/src/lib/estatico-ch3-r1.ataque.test.ts
+a9529cefbd27cbb94376a6548ef1b8b247fb1f4155938298ae5d10eaee81008a  frontend/src/lib/estatico-ch3-r2.ataque.test.ts
+60bc1fc7011e9a0fe5a4c4aa45420f2c7d38adb9ee2f8d235d09847dbe13ac3a  frontend/src/lib/format-01c-r1.ataque.test.ts
+c71cba65dd284d7af11cbc812b6bcf75baa373939edb8318e731858d9c50173f  frontend/src/lib/format-d-r1.ataque.test.ts
+89dbbb70d5dc404c3d74db5391d10855c8cb1d6b4c643b6147b3ce6ffb2637af  frontend/src/lib/format-d-r2.ataque.test.ts
+bfa7ded62f7a1402590d438a1cc51060a63fa019ad47d3eb5740e43383064a2a  frontend/src/lib/format-d-r3.ataque.test.ts
+b6265bf6eec25b7f2c34dcd93dd4d8b23d07ca6214576921a50a66ff16346ffb  frontend/src/services/apiClient-ch3-r1.ataque.test.ts
+10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce  frontend/src/services/apiClient.ataque.test.ts
+537e10bc0519805f2be98ff579b34c71eda6fa7d364e355bfbd0050f568ffcb6  frontend/src/styles/clases-r1.ataque.test.ts
+b8085bcbbc7f4b6276bf3a87fb7ba0bc887953a8c6ce372354a7f3f1b5037582  frontend/src/styles/tokens-r1.ataque.test.ts
+```
+
+### Atacado sin hallazgos
+- Los once archivos de los C-n: los tres rojos son los esperados y solo por su razón; los otros 94 casos, en verde.
+- Las 31 vigiladas de §D-R0 → 01e: `605 passed (605)`.
+- La sonda M-09: C-25 a C-32 y las vigiladas del log siguen en verde sin la consulta (48 de 48).
+- La sonda S-16: C-42 pasa a verde y nada más del grep de la Enmienda 13 cae (335 de 336; el rojo es C-8, que no depende de S-16).
+- El barrido de las lecturas del log, de las rutas nuevas y de las revisiones estáticas de `backend/src`.
+
+### No atacado y por qué
+- **El código de 01e:** todavía no existe (ronda 0). Los puntos de ataque del plan para 01e (usuarios, estado de pago, acceso, KPIs, movimientos, M-18, N-03, S-16 y el log sin consulta), O-R1-1 y N-18 van en la ronda 1.
+- **La suite completa del backend y la del frontend:** las corre el manager al cerrar la subentrega. Por eso no hay PA-07 de corrida completa; el control positivo apareció completo en la corrida de las vigiladas (`servicio-ocupado`).
+- **El frontend:** 01e no lo toca, y en esta ronda no cambió nada de `shared/`.
+
+### Cierre de la ronda 0 de 01e
+- **Veredicto: lista para el programador.** Sin PARADA.
+- **C-6, C-7, C-8, C-25 a C-32 y C-42 aplicados:**
+  - C-6 en rojo: `expected [ …(125) ] to deeply equal [ …(138) ]`, solo las 13 rutas nuevas faltan.
+  - C-8 en rojo: `expected [ …(10) ] to deeply equal [ …(12) ]`, solo faltan los dos archivos nuevos.
+  - C-42 en rojo: `expected [ 'id', 'nombre' ] to deeply equal [ 'cuentaDesactivada', 'id', 'nombre' ]` en la aserción de `b` (`:743`).
+  - C-7 es un comentario. C-25 a C-32, en verde hoy y con el serializador de M-09.
+- **Corridas:**
+  - los C-n, `Tests 3 failed | 94 passed (97)` · 11 archivos;
+  - las vigiladas, `Tests 605 passed (605)` · 31 archivos, con los tres `P2028` deterministas de `servicio-ocupado` atribuidos por ruta;
+  - la sonda M-09, `48 passed (48)` · 15 archivos;
+  - la sonda S-16, `1 failed | 335 passed (336)` · 19 archivos, con el único rojo en C-8;
+  - `lint`, exit 0.
+- **Para el orquestador, antes del paso 24:** OA-01e-1. Las rutas de §D-7 y §D-8 van en `handlers/admin/usuarios.ts`, o `arquitectura-cuentas-r1` cae y es PARADA.
+- **Para el programador:** O-01e-1 a O-01e-10. Sobre todo O-01e-5: compilar `shared/` antes de la suite del backend, o C-42 sigue en rojo.
+- **V-01:** 267 archivos; solo cambian los once de los C-n. Lista `b17af275a66e713514190bf5d07c1ed50811b2f059fecc6548c62992cb5ca8dc`.
+- **No se toca:** `git diff --name-only ea718bc -- backend frontend shared` lista solo los once `*.ataque` de los C-n.
+
+## Ronda 1 — ADMIN-01e
+
+Veredicto: **ROTO.** Un hallazgo, de severidad media: `GET /api/admin/usuarios` con el carácter nulo en `q` responde `500` (T-01). El resto de los once puntos de ataque resiste: el protocolo de bloqueo con todo a la vez, la marca «Cuenta desactivada» por cada respuesta, el motivo sin tope crudo, el alta, el lote, los movimientos, el log sin consulta y las cuentas raras. Dejo una observación para el arquitecto o el humano (OA-01e-r1-1: quitar al único maestro activo deja una clase activa solo con uno dado de baja, una segunda vía que N-14 no nombra) y tres notas que no son hallazgos.
+
+Plan: `plan.md` = `7018e1f3…` (comprobado). Resumen del programador `ed312373…` ("ADMIN-01e — Implementación", `:2816` y `:2928`; "Corrección de la verificación", `:3041`). Verificación del manager: `revision.md:5698` y `:5812`, con los once puntos de ataque. Base: `ea718bc`.
+
+Verificación propia (regla "Suites por ronda": los módulos de 01e, mis archivos nuevos y las vigiladas, más `lint`):
+- **lint del backend:** `cd backend; npm run lint` → exit 0, con mis dos archivos nuevos. Antes salió `All matched files use Prettier code style!`, y la última línea es `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- **test:** la lista de módulos del programador (`modulos-01e.txt`, 70 rutas, SHA-256 `4605cfa2…`; incluye las vigiladas de mi ronda 0) más mis dos archivos: `Tests 1 failed | 1049 passed (1050)`, 76 archivos. El único rojo es T-01. Detalle abajo.
+- No corrí la suite completa del backend ni la del frontend: las corre el manager al cerrar la subentrega.
+
+### Entorno
+- Sin otra copia ni otra suite (dato del orquestador). Antes de cada corrida, ningún `node` con `vitest`. Docker encendido. Red `uacam5 2`, autorizada hoy.
+- **A batería:** `BatteryStatus` **1** (descargando) en todas las lecturas, del 85 % (11:17) al 78 % (11:29). Se corrió igual, como pide el humano, y se declara. CPU entre 26 % y 36 % al arrancar cada corrida.
+- **N-01e-3 (punto 11):** ningún `beforeAll` venció en mis corridas (11:17:05, 11:19:54, 11:25:36 y 11:29:28), a batería. Mis dos archivos llevan `beforeAll` con `timeout` de 60 s.
+- Sin navegadores. No terminé ningún proceso. No toqué código de producción ni pruebas del programador.
+- **Escapes:** en la primera versión de `usuarios-admin-01e-r1.ataque.test.ts`, la herramienta de escritura convirtió siete escapes (`\u200b`, `\u200d`, `\u2028`, `\u2029`, `\u2800`, `\u3164`, `\ufe0f`) en caracteres literales. ESLint (`no-irregular-whitespace`) los detectó. Los cambié por el texto del escape con un guion que usa `chr(92)`. Un barrido de los dos archivos da 0 caracteres de las categorías Cc, Cf, Zl, Zp y Mn (salvo `\n` y `\t`). `\u0000` y los emojis `\u{1F468}…` siempre fueron escapes.
+
+### Hallazgos
+
+### T-01 — `q` con el carácter nulo tumba la lista de usuarios con un `500`
+Severidad: media
+Prueba: `backend/test/usuarios-admin-01e-r1.ataque.test.ts`, "ADM-T1E01: q con el carácter nulo (en el nombre o en el correo) responde 400 legible, nunca 500, como el buscador de candidatos".
+Esperado / Obtenido:
+- **Esperado:** `400` con un mensaje legible, como el buscador de maestros (`gestion-02a-r1.ataque:871`, "q repetido o con nulo: 400", que lo traduce con `traducirErrorPrisma` en `buscarMaestrosCandidatos`, `adapters/db/maestros-de-clase.ts:110-130`). El punto 4 de la verificación del manager pide "nada responde `500`".
+- **Obtenido:** las cuatro URL con `%00` en `q` (al final, al principio, en medio y con `rol=estudiante&estadoPago=deudor`) responden `500 ERROR_INTERNO` "Ocurrió un error inesperado." El log trae `"msg":"Error no controlado"` con `Raw query failed. Code: 22021. Message: invalid byte sequence for encoding "UTF8": 0x00` desde `prisma.$queryRaw()`. Las dos URL con bytes que no son UTF-8 (`%FF%FE`, `%ED%A0%80`) dan `200` o `400`, sin `500`.
+- **Causa:** `listaUsuariosConsultaSchema.q` (`shared/src/usuarios-admin.ts:34-46`) solo mide la longitud; `normalizarTerminoDeBusqueda` no quita controles; `prepararBusquedaDeUsuarios` (`core/usuarios/busqueda.ts:19-26`) pasa el término y `q.trim().toLowerCase()` al adaptador; y `listarUsuarios` (`adapters/db/gestion-de-usuarios.ts:101-148`) corre el `$queryRaw` sin traducir el `22021`. `enTransaccion` solo traduce `P2028`.
+- **Hermanos (las demás entradas de texto de 01e que llegan a PostgreSQL):**
+  - `nombre` (editar y alta) y `email` (alta) los rechaza el esquema antes de la base;
+  - `motivo` rechaza los controles (ADM-T1E06, 71 casos, en verde);
+  - `cursorNombre` se compara en JavaScript, no llega a SQL (ADM-T1E03, en verde);
+  - `alumnoIds` y `cursor` son UUID.
+  - Solo `q` alcanza el `500`.
+- **Impacto:** solo el admin llega a la ruta, y no hay fuga. El `err` del log no trae la consulta: lo comprueba ADM-T1E18, y la línea `incoming request` dice `GET /api/admin/usuarios` sin consulta. Cada intento suma, eso sí, un `"Error no controlado"` al log de producción. En 01f, el buscador de la tabla de usuarios lo vería como el error genérico.
+Requisito o regla violada: punto 4 de la verificación (`revision.md:5863`, "Nada responde `500`"); `CLAUDE.md`, "Manejo de errores en el backend" (los errores de Prisma se traducen a `AppError` dentro de `adapters/db`; el `22021` es "entrada inválida (400), no un 500", `adapters/db/errores.ts:44-47`).
+
+### Atacado sin hallazgos (por punto de ataque; casos de `usuarios-admin-01e-r1.ataque.test.ts` y `logs-usuarios-01e-r1.ataque.test.ts`)
+
+1. **Protocolo de bloqueo con todo a la vez (ADM-T1E11, cinco vueltas sobre cinco alumnos).** A la vez: baja, restringir, dos lotes (id en mayúsculas y en minúsculas), login, refresco, restablecer del admin y `POST /api/auth/restablecer` con un enlace de recuperación vivo. Ningún `500`, ni `40P01` ni `P2028` en la salida. Las cuatro escrituras del admin responden `200` siempre. Al final, la cuenta queda inactiva y restringida, sin ninguna sesión viva y sin ningún enlace usable, y el login responde `401`. M-18 con la baja confirmada entre la verificación del token y el bloqueo ya lo cubre ADM-1E13 del programador; no lo repetí.
+2. **N-03 y N-14 (ADM-T1E12 y ADM-T1E13).** En una clase restaurada con un maestro dado de baja: repetir la baja responde `200` sin escribir (la fila no cambia); reactivar quita la marca. Duplicar o crear con un maestro dado de baja responde `404` y no crea nada. La baja del único maestro activo de una clase activa responde `409 MAESTRO_CON_CLASES`, con el texto singular de §D-12. Quitar al activo y dejar solo al dado de baja: lo permite (OA-01e-r1-1, abajo).
+   - **O-R1-1 (ADM-T1E14):** una clase archivada con 0 maestros no se alcanza por la API: ninguna ruta borra cuentas, retirar al único responde `409`, y la baja no toca asignaciones. La fabriqué dentro de una transacción que se deshace con un centinela, y `listarClasesAnteriores` la devuelve con `maestros` vacío. `listaClasesAnterioresRespuestaSchema` la rechaza, así que por HTTP sería un `500`. Sigue sin alcanzarse; queda como riesgo con destino, no como hallazgo.
+   - **N-18:** ninguna clase confirmada por mis pruebas queda con 0 o con 3 maestros. La de 0 vive solo dentro de la transacción deshecha. La de ADM-T1E12 pasa por "solo la dada de baja" y termina con dos: la dada de baja y la tercera, asignada después.
+3. **S-16 (ADM-T1E12).**
+   - La marca sale solo en la dada de baja y siempre `true`, en el detalle (también en `maestro`), la lista del admin (recorrida por cursor), editar, quitar, asignar y «Personas».
+   - Nunca sale en inscritas, anteriores ni candidatos. Ninguna respuesta trae `activo`. La dada de baja no aparece en candidatos.
+   - **N-01e-2, confirmado:** con la principal dada de baja, «Personas» responde `200`; `maestros[0]` trae la marca, y `maestro` sale con exactamente `email`, `id` y `nombre`, sin ella y sin `500`.
+4. **Lista de usuarios (ADM-T1E02 a ADM-T1E04), salvo T-01.**
+   - Comodines (`%`, `_`) literales, barra invertida al final o sola, `+` en el correo, mayúsculas Unicode (`İ`, `ß`, `ǅ` y `ǆ`), inyección (`' OR 1=1 --`, `'); DROP TABLE`): `200` con lo literal, nunca `500`.
+   - Bordes: 120 normalizados `200` y 121 `400` ("La búsqueda no puede tener más de 120 caracteres"); 1000 crudos `200` y 1001 `400`.
+   - `q` vacío, solo espacios o repetido, `rol` repetido o inválido, `estadoPago` sin `rol=estudiante`, con un maestro o inválido, `limite` 0, 101, −1 o 1.5: `400`.
+   - `cursorNombre` con el carácter nulo, de 10 000 caracteres, vacío o sin `cursor`; `cursor` sin `cursorNombre`, inventado, el del admin (no cumple el `q`) o no UUID: `400`. El `cursor` en mayúsculas sirve.
+   - La cuenta del cursor se da de baja: sigue en la lista y su cursor sirve. Pasa a "al corriente" entre dos páginas de deudores: `400` "cursor: no es válido".
+5. **Motivo sin tope crudo (ADM-T1E05 a ADM-T1E07; decisión del humano, 2026-11-09).**
+   - 300 visibles con relleno: espacio, tabulador, salto, ZWJ (U+200D), VS16 (U+FE0F), Braille en blanco (U+2800), relleno Hangul (U+3164) y espacio de ancho cero (U+200B). Se guarda tal cual, recortado. 301 dan `400` "motivo: El motivo no puede tener más de 300 caracteres".
+   - Una familia con ZWJ, una bandera y un tono de piel se guardan tal cual.
+   - Un motivo de 900 300 unidades con 300 visibles, dentro del cuerpo de 1 MiB, responde `200` en menos de 5 s y se guarda entero.
+   - Los 71 caracteres prohibidos responden `400` "motivo: El texto tiene caracteres no permitidos", sin escribir y sin repetir el motivo: C0 sin tabulador, salto ni retorno, DEL y C1 (U+007F a U+009F), y U+202A a U+202E y U+2066 a U+2069.
+   - Retorno con salto y retorno solo se normalizan a salto. U+2028 y U+2029 se guardan (son separadores, no controles; igual que en los demás textos largos).
+   - Que no sea texto (`null`, número, objeto, arreglo, booleano), `restringido` que no es booleano o falta, cuerpo `[]` o `{}`: `400` sin escribir.
+   - Restringir de nuevo con el mismo motivo escrito con espacios externos o con retorno y salto no escribe. Solo invisibles cuenta como sin motivo y conserva la fecha. Restablecer con motivo lo ignora y borra motivo y fecha.
+6. **M-09 (`logs-usuarios-01e-r1.ataque.test.ts`, ADM-T1E17 y ADM-T1E18).** Con `LOG_LEVEL=trace` y la consulta cargada de estado de pago, nombre, correo, cursor y una marca:
+   - las peticiones fueron un JSON inválido (`400`), un `415`, una ruta inexistente (`404`), un `HEAD` (`200`), el `400` de `validarParametros` con el valor rechazado y el `500` de T-01;
+   - ni el log ni las respuestas traen ninguno de esos valores, ni `deudor`, `al_corriente`, `estadoPago=` o `cursorNombre=`. El `err` del `500` no lleva la consulta.
+   - En la corrida de módulos, las cuatro líneas `Error no controlado` de T-01 se atribuyen a `GET /api/admin/usuarios`, sin consulta.
+7. **Alta de alumno (ADM-T1E08).** Cuatro altas a la vez con el mismo correo (igual, en mayúsculas con espacios, con otra capitalización) dan una `201` con `Cache-Control: no-store` y tres `409 CORREO_EN_USO`, sin `500`, con una sola cuenta en minúsculas. El correo de una cuenta dada de baja, en mayúsculas, da `409`, y la respuesta no trae `contrasenaTemporal`. El log a `trace` de la temporal ya lo cubre ADM-1E22.
+8. **Lote de estado de pago (ADM-T1E09 y ADM-T1E10).**
+   - 99 alumnos más el admin, un maestro o un id inexistente: `400` "alumnoIds: hay cuentas que no son de alumnos", sin escribir ninguna fila. Un id repetido en otra capitalización o 101 ids: `400`.
+   - Una cuenta dada de baja (id en mayúsculas) y una restringida sí cambian. Una ya deudora no cuenta en `actualizados` y conserva su `fecha_estado_pago`.
+   - Doce lotes cruzados en paralelo (órdenes inversos y mayúsculas, 20 alumnos): todos `200`, sin `40P01` ni `503`, y el estado final es uniforme.
+9. **Movimientos y resumen (ADM-T1E15).** El cursor de un movimiento borrado con su clase da `400`. Con el actor maestro y el alumno dados de baja (y el alumno deudor), la fila sale con `actor` `{ id, nombre, administracion: false }` y `alumno` `{ id, nombre, email }`, sin `estadoPago`, `accesoRestringido`, `activo`, `cuentaDesactivada` ni `rol`. `HEAD` de resumen y movimientos: `200` sin cuerpo. Que las inactivas y las archivadas no cuentan en el resumen lo cubre ADM-1E10 con la misma instantánea.
+10. **Cuentas raras (ADM-T1E16).** Un maestro con `acceso_restringido` en la base recibe `403`; una cuenta inactiva con token vivo, `401`. El admin sobre sí mismo: `PUT …/acceso` da `409 NO_ES_ALUMNO`, y `PUT …/activo` (`false` y `true`) da `409 CUENTA_DE_ADMINISTRACION`, sin escribir; sigue habiendo un solo admin. El acceso de un maestro da `409`.
+11. **Fragilidad con carga:** sin `beforeAll` vencidos (ver "Entorno").
+
+### Observación para el arquitecto o el humano (no es hallazgo: el plan no fija la respuesta)
+
+- **OA-01e-r1-1. Quitar al único maestro activo deja una clase activa solo con uno dado de baja.**
+  - **Cómo se llega:** una clase con A (activa) y B (dada de baja) se alcanza con archivar, dar de baja a B y restaurar (N-14). Después, `DELETE /api/admin/clases/:claseId/maestros/:A` responde `200`, porque `decidirRetiro` solo cuenta asignaciones, no cuentas activas. La clase queda activa solo con B. ADM-T1E12 lo documenta en verde: la respuesta trae solo a B, con la marca.
+  - **Por qué lo señalo:** N-14 (`plan.md:1759`) dice que la restauración "es la única forma en que una clase activa queda sin un maestro que pueda entrar". Esta es una segunda forma, que empieza en una clase que sí tenía un maestro activo. RN-06, leído como en N-14 (de uno a dos asignados), se cumple. Se resuelve igual, asignando uno activo.
+  - **Opciones:** (a) aceptarlo y anotarlo junto a N-14 en A-01 y A-03; (b) que retirar al último maestro activo de una clase activa responda `409`. (b) cambia el comportamiento de `retirarMaestro`, que es de CLASES-02a, y pide un texto nuevo.
+  - **No lo cuento como hallazgo:** el plan no fija la respuesta.
+
+### Notas que no son hallazgos de 01e
+- **N-01e-1** (`q` vacío da `400 BUSQUEDA_MUY_CORTA`): confirmado en ADM-T1E02. Sigue con destino a 01f y 01g.
+- **N-01e-2:** confirmado sin `500` (punto 3).
+- **Mensajes en inglés en campos técnicos (para 01f, sin cambio en 01e).** Los esquemas de 01e dejan pasar el mensaje de zod en los campos que no escribe una persona:
+  - `rol: Invalid option: …` y `estadoPago: Invalid option: …` en la lista y en el lote;
+  - `cursor: Invalid UUID` en usuarios y movimientos;
+  - `limite: Too small…`, `Too big…` e `Invalid input…`;
+  - `cursorNombre: Invalid input…` (repetido);
+  - `activo: Invalid input: expected boolean…` y `restringido: Invalid input: expected boolean…`.
+
+  Es el mismo patrón de `paginacionSchema` en todo el backend, y solo llega con un cliente que no es el de la interfaz. En 01f, la traducción de cada vista debe tratarlos como `VALIDACION` fuera de contrato (`AGENTS.md`): nunca mostrar el texto.
+- **Tono en el alta de alumno (para 01f).** `altaAlumnoSchema` reutiliza `nombreSchema` de registro, así que el admin que captura a otra persona recibe "nombre: Escribe tu nombre completo". La vista de 01f debe traducirlo o pintar su propio texto.
+
+### No atacado y por qué
+- **Petición abortada** (punto 6): `inject` no permite cortar el socket a media petición sin arrancar la API real, y el serializador es el mismo para toda línea con `req` (lo comprobé en la ronda 0 con la sonda M-09, en los dos caminos). Queda sin prueba propia.
+- **El worker** (punto 6): no registra `req` (vigiladas `worker-r1` y `worker-r2`, en verde en la corrida de módulos).
+- **`establecer-contrasena` en la tormenta del punto 1:** usé el enlace de recuperación (`/api/auth/restablecer`), que pasa por el mismo `usarTokenYCambiarContrasena` con M-18. La invitación de un estudiante no existe; la de un maestro necesitaría otra cuenta.
+- **La suite completa** del backend y la del frontend: las corre el manager al cerrar la subentrega.
+
+### Archivos nuevos (solo `*.ataque`, sin rastrear)
+
+| Archivo | Casos | SHA-256 |
+|---|---|---|
+| `backend/test/usuarios-admin-01e-r1.ataque.test.ts` | 16 (ADM-T1E01 a ADM-T1E16) | `309b944a426e30648feb779514c3edec34089ee691bb0e86d51a8597ce01a0d3` |
+| `backend/test/logs-usuarios-01e-r1.ataque.test.ts` | 2 (ADM-T1E17 y ADM-T1E18) | `9679a4e38388e15a318cf2470852d96a34ad8f01363923de94325e75f34b3a4e` |
+
+Conteo: `npx vitest list` con los dos archivos da 18 casos con "ADM-T1E". El formato lo dejó Prettier (`npx prettier --write`, acotado a esos dos archivos del backend).
+
+### Corridas (desde `backend/`; una después de otra)
+
+1. **Los dos archivos, versión final** (11:29:28): `npx vitest run --reporter=verbose test/usuarios-admin-01e-r1.ataque.test.ts test/logs-usuarios-01e-r1.ataque.test.ts`
+   ```
+    Test Files  1 failed | 1 passed (2)
+         Tests  1 failed | 17 passed (18)
+      Start at  11:29:28
+      Duration  61.33s (transform 3.99s, setup 155ms, import 11.29s, tests 27.80s, environment 1ms)
+   ```
+   El único rojo es ADM-T1E01 (T-01): `expected [ …(4) ] to deeply equal []`, con las cuatro URL de `%00` → `500 Ocurrió un error inesperado.`
+2. **Módulos de 01e más mis dos archivos** (11:25:36): `npx vitest run $(cat mod-r1.txt)`. La lista es la de 70 rutas del programador (`modulos-01e.txt`, `4605cfa2…`) más mis dos archivos.
+   ```
+    Test Files  1 failed | 75 passed (76)
+         Tests  1 failed | 1049 passed (1050)
+      Start at  11:25:36
+      Duration  107.85s (transform 16.11s, setup 3.21s, import 221.30s, tests 752.38s, environment 32ms)
+   ```
+   - El único rojo es ADM-T1E01. La lista incluye las 31 vigiladas de mi ronda 0 y los 11 archivos de mis C-n, todos en verde (C-6, C-8 y C-42 ya en verde con 01e).
+   - Esta corrida usó la versión de `usuarios-admin-01e-r1` anterior al último agregado de ADM-T1E12: la comprobación de «Personas» con la principal dada de baja. Ese agregado corrió en la corrida 1, en verde.
+   - **Contención** (informativo; PA-07 es de la corrida completa del manager): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0.
+   - `"Error no controlado"` 4: los cuatro de T-01, `GET /api/admin/usuarios` (`req-1` a `req-4` del proceso de mi archivo, `22021` en `$queryRaw`). Son nuevos fuera del inventario y desaparecen con el remedio de T-01.
+   - `"code":"P2028"` 5: los tres deterministas de `servicio-ocupado` (`POST /api/auth/cambiar-contrasena` `req-1`, `POST /api/auth/refrescar` `req-3`, `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios` `req-5`) y los dos permitidos de `cuentas-r3.ataque` (`POST /api/auth/login` `req-1m`, `POST /api/auth/restablecer` `req-20`).
+3. Corridas previas de mis archivos mientras los escribía: 11:17:05, `4 failed | 12 passed (16)`. Además de T-01, fallaron tres aserciones mías que exigían español en campos técnicos (ver "Notas"); las retiré. A las 11:19:54, `1 failed | 17 passed (18)`, con la limpieza del archivo de logs fallando por la conexión cerrada; la corregí. No cuentan.
+
+**lint:** `cd backend; npm run lint` → exit 0 (después del último cambio; la última línea es `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`).
+
+### V-01
+- Las 267 `*.ataque` rastreadas coinciden con la lista de la ronda 0 de 01e (`b17af275…`; `sha256sum -c` sin diferencias). El programador no tocó ninguna.
+- Suman mis dos archivos nuevos, sin rastrear (tabla de arriba): **269** en total.
+- `git diff --name-only ea718bc -- backend/test` sigue con los 11 `*.ataque` de los C-n de la ronda 0.
+
+### Cierre de la ronda 1 de 01e
+- **Veredicto: ROTO.** 1 hallazgo: **T-01 (media)**, el carácter nulo en `q` de `GET /api/admin/usuarios` da `500`.
+- **Remedio esperado (no lo prescribo):** que el `22021` de la lista llegue como `400`, como en el buscador de candidatos, o que el esquema rechace los controles en `q`.
+- **Hermanos que el programador debe revisar:** todo término libre que llegue a un `$queryRaw` sin `traducirErrorPrisma`. Hoy, en 01e, solo `q`.
+- **Para decidir:** OA-01e-r1-1 (quitar al único activo, N-14).
+- **Resiste:** los puntos 1, 2, 3 y 5 a 11, y el resto del 4.
+- **Corridas:** los dos archivos, `1 failed | 17 passed (18)`; los módulos de 01e, `1 failed | 1049 passed (1050)`, en 76 archivos; `lint`, exit 0. Todo a batería (85 % a 78 %), sin `beforeAll` vencidos.
+
+## Ronda 2 — ADMIN-01e
+
+Veredicto: **RESISTE.** Sin hallazgos. El remedio de T-01 aguanta los seis puntos de ataque de la verificación (`revision.md:5876`): el nulo en `q` en cada posición, codificación, borde y método; los demás controles, los inversores, los separadores y los bytes que no son UTF-8; el nulo en todas las demás entradas de 01e a la vez; la regresión de la ronda 1; el log del `400` nuevo; y, a batería, ningún `beforeAll` vencido. OA-01e-r1-1 queda fuera de ataque por decisión del humano ("Aceptarla y anotarla").
+
+Plan `7018e1f3…` (comprobado). Corrección del programador: `resumen-programador.md` = `ff4aea30…`, "## ADMIN-01e — Corrección ronda 1" (`:3100`). Verificación del manager: `revision.md:5876`. Base `ea718bc`. El remedio está en `shared/src/usuarios-admin.ts:22` y `:48-58`: el nulo, construido con `String.fromCharCode(0)`, se rechaza en el esquema de `q` con "Los datos enviados tienen caracteres no permitidos.", después del tope de longitud.
+
+Verificación propia (regla "Suites por ronda": los módulos de 01e, mis archivos y las vigiladas, más `lint`):
+- **lint del backend:** `cd backend; npm run lint` → exit 0. Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- **test:** la lista de 70 rutas del programador (`modulos-01e.txt`, `4605cfa2…`, que trae las vigiladas) más mis cuatro `*.ataque` de 01e: `Tests 1059 passed (1059)`, 78 archivos (abajo).
+
+### Entorno
+- Sin otra copia ni otra suite (dato del orquestador). Ningún `node` con `vitest` antes de cada corrida. Docker encendido. Red `uacam5 2`, autorizada hoy.
+- **A batería:** `BatteryStatus` **1**, al 60 % (11:55) y al 59 % (11:57). Se corrió igual y se declara. CPU al 38 % y al 16 % al arrancar.
+- **N-01e-3 (punto 6):** ningún `beforeAll` venció (corridas de las 11:56:04 y las 11:57:26).
+- Sin navegadores. No terminé ningún proceso. No toqué código de producción ni pruebas del programador.
+- **Escapes:** en mis archivos nuevos, todo carácter de control, sustituto o invisible se construye con `String.fromCharCode`. Donde se busca el texto escapado del JSON, va con la barra doblada en la fuente. Barrido de los dos archivos: 0 caracteres de las categorías Cc (salvo salto y tabulador), Cf, Zl, Zp, Mn y Cs.
+
+### Hallazgos
+Ninguno.
+
+### Atacado sin hallazgos (`usuarios-admin-01e-r2.ataque.test.ts` y `logs-usuarios-01e-r2.ataque.test.ts`)
+
+1. **El nulo en `q` (ADM-T2E01 y ADM-T2E02).** Quince URL, cada una también en `HEAD`: el nulo al final, al principio, rodeado de `+` o de `%20`, solo, tres seguidos y con `rol=estudiante&estadoPago=deudor&limite=1`. Todas dan `400` con un solo mensaje, nunca `500` ni "Error no controlado", y ningún mensaje repite el término ni el nulo.
+   - **Bordes:** 119 normalizados más el nulo da el mensaje del nulo. 120 normalizados más el nulo da solo el de longitud, porque la normalización conserva el nulo y son 121; es coherente con el orden del esquema. 1000 crudos con un nulo dentro dan el del nulo, y 1001, solo el de longitud.
+   - `q` repetido con el nulo en una de las copias: `400`.
+   - En la página 2, con `cursor` y `cursorNombre` válidos y el nulo en `q`: `400` con el texto del nulo; sin el nulo, la misma página da `200`.
+2. **Lo que el esquema deja pasar (ADM-T2E03 y ADM-T2E04).**
+   - En `q`, al final, al principio y doble en medio: los 31 controles C0 sin el nulo, los 33 de DEL y C1, los nueve inversores, U+2028, U+2029, U+200B, U+200D, BOM, U+FFFD, U+FFFE y U+FFFF. Responden `200` o `400` legible, nunca `500`, y la cuenta se sigue encontrando por su marca.
+   - Bytes que no son UTF-8 y sustitutos sueltos codificados (`%ED%A0%80`, `%C0%80`, `%FF`, `%E0%80%80`, `%F4%90%80%80`, `%C3` y `%ED%BF%BF`), en `q` y en `cursorNombre`: `200` o `400` legible, nunca `500`.
+3. **El nulo en el resto de 01e, todo a la vez (ADM-T2E05; ADM-T2E06 para los sustitutos).**
+   - Dieciséis peticiones en paralelo con el nulo: `nombre` al editar y en el alta, `email` del alta, `motivo`, `cursorNombre` (`400` "cursor: no es válido"), el `:id` de la ficha, de la baja y del acceso, `rol`, `estadoPago`, `limite`, `cursor` de usuarios y de movimientos, `alumnoIds`, el `estadoPago` del lote y `activo` como texto.
+   - Las dieciséis dan `400` con mensaje, ninguna repite lo enviado, la cuenta queda igual y el alta no crea nada.
+   - Sustitutos sueltos (U+D800 y U+DFFF) en `nombre`, `motivo` y `email` de cuerpos JSON: `200` o `400` legible, sin `500`, y lo guardado no lleva ningún sustituto suelto.
+4. **Regresión de la ronda 1:** ADM-T1E01 a ADM-T1E18, en verde dentro de la corrida de módulos. ADM-T1E01, el de T-01, pasó a verde. La contención queda en sus números de siempre (abajo).
+5. **El log del `400` nuevo (ADM-T2E07 y ADM-T2E08).** Con `LOG_LEVEL=trace` y el nulo en `q` (al final, al principio, en `HEAD` y junto con un término largo), con la consulta cargada de estado de pago, nombre, correo y cursor:
+   - las cuatro peticiones responden `400` y sus cuatro `incoming request` dicen exactamente `/api/admin/usuarios`;
+   - ni el log ni las respuestas traen la marca, el nombre, el correo, el cursor, `deudor`, `al_corriente`, `estadoPago=`, `cursorNombre=`, `%00`, el nulo ni su escape JSON;
+   - no hay ningún "Error no controlado".
+6. **N-01e-3:** sin `beforeAll` vencidos a batería.
+
+### No atacado y por qué
+- La petición abortada y el worker, por lo mismo que en la ronda 1.
+- La suite completa del backend y la del frontend: las corre el manager al cerrar la subentrega.
+
+### Archivos nuevos (solo `*.ataque`, sin rastrear)
+
+| Archivo | Casos | SHA-256 |
+|---|---|---|
+| `backend/test/usuarios-admin-01e-r2.ataque.test.ts` | 6 (ADM-T2E01 a ADM-T2E06) | `f7cc197f8c797f4a103cad4b9ddfe2e28b1059cb6efdc1089d7f10268a974846` |
+| `backend/test/logs-usuarios-01e-r2.ataque.test.ts` | 2 (ADM-T2E07 y ADM-T2E08) | `8b08c0e62a93288fae34b29944d13e415391b3806643cb1206c56cff7f4ea802` |
+
+Conteo: `npx vitest list` con los dos archivos da 8 casos con "ADM-T2E". El formato lo dejó Prettier, acotado a esos dos archivos. Los de la ronda 1 no cambiaron: `309b944a…` y `9679a4e3…`.
+
+### Corridas (desde `backend/`; una después de otra)
+
+1. **Mis dos archivos nuevos** (11:56:04): `npx vitest run --reporter=verbose test/usuarios-admin-01e-r2.ataque.test.ts test/logs-usuarios-01e-r2.ataque.test.ts` → `Tests 2 failed | 6 passed (8)`. **No cuenta: los dos rojos eran expectativas mías equivocadas.**
+   - ADM-T2E01 esperaba el mensaje del nulo con 120 normalizados más el nulo. La normalización conserva el nulo, así que son 121, y el esquema responde, con razón, solo el de longitud. Corregí la expectativa y sumé el borde de 119 más el nulo, que da el del nulo.
+   - ADM-T2E05 contaba una cuenta por un correo que no lleva la marca: la cuenta correcta es 0.
+   - En los dos casos, el servidor respondió `400` con un solo mensaje y sin `500`.
+2. **Módulos de 01e más mis cuatro `*.ataque` de 01e** (11:57:26): `npx vitest run $(cat mod-r2.txt)`, con las 70 rutas de `modulos-01e.txt` (`4605cfa2…`) más `usuarios-admin-01e-r1`, `logs-usuarios-01e-r1`, `usuarios-admin-01e-r2` y `logs-usuarios-01e-r2`.
+   ```
+    Test Files  78 passed (78)
+         Tests  1059 passed (1059)
+      Start at  11:57:26
+      Duration  132.30s (transform 23.51s, setup 3.66s, import 270.64s, tests 894.00s, environment 49ms)
+   ```
+   **Contención** (informativo; PA-07 es de la corrida completa del manager):
+   - `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0.
+   - `"Error no controlado"` 0: los cuatro de T-01 desaparecieron.
+   - Ninguna línea con `"statusCode":500`.
+   - `"code":"P2028"` 5, todos permitidos: los tres deterministas de `servicio-ocupado` (`POST /api/auth/cambiar-contrasena` `req-1`, `POST /api/auth/refrescar` `req-3` y `POST /api/clases/:claseId/publicaciones/:publicacionId/comentarios` `req-5`) y los dos de `cuentas-r3.ataque` (`POST /api/auth/login` `req-1m` y `POST /api/auth/restablecer` `req-20`).
+
+**lint:** `cd backend; npm run lint` → exit 0, después de la corrida.
+
+### V-01
+- Las 267 `*.ataque` rastreadas coinciden con la lista de la ronda 0 de 01e (`b17af275…`; `sha256sum -c` sin diferencias). El programador no tocó ninguna.
+- Sin rastrear, mías: las dos de la ronda 1 (`309b944a…`, `9679a4e3…`, sin cambios) y las dos de esta ronda (tabla de arriba). Son **271** en total.
+
+### Cierre de la ronda 2 de 01e
+- **Veredicto: RESISTE.** 0 hallazgos. T-01 está corregido, y sus vecinos (posiciones, codificaciones, bordes, `HEAD`, página 2, demás controles, bytes inválidos, el resto de las entradas con el nulo y el log) no dan `500` ni fugan nada.
+- **Corridas:** módulos de 01e más mis cuatro archivos, `1059 passed (1059)` en 78 archivos, con la contención en sus números de siempre; `lint`, exit 0. A batería (60 % a 59 %), sin `beforeAll` vencidos.
+- **Siguen para 01f:** N-01e-1, N-01e-2, los mensajes de zod en inglés en campos técnicos y el tono del alta.

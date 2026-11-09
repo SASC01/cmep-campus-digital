@@ -240,12 +240,23 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
     },
   )
 
-  it("PR-B16g: ninguna ruta de printRoutes contiene «movimiento», y ninguna respuesta de las rutas de b contiene el id ni la secuencia de una fila de movimientos_inscripcion", async () => {
+  // ADMIN-01e (§D-7.7, S-09): el registro gana su única lectura, solo para el admin; las rutas de
+  // alumnos de la clase siguen sin exponer sus filas.
+  it("PR-B16g: solo /api/admin/movimientos-inscripcion contiene «movimiento» en printRoutes, y exige admin; ninguna respuesta de las rutas de b contiene el id ni la secuencia de una fila de movimientos_inscripcion", async () => {
     const maestro = await maestroDePrueba()
     const nuevo = await alumno("Alumno Visible")
     const clase = await crearClaseDePrueba(idsClases, { maestroId: maestro.id })
     const token = await tokenDe(maestro)
-    expect(obtenerApp().printRoutes().toLowerCase()).not.toContain("movimiento")
+    // Sin prefijos comunes, cada segmento sale entero (con ellos, "movimientos" se parte en el árbol).
+    const arbol = obtenerApp().printRoutes({ commonPrefix: false }).toLowerCase()
+    expect(arbol.match(/movimiento/g) ?? []).toHaveLength(1)
+    expect(arbol).toContain("admin/movimientos-inscripcion")
+    const delMaestro = await peticion({
+      method: "GET",
+      url: "/api/admin/movimientos-inscripcion",
+      token,
+    })
+    expect(delMaestro.statusCode).toBe(403)
 
     const cuerpos: string[] = []
     const guardar = async (pendiente: Promise<LightMyRequestResponse>): Promise<void> => {
@@ -274,9 +285,12 @@ describe("movimientos_inscripcion (P-05 g, S-23, M-03)", () => {
     }
   })
 
-  it("PR-B16h: el módulo adapters/db/index no exporta ninguna función cuyo nombre contenga «movimiento» (no hay lectura)", () => {
+  // ADMIN-01e (§D-7.7): la única lectura del registro es la consulta del admin.
+  it("PR-B16h: el único export de adapters/db/index cuyo nombre contiene «movimiento» es listarMovimientosDeInscripcion", () => {
     const nombres = Object.keys(adaptadorDb)
     expect(nombres.length).toBeGreaterThan(0)
-    expect(nombres.filter((nombre) => nombre.toLowerCase().includes("movimiento"))).toEqual([])
+    expect(nombres.filter((nombre) => nombre.toLowerCase().includes("movimiento"))).toEqual([
+      "listarMovimientosDeInscripcion",
+    ])
   })
 })

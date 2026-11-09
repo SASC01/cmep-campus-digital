@@ -54,10 +54,12 @@ export const DESTINOS_POR_ROL: Record<Rol, readonly Destino[]> = {
   estudiante: [{ etiqueta: "Inicio", ruta: "/estudiante", icono: House, coincidencia: "exacta" }],
   maestro: [{ etiqueta: "Inicio", ruta: "/maestro", icono: House, coincidencia: "exacta" }],
   // AUTH-03b: el admin gana "Maestros" (/admin/maestros), enlaces de registro e invitación masiva.
-  // CLASES-02c (P-07 a): "Clases" lleva a la lista institucional y queda activo en sus subrutas;
-  // "Cuentas" solo en /admin exacto.
+  // CLASES-02c (P-07 a): "Clases" lleva a la lista institucional y queda activo en sus subrutas.
+  // ADMIN-01f (§D-11, Enmienda 1): "Cuentas" pasa a "Inicio" (el dashboard, solo en /admin exacto) y
+  // entra "Usuarios", activo también en la ficha de una cuenta.
   admin: [
-    { etiqueta: "Cuentas", ruta: "/admin", icono: Users, coincidencia: "exacta" },
+    { etiqueta: "Inicio", ruta: "/admin", icono: House, coincidencia: "exacta" },
+    { etiqueta: "Usuarios", ruta: "/admin/usuarios", icono: Users, coincidencia: "prefijo" },
     { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus, coincidencia: "exacta" },
     { etiqueta: "Clases", ruta: "/admin/clases", icono: School, coincidencia: "prefijo" },
   ],

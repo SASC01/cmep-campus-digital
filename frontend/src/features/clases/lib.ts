@@ -202,12 +202,9 @@ export const terminoDeBusquedaValido = (termino: string): boolean =>
 export const terminoDeBusquedaMuyLargo = (termino: string): boolean =>
   estadoDeTerminoDeBusqueda(termino) === "largo"
 
-// true si el foco se perdió: ningún elemento, <body> o uno que ya no está en el documento. Recibe el
-// documento en lugar de leer el global, así que es pura respecto de su entrada (§D-C5 bis).
-export const focoPerdido = (documento: Pick<Document, "activeElement" | "body">): boolean => {
-  const activo = documento.activeElement
-  return activo === null || activo === documento.body || !activo.isConnected
-}
+// ADMIN-01f (§D-11, Enmienda 14): focoPerdido sube a components/foco/lib.ts, que ya la usa
+// useFocoAlCargarMas; se reexporta con el mismo nombre para que ningún importador de este módulo cambie.
+export { focoPerdido } from "@/components/foco/lib"
 
 // CHORE-03 (§D-4): el mensaje de un error de una acción, con el contrato de lib/errores-de-api.ts y la
 // traducción del módulo (data.ts). Un VALIDACION de claseId da el texto de SIN_ACCESO_A_LA_CLASE (T-11,

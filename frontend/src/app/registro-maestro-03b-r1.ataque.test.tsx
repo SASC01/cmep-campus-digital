@@ -216,7 +216,9 @@ describe("ataque (AUTH-03b r1): /registro-maestro", () => {
 describe("ataque (AUTH-03b r1): /admin/maestros en el marco del admin", () => {
   const admin = () => respuestaJson(200, meDe({ rol: "admin", nombre: "Administración" }))
 
-  it("'Maestros' activo y 'Cuentas' no; todo lo de la vista cuelga del contexto opaco y denso", async () => {
+  // ADMIN-01f ronda 0 (C-16): el destino que no está activo en /admin/maestros se llama "Inicio", y
+  // entra "Usuarios". Sigue protegiendo que solo "Maestros" lleve aria-current.
+  it("'Maestros' activo y 'Inicio' no; todo lo de la vista cuelga del contexto opaco y denso", async () => {
     stubFetch((ruta) => {
       if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "t" })
       if (ruta === "/api/me") return admin()
@@ -233,7 +235,8 @@ describe("ataque (AUTH-03b r1): /admin/maestros en el marco del admin", () => {
     // que no queda activo en /admin/maestros. Sigue protegiendo que en /admin/maestros solo
     // "Maestros" lleve aria-current.
     expect(enlaces.map((a) => [a.textContent, a.getAttribute("aria-current")])).toEqual([
-      ["Cuentas", null],
+      ["Inicio", null],
+      ["Usuarios", null],
       ["Maestros", "page"],
       ["Clases", null],
     ])

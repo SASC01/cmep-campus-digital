@@ -11,7 +11,6 @@ import {
 } from "@/lib/errores-de-api-fuera-de-contrato"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
-import { BuscadorDeCuenta } from "./components/buscador-de-cuenta"
 import { FichaDeCuenta } from "./components/ficha-de-cuenta"
 import { FormularioCorregirCorreo } from "./components/formulario-corregir-correo"
 import { FormularioGenerarEnlace } from "./components/formulario-generar-enlace"
@@ -212,13 +211,6 @@ const MONTAJES = {
     "Generar enlace",
     [["Vigencia en días", "10"]],
   ),
-  "buscar una cuenta": formulario(
-    () => <BuscadorDeCuenta />,
-    "POST",
-    "/api/admin/usuarios/buscar",
-    "Buscar",
-    [["Correo exacto de la cuenta", "carla@colegio.mx"]],
-  ),
   "corregir el correo": formulario(
     () => <FormularioCorregirCorreo usuario={USUARIO} onCorregido={vi.fn()} />,
     "PUT",
@@ -333,7 +325,6 @@ const CAMPO_PINTADO: Readonly<Record<string, string>> = {
   "invitar maestro": "nombre",
   "invitación masiva": "lista",
   "generar enlace de registro": "vigenciaDias",
-  "buscar una cuenta": "email",
   "corregir el correo": "email",
 }
 
@@ -346,7 +337,6 @@ const EXITO: Readonly<Record<string, () => Response>> = {
       invalidas: [],
     }),
   "generar enlace de registro": () => respuestaJson(201, { enlace: ENLACE, token: "token-nuevo" }),
-  "buscar una cuenta": () => respuestaJson(200, { usuario: USUARIO }),
   "corregir el correo": () => respuestaJson(200, { ...USUARIO, email: "carla.ruiz@colegio.mx" }),
 }
 
@@ -378,7 +368,6 @@ describe("CHORE-03 · formularios, controles y consultas de features/admin ante 
       "invitar maestro",
       "invitación masiva",
       "generar enlace de registro",
-      "buscar una cuenta",
       "corregir el correo",
     ])
     expect(Object.keys(EXITO)).toEqual(FORMULARIOS)
@@ -534,15 +523,7 @@ const CASOS_SERVIDOR_Y_LOCAL: readonly CasoServidorYLocal[] = [
       campos,
     ]),
   ),
-  // Control: BuscadorDeCuenta ya lo resolvía (buscar.reset() sin condición) y no cambia.
-  [
-    "buscar una cuenta",
-    F1[0],
-    "correo sin arroba",
-    F1[1],
-    F1[2],
-    [["Correo exacto de la cuenta", "carla-sin-arroba"]],
-  ],
+  // ADMIN-01f (§D-R0 01f, lista cerrada): el control de BuscadorDeCuenta sale con el buscador, que se borra.
 ]
 
 // Los cuatro formularios de admin de T-05 (CH3-C11 y CH3-C12).
@@ -582,9 +563,6 @@ const EXITO_VISIBLE: Readonly<Record<string, () => Promise<void>>> = {
     expect(await screen.findByRole("status")).toHaveTextContent(
       construirUrlDeRegistro(window.location.origin, "token-nuevo"),
     )
-  },
-  "buscar una cuenta": async () => {
-    expect(await screen.findByText(USUARIO.nombre)).toBeInTheDocument()
   },
   "corregir el correo": async () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -666,7 +644,8 @@ describe("CHORE-03 · Enmienda 5 (T-05): el error del servidor y el error local 
       1, 1, 1, 1,
     ])
     expect(Object.keys(EXITO_VISIBLE).sort()).toEqual(Object.keys(EXITO).sort())
-    expect(CASOS_SERVIDOR_Y_LOCAL).toHaveLength(24)
+    // ADMIN-01f: sale el control de BuscadorDeCuenta (una fila), que se borra.
+    expect(CASOS_SERVIDOR_Y_LOCAL).toHaveLength(23)
   })
 
   it.each(CASOS_SERVIDOR_Y_LOCAL)(

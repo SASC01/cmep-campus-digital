@@ -460,6 +460,10 @@ export const TEXTOS_CLASES_ANTERIORES = {
   volverAClasesAnteriores: "Volver a clases anteriores",
 } as const
 
+// ADMIN-01f (§D-11, S-16, corrección M-16): la insignia de un maestro dado de baja en "Personas", en la
+// lista de maestros de la clase y en /admin/clases. Una sola constante para los tres componentes.
+export const TEXTO_CUENTA_DESACTIVADA = "Cuenta desactivada"
+
 // §D-B6: textos de CLASES-b (propuesta).
 export const TEXTOS_PERSONAS = {
   maestro: "Maestro",

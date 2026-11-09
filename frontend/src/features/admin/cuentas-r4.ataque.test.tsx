@@ -1,17 +1,30 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { StrictMode, type ReactNode } from "react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { createMemoryRouter, RouterProvider } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { CuentasView } from "./cuentas-view"
+import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 // Ataques del Tester (AUTH-02b, ronda 4) contra el cambio de la ronda 4 en ficha-de-cuenta.tsx:
 // manejarDesenfoque ya no apaga tieneFocoRef si el blur no tiene destino (relatedTarget nulo o
 // <body>), onError devuelve el foco a "Cancelar" y confirmandoAnteriorRef sustituye a
 // esPrimerRenderRef.
 
+// ADMIN-01f ronda 0 (C-13, §D-R0 01f y §D-11): CuentasView y POST /admin/usuarios/buscar se borran.
+// Cada caso monta ahora el router real (createMemoryRouter con las rutas de app/router) y abre la
+// ficha /admin/usuarios/:usuarioId (GET /admin/usuarios/:id), que se localiza por su región con
+// nombre (E-24). Equivalencias: "buscar una cuenta" es abrir su ficha (navegar a su ruta, como el
+// enlace "Ver" de la tabla); "buscar otra cuenta", abrir la de otra; "una búsqueda rechazada en el
+// cliente", abrir /admin/usuarios/abc (400 VALIDACION, "Esa cuenta ya no existe.", ADM-1F26); el
+// campo de búsqueda donde se quedaba el foco es el enlace "Usuarios" de la barra (sigue montado al
+// cambiar de ficha); "Nombre completo" de "Invitar maestro" (otro formulario de la página) es
+// "Correo correcto" de la ficha, fuera de la confirmación; "Invitar maestro" vive en
+// /admin/maestros. Lo que protege cada caso no cambia.
+
 const aviso = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
-vi.mock("sonner", () => ({ toast: aviso }))
+vi.mock("sonner", () => ({ toast: aviso, Toaster: () => null }))
+vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/admin") }))
 
 const TEMPORAL = "Kp7mWq4Rt9Xz"
 
@@ -40,20 +53,83 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const errorJson = (estado: number, codigo: string, mensaje = "mensaje del servidor") =>
   respuestaJson(estado, { error: { codigo, mensaje } })
 
+const CUENTAS: CuentaDePrueba[] = [carla, beto]
+
+const ME_ADMIN = {
+  id: "d9a8c3c2-3333-4da0-9c3a-2b4c5d6e7f80",
+  nombre: "Administración",
+  email: "admin@ejemplo.mx",
+  rol: "admin",
+  debeCambiarContrasena: false,
+  accesoRestringido: false,
+}
+
+interface CuentaDePrueba {
+  id: string
+  nombre: string
+  email: string
+  rol: string
+  activo: boolean
+}
+
+// La fila de GET /admin/usuarios/:id: los datos de alumno solo en estudiantes (RN-02).
+const filaDe = (cuenta: CuentaDePrueba) => ({
+  ...cuenta,
+  creadoEn: "2026-09-01T15:00:00.000Z",
+  ...(cuenta.rol === "estudiante"
+    ? {
+        estadoPago: "al_corriente",
+        fechaEstadoPago: null,
+        accesoRestringido: false,
+        motivoRestriccion: null,
+        fechaRestriccion: null,
+      }
+    : {}),
+})
+
+// El marco del admin y la ficha (sesión, /me, la tabla, la cuenta por id y los enlaces de
+// /admin/maestros) responden antes que el manejador del caso.
+const respuestaDelMarco = (ruta: string, init?: RequestInit): Response | null => {
+  const metodo = init?.method ?? "GET"
+  if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "t" })
+  if (ruta === "/api/me") return respuestaJson(200, ME_ADMIN)
+  if (metodo !== "GET") return null
+  if (/^\/api\/admin\/usuarios(\?|$)/.test(ruta)) {
+    return respuestaJson(200, {
+      usuarios: CUENTAS.map(filaDe),
+      siguienteCursor: null,
+      siguienteCursorNombre: null,
+    })
+  }
+  const ficha = /^\/api\/admin\/usuarios\/([^/?]+)$/.exec(ruta)
+  if (ficha) {
+    const cuenta = CUENTAS.find((u) => u.id === ficha[1])
+    if (cuenta) return respuestaJson(200, filaDe(cuenta))
+    if (ficha[1] === "abc") {
+      return errorJson(400, "VALIDACION", "id: id: debe ser un identificador válido")
+    }
+    return errorJson(404, "USUARIO_NO_ENCONTRADO")
+  }
+  if (ruta.startsWith("/api/admin/enlaces-registro")) {
+    return respuestaJson(200, { enlaces: [], siguienteCursor: null })
+  }
+  return null
+}
+
 type Manejador = (ruta: string, init?: RequestInit) => Response | Promise<Response>
 
 const stubFetch = (manejador: Manejador) => {
-  const fetchMock = vi.fn<typeof fetch>((entrada, init) =>
-    Promise.resolve(manejador(String(entrada), init)),
-  )
+  const fetchMock = vi.fn<typeof fetch>((entrada, init) => {
+    const delMarco = respuestaDelMarco(String(entrada), init)
+    if (delMarco !== null) return Promise.resolve(delMarco)
+    return Promise.resolve(manejador(String(entrada), init))
+  })
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
 
 const llamadasQueContienen = (fetchMock: ReturnType<typeof stubFetch>, fragmento: string) =>
   fetchMock.mock.calls.filter(([entrada]) => String(entrada).includes(fragmento)).length
-
-const cuerpoDe = (init: RequestInit | undefined): unknown => JSON.parse(String(init?.body))
 
 const diferida = () => {
   let resolver: (respuesta: Response) => void = () => {
@@ -68,13 +144,7 @@ const diferida = () => {
 // Cada llamada a /restablecer-contrasena toma la siguiente respuesta de la lista, en orden.
 const apiDeCuentas = (...respuestas: Array<() => Response | Promise<Response>>) => {
   let siguiente = 0
-  return stubFetch((ruta, init) => {
-    if (ruta === "/api/admin/usuarios/buscar") {
-      const { email } = cuerpoDe(init) as { email: string }
-      const usuario = [carla, beto].find((u) => u.email === email)
-      if (!usuario) return errorJson(404, "USUARIO_NO_ENCONTRADO")
-      return respuestaJson(200, { usuario })
-    }
+  return stubFetch((ruta) => {
     if (ruta.endsWith("/restablecer-contrasena")) {
       const respuesta = respuestas[siguiente]
       siguiente += 1
@@ -87,28 +157,63 @@ const apiDeCuentas = (...respuestas: Array<() => Response | Promise<Response>>) 
 
 const conStrictMode = (hijo: ReactNode) => <StrictMode>{hijo}</StrictMode>
 
-const renderVista = (envolver: (hijo: ReactNode) => ReactNode = (hijo) => hijo) => {
+const enrutador: { actual: ReturnType<typeof createMemoryRouter> | undefined } = {
+  actual: undefined,
+}
+
+const routerActual = () => {
+  if (!enrutador.actual) throw new Error("Precondición: la vista se montó con renderVista")
+  return enrutador.actual
+}
+
+// Monta el router real en /admin/usuarios (la tabla): cada caso abre después la ficha que necesita.
+const renderVista = async (
+  envolver: (hijo: ReactNode) => ReactNode = (hijo) => hijo,
+  entrada = "/admin/usuarios",
+) => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, { initialEntries: [entrada] })
+  enrutador.actual = router
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const vista = render(
     envolver(
       <QueryClientProvider client={queryClient}>
-        <CuentasView />
+        <RouterProvider router={router} />
       </QueryClientProvider>,
     ),
   )
+  await screen.findByRole("navigation", { name: "Navegación principal" })
+  return Object.assign(vista, { queryClient, router })
 }
 
-const campoBuscar = () => screen.getByLabelText("Correo exacto de la cuenta")
+const irARuta = async (ruta: string) => {
+  await act(async () => {
+    await routerActual().navigate(ruta)
+  })
+}
 
-const buscarConEnter = async (correo: string, nombreEsperado?: string) => {
+// Antes: escribir el correo y pulsar "Buscar". Ahora: abrir la ficha de la cuenta.
+const abrirFicha = async (cuenta: CuentaDePrueba) => {
+  await irARuta(`/admin/usuarios/${cuenta.id}`)
+  return screen.findByRole("region", { name: cuenta.nombre })
+}
+
+// Antes: el campo de búsqueda, que seguía montado con la ficha. Ahora: el enlace "Usuarios" de la
+// barra, que sigue montado al cambiar de ficha.
+const campoBuscar = () =>
+  within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("link", {
+    name: "Usuarios",
+  })
+
+// Como un admin con el foco en "Usuarios" que abre otra ficha sin moverlo.
+const buscarConEnter = async (cuenta: CuentaDePrueba) => {
   const campo = campoBuscar()
   act(() => campo.focus())
-  fireEvent.change(campo, { target: { value: correo } })
-  const formulario = campo.closest("form")
-  if (!formulario) throw new Error("el campo de búsqueda no está dentro de un formulario")
-  fireEvent.submit(formulario)
-  if (nombreEsperado) await screen.findByText(nombreEsperado)
+  return abrirFicha(cuenta)
 }
+
+// La ficha de una cuenta: su región con nombre (E-24). Sin clases de estilo.
+const fichaDe = (nombre: string): HTMLElement => screen.getByRole("region", { name: nombre })
 
 const boton = (nombre: string) => screen.getByRole("button", { name: nombre })
 
@@ -191,20 +296,18 @@ const resolverCon = async (pendiente: ReturnType<typeof diferida>, respuesta: Re
   })
 }
 
-// La ficha de una cuenta: el ancestro común más cercano de su nombre y del formulario
-// "Guardar correo". Sin clases de estilo (tester.md, "Reglas de combate").
-const fichaDe = (nombre: string): HTMLElement => {
-  const formularioCorreo = screen.getByRole("form", { name: "Guardar correo" })
-  let nodo: HTMLElement | null = screen.getByText(nombre).parentElement
-  while (nodo && !nodo.contains(formularioCorreo)) nodo = nodo.parentElement
-  if (!nodo) throw new Error("no se encontró el contenedor de la ficha")
-  if (nodo.contains(screen.getByRole("form", { name: "Buscar" }))) {
-    throw new Error("el contenedor encontrado incluye el buscador: no es la ficha")
-  }
-  return nodo
-}
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
+beforeEach(() => {
+  establecerToken("token-de-prueba")
+})
 
 afterEach(() => {
+  cleanup()
+  limpiarToken()
+  enrutador.actual = undefined
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   aviso.success.mockClear()
@@ -217,15 +320,15 @@ afterEach(() => {
 // respuesta le quita el foco. Es la reproducción de T-11, ahora en el navegador real.
 describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la petición en vuelo", () => {
   // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
-  it("la temporal que llega mientras escribe en 'Nombre completo' no le roba el foco", async () => {
+  it("la temporal que llega mientras escribe en 'Correo correcto' (fuera de la confirmación) no le roba el foco", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     const confirmar = confirmarConClic()
     await emularCorreccionDelFocoDeChromium(confirmar)
 
-    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    const nombreMaestro = screen.getByLabelText("Correo correcto")
     escribirEn(nombreMaestro, "Ana Lóp")
     await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
     await screen.findByText(TEMPORAL)
@@ -233,7 +336,7 @@ describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la 
 
     expect(
       document.activeElement,
-      `el admin escribía en "Nombre completo" y la temporal le llevó el foco a ${describirFoco()}`,
+      `el admin escribía en "Correo correcto" y la temporal le llevó el foco a ${describirFoco()}`,
     ).toBe(nombreMaestro)
   })
 
@@ -241,8 +344,8 @@ describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la 
   it("la temporal que llega mientras escribe en 'Correo correcto' de la misma ficha no le roba el foco", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     const confirmar = confirmarConClic()
     await emularCorreccionDelFocoDeChromium(confirmar)
 
@@ -259,15 +362,15 @@ describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la 
   })
 
   // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
-  it("un 500 que llega mientras escribe en 'Nombre completo' no le lleva el foco a 'Cancelar'", async () => {
+  it("un 500 que llega mientras escribe en 'Correo correcto' no le lleva el foco a 'Cancelar'", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     const confirmar = confirmarConClic()
     await emularCorreccionDelFocoDeChromium(confirmar)
 
-    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    const nombreMaestro = screen.getByLabelText("Correo correcto")
     escribirEn(nombreMaestro, "Ana Lóp")
     await resolverCon(pendiente, errorJson(500, "ERROR_INTERNO"))
     expect(await screen.findByRole("alert")).toBeVisible()
@@ -275,7 +378,7 @@ describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la 
 
     expect(
       document.activeElement,
-      `el admin escribía en "Nombre completo" y el error le llevó el foco a ${describirFoco()}`,
+      `el admin escribía en "Correo correcto" y el error le llevó el foco a ${describirFoco()}`,
     ).toBe(nombreMaestro)
   })
 })
@@ -284,17 +387,17 @@ describe("ataque (AUTH-02b r4): en Chromium, el admin se va a otro campo con la 
 // enfocable. Después, el admin se va a otro campo sin que el contenedor se entere.
 describe("ataque (AUTH-02b r4): un clic en una zona no enfocable y después otro campo", () => {
   // T-14: riesgo aceptado el 2026-09-26; corregido en DESIGN-01a (§D-6), sin it.fails (ronda 1)
-  it("'Cancelar' con la petición en vuelo, clic fuera y a escribir en 'Nombre completo': la temporal no le roba el foco", async () => {
+  it("'Cancelar' con la petición en vuelo, clic fuera y a escribir en 'Correo correcto': la temporal no le roba el foco", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     confirmarConClic()
     fireEvent.click(boton("Cancelar"))
     expect(document.activeElement).toBe(boton("Restablecer contraseña"))
 
     clicEnZonaNoEnfocable()
-    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    const nombreMaestro = screen.getByLabelText("Correo correcto")
     escribirEn(nombreMaestro, "Ana Lóp")
     await resolverCon(pendiente, respuestaJson(200, { contrasenaTemporal: TEMPORAL }))
     await screen.findByText(TEMPORAL)
@@ -302,20 +405,20 @@ describe("ataque (AUTH-02b r4): un clic en una zona no enfocable y después otro
 
     expect(
       document.activeElement,
-      `el admin escribía en "Nombre completo" y la temporal le llevó el foco a ${describirFoco()}`,
+      `el admin escribía en "Correo correcto" y la temporal le llevó el foco a ${describirFoco()}`,
     ).toBe(nombreMaestro)
   })
 })
 
 describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener", () => {
-  it("jsdom, sin corrección: el admin pasa directo de 'Sí, restablecer' a 'Nombre completo' y un 500 no le quita el foco", async () => {
+  it("jsdom, sin corrección: el admin pasa directo de 'Sí, restablecer' a 'Correo correcto' y un 500 no le quita el foco", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     confirmarConClic()
 
-    const nombreMaestro = screen.getByLabelText("Nombre completo")
+    const nombreMaestro = screen.getByLabelText("Correo correcto")
     escribirEn(nombreMaestro, "Ana Lóp")
     await resolverCon(pendiente, errorJson(500, "ERROR_INTERNO"))
     expect(await screen.findByRole("alert")).toBeVisible()
@@ -327,8 +430,8 @@ describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener
   it("'Cancelar' con la petición en vuelo y después un 500: el foco se queda en 'Restablecer contraseña'", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     confirmarConClic()
     fireEvent.click(boton("Cancelar"))
     expect(document.activeElement).toBe(boton("Restablecer contraseña"))
@@ -350,8 +453,8 @@ describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener
       () => primera.promesa,
       () => segunda.promesa,
     )
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     const confirmar = confirmarConClic()
     await emularCorreccionDelFocoDeChromium(confirmar)
     await resolverCon(primera, errorJson(500, "ERROR_INTERNO"))
@@ -378,8 +481,8 @@ describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener
   it("en Chromium: tras la corrección, el admin vuelve a 'Cancelar' con Tab y la temporal lleva el foco a 'Copiar'", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista()
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista()
+    await buscarConEnter(carla)
     const confirmar = confirmarConClic()
     await emularCorreccionDelFocoDeChromium(confirmar)
 
@@ -395,8 +498,8 @@ describe("ataque (AUTH-02b r4): lo que el cambio de la ronda 4 sí debe sostener
 describe("ataque (AUTH-02b r4): confirmandoAnteriorRef con <StrictMode>, remontajes y cambios de cuenta", () => {
   it("con <StrictMode>: abrir y cancelar tres veces alterna el foco entre 'Cancelar' y 'Restablecer contraseña'", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista(conStrictMode)
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista(conStrictMode)
+    await buscarConEnter(carla)
     await esperarUnMomento()
     expect(document.activeElement).toBe(campoBuscar())
 
@@ -415,8 +518,8 @@ describe("ataque (AUTH-02b r4): confirmandoAnteriorRef con <StrictMode>, remonta
 
   it("con <StrictMode>: Enter mantenido (nueve activaciones) no restablece ni pasa por <body>", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista(conStrictMode)
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista(conStrictMode)
+    await buscarConEnter(carla)
     act(() => boton("Restablecer contraseña").focus())
 
     const recorrido: string[] = []
@@ -436,8 +539,8 @@ describe("ataque (AUTH-02b r4): confirmandoAnteriorRef con <StrictMode>, remonta
   it("con <StrictMode> y en Chromium: el admin confirma y no se mueve, y la temporal lleva el foco a 'Copiar'", async () => {
     const pendiente = diferida()
     apiDeCuentas(() => pendiente.promesa)
-    renderVista(conStrictMode)
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista(conStrictMode)
+    await buscarConEnter(carla)
     const confirmar = confirmarConClic()
     await emularCorreccionDelFocoDeChromium(confirmar)
 
@@ -450,12 +553,12 @@ describe("ataque (AUTH-02b r4): confirmandoAnteriorRef con <StrictMode>, remonta
 
   it("con <StrictMode>: buscar a Beto con la confirmación abierta en Carla no mueve el foco del buscador, y su confirmación enfoca su 'Cancelar'", async () => {
     apiDeCuentas()
-    renderVista(conStrictMode)
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista(conStrictMode)
+    await buscarConEnter(carla)
     fireEvent.click(boton("Restablecer contraseña"))
     expect(document.activeElement).toBe(boton("Cancelar"))
 
-    await buscarConEnter(beto.email, beto.nombre)
+    await buscarConEnter(beto)
     await esperarUnMomento()
     expect(document.activeElement, `el foco quedó en ${describirFoco()}`).toBe(campoBuscar())
     expect(screen.queryByRole("button", { name: "Sí, restablecer" })).not.toBeInTheDocument()
@@ -467,13 +570,13 @@ describe("ataque (AUTH-02b r4): confirmandoAnteriorRef con <StrictMode>, remonta
 
   it("con <StrictMode>: desmontar y volver a montar la vista entera no mueve el foco al montar", async () => {
     apiDeCuentas()
-    const { unmount } = renderVista(conStrictMode)
-    await buscarConEnter(carla.email, carla.nombre)
+    const { unmount } = await renderVista(conStrictMode)
+    await buscarConEnter(carla)
     fireEvent.click(boton("Restablecer contraseña"))
     unmount()
 
-    renderVista(conStrictMode)
-    await buscarConEnter(carla.email, carla.nombre)
+    await renderVista(conStrictMode)
+    await buscarConEnter(carla)
     await esperarUnMomento()
 
     expect(document.activeElement, `el foco quedó en ${describirFoco()}`).toBe(campoBuscar())

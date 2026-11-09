@@ -5,6 +5,7 @@ import type {
   EditarClase as ClaseEditada,
   EditarRecurso as RecursoEditado,
   ListaPublicacionesRespuesta,
+  PersonasRespuesta,
   Tema,
 } from "@campus/shared"
 
@@ -254,7 +255,14 @@ export interface MaestroDeLista {
   id: string
   nombre: string
   email?: string | undefined
+  // ADMIN-01e (S-16): solo en un maestro dado de baja; la lista pinta «Cuenta desactivada».
+  cuentaDesactivada?: true | undefined
 }
+
+// ADMIN-01f (§D-11, Enmienda 14, N-01e-2): una persona de "Personas": un maestro de la clase (con la marca
+// de cuenta desactivada, que se lee de `maestros`, nunca del campo de compatibilidad `maestro`) o un
+// compañero, que le es asignable.
+export type PersonaDeLaLista = PersonasRespuesta["maestros"][number]
 
 // TAREAS-01e (§D-11, Enmienda 5): el limitador FIFO de las lecturas de "Trabajo de clase". `ejecutar`
 // corre la tarea si hay lugar y, si no, la forma en una cola; con el `signal` abortado mientras espera,

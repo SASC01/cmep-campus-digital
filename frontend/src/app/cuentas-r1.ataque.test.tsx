@@ -146,7 +146,8 @@ describe("ataque (AUTH-02b r1): sin bucles de redirección", () => {
     })
     const router = await renderEn("/cambiar-contrasena")
 
-    expect(await screen.findByRole("heading", { name: "Cuentas" })).toBeVisible()
+    // ADMIN-01f ronda 0 (C-16): el encabezado de /admin es el del dashboard ("Inicio", T-E14).
+    expect(await screen.findByRole("heading", { name: "Inicio" })).toBeVisible()
     expect(router.state.location.pathname).toBe("/admin")
   })
 

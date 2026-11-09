@@ -1,8 +1,10 @@
+import { UserX } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
-import { TEXTOS_MAESTROS_DE_CLASE } from "../data"
+import { TEXTO_CUENTA_DESACTIVADA, TEXTOS_MAESTROS_DE_CLASE } from "../data"
 import { useFilaEnFoco } from "../hooks"
 import { focoPerdido, vecinaDeFila } from "../lib"
 import type { MaestroDeLista } from "../types"
@@ -61,6 +63,11 @@ function FilaMaestro({
         <span className="wrap-anywhere font-bold">{maestro.nombre}</span>
         {maestro.email !== undefined && (
           <span className="wrap-anywhere text-small text-muted-foreground">{maestro.email}</span>
+        )}
+        {maestro.cuentaDesactivada === true && (
+          <Badge variant="muted" icon={<UserX aria-hidden="true" />}>
+            {TEXTO_CUENTA_DESACTIVADA}
+          </Badge>
         )}
       </div>
       {puedeQuitar && !confirmando && (

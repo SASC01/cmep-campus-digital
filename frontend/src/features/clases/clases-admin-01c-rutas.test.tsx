@@ -266,7 +266,7 @@ const CAMINOS_DE_LA_LISTA: [string, (router: Router, estado: Estado) => Promise<
   [
     "(b) ir a otra sección y regresar antes del staleTime",
     async (router, estado) => {
-      fireEvent.click(enLaBarra("Cuentas"))
+      fireEvent.click(enLaBarra("Inicio"))
       await waitFor(() => expect(router.state.location.pathname).toBe("/admin"))
       await reposar()
       await act(() => router.navigate(`/admin/clases?estado=${estado}`))
@@ -387,7 +387,7 @@ const CAMINOS_DEL_DIALOGO: [string, (router: Router, dialogo: HTMLElement) => Pr
     "(c) ir a otra sección y regresar antes del staleTime",
     async (router, dialogo) => {
       await cerrarElDialogo(dialogo)
-      fireEvent.click(enLaBarra("Cuentas"))
+      fireEvent.click(enLaBarra("Inicio"))
       await waitFor(() => expect(router.state.location.pathname).toBe("/admin"))
       await reposar()
       await act(() => router.navigate("/admin/clases?estado=archivadas"))

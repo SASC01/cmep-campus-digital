@@ -9,10 +9,17 @@ import { Label } from "@/components/ui/label"
 
 import { TEXTOS_CUENTAS } from "../data"
 import { useInvitarMaestro } from "../hooks"
-import { erroresPorCampoAdmin, mensajeDeErrorAdmin } from "../lib"
+import {
+  erroresDelNombreDeOtraPersona,
+  erroresPorCampoAdmin,
+  mensajeDeErrorAdmin,
+  textoParaTerceros,
+} from "../lib"
 import type { ErroresFormularioAdmin } from "../types"
 
-// DEC-11, DEC-19: alta de maestros por invitación (RF-04b). El rol lo fija el servidor.
+// DEC-11, DEC-19: alta de maestros por invitación (RF-04b). El rol lo fija el servidor. ADMIN-01f (§D-11,
+// Enmienda 1): vive en /admin/maestros, con su botón en outline (la principal de esa vista es «Enviar
+// invitaciones»); el admin escribe el nombre de otra persona (textoParaTerceros, P-E14-1 a).
 export function FormularioInvitarMaestro() {
   const invitar = useInvitarMaestro()
   const [errores, setErrores] = useState<ErroresFormularioAdmin>({})
@@ -31,7 +38,7 @@ export function FormularioInvitarMaestro() {
       email: datosFormulario.get("correo"),
     })
     if (!resultado.success) {
-      setErrores(erroresPorCampoAdmin(resultado.error.issues))
+      setErrores(erroresDelNombreDeOtraPersona(erroresPorCampoAdmin(resultado.error.issues)))
       return
     }
 
@@ -47,7 +54,9 @@ export function FormularioInvitarMaestro() {
       className="flex flex-col gap-4 rounded-panel border border-border bg-surface p-4"
     >
       <h2 className="text-h3">{TEXTOS_CUENTAS.invitar.titulo}</h2>
-      {invitar.isError && <MensajeError mensaje={mensajeDeErrorAdmin(invitar.error)} />}
+      {invitar.isError && (
+        <MensajeError mensaje={textoParaTerceros(mensajeDeErrorAdmin(invitar.error))} />
+      )}
       {invitar.isSuccess && (
         <p role="status" className="text-small text-success">
           {TEXTOS_CUENTAS.invitar.exito(invitar.data.nombre)}
@@ -79,7 +88,7 @@ export function FormularioInvitarMaestro() {
         />
         {errores.email && <ErrorDeCampo id="correo-maestro-error">{errores.email}</ErrorDeCampo>}
       </div>
-      <Button type="submit" variant="primary" enEspera={invitar.isPending}>
+      <Button type="submit" variant="outline" enEspera={invitar.isPending}>
         {TEXTOS_CUENTAS.invitar.boton}
       </Button>
     </form>

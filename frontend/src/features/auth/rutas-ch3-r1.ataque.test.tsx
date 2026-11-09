@@ -48,6 +48,13 @@ const exito = ({ metodo, ruta }: Llamada): Response | null => {
       accesoRestringido: false,
     })
   }
+  // ADMIN-01f, C-45 (§D-R0 01f, Enmienda 14, M-15): tras el login o el registro con rol admin, la
+  // vista termina en /admin, cuyo dashboard pide GET /api/admin/resumen al montarse. Se responde
+  // con un resumen válido para que no cuente como inesperada; inesperadas sigue estricta para todo
+  // lo demás.
+  if (metodo === "GET" && ruta === "/api/admin/resumen") {
+    return respuestaJson(200, { alumnos: 0, maestros: 0, clasesActivas: 0 })
+  }
   if (metodo !== "POST") return null
   if (["/api/auth/login", "/api/auth/registro"].includes(ruta)) {
     return respuestaJson(200, { tokenAcceso: "token-nuevo" })

@@ -155,7 +155,8 @@ describe("ataque (DESIGN-01b-1 r1): /acceso-restringido con alguien NO restringi
       rol: "admin",
       nombre: "Administración",
       destino: "/admin",
-      identidad: () => screen.findByRole("heading", { name: "Cuentas" }),
+      // ADMIN-01f ronda 0 (C-16): la identidad del admin es el h1 del dashboard, "Inicio" (T-E14).
+      identidad: () => screen.findByRole("heading", { name: "Inicio" }),
     },
   ])(
     "un $rol termina en $destino con un solo pie (el del marco) y nunca ve 'Acceso restringido'",
@@ -325,8 +326,12 @@ describe("ataque (DESIGN-01b-1 r1): marco de cada rol", () => {
       nombre: "Administración",
       etiqueta: "Administrador",
       destino: "/admin",
-      destinos: ["/admin", "/admin/maestros", "/admin/clases"],
-      textos: ["Cuentas", "Maestros", "Clases"],
+      // ADMIN-01f ronda 0 (C-16, §D-11 y Enmienda 1): los destinos del admin en 01f son "Inicio"
+      // (/admin), "Usuarios" (/admin/usuarios), "Maestros" y "Clases", en ese orden. Sigue
+      // protegiendo que cada destino sea una ruta existente y enfocable y que solo el de la ruta
+      // actual quede activo.
+      destinos: ["/admin", "/admin/usuarios", "/admin/maestros", "/admin/clases"],
+      textos: ["Inicio", "Usuarios", "Maestros", "Clases"],
     },
   ])(
     "$rol: una nav con sus destinos existentes, solo el de la ruta actual activo, un banner, un pie, un 'Cerrar sesión'",

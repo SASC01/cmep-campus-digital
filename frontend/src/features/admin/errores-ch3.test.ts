@@ -1,4 +1,9 @@
-import { contarCaracteresVisibles } from "@campus/shared"
+import {
+  accesoSchema,
+  cambiarActivoSchema,
+  contarCaracteresVisibles,
+  estadoPagoLoteSchema,
+} from "@campus/shared"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -75,7 +80,13 @@ describe("CHORE-03 · traducción de errores de features/admin", () => {
   it.each(FUNCIONES)(
     "CH3-C02: %s con CUPO_DIARIO_INSUFICIENTE da su mensaje si tiene texto visible y el genérico si no",
     (_nombre, traducir) => {
-      expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toEqual([CUPO])
+      // ADMIN-01f (§D-R0 01f, lista cerrada; §D-12): suman los 409 de la baja y del acceso.
+      expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toEqual([
+        CUPO,
+        "MAESTRO_CON_CLASES",
+        "NO_ES_ALUMNO",
+        "CUENTA_DE_ADMINISTRACION",
+      ])
       expect(traducir(new ApiError(CUPO, MENSAJE_DEL_CUPO, 409))).toBe(MENSAJE_DEL_CUPO)
       expect(traducir(new ApiError(CUPO, "a.b: c", 409))).toBe("a.b: c")
       for (const resto of RESTOS_SIN_TEXTO_VISIBLE) {
@@ -94,10 +105,16 @@ describe("CHORE-03 · traducción de errores de features/admin", () => {
     },
   )
 
-  it("CH3-C02: la traducción del módulo es la de siempre, sin VALIDACION entre los códigos con mensaje del servidor", () => {
+  // ADMIN-01f (§D-R0 01f, lista cerrada, Enmienda 14, M-18): solo cambia textosPorCampo, que gana activo,
+  // restringido y estadoPago con el genérico.
+  it("CH3-C02: la traducción del módulo es la de siempre, sin VALIDACION entre los códigos con mensaje del servidor; textosPorCampo solo gana activo, restringido y estadoPago con el genérico", () => {
     expect(Object.entries(MENSAJES_ERROR_ADMIN)).toEqual(TEXTOS_FIJOS_DE_SIEMPRE)
     expect(TRADUCCION_DE_ERRORES_ADMIN.codigosConMensajeDelServidor).not.toContain("VALIDACION")
-    expect(TRADUCCION_DE_ERRORES_ADMIN.textosPorCampo).toEqual({})
+    expect(TRADUCCION_DE_ERRORES_ADMIN.textosPorCampo).toEqual({
+      activo: GENERICO,
+      restringido: GENERICO,
+      estadoPago: GENERICO,
+    })
     expect(TRADUCCION_DE_ERRORES_ADMIN.generico).toBe(GENERICO)
   })
 
@@ -143,4 +160,53 @@ describe("CHORE-03 · traducción de errores de features/admin", () => {
       }
     },
   )
+})
+
+// ADMIN-01f (ADM-1F20, Enmienda 14, M-18): los campos que ninguna persona escribe y cuyo esquema de
+// shared/ responde en inglés (activo, restringido, estadoPago) dan el genérico. Los mensajes reales se
+// arman como validarCuerpo del backend: `${ruta}: ${mensaje}`.
+describe("ADMIN-01f · VALIDACION de activo, restringido y estadoPago", () => {
+  const ALUMNO = "c8f7b2b1-2222-4c9f-8b2f-1a3b4c5d6e7f"
+
+  const mensajeReal = (
+    resultado: { success: boolean; error?: { issues: { path: PropertyKey[]; message: string }[] } },
+    campo: string,
+  ): string => {
+    const incidencia = resultado.error?.issues.find((i) => i.path[0] === campo)
+    if (incidencia === undefined) throw new Error(`Precondición: el esquema rechaza ${campo}`)
+    expect(contarCaracteresVisibles(incidencia.message)).toBeGreaterThan(0)
+    return `${incidencia.path.join(".")}: ${incidencia.message}`
+  }
+
+  it("ADM-1F20: el mensaje real en inglés y uno de prueba de activo, restringido y estadoPago dan exactamente el genérico en las acciones y en las consultas", () => {
+    const reales = [
+      mensajeReal(cambiarActivoSchema.safeParse({ activo: "si" }), "activo"),
+      mensajeReal(accesoSchema.safeParse({ restringido: "si" }), "restringido"),
+      mensajeReal(
+        estadoPagoLoteSchema.safeParse({ alumnoIds: [ALUMNO], estadoPago: "x" }),
+        "estadoPago",
+      ),
+    ]
+    expect(reales.some((mensaje) => /Invalid/.test(mensaje))).toBe(true)
+    const dePrueba = ["activo", "restringido", "estadoPago"].map(
+      (campo) => `${campo}: ${MENSAJE_DE_PRUEBA}`,
+    )
+    for (const mensaje of [...reales, ...dePrueba]) {
+      for (const [, traducir] of FUNCIONES) {
+        expect(traducir(validacion(mensaje)), mensaje).toBe(GENERICO)
+      }
+    }
+  })
+
+  it("ADM-1F20 (controles que no cambian): alumnoIds.0 y motivo dan su resto; la tabla común sigue igual", () => {
+    expect(mensajeDeErrorAdmin(validacion("alumnoIds.0: Un alumno no es válido"))).toBe(
+      "Un alumno no es válido",
+    )
+    expect(
+      mensajeDeErrorAdmin(validacion("motivo: El motivo no puede tener más de 300 caracteres")),
+    ).toBe("El motivo no puede tener más de 300 caracteres")
+    for (const entrada of ENTRADAS_FUERA_DE_CONTRATO) {
+      expect(mensajeDeErrorAdmin(validacion(entrada.mensaje))).toBe(entrada.resto ?? GENERICO)
+    }
+  })
 })

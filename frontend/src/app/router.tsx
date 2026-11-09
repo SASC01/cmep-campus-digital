@@ -1,8 +1,10 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router"
 
 import { LayoutPublico } from "@/components/layout/layout-publico"
-import { CuentasView } from "@/features/admin/cuentas-view"
+import { InicioAdminView } from "@/features/admin/inicio-admin-view"
 import { MaestrosView } from "@/features/admin/maestros-view"
+import { UsuarioView } from "@/features/admin/usuario-view"
+import { UsuariosView } from "@/features/admin/usuarios-view"
 import { AccesoRestringidoView } from "@/features/auth/acceso-restringido-view"
 import { CambiarContrasenaView } from "@/features/auth/cambiar-contrasena-view"
 import { EstablecerContrasenaView } from "@/features/auth/establecer-contrasena-view"
@@ -152,7 +154,15 @@ export const rutas: RouteObject[] = [
         path: "/admin",
         element: <RequireRol rol="admin" />,
         children: [
-          { index: true, element: <CuentasView /> },
+          // ADMIN-01f (§D-11, DH-05 a): el dashboard, la tabla de usuarios y la ficha de una cuenta.
+          { index: true, element: <InicioAdminView /> },
+          {
+            path: "usuarios",
+            children: [
+              { index: true, element: <UsuariosView /> },
+              { path: ":usuarioId", element: <UsuarioView /> },
+            ],
+          },
           { path: "maestros", element: <MaestrosView /> },
           // CLASES-02c (§D-2C2): las clases del administrador. El literal "nueva" gana a :claseId.
           {

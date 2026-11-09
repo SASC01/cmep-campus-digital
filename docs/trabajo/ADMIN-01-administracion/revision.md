@@ -6179,3 +6179,977 @@ Ninguno queda abierto, y en esta revisión no hay ninguno nuevo.
 13. Pendientes con destino: notas para 01f y 01g, dos filas nuevas y dos cierres en ESTADO §3, y N-32 al carril trivial.
 14. El commit lleva 46 entradas de `git add` (58 archivos), incluidas la migración, las cuatro pruebas nuevas del tester y la carpeta del encargo.
 15. No entra `docs/trabajo/DEPLOY-investigacion-vps.md`, que es ajeno.
+
+## Verificación de la Enmienda 14 — ADMIN-01
+
+Veredicto: **CAMBIOS REQUERIDOS**. Las respuestas del humano están aplicadas sin condicionales y T-E14 es la tabla que se le mostró. Los destinos de la revisión final de 01e (N-01e-1, N-01e-2, los mensajes de zod en inglés, "Escribe tu nombre completo" y el `22021`) tienen remedio y casos. Pero al repetir los greps encontré cuatro problemas que bloquean. Una `*.ataque` va a quedar en rojo con el dashboard, y no tiene C-n (M-15). La insignia «Cuenta desactivada» no tiene un archivo de textos en "Se toca" (M-16). A las frases de error de carga de las dos tablas les faltan caminos que el propio plan promete (M-17). Y hay texto viejo del plan que contradice a la Enmienda 14 en vigiladas con PARADA (M-18). Las cuatro se corrigen solo en el plan: no cambian textos aprobados ni piden otra decisión del humano.
+
+Verificación propia: sin suites, porque solo cambia el plan (lo pidió el orquestador). Hice todo leyendo: `git diff --no-index`, `sha256sum` y `grep` sobre el árbol de trabajo, que es `10356bd` (fuera de `docs/` no hay cambios: `git status` solo muestra `aprobacion.md`, `plan.md` y `DEPLOY-investigacion-vps.md`, que es ajeno). No abrí navegadores.
+
+### Hashes y cotejo
+- Copia previa: `plan-admin01-antes-enmienda14-7018e1f3.md` = `7018e1f321364350554c1a2fdd2cd2e5f0c54ea18c3586ce8c62a1ad2b4e97cf`. Versión bloqueada: `plan-admin01-v18-enmienda14-0ee9cd5a.md` = `0ee9cd5add96cbe819e23c99d6eb484a78bc352bd7abba6c097810762966128c`. Las dos coinciden con `aprobacion.md` (:219 y :220).
+- `plan.md` = `b6958947d4f8928c602bca3a85d26ac809977a865dd316e9f5c98997a09f6ddf`, 2379 líneas, sin CR y sin caracteres invisibles. Es igual a la copia `plan-admin01-v19-enmienda14c-b6958947.md` y a `aprobacion.md:222`.
+- `git diff --no-index` contra `7018e1f3…`: 193 inserciones y 6 borrados, en 19 hunks. Contra `0ee9cd5a…`: 33 inserciones y 21 borrados, todos del desbloqueo (E14-19 a E14-23).
+- Los 6 borrados son líneas que se reemplazan: Estado (2), la viñeta `/admin` de §D-11 (524), el encabezado de la lista cerrada de 01f (1586), la lista cerrada de 01g (1635), el paso 26 (1839) y el paso 30 (1845). Ninguno quita una regla sin dejarla dicha.
+
+| Hunk | Sección (línea del plan nuevo) | E14-n |
+|---|---|---|
+| 1 | Estado (2) | E14-1 y E14-19 |
+| 2 | Preguntas bloqueantes, "Enmienda 14 (resueltas)" y "Enmienda 1 y anteriores" (24-41) | E14-2, E14-3, E14-20 a E14-22 |
+| 3 | §D-11, viñeta `/admin` (542) | E14-10 |
+| 4 | §D-11, bloque "Enmienda 14" (595-626) | E14-4 a E14-11 |
+| 5 | §D-12, tabla T-E14 (644-676) | E14-3 y E14-21 |
+| 6 | Cambios por capa, frontend (777) | E14-6, E14-8 y E14-9 |
+| 7 | Pruebas 01f, ADM-1F20 a ADM-1F25 y ampliaciones (1194-1210) | E14-4, E14-6, E14-7, E14-8, E14-10 y E14-12 |
+| 8 | Pruebas 01g, ADM-1G16 y ampliaciones (1236-1239) | E14-4, E14-6 y E14-10 |
+| 9 | Puntos de ataque, 12 (1254) | E14-4 |
+| 10 | Riesgos R-20 a R-22 (1290-1292) | E14-18, E14-22, E14-6 y E14-5 |
+| 11 | §D-R0 01f, encabezado de la lista cerrada (1695) | E14-13 |
+| 12 | §D-R0 01f, "grep repetido contra `10356bd`" (1741-1765) | E14-8, E14-9 y E14-13 a E14-15 |
+| 13 | §D-R0 01g, lista cerrada (1769) | E14-10 y E14-14 |
+| 14 | §D-R0 01g, "grep repetido contra `10356bd`" (1793-1797) | E14-10 y E14-14 |
+| 15 | Matriz, filas de la Enmienda 14 (1863-1868) | E14-16 |
+| 16 | Pasos, "Antes de la ronda 0 de 01f" y paso 26 (1984-1985) | E14-9, E14-17 y E14-23 |
+| 17 | Paso 28b (1988) | E14-17 |
+| 18 | Paso 30 (1992) | E14-17 |
+| 19 | Tabla E14-n (2340-2379) | La propia tabla |
+
+### (a) Las respuestas del humano: aplicadas, sin condicionales
+- **P-E14-1 (a) "Los tres":** §D-11 (609-612), T-E14 (648), ADM-1F22 (1204-1207), ADM-1F25 (1210), C-43 con `invitar` y C-44 (1751-1752), la matriz (1866) y el paso 28b dicen los tres formularios y el texto "Escribe el nombre completo". Busqué `opción (a) o (b)`, `con (b)`, `con (c)`, `según P-E14-1` y `Dependen de la respuesta`: solo quedan las opciones (b) y (c) de la pregunta, como historial.
+- **P-E14-2 (a):** comparé las líneas 637-669 de `0ee9cd5a…` con las 644-676 de hoy, y solo cambian dos: el encabezado (de "propuesta" a "aprobada por el humano tal cual", más la frase de la PARADA) y la fila del nombre, que ahora nombra los tres formularios en lugar de "opción (a) o (b)". El texto de esa fila no cambia. Las otras 31 líneas son idénticas.
+- **R-20 "No partirla":** R-20 (1290) y las respuestas (29) lo dicen. Conté "Se toca" de 01f: 28 en `:1694` más los 3 de la Enmienda 14, 31. Con M-16 serían 32 (ver "Para el humano").
+- La tabla E14-n tiene E14-1 a E14-23, sin huecos. E14-1 conserva "BLOQUEADO" como historial, y E14-19 lo cierra.
+
+### (b) Los destinos de 01e: cubiertos
+- **N-01e-1 y el nulo:** §D-11 (596-602), ADM-1F21 y ADM-1G16. Con `shared/src/clases.ts:403-420`, la normalización no quita U+0000 (`\s` no lo incluye), así que "ana" con U+0000 es "valido" y uno o dos U+0000 solos son "corto", como dice (d). `listaUsuariosConsultaSchema` (`shared/src/usuarios-admin.ts:37-58`) rechaza el nulo con el texto que cita el plan.
+- **Mensajes de zod en inglés:** `activo`, `restringido` y `estadoPago` son, en efecto, los únicos campos sin mensaje propio que llegan a las acciones (`cambiarActivoSchema`, `accesoSchema` y `estadoPagoLoteSchema`; `motivo`, `alumnoIds`, `nombre` y `email` responden en español). Con `textosPorCampo`, `mensajeDeErrorDeApi` los resuelve antes de quitar la ruta (`lib/errores-de-api.ts:81-85` y `:95-105`), y `PREFIJO_DE_CAMPO` (`/^([a-zA-Z_]+):\s*/`) reconoce los tres. `ENTRADAS_FUERA_DE_CONTRATO` no tiene ninguna entrada con esos campos, así que CH3-C02 (`errores-ch3.test.ts:58-66`) sigue en verde. Ninguna otra prueba llama a la traducción de admin con ellos.
+- **"Escribe tu nombre completo":** `nombreSchema` (`shared/src/auth.ts:40-49`) lo usa en tres lugares. Los otros textos del nombre son neutros. Sus hermanos están bien descartados: `correoSchema` dice "Escribe un correo válido" (neutro), la invitación masiva usa motivos de un `enum` con sus propias etiquetas y `establecerContrasenaSchema` es del propio maestro.
+- **`22021`:** el único llamador de `listarUsuarios` sigue siendo `handlers/admin/usuarios.ts:53`, que valida con `listaUsuariosConsultaSchema`.
+- **N-01e-2:** ninguna vista de producción lee `.maestro` de una respuesta (grep `\.maestro\b`: solo `BASES_POR_PERSPECTIVA.maestro` y `TEXTOS_*.maestro`). `personas-view.tsx:89-93` y `:136`, `maestros-de-clase-view.tsx:53` y `tabla-clases-admin.tsx:79` leen `maestros`, como dice el plan. `personasRespuestaSchema.maestro` es `personaConCorreoSchema` sin la marca (`clases.ts:369`). El caso "al revés" de ADM-1F23 vale igual: comprueba que la vista no lee `maestro`.
+- **`focoPerdido`:** `useFocoAlCargarMas` (`features/clases/hooks.ts:903-967`) solo necesita React y `focoPerdido`, así que no le falta otro hermano. `components/foco/` tiene hoy `hooks.ts`, `lib.ts` y `types.ts`: siguen tres (CAL-T-182). El comentario de `focoPerdido` no tiene ninguna palabra de CAL-1D09. Ninguna prueba simula `./lib`, `../lib` ni `@/components/foco/*`, así que la reexportación no deja una simulación sin efecto. Detalle: son 18 archivos que la importan, más `lib.ts`, que la define (19 con el nombre), no "19 que la importan".
+
+### (c) Los greps, repetidos contra `10356bd`
+- **Lista cerrada de 01f:** las líneas corregidas son exactas.
+  - `formularios-ch3.test.tsx`: `:14`, `:215-221`, `:336`, `:349`, `:381`, `:537-545` y `:586-588`.
+  - `errores-ch3.test.ts:100` es la única comparación del `textosPorCampo` de admin. Las otras tres (`auth`, `adjuntos` y `lib`) son de otras traducciones.
+  - `contenedor-rol.test.tsx`: `:107-123`, la tabla de `:221-229` y el caso de prefijo de `:234-242`.
+  - `clases-admin-01c-rutas.test.tsx`: `:269` y `:390` (`enLaBarra("Cuentas")`), con `:182` como respuesta "no esperada".
+  - Los casos de `formularios-ch3.test.tsx` que tocan "Invitar maestro" no dependen del texto del nombre. `soloElErrorDeCampo` (`:611-625`) pide un texto no vacío, y el campo pintado usa `MENSAJE_DE_PRUEBA`. Así que `textoParaTerceros` no los cambia.
+- **C-n comprobados:**
+  - C-13: los seis montajes de `CuentasView`, en las líneas que dice el plan.
+  - C-14: `errores-ch3-r1:16` y `:240`, y `secuencias-ch3-r2:12` y `:517`.
+  - C-36/C-43: `estatico-ch3-r1:172-182`, con `permitidos` en `:179-180`. Su expresión (`mensaje=\{([^}]*)\}`) captura entera la forma `textoParaTerceros(mensajeDeErrorAdmin(invitar.error))`, porque no lleva `}`.
+  - C-44: `cuentas-r1:486-497`, con el texto en `:495`. "Escribe tu nombre completo" aparece en dos pruebas: esa y `establecer-contrasena-view.test.tsx:198`.
+  - V-06 en `styles/clases-r1.ataque.test.ts:191`, con la cifra 78 en `:198` y `buscador-de-cuenta.tsx` en `:208`. V-07 en `:391-449`, con 12 rutas de `vidrio-fuerte` y 3 de contexto.
+  - Recuentos: 12 archivos de prueba nombran `CuentasView|cuentas-view|BuscadorDeCuenta|buscador-de-cuenta`, y 10 nombran `/api/admin/usuarios`.
+- **Vigiladas nuevas:** comprobé todas sus líneas y siguen valiendo con el diseño de la Enmienda 14:
+  - `clase-archivada-01d2-vista:641-647`;
+  - `marco-r1:249`, `:343-344`, `:358-366`, `:383`, `:390` y la fila `/admin` de `:441-546`;
+  - `contexto-r1:103` y `:115`;
+  - `inicio-sin-datos-*:27` y `:36`;
+  - `estatico-01d:44-49` y `:178-204`;
+  - `estatico-01d-r1:46-57` y `:109-124`;
+  - `entregas-01d-r1:852-894` y `ver-mas-01e-r3:296-340` (el `export … from` en `features/clases/lib.ts` y un tipo nuevo en `types.ts` no rompen ninguna de sus reglas);
+  - `maestros-view:412-426` y `maestros-03b-r1:362-374`.
+- **Lo que falta:** al repetir el grep de las pruebas que montan el router real y llegan a `/admin`, encontré una `*.ataque` que el plan da por tolerante y no lo es (M-15). Al repetir el de los textos, encontré que la insignia de S-16 no tiene dónde vivir (M-16). Las otras pruebas que llegan a `/admin` toleran el `GET /api/admin/resumen`: su doble responde algo distinto de 2xx o la decodificación falla, y la vista lo convierte en `MensajeError` sin aviso. No cuentan las peticiones ni las que no esperaban. Son `barra-02d-r1:429-445`, `en-espera-r1:254-292`, `fondo-r1`, `marco.test:90-127`, `router.ataque:111-129`, `contexto-r1`, `marco-r1`, `clases-admin-01c-rutas` y `clase-archivada-01d2-vista`. Las de `features/auth` que simulan `rutaActual` en `/admin` (`errores-ch3-r1`, `secuencias-ch3-r2`) montan el componente suelto, sin el router.
+
+### (d) Casos `VALIDACION` fuera de contrato, frases de recuperación y matriz
+- **Formularios de 01f y 01g:** "Editar nombre" (ADM-1F05), el alta (ADM-1F06), la baja, «Reactivar» y «Restablecer acceso» (ADM-1F07b), restringir (ADM-1F08), el estado de pago de la ficha (ADM-1F09b), la fila (ADM-1G01b), el lote (ADM-1G02) y "Invitar maestro" (ADM-1F15, con CH3-C04) siguen con sus casos. La Enmienda 14 les suma el mensaje real en inglés (ADM-1F20 y las ampliaciones), el texto del nombre de otra persona (ADM-1F22) y el nulo (ADM-1F25). Para los formularios está completo.
+- **Frases de recuperación:** les faltan caminos a las de error de carga de las tablas (M-17).
+- **Matriz:** las filas de la Enmienda 14 (1863-1867) concuerdan con §D-11 y con las pruebas, salvo la promesa "se renueva al editar la búsqueda o el filtro", que ninguna prueba recorre por el filtro (M-17).
+
+### (e) Textos fuera de §D-12, T-E14 o el código
+Recorrí cada vista de 01f y 01g contra §D-11, §D-12 y T-E14: títulos, campos, ayudas, columnas, valores de celda, botones con su nombre `sr-only`, diálogos, vacíos, errores, avisos, frases de cursor y «Cargar más». Todos tienen su texto, con tres excepciones:
+- el lugar donde vive «Cuenta desactivada» (M-16);
+- el vacío de `/admin/usuarios` con "Todos" y sin búsqueda, que no se alcanza (siempre está la cuenta del admin; detalle);
+- el estado de acceso en la ficha de un alumno, que T-E14 no muestra ("Para el humano").
+
+### Problemas que bloquean
+
+#### M-15 — `features/auth/rutas-ch3-r1.ataque.test.tsx` se pone en rojo con el dashboard de 01f, y no tiene C-n
+Dónde: plan `:1704` (vigilada de la Enmienda 2: "su doble debe tolerar esa petición"); §D-R0 01f, "Enmienda 14 — grep repetido" (1741-1765), que no lo nombra.
+Por qué importa: esta prueba monta el router real y su doble apunta toda petición sin respuesta en `inesperadas`.
+- `exito` (`:40-59`) solo responde `GET /api/me` y algunos `POST`. Cualquier otro `GET` da `500` y se agrega a `inesperadas` (`:86-93`).
+- Con "iniciar sesión" y con "registro de estudiante", `/api/me` dice `rol: "admin"` y la vista termina en `/admin` (`exitoVisible`, `:159-160` y `:176-177`).
+- Desde 01f, ese `/admin` es el dashboard, que pide `GET /api/admin/resumen` al montarse (§D-11, :552).
+- `expect(inesperadas).toEqual([])` se comprueba en `:238` y dentro de `repetirYQueSalgaBien` (`:225`), que usan los tres casos `it.each(NOMBRES)` (`:229`, `:241` y `:258`).
+
+Son 6 casos en rojo (2 formularios por 3 caminos) en una `*.ataque` que el programador no puede tocar. La PARADA es segura en el paso 28, y la ronda 0 de 01f es justo donde se evita.
+
+Qué se espera:
+- Un C-n nuevo (C-45) para la ronda 0 de 01f, con su "Debe esperar". En `exito`, `GET /api/admin/resumen` responde `200` con un resumen válido. `inesperadas` sigue siendo estricta para todo lo demás, y el título y lo que protege el caso no cambian. Debe quedar verde antes y después.
+- La vigilada de `:1704` dice la verdad: el doble no tolera la petición, y la cubre C-45.
+- El grep que sostiene la lista queda escrito con su comando, como en la Enmienda 14: pruebas que montan `@/app/router` y comprueban `inesperadas`/"no esperada" con la cuenta admin o con `/admin`. Yo lo corrí y solo sale este archivo, además de los de C-13 a C-15 (ver (c)).
+
+#### M-16 — La insignia «Cuenta desactivada» no tiene archivo de textos en "Se toca" de 01f
+Dónde: §D-11 `:554`; §D-12 `:640` (el texto aprobado); §D-R0 01f, "Se toca" (`:1694`) y la Enmienda 14 (`:1742`).
+Por qué importa:
+- La marca se pinta en tres componentes de `features/clases` (`lista-personas.tsx`, `lista-maestros-de-clase.tsx` y `tabla-clases-admin.tsx`). Su texto va en `data.ts` del módulo (`CLAUDE.md`, regla 2).
+- Hoy no existe en ningún lugar: `cuentaDesactivada|Cuenta desactivada` no aparece en `frontend/src`.
+- `features/clases/data.ts` no está en "Se toca" de 01f. Ningún otro archivo de la lista le sirve: `features/admin/data.ts` no se importa desde `features/clases` (regla 9).
+- La Enmienda 14 rehízo esta lista para N-01e-2 y sumó los tipos de la marca (`features/clases/types.ts`), pero no su texto, que es el hermano directo.
+- El programador tendría que escribir el literal en el componente (regla rota) o hacer PARADA.
+
+Qué se espera:
+- "Se toca" de 01f suma el archivo del texto, con su alcance (por ejemplo, `features/clases/data.ts`: solo la constante de «Cuenta desactivada»; o una pieza compartida en `components/`, si el arquitecto lo prefiere, con su razón).
+- R-20 pasa a 32 archivos de producción.
+- Las vigiladas de ese archivo quedan nombradas. Las comprobé, y ninguna choca con una clave nueva:
+  - `features/clases/estatico-02c-r1.ataque.test.ts:52-58` y `:157`;
+  - `refactor-01c-r1.ataque.test.tsx:104-…`;
+  - `features/tareas/como-se-entrega-01a.test.tsx:241-262`;
+  - `ver-mas-01e-r3.ataque.test.tsx:296-340`;
+  - `entregas-01d-r1.ataque.test.tsx:852-894`.
+
+#### M-17 — A las frases de error de carga de las tablas les falta el camino del filtro (y el del historial en 01f), que el plan promete
+Dónde: ADM-1F21 (e) (`:1202`), ADM-1G16 (e) (`:1237`), ADM-1F17 (`:1187`) y ADM-1G12 (`:1225`); la matriz (`:1864`: "se renueva al editar la búsqueda o el filtro") y R-22 (`:1292`: "editar la búsqueda o el filtro sí").
+Por qué importa: `AGENTS.md` ("Toda frase de recuperación…", decisión del humano, 2026-10-26) pide un caso por cada camino que la interfaz permite, con "otro filtro" y "atrás y adelante del historial" nombrados. Si un camino no cumple la promesa, el plan cambia el texto o el remedio.
+- "No pudimos cargar los usuarios. Revisa tu conexión e inténtalo de nuevo." se recorre con ADM-1F17 (a) y (b) y con editar el término. No se recorre con cambiar el rol y volver al de antes.
+- En 01g, ADM-1G12 toma (a), (b) y (d) de ADM-1G11 y deja fuera (c), que es justo el cambio de filtro. ADM-1G16 (e) hereda el hueco.
+- Es el camino más frágil. Si la consulta de "Todos" tenía datos y su recarga falló, volver a esa clave antes de que venza el `staleTime` no la pide otra vez (no está vieja por tiempo) y el texto se queda. Es la clase de T-06 a T-08 de CALIFICACIONES-01d.
+- En 01f, el plan no dice si el término y el rol viven en la URL. Si viven ahí, atrás y adelante del historial cambian la clave y es otro camino. Si no, el plan lo dice y ese camino es "ir a otra sección y regresar".
+
+Qué se espera:
+- ADM-1F17, ADM-1F21 (e), ADM-1G12 y ADM-1G16 (e) suman "cambiar el filtro y volver al de antes, antes del `staleTime`, con la clave de antes ya en error", con el `5xx` y con el `400` fuera de contrato. Cada caso vuelve a pedir y el texto desaparece con `200`.
+- El de 01f suma atrás y adelante del historial, o la razón por la que no aplica.
+- La matriz y R-22 citan esos casos.
+
+#### M-18 — Texto viejo del plan contradice a la Enmienda 14 (y a la 1) en lugares con PARADA
+Dónde y qué dice cada uno:
+- `:578` (§D-11, Enmienda 9): "`MENSAJES_ERROR_ADMIN` y `textosPorCampo` no cambian (`features/admin/errores-ch3.test.ts:98` y `:100`, vigiladas)". La Enmienda 14 (`:605`) cambia `textosPorCampo`.
+- `:1735` (§D-R0 01f, vigiladas de la Enmienda 9, "PARADA si cambian"): `errores-ch3.test.ts:98` y `:100`. La Enmienda 14 pone `:97-102` en la lista cerrada (`:1745`). El "donde difieren, manda esa" de `:1695` cubre solo la lista cerrada, no esta viñeta.
+- `:570-573` (§D-11): el `mensaje` de un `MensajeError` de admin es "exactamente una de tres formas". La Enmienda 14 y C-43 suman una cuarta, `textoParaTerceros(mensajeDeErrorAdmin(<m>.error))` (`:611`). La descripción de la vigilada de `:1708` tiene el mismo atraso.
+- `:1169` (ADM-1F01): la frase "No pudimos cargar el resumen. Inténtalo de nuevo." con «Reintentar» y el camino (a) «Reintentar». §D-11 (`:552`) y §D-12 (`:639`) quitaron «Reintentar» en la Enmienda 1, y el texto aprobado es "… Revisa tu conexión e inténtalo de nuevo.". ADM-1F24 se apoya en este panel.
+
+Por qué importa: el programador lee cada una de estas líneas como regla. Dos tienen PARADA (`:1735` y la de la Enmienda 2 de M-15) y una le pide probar un botón que el diseño quitó. Con la regla de la PARADA ante un texto fuera de §D-12 o T-E14, la ronda 0 de 01f se detendría en el primer paso que las toque.
+Qué se espera: cada una queda tachada o anotada con "Enmienda 14:" (o "Enmienda 1:", en ADM-1F01) y la regla vigente, como el plan ya hace en otros lugares. ADM-1F01 queda con los caminos (b) y (c) y el texto aprobado. Si el arquitecto quiere conservar un camino que "repite el control", lo dice.
+
+### Problemas que no bloquean
+- **N-E14-1 — La ficha con un `id` mal formado dice "Revisa tu conexión e inténtalo de nuevo.", y ningún camino lo resuelve.**
+  - Qué pasa: `/admin/usuarios/abc` (un enlace cortado o escrito a mano) pide `GET /admin/usuarios/abc`, y el servidor responde `400 VALIDACION` "id: id: debe ser un identificador válido" (`handlers/admin/usuarios.ts:46` y `:78`). La ficha muestra entonces su error de carga. Es el mismo hueco que R-22, pero aquí sí se alcanza desde la interfaz.
+  - El precedente: en clases, un `claseId` mal formado da el texto de sin acceso (`textosPorCampo`).
+  - Recomendación: tratar el `VALIDACION` de `id` en la ficha como el `404` ("Esa cuenta ya no existe." con "Volver a Usuarios", ya aprobados), con un caso. No hace falta texto nuevo. Conviene meterlo en la misma corrección.
+- **N-E14-2 — R-21 y R-22 dicen "Se acepta" sin el humano.** Los dos aplican convenciones que el humano ya aprobó: el genérico para lo que la persona no puede corregir, y el contrato de CHORE-03 ("ante un `VALIDACION`, el texto fijo del lugar"). No cambian una decisión, así que no lo llevo como problema. R-22, eso sí, se apoya en el camino del filtro, que hoy no se prueba (M-17).
+
+### Detalles menores
+- `focoPerdido`: "19 usos… la importan" son 18 archivos que la importan más `lib.ts`, que la define. `:617` cita `lib.ts:207-210` y `:1742`, `:205-210` (con el comentario). Las dos referencias son coherentes, pero conviene una sola.
+- ADM-1F22 podría sumar la secuencia con el mismo texto en los dos lados: el servidor responde "nombre: Escribe tu nombre completo" y después la validación local rechaza un nombre vacío. La persona leería "Escribe el nombre completo" dos veces si el `reset()` faltara. Hoy lo cubre el mecanismo de ADM-1F05 (d), con otro mensaje.
+- El vacío de `/admin/usuarios` con "Todos" y sin búsqueda no se alcanza, porque siempre está la cuenta del admin. Si el arquitecto quiere que la vista tenga esa rama, conviene decir con qué texto ("No hay cuentas con ese rol" no encaja con "Todos").
+- E14-13 nombra solo la lista cerrada de 01f, y el hunk 13 (lista cerrada de 01g, `:1769`) también es suyo. La tabla lo deja en E14-10 y E14-14, y se entiende.
+
+### Desacuerdos arbitrados
+Ninguno.
+
+### Documentos a actualizar (al cierre de 01f y 01g)
+- **A-05 (`CLAUDE.md`):** `components/foco/` suma `focoPerdido` en `lib.ts`.
+- **A-07 bis (ESTADO §3):**
+  - una fila para la vigilancia del `22021` (E14-11): "si un encargo vuelve a llamar a `listarUsuarios` sin `listaUsuariosConsultaSchema`, traducir el `22021` en el adaptador". Sin esa fila, la vigilancia se pierde al cerrar el plan;
+  - el cierre de N-01e-1 y N-01e-2 con "Hecho en ADMIN-01f/01g".
+- **A-04 (`DESIGN.md`):** que los accesos del dashboard sean los destinos de la barra, como lista de enlaces dentro del contenido, entra en "dashboard con cifras".
+
+### Para el humano
+- Nada que decidir para corregir M-15 a M-18: son del plan y no cambian textos aprobados.
+- Para tu información: con M-16, 01f pasa de 31 a 32 archivos de producción. Sigue siendo "unos 30", y tu "No partirla" se mantiene, salvo que digas otra cosa.
+- **Opcional (T-E14 ya aprobada):** la ficha de un alumno muestra "Correo", "Rol", "Cuenta" y "Alta", pero no su acceso. Que esté restringido (y por qué) solo se deduce porque el botón dice «Restablecer acceso». Si quieres verlo, la ficha puede sumar "Acceso" con los valores de la columna ("Restringido" / "Sin restricción") y el motivo, si lo hay. Eso sería un texto nuevo ("Motivo"). Si no lo pides, queda como está.
+
+### Resumen
+- **Veredicto: CAMBIOS REQUERIDOS** (regresa al arquitecto; después, verificación de la corrección).
+- Lo que está bien: las respuestas del humano (P-E14-1 (a), P-E14-2 (a) y R-20) están aplicadas sin condicionales. T-E14 es la tabla mostrada, con el encabezado y la fila del nombre como únicos cambios. Los 19 hunks se mapean a E14-1 a E14-23.
+- M-15: `features/auth/rutas-ch3-r1.ataque.test.tsx` choca con el `GET /api/admin/resumen` del dashboard (6 casos en rojo). Falta un C-n de la ronda 0 de 01f.
+- M-16: «Cuenta desactivada» no tiene archivo de textos en "Se toca" de 01f.
+- M-17: a las frases de error de carga de las tablas les falta el camino del filtro, que el plan promete, y el del historial en 01f.
+- M-18: texto viejo que contradice a la Enmienda 14 en vigiladas con PARADA (`:578`, `:1735` y `:570-573`) y en ADM-1F01, que sigue con «Reintentar».
+
+## Verificación de la corrección de la Enmienda 14 — ADMIN-01
+
+Veredicto: **APROBADO**. M-15 a M-18 y N-E14-1 quedan resueltos, sin problemas nuevos que bloqueen. No hay M-n nuevo: el último sigue siendo M-18. La decisión del humano "No por ahora" está registrada en los tres lugares que corresponden. Hay una precisión sobre el mecanismo que describí en M-17, que no cambia el veredicto (ver (c)).
+
+Verificación propia: sin suites, porque solo cambia el plan (lo pidió el orquestador). Hice todo leyendo: `git diff --no-index`, `sha256sum`, `grep` sobre `10356bd` y la fuente de `@tanstack/query-core` 5.103.2 (`node_modules`). No abrí navegadores.
+
+### Hashes y cotejo
+- Copia previa: `plan-admin01-antes-correccion-e14-b6958947.md` = `b6958947d4f8928c602bca3a85d26ac809977a865dd316e9f5c98997a09f6ddf`.
+- `plan.md` = `7f344f7ab9bab55bd77932e6c7986c1b9b0200ac617a6696799e868d6f7aaa5c`, 2402 líneas, sin CR. Coincide con `aprobacion.md:225`.
+- `git diff --no-index`: 42 inserciones y 19 borrados, en 27 hunks. Los 19 borrados son líneas que se reemplazan. Las que retiran una regla la dejan tachada (`~~…~~`) junto a la vigente: `:571`, `:580`, `:1177`, `:1713`, `:1744` y `:1751`. Las demás solo agregan una frase a la línea.
+- `frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx` en el árbol (= `10356bd`) = `96b6ab55f0a7bf9b66f8edbcb5ceffa7e4fe35935c6cb12ecab93fc04bc02856`, el hash de partida que dio el orquestador. Todavía no está en `aprobacion.md`, y el plan (`:2000` y `:1763`) le pide al orquestador anotarlo antes de la ronda 0.
+
+| Hunk (línea nueva) | Qué | E14-n |
+|---|---|---|
+| 2 | Estado | E14-30 |
+| 114 | Alcance, "No entra": "No por ahora" | E14-29 |
+| 571, 575 | §D-11: cuatro formas del `MensajeError` | E14-27 |
+| 580 | §D-11: `textosPorCampo` sí cambia | E14-27 |
+| 606-610 | §D-11: camino del filtro y del historial; la ficha con `id` mal formado; "No por ahora" | E14-26, E14-28 y E14-29 |
+| 624 | §D-11: constante «Cuenta desactivada» | E14-25 |
+| 785 | Cambios por capa | E14-25 |
+| 1177 | ADM-1F01 sin «Reintentar» | E14-27 |
+| 1195, 1210, 1234, 1246 | ADM-1F17 (d) y (e), ADM-1F21 (e), ADM-1G12 (c), ADM-1G16 (e) | E14-26 |
+| 1219 | ADM-1F26 | E14-28 |
+| 1299, 1301 | R-20 (32 archivos) y R-22 | E14-25 y E14-26 |
+| 1713, 1717, 1744 | Vigiladas tachadas o anotadas | E14-24 y E14-27 |
+| 1751, 1762-1766 | "Se toca" con `data.ts` y sus vigiladas; C-45 | E14-25 y E14-24 |
+| 1878-1879 | Matriz | E14-26 y E14-28 |
+| 1918 | A-07 bis, fila "No por ahora" | E14-29 |
+| 2000, 2004, 2008 | Pasos | E14-24 a E14-28 |
+| 2394-2400 | Tabla, E14-24 a E14-30 | La propia tabla |
+
+### (a) M-15 — C-45: resuelto, y no debilita la prueba
+- **El alcance es exacto** (`:1762-1766`): una sola rama en `exito` (`:40-59`), antes de `if (metodo !== "POST") return null` (`:51`), para `GET /api/admin/resumen`. Responde `200` con un cuerpo válido para `resumenAdminRespuestaSchema` y lleva su comentario.
+- **Lo que la prueba protege no cambia:**
+  - "Inténtalo de nuevo" en los formularios de auth, por cada camino, con el router real.
+  - `inesperadas` sigue estricta para cualquier otra petición, también para un segundo `GET` que el dashboard no debería hacer: la rama responde solo esa ruta y ese método.
+  - `peticionesA` cuenta solo `POST`, así que el conteo de reintentos no cambia.
+  - El caso de restablecer (`:304`) termina en `/login` y no pasa por la rama.
+- **Responder `200` en lugar de dejarla en `inesperadas` es correcto:** el dashboard pide el resumen legítimamente (§D-11), y la prueba no trata del dashboard.
+- **"Verde antes y después" es correcto:** con `10356bd`, `/admin` es `CuentasView`, que no pide nada al montarse, así que la rama no se usa. Con 01f, la usa.
+- **Diff permitido en la ronda 0:** la rama y su comentario, nada más. Si veo cualquier otra línea distinta a `96b6ab55…`, es hallazgo.
+- La vigilada de `:1713` queda tachada con su razón, y el grep que sostiene C-45 está escrito con su comando y su resultado, que coincide con el mío.
+
+### (b) M-16: resuelto
+- `features/clases/data.ts` entra en "Se toca" solo para la constante (`:1751`, `:785`). Los tres componentes la importan de `../data` (`:624`), y el plan explica por qué no va en `components/` (solo la usa `features/clases`).
+- Las cinco vigiladas de `data.ts` son las que comprobé.
+- R-20 dice 32. El orquestador informa al humano del +1 sobre su "No partirla".
+
+### (c) M-17: resuelto, con una precisión mía
+- **Los caminos ya están, con el router real y la configuración de `app/providers.tsx`** (`retry: 1`, `refetchOnWindowFocus: false`, `staleTime: 30_000`):
+  - ADM-1F17 (d): cambiar el rol y volver, antes del `staleTime`, con la clave de antes en error en su primera carga y en una recarga con datos.
+  - ADM-1F17 (e): el historial.
+  - ADM-1F21 (e) y ADM-1G16 (e): los mismos caminos, con el `400` fuera de contrato.
+  - ADM-1G12 (c): el filtro de `/admin/estado-pago`.
+  - Cada caso vuelve a pedir y el texto desaparece con `200`.
+  - La matriz (`:1878`) y R-22 (`:1301`) citan esos casos.
+- **Dónde viven el término y los filtros** queda dicho (`:609`): en el estado de la vista, no en la URL. Por eso el camino del historial es salir y volver con "atrás" y "adelante": eso desmonta la vista y la monta otra vez con "Todos" y sin término, y la consulta marcada vieja al desmontarse se vuelve a pedir (Enmienda 1). En 01g se remite a ADM-1G11 (d), que es coherente.
+- **Precisión sobre el mecanismo:** en M-17 dije que, si la recarga de una clave con datos fallaba, volver a ella antes del `staleTime` no la pedía. Con la versión instalada eso no pasa.
+  - `@tanstack/query-core` 5.103.2 marca `isInvalidated: true` en toda acción `error` (`src/query.ts:865-879`, "flag existing data as invalidated if we get a background error").
+  - `isStaleByTime` da `true` con `isInvalidated` (`:482-485`).
+  - Al cambiar de clave, `shouldFetchOptionally` pide la consulta si está vieja (`queryObserver.ts:880-901`).
+  - Así que volver a una clave en error ya la pide. Eso vale también para un error que llega después de dejar la clave (en vuelo al cambiar el filtro, sin `signal` consumido) y para el error de un «Cargar más».
+- **El remedio del plan** (`invalidateQueries` exacto con `refetchType: "none"` al dejar una clave en error) es redundante con esa versión, pero no hace daño:
+  - no pide nada;
+  - solo marca una consulta que ya está en error;
+  - y deja la garantía escrita si la librería cambia.
+- **Lo que obliga son las pruebas (d), (e) y (c), y cubren los dos estados que importan** (primera carga y recarga con datos). El hueco por el que lo pedí sigue siendo real: los caminos que `AGENTS.md` exige no estaban.
+
+### (d) M-18: resuelto
+- `:571` y `:575`: cuatro formas, con la de C-43 y sus tres nombres.
+- `:580`: `textosPorCampo` cambia, y `:98` y `:100` pasan a la lista cerrada.
+- `:1744`: la vigilada tachada.
+- `:1717`: la descripción de `estatico-ch3-r1` suma la forma de C-43.
+- `:1177`: ADM-1F01 sin «Reintentar», con el texto aprobado y los caminos (b) y (c), y la razón de que no haya un control que repetir.
+- Busqué "Reintentar", "tres formas", ":100" y "textosPorCampo no cambian". No queda otra línea vigente que contradiga a la Enmienda 14.
+
+### (e) N-E14-1: aceptado y bien resuelto
+- ADM-1F26 (`:1219`) y §D-11 (`:610`): la ficha trata `USUARIO_NO_ENCONTRADO` y cualquier `400 VALIDACION` de su consulta como el `404`. Usa los textos aprobados, elegidos por `codigo` en `lib.ts`, sin leer el mensaje.
+- Eso respeta `lib/estatico-ch3-r1.ataque.test.ts:96-146`: el caso compara `codigo`, no lee `.message` ni usa las piezas internas del contrato.
+- El `MensajeError` sigue con un texto fijo de `data.ts` (forma permitida).
+- La fila de la matriz (`:1879`) y el control con `5xx` están.
+- No hay hermano sin cubrir: las mutaciones de la ficha no se alcanzan con un `id` mal formado, porque la ficha no carga.
+
+### (f) "No por ahora": registrado
+En Alcance, "No entra" (`:114`); en §D-11 (`:610`); en A-07 bis (`:1918`, fila de ESTADO §3 con destino), y en E14-29. Coincide con `aprobacion.md:224`.
+
+### Mis detalles menores que quedaron fuera
+- **Conteo de `focoPerdido` ("19 usos") y las dos referencias de línea:** no hace falta que entren. No cambian nada de lo que hace el programador.
+- **El vacío de `/admin/usuarios` con "Todos" y sin búsqueda:** sí conviene que entre, en una línea, porque cuesta poco y evita una PARADA. Con la regla de P-E14-2 (cualquier texto que falte detiene al programador), la vista necesita un texto para esa rama aunque no se alcance. La salida sin texto nuevo: "con 'Todos' y sin búsqueda la rama del vacío usa 'No hay cuentas con ese rol'; no se alcanza, porque la cuenta del admin siempre está". Puede ir en la misma ronda 0 como enmienda de una línea, o el orquestador puede pasárselo al programador como precisión. **No bloquea:** si no entra, la PARADA del programador lo resolvería.
+
+### Problemas que no bloquean
+Ninguno nuevo, aparte del vacío de arriba.
+
+### Detalles menores
+- El remedio de M-17 es redundante con `@tanstack/query-core` 5.103.2 (ver (c)). Se puede quedar como garantía explícita. Si el arquitecto prefiere no escribir código sin efecto, basta con decir "solo si (d) falla sin él", porque las pruebas son las que obligan.
+- El hash de partida de C-45 todavía no está en `aprobacion.md`. El plan se lo pide al orquestador antes de la ronda 0.
+
+### Para el humano
+- Nada que decidir. Solo para tu información: 01f queda en 32 archivos de producción (+1 por M-16), con tu "No partirla".
+
+### Resumen
+- **Veredicto: APROBADO.** Sin problemas que bloqueen; el último M-n sigue siendo M-18.
+- M-15: C-45 es exacto, conserva `inesperadas` estricta y queda verde antes y después.
+- M-16: la constante en `features/clases/data.ts`; 32 archivos.
+- M-17: los caminos del filtro y del historial ya están en las dos tablas. El remedio cumple con el router real y `app/providers.tsx`, y con la versión instalada de TanStack Query es redundante pero no hace daño.
+- M-18: el texto viejo está tachado o anotado.
+- N-E14-1: ADM-1F26.
+- "No por ahora": registrado.
+- Detalle recomendado: una línea para el vacío inalcanzable con "Todos".
+
+## Verificación de la ronda 0 — ADMIN-01f
+Veredicto: **CAMBIOS REQUERIDOS** (M-19; lo corrige el tester antes de la ronda 1)
+Verificación propia: solo de lectura, por instrucción del orquestador (el programador corre sus suites en paralelo): `git diff`, `sha256sum`, `grep`, `perl` y lectura. **No corrí `lint`, `test`, `vitest` ni `build`**; las cifras de corrida del reporte no las contrasto aquí.
+
+### Lo que comprobé
+- **Plan:** `plan.md` = `7f344f7ab9bab55bd77932e6c7986c1b9b0200ac617a6696799e868d6f7aaa5c` (coincide). **Reporte:** `reporte-tester.md` = `f3d815561d07c82c80b91cd1902c989f78887053e5d5d85a508a748355863fa5`, 5756 líneas, sección en `:5285` (coincide con `aprobacion.md:228`).
+- **Alcance:** `git diff --name-only 10356bd -- backend frontend shared` = 20 archivos, todos `*.ataque` del frontend; `backend/` y `shared/` sin cambios.
+- **Hashes:** los 40 de la tabla (antes con `git show 10356bd:<ruta>`, después con el árbol) coinciden completos (64 hex), cotejados por programa: 20 de 20. C-45 parte de `96b6ab55…`, el de `aprobacion.md:225`.
+- **Caracteres:** 0 invisibles o de control (U+200B-200F, U+202A-202E, U+2060-2064, U+FEFF, U+00AD, U+2028/2029 y C0 salvo salto y tabulador) en los 20.
+- **Declaraciones `it(` / `it.each(` antes y después:** `cuentas-r1` 29 → 29, `cuentas-r2` 12 → 12, `cuentas-r3` 18 → 18, `cuentas-r4` 13 → 13, `en-espera-r1` 10 → 8, `foco-r1` 12 → 12, `secuencias-ch3-r2` 12 → 9 y `rutas-ch3-r1` 4 → 7 (sus 19 casos salen del `it.each` de cuatro controles). Coincide con lo que declara el reporte.
+
+### Cada C-n contra su alcance
+| C-n | Archivo y líneas | Resultado |
+|---|---|---|
+| C-45 | `features/auth/rutas-ch3-r1:51-57` | Un solo hunk, 7 inserciones y 0 borrados. Es la rama `GET /api/admin/resumen` → `200 { alumnos: 0, maestros: 0, clasesActivas: 0 }`, con su comentario, antes de `if (metodo !== "POST") return null`. Lo demás queda igual. **Exacto** |
+| C-16 | `contexto-r1:100`, `app/cuentas-r1:149`, `marco-r1:158` y `:329-334`, `rutas-02c-r1:215-222` y `:241-242`, `registro-maestro-03b-r1:219-221` y `:238-239` | Solo cambian el encabezado «Inicio» y los destinos de §D-11 (Inicio, Usuarios, Maestros y Clases, en ese orden). **Exacto.** `errores-r1`, en el arbitraje A-3 |
+| C-17 | `styles/clases-r1:191-…` | Pasa de 78 a 85. Sale `buscador-de-cuenta.tsx` y entran las diez rutas del plan con sus cifras (1+1+1+1+1+2+1 y tres con 0). **Exacto** |
+| C-17b | `styles/clases-r1`, V-07 | `vidrioFuerte` queda con 13 rutas, y la nueva va en el lugar del plan. Los atributos de contexto quedan en 5 rutas, en el orden del plan. **Exacto** |
+| C-35 | `lib/estatico-ch3-r2` | `CON_REF` con `formulario-corregir-correo.tsx`: la línea `if (\w+Ref.current) return` se exige solo ahí. `REINICIAN_EN_01F` tiene las cuatro rutas del plan. «Una sola `<m>.reset(`» no cambia. **Exacto** |
+| C-36 + C-43 | `lib/estatico-ch3-r1:179-187` | La expresión es la del plan, con las siete mutaciones, las tres consultas, las claves anidadas y `textoParaTerceros(mensajeDeErrorAdmin((editar\|alta\|invitar).error))`. `usos.length >= 18` no cambia. **Exacto** |
+| C-37 | `services/apiClient-ch3-r1:59-84` | Cambia el título y `["/src/features/admin/lib.ts", true, false]` va al principio. **Exacto** |
+| C-13b | `features/admin/cuentas-r1:621-627` | La igualdad, tras `sort()`, son los dos diálogos. **Exacto** |
+| C-44 | `features/admin/cuentas-r1:570-586` | Exige "Escribe el nombre completo" y que el campo quede marcado. Las peticiones se cuentan desde después del montaje, porque `/admin/maestros` pide sus enlaces al montarse. **Aceptado** |
+| C-14 | `errores-ch3-r1:16`, `:240-254` y `:685`; `secuencias-ch3-r2:12`, `:517-589` y dos constantes | Arbitraje A-1 |
+| C-15 | `features/admin/rutas-ch3-r1:89`, `:164-257` y un bloque nuevo al final | Arbitraje A-2 |
+| C-13 | los seis archivos | Arbitraje A-4 y M-19 |
+
+### Problemas que bloquean
+#### M-19 — `en-espera-r1` escribe el nombre de la invitación en un campo que en `/admin/maestros` no existe
+Dónde: `frontend/src/features/admin/en-espera-r1.ataque.test.tsx:268` (`llenarInvitacion`), que usan los dos casos de «Enviar invitación» (`:274` y `:292`).
+Por qué importa:
+- En `10356bd` la línea era `getByLabelText("Nombre completo")`, con "Ana López" (`:193`). La reescritura la pasó a `getByLabelText("Correo correcto")`, el reemplazo que sí corresponde en los casos de la ficha.
+- Estos dos casos montan `/admin/maestros` (`renderVista(undefined, "/admin/maestros")`), donde no existe "Correo correcto": `getByLabelText` lanza. Aunque 01f quede bien, los dos casos seguirán en rojo, y el programador no puede tocarlos.
+- El rojo que declara el reporte ("Unable to find role="button" and name "Enviar invitación"") lo oculta: hoy los casos caen antes, porque el formulario todavía no está en esa vista.
+- Si "Correo correcto" existiera, el nombre quedaría vacío y la validación local no dejaría salir la petición. Los casos ya no protegerían la espera del botón, que es su objeto (C-13: "conservando lo que protegen").
+Qué se espera:
+- `llenarInvitacion` vuelve a escribir en "Nombre completo", como en `10356bd`.
+- El rojo esperado de los dos casos no cambia.
+- El reporte anota el hash nuevo del archivo y la línea corregida.
+- Hermanos, ya revisados por mí: en los seis archivos de C-13, los usos de "Correo correcto" en `cuentas-r2:451`, `cuentas-r4:331`, `:373`, `:400` y `:421`, y `foco-r1:275`, `:397`, `:448` y `:479` están en la ficha, con la equivalencia declarada. Los tres casos de invitación de `cuentas-r1` (`:539`, `:561` y `:577`) usan "Nombre completo". Solo `en-espera-r1:268` está en `/admin/maestros`.
+
+### Arbitrajes de las desviaciones declaradas
+**A-1 — C-14 (la fila de `CON_ERROR_LOCAL` y dos constantes sin uso): aceptada; cabe sin enmienda.**
+- `NombreDeControl = keyof typeof CONTROLES` (`errores-ch3-r1:273`) y el `satisfies` de `CON_ERROR_LOCAL` hacen que la fila `:685` de un control que ya no existe no compile. Quitarla es consecuencia directa del alcance del plan (`:240-254`).
+- `RUTA_BUSCAR` y `TEXTOS_CUENTAS` solo los usaba el bloque que sale. Lo demás de los dos archivos queda igual, también la vigilada `errores-ch3-r1:438-458` (Enmienda 10).
+- Se conserva lo que protegen los controles que siguen.
+- El plan manda sacar el bloque `:517-…` entero. Su tercer caso protegía que el error de corregir el correo desapareciera con la ficha. Ninguna reescritura de C-13 tiene un equivalente directo: r2 y r3 cubren el éxito de la corrección y el error de restablecer entre fichas, no el error de corregir. Va como punto de ataque P-2 de la ronda 1, no como cambio de la ronda 0.
+
+**A-2 — C-15 (bloque nuevo con el error de carga de la tabla y sus tres caminos): aceptada; cabe sin enmienda.**
+- El plan manda que "la búsqueda [pase] a la tabla". La tabla no se envía ni tiene «Reintentar» (§D-11, Enmienda 1), así que la fila "buscar una cuenta" del `it.each` no tiene equivalente. Un bloque aparte es la única forma de conservar lo que protegía: la frase de recuperación se cumple por cada camino.
+- El texto es el de T-E14 (`plan.md:665`).
+- Los caminos son ADM-1F17 (a), (b) y (e), con el router real y `Providers`. Que no salga el genérico ni ningún aviso lo fijan §D-11 (`:605`) y la matriz (`:1878`).
+- No exige nada fuera del plan. Solapa con ADM-1F17 del programador, sin choque.
+- El doble cambia `POST …/buscar` por `GET /api/admin/usuarios` (`pathname`, así que tolera `limite` y demás parámetros).
+- La "otra" sección de los controles de maestros pasa a «Usuarios». Si pasara a «Inicio», el dashboard pediría el resumen y caería en `inesperadas`.
+
+**A-3 — C-16, `app/errores-r1` (`llamadas: 3` y caso nuevo del tope de 120): aceptada; cabe sin enmienda.**
+- La fila de «Enviar invitación» en `/admin/maestros` cuenta tres llamadas: refrescar, `/me` y el `GET` de enlaces de `TablaEnlaces`. `maestros-view.tsx` de `10356bd` no hace otra consulta al montarse, y el plan no le suma ninguna: el formulario de invitar no consulta nada.
+  - Ese 3 todavía no se vio en verde, porque la fila cae antes por el formulario.
+  - Si al implementar sale otra cifra por una consulta que el plan sí pide, es PARADA del programador. No se corrige a mano.
+- El caso nuevo conserva lo que protegía la fila "Buscar": un campo inválido, descrito por su mensaje en un solo nodo con icono, y ninguna petición.
+  - Los textos son de T-E14 (`:661`).
+  - El comportamiento es el de §D-11 (`:601`, "largo": no manda `q`, `ErrorDeCampo` y `aria-invalid`).
+  - El doble responde `500` a la tabla, así que el caso exige además que el buscador siga montado con la tabla en error. Lo fija §D-11 (`:605`, "lo escrito en el buscador y el filtro se conservan") y lo pide ADM-1F21 (e). No es nuevo.
+
+**A-4 — C-13 (seis archivos que montan la ficha con el router real; `en-espera-r1` pierde el bloque «Buscar»): aceptada salvo M-19; cabe sin enmienda.**
+- Las equivalencias están escritas en el comentario de cada archivo:
+  - montar `/admin/usuarios` y navegar a la ficha, como el enlace "Ver";
+  - la ficha, por su región con nombre (E-24, ADM-1F04);
+  - "buscar otra cuenta" es abrir otra ficha;
+  - "búsqueda rechazada" es `/admin/usuarios/abc` (N-E14-1, ADM-1F26);
+  - el campo de búsqueda, como lugar donde se queda el foco, es el enlace «Usuarios» de la barra.
+- Textos: todos salen de §D-12, de T-E14 o del código:
+  - "Esa cuenta ya no existe." (`:668`), "Activa" y "Desactivada" (`:670`) y "Escribe el nombre completo";
+  - "No hay ninguna cuenta con ese correo." (`MENSAJES_ERROR_ADMIN`, que no cambia: O-01f-1);
+  - "Invitación creada." y los de `FichaDeCuenta`.
+- Los dobles cumplen `usuarioAdminFilaSchema`: la fila va sin envoltorio, como `backend/src/handlers/admin/usuarios.ts:81`, y los campos de alumno solo van en estudiantes (RN-02).
+- El bloque «Buscar» de `en-espera-r1` sale con su botón, que se borra. La espera de los botones nuevos la cubren ADM-1F05 a ADM-1F09, ADM-1F02 («Cargar más usuarios» con `isFetching`) y V-06 (C-17). Ningún botón queda sin cobertura.
+- Comportamientos que la reescritura fija y el plan deja implícitos. Los acepto porque salen del plan o del código, y se le avisan al programador:
+  - **El foco al abrir una ficha y tras el `400`/`404`.** Con el foco fuera de la vista (enlace «Usuarios»), abrir una ficha o `/admin/usuarios/abc` no lo mueve (`cuentas-r3:357-393` y `:416-433`, `cuentas-r4`, `foco-r1`).
+    - La matriz dice "Ficha (`GET`) … Raíz de la vista" (`:1868`). Se cumple con el mecanismo de `components/foco` (`useFocoAlPerderseElControl`): lleva el foco a la raíz solo cuando la recarga quita el control que lo tenía (`CLAUDE.md`).
+    - Llevar el foco a la raíz sin condición pondría esos casos en rojo y se apartaría de ese mecanismo.
+  - **`403 OPERACION_NO_PERMITIDA` al restablecer no navega** (`cuentas-r1:346`). Es lo de hoy: `apiClient` solo redirige con sus tres códigos.
+  - **Tras corregir el correo, ningún nodo de la región muestra el anterior** (`cuentas-r1` y `cuentas-r2`), tampoco el dato "Correo" de la vista. La fila "Restablecer contraseña y corregir correo" de la matriz (`:1871`) renueva "La ficha": queda cubierto.
+
+### OA-01f-r0-1 y OA-01f-r0-2 (decisiones del orquestador)
+- **OA-01f-r0-1, el `h2` de la ficha es el nombre de la cuenta: aceptada.**
+  - E-24 y §D-11 (`:554`) fijan la `section` con `aria-labelledby` de su `h2`, pero no el texto. El nombre es un dato, no un texto nuevo, y `FichaDeCuenta` de `10356bd` ya lo pinta (`ficha-de-cuenta.tsx:153`).
+  - No choca con T-E14 ni hace falta un C-n.
+  - Aviso: T-E14 no trae un `h1` para `/admin/usuarios/:usuarioId`. Si el programador lo necesita, tampoco puede ser un texto nuevo. Ver "Para el orquestador".
+- **OA-01f-r0-2, «Desactivada» exacto: aceptada.**
+  - Es el texto de T-E14 (`:670`), y que no salga "Activa" en la misma ficha lo implica.
+  - Restricción que conviene decirle al programador: dentro de la región, un solo nodo con el texto exacto "Desactivada" (`getByText` falla con dos). El plan no pinta insignia de cuenta en la ficha, solo en la tabla (§D-11, `:544`).
+  - "Cuenta inactiva" (`TEXTOS_CUENTAS.ficha.inactiva`, `ficha-de-cuenta.tsx:159`) no choca con la prueba. Si se conserva junto a «Desactivada», es redundante; lo decide el programador dentro del plan.
+  - La prueba ya no exige icono. Basta con el texto: "nunca solo color" (`CLAUDE.md`) se cumple.
+
+### Problemas que no bloquean
+- **N-1. Títulos que ya no dicen lo que prueban.**
+  - `foco-r1:349` ("sale a 'Buscar'") y `:388` ("'Correo exacto de la cuenta'").
+  - `foco-r1:267` y `:471`, y `cuentas-r4:323`, `:365`, `:390` y `:414`, con sus mensajes `:339`, `:381` y `:408` ("Nombre completo"): el campo es "Correo correcto".
+  - La tabla del reporte dice que los títulos de `foco-r1` cambiaron, y no cambiaron; solo el comentario de cabecera explica la equivalencia.
+  - Recomiendo corregirlos en la misma pasada de M-19 (solo títulos y mensajes, sin tocar aserciones), pero no bloquea.
+- **N-2. Cobertura que se juntó.** En `cuentas-r4` y `foco-r1`, los casos de "otro formulario fuera de la ficha" ("Nombre completo" de invitar) y los de "Correo correcto de la misma ficha" ahora ejercitan el mismo campo. Lo protegido (un campo fuera de `AccionRestablecer` no pierde el foco) sigue cubierto, pero se perdió la variante de un formulario distinto de `FichaDeCuenta`. Va a la ronda 1 (P-1).
+
+### Puntos de ataque para la ronda 1 (salen de esta verificación)
+- **P-1.** La temporal o un `500` de restablecer llegan con el foco en "Nombre completo" de «Editar nombre» (otro formulario de la ficha): no le roban el foco.
+- **P-2.** El error de corregir el correo de una cuenta no aparece en la ficha de otra cuando se pasa de `/admin/usuarios/<A>` a `/admin/usuarios/<B>` o a `/abc` sin desmontar la ruta (mismo patrón y otro parámetro). Es el hermano del caso que salió de `secuencias-ch3-r2`.
+- **P-3.** Con el foco dentro de la ficha (por ejemplo, en «Copiar»), pasar a `/admin/usuarios/abc` o a una cuenta con `404`: el foco va a la raíz de la vista, nunca a `<body>` (matriz `:1868`).
+
+### Detalles menores
+- `styles/clases-r1`: el comentario "Los 13 de antes de 03b" de `fijos` queda con 12 entradas tras sacar `buscador-de-cuenta.tsx`.
+- `en-espera-r1` y `cuentas-r1` ya no buscan el éxito de la invitación por un `role="status"` único, sino por su texto. Es aceptable: `/admin/maestros` tiene otras regiones de estado, y su unicidad la vigilan `maestros-view.test.tsx` y `maestros-03c-r1`.
+
+### Para el orquestador
+- Antes de la ronda 1, el tester corrige M-19 y, si quiere, N-1. Solo cambia `en-espera-r1`, y `foco-r1` y `cuentas-r4` si aplica N-1.
+  - El reporte anota los hashes nuevos.
+  - Verifico el diff de esa corrección, también solo de lectura.
+  - No interrumpe al programador: esos archivos son del tester, y el rojo esperado no cambia.
+- Pásale al programador A-4 (el foco con el mecanismo de `components/foco`) y la restricción de OA-01f-r0-2 (un solo «Desactivada» en la región).
+- El `h1` de la ficha no está en T-E14. Si el programador lo necesita y no es un dato, es PARADA (P-E14-2 (a)). Conviene decidirlo antes, sin texto nuevo: por ejemplo, que la página no tenga más encabezado que el `h2` con el nombre, o que el `h1` sea el nombre. En ese caso, la región debe seguir llamándose igual.
+
+### Para el humano
+Nada que decidir.
+
+### Resumen
+- **Veredicto: CAMBIOS REQUERIDOS.**
+- **M-19:** `en-espera-r1:268` escribe el nombre de la invitación en "Correo correcto", que no existe en `/admin/maestros`. Los dos casos de «Enviar invitación» quedarían en rojo para siempre; debe volver a "Nombre completo".
+- Los 20 hashes coinciden y el alcance es correcto (solo los `*.ataque`; `backend/` y `shared/` limpios). C-45, C-16, C-17, C-17b, C-35, C-36, C-43, C-37, C-13b y C-44 son exactos.
+- Desviaciones aceptadas, sin enmienda: A-1 (C-14), A-2 (C-15), A-3 (C-16 en `errores-r1`) y A-4 (C-13). OA-01f-r0-1 y OA-01f-r0-2 también.
+- No bloquean: N-1 (títulos) y N-2 (cobertura que se juntó, a P-1). Para la ronda 1, P-1 a P-3.
+
+## Verificación del resumen — ADMIN-01f — implementación
+Veredicto: **DEVUELTO** (M-20 a M-22 al programador; C-46 y C-47 al tester, antes de la ronda 1)
+Verificación propia (desde `frontend/`, una corrida después de otra; sin otra copia ni suite, dato del orquestador; ningún `vitest` corriendo antes; a batería, 51 % al empezar; sin navegadores):
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0; `All matched files use Prettier code style!` y, al final, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0; `✓ built in 2.13s` | exit 0 (`1.59s`) |
+| `npx vitest run src/features/admin src/features/clases src/components/foco src/components/layout` | `Test Files  1 failed \| 144 passed (145)` · `Tests  1 failed \| 3429 passed (3430)` (342,9 s); el rojo, `cuentas-r3` «…búsqueda rechazada… (ficha desmontada)…», `expected <body>… to be <a aria-current="page" …>` | igual |
+| Las 32 rutas del resumen (copiadas de su línea) | `Test Files  1 failed \| 31 passed (32)` · `Tests  6 failed \| 1147 passed (1153)`; los seis, `app/rutas-02c-r1` «admin en /maestro/clases/nueva… termina en /admin…» | igual |
+| `npx vitest run src/app/foco-pestana-02d-r3.ataque.test.tsx` | `Tests  7 passed (7)` | igual |
+
+### Lo que comprobé, además de las corridas
+- **Archivos:** `plan.md` = `7f344f7a…` y `resumen-programador.md` = `7a363d1a…`, con la sección en `:3160`.
+- **Corrección del tester de M-19 y N-1** (`reporte-tester.md:5758`, `f0d1e686…`):
+  - Los tres hashes coinciden con `aprobacion.md`: `en-espera-r1` `1ad87864…`, `foco-r1` `729e89a5…` y `cuentas-r4` `f7c9ac68…`.
+  - `en-espera-r1:268` vuelve a `getByLabelText("Nombre completo")`, igual que `10356bd:193`.
+  - En `foco-r1` y `cuentas-r4` solo cambian títulos y mensajes. Los `getByLabelText("Correo correcto")` siguen en las mismas líneas: `foco-r1` `:275`, `:292`, `:340`, `:397`, `:448` y `:479`; `cuentas-r4` `:331`, `:352`, `:373`, `:400` y `:421`.
+  - `git diff --name-only 10356bd -- '*.ataque.test.*'` sigue en 20. **Aceptada.**
+- **"Se toca":** 32 archivos de producción contra `10356bd`, todos dentro de la lista de §D-R0 01f con la Enmienda 14: 30 cambiados o nuevos y dos borrados, `cuentas-view.tsx` y `components/buscador-de-cuenta.tsx`.
+  - `backend/`, `shared/`, `infra/` y la raíz no tienen cambios.
+  - **Índice de git vacío:** `git diff --cached --name-only` no da nada, así que el `git rm` quedó deshecho.
+  - En las clases, solo cambian las reexportaciones y la constante.
+  - `useFocoAlCargarMas` y `focoPerdido` se movieron sin cambios: comparé el texto.
+- **Pruebas normales tocadas:** seis.
+  - Cinco están en la lista cerrada corregida: `cuentas-view.test.tsx`, `formularios-ch3.test.tsx`, `errores-ch3.test.ts` (`:78`, `:97-102` y el bloque nuevo de ADM-1F20), `lib/errores-de-api-estatico.test.ts` y `contenedor-rol.test.tsx`.
+  - `clases-admin-01c-rutas.test.tsx` solo cambia `:269` y `:390`.
+  - Fuera de la lista queda `formularios-ch3.test.tsx:647` (D-1, abajo).
+  - No cambió ninguna vigilada.
+- **Mapeo de ADM-1F01 a 1F26:** cotejé por programa 77 títulos citados contra su archivo. Ninguno falta.
+  - Falta ADM-1F09b (e), declarado (P-01f-1, M-22).
+  - ADM-1F23 está incompleto (M-21).
+- **Conteos de los siete archivos** (`ficha` 57, `usuarios` 33, `lib-01f` 19, `cuentas-view` 8, `errores-ch3` 31, `cuenta-desactivada` 7, `reexportaciones` 2): no corrí `vitest list` ni los conté uno por uno; los siete están dentro de la corrida de módulos, cuyo total coincide.
+- **Textos:** todos los de `features/admin/data.ts` nuevos están en §D-12, T-E14 o el código:
+  - los avisos de `:646`;
+  - "La lista cambió mientras la veías…" (`:900`, de 01c);
+  - "No encontramos usuarios con esa búsqueda" (`:645`);
+  - `verA` es «Ver» con el nombre en `sr-only`, el patrón de §7.9 que ya usa `tabla-clases-admin.tsx`.
+  - El `h1` de la ficha es "Usuarios" (OA-01f-2).
+- **`CLAUDE.md`:**
+  - Sin `?? []`, sin clases sueltas de la escala de Tailwind y sin `disabled`.
+  - `autoComplete="off"` en el alta, en "Editar nombre" y en el motivo.
+  - Los dos diálogos llevan `data-material` y `data-densidad`.
+  - Las guardas con ref están en todas las mutaciones nuevas y en «Guardar correo».
+  - Los tipos están en `types.ts`, y las claves y textos en `data.ts`.
+  - `features/admin/data.ts` importa `DESTINOS_POR_ROL` de `components/layout`, que es compartido.
+- **Matriz y frases de recuperación:** las contrasté con el código (`usuario-view.tsx`, `usuarios-view.tsx`, `inicio-admin-view.tsx`, `hooks.ts:203-277`, `acciones-de-cuenta.tsx` y `ficha-de-cuenta.tsx`).
+  - Cada frase tiene sus caminos, con casos en `CV`, `U` y `F`, y los del tester (C-15).
+  - Salen dos diferencias: M-20 (el foco de la ficha) y N-3 (el aviso de «Cargar más»).
+- **`DESIGN.md`:** no cambia en 01f. Los patrones nuevos van en A-04, al cierre del encargo, como dice el plan (`:1897`); lo verifico en la revisión final. Ahí debe entrar también D-4.
+
+### Problemas que bloquean (los corrige el programador)
+#### M-20 — Al cambiar de ficha con el foco dentro, el foco cae en `<body>`
+Dónde: `frontend/src/features/admin/usuario-view.tsx`. `UsuarioView` monta `<FichaDeLaCuenta key={usuarioId} />`, y la raíz con `tabIndex={-1}` y `useFocoAlPerderseElControl` viven dentro del componente con `key`.
+Por qué importa:
+- La matriz del plan (`:1868`, "Ficha (`GET`) … Raíz de la vista") y la del propio resumen ("Raíz de la vista … solo si el control con el foco desaparece") prometen la raíz, nunca `<body>` (`CLAUDE.md`, `components/foco`).
+- Con la `key`, pasar de la ficha A a la B, a `/admin/usuarios/abc` o a un id con `404` desmonta también la raíz y el gancho. La instancia nueva no sabe qué control tenía el foco, y el foco queda en `<body>`.
+- Lo confirma el rojo de mi corrida (`cuentas-r3`: `expected <body>…`). En ese caso el foco estaba en «Cancelar» de la ficha A.
+- El camino es real: "atrás" o "adelante" del historial entre dos fichas, o hacia una cuenta borrada, con el foco dentro de la ficha. Es el estado vecino "cambio de clave" del mecanismo, y el resumen dice que lo cubre.
+Qué se espera:
+- Con el foco dentro de la ficha que se va, el foco termina en la raíz de la vista (nunca en `<body>`) en cada caso: otra cuenta, el `400` de un id mal formado, el `404` y el error de carga.
+- Con el foco fuera de la ficha (por ejemplo, en la barra), no se mueve (A-4).
+- La `key` puede seguir descartando la temporal y los errores de la cuenta anterior (E-25), pero la raíz que recibe el foco no puede desmontarse con ella.
+- Casos con el router real, uno por destino: B, `abc`, `404` y `5xx`, más el control con el foco en la barra.
+- Hermanos que el resumen debe listar y contrastar:
+  - la tabla al cambiar de clave con el foco en una fila («Ver») que desaparece por un error;
+  - el dashboard, cuyo panel de cifras se reemplaza sin controles: debe decir si aplica.
+
+#### M-21 — ADM-1F23 no está completo
+Dónde: `frontend/src/features/clases/cuenta-desactivada-01f.test.tsx:108-180`.
+Por qué importa:
+- El plan (`:1216`) pide "lo mismo, **con su doble**, en la lista de maestros del maestro, en la del admin y en `/admin/clases`: la marca se lee de `maestros`".
+- Los casos de la lista de maestros y de `/admin/clases` montan el componente con sus props. Prueban ADM-1F16, pero no que la vista lea `maestros` de la respuesta.
+- No basta con el componente, porque N-01e-2 es justo el riesgo de que una vista lea otra fuente.
+Qué se espera:
+- Por cada una de las tres vistas, un caso con la vista montada por `rutas` y el doble de su consulta: el detalle de la clase para el maestro, el de `maestros-de-clase-view` para el admin y `GET /admin/clases` para la tabla.
+- Un maestro con `cuentaDesactivada: true` dentro de `maestros` lleva la insignia, y uno activo no.
+- Donde la respuesta tenga un campo de compatibilidad, el doble al revés. Donde no lo tenga, el resumen lo dice.
+
+#### M-22 — ADM-1F09b (e): el caso vecino que sí se alcanza (arbitraje de P-01f-1)
+Dónde: `frontend/src/features/admin/ficha-01f.test.tsx:669-696` (ADM-1F09b).
+Arbitraje (opción 2, sin texto nuevo ni enmienda; no va al humano):
+- El control segmentado de §7.3 siempre tiene una opción elegida y empieza en el estado de hoy, que es lo que pinta `estado-de-pago-de-cuenta.tsx`. §D-11 no pide un estado "sin opción", y crearlo exigiría un texto nuevo y un comportamiento que nadie pidió.
+- Un envío "sin opción" no existe y no hay validación local que lo rechace.
+- La regla de `AGENTS.md` (la secuencia de un rechazo del servidor seguido de otro envío) se cumple con el vecino que sí existe, como ya resolvió el plan para el diálogo de baja en ADM-1F07b (e).
+Qué se espera: un caso ADM-1F09b (e) con esta secuencia:
+- un `400 VALIDACION` en «Guardar»;
+- se elige la otra opción y se vuelve a guardar: el servidor responde otro error, por ejemplo un `5xx`, y después `200`;
+- en cada paso se lee un solo mensaje, el del último envío; la opción elegida se conserva y «Guardar» sale de la espera. Esto ejercita la línea de T-05 (`if (cambiar.isError) cambiar.reset()`), que hoy no prueba ningún caso de este control.
+El orquestador lo anota en `aprobacion.md` como arbitraje del manager.
+
+### C-n para el tester (antes de la ronda 1; cada uno con su comentario y protegiendo lo mismo)
+- **C-46 (R-1), `frontend/src/app/rutas-02c-r1.ataque.test.tsx:168-178`.**
+  - Por qué: desde 01f, el admin que termina en `/admin` monta el dashboard, que pide `GET /api/admin/resumen` (§D-11, ADM-1F24). Es el mismo patrón de C-45. El grep de la Enmienda 14 lo contó entre los que "no cuentan peticiones", pero `:177` sí las filtra.
+  - Alcance: en la aserción de `/api/admin/` de ese `it.each`, solo cuando `final === "/admin"`, se excluye exactamente `"/api/admin/resumen"`. Cualquier otra ruta de `/api/admin/` sigue prohibida, y para los otros roles y finales la aserción no cambia.
+  - Nada más cambia: ni los títulos, ni las otras aserciones, ni el segundo `describe`.
+  - Debe esperar: con el código de 01f, verde en los seis casos que hoy están en rojo; el resto del archivo, verde antes y después.
+- **C-47 (R-2), `frontend/src/features/admin/cuentas-r3.ataque.test.tsx:416-434`.**
+  - Arbitraje: es un defecto de la prueba (de C-13), no del código. En `10356bd` (`:306-324`), la búsqueda rechazada se hacía con `buscarConEnter`, que **enfocaba el campo** antes de enviar (`:96-98`). La equivalencia que declara la propia reescritura es que el campo de búsqueda es el enlace «Usuarios» de la barra.
+  - `abrirFichaRechazada()` no enfoca nada. El foco sigue en «Cancelar», dentro de la ficha, y el caso pasa a exigir que el foco salte de la ficha a la barra, cosa que ni el plan ni A-4 piden. A-4 solo dice que el foco no se mueve si ya estaba en la barra.
+  - Alcance: antes de `await abrirFichaRechazada()`, una línea `act(() => campoBuscar().focus())`, como hace su hermano `:395-414` mediante `buscarConEnter`. El título y las aserciones no cambian.
+  - Con M-20 corregido sigue siendo correcta: el foco está en la barra, fuera de la ficha, y no se mueve.
+  - Debe esperar: verde con el código de hoy y con la corrección de M-20.
+- **Grep de hermanos de R-1** (lo repetí yo; el tester lo confirma en su reporte):
+  - Pruebas que llevan la sesión del admin a `/admin` y cuentan peticiones a `/api/admin/` o exigen `inesperadas` vacía. Comandos:
+    - `grep -rln '"/admin"\|rol: "admin"\|meAdmin\|ME_ADMIN'` cruzado con `grep -rln 'startsWith("/api/admin\|inesperadas\|no esperada\|mock.calls.length\|toHaveBeenCalledTimes\|llamadas: '` en `*.test.{ts,tsx}`;
+    - aparte, `grep -rln 'toBe("/admin")\|\["/admin"\]\|"/admin",\|navigate("/admin")\|: "/admin"'` fuera de `features/admin` y `features/clases`.
+  - Resultado: 39 archivos en el cruce. Todos están dentro de mis dos corridas o son de `features/admin` y `features/clases`, y en verde, salvo los seis casos de R-1. Fuera de las corridas solo quedan `features/auth/lib.test.ts` y `components/layout/lib.test.ts`, que son puros (no montan la vista).
+  - No hay otro hermano. La suite completa del cierre lo confirma.
+
+### Arbitrajes de las desviaciones declaradas
+- **D-1, `formularios-ch3.test.tsx:647` (de 24 a 23), fuera de la lista cerrada: aceptada.**
+  - Es la precondición de tamaño del mismo arreglo del que la lista cerrada manda quitar la fila de `BuscadorDeCuenta` (`:537-545`). No cambia lo que se protege; es la misma naturaleza que A-1.
+  - Para el arquitecto, sin bloquear: el grep de la lista cerrada no contó las aserciones de tamaño de los arreglos que pierden filas. Va como lección para el plan de 01g.
+- **D-2, no reintentar un 4xx en `useResumenAdmin`, `useUsuariosAdmin` y `useUsuario`: aceptada.**
+  - El plan no lo fija, pero no lo contradice: un `400` o un `404` no cambian al repetirlos. Hace que el texto de error llegue sin una segunda petición oculta, y ya hay precedentes de `retry` propio (`features/auth/hooks.ts:170`, `services/sesionService.ts:23`).
+  - Tiene prueba unitaria y los `5xx` siguen con un reintento, como `app/providers.tsx`.
+  - Lo hizo necesario el bloque de C-15 (que acepté en A-2 sin notar el reintento). La tabla de enlaces y los registrados de `/admin/maestros` siguen con el reintento por omisión; esa inconsistencia es menor y no se corrige en 01f.
+- **D-3, el bloque de datos sale de `FichaDeCuenta`: aceptada.**
+  - Sus props no cambian, y así la región tiene un solo «Desactivada» (OA-01f-r0-2).
+  - Los textos que quedan sin uso (`TEXTOS_CUENTAS.ficha.inactiva`, `titulo`, `notaProvisional` y `buscar`) los borra E-16 en 01g. Que conste en ESTADO si 01g no los borra.
+- **D-4, insignia en `/admin/clases` (el nombre repetido debajo, con su insignia): aceptada.**
+  - Conserva el texto unido que piden `clases-admin-view.test.tsx:123` y `clases-admin-02c-r1:271`, y el estado no se comunica solo con color.
+  - Es un patrón visual nuevo: entra en A-04 de `DESIGN.md` al cierre.
+- **D-5, `onCerrar` y `onHecho` en los diálogos: aceptada.** Son internos y cumplen la fila de foco de la matriz.
+- **D-6, E-01 por derivación (el error de restablecer se oculta tras un envío del correo, contado con el `submit` que burbujea hasta un `div`): aceptada.**
+  - Cumple ADM-1F10 y respeta C-35 (ningún `reset()` condicionado fuera de la lista) y `cuentas-r2` (la temporal visible sigue).
+  - Detalle: escuchar `onSubmit` en un `div` es poco común. Si se toca, una prop de `FormularioCorregirCorreo` sería más clara, pero cambia sus props, y el plan pide las de hoy. Queda como está.
+- **D-7, sin declarar:**
+  - El `5xx` de «Cargar más usuarios» reemplaza la tabla, sin aviso. La matriz de 01f (`:1867`, "Reemplaza / un aviso") pide un aviso con la tabla en su lugar.
+  - El resumen dice "como 01c". En 01c esa celda se cambió a "como hoy: reemplaza" por la Enmienda 9 (P-01c-4), pero la fila de 01f no se actualizó.
+  - **Lo acepto** por coherencia con 01c y con ADM-1F17 (d) ("recarga con datos" que falla), que ya prueba el reemplazo y sus caminos.
+  - El programador la declara como D-7 en su resumen de corrección. Al cierre, la fila de la matriz se anota (no hace falta enmienda; no hay texto nuevo).
+
+### ADM-1F23 (pregunta 5)
+No basta el componente: es M-21. El plan pide la vista con su doble en las tres, y el riesgo que cubre (leer `maestro` en vez de `maestros`) solo se ve en la vista.
+
+### Problemas que no bloquean
+- **N-3:** D-7, arriba.
+- **N-4:** el resumen dice (`:79` de su sección) que la corrección de M-19 "no se ve hoy". Ya está aplicada y verificada (arriba); `en-espera-r1` sigue en verde en mi corrida.
+
+### Puntos de ataque para la ronda 1
+1. **Foco entre fichas (tras M-20):** "atrás" y "adelante" entre A y B con el foco en «Cancelar», en «Copiar», en "Correo correcto" o en un diálogo abierto. También A → cuenta borrada (`404`) → atrás, y con `<StrictMode>`.
+2. **P-1 y P-2 de la verificación de la ronda 0:**
+   - la temporal o un `500` con el foco en "Nombre completo" de «Editar nombre»;
+   - el error de corregir el correo de A no aparece en B (con la `key` debería resistir; se ataca por historial y por `navigate`).
+3. **D-6:** un envío local inválido de "Corregir correo" (correo vacío) con un error de restablecer a la vista: un solo mensaje. Después, «Restablecer contraseña» otra vez: el error viejo no reaparece.
+4. **D-2:** un `401` a la mitad de la tabla (lo resuelve `apiClient`) y un `429` o `408`, que con D-2 no se reintentan. Ver que el texto fijo salga sin aviso y que los caminos lo recuperen.
+5. **D-4:** dos maestros dados de baja y uno activo en una fila de `/admin/clases`. Nombres con comas. La celda a 360 px.
+6. **El foco al sustituto (D-5):** dar de baja con éxito mientras la ficha se renueva con un `5xx`. Cancelar el diálogo con la petición en vuelo, si el diálogo lo permite. Dos diálogos seguidos.
+7. **ADM-1F09b (e)** recién escrito (M-22) y el control con el estado de pago cambiado desde otra pestaña (la ficha vieja con «Guardar»).
+8. **C-46:** confirmar que una petición distinta del resumen en `/admin` (por ejemplo, de la lista de clases) sigue en rojo.
+
+### Lo que corrige el programador (resumen de corrección con hermanos y estados vecinos)
+- M-20, M-21 y M-22, con sus casos y la lista de hermanos de M-20.
+- Declarar D-7.
+- Las cifras salen de corridas de los módulos y de las 32 rutas, con los C-46 y C-47 del tester ya aplicados.
+
+### Para el orquestador
+- **Orden:** primero el tester (C-46 y C-47, sin suites del programador a la vez). Después el programador (M-20 a M-22). Después yo verifico la corrección.
+- Anotar en `aprobacion.md`: P-01f-1 arbitrado (opción 2, sin texto nuevo), D-1 a D-7 aceptadas, y la lección del grep (C-45, C-46 y D-1: aserciones de tamaño y filtros de `/api/admin/` que el grep de la Enmienda 14 no vio).
+
+### Para el humano
+Nada que decidir.
+
+### Resumen
+- **Veredicto: DEVUELTO.** Todas las cifras coinciden: lint 0; build 0; módulos `1 failed | 3429 passed (3430)` · 145; las 32 rutas `6 failed | 1147 passed (1153)`; `foco-pestana` `7 passed`.
+- **M-20:** con el foco dentro de la ficha, pasar a otra cuenta, a `abc` o a un `404` deja el foco en `<body>`. La `key` desmonta la raíz y el gancho, y eso contradice la matriz.
+- **M-21:** ADM-1F23 sin las tres vistas con su doble.
+- **M-22:** ADM-1F09b (e) pasa al vecino que sí se alcanza (P-01f-1, opción 2, sin texto nuevo).
+- **Tester:** C-46 (R-1, `rutas-02c-r1:168-178`: excluir solo `GET /api/admin/resumen` cuando termina en `/admin`) y C-47 (R-2, `cuentas-r3:416-434`: defecto de la prueba; enfocar el enlace «Usuarios» antes de abrir la ficha rechazada).
+- La corrección de M-19 y N-1 del tester está aceptada. D-1 a D-7 aceptadas (D-7 por declarar). Sin hermanos de R-1.
+
+## Verificación de la corrección — ADMIN-01f
+Veredicto: **ACEPTADO** (sin M-n nuevos; el tester puede lanzar la ronda 1)
+Verificación propia (desde `frontend/`, una corrida después de otra; nadie más corría suites y no había ningún `vitest` vivo al empezar; a batería; sin navegadores):
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 2.10s` | exit 0 (`2.17s`) |
+| `npx vitest run src/features/admin src/features/clases src/components/foco src/components/layout` | `Test Files  145 passed (145)` · `Tests  3447 passed (3447)` (333,2 s) | igual |
+| Las 32 rutas más `src/app/foco-pestana-02d-r3.ataque.test.tsx` | `Test Files  33 passed (33)` · `Tests  1160 passed (1160)` | igual |
+
+Archivos:
+- `resumen-programador.md` = `37b12d3b…`, con la sección en `:3292`.
+- `reporte-tester.md` = `626754cb…`, con la sección en `:5778`.
+
+### C-46 y C-47 del tester, contra mi arbitraje
+- **Hashes:** `rutas-02c-r1` = `36a71ca4…` y `cuentas-r3` = `53af8808…`, los mismos de `aprobacion.md`. Siguen siendo los mismos 20 `*.ataque` contra `10356bd`.
+- **C-46** (`rutas-02c-r1:178-184`): conforme.
+  - Solo cuando `final === "/admin"` se quita `"/api/admin/resumen"`. Con otro destino, la lista se compara entera.
+  - El segundo `describe` no cambia. El cambio es −1 línea y +7, con comentario.
+  - Detalle menor: el filtro quita todas las apariciones del resumen, así que pedirlo dos veces no lo pondría en rojo. Es la misma tolerancia de C-45; no lo devuelvo.
+- **C-47** (`cuentas-r3:416-437`): conforme. Una línea, `act(() => campoBuscar().focus())`, antes de `abrirFichaRechazada()`, con su comentario. El título y las aserciones no cambian.
+  - Sigue vigilando el foco en la barra: el caso exige que el enlace «Usuarios» conserve el foco tras abrir `abc` y tras la respuesta tardía.
+  - Con la corrección de M-20, la raíz solo toma el foco si el control que lo tenía estaba dentro de la vista. Si un cambio futuro moviera el foco al cambiar de ruta, C-47 y el control de M-20 lo pondrían en rojo.
+
+### M-20: corregido; lo contrasté con el código
+- **Estructura:** en `usuario-view.tsx`, `VistaDeLaCuenta` (sin `key`) tiene la raíz `tabIndex={-1}` y `useFocoAlPerderseElControl(raizRef, claveDeFocoDeLaConsulta(usuarioId, usuario))`. Solo `FichaDeLaCuenta` lleva `key={usuarioId}`, así que E-25 se conserva: la temporal, los errores y las confirmaciones de la cuenta anterior se descartan.
+  - `useUsuario` se llama dos veces con la misma clave: TanStack Query hace una sola petición.
+  - La clave del gancho cambia con el id y con cada respuesta o fallo (`errorUpdateCount`).
+- **Estados vecinos, cada uno con su caso** (`ficha-01f.test.tsx:926-1043`):
+  - otra cuenta, `abc` (`400`), `404` y `5xx` con su reintento;
+  - el historial (atrás y adelante, dos veces);
+  - `<StrictMode>`;
+  - controles: el foco en la barra no se mueve (A-4), y la primera carga no mueve nada.
+  - El programador declara que los seis casos fallaban con la estructura vieja. No lo repetí; mi rojo de R-2 de la ronda anterior lo confirmaba.
+- **Recarga con datos** (`setQueryData` tras una acción): la clave cambia sin quitar el control. Las acciones con sustituto (D-5) mueven el foco en el efecto del hijo, que corre antes que el de la raíz, y la raíz ve un control conectado y no hace nada. Siguen en verde ADM-1F07 y ADM-1F08 («Reactivar» y «Restablecer acceso» con el foco), y `cuentas-r1` a `cuentas-r4`, `foco-r1` y `en-espera-r1`.
+- **Hermano en la tabla, aplicado** (`usuarios-view.tsx:83-86`). La raíz es `tabIndex={-1}` y el gancho va declarado después de `useFocoAlCargarMas`. Cuando desaparece «Cargar más usuarios», decide primero el de «Cargar más», que mueve el foco a la fila nueva, y el `focusin` actualiza el control que vigila la raíz. ADM-1F18 sigue en verde.
+  - Tres casos en `usuarios-01f.test.tsx:690-720`: «Ver» con otro rol, «Ver» con un error de la clave nueva y, como control, el buscador.
+- **Dashboard: no aplica**, con razón. El panel de cifras no tiene controles y los accesos no dependen del resumen.
+- **Producción en esta vuelta:** solo `usuario-view.tsx` y `usuarios-view.tsx`, los dos en "Se toca". Siguen siendo 32 archivos de producción contra `10356bd` y el índice de git está vacío.
+
+### M-21: corregido
+`cuenta-desactivada-01f.test.tsx:177-320` suma cinco casos con `rutas` y el doble de cada consulta:
+- el maestro y el admin, en «Personas» de la clase, con el doble de `GET /api/clases/:claseId`, en sus dos sentidos: `maestros[1]` marcado con `maestro` sin marca, y al revés;
+- `/admin/clases`, con el doble de `GET /api/admin/clases`. Esa respuesta no tiene campo de compatibilidad (`claseAdminSchema` solo trae `maestros`), y el resumen lo dice.
+
+No hay texto nuevo: la insignia usa `TEXTO_CUENTA_DESACTIVADA`.
+
+### M-22: corregido
+- `ficha-01f.test.tsx:878-920` prueba la secuencia `400`, luego la otra opción con un `5xx`, y luego `200`. En cada paso hay un solo mensaje, la opción se conserva y «Guardar» sale de la espera; el último envío avisa y deja cero alertas.
+- Lee los tres cuerpos y ejercita la línea de T-05.
+- Sin texto nuevo: "Estado de pago actualizado" está en `:646` y el genérico es el de siempre. El código no cambia: `estado-de-pago-de-cuenta.tsx` no se modificó desde las 14:52, antes de la entrega anterior.
+
+### D-7: declarada
+El resumen la escribe en la fila "Cargar más usuarios": el `5xx` reemplaza la tabla, sin aviso, como en 01c. La prueban ADM-1F17 (d), con la recarga con datos, y ADM-1F03. Al cierre, la fila `:1867` del plan se anota como "como 01c (Enmienda 9, P-01c-4)"; no hace falta enmienda.
+
+### Puntos de ataque finales para la ronda 1
+1. **El foco entre fichas** (M-20): atrás y adelante con el foco en «Copiar», en "Correo correcto", en «Guardar» del estado de pago o en «Editar nombre» abierto. Con un diálogo abierto (baja o restringir), la ruta cambia por el historial: el portal se desmonta y el foco va a la raíz, nunca a `<body>`. También A → `404` → atrás.
+2. **La raíz frente al sustituto** (D-5 y M-20): dar de baja y reactivar, y restringir y restablecer el acceso, con la ficha renovada por `setQueryData` y además una recarga por la invalidación de las listas. El foco debe terminar en el sustituto y nunca en la raíz, también con `<StrictMode>`.
+3. **La tabla:** el foco en «Ver» y la búsqueda diferida que llega 300 ms después. «Cargar más» con el foco en el botón y la última página que trae cero filas nuevas (todas repetidas, ADM-1F19): el foco va al `h1`, no a la raíz. El alta abierta y cerrada con la tabla en error.
+4. **P-1 y P-2 de la ronda 0:** la temporal o un `500` con el foco en "Nombre completo" de «Editar nombre». El error de corregir el correo de A no aparece en B.
+5. **D-6:** un envío local inválido de "Corregir correo" con un error de restablecer a la vista, y reabrir la confirmación.
+6. **D-2:** `401` a la mitad de la tabla o de la ficha, y `408` o `429`, que no se reintentan: el texto fijo, sin aviso, y los caminos que lo recuperan.
+7. **D-4:** varios maestros dados de baja y nombres con comas en `/admin/clases`. A 360 px no se puede comprobar sin navegador: se declara.
+8. **C-46 y C-45:** una petición distinta del resumen en `/admin` sigue en rojo, y el resumen pedido dos veces (ver el detalle de C-46).
+9. **M-22:** el estado de pago cambiado desde otra pestaña mientras la ficha vieja sigue abierta.
+
+### Para el orquestador
+- Lanzar la ronda 1 del tester con estos puntos.
+- Anotar en `aprobacion.md`: M-20 a M-22 cerrados y D-7 declarada.
+- Al cierre: la fila `:1867` de la matriz con D-7, D-4 en A-04 de `DESIGN.md` y la lección del grep (C-45, C-46 y D-1).
+
+### Para el humano
+Nada que decidir.
+
+### Resumen
+- **Veredicto: ACEPTADO.** Mis cifras coinciden con las del resumen: lint 0; build 0; módulos `3447 passed (3447)` · 145; las 32 rutas más `foco-pestana` `1160 passed (1160)` · 33.
+- C-46 y C-47 conformes con el arbitraje; C-47 sigue vigilando el foco en la barra.
+- **M-20:** la raíz queda montada sin `key`. Los estados vecinos tienen caso, y el hermano de la tabla está aplicado.
+- **M-21:** tres vistas con su doble. **M-22:** el vecino que sí ocurre, sin texto nuevo. **D-7:** declarada.
+- Nueve puntos de ataque para la ronda 1.
+
+## Verificación de la corrección de la ronda 1 — ADMIN-01f
+Veredicto: **ACEPTADO** (sin M-n; el tester puede lanzar la ronda 2)
+Verificación propia (desde `frontend/`, una corrida después de otra; nadie más corría suites y no había ningún `vitest` vivo antes de cada una; sin navegadores):
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 914ms` | exit 0 (`928ms`) |
+| `npx vitest run src/features/admin src/features/clases src/components/foco src/components/layout` | `Test Files  146 passed (146)` · `Tests  3479 passed (3479)` | igual |
+| `npx vitest run src/features/admin/usuarios-01f-r1.ataque.test.tsx` | `Tests  10 passed (10)` | igual |
+| Las 32 rutas más `src/app/foco-pestana-02d-r3.ataque.test.tsx` | `Test Files  33 passed (33)` · `Tests  1160 passed (1160)` | igual |
+| Extra, mía: `npx vitest run src/features/calificaciones src/features/tareas` (los otros usos de `useFocoAlPerderseElControl`) | `Test Files  62 passed (62)` · `Tests  1760 passed (1760)` | (no la pide el resumen) |
+
+Archivos:
+- `resumen-programador.md` = `5ff3de52…`, con la sección en `:3356`.
+- `reporte-tester.md` = `75452249…`, con la ronda 1 en `:5810`.
+- `usuarios-01f-r1.ataque.test.tsx` = `f1c8d06a…` (no lo tocó el programador).
+
+Siguen siendo 20 `*.ataque` contra `10356bd`, más el nuevo sin rastrear; `rutas-02c-r1` y `cuentas-r3` conservan los hashes de C-46 y C-47. En producción sigue habiendo 32 archivos, todos en "Se toca", y el índice de git está vacío.
+
+### T-01 (el estado de pago de la ficha): corregido
+- **El código** (`estado-de-pago-de-cuenta.tsx:27-35` y `hooks.ts:396-419`):
+  - el control ya no copia el estado al montarse; guarda solo la elección de la persona (`null` si no eligió) y muestra `eleccion ?? estadoPago`;
+  - el ajuste al cambiar el estado del servidor se hace en el render, con el patrón de estado derivado que admite React, sin efecto;
+  - `useCambiarEstadoPago` pone lo guardado en la ficha con `setQueryData` y además la vuelve a pedir.
+- **El criterio es correcto y no necesita texto.** Con dos opciones, una elección distinta del estado del servidor solo puede seguir en pie si el servidor no cambió. Si cambia, el valor nuevo es justo esa elección y la elección se descarta.
+  - El control nunca afirma un estado que el servidor no tiene, salvo una elección propia sin guardar, que está a la vista y se envía solo con «Guardar».
+  - El error conserva la elección (ADM-1F09b).
+  - El éxito la limpia: `onSuccess` del `mutate` solo corre con el control montado.
+- **Casos:** tres nuevos en `ficha-01f.test.tsx:1048-…`, más ADM-T1F01 y ADM-T1F02 en verde.
+- **Hermanos (estado local que se inicializa con datos del servidor):** contrasté con el código la lista del resumen. En `features/admin`, el único `useState` sembrado con un dato del servidor es `estadoVisto`, el del propio remedio.
+  - El campo de "Editar nombre" es no controlado y toma `defaultValue` al abrirse. Con el formulario abierto, que no lo pise una respuesta es lo correcto, porque es la edición en curso.
+  - `acciones-de-cuenta.tsx` deriva sus botones de `cuenta` en cada render.
+  - Los componentes de `features/clases` de 01f solo tienen `confirmando`.
+  - Ningún hermano queda sin cubrir.
+- **Para 01g** (lo anoto para el arquitecto): la fila y el lote de `/admin/estado-pago` siguen el mismo criterio, y la selección del lote no sobrevive a filas que cambiaron.
+
+### T-02 (el foco con un diálogo abierto al cambiar de cuenta): corregido
+- **El código** (`components/foco/hooks.ts:19-75`): `incluirDialogos`, con `false` por omisión.
+  - Con `false`, la condición nueva (`enUnDialogo`) siempre es falsa y el gancho hace lo mismo que antes; la lista de dependencias solo suma una constante.
+  - Los otros diez usos (`usuarios-view` y, fuera de `features/admin`, `gradebook-view`, `mis-calificaciones-view`, `editar-recurso-view`, `features/clases/hooks.ts:294`, `tu-trabajo`, `detalle-tarea-view`, `editar-tarea-view`, `entrega-de-alumno-view` y `entregas-view`) no pasan el parámetro.
+  - Para comprobarlo corrí también `features/calificaciones` y `features/tareas`, en verde. `estatico-01d`, `estatico-01d-r1` y `foco-01d` también están en verde.
+  - Solo `usuario-view.tsx:90` pasa `true`.
+- **Estados vecinos** (`ficha-01f.test.tsx`, 19 casos), cada uno con su caso:
+  - los dos diálogos, con el foco en cada control y en el motivo a medias, hacia otra cuenta, `abc` y `404`;
+  - el historial, dos veces;
+  - un `5xx` con su reintento (fallos seguidos) y `<StrictMode>`;
+  - controles: cerrar con «Cancelar» sin cambiar de cuenta devuelve el foco a su botón, no a la raíz, y el éxito lleva el foco al sustituto antes de que decida la raíz (ADM-1F07 y ADM-1F08 en verde).
+  - El programador declara que con `incluirDialogos` en `false` caen 21 de 22. No lo repetí; los dos rojos del tester lo confirmaban.
+- **Hermanos:** en `features/admin`, solo hay dos diálogos (C-13b), y la tabla no tiene diálogos (el alta es en línea). El riesgo de `[role="dialog"]` genérico, que tome por propio un diálogo ajeno a la vista, no aplica en la ficha: no monta ningún otro.
+
+### PARADA parcial: `features/calificaciones/mis-calificaciones-view.tsx` y el modal de cálculo
+**Recomiendo no tocarlo en 01f y llevarlo a ESTADO §3 como riesgo con destino.** No hace falta pedirle al humano una excepción a "No se toca".
+- El patrón no lo introduce 01f: existe desde CALIFICACIONES-01d. 01f solo dejó el remedio disponible (`incluirDialogos`), y no cambia nada mientras nadie lo pase.
+- El camino es estrecho. El modal atrapa el foco, así que el filtro no puede cambiar con él abierto; una recarga que no lo desmonta deja el foco dentro, conectado, y el gancho no hace nada. Solo queda la navegación del historial a la misma vista de otra clase con el modal abierto, y ahí la vista suele desmontarse entera.
+- Tocar `features/calificaciones` en 01f mezclaría módulos y alargaría una subentrega que ya está en 32 archivos.
+- **Destino que propongo:** la próxima tarea que toque `features/calificaciones`, o el carril trivial al cierre de ADMIN-01, con una prueba que confirme primero si el camino existe: con el modal abierto, atrás del historial a la misma vista de otra clase. Si el humano prefiere cerrarlo ya, la autorización es suya y el cambio es una línea más su prueba; no lo recomiendo.
+
+### Observación: el diálogo de borrar clase en `clases-admin-view.tsx`
+**Recomiendo: nada en 01f, ni hallazgo ni fila de ESTADO por ahora; solo un punto de ataque barato en la ronda 2.**
+- La vista no usa la raíz de `components/foco`: usa `useFocoAlPasarAError` y `useFocoAlCerrarElBorrado` (01c, verificados entonces).
+- Salir de `/admin/clases` con el diálogo abierto desmonta toda la vista, y la vista de destino tiene su propia regla.
+- Cambiar `?estado=` con el historial no desmonta el diálogo: el foco sigue dentro y conectado.
+- No veo un camino que deje el foco en `<body>` por 01f. Si la ronda 2 encuentra uno, va a ESTADO §3 con destino, no a 01f, porque el archivo está fuera de "Se toca".
+
+### Puntos de ataque para la ronda 2
+No se atacaron en la ronda 1:
+1. **La raíz frente al sustituto** (punto 2): baja, reactivar, restringir y restablecer el acceso con `setQueryData` más la recarga de las listas y del resumen. El foco termina en el sustituto, nunca en la raíz ni en `<body>`, también con `<StrictMode>` y ahora con `incluirDialogos`: el diálogo que se cierra por éxito no debe llevar el foco a la raíz.
+2. **La tabla** (punto 3):
+   - «Ver» con el foco cuando llega la búsqueda diferida de 300 ms;
+   - la última página de «Cargar más» con solo filas repetidas (ADM-1F19): el foco va al `h1`, no a la raíz;
+   - el alta abierta y cerrada con la tabla en error.
+3. **P-1 y P-2** (punto 4): la temporal o un `500` con el foco en "Nombre completo" de «Editar nombre». El error de corregir el correo de A no aparece en B (por historial y por `navigate`).
+4. **D-6** (punto 5): un envío local inválido de "Corregir correo" con un error de restablecer a la vista, y reabrir la confirmación.
+5. **El `401`** a la mitad de la tabla y de la ficha, y en «Guardar» del estado de pago: lo resuelve `apiClient`, sin texto propio ni aviso, y nada se queda en espera.
+
+Estados vecinos de los remedios de la ronda 1:
+
+6. **T-01:**
+   - una elección propia sin guardar, y el servidor trae el mismo estado o el contrario, por la respuesta de otra acción y por la recarga pasado el `staleTime`;
+   - «Guardar» en vuelo mientras llega otra respuesta («Restringir acceso» en otra petición);
+   - un error de «Guardar» y después un cambio del servidor;
+   - «Guardar» con éxito y la recarga que trae otro estado, porque otro admin lo cambió entretanto;
+   - la ficha desmontada con «Guardar» en vuelo: el aviso solo con el control desmontado y ningún error en la consola.
+7. **T-02:**
+   - el diálogo cerrado con Escape y, en el mismo turno, el cambio de cuenta;
+   - el diálogo abierto y un `5xx` de la recarga de la propia ficha, si se alcanza;
+   - abrir y cerrar el diálogo varias veces y después cambiar de cuenta con el foco en un botón de la ficha (la memoria del gancho no debe quedarse con un control del diálogo ya cerrado);
+   - el foco en un `role="dialog"` que no es de la ficha, si la vista llega a tener uno.
+8. **El borrado de una clase** (barato, fuera de 01f): con el diálogo abierto en `/admin/clases`, atrás y adelante del historial con `?estado=` y hacia otra sección. Si el foco cae en `<body>`, se reporta como observación para ESTADO §3.
+9. **D-4 a 360 px:** sigue sin verificar (exige navegador). Lo decide el humano en la comprobación de 01g.
+
+### Para el orquestador
+- En `aprobacion.md`: T-01 y T-02 cerrados, ronda 1 de 3.
+- La PARADA de `mis-calificaciones-view.tsx` queda arbitrada: va a ESTADO §3 con destino, sin tocar "No se toca". Se informa al humano; no espera su respuesta, salvo que quiera cerrarlo en 01f.
+- La observación de `clases-admin-view.tsx`: nada, más el punto de ataque 8.
+- Para el arquitecto de 01g: la nota de T-01 sobre la fila y el lote.
+
+### Para el humano
+Solo para tu información, sin respuesta obligatoria:
+- El riesgo del modal de cálculo en "Mis calificaciones" va a ESTADO §3 con destino.
+- Si prefieres corregirlo dentro de 01f, haría falta tu autorización para tocar un archivo de "No se toca".
+
+### Resumen
+- **Veredicto: ACEPTADO.** Mis cifras coinciden con las del resumen: lint 0; build 0; módulos `3479 passed (3479)` · 146; archivo del tester `10 passed`; las 32 rutas más `foco-pestana` `1160 passed (1160)` · 33. Además corrí `calificaciones` y `tareas`: `1760 passed`.
+- **T-01:** el control muestra el estado del servidor salvo una elección propia sin guardar, sin texto nuevo. Ningún hermano en 01f.
+- **T-02:** `incluirDialogos` es opcional y con `false` no cambia nada para los otros diez usos. Los estados vecinos tienen caso.
+- **PARADA:** `mis-calificaciones-view.tsx` va a ESTADO §3 con destino, sin tocarlo en 01f.
+- **Borrar clase:** nada, más el punto 8.
+- Nueve puntos de ataque para la ronda 2.
+
+## Revisión final — ADMIN-01f
+Veredicto: **APROBADO**
+Verificación propia (desde `frontend/`, una corrida después de otra; nadie más corría suites y no había ningún `vitest` vivo; con corriente, `BatteryStatus` 2 al 44 %; sin navegadores):
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | exit 0; `All matched files use Prettier code style!` y, al final, `> tsc -b` sin errores |
+| `npm run build` | exit 0; `✓ built in 891ms` |
+| `npm run test` (**suite completa del frontend**, 17:07:44) | `Test Files  306 passed (306)` · `Tests  6999 passed (6999)` (340 s), a la primera, sin `FAIL` ni errores no controlados |
+
+Contra el cierre de 01e (`299` archivos · `6859` casos), la suite suma 7 archivos y 140 casos. Los siete archivos nuevos son `ficha-01f`, `usuarios-01f`, `lib-01f`, `cuenta-desactivada-01f`, `reexportaciones-01f`, `usuarios-01f-r1.ataque` y `usuarios-01f-r2.ataque`. Los casos que salieron con el buscador, en `en-espera-r1`, `secuencias-ch3-r2` y `formularios-ch3`, se restan de esa cuenta.
+- **Backend y `shared/`:** 01f no los toca. `git diff --name-only 10356bd -- backend shared infra` y el resto del repositorio fuera de `frontend/` y `docs/trabajo/` dan vacío; solo queda sin rastrear `docs/trabajo/DEPLOY-investigacion-vps.md`, que no es del encargo. No corresponden la suite del backend ni PA-07.
+
+### Plan cumplido (01f)
+- **Pasos 26 a 28b:** hechos.
+  - Dashboard, tabla, ficha, alta y diálogos.
+  - «Invitar maestro» va en `/admin/maestros` (`outline`).
+  - Insignia «Cuenta desactivada» y destinos Inicio, Usuarios, Maestros y Clases.
+  - Rutas, y borrados `cuentas-view.tsx` y `buscador-de-cuenta.tsx`.
+  - `useFocoAlCargarMas` y `focoPerdido` movidos a `components/foco` con reexportación.
+  - Lo de la Enmienda 14:
+    - las reglas del término;
+    - `textosPorCampo` (`activo`, `restringido`, `estadoPago`) y `textoParaTerceros` en los tres formularios;
+    - los tipos de la marca;
+    - los accesos desde `DESTINOS_POR_ROL`;
+    - ADM-1F01 a ADM-1F26, todos mapeados, con ADM-1F09b (e) por el arbitraje M-22 y ADM-1F23 con las vistas (M-21).
+- **§D-11, §D-12 y T-E14:**
+  - Todos los textos están en `features/admin/data.ts` y coinciden con T-E14 (cotejados en la verificación del resumen) o salen del código.
+  - Cero textos nuevos, salvo «Cuenta desactivada» en `features/clases/data.ts` (S-16, aprobado).
+  - El `h1` de la ficha es "Usuarios" y el `h2` es el nombre (OA-01f-2).
+- **Matriz:** coincide con el código. Las filas de la ficha y del estado de pago se ampliaron en la corrección de la ronda 1. D-7 queda declarada (el `5xx` de «Cargar más» reemplaza la tabla, como en 01c).
+- **Frases de recuperación con sus caminos:**
+  - resumen (ADM-1F01 b y c);
+  - tabla (ADM-1F17 a, b, d y e, y C-15);
+  - lista cambiada (ADM-1F03 y ADM-1F18 c);
+  - la cuenta (ADM-1F17 c, ADM-1F26).
+  - Todas con el router real y `app/providers.tsx`.
+- **§D-9 y §D-10:** 01f no los toca. Las vigiladas de 01c a 01d2 siguen en verde dentro de la suite completa.
+
+### "No se toca", pruebas y V-01
+- **Producción:** 32 archivos contra `10356bd`, todos en "Se toca" de 01f con la Enmienda 14 (30 cambiados o nuevos y 2 borrados). El índice de git está vacío.
+- **Pruebas normales:**
+  - la lista cerrada, más D-1 (`formularios-ch3.test.tsx:647`, aceptada);
+  - siete archivos nuevos de 01f;
+  - ninguna vigilada cambió.
+- **`*.ataque`:** ni el programador ni nadie fuera del tester tocó ninguna.
+  - Contra `10356bd` cambian los 20 de la ronda 0, con M-19, N-1, C-46 y C-47.
+  - Hay dos nuevas sin rastrear: `usuarios-01f-r1` (`f1c8d06a…`) y `usuarios-01f-r2` (`e27d328b…`).
+  - V-01 da 271 rastreadas más 2 = **273**, que coincide con el tester.
+- **Caracteres invisibles:**
+  - 0 en todos los archivos cambiados o nuevos de `frontend/`.
+  - 0 en los `.md` del encargo, salvo `resumen-programador.md:2462`. Ahí hay un U+00AD de una "í" con doble codificación ("extraÃ­da"), ya presente en el commit `10356bd` (sección de 01d2). No es de 01f; va como detalle menor.
+  - Sin CR en los cinco `.md`.
+
+### Reglas que no se rompen y estilo
+- **Capas:** sin cambios fuera de `frontend/`.
+- **Seguridad en la interfaz:** nada que el backend no niegue.
+  - El estado de pago solo aparece en la ficha y en la tabla del admin.
+  - Las respuestas para estudiantes no cambian.
+- **Errores:** sin `fetch` fuera de `apiClient`. Ningún texto del servidor sin `lib/errores-de-api.ts`, y `errorQueRedirigeElCliente` en cada `MensajeError` de las mutaciones nuevas.
+- **Valores por defecto:** sin `?? []` y sin valores por defecto de `estadoPago` ni `rol`.
+- **Retornos tempranos** en las vistas (error → cargando → vacío → datos).
+- **Formularios:** guardas con ref en todas las mutaciones, y `enEspera` (V-06 = 85).
+- **Contexto y vidrio:** `data-material` y `data-densidad` en los dos diálogos; `vidrio-fuerte` solo en el control segmentado (V-07).
+- **`autoComplete="off"`** en los datos de terceros.
+- **Tipos y textos:** los tipos están en `types.ts` y los textos en `data.ts`.
+
+### Diseño (lista del manager)
+- **Tokens y componentes:** solo tokens, porque `lint` y las estáticas V-05 a V-07 están en verde. Se usan `Card`, `Badge`, `Button`, `Dialog`, `NativeSelect` y `Table` de `components/ui`.
+- **Una sola acción principal por vista:**
+  - «Dar de alta un alumno» en `/admin/usuarios`;
+  - «Enviar invitaciones» en `/admin/maestros` (vigiladas en verde);
+  - en el dashboard, los accesos van en `outline`.
+- **Estado con texto:** "Activa" o "Desactivada", "Restringido", "Sin restricción" y "No aplica", y la insignia con icono y texto.
+- **Vacíos y errores:** los tres estados tienen su texto. La tabla con búsqueda no lleva CTA, porque el vacío de búsqueda se resuelve editando el término; el alta es la acción principal visible.
+- **360 px (D-4 y las tablas): no verificada**, porque exige navegador. Propongo un punto para la comprobación humana del cierre de ADMIN-01 (máximo 7): "En `/admin/clases` y en `/admin/usuarios` a 360 px, la celda «Maestros» con un maestro dado de baja (nombre repetido con su insignia) y la tabla de usuarios se leen sin cortes ni desbordes".
+- **`DESIGN.md`:** los patrones nuevos de 01f van por A-04, al cierre de ADMIN-01:
+  - el dashboard con cifras;
+  - la tabla de usuarios y la ficha;
+  - el control segmentado del estado de pago en la ficha;
+  - la insignia de cuenta desactivada, con D-4, la repetición en `/admin/clases`.
+  - `AGENTS.md` pide documentarlos "en ese mismo encargo". El encargo es ADMIN-01, y el plan aprobado (`:1897`) los fija al cierre. **Cumple.** Lo verifico en la revisión final de 01g o del cierre, y la lista de A-04 debe sumar D-4.
+
+### Hallazgos del tester y arbitrajes
+- **Ronda 1, ROTO:**
+  - T-01 (alta, el estado de pago de la ficha): corregido y verificado (`revision.md:6859`).
+  - T-02 (media, el foco con un diálogo abierto): corregido y verificado (`revision.md:6859`).
+- **Ronda 2, RESISTE**, sin hallazgos (`reporte-tester.md:5915`).
+- **Desacuerdos:** ninguno pendiente.
+  - R-1 y R-2 se resolvieron con C-46 y C-47.
+  - P-01f-1 se resolvió con M-22.
+  - La PARADA de `mis-calificaciones-view.tsx` se resolvió hacia ESTADO §3.
+
+### Los puntos que el tester no atacó: ¿basta la cobertura actual?
+Lo comprobé en las pruebas y en el código.
+
+| Camino | Cobertura real | Juicio |
+|---|---|---|
+| «Ver» con el foco y la búsqueda diferida que llega 300 ms después | No hay un caso con ese disparador exacto. El mecanismo (cambio de clave con el foco en «Ver») está probado con el rol y con un error de la clave nueva (`usuarios-01f.test.tsx:690-708`). La búsqueda diferida cambia la misma clave por el mismo camino (`claveTablaDeUsuarios`) | Cubierto por el mecanismo |
+| Última página de «Cargar más» con solo filas repetidas: el foco al `h1` | ADM-1F19 prueba el descarte por `id` sin mover el foco. El destino al encabezado sin filas nuevas es lógica de `useFocoAlCargarMas`, que se movió sin cambios y está probada en `features/clases` (`alumnos-b-r2` a `r5` y `alumnos-view.test.tsx`), con filas nuevas y sin ellas. La tabla pasa `encabezadoRef` | Cubierto por el gancho compartido; falta el caso integrado |
+| El alta abierta y cerrada con la tabla en error | Sin caso. El formulario de alta no depende de la consulta de la tabla, y al cerrarlo el foco vuelve a «Dar de alta un alumno», que está fuera del bloque que reemplaza el error (`usuarios-view.tsx:61-66`) | Riesgo bajo, sin caso |
+| `401` a la mitad de la tabla, de la ficha y de «Guardar» | Sin caso de 01f. El código cumple: cada `MensajeError` de las siete mutaciones nuevas lleva `!errorQueRedirigeElCliente` (lo revisé uno por uno), y `avisarErrorConElControlDesmontado` no avisa de un error que redirige. La función es la de `features/clases` (C-37) y está probada ahí; `apiClient` tiene sus pruebas | Cubierto por el código y el mecanismo; falta el caso integrado |
+| La ficha desmontada con «Guardar» en vuelo | Sin caso. `useCambiarEstadoPago` usa `useMontadoAdmin` y `avisarErrorConElControlDesmontado`, igual que las otras cuatro mutaciones nuevas | Riesgo bajo, sin caso |
+| El `5xx` de la recarga de la propia ficha con el diálogo abierto | La ficha no se recarga sola con un diálogo modal abierto (`refetchOnWindowFocus: false`, `staleTime` de 30 s), y ninguna mutación puede lanzarse con el diálogo atrapando el foco. Camino no alcanzable; el cambio de cuenta con el diálogo abierto y `5xx` sí está probado (T-02) | No alcanzable |
+
+**Juicio: basta. No pido una tercera ronda.**
+- Ningún camino abierto muestra un dato falso ni deja el foco en `<body>` por un mecanismo sin probar. Lo que falta es el caso integrado de mecanismos ya probados en otro lugar, o de caminos de riesgo bajo.
+- Gastar la última ronda en eso no compensa: 01g toca el mismo módulo con dos tablas nuevas y los mismos mecanismos (`401`, cargar más, desmontaje).
+- Se registra como **riesgo aceptado con cobertura y destino.** El plan de 01g suma, como puntos de ataque de su ronda 1 y con su tabla nueva, los cuatro casos integrados que faltan en la de usuarios:
+  - el `401` a la mitad de la tabla, de la ficha y de «Guardar»;
+  - el control desmontado con «Guardar» en vuelo;
+  - la última página con solo repetidas;
+  - el alta con la tabla en error.
+
+### Destinos de lo abierto
+- **ESTADO §3, filas nuevas o actualizadas al cierre de ADMIN-01** (A-07):
+  - "`features/calificaciones/mis-calificaciones-view.tsx`: si la clave cambia con el modal de cálculo abierto (en un portal), el foco puede caer en `<body>`; el remedio existe (`incluirDialogos` de `components/foco/hooks.ts`)." Destino: la próxima tarea de `features/calificaciones` o el carril trivial al cierre de ADMIN-01, con una prueba que confirme primero que el camino existe.
+  - **N-01e-3** (los `beforeAll` frágiles con carga de dos integraciones del backend): sigue con su destino de 01e. 01f no corrió el backend.
+  - El riesgo aceptado de los cuatro casos integrados de arriba, con destino 01g.
+  - Las filas que ya estaban: A-07 bis, la ficha sin estado de acceso ("No por ahora") y R-16 a R-19.
+  - La observación del diálogo de borrar clase (`clases-admin-view.tsx`): ninguna fila, salvo que 01g o un ataque encuentre el camino.
+- **Notas para el arquitecto de 01g** (antes de su plan):
+  - T-01 en la fila y en el lote: mostrar el estado del servidor de cada fila, sin copiarlo al montarse, y que la selección del lote no sobreviva a filas que cambiaron.
+  - El diálogo del lote: `incluirDialogos` si su vista usa la raíz de `components/foco` (T-02).
+  - Los cuatro casos integrados de arriba.
+  - La lección del grep (C-45, C-46 y D-1): incluir en la lista cerrada las aserciones de tamaño de los arreglos que pierden filas y los filtros que prohíben peticiones de `/api/admin/` al terminar en una vista que ahora consulta.
+- **Al cierre de ADMIN-01:**
+  - D-7 en la fila `:1867` de la matriz del plan ("como 01c, Enmienda 9, P-01c-4");
+  - D-4 en la lista de A-04 de `DESIGN.md`;
+  - los textos sin uso de `TEXTOS_CUENTAS` (D-3), que borra E-16 en 01g;
+  - el punto de 360 px en la comprobación humana.
+
+### Medición de 01f
+- **Rondas del tester:** ronda 0, más la ronda 1 (ROTO: T-01 y T-02) y la ronda 2 (RESISTE). Hubo **1 ronda extra.**
+  - T-02 fue un estado vecino de M-20 (el foco con el control en un portal): cuenta como ronda extra por hermanos o estados vecinos.
+  - T-01 fue un defecto propio del control.
+  - **0 de 2** rondas extra por hermanos en esta subentrega: no se alcanza el umbral de cambio de modelo (2 o más).
+- **PARADAS:**
+  - 2 parciales del programador: P-01f-1 (ADM-1F09b e), resuelta con M-22 sin texto nuevo, y el hermano de T-02 fuera de "Se toca", resuelto hacia ESTADO §3.
+  - 0 PARADAS del tester.
+- **Resúmenes del programador:** 1 de 3 devuelto (la implementación, por M-20 a M-22); la corrección y la corrección de la ronda 1 fueron aceptadas.
+- **Ronda 0 del tester:** 1 devolución (M-19, el reemplazo mecánico en `en-espera-r1`). Después del resumen, 2 C-n (C-46 por el grep de la Enmienda 14 y C-47 por un defecto de la reescritura de C-13).
+- **Decisiones:**
+  - Del orquestador: 3, OA-01f-r0-1, OA-01f-r0-2 y OA-01f-2.
+  - Del humano dentro de 01f: 0. Las de la Enmienda 14 fueron antes.
+  - Arbitrajes del manager: 15. Son A-1 a A-4, D-1 a D-7, P-01f-1, R-1, R-2 y la PARADA del modal.
+- **Interrupciones:** 1, el corte de 600 s del tester en la ronda 0, por una falla del flujo del agente.
+
+### Detalles menores
+- C-46 tolera el resumen pedido dos veces (como C-45); la ronda 1 (ADM-T1F08) ya vigila que salga una sola vez.
+- D-6 escucha `onSubmit` en un `div`.
+- D-2 deja la tabla de enlaces y la de registrados de `/admin/maestros` con el reintento por omisión.
+- El U+00AD con doble codificación de `resumen-programador.md:2462`, de 01d2.
+
+### Documentos a actualizar
+En 01f, ninguno, fuera de `docs/trabajo/`. Todo va al cierre de ADMIN-01: A-01 a A-08, con D-4 en A-04 y las filas de ESTADO §3 de arriba. `AGENTS.md` "Comandos" no cambia.
+
+### Para el humano
+- Nada que decidir.
+- La comprobación en navegador (360 px) queda propuesta para el cierre de ADMIN-01.
+- Si quieres cerrar ya el riesgo del modal de «Mis calificaciones», tendrías que autorizar un archivo de "No se toca"; no lo recomiendo.
+
+### Bloque de commit de 01f
+Desde la raíz del repositorio. Lo cotejé con `git add -n -A -- frontend docs/trabajo/ADMIN-01-administracion` contra `git status --porcelain`:
+- 70 rutas, iguales a las de `git status`, sin `DEPLOY-investigacion-vps.md`;
+- 2 aparecen como `remove` (los dos borrados);
+- 0 aparecen fuera de las dos carpetas.
+
+```
+git status
+git add -A -- frontend docs/trabajo/ADMIN-01-administracion
+git status
+git commit -m "ADMIN-01f, gestión de usuarios del administrador en la interfaz: dashboard, tabla de usuarios, ficha con baja, acceso y estado de pago, alta de alumno e insignia de cuenta desactivada (frontend)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git push
+```
+
+`git add -A -- <ruta>` registra como borrados `frontend/src/features/admin/cuentas-view.tsx` y `frontend/src/features/admin/components/buscador-de-cuenta.tsx`. Deja fuera `docs/trabajo/DEPLOY-investigacion-vps.md`, que el segundo `git status` debe seguir mostrando como sin rastrear. Si el orquestador cambia `aprobacion.md` o `docs/ESTADO.md` antes del commit:
+- `aprobacion.md` ya entra por la carpeta;
+- `docs/ESTADO.md` se suma con `git add -- docs/ESTADO.md`.
+
+### Resumen
+- **Veredicto: APROBADO.**
+- **Cifras:** suite completa del frontend `306 passed (306)` · `6999 passed (6999)`; lint 0; build 0. El backend y `shared/` no cambian.
+- 32 archivos de producción en "Se toca", índice vacío y V-01 273.
+- Los puntos que el tester no atacó tienen cobertura por mecanismo o son de riesgo bajo o no alcanzables. Se aceptan como riesgo con destino en la ronda 1 de 01g; no hace falta una tercera ronda.
+- **Medición:** 1 ronda extra (0 por hermanos), 2 PARADAS parciales y 1 de 3 resúmenes devuelto.

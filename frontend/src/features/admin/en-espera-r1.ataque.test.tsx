@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import type { ReactNode } from "react"
+import { createMemoryRouter, RouterProvider } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { CuentasView } from "./cuentas-view"
+import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 // Ataques del Tester (DESIGN-01a, ronda 1) contra `enEspera` en los cinco botones de /admin
 // ("Buscar", "Enviar invitación", "Guardar correo", "Sí, restablecer" y "Copiar"): con la petición
@@ -11,8 +13,20 @@ import { CuentasView } from "./cuentas-view"
 // del formulario, requestSubmit) manda una segunda petición; y al asentarse, con éxito o con error,
 // el botón sale de la espera (plan, §D-5 y "Puntos de ataque", punto 2).
 
+// ADMIN-01f ronda 0 (C-13, §D-R0 01f y §D-11): CuentasView y POST /admin/usuarios/buscar se borran.
+// Cada caso monta ahora el router real (createMemoryRouter con las rutas de app/router) y abre la
+// ficha /admin/usuarios/:usuarioId (GET /admin/usuarios/:id), que se localiza por su región con
+// nombre (E-24). Equivalencias: "buscar una cuenta" es abrir su ficha (navegar a su ruta, como el
+// enlace "Ver" de la tabla); "buscar otra cuenta", abrir la de otra; "una búsqueda rechazada en el
+// cliente", abrir /admin/usuarios/abc (400 VALIDACION, "Esa cuenta ya no existe.", ADM-1F26); el
+// campo de búsqueda donde se quedaba el foco es el enlace "Usuarios" de la barra (sigue montado al
+// cambiar de ficha); "Nombre completo" de "Invitar maestro" (otro formulario de la página) es
+// "Correo correcto" de la ficha, fuera de la confirmación; "Invitar maestro" vive en
+// /admin/maestros. Lo que protege cada caso no cambia.
+
 const aviso = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
-vi.mock("sonner", () => ({ toast: aviso }))
+vi.mock("sonner", () => ({ toast: aviso, Toaster: () => null }))
+vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/admin") }))
 
 const TEMPORAL = "Kp7mWq4Rt9Xz"
 
@@ -33,6 +47,69 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const errorJson = (estado: number, codigo: string, mensaje = "mensaje del servidor") =>
   respuestaJson(estado, { error: { codigo, mensaje } })
 
+const CUENTAS: CuentaDePrueba[] = [carla]
+
+const ME_ADMIN = {
+  id: "d9a8c3c2-3333-4da0-9c3a-2b4c5d6e7f80",
+  nombre: "Administración",
+  email: "admin@ejemplo.mx",
+  rol: "admin",
+  debeCambiarContrasena: false,
+  accesoRestringido: false,
+}
+
+interface CuentaDePrueba {
+  id: string
+  nombre: string
+  email: string
+  rol: string
+  activo: boolean
+}
+
+// La fila de GET /admin/usuarios/:id: los datos de alumno solo en estudiantes (RN-02).
+const filaDe = (cuenta: CuentaDePrueba) => ({
+  ...cuenta,
+  creadoEn: "2026-09-01T15:00:00.000Z",
+  ...(cuenta.rol === "estudiante"
+    ? {
+        estadoPago: "al_corriente",
+        fechaEstadoPago: null,
+        accesoRestringido: false,
+        motivoRestriccion: null,
+        fechaRestriccion: null,
+      }
+    : {}),
+})
+
+// El marco del admin y la ficha (sesión, /me, la tabla, la cuenta por id y los enlaces de
+// /admin/maestros) responden antes que el manejador del caso.
+const respuestaDelMarco = (ruta: string, init?: RequestInit): Response | null => {
+  const metodo = init?.method ?? "GET"
+  if (ruta === "/api/auth/refrescar") return respuestaJson(200, { tokenAcceso: "t" })
+  if (ruta === "/api/me") return respuestaJson(200, ME_ADMIN)
+  if (metodo !== "GET") return null
+  if (/^\/api\/admin\/usuarios(\?|$)/.test(ruta)) {
+    return respuestaJson(200, {
+      usuarios: CUENTAS.map(filaDe),
+      siguienteCursor: null,
+      siguienteCursorNombre: null,
+    })
+  }
+  const ficha = /^\/api\/admin\/usuarios\/([^/?]+)$/.exec(ruta)
+  if (ficha) {
+    const cuenta = CUENTAS.find((u) => u.id === ficha[1])
+    if (cuenta) return respuestaJson(200, filaDe(cuenta))
+    if (ficha[1] === "abc") {
+      return errorJson(400, "VALIDACION", "id: id: debe ser un identificador válido")
+    }
+    return errorJson(404, "USUARIO_NO_ENCONTRADO")
+  }
+  if (ruta.startsWith("/api/admin/enlaces-registro")) {
+    return respuestaJson(200, { enlaces: [], siguienteCursor: null })
+  }
+  return null
+}
+
 const diferida = () => {
   let resolver: (respuesta: Response) => void = () => {
     throw new Error("la respuesta diferida se resolvió antes de crearse")
@@ -46,18 +123,11 @@ const diferida = () => {
 type Diferida = ReturnType<typeof diferida>
 
 // Cada ruta puede quedar en vuelo con su propia respuesta diferida; las demás responden al instante.
-const apiDeCuentas = (
-  enVuelo: Partial<Record<"buscar" | "invitar" | "correo" | "restablecer", Diferida>>,
-) => {
-  let busquedas = 0
-  const fetchMock = vi.fn<typeof fetch>((entrada) => {
+const apiDeCuentas = (enVuelo: Partial<Record<"invitar" | "correo" | "restablecer", Diferida>>) => {
+  const fetchMock = vi.fn<typeof fetch>((entrada, init) => {
     const ruta = String(entrada)
-    if (ruta === "/api/admin/usuarios/buscar") {
-      busquedas += 1
-      // Solo la segunda búsqueda queda en vuelo: la primera hace falta para tener ficha.
-      if (enVuelo.buscar && busquedas > 1) return enVuelo.buscar.promesa
-      return Promise.resolve(respuestaJson(200, { usuario: carla }))
-    }
+    const delMarco = respuestaDelMarco(ruta, init)
+    if (delMarco !== null) return Promise.resolve(delMarco)
     if (ruta === "/api/admin/maestros" && enVuelo.invitar) return enVuelo.invitar.promesa
     if (ruta.endsWith("/correo") && enVuelo.correo) return enVuelo.correo.promesa
     if (ruta.endsWith("/restablecer-contrasena") && enVuelo.restablecer) {
@@ -75,13 +145,45 @@ const apiDeCuentas = (
 const llamadasQueContienen = (fetchMock: ReturnType<typeof apiDeCuentas>, fragmento: string) =>
   fetchMock.mock.calls.filter(([entrada]) => String(entrada).includes(fragmento)).length
 
-const renderVista = () => {
+const enrutador: { actual: ReturnType<typeof createMemoryRouter> | undefined } = {
+  actual: undefined,
+}
+
+const routerActual = () => {
+  if (!enrutador.actual) throw new Error("Precondición: la vista se montó con renderVista")
+  return enrutador.actual
+}
+
+// Monta el router real en /admin/usuarios (la tabla): cada caso abre después la ficha que necesita.
+const renderVista = async (
+  envolver: (hijo: ReactNode) => ReactNode = (hijo) => hijo,
+  entrada = "/admin/usuarios",
+) => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, { initialEntries: [entrada] })
+  enrutador.actual = router
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <CuentasView />
-    </QueryClientProvider>,
+  const vista = render(
+    envolver(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    ),
   )
+  await screen.findByRole("navigation", { name: "Navegación principal" })
+  return Object.assign(vista, { queryClient, router })
+}
+
+const irARuta = async (ruta: string) => {
+  await act(async () => {
+    await routerActual().navigate(ruta)
+  })
+}
+
+// Antes: escribir el correo y pulsar "Buscar". Ahora: abrir la ficha de la cuenta.
+const abrirFicha = async (cuenta: CuentaDePrueba) => {
+  await irARuta(`/admin/usuarios/${cuenta.id}`)
+  return screen.findByRole("region", { name: cuenta.nombre })
 }
 
 const boton = (nombre: string) => screen.getByRole("button", { name: nombre })
@@ -101,14 +203,6 @@ const pulsar = (nombre: string) => {
   act(() => control.focus())
   fireEvent.click(control)
   return control
-}
-
-const buscarCarla = async () => {
-  fireEvent.change(screen.getByLabelText("Correo exacto de la cuenta"), {
-    target: { value: carla.email },
-  })
-  fireEvent.click(boton("Buscar"))
-  await screen.findByText(carla.nombre)
 }
 
 // F-1 aplicado a cualquier botón en vuelo (§D-5): en espera, sin `disabled`, con el mismo nombre,
@@ -146,7 +240,18 @@ const comprobarFueraDeEspera = async (control: HTMLElement) => {
   expect(control).not.toHaveAttribute("data-en-espera")
 }
 
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
+beforeEach(() => {
+  establecerToken("token-de-prueba")
+})
+
 afterEach(() => {
+  cleanup()
+  limpiarToken()
+  enrutador.actual = undefined
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   Reflect.deleteProperty(window.navigator, "clipboard")
@@ -154,40 +259,10 @@ afterEach(() => {
   aviso.error.mockClear()
 })
 
-describe("ataque (DESIGN-01a r1): 'Buscar' en espera", () => {
-  it("en vuelo: en espera con el foco, y ninguna activación repetida busca otra vez; con error sale de la espera", async () => {
-    const pendiente = diferida()
-    const fetchMock = apiDeCuentas({ buscar: pendiente })
-    renderVista()
-    await buscarCarla()
+// ADMIN-01f ronda 0 (C-13): el bloque de «Buscar» sale con el buscador de /admin, que se borra. La
+// espera de los botones nuevos de 01f la cubren ADM-1F05 a ADM-1F09 y V-06 (C-17).
 
-    const control = pulsar("Buscar")
-    await comprobarEnEspera(control, "Buscar")
-    activarDeTodasLasFormas(control)
-    await esperarUnMomento()
-    expect(llamadasQueContienen(fetchMock, "/usuarios/buscar")).toBe(2)
-
-    await resolverCon(pendiente, errorJson(500, "ERROR_INTERNO"))
-    await comprobarFueraDeEspera(control)
-    expect(document.activeElement).toBe(control)
-  })
-
-  it("con éxito sale de la espera y conserva el foco", async () => {
-    const pendiente = diferida()
-    apiDeCuentas({ buscar: pendiente })
-    renderVista()
-    await buscarCarla()
-
-    const control = pulsar("Buscar")
-    await comprobarEnEspera(control, "Buscar")
-    await resolverCon(pendiente, respuestaJson(200, { usuario: carla }))
-    await screen.findByText(carla.nombre)
-
-    await comprobarFueraDeEspera(control)
-    expect(document.activeElement).toBe(control)
-  })
-})
-
+// ADMIN-01f ronda 0 (C-13 y §D-11): "Invitar maestro" vive en /admin/maestros.
 describe("ataque (DESIGN-01a r1): 'Enviar invitación' en espera", () => {
   const llenarInvitacion = () => {
     fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "Ana López" } })
@@ -199,7 +274,8 @@ describe("ataque (DESIGN-01a r1): 'Enviar invitación' en espera", () => {
   it("en vuelo: una sola invitación aunque se active de todas las formas; con error sale de la espera", async () => {
     const pendiente = diferida()
     const fetchMock = apiDeCuentas({ invitar: pendiente })
-    renderVista()
+    await renderVista(undefined, "/admin/maestros")
+    await screen.findByRole("button", { name: "Enviar invitación" })
     llenarInvitacion()
 
     const control = pulsar("Enviar invitación")
@@ -216,7 +292,8 @@ describe("ataque (DESIGN-01a r1): 'Enviar invitación' en espera", () => {
   it("con éxito sale de la espera", async () => {
     const pendiente = diferida()
     apiDeCuentas({ invitar: pendiente })
-    renderVista()
+    await renderVista(undefined, "/admin/maestros")
+    await screen.findByRole("button", { name: "Enviar invitación" })
     llenarInvitacion()
 
     const control = pulsar("Enviar invitación")
@@ -231,7 +308,9 @@ describe("ataque (DESIGN-01a r1): 'Enviar invitación' en espera", () => {
         activo: true,
       }),
     )
-    expect(await screen.findByRole("status")).toBeVisible()
+    // ADMIN-01f (C-13): en /admin/maestros puede haber otras regiones de estado; se busca la de la
+    // invitación por su texto.
+    expect(await screen.findByText(/^Invitación creada\./)).toBeVisible()
 
     await comprobarFueraDeEspera(control)
   })
@@ -241,8 +320,8 @@ describe("ataque (DESIGN-01a r1): 'Guardar correo' en espera", () => {
   it("en vuelo: una sola corrección; con error sale de la espera y conserva el foco", async () => {
     const pendiente = diferida()
     const fetchMock = apiDeCuentas({ correo: pendiente })
-    renderVista()
-    await buscarCarla()
+    await renderVista()
+    await abrirFicha(carla)
     fireEvent.change(screen.getByLabelText("Correo correcto"), {
       target: { value: "carla.ruiz@ejemplo.mx" },
     })
@@ -261,8 +340,8 @@ describe("ataque (DESIGN-01a r1): 'Guardar correo' en espera", () => {
   it("con éxito sale de la espera", async () => {
     const pendiente = diferida()
     apiDeCuentas({ correo: pendiente })
-    renderVista()
-    await buscarCarla()
+    await renderVista()
+    await abrirFicha(carla)
     fireEvent.change(screen.getByLabelText("Correo correcto"), {
       target: { value: "carla.ruiz@ejemplo.mx" },
     })
@@ -280,8 +359,8 @@ describe("ataque (DESIGN-01a r1): 'Sí, restablecer' en espera", () => {
   it("en vuelo: clic, Enter y Espacio repetidos no generan una segunda temporal; con error sale de la espera", async () => {
     const pendiente = diferida()
     const fetchMock = apiDeCuentas({ restablecer: pendiente })
-    renderVista()
-    await buscarCarla()
+    await renderVista()
+    await abrirFicha(carla)
     fireEvent.click(boton("Restablecer contraseña"))
 
     const control = pulsar("Sí, restablecer")
@@ -298,8 +377,8 @@ describe("ataque (DESIGN-01a r1): 'Sí, restablecer' en espera", () => {
   it("con éxito aparece una sola temporal y 'Sí, restablecer' desaparece", async () => {
     const pendiente = diferida()
     const fetchMock = apiDeCuentas({ restablecer: pendiente })
-    renderVista()
-    await buscarCarla()
+    await renderVista()
+    await abrirFicha(carla)
     fireEvent.click(boton("Restablecer contraseña"))
 
     const control = pulsar("Sí, restablecer")
@@ -316,8 +395,8 @@ describe("ataque (DESIGN-01a r1): 'Sí, restablecer' en espera", () => {
 describe("ataque (DESIGN-01a r1): 'Copiar' en espera con writeText lento", () => {
   const verTemporal = async () => {
     apiDeCuentas({})
-    renderVista()
-    await buscarCarla()
+    await renderVista()
+    await abrirFicha(carla)
     fireEvent.click(boton("Restablecer contraseña"))
     fireEvent.click(boton("Sí, restablecer"))
     await screen.findByText(TEMPORAL)

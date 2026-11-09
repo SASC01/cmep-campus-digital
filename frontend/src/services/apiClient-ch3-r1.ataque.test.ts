@@ -56,7 +56,11 @@ describe("ataque CHORE-03 03b r1 · N-46", () => {
   // errorQueRedirigeElCliente con la misma forma que tareas y calificaciones, así que también importa
   // la lista de @/services/apiClient. Sigue protegiendo que nadie más la importe, la declare ni copie
   // sus tres códigos.
-  it("fuera de services/apiClient ningún archivo de producción repite los tres códigos juntos (con otro nombre) y solo tareas, calificaciones y clases importan la lista, de @/services/apiClient", () => {
+  // ADMIN-01f ronda 0 (C-37, Enmienda 9; §D-11, "Avisos con la vista desmontada"):
+  // features/admin/lib.ts gana errorQueRedirigeElCliente con la misma forma que clases, así que también
+  // importa la lista de @/services/apiClient. Sigue protegiendo que nadie más la importe, la declare ni
+  // copie sus tres códigos.
+  it("fuera de services/apiClient ningún archivo de producción repite los tres códigos juntos (con otro nombre) y solo admin, tareas, calificaciones y clases importan la lista, de @/services/apiClient", () => {
     const conLosTres = deProduccion
       .filter(([, texto]) =>
         ["ACCESO_RESTRINGIDO", "CAMBIO_DE_CONTRASENA_REQUERIDO", "NO_AUTENTICADO"].every((codigo) =>
@@ -77,6 +81,7 @@ describe("ataque CHORE-03 03b r1 · N-46", () => {
         /(const|let|var)\s+CODIGOS_QUE_REDIRIGE_EL_CLIENTE\b/.test(texto),
       ])
     expect(usan).toEqual([
+      ["/src/features/admin/lib.ts", true, false],
       ["/src/features/calificaciones/lib.ts", true, false],
       ["/src/features/clases/lib.ts", true, false],
       ["/src/features/tareas/lib.ts", true, false],

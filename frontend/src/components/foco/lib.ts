@@ -13,3 +13,11 @@ export const claveDeFocoDeLaConsulta = (id: string, consulta: MomentoDeLaConsult
     consulta.errorUpdatedAt,
     consulta.errorUpdateCount,
   ].join(":")
+
+// ADMIN-01f (§D-11, Enmienda 14): movida sin cambios desde features/clases/lib.ts, que la reexporta.
+// true si el foco se perdió: ningún elemento, <body> o uno que ya no está en el documento. Recibe el
+// documento en lugar de leer el global, así que es pura respecto de su entrada (§D-C5 bis).
+export const focoPerdido = (documento: Pick<Document, "activeElement" | "body">): boolean => {
+  const activo = documento.activeElement
+  return activo === null || activo === documento.body || !activo.isConnected
+}

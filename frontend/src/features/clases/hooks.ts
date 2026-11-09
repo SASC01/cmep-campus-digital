@@ -887,90 +887,10 @@ export const useFilaEnFoco = (atributo: string) => {
   return filaEnFoco
 }
 
-// "Ver más" (T-26, T-28): se desmonta con el foco dentro al cargar la última página. Devuelve el ref
-// que va en ese botón. Mueve el foco SOLO si el botón estaba montado en el render anterior, ya no lo
-// está en este y tenía el foco al desmontarse; con el botón montado nunca lo mueve, aunque el foco
-// esté en <body> (un render sin desmontaje no mueve nada). La marca "tenía el foco" se borra con un
-// focusin en otro elemento y con un focusout del botón que no lleva a ningún elemento mientras
-// sigue conectado (un clic en blanco). Hermano de T-08 (ronda 2 de 02d): al cambiar de pestaña el
-// navegador también dispara ese focusout sin destino con el botón conectado, y la ventana pierde el
-// foco justo después; se decide en el siguiente turno y la marca solo se borra si la ventana conserva
-// el foco (document.hasFocus() y el seguimiento de window), igual que useFilaEnFoco.
-// Destino: el primer elemento nuevo (`enfocarFila` devuelve false si no pudo) o, si no llegó nada, el
-// encabezado de la lista (`enfocarEncabezado`). Defensa (T-27): si después de eso el foco sigue
-// perdido (el destino no existía o no estaba conectado), va al primer elemento enfocable y conectado
-// de la sección donde estaba el botón y, si no hay ninguno, no se mueve.
-export const useFocoAlCargarMas = (
-  ids: string[] | undefined,
-  enfocarFila: (id: string) => boolean,
-  enfocarEncabezado: () => void,
-) => {
-  const botonRef = useRef<HTMLButtonElement | null>(null)
-  const teniaElFoco = useRef(false)
-  const estabaMontado = useRef(false)
-  const seccionDelBoton = useRef<Element | null>(null)
-  const idsPrevios = useRef<string[] | undefined>(undefined)
-  const ventanaConFoco = useRef(true)
-
-  useEffect(() => {
-    const alEntrar = (evento: FocusEvent) => {
-      teniaElFoco.current = botonRef.current !== null && evento.target === botonRef.current
-    }
-    const alSalir = (evento: FocusEvent) => {
-      const boton = botonRef.current
-      if (boton === null || evento.target !== boton || evento.relatedTarget !== null) return
-      setTimeout(() => {
-        if (!boton.isConnected || !ventanaConFoco.current || !document.hasFocus()) return
-        teniaElFoco.current = false
-      }, 0)
-    }
-    const alPerderLaVentana = () => {
-      ventanaConFoco.current = false
-    }
-    const alRecuperarLaVentana = () => {
-      ventanaConFoco.current = true
-    }
-    const alCambiarLaVisibilidad = () => {
-      ventanaConFoco.current = !document.hidden
-    }
-    document.addEventListener("focusin", alEntrar)
-    document.addEventListener("focusout", alSalir)
-    document.addEventListener("visibilitychange", alCambiarLaVisibilidad)
-    window.addEventListener("blur", alPerderLaVentana)
-    window.addEventListener("focus", alRecuperarLaVentana)
-    return () => {
-      document.removeEventListener("focusin", alEntrar)
-      document.removeEventListener("focusout", alSalir)
-      document.removeEventListener("visibilitychange", alCambiarLaVisibilidad)
-      window.removeEventListener("blur", alPerderLaVentana)
-      window.removeEventListener("focus", alRecuperarLaVentana)
-    }
-  }, [])
-
-  useEffect(() => {
-    const previos = idsPrevios.current
-    idsPrevios.current = ids
-    const montadoAntes = estabaMontado.current
-    const montadoAhora = botonRef.current !== null
-    estabaMontado.current = montadoAhora
-    if (montadoAhora) {
-      seccionDelBoton.current = botonRef.current?.closest("section, [data-slot='card']") ?? null
-      return
-    }
-    if (!(montadoAntes && teniaElFoco.current)) return
-    teniaElFoco.current = false
-    if (!focoPerdido(document)) return
-    const nuevo = ids?.find((id) => previos?.includes(id) !== true)
-    if (nuevo !== undefined && enfocarFila(nuevo)) return
-    enfocarEncabezado()
-    if (!focoPerdido(document)) return
-    const seccion = seccionDelBoton.current
-    if (seccion === null || !seccion.isConnected) return
-    seccion.querySelector<HTMLElement>("button, a[href], input, [tabindex]")?.focus()
-  })
-
-  return botonRef
-}
+// ADMIN-01f (§D-11): useFocoAlCargarMas sube a components/foco/hooks.ts, porque también lo usan las
+// tablas de features/admin; se reexporta con el mismo nombre para que sus usos y las simulaciones de
+// ./hooks no cambien.
+export { useFocoAlCargarMas } from "@/components/foco/hooks"
 
 // T-04 (ronda 2 de 02c, DESIGN.md §7.14, precedente T-29 de CLASES-c): una recarga que falla después
 // de una acción sustituye la vista por un MensajeError, y el botón que tenía el foco desaparece. Este

@@ -1,18 +1,27 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { createMemoryRouter, RouterProvider } from "react-router"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { CuentasView } from "./cuentas-view"
+import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
 // Ataques del Tester (AUTH-02b, ronda 1) contra DEC-19: la pantalla provisional de cuentas del
 // admin. Temporal visible una sola vez y fuera de la caché, confirmación en línea, cuenta admin sin
 // "Restablecer", portapapeles que falla, errores del servidor, doble clic y reglas de módulos.
+// ADMIN-01f ronda 0 (C-13, C-13b y C-44; §D-R0 01f y §D-11): la pantalla provisional (CuentasView y
+// POST /admin/usuarios/buscar) se borra. Cada caso monta ahora la ficha /admin/usuarios/:usuarioId
+// con el router real (GET /admin/usuarios/:id) y la busca por su región con nombre (E-24); "buscar
+// otra cuenta" pasa a abrir la ficha de otra cuenta, y "buscar con un correo rechazado" pasa a abrir
+// /admin/usuarios/abc (400 VALIDACION, ADM-1F26). "Invitar maestro" vive en /admin/maestros. Lo que
+// protege cada caso no cambia.
 
 const aviso = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
-vi.mock("sonner", () => ({ toast: aviso }))
+vi.mock("sonner", () => ({ toast: aviso, Toaster: () => null }))
+vi.mock("@/services/navegacion", () => ({ irA: vi.fn(), rutaActual: vi.fn(() => "/admin") }))
 
 const TEMPORAL = "Kp7mWq4Rt9Xz"
 const TEMPORAL_2 = "Hn3vBc8Lq2Ps"
+const NO_EXISTE = "Esa cuenta ya no existe."
 
 const carla = {
   id: "b7e6a1a0-1111-4b8e-9a1e-0f2a3b4c5d6e",
@@ -38,6 +47,10 @@ const admin = {
   activo: true,
 }
 
+type Cuenta = typeof carla
+
+const ID_INEXISTENTE = "e1a2b3c4-4444-4eb1-8d4b-3c5d6e7f8091"
+
 const respuestaJson = (estado: number, cuerpo: unknown) =>
   new Response(JSON.stringify(cuerpo), {
     status: estado,
@@ -47,10 +60,68 @@ const respuestaJson = (estado: number, cuerpo: unknown) =>
 const errorJson = (estado: number, codigo: string, mensaje = "mensaje del servidor") =>
   respuestaJson(estado, { error: { codigo, mensaje } })
 
-const stubFetch = (manejador: (ruta: string, init?: RequestInit) => Response) => {
-  const fetchMock = vi.fn<typeof fetch>((entrada, init) =>
-    Promise.resolve(manejador(String(entrada), init)),
-  )
+// La fila de GET /admin/usuarios/:id: los datos de alumno solo en estudiantes (RN-02).
+const filaDe = (cuenta: Cuenta) => ({
+  ...cuenta,
+  creadoEn: "2026-09-01T15:00:00.000Z",
+  ...(cuenta.rol === "estudiante"
+    ? {
+        estadoPago: "al_corriente",
+        fechaEstadoPago: null,
+        accesoRestringido: false,
+        motivoRestriccion: null,
+        fechaRestriccion: null,
+      }
+    : {}),
+})
+
+const ME_ADMIN = {
+  id: admin.id,
+  nombre: admin.nombre,
+  email: admin.email,
+  rol: "admin",
+  debeCambiarContrasena: false,
+  accesoRestringido: false,
+}
+
+type Manejador = (ruta: string, init?: RequestInit) => Response | null
+
+// El marco del admin y la ficha: sesión, /me, la lista y la cuenta por id. Lo demás lo decide el
+// caso; lo que nadie responde es un 500.
+const stubFetch = (manejador: Manejador) => {
+  const fetchMock = vi.fn<typeof fetch>((entrada, init) => {
+    const ruta = String(entrada)
+    const metodo = init?.method ?? "GET"
+    if (ruta === "/api/auth/refrescar")
+      return Promise.resolve(respuestaJson(200, { tokenAcceso: "t" }))
+    if (ruta === "/api/me") return Promise.resolve(respuestaJson(200, ME_ADMIN))
+    const propia = manejador(ruta, init)
+    if (propia !== null) return Promise.resolve(propia)
+    if (metodo === "GET" && /^\/api\/admin\/usuarios(\?|$)/.test(ruta)) {
+      return Promise.resolve(
+        respuestaJson(200, {
+          usuarios: [carla, beto, admin].map(filaDe),
+          siguienteCursor: null,
+          siguienteCursorNombre: null,
+        }),
+      )
+    }
+    const ficha = /^\/api\/admin\/usuarios\/([^/?]+)$/.exec(ruta)
+    if (metodo === "GET" && ficha) {
+      const cuenta = [carla, beto, admin].find((u) => u.id === ficha[1])
+      if (cuenta) return Promise.resolve(respuestaJson(200, filaDe(cuenta)))
+      if (ficha[1] === "abc") {
+        return Promise.resolve(
+          errorJson(400, "VALIDACION", "id: id: debe ser un identificador válido"),
+        )
+      }
+      return Promise.resolve(errorJson(404, "USUARIO_NO_ENCONTRADO"))
+    }
+    if (metodo === "GET" && ruta.startsWith("/api/admin/enlaces-registro")) {
+      return Promise.resolve(respuestaJson(200, { enlaces: [], siguienteCursor: null }))
+    }
+    return Promise.resolve(errorJson(500, "ERROR_INTERNO"))
+  })
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
@@ -60,37 +131,44 @@ const llamadasQueContienen = (fetchMock: ReturnType<typeof stubFetch>, fragmento
 
 const cuerpoDe = (init: RequestInit | undefined): unknown => JSON.parse(String(init?.body))
 
-// Busca por correo: la respuesta depende del correo pedido.
 const apiDeCuentas = (
   restablecer: () => Response = () => respuestaJson(200, { contrasenaTemporal: TEMPORAL }),
 ) =>
-  stubFetch((ruta, init) => {
-    if (ruta === "/api/admin/usuarios/buscar") {
-      const { email } = cuerpoDe(init) as { email: string }
-      const usuario = [carla, beto, admin].find((u) => u.email === email)
-      if (!usuario) return errorJson(404, "USUARIO_NO_ENCONTRADO")
-      return respuestaJson(200, { usuario })
-    }
+  stubFetch((ruta) => {
     if (ruta.endsWith("/restablecer-contrasena")) return restablecer()
-    return errorJson(500, "ERROR_INTERNO")
+    return null
   })
 
-const renderVista = () => {
+const fichaDe = (nombre: string) => screen.findByRole("region", { name: nombre })
+
+const montar = async (entrada: string) => {
+  const { rutas } = await import("@/app/router")
+  const router = createMemoryRouter(rutas, { initialEntries: [entrada] })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const vista = render(
     <QueryClientProvider client={queryClient}>
-      <CuentasView />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
-  return { queryClient, vista }
+  return { queryClient, vista, router }
 }
 
-const buscar = async (correo: string, nombreEsperado?: string) => {
-  fireEvent.change(screen.getByLabelText("Correo exacto de la cuenta"), {
-    target: { value: correo },
+// Antes: montar CuentasView y buscar por correo. Ahora: abrir la ficha de la cuenta.
+const renderVista = async (cuenta: Cuenta = carla) => {
+  const montada = await montar(`/admin/usuarios/${cuenta.id}`)
+  await fichaDe(cuenta.nombre)
+  return montada
+}
+
+const irA = async (router: Awaited<ReturnType<typeof montar>>["router"], ruta: string) => {
+  await act(async () => {
+    await router.navigate(ruta)
   })
-  fireEvent.click(screen.getByRole("button", { name: "Buscar" }))
-  if (nombreEsperado) await screen.findByText(nombreEsperado)
+}
+
+const abrirFicha = async (router: Awaited<ReturnType<typeof montar>>["router"], cuenta: Cuenta) => {
+  await irA(router, `/admin/usuarios/${cuenta.id}`)
+  return fichaDe(cuenta.nombre)
 }
 
 const restablecerYVerTemporal = async (temporal = TEMPORAL) => {
@@ -117,7 +195,17 @@ const ponerPortapapeles = (valor: unknown) => {
   Object.defineProperty(window.navigator, "clipboard", { value: valor, configurable: true })
 }
 
+beforeAll(async () => {
+  await import("@/app/router")
+}, 60_000)
+
+beforeEach(() => {
+  establecerToken("token-de-prueba")
+})
+
 afterEach(() => {
+  cleanup()
+  limpiarToken()
   vi.unstubAllGlobals()
   Reflect.deleteProperty(window.navigator, "clipboard")
   aviso.success.mockClear()
@@ -125,56 +213,58 @@ afterEach(() => {
 })
 
 describe("ataque (AUTH-02b r1): la temporal se ve una sola vez", () => {
-  it("no hay ninguna consulta al montar", () => {
+  // ADMIN-01f (C-13): la ficha sí consulta la cuenta al montarse; lo que se protege es que no salga
+  // ningún restablecimiento ni corrección sin un gesto del admin.
+  it("al montar la ficha solo se pide la cuenta: ninguna petición de restablecer ni de corregir", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista()
-    expect(fetchMock).not.toHaveBeenCalled()
+    await renderVista()
+    await esperarUnMomento()
+    expect(llamadasQueContienen(fetchMock, `/api/admin/usuarios/${carla.id}`)).toBeGreaterThan(0)
+    expect(llamadasQueContienen(fetchMock, "/restablecer-contrasena")).toBe(0)
+    expect(llamadasQueContienen(fetchMock, "/correo")).toBe(0)
   })
 
-  it("buscar la MISMA cuenta otra vez hace desaparecer la temporal", async () => {
+  it("salir a la tabla y volver a abrir la MISMA cuenta hace desaparecer la temporal", async () => {
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    const { router } = await renderVista()
     await restablecerYVerTemporal()
 
-    await buscar(carla.email, carla.nombre)
+    await irA(router, "/admin/usuarios")
+    await abrirFicha(router, carla)
 
     await waitFor(() => expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument())
     expect(screen.getByRole("button", { name: "Restablecer contraseña" })).toBeInTheDocument()
   })
 
-  it("buscar otra cuenta que no existe (404) hace desaparecer la temporal", async () => {
+  it("abrir una cuenta que no existe (404) hace desaparecer la temporal", async () => {
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    const { router } = await renderVista()
     await restablecerYVerTemporal()
 
-    await buscar("nadie@ejemplo.mx")
+    await irA(router, `/admin/usuarios/${ID_INEXISTENTE}`)
 
-    expect(await screen.findByText("No hay ninguna cuenta con ese correo.")).toBeInTheDocument()
+    expect(await screen.findByText(NO_EXISTE)).toBeInTheDocument()
     expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument()
   })
 
-  it("buscar otra cuenta con un correo mal escrito (rechazado en el cliente) hace desaparecer la temporal", async () => {
+  it("abrir /admin/usuarios/abc (id mal formado, 400 VALIDACION) hace desaparecer la temporal", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    const { router } = await renderVista()
     await restablecerYVerTemporal()
 
-    await buscar("beto@ejemplo")
+    await irA(router, "/admin/usuarios/abc")
 
-    expect(await screen.findByText("Escribe un correo válido")).toBeInTheDocument()
-    expect(llamadasQueContienen(fetchMock, "/buscar")).toBe(1)
+    expect(await screen.findByText(NO_EXISTE)).toBeInTheDocument()
+    expect(llamadasQueContienen(fetchMock, "/restablecer-contrasena")).toBe(1)
     expect(
       screen.queryByText(TEMPORAL),
-      "la temporal de Carla sigue en pantalla mientras el admin busca a otra persona",
+      "la temporal de Carla sigue en pantalla mientras el admin abre otra cuenta",
     ).not.toBeInTheDocument()
   })
 
   it("al salir de la pantalla, la temporal no queda en la caché de mutaciones (gcTime 0)", async () => {
     apiDeCuentas()
-    const { queryClient, vista } = renderVista()
-    await buscar(carla.email, carla.nombre)
+    const { queryClient, vista } = await renderVista()
     await restablecerYVerTemporal()
 
     vista.unmount()
@@ -183,13 +273,12 @@ describe("ataque (AUTH-02b r1): la temporal se ve una sola vez", () => {
     expect(contenidoDeLaCache(queryClient)).not.toContain(TEMPORAL)
   })
 
-  it("al buscar otra cuenta, la temporal tampoco queda en la caché de mutaciones", async () => {
+  it("al abrir otra cuenta, la temporal tampoco queda en la caché de mutaciones", async () => {
     apiDeCuentas()
-    const { queryClient } = renderVista()
-    await buscar(carla.email, carla.nombre)
+    const { queryClient, router } = await renderVista()
     await restablecerYVerTemporal()
 
-    await buscar(beto.email, beto.nombre)
+    await abrirFicha(router, beto)
     await esperarUnMomento()
 
     expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument()
@@ -202,8 +291,7 @@ describe("ataque (AUTH-02b r1): la temporal se ve una sola vez", () => {
       n += 1
       return respuestaJson(200, { contrasenaTemporal: n === 1 ? TEMPORAL : TEMPORAL_2 })
     })
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     await restablecerYVerTemporal()
 
     expect(screen.queryByRole("button", { name: "Sí, restablecer" })).not.toBeInTheDocument()
@@ -214,8 +302,7 @@ describe("ataque (AUTH-02b r1): la temporal se ve una sola vez", () => {
 describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
   it("la ficha de una cuenta admin no ofrece 'Restablecer' y explica por qué", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista()
-    await buscar(admin.email, admin.nombre)
+    await renderVista(admin)
 
     expect(screen.queryByRole("button", { name: "Restablecer contraseña" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Sí, restablecer" })).not.toBeInTheDocument()
@@ -227,8 +314,7 @@ describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
 
   it("la confirmación es en línea: sin role=dialog, y 'Cancelar' no hace ninguna petición", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
 
     fireEvent.click(screen.getByRole("button", { name: "Restablecer contraseña" }))
 
@@ -248,8 +334,7 @@ describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
     apiDeCuentas(() =>
       errorJson(403, "OPERACION_NO_PERMITIDA", "La contraseña del administrador se restablece…"),
     )
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    const { router } = await renderVista()
 
     fireEvent.click(screen.getByRole("button", { name: "Restablecer contraseña" }))
     fireEvent.click(screen.getByRole("button", { name: "Sí, restablecer" }))
@@ -258,12 +343,12 @@ describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
       "La contraseña del administrador se restablece desde el servidor.",
     )
     expect(screen.queryByText("Contraseña temporal")).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/admin/usuarios/${carla.id}`)
   })
 
   it("404 al restablecer (la cuenta ya no existe): mensaje, sin temporal", async () => {
     apiDeCuentas(() => errorJson(404, "USUARIO_NO_ENCONTRADO"))
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
 
     fireEvent.click(screen.getByRole("button", { name: "Restablecer contraseña" }))
     fireEvent.click(screen.getByRole("button", { name: "Sí, restablecer" }))
@@ -276,8 +361,7 @@ describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
 
   it("dos clics en 'Sí, restablecer' en el mismo instante hacen una sola petición", async () => {
     const fetchMock = apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     fireEvent.click(screen.getByRole("button", { name: "Restablecer contraseña" }))
 
     const confirmar = screen.getByRole("button", { name: "Sí, restablecer" })
@@ -290,8 +374,7 @@ describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
 
   it("al pedir la confirmación, el foco no se pierde en el documento", async () => {
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     const boton = screen.getByRole("button", { name: "Restablecer contraseña" })
     boton.focus()
     expect(document.activeElement).toBe(boton)
@@ -306,8 +389,7 @@ describe("ataque (AUTH-02b r1): confirmación en línea y cuenta admin", () => {
 
   it("la temporal se anuncia a los lectores de pantalla (role=status o aria-live)", async () => {
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     await restablecerYVerTemporal()
 
     const temporal = screen.getByText(TEMPORAL)
@@ -323,8 +405,7 @@ describe("ataque (AUTH-02b r1): Copiar", () => {
   it("sin navigator.clipboard (contexto no seguro): toast de error y la temporal sigue visible", async () => {
     ponerPortapapeles(undefined)
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     await restablecerYVerTemporal()
 
     fireEvent.click(screen.getByRole("button", { name: "Copiar" }))
@@ -343,8 +424,7 @@ describe("ataque (AUTH-02b r1): Copiar", () => {
     const writeText = vi.fn(() => Promise.reject(new DOMException("denied", "NotAllowedError")))
     ponerPortapapeles({ writeText })
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     await restablecerYVerTemporal()
 
     fireEvent.click(screen.getByRole("button", { name: "Copiar" }))
@@ -362,8 +442,7 @@ describe("ataque (AUTH-02b r1): Copiar", () => {
     const writeText = vi.fn(() => Promise.resolve())
     ponerPortapapeles({ writeText })
     apiDeCuentas()
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
     await restablecerYVerTemporal()
 
     fireEvent.click(screen.getByRole("button", { name: "Copiar" }))
@@ -375,28 +454,24 @@ describe("ataque (AUTH-02b r1): Copiar", () => {
 })
 
 describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () => {
-  it("'Cuenta inactiva' se muestra con icono y texto (plan, DEC-19)", async () => {
+  // ADMIN-01f (C-13): el estado de la cuenta es el dato "Cuenta" de la ficha, "Desactivada" (T-E14),
+  // con texto (nunca solo color).
+  it("una cuenta dada de baja se dice con texto en su ficha («Desactivada»)", async () => {
     apiDeCuentas()
-    renderVista()
-    await buscar(beto.email, beto.nombre)
+    const ficha = await renderVista(beto).then(() => fichaDe(beto.nombre))
 
-    const etiqueta = screen.getByText("Cuenta inactiva")
-    const tieneIcono =
-      etiqueta.querySelector("svg") !== null ||
-      etiqueta.parentElement?.querySelector(":scope > svg") !== null
-    expect(tieneIcono, "'Cuenta inactiva' solo lleva texto y color, sin icono").toBe(true)
+    expect(within(ficha).getByText("Desactivada")).toBeInTheDocument()
+    expect(within(ficha).queryByText("Activa")).not.toBeInTheDocument()
   })
 
   it("tras corregir el correo, la ficha muestra el correo nuevo y no el anterior", async () => {
     stubFetch((ruta) => {
-      if (ruta === "/api/admin/usuarios/buscar") return respuestaJson(200, { usuario: carla })
       if (ruta.endsWith("/correo")) {
         return respuestaJson(200, { ...carla, email: "carla.ruiz@ejemplo.mx" })
       }
-      return errorJson(500, "ERROR_INTERNO")
+      return null
     })
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    await renderVista()
 
     fireEvent.change(screen.getByLabelText("Correo correcto"), {
       target: { value: "carla.ruiz@ejemplo.mx" },
@@ -408,9 +483,10 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
         "Correo actualizado. Los enlaces enviados al correo anterior ya no funcionan.",
       ),
     ).toBeInTheDocument()
-    const ficha = screen.getByText(carla.nombre).closest("div")
-    if (!ficha) throw new Error("no se encontró el contenedor de la ficha")
-    expect(within(ficha).queryByText("carla.ruiz@ejemplo.mx")).toBeInTheDocument()
+    const ficha = await fichaDe(carla.nombre)
+    await waitFor(() =>
+      expect(within(ficha).queryAllByText("carla.ruiz@ejemplo.mx").length).toBeGreaterThan(0),
+    )
     expect(
       within(ficha).queryByText(carla.email),
       "la ficha sigue mostrando el correo anterior tras corregirlo",
@@ -418,13 +494,8 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
   })
 
   it("corregir a un correo en uso (409): mensaje propio", async () => {
-    stubFetch((ruta) => {
-      if (ruta === "/api/admin/usuarios/buscar") return respuestaJson(200, { usuario: carla })
-      if (ruta.endsWith("/correo")) return errorJson(409, "CORREO_EN_USO")
-      return errorJson(500, "ERROR_INTERNO")
-    })
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    stubFetch((ruta) => (ruta.endsWith("/correo") ? errorJson(409, "CORREO_EN_USO") : null))
+    await renderVista()
 
     fireEvent.change(screen.getByLabelText("Correo correcto"), {
       target: { value: "beto@ejemplo.mx" },
@@ -437,13 +508,10 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
   })
 
   it("corregir usa el id de la ficha en la ruta y solo manda { email } normalizado por el esquema", async () => {
-    const fetchMock = stubFetch((ruta) => {
-      if (ruta === "/api/admin/usuarios/buscar") return respuestaJson(200, { usuario: carla })
-      if (ruta.endsWith("/correo")) return respuestaJson(200, carla)
-      return errorJson(500, "ERROR_INTERNO")
-    })
-    renderVista()
-    await buscar(carla.email, carla.nombre)
+    const fetchMock = stubFetch((ruta) =>
+      ruta.endsWith("/correo") ? respuestaJson(200, carla) : null,
+    )
+    await renderVista()
 
     fireEvent.change(screen.getByLabelText("Correo correcto"), {
       target: { value: "  Carla.Ruiz@Ejemplo.MX  " },
@@ -457,9 +525,17 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
     expect(cuerpoDe(llamada?.[1])).toEqual({ email: "Carla.Ruiz@Ejemplo.MX" })
   })
 
+  // ADMIN-01f (C-13 y C-44): "Invitar maestro" vive en /admin/maestros (§D-11, Enmienda 1).
+  const montarMaestros = async () => {
+    await montar("/admin/maestros")
+    await screen.findByRole("button", { name: "Enviar invitación" })
+  }
+
   it("invitar: dos envíos en el mismo instante hacen una sola petición", async () => {
-    const fetchMock = stubFetch(() => respuestaJson(201, carla))
-    renderVista()
+    const fetchMock = stubFetch((ruta, init) =>
+      ruta === "/api/admin/maestros" && init?.method === "POST" ? respuestaJson(201, carla) : null,
+    )
+    await montarMaestros()
     fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "Carla Ruiz" } })
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: carla.email } })
 
@@ -467,13 +543,21 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
     fireEvent.click(boton)
     fireEvent.click(boton)
 
-    await screen.findByRole("status")
-    expect(llamadasQueContienen(fetchMock, "/api/admin/maestros")).toBe(1)
+    await screen.findByText(/^Invitación creada\./)
+    expect(
+      fetchMock.mock.calls.filter(
+        ([r, init]) => String(r) === "/api/admin/maestros" && init?.method === "POST",
+      ),
+    ).toHaveLength(1)
   })
 
   it("invitar: 400 VALIDACION del servidor muestra su mensaje", async () => {
-    stubFetch(() => errorJson(400, "VALIDACION", "nombre: caracteres no permitidos"))
-    renderVista()
+    stubFetch((ruta, init) =>
+      ruta === "/api/admin/maestros" && init?.method === "POST"
+        ? errorJson(400, "VALIDACION", "nombre: caracteres no permitidos")
+        : null,
+    )
+    await montarMaestros()
     fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "Carla Ruiz" } })
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: carla.email } })
     fireEvent.click(screen.getByRole("button", { name: "Enviar invitación" }))
@@ -483,17 +567,22 @@ describe("ataque (AUTH-02b r1): ficha, invitación y corrección de correo", () 
     expect(alerta).not.toHaveTextContent("nombre:")
   })
 
-  it("invitar: un nombre solo de espacios no se envía y el campo queda marcado y descrito", () => {
-    const fetchMock = stubFetch(() => respuestaJson(201, carla))
-    renderVista()
+  // ADMIN-01f ronda 0 (C-44, Enmienda 14, P-E14-1 (a)): el admin escribe el nombre de otra persona,
+  // así que la descripción es "Escribe el nombre completo", no "Escribe tu nombre completo". Sigue
+  // protegiendo que el campo quede marcado y descrito y que no salga ninguna petición.
+  it("invitar: un nombre solo de espacios no se envía y el campo queda marcado y descrito", async () => {
+    const fetchMock = stubFetch(() => null)
+    await montarMaestros()
+    const antes = fetchMock.mock.calls.length
     fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "   " } })
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: carla.email } })
     fireEvent.click(screen.getByRole("button", { name: "Enviar invitación" }))
 
     const nombre = screen.getByLabelText("Nombre completo")
     expect(nombre).toHaveAttribute("aria-invalid", "true")
-    expect(nombre).toHaveAccessibleDescription("Escribe tu nombre completo")
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(nombre).toHaveAccessibleDescription("Escribe el nombre completo")
+    await esperarUnMomento()
+    expect(fetchMock.mock.calls.length).toBe(antes)
   })
 })
 
@@ -529,7 +618,13 @@ describe("ataque (AUTH-02b r1): reglas de módulos (revisión estática)", () =>
     expect(declaraciones, "hooks.ts declara tipos").toBeNull()
   })
 
-  it("sin modales: ningún archivo de admin usa components/ui/dialog", () => {
-    expect(infractores(/components\/ui\/dialog/)).toEqual([])
+  // ADMIN-01f ronda 0 (C-13b, Enmienda 9; §D-11): "sin modales" pasa a "solo las confirmaciones de
+  // dar de baja y de restringir acceso", las excepciones de CLAUDE.md. Sigue protegiendo que ningún
+  // otro archivo de admin use components/ui/dialog.
+  it("solo los diálogos de dar de baja y de restringir acceso usan components/ui/dialog (excepciones de CLAUDE.md)", () => {
+    expect(infractores(/components\/ui\/dialog/).sort()).toEqual([
+      "./components/dialogo-dar-de-baja.tsx",
+      "./components/dialogo-restringir-acceso.tsx",
+    ])
   })
 })

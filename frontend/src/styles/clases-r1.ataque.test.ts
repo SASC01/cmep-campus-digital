@@ -188,14 +188,22 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // controles de las filas 22 a 37 que dejan de pintarse en una archivada no cambian su texto. Sigue
   // protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el
   // número y el lugar de los botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 78 enEspera", () => {
+  // ADMIN-01f ronda 0 (C-17, §D-R0 «Frontend — Enmienda 1», 01f, con la cifra de la Enmienda 2, M-05;
+  // §D-11): de 78 a 85 enEspera=. Sale buscador-de-cuenta.tsx (1), que se borra. Entran
+  // usuarios-view.tsx (1: «Cargar más usuarios»), formulario-nombre-de-cuenta.tsx (1),
+  // formulario-alta-alumno.tsx (1), dialogo-dar-de-baja.tsx (1), dialogo-restringir-acceso.tsx (1),
+  // acciones-de-cuenta.tsx (2: «Reactivar» y «Restablecer acceso»), estado-de-pago-de-cuenta.tsx (1:
+  // «Guardar») e inicio-admin-view.tsx, usuario-view.tsx y tabla-de-usuarios.tsx (0). Sigue protegiendo
+  // lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el
+  // lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 85 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(78)
+    expect(usos).toHaveLength(85)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -205,7 +213,6 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     const fijos: Record<string, number> = {
       // Los 13 de antes de 03b.
       "/src/components/layout/barra-superior.tsx": 1,
-      "/src/features/admin/components/buscador-de-cuenta.tsx": 1,
       "/src/features/admin/components/contrasena-temporal.tsx": 1,
       "/src/features/admin/components/ficha-de-cuenta.tsx": 1,
       "/src/features/admin/components/formulario-corregir-correo.tsx": 1,
@@ -345,6 +352,17 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/formulario-respuesta.tsx": 1,
       // C-4 de CALIFICACIONES-02b (§D-R0; §D-7): de 71 a 72, «Exportar a Excel». Sigue protegiendo que el número y el lugar de los botones con espera cambien solo con el plan.
       "/src/features/calificaciones/components/exportar-a-excel.tsx": 1,
+      // ADMIN-01f ronda 0 (C-17): los de la gestión de usuarios (§D-11).
+      "/src/features/admin/usuarios-view.tsx": 1,
+      "/src/features/admin/components/formulario-nombre-de-cuenta.tsx": 1,
+      "/src/features/admin/components/formulario-alta-alumno.tsx": 1,
+      "/src/features/admin/components/dialogo-dar-de-baja.tsx": 1,
+      "/src/features/admin/components/dialogo-restringir-acceso.tsx": 1,
+      "/src/features/admin/components/acciones-de-cuenta.tsx": 2,
+      "/src/features/admin/components/estado-de-pago-de-cuenta.tsx": 1,
+      "/src/features/admin/inicio-admin-view.tsx": 0,
+      "/src/features/admin/usuario-view.tsx": 0,
+      "/src/features/admin/components/tabla-de-usuarios.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -407,6 +425,11 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/components/layout/barra-navegacion.tsx",
       "/src/components/layout/lista-de-clases.tsx",
       "/src/components/ui/button-variants.ts",
+      // ADMIN-01f ronda 0 (C-17b, Enmienda 9; §D-11 y DESIGN §7.3): de 12 a 13. El control segmentado
+      // "Deudor" / "Al corriente" de la ficha (estado-de-pago-de-cuenta.tsx), en vidrio fuerte dentro
+      // de la Card de la ficha, como el de /admin/clases. El vidrio sin variante y el vidrio azul no
+      // cambian, y la igualdad sigue exacta.
+      "/src/features/admin/components/estado-de-pago-de-cuenta.tsx",
       "/src/features/auth/components/panel-anuncios.tsx",
       // ADMIN-01c ronda 0 (C-9c, Enmienda 9, P-01c-2; §D-10 y DESIGN §7.3): de 11 a 12. El control
       // segmentado "Activas" / "Archivadas" de /admin/clases es un grupo en vidrio fuerte dentro de la
@@ -441,8 +464,13 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     // clase. Su DialogContent se monta en el portal, fuera de la raíz de ContenedorRol, así que lleva
     // data-material="opaco" y data-densidad="densa" propios. Sigue protegiendo que los atributos del
     // contexto solo entran con el plan y que ningún componente se marca opaco por su cuenta.
+    // ADMIN-01f ronda 0 (C-17b, Enmienda 9; E-23 y §D-11): suman los dos diálogos de la ficha (dar de
+    // baja y restringir acceso), con sus atributos propios en el DialogContent del portal. Sigue
+    // protegiendo lo mismo, con igualdad exacta.
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
+      "/src/features/admin/components/dialogo-dar-de-baja.tsx",
+      "/src/features/admin/components/dialogo-restringir-acceso.tsx",
       "/src/features/calificaciones/gradebook-view.tsx",
       "/src/features/clases/components/dialogo-borrar-clase.tsx",
     ])

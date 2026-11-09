@@ -9,12 +9,11 @@ import { ENTRADAS_DE_FORMULARIO, MENSAJE_DE_PRUEBA } from "@/lib/errores-de-api-
 import { irA } from "@/services/navegacion"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
-import { BuscadorDeCuenta } from "./components/buscador-de-cuenta"
 import { FormularioCorregirCorreo } from "./components/formulario-corregir-correo"
 import { FormularioGenerarEnlace } from "./components/formulario-generar-enlace"
 import { FormularioInvitacionMasiva } from "./components/formulario-invitacion-masiva"
 import { FormularioInvitarMaestro } from "./components/formulario-invitar-maestro"
-import { MENSAJE_ERROR_ADMIN_GENERICO, MENSAJES_ERROR_ADMIN, TEXTOS_CUENTAS } from "./data"
+import { MENSAJE_ERROR_ADMIN_GENERICO, MENSAJES_ERROR_ADMIN } from "./data"
 
 // Tester, ronda 2 de CHORE-03 03c. El remedio de T-05 en features/admin (`if (<m>.isError) <m>.reset()`
 // después de la guarda isPending) ante secuencias que el programador no recorre: servidor → local →
@@ -53,7 +52,6 @@ const ENLACE = {
 } as const
 
 const RUTA_CORREGIR = `/api/admin/usuarios/${USUARIO.id}/correo`
-const RUTA_BUSCAR = "/api/admin/usuarios/buscar"
 
 const respuestaJson = (estado: number, cuerpo: unknown) =>
   new Response(JSON.stringify(cuerpo), {
@@ -514,79 +512,8 @@ describe("ataque CHORE-03 03c r2 · estado 11 en features/admin: un código que 
   )
 })
 
-describe("ataque CHORE-03 03c r2 · BuscadorDeCuenta sigue con buscar.reset() sin condición", () => {
-  const BUSCAR: Formulario = {
-    elemento: () => <BuscadorDeCuenta />,
-    metodo: "POST",
-    ruta: RUTA_BUSCAR,
-    boton: "Buscar",
-    campos: [["Correo exacto de la cuenta", "carla@colegio.mx"]],
-    locales: [
-      ["correo sin arroba", [["Correo exacto de la cuenta", "carla-sin-arroba"]]],
-      ["correo vacío", [["Correo exacto de la cuenta", ""]]],
-    ],
-    exito: () => respuestaJson(200, { usuario: USUARIO }),
-    codigo: [
-      "USUARIO_NO_ENCONTRADO",
-      () => errorApi(404, "USUARIO_NO_ENCONTRADO", "email: texto del servidor"),
-      MENSAJES_ERROR_ADMIN.USUARIO_NO_ENCONTRADO,
-    ],
-  }
-
-  const montarBuscador = async () => {
-    const cliente = montar(BUSCAR.elemento())
-    await screen.findByRole("button", { name: BUSCAR.boton })
-    return cliente
-  }
-
-  const encontrar = async (cliente: QueryClient, peticiones: number) => {
-    preparar(BUSCAR.metodo, BUSCAR.ruta, BUSCAR.exito)
-    escribir(BUSCAR.campos)
-    fireEvent.click(botonDe(BUSCAR))
-    await waitFor(() => expect(peticionesA(BUSCAR)).toBe(peticiones))
-    expect(await screen.findByText(USUARIO.nombre)).toBeInTheDocument()
-    await enReposo(BUSCAR, cliente)
-  }
-
-  it.each(BUSCAR.locales.map(([camino], indice) => [camino, indice] as const))(
-    "la ficha encontrada desaparece con un rechazo local (%s): solo el ErrorDeCampo, sin la cuenta anterior; buscarla otra vez la trae",
-    async (_camino, indice) => {
-      const cliente = await montarBuscador()
-      await encontrar(cliente, 1)
-
-      await pasoLocal(BUSCAR, localDe(BUSCAR, indice), 1, [USUARIO.nombre, USUARIO.email])
-      expect(screen.queryByRole("button", { name: "Restablecer contraseña" })).toBeNull()
-
-      await encontrar(cliente, 2)
-      expect(screen.queryAllByRole("alert")).toHaveLength(0)
-      expect(document.querySelectorAll('[aria-invalid="true"]')).toHaveLength(0)
-      expect(inesperadas).toEqual([])
-    },
-  )
-
-  it("servidor → local → servidor → local alternados: un solo mensaje en cada paso", async () => {
-    const cliente = await montarBuscador()
-    await pasoDelServidor(BUSCAR, cliente, F1, 1)
-    await pasoLocal(BUSCAR, localDe(BUSCAR, 0), 1, [M])
-    await pasoDelServidor(BUSCAR, cliente, BUSCAR.codigo, 2)
-    await pasoLocal(BUSCAR, localDe(BUSCAR, 1), 2, [BUSCAR.codigo[2]])
-    expect(inesperadas).toEqual([])
-  })
-
-  it("el error de corregir el correo dentro de la ficha desaparece con la ficha cuando la búsqueda siguiente la rechaza la validación local", async () => {
-    const cliente = await montarBuscador()
-    await encontrar(cliente, 1)
-
-    preparar("PUT", RUTA_CORREGIR, F1[1])
-    escribir([["Correo correcto", "carla.ruiz@colegio.mx"]])
-    fireEvent.click(screen.getByRole("button", { name: TEXTOS_CUENTAS.ficha.guardarCorreo }))
-    await soloElMensajeError(M)
-
-    await pasoLocal(BUSCAR, localDe(BUSCAR, 0), 1, [M, USUARIO.nombre])
-    expect(screen.queryByLabelText("Correo correcto")).toBeNull()
-    expect(inesperadas).toEqual([])
-  })
-})
+// ADMIN-01f ronda 0 (C-14, §D-R0 01f): sale el bloque de BuscadorDeCuenta (buscar.reset() sin
+// condición), que se borra con /admin. Los formularios que siguen, y lo que protegen, no cambian.
 
 describe("ataque CHORE-03 03c r2 · features/admin: el envío válido tras un error y StrictMode", () => {
   it.each([

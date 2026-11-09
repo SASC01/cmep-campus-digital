@@ -176,8 +176,15 @@ describe("ataque CHORE-03 03c r1 · O-05 extendida a features/admin y features/a
       ),
     )
     expect(usos.length).toBeGreaterThanOrEqual(18)
+    // ADMIN-01f ronda 0 (C-36, Enmienda 9; §D-11, "MensajeError en features/admin"): suman las
+    // mutaciones de 01f (editar, alta, baja, reactivar, restringir, restablecerAcceso y cambiar), sus
+    // consultas (resumen, usuarios y usuario) y los textos fijos con claves anidadas de data.ts.
+    // ADMIN-01f ronda 0 (C-43, Enmienda 14, P-E14-1 (a)): y la forma
+    // textoParaTerceros(mensajeDeErrorAdmin(<m>.error)), solo con editar, alta o invitar. Sigue
+    // protegiendo que cada MensajeError use la traducción del módulo o un texto fijo, sin cruzar
+    // acciones y consultas.
     const permitidos =
-      /^(mensajeDeErrorAdmin\((buscar|restablecer|corregir|generar|invitar|revocar)\.error\)|mensajeDeConsultaAdmin\((enlaces|registrados)\.error\)|mensajeDeErrorAuth\([\w.]*error\)|(TEXTOS_[A-Z_]+|textos)\.\w+)$/
+      /^(mensajeDeErrorAdmin\((buscar|restablecer|corregir|generar|invitar|revocar|editar|alta|baja|reactivar|restringir|restablecerAcceso|cambiar)\.error\)|textoParaTerceros\(mensajeDeErrorAdmin\((editar|alta|invitar)\.error\)\)|mensajeDeConsultaAdmin\((enlaces|registrados|resumen|usuarios|usuario)\.error\)|mensajeDeErrorAuth\([\w.]*error\)|(TEXTOS_[A-Z_]+|textos)(\.\w+)+)$/
     expect(usos.filter(([, expresion]) => !permitidos.test(expresion))).toEqual([])
   })
 })

@@ -1,6 +1,8 @@
+import { UserX } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import {
@@ -12,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { TEXTOS_CLASES_ADMIN } from "../data"
+import { TEXTO_CUENTA_DESACTIVADA, TEXTOS_CLASES_ADMIN } from "../data"
 import { useGestionEnVuelo, useRestaurarClase } from "../hooks"
 import { formatearFechaDeClase } from "../lib"
 import type { ClaseAdmin, EstadoDeClases } from "../types"
@@ -76,7 +78,18 @@ function FilaClaseAdmin({ clase, estado, onBorrar }: FilaClaseAdminProps) {
     <TableRow data-clase-id={clase.id}>
       <TableCell className="wrap-anywhere font-bold">{clase.nombre}</TableCell>
       <TableCell className="wrap-anywhere">
-        {clase.maestros.map((maestro) => maestro.nombre).join(", ")}
+        <span>{clase.maestros.map((maestro) => maestro.nombre).join(", ")}</span>
+        {/* ADMIN-01f (S-16): cada maestro dado de baja se repite debajo, con su insignia. */}
+        {clase.maestros
+          .filter((maestro) => maestro.cuentaDesactivada === true)
+          .map((maestro) => (
+            <span key={maestro.id} className="mt-1 flex flex-wrap items-center gap-2">
+              <span>{maestro.nombre}</span>
+              <Badge variant="muted" icon={<UserX aria-hidden="true" />}>
+                {TEXTO_CUENTA_DESACTIVADA}
+              </Badge>
+            </span>
+          ))}
       </TableCell>
       <TableCell className="text-right tabular-nums">{clase.alumnos}</TableCell>
       <TableCell>

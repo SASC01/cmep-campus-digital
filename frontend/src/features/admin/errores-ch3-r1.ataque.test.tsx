@@ -13,7 +13,6 @@ import {
 import { irA } from "@/services/navegacion"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
-import { BuscadorDeCuenta } from "./components/buscador-de-cuenta"
 import { FichaDeCuenta } from "./components/ficha-de-cuenta"
 import { FormularioCorregirCorreo } from "./components/formulario-corregir-correo"
 import { FormularioGenerarEnlace } from "./components/formulario-generar-enlace"
@@ -211,6 +210,10 @@ const formulario = (
   },
 })
 
+// ADMIN-01f ronda 0 (C-14, §D-R0 01f): sale el control "buscar una cuenta" (BuscadorDeCuenta), que
+// se borra con /admin (la ficha se abre desde /admin/usuarios). Sale también su fila de
+// CON_ERROR_LOCAL. Los de la ficha, corregir el correo y los formularios de maestros siguen, con sus
+// props de hoy, y siguen protegiendo lo mismo.
 const CONTROLES = {
   "invitar maestro": formulario(
     () => <FormularioInvitarMaestro />,
@@ -235,13 +238,6 @@ const CONTROLES = {
     RUTA_ENLACES,
     "Generar enlace",
     [["Vigencia en días", "10"]],
-  ),
-  "buscar una cuenta": formulario(
-    () => <BuscadorDeCuenta />,
-    "POST",
-    "/api/admin/usuarios/buscar",
-    "Buscar",
-    [["Correo exacto de la cuenta", "carla@colegio.mx"]],
   ),
   "corregir el correo": formulario(
     () => <FormularioCorregirCorreo usuario={USUARIO} onCorregido={vi.fn()} />,
@@ -682,7 +678,6 @@ const CON_ERROR_LOCAL = [
   ["generar enlace", [["Vigencia en días", "0"]]],
   ["corregir el correo", [["Correo correcto", "no-es-un-correo"]]],
   ["invitación masiva", [["Lista de maestros", "   "]]],
-  ["buscar una cuenta", [["Correo exacto de la cuenta", "no-es-un-correo"]]],
 ] as const satisfies readonly (readonly [NombreDeControl, readonly (readonly [string, string])[]])[]
 
 describe("ataque CHORE-03 03c r1 · el MensajeError de un envío anterior y el error local del siguiente", () => {

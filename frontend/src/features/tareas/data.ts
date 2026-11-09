@@ -35,6 +35,8 @@ export const CAMPO_DE_CADA_CODIGO: Readonly<Record<string, string>> = {
 }
 
 export const TEXTOS_FORMULARIO_TAREA = {
+  // ADMIN-01d2 (§D-9, filas 35 y 36): el enlace de las rutas de crear y editar en una clase archivada.
+  volverAActividades: "Volver a Actividades de aprendizaje",
   tituloCrear: "Nueva tarea",
   tituloEditar: "Editar tarea",
   campoTitulo: "Título",
@@ -175,6 +177,8 @@ export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR: readonly string[] = [
   "RUBRICA_MODIFICADA",
   "ENTREGA_NO_CALIFICABLE",
   "TAREA_CON_CALIFICACIONES",
+  // ADMIN-01d2 (§D-9, Enmienda 2, M-06): el texto de archivada ya viene en español del servidor.
+  "CLASE_ARCHIVADA",
 ]
 
 // CHORE-03 (§D-4): lo que el módulo le dice al contrato de lib/errores-de-api.ts. Un VALIDACION de

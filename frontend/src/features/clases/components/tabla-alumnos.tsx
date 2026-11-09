@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { AccesoRestringidoBadge } from "@/components/acceso-restringido-badge"
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoPagoBadge } from "@/components/estado-pago-badge"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { formatearFechaHora } from "@/lib/format"
 
-import { TEXTOS_TABLA_ALUMNOS } from "../data"
+import { TEXTOS_PERSONAS, TEXTOS_TABLA_ALUMNOS } from "../data"
 import { useAlumnos, useFilaEnFoco, useFocoAlCargarMas, useQuitarAlumno } from "../hooks"
 import { focoPerdido, mensajeDeConsultaClases } from "../lib"
 import type { AlumnoDeClase } from "../types"
@@ -37,6 +38,10 @@ interface FilaAlumnoProps {
 // botón suma el nombre del alumno como texto sr-only (§7.9), nunca aria-label.
 function FilaAlumno({ claseId, alumno, registrarQuitar }: FilaAlumnoProps) {
   const [confirmando, setConfirmando] = useState(false)
+  // ADMIN-01d2 (§D-9, fila 28; T-01 de 01d1): en una clase archivada no se pinta la celda de «Quitar», y al
+  // restaurar la confirmación no reaparece abierta.
+  const soloLectura = useSoloLecturaDeLaClase()
+  if (soloLectura && confirmando) setConfirmando(false)
   const quitar = useQuitarAlumno(claseId)
   const quitarBtnRef = useRef<HTMLButtonElement | null>(null)
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
@@ -74,47 +79,49 @@ function FilaAlumno({ claseId, alumno, registrarQuitar }: FilaAlumnoProps) {
         )}
       </TableCell>
       <TableCell>{formatearFechaHora(alumno.inscritoEn)}</TableCell>
-      <TableCell>
-        {!confirmando && (
-          <Button
-            ref={(nodo) => {
-              quitarBtnRef.current = nodo
-              registrarQuitar(alumno.id, nodo)
-            }}
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setConfirmando(true)}
-          >
-            {TEXTOS_TABLA_ALUMNOS.quitar} <span className="sr-only">{alumno.nombre}</span>
-          </Button>
-        )}
-        {confirmando && (
-          <div className="flex flex-col gap-2 py-2">
-            <p className="text-small">{TEXTOS_TABLA_ALUMNOS.confirmarQuitar}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleQuitar}
-                enEspera={quitar.isPending}
-              >
-                {TEXTOS_TABLA_ALUMNOS.siQuitar} <span className="sr-only">{alumno.nombre}</span>
-              </Button>
-              <Button
-                ref={cancelarBtnRef}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmando(false)}
-              >
-                {TEXTOS_TABLA_ALUMNOS.cancelar} <span className="sr-only">{alumno.nombre}</span>
-              </Button>
+      {!soloLectura && (
+        <TableCell>
+          {!confirmando && (
+            <Button
+              ref={(nodo) => {
+                quitarBtnRef.current = nodo
+                registrarQuitar(alumno.id, nodo)
+              }}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmando(true)}
+            >
+              {TEXTOS_TABLA_ALUMNOS.quitar} <span className="sr-only">{alumno.nombre}</span>
+            </Button>
+          )}
+          {confirmando && (
+            <div className="flex flex-col gap-2 py-2">
+              <p className="text-small">{TEXTOS_TABLA_ALUMNOS.confirmarQuitar}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleQuitar}
+                  enEspera={quitar.isPending}
+                >
+                  {TEXTOS_TABLA_ALUMNOS.siQuitar} <span className="sr-only">{alumno.nombre}</span>
+                </Button>
+                <Button
+                  ref={cancelarBtnRef}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmando(false)}
+                >
+                  {TEXTOS_TABLA_ALUMNOS.cancelar} <span className="sr-only">{alumno.nombre}</span>
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-      </TableCell>
+          )}
+        </TableCell>
+      )}
     </TableRow>
   )
 }
@@ -127,6 +134,9 @@ interface TablaAlumnosProps {
 // filas de 48 px y botones de 36 px. Correo completo, estado de pago y restricción de acceso (RF-39).
 export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
   const alumnos = useAlumnos(claseId)
+  // ADMIN-01d2 (§D-9, tabla D): en una clase archivada, sin la columna «Acciones» y sin el vacío que pide
+  // compartir el código o buscar alumnos.
+  const soloLectura = useSoloLecturaDeLaClase()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const botonesQuitar = useRef(new Map<string, HTMLButtonElement>())
   const filaEnFocoRef = useFilaEnFoco("data-alumno-id")
@@ -184,7 +194,11 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
   const contenido = (): ReactNode => {
     if (alumnos.isError) return <MensajeError mensaje={mensajeDeConsultaClases(alumnos.error)} />
     if (alumnos.isLoading || !filas) return <Cargando />
-    if (filas.length === 0) return <EstadoVacio titulo={TEXTOS_TABLA_ALUMNOS.vacio} />
+    if (filas.length === 0) {
+      return (
+        <EstadoVacio titulo={soloLectura ? TEXTOS_PERSONAS.vacio : TEXTOS_TABLA_ALUMNOS.vacio} />
+      )
+    }
     return (
       <>
         <Table>
@@ -195,7 +209,7 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
               <TableHead>{TEXTOS_TABLA_ALUMNOS.columnas.estadoPago}</TableHead>
               <TableHead>{TEXTOS_TABLA_ALUMNOS.columnas.acceso}</TableHead>
               <TableHead>{TEXTOS_TABLA_ALUMNOS.columnas.seUnio}</TableHead>
-              <TableHead>{TEXTOS_TABLA_ALUMNOS.columnas.acciones}</TableHead>
+              {!soloLectura && <TableHead>{TEXTOS_TABLA_ALUMNOS.columnas.acciones}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>

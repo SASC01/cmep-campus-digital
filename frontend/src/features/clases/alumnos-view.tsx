@@ -1,3 +1,5 @@
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
+
 import { BuscadorAlumnos } from "./components/buscador-alumnos"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { TablaAlumnos } from "./components/tabla-alumnos"
@@ -7,9 +9,12 @@ interface AlumnosDeLaClaseProps {
 }
 
 function AlumnosDeLaClase({ claseId }: AlumnosDeLaClaseProps) {
+  // ADMIN-01d2 (§D-9, fila 27): en una clase archivada no se dan de alta alumnos.
+  const soloLectura = useSoloLecturaDeLaClase()
+
   return (
     <div className="flex flex-col gap-5">
-      <BuscadorAlumnos claseId={claseId} />
+      {!soloLectura && <BuscadorAlumnos claseId={claseId} />}
       <TablaAlumnos claseId={claseId} />
     </div>
   )

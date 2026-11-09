@@ -2,6 +2,7 @@ import { MAXIMO_MAESTROS_POR_CLASE } from "@campus/shared"
 import { useEffect, useRef } from "react"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
@@ -25,6 +26,10 @@ interface MaestrosDeLaClaseProps {
 function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
   const clase = useClase(claseId)
   const retirar = useRetirarMaestro(claseId)
+  // ADMIN-01d2 (§D-9, filas 29 y 30, P-01 a′): en una clase archivada no se quita ni se asigna a nadie, ni
+  // para el admin. La condición vive aquí y no en la lista ni en el buscador: los usa también el formulario
+  // de duplicar, que sí los pinta.
+  const soloLectura = useSoloLecturaDeLaClase()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const filaDelBuscadorRef = useFilaEnFoco("data-candidato-maestro-id")
   const errorRef = useRef<HTMLDivElement>(null)
@@ -58,32 +63,37 @@ function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
           </h2>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {/* T-01 de 01d1: la key cambia con el contexto, las filas se montan de nuevo y nacen cerradas; así
+              una confirmación abierta no reaparece al restaurar. */}
           <ListaMaestrosDeClase
+            key={String(soloLectura)}
             etiqueta={TEXTOS_MAESTROS_DE_CLASE.titulo}
             maestros={maestros}
             confirmar
             quitando={retirar.isPending}
-            puedeQuitar={!unico}
+            puedeQuitar={!unico && !soloLectura}
             onQuitar={(maestro) => retirar.mutate({ id: maestro.id, nombre: maestro.nombre })}
             alQuedarseSinDestino={() => encabezadoRef.current?.focus()}
           />
-          {unico && <p className="text-small">{TEXTOS_MAESTROS_DE_CLASE.minimo}</p>}
+          {unico && !soloLectura && <p className="text-small">{TEXTOS_MAESTROS_DE_CLASE.minimo}</p>}
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <h2 className="text-h2">{TEXTOS_MAESTROS_DE_CLASE.asignarTitulo}</h2>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {completa && <p className="text-small">{TEXTOS_MAESTROS_DE_CLASE.tope}</p>}
-          {!completa && (
-            <BuscadorDeMaestros
-              claseId={claseId}
-              yaElegidos={maestros.map((maestro) => maestro.id)}
-            />
-          )}
-        </CardContent>
-      </Card>
+      {!soloLectura && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-h2">{TEXTOS_MAESTROS_DE_CLASE.asignarTitulo}</h2>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {completa && <p className="text-small">{TEXTOS_MAESTROS_DE_CLASE.tope}</p>}
+            {!completa && (
+              <BuscadorDeMaestros
+                claseId={claseId}
+                yaElegidos={maestros.map((maestro) => maestro.id)}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

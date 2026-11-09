@@ -448,7 +448,10 @@ describe("ataque ADMIN-01d1 r1: la raíz enfocada y el foco al título (M-01 a)"
 
 // ---------------------------------------------------------------------------------------------------
 // Puntos 1 y 3: con el foco en cada control de las filas 1 a 20 (perspectiva del admin) y en la fila 5
-// (perspectiva del alumno), la clase pasa a archivada: el control sale y el foco nunca cae en <body>.
+// (perspectiva del maestro), la clase pasa a archivada: el control sale y el foco nunca cae en <body>.
+// ADMIN-01d2 ronda 0 (C-40, §D-R0 01d2, Enmienda 12, P-01): la fila 5 pasa del alumno al maestro. Con N-05,
+// el alumno sale de ClaseLayout antes del Outlet y ningún control suyo convive con una clase archivada;
+// lo suyo lo cubren ADM-1D208, ADM-1D213a y ADM-1D233. Sigue protegiendo lo mismo con el mismo formulario.
 
 interface ControlDeFila {
   fila: number
@@ -515,7 +518,7 @@ const CONTROLES: ControlDeFila[] = [
   },
   {
     fila: 5,
-    rol: "estudiante",
+    rol: "maestro",
     seccion: "",
     ancla: textoEnPantalla("Primer aviso"),
     preparar: abrirComentarios,

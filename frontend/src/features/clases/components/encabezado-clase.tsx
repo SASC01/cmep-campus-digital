@@ -6,7 +6,11 @@ import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
-import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_CLASE } from "../data"
+import {
+  CAPACIDADES_POR_PERSPECTIVA,
+  RUTA_CLASES_ARCHIVADAS_DEL_MAESTRO,
+  TEXTOS_CLASE,
+} from "../data"
 import { useCodigoDeClase } from "../hooks"
 import { baseDeClase, mensajeDeConsultaClases, textoDeMaestros } from "../lib"
 import type { ClaseDetalle, Perspectiva } from "../types"
@@ -30,14 +34,17 @@ export function EncabezadoClase({ clase, perspectiva, tituloRef }: EncabezadoCla
   const soloLectura = useSoloLecturaDeLaClase()
   const verCodigo = capacidades.verCodigo && !soloLectura
   const codigo = useCodigoDeClase(clase.id, verCodigo)
+  // ADMIN-01d2 (§D-9, Enmienda 12, P-03): el maestro encuentra una clase archivada en su lista de
+  // archivadas, no en su inicio.
+  const volverDestino =
+    perspectiva === "maestro" && soloLectura
+      ? RUTA_CLASES_ARCHIVADAS_DEL_MAESTRO
+      : capacidades.volverDestino
 
   return (
     <Card>
       <CardHeader>
-        <Link
-          to={capacidades.volverDestino}
-          className={buttonVariants({ variant: "link", size: "enlace" })}
-        >
+        <Link to={volverDestino} className={buttonVariants({ variant: "link", size: "enlace" })}>
           {capacidades.volverTexto}
         </Link>
         {/* T-08 (segunda pasada): CardHeader es un grid; un elemento de grid no se encoge bajo su

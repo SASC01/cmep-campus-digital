@@ -6,6 +6,9 @@ import {
 } from "@campus/shared"
 
 import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
+// ADMIN-01d2 (§D-9, Enmienda 3): la clasificación del 409 de una clase archivada es una sola; no entra en
+// ninguno de los conflictos de la tarea ni de la entrega, así que no recarga ni reinicia nada.
+export { esClaseArchivada } from "@/components/clase/lib"
 import {
   erroresDeFormularioDeApi,
   mensajeDeErrorDeApi,

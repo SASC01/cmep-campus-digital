@@ -83,10 +83,11 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
   const reemplaza = consulta.isError && errorQueReemplazaElRecurso(hayRecurso, consulta.error)
 
   // R8 (§D-10): con el recurso en caché, una recarga fallida que no reemplaza la vista avisa una vez por
-  // fallo; volver a montar la vista con el fallo ya ocurrido no lo repite.
+  // fallo; volver a montar la vista con el fallo ya ocurrido no lo repite. ADMIN-01d2 (tabla D): en una
+  // clase archivada no avisa, porque dice "Puedes seguir editando" y ya no hay formulario.
   useAvisoDeRecargaFallida(
     consulta.errorUpdateCount,
-    hayRecurso && !errorQueReemplazaElRecurso(hayRecurso, consulta.error),
+    hayRecurso && !errorQueReemplazaElRecurso(hayRecurso, consulta.error) && !soloLectura,
     avisoDeRecargaFallidaDelRecurso(consulta.error),
   )
   // §7.14: si una recarga quita el formulario (el recurso ya no existe, se perdió el acceso o

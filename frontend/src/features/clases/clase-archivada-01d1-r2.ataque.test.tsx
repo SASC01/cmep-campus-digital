@@ -432,8 +432,11 @@ const BORRADOS: ConfirmacionDeBorrar[] = [
     exito: "Comentario borrado",
   },
   {
-    nombre: "comentario propio (alumno, fila 6)",
-    rol: "estudiante",
+    // ADMIN-01d2 ronda 0 (C-41, §D-R0 01d2, Enmienda 12, P-01): del alumno al maestro. Con N-05, el alumno
+    // sale de ClaseLayout en una archivada; lo suyo lo cubren ADM-1D208, ADM-1D213a y ADM-1D233. ABIERTOS
+    // la hereda. Sigue protegiendo lo mismo: un borrado propio, con el formulario de comentar al lado.
+    nombre: "comentario propio (maestro, fila 6)",
+    rol: "maestro",
     seccion: "",
     ancla: textoEnPantalla("Primer aviso"),
     preparar: abrirComentarios,

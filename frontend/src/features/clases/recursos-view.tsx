@@ -4,6 +4,7 @@ import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
+import { esClaseArchivada } from "@/components/clase/lib"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
@@ -61,7 +62,7 @@ function BloqueDeRecursos({ claseId, bloque, base, perspectiva }: BloqueDeRecurs
 
   useAvisoDeRecargaFallida(
     temas.errorUpdateCount,
-    temas.data !== undefined && !errorQuitaLaVista(temas.error),
+    temas.data !== undefined && !errorQuitaLaVista(temas.error) && !esClaseArchivada(temas.error),
     TEXTOS_RECURSOS.recargaFallida,
     ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS,
   )

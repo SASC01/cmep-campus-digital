@@ -14,8 +14,11 @@ import { RestablecerView } from "@/features/auth/restablecer-view"
 import { GradebookView } from "@/features/calificaciones/gradebook-view"
 import { MisCalificacionesView } from "@/features/calificaciones/mis-calificaciones-view"
 import { CategoriasView } from "@/features/clases/categorias-view"
+import { ClaseAnteriorView } from "@/features/clases/clase-anterior-view"
 import { ClaseLayout } from "@/features/clases/clase-layout"
 import { ClasesAdminView } from "@/features/clases/clases-admin-view"
+import { ClasesAnterioresView } from "@/features/clases/clases-anteriores-view"
+import { ClasesArchivadasView } from "@/features/clases/clases-archivadas-view"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
 import { EditarClaseView } from "@/features/clases/editar-clase-view"
 import { DudasView } from "@/features/clases/dudas-view"
@@ -70,6 +73,14 @@ export const rutas: RouteObject[] = [
         element: <RequireRol rol="estudiante" />,
         children: [
           { index: true, element: <InicioEstudianteView /> },
+          // ADMIN-01d2 (§D-9, Enmienda 12, P-02): "Clases anteriores" y una clase anterior. Se compone aquí
+          // porque features/clases no importa de features/calificaciones (regla 9).
+          { path: "clases-anteriores", element: <ClasesAnterioresView /> },
+          {
+            path: "clases-anteriores/:claseId",
+            element: <ClaseAnteriorView />,
+            children: [{ index: true, element: <MisCalificacionesView /> }],
+          },
           {
             path: "clases/:claseId",
             element: <ClaseLayout />,
@@ -100,6 +111,8 @@ export const rutas: RouteObject[] = [
         element: <RequireRol rol="maestro" />,
         children: [
           { index: true, element: <InicioMaestroView /> },
+          // ADMIN-01d2 (§D-9): "Clases archivadas"; cada una se abre en la ruta normal, en solo lectura.
+          { path: "clases-archivadas", element: <ClasesArchivadasView /> },
           // CLASES-02c (§D-2C3): el maestro ya no crea ni edita clases. "nueva" no es un claseId:
           // sin esta ruta literal coincidiría con `clases/:claseId` y se pediría GET /clases/nueva.
           // Cae donde cae cualquier ruta desconocida (R-07).

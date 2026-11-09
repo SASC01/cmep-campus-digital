@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
+import { esClaseArchivada } from "@/components/clase/lib"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
@@ -98,7 +99,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   // Una recarga fallida que conserva la vista avisa una vez por fallo; la que la reemplaza ya lo dice.
   useAvisoDeRecargaFallida(
     temas.errorUpdateCount,
-    temas.data !== undefined && !errorQuitaLaVista(temas.error),
+    temas.data !== undefined && !errorQuitaLaVista(temas.error) && !esClaseArchivada(temas.error),
     TEXTOS_TRABAJO.recargaFallida,
   )
 

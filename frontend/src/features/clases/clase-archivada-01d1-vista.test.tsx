@@ -339,7 +339,8 @@ afterEach(() => {
 })
 
 // ---------------------------------------------------------------------------------------------------
-// ADM-1D102: ClaseLayout provee el contexto en las tres perspectivas.
+// ADM-1D102: ClaseLayout provee el contexto con true al maestro y al admin en una archivada, y con false a
+// los tres en una activa. El alumno en una archivada sale por N-05 (ADM-1D208), Enmienda 12, P-01.
 
 function Sonda() {
   const soloLectura = useSoloLecturaDeLaClase()
@@ -348,7 +349,6 @@ function Sonda() {
 
 describe("ClaseLayout provee el contexto de solo lectura (ADM-1D102)", () => {
   it.each([
-    ["estudiante", true],
     ["maestro", true],
     ["admin", true],
     ["estudiante", false],

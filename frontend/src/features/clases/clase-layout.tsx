@@ -1,5 +1,5 @@
 import { useRef } from "react"
-import { Link, Outlet, useLocation } from "react-router"
+import { Link, Navigate, Outlet, useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
 import { ContextoDeSoloLectura } from "@/components/clase/contexto-de-solo-lectura"
@@ -13,11 +13,17 @@ import { EncabezadoClase } from "./components/encabezado-clase"
 import { SeccionesDeClase } from "./components/secciones-de-clase"
 import {
   useClase,
+  useClaseArchivadaEnSuLista,
   useDetalleViejoAnteClaseArchivada,
   useFocoAlPasarAError,
   useFocoAlTituloDeLaClase,
 } from "./hooks"
-import { estaArchivada, mensajeDeConsultaClases, perspectivaDeRuta } from "./lib"
+import {
+  estaArchivada,
+  mensajeDeConsultaClases,
+  perspectivaDeRuta,
+  rutaDeClaseAnterior,
+} from "./lib"
 
 interface ClaseDeLaRutaProps {
   claseId: string
@@ -40,6 +46,7 @@ function ClaseDeLaRuta({ claseId }: ClaseDeLaRutaProps) {
   // controles de escritura dejan de pintarse. Si el control con el foco desaparece, el foco va al título.
   useDetalleViejoAnteClaseArchivada(claseId)
   const soloLectura = data !== undefined && estaArchivada(data)
+  useClaseArchivadaEnSuLista(claseId, soloLectura)
   const raizRef = useRef<HTMLDivElement>(null)
   const tituloRef = useRef<HTMLHeadingElement>(null)
   useFocoAlTituloDeLaClase(raizRef, tituloRef, `${claseId}:${String(soloLectura)}`)
@@ -62,11 +69,17 @@ function ClaseDeLaRuta({ claseId }: ClaseDeLaRutaProps) {
     return <Cargando />
   }
 
+  // ADMIN-01d2 (§D-9, N-05): el alumno ve una clase archivada en "Clases anteriores". Sale antes de pintar
+  // el Outlet, así que ninguna sección llega a pedir nada, y sin dejar la ruta vieja en el historial.
+  if (perspectiva === "estudiante" && estaArchivada(data)) {
+    return <Navigate replace to={rutaDeClaseAnterior(data.id)} />
+  }
+
   return (
     <ContextoDeSoloLectura value={soloLectura}>
       <div ref={raizRef} tabIndex={-1} className="flex flex-col gap-5">
         <EncabezadoClase clase={data} perspectiva={perspectiva} tituloRef={tituloRef} />
-        {soloLectura && data.archivadaEn && (
+        {estaArchivada(data) && (
           <AvisoDeClaseArchivada
             claseId={data.id}
             archivadaEn={data.archivadaEn}

@@ -23,6 +23,8 @@ import type {
 export {
   CLAVE_CLASES_IMPARTIDAS,
   CLAVE_CLASES_INSCRITAS,
+  claveClaseDetalle,
+  claveClasesAnteriores,
   clavePublicaciones,
 } from "@/services/clasesService"
 // CLASES-02c: la lista institucional del administrador y el buscador de maestros.
@@ -38,7 +40,6 @@ export const claveGestionDeClase = (accion: "archivar" | "restaurar", claseId: s
   ["clases", "admin", "gestion", accion, claseId] as const
 export const claveMaestrosCandidatos = (termino: string) =>
   ["clases", "maestros-candidatos", termino] as const
-export const claveClaseDetalle = (claseId: string) => ["clases", claseId] as const
 export const claveCodigoDeClase = (claseId: string) => ["clases", claseId, "codigo"] as const
 // CLASES-b: las tres consultas de personas cuelgan de ["clases", claseId, …], así que invalidar el
 // prefijo de una clase las alcanza a todas.
@@ -69,6 +70,8 @@ export const claveRespuestas = (claseId: string, dudaId: string) =>
 export const LIMITE_CLASES = 20
 // §D-2C2: la lista de clases del administrador se pide de 50 en 50.
 export const LIMITE_CLASES_ADMIN = 50
+// ADMIN-01d2 (§D-9): "Clases anteriores" y "Clases archivadas" se piden de 20 en 20, como las clases.
+export const LIMITE_CLASES_ANTERIORES = 20
 // §D-B1: los compañeros y el roster se piden de 50 en 50.
 export const LIMITE_PERSONAS = 50
 // §D-B3: el buscador pide hasta 20 resultados, mínimo de 3 letras y 300 ms de espera (RN-04).
@@ -432,6 +435,29 @@ export const TEXTOS_CLASE_ARCHIVADA = {
   aviso: (fecha: string) => `Clase archivada el ${fecha}. Solo puedes consultarla.`,
   avisoAdmin: (fecha: string) => `Clase archivada el ${fecha}. Es de solo lectura.`,
   volverALaClase: "Volver a la clase",
+} as const
+
+// ADMIN-01d2 (§D-9, §D-12): a dónde llevan las dos listas y sus textos; los enlaces del pie de los
+// inicios dicen lo mismo que el título de su lista.
+export const RUTA_CLASES_ANTERIORES_DEL_ALUMNO = "/estudiante/clases-anteriores"
+export const RUTA_CLASES_ARCHIVADAS_DEL_MAESTRO = "/maestro/clases-archivadas"
+
+export const TEXTOS_CLASES_ANTERIORES = {
+  anteriores: {
+    titulo: "Clases anteriores",
+    vacio: "No tienes clases anteriores",
+    error: "No pudimos cargar tus clases anteriores. Revisa tu conexión e inténtalo de nuevo.",
+  },
+  archivadas: {
+    titulo: "Clases archivadas",
+    vacio: "No tienes clases archivadas",
+    error: "No pudimos cargar tus clases archivadas. Revisa tu conexión e inténtalo de nuevo.",
+  },
+  // Decisión del humano (2026-11-06): la fecha de cada fila dice de qué es.
+  archivadaEl: (fecha: string) => `Archivada el ${fecha}`,
+  cargarMas: "Cargar más",
+  cambioMientrasLasVeias: TEXTOS_CLASES_ADMIN.cambioMientrasLasVeias,
+  volverAClasesAnteriores: "Volver a clases anteriores",
 } as const
 
 // §D-B6: textos de CLASES-b (propuesta).

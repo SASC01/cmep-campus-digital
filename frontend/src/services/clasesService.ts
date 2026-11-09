@@ -16,6 +16,14 @@ export const CLAVE_CLASES_IMPARTIDAS = ["clases", "impartidas"] as const
 // invalida) y features/tareas (que la invalida al crear, editar o borrar una tarea).
 export const clavePublicaciones = (claseId: string) => ["clases", claseId, "publicaciones"] as const
 
+// ADMIN-01d2 (§D-9, Enmienda 2): la clave del detalle de una clase, compartida por features/clases (que la
+// pide) y features/tareas (que la marca vieja ante un 409 CLASE_ARCHIVADA).
+export const claveClaseDetalle = (claseId: string) => ["clases", claseId] as const
+
+// ADMIN-01d2 (§D-9, Enmienda 10): "Clases anteriores" del alumno y "Clases archivadas" del maestro. Archivar
+// y restaurar no la marcan viejas: las hace el admin, en cuya sesión esta clave nunca tiene datos.
+export const claveClasesAnteriores = () => ["clases", "anteriores"] as const
+
 // La barra pide una sola página de hasta 100 clases. Su clave cuelga de la de cada lista, así que
 // toda invalidación por prefijo que ya hace features/clases la alcanza.
 const LIMITE_CLASES_DE_LA_BARRA = 100

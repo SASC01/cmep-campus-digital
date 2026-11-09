@@ -1,5 +1,6 @@
 import { Link } from "react-router"
 
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoEntregaBadge } from "@/components/estado-entrega-badge"
 import { estadoDeEntregaVisible } from "@/lib/estado-de-entrega"
 import { formatearPuntos } from "@/lib/format"
@@ -19,6 +20,8 @@ interface ListaDeMisCalificacionesProps {
 // calificada, "8.5 de 10". Cada fila lleva el id de la tarea para el foco de "Ver más tareas".
 export function ListaDeMisCalificaciones({ tareas }: ListaDeMisCalificacionesProps) {
   const ahora = new Date()
+  // ADMIN-01d2 (§D-9, fila 37): en una clase anterior el alumno no abre el detalle de una tarea (S-04).
+  const soloLectura = useSoloLecturaDeLaClase()
 
   return (
     <ul className="flex flex-col">
@@ -35,13 +38,17 @@ export function ListaDeMisCalificaciones({ tareas }: ListaDeMisCalificacionesPro
             className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex min-w-0 flex-col gap-1">
-              <Link
-                to={enlaceATarea(tarea.id)}
-                relative="path"
-                className="font-bold wrap-anywhere text-link underline-offset-4 hover:underline"
-              >
-                {tarea.titulo}
-              </Link>
+              {soloLectura ? (
+                <span className="font-bold wrap-anywhere">{tarea.titulo}</span>
+              ) : (
+                <Link
+                  to={enlaceATarea(tarea.id)}
+                  relative="path"
+                  className="font-bold wrap-anywhere text-link underline-offset-4 hover:underline"
+                >
+                  {tarea.titulo}
+                </Link>
+              )}
               <p className="text-small wrap-anywhere text-muted-foreground">
                 {tarea.categoria?.nombre ?? TEXTOS_MIS_CALIFICACIONES.sinCategoria}
               </p>

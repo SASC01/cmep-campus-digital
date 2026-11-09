@@ -1,6 +1,8 @@
 import type {
   ClaseDetalle,
   CrearPublicacion,
+  DuplicarClase as ClaseDuplicada,
+  EditarClase as ClaseEditada,
   EditarRecurso as RecursoEditado,
   ListaPublicacionesRespuesta,
   Tema,
@@ -58,6 +60,9 @@ export type {
   ConteoDeBorradoRespuesta,
   DuplicarClase,
   EstadoDeClases,
+  // ADMIN-01d2 (§D-9): "Clases anteriores" y "Clases archivadas".
+  ClaseAnterior,
+  ListaClasesAnterioresRespuesta,
 } from "@campus/shared"
 
 // ADMIN-01c (§D-2, Enmienda 5): la página siguiente de /admin/clases. En "Archivadas" lleva además la
@@ -69,6 +74,92 @@ export interface CursorDeClasesAdmin {
 
 // ADMIN-01c (DESIGN.md §7.14): el control de una fila que recibe el foco cuando otra fila sale.
 export type AccionDeFilaDeClase = "archivar" | "restaurar" | "borrar"
+
+// ADMIN-01d2 (§D-9, Enmienda 5): la página siguiente de "Clases anteriores" y "Clases archivadas", con la
+// posición de la fila del cursor tal como la emitió el servidor.
+export interface CursorDeClasesAnteriores {
+  cursor: string
+  cursorArchivadaEn?: string
+}
+
+// ADMIN-01d2 (N-01d1-2): lo que estaArchivada asegura de una clase.
+export interface ConFechaDeArchivado {
+  archivadaEn: string
+}
+
+// ADMIN-01d2 (M-11, los tipos que estaban en línea en hooks.ts): el contexto de la consulta de cada lista.
+export interface PaginaConCursor {
+  pageParam: string | undefined
+}
+
+export interface PaginaConCursorYSenal extends PaginaConCursor {
+  signal: AbortSignal
+}
+
+export interface PaginaDeClasesAdmin {
+  pageParam: CursorDeClasesAdmin | undefined
+}
+
+export interface PaginaDeClasesAnteriores {
+  pageParam: CursorDeClasesAnteriores | undefined
+}
+
+// ADMIN-01d2 (M-11): las variables de cada mutación, y dos tipos auxiliares de los ganchos de foco y de
+// los temas.
+export interface VariablesDeEditarClase {
+  claseId: string
+  datos: ClaseEditada
+}
+
+export interface VariablesDeBorrarClase {
+  id: string
+}
+
+export interface VariablesDeDuplicarClase {
+  claseId: string
+  datos: ClaseDuplicada
+}
+
+export interface VariablesDeMaestro {
+  id: string
+  nombre: string
+}
+
+export interface VariablesDeAlumno {
+  id: string
+  nombre: string
+}
+
+export interface VariablesDeRenombrarTema {
+  temaId: string
+  nombre: string
+}
+
+export interface VariablesDeMoverElemento {
+  publicacionId: string
+  temaId: string | null
+  titulo: string
+  nombreDelTema: string
+}
+
+export interface VariablesDeEditarRecurso {
+  recursoId: string
+  datos: RecursoEditado
+}
+
+export interface VariablesDeMarcarDuda {
+  dudaId: string
+  resuelta: boolean
+}
+
+export interface FilaPendienteDeFoco {
+  id: string
+  accion: AccionDeFilaDeClase
+}
+
+export interface ConsultaConClave {
+  queryKey: readonly unknown[]
+}
 
 // Tipos exclusivos de la interfaz de CLASES-a.
 // A-6 de CLASES-02: se declara en lib/variante-de-clase.ts, que usan la tarjeta y la barra lateral.

@@ -1958,3 +1958,857 @@ Comando: `npx vitest run src/features/clases/clase-archivada-01d1-vista.test.tsx
 - **«Sí, regenerar» sigue sin guarda con ref** (`codigo-de-clase.tsx`, `handleRegenerar`), contra la regla de `CLAUDE.md` de que toda acción que lanza una mutación lleva una. Ya era así, y la autorización solo cubre los avisos, así que no la agregué. Hoy lo sostiene `enEspera` (`clases-r1.ataque`: "'Sí, regenerar' en espera no manda un segundo POST /codigo"). Dos clics en el mismo render podrían mandar dos `POST`; no lo reproduje. Necesita un destino.
 - **Las mutaciones anteriores que avisan ante un código con que `apiClient` redirige** (lista de arriba). Es una incoherencia anterior a ADMIN-01. Necesita un destino.
 - **Los tipos en línea** van a `types.ts` en 01d2, y **N-01d1-2**, también en 01d2. **N-01d1-4** va a ESTADO §3 al cierre.
+
+## ADMIN-01d2 — Implementación (2026-11-06)
+
+Plan: `docs/trabajo/ADMIN-01-administracion/plan.md`, SHA-256 `e3279dd14df32f72b512e2f9ace1351b6e45cd490dcd7cfec6354cc553d18b60` (comprobado al empezar y al terminar). Pasos completados: 19, 19b y 19c, 3 de 3. Sin PARADA: ninguna normal fuera de la lista cerrada cayó, ninguna vigilada cambió, C-11, C-12, C-40 y C-41 quedan en verde y no se sumó ningún código fijo a los mapas de errores.
+
+### Lo primero que el manager debe mirar
+
+Hay **una contradicción del plan que resolví sin parar** y quiero que se revise, porque el sistema dice que un plan contradictorio se devuelve: ADM-1D204 (d) pide «"Cargar más" otra vez tras un error de la página siguiente» y que se pida la primera página, y la matriz de 01d2 dice que un `5xx` o el `400` del cursor **reemplazan** la lista con su texto. Si se reemplaza todo, no hay botón que repetir. Me pareció que las dos frases se pueden cumplir a la vez, sin texto nuevo y sin control nuevo: el mensaje reemplaza las filas y «Cargar más» se queda debajo, en el mismo lugar del árbol, con el foco. Al pulsarlo: con `5xx` o red, `refetch` (renueva las páginas cargadas, y la fallida nunca se guardó); con el `400` del cursor, `resetQueries` desde la primera. Si el manager prefiere que el botón desaparezca, el cambio es de un solo archivo (`components/lista-de-clases-anteriores.tsx`) y el camino (d) pasa a no existir, como "repetir un control" en ADM-1D235.
+
+### La corrida colgada de las 13:55
+
+No fue un temporizador ni una prueba mía: **el equipo se suspendió.** El registro de Windows lo dice (`Microsoft-Windows-Kernel-Power`):
+- 13:58:58, id 105: cambio de fuente de energía (se desconectó).
+- 13:59:36, id 506: entra en modo de espera moderno, motivo `Lid` (se cerró la tapa).
+- 14:17:30, ids 507 y 506: sale y vuelve a entrar, motivo `Austerity Battery Drain Budget Exceeded`.
+- 14:31:00, id 507: sale del modo de espera, motivo `Lid`.
+
+El `vitest` llevaba 3 min 48 s al cerrarse la tapa. Por eso 51 s de CPU en más de 35 minutos y ningún hijo. Al despertar, a las 14:31, la corrida ya había terminado sola: `Test Files 1 failed | 178 passed (179)`, `Tests 2 failed | 3978 passed (3980)`, `Errors 30 errors`, `Duration 2129.04s`, con 30 errores `Failed to start forks worker`. Son los 30 archivos que no llegaron a arrancar (179 + 30 = 209), no fallas de código. Terminé los dos procesos que seguían vivos, PID 17664 y 13216 (míos); ninguno más. Esa corrida no cuenta como resultado.
+
+**Lo que sí encontró, y era real:** dos casos de `app/marco-r1.ataque.test.tsx` (`'/estudiante'` y `'/maestro'`, "ningún texto suelto sobre los orbes"): mi enlace del pie iba directo sobre el fondo. Corregido en producción (va dentro de una `Card`), sin tocar la `*.ataque`. Las corridas siguientes fueron en segundo plano, con la salida en un archivo y sin tuberías. Ninguna prueba mía deja temporizadores ni promesas colgando: `Tests 4606 passed` en 224 s.
+
+### Archivos
+
+`git diff --name-only 7655a5b -- frontend` da 38, y `git ls-files -o --exclude-standard frontend` da 6: **44 en total**, dentro de los 44 a 47 del plan.
+
+**Producción modificados (32):** `app/router.tsx`, `components/clase/hooks.ts`, `services/clasesService.ts`; `features/calificaciones/`: `components/lista-de-mis-calificaciones.tsx`, `data.ts`, `mis-calificaciones-view.tsx`; `features/clases/`: `alumnos-view.tsx`, `categorias-view.tsx`, `clase-layout.tsx`, `components/elemento-de-duda.tsx`, `components/encabezado-clase.tsx`, `components/respuestas-de-duda.tsx`, `components/tabla-alumnos.tsx`, `data.ts`, `dudas-view.tsx`, `editar-recurso-view.tsx`, `hooks.ts`, `inicio-estudiante-view.tsx`, `inicio-maestro-view.tsx`, `lib.ts`, `maestros-de-clase-view.tsx`, `muro-view.tsx`, `types.ts`; `features/tareas/`: `components/acciones-de-la-tarea.tsx`, `components/formulario-tarea.tsx`, `components/hilo-privado.tsx`, `crear-tarea-view.tsx`, `data.ts`, `editar-tarea-view.tsx`, `entrega-de-alumno-view.tsx`, `hooks.ts`, `lib.ts`.
+
+**Producción nuevos (4):** `features/clases/clase-anterior-view.tsx`, `clases-anteriores-view.tsx`, `clases-archivadas-view.tsx`, `components/lista-de-clases-anteriores.tsx`. Son 36, los del plan sin los dos que podían quedar sin cambio: `detalle-tarea-view.tsx` y `personas-view.tsx` no cambian.
+
+**Pruebas:** nuevas `features/clases/clase-archivada-01d2-vista.test.tsx` y `features/tareas/clase-archivada-01d2-tareas.test.tsx`. Lista cerrada, las dos entradas y nada más: `features/tareas/errores-ch3.test.ts:44` (14 a 15) y `features/clases/clase-archivada-01d1-vista.test.tsx` (sale `["estudiante", true]`, se ajusta el comentario; ADM-1D102 de 6 a 5 casos, `npx vitest list src/features/clases/clase-archivada-01d1-vista.test.tsx`, `grep -a -c "ADM-1D102"` = 5). Las cuatro `*.ataque` de C-11, C-12, C-40 y C-41 son del tester y no las toqué.
+
+### Verificación (desde `frontend/`)
+
+Puerta antes de la corrida final: `15:08:36 puerta: 21 y 10; vitest 0; BatteryStatus 2`. Sin `--maxWorkers`, sin repetir archivos.
+
+| Qué | Comando literal | Última línea |
+|---|---|---|
+| lint | `npm run lint` (exit 0) | `> tsc -b` (antes, `All matched files use Prettier code style!`) |
+| build | `npm run build` (exit 0) | `✓ built in 923ms` |
+| test | `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts` | `Tests  4606 passed (4606)`; `Test Files  211 passed (211)`; `Duration  224.03s` |
+
+prisma validate: n/a. No toqué `shared/`, así que no corrí el backend. Antes de mis pruebas nuevas, el mismo comando dio `Tests 4399 passed (4399)` · 209 archivos; 4399 + 207 = 4606.
+
+**Conteos:** `npx vitest list src/features/clases/clase-archivada-01d2-vista.test.tsx src/features/tareas/clase-archivada-01d2-tareas.test.tsx`, contado con `grep -a -c`: `clase-archivada-01d2-vista` **115**, `clase-archivada-01d2-tareas` **92**; 207 casos.
+
+**V-01:** la lista de `reporte-tester.md`, "#### V-01: lista vigente completa", extraída a un archivo, tiene SHA-256 `e2ee9ba20c4b1f748735e62317e85d611ccfc59d46f584373c9a128040d8e6c2`; `sha256sum -c`: 262 OK, 0 distintos. `git ls-files -o --exclude-standard | grep ataque`: 0. `git ls-files | grep -c ataque`: 262.
+
+**"No se toca" contra `7655a5b`:** `git diff --name-only 7655a5b -- backend shared infra eslint.config.mjs package.json` da 0. En `frontend/`, solo los 44 de arriba. `lista-maestros-de-clase.tsx`, `buscador-de-maestros.tsx`, `selector-de-maestros.tsx`, `buscador-alumnos.tsx`, `panel-de-calificacion.tsx`, `formulario-de-entrega.tsx`, `formulario-duda.tsx` y `formulario-respuesta.tsx` no cambian.
+
+**`enEspera=`:** 78, lo fija V-06, en verde.
+
+**Tipos en línea (M-11):** `grep -nE "\}: \{|: \{ [a-zA-Z]*: " frontend/src/features/clases/hooks.ts` da solo dos líneas, y las dos son literales de objeto: `body: { maestroId: id },` y `const objetivo = pendiente.current ?? (enFoco === null ? null : { id: enFoco, accion })`. `grep -n "useRef<{" frontend/src/features/clases/hooks.ts` no da nada. Se conserva la desestructuración. N-01d1-2: `estaArchivada` es predicado de tipo y `clase-layout.tsx` pinta el aviso con `{estaArchivada(data) && …}`, sin volver a preguntar.
+
+**BatteryStatus:** 2 en todas las corridas que cuento; ver arriba la que no.
+
+### Detección de las pruebas (mutaciones temporales)
+
+Cada una con su archivo restaurado por bytes, comprobado con SHA-256 y, al final de cada tanda, con `cmp` de todos los archivos cambiados: `CMP-OK`. Guiones en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\ce73329e-6e87-4432-b4fc-239c50515013\scratchpad\mutaciones.py` y `mut3.py`. **41 de 42 caen**, cada una con su `-t`:
+
+fila 22, 23 y 27 (el control se pinta), 24, 25, 26 y 28 (el reinicio), 29 (la `key`); tabla D: frase de Dudas, frase de Categorías, vacío del muro (2 casos), vacío de alumnos, aviso de la fila 20 y de la fila 36; N-05 (3), OA-2 (3), M-13 foco (2), E-02 `key`, P-03 (2), OA-1 (4), fila 37; `unirPaginasSinRepetidas` (2), reintento de «Cargar más» (2), limpieza de la lista al desmontar (2), guarda más `cancelRefetch` (2); filas 32 `confirmando` (2), `conEntregas`, generación (3); 33 `reinicios`, `onCalificada` (2), recarga (3); 36 `reinicios`, navegar (3), recarga (3); 35 navegar (3); T-03: borrar, entregar (4), hilo (2), calificar (2), formulario (4); M-06 con la vista desmontada.
+
+**La que no cae, y por qué:** quitar **solo** `if (cargandoMasRef.current) return` de la lista. Dos clics siguen dando una petición porque `fetchNextPage({ cancelRefetch: false })` se une a la que está en vuelo. Quitar la guarda **y** `cancelRefetch: false` sí cae (2 casos). La guarda queda porque la pide `CLAUDE.md`.
+
+**Tres que al principio no caían y obligaron a corregir la prueba, no el código:** E-02 pasaba porque, sin el detalle de B en caché, «Cargando» desmonta el `Outlet` y el filtro se reinicia solo: la prueba ahora trae B en caché. La limpieza al desmontar pasaba porque una lista de una página se recupera sola (el fallo deja `isInvalidated`): el caso nuevo trae dos páginas y cursores vencidos. Y al escribir ese caso vi un defecto real de mi diseño: repetir «Cargar más» tras el `400` con dos páginas volvía a pedir el cursor vencido y el texto no se iba; por eso ese camino usa `resetQueries`.
+
+### Decisiones donde el plan calla
+
+1. **ADM-1D204 (d) y la matriz:** arriba.
+2. **`useRecuperarListaDeClasesAnteriores` en `features/clases/hooks.ts`.** "Se toca" dice `hooks.ts (useClasesAnteriores)`, y los caminos (a) a (c) de ADM-1D204 piden esto. Es copia de `useRecuperarListaDeClasesAdmin`, sin tipos ni textos nuevos.
+3. **Los enlaces del pie van dentro de una `Card`.** El alcance dice "solo el enlace al pie" y `marco-r1.ataque` prohíbe el texto suelto. Sin superficie nueva ni clase de vidrio.
+4. **La fila de las listas:** nombre (enlace), maestros con `unirNombres` y la fecha con `formatearFechaLarga`. ~~Sin "Archivada el".~~ El humano aprobó `Archivada el {fecha}`: ver "Antes de la ronda 1".
+5. **Funciones y constantes declaradas (OA-3):** `rutaDeClaseAnterior` en `features/clases/lib.ts`, y en `data.ts`: `RUTA_CLASES_ANTERIORES_DEL_ALUMNO`, `LIMITE_CLASES_ANTERIORES` (20, como `LIMITE_CLASES`) y `TEXTOS_CLASES_ANTERIORES`. `cambioMientrasLasVeias` apunta al texto que ya existe. "Cargar más", los títulos, vacíos y errores salen de §D-12. Los tipos nuevos, en `types.ts`.
+6. **`features/tareas` invalida con `{ cancelRefetch: false }`,** además de `exact: true`, como el ayudante de `features/clases`: sin eso, el gancho y la suscripción de `ClaseLayout` cancelarían uno la petición del otro.
+7. **`claveClasesAnteriores` es una función,** como `claveClasesAdmin`, y `data.ts` la reexporta.
+8. **`estaArchivada` es genérica** (`<Clase extends Pick<ClaseDetalle, "archivadaEn">>`), para que `estaArchivada({})` de `clase-archivada-01d1.test.ts:14-24` siga compilando sin cambiarse.
+9. **`clase-anterior-view.tsx` no monta `useDetalleViejoAnteClaseArchivada`:** el plan no lo pide y en esa vista el alumno solo lee.
+10. **ADM-1D219 (mutación)** usa un `MutationObserver` con una ruta de prueba, para no depender de un formulario; el precedente es ADM-1D109.
+11. **Caso de más, hermano de M-06:** "ADM-1D211 hermano: con la vista desmontada…". Sin él, quitar la invalidación de `features/tareas` no lo detectaba nadie, porque con `ClaseLayout` montado la suscripción la cubre.
+
+### Tabla A confirmada (estados de abierto)
+
+Filas iguales a las del plan, con estas líneas de hoy. **Sin correcciones de fondo; tres de más, en cursiva.**
+
+| Fila | Archivo:línea | Estado | Confirmado | Remedio aplicado |
+|---|---|---|---|---|
+| 22 | `formulario-duda.tsx:28-29` | `texto`, `errores` | Se desmonta (`dudas-view.tsx:166`) | No hace falta |
+| 23 | `elemento-de-duda.tsx:57`, `marcandoRef` | Guarda; se limpia en `onSettled` | Sí. Probado con la marca en vuelo: "ADM-1D220 fila 23…" | No hace falta |
+| 24 | `elemento-de-duda.tsx:42` | `confirmando` | Sobrevive | `:47` |
+| 25 | `elemento-de-duda.tsx:41` | `enfocarCampo` | Sobrevive | `:48` |
+| 25 | `elemento-de-duda.tsx:39` | `abierto` | Sobrevive; lectura | No se reinicia, a propósito (caso de control) |
+| 25 | `formulario-respuesta.tsx:32-33` | `texto`, `errores` | Se desmonta (`respuestas-de-duda.tsx:256`) | No hace falta |
+| 26 | `respuestas-de-duda.tsx:34` | `confirmando` | Sobrevive | `:37` |
+| 27 | `buscador-alumnos.tsx:84` | `escrito` | Se desmonta (`alumnos-view.tsx:17`) | No hace falta |
+| 28 | `tabla-alumnos.tsx:40` | `confirmando` | Sobrevive | `:44` |
+| 29 | `lista-maestros-de-clase.tsx:32` | `confirmando` | Sobrevive | `key` en `maestros-de-clase-view.tsx:69` (el plan decía `:61`, antes del cambio) |
+| 30 | `buscador-de-maestros.tsx:129` | `escrito` | Se desmonta (`maestros-de-clase-view.tsx:81`) | No hace falta |
+| 31 | `acciones-de-la-tarea.tsx` | Ninguno (enlace) | Sí | — |
+| 32 | `acciones-de-la-tarea.tsx:42` y `:44` | `confirmando`, `conEntregas` | Sobreviven: devuelve `null` en `:74`, después de sus ganchos | `:49` y `:50` |
+| 33 | `entrega-de-alumno-view.tsx:70` | `reinicios` | Sobrevive | `:76` |
+| 33 | `panel-de-calificacion.tsx:68-75` | `estado`, `errores`, `enviando` | Se desmonta (`entrega-de-alumno-view.tsx:144`) | No hace falta |
+| 34 | `hilo-privado.tsx:39-43` | `texto`, `error`, `errorDelServidor` | Se desmonta (`:245`) | No hace falta |
+| 35 | `formulario-tarea.tsx` | Lo escrito y los elegidos | Se desmonta (`crear-tarea-view.tsx:35`) | No hace falta |
+| 36 | `editar-tarea-view.tsx:46` | `reinicios` | Sobrevive | `:52` |
+| 36 | `formulario-tarea.tsx` | Lo escrito y los elegidos | Se desmonta (`editar-tarea-view.tsx:85`) | No hace falta |
+| 37 | `lista-de-mis-calificaciones.tsx:41` | Ninguno | Sí | — |
+| *24, 26 y 32* | `borrandoRef` | Guarda; se limpia en `onSettled` | El componente sigue montado, así que el callback corre | No hace falta |
+| *Listas* | `lista-de-clases-anteriores.tsx`, `cargandoMasRef` | Guarda | Se libera en `finally`; tras el `400` no se toma | — |
+| *Reinicios* | `confirmandoAnteriorRef` de 24, 26, 28 y 32 | Foco al cerrar | El efecto corre, y `borrarBtnRef`/`quitarBtnRef` ya son `null`: no mueve nada, y al restaurar no hay cambio que procesar | No hace falta |
+
+### Tabla B confirmada (efectos asíncronos)
+
+Igual que el plan. Con las líneas de hoy, las filas con "Sí":
+
+| Fila | Efecto | Remedio aplicado |
+|---|---|---|
+| 32 | `onError` → `setConEntregas` | Generación y aviso, `acciones-de-la-tarea.tsx:87` |
+| 32 | `onSuccess` → `navigate` | Sin generación, a propósito |
+| 33 | `onCalificada` | Generación, `entrega-de-alumno-view.tsx:155` |
+| 33 | `recargarTrasConflicto` | Al entrar `:120`, al llegar `:126` y en su `catch` `:136` |
+| 35 | `handleGuardar` → `navigate` | `crear-tarea-view.tsx:31` |
+| 36 | `recargarTrasConflicto` | Antes `editar-tarea-view.tsx:123` y al llegar `:125` |
+| 36 | `handleGuardar` → `navigate` | `:113` |
+| 25 | `enfocarAlMontar` de `formulario-respuesta.tsx:38-41` | Lo cubre el reinicio de `enfocarCampo` |
+
+**Dos filas de más, sin remedio:** `enfocarPrimerError` de `panel-de-calificacion.tsx` en el `catch` de un panel desmontado (`formularioRef` ya es `null`; no mueve nada; `setErrores` cae en una instancia vieja), y el `catch` de `formulario-de-entrega.tsx` con la instancia desmontada (el aviso de subida es un `toast` y corre igual; no lo cubre un caso con la instancia desmontada, solo montada: ADM-1D213b).
+
+### Tabla B2 confirmada
+
+Las 35 celdas tienen caso o son controles de ADM-1D222; los títulos están abajo ("ADM-1D221 …"). Sin correcciones. Un matiz de la columna "Fila 32, `DELETE` con éxito" en "Vista desmontada": "sin navegar" se comprueba con la ruta de Dudas, donde sigue la persona. Y uno de "Después de restaurar" en 35 y 36: el formulario vigente no es el del envío; lo que se comprueba es que el de ahora conserva su texto y su foco.
+
+### Tabla C confirmada
+
+Las filas 22 a 30, "Ya estaba": confirmadas, con un caso por fila, también 27 y 30 (`ADM-1D223 fila N`). Las líneas de hoy: `useCrearDuda :1843`, `useMarcarDuda :1869`, `useBorrarDuda :1934`, `useResponder :1958`, `useBorrarRespuesta :1981`, `useAgregarAlumno :752`, `useQuitarAlumno :777`, `useRetirarMaestro :638`, `useAsignarMaestro :616` (`features/clases/hooks.ts`).
+
+| Fila | Mutación (`features/tareas/hooks.ts`) | Remedio aplicado |
+|---|---|---|
+| 32 | `useBorrarTarea :223` | `montado` en `:245`; generación en el `onError` |
+| 33 | `useCalificarEntrega :500` | `montado` en `:535` |
+| 34 | `useComentarEnHilo :444` | `montado` en `:459` |
+| 35 y 36 | `useCrearTarea :173`, `useEditarTarea :195` | Sin cambio; `montado` en `formulario-tarea.tsx:243` |
+| Alumno | `useEntregar :373` | `montado` en `:394` |
+| Alumno | `useAnularEntrega :400` | Ya estaba; solo gana la invalidación de M-06 |
+
+`renovarTrasErrorDeLaEntrega(` sigue en 3 y `avisarDelErrorDeLaEntrega(` en 5: lo comprueban las vigiladas, en verde. **Una fila de más:** `useSolicitarSubidaEn` y el `PUT` de la entrega: el aviso vive en el `catch` de `formulario-de-entrega.tsx`, que sigue corriendo: no se pierde.
+
+### Tabla D confirmada
+
+Sin filas de más: cada fila con su caso de archivada, su control de activa y su vuelta al restaurar. Líneas de hoy: `maestros-de-clase-view.tsx:78` (`minimo`), `:81` (la tarjeta, con `tope` dentro), `tabla-alumnos.tsx:212` y `:82` (columna), `:199` (vacío), `muro-view.tsx:125`, `dudas-view.tsx:164`, `categorias-view.tsx:57`, `editar-recurso-view.tsx:90`, `editar-tarea-view.tsx:75`. Los textos que agrega 01d2 no piden usar nada oculto.
+
+### Hermanos y estados vecinos
+
+| Mecanismo | Estado o camino | ¿Aplica? |
+|---|---|---|
+| Reinicio en el render | Archivar y restaurar una vez, dos veces, con la clase que nace archivada | Sí, probado (ADM-1D220, ADM-1D222 b) |
+| Generación | Con la clase archivada, tras restaurar, tras dos vueltas, vista desmontada, sin pasar por archivada | Sí, celda por celda (ADM-1D221, ADM-1D222) |
+| `montado` en ganchos | Control oculto por archivar, salir de la vista, control montado | Sí (ADM-1D223) |
+| Marcar viejo el detalle | `ClaseLayout` montado; vista desmontada; gancho y suscripción a la vez; dos fallos | Sí; una sola petición con `cancelRefetch: false` (ADM-1D210, ADM-1D211 hermano) |
+| N-05 y OA-2 | Primera carga, recarga, caché contra servidor en los dos sentidos | Sin ciclo (ADM-1D234 c) |
+| `useFocoAlPasarAError` en la clase anterior | Recarga que falla con el foco dentro; primera carga; segundo fallo; foco fuera; otra clase | Probado (ADM-1D236) |
+| Frases de las listas | Primera carga, página siguiente `400`, página siguiente `5xx`, dos páginas cargadas | Probado (ADM-1D204, ADM-1D217) |
+| Generación, guarda "al llegar" (N-01d2-1) | La recarga tras el `409` ya en vuelo al archivar y restaurar, una y dos vueltas: fila 36; fila 33 con respuesta buena, con `500` y con la tarea (`RUBRICA_MODIFICADA`); fila 36 llegando con la clase archivada | Sí; casos en "Antes de la ronda 1". El `catch` de `entrega-de-alumno-view.tsx:136` no tiene caso: `refetch` no rechaza, y no lo alcanzo sin simular la librería |
+
+**Estados vecinos que declaro, sin cambio, como pidió el manager (no cuentan como hallazgo):**
+1. **El foco en el contenedor del error de la clase anterior, cuando el detalle se recupera sin navegar** (por ejemplo, `refetchOnReconnect`): el contenedor sale y el foco cae en `<body>`, porque el gancho solo actúa al entrar en error. Igual que `ClaseLayout` hoy. Por lectura; no lo corrí. Va a la fila del `chore` de foco.
+2. **El fallo callado en solo lectura de la fila 36, y después salir al detalle sin restaurar:** el gancho no lo anotó (con `activo` en falso no hay `ultimoFalloAvisado`), así que el detalle avisa una vez al montarse, "Mostramos la última versión". El texto es cierto. Por lectura; no lo corrí.
+3. **El foco en la redirección de N-05 y de OA-2:** queda en `<body>`; decisión del plan, al `chore` de foco. ADM-1D233 no lo comprueba.
+4. **N-01d1-4, extendido a las filas 33 y 36:** un `409` que llega con la clase archivada no pide la recarga; al restaurar, el formulario nace de la caché vieja y el siguiente guardado recibe otro `409`. Nada se sobrescribe. Declarado por el plan, a ESTADO §3.
+5. **«Ver más tareas» en una clase anterior:** como la fila ya no tiene enlace (fila 37), al cargar la última página el foco va al `h2`, no a la fila: la búsqueda de `mis-calificaciones-view.tsx` pide `a` y cae en su respaldo. Nunca `<body>`. Por lectura.
+6. **«Cargar más» tras el `400` con el foco dentro:** la lista se vacía mientras se pide y el foco va al `h1`. Probado que no cae en `<body>`.
+7. **`claveClasesAnteriores` no se marca vieja al restaurar** (Enmienda 10): el alumno ve el cambio en su siguiente lectura. Si abre una clase de la lista que ya se restauró, OA-2 lo lleva a la clase.
+
+### Matriz de avisos y recargas
+
+| Disparador | Reemplaza la vista | Redirige | `409` | `5xx` o red | Se renueva | Un solo aviso | Foco | En vuelo a la vez | Vista desmontada |
+|---|---|---|---|---|---|---|---|---|---|
+| Listas, primera página | Su texto de error | `apiClient` | — | Su texto de error, sin aviso | — | Ninguno | `h1` solo si había datos y el foco se perdió | — | Si quedó en error, sale de la caché |
+| Listas, «Cargar más» | `400`: frase de lista cambiada; `5xx`: su texto; el botón se queda | `apiClient` | — | Igual | Repetir: `refetch`; con el `400`, `resetQueries` | Ninguno | Se queda en el botón; última página: primera clase nueva o `h1`; tras el `400`: `h1` | Dos clics, una petición | Sin aviso, sale de la caché |
+| Detalle de la clase anterior | Su texto y "Volver…" (`403`, `5xx`, red) | `apiClient`; activa: a la clase con `replace` | — | Igual | Al volver a montar | Ninguno | Contenedor del error si tenía el foco dentro; primera carga, no | Con «Ver más tareas»: gana el del detalle | Sin aviso |
+| "Mis calificaciones" en la clase anterior | Como hoy, con el texto del cursor de §D-12 | `apiClient` | — | Como hoy | Como hoy | Como hoy | Como hoy; "Ver más": `h2` si no hay enlace | Como hoy | Como hoy |
+| Alumno en una archivada por la ruta normal | — | N-05 con `replace` | — | — | — | Ninguno | Sin mover a mano | Lo en vuelo avisa desde su gancho (ADM-1D233) | — |
+| Escrituras de `features/tareas` | Por `CLASE_ARCHIVADA`, no | `apiClient` | `CLASE_ARCHIVADA`: uno, sin conflicto; `TAREA_MODIFICADA` y los de calificar: el suyo | Los de hoy | Solo el detalle, `exact` | Uno | Maestro: `h1` si el control salió; alumno: N-05 | Gancho y suscripción: una petición | El aviso sale; el detalle queda viejo |
+| Subida de tarea o entrega; descarga del alumno; listas del alumno | Lista: su error | `apiClient` | `CLASE_ARCHIVADA`: el del `catch`, el de la descarga o el error de la vista | Los de hoy | Solo el detalle, por la suscripción | Uno | Maestro: `h1`; alumno: N-05 | Sin `PUT` ni mutación final | Sin suscripción no se marca |
+| Filas 32 a 36, y entregar, en vuelo al pasar a solo lectura | — | — | `TAREA_CON_ENTREGAS` con la confirmación oculta: aviso del servidor; los demás, su aviso, sin recarga | Los de hoy | Nada por este camino | Uno | Nadie lo mueve, salvo el `DELETE` con éxito | Tabla B2 | Tabla B2 |
+| Filas 22 a 30 en vuelo al pasar a solo lectura | — | — | Aviso del gancho | Aviso del gancho | Lo de hoy | Uno | Fila o encabezado (abajo) | Sin cambio | El gancho avisa |
+
+**Foco al ocultarse un control, fila por fila** (corregido por N-01d2-2): 22: `h1`; 23, 24 y 26: la fila, o el encabezado de `dudas-view` y de `respuestas-de-duda`; 25: la fila; 27: `h1`; 28: el `h2` "Alumnos" (probado); 29: `h1`, por la `key` (probado); 30, según el control: «Asignar a la clase», el `h2` del panel de maestros; el campo de búsqueda, `h1`; 31, 32, 33 y 34: `h1`; 35 y 36: `h1`, o la raíz de la vista si gana `useFocoAlPerderseElControl`, nunca `<body>`.
+
+### Pruebas requeridas
+
+Salen de `npx vitest list`; los títulos con `$nombre` llevan las comillas que pone Vitest.
+
+- **ADM-1D201** (19):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 22: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 23: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 24: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 25: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 26: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 27: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 28: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 29: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 30: en una archivada el control no está; en una activa, sí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 23: la insignia «Resuelta» sí se pinta en una archivada
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D201 fila 25: «Ver respuestas» sí se pinta y una duda sin respuestas no ofrece «Responder»
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 fila 31: en una archivada el control no está; en una activa, sí
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 fila 32: en una archivada el control no está; en una activa, sí
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 fila 33: en una archivada el control no está; en una activa, sí
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 fila 34: en una archivada el control no está; en una activa, sí
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 filas 35 y 36 (maestro, crear): el texto de archivada y Volver a Actividades, que lleva a su trabajo, sin formulario
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 filas 35 y 36 (admin, crear): el texto de archivada y Volver a Actividades, que lleva a su trabajo, sin formulario
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 filas 35 y 36 (maestro, editar): el texto de archivada y Volver a Actividades, que lleva a su trabajo, sin formulario
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D201 filas 35 y 36 (admin, editar): el texto de archivada y Volver a Actividades, que lleva a su trabajo, sin formulario
+- **ADM-1D202** (5):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202: lista con el nombre, los maestros y cada clase enlazada a su vista
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202: vacío
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202: Cargar más en espera con la petición en vuelo y el foco en la primera clase nueva al cargar la última página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202: la vista de una clase anterior pinta Mis calificaciones sin secciones y el título de la actividad como texto (fila 37)
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202 fila 37: control: en una clase activa el título sigue siendo un enlace
+- **ADM-1D203** (4):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D203: lista, abrir una en solo lectura; Volver a mis clases va a /maestro/clases-archivadas
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D203: vacío
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D203: control: con la clase activa va a /maestro y, al restaurar con la vista abierta, el enlace vuelve a /maestro
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D203: el admin en una archivada va a /admin/clases
+- **ADM-1D204** (18):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (a): ir al inicio y volver a entrar antes del staleTime vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (b): pulsar Inicio en la barra y regresar por el enlace vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (c): atrás y adelante del historial vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (a): ir al inicio y volver a entrar antes del staleTime vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (b): pulsar Inicio en la barra y regresar por el enlace vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (c): atrás y adelante del historial vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (a) con dos páginas ya cargadas: el 400 de la tercera y regresar pide solo la primera, sin los cursores viejos
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (d) con el 400 del cursor y dos páginas cargadas: repetir Cargar más pide solo la primera, el texto desaparece y el foco nunca cae en body
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (d): repetir Cargar más tras un error de la página siguiente vuelve a pedir la primera página y el texto desaparece; el foco se queda en el botón
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (a): ir al inicio y volver a entrar antes del staleTime vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (b): pulsar Inicio en la barra y regresar por el enlace vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (c): atrás y adelante del historial vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (a): ir al inicio y volver a entrar antes del staleTime vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (b): pulsar Inicio en la barra y regresar por el enlace vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (c): atrás y adelante del historial vuelve a pedir la primera página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (a) con dos páginas ya cargadas: el 400 de la tercera y regresar pide solo la primera, sin los cursores viejos
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (d) con el 400 del cursor y dos páginas cargadas: repetir Cargar más pide solo la primera, el texto desaparece y el foco nunca cae en body
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D204 (d): repetir Cargar más tras un error de la página siguiente vuelve a pedir la primera página y el texto desaparece; el foco se queda en el botón
+- **ADM-1D205** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D205: en el gradebook de una archivada arma el archivo
+- **ADM-1D206** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D206: al pasar de la clase anterior A a la B sin desmontar el marco, el filtro vuelve a Todas y B se pide una vez, nunca con el filtro de A
+- **ADM-1D207** (3):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D207: el panel muestra la calificación sin formulario y el hilo del maestro, sin campo
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D207: sin calificar, dice Sin calificar todavía
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D207 control: HiloPrivado montado sin la prop sigue como hoy, con su formulario
+- **ADM-1D208** (3):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D208: el alumno en el muro de una archivada termina en la clase anterior con replace, sin que ninguna sección pida su lista
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D208: el alumno en trabajo de una archivada termina en la clase anterior con replace, sin que ninguna sección pida su lista
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D208: el alumno en calificaciones de una archivada termina en la clase anterior con replace, sin que ninguna sección pida su lista
+- **ADM-1D209** (3):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D209: estudiante lleva a su lista
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D209: maestro lleva a su lista
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D209: el inicio del administrador no los tiene
+- **ADM-1D210** (1):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D210: un solo aviso, lo escrito sigue y la key no cambia hasta que llega el detalle, sin pedir la entrega ni la tarea; dos clics, una petición
+- **ADM-1D211** (3):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D211: un solo aviso, conserva lo escrito sin reiniciarse ni pedir la tarea; al llegar el detalle, el texto de archivada
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D211 control: con 409 TAREA_MODIFICADA sigue recargando y reiniciando como hoy
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D211 hermano: con la vista desmontada, el 409 avisa y deja viejo el detalle (exact), sin pedir nada más
+- **ADM-1D212** (1):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D212: un solo aviso, conserva lo escrito sin navegar; al llegar el detalle, el texto de archivada
+- **ADM-1D213a** (3):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D213a ('Entregar tarea'): un solo aviso, sin pedir la entrega, y termina en la clase anterior con replace
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D213a ('Anular entrega'): un solo aviso, sin pedir la entrega, y termina en la clase anterior con replace
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D213a ('escribir en su hilo'): un solo aviso, sin pedir la entrega, y termina en la clase anterior con replace
+- **ADM-1D213b** (1):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D213b: con un archivo y un enlace, la solicitud de subida recibe el 409: sin entregar ni PUT, un aviso, lo elegido sigue y el detalle viejo termina en la clase anterior
+- **ADM-1D214** (2):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D214 (editar): la solicitud de subida recibe el 409: sin guardar, un aviso, conserva lo escrito y el archivo, y al llegar el detalle el texto de archivada
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D214 (crear): la solicitud de subida recibe el 409: sin guardar, un aviso, conserva lo escrito y el archivo, y al llegar el detalle el texto de archivada
+- **ADM-1D215** (2):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D215 (recurso): un solo aviso, el detalle se marca viejo y termina en la redirección de N-05
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D215 (archivo de su entrega): un solo aviso y termina en la redirección de N-05
+- **ADM-1D216** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D216: la vista muestra su error una vez, el detalle se marca viejo y termina en la redirección de N-05
+- **ADM-1D217** (6):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D217 (a, b): la primera página sale sin cursor ni posición y Cargar más pide exactamente los dos, codificados
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D217 (d): dos clics, una petición
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D217 (c): el 400 del cursor dice la frase de lista cambiada una sola vez, sin aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D217 (a, b): la primera página sale sin cursor ni posición y Cargar más pide exactamente los dos, codificados
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D217 (d): dos clics, una petición
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D217 (c): el 400 del cursor dice la frase de lista cambiada una sola vez, sin aviso
+- **ADM-1D218** (2):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D218: una clase repetida en la segunda página se pinta una vez, sin aviso de claves, y la tercera lleva el cursor de la segunda respuesta
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D218: una clase repetida en la segunda página se pinta una vez, sin aviso de claves, y la tercera lleva el cursor de la segunda respuesta
+- **ADM-1D219** (2):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D219 (consulta de B con 409): el detalle de B se pide una sola vez más y el de A, ninguna
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D219 (mutación de B con 409): el detalle de B se pide una sola vez más y el de A, ninguna
+- **ADM-1D220** (11):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 fila 24: «Sí, borrar duda» no reaparece, tampoco tras dos vueltas, sin escrituras y con el foco donde quedó
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 fila 25: el formulario de responder renace sin llevarse el foco (enfocarCampo)
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 control: Ver respuestas abierto sigue abierto (lectura)
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 fila 26: «Sí, borrar respuesta» no reaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 fila 28: «Sí, quitar» del alumno no reaparece y el foco va al encabezado Alumnos
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 fila 29: «Sí, quitar» del maestro no reaparece y con el foco en «Quitar» va al h1
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D220 fila 23: «Marcar como resuelta» en vuelo al archivar no deja la guarda marcada al restaurar
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D220 fila 32 (confirmando): «Sí, borrar tarea» no reaparece, tampoco tras dos vueltas, sin escrituras
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D220 fila 32 (conEntregas): reabrir «Borrar tarea» da el primer paso, no el segundo con el conteo viejo
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D220 fila 33 (reinicios): tras un 409 de calificar, al restaurar el panel nace sin llevarse el foco
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D220 fila 36 (reinicios): tras un 409 de guardar, al restaurar el formulario nace sin llevarse el foco
+- **ADM-1D221** (28):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, 409, con la clase archivada: no pide la recarga; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, 409, 'después de restaurar': un aviso; no pide ni reinicia; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, 409, 'después de archivar y restaurar dos v…': un aviso; no pide ni reinicia; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, 409, con la vista desmontada: como hoy, pide la recarga
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, con la clase archivada: no navega; sigue el texto de archivada; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, 'después de restaurar': no navega; un aviso; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, 'después de archivar y restaurar dos v…': no navega; un aviso; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, con la vista desmontada: como hoy, navega; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, con la clase archivada: no navega; sigue el texto de archivada; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, 'después de restaurar': no navega; un aviso; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, 'después de archivar y restaurar dos v…': no navega; un aviso; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 éxito, con la vista desmontada: como hoy, navega; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, 409, con la clase archivada: no pide la recarga; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, 409, 'después de restaurar': un aviso; no pide ni reinicia; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, 409, 'después de archivar y restaurar dos v…': un aviso; no pide ni reinicia; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, 409, con la vista desmontada: no pide la recarga; el aviso del 409
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, éxito, con la clase archivada: no reinicia; un aviso; al restaurar, el panel nace con la respuesta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, éxito, 'después de restaurar': no reinicia; un aviso; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, éxito, 'después de archivar y restaurar dos v…': no reinicia; un aviso; lo escrito y el foco siguen
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, éxito, con la vista desmontada: un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, TAREA_CON_ENTREGAS, 'con la clase archivada': un aviso con el mensaje del servidor; no abre el segundo paso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, TAREA_CON_ENTREGAS, 'después de restaurar': un aviso con el mensaje del servidor; no abre el segundo paso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, TAREA_CON_ENTREGAS, 'después de archivar y restaurar dos v…': un aviso con el mensaje del servidor; no abre el segundo paso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, TAREA_CON_ENTREGAS, con la vista desmontada: un aviso del gancho
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, DELETE con éxito, 'con la clase archivada': navega a Actividades; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, DELETE con éxito, 'después de restaurar': navega a Actividades; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, DELETE con éxito, 'después de archivar y restaurar dos v…': navega a Actividades; un aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 32, DELETE con éxito, con la vista desmontada: un aviso, sin navegar
+- **ADM-1D222** (15):
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 36: con 409, un aviso, una lectura, el formulario reiniciado y el foco en el título
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 36: con éxito, navega
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 35: con éxito, navega
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 33: con 409 recarga, reinicia y lleva el foco al encabezado
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 33: con éxito reinicia y lleva el foco al encabezado
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 32: TAREA_CON_ENTREGAS abre el segundo paso, sin aviso, con el foco en Cancelar
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (a) fila 32: DELETE con éxito navega a Actividades
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 36: un guardado nuevo navega y con 409 reinicia
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 36: con 409 reinicia y lleva el foco al título
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 35: un guardado nuevo navega
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 33: un guardado nuevo reinicia y lleva el foco al encabezado
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 36: un guardado nuevo navega y con 409 reinicia
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 36: con 409 reinicia y lleva el foco al título
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 35: un guardado nuevo navega
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D222 (b) fila 33: un guardado nuevo reinicia y lleva el foco al encabezado
+- **ADM-1D223** (30):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 22: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 23: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 24: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 25: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 26: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 27: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 28: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 29: el 409 con el control oculto da un solo aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D223 fila 30: el 409 con el control oculto da un solo aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 32, TAREA_CON_ENTREGAS': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 33, puntajes.0.puntos': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 34, texto': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 35, titulo': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 36, titulo': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 32, TAREA_CON_ENTREGAS': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 33, puntajes.0.puntos': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 34, texto': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 35, titulo': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 'fila 36, titulo': un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 fila 32 control: con el control montado, el segundo paso, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 fila 33 control: con el panel montado, el ErrorDeCampo, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 fila 34 control: con el formulario montado, el ErrorDeCampo, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 fila 35 control: con el formulario montado, el ErrorDeCampo, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 fila 36 control: con el formulario montado, el ErrorDeCampo, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 entregar, 'ENTREGA_VACIA', con la redirección de N-05: un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 entregar, 'enlaces.0', con la redirección de N-05: un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 entregar, 'ENTREGA_VACIA', al salir de la vista: un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 entregar, 'enlaces.0', al salir de la vista: un solo aviso legible, sin la ruta
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 entregar, 'ENTREGA_VACIA', control: con el formulario montado, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D223 entregar, 'enlaces.0', control: con el formulario montado, sin aviso
+- **ADM-1D224** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D224: con un maestro, minimo no se pinta en una archivada, sí en una activa, y vuelve al restaurar
+- **ADM-1D225** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D225: con dos maestros, tope no se pinta en una archivada, sí en una activa, y vuelve al restaurar
+- **ADM-1D226** (3):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D226 (un maestro): la tarjeta Asignar maestro y su título no se pintan en una archivada y vuelven al restaurar
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D226 (dos maestros): la tarjeta Asignar maestro y su título no se pintan en una archivada y vuelven al restaurar
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D226: en el formulario de duplicar de una archivada, el buscador sigue
+- **ADM-1D227** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D227: no pinta el encabezado Acciones ni su celda en una archivada, las demás columnas siguen y vuelven al restaurar
+- **ADM-1D228** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D228: sin alumnos se lee el vacío de la clase y no Comparte el código; al restaurar vuelve el de la activa
+- **ADM-1D229** (2):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D229 (maestro): sin avisos se lee el vacío neutro en una archivada y el suyo en una activa
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D229 (admin): sin avisos se lee el vacío neutro en una archivada y el suyo en una activa
+- **ADM-1D230** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D230: en Dudas no se lee la frase en una archivada; el título y la lista siguen; al restaurar vuelve
+- **ADM-1D231** (1):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D231: en Categorías no se lee la frase de los pesos en una archivada; las categorías siguen; al restaurar vuelve
+- **ADM-1D232** (2):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D232 fila 20: una recarga que falla en una archivada no avisa Puedes seguir editando; al restaurar, sin aviso
+  - `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D232 fila 36: una recarga que falla en una archivada no avisa Puedes seguir editando; al restaurar con esa consulta aún en error, un solo aviso
+- **ADM-1D233** (3):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D233 (a): con texto escrito ninguna escritura sale y el formulario ya no está
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D233 (b): con el DELETE de su comentario en vuelo, al soltarlo un solo aviso y ningún otro DELETE
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D233 (c): con el POST de comentar en vuelo que recibe el 409, un solo aviso con el texto de archivada
+- **ADM-1D234** (4):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D234 (a): termina en la clase con replace, sin pedir Mis calificaciones de esa ruta
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D234 (b): con la vista abierta y la clase ya restaurada, la misma redirección, sin aviso
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D234 (c): sin ciclo: caché archivada y servidor activa, y al revés; el detalle se pide una vez por transición
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D234 (d): con 403 el texto de sin acceso y Volver a clases anteriores, sin redirigir
+- **ADM-1D235** (16):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 texto del cursor: vuelve a pedir la primera página, sin cursor, y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 falla la primera carga: vuelve a pedir y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 texto del cursor: vuelve a pedir la primera página, sin cursor, y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 falla la primera carga: vuelve a pedir y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 texto del cursor: vuelve a pedir la primera página, sin cursor, y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 falla la primera carga: vuelve a pedir y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (d): dice Vuelve a abrir esta clase; control: el alumno en una clase activa lee el de hoy
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 no pudimos cargar más tareas: repetir Ver más tareas vuelve a pedir esa página
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (e) primera carga: Volver y abrir la misma clase vuelve a pedir el detalle y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (e) recarga con el detalle en caché: Volver y abrir la misma clase vuelve a pedir el detalle y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (f) primera carga: atrás y adelante vuelve a pedir el detalle y, si sigue fallando, el texto sigue sin ciclo
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (f) recarga con el detalle en caché: atrás y adelante vuelve a pedir el detalle y, si sigue fallando, el texto sigue sin ciclo
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (e) primera carga: Volver y abrir la misma clase vuelve a pedir el detalle y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (e) recarga con el detalle en caché: Volver y abrir la misma clase vuelve a pedir el detalle y el texto desaparece
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (f) primera carga: atrás y adelante vuelve a pedir el detalle y, si sigue fallando, el texto sigue sin ciclo
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D235 (f) recarga con el detalle en caché: atrás y adelante vuelve a pedir el detalle y, si sigue fallando, el texto sigue sin ciclo
+- **ADM-1D236** (6):
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D236: con el foco en el filtro Mostrar, el mensaje reemplaza la vista y el foco va a su contenedor
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D236: con el foco en Ver más tareas, el mensaje reemplaza la vista y el foco va a su contenedor
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D236 control: una primera carga que falla no mueve el foco
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D236 control: un segundo fallo seguido no mueve el foco
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D236 control: con el foco en un control fuera de la vista, se queda ahí
+  - `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D236 control: al pasar a otra clase anterior sin desmontar, la memoria del gancho empieza de cero
+
+**ADM-1D102** (como queda): `clases/clase-archivada-01d1-vista.test.tsx`: `ADM-1D102: perspectiva %s, archivada %s: lo que lee una sección es exactamente si la clase está archivada` (5 casos, sin `estudiante, true`).
+
+### Hallazgos atendidos
+
+No hay rondas todavía. Pendientes de 01d1 cerrados: tipos en línea (M-11) y N-01d1-2.
+
+### Desviaciones del plan
+
+Ninguna a sabiendas. Lo que el plan no decide está en "Decisiones", y lo primero que hay que mirar es ADM-1D204 (d).
+
+### Pendiente o fuera de alcance
+
+- A ESTADO §3 al cierre, según el plan: N-01d1-4 extendido y el foco de N-05 con el vecino 1, en el `chore` de foco.
+- Sin navegador: nada de esto se vio en pantalla. Los enlaces del pie en su `Card` y «Cargar más» bajo el mensaje de error los juzga el humano en la comprobación del final de 01g.
+- No corrí la suite completa del frontend: la corre el manager al cerrar.
+
+### Antes de la ronda 1 (2026-11-06)
+
+Lo pidió el orquestador tras "## Verificación del resumen — ADMIN-01d2" de `revision.md`. El manager aceptó sin M-n; esto son sus notas y una decisión del humano.
+
+**1. Texto aprobado por el humano: corregido.** `TEXTOS_CLASES_ANTERIORES.archivadaEl` en `features/clases/data.ts`, con `formatearFechaLarga`, pintado en `components/lista-de-clases-anteriores.tsx`. Es el único cambio de producción de esta entrega. Sin otro texto nuevo.
+
+**2. N-01d2-1: cubierto, sin tocar producción.** 9 casos míos en `features/tareas/clase-archivada-01d2-tareas.test.tsx`, `describe` "ADM-1D221: la recarga tras el 409 ya en vuelo". Parten de las sondas del manager, pero sin su `setTimeout` de 50 ms: la recarga se suelta, se espera `isFetching` en 0 y se dejan correr 50 turnos de promesas dentro de `act`, sin medir tiempo. Suman el caso con la tarea (`RUBRICA_MODIFICADA`), que era su punto de ataque 1. Mi tabla de hermanos ya lo lista.
+
+Mutaciones (`scratchpad\mut5.py`), restauradas por bytes y comprobadas con `cmp` contra una copia previa de cada archivo: `cmp OK` en los tres.
+
+| Mutación | Filtro `-t` | Resultado |
+|---|---|---|
+| Sin la guarda "al llegar" de `editar-tarea-view.tsx:125` | "fila 36, recarga en vuelo" | `Tests  2 failed \| 1 passed \| 98 skipped (101)` |
+| Sin la de `entrega-de-alumno-view.tsx:126` | "fila 33, recarga en vuelo" | `Tests  6 failed \| 95 skipped (101)` |
+| Sin las dos | "recarga en vuelo" | `Tests  8 failed \| 1 passed \| 92 skipped (101)` |
+| Sin la de `entrega-de-alumno-view.tsx:136` (el `catch`) | "fila 33, recarga en vuelo" | `Tests  6 passed \| 95 skipped (101)`: **no cae** |
+| La fecha sola en la fila | "texto aprobado" | `Tests  2 failed \| 115 skipped (117)` |
+
+- **La que no cae:** el `catch` de `recargarTrasConflicto` solo corre si `refetch()` rechaza, y por defecto no rechaza: con `500` entra por `entregaNueva.isError`. No la alcanzo sin simular TanStack Query, así que queda sin caso, declarada.
+- **El caso que pasa en las dos mutaciones de la fila 36** es "llega con la clase archivada…": no protege esa guarda, sino el `setReinicios(0)` de `:52` (lo cubre también ADM-1D220 fila 36).
+
+**3. N-01d2-2: corregido** en "Foco al ocultarse un control, fila por fila" de la matriz: fila 22, `h1`; fila 30, según el control. Es lo que midió el manager con sus sondas F22, F30 y F30b; no lo volví a medir.
+
+**4. N-01d2-3: hecho.** ADM-1D235 (e) y (f) usan `clienteComoElDeProviders`, con las opciones de `app/providers.tsx` (`retry: 1`), porque esos casos necesitan la caché a mano. Sin tiempos fijos y sin perder estabilidad: el archivo pasa a 60.77 s y las corridas salieron en verde a la primera. (f) ahora afirma dos peticiones por transición (la petición y el reintento) y que, con `isFetching` en 0, no hay una tercera. Los títulos no cambian.
+
+**Casos nuevos**, de `npx vitest list` (los títulos con `$orden` llevan las comillas de Vitest; los dos de "texto aprobado" salen uno por lista, y los de la fila 33, uno por orden):
+
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, recarga en vuelo, 'después de restaurar': al llegar no reinicia; lo escrito, el foco y un solo aviso
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, recarga en vuelo, 'después de archivar y restaurar dos v…': al llegar no reinicia; lo escrito, el foco y un solo aviso
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 36, recarga en vuelo: llega con la clase archivada y, al restaurar, el formulario no se lleva el foco
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, recarga en vuelo: al llegar bien no reinicia; lo escrito, el foco y un solo aviso (en `fila 33, 'después de restaurar'`)
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, recarga en vuelo: al llegar con 500, ningún otro aviso; lo escrito y el foco siguen (en `fila 33, 'después de restaurar'`)
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, recarga en vuelo de la entrega y de la tarea (RUBRICA_MODIFICADA): al llegar no reinicia (en `fila 33, 'después de restaurar'`)
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, recarga en vuelo: al llegar bien no reinicia; lo escrito, el foco y un solo aviso (en `fila 33, 'después de archivar y restaurar dos v…'`)
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, recarga en vuelo: al llegar con 500, ningún otro aviso; lo escrito y el foco siguen (en `fila 33, 'después de archivar y restaurar dos v…'`)
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: ADM-1D221 fila 33, recarga en vuelo de la entrega y de la tarea (RUBRICA_MODIFICADA): al llegar no reinicia (en `fila 33, 'después de archivar y restaurar dos v…'`)
+- `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202 y ADM-1D203, texto aprobado: cada fila dice Archivada el {fecha}, no la fecha sola (en `ADM-1D217 y ADM-1D218 ('alumno')`)
+- `clases/clase-archivada-01d2-vista.test.tsx`: ADM-1D202 y ADM-1D203, texto aprobado: cada fila dice Archivada el {fecha}, no la fecha sola (en `ADM-1D217 y ADM-1D218 ('maestro')`)
+
+**Verificación** (desde `frontend/`; puerta: `15:59:53 puerta: 15 y 7; vitest 0; BatteryStatus 2`; sin `--maxWorkers` y sin repetir archivos)
+
+| Qué | Comando literal | Última línea |
+|---|---|---|
+| lint | `npm run lint` (exit 0) | `> tsc -b` |
+| build | `npm run build` (exit 0) | `✓ built in 804ms` |
+| test | `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts` | `Tests  4617 passed (4617)`; `Test Files  211 passed (211)`; `Duration  228.15s` |
+
+**Conteos:** `npx vitest list src/features/clases/clase-archivada-01d2-vista.test.tsx src/features/tareas/clase-archivada-01d2-tareas.test.tsx`, con `grep -a -c`: `clase-archivada-01d2-vista` **117** (115 + 2), `clase-archivada-01d2-tareas` **101** (92 + 9); 218 casos. 4606 + 11 = 4617.
+
+**V-01:** la lista extraÃ­da tiene SHA-256 `e2ee9ba20c4b1f748735e62317e85d611ccfc59d46f584373c9a128040d8e6c2`; `sha256sum -c`: 262 OK, 0 distintos; `git ls-files -o --exclude-standard | grep -c ataque`: 0.
+
+**"No se toca" contra `7655a5b`:** `git diff --name-only 7655a5b -- backend shared infra eslint.config.mjs package.json` da 0; `git diff --name-only 7655a5b -- frontend` da 38 y `git ls-files -o --exclude-standard frontend` da 6: los mismos 44 de antes.
+
+**BatteryStatus:** 2. No toqué ninguna `*.ataque`. Sin navegadores. Sin commit.
+
+## ADMIN-01d2 — Corrección ronda 1 (2026-11-06)
+
+Plan `e3279dd1…`, sin cambio. Atiendo T-01, T-02 (arbitraje del manager, "## Arbitraje de T-02 — ADMIN-01d2") y T-03, de `reporte-tester.md`, "## Ronda 1 — ADMIN-01d2". `BatteryStatus` 2. No toqué ninguna `*.ataque`.
+
+### PARADA parcial: dos hermanos de T-01 sin corregir
+
+**El mismo aviso falso sigue en `features/clases/trabajo-view.tsx:99-103` y `features/clases/recursos-view.tsx:62-67`, para el alumno.** Lo medí con una sonda temporal (un archivo de prueba, ya borrado): con la recarga de los temas en `409 CLASE_ARCHIVADA`, el alumno termina en la clase anterior, y antes salta:
+- en Actividades: "No pudimos actualizar Actividades de aprendizaje. Mostramos la última versión que tenemos.";
+- en Recursos: "No pudimos actualizar Recursos. Mostramos la última versión que tenemos.", con dos llamadas, una por bloque; el mismo `id` de aviso las junta en una en pantalla.
+
+**Por qué paré:** esos dos archivos no están en "Se toca" de 01d2, y el encargo dice que tocar uno de fuera es PARADA. No hay arreglo dentro del alcance: `useAvisoDeRecargaFallida` de `features/clases/hooks.ts` no recibe el error, y cambiar `errorQuitaLaVista` de `lib.ts` iría más allá de su alcance y cambiaría lo que hacen tres vistas.
+
+**Lo que propongo si lo autorizan:** en cada una, `&& !esClaseArchivada(temas.error)` en el segundo argumento, más su `import` de `components/clase/lib`: dos líneas por archivo. Sumaría un caso por vista y su mutación. No escribí un caso en rojo: el encargo pide la suite en verde.
+
+### T-01: corregido en `features/tareas`
+
+**Remedio:** en `useAvisoDeRecargaFallida` de `features/tareas/hooks.ts`, y no en `detalle-tarea-view.tsx`: si la consulta de la tarea falló con `esClaseArchivada(consulta.state.error)`, el fallo queda como atendido y no avisa. Lo lee de la caché, así que ninguna firma cambia y cubre a todos los que llaman al gancho.
+
+**Hermanos, uno por uno** (grep de "Mostramos la última versión" y "Puedes seguir editando", y de cada `useAvisoDeRecargaFallida`). Qué recibe cada rol sale de `enClaseArchivada`: las lecturas son `lectura`, así que el maestro y el admin nunca reciben el `409` en ellas.
+
+| Vista | Alumno | Maestro y admin | ¿Remedio aplicado? |
+|---|---|---|---|
+| Detalle de tarea (`detalle-tarea-view.tsx:53`) | **Aviso falso** (T-01) | No recibe el `409` | **Sí,** por el gancho; ADM-T1D215 y casos propios |
+| Entregas de una tarea (`entregas-view.tsx:59`) | Sin ruta | No recibe el `409` | Sí, por el gancho; caso defensivo |
+| Entrega de un alumno (`entrega-de-alumno-view.tsx`, `useAvisoDeRecargaFallida`) | Sin ruta | No recibe el `409` | Sí, por el gancho; caso defensivo |
+| Ruta 36 (`editar-tarea-view.tsx`) | Sin ruta | No recibe el `409`; además, sin aviso en solo lectura (tabla D) | Sí, por el gancho; caso defensivo |
+| `TEXTOS_CALIFICAR.avisoRecargaFallida` (`entrega-de-alumno-view.tsx:131` y `:137`) | Sin ruta | Solo tras un `409` de calificar; sin el `409` de archivada en la lectura | No aplica |
+| Ruta 20 (`editar-recurso-view.tsx:87`) | Sin ruta | No recibe el `409`; además, sin aviso en solo lectura (tabla D) | No aplica |
+| Categorías (`categorias-view.tsx:36`) | Sin ruta | No recibe el `409` | No aplica |
+| **Actividades, temas (`trabajo-view.tsx:99`)** | **Aviso falso, medido** | No recibe el `409` | **No: PARADA** |
+| **Recursos, temas (`recursos-view.tsx:62`)** | **Aviso falso, medido** | No recibe el `409` | **No: PARADA** |
+| Recursos, cada sección (`seccion-de-recursos.tsx:64`) | Por lectura: el aviso usa `mensajeDeConsultaClases`, es decir, el texto de archivada, que es cierto. No lo medí | No recibe el `409` | No hace falta |
+| Gradebook | Sin ruta | `lectura`; la vista no tiene ese aviso | No aplica |
+| Mis calificaciones | `lectura-del-alumno`: nunca recibe el `409`, y la vista no tiene ese aviso | Sin ruta | No aplica |
+| Avisos, Dudas, Personas | Reemplazan o avisan con el texto de archivada, sin decir "última versión" (ADM-1D216) | No reciben el `409` | No aplica |
+| Hilo privado, «Ver más» (`hilo-privado.tsx:178`) | Avisa con el texto traducido, que es cierto | No recibe el `409` | No aplica |
+
+Los casos "defensivos" fijan el gancho compartido: hoy el servidor no le manda ese `409` al maestro.
+
+**Estados vecinos de T-01:**
+
+| Estado | Resultado | Caso |
+|---|---|---|
+| Primera carga | Reemplaza con el texto de archivada, sin aviso | T-01 primera carga |
+| Recarga con la tarea en caché | Sin aviso | T-01 fallos seguidos, T-01 redirección |
+| Error ya en caché, al volver a montar | Sin aviso | T-01 error ya en caché |
+| Fallos seguidos: `409`, `409`, `5xx` | El `5xx` avisa una vez: el `409` no se come el siguiente | T-01 fallos seguidos |
+| `5xx` solo | Sigue avisando | T-01 estado recarga (control) |
+| Cambio de clave (otra tarea) | Cada consulta tiene su marca; por lectura, sin caso | — |
+| Con `callado` | El fallo callado no pasa por aquí (`activo` en falso); sin cambio | — |
+
+### T-02: corregido, con el remedio del arbitraje
+
+**Remedio:** `useClaseArchivadaEnSuLista(claseId, archivada)` en `features/clases/hooks.ts`, llamado desde `clase-layout.tsx` y `clase-anterior-view.tsx`. Con la clase archivada lee la lista en caché: sin lista, nada; con la clase en sus páginas, nada; si no, `removeQueries` con `exact: true`. Sin tipos ni textos nuevos (usa el tipo de `shared/`). No está en `useDetalleViejoAnteClaseArchivada` ni en `AvisoDeClaseArchivada`. No toca inscritas ni impartidas, y no marca nada al restaurar. E10-6 sigue en pie: ninguna mutación del admin toca esa clave.
+
+**Hermanos y estados vecinos:**
+
+| Estado | Resultado | Caso (por lista, salvo los dos últimos) |
+|---|---|---|
+| Pasa a archivada con la vista abierta | Sale de la caché; al volver, sin vacío mientras se pide (petición retenida), y sale la clase | "pasa a archivada con la vista abierta" |
+| Nace archivada | Sale de la caché | "nace archivada" |
+| La lista ya la trae | 0 peticiones al volver | "la lista ya trae la clase" |
+| Varias páginas, en la segunda cargada | 0 peticiones; las dos páginas siguen | "varias páginas" |
+| En una página sin cargar | Se quita; una lectura, desde la primera | "la clase en una página sin cargar" |
+| Sin lista en caché | Ni petición ni lista creada | "sin lista en caché" |
+| Clase activa fuera de la lista | No la toca (es lo normal) | "T-02 control" |
+| Restaurada, sigue en la lista | No se marca; 0 peticiones. Vecino 7 ya declarado | "una clase restaurada" |
+| Archivar, restaurar y volver a archivar | Una sola lectura al volver | "archivar, restaurar y volver a archivar" |
+| Otra clase, sin desmontar | Sale de la caché: `claseId` está en las dependencias | "otra clase archivada" |
+| Listas del inicio | No se vuelven a pedir | "no toca las listas del inicio" |
+| Alumno por N-05 | Lo cubren las dos vistas | Las de `alumno` |
+| Alumno por enlace guardado | Sale de la caché | "por un enlace guardado" |
+| Sesión del admin | Ni petición ni lista creada | "la sesión del admin" |
+
+**Fila nueva para la matriz:** detalle que llega archivado con la lista en caché sin la clase | no reemplaza nada | no redirige | — | — | se quita la lista, sin pedirla | ningún aviso | no mueve el foco | sin efecto sobre lo que esté en vuelo | la vista desmontada ya no lee el detalle.
+
+**Queda sin cambio, como dice el arbitraje:** la barra lateral y las listas del inicio traen la clase archivada hasta su siguiente petición. Destino: ESTADO §3 al cierre.
+
+### T-03: corregido
+
+**Remedio:** en `respuestas-de-duda.tsx`, `if (soloLectura && filas?.length === 0 && !respuestas.isError) return null`, después de los ganchos.
+
+**Un defecto que me causó el propio remedio, y que corregí:** sin el `h3`, si la última respuesta se borra (`DELETE` en vuelo) con la clase ya archivada, el foco caía en `<body>`, porque su destino era ese título. Ahora va a la fila de la duda (`data-duda-id`) cuando no hay título. Lo encontró mi caso "T-03 vecino".
+
+**Hermanos (títulos que quedan solos en las filas 22 a 37), uno por uno:**
+
+| Fila | Título | ¿Queda solo? |
+|---|---|---|
+| 22 | `h2` "Dudas" | No: siempre hay lista, vacío, error o carga |
+| 25 | `h3` "Respuestas" con la lista vacía | **Era T-03; corregido** |
+| 25 | `h3` "Respuestas" mientras carga o con error | No: hay `Cargando` o el mensaje |
+| 25 | Admin, clase activa, bloque vacío | Sí, y **no lo cambio**: es de antes de 01d2, está fuera de "solo lectura", y ese título es el destino de foco (caso de control) |
+| 27 | "Agregar alumnos" | No: es del buscador, y se va con él |
+| 28 | `h2` "Alumnos" | No: tabla, vacío, error o carga |
+| 29 | `h2` "Maestros de la clase" | No: siempre hay de uno a dos |
+| 30 | "Asignar maestro" | No: la tarjeta entera se va (ADM-1D226) |
+| 31 y 32 | Sin título propio | `AccionesDeLaTarea` devuelve `null` |
+| 33 | `h3` "Calificación" | No: la calificación o "Sin calificar todavía." |
+| 34 | `h3` "Comentarios privados" | No: lista, vacío, error o carga |
+| 35 y 36 | Sin título: el texto y el enlace | No |
+| 37 | `h2` de "Mis calificaciones" | No |
+
+**Un resto declarado, sin cambio:** en ese bloque vacío, «Ocultar respuestas» conserva `aria-controls` hacia un `id` que ya no existe. El control sigue siendo útil, y plegar lleva el foco a la fila (ADM-T1D228). Lo mismo pasa hoy con `pedir` en falso. Lo anoto por si el manager lo quiere en un `chore`.
+
+**Estados vecinos de T-03:** abierto al archivar (ADM-T1D227); plegar con el foco en el control (ADM-T1D228); al restaurar vuelven título y formulario sin llevarse el foco (caso propio); con respuestas sigue el título (control); borrar la última en vuelo (caso propio); una recarga con error o en carga sigue pintando el bloque.
+
+### Casos nuevos (`npx vitest list`; los de `describe.each` salen una vez por rol)
+
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-03: al restaurar vuelven el título y el formulario, sin llevarse el foco
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-03 control: con respuestas, el título sigue en una archivada
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-03 control: en una clase activa, el admin con el bloque vacío conserva el título: el foco tiene a dónde ir
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-03 vecino: la última respuesta se borra con la clase ya archivada: el título sale y el foco no cae en body
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: pasa a archivada con la vista abierta y la lista no la trae: al volver no se lee el vacío mientras se pide, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: nace archivada (el detalle no estaba en caché) y la lista no la trae: la lista sale de la caché
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: la lista ya trae la clase: al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: varias páginas, la clase en la segunda ya cargada: al volver, 0 peticiones y las dos páginas siguen
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: la clase en una página sin cargar: se quita la lista y solo cuesta una lectura, desde la primera
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: sin lista en caché no pasa nada: ninguna petición de la lista
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: una clase restaurada que sigue en la lista: no se marca nada y al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: archivar, restaurar y volver a archivar: una sola lectura al volver, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: otra clase archivada sin desmontar la vista: la lista trae la primera y no la segunda: sale de la caché
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02 control: una clase activa que no está en la lista no la toca: al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: no toca las listas del inicio: no se vuelven a pedir
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: pasa a archivada con la vista abierta y la lista no la trae: al volver no se lee el vacío mientras se pide, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: nace archivada (el detalle no estaba en caché) y la lista no la trae: la lista sale de la caché
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: la lista ya trae la clase: al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: varias páginas, la clase en la segunda ya cargada: al volver, 0 peticiones y las dos páginas siguen
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: la clase en una página sin cargar: se quita la lista y solo cuesta una lectura, desde la primera
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: sin lista en caché no pasa nada: ninguna petición de la lista
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: una clase restaurada que sigue en la lista: no se marca nada y al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: archivar, restaurar y volver a archivar: una sola lectura al volver, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: otra clase archivada sin desmontar la vista: la lista trae la primera y no la segunda: sale de la caché
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02 control: una clase activa que no está en la lista no la toca: al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: no toca las listas del inicio: no se vuelven a pedir
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: el alumno por un enlace guardado a la clase anterior, con la lista sin ella: la lista sale de la caché
+- `clases/clase-archivada-01d2-vista.test.tsx`: T-02: la sesión del admin en una archivada: no hay lista, no pide nada y no la crea
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 estado recarga, alumno, 5xx (control): sigue avisando una vez, porque ahí sí se muestra la última versión
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 fallos seguidos: el 409 no avisa y un 5xx después sí, una vez
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 error ya en caché: volver a montar la vista con el 409 en la caché no avisa
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 primera carga: sin la tarea en caché, el 409 reemplaza la vista con el texto de archivada, sin aviso
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 redirección: con el detalle ya archivado, termina en la clase anterior sin ningún aviso
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 hermanos, maestro, el detalle: el gancho compartido tampoco avisa de una recarga con 409
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 hermanos, maestro, las entregas: el gancho compartido tampoco avisa de una recarga con 409
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 hermanos, maestro, la entrega de un alumno: el gancho compartido tampoco avisa de una recarga con 409
+- `tareas/clase-archivada-01d2-tareas.test.tsx`: T-01 hermanos, maestro, editar: el gancho compartido tampoco avisa de una recarga con 409
+
+### Mutaciones
+
+Cada una restaurada por bytes y comprobada con `cmp` contra una copia previa: `cmp OK` en `features/tareas/hooks.ts`, `features/clases/hooks.ts`, `respuestas-de-duda.tsx`, `clase-layout.tsx` y `clase-anterior-view.tsx`.
+
+| Mutación | Corrida | Resultado |
+|---|---|---|
+| T-01, sin el remedio | Mis casos, `-t "T-01"` | `Tests  7 failed \| 2 passed \| 101 skipped (110)` |
+| T-01, sin el remedio | ADM-T1D215 | `Tests  1 failed \| 28 skipped (29)` |
+| T-03, sin el remedio | Mis casos, `-t "T-03"` | `Tests  2 failed \| 2 passed \| 117 skipped (121)` |
+| T-03, sin el remedio | ADM-T1D227 | `Tests  1 failed \| 27 skipped (28)` |
+| T-03, sin el destino de respaldo del foco | "T-03 vecino" | `Tests  1 failed \| 120 skipped (121)` |
+| T-03, sin `soloLectura` | `-t "ADM-1D220 fila 25\|T-03"` | `Tests  2 failed \| 3 passed \| 116 skipped (121)` |
+| T-02, sin el gancho en `ClaseLayout` | Mis casos, `-t "T-02"` | `Tests  6 failed \| 16 passed \| 121 skipped (143)` |
+| T-02, sin el gancho en `ClaseLayout` | ADM-T1D220 | `Tests  1 failed \| 1 passed \| 26 skipped (28)` |
+| T-02, sin el gancho en la clase anterior | Mis casos | `Tests  2 failed \| 20 passed \| 121 skipped (143)` |
+| T-02, sin mirar si ya la trae | Mis casos | `Tests  8 failed \| 14 passed \| 121 skipped (143)` |
+| T-02, invalidar en lugar de quitar | Mis casos | `Tests  7 failed \| 15 passed \| 121 skipped (143)` |
+| T-02, sin `claseId` en las dependencias | Mis casos | `Tests  2 failed \| 22 passed \| 121 skipped (145)` |
+| T-02, sin mirar si está archivada | Mis casos | `Tests  2 failed \| 22 passed \| 121 skipped (145)` |
+
+Todas caen. Las dos últimas al principio no caían (`22 passed`): "otra clase" pasaba porque, sin el detalle de B en caché, `archivada` pasaba por falso; y faltaba el caso de la clase activa. Corregí esas pruebas, y por eso cambia el total de 143 a 145.
+
+### Verificación (desde `frontend/`; puerta `16:55:01 puerta: 14 y 9; vitest 0; BatteryStatus 2`; sin `--maxWorkers`)
+
+| Qué | Comando literal | Última línea |
+|---|---|---|
+| lint | `npm run lint` (exit 0) | `> tsc -b` |
+| build | `npm run build` (exit 0) | `✓ built in 863ms` |
+| test | `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts` | `Tests  4711 passed (4711)`; `Test Files  213 passed (213)`; `Duration  229.93s` |
+| Los dos archivos del tester | `npx vitest run src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx` | `Tests  57 passed (57)`; `Test Files  2 passed (2)` |
+
+Ningún rojo. ADM-T1D215, ADM-T1D220 (las dos listas) y ADM-T1D227, en verde. Sin navegadores ni tiempos fijos. `npx` solo desde `frontend/`.
+
+**Conteos:** `npx vitest list src/features/clases/clase-archivada-01d2-vista.test.tsx src/features/tareas/clase-archivada-01d2-tareas.test.tsx`, con `grep -a -c`: `clase-archivada-01d2-vista` **145** (117 + 28), `clase-archivada-01d2-tareas` **110** (101 + 9). La corrida anterior del programador daba 4617; 4617 + 37 + 57 de las `*.ataque` nuevas = 4711.
+
+**V-01:** la lista de 262 (`e2ee9ba20c4b1f748735e62317e85d611ccfc59d46f584373c9a128040d8e6c2`) da `sha256sum -c`: 262 OK, 0 distintos; mÃ¡s las dos nuevas del tester: en clases `0fc7408a9c9e039c700956c8132790e689b84db3714f52080df86aecb387d88b`, en tareas `af127fae8354906737c857aa497a29a53514c928fa4dcfbfc79a41e3fbc13eee`. Total 264: `git ls-files | grep -c ataque` da 262 rastreadas y `git ls-files -o --exclude-standard | grep -c ataque`, 2 sin rastrear.
+
+**Producción cambiada en esta corrección:** `features/tareas/hooks.ts`, `features/clases/components/respuestas-de-duda.tsx`, `features/clases/hooks.ts`, `features/clases/clase-layout.tsx` y `features/clases/clase-anterior-view.tsx`. Todos ya en "Se toca"; `clase-layout.tsx` y `hooks.ts` por el arbitraje de T-02.
+
+### Hallazgos atendidos
+
+- **T-01:** corregido en `features/tareas`. **Sus hermanos `trabajo-view.tsx` y `recursos-view.tsx`: no corregidos, PARADA** por alcance.
+- **T-02:** corregido.
+- **T-03:** corregido.
+
+### Pendiente
+
+- La autorización de los dos archivos de arriba.
+- A ESTADO §3 al cierre, según el arbitraje: la barra lateral y las listas del inicio.
+- `aria-controls` del bloque vacío: a decidir.
+- **Lo de `npx` del tester** (dos paquetes en la caché fuera del repositorio) no es mío; lo decide el humano.
+
+### Hermanos autorizados de T-01
+
+El humano autorizó tocar `features/clases/trabajo-view.tsx` y `features/clases/recursos-view.tsx`, solo para esto. Esta subsección cierra la "PARADA parcial" de arriba; lo que allí dice "No: PARADA" queda corregido.
+
+**Remedio, y nada más en esos dos archivos** (`git diff 7655a5b` da tres líneas por archivo): `&& !esClaseArchivada(temas.error)` en el segundo argumento de `useAvisoDeRecargaFallida`, más su `import` de `@/components/clase/lib`.
+
+**Otras vistas con el mismo patrón** (grep de "última versión" y "Puedes seguir editando", y de `recargaFallida`, `avisoRecarga` y `useAvisoDeRecargaFallida` en todo `frontend/src`): **no queda ninguna con el aviso falso, así que no hay otra PARADA.**
+
+| Vista | Rol que la abre | ¿Le llega el `409`? | Resultado |
+|---|---|---|---|
+| `trabajo-view.tsx` | Alumno | Sí | **Corregida ahora** |
+| `recursos-view.tsx` | Alumno | Sí | **Corregida ahora** |
+| `categorias-view.tsx` (mismo patrón y mismo texto) | Maestro y admin; `gestionarTrabajo` | No: `GET …/categorias` es `lectura` (`handlers/tareas/categorias.ts:17`) | Sin aviso falso. No la toqué; no está autorizada ni hace falta |
+| `editar-recurso-view.tsx` | Maestro y admin | No; además, sin aviso en solo lectura (tabla D) | Sin aviso falso |
+| `seccion-de-recursos.tsx` | Alumno | Sí | Avisa con el texto de archivada, que es cierto. Lo cubre "toda la sección a la vez" |
+| Secciones de `trabajo-view` (`seccion-de-tema.tsx`) | Alumno | Sí | No llaman al aviso. Lo cubre "toda la sección a la vez" |
+| `detalle-tarea-view`, `entregas-view`, `entrega-de-alumno-view`, `editar-tarea-view` | — | — | Las cubre el gancho de `features/tareas` (arriba) |
+
+**Estados vecinos:** recarga con datos (caso del `409`); `5xx` solo (control); fallos seguidos, `409` y después `5xx`: el `409` no se come el siguiente; toda la sección a la vez. La primera carga no pasa por este aviso, porque sin datos su segundo argumento es falso.
+
+**Casos nuevos** (`npx vitest list`; el `describe.each` da uno por vista):
+
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Actividades de aprendizaje'`): T-01 hermano: la recarga de los temas con 409 no da el aviso falso y el alumno termina en la clase anterior
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Actividades de aprendizaje'`): T-01 hermano, control: con un 5xx el aviso de siempre sigue saliendo y el alumno se queda
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Actividades de aprendizaje'`): T-01 hermano, fallos seguidos: el 409 no avisa y un 5xx después sí
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Actividades de aprendizaje'`): T-01 hermano, toda la sección a la vez: temas y listas con 409: ningún aviso de última versión y termina en la clase anterior
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Recursos'`): T-01 hermano: la recarga de los temas con 409 no da el aviso falso y el alumno termina en la clase anterior
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Recursos'`): T-01 hermano, control: con un 5xx el aviso de siempre sigue saliendo y el alumno se queda
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Recursos'`): T-01 hermano, fallos seguidos: el 409 no avisa y un 5xx después sí
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'Recursos'`): T-01 hermano, toda la sección a la vez: temas y listas con 409: ningún aviso de última versión y termina en la clase anterior
+
+**Mutaciones** (`-t` por vista), restauradas por bytes y comprobadas con `cmp` contra una copia previa: `cmp OK` en los dos archivos.
+
+| Mutación: sin `&& !esClaseArchivada(temas.error)` | Resultado |
+|---|---|
+| Actividades sin el remedio | `Tests  2 failed \| 2 passed \| 149 skipped (153)` |
+| Recursos sin el remedio | `Tests  2 failed \| 2 passed \| 149 skipped (153)` |
+
+En Actividades identifiqué cuáles caen con una corrida más, también restaurada con `cmp`: "la recarga de los temas con 409" y "fallos seguidos". Siguen en verde el control del `5xx`, como debe, y "toda la sección a la vez": mi explicación, que deduzco y no medí, es que ahí el detalle archivado llega primero y la vista ya no está cuando responden los temas. Sea cual sea la causa, ese caso no protege esta guarda; protege que ningún otro camino dé el aviso. En Recursos no lo identifiqué; da las mismas cifras.
+
+**Verificación** (desde `frontend/`; puerta `17:17:02 puerta: 4 y 2; vitest 0; BatteryStatus 2`; sin `--maxWorkers`). Las mutaciones corrieron después, con la suite ya terminada; no volví a cambiar nada entre las dos.
+
+| Qué | Comando literal | Última línea |
+|---|---|---|
+| lint | `npm run lint` (exit 0) | `> tsc -b` |
+| build | `npm run build` (exit 0) | `✓ built in 814ms` |
+| test | `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts` | `Tests  4719 passed (4719)`; `Test Files  213 passed (213)`; `Duration  251.53s` |
+| Los dos archivos del tester | `npx vitest run src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx` | `Tests  57 passed (57)`; `Test Files  2 passed (2)` |
+
+**Conteos:** `npx vitest list src/features/clases/clase-archivada-01d2-vista.test.tsx src/features/tareas/clase-archivada-01d2-tareas.test.tsx`, con `grep -a -c`: `clase-archivada-01d2-vista` **153** (145 + 8), `clase-archivada-01d2-tareas` **110**. 4711 + 8 = 4719.
+
+**V-01:** la lista de 262 (`e2ee9ba20c4b1f748735e62317e85d611ccfc59d46f584373c9a128040d8e6c2`) da `sha256sum -c`: 262 OK, 0 distintos; mÃ¡s las dos nuevas del tester: en clases `0fc7408a9c9e039c700956c8132790e689b84db3714f52080df86aecb387d88b`, en tareas `af127fae8354906737c857aa497a29a53514c928fa4dcfbfc79a41e3fbc13eee`. Total 264: `git ls-files | grep -c ataque` da 262 rastreadas y `git ls-files -o --exclude-standard | grep -c ataque`, 2 sin rastrear.
+
+No toqué ninguna `*.ataque`. `aria-controls` de «Ocultar respuestas» no cambia: queda para ESTADO §3 al cierre. Sin navegadores ni tiempos fijos.
+
+## ADMIN-01d2 — Corrección ronda 2 (2026-11-06)
+
+Plan `e3279dd1…`, sin cambio. Atiendo T-04 de `reporte-tester.md`, "## Ronda 2 — ADMIN-01d2", con el remedio de "## Arbitraje de T-04 — ADMIN-01d2" de `revision.md`. O-r2-1 se aceptó: no toqué nada por eso. No toqué ninguna `*.ataque`.
+
+### T-04: corregido
+
+**Remedio, solo en `useClaseArchivadaEnSuLista` (`features/clases/hooks.ts`), sin tipos ni textos nuevos, tal como lo escribió el manager:** lee `getQueryState` en lugar de `getQueryData`, con `enVuelo = consulta?.fetchStatus === "fetching"`. Sin nada en vuelo y sin datos, no hace nada; sin nada en vuelo y con la clase en sus páginas, no hace nada; en cualquier otro caso, `removeQueries` con `exact: true`. El comentario del gancho dice la regla: al leer la clase archivada, la lista en caché solo se queda si no tiene nada en vuelo y ya trae esa clase, o si no hay nada que quitar. Prettier parte la segunda guarda en varias líneas; es la misma condición. Único archivo de producción de esta corrección.
+
+### Estados del mecanismo (copiados de la sección del manager, con su caso o "por lectura")
+
+| Estado de la lista al leer la clase archivada | Con el remedio | Cubierto por |
+|---|---|---|
+| Sin consulta en la caché | No hace nada; al abrirla, se pide | "T-02: sin lista en caché…", "T-02: la sesión del admin…" |
+| Sin datos, quieta (error de la primera carga) | No hace nada; al abrirla, se pide porque no hay datos | Sonda del manager, y ADM-T2D203 con filas; **sin caso mío** |
+| Sin datos, en vuelo | **Se quita (T-04)** | "T-04: la primera página en vuelo llega… antes de volver", "…después de volver", "…falla después", "…hacia una clase que ya estaba archivada" |
+| Sin datos, en pausa (sin red) | No hace nada: la petición aún no sale | Por lectura |
+| Sin la clase, quieta | Se quita | "T-02: pasa a archivada…", "T-02: nace archivada…" |
+| Sin la clase, en vuelo (recarga o «Cargar más») | Se quita | ADM-T2D201 |
+| Sin la clase, en pausa | Se quita | Por lectura; mismo camino que "quieta" |
+| Con la clase, quieta | Se queda | "T-04 control", "T-02: la lista ya trae la clase…" |
+| Con la clase, en vuelo | **Se quita** | "T-04: con la clase en la lista y una recarga en vuelo…" |
+| Con la clase, en pausa | Se queda | Por lectura |
+| Con la lista en error y filas | Se decide por sus filas, y al desmontarse ya salió | ADM-T2D203 |
+| Otra clase archivada sin desmontar | `claseId` en las dependencias | "T-02: otra clase archivada…", ADM-T2D204 |
+| Página sin cargar | Se quita; una lectura por apertura | "T-02: la clase en una página sin cargar…", ADM-T2D206 |
+| Alumno por N-05 y por un enlace guardado | Las dos vistas llaman al gancho; la segunda ya no encuentra nada | Casos de `alumno`, "T-02: el alumno por un enlace guardado…" |
+| ¿Puede empezar una lectura de la lista con la clase abierta? | No: solo la monta la lista; por eso el efecto no vuelve a correr | Por lectura |
+
+**El costo, medido:** si la persona sale de la lista hacia la clase con algo en vuelo, hay una lectura más ("T-04: la lista salió en vuelo…" afirma 2 peticiones). Sin ciclo ni vacío falso.
+
+**Queda fuera, como dice el arbitraje:** una clase restaurada que sigue en la lista (vecino 7); la barra lateral y las listas del inicio (ESTADO §3 al cierre); la lista abierta, sin salir de ella, mientras el admin archiva otra clase (E10-6).
+
+### Casos nuevos (`npx vitest list`; el `describe.each` da uno por lista)
+
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'alumno'`): T-04: la primera página en vuelo llega sin la clase antes de volver: sin vacío, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'alumno'`): T-04: la primera página en vuelo llega después de volver: sin vacío en medio ni al final, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'alumno'`): T-04: la primera página en vuelo falla después: sin su error ni el vacío, y al volver sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'alumno'`): T-04: la lista salió en vuelo hacia una clase que ya estaba archivada: una lectura más, sin vacío
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'alumno'`): T-04: con la clase en la lista y una recarga en vuelo que no la trae: sale de la caché y al volver sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'alumno'`): T-04 control: la lista quieta que ya trae la clase se queda cuando la clase pasa a archivada: al volver, 0 peticiones
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'maestro'`): T-04: la primera página en vuelo llega sin la clase antes de volver: sin vacío, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'maestro'`): T-04: la primera página en vuelo llega después de volver: sin vacío en medio ni al final, y sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'maestro'`): T-04: la primera página en vuelo falla después: sin su error ni el vacío, y al volver sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'maestro'`): T-04: la lista salió en vuelo hacia una clase que ya estaba archivada: una lectura más, sin vacío
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'maestro'`): T-04: con la clase en la lista y una recarga en vuelo que no la trae: sale de la caché y al volver sale la clase
+- `clases/clase-archivada-01d2-vista.test.tsx` (`'maestro'`): T-04 control: la lista quieta que ya trae la clase se queda cuando la clase pasa a archivada: al volver, 0 peticiones
+
+### Mutaciones
+
+Sobre `features/clases/hooks.ts`, restauradas por bytes y comprobadas con `cmp` contra una copia previa: `cmp OK`. Hay una por cada condición nueva.
+
+| Mutación | Corrida | Resultado |
+|---|---|---|
+| Sin `!enVuelo` en la guarda de "sin datos" | Mis casos, `-t "T-04"` | `Tests  6 failed \| 6 passed \| 153 skipped (165)` |
+| Sin `!enVuelo` en la guarda de "sin datos" | ADM-T2D202 | `Tests  2 failed \| 22 skipped (24)` |
+| Sin `!enVuelo` en la guarda de "ya la trae" | Mis casos, `-t "T-04"` | `Tests  2 failed \| 10 passed \| 153 skipped (165)` |
+| `enVuelo` mirando otro `fetchStatus` | Mis casos, `-t "T-04"` | `Tests  8 failed \| 4 passed \| 153 skipped (165)` |
+
+La última la repetí sola: en la tanda, mi `timeout` de 175 s cortó la corrida y su línea no sumaba (`5 failed | 2 passed | 153 skipped (165)`). Esa cifra no cuenta.
+
+### Corrida a batería, que no cuenta como resultado
+
+A las 18:16:02 el equipo se desconectó (`Kernel-Power` id 105; `BatteryStatus` 1). Corrí igual, como pide el encargo, con el comando literal y la puerta `18:28:51 puerta: 1 y 0; vitest 0; BatteryStatus 1`:
+
+`Test Files  3 failed | 212 passed (215)` · `Tests  10 failed | 4759 passed (4769)` · `Duration  968.40s`
+
+Cayeron `app/personas-03c1-r2.ataque` (7), `app/personas-03c1-r1.ataque` (1) y `features/clases/clases-admin-02c-r1.ataque` (2). Ninguna toca este gancho. En la salida hay 6 `Test timed out in 15000ms` y un `Unable to find role="button" and name "Cargar más clases"`; **no revisé uno por uno los 10**, así que no afirmo que todos sean por tiempo. Lo que sí afirmo es que el mismo comando, sin cambiar nada, sale en verde con el equipo conectado (abajo). El equipo volvió a la corriente a media corrida: la última lectura dio `BatteryStatus` 2. Repetí el comando completo, no solo esos archivos. Sin `--maxWorkers`.
+
+### Verificación (desde `frontend/`; puerta de la corrida que cuenta: `18:48:51 puerta: 8 y 6; vitest 0; BatteryStatus 2`)
+
+| Qué | Comando literal | Última línea |
+|---|---|---|
+| lint | `npm run lint` (exit 0), a batería | `> tsc -b` |
+| build | `npm run build` (exit 0), a batería | `✓ built in 1.79s` |
+| test | `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts` | `Tests  4769 passed (4769)`; `Test Files  215 passed (215)`; `Duration  397.83s` |
+| Los cuatro archivos del tester | `npx vitest run src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx src/features/tareas/clase-archivada-01d2-r2.ataque.test.tsx src/features/clases/clase-archivada-01d2-r2.ataque.test.tsx` | `Tests  95 passed (95)`; `Test Files  4 passed (4)` |
+
+Ningún rojo; ADM-T2D202, en las dos listas, en verde. Sin navegadores ni tiempos fijos. `npx` solo desde `frontend/`. Lint y build corrieron antes de esa suite, sin cambios de código en medio.
+
+**Conteos:** `npx vitest list src/features/clases/clase-archivada-01d2-vista.test.tsx src/features/tareas/clase-archivada-01d2-tareas.test.tsx`, con `grep -a -c`: `clase-archivada-01d2-vista` **165** (153 + 12), `clase-archivada-01d2-tareas` **110**.
+
+**V-01:** la lista de 262 (`e2ee9ba20c4b1f748735e62317e85d611ccfc59d46f584373c9a128040d8e6c2`) da `sha256sum -c`: 262 OK, 0 distintos; mÃ¡s las cuatro nuevas del tester: `-r1` en clases `0fc7408a9c9e039c700956c8132790e689b84db3714f52080df86aecb387d88b`, `-r1` en tareas `af127fae8354906737c857aa497a29a53514c928fa4dcfbfc79a41e3fbc13eee`, `-r2` en clases `4e3a45f7672489373d6d1ad3f2309c572e9b7930e846fa9596b60a858c933294`, `-r2` en tareas `940817a89a4aaa1703187248e6c53dcbfe97c1af053b2f78c265e34f0ce50e7a`. Total 266: `git ls-files | grep -c ataque` da 262 rastreadas y `git ls-files -o --exclude-standard | grep -c ataque`, 4 sin rastrear.
+
+### Hallazgos atendidos
+
+T-04: corregido. O-r2-1: aceptado por el manager, sin cambios.
+
+### Desviaciones del plan
+
+Ninguna. Un caso de más: "T-04: la lista salió en vuelo hacia una clase que ya estaba archivada…", que fija el costo que describe el arbitraje.
+
+### Pendiente
+
+Sin cambio: lo de ESTADO §3 al cierre (barra lateral y listas del inicio, `aria-controls`, N-01d1-4 y el foco de N-05). El estado "sin datos, quieta" no tiene caso mío: se apoya en la sonda del manager y en ADM-T2D203.

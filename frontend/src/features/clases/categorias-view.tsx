@@ -53,7 +53,12 @@ function CategoriasDeLaClase({ claseId }: CategoriasDeLaClaseProps) {
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-h2">{TEXTOS_CATEGORIAS.titulo}</h2>
-          <p className="max-w-prose text-small text-muted-foreground">{TEXTOS_CATEGORIAS.frase}</p>
+          {/* ADMIN-01d2 (tabla D): la frase se dirige a quien edita, y en una clase archivada nadie edita. */}
+          {!soloLectura && (
+            <p className="max-w-prose text-small text-muted-foreground">
+              {TEXTOS_CATEGORIAS.frase}
+            </p>
+          )}
         </div>
         {contenido()}
       </CardContent>

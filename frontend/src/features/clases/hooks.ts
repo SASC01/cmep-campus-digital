@@ -10,6 +10,7 @@ import {
   dudaRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesAdminRespuestaSchema,
+  listaClasesAnterioresRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
   listaComentariosRespuestaSchema,
@@ -33,9 +34,8 @@ import {
   type CrearDuda,
   type CrearRespuesta,
   type CrearTema,
+  type ListaClasesAnterioresRespuesta,
   type ListaDudasRespuesta,
-  type EditarRecurso,
-  type EditarClase,
   type ListaTemasRespuesta,
   type ReemplazarCategorias,
   type SeccionDeTemas,
@@ -53,6 +53,7 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
 
+import { useMontado } from "@/components/clase/hooks"
 import { esClaseArchivada } from "@/components/clase/lib"
 import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { consultaMe } from "@/services/sesionService"
@@ -77,6 +78,7 @@ import {
   claveAlumnos,
   claveCandidatos,
   claveClaseDetalle,
+  claveClasesAnteriores,
   claveCodigoDeClase,
   claveComentarios,
   claveDudas,
@@ -128,6 +130,7 @@ import {
 } from "./data"
 import {
   consultaDeClasesAdmin,
+  consultaDeClasesAnteriores,
   crearLimiteDeConcurrencia,
   desplazamientoParaVer,
   erroresDeCategoriasDeApi,
@@ -147,6 +150,7 @@ import {
   mensajeDeErrorClases,
   opcionEnElPanel,
   siguienteCursorDeClasesAdmin,
+  siguienteCursorDeClasesAnteriores,
   temasEnElOrdenDe,
   terminoDeBusquedaValido,
   tiempoFrescoDelMuro,
@@ -156,11 +160,25 @@ import type {
   CrearAnuncio,
   CrearRecurso,
   CursorDeClasesAdmin,
-  DuplicarClase,
   EstadoDeClases,
+  ConsultaConClave,
+  FilaPendienteDeFoco,
   MedidaDelIndicadorDeLaClase,
   ModoDelRecurso,
+  PaginaConCursor,
+  PaginaConCursorYSenal,
+  PaginaDeClasesAdmin,
+  PaginaDeClasesAnteriores,
   PosicionDelPanel,
+  VariablesDeAlumno,
+  VariablesDeBorrarClase,
+  VariablesDeDuplicarClase,
+  VariablesDeEditarClase,
+  VariablesDeEditarRecurso,
+  VariablesDeMaestro,
+  VariablesDeMarcarDuda,
+  VariablesDeMoverElemento,
+  VariablesDeRenombrarTema,
 } from "./types"
 
 // El saludo del bloque destacado depende solo de la sesión (§D-A5): se ve aunque falle la consulta
@@ -176,7 +194,7 @@ const conCursor = (limite: number, cursor?: string): string => {
 export const useClasesInscritas = () =>
   useInfiniteQuery({
     queryKey: CLAVE_CLASES_INSCRITAS,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/inscritas?${conCursor(LIMITE_CLASES, pageParam)}`, {
         schema: listaClasesInscritasRespuestaSchema,
       }),
@@ -187,7 +205,7 @@ export const useClasesInscritas = () =>
 export const useClasesImpartidas = () =>
   useInfiniteQuery({
     queryKey: CLAVE_CLASES_IMPARTIDAS,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/impartidas?${conCursor(LIMITE_CLASES, pageParam)}`, {
         schema: listaClasesImpartidasRespuestaSchema,
       }),
@@ -293,19 +311,9 @@ const invalidarListasDeClases = async (queryClient: ReturnType<typeof useQueryCl
   ])
 }
 
-// CLASES-03c2 (§D-11, O-16): `true` mientras el componente que llama al gancho está montado. Lo crea
-// cada gancho de mutación de un formulario: su onError corre aunque el formulario ya no esté (T-30), y
-// con él sabe si el formulario sigue ahí para mostrar el error bajo su campo.
-export const useMontado = (): RefObject<boolean> => {
-  const montado = useRef(false)
-  useEffect(() => {
-    montado.current = true
-    return () => {
-      montado.current = false
-    }
-  }, [])
-  return montado
-}
+// ADMIN-01d2 (§D-9, Enmienda 11): el gancho vive en components/clase/hooks.ts, que lo usan también los
+// ganchos de features/tareas; se reexporta con su nombre para que ningún importador de este módulo cambie.
+export { useMontado }
 
 // §D-11, variante de clase (Enmienda 1, M-01): con el formulario montado, `alFallar` y `alTerminar`
 // (los callbacks de mutate) avisan y navegan, y el gancho calla. Con el formulario desmontado esos
@@ -337,7 +345,7 @@ export const useEditarClase = () => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ claseId, datos }: { claseId: string; datos: EditarClase }) =>
+    mutationFn: ({ claseId, datos }: VariablesDeEditarClase) =>
       api(`/api/admin/clases/${claseId}`, {
         method: "PUT",
         body: datos,
@@ -361,13 +369,73 @@ export const useEditarClase = () => {
 export const useClasesAdmin = (estado: EstadoDeClases) =>
   useInfiniteQuery({
     queryKey: claveClasesAdmin(estado),
-    queryFn: ({ pageParam }: { pageParam: CursorDeClasesAdmin | undefined }) =>
+    queryFn: ({ pageParam }: PaginaDeClasesAdmin) =>
       api(`/api/admin/clases?${consultaDeClasesAdmin(estado, pageParam)}`, {
         schema: listaClasesAdminRespuestaSchema,
       }),
     initialPageParam: undefined as CursorDeClasesAdmin | undefined,
     getNextPageParam: (ultimaPagina) => siguienteCursorDeClasesAdmin(estado, ultimaPagina),
   })
+
+// ADMIN-01d2 (§D-9, Enmienda 5): "Clases anteriores" del alumno y "Clases archivadas" del maestro, la
+// misma consulta; la página siguiente lleva la posición de la fila del cursor.
+export const useClasesAnteriores = () =>
+  useInfiniteQuery({
+    queryKey: claveClasesAnteriores(),
+    queryFn: ({ pageParam }: PaginaDeClasesAnteriores) =>
+      api(`/api/clases/anteriores?${consultaDeClasesAnteriores(pageParam)}`, {
+        schema: listaClasesAnterioresRespuestaSchema,
+      }),
+    initialPageParam: undefined as PaginaDeClasesAnteriores["pageParam"],
+    getNextPageParam: (ultimaPagina) => siguienteCursorDeClasesAnteriores(ultimaPagina),
+  })
+
+// ADMIN-01d2 (ADM-1D204, como useRecuperarListaDeClasesAdmin): las frases de las dos listas piden volver a
+// abrirla. Una lista en error sale de la caché al desmontarse, así que regresar antes de que venza el
+// staleTime la pide de nuevo desde la primera página; otra location.key con la vista montada llama a la
+// función que devuelve. Una lista sana no se vuelve a pedir.
+export const useRecuperarListaDeClasesAnteriores = () => {
+  const queryClient = useQueryClient()
+  useEffect(
+    () => () => {
+      const clave = claveClasesAnteriores()
+      if (queryClient.getQueryState(clave)?.status !== "error") return
+      queryClient.removeQueries({ queryKey: clave, exact: true })
+    },
+    [queryClient],
+  )
+  return () => {
+    const clave = claveClasesAnteriores()
+    if (queryClient.getQueryState(clave)?.status !== "error") return
+    void queryClient.resetQueries({ queryKey: clave, exact: true })
+  }
+}
+
+// ADMIN-01d2, ronda 1 (T-02, arbitraje del manager): quien lee el detalle de una clase archivada sabe que su
+// lista de anteriores o de archivadas está vieja si no la trae. Se quita de la caché, no se marca vieja: así no
+// se lee el vacío falso mientras se vuelve a pedir, y nadie la observa, porque la lista es otra ruta.
+// Ronda 2 (T-04, arbitraje del manager): la regla completa. Al leer la clase archivada, la lista en caché solo
+// se queda si no tiene nada en vuelo y ya trae esa clase, o si no hay nada que quitar (la sesión del admin). Lo
+// que está en vuelo se pidió antes de saberlo, y el efecto no vuelve a correr cuando llega; quitada la consulta,
+// su respuesta tardía no vuelve a entrar. El sentido contrario no: una clase restaurada que sigue en la lista
+// no es falsa como un vacío, y al abrirla lleva a la clase (OA-2).
+export const useClaseArchivadaEnSuLista = (claseId: string, archivada: boolean) => {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!archivada) return
+    const clave = claveClasesAnteriores()
+    const consulta = queryClient.getQueryState<InfiniteData<ListaClasesAnterioresRespuesta>>(clave)
+    const enVuelo = consulta?.fetchStatus === "fetching"
+    if (!enVuelo && consulta?.data === undefined) return
+    if (
+      !enVuelo &&
+      consulta?.data?.pages.some((pagina) => pagina.clases.some((clase) => clase.id === claseId))
+    ) {
+      return
+    }
+    queryClient.removeQueries({ queryKey: clave, exact: true })
+  }, [queryClient, claseId, archivada])
+}
 
 // ADMIN-01c (ADM-1C07, ADM-1C12): las frases de error y de lista cambiada piden volver a abrir la lista.
 // Pulsar "Clases" estando ahí, cambiar de pestaña o ir atrás y adelante (otra location.key con la vista
@@ -507,7 +575,7 @@ export const useBorrarClase = () => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ id }: { id: string }) =>
+    mutationFn: ({ id }: VariablesDeBorrarClase) =>
       api(`/api/admin/clases/${id}?confirmar=${CONFIRMAR_BORRADO_DE_CLASE}`, {
         method: "DELETE",
         schema: sinContenidoSchema,
@@ -529,7 +597,7 @@ export const useDuplicarClase = () => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ claseId, datos }: { claseId: string; datos: DuplicarClase }) =>
+    mutationFn: ({ claseId, datos }: VariablesDeDuplicarClase) =>
       api(`/api/admin/clases/${claseId}/duplicar`, {
         method: "POST",
         body: datos,
@@ -575,7 +643,7 @@ const invalidarMaestrosDeLaClase = async (
 export const useAsignarMaestro = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id }: { id: string; nombre: string }) =>
+    mutationFn: ({ id }: VariablesDeMaestro) =>
       api(`/api/admin/clases/${claseId}/maestros`, {
         method: "POST",
         body: { maestroId: id },
@@ -597,7 +665,7 @@ export const useAsignarMaestro = (claseId: string) => {
 export const useRetirarMaestro = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id }: { id: string; nombre: string }) =>
+    mutationFn: ({ id }: VariablesDeMaestro) =>
       api(`/api/admin/clases/${claseId}/maestros/${id}`, {
         method: "DELETE",
         schema: maestrosDeClaseRespuestaSchema,
@@ -652,7 +720,7 @@ export const useUnirseAClase = () => {
 export const usePersonas = (claseId: string) =>
   useInfiniteQuery({
     queryKey: clavePersonas(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/personas?${conCursor(LIMITE_PERSONAS, pageParam)}`, {
         schema: personasRespuestaSchema,
       }),
@@ -663,7 +731,7 @@ export const usePersonas = (claseId: string) =>
 export const useAlumnos = (claseId: string) =>
   useInfiniteQuery({
     queryKey: claveAlumnos(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/alumnos?${conCursor(LIMITE_PERSONAS, pageParam)}`, {
         schema: listaAlumnosRespuestaSchema,
       }),
@@ -736,7 +804,7 @@ export const useAgregarAlumno = (claseId: string) => {
 export const useQuitarAlumno = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id }: { id: string; nombre: string }) =>
+    mutationFn: ({ id }: VariablesDeAlumno) =>
       api(`/api/clases/${claseId}/alumnos/${id}`, {
         method: "DELETE",
         schema: sinContenidoSchema,
@@ -952,7 +1020,7 @@ export const useFocoAlQuitarUnaClase = (
   enfocarEncabezado: () => void,
 ) => {
   const filaEnFocoRef = useFilaEnFoco("data-clase-id")
-  const pendiente = useRef<{ id: string; accion: AccionDeFilaDeClase } | null>(null)
+  const pendiente = useRef<FilaPendienteDeFoco | null>(null)
   // Corrección de la ronda 1 (M-02): el último lugar en que se vio cada fila. La fila puede haber salido
   // varios renders antes de que se decida el foco (la lista se renovó con el diálogo abierto), así que su
   // lugar no se lee de la lista anterior sino de aquí.
@@ -1006,7 +1074,7 @@ export const useFocoAlCerrarElBorrado = (abierto: boolean) => {
 export const usePublicaciones = (claseId: string) =>
   useInfiniteQuery({
     queryKey: clavePublicaciones(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       // CLASES-03c2 (§D-7.5): Avisos pide solo los anuncios; la clave no cambia.
       api(
         `/api/clases/${claseId}/publicaciones?tipo=anuncio&${conCursor(LIMITE_PUBLICACIONES, pageParam)}`,
@@ -1083,7 +1151,7 @@ export const useBorrarPublicacion = (claseId: string) => {
 export const useComentarios = (claseId: string, publicacionId: string) =>
   useInfiniteQuery({
     queryKey: claveComentarios(claseId, publicacionId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(
         `/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios?${conCursor(LIMITE_COMENTARIOS, pageParam)}`,
         { schema: listaComentariosRespuestaSchema },
@@ -1237,7 +1305,7 @@ const limiteDeTrabajo = crearLimiteDeConcurrencia(MAXIMO_LECTURAS_DE_TRABAJO_EN_
 export const useTrabajo = (claseId: string, tema: string) =>
   useInfiniteQuery({
     queryKey: claveTrabajo(claseId, tema),
-    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
+    queryFn: ({ pageParam, signal }: PaginaConCursorYSenal) => {
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_TRABAJO : LIMITE_PAGINAS_TRABAJO
       // CLASES-03c2 (§D-7.6): "Actividades de aprendizaje" pide solo las actividades del tema.
@@ -1291,8 +1359,7 @@ const filtroDeLasSecciones = (claseId: string) => {
   const prefijo = claveTemas(claseId)
   return {
     queryKey: prefijo,
-    predicate: (consulta: { queryKey: readonly unknown[] }) =>
-      consulta.queryKey.length > prefijo.length,
+    predicate: (consulta: ConsultaConClave) => consulta.queryKey.length > prefijo.length,
   }
 }
 
@@ -1369,7 +1436,7 @@ export const useRenombrarTema = (claseId: string) => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ temaId, nombre }: { temaId: string; nombre: string }) =>
+    mutationFn: ({ temaId, nombre }: VariablesDeRenombrarTema) =>
       api(`/api/clases/${claseId}/temas/${temaId}`, {
         method: "PUT",
         body: { nombre },
@@ -1478,15 +1545,7 @@ export const useOrdenarTemas = (claseId: string) => {
 export const useMoverElemento = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      publicacionId,
-      temaId,
-    }: {
-      publicacionId: string
-      temaId: string | null
-      titulo: string
-      nombreDelTema: string
-    }) =>
+    mutationFn: ({ publicacionId, temaId }: VariablesDeMoverElemento) =>
       api(`/api/clases/${claseId}/publicaciones/${publicacionId}/tema`, {
         method: "PUT",
         body: { temaId },
@@ -1522,7 +1581,7 @@ const limiteDeRecursos = crearLimiteDeConcurrencia(MAXIMO_LECTURAS_DE_RECURSOS_E
 export const useRecursos = (claseId: string, bloque: BloqueDeRecurso, tema: string) =>
   useInfiniteQuery({
     queryKey: claveRecursos(claseId, bloque, tema),
-    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
+    queryFn: ({ pageParam, signal }: PaginaConCursorYSenal) => {
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_RECURSOS : LIMITE_PAGINAS_RECURSOS
       const parametros = new URLSearchParams({ bloque, tema, limite: String(limite) })
@@ -1640,7 +1699,7 @@ export const useEditarRecurso = (claseId: string) => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ recursoId, datos }: { recursoId: string; datos: EditarRecurso }) =>
+    mutationFn: ({ recursoId, datos }: VariablesDeEditarRecurso) =>
       api(`/api/clases/${claseId}/recursos/${recursoId}`, {
         method: "PUT",
         body: datos,
@@ -1706,7 +1765,7 @@ export const useBorrarRecurso = (claseId: string) => {
 export const useDudas = (claseId: string) =>
   useInfiniteQuery({
     queryKey: claveDudas(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/dudas?${conCursor(LIMITE_DUDAS, pageParam)}`, {
         schema: listaDudasRespuestaSchema,
       }),
@@ -1726,7 +1785,7 @@ export const useRespuestas = (claseId: string, dudaId: string, pedir = true) =>
   useInfiniteQuery({
     enabled: pedir,
     queryKey: claveRespuestas(claseId, dudaId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(
         `/api/clases/${claseId}/dudas/${dudaId}/respuestas?${conCursor(LIMITE_RESPUESTAS, pageParam)}`,
         { schema: listaComentariosRespuestaSchema },
@@ -1837,7 +1896,7 @@ export const useCrearDuda = (claseId: string) => {
 export const useMarcarDuda = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ dudaId, resuelta }: { dudaId: string; resuelta: boolean }) =>
+    mutationFn: ({ dudaId, resuelta }: VariablesDeMarcarDuda) =>
       api(`/api/clases/${claseId}/dudas/${dudaId}/resuelta`, {
         method: "PUT",
         body: { resuelta },

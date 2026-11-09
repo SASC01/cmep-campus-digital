@@ -3179,3 +3179,1347 @@ Control: "ADM-T3D111 (control): sin archivar, la respuesta %s da su aviso" (500 
 - **Resisten** los puntos 2 a 7 del manager. T-01 y T-02 siguen cerrados, y la C-n de ADM-T1D110 está aplicada.
 - **Suite:** `Tests 3 failed | 3607 passed (3610)`.
 - **lint:** exit 0.
+
+## Ronda 0 — ADMIN-01d2
+
+Veredicto: **PARADA.** Apliqué C-11 y C-12 tal como los escribe §D-R0 → 01d2, y los dos quedan en rojo por la razón esperada. No basta con eso: el grep y dos sondas en memoria encontraron tres cosas que el plan no cubre, que no puedo resolver por mi cuenta y que el programador tampoco podría resolver sin apartarse del plan (P-01 a P-03, abajo).
+
+Plan: `plan.md`, SHA-256 `82f0e21a381021c062ae5cdeddf55f711b52034ab938ca2a1dbc1c5e0307c1d2` (Enmiendas 1 a 11; lo comprobé al empezar). Base dentro de los paquetes: `7655a5b`. Antes de tocar nada, `git diff 7655a5b -- frontend backend shared` estaba vacío; después, solo cambian los dos archivos de C-11 y C-12.
+
+Verificación propia (regla "Suites por ronda": lo que toco, los módulos, las vigiladas de fuera y `lint`):
+- **lint del frontend:** `cd frontend; npm run lint` → exit 0. Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -b`, sin errores.
+- **test:** abajo van las corridas. Los únicos rojos con el código de hoy son los dos de C-11 y C-12.
+- No corrí la suite completa del frontend ni la del backend: las corre el manager al cerrar la subentrega. 01d2 no toca el backend, así que no hay PA-07.
+
+### Entorno y trabajo en paralelo
+- **Trabajo en paralelo:** por el orquestador, la otra copia de trabajo no se usa.
+- **Puerta de carga:** `BatteryStatus` 2 en todas las lecturas, ningún `node` con `vitest` en su línea de comandos y dos lecturas seguidas de 25 % o menos (`Win32_Processor.LoadPercentage`): 12:38:06 `7` y 12:38:15 `10` (C-n); 12:38:43 `5` y 12:38:52 `7` (módulos); 12:44:45 `9` y 12:44:54 `6` (vigiladas); 12:45:40 `0` y 12:45:49 `4` (sonda N-05); 12:51:24 `14` y 12:51:33 `9`, 12:54:32 `3` y 12:54:42 `2`, 12:57:13 `3` y 12:57:22 `4` (sonda T-03).
+- **Dos corridas que no cuento:**
+  - La primera de las vigiladas salió con 12:43:33 `27` y 12:43:42 `17`: la primera lectura rebasaba la puerta, porque mi guion todavía no esperaba. Dio el mismo resultado, pero la repetí con la puerta cerrada y solo cuento la segunda.
+  - La primera de la sonda T-03 (12:47:17 `18` y 12:47:26 `15`) no vale: la sonda también transformaba las lecturas `?raw` y tiró 23 archivos estáticos por un error suyo. La corregí y la repetí por partes.
+- Sin navegadores ni aplicaciones gráficas. No terminé ningún proceso.
+
+### Cambios (solo C-11 y C-12)
+
+| C-n | Archivo | Cambio | SHA-256 antes → después |
+|---|---|---|---|
+| C-11 | `frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts` | `:109` pasa de 14 a 15, ahora en `:112`, con su comentario de ronda antes de la línea. El resto del caso no cambia, y sigue protegiendo que la lista cambie solo con el plan y que ningún código del servidor se recorte | `4e6950f0fe571d6ae41a78380c59c20459fdf19f34c57e9777e4e34a6bc61c58` → `edf4d96e4b884eab718d06811877c17b611099a66d6857502f71eedb96026dda` |
+| C-12 | `frontend/src/styles/clases-r1.ataque.test.ts` | V-06: el título y `toHaveLength` pasan de 77 a 78, con su comentario de ronda. En la lista fija entran, después de `categorias-de-solo-lectura.tsx` y con su comentario, `components/lista-de-clases-anteriores.tsx` 1, `clases-anteriores-view.tsx` 0, `clase-anterior-view.tsx` 0 y `clases-archivadas-view.tsx` 0. El resto de `features/clases/components/` sigue en 3. Lo que protege no cambia | `0ea4c6b87c65c9275b590b2404f174bdf04275a0d8ed009849f44258309c1c46` → `537e10bc0519805f2be98ff579b34c71eda6fa7d364e355bfbd0050f568ffcb6` |
+
+El hash de antes de cada uno es el de `git show 7655a5b:<ruta>`, igual al del árbol al empezar. `git diff -U0`: `errores-ch3-r1.ataque`, un hunk (`@@ -109 +109,4`); `clases-r1.ataque`, tres (`@@ -185 +185,7`, el comentario y el título; `@@ -192 +198`, la cifra; `@@ -260,0 +267,6`, las cuatro entradas con su comentario). Ninguna otra `*.ataque` cambia. No toqué código de producción ni pruebas normales.
+
+### Corrida de C-11 y C-12 (rojo esperado)
+
+Comando, desde `frontend/`: `npx vitest run src/features/tareas/errores-ch3-r1.ataque.test.ts src/styles/clases-r1.ataque.test.ts`
+
+```
+ Test Files  2 failed (2)
+      Tests  2 failed | 17 passed (19)
+   Start at  12:38:26
+   Duration  9.48s (transform 3.09s, setup 2.34s, import 4.13s, tests 201ms, environment 8.73s)
+```
+
+- **C-11:** "un código del servidor nunca se recorta…" falla con `expected 14 to be 15` (`:112`). Falta `CLASE_ARCHIVADA` en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` de `features/tareas/data.ts`. La sonda T-03 lo suma en memoria y el caso pasa a verde.
+- **C-12:** "V-06: … 78 enEspera" falla con `expected [ …(77) ] to have a length of 78 but got 77` (`:198`). Falta el `enEspera=` de «Cargar más». Pasa a verde cuando exista `lista-de-clases-anteriores.tsx` con exactamente uno y las tres vistas sin ninguno.
+- Los otros 17 casos de los dos archivos, en verde, incluido V-07 (el plan dice que no cambia en 01d2).
+
+### Línea base de los módulos (con el código de hoy)
+
+Comando, desde `frontend/`: `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app`
+
+```
+ Test Files  1 failed | 199 passed (200)
+      Tests  1 failed | 4220 passed (4221)
+   Start at  12:38:54
+   Duration  213.67s (transform 36.30s, setup 120.66s, import 315.77s, tests 1263.71s, environment 567.81s)
+```
+
+El único rojo es el de C-11. `src/components/clase` sigue sin pruebas propias.
+
+### Vigiladas y estáticas de fuera de los módulos
+
+Comando, desde `frontend/`: `npx vitest run src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts`
+
+```
+ Test Files  1 failed | 8 passed (9)
+      Tests  1 failed | 177 passed (178)
+   Start at  12:44:56
+   Duration  8.54s (transform 26.20s, setup 4.81s, import 42.84s, tests 622ms, environment 21.89s)
+```
+
+El único rojo es V-06, el de C-12.
+
+### Dos sondas en memoria (qué cae con el diseño del plan bien hecho)
+
+El grep no alcanza para saber qué rompe un cambio de comportamiento. Por eso apliqué el diseño **al transformar, en memoria**, con un complemento de Vite en una configuración de Vitest fuera del repositorio. **Ningún archivo del repositorio cambia**: `git status` sigue con los dos de C-11 y C-12. Las configuraciones son `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\ce73329e-6e87-4432-b4fc-239c50515013\scratchpad\vitest.sonda-n05.config.mjs` y `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\ce73329e-6e87-4432-b4fc-239c50515013\scratchpad\vitest.sonda-t03.config.mjs`.
+
+**Sonda N-05:** el `<Navigate replace>` de §D-9 en `ClaseLayout`, antes del `Outlet`, y una ruta `/estudiante/clases-anteriores/:claseId` que pinta el aviso. Comando: `npx vitest run --config <sonda-n05> src/features/clases/clase-archivada-01d1 src/features/clases/clases-admin-01c`, es decir, los diez archivos que nombran `archivadaEn`:
+
+```
+ Test Files  3 failed | 7 passed (10)
+      Tests  4 failed | 376 passed (380)
+   Start at  12:45:51
+   Duration  30.22s (transform 12.15s, setup 5.54s, import 11.00s, tests 166.27s, environment 25.00s)
+```
+
+**Sonda T-03:** N-05, `CLASE_ARCHIVADA` en los códigos de tareas, `useMontado` en `components/clase/hooks.ts`, su uso en `useBorrarTarea`, `useEntregar`, `useComentarEnHilo` y `useCalificarEntrega`, y la rama del error de campo en el `catch` de `formulario-tarea.tsx` (tabla C). Tres corridas, una después de otra:
+
+| Comando (`npx vitest run --config <sonda-t03> …`) | Resultado | Lo que cae |
+|---|---|---|
+| `src/features/tareas` | `Tests 1 failed \| 1145 passed (1146)` · 38 archivos | Solo CH3-A08 (`errores-ch3.test.ts:44`), que es la lista cerrada. C-11 pasa a verde |
+| `src/features/clases src/features/calificaciones` | `Tests 4 failed \| 2605 passed (2609)` · 130 archivos | Los mismos cuatro de la sonda N-05 |
+| `src/app src/lib/errores-ch3-r2.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts` | `Tests 569 passed (569)` · 34 archivos | Nada |
+
+Lo que eso confirma del plan: T-03 no cambia ninguna `*.ataque` ni ninguna normal, y la lista cerrada de `features/tareas` es correcta. Lo que desmiente es lo de N-05 (P-01).
+
+**Límite de las sondas:** son mi versión mínima del diseño, no la implementación. No aplican las filas 22 a 36, ni M-06, ni la tabla D. Esas solo actúan con la clase archivada, y las pruebas con un doble archivado son las diez de arriba; el grep de sus textos y rutas (abajo) no encontró choques. No prueban que el resto del plan funcione.
+
+### PARADA
+
+#### P-01. N-05 rompe tres `*.ataque` sin C-n y una normal fuera de la lista cerrada
+
+§D-R0 de 01d2 dice "C-n: ninguno nuevo. Siguen C-11 y C-12" y "Ninguna prueba de `clase-archivada-01d1*` monta Dudas, Personas ni `features/tareas`". Lo segundo es cierto, pero no cubre esto: esas pruebas montan al **alumno en una clase archivada dentro de `ClaseLayout`**, y N-05 lo saca de ahí.
+
+| Archivo | Caso | Por qué cae | Lo que falla con la sonda |
+|---|---|---|---|
+| `features/clases/clase-archivada-01d1-vista.test.tsx:351` (**normal**, de 01d1) | ADM-1D102 "perspectiva estudiante, archivada true" | Su router no tiene la ruta de destino y `Sonda` cuelga del `Outlet` que N-05 ya no pinta | `Unable to find an element by: [data-testid="sonda"]` |
+| `features/clases/clase-archivada-01d1-r1.ataque.test.tsx:517` | ADM-T1D103 fila 5 (estudiante) | Espera que el foco quede dentro de la raíz de la clase, y la raíz ya no existe | `expected <body> not to be <body>` |
+| `features/clases/clase-archivada-01d1-r2.ataque.test.tsx:435` (fila de `BORRADOS`) | ADM-T2D101 'comentario propio (alumno, fila 6)' | Tras restaurar, el alumno sigue fuera de Avisos. Con la sonda cae en `avisoFijo()`, porque mi ruta de prueba pinta el aviso sin leer el detalle; con la vista real caería un paso después: no hay comentario que abrir | `expected <p></p> to be null` |
+| La misma fila, por `ABIERTOS` (`:529`) | ADM-T2D102 'la confirmación de borrar comentario propio…' | Con la sonda cae al esperar la segunda recarga retenida, porque mi ruta de prueba no observa el detalle; con la vista real caería en `caso.ancla()`: el alumno ya no está en Avisos | `expected [ … ] to have a length of 2 but got 1` |
+
+- **Es inevitable, no un error de la sonda.** El mensaje exacto de los dos casos de `r2` depende de mi ruta de prueba, pero no el resultado. "Antes de pintar el `Outlet`" es el requisito de ADM-1D208 (ninguna sección llega a pedir nada), así que ninguna implementación correcta deja al alumno dentro. Aunque la vista lo devolviera a la clase al restaurar (OA-2), ADM-1D102, la fila 5 y ADM-T2D101 seguirían cayendo: el `Outlet` no se pinta en la archivada y los comentarios abiertos nacerían cerrados. ADM-T2D102 podría pasar en ese caso; no lo probé.
+- **Tampoco el texto del plan se sostiene:** ADM-1D102 y S-15 dicen que `ClaseLayout` provee el contexto "en las tres perspectivas (`true` en una archivada)". Con N-05, el alumno nunca lee ese `true`.
+- **Quién puede tocar qué:** la normal no está en la lista cerrada (el programador no la puede cambiar) y las tres `*.ataque` no tienen C-n (yo no las puedo cambiar). Por eso paro. Lo que protegen sigue valiendo para el maestro y el admin:
+  - en ADM-1D102 quedan las otras cinco filas, y ADM-1D208 cubre al alumno;
+  - en ADM-T2D101 y ADM-T2D102, `BORRADOS` ya tiene "comentario (admin)", con el mismo componente;
+  - la fila 5 de ADM-T1D103 es la única de la tabla con el formulario de comentar, así que quitarla dejaría ese control sin el caso de foco; si se conserva, pasa a otra perspectiva.
+- **Lo decide el arquitecto:** qué fila se quita y cuál cambia de perspectiva, con el C-n y la entrada de la lista cerrada que correspondan. No apliqué nada.
+
+#### P-02. `clase-anterior-view.tsx`, tal como la escribe el plan, no pasa `lint`
+
+§D-9 (`plan.md:386`) dice que `features/clases/clase-anterior-view.tsx` "monta `<MisCalificacionesView key={claseId} />`". Eso exige importar de `features/calificaciones`, y `eslint.config.mjs:173-190` lo prohíbe (regla 9 de `CLAUDE.md`). Hoy ningún archivo de `features/`, `components/`, `lib/` ni `services/` importa de `@/features/`, y las pruebas estáticas no lo detectan (ninguna lista incluye esta vista): lo detecta `lint`. Lo comprobé pasándole a ESLint el archivo como lo describe el plan, sin escribirlo:
+
+```
+cd frontend; printf '…' | npx eslint --config ../eslint.config.mjs --stdin --stdin-filename src/features/clases/clase-anterior-view.tsx
+  1:1  error  '@/features/calificaciones/mis-calificaciones-view' import is restricted from being used by a pattern. Un módulo de features/ no importa de otro módulo; …
+✖ 1 problem (1 error, 0 warnings)
+```
+
+- `router.tsx` sí puede importar de los dos módulos y está en "Se toca", así que hay salidas: una ruta hija con `Outlet`, o `children` desde el router. Pero cambian lo que §D-9 escribe, y también dónde vive `key={claseId}` (E-02, ADM-1D206).
+- `ConClaseDeLaRuta` no lleva `key` (`mis-calificaciones-view.tsx:242`): si el arquitecto elige `Outlet`, la `key` tiene que ir en otro lado, o el filtro de una clase pasa a la otra.
+- No se resuelve en la ronda 0. Lo decide el arquitecto.
+
+#### P-03. "Volver a mis clases" no se puede cambiar sin un archivo que no está en "Se toca"
+
+§D-9 (`plan.md:334`) y ADM-1D203 piden que, en una archivada, "Volver a mis clases" del maestro vaya a `/maestro/clases-archivadas`. El enlace vive en `components/encabezado-clase.tsx:38` y lee `capacidades.volverDestino` de `CAPACIDADES_POR_PERSPECTIVA`, que no sabe de archivadas. Hoy ningún archivo de producción nombra `clases-archivadas`: 01d1 no lo hizo, porque la ruta no existía.
+
+- `encabezado-clase.tsx` no aparece en ninguna lista de §D-R0 de 01d2 (`plan.md:1451-1503`, cero coincidencias), y "Se toca" es cerrada.
+- `clase-layout.tsx` no lo resuelve solo: `EncabezadoClase` recibe `clase`, `perspectiva` y `tituloRef`, y deriva las capacidades por dentro. Pasarle un destino también cambia ese archivo.
+- La rama de error de `clase-layout.tsx:52` usa el mismo destino, pero ahí no hay detalle y no se sabe si la clase está archivada: se queda como hoy.
+- Ninguna prueba existente fija el destino con una clase archivada: las de "Volver a mis clases" (`clase-layout.test.tsx:142` y `:377`) usan clases activas.
+- Hace falta que "Se toca" sume `components/encabezado-clase.tsx`, con su alcance.
+
+### Inventario por grep (lo que 01d2 puede romper aunque el diseño esté bien)
+
+Son 42 las pruebas del frontend que leen el código fuente (`import.meta.glob`, `?raw`, `readFileSync`). Las revisé contra "Se toca" de 01d2, junto con las que simulan módulos (`vi.mock`) y las diez que montan una clase con `archivadaEn`. No entré en detalle en las que no leen ningún archivo de 01d2 (`app/fondo-r1`, `components/ui/badge-03b-r1`, las dos de `features/admin`, `features/clases/clases-r4`, `lib/xlsx-muestra` y las dos de tokens); sí corren en la línea base o en la suite del manager.
+
+| Prueba | Qué fija | ¿Cae con 01d2 bien hecho? |
+|---|---|---|
+| `styles/clases-r1.ataque` V-06 | `enEspera=` por archivo, `disabled`, `aria-busy` | Sí, por la cifra: es C-12 (aplicado). O-01d2-1 |
+| `styles/clases-r1.ataque` V-02 a V-05, V-07, V-13 | colores, escalas, `ring-`, vidrio, contexto, rojo | No (Enmienda 9). O-01d2-2 |
+| `features/tareas/errores-ch3-r1.ataque:112` y `errores-ch3.test.ts:44` | los códigos de tareas | Sí, por la cifra: C-11 (aplicado) y lista cerrada |
+| `lib/errores-ch3-r2.ataque:149` | recorre los códigos de tareas | No: el nuevo entra solo (la sonda T-03 lo corre, en verde) |
+| `features/tareas/entregas-01e-r1.ataque:741-768` | `NUEVOS_01E`, en crudo, con comentarios | No. O-01d2-3 |
+| `features/tareas/entregas-01e-r2.ataque:530-560` | ganchos de `components/adjuntos`, `renovarTras…` en 3, sin `@/features/` | No. O-01d2-3 |
+| `features/tareas/entregas-01d-r3.ataque:675-735` | códigos que redirige, ganchos del alumno y del hilo | No: `useMontado` no se exporta desde `features/tareas/hooks.ts` |
+| `features/tareas/entregas-01d-r1.ataque:881-894` y `entregas-01d-r2.ataque` | `RUTAS_01D`, sin `disabled`, `?? []`, valores por defecto | No. O-01d2-3 |
+| `features/tareas/aviso-calificar-01c-r3.ataque:530-555` (CAL-T-127) | 5 llamadas a `avisarDelErrorDeLaEntrega(`, con sus argumentos | No. O-01d2-3 |
+| `features/tareas/estatico-01c.test.ts` (CAL-1C12, CAL-1C13) y `estatico-01c-r1.ataque` (CAL-T-94 a CAL-T-98) | palabras prohibidas en comentarios, tipos, texto suelto, una sola acción principal, `.version` | No. O-01d2-4 |
+| `features/tareas/tareas-01a-r1`, `tareas-01d-r1`, `r2` y `r3.ataque` | literales únicos; sin tipos fuera de `types.ts`; sin importar entre módulos | No. O-01d2-5 |
+| `features/clases/estatico-02c-r1.ataque:78-90` y `:123-133` | lectores de `.puedeBorrar`, asignación, lista de `perspectivaDeRuta(` | No. O-01d2-6 |
+| `features/clases/estatico-03c1-r1.ataque` | `personas-view`, `grid-cols-4/5`, `w-1/4` | No. O-01d2-2 |
+| `features/clases/estatico-r1.ataque` | `?? []` y ternarios anidados en JSX en todo el módulo | No. Las condiciones nuevas son una trampa natural: O-01d2-5 |
+| `features/clases/ver-mas-01e-r3.ataque:296-339` | 14 archivos, con `lib.ts`, `hooks.ts`, `data.ts` y `acciones-de-la-tarea.tsx` | No. O-01d2-5 |
+| `features/clases/refactor-01c-r1.ataque:376-475` | `components/`, `lib/` y `services/` no importan de `features/`; `MOVIDOS` | No. O-01d2-7 |
+| `features/clases/errores-ch3.test.ts` (CH3-B01) y `errores-ch3-r1.ataque` | códigos de clases (20), `MENSAJES_POR_CODIGO_DE_CLASES`, `.message` | No: 01d2 no suma códigos de clases |
+| `lib/estatico-ch3-r1.ataque`, `lib/estatico-ch3-r2.ataque`, `lib/errores-de-api-estatico` (CH3-*), `lib/errores-ch3-r1.ataque` | lectores de `.message`, reinicio condicionado a `isError`, invisibles, `esErrorDeCursor` como referencia | No. `setReinicios(0)` y los reinicios de `confirmando` no son `.reset()`. O-01d2-8 |
+| `services/apiClient-ch3*.test` | importadores exactos de `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` | No, si nadie más la importa. O-01d2-8 |
+| `components/layout/estatico-r1.ataque` (V-16 y arbitrarios) | `fixed` en `.tsx`, comentarios incluidos; lista exacta de valores `-[…]`; `animate-` | No. O-01d2-2 |
+| `features/calificaciones/estatico-01d*` (CAL-1D09, CAL-T-182 a CAL-T-190) y `estatico-02b` | doce archivos exactos, sin `@/features/` ni `../../`, sin texto suelto | No. O-01d2-9 |
+| `vi.mock("./hooks", …)` (`inicio-sin-datos-02c-r1`, `inicio-sin-datos-r2`) | fábricas cerradas de `features/clases/hooks` | No, si los inicios no llaman ganchos nuevos. O-01d2-10 |
+| Dobles con `archivadaEn` (`clase-archivada-01d1*`, `clases-admin-01c*`) | la clase archivada dentro de `ClaseLayout` | **Sí, cuatro casos: P-01.** Lo demás, no: el grep de "Puedes seguir", "Publica el primer", "Lo que escribas", "Los pesos deben" y "Comparte el c" no da nada ahí, como dice el plan |
+
+**Las listas exactas de importadores** (`refactor-01c-r1`, `apiClient-ch3*`, `estatico-02b`, `estatico-ch3-r2`): ninguna nombra `useMontado`, `claveClaseDetalle`, `esClaseArchivada` ni `useSoloLecturaDeLaClase`. **Las rutas:** ninguna prueba nombra `clases-anteriores` ni `clases-archivadas`, salvo las dos filas de C-12, y ninguna recorre `rutas` para fijar su lista.
+
+### Observaciones para el programador (trampas; no son hallazgos)
+
+Son lo que pondría en rojo una `*.ataque` o una vigilada aunque el diseño esté bien.
+
+**O-01d2-1 (V-06, C-12). Las cifras son por texto, archivo por archivo.**
+- «Cargar más» se escribe **una sola vez**, en `components/lista-de-clases-anteriores.tsx`. Las tres vistas llevan 0.
+- `maestros-de-clase-view.tsx` y `alumnos-view.tsx` no están en la lista fija ni en `components/`: un `enEspera=` ahí cae por "fuera de la lista cerrada".
+- Esconder una fila no cambia la cifra, siempre que su JSX no se duplique. Cifras que no se mueven: `hilo-privado` 2, `acciones-de-la-tarea` 2, `elemento-de-duda` 2, `respuestas-de-duda` 2, `dudas-view` 1, `personas-view` 1, `panel-de-calificacion` 1, `formulario-tarea` 1; `entrega-de-alumno-view`, `crear-tarea-view`, `editar-tarea-view`, `detalle-tarea-view`, `calificacion-de-la-entrega` y `lista-de-mis-calificaciones` en 0. En `tabla-alumnos.tsx`, de 1 a 2.
+- La regla `/\sdisabled(=|\s|\/?>|$)/` lee también los comentarios de los `.tsx`: mejor no nombrar la palabra.
+
+**O-01d2-2 (V-07, V-13, `layout/estatico-r1`, CL3-R1-35). Clases y palabras que se leen en crudo, con comentarios.**
+- `vidrio-fuerte`, `vidrio-azul`, `data-material` y `data-densidad` no pueden aparecer en ningún archivo de 01d2, **tampoco en un comentario**. Y "vidrio" no puede ir dentro de una cadena entre comillas dobles. La lista y las filas van con divisores dentro de una `Card` (Enmienda 9).
+- La palabra `fixed` en cualquier `.tsx` solo vive en `barra-navegacion.tsx` y `dialog.tsx`. El "aviso fijo" no puede decir "fixed" en ningún comentario.
+- Sin `-[…]` fuera de la lista exacta, sin `animate-`, sin `outline-none`, `ring-` ni `focus:`, sin `text-danger` ni `text-destructive`, sin escalas anuladas, sin `grid-cols-4`, `grid-cols-5`, `w-1/4` ni `w-1/5`. Ojo con quitar la columna «Acciones» de `tabla-alumnos.tsx`: si sus anchos se reparten, que no sea con esas clases.
+
+**O-01d2-3 (conteos crudos de `features/tareas/hooks.ts`). Un comentario cuenta.**
+- `renovarTrasErrorDeLaEntrega(` son exactamente 3 y `avisarDelErrorDeLaEntrega(` exactamente 5, leídos en crudo: un comentario con el paréntesis los rompe (`entregas-01e-r1`, `entregas-01e-r2`, `entregas-01d-r2`, CAL-1C13, CAL-T-127).
+- Los argumentos de esas 5 no cambian. M-06 y T-03 no añaden ninguna llamada ni otro parámetro; el silencio con `montado.current` va en la condición que ya está antes de cada una.
+- `mensajeDelAvisoDeCalificar` solo en `features/tareas/hooks.ts` y `lib.ts`. No nace `reaccionarAlErrorDeLaEntrega`.
+- `NUEVOS_01E`, en crudo: `entrega-de-alumno-view.tsx`, `acciones-de-la-tarea.tsx`, `detalle-tarea-view.tsx`, `hooks.ts`, `lib.ts`, `data.ts` y `types.ts`, sin `vidrio`, `data-material`, `fixed`, `animate-` ni `from "@/features/`. `entrega-de-alumno-view.tsx`, además, sin `correo`, `email`, `estadoPago`, `accesoRestringido` ni `perspectivaDeRuta(`.
+
+**O-01d2-4 (CAL-1C13, CAL-T-94 a CAL-T-98). Lo de CALIFICACIONES-01c sigue vigilado.**
+- Ningún comentario de `features/tareas/hooks.ts`, `lib.ts`, `data.ts`, `types.ts`, `entrega-de-alumno-view.tsx`, `panel-de-calificacion.tsx`, `calificacion-de-la-entrega.tsx`, `entrega-realizada.tsx`, `components/clase/data.ts`, `services/calificacionesService.ts` ni `lib/format.ts` puede llevar: `vidrio`, `data-material`, `disabled`, `?? []`, `fetch(`, `console.`, `_blank`, `perspectivaDeRuta(`, `correo`, `estadoPago`, `"Sin tema"` ni `"Sin categoría"`. Los comentarios de M-06 y T-03 son los que más arriesgan: no escribas "correo".
+- CAL-T-95: `entrega-de-alumno-view.tsx` no escribe texto suelto en JSX; el de archivada sale de `TEXTOS_DE_LA_CLASE.archivada`.
+- CAL-T-97: un solo `primary`, el del panel. CAL-T-98: `.version` solo dos veces, en el panel; la vista no la lee.
+- CAL-T-94: sin emojis ni pictogramas, comentarios incluidos.
+
+**O-01d2-5 (tipos, ternarios y literales).**
+- Ni `features/clases/hooks.ts`, ni `lib.ts`, ni `data.ts`, ni `acciones-de-la-tarea.tsx`, ni nada de `features/tareas` fuera de `types.ts` declara tipos, salvo `…Props` en un `.tsx`. El tipo del predicado de `estaArchivada` va en `features/clases/types.ts`.
+- `estatico-r1.ataque` recorre todo `features/clases` con el AST: una condición de solo lectura con un ternario dentro de otro, en JSX, cae. Vale para el vacío de `tabla-alumnos.tsx` y el de `muro-view.tsx`. Sin `?? []`.
+- `"Sin tema"`, `"Sin categoría"` y `"No tienes acceso a esta clase."` no se vuelven a escribir. El texto de las filas 35 y 36 es `TEXTOS_DE_LA_CLASE.archivada`. "Volver a Actividades de aprendizaje" no existe hoy en ningún `data.ts`: nace en `features/tareas/data.ts`, una vez.
+
+**O-01d2-6 (`estatico-02c-r1.ataque`). La perspectiva y `puedeBorrar`.**
+- La lista de `perspectivaDeRuta(` es exacta (nueve archivos). Las vistas nuevas, `crear-tarea-view.tsx`, `editar-tarea-view.tsx` y `lista-de-clases-anteriores.tsx` no la llaman. N-05 usa la `perspectiva` que `ClaseLayout` ya tiene. El aviso de `clase-anterior-view.tsx` recibe la perspectiva por props. Nadie compara el `pathname` con un prefijo.
+- Los lectores de `.puedeBorrar` son exactos (seis archivos). Las filas 24, 26 y 32 se condicionan donde ya se lee: `duda.puedeBorrar && !confirmando && !soloLectura` pasa. `const puedeBorrar = !soloLectura && duda.puedeBorrar` cae por la regla de la asignación, y una prop `puedeBorrar={…}` también. Con `puedeQuitar` no hay esa regla.
+
+**O-01d2-7 (`refactor-01c-r1.ataque`). Lo que sube.**
+- `components/clase/hooks.ts` y `services/clasesService.ts` no importan de `features/`. `services/clasesService.ts` está en `MOVIDOS`: sin `?? []`, `fetch(`, `console.`.
+- `useMontado` se define una sola vez, con `const`, en `components/clase/hooks.ts`; `features/clases/hooks.ts` solo lo reexporta. Lo mismo `claveClaseDetalle`, de `services/clasesService.ts` a `features/clases/data.ts`. `useMontado` no se exporta desde `features/tareas/hooks.ts`.
+- Las reglas de `eslint.config.mjs:173-205`: una vista de `features/*/` no importa con `..`, un componente no importa con `../..`, y ningún archivo de `features/` importa de `@/features/`. Eso incluye las pruebas nuevas: un caso de `features/clases` que necesite una vista de `features/tareas` entra por `@/app/router`.
+
+**O-01d2-8 (CH3-* y `apiClient-ch3*`).**
+- Nada nuevo lee `.message`. El texto de las dos listas sale de `mensajeDeErrorDeLista(error, texto)` (`features/clases/lib.ts:219`); `esErrorDeCursor` nunca se pasa como referencia.
+- `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` solo la importan los tres `lib.ts` de hoy.
+- `CLASE_ARCHIVADA` entra solo en `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` de tareas. Sumarlo a `MENSAJES_POR_CODIGO_DE_TAREAS` o a `MENSAJES_POR_CODIGO_DE_CLASES` es PARADA (CH3-B01).
+
+**O-01d2-9 (CAL-1D09 y fila 37).**
+- `features/calificaciones` sigue con doce archivos: ni uno más. `lista-de-mis-calificaciones.tsx` lee el contexto de `@/components/clase/hooks`, sin `../../` y sin `perspectivaDeRuta(`.
+- El título como texto sale sin `Link`, con ternario simple o retorno previo, y sin texto suelto. Sin `disabled`, `fixed` ni `-[…]`, ni `bg-…` nuevo.
+- Sin proveedor, el contexto vale `false` y la lista sigue con enlaces: las pruebas de `MisCalificacionesView` no cambian.
+
+**O-01d2-10 (los inicios).**
+- `inicio-sin-datos-02c-r1` e `inicio-sin-datos-r2` simulan `./hooks` con fábricas cerradas (`useNombreDeSesion`, `useClasesImpartidas`, `useFocoAlCargarMas`, y el equivalente del alumno). Un gancho nuevo en los inicios cae: el enlace del pie es un `Link` con su texto de `data.ts`.
+- Ya montan dentro de `MemoryRouter`, así que el `Link` no rompe. El enlace no es `primary`: `clases-r3.ataque:125-131` cuenta las acciones principales por vista.
+
+**O-01d2-11 (`clases-admin-01c*`, duplicar en una archivada).** El formulario de duplicar vive dentro de `ClaseLayout` de una clase que puede estar archivada y usa `SelectorDeMaestros`, con `ListaMaestrosDeClase` y `BuscadorDeMaestros`. Por eso la condición de las filas 29 y 30 va en `maestros-de-clase-view.tsx`. Si alguno de los dos componentes lee el contexto, ADM-T1C16 cae.
+
+**O-01d2-12 (`reloj-01e-r4.ataque`, pruebas nuevas).** Revisa todas las pruebas del frontend: una que compare «Vence hoy», «Vence mañana» o «Vence en N días» fija el reloj con `useFakeTimers` o `setSystemTime`, o pasa un «ahora» explícito. Vale para las de la fila 37 si afirman el texto de la fecha límite.
+
+### Observaciones para el arquitecto (huecos del plan; no bloquean por sí solos)
+
+Conviene verlos en la misma enmienda de P-01 a P-03. No tienen prueba en rojo: quedan como ataques para la ronda 1 si el plan no los decide.
+
+- **OA-1. "Vuelve a abrir Calificaciones" en una clase anterior.** `MENSAJES_ERROR_CALIFICACIONES.cursorDeMisCalificaciones` (`features/calificaciones/data.ts:110-111`) pide volver a abrir una sección que esa vista no tiene: es "sin secciones" (§D-9). `AGENTS.md` pide un caso por camino en toda frase de recuperación, y ADM-1D204 y ADM-1D217 solo cubren las frases de las dos listas. `features/calificaciones/data.ts` no se toca en 01d2 (`plan.md:1466`), así que hoy no hay cómo cambiar el texto. El camino real sería "Volver a clases anteriores" y volver a entrar.
+- **OA-2. La vista de una clase anterior con una clase activa.** El alumno con el enlace guardado, o en esa vista cuando el admin restaura. Ni §D-9 ni ADM-1D202 dicen qué pasa. La vista "provee el contexto con `true`" y pinta el aviso, que necesita `archivadaEn`, que en una activa es `null`. N-05 solo va en un sentido. Es lo mismo que hace caer ADM-T2D101 en P-01 (`avisoFijo()` no se va en la sonda, aunque ahí es mi vista mínima).
+- **OA-3. Dónde va la consulta de `useClasesAnteriores`.** El precedente, `consultaDeClasesAdmin` y `siguienteCursorDeClasesAdmin`, vive en `features/clases/lib.ts:747-772` y no se puede reutilizar: fuerza `estado` y `LIMITE_CLASES_ADMIN`. §D-R0 (`plan.md:1471`) deja `lib.ts` "solo `estaArchivada`", con cualquier otro cambio como PARADA. O el arquitecto suma esas dos funciones al alcance de `lib.ts`, o quedan privadas en `hooks.ts`, contra la costumbre de la regla 3. Conviene decirlo antes de que el programador se detenga ahí.
+- **OA-4. El alcance de `features/tareas/data.ts`.** "Se toca" (`plan.md:1452`) lo escribe como "`CLASE_ARCHIVADA` en sus códigos con mensaje del servidor". Las filas 35 y 36 piden además "Volver a Actividades de aprendizaje", que no existe hoy en `features/tareas/data.ts`, `features/clases/data.ts` ni `components/clase/data.ts`. Es la misma aclaración: una clave más en ese archivo.
+
+### V-01: SHA-256 de todas las `*.ataque`
+
+Son 262 archivos: 101 del backend y 161 del frontend, todos rastreados desde `7655a5b` (`git ls-files`; ninguno sin rastrear).
+
+- **Comprobación de entrada:** las 262 coincidían con `git show 7655a5b:<ruta>`. La base que da el orquestador (262) es la misma.
+- **Después de C-11 y C-12:** comparé una por una contra `7655a5b`. Solo cambian los dos archivos de la tabla de arriba; las otras 260 son idénticas.
+- **Formato:** `<hash>  <ruta>`, en el orden de `git ls-files`.
+
+- **Lista:** `sha256sum` de la lista de abajo en ese formato: `e78cb09668b7224d895e5db2410fda5f4f63bc4eecb252990d097613ef2ce070` (262 líneas; comprobada con `sha256sum -c`).
+
+```
+65c1d9d9e6cea8ba8cf98bc522c6ba6d7122376d0201ccf3fc3048d24b60543f  backend/src/adapters/storage/objetos-r1.ataque.test.ts
+935a721160f978e35d45d2c9392fe8cb169fae32f43b9df583bda46215707e22  backend/src/adapters/storage/objetos-r2.ataque.test.ts
+bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671  backend/src/config/correo.ataque.test.ts
+dcb78d222544e8dc4fbece59468f555b04abe971b70016e9bb17fcae3e958580  backend/src/config/env.ataque.test.ts
+71e7f049447d2d1ecedd897c55ea0b6d31221753f0a7e7473c7ac6e8667f0a95  backend/src/config/logger.ataque.test.ts
+91f620c1a27778eebc2bed5eec1bc9b0e3fe1199b32ed00f9dd910011d6a1805  backend/src/core/clases/codigo-r1.ataque.test.ts
+262691f5786ad63b2393d0ba5ff97538f6dacf43343bed019ad23c12a07d8686  backend/src/core/clases/codigo-r2.ataque.test.ts
+e769cbfcc3a83a64b51c6437f80684640a7c928ad6b8c5c1671fdff005d7b734  backend/src/workers/ritmo-03c-r1.ataque.test.ts
+294be1af0bf69d6c05f54e2f0d8e587c78a5527d0b64d1a224c058e31ce013d0  backend/test/admin-muro-02b-r1.ataque.test.ts
+388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85  backend/test/admin-unico.ataque.test.ts
+d2cc28b62bf988ae14ba975a9bc8d534aec0eebce30da93d7ded9a26026b0857  backend/test/alumnos-b-r1.ataque.test.ts
+00346d471355abc7971b921649e7192b8987fe27912c00cb7e41aef2065369e9  backend/test/alumnos-b-r2.ataque.test.ts
+fc11ab4b914d4a88612953f82db354e2b9cea9bef86e24321ef7e031f3ac3837  backend/test/alumnos-b-r3.ataque.test.ts
+441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb  backend/test/api-real.ataque.test.ts
+f76ce52002e295f2bda6e7a7a7f796415e08013e6d4c1fbe2c9c686671fe8252  backend/test/archivos-d-r1.ataque.test.ts
+1637eb447cd12ac5bdddc7634980dbc10a25cbad5de01bf6c09f40ed930ff1a9  backend/test/archivos-d-r2.ataque.test.ts
+42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612  backend/test/arquitectura-cuentas-r1.ataque.test.ts
+38adb0984744a0810287711f57ba0498287d0bc96344b8948ba1c490ca807716  backend/test/arranque-r1.ataque.test.ts
+2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c  backend/test/auth-login.ataque.test.ts
+73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e  backend/test/auth-registro.ataque.test.ts
+6f557e8e860bce6374671e90086e9c14b1861a308b6fbb434564612647892713  backend/test/autoria-02b-r1.ataque.test.ts
+3520057d0f1a27739eaa701aacd9c18d5c0728fc6a3d55374f43f63a5e6f5336  backend/test/borrado-duplicado-r1.ataque.test.ts
+b8fc0db0ea3ec7ff2b89cd9e345c57a9b4ef73afe16fb1aa3e6fdf73c27c16a1  backend/test/borrado-duplicado-r2.ataque.test.ts
+5e02a27716d63e8ce0fe6b6171bff089eb3ee2548260349b16950d7e65a1bcf9  backend/test/calificaciones-01a-r1.ataque.test.ts
+afb531e7ccab1cb53f0322d7d099a7f435dbd42325de8c225525e3784b93f6cc  backend/test/calificaciones-01a-r2.ataque.test.ts
+dd919ebd74a2c6ac60c244a1563b46895821b0d25e5051cda25fffb72b653416  backend/test/calificaciones-carreras-01a-r1.ataque.test.ts
+b09baaec53455cea1a0674890ebd9353007e6f2628001446e873b09279ffba07  backend/test/calificaciones-estatico-01a-r1.ataque.test.ts
+29eed2e93af2775a4605160ea533bd462fd03cb1cfe4c47154898358a7255869  backend/test/calificaciones-estatico-01b-r1.ataque.test.ts
+6e4c0eb47ff8020b0a539e5b70b24c8c1d05f7773ea092cd513e39c68cf4534e  backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts
+6e3c92c13f146a01c8dcfdc7dd04bea59f0e2562051f6ac65f95f924ef73e4db  backend/test/categorias-01a-r1.ataque.test.ts
+f2cff9c7d70b053d48e654aa2402d2c1d5d6694de8bb49538049a49a4eab48b2  backend/test/clases-archivadas-r1.ataque.test.ts
+62e4c2ce2ddf293797c0b08021bcd22c5da3c958e7b99521cc47fbd003377933  backend/test/clases-archivadas-r2.ataque.test.ts
+95bba9bac44366ad5a361e93dd2f278cb0a1cc889fa479049acc7b45a9a5e71b  backend/test/clases-r1.ataque.test.ts
+a87817d56c236c0ba3597214cac23b10483bbc28ae44800c592ed5ce2ef97f38  backend/test/clases-r2.ataque.test.ts
+72de7d8af3d3f772abc19db065f6e418f6eb76ce78d87fe6ebb51335fc99825a  backend/test/clases-r3.ataque.test.ts
+be97c4e48ac9551bed1d01552e90ab8cdf085cf928ae6c8c3d81809e35f7ce62  backend/test/clases-r4.ataque.test.ts
+000ec9008c73d25121c82a46f5ea0f67e6c8c387cb04e361ef82812b57956098  backend/test/concurrencia-02a-r1.ataque.test.ts
+530546b4d70a2b9ad36f98f37e2af45480e81a1101ee3516d15426f78350bf82  backend/test/cuentas-03a-r1.ataque.test.ts
+6303ddc170545f616c66773c3f5475cb3be1fea9347d8059354d6ade8d676c16  backend/test/cuentas-r1.ataque.test.ts
+3a4e81c111b8eeb7df065804aa85062fa3fc607f0147149b71ac21c14e7818d9  backend/test/cuentas-r2.ataque.test.ts
+f54f79f7b2a83e95fe440053ccaf15cb3ebb01ce5dfd4c6655e22159a5fd7e6b  backend/test/cuentas-r3.ataque.test.ts
+a2f9bff596330a7d55d1ca9d47197fc831eb132f52c759610e2d667895c3332f  backend/test/cuerpos-02a-r2.ataque.test.ts
+4ea45eaa95c5ea2e1ec91e04d2bba32689a30bd341ade16625b28aabdb96d6d9  backend/test/dudas-clases03b-r1.ataque.test.ts
+d7a9da854ce8ab8ad8d2437db2e8c2a642a777ea3261a6b038da28be022df848  backend/test/enlaces-03b-r1.ataque.test.ts
+dc1b7ee7ea58966f5db33ccb4581885a9669dea2263954ae46d17a83e1ef6eaf  backend/test/enlaces-03b-r2.ataque.test.ts
+b051b1986496e35e3e306c4c6bc306a763542bca4b350574d0c02e2c484deb35  backend/test/enlaces-ch-r2.ataque.test.ts
+d28cc4de621a680e6b54b2bff889700300d558ec7849717584518d2f03ec8cae  backend/test/entorno-ch-r1.ataque.test.ts
+47b02c6d3916713bf9236a619fdb59a641d2e805f1f0b7e9b2c161fe719ddc3a  backend/test/entregas-01b-r1.ataque.test.ts
+5baaf6f8fb76320620ed4a84efaca2b2d473460f62360e0d48738b97a0ac584a  backend/test/entregas-01b-r2.ataque.test.ts
+885668a621af11f17b4ac706db705aef33231b7773e4783147d21b318bdd0f9a  backend/test/exportacion-02a-r1.ataque.test.ts
+ba1ac9b17cc9bf747522bd4ec8b87df436008482e643b18eea8e9a8c041c59b3  backend/test/formada-ch-r1.ataque.test.ts
+73c55120814b8d6bbcceda5d4a3b5c8f1ed1ab58f54400831ac1a710d3b4584a  backend/test/gestion-02a-r1.ataque.test.ts
+e4e9365ea010f3f670b6c1194d1a592e95db43bff0496d4ea1646fc5225ca8b4  backend/test/gradebook-01b-r1.ataque.test.ts
+5f4133f949d2f337a8f63b75cf82cb77114db7812d67c1960105f5000c31a326  backend/test/guarda-ch-r1.ataque.test.ts
+7a7dac6d87edf81059fcff9c07471aaf49d690ec159be4b9fd4aa32b0909a215  backend/test/guarda-ch-r2.ataque.test.ts
+610ee44e5d0bcea46eb4e3645f9adf1998a76947a25af7e3f8248ea3a633df79  backend/test/guarda-ch-r3.ataque.test.ts
+e5d149f3ac52b726e1fe08908249706341330f88eaa6674b9a9ac67b98b1e864  backend/test/guarda-clase-r1.ataque.test.ts
+c979d2c9c420a2177fa6ebddb78eb2ce84d5f043b94270f690916a6fc75d6f8f  backend/test/guarda-clase-r2.ataque.test.ts
+20982e2b98f1b162146a211923f3d5ec19d4e170c4aa3a5bfc6f82c3b6173aad  backend/test/guarda-r2.ataque.test.ts
+2649f3d357dcb806361ac101c57fcb504b9c798b631048f0b3e200f63da7dc30  backend/test/hilo-01c-r1.ataque.test.ts
+2d2216ee9db290b318825a6f73c346d4767cacc12d95f5ca76457a78b63fedc3  backend/test/instantanea-01b-r1.ataque.test.ts
+a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a  backend/test/intentos-r2.ataque.test.ts
+2619b44eea3370494c95ac128fcfd9e3ffc20d1581a19f549bf371f603a11d7d  backend/test/invitacion-flujo-03a-r2.ataque.test.ts
+704155928183aec193ae7e157b86b3e9361d2b63c7a47be1ed859605fab4ffa6  backend/test/invitacion-masiva-03c-r1.ataque.test.ts
+dd9b7454e8786bf0b833d265900ccaecf595808cebc8e9a77c9aef15298a1038  backend/test/invitacion-masiva-03c-r2.ataque.test.ts
+82fe8c49674a3cc8328e7951236c0c8f442fcba3890b716013369785b202cf40  backend/test/lecturas-fx-r1.ataque.test.ts
+b008263d6fac9b031bdb03251da25545611f863d0cf405de21fa4514caff60ea  backend/test/lecturas-fx-r2.ataque.test.ts
+f9f9ec59ec8d1a5ccb180522798140c45604440f48edcd68a3e02863d90ae347  backend/test/logs-02a-r1.ataque.test.ts
+a2006c163d9e6cd3e4a2a773d1501826daf3c8e7bb184d205bfc6442318fb59c  backend/test/logs-02b-r1.ataque.test.ts
+bd8b303c434efec0785e0691d31d6f6e87dbf3305f50fa27cce0f78cbb251e3a  backend/test/logs-03a-r1.ataque.test.ts
+b58d5d013658433fe5839634e2db5a31b8d2b8f69587bc36958752d3cd33bbf7  backend/test/logs-03b-r1.ataque.test.ts
+0e4abf3bc5d92fa0c380805453190703862567930dd74b9e7fcc1809564d181f  backend/test/logs-03c-r1.ataque.test.ts
+1e775a19682f3a5995d7c035bcc810a36bf50c22045b6ffbfc5a98b821255db0  backend/test/logs-archivos-d-r1.ataque.test.ts
+e9ce866d511e3ee6029015b74e20b4d342a60be99b3aac97e86f00283a3c77f1  backend/test/logs-archivos-d-r3.ataque.test.ts
+e008935b107752d203f6423b2f1c9e0f5a4339f0a77154746bf262cecb90351a  backend/test/logs-cuentas-r1.ataque.test.ts
+690e30ed39111c0a074fc159015967cd9f0fdc24d9a340e6a0d7be4b980a9d45  backend/test/logs-muro-c-r1.ataque.test.ts
+0809c60700e26183e7771b4b1a40b05cbf554c2ed7929190cf4d89a52722e551  backend/test/logs-muro-c-r2.ataque.test.ts
+5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689  backend/test/logs-r2.ataque.test.ts
+d6b9adaf1c14a61fe369f510774ef702cfa20f28f3cb19b0eb7357440dcb0783  backend/test/migracion-01a-r1.ataque.test.ts
+2afd58e1ead0a293aa7bd58c639f3e5126d153a418f9a26450228468e12b2bed  backend/test/migracion-clases03a-r1.ataque.test.ts
+bc6d49f9fc1f5eb20e305945fef57caeebeb108bff5d5cf4ba10b8040687d69c  backend/test/mis-calificaciones-01b-r1.ataque.test.ts
+d23bf1312777bdc000810e403a5b4d99c9c0e12998e4cc11be5ef5a2253f6935  backend/test/muro-c-r1.ataque.test.ts
+7825cfc9b484df740fa0e9562a195d1bbcaf4caf72ea55fa847b5394ab96c125  backend/test/muro-c-r2.ataque.test.ts
+8b733b86fc6d54ece008389a59793fae4ec4a65146eb37215e900e50a5337d46  backend/test/nombres-guarda-r3.ataque.test.ts
+3fd2583a4de7cd432b2e09a5130c23d6a59fa475e5e0aa69f23739351acbf9cf  backend/test/nombres-ids-01a-r2.ataque.test.ts
+00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb  backend/test/nombres-tokens-r2.ataque.test.ts
+80b5a848f69b429e7dadec86c07bec1d3e3eed8a042efba41ce912ded39e7bab  backend/test/nowait-ch-r1.ataque.test.ts
+fd2ae2e9792db81d838580b0ef2769ce8ef08059e3353aa5ab927c62295da9e8  backend/test/objetos-reintento-r2.ataque.test.ts
+42f4e113762ef26459e95642ff4b814613353d64d462ab2b01ecdeef4b9e160d  backend/test/recursos-clases03a-r1.ataque.test.ts
+ff4d112aff8685fcd9c5ca933a0b359e2b4e9bedad8f1b5d3d787cfdec711516  backend/test/recursos-clases03a-r2.ataque.test.ts
+ad0dab1952e509237acac12bb1f6774fa9c5de8b44d1e6928edc65cc67a78c21  backend/test/referencias-01b-r1.ataque.test.ts
+6f2abc2cefd77d74cd1e3abbdce9c41bb53d00bd4d8e5ba7e496c4441c2697e5  backend/test/servicio-ocupado-ch-r1.ataque.test.ts
+71c54a113611a3097baa03691f316f5e3d49dbe6532d058a453aaf0641434db1  backend/test/sesiones-y-cadena.ataque.test.ts
+70ac720f2e7fcadee5bbcb6414887ab08129dea7cd91df012046953b1584e8b6  backend/test/sexto-paso-02a-r1.ataque.test.ts
+c89c30851e6b409cd045017181147bf674df947762a8dea3f3fb981bd9b36e09  backend/test/tareas-01a-r1.ataque.test.ts
+79bc7aafc11676d36129610a4b5cd5fe5d8234d0d748487fd2f3e48c5f772c79  backend/test/tareas-01b-r1.ataque.test.ts
+ae60c11cff5c82df4954db48582df4bd5a64957ff9afaf9712aa43a038f8e189  backend/test/temas-01a-r1.ataque.test.ts
+dc7b86a621062ed671c1e7174a745019133fbd410c7a2e78114b2a2c50affe95  backend/test/temas-01a-r3.ataque.test.ts
+f09e9a0038c47d1a2223376a0af260baf573f0c45bf770201c48c9e30296f04b  backend/test/worker-03c-r1.ataque.test.ts
+9f60f9d65d52d2021a1eb04e9f01d3cc68f22744c845bf93d6621aa4fe9713a8  backend/test/worker-r1.ataque.test.ts
+77d11bd85f202a9eec92a363df82e63fb9a784ca9d368d49f62e61c1a2aa967b  backend/test/worker-r2.ataque.test.ts
+0e49b62b73b2ef55e8c0b2ba26e1d136a3adb674761fda2c11453eb5c2faf7cc  frontend/src/app/barra-02d-r1.ataque.test.tsx
+b89ede0f6aed45dfcb5e64c8909a822156ce43fd80948e72419cdce9d4541a87  frontend/src/app/cache-03a-r1.ataque.test.tsx
+e85743c0fbb8e476874a2c67334342d8d69d14153579fc1e4cce0ae6e2b29616  frontend/src/app/contexto-r1.ataque.test.tsx
+bc2be5541006887e2a5a4a89b33046180f607d54474b0f96a73d615afbcac385  frontend/src/app/contrasena-r1.ataque.test.tsx
+f38bcacb716d8a39acdb3535a95603cd0d8ab02572ca57a7df5268b01ceb6eac  frontend/src/app/contrasena-r2.ataque.test.tsx
+68fb5d092c0c8ecfcf282477ef023aaae26f6b869656e05109dc3efa276d842a  frontend/src/app/cuentas-r1.ataque.test.tsx
+41930017715d3d6869dc7acefd75de8ec3684f1f035b845abdf8ec0f6b734dee  frontend/src/app/cuentas-r2.ataque.test.tsx
+1506c27e5f7418b5e087fd30f8809645a2fc3e2761c7249de78f02e24aa6c7a5  frontend/src/app/en-espera-r1.ataque.test.tsx
+db48dad405c27062621a44d3744c84cc5903892a51e5a8df18f41383cb9c88a3  frontend/src/app/errores-r1.ataque.test.tsx
+0e1d93e4dd3cbc7b5e9475a17b5ca66f0df056ba25cb117249f4c2e2f5887a51  frontend/src/app/foco-barra-02d-r2.ataque.test.tsx
+2154b5c15f696a0c7f884bff774cf4e2a4208a5281db9076653f8253e2385ab9  frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx
+f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4  frontend/src/app/fondo-r1.ataque.test.tsx
+29782507d18ff96315e4030e890b21fdf1eb1c5550c3d1cfe5c92664d30b64dd  frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx
+57cb54afd3b79464f0df01b88fc388cebbeac5657d936c4c204cbae6034b0834  frontend/src/app/marco-r1.ataque.test.tsx
+c8a9812f21cb24db50cc2afd945b7b38abacb468fbf4f4df16c07a52c48426ac  frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx
+d7608d7fc7767f53db3971672fc99fdb8bbd33f303f41e321bcc48ad25f511fd  frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx
+2f8056a770397c1601647277944555a48afc4b9a2babeb75e5898f0cc92562bb  frontend/src/app/muro-rutas-c-r1.ataque.test.tsx
+6acc49a2e3b649868ccf9a9337143f991b655dafbcff2e5916bca0269bd23a7c  frontend/src/app/personas-03c1-r1.ataque.test.tsx
+a3e3dadd35c40e9a11a0bdef8cd716daceeb254e5307a837c6598213ba803a7b  frontend/src/app/personas-03c1-r2.ataque.test.tsx
+0eefed2c05d76b0790a437e9465a898a9076083b1f046f8785145cfaad0da379  frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx
+053e867a904afa3c09eef92ca2e03e929d9f9c93f714040856f40c7418721bbe  frontend/src/app/router.ataque.test.tsx
+fc820217bc3baa3749c077fe16a4abd7ae10e92c84494ffb2a215133c19df36a  frontend/src/app/rutas-01d-r1.ataque.test.tsx
+f0657fb91f7b3accf64726292f9324c6742c1ac537c6c4a1985ec4e32ae09c83  frontend/src/app/rutas-02c-r1.ataque.test.tsx
+c7946f5f5d5d16d36b395adc2ad9928acc7fd9839875fb64532b51489756730b  frontend/src/app/rutas-clases-r1.ataque.test.tsx
+f090cbd8e8c9b0af52d4fc19547b07e9b6413f5414cc4b10862f01e29818dddc  frontend/src/app/sesion-r2.ataque.test.tsx
+11c6d9c55be91aa41e8525345e3795e34b8e1e661ff7cdd901f729760a033cfd  frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts
+48f5ff8fef35faa6d8500fae4a53ca953d7f661100a5c4879ba58e68972ab2de  frontend/src/components/foco/foco-01d-r1.ataque.test.ts
+36d605f79169e16a5afadc7e07fc3781472dd393406430277ceb147fc2da1fa5  frontend/src/components/layout/estatico-r1.ataque.test.ts
+0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c  frontend/src/components/layout/pie-r1.ataque.test.tsx
+00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21  frontend/src/components/layout/pie-r2.ataque.test.tsx
+472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76  frontend/src/components/layout/pie-r3.ataque.test.tsx
+a1814d281dafd8243989c9f9a462a4f33a86b1fb70eeebf29e99bcb0f340d82a  frontend/src/components/ui/badge-03b-r1.ataque.test.ts
+7d080037d9a64eebcebb789d1dfd94b787652103e6f9c84f968f9c9f64c3b30c  frontend/src/features/admin/cuentas-r1.ataque.test.tsx
+b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184  frontend/src/features/admin/cuentas-r2.ataque.test.tsx
+72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a  frontend/src/features/admin/cuentas-r3.ataque.test.tsx
+942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4  frontend/src/features/admin/cuentas-r4.ataque.test.tsx
+3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998  frontend/src/features/admin/en-espera-r1.ataque.test.tsx
+c21edb5a06b43808ce2be23058409b7ff887e66d60e842c500a3714a90ebcb25  frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx
+8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35  frontend/src/features/admin/foco-r1.ataque.test.tsx
+30f45bba30d9348ec1587b42e84ca370274e1bf0af0f310b8a6bbd79fa982669  frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx
+d477a809e55e603d3ef6c02ca43b21372b75d0947fa303f1539d48bdf32841f8  frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx
+761f54f183540d8ae222f97940fa6c2355ff33e515771e627f8efde49261eda2  frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx
+14ead3dce027b433d51a9d635b0fa35718ee3875bffc3e1949f96ecb8d2f7135  frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx
+3ceda51db8f67f40c26615fbc4cd7d082035b00f38713c6ca4c7db58e47926c8  frontend/src/features/auth/enlace-r1.ataque.test.tsx
+1f5d1147637c09daa6fdf1384e4395edd69dfdab84aae5d602a362dabd3295bd  frontend/src/features/auth/enlace-r2.ataque.test.tsx
+af3f0d474f8052b402c8959a64acf9e730f9ae60f09d90996a6306e9c2440f08  frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx
+991b115524d8dade8d6ea2c51fb753dc8832ee410db2161a0ce761d011cfca4a  frontend/src/features/auth/invitacion-r1.ataque.test.tsx
+96b6ab55f0a7bf9b66f8edbcb5ceffa7e4fe35935c6cb12ecab93fc04bc02856  frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx
+0ce580976ea894ee4bd9c4adbe3d7d1d524354a8ff22fc7e7cc6acf89057aa53  frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx
+4bcd3e34b62726fea718efb9c482d8c1f504bbe85ef32427bdf4d65a6832d8f1  frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts
+812ee5f1b04a1218e2b96cdb97fb5a964a4a21b0d81b95bb4889beaa4a3894bb  frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts
+bef8aa53d338fde15e251d53756b76e3381ef9f6de4943c4db83c8e2b3d258dd  frontend/src/features/calificaciones/exportacion-02b-r1.ataque.test.tsx
+d15e821c212bb268c65bd9dee36293b02f5bde4dedd4bf9926dbbf99b9971f57  frontend/src/features/calificaciones/exportacion-02b-r2.ataque.test.tsx
+5991d8e3d4e694973309f178e5341a2285584cf9ed6006fbb658d7f5a61de5dd  frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx
+c744fb831fa9992c2a9ed0729f9ec3cc089f3167ca19133c6eee0133382607a1  frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx
+8dea1c2adc5d228e166ce6037a1a1a827d26e2bdc6d7c8534f146517ebc1ac44  frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx
+6f7496ca7652e7b4441a7eb9822e74270d50127ac40ba27b86c83edfcd5cc3fa  frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx
+24751f358fc5ecd485c475e7025dd881b87fe892f025459a6ff29f615fc5cc66  frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx
+c504d0ad3690781275a6ffb78638a6148550b2fd4ee1ed25a4b154054fc4f80d  frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx
+6ac36ce1eb4df953626415b3ed431a8f4809dc29cf259f755f1f8509dd54b7ef  frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx
+fb33f2a27bfcca906549a12610977478ba72e6e7ed8afd5c5a0a962deb3eb802  frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx
+932e76314e0447da1790c3c86ca48545eea834feaf6f706c4d405b7ea62be872  frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx
+55dc274eca96da4360848b88f9f2a839ac815031490ab57ff38de074512d632c  frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx
+371518e4309f14201a92d29f9436a97a19801b506d45114964fbcfe3f5cd4183  frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx
+266d088dd727f18af8c8a106b8d9c4dbed75753e4b1b4abb12f3a4df870ecb7f  frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx
+856cffbd9c743f9815daf731487e29dc5f5272545dc15820a70baf86ecfa6527  frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx
+a9dc00d9cf6e8684113eeb824658c7fb2f3077ee8a54deb0cce47ac802c74f44  frontend/src/features/clases/archivos-d-r1.ataque.test.tsx
+98e645df89c9736ee33f440c1d83f342be84f30caabec0310b1b5185e538fbd6  frontend/src/features/clases/archivos-d-r2.ataque.test.tsx
+f1b2b7d3c2a2bfbc2c2aa31cce4b120e306681c0cc9efb85ac2a954c8f8f8afe  frontend/src/features/clases/archivos-d-r3.ataque.test.tsx
+c6c85ac2f6e7418e81d7817f9c455c0e0973025a15ae2a5378e00c9a71c45620  frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx
+a3880b67ffaa0d15763d1c761cef1ff8472029c77bfb2211ab079eadb1685325  frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx
+66c0b873bc8b9d8e9e01ac871bd6aaab4328508beb5ec9371d69463d7c12430d  frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx
+b465fd900c2a12681681f04b6ce3c54b23f1028d8b0fdc8545681bdf47e33d60  frontend/src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx
+32fd1be4f0b957965e60cff91d01e4e5012dad150873f9a51d72a9a02eca2a43  frontend/src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx
+a188c90deb61bafedabc50b76c77b02507964297cd6b155f905114839f728493  frontend/src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx
+1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65  frontend/src/features/clases/clases-admin-01c-r1.ataque.test.tsx
+76b5b2522f60795c0e7672da7b10ea95a3ce61d1aa26f102ef8eb057bd3ce6d9  frontend/src/features/clases/clases-admin-01c-r2.ataque.test.tsx
+cffce654ebfb37dc10f8ce8bf7026fc982a8c3f79b677fa2eb82c4476e113f83  frontend/src/features/clases/clases-admin-01c-r3.ataque.test.tsx
+87dae1927669b46bb52aad94db5107a5284f772fa9b29e225aace19c1a1e8def  frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
+5f0679d8cfacc8bce01989c04a415dc5b546625eb7dec92f03959de5a0f89815  frontend/src/features/clases/clases-r1.ataque.test.tsx
+c7ad5edc733e374117a9277f1c2987e84cc2930c77eb4c720ccf15cc9f5fab45  frontend/src/features/clases/clases-r2.ataque.test.tsx
+a835a11d29aedb8f77f91e826a22c2b7cf5322fced3f6bed0c1acbf7c75a4e61  frontend/src/features/clases/clases-r3.ataque.test.tsx
+86b04d234527eceefca35b07ce89e6b7ce0b6afe5ccdee2f005e6a4219f0495a  frontend/src/features/clases/clases-r4.ataque.test.tsx
+dce7fd019a6e32b8e4df37dd0728e265f5e9449e9ee2723f372ea174fe312464  frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx
+3b5a9fac5cd20a881bf6b38597b752725a7f6bbfddcf103b7bf1239a76353dfc  frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx
+fec2ffc2691bd297dca5f90233d498d10dfd689a5d9a8819bc30e757c6f67c26  frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx
+18edcffc8e48073362b98c784d5bf64e3335709ae6e1c6425b32aa3310e24b56  frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx
+ddc9dfaccc8230ec612126fdf29939a8e4311188566e5cfcaa724bd119e959e8  frontend/src/features/clases/errores-ch3-r1.ataque.test.ts
+5e20eefe0104b510a3002de084b6162162b5bf20797622c8d92b350853494b53  frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
+3cb8e0d7bb13b57638d65aa74ec5ff0f9306f024cf6996b7737232243a0b82f8  frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts
+cdd1ed8890859ae3e884822fc7074852a2173105114745d83fe9a15c1c47c626  frontend/src/features/clases/estatico-r1.ataque.test.ts
+de23d395dfe7a6f3d6d15eb48cb574599dc9d8204e5a90b255c0c10d25a186fa  frontend/src/features/clases/fila-01d-r1.ataque.test.tsx
+46383e1f3ede03cb204dbf602373d0a07e513d8dac7ec4179a203ea6ee270fa3  frontend/src/features/clases/foco-02c-r3.ataque.test.tsx
+0165d4e27b1fff9230d17bec740d89c380b6f322923c7e5a044ac010f4b9358b  frontend/src/features/clases/foco-02c-r4.ataque.test.tsx
+8b8ea2d21597bc0444709a9d26fd795d05bc964ef7b5094240628c63018c091b  frontend/src/features/clases/foco-02c-r5.ataque.test.tsx
+b819d6bbde4bd47e3ec724fcdea5e77eb66b12076b8a9a083691b52ef0bdd182  frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx
+ab006dc1711e9a652643930a7010c25f442d1ffdd137adbb093eb5bd98da90d6  frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx
+5224976752a14c3e003b246fa97abf25356e370cb46da1cdff9526bf3be86b4e  frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx
+7f4a935de29c3c519aad697edb1470c4cfcead600f5c1516c5fff948995d4434  frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx
+8bc578ef17d2731f388c14ca19bc719a2b8d04d8a41009fadee15227379047bc  frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
+479430b848cf3d21a0187138944deec46bb36653071bbd2790ed57620f012976  frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx
+4d94ccbe786a46ca1d82a280956f1146d5c302a9f83dfac45f39b3b2f94b753f  frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx
+0f60f1582fce6e5efaf9bf6856133dc30f1dc4eb9c3b7fea19f90a330f8335b3  frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx
+7c434a0e54e70b12d4b2a3de22ffb4dbf5f28a1cfbd2290c22e8a2b59edf0e16  frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx
+99df138b24d4aba97b9f714c32ba226e82c7403cf73aa2e9e2b0b028b28e283e  frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx
+4817262ef6e4dadff56857e50bab2e06ec479e62d5eaf45b34d70d683736b637  frontend/src/features/clases/muro-02c-r1.ataque.test.tsx
+8da38dbcb605ce3d90ace8117ce2cc5c838d71eb24bdd76fad3a53b82da93901  frontend/src/features/clases/muro-c-r1.ataque.test.tsx
+d0acb3527aafa6f687e3eb00563e37be93768e7d7f742694a4d5ce05b75b7e28  frontend/src/features/clases/muro-c-r2.ataque.test.tsx
+d08e51d451ebaeb2d7086c75dc1f73d52c5b4a6b8dfb979932828bed5f5d459d  frontend/src/features/clases/muro-c-r3.ataque.test.tsx
+558212b46641de0794d0ce90e3944a99cb5baa7fab4b09bbac5ea7cac41eaa34  frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx
+aec8c4131e5dc733246b33e8189e2dc595387324bdd2081d1d245641c20c380a  frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx
+67b60a9a5363f88e6ceba210c27452b8d639f6df798aa4e506dc54bb2312249a  frontend/src/features/clases/personas-02d-r1.ataque.test.tsx
+7677e0571587c89de1cb76788d499ac545255ca64c8afcb38a8ad6e39c02e2c6  frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx
+60541290248812cfce5591ddf33d01125d60c33257743a7ec48a445013d3d8c1  frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx
+4aafaa73980ba1bc29be043623a030c9eaa730825eb61a403bf54f9ac700b42d  frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx
+70b1a49a6a0e471422be987466228e5beb87e25baee2906790651c94ed214a3a  frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx
+29a3125cc70969f2fc2bb1f012beeb81840e1a00ea08d5b588b10d190342ae7f  frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx
+85a7926a0f6831a8375f544cf38fe5585a8e2dcbf73d9726e9a3cfaab7f76511  frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx
+4303eac77b98e8978495d9e68fd7725ac436f9db757dbc0c02c59051436908fa  frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx
+09435abbb9a26dd71c52b4d95487c6d38594f1ba062aefb60f73b7eb7308f991  frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx
+d899c19ba982fbde2208bbc7fa009869556c84bd4650586dbd9ee90b22234e47  frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx
+97af503e763f7dff9fcfbdc72862cd21de6af8e51d3ec41134f8475d98ae2df6  frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx
+db42c88d5b0bfb1125bf122c03a2e019d6f5365c128ac4bfadd413a26a934845  frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx
+f6924bc272a5240cf97d35729c797cc10960ed7cf94fe1be1b69ca2df6c1cf8f  frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx
+9866ef34167061e2715b65a352c55d08c7e9268033e879ae633c7fd568e4d49f  frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx
+ea58eb11c3157a33c5730f87f2cf562ae178589b30264902b165c4439cebc2ee  frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx
+2ef258e946084f17e33936e8fa257551a90323b589859dd2e1f70aabeaf711bf  frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx
+e2fefd7d744f77c7bdd2ba73a08cc51076d0f6130bf4d0a225e0e972a1dce111  frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx
+11bb5433fb30f268b6d93e1e7814d826bbab8fb1f173e574faf52f5a96b5a41e  frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx
+d8daccb56c8de8d9f1b0f8d1b0907c110e327f4f55b016fc0fe7fc0f25ccc79c  frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx
+ef86c46708f0682bca5a023e85794639c396ec94d207cac23ceb13585ab39e75  frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx
+5ff367edba10c9ba9c7e50f8ed874032654fa2abdc0dd8f4a122a000355472ab  frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx
+2938ae2f1c00f63a0372997c7ba68bdc0ab097895769bf9060072a4ac2674c5a  frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx
+0963f14f4842d6d57288876c932496ac09d44b872fc049492ee6e8ba539f3235  frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx
+4f486ca37d2a2bb6cc26754281d2adce086a9d8d4485a069de7ae5d54e360acf  frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx
+93a5a0a648669e9c96494a62b2b16082b07296f279e2892bf2c8d47834ee2fc1  frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx
+08a5e1a5642e7fc7553632dd5cf4e07f0ea35c3ef1e7293d010bbc49b09465aa  frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx
+172be3efd919c0d3948eca17c7e808968e2370afe1f9c2a28cef7d2ded584b81  frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx
+496652bc59817166f53e00cb828f2119c857c2834063a31764d7876dc150c930  frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx
+edf4d96e4b884eab718d06811877c17b611099a66d6857502f71eedb96026dda  frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts
+94d6e6253b266c7f21099aa593aac7b2600edca22ab403aa365dcd789b1c6a97  frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts
+f614e7369f8c47c40a87ad1f8867fb8edf7ebc76e94d0ba6c5c59c92cb6347f0  frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts
+fb387ecbb7e5272d2ffb53d626b51ffd9c57b409d10c560e6a5ecbfa6a2a8c19  frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx
+7a7c7ba922f77da22d0f765ed5ea9ccf9216d1900e4b5f18365da9d46437495f  frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx
+bfded7507bc684ea9858cd76517ef0e4c23cbc69e5a19f381e6ec522fd6156e6  frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx
+b778fc2e6bb0a8f8715a56877b3b781439ca214c8a9c8ae126f610c95229882a  frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx
+bf3c999033195cac778a82a579e44729fb07a405f5cdb41d8e7dc932cb71f942  frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx
+3567d7c23d2cf6a2fd538cd6822ef60ac3cffeac036394ed1e3559debe492c57  frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx
+6bbe2bd85e2b5500fbab4d0f51630c0c8e9d65b1a63045ad1fa906298a92a435  frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx
+72b19b6a00b4ade43b06829bb5bef1a5cdecf5a7d2af57369f1e857a1d4a17f5  frontend/src/lib/errores-ch3-r1.ataque.test.ts
+5d41a2af073dcaa2b8b016d835d36d5ebae9278863db048484a192a88bb31a30  frontend/src/lib/errores-ch3-r2.ataque.test.ts
+66513d957e524af5e336a2c7e656df37f51106507a3984b691df47cd825d4d10  frontend/src/lib/estatico-ch3-r1.ataque.test.ts
+a9529cefbd27cbb94376a6548ef1b8b247fb1f4155938298ae5d10eaee81008a  frontend/src/lib/estatico-ch3-r2.ataque.test.ts
+60bc1fc7011e9a0fe5a4c4aa45420f2c7d38adb9ee2f8d235d09847dbe13ac3a  frontend/src/lib/format-01c-r1.ataque.test.ts
+c71cba65dd284d7af11cbc812b6bcf75baa373939edb8318e731858d9c50173f  frontend/src/lib/format-d-r1.ataque.test.ts
+89dbbb70d5dc404c3d74db5391d10855c8cb1d6b4c643b6147b3ce6ffb2637af  frontend/src/lib/format-d-r2.ataque.test.ts
+bfa7ded62f7a1402590d438a1cc51060a63fa019ad47d3eb5740e43383064a2a  frontend/src/lib/format-d-r3.ataque.test.ts
+b6265bf6eec25b7f2c34dcd93dd4d8b23d07ca6214576921a50a66ff16346ffb  frontend/src/services/apiClient-ch3-r1.ataque.test.ts
+10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce  frontend/src/services/apiClient.ataque.test.ts
+537e10bc0519805f2be98ff579b34c71eda6fa7d364e355bfbd0050f568ffcb6  frontend/src/styles/clases-r1.ataque.test.ts
+b8085bcbbc7f4b6276bf3a87fb7ba0bc887953a8c6ce372354a7f3f1b5037582  frontend/src/styles/tokens-r1.ataque.test.ts
+```
+
+### Cierre de la ronda 0 de 01d2
+- **Veredicto: PARADA.** No está lista para el programador hasta que el arquitecto resuelva P-01, P-02 y P-03.
+- **C-11 y C-12 aplicados.** Quedan en rojo por la razón esperada (14 de 15 códigos; 77 de 78 `enEspera=`). Los dos siguen siendo correctos: no hay que deshacerlos.
+- **Lo que bloquea:**
+  - **P-01:** N-05 tumba cuatro casos que nadie puede tocar hoy: una normal fuera de la lista cerrada (ADM-1D102, estudiante archivada) y tres `*.ataque` sin C-n (ADM-T1D103 fila 5, ADM-T2D101 y ADM-T2D102 del alumno). Comprobado con una sonda en memoria.
+  - **P-02:** `clase-anterior-view.tsx`, tal como lo escribe §D-9, importa de `features/calificaciones` y `lint` lo rechaza (regla 9). Comprobado con ESLint.
+  - **P-03:** "Volver a mis clases" a `/maestro/clases-archivadas` vive en `encabezado-clase.tsx`, que no está en "Se toca".
+- **Lo demás, en verde con el código de hoy:**
+  - la suite de los módulos, `Tests 1 failed | 4220 passed (4221)` · 200 archivos, con el único rojo de C-11;
+  - las vigiladas de fuera, `Tests 1 failed | 177 passed (178)` · 9 archivos, con el único rojo de C-12;
+  - `lint`, exit 0.
+- **Lo que el plan acierta, comprobado:** con T-03 y `CLASE_ARCHIVADA` en memoria solo cae CH3-A08 (la lista cerrada de `errores-ch3.test.ts:44`) y C-11 pasa a verde. Las vigiladas de `entregas-01e-r1`, `entregas-01e-r2`, `entregas-01d-r3`, CAL-T-94, CAL-1C13, V-06, V-07, CH3-* y las listas de importadores no encuentran choque por el grep; las trampas son O-01d2-1 a O-01d2-12.
+- **Para la misma enmienda, sin bloquear:** OA-1 a OA-4.
+- **V-01:** 262 archivos; solo cambian los dos de C-11 y C-12.
+
+### Tras la Enmienda 12
+
+Veredicto: **lista para el programador.** Este veredicto reemplaza a la PARADA de arriba. C-40 y C-41 quedan en verde con el código de hoy y con N-05, y la ruta hija y `clase-anterior-view.tsx` pasan `lint` sin importar de otro módulo. Todo lo demás sale como el plan lo predice.
+
+Plan: `plan.md`, SHA-256 `e3279dd14df32f72b512e2f9ace1351b6e45cd490dcd7cfec6354cc553d18b60` (Enmiendas 1 a 12; lo comprobé al empezar y al terminar). Código de producción sin cambios desde `7655a5b`.
+
+**Entorno.** `BatteryStatus` **2** en todas las lecturas, así que la regla nueva de la batería no hizo falta. Sin `--maxWorkers` y sin repetir ningún archivo por tiempos. Puerta de carga, con ningún otro `vitest`: 13:29:49 `9` y 13:29:58 `0` (C-n); 13:30:19 `12` y 13:30:28 `3` (sonda de C-40 y C-41); 13:32:11 `10` y 13:32:20 `21` (módulos; antes, 13:31:50 `28` y 13:31:59 `12`, y esperé); 13:36:26 `18` y 13:36:36 `2` (sonda de módulos); 13:39:16 `24` y 13:39:25 `12` (vigiladas). Una suite después de otra.
+
+#### Cambios (solo C-40 y C-41)
+
+| C-n | Archivo | Cambio | SHA-256 antes → después |
+|---|---|---|---|
+| C-40 | `frontend/src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx` | La fila 5 de `CONTROLES` pasa a `rol: "maestro"` (de `:518` a `:521`). El comentario de `:451` dice "perspectiva del maestro" y suma tres líneas con la ronda y el porqué. El caso queda como `ADM-T1D103 fila 5 (maestro, caso 5)` | `b465fd900c2a12681681f04b6ce3c54b23f1028d8b0fdc8545681bdf47e33d60` → `53909e72f161cb3494086fff21b521f8dea1425b687258bd14d4e8b401ece3c1` |
+| C-41 | `frontend/src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx` | La fila de `BORRADOS` pasa a `nombre: "comentario propio (maestro, fila 6)"` y `rol: "maestro"`, con tres líneas de comentario antes. `ABIERTOS` la hereda sin cambiarse | `32fd1be4f0b957965e60cff91d01e4e5012dad150873f9a51d72a9a02eca2a43` → `907f9ba5b6881a4831fc4062c27d685b5daa19e690eff7a3a40b02b5fbec6a72` |
+
+El hash de antes de cada uno es el de `git show 7655a5b:<ruta>`, igual al del árbol. `git diff -U0`: `r1`, dos hunks (`@@ -451 +451,4` y `@@ -518 +521`); `r2`, uno (`@@ -435,2 +435,5`). C-11 y C-12 no cambian: siguen en `edf4d96e…` y `537e10bc…`.
+
+#### Corridas (desde `frontend/`)
+
+**C-40, C-41, C-11 y C-12, con el código de hoy.** `npx vitest run src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx src/features/tareas/errores-ch3-r1.ataque.test.ts src/styles/clases-r1.ataque.test.ts`
+
+```
+ Test Files  2 failed | 2 passed (4)
+      Tests  2 failed | 81 passed (83)
+   Start at  13:30:00
+   Duration  17.09s (transform 7.65s, setup 1.50s, import 6.45s, tests 22.90s, environment 6.79s)
+```
+
+Los dos archivos de C-40 y C-41, en verde. Los dos rojos son los esperados, con el mismo motivo: `expected 14 to be 15` (C-11) y `expected [ …(77) ] to have a length of 78 but got 77` (C-12).
+
+**C-40 y C-41, con N-05 en memoria.** `npx vitest run --config <sonda-n05> src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx --reporter=verbose`
+
+```
+ Test Files  2 passed (2)
+      Tests  64 passed (64)
+   Start at  13:30:30
+   Duration  15.78s (transform 3.11s, setup 614ms, import 1.09s, tests 21.39s, environment 2.68s)
+```
+
+La salida nombra `ADM-T1D103 fila 5 (maestro, caso 5)` y `ADM-T2D101 'comentario propio (maestro, fila 6)'`, en verde. `ADM-T2D102` lleva el nombre recortado por Vitest, `'la confirmación de borrar comentario …'`, y aparece dos veces, también en verde: la del admin y esta. Son lo mismo que pide §D-R0: el control sale, el foco queda dentro de la raíz y no salen escrituras; un solo `DELETE` y un solo aviso; ningún render con el aviso y la confirmación a la vez.
+
+**Módulos, con el código de hoy.** `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app`
+
+```
+ Test Files  1 failed | 199 passed (200)
+      Tests  1 failed | 4220 passed (4221)
+   Start at  13:32:22
+   Duration  234.43s (transform 37.39s, setup 152.31s, import 387.01s, tests 1369.15s, environment 576.58s)
+```
+
+El único rojo es el de C-11. Mismas cifras que antes de C-40 y C-41: ningún caso se perdió.
+
+**Módulos, con N-05, T-03 y `CLASE_ARCHIVADA` en memoria.** `npx vitest run --config <sonda-t03> src/features/clases src/features/calificaciones`
+
+```
+ Test Files  1 failed | 129 passed (130)
+      Tests  1 failed | 2608 passed (2609)
+   Start at  13:36:37
+   Duration  145.07s (transform 32.95s, setup 76.92s, import 248.64s, tests 882.51s, environment 324.89s)
+```
+
+El único rojo es ADM-1D102 "perspectiva estudiante, archivada true", y es la entrada que la Enmienda 12 suma a la lista cerrada (paso 19c.3): antes eran cuatro y ahora es esa. No repetí la sonda de `src/features/tareas` ni de `src/app`, porque C-40 y C-41 no tocan esos módulos y producción no cambió: siguen valiendo las de arriba (solo CH3-A08, y nada).
+
+**Vigiladas de fuera.** El mismo comando de arriba:
+
+```
+ Test Files  1 failed | 8 passed (9)
+      Tests  1 failed | 177 passed (178)
+   Start at  13:39:27
+   Duration  11.03s (transform 44.57s, setup 5.34s, import 63.75s, tests 859ms, environment 21.25s)
+```
+
+El único rojo es V-06, el de C-12.
+
+**`lint` del frontend:** `npm run lint` → exit 0. Antes sale `All matched files use Prettier code style!`, y la última línea es `> tsc -b`, sin errores.
+
+#### P-02: la sonda de ESLint por entrada estándar
+
+Escribí en el espacio temporal una muestra de cada archivo, tal como los describe §D-9, y se los pasé a ESLint con `--stdin-filename`, sin escribirlos en el repositorio: `npx eslint --config ../eslint.config.mjs --stdin --stdin-filename <ruta> < <muestra>`.
+
+| Muestra | Lo que lleva | Resultado |
+|---|---|---|
+| `src/features/clases/clase-anterior-view.tsx` | Los cuatro estados de §D-9, `useFocoAlPasarAError`, `ContextoDeSoloLectura value={true}`, `AvisoDeClaseArchivada perspectiva="estudiante"` y `<Outlet key={claseId} />`; solo `@/components/…`, `./…` y `react-router` | exit 0, sin mensajes |
+| `src/app/router.tsx` | El de hoy más la ruta `{ path: "clases-anteriores/:claseId", element: <ClaseAnteriorView />, children: [{ index: true, element: <MisCalificacionesView /> }] }` y su importación (`diff` de 6 líneas) | exit 0, sin mensajes |
+| Control: la misma vista con `import { MisCalificacionesView } from "@/features/calificaciones/mis-calificaciones-view"` | La variante vieja | exit 1: `import is restricted from being used by a pattern` (la sonda sí detecta el problema) |
+
+**Límite:** es mi muestra, no el archivo del programador, y ESLint no comprueba tipos. Prueba que la composición del plan no choca con la regla 9. El archivo real lo prueba su `lint`.
+
+#### Estado de P-01 a P-03 y OA-1 a OA-4
+
+Las siete quedan resueltas en el plan (E12-1 a E12-8). P-01 lo comprobé con las corridas de arriba y P-02 con ESLint. P-03 y OA-1 a OA-4 solo los leí: `encabezado-clase.tsx` en "Se toca", `cursorDeClaseAnterior`, la redirección de la clase activa, los ayudantes de `lib.ts` y la clave de `features/tareas/data.ts`. Las prueba la ronda 1, con ADM-1D203 y ADM-1D233 a ADM-1D236.
+
+#### V-01
+
+262 archivos: 101 del backend y 161 del frontend, todos rastreados desde `7655a5b`; ninguno sin rastrear (`git ls-files -o`).
+- Comparé uno por uno contra `7655a5b`: **cambian exactamente cuatro**, los de C-11, C-12, C-40 y C-41. Las otras 258 son idénticas, con el hash que trae la lista de arriba.
+- **Lista vigente:** la de arriba, con esos cuatro hashes en sus valores nuevos (dos ya estaban; `r1` y `r2` pasan a los de la tabla de C-40 y C-41). `sha256sum` de la lista completa, en el mismo formato y orden: `e2ee9ba20c4b1f748735e62317e85d611ccfc59d46f584373c9a128040d8e6c2`. Sale limpia en `sha256sum -c`.
+
+#### Observaciones que cambian
+
+Siguen vigentes O-01d2-1 a O-01d2-12. Estas se corrigen o se suman:
+
+- **O-01d2-5 (cambia):** las funciones `consultaDeClasesAnteriores` y `siguienteCursorDeClasesAnteriores` van en `features/clases/lib.ts`, sus tipos en `types.ts` y el límite en `data.ts`: `ver-mas-01e-r3.ataque` cae si `lib.ts` declara un tipo. "Volver a Actividades de aprendizaje" nace una vez en `features/tareas/data.ts`, y las filas 35 y 36 lo pintan en línea, sin componente nuevo.
+- **O-01d2-6 (se suma, es una trampa nueva):** `encabezado-clase.tsx` compara la prop `perspectiva`. **No nombres la variable `esMaestro`:** `estatico-02c-r1.ataque` prohíbe esa palabra en todo el código de producción (`mis-comentarios|useBorrarMiComentario|esMaestro|esDueno`). Tampoco leas el `pathname`. `clase-anterior-view.tsx` pasa `perspectiva="estudiante"` como literal y no llama a `perspectivaDeRuta(`. `CAPACIDADES_POR_PERSPECTIVA` no cambia (PR-2C01, `lib.test.ts:285`).
+- **O-01d2-7 (se suma):** `clase-anterior-view.tsx` no importa de `@/features/` ni con `..`, y exporta solo componentes: en mi control, un `export const` de más disparó `react-refresh`. `MisCalificacionesView` entra solo por `app/router.tsx`.
+- **O-01d2-9 (cambia):** ya no es solo `lista-de-mis-calificaciones.tsx`. También se tocan `mis-calificaciones-view.tsx` (la lectura de `useSoloLecturaDeLaClase` y la elección del texto en `:155`) y `features/calificaciones/data.ts` (la clave `cursorDeClaseAnterior` dentro de `MENSAJES_ERROR_CALIFICACIONES`, sin exportaciones nuevas). Siguen doce archivos, un solo `toast.error` en esa vista (CAL-T-189), sin `.message` ni `esErrorDeCursor(` (CAL-1D09), sin `data-material` y sin texto suelto. Los comentarios de esos dos archivos pasan por las mismas reglas de CAL-1D09 y `estatico-01d-r1`, que leen `fixed` y `-[…]` en crudo. La `key` no va aquí.
+- **O-01d2-13 (nueva, ADM-1D102):** esa normal sigue en verde hasta que entre N-05. Al entrar cae, y es lo esperado: sale solo la fila `["estudiante", true]` de `:351` y se ajusta el comentario de `:342`. No toques nada más de ese archivo. `["estudiante", false]` de `:354` se queda.
+- **O-01d2-14 (nueva, C-40 y C-41):** son `*.ataque` y no se tocan. Con la fila 5 ya en el maestro, el formulario de comentar de esa fila es el de `capacidades.formularioComentario` del maestro: si esa capacidad o ese componente cambian para el maestro, `ADM-T1D103` caerá por eso.
+
+#### Cierre tras la Enmienda 12
+- **Veredicto: lista para el programador.**
+- **C-40 y C-41:** en verde con el código de hoy y con N-05. **C-11 y C-12:** en rojo por el mismo motivo.
+- **Módulos:** `Tests 1 failed | 4220 passed (4221)`, con el único rojo de C-11. **Vigiladas:** `Tests 1 failed | 177 passed (178)`, con el único rojo de C-12. **`lint`:** exit 0.
+- **Con el diseño en memoria:** solo caen ADM-1D102 (estudiante, archivada) y CH3-A08, las dos de la lista cerrada; C-11 pasa a verde.
+- **P-02:** la composición por `app/router.tsx` pasa `lint`, y su control con la importación prohibida no.
+- **V-01:** 262 archivos, lista `e2ee9ba2…`; cambian exactamente cuatro.
+- **`BatteryStatus`:** 2.
+
+#### V-01: lista vigente completa (`e2ee9ba2…`; base para el programador de 01d2)
+
+```
+65c1d9d9e6cea8ba8cf98bc522c6ba6d7122376d0201ccf3fc3048d24b60543f  backend/src/adapters/storage/objetos-r1.ataque.test.ts
+935a721160f978e35d45d2c9392fe8cb169fae32f43b9df583bda46215707e22  backend/src/adapters/storage/objetos-r2.ataque.test.ts
+bcce2cae771f97957d8691bef7fff4ec42412daaeabf726aeb0afc59f6f25671  backend/src/config/correo.ataque.test.ts
+dcb78d222544e8dc4fbece59468f555b04abe971b70016e9bb17fcae3e958580  backend/src/config/env.ataque.test.ts
+71e7f049447d2d1ecedd897c55ea0b6d31221753f0a7e7473c7ac6e8667f0a95  backend/src/config/logger.ataque.test.ts
+91f620c1a27778eebc2bed5eec1bc9b0e3fe1199b32ed00f9dd910011d6a1805  backend/src/core/clases/codigo-r1.ataque.test.ts
+262691f5786ad63b2393d0ba5ff97538f6dacf43343bed019ad23c12a07d8686  backend/src/core/clases/codigo-r2.ataque.test.ts
+e769cbfcc3a83a64b51c6437f80684640a7c928ad6b8c5c1671fdff005d7b734  backend/src/workers/ritmo-03c-r1.ataque.test.ts
+294be1af0bf69d6c05f54e2f0d8e587c78a5527d0b64d1a224c058e31ce013d0  backend/test/admin-muro-02b-r1.ataque.test.ts
+388ad0e585639b8c3e0e0a6657fb42c1b9cb83db721c4863c4fa19e0be42ec85  backend/test/admin-unico.ataque.test.ts
+d2cc28b62bf988ae14ba975a9bc8d534aec0eebce30da93d7ded9a26026b0857  backend/test/alumnos-b-r1.ataque.test.ts
+00346d471355abc7971b921649e7192b8987fe27912c00cb7e41aef2065369e9  backend/test/alumnos-b-r2.ataque.test.ts
+fc11ab4b914d4a88612953f82db354e2b9cea9bef86e24321ef7e031f3ac3837  backend/test/alumnos-b-r3.ataque.test.ts
+441a766a94e7d9b26807790402e06ed94d4cc378d8f6ecf0bccc3259c7ff55fb  backend/test/api-real.ataque.test.ts
+f76ce52002e295f2bda6e7a7a7f796415e08013e6d4c1fbe2c9c686671fe8252  backend/test/archivos-d-r1.ataque.test.ts
+1637eb447cd12ac5bdddc7634980dbc10a25cbad5de01bf6c09f40ed930ff1a9  backend/test/archivos-d-r2.ataque.test.ts
+42bb7bf3086230c6edc65ab73976ac8a801956336561aadbee65cc3b40eb8612  backend/test/arquitectura-cuentas-r1.ataque.test.ts
+38adb0984744a0810287711f57ba0498287d0bc96344b8948ba1c490ca807716  backend/test/arranque-r1.ataque.test.ts
+2c83d82d10bdd9b7a969768774d75b18b7a71a594bbaac5fae36a0e134d2336c  backend/test/auth-login.ataque.test.ts
+73d3a2ae708a0ef676547a8094115b1419423057378387269bc3eadb34c7724e  backend/test/auth-registro.ataque.test.ts
+6f557e8e860bce6374671e90086e9c14b1861a308b6fbb434564612647892713  backend/test/autoria-02b-r1.ataque.test.ts
+3520057d0f1a27739eaa701aacd9c18d5c0728fc6a3d55374f43f63a5e6f5336  backend/test/borrado-duplicado-r1.ataque.test.ts
+b8fc0db0ea3ec7ff2b89cd9e345c57a9b4ef73afe16fb1aa3e6fdf73c27c16a1  backend/test/borrado-duplicado-r2.ataque.test.ts
+5e02a27716d63e8ce0fe6b6171bff089eb3ee2548260349b16950d7e65a1bcf9  backend/test/calificaciones-01a-r1.ataque.test.ts
+afb531e7ccab1cb53f0322d7d099a7f435dbd42325de8c225525e3784b93f6cc  backend/test/calificaciones-01a-r2.ataque.test.ts
+dd919ebd74a2c6ac60c244a1563b46895821b0d25e5051cda25fffb72b653416  backend/test/calificaciones-carreras-01a-r1.ataque.test.ts
+b09baaec53455cea1a0674890ebd9353007e6f2628001446e873b09279ffba07  backend/test/calificaciones-estatico-01a-r1.ataque.test.ts
+29eed2e93af2775a4605160ea533bd462fd03cb1cfe4c47154898358a7255869  backend/test/calificaciones-estatico-01b-r1.ataque.test.ts
+6e4c0eb47ff8020b0a539e5b70b24c8c1d05f7773ea092cd513e39c68cf4534e  backend/test/calificaciones-instantanea-01b-r1.ataque.test.ts
+6e3c92c13f146a01c8dcfdc7dd04bea59f0e2562051f6ac65f95f924ef73e4db  backend/test/categorias-01a-r1.ataque.test.ts
+f2cff9c7d70b053d48e654aa2402d2c1d5d6694de8bb49538049a49a4eab48b2  backend/test/clases-archivadas-r1.ataque.test.ts
+62e4c2ce2ddf293797c0b08021bcd22c5da3c958e7b99521cc47fbd003377933  backend/test/clases-archivadas-r2.ataque.test.ts
+95bba9bac44366ad5a361e93dd2f278cb0a1cc889fa479049acc7b45a9a5e71b  backend/test/clases-r1.ataque.test.ts
+a87817d56c236c0ba3597214cac23b10483bbc28ae44800c592ed5ce2ef97f38  backend/test/clases-r2.ataque.test.ts
+72de7d8af3d3f772abc19db065f6e418f6eb76ce78d87fe6ebb51335fc99825a  backend/test/clases-r3.ataque.test.ts
+be97c4e48ac9551bed1d01552e90ab8cdf085cf928ae6c8c3d81809e35f7ce62  backend/test/clases-r4.ataque.test.ts
+000ec9008c73d25121c82a46f5ea0f67e6c8c387cb04e361ef82812b57956098  backend/test/concurrencia-02a-r1.ataque.test.ts
+530546b4d70a2b9ad36f98f37e2af45480e81a1101ee3516d15426f78350bf82  backend/test/cuentas-03a-r1.ataque.test.ts
+6303ddc170545f616c66773c3f5475cb3be1fea9347d8059354d6ade8d676c16  backend/test/cuentas-r1.ataque.test.ts
+3a4e81c111b8eeb7df065804aa85062fa3fc607f0147149b71ac21c14e7818d9  backend/test/cuentas-r2.ataque.test.ts
+f54f79f7b2a83e95fe440053ccaf15cb3ebb01ce5dfd4c6655e22159a5fd7e6b  backend/test/cuentas-r3.ataque.test.ts
+a2f9bff596330a7d55d1ca9d47197fc831eb132f52c759610e2d667895c3332f  backend/test/cuerpos-02a-r2.ataque.test.ts
+4ea45eaa95c5ea2e1ec91e04d2bba32689a30bd341ade16625b28aabdb96d6d9  backend/test/dudas-clases03b-r1.ataque.test.ts
+d7a9da854ce8ab8ad8d2437db2e8c2a642a777ea3261a6b038da28be022df848  backend/test/enlaces-03b-r1.ataque.test.ts
+dc1b7ee7ea58966f5db33ccb4581885a9669dea2263954ae46d17a83e1ef6eaf  backend/test/enlaces-03b-r2.ataque.test.ts
+b051b1986496e35e3e306c4c6bc306a763542bca4b350574d0c02e2c484deb35  backend/test/enlaces-ch-r2.ataque.test.ts
+d28cc4de621a680e6b54b2bff889700300d558ec7849717584518d2f03ec8cae  backend/test/entorno-ch-r1.ataque.test.ts
+47b02c6d3916713bf9236a619fdb59a641d2e805f1f0b7e9b2c161fe719ddc3a  backend/test/entregas-01b-r1.ataque.test.ts
+5baaf6f8fb76320620ed4a84efaca2b2d473460f62360e0d48738b97a0ac584a  backend/test/entregas-01b-r2.ataque.test.ts
+885668a621af11f17b4ac706db705aef33231b7773e4783147d21b318bdd0f9a  backend/test/exportacion-02a-r1.ataque.test.ts
+ba1ac9b17cc9bf747522bd4ec8b87df436008482e643b18eea8e9a8c041c59b3  backend/test/formada-ch-r1.ataque.test.ts
+73c55120814b8d6bbcceda5d4a3b5c8f1ed1ab58f54400831ac1a710d3b4584a  backend/test/gestion-02a-r1.ataque.test.ts
+e4e9365ea010f3f670b6c1194d1a592e95db43bff0496d4ea1646fc5225ca8b4  backend/test/gradebook-01b-r1.ataque.test.ts
+5f4133f949d2f337a8f63b75cf82cb77114db7812d67c1960105f5000c31a326  backend/test/guarda-ch-r1.ataque.test.ts
+7a7dac6d87edf81059fcff9c07471aaf49d690ec159be4b9fd4aa32b0909a215  backend/test/guarda-ch-r2.ataque.test.ts
+610ee44e5d0bcea46eb4e3645f9adf1998a76947a25af7e3f8248ea3a633df79  backend/test/guarda-ch-r3.ataque.test.ts
+e5d149f3ac52b726e1fe08908249706341330f88eaa6674b9a9ac67b98b1e864  backend/test/guarda-clase-r1.ataque.test.ts
+c979d2c9c420a2177fa6ebddb78eb2ce84d5f043b94270f690916a6fc75d6f8f  backend/test/guarda-clase-r2.ataque.test.ts
+20982e2b98f1b162146a211923f3d5ec19d4e170c4aa3a5bfc6f82c3b6173aad  backend/test/guarda-r2.ataque.test.ts
+2649f3d357dcb806361ac101c57fcb504b9c798b631048f0b3e200f63da7dc30  backend/test/hilo-01c-r1.ataque.test.ts
+2d2216ee9db290b318825a6f73c346d4767cacc12d95f5ca76457a78b63fedc3  backend/test/instantanea-01b-r1.ataque.test.ts
+a8b79d5ad98270be3747f493865708a78bb73add08d832584db4464c3582777a  backend/test/intentos-r2.ataque.test.ts
+2619b44eea3370494c95ac128fcfd9e3ffc20d1581a19f549bf371f603a11d7d  backend/test/invitacion-flujo-03a-r2.ataque.test.ts
+704155928183aec193ae7e157b86b3e9361d2b63c7a47be1ed859605fab4ffa6  backend/test/invitacion-masiva-03c-r1.ataque.test.ts
+dd9b7454e8786bf0b833d265900ccaecf595808cebc8e9a77c9aef15298a1038  backend/test/invitacion-masiva-03c-r2.ataque.test.ts
+82fe8c49674a3cc8328e7951236c0c8f442fcba3890b716013369785b202cf40  backend/test/lecturas-fx-r1.ataque.test.ts
+b008263d6fac9b031bdb03251da25545611f863d0cf405de21fa4514caff60ea  backend/test/lecturas-fx-r2.ataque.test.ts
+f9f9ec59ec8d1a5ccb180522798140c45604440f48edcd68a3e02863d90ae347  backend/test/logs-02a-r1.ataque.test.ts
+a2006c163d9e6cd3e4a2a773d1501826daf3c8e7bb184d205bfc6442318fb59c  backend/test/logs-02b-r1.ataque.test.ts
+bd8b303c434efec0785e0691d31d6f6e87dbf3305f50fa27cce0f78cbb251e3a  backend/test/logs-03a-r1.ataque.test.ts
+b58d5d013658433fe5839634e2db5a31b8d2b8f69587bc36958752d3cd33bbf7  backend/test/logs-03b-r1.ataque.test.ts
+0e4abf3bc5d92fa0c380805453190703862567930dd74b9e7fcc1809564d181f  backend/test/logs-03c-r1.ataque.test.ts
+1e775a19682f3a5995d7c035bcc810a36bf50c22045b6ffbfc5a98b821255db0  backend/test/logs-archivos-d-r1.ataque.test.ts
+e9ce866d511e3ee6029015b74e20b4d342a60be99b3aac97e86f00283a3c77f1  backend/test/logs-archivos-d-r3.ataque.test.ts
+e008935b107752d203f6423b2f1c9e0f5a4339f0a77154746bf262cecb90351a  backend/test/logs-cuentas-r1.ataque.test.ts
+690e30ed39111c0a074fc159015967cd9f0fdc24d9a340e6a0d7be4b980a9d45  backend/test/logs-muro-c-r1.ataque.test.ts
+0809c60700e26183e7771b4b1a40b05cbf554c2ed7929190cf4d89a52722e551  backend/test/logs-muro-c-r2.ataque.test.ts
+5af3909e4b7ca485e78979567872ea78bf41e6d679b9ec2c761eaa0b250df689  backend/test/logs-r2.ataque.test.ts
+d6b9adaf1c14a61fe369f510774ef702cfa20f28f3cb19b0eb7357440dcb0783  backend/test/migracion-01a-r1.ataque.test.ts
+2afd58e1ead0a293aa7bd58c639f3e5126d153a418f9a26450228468e12b2bed  backend/test/migracion-clases03a-r1.ataque.test.ts
+bc6d49f9fc1f5eb20e305945fef57caeebeb108bff5d5cf4ba10b8040687d69c  backend/test/mis-calificaciones-01b-r1.ataque.test.ts
+d23bf1312777bdc000810e403a5b4d99c9c0e12998e4cc11be5ef5a2253f6935  backend/test/muro-c-r1.ataque.test.ts
+7825cfc9b484df740fa0e9562a195d1bbcaf4caf72ea55fa847b5394ab96c125  backend/test/muro-c-r2.ataque.test.ts
+8b733b86fc6d54ece008389a59793fae4ec4a65146eb37215e900e50a5337d46  backend/test/nombres-guarda-r3.ataque.test.ts
+3fd2583a4de7cd432b2e09a5130c23d6a59fa475e5e0aa69f23739351acbf9cf  backend/test/nombres-ids-01a-r2.ataque.test.ts
+00a6eb6f7ccd7d8790c356befcc96ddfda6eacce0be53de255cfe3626d8f2adb  backend/test/nombres-tokens-r2.ataque.test.ts
+80b5a848f69b429e7dadec86c07bec1d3e3eed8a042efba41ce912ded39e7bab  backend/test/nowait-ch-r1.ataque.test.ts
+fd2ae2e9792db81d838580b0ef2769ce8ef08059e3353aa5ab927c62295da9e8  backend/test/objetos-reintento-r2.ataque.test.ts
+42f4e113762ef26459e95642ff4b814613353d64d462ab2b01ecdeef4b9e160d  backend/test/recursos-clases03a-r1.ataque.test.ts
+ff4d112aff8685fcd9c5ca933a0b359e2b4e9bedad8f1b5d3d787cfdec711516  backend/test/recursos-clases03a-r2.ataque.test.ts
+ad0dab1952e509237acac12bb1f6774fa9c5de8b44d1e6928edc65cc67a78c21  backend/test/referencias-01b-r1.ataque.test.ts
+6f2abc2cefd77d74cd1e3abbdce9c41bb53d00bd4d8e5ba7e496c4441c2697e5  backend/test/servicio-ocupado-ch-r1.ataque.test.ts
+71c54a113611a3097baa03691f316f5e3d49dbe6532d058a453aaf0641434db1  backend/test/sesiones-y-cadena.ataque.test.ts
+70ac720f2e7fcadee5bbcb6414887ab08129dea7cd91df012046953b1584e8b6  backend/test/sexto-paso-02a-r1.ataque.test.ts
+c89c30851e6b409cd045017181147bf674df947762a8dea3f3fb981bd9b36e09  backend/test/tareas-01a-r1.ataque.test.ts
+79bc7aafc11676d36129610a4b5cd5fe5d8234d0d748487fd2f3e48c5f772c79  backend/test/tareas-01b-r1.ataque.test.ts
+ae60c11cff5c82df4954db48582df4bd5a64957ff9afaf9712aa43a038f8e189  backend/test/temas-01a-r1.ataque.test.ts
+dc7b86a621062ed671c1e7174a745019133fbd410c7a2e78114b2a2c50affe95  backend/test/temas-01a-r3.ataque.test.ts
+f09e9a0038c47d1a2223376a0af260baf573f0c45bf770201c48c9e30296f04b  backend/test/worker-03c-r1.ataque.test.ts
+9f60f9d65d52d2021a1eb04e9f01d3cc68f22744c845bf93d6621aa4fe9713a8  backend/test/worker-r1.ataque.test.ts
+77d11bd85f202a9eec92a363df82e63fb9a784ca9d368d49f62e61c1a2aa967b  backend/test/worker-r2.ataque.test.ts
+0e49b62b73b2ef55e8c0b2ba26e1d136a3adb674761fda2c11453eb5c2faf7cc  frontend/src/app/barra-02d-r1.ataque.test.tsx
+b89ede0f6aed45dfcb5e64c8909a822156ce43fd80948e72419cdce9d4541a87  frontend/src/app/cache-03a-r1.ataque.test.tsx
+e85743c0fbb8e476874a2c67334342d8d69d14153579fc1e4cce0ae6e2b29616  frontend/src/app/contexto-r1.ataque.test.tsx
+bc2be5541006887e2a5a4a89b33046180f607d54474b0f96a73d615afbcac385  frontend/src/app/contrasena-r1.ataque.test.tsx
+f38bcacb716d8a39acdb3535a95603cd0d8ab02572ca57a7df5268b01ceb6eac  frontend/src/app/contrasena-r2.ataque.test.tsx
+68fb5d092c0c8ecfcf282477ef023aaae26f6b869656e05109dc3efa276d842a  frontend/src/app/cuentas-r1.ataque.test.tsx
+41930017715d3d6869dc7acefd75de8ec3684f1f035b845abdf8ec0f6b734dee  frontend/src/app/cuentas-r2.ataque.test.tsx
+1506c27e5f7418b5e087fd30f8809645a2fc3e2761c7249de78f02e24aa6c7a5  frontend/src/app/en-espera-r1.ataque.test.tsx
+db48dad405c27062621a44d3744c84cc5903892a51e5a8df18f41383cb9c88a3  frontend/src/app/errores-r1.ataque.test.tsx
+0e1d93e4dd3cbc7b5e9475a17b5ca66f0df056ba25cb117249f4c2e2f5887a51  frontend/src/app/foco-barra-02d-r2.ataque.test.tsx
+2154b5c15f696a0c7f884bff774cf4e2a4208a5281db9076653f8253e2385ab9  frontend/src/app/foco-pestana-02d-r3.ataque.test.tsx
+f95321e604e20b533ebf2db3c1c6c66ba2f2d87a48f075415b766551f6ee30f4  frontend/src/app/fondo-r1.ataque.test.tsx
+29782507d18ff96315e4030e890b21fdf1eb1c5550c3d1cfe5c92664d30b64dd  frontend/src/app/invalidaciones-03c2-r1.ataque.test.tsx
+57cb54afd3b79464f0df01b88fc388cebbeac5657d936c4c204cbae6034b0834  frontend/src/app/marco-r1.ataque.test.tsx
+c8a9812f21cb24db50cc2afd945b7b38abacb468fbf4f4df16c07a52c48426ac  frontend/src/app/muro-recuperar-c-r3.ataque.test.tsx
+d7608d7fc7767f53db3971672fc99fdb8bbd33f303f41e321bcc48ad25f511fd  frontend/src/app/muro-recuperar-c-r4.ataque.test.tsx
+2f8056a770397c1601647277944555a48afc4b9a2babeb75e5898f0cc92562bb  frontend/src/app/muro-rutas-c-r1.ataque.test.tsx
+6acc49a2e3b649868ccf9a9337143f991b655dafbcff2e5916bca0269bd23a7c  frontend/src/app/personas-03c1-r1.ataque.test.tsx
+a3e3dadd35c40e9a11a0bdef8cd716daceeb254e5307a837c6598213ba803a7b  frontend/src/app/personas-03c1-r2.ataque.test.tsx
+0eefed2c05d76b0790a437e9465a898a9076083b1f046f8785145cfaad0da379  frontend/src/app/registro-maestro-03b-r1.ataque.test.tsx
+053e867a904afa3c09eef92ca2e03e929d9f9c93f714040856f40c7418721bbe  frontend/src/app/router.ataque.test.tsx
+fc820217bc3baa3749c077fe16a4abd7ae10e92c84494ffb2a215133c19df36a  frontend/src/app/rutas-01d-r1.ataque.test.tsx
+f0657fb91f7b3accf64726292f9324c6742c1ac537c6c4a1985ec4e32ae09c83  frontend/src/app/rutas-02c-r1.ataque.test.tsx
+c7946f5f5d5d16d36b395adc2ad9928acc7fd9839875fb64532b51489756730b  frontend/src/app/rutas-clases-r1.ataque.test.tsx
+f090cbd8e8c9b0af52d4fc19547b07e9b6413f5414cc4b10862f01e29818dddc  frontend/src/app/sesion-r2.ataque.test.tsx
+11c6d9c55be91aa41e8525345e3795e34b8e1e661ff7cdd901f729760a033cfd  frontend/src/components/adjuntos/errores-ch3-r1.ataque.test.ts
+48f5ff8fef35faa6d8500fae4a53ca953d7f661100a5c4879ba58e68972ab2de  frontend/src/components/foco/foco-01d-r1.ataque.test.ts
+36d605f79169e16a5afadc7e07fc3781472dd393406430277ceb147fc2da1fa5  frontend/src/components/layout/estatico-r1.ataque.test.ts
+0aaa18cd70465293b6fca6cc051b8e4ac360a838d02fede848c35376c3d0066c  frontend/src/components/layout/pie-r1.ataque.test.tsx
+00a707429af6b5326f9a96def6382823cf4a6a092aac7e7bd7cbcb8dc9aa1d21  frontend/src/components/layout/pie-r2.ataque.test.tsx
+472e1f46d0c899496aa334909b02988962aab07b9bd29a8d7b8af3987fac6c76  frontend/src/components/layout/pie-r3.ataque.test.tsx
+a1814d281dafd8243989c9f9a462a4f33a86b1fb70eeebf29e99bcb0f340d82a  frontend/src/components/ui/badge-03b-r1.ataque.test.ts
+7d080037d9a64eebcebb789d1dfd94b787652103e6f9c84f968f9c9f64c3b30c  frontend/src/features/admin/cuentas-r1.ataque.test.tsx
+b948e9359fd3981e08b850540027f536f345a3f48d7c0749ba0c16c2c1df1184  frontend/src/features/admin/cuentas-r2.ataque.test.tsx
+72bf9af4ce8f52a114897e038cefb0947841a37f74074f4c5f8dec68a71b654a  frontend/src/features/admin/cuentas-r3.ataque.test.tsx
+942df3015424aed56e83661993ba015e871cd6be8e797920d47e8cbf0c56eac4  frontend/src/features/admin/cuentas-r4.ataque.test.tsx
+3bd26e7e3bf019d462db4837861ed22017bbb9e9a6276720bf0dea6c2b5b0998  frontend/src/features/admin/en-espera-r1.ataque.test.tsx
+c21edb5a06b43808ce2be23058409b7ff887e66d60e842c500a3714a90ebcb25  frontend/src/features/admin/errores-ch3-r1.ataque.test.tsx
+8219c864e7bdc1315e6a0f0ff1cd6f54e4710cebdceb8e316f4e53aacc0cff35  frontend/src/features/admin/foco-r1.ataque.test.tsx
+30f45bba30d9348ec1587b42e84ca370274e1bf0af0f310b8a6bbd79fa982669  frontend/src/features/admin/maestros-03b-r1.ataque.test.tsx
+d477a809e55e603d3ef6c02ca43b21372b75d0947fa303f1539d48bdf32841f8  frontend/src/features/admin/maestros-03c-r1.ataque.test.tsx
+761f54f183540d8ae222f97940fa6c2355ff33e515771e627f8efde49261eda2  frontend/src/features/admin/rutas-ch3-r1.ataque.test.tsx
+14ead3dce027b433d51a9d635b0fa35718ee3875bffc3e1949f96ecb8d2f7135  frontend/src/features/admin/secuencias-ch3-r2.ataque.test.tsx
+3ceda51db8f67f40c26615fbc4cd7d082035b00f38713c6ca4c7db58e47926c8  frontend/src/features/auth/enlace-r1.ataque.test.tsx
+1f5d1147637c09daa6fdf1384e4395edd69dfdab84aae5d602a362dabd3295bd  frontend/src/features/auth/enlace-r2.ataque.test.tsx
+af3f0d474f8052b402c8959a64acf9e730f9ae60f09d90996a6306e9c2440f08  frontend/src/features/auth/errores-ch3-r1.ataque.test.tsx
+991b115524d8dade8d6ea2c51fb753dc8832ee410db2161a0ce761d011cfca4a  frontend/src/features/auth/invitacion-r1.ataque.test.tsx
+96b6ab55f0a7bf9b66f8edbcb5ceffa7e4fe35935c6cb12ecab93fc04bc02856  frontend/src/features/auth/rutas-ch3-r1.ataque.test.tsx
+0ce580976ea894ee4bd9c4adbe3d7d1d524354a8ff22fc7e7cc6acf89057aa53  frontend/src/features/auth/secuencias-ch3-r2.ataque.test.tsx
+4bcd3e34b62726fea718efb9c482d8c1f504bbe85ef32427bdf4d65a6832d8f1  frontend/src/features/calificaciones/cursor-ch3-r1.ataque.test.ts
+812ee5f1b04a1218e2b96cdb97fb5a964a4a21b0d81b95bb4889beaa4a3894bb  frontend/src/features/calificaciones/estatico-01d-r1.ataque.test.ts
+bef8aa53d338fde15e251d53756b76e3381ef9f6de4943c4db83c8e2b3d258dd  frontend/src/features/calificaciones/exportacion-02b-r1.ataque.test.tsx
+d15e821c212bb268c65bd9dee36293b02f5bde4dedd4bf9926dbbf99b9971f57  frontend/src/features/calificaciones/exportacion-02b-r2.ataque.test.tsx
+5991d8e3d4e694973309f178e5341a2285584cf9ed6006fbb658d7f5a61de5dd  frontend/src/features/calificaciones/gradebook-01d-r1.ataque.test.tsx
+c744fb831fa9992c2a9ed0729f9ec3cc089f3167ca19133c6eee0133382607a1  frontend/src/features/calificaciones/gradebook-01d-r2.ataque.test.tsx
+8dea1c2adc5d228e166ce6037a1a1a827d26e2bdc6d7c8534f146517ebc1ac44  frontend/src/features/calificaciones/gradebook-01d-r3.ataque.test.tsx
+6f7496ca7652e7b4441a7eb9822e74270d50127ac40ba27b86c83edfcd5cc3fa  frontend/src/features/calificaciones/mis-calificaciones-01d-r1.ataque.test.tsx
+24751f358fc5ecd485c475e7025dd881b87fe892f025459a6ff29f615fc5cc66  frontend/src/features/calificaciones/mis-calificaciones-01d-r2.ataque.test.tsx
+c504d0ad3690781275a6ffb78638a6148550b2fd4ee1ed25a4b154054fc4f80d  frontend/src/features/calificaciones/mis-calificaciones-01d-r3.ataque.test.tsx
+6ac36ce1eb4df953626415b3ed431a8f4809dc29cf259f755f1f8509dd54b7ef  frontend/src/features/calificaciones/secciones-01d-r3.ataque.test.tsx
+fb33f2a27bfcca906549a12610977478ba72e6e7ed8afd5c5a0a962deb3eb802  frontend/src/features/calificaciones/secciones-01d-r4.ataque.test.tsx
+932e76314e0447da1790c3c86ca48545eea834feaf6f706c4d405b7ea62be872  frontend/src/features/clases/alumnos-b-r1.ataque.test.tsx
+55dc274eca96da4360848b88f9f2a839ac815031490ab57ff38de074512d632c  frontend/src/features/clases/alumnos-b-r2.ataque.test.tsx
+371518e4309f14201a92d29f9436a97a19801b506d45114964fbcfe3f5cd4183  frontend/src/features/clases/alumnos-b-r3.ataque.test.tsx
+266d088dd727f18af8c8a106b8d9c4dbed75753e4b1b4abb12f3a4df870ecb7f  frontend/src/features/clases/alumnos-b-r4.ataque.test.tsx
+856cffbd9c743f9815daf731487e29dc5f5272545dc15820a70baf86ecfa6527  frontend/src/features/clases/alumnos-b-r5.ataque.test.tsx
+a9dc00d9cf6e8684113eeb824658c7fb2f3077ee8a54deb0cce47ac802c74f44  frontend/src/features/clases/archivos-d-r1.ataque.test.tsx
+98e645df89c9736ee33f440c1d83f342be84f30caabec0310b1b5185e538fbd6  frontend/src/features/clases/archivos-d-r2.ataque.test.tsx
+f1b2b7d3c2a2bfbc2c2aa31cce4b120e306681c0cc9efb85ac2a954c8f8f8afe  frontend/src/features/clases/archivos-d-r3.ataque.test.tsx
+c6c85ac2f6e7418e81d7817f9c455c0e0973025a15ae2a5378e00c9a71c45620  frontend/src/features/clases/cargar-mas-02c-r2.ataque.test.tsx
+a3880b67ffaa0d15763d1c761cef1ff8472029c77bfb2211ab079eadb1685325  frontend/src/features/clases/categorias-01e-r1.ataque.test.tsx
+66c0b873bc8b9d8e9e01ac871bd6aaab4328508beb5ec9371d69463d7c12430d  frontend/src/features/clases/categorias-01e-r2.ataque.test.tsx
+53909e72f161cb3494086fff21b521f8dea1425b687258bd14d4e8b401ece3c1  frontend/src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx
+907f9ba5b6881a4831fc4062c27d685b5daa19e690eff7a3a40b02b5fbec6a72  frontend/src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx
+a188c90deb61bafedabc50b76c77b02507964297cd6b155f905114839f728493  frontend/src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx
+1cc30b08735944f9c972e2f1f360ef3c422b7f6a2bf647a8d9a8061d6fd4fc65  frontend/src/features/clases/clases-admin-01c-r1.ataque.test.tsx
+76b5b2522f60795c0e7672da7b10ea95a3ce61d1aa26f102ef8eb057bd3ce6d9  frontend/src/features/clases/clases-admin-01c-r2.ataque.test.tsx
+cffce654ebfb37dc10f8ce8bf7026fc982a8c3f79b677fa2eb82c4476e113f83  frontend/src/features/clases/clases-admin-01c-r3.ataque.test.tsx
+87dae1927669b46bb52aad94db5107a5284f772fa9b29e225aace19c1a1e8def  frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx
+5f0679d8cfacc8bce01989c04a415dc5b546625eb7dec92f03959de5a0f89815  frontend/src/features/clases/clases-r1.ataque.test.tsx
+c7ad5edc733e374117a9277f1c2987e84cc2930c77eb4c720ccf15cc9f5fab45  frontend/src/features/clases/clases-r2.ataque.test.tsx
+a835a11d29aedb8f77f91e826a22c2b7cf5322fced3f6bed0c1acbf7c75a4e61  frontend/src/features/clases/clases-r3.ataque.test.tsx
+86b04d234527eceefca35b07ce89e6b7ce0b6afe5ccdee2f005e6a4219f0495a  frontend/src/features/clases/clases-r4.ataque.test.tsx
+dce7fd019a6e32b8e4df37dd0728e265f5e9449e9ee2723f372ea174fe312464  frontend/src/features/clases/descarga-ch3-r2.ataque.test.tsx
+3b5a9fac5cd20a881bf6b38597b752725a7f6bbfddcf103b7bf1239a76353dfc  frontend/src/features/clases/dudas-03e-r1.ataque.test.tsx
+fec2ffc2691bd297dca5f90233d498d10dfd689a5d9a8819bc30e757c6f67c26  frontend/src/features/clases/dudas-03e-r2.ataque.test.tsx
+18edcffc8e48073362b98c784d5bf64e3335709ae6e1c6425b32aa3310e24b56  frontend/src/features/clases/dudas-03e-r3.ataque.test.tsx
+ddc9dfaccc8230ec612126fdf29939a8e4311188566e5cfcaa724bd119e959e8  frontend/src/features/clases/errores-ch3-r1.ataque.test.ts
+5e20eefe0104b510a3002de084b6162162b5bf20797622c8d92b350853494b53  frontend/src/features/clases/estatico-02c-r1.ataque.test.ts
+3cb8e0d7bb13b57638d65aa74ec5ff0f9306f024cf6996b7737232243a0b82f8  frontend/src/features/clases/estatico-03c1-r1.ataque.test.ts
+cdd1ed8890859ae3e884822fc7074852a2173105114745d83fe9a15c1c47c626  frontend/src/features/clases/estatico-r1.ataque.test.ts
+de23d395dfe7a6f3d6d15eb48cb574599dc9d8204e5a90b255c0c10d25a186fa  frontend/src/features/clases/fila-01d-r1.ataque.test.tsx
+46383e1f3ede03cb204dbf602373d0a07e513d8dac7ec4179a203ea6ee270fa3  frontend/src/features/clases/foco-02c-r3.ataque.test.tsx
+0165d4e27b1fff9230d17bec740d89c380b6f322923c7e5a044ac010f4b9358b  frontend/src/features/clases/foco-02c-r4.ataque.test.tsx
+8b8ea2d21597bc0444709a9d26fd795d05bc964ef7b5094240628c63018c091b  frontend/src/features/clases/foco-02c-r5.ataque.test.tsx
+b819d6bbde4bd47e3ec724fcdea5e77eb66b12076b8a9a083691b52ef0bdd182  frontend/src/features/clases/foco-pestana-02d-r3.ataque.test.tsx
+ab006dc1711e9a652643930a7010c25f442d1ffdd137adbb093eb5bd98da90d6  frontend/src/features/clases/formularios-03c2-r1.ataque.test.tsx
+5224976752a14c3e003b246fa97abf25356e370cb46da1cdff9526bf3be86b4e  frontend/src/features/clases/formularios-ch3-r1.ataque.test.tsx
+7f4a935de29c3c519aad697edb1470c4cfcead600f5c1516c5fff948995d4434  frontend/src/features/clases/formularios-ch3-r2.ataque.test.tsx
+8bc578ef17d2731f388c14ca19bc719a2b8d04d8a41009fadee15227379047bc  frontend/src/features/clases/heredados-02d-r1.ataque.test.tsx
+479430b848cf3d21a0187138944deec46bb36653071bbd2790ed57620f012976  frontend/src/features/clases/indicador-03c1-r1.ataque.test.tsx
+4d94ccbe786a46ca1d82a280956f1146d5c302a9f83dfac45f39b3b2f94b753f  frontend/src/features/clases/indicador-03c1-r2.ataque.test.tsx
+0f60f1582fce6e5efaf9bf6856133dc30f1dc4eb9c3b7fea19f90a330f8335b3  frontend/src/features/clases/inicio-sin-datos-02c-r1.ataque.test.tsx
+7c434a0e54e70b12d4b2a3de22ffb4dbf5f28a1cfbd2290c22e8a2b59edf0e16  frontend/src/features/clases/inicio-sin-datos-r2.ataque.test.tsx
+99df138b24d4aba97b9f714c32ba226e82c7403cf73aa2e9e2b0b028b28e283e  frontend/src/features/clases/maestros-02c-r1.ataque.test.tsx
+4817262ef6e4dadff56857e50bab2e06ec479e62d5eaf45b34d70d683736b637  frontend/src/features/clases/muro-02c-r1.ataque.test.tsx
+8da38dbcb605ce3d90ace8117ce2cc5c838d71eb24bdd76fad3a53b82da93901  frontend/src/features/clases/muro-c-r1.ataque.test.tsx
+d0acb3527aafa6f687e3eb00563e37be93768e7d7f742694a4d5ce05b75b7e28  frontend/src/features/clases/muro-c-r2.ataque.test.tsx
+d08e51d451ebaeb2d7086c75dc1f73d52c5b4a6b8dfb979932828bed5f5d459d  frontend/src/features/clases/muro-c-r3.ataque.test.tsx
+558212b46641de0794d0ce90e3944a99cb5baa7fab4b09bbac5ea7cac41eaa34  frontend/src/features/clases/ordenar-03c2-r1.ataque.test.tsx
+aec8c4131e5dc733246b33e8189e2dc595387324bdd2081d1d245641c20c380a  frontend/src/features/clases/ordenar-03c2-r2.ataque.test.tsx
+67b60a9a5363f88e6ceba210c27452b8d639f6df798aa4e506dc54bb2312249a  frontend/src/features/clases/personas-02d-r1.ataque.test.tsx
+7677e0571587c89de1cb76788d499ac545255ca64c8afcb38a8ad6e39c02e2c6  frontend/src/features/clases/recuperar-ch3-r1.ataque.test.tsx
+60541290248812cfce5591ddf33d01125d60c33257743a7ec48a445013d3d8c1  frontend/src/features/clases/recursos-03d-r1.ataque.test.tsx
+4aafaa73980ba1bc29be043623a030c9eaa730825eb61a403bf54f9ac700b42d  frontend/src/features/clases/recursos-03d-r2.ataque.test.tsx
+70b1a49a6a0e471422be987466228e5beb87e25baee2906790651c94ed214a3a  frontend/src/features/clases/recursos-03d-r3.ataque.test.tsx
+29a3125cc70969f2fc2bb1f012beeb81840e1a00ea08d5b588b10d190342ae7f  frontend/src/features/clases/recursos-03e-r1.ataque.test.tsx
+85a7926a0f6831a8375f544cf38fe5585a8e2dcbf73d9726e9a3cfaab7f76511  frontend/src/features/clases/refactor-01c-r1.ataque.test.tsx
+4303eac77b98e8978495d9e68fd7725ac436f9db757dbc0c02c59051436908fa  frontend/src/features/clases/reloj-01e-r4.ataque.test.tsx
+09435abbb9a26dd71c52b4d95487c6d38594f1ba062aefb60f73b7eb7308f991  frontend/src/features/clases/segmentado-02d-r1.ataque.test.tsx
+d899c19ba982fbde2208bbc7fa009869556c84bd4650586dbd9ee90b22234e47  frontend/src/features/clases/tarjeta-01d-r1.ataque.test.tsx
+97af503e763f7dff9fcfbdc72862cd21de6af8e51d3ec41134f8475d98ae2df6  frontend/src/features/clases/tarjeta-01d-r2.ataque.test.tsx
+db42c88d5b0bfb1125bf122c03a2e019d6f5365c128ac4bfadd413a26a934845  frontend/src/features/clases/trabajo-01e-r1.ataque.test.tsx
+f6924bc272a5240cf97d35729c797cc10960ed7cf94fe1be1b69ca2df6c1cf8f  frontend/src/features/clases/trabajo-01e-r2.ataque.test.tsx
+9866ef34167061e2715b65a352c55d08c7e9268033e879ae633c7fd568e4d49f  frontend/src/features/clases/ventana-02c-r2.ataque.test.tsx
+ea58eb11c3157a33c5730f87f2cf562ae178589b30264902b165c4439cebc2ee  frontend/src/features/clases/ver-mas-01e-r3.ataque.test.tsx
+2ef258e946084f17e33936e8fa257551a90323b589859dd2e1f70aabeaf711bf  frontend/src/features/tareas/aviso-calificar-01c-r3.ataque.test.tsx
+e2fefd7d744f77c7bdd2ba73a08cc51076d0f6130bf4d0a225e0e972a1dce111  frontend/src/features/tareas/avisos-01c-r2.ataque.test.tsx
+11bb5433fb30f268b6d93e1e7814d826bbab8fb1f173e574faf52f5a96b5a41e  frontend/src/features/tareas/calificar-01c-r1.ataque.test.tsx
+d8daccb56c8de8d9f1b0f8d1b0907c110e327f4f55b016fc0fe7fc0f25ccc79c  frontend/src/features/tareas/calificar-vacio-01c-r4.ataque.test.tsx
+ef86c46708f0682bca5a023e85794639c396ec94d207cac23ceb13585ab39e75  frontend/src/features/tareas/campos-01c-r2.ataque.test.tsx
+5ff367edba10c9ba9c7e50f8ed874032654fa2abdc0dd8f4a122a000355472ab  frontend/src/features/tareas/cruces-01c-r3.ataque.test.tsx
+2938ae2f1c00f63a0372997c7ba68bdc0ab097895769bf9060072a4ac2674c5a  frontend/src/features/tareas/descarga-ch3-r2.ataque.test.tsx
+0963f14f4842d6d57288876c932496ac09d44b872fc049492ee6e8ba539f3235  frontend/src/features/tareas/editar-calificada-01c-r1.ataque.test.tsx
+4f486ca37d2a2bb6cc26754281d2adce086a9d8d4485a069de7ae5d54e360acf  frontend/src/features/tareas/entregas-01d-r1.ataque.test.tsx
+93a5a0a648669e9c96494a62b2b16082b07296f279e2892bf2c8d47834ee2fc1  frontend/src/features/tareas/entregas-01d-r2.ataque.test.tsx
+08a5e1a5642e7fc7553632dd5cf4e07f0ea35c3ef1e7293d010bbc49b09465aa  frontend/src/features/tareas/entregas-01d-r3.ataque.test.tsx
+172be3efd919c0d3948eca17c7e808968e2370afe1f9c2a28cef7d2ded584b81  frontend/src/features/tareas/entregas-01e-r1.ataque.test.tsx
+496652bc59817166f53e00cb828f2119c857c2834063a31764d7876dc150c930  frontend/src/features/tareas/entregas-01e-r2.ataque.test.tsx
+edf4d96e4b884eab718d06811877c17b611099a66d6857502f71eedb96026dda  frontend/src/features/tareas/errores-ch3-r1.ataque.test.ts
+94d6e6253b266c7f21099aa593aac7b2600edca22ab403aa365dcd789b1c6a97  frontend/src/features/tareas/errores-ch3-r2.ataque.test.ts
+f614e7369f8c47c40a87ad1f8867fb8edf7ebc76e94d0ba6c5c59c92cb6347f0  frontend/src/features/tareas/estatico-01c-r1.ataque.test.ts
+fb387ecbb7e5272d2ffb53d626b51ffd9c57b409d10c560e6a5ecbfa6a2a8c19  frontend/src/features/tareas/forma-01c-r2.ataque.test.tsx
+7a7c7ba922f77da22d0f765ed5ea9ccf9216d1900e4b5f18365da9d46437495f  frontend/src/features/tareas/formularios-ch3-r1.ataque.test.tsx
+bfded7507bc684ea9858cd76517ef0e4c23cbc69e5a19f381e6ec522fd6156e6  frontend/src/features/tareas/tareas-01a-r1.ataque.test.tsx
+b778fc2e6bb0a8f8715a56877b3b781439ca214c8a9c8ae126f610c95229882a  frontend/src/features/tareas/tareas-01d-r1.ataque.test.tsx
+bf3c999033195cac778a82a579e44729fb07a405f5cdb41d8e7dc932cb71f942  frontend/src/features/tareas/tareas-01d-r2.ataque.test.tsx
+3567d7c23d2cf6a2fd538cd6822ef60ac3cffeac036394ed1e3559debe492c57  frontend/src/features/tareas/tareas-01d-r3.ataque.test.tsx
+6bbe2bd85e2b5500fbab4d0f51630c0c8e9d65b1a63045ad1fa906298a92a435  frontend/src/features/tareas/tareas-01d-r4.ataque.test.tsx
+72b19b6a00b4ade43b06829bb5bef1a5cdecf5a7d2af57369f1e857a1d4a17f5  frontend/src/lib/errores-ch3-r1.ataque.test.ts
+5d41a2af073dcaa2b8b016d835d36d5ebae9278863db048484a192a88bb31a30  frontend/src/lib/errores-ch3-r2.ataque.test.ts
+66513d957e524af5e336a2c7e656df37f51106507a3984b691df47cd825d4d10  frontend/src/lib/estatico-ch3-r1.ataque.test.ts
+a9529cefbd27cbb94376a6548ef1b8b247fb1f4155938298ae5d10eaee81008a  frontend/src/lib/estatico-ch3-r2.ataque.test.ts
+60bc1fc7011e9a0fe5a4c4aa45420f2c7d38adb9ee2f8d235d09847dbe13ac3a  frontend/src/lib/format-01c-r1.ataque.test.ts
+c71cba65dd284d7af11cbc812b6bcf75baa373939edb8318e731858d9c50173f  frontend/src/lib/format-d-r1.ataque.test.ts
+89dbbb70d5dc404c3d74db5391d10855c8cb1d6b4c643b6147b3ce6ffb2637af  frontend/src/lib/format-d-r2.ataque.test.ts
+bfa7ded62f7a1402590d438a1cc51060a63fa019ad47d3eb5740e43383064a2a  frontend/src/lib/format-d-r3.ataque.test.ts
+b6265bf6eec25b7f2c34dcd93dd4d8b23d07ca6214576921a50a66ff16346ffb  frontend/src/services/apiClient-ch3-r1.ataque.test.ts
+10c730348d18ff8dae7b3623751d31122aa58560b564ad191717fa1938a6f8ce  frontend/src/services/apiClient.ataque.test.ts
+537e10bc0519805f2be98ff579b34c71eda6fa7d364e355bfbd0050f568ffcb6  frontend/src/styles/clases-r1.ataque.test.ts
+b8085bcbbc7f4b6276bf3a87fb7ba0bc887953a8c6ce372354a7f3f1b5037582  frontend/src/styles/tokens-r1.ataque.test.ts
+```
+
+## Ronda 1 — ADMIN-01d2
+
+Veredicto: **ROTO**, por tres hallazgos de severidad media o baja. Los ocho puntos de ataque del manager resisten en lo que pedían, salvo el detalle del punto 7 (T-03). T-01 y T-02 salieron de atacar alrededor de esos puntos.
+
+Verificación propia: lint exit 0 · test `Tests 4 failed | 4670 passed (4674)`, y los cuatro rojos son míos (T-01, T-02 en las dos listas y T-03).
+
+Plan: `plan.md`, SHA-256 `e3279dd14df32f72b512e2f9ace1351b6e45cd490dcd7cfec6354cc553d18b60`, comprobado. Resumen: `resumen-programador.md`, "ADMIN-01d2 — Implementación" y "Antes de la ronda 1". Base: `7655a5b`.
+
+### Entorno
+- **Batería:** `BatteryStatus` 2 en todas las lecturas. Sin `--maxWorkers` y sin repetir archivos por tiempos.
+- **Puerta de carga, sin otro `vitest`:** 16:26:24 `23` y 16:26:33 `9`; 16:26:52 `7` y 16:27:02 `6`; 16:29:26 `16` y 16:29:35 `2`; 16:30:41 `11` y 16:30:50 `3` (suite). Una corrida después de otra. La otra copia de trabajo no se usa. Sin navegadores.
+- **Un error mío, sin efecto en el repositorio.** Mi guion falló antes de un `cd` y dejó dos comandos corriendo en el espacio temporal, así que `npx` descargó a su caché, fuera del repositorio, dos paquetes que este proyecto no usa en esas versiones: `tsc@2.0.4` y `vitest@5.1.0` (`C:\Users\Carlos\AppData\Local\npm-cache\_npx\1d6e82a4126006c4` y `C:\Users\Carlos\AppData\Local\npm-cache\_npx\69c381f8ad94b576`). `tsc@2.0.4` solo imprimió que no es el compilador, y `vitest@5.1.0` terminó con `No test files found`. No corrieron ninguna prueba ni tocaron el proyecto: `package.json` y `package-lock.json` sin cambios. Esa corrida (16:25) no cuenta. **`AGENTS.md` pide preguntar antes de instalar dependencias, y esto se instaló sin preguntar. No los borré: lo decide el humano.**
+
+### Hallazgos
+
+### T-01 — El alumno lee "Mostramos la última versión" justo cuando la clase archivada lo saca de ahí
+Severidad: media
+Prueba: `frontend/src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx:895`, "ADM-T1D215: la recarga de la tarea recibe 409 CLASE_ARCHIVADA: termina en la clase anterior y no se avisa que se muestra una versión que ya no se ve"
+Esperado: el alumno termina en `/estudiante/clases-anteriores/:claseId`, sin un aviso que diga que sigue viendo la tarea. Si hay aviso, uno solo y con el texto de archivada.
+Obtenido: termina en la clase anterior, pero con el aviso `No pudimos actualizar la tarea. Mostramos la última versión que tenemos.`
+- **Por qué pasa:** para el alumno, `GET …/tareas/:id` de una archivada responde `409 CLASE_ARCHIVADA`. `features/tareas/detalle-tarea-view.tsx:53-59` lo trata como cualquier recarga fallida con la tarea en caché (`:56`), y un instante después N-05 se lleva la vista.
+- **Camino real:** `ClaseLayout` sigue montado entre secciones, así que no vuelve a pedir el detalle de la clase. El alumno abre una tarea que ya tenía en caché, con los datos vencidos, después de que la archivaron. La prueba lo provoca marcando vieja la tarea.
+- **Hermano:** es el hermano 5 de la Enmienda 3 ("Consultas"), que el plan revisó para las listas (ADM-1D216) y no para esta lectura, porque la tarea en caché no es una lista.
+- **Lo que no pasa:** no hay dos avisos y la redirección llega. El defecto es el texto.
+
+Requisito o regla violada: §D-9 (Enmienda 3, hermano 5) y fila "Subida de tarea o entrega; descarga del alumno; listas del alumno" de la matriz: ante `CLASE_ARCHIVADA`, "un aviso (el del `catch`, el de la descarga o el error de la vista)". El texto que sale afirma algo falso.
+
+### T-02 — Recién visto el aviso de archivada, la lista dice que no hay ninguna
+Severidad: baja
+Prueba: `frontend/src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx:603`, "ADM-T1D220: la clase que la persona acaba de ver archivada no falta de su lista: abrir la lista justo después de ver el aviso no dice que no hay ninguna" (`alumno` y `maestro`)
+Esperado: al seguir "Volver a clases anteriores" (o "Volver a mis clases") desde la clase que la sesión acaba de saber archivada, la lista la incluye.
+Obtenido: `Unable to find role="link" and name "Clase 1"`. La lista sale de la caché y dice "No tienes clases anteriores" o "No tienes clases archivadas", hasta que vencen los 30 s del `staleTime` y se vuelve a montar.
+- **Ventana estrecha:** hace falta haber abierto la lista en los 30 s anteriores.
+- **Para el manager, porque roza una decisión aprobada.** La Enmienda 10 dice que "archivar y restaurar no la marcan viejas" y que el alumno y el maestro ven el cambio "en su siguiente petición de la lista (al montarla con los datos vencidos)". Su razón es la sesión del admin, donde esa clave nunca tiene datos. No contempla este caso: la sesión del propio alumno o maestro que acaba de leer el detalle archivado y, con él, sabe que su lista está vieja. Si el manager lo da por cubierto por la Enmienda 10, no es hallazgo y el caso debe salir con un C-n; no lo decido yo.
+
+Requisito o regla violada: §D-9, Enmienda 10 (lectura que hay que arbitrar). Un vacío que afirma algo que la propia pantalla anterior acaba de desmentir.
+
+### T-03 — Dudas en una archivada: el bloque abierto y vacío deja un título "Respuestas" sin nada debajo
+Severidad: baja
+Prueba: `frontend/src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx:812`, "ADM-T1D227: el bloque de una duda sin respuestas abierto al archivar: no queda el título «Respuestas» sin nada debajo, ni el formulario"
+Esperado: sin respuestas y sin formulario, no queda un encabezado vacío.
+Obtenido: `expected <h3 tabindex="-1" class="sr-only"></h3> to be null`.
+- **Por qué pasa:** `elemento-de-duda.tsx:60-61` sigue ofreciendo el control por `abierto`, y `respuestas-de-duda.tsx:252` pinta el `h3` y el borde superior aunque `contenido()` dé `null` y el formulario ya no se pinte. Un lector de pantalla lee "Respuestas" y nada más, y queda una línea suelta en pantalla.
+- **Lo que está bien:** el control dice "Ocultar respuestas", plegarlo lleva el foco a la fila (ADM-T1D228) y el foco no cae en `<body>`.
+- **Precedente:** por lectura, el mismo estado existe hoy para el admin si borran la última respuesta con el bloque abierto. En una archivada es más fácil de alcanzar, porque basta tener abierto "Responder".
+
+Requisito o regla violada: punto de ataque 7 del manager ("nada de título huérfano") y §D-9, fila 25.
+
+### Atacado sin hallazgos
+
+57 casos en dos archivos; 53 en verde.
+
+**Punto 1, lista con `5xx` y `400` alternados, en las dos listas:**
+- **ADM-T1D216** (con `app/providers.tsx`): `5xx`, repetir, `400` en la siguiente, repetir y cargar hasta el final. Cada texto una vez, sin avisos, sin perder el botón, y el foco nunca en `<body>`.
+- **ADM-T1D217:** el foco en una fila cuando llega el `5xx`: va al `h1`.
+- **ADM-T1D218:** ir al inicio y volver con el `5xx` en pantalla: solo la primera página, sin texto.
+- **ADM-T1D219:** dos páginas cargadas, `5xx` en la tercera y `400` en la segunda al repetir: la frase, y otro «Cargar más» pide solo la primera.
+- **ADM-T1D231 y ADM-T1D232:** dos clics al repetir, con `5xx` y con `400`: una petición.
+
+**Punto 2, N-05 y OA-2 con otras cosas abiertas:**
+- **ADM-T1D221:** OA-2 con otro filtro y «Ver más tareas» en vuelo, con `500` y con `400`: sin avisos al llegar, y la clase activa nace en "Todas" y con enlaces.
+- **ADM-T1D222:** N-05 con «Ver más tareas» en vuelo, con `500` y `400`, con y sin filtro: título como texto, sin avisos.
+- **ADM-T1D223 y ADM-T1D224:** un `403` después de cada redirección: su texto y su enlace, sin ir y venir entre rutas.
+- **ADM-T1D233:** un id manipulado en la vista de la clase anterior: sin acceso, sin pedir calificaciones.
+
+**Punto 3, fila 32:**
+- **ADM-T1D201:** «Borrar con las entregas» en vuelo y dos vueltas: reabrir da el primer paso y no sale otro `DELETE`; con éxito navega y un aviso.
+- **ADM-T1D202:** con un `409`: un aviso, sin segundo paso; el siguiente intento lo abre, sin aviso.
+- **ADM-T1D203:** `DELETE` con éxito con la clase ya archivada: navega a Actividades en solo lectura.
+
+**Punto 4, filas 35 y 36 con un archivo a medio subir (`it.each` editar y crear):**
+- **ADM-T1D204:** el `PUT` al almacén llega y la tarea recibe el `409`: un aviso, sin navegar, lo escrito sigue hasta el detalle, que se pide una vez.
+- **ADM-T1D205:** se archiva con el `PUT` en vuelo: un aviso, sin navegar; al restaurar el formulario nace limpio.
+- **ADM-T1D206:** dos archivos, y la solicitud del segundo con `409`: un aviso con su nombre, sin escribir la tarea.
+
+**Punto 5, el alumno con la entrega en vuelo:**
+- **ADM-T1D207:** la subida llega después de N-05 y la entrega responde `ENTREGA_VACIA`, `enlaces.0` o `CLASE_ARCHIVADA`: un aviso legible y se queda en la clase anterior.
+- **ADM-T1D208:** el `PUT` falla después de la redirección: un aviso, sin entregar.
+- **ADM-T1D209:** la entrega se acepta después de la redirección: un aviso de éxito.
+
+**Punto 6, restaurar con "Mis calificaciones" en error:**
+- **ADM-T1D225:** el texto de la clase anterior no se ve en la clase activa, y Calificaciones se recupera.
+- **ADM-T1D226:** al revés, archivar: en la clase anterior no se lee "Vuelve a abrir Calificaciones".
+
+**Punto 7, Dudas (sin T-03):**
+- **ADM-T1D228:** plegar el bloque vacío con el foco en el control: a la fila.
+- **ADM-T1D229:** «Ver más respuestas» en vuelo al archivar: la página llega, sin formulario y sin «Borrar».
+- **ADM-T1D230:** plegar y desplegar en una archivada, y al restaurar el formulario renace sin llevarse el foco.
+
+**Punto 8, la recarga tras el `409`:**
+- **ADM-T1D210 y ADM-T1D211:** la persona sale con la recarga en vuelo, en las filas 36 y 33: al llegar no navega ni avisa otra vez. Fila 36: al volver guarda con la versión nueva.
+- **ADM-T1D212 y ADM-T1D214:** un segundo `409` con la primera recarga sin resolver, en las filas 36 y 33, soltando las dos en cada orden: reinicia una vez, sin otro aviso. Fila 36: con la versión nueva y el foco en el título.
+- **ADM-T1D213:** control: sin pasar por una archivada, con la recarga en vuelo, dos clics no mandan otro `PUT`.
+
+**Además:**
+- **ADM-T1D234:** el foco en cada control de las filas 31 a 36 al archivar (siete casos): nunca en `<body>`.
+
+**La pregunta de T-03 de 01d1, en las filas 22 a 37: ¿qué se pierde si un callback de `mutate` no corre porque el componente ya no está?** Revisé por `grep` cada `.mutate(` y `mutateAsync(` de esos archivos. No encontré ningún aviso perdido:
+
+| Fila | Callback o resto del manejador | Si no corre |
+|---|---|---|
+| 22 y 25 | `crear.mutate` y `responder.mutate`: limpiar y marcar el campo | Sin formulario; el aviso del error del texto vive en el gancho, con `montado` (ADM-1D223) |
+| 23, 24 y 26 | `onSettled`: la guarda | La fila sigue montada; si sale, la guarda se va con ella |
+| 27, 28, 29 y 30 | Sin callbacks | Nada |
+| 32 | `onSuccess: navigate`, `onError: setConEntregas` | No navega con la vista desmontada, y es lo que pide B2; el aviso sale del gancho (`montado`) |
+| 33, 34, 35 y 36 | `mutateAsync` con `catch` | El `catch` sigue corriendo; el error del campo avisa con `montado` |
+| Alumno | `entregar` y `anular`, con `mutateAsync` | Igual (ADM-T1D207) |
+
+Un matiz, que no cuento como hallazgo: un comentario del hilo aceptado con el formulario ya fuera no da ningún aviso de éxito. Tampoco lo da con el formulario montado (el comentario aparece en la lista), y es así desde antes de 01d2.
+
+**Lo que no cuento, según la lista del orquestador:** N-01d1-4 extendido, el foco en el contenedor del error al recuperarse sin navegar, el foco en la redirección de N-05, el fallo callado de la fila 36, el `catch` de `entrega-de-alumno-view.tsx:136` y la fecha sin año.
+
+### No atacado y por qué
+- **Navegador, 360 px y apariencia:** sin navegadores. «Cargar más» bajo el mensaje de error y los enlaces del pie los juzga el humano en la comprobación del final de 01g.
+- **El backend:** 01d2 no lo toca, así que no hay PA-07.
+- **La barra lateral con la clase archivada tras N-05:** por lectura, sigue hasta que se vuelve a pedir, y la Enmienda 10 lo declara. No escribí caso. Si el manager reabre esa decisión por T-02, es su hermano.
+- **Con la vista desmontada y de vuelta antes de que llegue la recarga, fila 33:** por lectura, el panel nace con la versión vieja y el siguiente guardado recibe otro `409`. No escribí caso: ya era así en `7655a5b` (`montadoRef`) y nada se sobrescribe.
+
+### Conteos y corridas (desde `frontend/`)
+
+**Archivos nuevos**, de `npx vitest list … | grep -a -c`:
+
+| Archivo | Casos | SHA-256 |
+|---|---|---|
+| `frontend/src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx` | 28 | `0fc7408a9c9e039c700956c8132790e689b84db3714f52080df86aecb387d88b` |
+| `frontend/src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx` | 29 | `af127fae8354906737c857aa497a29a53514c928fa4dcfbfc79a41e3fbc13eee` |
+
+No cambié ninguna `*.ataque` existente, ni código de producción, ni pruebas normales. Sin tiempos fijos: lo que debe quedar en vuelo se retiene con una promesa.
+
+**Los dos archivos:** `npx vitest run src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx`
+
+```
+ Test Files  2 failed (2)
+      Tests  4 failed | 53 passed (57)
+   Start at  16:29:37
+   Duration  42.57s (transform 3.34s, setup 601ms, import 1.19s, tests 47.75s, environment 2.81s)
+```
+
+**Módulos, con el comando literal del resumen:** `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts`
+
+```
+ Test Files  2 failed | 211 passed (213)
+      Tests  4 failed | 4670 passed (4674)
+   Start at  16:30:52
+   Duration  231.65s (transform 46.59s, setup 129.04s, import 325.11s, tests 1396.00s, environment 606.90s)
+```
+
+- 4617 del resumen + 57 mías = 4674. Los cuatro rojos son T-01, T-02 (dos listas) y T-03; ningún archivo de antes cae.
+- **`lint`:** `npm run lint` → exit 0. `All matched files use Prettier code style!`, y la última línea es `> tsc -b`.
+
+**V-01:** `sha256sum -c` de la lista `e2ee9ba2…`: 262 sin diferencias. `git ls-files` da 262 rastreadas. Hay 2 mías sin rastrear, las de la tabla: **264 en total**. Nadie más tocó ninguna.
+
+**Producción:** `git diff --name-only 7655a5b -- frontend` da 38 y `git ls-files -o --exclude-standard frontend` da 8 (los 6 del programador y mis 2). Huella de `frontend/src` sin pruebas: `cc30a2b35c19819b37c23c6c5011482ace120febd4ebd469d80566f408c5733b` (`find frontend/src -name '*.ts' -o -name '*.tsx' | grep -v '\.test\.' | sort | xargs sha256sum | sha256sum`).
+
+### Cierre de la ronda 1 de 01d2
+- **Veredicto: ROTO.**
+- **Hallazgos:** crítica 0, alta 0, media 1 (T-01), baja 2 (T-02 y T-03).
+- **T-02 pide un arbitraje del manager** antes de corregir: roza la Enmienda 10.
+- **Resisten** los ocho puntos del manager, salvo T-03 en el punto 7, y la pregunta de T-03 de 01d1 no encontró ningún aviso perdido.
+- **Suite:** `Tests 4 failed | 4670 passed (4674)`. **`lint`:** exit 0. **V-01:** 262 sin cambio, más 2 nuevas. **`BatteryStatus`:** 2.
+- **Para el humano:** los dos paquetes que `npx` dejó en su caché por error mío (arriba, "Entorno").
+
+## Ronda 2 — ADMIN-01d2
+
+Veredicto: **ROTO**, por un solo hallazgo de severidad baja (T-04). T-01, T-02 y T-03 siguen cerrados, y los siete puntos de ataque resisten, salvo un resto de T-02 en el punto 3. También dejo una medición para que el manager decida (O-r2-1), que no cuento como hallazgo.
+
+Verificación propia: lint exit 0 · test `Tests 2 failed | 4755 passed (4757)`, y los dos rojos son T-04, uno por lista.
+
+Plan: `plan.md`, SHA-256 `e3279dd14df32f72b512e2f9ace1351b6e45cd490dcd7cfec6354cc553d18b60`, comprobado. Resumen: `resumen-programador.md`, "ADMIN-01d2 — Corrección ronda 1" y "Hermanos autorizados de T-01". Base: `7655a5b`.
+
+### Entorno
+- **Batería:** `BatteryStatus` 2 en todas las lecturas. Sin `--maxWorkers` y sin repetir archivos por tiempos.
+- **Puerta de carga, sin otro `vitest`:** 17:45:35 `0` y 17:45:44 `0` (regresión); 17:50:35 `9` y 17:50:44 `2`; 17:53:28 `10` y 17:53:37 `4`; 17:55:19 `25` y 17:55:28 `12` (los archivos nuevos); 17:56:28 `14` y 17:56:37 `2` (suite). Una corrida después de otra. Sin navegadores. La otra copia de trabajo no se usa.
+- **`npx` solo desde `frontend/`:** cada comando comprueba el directorio antes (`[ "$(basename "$PWD")" = frontend ] || exit 9`). `package.json` y `package-lock.json` sin cambios.
+- **Dos corridas de mis archivos que no cuentan como resultado (17:50 y 17:53).** Los rojos eran de mis pruebas, no del código: un `await act` que esperaba una lectura retenida, un texto mal elegido, y la invalidación de Recursos, que no alcanzaba las secciones. Las corregí antes de la corrida que cuento.
+
+### Regresión, antes de atacar
+
+`npx vitest run src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx src/features/tareas/errores-ch3-r1.ataque.test.ts src/styles/clases-r1.ataque.test.ts src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx src/features/clases/clases-admin-01c-r1.ataque.test.tsx src/features/clases/clases-admin-01c-r2.ataque.test.tsx src/features/clases/clases-admin-01c-r3.ataque.test.tsx`
+
+```
+ Test Files  10 passed (10)
+      Tests  226 passed (226)
+   Start at  17:45:46
+   Duration  30.26s (transform 19.95s, setup 5.56s, import 13.93s, tests 125.50s, environment 25.37s)
+```
+
+Todo en verde: mis `clase-archivada-01d2-r1` (ADM-T1D215, ADM-T1D220 y ADM-T1D227 incluidas), C-11, C-12, C-40, C-41, y las de 01c y 01d1.
+
+### Hallazgos
+
+### T-04 — T-02 sigue si la primera página de la lista aún no llega cuando la sesión lee la clase archivada
+Severidad: baja
+Prueba: `frontend/src/features/clases/clase-archivada-01d2-r2.ataque.test.tsx:533`, "ADM-T2D202: la primera página de la lista sigue en vuelo cuando la sesión lee la clase archivada, y llega sin ella: al volver no se lee que no hay ninguna" (`alumno` y `maestro`)
+Esperado: al seguir "Volver a clases anteriores" (o "Volver a mis clases"), la lista trae la clase.
+Obtenido: `Unable to find role="link" and name "Historia"`. Se lee "No tienes clases anteriores" o "No tienes clases archivadas", con cero peticiones más.
+- **Por qué pasa:** `useClaseArchivadaEnSuLista` (`features/clases/hooks.ts:419`) lee `getQueryData`, y con la primera página en vuelo no hay datos: "sin lista, no hace nada". Su efecto solo depende de `claseId` y `archivada`, así que no vuelve a correr cuando llega esa respuesta, leída antes de archivar.
+- **Qué lo distingue de los que sí resisten:** con «Cargar más» en vuelo sí hay datos y la lista sale de la caché, y su respuesta tardía no vuelve a meter nada (ADM-T2D201). Solo queda este estado: lista sin datos y con una petición en vuelo.
+- **Ventana:** más estrecha que T-02. La persona abre la lista y se va a la clase, por la barra, antes de que la lista responda, y la clase se archiva en ese intervalo. Por eso es baja. Es el mismo texto falso que el arbitraje de T-02 decidió corregir, y por eso lo reporto.
+- **Puede aceptarse:** si el manager lo da por riesgo residual, va a ESTADO §3 y el caso sale con un C-n; no lo decido yo.
+
+Requisito o regla violada: "## Arbitraje de T-02 — ADMIN-01d2": al volver no se lee el vacío falso.
+
+### Atacado sin hallazgos
+
+38 casos en dos archivos; 36 en verde.
+
+**Punto 1, T-01 con `callado`, en la entrega de un alumno:**
+- **ADM-T2D216:** la tarea con `409` mientras la entrega se vuelve a pedir: al volver bien, ningún aviso; un `5xx` nuevo, uno solo.
+- **ADM-T2D217:** lo mismo, y la persona sale de la vista: al volver no se repite; un `5xx` nuevo, uno solo.
+- **ADM-T2D218:** la tarea con `409` y la entrega reemplaza la vista: sin aviso de la tarea; al volver, un `5xx` nuevo, uno solo.
+- **ADM-T2D219:** un `5xx` callado que después se vuelve `409` antes de terminar la entrega: ningún aviso de última versión.
+- **ADM-T2D220:** otra tarea sin desmontar: el `409` de la primera no se come el `5xx` de la segunda, y al regresar no se repite nada. Esto cubre lo que el programador declaró solo por lectura ("cambio de clave").
+
+**Punto 2, Recursos con `409` y `5xx` alternados:**
+- **ADM-T2D213:** temas en `409`, con las secciones en `409` o en `5xx`: nunca "última versión", y un solo id de aviso.
+- **ADM-T2D214:** temas en `5xx` y secciones en `409`, en los dos órdenes: un solo id, se lee el texto de archivada y termina en la clase anterior. Ver O-r2-1.
+- **ADM-T2D215:** temas en `409`, `5xx` y `409`: el `5xx` avisa, y los `409` no se lo comen ni lo repiten.
+
+**Punto 3, T-02 con la lista en movimiento (las dos listas; sin T-04):**
+- **ADM-T2D201:** «Cargar más» en vuelo al salir: la lista sale de la caché, la respuesta tardía no vuelve a meter nada, y al regresar se pide una vez, desde la primera.
+- **ADM-T2D203:** la lista en error con filas en caché: al volver, desde la primera y sin texto de error.
+- **ADM-T2D204:** dos clases archivadas seguidas: cada una aparece, con una lectura por vez.
+- **ADM-T2D205:** atrás del historial: sin vacío falso, y sale la clase.
+
+**Punto 4, T-02 con una clase en una página sin cargar (las dos listas):**
+- **ADM-T2D206:** abrirla tres veces: una lectura por apertura, siempre sin cursor, sin ciclo. Con su página ya cargada: ninguna, y las dos páginas siguen.
+
+**Punto 5, T-03 con varios `DELETE` en vuelo, y el destino exacto del foco:**
+- **ADM-T2D207:** dos `DELETE` con la clase archivada, en los dos órdenes: al archivar, el foco va a la fila de la respuesta. Con la primera, a la que queda; con la última, **a la fila de la duda**. Dos avisos de éxito, nunca `<body>`, y sin título huérfano. Esto mide el destino que "T-03 vecino" solo afirmaba como "no en `<body>`".
+- **ADM-T2D208:** «Ver más respuestas» con la última página vacía: al `h3` del bloque.
+- **ADM-T2D209:** con el foco en «Ver más respuestas», una recarga deja el bloque sin respuestas: el `h3` ya no está y el foco va a la fila de la duda. Lo salva el `useFilaEnFoco` de `dudas-view`. Era lo que esperaba ver roto, y resiste.
+
+**Punto 6, T-03 cuando llega algo al bloque:**
+- **ADM-T2D210:** una respuesta nueva por una recarga: reaparece con su título, sin formulario ni «Borrar», y sin llevarse el foco.
+- **ADM-T2D211:** una recarga con error y luego sana: un solo mensaje, sin avisos; al sanar, el bloque deja de pintarse y el foco no se mueve.
+- **ADM-T2D212:** dos vueltas con el bloque vacío: al restaurar vuelven título y formulario sin llevarse el foco, y al archivar salen.
+
+**Punto 7, las cuatro vistas del gancho tras dos vueltas (detalle, entregas, entrega de un alumno y editar):**
+- **ADM-T2D221:** con datos: el `409` no avisa, el `5xx` siguiente avisa una vez, y otro `409` no repite.
+- **ADM-T2D222:** sin datos: el texto de archivada reemplaza la vista, sin aviso.
+- **ADM-T2D223:** el alumno: `5xx` con su aviso y después `409`: termina en la clase anterior sin otro aviso.
+
+### Observaciones para el manager
+
+**O-r2-1. Una medición sobre tu frase del punto 2, que no cuento como hallazgo.** Pediste "nunca «última versión» justo antes de la redirección". Con los temas en `409`, se cumple. Pero con las secciones en `409` y **después** los temas en `5xx` (ADM-T2D214, orden "secciones 409 antes que temas 5xx"), el último aviso es "No pudimos actualizar Recursos. Mostramos la última versión que tenemos.", con el mismo id, así que reemplaza al de archivada, y después llega la redirección.
+- **Por qué no lo cuento:** ese `5xx` es un fallo real y el texto es cierto al salir; el gancho solo ve el error de los temas, y hace falta que el servidor falle justo en ese intervalo. La prueba fija lo demás (un solo id, se leyó el de archivada, termina en la clase anterior) y no afirma el orden final.
+- **Medido** con una copia temporal de la prueba, ya borrada, que lanzaba la lista de avisos (18:03:31 `24` y 18:03:40 `10`). Orden "secciones 409 antes que temas 5xx": archivada, archivada, última versión, última versión. Orden contrario: última versión, última versión, archivada, archivada. Son dos llamadas por cada bloque, con el mismo id.
+- **Si lo quieres contar:** por lectura, es hermano en `trabajo-view.tsx` y en el detalle de la tarea; esos dos no los medí. Decide tú.
+
+### No atacado y por qué
+- **Navegador, 360 px y apariencia:** sin navegadores.
+- **El backend:** 01d2 no lo toca, así que no hay PA-07.
+- **Lo que no cuenta, según el orquestador:** `aria-controls` de «Ocultar respuestas», la barra lateral y el inicio con la clase archivada, la fecha sin año, N-01d1-4 extendido, el foco en la redirección de N-05, el foco del contenedor de error al recuperar sin navegar, el fallo callado de la fila 36 y el `catch` de `entrega-de-alumno-view.tsx:136`.
+- **Las vistas del gancho con el `409` real para el maestro:** el servidor no se lo manda en una lectura. ADM-T2D221 y ADM-T2D222 fijan el gancho compartido con un doble, igual que los casos "defensivos" del programador. Ninguno prueba que el backend lo mande.
+- **Clientes:** en `features/tareas` uso las opciones de `app/providers.tsx` sin reintento, como el arnés del programador. En `features/clases`, con `retry: 1`, salvo en Recursos, para medir el orden.
+
+### Conteos y corridas (desde `frontend/`)
+
+**Archivos nuevos**, de `npx vitest list … | grep -a -c`:
+
+| Archivo | Casos | SHA-256 |
+|---|---|---|
+| `frontend/src/features/clases/clase-archivada-01d2-r2.ataque.test.tsx` | 24 | `4e3a45f7672489373d6d1ad3f2309c572e9b7930e846fa9596b60a858c933294` |
+| `frontend/src/features/tareas/clase-archivada-01d2-r2.ataque.test.tsx` | 14 | `940817a89a4aaa1703187248e6c53dcbfe97c1af053b2f78c265e34f0ce50e7a` |
+
+No cambié ninguna `*.ataque` existente, ni código de producción, ni pruebas normales. Las dos de la ronda 1 siguen en `0fc7408a…` y `af127fae…`. Sin tiempos fijos: lo que debe quedar en vuelo se retiene con una promesa.
+
+**Los dos archivos:** `npx vitest run src/features/clases/clase-archivada-01d2-r2.ataque.test.tsx src/features/tareas/clase-archivada-01d2-r2.ataque.test.tsx`
+
+```
+ Test Files  1 failed | 1 passed (2)
+      Tests  2 failed | 36 passed (38)
+   Start at  17:55:30
+   Duration  30.68s (transform 3.40s, setup 604ms, import 1.22s, tests 32.62s, environment 2.79s)
+```
+
+**Módulos, con el comando literal del resumen:** `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts`
+
+```
+ Test Files  1 failed | 214 passed (215)
+      Tests  2 failed | 4755 passed (4757)
+   Start at  17:56:39
+   Duration  234.47s (transform 40.43s, setup 130.24s, import 325.51s, tests 1411.51s, environment 616.04s)
+```
+
+- 4719 del resumen + 38 mías = 4757. Los dos rojos son T-04, uno por lista; ningún archivo de antes cae.
+- **`lint`:** `npm run lint` → exit 0. `All matched files use Prettier code style!`, y la última línea es `> tsc -b`.
+
+**V-01:** `sha256sum -c` de la lista `e2ee9ba2…`: 262 sin diferencias. `git ls-files` da 262 rastreadas. Hay 4 mías sin rastrear, las dos de la ronda 1 y las dos de esta: **266 en total**. Nadie más tocó ninguna.
+
+**Producción:** `git diff --name-only 7655a5b -- frontend` da 40 y `git ls-files -o --exclude-standard frontend` da 10 (los 6 del programador y mis 4). Huella de `frontend/src` sin pruebas: `10a41c206143f21ba15b2b7dfdd91b7f8a9ae39589f1840f83d485c309006315` (`find frontend/src -name '*.ts' -o -name '*.tsx' | grep -v '\.test\.' | sort | xargs sha256sum | sha256sum`).
+
+### Cierre de la ronda 2 de 01d2
+- **Veredicto: ROTO.**
+- **Hallazgos:** crítica 0, alta 0, media 0, baja 1 (T-04).
+- **Para el manager:** T-04 puede corregirse o aceptarse como riesgo residual, y O-r2-1 queda a su decisión.
+- **Resisten** T-01, T-02 y T-03 en la regresión, y los siete puntos, salvo T-04 en el punto 3.
+- **Suite:** `Tests 2 failed | 4755 passed (4757)`. **`lint`:** exit 0. **V-01:** 262 sin cambio, más 4 sin rastrear. **`BatteryStatus`:** 2.
+
+## Ronda 3 — ADMIN-01d2
+
+Veredicto: **RESISTE.** Sin hallazgos: crítica 0, alta 0, media 0, baja 0. T-01 a T-04 siguen cerrados, y los seis puntos de ataque no encontraron ningún defecto.
+
+Verificación propia: lint exit 0 · test `Tests 4802 passed (4802)` · `Test Files 216 passed (216)`.
+
+Plan: `plan.md`, SHA-256 `e3279dd14df32f72b512e2f9ace1351b6e45cd490dcd7cfec6354cc553d18b60`, comprobado. Resumen: `resumen-programador.md`, "ADMIN-01d2 — Corrección ronda 2". Base: `7655a5b`.
+
+### Entorno
+- **Batería:** `BatteryStatus` 2 en todas las lecturas. Sin `--maxWorkers` y sin repetir archivos por tiempos.
+- **Puerta de carga, sin otro `vitest`:** 19:24:40 `2` y 19:24:49 `0` (regresión); 19:39:08 `9` y 19:39:17 `5` (mi archivo); 19:42:32 `12` y 19:42:41 `10` (mutación de la limpieza y las dos corridas en orden aleatorio, una después de otra); 19:45:15 `0` y 19:45:24 `6` (suite). La carga externa llegó a 63 % entre corridas, y esperé sin terminar ningún proceso. Sin navegadores. La otra copia de trabajo no se usa.
+- **`npx` solo desde `frontend/`:** cada comando comprueba el directorio antes. `package.json` y `package-lock.json` sin cambios.
+- **Dos corridas de mi archivo que no cuentan (19:32 y 19:36).** La primera cayó por mis pruebas: una suposición mía sobre el estado en pausa (abajo) y el nombre de un enlace. La segunda dio `31 passed`, antes de sumar ADM-T3D216.
+
+### Regresión, antes de atacar
+
+`npx vitest run src/features/clases/clase-archivada-01d2-r2.ataque.test.tsx src/features/tareas/clase-archivada-01d2-r2.ataque.test.tsx src/features/clases/clase-archivada-01d2-r1.ataque.test.tsx src/features/tareas/clase-archivada-01d2-r1.ataque.test.tsx src/features/tareas/errores-ch3-r1.ataque.test.ts src/styles/clases-r1.ataque.test.ts src/features/clases/clase-archivada-01d1-r1.ataque.test.tsx src/features/clases/clase-archivada-01d1-r2.ataque.test.tsx src/features/clases/clase-archivada-01d1-r3.ataque.test.tsx src/features/clases/clases-admin-01c-r1.ataque.test.tsx src/features/clases/clases-admin-01c-r2.ataque.test.tsx src/features/clases/clases-admin-01c-r3.ataque.test.tsx`
+
+```
+ Test Files  12 passed (12)
+      Tests  264 passed (264)
+   Start at  19:24:52
+   Duration  41.02s (transform 45.01s, setup 10.28s, import 29.92s, tests 240.62s, environment 56.02s)
+```
+
+Todo en verde, con ADM-T2D202 en las dos listas.
+
+### Hallazgos
+
+Ninguno.
+
+### Atacado sin hallazgos
+
+33 casos en un archivo, todos en verde, en las dos listas salvo el punto 5.
+
+**Punto 1, los estados "en pausa", con `onlineManager`:**
+- **ADM-T3D201, sin datos**, en los dos órdenes (volver y que regrese la red; que regrese la red y volver): nunca se lee el vacío, la petición sale una sola vez y trae la clase.
+- **ADM-T3D202, sin la clase:** la lista se quita; al volver sin red no se lee el vacío, y con red sale la clase, con una lectura más.
+- **ADM-T3D203, con la clase:** la lista se queda; al volver sin red se ve la clase, y con red sigue, con una lectura más.
+- **ADM-T3D204:** «Cargar más» en pausa y salir a la archivada: al regresar la red no sale la página vieja.
+- **ADM-T3D216, control:** dos clics sin red no piden nada; con red sale una sola página y el botón vuelve a servir.
+
+**Una precisión a la tabla del arbitraje, sin efecto para la persona.** "Sin datos, en pausa: no hace nada: la petición aún no sale" termina igual, pero el estado no se queda en pausa. Al irse el último observador, la petición en pausa se revierte y la lista pasa a sin datos y quieta (lo vi: `fetchStatus` `idle`, y esa fue mi suposición equivocada de la primera corrida). Por eso, al regresar la red con la clase abierta no sale nada, y la lectura ocurre al volver a la lista. El caso cubre los dos órdenes.
+
+**Punto 2, sin datos y quieta, y el reintento:**
+- **ADM-T3D205:** en la espera del reintento de la primera carga, con `retry: 1` y `fetchStatus` en `fetching`: al leer la archivada la lista se quita y el reintento no sale. Al volver, sin error ni vacío, con dos lecturas.
+- **ADM-T3D206:** la primera carga falla después de salir hacia una clase activa, y esa clase se archiva. Es el estado sin caso del programador: `status` `error` y sin datos. Al volver se pide, sin su error ni el vacío.
+
+**Punto 3, T-04 cruzado con `useRecuperarListaDeClasesAnteriores`:**
+- **ADM-T3D207**, en los dos órdenes (la clase ya archivada al llegar; se archiva con la vista abierta): la lista en error y la recarga en vuelo al salir: una sola lectura de más, desde la primera, sin texto de error.
+- **ADM-T3D208:** una recarga con la clase en la lista falla después de salir, y la clase se archiva: la lista se queda y al volver termina con la clase, sin el vacío ni el error.
+- **ADM-T3D209:** el `400` de «Cargar más» llega después de salir: al volver la lista se cura sola, sin la frase de lista cambiada.
+
+**Punto 4, dos clases seguidas con la lista en vuelo:**
+- **ADM-T3D210:** primero una activa, que no toca la lista, y después una archivada: la respuesta tardía no entra, y al volver sale la clase, con dos lecturas.
+- **ADM-T3D211:** primero la archivada y después una activa: la lista no se vuelve a crear, con dos lecturas.
+- **ADM-T3D212:** dos archivadas seguidas (para el alumno, con N-05 en medio): las dos salen al volver, con dos lecturas.
+
+**Punto 5, el recorrido completo de cada rol, con `app/providers.tsx`:**
+- **ADM-T3D213, alumno:** inicio → "Clases anteriores" → «Cargar más» → una clase → volver → otra clase → «Ver más tareas» y el filtro → volver. Sin secciones, títulos como texto, cero lecturas de más de la lista, sin escrituras ni avisos.
+- **ADM-T3D214, maestro:** inicio → "Clases archivadas" → una clase → Personas, Dudas, Actividades, una tarea y la entrega de un alumno → "Volver a mis clases". Ningún control de escritura, sin pedir el código, cero lecturas de más de la lista, sin escrituras ni avisos.
+- **ADM-T3D215, admin:** una archivada → Personas → «Restaurar» con dos clics: una petición, un aviso, vuelve «Quitar», el foco en el `h1`, y la sesión no crea la lista.
+
+**Punto 6, regresión de T-01 a T-04 en orden aleatorio:** mis cinco archivos del encargo (`01d2-r1` y `01d2-r2`, en `clases` y `tareas`, y `01d2-r3`), con `--sequence.shuffle`, que baraja archivos y casos:
+
+| Semilla | Resultado |
+|---|---|
+| `--sequence.seed=20261106` | `Test Files 5 passed (5)` · `Tests 128 passed (128)` |
+| `--sequence.seed=77` | `Test Files 5 passed (5)` · `Tests 128 passed (128)` |
+
+**¿Detectan algo estos casos?** Mutaciones en memoria, con un complemento de Vite fuera del árbol (`C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\ce73329e-6e87-4432-b4fc-239c50515013\scratchpad\vitest.sonda-r3.config.mjs`). Ningún archivo del repositorio cambia. Sobre `clase-archivada-01d2-r3.ataque.test.tsx`:
+
+| Mutación en `features/clases/hooks.ts` | Resultado | Caen |
+|---|---|---|
+| Sin `!enVuelo` en la guarda de "sin datos" | `8 failed \| 25 passed` | ADM-T3D205, 210, 211 y 212 |
+| `enVuelo` también en pausa | `2 failed \| 31 passed` | ADM-T3D203 |
+| `invalidateQueries` en lugar de `removeQueries` | `12 failed \| 21 passed` | ADM-T3D202, 204, 205, 210, 211 y 212 |
+| Sin `!enVuelo` en la guarda de "ya la trae" | `33 passed` | **No la detectan.** La cubre "T-04: con la clase en la lista y una recarga en vuelo…", del programador, según el resumen y la verificación del manager; no lo repetí |
+| Sin la limpieza de `useRecuperarListaDeClasesAnteriores` | `33 passed` | **No la detectan.** Sobre `01d2-vista` y `01d2-r1.ataque`: `2 failed \| 191 passed`, ADM-1D204 (a) con dos páginas ya cargadas, en las dos listas |
+
+Lo segundo significa que ADM-T3D207 no prueba que la limpieza actúe: con la clase archivada, el gancho de T-04 también quita la lista. Prueba que los dos juntos no piden de más ni dejan texto.
+
+### No atacado y por qué
+- **Navegador, 360 px y apariencia:** sin navegadores. Los recorridos del punto 5 corren en jsdom, con el router real y dobles de la API: no son una prueba contra el backend, ni de cómo se ve.
+- **El backend:** 01d2 no lo toca, así que no hay PA-07.
+- **El texto de error durante la recarga al volver (ADM-T3D208 y ADM-T3D209):** por lectura, si la lista falla después de salir y se vuelve, se lee su texto mientras la recarga de `refetchOnMount` está en vuelo, y se quita al llegar. La prueba afirma el estado final, no ese intervalo. El último intento sí falló, la vista se cura sola, y no lo cuento como hallazgo.
+- **La suite completa del frontend:** la corre el manager al cerrar.
+- **Lo que no cuenta, según el orquestador:** O-r2-1, el vecino 7, la barra lateral y el inicio con la clase archivada, E10-6, `aria-controls`, la fecha sin año, N-01d1-4 extendido, el foco en la redirección de N-05, el foco del contenedor de error, el fallo callado de la fila 36, el `catch` de `:136` y los vencimientos a batería.
+
+### Conteos y corridas (desde `frontend/`)
+
+**Archivo nuevo**, de `npx vitest list … | grep -a -c`:
+
+| Archivo | Casos | SHA-256 |
+|---|---|---|
+| `frontend/src/features/clases/clase-archivada-01d2-r3.ataque.test.tsx` | 33 | `6f30bd0fc683631483ca1f35943e932f8883e83a3f4559f72110d67ce1590a8b` |
+
+No cambié ninguna `*.ataque` existente, ni código de producción, ni pruebas normales. Las cuatro anteriores siguen en `0fc7408a…`, `af127fae…`, `4e3a45f7…` y `940817a8…`. Sin tiempos fijos: lo que debe quedar en vuelo se retiene con una promesa. ADM-T3D205 usa la espera real del reintento de TanStack Query, y solo espera por estado (`fetchFailureCount`).
+
+**Mi archivo:** `npx vitest run src/features/clases/clase-archivada-01d2-r3.ataque.test.tsx`
+
+```
+ Test Files  1 passed (1)
+      Tests  33 passed (33)
+   Start at  19:39:19
+   Duration  19.85s (transform 1.80s, setup 302ms, import 595ms, tests 17.33s, environment 1.44s)
+```
+
+**Módulos, con el comando literal del resumen:** `npx vitest run src/features/clases src/features/tareas src/features/calificaciones src/components/clase src/app src/styles/clases-r1.ataque.test.ts src/lib/estatico-ch3-r1.ataque.test.ts src/lib/estatico-ch3-r2.ataque.test.ts src/lib/errores-de-api-estatico.test.ts src/lib/errores-ch3-r1.ataque.test.ts src/lib/errores-ch3-r2.ataque.test.ts src/components/layout/estatico-r1.ataque.test.ts src/services/apiClient-ch3-r1.ataque.test.ts src/services/apiClient-ch3.test.ts`
+
+```
+ Test Files  216 passed (216)
+      Tests  4802 passed (4802)
+   Start at  19:45:26
+   Duration  228.92s (transform 40.94s, setup 124.21s, import 315.75s, tests 1389.18s, environment 595.21s)
+```
+
+- 4769 del resumen + 33 mías = 4802, y 215 + 1 = 216.
+- **`lint`:** `npm run lint` → exit 0. `All matched files use Prettier code style!`, y la última línea es `> tsc -b`.
+
+**V-01:** `sha256sum -c` de la lista `e2ee9ba2…`: 262 sin diferencias. `git ls-files` da 262 rastreadas. Hay 5 mías sin rastrear: `01d2-r1` y `01d2-r2` en `clases` y `tareas`, y `01d2-r3` en `clases`: **267 en total**. Nadie más tocó ninguna.
+
+**Producción:** `git diff --name-only 7655a5b -- frontend` da 40 y `git ls-files -o --exclude-standard frontend` da 11 (los 6 del programador y mis 5). Huella de `frontend/src` sin pruebas: `ed86095a7ed459ea3d62c8fff931bbe6546bbe0d0bf66a7b8b508b3bb8c95948` (`find frontend/src -name '*.ts' -o -name '*.tsx' | grep -v '\.test\.' | sort | xargs sha256sum | sha256sum`).
+
+### Cierre de la ronda 3 de 01d2
+- **Veredicto: RESISTE.**
+- **Hallazgos:** ninguno.
+- **Suite:** `Tests 4802 passed (4802)` · `Test Files 216 passed (216)`. **Orden aleatorio:** 128 de 128 con las dos semillas. **`lint`:** exit 0. **V-01:** 262 sin cambio, más 5 sin rastrear. **`BatteryStatus`:** 2.
+- **Para el manager:** la precisión sobre "sin datos, en pausa", por si la tabla del arbitraje pasa a los documentos.

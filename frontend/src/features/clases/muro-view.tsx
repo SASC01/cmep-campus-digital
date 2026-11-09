@@ -120,7 +120,10 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
     if (filas.length === 0) {
       return (
         <Card>
-          <EstadoVacio titulo={tituloDelMuroVacio(perspectiva)} />
+          {/* ADMIN-01d2 (tabla D): en una clase archivada nadie puede publicar el primer aviso. */}
+          <EstadoVacio
+            titulo={soloLectura ? TEXTOS_MURO.vacioEstudiante : tituloDelMuroVacio(perspectiva)}
+          />
         </Card>
       )
     }

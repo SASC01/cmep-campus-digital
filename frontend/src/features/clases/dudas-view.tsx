@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type FocusEvent, type ReactNode } from "react
 import { useLocation } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
@@ -28,6 +29,9 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
   const { pathname } = useLocation()
   const perspectiva = perspectivaDeRuta(pathname)
   const capacidades = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
+  // ADMIN-01d2 (§D-9, fila 22 y tabla D): en una clase archivada no se pregunta, y la frase que describe
+  // lo que se escribe ya no describe nada.
+  const soloLectura = useSoloLecturaDeLaClase()
   const dudas = useDudas(claseId)
   const idTitulo = useId()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
@@ -157,9 +161,9 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
         <h2 ref={encabezadoRef} id={idTitulo} tabIndex={-1} className="text-h2">
           {TEXTOS_DUDAS.titulo}
         </h2>
-        <p className="text-small text-muted-foreground">{TEXTOS_DUDAS.frase}</p>
+        {!soloLectura && <p className="text-small text-muted-foreground">{TEXTOS_DUDAS.frase}</p>}
       </div>
-      {capacidades.formularioComentario && <FormularioDuda claseId={claseId} />}
+      {capacidades.formularioComentario && !soloLectura && <FormularioDuda claseId={claseId} />}
       {contenido()}
     </section>
   )

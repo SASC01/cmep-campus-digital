@@ -34,6 +34,8 @@ import {
   CLAVE_SIN_TEMA,
   CODIGOS_QUE_REEMPLAZAN_EL_RECURSO,
   LIMITE_CLASES_ADMIN,
+  LIMITE_CLASES_ANTERIORES,
+  RUTA_CLASES_ANTERIORES_DEL_ALUMNO,
   TEXTOS_BORRAR_CLASE,
   TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
@@ -50,11 +52,14 @@ import type {
   CamposDelRecurso,
   Categoria,
   ClaseDetalle,
+  ConFechaDeArchivado,
   ConteoDeBorradoRespuesta,
   ControlDeOrden,
   CursorDeClasesAdmin,
+  CursorDeClasesAnteriores,
   EstadoDeClases,
   ListaClasesAdminRespuesta,
+  ListaClasesAnterioresRespuesta,
   CrearAnuncio,
   CrearRecurso,
   EditarRecurso,
@@ -83,8 +88,11 @@ import type {
 export { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
 
 // ADMIN-01d1 (S-14, N-11): el único lugar que lee `archivadaEn`. Ausente es lo que manda un backend
-// anterior al despliegue, que no sabe de clases archivadas: la clase está activa.
-export const estaArchivada = (clase: Pick<ClaseDetalle, "archivadaEn">): boolean =>
+// anterior al despliegue, que no sabe de clases archivadas: la clase está activa. ADMIN-01d2 (N-01d1-2):
+// es un predicado de tipo, así quien pinta el aviso recibe la fecha sin volver a preguntar por ella.
+export const estaArchivada = <Clase extends Pick<ClaseDetalle, "archivadaEn">>(
+  clase: Clase,
+): clase is Clase & ConFechaDeArchivado =>
   clase.archivadaEn !== undefined && clase.archivadaEn !== null
 
 // §D-2D2: el título de la sección de maestros de "Personas".
@@ -770,6 +778,37 @@ export const siguienteCursorDeClasesAdmin = (
   }
   return { cursor: ultima.siguienteCursor }
 }
+
+// ADMIN-01d2 (§D-9, Enmienda 5; OA-3): la consulta de una página de "Clases anteriores" y "Clases
+// archivadas"; la posición va después del cursor, codificada.
+export const consultaDeClasesAnteriores = (
+  pagina: CursorDeClasesAnteriores | undefined,
+): string => {
+  const parametros = new URLSearchParams({ limite: String(LIMITE_CLASES_ANTERIORES) })
+  if (pagina === undefined) return parametros.toString()
+  parametros.set("cursor", pagina.cursor)
+  if (pagina.cursorArchivadaEn !== undefined) {
+    parametros.set("cursorArchivadaEn", pagina.cursorArchivadaEn)
+  }
+  return parametros.toString()
+}
+
+// ADMIN-01d2 (§D-9, Enmienda 5; OA-3): la página siguiente sale de la última respuesta, con su posición
+// solo si el servidor la mandó como texto (sin una posición inventada).
+export const siguienteCursorDeClasesAnteriores = (
+  ultima: ListaClasesAnterioresRespuesta,
+): CursorDeClasesAnteriores | undefined => {
+  if (ultima.siguienteCursor === null) return undefined
+  const posicion = ultima.siguienteCursorArchivadaEn
+  if (typeof posicion === "string") {
+    return { cursor: ultima.siguienteCursor, cursorArchivadaEn: posicion }
+  }
+  return { cursor: ultima.siguienteCursor }
+}
+
+// ADMIN-01d2 (§D-9, N-05): la vista de una clase anterior del alumno.
+export const rutaDeClaseAnterior = (claseId: string): string =>
+  `${RUTA_CLASES_ANTERIORES_DEL_ALUMNO}/${claseId}`
 
 const cantidadCon = (n: number, unidad: { una: string; varias: string }): string =>
   `${String(n)} ${n === 1 ? unidad.una : unidad.varias}`

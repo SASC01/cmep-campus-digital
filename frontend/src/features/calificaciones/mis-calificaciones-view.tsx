@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import { Cargando } from "@/components/cargando"
 import { ConClaseDeLaRuta } from "@/components/clase/con-clase-de-la-ruta"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
@@ -50,6 +51,8 @@ interface MisCalificacionesDeLaClaseProps {
 function MisCalificacionesDeLaClase({ claseId }: MisCalificacionesDeLaClaseProps) {
   const [filtro, setFiltro] = useState<FiltroDeMisCalificaciones>("todas")
   const lista = useMisCalificaciones(claseId, filtro)
+  // ADMIN-01d2 (§D-9, Enmienda 12, OA-1): por N-05, el alumno solo lee true en la vista de una clase anterior.
+  const soloLectura = useSoloLecturaDeLaClase()
   const raizRef = useRef<HTMLDivElement>(null)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const verMasRef = useRef<HTMLButtonElement>(null)
@@ -152,7 +155,15 @@ function MisCalificacionesDeLaClase({ claseId }: MisCalificacionesDeLaClaseProps
 
   const cuerpoDeLaLista = (): ReactNode => {
     if (errorDeCursor && (listaReemplazada || lista.isFetchNextPageError)) {
-      return <MensajeError mensaje={MENSAJES_ERROR_CALIFICACIONES.cursorDeMisCalificaciones} />
+      return (
+        <MensajeError
+          mensaje={
+            soloLectura
+              ? MENSAJES_ERROR_CALIFICACIONES.cursorDeClaseAnterior
+              : MENSAJES_ERROR_CALIFICACIONES.cursorDeMisCalificaciones
+          }
+        />
+      )
     }
 
     if (listaReemplazada) {

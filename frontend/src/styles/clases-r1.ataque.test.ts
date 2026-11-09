@@ -182,14 +182,20 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // cambian su texto. Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y
   // aria-disabled solo en Button, y que el número y el lugar de los botones con espera cambien solo
   // con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 77 enEspera", () => {
+  // ADMIN-01d2 ronda 0 (C-12, §D-R0 «Frontend — Enmienda 1», 01d2; §D-9): de 77 a 78 enEspera=. Entran
+  // a la lista fija lista-de-clases-anteriores.tsx (1: «Cargar más») y las tres vistas nuevas,
+  // clases-anteriores-view.tsx, clase-anterior-view.tsx y clases-archivadas-view.tsx (0). Los
+  // controles de las filas 22 a 37 que dejan de pintarse en una archivada no cambian su texto. Sigue
+  // protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el
+  // número y el lugar de los botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 78 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(77)
+    expect(usos).toHaveLength(78)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -258,6 +264,12 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       // lectura sin espera.
       "/src/features/clases/components/aviso-de-clase-archivada.tsx": 1,
       "/src/features/clases/components/categorias-de-solo-lectura.tsx": 0,
+      // C-12 de ADMIN-01d2: «Cargar más» de las dos listas, en su componente compartido; las tres
+      // vistas sin espera.
+      "/src/features/clases/components/lista-de-clases-anteriores.tsx": 1,
+      "/src/features/clases/clases-anteriores-view.tsx": 0,
+      "/src/features/clases/clase-anterior-view.tsx": 0,
+      "/src/features/clases/clases-archivadas-view.tsx": 0,
       // TAREAS-01c ronda 0 (C-8, §D-9): FirmaDelAutor pasa a components/clase/; solo cambia la ruta.
       "/src/components/clase/firma-del-autor.tsx": 0,
       // C-20 (CLASES-02d): "Reintentar" de la lista de clases de la barra lateral.

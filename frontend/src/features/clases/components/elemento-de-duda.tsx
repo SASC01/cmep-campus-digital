@@ -1,6 +1,7 @@
 import { CircleCheck } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatearFechaHora } from "@/lib/format"
@@ -39,6 +40,12 @@ export function ElementoDeDuda({ claseId, duda, perspectiva }: ElementoDeDudaPro
   // Si el bloque se abrió con "Responder", el foco va al campo de la respuesta.
   const [enfocarCampo, setEnfocarCampo] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
+  // ADMIN-01d2 (§D-9, filas 23 a 25; T-01 de 01d1): en una clase archivada no se marca, ni se borra, ni se
+  // responde. La confirmación y la marca de enfocar el campo se reinician: al restaurar, nada reaparece
+  // abierto ni se lleva el foco. "Ver respuestas" es lectura y se queda como está.
+  const soloLectura = useSoloLecturaDeLaClase()
+  if (soloLectura && confirmando) setConfirmando(false)
+  if (soloLectura && enfocarCampo) setEnfocarCampo(false)
   const idRespuestas = useId()
   const marcar = useMarcarDuda(claseId)
   const borrar = useBorrarDuda(claseId)
@@ -50,8 +57,9 @@ export function ElementoDeDuda({ claseId, duda, perspectiva }: ElementoDeDudaPro
   const marcandoRef = useRef(false)
   const borrandoRef = useRef(false)
   const capacidades = CAPACIDADES_POR_PERSPECTIVA[perspectiva]
-  const ofreceControl = abierto || duda.respuestas > 0 || capacidades.formularioComentario
-  const ofreceMarcar = capacidades.gestionarTrabajo && duda.puedeMarcar
+  const ofreceControl =
+    abierto || duda.respuestas > 0 || (capacidades.formularioComentario && !soloLectura)
+  const ofreceMarcar = capacidades.gestionarTrabajo && duda.puedeMarcar && !soloLectura
   const filaRef = useRef<HTMLLIElement>(null)
   // S-14: si el control de las respuestas desaparece con el foco dentro (el admin pliega un bloque sin
   // respuestas, o una recarga baja el conteo a 0), el foco va a la fila, nunca a <body>. T-01 (ronda 1 de
@@ -164,7 +172,7 @@ export function ElementoDeDuda({ claseId, duda, perspectiva }: ElementoDeDudaPro
             {duda.resuelta ? TEXTOS_DUDAS.quitarMarca : TEXTOS_DUDAS.marcar}
           </Button>
         )}
-        {duda.puedeBorrar && !confirmando && (
+        {duda.puedeBorrar && !confirmando && !soloLectura && (
           <Button
             ref={borrarBtnRef}
             type="button"

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Cargando } from "@/components/cargando"
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,9 @@ interface FilaRespuestaProps {
 // guarda síncrona evita un segundo DELETE y "Cancelar" no cierra la confirmación.
 function FilaRespuesta({ claseId, dudaId, respuesta }: FilaRespuestaProps) {
   const [confirmando, setConfirmando] = useState(false)
+  // ADMIN-01d2 (§D-9, fila 26; T-01 de 01d1): al restaurar, la confirmación no reaparece abierta.
+  const soloLectura = useSoloLecturaDeLaClase()
+  if (soloLectura && confirmando) setConfirmando(false)
   const borrar = useBorrarRespuesta(claseId, dudaId)
   const borrarBtnRef = useRef<HTMLButtonElement>(null)
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
@@ -72,7 +76,7 @@ function FilaRespuesta({ claseId, dudaId, respuesta }: FilaRespuestaProps) {
         <FirmaDelAutor autor={respuesta.autor} /> · {formatearFechaHora(respuesta.creadoEn)}
       </p>
       <p className="max-w-prose wrap-anywhere whitespace-pre-line text-body">{respuesta.texto}</p>
-      {respuesta.puedeBorrar && !confirmando && (
+      {respuesta.puedeBorrar && !confirmando && !soloLectura && (
         <div>
           <Button
             ref={borrarBtnRef}
@@ -138,6 +142,8 @@ export function RespuestasDeDuda({
   pedir,
 }: RespuestasDeDudaProps) {
   const respuestas = useRespuestas(claseId, dudaId, pedir)
+  // ADMIN-01d2 (§D-9, fila 25): en una clase archivada las respuestas se leen sin formulario.
+  const soloLectura = useSoloLecturaDeLaClase()
   // T-02 (ronda 1 de 03e): si al pedirlas la duda ya no existe, la lista se renueva y la fila sale.
   useRenovarSiLaDudaYaNoEsta(claseId, respuestas.errorUpdateCount, respuestas.error)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
@@ -173,7 +179,10 @@ export function RespuestasDeDuda({
     filaEnFocoRef.current = null
     const vecina = ids === undefined ? undefined : vecinaDeFila(previos, ids, idEnFoco)
     if (vecina === undefined || respuestas.isError) {
-      encabezadoRef.current?.focus()
+      // ADMIN-01d2, ronda 1 (T-03): en una clase archivada sin respuestas no hay título: a la fila de la duda.
+      const destino =
+        encabezadoRef.current ?? document.querySelector<HTMLElement>(`[data-duda-id="${dudaId}"]`)
+      destino?.focus()
       return
     }
     const boton = document.querySelector<HTMLElement>(
@@ -241,13 +250,17 @@ export function RespuestasDeDuda({
   // duda que se va. Lo que ya se veía (con datos o con su error) sigue hasta que la fila sale.
   if (!pedir && filas === undefined && !respuestas.isError) return null
 
+  // ADMIN-01d2, ronda 1 (T-03): en una clase archivada, un bloque abierto sin respuestas no tiene nada que
+  // mostrar: ni lista ni formulario. El título no se queda solo.
+  if (soloLectura && filas?.length === 0 && !respuestas.isError) return null
+
   return (
     <div id={id} className="flex flex-col gap-3 border-t border-border pt-3">
       <h3 ref={encabezadoRef} tabIndex={-1} className="sr-only">
         {TEXTOS_RESPUESTAS.titulo}
       </h3>
       {contenido()}
-      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioComentario && (
+      {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioComentario && !soloLectura && (
         <FormularioRespuesta claseId={claseId} dudaId={dudaId} enfocarAlMontar={enfocarCampo} />
       )}
     </div>

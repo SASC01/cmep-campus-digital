@@ -7153,3 +7153,1103 @@ git push
 - 32 archivos de producción en "Se toca", índice vacío y V-01 273.
 - Los puntos que el tester no atacó tienen cobertura por mecanismo o son de riesgo bajo o no alcanzables. Se aceptan como riesgo con destino en la ronda 1 de 01g; no hace falta una tercera ronda.
 - **Medición:** 1 ronda extra (0 por hermanos), 2 PARADAS parciales y 1 de 3 resúmenes devuelto.
+
+## Verificación de la Enmienda 15 — ADMIN-01
+Veredicto: **CAMBIOS REQUERIDOS** (M-23 y M-24, al arquitecto; no hacen falta textos nuevos ni decisiones del humano)
+Verificación propia: solo de lectura. Usé `git diff --no-index`, `sha256sum`, `grep` y lectura; no corrí suites.
+
+### Lo que comprobé
+- **Hashes:**
+  - copia previa = `7f344f7a…` (coincide);
+  - `plan.md` = `50f9af203bd126693dbc027dbcddb42b09741a487c5ab9d5ada8fd8621cf8efa`, 2529 líneas (coincide);
+  - el diff da 130 inserciones y 3 borrados (coincide).
+- **Hashes de partida de los C-n de 01g:** los siete coinciden en `1566196` y en el árbol (`marco-r1` `d2f04fa7…`, `rutas-02c-r1` `36a71ca4…`, `styles/clases-r1` `5f5f0872…`, `cuentas-r1` `4ca7d89e…`, `estatico-ch3-r2` `9e897a66…`, `estatico-ch3-r1` `c5b7e727…` y `registro-maestro-03b-r1` `75c4f158…`). Desde `1566196` solo cambian `aprobacion.md` y `plan.md`.
+- **Líneas de los C-n en `1566196`, comprobadas:**
+  - C-18: `marco-r1:329-334` y `rutas-02c-r1:221-252`; el caso de C-46 está en `:167-187`.
+  - C-19: la cifra en `:206`. C-19b: `dialogo-dar-de-baja.tsx` en `:472`.
+  - C-19c: `cuentas-r1:620-629`. C-38: `estatico-ch3-r2:60-73`. C-39: `permitidos` en `estatico-ch3-r1:186`.
+  - C-48: `registro-maestro-03b-r1:219-242`, con los pares en `:238-241`.
+  - La lista cerrada `errores-de-api-estatico.test.ts:115-188`, con `CON_REF` en `:138` y `DE_01F` en `:139`.
+
+### Mapa de los 13 hunks
+| Hunk (plan nuevo) | E15-n |
+|---|---|
+| `:2` (Estado) | E15-1 |
+| `:635-654` (§D-11, "Enmienda 15") | E15-2 (fila, selección y lote), E15-3 (diálogos en la vista, `incluirDialogos`), E15-9 (E-16), E15-11 (E-17 y E-18), más "ganchos nuevos" y "lo que 01g no toca" (E15-4, R-23) |
+| `:706-713` (§D-12, cotejo de textos) | E15-10 |
+| `:1277-1307` (ADM-1G17 a ADM-1G22) | E15-2, E15-3, E15-4, E15-9 y E15-11 |
+| `:1323` (punto de ataque 13) | E15-4 |
+| `:1362-1363` (R-23 y R-24) | E15-4 y E15-13 |
+| `:1845` (la lista cerrada remite a la de `1566196`) | E15-8 |
+| `:1874-1898` (grep contra `1566196`) | E15-5, E15-6 (C-48), E15-7, E15-8 y E15-12 |
+| `:1971-1977` (matriz, "Enmienda 15") | E15-2, E15-3 y E15-4 (el `401`) |
+| `:2013` (documentos al cierre) | E15-4, E15-5 y E15-13 |
+| `:2102` y `:2104` (antes de la ronda 0 de 01g; paso 30) | E15-14 |
+| `:2499-2529` (tabla de cambios) | E15-1 a E15-14 |
+
+Ningún hunk queda fuera de E15-n, y los 3 borrados son reemplazos: `:2`, `:1845` y `:2104`.
+
+### Mis destinos de la revisión final de 01f
+- **T-01 en la fila, la selección y el lote:** absorbido.
+  - La fila deriva su estado y su botón en cada render y manda el contrario.
+  - La selección guarda la elección y se recorta a la vigente en el render.
+  - El destino es una elección.
+  - Casos: ADM-1G17 y ADM-1G18.
+- **`incluirDialogos`:** absorbido. La vista monta los diálogos y guarda solo el tipo, el destino o el id (ADM-1G19, con la declaración del rojo con `false`).
+- **Los cuatro casos integrados:** absorbidos. Son ADM-1G20 en las tablas de 01g y el punto de ataque 13 en las de 01f, con R-23 (PARADA y decisión del humano si cae algo de 01f).
+- **La lección del grep:** absorbida (E15-5, con sus comandos) y destinada a ESTADO §6 al cierre.
+
+### Mi grep contra `1566196` (repetido)
+- **Las listas exactas de la navegación del admin** (`"Usuarios"`, `getAllByRole("link")` cruzado con la navegación, `ACCESOS_DEL_INICIO|DESTINOS_POR_ROL.admin`) dan solo:
+  - `marco-r1` (C-18), `rutas-02c-r1:248` (C-18) y `registro-maestro-03b-r1:239` (C-48);
+  - `contenedor-rol.test.tsx:108-127` y `:191-247` (la lista cerrada);
+  - `cuentas-view.test.tsx:175` (ADM-1F24, que compara contra `DESTINOS_POR_ROL` y no cambia).
+  - Los `getAllByRole("link")` de `barra-02d-r1`, `foco-*-02d`, `router-01d` y `lista-de-clases` son de otra lista (clases o secciones).
+  - Sin choque nuevo.
+- **Tamaños exactos en las pruebas del marco y del pie** (`toHaveLength(3|4|5|6)` en `components/layout`, `app/marco*`, `contexto-r1` y `fondo-r1`): solo el pie y los orbes, que no cambian.
+- **Choques con los textos nuevos de la barra** ("Estado de pago" y "Movimientos" como enlaces):
+  - `personas-03c1-r1:398` es la vista del estudiante, sin la barra del admin.
+  - `alumnos-view.test.tsx:384` busca una cabecera de columna.
+  - La ficha (`ficha-01f`, `usuarios-01f-r1` y `-r2`) busca `group` o `form` con nombre "Estado de pago", que no colisionan con un `link`.
+  - Ningún `getByText("Estado de pago"|"Movimientos")` suelto.
+- **Peticiones y llamadas al montar:** 01g no agrega consultas a vistas existentes. `/admin/maestros` solo cambia el `isFetching` y el foco de sus listas (`errores-r1` `llamadas: 3` sigue). Lo de `rutas-ch3-r1` y `en-espera-r1` ya figura en las vigiladas de la Enmienda 15. Ninguna prueba existente monta `/admin/estado-pago` ni `/admin/movimientos`.
+- **E-16:** las cinco claves dan 0 usos en producción y en pruebas, incluso por acceso indirecto (`= TEXTOS_CUENTAS`, `Object.keys(TEXTOS…)`). `TEXTOS_MAESTROS.notaProvisional` tiene 1 uso en producción. Las pruebas no llaman a `lineaInvalida` (E-17).
+- **Textos:**
+  - "Elige al menos un alumno" y "No puedes cambiar más de 100 alumnos a la vez" son literales de `shared/src/usuarios-admin.ts:139-140` en `1566196`.
+  - "Estado de pago actualizado" y "Estado de pago actualizado en N alumnos" están en §D-12 (`:666` del plan nuevo; avisos).
+  - «Restringir» y «Restablecer» de la fila están en §D-11 (`:546`). "Ver registrados" está en el código (`data.ts:274`).
+  - No falta ningún texto.
+- **"Se toca" (20):** 6 nuevos, 7 componentes de `/admin/maestros`, `hooks.ts`, `data.ts`, `lib.ts`, `types.ts`, `layout/data.ts`, `barra-navegacion.tsx` y `router.tsx`. Suman 20 y coinciden con E15-12. Que no toque los archivos de 01f es coherente con R-23.
+- **E-16, E-17 y E-18:** coherentes con el código. **R-23 y R-24:** bien planteados; R-24 queda con A-05 y la aprobación del humano al cierre.
+
+### Problemas que bloquean (los corrige el arquitecto)
+#### M-23 — Texto viejo que contradice la Enmienda 15: "un aviso" frente a "un mensaje en la fila o en el diálogo", y ADM-1G01b (e)
+Dónde:
+- `plan.md:1275` (ADM-1G01b y ADM-1G02 ampliados: "un solo aviso con el genérico");
+- `:1960` (la fila de la matriz de 01g: "`VALIDACION`: un aviso … Un aviso; la selección se conserva");
+- `:1967` (Enmienda 14: "estado de pago de la ficha, de la fila y del lote: … un solo aviso");
+- frente a `:637` y `:1972-1973` (Enmienda 15: el error va en un solo `MensajeError` en la fila o en el diálogo, sin aviso).
+Por qué importa:
+- Es el mismo problema que M-18: el programador y el tester leen dos reglas distintas para el mismo disparador. "Manda la Enmienda 15" no está escrito en esas líneas.
+- **ADM-1G01b (e)** (`:1260`, "un rechazo del servidor en la fila y después un cambio de lote sin selección … Un solo mensaje") choca con el diseño nuevo: el mensaje de la fila se queda hasta la siguiente acción de esa fila (`:637`, "no llama a `reset()`"). Con el diálogo del lote abierto habría dos `MensajeError` en el DOM, el de la fila (detrás del modal) y el del diálogo. El caso tal como está no se puede cumplir, o se cumple solo con una lectura que el plan no dice.
+- La regla de `AGENTS.md` ("la persona lee un solo mensaje, el del envío que acaba de hacer") pide fijar qué cuenta.
+Qué se espera:
+- Las tres líneas, tachadas o anotadas con su regla vigente (la de la Enmienda 15). La de la ficha (`:1967`) queda como la implementó 01f (un `MensajeError`), si se toca.
+- ADM-1G01b (e) reescrito con un resultado verificable, sin texto nuevo. Por ejemplo: "con el diálogo abierto, un solo mensaje accesible, el del diálogo (el de la fila queda inerte detrás del modal); al cerrarlo, la fila sigue con el suyo". O bien: el lote limpia los mensajes de las filas elegidas al abrirse.
+- Lo decide el arquitecto, con el hermano que aplique (el diálogo de restringir abierto sobre una fila con mensaje).
+
+#### M-24 — Faltan casos de `VALIDACION` fuera de contrato y el camino "repetir el control" de dos acciones de 01g
+Dónde: `plan.md:1251` (ADM-1G02), `:1252` (ADM-1G03) y `:1281-1291` (ADM-1G17 e y ADM-1G18 f).
+Por qué importa:
+- `AGENTS.md` ("Todo plan con un formulario nuevo…") pide, por cada formulario o panel que envía datos, cinco casos: un campo que no se pinta, el vacío o los espacios, el prefijo con ruta, **un campo pintado solo en otro modo** y la secuencia servidor → local. Faltan dos piezas:
+  - **ADM-1G02 (el lote)** no tiene "campo pintado solo en otro modo": por ejemplo, `motivo:`, que pinta el diálogo de restringir de la misma vista, como ya hace ADM-1G01b (d).
+  - **«Restablecer» de la fila** pinta su propio `MensajeError` en la fila, un código nuevo distinto del de la ficha. ADM-1G03 solo dice "restablecer", sin sus casos fuera de contrato: `restringido:` con el mensaje real en inglés, el vacío, `id.0:` y el campo de otro modo, como ADM-1F07b para la ficha.
+- `AGENTS.md` ("Toda frase de recuperación…") pide, por cada frase, el camino "repetir el control que falló".
+  - El genérico "No pudimos completar la operación. Inténtalo de nuevo." es una frase de recuperación.
+  - Con la Enmienda 15 se pinta en la fila («Marcar…», «Restablecer») y en el diálogo del lote, pero ADM-1G17 (e) y ADM-1G18 (f) no prueban repetir el mismo control tras el `5xx`: que con `200` el mensaje desaparezca y salga el aviso de éxito.
+  - En 01f, M-22 lo exigió para la ficha.
+Qué se espera:
+- ADM-1G02 suma el campo de otro modo.
+- «Restablecer» de la fila gana sus casos fuera de contrato (dentro de ADM-1G03 o en un ADM-1G nuevo).
+- ADM-1G17 (e) y ADM-1G18 (f) suman "repetir el control tras el error: con `200`, el mensaje se va y se lee el aviso de éxito una vez".
+- Sin textos nuevos.
+
+### Problemas que no bloquean (conviene resolverlos en la misma corrección)
+- **N-E15-1, los documentos al cierre:** faltan tres destinos de mi revisión final de 01f. `:2013` solo suma los cuatro casos, R-24 y la lección del grep. Faltan:
+  - la fila de ESTADO §3 del modal de cálculo de «Mis calificaciones» (`mis-calificaciones-view.tsx`, `incluirDialogos`);
+  - D-7 en la fila "Tabla de usuarios y «Cargar más»" de la matriz (`:1954` del plan nuevo, antes `:1867`: "como 01c, Enmienda 9, P-01c-4");
+  - D-4 en la lista de A-04 de `DESIGN.md`.
+  - Están en `revision.md` y en `aprobacion.md`; conviene que el plan los diga, para que el cierre no dependa de releer las revisiones.
+- **N-E15-2, el alcance de «Seleccionar los de esta página»** (`:638` y `:1290`): la Enmienda 15 la hace elegir todas las filas cargadas, de varias páginas de 50, así que con más de 100 la persona recibe "No puedes cambiar más de 100 alumnos a la vez" y debe desmarcar a mano.
+  - El texto aprobado dice "esta página". Es defendible (la "página" es la vista), pero es una decisión de producto que la Enmienda 15 toma sin decirlo.
+  - Recomiendo dejarlo escrito como decisión del arquitecto, con su porqué, o limitarlo a las filas de la última página cargada. Si cambia lo que el humano aprobó al leer "esta página", se le informa.
+- **N-E15-3, la copia de los dos textos de `shared/`:** como en ADM-1F22, conviene un amarre (`estadoPagoLoteSchema.safeParse` sin ids y con 101 da exactamente los literales de `data.ts`), para que la copia no se desfase si `shared/` cambia.
+- **N-E15-4:** `:648` dice que la mutación del lote "puede llevar" la línea de T-05. ADM-1G02 (d) la necesita para que se lea un solo mensaje: debería decir "lleva".
+
+### Detalles menores
+Ninguno: "ESTADO §6" (`:2013`) existe ("Agentes") y es el lugar de una lección de proceso.
+
+### Para el humano
+Nada que decidir ahora. N-E15-2 solo llegaría al humano si el arquitecto cambia el alcance de "Seleccionar los de esta página".
+
+### Resumen
+- **Veredicto: CAMBIOS REQUERIDOS.**
+- Hashes, hunks y líneas coinciden: 13 hunks, todos E15-n.
+- Mis cuatro destinos de 01f están absorbidos.
+- Mi grep repetido contra `1566196` no encuentra choques que falten: C-48 es el único nuevo y ya está.
+- Los textos son todos literales existentes ("Estado de pago actualizado" para N = 1 está en §D-12; los dos de la validación local, en `shared/src/usuarios-admin.ts:139-140`). "Se toca" son 20 archivos. E-16, E-17, E-18, R-23 y R-24 están bien.
+- **M-23:** "un aviso" en `:1275`, `:1960` y `:1967` contradice la Enmienda 15, y ADM-1G01b (e) choca con el mensaje que se queda en la fila.
+- **M-24:** faltan el campo pintado solo en otro modo del lote, los casos fuera de contrato de «Restablecer» de la fila y el camino "repetir el control" del genérico en la fila y en el lote.
+- No bloquean: N-E15-1 a N-E15-4.
+
+## Verificación de la corrección de la Enmienda 15 — ADMIN-01
+Veredicto: **CAMBIOS REQUERIDOS** (solo M-25, una precisión de una frase; lo demás queda resuelto)
+Verificación propia: solo de lectura (`git diff --no-index`, `sha256sum` y lectura); no corrí suites.
+
+### Lo que comprobé
+- **Hashes y conteos:**
+  - copia previa = `50f9af20…` (coincide);
+  - `plan.md` = `824b275558dbffb32d4fba9433a67eb9359d89b3e4cc343bb1ba1005cb2c93fd`, 2542 líneas, sin CR;
+  - 29 inserciones y 16 borrados (coincide).
+- **Mapa de los 15 hunks:**
+
+| Hunk (plan nuevo) | E15-n |
+|---|---|
+| `:2` | E15-21 |
+| `:637-638` | E15-15 y E15-18 |
+| `:648` | E15-20 |
+| `:1251-1252` | E15-16 |
+| `:1260` y `:1275` | E15-15 |
+| `:1283` | E15-15 y E15-16 |
+| `:1292` | E15-16 |
+| `:1307-1308` | E15-16 y E15-19 |
+| `:1962`, `:1969` y `:1974` | E15-15 |
+| `:2016-2019` | E15-17 |
+| `:2110` | E15-21 |
+| `:2534-2542` | la tabla |
+
+Todos los hunks corresponden a E15-15 a E15-21; los 16 borrados son reemplazos.
+
+### M-23: resuelto, con la precisión de M-25
+- **Texto viejo:**
+  - `:1275` está tachado con su regla vigente.
+  - La fila de 01g de la matriz (`:1962`) y la viñeta de la Enmienda 14 (`:1969`) quedan tachadas con dónde va el mensaje: en la ficha, como lo implementó 01f; en la fila; en el diálogo.
+  - En `:1974`, "el de su última acción" pasa a la regla de la acción vigente.
+  - `:637` tacha la regla anterior.
+- **La regla de la "acción vigente"** (`:637`):
+  - **Implementable.** La vista guarda un identificador que cambia con cada «Marcar…» o «Restablecer» de una fila y al abrir el diálogo del lote o el de restringir. Se lo pasa a la tabla, y cada fila pinta su `MensajeError` solo si su acción es la vigente. No reinicia ninguna mutación, así que no choca con C-38 ni con CH3-C13. Es estado de una elección de la persona, coherente con el criterio de T-01.
+  - **Verificable.** Se cuentan los `role="alert"`. Los estados vecinos están escritos:
+    - dos filas en vuelo que fallan (se ve el mensaje de la última pulsada);
+    - la misma fila con otro botón;
+    - abrir un diálogo;
+    - cerrar el diálogo (el mensaje de la fila no vuelve).
+  - **No contradice la ficha de 01f:** `:1969` deja la ficha como la implementó 01f, con un mensaje por control y por diálogo, y la regla nueva es solo de `/admin/estado-pago`.
+  - **No contradice la matriz:** la fila de 01g y la nota de la Enmienda 15 dicen lo mismo.
+- **ADM-1G01b (e)** (`:1260`) tiene un resultado verificable:
+  - al abrir el diálogo, cero `role="alert"`;
+  - después del rechazo local, exactamente uno en todo el documento, también contando lo inerte;
+  - al cerrar, ninguno.
+  - El hermano es el diálogo de restringir.
+
+### M-24: resuelto
+- **ADM-1G02 (e)** (`:1251`): `motivo:`, pintado solo en el diálogo de restringir, da un solo `MensajeError` en el diálogo del lote con el resto. "Revisa este valor." es el texto del doble de prueba, no de la interfaz, y el resto lo da el contrato, porque `motivo` no está en `textosPorCampo`.
+- **ADM-1G23** (`:1307`): «Restablecer» de la fila tiene sus casos fuera de contrato:
+  - (a) `restringido:`, real en inglés y de prueba: el genérico;
+  - (b) vacío o espacios;
+  - (c) `id.0:`, que da el resto;
+  - (d) `motivo:`;
+  - (e) cerrar y reabrir el diálogo de restringir;
+  - (f) repetir con `200`: "Acceso restablecido" una vez.
+  - ADM-1G03 remite a ADM-1G23.
+- **"Repetir el control que falló":** ADM-1G17 (e) (`:1283`) cubre «Marcar…» tras el `5xx` y tras la red, y ADM-1G18 (f) (`:1292`) cubre «Sí, cambiar» con los mismos ids. En los dos, con `200` el mensaje se va y el aviso de éxito sale una vez.
+
+### N-E15-1 a N-E15-4: resueltos
+- **N-E15-1** (`:2016-2019`): los tres destinos de 01f están en los documentos al cierre: el modal de «Mis calificaciones» en ESTADO §3, D-7 en la matriz y D-4 en A-04.
+- **N-E15-2** (`:638`): la decisión del arquitecto queda escrita con su porqué. Es coherente con la lectura que se le consulta al humano: «Seleccionar los de esta página» elige todas las filas que la tabla muestra, y con más de 100, «Sí, cambiar» da "No puedes cambiar más de 100 alumnos a la vez" en el `MensajeError` del diálogo (texto del código), sin recorte silencioso.
+  - Lo sostienen ADM-1G18 (d) (`:1290`, "con más de 100 filas cargadas"), ADM-1G15 y la etiqueta de T-E14.
+  - Detalle sin efecto: ADM-1G15 (`:1270`) dice "Seleccionar todas las de la página" en lugar del texto aprobado. Es una descripción, no una aserción; se puede igualar al pasar.
+  - Si el humano elige otra lectura (solo la última página o un tope en la casilla), se cambian `:638`, ADM-1G18 (d) y ADM-1G15. La tabla de textos no cambia.
+- **N-E15-3:** ADM-1G24 amarra las dos copias de `data.ts` a `estadoPagoLoteSchema` (sin ids y con 101 ids distintos).
+- **N-E15-4** (`:648`): "lleva" la línea de T-05, con su porqué (ADM-1G02 d).
+
+### Problemas que bloquean
+#### M-25 — "A lo sumo un mensaje de error en toda la vista" choca con el error de carga de la tabla
+Dónde: `plan.md:637` ("en toda la vista se ve a lo sumo un mensaje de error, el de la última acción de la persona"), frente a:
+- ADM-1G19 (b) y (c) (`:1296-1297`): el diálogo de restringir o el del lote siguen abiertos con la tabla reemplazada por su `MensajeError` de carga;
+- ADM-1G20 (d);
+- la matriz (`:1977`, "Tabla en error con un diálogo abierto: el diálogo sigue").
+Por qué importa:
+- El error de carga de la tabla y la frase de lista cambiada también son `MensajeError` (`role="alert"`), pero no son de una acción.
+- Si con la tabla en error la persona confirma el diálogo y la acción falla, hay dos mensajes. La frase literal ("en toda la vista… a lo sumo uno") exigiría ocultar uno sin decir cuál.
+- El programador podría ocultar el error de carga, que es lo que reemplaza la tabla (matriz "Reemplaza"), y el tester lo leería como hallazgo. Es el mismo tipo de ambigüedad que M-18 y M-23.
+Qué se espera: una frase que acote la regla a los mensajes de las acciones (fila, lote y restringir). Por ejemplo: "a lo sumo un mensaje de error de una acción; el texto de carga o de lista cambiada de la tabla es aparte y no cuenta". También cómo cuenta ADM-1G01b (e) "exactamente un `role="alert"` en todo el documento", que solo vale con la tabla sana. Sin textos nuevos.
+
+### Para el humano
+Nada que decidir aquí. N-E15-2 se le está preguntando por otra vía, y el plan es coherente con la lectura "todas las filas cargadas, con el mensaje de más de 100".
+
+### Resumen
+- **Veredicto: CAMBIOS REQUERIDOS** solo por M-25: acotar la regla de la acción vigente a los mensajes de acción, dejando aparte el error de carga y la frase de lista cambiada de la tabla.
+- 15 hunks, todos E15-15 a E15-21.
+- M-23 y M-24 están resueltos. La regla nueva es implementable y verificable, no toca la ficha de 01f y coincide con la matriz.
+- ADM-1G01b (e), ADM-1G02 (e), ADM-1G23 y el "repetir" de 1G17 (e) y 1G18 (f) están bien.
+- N-E15-1 a N-E15-4 están resueltos, y N-E15-2 es coherente con la lectura que se le consulta al humano.
+
+## Verificación de la corrección de M-25 — ADMIN-01
+Veredicto: **APROBADO** (sin M-n; la Enmienda 15 queda lista para la ronda 0 de 01g)
+Verificación propia: solo de lectura (`git diff --no-index`, `sha256sum`, `grep` y lectura del paquete instalado); no corrí suites.
+
+### Lo que comprobé
+- **Hashes y conteos:**
+  - copia previa = `824b2755…` (coincide);
+  - `plan.md` = `d42d343530f61a0774093cd29acd91ccadf5a12b7c0d324639daeace43f4a46d`, 2545 líneas, sin CR;
+  - 8 inserciones y 5 borrados (coincide).
+- **Hunks:** son cinco y todos corresponden a E15-22 a E15-24.
+  - `:637-638`: E15-22 (la fila) y E15-23 (la selección).
+  - `:1260`: E15-22, ADM-1G01b (e).
+  - `:1270`: E15-24, ADM-1G15 con el texto aprobado.
+  - `:1977`: E15-22, la matriz.
+  - `:2541-2543`: la tabla.
+  - Los cinco borrados son reemplazos.
+- **Decisión del humano sobre N-E15-2:** "Todas las que se ven", registrada en `aprobacion.md:245`. El plan la cita con el literal y la fecha (`:638`), y la lectura coincide con la que verifiqué antes: todas las filas cargadas y, con más de 100, el mensaje del código en el diálogo.
+
+### M-25: resuelto
+- **La regla acotada** (`:637`): "a lo sumo uno" vale entre los mensajes de **acción** (los de «Marcar…» y «Restablecer» de la fila, el del lote y el de restringir).
+  - Los textos de **carga** (el error de carga y la frase de lista cambiada) quedan aparte, con sus propias reglas, y se ven aunque haya un diálogo abierto.
+  - Con la tabla en error y una acción de diálogo que falla, hay dos mensajes en lugares distintos y uno solo accesible.
+  - Ya no hay una frase que obligue a ocultar el texto de carga.
+- **Coherencia con la matriz:**
+  - La nota de la Enmienda 15 (`:1977`) dice lo mismo: el texto de carga queda en su lugar, el de la acción va en el diálogo y, al cerrar, queda el de carga. El foco al cerrar no cambia.
+  - Sigue en pie la fila de 01g ("Reemplaza" para los errores de la tabla), y la de 01f no se toca.
+- **Coherencia con ADM-1G19 y ADM-1G20:**
+  - En ADM-1G19 (b) y (c), el diálogo de restringir o el del lote siguen abiertos con la tabla en error, y el foco va al `h1` al cerrarlos. Es justo el escenario del caso nuevo, y el caso nuevo agrega solo qué mensajes se cuentan.
+  - En ADM-1G20 (d), cerrar con «Cancelar» con la tabla en error lleva el foco al `h1`, sin acción fallida: no choca.
+- **ADM-1G01b (e)** (`:1260`):
+  - Las cuentas anteriores (cero, una o ninguna) quedan acotadas a la tabla sana.
+  - El caso nuevo, con la tabla en error, dice: dos `role="alert"` en el documento y uno solo accesible (`getAllByRole("alert")` sin `hidden`), el del diálogo. Al cerrar, queda solo el de carga.
+  - **Se puede verificar con Testing Library:**
+    - `MensajeError` lleva `role="alert"` (`components/mensaje-error.tsx:12`).
+    - El `Dialog` modal de Radix instalado llama a `hideOthers` de `aria-hidden` sobre su contenido (`node_modules/@radix-ui/react-dialog/dist/index.mjs:20` y `:145`). Eso pone `aria-hidden` en todo lo de fuera del portal, también en jsdom.
+    - Por eso `getAllByRole("alert")` (con `hidden: false` por omisión) devuelve solo el del diálogo, y `getAllByRole("alert", { hidden: true })` o `document.querySelectorAll('[role="alert"]')` devuelven los dos.
+    - Al cerrar, Radix quita el `aria-hidden` y el de carga vuelve a ser accesible.
+    - Ninguna aserción depende de clases de estilo.
+- **ADM-1G15** (`:1270`): ya dice el texto aprobado, «Seleccionar los de esta página»; era el detalle que había señalado.
+
+### Detalles menores
+- La línea de Estado (`:2`) no menciona la corrección de M-25 (el diff no la toca); la tabla E15-22 a E15-24 sí la registra. No afecta al programador ni al tester.
+
+### Para el humano
+Nada que decidir. Su respuesta sobre N-E15-2 ya está en el plan.
+
+### Resumen
+- **Veredicto: APROBADO.**
+- Cinco hunks, todos E15-22 a E15-24.
+- La regla de "a lo sumo un mensaje" queda acotada a los mensajes de acción y es coherente con la matriz (`:1977`), con ADM-1G19 (b) y (c) y con ADM-1G20 (d).
+- El caso nuevo de ADM-1G01b (e) se puede verificar con Testing Library, porque Radix aplica `hideOthers` al abrir el diálogo modal.
+- N-E15-2 está confirmada por el humano ("Todas las que se ven") y ADM-1G15 ya usa el texto aprobado.
+- Plan vigente para la ronda 0 de 01g: `d42d3435…`.
+
+## Verificación de la ronda 0 — ADMIN-01g
+Veredicto: **ACEPTADA** (sin M-n; el programador sigue con los siete C-n como están)
+Verificación propia: solo de lectura, por instrucción del orquestador, porque el programador de 01g está corriendo sus suites. Usé `git diff`, `git show`, `sha256sum`, `grep` y lectura; **no corrí ninguna suite ni `vitest`**, así que las cifras de corrida del reporte no las contrasto.
+
+### Lo que comprobé
+- **Archivos:**
+  - `plan.md` = `d42d3435…` (coincide);
+  - `reporte-tester.md` = `50b8e1b3…`, con la sección en `:5984`.
+- **Alcance:**
+  - `git diff --name-only 1566196 -- backend frontend shared` da exactamente los siete `*.ataque`.
+  - No hay archivos sin rastrear en los paquetes y el índice de git está vacío.
+  - El programador todavía no tiene cambios en el árbol.
+- **Hashes:** los catorce cuadran en las tres fuentes: el de antes de cada archivo (`git show 1566196:<ruta>`), los de partida de `aprobacion.md` (entrada de la Enmienda 15) y el de después en la tabla del reporte.
+
+| Archivo | `1566196` = `aprobacion.md` | Después | Diff |
+|---|---|---|---|
+| `app/marco-r1.ataque.test.tsx` | `d2f04fa7…` | `4a45ecac…` | +13 −2 |
+| `app/rutas-02c-r1.ataque.test.tsx` | `36a71ca4…` | `840f2be4…` | +11 −3 |
+| `app/registro-maestro-03b-r1.ataque.test.tsx` | `75c4f158…` | `3acc9d27…` | +6 −1 |
+| `features/admin/cuentas-r1.ataque.test.tsx` | `4ca7d89e…` | `ec4631ca…` | +4 −1 |
+| `styles/clases-r1.ataque.test.ts` | `5f5f0872…` | `dc3d3b70…` | +19 −2 |
+| `lib/estatico-ch3-r2.ataque.test.ts` | `9e897a66…` | `74b07393…` | +7 −0 |
+| `lib/estatico-ch3-r1.ataque.test.ts` | `c5b7e727…` | `57395049…` | +3 −1 |
+
+### Cada cambio contra su C-n
+- **C-18, `marco-r1:332-345`:** cambian solo `destinos` y `textos` del admin, a los seis de ADM-1G13 en su orden, con su comentario. El resto del caso, que comprueba la ruta existente y `aria-current`, no cambia. **Exacto.**
+- **C-18, `rutas-02c-r1:223-260`:**
+  - Entra el comentario nuevo y sale el comentario viejo de "/admin/ no se incluye".
+  - Entran las filas `["/admin/", ["Inicio"]]` (E-06), `["/admin/estado-pago", ["Estado de pago"]]` y `["/admin/movimientos", ["Movimientos"]]`.
+  - La lista de pares de la barra pasa a seis, en el orden de ADM-1G13.
+  - El título no cambia, y el caso de C-46 (`:167-187`) y el `describe` de otros roles quedan intactos.
+  - **Exacto.**
+- **C-48, `registro-maestro-03b-r1:236-247`:** los pares pasan a seis con "Maestros" como único `"page"`, más su comentario. **Exacto.**
+- **C-19c, `cuentas-r1:623-630`:** la lista ordenada de `components/ui/dialog` suma `./components/dialogo-estado-pago-lote.tsx` en su lugar alfabético y el título nombra el cambio masivo. **Exacto.**
+- **C-19 y C-19b, `styles/clases-r1`:**
+  - V-06 pasa de 85 a 90 (`:213`).
+  - `fijos` suma las seis rutas con las cifras de la Enmienda 9 (1, 2, 1, 1, 0 y 0), así que 85 + 5 = 90, y `restoAdmin` sigue en 2.
+  - V-07 suma `dialogo-estado-pago-lote.tsx` entre los otros dos diálogos (6 rutas). `vidrioFuerte` y las demás listas no cambian.
+  - **Exacto.**
+- **C-38, `estatico-ch3-r2:61-80`:** `CON_REF` suma los tres formularios de `/admin/maestros` y los excluidos suman `dialogo-estado-pago-lote.tsx`. La forma del caso de `:134-154` no cambia. **Exacto.**
+- **C-39, `estatico-ch3-r1:185-189`:** `permitidos` suma `cambiarLote`, `alumnos` y `movimientos`, y `usos.length >= 18` no cambia. **Exacto.**
+
+### Reemplazos mecánicos y rojos esperados (por lectura)
+- **Ningún reemplazo mecánico:** los siete cambios son listas exactas, cifras o expresiones estáticas. Ninguno cambia una etiqueta de campo, una ruta montada ni un ayudante de un caso: el riesgo de M-19 no existe aquí.
+  - `marco-r1` y `rutas-02c-r1` montan con el router real las mismas rutas de siempre, más `/admin/` y las dos de 01g.
+  - `registro-maestro-03b-r1` sigue en `/admin/maestros`.
+- **Cada aserción nueva exige algo que 01g debe construir:**
+  - los dos destinos y E-06 (C-18 y C-48);
+  - el diálogo del lote (C-19c y C-19b);
+  - los cinco `enEspera=` nuevos (C-19);
+  - la ref de los tres formularios (C-38, filas 8 a 10 de CHORE-04).
+  - C-39 solo amplía lo permitido, así que tiene que quedar verde antes y después.
+  - Los 20 rojos declarados solo pueden venir de la falta de 01g. No los volví a correr.
+- **Cero desviaciones:** confirmado. Ninguna línea fuera de los alcances de §D-R0 01g ("Enmienda 15").
+
+### O-01g-1 (en 01g, «Clases» antes que «Maestros»)
+**Lo fija el plan.** Lo dicen tres lugares:
+- §D-11 (`:548`, "Navegación del admin: Inicio, Usuarios, Estado de pago, Clases, Maestros, Movimientos");
+- la Enmienda 1 de §D-11 (`:551`, "01g suma … en ese orden: Inicio, Usuarios, Estado de pago, Clases, Maestros, Movimientos");
+- ADM-1G13 (`:1263`).
+
+Es un cambio de orden decidido desde la Enmienda 1, no un texto ni un comportamiento nuevo. La observación del tester es correcta como trampa para el programador: en 01f, "Maestros" iba antes que "Clases". Sigue pendiente un hermano de esa trampa: `contenedor-rol.test.tsx` (lista cerrada de 01g, `:107-128`), que el programador cambia al mismo orden.
+
+### Detalles menores
+Ninguno.
+
+### Para el humano
+Nada que decidir.
+
+### Resumen
+- **Veredicto: ACEPTADA.**
+- Siete archivos, catorce hashes que coinciden con `1566196`, con `aprobacion.md` y con el reporte, y un alcance exacto.
+- Cada cambio es exactamente su C-n (C-18 en dos archivos, C-48, C-19c, C-19, C-19b, C-38 y C-39), sin reemplazos mecánicos ni desviaciones. Los rojos solo pueden venir de la falta de 01g.
+- O-01g-1 lo fija el plan (`:548`, `:551` y ADM-1G13).
+
+## Verificación del resumen — ADMIN-01g — implementación
+Veredicto: **DEVUELTO** (M-26 y M-27 al programador; son pequeños y no cambian el diseño)
+Verificación propia: desde `frontend/`, una corrida después de otra. Nadie más corría suites y no había ningún `vitest` vivo. Con corriente, al 98 %. Sin navegadores.
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 861ms` | exit 0 (`926ms`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files  34 passed (34)` · `Tests  1173 passed (1173)` | igual |
+| Las 26 rutas del resumen (copiadas de su lista) | `Test Files  26 passed (26)` · `Tests  645 passed (645)` | igual |
+
+### Lo que comprobé, además de las corridas
+- **Archivos:** `plan.md` = `d42d3435…` y `resumen-programador.md` = `5eef3e9b…`, con la sección en `:3434`.
+- **"Se toca":**
+  - 20 archivos de producción contra `1566196`: los 6 nuevos y los 14 cambiados, exactamente los de §D-R0 01g ("Enmienda 15").
+  - Ninguno de 01f fuera de su lista: `inicio-admin-view`, `maestros-view`, `usuarios-view`, `usuario-view`, `dialogo-restringir-acceso`, `estado-de-pago-de-cuenta` y `components/foco` no cambian.
+  - `backend/`, `shared/` y `infra/` no cambian, y el índice de git está vacío.
+- **Pruebas:**
+  - Las 7 `*.ataque` conservan los hashes de la ronda 0 (`4a45ecac`, `840f2be4`, `3acc9d27`, `ec4631ca`, `dc3d3b70`, `74b07393` y `57395049`): el programador no tocó ninguna.
+  - Las normales cambiadas son las dos de la lista cerrada (`contenedor-rol.test.tsx` y `errores-de-api-estatico.test.ts`).
+  - Hay cuatro archivos nuevos: `estado-pago-01g`, `movimientos-01g`, `maestros-01g` y `lib-01g`.
+- **Mapeo de ADM-1G01 a 1G24:** cotejé por programa 58 títulos citados contra los cinco archivos, y no falta ninguno. Las cuatro faltas que dio el script son recortes de la expresión entre comillas que abarcan dos viñetas, no títulos. Sí falta el caso de ADM-1G20 (c) para «Cargar más movimientos», que el resumen declara (M-27).
+- **Textos:** todos los de `TEXTOS_ESTADO_PAGO`, `TEXTOS_LOTE` y `TEXTOS_MOVIMIENTOS` están en T-E14, §D-11, §D-12 o el código.
+  - La etiqueta del filtro, "Estado de pago", reutiliza el `h1` aprobado.
+  - Con un solo alumno, el aviso es "Estado de pago actualizado".
+  - `eligeAlMenosUno` y `maximo` son los literales de `shared/`, con su amarre en ADM-1G24.
+  - `accionSobre` sigue el patrón de §7.9.
+- **E-16:** las claves salen; `TEXTOS_MAESTROS.notaProvisional` se queda. **E-17:** `lineaInvalida` más `separadorDelMotivo`, con el mismo `textContent`. **E-18:** ADM-1G22. Los tres están cubiertos y en verde.
+- **T-01, contra el código** (`estado-pago-view.tsx` y `tabla-estado-pago.tsx`):
+  - La fila deriva la insignia, «Marcar…» y el botón de acceso en cada render, y manda `estadoContrario(estadoPago)`.
+  - La selección se recorta con `seleccionVigente` en el render, sin efecto.
+  - El diálogo de restringir recibe la fila de `filas` en cada render y se cierra si ya no está.
+  - No hay estado local sembrado con datos del servidor. Los estados vecinos tienen sus casos (ADM-1G17 y ADM-1G18).
+- **T-02:** `useFocoAlPerderseElControl(raizRef, clave, true)` está en la vista. El programador declara el rojo de ADM-1G19 (a) con `false`.
+- **La acción vigente:** está en el estado de la vista. Cada fila pinta su `MensajeError` solo si `accionVigente` es ella y la acción coincide, sin `reset()`. Están los vecinos de M-23 y M-25 (otra fila, el otro botón, abrir el lote o restringir, cerrar, la tabla en error).
+- **La matriz** coincide con el código y con la Enmienda 15.
+  - D-1 cumple la fila de "Redirige".
+  - «Cargar más» reemplaza la tabla sin aviso, como 01c y D-7.
+- **Frases de recuperación con todos sus caminos:**
+  - el error de carga: (a), (b), (c) con la clave en error en la primera carga y en una recarga, (d) y editar el término;
+  - la lista cambiada: (a) a (d), vaciando la selección;
+  - `/admin/movimientos`: (a), (b) y (d);
+  - "repetir el control" en la fila, el lote y «Restablecer» (ADM-1G17 e, 1G18 f y 1G23 f).
+  - Todos con el router real. La configuración de TanStack Query es la de `app/providers.tsx`, copiada (D-2).
+- **`CLAUDE.md`:**
+  - Hay guardas con ref en todas las acciones nuevas y `enEspera` (V-06 = 90).
+  - `data-material` y `data-densidad` están en el diálogo del lote, el filtro es un `NativeSelect` y la barra de lote no es `fixed`.
+  - Tipos en `types.ts`, textos en `data.ts`, sin `?? []` y sin valores por defecto de `estadoPago`.
+  - Detalle (N-01g-2): `estaActivo` en `barra-navegacion.tsx`.
+
+### Problemas que bloquean (los corrige el programador)
+#### M-26 — Las casillas de selección miden 16 px: no cumplen el tamaño de objetivo
+Dónde: `frontend/src/features/admin/components/tabla-estado-pago.tsx:121-128` (la de cada fila) y `:216-224` (la de la cabecera). En las dos, el `<input type="checkbox" className="size-4 accent-primary">` va dentro de un `<label className="inline-flex items-center">` que solo envuelve la casilla y un texto `sr-only`.
+Por qué importa:
+- `DESIGN.md` §6 (`:313`) fija el tamaño de los objetivos en las pantallas densas: 36 px desde 768 px de ancho y 44 px por debajo. WCAG 2.2 pide al menos 24 px.
+- Aquí el área que se pulsa es la de la casilla, 16 × 16 px, y es el control principal de la selección del lote.
+- Las pruebas no lo pueden ver (no hay estática de tamaños) y el humano no lo mediría. Es el único control nuevo de 01g por debajo del mínimo; los botones de la fila van en `size="sm"` (`h-9`, 36 px), como en el resto del encargo.
+Qué se espera:
+- Las dos casillas tienen un área pulsable de al menos 36 px desde 768 px y 44 px por debajo, con las utilidades de la escala o con `--control-height`, sin valores arbitrarios (V-16 y `estatico-r1:138-158`).
+- El nombre accesible, el estado y lo que se manda no cambian.
+- No hace falta dependencia nueva ni componente de `components/ui/` (ver el arbitraje de la casilla).
+
+#### M-27 — Falta el caso de ADM-1G20 (c) para «Cargar más movimientos»
+Dónde: `frontend/src/features/admin/movimientos-01g.test.tsx`. El resumen lo declara en "Pendiente".
+Por qué importa: el plan (`:1304`) nombra «Cargar más movimientos» entre los disparadores del `401`. El código aplica el mismo remedio que la tabla de alumnos, pero esta rama no tiene caso, y es una viñeta de "Pruebas requeridas".
+Qué se espera:
+- Un caso: con el refresco fallido, «Cargar más movimientos» lleva al login (`irA`), sin mensaje ni aviso y sin botón en espera.
+- De paso, conviene un caso de la primera carga de `/admin/movimientos` con `401`, el estado vecino (D-1 lo cubre en el código).
+
+### Arbitrajes
+- **La casilla nativa con `accent-primary`:** no hay componente de casilla en `components/ui/`, y `CLAUDE.md` no la pone en la lista de lo que no se construye a mano.
+  - Una casilla de shadcn/ui exigiría una dependencia nueva (`@radix-ui/react-checkbox`), que pide aprobación.
+  - La nativa usa el color por token (`--color-primary`) y el foco visible global (`styles/index.css:21`).
+  - **Se acepta como patrón nuevo**, con M-26 corregido. Va en A-04 de `DESIGN.md` al cierre de ADMIN-01, con la tabla con selección múltiple y la barra de lote: "casilla nativa con `accent-primary`, dentro de una etiqueta con el área de objetivo de §6".
+  - Si una segunda vista la necesita, se extrae a `components/ui/` (como `NativeSelect`). No hace falta ahora.
+- **D-1 (no pintar el texto de error ante un error que redirige, en las dos tablas): aceptada.** Es lo que pide la fila "Redirige" de la matriz y ADM-1G20 (c).
+- **D-2 (un `QueryClient` propio con la configuración de `app/providers.tsx`): aceptada.**
+  - La configuración es idéntica, literal: `retry: 1`, `refetchOnWindowFocus: false`, `staleTime: 30_000`.
+  - Riesgo de deriva si `providers.tsx` cambia. N-01g-1 propone exportar esas opciones desde `app/providers.tsx` y usarlas en la prueba, sin bloquear.
+- **ADM-1G03, los casos de ADM-1F08 del diálogo, cubiertos en `ficha-01f.test.tsx`: aceptado.** El componente es el mismo, no cambia, y su `MensajeError` es interno. La vista solo cambia cómo lo monta, y eso tiene sus casos (ADM-1G19, ADM-1G23 e y la fila M-25).
+- **R-23, el hermano de D-1 en 01f** (`usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx` pintan su texto de error de carga ante un `401` tras el refresco fallido):
+  - **No es hallazgo de 01g ni de 01f.**
+    - `irA` hace una recarga completa (`window.location.assign`, `services/navegacion.ts:6-8`), así que el texto solo se ve el instante que tarda la navegación.
+    - La matriz de 01f, aprobada, decía para esas consultas "Redirige: sin texto propio (la página se va)".
+    - No se pierde nada ni se muestra un dato falso.
+  - **Recomiendo un riesgo con destino en ESTADO §3**, sin pedirle autorización ahora al humano. Texto propuesto: "Las vistas de 01f (`/admin`, `/admin/usuarios`, `/admin/usuarios/:id`) muestran un instante su texto de error de carga cuando un `401` lleva al login".
+  - **Destino:** el carril trivial al cierre de ADMIN-01, con este alcance exacto:
+    - en esas tres vistas, la misma rama que D-1: si `errorQueRedirigeElCliente(<consulta>.error)`, no se pinta el texto de carga y se queda lo que había;
+    - más un caso por vista con el refresco fallido;
+    - sin otros cambios.
+  - Si el humano prefiere cerrarlo dentro de 01g, ese es el alcance que tendría que autorizar.
+
+### Problemas que no bloquean
+- **N-01g-1:** D-2, la configuración de TanStack Query copiada (arriba).
+- **N-01g-2:** `estaActivo` vive dentro del componente `BarraNavegacion`. La regla 3 de `CLAUDE.md` manda las funciones puras a `lib.ts`. Conviene moverlo a `components/layout/lib.ts` (recibe la ruta actual y el destino) con su prueba unitaria. Si se hace junto con M-26, mejor; no bloquea.
+- **N-01g-3:** el cambio de `NavLink` a `Link` con `aria-current` propio (E-06) afecta la barra de los tres roles.
+  - `/estudiante/` y `/maestro/` ahora dejan activo «Inicio», y la comparación es sin mayúsculas, como el router.
+  - Es coherente con E-06 y las pruebas de la barra de los tres roles siguen en verde, pero lo anoto para el ataque.
+
+### Puntos de ataque para la ronda 1 del tester
+1. **La acción vigente (M-23 y M-25):**
+   - dos filas en vuelo que fallan en orden inverso al de las pulsaciones;
+   - el error de una fila y después una casilla o el buscador, que no son acciones: el mensaje debe seguir;
+   - la acción vigente en una fila que sale de la lista y vuelve;
+   - con `<StrictMode>`.
+2. **T-01 en la fila y el lote:**
+   - una recarga a mitad de un «Marcar…» en vuelo, con éxito y con error;
+   - la selección con filas que cambian dos veces;
+   - «Seleccionar los de esta página» con filas repetidas entre páginas (ADM-1G15) y con exactamente 100 y 101;
+   - el destino del lote frente a una recarga con el diálogo abierto.
+3. **T-02 con `incluirDialogos`:**
+   - Escape y una recarga `200` que saca la fila en el mismo turno;
+   - el diálogo del lote abierto cuando la búsqueda diferida vacía la tabla;
+   - el foco en el motivo y una recarga `5xx` seguida de `200`.
+4. **E-06 en los tres roles:** `/estudiante/`, `/maestro/` y `/admin/` en mayúsculas y con varias barras finales. Ninguna subruta de otro destino debe activarse por prefijo (por ejemplo, `/admin/usuarios-x`).
+5. **E-07 y E-18 en `/admin/maestros`:** «Cargar más enlaces» con la última página sin enlaces nuevos, con la lista recargando y con dos clics. El foco nunca en `<body>`.
+6. **E-17:** la línea inválida con texto de derecha a izquierda (con los caracteres escritos como escape) y con `<`, `&` y comillas: el `<bdi>` aísla y el `textContent` no cambia.
+7. **El `401`** en cada disparador de 01g, incluidos «Cargar más movimientos» (M-27) y la primera carga de las dos tablas.
+8. **El punto de ataque 13 del plan** (R-23): los cuatro casos integrados en la tabla de usuarios y la ficha de 01f, con nuevas `*.ataque`. Si uno cae en 01f, se reporta: su arreglo está fuera de "Se toca" (PARADA y decisión del humano).
+9. **M-26, ya corregido:** el área de las casillas a 768 px y por debajo. jsdom no mide; el tester comprueba por lectura las clases o el `--control-height`. La medida queda para la comprobación humana (H-n).
+
+### Para el orquestador
+- El programador corrige M-26 y M-27, y si quiere, N-01g-1 y N-01g-2. El resumen de corrección lleva sus hermanos y estados vecinos: las dos casillas y, para M-27, la primera carga de movimientos con `401`.
+- **R-23:** a ESTADO §3 con destino en el carril trivial al cierre de ADMIN-01, con el alcance de arriba. Se informa al humano; no hace falta su respuesta ahora.
+- **A-04 de `DESIGN.md`, al cierre:** suma la tabla con selección múltiple, la barra de lote y la casilla nativa con su área de objetivo.
+
+### Para el humano
+- Nada que decidir ahora.
+- La comprobación humana del cierre puede sumar un punto: "en `/admin/estado-pago`, a 360 px y a 1024 px, las casillas se pulsan con comodidad y la barra de lote se lee completa".
+
+### Resumen
+- **Veredicto: DEVUELTO.** Todas las cifras coinciden: lint 0; build 0; módulos `1173 passed (1173)` · 34; las 26 rutas `645 passed (645)` · 26.
+- "Se toca" coincide (20 archivos), el índice está vacío y las `*.ataque` no se tocaron.
+- El mapeo está completo salvo M-27. Los textos están todos aprobados o salen del código. T-01, T-02 y la acción vigente coinciden con el código, y la matriz y las frases tienen sus caminos.
+- **M-26:** las casillas de 16 px no cumplen el objetivo de §6 (36 o 44 px).
+- **M-27:** falta el caso de `401` de «Cargar más movimientos».
+- **Arbitrajes:** la casilla nativa se acepta como patrón nuevo (a A-04, con M-26), D-1 y D-2 aceptadas, ADM-1G03 aceptado por el componente reutilizado.
+- **R-23:** no es hallazgo; va a ESTADO §3 con destino en el carril trivial al cierre, con el alcance escrito.
+
+## Verificación de la corrección — ADMIN-01g
+Veredicto: **ACEPTADO** (sin M-n nuevos; el tester puede lanzar la ronda 1)
+Verificación propia: desde `frontend/`, una corrida después de otra; nadie más corría suites y no había ningún `vitest` vivo. Sin navegadores.
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 834ms` | exit 0 (`836ms`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files  34 passed (34)` · `Tests  1177 passed (1177)` | igual |
+| Las 26 rutas de siempre | `Test Files  26 passed (26)` · `Tests  645 passed (645)` | igual |
+
+Además:
+- `resumen-programador.md` = `f17a8207…`, con la sección en `:3692`.
+- "Se toca" sigue en 20 archivos de producción y el índice de git está vacío.
+- Las 7 `*.ataque` conservan los hashes de la ronda 0.
+- En esta vuelta solo cambian `tabla-estado-pago.tsx` y `barra-de-lote.tsx`, más dos archivos de prueba de 01g.
+
+### M-26: corregido; lo contrasté con el código y con `DESIGN.md` §6
+- Las dos etiquetas (`tabla-estado-pago.tsx:121` y `:217`) pasan a `inline-flex size-(--control-height) cursor-pointer items-center justify-center`.
+- `--control-height` vale 44 px (`tokens.css:70`) y 36 px en el contexto denso desde 768 px (`:96`): es exactamente lo que pide §6 (`DESIGN.md:313`).
+- Es la sintaxis de variable que ya usan `button-variants.ts:26` (`icon`) y `barra-superior.tsx:40`. No lleva corchetes, así que no es un valor arbitrario, y `estatico-r1` sigue en verde.
+- La casilla se sigue viendo de 16 px, ahora centrada en un área de un control.
+- El nombre accesible sigue saliendo del `sr-only` (la prueba lo comprueba con `toHaveAccessibleName`, sin `aria-label`).
+- Los dos casos de M-26 comprueban la clase y la variante (`data-size`), porque jsdom no mide. Lo acepto en una prueba normal. La medida real queda para la comprobación humana.
+
+### Los hermanos de M-26: los botones de la fila y de la barra de lote pasan de `size="sm"` al tamaño por omisión
+- **Se aceptan.**
+  - `size="sm"` es `h-9`: 36 px fijos, que cumplen §6 desde 768 px pero no por debajo, donde §6 pide 44 px.
+  - El tamaño por omisión (`h-(--control-height)`) cumple en los dos anchos.
+  - Son controles nuevos de 01g, dentro de "Se toca". La fila de 40 px de §7.9 los admite desde 768 px (36 px); por debajo, la fila crece.
+- **Cambia un patrón documentado.** `DESIGN.md` §7.9 (`:569`) describe la acción de fila de las tablas del admin como `outline` `sm` ("Abrir", en `TablaClasesAdmin`), y §7.17 la de «Agregar a la clase» (`:677`).
+  - Desde 01g, las acciones de fila y de la barra de lote de `/admin/estado-pago` siguen §6 y no ese patrón.
+  - No es un hallazgo, porque §6 manda sobre el detalle de un patrón. Pero es un patrón visual nuevo y **debe documentarse en A-04 al cierre**, con esta regla: "las acciones de fila y de barra en tablas densas usan el tamaño por omisión (`--control-height`), no `sm`, para cumplir §6 por debajo de 768 px".
+  - La línea de `:569` se anota con esa regla.
+- **`tabla-enlaces.tsx` y `tabla-clases-admin.tsx`** (botones de fila con `size="sm"`, que existían antes de 01g):
+  - **Recomiendo el carril trivial al cierre de ADMIN-01**, junto con A-04.
+  - Alcance exacto: en esas dos tablas, las acciones de fila pasan de `size="sm"` al tamaño por omisión, sin cambio de comportamiento, de texto ni de pruebas que no lean el tamaño. Antes, un grep de `data-size` y `size="sm"` en sus pruebas.
+  - Son tablas densas del mismo encargo, y así `/admin` queda coherente con la regla nueva.
+- **Fuera de `/admin`:** los otros usos de `size="sm"` que quedan por debajo de 44 px en anchos menores de 768 px, como «Agregar a la clase» de la tabla de alumnos y las acciones de clases, tareas y calificaciones. Son decenas, en vistas fuera del encargo.
+  - Su destino es **ESTADO §3**: "`size="sm"` (36 px) queda por debajo del objetivo de §6 en anchos menores de 768 px".
+  - Esa fila la decide el humano en una tarea de diseño: cambiar `sm` a `--control-height` por debajo de 768 px en `button-variants.ts`, o aceptar la excepción en §6.
+  - No es de 01g.
+
+### M-27: corregido
+- `movimientos-01g.test.tsx` suma un `refrescoFalla` en su doble y dos casos:
+  - el `401` con el refresco fallido en «Cargar más movimientos»: va al login, sin mensaje ni aviso y sin botón en espera;
+  - el estado vecino, en la primera carga.
+- El programador declara que, sin la guarda `errorQueRedirigeElCliente` de `movimientos-view.tsx`, los dos caen (`2 failed | 8 skipped`). No lo repetí. Coincide con D-1, que ya estaba en el código, y los títulos son los del resumen.
+
+### Puntos de ataque finales para la ronda 1 del tester
+1. **La acción vigente (M-23 y M-25):**
+   - dos filas en vuelo que fallan en orden inverso al de las pulsaciones;
+   - el error de una fila y después una casilla o el buscador, que no son acciones: el mensaje sigue;
+   - la acción vigente en una fila que sale de la lista y vuelve;
+   - con `<StrictMode>`.
+2. **T-01 en la fila y el lote:**
+   - una recarga a mitad de un «Marcar…» en vuelo, con éxito y con error;
+   - una fila elegida que cambia dos veces;
+   - «Seleccionar los de esta página» con filas repetidas entre páginas (ADM-1G15) y con exactamente 100 y 101 filas;
+   - el destino del lote frente a una recarga con el diálogo abierto.
+3. **T-02 con `incluirDialogos`:**
+   - Escape y una recarga `200` que saca la fila en el mismo turno;
+   - el diálogo del lote abierto cuando la búsqueda diferida vacía la tabla;
+   - el foco en el motivo y una recarga `5xx` seguida de `200`.
+4. **E-06 en los tres roles:** `/estudiante/`, `/maestro/` y `/admin/` en mayúsculas y con varias barras finales. Ninguna ruta parecida se activa por prefijo (por ejemplo, `/admin/usuarios-x` o `/admin/clasesx`).
+5. **E-07 y E-18 en `/admin/maestros`:** «Cargar más enlaces» con la última página sin enlaces nuevos, con la lista recargando y con dos clics; el foco nunca en `<body>`.
+6. **E-17:** la línea inválida con texto de derecha a izquierda (los caracteres escritos como escape) y con `<`, `&` y comillas: el `<bdi>` aísla y el `textContent` no cambia.
+7. **El `401` en cada disparador de 01g:** la fila, el lote, restringir, «Restablecer» y las dos tablas, en la primera carga y en «Cargar más». Ninguna pinta un texto ni deja un botón en espera.
+8. **El punto de ataque 13 del plan (R-23):** los cuatro casos integrados en la tabla de usuarios y la ficha de 01f, con nuevas `*.ataque`. Si uno cae en 01f, se reporta; su arreglo está fuera de "Se toca" (PARADA y decisión del humano).
+9. **M-26 y sus hermanos:**
+   - por lectura, cada control de la fila, de la barra de lote y de la cabecera lleva el área de un control. La medida real queda para la comprobación humana;
+   - el área de la casilla no tapa el texto de la fila;
+   - pulsar el borde del área (la etiqueta) marca y desmarca una sola vez, sin doble cambio de estado.
+
+### Para el orquestador
+- Anotar en `aprobacion.md`: M-26 y M-27 cerrados; hermanos de M-26 aceptados.
+- Al cierre de ADMIN-01:
+  - A-04 suma la regla de tamaño de las acciones de fila y de barra en tablas densas y anota `DESIGN.md:569`;
+  - el carril trivial aplica esa regla a `tabla-enlaces.tsx` y `tabla-clases-admin.tsx` (alcance de arriba);
+  - ESTADO §3 suma la fila de `size="sm"` fuera de `/admin`, para que la decida el humano.
+- La comprobación humana del cierre (H-6, a 360 px) incluye las casillas y los botones de fila de `/admin/estado-pago`.
+
+### Para el humano
+Nada que decidir ahora. Al cierre: la fila de ESTADO §3 sobre `size="sm"` por debajo de 768 px es una decisión de diseño tuya.
+
+### Resumen
+- **Veredicto: ACEPTADO.** Mis cifras coinciden con las del resumen: lint 0; build 0; módulos `1177 passed (1177)` · 34; las 26 rutas `645 passed (645)` · 26.
+- **M-26:** cada casilla tiene el área de un control con `size-(--control-height)`, sin valores arbitrarios, y el nombre accesible no cambia.
+- **Hermanos de M-26:** los botones de la fila y de la barra pasan al tamaño por omisión, cumplen §6 y se documentan en A-04 como regla de las tablas densas.
+- **M-27:** está corregido, con el estado vecino de la primera carga.
+- **`tabla-enlaces` y `tabla-clases-admin`:** carril trivial al cierre. El resto de la app, a ESTADO §3 para el humano.
+- Hay nueve puntos de ataque para la ronda 1.
+
+## Verificación de la corrección de la ronda 1 — ADMIN-01g
+Veredicto: **ACEPTADO** (sin M-n; el tester puede lanzar la ronda 2, que es la segunda de tres)
+Verificación propia: desde `frontend/`, una corrida después de otra; nadie más corría suites y no había ningún `vitest` vivo. Sin navegadores.
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 944ms` | exit 0 (`836ms`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files  39 passed (39)` · `Tests  1255 passed (1255)` | igual |
+| Las cuatro del tester (`usuarios-01g-r1`, `maestros-01g-r1`, `estado-pago-01g-r1`, `barra-01g-r1`) | `Test Files  4 passed (4)` · `Tests  69 passed (69)` | igual |
+| Las 26 rutas de siempre | `Test Files  26 passed (26)` · `Tests  645 passed (645)` | igual |
+
+Además:
+- `resumen-programador.md` = `4bf4dc38…`, con la sección en `:3746`. `reporte-tester.md` = `f503c411…`, con la ronda 1 en `:6111`.
+- Las cuatro `*.ataque` nuevas conservan su hash (`20729bd4`, `8d334077`, `6683e8d8` y `23beb727`), y las siete C-n, los de la ronda 0.
+- Producción: 23 archivos contra `1566196`, los 20 de "Se toca" más los tres autorizados.
+- El índice de git está vacío.
+
+### T-01 (R-23): corregido dentro de lo que autorizó el humano
+- **Alcance.** El diff de `usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx` contra `1566196` solo trae:
+  - el `import` de `errorQueRedirigeElCliente`;
+  - la condición (`errorVisible`, o `!errorQueRedirigeElCliente(...)` en el resumen) delante de los `MensajeError` de carga;
+  - su comentario.
+- **Nada más cambia.** La lista cambiada de la tabla y "Esa cuenta ya no existe." de la ficha quedan bajo la misma condición: son el texto de carga de esas consultas, dentro de lo autorizado.
+- **Casos.** Hay un caso por pantalla en `redirige-01g.test.tsx`, cuatro en total porque la tabla tiene dos disparadores (la primera carga y «Cargar más usuarios»). ATQ-1G27 a ATQ-1G30 están en verde.
+- Con un `401` y sin datos, la vista queda en `Cargando` hasta que la recarga completa de `irA` se la lleva. Es lo que dice la definición de "redirige" de la matriz.
+
+### T-02: corregido; lo contrasté con el código
+- En `tabla-enlaces.tsx:310`, la raíz (`tablaRef`, `tabIndex={-1}`) queda montada en los cuatro estados: error, carga, vacío y lista.
+- El destino de `useFocoAlCargarMas` es este (`:232-238`):
+  - con enlaces nuevos, el primero;
+  - sin nuevos, «Ver registrados» de la primera fila;
+  - si ya no hay filas, la raíz.
+- **Estados vecinos con su caso:**
+  - la última página con y sin nuevos (ADM-1G10 y 1G22);
+  - solo repetidos (caso nuevo);
+  - el `5xx` (caso nuevo y ATQ-1G24);
+  - la lista recargando (ATQ-1G23);
+  - dos clics (ADM-1G05).
+
+### T-03: corregido
+- `registrados-del-enlace.tsx` usa `useFocoAlCargarMas` con destino `destinoDelFocoRef`: el botón de su fila que abrió la lista, que `tabla-enlaces.tsx:197` pasa por prop.
+- Casos con la última página y con el `5xx` (`maestros-01g.test.tsx`), y ATQ-1G25 en sus dos filas.
+- Las filas de registrados no tienen controles, así que ese destino es el único razonable y coincide con §7.14.
+
+### Los dos hermanos que corrigió el programador
+- **`unirPaginasSinRepetidas` en enlaces y registrados: aceptado.**
+  - Era el mismo defecto que R-19 y M-08 resolvieron para las listas de ADMIN-01: filas repetidas, `key` de React duplicada y dos botones con el mismo nombre.
+  - Cae en dos archivos de "Se toca" y tiene caso ("solo enlaces repetidos").
+  - Que el plan no lo inventariara para `/admin/maestros` no lo vuelve desviación: es el remedio aprobado, aplicado a un hermano.
+- **El `401` en `TablaEnlaces` y `RegistradosDelEnlace`, sin caso propio: basta para aceptar, con un punto de ataque.**
+  - El remedio es la misma condición, línea por línea, que tiene caso en seis vistas: las dos tablas de 01g, `redirige-01g` y M-27.
+  - Ninguna regla del encargo pide un caso por rama de un mecanismo ya probado.
+  - El plan no los listaba en ADM-1G20 (c).
+  - Aun así, son ramas nuevas de dos archivos. Las cubre el punto 1 de abajo en la ronda 2, que es más barato que devolver el resumen.
+
+### O-01g-r1-1 y O-01g-r1-2
+- **O-01g-r1-1:** el título de ADM-1G17 (f) ya dice lo que prueba. Bien.
+- **O-01g-r1-2:** es coherente con la regla de T-01.
+  - El texto del botón de acceso sale del servidor en cada render («Restringir» si la recarga trae la fila sin restricción).
+  - La espera sale de la acción de la persona (`restablecerAcceso.isPending`), que no es un dato del servidor.
+  - La guarda con ref va antes de la rama que abre el diálogo, así que no se abre restringir con un `PUT` contrario en vuelo. Al asentarse, el botón vuelve a funcionar.
+  - Tiene caso. No hay texto nuevo ni copia local del estado.
+  - V-06 sigue en 90: hay dos `enEspera=` en `tabla-estado-pago.tsx:160` y `:169`, y el archivo cuenta los mismos.
+- **V-17:** "Ocultar" sigue sin aparecer en ningún `.tsx` (`estatico-r1:253-256`, en verde). El tropiezo del comentario quedó corregido antes de la corrida final.
+
+### Hermanos y estados vecinos: revisión
+- **Cada «Cargar más» de 01g y de los tres archivos autorizados:** está enumerado con su destino del foco, su `5xx`, su `401` y sus dos clics. Lo que dice el resumen coincide con el código.
+- **Cada vista que redirige:** las dos tablas de 01g, las tres de 01f y las dos de `/admin/maestros`. Las mutaciones de 01f y 01g ya filtraban.
+- **Nada fuera de "Se toca" y de lo autorizado:** sin PARADA.
+
+### Puntos de ataque para la ronda 2
+1. **El `401` en `/admin/maestros`:** en la primera carga y en «Cargar más enlaces», y en la primera página y en «Cargar más» de registrados. Ningún `MensajeError` y ningún botón en espera. Son las dos ramas sin caso propio.
+2. **T-02 y sus vecinos:**
+   - tras el `5xx` de «Cargar más enlaces», los caminos para recuperar la lista: pulsar «Maestros», ir y volver, y el historial;
+   - el foco en la raíz de la tabla y después Tab: el siguiente control es el primero de la tabla o de la vista, nunca otro de fuera del orden.
+3. **T-03 y sus vecinos:**
+   - «Cargar más» de registrados cuando el botón que abrió la lista ya no existe: el enlace se revocó con la lista abierta, o la tabla de enlaces pasó a error;
+   - dos listas de registrados abiertas a la vez.
+4. **`unirPaginasSinRepetidas` en enlaces y registrados:** una repetida que cambia de datos entre páginas (se ve la primera) y la selección del foco cuando la única nueva es repetida.
+5. **T-01 en 01f, sus vecinos:**
+   - el `401` en una recarga con datos de la tabla y de la ficha: los datos se quedan;
+   - `403 ACCESO_RESTRINGIDO` y `403 CAMBIO_DE_CONTRASENA_REQUERIDO`, los otros dos códigos que redirigen, en las tres pantallas;
+   - el `401` en la frase de lista cambiada de `/admin/usuarios`.
+6. **O-01g-r1-2:** «Restablecer» en vuelo con una recarga que trae la fila sin restricción. Después, el `PUT` falla (mensaje en la fila y botón «Restringir» funcional) o sale bien (la fila vuelve a lo que diga la siguiente recarga), con dos pulsaciones durante la espera.
+7. **Lo que quedó sin atacar en la ronda 1:** Escape y la recarga en el otro orden, si se puede fijar con un doble diferido.
+
+### Para el orquestador
+- Anotar en `aprobacion.md`:
+  - T-01, T-02 y T-03 cerrados (ronda 1 de 3);
+  - el diff de los tres archivos de 01f, dentro de lo autorizado;
+  - los dos hermanos aceptados (`unirPaginasSinRepetidas` en enlaces y registrados, y el `401` en `/admin/maestros`, con el punto 1 de ataque).
+- Al cierre, la fila de R-23 de ESTADO §3 ya no hace falta: quedó corregida en 01g con la autorización del humano. Que no vaya a ESTADO como pendiente.
+- **Medición:** T-02 y T-03 son estados vecinos y hermanos del mecanismo de E-18. Esta ronda cuenta como ronda extra por hermanos, la primera de 01g en ese patrón.
+
+### Para el humano
+Nada que decidir. Su "Autorizo" quedó usado dentro del alcance exacto.
+
+### Resumen
+- **Veredicto: ACEPTADO.** Mis cifras coinciden con las del resumen: lint 0; build 0; módulos `1255 passed (1255)` · 39; las del tester `69 passed (69)` · 4; las 26 rutas `645 passed (645)` · 26.
+- **T-01:** el diff de los tres archivos de 01f se queda en el alcance autorizado (la condición, el `import` y el comentario), con un caso por pantalla.
+- **T-02 y T-03:** corregidos con su raíz y su destino, con los estados vecinos probados.
+- **Hermanos:** `unirPaginasSinRepetidas` aceptado. El `401` de `/admin/maestros` sin caso propio basta, porque es el mismo mecanismo probado en seis vistas, y va al punto 1 de la ronda 2.
+- **O-01g-r1-2:** coherente con T-01. V-06 sigue en 90 y V-17 en verde.
+- Siete puntos de ataque para la ronda 2.
+
+## Arbitraje de la ronda 2 — ADMIN-01g
+Modo: arbitraje breve, solo de lectura (no corrí suites). Fuente: `reporte-tester.md`, "## Ronda 2 — ADMIN-01g" (`:6301`); código en el árbol de hoy.
+
+### 1. T-06: se corrige en 01g, dentro de "Se toca", sin tocar `maestros-view.tsx`
+- **Por qué se corrige.** La regla de frases de recuperación de `AGENTS.md` (decisión del humano, 2026-10-26) pide, por cada frase, el camino "pulsar la sección en la que ya se está".
+  - El texto de error de la lista de enlaces promete "Inténtalo de nuevo".
+  - Los otros listados del módulo (`/admin`, `/admin/usuarios`, `/admin/estado-pago` y `/admin/movimientos`) ya lo cumplen.
+  - Que la fila de la matriz dijera "(de hoy)" no exime: 01g toca esa lista (E-07, E-18, T-02) y el punto de ataque lo nombró.
+- **Dónde.** En `frontend/src/features/admin/components/tabla-enlaces.tsx`, que está en "Se toca". Es el componente que tiene la consulta (`useEnlacesRegistro`).
+  - `useAlPulsarLaSeccionActiva` (`components/seccion/hooks.ts`) solo escucha la `location.key` y funciona en cualquier componente montado en la ruta.
+  - Ya lo usan dos componentes hijos que no son la vista: `features/clases/components/seccion-de-recursos.tsx:81` y `respuestas-de-duda.tsx:166`.
+  - No hace falta tocar `maestros-view.tsx` ni pedir autorización al humano.
+- **Alcance exacto.**
+  - En `tabla-enlaces.tsx`: `useAlPulsarLaSeccionActiva(useVolverAPedirSiFallo(<clave de la lista de enlaces>))`. Con la lista en error, pulsar «Maestros» estando ahí la vuelve a pedir desde la primera página y el texto desaparece; con la lista sana, no pide nada.
+  - Además, `useMarcarViejaSiQuedoEnError(<clave>)`, como las demás tablas del módulo, para que ir y volver pida la clave que quedó en error. ATQ-1G39 ya pasa; el programador confirma si hace falta o lo declara redundante.
+  - **Hermano que debe evaluar:** una lista de registrados en error (`registrados-del-enlace.tsx`, en "Se toca"). Pulsar «Maestros» con esa lista abierta y en error también debería volver a pedirla, con el mismo gancho en ese componente. Hoy su único camino es ocultar y volver a ver (ATQ-1G41).
+  - **Casos:** pulsar «Maestros» con la lista de enlaces en error, tras el `5xx` de la primera carga y tras el de «Cargar más enlaces». Con la lista sana, ninguna petición nueva. Lo mismo para registrados, si aplica.
+
+### 2. Medición y umbral de cambio de modelo
+- **T-05 es un estado vecino del remedio de T-02.**
+  - El mismo mecanismo: el foco cuando la tabla de enlaces se reemplaza por su error.
+  - El remedio de T-02 dejó montada la raíz (`tabIndex={-1}`), pero solo la usa desde «Cargar más». No cubre la recarga que falla con el foco en otro control de la tabla.
+  - La regla de 2026-10-05 nombra justo "error en recarga" entre los estados vecinos que el resumen debe recorrer.
+- **T-04 es un estado vecino del remedio del `401`.**
+  - En la corrección de la ronda 1, el resumen listó el `401` de «Cargar más enlaces» y de registrados como hermanos de D-1 y solo quitó el mensaje.
+  - No revisó la otra mitad de la misma definición de "redirige" ("ningún botón queda en espera"), que en las otras tablas cumple `retry: reintentarConsultaAdmin`.
+  - En mi verificación de la ronda 1 la acepté sin caso propio y dejé el punto de ataque 1, que es el que la encontró.
+- **T-06 no cuenta por hermanos:** es un camino anterior a 01g que el plan no inventarió.
+- **Cuenta de 01g:**
+  - ronda 1: T-02 y T-03, hermanos o vecinos de E-18;
+  - ronda 2: T-04 y T-05, estados vecinos de remedios de la ronda 1.
+  - **2 rondas extra por hermanos o estados vecinos: se alcanza el umbral** de `AGENTS.md`, "Equipo de agentes". La regla general del 2026-10-02 vale para cualquier encargo ("si un encargo vuelve a tener 2 o más rondas extra del tester por subentrega…"). La del 2026-10-05 solo nombra CLASES-02d y TAREAS para que el orquestador cambie el modelo sin consultar.
+- **Consecuencia:** el `programador` ya corre con `opus` (`.claude/agents/programador.md`, `model: opus`, `effort: medium`) desde 01d1, cuando ya se alcanzó el umbral (`revision.md:4183` y `:4236`). **El modelo no tiene a dónde subir.**
+- **Recomiendo:**
+  1. Registrarlo en `aprobacion.md` y en ESTADO §6 como umbral alcanzado en 01g (el segundo en ADMIN-01, tras 01d1).
+  2. Proponer al humano, como decisión opcional y sin bloquear, subir el `effort` del `programador` a `high` en lo que queda de ADMIN-01 (el cierre). Es lo mismo que le ofrecí en 01d1.
+  3. Mantener la lista de hermanos obligatoria de abajo en la corrección, que es lo que ataca la causa.
+
+### 3. Lista para el programador (ronda de corrección 2 de 3)
+- **T-04, los reintentos.**
+  - `useEnlacesRegistro` (`hooks.ts:77`) y `useRegistradosDelEnlace` (`:125`) ganan `retry: reintentarConsultaAdmin`: un `4xx`, incluido el `401` sin sesión, no se reintenta.
+  - **Hermanos que debe recorrer y declarar uno por uno:**
+    - toda consulta (`useQuery` o `useInfiniteQuery`) de `features/admin/hooks.ts`. Hoy tienen el reintento propio `useResumenAdmin`, `useUsuariosAdmin`, `useUsuario`, `useAlumnosEstadoPago` y `useMovimientos`; solo faltan las dos de `/admin/maestros`. Que lo confirme con grep;
+    - los «Cargar más» de esas dos listas con `401`: el botón sale de la espera (ATQ-1G37) y no sale otra petición (ATQ-1G47);
+    - la primera carga de las dos con `401`, que ya pasa.
+  - Las mutaciones no reintentan: no aplica.
+- **T-05, el foco cuando la tabla de enlaces se reemplaza.**
+  - `tabla-enlaces.tsx` usa `useFocoAlPerderseElControl(tablaRef, <clave de la consulta de enlaces>)` sobre la raíz que ya existe. Si una recarga (o la página siguiente) reemplaza la tabla con el foco en un control de dentro, el foco va a la raíz, nunca a `<body>`.
+  - Debe convivir con `useFocoAlCargarMas`: declarar el orden, como en `usuarios-view.tsx:83-86`.
+  - Los controles de las listas de registrados viven dentro de la raíz. Como no son portales, no hace falta `incluirDialogos`.
+  - **Hermanos:** toda vista o tabla del módulo con controles que una recarga puede quitar.
+    - Ya lo tienen: `usuarios-view.tsx:86`, `usuario-view.tsx:98` y `estado-pago-view.tsx:169`.
+    - Revisar y declarar: `registrados-del-enlace.tsx` (su único control es «Cargar más», que ya cubre `useFocoAlCargarMas`; decir si una recarga de registrados que falla con el foco en ese botón lo cubre); `movimientos-view.tsx` (solo «Cargar más»; lo mismo); `inicio-admin-view.tsx` (los accesos no dependen del resumen: no aplica).
+  - **Estados vecinos con caso:**
+    - recarga que falla con el foco en «Revocar», en «Ver registrados» y en «Ocultar registrados» (ATQ-1G42), y tras «Sí, revocar» (ATQ-1G48);
+    - la página siguiente que falla (T-02, ya en verde);
+    - una recarga `200` que quita la fila con el foco: un enlace revocado por otra persona;
+    - con `<StrictMode>`.
+- **T-06:** el alcance del punto 1, con su hermano de registrados.
+- **El resumen de corrección:**
+  - la lista de hermanos y estados vecinos de cada uno, con el archivo y el título de cada caso;
+  - cuántos de ATQ-1G37, 1G38, 1G42, 1G47 y 1G48 pasan a verde;
+  - la matriz de `/admin/maestros` actualizada: "Cargar más enlaces" y registrados con `401` sin espera ni reintento; la tabla con el foco a la raíz ante cualquier reemplazo; pulsar «Maestros» como camino de recuperación.
+  - Solo archivos de "Se toca" (`hooks.ts`, `tabla-enlaces.tsx`, `registrados-del-enlace.tsx`). Si alguno exige otro archivo, PARADA.
+
+### Lo que no se arbitra aquí
+- **El Tab desde la raíz:** no atacado por falta de `user-event`; por lectura, la raíz con `tabIndex={-1}` queda fuera del orden de tabulación. No pido dependencia ni comprobación humana extra: H-n ya recorre el teclado en `/admin/maestros`.
+
+### Resumen
+- **T-06:** se corrige en 01g, en `tabla-enlaces.tsx` (y su hermano en `registrados-del-enlace.tsx`), con `useAlPulsarLaSeccionActiva(useVolverAPedirSiFallo(...))`. No hace falta tocar `maestros-view.tsx` ni pedir autorización al humano.
+- **T-04 y T-05:** estados vecinos de remedios de la ronda 1. Con la ronda 1, suman 2 rondas extra por ese patrón en 01g: se alcanza el umbral. El `programador` ya usa `opus`; recomiendo registrarlo y ofrecer al humano subirle el esfuerzo a `high`, como decisión opcional.
+- **La lista de remedios y hermanos de T-04, T-05 y T-06** queda escrita arriba, solo en archivos de "Se toca".
+
+## Verificación de la corrección de la ronda 2 — ADMIN-01g
+Veredicto: **ACEPTADO** (sin M-n; el tester puede lanzar la ronda 3, la última)
+Verificación propia: desde `frontend/`, una corrida después de otra. Antes de cada una comprobé que no hubiera ningún `vitest` vivo; la de los módulos pasó a segundo plano a los 180 s y esperé su fin antes de lanzar la siguiente. Sin navegadores.
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 1.49s` | exit 0 (`1.53s`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files  43 passed (43)` · `Tests  1301 passed (1301)` | igual |
+| Las siete `*.ataque` de las rondas 1 y 2 | `Test Files  7 passed (7)` · `Tests  101 passed (101)` | igual |
+| Las 26 rutas de siempre | `Test Files  26 passed (26)` · `Tests  645 passed (645)` | igual |
+
+Además:
+- `resumen-programador.md` = `37923964…`, con la sección en `:3850`.
+- Las siete `*.ataque` del tester conservan su hash (`20729bd4`, `8d334077`, `6683e8d8`, `23beb727`, `ec7cc34f`, `2f6f602f` y `74cbd6a8`).
+- Producción sigue en 23 archivos contra `1566196` (los 20 de "Se toca" y los tres autorizados para T-01), y el índice de git está vacío.
+- En esta vuelta cambian solo `hooks.ts`, `tabla-enlaces.tsx` y `registrados-del-enlace.tsx` (por fecha de modificación), los tres que permitió el arbitraje.
+
+### T-04 a T-06 contra mi arbitraje
+- **T-04:** `useEnlacesRegistro` y `useRegistradosDelEnlace` ganan `retry: reintentarConsultaAdmin` (`hooks.ts:88-…` y `:138-…`).
+  - El grep del programador da siete consultas en el módulo, y las siete lo tienen. Coincide con el mío de la ronda 2: solo faltaban esas dos.
+  - Los estados vecinos (los dos «Cargar más» con `401`, sin espera y sin segunda petición, y las dos primeras cargas) tienen caso propio y los del tester (ATQ-1G37 4 de 4, ATQ-1G47 2 de 2).
+- **T-05:** `useFocoAlPerderseElControl(tablaRef, claveDeFocoDeLaConsulta("enlaces-registro", enlaces))` (`tabla-enlaces.tsx:253`), declarado después de `useFocoAlCargarMas`, como pedí.
+  - Hay caso por cada estado vecino de la lista del arbitraje:
+    - recarga que falla con el foco en «Revocar», en «Ver registrados», en el botón de ocultar y en «Cargar más» de registrados;
+    - tras «Sí, revocar»;
+    - recarga `200` que quita la fila;
+    - el control con la fila presente;
+    - `<StrictMode>`.
+  - Los hermanos están declarados uno por uno: registrados (cubiertos por la raíz de la tabla), `movimientos-view` (solo «Cargar más»; no aplica) e `inicio-admin-view` (sin controles que dependan de la consulta; no aplica). Coinciden con el código.
+- **T-06:** `useMarcarViejaSiQuedoEnError` y `useVolverAPedirSiFallo` con su clave en las dos listas, y pulsar la sección vía `AlPulsarLaSeccionActiva` (`tabla-enlaces.tsx:258-260` y `:332`; `registrados-del-enlace.tsx:67-69` y `:148`).
+  - Hay casos para la primera carga, para «Cargar más», para el control con la lista sana y para el hermano de registrados. ATQ-1G38 está en verde.
+  - No se tocó `maestros-view.tsx`.
+
+### Arbitrajes
+1. **`AlPulsarLaSeccionActiva` montado solo si `useInRouterContext()`: aceptado.**
+   - La alternativa natural era montar con router las tres pruebas que hoy montan `MaestrosView` sin él (`maestros-view.test.tsx`, `maestros-03b-r1` y `maestros-03c-r1`). Pero son vigiladas, y dos son `*.ataque` que el programador no puede tocar: cambiarlas habría sido PARADA.
+   - Dentro de los tres archivos permitidos, un gancho no se puede llamar de forma condicional. Un componente vacío que lo envuelve, montado según `useInRouterContext()` (API pública de `react-router`), es la forma idiomática.
+   - **No esconde ningún camino real:** en la aplicación, `MaestrosView` solo se monta desde `rutas` dentro de `RouterProvider` (`app/router.tsx`), así que `useInRouterContext()` siempre es verdadero. La rama falsa solo existe en esas tres pruebas.
+   - **Destino:** si una tarea futura reescribe esas tres pruebas con router, se quita la guarda. Lo anoto en ESTADO §3 como detalle, sin prisa.
+   - Mientras tanto, el componente vive en `registrados-del-enlace.tsx`. Si llega a usarse fuera de `/admin/maestros`, sube a `components/seccion/`.
+2. **Las claves exportadas desde `hooks.ts` (`CLAVE_ENLACES_REGISTRO` y `claveRegistradosDelEnlace`) en lugar de `data.ts`: aceptado, con destino al carril trivial del cierre.**
+   - Va contra la regla 2 de `CLAUDE.md`, y las demás claves del módulo viven en `data.ts`. Pero `data.ts` no estaba entre los archivos permitidos de esta ronda, y el comportamiento no cambia.
+   - **Alcance del cierre:** moverlas a `data.ts` junto a `claveUsuario` y `claveTablaDeUsuarios`, sin otro cambio.
+3. **Sin caso propio de "ir a otra sección y regresar antes del `staleTime`" en `/admin/maestros`: no bloquea.**
+   - Para la lista de enlaces, ese camino ya tiene caso del tester: ATQ-1G39 (`maestros-01g-r2.ataque.test.tsx`), en verde, tras el `5xx` de «Cargar más enlaces». El historial lo cubre ATQ-1G40.
+   - La regla de `AGENTS.md` pide un caso por camino; no exige que lo escriba el programador.
+   - Para los registrados, salir de la sección desmonta la lista. Al volver, la fila aparece cerrada y abrirla la pide, porque la clave quedó marcada vieja.
+   - Faltan dos casos con ese camino: la primera carga de enlaces en error y los registrados en error. Van al punto 1 de la ronda 3, que es la última y tiene margen para cubrirlos.
+4. **Desviación de proceso: el programador corrió dos suites suyas a la vez** (los módulos en segundo plano y las siete `*.ataque`). Contraviene `AGENTS.md`, "Pruebas": "Nunca se corren dos suites a la vez".
+   - Lo declaró, descartó esas cifras y volvió a correr una tras otra; sus cifras finales coinciden con las mías.
+   - **Para la medición:** 1 incidente de proceso del programador en 01g, sin efecto en el resultado.
+   - La causa fue la herramienta, que mandó la corrida a segundo plano a los 180 s, y la siguiente se lanzó sin esperar el aviso. Para las rondas que quedan, conviene recordar en la instrucción: "si una corrida pasa a segundo plano, espera su aviso antes de lanzar otra".
+
+### Puntos de ataque para la ronda 3 (la última)
+1. **`/admin/maestros`, ir a otra sección y regresar antes del `staleTime`:**
+   - con la primera carga de enlaces en error;
+   - con una lista de registrados abierta y en error (al volver, abrirla la pide y el texto desaparece);
+   - y el historial (atrás y adelante) con los registrados en error.
+2. **La convivencia de los dos ganchos de foco en `tabla-enlaces.tsx`:**
+   - «Cargar más enlaces» con el foco cuando la página siguiente trae solo repetidos y, en el mismo turno, una recarga de la lista;
+   - el foco no salta dos veces, ni a la raíz si ya hay un destino válido;
+   - con `<StrictMode>`.
+3. **T-06 y `AlPulsarLaSeccionActiva`:**
+   - pulsar «Maestros» varias veces seguidas con la lista en error: una petición por pulsación, sin duplicados en vuelo;
+   - con la lista recargando por otra causa;
+   - con dos listas de registrados en error a la vez.
+4. **T-04:**
+   - un `5xx` seguido de un `401` en el reintento de «Cargar más enlaces»: sin espera, sin mensaje y una sola redirección;
+   - un `403 ACCESO_RESTRINGIDO` en las dos listas de `/admin/maestros`.
+5. **Regresión de lo cerrado en las rondas 1 y 2:** las siete `*.ataque` siguen en verde con el árbol final.
+
+### Para el orquestador
+- Anotar en `aprobacion.md`:
+  - T-04, T-05 y T-06 cerrados (corrección 2 de 3);
+  - las desviaciones 1 y 2 aceptadas con su destino;
+  - la desviación de proceso como incidente de medición;
+  - la decisión del humano de dejar el esfuerzo en `medium`, que ya está registrada.
+- **Al cierre:**
+  - el carril trivial mueve las dos claves a `data.ts`;
+  - ESTADO §3 anota la guarda `useInRouterContext()`, que se quita si esas tres pruebas pasan a montar con router.
+
+### Para el humano
+Nada que decidir.
+
+### Resumen
+- **Veredicto: ACEPTADO.** Mis cifras coinciden con las del resumen: lint 0; build 0; módulos `1301 passed (1301)` · 43; las siete `*.ataque` `101 passed (101)` · 7; las 26 rutas `645 passed (645)` · 26.
+- T-04, T-05 y T-06 quedan corregidos como pedí, solo en los tres archivos permitidos, con sus hermanos y estados vecinos.
+- **Desviación 1, aceptada:** no esconde caminos reales; sale del cierre si se reescriben esas pruebas.
+- **Desviación 2, aceptada:** las claves pasan a `data.ts` en el carril trivial del cierre.
+- **El camino "ir y regresar":** no bloquea, porque ya lo cubre ATQ-1G39; sus dos variantes van a la ronda 3.
+- **Incidente de proceso:** las dos suites a la vez, registradas para la medición.
+- Cinco puntos de ataque para la ronda 3.
+
+## Verificación de la corrección de la ronda 3 — ADMIN-01g
+Veredicto: **ACEPTADO** (sin M-n; sigue la ronda acotada del tester: solo ATQ-1G60 y la regresión)
+Verificación propia: desde `frontend/`, una corrida después de otra. Antes de cada una comprobé que no hubiera ningún `vitest` vivo, y esperé a que la de los módulos terminara antes de lanzar la siguiente. Sin navegadores.
+
+| Comando | Mi última línea | Resumen |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` sin errores | igual |
+| `npm run build` | exit 0, `✓ built in 835ms` | exit 0 (`946ms`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files  45 passed (45)` · `Tests  1319 passed (1319)` | igual |
+| Las ocho `*.ataque` de 01g (rondas 1 a 3) | `Test Files  8 passed (8)` · `Tests  115 passed (115)` | igual |
+| Las 26 rutas de siempre | `Test Files  26 passed (26)` · `Tests  645 passed (645)` | igual |
+
+### Alcance (la decisión del humano: "Corregir con ronda acotada")
+- **Producción:** desde la ronda 2 solo cambió `features/admin/hooks.ts`. Lo comprobé por fecha de modificación: `hooks.ts` a las 20:53; el resto de producción, a las 20:11 o antes.
+- **Dentro de `hooks.ts`:** el único rastro de esta ronda es la guarda de `useVolverAPedirSiFallo`, `if (estado.fetchStatus === "fetching") return` después de la de error, con su comentario. Es la única mención de "ronda 3" en el archivo.
+- **Pruebas:** la única nueva es `volver-a-pedir-01g.test.tsx`, con 4 casos:
+  - en error y sin recarga, pide una vez;
+  - con recarga en vuelo, no pide ni descarta la que corre;
+  - tras la recarga que vuelve a fallar, sí pide;
+  - sana, no pide.
+- **Las `*.ataque`:** ninguna cambió. Las ocho de 01g conservan su hash (`20729bd4`, `8d334077`, `6683e8d8`, `23beb727`, `ec7cc34f`, `2f6f602f`, `74cbd6a8` y `7d74a21b`).
+- **Totales:** 23 archivos de producción contra `1566196` (no cambia) y el índice de git vacío.
+- **La mutación declarada:** sin la guarda caen tres casos, los dos del gancho y ATQ-1G60. No la repetí. Coincide con lo que la guarda decide, y ATQ-1G60 está en verde en mi corrida.
+
+### Arbitrajes
+1. **En usuarios, estado de pago y movimientos, el estado "con recarga en vuelo" solo lo cubre la prueba del gancho: basta.**
+   - La guarda vive dentro del gancho compartido. Las vistas solo le pasan su clave y no agregan lógica al decidir si se vuelve a pedir (la de estado de pago, ver 2).
+   - La prueba del gancho usa un `useQuery` real con TanStack Query, en los cuatro estados vecinos.
+   - El camino que sí pide sigue con caso en cada vista: ADM-1F17 (a), ADM-1G11 (a), ADM-1G12 (a), ADM-1F01 (b) y los de enlaces y registrados. El camino que no pide lo cubren ATQ-1G60 y los de enlaces, en la vista real.
+   - Pedir un caso por vista sería repetir el mismo mecanismo cinco veces, y además ampliaría la ronda que el humano acotó.
+2. **En `/admin/estado-pago`, pulsar con una recarga en vuelo vacía la selección aunque ya no vuelva a pedir: es correcto.**
+   - La vista vacía la selección cuando se pulsa «Estado de pago» con la tabla en error, porque sus filas pueden haber cambiado (ADM-1G11 y ADM-1G12, §D-11, "Enmienda 15").
+   - La recarga que ya está en vuelo trae justo esas filas posiblemente cambiadas. Vaciar la selección es lo que pide la regla.
+   - Con la tabla en error, la barra de lote no se pinta, así que la persona no ve una selección que desaparezca de golpe.
+   - Es coherente con T-01: la selección es una elección de la persona que se descarta ante un cambio de la lista.
+   - Es coherente con la decisión del humano sobre la selección ("Todas las que se ven"), que solo fija qué marca la casilla de la cabecera.
+   - **No es riesgo ni requiere cambio.** No hay nada que llevar al humano.
+
+### Para la ronda acotada del tester
+Corre solo ATQ-1G60 y la regresión de sus ocho archivos de 01g, sin atacar nada nuevo, como decidió el humano. Después sigue mi revisión final de 01g.
+
+### Medición (se anota en la revisión final)
+- **T-07** es un estado vecino del remedio de T-06: pulsar la sección con la consulta ya recargando.
+- Es la ronda 3 de 01g, con la excepción al máximo de tres que autorizó el humano.
+- El umbral de hermanos de 01g ya estaba alcanzado en la ronda 2. El `programador` sigue con `opus` y esfuerzo `medium`, por decisión del humano.
+
+### Para el humano
+Nada que decidir.
+
+### Resumen
+- **Veredicto: ACEPTADO.** Mis cifras coinciden con las del resumen: lint 0; build 0; módulos `1319 passed (1319)` · 45; ocho `*.ataque` `115 passed (115)` · 8; 26 rutas `645 passed (645)` · 26.
+- **Alcance:** el cambio de producción es solo la guarda de `useVolverAPedirSiFallo`, con su prueba nueva de cuatro estados vecinos. No cambió ninguna `*.ataque`.
+- **Arbitraje 1:** la prueba del gancho basta para las vistas de usuarios, estado de pago y movimientos.
+- **Arbitraje 2:** vaciar la selección con la recarga en vuelo es correcto según ADM-1G11 y ADM-1G12, T-01 y la decisión del humano. No es riesgo.
+
+## Revisión final — ADMIN-01g
+Veredicto: **APROBADO**
+Verificación propia: desde `frontend/`, una corrida después de otra. Nadie más corría suites y no había ningún `vitest` vivo. La suite completa pasó a segundo plano y esperé su fin antes de seguir. Con corriente (`BatteryStatus` 2, al 100 %). Sin navegadores.
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | exit 0; al final, `> tsc -b` sin errores |
+| `npm run build` | exit 0; `✓ built in 823ms` |
+| `npm run test` (**suite completa del frontend**, 21:11:53) | `Test Files  321 passed (321)` · `Tests  7248 passed (7248)` (363 s), a la primera, sin `FAIL` ni errores no controlados |
+
+- **Contra el cierre de 01f** (306 archivos · 6999 casos), la suite suma 15 archivos y 249 casos:
+  - 7 del programador: `estado-pago-01g`, `movimientos-01g`, `maestros-01g`, `lib-01g`, `redirige-01g`, `maestros-recargas-01g` y `volver-a-pedir-01g`;
+  - 8 `*.ataque` del tester: rondas 1 a 3.
+- **Backend, `shared/` e `infra/`:** 01g no los toca. `git diff --name-only 1566196` fuera de `frontend/` y `docs/trabajo/` da vacío; solo queda sin rastrear `docs/trabajo/DEPLOY-investigacion-vps.md`, que no es del encargo. No corresponden la suite del backend ni PA-07.
+
+### Plan cumplido (01g)
+- **Pasos 29 y 30:** hechos.
+  - `/admin/estado-pago` (fila, selección, lote, restringir y «Restablecer», búsqueda y filtro) y `/admin/movimientos`.
+  - La navegación final, en el orden de ADM-1G13, con E-06.
+  - Las filas de `/admin/maestros`: E-01, E-07, E-14, E-16 a E-18 y las filas 8 a 10, 24 y 25 de CHORE-04.
+  - Lo de la Enmienda 15:
+    - el criterio de T-01 en la fila, la selección y el lote;
+    - los diálogos montados por la vista con `incluirDialogos`;
+    - la acción vigente (M-23 y M-25);
+    - los textos de `shared/` con su amarre (ADM-1G24).
+  - ADM-1G01 a ADM-1G24 están mapeados y en verde, más M-26 y M-27.
+- **§D-11, §D-12 y T-E14:** todos los textos de 01g están en T-E14, §D-11, §D-12 o el código. Lo cotejé en la verificación del resumen y no cambió después.
+- **Matriz:**
+  - coincide con el código;
+  - incluye las filas que cambiaron en las correcciones: `/admin/maestros` con `401`, foco y recargas, y la ficha, la tabla y el resumen de 01f con "redirige" (T-01).
+- **Frases de recuperación con sus caminos** (ADM-1G11, 1G12 y 1G16 e; ADM-1G04; `/admin/maestros`):
+  - pulsar la sección (T-06 y T-07);
+  - ir y volver (ATQ-1G39);
+  - el historial (ATQ-1G40);
+  - el filtro con la clave en error;
+  - repetir el control (ADM-1G17 e, 1G18 f y 1G23 f).
+- **E-16:** salen las claves sin uso y se queda `TEXTOS_MAESTROS.notaProvisional` (R-24). **E-17:** `<bdi>`, con el mismo `textContent` (ADM-1G09/22 y ATQ-1G26). **E-18:** el foco sin enlaces nuevos, con `5xx` y con repetidos (ADM-1G10/22, T-02 y T-03).
+
+### "No se toca", pruebas, V-01 e invisibles
+- **Producción:** 23 archivos contra `1566196`.
+  - Los 20 de "Se toca" de 01g.
+  - Los tres autorizados por el humano para T-01 (`usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx`). Su diff sigue siendo solo el `import`, la condición `errorQueRedirigeElCliente` y su comentario (verificado en la ronda 1).
+  - El índice de git está vacío.
+- **Pruebas normales:** cambian las dos de la lista cerrada (`contenedor-rol.test.tsx` y `errores-de-api-estatico.test.ts`); el resto son siete archivos nuevos de 01g.
+- **`*.ataque`:**
+  - ni el programador ni nadie fuera del tester tocó ninguna;
+  - contra `1566196` cambian solo las siete de C-n de la ronda 0, con sus hashes;
+  - hay ocho nuevas sin rastrear;
+  - **V-01: 273 rastreadas más 8 = 281**, como el tester.
+- **Caracteres invisibles:** 0 en los archivos cambiados o nuevos de `frontend/`. En los `.md` del encargo hay dos U+00AD de doble codificación, los dos ya en el commit `1566196`:
+  - `resumen-programador.md:2462` (de 01d2);
+  - `revision.md:7021`: mi cita de ese mismo texto en la revisión final de 01f, que copió los caracteres.
+
+  No son de 01g; los dejo como detalle menor. Ningún `.md` lleva CR.
+
+### Reglas y estilo
+Todo cumple lo que verifiqué en la verificación del resumen y en las correcciones:
+- **Mutaciones y consultas:** guardas con ref y `enEspera` (V-06 = 90). Las siete consultas del módulo usan `reintentarConsultaAdmin` (T-04).
+- **Diálogo del lote:** lleva `data-material` y `data-densidad` (V-07), y el filtro es un `NativeSelect`.
+- **Errores de la API:** no se pinta ningún error que redirige, y los mensajes pasan por la traducción del módulo (C-39).
+- **Organización del código:** sin `?? []`; tipos en `types.ts`; textos en `data.ts`. Las claves de `/admin/maestros` en `hooks.ts` son la excepción aceptada, con destino.
+- **`estaActivo` en `barra-navegacion.tsx`:** con destino.
+
+**Diseño:**
+- la casilla nativa con el área de §6 (M-26);
+- las acciones de fila en tamaño por omisión;
+- el estado nunca solo con color ("Deudor", "Restringido" con icono);
+- vacío, carga y error en las dos tablas;
+- una sola acción principal por vista.
+
+**360 px y el área real de los controles:** no los verifiqué, porque exigen navegador (H-6).
+
+### Hallazgos del tester y arbitrajes
+- **Ronda 1:** ROTO por T-01, T-02 y T-03 (corregidos; T-01 con la autorización del humano).
+- **Ronda 2:** ROTO por T-04, T-05 y T-06 (corregidos dentro de "Se toca").
+- **Ronda 3:** ROTO por T-07 (corregido en la ronda acotada que decidió el humano).
+- **Corrida acotada:** RESISTE (`reporte-tester.md:6566`).
+- **Desacuerdos:** ninguno pendiente. Las desviaciones aceptadas tienen destino: D-1 y D-2 de la implementación, `AlPulsarLaSeccionActiva` con `useInRouterContext` y las claves en `hooks.ts`.
+
+### Destinos para el cierre de ADMIN-01 (paso 31 del plan: los aplica el orquestador y los verifico yo)
+- **A-04, `DESIGN.md`** (patrones de 01f y 01g, marcados "propuesta (ADMIN-01x)"):
+  - **01f:**
+    - el dashboard con cifras y accesos;
+    - la tabla de usuarios y la ficha (región con el nombre, datos, «Editar nombre», acciones y control segmentado de estado de pago);
+    - la insignia «Cuenta desactivada» y D-4 (el nombre repetido con su insignia en `/admin/clases`).
+  - **01g:**
+    - la tabla con selección múltiple y la barra de lote (§7.9);
+    - la casilla nativa con `accent-primary` dentro de una etiqueta del tamaño de un control (§6);
+    - el diálogo del lote con su conteo (§7.11);
+    - **la regla de tamaño: las acciones de fila y de barra en tablas densas usan el tamaño por omisión (`--control-height`), no `sm`.** Se anota en `DESIGN.md:569`.
+- **Carril trivial al cierre** (sin cambio de comportamiento):
+  - las claves `CLAVE_ENLACES_REGISTRO` y `claveRegistradosDelEnlace`, de `hooks.ts` a `data.ts`;
+  - `tabla-enlaces.tsx` y `tabla-clases-admin.tsx`: las acciones de fila, de `size="sm"` al tamaño por omisión, revisando antes con grep las pruebas que leen `data-size`;
+  - N-32 y los detalles menores de 01e;
+  - los textos sin uso que queden (D-3 de 01f; E-16 ya los quitó en 01g: verificarlo con grep);
+  - `estaActivo` a `components/layout/lib.ts`, con su prueba unitaria (N-01g-2);
+  - las opciones de TanStack Query de `app/providers.tsx` exportadas para las pruebas (N-01g-1), opcional;
+  - R-24, la nota provisional de `/admin/maestros`, con A-05, si el humano lo aprueba.
+- **ESTADO §3** (filas nuevas o vigentes):
+  - el modal de cálculo de «Mis calificaciones» (`mis-calificaciones-view.tsx`, `incluirDialogos`), con destino en la próxima tarea de `features/calificaciones` o en el carril trivial, con una prueba que confirme primero que el camino existe;
+  - `AlPulsarLaSeccionActiva` montado con `useInRouterContext()`: se quita si `maestros-view.test.tsx`, `maestros-03b-r1` y `maestros-03c-r1` pasan a montar con router;
+  - `size="sm"` (36 px) fuera de `/admin`, por debajo del objetivo de §6 en anchos menores de 768 px: **decisión de diseño del humano**;
+  - N-01e-3 (los `beforeAll` frágiles con carga), con su destino de 01e;
+  - R-16 a R-19 (los cursores con posición y su alcance), A-07 bis ("No por ahora": la ficha sin estado de acceso ni motivo) y R-24 (si no entra en el carril trivial);
+  - **R-23 no va a ESTADO §3:** quedó corregido en 01g con la autorización del humano.
+- **Comprobación humana del cierre** (máximo 7 puntos y 10 minutos; plan, H-1 a H-7). Propongo ampliar dos puntos, sin pasar de 7:
+  - **H-6:** `/admin/estado-pago` y `/admin/usuarios` a 360 px y a 1024 px: la tabla se desplaza dentro de su contenedor; las casillas y los botones de fila se pulsan con comodidad (36 y 44 px); la barra de lote y el diálogo se leen completos; en `/admin/clases`, la celda «Maestros» con un maestro dado de baja se lee sin cortes (D-4).
+  - **H-7:** suma el teclado en `/admin/maestros`: Tab desde la tabla tras un error de la lista (el tester no pudo simularlo sin `user-event`).
+  - Lo demás de 01f y 01g queda "no verificado por decisión del humano, cubierto por pruebas automáticas".
+- **Documentos A-01 a A-09** del plan: siguen pendientes para el cierre de ADMIN-01. Ninguno se aplica en 01g, salvo A-06, los README de `backend/`, que 01g no toca.
+
+### Medición de 01g
+Con la convención de las mediciones anteriores: una ronda extra es toda ronda del tester después de la primera, y "por hermanos o estados vecinos" se cuenta la ronda en que el tester encuentra un vecino de un remedio anterior.
+
+| Rondas del tester | Rondas extra | Por hermanos o estados vecinos | PARADAS y escaladas | Resúmenes devueltos |
+|---|---|---|---|---|
+| **4**: r1 ROTO (T-01 a T-03), r2 ROTO (T-04 a T-06), r3 ROTO (T-07), corrida acotada RESISTE. La r3 y la acotada son la excepción al máximo de tres que autorizó el humano | **3** (r2, r3 y acotada) | **2** (r2: T-04 y T-05, vecinos de los remedios del `401` y de T-02; r3: T-07, vecino del remedio de T-06) | **2** al humano: R-23 (T-01 en archivos de 01f, "Autorizo") y la escalada de T-07 ("Corregir con ronda acotada"); 0 PARADAS de código | **1 de 5** (la implementación, por M-26 y M-27) |
+
+- **Umbral de `AGENTS.md` (2 o más rondas extra por hermanos): se alcanza en 01g.** El `programador` ya usa `opus`, y el humano decidió dejar el esfuerzo en `medium`.
+- **Ronda 0:** ACEPTADA, sin M-n.
+- **Plan:**
+  - la Enmienda 15 llevó dos correcciones (M-23 y M-24, después M-25);
+  - el humano decidió N-E15-2;
+  - el grep de la Enmienda 15 detectó C-48, pero no las ramas de `/admin/maestros` que luego dieron T-02 a T-07, porque el plan solo inventarió E-18 en «Cargar más enlaces».
+- **Incidentes de proceso:**
+  - 1 del programador: dos suites suyas a la vez, declaradas y descartadas;
+  - mi aceptación del `401` de `/admin/maestros` sin caso propio en la ronda 1 dejó la rama que dio T-04, y la ronda 2 la encontró.
+- **Decisiones del humano en 01g:** 4 (N-E15-2, "Autorizo", esfuerzo `medium`, "Corregir con ronda acotada"). Del orquestador: 0 de fondo.
+- **Lección para el plan de los próximos encargos:** inventariar por mecanismo, no por control. E-18 (el foco de un «Cargar más») y el `401` se inventariaron por control, y sus estados vecinos (recarga que falla, página con solo repetidos, pulsar la sección con recarga en vuelo) costaron dos rondas.
+
+### Resumen de la medición de ADMIN-01, para ESTADO §6
+| Subentrega | Rondas extra | Por hermanos o vecinos | Umbral | Resúmenes devueltos |
+|---|---|---|---|---|
+| 01a y 01b | ver sus revisiones finales (`revision.md:1343` y `:2144`) y `aprobacion.md` | — | — | — |
+| 01c | 2 | 1 | no | 3 de 7 |
+| 01d1 | 2 | 2 | **sí** | 1 de 5 |
+| 01d2 | 2 | 0 atribuibles al programador (huecos del plan y una omisión de mi arbitraje) | no | 0 |
+| 01e | 1 | 0 (defecto propio) | no | 1 de 3 |
+| 01f | 1 | 0 de 2 | no | 1 de 3 |
+| 01g | 3 | 2 | **sí** | 1 de 5 |
+
+- **El umbral se alcanzó dos veces** (01d1 y 01g), con el `programador` ya en `opus`. El modelo no tiene a dónde subir; el humano dejó el esfuerzo en `medium`.
+- **Patrón dominante:**
+  - estados vecinos de mecanismos de foco y de recarga (foco tras una recarga o un error, "Cargar más", pulsar la sección, `401`);
+  - huecos de inventario del plan en pruebas que enumeran (tamaños, peticiones permitidas o inesperadas, conteos al montar: C-45, C-46 y D-1), ya incorporados al grep desde la Enmienda 15.
+- **Recomendación para ESTADO §6:** que el arquitecto inventaríe en el plan, por cada mecanismo (no por control), sus estados vecinos:
+  - primera carga, recarga que falla, recarga `200` que quita el control;
+  - página siguiente con `5xx`, con solo repetidos y con `401`;
+  - pulsar la sección con la consulta sana, en error y recargando;
+  - el control en un portal.
+
+  Y que el resumen del programador los recorra en su primera entrega, no en las correcciones.
+
+### Detalles menores
+- Los dos U+00AD de doble codificación de los `.md` (arriba).
+- La guarda `useInRouterContext()` y las claves en `hooks.ts`, ya con destino.
+- C-46 tolera el resumen pedido dos veces; ADM-T1F08 (ronda 1 de 01f) ya lo vigila.
+
+### Para el humano
+- Nada que decidir para el commit de 01g.
+- **Al cierre de ADMIN-01:**
+  - la comprobación humana (H-1 a H-7, con H-6 y H-7 ampliados);
+  - la fila de ESTADO §3 sobre `size="sm"` por debajo de 768 px (decisión de diseño);
+  - R-24, la nota provisional de `/admin/maestros`, si la aprueba para el carril trivial.
+
+### Bloque de commit de 01g
+Desde la raíz del repositorio. Lo cotejé con `git add -n -A -- frontend docs/trabajo/ADMIN-01-administracion` contra `git status --porcelain`: son 52 rutas (31 modificadas y 21 nuevas), iguales a las de `git status` sin `DEPLOY-investigacion-vps.md`, y ninguna borrada en 01g.
+
+```
+git status
+git add -A -- frontend docs/trabajo/ADMIN-01-administracion
+git status
+git commit -m "ADMIN-01g, estado de pago y movimientos del administrador en la interfaz: tabla con selección y lote, cambio desde la fila, acceso, movimientos de inscripción, navegación final y filas de /admin/maestros (frontend)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git push
+```
+
+- El segundo `git status` debe seguir mostrando `docs/trabajo/DEPLOY-investigacion-vps.md` sin rastrear.
+- `aprobacion.md` entra por la carpeta.
+- Si el orquestador cambia `docs/ESTADO.md` antes del commit, se suma con `git add -- docs/ESTADO.md`.
+
+### Resumen
+- **Veredicto: APROBADO.** Suite completa del frontend `321 passed (321)` · `7248 passed (7248)`; lint 0; build 0. El backend, `shared/` e `infra/` no cambian.
+- **"No se toca":** 23 archivos de producción, los 20 de "Se toca" más los tres autorizados con su alcance; índice vacío; V-01 281.
+- **Plan de 01g cumplido.** Los hallazgos T-01 a T-07 están corregidos, y la corrida acotada RESISTE.
+- **Destinos del cierre de ADMIN-01:**
+  - A-04, con los patrones de 01f y 01g y la regla de tamaño de las acciones de fila;
+  - el carril trivial;
+  - las filas de ESTADO §3;
+  - la comprobación humana con H-6 y H-7 ampliados.
+- **Medición de 01g:** 3 rondas extra, 2 por hermanos (umbral alcanzado; ya en `opus`, esfuerzo `medium` por decisión del humano), 2 escaladas al humano y 1 de 5 resúmenes devuelto.

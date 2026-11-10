@@ -6,6 +6,7 @@ import {
   estadoPagoLoteRespuestaSchema,
   invitacionMasivaRespuestaSchema,
   listaEnlacesRegistroRespuestaSchema,
+  listaMovimientosRespuestaSchema,
   listaRegistradosRespuestaSchema,
   listaUsuariosRespuestaSchema,
   resumenAdminRespuestaSchema,
@@ -13,6 +14,7 @@ import {
   usuarioAdminSchema,
   type AltaAlumno,
   type CrearEnlaceRegistro,
+  type EstadoPagoLote,
   type InvitacionMasiva,
   type InvitarMaestro,
 } from "@campus/shared"
@@ -31,13 +33,19 @@ import { sacarDeLaCacheAlAsentar } from "@/lib/cache-de-mutaciones"
 import { api } from "@/services/apiClient"
 
 import {
+  CLAVE_FICHAS,
   CLAVE_LISTAS_DE_USUARIOS,
+  CLAVE_MOVIMIENTOS,
   CLAVE_RESUMEN_ADMIN,
+  claveTablaDeEstadoPago,
   claveTablaDeUsuarios,
   claveUsuario,
+  TEXTOS_LOTE,
   TEXTOS_USUARIO,
 } from "./data"
 import {
+  consultaDeAlumnos,
+  consultaDeMovimientos,
   consultaDeUsuarios,
   errorQueRedirigeElCliente,
   mensajeDeErrorAdmin,
@@ -50,6 +58,7 @@ import type {
   CambiarEstadoPagoVariables,
   CorregirCorreoVariables,
   EditarNombreVariables,
+  EstadoPago,
   PaginaDeUsuarios,
   Rol,
   UsuarioAdmin,
@@ -64,16 +73,26 @@ const conCursor = (limite: number, cursor?: string): string => {
   return parametros.toString()
 }
 
-// AUTH-03b, §D-B6: lista paginada de enlaces de registro ("Cargar más enlaces").
+// ADMIN-01g, ronda 2 (T-05, T-06): las claves de las dos listas de /admin/maestros, junto a sus consultas
+// (data.ts no está en lo que esta ronda puede tocar), para que sus componentes marquen viejas y vuelvan a
+// pedir exactamente estas claves.
+export const CLAVE_ENLACES_REGISTRO = ["admin", "enlaces-registro"] as const
+export const claveRegistradosDelEnlace = (enlaceId: string) =>
+  [...CLAVE_ENLACES_REGISTRO, enlaceId, "registrados"] as const
+
+// AUTH-03b, §D-B6: lista paginada de enlaces de registro ("Cargar más enlaces"). ADMIN-01g, ronda 2 (T-04):
+// el mismo reintento que las demás consultas del módulo: un 4xx (también el 401 sin sesión) no se
+// reintenta.
 export const useEnlacesRegistro = () =>
   useInfiniteQuery({
-    queryKey: ["admin", "enlaces-registro"],
+    queryKey: CLAVE_ENLACES_REGISTRO,
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       api(`/api/admin/enlaces-registro?${conCursor(LIMITE_ENLACES, pageParam)}`, {
         schema: listaEnlacesRegistroRespuestaSchema,
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    retry: reintentarConsultaAdmin,
   })
 
 const CLAVE_MUTACION_GENERAR_ENLACE = ["generar-enlace"] as const
@@ -113,9 +132,10 @@ export const useRevocarEnlace = () => {
   })
 }
 
+// ADMIN-01g, ronda 2 (T-04): con el reintento del módulo, como la lista de enlaces.
 export const useRegistradosDelEnlace = (enlaceId: string) =>
   useInfiniteQuery({
-    queryKey: ["admin", "enlaces-registro", enlaceId, "registrados"],
+    queryKey: claveRegistradosDelEnlace(enlaceId),
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       api(
         `/api/admin/enlaces-registro/${enlaceId}/registrados?${conCursor(LIMITE_ENLACES, pageParam)}`,
@@ -125,6 +145,7 @@ export const useRegistradosDelEnlace = (enlaceId: string) =>
       ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    retry: reintentarConsultaAdmin,
   })
 
 // DEC-11. 201 con la cuenta creada (sin hash ni token).
@@ -223,7 +244,11 @@ export const useVolverAPedirSiFallo = (queryKey: QueryKey) => {
   })
   return useCallback(() => {
     const clave = claveRef.current
-    if (queryClient.getQueryState(clave)?.status !== "error") return
+    const estado = queryClient.getQueryState(clave)
+    if (estado?.status !== "error") return
+    // ADMIN-01g, ronda 3 (T-07): una consulta en error que ya se está recargando conserva status
+    // "error"; resetQueries descartaría esa recarga y lanzaría una segunda petición.
+    if (estado.fetchStatus === "fetching") return
     void queryClient.resetQueries({ queryKey: clave, exact: true })
   }, [queryClient])
 }
@@ -417,3 +442,58 @@ export const useCambiarEstadoPago = () => {
     onError: (error) => avisarErrorConElControlDesmontado(montado, error),
   })
 }
+
+// ADMIN-01g (§D-11, Enmienda 15): la tabla de /admin/estado-pago, sobre GET /admin/usuarios con
+// rol=estudiante y, si el filtro lo pide, estadoPago; la página siguiente lleva la posición del cursor.
+export const useAlumnosEstadoPago = (
+  q: string | undefined,
+  estadoPago: EstadoPago | undefined,
+  habilitada: boolean,
+) =>
+  useInfiniteQuery({
+    queryKey: claveTablaDeEstadoPago(q, estadoPago),
+    queryFn: ({ pageParam }: { pageParam: PaginaDeUsuarios | undefined }) =>
+      api(`/api/admin/usuarios?${consultaDeAlumnos(q, estadoPago, pageParam)}`, {
+        schema: listaUsuariosRespuestaSchema,
+      }),
+    initialPageParam: undefined as PaginaDeUsuarios | undefined,
+    getNextPageParam: (ultimaPagina) => siguientePaginaDeUsuarios(ultimaPagina),
+    enabled: habilitada,
+    retry: reintentarConsultaAdmin,
+  })
+
+// ADMIN-01g (§D-8, §D-11): el cambio de estado de pago por lote (hasta 100). Con éxito, las listas, las
+// fichas y el resumen quedan viejos y se avisa con el número de alumnos enviados; con el diálogo
+// desmontado, el error se avisa una vez (salvo uno que redirige).
+export const useCambiarEstadoPagoLote = () => {
+  const queryClient = useQueryClient()
+  const montado = useMontadoAdmin()
+  return useMutation({
+    mutationFn: (datos: EstadoPagoLote) =>
+      api("/api/admin/alumnos/estado-pago", {
+        method: "PUT",
+        body: datos,
+        schema: estadoPagoLoteRespuestaSchema,
+      }),
+    onSuccess: (_respuesta, { alumnoIds }) => {
+      void queryClient.invalidateQueries({ queryKey: CLAVE_LISTAS_DE_USUARIOS })
+      void queryClient.invalidateQueries({ queryKey: CLAVE_FICHAS })
+      void queryClient.invalidateQueries({ queryKey: CLAVE_RESUMEN_ADMIN })
+      toast.success(TEXTOS_LOTE.aviso(alumnoIds.length))
+    },
+    onError: (error) => avisarErrorConElControlDesmontado(montado, error),
+  })
+}
+
+// ADMIN-01g (§D-7.7): /admin/movimientos, de 50 en 50, solo con el cursor.
+export const useMovimientos = () =>
+  useInfiniteQuery({
+    queryKey: CLAVE_MOVIMIENTOS,
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(`/api/admin/movimientos-inscripcion?${consultaDeMovimientos(pageParam)}`, {
+        schema: listaMovimientosRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    retry: reintentarConsultaAdmin,
+  })

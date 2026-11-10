@@ -118,7 +118,10 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
   // mutación, además de los diez: los cuatro formularios nuevos de T-05 (nombre, alta, restringir y estado
   // de pago), el restablecimiento de la ficha al abrir o cerrar su confirmación (E-01) y el diálogo de dar
   // de baja al cerrarse.
-  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; solo corregir el correo gana una ref, antes de esa guarda; en admin y auth solo esos diez, los cuatro de 01f, la ficha y el diálogo de baja reinician una mutación", () => {
+  // ADMIN-01g (§D-R0 01g, lista cerrada vigente; filas 8 a 10 de CHORE-04, E-01 y §D-11): los tres
+  // formularios de /admin/maestros ganan la ref antes de su guarda isPending, como corregir el correo; suman
+  // los reinicios de «Sí, revocar» al abrir o cerrar su confirmación (E-01) y del diálogo del lote (T-05).
+  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; solo corregir el correo y los tres formularios de /admin/maestros ganan una ref, antes de esa guarda; en admin y auth solo esos diez, los de 01f, la confirmación de revocar y el diálogo del lote reinician una mutación", () => {
     // Sin comentarios: el comentario de T-05 nombra la línea y no debe contar.
     const sinComentarios = (texto: string) =>
       texto.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
@@ -135,7 +138,12 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       ["/src/features/auth/components/formulario-nueva-contrasena.tsx", "nuevaContrasena"],
       ["/src/features/auth/components/formulario-cambiar-contrasena.tsx", "cambiar"],
     ]
-    const CON_REF = "/src/features/admin/components/formulario-corregir-correo.tsx"
+    const CON_REF: readonly string[] = [
+      "/src/features/admin/components/formulario-corregir-correo.tsx",
+      "/src/features/admin/components/formulario-invitar-maestro.tsx",
+      "/src/features/admin/components/formulario-invitacion-masiva.tsx",
+      "/src/features/admin/components/formulario-generar-enlace.tsx",
+    ]
     const DE_01F: readonly string[] = [
       "/src/features/admin/components/formulario-nombre-de-cuenta.tsx#editar",
       "/src/features/admin/components/formulario-alta-alumno.tsx#alta",
@@ -143,6 +151,8 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       "/src/features/admin/components/estado-de-pago-de-cuenta.tsx#cambiar",
       "/src/features/admin/components/ficha-de-cuenta.tsx#restablecer",
       "/src/features/admin/components/dialogo-dar-de-baja.tsx#baja",
+      "/src/features/admin/components/tabla-enlaces.tsx#revocar",
+      "/src/features/admin/components/dialogo-estado-pago-lote.tsx#cambiarLote",
     ]
 
     for (const [ruta, mutacion] of DIEZ) {
@@ -159,7 +169,7 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       expect(validacion, ruta).toBeGreaterThan(-1)
       expect(linea, ruta).toBeGreaterThan(guarda)
       expect(linea, ruta).toBeLessThan(validacion)
-      if (ruta !== CON_REF) {
+      if (!CON_REF.includes(ruta)) {
         expect(texto, ruta).not.toMatch(/Ref\.current\) return/)
         continue
       }

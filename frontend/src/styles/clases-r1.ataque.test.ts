@@ -196,14 +196,21 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // «Guardar») e inicio-admin-view.tsx, usuario-view.tsx y tabla-de-usuarios.tsx (0). Sigue protegiendo
   // lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el
   // lugar de los botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 85 enEspera", () => {
+  // ADMIN-01g ronda 0 (C-19, §D-R0 01g, Enmienda 9 y Enmienda 15; §D-11): de 85 a 90 enEspera=. Entran
+  // estado-pago-view.tsx (1: «Cargar más alumnos»), tabla-estado-pago.tsx (2: el cambio desde la fila
+  // y «Restablecer»; la fila vive en ese archivo), dialogo-estado-pago-lote.tsx (1: «Sí, cambiar»),
+  // movimientos-view.tsx (1: «Cargar más movimientos»), y barra-de-lote.tsx y tabla-movimientos.tsx
+  // (0). suma(restoAdmin) sigue en 2 (tabla-enlaces.tsx). Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 90 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(85)
+    expect(usos).toHaveLength(90)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -363,6 +370,13 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/admin/inicio-admin-view.tsx": 0,
       "/src/features/admin/usuario-view.tsx": 0,
       "/src/features/admin/components/tabla-de-usuarios.tsx": 0,
+      // ADMIN-01g ronda 0 (C-19): estado de pago y movimientos (§D-11).
+      "/src/features/admin/estado-pago-view.tsx": 1,
+      "/src/features/admin/components/tabla-estado-pago.tsx": 2,
+      "/src/features/admin/components/dialogo-estado-pago-lote.tsx": 1,
+      "/src/features/admin/movimientos-view.tsx": 1,
+      "/src/features/admin/components/barra-de-lote.tsx": 0,
+      "/src/features/admin/components/tabla-movimientos.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -470,6 +484,9 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
       "/src/features/admin/components/dialogo-dar-de-baja.tsx",
+      // ADMIN-01g ronda 0 (C-19b, Enmienda 9 y Enmienda 15): suma el diálogo del cambio masivo de
+      // estado de pago, con sus atributos propios en el DialogContent del portal: 6 rutas.
+      "/src/features/admin/components/dialogo-estado-pago-lote.tsx",
       "/src/features/admin/components/dialogo-restringir-acceso.tsx",
       "/src/features/calificaciones/gradebook-view.tsx",
       "/src/features/clases/components/dialogo-borrar-clase.tsx",

@@ -36,9 +36,13 @@ export function FormularioGenerarEnlace({ vigenciaInputRef }: FormularioGenerarE
   const accionRef = useRef<HTMLDivElement>(null)
   const propioInputRef = useRef<HTMLInputElement>(null)
   const inputRef = vigenciaInputRef ?? propioInputRef
+  // ADMIN-01g (fila de CHORE-04): guarda síncrona; enEspera llega un render después y dos envíos
+  // seguidos mandaban dos peticiones.
+  const enviandoRef = useRef(false)
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (generar.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -56,7 +60,11 @@ export function FormularioGenerarEnlace({ vigenciaInputRef }: FormularioGenerarE
 
     setErrores({})
     setEnlace(null)
+    enviandoRef.current = true
     generar.mutate(resultado.data, {
+      onSettled: () => {
+        enviandoRef.current = false
+      },
       onSuccess: (respuesta) => {
         const disponible = focoDisponiblePara(
           accionRef.current,

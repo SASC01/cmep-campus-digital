@@ -21,8 +21,10 @@ export type {
   InvitacionMasiva,
   InvitacionMasivaRespuesta,
   InvitarMaestro,
+  ListaMovimientosRespuesta,
   ListaUsuariosRespuesta,
   MotivoLineaInvalida,
+  MovimientoInscripcion,
   RegistradoPorEnlace,
   ResumenAdminRespuesta,
   Rol,
@@ -125,3 +127,27 @@ export interface FocoPendiente {
   activo: boolean
   accesoRestringido: boolean | undefined
 }
+
+// ADMIN-01g (§D-11): el filtro de /admin/estado-pago; "todos" no manda estadoPago.
+export type FiltroDeEstadoPago = EstadoPago | "todos"
+
+// ADMIN-01g (§D-11, Enmienda 15, criterio de T-01): la selección es una elección de la persona: los ids
+// elegidos y, de cada uno, el estado que tenía su fila al elegirla (solo para saber si cambió).
+export type SeleccionDeAlumnos = Readonly<Record<string, EstadoPago>>
+
+// ADMIN-01g (§D-11, T-02): el diálogo abierto en /admin/estado-pago; la vista guarda solo su tipo y su
+// destino o el id del alumno, nunca una copia de la fila.
+export type DialogoDeEstadoPago =
+  { tipo: "lote"; destino: EstadoPago } | { tipo: "restringir"; alumnoId: string } | null
+
+// ADMIN-01g: a dónde vuelve el foco al cerrarse un diálogo de /admin/estado-pago.
+export type FocoPendienteDeEstadoPago =
+  { tipo: "lote"; destino: EstadoPago } | { tipo: "restringir"; alumnoId: string; exito: boolean }
+
+// ADMIN-01g: el rechazo local del lote (los textos de estadoPagoLoteSchema, elegidos por la incidencia).
+export type ErrorLocalDelLote = "minimo" | "maximo"
+
+// ADMIN-01g (§D-11, M-23): la acción vigente de la vista: la última de la persona (una acción de una
+// fila, o abrir el diálogo del lote o el de restringir). Solo su mensaje se pinta.
+export type AccionVigente =
+  { tipo: "fila"; alumnoId: string; accion: "marcar" | "restablecer" } | { tipo: "dialogo" } | null

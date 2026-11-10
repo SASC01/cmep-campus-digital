@@ -221,11 +221,17 @@ describe("ataque CLASES-02c r1: las rutas del admin abiertas por otro rol", () =
 // ADMIN-01f ronda 0 (C-16, §D-11 y Enmienda 1): «Cuentas» pasa a «Inicio» (/admin, exacta) y entra
 // «Usuarios» (/admin/usuarios) en la nav, en el orden Inicio, Usuarios, Maestros, Clases. Sigue
 // protegiendo que «Clases» quede activo en sus subrutas y que «Inicio» y «Maestros» sean exactos.
+// ADMIN-01g ronda 0 (C-18, §D-R0 01g, Enmienda 15; §D-11, E-06 y ADM-1G13): la nav final del admin
+// tiene seis destinos, en el orden Inicio, Usuarios, Estado de pago, Clases, Maestros y Movimientos.
+// "/admin/" (con barra final) deja «Inicio» activo (E-06), y «Estado de pago» y «Movimientos» son
+// exactos. Sigue protegiendo que «Clases» quede activo en sus subrutas y que «Inicio» y «Maestros»
+// no queden activos fuera de su ruta.
 describe("ataque CLASES-02c r1: «Clases» activo en sus subrutas; «Inicio» y «Maestros» exactos", () => {
   it.each([
-    // "/admin/" (con barra final) no se incluye: "Cuentas" no queda activo ahí desde antes de 02c
-    // (el `end` fijo de BarraNavegacion hacía lo mismo); queda como observación del reporte.
     ["/admin", ["Inicio"]],
+    ["/admin/", ["Inicio"]],
+    ["/admin/estado-pago", ["Estado de pago"]],
+    ["/admin/movimientos", ["Movimientos"]],
     ["/admin/maestros", ["Maestros"]],
     ["/admin/clases", ["Clases"]],
     ["/admin/clases/", ["Clases"]],
@@ -246,8 +252,10 @@ describe("ataque CLASES-02c r1: «Clases» activo en sus subrutas; «Inicio» y 
     ).toEqual([
       ["Inicio", "/admin"],
       ["Usuarios", "/admin/usuarios"],
-      ["Maestros", "/admin/maestros"],
+      ["Estado de pago", "/admin/estado-pago"],
       ["Clases", "/admin/clases"],
+      ["Maestros", "/admin/maestros"],
+      ["Movimientos", "/admin/movimientos"],
     ])
   })
 

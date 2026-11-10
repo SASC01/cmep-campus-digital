@@ -15,7 +15,12 @@ import { FormularioNombreDeCuenta } from "./components/formulario-nombre-de-cuen
 import { InsigniaDeCuenta } from "./components/tabla-de-usuarios"
 import { claveUsuario, TEXTOS_USUARIO, TEXTOS_USUARIOS } from "./data"
 import { useFundirEnLaFicha, useMarcarViejaSiQuedoEnError, useUsuario } from "./hooks"
-import { esCuentaQueNoExiste, etiquetaDeRolAdmin, formatearFechaCorta } from "./lib"
+import {
+  errorQueRedirigeElCliente,
+  esCuentaQueNoExiste,
+  etiquetaDeRolAdmin,
+  formatearFechaCorta,
+} from "./lib"
 
 interface FichaDeLaCuentaProps {
   usuarioId: string
@@ -32,7 +37,10 @@ function FichaDeLaCuenta({ usuarioId }: FichaDeLaCuentaProps) {
 
   // Estados en orden: la cuenta que no existe (404 o id mal formado) → otro error → cargando → datos.
   const contenido = (): ReactNode => {
-    if (usuario.isError && esCuentaQueNoExiste(usuario.error)) {
+    // ADMIN-01g, ronda 1 (T-01, R-23, autorizado por el humano): un error con que apiClient redirige (un
+    // 401 tras el refresco fallido) no se pinta: la página se va. Se queda lo que había.
+    const errorVisible = usuario.isError && !errorQueRedirigeElCliente(usuario.error)
+    if (errorVisible && esCuentaQueNoExiste(usuario.error)) {
       return (
         <div className="flex flex-col gap-3">
           <MensajeError mensaje={TEXTOS_USUARIO.noExiste} />
@@ -42,7 +50,7 @@ function FichaDeLaCuenta({ usuarioId }: FichaDeLaCuentaProps) {
         </div>
       )
     }
-    if (usuario.isError) return <MensajeError mensaje={TEXTOS_USUARIO.error} />
+    if (errorVisible) return <MensajeError mensaje={TEXTOS_USUARIO.error} />
     if (usuario.isLoading || !usuario.data) return <Cargando />
     const cuenta = usuario.data
     const idDelNombre = `cuenta-${cuenta.id}`

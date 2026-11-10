@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 import { ACCESOS_DEL_INICIO, CLAVE_RESUMEN_ADMIN, TEXTOS_INICIO_ADMIN } from "./data"
 import { useMarcarViejaSiQuedoEnError, useResumenAdmin, useVolverAPedirSiFallo } from "./hooks"
+import { errorQueRedirigeElCliente } from "./lib"
 
 // ADMIN-01f (§D-11, DH-05 a, RF-50): el dashboard de /admin, con las tres cifras (S-13) y los accesos a
 // cada sección. Sin «Reintentar» (Enmienda 1): si el resumen falla, solo su panel pasa al MensajeError, y
@@ -21,7 +22,11 @@ export function InicioAdminView() {
   useAlPulsarLaSeccionActiva(useVolverAPedirSiFallo(CLAVE_RESUMEN_ADMIN))
 
   const cifras = (): ReactNode => {
-    if (resumen.isError) return <MensajeError mensaje={TEXTOS_INICIO_ADMIN.error} />
+    // ADMIN-01g, ronda 1 (T-01, R-23, autorizado por el humano): un error con que apiClient redirige (un
+    // 401 tras el refresco fallido) no se pinta: la página se va. Se queda lo que había.
+    if (resumen.isError && !errorQueRedirigeElCliente(resumen.error)) {
+      return <MensajeError mensaje={TEXTOS_INICIO_ADMIN.error} />
+    }
     if (resumen.isLoading || !resumen.data) return <Cargando />
     const valores = [
       [TEXTOS_INICIO_ADMIN.cifras.alumnos, resumen.data.alumnos],

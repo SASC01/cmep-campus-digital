@@ -621,9 +621,12 @@ describe("ataque (AUTH-02b r1): reglas de módulos (revisión estática)", () =>
   // ADMIN-01f ronda 0 (C-13b, Enmienda 9; §D-11): "sin modales" pasa a "solo las confirmaciones de
   // dar de baja y de restringir acceso", las excepciones de CLAUDE.md. Sigue protegiendo que ningún
   // otro archivo de admin use components/ui/dialog.
-  it("solo los diálogos de dar de baja y de restringir acceso usan components/ui/dialog (excepciones de CLAUDE.md)", () => {
+  it("solo los diálogos de dar de baja, de restringir acceso y del cambio masivo de estado de pago usan components/ui/dialog (excepciones de CLAUDE.md)", () => {
+    // ADMIN-01g ronda 0 (C-19c, Enmienda 9 y Enmienda 15): suma el diálogo del cambio masivo de estado
+    // de pago, la tercera excepción de CLAUDE.md.
     expect(infractores(/components\/ui\/dialog/).sort()).toEqual([
       "./components/dialogo-dar-de-baja.tsx",
+      "./components/dialogo-estado-pago-lote.tsx",
       "./components/dialogo-restringir-acceso.tsx",
     ])
   })

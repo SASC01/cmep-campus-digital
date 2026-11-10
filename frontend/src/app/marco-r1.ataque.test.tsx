@@ -330,8 +330,19 @@ describe("ataque (DESIGN-01b-1 r1): marco de cada rol", () => {
       // (/admin), "Usuarios" (/admin/usuarios), "Maestros" y "Clases", en ese orden. Sigue
       // protegiendo que cada destino sea una ruta existente y enfocable y que solo el de la ruta
       // actual quede activo.
-      destinos: ["/admin", "/admin/usuarios", "/admin/maestros", "/admin/clases"],
-      textos: ["Inicio", "Usuarios", "Maestros", "Clases"],
+      // ADMIN-01g ronda 0 (C-18, §D-R0 01g, Enmienda 15; §D-11 y ADM-1G13): los seis destinos
+      // finales del admin, en este orden: "Inicio", "Usuarios", "Estado de pago", "Clases",
+      // "Maestros" y "Movimientos". Sigue protegiendo que cada destino sea una ruta existente y
+      // enfocable, en su orden, y que solo el de la ruta actual quede activo.
+      destinos: [
+        "/admin",
+        "/admin/usuarios",
+        "/admin/estado-pago",
+        "/admin/clases",
+        "/admin/maestros",
+        "/admin/movimientos",
+      ],
+      textos: ["Inicio", "Usuarios", "Estado de pago", "Clases", "Maestros", "Movimientos"],
     },
   ])(
     "$rol: una nav con sus destinos existentes, solo el de la ruta actual activo, un banner, un pie, un 'Cerrar sesión'",

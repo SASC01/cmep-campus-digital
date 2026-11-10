@@ -5980,3 +5980,611 @@ Parte del preámbulo de mi archivo de la ronda 1 (mismo doble de la API, con las
 - **Veredicto: RESISTE.** 0 hallazgos.
 - **Corridas:** mi archivo, `10 passed (10)`; los módulos, `3489 passed (3489)` en 147 archivos; las vigiladas, `976 passed (976)` en 29; `lint`, exit 0. Todo con corriente.
 - **Sin atacar en esta ronda:** los puntos 2, 5 y 8 y parte de 6 y 7. **No verificado:** el punto 9 (360 px), para el humano.
+
+## Ronda 0 — ADMIN-01g
+
+Veredicto: **LISTA PARA EL PROGRAMADOR** (sin PARADA). Apliqué exactamente los C-n que §D-R0 → 01g ("Enmienda 15") y el paso "Antes de la ronda 0 de 01g" me asignan: C-18, C-19, C-19b, C-19c, C-38, C-39 y C-48. C-20 queda sin cambio, como dice el plan. Cada rojo es el esperado: falta la interfaz de 01g. C-39 queda en verde. Las vigiladas de 01g, incluidas las nuevas de la Enmienda 15 (conteos de llamadas al montar y peticiones permitidas), siguen en verde, igual que `lint`. No me desvié del plan en ninguna línea.
+
+Plan: `plan.md` = `d42d343530f61a0774093cd29acd91ccadf5a12b7c0d324639daeace43f4a46d` (Enmiendas 1 a 15; comprobado al empezar). Base dentro de los paquetes: `1566196` (01f). Leí:
+- §D-R0 → 01g completo, con la lista cerrada y los C-n de las Enmiendas 9, 14 y 15;
+- el paso "Antes de la ronda 0 de 01g";
+- en `revision.md`, las tres verificaciones de la Enmienda 15 (`:7157`, `:7285` y `:7377`);
+- en `aprobacion.md`, los hashes de partida (entrada de la Enmienda 15) y la decisión del humano sobre N-E15-2: «Seleccionar los de esta página» marca todas las filas visibles; con más de 100, «Sí, cambiar» muestra el texto existente.
+
+Los siete archivos coincidían al empezar con su hash de `aprobacion.md` y con `git show 1566196:<ruta>`. Al terminar, `git diff --name-only 1566196 -- backend frontend shared` lista solo esos siete `*.ataque`, y no hay archivos sin rastrear en los paquetes.
+
+### Entorno
+- Nadie más corría suites (lo dijo el orquestador); ningún `vitest` vivo antes de cada corrida.
+- **Energía:** `BatteryStatus` **2** (corriente), al 93 %.
+- Una corrida después de otra, sin navegadores; no terminé ningún proceso.
+- Los caracteres especiales van solo como texto: el barrido de los siete archivos da 0 invisibles.
+- Prettier (`--write`) corrió solo sobre esos siete archivos.
+
+### Cambios
+
+Rutas relativas a `frontend/src/`. Revisé cada reemplazo contra la vista que monta su caso (la lección de M-19). Los siete son listas exactas o expresiones estáticas, sin campos ni etiquetas que dependan de una vista.
+
+| C-n | Archivo | Cambio | SHA-256 antes (`1566196`) → después |
+|---|---|---|---|
+| C-18 | `app/marco-r1.ataque.test.tsx` | `:329-334`: los seis destinos del admin (`/admin`, `/admin/usuarios`, `/admin/estado-pago`, `/admin/clases`, `/admin/maestros` y `/admin/movimientos`) y sus textos, en el orden de ADM-1G13, con su comentario. Un hunk | `d2f04fa7e713adf0339b756c4c5665a6907c488ad2d2779f9b8668b34d3e8548` → `4a45ecac5d0cfcacad4e1d2c793386b8442965714aaca3b3477a338eb1672730` |
+| C-18 | `app/rutas-02c-r1.ataque.test.tsx` | `:221-252`: comentario nuevo antes del `describe` (el título no cambia, porque sigue diciendo lo que prueba). El comentario de `/admin/` sin incluir sale y entra la fila `["/admin/", ["Inicio"]]` (E-06). Entran las filas de `/admin/estado-pago` y `/admin/movimientos`, y la lista de pares pasa a seis. El caso de C-46 (`:167-187`) no cambia. Cinco hunks | `36a71ca4dd8c7ff7c4cacfa9dc56a4c0d330ba4ce40f038629abe44b0a08609a` → `840f2be467d078ad8e8a2be491b8c0447854e59e44a73eec99d680b4c4d126e5` |
+| C-48 | `app/registro-maestro-03b-r1.ataque.test.tsx` | `:219-242`: la lista de pares `[texto, aria-current]` pasa de cuatro a seis, en el orden de ADM-1G13, con "Maestros" como único `"page"` y su comentario | `75c4f15817399d624382c0148564f3d56003bedba76f226a9cfe2f5f477e8e53` → `3acc9d277df1e20ce6c14d28aa91d23b5d44514a754348fb3e0854eb0943f759` |
+| C-19c | `features/admin/cuentas-r1.ataque.test.tsx` | `:620-629`: la lista de `components/ui/dialog` suma `./components/dialogo-estado-pago-lote.tsx`, en orden alfabético. El título nombra el cambio masivo de estado de pago. Lleva su comentario | `4ca7d89e612f9442c7abff9587312a0f36c4ac09ec0e0dd29b6d1c518affd6fb` → `ec4631ca3d7b677ea3f4704d82b4bcb93cce340182663c42626cbe39130f8901` |
+| C-19, C-19b | `styles/clases-r1.ataque.test.ts` | **V-06:** de 85 a 90 (`:206`). `fijos` suma `estado-pago-view.tsx` 1, `tabla-estado-pago.tsx` 2, `dialogo-estado-pago-lote.tsx` 1, `movimientos-view.tsx` 1, y `barra-de-lote.tsx` y `tabla-movimientos.tsx` 0; `suma(restoAdmin)` sigue en 2. **V-07:** `data-material\|data-densidad` suma `dialogo-estado-pago-lote.tsx` entre `dialogo-dar-de-baja.tsx` y `dialogo-restringir-acceso.tsx` (6 rutas). `vidrioFuerte` y las otras listas no cambian. Cuatro hunks, con comentarios | `5f5f08727dbf88c03578eff79ef6eef07136e3524ad63df81d2461d6b618637b` → `dc3d3b7030ea50ed0e1e3c7ba2011d036dba9c294406e1d68e48072c1b4c0f9b` |
+| C-38 | `lib/estatico-ch3-r2.ataque.test.ts` | `CON_REF` suma `formulario-invitar-maestro.tsx`, `formulario-invitacion-masiva.tsx` y `formulario-generar-enlace.tsx`. `REINICIAN_EN_01F` (los excluidos del caso de `:156-172`) suma `dialogo-estado-pago-lote.tsx`. El caso de `:134-154` no cambia de forma | `9e897a6629f845a19ef425f2e70755dd3875af905dc8fe803fe80b5467b48e7c` → `74b07393a4519a1067e59cf987f2a93dca1cb037e1a314097af4a6a0aeed692b` |
+| C-39 | `lib/estatico-ch3-r1.ataque.test.ts` | `permitidos` (`:186-187`) suma `cambiarLote` en `mensajeDeErrorAdmin(…)` y `alumnos\|movimientos` en `mensajeDeConsultaAdmin(…)`, con su comentario. `usos.length >= 18` no cambia | `c5b7e7278e7e2e8d49cfc702c545cdafb46f59ccfd362692c402d93984ee2dec` → `573950490730eae7b9d0addd387f2c2b7cea5fd14abf497d5a9f8a300a73b65c` |
+
+### Corrida de los C-n (rojo y verde esperados)
+
+Comando, desde `frontend/`: `npx vitest run --reporter=verbose` con los siete archivos.
+
+```
+ Test Files  6 failed | 1 passed (7)
+      Tests  20 failed | 151 passed (171)
+   Start at  18:11:06
+   Duration  25.59s (transform 23.90s, setup 4.41s, import 20.37s, tests 43.43s, environment 17.90s)
+```
+
+- **C-18, `marco-r1`** (1): `expected [ '/admin', '/admin/usuarios', …(2) ] to deeply equal [ …(4) ]`. Faltan los dos destinos de 01g.
+- **C-18, `rutas-02c-r1`** (11 rojos de 12 filas):
+  - las filas de siempre dan `expected [ [ 'Inicio', '/admin' ], …(3) ] to deeply equal [ …(5) ]`;
+  - `/admin/` da `expected [] to deeply equal [ 'Inicio' ]` (falta E-06);
+  - `/admin/estado-pago` y `/admin/movimientos` dan `Unable to find role="navigation"`, porque las rutas no existen y caen en la pantalla de "no encontrada".
+  - El caso de C-46 sigue en verde.
+- **C-48, `registro-maestro-03b-r1`** (1): `expected [ [ 'Inicio', null ], …(3) ] to deeply equal [ …(5) ]`.
+- **C-19c, `cuentas-r1`** (1): `expected [ …(2) ] to deeply equal [ …(3) ]`.
+- **C-19, V-06:** `expected [ …(85) ] to have a length of 90 but got 85`. **C-19b, V-07:** `expected [ …(5) ] to deeply equal [ …(6) ]`, en `data-material`; `vidrio` y `vidrio-fuerte` pasan antes.
+- **C-38, `estatico-ch3-r2`** (3): los tres formularios dan `expected 'import { … } from …' to match /evento\.preventDefault\(\)\s*\n\s*if …/`, porque no tienen la línea de la ref. El de corregir el correo (01f) y el caso de los excluidos siguen en verde.
+- **C-39, `estatico-ch3-r1`:** en verde, como dice el plan.
+
+Ningún rojo viene de otra causa que la interfaz que 01g debe construir.
+
+### Módulos de 01g y vigiladas (línea base)
+
+1. **Módulos** (18:11:44): `npx vitest run src/features/admin src/components/layout`
+
+   ```
+    Test Files  1 failed | 29 passed (30)
+         Tests  1 failed | 1072 passed (1073)
+      Start at  18:11:44
+      Duration  36.27s (transform 24.18s, setup 18.03s, import 33.52s, tests 207.92s, environment 85.94s)
+   ```
+
+   El único rojo es C-19c (`cuentas-r1`). En verde, entre otras:
+   - `contenedor-rol.test.tsx` y `errores-de-api-estatico.test.ts`, de la lista cerrada;
+   - `components/layout/estatico-r1.ataque` (`:102-112`, `:138-158`);
+   - `maestros-view.test.tsx`, `maestros-03b-r1`, `maestros-03c-r1` y `formularios-ch3.test.tsx` (el `role="status"` de `EnlaceNuevo`, E-17 y E-07);
+   - `features/admin/rutas-ch3-r1` (`inesperadas` y `peticionesA` exactas) y `errores-ch3-r1`;
+   - `ficha-01f.test.tsx` y `usuarios-01f.test.tsx`, y mis `usuarios-01f-r1` y `usuarios-01f-r2`.
+2. **Vigiladas fuera de los módulos** (18:12:32): `app/errores-r1` (`llamadas: 3` en `/admin/maestros`), `app/en-espera-r1`, `app/contexto-r1`, `features/clases/clase-archivada-01d2-vista.test.tsx`, `features/clases/estatico-03c1-r1`, `services/apiClient-ch3-r1`, `lib/errores-de-api-estatico.test.ts`, `app/barra-02d-r1`, `app/router.ataque`, `app/marco.test.tsx` y `features/auth/rutas-ch3-r1` (C-45).
+
+   ```
+    Test Files  11 passed (11)
+         Tests  288 passed (288)
+      Start at  18:12:32
+      Duration  75.46s (transform 46.79s, setup 8.62s, import 38.39s, tests 138.69s, environment 43.32s)
+   ```
+
+   Las vigiladas de `marco-r1` (`:343-366`, `:383`, `:390` y `:441-546`) y de `registro-maestro-03b-r1` (`:222-229`) corrieron dentro de sus archivos de C-n: solo cae el caso de C-18 o de C-48.
+3. **`lint` del frontend:** `npm run lint` → exit 0, con "All matched files use Prettier code style!" y `tsc -b` sin errores.
+
+### Observaciones para el programador (trampas; no son hallazgos)
+
+**O-01g-1 (C-18 y C-48, la navegación).**
+- Los seis destinos van exactamente en este orden y con estos textos: Inicio, Usuarios, Estado de pago, Clases, Maestros, Movimientos. Van con los `href` `/admin`, `/admin/usuarios`, `/admin/estado-pago`, `/admin/clases`, `/admin/maestros` y `/admin/movimientos`. Ojo: en 01f, "Maestros" iba antes que "Clases"; en 01g cambia el orden.
+- `/admin/` (con barra final) deja activo solo «Inicio» (E-06). `/admin/estado-pago` y `/admin/movimientos` son exactos.
+- En `rutas-02c-r1`, esas dos rutas se montan con un doble que responde `500` a lo que no conoce. La vista debe mostrar la barra igual.
+
+**O-01g-2 (C-19, V-06).** Las cifras van por archivo:
+- `tabla-estado-pago.tsx` lleva los dos `enEspera=` de la fila (el cambio desde la fila y «Restablecer»);
+- `barra-de-lote.tsx` no lleva ninguno: «Marcar como…» abre el diálogo;
+- `dialogo-estado-pago-lote.tsx` lleva uno («Sí, cambiar»);
+- las dos vistas llevan uno cada una («Cargar más alumnos» y «Cargar más movimientos»);
+- `tabla-movimientos.tsx` no lleva ninguno.
+
+Un archivo nuevo en `features/admin/components/` que no esté en la lista suma a `restoAdmin`, que debe seguir en 2.
+
+**O-01g-3 (C-19b y C-19c, el diálogo del lote).** Solo `dialogo-estado-pago-lote.tsx` se suma a `components/ui/dialog` y a los atributos del contexto (`data-material="opaco"` y `data-densidad="densa"` en su `DialogContent`), también en comentarios. El filtro es un `NativeSelect`: ningún archivo nuevo escribe `vidrio-fuerte`, `vidrio` ni `vidrio-azul`.
+
+**O-01g-4 (C-38).** En los tres formularios de `/admin/maestros`, la línea `if (<nombre>Ref.current) return` va inmediatamente después de `evento.preventDefault()` y antes de `if (<m>.isPending) return`. La línea de T-05 sigue justo después, con una sola `<m>.reset(` por archivo (vigilada `:131`). El diálogo del lote puede reiniciar `cambiarLote` condicionado a `isError` (excluido en C-38).
+
+**O-01g-5 (C-39).** Los `MensajeError` nuevos usan exactamente `mensajeDeErrorAdmin(cambiarLote.error)`, `mensajeDeErrorAdmin(cambiar.error)` o `mensajeDeErrorAdmin(restablecerAcceso.error)` (la fila), `mensajeDeConsultaAdmin(alumnos.error)` o `mensajeDeConsultaAdmin(movimientos.error)`, o un texto fijo de `data.ts`. Nunca otro nombre de variable ni un ternario dentro de la prop.
+
+**O-01g-6 (vigiladas de la Enmienda 15).** `/admin/maestros` sigue con exactamente tres llamadas al montarse (refresco, `/api/me` y la lista de enlaces), y `features/admin/rutas-ch3-r1` sigue con `inesperadas` estricta: E-07, E-14, E-16 a E-18 y las refs no pueden sumar ninguna consulta al montar esa vista.
+
+### V-01
+- 273 `*.ataque` rastreadas: 105 del backend y 168 del frontend, el mismo conjunto que en `1566196` (`git ls-tree`, 273). Mis dos archivos de 01f ya entraron en el commit.
+- Solo cambian los siete de la tabla "Cambios"; las otras 266 son idénticas a `1566196`. Ninguna sin rastrear.
+- Lista en formato `<hash>  <ruta>`, en el orden de `git ls-files`: `b06a6aeadea01933ab1bcca71a3e62391b3aca9ce1bf34003b070b02ca88ec61` (273 líneas; comprobada con `sha256sum -c`). Está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-01g-r0.txt`; no la copio entera porque solo cambian las siete filas de la tabla.
+
+### Cierre de la ronda 0 de 01g
+- **Veredicto: lista para el programador.** Sin PARADA y sin desviaciones.
+- **C-n:** C-18 (dos archivos), C-19, C-19b, C-19c, C-38, C-39 y C-48; siete archivos, cada uno desde su hash de `1566196`.
+- **Rojos:** 20 casos en 6 archivos, todos por la interfaz de 01g. **En verde:** C-39.
+- **Corridas:**
+  - los C-n, `20 failed | 151 passed (171)`;
+  - los módulos, `1 failed | 1072 passed (1073)`, con solo C-19c en rojo;
+  - las vigiladas, `288 passed (288)`;
+  - `lint`, exit 0. Todo con corriente.
+- **Para el programador:** O-01g-1 a O-01g-6.
+
+## Ronda 1 — ADMIN-01g
+
+Veredicto: **ROTO**. Hay 3 hallazgos: 0 críticos, 0 altos, 2 medios y 1 bajo.
+- **T-01 (baja):** cae en archivos de 01f, fuera de "Se toca" (R-23: PARADA del programador y decisión del humano).
+- **T-02 y T-03 (medias):** caen en `tabla-enlaces.tsx` y `registrados-del-enlace.tsx`, que sí están en "Se toca" de 01g.
+- **Resisten** los demás puntos: la acción vigente, T-01 en la fila y el lote, T-02 con `incluirDialogos`, E-06 en los tres roles, E-17, el `401` en cada disparador de 01g y M-26.
+
+Verificación propia: `lint` exit 0 · módulos `7 failed | 1239 passed (1246)`, y los 7 rojos son los casos de los hallazgos · las 26 rutas `645 passed (645)`.
+
+Plan: `plan.md` = `d42d343530f61a0774093cd29acd91ccadf5a12b7c0d324639daeace43f4a46d`. Base: `1566196`. Leí lo siguiente:
+- en `resumen-programador.md`, `:3434` (la implementación) y `:3692` (la corrección);
+- en `revision.md`, `:7506` y `:7645`, con los nueve puntos de ataque finales;
+- en el plan, §D-11 (fila, selección y lote, con la Enmienda 15 y la acción vigente de M-23), la matriz de 01g, ADM-1G01 a ADM-1G24, los puntos de ataque 11 a 13 y R-23;
+- el código nuevo y el cambiado de los 20 archivos de producción.
+
+No toqué producción ni pruebas del programador. Mis únicos archivos nuevos son los cuatro `*.ataque` de abajo.
+
+### Entorno
+- Nadie más corría suites (lo dijo el orquestador); antes de cada corrida no había ningún `vitest` vivo.
+- **Energía:** `BatteryStatus` **2** (corriente), al 100 %.
+- Una corrida después de otra, sin navegadores; no terminé ningún proceso.
+- Los caracteres de dirección y el hebreo de E-17 se construyen con `String.fromCharCode`. El barrido de los cuatro archivos da 0 invisibles, 0 caracteres de derecha a izquierda literales y 0 `\r`.
+
+### Archivos nuevos (sin rastrear)
+| Archivo (`frontend/src/…`) | Casos (`npx vitest list <archivo> \| grep -ac ' > '`) | SHA-256 |
+|---|---|---|
+| `features/admin/estado-pago-01g-r1.ataque.test.tsx` | 24 | `20729bd4f9349754b862e90ee459f5d0e2eec3fb0c184a8f1976035e102f1439` |
+| `features/admin/maestros-01g-r1.ataque.test.tsx` | 9 | `8d334077b8bb71aceeef30dbbee7443e21ce5994258a1a6e466e6baa815a04a6` |
+| `features/admin/usuarios-01g-r1.ataque.test.tsx` | 11 | `6683e8d8fcca6fae167de6b5d9169191241b6fa5fc4df92d4e066e294e68e569` |
+| `components/layout/barra-01g-r1.ataque.test.tsx` | 25 | `23beb727249a26a2c57e07a2ce97841a250c52965a179bf2dfef5cd67a8283b5` |
+
+En total son 69 casos. Todos usan el router real (`rutas` de `app/router`) con la configuración de `app/providers.tsx` (un `QueryClient` con `retry: 1`, `refetchOnWindowFocus: false` y `staleTime: 30_000`, o `Providers`). La excepción es `barra-01g-r1`, que monta `ContenedorRol` con la ruta de su rol y un comodín, como `contenedor-rol.test.tsx`. Ninguna prueba localiza elementos por clases de estilo: se usan el rol, la etiqueta, el texto y los atributos `data-*` que ya usa el programador. Cada prueba ejecuta aserciones y una precondición faltante la hace fallar con mensaje.
+
+## Hallazgos
+
+### T-01 — Un `401` con el refresco fallido pinta el texto de error de carga en la tabla de usuarios, en la ficha y en el resumen del dashboard (01f, R-23)
+Severidad: **baja**
+Prueba: `frontend/src/features/admin/usuarios-01g-r1.ataque.test.tsx`
+- "ATQ-1G27: un 401 con el refresco fallido en la primera carga de /admin/usuarios: ningún mensaje" (`:184`);
+- "ATQ-1G28: un 401 con el refresco fallido en «Cargar más usuarios»: ningún mensaje y nada en espera" (`:195`);
+- "ATQ-1G29: un 401 con el refresco fallido al abrir la ficha: ningún mensaje" (`:212`);
+- "ATQ-1G30: un 401 con el refresco fallido en el resumen de /admin (hermano, inicio-admin-view): ningún mensaje" (`:223`).
+
+**Esperado.** Es lo que pide ADM-1G20 (c), que el punto de ataque 13 aplica a la tabla de usuarios y a la ficha de 01f. La definición de "redirige" de la matriz del plan (`:1935`) dice lo mismo para todas las subentregas:
+- `apiClient` lleva al login;
+- ninguna vista pinta un `MensajeError` ni avisa;
+- ningún botón queda en espera.
+
+**Obtenido.** En los cuatro casos, `navegacion.irA("/login")` se llama y, en el mismo render, la vista pinta su `MensajeError` (`role="alert"`). Los textos son:
+- "No pudimos cargar los usuarios. Revisa tu conexión e inténtalo de nuevo." (primera carga y «Cargar más usuarios»);
+- "No pudimos cargar la cuenta. …" (la ficha);
+- "No pudimos cargar el resumen. …" (`/admin`).
+
+Las cuatro fallan en el mismo punto: `expected <p class="text-small"></p> to be null`.
+
+**Causa (por lectura).** Ninguna de las tres vistas filtra el error con `errorQueRedirigeElCliente`, a diferencia de `estado-pago-view.tsx` y `movimientos-view.tsx` (D-1 de 01g):
+- `usuarios-view.tsx` hace `if (usuarios.isError) return <MensajeError mensaje={TEXTOS_USUARIOS.error} />`;
+- `usuario-view.tsx` hace `if (usuario.isError) return <MensajeError mensaje={TEXTOS_USUARIO.error} />`;
+- `inicio-admin-view.tsx:24` hace lo mismo con el resumen.
+
+`irA` hace `window.location.assign`, así que en el navegador la página se va enseguida. Por eso la severidad es baja: el texto y el anuncio del `role="alert"` duran lo que tarda la recarga, sin datos falsos ni pérdida de foco. El programador ya lo había declarado como observación (resumen, `:3434`, "Hermanos y estados vecinos", R-23); esta ronda lo confirma con pruebas.
+
+**Controles que pasan** (por eso el hallazgo se limita a las consultas):
+- ATQ-1G31: el `401` en «Guardar» del estado de pago de la ficha no pinta ni avisa, y «Guardar» sale de la espera.
+- ATQ-1G32: la ficha desmontada con «Guardar» en vuelo avisa una vez con un `5xx` y ninguna con un `401`.
+
+**Requisito o regla violada:** ADM-1G20 (c) aplicado por el punto de ataque 13 (Enmienda 15) y la definición de "redirige" de la matriz. Los tres archivos están fuera de "Se toca" de 01g: **R-23, PARADA del programador y decisión del humano**. Las opciones son autorizar los tres archivos para esta corrección o llevar el hallazgo a ESTADO §3 con destino.
+
+### T-02 — «Cargar más enlaces» con un `5xx` en la página siguiente deja el foco en `<body>` (estado vecino de E-18)
+Severidad: **media**
+Prueba: `frontend/src/features/admin/maestros-01g-r1.ataque.test.tsx`, "ATQ-1G24: «Cargar más enlaces» con el foco y la página siguiente con 5xx: la tabla pasa a su error y el foco no cae en <body>" (`:183`).
+
+**Esperado.** Si el botón desaparece con el foco dentro, el foco nunca cae en `<body>`. Lo piden E-18, el punto 5 de la verificación ("el foco nunca en `<body>`") y DESIGN.md §7.14. La fila de `/admin/estado-pago` lo resuelve así: con «Cargar más alumnos» en error, el foco va al `h1`.
+
+**Obtenido.** `expected <body …> not to be <body …>`.
+
+**Causa (por lectura).**
+- Con el error de `fetchNextPage`, `TablaEnlaces` devuelve el `MensajeError` y desmonta la tabla junto con el `div` de `tablaRef`.
+- `useFocoAlCargarMas` sí llama a `enfocarEncabezado`, pero ese destino busca `[data-enlace-id] button` dentro de `tablaRef.current`, que ya es `null`.
+- La defensa del gancho busca la `section` o la `Card` del botón, y `TablaEnlaces` no vive en ninguna (`maestros-view.tsx:29`). El foco queda en `<body>`.
+- E-18 solo se probó con la última página con y sin enlaces nuevos; no con este estado vecino del mismo mecanismo.
+
+**Requisito o regla violada:** E-18 (ADM-1G10, ADM-1G22: "nunca a `<body>`"), DESIGN.md §7.14, y la regla de hermanos y estados vecinos de AGENTS.md ("Resúmenes verificables del programador").
+
+### T-03 — «Cargar más» de registrados deja el foco en `<body>` al cargar la última página y con un `5xx` (hermano de E-18 en un archivo de 01g)
+Severidad: **media**
+Prueba: `frontend/src/features/admin/maestros-01g-r1.ataque.test.tsx`, "ATQ-1G25: «Cargar más» de registrados con el foco y %s: el foco no cae en <body>" (`:200`). Fallan sus dos filas, "la última página" y "un 5xx en la página siguiente".
+
+**Esperado.** Al desmontarse con el foco dentro, el «Cargar más» de los registrados de un enlace lleva el foco a un control conectado, nunca a `<body>`. Es el mismo criterio de E-18 y de §7.14 para cualquier "Cargar más" que se desmonta.
+
+**Obtenido.** `expected <body …> not to be <body …>` en las dos filas.
+
+**Causa (por lectura).**
+- `registrados-del-enlace.tsx` está en "Se toca" de 01g (E-07: ref, `isFetching` y `cancelRefetch: false`), pero su botón no usa `useFocoAlCargarMas` ni otro destino.
+- Sus filas no tienen controles. El único control cercano que sobrevive es «Ocultar registrados» de su fila en `tabla-enlaces.tsx`.
+- El plan solo inventarió E-18 para «Cargar más enlaces» (`plan.md:144`, `:651`).
+- El resumen del programador no lista este control entre los hermanos de E-18 ("Hermanos y estados vecinos de cada mecanismo"). Tampoco lo lista la sección "Ref y una petición por dos clics", que lo nombra solo por E-07.
+
+**Requisito o regla violada:** la regla de hermanos de AGENTS.md (decisión del humano, 2026-10-02 y 2026-10-05) y DESIGN.md §7.14. Mismo mecanismo que E-18, en un control que 01g toca.
+
+## Atacado sin hallazgos
+Por punto de "Puntos de ataque finales para la ronda 1" (`revision.md:7694`). Todos los casos de esta sección están en verde.
+
+1. **La acción vigente (M-23 y M-25)**, en `estado-pago-01g-r1`:
+   - ATQ-1G01: dos filas en vuelo que fallan en orden inverso al de las pulsaciones dejan un solo `MensajeError`, el de la última pulsada, sin aviso y sin botones en espera.
+   - ATQ-1G02: falla la que no es vigente y la vigente sale bien. Resultado: ningún mensaje, ningún aviso de error y un aviso de éxito.
+   - ATQ-1G03: una casilla, la de la cabecera y un término corto del buscador (sin petición nueva) no cambian el mensaje.
+   - ATQ-1G04: la fila con el mensaje sale de la lista y vuelve; el mensaje no regresa.
+   - ATQ-1G05: la fila sale y vuelve con «Marcar…» en vuelo; el error se avisa una vez y no se pinta en la fila que volvió.
+   - ATQ-1G06: en `<StrictMode>`, dos clics hacen una petición, con un solo mensaje que desaparece con «Marcar…» en otra fila.
+2. **T-01 en la fila y el lote:**
+   - ATQ-1G07, con error y con éxito: una recarga con el otro estado a mitad de «Marcar…». Lo enviado es el contrario al de antes (se lee el cuerpo); la fila y su botón siguen al servidor, el botón sigue en espera hasta la respuesta y hay una sola petición.
+   - ATQ-1G08: una fila elegida cambia dos veces con el lote abierto. El diálogo cuenta una menos, no la recupera, y «Sí, cambiar» manda solo la otra con el destino elegido.
+   - ATQ-1G09: una recarga sobre una fila no elegida no cambia el destino ni los ids.
+   - ATQ-1G10, «Seleccionar los de esta página»:
+     - con 101 filas recibidas y una repetida entre páginas: 100 distintas, una casilla por alumno, "100 seleccionados" y un `PUT` con 100 ids sin repetidos;
+     - con 101 distintas: "No puedes cambiar más de 100 alumnos a la vez", sin petición;
+     - en los dos, sin aviso de claves de React.
+3. **T-02 con `incluirDialogos`:**
+   - ATQ-1G11: Escape y una recarga `200` que saca la fila en el mismo turno. El diálogo se cierra y el foco va al `h1` o a la raíz, nunca a `<body>`.
+   - ATQ-1G12: el lote abierto cuando la búsqueda diferida vacía la tabla. El diálogo sigue con el foco en «Cancelar» y dice "Se marcarán 0 alumnos…"; «Sí, cambiar» da "Elige al menos un alumno" sin petición, y al cerrarlo el foco va al `h1`.
+   - ATQ-1G13: el foco en el motivo con un `5xx` y después un `200` con la fila. El diálogo sigue con el foco y lo escrito; un `200` que saca la fila lo cierra y el foco va a la raíz.
+   - ATQ-1G14: restringir con éxito y la recarga en `5xx`: el foco va al `h1`.
+   - ATQ-1G15: restringir con éxito y la recarga trae la fila sin restricción: el foco no queda en `<body>`.
+4. **E-06** (`barra-01g-r1`, 25 casos), con `aria-current="page"`:
+   - `/ADMIN`, `/ADMIN/`, `/admin//` y `/admin///` activan «Inicio»;
+   - `/Admin/Usuarios/`, `/admin/usuarios//`, `/ADMIN/ESTADO-PAGO//`, `/admin/Movimientos/`, `/admin/MAESTROS` y una clase con mayúsculas activan su destino;
+   - ninguna ruta parecida se activa: `/admin/usuarios-x`, `/admin/usuariosx/abc`, `/admin/clasesx`, `/admin/clases-archivadas`, `/admin/estado-pagox`, `/admin/estado-pago/x`, `/admin/movimientos/x`, `/admin/maestros/x` y `/admin/inicio`;
+   - estudiante y maestro: `/ESTUDIANTE/`, `/estudiante//`, `/MAESTRO//` y `/Maestro/` activan «Inicio», y una subruta no.
+5. **E-07** (`maestros-01g-r1`), ATQ-1G23: «Cargar más enlaces» con la lista recargando tras revocar. El botón queda en espera, dos clics no piden la página siguiente y, al responder la recarga, sale de la espera sin mensajes. La última página con y sin enlaces nuevos ya la cubren ADM-1G10 y ADM-1G22, del programador. El foco con un error está en T-02 y T-03.
+6. **E-17**, ATQ-1G26 (5 filas): el inversor de dirección, un aislante sin cerrar, texto de derecha a izquierda con dígitos, `<b>…</b>` con `&` y comillas, y `&lt;script&gt;` escrito.
+   - El texto va en un único `<bdi>` sin hijos, con `textContent` exacto.
+   - La línea lee `Línea 3 · <texto> · Correo no válido`, sin `<b>` ni `<script>` creados.
+7. **El `401`:**
+   - ATQ-1G16: en la primera carga de la tabla de estado de pago, sin mensaje ni espera.
+   - ATQ-1G17: en una recarga, la tabla se queda.
+   - ATQ-1G18: con el mensaje de otra fila a la vista, el viejo se va y no sale ninguno.
+   - ATQ-1G19: con la vista desmontada y en vuelo «Marcar…» o «Restablecer», ningún aviso.
+   - ATQ-1G20: el lote en vuelo con el diálogo desmontado por el historial, ningún aviso.
+   - La fila, el lote, restringir, «Restablecer», «Cargar más alumnos» y «Cargar más movimientos» ya los cubren ADM-1G20 (c) y M-27.
+8. **R-23**, sin hallazgo en lo que no es el `401` de las consultas (T-01):
+   - ATQ-1G31: el `401` en «Guardar».
+   - ATQ-1G32: la ficha desmontada con «Guardar» en vuelo: un aviso con `5xx`, ninguno con `401`.
+   - ATQ-1G33: la ficha desmontada con éxito: un aviso de éxito.
+   - ATQ-1G34: la última página de «Cargar más usuarios» con solo filas repetidas. El foco va al `h1` «Usuarios», con dos «Ver» y sin claves repetidas.
+   - ATQ-1G35: «Ver» con el foco cuando llega la búsqueda diferida que saca su fila: el foco va a la raíz.
+   - ATQ-1G36: el alta abierta y cerrada con la tabla en error deja un solo mensaje de carga, y el foco vuelve a «Dar de alta un alumno».
+9. **M-26:**
+   - ATQ-1G21: pulsar la etiqueta, fuera de la casilla, marca y desmarca una sola vez, en la fila y en la cabecera, y cada etiqueta envuelve un solo `input`.
+   - Por lectura:
+     - las dos etiquetas llevan `size-(--control-height)`;
+     - «Marcar…», el botón de acceso, los dos de la barra de lote y «Cargar más alumnos» van con el tamaño por omisión;
+     - cada casilla vive en su propia celda, sin superponerse al texto de la fila.
+   - La medida real queda para H-6.
+
+## No atacado y por qué
+- **La medida real de 36 y 44 px y el área de la casilla en pantalla:** jsdom no calcula tamaños. Queda para la comprobación humana H-6 a 360 px, como dijo el manager.
+- **Escape y una recarga en el mismo turno, en el otro orden** (la recarga se aplica antes que la tecla): no se puede fijar ese orden de forma determinista con los dobles de hoy. El orden atacado (ATQ-1G11) resiste. En el otro, por lectura, el diálogo ya se desmontó por la fila ausente y Escape no tiene destino.
+- **«Restablecer» en vuelo con una recarga que trae la fila sin restricción:** el botón pasa a «Restringir» sin espera y puede abrir el diálogo con el `PUT` aún en vuelo. No lo ataqué porque no hay un resultado que el plan fije para ese camino; lo dejo como O-01g-r1-2.
+- **El backend y `shared/`:** 01g no los toca.
+
+## Corridas
+Todas desde `frontend/`, una después de otra, con corriente:
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | exit 0 (`> tsc -b`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files 2 failed \| 36 passed (38)` · `Tests 7 failed \| 1239 passed (1246)` |
+| Las 26 rutas de C-n y vigiladas del resumen del programador (`:3434`) | `Test Files 26 passed (26)` · `Tests 645 passed (645)` |
+
+- **Los 7 rojos de los módulos** son exactamente los casos de los hallazgos: ATQ-1G27 a ATQ-1G30 (T-01), ATQ-1G24 (T-02) y las dos filas de ATQ-1G25 (T-03).
+- **Contraste con el resumen del programador:** 1246 = 1177 + 69, y 38 archivos = 34 + 4. Todo lo demás está en verde, incluidos C-19c y las vigiladas de `features/admin`.
+- **PA-07:** no aplica, porque no corrí el backend.
+
+## V-01
+- Hay 277 `*.ataque`: las 273 de la ronda 0 de 01g, con el mismo SHA-256 cada una (incluidos los siete C-n, con sus hashes de la ronda 0), más mis cuatro nuevas.
+- La lista está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-01g-r1.txt`, con SHA-256 `c9b1de84a2a036c95c3d896bd4b4559f0ac1c60b968ace649b218028d2ee4a8a`.
+- El `diff` normalizado contra `v01-01g-r0.txt` solo agrega las cuatro líneas de la tabla de archivos nuevos.
+- `git status` no muestra cambios míos fuera de esos cuatro archivos sin rastrear y de este reporte.
+
+## Observaciones
+- **O-01g-r1-1.** El título de ADM-1G17 (f) de `estado-pago-01g.test.tsx` dice "un 401 no avisa", pero el caso solo resuelve un `500`. El resumen remite el `401` a ADM-1G20 (c), que no desmonta la fila. Ahora lo cubren ATQ-1G19 y ATQ-1G20, en verde. Es solo para el manager: el título no coincide con el contenido.
+- **O-01g-r1-2.** «Restablecer» en vuelo y una recarga que trae la fila sin restricción (otro admin la restableció): `enEspera={restringido && restablecerAcceso.isPending}` deja el botón, ya «Restringir», fuera de la espera, y abre el diálogo con el `PUT` en vuelo. No hay petición doble del mismo `PUT`. Riesgo bajo; no lo reporto como hallazgo porque el plan no fija ese camino.
+- **O-01g-r1-3.** Para la ronda de corrección:
+  - **T-01:** su arreglo está fuera de "Se toca" (R-23). Los hermanos que hay que revisar en esos archivos:
+    - `usuarios-view.tsx`: la primera carga y «Cargar más usuarios»;
+    - `usuario-view.tsx`: la ficha, incluido el caso de la cuenta que no existe, que no aplica con un `401`;
+    - `inicio-admin-view.tsx`: el resumen.
+  - **T-02 y T-03:** están dentro de "Se toca".
+
+## Ronda 2 — ADMIN-01g
+
+Veredicto: **ROTO**. Encontré 3 hallazgos nuevos: 0 críticos, 0 altos, 1 medio y 2 bajos.
+- Los tres caen en `/admin/maestros`. T-04 y T-05 están en archivos de "Se toca" de 01g (`hooks.ts` y `components/tabla-enlaces.tsx`). T-06 está en la vista, y `maestros-view.tsx` no está en "Se toca": dónde se corrige lo decide el manager (O-01g-r2-1).
+- Ninguno cae en los tres archivos de 01f autorizados para T-01: sus vecinos resisten.
+- T-01, T-02 y T-03 de la ronda 1 siguen corregidos: ATQ-1G24, ATQ-1G25 y ATQ-1G27 a ATQ-1G30 están en verde.
+- Resisten también los vecinos de T-03, el descarte de filas repetidas, O-01g-r1-2 y Escape con la recarga en el otro orden.
+
+Verificación propia:
+- `lint` exit 0;
+- módulos `8 failed | 1279 passed (1287)`, y los 8 rojos son los casos de los hallazgos;
+- las 26 rutas `645 passed (645)`.
+
+Plan: `plan.md` = `d42d343530f61a0774093cd29acd91ccadf5a12b7c0d324639daeace43f4a46d`. Base: `1566196`. Leí:
+- `resumen-programador.md:3746`, la corrección de la ronda 1;
+- `revision.md:7738`, con los siete puntos de ataque;
+- el diff de `usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx` contra `1566196`;
+- `tabla-enlaces.tsx`, `registrados-del-enlace.tsx`, `tabla-estado-pago.tsx` y los ganchos de `/admin/maestros` en `hooks.ts`.
+
+No toqué producción ni pruebas del programador.
+
+### Entorno
+- Nadie más corría suites (lo dijo el orquestador); antes de cada corrida no había ningún `vitest` vivo.
+- **Energía:** `BatteryStatus` **2** (corriente), al 100 %.
+- Una corrida después de otra, sin navegadores; no terminé ningún proceso.
+- En los tres archivos nuevos no hay invisibles, ni caracteres de derecha a izquierda literales, ni `\r`.
+- No instalé dependencias: no hay `@testing-library/user-event`, así que el Tab del punto 2 quedó sin atacar (ver "No atacado").
+
+### Archivos nuevos (sin rastrear)
+| Archivo (`frontend/src/…`) | Casos (`npx vitest list <archivo> \| grep -ac ' > '`) | SHA-256 |
+|---|---|---|
+| `features/admin/maestros-01g-r2.ataque.test.tsx` | 17 | `ec7cc34f15c7dc5531aa5f8fa575cc731bc093974a549dcc64aa1c2230e38eff` |
+| `features/admin/usuarios-01g-r2.ataque.test.tsx` | 12 | `2f6f602fb7571d765d48a9345a5d8c60247773ff91ec814526dbf5e818427113` |
+| `features/admin/estado-pago-01g-r2.ataque.test.tsx` | 3 | `74cbd6a8688c73093fd9782ba8226d26750e914009f411150beab58cfc08589c` |
+
+Son 32 casos en total, todos con el router real (`rutas` de `app/router`) y un `QueryClient` con la configuración de `app/providers.tsx`. Así puedo simular "otra recarga" con `invalidateQueries`. Ninguno localiza por clases de estilo. Las cuatro `*.ataque` de la ronda 1 conservan su hash.
+
+## Hallazgos
+
+### T-04 — Un `401` con el refresco fallido en «Cargar más enlaces» o en «Cargar más» de registrados deja el botón en espera y repite la petición sin sesión
+Severidad: **baja**
+Prueba: `frontend/src/features/admin/maestros-01g-r2.ataque.test.tsx`
+- "ATQ-1G37: un 401 con el refresco fallido en %s: ningún mensaje, ningún aviso y nada en espera" (`:180`), filas "«Cargar más enlaces»" y "«Cargar más» de registrados";
+- "ATQ-1G47: tras un 401 con el refresco fallido en %s, la consulta no vuelve a pedir la página sin sesión" (`:543`), las dos filas.
+
+**Esperado.** Es el punto 1 de la ronda 2 y ADM-1G20 (c): con un `401` tras el refresco fallido, `apiClient` lleva al login, ninguna vista pinta un mensaje ni avisa, y ningún botón queda en espera.
+
+**Obtenido.**
+- El mensaje ya no se pinta: eso sí lo corrigió la ronda 1.
+- Después de `irA("/login")`, el botón queda en espera: `expected …(1) to have a length of +0 but got 1` en `[aria-busy="true"]`.
+- Al segundo, sale una **segunda** petición de la misma página, sin token: `expected [ … ] to have a length of 1 but got 2`.
+
+**Causa (por lectura).**
+- `useEnlacesRegistro` y `useRegistradosDelEnlace` (`hooks.ts:77-86` y `:125-137`) no llevan `retry: reintentarConsultaAdmin`, a diferencia de las tablas de 01f y 01g. Toman el `retry: 1` por omisión, que también reintenta un `4xx`.
+- Durante la espera del reintento, `isFetching` sigue en `true`, y el reintento sale después de `limpiarToken()`.
+
+**Por qué es baja:** con `irA` la página se va enseguida, y el reintento no pinta nada porque el `401` sin token también se filtra. Las dos primeras filas de ATQ-1G37 (las primeras cargas) pasan, porque ahí no hay botón.
+
+**Requisito o regla violada:** ADM-1G20 (c) y la definición de "redirige" de la matriz ("ningún botón queda en espera"), en el punto 1 de la ronda 2. Es la rama del `401` de `/admin/maestros` que no tenía caso propio (`revision.md`, "Los dos hermanos que corrigió el programador").
+
+### T-05 — Una recarga de la lista de enlaces que falla reemplaza la tabla con el foco dentro y el foco cae en `<body>`
+Severidad: **media**
+Prueba: `frontend/src/features/admin/maestros-01g-r2.ataque.test.tsx`
+- "ATQ-1G42: con el foco en %s, una recarga de la lista de enlaces que falla reemplaza la tabla: el foco no cae en <body>" (`:346`), filas "«Cargar más» de registrados" y "«Ocultar registrados» de su fila";
+- "ATQ-1G48: «Sí, revocar» sale bien y la recarga de la lista que dispara falla: el foco, que volvió a «Revocar», no cae en <body>" (`:579`). Es el camino real: la recarga la dispara la propia revocación.
+
+**Esperado.** Si una recarga quita el control que tenía el foco, el foco va a un control conectado o a la raíz, nunca a `<body>`. Lo piden DESIGN.md §7.14 y el remedio de T-02, que dejó montada la raíz de la tabla (`tabIndex={-1}`) justo para el error que reemplaza la tabla. Es el punto 3 de la ronda 2: «Cargar más» de registrados cuando el botón que abrió la lista ya no existe porque la tabla de enlaces pasó a error.
+
+**Obtenido.** `expected <body …> not to be <body …>` en los tres casos.
+
+**Causa (por lectura).**
+- El remedio de T-02 solo mueve el foco desde `useFocoAlCargarMas`, que actúa cuando se desmonta «Cargar más enlaces» con el foco dentro.
+- Cuando la tabla pasa a su `MensajeError` por una recarga, el foco puede estar en cualquier control de la tabla: «Revocar», «Ver registrados» u «Ocultar registrados», o el «Cargar más» de una lista de registrados que se desmonta con su fila. Nadie lo recoloca.
+- La raíz existe, pero `TablaEnlaces` no usa `useFocoAlPerderseElControl`, a diferencia de las tablas de 01f (M-20) y de 01g.
+
+**Requisito o regla violada:** DESIGN.md §7.14 ("nunca a `<body>`"), con el mismo mecanismo de T-02 en un estado vecino: el error de la recarga y no el de la página siguiente. Aplica también la regla de hermanos y estados vecinos de AGENTS.md.
+
+### T-06 — Tras el `5xx` de «Cargar más enlaces», pulsar «Maestros» estando en la sección no vuelve a pedir la lista
+Severidad: **baja**
+Prueba: `frontend/src/features/admin/maestros-01g-r2.ataque.test.tsx`, "ATQ-1G38: tras el 5xx de «Cargar más enlaces», pulsar «Maestros» estando aquí vuelve a pedir la lista y el texto desaparece" (`:266`).
+
+**Esperado.** Es el camino (a) que pide el punto 2 de la ronda 2 para recuperar la lista ("pulsar «Maestros»"), y la regla de frases de recuperación de AGENTS.md. Pulsar la sección estando ya en ella (otra `location.key`) vuelve a pedir la lista, y "No pudimos completar la operación. Inténtalo de nuevo." desaparece.
+
+**Obtenido.** No sale ninguna petición nueva (`expected 1 to be greater than 1`) y el texto sigue.
+
+**Causa (por lectura).** `/admin/maestros` no usa `useAlPulsarLaSeccionActiva` ni `useVolverAPedirSiFallo`, a diferencia de `/admin/usuarios`, `/admin/estado-pago` y `/admin/movimientos`.
+
+**Controles que pasan.** Los otros dos caminos sí recuperan la lista:
+- ir a otra sección y regresar antes del `staleTime` (ATQ-1G39);
+- atrás del historial (ATQ-1G40).
+
+Lo mismo con los registrados al ocultarlos y volver a verlos (ATQ-1G41).
+
+**Por qué es baja:** el texto no nombra la sección. Su promesa, "Inténtalo de nuevo", se cumple por dos caminos, y el comportamiento es anterior a 01g (AUTH-03b): el plan dejó esa fila de la matriz "(de hoy)". Lo reporto porque el manager lo pidió como camino y porque los otros tres listados del módulo sí lo tienen.
+
+**Requisito o regla violada:** la regla de frases de recuperación de AGENTS.md (decisión del humano, 2026-10-26), en el camino que el punto 2 de la ronda 2 nombra.
+
+## Atacado sin hallazgos
+Por punto de "Puntos de ataque para la ronda 2" (`revision.md:7738`). Todos estos casos están en verde.
+
+1. **El `401` en `/admin/maestros`:** la primera carga de enlaces y la primera página de registrados no pintan, no avisan y no dejan nada en espera (ATQ-1G37, sus dos primeras filas). Los «Cargar más» no pintan, pero quedan en espera: es T-04.
+2. **T-02:**
+   - ir y volver (ATQ-1G39) y el historial (ATQ-1G40) recuperan la lista tras el `5xx`;
+   - el foco, tras el `5xx`, no queda en `<body>`: es la precondición de esos casos;
+   - pulsar «Maestros» es T-06.
+3. **T-03:**
+   - ATQ-1G43: el enlace se revoca con sus registrados abiertos; la última página lleva el foco al botón de su fila;
+   - ATQ-1G44: con dos listas abiertas, la última página de una y el `5xx` de la otra llevan el foco al botón de **su** fila;
+   - ATQ-1G41: ocultar y volver a ver los registrados tras su `5xx` vuelve a pedir la lista;
+   - la tabla de enlaces en error con el foco dentro es T-05.
+4. **El descarte de filas repetidas (`unirPaginasSinRepetidas`):**
+   - ATQ-1G45: un enlace repetido que cambia de datos (revocado y con otro conteo) se ve una vez y con los datos de la primera página. El foco va al único nuevo, sin claves de React repetidas.
+   - ATQ-1G46: un registrado repetido que cambia de nombre se ve una vez y con el nombre de la primera página. Sin nuevos, el foco va al botón de su fila.
+5. **T-01 en 01f** (`usuarios-01g-r2`, 12 casos):
+   - ATQ-1G49 y ATQ-1G50: el `401` en una recarga con datos de la tabla y de la ficha deja los datos, sin mensaje ni aviso.
+   - ATQ-1G51, 8 filas: un `403 ACCESO_RESTRINGIDO` y un `403 CAMBIO_DE_CONTRASENA_REQUERIDO` en la tabla, en «Cargar más usuarios», en la ficha y en el resumen de `/admin`. `irA` va a la ruta de cada código, y no hay mensaje, aviso ni espera.
+   - ATQ-1G52: con la frase de lista cambiada a la vista, pulsar «Usuarios» y un `401`: la frase se va y no sale nada.
+   - ATQ-1G53: la ficha desmontada con «Guardar» en vuelo y un `403 ACCESO_RESTRINGIDO`: ningún aviso.
+   - Ningún ataque exigió tocar los tres archivos de 01f fuera de la condición autorizada.
+6. **O-01g-r1-2** (ATQ-1G54, 2 filas): «Restablecer» en vuelo y una recarga que trae la fila sin restricción. El botón pasa a «Restringir» en espera, y dos pulsaciones no abren el diálogo ni mandan otro `PUT`.
+   - Con `5xx`: un solo mensaje en la fila, sin aviso; «Restringir» funciona, abre el diálogo de esa fila y el mensaje se va.
+   - Con éxito y otra recarga que la trae restringida: el botón sigue al servidor («Restablecer»), sin espera, con un solo aviso "Acceso restablecido".
+7. **Escape y la recarga en el otro orden** (ATQ-1G55). Con `notifyManager.setScheduler` síncrono, los datos sin la fila llegan a la vista antes que la tecla y React pinta las dos cosas en un solo render. El diálogo se cierra y el foco va al `h1` o a la raíz, nunca a `<body>`.
+   - La prueba comprueba que el diálogo seguía montado al pulsar Escape.
+   - Con un doble diferido y `await` dentro de `act` no se podía fijar ese orden, porque React pinta antes de la tecla. Por eso usé el planificador.
+
+## No atacado y por qué
+- **El Tab desde la raíz de la tabla (punto 2):** jsdom no mueve el foco con Tab, y simularlo exige `@testing-library/user-event`, que no está instalado; no agrego dependencias. Por lectura, la raíz es un `div` con `tabIndex={-1}`, que queda fuera del orden de tabulación. Tab desde ella sigue el orden del documento: el primer control dentro de la tabla o, con el error, el siguiente de la vista. Lo dejo para la comprobación humana si el manager lo considera necesario.
+- **El backend y `shared/`:** 01g no los toca.
+
+## Corridas
+Todas desde `frontend/`, una después de otra, con corriente:
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | exit 0 (`> tsc -b`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files 1 failed \| 41 passed (42)` · `Tests 8 failed \| 1279 passed (1287)` |
+| Las 26 rutas de C-n y vigiladas | `Test Files 26 passed (26)` · `Tests 645 passed (645)` |
+
+- **Los 8 rojos** son exactamente los casos de los hallazgos:
+  - ATQ-1G37, dos filas (T-04);
+  - ATQ-1G47, dos filas (T-04);
+  - ATQ-1G42, dos filas (T-05);
+  - ATQ-1G48 (T-05);
+  - ATQ-1G38 (T-06).
+- **Contraste con el manager:** 1287 = 1255 + 32, y 42 archivos = 39 + 3. Las cuatro `*.ataque` de la ronda 1 (69 casos) siguen en verde dentro de los módulos.
+- **PA-07:** no aplica, porque no corrí el backend.
+
+## V-01
+- Hay 280 `*.ataque`: las 277 de la ronda 1, con el mismo SHA-256 cada una, más mis tres nuevas.
+- La lista está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-01g-r2.txt`, con SHA-256 `c75a9db62c138ad9916625315047e4d712bb958e56bfb7c411aa0575c88a50a7`.
+- El `diff` contra `v01-01g-r1.txt` solo agrega las tres líneas de la tabla de archivos nuevos.
+
+## Observaciones
+- **O-01g-r2-1.** T-04, T-05 y T-06 caen en `/admin/maestros`, que 01g tocó por E-01, E-07, E-14, E-17 y E-18 sin traerle los mecanismos de las otras tablas del módulo:
+  - la política de reintento de `reintentarConsultaAdmin`;
+  - `useFocoAlPerderseElControl`;
+  - `useAlPulsarLaSeccionActiva` con `useVolverAPedirSiFallo`.
+  
+  Los tres hallazgos son hermanos de remedios que ya existen en `features/admin`. Los archivos que tocan están en "Se toca": `hooks.ts` y `tabla-enlaces.tsx`. T-06 tocaría además `maestros-view.tsx`, que no está, o un componente que sí lo está; eso lo decide el manager.
+
+## Ronda 3 — ADMIN-01g
+
+Veredicto: **ROTO**, con un solo hallazgo, **baja**. Es la última ronda: se escala al humano.
+- **T-07:** pulsar «Maestros» con la lista en error mientras otra causa ya la está recargando lanza una segunda petición de la lista en vuelo.
+- **El resto resiste.** Siguen corregidos T-04, T-05 y T-06 y sus vecinos. Pasan los dos ganchos de foco juntos (también con `<StrictMode>`), ir y regresar con las dos listas en error, el historial y el `5xx` seguido de un `401`. Pasa también el `403 ACCESO_RESTRINGIDO`.
+- **Regresión:** las siete `*.ataque` de las rondas 1 y 2, con 101 casos, siguen en verde con el árbol final.
+
+Verificación propia:
+- `lint`: exit 0.
+- Módulos: `1 failed | 1314 passed (1315)`. El único rojo es el caso de T-07.
+- Las 26 rutas: `645 passed (645)`.
+
+Plan: `plan.md` = `d42d343530f61a0774093cd29acd91ccadf5a12b7c0d324639daeace43f4a46d`. Base: `1566196`. Leí lo siguiente:
+- `resumen-programador.md:3850`;
+- `revision.md:7917`, con sus cinco puntos de ataque;
+- el código de esta vuelta: `hooks.ts` (las dos claves y `retry: reintentarConsultaAdmin`), `tabla-enlaces.tsx` (los dos ganchos de foco, `useMarcarViejaSiQuedoEnError`, `useVolverAPedirSiFallo` y `AlPulsarLaSeccionActiva`) y `registrados-del-enlace.tsx`.
+
+No toqué producción ni pruebas del programador.
+
+### Entorno
+- Nadie más corría suites (lo dijo el orquestador). Antes de cada corrida no había ningún `vitest` vivo; ninguna corrida pasó a segundo plano.
+- **Energía:** `BatteryStatus` **2** (corriente), al 100 %.
+- Una corrida después de otra, sin navegadores; no terminé ningún proceso.
+- En el archivo nuevo no hay invisibles ni `\r`.
+
+### Archivo nuevo (sin rastrear)
+| Archivo (`frontend/src/…`) | Casos (`npx vitest list <archivo> \| grep -ac ' > '`) | SHA-256 |
+|---|---|---|
+| `features/admin/maestros-01g-r3.ataque.test.tsx` | 14 | `7d74a21b033553b5c4cc07f29bc6be38ba006d1ab661c91fc1db2f9412fc0cd8` |
+
+Usa el router real y un `QueryClient` con la configuración de `app/providers.tsx`, y monta con `<StrictMode>` donde el caso lo pide. No localiza por clases de estilo.
+
+## Hallazgos
+
+### T-07 — Con la lista de enlaces en error y una recarga ya en vuelo, pulsar «Maestros» lanza otra petición de la lista
+Severidad: **baja**
+Prueba: `frontend/src/features/admin/maestros-01g-r3.ataque.test.tsx`, "ATQ-1G60: con la lista en error y recargando por otra causa, pulsar «Maestros» no lanza una segunda petición de la lista en vuelo" (`:339`).
+
+**Esperado.** Es el punto 3 de la ronda 3: pulsar «Maestros» hace una petición por pulsación, sin duplicados en vuelo, también con la lista recargando por otra causa.
+
+**Obtenido.** `expected 2 to be 1`. El caso deja la lista en error con el `5xx` de «Cargar más enlaces». Después la recarga una invalidación, que queda en vuelo, y pulsar «Maestros» lanza una segunda petición de la primera página mientras la primera sigue abierta.
+
+**Causa (por lectura).**
+- `useVolverAPedirSiFallo` (`hooks.ts:239-250`) decide con `getQueryState(clave)?.status !== "error"`. Mientras una recarga está en vuelo sobre una consulta en error, su `status` sigue en `"error"` y solo cambia `fetchStatus`, así que `resetQueries` corre igual.
+- `resetQueries` cancela la recarga en la caché y lanza otra. La primera petición de red sigue abierta, porque las consultas no pasan `signal`.
+- El resultado visible queda bien: el texto desaparece al responder.
+
+**Hermanos (por lectura).** El mismo gancho, con la misma condición, decide en:
+- `/admin/usuarios`, `/admin/movimientos`, el resumen de `/admin` y los registrados;
+- `/admin/estado-pago`, que decide con `alumnos.isError`, el mismo `status`.
+
+Ahí el camino es el mismo, pero no lo ataqué con caso propio.
+
+**Por qué es baja:** sobra una petición y la tabla pasa un momento por «Cargando», pero no se pinta nada falso y no se pierde el foco.
+
+**Requisito o regla violada:** el resultado que fija el punto 3 de la ronda 3 ("sin duplicados en vuelo") y la regla 4 de AGENTS.md (consultas sanas), en su espíritu. El gancho está en `hooks.ts`, que está en "Se toca". Como lo comparten las vistas de 01f, un cambio en él alcanza también a los tres archivos autorizados para T-01.
+
+## Atacado sin hallazgos
+Todos los casos de esta sección están en verde.
+
+1. **Ir y regresar, y el historial:**
+   - ATQ-1G56: la primera carga de enlaces en error. Ir a «Movimientos» y regresar antes del `staleTime` la vuelve a pedir, y el texto desaparece.
+   - ATQ-1G57, dos filas: una lista de registrados abierta y en error. Tanto al ir y regresar como con atrás y adelante del historial, la fila vuelve cerrada, sin el texto; al abrirla, se pide de nuevo y se ve.
+2. **Los dos ganchos de foco juntos** (ATQ-1G58, 4 filas, con y sin `<StrictMode>`). Con el planificador de `notifyManager` síncrono, en el mismo turno llegan la página siguiente con solo repetidos y una recarga que quita la primera fila, o que deja la lista vacía.
+   - El foco salta **una sola vez**: un solo `focusin`.
+   - Si queda una fila, va a su «Ver registrados»; si la lista queda vacía, a la raíz de la tabla.
+   - Nunca va a `<body>`, ni a la raíz cuando hay un destino válido.
+3. **Pulsar «Maestros»:**
+   - ATQ-1G59: con la lista en error, tres pulsaciones seguidas dejan una sola petición en vuelo, y al responder el texto desaparece.
+   - ATQ-1G61: con dos listas de registrados en error, dos pulsaciones piden cada lista una vez, y los dos textos desaparecen.
+   - Con la lista recargando por otra causa, falla: es T-07.
+4. **T-04:**
+   - ATQ-1G62, dos filas: en «Cargar más enlaces» y en «Cargar más» de registrados, un `5xx` y luego un `401` con el refresco fallido en el reintento. Hay exactamente dos peticiones y una sola redirección, sin mensaje, sin aviso y sin espera, y las filas se quedan.
+   - ATQ-1G63, dos filas: un `403 ACCESO_RESTRINGIDO` en la lista de enlaces y en una de registrados. Hay una sola redirección a `/acceso-restringido`, una sola petición (sin reintento), sin mensaje, sin aviso y sin espera.
+5. **Regresión:** las siete `*.ataque` de las rondas 1 y 2 están en verde dentro de la corrida de los módulos, con sus hashes sin cambio:
+   - `estado-pago-01g-r1` (24), `maestros-01g-r1` (9), `usuarios-01g-r1` (11) y `barra-01g-r1` (25);
+   - `maestros-01g-r2` (17), `usuarios-01g-r2` (12) y `estado-pago-01g-r2` (3).
+
+## No atacado y por qué
+- **El Tab desde la raíz de la tabla:** sigue sin `@testing-library/user-event` y no agrego dependencias. Lo revisé por lectura en la ronda 2.
+- **T-07 en las otras vistas que comparten el gancho:** no lo ataqué con caso propio; es el mismo código, por lectura.
+- **El backend y `shared/`:** 01g no los toca.
+
+## Corridas
+Todas desde `frontend/`, una después de otra, con corriente:
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | exit 0 (`> tsc -b`) |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files 1 failed \| 43 passed (44)` · `Tests 1 failed \| 1314 passed (1315)` |
+| Las 26 rutas de C-n y vigiladas | `Test Files 26 passed (26)` · `Tests 645 passed (645)` |
+
+- El único rojo es ATQ-1G60 (T-07).
+- **Contraste con el manager:** 1315 = 1301 + 14, y 44 archivos = 43 + 1.
+- **PA-07:** no aplica, porque no corrí el backend.
+
+## V-01
+- Hay 281 `*.ataque`: las 280 de la ronda 2, con el mismo SHA-256 cada una, más la nueva.
+- La lista está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-01g-r3.txt`, con SHA-256 `7b724b4d9eba3a4e88f190f93dba0f9123d2fc4a75967ea2209ea4916684855a`.
+- El `diff` contra `v01-01g-r2.txt` solo agrega la línea de `maestros-01g-r3.ataque.test.tsx`.
+
+## Observaciones
+- **O-01g-r3-1.** T-07 es el único rojo de la última ronda. Como es baja y su arreglo toca un gancho compartido con 01f, la decisión del humano al escalar puede ser corregirlo o llevarlo a ESTADO §3 con destino. Yo solo lo reporto.
+
+### Corrida acotada tras la corrección de T-07
+Veredicto: **RESISTE**. Solo confirmé T-07 y corrí la regresión, como pidió el orquestador (decisión del humano, 2026-11-09: "Corregir con ronda acotada"): no ataqué nada nuevo ni escribí pruebas.
+
+**Lo que leí.**
+- La corrección: `resumen-programador.md`, "## ADMIN-01g — Corrección ronda 3 (2026-11-09)".
+- El código: `useVolverAPedirSiFallo` en `hooks.ts`. Ahora sale sin hacer nada si la consulta, además de estar en error, tiene `fetchStatus === "fetching"`.
+
+**El plan** sigue en `d42d3435…`.
+
+**Entorno.** Nadie más corría suites, y antes de cada corrida no había ningún `vitest` vivo. Corrí una después de otra, todas en primer plano, con corriente (`BatteryStatus` **2**, al 100 %), sin navegadores.
+
+| Comando (desde `frontend/`) | Última línea |
+|---|---|
+| `npx vitest run src/features/admin/maestros-01g-r3.ataque.test.tsx -t "ATQ-1G60"` | `Tests 1 passed \| 13 skipped (14)` |
+| Las ocho `*.ataque` de 01g: `estado-pago-01g-r1`, `maestros-01g-r1`, `usuarios-01g-r1`, `barra-01g-r1`, `maestros-01g-r2`, `usuarios-01g-r2`, `estado-pago-01g-r2` y `maestros-01g-r3` | `Test Files 8 passed (8)` · `Tests 115 passed (115)` |
+| `npx vitest run src/features/admin src/components/layout` | `Test Files 45 passed (45)` · `Tests 1319 passed (1319)` |
+| Las 26 rutas de C-n y vigiladas | `Test Files 26 passed (26)` · `Tests 645 passed (645)` |
+| `npm run lint` | exit 0 (`> tsc -b`) |
+
+- **T-07:** ATQ-1G60, que fallaba con `expected 2 to be 1`, pasa a verde. Ya no sale una segunda petición de la lista mientras otra recarga está en vuelo.
+- **Regresión:** sin rojos.
+  - Las ocho `*.ataque` suman 115 = 101 + 14.
+  - Los módulos crecen de 1315 a 1319 y de 44 a 45 archivos. Lo que se suma es la prueba nueva del programador, `volver-a-pedir-01g.test.tsx`, que también está en verde.
+- **V-01:** 281 `*.ataque`, sin cambios contra la ronda 3: el `diff` contra `v01-01g-r3.txt` está vacío. La lista está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-01g-r3b.txt`, con SHA-256 `7b724b4d9eba3a4e88f190f93dba0f9123d2fc4a75967ea2209ea4916684855a`, el mismo que en la ronda 3.
+- No toqué producción ni pruebas del programador.

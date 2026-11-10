@@ -30,7 +30,7 @@ import {
   useValorDiferido,
   useVolverAPedirSiFallo,
 } from "./hooks"
-import { busquedaDeLaTabla, rolDelFiltro } from "./lib"
+import { busquedaDeLaTabla, errorQueRedirigeElCliente, rolDelFiltro } from "./lib"
 import type { FiltroDeRol } from "./types"
 
 // ADMIN-01f (§D-11, RF-57, DESIGN.md §7.9 y §7.17): /admin/usuarios. El buscador espera 300 ms y decide
@@ -103,10 +103,13 @@ export function UsuariosView() {
   // Estados en orden: vacío sin preguntar → error (lista cambiada u otro) → cargando → vacío → datos.
   const contenido = (): ReactNode => {
     if (busqueda.vacioSinPedir) return <EstadoVacio titulo={TEXTOS_USUARIOS.vacioBusqueda} />
-    if (usuarios.isError && esErrorDeCursor(usuarios.error)) {
+    // ADMIN-01g, ronda 1 (T-01, R-23, autorizado por el humano): un error con que apiClient redirige (un
+    // 401 tras el refresco fallido) no se pinta: la página se va. Se queda lo que había.
+    const errorVisible = usuarios.isError && !errorQueRedirigeElCliente(usuarios.error)
+    if (errorVisible && esErrorDeCursor(usuarios.error)) {
       return <MensajeError mensaje={TEXTOS_USUARIOS.cambioMientrasLaVeias} />
     }
-    if (usuarios.isError) return <MensajeError mensaje={TEXTOS_USUARIOS.error} />
+    if (errorVisible) return <MensajeError mensaje={TEXTOS_USUARIOS.error} />
     if (usuarios.isLoading || !filas) return <Cargando />
     if (filas.length === 0 && busqueda.q !== undefined) {
       return <EstadoVacio titulo={TEXTOS_USUARIOS.vacioBusqueda} />

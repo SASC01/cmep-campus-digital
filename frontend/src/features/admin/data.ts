@@ -1,12 +1,17 @@
 import { DESTINOS_POR_ROL } from "@/components/layout/data"
 import type { TraduccionDeErrores } from "@/lib/errores-de-api"
 
-import type { CampoFormularioAdmin, FiltroDeRol, Rol } from "./types"
+import type {
+  CampoFormularioAdmin,
+  EstadoPago,
+  FiltroDeEstadoPago,
+  FiltroDeRol,
+  Rol,
+} from "./types"
 
-// DEC-19. Pantalla provisional de admin: invitar maestro y buscar/gestionar una cuenta por correo.
+// DEC-19: invitar maestro y la ficha de una cuenta. ADMIN-01g (E-16): salen las claves que dejó sin uso
+// 01f (el título, la nota provisional y la búsqueda por correo de /admin, y "Cuenta inactiva").
 export const TEXTOS_CUENTAS = {
-  titulo: "Cuentas",
-  notaProvisional: "Pantalla provisional: la gestión completa de usuarios llega después.",
   invitar: {
     titulo: "Invitar a un maestro",
     nombre: "Nombre completo",
@@ -15,13 +20,7 @@ export const TEXTOS_CUENTAS = {
     exito: (nombre: string) =>
       `Invitación creada. ${nombre} recibirá un correo para elegir su contraseña; el enlace vence en 72 horas.`,
   },
-  buscar: {
-    titulo: "Buscar una cuenta por correo",
-    correo: "Correo exacto de la cuenta",
-    boton: "Buscar",
-  },
   ficha: {
-    inactiva: "Cuenta inactiva",
     restablecer: "Restablecer contraseña",
     confirmarRestablecer:
       "Se cerrarán todas sus sesiones y tendrá que cambiar la contraseña al entrar.",
@@ -327,7 +326,6 @@ export const TEXTOS_INVITACION_MASIVA = {
     existentes: "Ya tenían cuenta",
     invalidas: "No válidas",
   },
-  sinNombre: "Sin nombre: podrá escribirlo al activar su cuenta.",
   notaEnviadas:
     "Cada uno recibirá un correo para elegir su contraseña; el enlace vence en 72 horas.",
   lineaEnviada: (correo: string, nombre: string | null) =>
@@ -336,10 +334,122 @@ export const TEXTOS_INVITACION_MASIVA = {
   // T-15 (ronda 1): termina en "· " (con el espacio) porque el motivo se pinta aparte, en una
   // insignia; el separador tiene que quedar en el texto para que se lea "Línea N · texto · motivo"
   // (§D-C6), no "textoMotivo" pegados.
-  lineaInvalida: (linea: number, texto: string) => `Línea ${linea} · ${texto} · `,
+  // ADMIN-01g (E-17): las dos piezas fijas de la línea, para que el texto de la persona vaya en su propio
+  // <bdi> entre ellas sin cambiar lo que se lee ("Línea 7 · no-es-correo · Correo no válido").
+  lineaInvalida: (linea: number) => `Línea ${linea} · `,
+  separadorDelMotivo: " · ",
   motivos: {
     correo_invalido: "Correo no válido",
     nombre_invalido: "Nombre no válido",
     repetido: "Repetido en la lista",
   },
+} as const
+
+// ADMIN-01g: el prefijo de las fichas, para renovarlas todas tras un cambio por lote.
+export const CLAVE_FICHAS = ["admin", "usuarios", "cuenta"] as const
+
+// ADMIN-01g (§D-11, Enmienda 15): la tabla de /admin/estado-pago cuelga de CLAVE_LISTAS_DE_USUARIOS (la
+// renueva cualquier cambio de una cuenta) y lleva su propio segmento, para no chocar con la de usuarios
+// filtrada por "Estudiante".
+export const claveTablaDeEstadoPago = (q: string | undefined, estadoPago: EstadoPago | undefined) =>
+  [
+    ...CLAVE_LISTAS_DE_USUARIOS,
+    "estado-pago",
+    { q: q ?? null, estadoPago: estadoPago ?? null },
+  ] as const
+
+export const CLAVE_MOVIMIENTOS = ["admin", "movimientos"] as const
+
+// ADMIN-01g (§D-11, T-E14): /admin/estado-pago.
+export const TEXTOS_ESTADO_PAGO = {
+  titulo: "Estado de pago",
+  filtro: "Estado de pago",
+  columnas: {
+    alumno: "Alumno",
+    correo: "Correo",
+    estadoPago: "Estado de pago",
+    desde: "Desde",
+    acceso: "Acceso",
+    acciones: "Acciones",
+  },
+  sinCambios: "Sin cambios",
+  seleccionarPagina: "Seleccionar los de esta página",
+  seleccionarA: (nombre: string) => `Seleccionar a ${nombre}`,
+  marcarDeudor: "Marcar como deudor",
+  marcarAlCorriente: "Marcar al corriente",
+  restringir: "Restringir",
+  restablecer: "Restablecer",
+  // El nombre accesible de un botón de fila: la acción y el alumno en un solo texto sr-only (§7.9).
+  accionSobre: (accion: string, nombre: string) => `${accion} ${nombre}`,
+  seleccionados: (cuantos: number) =>
+    cuantos === 1 ? "1 seleccionado" : `${cuantos} seleccionados`,
+  marcarDeudores: "Marcar como deudores",
+  marcarAlCorrienteLote: "Marcar al corriente",
+  vacios: {
+    busqueda: "No encontramos alumnos con esa búsqueda",
+    todos: "Aún no hay alumnos",
+    deudores: "No hay alumnos deudores",
+    alCorriente: "No hay alumnos al corriente",
+  },
+  error: "No pudimos cargar los alumnos. Revisa tu conexión e inténtalo de nuevo.",
+  cambioMientrasLaVeias: "La lista cambió mientras la veías. Vuelve a abrirla para verla completa.",
+  cargarMas: "Cargar más alumnos",
+} as const
+
+// El filtro (NativeSelect): "Todos" no manda estadoPago.
+export const OPCIONES_FILTRO_DE_ESTADO_PAGO: readonly {
+  valor: FiltroDeEstadoPago
+  texto: string
+}[] = [
+  { valor: "todos", texto: "Todos" },
+  { valor: "deudor", texto: "Deudores" },
+  { valor: "al_corriente", texto: "Al corriente" },
+]
+
+export const IDS_FILTROS_DE_ESTADO_PAGO = {
+  campo: "buscar-alumnos-estado-pago",
+  ayuda: "buscar-alumnos-estado-pago-ayuda",
+  error: "buscar-alumnos-estado-pago-error",
+  filtro: "filtro-estado-pago",
+} as const
+
+// ADMIN-01g (§D-11, Enmienda 15; T-E14): el diálogo del lote. Los dos textos de la validación local son los
+// de estadoPagoLoteSchema (shared/src/usuarios-admin.ts), copiados con el mismo literal (los amarra
+// ADM-1G24): la vista los elige por la incidencia, sin leer el mensaje de zod.
+export const TEXTOS_LOTE = {
+  titulo: "Cambiar el estado de pago",
+  texto: (cuantos: number, destino: EstadoPago) => {
+    if (cuantos === 1 && destino === "deudor") return "Se marcará 1 alumno como deudor."
+    if (cuantos === 1) return "Se marcará 1 alumno al corriente."
+    if (destino === "deudor") return `Se marcarán ${cuantos} alumnos como deudores.`
+    return `Se marcarán ${cuantos} alumnos al corriente.`
+  },
+  confirmar: "Sí, cambiar",
+  cancelar: "Cancelar",
+  eligeAlMenosUno: "Elige al menos un alumno",
+  maximo: "No puedes cambiar más de 100 alumnos a la vez",
+  aviso: (cuantos: number) =>
+    cuantos === 1
+      ? "Estado de pago actualizado"
+      : `Estado de pago actualizado en ${cuantos} alumnos`,
+} as const
+
+// ADMIN-01g (§D-11, T-E14): /admin/movimientos.
+export const TEXTOS_MOVIMIENTOS = {
+  titulo: "Movimientos de inscripción",
+  columnas: {
+    fecha: "Fecha",
+    clase: "Clase",
+    alumno: "Alumno",
+    movimiento: "Movimiento",
+    hechoPor: "Hecho por",
+  },
+  tipos: {
+    alta: "Alta",
+    baja: "Baja",
+  },
+  vacio: "Aún no hay movimientos",
+  error: "No pudimos cargar los movimientos. Revisa tu conexión e inténtalo de nuevo.",
+  cambioMientrasLaVeias: "La lista cambió mientras la veías. Vuelve a abrirla para verla completa.",
+  cargarMas: "Cargar más movimientos",
 } as const

@@ -16,6 +16,10 @@ import type {
   AccesoDeLaFila,
   BusquedaDeLaTabla,
   CampoFormularioAdmin,
+  ErrorLocalDelLote,
+  EstadoPago,
+  FiltroDeEstadoPago,
+  SeleccionDeAlumnos,
   ErroresFormularioAdmin,
   EstadoEnlaceRegistro,
   FiltroDeRol,
@@ -185,4 +189,64 @@ export const formatearFechaCorta = (iso: string): string => {
   const fecha = new Date(iso)
   if (Number.isNaN(fecha.getTime())) return iso
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(fecha)
+}
+
+// ADMIN-01g (§D-11): el estado de pago que manda el filtro: "Todos" no lo manda.
+export const estadoDelFiltro = (filtro: FiltroDeEstadoPago): EstadoPago | undefined =>
+  filtro === "todos" ? undefined : filtro
+
+// ADMIN-01g (§D-7.1, Enmienda 5 y Enmienda 14): la consulta de una página de /admin/estado-pago. Siempre
+// rol=estudiante; estadoPago solo con "Deudores" o "Al corriente"; en las páginas siguientes, el cursor y la
+// posición de su fila, codificados.
+export const consultaDeAlumnos = (
+  q: string | undefined,
+  estadoPago: EstadoPago | undefined,
+  pagina: PaginaDeUsuarios | undefined,
+): string => {
+  const parametros = new URLSearchParams()
+  if (q !== undefined) parametros.set("q", q)
+  parametros.set("rol", "estudiante")
+  if (estadoPago !== undefined) parametros.set("estadoPago", estadoPago)
+  if (pagina !== undefined) {
+    parametros.set("cursor", pagina.cursor)
+    if (pagina.cursorNombre !== undefined) parametros.set("cursorNombre", pagina.cursorNombre)
+  }
+  return parametros.toString()
+}
+
+// ADMIN-01g (§D-11, Enmienda 15, criterio de T-01): la selección vigente son los ids elegidos cuya fila
+// está en la lista con el mismo estado de pago que al elegirla. Sin lista, ninguno.
+export const seleccionVigente = (
+  seleccion: SeleccionDeAlumnos,
+  filas: readonly UsuarioAdminFila[] | undefined,
+): SeleccionDeAlumnos => {
+  if (filas === undefined) return {}
+  const vigente: Record<string, EstadoPago> = {}
+  for (const fila of filas) {
+    const elegido = seleccion[fila.id]
+    if (elegido !== undefined && fila.estadoPago === elegido) vigente[fila.id] = elegido
+  }
+  return vigente
+}
+
+// El estado contrario, el que manda «Marcar…» de una fila.
+export const estadoContrario = (estado: EstadoPago): EstadoPago =>
+  estado === "deudor" ? "al_corriente" : "deudor"
+
+// ADMIN-01g (§D-11, Enmienda 15): el rechazo local del lote, por la incidencia de estadoPagoLoteSchema en
+// alumnoIds (sin leer su mensaje): sin ids, "minimo"; con más de 100, "maximo".
+export const errorLocalDelLote = (
+  incidencias: readonly { path: readonly PropertyKey[]; code: string }[],
+): ErrorLocalDelLote | null => {
+  const deLosAlumnos = incidencias.filter((incidencia) => incidencia.path[0] === "alumnoIds")
+  if (deLosAlumnos.some((incidencia) => incidencia.code === "too_small")) return "minimo"
+  if (deLosAlumnos.some((incidencia) => incidencia.code === "too_big")) return "maximo"
+  return null
+}
+
+// ADMIN-01g (§D-7.7): /admin/movimientos pide solo el cursor (sin posición, §D-2).
+export const consultaDeMovimientos = (cursor: string | undefined): string => {
+  const parametros = new URLSearchParams()
+  if (cursor !== undefined) parametros.set("cursor", cursor)
+  return parametros.toString()
 }

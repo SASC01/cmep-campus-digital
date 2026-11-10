@@ -59,8 +59,13 @@ const DIEZ: readonly (readonly [string, string])[] = [
 
 // ADMIN-01f ronda 0 (C-35): los formularios de T-05 que ganan la guarda con una ref antes de la de
 // isPending (§D-11, Enmienda 9). En 01f, solo el de corregir el correo.
+// ADMIN-01g ronda 0 (C-38, Enmienda 9 y Enmienda 15; filas 8 a 10 de CHORE-04): suman invitar maestro,
+// la invitación masiva y generar enlace.
 const CON_REF: ReadonlySet<string> = new Set([
   "/src/features/admin/components/formulario-corregir-correo.tsx",
+  "/src/features/admin/components/formulario-invitar-maestro.tsx",
+  "/src/features/admin/components/formulario-invitacion-masiva.tsx",
+  "/src/features/admin/components/formulario-generar-enlace.tsx",
 ])
 
 // ADMIN-01f ronda 0 (C-35): los formularios nuevos de 01f que pueden reiniciar su mutación
@@ -70,6 +75,8 @@ const REINICIAN_EN_01F: readonly string[] = [
   "/src/features/admin/components/formulario-alta-alumno.tsx",
   "/src/features/admin/components/dialogo-restringir-acceso.tsx",
   "/src/features/admin/components/estado-de-pago-de-cuenta.tsx",
+  // ADMIN-01g ronda 0 (C-38): el diálogo del lote (§D-11, Enmienda 9, "Reinicios").
+  "/src/features/admin/components/dialogo-estado-pago-lote.tsx",
 ]
 
 describe("ataque CHORE-03 03c r2 · estática final del encargo", () => {

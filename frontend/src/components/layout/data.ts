@@ -1,4 +1,4 @@
-import { House, School, UserPlus, Users } from "lucide-react"
+import { ArrowLeftRight, House, School, UserPlus, Users, Wallet } from "lucide-react"
 
 import type { VarianteDeClase } from "@/lib/variante-de-clase"
 
@@ -56,12 +56,26 @@ export const DESTINOS_POR_ROL: Record<Rol, readonly Destino[]> = {
   // AUTH-03b: el admin gana "Maestros" (/admin/maestros), enlaces de registro e invitación masiva.
   // CLASES-02c (P-07 a): "Clases" lleva a la lista institucional y queda activo en sus subrutas.
   // ADMIN-01f (§D-11, Enmienda 1): "Cuentas" pasa a "Inicio" (el dashboard, solo en /admin exacto) y
-  // entra "Usuarios", activo también en la ficha de una cuenta.
+  // entra "Usuarios", activo también en la ficha de una cuenta. ADMIN-01g (ADM-1G13): suman "Estado de
+  // pago" y "Movimientos", exactos, en el orden final: Inicio, Usuarios, Estado de pago, Clases,
+  // Maestros, Movimientos.
   admin: [
     { etiqueta: "Inicio", ruta: "/admin", icono: House, coincidencia: "exacta" },
     { etiqueta: "Usuarios", ruta: "/admin/usuarios", icono: Users, coincidencia: "prefijo" },
-    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus, coincidencia: "exacta" },
+    {
+      etiqueta: "Estado de pago",
+      ruta: "/admin/estado-pago",
+      icono: Wallet,
+      coincidencia: "exacta",
+    },
     { etiqueta: "Clases", ruta: "/admin/clases", icono: School, coincidencia: "prefijo" },
+    { etiqueta: "Maestros", ruta: "/admin/maestros", icono: UserPlus, coincidencia: "exacta" },
+    {
+      etiqueta: "Movimientos",
+      ruta: "/admin/movimientos",
+      icono: ArrowLeftRight,
+      coincidencia: "exacta",
+    },
   ],
 }
 

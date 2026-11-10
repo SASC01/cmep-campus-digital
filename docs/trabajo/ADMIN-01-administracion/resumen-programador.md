@@ -3430,3 +3430,620 @@ T-01 corregido. T-02 corregido.
 - Hermano de T-02 fuera de "Se toca": `features/calificaciones/mis-calificaciones-view.tsx` (modal de cálculo). Para ese hermano, PARADA con la lista de arriba.
 - Observación: el diálogo de borrar una clase en `/admin/clases` (`clases-admin-view.tsx`, fuera de "Se toca").
 - Observación para 01g: la fila y el lote de estado de pago (T-01).
+
+## ADMIN-01g — Implementación (2026-11-09)
+
+**Estado: terminado, sin PARADA de código.** Queda una observación de R-23 (un hermano en vistas de 01f, fuera de "Se toca"), al final.
+
+- **Plan:** `plan.md` = `d42d343530f61a0774093cd29acd91ccadf5a12b7c0d324639daeace43f4a46d` (Enmiendas 1 a 15), comprobado al empezar.
+- **Base de "No se toca" dentro de los paquetes:** `1566196`.
+- **Entorno:** nadie más corría suites (dato del orquestador). Una corrida después de otra, sin navegadores y sin commit. `BatteryStatus` 2 (corriente) al terminar.
+- **Escapes:** el carácter nulo, como `String.fromCharCode(0)`; ningún invisible literal.
+- **Pasos:** 29 y 30, completos.
+
+### Archivos tocados contra "Se toca" (§D-R0 01g, "Enmienda 15": 20 de producción)
+- **Nuevos (6):**
+  - `features/admin/estado-pago-view.tsx`;
+  - `features/admin/movimientos-view.tsx`;
+  - `features/admin/components/tabla-estado-pago.tsx` (la fila vive aquí, con sus dos `enEspera=`);
+  - `features/admin/components/barra-de-lote.tsx`;
+  - `features/admin/components/dialogo-estado-pago-lote.tsx`;
+  - `features/admin/components/tabla-movimientos.tsx`.
+- **Cambiados (14):**
+  - en `features/admin/components/`:
+    - `tabla-enlaces.tsx` (E-01, E-07, E-18);
+    - `registrados-del-enlace.tsx` (E-07);
+    - `enlace-nuevo.tsx` (E-14);
+    - `resultado-invitacion-masiva.tsx` (E-17);
+    - `formulario-generar-enlace.tsx`, `formulario-invitacion-masiva.tsx` y `formulario-invitar-maestro.tsx` (refs de las filas 8 a 10);
+  - en `features/admin/`: `hooks.ts`, `data.ts` (E-16 y los textos de T-E14), `lib.ts` y `types.ts`, que solo suman o quitan lo de E-16;
+  - `components/layout/data.ts` (seis destinos);
+  - `components/layout/barra-navegacion.tsx` (E-06);
+  - `app/router.tsx`.
+- **No toqué:** `inicio-admin-view.tsx`, `maestros-view.tsx`, `usuarios-view.tsx`, `usuario-view.tsx`, `dialogo-restringir-acceso.tsx`, `estado-de-pago-de-cuenta.tsx`, `components/estado-pago-badge.tsx` ni `components/foco/`. `backend/`, `shared/` e `infra/` no cambian.
+- **Pruebas normales:**
+  - lista cerrada: `lib/errores-de-api-estatico.test.ts` (CH3-C13: título, `CON_REF` con las cuatro rutas y `DE_01F` + `tabla-enlaces.tsx#revocar` y `dialogo-estado-pago-lote.tsx#cambiarLote`, nada más) y `components/layout/contenedor-rol.test.tsx` (seis enlaces; la tabla suma `/admin/`, `/admin/estado-pago` y `/admin/movimientos`; el caso de prefijo no cambia);
+  - nuevas: `features/admin/estado-pago-01g.test.tsx`, `movimientos-01g.test.tsx`, `maestros-01g.test.tsx` y `lib-01g.test.ts`.
+- No toqué ningún `*.ataque`.
+- **E-16:** antes de borrar cada clave, la busqué en todo `frontend/src`, con las pruebas incluidas. Ninguna la leía, salvo `TEXTOS_CUENTAS.invitar.exito` y `.ficha.correoActualizado`, que se quedan.
+
+### Verificación (comando exacto y última línea; desde `frontend/`)
+- **lint:** `npm run lint` → exit 0; última línea `> tsc -b`.
+- **build:** `npm run build` → exit 0; última línea `✓ built in 926ms`.
+- **Módulos:** `npx vitest run src/features/admin src/components/layout` → `Tests  1173 passed (1173)` (`Test Files  34 passed (34)`). Incluye los C-n de `features/admin` (C-19c en `cuentas-r1`), las vigiladas de `features/admin` (`rutas-ch3-r1`, `maestros-*`, `formularios-ch3`, `errores-ch3-r1`, `ficha-01f`, `usuarios-01f`, `usuarios-01f-r1` y `-r2.ataque`) y los cuatro casos integrados de 01f (R-23), todos en verde.
+- **C-n fuera de los módulos y vigiladas:** `npx vitest run` con las 26 rutas siguientes → `Tests  645 passed (645)` (`Test Files  26 passed (26)`):
+  - `src/app/marco-r1.ataque.test.tsx`, `src/app/rutas-02c-r1.ataque.test.tsx`, `src/app/registro-maestro-03b-r1.ataque.test.tsx`;
+  - `src/styles/clases-r1.ataque.test.ts`;
+  - `src/lib/estatico-ch3-r2.ataque.test.ts`, `src/lib/estatico-ch3-r1.ataque.test.ts`, `src/lib/errores-de-api-estatico.test.ts`;
+  - `src/app/errores-r1.ataque.test.tsx`, `src/app/en-espera-r1.ataque.test.tsx`, `src/app/contexto-r1.ataque.test.tsx`;
+  - `src/features/clases/clase-archivada-01d2-vista.test.tsx`, `src/features/clases/estatico-03c1-r1.ataque.test.ts`;
+  - `src/services/apiClient-ch3-r1.ataque.test.ts`, `src/services/apiClient-ch3.test.ts`;
+  - `src/app/barra-02d-r1.ataque.test.tsx`, `src/app/router.ataque.test.tsx`, `src/app/marco.test.tsx`;
+  - `src/features/auth/rutas-ch3-r1.ataque.test.tsx`;
+  - `src/app/router.test.tsx`, `src/app/fondo-r1.ataque.test.tsx`;
+  - `src/lib/errores-ch3-r1.ataque.test.ts`, `src/lib/errores-ch3-r2.ataque.test.ts`, `src/lib/unir-paginas.test.ts`;
+  - `src/features/clases/clases-admin-01c-rutas.test.tsx`;
+  - `src/features/calificaciones/estatico-01d.test.ts`, `src/features/calificaciones/estatico-01d-r1.ataque.test.ts`.
+- **build de `shared/` y `prisma validate`:** n/a.
+
+### Conteos (`npx vitest list <archivo> | grep -ac ' > '`)
+| Archivo | Casos | Nuevo o cambiado |
+|---|---|---|
+| `estado-pago-01g.test.tsx` | 75 | nuevo |
+| `movimientos-01g.test.tsx` | 8 | nuevo |
+| `maestros-01g.test.tsx` | 7 | nuevo |
+| `lib-01g.test.ts` | 7 | nuevo |
+| `components/layout/contenedor-rol.test.tsx` | 25 | cambiado |
+| `lib/errores-de-api-estatico.test.ts` | 5 | cambiado |
+
+### Estado de cada C-n (rojo de la ronda 0 → ahora)
+- **C-18** (`app/marco-r1`, `app/rutas-02c-r1`): rojo → verde. Seis destinos en el orden de O-01g-1 (Inicio, Usuarios, Estado de pago, Clases, Maestros, Movimientos), y `/admin/` con «Inicio» activo.
+- **C-48** (`app/registro-maestro-03b-r1`): rojo → verde.
+- **C-19 y C-19b** (`styles/clases-r1`): rojo → verde. V-06 con 90 (`tabla-estado-pago.tsx` 2, `dialogo-estado-pago-lote.tsx` 1, cada vista 1, la barra y `tabla-movimientos.tsx` 0; `restoAdmin` sigue en 2). V-07 con el diálogo del lote entre los atributos del contexto.
+- **C-19c** (`features/admin/cuentas-r1`): rojo → verde.
+- **C-38** (`lib/estatico-ch3-r2`): rojo → verde.
+- **C-39** (`lib/estatico-ch3-r1`): verde → verde.
+- **Un tropiezo propio, corregido antes de la corrida final:** escribí `enEspera=` en tres comentarios nuevos y V-06 los contó (93 en lugar de 90). Los reescribí.
+
+### Vigiladas (si cambian, PARADA)
+Ninguna cambió; todas están en verde en las dos corridas de arriba.
+- `/admin/maestros` sigue con tres llamadas al montarse (`app/errores-r1`).
+- `features/admin/rutas-ch3-r1` sigue con `inesperadas` estricta: E-07, E-14, E-17, E-18 y las refs no suman ninguna consulta al montar.
+- El `role="status"` de `EnlaceNuevo` sigue siendo uno y con el mismo texto.
+- E-17: `maestros-03c-r1:237` lee el mismo `textContent`.
+- V-16 y los valores arbitrarios (`components/layout/estatico-r1`): sin corchetes nuevos; la barra de lote no es `fixed`.
+- `contexto-r1`, `marco-r1` (una navegación, rutas existentes y "Administración" una vez), `clase-archivada-01d2-vista` y C-45 y C-46.
+
+### Pruebas requeridas (01g) → archivo y título exacto
+Abreviaturas de los archivos:
+- `E` = `frontend/src/features/admin/estado-pago-01g.test.tsx`
+- `M` = `frontend/src/features/admin/movimientos-01g.test.tsx`
+- `MA` = `frontend/src/features/admin/maestros-01g.test.tsx`
+- `L` = `frontend/src/features/admin/lib-01g.test.ts`
+- `CR` = `frontend/src/components/layout/contenedor-rol.test.tsx`
+
+Un título con `%s` es un `it.each`; entre paréntesis, sus filas.
+- **ADM-1G01** → `E`: "ADM-1G01: la búsqueda manda q con rol=estudiante; el filtro manda estadoPago; la selección (de una en una y la de la cabecera), la barra, el diálogo con el conteo, una petición con los ids y el aviso con N" y "ADM-1G01: «Marcar…» de la fila va sin diálogo, con una petición por dos clics y el estado contrario"; vacíos y «Desde»: "la columna «Desde» dice la fecha o «Sin cambios»; vacíos según el filtro y la búsqueda".
+- **ADM-1G01b** (a)–(d) → `E` "ADM-1G01b %s: un solo MensajeError en la fila, sin aviso ni inglés; la fila conserva su estado, su botón sale de la espera y la selección no cambia" (6 filas, con `estadoPago:` real en inglés); (e) → "ADM-1G01b (e): con el mensaje de la fila a la vista, abrir el diálogo del lote lo quita; con la única elegida fuera de la selección, «Sí, cambiar» deja exactamente un alert, el del diálogo; al cerrar, ninguno"; hermano → "ADM-1G01b (e), hermano: con el mensaje de la fila a la vista, abrir el diálogo de restringir de otra fila lo quita y al cerrarlo no vuelve"; M-25 → "ADM-1G01b (M-25): con la tabla en error, un diálogo abierto cuya acción falla deja dos alert en el documento y uno accesible, el del diálogo; al cerrarlo queda el de carga".
+- **ADM-1G02** (a), (b), (c) y (e) → `E` "ADM-1G02 %s: un solo MensajeError en el diálogo, sin aviso ni inglés; la selección se conserva y el botón sale de la espera" (6 filas, con `estadoPago:` real en inglés y `motivo:`); (d) → "ADM-1G02 (d) y ADM-1G18 (c): un rechazo del servidor y después, con la fila elegida cambiada, «Sí, cambiar» da «Elige al menos un alumno», un solo mensaje y sin petición".
+- **ADM-1G03** → `E` "ADM-1G03: «Restringir» abre el diálogo (contexto opaco y denso, foco en «Cancelar»), manda el motivo y el botón pasa a «Restablecer», con el foco en él" (con «Restablecer» sin diálogo y una petición por dos clics) y "ADM-1G03: «Cancelar» del diálogo de restringir devuelve el foco a «Restringir» de su fila". Los casos de ADM-1F08 del diálogo los cubre `ficha-01f.test.tsx`, porque el componente es el mismo y no cambia.
+- **ADM-1G04** → `M`:
+  - "ADM-1G04: la tabla con sus columnas, «Alta» o «Baja» y «Hecho por»; «Cargar más movimientos» pide solo el cursor, una vez con dos clics, y al cargar la última página el foco va al h1";
+  - "ADM-1G04: sin movimientos, «Aún no hay movimientos»";
+  - la frase de cursor vencido por cada camino, en las filas "la lista cambiada" de "ADM-1G04 y ADM-1G12, con %s, camino (a): …", "… camino (b): …" y "… camino (d): …".
+- **ADM-1G05** → `MA`:
+  - "ADM-1G05: dos clics hacen una sola petición en generar enlace, invitación masiva e invitar maestro";
+  - "ADM-1G05 y ADM-1G10: «Cargar más enlaces» con isFetching, cancelRefetch: false y ref (una petición por dos clics); en la última página el foco va a «Ver registrados» del primer enlace nuevo";
+  - "ADM-1G05: «Cargar más» de registrados con isFetching y ref: una petición por dos clics".
+- **ADM-1G06** → `MA` "ADM-1G06: el error de «Sí, revocar» no reaparece al reabrir la confirmación".
+- **ADM-1G07** → `MA` "ADM-1G07: el role=status de «Enlace nuevo» no contiene «Copiar enlace»".
+- **ADM-1G08** → `CR` "en %s solo queda activo %j", fila `/admin/` → «Inicio» (y C-18 de `rutas-02c-r1`, verde).
+- **ADM-1G09** → `MA` "ADM-1G09 y ADM-1G22 (E-17): el texto de cada línea inválida va en <bdi> y la línea se lee igual".
+- **ADM-1G10** → `MA` "ADM-1G05 y ADM-1G10: …" (arriba).
+- **ADM-1G11** → `E`:
+  - "ADM-1G11 (a) y ADM-1G14 (b): pulsar «Estado de pago» estando aquí pide la primera página del filtro sin cursor; el texto desaparece y la selección se vacía";
+  - "ADM-1G11 (b): ir a otra sección y regresar antes del staleTime pide la primera página y el texto desaparece";
+  - "ADM-1G11 (c): cambiar el filtro y volver al de antes pide la primera página del filtro y el texto desaparece";
+  - "ADM-1G11 (d): atrás y adelante del historial dejan la tabla sin el texto ni selección".
+- **ADM-1G12**:
+  - `/admin/estado-pago`, en `E`:
+    - "ADM-1G12 (a): pulsar «Estado de pago» con la tabla en error la vuelve a pedir y el texto desaparece";
+    - "ADM-1G12 (b): ir a otra sección y regresar antes del staleTime la vuelve a pedir";
+    - "ADM-1G12 (d): atrás, adelante y atrás del historial la vuelven a pedir";
+    - (c) → "ADM-1G12 (c) y ADM-1G16 (e): con la clave de «Deudores» en error (%s), cambiar el filtro y volver la vuelve a pedir y, con 200, el texto desaparece" (3 filas: 5xx en su primera carga, 400 de `estadoPago` en inglés en su primera carga y 400 fuera de contrato en una recarga con datos).
+  - `/admin/movimientos`, en `M`: las filas "el error de carga" de los caminos (a), (b) y (d).
+- **ADM-1G13** → `CR` "con rol admin, hay seis enlaces: 'Inicio' hacia /admin, 'Usuarios' hacia /admin/usuarios, 'Estado de pago' hacia /admin/estado-pago, 'Clases' hacia /admin/clases, 'Maestros' hacia /admin/maestros y 'Movimientos' hacia /admin/movimientos" y "en %s solo queda activo %j" (con `/admin/estado-pago` y `/admin/movimientos`); además C-18 y C-48, verdes.
+- **ADM-1G14**:
+  - (a) → `E` "ADM-1G14 (a): «Cargar más alumnos» pide la página siguiente con el filtro, rol, cursor y cursorNombre codificado";
+  - (b) → los cuatro casos de ADM-1G11 (la causa es el `400` "cursor: no es válido");
+  - (c) → `M` "ADM-1G04: …" (solo `cursor`) y `L` "estadoContrario y la consulta de movimientos (ADM-1G14 c: solo cursor)".
+- **ADM-1G15** → `E` "ADM-1G15 y ADM-1G20 (b): la segunda página trae solo una fila repetida: se pinta una vez, con una casilla; la cabecera y la barra la cuentan una vez; el lote no la repite; sin aviso de claves; el foco va al h1".
+- **ADM-1G16**:
+  - (a)–(d) → `E` "ADM-1G16 (a, b, c, d): la primera carga sin q; corto, largo y con el nulo no mandan q; el largo marca el campo; el nulo muestra el vacío sin pedir; «Todos» no manda estadoPago";
+  - (e) → `E` "ADM-1G16 (e) con %s: el texto fijo de la tabla, sin aviso ni texto del servidor; editar la búsqueda vuelve a pedir y, con 200, el texto desaparece" (3 filas: q con el nulo, `BUSQUEDA_MUY_CORTA` y "estadoPago: Solo se filtra…"), y las filas (c) de ADM-1G12, con el `estadoPago` real en inglés.
+- **ADM-1G17** → `E`:
+  - (a, b) → "ADM-1G17 (a, b): la fila pinta el estado del servidor y su botón el contrario; una recarga o la respuesta de restringir con otro estado los cambian";
+  - (c) → "ADM-1G17 (c): «Marcar…» en vuelo y una recarga con el otro estado: lo enviado es el contrario al de antes; al asentarse, la fila muestra la última respuesta";
+  - (d) y (e) con "repetir el control" → "ADM-1G17 (e) con %s: un solo MensajeError en la fila, sin aviso; repetir el mismo «Marcar…» con 200 lo quita y avisa una vez" (3 filas: 5xx, red y 400 en inglés);
+  - (e) en M-23 → "ADM-1G17 (e): un error en una fila y después «Marcar…» en otra: solo el de la segunda si falla, ninguno si sale bien; y «Restablecer» en la misma fila deja solo su mensaje";
+  - (f) → "ADM-1G17 (f): con la fila desmontada en vuelo (otra sección), un error avisa una vez; un 401 no avisa; sin errores en la consola" (el `401` lo cubre ADM-1G20 c) y "ADM-1G17 (f): con éxito y la fila desmontada (otro filtro que la saca), el aviso de éxito sale una vez";
+  - (g) → "ADM-1G17 (g): dos filas en vuelo a la vez, cada una con su espera" y "ADM-1G01: «Marcar…» de la fila va sin diálogo, con una petición por dos clics…".
+- **ADM-1G18** → `E`:
+  - (a) → "ADM-1G18 (a): una recarga con otro estado saca la fila elegida de la selección y no vuelve aunque la fila regrese a su estado";
+  - (b, e) → "ADM-1G18 (b) y (e): una fila elegida que sale de la lista sale de la selección; cambiar el filtro o la búsqueda la vacía y volver no la recupera";
+  - (c) → "ADM-1G02 (d) y ADM-1G18 (c): …";
+  - (d) → "ADM-1G18 (d): «Seleccionar los de esta página» con más de 100 filas: «No puedes cambiar más de 100 alumnos a la vez», sin petición";
+  - (f) → "ADM-1G18 (f): con un elegido, el aviso es «Estado de pago actualizado», la selección se vacía y el foco va al h1 (la barra ya no se pinta)", "ADM-1G18 (f): un error deja el diálogo abierto con un mensaje y la selección y el destino; repetir con 200 lo quita, cierra y avisa una vez, con los mismos ids" y "ADM-1G18 (f): «Cancelar» del lote devuelve el foco a su botón de la barra";
+  - (g) → "ADM-1G18 (g): con la tabla en error, la barra no se pinta; cuando la recarga responde, la selección vigente vuelve a verse".
+- **ADM-1G19** → `E`:
+  - (a) → "ADM-1G19 (a): restringir abierto con el foco en «%s»; una recarga 200 saca la fila: el diálogo se cierra y el foco va a la raíz" (2 filas: «Cancelar» y "Motivo (opcional)" a medias);
+  - (b) → "ADM-1G19 (b): con una recarga 5xx el diálogo de restringir sigue con el foco y el motivo; al cerrarlo con Escape, el foco va al h1";
+  - (c) → "ADM-1G19 (c) y ADM-1G20 (d): el lote o restringir abiertos con una recarga 5xx: el diálogo sigue; al cerrarlo con «Cancelar», el foco va al h1";
+  - (d) → "ADM-1G19 (d): atrás y adelante del historial con cada diálogo abierto: la vista se desmonta sin errores en la consola ni avisos; al volver, sin diálogo ni selección";
+  - (e) → "ADM-1G19 (e): abrir y cerrar cada diálogo varias veces y después cambiar el filtro con el foco en un botón de la vista: el foco no salta a un control de un diálogo cerrado".
+  - **Declaración pedida:** con `incluirDialogos` en `false` en `estado-pago-view.tsx`, `npx vitest run src/features/admin/estado-pago-01g.test.tsx -t "ADM-1G19 \(a\)"` → `Tests  2 failed | 73 skipped (75)`, con `expected <body …> not to be <body …>`. Restituido a `true`, verde.
+- **ADM-1G20** → `E`:
+  - (a) → "ADM-1G20 (a): con el foco en «%s» de una fila, la búsqueda diferida la saca: el foco va a la raíz" (3 filas: marcar, acceso y casilla);
+  - (b) → "ADM-1G15 y ADM-1G20 (b): …";
+  - (c) → "ADM-1G20 (c): un 401 con el refresco fallido en %s: apiClient lleva al login; ningún mensaje ni aviso y ningún botón en espera" (5 filas: la fila, el lote, restringir, «Restablecer» y «Cargar más alumnos»); «Cargar más movimientos» con `401` no tiene caso propio, aunque aplica el mismo remedio en `movimientos-view.tsx` (ver "Pendiente");
+  - (d) → "ADM-1G19 (c) y ADM-1G20 (d): …".
+- **ADM-1G21** → `L` "ADM-1G21: las claves sin uso ya no están en data.ts y TEXTOS_MAESTROS.notaProvisional sigue". `lint` y `tsc` en verde.
+- **ADM-1G22** → `MA` "ADM-1G09 y ADM-1G22 (E-17): …" y "ADM-1G22 (E-18): la última página sin enlaces nuevos lleva el foco a «Ver registrados» de la primera fila, nunca a <body>".
+- **ADM-1G23** → `E`:
+  - (a)–(d) → "ADM-1G23 %s: un solo MensajeError en la fila, sin aviso; la fila conserva su estado y el botón sale de la espera" (6 filas);
+  - (e) → "ADM-1G23 (e): un 400 y después abrir y cerrar el diálogo de restringir de esa fila (otra fila sin restricción): el mensaje viejo no vuelve". Una fila restringida no ofrece «Restringir», así que el diálogo se abre desde otra fila: la acción vigente cambia igual;
+  - (f) → "ADM-1G23 (f): repetir «Restablecer» tras un 5xx: con 200, el mensaje se va, la fila pasa a «Sin restricción» y «Acceso restablecido» sale una vez".
+- **ADM-1G24** → `L` "ADM-1G24: sin ids, estadoPagoLoteSchema da exactamente TEXTOS_LOTE.eligeAlMenosUno; con 101 ids distintos, exactamente TEXTOS_LOTE.maximo".
+- **ADM-1F24** sigue sin cambios y recorre los cinco accesos (`cuentas-view.test.tsx`, verde en los módulos).
+
+### Matriz de avisos y recargas de 01g (confirmada contra el código)
+Definiciones:
+- **Reemplaza:** la tabla pasa a `MensajeError` (`role="alert"`), sin aviso.
+- **Redirige:** `apiClient` lo resuelve (`401` tras el refresco fallido, `ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`). Ninguna vista lo pinta ni avisa (`errorQueRedirigeElCliente`); la tabla se queda con lo que tenía, o en `Cargando` si no tenía nada.
+- **Acción vigente (M-23):** solo se pinta el mensaje de acción de la última acción de la persona en la vista.
+
+**`/admin/estado-pago`**
+
+| Disparador | 4xx / VALIDACION | 5xx o red | Redirige | Se renueva | Foco | En vuelo a la vez | Desmontada |
+|---|---|---|---|---|---|---|---|
+| Tabla, primera página | Sin reintento: reemplaza con `TEXTOS_ESTADO_PAGO.error`; "cursor:" con la frase de lista cambiada | Un reintento; después, el mismo texto | Sin texto | Pulsar «Estado de pago» (con la tabla en error: vacía la selección y pide desde la primera página); dejar la clave o desmontar la marca vieja si quedó en error; editar la búsqueda o el filtro pide otra clave | Si desaparece el control que tenía el foco (también dentro de un diálogo), a la raíz | Una consulta por clave | Marcada vieja si quedó en error |
+| «Cargar más alumnos» | `400` del cursor: la frase de lista cambiada; otro `400`: el texto de error. Reemplaza, sin aviso | Reemplaza, sin aviso (como 01c y D-7 de 01f) | Sin texto; se queda la tabla | Los caminos de arriba | Botón desaparecido con el foco: la primera casilla nueva o, sin filas nuevas, el `h1` | Ref, `isFetching` y `cancelRefetch: false`: una petición | — |
+| «Marcar…» de la fila (`cambiar`, de 01f) | Un `MensajeError` en la fila, solo si es la vigente (genérico para `estadoPago`) | Igual | Sin texto | Éxito: la ficha (`setQueryData`), las listas y el resumen; aviso "Estado de pago actualizado" | Se queda en el botón (el mismo elemento cambia de texto); si la fila sale, a la raíz | Una por fila (ref); varias filas a la vez, cada una con su espera; con dos fallos, solo el de la última pulsada | El gancho avisa el error una vez (salvo si redirige); el éxito avisa igual |
+| «Restablecer» de la fila (`restablecerAcceso`, de 01f) | Un `MensajeError` en la fila, solo si es la vigente (genérico para `restringido`) | Igual | Sin texto | Éxito: la ficha, las listas y el resumen; aviso "Acceso restablecido" | Se queda en el botón de acceso, que pasa a «Restringir» | Ref | Como «Marcar…» |
+| Diálogo del lote (`cambiarLote`) | Un `MensajeError` en el diálogo, que sigue abierto con la selección y el destino; rechazo local con 0 o con más de 100 (los textos de `shared/`, sin petición) | Igual | Sin texto | Éxito: listas, fichas y resumen; aviso con N; la selección se vacía | Cancelar o Escape: su botón de la barra o, si ya no está, el `h1`. Éxito: la barra o el `h1` | Ref; no se cierra en vuelo | Con el diálogo desmontado (historial), el gancho avisa el error una vez |
+| Diálogo de restringir (01f, montado por la vista) | Como en 01f: un `MensajeError` en el diálogo | Igual | Sin texto | Éxito: ficha, listas y resumen; aviso "Acceso restringido" | Cancelar: «Restringir» de su fila o, si ya no está, el `h1`. Éxito: «Restablecer» de la fila cuando la lista ya lo trae; si la fila sale, la raíz | Ref | Un `200` que saca la fila lo cierra (foco a la raíz); un `5xx` no lo cierra |
+| Tabla en error con un diálogo abierto | El diálogo sigue; el texto de carga queda en su lugar, inerte detrás del modal. Si falla la acción del diálogo: dos `role="alert"` en el documento y uno accesible, el del diálogo | | | | Al cerrarlo, el `h1` | | |
+
+**`/admin/movimientos`**
+
+| Disparador | Error | Se renueva | Foco |
+|---|---|---|---|
+| Lista y «Cargar más movimientos» | `400` del cursor: la frase de lista cambiada; otro error (`4xx` sin reintento, `5xx` con uno): `TEXTOS_MOVIMIENTOS.error`. Reemplazan, sin aviso; un error que redirige no se pinta | Pulsar «Movimientos», ir y volver, o el historial | Al cargar la última página con el foco en el botón, el `h1` (las filas no tienen controles) |
+
+**`/admin/maestros`**
+
+| Disparador | Comportamiento |
+|---|---|
+| "Cargar más enlaces" y "Cargar más" de registrados | Como antes en sus errores. Ahora con ref, `isFetching` y `cancelRefetch: false` (E-07); el foco, E-18 |
+| «Sí, revocar» (E-01) | El error sale al abrir o al cerrar la confirmación (salvo en vuelo) |
+| Los tres formularios | Una petición por dos clics (ref antes de la guarda `isPending`) |
+
+### Frases de recuperación y sus caminos (cada uno con su caso)
+- **"No pudimos cargar los alumnos. …"** (ADM-1G12):
+  - pulsar «Estado de pago» (a);
+  - ir a otra sección y volver (b);
+  - el historial (d);
+  - el filtro que se deja con su clave en error y se retoma (c): en la primera carga con `5xx` y con un `400` en inglés, y en una recarga con datos;
+  - editar el término (ADM-1G16 e).
+- **"La lista cambió mientras la veías. …" en `/admin/estado-pago`** (ADM-1G11 y ADM-1G14 b), en todos con la selección vaciada:
+  - pulsar «Estado de pago» (a);
+  - ir y volver (b);
+  - el filtro (c);
+  - el historial (d).
+- **`/admin/movimientos`**, con la frase de lista cambiada y con la de error de carga (ADM-1G04 y ADM-1G12): (a), (b) y (d). No tiene filtro.
+
+### Hermanos y estados vecinos de cada mecanismo
+- **Criterio de T-01 (nada local inicializado con datos del servidor)** (ADM-1G17 y ADM-1G18):
+  - La fila deriva la insignia, el botón de «Marcar…» y el botón de acceso en cada render.
+  - La selección guarda la elección con el estado de cada fila al elegirla y se recorta en el render.
+  - El destino del lote vive en el estado del diálogo.
+  - El diálogo de restringir recibe la fila de la consulta en cada render.
+  - Estados vecinos, cada uno con su caso:
+    - una elección propia frente a una respuesta con otro estado;
+    - una recarga;
+    - la respuesta de otra acción (restringir);
+    - el éxito y el error;
+    - el desmontaje en vuelo, con éxito y con error;
+    - dos filas en vuelo a la vez;
+    - una fila que sale de la lista.
+  - Ningún otro estado local nuevo viene del servidor: la barra y las tablas son de solo props.
+- **`incluirDialogos`** (ADM-1G19, ADM-1G20 d):
+  - Estados vecinos:
+    - el foco en «Cancelar» y en el motivo a medias;
+    - una recarga `200` que saca la fila (a la raíz);
+    - una recarga `5xx` (el diálogo sigue; al cerrarlo, al `h1`);
+    - el lote con un `5xx`;
+    - atrás y adelante (la vista se desmonta);
+    - abrir y cerrar varias veces y después cambiar el filtro (el foco no salta).
+  - El parámetro en `false` hace caer (a).
+  - La tabla de `/admin/movimientos` no tiene diálogos.
+- **La acción vigente** (ADM-1G01b e y su hermano, ADM-1G17 e, ADM-1G23 e, M-25):
+  - otra fila;
+  - la misma fila con otro botón;
+  - abrir el lote;
+  - abrir restringir;
+  - cerrar el diálogo (el mensaje viejo no vuelve);
+  - la tabla en error.
+- **Ref y una petición por dos clics:** las dos acciones de la fila, el lote, «Cargar más alumnos», «Cargar más movimientos», «Cargar más enlaces», «Cargar más» de registrados y los tres formularios (ADM-1G05).
+- **Errores que redirigen:** no se pintan en la fila, el lote, restringir, «Restablecer», la tabla de alumnos ni la de movimientos. **Hermano en 01f (R-23, fuera de "Se toca" de 01g):** `usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx` pintan su texto de error de carga ante un `401` tras el refresco fallido, aunque `apiClient` ya lleva al login. En 01g no lo toco. No lo ataca ningún caso de hoy: los cuatro casos integrados de 01f siguen en verde. Lo dejo como observación para el manager y el humano (R-23).
+- **E-01:** «Sí, revocar» (ADM-1G06) se suma a la confirmación de restablecer de la ficha (01f), con el mismo criterio. No hay otra confirmación en línea en `features/admin`.
+- **E-14:** `EnlaceNuevo` se suma a `ContrasenaTemporal` (E-27 de 01f). No hay otro `role="status"` que envuelva un botón en `features/admin`.
+
+### Desviaciones del plan
+- **D-1 (aclaración, no cambia el comportamiento).** Para que se cumplan ADM-1G20 (c) y la fila "401" de la matriz, la tabla de alumnos y la de movimientos no pintan su texto de error ante un error que redirige: se quedan con lo que había. La matriz de 01g ya lo pedía; lo declaro porque es una rama nueva en las dos vistas.
+- **D-2 (pruebas).** Algunos casos de `estado-pago-01g.test.tsx` usan su propio `QueryClient` con la configuración de `app/providers.tsx` (`retry: 1`, `refetchOnWindowFocus: false`, `staleTime: 30_000`) en lugar de `Providers`. Así pueden simular "otro admin cambió la cuenta" con `invalidateQueries`. `movimientos-01g` y `maestros-01g` usan `Providers`.
+- Ningún texto fuera de §D-12, T-E14 o el código: los cotejé contra la lista de la Enmienda 15. El nombre accesible de los botones de fila se compone de esos textos y el nombre del alumno, como `accionSobre` de 01c.
+
+### Pendiente o fuera de alcance
+- R-23: el hermano de "errores que redirigen" en las vistas de 01f (arriba).
+- «Cargar más movimientos» con un `401` no tiene caso propio; el remedio es el mismo de la tabla de alumnos, que sí lo tiene.
+- `DESIGN.md` (A-04, al cierre, a cargo del orquestador): la tabla con selección múltiple y la barra de lote (§7.9), y la casilla nativa con `accent-primary` (no hay un componente de casilla en `components/ui/`).
+
+## ADMIN-01g — Corrección de la verificación (2026-11-09)
+
+Responde a `revision.md`, "## Verificación del resumen — ADMIN-01g — implementación" (línea 7506): M-26 y M-27. Ya estaban aceptados D-1, D-2, ADM-1G03 y la casilla nativa con `accent-primary`. No toqué `components/layout/lib.ts` ni `app/providers.tsx` (N-01g-1 y N-01g-2 quedan para el cierre) ni ningún `*.ataque`. Sin commit ni navegadores; una corrida después de otra (nadie más corre suites, dato del orquestador).
+
+### Hallazgos
+- **M-26: corregido, sin PARADA.**
+  - En `features/admin/components/tabla-estado-pago.tsx`, la etiqueta que envuelve cada casilla (la de la fila y la de la cabecera) pasa de `inline-flex items-center` a `inline-flex size-(--control-height) cursor-pointer items-center justify-center`.
+  - El área pulsable mide 44 × 44 px y, desde 768 px en el contexto denso del administrador, 36 × 36 px (`styles/tokens.css:70` y `:93-98`), como pide `DESIGN.md` §6.
+  - Es el mismo mecanismo que `size-(--control-height)` de `button-variants.ts` (`icon`) y `barra-superior.tsx:40`: una variable CSS, sin corchetes. La regla de valores arbitrarios de `components/layout/estatico-r1` no la cuenta, V-06 y V-07 no la tocan, y las tres siguen en verde.
+  - La casilla se sigue viendo de 16 px (`size-4`). El nombre accesible sigue saliendo del texto `sr-only`, sin `aria-label`.
+- **Hermanos de M-26 (controles nuevos de 01g por debajo del mínimo):**
+  - **«Marcar…» y el botón de acceso («Restringir» o «Restablecer») de la fila:** iban con `size="sm"` (`h-9`, 36 px también por debajo de 768 px). **Aplicado:** pasan al tamaño por omisión (`h-(--control-height)`).
+  - **«Marcar como deudores» y «Marcar al corriente» de la barra de lote:** también `size="sm"`. **Aplicado:** tamaño por omisión.
+  - **Revisados sin cambio:**
+    - «Cargar más alumnos» y «Cargar más movimientos», tamaño por omisión;
+    - el buscador y el filtro (`Input` y `NativeSelect`, `h-(--control-height)`);
+    - «Sí, cambiar» y «Cancelar» del diálogo del lote, tamaño por omisión;
+    - el diálogo de restringir, de 01f, sin cambio.
+  - **`/admin/movimientos`:** solo tiene «Cargar más movimientos»; sus filas no tienen controles.
+  - **Fuera de los controles nuevos (observación, sin cambio):**
+    - los botones de fila de `tabla-enlaces.tsx` («Ver registrados», «Revocar», «Sí, revocar» y «Cancelar»; existían antes de 01g y van con `size="sm"`). 01g los toca solo por E-01 y E-18; cambiar su tamaño queda fuera de lo pedido;
+    - lo mismo en `tabla-clases-admin.tsx` de 01c, que no está en "Se toca".
+    Los dejo para el cierre.
+- **M-27: corregido.** `features/admin/movimientos-01g.test.tsx` suma dos casos y un control del refresco fallido en su doble (`refrescoFalla`):
+  - "ADM-1G20 (c): un 401 con el refresco fallido en «Cargar más movimientos»: lleva al login; ningún mensaje ni aviso y ningún botón en espera";
+  - "ADM-1G20 (c), estado vecino: un 401 con el refresco fallido en la primera carga: lleva al login; ningún mensaje ni aviso".
+  - Sin la guarda de `errorQueRedirigeElCliente` en `movimientos-view.tsx`, los dos caen: `npx vitest run src/features/admin/movimientos-01g.test.tsx -t "401"` → `Tests  2 failed | 8 skipped (10)`. Con la guarda, verdes. El código de la vista no cambió en esta vuelta.
+- **Casos de M-26** en `features/admin/estado-pago-01g.test.tsx`:
+  - "M-26: la etiqueta de cada casilla (la de la fila y la de la cabecera) mide un control; el nombre sigue saliendo del texto sr-only, sin aria-label";
+  - "M-26: los botones de la fila y de la barra de lote tienen el tamaño de un control (no el pequeño)", que comprueba `data-size="default"` en «Marcar…», el de acceso y los dos de la barra.
+  - jsdom no calcula tamaños; las dos pruebas comprueban la clase y la variante. La medida real (36 y 44 px) entra en la comprobación humana H-6, a 360 px.
+
+### Archivos de esta vuelta
+- **Producción:**
+  - `frontend/src/features/admin/components/tabla-estado-pago.tsx` (las dos etiquetas, los dos botones y el comentario);
+  - `frontend/src/features/admin/components/barra-de-lote.tsx` (los dos botones).
+  
+  Los dos están en "Se toca".
+- **Pruebas (nuevas de 01g):** `frontend/src/features/admin/estado-pago-01g.test.tsx` (+2) y `frontend/src/features/admin/movimientos-01g.test.tsx` (+2, y el refresco fallido en el doble).
+
+### Verificación (comando exacto y última línea; desde `frontend/`)
+- **lint:** `npm run lint` → exit 0; última línea `> tsc -b`.
+- **build:** `npm run build` → exit 0; última línea `✓ built in 836ms`.
+- **Módulos:** `npx vitest run src/features/admin src/components/layout` → `Tests  1177 passed (1177)` (`Test Files  34 passed (34)`).
+- **Las 26 rutas de C-n y vigiladas** (las mismas de la implementación) → `Tests  645 passed (645)` (`Test Files  26 passed (26)`).
+
+### Conteos (`npx vitest list <archivo> | grep -ac ' > '`)
+- `estado-pago-01g.test.tsx`: 77 (antes 75).
+- `movimientos-01g.test.tsx`: 10 (antes 8).
+- Módulos: de 1173 a 1177.
+
+### Matriz y desviaciones
+- La matriz no cambia. Ninguna desviación nueva.
+
+## ADMIN-01g — Corrección ronda 1 (2026-11-09)
+
+Respondo a `reporte-tester.md`, "## Ronda 1 — ADMIN-01g" (línea 6111): ROTO con T-01, T-02 y T-03, y las observaciones O-01g-r1-1 y O-01g-r1-2. Es la ronda 1 de 3.
+- No toqué las pruebas del tester: `features/admin/usuarios-01g-r1.ataque.test.tsx`, `maestros-01g-r1.ataque.test.tsx`, `estado-pago-01g-r1.ataque.test.tsx` y `components/layout/barra-01g-r1.ataque.test.tsx`.
+- Sin commit ni navegadores. Una corrida después de otra; nadie más corría suites (dato del orquestador).
+
+### Hallazgos
+- **T-01: corregido**, con la autorización del humano del 2026-11-09 ("Autorizo") para tocar tres archivos de 01f **solo** para esto.
+  - `features/admin/usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx` ya no pintan su texto de error de carga cuando `errorQueRedirigeElCliente(<consulta>.error)`, como D-1 de 01g. Se queda lo que había: la tabla, si ya tenía datos; si no, `Cargando`.
+  - En la ficha, el mismo filtro va antes de "Esa cuenta ya no existe.".
+  - En los tres archivos no cambia nada más: el `import` de `errorQueRedirigeElCliente`, la condición y su comentario.
+  - Caso nuevo por pantalla, en `features/admin/redirige-01g.test.tsx`:
+    - "T-01: un 401 con el refresco fallido en la primera carga de /admin/usuarios: ningún mensaje";
+    - "T-01: un 401 con el refresco fallido en «Cargar más usuarios»: ningún mensaje, la tabla se queda y nada en espera";
+    - "T-01: un 401 con el refresco fallido al abrir la ficha: ningún mensaje (tampoco «Esa cuenta ya no existe.»)";
+    - "T-01: un 401 con el refresco fallido en el resumen de /admin: ningún mensaje y los accesos siguen".
+  - ATQ-1G27 a ATQ-1G30, del tester, en verde.
+- **T-02: corregido.** `features/admin/components/tabla-enlaces.tsx`:
+  - La raíz de la tabla (`tablaRef`) queda montada en todos sus estados (error, carga, vacío y lista), con `tabIndex={-1}`.
+  - El destino de "sin enlaces nuevos" de `useFocoAlCargarMas` es «Ver registrados» de la primera fila y, si ya no hay filas (el `5xx` las reemplazó por su `MensajeError`), esa raíz.
+  - Caso: `maestros-01g.test.tsx` "T-02: «Cargar más enlaces» con un 5xx en la página siguiente: la lista pasa a su error y el foco va a la raíz de la tabla, nunca a <body>". ATQ-1G24, en verde.
+- **T-03: corregido.**
+  - `features/admin/components/registrados-del-enlace.tsx` usa `useFocoAlCargarMas`. Sus filas no tienen controles, así que el destino es el botón de su fila que abrió la lista («Ocultar registrados» cuando está abierta). `tabla-enlaces.tsx` se lo pasa por una prop nueva, `destinoDelFocoRef` (los dos archivos están en "Se toca").
+  - Casos: `maestros-01g.test.tsx` "T-03: «Cargar más» de registrados con el foco y %s: el foco va a «Ocultar registrados» de su enlace, nunca a <body>", con 2 filas: "la última página" y "un 5xx en la página siguiente". ATQ-1G25, en verde.
+- **O-01g-r1-1: corregido.** El título de ADM-1G17 (f) en `estado-pago-01g.test.tsx` pasa a "ADM-1G17 (f): con la fila desmontada en vuelo (otra sección), un error avisa una vez; sin errores en la consola". El `401` lo cubren ADM-1G20 (c) y ATQ-1G19 y ATQ-1G20.
+- **O-01g-r1-2: decidido y declarado, sin texto nuevo.** Con «Restablecer» en vuelo, una recarga que trae la fila sin restricción cambia el texto del botón a «Restringir», porque el botón deriva del servidor (criterio de T-01). Pero el botón sigue en espera hasta que el `PUT` se asiente:
+  - `enEspera={restablecerAcceso.isPending}`, ya sin la condición `restringido &&`; V-06 sigue en 90;
+  - la guarda con ref pasa antes de la rama de restringir.
+  - Así no se abre el diálogo de restringir con un `PUT` contrario en vuelo; al asentarse, el botón vuelve a abrirlo.
+  - Caso: `estado-pago-01g.test.tsx` "O-01g-r1-2: el botón pasa a «Restringir» en espera; pulsarlo no abre el diálogo hasta que el PUT responde".
+
+### Hermanos y estados vecinos
+- **Cada «Cargar más» de 01g y de los tres archivos autorizados:**
+  - **«Cargar más alumnos»** (`estado-pago-view.tsx`):
+    - la última página con filas nuevas va a la primera casilla nueva (ADM-1F18 y ADM-1G14 a);
+    - sin filas nuevas o solo con repetidas, al `h1` (ADM-1G20 b);
+    - con `5xx`, la tabla pasa a su error y el foco va al `h1` (lo prueban los casos de la lista cambiada y de error de carga);
+    - con `401`, ningún mensaje (ADM-1G20 c);
+    - dos clics, una petición (ADM-1G14 a);
+    - con una recarga en vuelo, en espera por `isFetching`.
+    
+    Sin cambio.
+  - **«Cargar más movimientos»** (`movimientos-view.tsx`): las filas no tienen controles, así que siempre va al `h1`, también con `5xx`. Con `401`, ningún mensaje (M-27); dos clics, una petición (ADM-1G04). Sin cambio.
+  - **«Cargar más enlaces»** (`tabla-enlaces.tsx`):
+    - con enlaces nuevos, al primero (ADM-1G10);
+    - sin nuevos, a la primera fila (ADM-1G22);
+    - **solo repetidos:** se apareció un hermano, ver abajo;
+    - **con `5xx`:** a la raíz de la tabla (T-02, corregido);
+    - **con `401`:** hermano de D-1, ver abajo;
+    - con una recarga en vuelo, ATQ-1G23 en verde;
+    - dos clics, ADM-1G05.
+  - **«Cargar más» de registrados** (`registrados-del-enlace.tsx`):
+    - la última página y el `5xx`: corregido (T-03);
+    - **solo repetidos:** ver abajo;
+    - **con `401`:** ver abajo;
+    - dos clics: ADM-1G05.
+  - **«Cargar más usuarios»** (`usuarios-view.tsx`, 01f, autorizado solo para T-01):
+    - con `401`, ningún mensaje (T-01);
+    - la última página, solo repetidas (ADM-1F19) y `5xx`: van al primer «Ver» nuevo o al `h1` con `useFocoAlCargarMas`, que ya tenía. Sin otro cambio.
+- **Hermano que apareció al probar "solo repetidos" en los enlaces: aplicado.** `TablaEnlaces` y `RegistradosDelEnlace` unían sus páginas con `flatMap`. Si la página siguiente repetía un enlace o un registrado (R-19), se pintaba dos veces, con la misma `key` de React y con dos «Ver registrados» del mismo nombre. Ahora las dos listas usan `unirPaginasSinRepetidas` (`lib/unir-paginas.ts`, como las demás listas de ADMIN-01).
+  - Caso: `maestros-01g.test.tsx` "T-02 (estado vecino): una última página solo con enlaces repetidos lleva el foco a «Ver registrados» de la primera fila".
+  - Los dos archivos están en "Se toca".
+- **Cada vista con un error que redirige** (`errorQueRedirigeElCliente`, con lo que había o `Cargando`):
+  - `/admin/estado-pago` y `/admin/movimientos` (D-1 de 01g);
+  - `/admin/usuarios`, la ficha y `/admin`, el resumen (T-01, ahora);
+  - **también** `TablaEnlaces` y `RegistradosDelEnlace` de `/admin/maestros`, que pintaban `mensajeDeConsultaAdmin(...)` ante un `401`: aplicado aquí, en los dos archivos de "Se toca". Un `401` de una mutación no se pinta en ninguna mutación nueva de 01f ni de 01g (ya lo filtraban).
+  - Los casos de `401` de `/admin/maestros` no tienen prueba propia: el remedio es el mismo que el de `redirige-01g.test.tsx`.
+- **Archivos fuera de "Se toca" y de los tres autorizados:** ningún hermano los exige. Sin PARADA.
+
+### Archivos de esta vuelta
+- **Producción:**
+  - `features/admin/components/tabla-enlaces.tsx` (T-02, la raíz y su destino, el `ref` del botón de expandir, `unirPaginasSinRepetidas` y el `401`);
+  - `features/admin/components/registrados-del-enlace.tsx` (T-03, `unirPaginasSinRepetidas` y el `401`);
+  - `features/admin/components/tabla-estado-pago.tsx` (O-01g-r1-2).
+  - Autorizados solo para T-01: `features/admin/usuarios-view.tsx`, `usuario-view.tsx` e `inicio-admin-view.tsx`.
+- **Pruebas:**
+  - nueva, `features/admin/redirige-01g.test.tsx` (4);
+  - `features/admin/maestros-01g.test.tsx`: +4;
+  - `features/admin/estado-pago-01g.test.tsx`: +1 y un título corregido.
+- Un tropiezo propio, corregido antes de la corrida final: escribí la palabra «Ocultar» en un comentario y V-17 (`components/layout/estatico-r1`) la prohíbe en cualquier `.tsx`. La quité.
+
+### Verificación (comando exacto y última línea; desde `frontend/`)
+- **lint:** `npm run lint` → exit 0; última línea `> tsc -b`.
+- **build:** `npm run build` → última línea `✓ built in 836ms`.
+- **Módulos:** `npx vitest run src/features/admin src/components/layout` → `Tests  1255 passed (1255)` (`Test Files  39 passed (39)`). Incluye las cuatro pruebas del tester y los casos de 01f.
+- **Las cuatro del tester:** `npx vitest run src/features/admin/usuarios-01g-r1.ataque.test.tsx src/features/admin/maestros-01g-r1.ataque.test.tsx src/features/admin/estado-pago-01g-r1.ataque.test.tsx src/components/layout/barra-01g-r1.ataque.test.tsx` → `Tests  69 passed (69)`.
+- **Las 26 rutas de C-n y vigiladas** (las mismas de la implementación): `Tests  645 passed (645)` (`Test Files  26 passed (26)`).
+
+### Conteos (`npx vitest list <archivo> | grep -ac ' > '`)
+- `maestros-01g.test.tsx`: 11 (antes 7).
+- `redirige-01g.test.tsx`: 4 (nuevo).
+- `estado-pago-01g.test.tsx`: 78 (antes 77).
+
+### Matriz: filas que cambian
+- **"Cargar más enlaces" y de registrados** (antes "E-18: primer enlace nuevo, nunca `<body>`"):
+  - "Cargar más enlaces": el primer enlace nuevo; sin nuevos, «Ver registrados» de la primera fila; con un error que reemplaza la lista, la raíz de la tabla.
+  - "Cargar más" de registrados: el botón de su enlace que abrió la lista, también con un error.
+  - Las dos listas sin filas repetidas. Un `401` no se pinta.
+- **Tabla de usuarios, ficha y resumen de 01f:** "redirige" ya no pinta su texto de error de carga.
+- **«Restablecer» de la fila:** con su `PUT` en vuelo, el botón de acceso sigue en espera aunque una recarga cambie su texto a «Restringir».
+
+### Desviaciones
+Ninguna fuera de lo autorizado (T-01). O-01g-r1-2 queda declarado arriba como decisión dentro del criterio de T-01.
+
+## ADMIN-01g — Corrección ronda 2 (2026-11-09)
+
+Respondo a `reporte-tester.md`, "## Ronda 2 — ADMIN-01g" (línea 6301), ROTO con T-04, T-05 y T-06, y al arbitraje del manager: `revision.md`, "## Arbitraje de la ronda 2 — ADMIN-01g" (línea 7844), que leí completo. Es la corrección 2 de 3.
+- **Archivos de producción:** solo `features/admin/hooks.ts`, `components/tabla-enlaces.tsx` y `components/registrados-del-enlace.tsx`, los tres que permite esta ronda. No toqué `maestros-view.tsx` ni otro archivo de producción.
+- **Pruebas:** no toqué ninguna `*.ataque` (las de las rondas 1 y 2 del tester incluidas) ni ninguna vigilada.
+- Sin commit ni navegadores.
+- **Declaración sobre las corridas:** en esta vuelta corrí una vez las siete `*.ataque` mientras la corrida de los módulos seguía en segundo plano (la herramienta la mandó ahí a los 180 s y lancé la siguiente sin esperar su aviso). Eran dos suites mías, a la vez. Las cifras que reporto abajo salen de corridas posteriores, hechas una después de otra; las de esa vuelta las descarté. Esa corrida de los módulos fue la que mostró el defecto que explico en "Desviación" (56 rojos).
+
+### Hallazgos
+- **T-04: corregido.** En `features/admin/hooks.ts`, `useEnlacesRegistro` y `useRegistradosDelEnlace` ganan `retry: reintentarConsultaAdmin`: un `4xx`, incluido el `401` sin sesión, no se reintenta y un `5xx`, una vez, como las demás consultas del módulo.
+  - **Grep de toda consulta de `features/admin/hooks.ts`** (`useQuery(` y `useInfiniteQuery(`): son siete, y las siete tienen ahora el reintento del módulo:
+    - `useEnlacesRegistro` (nuevo en esta ronda);
+    - `useRegistradosDelEnlace` (nuevo en esta ronda);
+    - `useResumenAdmin`, `useUsuariosAdmin`, `useUsuario`, `useAlumnosEstadoPago` y `useMovimientos` (ya lo tenían).
+  - Las mutaciones no reintentan: no aplica.
+  - Las claves de las dos listas pasan a constantes exportadas de `hooks.ts`, junto a sus consultas: `CLAVE_ENLACES_REGISTRO` y `claveRegistradosDelEnlace`. Lo hice así porque `data.ts` no está entre los tres archivos de esta ronda; los componentes de abajo las usan.
+- **T-05: corregido.** `tabla-enlaces.tsx` usa `useFocoAlPerderseElControl(tablaRef, claveDeFocoDeLaConsulta("enlaces-registro", enlaces))` sobre la raíz que ya existía (`tabIndex={-1}`, de T-02).
+  - **Orden declarado:** va después de `useFocoAlCargarMas`, que decide antes cuando el control que desaparece es «Cargar más enlaces» (como en `usuarios-view.tsx`).
+  - Los controles de las listas de registrados viven dentro de la raíz y no son portales, así que no lleva `incluirDialogos`.
+- **T-06: corregido**, sin tocar `maestros-view.tsx`.
+  - En `tabla-enlaces.tsx`: con la lista en error, pulsar «Maestros» estando ahí la vuelve a pedir desde la primera página; con la lista sana, no pide nada (`useVolverAPedirSiFallo(CLAVE_ENLACES_REGISTRO)` con `useAlPulsarLaSeccionActiva`).
+  - Además, `useMarcarViejaSiQuedoEnError(CLAVE_ENLACES_REGISTRO)`, como las demás tablas. No es redundante: hace que ir a otra sección y volver antes del `staleTime` pida la clave que quedó en error, también la de una recarga con datos.
+  - **Hermano, aplicado:** `registrados-del-enlace.tsx`, con su clave. Con la lista abierta y en error, pulsar «Maestros» la vuelve a pedir; ocultarla y volver a verla también.
+
+### Desviación (con su porqué; no amplía el alcance)
+- El gancho `useAlPulsarLaSeccionActiva` lee la `location` del router.
+- `features/admin/maestros-view.test.tsx`, `maestros-03b-r1.ataque.test.tsx` y `maestros-03c-r1.ataque.test.tsx` montan `MaestrosView` sin router. Las dos `*.ataque` y la normal son vigiladas.
+- Puse el gancho directo en los componentes y esa corrida de los módulos dio 56 rojos en esos tres archivos, todos por `useLocation` fuera de un router.
+- **Remedio, en los mismos dos archivos:**
+  - el gancho vive en un componente que no pinta nada, `AlPulsarLaSeccionActiva` (exportado de `registrados-del-enlace.tsx`, que ya importaba `tabla-enlaces.tsx`);
+  - las dos listas lo montan solo si `useInRouterContext()` es verdadero (`react-router`).
+- En la aplicación siempre hay router, así que el camino funciona igual; las vigiladas no cambian y vuelven a verde.
+- Tropecé de nuevo con V-17: escribí «Ocultar» en un comentario y lo quité antes de las corridas finales.
+
+### Hermanos y estados vecinos (uno por uno)
+Las pruebas nuevas están en `src/features/admin/maestros-recargas-01g.test.tsx` (14 casos). Cada caso se cita con su título exacto.
+
+**T-04: el reintento del módulo en las consultas de `/admin/maestros`.**
+- **«Cargar más enlaces» con `401`:** aplica y aplicado.
+  - Caso: "T-04: un 401 con el refresco fallido en «Cargar más enlaces»: sale de la espera, sin mensaje ni aviso, y no sale otra petición".
+  - Del tester: ATQ-1G37 (fila 2) y ATQ-1G47 (fila 1).
+- **«Cargar más» de registrados con `401`:** aplica y aplicado.
+  - Caso: "T-04: un 401 con el refresco fallido en «Cargar más» de registrados: sale de la espera, sin mensaje, y no sale otra petición".
+  - Del tester: ATQ-1G37 (fila 4) y ATQ-1G47 (fila 2).
+- **Primera carga de enlaces con `401`:** aplica y aplicado.
+  - Caso: "T-04 (estado vecino): un 401 con el refresco fallido en la primera carga de la lista: una sola petición, sin mensaje".
+  - Del tester: ATQ-1G37 (fila 1).
+- **Primera página de registrados con `401`:** aplica y aplicado. Del tester: ATQ-1G37 (fila 3).
+- **`5xx` en las dos listas:** sigue con un reintento; sin cambio de comportamiento. Lo cubren los casos de T-06 y las pruebas de rondas anteriores, en verde.
+- **Las otras cinco consultas del módulo:** ya tenían el reintento (grep de arriba). No aplica.
+
+**T-05: el foco cuando una recarga cambia la tabla de enlaces.**
+
+Estados del mecanismo:
+- **Recarga que falla con el foco en «Revocar»:** aplicado.
+  - Caso: "T-05: con el foco en «Revocar», una recarga que falla reemplaza la tabla: el foco va a la raíz de la tabla".
+- **Lo mismo con `<StrictMode>`:** aplicado.
+  - Caso: "T-05 con <StrictMode>: con el foco en «Revocar», una recarga que falla lleva el foco a la raíz".
+- **Recarga que falla con el foco en «Ver registrados»:** aplicado.
+  - Caso: "T-05: con el foco en «Ver registrados», una recarga que falla reemplaza la tabla: el foco va a la raíz de la tabla".
+- **Recarga que falla con el foco en el botón que oculta los registrados de su fila:** aplicado.
+  - Caso: "T-05: con el foco en «Ocultar registrados», una recarga que falla reemplaza la tabla: el foco va a la raíz".
+  - Del tester: ATQ-1G42 (fila 2).
+- **Recarga que falla con el foco en «Cargar más» de registrados:** aplicado. Del tester: ATQ-1G42 (fila 1).
+- **Tras «Sí, revocar»** (el foco vuelve a «Revocar») **y una recarga que falla:** aplicado.
+  - Caso: "T-05: tras «Sí, revocar» (el foco vuelve a «Revocar») y una recarga que falla, el foco va a la raíz, nunca a <body>".
+  - Del tester: ATQ-1G48.
+- **Recarga `200` que quita la fila con el foco:** aplicado.
+  - Caso: "T-05: una recarga 200 que quita la fila con el foco en su «Ver registrados» (otra persona la quitó) lleva el foco a la raíz".
+- **Control: recarga `200` que conserva la fila:** el foco no se mueve.
+  - Caso: "T-05 (control): una recarga 200 con la fila todavía en la lista no mueve el foco de «Ver registrados»".
+- **La página siguiente que falla con el foco en «Cargar más enlaces»:** la resuelve `useFocoAlCargarMas`, declarado antes.
+  - Lleva el foco a «Ver registrados» de la primera fila o, si no la hay, a la raíz.
+  - Sin cambio en esta ronda. Lo siguen cubriendo `maestros-01g-r1.ataque.test.tsx` y `maestros-01g.test.tsx`, en verde con los dos ganchos montados.
+
+Hermanos del gancho de foco:
+- **`usuarios-view.tsx`, `usuario-view.tsx` y `estado-pago-view.tsx`:** ya lo tienen. Sin cambio.
+- **`registrados-del-enlace.tsx`:** sin gancho propio.
+  - Sus controles viven dentro de la raíz de `tabla-enlaces`, que lo monta, así que su reemplazo queda cubierto (ATQ-1G42).
+  - Su «Cargar más» usa `useFocoAlCargarMas` hacia «Ver registrados» de su fila.
+- **`movimientos-view.tsx`:** no aplica.
+  - La tabla de movimientos no tiene controles por fila.
+  - El único control que una recarga puede quitar es «Cargar más», que ya resuelve `useFocoAlCargarMas`, hacia el encabezado con `tabIndex={-1}`.
+- **`inicio-admin-view.tsx`:** no aplica.
+  - Lo que cambia con la consulta (las cifras o su `MensajeError`) no tiene controles.
+  - Los accesos no dependen del resumen.
+
+**T-06: pulsar «Maestros» estando ahí, o regresar a la sección.**
+- **`5xx` de la primera carga de enlaces:** aplicado.
+  - Caso: "T-06: tras el 5xx de la primera carga, pulsar «Maestros» vuelve a pedir la lista y el texto desaparece".
+- **`5xx` de «Cargar más enlaces»:** aplicado.
+  - Caso: "T-06: tras el 5xx de «Cargar más enlaces», pulsar «Maestros» vuelve a pedir la lista desde la primera página y el texto desaparece".
+  - Del tester: ATQ-1G38.
+- **Control con la lista sana:** no pide nada.
+  - Caso: "T-06 (control): con la lista sana, pulsar «Maestros» no pide nada".
+- **Hermano: lista de registrados abierta, en error y sana:** aplicado.
+  - Caso: "T-06, hermano: con la lista de registrados abierta y en error, pulsar «Maestros» la vuelve a pedir y el texto desaparece; sana, no".
+- **Ir a otra sección y regresar antes del `staleTime`:** aplicado con `useMarcarViejaSiQuedoEnError` en las dos listas, el mismo gancho que ya prueban las demás tablas del módulo.
+  - **No cubierto por un caso propio de `/admin/maestros`:** lo declaro.
+- **`401`:** no pinta texto, así que no hay nada que recuperar. No aplica.
+- **Las demás vistas del módulo:** ya tienen el par de ganchos. Sin cambio.
+
+### Matriz de avisos y recargas de `/admin/maestros`, al día
+Cambian solo las dos listas. El resto queda como en la corrección de la ronda 1.
+
+| Disparador | Error | Qué se renueva | Qué se anuncia | Foco |
+|---|---|---|---|---|
+| Primera carga de enlaces | `5xx` o red | Un reintento. Pulsar «Maestros», o ir y volver, la vuelve a pedir | Un `MensajeError` en la raíz | Si un control de la tabla tenía el foco, va a la raíz |
+| Primera carga de enlaces | `401` (redirige) | Nada, sin reintento | Nada | Lo lleva la redirección |
+| «Cargar más enlaces» | `5xx` o red | Un reintento. «Maestros» la vuelve a pedir desde la primera página | Un solo mensaje | `useFocoAlCargarMas`; si se pierde otro control, la raíz |
+| «Cargar más enlaces» | `401` | Nada: sale de la espera y no hay segunda petición | Nada | Sin cambio |
+| Recarga de enlaces (invalidación) | `5xx` | Reemplaza la tabla por el mensaje | Un solo mensaje | La raíz de la tabla, nunca `<body>` (también con `<StrictMode>`) |
+| Recarga `200` que quita la fila con el foco | — | La lista | Nada | La raíz |
+| Registrados, primera página | `5xx` | Un reintento. «Maestros», o verlos de nuevo, la vuelve a pedir | Un solo mensaje en su fila | Sin cambio |
+| Registrados, primera página o «Cargar más» | `401` | Nada: sale de la espera y no hay segunda petición | Nada | Sin cambio |
+| «Sí, revocar» | Como en la ronda 1 | Como en la ronda 1 | Como en la ronda 1 | Regresa a «Revocar»; si la recarga falla, la raíz |
+
+En los dos estados transversales:
+- **En vuelo a la vez:** la consulta se cancela o se descarta, como en la ronda 1.
+- **Con la vista desmontada:** la clave en error queda marcada vieja y no se anuncia nada.
+
+### Verificación
+Todo se corrió en `frontend/`, una corrida tras otra.
+- **lint:** `npm run lint` → código de salida 0; última línea `tsc -b`.
+- **build:** `npm run build` → `✓ built in 1.53s`.
+- **Módulos:** `npx vitest run src/features/admin src/components/layout` → `Tests  1301 passed (1301)` (`Test Files  43 passed (43)`).
+- **Las siete `*.ataque` del tester, rondas 1 y 2:** `npx vitest run src/features/admin/usuarios-01g-r1.ataque.test.tsx src/features/admin/maestros-01g-r1.ataque.test.tsx src/features/admin/estado-pago-01g-r1.ataque.test.tsx src/components/layout/barra-01g-r1.ataque.test.tsx src/features/admin/maestros-01g-r2.ataque.test.tsx src/features/admin/usuarios-01g-r2.ataque.test.tsx src/features/admin/estado-pago-01g-r2.ataque.test.tsx --reporter=verbose` → `Tests  101 passed (101)` (`Test Files  7 passed (7)`).
+- **Los ATQ pedidos, en verde de esa misma corrida:**
+  - ATQ-1G37: 4 de 4;
+  - ATQ-1G38: 1 de 1;
+  - ATQ-1G42: 2 de 2;
+  - ATQ-1G47: 2 de 2;
+  - ATQ-1G48: 1 de 1;
+  - total: 10 de 10 casos.
+- **Las 26 rutas** (las mismas de la implementación) → `Tests  645 passed (645)` (`Test Files  26 passed (26)`).
+- **build de `shared/` y `prisma validate`:** n/a.
+
+### Conteos
+`npx vitest list src/features/admin/maestros-recargas-01g.test.tsx | grep -ac ' > '` → 14 (archivo nuevo).
+
+## ADMIN-01g — Corrección ronda 3 (2026-11-09)
+
+Respondo a `reporte-tester.md`, "## Ronda 3 — ADMIN-01g" (línea 6462): ROTO por T-07 (baja). El humano decidió (2026-11-09): "Corregir con ronda acotada".
+- **Archivo de producción:** solo `frontend/src/features/admin/hooks.ts`, y en él solo `useVolverAPedirSiFallo`.
+- **Prueba nueva:** `frontend/src/features/admin/volver-a-pedir-01g.test.tsx`.
+- No toqué ninguna `*.ataque`, incluida `maestros-01g-r3.ataque.test.tsx`. Sin commit ni navegadores.
+- Las corridas fueron una tras otra, todas en primer plano.
+
+### T-07: corregido
+- **Antes**, `useVolverAPedirSiFallo` decidía solo con `status === "error"`.
+  - Una consulta con datos que se recarga desde el error conserva `status: "error"` mientras la recarga corre.
+  - Así, `resetQueries` descartaba esa recarga y lanzaba otra petición.
+- **Ahora**, si `getQueryState(clave).fetchStatus === "fetching"`, el gancho no hace nada; la recarga en curso decide.
+- **Mutación:** quité la guarda a mano y corrí `npx vitest run src/features/admin/volver-a-pedir-01g.test.tsx src/features/admin/maestros-01g-r3.ataque.test.tsx`.
+  - Resultado: `Tests  3 failed | 15 passed (18)`.
+  - Fallan "T-07: en error y con una recarga en vuelo por otra causa, pulsar no lanza otra petición ni descarta la que corre", "T-07 (estado vecino): tras la recarga en vuelo que vuelve a fallar, pulsar sí vuelve a pedir" y ATQ-1G60.
+  - Restauré `hooks.ts` desde la copia y comprobé que la guarda volvió.
+
+### Estados vecinos del gancho
+Los cubre `volver-a-pedir-01g.test.tsx`, con el gancho real sobre un `useQuery`.
+- **En error y sin recarga en vuelo:** sí pide, una vez. Caso: "T-07 (estado vecino): en error y sin recarga en vuelo, pulsar vuelve a pedir una vez".
+- **En error y con una recarga en vuelo por otra causa:** no pide, ni con dos pulsaciones, y la recarga en curso entrega sus datos. Caso: "T-07: en error y con una recarga en vuelo por otra causa, pulsar no lanza otra petición ni descarta la que corre".
+- **Tras la recarga en vuelo que vuelve a fallar:** al pulsar, sí vuelve a pedir. Caso: "T-07 (estado vecino): tras la recarga en vuelo que vuelve a fallar, pulsar sí vuelve a pedir".
+- **Sana:** no pide. Caso: "T-07 (control): con la consulta sana, pulsar no pide nada".
+
+**Nota sobre el estado de la consulta.** Una consulta **sin datos** que se recarga desde el error pasa a `status: "pending"` (TanStack Query v5), así que el gancho ya no pedía. La prueba deja datos en la consulta antes del error, como en las vistas.
+
+### Usos del gancho (hermanos)
+El cambio aplica a todos, porque es el mismo gancho.
+- **`/admin/usuarios`** (`usuarios-view.tsx`): le afecta.
+  - Casos que siguen cubriendo el camino que sí pide: `usuarios-01f.test.tsx`, "ADM-1F17 (a): pulsar «Usuarios» estando en la tabla vuelve a pedir y quita el error" y "ADM-1F03 y ADM-1F18 (c), camino (a): pulsar «Usuarios» estando en la tabla pide la primera página sin cursor y el texto desaparece"; `auth/rutas-ch3-r1.ataque.test.tsx`, "pulsar «Usuarios» estando en la tabla vuelve a pedir y quita el error".
+  - El estado con una recarga en vuelo no tiene caso propio de la vista; lo cubre la prueba del gancho.
+- **`/admin/estado-pago`** (`estado-pago-view.tsx`): le afecta.
+  - La vista envuelve el gancho: si `alumnos.isError`, vacía la selección y llama al gancho.
+  - Con una recarga en vuelo, la selección se vacía, pero ya no sale una segunda petición; la recarga en curso renueva las filas. No toqué la vista, porque está fuera del alcance de esta ronda.
+  - Casos: `estado-pago-01g.test.tsx`, "ADM-1G12 (a): pulsar «Estado de pago» con la tabla en error la vuelve a pedir y el texto desaparece" y "ADM-1G11 (a) y ADM-1G14 (b): pulsar «Estado de pago» estando aquí pide la primera página del filtro sin cursor; el texto desaparece y la selección se vacía".
+  - El estado en vuelo lo cubre la prueba del gancho.
+- **`/admin/movimientos`** (`movimientos-view.tsx`): le afecta.
+  - **No cubierto en la vista:** `movimientos-01g.test.tsx` no tiene caso de pulsar «Movimientos». El mecanismo lo cubre la prueba del gancho.
+- **El resumen de `/admin`** (`inicio-admin-view.tsx`): le afecta.
+  - Casos: `cuentas-view.test.tsx`, "ADM-1F01 (b): con el resumen en error, pulsar «Inicio» estando en /admin lo vuelve a pedir y el texto desaparece" y "un resumen sano no se vuelve a pedir al pulsar «Inicio» ni al regresar antes del staleTime".
+- **La ficha** (`usuario-view.tsx`): no usa el gancho (grep). No aplica.
+- **Enlaces** (`tabla-enlaces.tsx`): le afecta.
+  - Casos: `maestros-01g-r3.ataque.test.tsx`, ATQ-1G59 y ATQ-1G60.
+  - Además, `maestros-recargas-01g.test.tsx`: "T-06: tras el 5xx de la primera carga, pulsar «Maestros» vuelve a pedir la lista y el texto desaparece", "T-06: tras el 5xx de «Cargar más enlaces», pulsar «Maestros» vuelve a pedir la lista desde la primera página y el texto desaparece" y "T-06 (control): con la lista sana, pulsar «Maestros» no pide nada".
+  - Y `maestros-01g-r2.ataque.test.tsx`: ATQ-1G38.
+- **Registrados** (`registrados-del-enlace.tsx`): le afecta.
+  - Casos: `maestros-recargas-01g.test.tsx`, "T-06, hermano: con la lista de registrados abierta y en error, pulsar «Maestros» la vuelve a pedir y el texto desaparece; sana, no"; `maestros-01g-r3.ataque.test.tsx`, ATQ-1G61.
+
+### Verificación
+En `frontend/`, una tras otra:
+- **lint:** `npm run lint` → código de salida 0; última línea `tsc -b`. La primera corrida falló por el formato de mi prueba nueva; lo arreglé con `npx prettier --write src/features/admin/volver-a-pedir-01g.test.tsx`, solo ese archivo.
+- **build:** `npm run build` → `✓ built in 946ms`.
+- **Módulos:** `npx vitest run src/features/admin src/components/layout` → `Tests  1319 passed (1319)` (`Test Files  45 passed (45)`).
+- **Las ocho `*.ataque` de 01g (rondas 1 a 3):** `npx vitest run src/features/admin/usuarios-01g-r1.ataque.test.tsx src/features/admin/maestros-01g-r1.ataque.test.tsx src/features/admin/estado-pago-01g-r1.ataque.test.tsx src/components/layout/barra-01g-r1.ataque.test.tsx src/features/admin/maestros-01g-r2.ataque.test.tsx src/features/admin/usuarios-01g-r2.ataque.test.tsx src/features/admin/estado-pago-01g-r2.ataque.test.tsx src/features/admin/maestros-01g-r3.ataque.test.tsx --reporter=verbose` → `Tests  115 passed (115)` (`Test Files  8 passed (8)`). ATQ-1G60 en verde.
+- **Las 26 rutas** (las mismas de la implementación) → `Tests  645 passed (645)` (`Test Files  26 passed (26)`).
+- **build de `shared/` y `prisma validate`:** n/a.
+
+### Conteos
+- `npx vitest list src/features/admin/volver-a-pedir-01g.test.tsx | grep -ac ' > '` → 4 (archivo nuevo).

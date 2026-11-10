@@ -234,11 +234,16 @@ describe("ataque (AUTH-03b r1): /admin/maestros en el marco del admin", () => {
     // CLASES-02 ronda 0 de 02c (C-14, Enmienda 1, M-04): el admin suma "Clases" (/admin/clases),
     // que no queda activo en /admin/maestros. Sigue protegiendo que en /admin/maestros solo
     // "Maestros" lleve aria-current.
+    // ADMIN-01g ronda 0 (C-48, §D-R0 01g, Enmienda 15; ADM-1G13): la nav final del admin tiene seis
+    // destinos, en el orden Inicio, Usuarios, Estado de pago, Clases, Maestros y Movimientos. Sigue
+    // protegiendo que en /admin/maestros solo "Maestros" lleve aria-current.
     expect(enlaces.map((a) => [a.textContent, a.getAttribute("aria-current")])).toEqual([
       ["Inicio", null],
       ["Usuarios", null],
-      ["Maestros", "page"],
+      ["Estado de pago", null],
       ["Clases", null],
+      ["Maestros", "page"],
+      ["Movimientos", null],
     ])
     expect(screen.getByRole("heading", { level: 1, name: "Maestros" })).toBeVisible()
     const controles = [

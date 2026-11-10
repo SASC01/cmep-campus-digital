@@ -1,8 +1,10 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router"
 
 import { LayoutPublico } from "@/components/layout/layout-publico"
+import { EstadoPagoView } from "@/features/admin/estado-pago-view"
 import { InicioAdminView } from "@/features/admin/inicio-admin-view"
 import { MaestrosView } from "@/features/admin/maestros-view"
+import { MovimientosView } from "@/features/admin/movimientos-view"
 import { UsuarioView } from "@/features/admin/usuario-view"
 import { UsuariosView } from "@/features/admin/usuarios-view"
 import { AccesoRestringidoView } from "@/features/auth/acceso-restringido-view"
@@ -163,7 +165,10 @@ export const rutas: RouteObject[] = [
               { path: ":usuarioId", element: <UsuarioView /> },
             ],
           },
+          // ADMIN-01g (§D-11): estado de pago por alumno y por lote, y el registro de movimientos.
+          { path: "estado-pago", element: <EstadoPagoView /> },
           { path: "maestros", element: <MaestrosView /> },
+          { path: "movimientos", element: <MovimientosView /> },
           // CLASES-02c (§D-2C2): las clases del administrador. El literal "nueva" gana a :claseId.
           {
             path: "clases",

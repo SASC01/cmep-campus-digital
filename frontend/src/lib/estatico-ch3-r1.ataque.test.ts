@@ -183,8 +183,10 @@ describe("ataque CHORE-03 03c r1 · O-05 extendida a features/admin y features/a
     // textoParaTerceros(mensajeDeErrorAdmin(<m>.error)), solo con editar, alta o invitar. Sigue
     // protegiendo que cada MensajeError use la traducción del módulo o un texto fijo, sin cruzar
     // acciones y consultas.
+    // ADMIN-01g ronda 0 (C-39, Enmienda 9 y Enmienda 15): suman la mutación cambiarLote y las
+    // consultas alumnos y movimientos.
     const permitidos =
-      /^(mensajeDeErrorAdmin\((buscar|restablecer|corregir|generar|invitar|revocar|editar|alta|baja|reactivar|restringir|restablecerAcceso|cambiar)\.error\)|textoParaTerceros\(mensajeDeErrorAdmin\((editar|alta|invitar)\.error\)\)|mensajeDeConsultaAdmin\((enlaces|registrados|resumen|usuarios|usuario)\.error\)|mensajeDeErrorAuth\([\w.]*error\)|(TEXTOS_[A-Z_]+|textos)(\.\w+)+)$/
+      /^(mensajeDeErrorAdmin\((buscar|restablecer|corregir|generar|invitar|revocar|editar|alta|baja|reactivar|restringir|restablecerAcceso|cambiar|cambiarLote)\.error\)|textoParaTerceros\(mensajeDeErrorAdmin\((editar|alta|invitar)\.error\)\)|mensajeDeConsultaAdmin\((enlaces|registrados|resumen|usuarios|usuario|alumnos|movimientos)\.error\)|mensajeDeErrorAuth\([\w.]*error\)|(TEXTOS_[A-Z_]+|textos)(\.\w+)+)$/
     expect(usos.filter(([, expresion]) => !permitidos.test(expresion))).toEqual([])
   })
 })

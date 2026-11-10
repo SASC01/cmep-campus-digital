@@ -1,5 +1,5 @@
 import { invitarMaestroSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
@@ -23,9 +23,13 @@ import type { ErroresFormularioAdmin } from "../types"
 export function FormularioInvitarMaestro() {
   const invitar = useInvitarMaestro()
   const [errores, setErrores] = useState<ErroresFormularioAdmin>({})
+  // ADMIN-01g (fila de CHORE-04): guarda síncrona; enEspera llega un render después y dos envíos
+  // seguidos mandaban dos peticiones.
+  const enviandoRef = useRef(false)
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (invitar.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -43,7 +47,13 @@ export function FormularioInvitarMaestro() {
     }
 
     setErrores({})
-    invitar.mutate(resultado.data, { onSuccess: () => formulario.reset() })
+    enviandoRef.current = true
+    invitar.mutate(resultado.data, {
+      onSuccess: () => formulario.reset(),
+      onSettled: () => {
+        enviandoRef.current = false
+      },
+    })
   }
 
   return (

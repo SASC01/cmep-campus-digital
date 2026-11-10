@@ -30,6 +30,25 @@ export {
   type UsuarioAdmin,
 } from "./usuarios.js"
 export {
+  cambiarAcceso,
+  cambiarActivo,
+  cambiarEstadoPagoEnLote,
+  crearAlumnoConTemporal,
+  editarNombre,
+  leerResumenAdmin,
+  leerUsuarioAdmin,
+  listarUsuarios,
+  type EstadoPagoDb,
+  type ListaUsuariosDb,
+  type ResumenAdminDb,
+  type UsuarioGestionDb,
+} from "./gestion-de-usuarios.js"
+export {
+  listarMovimientosDeInscripcion,
+  type ListaMovimientosDb,
+  type MovimientoDeInscripcionDb,
+} from "./movimientos.js"
+export {
   buscarEnlacePorHash,
   buscarEnlacePorId,
   crearEnlaceRegistro,

@@ -663,3 +663,51 @@ reintenta una vez la transacción entera.
 `COPIAR_OBJETOS` con la política de los avisos y sus colas de fallidos. `storage/index.ts`:
 `crearAlmacenDeObjetos` (copia y borrado del lado del almacén, sin pasar por Node; `NoSuchKey` del
 origen es `origen_inexistente`, cualquier otro fallo, `503 ALMACEN_NO_DISPONIBLE`).
+
+## Gestión de usuarios y movimientos (ADMIN-01e, §D-7 y §D-8)
+
+`db/gestion-de-usuarios.ts`:
+
+- `listarUsuarios` es SQL crudo parametrizado (`$queryRaw` con `Prisma.sql`): el término, ya preparado
+  por `core/usuarios/busqueda.ts` (normalizado y con los comodines de `LIKE` escapados), se busca a la
+  vez en `nombre_busqueda` y en `email` (GIN de trigramas de los dos), con los filtros opcionales de
+  `rol` y `estado_pago`; orden `(nombre_busqueda, id)` por los índices `(nombre_busqueda, id)` y
+  `(rol, nombre_busqueda, id)`. El cursor (id) viaja con su posición, `cursorNombre` (Enmienda 5): van
+  juntos o ninguno; la fila del cursor se lee por PK con los mismos filtros, en la misma instantánea
+  única que la página, y su `nombre` se compara literalmente con `cursorNombre`. Si no existe, ya no
+  cumple los filtros o se renombró, `400 VALIDACION` "cursor: no es válido". `siguienteCursorNombre`
+  es el nombre de la última fila cuando hay siguiente; si no, `null`. La posición protege solo la fila
+  del cursor (R-19).
+- `cambiarActivo` y `cambiarAcceso` siguen el protocolo de bloqueo (PB-2, PB-8): primero
+  `bloquearUsuarioParaEscribir`, después lecturas sin bloqueo (el rol; para la baja de un maestro, sus
+  asignaciones en clases activas) y la decisión de `core/usuarios/` que llega por parámetro. La baja
+  revoca las sesiones vivas y los `tokens_cuenta` vivos con `UPDATE` (nunca borra); restringir revoca
+  las sesiones; restablecer el acceso y reactivar no restauran nada. Pedir el estado que ya tiene no
+  escribe.
+- `cambiarEstadoPagoEnLote` toma las filas de los ids con `SELECT … ORDER BY id FOR NO KEY UPDATE`
+  (un solo modo por fila, PB-3; el orden fijo evita el ciclo entre dos lotes cruzados) y, si falta
+  alguna o alguna no es de un estudiante, responde `400` sin escribir. Solo cambia (con
+  `fecha_estado_pago`) las filas cuyo estado cambia. No revoca sesiones (RN-01).
+- `crearAlumnoConTemporal` crea al estudiante con el hash de la temporal ya calculado y
+  `debe_cambiar_contrasena`; un correo repetido es `409 CORREO_EN_USO`.
+- `leerResumenAdmin` hace sus tres conteos en serie en la misma instantánea única. Las lecturas de
+  lista y resumen aceptan el `Ejecutor` como último parámetro (E8-4).
+
+`db/movimientos.ts`: `listarMovimientosDeInscripcion`, la única lectura de `movimientos_inscripcion`
+(la escritura sigue en `inscripciones.ts`). Sin filtros, por `secuencia DESC` con el índice
+`(secuencia DESC)`; el cursor es el id del movimiento, leído por PK en la misma instantánea única que
+la página; sin posición, porque `secuencia` no cambia.
+
+**Orden de bloqueos con la baja (§D-7.9, N-03):** asignar toma la clase y después, con
+`bloquearMaestrosActivos`, la fila del maestro en modo compartido; crear una clase toma solo las de sus
+maestros, en cada intento del código, dentro de su propia transacción; duplicar, la original y después
+los maestros. La baja toma solo la fila del usuario para escribir. Sin ciclo: si la baja confirma
+primero, la escritura ya no ve al maestro activo y responde `404`; si la escritura confirma primero, la
+baja cuenta la clase activa y responde `409 MAESTRO_CON_CLASES`.
+
+**M-18:** `usarTokenYCambiarContrasena` relee `activo` con el bloqueo de escritura del usuario y
+rechaza el uso, sin escribir, si la cuenta está inactiva.
+
+**S-16:** `SELECT_MAESTROS_DE_CLASE` y `maestrosDeFilas` (`clases.ts`), y `listarPersonas`
+(`inscripciones.ts`, con Prisma), leen `activo` del maestro y agregan `cuentaDesactivada: true` solo
+al dado de baja; el campo crudo `activo` nunca sale.

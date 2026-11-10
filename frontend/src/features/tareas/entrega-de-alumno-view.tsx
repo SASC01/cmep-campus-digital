@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { AdjuntosDePublicacion } from "@/components/adjuntos/adjuntos-de-publicacion"
 import { Cargando } from "@/components/cargando"
 import { ConClaseDeLaRuta } from "@/components/clase/con-clase-de-la-ruta"
+import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoEntregaBadge } from "@/components/estado-entrega-badge"
 import { MensajeError } from "@/components/mensaje-error"
 import { buttonVariants } from "@/components/ui/button-variants"
@@ -67,6 +68,13 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
   // CALIFICACIONES-01c (§D-12.7): cada reinicio vuelve a montar el panel de calificación (con la
   // versión y los valores actuales) y lleva el foco a su encabezado.
   const [reinicios, setReinicios] = useState(0)
+  // ADMIN-01d2 (§D-9, filas 33 y 34; T-01 y T-02 de 01d1): en una clase archivada se lee la calificación,
+  // sin panel, y el hilo, sin formulario. Al restaurar, el panel nace como al abrir la ruta, sin llevarse
+  // el foco. Lo que llega de un panel de una generación anterior no recarga ni reinicia: el panel de ahora
+  // no es aquel; el aviso lo da el gancho.
+  const soloLectura = useSoloLecturaDeLaClase()
+  if (soloLectura && reinicios > 0) setReinicios(0)
+  const { generacion, sigueVigente } = useGeneracionDeSoloLectura()
   const montadoRef = useRef(false)
 
   useEffect(() => {
@@ -109,13 +117,13 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
   // apiClient redirigió no se avisa. Con la vista desmontada ("Volver a las entregas" durante la
   // recarga), nada.
   const recargarTrasConflicto = async (error: unknown) => {
-    if (!montadoRef.current) return
+    if (!montadoRef.current || !sigueVigente(generacion)) return
     try {
       const [entregaNueva, tareaNueva] = await Promise.all([
         consulta.refetch(),
         recargaLaTareaTrasConflicto(error) ? tarea.refetch() : Promise.resolve(null),
       ])
-      if (!montadoRef.current) return
+      if (!montadoRef.current || !sigueVigente(generacion)) return
       if (tareaNueva !== null && tareaNueva.isError) return
       if (entregaNueva.isError) {
         if (errorQueReemplazaLaVista(true, entregaNueva.error)) return
@@ -125,13 +133,15 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
       }
       setReinicios((n) => n + 1)
     } catch {
-      if (montadoRef.current) toast.error(TEXTOS_CALIFICAR.avisoRecargaFallida)
+      if (montadoRef.current && sigueVigente(generacion)) {
+        toast.error(TEXTOS_CALIFICAR.avisoRecargaFallida)
+      }
     }
   }
 
   // S-01: el maestro califica con el panel; el admin solo lee la calificación.
   const calificacion = (tareaDetalle: TareaDetalle, entrega: EntregaDeAlumno): ReactNode => {
-    if (perspectiva === "maestro") {
+    if (perspectiva === "maestro" && !soloLectura) {
       return (
         <PanelDeCalificacion
           key={reinicios}
@@ -141,13 +151,16 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
           tarea={tareaDetalle}
           entrega={entrega}
           onConflicto={recargarTrasConflicto}
-          onCalificada={() => setReinicios((n) => n + 1)}
+          onCalificada={() => {
+            if (!sigueVigente(generacion)) return
+            setReinicios((n) => n + 1)
+          }}
           enfocarAlMontar={reinicios > 0}
         />
       )
     }
 
-    if (perspectiva !== "admin") return null
+    if (perspectiva === "estudiante") return null
 
     return (
       <Card>
@@ -219,6 +232,7 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
             tareaId={tareaId}
             rutaDelHilo={rutaDelHiloDeAlumno(claseId, tareaId, alumnoId)}
             puedeEscribir={perspectiva === "maestro"}
+            soloLectura={soloLectura}
             textoDePrivacidad={TEXTOS_HILO_PRIVADO.privacidadDeLosMaestros}
           />
           {perspectiva === "admin" && (

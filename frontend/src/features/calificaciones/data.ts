@@ -109,6 +109,9 @@ export const MENSAJES_ERROR_CALIFICACIONES = {
     "La clase cambió mientras veías las calificaciones. Vuelve a abrir Calificaciones para verlas completas.",
   cursorDeMisCalificaciones:
     "Tus tareas cambiaron mientras las veías. Vuelve a abrir Calificaciones para verlas completas.",
+  // ADMIN-01d2 (§D-12, Enmienda 12): la vista de una clase anterior no tiene secciones que abrir.
+  cursorDeClaseAnterior:
+    "Tus tareas cambiaron mientras las veías. Vuelve a abrir esta clase para verlas completas.",
 } as const
 
 // Enmienda 2 (§D-13.2): los campos de cursor que cada vista reconoce en un 400.

@@ -1,4 +1,14 @@
-import { TEXTOS_PANEL, TEXTOS_UNIRSE } from "./data"
+import { Link } from "react-router"
+
+import { buttonVariants } from "@/components/ui/button-variants"
+import { Card, CardContent } from "@/components/ui/card"
+
+import {
+  RUTA_CLASES_ANTERIORES_DEL_ALUMNO,
+  TEXTOS_CLASES_ANTERIORES,
+  TEXTOS_PANEL,
+  TEXTOS_UNIRSE,
+} from "./data"
 import { BloqueDestacado } from "./components/bloque-destacado"
 import { FormularioUnirseClase, ID_CAMPO_CODIGO_CLASE } from "./components/formulario-unirse-clase"
 import { PanelMisClases } from "./components/panel-mis-clases"
@@ -65,6 +75,19 @@ export function InicioEstudianteView() {
           />
         )}
       />
+
+      {/* ADMIN-01d2 (§D-9): sus clases archivadas ya no salen en la lista de arriba. Va en un panel: ningún
+          texto va directo sobre el fondo. */}
+      <Card>
+        <CardContent>
+          <Link
+            to={RUTA_CLASES_ANTERIORES_DEL_ALUMNO}
+            className={buttonVariants({ variant: "link", size: "enlace" })}
+          >
+            {TEXTOS_CLASES_ANTERIORES.anteriores.titulo}
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -41,7 +41,7 @@ describe("CHORE-03 · traducción de errores de features/tareas", () => {
     for (const entrada of ENTRADAS_FUERA_DE_CONTRATO) {
       expect(mensajeDeErrorTareas(validacion(entrada.mensaje))).toBe(entrada.resto ?? GENERICO)
     }
-    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(14)
+    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR).toHaveLength(15)
     for (const codigo of CODIGOS_CON_MENSAJE_DEL_SERVIDOR) {
       for (const resto of RESTOS_SIN_TEXTO_VISIBLE) {
         expect(mensajeDeErrorTareas(new ApiError(codigo, resto, 409))).toBe(GENERICO)

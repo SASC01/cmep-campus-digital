@@ -57,6 +57,28 @@ const DIEZ: readonly (readonly [string, string])[] = [
   ["/src/features/auth/components/formulario-cambiar-contrasena.tsx", "cambiar"],
 ]
 
+// ADMIN-01f ronda 0 (C-35): los formularios de T-05 que ganan la guarda con una ref antes de la de
+// isPending (§D-11, Enmienda 9). En 01f, solo el de corregir el correo.
+// ADMIN-01g ronda 0 (C-38, Enmienda 9 y Enmienda 15; filas 8 a 10 de CHORE-04): suman invitar maestro,
+// la invitación masiva y generar enlace.
+const CON_REF: ReadonlySet<string> = new Set([
+  "/src/features/admin/components/formulario-corregir-correo.tsx",
+  "/src/features/admin/components/formulario-invitar-maestro.tsx",
+  "/src/features/admin/components/formulario-invitacion-masiva.tsx",
+  "/src/features/admin/components/formulario-generar-enlace.tsx",
+])
+
+// ADMIN-01f ronda 0 (C-35): los formularios nuevos de 01f que pueden reiniciar su mutación
+// condicionado a isError después de su guarda de envío (§D-11, Enmienda 9, "Reinicios").
+const REINICIAN_EN_01F: readonly string[] = [
+  "/src/features/admin/components/formulario-nombre-de-cuenta.tsx",
+  "/src/features/admin/components/formulario-alta-alumno.tsx",
+  "/src/features/admin/components/dialogo-restringir-acceso.tsx",
+  "/src/features/admin/components/estado-de-pago-de-cuenta.tsx",
+  // ADMIN-01g ronda 0 (C-38): el diálogo del lote (§D-11, Enmienda 9, "Reinicios").
+  "/src/features/admin/components/dialogo-estado-pago-lote.tsx",
+]
+
 describe("ataque CHORE-03 03c r2 · estática final del encargo", () => {
   it("precondición: el glob ve el código de producción, las pruebas del chore y los diez formularios", () => {
     expect(deProduccion.length).toBeGreaterThan(150)
@@ -111,12 +133,18 @@ describe("ataque CHORE-03 03c r2 · estática final del encargo", () => {
     expect(definenCursor).toEqual(["/src/lib/errores-de-api.ts"])
   })
 
+  // ADMIN-01f ronda 0 (C-35, Enmienda 9; §D-11, "La ref de los formularios de T-05", fila 7 de
+  // CHORE-04): en los archivos de CON_REF, entre evento.preventDefault() y la guarda isPending va
+  // exactamente una línea `if (<nombre>Ref.current) return`; en los demás, la expresión de siempre,
+  // sin esa línea. Lo demás del caso no cambia: el manejador, antes de leer el formulario y una sola
+  // <m>.reset(.
   it.each(DIEZ.map(([ruta, mutacion]) => [ruta.split("/").pop() ?? ruta, ruta, mutacion] as const))(
     "%s: la línea de T-05 es la sentencia que sigue a la guarda isPending, dentro del manejador del submit y antes de leer el formulario",
     (_archivo, ruta, mutacion) => {
       const texto = sinComentarios(leer(ruta))
+      const conRef = CON_REF.has(ruta) ? "if \\(\\w+Ref\\.current\\) return\\s*\\n\\s*" : ""
       const guardaYLinea = new RegExp(
-        `evento\\.preventDefault\\(\\)\\s*\\n\\s*if \\(${mutacion}\\.isPending\\) return\\s*\\n\\s*if \\(${mutacion}\\.isError\\) ${mutacion}\\.reset\\(\\)\\s*\\n`,
+        `evento\\.preventDefault\\(\\)\\s*\\n\\s*${conRef}if \\(${mutacion}\\.isPending\\) return\\s*\\n\\s*if \\(${mutacion}\\.isError\\) ${mutacion}\\.reset\\(\\)\\s*\\n`,
       )
       expect(texto).toMatch(guardaYLinea)
       const linea = texto.indexOf(`if (${mutacion}.isError) ${mutacion}.reset()`)
@@ -132,8 +160,10 @@ describe("ataque CHORE-03 03c r2 · estática final del encargo", () => {
     },
   )
 
-  it("fuera de los diez, ningún archivo de producción de src/ reinicia una mutación condicionado a isError, y nadie reinicia una mutación en el render", () => {
-    const diez = new Set(DIEZ.map(([ruta]) => ruta))
+  // ADMIN-01f ronda 0 (C-35): los excluidos son los diez más los cuatro de REINICIAN_EN_01F. `otros`
+  // sigue vacío y la regla del render no cambia.
+  it("fuera de los diez y de los cuatro de 01f, ningún archivo de producción de src/ reinicia una mutación condicionado a isError, y nadie reinicia una mutación en el render", () => {
+    const diez = new Set([...DIEZ.map(([ruta]) => ruta), ...REINICIAN_EN_01F])
     const otros = deProduccion
       .filter(
         ([ruta, texto]) =>

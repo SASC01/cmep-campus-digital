@@ -14,7 +14,8 @@ interface EnlaceNuevoProps {
 }
 
 // DESIGN.md §7.13, "Dato que se muestra una sola vez": el enlace vive solo en el estado de quien lo
-// pidió (M-05, R-09), nunca en la caché de TanStack Query.
+// pidió (M-05, R-09), nunca en la caché de TanStack Query. ADMIN-01g (E-14): el role="status" envuelve
+// solo lo que se anuncia, nunca «Copiar enlace».
 export function EnlaceNuevo({ url, expiraEn, enfocarAlMostrar }: EnlaceNuevoProps) {
   const [copiando, setCopiando] = useState(false)
   const copiarBtnRef = useRef<HTMLButtonElement>(null)
@@ -36,15 +37,14 @@ export function EnlaceNuevo({ url, expiraEn, enfocarAlMostrar }: EnlaceNuevoProp
   }
 
   return (
-    <div
-      role="status"
-      className="flex flex-col gap-2 rounded-row border border-border bg-muted p-3"
-    >
-      <p className="text-h3 font-bold break-all">{url}</p>
-      <p className="text-small text-muted-foreground">
-        {TEXTOS_MAESTROS.enlaces.vence(formatearFechaHora(expiraEn))}
-      </p>
-      <p className="text-small text-muted-foreground">{TEXTOS_MAESTROS.enlaces.aviso}</p>
+    <div className="flex flex-col gap-2 rounded-row border border-border bg-muted p-3">
+      <div role="status" className="flex flex-col gap-2">
+        <p className="text-h3 font-bold break-all">{url}</p>
+        <p className="text-small text-muted-foreground">
+          {TEXTOS_MAESTROS.enlaces.vence(formatearFechaHora(expiraEn))}
+        </p>
+        <p className="text-small text-muted-foreground">{TEXTOS_MAESTROS.enlaces.aviso}</p>
+      </div>
       <Button
         ref={copiarBtnRef}
         type="button"

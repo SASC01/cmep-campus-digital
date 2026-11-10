@@ -11,4 +11,7 @@ export const TEXTOS_DE_LA_CLASE = {
   // CALIFICACIONES-01c (§D-12.1): el texto de una tarea sin categoría, el mismo en features/tareas
   // y, desde 01d, en features/calificaciones.
   sinCategoria: "Sin categoría",
+  // ADMIN-01d1 (§D-9, §D-12): una ruta de escritura en una clase archivada pinta esto, sin formulario.
+  // Lo usan features/clases (editar un recurso o la clase) y, desde 01d2, features/tareas.
+  archivada: "Esta clase está archivada: solo se puede consultar.",
 } as const

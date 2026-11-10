@@ -207,7 +207,15 @@ export const claseIdParamSchema = z.object({
   claseId: z.uuid("claseId: debe ser un identificador válido"),
 })
 
-export const maestroDeClaseSchema = z.object({ id: z.uuid(), nombre: z.string() })
+// ADMIN-01e (S-16, P-01 a′): `cuentaDesactivada` solo viene en un maestro dado de baja (siempre
+// `true`); un maestro activo no lleva la clave, así que las respuestas de hoy no cambian de forma.
+const marcaDeCuentaDesactivada = { cuentaDesactivada: z.literal(true).optional() }
+
+export const maestroDeClaseSchema = z.object({
+  id: z.uuid(),
+  nombre: z.string(),
+  ...marcaDeCuentaDesactivada,
+})
 
 // Sin codigoInvitacion (solo lo ven los maestros de la clase y el admin por GET/POST …/codigo, con
 // no-store). `maestro` (el principal, `maestros[0]`) es un campo de compatibilidad (P-06 de
@@ -359,7 +367,10 @@ export const personaConCorreoSchema = z.object({
 export const personasRespuestaSchema = z.object({
   // Compatibilidad (P-06 de CLASES-02): el primer maestro de `maestros`.
   maestro: personaConCorreoSchema,
-  maestros: z.array(personaConCorreoSchema).min(1).max(MAXIMO_MAESTROS_POR_CLASE),
+  maestros: z
+    .array(personaConCorreoSchema.extend(marcaDeCuentaDesactivada))
+    .min(1)
+    .max(MAXIMO_MAESTROS_POR_CLASE),
   alumnos: z.array(personaConCorreoSchema),
   totalAlumnos: z.number().int().min(0),
   siguienteCursor: z.uuid().nullable(),

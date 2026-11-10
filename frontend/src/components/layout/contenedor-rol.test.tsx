@@ -105,22 +105,34 @@ describe("ContenedorRol", () => {
   })
 
   // AUTH-03b: el admin gana "Maestros" (/admin/maestros); CLASES-02c (C-14, P-07 a), "Clases".
-  it("con rol admin, hay tres enlaces: 'Cuentas' hacia /admin, 'Maestros' hacia /admin/maestros y 'Clases' hacia /admin/clases", () => {
+  // ADMIN-01f (§D-11, Enmienda 1; ADM-1F14): "Cuentas" pasa a "Inicio" (/admin) y entra "Usuarios".
+  // ADMIN-01g (ADM-1G13): suman "Estado de pago" y "Movimientos"; orden final Inicio, Usuarios, Estado de
+  // pago, Clases, Maestros, Movimientos.
+  it("con rol admin, hay seis enlaces: 'Inicio' hacia /admin, 'Usuarios' hacia /admin/usuarios, 'Estado de pago' hacia /admin/estado-pago, 'Clases' hacia /admin/clases, 'Maestros' hacia /admin/maestros y 'Movimientos' hacia /admin/movimientos", () => {
     renderizar("admin")
-    const cuentas = screen.getByRole("link", { name: "Cuentas" })
-    expect(cuentas).toHaveAttribute("href", "/admin")
-    expect(cuentas).toHaveAttribute("aria-current", "page")
+    const inicio = screen.getByRole("link", { name: "Inicio" })
+    expect(inicio).toHaveAttribute("href", "/admin")
+    expect(inicio).toHaveAttribute("aria-current", "page")
+    const usuarios = screen.getByRole("link", { name: "Usuarios" })
+    expect(usuarios).toHaveAttribute("href", "/admin/usuarios")
+    expect(usuarios).not.toHaveAttribute("aria-current")
     const maestros = screen.getByRole("link", { name: "Maestros" })
     expect(maestros).toHaveAttribute("href", "/admin/maestros")
     expect(maestros).not.toHaveAttribute("aria-current")
     const clases = screen.getByRole("link", { name: "Clases" })
     expect(clases).toHaveAttribute("href", "/admin/clases")
     expect(clases).not.toHaveAttribute("aria-current")
+    const estadoPago = screen.getByRole("link", { name: "Estado de pago" })
+    expect(estadoPago).toHaveAttribute("href", "/admin/estado-pago")
+    expect(estadoPago).not.toHaveAttribute("aria-current")
+    const movimientos = screen.getByRole("link", { name: "Movimientos" })
+    expect(movimientos).toHaveAttribute("href", "/admin/movimientos")
+    expect(movimientos).not.toHaveAttribute("aria-current")
     expect(
       within(screen.getByRole("navigation", { name: "Navegación principal" }))
         .getAllByRole("link")
         .map((enlace) => enlace.textContent),
-    ).toEqual(["Cuentas", "Maestros", "Clases"])
+    ).toEqual(["Inicio", "Usuarios", "Estado de pago", "Clases", "Maestros", "Movimientos"])
   })
 
   // CLASES-02d, M-13 (PR-2D01, P-07 a): el administrador no tiene lista de clases en la barra.
@@ -183,7 +195,10 @@ describe("ContenedorRol", () => {
 })
 
 // CLASES-02c (PR-2C11, Enmienda 1, M-04): cada destino declara su coincidencia. "Clases" queda activo
-// en todas sus subrutas; "Cuentas" y "Maestros", solo en su ruta exacta.
+// en todas sus subrutas; "Cuentas" y "Maestros", solo en su ruta exacta. ADMIN-01f (ADM-1F14): "Cuentas"
+// pasa a "Inicio" (solo en /admin) y "Usuarios" queda activo en la tabla y en la ficha de una cuenta.
+// ADMIN-01g (ADM-1G08, ADM-1G13; E-06): "/admin/" con la barra final deja activo "Inicio"; "Estado de pago"
+// y "Movimientos" son exactos.
 describe("destinos del administrador y su coincidencia", () => {
   const CLASE_ID = "2a2b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d01"
 
@@ -219,8 +234,13 @@ describe("destinos del administrador y su coincidencia", () => {
       .map((enlace) => enlace.textContent)
 
   it.each([
-    ["/admin", ["Cuentas"]],
+    ["/admin", ["Inicio"]],
+    ["/admin/", ["Inicio"]],
+    ["/admin/usuarios", ["Usuarios"]],
+    [`/admin/usuarios/${CLASE_ID}`, ["Usuarios"]],
     ["/admin/maestros", ["Maestros"]],
+    ["/admin/estado-pago", ["Estado de pago"]],
+    ["/admin/movimientos", ["Movimientos"]],
     ["/admin/clases", ["Clases"]],
     ["/admin/clases/nueva", ["Clases"]],
     [`/admin/clases/${CLASE_ID}`, ["Clases"]],
@@ -231,12 +251,13 @@ describe("destinos del administrador y su coincidencia", () => {
     expect(activos()).toEqual(esperados)
   })
 
-  it("todo destino de DESTINOS_POR_ROL declara su coincidencia, y solo «Clases» es de prefijo", () => {
+  it("todo destino de DESTINOS_POR_ROL declara su coincidencia, y solo «Usuarios» y «Clases» son de prefijo", () => {
     const todos = Object.values(DESTINOS_POR_ROL).flat()
     for (const destino of todos) {
       expect(["exacta", "prefijo"], destino.etiqueta).toContain(destino.coincidencia)
     }
     expect(todos.filter((d) => d.coincidencia === "prefijo").map((d) => d.etiqueta)).toEqual([
+      "Usuarios",
       "Clases",
     ])
   })

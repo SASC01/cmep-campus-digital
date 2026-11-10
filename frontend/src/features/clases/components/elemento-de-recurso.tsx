@@ -2,6 +2,7 @@ import { BookOpen } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import { Link } from "react-router"
 
+import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
@@ -54,7 +55,12 @@ export function ElementoDeRecurso({
   // §D-12: guarda síncrona del borrado. `borrar.isPending` llega un render después; mientras está
   // marcada no sale un segundo DELETE y "Cancelar" no cierra la confirmación.
   const borrandoRef = useRef(false)
-  const gestionar = CAPACIDADES_POR_PERSPECTIVA[perspectiva].gestionarTrabajo
+  // ADMIN-01d1 (§D-9, filas 17 a 19): en una clase archivada no se edita, borra ni mueve un recurso.
+  const soloLectura = useSoloLecturaDeLaClase()
+  const gestionar = CAPACIDADES_POR_PERSPECTIVA[perspectiva].gestionarTrabajo && !soloLectura
+  // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
+  // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
+  if (soloLectura && confirmando) setConfirmando(false)
   const ofreceBorrar = gestionar && recurso.puedeBorrar
   const textoDeConfirmacion =
     recurso.adjuntos.length > 0

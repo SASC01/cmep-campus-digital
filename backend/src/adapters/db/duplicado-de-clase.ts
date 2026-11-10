@@ -6,7 +6,9 @@ import { errorClaseConCopiasEnCurso } from "../../core/clases/borrado.js"
 import { planDeDuplicado } from "../../core/clases/duplicado.js"
 import { AppError } from "../../core/errores.js"
 import { bloquearMaestrosActivos } from "./bloqueo-maestros.js"
-import { ORDEN_DE_MAESTROS, maestrosDeFilas, type ClaseDb } from "./clases.js"
+// Como en crear (§D-7.9): el reintento con un código nuevo es el de clases.ts (N-32). El único índice
+// único que puede chocar al duplicar es codigo_invitacion (los demás ids nacen de randomUUID).
+import { ORDEN_DE_MAESTROS, conReintentoDeCodigo, maestrosDeFilas, type ClaseDb } from "./clases.js"
 import {
   ejecutorSqlDe,
   enTransaccion,
@@ -14,7 +16,6 @@ import {
   type Ejecutor,
   type EjecutorSql,
 } from "./cliente.js"
-import { traducirErrorPrisma } from "./errores.js"
 import type { Prisma } from "./generated/client.js"
 
 // ADMIN-01b (§D-5, DH-03 a). Duplicar una clase (activa o archivada): la copia nace activa, con el
@@ -26,40 +27,6 @@ const TIMEOUT_DEL_DUPLICADO_MS = 30_000
 
 const sinAcceso = (): AppError =>
   new AppError("SIN_ACCESO_A_LA_CLASE", "No tienes acceso a esta clase.", 403)
-
-const errorCodigoNoDisponible = (): AppError =>
-  new AppError("CODIGO_NO_DISPONIBLE", "No se pudo generar un código de clase disponible.", 500)
-
-// El único índice único que puede chocar al duplicar es codigo_invitacion (los demás ids nacen de
-// randomUUID). Un error que no es un P2002 se relanza tal cual (lo traduce errores.ts).
-const traducirErrorDeCodigo = (error: unknown): AppError => {
-  try {
-    traducirErrorPrisma(error, { alDuplicar: () => errorCodigoNoDisponible() })
-  } catch (traducido) {
-    if (traducido instanceof AppError) return traducido
-    throw traducido
-  }
-  throw error
-}
-
-// Como en crear (§D-7.9): el reintento envuelve la transacción entera, porque un P2002 deja abortada
-// la transacción en curso. Un solo reintento, sin ciclo.
-const conReintentoDeCodigo = async <T>(
-  intentar: (codigo: string) => Promise<T>,
-  generarCodigo: () => string,
-): Promise<T> => {
-  try {
-    return await intentar(generarCodigo())
-  } catch (primerError) {
-    const traducido = traducirErrorDeCodigo(primerError)
-    if (traducido.codigo !== "CODIGO_NO_DISPONIBLE") throw traducido
-    try {
-      return await intentar(generarCodigo())
-    } catch (segundoError) {
-      throw traducirErrorDeCodigo(segundoError)
-    }
-  }
-}
 
 const SELECT_COPIA = {
   id: true,

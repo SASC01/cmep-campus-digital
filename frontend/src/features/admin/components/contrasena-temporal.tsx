@@ -11,12 +11,20 @@ interface ContrasenaTemporalProps {
   // cuando llegó la temporal. Si movió el foco a otro campo mientras la petición estaba en vuelo
   // (por ejemplo, para invitar a un maestro), esta llegada no se lo debe robar.
   enfocarAlMostrar: boolean
+  // ADMIN-01f (alta de alumno, §7.13): lo que se anuncia antes de la temporal ("Cuenta creada para …").
+  encabezado?: string
 }
 
 // DEC-19: se muestra una sola vez (la llamada ya ocurrió; esto solo la renderiza mientras el
 // componente que la pidió siga montado). Sin fuente monoespaciada: CLAUDE.md la reserva para
 // códigos de clase, y el alfabeto de la temporal ya evita caracteres ambiguos.
-export function ContrasenaTemporal({ contrasena, enfocarAlMostrar }: ContrasenaTemporalProps) {
+// ADMIN-01f (E-27, como E-14): el role="status" envuelve solo lo que se anuncia, nunca «Copiar»: un
+// lector de pantalla no lee el botón como parte del anuncio.
+export function ContrasenaTemporal({
+  contrasena,
+  enfocarAlMostrar,
+  encabezado,
+}: ContrasenaTemporalProps) {
   const [copiando, setCopiando] = useState(false)
   const copiarBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -37,12 +45,12 @@ export function ContrasenaTemporal({ contrasena, enfocarAlMostrar }: ContrasenaT
   }
 
   return (
-    <div
-      role="status"
-      className="flex flex-col gap-2 rounded-row border border-border bg-muted p-3"
-    >
-      <p className="text-h3 font-bold tracking-normal">{contrasena}</p>
-      <p className="text-small text-muted-foreground">{TEXTOS_CUENTAS.ficha.temporalAviso}</p>
+    <div className="flex flex-col gap-2 rounded-row border border-border bg-muted p-3">
+      <div role="status" className="flex flex-col gap-2">
+        {encabezado !== undefined && <p className="text-small font-medium">{encabezado}</p>}
+        <p className="text-h3 font-bold tracking-normal">{contrasena}</p>
+        <p className="text-small text-muted-foreground">{TEXTOS_CUENTAS.ficha.temporalAviso}</p>
+      </div>
       <Button
         ref={copiarBtnRef}
         type="button"

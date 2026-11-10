@@ -461,7 +461,9 @@ describe("ataque: superficie de rutas", () => {
   // HEAD de /alumnos/candidatos; DELETE de /alumnos/:alumnoId). Ninguna crea cuentas ni cambia roles:
   // leen miembros de la clase, buscan estudiantes ya existentes y agregan o quitan inscripciones de
   // la clase del maestro dueño (POST /alumnos solo inscribe a un estudiante activo que ya existe).
-  // Ninguna ruta expone movimientos_inscripcion (V-06: ninguna contiene "movimiento"). La protección
+  // Ninguna de estas rutas expone movimientos_inscripcion (V-06: ninguna contiene "movimiento"; desde
+  // ADMIN-01e, C-7, la única que lo contiene es GET /api/admin/movimientos-inscripcion, solo para el
+  // admin, y las rutas de alumnos de la clase siguen sin exponer sus filas). La protección
   // queda igual: ninguna ruta crea administradores; siguen creando maestros solo las tres de hoy
   // (POST /api/admin/maestros, POST /api/admin/maestros/lote y POST /api/auth/registro-maestro), y
   // cualquier otra ruta nueva vuelve a poner la prueba en rojo. printRoutes anida /personas y
@@ -568,7 +570,19 @@ describe("ataque: superficie de rutas", () => {
   // administradores; siguen creando maestros solo las tres de hoy, y cualquier otra ruta nueva
   // vuelve a poner la prueba en rojo. printRoutes pone DELETE junto al PUT de /:claseId y anida
   // /conteo-de-borrado y /duplicar bajo /api/admin/clases/:claseId.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a, ADMIN-01a y ADMIN-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // ADMIN-01e, C-6 (§D-R0; §D-7 y §D-8): se agregan exactamente las nueve rutas de usuarios, estado
+  // de pago, acceso, resumen y movimientos, más el HEAD de cada GET (13 entradas): GET y HEAD de
+  // /api/admin/usuarios y de /api/admin/usuarios/:id; PUT de /api/admin/usuarios/:id/nombre y de
+  // /api/admin/usuarios/:id/activo; POST de /api/admin/alumnos; PUT de /api/admin/alumnos/estado-pago
+  // y de /api/admin/alumnos/:id/acceso; GET y HEAD de /api/admin/resumen y de
+  // /api/admin/movimientos-inscripcion. Todas son solo para el admin y ninguna es pública. Ninguna
+  // crea administradores ni cambia roles: la baja y el acceso no tocan rol, y POST /api/admin/alumnos
+  // crea estudiantes, no maestros ni admins. La protección queda igual: ninguna ruta crea
+  // administradores; siguen creando maestros solo las tres de hoy; crean estudiantes solo
+  // POST /api/admin/alumnos y POST /api/auth/registro; y cualquier otra ruta nueva vuelve a poner la
+  // prueba en rojo. printRoutes anida /usuarios y /alumnos bajo /api/admin, /:id bajo ellas y
+  // /nombre, /activo y /acceso debajo; el análisis por sangría los reconstruye.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a, ADMIN-01a, ADMIN-01b y ADMIN-01e: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -610,6 +624,10 @@ describe("ataque: superficie de rutas", () => {
       "GET /api/admin/enlaces-registro",
       "GET /api/admin/enlaces-registro/:id/registrados",
       "GET /api/admin/maestros/candidatos",
+      "GET /api/admin/movimientos-inscripcion",
+      "GET /api/admin/resumen",
+      "GET /api/admin/usuarios",
+      "GET /api/admin/usuarios/:id",
       "GET /api/clases/:claseId",
       "GET /api/clases/:claseId/alumnos",
       "GET /api/clases/:claseId/alumnos/candidatos",
@@ -643,6 +661,10 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/admin/enlaces-registro",
       "HEAD /api/admin/enlaces-registro/:id/registrados",
       "HEAD /api/admin/maestros/candidatos",
+      "HEAD /api/admin/movimientos-inscripcion",
+      "HEAD /api/admin/resumen",
+      "HEAD /api/admin/usuarios",
+      "HEAD /api/admin/usuarios/:id",
       "HEAD /api/clases/:claseId",
       "HEAD /api/clases/:claseId/alumnos",
       "HEAD /api/clases/:claseId/alumnos/candidatos",
@@ -671,6 +693,7 @@ describe("ataque: superficie de rutas", () => {
       "HEAD /api/clases/inscritas",
       "HEAD /api/me",
       "HEAD /api/salud",
+      "POST /api/admin/alumnos",
       "POST /api/admin/clases",
       "POST /api/admin/clases/:claseId/archivar",
       "POST /api/admin/clases/:claseId/duplicar",
@@ -710,8 +733,12 @@ describe("ataque: superficie de rutas", () => {
       "POST /api/clases/:claseId/tareas/:tareaId/entregas/:alumnoId/comentarios",
       "POST /api/clases/:claseId/temas",
       "POST /api/clases/unirse",
+      "PUT /api/admin/alumnos/:id/acceso",
+      "PUT /api/admin/alumnos/estado-pago",
       "PUT /api/admin/clases/:claseId",
+      "PUT /api/admin/usuarios/:id/activo",
       "PUT /api/admin/usuarios/:id/correo",
+      "PUT /api/admin/usuarios/:id/nombre",
       "PUT /api/clases/:claseId/categorias",
       "PUT /api/clases/:claseId/dudas/:dudaId/resuelta",
       "PUT /api/clases/:claseId/publicaciones/:publicacionId/tema",

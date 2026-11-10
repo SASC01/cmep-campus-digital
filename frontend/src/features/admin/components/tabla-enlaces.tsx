@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useInRouterContext } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { useFocoAlCargarMas, useFocoAlPerderseElControl } from "@/components/foco/hooks"
+import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
@@ -14,12 +17,23 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatearFechaHora } from "@/lib/format"
+import { unirPaginasSinRepetidas } from "@/lib/unir-paginas"
 
 import { InsigniaEstadoEnlace } from "./insignia-estado-enlace"
-import { RegistradosDelEnlace } from "./registrados-del-enlace"
-import { TEXTOS_MAESTROS } from "../data"
-import { useEnlacesRegistro, useRevocarEnlace } from "../hooks"
-import { mensajeDeConsultaAdmin, mensajeDeErrorAdmin, textoOcultoDeFila } from "../lib"
+import { AlPulsarLaSeccionActiva, RegistradosDelEnlace } from "./registrados-del-enlace"
+import { CLAVE_ENLACES_REGISTRO, TEXTOS_MAESTROS } from "../data"
+import {
+  useEnlacesRegistro,
+  useMarcarViejaSiQuedoEnError,
+  useRevocarEnlace,
+  useVolverAPedirSiFallo,
+} from "../hooks"
+import {
+  errorQueRedirigeElCliente,
+  mensajeDeConsultaAdmin,
+  mensajeDeErrorAdmin,
+  textoOcultoDeFila,
+} from "../lib"
 import type { EnlaceRegistroAdmin } from "../types"
 
 interface FilaEnlaceProps {
@@ -49,6 +63,7 @@ function Marca({ plantilla, creadoEn }: MarcaProps) {
 
 function FilaEnlace({ enlace }: FilaEnlaceProps) {
   const [expandido, setExpandido] = useState(false)
+  const expandirBtnRef = useRef<HTMLButtonElement>(null)
   const [confirmando, setConfirmando] = useState(false)
   const revocar = useRevocarEnlace()
   const enviandoRef = useRef(false)
@@ -69,6 +84,18 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
     revocarBtnRef.current?.focus()
   }, [confirmando])
 
+  // ADMIN-01g (E-01): al abrir o cerrar la confirmación, el error de «Sí, revocar» sale y no reaparece
+  // al reabrirla. Con la petición en vuelo (la ref se lee al instante) no se toca.
+  const abrirConfirmacion = () => {
+    if (!enviandoRef.current && !revocar.isPending) revocar.reset()
+    setConfirmando(true)
+  }
+
+  const cerrarConfirmacion = () => {
+    if (!enviandoRef.current && !revocar.isPending) revocar.reset()
+    setConfirmando(false)
+  }
+
   const handleRevocar = () => {
     if (enviandoRef.current) return
     enviandoRef.current = true
@@ -82,7 +109,7 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
 
   return (
     <>
-      <TableRow>
+      <TableRow data-enlace-id={enlace.id}>
         <TableCell>{formatearFechaHora(enlace.creadoEn)}</TableCell>
         <TableCell>{formatearFechaHora(enlace.expiraEn)}</TableCell>
         <TableCell>
@@ -93,9 +120,9 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Button
+                ref={expandirBtnRef}
                 type="button"
                 variant="ghost"
-                size="sm"
                 aria-expanded={expandido}
                 onClick={() => setExpandido((valor) => !valor)}
               >
@@ -116,8 +143,7 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                   ref={revocarBtnRef}
                   type="button"
                   variant="destructive"
-                  size="sm"
-                  onClick={() => setConfirmando(true)}
+                  onClick={abrirConfirmacion}
                 >
                   {TEXTOS_MAESTROS.enlaces.revocar}
                   <Marca
@@ -138,7 +164,6 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                   <Button
                     type="button"
                     variant="destructive"
-                    size="sm"
                     onClick={handleRevocar}
                     enEspera={revocar.isPending}
                   >
@@ -152,8 +177,7 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                     ref={cancelarBtnRef}
                     type="button"
                     variant="outline"
-                    size="sm"
-                    onClick={() => setConfirmando(false)}
+                    onClick={cerrarConfirmacion}
                   >
                     {TEXTOS_MAESTROS.enlaces.cancelar}
                     <Marca
@@ -170,7 +194,11 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
       {expandido && (
         <TableRow>
           <TableCell colSpan={5}>
-            <RegistradosDelEnlace enlaceId={enlace.id} creadoEnDelEnlace={enlace.creadoEn} />
+            <RegistradosDelEnlace
+              enlaceId={enlace.id}
+              creadoEnDelEnlace={enlace.creadoEn}
+              destinoDelFocoRef={expandirBtnRef}
+            />
           </TableCell>
         </TableRow>
       )}
@@ -182,66 +210,122 @@ interface TablaEnlacesProps {
   onGenerarPrimero: () => void
 }
 
-// AUTH-03b, §D-B6: lista de enlaces de registro, con "Cargar más enlaces" al pie (P-02 A).
+// AUTH-03b, §D-B6: lista de enlaces de registro, con "Cargar más enlaces" al pie (P-02 A). ADMIN-01g:
+// "Cargar más enlaces" con guarda síncrona, la espera de isFetching y cancelRefetch: false (E-07, fila 24
+// de CHORE-04); al cargar la última página con el foco en el botón, el foco va a «Ver registrados» del
+// primer enlace nuevo o, si no llegó ninguno, al de la primera fila, nunca a <body> (E-18). Ronda 1 (T-02):
+// la raíz de la tabla (tabIndex -1) queda montada en todos los estados, así que si la página siguiente
+// falla y el error reemplaza la tabla, el foco va a esa raíz. Un error con que apiClient redirige no se
+// pinta (la página se va): se queda lo que había.
 export function TablaEnlaces({ onGenerarPrimero }: TablaEnlacesProps) {
   const enlaces = useEnlacesRegistro()
+  const tablaRef = useRef<HTMLDivElement>(null)
+  const cargandoMasRef = useRef(false)
+  // Ronda 1 (estado vecino de T-02): sin filas repetidas si una página siguiente repite un enlace (R-19).
+  const filas = enlaces.data
+    ? unirPaginasSinRepetidas(enlaces.data.pages.map((pagina) => pagina.enlaces))
+    : undefined
 
-  if (enlaces.isError) {
-    return <MensajeError mensaje={mensajeDeConsultaAdmin(enlaces.error)} />
+  const enfocarVerRegistrados = (selector: string): boolean => {
+    const boton = tablaRef.current?.querySelector<HTMLElement>(selector) ?? null
+    boton?.focus()
+    return boton !== null
   }
 
-  if (enlaces.isLoading || !enlaces.data) {
-    return <Cargando />
+  const refCargarMas = useFocoAlCargarMas(
+    filas?.map((enlace) => enlace.id),
+    (id) => enfocarVerRegistrados(`[data-enlace-id="${id}"] button`),
+    () => {
+      if (enfocarVerRegistrados("[data-enlace-id] button")) return
+      tablaRef.current?.focus()
+    },
+  )
+
+  // Ronda 2 (T-05): si una recarga (o la página siguiente) cambia la lista y quita el control que tenía el
+  // foco («Revocar», «Ver registrados», el de su fila abierta o los de una lista de registrados), el
+  // foco va a la raíz de la tabla, nunca a <body>. Va después de useFocoAlCargarMas, que decide antes cuando
+  // lo que desaparece es «Cargar más enlaces».
+  useFocoAlPerderseElControl(tablaRef, claveDeFocoDeLaConsulta("enlaces-registro", enlaces))
+
+  // Ronda 2 (T-06): la frase de error se cumple pulsando «Maestros» estando aquí (la lista en error se
+  // vuelve a pedir desde la primera página; una sana, no) y yendo a otra sección y volviendo (en error se
+  // marca vieja al desmontarse), como las demás tablas del módulo.
+  useMarcarViejaSiQuedoEnError(CLAVE_ENLACES_REGISTRO)
+  const volverAPedirSiFallo = useVolverAPedirSiFallo(CLAVE_ENLACES_REGISTRO)
+  const enUnRouter = useInRouterContext()
+
+  const cargarMas = () => {
+    if (cargandoMasRef.current) return
+    cargandoMasRef.current = true
+    void enlaces.fetchNextPage({ cancelRefetch: false }).finally(() => {
+      cargandoMasRef.current = false
+    })
   }
 
-  const filas = enlaces.data.pages.flatMap((pagina) => pagina.enlaces)
+  const contenido = (): ReactNode => {
+    if (enlaces.isError && !errorQueRedirigeElCliente(enlaces.error)) {
+      return <MensajeError mensaje={mensajeDeConsultaAdmin(enlaces.error)} />
+    }
 
-  if (filas.length === 0) {
+    if (enlaces.isLoading || !filas) {
+      return <Cargando />
+    }
+
+    if (filas.length === 0) {
+      return (
+        <Card>
+          <EstadoVacio
+            titulo={TEXTOS_MAESTROS.enlaces.vacioListaTitulo}
+            descripcion={TEXTOS_MAESTROS.enlaces.vacioListaDescripcion}
+            accion={{
+              texto: TEXTOS_MAESTROS.enlaces.generarElPrimero,
+              onClick: onGenerarPrimero,
+              variante: "outline",
+            }}
+          />
+        </Card>
+      )
+    }
+
     return (
-      <Card>
-        <EstadoVacio
-          titulo={TEXTOS_MAESTROS.enlaces.vacioListaTitulo}
-          descripcion={TEXTOS_MAESTROS.enlaces.vacioListaDescripcion}
-          accion={{
-            texto: TEXTOS_MAESTROS.enlaces.generarElPrimero,
-            onClick: onGenerarPrimero,
-            variante: "outline",
-          }}
-        />
-      </Card>
+      <>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.creado}</TableHead>
+              <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.vence}</TableHead>
+              <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.estado}</TableHead>
+              <TableHead className="text-right">
+                {TEXTOS_MAESTROS.enlaces.columnas.registrados}
+              </TableHead>
+              <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.acciones}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filas.map((enlace) => (
+              <FilaEnlace key={enlace.id} enlace={enlace} />
+            ))}
+          </TableBody>
+        </Table>
+        {enlaces.hasNextPage && (
+          <Button
+            ref={refCargarMas}
+            type="button"
+            variant="outline"
+            onClick={cargarMas}
+            enEspera={enlaces.isFetching}
+          >
+            {TEXTOS_MAESTROS.enlaces.cargarMasEnlaces}
+          </Button>
+        )}
+      </>
     )
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.creado}</TableHead>
-            <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.vence}</TableHead>
-            <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.estado}</TableHead>
-            <TableHead className="text-right">
-              {TEXTOS_MAESTROS.enlaces.columnas.registrados}
-            </TableHead>
-            <TableHead>{TEXTOS_MAESTROS.enlaces.columnas.acciones}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filas.map((enlace) => (
-            <FilaEnlace key={enlace.id} enlace={enlace} />
-          ))}
-        </TableBody>
-      </Table>
-      {enlaces.hasNextPage && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void enlaces.fetchNextPage()}
-          enEspera={enlaces.isFetchingNextPage}
-        >
-          {TEXTOS_MAESTROS.enlaces.cargarMasEnlaces}
-        </Button>
-      )}
+    <div ref={tablaRef} tabIndex={-1} className="flex flex-col gap-3">
+      {enUnRouter && <AlPulsarLaSeccionActiva alPulsar={volverAPedirSiFallo} />}
+      {contenido()}
     </div>
   )
 }

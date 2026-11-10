@@ -112,7 +112,16 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
     expect(fallas).toEqual([])
   })
 
-  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; ninguno gana una ref; en admin y auth solo esos diez y buscador-de-cuenta reinician una mutación", () => {
+  // ADMIN-01f (§D-R0 01f, lista cerrada; §D-11, Enmienda 9): buscador-de-cuenta.tsx se borra con su
+  // reset sin condición; formulario-corregir-correo.tsx gana la ref de la fila 7 de CHORE-04, ANTES de su
+  // guarda isPending (la línea de T-05 sigue entre esa guarda y el primer safeParse). Reinician una
+  // mutación, además de los diez: los cuatro formularios nuevos de T-05 (nombre, alta, restringir y estado
+  // de pago), el restablecimiento de la ficha al abrir o cerrar su confirmación (E-01) y el diálogo de dar
+  // de baja al cerrarse.
+  // ADMIN-01g (§D-R0 01g, lista cerrada vigente; filas 8 a 10 de CHORE-04, E-01 y §D-11): los tres
+  // formularios de /admin/maestros ganan la ref antes de su guarda isPending, como corregir el correo; suman
+  // los reinicios de «Sí, revocar» al abrir o cerrar su confirmación (E-01) y del diálogo del lote (T-05).
+  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; solo corregir el correo y los tres formularios de /admin/maestros ganan una ref, antes de esa guarda; en admin y auth solo esos diez, los de 01f, la confirmación de revocar y el diálogo del lote reinician una mutación", () => {
     // Sin comentarios: el comentario de T-05 nombra la línea y no debe contar.
     const sinComentarios = (texto: string) =>
       texto.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
@@ -129,7 +138,22 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       ["/src/features/auth/components/formulario-nueva-contrasena.tsx", "nuevaContrasena"],
       ["/src/features/auth/components/formulario-cambiar-contrasena.tsx", "cambiar"],
     ]
-    const BUSCADOR = "/src/features/admin/components/buscador-de-cuenta.tsx"
+    const CON_REF: readonly string[] = [
+      "/src/features/admin/components/formulario-corregir-correo.tsx",
+      "/src/features/admin/components/formulario-invitar-maestro.tsx",
+      "/src/features/admin/components/formulario-invitacion-masiva.tsx",
+      "/src/features/admin/components/formulario-generar-enlace.tsx",
+    ]
+    const DE_01F: readonly string[] = [
+      "/src/features/admin/components/formulario-nombre-de-cuenta.tsx#editar",
+      "/src/features/admin/components/formulario-alta-alumno.tsx#alta",
+      "/src/features/admin/components/dialogo-restringir-acceso.tsx#restringir",
+      "/src/features/admin/components/estado-de-pago-de-cuenta.tsx#cambiar",
+      "/src/features/admin/components/ficha-de-cuenta.tsx#restablecer",
+      "/src/features/admin/components/dialogo-dar-de-baja.tsx#baja",
+      "/src/features/admin/components/tabla-enlaces.tsx#revocar",
+      "/src/features/admin/components/dialogo-estado-pago-lote.tsx#cambiarLote",
+    ]
 
     for (const [ruta, mutacion] of DIEZ) {
       const texto = sinComentarios(leer(ruta))
@@ -145,7 +169,13 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       expect(validacion, ruta).toBeGreaterThan(-1)
       expect(linea, ruta).toBeGreaterThan(guarda)
       expect(linea, ruta).toBeLessThan(validacion)
-      expect(texto, ruta).not.toMatch(/Ref\.current\) return/)
+      if (!CON_REF.includes(ruta)) {
+        expect(texto, ruta).not.toMatch(/Ref\.current\) return/)
+        continue
+      }
+      const ref = texto.search(/if \(\w+Ref\.current\) return/)
+      expect(ref, ruta).toBeGreaterThan(-1)
+      expect(ref, ruta).toBeLessThan(guarda)
     }
 
     // D-2 (manager): se cuenta `<m>.reset()` con el nombre de cada mutación del archivo (lo que sale
@@ -163,13 +193,8 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       })
       .sort()
     expect(reinicianUnaMutacion).toEqual(
-      [...DIEZ.map(([ruta, mutacion]) => `${ruta}#${mutacion}`), `${BUSCADOR}#buscar`].sort(),
+      [...DIEZ.map(([ruta, mutacion]) => `${ruta}#${mutacion}`), ...DE_01F].sort(),
     )
-
-    // BuscadorDeCuenta no cambia: su reset sigue sin condición (DEC-19).
-    const buscador = sinComentarios(leer(BUSCADOR))
-    expect(buscador).toContain("buscar.reset()")
-    expect(buscador).not.toMatch(/if \(buscar\.isError\) buscar\.reset\(\)/)
   })
 
   it("CH3-A24: ni la tabla común, ni el contrato, ni las pruebas nuevas del chore tienen un carácter invisible literal", () => {

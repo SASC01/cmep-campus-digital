@@ -25,6 +25,14 @@ permitirRestringido: true })`; pide solo la contraseña nueva y exige una sesió
   `enlaces-registro` (crear y listar), `enlaces-registro/:id/revocar` (idempotente) y
   `enlaces-registro/:id/registrados`; todas con `protegido({ roles: ["admin"] })`. El token del
   enlace solo viaja en la respuesta de crearlo, con `Cache-Control: no-store`.
+- `admin/usuarios.ts` (ADMIN-01e, §D-7 y §D-8; lo registra el plugin de `admin.ts`, mismo prefijo
+  `/api/admin`): `GET usuarios` (búsqueda, rol, estado de pago y cursor con su posición
+  `cursorNombre`, que decide el adaptador), `GET usuarios/:id`, `PUT usuarios/:id/nombre`,
+  `PUT usuarios/:id/activo` (baja y reactivación), `POST alumnos` (alta con contraseña temporal, `201`
+  con `Cache-Control: no-store`), `PUT alumnos/estado-pago` (lote), `PUT alumnos/:id/acceso`,
+  `GET resumen` y `GET movimientos-inscripcion`; todas con `protegido({ roles: ["admin"] })`. Las
+  decisiones (baja, acceso, búsqueda y la fila que ve el admin) son de `core/usuarios/`; el handler no
+  compara roles ni estados. Vive aparte de `admin.ts` para que este no nombre el estado de pago.
 
 - `clases/clases.ts` (prefijo `/api`, CLASES-a): `GET /clases/inscritas` y
   `GET /clases/impartidas` (listas propias por rol, paginadas por cursor), `POST /clases/unirse`

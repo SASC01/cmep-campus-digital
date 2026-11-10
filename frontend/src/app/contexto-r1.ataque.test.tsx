@@ -97,7 +97,9 @@ describe("ataque (DESIGN-01a r1): /admin opaco y denso", () => {
   it("cada botón, campo y encabezado de /admin cuelga de un contenedor opaco y denso", async () => {
     stubApi(() => respuestaJson(200, meDe({ rol: "admin", nombre: "Administración" })))
     await renderEn("/admin")
-    await screen.findByRole("heading", { name: "Cuentas" })
+    // ADMIN-01f ronda 0 (C-16, §D-R0 01f; T-E14): /admin es el dashboard, cuyo h1 es "Inicio". Sigue
+    // protegiendo que todo lo de /admin cuelgue del contexto opaco y denso.
+    await screen.findByRole("heading", { name: "Inicio" })
 
     const elementos = [...controles(), ...screen.getAllByRole("heading")]
     expect(elementos.length, "no se encontró ningún control en /admin").toBeGreaterThan(5)

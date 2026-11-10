@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { formatearFechaHora, formatearFechaLarga, formatearTamano, inicialesDe } from "./format"
+import {
+  formatearFechaHora,
+  formatearFechaLarga,
+  formatearFechaLargaConAno,
+  formatearTamano,
+  inicialesDe,
+} from "./format"
 
 describe("formatearFechaHora", () => {
   it("muestra fecha y hora en la zona indicada", () => {
@@ -14,6 +20,25 @@ describe("formatearFechaLarga", () => {
   it("PR-A27: da 'martes 29 de septiembre' en la zona indicada", () => {
     const fecha = new Date("2026-09-29T14:00:00.000Z")
     expect(formatearFechaLarga(fecha, "UTC")).toBe("martes 29 de septiembre")
+  })
+})
+
+describe("formatearFechaLargaConAno (ADMIN-01, decisión del humano)", () => {
+  it("da 'martes 29 de septiembre de 2026' en la zona indicada, sin coma", () => {
+    const fecha = new Date("2026-09-29T14:00:00.000Z")
+    expect(formatearFechaLargaConAno(fecha, "UTC")).toBe("martes 29 de septiembre de 2026")
+  })
+
+  it("respeta la zona: el mismo instante puede caer en otro día y en otro año", () => {
+    const fecha = new Date("2027-01-01T03:00:00.000Z")
+    expect(formatearFechaLargaConAno(fecha, "UTC")).toBe("viernes 1 de enero de 2027")
+    expect(formatearFechaLargaConAno(fecha, "America/Mexico_City")).toBe(
+      "jueves 31 de diciembre de 2026",
+    )
+  })
+
+  it("formatearFechaLarga sigue sin año", () => {
+    expect(formatearFechaLarga(new Date("2026-09-29T14:00:00.000Z"), "UTC")).not.toContain("2026")
   })
 })
 

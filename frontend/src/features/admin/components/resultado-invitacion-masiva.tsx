@@ -11,7 +11,8 @@ interface ResultadoInvitacionMasivaProps {
 // AUTH-03c, §D-C6 (DESIGN.md §7.15): resumen en palabras en role="status", y un grupo por
 // resultado (con su encabezado y conteo), sin grupos vacíos. El motivo de una línea inválida va en
 // texto o en <Badge variant="danger">: el rojo de esa insignia vive dentro de badge.tsx, no como
-// una clase de color suelta aquí (V-13, `styles/clases-r1.ataque.test.ts`).
+// una clase de color suelta aquí (V-13, `styles/clases-r1.ataque.test.ts`). ADMIN-01g (E-17): el texto de
+// cada línea inválida, que escribió la persona, va en <bdi>, aislado del sentido de la línea.
 export function ResultadoInvitacionMasiva({ resultado }: ResultadoInvitacionMasivaProps) {
   const { enviadas, yaExistentes, invalidas } = resultado
 
@@ -63,7 +64,9 @@ export function ResultadoInvitacionMasiva({ resultado }: ResultadoInvitacionMasi
                 className="flex flex-wrap items-center gap-2"
               >
                 <span>
-                  {TEXTOS_INVITACION_MASIVA.lineaInvalida(invalida.linea, invalida.texto)}
+                  {TEXTOS_INVITACION_MASIVA.lineaInvalida(invalida.linea)}
+                  <bdi>{invalida.texto}</bdi>
+                  {TEXTOS_INVITACION_MASIVA.separadorDelMotivo}
                 </span>
                 <Badge variant="danger">{etiquetaDeMotivo(invalida.motivo)}</Badge>
               </li>

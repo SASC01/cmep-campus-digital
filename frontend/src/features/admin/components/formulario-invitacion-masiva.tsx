@@ -3,7 +3,7 @@ import {
   invitacionMasivaSchema,
   LIMITE_LINEAS_INVITACION_MASIVA,
 } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
@@ -25,9 +25,13 @@ export function FormularioInvitacionMasiva() {
   const [error, setError] = useState<string | undefined>(undefined)
   const [resultado, setResultado] = useState<InvitacionMasivaRespuesta | null>(null)
   const lineas = contarLineasConContenido(lista)
+  // ADMIN-01g (fila de CHORE-04): guarda síncrona; enEspera llega un render después y dos envíos
+  // seguidos mandaban dos peticiones.
+  const enviandoRef = useRef(false)
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (invitar.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -41,8 +45,12 @@ export function FormularioInvitacionMasiva() {
 
     setError(undefined)
     setResultado(null)
+    enviandoRef.current = true
     invitar.mutate(analisis.data, {
       onSuccess: (respuesta) => setResultado(respuesta),
+      onSettled: () => {
+        enviandoRef.current = false
+      },
     })
   }
 

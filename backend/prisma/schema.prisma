@@ -119,6 +119,11 @@ model Usuario {
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
   @@index([nombreBusqueda(ops: raw("gin_trgm_ops"))], type: Gin)
+  // ADMIN-01e (§D-7.1, S-12): la búsqueda por parte del correo (GIN de trigramas, como el de
+  // nombre_busqueda) y el orden de la lista de usuarios (nombre_busqueda, id), con y sin filtro de rol.
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([nombreBusqueda, id])
+  @@index([rol, nombreBusqueda, id])
   @@map("usuarios")
 }
 
@@ -250,13 +255,15 @@ model MaestroDeClase {
 }
 
 // CLASES-b (§D-B8). Registro de las altas manuales y las bajas (P-05 g, S-23): solo se escribe, en
-// la misma transacción que el cambio, y ninguna ruta ni función de CLASES lo lee. El orden del
+// la misma transacción que el cambio, y ninguna ruta ni función de CLASES lo lee; desde ADMIN-01e lo
+// lee solo la consulta de movimientos del administrador (S-09, sin filtros). El orden del
 // registro es secuencia (toma su valor en el INSERT, que es el último paso de la transacción);
 // creado_en es la hora de inicio de la transacción y no sirve para ordenar. Llaves foráneas con
 // ON DELETE RESTRICT: un registro no desaparece en silencio con una cascada.
 // ADMIN-01b (§D-4, DH-04 a): el borrado definitivo de una clase archivada borra sus movimientos en
 // su misma transacción, justo antes de la clase; el índice (clase_id, secuencia DESC) le sirve a ese
-// borrado (y lo reutilizará la consulta de movimientos de ADMIN-01e).
+// borrado. ADMIN-01e (S-09): la consulta de movimientos del administrador pagina toda la tabla por
+// secuencia DESC con el índice (secuencia DESC).
 model MovimientoInscripcion {
   id        String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   secuencia BigInt                    @default(autoincrement())
@@ -270,6 +277,7 @@ model MovimientoInscripcion {
   actor     Usuario                   @relation("MovimientosDelActor", fields: [actorId], references: [id], onDelete: Restrict)
 
   @@index([claseId, secuencia(sort: Desc)])
+  @@index([secuencia(sort: Desc)])
   @@map("movimientos_inscripcion")
 }
 

@@ -194,7 +194,10 @@ beforeAll(async () => {
 
     // Centinela: la última petición. Se detiene la API solo cuando su línea y las de todas las
     // anteriores ya están en el log.
-    urlCentinela = `/api/salud?centinela=${randomUUID()}`
+    // ADMIN-01e, C-25 (§D-R0; M-09, §D-7.11): desde 01e el log registra la URL sin la consulta, así
+    // que el valor único del centinela va en el camino de una ruta que no existe (responde 404 y se
+    // registra con su camino completo), no en la consulta. Lo demás que protege el caso no cambia.
+    urlCentinela = `/api/salud-centinela/${randomUUID()}`
     await fetch(`${base}${urlCentinela}`)
     await esperarLogCompleto(() => log, urlCentinela)
   } finally {

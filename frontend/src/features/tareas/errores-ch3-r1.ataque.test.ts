@@ -106,7 +106,10 @@ describe("ataque CHORE-03 03a r1 · traducción de features/tareas", () => {
   })
 
   it("un código del servidor nunca se recorta, aunque empiece como una ruta, y con un resto invisible da el genérico; en la consulta, lo mismo", () => {
-    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR.length).toBe(14)
+    // ADMIN-01d2 ronda 0 (C-11, §D-R0 «Frontend — Enmienda 1», 01d2; §D-9, Enmienda 2): de 14 a 15, con
+    // CLASE_ARCHIVADA. Sigue protegiendo lo mismo: que la lista cambie solo con el plan y que ningún
+    // código del servidor se recorte.
+    expect(CODIGOS_CON_MENSAJE_DEL_SERVIDOR.length).toBe(15)
     for (const codigo of CODIGOS_CON_MENSAJE_DEL_SERVIDOR) {
       for (const mensaje of ["fecha: La entrega cerró", "Debe ser 0: 10", "a.b.0: c", "..."]) {
         const error = new ApiError(codigo, mensaje, 409)

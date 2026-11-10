@@ -2,6 +2,8 @@ import { useRef, useState, type ReactNode } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router"
 
 import { Cargando } from "@/components/cargando"
+import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
+import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { claveDeFocoDeLaConsulta } from "@/components/foco/lib"
 import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { MensajeError } from "@/components/mensaje-error"
@@ -54,11 +56,21 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
   const navigate = useNavigate()
   const montado = useMontado()
   const consulta = useRecurso(claseId, recursoId)
+  // ADMIN-01d1 (§D-9, fila 20): en una clase archivada la ruta dice que la clase solo se consulta, con
+  // "Volver a Recursos", sin formulario.
+  const soloLectura = useSoloLecturaDeLaClase()
   const raizRef = useRef<HTMLDivElement>(null)
   // §7.21 (P-05 a′ de ENTREGAS-01a): cuántas veces se reinició el formulario tras un 409
   // RECURSO_MODIFICADO. Es la `key` del formulario: solo la recarga tras el conflicto la cambia, así que
   // ninguna otra recarga toca lo escrito ni la versión de apertura.
   const [reinicios, setReinicios] = useState(0)
+  // T-01 (ronda 1 de 01d1): en solo lectura el formulario no se pinta; al volver a activa nace como al
+  // abrir la ruta, sin la marca del conflicto que lo hacía llevarse el foco (`enfocarAlMontar`).
+  if (soloLectura && reinicios > 0) setReinicios(0)
+  // T-02 (ronda 2 de 01d1): lo que llega de un guardado o de una recarga lanzados por el formulario de
+  // una generación anterior no navega ni reinicia: el formulario de ahora no es aquel, y lo escrito y el
+  // foco de la persona se respetan. El aviso lo da el gancho, como con la vista desmontada.
+  const { generacion, sigueVigente } = useGeneracionDeSoloLectura()
   const hayRecurso = consulta.data !== undefined
   // §7.21, "Lectura fresca al abrir": si al abrir la edición el recurso en caché se está recargando (por
   // ejemplo, alguien lo movió de tema y subió su versión), el formulario espera esa primera lectura y nace
@@ -71,10 +83,11 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
   const reemplaza = consulta.isError && errorQueReemplazaElRecurso(hayRecurso, consulta.error)
 
   // R8 (§D-10): con el recurso en caché, una recarga fallida que no reemplaza la vista avisa una vez por
-  // fallo; volver a montar la vista con el fallo ya ocurrido no lo repite.
+  // fallo; volver a montar la vista con el fallo ya ocurrido no lo repite. ADMIN-01d2 (tabla D): en una
+  // clase archivada no avisa, porque dice "Puedes seguir editando" y ya no hay formulario.
   useAvisoDeRecargaFallida(
     consulta.errorUpdateCount,
-    hayRecurso && !errorQueReemplazaElRecurso(hayRecurso, consulta.error),
+    hayRecurso && !errorQueReemplazaElRecurso(hayRecurso, consulta.error) && !soloLectura,
     avisoDeRecargaFallidaDelRecurso(consulta.error),
   )
   // §7.14: si una recarga quita el formulario (el recurso ya no existe, se perdió el acceso o
@@ -82,6 +95,10 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
   useFocoAlPerderseElControl(raizRef, claveDeFocoDeLaConsulta(recursoId, consulta))
 
   const contenido = (): ReactNode => {
+    if (soloLectura) {
+      return <MensajeConVolver mensaje={TEXTOS_DE_LA_CLASE.archivada} volverA={destino} />
+    }
+
     if (reemplaza) {
       return (
         <MensajeConVolver mensaje={mensajeDeConsultaClases(consulta.error)} volverA={destino} />
@@ -100,7 +117,7 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
 
     // Con la vista desmontada (la persona ya está en otra pantalla) el gancho avisa y no se navega.
     const alGuardar = () => {
-      if (!montado.current) return
+      if (!montado.current || !sigueVigente(generacion)) return
       navigate(destino)
     }
 
@@ -110,8 +127,9 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
     // T-01 (ronda 1 de 03d): con la vista desmontada, el 409 solo avisa (lo da el gancho) y no vuelve a
     // pedir el recurso (§D-14, "El aviso sale; sin recarga"), como alGuardar no navega.
     const recargarTrasConflicto = async () => {
-      if (!montado.current) return
+      if (!montado.current || !sigueVigente(generacion)) return
       const resultado = await consulta.refetch()
+      if (!sigueVigente(generacion)) return
       if (!resultado.isSuccess || !resultado.data.recurso.puedeEditar) return
       setReinicios((n) => n + 1)
     }

@@ -108,6 +108,8 @@ interface HiloPrivadoProps {
   // maestros (…/entregas/:alumnoId/comentarios).
   rutaDelHilo: string
   puedeEscribir: boolean
+  // ADMIN-01d2 (§D-9, fila 34): en una clase archivada el hilo se lee sin formulario.
+  soloLectura?: boolean
   textoDePrivacidad: string
 }
 
@@ -121,6 +123,7 @@ export function HiloPrivado({
   tareaId,
   rutaDelHilo,
   puedeEscribir,
+  soloLectura = false,
   textoDePrivacidad,
 }: HiloPrivadoProps) {
   const hilo = useHiloPrivado(claseId, tareaId, rutaDelHilo)
@@ -239,7 +242,7 @@ export function HiloPrivado({
           <p className="text-small text-muted-foreground">{textoDePrivacidad}</p>
         </div>
         {contenido()}
-        {puedeEscribir && (
+        {puedeEscribir && !soloLectura && (
           <FormularioDelHilo claseId={claseId} tareaId={tareaId} rutaDelHilo={rutaDelHilo} />
         )}
       </CardContent>

@@ -1,8 +1,12 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router"
 
 import { LayoutPublico } from "@/components/layout/layout-publico"
-import { CuentasView } from "@/features/admin/cuentas-view"
+import { EstadoPagoView } from "@/features/admin/estado-pago-view"
+import { InicioAdminView } from "@/features/admin/inicio-admin-view"
 import { MaestrosView } from "@/features/admin/maestros-view"
+import { MovimientosView } from "@/features/admin/movimientos-view"
+import { UsuarioView } from "@/features/admin/usuario-view"
+import { UsuariosView } from "@/features/admin/usuarios-view"
 import { AccesoRestringidoView } from "@/features/auth/acceso-restringido-view"
 import { CambiarContrasenaView } from "@/features/auth/cambiar-contrasena-view"
 import { EstablecerContrasenaView } from "@/features/auth/establecer-contrasena-view"
@@ -14,11 +18,15 @@ import { RestablecerView } from "@/features/auth/restablecer-view"
 import { GradebookView } from "@/features/calificaciones/gradebook-view"
 import { MisCalificacionesView } from "@/features/calificaciones/mis-calificaciones-view"
 import { CategoriasView } from "@/features/clases/categorias-view"
+import { ClaseAnteriorView } from "@/features/clases/clase-anterior-view"
 import { ClaseLayout } from "@/features/clases/clase-layout"
 import { ClasesAdminView } from "@/features/clases/clases-admin-view"
+import { ClasesAnterioresView } from "@/features/clases/clases-anteriores-view"
+import { ClasesArchivadasView } from "@/features/clases/clases-archivadas-view"
 import { CrearClaseView } from "@/features/clases/crear-clase-view"
 import { EditarClaseView } from "@/features/clases/editar-clase-view"
 import { DudasView } from "@/features/clases/dudas-view"
+import { DuplicarClaseView } from "@/features/clases/duplicar-clase-view"
 import { EditarRecursoView } from "@/features/clases/editar-recurso-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
@@ -69,6 +77,14 @@ export const rutas: RouteObject[] = [
         element: <RequireRol rol="estudiante" />,
         children: [
           { index: true, element: <InicioEstudianteView /> },
+          // ADMIN-01d2 (§D-9, Enmienda 12, P-02): "Clases anteriores" y una clase anterior. Se compone aquí
+          // porque features/clases no importa de features/calificaciones (regla 9).
+          { path: "clases-anteriores", element: <ClasesAnterioresView /> },
+          {
+            path: "clases-anteriores/:claseId",
+            element: <ClaseAnteriorView />,
+            children: [{ index: true, element: <MisCalificacionesView /> }],
+          },
           {
             path: "clases/:claseId",
             element: <ClaseLayout />,
@@ -99,6 +115,8 @@ export const rutas: RouteObject[] = [
         element: <RequireRol rol="maestro" />,
         children: [
           { index: true, element: <InicioMaestroView /> },
+          // ADMIN-01d2 (§D-9): "Clases archivadas"; cada una se abre en la ruta normal, en solo lectura.
+          { path: "clases-archivadas", element: <ClasesArchivadasView /> },
           // CLASES-02c (§D-2C3): el maestro ya no crea ni edita clases. "nueva" no es un claseId:
           // sin esta ruta literal coincidiría con `clases/:claseId` y se pediría GET /clases/nueva.
           // Cae donde cae cualquier ruta desconocida (R-07).
@@ -138,8 +156,19 @@ export const rutas: RouteObject[] = [
         path: "/admin",
         element: <RequireRol rol="admin" />,
         children: [
-          { index: true, element: <CuentasView /> },
+          // ADMIN-01f (§D-11, DH-05 a): el dashboard, la tabla de usuarios y la ficha de una cuenta.
+          { index: true, element: <InicioAdminView /> },
+          {
+            path: "usuarios",
+            children: [
+              { index: true, element: <UsuariosView /> },
+              { path: ":usuarioId", element: <UsuarioView /> },
+            ],
+          },
+          // ADMIN-01g (§D-11): estado de pago por alumno y por lote, y el registro de movimientos.
+          { path: "estado-pago", element: <EstadoPagoView /> },
           { path: "maestros", element: <MaestrosView /> },
+          { path: "movimientos", element: <MovimientosView /> },
           // CLASES-02c (§D-2C2): las clases del administrador. El literal "nueva" gana a :claseId.
           {
             path: "clases",
@@ -162,6 +191,8 @@ export const rutas: RouteObject[] = [
                   { path: "maestros", element: <Navigate to="../personas" replace /> },
                   { path: "calificaciones", element: <GradebookView /> },
                   { path: "editar", element: <EditarClaseView /> },
+                  // ADMIN-01c (§D-10): duplicar, dentro de la clase como "editar".
+                  { path: "duplicar", element: <DuplicarClaseView /> },
                   { path: "tareas/nueva", element: <CrearTareaView /> },
                   { path: "tareas/:tareaId", element: <DetalleTareaView /> },
                   { path: "tareas/:tareaId/editar", element: <EditarTareaView /> },

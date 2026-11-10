@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router"
+import { toast } from "sonner"
 
+import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
@@ -40,6 +42,13 @@ export function AccionesDeLaTarea({
   const [confirmando, setConfirmando] = useState(false)
   // El mensaje del 409 TAREA_CON_ENTREGAS (con el conteo, del servidor); null en el primer paso.
   const [conEntregas, setConEntregas] = useState<string | null>(null)
+  // ADMIN-01d2 (§D-9, filas 31 y 32; T-01 y T-02 de 01d1): en una clase archivada el componente sigue
+  // montado y no pinta nada, para que los callbacks de borrar sigan corriendo. Las dos marcas se reinician:
+  // al restaurar, la confirmación no reaparece abierta, ni con el segundo paso y su conteo viejo.
+  const soloLectura = useSoloLecturaDeLaClase()
+  if (soloLectura && confirmando) setConfirmando(false)
+  if (soloLectura && conEntregas !== null) setConEntregas(null)
+  const { generacion, sigueVigente } = useGeneracionDeSoloLectura()
   const borrandoRef = useRef(false)
   const borrarBtnRef = useRef<HTMLButtonElement>(null)
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
@@ -62,6 +71,8 @@ export function AccionesDeLaTarea({
     cancelarBtnRef.current?.focus()
   }, [conEntregas])
 
+  if (soloLectura) return null
+
   if (!tarea.puedeEditar && !tarea.puedeBorrar) return null
 
   const handleBorrar = (confirmarEntregas: boolean) => {
@@ -70,7 +81,14 @@ export function AccionesDeLaTarea({
     borrar.mutate(confirmarEntregas, {
       onSuccess: () => navigate(`${base}/trabajo`),
       onError: (error) => {
-        if (esTareaConEntregas(error)) setConEntregas(mensajeDeErrorTareas(error))
+        if (!esTareaConEntregas(error)) return
+        // T-02 y T-03 de 01d1: la confirmación que lanzó el borrado ya no es esta; no se abre el segundo
+        // paso y el mensaje del servidor se avisa, porque no hay dónde pintarlo.
+        if (!sigueVigente(generacion)) {
+          toast.error(mensajeDeErrorTareas(error))
+          return
+        }
+        setConEntregas(mensajeDeErrorTareas(error))
       },
       onSettled: () => {
         borrandoRef.current = false

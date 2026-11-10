@@ -241,6 +241,8 @@ describe("GET /admin/clases?estado=archivadas con la posición del cursor (ADM-1
       .map((fila) => fila.id)
     const propias = new Set(esperadas)
     const ultima = esperadas.at(-1)
+    if (ultima === undefined)
+      throw new Error("Precondición: el tramo esperado tiene al menos una clase")
 
     for (const limite of [1, 2, 3]) {
       const recorridas: string[] = []
@@ -255,10 +257,10 @@ describe("GET /admin/clases?estado=archivadas con la posición del cursor (ADM-1
         expect(respuesta.statusCode, respuesta.body).toBe(200)
         const pagina = listaClasesAdminRespuestaSchema.parse(respuesta.json())
         for (const clase of pagina.clases) {
-          if (recorridas.includes(ultima ?? "")) break
+          if (recorridas.includes(ultima)) break
           recorridas.push(clase.id)
         }
-        if (recorridas.includes(ultima ?? "")) break
+        if (recorridas.includes(ultima)) break
         if (pagina.siguienteCursor === null || !pagina.siguienteCursorArchivadaEn) {
           throw new Error(`limite ${String(limite)}: la lista terminó antes del tramo`)
         }

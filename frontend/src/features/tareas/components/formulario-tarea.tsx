@@ -12,6 +12,7 @@ import {
 } from "@/components/adjuntos/lib"
 import { ListaDeAdjuntosElegidos } from "@/components/adjuntos/lista-de-adjuntos-elegidos"
 import { Cargando } from "@/components/cargando"
+import { useMontado } from "@/components/clase/hooks"
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
 import { Button } from "@/components/ui/button"
@@ -89,6 +90,7 @@ function CamposDelFormulario<Version extends number | null>({
   temas,
 }: CamposDelFormularioProps<Version>) {
   const solicitar = useSolicitarSubida(claseId)
+  const montado = useMontado()
   const idBase = useId()
   const [escrito, setEstado] = useState<EstadoDelFormulario>(() =>
     estadoInicialDelFormulario(tarea),
@@ -236,6 +238,12 @@ function CamposDelFormulario<Version extends number | null>({
       // T-10: una fila que se quitó mientras el envío estaba en vuelo ya no puede mostrar su error:
       // pasa a ser el error de la rúbrica.
       if (erroresDeCampo) {
+        // T-03 de 01d1: con el formulario desmontado (la clase se archivó o la persona se fue) no hay
+        // campo que marcar, y el gancho calló; el error se avisa con su texto.
+        if (!montado.current) {
+          toast.error(mensajeDeErrorTareas(error))
+          return
+        }
         setErrores(
           erroresSinFilasQuitadas(
             erroresConLlavesDeFila(erroresDeCampo, filasEnviadas),

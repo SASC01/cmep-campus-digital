@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -89,19 +89,16 @@ describe("ataque (DESIGN-01a r1): el error de cada campo sigue siendo su descrip
       campos: 1,
       llamadas: 2,
     },
+    // ADMIN-01f ronda 0 (C-16, §D-11 y Enmienda 1): "Invitar maestro" pasa a /admin/maestros, que
+    // al montarse pide además la lista de enlaces (GET /api/admin/enlaces-registro): tres llamadas,
+    // ninguna del formulario. "Buscar" de /admin sale; su búsqueda pasa a /admin/usuarios, que no se
+    // envía: el campo inválido de esa búsqueda (el tope de 120) va en el caso nuevo de abajo.
     {
-      ruta: "/admin",
+      ruta: "/admin/maestros",
       me: () => respuestaJson(200, meAdmin),
       formulario: "Enviar invitación",
       campos: 2,
-      llamadas: 2,
-    },
-    {
-      ruta: "/admin",
-      me: () => respuestaJson(200, meAdmin),
-      formulario: "Buscar",
-      campos: 1,
-      llamadas: 2,
+      llamadas: 3,
     },
   ])(
     "$ruta, formulario '$formulario' enviado vacío: $campos campos inválidos, cada uno descrito por su mensaje",
@@ -133,4 +130,35 @@ describe("ataque (DESIGN-01a r1): el error de cada campo sigue siendo su descrip
       expect(fetchMock.mock.calls.length, "el formulario inválido llamó a la API").toBe(llamadas)
     },
   )
+})
+
+// ADMIN-01f ronda 0 (C-16): la búsqueda de /admin pasa al buscador de /admin/usuarios (§D-11,
+// "Enmienda 14"). Un término de más de 120 caracteres normalizados no se manda y marca el campo con
+// su ErrorDeCampo: el campo inválido sigue describiéndose con su mensaje, que es un solo nodo de
+// texto con su icono, y no sale ninguna petición con q.
+describe("ataque (DESIGN-01a r1, ADMIN-01f): el buscador de /admin/usuarios con el término largo", () => {
+  it("el campo queda inválido y descrito por su mensaje, con icono, y no se pide nada con q", async () => {
+    const fetchMock = stubApi(() => respuestaJson(200, meAdmin))
+    await renderEn("/admin/usuarios")
+    const campo = await screen.findByLabelText("Buscar por nombre o correo")
+
+    fireEvent.change(campo, { target: { value: "a".repeat(121) } })
+
+    await waitFor(() => expect(campo).toHaveAttribute("aria-invalid", "true"), { timeout: 3000 })
+    const ids = (campo.getAttribute("aria-describedby") ?? "").split(/\s+/)
+    const error = ids
+      .map((id) => document.getElementById(id))
+      .find(
+        (nodo) => nodo?.textContent?.trim() === "La búsqueda no puede tener más de 120 caracteres",
+      )
+    expect(error, "el campo no apunta a su error").toBeDefined()
+    expect(campo).toHaveAccessibleDescription(
+      expect.stringContaining("La búsqueda no puede tener más de 120 caracteres"),
+    )
+    expect(error?.querySelector('svg[aria-hidden="true"]'), "sin icono").not.toBeNull()
+    const conQ = fetchMock.mock.calls.filter(([entrada]) =>
+      new URL(String(entrada), "http://local").searchParams.has("q"),
+    )
+    expect(conQ, "salió una petición con q").toEqual([])
+  })
 })

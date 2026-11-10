@@ -12,10 +12,11 @@ import { useEffect, useRef } from "react"
 import { useLocation } from "react-router"
 import { toast } from "sonner"
 
+import { useMontado } from "@/components/clase/hooks"
 import { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
 import { api, esApiError } from "@/services/apiClient"
 import { clavePrefijoDeCalificaciones } from "@/services/calificacionesService"
-import { clavePublicaciones } from "@/services/clasesService"
+import { claveClaseDetalle, clavePublicaciones } from "@/services/clasesService"
 import {
   claveCategorias,
   clavePrefijoDelTrabajo,
@@ -44,6 +45,7 @@ import {
   errorDeTextoDeApi,
   erroresDeLaTareaDeApi,
   esConflictoDeCalificacion,
+  esClaseArchivada,
   esConflictoDeEntrega,
   erroresDeCalificacionDeApi,
   errorQueRedirigeElCliente,
@@ -149,6 +151,23 @@ const pedirDeNuevoLaTarea = async (
   await queryClient.invalidateQueries({ queryKey: claveTarea(claseId, tareaId) })
 }
 
+// ADMIN-01d2 (§D-9, Enmienda 2, M-06): una escritura que recibe 409 CLASE_ARCHIVADA marca viejo solo el
+// detalle de la clase. No es un conflicto: lo escrito se conserva, no se reinicia nada y no se vuelve a
+// pedir la tarea ni la entrega. Al llegar el detalle, ClaseLayout provee la clase en solo lectura y el
+// alumno sale por N-05. Con la vista desmontada, queda viejo y se pide al volver a abrir la clase. Con
+// `cancelRefetch: false`, la escucha de ClaseLayout se une a la misma petición en lugar de repetirla.
+const marcarViejoElDetalleAnteClaseArchivada = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  error: unknown,
+) => {
+  if (!esClaseArchivada(error)) return
+  void queryClient.invalidateQueries(
+    { queryKey: claveClaseDetalle(claseId), exact: true },
+    { cancelRefetch: false },
+  )
+}
+
 // Los avisos viven en el hook y no en los callbacks de mutate (patrón T-30): corren aunque la vista
 // ya no esté montada. Un error de un campo lo marca el formulario; los demás, un aviso.
 export const useCrearTarea = (claseId: string) => {
@@ -165,6 +184,7 @@ export const useCrearTarea = (claseId: string) => {
       toast.success(TEXTOS_FORMULARIO_TAREA.avisoPublicada)
     },
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void pedirDeNuevoLasOpciones(queryClient, claseId, error)
       if (erroresDeLaTareaDeApi(error)) return
       toast.error(mensajeDeErrorTareas(error))
@@ -187,6 +207,7 @@ export const useEditarTarea = (claseId: string, tareaId: string) => {
       toast.success(TEXTOS_FORMULARIO_TAREA.avisoGuardada)
     },
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void pedirDeNuevoLasOpciones(queryClient, claseId, error)
       void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
       if (erroresDeLaTareaDeApi(error)) return
@@ -197,9 +218,11 @@ export const useEditarTarea = (claseId: string, tareaId: string) => {
 
 // ENTREGAS-01e (§D-10.5.3, Enmienda 2): la variable de la mutación dice si se confirma borrar con las
 // entregas (solo la segunda confirmación del admin la manda en true). Un 409 TAREA_CON_ENTREGAS no
-// avisa: el mensaje va en línea, en la confirmación (un solo anuncio).
+// avisa: el mensaje va en línea, en la confirmación (un solo anuncio). ADMIN-01d2 (T-03 de 01d1): solo con
+// el componente montado; si ya no está, el aviso es este, porque el callback de mutate no corre.
 export const useBorrarTarea = (claseId: string, tareaId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (confirmarEntregas: boolean) =>
       api(rutaDeBorrarTarea(claseId, tareaId, confirmarEntregas), {
@@ -217,8 +240,9 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
       await invalidarTrasCambiar(queryClient, claseId, null)
     },
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
-      if (esTareaConEntregas(error)) return
+      if (esTareaConEntregas(error) && montado.current) return
       toast.error(mensajeDeErrorTareas(error))
     },
   })
@@ -269,6 +293,9 @@ export const useAvisoDeRecargaFallida = (
     if (consulta !== undefined) {
       if (ultimoFalloAvisado.get(consulta) === marca) return
       ultimoFalloAvisado.set(consulta, marca)
+      // ADMIN-01d2, ronda 1 (T-01): el 409 de una clase archivada no es una recarga fallida: decir que se
+      // muestra la última versión sería falso, porque la clase pasa a solo lectura o el alumno sale de aquí.
+      if (esClaseArchivada(consulta.state.error)) return
     }
     toast.error(texto)
   }, [activo, marca, texto, queryClient, claseId, tareaId])
@@ -348,6 +375,7 @@ const avisarDelErrorDeLaEntrega = (
 
 export const useEntregar = (claseId: string, tareaId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: Entregar) =>
       api(rutaDeMiEntrega(claseId, tareaId), {
@@ -362,9 +390,11 @@ export const useEntregar = (claseId: string, tareaId: string) => {
       toast.success(vacia ? TEXTOS_TU_TRABAJO.avisoCompletada : TEXTOS_TU_TRABAJO.avisoEntregada)
     },
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void renovarTrasErrorDeLaEntrega(queryClient, claseId, tareaId, error)
-      // La entrega vacía y un enlace inválido los marca el formulario bajo su grupo.
-      if (esEntregaVacia(error) || errorDeEnlacesDeApi(error) !== null) return
+      // La entrega vacía y un enlace inválido los marca el formulario bajo su grupo. ADMIN-01d2 (T-03 de
+      // 01d1): sin el formulario (salió por N-05 o la persona se fue), se avisa con su texto.
+      if ((esEntregaVacia(error) || errorDeEnlacesDeApi(error) !== null) && montado.current) return
       avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
     },
   })
@@ -384,6 +414,7 @@ export const useAnularEntrega = (claseId: string, tareaId: string) => {
       toast.success(TEXTOS_TU_TRABAJO.avisoAnulada)
     },
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void renovarTrasErrorDeLaEntrega(queryClient, claseId, tareaId, error)
       avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
     },
@@ -415,6 +446,7 @@ export const useHiloPrivado = (claseId: string, tareaId: string, rutaDelHilo: st
 
 export const useComentarEnHilo = (claseId: string, tareaId: string, rutaDelHilo: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: CrearComentario) =>
       api(rutaDelHilo, { method: "POST", body: datos, schema: comentarioPrivadoRespuestaSchema }),
@@ -422,10 +454,12 @@ export const useComentarEnHilo = (claseId: string, tareaId: string, rutaDelHilo:
       void queryClient.invalidateQueries({ queryKey: claveHilo(rutaDelHilo) })
     },
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       // La misma regla que la entrega: un 404 de la tarea o un 403 de la clase renuevan la tarea.
       void renovarTrasErrorDeLaEntrega(queryClient, claseId, tareaId, error)
-      // Un error del texto lo marca el formulario bajo el campo.
-      if (errorDeTextoDeApi(error) !== null) return
+      // Un error del texto lo marca el formulario bajo el campo. ADMIN-01d2 (T-03 de 01d1): sin el
+      // formulario, se avisa con su texto.
+      if (errorDeTextoDeApi(error) !== null && montado.current) return
       avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error)
     },
   })
@@ -468,6 +502,7 @@ export const useEntregaDeAlumno = (claseId: string, tareaId: string, alumnoId: s
 //   renuevan lo que reemplaza la vista) con un solo aviso por tarea perdida.
 export const useCalificarEntrega = (claseId: string, tareaId: string, alumnoId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: ({ cuerpo }: VariablesDeCalificar) =>
       api(rutaDeCalificacion(claseId, tareaId, alumnoId), {
@@ -489,6 +524,7 @@ export const useCalificarEntrega = (claseId: string, tareaId: string, alumnoId: 
       )
     },
     onError: (error, { cuerpo }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (esConflictoDeCalificacion(error)) {
         toast.error(mensajeDeErrorTareas(error))
         return
@@ -497,8 +533,9 @@ export const useCalificarEntrega = (claseId: string, tareaId: string, alumnoId: 
       if (errorQueRedirigeElCliente(error)) return
       // Ronda 1 (T-02): calla solo si el panel puede pintar el error (con la misma regla y los mismos
       // criterios, los del envío, en su orden); un campo que el panel no tiene se avisa una vez.
+      // ADMIN-01d2 (T-03 de 01d1): sin el panel montado no hay quien lo pinte, y también se avisa.
       const criteriosEnviados = cuerpo.puntajes.map(({ criterioId }) => ({ id: criterioId }))
-      if (erroresDeCalificacionDeApi(error, criteriosEnviados) !== null) return
+      if (erroresDeCalificacionDeApi(error, criteriosEnviados) !== null && montado.current) return
       const sinLugar = mensajeDelCampoDeCalificacion(error)
       if (sinLugar !== null) {
         toast.error(sinLugar)

@@ -17,10 +17,15 @@ export interface PersonaConCorreoDb {
   email: string
 }
 
+// ADMIN-01e (S-16): la marca, solo en un maestro dado de baja.
+export interface MaestroDePersonasDb extends PersonaConCorreoDb {
+  cuentaDesactivada?: true
+}
+
 export interface ListaPersonasDb {
   // El primero de `maestros` (compatibilidad, P-06 de CLASES-02).
-  maestro: PersonaConCorreoDb
-  maestros: PersonaConCorreoDb[]
+  maestro: MaestroDePersonasDb
+  maestros: MaestroDePersonasDb[]
   alumnos: PersonaConCorreoDb[]
   totalAlumnos: number
   siguienteCursor: string | null
@@ -116,7 +121,7 @@ export const listarPersonas = async (
       where: { id: claseId },
       select: {
         maestros: {
-          select: { maestro: { select: { id: true, nombre: true, email: true } } },
+          select: { maestro: { select: { id: true, nombre: true, email: true, activo: true } } },
           orderBy: ORDEN_DE_MAESTROS,
         },
       },
@@ -131,7 +136,12 @@ export const listarPersonas = async (
   ])
   if (clase === null) return null
   // Una clase siempre tiene de uno a dos maestros (RN-06); el principal es el primero (S-05).
-  const maestros = clase.maestros.map((fila) => fila.maestro)
+  // ADMIN-01e (S-16): el maestro dado de baja sale con `cuentaDesactivada: true`; `activo` nunca sale.
+  const maestros = clase.maestros.map(({ maestro }): MaestroDePersonasDb =>
+    maestro.activo
+      ? { id: maestro.id, nombre: maestro.nombre, email: maestro.email }
+      : { id: maestro.id, nombre: maestro.nombre, email: maestro.email, cuentaDesactivada: true },
+  )
   const [maestro] = maestros
   if (maestro === undefined) return null
 

@@ -692,7 +692,8 @@ describe("E: adaptadores, sin concurrencia", () => {
   // borrado-de-clase.ts (el FOR UPDATE de la clase que se borra), duplicado-de-clase.ts (el FOR SHARE
   // de la original) y copias-de-archivos.ts (la lectura de las copias pendientes con la clave de su
   // original, en una sola sentencia).
-  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts, calificaciones.ts, recursos.ts, dudas.ts, clases.ts, bloqueo-maestros.ts, borrado-de-clase.ts, duplicado-de-clase.ts y copias-de-archivos.ts usan SQL etiquetado en adapters/db", async () => {
+  // ADMIN-01e (§D-7): gestion-de-usuarios.ts (la lista de usuarios y el lote de estado de pago).
+  it("E6: solo salud.ts, bloqueo-usuario.ts, enlaces-registro.ts, invitaciones.ts, publicaciones.ts, referencias.ts, temas.ts, categorias.ts, tareas.ts, entregas.ts, calificaciones.ts, recursos.ts, dudas.ts, clases.ts, bloqueo-maestros.ts, borrado-de-clase.ts, duplicado-de-clase.ts, copias-de-archivos.ts y gestion-de-usuarios.ts usan SQL etiquetado en adapters/db", async () => {
     const raizDb = fileURLToPath(new URL("../src/adapters/db/", import.meta.url))
     const archivos = (await readdir(raizDb)).filter(
       (nombre) => nombre.endsWith(".ts") && nombre !== "generated",
@@ -723,6 +724,7 @@ describe("E: adaptadores, sin concurrencia", () => {
       "duplicado-de-clase.ts",
       "enlaces-registro.ts",
       "entregas.ts",
+      "gestion-de-usuarios.ts",
       "invitaciones.ts",
       "publicaciones.ts",
       "recursos.ts",

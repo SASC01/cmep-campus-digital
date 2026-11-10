@@ -1,6 +1,6 @@
 import type { Rol } from "@campus/shared"
 
-import { errorAlArchivar, errorAlRestaurar } from "../../core/clases/archivada.js"
+import { errorClaseNoArchivada, errorClaseYaArchivada } from "../../core/clases/archivada.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
 import { leerClase, ORDEN_DE_MAESTROS, type ClaseDb } from "./clases.js"
@@ -39,7 +39,7 @@ export const archivarClase = (
       if (fila === null) throw sinAcceso()
       // La relectura toma otra instantánea (READ COMMITTED): si una restauración confirmó en medio,
       // la clase estaba archivada cuando el UPDATE la evaluó, así que la respuesta sigue siendo 409.
-      throw errorAlArchivar(fila.archivadaEn ?? new Date()) ?? sinAcceso()
+      throw errorClaseYaArchivada()
     }
     return releerClase(tx, claseId)
   })
@@ -61,7 +61,7 @@ export const restaurarClase = (
       if (fila === null) throw sinAcceso()
       // Como al archivar: si un archivado confirmó en medio, la clase estaba activa cuando el UPDATE
       // la evaluó.
-      throw errorAlRestaurar(null) ?? sinAcceso()
+      throw errorClaseNoArchivada()
     }
     return releerClase(tx, claseId)
   })

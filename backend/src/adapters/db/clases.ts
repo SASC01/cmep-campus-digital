@@ -3,6 +3,7 @@ import { MAXIMO_MAESTROS_POR_CLASE, type EstadoDeClases } from "@campus/shared"
 import { errorClaseArchivada } from "../../core/clases/archivada.js"
 import { paginar } from "../../core/paginacion.js"
 import { AppError } from "../../core/errores.js"
+import { bloquearMaestrosActivos } from "./bloqueo-maestros.js"
 import { enTransaccion, obtenerDb, type Ejecutor } from "./cliente.js"
 import { traducirErrorPrisma } from "./errores.js"
 import type { Prisma } from "./generated/client.js"
@@ -52,6 +53,8 @@ export const buscarDatosDePertenencia = async (
 export interface MaestroDb {
   id: string
   nombre: string
+  // ADMIN-01e (S-16, P-01 a′): solo en un maestro dado de baja; un activo no lleva la clave.
+  cuentaDesactivada?: true
 }
 
 export interface ClaseDb {
@@ -65,7 +68,7 @@ export interface ClaseDb {
 }
 
 export const SELECT_MAESTROS_DE_CLASE = {
-  select: { maestro: { select: { id: true, nombre: true } } },
+  select: { maestro: { select: { id: true, nombre: true, activo: true } } },
   orderBy: ORDEN_DE_MAESTROS,
 } as const
 
@@ -78,11 +81,18 @@ const SELECT_CLASE_DETALLE = {
 } as const
 
 interface FilaDeMaestros {
-  maestro: MaestroDb
+  // activo es opcional: el duplicado (duplicado-de-clase.ts) no lo pide, y sus maestros son activos
+  // (los toma con bloquearMaestrosActivos).
+  maestro: { id: string; nombre: string; activo?: boolean }
 }
 
+// S-16: el campo crudo `activo` nunca sale; el maestro dado de baja lleva `cuentaDesactivada: true`.
 export const maestrosDeFilas = (filas: readonly FilaDeMaestros[]): MaestroDb[] =>
-  filas.map((fila) => fila.maestro)
+  filas.map(({ maestro }) =>
+    maestro.activo === false
+      ? { id: maestro.id, nombre: maestro.nombre, cuentaDesactivada: true }
+      : { id: maestro.id, nombre: maestro.nombre },
+  )
 
 interface FilaDeClase {
   id: string
@@ -123,8 +133,10 @@ const traducirErrorDeCodigo = (error: unknown): AppError => {
 // Reintenta una sola vez con un código nuevo si el primero choca con el índice único de
 // codigo_invitacion, detectado con traducirErrorPrisma y su alDuplicar (§D-A2; S-03, regla 4: sin
 // ciclo). Si el primer error no se traduce a CODIGO_NO_DISPONIBLE, se relanza sin reintentar (por
-// ejemplo, el 22021 traducido a 400, o cualquier otro error).
-const conReintentoDeCodigo = async <T>(
+// ejemplo, el 22021 traducido a 400, o cualquier otro error). El reintento envuelve la transacción
+// entera, porque un P2002 deja abortada la transacción en curso. ADMIN-01 (N-32, carril trivial del
+// cierre): la única copia; también la usa duplicado-de-clase.ts.
+export const conReintentoDeCodigo = async <T>(
   intentar: (codigo: string) => Promise<T>,
   generarCodigo: () => string,
 ): Promise<T> => {
@@ -146,6 +158,11 @@ const conReintentoDeCodigo = async <T>(
 // pide código ni se escribe nada. Después, un solo create anidado (atómico) con la clase y sus
 // asignaciones. clases.maestro_id solo se ESCRIBE (P-06 a): el primer maestro en el orden de
 // ORDEN_DE_MAESTROS, que con la misma creado_en desempata por id.
+// ADMIN-01e (§D-7.9, N-03): la lectura previa no basta con una baja concurrente. Cada intento corre
+// en su propia transacción: toma las filas de los maestros con bloquearMaestrosActivos (en orden de
+// id; si ya no están todos, null sin escribir) y después hace el mismo create. El reintento del
+// código envuelve la transacción entera: un choque del código revierte ese intento y el siguiente
+// abre otra.
 export const crearClaseAdministrada = async (
   {
     nombre,
@@ -170,19 +187,24 @@ export const crearClaseAdministrada = async (
   const ahora = new Date()
   const fila = await conReintentoDeCodigo(
     (codigo) =>
-      ejecutor.clase.create({
-        data: {
-          maestroId: primero,
-          nombre,
-          descripcion: descripcion ?? null,
-          codigoInvitacion: codigo,
-          creadoEn: ahora,
-          maestros: { create: ids.map((maestroId) => ({ maestroId, creadoEn: ahora })) },
-        },
-        select: SELECT_CLASE_DETALLE,
+      enTransaccion(ejecutor, async (tx) => {
+        const bloqueados = await bloquearMaestrosActivos(tx, ids)
+        if (bloqueados.length !== ids.length) return null
+        return tx.clase.create({
+          data: {
+            maestroId: primero,
+            nombre,
+            descripcion: descripcion ?? null,
+            codigoInvitacion: codigo,
+            creadoEn: ahora,
+            maestros: { create: ids.map((maestroId) => ({ maestroId, creadoEn: ahora })) },
+          },
+          select: SELECT_CLASE_DETALLE,
+        })
       }),
     generarCodigo,
   )
+  if (fila === null) return null
   return aClaseDb(fila)
 }
 

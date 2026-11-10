@@ -167,14 +167,50 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // duda", "Borrar" y "Cancelar" no esperan nada. Sigue protegiendo lo mismo: ningún `disabled` en
   // JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con
   // espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 72 enEspera", () => {
+  // ADMIN-01c ronda 0 (C-9, §D-R0 «Frontend — Enmienda 1», 01c; §D-10): de 72 a 76 enEspera=, con
+  // las cifras que fija el plan. tabla-clases-admin.tsx pasa de 0 a 1 («Restaurar»), y entran a la
+  // lista fija confirmar-archivado.tsx (1: «Sí, archivar»), dialogo-borrar-clase.tsx (1: «Sí, borrar
+  // definitivamente»), formulario-duplicar-clase.tsx (1: «Duplicar clase») y duplicar-clase-view.tsx
+  // (0). clases-admin-view.tsx sigue en 1 («Cargar más clases»). «Archivar», «Duplicar» (enlace),
+  // «Borrar definitivamente» y «Cancelar» no esperan nada. Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  // ADMIN-01d1 ronda 0 (C-10, §D-R0 «Frontend — Enmienda 1», 01d1; §D-9): de 76 a 77 enEspera=.
+  // Entran a la lista fija aviso-de-clase-archivada.tsx (1: «Restaurar» del aviso del admin) y
+  // categorias-de-solo-lectura.tsx (0: nombre y peso, sin controles). El enlace «Duplicar» del aviso
+  // no espera nada, y los controles de las filas 1 a 21 que dejan de pintarse en una archivada no
+  // cambian su texto. Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y
+  // aria-disabled solo en Button, y que el número y el lugar de los botones con espera cambien solo
+  // con el plan.
+  // ADMIN-01d2 ronda 0 (C-12, §D-R0 «Frontend — Enmienda 1», 01d2; §D-9): de 77 a 78 enEspera=. Entran
+  // a la lista fija lista-de-clases-anteriores.tsx (1: «Cargar más») y las tres vistas nuevas,
+  // clases-anteriores-view.tsx, clase-anterior-view.tsx y clases-archivadas-view.tsx (0). Los
+  // controles de las filas 22 a 37 que dejan de pintarse en una archivada no cambian su texto. Sigue
+  // protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el
+  // número y el lugar de los botones con espera cambien solo con el plan.
+  // ADMIN-01f ronda 0 (C-17, §D-R0 «Frontend — Enmienda 1», 01f, con la cifra de la Enmienda 2, M-05;
+  // §D-11): de 78 a 85 enEspera=. Sale buscador-de-cuenta.tsx (1), que se borra. Entran
+  // usuarios-view.tsx (1: «Cargar más usuarios»), formulario-nombre-de-cuenta.tsx (1),
+  // formulario-alta-alumno.tsx (1), dialogo-dar-de-baja.tsx (1), dialogo-restringir-acceso.tsx (1),
+  // acciones-de-cuenta.tsx (2: «Reactivar» y «Restablecer acceso»), estado-de-pago-de-cuenta.tsx (1:
+  // «Guardar») e inicio-admin-view.tsx, usuario-view.tsx y tabla-de-usuarios.tsx (0). Sigue protegiendo
+  // lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el
+  // lugar de los botones con espera cambien solo con el plan.
+  // ADMIN-01g ronda 0 (C-19, §D-R0 01g, Enmienda 9 y Enmienda 15; §D-11): de 85 a 90 enEspera=. Entran
+  // estado-pago-view.tsx (1: «Cargar más alumnos»), tabla-estado-pago.tsx (2: el cambio desde la fila
+  // y «Restablecer»; la fila vive en ese archivo), dialogo-estado-pago-lote.tsx (1: «Sí, cambiar»),
+  // movimientos-view.tsx (1: «Cargar más movimientos»), y barra-de-lote.tsx y tabla-movimientos.tsx
+  // (0). suma(restoAdmin) sigue en 2 (tabla-enlaces.tsx). Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 90 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(72)
+    expect(usos).toHaveLength(90)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -184,7 +220,6 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
     const fijos: Record<string, number> = {
       // Los 13 de antes de 03b.
       "/src/components/layout/barra-superior.tsx": 1,
-      "/src/features/admin/components/buscador-de-cuenta.tsx": 1,
       "/src/features/admin/components/contrasena-temporal.tsx": 1,
       "/src/features/admin/components/ficha-de-cuenta.tsx": 1,
       "/src/features/admin/components/formulario-corregir-correo.tsx": 1,
@@ -232,7 +267,23 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/clases-admin-view.tsx": 1,
       "/src/features/clases/components/lista-maestros-de-clase.tsx": 1,
       "/src/features/clases/components/buscador-de-maestros.tsx": 1,
-      "/src/features/clases/components/tabla-clases-admin.tsx": 0,
+      // C-9 de ADMIN-01c: «Restaurar» en la tabla; la confirmación de archivar, el diálogo de borrar
+      // y el formulario de duplicar con su botón; la vista de duplicar sin espera.
+      "/src/features/clases/components/tabla-clases-admin.tsx": 1,
+      "/src/features/clases/components/confirmar-archivado.tsx": 1,
+      "/src/features/clases/components/dialogo-borrar-clase.tsx": 1,
+      "/src/features/clases/components/formulario-duplicar-clase.tsx": 1,
+      "/src/features/clases/duplicar-clase-view.tsx": 0,
+      // C-10 de ADMIN-01d1: «Restaurar» del aviso de la clase archivada; las categorías de solo
+      // lectura sin espera.
+      "/src/features/clases/components/aviso-de-clase-archivada.tsx": 1,
+      "/src/features/clases/components/categorias-de-solo-lectura.tsx": 0,
+      // C-12 de ADMIN-01d2: «Cargar más» de las dos listas, en su componente compartido; las tres
+      // vistas sin espera.
+      "/src/features/clases/components/lista-de-clases-anteriores.tsx": 1,
+      "/src/features/clases/clases-anteriores-view.tsx": 0,
+      "/src/features/clases/clase-anterior-view.tsx": 0,
+      "/src/features/clases/clases-archivadas-view.tsx": 0,
       // TAREAS-01c ronda 0 (C-8, §D-9): FirmaDelAutor pasa a components/clase/; solo cambia la ruta.
       "/src/components/clase/firma-del-autor.tsx": 0,
       // C-20 (CLASES-02d): "Reintentar" de la lista de clases de la barra lateral.
@@ -308,6 +359,24 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/formulario-respuesta.tsx": 1,
       // C-4 de CALIFICACIONES-02b (§D-R0; §D-7): de 71 a 72, «Exportar a Excel». Sigue protegiendo que el número y el lugar de los botones con espera cambien solo con el plan.
       "/src/features/calificaciones/components/exportar-a-excel.tsx": 1,
+      // ADMIN-01f ronda 0 (C-17): los de la gestión de usuarios (§D-11).
+      "/src/features/admin/usuarios-view.tsx": 1,
+      "/src/features/admin/components/formulario-nombre-de-cuenta.tsx": 1,
+      "/src/features/admin/components/formulario-alta-alumno.tsx": 1,
+      "/src/features/admin/components/dialogo-dar-de-baja.tsx": 1,
+      "/src/features/admin/components/dialogo-restringir-acceso.tsx": 1,
+      "/src/features/admin/components/acciones-de-cuenta.tsx": 2,
+      "/src/features/admin/components/estado-de-pago-de-cuenta.tsx": 1,
+      "/src/features/admin/inicio-admin-view.tsx": 0,
+      "/src/features/admin/usuario-view.tsx": 0,
+      "/src/features/admin/components/tabla-de-usuarios.tsx": 0,
+      // ADMIN-01g ronda 0 (C-19): estado de pago y movimientos (§D-11).
+      "/src/features/admin/estado-pago-view.tsx": 1,
+      "/src/features/admin/components/tabla-estado-pago.tsx": 2,
+      "/src/features/admin/components/dialogo-estado-pago-lote.tsx": 1,
+      "/src/features/admin/movimientos-view.tsx": 1,
+      "/src/features/admin/components/barra-de-lote.tsx": 0,
+      "/src/features/admin/components/tabla-movimientos.tsx": 0,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)
@@ -370,7 +439,17 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/components/layout/barra-navegacion.tsx",
       "/src/components/layout/lista-de-clases.tsx",
       "/src/components/ui/button-variants.ts",
+      // ADMIN-01f ronda 0 (C-17b, Enmienda 9; §D-11 y DESIGN §7.3): de 12 a 13. El control segmentado
+      // "Deudor" / "Al corriente" de la ficha (estado-de-pago-de-cuenta.tsx), en vidrio fuerte dentro
+      // de la Card de la ficha, como el de /admin/clases. El vidrio sin variante y el vidrio azul no
+      // cambian, y la igualdad sigue exacta.
+      "/src/features/admin/components/estado-de-pago-de-cuenta.tsx",
       "/src/features/auth/components/panel-anuncios.tsx",
+      // ADMIN-01c ronda 0 (C-9c, Enmienda 9, P-01c-2; §D-10 y DESIGN §7.3): de 11 a 12. El control
+      // segmentado "Activas" / "Archivadas" de /admin/clases es un grupo en vidrio fuerte dentro de la
+      // Card de la vista ("Elemento sobre vidrio"); en el contexto opaco del admin vale --surface. El
+      // vidrio sin variante y el vidrio azul no cambian, y la igualdad sigue exacta.
+      "/src/features/clases/clases-admin-view.tsx",
       "/src/features/clases/components/bloque-destacado.tsx",
       // TAREAS-01e ronda 0 complementaria (C-14, Enmienda 6; §D-11 y DESIGN §7.7): de 9 a 11. La fila
       // de entrega (§7.7, vidrio fuerte) y la fila del material, con el mismo material. Las secciones de
@@ -395,9 +474,22 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/bloque-destacado.tsx",
     ])
     // C-12 de CALIFICACIONES-01d (§D-R0, A-5): suma el contexto opaco de la raíz del gradebook (M-03).
+    // ADMIN-01c ronda 0 (C-9b, Enmienda 9, P-01c-1; E-23 y §D-10): suma el diálogo de borrar una
+    // clase. Su DialogContent se monta en el portal, fuera de la raíz de ContenedorRol, así que lleva
+    // data-material="opaco" y data-densidad="densa" propios. Sigue protegiendo que los atributos del
+    // contexto solo entran con el plan y que ningún componente se marca opaco por su cuenta.
+    // ADMIN-01f ronda 0 (C-17b, Enmienda 9; E-23 y §D-11): suman los dos diálogos de la ficha (dar de
+    // baja y restringir acceso), con sus atributos propios en el DialogContent del portal. Sigue
+    // protegiendo lo mismo, con igualdad exacta.
     expect(rutasDe(coincidencias(/data-material|data-densidad/))).toEqual([
       "/src/components/layout/contenedor-rol.tsx",
+      "/src/features/admin/components/dialogo-dar-de-baja.tsx",
+      // ADMIN-01g ronda 0 (C-19b, Enmienda 9 y Enmienda 15): suma el diálogo del cambio masivo de
+      // estado de pago, con sus atributos propios en el DialogContent del portal: 6 rutas.
+      "/src/features/admin/components/dialogo-estado-pago-lote.tsx",
+      "/src/features/admin/components/dialogo-restringir-acceso.tsx",
       "/src/features/calificaciones/gradebook-view.tsx",
+      "/src/features/clases/components/dialogo-borrar-clase.tsx",
     ])
   })
 })

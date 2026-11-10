@@ -8,6 +8,7 @@ import {
   type MaestroDb,
 } from "./clases.js"
 import { bloquearClase } from "./bloqueo-clase.js"
+import { bloquearMaestrosActivos } from "./bloqueo-maestros.js"
 import { enTransaccion, obtenerDb, type Ejecutor } from "./cliente.js"
 import { traducirErrorPrisma } from "./errores.js"
 import type { Prisma } from "./generated/client.js"
@@ -63,11 +64,10 @@ export const asignarMaestro = (
   enTransaccion(ejecutor, async (tx) => {
     const id = enMinusculas(maestroId)
     await bloquearClase(tx, claseId)
-    const maestro = await tx.usuario.findFirst({
-      where: { id, rol: "maestro", activo: true },
-      select: { id: true },
-    })
-    if (maestro === null) return null
+    // ADMIN-01e (§D-7.9, N-03): la fila del maestro en modo compartido, después de la clase; queda en
+    // serie con su baja y, si la baja confirmó mientras se esperaba, ya no sale.
+    const [maestro] = await bloquearMaestrosActivos(tx, [id])
+    if (maestro === undefined) return null
 
     const decision = decidirAsignacion(await leerIdsDeMaestros(tx, claseId), id)
     if (decision === "asignar") {

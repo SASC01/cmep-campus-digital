@@ -86,8 +86,14 @@ const exito = ({ metodo, ruta }: Llamada): Response | null => {
   if (metodo === "POST" && ruta === RUTA_ENLACES) {
     return respuestaJson(201, { enlace: ENLACE, token: "t".repeat(43) })
   }
-  if (metodo === "POST" && ruta === "/api/admin/usuarios/buscar") {
-    return respuestaJson(200, { usuario: USUARIO })
+  // ADMIN-01f ronda 0 (C-15, §D-R0 01f): la búsqueda por correo de /admin sale; la tabla de
+  // /admin/usuarios pide GET /api/admin/usuarios al montarse (sin q).
+  if (metodo === "GET" && ruta === "/api/admin/usuarios") {
+    return respuestaJson(200, {
+      usuarios: [{ ...USUARIO, creadoEn: "2030-01-02T15:00:00.000Z" }],
+      siguienteCursor: null,
+      siguienteCursorNombre: null,
+    })
   }
   if (metodo === "POST" && ruta === `${RUTA_ENLACES}/${ENLACE.id}/revocar`) {
     return respuestaJson(200, {
@@ -161,7 +167,11 @@ const montarEn = async (ruta: string) => {
   return router
 }
 
-const enLaBarra = async (seccion: "Cuentas" | "Maestros") => {
+// ADMIN-01f ronda 0 (C-15, §D-R0 01f y §D-11): la sección "Cuentas" (/admin) pasa a "Usuarios"
+// (/admin/usuarios); "Invitar maestro" vive en /admin/maestros y la búsqueda de una cuenta pasa a la
+// tabla de usuarios (bloque nuevo al final, con el error de carga de la tabla y sus caminos). Lo que
+// protege cada caso no cambia.
+const enLaBarra = async (seccion: "Usuarios" | "Maestros") => {
   const nav = await screen.findByRole("navigation", { name: "Navegación principal" })
   fireEvent.click(within(nav).getByRole("link", { name: seccion }))
   await reposar()
@@ -170,9 +180,9 @@ const enLaBarra = async (seccion: "Cuentas" | "Maestros") => {
 const adelantar = (ms: number) => vi.setSystemTime(new Date(Date.now() + ms))
 
 interface Control {
-  ruta: "/admin" | "/admin/maestros"
-  otra: "Cuentas" | "Maestros"
-  propia: "Cuentas" | "Maestros"
+  ruta: "/admin/usuarios" | "/admin/maestros"
+  otra: "Usuarios" | "Maestros"
+  propia: "Usuarios" | "Maestros"
   metodo: string
   api: string
   boton: string | RegExp
@@ -188,9 +198,9 @@ const llenar = (etiqueta: string, valor: string) => {
 
 const CONTROLES: Readonly<Record<string, Control>> = {
   "invitar maestro": {
-    ruta: "/admin",
-    otra: "Maestros",
-    propia: "Cuentas",
+    ruta: "/admin/maestros",
+    otra: "Usuarios",
+    propia: "Maestros",
     metodo: "POST",
     api: "/api/admin/maestros",
     boton: "Enviar invitación",
@@ -204,25 +214,9 @@ const CONTROLES: Readonly<Record<string, Control>> = {
       expect(await screen.findByText(/^Invitación creada\./)).toBeInTheDocument()
     },
   },
-  "buscar una cuenta": {
-    ruta: "/admin",
-    otra: "Maestros",
-    propia: "Cuentas",
-    metodo: "POST",
-    api: "/api/admin/usuarios/buscar",
-    boton: "Buscar",
-    disparar: async () => {
-      await screen.findByRole("button", { name: "Buscar" })
-      llenar("Correo exacto de la cuenta", "carla@colegio.mx")
-      fireEvent.click(screen.getByRole("button", { name: "Buscar" }))
-    },
-    exitoVisible: async () => {
-      expect(await screen.findByText("Carla Ruiz")).toBeInTheDocument()
-    },
-  },
   "invitación masiva": {
     ruta: "/admin/maestros",
-    otra: "Cuentas",
+    otra: "Usuarios",
     propia: "Maestros",
     metodo: "POST",
     api: "/api/admin/maestros/lote",
@@ -238,7 +232,7 @@ const CONTROLES: Readonly<Record<string, Control>> = {
   },
   "generar enlace": {
     ruta: "/admin/maestros",
-    otra: "Cuentas",
+    otra: "Usuarios",
     propia: "Maestros",
     metodo: "POST",
     api: RUTA_ENLACES,
@@ -254,7 +248,7 @@ const CONTROLES: Readonly<Record<string, Control>> = {
   },
   "revocar un enlace": {
     ruta: "/admin/maestros",
-    otra: "Cuentas",
+    otra: "Usuarios",
     propia: "Maestros",
     metodo: "POST",
     api: `${RUTA_ENLACES}/${ENLACE.id}/revocar`,
@@ -380,4 +374,72 @@ describe("ataque CHORE-03 03c r1 · «Inténtalo de nuevo» en admin por cada ca
       await repetirYQueSalgaBien(control, 2)
     },
   )
+})
+
+// ADMIN-01f ronda 0 (C-15): la búsqueda de una cuenta pasa a la tabla de /admin/usuarios. La tabla
+// no tiene «Reintentar» (§D-11, Enmienda 1): su error de carga se recupera por los caminos de la
+// barra y del historial (ADM-1F17), y nunca muestra el texto del servidor ni el genérico de las
+// acciones. Con el F3 (VALIDACION en blanco) en la primera carga, cada camino vuelve a pedir y, con
+// 200, el texto desaparece y la cuenta se ve.
+describe("ataque CHORE-03 03c r1 · ADMIN-01f: el error de carga de la tabla de usuarios por cada camino", () => {
+  const ERROR_TABLA = "No pudimos cargar los usuarios. Revisa tu conexión e inténtalo de nuevo."
+  const API = "/api/admin/usuarios"
+
+  const conLaTablaEnError = async () => {
+    fallosPendientes = { [`GET ${API}`]: 1 }
+    const router = await montarEn("/admin/usuarios")
+    expect(await screen.findByText(ERROR_TABLA)).toBeInTheDocument()
+    await reposar()
+    expect(peticionesA("GET", API)).toBe(1)
+    expect(screen.queryByText(GENERICO)).not.toBeInTheDocument()
+    return router
+  }
+
+  const seRecupera = async (peticiones: number) => {
+    await waitFor(() => expect(peticionesA("GET", API)).toBeGreaterThanOrEqual(peticiones))
+    expect(await screen.findByText(USUARIO.nombre)).toBeInTheDocument()
+    await reposar()
+    expect(screen.queryByText(ERROR_TABLA)).not.toBeInTheDocument()
+    expect(screen.queryAllByRole("alert")).toHaveLength(0)
+    expect(aviso.error).not.toHaveBeenCalled()
+    expect(inesperadas).toEqual([])
+  }
+
+  it("pulsar «Usuarios» estando en la tabla vuelve a pedir y quita el error", async () => {
+    const router = await conLaTablaEnError()
+    const claveAntes = router.state.location.key
+    await enLaBarra("Usuarios")
+    expect(router.state.location.pathname).toBe("/admin/usuarios")
+    expect(router.state.location.key).not.toBe(claveAntes)
+    await seRecupera(2)
+  })
+
+  it("ir a «Maestros» y volver con la barra antes de 30 s vuelve a pedir y quita el error", async () => {
+    const router = await conLaTablaEnError()
+    await enLaBarra("Maestros")
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/maestros"))
+    adelantar(10_000)
+    await enLaBarra("Usuarios")
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/usuarios"))
+    await seRecupera(2)
+  })
+
+  it("atrás y adelante del historial antes de 30 s: sin el error y con la cuenta", async () => {
+    const router = await conLaTablaEnError()
+    await enLaBarra("Maestros")
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/maestros"))
+    for (const [paso, destino] of [
+      [-1, "/admin/usuarios"],
+      [1, "/admin/maestros"],
+      [-1, "/admin/usuarios"],
+    ] as const) {
+      adelantar(3_000)
+      await act(async () => {
+        await router.navigate(paso)
+      })
+      await waitFor(() => expect(router.state.location.pathname).toBe(destino))
+      await reposar()
+    }
+    await seRecupera(2)
+  })
 })

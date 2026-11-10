@@ -268,14 +268,26 @@ describe("ataque CLASES-02c r1: nombres hostiles en la tabla y en el encabezado"
     // Cada nombre de clase aparece en su celda y en el texto sr-only de «Abrir».
     const fueraDeEnlaces = (nodos: HTMLElement[]) => nodos.filter((n) => n.closest("a") === null)
     expect(fueraDeEnlaces(within(tabla).getAllByText(html))).toHaveLength(1)
-    expect(within(tabla).getByText(`<script>alert(2)</script>, ${largo}`)).toBeInTheDocument()
+    // H6-2 (decisión del humano, sustituye a D-4): un maestro por renglón, cada nombre como texto.
+    const filaDeLaClase1 = screen.getByRole("link", { name: `Abrir ${html}` }).closest("tr")
+    if (filaDeLaClase1 === null)
+      throw new Error("Precondición: «Abrir» de la clase 1 está en su fila")
+    expect(
+      within(filaDeLaClase1)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+      "cada maestro va en su renglón y su nombre se pinta como texto",
+    ).toEqual(["<script>alert(2)</script>", largo])
     expect(tabla.querySelectorAll("img, script")).toHaveLength(0)
     expect(screen.getByRole("link", { name: `Abrir ${html}` })).toHaveAttribute(
       "href",
       `/admin/clases/${idClase(1)}`,
     )
+    // El nombre de 120 letras sale en la celda de la clase 2 y en el renglón de su maestro en la clase
+    // 1; cada elemento que lo pinta lleva su propia regla de corte.
     const celdasLargas = fueraDeEnlaces(within(tabla).getAllByText(largo))
-    expect(celdasLargas).toHaveLength(1)
+    expect(celdasLargas).toHaveLength(2)
+    expect(celdasLargas.filter((nodo) => nodo.closest("li") !== null)).toHaveLength(1)
     for (const celda of celdasLargas) {
       expect(
         celda.className,

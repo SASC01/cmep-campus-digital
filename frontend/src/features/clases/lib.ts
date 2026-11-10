@@ -33,6 +33,10 @@ import {
   CLASES_DEL_CUADRO_DE_FECHA,
   CLAVE_SIN_TEMA,
   CODIGOS_QUE_REEMPLAZAN_EL_RECURSO,
+  LIMITE_CLASES_ADMIN,
+  LIMITE_CLASES_ANTERIORES,
+  RUTA_CLASES_ANTERIORES_DEL_ALUMNO,
+  TEXTOS_BORRAR_CLASE,
   TEXTOS_CATEGORIAS,
   TEXTOS_CLASE,
   TEXTOS_EDITAR_RECURSO,
@@ -47,7 +51,15 @@ import {
 import type {
   CamposDelRecurso,
   Categoria,
+  ClaseDetalle,
+  ConFechaDeArchivado,
+  ConteoDeBorradoRespuesta,
   ControlDeOrden,
+  CursorDeClasesAdmin,
+  CursorDeClasesAnteriores,
+  EstadoDeClases,
+  ListaClasesAdminRespuesta,
+  ListaClasesAnterioresRespuesta,
   CrearAnuncio,
   CrearRecurso,
   EditarRecurso,
@@ -74,6 +86,14 @@ import type {
 
 // TAREAS-01c (§D-9): la perspectiva de una ruta y la base de una clase viven en lib/ruta-de-clase.ts.
 export { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
+
+// ADMIN-01d1 (S-14, N-11): el único lugar que lee `archivadaEn`. Ausente es lo que manda un backend
+// anterior al despliegue, que no sabe de clases archivadas: la clase está activa. ADMIN-01d2 (N-01d1-2):
+// es un predicado de tipo, así quien pinta el aviso recibe la fecha sin volver a preguntar por ella.
+export const estaArchivada = <Clase extends Pick<ClaseDetalle, "archivadaEn">>(
+  clase: Clase,
+): clase is Clase & ConFechaDeArchivado =>
+  clase.archivadaEn !== undefined && clase.archivadaEn !== null
 
 // §D-2D2: el título de la sección de maestros de "Personas".
 export const etiquetaDeMaestros = (total: number): string =>
@@ -182,12 +202,9 @@ export const terminoDeBusquedaValido = (termino: string): boolean =>
 export const terminoDeBusquedaMuyLargo = (termino: string): boolean =>
   estadoDeTerminoDeBusqueda(termino) === "largo"
 
-// true si el foco se perdió: ningún elemento, <body> o uno que ya no está en el documento. Recibe el
-// documento en lugar de leer el global, así que es pura respecto de su entrada (§D-C5 bis).
-export const focoPerdido = (documento: Pick<Document, "activeElement" | "body">): boolean => {
-  const activo = documento.activeElement
-  return activo === null || activo === documento.body || !activo.isConnected
-}
+// ADMIN-01f (§D-11, Enmienda 14): focoPerdido sube a components/foco/lib.ts, que ya la usa
+// useFocoAlCargarMas; se reexporta con el mismo nombre para que ningún importador de este módulo cambie.
+export { focoPerdido } from "@/components/foco/lib"
 
 // CHORE-03 (§D-4): el mensaje de un error de una acción, con el contrato de lib/errores-de-api.ts y la
 // traducción del módulo (data.ts). Un VALIDACION de claseId da el texto de SIN_ACCESO_A_LA_CLASE (T-11,
@@ -724,3 +741,106 @@ export const temaVigente = (elegido: string, temas: readonly Tema[] | undefined)
   if (temas === undefined) return elegido
   return temas.some(({ id }) => id === elegido) ? elegido : ""
 }
+
+// ADMIN-01c (§D-10): la pestaña de /admin/clases sale de `?estado=`. Que falte vale "Activas" (la vista
+// no lo escribe al montar); cualquier otro valor, también.
+export const estadoDeLaLista = (valor: string | null): EstadoDeClases =>
+  valor === "archivadas" ? "archivadas" : "activas"
+
+// ADMIN-01c (§D-2, Enmienda 5): la consulta de una página de la lista del administrador, siempre con el
+// estado primero; la posición va después del cursor, codificada.
+export const consultaDeClasesAdmin = (
+  estado: EstadoDeClases,
+  pagina: CursorDeClasesAdmin | undefined,
+): string => {
+  const parametros = new URLSearchParams({ estado, limite: String(LIMITE_CLASES_ADMIN) })
+  if (pagina === undefined) return parametros.toString()
+  parametros.set("cursor", pagina.cursor)
+  if (pagina.cursorArchivadaEn !== undefined) {
+    parametros.set("cursorArchivadaEn", pagina.cursorArchivadaEn)
+  }
+  return parametros.toString()
+}
+
+// ADMIN-01c (§D-2, Enmienda 5): la página siguiente sale de la última respuesta. Solo en "Archivadas"
+// lleva la posición, y solo si el servidor la mandó como texto (sin una posición inventada).
+export const siguienteCursorDeClasesAdmin = (
+  estado: EstadoDeClases,
+  ultima: ListaClasesAdminRespuesta,
+): CursorDeClasesAdmin | undefined => {
+  if (ultima.siguienteCursor === null) return undefined
+  const posicion = ultima.siguienteCursorArchivadaEn
+  if (estado === "archivadas" && typeof posicion === "string") {
+    return { cursor: ultima.siguienteCursor, cursorArchivadaEn: posicion }
+  }
+  return { cursor: ultima.siguienteCursor }
+}
+
+// ADMIN-01d2 (§D-9, Enmienda 5; OA-3): la consulta de una página de "Clases anteriores" y "Clases
+// archivadas"; la posición va después del cursor, codificada.
+export const consultaDeClasesAnteriores = (
+  pagina: CursorDeClasesAnteriores | undefined,
+): string => {
+  const parametros = new URLSearchParams({ limite: String(LIMITE_CLASES_ANTERIORES) })
+  if (pagina === undefined) return parametros.toString()
+  parametros.set("cursor", pagina.cursor)
+  if (pagina.cursorArchivadaEn !== undefined) {
+    parametros.set("cursorArchivadaEn", pagina.cursorArchivadaEn)
+  }
+  return parametros.toString()
+}
+
+// ADMIN-01d2 (§D-9, Enmienda 5; OA-3): la página siguiente sale de la última respuesta, con su posición
+// solo si el servidor la mandó como texto (sin una posición inventada).
+export const siguienteCursorDeClasesAnteriores = (
+  ultima: ListaClasesAnterioresRespuesta,
+): CursorDeClasesAnteriores | undefined => {
+  if (ultima.siguienteCursor === null) return undefined
+  const posicion = ultima.siguienteCursorArchivadaEn
+  if (typeof posicion === "string") {
+    return { cursor: ultima.siguienteCursor, cursorArchivadaEn: posicion }
+  }
+  return { cursor: ultima.siguienteCursor }
+}
+
+// ADMIN-01d2 (§D-9, N-05): la vista de una clase anterior del alumno.
+export const rutaDeClaseAnterior = (claseId: string): string =>
+  `${RUTA_CLASES_ANTERIORES_DEL_ALUMNO}/${claseId}`
+
+const cantidadCon = (n: number, unidad: { una: string; varias: string }): string =>
+  `${String(n)} ${n === 1 ? unidad.una : unidad.varias}`
+
+// ADMIN-01c (§D-12, Enmienda 2): lo que se pierde, en palabras; cada cifra con su singular y las que
+// valen 0 dichas igual, para que el texto no cambie de forma según la clase.
+export const consecuenciaDelBorrado = (conteo: ConteoDeBorradoRespuesta): string => {
+  const unidades = TEXTOS_BORRAR_CLASE.unidades
+  return TEXTOS_BORRAR_CLASE.consecuencia({
+    alumnos: cantidadCon(conteo.alumnos, unidades.alumnos),
+    actividades: cantidadCon(conteo.actividades, unidades.actividades),
+    entregas: cantidadCon(conteo.entregas, unidades.entregas),
+    calificaciones: cantidadCon(conteo.calificaciones, unidades.calificaciones),
+    archivos: cantidadCon(conteo.archivos, unidades.archivos),
+  })
+}
+
+const esCodigo = (error: unknown, codigos: readonly string[]): boolean =>
+  esApiError(error) && codigos.includes(error.codigo)
+
+// ADMIN-01c (matriz de 01c): el maestro elegido ya no se puede asignar; el error va en el selector.
+export const noSeEncontroElMaestro = (error: unknown): boolean =>
+  esCodigo(error, ["MAESTRO_NO_ENCONTRADO"])
+
+// ADMIN-01c (matriz de 01c): el estado de la clase ya no es el que la fila mostraba (otra pestaña u otra
+// sesión la archivó, la restauró o la borró): las listas se renuevan además de avisar.
+export const esCambioDeLaClaseEnGestion = (error: unknown): boolean =>
+  esCodigo(error, ["CLASE_YA_ARCHIVADA", "CLASE_NO_ARCHIVADA", "SIN_ACCESO_A_LA_CLASE"])
+
+// ADMIN-01c, corrección de la ronda 1 (T-01): la clase ya no existe (otra pestaña la borró); para el
+// administrador, una clase inexistente responde lo mismo que una sin acceso.
+export const esClaseQueYaNoExiste = (error: unknown): boolean =>
+  esCodigo(error, ["SIN_ACCESO_A_LA_CLASE"])
+
+// ADMIN-01c (matriz de 01c): el conteo de una clase que ya no está archivada dice eso, no la frase de
+// recuperación.
+export const esClaseNoArchivada = (error: unknown): boolean =>
+  esCodigo(error, ["CLASE_NO_ARCHIVADA"])

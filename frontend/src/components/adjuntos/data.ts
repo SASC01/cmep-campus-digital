@@ -45,4 +45,6 @@ export const MENSAJES_POR_CODIGO_DE_ARCHIVO: Readonly<Record<string, string>> = 
   ARCHIVO_INVALIDO: MENSAJES_ERROR_DE_ARCHIVOS.archivoInvalido,
   ALMACEN_NO_CONFIGURADO: MENSAJES_ERROR_DE_ARCHIVOS.almacenNoDisponible,
   ALMACEN_NO_DISPONIBLE: MENSAJES_ERROR_DE_ARCHIVOS.almacenNoDisponible,
+  // ADMIN-01c (§D-10, M-04): la descarga de un recurso duplicado cuyo objeto todavía se copia.
+  ARCHIVO_EN_COPIA: "Este archivo todavía se está copiando. Inténtalo en unos minutos.",
 }

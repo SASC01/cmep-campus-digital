@@ -182,7 +182,10 @@ const USOS: Uso[] = [
     controlInterno: () => screen.findByRole("link", { name: "Abrir Clase 1" }),
     destino: () => screen.getByRole("heading", { level: 1, name: "Clases" }),
     textoDeError: ERROR_LISTA,
-    clave: () => ["clases", "admin"],
+    // ADMIN-01c ronda 0 (C-9d, Enmienda 9, P-01c-3; §D-10): la lista del admin se guarda por estado
+    // ([...CLAVE_CLASES_ADMIN, estado]) y la vista abre en "Activas". «Error ya en la caché al montar»
+    // siembra el error en la clave que lee la vista; las recargas invalidan por prefijo, como antes.
+    clave: () => ["clases", "admin", "activas"],
     sano: () => "lista",
   },
 ]

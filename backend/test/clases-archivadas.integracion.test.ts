@@ -290,12 +290,15 @@ describe("inscritas e impartidas sin archivadas (ADM-1A07)", () => {
     }
 
     // La primera página de inscritas da el cursor; esa clase se archiva antes de pedir la segunda.
-    const primera = (
-      await pedir("GET", "/api/clases/inscritas?limite=1", listas[0]?.token ?? "")
-    ).json<{ clases: { id: string }[]; siguienteCursor: string | null }>()
+    const inscritas = listas[0]
+    if (inscritas === undefined) throw new Error("Precondición: la lista de inscritas existe")
+    const primera = (await pedir("GET", "/api/clases/inscritas?limite=1", inscritas.token)).json<{
+      clases: { id: string }[]
+      siguienteCursor: string | null
+    }>()
     const delCursor = primera.siguienteCursor
     if (delCursor === null) throw new Error("Precondición: la primera página trae cursor")
-    const esperadasAntes = await completa(listas[0]?.ruta ?? "", listas[0]?.token ?? "")
+    const esperadasAntes = await completa(inscritas.ruta, inscritas.token)
     expect(esperadasAntes).toHaveLength(4)
     await archivarClaseDePrueba(delCursor)
 
@@ -365,10 +368,13 @@ describe("GET /clases/anteriores (ADM-1A08)", () => {
       let cursor: string | null = null
       let posicion: string | null = null
       for (let vuelta = 0; vuelta < 5; vuelta++) {
+        if (cursor !== null && posicion === null) {
+          throw new Error("Precondición: una página con cursor trae su siguienteCursorArchivadaEn")
+        }
         const url: string =
-          cursor === null
+          cursor === null || posicion === null
             ? "/api/clases/anteriores?limite=1"
-            : `/api/clases/anteriores?limite=1&cursor=${cursor}&cursorArchivadaEn=${encodeURIComponent(posicion ?? "")}`
+            : `/api/clases/anteriores?limite=1&cursor=${cursor}&cursorArchivadaEn=${encodeURIComponent(posicion)}`
         const pagina = listaClasesAnterioresRespuestaSchema.parse(
           (await pedir("GET", url, token)).json(),
         )
@@ -478,8 +484,12 @@ describe("GET /admin/clases?estado= (ADM-1A11)", () => {
       archivadaB.id,
       archivadaA.id,
     ])
-    for (const fila of archivadas.cuerpo.clases) expect(fila.archivadaEn).not.toBeNull()
-    const ordenArchivadas = archivadas.cuerpo.clases.map((c) => `${c.archivadaEn ?? ""}|${c.id}`)
+    const ordenArchivadas = archivadas.cuerpo.clases.map((c) => {
+      if (c.archivadaEn === null) {
+        throw new Error(`Precondición: la archivada ${c.id} trae archivadaEn`)
+      }
+      return `${c.archivadaEn}|${c.id}`
+    })
     expect(ordenArchivadas).toEqual([...ordenArchivadas].sort().reverse())
     totalDeLaPrimeraPagina(archivadas.cuerpo)
 

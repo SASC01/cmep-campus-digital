@@ -1,4 +1,9 @@
-import { TEXTOS_PANEL } from "./data"
+import { Link } from "react-router"
+
+import { buttonVariants } from "@/components/ui/button-variants"
+import { Card, CardContent } from "@/components/ui/card"
+
+import { RUTA_CLASES_ARCHIVADAS_DEL_MAESTRO, TEXTOS_CLASES_ANTERIORES, TEXTOS_PANEL } from "./data"
 import { BloqueDestacado } from "./components/bloque-destacado"
 import { PanelMisClases } from "./components/panel-mis-clases"
 import { TarjetaClase } from "./components/tarjeta-clase"
@@ -57,6 +62,19 @@ export function InicioMaestroView() {
           />
         )}
       />
+
+      {/* ADMIN-01d2 (§D-9): sus clases archivadas ya no salen en la lista de arriba. Va en un panel: ningún
+          texto va directo sobre el fondo. */}
+      <Card>
+        <CardContent>
+          <Link
+            to={RUTA_CLASES_ARCHIVADAS_DEL_MAESTRO}
+            className={buttonVariants({ variant: "link", size: "enlace" })}
+          >
+            {TEXTOS_CLASES_ANTERIORES.archivadas.titulo}
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   )
 }

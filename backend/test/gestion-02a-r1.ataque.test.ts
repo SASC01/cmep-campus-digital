@@ -691,7 +691,7 @@ describe("ataque CLASES-02a r1: escritura doble (punto 4)", () => {
 })
 
 describe("ataque CLASES-02a r1: respuestas al alumno con maestros (sin datos sensibles)", () => {
-  it("detalle e inscritas del alumno: cada maestro trae solo id y nombre (o solo nombre); nunca correo, rol, estado de pago, restricción, activo ni hash, aunque un maestro sea deudor, esté restringido o inactivo", async () => {
+  it("detalle e inscritas del alumno: cada maestro trae solo id y nombre (o solo nombre); nunca correo, rol, estado de pago, restricción, activo ni hash, aunque un maestro sea deudor, esté restringido o inactivo (el dado de baja, además, con `cuentaDesactivada: true`)", async () => {
     const t = ficha()
     const a = await crearCuenta({ nombre: `Maestra A ${t}`, rol: "maestro", estadoPago: "deudor" })
     const b = await crearCuenta({
@@ -726,7 +726,22 @@ describe("ataque CLASES-02a r1: respuestas al alumno con maestros (sin datos sen
       expect(r.body).not.toContain("deudor")
     }
     const delDetalle = detalle.json<{ clase: { maestros: Record<string, unknown>[] } }>().clase
-    for (const m of delDetalle.maestros) expect(Object.keys(m).sort()).toEqual(["id", "nombre"])
+    // ADMIN-01e, C-42 (§D-R0 01e, Enmienda 13; S-16, §D-7.10): el detalle marca al maestro dado de
+    // baja con cuentaDesactivada: true, también para el alumno, y no lo filtra. Cada maestro se busca
+    // por id: a (activo) sigue con solo id y nombre; b (dado de baja) suma la marca, con true. La
+    // marca no es el campo crudo "activo", que sigue en prohibidas.
+    expect(
+      delDetalle.maestros.map((m) => m.id),
+      "el detalle trae exactamente a los dos maestros de la clase",
+    ).toEqual(expect.arrayContaining([a.id, b.id]))
+    expect(delDetalle.maestros).toHaveLength(2)
+    const maestroA = delDetalle.maestros.find((m) => m.id === a.id)
+    const maestroB = delDetalle.maestros.find((m) => m.id === b.id)
+    expect(maestroA, "el maestro activo a no aparece en el detalle").toBeDefined()
+    expect(maestroB, "el maestro dado de baja b no aparece en el detalle").toBeDefined()
+    expect(Object.keys(maestroA ?? {}).sort()).toEqual(["id", "nombre"])
+    expect(Object.keys(maestroB ?? {}).sort()).toEqual(["cuentaDesactivada", "id", "nombre"])
+    expect(maestroB?.cuentaDesactivada).toBe(true)
     const fila = inscritas
       .json<{ clases: { id: string; maestros: Record<string, unknown>[] }[] }>()
       .clases.find((c) => c.id === clase.id)

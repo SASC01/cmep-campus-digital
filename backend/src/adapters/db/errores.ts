@@ -1,3 +1,5 @@
+import { TEXTO_CARACTERES_NO_PERMITIDOS } from "@campus/shared"
+
 import { AppError } from "../../core/errores.js"
 import { Prisma } from "./generated/client.js"
 
@@ -51,7 +53,7 @@ export const traducirErrorPrisma = (
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) throw error
   if (error.code === "P2002") throw alDuplicar(extraerTarget(error.meta))
   if (codigoDePostgres(error.meta) === SECUENCIA_INVALIDA) {
-    throw new AppError("VALIDACION", "Los datos enviados tienen caracteres no permitidos.", 400)
+    throw new AppError("VALIDACION", TEXTO_CARACTERES_NO_PERMITIDOS, 400)
   }
   throw error
 }

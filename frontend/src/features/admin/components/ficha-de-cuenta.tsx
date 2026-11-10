@@ -1,4 +1,3 @@
-import { CircleAlert } from "lucide-react"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { MensajeError } from "@/components/mensaje-error"
@@ -6,19 +5,22 @@ import { Button } from "@/components/ui/button"
 
 import { TEXTOS_CUENTAS } from "../data"
 import { useRestablecerContrasena } from "../hooks"
-import { etiquetaDeRolAdmin, focoDisponiblePara, mensajeDeErrorAdmin } from "../lib"
+import { focoDisponiblePara, mensajeDeErrorAdmin } from "../lib"
 import type { UsuarioAdmin } from "../types"
 import { ContrasenaTemporal } from "./contrasena-temporal"
 import { FormularioCorregirCorreo } from "./formulario-corregir-correo"
 
 interface AccionRestablecerProps {
   usuarioId: string
+  // ADMIN-01f (E-01): sube cada vez que se envía "Corregir correo"; el error de restablecer se quita
+  // para que la ficha muestre un solo mensaje, el del envío recién hecho.
+  enviosDeCorreo: number
 }
 
 // Confirmación en línea, no modal (CLAUDE.md): es una acción sensible pero no la excepción de
 // destructivas de la guía (restringir acceso, dar de baja, cambio masivo), así que aquí basta con
 // el patrón en línea con "Sí, restablecer" / "Cancelar".
-function AccionRestablecer({ usuarioId }: AccionRestablecerProps) {
+function AccionRestablecer({ usuarioId, enviosDeCorreo }: AccionRestablecerProps) {
   const restablecer = useRestablecerContrasena()
   const [confirmando, setConfirmando] = useState(false)
   // T-03 (ronda 2): un ref se lee y se escribe de forma síncrona, a diferencia de isPending (que
@@ -52,9 +54,34 @@ function AccionRestablecer({ usuarioId }: AccionRestablecerProps) {
     restablecerBtnRef.current?.focus()
   }, [confirmando])
 
+  // ADMIN-01f (E-01): al abrir o cerrar la confirmación el error de restablecer sale, así no reaparece
+  // al reabrirla. Con la petición en vuelo (la ref se lee al instante; isPending llega un render tarde)
+  // no se toca: su respuesta, la temporal o el error, se sigue mostrando.
+  const quitarElError = () => {
+    if (enviandoRef.current || restablecer.isPending) return
+    restablecer.reset()
+  }
+
+  // E-01: un envío de "Corregir correo" posterior al de restablecer deja a la vista solo su propio
+  // mensaje: el error de restablecer se muestra solo si se pidió después del último envío del correo.
+  // Se deriva, sin reiniciar la mutación, para no tocar una temporal ya visible.
+  const [correosAlConfirmar, setCorreosAlConfirmar] = useState(enviosDeCorreo)
+  const errorVisible = restablecer.isError && correosAlConfirmar === enviosDeCorreo
+
+  const abrirConfirmacion = () => {
+    quitarElError()
+    setConfirmando(true)
+  }
+
+  const cerrarConfirmacion = () => {
+    quitarElError()
+    setConfirmando(false)
+  }
+
   const handleConfirmar = () => {
     if (enviandoRef.current) return
     enviandoRef.current = true
+    setCorreosAlConfirmar(enviosDeCorreo)
     restablecer.mutate(usuarioId, {
       onSuccess: () => {
         const disponible = focoDisponiblePara(
@@ -94,7 +121,7 @@ function AccionRestablecer({ usuarioId }: AccionRestablecerProps) {
     if (confirmando) {
       return (
         <>
-          {restablecer.isError && <MensajeError mensaje={mensajeDeErrorAdmin(restablecer.error)} />}
+          {errorVisible && <MensajeError mensaje={mensajeDeErrorAdmin(restablecer.error)} />}
           <p className="text-small">{TEXTOS_CUENTAS.ficha.confirmarRestablecer}</p>
           <div className="flex gap-2">
             <Button
@@ -109,7 +136,7 @@ function AccionRestablecer({ usuarioId }: AccionRestablecerProps) {
               ref={cancelarBtnRef}
               type="button"
               variant="outline"
-              onClick={() => setConfirmando(false)}
+              onClick={cerrarConfirmacion}
             >
               {TEXTOS_CUENTAS.ficha.cancelar}
             </Button>
@@ -120,12 +147,12 @@ function AccionRestablecer({ usuarioId }: AccionRestablecerProps) {
 
     return (
       <>
-        {restablecer.isError && <MensajeError mensaje={mensajeDeErrorAdmin(restablecer.error)} />}
+        {errorVisible && <MensajeError mensaje={mensajeDeErrorAdmin(restablecer.error)} />}
         <Button
           ref={restablecerBtnRef}
           type="button"
           variant="destructive"
-          onClick={() => setConfirmando(true)}
+          onClick={abrirConfirmacion}
         >
           {TEXTOS_CUENTAS.ficha.restablecer}
         </Button>
@@ -145,31 +172,25 @@ interface FichaDeCuentaProps {
   onCorreoCorregido: (usuario: UsuarioAdmin) => void
 }
 
-// DEC-19. Sin estadoPago ni datos de restricción: esta pantalla provisional no los usa.
+// DEC-19. ADMIN-01f (§D-11, E-01, E-24): las acciones de hoy dentro de la ficha de /admin/usuarios/:usuarioId,
+// que ya muestra los datos de la cuenta. Un solo mensaje a la vez: enviar "Corregir correo" quita el
+// error de restablecer (el formulario sube su envío por el submit, que burbujea hasta aquí).
 export function FichaDeCuenta({ usuario, onCorreoCorregido }: FichaDeCuentaProps) {
+  const [enviosDeCorreo, setEnviosDeCorreo] = useState(0)
+
   return (
     <div className="flex flex-col gap-3 rounded-panel border border-border bg-surface p-4">
-      <div className="flex flex-col gap-1">
-        <p className="font-medium">{usuario.nombre}</p>
-        <p className="text-small text-muted-foreground">{usuario.email}</p>
-        <p className="text-small text-muted-foreground">{etiquetaDeRolAdmin(usuario.rol)}</p>
-        {!usuario.activo && (
-          <p className="flex items-center gap-1.5 text-small text-warning">
-            <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
-            {TEXTOS_CUENTAS.ficha.inactiva}
-          </p>
-        )}
-      </div>
-
       {usuario.rol === "admin" ? (
         <p className="text-small text-muted-foreground">
           {TEXTOS_CUENTAS.ficha.noPermiteRestablecer}
         </p>
       ) : (
-        <AccionRestablecer usuarioId={usuario.id} />
+        <AccionRestablecer usuarioId={usuario.id} enviosDeCorreo={enviosDeCorreo} />
       )}
 
-      <FormularioCorregirCorreo usuario={usuario} onCorregido={onCorreoCorregido} />
+      <div onSubmit={() => setEnviosDeCorreo((envios) => envios + 1)}>
+        <FormularioCorregirCorreo usuario={usuario} onCorregido={onCorreoCorregido} />
+      </div>
     </div>
   )
 }

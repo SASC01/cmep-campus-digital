@@ -1,5 +1,5 @@
 import { corregirCorreoSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
@@ -22,9 +22,13 @@ interface FormularioCorregirCorreoProps {
 export function FormularioCorregirCorreo({ usuario, onCorregido }: FormularioCorregirCorreoProps) {
   const corregir = useCorregirCorreo()
   const [errores, setErrores] = useState<ErroresFormularioAdmin>({})
+  // ADMIN-01f (fila 7 de CHORE-04): guarda síncrona; enEspera llega un render después y dos envíos
+  // seguidos mandaban dos correcciones.
+  const enviandoRef = useRef(false)
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (corregir.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -39,7 +43,16 @@ export function FormularioCorregirCorreo({ usuario, onCorregido }: FormularioCor
 
     setErrores({})
     // T-04 (ronda 2): la ficha muestra el correo nuevo en cuanto el servidor lo confirma.
-    corregir.mutate({ id: usuario.id, datos: resultado.data }, { onSuccess: onCorregido })
+    enviandoRef.current = true
+    corregir.mutate(
+      { id: usuario.id, datos: resultado.data },
+      {
+        onSuccess: onCorregido,
+        onSettled: () => {
+          enviandoRef.current = false
+        },
+      },
+    )
   }
 
   return (

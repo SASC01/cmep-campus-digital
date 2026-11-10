@@ -1,13 +1,16 @@
 import {
+  CONFIRMAR_BORRADO_DE_CLASE,
   agregarAlumnoRespuestaSchema,
   candidatosMaestroRespuestaSchema,
   candidatosRespuestaSchema,
   claseRespuestaSchema,
   codigoClaseRespuestaSchema,
   comentarioRespuestaSchema,
+  conteoDeBorradoRespuestaSchema,
   dudaRespuestaSchema,
   listaAlumnosRespuestaSchema,
   listaClasesAdminRespuestaSchema,
+  listaClasesAnterioresRespuestaSchema,
   listaClasesImpartidasRespuestaSchema,
   listaClasesInscritasRespuestaSchema,
   listaComentariosRespuestaSchema,
@@ -31,9 +34,8 @@ import {
   type CrearDuda,
   type CrearRespuesta,
   type CrearTema,
+  type ListaClasesAnterioresRespuesta,
   type ListaDudasRespuesta,
-  type EditarRecurso,
-  type EditarClase,
   type ListaTemasRespuesta,
   type ReemplazarCategorias,
   type SeccionDeTemas,
@@ -42,6 +44,7 @@ import {
 import {
   hashKey,
   useInfiniteQuery,
+  useIsMutating,
   useMutation,
   useQuery,
   useQueryClient,
@@ -50,6 +53,9 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
 
+import { useMontado } from "@/components/clase/hooks"
+import { esClaseArchivada } from "@/components/clase/lib"
+import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { consultaMe } from "@/services/sesionService"
 import { api, esApiError } from "@/services/apiClient"
 import {
@@ -64,11 +70,15 @@ import {
 
 import {
   CLAVE_CLASES_ADMIN,
+  claveClasesAdmin,
+  claveConteoDeBorrado,
+  claveGestionDeClase,
   CLAVE_CLASES_IMPARTIDAS,
   CLAVE_CLASES_INSCRITAS,
   claveAlumnos,
   claveCandidatos,
   claveClaseDetalle,
+  claveClasesAnteriores,
   claveCodigoDeClase,
   claveComentarios,
   claveDudas,
@@ -87,7 +97,6 @@ import {
   CODIGOS_QUE_RENUEVAN_LOS_TEMAS,
   LIMITE_CANDIDATOS,
   LIMITE_CLASES,
-  LIMITE_CLASES_ADMIN,
   LIMITE_COMENTARIOS,
   LIMITE_DUDAS,
   LIMITE_PAGINAS_RECURSOS,
@@ -100,10 +109,14 @@ import {
   MENSAJES_ERROR_CLASES_GENERALES,
   MAXIMO_LECTURAS_DE_RECURSOS_EN_VUELO,
   MAXIMO_LECTURAS_DE_TRABAJO_EN_VUELO,
+  TEXTOS_BORRAR_CLASE,
   TEXTOS_BUSCADOR_ALUMNOS,
   TEXTOS_CATEGORIAS,
+  TEXTOS_CLASES_ADMIN,
+  TEXTOS_CODIGO,
   TEXTOS_COMENTARIOS,
   TEXTOS_DUDAS,
+  TEXTOS_DUPLICAR_CLASE,
   TEXTOS_FORMULARIO_CLASE,
   TEXTOS_FORMULARIO_PUBLICACION,
   TEXTOS_FORMULARIO_RECURSO,
@@ -116,6 +129,8 @@ import {
   TIEMPO_FRESCO_DEL_MURO_MS,
 } from "./data"
 import {
+  consultaDeClasesAdmin,
+  consultaDeClasesAnteriores,
   crearLimiteDeConcurrencia,
   desplazamientoParaVer,
   erroresDeCategoriasDeApi,
@@ -127,21 +142,43 @@ import {
   erroresDelRecursoDeApi,
   errorQueRedirigeElCliente,
   errorQuitaLaVista,
+  esCambioDeLaClaseEnGestion,
+  esClaseQueYaNoExiste,
   esDudaNoEncontrada,
   focoPerdido,
   medidaDelIndicador,
   mensajeDeErrorClases,
   opcionEnElPanel,
+  siguienteCursorDeClasesAdmin,
+  siguienteCursorDeClasesAnteriores,
   temasEnElOrdenDe,
   terminoDeBusquedaValido,
   tiempoFrescoDelMuro,
 } from "./lib"
 import type {
+  AccionDeFilaDeClase,
   CrearAnuncio,
   CrearRecurso,
+  CursorDeClasesAdmin,
+  EstadoDeClases,
+  ConsultaConClave,
+  FilaPendienteDeFoco,
   MedidaDelIndicadorDeLaClase,
   ModoDelRecurso,
+  PaginaConCursor,
+  PaginaConCursorYSenal,
+  PaginaDeClasesAdmin,
+  PaginaDeClasesAnteriores,
   PosicionDelPanel,
+  VariablesDeAlumno,
+  VariablesDeBorrarClase,
+  VariablesDeDuplicarClase,
+  VariablesDeEditarClase,
+  VariablesDeEditarRecurso,
+  VariablesDeMaestro,
+  VariablesDeMarcarDuda,
+  VariablesDeMoverElemento,
+  VariablesDeRenombrarTema,
 } from "./types"
 
 // El saludo del bloque destacado depende solo de la sesión (§D-A5): se ve aunque falle la consulta
@@ -157,7 +194,7 @@ const conCursor = (limite: number, cursor?: string): string => {
 export const useClasesInscritas = () =>
   useInfiniteQuery({
     queryKey: CLAVE_CLASES_INSCRITAS,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/inscritas?${conCursor(LIMITE_CLASES, pageParam)}`, {
         schema: listaClasesInscritasRespuestaSchema,
       }),
@@ -168,7 +205,7 @@ export const useClasesInscritas = () =>
 export const useClasesImpartidas = () =>
   useInfiniteQuery({
     queryKey: CLAVE_CLASES_IMPARTIDAS,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/impartidas?${conCursor(LIMITE_CLASES, pageParam)}`, {
         schema: listaClasesImpartidasRespuestaSchema,
       }),
@@ -195,6 +232,73 @@ export const useCodigoDeClase = (claseId: string, enabled: boolean) =>
     gcTime: 0,
   })
 
+// ADMIN-01d1 (§D-9, §D-R0 y Enmienda 3): una escritura o una lectura de la clase que recibe 409
+// CLASE_ARCHIVADA marca viejo el detalle de esa clase (solo esa consulta, `exact`). Con ClaseLayout
+// montado, el detalle se vuelve a pedir y aparece el aviso de archivada sin los controles de escritura;
+// desmontado, queda viejo y se pide al volver a abrir la clase. No avisa ni reinicia nada: el aviso es
+// el de quien recibió el error. Con `cancelRefetch: false`, una segunda llamada por el mismo error (el
+// gancho de la mutación y la escucha de ClaseLayout) se une a la petición en vuelo en lugar de repetirla.
+const marcarViejoElDetalleAnteClaseArchivada = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  error: unknown,
+) => {
+  if (!esClaseArchivada(error)) return
+  void queryClient.invalidateQueries(
+    { queryKey: claveClaseDetalle(claseId), exact: true },
+    { cancelRefetch: false },
+  )
+}
+
+// ADMIN-01d1 (§D-9, Enmienda 3, M-07): mientras ClaseLayout está montado, escucha las dos cachés del
+// QueryClient y, ante cualquier consulta o mutación que termina en 409 CLASE_ARCHIVADA (la solicitud de
+// subida o la descarga de components/adjuntos, el código de la clase, una escritura de cualquier módulo),
+// marca viejo el detalle de la clase abierta. No crea ni quita entradas de las cachés. Se da de baja al
+// desmontarse o al cambiar de clase.
+export const useDetalleViejoAnteClaseArchivada = (claseId: string) => {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    const dejarLasConsultas = queryClient.getQueryCache().subscribe((evento) => {
+      if (evento.type !== "updated" || evento.action.type !== "error") return
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, evento.action.error)
+    })
+    const dejarLasMutaciones = queryClient.getMutationCache().subscribe((evento) => {
+      if (evento.type !== "updated" || evento.action.type !== "error") return
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, evento.action.error)
+    })
+    return () => {
+      dejarLasConsultas()
+      dejarLasMutaciones()
+    }
+  }, [queryClient, claseId])
+}
+
+// ADMIN-01d1 (§D-9, DESIGN.md §7.14): si la clase pasa a archivada o deja de estarlo (`clave` cambia) y el
+// control que tenía el foco desapareció con ello (un formulario, «Restaurar» del aviso), el foco va al
+// título de la clase y nunca a <body>. useFocoAlPerderseElControl decide si el control se perdió y lleva
+// el foco a la raíz de la clase; desde ahí pasa al título. Si la persona soltó el foco o lo tiene en otro
+// control, no se mueve. M-01 (a) de la verificación de 01d1: la raíz es enfocable (`tabIndex={-1}`), así
+// que un clic en un espacio en blanco de la clase deja ahí el foco; esa es la forma de soltarlo dentro de
+// la clase, y tampoco se mueve. Para distinguirla de la raíz que acaba de enfocar el gancho, se mira dónde
+// estaba el foco al pintarse el cambio, antes de que corra el efecto del gancho.
+export const useFocoAlTituloDeLaClase = (
+  raizRef: RefObject<HTMLElement | null>,
+  tituloRef: RefObject<HTMLElement | null>,
+  clave: string,
+) => {
+  const raizYaTeniaElFoco = useRef(false)
+  useLayoutEffect(() => {
+    raizYaTeniaElFoco.current =
+      raizRef.current !== null && document.activeElement === raizRef.current
+  }, [clave, raizRef])
+  useFocoAlPerderseElControl(raizRef, clave)
+  useEffect(() => {
+    if (raizYaTeniaElFoco.current) return
+    if (raizRef.current === null || document.activeElement !== raizRef.current) return
+    tituloRef.current?.focus()
+  }, [clave, raizRef, tituloRef])
+}
+
 // Invalida las listas propias del rol tras crear, editar o unirse: los inicios y el panel quedan
 // al día sin recargar.
 // T-02 (ronda 1 de 02c): los helpers devuelven la recarga que disparan. invalidateQueries se resuelve
@@ -207,19 +311,9 @@ const invalidarListasDeClases = async (queryClient: ReturnType<typeof useQueryCl
   ])
 }
 
-// CLASES-03c2 (§D-11, O-16): `true` mientras el componente que llama al gancho está montado. Lo crea
-// cada gancho de mutación de un formulario: su onError corre aunque el formulario ya no esté (T-30), y
-// con él sabe si el formulario sigue ahí para mostrar el error bajo su campo.
-export const useMontado = (): RefObject<boolean> => {
-  const montado = useRef(false)
-  useEffect(() => {
-    montado.current = true
-    return () => {
-      montado.current = false
-    }
-  }, [])
-  return montado
-}
+// ADMIN-01d2 (§D-9, Enmienda 11): el gancho vive en components/clase/hooks.ts, que lo usan también los
+// ganchos de features/tareas; se reexporta con su nombre para que ningún importador de este módulo cambie.
+export { useMontado }
 
 // §D-11, variante de clase (Enmienda 1, M-01): con el formulario montado, `alFallar` y `alTerminar`
 // (los callbacks de mutate) avisan y navegan, y el gancho calla. Con el formulario desmontado esos
@@ -251,7 +345,7 @@ export const useEditarClase = () => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ claseId, datos }: { claseId: string; datos: EditarClase }) =>
+    mutationFn: ({ claseId, datos }: VariablesDeEditarClase) =>
       api(`/api/admin/clases/${claseId}`, {
         method: "PUT",
         body: datos,
@@ -263,21 +357,260 @@ export const useEditarClase = () => {
       void invalidarListasDeClases(queryClient)
       if (!montado.current) toast.success(TEXTOS_FORMULARIO_CLASE.avisoGuardada)
     },
-    onError: (error) => avisarErrorConElFormularioDesmontado(montado, error),
+    onError: (error, { claseId }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      avisarErrorConElFormularioDesmontado(montado, error)
+    },
   })
 }
 
-// La lista institucional (§D-2C2): de 50 en 50, de la más reciente a la más antigua.
-export const useClasesAdmin = () =>
+// La lista institucional (§D-2C2): de 50 en 50. ADMIN-01c (§D-10, §D-2 y Enmienda 5): una consulta por
+// estado; en "Archivadas", la página siguiente lleva la posición de la fila del cursor.
+export const useClasesAdmin = (estado: EstadoDeClases) =>
   useInfiniteQuery({
-    queryKey: CLAVE_CLASES_ADMIN,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      api(`/api/admin/clases?${conCursor(LIMITE_CLASES_ADMIN, pageParam)}`, {
+    queryKey: claveClasesAdmin(estado),
+    queryFn: ({ pageParam }: PaginaDeClasesAdmin) =>
+      api(`/api/admin/clases?${consultaDeClasesAdmin(estado, pageParam)}`, {
         schema: listaClasesAdminRespuestaSchema,
       }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    initialPageParam: undefined as CursorDeClasesAdmin | undefined,
+    getNextPageParam: (ultimaPagina) => siguienteCursorDeClasesAdmin(estado, ultimaPagina),
   })
+
+// ADMIN-01d2 (§D-9, Enmienda 5): "Clases anteriores" del alumno y "Clases archivadas" del maestro, la
+// misma consulta; la página siguiente lleva la posición de la fila del cursor.
+export const useClasesAnteriores = () =>
+  useInfiniteQuery({
+    queryKey: claveClasesAnteriores(),
+    queryFn: ({ pageParam }: PaginaDeClasesAnteriores) =>
+      api(`/api/clases/anteriores?${consultaDeClasesAnteriores(pageParam)}`, {
+        schema: listaClasesAnterioresRespuestaSchema,
+      }),
+    initialPageParam: undefined as PaginaDeClasesAnteriores["pageParam"],
+    getNextPageParam: (ultimaPagina) => siguienteCursorDeClasesAnteriores(ultimaPagina),
+  })
+
+// ADMIN-01d2 (ADM-1D204, como useRecuperarListaDeClasesAdmin): las frases de las dos listas piden volver a
+// abrirla. Una lista en error sale de la caché al desmontarse, así que regresar antes de que venza el
+// staleTime la pide de nuevo desde la primera página; otra location.key con la vista montada llama a la
+// función que devuelve. Una lista sana no se vuelve a pedir.
+export const useRecuperarListaDeClasesAnteriores = () => {
+  const queryClient = useQueryClient()
+  useEffect(
+    () => () => {
+      const clave = claveClasesAnteriores()
+      if (queryClient.getQueryState(clave)?.status !== "error") return
+      queryClient.removeQueries({ queryKey: clave, exact: true })
+    },
+    [queryClient],
+  )
+  return () => {
+    const clave = claveClasesAnteriores()
+    if (queryClient.getQueryState(clave)?.status !== "error") return
+    void queryClient.resetQueries({ queryKey: clave, exact: true })
+  }
+}
+
+// ADMIN-01d2, ronda 1 (T-02, arbitraje del manager): quien lee el detalle de una clase archivada sabe que su
+// lista de anteriores o de archivadas está vieja si no la trae. Se quita de la caché, no se marca vieja: así no
+// se lee el vacío falso mientras se vuelve a pedir, y nadie la observa, porque la lista es otra ruta.
+// Ronda 2 (T-04, arbitraje del manager): la regla completa. Al leer la clase archivada, la lista en caché solo
+// se queda si no tiene nada en vuelo y ya trae esa clase, o si no hay nada que quitar (la sesión del admin). Lo
+// que está en vuelo se pidió antes de saberlo, y el efecto no vuelve a correr cuando llega; quitada la consulta,
+// su respuesta tardía no vuelve a entrar. El sentido contrario no: una clase restaurada que sigue en la lista
+// no es falsa como un vacío, y al abrirla lleva a la clase (OA-2).
+export const useClaseArchivadaEnSuLista = (claseId: string, archivada: boolean) => {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!archivada) return
+    const clave = claveClasesAnteriores()
+    const consulta = queryClient.getQueryState<InfiniteData<ListaClasesAnterioresRespuesta>>(clave)
+    const enVuelo = consulta?.fetchStatus === "fetching"
+    if (!enVuelo && consulta?.data === undefined) return
+    if (
+      !enVuelo &&
+      consulta?.data?.pages.some((pagina) => pagina.clases.some((clase) => clase.id === claseId))
+    ) {
+      return
+    }
+    queryClient.removeQueries({ queryKey: clave, exact: true })
+  }, [queryClient, claseId, archivada])
+}
+
+// ADMIN-01c (ADM-1C07, ADM-1C12): las frases de error y de lista cambiada piden volver a abrir la lista.
+// Pulsar "Clases" estando ahí, cambiar de pestaña o ir atrás y adelante (otra location.key con la vista
+// montada) llaman a la función que devuelve: si la lista visible quedó en error, se vuelve a pedir desde
+// la primera página. Al desmontarse, las listas en error salen de la caché, así que regresar antes de que
+// venza el staleTime las pide de nuevo. Una lista sana no se vuelve a pedir.
+export const useRecuperarListaDeClasesAdmin = (estado: EstadoDeClases) => {
+  const queryClient = useQueryClient()
+  useEffect(
+    () => () => {
+      for (const clave of [claveClasesAdmin("activas"), claveClasesAdmin("archivadas")]) {
+        if (queryClient.getQueryState(clave)?.status !== "error") continue
+        queryClient.removeQueries({ queryKey: clave, exact: true })
+      }
+    },
+    [queryClient],
+  )
+  return () => {
+    const clave = claveClasesAdmin(estado)
+    if (queryClient.getQueryState(clave)?.status !== "error") return
+    void queryClient.resetQueries({ queryKey: clave, exact: true })
+  }
+}
+
+// ADMIN-01c (matriz de 01c): tras archivar, restaurar o borrar, las dos listas del administrador y las
+// listas propias de maestros y alumnos (con la barra lateral, que cuelga de ellas). Con el `claseId`,
+// también el detalle de esa clase. Enmienda 10 (E10-6): sin claveClasesAnteriores.
+const renovarTrasGestionar = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId?: string,
+) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_ADMIN }),
+    invalidarListasDeClases(queryClient),
+    claseId === undefined
+      ? Promise.resolve()
+      : queryClient.invalidateQueries({ queryKey: claveClaseDetalle(claseId), exact: true }),
+  ])
+}
+
+// Un aviso por error, salvo uno con que apiClient ya redirige; si la clase ya no está como la fila la
+// mostraba (otra sesión la archivó, la restauró o la borró), las listas se renuevan.
+const avisarErrorDeGestion = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  error: unknown,
+  claseId: string,
+) => {
+  if (!errorQueRedirigeElCliente(error)) toast.error(mensajeDeErrorClases(error))
+  if (esCambioDeLaClaseEnGestion(error)) await renovarTrasGestionar(queryClient, claseId)
+}
+
+// ADMIN-01c (§D-10): archivar y restaurar. Los avisos viven aquí (la fila se desmonta al salir de la
+// lista); la mutación sigue pendiente hasta que la lista renovada ya no tiene la fila (T-02 de 02c).
+// Corrección de la ronda 1 (T-02): cada una lleva la clave de su clase (`claveGestionDeClase`), así que
+// la fila o la confirmación que se vuelven a montar con la petición en vuelo la ven en la caché de
+// mutaciones (useGestionEnVuelo) y no mandan otra.
+export const useArchivarClase = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: claveGestionDeClase("archivar", claseId),
+    mutationFn: () =>
+      api(`/api/admin/clases/${claseId}/archivar`, {
+        method: "POST",
+        schema: claseRespuestaSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_CLASES_ADMIN.avisoArchivada)
+      await renovarTrasGestionar(queryClient, claseId)
+    },
+    onError: (error) => avisarErrorDeGestion(queryClient, error, claseId),
+  })
+}
+
+export const useRestaurarClase = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: claveGestionDeClase("restaurar", claseId),
+    mutationFn: () =>
+      api(`/api/admin/clases/${claseId}/restaurar`, {
+        method: "POST",
+        schema: claseRespuestaSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_CLASES_ADMIN.avisoRestaurada)
+      await renovarTrasGestionar(queryClient, claseId)
+    },
+    onError: (error) => avisarErrorDeGestion(queryClient, error, claseId),
+  })
+}
+
+// Corrección de la ronda 1 (T-02): si archivar o restaurar esa clase sigue en vuelo, aunque la haya
+// lanzado otra instancia de la fila o de la confirmación que ya se desmontó. `enVuelo` sirve para pintar
+// la espera; `sigueEnVuelo` se lee en el manejador, sin esperar otro render.
+export const useGestionEnVuelo = (accion: "archivar" | "restaurar", claseId: string) => {
+  const queryClient = useQueryClient()
+  const mutationKey = claveGestionDeClase(accion, claseId)
+  const enVuelo = useIsMutating({ mutationKey, exact: true }) > 0
+  const sigueEnVuelo = () => queryClient.isMutating({ mutationKey, exact: true }) > 0
+  return { enVuelo, sigueEnVuelo }
+}
+
+// ADMIN-01c (§D-10, ADM-1C06): el conteo se pide cada vez que el diálogo se abre y nunca se sirve de la
+// caché: staleTime y gcTime en 0, y el diálogo lo saca al cerrarse (useOlvidarConteoDeBorrado).
+// Corrección de la ronda 1 (T-01): si la clase ya no está como la fila la muestra (otra pestaña la
+// borró o la restauró), las listas y el detalle se renuevan, como al archivar o restaurar: al cerrar el
+// diálogo, la fila ya no se ofrece.
+export const useConteoDeBorrado = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: claveConteoDeBorrado(claseId),
+    queryFn: async () => {
+      try {
+        return await api(`/api/admin/clases/${claseId}/conteo-de-borrado`, {
+          schema: conteoDeBorradoRespuestaSchema,
+        })
+      } catch (error) {
+        if (esCambioDeLaClaseEnGestion(error)) void renovarTrasGestionar(queryClient, claseId)
+        throw error
+      }
+    },
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export const useOlvidarConteoDeBorrado = () => {
+  const queryClient = useQueryClient()
+  return (claseId: string) =>
+    queryClient.removeQueries({ queryKey: claveConteoDeBorrado(claseId), exact: true })
+}
+
+// ADMIN-01c (§D-10): el borrado definitivo, siempre con la confirmación. Con el diálogo abierto, su
+// error se muestra dentro de él; con el diálogo desmontado, el gancho avisa una vez. Corrección de la
+// ronda 1 (T-01): si la clase ya no existe (otra pestaña la borró), las listas se renuevan; el `409
+// CLASE_NO_ARCHIVADA` sigue la matriz del plan (solo en el diálogo).
+export const useBorrarClase = () => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: ({ id }: VariablesDeBorrarClase) =>
+      api(`/api/admin/clases/${id}?confirmar=${CONFIRMAR_BORRADO_DE_CLASE}`, {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_BORRAR_CLASE.avisoBorrada)
+      await renovarTrasGestionar(queryClient)
+    },
+    onError: async (error, { id }) => {
+      avisarErrorConElFormularioDesmontado(montado, error)
+      if (esClaseQueYaNoExiste(error)) await renovarTrasGestionar(queryClient, id)
+    },
+  })
+}
+
+// ADMIN-01c (§D-10): duplicar, como crear una clase: con el formulario montado, sus callbacks avisan y
+// navegan; desmontado, el gancho avisa (Enmienda 10: el aviso de duplicado sale siempre).
+export const useDuplicarClase = () => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: ({ claseId, datos }: VariablesDeDuplicarClase) =>
+      api(`/api/admin/clases/${claseId}/duplicar`, {
+        method: "POST",
+        body: datos,
+        schema: claseRespuestaSchema,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_ADMIN })
+      void invalidarListasDeClases(queryClient)
+      if (!montado.current) toast.success(TEXTOS_DUPLICAR_CLASE.avisoDuplicada)
+    },
+    onError: (error) => avisarErrorConElFormularioDesmontado(montado, error),
+  })
+}
 
 // Solo pregunta con un término que el servidor aceptaría; con menos de 3 letras no pide nada.
 export const useCandidatosMaestro = (termino: string) =>
@@ -310,7 +643,7 @@ const invalidarMaestrosDeLaClase = async (
 export const useAsignarMaestro = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id }: { id: string; nombre: string }) =>
+    mutationFn: ({ id }: VariablesDeMaestro) =>
       api(`/api/admin/clases/${claseId}/maestros`, {
         method: "POST",
         body: { maestroId: id },
@@ -322,14 +655,17 @@ export const useAsignarMaestro = (claseId: string) => {
       toast.success(TEXTOS_MAESTROS_DE_CLASE.asignado(nombre))
       await invalidarMaestrosDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
 export const useRetirarMaestro = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id }: { id: string; nombre: string }) =>
+    mutationFn: ({ id }: VariablesDeMaestro) =>
       api(`/api/admin/clases/${claseId}/maestros/${id}`, {
         method: "DELETE",
         schema: maestrosDeClaseRespuestaSchema,
@@ -338,10 +674,17 @@ export const useRetirarMaestro = (claseId: string) => {
       toast.success(TEXTOS_MAESTROS_DE_CLASE.quitado(nombre))
       await invalidarMaestrosDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
+// T-03 (ronda 3 de 01d1): los avisos viven aquí y no en los callbacks de mutate: la clase puede archivarse
+// con la petición en vuelo, o la persona salir de ella, y entonces CodigoDeClase ya no está. T-06 de
+// CLASES: un fallo siempre avisa, para que nadie crea que el código viejo ya no sirve. Con la clase
+// archivada, "Inténtalo de nuevo" no se cumpliría: dice por qué no se puede.
 export const useRegenerarCodigo = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -352,6 +695,14 @@ export const useRegenerarCodigo = (claseId: string) => {
       }),
     onSuccess: (respuesta) => {
       queryClient.setQueryData(claveCodigoDeClase(claseId), respuesta)
+      toast.success(TEXTOS_CODIGO.avisoRegenerado)
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(
+        esClaseArchivada(error) ? mensajeDeErrorClases(error) : TEXTOS_CODIGO.avisoErrorRegenerar,
+      )
     },
   })
 }
@@ -369,7 +720,7 @@ export const useUnirseAClase = () => {
 export const usePersonas = (claseId: string) =>
   useInfiniteQuery({
     queryKey: clavePersonas(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/personas?${conCursor(LIMITE_PERSONAS, pageParam)}`, {
         schema: personasRespuestaSchema,
       }),
@@ -380,7 +731,7 @@ export const usePersonas = (claseId: string) =>
 export const useAlumnos = (claseId: string) =>
   useInfiniteQuery({
     queryKey: claveAlumnos(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/alumnos?${conCursor(LIMITE_PERSONAS, pageParam)}`, {
         schema: listaAlumnosRespuestaSchema,
       }),
@@ -443,14 +794,17 @@ export const useAgregarAlumno = (claseId: string) => {
       // «Agregar a la clase».
       await invalidarPersonasDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
 export const useQuitarAlumno = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id }: { id: string; nombre: string }) =>
+    mutationFn: ({ id }: VariablesDeAlumno) =>
       api(`/api/clases/${claseId}/alumnos/${id}`, {
         method: "DELETE",
         schema: sinContenidoSchema,
@@ -463,7 +817,10 @@ export const useQuitarAlumno = (claseId: string) => {
       toast.success(TEXTOS_TABLA_ALUMNOS.quitado(nombre))
       await invalidarPersonasDeLaClase(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -530,90 +887,10 @@ export const useFilaEnFoco = (atributo: string) => {
   return filaEnFoco
 }
 
-// "Ver más" (T-26, T-28): se desmonta con el foco dentro al cargar la última página. Devuelve el ref
-// que va en ese botón. Mueve el foco SOLO si el botón estaba montado en el render anterior, ya no lo
-// está en este y tenía el foco al desmontarse; con el botón montado nunca lo mueve, aunque el foco
-// esté en <body> (un render sin desmontaje no mueve nada). La marca "tenía el foco" se borra con un
-// focusin en otro elemento y con un focusout del botón que no lleva a ningún elemento mientras
-// sigue conectado (un clic en blanco). Hermano de T-08 (ronda 2 de 02d): al cambiar de pestaña el
-// navegador también dispara ese focusout sin destino con el botón conectado, y la ventana pierde el
-// foco justo después; se decide en el siguiente turno y la marca solo se borra si la ventana conserva
-// el foco (document.hasFocus() y el seguimiento de window), igual que useFilaEnFoco.
-// Destino: el primer elemento nuevo (`enfocarFila` devuelve false si no pudo) o, si no llegó nada, el
-// encabezado de la lista (`enfocarEncabezado`). Defensa (T-27): si después de eso el foco sigue
-// perdido (el destino no existía o no estaba conectado), va al primer elemento enfocable y conectado
-// de la sección donde estaba el botón y, si no hay ninguno, no se mueve.
-export const useFocoAlCargarMas = (
-  ids: string[] | undefined,
-  enfocarFila: (id: string) => boolean,
-  enfocarEncabezado: () => void,
-) => {
-  const botonRef = useRef<HTMLButtonElement | null>(null)
-  const teniaElFoco = useRef(false)
-  const estabaMontado = useRef(false)
-  const seccionDelBoton = useRef<Element | null>(null)
-  const idsPrevios = useRef<string[] | undefined>(undefined)
-  const ventanaConFoco = useRef(true)
-
-  useEffect(() => {
-    const alEntrar = (evento: FocusEvent) => {
-      teniaElFoco.current = botonRef.current !== null && evento.target === botonRef.current
-    }
-    const alSalir = (evento: FocusEvent) => {
-      const boton = botonRef.current
-      if (boton === null || evento.target !== boton || evento.relatedTarget !== null) return
-      setTimeout(() => {
-        if (!boton.isConnected || !ventanaConFoco.current || !document.hasFocus()) return
-        teniaElFoco.current = false
-      }, 0)
-    }
-    const alPerderLaVentana = () => {
-      ventanaConFoco.current = false
-    }
-    const alRecuperarLaVentana = () => {
-      ventanaConFoco.current = true
-    }
-    const alCambiarLaVisibilidad = () => {
-      ventanaConFoco.current = !document.hidden
-    }
-    document.addEventListener("focusin", alEntrar)
-    document.addEventListener("focusout", alSalir)
-    document.addEventListener("visibilitychange", alCambiarLaVisibilidad)
-    window.addEventListener("blur", alPerderLaVentana)
-    window.addEventListener("focus", alRecuperarLaVentana)
-    return () => {
-      document.removeEventListener("focusin", alEntrar)
-      document.removeEventListener("focusout", alSalir)
-      document.removeEventListener("visibilitychange", alCambiarLaVisibilidad)
-      window.removeEventListener("blur", alPerderLaVentana)
-      window.removeEventListener("focus", alRecuperarLaVentana)
-    }
-  }, [])
-
-  useEffect(() => {
-    const previos = idsPrevios.current
-    idsPrevios.current = ids
-    const montadoAntes = estabaMontado.current
-    const montadoAhora = botonRef.current !== null
-    estabaMontado.current = montadoAhora
-    if (montadoAhora) {
-      seccionDelBoton.current = botonRef.current?.closest("section, [data-slot='card']") ?? null
-      return
-    }
-    if (!(montadoAntes && teniaElFoco.current)) return
-    teniaElFoco.current = false
-    if (!focoPerdido(document)) return
-    const nuevo = ids?.find((id) => previos?.includes(id) !== true)
-    if (nuevo !== undefined && enfocarFila(nuevo)) return
-    enfocarEncabezado()
-    if (!focoPerdido(document)) return
-    const seccion = seccionDelBoton.current
-    if (seccion === null || !seccion.isConnected) return
-    seccion.querySelector<HTMLElement>("button, a[href], input, [tabindex]")?.focus()
-  })
-
-  return botonRef
-}
+// ADMIN-01f (§D-11): useFocoAlCargarMas sube a components/foco/hooks.ts, porque también lo usan las
+// tablas de features/admin; se reexporta con el mismo nombre para que sus usos y las simulaciones de
+// ./hooks no cambien.
+export { useFocoAlCargarMas } from "@/components/foco/hooks"
 
 // T-04 (ronda 2 de 02c, DESIGN.md §7.14, precedente T-29 de CLASES-c): una recarga que falla después
 // de una acción sustituye la vista por un MensajeError, y el botón que tenía el foco desaparece. Este
@@ -652,11 +929,72 @@ export const useFocoAlPasarAError = (
   })
 }
 
+// ADMIN-01c (DESIGN.md §7.14, T-21): cuando una fila sale de la lista con el foco dentro (archivar,
+// restaurar) o después de borrarla desde el diálogo, el foco va al mismo control de la fila que ocupa su
+// lugar (la siguiente o, si era la última, la anterior) y, si no queda ninguna, al encabezado. Se decide
+// después de cada render, cuando la fila ya no está en los datos. Devuelve con qué marcar la fila borrada
+// desde el diálogo, porque entonces el foco estaba en el diálogo y no en la fila.
+export const useFocoAlQuitarUnaClase = (
+  ids: string[] | undefined,
+  accion: AccionDeFilaDeClase,
+  enfocarEncabezado: () => void,
+) => {
+  const filaEnFocoRef = useFilaEnFoco("data-clase-id")
+  const pendiente = useRef<FilaPendienteDeFoco | null>(null)
+  // Corrección de la ronda 1 (M-02): el último lugar en que se vio cada fila. La fila puede haber salido
+  // varios renders antes de que se decida el foco (la lista se renovó con el diálogo abierto), así que su
+  // lugar no se lee de la lista anterior sino de aquí.
+  const ultimoLugar = useRef(new Map<string, number>())
+  useEffect(() => {
+    if (ids === undefined) return
+    const enFoco = filaEnFocoRef.current
+    const objetivo = pendiente.current ?? (enFoco === null ? null : { id: enFoco, accion })
+    const lugar = objetivo === null ? undefined : ultimoLugar.current.get(objetivo.id)
+    ids.forEach((id, indice) => ultimoLugar.current.set(id, indice))
+    if (objetivo === null || ids.includes(objetivo.id)) return
+    pendiente.current = null
+    filaEnFocoRef.current = null
+    ultimoLugar.current.delete(objetivo.id)
+    if (!focoPerdido(document)) return
+    const vecina = ids[Math.min(lugar ?? 0, ids.length - 1)]
+    const destino =
+      vecina === undefined
+        ? null
+        : document.querySelector<HTMLElement>(
+            `[data-clase-id="${vecina}"] [data-accion="${objetivo.accion}"]`,
+          )
+    if (destino !== null) {
+      destino.focus()
+      return
+    }
+    enfocarEncabezado()
+  })
+  return (id: string) => {
+    pendiente.current = { id, accion: "borrar" }
+  }
+}
+
+// ADMIN-01c (DESIGN.md §7.14): al cerrar el diálogo de borrado sin borrar, el foco vuelve al «Borrar
+// definitivamente» que lo abrió; se mueve después del render en que el diálogo ya no está. Devuelve con
+// qué marcar la clase de ese botón al cerrarlo.
+export const useFocoAlCerrarElBorrado = (abierto: boolean) => {
+  const devolverA = useRef<string | null>(null)
+  useEffect(() => {
+    const id = devolverA.current
+    if (id === null || abierto) return
+    devolverA.current = null
+    document.querySelector<HTMLElement>(`[data-clase-id="${id}"] [data-accion="borrar"]`)?.focus()
+  })
+  return (id: string) => {
+    devolverA.current = id
+  }
+}
+
 // CLASES-c (§D-C2, §D-C5). El muro y los comentarios paginan de 20 en 20, con el cursor del servidor.
 export const usePublicaciones = (claseId: string) =>
   useInfiniteQuery({
     queryKey: clavePublicaciones(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       // CLASES-03c2 (§D-7.5): Avisos pide solo los anuncios; la clave no cambia.
       api(
         `/api/clases/${claseId}/publicaciones?tipo=anuncio&${conCursor(LIMITE_PUBLICACIONES, pageParam)}`,
@@ -700,6 +1038,7 @@ export const useCrearPublicacion = (claseId: string) => {
     // §D-11 (O-16, N-05): el error del campo lo muestra el formulario solo si sigue montado; si no, se
     // avisa. No hay ninguna espera antes de decidirlo.
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (montado.current && erroresDeLaPublicacionDeApi(error, "anuncio")) return
       toast.error(mensajeDeErrorClases(error))
     },
@@ -720,7 +1059,10 @@ export const useBorrarPublicacion = (claseId: string) => {
       toast.success(TEXTOS_MURO.avisoPublicacionBorrada)
       await invalidarMuro(queryClient, claseId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -729,7 +1071,7 @@ export const useBorrarPublicacion = (claseId: string) => {
 export const useComentarios = (claseId: string, publicacionId: string) =>
   useInfiniteQuery({
     queryKey: claveComentarios(claseId, publicacionId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(
         `/api/clases/${claseId}/publicaciones/${publicacionId}/comentarios?${conCursor(LIMITE_COMENTARIOS, pageParam)}`,
         { schema: listaComentariosRespuestaSchema },
@@ -768,6 +1110,7 @@ export const useComentar = (claseId: string, publicacionId: string) => {
     },
     // §D-11 (O-16): el error del campo lo muestra el formulario solo si sigue montado; si no, se avisa.
     onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (montado.current && erroresDeFormularioClases(error, ["texto"])) return
       toast.error(mensajeDeErrorClases(error))
     },
@@ -788,7 +1131,10 @@ export const useBorrarComentario = (claseId: string, publicacionId: string) => {
       toast.success(TEXTOS_COMENTARIOS.avisoComentarioBorrado)
       await invalidarComentarios(queryClient, claseId, publicacionId)
     },
-    onError: (error) => toast.error(mensajeDeErrorClases(error)),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      toast.error(mensajeDeErrorClases(error))
+    },
   })
 }
 
@@ -879,7 +1225,7 @@ const limiteDeTrabajo = crearLimiteDeConcurrencia(MAXIMO_LECTURAS_DE_TRABAJO_EN_
 export const useTrabajo = (claseId: string, tema: string) =>
   useInfiniteQuery({
     queryKey: claveTrabajo(claseId, tema),
-    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
+    queryFn: ({ pageParam, signal }: PaginaConCursorYSenal) => {
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_TRABAJO : LIMITE_PAGINAS_TRABAJO
       // CLASES-03c2 (§D-7.6): "Actividades de aprendizaje" pide solo las actividades del tema.
@@ -933,8 +1279,7 @@ const filtroDeLasSecciones = (claseId: string) => {
   const prefijo = claveTemas(claseId)
   return {
     queryKey: prefijo,
-    predicate: (consulta: { queryKey: readonly unknown[] }) =>
-      consulta.queryKey.length > prefijo.length,
+    predicate: (consulta: ConsultaConClave) => consulta.queryKey.length > prefijo.length,
   }
 }
 
@@ -1000,7 +1345,10 @@ export const useCrearTema = (claseId: string) => {
       toast.success(TEXTOS_TEMAS.avisoCreado)
       await invalidarTemas(queryClient, claseId)
     },
-    onError: (error) => avisarErrorDelTema(queryClient, claseId, montado, error),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTema(queryClient, claseId, montado, error)
+    },
   })
 }
 
@@ -1008,7 +1356,7 @@ export const useRenombrarTema = (claseId: string) => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ temaId, nombre }: { temaId: string; nombre: string }) =>
+    mutationFn: ({ temaId, nombre }: VariablesDeRenombrarTema) =>
       api(`/api/clases/${claseId}/temas/${temaId}`, {
         method: "PUT",
         body: { nombre },
@@ -1022,7 +1370,10 @@ export const useRenombrarTema = (claseId: string) => {
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
       ])
     },
-    onError: (error) => avisarErrorDelTema(queryClient, claseId, montado, error),
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTema(queryClient, claseId, montado, error)
+    },
   })
 }
 
@@ -1043,6 +1394,7 @@ export const useBorrarTema = (claseId: string) => {
       ])
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
     },
@@ -1101,6 +1453,7 @@ export const useOrdenarTemas = (claseId: string) => {
       await ponerElOrdenEnLasSeccionesSinElNuevo(queryClient, claseId, respuesta)
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
     },
@@ -1112,15 +1465,7 @@ export const useOrdenarTemas = (claseId: string) => {
 export const useMoverElemento = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      publicacionId,
-      temaId,
-    }: {
-      publicacionId: string
-      temaId: string | null
-      titulo: string
-      nombreDelTema: string
-    }) =>
+    mutationFn: ({ publicacionId, temaId }: VariablesDeMoverElemento) =>
       api(`/api/clases/${claseId}/publicaciones/${publicacionId}/tema`, {
         method: "PUT",
         body: { temaId },
@@ -1138,6 +1483,7 @@ export const useMoverElemento = (claseId: string) => {
     // CLASES-03d (§D-14): con un error con que apiClient ya redirige, la página se va y no se avisa.
     // MOVER_NO_PERMITIDO renueva las listas (CODIGOS_QUE_RENUEVAN_LOS_TEMAS): el control desaparece.
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
@@ -1155,7 +1501,7 @@ const limiteDeRecursos = crearLimiteDeConcurrencia(MAXIMO_LECTURAS_DE_RECURSOS_E
 export const useRecursos = (claseId: string, bloque: BloqueDeRecurso, tema: string) =>
   useInfiniteQuery({
     queryKey: claveRecursos(claseId, bloque, tema),
-    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
+    queryFn: ({ pageParam, signal }: PaginaConCursorYSenal) => {
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_RECURSOS : LIMITE_PAGINAS_RECURSOS
       const parametros = new URLSearchParams({ bloque, tema, limite: String(limite) })
@@ -1258,10 +1604,12 @@ export const useCrearRecurso = (claseId: string) => {
       void invalidarRecursosYTemas(queryClient, claseId)
       toast.success(TEXTOS_FORMULARIO_RECURSO.avisoPublicado)
     },
-    onError: (error) =>
-      avisarErrorDelRecurso(montado, "crear", error, () =>
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelRecurso(montado, "crear", error, () =>
         renovarTrasError(queryClient, claseId, error),
-      ),
+      )
+    },
   })
 }
 
@@ -1271,7 +1619,7 @@ export const useEditarRecurso = (claseId: string) => {
   const queryClient = useQueryClient()
   const montado = useMontado()
   return useMutation({
-    mutationFn: ({ recursoId, datos }: { recursoId: string; datos: EditarRecurso }) =>
+    mutationFn: ({ recursoId, datos }: VariablesDeEditarRecurso) =>
       api(`/api/clases/${claseId}/recursos/${recursoId}`, {
         method: "PUT",
         body: datos,
@@ -1282,10 +1630,12 @@ export const useEditarRecurso = (claseId: string) => {
       void invalidarRecursosYTemas(queryClient, claseId)
       toast.success(TEXTOS_FORMULARIO_RECURSO.avisoGuardado)
     },
-    onError: (error, { recursoId }) =>
-      avisarErrorDelRecurso(montado, "editar", error, () =>
+    onError: (error, { recursoId }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelRecurso(montado, "editar", error, () =>
         renovarTrasErrorDelRecurso(queryClient, claseId, recursoId, error),
-      ),
+      )
+    },
   })
 }
 
@@ -1311,6 +1661,7 @@ export const useBorrarRecurso = (claseId: string) => {
     // Enmienda 13 (decisión (2) del humano): el 404 de esta ruta (PUBLICACION_NO_ENCONTRADA) dice "Ese
     // recurso ya no existe.", no el texto de Avisos.
     onError: async (error, recursoId) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       const recursoQueYaNoEsta = esApiError(error) && error.codigo === "PUBLICACION_NO_ENCONTRADA"
       toast.error(
@@ -1334,7 +1685,7 @@ export const useBorrarRecurso = (claseId: string) => {
 export const useDudas = (claseId: string) =>
   useInfiniteQuery({
     queryKey: claveDudas(claseId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/dudas?${conCursor(LIMITE_DUDAS, pageParam)}`, {
         schema: listaDudasRespuestaSchema,
       }),
@@ -1354,7 +1705,7 @@ export const useRespuestas = (claseId: string, dudaId: string, pedir = true) =>
   useInfiniteQuery({
     enabled: pedir,
     queryKey: claveRespuestas(claseId, dudaId),
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+    queryFn: ({ pageParam }: PaginaConCursor) =>
       api(
         `/api/clases/${claseId}/dudas/${dudaId}/respuestas?${conCursor(LIMITE_RESPUESTAS, pageParam)}`,
         { schema: listaComentariosRespuestaSchema },
@@ -1450,10 +1801,12 @@ export const useCrearDuda = (claseId: string) => {
       void invalidarDudas(queryClient, claseId)
       toast.success(TEXTOS_DUDAS.avisoPublicada)
     },
-    onError: (error) =>
-      avisarErrorDelTexto(montado, erroresDeLaDudaDeApi(error) !== null, error, async () => {
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTexto(montado, erroresDeLaDudaDeApi(error) !== null, error, async () => {
         if (renuevaLasDudas(error)) await invalidarDudas(queryClient, claseId)
-      }),
+      })
+    },
   })
 }
 
@@ -1463,7 +1816,7 @@ export const useCrearDuda = (claseId: string) => {
 export const useMarcarDuda = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ dudaId, resuelta }: { dudaId: string; resuelta: boolean }) =>
+    mutationFn: ({ dudaId, resuelta }: VariablesDeMarcarDuda) =>
       api(`/api/clases/${claseId}/dudas/${dudaId}/resuelta`, {
         method: "PUT",
         body: { resuelta },
@@ -1474,6 +1827,7 @@ export const useMarcarDuda = (claseId: string) => {
       await invalidarDudas(queryClient, claseId)
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       if (renuevaLasDudas(error)) await invalidarDudas(queryClient, claseId)
@@ -1538,6 +1892,7 @@ export const useBorrarDuda = (claseId: string) => {
       await invalidarDudas(queryClient, claseId)
     },
     onError: async (error, dudaId) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       if (!renuevaLasDudas(error)) return
@@ -1561,10 +1916,12 @@ export const useResponder = (claseId: string, dudaId: string) => {
       void invalidarRespuestasYDudas(queryClient, claseId, dudaId)
       toast.success(TEXTOS_RESPUESTAS.avisoPublicada)
     },
-    onError: (error) =>
-      avisarErrorDelTexto(montado, erroresDeLaRespuestaDeApi(error) !== null, error, () =>
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      return avisarErrorDelTexto(montado, erroresDeLaRespuestaDeApi(error) !== null, error, () =>
         renovarTrasErrorDeRespuesta(queryClient, claseId, dudaId, error),
-      ),
+      )
+    },
   })
 }
 
@@ -1581,6 +1938,7 @@ export const useBorrarRespuesta = (claseId: string, dudaId: string) => {
       await invalidarRespuestasYDudas(queryClient, claseId, dudaId)
     },
     onError: async (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasErrorDeRespuesta(queryClient, claseId, dudaId, error)
@@ -1603,6 +1961,7 @@ export const useCategoriasEnCache = (claseId: string) => {
 // avisa con el mensaje del servidor y vuelve a pedir la lista antes de terminar.
 export const useGuardarCategorias = (claseId: string) => {
   const queryClient = useQueryClient()
+  const montado = useMontado()
   return useMutation({
     mutationFn: (datos: ReemplazarCategorias) =>
       api(`/api/clases/${claseId}/categorias`, {
@@ -1617,7 +1976,10 @@ export const useGuardarCategorias = (claseId: string) => {
       await queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] })
     },
     onError: async (error) => {
-      if (erroresDeCategoriasDeApi(error, []) !== null) return
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      // T-03 (ronda 3 de 01d1), como useComentar: el error de una fila lo pinta el editor solo si sigue
+      // montado; si no (la clase se archivó o la persona salió), se avisa.
+      if (montado.current && erroresDeCategoriasDeApi(error, []) !== null) return
       toast.error(mensajeDeErrorClases(error))
       if (!esApiError(error) || !CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS.includes(error.codigo)) return
       await queryClient.invalidateQueries({ queryKey: claveCategorias(claseId) })

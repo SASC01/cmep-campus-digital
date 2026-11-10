@@ -251,7 +251,6 @@ export const CLAVE_RESUMEN_ADMIN = ["admin", "resumen"] as const
 // AUTH-03b, §D-B8: enlaces de registro de maestro, en /admin/maestros.
 export const TEXTOS_MAESTROS = {
   titulo: "Maestros",
-  notaProvisional: "Pantalla provisional: la gestión completa de usuarios llega después.",
   enlaces: {
     titulo: "Enlaces de registro",
     descripcion:
@@ -317,7 +316,6 @@ export const TEXTOS_INVITACION_MASIVA = {
     "Un maestro por línea: su correo y, si quieres, su nombre, separados por coma, punto y coma o tabulador. Hasta 100 líneas.",
   ejemplo: "ana.lopez@colegio.mx, Ana López",
   contador: (lineas: number, limite: number) => `${lineas} de ${limite} líneas`,
-  demasiadasLineas: (limite: number) => `No puedes enviar más de ${limite} líneas a la vez.`,
   enviar: "Enviar invitaciones",
   resumen: (enviadas: number, existentes: number, invalidas: number) =>
     `Invitaciones enviadas: ${enviadas} · Ya tenían cuenta: ${existentes} · No válidas: ${invalidas}`,
@@ -359,6 +357,12 @@ export const claveTablaDeEstadoPago = (q: string | undefined, estadoPago: Estado
   ] as const
 
 export const CLAVE_MOVIMIENTOS = ["admin", "movimientos"] as const
+
+// ADMIN-01g, ronda 2 (T-05, T-06): las claves de las dos listas de /admin/maestros, para que sus
+// componentes marquen viejas y vuelvan a pedir exactamente las claves de sus consultas.
+export const CLAVE_ENLACES_REGISTRO = ["admin", "enlaces-registro"] as const
+export const claveRegistradosDelEnlace = (enlaceId: string) =>
+  [...CLAVE_ENLACES_REGISTRO, enlaceId, "registrados"] as const
 
 // ADMIN-01g (§D-11, T-E14): /admin/estado-pago.
 export const TEXTOS_ESTADO_PAGO = {

@@ -8253,3 +8253,546 @@ git push
   - las filas de ESTADO §3;
   - la comprobación humana con H-6 y H-7 ampliados.
 - **Medición de 01g:** 3 rondas extra, 2 por hermanos (umbral alcanzado; ya en `opus`, esfuerzo `medium` por decisión del humano), 2 escaladas al humano y 1 de 5 resúmenes devuelto.
+
+## Revisión del cierre — ADMIN-01
+Veredicto: **CAMBIOS REQUERIDOS** (M-28 y M-29, pequeños; cuatro decisiones para el humano, con recomendación)
+Verificación propia: una corrida después de otra, sin otra suite viva. Docker `28.5.1`; red `uacam5 2`, perfil Privado, autorizada por el humano para hoy (PA-01). Con corriente (`BatteryStatus` 2, al 91 %). Sin navegadores.
+
+| Paquete | Comando | Mi última línea | Resumen |
+|---|---|---|---|
+| shared | `npm run lint` | exit 0, `All matched files use Prettier code style!` | igual |
+| shared | `npm run build` | exit 0 | igual |
+| backend | `npm run lint` | exit 0 | igual |
+| backend | `npm run build` | exit 0 | igual |
+| frontend | `npm run lint` | exit 0, `> tsc -b` | igual |
+| frontend | `npm run build` | exit 0, `✓ built in 1.21s` | exit 0 (`1.54s`) |
+| frontend | `npm run test` (completa, 08:48:20) | `Test Files  321 passed (321)` · `Tests  7262 passed (7262)` | igual |
+| backend | `npm test` (completa, Testcontainers, 08:56:06) | `Test Files  275 passed (275)` · `Tests  3042 passed (3042)` (303 s) | igual |
+
+- **Frontend:** 7262 = 7248 del cierre de 01g + los 14 casos de `estaActivo`.
+- **Backend:** igual que al cierre de 01e, porque el carril no suma pruebas al backend.
+
+### PA-07 sobre la suite completa del backend
+- **Conteo:** `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 10 · `"code":"P2028"` 5.
+- **Control positivo:** están los tres `P2028` de `servicio-ocupado.integracion`, en nivel 40 y en la misma app (pid 27404):
+  - `POST /api/auth/cambiar-contrasena`, con `tx.sesion.findFirst()` (`usuarios.ts:293`);
+  - `POST /api/auth/refrescar`, con `tx.sesion.updateMany()` (`sesiones.ts:72`);
+  - `POST …/publicaciones/:publicacionId/comentarios`, con `$queryRawUnsafe` de `encolar`.
+- **Los otros dos `P2028`** son los permitidos de `cuentas-r3.ataque` (pid 25176): `POST /api/auth/login`, con `tx.sesion.create()` (`sesiones.ts:39`), y `POST /api/auth/restablecer`, con `tx.tokenCuenta.updateMany()` (`tokens-cuenta.ts:119`).
+- **Inventario:** los 10 "Error no controlado" son los de siempre, por la línea del manejador en su pila:
+  - 5 de `handlers/auth/index.ts:125` y 1 de `:134` (los fallos simulados del login);
+  - `handlers/archivos.ts:62` y `:97`, y `handlers/clases/muro.ts:87` (los `ZodError` de la URL del almacén);
+  - 1 "boom" de `GET /api/prueba/error-comun`.
+- **PA-07 limpia.**
+
+### 1. Carril trivial (21 archivos contra `705f648`)
+- **Sin cambio de comportamiento, salvo R-24.** Lo contrasté contra el diff.
+  - **R-24:** salen la nota de `/admin/maestros` y `TEXTOS_MAESTROS.notaProvisional`.
+  - **Claves:** pasan de `hooks.ts` a `data.ts`.
+  - **Tamaño de las acciones de fila:** `tabla-enlaces.tsx`, `tabla-clases-admin.tsx` (incluidos «Abrir» y «Duplicar») y «Ver» de `tabla-de-usuarios.tsx` pasan de `sm` al tamaño por omisión. Es la regla nueva de A-04, y no queda `"sm"` en esos tres archivos.
+  - **`estaActivo`:** pasa a `components/layout/lib.ts` con la misma lógica y 14 casos.
+  - **Textos sin uso:** sale `TEXTOS_INVITACION_MASIVA.demasiadasLineas`, que nadie leía.
+- **N-32, sin cambio de SQL.** `duplicado-de-clase.ts` borra sus copias de `errorCodigoNoDisponible`, `traducirErrorDeCodigo` y `conReintentoDeCodigo`, e importa la de `clases.ts`, que ahora se exporta.
+  - Comparé los dos cuerpos: son idénticos. `CODIGO_NO_DISPONIBLE` 500, el mismo texto, un solo reintento que envuelve la transacción y el `traducirErrorPrisma` con `alDuplicar`.
+  - Ninguna consulta cambia.
+- **Detalles de 01e:**
+  - `EstadoPagoAlumno` de `shared` en `core/usuarios/fila.ts` y en `gestion-de-usuarios.ts`;
+  - `TEXTOS_USUARIOS.usuarioNoEncontrado` en `handlers/admin.ts`, con el mismo texto;
+  - `TEXTO_CARACTERES_NO_PERMITIDOS`, exportado de `shared` y usado por el esquema y por `adapters/db/errores.ts`, con el mismo texto;
+  - `BusquedaDeUsuarios` en `handlers/admin/usuarios.ts`.
+  - `handlers/` importa de `core/`, y las capas se respetan.
+- **Pruebas:**
+  - Ninguna `*.ataque` cambió: `git diff --name-only 705f648 -- '*.ataque.test.*'` da 0. **V-01: 281** rastreadas, sin archivos sin rastrear.
+  - **Desviación de `lib-01g.test.ts` (ADM-1G21): aceptada.** Es consecuencia directa de R-24: sin ella, `tsc` falla. El caso ahora comprueba que la clave ya no está, que es lo que protege con la decisión del humano.
+- **Caracteres invisibles:** ninguno nuevo en los archivos tocados. El U+00AD de `components/layout/lib.test.ts:62` ya estaba en `705f648` (`:54`): es uno de los casos de URL no publicables, a propósito. Ningún archivo lleva CR.
+- **Índice de git:** vacío.
+
+### 2. Documentos (A-01 a A-09, contra `705f648`)
+- **Hashes:** coinciden con `aprobacion.md`:
+  - `CLAUDE.md` `a8fbd23f…`;
+  - `ARCHITECTURE-ESSENTIALS.md` `f712231e…`;
+  - `ARCHITECTURE.md` `b1bfcdc6…`;
+  - `PRD.md` `ae2955fe…`;
+  - `DESIGN.md` `258e7073…`;
+  - `ESTADO.md` `774ffa7b…`;
+  - `plan.md` `f9cce051…`, solo D-7 en la fila de 01f de la matriz.
+- **No inventan decisiones.**
+  - Contrasté con el código una muestra de cada afirmación técnica nueva, y todas existen:
+    - `"lectura-del-alumno"`, `"gestion"` y `evaluarClaseArchivada`;
+    - `COPIAR_OBJETOS`, `BORRAR_OBJETOS` y `COPIAR_OBJETOS_FALLIDO`;
+    - `ARCHIVO_EN_COPIA` y "Este archivo todavía se está copiando…";
+    - `CLASE_YA_ARCHIVADA` y `CLASE_NO_ARCHIVADA`;
+    - `MAESTRO_CON_CLASES` y `CUENTA_DE_ADMINISTRACION`;
+    - `cursorArchivadaEn` y `serializers.req`;
+    - `GET /admin/movimientos-inscripcion`.
+  - Las decisiones citadas tienen su registro en `aprobacion.md`: P-01 (a′), P-02 (a), DH-03, DH-04, DH-06, DH-09, DH-10, la Enmienda 6, N-E15-2 y OA-01e-r1-1 ("Aceptarla y anotarla").
+- **A-01 a A-08 aplicados:**
+  - **ESSENTIALS:** el sexto paso con la clase archivada, el cursor con posición, las tablas y los índices, los eventos y los logs sin consulta.
+  - **`ARCHITECTURE.md`:** §6, §7, §8, §11, la tabla de eventos, D-32 y los logs.
+  - **`PRD.md`:** RF-51, RF-52, RF-69 y RF-70 hechos; RF-53 y RF-56 con su destino; la sección "Desde ADMIN-01".
+  - **`CLAUDE.md`:** las filas `clases` y `admin` sin "provisional", `components/clase/`, `components/foco/` y `lib/unir-paginas.ts`.
+  - **`DESIGN.md`:** todo lo nuevo, marcado "propuesta (ADMIN-01x)":
+    - §7.8: la insignia y las de "Cuenta" y "Acceso";
+    - §7.9: el encabezado no fijo por DH-10, la regla de tamaño de las acciones de fila, la tabla de usuarios, la de selección múltiple y los movimientos;
+    - §7.11: los diálogos;
+    - §7.14: «Archivar»;
+    - §7.16: el aviso;
+    - §7.32 y §7.33, nuevas;
+    - §6: la casilla.
+  - **`ESTADO.md`:** las filas de §3, las de CHORE-04 en §2b, la medición en §6 y la corrección de "Modelos y esfuerzo".
+- **A-09:** el esquema ya se actualizó en cada subentrega. **A-06:** los README de `backend/`, al día en cada subentrega. **A-10:** `AGENTS.md`, "Comandos", no cambia.
+
+### Problemas que bloquean
+#### M-28 — NB-1 no entró al carril trivial
+- **Dónde:**
+  - `backend/src/adapters/db/clases-archivadas.ts`: `errorAlArchivar(fila.archivadaEn ?? new Date()) ?? sinAcceso()` y `errorAlRestaurar(null) ?? sinAcceso()`;
+  - los `?? ""` de `backend/test/clases-archivadas.integracion.test.ts:294`, `:298`, `:371` y `:482` (antes `:475`), y de `clases-archivadas-posicion.integracion.test.ts:258` y `:261`.
+- **Por qué importa:**
+  - La revisión final de 01a (`revision.md:1531` y `:1542-1556`) le dio a NB-1 el destino "carril trivial al cierre de ADMIN-01". El encargo del carril tomó las fuentes de 01e, 01f y 01g y lo dejó fuera.
+  - `CLAUDE.md` pide valores por defecto explícitos: una fecha inventada y una rama inalcanzable se leen como una decisión oculta.
+  - No cambia el comportamiento.
+- **Qué se espera:**
+  - `archivarClase` y `restaurarClase` lanzan el `409` de `core/` directamente, con su comentario, sin cambiar la respuesta.
+  - Las seis pruebas normales usan una precondición que falla con su mensaje en lugar de `?? ""`. `clases-archivadas-r2.ataque.test.ts:365` es del tester y no se toca.
+  - De paso, el detalle de `listarClasesAnteriores` (todo rol que no es `estudiante` se trata como maestro) recibe una rama explícita, si el programador lo ve sin riesgo.
+  - **Verificación:** lint y build del backend, la suite de esos módulos, y después mi corrida completa del backend con PA-07.
+  - Si el humano prefiere no tocar el backend otra vez hoy, la alternativa es una fila de ESTADO §3 con destino al próximo encargo que toque `clases-archivadas.ts`. **Recomiendo aplicarlo ahora**, porque cuesta lo mismo que la verificación y deja cerrado el destino.
+
+#### M-29 — Dos huecos en los documentos del cierre
+- **`CLAUDE.md`, "Ubicaciones compartidas".** La línea de `services/clasesService.ts` no nombra las dos claves que ADMIN-01 sumó: `claveClaseDetalle` y `claveClasesAnteriores`.
+  - Es A-05, y la regla de `CLAUDE.md` de mantener la lista de ubicaciones al día.
+  - **Se espera:** que la línea las nombre, sin otro cambio.
+- **ESTADO §3: faltan filas para cosas que quedaron abiertas.**
+  - Los tres hermanos que el programador dejó fuera del carril, con su razón:
+    - la clave literal `["admin", "enlaces-registro"]` en las invalidaciones de `useGenerarEnlace` y `useRevocarEnlace`, que debería usar `CLAVE_ENLACES_REGISTRO`: carril trivial siguiente;
+    - el tipo escrito a mano de `adapters/db/inscripciones.ts:38`: carril trivial siguiente;
+    - el texto de "dar de baja" ante `activo: true` de la cuenta de administración, que es inalcanzable y pediría un texto nuevo: anotarlo, sin destino.
+  - Lo que el humano decida dejar para después de las cuatro decisiones de abajo.
+  - Si M-28 no se aplica, NB-1.
+  - La línea 238 de ESTADO ("pendiente el cierre") se actualiza al commit, como siempre.
+
+### Decisiones para el humano (con recomendación)
+Ninguna bloquea el commit si se elige "a pendientes". Las dos primeras vienen de la revisión final de 01c ("al cierre decides, con A-04"); las otras dos las vio el agente de los documentos.
+
+1. **N-01c-3, el nombre accesible de las acciones de fila.**
+   - **La situación:** desde 01c, y también en 01g, el texto visible va `aria-hidden` y el nombre completo va en un `sr-only` ("Archivar Matemáticas I"). La letra de §7.9 dice "sr-only dentro del botón (nunca `aria-hidden`)".
+   - **Recomendación: documentar la variante en §7.9 como propuesta.** El nombre accesible empieza con el texto visible (WCAG 2.5.3), las pruebas lo cubren y cambiarlo tocaría varias tablas sin beneficio.
+   - Alternativa: volver a la letra (el visible sin `aria-hidden`, más un `sr-only` solo con el dato), en un encargo de diseño.
+2. **«Cancelar» con una acción en vuelo** (la confirmación de archivar y el diálogo de borrar no responden mientras la petición está en vuelo). Las tres opciones de 01c:
+   - (a) **dejarlo así y documentarlo;**
+   - (b) ocultarlo en vuelo cuando no tiene el foco;
+   - (c) un texto de estado.
+   - **Recomendación: (a).** La espera dura lo que la petición, el botón principal ya anuncia "en espera" y no se pierde nada.
+3. **«Restringido» en `warning` frente a «Acceso restringido» en `danger`.**
+   - **La situación:** el mismo estado tiene dos colores. §7.8 ya tenía aprobado `danger` para "Acceso restringido" (`AccesoRestringidoBadge`), y las tablas del admin usan `warning` (`tabla-de-usuarios.tsx:47` y `tabla-estado-pago.tsx:146`).
+   - **Recomendación: `danger` en las dos tablas**, por coherencia de §7.8. Son dos líneas en el carril trivial y la fila de §7.8 de `DESIGN.md`; ninguna prueba lee la variante de esas insignias, pero se confirma con grep antes.
+   - Alternativa: dejar `warning` como propuesta, con su porqué ("en una tabla densa, el rojo se reserva a lo destructivo").
+4. **La fecha sin año del aviso de clase archivada.**
+   - **La situación:** "Clase archivada el martes 29 de septiembre." usa `formatearFechaLarga`, sin año. Para una clase archivada hace más de un año, la fecha confunde. Las listas ("Archivada el 29 sept 2026") sí llevan el año.
+   - **Recomendación: añadir el año al aviso**, con una opción de `formatearFechaLarga` o con la fecha de las listas. Es un cambio visual pequeño; puede ir al carril trivial ahora o a ESTADO §3 para el próximo encargo de clases.
+   - Si va ahora, cambia una prueba que lea el texto del aviso: hay que hacer grep antes.
+
+### 3. Comprobación humana del cierre (máximo 7 puntos y 10 minutos; solo lo que las pruebas no ven)
+- **H-1.** Archivar una clase desde `/admin/clases` y verla en "Archivadas". Al entrar, el aviso fijo y ningún control de escritura.
+- **H-2.** Como alumno, "Clases anteriores" y las calificaciones de esa clase; como maestro, "Clases archivadas".
+- **H-3.** Duplicar una clase con un recurso de aprendizaje con imagen: la copia aparece con sus temas, categorías y el recurso, y el archivo se descarga al cabo de unos segundos.
+- **H-4.** Borrar definitivamente la archivada: el diálogo con el conteo, en un contexto denso y opaco.
+- **H-5.** Lector de pantalla (NVDA): la contraseña temporal y "Copiar enlace" se anuncian una vez, sin el botón.
+- **H-6.** A 360 px y a 1024 px:
+  - en `/admin/estado-pago` y `/admin/usuarios`, la tabla se desplaza dentro de su contenedor, y las casillas y los botones de fila se pulsan con comodidad;
+  - la barra de lote y el diálogo se leen completos;
+  - en `/admin/clases`, la celda «Maestros» con un maestro dado de baja (nombre repetido con su insignia) se lee sin cortes.
+- **H-7.** El dashboard y la navegación del admin, con los seis destinos y «Inicio» activo en `/admin/`. Con el teclado en `/admin/maestros`, Tab tras un error de la lista de enlaces sigue un orden razonable.
+
+Lo demás queda como "no verificado por decisión del humano, cubierto por pruebas automáticas".
+
+### 4. Bloque de commit del cierre (para después de M-28 y M-29 y de las decisiones)
+Hoy, `git add -n -A` con las rutas de abajo da 30 rutas, iguales a las de `git status --porcelain` sin `DEPLOY-investigacion-vps.md`. Después de las correcciones, lo vuelvo a cotejar en la verificación.
+
+```
+git status
+git add -A -- CLAUDE.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md docs/DESIGN.md docs/ESTADO.md docs/trabajo/ADMIN-01-administracion backend shared frontend
+git status
+git commit -m "ADMIN-01, cierre: documentos (ESSENTIALS, ARCHITECTURE, PRD, DESIGN, CLAUDE y ESTADO), carril trivial (R-24, tamaño de acciones de fila, claves a data.ts, estaActivo a lib.ts, N-32, NB-1 y detalles de 01e)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git push
+```
+
+El segundo `git status` debe seguir mostrando `docs/trabajo/DEPLOY-investigacion-vps.md` sin rastrear. Si NB-1 no se aplica, se quita "NB-1" del mensaje.
+
+### Para el orquestador
+- **Antes de la corrección:** lleva al humano las cuatro decisiones, en una sola pregunta, con mis recomendaciones.
+- **Después:**
+  - el programador hace M-28, y las decisiones 3 y 4 si el humano las elige para ahora;
+  - el agente de documentos o tú hacen M-29 y, según las decisiones, §7.9 (1), §7.11 (2) y §7.8 (3) de `DESIGN.md`.
+- **Después yo verifico:**
+  - el backend completo con PA-07, si cambió el backend;
+  - el frontend completo, si cambió el frontend;
+  - los diffs de los documentos.
+
+### Resumen
+- **Veredicto: CAMBIOS REQUERIDOS.**
+- **Cifras propias:** lint y build en los tres paquetes, exit 0. Frontend `321 passed` · `7262 passed`. Backend `275 passed` · `3042 passed`, con PA-07 limpia y control positivo.
+- **Carril trivial:** sin cambio de comportamiento salvo R-24; N-32 sin cambio de SQL; V-01 281; la desviación de `lib-01g` aceptada.
+- **Documentos:** fieles al código y a las decisiones registradas, y lo nuevo en `DESIGN.md` está marcado como propuesta.
+- **M-28:** NB-1 de 01a, destinado al carril trivial del cierre, quedó fuera.
+- **M-29:** faltan las claves de `clasesService` en `CLAUDE.md` y las filas de ESTADO §3 de los tres hermanos y de lo que el humano deje para después.
+- **Cuatro decisiones para el humano:** N-01c-3 (recomiendo documentar la variante), «Cancelar» en vuelo (recomiendo dejarlo así), «Restringido» (recomiendo `danger`) y la fecha del aviso (recomiendo añadir el año).
+- **H-1 a H-7:** propuestos, con H-6 y H-7 ampliados.
+
+## Verificación de las correcciones del cierre — ADMIN-01
+Veredicto: **APROBADO**
+
+### Verificación propia y puerta de carga
+- **Condiciones de la corrida:**
+  - corrí una cosa después de otra y no había ningún `vitest` vivo antes de cada suite;
+  - Docker `28.5.1`, en la red `uacam5 2` autorizada para hoy;
+  - con corriente: `BatteryStatus` 2, al 63 % al empezar y al 72 % al lanzar el backend;
+  - la CPU estaba entre 34 % y 38 % antes de cada suite, con la aplicación de escritorio de ChatGPT abierta (no terminé ningún proceso ajeno);
+  - sin navegadores.
+- **Resultado:** las dos suites salieron verdes a la primera, sin rojos por tiempo y sin repeticiones.
+
+| Paquete | Comando | Mi última línea | Resumen del programador |
+|---|---|---|---|
+| shared | `npm run lint` | exit 0 | (no cambió en esta vuelta) |
+| backend | `npm run lint` y `npm run build` | exit 0 y exit 0 | igual |
+| frontend | `npm run lint` y `npm run build` | exit 0 y `✓ built in 1.28s` | igual (`6.04s`) |
+| frontend | `npm run test` (completa, 10:08:16) | `Test Files  321 passed (321)` · `Tests  7265 passed (7265)` (372 s) | `14 failed \| 7251 passed (7265)` por tiempo; los 5 archivos con rojos, solos, `172 passed` |
+| backend | `npm test` (completa, Testcontainers, 10:14:46) | `Test Files  275 passed (275)` · `Tests  3043 passed (3043)` (223 s) | no verde en una corrida (`Hook timed out`); los archivos tocados, solos, `26 passed` |
+
+- **Frontend:** 7265 = 7262 del carril + 3 casos de `formatearFechaLargaConAno`.
+- **Backend:** 3043 = 3042 + 1 caso de M-28.
+- **Los rojos del programador:** fueron solo de tiempo, por la carga y la batería que declaró. Con la máquina conectada y menos carga no se repiten. Su suite completa queda verificada con mi corrida.
+
+### PA-07 sobre la suite completa del backend
+- **Conteo:** `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 10 · `"code":"P2028"` 5.
+- **Control positivo:** están los tres de `servicio-ocupado`:
+  - `POST /api/auth/cambiar-contrasena` (`usuarios.ts:293`);
+  - `POST /api/auth/refrescar` (`sesiones.ts:72`);
+  - `POST …/comentarios` (`$queryRawUnsafe` de `adapters/queue/index.ts:63`).
+- **Los otros dos** son los permitidos de `cuentas-r3`: `POST /api/auth/login` (`sesiones.ts:39`) y `POST /api/auth/restablecer` (`tokens-cuenta.ts:119`).
+- **Inventario:** los 10 "Error no controlado" son los de siempre:
+  - `handlers/auth/index.ts:125` ×5 y `:134` ×1;
+  - `handlers/archivos.ts:62` y `:97`;
+  - `handlers/clases/muro.ts:87`;
+  - "boom".
+- **PA-07 limpia.**
+
+### M-28: corregido, sin cambio de comportamiento
+- **`core/clases/archivada.ts`:** los dos 409 pasan a `errorClaseYaArchivada()` y `errorClaseNoArchivada()`, con el mismo código, estado y texto. `errorAlArchivar` y `errorAlRestaurar` los devuelven igual que antes.
+- **`adapters/db/clases-archivadas.ts:42` y `:64`:** lanzan directamente esos 409 en la rama donde la clase existe y el `UPDATE` no cambió ninguna fila. Antes, la misma rama daba exactamente lo mismo: `errorAlArchivar(archivadaEn no nulo)` y `errorAlRestaurar(null)`. Las ramas `?? sinAcceso()` eran inalcanzables. El 403 de la clase inexistente sigue.
+- **Las seis pruebas normales** usan ahora precondiciones que fallan con su mensaje, sin return temprano. En `:482`, la precondición reemplaza un `expect(...).not.toBeNull()` que comprobaba lo mismo, y es aceptable.
+- **Caso nuevo de `core/`:** amarra que los 409 del adaptador son los mismos que deciden las funciones de `core/`.
+- **Hermanos:** el grep del programador (`?? ""`, `?? new Date` y `?? sinAcceso` en los tres archivos) da cero.
+- `clases-archivadas-r2.ataque.test.ts:365` no se tocó: ninguna `*.ataque` cambió contra `705f648`.
+
+### La desviación de la fecha con año: aceptada
+- `formatearFechaLargaConAno` (`lib/format.ts`) se usa en el aviso y también en «Clases anteriores» y «Clases archivadas» (`lista-de-clases-anteriores.tsx:116`). Las listas usaban la misma `formatearFechaLarga` sin año.
+- La decisión del humano ("la fecha de archivo lleva año") vale para la fecha de archivo, que en las dos vistas es la misma. Dejar una con año y otra sin año sería incoherente.
+- `formatearFechaLarga` no cambia: el saludo, los vencimientos, las entregas y las calificaciones siguen sin año, con su prueba "formatearFechaLarga sigue sin año".
+- Las dos pruebas normales ajustadas calculan la fecha con la función nueva. Las `*.ataque` buscan `/^Clase archivada el /` y no cambian.
+- `DESIGN.md` §7.16 (`:687`) ya dice que el aviso lleva el año "como las listas de §7.32".
+
+### «Restringido» en `danger`: correcto
+- Hay dos líneas, `tabla-de-usuarios.tsx:47` y `tabla-estado-pago.tsx:146`, con el mismo icono y el mismo texto.
+- `DESIGN.md` §7.8 (`:540`) anota la decisión del humano ("Rojo, como §7.8").
+- Ninguna prueba lee la variante.
+
+### Documentos (M-29 y las decisiones)
+- **Hashes:** `CLAUDE.md` `5a33fe71…`, `ESTADO.md` `c4244efc…` y `DESIGN.md` `7e9e7ef4…`; coinciden con `aprobacion.md`, sin CR.
+- **`CLAUDE.md:91`:** nombra `claveClaseDetalle` y `claveClasesAnteriores`.
+- **`DESIGN.md`:**
+  - §7.9 (`:578`): la variante del nombre accesible (N-01c-3, "Documentarlo") como propuesta;
+  - §7.11 y §7.14: «Cancelar» con una acción en vuelo;
+  - §7.8: `danger`;
+  - §7.16: el año.
+- **ESTADO §3 (`:324-326`):** las tres filas de M-29.
+  - **La tercera** (el texto de dar de baja ante `activo: true` de la cuenta de administración) tiene como destino "carril trivial de un encargo posterior, si llega a alcanzarse". **La acepto.** Funciona como "sin destino mientras sea inalcanzable", que es lo que propuse, y deja dicho qué hacer si un encargo la vuelve alcanzable: un texto nuevo que aprueba el humano.
+
+### Detalles menores (no bloquean)
+- `CLAUDE.md:76` describe `lib/format.ts` con "incluida `formatearFechaLarga`" y no nombra `formatearFechaLargaConAno`. Si el orquestador lo agrega antes del commit, basta con anotar el hash nuevo de `CLAUDE.md` en `aprobacion.md`; no hace falta otra verificación. Si no, va al próximo encargo que toque `lib/format.ts`.
+- El U+00AD de `components/layout/lib.test.ts:62` sigue: es previo y a propósito. No hay invisibles nuevos en los archivos del cierre.
+- Los puntos que el agente de documentos dejó fuera "sin decisión" no bloquean el cierre: dos detalles de §7.14 y §7.11 de la revisión de 01c, la nota de `calificaciones` en `CLAUDE.md`, §D-12 del plan, otros RF del PRD, N-01e-1 y N-01e-2 sin fila, y la discrepancia de 01f en la medición. El plan (A-01 a A-09) no los exige. Si el orquestador quiere registrarlos, una línea en ESTADO §3 basta.
+
+### Bloque de commit final del cierre
+Lo cotejé con `git add -n -A` contra `git status --porcelain`: son 43 rutas, todas modificadas, iguales a las de `git status`, sin borrados, sin archivos nuevos y sin `DEPLOY-investigacion-vps.md`. El índice está vacío. Ninguna `*.ataque` cambió (V-01 281).
+
+```
+git status
+git add -A -- CLAUDE.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md docs/DESIGN.md docs/ESTADO.md docs/trabajo/ADMIN-01-administracion backend shared frontend
+git status
+git commit -m "ADMIN-01, cierre: documentos (ESSENTIALS, ARCHITECTURE, PRD, DESIGN, CLAUDE y ESTADO), carril trivial (R-24, tamaño de acciones de fila, claves a data.ts, estaActivo a lib.ts, N-32, NB-1 y detalles de 01e) y decisiones del humano (Restringido en rojo, fecha de archivo con año)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git push
+```
+
+El segundo `git status` debe seguir mostrando `docs/trabajo/DEPLOY-investigacion-vps.md` sin rastrear. Si el orquestador cambia `CLAUDE.md` por el detalle menor, ya entra por la misma ruta.
+
+### Para el humano
+- Nada que decidir.
+- Queda la comprobación humana H-1 a H-7 de la revisión del cierre (`revision.md:8257`), máximo 7 puntos y 10 minutos.
+- Desde hoy, el aviso y las listas de clases archivadas llevan el año, y «Restringido» va en rojo.
+
+### Resumen
+- **Veredicto: APROBADO.**
+- **Las dos suites completas salieron verdes a la primera, con corriente y CPU al 34-38 %:**
+  - frontend `321 passed` · `7265 passed`;
+  - backend `275 passed` · `3043 passed`, con PA-07 limpia y control positivo.
+  - lint y build de los tres paquetes, exit 0.
+- **M-28:** sin cambio de comportamiento.
+- **Fecha con año:** la desviación (también en las listas) queda aceptada.
+- **«Restringido»:** pasa a `danger`.
+- **Documentos:** M-29 y las decisiones, conformes. La tercera fila de ESTADO §3 queda aceptada.
+- **Commit:** 43 rutas cotejadas.
+
+## Arbitraje de la PARADA de H6-2 — ADMIN-01 (2026-11-10)
+Veredicto: el `*.ataque` se corrige con un C-n del tester **y** cambia una línea de código; `whitespace-nowrap` sale de la base de `badgeVariants` y queda solo para las insignias dentro de una celda de `Table`; H6-1 sin bloqueo.
+Verificación propia: solo lectura, sin suites (por encargo del orquestador). Hashes leídos: `resumen-programador.md` `6f3f52be…` (4473 líneas); `clases-admin-02c-r1.ataque.test.tsx` `87dae192…`, sin cambios en el árbol (`git status` limpio para ese archivo).
+
+### 1. El `*.ataque` (`clases-admin-02c-r1.ataque.test.tsx`, caso "la tabla pinta como texto el HTML de la clase y de los maestros, y corta los nombres sin espacios")
+**Lo que dice el programador es cierto.** Lo comprobé por lectura:
+- `:271` busca el texto unido `<script>alert(2)</script>, WWW…`, que H6-2 quitó por decisión del humano. Con un maestro por renglón ese texto no puede existir sin repetir el nombre o esconder un texto para la prueba.
+- `:277-283`: `getAllByText` de Testing Library solo compara los nodos de texto propios de cada elemento. Antes de H6-2, el nombre de 120 letras de un maestro estaba dentro del texto unido (no era igual a `largo`), así que coincidía un solo elemento: la celda del nombre de la clase 2 (`TableCell className="wrap-anywhere font-bold"`). Los `sr-only` de «Abrir» y «Duplicar» quedan fuera por `fueraDeEnlaces`, y los de «Archivar» dicen "Archivar …" (no coinciden). Con la lista, también coincide el `<span>{maestro.nombre}</span>` de `tabla-clases-admin.tsx:86`: son 2 elementos, y ese `span` no lleva clase propia (el corte lo hereda del `td`). Corregir `:271` no basta.
+- Hoy el corte del maestro largo **sí funciona en el navegador**: `overflow-wrap` se hereda y, con `anywhere`, el tamaño mínimo del `span` (elemento flexible del `li`) baja a un carácter. Así que no hay defecto visible. El problema es que la prueba deja de vigilar el elemento que pinta el nombre.
+
+**Decisión: cambio de código pequeño y C-n del tester.** No basta con relajar la prueba para que acepte un corte heredado del `td`. El nombre del maestro lleva su propia regla de corte, como ya la llevan sus hermanos: `lista-personas.tsx:29` y `lista-maestros-de-clase.tsx:63` ponen `wrap-anywhere` en el `span` del nombre, no en el contenedor. Además, el `wrap-anywhere` del `td` de «Maestros» era la causa de que la insignia se partiera **una sílaba por línea**: la insignia lo heredaba y la tabla encogía la columna hasta su ancho mínimo. Quitarlo de ese `td` elimina la causa de raíz. Así:
+- **Programador (código):** en `tabla-clases-admin.tsx`, la celda «Maestros» deja de llevar `wrap-anywhere` en el `TableCell`, y el `<span>` del nombre de cada maestro lo lleva. Nada más cambia en el `li`. La celda del nombre de la clase (`:79`) no se toca.
+- **Tester (C-n), después del cambio de código.** Así el caso pasa a verde en la misma corrida. Antes daría rojo en el `for` por el `span` sin clase.
+
+C-n exacto sobre `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` (base `87dae192…`). Solo cambian `:271` y `:277-278`; `:272-276` y `:279-284` no cambian:
+
+`:271`, reemplazar la línea
+```ts
+    expect(within(tabla).getByText(`<script>alert(2)</script>, ${largo}`)).toBeInTheDocument()
+```
+por
+```ts
+    // H6-2 (decisión del humano, sustituye a D-4): un maestro por renglón, cada nombre como texto.
+    const filaDeLaClase1 = screen.getByRole("link", { name: `Abrir ${html}` }).closest("tr")
+    if (filaDeLaClase1 === null) throw new Error("Precondición: «Abrir» de la clase 1 está en su fila")
+    expect(
+      within(filaDeLaClase1)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+      "cada maestro va en su renglón y su nombre se pinta como texto",
+    ).toEqual(["<script>alert(2)</script>", largo])
+```
+
+`:277-278`, reemplazar
+```ts
+    const celdasLargas = fueraDeEnlaces(within(tabla).getAllByText(largo))
+    expect(celdasLargas).toHaveLength(1)
+```
+por
+```ts
+    // El nombre de 120 letras sale en la celda de la clase 2 y en el renglón de su maestro en la clase
+    // 1; cada elemento que lo pinta lleva su propia regla de corte.
+    const celdasLargas = fueraDeEnlaces(within(tabla).getAllByText(largo))
+    expect(celdasLargas).toHaveLength(2)
+    expect(celdasLargas.filter((nodo) => nodo.closest("li") !== null)).toHaveLength(1)
+```
+Los dos cambios conservan la intención del caso:
+- El HTML se sigue afirmando como texto, por `textContent` igual al literal y por `:272`, que sigue exigiendo que no haya `img` ni `script`.
+- El corte se sigue afirmando con `REGLA_DE_CORTE` sobre la clase del elemento localizado por su texto, sin selectores de estilo, como dice la cabecera del archivo (`:11-12`).
+
+El tester formatea solo ese archivo con Prettier (acotado a `frontend/`) y corre la suite del módulo.
+
+### 2. Alcance de `whitespace-nowrap`
+**Inventario: todas las insignias y su texto más largo.** Grep de `<Badge`, `EstadoPagoBadge`, `AccesoRestringidoBadge`, `EstadoEntregaBadge` e `InsigniaEstadoEnlace` en producción.
+
+**Dentro de una celda de `Table`** (todas van en `TableCell`; ninguna tabla usa `<td>` ni `<th>` sueltos):
+- «Cuenta desactivada» en `tabla-clases-admin.tsx`.
+- «Activa» y «Desactivada», y «Restringido», en `tabla-de-usuarios.tsx` y `tabla-estado-pago.tsx:146`.
+- `EstadoPagoBadge` («Al corriente», «Deudor») y `AccesoRestringidoBadge` («Acceso restringido») en `tabla-estado-pago.tsx` y `tabla-alumnos.tsx`.
+- Los estados de un enlace en `tabla-enlaces.tsx` y `registrados-del-enlace.tsx`.
+- `EstadoEntregaBadge` en `tabla-de-entregas.tsx`; su texto más largo es «Entregado con retraso», de 21 caracteres.
+- «En riesgo» en `tabla-del-gradebook.tsx:105`.
+
+Todas miden 21 caracteres o menos.
+
+**Fuera de una tabla:**
+- Tipo de elemento: «Tarea», «Anuncio», «Material» y «Recurso».
+- «Resuelta» y la firma «Administración».
+- «Ya está en la clase», «Ya elegido» y «Ya da esta clase».
+- Los motivos de la invitación masiva; el más largo es «Repetido en la lista».
+- «N en riesgo» del resumen.
+- «Cuenta desactivada» en `lista-personas.tsx` y `lista-maestros-de-clase.tsx`.
+- `EstadoEntregaBadge` en "Tu trabajo", en "Mis calificaciones" y en el encabezado de la entrega de un alumno.
+- «Fecha límite no disponible», de 26 caracteres.
+- **La insignia de vencimiento** (`tarjeta-de-tarea.tsx:24`, `detalles-de-la-tarea.tsx:40`). Su texto más largo es "Venció el miércoles 30 de septiembre" (36 caracteres): miércoles y septiembre son el día y el mes más largos de `formatearFechaLarga`. A 360 px, la tarjeta deja unos 280 px de contenido: 360, menos 2 × 16 de `ContenedorRol` (`p-4`), menos 2 × 24 de `CardContent` (`px-6`). En Atkinson Hyperlegible Next 700 a 12 px estimo unos 250 px con el relleno. Cabría, pero con poco margen, sin verificar y con un tipo de respaldo distinto mientras carga la fuente. Si no cabe, el desborde ensancha el documento, el mismo defecto que H-6 (1) acaba de corregir.
+
+**Mecanismo.**
+- La insignia se partía una sílaba por línea solo en la celda «Maestros». Era la única donde la insignia vive dentro de un ancestro con `wrap-anywhere`, el `td`, y la tabla encoge la columna hasta su ancho mínimo. Revisé los 76 `wrap-anywhere` de producción: ningún contenedor con `wrap-anywhere` fuera de las tablas contiene una insignia.
+- En las demás celdas de tabla, el mismo encogimiento parte la insignia por su espacio, por ejemplo «Acceso / restringido». Es el mismo mecanismo, en grado menor: son sus hermanos.
+- Dentro de una tabla, `nowrap` nunca ensancha la página. El contenedor de `Table` desplaza y, con H6-1, también recorta.
+- Fuera de las tablas, `nowrap` sí puede desbordar. Nadie pidió cambiar esas insignias, y el humano vio bien todo lo demás a 1024 px.
+
+**Decisión: solo en las insignias dentro de una celda de `Table`, fijado en `TableCell`.** No va en la base ni en la base con un escape.
+- Cumple lo que pidió el humano y cubre a todos los hermanos del mecanismo: toda insignia de toda tabla, presente o futura.
+- No cambia ninguna vista fuera de las tablas, así que no queda nada sin verificar en el muro ni en el detalle de la tarea.
+- No toca archivos fuera de la lista cerrada. El escape para la de vencimiento obligaría a tocar `tarjeta-de-tarea.tsx` y `detalles-de-la-tarea.tsx`, que están fuera de la lista.
+
+Resultado esperado:
+- `badge.tsx` vuelve a su contenido de `HEAD`: la base sin `whitespace-nowrap` y sin el comentario de H6-2. V-13 y `badge-03b-r1.ataque.test.ts` no cambian.
+- `TableCell`, en `table.tsx`, hace que toda insignia descendiente (`data-slot="badge"`, el gancho estable que ya usan otras pruebas) no se parta. Por ejemplo, con `[&_[data-slot=badge]]:whitespace-nowrap` en su clase base, con un comentario del porqué.
+- Como `cn` no conoce esa clase arbitraria, el programador comprueba después de `npm run build` que el CSS de `frontend/dist` contiene la regla. Usa un `grep` de `data-slot=badge` y `nowrap`, con la línea en el resumen. Así se descarta una clase que no genera CSS y se pierde sin error (`CLAUDE.md`, "Tokens").
+
+Pruebas (no `*.ataque`):
+- **`cuenta-desactivada-01f.test.tsx:202-205` y `:357`:** ya no afirman `whitespace-nowrap` sobre la insignia. Afirman que la insignia tiene `data-slot="badge"` y que su `td` (`closest("td")`) lleva la regla de `TableCell`.
+- **Un caso nuevo en `components/ui/table-desplazable-h6.test.tsx`, o en una prueba nueva `*-h6`:** "TableCell: una insignia dentro de una celda no se parte". Monta `Table` con una `Badge` en una celda y afirma lo mismo.
+- **Mutación:** sin la regla en `TableCell`, fallan los tres casos. El programador da el conteo.
+- **Hermanos:** la tabla de hermanos del resumen se rehace con esta decisión.
+  - Las insignias de las tablas heredan la regla de `TableCell`.
+  - Las de fuera de tabla quedan sin cambio y sin riesgo, porque no se tocan.
+  - Las dos «Cuenta desactivada» fuera de tabla se quedan como están. No heredan `wrap-anywhere` (su `wrap-anywhere` está en el `span` hermano, no en un ancestro) y su contenedor no se encoge hasta el ancho mínimo.
+
+### 3. H6-1 (`relative` en `table.tsx`)
+Nada lo bloquea.
+- La causa que da el programador es correcta: los `sr-only` son absolutos sin desplazamientos, y su bloque contenedor quedaba fuera del contenedor con desplazamiento, así que el desplazamiento no los recortaba.
+- El remedio va en la raíz. `relative` sin `z-index` no crea contexto de apilamiento. Las celdas `sticky` del gradebook se pegan a su contenedor con desplazamiento, que no cambia. Dentro de las tablas no hay otros absolutos que dependan de un ancestro más lejano.
+- Las dos pruebas tienen aserciones reales, precondiciones con mensaje y casos contra una revisión vacía. La estática fija su única excepción por línea exacta.
+- Una observación que no bloquea: la prueba estática lee línea por línea. Un `className` partido en varias líneas, con `overflow-x-auto` en una y `relative` en otra, daría un falso rojo, no un falso verde. Es aceptable.
+- La verificación completa (suite entera, PA-07 si aplica y cifras) queda para la verificación del cierre.
+
+### Archivos
+**Programador** (todos dentro de la lista cerrada):
+- `frontend/src/components/ui/table.tsx`: la regla de insignias en `TableCell`.
+- `frontend/src/components/ui/badge.tsx`: vuelve a `HEAD`.
+- `frontend/src/features/clases/components/tabla-clases-admin.tsx`: `wrap-anywhere` pasa del `TableCell` de «Maestros» al `span` del nombre.
+- `frontend/src/features/clases/cuenta-desactivada-01f.test.tsx`: las dos afirmaciones de `nowrap`.
+- `frontend/src/components/ui/table-desplazable-h6.test.tsx`, o una prueba nueva `*-h6` que no sea `*.ataque`: el caso de `TableCell`.
+- `clases-admin-view.test.tsx:123` no cambia más.
+
+**Tester:** solo `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx`, con el C-n de arriba y después del cambio del programador.
+
+**Orden:**
+1. Programador: código y pruebas, `lint`, suite de `src/components/ui src/features/clases`, `build` y el `grep` del CSS.
+2. Tester: C-n y suite de los mismos módulos. Esperado: `0 failed`.
+3. Verificación del cierre por el manager.
+
+### Documentos a actualizar
+`docs/DESIGN.md` queda fuera de la lista cerrada. El humano ya decidió que (2) sustituye a D-4; el orquestador confirma con él que esa decisión cubre también el texto. Lo que hay que cambiar:
+- **`docs/DESIGN.md:544`:** D-4 se sustituye. La columna «Maestros» de `/admin/clases` lleva un maestro por renglón, con cada nombre una sola vez, y el dado de baja lleva la insignia junto a su nombre. Va con la marca de decisión del humano (H-6, 2026-11-10).
+- **§7.8 o §7.9:** una insignia dentro de una celda de tabla no se parte, y el contenedor con desplazamiento de `Table` está posicionado (`relative`) para que recorte lo absoluto de sus celdas. Son patrones nuevos de este encargo (`AGENTS.md`, "Reglas del equipo").
+
+### Para el humano
+- **Una sola decisión, y solo si la quieres distinta:** que ninguna insignia se parta en ningún lugar, que era la propuesta del programador. Si la eliges, antes hay que comprobar a 360 px la insignia de vencimiento en el muro y en el detalle de la tarea, y probablemente darle un escape. Eso toca `tarjeta-de-tarea.tsx` y `detalles-de-la-tarea.tsx`, que están fuera de la lista y necesitarían tu autorización. Con mi decisión no hace falta autorizar nada más.
+- **En la próxima mirada a 360 px:** que «Cuenta desactivada» quede en una línea en `/admin/clases` y que el nombre largo de un maestro se corte dentro de su renglón.
+
+## Verificación de las correcciones de H-6 — ADMIN-01 (2026-11-10)
+Veredicto: **APROBADO**
+
+### Verificación propia y puerta de carga
+- **Condiciones:**
+  - con corriente: `BatteryStatus` 2, al 100 %;
+  - la CPU estaba al 18 % antes de la suite;
+  - no había ningún `vitest` vivo antes de cada corrida, y corrí una cosa después de otra;
+  - la otra copia de trabajo ya no se usa (dicho por el orquestador);
+  - sin navegadores.
+- **Alcance: solo el frontend.**
+  - `backend/` y `shared/` no cambiaron desde mi verificación anterior. Sus 14 rutas se escribieron por última vez entre las 08:11 y las 09:22, antes de mi corrida del backend de las 10:14 (`3043 passed`).
+  - Ningún archivo de H-6 cae en esos paquetes, así que el backend queda con esa corrida.
+
+| Comando (en `frontend/`) | Mi última línea | Resúmenes |
+|---|---|---|
+| `npm run lint` | exit 0, `> tsc -b` | programador: exit 0, `> tsc -b`; tester: exit 0 |
+| `npm run build` | exit 0, `✓ built in 1.02s`; en `dist/assets/*.css` aparece `.\[\&_\[data-slot\=badge\]\]\:whitespace-nowrap [data-slot=badge]{white-space:nowrap}` | programador: `✓ built in 1.11s`, con la misma regla |
+| `npm run test` (completa, 14:35:47, 377 s) | `Test Files  323 passed (323)` · `Tests  7278 passed (7278)` | ningún resumen trae la suite completa. Módulos: programador `1 failed · 5415 passed (5416)` antes del C-n; tester `223 passed` · `5416 passed` |
+
+- **7278 = 7265 + 13.** Los 7265 son los de mi verificación anterior. Los 13 nuevos salen de `npx vitest list … | grep -a " > "`:
+  - `table-desplazable-h6.test.tsx`: 8 (7 de H6-1 y 1 de H6-2);
+  - `desplazamiento-posicionado-h6.test.ts`: 3;
+  - `cuenta-desactivada-01f.test.tsx`: 2 casos "H6-2".
+
+  Coincide con los conteos del programador (10, 2 y 8).
+- **323 = 321 + 2** archivos nuevos.
+- **V-01:** 281 `*.ataque`.
+  - Mi lista es idéntica a la del tester (`v01-cierre-h6.txt`, `dc5c989f…`).
+  - Contra `v01-01g-r3b.txt` cambia solo `clases-admin-02c-r1.ataque.test.tsx`: de `87dae192…` (igual a `HEAD`) a `932e00de…`.
+  - `git diff --name-only 705f648 -- '*.ataque.test.*'` lista solo ese archivo.
+- **`badge.tsx`:** idéntico a `HEAD` (`git diff --quiet`).
+
+### H6-1: conforme
+- **Código:** solo `relative` en el contenedor de `Table` (`table.tsx:12`), con el porqué en un comentario.
+  - Es la raíz: las 10 tablas de producción usan `Table`, y ninguna pinta `<td>` ni `<th>` sueltos.
+  - Fuera de `Table`, el único `overflow-x-auto` es `secciones-de-clase.tsx:56`. Su único hijo es `relative w-max`.
+- **Prueba pedida por el humano:** falla si un `sr-only` de una tabla desplazable queda fuera de un ancestro posicionado. Existe y tiene dientes.
+  - `revisarTablas` sube desde cada `.sr-only` o `.absolute` hasta el contenedor, contándolo. Además, exige que el contenedor esté posicionado.
+  - Se prueba sobre `Table` y sobre cinco vistas montadas con el router real, y un caso comprueba que la revisión no queda vacía.
+  - La prueba estática cubre las tablas que no se montan (gradebook, entregas, roster y cálculo) y fija su única excepción por línea exacta.
+- **Mutación (por lectura):** sin `relative`, fallan el caso de `Table`, los cinco montados y el estático; pasan las dos precondiciones y el caso contra la revisión vacía. Son los `7 failed | 3 passed (10)` declarados.
+- **Hermanos:** la tabla del programador coincide con el código.
+  - Las 10 tablas heredan el remedio.
+  - `lista-de-clases.tsx` y `panel-anuncios.tsx` solo desplazan en vertical y no entran en el patrón.
+  - Las celdas `sticky` del gradebook ya contenían sus `sr-only`, y el `caption` ahora queda contenido.
+  - El único absoluto fuera de tabla en `features/admin` (`estado-de-pago-de-cuenta.tsx:81`) está en la ficha, no en un contenedor con desplazamiento.
+
+### H6-2: conforme
+- **Código:**
+  - la celda «Maestros» es un `ul` con un `li` por maestro;
+  - `wrap-anywhere` va en el `span` del nombre, no en el `TableCell`;
+  - la insignia sale solo junto al dado de baja;
+  - `TableCell` lleva `[&_[data-slot=badge]]:whitespace-nowrap`, y la regla genera CSS;
+  - `badge.tsx` vuelve a `HEAD`, así que la insignia de vencimiento queda fuera de riesgo.
+- **Insignias de tabla:** todas pasan por `Badge` (`data-slot="badge"`). `EstadoPagoBadge`, `AccesoRestringidoBadge`, `EstadoEntregaBadge` e `InsigniaEstadoEnlace` lo usan, y ninguna tabla pinta una píldora a mano.
+- **Prueba pedida por el humano (un solo nombre por maestro):** `revisarCeldaDeMaestros` exige dos renglones y cada nombre una sola vez, por elemento y por texto; Luis va sin insignia y Ana con ella. Corre en el componente y en la vista montada ADM-1F23.
+- **`clases-admin-view.test.tsx`:** su diff contra `HEAD` es solo `:123` (PR-2C03), como autorizó el humano.
+- **Mutaciones:** las dos son coherentes con lo que afirman los casos.
+  - Con la celda vieja: `3 failed | 20 passed (23)`.
+  - Sin la regla de `TableCell`: `3 failed | 19 passed (22)`; fallan los tres casos que pedía el arbitraje.
+- **Hermanos:** la tabla rehecha coincide con el arbitraje y con el código.
+  - Las insignias de toda tabla heredan la regla de `TableCell`; las de fuera de tabla no cambian.
+  - Los estados vecinos de la celda están cubiertos o explicados: un maestro activo, uno dado de baja, varios, «Archivadas», la confirmación abierta y 1024 px.
+
+### El C-n conserva la intención del `*.ataque`
+- **El diff es el texto del arbitraje**, más el `if` que Prettier partió en dos renglones: 14 inserciones y 2 borrados. `REGLA_DE_CORTE`, `:272` (`img, script` en 0) y el `for` no cambian.
+- **El HTML hostil se sigue afirmando como texto:** el `textContent` del `li` es el literal.
+- **El corte se sigue afirmando** sobre la clase de cada elemento que pinta el nombre largo. Ahora son 2, y uno está dentro de un `li`.
+- **Las dos mutaciones del tester lo ponen en rojo por la razón correcta:** sin `wrap-anywhere` en el nombre, y con la celda de `HEAD`. `tabla-clases-admin.tsx` quedó en `0a728b48…`, el hash de antes de mutar.
+
+### `docs/DESIGN.md` (`1f9eafda…`, 1000 líneas, sin CR)
+- **§7.8 `:544`:** coincide con el código y con la decisión del humano.
+  - Un maestro por renglón, en una lista sin viñetas, y cada nombre una sola vez.
+  - La insignia va junto al dado de baja, el renglón usa `flex-wrap` y el corte va en el nombre.
+  - Dice que sustituye a D-4.
+- **§7.9 "Pantallas angostas" `:576`:** coincide.
+  - El contenedor es `relative`. La prueba estática lo vigila, con la excepción de un hijo posicionado.
+  - La insignia no se parte dentro de `TableCell`; fuera de las tablas, se envuelve.
+- **§7.9 "Implementación" `:577`:** la nota de la columna «Maestros» remite a §7.8.
+- **Marcas de origen:** van como "propuesta (ADMIN-01, comprobación humana H-6)", con la decisión del humano donde la hubo.
+
+### Archivos y commit
+- **Lo que cambió desde mi verificación anterior** (43 rutas):
+  - `table.tsx`;
+  - `tabla-clases-admin.tsx`, solo la celda «Maestros»;
+  - `clases-admin-view.test.tsx`, solo `:123`;
+  - `cuenta-desactivada-01f.test.tsx`;
+  - el `*.ataque` del C-n;
+  - las dos pruebas nuevas `*-h6`;
+  - `DESIGN.md`;
+  - en `docs/trabajo/ADMIN-01-administracion/`: `aprobacion.md`, `resumen-programador.md`, `reporte-tester.md` y esta revisión.
+- **Nada queda fuera de lo autorizado.**
+- **`git add -n -A -- CLAUDE.md docs/ARCHITECTURE-ESSENTIALS.md docs/ARCHITECTURE.md docs/PRD.md docs/DESIGN.md docs/ESTADO.md docs/trabajo/ADMIN-01-administracion backend shared frontend` da 50 rutas.** Contra `git status --porcelain`, solo queda fuera `docs/trabajo/DEPLOY-investigacion-vps.md`. El índice está vacío y no hay borrados.
+  - **Nuevas, sin rastrear (2):**
+    - `frontend/src/components/ui/table-desplazable-h6.test.tsx`;
+    - `frontend/src/components/ui/desplazamiento-posicionado-h6.test.ts`.
+  - **Modificadas que no estaban entre las 43 (5):**
+    - `frontend/src/components/ui/table.tsx`;
+    - `frontend/src/features/clases/clases-admin-view.test.tsx`;
+    - `frontend/src/features/clases/cuenta-desactivada-01f.test.tsx`;
+    - `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx`;
+    - `docs/trabajo/ADMIN-01-administracion/reporte-tester.md`.
+- **El bloque de commit** de mi verificación anterior sigue valiendo, con las mismas rutas. El mensaje puede sumar "y comprobación humana H-6 (tablas a 360 px y columna Maestros)".
+
+### Detalles menores (no bloquean)
+- **El rótulo de §7.8 `:544`** sigue diciendo "S-16 y D-4", aunque el mismo párrafo declara D-4 sustituida. Se entiende. Si el orquestador lo cambia, basta con "S-16; D-4 sustituida" y con anotar el hash nuevo en `aprobacion.md`.
+- **La prueba estática lee línea por línea.** Un `className` partido en varias líneas daría un falso rojo, nunca un falso verde. Ya lo anoté en el arbitraje.
+
+### Para la repetición de H-6 en navegador (máximo 3; solo lo que jsdom no calcula)
+1. A 360 px, en `/admin/estado-pago`, `/admin/usuarios` y `/admin/clases`: `document.documentElement.scrollWidth` es igual al ancho de la ventana, y solo la tabla se desplaza.
+2. A 360 px, en `/admin/clases`:
+   - cada maestro va en su renglón, con su nombre una sola vez;
+   - «Cuenta desactivada» queda en una sola línea, junto al nombre o debajo de él;
+   - un nombre largo sin espacios se corta dentro de su renglón.
+3. A 360 px, en `/admin/estado-pago`: «Acceso restringido», «Al corriente» y «Deudor» no se parten; la columna se ensancha y la tabla se desplaza.
+
+### Para el humano
+Nada que decidir. Con la repetición de H-6 y el commit, ADMIN-01 queda listo para cerrarse.

@@ -18,9 +18,8 @@ import {
 import { formatearFechaHora } from "@/lib/format"
 import { unirPaginasSinRepetidas } from "@/lib/unir-paginas"
 
-import { TEXTOS_MAESTROS } from "../data"
+import { claveRegistradosDelEnlace, TEXTOS_MAESTROS } from "../data"
 import {
-  claveRegistradosDelEnlace,
   useMarcarViejaSiQuedoEnError,
   useRegistradosDelEnlace,
   useVolverAPedirSiFallo,

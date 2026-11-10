@@ -4047,3 +4047,500 @@ En `frontend/`, una tras otra:
 
 ### Conteos
 - `npx vitest list src/features/admin/volver-a-pedir-01g.test.tsx | grep -ac ' > '` → 4 (archivo nuevo).
+
+## ADMIN-01 — Carril trivial del cierre (2026-11-10)
+
+Encargo del orquestador con base `705f648`. Fuentes:
+- `revision.md`: "## Revisión final — ADMIN-01e" (línea 5951: N-32 y sus detalles menores), "## Revisión final — ADMIN-01f" (línea 6970) y "## Revisión final — ADMIN-01g" (línea 8066).
+- Las decisiones del humano del 2026-11-10 en `aprobacion.md`: R-24 "Quitarla" y el backend "Incluirlo, con uacam5".
+
+No cambia el comportamiento, salvo R-24. Límites que respeté:
+- No toqué ninguna `*.ataque`.
+- No toqué `components/foco`, `app/providers.tsx`, `mis-calificaciones-view.tsx` ni otros botones `sm`.
+- Sin commit ni navegadores.
+
+### Frontend
+
+**1. R-24: quité la nota provisional de `/admin/maestros`.**
+- **Grep previo** de `notaProvisional` y de "Pantalla provisional" en `frontend/src`. Ninguna `*.ataque` lee el texto ni la clave. Solo lo mencionan comentarios de `cuentas-r1.ataque` y `cuentas-view.test`, que hablan de otra pantalla.
+- **Cambios en `features/admin`:**
+  - `data.ts`: sale `TEXTOS_MAESTROS.notaProvisional`.
+  - `maestros-view.tsx`: sale el `<p>` que la pintaba; queda solo el `h1`.
+- **Pruebas normales ajustadas:**
+  - `maestros-view.test.tsx:142`: el caso pasa a "muestra el título, sin la nota provisional (R-24)" y comprueba que el texto no está.
+  - `lib-01g.test.ts`: el caso ADM-1G21 afirmaba que la clave seguía. Ahora se llama "ADM-1G21: las claves sin uso ya no están en data.ts, tampoco TEXTOS_MAESTROS.notaProvisional (R-24)" y comprueba que la clave no está.
+  - **Desviación declarada:** el encargo solo nombraba `maestros-view.test.tsx`. Sin este segundo ajuste, el `tsc` del lint falla, porque la clave ya no existe.
+- `CLAUDE.md` (A-05) lo actualiza el arquitecto; no lo toqué.
+
+**2. Claves de `/admin/maestros`, de `hooks.ts` a `data.ts`.**
+- `CLAVE_ENLACES_REGISTRO` y `claveRegistradosDelEnlace` ahora viven en `features/admin/data.ts`, junto a `CLAVE_MOVIMIENTOS`.
+- `hooks.ts`, `tabla-enlaces.tsx` y `registrados-del-enlace.tsx` las importan de `../data` o `./data`.
+- Ninguna prueba las importaba (grep).
+- **Hermano que no toqué:** las dos invalidaciones de `useGenerarEnlace` y `useRevocarEnlace` siguen con la clave literal `["admin", "enlaces-registro"]`. Es el mismo valor; cambiarlas está fuera del punto.
+
+**3. Acciones de fila de las dos tablas, de `size="sm"` al tamaño por omisión** (regla de `DESIGN.md` §6 y §7.9).
+- **Grep previo:**
+  - Solo dos pruebas leen `data-size`: `estado-pago-01g.test.tsx:1375` (otra tabla) y `calificaciones/exportar-02b.test.tsx:286` (otro módulo).
+  - Las `*.ataque` que leen estos dos archivos no miden su tamaño: `maestros-03b-r1` (`?? []`), `errores-ch3-r1`, `styles/clases-r1` (V-06 y V-07 cuentan `enEspera=` y vidrio, que no cambian) y `lib/errores-de-api-estatico`.
+- **`features/admin/components/tabla-enlaces.tsx`:** los cuatro botones de la fila, «Ver registrados»/«Ocultar registrados», «Revocar», «Sí, revocar» y «Cancelar».
+- **`features/clases/components/tabla-clases-admin.tsx`:** cinco controles de la fila:
+  - los tres botones: «Restaurar», «Archivar» y «Borrar»;
+  - los dos enlaces «Abrir» y «Duplicar», que usaban `buttonVariants({ variant: "outline", size: "sm" })` y pasan a `buttonVariants({ variant: "outline" })`.
+- Ya no queda ningún `"sm"` en esos dos archivos (`grep -c`).
+
+**4. `estaActivo` pasa de `BarraNavegacion` a `components/layout/lib.ts`.**
+- Firma: `estaActivo(pathname, destino)`, con la misma lógica de E-06. `barra-navegacion.tsx` la importa y ya no la declara.
+- **Prueba unitaria nueva** en `components/layout/lib.test.ts`, bloque "estaActivo (ADMIN-01g, E-06)", con 4 `it.each`:
+  - exacto activo con barra final, dobles barras y mayúsculas;
+  - exacto inactivo en subruta, otro prefijo y raíz;
+  - prefijo activo en su ruta y sus subrutas;
+  - prefijo inactivo en la ruta padre y en una ruta con el mismo comienzo (`/admin/usuarios-x`).
+- `estatico-r1.ataque` (V-16) y `styles/clases-r1.ataque` (V-07) siguen viendo `fixed` y vidrio en `barra-navegacion.tsx`; no cambia.
+
+**5. Grep de textos sin uso** en `features/admin/data.ts` y `components/layout/data.ts`.
+- **Método:** un guion de búsqueda recorrió cada clave de objeto y cada `export const` de los dos archivos. Buscó su uso como `.clave`, `clave` desestructurado o `"clave"`/`["clave"]` en todo `frontend/src`, código y pruebas.
+- **Candidatos:**
+  - `TEXTOS_INVITACION_MASIVA.demasiadasLineas`: sin uso desde AUTH-03c (`3399c79`); ninguna prueba ni código lo lee. **Borrado.**
+  - `TEXTOS_INVITACION_MASIVA.motivos.nombre_invalido`: se lee por índice (`motivos[motivo]` en `lib.ts:90`, con el `enum` de `shared`). **Se queda.**
+- `components/layout/data.ts`: sin candidatos.
+- **Límite del método:** una clave con un nombre común (por ejemplo, `titulo`) cuenta como usada si cualquier otro objeto usa ese nombre.
+- Los textos sin uso de `TEXTOS_CUENTAS` (D-3 de 01f) ya no existen (E-16 los quitó; lo comprueba ADM-1G21).
+
+### Backend y shared
+Antes de empezar comprobé `docker version`: el servidor respondió `28.5.1`. La red es `uacam5 2`, autorizada por el humano para hoy.
+
+**6. N-32: una sola copia del reintento con código nuevo.**
+- **`backend/src/adapters/db/clases.ts`:** `conReintentoDeCodigo` pasa a `export`, con un comentario que lo explica. El cuerpo no cambia.
+- **`backend/src/adapters/db/duplicado-de-clase.ts`:**
+  - salen sus copias de `errorCodigoNoDisponible`, `traducirErrorDeCodigo` y `conReintentoDeCodigo` (unas 30 líneas);
+  - importa `conReintentoDeCodigo` de `./clases.js`, que ya importaba `ORDEN_DE_MAESTROS` y `maestrosDeFilas`;
+  - sale el import de `traducirErrorPrisma`, que se quedó sin uso.
+- **Sin cambio de comportamiento:** las dos copias eran idénticas (el texto y el código `CODIGO_NO_DISPONIBLE`, 500, y un solo reintento que envuelve la transacción). No cambia el SQL.
+- **Grep previo de las pruebas:** `bloqueo-usuario.integracion` (E6) solo lista el archivo entre los que usan SQL etiquetado, y lo sigue usando. `lecturas-fx-r1.ataque` cuenta `instantaneaUnica: true`, que no cambia. Ninguna prueba nombra estas funciones.
+
+**7. Detalles menores de 01e** (revisión final de 01e, fila "detalles menores"):
+- **Tipos de estado de pago escritos a mano:** corregido.
+  - `backend/src/core/usuarios/fila.ts`: las dos apariciones usan ahora `EstadoPagoAlumno`, que `@campus/shared` ya exportaba.
+  - `backend/src/adapters/db/gestion-de-usuarios.ts`: `EstadoPagoDb = EstadoPagoAlumno`. Conservé el alias, porque `adapters/db/index.ts` lo reexporta.
+  - **Hermano que no toqué:** `adapters/db/inscripciones.ts:38`, el precedente que cita la revisión. Es anterior a ADMIN-01 y la revisión no lo pide; lo dejo anotado.
+- **"No hay ninguna cuenta con ese identificador." repetido:** corregido. `backend/src/handlers/admin.ts` usa `TEXTOS_USUARIOS.usuarioNoEncontrado` de `core/usuarios/textos.ts`. El texto no cambia.
+- **"Los datos enviados tienen caracteres no permitidos." repetido:** corregido.
+  - `shared/src/usuarios-admin.ts` exporta `TEXTO_CARACTERES_NO_PERMITIDOS`, que reexporta `shared/src/index.ts`, y el esquema lo usa.
+  - `backend/src/adapters/db/errores.ts` (`traducirErrorPrisma`) lo importa de `@campus/shared`.
+  - El texto no cambia.
+  - **Efecto en las corridas:** esto toca `shared/`. Por eso, además del build de `shared`, volví a correr lint, build y la suite completa del frontend después de este cambio; las cifras del frontend de abajo son esas.
+- **Tipo en línea del handler de la lista:** corregido. En `backend/src/handlers/admin/usuarios.ts`, `let busqueda` usa `BusquedaDeUsuarios` de `core/usuarios/busqueda.ts`.
+- **El texto de "dar de baja" ante `activo: true` del admin:** no lo cambié.
+  - El encargo nombra tres clases de detalle (tipos escritos a mano, textos repetidos y un tipo en línea), y esta no es ninguna de ellas.
+  - Cambiarlo exigiría un texto nuevo sin aprobar.
+  - Según la revisión, es inalcanzable desde la interfaz.
+
+### Formato
+Prettier, solo sobre los archivos tocados y por paquete: en `frontend/` los once archivos del frontend, en `shared/` sus dos archivos y en `backend/` los siete del backend. Cambió el formato de `lib.test.ts`, `tabla-clases-admin.tsx` y `duplicado-de-clase.ts`.
+
+**3 bis. «Ver» de `features/admin/components/tabla-de-usuarios.tsx:92`** (agregado por el orquestador durante el carril): pasa al tamaño por omisión, con la misma regla.
+- El enlace usaba `buttonVariants({ variant: "outline", size: "sm" })` y ahora usa `buttonVariants({ variant: "outline" })`.
+- **Grep previo:** solo `styles/clases-r1.ataque.test.ts:372` lee el archivo, para el conteo V-06 de `enEspera=`, que sigue en 0. Ninguna prueba lee `data-size` de esta tabla, y un `Link` no lleva `data-size`.
+- Ya no queda ningún `"sm"` en el archivo.
+- Lo apliqué después de la segunda corrida completa del frontend, así que volví a correr lint, build y la suite completa (las cifras de abajo).
+
+### Archivos (20 de `git diff --stat` + `tabla-de-usuarios.tsx` = 21)
+- **frontend:**
+  - `src/features/admin/`: `data.ts`, `hooks.ts`, `maestros-view.tsx`, `maestros-view.test.tsx` y `lib-01g.test.ts`;
+  - `src/features/admin/components/`: `tabla-enlaces.tsx`, `registrados-del-enlace.tsx` y `tabla-de-usuarios.tsx`;
+  - `src/features/clases/components/tabla-clases-admin.tsx`;
+  - `src/components/layout/`: `barra-navegacion.tsx`, `lib.ts` y `lib.test.ts`.
+- **shared:** `src/usuarios-admin.ts` y `src/index.ts`.
+- **backend:**
+  - `src/adapters/db/`: `clases.ts`, `duplicado-de-clase.ts`, `errores.ts` y `gestion-de-usuarios.ts`;
+  - `src/core/usuarios/fila.ts`;
+  - `src/handlers/`: `admin.ts` y `admin/usuarios.ts`.
+
+### Verificación (una corrida tras otra, nadie más corría suites)
+La primera corrida completa del frontend (`Tests  7262 passed (7262)`) quedó vieja: mientras corría edité `backend/` y `shared/`, que `lib/errores-ch3-r2.ataque` lee como texto. La descarté. Las cifras válidas son las de las corridas finales:
+
+| Paquete | Comando | Resultado |
+|---|---|---|
+| shared | `npm run lint` | salida 0; última línea `All matched files use Prettier code style!` |
+| shared | `npm run build` | salida 0; última línea `tsc -p tsconfig.json` |
+| frontend | `npm run lint` | salida 0; última línea `tsc -b` |
+| frontend | `npm run build` | `✓ built in 1.54s` |
+| frontend | `npm run test` | `Tests  7262 passed (7262)` (`Test Files  321 passed (321)`) |
+| backend | `docker version` | servidor `28.5.1` |
+| backend | `npm run lint` | salida 0; última línea `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` |
+| backend | `npm run build` | salida 0; última línea `tsc -p tsconfig.json` |
+| backend | `npm run test` (Testcontainers) | `Tests  3042 passed (3042)` (`Test Files  275 passed (275)`) |
+
+- Las tres corridas de la suite del frontend tienen la misma cifra.
+- La del backend iguala la cifra de 01e: este carril no suma pruebas al backend.
+- `prisma validate`: n/a; no toqué el esquema.
+
+### Conteos
+- `npx vitest list src/components/layout/lib.test.ts | grep -a estaActivo | grep -ac ' > '` → 14 casos nuevos.
+- El archivo completo tiene 58 (`npx vitest list src/components/layout/lib.test.ts | grep -ac ' > '`).
+
+### Desviaciones y pendientes
+- **`lib-01g.test.ts` (ADM-1G21):** cambié su título y su aserción por R-24. El encargo solo nombraba `maestros-view.test.tsx`; sin este ajuste, el `tsc` del lint falla.
+- **Hermanos que no toqué**, fuera del encargo:
+  - las invalidaciones de `useGenerarEnlace` y `useRevocarEnlace`, con la clave literal;
+  - `adapters/db/inscripciones.ts:38`, con el tipo escrito a mano;
+  - el texto de "dar de baja" ante `activo: true` del admin, que requiere un texto nuevo.
+- **Opcional que no hice:** N-01g-1, las opciones de TanStack Query exportadas, porque tocarían `app/providers.tsx`, que este encargo excluye.
+
+### Correcciones de la revisión del cierre (2026-11-10)
+Respondo a `revision.md`, "## Revisión del cierre — ADMIN-01" (línea 8257). Encargo del orquestador: M-28 más dos decisiones del humano.
+- No toqué ninguna `*.ataque` ni documentos (`DESIGN.md`, `CLAUDE.md`, `ESTADO.md`).
+- Sin commit ni navegadores.
+
+**M-28 (NB-1 de 01a): corregido.**
+- **`backend/src/core/clases/archivada.ts`:** los dos 409 pasan a funciones propias, `errorClaseYaArchivada()` y `errorClaseNoArchivada()`, con el mismo código, estado y texto que antes. `errorAlArchivar` y `errorAlRestaurar` las usan, así que su comportamiento no cambia.
+- **`backend/src/adapters/db/clases-archivadas.ts`:** con la clase existente y sin fila cambiada, `:42` lanza directamente `errorClaseYaArchivada()` y `:64`, `errorClaseNoArchivada()`.
+  - Salen `?? new Date()` y `?? sinAcceso()`, que eran inalcanzables; sin cambio observable.
+  - El 403 sigue cuando la clase ya no existe.
+- **Prueba de `core/` nueva** en `backend/src/core/clases/archivada.test.ts`: "M-28: los 409 que lanza el adaptador son los mismos que deciden errorAlArchivar y errorAlRestaurar".
+- **Pruebas de integración, precondiciones con mensaje en lugar de `?? ""`** (ninguna es `*.ataque`):
+  - `backend/test/clases-archivadas.integracion.test.ts`:
+    - `:294` y `:298`: `const inscritas = listas[0]`, con `throw new Error("Precondición: la lista de inscritas existe")` si falta.
+    - `:371`: si hay cursor y falta su posición, `throw new Error("Precondición: una página con cursor trae su siguienteCursorArchivadaEn")`.
+    - `:482`: si una archivada llega sin `archivadaEn`, `throw new Error("Precondición: la archivada <id> trae archivadaEn")`. Esta precondición reemplaza al `expect(...).not.toBeNull()` de la línea anterior, que comprobaba lo mismo.
+  - `backend/test/clases-archivadas-posicion.integracion.test.ts` (`:258` y `:261`): `ultima` se comprueba una vez, con `throw new Error("Precondición: el tramo esperado tiene al menos una clase")`.
+- Ninguna termina con un return temprano.
+- **Hermanos:** `grep '?? ""\|?? new Date\|?? sinAcceso'` sobre los tres archivos ya no encuentra nada.
+
+**Decisión del humano: «Restringido» en rojo. Hecho.**
+- `frontend/src/features/admin/components/tabla-de-usuarios.tsx:47` y `tabla-estado-pago.tsx:146` pasan de `<Badge variant="warning" …>` a `variant="danger"`, con el mismo icono `Lock` y el mismo texto, como `AccesoRestringidoBadge` (§7.8).
+- **Grep previo:**
+  - Ninguna prueba lee la variante: las insignias no exponen `data-variant`.
+  - Las que buscan «Restringido» (`cuentas-view.test.tsx:258` y `estado-pago-01g.test.tsx:542`) solo leen el texto.
+  - V-13 (`styles/clases-r1.ataque`) busca clases `text-danger` fuera de `badge.tsx`, y aquí solo cambia el prop.
+- **Hermanos:** no hay otra insignia de acceso con `Lock` en `features/` (grep de `<Lock`); `AccesoRestringidoBadge` ya era `danger`.
+
+**Decisión del humano: la fecha de archivo lleva año. Hecho.**
+- **`frontend/src/lib/format.ts`:** nueva función `formatearFechaLargaConAno(fecha, zona?)`, que da "martes 29 de septiembre de 2026". `formatearFechaLarga` no cambia, así que el saludo del inicio, los vencimientos, las entregas y las calificaciones siguen sin año.
+- **Dónde se usa:**
+  - el aviso, en `features/clases/components/aviso-de-clase-archivada.tsx:75` ("Clase archivada el …" para maestro y alumno, y "… Es de solo lectura." para el admin);
+  - **también**, porque es el mismo texto de la fecha de archivo, «Clases anteriores» y «Clases archivadas»: `features/clases/components/lista-de-clases-anteriores.tsx:116` ("Archivada el …", el ejemplo del humano).
+- **Lo que no cambia:** la columna de `/admin/clases` (`tabla-clases-admin.tsx`), que usa `formatearFechaDeClase` (`dateStyle: "medium"`) y ya traía el año.
+- **Pruebas:**
+  - **Nuevas**, en `frontend/src/lib/format.test.ts`, bloque "formatearFechaLargaConAno (ADMIN-01, decisión del humano)":
+    - "da 'martes 29 de septiembre de 2026' en la zona indicada, sin coma";
+    - "respeta la zona: el mismo instante puede caer en otro día y en otro año";
+    - "formatearFechaLarga sigue sin año".
+  - **Normales ajustadas:** `features/clases/clase-archivada-01d1-vista.test.tsx:57` (`FECHA`) y `clase-archivada-01d2-vista.test.tsx:757` (ADM-1D202 y 1D203) calculan la fecha con la función nueva.
+  - **Las `*.ataque`** de clase archivada (01d1 r1 a r3, 01d2 r1 a r3 y las de `features/tareas`) buscan `/^Clase archivada el /`, sin fecha; no cambian. Ninguna fija el texto sin año.
+
+**Archivos de esta corrección:**
+- **backend:** `src/core/clases/archivada.ts`, `src/core/clases/archivada.test.ts`, `src/adapters/db/clases-archivadas.ts`, `test/clases-archivadas.integracion.test.ts` y `test/clases-archivadas-posicion.integracion.test.ts`.
+- **frontend:**
+  - `src/lib/format.ts` y `src/lib/format.test.ts`;
+  - `src/features/admin/components/tabla-de-usuarios.tsx` y `tabla-estado-pago.tsx`;
+  - `src/features/clases/components/aviso-de-clase-archivada.tsx` y `lista-de-clases-anteriores.tsx`;
+  - `src/features/clases/clase-archivada-01d1-vista.test.tsx` y `clase-archivada-01d2-vista.test.tsx`.
+
+Prettier corrió solo sobre esos archivos, paquete por paquete.
+
+**Verificación** (una corrida tras otra; nadie más corría suites):
+- **Entorno:** el equipo pasó a batería (`BatteryStatus` 1, 72 %) durante las corridas del backend, con la CPU entre 43 y 62 % por procesos ajenos (sobre todo la aplicación de escritorio de ChatGPT). Al final de la última corrida del frontend estaba conectado (`BatteryStatus` 2, 62 %, CPU 40 %). Seguí corriendo y lo declaro aquí.
+
+| Comando | Resultado |
+|---|---|
+| backend `npm run lint` | salida 0; última línea `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` |
+| backend `npm run build` | salida 0; última línea `tsc -p tsconfig.json` |
+| frontend `npm run lint` | salida 0; última línea `tsc -b` |
+| frontend `npm run build` | `✓ built in 6.04s` |
+| `docker version` | servidor `28.5.1` |
+
+**Suite completa del backend (`npm run test`): no quedó en verde en una sola corrida.** En las dos corridas, los únicos rojos fueron `Error: Hook timed out in 10000ms.` en el `beforeAll` (`construirApp`/login del admin), sin ninguna aserción en rojo:
+- **1.ª corrida:** `Tests  2232 passed | 811 skipped (3043)` · `Test Files  69 failed | 206 passed (275)`. Los 69 rojos son hooks vencidos.
+- **2.ª corrida:** `Tests  2845 passed | 198 skipped (3043)` · `Test Files  14 failed | 261 passed (275)`. Los 14 rojos son hooks vencidos, en archivos de enlaces, gestión de clases, guarda, invitación, registro y usuarios del admin. Ninguno es de los que toqué.
+- **Repetición de los 14 archivos:** `Test Files  11 failed | 3 passed (14)`, otra vez solo hooks vencidos.
+- **`npx vitest run test/guarda-clase.integracion.test.ts` sola:** `Tests  7 passed (7)`. Su `import` tardó 10.64 s, que es el tope del hook: la máquina estaba lenta.
+- **Archivos tocados:** `npx vitest run test/clases-archivadas.integracion.test.ts test/clases-archivadas-posicion.integracion.test.ts src/core/clases/archivada.test.ts` → `Tests  26 passed (26)` (`Test Files  3 passed (3)`).
+- **Total:** 3043 = 3042 de la corrida verde de esta mañana + 1 caso nuevo (M-28).
+- **No verificado:** la suite completa del backend en verde en una sola corrida. La debe repetir el manager con la máquina conectada y sin carga.
+
+**Suite completa del frontend:**
+- **`npm run test`:** `Tests  14 failed | 7251 passed (7265)` · `Test Files  5 failed | 316 passed (321)`. De los 14 rojos, 10 son `Test timed out in 15000ms` y 1 es un encabezado que no apareció a tiempo.
+- **Repetición de esos cinco archivos:** `npx vitest run src/app/clase-03c1.test.tsx src/app/personas-03c1-r2.ataque.test.tsx src/features/admin/estado-pago-01g.test.tsx src/features/clases/dudas-caminos-03e.test.tsx src/features/clases/recursos-caminos-03d.test.tsx` → `Tests  172 passed (172)` (`Test Files  5 passed (5)`).
+- **Total:** 7265 = 7262 del carril trivial + 3 casos nuevos de `format.test.ts`.
+- **No verificado:** la suite completa del frontend en verde en una sola corrida tras esta corrección.
+
+**Conteos:**
+- Backend: `npx vitest list src/core/clases/archivada.test.ts | grep -a M-28 | grep -ac " > "` → 1 caso nuevo (y 3043 − 3042 en la corrida).
+- Frontend: `npx vitest list src/lib/format.test.ts | grep -a formatearFechaLargaConAno | grep -ac " > "` → 3 casos nuevos (y 7265 − 7262 en la corrida).
+
+### Hallazgos de la comprobación humana H-6 (2026-11-10)
+
+Carril trivial del cierre, por decisión del humano (`aprobacion.md`, "Comprobación humana H-1 a H-7"). Los 43 cambios previos sin commit del carril trivial anterior no se tocaron. Equipo con corriente (`Win32_Battery`: `BatteryStatus 2`, 100 %).
+
+**Resultado: H6-1 corregido. H6-2 en PARADA, sin cambios** (ver "H6-2 · PARADA").
+
+#### Grep previo en las `*.ataque.test.*`
+- Clase del contenedor de `Table`: solo `features/calificaciones/gradebook-01d-r1.ataque.test.tsx:592`, `expect(contenedor).toHaveClass("overflow-x-auto")` sobre `tabla.parentElement`. `toHaveClass` no exige la lista exacta: agregar `relative` lo conserva. Ninguna otra afirma `rounded-panel border border-border bg-surface` ni la clase completa. (Fuera de las de ataque, `features/clases/clase-layout.test.tsx:516` afirma `max-w-full overflow-x-auto` del panel de secciones, que no se toca.)
+- Clases de `Badge`: `components/ui/badge-03b-r1.ataque.test.ts` lee las variantes con `/(\w+):\s*"bg-([\w-]+)\s+text-([\w-]+)"/` (no lee la base) y `styles/clases-r1.ataque.test.ts:498-518` (V-13) vigila la línea de `danger`. Ninguna afirma la base de `badgeVariants`.
+- Línea de nombres de la celda «Maestros»: ninguna `*.ataque.test.*` la afirma. **Sí la afirma una prueba normal fuera de la lista cerrada:** `features/clases/clases-admin-view.test.tsx:123`, caso "PR-2C03: con clases, la tabla con sus cinco columnas; «Abrir» lleva el nombre de la clase como texto sr-only y apunta a la clase", `expect(within(fila).getByText("Luis Pérez, Ana Ruiz")).toBeInTheDocument()`. Además de `cuenta-desactivada-01f.test.tsx:164`, que sí está en la lista.
+
+#### H6-1 · causa confirmada por lectura del código
+- `components/ui/table.tsx:9`: el contenedor `w-full overflow-x-auto rounded-panel border border-border bg-surface` no estaba posicionado, y ni `<table>`, `<tr>` ni `<td>` de `Table` lo están.
+- Las celdas llevan textos `sr-only` (en Tailwind 4, `position: absolute` sin desplazamientos, 1 px, `white-space: nowrap`): `tabla-estado-pago.tsx:37`, `:131` y `:227`; `tabla-de-usuarios.tsx:95`; `tabla-clases-admin.tsx:34`, `:104` y `:121`; `tabla-enlaces.tsx:59`; `registrados-del-enlace.tsx:133`; `tabla-alumnos.tsx:95`, `:109` y `:118`; `tabla-de-entregas.tsx:63`; `tabla-del-gradebook.tsx:37` (el `caption`), `:81` y `:83`.
+- Un absoluto sin desplazamientos queda en su posición estática (dentro de la celda, a la derecha del contenido desplazable), pero su bloque contenedor es el ancestro posicionado más cercano, fuera del contenedor. El recorte por `overflow` solo alcanza a los descendientes cuyo bloque contenedor es el contenedor o uno interior, así que esos `sr-only` no se recortan y su caja cuenta en el desbordamiento del documento: por eso `scrollWidth` llegaba a 612 y 509 con el contenedor bien desplazado (`clientWidth` 294, `scrollWidth` 671).
+- No encontré otra causa: dentro de las tablas no hay otros absolutos. Las casillas de `tabla-estado-pago.tsx:126` y `:222` son `<input type="checkbox">` nativos en flujo; las insignias (`Badge`, `EstadoPagoBadge`, `AccesoRestringidoBadge`, `EstadoEntregaBadge`) son `inline-flex` en flujo; los iconos de `lucide-react` van en flujo; `components/ui/button.tsx` y `button-variants.ts` no tienen absolutos; `NativeSelect` (su chevron absoluto) ya va dentro de un `relative` y no se usa en tablas; los diálogos van en portal y son `fixed` sobre la ventana. En el gradebook, las celdas `sticky` (posicionadas) ya contenían sus `sr-only`, pero no el `caption sr-only` (hijo directo de `<table>`).
+- Remedio: `relative` en el contenedor de `Table` (la raíz), no tabla por tabla.
+
+#### H6-1 · diff
+`frontend/src/components/ui/table.tsx`:
+```diff
+ // Contenedor con desplazamiento horizontal propio: la tabla se desplaza, la página nunca.
++// H6-1 (ADMIN-01, comprobación humana): `relative` hace del contenedor el bloque contenedor de los
++// textos sr-only (position: absolute) de las celdas; sin él, su bloque contenedor quedaba fuera, el
++// desplazamiento no los recortaba y ensanchaban el documento a 360 px.
+ function Table({ className, ...props }: ComponentProps<"table">) {
+   return (
+-    <div className="w-full overflow-x-auto rounded-panel border border-border bg-surface">
++    <div className="relative w-full overflow-x-auto rounded-panel border border-border bg-surface">
+```
+Pruebas nuevas (no `*.ataque`): `frontend/src/components/ui/table-desplazable-h6.test.tsx` y `frontend/src/components/ui/desplazamiento-posicionado-h6.test.ts`.
+
+#### H6-1 · hermanos y estados vecinos
+Inventario por `grep -rn -E "overflow-(x-)?(auto|scroll)|overflow-y-(auto|scroll)" frontend/src` (sin pruebas) y `grep -rln 'from "@/components/ui/table"' frontend/src` (sin pruebas). No hay `overflow-x-scroll` ni `overflow-auto` en producción.
+
+| Contenedor o tabla | ¿Usa `Table`? | Absolutos dentro | ¿Aplica el remedio? | ¿Aplicado? |
+|---|---|---|---|---|
+| `components/ui/table.tsx:12` (contenedor de `Table`) | es `Table` | los `sr-only` de las celdas | sí, es la raíz | **sí** |
+| `/admin/estado-pago`: `admin/components/tabla-estado-pago.tsx` | sí | `sr-only` de acciones, casillas y «Seleccionar página» | sí, por `Table` | sí (heredado); prueba montada |
+| `/admin/usuarios`: `admin/components/tabla-de-usuarios.tsx` | sí | `sr-only` de «Ver» | sí, por `Table` | sí (heredado); prueba montada |
+| `/admin/clases`: `clases/components/tabla-clases-admin.tsx` | sí | `sr-only` de «Abrir», «Duplicar», «Archivar», «Restaurar» y «Borrar» | sí, por `Table` | sí (heredado); prueba montada |
+| `/admin/movimientos`: `admin/components/tabla-movimientos.tsx` | sí | ninguno hoy | sí, por `Table` (preventivo) | sí (heredado); prueba montada |
+| `/admin/maestros`: `admin/components/tabla-enlaces.tsx` | sí | `sr-only` de cada fila | sí, por `Table` | sí (heredado); prueba montada |
+| `/admin/maestros`: `admin/components/registrados-del-enlace.tsx` (al desplegar un enlace) | sí | `sr-only` de cada fila | sí, por `Table` | sí (heredado); solo la prueba estática, no se monta desplegado |
+| Gradebook: `calificaciones/components/tabla-del-gradebook.tsx` | sí | `caption sr-only` (hijo de `<table>`) y `sr-only` dentro de celdas; columna `sticky` | sí, por `Table` (el `caption` era el que escapaba; los de las celdas `sticky` ya quedaban contenidos) | sí (heredado); `gradebook-01d-r1.ataque.test.tsx:592` sigue verde |
+| Modal de cálculo: `calificaciones/components/calculo-de-calificacion.tsx` | sí | ninguno | sí, por `Table` (preventivo) | sí (heredado) |
+| Entregas de una tarea: `tareas/components/tabla-de-entregas.tsx` | sí | `sr-only` de «Ver entrega» | sí, por `Table` | sí (heredado) |
+| Roster: `clases/components/tabla-alumnos.tsx` | sí | `sr-only` de «Quitar», «Sí, quitar» y «Cancelar» | sí, por `Table` | sí (heredado) |
+| Panel de secciones: `clases/components/secciones-de-clase.tsx:56` (`Card` con `overflow-x-auto`) | no | el indicador absoluto (`:62`), dentro de `<div className="relative w-max">` (`:57`), único hijo de la `Card`; sin `sr-only` | no: su absoluto ya tiene un ancestro posicionado dentro del contenedor. Además, la `Card` lleva `vidrio` (`backdrop-filter`), que también la hace bloque contenedor | no hace falta (fuera de la lista cerrada); excepción justificada y vigilada en la prueba estática |
+| `components/layout/lista-de-clases.tsx:85` (`overflow-x-hidden overflow-y-auto`) | no | ninguno dentro de la `ul` (el `sr-only` de `:60` y el `role="status"` de `:70` están fuera de ese contenedor, en otras ramas) | no: sin absolutos dentro y con `overflow-x-hidden` | no hace falta (fuera de la lista cerrada); no entra en el patrón de la prueba estática (solo desplaza en vertical) |
+| `features/auth/components/panel-anuncios.tsx:29` (`overflow-y-auto`) | no | ninguno | no: sin absolutos dentro | no hace falta (fuera de la lista cerrada); no entra en el patrón de la prueba estática |
+
+Estados vecinos del mismo mecanismo (un absoluto dentro de un contenedor con desplazamiento):
+- **Tabla con la página llena o con «Cargar más»:** las filas nuevas caen en el mismo contenedor de `Table`; quedan contenidas. Aplica.
+- **Fila en confirmación en línea** (`ConfirmarArchivado` en `/admin/clases`, «Sí, quitar»/«Cancelar» en el roster): sus `sr-only` caen en el mismo contenedor. Aplica.
+- **Tabla desplegada dentro de otra vista** (`registrados-del-enlace.tsx`): usa `Table`, mismo contenedor. Aplica.
+- **Celdas `sticky` del gradebook:** son posicionadas; con `relative` en el contenedor, el `caption` también queda contenido. Aplica.
+- **Diálogos abiertos desde una fila** (baja, restringir, lote, borrar clase): van en portal y son `fixed` sobre la ventana, fuera del contenedor. No aplica.
+- **Selección por lote** (`barra-de-lote.tsx`): fuera de la tabla, sin `overflow`. No aplica.
+- **Viewport ancho (1024 px):** `relative` no cambia el diseño visible (sin desplazamientos en el contenedor ni `z-index`). Sin efecto.
+
+#### H6-1 · pruebas requeridas
+- **`sr-only` dentro de una tabla desplazable sin ancestro posicionado hasta el contenedor (contándolo), o contenedor sin posicionar; sobre `Table` con una celda con `sr-only`:** `frontend/src/components/ui/table-desplazable-h6.test.tsx`, "Table: el contenedor con desplazamiento está posicionado y contiene el sr-only de una celda". Revisa `.sr-only` y `.absolute`; cuenta como posicionado `relative`, `absolute`, `fixed` o `sticky`.
+- **Sobre las tablas reales montadas** (router real `rutas` de `app/router`, doble de la API): mismo archivo, `it.each` "%s montada: ningún sr-only ni absoluto de sus tablas queda fuera de un ancestro posicionado" con `/admin/estado-pago`, `/admin/usuarios`, `/admin/clases`, `/admin/movimientos` y `/admin/maestros`; y "las vistas con sr-only en sus celdas los tienen de verdad (la revisión no es vacía)" (más de 3, 2 y 2 elementos revisados en estado de pago, usuarios y clases).
+- **Análisis estático (todo `className` de producción con `overflow-x-auto`, `overflow-auto` u `overflow-x-scroll` lleva `relative`, con excepciones justificadas por ruta):** `frontend/src/components/ui/desplazamiento-posicionado-h6.test.ts`, "cada className con overflow-x-auto, overflow-auto u overflow-x-scroll lleva relative, salvo las excepciones justificadas"; con "se leyó el código fuente y hay contenedores con desplazamiento (incluido el de Table)" y "las excepciones siguen vigentes: su línea existe y el hijo posicionado sigue detrás". Única excepción: `secciones-de-clase.tsx` (su único hijo es `<div className="relative w-max">`), fijada por su línea exacta.
+- Gradebook, entregas y roster no se montan en la prueba nueva: los cubre la prueba estática (usan `Table`) y siguen verdes sus suites.
+
+#### H6-1 · mutación
+Quité `relative` de `components/ui/table.tsx` (`sed`) y corrí `npx vitest run src/components/ui/table-desplazable-h6.test.tsx src/components/ui/desplazamiento-posicionado-h6.test.ts`: `Tests  7 failed | 3 passed (10)`. Fallaron el caso de `Table`, los cinco de las vistas montadas y el estático; pasaron los dos de precondición y el de la excepción (no dependen de `table.tsx`), y "la revisión no es vacía" (cuenta elementos, no exige posición). Restituí `relative` y la misma orden dio `Tests  10 passed (10)`.
+
+#### H6-2 · PARADA (sin cambios)
+El cambio decidido (un `ul` con un maestro por renglón) quita el elemento con el texto "Luis Pérez, Ana Ruiz", y lo afirma una prueba normal **fuera de la lista cerrada**: `frontend/src/features/clases/clases-admin-view.test.tsx:123`, caso "PR-2C03: con clases, la tabla con sus cinco columnas; «Abrir» lleva el nombre de la clase como texto sr-only y apunta a la clase" (`expect(within(fila).getByText("Luis Pérez, Ana Ruiz")).toBeInTheDocument()`). No hay forma legítima de conservar ese texto con un nombre por renglón sin repetir el nombre o esconder un texto solo para la prueba. Por la regla del encargo me detuve: **no toqué** `tabla-clases-admin.tsx`, `badge.tsx` ni `cuenta-desactivada-01f.test.tsx`, ni escribí las pruebas de H6-2, para no dejar el hallazgo a medias. Para seguir hace falta que el humano autorice ajustar esa línea de PR-2C03 (por ejemplo, a que la celda tenga un `li` por maestro con "Luis Pérez" y "Ana Ruiz"). El resto del plan de H6-2 no tiene otro impedimento que vi: ninguna `*.ataque` afirma la línea ni la base de `badgeVariants`, y `insignia.parentElement` en `cuenta-desactivada-01f.test.tsx:166-167` y `:316-317` seguiría apuntando al renglón del maestro.
+
+#### Verificación
+- `npm run lint` (en `frontend/`): salida 0; última línea `> tsc -b`. (La primera corrida falló por Prettier en `desplazamiento-posicionado-h6.test.ts`; lo formateé con `npx prettier --write` acotado a los tres archivos del encargo.)
+- `npx vitest run src/components/ui src/features/clases src/features/admin src/styles src/features/calificaciones src/features/tareas`: `Test Files  223 passed (223)` · `Tests  5413 passed (5413)`.
+- `npm run build` (en `frontend/`): salida 0; última línea `✓ built in 1.10s`.
+- Conteo de casos nuevos: `npx vitest list src/components/ui/table-desplazable-h6.test.tsx src/components/ui/desplazamiento-posicionado-h6.test.ts | grep -ac " > "` → 10 (7 y 3).
+- No corrí la suite completa (la corre el manager). Con corriente.
+
+#### Desviaciones
+- H6-2 no se implementó por la PARADA de arriba.
+- La prueba montada recorre también `/admin/movimientos` y `/admin/maestros`, además de las tres mínimas.
+
+### H6-2 tras la autorización del humano (2026-11-10)
+
+El humano autorizó cambiar solo la línea 123 de `frontend/src/features/clases/clases-admin-view.test.tsx` (PR-2C03). De ese archivo no cambié nada más. Con corriente (`BatteryStatus 2`, 100 %). Los cambios del carril trivial anterior siguen sin tocar. `tabla-clases-admin.tsx` ya tenía cambios suyos sin commit (el `size="sm"` de las acciones): solo toqué la celda «Maestros».
+
+#### Diff por archivo
+`frontend/src/features/clases/components/tabla-clases-admin.tsx` (solo la celda «Maestros»):
+```diff
+       <TableCell className="wrap-anywhere">
+-        <span>{clase.maestros.map((maestro) => maestro.nombre).join(", ")}</span>
+-        {/* ADMIN-01f (S-16): cada maestro dado de baja se repite debajo, con su insignia. */}
+-        {clase.maestros
+-          .filter((maestro) => maestro.cuentaDesactivada === true)
+-          .map((maestro) => (
+-            <span key={maestro.id} className="mt-1 flex flex-wrap items-center gap-2">
++        {/* H6-2 (ADMIN-01, decisión del humano; sustituye a D-4): un maestro por renglón, cada nombre
++            una sola vez; el dado de baja lleva junto a su nombre la insignia (S-16). */}
++        <ul className="flex flex-col gap-1">
++          {clase.maestros.map((maestro) => (
++            <li key={maestro.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+               <span>{maestro.nombre}</span>
+-              <Badge variant="muted" icon={<UserX aria-hidden="true" />}>
+-                {TEXTO_CUENTA_DESACTIVADA}
+-              </Badge>
+-            </span>
++              {maestro.cuentaDesactivada === true && (
++                <Badge variant="muted" icon={<UserX aria-hidden="true" />}>
++                  {TEXTO_CUENTA_DESACTIVADA}
++                </Badge>
++              )}
++            </li>
+           ))}
++        </ul>
+       </TableCell>
+```
+La `ul` no lleva viñetas: el preflight de Tailwind las quita.
+
+`frontend/src/components/ui/badge.tsx` (base de `badgeVariants`; la línea de `danger` no se toca, V-13):
+```diff
+-// mismo archivo. Si otro archivo necesitara las variantes, detente (PA-06).
++// mismo archivo. Si otro archivo necesitara las variantes, detente (PA-06). H6-2 (ADMIN-01, comprobación
++// humana): `whitespace-nowrap`, porque sus textos son cortos y en una celda angosta se partían una
++// sílaba por línea.
+ const badgeVariants = cva(
+-  "inline-flex w-fit items-center gap-1 rounded-pill px-2 py-1 text-caption font-bold [&_svg]:size-3.5 [&_svg]:shrink-0",
++  "inline-flex w-fit items-center gap-1 rounded-pill px-2 py-1 text-caption font-bold whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0",
+```
+
+`frontend/src/features/clases/clases-admin-view.test.tsx:123` (autorizada):
+```diff
+-    expect(within(fila).getByText("Luis Pérez, Ana Ruiz")).toBeInTheDocument()
++    expect(
++      within(fila)
++        .getAllByRole("listitem")
++        .map((li) => li.textContent),
++    ).toEqual(["Luis Pérez", "Ana Ruiz"])
+```
+
+`frontend/src/features/clases/cuenta-desactivada-01f.test.tsx`:
+- Ayuda nueva `revisarCeldaDeMaestros(tabla)`. Con Luis activo y Ana dada de baja comprueba que hay una sola insignia y dos renglones (`listitem`) en su celda. Cada nombre sale una vez en la celda, por elemento y por texto. El renglón de Luis dice solo "Luis Pérez" y no lleva insignia. El de Ana lleva su nombre y la insignia.
+- En el caso de la tabla "la insignia sale junto al maestro dado de baja; los nombres siguen en su lista" quité la afirmación de "Luis Pérez, Ana Ruiz". Sus afirmaciones de `parentElement` siguen igual y pasan.
+- Dos casos nuevos en el `describe` de `/admin/clases`.
+- En el caso montado ADM-1F23 de `/admin/clases`, la ayuda y `whitespace-nowrap` al final.
+
+#### Hermanos y estados vecinos
+`whitespace-nowrap` en la base de `badgeVariants` alcanza a toda insignia. El cambio de la lista solo aplica donde un nombre se repetía.
+
+| Vista o insignia | ¿Repetía el nombre? | ¿Aplica `whitespace-nowrap`? | ¿Aplicado? |
+|---|---|---|---|
+| `/admin/clases`, celda «Maestros» (`tabla-clases-admin.tsx`) | sí | sí | **sí**; los dos cambios |
+| `features/clases/components/lista-personas.tsx:31-35` (Personas del alumno) | no: un `li` por persona, con el nombre una vez y la insignia debajo del correo | sí | sí (heredado de `badge.tsx`), sin cambio de estructura |
+| `features/clases/components/lista-maestros-de-clase.tsx:67-71` (maestros de la clase, maestro y admin) | no: un `li` por maestro, con el nombre una vez | sí | sí (heredado), sin cambio de estructura |
+| `EstadoPagoBadge` («Al corriente», «Deudor») en `tabla-estado-pago.tsx` y `tabla-alumnos.tsx` (celdas angostas) | no aplica | sí | sí (heredado) |
+| `AccesoRestringidoBadge` («Acceso restringido») en `tabla-alumnos.tsx` | no aplica | sí | sí (heredado) |
+| «Restringido» y cuenta activa o desactivada en `tabla-de-usuarios.tsx` y `tabla-estado-pago.tsx:146` | no aplica | sí | sí (heredado) |
+| `EstadoEntregaBadge` en `tabla-de-entregas.tsx` | no aplica | sí | sí (heredado) |
+| `insignia-estado-enlace.tsx` (vigente, vencido, revocado) en `tabla-enlaces.tsx` | no aplica | sí | sí (heredado) |
+| «En riesgo» del gradebook (`tabla-del-gradebook.tsx:105`) y «N en riesgo» del resumen | no aplica | sí | sí (heredado) |
+| Otras insignias cortas: «Resuelta», «Material», «Anuncio», la de tarea, «Ya está en la clase», «Ya elegido», «Ya da esta clase», motivos de la invitación masiva (como «Repetido en la lista») y la firma «Administración» | no aplica | sí | sí (heredado) |
+| **Insignia de vencimiento** (`tarjeta-de-tarea.tsx:24`, `detalles-de-la-tarea.tsx:40`) | no aplica | se aplica, **con riesgo** | sí (heredado). Es la insignia de texto más largo: "Venció el miércoles 30 de septiembre" o "Vence mañana a las 23:59". Antes podía partirse; ahora no. A 360 px no está verificada en navegador: si no cabe en la tarjeta, desbordaría en lugar de partirse. La anoto para la comprobación del humano. No cambié esos archivos porque están fuera de la lista cerrada. |
+
+Estados vecinos de la celda «Maestros»:
+- **Un solo maestro activo:** un renglón sin insignia (caso "con un maestro activo, no sale").
+- **Un solo maestro dado de baja:** un renglón con su nombre y la insignia (caso de `whitespace-nowrap`).
+- **Varios maestros, uno dado de baja:** cubierto por `revisarCeldaDeMaestros`.
+- **Varios dados de baja:** cada renglón lleva su propia insignia, por la misma rama. No tiene caso propio.
+- **Pestaña «Archivadas»:** usa la misma `FilaClaseAdmin`, así que aplica igual.
+- **Confirmación de archivar abierta:** cae en otra celda y no afecta.
+- **A 1024 px:** los renglones se apilan igual. El `ul` es `flex-col` en todo ancho.
+
+#### H6-2 · PARADA: falla una prueba `*.ataque`
+La suite de los módulos dio `Tests  1 failed | 5414 passed (5415)`. Falla `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx`, caso "la tabla pinta como texto el HTML de la clase y de los maestros, y corta los nombres sin espacios" (`ataque CLASES-02c r1: nombres hostiles en la tabla y en el encabezado`):
+- **`:271`:** `expect(within(tabla).getByText(\`<script>alert(2)</script>, ${largo}\`)).toBeInTheDocument()` afirma la línea de nombres separados por coma, la misma que el humano decidió quitar. Es el error de la corrida ("Unable to find an element with the text: <script>alert(2)</script>, WWWW…").
+- **`:277-283`, también rota:** no llega a correr porque `:271` falla antes. Leyendo el código: `fueraDeEnlaces(within(tabla).getAllByText(largo))` espera 1 elemento (la celda del nombre de la clase 2), y con la lista el `<span>` del maestro de 120 letras de la clase 1 también coincide (2 elementos). Ese `span` no lleva clase de corte propia: la hereda del `td` con `wrap-anywhere`, que la afirmación de `className` no ve. Corregir `:271` no basta.
+
+No toqué esa prueba (`*.ataque`), ni ningún otro archivo de producción, y me detuve aquí. **El código de H6-2 queda aplicado en el árbol con esa prueba en rojo**, para que el manager y el humano decidan. Lo que el ataque protege (el HTML de los nombres se pinta como texto, no aparecen `img` ni `script`, y los nombres sin espacios se cortan) se sigue cumpliendo con la lista. Mi argumento para el manager: actualizar `:271` a "cada maestro en su `li`" y `:277-283` a "las celdas o renglones con el nombre largo tienen una regla de corte propia o heredada del `td`". Esa actualización le toca al tester o al manager. Si se prefiere no dejar el árbol en rojo mientras se decide, la alternativa es revertir la celda (`tabla-clases-admin.tsx`), la línea 123 de PR-2C03 y los casos H6-2 de `cuenta-desactivada-01f.test.tsx`; no lo hice para no deshacer lo autorizado sin indicación.
+
+#### Pruebas requeridas de H6-2
+- **Componente: un nombre por maestro e insignia junto a su maestro, una sola vez, con un maestro activo y uno dado de baja.** `frontend/src/features/clases/cuenta-desactivada-01f.test.tsx`, "H6-2: con un maestro activo y uno dado de baja, cada nombre aparece una sola vez en la celda, un maestro por renglón, y la insignia sale junto a su maestro y solo una vez".
+- **Vista montada con el doble de `GET /api/admin/clases`.** Mismo archivo, "ADM-1F23, /admin/clases con el doble de GET /api/admin/clases: la insignia sale junto al maestro dado de baja y no junto al activo", con `revisarCeldaDeMaestros` agregado.
+- **`whitespace-nowrap` en la insignia.** Mismo archivo, "H6-2: la insignia «Cuenta desactivada» no se parte (whitespace-nowrap)" (componente). En la vista montada, la misma afirmación al final de ADM-1F23.
+- **PR-2C03 ajustada:** `frontend/src/features/clases/clases-admin-view.test.tsx`, "PR-2C03: con clases, la tabla con sus cinco columnas; «Abrir» lleva el nombre de la clase como texto sr-only y apunta a la clase".
+
+#### Mutaciones
+Corrí `npx vitest run src/features/clases/cuenta-desactivada-01f.test.tsx src/features/clases/clases-admin-view.test.tsx` con copias de respaldo en el scratchpad.
+- **A, la celda vieja** (línea con comas más el renglón repetido): `Tests  3 failed | 20 passed (23)`. Fallan PR-2C03, el caso H6-2 del componente y ADM-1F23 montado.
+- **B, sin `whitespace-nowrap` en `badge.tsx`** (solo `cuenta-desactivada-01f.test.tsx`): `Tests  2 failed | 12 passed (14)`. Fallan el caso de `whitespace-nowrap` y ADM-1F23 montado.
+- **Restituidos los dos archivos:** `Tests  23 passed (23)`. `git diff` sin cambios respecto del estado anterior a las mutaciones.
+
+#### Verificación
+- `npm run lint` (en `frontend/`): salida 0; última línea `> tsc -b`.
+- `npx vitest run src/components/ui src/features/clases src/features/admin src/styles src/features/calificaciones src/features/tareas`: `Test Files  1 failed | 222 passed (223)` · `Tests  1 failed | 5414 passed (5415)`. El rojo es la PARADA de arriba. Las 5415 son las 5413 de la ronda H6-1 más los 2 casos nuevos.
+- `npm run build` (en `frontend/`): salida 0; última línea `✓ built in 940ms`.
+- Conteo de casos nuevos: `npx vitest list src/features/clases/cuenta-desactivada-01f.test.tsx | grep -a "H6-2" | grep -ac " > "` → 2.
+- No corrí la suite completa.
+
+#### Desviaciones
+- La prueba `*.ataque` en rojo, sin tocarla (PARADA).
+- Lo que se ajustó en `cuenta-desactivada-01f.test.tsx` fue quitar la afirmación de la línea con comas del caso de la tabla. El resto de sus afirmaciones sigue igual.
+
+### H6-2 tras el arbitraje del manager (2026-11-10)
+
+Aplica el arbitraje de `revision.md`, "## Arbitraje de la PARADA de H6-2 — ADMIN-01 (2026-11-10)" (línea 8546). No toqué ningún `*.ataque`: el C-n de `clases-admin-02c-r1.ataque.test.tsx` lo aplica el tester. Con corriente.
+
+#### Diff por archivo
+- **`frontend/src/components/ui/badge.tsx`:** vuelve a `HEAD` con `git checkout HEAD -- frontend/src/components/ui/badge.tsx`. El archivo no estaba entre los cambios previos sin commit. `git diff HEAD --stat -- frontend/src/components/ui/badge.tsx` sale vacío.
+- **`frontend/src/components/ui/table.tsx` (`TableCell`):**
+```diff
++// H6-2 (ADMIN-01, arbitraje del manager): una insignia dentro de una celda no se parte; la tabla encoge
++// la columna hasta su ancho mínimo y la partía (una sílaba por línea bajo un wrap-anywhere). Dentro de
++// la tabla, nowrap no ensancha la página: el contenedor desplaza y recorta (H6-1).
+ function TableCell({ className, ...props }: ComponentProps<"td">) {
+   return (
+     <td
+       data-slot="table-cell"
+-      className={cn("px-3 text-small text-foreground", className)}
++      className={cn(
++        "px-3 text-small text-foreground [&_[data-slot=badge]]:whitespace-nowrap",
++        className,
++      )}
+```
+- **`frontend/src/features/clases/components/tabla-clases-admin.tsx` (celda «Maestros"):** el `TableCell` pierde `wrap-anywhere` y el `<span>` del nombre de cada maestro lo gana, como en `lista-personas.tsx:29` y `lista-maestros-de-clase.tsx:63`. El comentario explica el porqué. La celda del nombre de la clase (`wrap-anywhere font-bold`) no cambia.
+```diff
+-      <TableCell className="wrap-anywhere">
++      <TableCell>
+ ...
+-              <span>{maestro.nombre}</span>
++              <span className="wrap-anywhere">{maestro.nombre}</span>
+```
+- **`frontend/src/features/clases/cuenta-desactivada-01f.test.tsx`:**
+  - Constante nueva `REGLA_DE_INSIGNIA_EN_CELDA` y ayuda `revisarInsigniaQueNoSeParte`. La ayuda comprueba que la insignia tiene `data-slot="badge"` y que su `td` (`closest("td")`) lleva `[&_[data-slot=badge]]:whitespace-nowrap`.
+  - El caso de `:202-205` pasa a "H6-2: la insignia «Cuenta desactivada» no se parte (su celda le fija whitespace-nowrap)" y usa la ayuda.
+  - En ADM-1F23 montado (antes `:357`), `toHaveClass("whitespace-nowrap")` cambia por la ayuda.
+- **`frontend/src/components/ui/table-desplazable-h6.test.tsx`:** un `describe` nuevo, "H6-2 · una insignia dentro de una celda de tabla no se parte", con el caso "TableCell: una insignia dentro de una celda no se parte". Usa una `Badge` en un `TableCell` con `className="wrap-anywhere"`. Afirma `data-slot="badge"`, que el `td` es `table-cell` y lleva la regla junto a `wrap-anywhere` (`cn` no la desplaza), y que una `Badge` fuera de la tabla no trae `whitespace-nowrap`.
+- **`clases-admin-view.test.tsx`:** sin más cambios.
+
+#### Mutación
+Quité la regla de `TableCell` con `sed`, sobre una copia de respaldo. `npx vitest run src/components/ui/table-desplazable-h6.test.tsx src/features/clases/cuenta-desactivada-01f.test.tsx` dio `Tests  3 failed | 19 passed (22)`. Fallaron los tres casos que el arbitraje esperaba:
+- "H6-2: la insignia «Cuenta desactivada» no se parte (su celda le fija whitespace-nowrap)";
+- "ADM-1F23, /admin/clases con el doble de GET /api/admin/clases: la insignia sale junto al maestro dado de baja y no junto al activo";
+- "TableCell: una insignia dentro de una celda no se parte".
+
+Restituida la regla, la misma orden dio `Tests  22 passed (22)`.
+
+#### Hermanos (rehecha con el arbitraje)
+| Insignia | Dónde | ¿Hereda la regla de `TableCell`? |
+|---|---|---|
+| «Cuenta desactivada» | `tabla-clases-admin.tsx` (celda «Maestros») | **sí**; además, el corte pasa al nombre, así que la insignia ya no hereda `wrap-anywhere` |
+| «Activa» y «Desactivada», «Restringido» | `tabla-de-usuarios.tsx`, `tabla-estado-pago.tsx:146` | sí |
+| `EstadoPagoBadge`, `AccesoRestringidoBadge` | `tabla-estado-pago.tsx`, `tabla-alumnos.tsx` | sí |
+| Estado del enlace (`insignia-estado-enlace.tsx`) | `tabla-enlaces.tsx`, `registrados-del-enlace.tsx` | sí |
+| `EstadoEntregaBadge` («Entregado con retraso», 21 caracteres) | `tabla-de-entregas.tsx` | sí |
+| «En riesgo» | `tabla-del-gradebook.tsx:105` | sí |
+| Insignias en celdas futuras | cualquier `TableCell` | sí, por construcción |
+| «Cuenta desactivada» fuera de tabla | `lista-personas.tsx`, `lista-maestros-de-clase.tsx` | no; sin cambio. Su `wrap-anywhere` está en el `span` hermano, no en un ancestro, y su contenedor no se encoge al ancho mínimo |
+| Vencimiento, tipo de elemento, «Resuelta», «Administración», buscadores, motivos de la invitación masiva, «N en riesgo», `EstadoEntregaBadge` de "Tu trabajo", "Mis calificaciones" y el encabezado de una entrega | fuera de tabla | no; sin cambio. Con `badge.tsx` de vuelta en `HEAD`, desaparece el riesgo de desborde de la insignia de vencimiento que anoté en la sección anterior |
+
+Estados vecinos de la celda «Maestros»: los mismos de la sección anterior (un maestro activo, uno dado de baja, varios con uno o varios dados de baja, «Archivadas», confirmación abierta y 1024 px). Con el corte en el `span`, un nombre largo sin espacios se corta dentro de su renglón: el `span` es un elemento flexible del `li` y `overflow-wrap: anywhere` baja su tamaño mínimo. La insignia, que es su hermana, ya no lo hereda.
+
+#### Verificación
+Una suite a la vez, en `frontend/`:
+- `npm run lint`: salida 0; última línea `> tsc -b`.
+- `npx vitest run src/components/ui src/features/clases src/features/admin src/styles src/features/calificaciones src/features/tareas`: `Test Files  1 failed | 222 passed (223)` · `Tests  1 failed | 5415 passed (5416)`.
+  - El único rojo es el esperado: `clases-admin-02c-r1.ataque.test.tsx`, "la tabla pinta como texto el HTML de la clase y de los maestros, y corta los nombres sin espacios". Falla por `:271` ("Unable to find an element with the text: <script>alert(2)</script>, WWW…") hasta que el tester aplique el C-n.
+  - 5416 = 5415 de la ronda anterior + 1 caso nuevo de `TableCell`.
+- `npm run build`: salida 0; última línea `✓ built in 1.11s`.
+- Comprobé la regla en el CSS con `grep -o '[^}]\{0,80\}data-slot=badge[^}]*}' frontend/dist/assets/*.css`. En `dist/assets/index-CmiD8wzy.css` aparece `.\[\&_\[data-slot\=badge\]\]\:whitespace-nowrap [data-slot=badge]{white-space:nowrap}`. La clase genera CSS.
+- Conteo: `npx vitest list src/components/ui/table-desplazable-h6.test.tsx | grep -ac " > "` → 8 (7 de H6-1 + 1 de H6-2).
+- No corrí la suite completa.
+
+#### Desviaciones
+Ninguna respecto del arbitraje. Además de lo que pide el arbitraje, el caso nuevo de `TableCell` afirma que una `Badge` fuera de la tabla no trae `whitespace-nowrap`, para fijar que el cambio se limita a las tablas.

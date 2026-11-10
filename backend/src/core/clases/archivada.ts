@@ -23,14 +23,22 @@ export const evaluarClaseArchivada = (
   return null
 }
 
+// S-01: los dos 409 de archivar y restaurar. ADMIN-01 (M-28, NB-1 de 01a): el adaptador los lanza
+// directamente cuando el UPDATE condicionado no cambió ninguna fila y la clase existe.
+export const errorClaseYaArchivada = (): AppError =>
+  new AppError("CLASE_YA_ARCHIVADA", "Esta clase ya está archivada.", 409)
+
+export const errorClaseNoArchivada = (): AppError =>
+  new AppError("CLASE_NO_ARCHIVADA", "Esta clase no está archivada.", 409)
+
 // S-01: archivar una clase ya archivada no escribe.
 export const errorAlArchivar = (archivadaEn: Date | null): AppError | null => {
   if (archivadaEn === null) return null
-  return new AppError("CLASE_YA_ARCHIVADA", "Esta clase ya está archivada.", 409)
+  return errorClaseYaArchivada()
 }
 
 // S-01: restaurar una clase activa no escribe.
 export const errorAlRestaurar = (archivadaEn: Date | null): AppError | null => {
   if (archivadaEn !== null) return null
-  return new AppError("CLASE_NO_ARCHIVADA", "Esta clase no está archivada.", 409)
+  return errorClaseNoArchivada()
 }

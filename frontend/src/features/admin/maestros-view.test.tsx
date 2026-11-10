@@ -134,13 +134,11 @@ afterEach(() => {
 })
 
 describe("MaestrosView", () => {
-  it("muestra el título y la nota provisional", async () => {
+  it("muestra el título, sin la nota provisional (R-24)", async () => {
     stubApi({})
     renderVista()
     expect(await screen.findByRole("heading", { name: "Maestros" })).toBeInTheDocument()
-    expect(
-      screen.getByText("Pantalla provisional: la gestión completa de usuarios llega después."),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/Pantalla provisional/)).not.toBeInTheDocument()
   })
 
   it("genera un enlace con la vigencia por defecto y lo muestra con el origen y #token=", async () => {

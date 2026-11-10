@@ -1,4 +1,4 @@
-import type { Rol } from "@campus/shared"
+import type { EstadoPagoAlumno, Rol } from "@campus/shared"
 
 // Lo que el adaptador lee de una cuenta para la gestión de usuarios.
 export interface CuentaParaGestion {
@@ -8,7 +8,7 @@ export interface CuentaParaGestion {
   rol: Rol
   activo: boolean
   creadoEn: Date
-  estadoPago: "al_corriente" | "deudor"
+  estadoPago: EstadoPagoAlumno
   fechaEstadoPago: Date | null
   accesoRestringido: boolean
   motivoRestriccion: string | null
@@ -22,7 +22,7 @@ export interface FilaDeUsuarioAdmin {
   rol: Rol
   activo: boolean
   creadoEn: string
-  estadoPago?: "al_corriente" | "deudor"
+  estadoPago?: EstadoPagoAlumno
   fechaEstadoPago?: string | null
   accesoRestringido?: boolean
   motivoRestriccion?: string | null

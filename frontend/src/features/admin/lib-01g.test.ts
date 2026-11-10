@@ -95,7 +95,7 @@ describe("ADMIN-01g · la selección y la consulta", () => {
 })
 
 describe("ADMIN-01g · E-16 (ADM-1G21)", () => {
-  it("ADM-1G21: las claves sin uso ya no están en data.ts y TEXTOS_MAESTROS.notaProvisional sigue", () => {
+  it("ADM-1G21: las claves sin uso ya no están en data.ts, tampoco TEXTOS_MAESTROS.notaProvisional (R-24)", () => {
     const cuentas: Record<string, unknown> = datos.TEXTOS_CUENTAS
     expect(Object.hasOwn(cuentas, "titulo")).toBe(false)
     expect(Object.hasOwn(cuentas, "notaProvisional")).toBe(false)
@@ -104,6 +104,7 @@ describe("ADMIN-01g · E-16 (ADM-1G21)", () => {
     expect(Object.hasOwn(ficha, "inactiva")).toBe(false)
     const masiva: Record<string, unknown> = datos.TEXTOS_INVITACION_MASIVA
     expect(Object.hasOwn(masiva, "sinNombre")).toBe(false)
-    expect(datos.TEXTOS_MAESTROS.notaProvisional.length).toBeGreaterThan(0)
+    const maestros: Record<string, unknown> = datos.TEXTOS_MAESTROS
+    expect(Object.hasOwn(maestros, "notaProvisional")).toBe(false)
   })
 })

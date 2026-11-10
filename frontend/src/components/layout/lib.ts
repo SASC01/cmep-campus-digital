@@ -1,5 +1,5 @@
 import { NOMBRE_DEL_COLEGIO, RUTAS_CON_ORBES_EN_MOVIMIENTO } from "./data"
-import type { EnlaceDelColegio, EnlaceVisible } from "./types"
+import type { Destino, EnlaceDelColegio, EnlaceVisible } from "./types"
 
 // S-03: movimiento solo en /login, /estudiante y /maestro exactos, sin distinguir mayúsculas y sin
 // la barra final (salvo "/", que no aparece en la lista).
@@ -55,3 +55,13 @@ export const enlacesVisibles = (
 // Año local del navegador en el momento de pintar (S-07: "© <año actual> …").
 export const textoDeDerechos = (ahora: Date): string =>
   `© ${ahora.getFullYear()} ${NOMBRE_DEL_COLEGIO}`
+
+// ADMIN-01g (E-06): el destino activo de la barra, sin la barra final de la ruta: "/admin/" deja
+// activo «Inicio» como "/admin". Un destino exacto, solo en su ruta; uno de prefijo, también en sus
+// subrutas. Sin distinguir mayúsculas, como el router.
+export const estaActivo = (pathname: string, destino: Destino): boolean => {
+  const actual = (pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname).toLowerCase()
+  const ruta = destino.ruta.toLowerCase()
+  if (actual === ruta) return true
+  return destino.coincidencia === "prefijo" && actual.startsWith(`${ruta}/`)
+}

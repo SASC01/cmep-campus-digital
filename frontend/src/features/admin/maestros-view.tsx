@@ -20,7 +20,6 @@ export function MaestrosView() {
       <Card>
         <CardHeader>
           <h1 className="text-h1">{TEXTOS_MAESTROS.titulo}</h1>
-          <p className="text-small text-muted-foreground">{TEXTOS_MAESTROS.notaProvisional}</p>
         </CardHeader>
       </Card>
       <FormularioInvitarMaestro />

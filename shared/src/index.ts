@@ -276,6 +276,7 @@ export {
   listaUsuariosRespuestaSchema,
   movimientoInscripcionSchema,
   resumenAdminRespuestaSchema,
+  TEXTO_CARACTERES_NO_PERMITIDOS,
   tipoMovimientoInscripcionSchema,
   usuarioAdminFilaSchema,
   type Acceso,

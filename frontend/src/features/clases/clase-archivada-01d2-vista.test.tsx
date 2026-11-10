@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Providers } from "@/app/providers"
-import { formatearFechaLarga } from "@/lib/format"
+import { formatearFechaLargaConAno } from "@/lib/format"
 import { descargarArchivo } from "@/services/descargaService"
 import { api } from "@/services/apiClient"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
@@ -754,7 +754,7 @@ describe.each(LISTAS)("ADM-1D217 y ADM-1D218 ($nombre)", ({ rol, ruta }) => {
     const enlace = await screen.findByRole("link", { name: "Clase 1" }, ESPERA)
     const fila = enlace.closest("li")
     if (fila === null) throw new Error("Precondición: la clase está en una fila")
-    const fecha = formatearFechaLarga(new Date(ARCHIVADA_EN))
+    const fecha = formatearFechaLargaConAno(new Date(ARCHIVADA_EN))
     expect(within(fila).getByText(`Archivada el ${fecha}`)).toBeInTheDocument()
     expect(within(fila).queryByText(fecha)).toBeNull()
   })

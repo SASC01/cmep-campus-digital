@@ -33,7 +33,11 @@ import { firmaDelAutor } from "../../core/autoria.js"
 import { AppError } from "../../core/errores.js"
 import { decidirCambioDeAcceso } from "../../core/usuarios/acceso.js"
 import { decidirCambioDeActivo } from "../../core/usuarios/baja.js"
-import { errorBusquedaMuyCorta, prepararBusquedaDeUsuarios } from "../../core/usuarios/busqueda.js"
+import {
+  errorBusquedaMuyCorta,
+  prepararBusquedaDeUsuarios,
+  type BusquedaDeUsuarios,
+} from "../../core/usuarios/busqueda.js"
 import { filaDeUsuarioAdmin } from "../../core/usuarios/fila.js"
 import { TEXTOS_USUARIOS } from "../../core/usuarios/textos.js"
 import { protegido } from "../../middleware/index.js"
@@ -51,7 +55,7 @@ const usuarioNoEncontrado = (): AppError =>
 export const usuariosAdminHandler: FastifyPluginAsync = async (app) => {
   app.get("/usuarios", protegido({ roles: ["admin"] }), async (request, reply) => {
     const consulta = validarParametros(listaUsuariosConsultaSchema, request.query)
-    let busqueda: { nombre: string; email: string } | undefined
+    let busqueda: BusquedaDeUsuarios | undefined
     if (consulta.q !== undefined) {
       const preparada = prepararBusquedaDeUsuarios(consulta.q)
       if (preparada === null) throw errorBusquedaMuyCorta()

@@ -133,8 +133,10 @@ const traducirErrorDeCodigo = (error: unknown): AppError => {
 // Reintenta una sola vez con un código nuevo si el primero choca con el índice único de
 // codigo_invitacion, detectado con traducirErrorPrisma y su alDuplicar (§D-A2; S-03, regla 4: sin
 // ciclo). Si el primer error no se traduce a CODIGO_NO_DISPONIBLE, se relanza sin reintentar (por
-// ejemplo, el 22021 traducido a 400, o cualquier otro error).
-const conReintentoDeCodigo = async <T>(
+// ejemplo, el 22021 traducido a 400, o cualquier otro error). El reintento envuelve la transacción
+// entera, porque un P2002 deja abortada la transacción en curso. ADMIN-01 (N-32, carril trivial del
+// cierre): la única copia; también la usa duplicado-de-clase.ts.
+export const conReintentoDeCodigo = async <T>(
   intentar: (codigo: string) => Promise<T>,
   generarCodigo: () => string,
 ): Promise<T> => {

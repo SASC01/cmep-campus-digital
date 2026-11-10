@@ -25,6 +25,20 @@ export const formatearFechaLarga = (fecha: Date, zona?: string): string =>
     .format(fecha)
     .replace(",", "")
 
+// ADMIN-01 (decisión del humano, 2026-11-10): la misma fecha larga con el año, por ejemplo "martes 29
+// de septiembre de 2026", para la fecha en que se archivó una clase, que puede ser de otro año. Solo la
+// usan el aviso de clase archivada y la lista de clases anteriores o archivadas.
+export const formatearFechaLargaConAno = (fecha: Date, zona?: string): string =>
+  new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    ...(zona ? { timeZone: zona } : {}),
+  })
+    .format(fecha)
+    .replace(",", "")
+
 // Iniciales de un nombre para el avatar decorativo (§D-3): primer punto de código de las dos
 // primeras palabras, en mayúsculas de es-MX; una sola palabra da una letra; ignora espacios de más.
 export const inicialesDe = (nombre: string): string => {

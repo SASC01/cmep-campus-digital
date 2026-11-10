@@ -1,7 +1,15 @@
+import { House } from "lucide-react"
 import { describe, expect, it } from "vitest"
 
 import { ENLACES_DEL_COLEGIO } from "./data"
-import { enlacesVisibles, esUrlPublicable, orbesEnMovimiento, textoDeDerechos } from "./lib"
+import {
+  enlacesVisibles,
+  esUrlPublicable,
+  estaActivo,
+  orbesEnMovimiento,
+  textoDeDerechos,
+} from "./lib"
+import type { Destino } from "./types"
 
 describe("orbesEnMovimiento", () => {
   it.each(["/login", "/estudiante", "/maestro", "/login/", "/LOGIN"])("%s da true", (pathname) => {
@@ -100,4 +108,47 @@ describe("textoDeDerechos", () => {
       "© 2027 Colegio Mexicano de Estudios de Posgrado Jurídicos y Económicos",
     )
   })
+})
+
+describe("estaActivo (ADMIN-01g, E-06)", () => {
+  const exacto: Destino = {
+    etiqueta: "Inicio",
+    ruta: "/admin",
+    icono: House,
+    coincidencia: "exacta",
+  }
+  const prefijo: Destino = {
+    etiqueta: "Usuarios",
+    ruta: "/admin/usuarios",
+    icono: House,
+    coincidencia: "prefijo",
+  }
+
+  it.each(["/admin", "/admin/", "/admin//", "/ADMIN"])(
+    "un destino exacto queda activo en %s",
+    (pathname) => {
+      expect(estaActivo(pathname, exacto)).toBe(true)
+    },
+  )
+
+  it.each(["/admin/usuarios", "/administracion", "/"])(
+    "un destino exacto no queda activo en %s",
+    (pathname) => {
+      expect(estaActivo(pathname, exacto)).toBe(false)
+    },
+  )
+
+  it.each(["/admin/usuarios", "/admin/usuarios/", "/admin/usuarios/abc", "/Admin/Usuarios/ABC"])(
+    "un destino de prefijo queda activo en %s",
+    (pathname) => {
+      expect(estaActivo(pathname, prefijo)).toBe(true)
+    },
+  )
+
+  it.each(["/admin", "/admin/usuarios-x", "/admin/usuariosabc"])(
+    "un destino de prefijo no queda activo en %s",
+    (pathname) => {
+      expect(estaActivo(pathname, prefijo)).toBe(false)
+    },
+  )
 })

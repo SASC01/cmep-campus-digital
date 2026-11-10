@@ -7,7 +7,7 @@ import { MensajeError } from "@/components/mensaje-error"
 import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { formatearFechaLarga } from "@/lib/format"
+import { formatearFechaLargaConAno } from "@/lib/format"
 import { unirPaginasSinRepetidas } from "@/lib/unir-paginas"
 
 import { claveClasesAnteriores, TEXTOS_CLASES_ANTERIORES } from "../data"
@@ -113,7 +113,7 @@ export function ListaDeClasesAnteriores({
             </p>
             <p className="text-small text-muted-foreground">
               {TEXTOS_CLASES_ANTERIORES.archivadaEl(
-                formatearFechaLarga(new Date(clase.archivadaEn)),
+                formatearFechaLargaConAno(new Date(clase.archivadaEn)),
               )}
             </p>
           </li>

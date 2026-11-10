@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router"
 import { cn } from "@/lib/utils"
 
 import { TEXTOS_MARCO } from "./data"
+import { estaActivo } from "./lib"
 import { ListaDeClases } from "./lista-de-clases"
 import type { Destino, Rol } from "./types"
 
@@ -14,18 +15,10 @@ interface BarraNavegacionProps {
 
 // Una sola nav (R-08 de plan.md): barra lateral desde 768 px, barra inferior fija por debajo. La lista
 // de clases (CLASES-02d) es solo del estudiante y del maestro (P-07 a) y solo desde 768 px.
-// ADMIN-01g (E-06): el destino activo se calcula aquí, sin la barra final de la ruta: "/admin/" deja
-// activo «Inicio» como "/admin". Un destino exacto, solo en su ruta; uno de prefijo, también en sus
-// subrutas. Sin distinguir mayúsculas, como el router.
+// ADMIN-01g (E-06): el destino activo lo decide estaActivo (lib.ts).
 export function BarraNavegacion({ rol, destinos }: BarraNavegacionProps) {
   const navRef = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
-  const actual = (pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname).toLowerCase()
-  const estaActivo = (destino: Destino) => {
-    const ruta = destino.ruta.toLowerCase()
-    if (actual === ruta) return true
-    return destino.coincidencia === "prefijo" && actual.startsWith(`${ruta}/`)
-  }
   return (
     <nav
       ref={navRef}
@@ -34,7 +27,7 @@ export function BarraNavegacion({ rol, destinos }: BarraNavegacionProps) {
     >
       <ul className="flex gap-3 md:flex-col">
         {destinos.map((destino) => {
-          const activo = estaActivo(destino)
+          const activo = estaActivo(pathname, destino)
           return (
             <li key={destino.ruta}>
               <Link

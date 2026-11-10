@@ -1,4 +1,4 @@
-import type { Rol } from "@campus/shared"
+import type { EstadoPagoAlumno, Rol } from "@campus/shared"
 
 import type { DecisionDeAcceso, PedidoDeAcceso } from "../../core/usuarios/acceso.js"
 import type { CambioDeActivo } from "../../core/usuarios/baja.js"
@@ -15,7 +15,7 @@ import { Prisma } from "./generated/client.js"
 // cuenta siguen el protocolo de bloqueo por usuario (PB, adapters/README.md): primero la fila del
 // usuario para escribir, después lecturas sin bloqueo.
 
-export type EstadoPagoDb = "al_corriente" | "deudor"
+export type EstadoPagoDb = EstadoPagoAlumno
 
 // Una fila tal como se lee. El handler la convierte en la respuesta y solo pone los datos de pago y
 // de acceso en las filas de estudiantes (RN-02).

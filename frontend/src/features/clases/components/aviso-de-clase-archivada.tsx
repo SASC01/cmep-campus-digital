@@ -5,7 +5,7 @@ import { Link } from "react-router"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
-import { formatearFechaLarga } from "@/lib/format"
+import { formatearFechaLargaConAno } from "@/lib/format"
 import { baseDeClase } from "@/lib/ruta-de-clase"
 
 import { TEXTOS_CLASE_ARCHIVADA, TEXTOS_CLASES_ADMIN } from "../data"
@@ -72,7 +72,7 @@ export function AvisoDeClaseArchivada({
   archivadaEn,
   perspectiva,
 }: AvisoDeClaseArchivadaProps) {
-  const fecha = formatearFechaLarga(new Date(archivadaEn))
+  const fecha = formatearFechaLargaConAno(new Date(archivadaEn))
   const esAdmin = perspectiva === "admin"
   const texto = esAdmin
     ? TEXTOS_CLASE_ARCHIVADA.avisoAdmin(fecha)

@@ -20,6 +20,9 @@ const MAXIMO_ALUMNOS_POR_LOTE = 100
 const MAXIMO_VISIBLES_MOTIVO = 300
 // Se construye con su código para no escribir el carácter en el archivo.
 const CARACTER_NULO = String.fromCharCode(0)
+// ADMIN-01 (carril trivial del cierre): el único lugar del texto de un 22021; lo usan este esquema y
+// traducirErrorPrisma de backend/src/adapters/db/errores.ts.
+export const TEXTO_CARACTERES_NO_PERMITIDOS = "Los datos enviados tienen caracteres no permitidos."
 
 // Las listas de usuarios y de movimientos paginan de 50 en 50 por defecto, hasta 100 (§D-7.1, §D-7.7).
 const paginacionDe50Schema = paginacionSchema.extend({
@@ -52,7 +55,7 @@ export const listaUsuariosConsultaSchema = paginacionDe50Schema
         if (texto.includes(CARACTER_NULO)) {
           contexto.addIssue({
             code: "custom",
-            message: "Los datos enviados tienen caracteres no permitidos.",
+            message: TEXTO_CARACTERES_NO_PERMITIDOS,
           })
         }
       })

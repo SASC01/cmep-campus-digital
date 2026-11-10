@@ -54,6 +54,7 @@ import { normalizarCorreo, prepararRegistro } from "../core/auth/normalizacion.j
 import { calcularExpiracionToken } from "../core/auth/tokens-cuenta.js"
 import { AppError } from "../core/errores.js"
 import { COLA_CORREO_DE_CUENTA } from "../core/eventos/correo-de-cuenta.js"
+import { TEXTOS_USUARIOS } from "../core/usuarios/textos.js"
 import { protegido } from "../middleware/index.js"
 import { usuariosAdminHandler } from "./admin/usuarios.js"
 import { validarCuerpo, validarParametros } from "./validacion.js"
@@ -61,7 +62,7 @@ import { validarCuerpo, validarParametros } from "./validacion.js"
 const parametrosIdSchema = z.object({ id: z.uuid("id: debe ser un identificador válido") })
 
 const usuarioNoEncontrado = (): AppError =>
-  new AppError("USUARIO_NO_ENCONTRADO", "No hay ninguna cuenta con ese identificador.", 404)
+  new AppError("USUARIO_NO_ENCONTRADO", TEXTOS_USUARIOS.usuarioNoEncontrado, 404)
 
 const enlaceNoEncontrado = (): AppError =>
   new AppError("ENLACE_NO_ENCONTRADO", "Ese enlace ya no existe.", 404)

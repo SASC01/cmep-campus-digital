@@ -120,7 +120,11 @@ describe("ClasesAdminView", () => {
     const fila = within(tabla)
       .getByRole("link", { name: "Abrir Clase 2" })
       .closest("tr") as HTMLElement
-    expect(within(fila).getByText("Luis Pérez, Ana Ruiz")).toBeInTheDocument()
+    expect(
+      within(fila)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Luis Pérez", "Ana Ruiz"])
     const alumnos = within(fila).getByText("12")
     expect(alumnos).toHaveClass("text-right", "tabular-nums")
     const abrir = within(fila).getByRole("link", { name: "Abrir Clase 2" })

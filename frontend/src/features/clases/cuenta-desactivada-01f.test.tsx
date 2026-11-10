@@ -23,6 +23,40 @@ const LUIS = {
 const ANA = { id: "3a3b3c4d-1c1f-4b8e-9a1e-0f2a3b4c5d10", nombre: "Ana Ruiz", email: "ana@x.mx" }
 const INSIGNIA = "Cuenta desactivada"
 
+// H6-2 (decisión del humano; sustituye a D-4): la celda «Maestros» de /admin/clases es una lista con un
+// maestro por renglón. Con Luis activo y Ana dada de baja: dos renglones, cada nombre una sola vez en la
+// celda, la insignia una sola vez y en el renglón de Ana, y ninguna en el de Luis.
+const revisarCeldaDeMaestros = (tabla: HTMLElement) => {
+  const insignias = within(tabla).getAllByText(INSIGNIA)
+  expect(insignias).toHaveLength(1)
+  const celda = insignias[0]?.closest("td") ?? null
+  if (celda === null) throw new Error("Precondición: la insignia está en una celda")
+  const renglones = within(celda).getAllByRole("listitem")
+  expect(renglones).toHaveLength(2)
+  expect(within(celda).getAllByText(LUIS.nombre)).toHaveLength(1)
+  expect(within(celda).getAllByText(ANA.nombre)).toHaveLength(1)
+  expect(celda.textContent?.split(LUIS.nombre)).toHaveLength(2)
+  expect(celda.textContent?.split(ANA.nombre)).toHaveLength(2)
+  const [renglonDeLuis, renglonDeAna] = renglones
+  if (renglonDeLuis === undefined || renglonDeAna === undefined) {
+    throw new Error("Precondición: hay un renglón por maestro")
+  }
+  expect(renglonDeLuis.textContent).toBe(LUIS.nombre)
+  expect(within(renglonDeLuis).queryByText(INSIGNIA)).toBeNull()
+  expect(within(renglonDeAna).getByText(ANA.nombre)).toBeInTheDocument()
+  expect(within(renglonDeAna).getByText(INSIGNIA)).toBeInTheDocument()
+}
+
+// H6-2 (arbitraje del manager): la insignia no se parte dentro de una celda de tabla. La regla vive en
+// TableCell (components/ui/table.tsx) y alcanza a toda insignia (data-slot="badge") de la celda.
+const REGLA_DE_INSIGNIA_EN_CELDA = "[&_[data-slot=badge]]:whitespace-nowrap"
+const revisarInsigniaQueNoSeParte = (insignia: HTMLElement) => {
+  expect(insignia).toHaveAttribute("data-slot", "badge")
+  const celda = insignia.closest("td")
+  if (celda === null) throw new Error("Precondición: la insignia está en una celda")
+  expect(celda).toHaveClass(REGLA_DE_INSIGNIA_EN_CELDA)
+}
+
 const respuestaJson = (estado: number, cuerpo: unknown) =>
   new Response(JSON.stringify(cuerpo), {
     status: estado,
@@ -161,11 +195,23 @@ describe("ADMIN-01f · «Cuenta desactivada» en /admin/clases (ADM-1F16, ADM-1F
       { id: LUIS.id, nombre: LUIS.nombre },
       { id: ANA.id, nombre: ANA.nombre, cuentaDesactivada: true },
     ])
-    expect(screen.getByText("Luis Pérez, Ana Ruiz")).toBeInTheDocument()
     const insignia = screen.getByText(INSIGNIA)
     expect(insignia.parentElement?.textContent).toContain(ANA.nombre)
     expect(insignia.parentElement?.textContent).not.toContain(LUIS.nombre)
     expect(screen.getAllByText(INSIGNIA)).toHaveLength(1)
+  })
+
+  it("H6-2: con un maestro activo y uno dado de baja, cada nombre aparece una sola vez en la celda, un maestro por renglón, y la insignia sale junto a su maestro y solo una vez", () => {
+    renderTabla([
+      { id: LUIS.id, nombre: LUIS.nombre },
+      { id: ANA.id, nombre: ANA.nombre, cuentaDesactivada: true },
+    ])
+    revisarCeldaDeMaestros(screen.getByRole("table"))
+  })
+
+  it("H6-2: la insignia «Cuenta desactivada» no se parte (su celda le fija whitespace-nowrap)", () => {
+    renderTabla([{ id: ANA.id, nombre: ANA.nombre, cuentaDesactivada: true }])
+    revisarInsigniaQueNoSeParte(screen.getByText(INSIGNIA))
   })
 
   it("con un maestro activo, no sale", () => {
@@ -316,5 +362,8 @@ describe("ADMIN-01f · «Cuenta desactivada» en las vistas con su doble (ADM-1F
     expect(insignia.parentElement?.textContent).toContain(ANA.nombre)
     expect(insignia.parentElement?.textContent).not.toContain(LUIS.nombre)
     expect(screen.getAllByText(INSIGNIA)).toHaveLength(1)
+    // H6-2: en la vista montada, cada nombre una sola vez y la insignia junto a su maestro.
+    revisarCeldaDeMaestros(screen.getByRole("table"))
+    revisarInsigniaQueNoSeParte(insignia)
   })
 })

@@ -21,9 +21,8 @@ import { unirPaginasSinRepetidas } from "@/lib/unir-paginas"
 
 import { InsigniaEstadoEnlace } from "./insignia-estado-enlace"
 import { AlPulsarLaSeccionActiva, RegistradosDelEnlace } from "./registrados-del-enlace"
-import { TEXTOS_MAESTROS } from "../data"
+import { CLAVE_ENLACES_REGISTRO, TEXTOS_MAESTROS } from "../data"
 import {
-  CLAVE_ENLACES_REGISTRO,
   useEnlacesRegistro,
   useMarcarViejaSiQuedoEnError,
   useRevocarEnlace,
@@ -124,7 +123,6 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                 ref={expandirBtnRef}
                 type="button"
                 variant="ghost"
-                size="sm"
                 aria-expanded={expandido}
                 onClick={() => setExpandido((valor) => !valor)}
               >
@@ -145,7 +143,6 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                   ref={revocarBtnRef}
                   type="button"
                   variant="destructive"
-                  size="sm"
                   onClick={abrirConfirmacion}
                 >
                   {TEXTOS_MAESTROS.enlaces.revocar}
@@ -167,7 +164,6 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                   <Button
                     type="button"
                     variant="destructive"
-                    size="sm"
                     onClick={handleRevocar}
                     enEspera={revocar.isPending}
                   >
@@ -181,7 +177,6 @@ function FilaEnlace({ enlace }: FilaEnlaceProps) {
                     ref={cancelarBtnRef}
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={cerrarConfirmacion}
                   >
                     {TEXTOS_MAESTROS.enlaces.cancelar}

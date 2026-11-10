@@ -5,6 +5,8 @@ import {
   errorAlArchivar,
   errorAlRestaurar,
   errorClaseArchivada,
+  errorClaseNoArchivada,
+  errorClaseYaArchivada,
   evaluarClaseArchivada,
   type PoliticaDeClaseArchivada,
 } from "./archivada.js"
@@ -76,5 +78,23 @@ describe("errorAlArchivar y errorAlRestaurar (ADM-1A02)", () => {
     expect(error?.codigo).toBe("CLASE_NO_ARCHIVADA")
     expect(error?.estado).toBe(409)
     expect(error?.message).toBe("Esta clase no está archivada.")
+  })
+})
+
+describe("errorClaseYaArchivada y errorClaseNoArchivada (M-28)", () => {
+  it("M-28: los 409 que lanza el adaptador son los mismos que deciden errorAlArchivar y errorAlRestaurar", () => {
+    const yaArchivada = errorClaseYaArchivada()
+    expect(yaArchivada).toBeInstanceOf(AppError)
+    expect(yaArchivada.codigo).toBe("CLASE_YA_ARCHIVADA")
+    expect(yaArchivada.estado).toBe(409)
+    expect(yaArchivada.message).toBe("Esta clase ya está archivada.")
+    expect(errorAlArchivar(new Date("2026-11-04T10:00:00.000Z"))).toEqual(yaArchivada)
+
+    const noArchivada = errorClaseNoArchivada()
+    expect(noArchivada).toBeInstanceOf(AppError)
+    expect(noArchivada.codigo).toBe("CLASE_NO_ARCHIVADA")
+    expect(noArchivada.estado).toBe(409)
+    expect(noArchivada.message).toBe("Esta clase no está archivada.")
+    expect(errorAlRestaurar(null)).toEqual(noArchivada)
   })
 })

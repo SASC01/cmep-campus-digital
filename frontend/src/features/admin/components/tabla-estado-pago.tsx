@@ -143,7 +143,7 @@ function FilaEstadoPago({
       </TableCell>
       <TableCell>
         {restringido && (
-          <Badge variant="warning" icon={<Lock aria-hidden="true" />}>
+          <Badge variant="danger" icon={<Lock aria-hidden="true" />}>
             {TEXTOS_USUARIOS.acceso.restringido}
           </Badge>
         )}

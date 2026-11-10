@@ -77,19 +77,22 @@ function FilaClaseAdmin({ clase, estado, onBorrar }: FilaClaseAdminProps) {
   return (
     <TableRow data-clase-id={clase.id}>
       <TableCell className="wrap-anywhere font-bold">{clase.nombre}</TableCell>
-      <TableCell className="wrap-anywhere">
-        <span>{clase.maestros.map((maestro) => maestro.nombre).join(", ")}</span>
-        {/* ADMIN-01f (S-16): cada maestro dado de baja se repite debajo, con su insignia. */}
-        {clase.maestros
-          .filter((maestro) => maestro.cuentaDesactivada === true)
-          .map((maestro) => (
-            <span key={maestro.id} className="mt-1 flex flex-wrap items-center gap-2">
-              <span>{maestro.nombre}</span>
-              <Badge variant="muted" icon={<UserX aria-hidden="true" />}>
-                {TEXTO_CUENTA_DESACTIVADA}
-              </Badge>
-            </span>
+      <TableCell>
+        {/* H6-2 (ADMIN-01, decisión del humano; sustituye a D-4): un maestro por renglón, cada nombre
+            una sola vez; el dado de baja lleva junto a su nombre la insignia (S-16). El corte va en el
+            nombre, no en la celda: heredado, partía la insignia una sílaba por línea. */}
+        <ul className="flex flex-col gap-1">
+          {clase.maestros.map((maestro) => (
+            <li key={maestro.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="wrap-anywhere">{maestro.nombre}</span>
+              {maestro.cuentaDesactivada === true && (
+                <Badge variant="muted" icon={<UserX aria-hidden="true" />}>
+                  {TEXTO_CUENTA_DESACTIVADA}
+                </Badge>
+              )}
+            </li>
           ))}
+        </ul>
       </TableCell>
       <TableCell className="text-right tabular-nums">{clase.alumnos}</TableCell>
       <TableCell>
@@ -100,17 +103,13 @@ function FilaClaseAdmin({ clase, estado, onBorrar }: FilaClaseAdminProps) {
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-2">
-          <Link
-            to={`/admin/clases/${clase.id}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
+          <Link to={`/admin/clases/${clase.id}`} className={buttonVariants({ variant: "outline" })}>
             {TEXTOS_CLASES_ADMIN.abrir} <span className="sr-only">{clase.nombre}</span>
           </Link>
           {estado === "archivadas" && (
             <Button
               type="button"
               variant="outline"
-              size="sm"
               data-accion="restaurar"
               onClick={handleRestaurar}
               enEspera={restaurar.isPending || restauracion.enVuelo}
@@ -120,7 +119,7 @@ function FilaClaseAdmin({ clase, estado, onBorrar }: FilaClaseAdminProps) {
           )}
           <Link
             to={`/admin/clases/${clase.id}/duplicar`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
+            className={buttonVariants({ variant: "outline" })}
           >
             {TEXTOS_CLASES_ADMIN.duplicar} <span className="sr-only">{clase.nombre}</span>
           </Link>
@@ -129,7 +128,6 @@ function FilaClaseAdmin({ clase, estado, onBorrar }: FilaClaseAdminProps) {
               ref={archivarRef}
               type="button"
               variant="ghost"
-              size="sm"
               data-accion="archivar"
               onClick={() => setConfirmando(true)}
             >
@@ -140,7 +138,6 @@ function FilaClaseAdmin({ clase, estado, onBorrar }: FilaClaseAdminProps) {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
               data-accion="borrar"
               onClick={() => onBorrar(clase)}
             >

@@ -11,7 +11,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { Providers } from "@/app/providers"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
-import { formatearFechaLarga } from "@/lib/format"
+import { formatearFechaLargaConAno } from "@/lib/format"
 import { api, ApiError } from "@/services/apiClient"
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
 
@@ -54,7 +54,7 @@ const BASES: Record<Rol, string> = {
   maestro: `/maestro/clases/${CLASE_ID}`,
   admin: `/admin/clases/${CLASE_ID}`,
 }
-const FECHA = formatearFechaLarga(new Date(ARCHIVADA_EN))
+const FECHA = formatearFechaLargaConAno(new Date(ARCHIVADA_EN))
 const AVISO_MAESTRO = TEXTOS_CLASE_ARCHIVADA.aviso(FECHA)
 const AVISO_ADMIN = TEXTOS_CLASE_ARCHIVADA.avisoAdmin(FECHA)
 

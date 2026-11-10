@@ -44,7 +44,7 @@ function CeldaDeAcceso({ fila }: CeldaDeAccesoProps) {
   const acceso = accesoDeLaFila(fila)
   if (acceso === "restringido") {
     return (
-      <Badge variant="warning" icon={<Lock aria-hidden="true" />}>
+      <Badge variant="danger" icon={<Lock aria-hidden="true" />}>
         {TEXTOS_USUARIOS.acceso.restringido}
       </Badge>
     )
@@ -89,7 +89,7 @@ export function TablaDeUsuarios({ usuarios }: TablaDeUsuariosProps) {
             <TableCell>
               <Link
                 to={`/admin/usuarios/${fila.id}`}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+                className={buttonVariants({ variant: "outline" })}
               >
                 <span aria-hidden="true">{TEXTOS_USUARIOS.ver}</span>
                 <span className="sr-only">{TEXTOS_USUARIOS.verA(fila.nombre)}</span>

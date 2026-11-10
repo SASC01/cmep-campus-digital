@@ -6588,3 +6588,73 @@ Veredicto: **RESISTE**. Solo confirmé T-07 y corrí la regresión, como pidió 
   - Los módulos crecen de 1315 a 1319 y de 44 a 45 archivos. Lo que se suma es la prueba nueva del programador, `volver-a-pedir-01g.test.tsx`, que también está en verde.
 - **V-01:** 281 `*.ataque`, sin cambios contra la ronda 3: el `diff` contra `v01-01g-r3.txt` está vacío. La lista está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-01g-r3b.txt`, con SHA-256 `7b724b4d9eba3a4e88f190f93dba0f9123d2fc4a75967ea2209ea4916684855a`, el mismo que en la ronda 3.
 - No toqué producción ni pruebas del programador.
+
+### C-n de H6-2 (cierre, 2026-11-10)
+Tarea acotada del cierre, no una ronda de ataque: apliqué el C-n que arbitró el manager en `revision.md`, "## Arbitraje de la PARADA de H6-2 — ADMIN-01 (2026-11-10)" (línea 8546, SHA-256 `dbe25f66…`). No busqué hallazgos nuevos. No toqué producción ni pruebas del programador.
+
+**Base.** `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` estaba en `87dae1927669b46bb52aad94db5107a5284f772fa9b29e225aace19c1a1e8def` (463 líneas), la base que cita el arbitraje. `:271` y `:277-278` tenían el texto exacto que el C-n reemplaza; el arbitraje encajó sin improvisar nada.
+
+**Diff del C-n.** Es el texto del arbitraje tal cual. Después pasé Prettier solo sobre ese archivo, como pide el arbitraje: lo único que cambió fue partir en dos renglones el `if` de la precondición, que pasaba del ancho. `REGLA_DE_CORTE`, el ciclo `for` y `:272` no cambian. Resultado: 475 líneas, 14 inserciones y 2 borrados.
+
+```diff
+@@ -268,14 +268,26 @@ describe("ataque CLASES-02c r1: nombres hostiles en la tabla y en el encabezado"
+     // Cada nombre de clase aparece en su celda y en el texto sr-only de «Abrir».
+     const fueraDeEnlaces = (nodos: HTMLElement[]) => nodos.filter((n) => n.closest("a") === null)
+     expect(fueraDeEnlaces(within(tabla).getAllByText(html))).toHaveLength(1)
+-    expect(within(tabla).getByText(`<script>alert(2)</script>, ${largo}`)).toBeInTheDocument()
++    // H6-2 (decisión del humano, sustituye a D-4): un maestro por renglón, cada nombre como texto.
++    const filaDeLaClase1 = screen.getByRole("link", { name: `Abrir ${html}` }).closest("tr")
++    if (filaDeLaClase1 === null)
++      throw new Error("Precondición: «Abrir» de la clase 1 está en su fila")
++    expect(
++      within(filaDeLaClase1)
++        .getAllByRole("listitem")
++        .map((li) => li.textContent),
++      "cada maestro va en su renglón y su nombre se pinta como texto",
++    ).toEqual(["<script>alert(2)</script>", largo])
+     expect(tabla.querySelectorAll("img, script")).toHaveLength(0)
+     expect(screen.getByRole("link", { name: `Abrir ${html}` })).toHaveAttribute(
+       "href",
+       `/admin/clases/${idClase(1)}`,
+     )
++    // El nombre de 120 letras sale en la celda de la clase 2 y en el renglón de su maestro en la clase
++    // 1; cada elemento que lo pinta lleva su propia regla de corte.
+     const celdasLargas = fueraDeEnlaces(within(tabla).getAllByText(largo))
+-    expect(celdasLargas).toHaveLength(1)
++    expect(celdasLargas).toHaveLength(2)
++    expect(celdasLargas.filter((nodo) => nodo.closest("li") !== null)).toHaveLength(1)
+     for (const celda of celdasLargas) {
+       expect(
+         celda.className,
+```
+
+**Mutaciones (la intención se conserva).** Antes de mutar, respaldé `frontend/src/features/clases/components/tabla-clases-admin.tsx` (SHA-256 `0a728b489e73b9a9ca867aa7b8e46f29dcd95ee9c53bc777be08afa0a20dc626`) y guardé su `git diff` contra `HEAD` (SHA-256 `aaf03029…`) en el scratchpad de la sesión. Corrí solo el caso, con `npx vitest run src/features/clases/clases-admin-02c-r1.ataque.test.tsx -t "corta los nombres sin espacios"`.
+
+| Estado de `tabla-clases-admin.tsx` | Resultado del caso |
+|---|---|
+| Sin mutar (después del C-n) | `Tests 1 passed \| 16 skipped (17)` |
+| M1: `<span className="wrap-anywhere">{maestro.nombre}</span>` pasa a `<span>{maestro.nombre}</span>` | `Tests 1 failed \| 16 skipped (17)`: `AssertionError: una celda con un nombre de 120 letras sin espacios no se corta: expected '' to match /(^\|\s)(break-all\|break-words\|wrap-any…/` (`:294`) |
+| M2: la celda «Maestros» vuelve al bloque de `HEAD` (`705f648`): `TableCell className="wrap-anywhere"` con la línea `join(", ")` y debajo el renglón repetido de cada dado de baja con su insignia | `Tests 1 failed \| 16 skipped (17)`: `TestingLibraryElementError: Unable to find an accessible element with the role "listitem"` (`:279`) |
+
+Después de cada mutación restauré el archivo desde el respaldo. Al final:
+- el SHA-256 vuelve a `0a728b48…`;
+- `git diff` de `tabla-clases-admin.tsx` contra `HEAD` es idéntico, byte a byte, al que guardé antes de mutar (`diff` vacío).
+
+No queda ningún cambio mío en producción.
+
+**Entorno.** El orquestador me pasó que la otra copia de trabajo no estaba en uso. Antes de correr lint y la suite comprobé que no había ningún `vitest` vivo. Corrí una cosa después de otra, con corriente (`BatteryStatus` **2**, al 100 %) y sin navegadores.
+
+| Comando (desde `frontend/`) | Última línea |
+|---|---|
+| `npx prettier --write src/features/clases/clases-admin-02c-r1.ataque.test.tsx` | `src/features/clases/clases-admin-02c-r1.ataque.test.tsx 176ms` |
+| `npx vitest run src/features/clases/clases-admin-02c-r1.ataque.test.tsx -t "corta los nombres sin espacios"` | `Tests 1 passed \| 16 skipped (17)` |
+| `npm run lint` | exit 0 (`> tsc -b`; antes: `All matched files use Prettier code style!`) |
+| `npx vitest run src/components/ui src/features/clases src/features/admin src/styles src/features/calificaciones src/features/tareas` | exit 0 · `Test Files 223 passed (223)` · `Tests 5416 passed (5416)` |
+
+- La suite tiene los mismos 5416 casos que la última corrida del programador (`1 failed | 5415 passed (5416)`). El único rojo, este `*.ataque`, pasa a verde: `0 failed`, como pedía el arbitraje.
+
+**V-01.**
+- Siguen siendo 281 `*.ataque`.
+- El `diff` contra `v01-01g-r3b.txt` (`7b724b4d…`) cambia solo una línea: `frontend/src/features/clases/clases-admin-02c-r1.ataque.test.tsx` pasa de `87dae1927669b46bb52aad94db5107a5284f772fa9b29e225aace19c1a1e8def` a **`932e00de6328377355b27356ccc17bdbcdbcd6f85d13e620725d56641028bafd`**.
+- `git diff --name-only 705f648 -- '*.ataque.test.*'` lista solo ese archivo.
+- La lista está en `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\v01-cierre-h6.txt`, con SHA-256 `dc5c989f3721ddf0f77bf150a051c06fc9d5c8306d5d19e6c91579514f7ae7a1`.

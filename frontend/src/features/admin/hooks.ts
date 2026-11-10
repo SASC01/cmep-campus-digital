@@ -33,10 +33,12 @@ import { sacarDeLaCacheAlAsentar } from "@/lib/cache-de-mutaciones"
 import { api } from "@/services/apiClient"
 
 import {
+  CLAVE_ENLACES_REGISTRO,
   CLAVE_FICHAS,
   CLAVE_LISTAS_DE_USUARIOS,
   CLAVE_MOVIMIENTOS,
   CLAVE_RESUMEN_ADMIN,
+  claveRegistradosDelEnlace,
   claveTablaDeEstadoPago,
   claveTablaDeUsuarios,
   claveUsuario,
@@ -72,13 +74,6 @@ const conCursor = (limite: number, cursor?: string): string => {
   if (cursor !== undefined) parametros.set("cursor", cursor)
   return parametros.toString()
 }
-
-// ADMIN-01g, ronda 2 (T-05, T-06): las claves de las dos listas de /admin/maestros, junto a sus consultas
-// (data.ts no está en lo que esta ronda puede tocar), para que sus componentes marquen viejas y vuelvan a
-// pedir exactamente estas claves.
-export const CLAVE_ENLACES_REGISTRO = ["admin", "enlaces-registro"] as const
-export const claveRegistradosDelEnlace = (enlaceId: string) =>
-  [...CLAVE_ENLACES_REGISTRO, enlaceId, "registrados"] as const
 
 // AUTH-03b, §D-B6: lista paginada de enlaces de registro ("Cargar más enlaces"). ADMIN-01g, ronda 2 (T-04):
 // el mismo reintento que las demás consultas del módulo: un 4xx (también el 401 sin sesión) no se

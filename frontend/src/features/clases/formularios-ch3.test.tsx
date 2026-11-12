@@ -596,7 +596,7 @@ const CONTROLES: readonly Control[] = [
     envio: es("PUT", `${RUTA_CLASE}/temas/orden`),
     accionar: (envoltura) => {
       const { result } = renderHook(() => useOrdenarTemas(CLASE_ID), { wrapper: envoltura })
-      act(() => result.current.mutate([TEMA_ID]))
+      act(() => result.current.mutate({ temaIds: [TEMA_ID], temaId: TEMA_ID, control: "subir" }))
     },
   },
   {

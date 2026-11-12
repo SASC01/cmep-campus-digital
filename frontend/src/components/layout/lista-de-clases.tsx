@@ -54,7 +54,7 @@ export function ListaDeClases({ rol, navRef }: ListaDeClasesProps) {
           variant="ghost"
           size="sm"
           enEspera={clases.isFetching}
-          onClick={() => void clases.refetch()}
+          onClick={() => void clases.refetch({ cancelRefetch: false })}
           className="h-auto flex-col gap-1 px-1 py-2 text-caption"
         >
           <span className="sr-only">{TEXTOS_MARCO.errorClases}</span>{" "}

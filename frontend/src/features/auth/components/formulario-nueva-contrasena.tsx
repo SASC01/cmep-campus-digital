@@ -1,5 +1,5 @@
 import { establecerContrasenaSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { Link } from "react-router"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
@@ -61,8 +61,11 @@ export function FormularioNuevaContrasena({
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [errorConfirmacion, setErrorConfirmacion] = useState(false)
 
+  const enviandoRef = useRef(false)
+
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (nuevaContrasena.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -90,7 +93,12 @@ export function FormularioNuevaContrasena({
 
     setErrores({})
     setErrorConfirmacion(false)
-    nuevaContrasena.mutate(resultado.data)
+    enviandoRef.current = true
+    nuevaContrasena.mutate(resultado.data, {
+      onSettled: () => {
+        enviandoRef.current = false
+      },
+    })
   }
 
   if (esApiError(nuevaContrasena.error) && nuevaContrasena.error.codigo === "ENLACE_INVALIDO") {

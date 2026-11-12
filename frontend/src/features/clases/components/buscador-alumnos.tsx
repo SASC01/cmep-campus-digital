@@ -37,11 +37,18 @@ interface FilaCandidatoProps {
 // sr-only (DESIGN.md §7.9): nunca aria-label ni aria-hidden.
 function FilaCandidato({ claseId, candidato, registrarAgregar }: FilaCandidatoProps) {
   const agregar = useAgregarAlumno(claseId)
+  const agregandoRef = useRef(false)
 
   // Los avisos (éxito, "ya estaba" y error) salen de los callbacks de useAgregarAlumno (§D-C5 bis):
   // la fila puede desmontarse con el POST en vuelo.
   const handleAgregar = () => {
-    agregar.mutate(candidato.id)
+    if (agregandoRef.current) return
+    agregandoRef.current = true
+    agregar.mutate(candidato.id, {
+      onSettled: () => {
+        agregandoRef.current = false
+      },
+    })
   }
 
   return (

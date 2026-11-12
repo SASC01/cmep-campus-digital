@@ -61,11 +61,19 @@ const DIEZ: readonly (readonly [string, string])[] = [
 // isPending (§D-11, Enmienda 9). En 01f, solo el de corregir el correo.
 // ADMIN-01g ronda 0 (C-38, Enmienda 9 y Enmienda 15; filas 8 a 10 de CHORE-04): suman invitar maestro,
 // la invitación masiva y generar enlace.
+// CHORE-04 ronda 0 (C-1, §D-R0; §D-1, filas 12 a 17 de CHORE-04): suman los seis formularios de
+// features/auth; los diez llevan la ref.
 const CON_REF: ReadonlySet<string> = new Set([
   "/src/features/admin/components/formulario-corregir-correo.tsx",
   "/src/features/admin/components/formulario-invitar-maestro.tsx",
   "/src/features/admin/components/formulario-invitacion-masiva.tsx",
   "/src/features/admin/components/formulario-generar-enlace.tsx",
+  "/src/features/auth/components/formulario-login.tsx",
+  "/src/features/auth/components/formulario-registro.tsx",
+  "/src/features/auth/components/formulario-registro-maestro.tsx",
+  "/src/features/auth/components/formulario-recuperar.tsx",
+  "/src/features/auth/components/formulario-nueva-contrasena.tsx",
+  "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
 ])
 
 // ADMIN-01f ronda 0 (C-35): los formularios nuevos de 01f que pueden reiniciar su mutación

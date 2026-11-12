@@ -1,5 +1,5 @@
 import { registroMaestroSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
@@ -24,8 +24,11 @@ export function FormularioRegistroMaestro({ token }: FormularioRegistroMaestroPr
   const alta = useRegistroMaestro()
   const [errores, setErrores] = useState<ErroresFormulario>({})
 
+  const enviandoRef = useRef(false)
+
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (alta.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -44,7 +47,12 @@ export function FormularioRegistroMaestro({ token }: FormularioRegistroMaestroPr
     }
 
     setErrores({})
-    alta.mutate(resultado.data)
+    enviandoRef.current = true
+    alta.mutate(resultado.data, {
+      onSettled: () => {
+        enviandoRef.current = false
+      },
+    })
   }
 
   if (esApiError(alta.error) && alta.error.codigo === "ENLACE_INVALIDO") {

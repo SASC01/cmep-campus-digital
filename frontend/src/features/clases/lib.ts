@@ -71,6 +71,7 @@ import type {
   LimiteDeConcurrencia,
   ListaTemasRespuesta,
   MedidaDeOpcion,
+  OrdenEnVuelo,
   MedidaDelIndicador,
   MedidaDelPanel,
   PaginaDelMuro,
@@ -430,6 +431,17 @@ export const ordenTrasMover = (
   orden[destino] = temaId
   orden[indice] = vecino
   return orden
+}
+
+// CHORE-04 (§D-4): el tema y el control de las variables de un orden en vuelo, leídas de la caché de
+// mutaciones (sin tipo); cualquier otra forma no es un orden.
+export const ordenDeLasVariables = (variables: unknown): OrdenEnVuelo | null => {
+  if (typeof variables !== "object" || variables === null) return null
+  if (!("temaId" in variables) || !("control" in variables)) return null
+  const { temaId, control } = variables
+  if (typeof temaId !== "string") return null
+  if (control !== "subir" && control !== "bajar") return null
+  return { temaId, control }
 }
 
 // DESIGN.md §7.7: el cuadro de fecha (día y mes abreviado, en mayúsculas, en la zona local). Una fecha

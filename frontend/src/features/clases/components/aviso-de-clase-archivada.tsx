@@ -26,20 +26,23 @@ interface AccionesDelAdminProps {
 // clase que la tabla de /admin/clases (useRestaurarClase con claveGestionDeClase): si esa clase ya se está
 // restaurando, también desde la tabla o desde otra instancia de este aviso que se desmontó, este botón
 // espera con ella y no manda otra petición. La guarda con ref cubre los dos clics seguidos del mismo
-// render. El aviso de éxito o de error y la renovación del detalle y de las listas viven en el gancho.
+// render; guarda la clase y se suelta en el finally (CHORE-04, §D-4 bis: el aviso sobrevive al cambio de
+// clase y la clave suelta al observador). El aviso de éxito o de error y la renovación viven en el gancho.
 function AccionesDelAdmin({ claseId }: AccionesDelAdminProps) {
   const restaurar = useRestaurarClase(claseId)
   const restauracion = useGestionEnVuelo("restaurar", claseId)
-  const restaurandoRef = useRef(false)
+  const restaurandoRef = useRef<string | null>(null)
 
-  const handleRestaurar = () => {
-    if (restaurandoRef.current || restauracion.sigueEnVuelo()) return
-    restaurandoRef.current = true
-    restaurar.mutate(undefined, {
-      onSettled: () => {
-        restaurandoRef.current = false
-      },
-    })
+  const handleRestaurar = async () => {
+    if (restaurandoRef.current === claseId || restauracion.sigueEnVuelo()) return
+    restaurandoRef.current = claseId
+    try {
+      await restaurar.mutateAsync()
+    } catch {
+      // El aviso y la renovación los da useRestaurarClase.
+    } finally {
+      if (restaurandoRef.current === claseId) restaurandoRef.current = null
+    }
   }
 
   return (
@@ -48,7 +51,7 @@ function AccionesDelAdmin({ claseId }: AccionesDelAdminProps) {
         type="button"
         variant="outline"
         size="sm"
-        onClick={handleRestaurar}
+        onClick={() => void handleRestaurar()}
         enEspera={restaurar.isPending || restauracion.enVuelo}
       >
         {TEXTOS_CLASES_ADMIN.restaurar}

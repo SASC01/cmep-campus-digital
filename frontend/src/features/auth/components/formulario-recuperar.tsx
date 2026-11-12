@@ -1,5 +1,5 @@
 import { recuperarSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { Link } from "react-router"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
@@ -20,8 +20,11 @@ export function FormularioRecuperar() {
   const recuperar = useRecuperar()
   const [errores, setErrores] = useState<ErroresFormulario>({})
 
+  const enviandoRef = useRef(false)
+
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (recuperar.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -35,7 +38,12 @@ export function FormularioRecuperar() {
     }
 
     setErrores({})
-    recuperar.mutate(resultado.data)
+    enviandoRef.current = true
+    recuperar.mutate(resultado.data, {
+      onSettled: () => {
+        enviandoRef.current = false
+      },
+    })
   }
 
   if (recuperar.isSuccess) {

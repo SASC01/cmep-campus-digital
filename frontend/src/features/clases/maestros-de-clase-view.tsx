@@ -12,6 +12,7 @@ import { ListaMaestrosDeClase } from "./components/lista-maestros-de-clase"
 import { TEXTOS_MAESTROS_DE_CLASE } from "./data"
 import { useClase, useFilaEnFoco, useFocoAlPasarAError, useRetirarMaestro } from "./hooks"
 import { focoPerdido, mensajeDeConsultaClases } from "./lib"
+import type { MaestroDeLista } from "./types"
 
 interface MaestrosDeLaClaseProps {
   claseId: string
@@ -40,6 +41,22 @@ function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
     filaDelBuscadorRef.current = null
     encabezadoRef.current?.focus()
   })
+
+  // Una guarda para todas las filas: la mutación es una y `quitando` ya pone en espera cada «Sí, quitar».
+  const retirandoRef = useRef(false)
+
+  const handleQuitar = (maestro: MaestroDeLista) => {
+    if (retirandoRef.current) return
+    retirandoRef.current = true
+    retirar.mutate(
+      { id: maestro.id, nombre: maestro.nombre },
+      {
+        onSettled: () => {
+          retirandoRef.current = false
+        },
+      },
+    )
+  }
 
   if (clase.isError) {
     return (
@@ -72,7 +89,7 @@ function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
             confirmar
             quitando={retirar.isPending}
             puedeQuitar={!unico && !soloLectura}
-            onQuitar={(maestro) => retirar.mutate({ id: maestro.id, nombre: maestro.nombre })}
+            onQuitar={handleQuitar}
             alQuedarseSinDestino={() => encabezadoRef.current?.focus()}
           />
           {unico && !soloLectura && <p className="text-small">{TEXTOS_MAESTROS_DE_CLASE.minimo}</p>}

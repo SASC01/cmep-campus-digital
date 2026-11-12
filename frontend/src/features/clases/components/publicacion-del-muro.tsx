@@ -56,6 +56,18 @@ function PublicacionComun({ claseId, publicacion, perspectiva }: PublicacionDelM
     borrarBtnRef.current?.focus()
   }, [confirmando])
 
+  const borrandoRef = useRef(false)
+
+  const handleBorrar = () => {
+    if (borrandoRef.current) return
+    borrandoRef.current = true
+    borrar.mutate(publicacion.id, {
+      onSettled: () => {
+        borrandoRef.current = false
+      },
+    })
+  }
+
   return (
     <Card data-publicacion-id={publicacion.id} tabIndex={-1} className="gap-3">
       <CardContent className="flex flex-col gap-3">
@@ -121,7 +133,7 @@ function PublicacionComun({ claseId, publicacion, perspectiva }: PublicacionDelM
                 type="button"
                 variant="destructive"
                 size="sm"
-                onClick={() => borrar.mutate(publicacion.id)}
+                onClick={handleBorrar}
                 enEspera={borrar.isPending}
               >
                 {TEXTOS_PUBLICACION.siBorrar}

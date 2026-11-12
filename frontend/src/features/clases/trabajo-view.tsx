@@ -21,6 +21,7 @@ import {
   useAvisoDeRecargaFallida,
   useFilaEnFoco,
   useOrdenarTemas,
+  useOrdenDeTemasEnVuelo,
   useTemas,
   useTemasDeLaSeccion,
 } from "./hooks"
@@ -34,7 +35,7 @@ import {
   seccionesDeTrabajo,
   seccionVecina,
 } from "./lib"
-import type { ControlDeOrden, OrdenEnVuelo } from "./types"
+import type { ControlDeOrden, OrdenEnVuelo, OrdenPropioEnVuelo } from "./types"
 
 interface TrabajoDeLaClaseProps {
   claseId: string
@@ -74,20 +75,25 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   const temas = useTemasDeLaSeccion(claseId, "actividades")
   const temasEnTotal = useTemas(claseId, capacidades.gestionarTrabajo)
   const ordenar = useOrdenarTemas(claseId)
+  // CHORE-04 (§D-4, fila 29): un orden de esta clase lanzado por otra vista que ya se desmontó.
+  const ordenDeLaCache = useOrdenDeTemasEnVuelo(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const nuevoTemaRef = useRef<HTMLButtonElement>(null)
   const [creando, setCreando] = useState(false)
   // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
   // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
   if (soloLectura && creando) setCreando(false)
-  const [ordenEnVuelo, setOrdenEnVuelo] = useState<OrdenEnVuelo | null>(null)
-  const focoTrasOrdenarRef = useRef<OrdenEnVuelo | null>(null)
+  // CHORE-04 (§D-4 bis): el orden propio guarda su clase; la vista sobrevive al cambio de clase.
+  const [ordenPropio, setOrdenPropio] = useState<OrdenPropioEnVuelo | null>(null)
+  const focoTrasOrdenarRef = useRef<OrdenPropioEnVuelo | null>(null)
   // T-02 (ronda 2 de 01d1): un orden lanzado antes de pasar a solo lectura no mueve el foco al llegar.
   const { generacion, sigueVigente } = useGeneracionDeSoloLectura()
   const generacionDelOrdenRef = useRef(generacion)
   // M-01 (revisión de la ronda 1): guarda síncrona de "Subir" y "Bajar"; `ordenar.isPending` llega un
   // render después, y en esa ventana otro clic mandaría un orden calculado con la lista vieja.
-  const ordenandoRef = useRef(false)
+  // CHORE-04 (§D-4 bis): guarda la clase del orden y se suelta en el finally de mutateAsync (la clave por
+  // clase suelta al observador al cambiar de clase, y el onSettled del mutate ya no correría).
+  const ordenandoRef = useRef<string | null>(null)
   const focoAlCerrarRef = useRef(false)
   const temaEnFocoRef = useFilaEnFoco("data-tema-id")
   const clavesPrevias = useRef<string[] | undefined>(undefined)
@@ -123,6 +129,11 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   // lado.
   useEffect(() => {
     const pendiente = focoTrasOrdenarRef.current
+    // CHORE-04 (§D-4 bis): un orden de otra clase no mueve el foco en esta.
+    if (pendiente !== null && pendiente.claseId !== claseId) {
+      focoTrasOrdenarRef.current = null
+      return
+    }
     if (pendiente === null || ordenar.isPending) return
     focoTrasOrdenarRef.current = null
     if (!sigueVigente(generacionDelOrdenRef.current)) return
@@ -171,26 +182,33 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
     destino.focus()
   })
 
-  const handleOrdenar = (temaId: string, control: ControlDeOrden) => {
-    if (ordenandoRef.current || listaDeTemas === undefined) return
+  const handleOrdenar = async (temaId: string, control: ControlDeOrden) => {
+    if (ordenandoRef.current === claseId) return
+    if (ordenDeLaCache.sigueEnVuelo() || listaDeTemas === undefined) return
     const orden = ordenTrasMover(
       listaDeTemas.map(({ id }) => id),
       temaId,
       control,
     )
     if (orden === null) return
-    const enVuelo = { temaId, control }
-    setOrdenEnVuelo(enVuelo)
+    const enVuelo: OrdenPropioEnVuelo = { claseId, temaId, control }
+    setOrdenPropio(enVuelo)
     focoTrasOrdenarRef.current = enVuelo
     generacionDelOrdenRef.current = generacion
-    ordenandoRef.current = true
-    ordenar.mutate(orden, {
-      onSettled: () => {
-        ordenandoRef.current = false
-        setOrdenEnVuelo(null)
-      },
-    })
+    ordenandoRef.current = claseId
+    try {
+      await ordenar.mutateAsync({ temaIds: orden, temaId, control })
+    } catch {
+      // El aviso y la renovación los da useOrdenarTemas.
+    } finally {
+      if (ordenandoRef.current === enVuelo.claseId) ordenandoRef.current = null
+      setOrdenPropio((actual) => (actual === enVuelo ? null : actual))
+    }
   }
+
+  // El orden propio solo si es de esta clase; si no, el de la caché (otra vista lo lanzó).
+  const ordenPropioDeEstaClase = ordenPropio?.claseId === claseId ? ordenPropio : null
+  const ordenEnVuelo: OrdenEnVuelo | null = ordenPropioDeEstaClase ?? ordenDeLaCache.ordenEnVuelo
 
   const cerrarFormulario = () => {
     focoAlCerrarRef.current = true
@@ -229,7 +247,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
               esPrimero={posicion === 0}
               esUltimo={posicion === listaDeTemas.length - 1}
               ordenEnVuelo={ordenEnVuelo}
-              onOrdenar={handleOrdenar}
+              onOrdenar={(temaId, control) => void handleOrdenar(temaId, control)}
             />
           )
         })}

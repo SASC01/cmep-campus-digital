@@ -1,4 +1,5 @@
 import { CircleAlert, Lock, LogOut } from "lucide-react"
+import { useRef } from "react"
 import { Navigate } from "react-router"
 
 import { Cargando } from "@/components/cargando"
@@ -17,6 +18,18 @@ import { mensajeDeErrorAuth, rutaPorRol } from "./lib"
 export function AccesoRestringidoView() {
   const { data, isPending, isError, error } = useMe()
   const cerrarSesion = useCerrarSesion()
+
+  const cerrandoRef = useRef(false)
+
+  const handleCerrarSesion = () => {
+    if (cerrandoRef.current) return
+    cerrandoRef.current = true
+    cerrarSesion.mutate(undefined, {
+      onSettled: () => {
+        cerrandoRef.current = false
+      },
+    })
+  }
 
   if (isError) {
     return (
@@ -69,7 +82,7 @@ export function AccesoRestringidoView() {
               type="button"
               variant="outline"
               className="self-start"
-              onClick={() => cerrarSesion.mutate()}
+              onClick={handleCerrarSesion}
               enEspera={cerrarSesion.isPending}
             >
               <LogOut aria-hidden="true" />

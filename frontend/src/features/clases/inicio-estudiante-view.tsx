@@ -59,7 +59,7 @@ export function InicioEstudianteView() {
         isLoading={clases.isLoading}
         clases={filas}
         hasNextPage={clases.hasNextPage}
-        isFetchingNextPage={clases.isFetchingNextPage}
+        isFetching={clases.isFetching}
         onVerMas={() => void clases.fetchNextPage({ cancelRefetch: false })}
         accionVacio={{
           texto: TEXTOS_PANEL.accionEstudiante,

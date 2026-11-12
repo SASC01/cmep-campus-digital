@@ -12,13 +12,13 @@ Este archivo cubre **cómo se escribe el código**: estructura de módulos, regl
 
 CMEP Campus Digital es una plataforma educativa web para una sola institución. Monorepo con:
 
-- **`/frontend`** — (desplegado en Cloudflare Pages) React + Vite + TypeScript (SPA), Tailwind CSS, shadcn/ui reestilizado, TanStack Query, React Router, FullCalendar, LiveKit React
-- **`/backend`** — Node.js + Fastify + TypeScript (monolito modular), PostgreSQL con Prisma, pg-boss (cola y trabajos diferidos), autenticación propia (argon2id + JWT), archivos por protocolo S3 (R2 en `prod`, MinIO en `dev`), LiveKit Cloud, correo con Resend. Corre en Docker Compose sobre un Droplet de DigitalOcean
-- **`/infra`** — Docker Compose, Caddyfile, configuración de LiveKit, scripts de respaldo
+- **`/frontend`** — (desplegado en Cloudflare Pages) React + Vite + TypeScript (SPA), Tailwind CSS, shadcn/ui reestilizado, TanStack Query, React Router, FullCalendar
+- **`/backend`** — Node.js + Fastify + TypeScript (monolito modular), PostgreSQL con Prisma, pg-boss (cola y trabajos diferidos), autenticación propia (argon2id + JWT), archivos por protocolo S3 (R2 en `prod`, MinIO en `dev`), clases en vivo con BigBlueButton por su API (proveedor alojado), correo con Resend. Corre en Docker Compose sobre un Droplet de DigitalOcean
+- **`/infra`** — Docker Compose, Caddyfile y scripts de respaldo. El servicio `livekit` de desarrollo y `infra/livekit/` ya no se usan: los retira ENVIVO
 - **`/shared`** — tipos y esquemas zod comunes a ambos
 - **`/docs`** — `PRD.md`, `ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`, `DESIGN.md` (con su captura de referencia en `design/`)
 
-**Fase experimental. Sin AWS.** Proveedores aprobados: DigitalOcean, Cloudflare, LiveKit Cloud y Resend. Los avisos son notificaciones dentro de la plataforma; el correo está activo para cuentas y, para avisos, construido pero apagado por defecto.
+**Fase experimental. Sin AWS.** Proveedores aprobados: DigitalOcean, Cloudflare y Resend y, para clases en vivo, un proveedor alojado de BigBlueButton que el humano aprueba al contratarlo (`AGENTS.md`, regla 11). Los avisos son notificaciones dentro de la plataforma; el correo está activo para cuentas y, para avisos, construido pero apagado por defecto.
 
 Lee `docs/ARCHITECTURE-ESSENTIALS.md` al inicio de cada sesión. Abre `PRD.md` y `ARCHITECTURE.md` solo por la sección que necesites.
 
@@ -58,7 +58,7 @@ features/
 | `tareas` | Detalle de tarea, crear y editar tarea (rúbrica, adjuntos, categoría, tema, entregas tardías, cómo se entrega y recarga tras un conflicto de edición); borrar con entregas (`409` y confirmación del administrador); zona de entrega e hilo privado del alumno; entregas de una tarea y entrega de un alumno para maestro y administrador (ENTREGAS-01); panel de calificación en la entrega de un alumno (el maestro califica y devuelve, y recarga tras un conflicto; el administrador lee) y la calificación con su desglose en "Tu trabajo" (CALIFICACIONES-01) | Estudiante, Maestro, Administrador |
 | `calificaciones` | La sección "Calificaciones" de la clase (CALIFICACIONES-01): "Mis calificaciones" del alumno, con la calificación general, el filtro por estado y el modal de cálculo; el gradebook del maestro y del administrador, por ventanas de alumnos y tareas, con el resumen de la clase y los alumnos en riesgo. «Exportar a Excel» del gradebook (CALIFICACIONES-02): recorre las ventanas de `GET …/calificaciones/exportacion` y arma el .xlsx en el navegador. Calificar una entrega vive en `tareas` | Estudiante, Maestro, Administrador |
 | `calendario` | Calendario de tareas y clases en vivo | Estudiante, Maestro |
-| `envivo` | Sala (asistente y anfitrión), programar clase, grabaciones | Estudiante, Maestro |
+| `envivo` | La antesala de la clase en vivo (programar, entrar al aula de BigBlueButton con el enlace que firma la API) y las grabaciones; las salas del administrador (RF-75) las ubica el plan de ENVIVO | Estudiante, Maestro |
 | `notificaciones` | Campana con contador y panel | Estudiante, Maestro |
 | `pagos` | Estado de pago propio | Estudiante |
 | `admin` | Dashboard institucional en `/admin` (alumnos y maestros con cuenta activa, clases activas y los accesos a cada sección); gestión de usuarios en `/admin/usuarios` (tabla con buscador por nombre o correo y filtro por rol, alta de alumno con contraseña temporal, y la ficha de una cuenta en `/admin/usuarios/:usuarioId`: editar el nombre, dar de baja o reactivar, restablecer la contraseña, corregir el correo y, si es alumno, su estado de pago y su acceso); estado de pago y restricción de acceso en `/admin/estado-pago` (tabla de alumnos, cambio desde la fila y por lote); movimientos de inscripción en `/admin/movimientos`; invitar maestro, enlaces de registro de maestros e invitación masiva en `/admin/maestros` (ADMIN-01). Analytics, configuración y anuncios del login llegan con ADMIN-02 | Administrador |
@@ -93,7 +93,7 @@ features/
 - `services/calificacionesService.ts` — las claves de las calificaciones de una clase (`clavePrefijoDeCalificaciones`, `claveGradebook` y `claveMisCalificaciones`: gradebook y "Mis calificaciones"), compartidas por `features/tareas`, que las marca viejas al calificar, y `features/calificaciones`
 - `services/almacenService.ts` — sube un archivo al almacén con la URL prefirmada que dio la API (`PUT`, sin `Authorization` ni credenciales). Es el único `fetch` fuera de `apiClient`
 - `services/descargaService.ts` — `descargarArchivo`: entrega al navegador un archivo armado en la página (URL de un `Blob` y un enlace con `download`), sin red (CALIFICACIONES-02)
-- `services/liveService.ts` — conexión con LiveKit
+- `services/liveService.ts` — hoy solo comentarios con el contrato previsto para LiveKit, que ya no aplica: con BigBlueButton el navegador abre el enlace que firma la API. ENVIVO lo reescribe o lo borra
 - `app/` — rutas, layouts, guardas por rol y `FondoDeLaApp` (el fondo con orbes, montado una sola vez en `main.tsx`, fuera del router)
 - `styles/index.css` — entrada de Tailwind (`@import "tailwindcss"`), importa `tokens.css`
 - `styles/tokens.css` — tokens de diseño
@@ -102,7 +102,7 @@ features/
 
 ```
 core/        lógica pura, sin I/O ni librerías de infraestructura
-adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue (pg-boss: cola y trabajos diferidos), live (LiveKit)
+adapters/    db (Prisma), auth, storage (R2 / MinIO), notifier (canales in-app y correo con Resend), queue (pg-boss: cola y trabajos diferidos), live (BigBlueButton por su API; llega con ENVIVO)
 config/      validación de las variables de entorno con zod (env.ts) y opciones del logger (logger.ts); el único código de src/ que lee process.env. No es core/ ni adapters/
 middleware/  authenticate, withProfile, withPasswordGate, withAccess, requireRole, requireMembership, requireOwnership
 handlers/    un plugin de Fastify por dominio
@@ -257,7 +257,7 @@ const handleEntregar = async () => {
 
 ## Lo que no se hace
 
-- No uses ni propongas AWS ni ningún proveedor fuera de los aprobados (DigitalOcean, Cloudflare, LiveKit Cloud, Resend)
+- No uses ni propongas AWS ni ningún proveedor fuera de los aprobados (DigitalOcean, Cloudflare, Resend y un proveedor alojado de BigBlueButton aprobado por escrito por el humano; `AGENTS.md`, regla 11)
 - No envíes correos ni escribas notificaciones fuera de `adapters/notifier`; no uses SMTP ni otra librería de correo
 - No guardes el token de acceso en `localStorage` ni en `sessionStorage`
 - No importes Prisma fuera de `adapters/db` ni escribas consultas dentro de un ciclo

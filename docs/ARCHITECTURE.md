@@ -3,13 +3,13 @@
 > Tecnología, stack, flujos y modelo de datos. El **qué** y el **para quién** están en `PRD.md`.
 > Versión resumida para agentes: `ARCHITECTURE-ESSENTIALS.md`.
 >
-> **Versión 3 — fase experimental.** Sin AWS. Un servidor pequeño rentado, servicios de pago por uso para lo que varía, y todo reemplazable por configuración el día que el colegio tenga servidor propio. **Correo con Resend:** activo para cuentas (recuperar contraseña, alta de maestros); los avisos por correo están construidos pero apagados por defecto.
+> **Versión 3 — fase experimental.** Sin AWS. Un servidor pequeño rentado, servicios de pago por uso para archivos y un plan mensual de video que se ajusta entre periodos, y todo reemplazable por configuración el día que el colegio tenga servidor propio. **Correo con Resend:** activo para cuentas (recuperar contraseña, alta de maestros); los avisos por correo están construidos pero apagados por defecto.
 
 ## 1. Principios
 
-1. **Sin AWS y sin ataduras.** Ningún servicio de AWS. Todo proveedor externo debe poder sustituirse cambiando configuración, no código. Proveedores aprobados: **DigitalOcean** (servidor), **Cloudflare** (DNS, frontend y archivos), **LiveKit Cloud** (video) y **Resend** (correo). Cualquier otro requiere aprobación explícita.
-2. **El núcleo es portátil.** API, worker y base de datos corren en Docker Compose: lo mismo en el Droplet y, mañana, en un servidor del colegio. En `dev` la API y el worker corren en el anfitrión con `npm run dev` / `npm run dev:worker`, y solo PostgreSQL, MinIO y LiveKit van en Compose.
-3. **Piso fijo pequeño, pago por uso en lo que varía.** Un servidor mínimo de costo fijo; archivos, video y frontend solo cuestan si se usan.
+1. **Sin AWS y sin ataduras.** Ningún servicio de AWS. Todo proveedor externo debe poder sustituirse cambiando configuración, no código. Proveedores aprobados: **DigitalOcean** (servidor), **Cloudflare** (DNS, frontend y archivos), **Resend** (correo) y, para clases en vivo, **un proveedor alojado de BigBlueButton** que el humano aprueba por escrito al contratarlo (D-33). Cualquier otro requiere aprobación explícita.
+2. **El núcleo es portátil.** API, worker y base de datos corren en Docker Compose: lo mismo en el Droplet y, mañana, en un servidor del colegio. En `dev` la API y el worker corren en el anfitrión con `npm run dev` / `npm run dev:worker`, y solo PostgreSQL y MinIO se usan en Compose (el servicio `livekit` sigue en el archivo, sin uso, hasta que ENVIVO lo retire).
+3. **Piso fijo pequeño, pago por uso en lo que varía.** Un servidor mínimo de costo fijo; archivos y frontend solo cuestan si se usan; el video, un plan mensual por capacidad que se sube o se baja entre periodos sin cambiar código.
 4. **Monolito modular.** Una sola API con módulos por dominio.
 5. **Autorización en el backend, en un solo lugar.**
 6. **Lo lento va por cola.**
@@ -22,7 +22,7 @@
 
 | Capa | Tecnología | Dónde corre |
 |---|---|---|
-| Frontend | React + Vite + TypeScript (SPA) · Tailwind con tokens propios · shadcn/ui reestilizado · lucide-react · sonner · React Router · TanStack Query · FullCalendar · `@livekit/components-react` | **Cloudflare Pages** |
+| Frontend | React + Vite + TypeScript (SPA) · Tailwind con tokens propios · shadcn/ui reestilizado · lucide-react · sonner · React Router · TanStack Query · FullCalendar | **Cloudflare Pages** |
 | DNS y protección | Cloudflare (proxy, DDoS, TLS en el borde) | Cloudflare |
 | Proxy inverso y TLS de origen | Caddy | Droplet |
 | API | Node.js LTS + Fastify + TypeScript · zod | Droplet |
@@ -31,7 +31,7 @@
 | Cola y trabajos diferidos | pg-boss (sobre PostgreSQL) | Droplet |
 | Autenticación | Propia: argon2id + JWT (`jose`) + token de refresco rotativo | Droplet |
 | Archivos | Almacén compatible con S3, cliente `minio`: **Cloudflare R2** en producción, **MinIO** en desarrollo | Cloudflare / local |
-| Clases en vivo | **LiveKit Cloud** + Egress hacia R2 · `livekit-server --dev` en desarrollo | LiveKit / local |
+| Clases en vivo | **BigBlueButton** por su API, con un proveedor alojado (D-33); en desarrollo, el plan gratuito del proveedor | Proveedor alojado |
 | Notificaciones | Dentro de la plataforma (canal principal) | Droplet |
 | Correo | **Resend**, por API HTTPS, paquete `resend`. En desarrollo: canal `registro` (no envía nada) | Resend / local |
 | Logs | pino (JSON) + rotación de Docker | Droplet |
@@ -59,20 +59,20 @@ flowchart TD
     W[Worker pg-boss]
     DB[(PostgreSQL<br/>datos + cola)]
   end
-  LK[LiveKit Cloud<br/>salas + Egress]
+  BBB[Proveedor alojado<br/>de BigBlueButton]
 
   B -- campus.dominio --> PG_
   B -- api.dominio --> DNS --> C --> API
   B -- subida y descarga prefirmada --> R2
-  B -- WebRTC --> LK
+  B -- abre el aula --> BBB
   API --> DB
   API -- firma URLs --> R2
   API -- encola en la misma transacción --> DB
   DB --> W --> DB
   W -- API HTTPS --> RS[Resend<br/>correo]
-  API -- tokens y control de salas --> LK
-  LK -- grabaciones --> R2
-  LK -- webhooks --> DNS
+  API -- crea salas y firma entradas --> BBB
+  BBB -. aviso de grabación lista desde DEPLOY .-> API
+  W -. sondeo de grabaciones previsto en ENVIVO .-> BBB
   DB -. pg_dump cifrado .-> R2
 ```
 
@@ -85,7 +85,7 @@ flowchart TD
 | Frontend | Cloudflare Pages | Gratuito |
 | DNS, proxy y protección | Cloudflare | Gratuito |
 | Archivos, grabaciones y respaldos | Cloudflare R2 | Por GB almacenado, sin costo de descarga |
-| Video | LiveKit Cloud | Plan gratuito; de pago al haber uso real |
+| Video | Proveedor alojado de BigBlueButton (por contratar) | Plan mensual por capacidad simultánea (personas y salas a la vez); plan gratuito para desarrollo |
 | Correo | Resend | Plan gratuito (3,000 al mes); de pago si se encienden los avisos masivos |
 
 ### Tamaño del Droplet
@@ -109,16 +109,16 @@ Frontend y API comparten dominio registrable, condición para que la cookie de s
 
 ### Contenedores
 Producción (`infra/docker-compose.prod.yml`, pendiente de escribir): `caddy` · `api` · `worker` · `postgres`.
-Desarrollo (`infra/docker-compose.yml`, proyecto `campus-dev`): `postgres` · `minio` · `minio-init` (efímero: crea los buckets y termina) · `livekit` (modo dev). La API y el worker no van en contenedor en `dev`: corren en el anfitrión con `npm run dev` y `npm run dev:worker` desde `backend/`; el frontend, con `npm run dev` desde `frontend/`.
+Desarrollo (`infra/docker-compose.yml`, proyecto `campus-dev`): `postgres` · `minio` · `minio-init` (efímero: crea los buckets y termina) · `livekit` (modo dev; ya no se usa: lo retira ENVIVO, D-33). La API y el worker no van en contenedor en `dev`: corren en el anfitrión con `npm run dev` y `npm run dev:worker` desde `backend/`; el frontend, con `npm run dev` desde `frontend/`.
 
 ### Entornos
 | Entorno | Dónde | Notas |
 |---|---|---|
-| `dev` | Computadora del desarrollador | Todo local y sin cuentas externas. Solo datos ficticios. Los correos no se envían: el canal `registro` los escribe en el log y guarda el HTML en `backend/tmp/correos/` para revisarlos. Clases en vivo con el LiveKit local de `infra/` (`livekit-server --dev`); las grabaciones no se prueban de punta a punta en `dev` (§12, D-26) |
-| `prod` | Droplet + Cloudflare + LiveKit Cloud | Despliegue aprobado por un humano |
+| `dev` | Computadora del desarrollador | Todo local salvo el plan gratuito de video. Solo datos ficticios. Los correos no se envían: el canal `registro` los escribe en el log y guarda el HTML en `backend/tmp/correos/` para revisarlos. Clases en vivo contra el plan gratuito con API del proveedor alojado de BigBlueButton, la única cuenta externa de `dev` (datos ficticios; URL y secreto en `backend/.env`); las pruebas usan un doble y no llaman al proveedor; las grabaciones se recuperan por sondeo (§12, D-33) |
+| `prod` | Droplet + Cloudflare + proveedor alojado de BigBlueButton | Despliegue aprobado por un humano |
 
 Configuración en variables de entorno: `.env` fuera del repositorio, `.env.example` versionado. En `dev` hay un `.env` por paquete, cada uno con su `.env.example`, donde se consultan los nombres y los valores de desarrollo:
-- `infra/.env`: lo lee Docker Compose; credenciales y puertos de PostgreSQL, MinIO y LiveKit en local.
+- `infra/.env`: lo lee Docker Compose; credenciales y puertos de PostgreSQL y MinIO en local (el bloque `LIVEKIT_*` sigue, sin uso, hasta que ENVIVO lo retire).
 - `backend/.env`: lo cargan la API y el worker al arrancar y lo valida `config/env.ts`; el CLI de Prisma lo lee vía `prisma.config.ts`. Arranque de la API y conexión a la base. Debe apuntar a la base que levanta `infra/.env`: los dos archivos tienen que coincidir.
 - `frontend/.env`: lo lee Vite; dirección de la API. Ninguna variable `VITE_*` puede llevar un secreto: todas terminan en el bundle público.
 
@@ -152,7 +152,7 @@ Configuración en variables de entorno: `.env` fuera del repositorio, `.env.exam
 │       ├── server.ts       arranque de la API
 │       └── worker.ts       arranque del worker
 ├── shared/                 tipos y esquemas zod comunes
-├── infra/                  docker-compose de desarrollo, livekit/ y postgres/init/; Caddyfile, Compose de prod y scripts de respaldo, pendientes
+├── infra/                  docker-compose de desarrollo, postgres/init/ y livekit/ (sin uso; lo retira ENVIVO); Caddyfile, Compose de prod y scripts de respaldo, pendientes
 └── docs/                   PRD, arquitectura, operación y trabajo/<RF>/
 ```
 
@@ -174,7 +174,7 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 | `notifier` | Canales **in-app** (tabla `notificaciones`) y **correo** (`resend` en `prod`, `registro` en `dev` y pruebas) | Única puerta de salida de avisos y correos. Decide el canal según el tipo de aviso y la configuración; quien lo llama no sabe por dónde sale |
 | `queue` | pg-boss | Encolar eventos |
 | `scheduler` | pg-boss | Trabajos diferidos: crear, reprogramar, cancelar |
-| `live` | livekit-server-sdk | Tokens, salas, grabaciones, verificación de webhooks |
+| `live` | API de BigBlueButton por HTTP, con `checksum` (previsto, ENVIVO) | Crear o reabrir salas, emitir la entrada de cada persona, grabaciones y verificar el aviso de grabación lista |
 
 ## 6. Autenticación y autorización
 
@@ -221,7 +221,7 @@ handlers ──► middleware ──► core ──► (interfaces) ◄── ad
 - Toda ruta bajo `/api` que declare el parámetro `claseId` en cualquier posición de su URL, y todo comodín bajo `/clases` (`/clases*` y `/clases/*`, a cualquier profundidad), lleva el sexto paso; bajo `/clases/`, el único parámetro permitido en el segmento siguiente es `:claseId`. La guarda `onRoute` no deja arrancar la API si falta. El paso deja la clase y la relación del usuario con ella en la petición (`claseDe(request)`). Las consultas por un recurso de la clase (publicación, comentario, archivo) filtran además por el `claseId` de la ruta (CLASES-a). Desde CHORE-02, la guarda revisa **toda** ruta, con cualquier URL, no solo las que pueden atender `/api/*` (M-15): fuera de la lista pública, ninguna arranca sin la cadena completa, y ninguna puede tener un parámetro o un comodín en sus dos primeros segmentos (`/api/*`, `/api/:seccion/*`, `/:seccion/*`, `*`), porque atendería `/api/clases/…` sin la regla de `:claseId`.
 - Las rutas de clases del administrador (`/api/admin/clases/:claseId…`) llevan el sexto paso como cualquier otra ruta con `:claseId`: la guarda no tiene excepciones (CLASES-02, que sustituye la excepción prevista en CLASES-a, N-01).
 - Política de cada ruta en una clase archivada (ADMIN-01, DH-01; una prueba recorre `printRoutes` y falla si una ruta con `:claseId` no está en la tabla del plan): `"lectura-del-alumno"` en `GET /clases/{claseId}` y `GET …/mis-calificaciones`; `"lectura"` en las demás lecturas de la clase (personas, alumnos, publicaciones y sus comentarios, recursos, dudas y respuestas, temas, categorías, trabajo, tareas, entregas, hilos privados, gradebook y exportación) y en las tres descargas de archivos; `"gestion"` en archivar, restaurar, conteo de borrado, borrar y duplicar. Sin declarar, y por eso cerradas con `409 CLASE_ARCHIVADA`: toda escritura (también la del admin, `PUT /admin/clases/{claseId}` incluido), asignar y quitar maestros, `GET …/codigo` y `GET …/alumnos/candidatos` (solo sirven para inscribir).
-- La restricción también impide emitir tokens de LiveKit y URLs de archivos o grabaciones.
+- La restricción también impide emitir entradas a una clase en vivo y URLs de archivos o grabaciones.
 - El estado de pago de otro alumno solo se devuelve a admin, o a un maestro de una clase donde ese alumno está inscrito. Para estudiantes el campo **se omite**.
 
 ## 7. API
@@ -238,7 +238,7 @@ Fastify, un plugin por dominio, prefijo `/api`, servida en `api.<dominio>`. CORS
 | `archivos` | `POST /clases/{claseId}/archivos` (maestro de la clase y, desde CLASES-02, el administrador: registra un archivo `pendiente` y devuelve la URL prefirmada de subida) · `POST /clases/{claseId}/archivos/{archivoId}/descarga` (alumno inscrito, maestro de la clase y, desde CLASES-02, el administrador: URL prefirmada de descarga de un archivo `confirmado`). Sustituyen a `POST /archivos/subida` y `POST /archivos/descarga`. Sin almacén configurado, `503 ALMACEN_NO_CONFIGURADO`. Los adjuntos de una tarea son archivos de su publicación (TAREAS-01); ENTREGAS agrega su contexto |
 | `notificaciones` | `GET /notificaciones` · `PUT /notificaciones/{id}/leida` · `PUT /notificaciones/leidas` |
 | `calendario` | `GET /calendario?desde=&hasta=` |
-| `envivo` | `GET/POST /clases/{id}/envivo` · `POST /envivo/{id}/token` · `POST /envivo/{id}/grabacion` · `POST /webhooks/livekit` (sin JWT, firma verificada) |
+| `envivo` | Sin rutas fijadas: las fija el plan de ENVIVO. Previsto (DOCS-05): programar y listar las sesiones de una clase bajo `/clases/{claseId}/…` (sexto paso); las salas del administrador bajo `/admin/…`; «Entrar», que responde la entrada firmada (`join`) por persona y por petición; y una ruta pública sin JWT para el aviso de grabación lista, que verifica la firma con el secreto compartido, responde rápido y encola. El aviso de sesión terminada (`meetingEndedURL`) lleva un token no adivinable. |
 | `publico` | `GET /publico/anuncios` (sin JWT, caché de 60 s) |
 | `admin` | usuarios (`POST /admin/maestros` (invitación), `POST /admin/maestros/lote` (invitación masiva), `GET/POST /admin/enlaces-registro`, `POST /admin/enlaces-registro/{id}/revocar`, `GET /admin/enlaces-registro/{id}/registrados`, `POST /admin/usuarios/buscar` (solo por compatibilidad: el frontend de ADMIN-01 ya no la llama; se retira antes del primer DEPLOY), `POST /admin/usuarios/{id}/restablecer-contrasena`, `PUT /admin/usuarios/{id}/correo`) · desde ADMIN-01e (plugin `handlers/admin/usuarios.ts`): `GET /admin/usuarios?q=&rol=&estadoPago=&cursor=&cursorNombre=&limite=` (todas las cuentas; `q` de 3 a 120 caracteres normalizados busca a la vez en el nombre y en el correo parcial, `400 BUSQUEDA_MUY_CORTA` si es más corto; `estadoPago` solo con `rol=estudiante`; orden `(nombre_busqueda, id)`, de 1 a 100 (50); cursor con posición, abajo; el estado de pago, el acceso y sus fechas solo en las filas de estudiantes) · `GET /admin/usuarios/{id}` (`404 USUARIO_NO_ENCONTRADO`) · `PUT /admin/usuarios/{id}/nombre` (cualquier rol) · `PUT /admin/usuarios/{id}/activo` (baja y reactivación: `409 CUENTA_DE_ADMINISTRACION`, `409 MAESTRO_CON_CLASES`) · `POST /admin/alumnos` (alta con contraseña temporal, `Cache-Control: no-store`; `409 CORREO_EN_USO`) · `PUT /admin/alumnos/estado-pago` (por lote, de 1 a 100 alumnos; un id que no es de un alumno hace fallar todo el lote con `400 VALIDACION`) · `PUT /admin/alumnos/{id}/acceso` (restringir con motivo opcional, que revoca las sesiones, o restablecer; `409 NO_ES_ALUMNO`) · `GET /admin/resumen` (alumnos y maestros con cuenta activa y clases activas) · `GET /admin/movimientos-inscripcion?cursor=&limite=` (orden `secuencia DESC`, de 1 a 100 (50), sin filtros). Clases (CLASES-02, plugin `handlers/clases/gestion.ts`: `GET/POST /admin/clases`, `PUT /admin/clases/{claseId}`, `POST /admin/clases/{claseId}/maestros`, `DELETE /admin/clases/{claseId}/maestros/{maestroId}`, `GET /admin/maestros/candidatos?q=`; el admin inscribe, publica y borra con las rutas de `clases`) · desde ADMIN-01a y 01b: `GET /admin/clases?estado=activas|archivadas` (sin `estado`, todas, por compatibilidad; `activas` en `(creado_en DESC, id DESC)` y `archivadas` en `(archivada_en DESC, id DESC)`, con `cursorArchivadaEn`) · `POST /admin/clases/{claseId}/archivar` y `…/restaurar` (`409 CLASE_YA_ARCHIVADA` / `409 CLASE_NO_ARCHIVADA`) · `GET /admin/clases/{claseId}/conteo-de-borrado` (alumnos, actividades, entregas, calificaciones y archivos; solo de una archivada) · `DELETE /admin/clases/{claseId}?confirmar=borrar` (solo una archivada; sin `confirmar`, `409 CONFIRMACION_REQUERIDA`; con copias en curso, `409 CLASE_CON_COPIAS_EN_CURSO`; `204`) · `POST /admin/clases/{claseId}/duplicar` (`{ nombre, maestroIds }`, también desde una archivada; la copia nace activa; `201`). Pendientes para ADMIN-02 y NOTIFICACIONES: anuncios, `GET/PUT /admin/configuracion/avisos-correo` y analytics |
 | — | `GET /salud` |
@@ -268,7 +268,7 @@ La API guarda el dato y encola el evento **en la misma transacción** (pg-boss u
 | `CLASE_POR_COMENZAR` (diferido o inmediato) | Aviso a los alumnos de la clase |
 | `CORREO_DE_CUENTA` | Recuperación de contraseña o invitación de maestro: siempre por correo, nunca in-app. La invitación masiva encola un trabajo por maestro con un solo `insert` dentro de su transacción. |
 | `ENVIAR_CORREO` | Un envío individual a Resend. Los avisos con correo activado generan uno por destinatario |
-| `GRABACION_LISTA` (desde webhook) | Registra el archivo en `clases_en_vivo` |
+| `GRABACION_LISTA` (desde el aviso de grabación lista de BigBlueButton o, hasta DEPLOY, desde el sondeo) | Copia la grabación a nuestro almacenamiento y la liga a su clase y a sus vinculadas (previsto; cómo copia, R-01 de DOCS-05, lo fija ENVIVO) |
 | `LIMPIEZA_DIARIA` (cron) | Borra notificaciones de más de 90 días, sesiones y tokens vencidos, archivos `pendiente` de más de 24 h y `descartado` (el objeto y la fila) |
 | `RESPALDO_DIARIO` (cron) | `pg_dump` cifrado hacia R2 |
 | `COPIAR_OBJETOS` (ADMIN-01b) | Lo encola duplicar una clase con recursos de aprendizaje: un trabajo por cada 100 archivos nuevos (`{ archivoIds }`). El worker lee en una sola consulta las copias que siguen pendientes, copia cada objeto del lado del almacén (`copyObject`) y, después del ciclo, pone `copia_de` en nulo en las copiadas y pasa a `descartado` las que no tienen original, con una sentencia por lista. Un error del almacén se propaga después de escribir lo ya hecho, y el reintento solo copia lo pendiente. Su cola de fallidos, `COPIAR_OBJETOS_FALLIDO`, tiene consumidor: descarta las copias de ese trabajo que sigan pendientes (así una copia imposible no deja la descarga en `409` ni impide borrar las dos clases) y lo registra en `warn` |
@@ -334,6 +334,7 @@ El identificador se guarda en `trabajo_id`. **Editar o borrar la fecha obliga a 
 7. `LIMPIEZA_DIARIA`, que se construye antes de DEPLOY, borra el objeto del almacén y la fila de cada `pendiente` de más de 24 h y de cada `descartado`.
 8. Previsto (DOCS-04). Los recursos (CLASES-03) son archivos de publicaciones de tipo material, con la misma clave `materiales/{claseId}/`; los adjuntos del planteamiento de un foro son los de una tarea (FORO-01). La exportación .xlsx (CALIFICACIONES-02) no deja archivo en el servidor ni en el almacén: la API devuelve los datos en JSON por ventanas (`GET /clases/{claseId}/calificaciones/exportacion`) y el navegador arma el .xlsx con `frontend/src/lib/xlsx.ts`, sin cola ni bucket, así que cumple el punto 3 y la regla de la cola sin apartamiento (R-01 de DOCS-04, decisión del humano, 2026-10-26; D-30).
 9. Duplicar y borrar una clase (ADMIN-01b; DH-03 a, objetos propios). **Duplicar** crea en su transacción las filas de `archivos` de los recursos de aprendizaje de la copia (`confirmado`, clave `materiales/{claseNueva}/{archivoNuevo}`, mismo nombre, tipo, tamaño y `subido_por`) con `copia_de` apuntando al archivo original, y encola `COPIAR_OBJETOS`; el worker copia cada objeto con `copyObject`, del lado del almacén, sin pasar por Node (§8). Así borrar una clase nunca rompe la otra. Mientras `copia_de` no es nulo: la descarga de la clase responde `409 ARCHIVO_EN_COPIA` ("Este archivo todavía se está copiando. Inténtalo en unos minutos."; solo esa descarga: un archivo de entrega nunca es copia), ninguna de las dos clases se borra y la copia no se duplica (`409 CLASE_CON_COPIAS_EN_CURSO`); la vista previa de una imagen puede no cargar unos segundos (R-06, aceptado). Descartar un archivo que todavía se copia (borrar la publicación, quitar el adjunto al editar el recurso) pone también `copia_de` en nulo; si su `copyObject` estaba en vuelo, el objeto queda con su fila `descartado` y lo alcanzan la limpieza o el borrado de la clase (R-14). **Borrar definitivamente** lee las claves de todos los archivos de la clase, en cualquier estado, y encola `BORRAR_OBJETOS` diferido 10 minutos (§8): a esa hora toda subida firmada antes de archivar ya terminó o venció, porque en una archivada ya no se firman subidas. **Pendiente para `LIMPIEZA_DIARIA`** (R-07): no debe borrar el objeto de un archivo `descartado` que otro archivo tiene en `copia_de`.
+10. Previsto (DOCS-05). Las grabaciones se copian a `campus-privado/grabaciones/` y quedan ligadas a su clase (decisión del humano, 2026-11-11), si el proveedor entrega el video por API. Un video es un solo objeto que las clases vinculadas muestran por referencia (decisión del dueño): a diferencia de duplicar (punto 9, D-32), aquí la referencia es lo pedido. Consecuencias para ENVIVO: borrar definitivamente una clase y `LIMPIEZA_DIARIA` no pueden borrar el objeto de una grabación que otra clase muestra; el conteo del borrado distingue lo que se borra de lo que se conserva. La clave del objeto (hoy, el prefijo `grabaciones/{claseId}/` de la tabla de buckets) la fija ENVIVO, porque una grabación se muestra en varias clases y una sala del administrador no tiene clase. **Abierto:** cómo llega el video del proveedor a nuestro almacenamiento y si cabe en el punto 3 (los archivos no pasan por Node) o necesita una excepción, que decide el humano en el plan de ENVIVO.
 
 | Bucket | Prefijos | Acceso |
 |---|---|---|
@@ -342,19 +343,19 @@ El identificador se guarda en `trabajo_id`. **Editar o borrar la fecha obliga a 
 | `campus-respaldos` | `postgres/` | Solo el token de respaldos |
 
 - El bucket privado lleva una política CORS que solo admite el origen `https://campus.<dominio>`.
-- Tres tokens de R2 distintos y de mínimo privilegio: aplicación, Egress de LiveKit (solo escritura en `grabaciones/`) y respaldos.
+- Credenciales del almacén distintas y de mínimo privilegio: aplicación y respaldos. Si copiar las grabaciones necesita una credencial propia (solo escritura en `grabaciones/`), la define ENVIVO.
 - En `dev`, MinIO (`infra/docker-compose.yml`) crea solo `campus-privado` (sin acceso anónimo) y `campus-publico` (lectura anónima); `campus-respaldos` existe solo en `prod`, en R2. El almacén de desarrollo es reemplazable por cualquier otro compatible con S3 (riesgo 10 de la sección 19). Cambiar de almacén es cambiar `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY` y `STORAGE_SECRET_KEY`.
 
 ## 12. Clases en vivo
 
-- **LiveKit Cloud en `prod`; LiveKit local en `dev`.** En desarrollo, las clases en vivo usan el LiveKit de `infra/` (`livekit-server --dev`). LiveKit Cloud se conecta en el encargo DEPLOY, y el cambio es solo de configuración: URL, llaves, destino de las grabaciones y URL pública del webhook (D-26). La API genera el token de acceso tras toda la cadena de middleware; las llaves viven solo en el `.env` del servidor.
-- El maestro publica video, audio y pantalla; el alumno entra en **modo webinar** (cámara y micrófono apagados por defecto) y usa el chat.
-- El chat viaja por canales de datos de LiveKit; no toca el backend.
-- Grabación con Egress de LiveKit Cloud, que sube el archivo por protocolo S3 a `campus-privado/grabaciones/{claseId}/` en R2. El webhook `egress_ended` encola `GRABACION_LISTA`. *La compatibilidad Egress → R2 se valida en la primera prueba de grabación; la alternativa es cualquier otro almacén S3.*
-- **Grabaciones en desarrollo.** No se prueban de punta a punta en `dev`: el entorno local no tiene Egress hacia R2 ni una URL pública para el webhook. En el encargo ENVIVO, el código de grabación se escribe y se prueba con dobles, y el botón de grabar queda detrás de un interruptor de configuración: desactivado en `dev`, con el texto "Grabación disponible solo en el servidor". La primera grabación real se verifica en DEPLOY (§18, D-26).
-- **Control de cupo** configurable según el plan: participantes y grabaciones simultáneas → `SALA_LLENA` / `SIN_CUPO_DE_GRABACION`.
-- **Plan gratuito (Build):** 100 participantes simultáneos, 2 grabaciones simultáneas, 60 minutos de transcodificación y 5,000 minutos-participante al mes, con tope duro. Suficiente para la fase experimental. Verificar cuotas vigentes antes de un uso mayor.
-- **Ruta de salida:** `adapters/live` usa el SDK estándar. Autoalojar LiveKit es cambiar `LIVEKIT_URL` y las llaves.
+- **BigBlueButton por su API, con un proveedor alojado** (D-33; decisión del humano con el cliente, 2026-11-11). El proveedor concreto se aprueba por escrito al contratarlo; el candidato no ha confirmado que entregue la URL y el secreto de la API (`docs/trabajo/ENVIVO-investigacion-bigbluebutton.md`, §9). La API es la misma contra un proveedor alojado, un servidor propio o uno del colegio: cambiar es cambiar la URL y el secreto (`BBB_URL` y `BBB_SECRET`, nombres previstos). Zoom queda como alternativa registrada (otra implementación del adaptador, no un cambio de configuración); LiveKit se descartó porque obligaba a construir el aula.
+- **Lo que no cambia:** la API emite la entrada de cada persona tras toda la cadena de middleware y la pertenencia a la clase; el secreto vive solo en el `.env` del backend, nunca en el frontend ni en los logs; un alumno restringido no recibe entrada ni grabaciones; una clase archivada no abre sesiones; el trabajo diferido `CLASE_POR_COMENZAR` (§10), cuyo aviso llega con NOTIFICACIONES, que se publica después de DEPLOY (`docs/ESTADO.md` 2b): la plataforma sale a producción sin ese aviso.
+- **El aula es de BigBlueButton.** El navegador abre el cliente de BigBlueButton con el enlace firmado que responde la API (`join`, con nuestro id, el nombre y el rol `MODERATOR` o `VIEWER`). Chat, pizarra, láminas, encuestas y grupos son suyos; no hay canales de datos nuestros. Nuestra interfaz es la antesala: programar, entrar y la lista de grabaciones.
+- **Grabaciones** (decisiones del humano y del dueño, 2026-11-11): se copian a nuestro almacenamiento y quedan ligadas a su clase, si el proveedor entrega el video por API; un solo objeto, que las clases vinculadas muestran por referencia y reciben en cuanto está listo; nada se borra automáticamente y solo el administrador las borra (§11, punto 10). El aviso de grabación lista (`meta_bbb-recording-ready-url`: un POST con un JWT HS256 firmado con el secreto compartido) encola `GRABACION_LISTA`; necesita una URL pública, así que se conecta en DEPLOY. Hasta entonces, las grabaciones se recuperan por sondeo (`getRecordings`, paginado) (hoja de ruta del 2026-11-11).
+- **Desarrollo:** sin servidor local de video. Se desarrolla contra el plan gratuito con API del proveedor (una sala y pocos usuarios bastan hasta la subentrega de grabaciones) y las pruebas usan un doble del adaptador, sin llamar al proveedor. El servicio `livekit` de `infra/docker-compose.yml` y `infra/livekit/` siguen en el repositorio, sin uso, hasta que ENVIVO los retire.
+- **Cupo:** el plan se elige por el pico de personas conectadas a la vez, sin confirmar todavía (PRD, pregunta 7); algunos proveedores limitan también las salas a la vez. El cupo por sala y lo que ve el alumno con la sala llena los decide ENVIVO (RNF-06).
+- **Previsto (DOCS-05), no decidido: lo fija el plan de ENVIVO** (entrada de la investigación, §4): un puerto propio en `core/` con tres operaciones (crear o reabrir la sala de una sesión, emitir la entrada de una persona con su rol, resolver una grabación lista), sin que `core/` conozca a BigBlueButton; `adapters/live` con la firma de las llamadas, el XML de respuesta y la verificación del aviso; `meetingID` propio y no adivinable; `create` idempotente; la entrada emitida justo al pulsar «Entrar», sin mostrarla, como mitigación del enlace reenviable.
+- **Abierto (PRD, preguntas 18 a 22):** pestaña nueva o aula embebida; grabación automática o controlada por el maestro (RF-41); modo webinar o dar la palabra; cupo por sala; para qué son las salas del administrador y quién entra; las preguntas de clases vinculadas; cómo llega una grabación a nuestro almacenamiento, si cabe en §11 punto 3 o necesita una excepción que decide el humano; y las preguntas al proveedor.
 
 ## 13. Notificaciones
 
@@ -425,7 +426,7 @@ erDiagram
 | `comentarios` | `id`, `publicacion_id` (admite nulo desde ENTREGAS-01a), `entrega_id` (FK `CASCADE`; ENTREGAS-01a), `duda_id` (FK `CASCADE`; CLASES-03b), `autor_id`, `texto` | índices `(publicacion_id, creado_en, id)`, `(entrega_id, creado_en, id)` y `(duda_id, creado_en, id)` · `CHECK comentarios_un_solo_contexto`: exactamente un contexto entre `publicacion_id`, `entrega_id` y `duda_id` (CLASES-03b, mismo nombre). Al comentar, la publicación se lee `FOR SHARE` en la misma transacción; al responder una duda, la duda se lee `FOR SHARE` |
 | `dudas` | `id`, `clase_id` (FK `CASCADE`), `autor_id` (FK `RESTRICT`), `texto`, `resuelta_en`, `resuelta_por` (FK `RESTRICT`), `creado_en`, `actualizado_en` | índice `(clase_id, creado_en DESC, id DESC)` · `CHECK dudas_resuelta_completa`: `resuelta_en` y `resuelta_por` juntos · sus respuestas son `comentarios` con `duda_id`, que se borran con ella · `resuelta_por` nunca sale en una respuesta · borrar una duda toma primero su fila `FOR UPDATE`, así queda en serie con una respuesta en curso (CLASES-03b) |
 | `notificaciones` | `id`, `usuario_id`, `evento_id`, `tipo`, `mensaje`, `enlace`, `leida` | único `(usuario_id, evento_id)` · índice `(usuario_id, creado_en DESC)` · parcial `WHERE leida = false` |
-| `clases_en_vivo` | `id`, `clase_id`, `titulo`, `fecha_inicio`, `estado`, `sala`, `grabando`, `egress_id`, `clave_grabacion`, `trabajo_id` | índices `(clase_id, fecha_inicio)` y `(estado)` |
+| `clases_en_vivo` | `id`, `clase_id`, `titulo`, `fecha_inicio`, `estado`, `trabajo_id` (sin migrar; las columnas de grabación del diseño con LiveKit se quitaron: ver «Previsto (DOCS-05)») | índices `(clase_id, fecha_inicio)` y `(estado)` |
 | `anuncios_login` | `id`, `titulo`, `texto`, `archivo_id`, `orden`, `activo` | índice `(activo, orden)` |
 | `configuracion` | `clave`, `valor` (jsonb), `actualizado_por` | PK `clave`. Guarda, entre otros, los interruptores de avisos por correo |
 
@@ -440,6 +441,12 @@ Las tablas de pg-boss viven en su propio esquema (`pgboss`) y no se tocan a mano
 | `participaciones_foro` | FORO-01 | `id`, `tarea_id` (FK `CASCADE`), `autor_id`, `padre_id` (nulo en la principal), `texto`, `creado_en`; único parcial `(tarea_id, autor_id) WHERE padre_id IS NULL` para la participación principal; índice `(tarea_id, creado_en, id)`. El estado, el retraso y la calificación del alumno siguen en su fila de `entregas` (la principal fija `fecha_entrega`), así el gradebook, "Mis calificaciones" y el riesgo no cambian de consulta |
 | Exportación .xlsx | CALIFICACIONES-02 | Sin tabla. Se calcula con las consultas agregadas del gradebook y la API la devuelve en JSON (nombre y correo del alumno; nunca estado de pago ni restricción); el navegador arma el .xlsx y nada pasa por el almacén (R-01 y P-13 de DOCS-04, decisiones del humano, 2026-10-26). El .xlsx lo arma un escritor propio del frontend (`lib/xlsx.ts`), sin dependencia nueva (DH-01 de CALIFICACIONES-02); la ruta pagina por ventanas de hasta 100 × 100 (DH-02). Nada fuera de los proveedores aprobados |
 | Exámenes | EXAMENES-01 y 02 | Sin modelo hasta que el cliente los confirme |
+| Previsto (DOCS-05) | ENVIVO | Borrador de la investigación (§4.5 y §4.7); lo decide ENVIVO |
+| `sesiones_en_vivo` | ENVIVO | `clase_id` opcional, nulo en una sala del administrador; quién la creó, título, inicio y fin programados, `meeting_id` propio y no adivinable, estado |
+| `grabaciones` | ENVIVO | El archivo, la sesión de origen, fecha de grabación, duración y tamaño |
+| `grabaciones_de_clase` | ENVIVO | Qué clases muestran cada grabación; se escribe al procesar `GRABACION_LISTA` para la clase de origen y sus vinculadas en la misma transacción |
+| Vínculo entre clases | ENVIVO | La clase que recibe y la de origen |
+| Invitados de una sala del administrador | ENVIVO | Por definir (PRD, pregunta 19) |
 
 ### Reglas de acceso a datos
 - **Prisma solo dentro de `adapters/db`.**
@@ -468,7 +475,7 @@ Supuesto de diseño: 2,000 usuarios simultáneos, ~450 req/s. **El Droplet exper
 | Login (argon2id) | ~35 logins/s en ráfaga | Costoso a propósito: ~50–100 ms de CPU cada uno | Vigilar; el límite de intentos protege |
 | Worker | Ráfagas de cientos de notificaciones y, si se activan, de correos | Inserciones por lote; correos limitados por el ritmo del proveedor | Sobrado; los correos masivos pueden tardar minutos |
 | R2 | Cientos de subidas cerca de una fecha límite | No pasa por nuestro servidor | Sobrado |
-| LiveKit Cloud | Varias clases simultáneas | Limitado por las **cuotas del plan** | **Cuello de botella: depende de presupuesto** |
+| Proveedor alojado de BigBlueButton | 200 alumnos en un día pesado, en aulas de 40 o menos, más hasta 16 maestros y el administrador; el pico a la vez está sin confirmar | Limitado por el plan contratado (personas y salas a la vez; los proveedores consultados limitan cada sesión a 100 o 150) | **Cuello de botella: depende de presupuesto**; el plan se elige por el pico |
 
 Escalado, en este orden y solo si las métricas lo piden: redimensionar el Droplet → PostgreSQL a su propia máquina o servicio gestionado → segunda instancia de la API (no guarda estado).
 
@@ -481,7 +488,7 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 - URLs prefirmadas de 5 minutos. La de subida no fija el tipo ni el tamaño (R2 no admite `POST` con política): antes de confirmar, la API compara el objeto real con lo declarado (`statObject`); la descarga fuerza el tipo declarado y `attachment`; y solo el maestro dueño sube. Un objeto reescrito mientras la URL sigue vigente es un riesgo residual aceptado (CLASES-01, R-03), que se vigila en DEPLOY. Buckets privados salvo `campus-publico`.
 - Los enlaces de recuperación e invitación son de un solo uso, caducan y se guardan solo como hash. Las respuestas de `/auth/recuperar` no revelan si un correo existe.
 - Las contraseñas temporales se muestran una sola vez, se guardan solo como hash y obligan al cambio inmediato.
-- El webhook de LiveKit verifica la firma.
+- Clases en vivo (previsto, ENVIVO): las llamadas a la API de BigBlueButton llevan `checksum` con SHA-256 o superior; el aviso de grabación lista verifica su firma (JWT HS256 con el secreto compartido); el de sesión terminada lleva un token no adivinable y va por HTTPS. El enlace de entrada se puede reenviar: la mitigación la decide ENVIVO.
 - Secretos solo en `.env` del servidor (permisos `600`) y en los secretos del repositorio para CI.
 - Logs sin contraseñas, tokens ni datos de pago.
 
@@ -513,7 +520,7 @@ Escalado, en este orden y solo si las métricas lo piden: redimensionar el Dropl
 2. Al fusionar, construye la imagen y la publica en el registro de contenedores de GitHub.
 3. En el Droplet, con aprobación humana: `docker compose pull` → `npx prisma migrate deploy` → `docker compose up -d`.
    Pendiente para el encargo de despliegue, con Prisma 7: `migrate deploy` necesita, en la imagen o en un contenedor de migración aparte, `backend/prisma.config.ts`, `backend/prisma/schema.prisma`, `backend/prisma/migrations/` y el CLI `prisma` (hoy devDependency); `DATABASE_URL` llega del entorno (`prisma.config.ts` solo carga `.env` si existe). `prisma generate` en la etapa de build también exige una `DATABASE_URL`, aunque no se conecte, porque `env()` de `prisma/config` se evalúa al cargar el archivo: basta un valor de relleno sin secreto. Y `package-lock.json` no marca el CLI como `dev`: `node_modules/prisma` figura como `peer` (además de `devOptional`) por el par opcional `prisma *` que declara `@prisma/client`, y sus dependencias (`mysql2`, `postgres`, `@prisma/dev`, `@prisma/studio-core`) solo como `devOptional`; el encargo de despliegue debe comprobar con un `npm ci` real qué instala `--omit=dev` en la imagen y cómo aislar el CLI (imagen de build o contenedor de migración aparte).
-4. Verificación: `/salud` y una prueba de humo del login. En el encargo DEPLOY, además, dos verificaciones de punta a punta con servicios reales: un correo de recuperación de contraseña que llegue a la bandeja de entrada, y una grabación completa de una clase en vivo que llegue a R2 y aparezca en la lista del alumno (D-26).
+4. Verificación: `/salud` y una prueba de humo del login. En el encargo DEPLOY, además, dos verificaciones de punta a punta con servicios reales: un correo de recuperación de contraseña que llegue a la bandeja de entrada (D-26), y una grabación completa de una clase en vivo que llegue a nuestro almacenamiento por el aviso de grabación lista y aparezca en la lista del alumno (D-33).
 5. Reversión: etiqueta anterior de la imagen. **Las migraciones se escriben compatibles hacia atrás** (agregar antes de quitar), porque el frontend y el backend se despliegan por separado y pueden convivir versiones distintas unos minutos.
 
 ### Requisitos previos a abrir la plataforma
@@ -527,9 +534,9 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 - `seed:admin` ejecutable desde `dist/` (AUTH-01).
 - Imagen o contenedor de migración con `prisma.config.ts`, `prisma/` y el CLI; `DATABASE_URL` de relleno para `prisma generate` en el build; comprobar con un `npm ci` real qué instala `--omit=dev` (paso 3 de esta sección; DOCS-01, CHORE-01).
 - CI con Docker para Testcontainers; en el CI, Ryuk también publica su puerto en todas las interfaces (CHORE-01).
-- Conectar LiveKit Cloud por configuración (URL, llaves, destino de las grabaciones y URL pública del webhook) y activar el interruptor de grabación en `prod` (DOCS-02a, D-26).
+- Para salir a producción con clases en vivo: la cuenta del proveedor de BigBlueButton contratada a nombre del colegio (el gasto, pendiente de aprobación del cliente), su URL y su secreto en el `.env` del servidor, y el aviso de grabación lista conectado a la URL pública de la API (hasta entonces, sondeo) (DOCS-05, D-33).
 - Verificación de punta a punta con servicios reales: un correo de recuperación de contraseña que llegue a la bandeja de entrada (DOCS-02a, D-26).
-- Verificación de punta a punta con servicios reales: una grabación completa de una clase en vivo que llegue a R2 y aparezca en la lista del alumno (DOCS-02a, D-26).
+- Verificación de punta a punta con servicios reales: una grabación completa de una clase en vivo que llegue a nuestro almacenamiento y aparezca en la lista del alumno (DOCS-05, D-33).
 - Worker en `prod` con `RESEND_API_KEY`, `CORREO_REMITENTE` de un dominio verificado en Resend (el worker rechaza en `production` el remitente de ejemplo `@campus.local`) y `URL_PUBLICA_FRONTEND` con `https://` (AUTH-02).
 - Archivos de entorno separados para la API y el worker: son la misma imagen, y solo el worker debe recibir `RESEND_API_KEY` y las variables de correo (mínimo privilegio) (AUTH-02).
 - La API y el worker necesitan PostgreSQL para arrancar (pg-boss): sus servicios de Compose llevan `depends_on: postgres: condition: service_healthy` (el `healthcheck` de `postgres` ya existe en `infra/docker-compose.yml`) (AUTH-02).
@@ -548,13 +555,14 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 4. Apuntar `api.<dominio>` a la nueva IP en Cloudflare.
 5. Archivos: se quedan en R2, o se sincronizan a un MinIO local y se cambian tres variables.
 6. Frontend: se queda en Pages, o lo sirve Caddy desde el mismo servidor.
+7. Clases en vivo: se quedan con el proveedor alojado, o se apunta a un servidor de BigBlueButton propio cambiando la URL y el secreto; ese servidor es dedicado y no comparte máquina con la API (`docs/trabajo/ENVIVO-investigacion-bigbluebutton.md`, §6).
 
 ## 19. Riesgos técnicos
 
 1. **Correos no verificados.** Un alumno que escribió mal su correo no recibirá el enlace de recuperación; para eso existe el respaldo del Administrador. Con los avisos por correo apagados, un aviso solo se ve si el usuario entra a la plataforma.
 1b. **Entregabilidad:** depende de que SPF, DKIM y DMARC estén bien configurados en el dominio del colegio.
 2. **Operación propia del Droplet:** respaldos, disco y parches.
-3. **Clases en vivo:** cuotas del plan, redes de usuarios que bloqueen WebRTC, permisos de cámara y la subida de grabaciones de Egress a R2.
+3. **Clases en vivo:** proveedor alojado sin probar (prueba piloto antes de contratar), con ubicación de servidores y latencia sin verificar; alumnos en celular sin app nativa; enlaces de entrada que se pueden reenviar; y la copia de las grabaciones a nuestro almacenamiento, que depende de que el proveedor entregue el video por API.
 4. **Autenticación propia:** más superficie de error que un servicio administrado. Mitigación: diseño de la sección 6 sin atajos y pruebas adversarias en cada cambio.
 5. **Un solo servidor = un solo punto de falla.** Aceptable con respaldos probados.
 6. **Frontend y backend desplegados por separado:** versiones desalineadas por minutos. Mitigación: cambios de API compatibles hacia atrás.
@@ -577,7 +585,7 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 | D-07 | pg-boss | Redis + BullMQ | La cola vive en PostgreSQL: transaccional y un servicio menos |
 | D-08 | **Correo con Resend por API HTTPS.** Correos de cuenta siempre activos; avisos por correo construidos y apagados por defecto | SNS · SMTP del colegio · sin correo | El colegio solo usa Gmail y DigitalOcean bloquea SMTP; una API con dominio propio resuelve ambas cosas. Sin correo, recuperar contraseñas y dar de alta maestros dependía por completo del Administrador |
 | D-09 | Archivos en Cloudflare R2 con URLs prefirmadas; MinIO en desarrollo | MinIO en el servidor · Spaces | Pago por GB, descargas sin costo, nada que operar; mismo protocolo que MinIO |
-| D-10 | LiveKit Cloud | LiveKit autoalojado | Evita operar un servidor de video; la migración es de configuración |
+| D-10 | **Sustituida por D-33 (DOCS-05, 2026-11-11).** LiveKit Cloud | LiveKit autoalojado | Evita operar un servidor de video; la migración es de configuración |
 | D-11 | Caddy | Nginx + certbot | Configuración mínima |
 | D-12 | Docker Compose | Kubernetes · plataformas gestionadas | Idéntico en local, en el Droplet y en un servidor propio |
 | D-13 | React + Vite (SPA) | Next.js | Sin SEO ni SSR que justificar |
@@ -593,10 +601,11 @@ Los trae el encargo DEPLOY antes de abrir la plataforma a alumnos. Entre parént
 | D-23 | Imágenes de MinIO para `dev` desde `quay.io`, con etiqueta fija; `quay.io` no cuenta como proveedor del proyecto | MinIO desde Docker Hub (ya no disponible) · otro almacén S3 local | Docker Hub niega la descarga de `minio/minio` y `minio/mc`; es solo el registro de una herramienta local y el almacén de `dev` sigue siendo reemplazable por configuración. Decisión escrita del humano en INFRA-01 |
 | D-24 | Prisma 7 con generador `prisma-client`, `@prisma/adapter-pg` y `pg`; cliente generado en `adapters/db/generated/`, no versionado | Prisma 6 con `prisma-client-js` y motor de consultas nativo | Última línea estable; sin motor nativo en la API ni en el worker, el adaptador habla con PostgreSQL a través de `pg`. Decidido en BACK-01 y aplicado en BACK-02 |
 | D-25 | Pruebas de integración contra un PostgreSQL desechable por corrida con Testcontainers (imagen fijada de `infra/`, `migrate deploy` al iniciar, un administrador sembrado con `seed:admin`); la imagen `testcontainers/ryuk` de Docker Hub es una herramienta local y no cuenta como proveedor | PostgreSQL de `infra/` (`campus_dev`) · un contenedor por archivo | Las pruebas escribían en la base de desarrollo; un contenedor por corrida aísla los datos sin multiplicar el tiempo de la suite. Acordado en M-05 de AUTH-01 y aplicado en CHORE-01 |
-| D-26 | Clases en vivo en `dev` con el LiveKit local de `infra/`; LiveKit Cloud se conecta en el encargo DEPLOY por configuración (URL, llaves, destino de grabaciones, URL pública del webhook). Las grabaciones no se prueban de punta a punta en `dev`: su código se prueba con dobles y el botón de grabar va detrás de un interruptor de configuración, desactivado en `dev` ("Grabación disponible solo en el servidor"). DEPLOY verifica con servicios reales un correo de recuperación en la bandeja de entrada y una grabación completa en R2 y en la lista del alumno | Un proyecto de LiveKit Cloud para `dev` · probar grabaciones de punta a punta desde `dev` | El LiveKit local ya corre en `infra/` sin cuentas externas; Egress hacia R2 y el webhook necesitan servicios reales y una URL pública que solo existen al desplegar |
+| D-26 | **Sustituida por D-33 (DOCS-05, 2026-11-11) en lo de clases en vivo; sigue vigente la verificación del correo de recuperación en DEPLOY.** Clases en vivo en `dev` con el LiveKit local de `infra/`; LiveKit Cloud se conecta en el encargo DEPLOY por configuración (URL, llaves, destino de grabaciones, URL pública del webhook). Las grabaciones no se prueban de punta a punta en `dev`: su código se prueba con dobles y el botón de grabar va detrás de un interruptor de configuración, desactivado en `dev` ("Grabación disponible solo en el servidor"). DEPLOY verifica con servicios reales un correo de recuperación en la bandeja de entrada y una grabación completa en R2 y en la lista del alumno | Un proyecto de LiveKit Cloud para `dev` · probar grabaciones de punta a punta desde `dev` | El LiveKit local ya corre en `infra/` sin cuentas externas; Egress hacia R2 y el webhook necesitan servicios reales y una URL pública que solo existen al desplegar |
 | D-27 | Token de enlace de cuenta derivado de su id con HMAC (clave HKDF de `JWT_SECRET`); la cola solo lleva el id | Token aleatorio dentro de los datos del trabajo | El token no queda en claro en `pgboss.job` ni en los respaldos (regla 13) y los reintentos reenvían el mismo enlace. El id del token no es secreto (sale en los logs como `trabajoId`): la seguridad descansa en la clave, y filtrar `JWT_SECRET` ya es un compromiso total. Decidido en AUTH-02 |
 | D-28 | **Dirección visual D3, "Vidrio líquido con fondo flotante":** paneles de vidrio translúcido sobre un fondo claro con tres orbes de color en movimiento lento, con reglas de legibilidad (el texto siempre sobre vidrio o sólido, opacidad mínima del 60 %, AA contra el peor caso), de movimiento (solo `transform`, quietos con `prefers-reduced-motion` y respaldo sólido sin `backdrop-filter`) y de alcance (orbes en movimiento solo en el login y en el inicio de estudiante y maestro; sin vidrio en pantallas densas). Sistema completo en `docs/DESIGN.md`; referencia en `docs/design/referencia-direccion-d3.png`. Decisión del humano del 2026-09-27; reemplaza a la dirección C del 2026-09-26 | A · B · C (papel crema, tinta y superficies planas con bordes, sin sombras en la página; captura en `docs/design/referencia-direccion-c.png`) · D · D2 | Decisión del humano. De C se conservan el azul real como acción principal (nunca tinta), la tinta del texto, el verde pino, las tipografías, el borde tinta de los campos y el tono. Las direcciones A, B, D y D2 no están descritas en el repositorio |
 | D-29 | **Clases administradas y de uno a dos maestros.** Solo el administrador crea clases, edita su nombre y descripción y asigna de uno a dos maestros (`maestros_de_clase`), que cambia en cualquier momento; inscriben el administrador y los maestros, y el código de invitación se conserva. Regla general de autoría: cada autor borra solo lo suyo, un maestro nunca borra ni edita lo del administrador, y el administrador borra cualquier publicación o comentario; lo suyo se firma "Administración" sin nombre de persona. El administrador alcanza cualquier clase, incluido su muro. Decisión del humano del 2026-10-02; se implementa en CLASES-02 | Un solo maestro dueño que crea sus clases (modelo de CLASES-01) · co-docencia sin tope | La institución controla el catálogo de clases y quién las imparte; dos maestros cubren la co-docencia real sin complicar la autorización; la autoría con el administrador por encima evita que un maestro borre comunicados institucionales |
 | D-30 | **Cambio de alcance antes de ADMIN (DOCS-04).** La clase se organiza en siete secciones (Avisos, Actividades de aprendizaje, Foro, Recursos, Dudas, Personas, Calificaciones); "actividad" es lo que se califica (tarea, foro y, por confirmar, examen), y el foro se plantea, se califica y pondera como una tarea; recursos en dos bloques con la autoría vigente; dudas como hilo abierto de la clase; exportar las calificaciones a .xlsx, sin servicio externo; archivar, restaurar, borrar y duplicar clases, solo el administrador. Exámenes (EXAMENES-01 y EXAMENES-02) registrados en el hito 3, pendientes por confirmar. ENVIVO sin cambios. Decisión del humano del 2026-10-26, con el cliente: el alcance y el orden de los encargos (`docs/ESTADO.md`, 2b). Requisitos RF-60 a RF-74 y RN-08 a RN-11 del PRD; preguntas abiertas en `docs/trabajo/DOCS-04-nuevos-requisitos/plan.md`. **Previsión del arquitecto, no decidida:** que el foro reutilice la fila de `tareas` y la de `entregas` (§14; a decidir en el plan de FORO-01, que también pesa la alternativa de una tabla aparte). **Exportación, decidida por el humano el 2026-10-26 (R-01 y P-13 de DOCS-04):** la API devuelve JSON y el navegador arma el .xlsx (§11 punto 8), con nombre y correo del alumno y nunca estado de pago ni restricción; el .xlsx lo arma `frontend/src/lib/xlsx.ts`, sin dependencia nueva (DH-01 de CALIFICACIONES-02, decisión del humano) | Seguir con ADMIN tal como estaba · exportar con un servicio externo | Decisión de producto. Un servicio externo para la exportación rompería la regla de proveedores. La previsión de reutilizar `tareas` y `entregas` para el foro busca una sola forma de calificar, ponderar y calcular el riesgo; es del arquitecto y la confirma FORO-01 |
 | D-31 | **Concepto "Materia", anotado como alternativa futura a duplicar; no se implementa.** Una materia sería un molde administrado por el administrador (nombre, descripción, recursos de aprendizaje, temas y, si se decide, categorías) del que nacen las clases (grupos) de cada periodo; cambiar el molde podría alcanzar a sus grupos. Hoy se duplica una clase (RF-71, ADMIN-01), que copia lo mismo una sola vez y deja las dos independientes. Pedido por el humano el 2026-10-26 (DOCS-04) | Implementar "Materia" ya, en lugar de duplicar | Duplicar resuelve el caso del cliente con una tabla menos y sin la pregunta de cómo se propagan los cambios del molde. Si el colegio repite las mismas materias cada periodo y mantener copias se vuelve costoso, se planea "Materia" como encargo propio (tabla `materias`, `clases.materia_id`, recursos del molde y su propagación) |
 | D-32 | **Duplicar una clase con archivos: objetos propios, copiados del lado del almacén** (DH-03 a de ADMIN-01: la recomendada, cerrada por el manager con el plan que aprobó el humano el 2026-11-04). La copia tiene sus propias filas de `archivos` y sus propios objetos (`materiales/{claseNueva}/{archivoNuevo}`); `archivos.copia_de` marca la copia en curso y el worker de `COPIAR_OBJETOS` copia con `copyObject`, sin pasar por Node. Mientras dura, la descarga responde `409 ARCHIVO_EN_COPIA` y ninguna de las dos clases se borra; la cola de fallidos descarta las copias que nunca terminan | Copiar los recursos sin sus archivos · compartir objetos con un conteo de referencias | Con objetos propios, borrar una de las dos clases nunca rompe la otra (§11, punto 8 de DOCS-04); el conteo de referencias suma estado y una limpieza que sepa contar. Copiar del lado del almacén cumple "los archivos nunca pasan por Node" |
+| D-33 | **Clases en vivo con BigBlueButton por su API, con un proveedor alojado** (decisión del humano con el cliente, 2026-11-11; DOCS-05). Sustituye a D-10 y, en lo de clases en vivo, a D-26 (la verificación del correo de recuperación en DEPLOY sigue en D-26). La API crea las salas y firma la entrada de cada persona; el aula, el chat y la pizarra son de BigBlueButton. Decisiones del humano y del dueño del mismo día: las grabaciones se copian a nuestro almacenamiento y quedan ligadas a su clase; un video es un solo archivo que las clases vinculadas muestran por referencia y reciben en cuanto está listo; nada se borra automáticamente y solo el administrador borra grabaciones. En `dev`, el plan gratuito del proveedor; el aviso de grabación lista espera a DEPLOY y, mientras tanto, las grabaciones se recuperan por sondeo. El proveedor concreto está por contratar (candidato sin verificar); las preguntas abiertas, en el PRD (18 a 22) y en `docs/trabajo/ENVIVO-investigacion-bigbluebutton.md` | Zoom Pro (queda como alternativa registrada, si la prueba piloto sale mal o el colegio prefiere no depender de un proveedor chico; sería otra implementación del adaptador) · LiveKit Cloud o autoalojado (D-10) · BigBlueButton en un servidor propio desde ya | Aula completa que maestros y alumnos ya conocen; las salas del administrador son una llamada a la API, sin licencia; la identidad la firma el backend, así que la asistencia es confiable; cambiar de proveedor o pasar a un servidor propio es cambiar dos variables. LiveKit obligaba a construir el aula. La referencia en lugar de la copia (distinto de D-32) es lo que pidió el dueño para que la clase vinculada no se quede sin sus grabaciones |

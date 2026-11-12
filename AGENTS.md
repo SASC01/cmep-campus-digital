@@ -3,7 +3,7 @@
 Instrucciones para cualquier agente de IA que trabaje en este repositorio. Es la **fuente única** de reglas de trabajo; `CLAUDE.md` la importa.
 
 ## Proyecto
-**CMEP Campus Digital.** Plataforma educativa web para una sola institución: clases, tareas con rúbrica, calificaciones, clases en vivo, estado de pago y restricción de acceso. Tres roles: `estudiante`, `maestro`, `admin`. Fase experimental. Monolito modular (Fastify, PostgreSQL, pg-boss) en Docker Compose sobre un Droplet de DigitalOcean; frontend en Cloudflare Pages; archivos en Cloudflare R2 (MinIO en local); video en LiveKit Cloud; correo con Resend. **Sin AWS.** Interfaz en español (México).
+**CMEP Campus Digital.** Plataforma educativa web para una sola institución: clases, tareas con rúbrica, calificaciones, clases en vivo, estado de pago y restricción de acceso. Tres roles: `estudiante`, `maestro`, `admin`. Fase experimental. Monolito modular (Fastify, PostgreSQL, pg-boss) en Docker Compose sobre un Droplet de DigitalOcean; frontend en Cloudflare Pages; archivos en Cloudflare R2 (MinIO en local); clases en vivo con BigBlueButton por su API, con un proveedor alojado; correo con Resend. **Sin AWS.** Interfaz en español (México).
 
 ## Qué leer y cuándo
 | Documento | Cuándo |
@@ -45,7 +45,7 @@ npm run reset:admin      # cambia la contraseña del administrador a ADMIN_PASSW
 
 # Servicios locales (desde /infra)
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # crea tu configuración local sin sobrescribirla
-docker compose up -d     # PostgreSQL, MinIO y LiveKit en modo dev
+docker compose up -d     # PostgreSQL y MinIO; también levanta el LiveKit de desarrollo, que ya no se usa y retira ENVIVO
 docker compose down
 ```
 
@@ -55,7 +55,7 @@ frontend/src/{app,features,components,lib,services,styles}
 backend/src/{core,adapters,middleware,handlers,workers}
 backend/prisma/   schema.prisma y migraciones
 shared/        tipos y esquemas zod comunes
-infra/         docker-compose, Caddyfile, LiveKit, respaldos
+infra/         docker-compose, Caddyfile, respaldos (y livekit/, sin uso hasta que ENVIVO lo retire)
 docs/          PRD, arquitectura, diseño (DESIGN.md y design/), operación y trabajo/<RF>/ (planes, reportes, revisiones)
 .claude/agents/ arquitecto, programador, tester, manager
 ```
@@ -71,7 +71,7 @@ docs/          PRD, arquitectura, diseño (DESIGN.md y design/), operación y tr
 8. **Trabajos diferidos sincronizados.** Editar o borrar una fecha límite o una clase en vivo cancela y recrea su trabajo, en la misma transacción.
 9. **Secretos.** Nunca en el código, en el repositorio ni en variables del frontend.
 10. **Infraestructura solo en `infra/` y esquema solo por migraciones de Prisma.** Nada se configura a mano en el servidor sin quedar en el repositorio; nunca se altera la base directamente.
-11. **Sin AWS y sin proveedores no aprobados.** Aprobados: DigitalOcean, Cloudflare (DNS, Pages, R2), LiveKit Cloud y Resend. No propongas ni instales nada de AWS, Firebase, Supabase, Vercel u otro servicio externo sin aprobación explícita. Todo proveedor va detrás de un adaptador y se cambia por configuración. La regla aplica a servicios y a librerías que nuestro código importa o ejecuta; las dependencias transitivas de herramientas de desarrollo (por ejemplo, del CLI de Prisma) se reportan, pero no bloquean.
+11. **Sin AWS y sin proveedores no aprobados.** Aprobados: DigitalOcean, Cloudflare (DNS, Pages, R2), Resend y, para clases en vivo, un proveedor alojado de BigBlueButton que el humano aprueba por escrito al contratarlo, también para el plan gratuito de desarrollo (D-33). LiveKit Cloud salió de la lista el 2026-11-11. No propongas ni instales nada de AWS, Firebase, Supabase, Vercel u otro servicio externo sin aprobación explícita. Todo proveedor va detrás de un adaptador y se cambia por configuración. La regla aplica a servicios y a librerías que nuestro código importa o ejecuta; las dependencias transitivas de herramientas de desarrollo (por ejemplo, del CLI de Prisma) se reportan, pero no bloquean.
 12. **Avisos y correos solo por `notifier`.** Nadie más escribe en `notificaciones` ni llama a Resend. Correo solo por la API de Resend (nada de SMTP ni otras librerías). Los correos de aviso respetan los interruptores de `configuracion`, apagados por defecto. **Fuera de `prod` jamás sale un correo real:** en `dev` y pruebas el canal es `registro`.
 13. **Autenticación sin atajos.** Contraseñas solo con argon2id; tokens de refresco, enlaces de recuperación e invitación y contraseñas temporales guardados solo como hash; `/auth/recuperar` no revela si un correo existe; una contraseña temporal se muestra una única vez y obliga a cambiarla; el token de acceso nunca en `localStorage`; nada de esto aparece en logs.
 

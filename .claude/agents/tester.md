@@ -36,7 +36,7 @@ Decisión del humano (2026-10-03). Aplica a toda corrida completa del backend (`
 
 **Autorización**
 - Sin token, token de otro rol, rol correcto sobre una clase ajena, alumno no inscrito.
-- Alumno con `accesoRestringido`: todo debe responder 403 excepto `GET /me` y `GET /me/estado-pago`. Incluye tokens de LiveKit, URLs de archivos y grabaciones.
+- Alumno con `accesoRestringido`: todo debe responder 403 excepto `GET /me` y `GET /me/estado-pago`. Incluye las entradas a clases en vivo (el enlace firmado de BigBlueButton), URLs de archivos y grabaciones.
 - **Fuga de estado de pago:** como estudiante, ¿aparece `estadoPago` de otro alumno en alguna respuesta (roster, comentarios, gradebook, búsqueda)? Debe estar omitido, no enmascarado.
 - Maestro intentando actuar sobre clases de otro maestro. Cualquiera intentando rutas de `admin`.
 - Identificadores manipulados en ruta, cuerpo y query.
@@ -46,7 +46,7 @@ Decisión del humano (2026-10-03). Aplica a toda corrida completa del backend (`
 - Mensaje y tiempo de respuesta idénticos para usuario inexistente y contraseña incorrecta. Límite de intentos: ¿bloquea al sexto? ¿Se puede evadir cambiando mayúsculas del correo?
 - JWT vencido, con firma alterada, con algoritmo `none`, con `sub` de otro usuario, de un usuario dado de baja.
 - Refresco: token ya rotado (debe revocar todas las sesiones), token de otro usuario, token vencido, tras logout, tras baja o restricción.
-- Contraseña temporal: ¿se guarda solo como hash? ¿aparece en logs o en alguna respuesta posterior a la primera? ¿revoca las sesiones previas? Con `debe_cambiar_contrasena` activo, todo debe responder 403 salvo el cambio de contraseña (incluidos archivos, LiveKit y `GET /me`). ¿Puede un maestro o un estudiante restablecer la contraseña de alguien? ¿Se puede restablecer la del admin por la API?
+- Contraseña temporal: ¿se guarda solo como hash? ¿aparece en logs o en alguna respuesta posterior a la primera? ¿revoca las sesiones previas? Con `debe_cambiar_contrasena` activo, todo debe responder 403 salvo el cambio de contraseña (incluidos archivos, clases en vivo y `GET /me`). ¿Puede un maestro o un estudiante restablecer la contraseña de alguien? ¿Se puede restablecer la del admin por la API?
 - Recuperación por correo: enlace usado dos veces, vencido, de otro usuario, de tipo equivocado (invitación usada como recuperación); ¿la respuesta o su tiempo revelan si el correo existe? ¿se respeta el límite de 3 por hora? ¿se revocan las sesiones al usarlo? ¿el token se guarda solo como hash?
 - Invitación de maestro: enlace vencido, reutilizado, o usado sobre una cuenta que ya tiene contraseña.
 - ¿Aparece alguna contraseña, token o hash en logs o en alguna respuesta de la API (incluido `GET /me` y los listados del admin)?

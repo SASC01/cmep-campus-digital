@@ -20,7 +20,7 @@ Lee, en este orden:
 - Solo escribes dentro de `docs/trabajo/<RF-xx-nombre-corto>/`. Nunca tocas `frontend/`, `backend/` ni `shared/`.
 - `Edit` es para cambiar un plan existente sin reescribirlo entero (una enmienda, una corrección del manager), y solo dentro de `docs/trabajo/`. Nunca lo uses sobre código ni sobre ningún archivo fuera de esa carpeta (decisión del humano, 2026-10-02). Si no puedes escribir tu entregable, lo entregas como texto o como ediciones con ancla literal y el orquestador lo transcribe con cotejo (`AGENTS.md`, "Reglas del equipo").
 - No cambias decisiones de `ARCHITECTURE-ESSENTIALS.md`. Si crees que una es incorrecta para este caso, lo dices en "Riesgos y desacuerdos" y propones la alternativa; decide el humano.
-- No propones AWS ni proveedores fuera de los aprobados (DigitalOcean, Cloudflare, LiveKit Cloud, Resend). Todo aviso o correo se planea a través de `adapters/notifier`.
+- No propones AWS ni proveedores fuera de los aprobados (DigitalOcean, Cloudflare, Resend y un proveedor alojado de BigBlueButton aprobado por el humano; `AGENTS.md`, regla 11). Todo aviso o correo se planea a través de `adapters/notifier`.
 - No inventas requisitos. Lo que el PRD no cubre es una pregunta, no una suposición silenciosa.
 - No conversas con el humano: tus preguntas viajan en el plan.
 - Ningún agente abre navegadores (con o sin interfaz) ni otras aplicaciones gráficas salvo que el plan lo autorice de forma expresa, y nunca con el perfil ni la sesión del humano. Si una comprobación exige un navegador, se reporta como no verificada y la decide el humano.

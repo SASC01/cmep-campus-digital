@@ -115,7 +115,7 @@ Vocabulario (DOCS-04): **actividad** es lo que se asigna y se califica en una cl
 | RF-38 | Buscar alumnos por nombre completo, agregarlos manualmente a las clases que imparte y darlos de baja. Solo alumnos ya registrados | M |
 | RF-39 | Roster de la clase con el estado de pago de cada alumno y etiqueta si su acceso está restringido | M |
 | RF-40 | Programar una clase en vivo (fecha y hora) o iniciarla en el momento | M |
-| RF-41 | Impartir clase en vivo: video, compartir pantalla, chat, iniciar y detener grabación | M |
+| RF-41 | Impartir clase en vivo: video, compartir pantalla, chat, iniciar y detener grabación. Desde DOCS-05, en el aula de BigBlueButton (§4.7). **Pendiente por confirmar (ENVIVO):** si la grabación es siempre automática o la inicia y la detiene el maestro, como dice este requisito; el cliente pidió automática (pregunta 20) | M |
 | RF-42 | Calendario con sus fechas límite y sus clases en vivo | S |
 | RF-43 | Organizar el trabajo de clase (tareas y materiales) en **temas** o unidades con nombre y orden: crear, renombrar y reordenar temas, y mover elementos entre temas. Los temas son independientes de las categorías ponderadas de RF-32 (CLASES o TAREAS). Desde CLASES-03 organizan las actividades de aprendizaje y también los recursos; en "Recursos de aprendizaje" solo el Administrador mueve de tema (DOCS-04; P-05, decisión del humano, 2026-10-26) | M |
 | RF-44 | Al crear o editar una tarea, elegir si acepta entregas después de la fecha límite. Por defecto sí, marcadas "con retraso"; si no las acepta, la entrega se cierra en la fecha límite. Con la entrega cerrada, el alumno ya no entrega ni anula; mover la fecha límite o aceptar entregas tardías la reabre (ENTREGAS-01) | M |
@@ -193,6 +193,16 @@ Cambio de alcance decidido con el cliente el 2026-10-26, antes de ADMIN. Las pre
 | RF-72 | **Banco de preguntas (EXAMENES-01):** cada maestro tiene un banco de preguntas, reutilizable en todas sus clases, con preguntas abiertas y de opción múltiple; las crea, edita y borra | Por confirmar |
 | RF-73 | **Examen (EXAMENES-01):** un examen elige preguntas al azar del banco. El maestro decide si el alumno ve su resultado; por defecto, no. Por confirmar: tiempo límite, número de intentos, quién califica las preguntas abiertas, cuántas preguntas tiene cada examen y si pondera en una categoría como las demás actividades (recomendación: sí) | Por confirmar |
 | RF-74 | **Medidas de disuasión y registro (EXAMENES-02):** cámara encendida obligatoria para iniciar el examen, con detección de que se apaga; detección y registro de cada cambio de pestaña o de ventana, con un aviso al alumno; bloqueo de copiar, pegar y clic derecho en la página; registro de eventos por alumno y examen, visible para el maestro. **Límites, explícitos:** una página web no puede impedir capturas de pantalla ni que el alumno use otro dispositivo, y los bloqueos de copiar, pegar y clic derecho se pueden saltar; son disuasión, no control. **No se graba video:** la cámara solo se usa en el navegador para saber que está encendida, y la imagen no se envía ni se guarda. Por confirmar: el aviso de privacidad y el consentimiento antes de encender la cámara (recomendación: obligatorios; el texto lo da el colegio) | Por confirmar |
+
+### 4.7 Clases en vivo con BigBlueButton y clases vinculadas (DOCS-05)
+
+Decisión confirmada con el cliente el 2026-11-11: las clases en vivo se hacen con BigBlueButton por su API, con un proveedor alojado; Zoom queda como alternativa registrada y LiveKit se descartó (`ARCHITECTURE.md`, D-33). La investigación está en `docs/trabajo/ENVIVO-investigacion-bigbluebutton.md`. Los requisitos de clases en vivo de §4.2 y §4.3 (RF-20, RF-22, RF-23, RF-40 a RF-42) siguen vigentes. Lo marcado **pendiente por confirmar** lo cierra el plan de ENVIVO con el humano (preguntas 18 a 22 de §11).
+
+| ID | Requisito | Prioridad |
+|---|---|---|
+| RF-75 | **Salas del Administrador (ENVIVO):** el Administrador crea salas en vivo por su cuenta, sin que dependan de un maestro (requisito del dueño, 2026-11-10). **Pendiente por confirmar:** para qué son y quién entra a ellas: usuarios de la plataforma elegidos uno por uno, toda una clase o personas externas con un enlace (pregunta 19) | M |
+| RF-76 | **Clases vinculadas (ENVIVO):** a veces una materia tiene dos clases: una con clases en vivo (la clase de origen) y otra asíncrona (la vinculada), que usa las grabaciones y los recursos de aprendizaje de la primera, por lo menos durante un año; cuando el grupo en vivo se actualiza, el asíncrono también. El vínculo es de un sentido: la vinculada recibe lo de su clase de origen, y cada una tiene su propio maestro, sus actividades y sus calificaciones. La vinculada recibe las grabaciones en cuanto están listas, sin revisión previa, y los recursos de aprendizaje (los que publica la administración); los recursos del docente no se comparten. Decisiones del dueño, 2026-11-11. **Pendiente por confirmar (pregunta 21):** si al vincular la clase recibe también las grabaciones y los recursos que ya existían o solo los nuevos; si una clase puede recibir de más de una clase de origen; quién crea el vínculo y cuándo (el Administrador al crear o duplicar la clase, o después); cómo se comparten los recursos (una sola publicación visible en las dos clases o copias que se mantienen iguales al editarse) y de quién son sus comentarios; y si borrar o editar un recurso en la clase de origen alcanza a la vinculada | M |
+| RF-77 | **Grabaciones: conservación y borrado (ENVIVO):** cada grabación se copia a nuestro almacenamiento y queda ligada a su clase (decisión del humano, 2026-11-11), siempre que el proveedor entregue el video por su API (por verificar, pregunta 22). Un video es un solo archivo: cada clase que lo muestra, la de origen y sus vinculadas, lo hace por referencia, no por copia. Nada se borra automáticamente: no hay vencimiento ni plazo de retención. El maestro no quita grabaciones; solo el Administrador las borra, cuando lo decida. La antigüedad de una grabación cuenta desde la fecha en que se grabó y es solo un dato para el Administrador (por ejemplo, para filtrar las de más de un año). Decisiones del dueño y del humano, 2026-11-11 | M |
 
 ## 5. Reglas de negocio
 
@@ -276,6 +286,14 @@ Regla general para todo lo que se publica en una clase: publicaciones y comentar
 - Pendiente por confirmar con el cliente; no se planea hasta que el humano lo cierre (RF-72 a RF-74).
 - Las medidas de EXAMENES-02 disuaden y registran; no impiden. Una página web no puede impedir capturas de pantalla ni el uso de otro dispositivo, y la plataforma no graba video del alumno.
 
+### RN-12 Clases en vivo, grabaciones y clases vinculadas (DOCS-05; ENVIVO)
+- La plataforma crea las salas y da a cada persona su entrada a la clase en vivo, con su nombre y su rol; el asistente no escribe su nombre. El alumno restringido no entra ni ve grabaciones (RN-03).
+- Una grabación es un solo archivo, copiado a nuestro almacenamiento y ligado a su clase; las clases vinculadas la muestran por referencia (RF-76, RF-77).
+- Nada se borra automáticamente. Solo el Administrador borra una grabación.
+- Objetivo del cliente (2026-11-11): que archivar o borrar definitivamente una clase no deje a la otra clase del vínculo sin lo que ya recibió. Cómo se cumple lo fija el plan de ENVIVO. Si borrar o editar un recurso compartido en la clase de origen alcanza a la vinculada sigue abierto (RF-76, pregunta 21).
+- Una clase archivada es de solo lectura (RN-10): no abre clases en vivo.
+- La regla se aplica en el backend.
+
 ## 6. Vistas
 
 **Compartidas (3):** Login con panel de anuncios · Registro de estudiante · Panel de notificaciones.
@@ -300,6 +318,7 @@ Total: 25 vistas de rol + 3 compartidas ("Crear/editar clase" del Maestro pasó 
 - **Estudiante:** "Clases anteriores", la lista de sus clases archivadas y, de cada una, "Mis calificaciones" sin las demás secciones (RF-69).
 - **Maestro:** "Clases archivadas", la lista de sus clases archivadas, que abre cada una en su vista de siempre, de solo lectura (RF-69).
 - Total previsto: 35 vistas de rol (estudiante 16, maestro 13 y administrador 6, que ve las secciones de la clase dentro de "Gestión de clases"; cada sección cuenta como una vista) + 3 compartidas. Las vistas de examen (hito 3) no se cuentan hasta confirmarlas.
+- **Desde DOCS-05 (2026-11-12).** "Clase en vivo (anfitrión)" del maestro pasa a ser la antesala desde la que programa la clase (RF-40) y entra al aula de BigBlueButton; "Clase en vivo" del estudiante, la antesala desde la que entra. El aula, con su video, pantalla compartida y chat, es la de BigBlueButton. La lista de grabaciones sigue donde ya está ("Grabaciones" del estudiante); dónde la ve el maestro lo fija ENVIVO. El Administrador suma sus salas (RF-75). Estas vistas se cuentan cuando el plan de ENVIVO las fije.
 
 ## 7. Experiencia y marca
 
@@ -323,13 +342,13 @@ Total: 25 vistas de rol + 3 compartidas ("Crear/editar clase" del Maestro pasó 
 | RNF-03 | Toda autorización (rol, propiedad, inscripción, estado de pago, restricción) se valida en el backend |
 | RNF-04 | Los archivos de los usuarios son privados; solo se accede con enlaces temporales |
 | RNF-05 | Responsive desde 360 px de ancho; navegadores modernos (Chrome, Edge, Firefox, Safari) |
-| RNF-06 | Clases en vivo: la capacidad depende del plan contratado con LiveKit Cloud. Hay cupos configurables y, al alcanzarlos, el sistema informa "sala llena" o "sin cupo de grabación" en lugar de fallar |
+| RNF-06 | Clases en vivo: la capacidad depende del plan contratado con el proveedor alojado de BigBlueButton, que se elige por el pico de personas conectadas a la vez (en algunos proveedores, también por las salas a la vez). Hay cupos configurables y, al alcanzarlos, el sistema lo informa en lugar de fallar. El cupo por sala y lo que ve el alumno con la sala llena los decide el plan de ENVIVO (**pendiente por confirmar**, pregunta 20) |
 | RNF-07 | Fechas y horas se muestran en la zona horaria del usuario |
 | RNF-08 | Accesibilidad básica: contraste AA, navegación por teclado, etiquetas en formularios |
 | RNF-09 | Ningún evento de notificación se pierde en silencio: los fallos quedan registrados y generan alerta |
-| RNF-10 | **Independencia tecnológica:** sin AWS. Proveedores aprobados: DigitalOcean (servidor), Cloudflare (DNS, frontend y archivos), LiveKit Cloud (video) y Resend (correo). Todos deben poder sustituirse cambiando configuración, y el núcleo debe poder mudarse a un servidor del colegio restaurando un respaldo |
+| RNF-10 | **Independencia tecnológica:** sin AWS. Proveedores aprobados: DigitalOcean (servidor), Cloudflare (DNS, frontend y archivos), Resend (correo) y, para las clases en vivo, un proveedor alojado de BigBlueButton que el humano aprueba por escrito al contratarlo, también para el plan gratuito de desarrollo (DOCS-05). Todos deben poder sustituirse cambiando configuración (el de video, con la URL y el secreto de su API), y el núcleo debe poder mudarse a un servidor del colegio restaurando un respaldo |
 | RNF-11 | Respaldo diario y cifrado de la base de datos fuera del servidor, con restauración probada antes de abrir a alumnos y después cada trimestre |
-| RNF-13 | **Costo acorde a la fase experimental:** un servidor pequeño de costo fijo y pago por uso en archivos y video. El servidor se redimensiona cuando el uso real lo pida, sin cambiar la arquitectura |
+| RNF-13 | **Costo acorde a la fase experimental:** un servidor pequeño de costo fijo, pago por uso en archivos y, para el video, un plan mensual por capacidad simultánea que se sube o se baja entre periodos sin cambiar código (DOCS-05). El servidor se redimensiona cuando el uso real lo pida, sin cambiar la arquitectura |
 | RNF-12 | Las contraseñas se almacenan únicamente como hash robusto; límite de intentos de inicio de sesión |
 
 ## 9. Hitos
@@ -337,7 +356,7 @@ Total: 25 vistas de rol + 3 compartidas ("Crear/editar clase" del Maestro pasó 
 | Hito | Contenido |
 |---|---|
 | **1. Fundación y núcleo educativo** | Login con panel de anuncios, registro, roles y autorización, clases, código de invitación, alta manual de alumnos, muro, materiales, tareas con rúbrica, entregas, calificación, categorías ponderadas, mis calificaciones, estado de pago, restricción de acceso, gestión de usuarios. Desde DOCS-04: las siete secciones de la clase (avisos, actividades de aprendizaje, foro, recursos y dudas; RF-60 a RF-64), exportar calificaciones a Excel (RF-65), el foro como actividad (RF-66 a RF-68) y archivar, borrar y duplicar clases (RF-69 a RF-71) |
-| **2. Clases en vivo** | Programar e iniciar clase, sala con video/pantalla/chat, grabación, lista de grabaciones, aviso de clase por comenzar |
+| **2. Clases en vivo** | Programar e iniciar clase, sala con video/pantalla/chat, grabación, lista de grabaciones, aviso de clase por comenzar. Desde DOCS-05, con BigBlueButton: salas del Administrador (RF-75) y clases vinculadas con sus grabaciones (RF-76, RF-77) |
 | **3. Integraciones y analytics** | Notificaciones, recordatorio de 24 h, aviso de clase por comenzar, calendarios, gradebook con alumnos en riesgo, dashboard y analytics del administrador, configuración general. Desde DOCS-04, **pendientes por confirmar con el cliente y sin planear:** exámenes en línea con banco de preguntas (EXAMENES-01; RF-72 y RF-73) y medidas de disuasión y registro (EXAMENES-02; RF-74) |
 
 El orden en que se construyen los encargos no sigue los hitos: vive en `docs/ESTADO.md`, sección 2b (hoja de ruta de DOCS-04, 2026-10-26).
@@ -373,9 +392,9 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 4. Tamaño máximo de archivo por entrega. Resuelta (ENTREGAS-01): 25 MB por archivo, hasta 5 archivos y 5 enlaces por entrega; para video, enlace.
 5. Quién opera el servidor después de la entrega: respaldos, actualizaciones y a quién le llegan las alertas.
 6. Quién en administración tendrá la cuenta de Administrador.
-7. Cuántas clases en vivo simultáneas y cuántas grabaciones se esperan: determina cuándo hará falta un plan de pago de LiveKit Cloud.
+7. Cuántas personas hay conectadas a la vez en la hora más cargada: determina el plan del proveedor alojado de BigBlueButton (`docs/trabajo/ENVIVO-investigacion-bigbluebutton.md`, §5). **Pendiente del colegio** (DOCS-05).
 8. Qué avisos por correo quiere encender el colegio, y cuándo.
-9. Política de retención de grabaciones (se paga por GB almacenado).
+9. Política de retención de grabaciones. **Resuelta el 2026-11-11 (decisión del humano):** no hay plazo; se conservan hasta que el Administrador las borre (RF-77).
 
 **Preguntas abiertas de DOCS-04 (2026-10-26).** Detalle y recomendación en `docs/trabajo/DOCS-04-nuevos-requisitos/plan.md` (P-01 a P-13). El humano cerró el 2026-10-26 las preguntas 10 a 15 y 17 (P-01 a P-13, más DE-03 y R-01); sigue abierta la 16 (exámenes) y, de la 11, el bloque de grabaciones (ENVIVO).
 
@@ -387,3 +406,11 @@ Pendiente: actualizar el backlog de Jira con alta manual de alumnos, notificacio
 15. ¿Avisos (notificaciones) de "Dudas" y del foro? Los decide el plan de NOTIFICACIONES. **Resuelta el 2026-10-26 (decisión del humano, P-11):** los decide el plan de NOTIFICACIONES.
 16. Exámenes (hito 3, preguntas del humano): tiempo límite, número de intentos, quién califica las preguntas abiertas y cuántas preguntas por examen; además, si el examen pondera en una categoría y el aviso de privacidad y consentimiento para la cámara (RF-72 a RF-74).
 17. Exportar a Excel: ¿qué identifica al alumno en el archivo (nombre, correo)? ¿Se excluyen el estado de pago y la restricción de acceso? (RF-65) **Resuelta el 2026-10-26 (decisión del humano):** nombre y correo, nunca estado de pago ni restricción (P-13); la API entrega JSON y el navegador arma el .xlsx (R-01).
+
+**Preguntas abiertas de DOCS-05 (2026-11-12).** Las del colegio y las del proveedor se responden antes de contratar; las demás las cierra el plan de ENVIVO con el humano. Detalle en `docs/trabajo/ENVIVO-investigacion-bigbluebutton.md`, §4.7 y §9. La pregunta 7 (el pico de personas a la vez) es del colegio.
+
+18. Colegio: ¿aprueba el gasto mensual del plan? Para salir a producción con clases en vivo hace falta la cuenta del proveedor contratada a nombre del colegio (decisión del humano, 2026-11-11): ¿con un correo institucional y una contraseña propia? ¿Su aviso de privacidad ya cubre grabaciones de voz e imagen con un proveedor externo? ¿Su restricción de trabajar de forma independiente excluye al proveedor candidato?
+19. Salas del Administrador: ¿para qué son y quién entra: usuarios de la plataforma elegidos uno por uno, toda una clase o personas externas con un enlace? (RF-75)
+20. Aula y grabación: ¿el aula se abre en una pestaña nueva o embebida en la plataforma? ¿La grabación es siempre automática o el maestro la inicia y la detiene? (RF-41) ¿Los alumnos entran en modo webinar, sin cámara ni micrófono, o el maestro puede darles la palabra? ¿Cuál es el cupo por sala y qué ve el alumno cuando la sala está llena? (RNF-06)
+21. Clases vinculadas: ¿al vincular, la clase recibe también lo que ya existía o solo lo nuevo? ¿Una clase puede recibir de más de una clase de origen? ¿Quién crea el vínculo y cuándo? ¿Los recursos se comparten como una sola publicación o como copias que se mantienen iguales, y de quién son sus comentarios? ¿Borrar o editar un recurso en la clase de origen alcanza a la vinculada? (RF-76)
+22. Proveedor candidato (Aulas en Vivo): ¿entrega la URL y el secreto de la API para una plataforma propia? ¿Dónde están sus servidores y qué versión de BigBlueButton ofrece? ¿Cuál es el máximo de personas por sala, y "usuarios simultáneos" es el total entre todas las salas? ¿Funcionan por API el aviso de grabación lista y la descarga del video en MP4? ¿Cuáles son sus términos de servicio, su política de privacidad y su retención de grabaciones? (RF-77)

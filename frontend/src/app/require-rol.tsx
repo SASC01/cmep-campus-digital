@@ -1,3 +1,4 @@
+import { useRef } from "react"
 import { Navigate } from "react-router"
 
 import { Cargando } from "@/components/cargando"
@@ -16,6 +17,18 @@ interface RequireRolProps {
 export function RequireRol({ rol }: RequireRolProps) {
   const { data, error, isPending, isError } = useMe()
   const cerrarSesion = useCerrarSesion()
+
+  const cerrandoRef = useRef(false)
+
+  const handleCerrarSesion = () => {
+    if (cerrandoRef.current) return
+    cerrandoRef.current = true
+    cerrarSesion.mutate(undefined, {
+      onSettled: () => {
+        cerrandoRef.current = false
+      },
+    })
+  }
 
   if (isError) {
     if (requiereCambioDeContrasena(error)) return <Navigate to="/cambiar-contrasena" replace />
@@ -43,7 +56,7 @@ export function RequireRol({ rol }: RequireRolProps) {
       rol={rol}
       nombre={data.nombre}
       etiquetaRol={etiquetaDeRol(rol)}
-      onCerrarSesion={() => cerrarSesion.mutate()}
+      onCerrarSesion={handleCerrarSesion}
       cerrando={cerrarSesion.isPending}
     />
   )

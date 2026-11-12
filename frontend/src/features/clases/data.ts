@@ -38,9 +38,16 @@ export const claveConteoDeBorrado = (claseId: string) =>
 // para saber si sigue en vuelo aunque la fila que la lanzó ya se haya desmontado.
 export const claveGestionDeClase = (accion: "archivar" | "restaurar", claseId: string) =>
   ["clases", "admin", "gestion", accion, claseId] as const
+// CHORE-04 (§D-4): la clave de la mutación de ordenar los temas, para saber si un orden de esa clase sigue
+// en vuelo aunque la vista que lo lanzó ya se haya desmontado.
+export const claveOrdenDeTemas = (claseId: string) => ["clases", claseId, "ordenar-temas"] as const
 export const claveMaestrosCandidatos = (termino: string) =>
   ["clases", "maestros-candidatos", termino] as const
 export const claveCodigoDeClase = (claseId: string) => ["clases", claseId, "codigo"] as const
+// CHORE-04 (§D-4 ter): la clave de la mutación de regenerar el código, por clase, para que un cambio de
+// clase con la petición en vuelo no le pase las opciones de la otra y para saber si sigue en vuelo.
+export const claveRegenerarCodigo = (claseId: string) =>
+  ["clases", claseId, "regenerar-codigo"] as const
 // CLASES-b: las tres consultas de personas cuelgan de ["clases", claseId, …], así que invalidar el
 // prefijo de una clase las alcanza a todas.
 export const clavePersonas = (claseId: string) => ["clases", claseId, "personas"] as const

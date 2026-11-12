@@ -47,6 +47,18 @@ function FilaComentario({ claseId, publicacionId, comentario }: FilaComentarioPr
     borrarBtnRef.current?.focus()
   }, [confirmando])
 
+  const borrandoRef = useRef(false)
+
+  const handleBorrar = () => {
+    if (borrandoRef.current) return
+    borrandoRef.current = true
+    borrar.mutate(comentario.id, {
+      onSettled: () => {
+        borrandoRef.current = false
+      },
+    })
+  }
+
   return (
     <li
       data-comentario-id={comentario.id}
@@ -77,7 +89,7 @@ function FilaComentario({ claseId, publicacionId, comentario }: FilaComentarioPr
             type="button"
             variant="destructive"
             size="sm"
-            onClick={() => borrar.mutate(comentario.id)}
+            onClick={handleBorrar}
             enEspera={borrar.isPending}
           >
             {TEXTOS_COMENTARIOS.siBorrarComentario}
@@ -185,7 +197,7 @@ export function ComentariosDePublicacion({
             variant="outline"
             size="sm"
             onClick={() => void comentarios.fetchNextPage({ cancelRefetch: false })}
-            enEspera={comentarios.isFetchingNextPage}
+            enEspera={comentarios.isFetching}
             className="self-start"
           >
             {TEXTOS_COMENTARIOS.verMas}

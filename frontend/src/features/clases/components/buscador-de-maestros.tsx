@@ -86,6 +86,20 @@ function FilaParaElegir({ candidato, yaEsta, registrarBoton, onElegir }: FilaPar
 // tocar el de las demás. Los avisos salen de useAsignarMaestro (§D-C5 bis).
 function FilaParaAsignar({ candidato, yaEsta, registrarBoton, claseId }: FilaParaAsignarProps) {
   const asignar = useAsignarMaestro(claseId)
+  const asignandoRef = useRef(false)
+
+  const handleAsignar = () => {
+    if (asignandoRef.current) return
+    asignandoRef.current = true
+    asignar.mutate(
+      { id: candidato.id, nombre: candidato.nombre },
+      {
+        onSettled: () => {
+          asignandoRef.current = false
+        },
+      },
+    )
+  }
 
   return (
     <li data-candidato-maestro-id={candidato.id} className={CLASES_DE_LA_FILA}>
@@ -97,7 +111,7 @@ function FilaParaAsignar({ candidato, yaEsta, registrarBoton, claseId }: FilaPar
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => asignar.mutate({ id: candidato.id, nombre: candidato.nombre })}
+          onClick={handleAsignar}
           enEspera={asignar.isPending}
         >
           {TEXTOS_BUSCADOR_MAESTROS.asignar} <span className="sr-only">{candidato.nombre}</span>

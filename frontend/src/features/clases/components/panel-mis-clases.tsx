@@ -19,7 +19,7 @@ const contenidoPanel = (
     | "isLoading"
     | "clases"
     | "hasNextPage"
-    | "isFetchingNextPage"
+    | "isFetching"
     | "onVerMas"
     | "accionVacio"
     | "descripcionVacio"
@@ -52,13 +52,15 @@ const contenidoPanel = (
       <div ref={refs.rejilla} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {props.clases.map(props.render)}
       </div>
+      {/* T-19 de TAREAS-01e: con una recarga de la lista en vuelo, el clic se unía a ella sin pedir la
+          página; el botón espera toda la recarga, no solo la página siguiente. */}
       {props.hasNextPage && (
         <Button
           ref={refs.verMas}
           type="button"
           variant="outline"
           onClick={props.onVerMas}
-          enEspera={props.isFetchingNextPage}
+          enEspera={props.isFetching}
         >
           {TEXTOS_PANEL.verMas}
         </Button>
@@ -73,7 +75,7 @@ interface PanelMisClasesProps {
   isLoading: boolean
   clases: ClaseDelPanel[] | undefined
   hasNextPage: boolean
-  isFetchingNextPage: boolean
+  isFetching: boolean
   onVerMas: () => void
   // El vacío del estudiante lleva una acción; el del maestro, solo una frase (§D-2C3).
   accionVacio?: { texto: string; onClick: () => void } | undefined
@@ -90,7 +92,7 @@ export function PanelMisClases({
   isLoading,
   clases,
   hasNextPage,
-  isFetchingNextPage,
+  isFetching,
   onVerMas,
   accionVacio,
   descripcionVacio,
@@ -128,7 +130,7 @@ export function PanelMisClases({
             isLoading,
             clases,
             hasNextPage,
-            isFetchingNextPage,
+            isFetching,
             onVerMas,
             accionVacio,
             descripcionVacio,

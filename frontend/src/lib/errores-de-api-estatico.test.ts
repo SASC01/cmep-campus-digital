@@ -121,7 +121,8 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
   // ADMIN-01g (§D-R0 01g, lista cerrada vigente; filas 8 a 10 de CHORE-04, E-01 y §D-11): los tres
   // formularios de /admin/maestros ganan la ref antes de su guarda isPending, como corregir el correo; suman
   // los reinicios de «Sí, revocar» al abrir o cerrar su confirmación (E-01) y del diálogo del lote (T-05).
-  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; solo corregir el correo y los tres formularios de /admin/maestros ganan una ref, antes de esa guarda; en admin y auth solo esos diez, los de 01f, la confirmación de revocar y el diálogo del lote reinician una mutación", () => {
+  // CHORE-04 (§D-1, filas 12 a 17): los seis formularios de features/auth ganan la ref antes de su guarda isPending.
+  it("CH3-C13: en los diez formularios de T-05, `if (<m>.isError) <m>.reset()` aparece una vez, con su mutación, después de la guarda isPending y antes del primer safeParse; los diez ganan una ref, antes de esa guarda (la rama sin ref queda para un formulario futuro); en admin y auth solo esos diez, los de 01f, la confirmación de revocar y el diálogo del lote reinician una mutación", () => {
     // Sin comentarios: el comentario de T-05 nombra la línea y no debe contar.
     const sinComentarios = (texto: string) =>
       texto.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
@@ -143,6 +144,12 @@ describe("CHORE-03 · reglas estáticas del contrato", () => {
       "/src/features/admin/components/formulario-invitar-maestro.tsx",
       "/src/features/admin/components/formulario-invitacion-masiva.tsx",
       "/src/features/admin/components/formulario-generar-enlace.tsx",
+      "/src/features/auth/components/formulario-login.tsx",
+      "/src/features/auth/components/formulario-registro.tsx",
+      "/src/features/auth/components/formulario-registro-maestro.tsx",
+      "/src/features/auth/components/formulario-recuperar.tsx",
+      "/src/features/auth/components/formulario-nueva-contrasena.tsx",
+      "/src/features/auth/components/formulario-cambiar-contrasena.tsx",
     ]
     const DE_01F: readonly string[] = [
       "/src/features/admin/components/formulario-nombre-de-cuenta.tsx#editar",

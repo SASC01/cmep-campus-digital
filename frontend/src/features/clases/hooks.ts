@@ -46,6 +46,7 @@ import {
   useInfiniteQuery,
   useIsMutating,
   useMutation,
+  useMutationState,
   useQuery,
   useQueryClient,
   type InfiniteData,
@@ -73,6 +74,7 @@ import {
   claveClasesAdmin,
   claveConteoDeBorrado,
   claveGestionDeClase,
+  claveOrdenDeTemas,
   CLAVE_CLASES_IMPARTIDAS,
   CLAVE_CLASES_INSCRITAS,
   claveAlumnos,
@@ -82,6 +84,7 @@ import {
   claveCodigoDeClase,
   claveComentarios,
   claveDudas,
+  claveRegenerarCodigo,
   claveMaestrosCandidatos,
   clavePrefijoDeRecursos,
   claveRecurso,
@@ -149,6 +152,7 @@ import {
   medidaDelIndicador,
   mensajeDeErrorClases,
   opcionEnElPanel,
+  ordenDeLasVariables,
   siguienteCursorDeClasesAdmin,
   siguienteCursorDeClasesAnteriores,
   temasEnElOrdenDe,
@@ -178,6 +182,7 @@ import type {
   VariablesDeMaestro,
   VariablesDeMarcarDuda,
   VariablesDeMoverElemento,
+  VariablesDeOrdenarTemas,
   VariablesDeRenombrarTema,
 } from "./types"
 
@@ -688,6 +693,7 @@ export const useRetirarMaestro = (claseId: string) => {
 export const useRegenerarCodigo = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: claveRegenerarCodigo(claseId),
     mutationFn: () =>
       api(`/api/clases/${claseId}/codigo`, {
         method: "POST",
@@ -705,6 +711,16 @@ export const useRegenerarCodigo = (claseId: string) => {
       )
     },
   })
+}
+
+// CHORE-04 (§D-4 ter): si regenerar el código de esa clase sigue en vuelo, aunque el encabezado haya
+// pasado por otra clase. `enVuelo` pinta la espera; `sigueEnVuelo` se lee en el manejador.
+export const useRegeneracionEnVuelo = (claseId: string) => {
+  const queryClient = useQueryClient()
+  const mutationKey = claveRegenerarCodigo(claseId)
+  const enVuelo = useIsMutating({ mutationKey, exact: true }) > 0
+  const sigueEnVuelo = () => queryClient.isMutating({ mutationKey, exact: true }) > 0
+  return { enVuelo, sigueEnVuelo }
 }
 
 export const useUnirseAClase = () => {
@@ -1441,7 +1457,8 @@ const ponerElOrdenEnLasSeccionesSinElNuevo = async (
 export const useOrdenarTemas = (claseId: string) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (temaIds: string[]) =>
+    mutationKey: claveOrdenDeTemas(claseId),
+    mutationFn: ({ temaIds }: VariablesDeOrdenarTemas) =>
       api(`/api/clases/${claseId}/temas/orden`, {
         method: "PUT",
         body: { temaIds },
@@ -1458,6 +1475,21 @@ export const useOrdenarTemas = (claseId: string) => {
       await renovarTrasError(queryClient, claseId, error)
     },
   })
+}
+
+// CHORE-04 (§D-4, fila 29): el orden de esa clase que sigue en vuelo, aunque lo haya lanzado una vista que
+// ya se desmontó. `ordenEnVuelo` pinta la espera del control que lo lanzó; `sigueEnVuelo` se lee en el
+// manejador, sin esperar otro render (como useGestionEnVuelo).
+export const useOrdenDeTemasEnVuelo = (claseId: string) => {
+  const queryClient = useQueryClient()
+  const mutationKey = claveOrdenDeTemas(claseId)
+  const ordenes = useMutationState({
+    filters: { mutationKey, exact: true, status: "pending" },
+    select: (mutacion) => ordenDeLasVariables(mutacion.state.variables),
+  })
+  const ordenEnVuelo = ordenes.find((orden) => orden !== null) ?? null
+  const sigueEnVuelo = () => queryClient.isMutating({ mutationKey, exact: true }) > 0
+  return { ordenEnVuelo, sigueEnVuelo }
 }
 
 // Mover un elemento de tema (P-02 b: organiza la clase, no es editarlo). Cambian los conteos, las dos

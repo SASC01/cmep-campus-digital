@@ -291,6 +291,17 @@ export interface OrdenEnVuelo {
   control: ControlDeOrden
 }
 
+// CHORE-04 (§D-4): las variables de "Subir" y "Bajar": el orden que se envía y el control que lo lanzó,
+// para que una vista montada con el orden en vuelo sepa qué control espera.
+export interface VariablesDeOrdenarTemas extends OrdenEnVuelo {
+  temaIds: string[]
+}
+
+// CHORE-04 (§D-4 bis): el orden que lanzó esta vista, con la clase a la que pertenece.
+export interface OrdenPropioEnVuelo extends OrdenEnVuelo {
+  claseId: string
+}
+
 // El cuadro de fecha de una fila de entrega (DESIGN.md §7.7): el día y el mes abreviado, en la zona
 // local.
 export interface CuadroDeFecha {

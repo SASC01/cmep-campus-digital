@@ -49,7 +49,7 @@ export function InicioMaestroView() {
         isLoading={clases.isLoading}
         clases={filas}
         hasNextPage={clases.hasNextPage}
-        isFetchingNextPage={clases.isFetchingNextPage}
+        isFetching={clases.isFetching}
         onVerMas={() => void clases.fetchNextPage({ cancelRefetch: false })}
         descripcionVacio={TEXTOS_PANEL.vacioDescripcionMaestro}
         render={(clase) => (

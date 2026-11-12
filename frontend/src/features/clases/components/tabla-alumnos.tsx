@@ -46,6 +46,7 @@ function FilaAlumno({ claseId, alumno, registrarQuitar }: FilaAlumnoProps) {
   const quitarBtnRef = useRef<HTMLButtonElement | null>(null)
   const cancelarBtnRef = useRef<HTMLButtonElement>(null)
   const confirmandoAnteriorRef = useRef(confirmando)
+  const quitandoRef = useRef(false)
 
   useEffect(() => {
     if (confirmandoAnteriorRef.current === confirmando) return
@@ -58,10 +59,19 @@ function FilaAlumno({ claseId, alumno, registrarQuitar }: FilaAlumnoProps) {
   }, [confirmando])
 
   const handleQuitar = () => {
+    if (quitandoRef.current) return
     // T-21: la fila desaparece cuando llegan los datos nuevos, así que aquí no se mueve el foco
     // (enfocar este mismo "Quitar" lo dejaba en <body> al desmontarse); la tabla lo lleva a la
     // fila vecina cuando la fila ya no está. El aviso y el error viven en useQuitarAlumno (O-10).
-    quitar.mutate({ id: alumno.id, nombre: alumno.nombre })
+    quitandoRef.current = true
+    quitar.mutate(
+      { id: alumno.id, nombre: alumno.nombre },
+      {
+        onSettled: () => {
+          quitandoRef.current = false
+        },
+      },
+    )
   }
 
   return (

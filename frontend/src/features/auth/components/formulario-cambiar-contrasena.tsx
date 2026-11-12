@@ -1,5 +1,5 @@
 import { cambiarContrasenaSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import { ErrorDeCampo } from "@/components/error-de-campo"
 import { MensajeError } from "@/components/mensaje-error"
@@ -20,8 +20,11 @@ export function FormularioCambiarContrasena() {
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [errorConfirmacion, setErrorConfirmacion] = useState(false)
 
+  const enviandoRef = useRef(false)
+
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (cambiar.isPending) return
     // T-05 de CHORE-03: el error del servidor del envío anterior se quita antes de validar,
     // para que la persona lea un solo mensaje: el de este envío.
@@ -44,7 +47,24 @@ export function FormularioCambiarContrasena() {
 
     setErrores({})
     setErrorConfirmacion(false)
-    cambiar.mutate(resultado.data)
+    enviandoRef.current = true
+    cambiar.mutate(resultado.data, {
+      onSettled: () => {
+        enviandoRef.current = false
+      },
+    })
+  }
+
+  const cerrandoRef = useRef(false)
+
+  const handleCerrarSesion = () => {
+    if (cerrandoRef.current) return
+    cerrandoRef.current = true
+    cerrarSesion.mutate(undefined, {
+      onSettled: () => {
+        cerrandoRef.current = false
+      },
+    })
   }
 
   return (
@@ -99,7 +119,7 @@ export function FormularioCambiarContrasena() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => cerrarSesion.mutate()}
+          onClick={handleCerrarSesion}
           enEspera={cerrarSesion.isPending}
         >
           {TEXTOS_CAMBIAR.cerrarSesion}

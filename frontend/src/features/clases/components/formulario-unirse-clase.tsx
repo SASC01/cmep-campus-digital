@@ -1,5 +1,5 @@
 import { unirseSchema } from "@campus/shared"
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
@@ -20,9 +20,11 @@ export function FormularioUnirseClase() {
   const unirse = useUnirseAClase()
   const navigate = useNavigate()
   const [errores, setErrores] = useState<ErroresFormulario>({})
+  const enviandoRef = useRef(false)
 
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
+    if (enviandoRef.current) return
     if (unirse.isPending) return
 
     const formulario = new FormData(evento.currentTarget)
@@ -33,6 +35,7 @@ export function FormularioUnirseClase() {
     }
 
     setErrores({})
+    enviandoRef.current = true
     unirse.mutate(resultado.data, {
       onSuccess: async (respuesta) => {
         toast.success(
@@ -53,6 +56,9 @@ export function FormularioUnirseClase() {
           return
         }
         setErrores(errorDeCampo)
+      },
+      onSettled: () => {
+        enviandoRef.current = false
       },
     })
   }

@@ -15,7 +15,12 @@ import {
   TEXTOS_CLASE,
 } from "./data"
 import { useAvisoDeRecargaFallida, useCategorias } from "./hooks"
-import { errorQuitaLaVista, mensajeDeConsultaClases, perspectivaDeRuta } from "./lib"
+import {
+  errorQueRedirigeElCliente,
+  errorQuitaLaVista,
+  mensajeDeConsultaClases,
+  perspectivaDeRuta,
+} from "./lib"
 
 interface CategoriasDeLaClaseProps {
   claseId: string
@@ -33,7 +38,13 @@ function CategoriasDeLaClase({ claseId }: CategoriasDeLaClaseProps) {
   const soloLectura = useSoloLecturaDeLaClase()
   // Una recarga fallida conserva el editor (y lo que se está escribiendo) y avisa una vez por fallo.
   const conservaLaVista = categorias.data !== undefined && !errorQuitaLaVista(categorias.error)
-  useAvisoDeRecargaFallida(categorias.errorUpdateCount, conservaLaVista, TEXTOS_CATEGORIAS_RECARGA)
+  // CHORE-06a (§D-3): un error con que apiClient ya redirige no avisa.
+  useAvisoDeRecargaFallida(
+    categorias.errorUpdateCount,
+    conservaLaVista && !errorQueRedirigeElCliente(categorias.error),
+    TEXTOS_CATEGORIAS_RECARGA,
+    claseId,
+  )
 
   const contenido = () => {
     if (!gestionarTrabajo) return <MensajeError mensaje={TEXTOS_CLASE.sinAcceso} />
@@ -68,6 +79,8 @@ function CategoriasDeLaClase({ claseId }: CategoriasDeLaClaseProps) {
 
 export function CategoriasView() {
   return (
-    <ConClaseDeLaRuta>{(claseId) => <CategoriasDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+    <ConClaseDeLaRuta>
+      {(claseId) => <CategoriasDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
   )
 }

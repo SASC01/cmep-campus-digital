@@ -662,6 +662,8 @@ Implementan la confirmación en línea `AccionRestablecer` (`features/admin/comp
 - **El control desaparece al cargar lo último** ("Ver más alumnos" tras la última página): el foco va al primer elemento nuevo (su primer control o el propio elemento con `tabIndex={-1}`) y, si no llegó nada, al encabezado de la lista.
 - Se recuerda qué fila o control tenía el foco y se reacciona después de cada render (hooks `useFilaEnFoco` y `useFocoAlCargarMas`, `features/clases/hooks.ts`); un render sin desmontaje no mueve el foco, y no se le quita el foco a un control que la persona eligió.
 
+**Lo abierto es de su clase (CHORE-06a, propuesta):** una confirmación, un formulario o un bloque abierto pertenece a la clase, tarea, alumno o recurso en que se abrió. Si la persona salta a otro con el historial, no aparece abierto en el nuevo ni reaparece al volver, y nada de lo escrito se envía al otro. Si el control que tenía el foco desaparece por eso, el foco va al título de la clase (al cambiar de clase) o a la raíz de la vista (al cambiar de tarea, alumno o recurso); en las listas de Avisos, Dudas, Actividades y Recursos, una fila con el foco lo lleva al encabezado de la lista, como antes. Tampoco pasa a la nueva un aviso de la anterior (por ejemplo, el de una recarga que falló), y en Avisos, Dudas, Actividades y Recursos el foco que estaba en «Ver más» va también al encabezado. Si la persona se fue de la vista antes de que una acción termine, al terminar solo sale el aviso: la app no la regresa a la vista (CHORE-06a).
+
 ### 7.15 Resumen de una acción por lote (AUTH-03c, propuesta)
 
 Para el resultado de una acción que procesa varias líneas a la vez (la invitación masiva de maestros):

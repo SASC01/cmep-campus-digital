@@ -16,6 +16,7 @@ import { MENSAJES_ERROR_CLASES_GENERALES, TEXTOS_EDITAR_RECURSO } from "./data"
 import { useAvisoDeRecargaFallida, useMontado, useRecurso } from "./hooks"
 import {
   avisoDeRecargaFallidaDelRecurso,
+  errorQueRedirigeElCliente,
   errorQueReemplazaElRecurso,
   mensajeDeConsultaClases,
   perspectivaDeRuta,
@@ -49,7 +50,10 @@ interface EditarRecursoDeLaClaseProps {
 // no existe, la clase sin acceso (o un VALIDACION de esos ids) y `puedeEditar: false`. Una recarga que
 // falla con el recurso en caché conserva el formulario y avisa una vez por fallo. Al guardar, vuelve a
 // "Recursos".
-function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClaseProps) {
+// CHORE-06a (§D-1, Forma C): este es el contenido, montado con key por el recurso debajo de la raíz del
+// marco. Lo escrito, la versión de apertura, los reinicios y la espera de la lectura fresca son de este
+// recurso: un salto del historial a otro recurso monta otro contenido.
+function EdicionDelRecurso({ claseId, recursoId }: EditarRecursoDeLaClaseProps) {
   const { pathname } = useLocation()
   const base = baseDeClase(perspectivaDeRuta(pathname), claseId)
   const destino = `${base}/recursos`
@@ -59,7 +63,6 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
   // ADMIN-01d1 (§D-9, fila 20): en una clase archivada la ruta dice que la clase solo se consulta, con
   // "Volver a Recursos", sin formulario.
   const soloLectura = useSoloLecturaDeLaClase()
-  const raizRef = useRef<HTMLDivElement>(null)
   // §7.21 (P-05 a′ de ENTREGAS-01a): cuántas veces se reinició el formulario tras un 409
   // RECURSO_MODIFICADO. Es la `key` del formulario: solo la recarga tras el conflicto la cambia, así que
   // ninguna otra recarga toca lo escrito ni la versión de apertura.
@@ -85,14 +88,16 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
   // R8 (§D-10): con el recurso en caché, una recarga fallida que no reemplaza la vista avisa una vez por
   // fallo; volver a montar la vista con el fallo ya ocurrido no lo repite. ADMIN-01d2 (tabla D): en una
   // clase archivada no avisa, porque dice "Puedes seguir editando" y ya no hay formulario.
+  // CHORE-06a (§D-3): un error con que apiClient ya redirige no avisa.
   useAvisoDeRecargaFallida(
     consulta.errorUpdateCount,
-    hayRecurso && !errorQueReemplazaElRecurso(hayRecurso, consulta.error) && !soloLectura,
+    hayRecurso &&
+      !errorQueReemplazaElRecurso(hayRecurso, consulta.error) &&
+      !soloLectura &&
+      !errorQueRedirigeElCliente(consulta.error),
     avisoDeRecargaFallidaDelRecurso(consulta.error),
+    recursoId,
   )
-  // §7.14: si una recarga quita el formulario (el recurso ya no existe, se perdió el acceso o
-  // `puedeEditar`) con el foco dentro, el foco va a la raíz de la vista y no a <body>.
-  useFocoAlPerderseElControl(raizRef, claveDeFocoDeLaConsulta(recursoId, consulta))
 
   const contenido = (): ReactNode => {
     if (soloLectura) {
@@ -148,9 +153,22 @@ function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClasePr
     )
   }
 
+  return contenido()
+}
+
+// CHORE-06a (§D-1, Forma C): el marco conserva la raíz de foco y su clave; la clave cambia con el recurso,
+// así que si el control con el foco se desmonta al pasar a otro, el foco va a la raíz y no a <body>. Lee
+// la misma consulta que el contenido (misma clave, una petición).
+function EditarRecursoDeLaClase({ claseId, recursoId }: EditarRecursoDeLaClaseProps) {
+  const consulta = useRecurso(claseId, recursoId)
+  const raizRef = useRef<HTMLDivElement>(null)
+  // §7.14: si una recarga quita el formulario (el recurso ya no existe, se perdió el acceso o
+  // `puedeEditar`) con el foco dentro, el foco va a la raíz de la vista y no a <body>.
+  useFocoAlPerderseElControl(raizRef, claveDeFocoDeLaConsulta(recursoId, consulta))
+
   return (
     <div ref={raizRef} tabIndex={-1}>
-      {contenido()}
+      <EdicionDelRecurso key={recursoId} claseId={claseId} recursoId={recursoId} />
     </div>
   )
 }

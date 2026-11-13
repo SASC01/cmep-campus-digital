@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS, TEXTOS_RECURSOS } from "../data"
 import { useAvisoDeRecargaFallida, useFilaEnFoco, useFocoAlCargarMas, useRecursos } from "../hooks"
 import {
+  errorQueRedirigeElCliente,
   esErrorDeCursor,
   focoPerdido,
   marcaDeSeccionDeRecursos,
@@ -63,8 +64,11 @@ export function SeccionDeRecursos({
 
   useAvisoDeRecargaFallida(
     recursos.errorUpdateCount,
-    filas !== undefined && !esErrorDeCursor(recursos.error),
+    filas !== undefined &&
+      !esErrorDeCursor(recursos.error) &&
+      !errorQueRedirigeElCliente(recursos.error),
     mensajeDeConsultaClases(recursos.error),
+    claseId,
     ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS,
   )
 

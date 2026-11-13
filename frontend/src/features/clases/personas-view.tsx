@@ -187,5 +187,9 @@ export function PersonasView() {
     )
   }
   // El :claseId lo lee ConClaseDeLaRuta (§D-C5 bis).
-  return <ConClaseDeLaRuta>{(claseId) => <PersonasDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+  return (
+    <ConClaseDeLaRuta>
+      {(claseId) => <PersonasDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
+  )
 }

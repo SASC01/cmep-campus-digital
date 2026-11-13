@@ -1032,8 +1032,8 @@ describe("ADM-1D221: tabla B2", () => {
         },
       )
 
-      it("ADM-1D221 éxito, con la vista desmontada: como hoy, navega; un aviso", async () => {
-        const { router, soltar } = await conLaEscrituraEnVuelo(
+      it("ADM-1D221 éxito, con la vista desmontada: no navega; un aviso (CHORE-06a, como editar recurso y crear o editar clase)", async () => {
+        const { cliente, router, soltar } = await conLaEscrituraEnVuelo(
           ruta,
           es,
           respuesta,
@@ -1041,7 +1041,10 @@ describe("ADM-1D221: tabla B2", () => {
           VISTA_DESMONTADA,
         )
         soltar()
-        await waitFor(() => expect(router.state.location.pathname).toBe(destino), ESPERA)
+        await waitFor(() => expect(exitos()).toHaveLength(1), ESPERA)
+        await reposar(cliente)
+        expect(router.state.location.pathname).toBe(RUTAS.otra)
+        expect(router.state.location.pathname).not.toBe(destino)
         expect(exitos()).toHaveLength(1)
       })
     })

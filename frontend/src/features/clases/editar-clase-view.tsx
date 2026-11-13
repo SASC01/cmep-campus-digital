@@ -54,6 +54,8 @@ function EditarClaseDeLaRuta({ claseId }: EditarClaseDeLaRutaProps) {
 
 export function EditarClaseView() {
   return (
-    <ConClaseDeLaRuta>{(claseId) => <EditarClaseDeLaRuta claseId={claseId} />}</ConClaseDeLaRuta>
+    <ConClaseDeLaRuta>
+      {(claseId) => <EditarClaseDeLaRuta key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
   )
 }

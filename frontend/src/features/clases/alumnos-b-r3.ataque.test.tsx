@@ -249,7 +249,7 @@ describe("ataque CLASES-b r3: el foco del roster no se mueve de más", { timeout
 })
 
 describe("ataque CLASES-b r3: sesión que expira a mitad de quitar", { timeout: 30000 }, () => {
-  it("el DELETE responde 401 y el refresco falla: apiClient manda al login, avisa y el foco sigue en la fila", async () => {
+  it("el DELETE responde 401 y el refresco falla: apiClient manda al login, no avisa y el foco sigue en la fila", async () => {
     const { control } = crearServidor(3)
     renderAlumnos()
     const fila = await filaDe(2)
@@ -261,7 +261,9 @@ describe("ataque CLASES-b r3: sesión que expira a mitad de quitar", { timeout: 
     si.focus()
     fireEvent.click(si)
     await waitFor(() => expect(navegacion.irA).toHaveBeenCalledWith("/login"))
-    await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
+    // CHORE-06a (C-11): apiClient ya redirige; quitar no avisa. Un momento más tras irA.
+    await esperar(50)
+    expect(aviso.error).not.toHaveBeenCalled()
     expect(focoEn(), "el foco quedó en <body>").not.toBe(document.body)
     expect(focoEn()?.isConnected).toBe(true)
   })

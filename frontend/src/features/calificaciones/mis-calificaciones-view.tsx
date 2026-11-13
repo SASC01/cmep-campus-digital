@@ -251,7 +251,7 @@ function MisCalificacionesDeLaClase({ claseId }: MisCalificacionesDeLaClaseProps
 export function MisCalificacionesView() {
   return (
     <ConClaseDeLaRuta>
-      {(claseId) => <MisCalificacionesDeLaClase claseId={claseId} />}
+      {(claseId) => <MisCalificacionesDeLaClase key={claseId} claseId={claseId} />}
     </ConClaseDeLaRuta>
   )
 }

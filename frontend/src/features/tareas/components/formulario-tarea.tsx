@@ -32,6 +32,7 @@ import {
   erroresConLlavesDeFila,
   erroresDeLaTareaDeApi,
   erroresSinFilasQuitadas,
+  errorQueRedirigeElCliente,
   esTareaModificada,
   estadoInicialDelFormulario,
   mensajeDeErrorTareas,
@@ -222,6 +223,9 @@ function CamposDelFormulario<Version extends number | null>({
       archivoEnSubida = null
       await onGuardar({ ...datos, archivoIds }, versionDeApertura)
     } catch (error) {
+      // CHORE-06a (§D-3): si la solicitud de subida respondió con un error con que apiClient ya redirige,
+      // no se avisa.
+      if (archivoEnSubida !== null && errorQueRedirigeElCliente(error)) return
       if (archivoEnSubida !== null) {
         toast.error(avisoDeFalloAlSubir(error, archivoEnSubida, mensajeDeErrorTareas))
         return

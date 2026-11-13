@@ -662,6 +662,7 @@ export const useAsignarMaestro = (claseId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -681,6 +682,7 @@ export const useRetirarMaestro = (claseId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -812,6 +814,7 @@ export const useAgregarAlumno = (claseId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -835,6 +838,7 @@ export const useQuitarAlumno = (claseId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -1056,6 +1060,7 @@ export const useCrearPublicacion = (claseId: string) => {
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (montado.current && erroresDeLaPublicacionDeApi(error, "anuncio")) return
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -1077,6 +1082,7 @@ export const useBorrarPublicacion = (claseId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -1128,6 +1134,7 @@ export const useComentar = (claseId: string, publicacionId: string) => {
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (montado.current && erroresDeFormularioClases(error, ["texto"])) return
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -1149,6 +1156,7 @@ export const useBorrarComentario = (claseId: string, publicacionId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
     },
   })
@@ -1267,15 +1275,24 @@ export const useTrabajo = (claseId: string, tema: string) =>
 // Un aviso por cada fallo nuevo de una recarga que conserva los datos en caché (la vista no se
 // reemplaza por un error). Montar la vista con un fallo ya ocurrido no avisa. CLASES-03d (§D-8.1): con
 // `idDelAviso`, el aviso lleva ese id de sonner (dos fallos de lugares distintos dejan uno a la vista);
-// sin él, el aviso es el de siempre.
+// sin él, el aviso es el de siempre. `clave`: el id que protege; si cambia, empieza de cero.
 export const useAvisoDeRecargaFallida = (
   errorUpdateCount: number,
   hayDatos: boolean,
   texto: string,
+  clave: string,
   idDelAviso?: string,
 ) => {
   const fallosVistos = useRef(errorUpdateCount)
+  const clavePrevia = useRef(clave)
   useEffect(() => {
+    // CHORE-06a (T-03): una vista que sobrevive al cambio de clase empieza de cero con la consulta de la
+    // otra clase, sin repetir ni heredar su aviso (como useFocoAlPasarAError).
+    if (clavePrevia.current !== clave) {
+      clavePrevia.current = clave
+      fallosVistos.current = errorUpdateCount
+      return
+    }
     if (fallosVistos.current === errorUpdateCount) return
     fallosVistos.current = errorUpdateCount
     if (!hayDatos) return
@@ -1284,7 +1301,7 @@ export const useAvisoDeRecargaFallida = (
       return
     }
     toast.error(texto, { id: idDelAviso })
-  }, [errorUpdateCount, hayDatos, texto, idDelAviso])
+  }, [errorUpdateCount, hayDatos, texto, idDelAviso, clave])
 }
 
 const invalidarTemas = (queryClient: ReturnType<typeof useQueryClient>, claseId: string) =>
@@ -1339,9 +1356,12 @@ const avisarErrorDelTema = async (
   error: unknown,
 ) => {
   const delCampo = erroresDelTemaDeApi(error) !== null
-  if (!delCampo) toast.error(mensajeDeErrorClases(error))
+  // CHORE-06a (§D-3): con un error con que apiClient ya redirige no se avisa; la renovación sigue (con
+  // esos códigos no renueva nada).
+  const avisa = !errorQueRedirigeElCliente(error)
+  if (avisa && !delCampo) toast.error(mensajeDeErrorClases(error))
   await renovarTrasError(queryClient, claseId, error)
-  if (delCampo && !montado.current) toast.error(mensajeDeErrorClases(error))
+  if (avisa && delCampo && !montado.current) toast.error(mensajeDeErrorClases(error))
 }
 
 // Los avisos viven en los hooks y no en los callbacks de mutate (patrón T-30): corren aunque el
@@ -1411,6 +1431,7 @@ export const useBorrarTema = (claseId: string) => {
     },
     onError: async (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
     },
@@ -1471,6 +1492,7 @@ export const useOrdenarTemas = (claseId: string) => {
     },
     onError: async (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       await renovarTrasError(queryClient, claseId, error)
     },
@@ -2012,6 +2034,7 @@ export const useGuardarCategorias = (claseId: string) => {
       // T-03 (ronda 3 de 01d1), como useComentar: el error de una fila lo pinta el editor solo si sigue
       // montado; si no (la clase se archivó o la persona salió), se avisa.
       if (montado.current && erroresDeCategoriasDeApi(error, []) !== null) return
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorClases(error))
       if (!esApiError(error) || !CODIGOS_QUE_RENUEVAN_LAS_CATEGORIAS.includes(error.codigo)) return
       await queryClient.invalidateQueries({ queryKey: claveCategorias(claseId) })

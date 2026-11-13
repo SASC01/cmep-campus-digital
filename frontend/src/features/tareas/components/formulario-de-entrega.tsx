@@ -16,7 +16,13 @@ import { subirArchivo } from "@/services/almacenService"
 
 import { TEXTOS_TU_TRABAJO } from "../data"
 import { useEntregar } from "../hooks"
-import { errorDeEnlacesDeApi, esEntregaVacia, mensajeDeErrorTareas, rutaDeMiEntrega } from "../lib"
+import {
+  errorDeEnlacesDeApi,
+  errorQueRedirigeElCliente,
+  esEntregaVacia,
+  mensajeDeErrorTareas,
+  rutaDeMiEntrega,
+} from "../lib"
 import type { TareaDetalle } from "../types"
 import { CampoDeEnlaces } from "./campo-de-enlaces"
 
@@ -131,6 +137,9 @@ export function FormularioDeEntrega({ claseId, tarea, onEntregada }: FormularioD
       await entregar.mutateAsync({ archivoIds, enlaces: [...enlaces] })
       onEntregada()
     } catch (error) {
+      // CHORE-06a (§D-3): si la solicitud de subida respondió con un error con que apiClient ya redirige,
+      // no se avisa.
+      if (archivoEnSubida !== null && errorQueRedirigeElCliente(error)) return
       if (archivoEnSubida !== null) {
         toast.error(avisoDeFalloAlSubir(error, archivoEnSubida, mensajeDeErrorTareas))
         return

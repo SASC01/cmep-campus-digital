@@ -116,5 +116,9 @@ function MaestrosDeLaClase({ claseId }: MaestrosDeLaClaseProps) {
 }
 
 export function MaestrosDeClaseView() {
-  return <ConClaseDeLaRuta>{(claseId) => <MaestrosDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+  return (
+    <ConClaseDeLaRuta>
+      {(claseId) => <MaestrosDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
+  )
 }

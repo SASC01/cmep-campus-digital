@@ -24,6 +24,7 @@ import {
 import { useAvisoDeRecargaFallida, useFilaEnFoco, useTemasDeLaSeccion } from "./hooks"
 import {
   claveDeLaMarcaDeRecursos,
+  errorQueRedirigeElCliente,
   errorQuitaLaVista,
   focoPerdido,
   marcaDeSeccionDeRecursos,
@@ -62,8 +63,12 @@ function BloqueDeRecursos({ claseId, bloque, base, perspectiva }: BloqueDeRecurs
 
   useAvisoDeRecargaFallida(
     temas.errorUpdateCount,
-    temas.data !== undefined && !errorQuitaLaVista(temas.error) && !esClaseArchivada(temas.error),
+    temas.data !== undefined &&
+      !errorQuitaLaVista(temas.error) &&
+      !esClaseArchivada(temas.error) &&
+      !errorQueRedirigeElCliente(temas.error),
     TEXTOS_RECURSOS.recargaFallida,
+    claseId,
     ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS,
   )
 
@@ -131,7 +136,7 @@ function BloqueDeRecursos({ claseId, bloque, base, perspectiva }: BloqueDeRecurs
       <div className="flex flex-col gap-4">
         {secciones.map((seccion) => (
           <SeccionDeRecursos
-            key={seccion.clave}
+            key={`${claseId}:${seccion.clave}`}
             claseId={claseId}
             bloque={bloque}
             seccion={seccion}
@@ -178,7 +183,7 @@ function RecursosDeLaClase({ claseId }: RecursosDeLaClaseProps) {
   return (
     <div className="flex flex-col gap-6">
       {capacidades.gestionarTrabajo && !soloLectura && (
-        <FormularioRecurso modo="crear" claseId={claseId} destino={destino} />
+        <FormularioRecurso key={claseId} modo="crear" claseId={claseId} destino={destino} />
       )}
       {BLOQUES_DE_RECURSO.map((bloque) => (
         <BloqueDeRecursos

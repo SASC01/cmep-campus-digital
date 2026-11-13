@@ -27,6 +27,7 @@ import {
 } from "./hooks"
 import {
   elementosEnTotalDelTema,
+  errorQueRedirigeElCliente,
   errorQuitaLaVista,
   focoPerdido,
   mensajeDeConsultaClases,
@@ -79,10 +80,12 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   const ordenDeLaCache = useOrdenDeTemasEnVuelo(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const nuevoTemaRef = useRef<HTMLButtonElement>(null)
-  const [creando, setCreando] = useState(false)
   // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
   // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
-  if (soloLectura && creando) setCreando(false)
+  // CHORE-06a (§D-1): «Nuevo tema» es de su clase; al pasar a otra o a solo lectura, se cierra.
+  const [creandoEn, setCreandoEn] = useState<string | null>(null)
+  if (creandoEn !== null && (creandoEn !== claseId || soloLectura)) setCreandoEn(null)
+  const creando = creandoEn === claseId
   // CHORE-04 (§D-4 bis): el orden propio guarda su clase; la vista sobrevive al cambio de clase.
   const [ordenPropio, setOrdenPropio] = useState<OrdenPropioEnVuelo | null>(null)
   const focoTrasOrdenarRef = useRef<OrdenPropioEnVuelo | null>(null)
@@ -105,8 +108,12 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   // Una recarga fallida que conserva la vista avisa una vez por fallo; la que la reemplaza ya lo dice.
   useAvisoDeRecargaFallida(
     temas.errorUpdateCount,
-    temas.data !== undefined && !errorQuitaLaVista(temas.error) && !esClaseArchivada(temas.error),
+    temas.data !== undefined &&
+      !errorQuitaLaVista(temas.error) &&
+      !esClaseArchivada(temas.error) &&
+      !errorQueRedirigeElCliente(temas.error),
     TEXTOS_TRABAJO.recargaFallida,
+    claseId,
   )
 
   // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí no desmonta la vista. Si la
@@ -212,7 +219,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
 
   const cerrarFormulario = () => {
     focoAlCerrarRef.current = true
-    setCreando(false)
+    setCreandoEn(null)
   }
 
   const contenido = (): ReactNode => {
@@ -237,7 +244,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
               : elementosEnTotalDelTema(temasEnTotal.data, temasEnTotal.isError, seccion.tema.id)
           return (
             <SeccionDeTema
-              key={seccion.clave}
+              key={`${claseId}:${seccion.clave}`}
               claseId={claseId}
               base={base}
               seccion={seccion}
@@ -274,7 +281,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
                 ref={nuevoTemaRef}
                 type="button"
                 variant="outline"
-                onClick={() => setCreando(true)}
+                onClick={() => setCreandoEn(claseId)}
               >
                 {TEXTOS_TRABAJO.nuevoTema}
               </Button>

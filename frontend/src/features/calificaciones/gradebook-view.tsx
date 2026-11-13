@@ -219,6 +219,8 @@ function GradebookDeLaClase({ claseId }: GradebookDeLaClaseProps) {
 // El :claseId lo lee ConClaseDeLaRuta (sin él no pide nada y dice "No tienes acceso a esta clase.").
 export function GradebookView() {
   return (
-    <ConClaseDeLaRuta>{(claseId) => <GradebookDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+    <ConClaseDeLaRuta>
+      {(claseId) => <GradebookDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
   )
 }

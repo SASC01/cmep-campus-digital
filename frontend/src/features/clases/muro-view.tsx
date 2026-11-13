@@ -55,6 +55,9 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   const ids = filas?.map((publicacion) => publicacion.id)
 
   const enfocarPublicacion = (id: string): boolean => {
+    // CHORE-06a (ronda 2): tras un cambio de clase, «Ver más» de la anterior no lleva el foco a una
+    // publicación de la nueva (O-14): sin fila, el gancho va al encabezado de la lista.
+    if (clasePrevia.current !== claseId) return false
     const fila = document.querySelector<HTMLElement>(`[data-publicacion-id="${id}"]`)
     fila?.focus()
     return fila !== null
@@ -161,7 +164,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   return (
     <div className="flex flex-col gap-5">
       {CAPACIDADES_POR_PERSPECTIVA[perspectiva].formularioPublicacion && !soloLectura && (
-        <FormularioPublicacion claseId={claseId} />
+        <FormularioPublicacion key={claseId} claseId={claseId} />
       )}
       <section className="flex flex-col gap-4">
         <h2 ref={encabezadoRef} tabIndex={-1} className="sr-only">

@@ -187,6 +187,7 @@ export const useCrearTarea = (claseId: string) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void pedirDeNuevoLasOpciones(queryClient, claseId, error)
       if (erroresDeLaTareaDeApi(error)) return
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorTareas(error))
     },
   })
@@ -211,6 +212,7 @@ export const useEditarTarea = (claseId: string, tareaId: string) => {
       void pedirDeNuevoLasOpciones(queryClient, claseId, error)
       void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
       if (erroresDeLaTareaDeApi(error)) return
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorTareas(error))
     },
   })
@@ -243,6 +245,7 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
       if (esTareaConEntregas(error) && montado.current) return
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorTareas(error))
     },
   })
@@ -295,7 +298,14 @@ export const useAvisoDeRecargaFallida = (
       ultimoFalloAvisado.set(consulta, marca)
       // ADMIN-01d2, ronda 1 (T-01): el 409 de una clase archivada no es una recarga fallida: decir que se
       // muestra la última versión sería falso, porque la clase pasa a solo lectura o el alumno sale de aquí.
-      if (esClaseArchivada(consulta.state.error)) return
+      // CHORE-06a (§D-3): con un error con que apiClient ya redirige tampoco se avisa; el fallo queda
+      // marcado como avisado, así que no se repite al volver.
+      if (
+        esClaseArchivada(consulta.state.error) ||
+        errorQueRedirigeElCliente(consulta.state.error)
+      ) {
+        return
+      }
     }
     toast.error(texto)
   }, [activo, marca, texto, queryClient, claseId, tareaId])
@@ -363,6 +373,9 @@ const avisarDelErrorDeLaEntrega = (
   error: unknown,
   mensajeDe: (error: unknown) => string = mensajeDeErrorTareas,
 ) => {
+  // CHORE-06a (§D-3): entregar, anular y comentar en el hilo no avisan de un error con que apiClient ya
+  // redirige.
+  if (errorQueRedirigeElCliente(error)) return
   const consulta = errorQueReemplazaLaVista(true, error)
     ? queryClient.getQueryCache().find({ queryKey: claveTarea(claseId, tareaId), exact: true })
     : undefined

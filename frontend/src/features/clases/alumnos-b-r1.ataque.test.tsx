@@ -414,7 +414,7 @@ describe("ataque CLASES-b r1: las vistas no pintan datos de pago aunque la API l
 })
 
 describe("ataque CLASES-b r1: N-04 con ACCESO_RESTRINGIDO al unirse", () => {
-  it("redirige con apiClient, avisa una sola vez y no marca el campo", async () => {
+  it("redirige con apiClient, no avisa y no marca el campo", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>(() =>
@@ -438,7 +438,11 @@ describe("ataque CLASES-b r1: N-04 con ACCESO_RESTRINGIDO al unirse", () => {
     fireEvent.click(screen.getByRole("button", { name: "Unirme a la clase" }))
 
     await waitFor(() => expect(navegacion.irA).toHaveBeenCalledWith("/acceso-restringido"))
-    await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
+    // CHORE-06a (C-2): apiClient ya redirige; el formulario no avisa. Un momento más tras irA.
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 50))
+    })
+    expect(aviso.error).not.toHaveBeenCalled()
     expect(navegacion.irA).toHaveBeenCalledTimes(1)
     expect(campo).not.toHaveAttribute("aria-invalid", "true")
     expect(aviso.success).not.toHaveBeenCalled()

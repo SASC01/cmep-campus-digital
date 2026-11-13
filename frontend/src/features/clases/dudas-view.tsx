@@ -47,6 +47,9 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
   const ids = filas?.map((duda) => duda.id)
 
   const enfocarDuda = (id: string): boolean => {
+    // CHORE-06a (ronda 2): tras un cambio de clase, «Ver más» de la anterior no lleva el foco a una
+    // duda de la nueva (O-14): sin fila, el gancho va al encabezado de la lista.
+    if (clasePrevia.current !== claseId) return false
     const fila = document.querySelector<HTMLElement>(`[data-duda-id="${id}"]`)
     fila?.focus()
     return fila !== null
@@ -163,7 +166,9 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
         </h2>
         {!soloLectura && <p className="text-small text-muted-foreground">{TEXTOS_DUDAS.frase}</p>}
       </div>
-      {capacidades.formularioComentario && !soloLectura && <FormularioDuda claseId={claseId} />}
+      {capacidades.formularioComentario && !soloLectura && (
+        <FormularioDuda key={claseId} claseId={claseId} />
+      )}
       {contenido()}
     </section>
   )

@@ -4,13 +4,24 @@ import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } fr
 import { Cargando } from "@/components/cargando"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { claveTrabajo } from "@/services/trabajoService"
 
 import { TEXTOS_TEMAS, TEXTOS_TRABAJO } from "../data"
-import { useBorrarTema, useFilaEnFoco, useFocoAlCargarMas, useTrabajo } from "../hooks"
-import { focoPerdido, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
+import {
+  useAvisoDeRecargaFallida,
+  useBorrarTema,
+  useFilaEnFoco,
+  useFocoAlCargarMas,
+  useListaConservadaTrasLaPagina,
+  useTrabajo,
+} from "../hooks"
+import { focoPerdido, mensajeDeConsultaClases, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
 import type { ControlDeOrden, OrdenEnVuelo, SeccionDeTrabajo, Tema } from "../types"
 import { ElementoDeTrabajo } from "./elemento-de-trabajo"
 import { FilaDeEntrega } from "./fila-de-entrega"
@@ -49,6 +60,22 @@ function ElementosDelTema({
   const idsPrevios = useRef<string[] | undefined>(undefined)
   const elementos = trabajo.data?.pages.flatMap((pagina) => pagina.elementos)
   const ids = elementos?.map((elemento) => elemento.id)
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva el tema, también
+  // mientras una recarga lo recupera; avisa una vez por fallo, con la clase como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    claveTrabajo(claseId, seccion.clave),
+    trabajo.isFetchNextPageError,
+    trabajo.isError,
+    trabajo.errorUpdateCount,
+    trabajo.errorUpdatedAt,
+    trabajo.error,
+  )
+  useAvisoDeRecargaFallida(
+    trabajo.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(trabajo.error),
+    claseId,
+  )
 
   const enfocarElemento = (id: string): boolean => {
     const fila = document.querySelector<HTMLElement>(`[data-elemento-id="${id}"]`)
@@ -59,11 +86,10 @@ function ElementosDelTema({
   const refVerMas = useFocoAlCargarMas(ids, enfocarElemento, () => encabezadoRef.current?.focus())
 
   // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí vuelve a pedir este tema desde
-  // su primera página si está en error (el cursor ya no existe); un tema sano no pide nada (S-10).
-  useAlPulsarLaSeccionActiva(() => {
-    if (!trabajo.isError) return
-    void trabajo.refetch()
-  })
+  // su primera página. CHORE-06b (§D-4): si está en error o viejo, sin cancelar ni duplicar lo que vuela;
+  // un tema sano y fresco no pide nada (S-10).
+  useRecargarAlPulsarLaSeccion(trabajo)
+  useMarcarViejaSiQuedoEnError(claveTrabajo(claseId, seccion.clave))
 
   useEffect(() => {
     const previos = idsPrevios.current
@@ -85,7 +111,7 @@ function ElementosDelTema({
     enfocarElemento(vecina)
   })
 
-  if (trabajo.isError) {
+  if (trabajo.isError && !conserva) {
     return (
       <MensajeError
         mensaje={mensajeDeErrorDeLista(trabajo.error, TEXTOS_TRABAJO.cambioMientrasLoVeias)}

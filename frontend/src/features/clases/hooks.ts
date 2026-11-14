@@ -50,6 +50,8 @@ import {
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type Query,
+  type QueryKey,
 } from "@tanstack/react-query"
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { toast } from "sonner"
@@ -134,6 +136,7 @@ import {
 import {
   consultaDeClasesAdmin,
   consultaDeClasesAnteriores,
+  conservaLaListaTrasLaPagina,
   crearLimiteDeConcurrencia,
   desplazamientoParaVer,
   erroresDeCategoriasDeApi,
@@ -149,6 +152,7 @@ import {
   esClaseQueYaNoExiste,
   esDudaNoEncontrada,
   focoPerdido,
+  listaTraeLaClase,
   medidaDelIndicador,
   mensajeDeErrorClases,
   opcionEnElPanel,
@@ -411,8 +415,31 @@ export const useRecuperarListaDeClasesAnteriores = () => {
   )
   return () => {
     const clave = claveClasesAnteriores()
-    if (queryClient.getQueryState(clave)?.status !== "error") return
+    const estado = queryClient.getQueryState(clave)
+    if (estado?.status !== "error") return
+    // CHORE-06b (§D-4, hermano de T-07 de ADMIN-01g): una lista en error que ya se está recargando
+    // conserva status "error"; resetQueries descartaría esa recarga y lanzaría una segunda petición.
+    if (estado.fetchStatus === "fetching") return
     void queryClient.resetQueries({ queryKey: clave, exact: true })
+  }
+}
+
+// CHORE-06b (§D-6, fila 361; Enmienda 4, P-2): la barra lateral y las listas del inicio cuelgan de estas
+// dos claves. Se invalidan solo las consultas que todavía traen la clase que se acaba de leer archivada
+// (el predicate): las activas se piden de nuevo; una inactiva (el inicio sin montarse) queda vieja y se
+// pide al montarse. Si ninguna la trae (la sesión del admin, o el maestro que la abre desde "Clases
+// archivadas"), nada. El efecto corre más de una vez por clase (ClaseLayout y ClaseAnteriorView, o el
+// regreso con el historial): una consulta ya invalidada no se vuelve a pedir, y lo que ya vuela no se
+// cancela ni se duplica (PR-3; su precio, R-12).
+const renovarLasListasSiTraenLaClase = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+) => {
+  for (const lista of [CLAVE_CLASES_INSCRITAS, CLAVE_CLASES_IMPARTIDAS]) {
+    void queryClient.invalidateQueries(
+      { queryKey: lista, predicate: (consulta) => listaTraeLaClase(consulta.state.data, claseId) },
+      { cancelRefetch: false },
+    )
   }
 }
 
@@ -428,6 +455,7 @@ export const useClaseArchivadaEnSuLista = (claseId: string, archivada: boolean) 
   const queryClient = useQueryClient()
   useEffect(() => {
     if (!archivada) return
+    renovarLasListasSiTraenLaClase(queryClient, claseId)
     const clave = claveClasesAnteriores()
     const consulta = queryClient.getQueryState<InfiniteData<ListaClasesAnterioresRespuesta>>(clave)
     const enVuelo = consulta?.fetchStatus === "fetching"
@@ -460,7 +488,10 @@ export const useRecuperarListaDeClasesAdmin = (estado: EstadoDeClases) => {
   )
   return () => {
     const clave = claveClasesAdmin(estado)
-    if (queryClient.getQueryState(clave)?.status !== "error") return
+    const consulta = queryClient.getQueryState(clave)
+    if (consulta?.status !== "error") return
+    // CHORE-06b (§D-4, hermano de T-07 de ADMIN-01g): como en "Clases anteriores".
+    if (consulta.fetchStatus === "fetching") return
     void queryClient.resetQueries({ queryKey: clave, exact: true })
   }
 }
@@ -1304,6 +1335,37 @@ export const useAvisoDeRecargaFallida = (
   }, [errorUpdateCount, hayDatos, texto, idDelAviso, clave])
 }
 
+// CHORE-06b (§D-5; Enmienda 5, T-04 y T-05): el fallo de la página que conservó la lista es de la
+// consulta, no del componente: sobrevive a que la vista se monte de nuevo con la recuperación en vuelo y
+// cada consulta tiene el suyo. Sale de la memoria con la consulta (gcTime, removeQueries, clear).
+const fallosDePaginaConservados = new WeakMap<Query, string>()
+
+// CHORE-06b (§D-5, M-02 de la Enmienda 3b; Enmienda 5): la lista que conservó un fallo de la página
+// siguiente se sigue viendo mientras una recarga la recupera (pulsar, volver, el salto de clase, una
+// invalidación, cerrar y abrir): la recarga borra la dirección del fallo, pero el error es el mismo
+// (mismo errorUpdateCount y errorUpdatedAt) hasta que llega la respuesta. Un fallo nuevo de una recarga
+// sí reemplaza la lista (DH-02 a). La marca la registra un efecto, no el render.
+export const useListaConservadaTrasLaPagina = (
+  queryKey: QueryKey,
+  isFetchNextPageError: boolean,
+  isError: boolean,
+  errorUpdateCount: number,
+  errorUpdatedAt: number,
+  error: unknown,
+): boolean => {
+  const consulta = useQueryClient().getQueryCache().find({ queryKey, exact: true })
+  const ahora = conservaLaListaTrasLaPagina({ isFetchNextPageError, error })
+  const fallo = `${String(errorUpdateCount)}:${String(errorUpdatedAt)}`
+  useEffect(() => {
+    if (!ahora || consulta === undefined) return
+    fallosDePaginaConservados.set(consulta, fallo)
+  }, [ahora, consulta, fallo])
+  return (
+    ahora ||
+    (isError && consulta !== undefined && fallosDePaginaConservados.get(consulta) === fallo)
+  )
+}
+
 const invalidarTemas = (queryClient: ReturnType<typeof useQueryClient>, claseId: string) =>
   queryClient.invalidateQueries({ queryKey: claveTemas(claseId) })
 
@@ -1821,6 +1883,34 @@ export const useRenovarSiLaDudaYaNoEsta = (
     if (!esDudaNoEncontrada(error)) return
     void invalidarDudas(queryClient, claseId)
   }, [errorUpdateCount, error, queryClient, claseId])
+}
+
+// CHORE-06b (§D-5, hermano de T-02 de CLASES-03e): abrir los comentarios o pedir "Ver más comentarios"
+// de una publicación que otra persona borró renueva las listas de Avisos y de Recursos, para que la fila
+// salga. Una vez por fallo; el bloque muestra mientras tanto su único mensaje, sin aviso. Con la clave
+// (clase y publicación): si cambia, empieza de cero sin renovar (Regla de la clave).
+export const useRenovarSiLaPublicacionYaNoEsta = (
+  claseId: string,
+  publicacionId: string,
+  errorUpdateCount: number,
+  error: unknown,
+) => {
+  const queryClient = useQueryClient()
+  const fallosVistos = useRef(errorUpdateCount)
+  const clave = `${claseId}:${publicacionId}`
+  const clavePrevia = useRef(clave)
+  useEffect(() => {
+    if (clavePrevia.current !== clave) {
+      clavePrevia.current = clave
+      fallosVistos.current = errorUpdateCount
+      return
+    }
+    if (fallosVistos.current === errorUpdateCount) return
+    fallosVistos.current = errorUpdateCount
+    if (!esApiError(error) || error.codigo !== "PUBLICACION_NO_ENCONTRADA") return
+    void invalidarMuro(queryClient, claseId)
+    void queryClient.invalidateQueries({ queryKey: clavePrefijoDeRecursos(claseId) })
+  }, [errorUpdateCount, error, queryClient, claseId, clave])
 }
 
 // §D-11 (O-16) en "Publicar duda" y "Responder": un error del texto lo muestra el formulario solo si

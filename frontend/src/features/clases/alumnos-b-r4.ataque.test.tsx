@@ -342,23 +342,32 @@ describe("ataque CLASES-b r4: T-26 en el roster y en personas", { timeout: 30000
     },
   )
 
-  it("alumnos: si la consulta de la página siguiente falla, el foco va al encabezado", async () => {
+  // CHORE-06b (C-4 de la ronda 0, §D-5): el fallo de la página siguiente (un 500) ya no reemplaza la
+  // lista; sale un solo aviso con la lista a la vista.
+  const unAvisoConLaListaALaVista = async () => {
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
+    expect(screen.getAllByText(nombreDe(1)).length).toBeGreaterThan(0)
+  }
+
+  it("alumnos: si la consulta de la página siguiente falla, la lista se queda, un solo aviso y el foco se queda en «Ver más alumnos» (CHORE-06b, §D-5)", async () => {
     const { control } = crearServidor(52)
     renderVista("alumnos")
     await screen.findAllByText(nombreDe(1))
     control.fallarPaginaSiguiente = true
     pulsar(await screen.findByRole("button", { name: "Ver más alumnos" }))
-    await waitFor(() => expect(screen.queryAllByText(nombreDe(1))).toHaveLength(0))
-    await waitFor(() => expect(focoEn()).toBe(screen.getByRole("heading", { name: "Alumnos" })))
+    await unAvisoConLaListaALaVista()
+    await waitFor(() =>
+      expect(focoEn()).toBe(screen.getByRole("button", { name: "Ver más alumnos" })),
+    )
   })
 
-  it("T-27: personas: si la consulta de la página siguiente falla, el foco no se pierde en <body>", async () => {
+  it("T-27: personas: si la consulta de la página siguiente falla, la lista se queda con un solo aviso y el foco no se pierde en <body> (CHORE-06b, §D-5)", async () => {
     const { control } = crearServidor(52)
     renderVista("personas")
     await screen.findAllByText(nombreDe(1))
     control.fallarPaginaSiguiente = true
     pulsar(await screen.findByRole("button", { name: "Ver más alumnos" }))
-    await waitFor(() => expect(screen.queryAllByText(nombreDe(1))).toHaveLength(0))
+    await unAvisoConLaListaALaVista()
     await esperar(30)
     expect(focoEn(), "el foco quedó en <body>").not.toBe(document.body)
     expect(focoEn()?.isConnected).toBe(true)

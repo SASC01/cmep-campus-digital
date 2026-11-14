@@ -386,7 +386,7 @@ describe("Vecinos del mecanismo", () => {
     expect(aviso.error).not.toHaveBeenCalled()
   })
 
-  it("CAL-T-258: las marcas viejas de useMarcarViejoElGradebook: el 400 marca una vez y pulsar la sección dos veces (con el texto y con la tabla sana) no agrega ninguna", async () => {
+  it("CAL-T-258: las marcas viejas de useMarcarViejoElGradebook: el 400 marca una vez; pulsar la sección con el texto a la vista agrega una (N-52, CHORE-06b) y con la tabla sana ninguna", async () => {
     estado.cursorGradebook = "400"
     const { espia } = await renderEn(RUTA_MAESTRO)
     await esperarTabla()
@@ -401,9 +401,10 @@ describe("Vecinos del mecanismo", () => {
     await pulsarCalificaciones()
     await waitFor(() => expect(screen.getByText("1 alumno")).toBeInTheDocument())
     await reposar()
+    expect(marcasViejas(espia)).toHaveLength(marcas + 1)
     await pulsarCalificaciones()
     await reposar()
-    expect(marcasViejas(espia)).toHaveLength(marcas)
+    expect(marcasViejas(espia)).toHaveLength(marcas + 1)
     expect(document.querySelector("[aria-busy='true']")).toBeNull()
   })
 

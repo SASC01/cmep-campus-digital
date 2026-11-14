@@ -207,27 +207,9 @@ export const useFundirEnLaFicha = () => {
   return useCallback((cuenta: UsuarioAdmin) => fundirEnLaFicha(queryClient, cuenta), [queryClient])
 }
 
-// ADMIN-01f (§D-11, Enmienda 1 y corrección M-17): una consulta que quedó en error se marca vieja, sin
-// pedirla, al dejar su clave (otro filtro u otro término) y al desmontarse la vista. Así volver a ella
-// antes de que venza el staleTime la vuelve a pedir y la frase "Revisa tu conexión e inténtalo de
-// nuevo" se cumple. Una consulta sana no se toca.
-const marcarViejaSiQuedoEnError = (queryClient: QueryClient, queryKey: QueryKey) => {
-  if (queryClient.getQueryState(queryKey)?.status !== "error") return
-  void queryClient.invalidateQueries({ queryKey, exact: true, refetchType: "none" })
-}
-
-export const useMarcarViejaSiQuedoEnError = (queryKey: QueryKey) => {
-  const queryClient = useQueryClient()
-  const huella = JSON.stringify(queryKey)
-  const claveRef = useRef(queryKey)
-  useEffect(() => {
-    claveRef.current = queryKey
-  })
-  useEffect(() => {
-    const clave = claveRef.current
-    return () => marcarViejaSiQuedoEnError(queryClient, clave)
-  }, [queryClient, huella])
-}
+// ADMIN-01f (§D-11, Enmienda 1 y corrección M-17): desde CHORE-06b (§D-4) el gancho vive en
+// components/seccion/hooks.ts, que lo comparte con features/clases; se reexporta con su nombre.
+export { useMarcarViejaSiQuedoEnError } from "@/components/seccion/hooks"
 
 // ADMIN-01f (ADM-1F01, ADM-1F17): pulsar la sección en la que ya se está (useAlPulsarLaSeccionActiva)
 // vuelve a pedir la consulta visible si quedó en error, desde la primera página; una sana no se pide.

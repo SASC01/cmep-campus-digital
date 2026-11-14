@@ -460,7 +460,10 @@ describe("ataque CLASES-03c2 r2 · (4) la recarga que sí llega manda", () => {
 })
 
 describe("ataque CLASES-03c2 r2 · (5) pulsar la sección activa tras escribir el orden", () => {
-  it("CL3-2R2-10: tras escribir el orden sobre una recarga fallida, pulsar «Actividades de aprendizaje» estando ahí no pide nada y ninguna frase de la vista promete esa acción", async () => {
+  // CHORE-06b (C-9 de la ronda 0, DH-03 b, CH6-B08): la lista quedó marcada vieja por la recarga fallida,
+  // así que pulsar la sección estando ahí la pide una sola vez. Sigue vigilando que no salga una petición
+  // de más y que ninguna frase de la vista prometa esa acción.
+  it("CL3-2R2-10: tras escribir el orden sobre una recarga fallida, pulsar «Actividades de aprendizaje» estando ahí pide la lista de temas de la sección una vez y ninguna frase de la vista promete esa acción", async () => {
     const servidor = crearServidor()
     const { router } = montar()
     await listo()
@@ -470,8 +473,9 @@ describe("ataque CLASES-03c2 r2 · (5) pulsar la sección activa tras escribir e
     await waitFor(sinEspera)
     const antes = servidor.getsDeSeccion()
     await ir(router, TRABAJO)
+    await waitFor(() => expect(servidor.getsDeSeccion()).toBe(antes + 1))
     await reposar(200)
-    expect(servidor.getsDeSeccion()).toBe(antes)
+    expect(servidor.getsDeSeccion()).toBe(antes + 1)
     expect(document.body.textContent).not.toMatch(/Vuelve a abrir|Inténtalo de nuevo|Recarga/)
     expect(nombres()).toEqual(["Unidad 2", "Unidad 1", "Unidad 3"])
   })

@@ -1260,3 +1260,1335 @@ Manager. Solo lectura, sin suites. Revisé `docs/DESIGN.md` (`99063281…`) y `d
 - `git add -n -A` da 47. La única diferencia es `docs/trabajo/DEPLOY-investigacion-vps.md`, que queda fuera, como debe.
 - `git status --porcelain` da 43 líneas, con la carpeta del encargo en una sola. Los `git add -n` los corrí en serie. El índice sigue vacío.
 - `revision.md` cambia con esta sección y sigue dentro de la carpeta del encargo, así que el conteo no cambia.
+
+## Verificación de la Enmienda 3 — CHORE-06b (2026-11-12)
+Manager, modo plan. Solo lectura, sin suites. Revisé:
+- `plan.md`: 908 líneas, SHA-256 `824af180c9afa1884b1ba9873d224161c6131d9dc2d38c7855149534acfd2e31`, igual al que anotó el orquestador;
+- la copia de antes `plan-ch6-antes-e3-c5fe10fc.md` (`c5fe10fc…`, comprobado). El `git diff --no-index` completo da 246 inserciones y 32 borrados, y lo leí bloque por bloque;
+- `revision.md` (`d1b2f393…`), `aprobacion.md` (hasta la entrada de la Enmienda 3) y `reporte-tester.md` (O-01, O-06 a O-09);
+- el código en `023b450`. `frontend/` está limpio contra ese commit (`git status --porcelain frontend` vacío). También leí `@tanstack/query-core` 5.103.2 instalado (`node_modules/@tanstack/query-core/build/modern/`).
+
+**Veredicto: CAMBIOS REQUERIDOS.** Hay dos problemas que bloquean: M-01 y M-02. Los dos salen de cómo maneja TanStack Query 5.103.2 el estado de una consulta, no de las decisiones del humano. Ninguno reabre DH-01 a DH-10, el alcance de 06b ni nada de 06a. Regresa al arquitecto con una enmienda corta (3b) que verifico yo. Antes de esa enmienda, el orquestador guarda la copia de `plan.md`.
+
+**Lo que está bien y no se toca:**
+- **La enmienda trae los cinco puntos de "Lo que cambia para 06b":**
+  - el inventario por ganchos y memoria (M-5);
+  - la clave en todo gancho nuevo con ref, con su caso de salto (Regla de la clave, CH6-B18);
+  - O-08 (DH-10);
+  - C-13;
+  - el grep contra `023b450`, con la firma nueva de `useAvisoDeRecargaFallida`, las `key` de las secciones y la línea de H-R2 protegidas en "No se toca, además".
+- **No cambia nada de 06a,** ni las nueve decisiones. DH-10 entra como décima, con el texto literal del humano.
+- **El alcance de 06b solo crece en dos cosas:** DH-10, que decidió el humano, y `tambienEnVuelo`, que M-01 pide retirar.
+- **Líneas comprobadas en `023b450`, todas exactas:**
+  - C-13: `guardas-ch4-r1.ataque.test.ts:113-120` son el comentario y las siete líneas;
+  - C-4 (`:351`, `:352`, `:361`, `:363` y `:364`), C-5 (`:386`, `:388`, `:397` y `:399`), C-7 (`:809` a `:825`) y C-17 (`:316-327`, `:324` y `:325`, con un `500`);
+  - C-18: 7 `CASOS` por 2 = 14 casos. Con la función nueva cambian 4; con la de antes habrían cambiado 10;
+  - las líneas "Hoy" de los siete sitios de §D-4, `seccion-de-recursos.tsx:65-73`, `hooks.ts:1027-1031`, `:1105-1116` y `:1811-1824`, y `lib.ts:734`.
+- **Conteo:** 14 + 2 + 3 = 19 de producción, 4 pruebas nuevas, 3 de la lista cerrada y 12 `*.ataque` (C-3 a C-9, C-13 y C-15 a C-18): 38. Las condicionales son PR-C18, C-10 y C-14: hasta 41.
+- **"Dónde se dispara" (DH-10) es cierto.** `useAlPulsarLaSeccionActiva` se llama en `muro-view:69`, `dudas-view:60`, `recursos-view:77` (en `BloqueDeRecursos`, `key={bloque}`) y `trabajo-view:122`, y esas cuatro vistas sobreviven al cambio de clase. Las demás llamadas viven en componentes que se montan de nuevo con el salto, y su ref empieza con la `location.key` nueva:
+  - `seccion-de-recursos:85` y `seccion-de-tema:63`, con `` key={`${claseId}:${seccion.clave}`} `` en `recursos-view:139` y `trabajo-view:247`;
+  - `respuestas-de-duda:166`, en la fila con `key={duda.id}`;
+  - `gradebook-view:86` y `mis-calificaciones-view:109`, con `key={claseId}` en `:223` y `:254`.
+
+### Problemas que bloquean
+
+#### M-01 — En 5.103.2, toda consulta que falla queda vieja: `tambienEnVuelo` no hace nada y varias mutaciones no pueden caer
+**Dónde:**
+- §D-4: PR-1 bis, "Qué hace", y PR-2 con la Enmienda 3;
+- "Dónde vive", el párrafo de `tambienEnVuelo`;
+- CH6-B02 (a) a (c), CH6-B04 (c′), CH6-B12 (c) y CH6-B16 (c);
+- "Mutaciones": las filas de DH-10 en `dudas-view.tsx`, de `tambienEnVuelo`, de `huella` y de `useMarcarViejaSiQuedoEnError` de Avisos;
+- §D-5, "O-01";
+- R-11 y la fila nueva de A-4 en "Al cierre";
+- y el texto de M-3 en "Alcance" (`plan.md:184`), anterior a esta enmienda.
+
+**El hecho:**
+- En `@tanstack/query-core` 5.103.2, la acción `error` pone `isInvalidated: true` (`query.js:450-462`). Solo `success` lo regresa a `false` (`successState`, `:497-505`).
+- `isStaleByTime` da `true` con `isInvalidated`, antes de mirar el tiempo (`:213-218`). También con el `staleTime` propio de Avisos.
+- Por eso una consulta que falla queda vieja enseguida. Así:
+  - **al montarse de nuevo, se pide:** `shouldFetchOnMount`, `queryObserver.js:434-443`, con `refetchOnMount` por omisión, porque `app/providers.tsx` no lo cambia;
+  - **al cambiar el observador a su clave, también se pide:** `shouldFetchOptionally`, `:444-446`.
+- El manager de ADMIN-01 ya lo había comprobado (`docs/trabajo/ADMIN-01-administracion/revision.md:6421`), y la versión es la misma desde que se armó el frontend.
+
+**Por qué importa:**
+1. **La premisa de la segunda corrección de diseño es falsa.** El plan dice: "Sin esto, el fallo con la vista desmontada dejaba la consulta en error, fresca y sin marca". No es así: el fallo ya la deja marcada. Lo que pasa con una petición que sigue en vuelo al salir:
+   - **si falla después,** la marca la pone la librería;
+   - **si responde bien,** `success` la quita;
+   - **si consume `signal`** (`useTrabajo` y `useRecursos`), se aborta y el estado vuelve al de antes de pedir (`query.js:249` y `:357-362`), y la marca de `tambienEnVuelo` se pierde con él.
+
+   `tambienEnVuelo` no cancela ni duplica nada, pero tampoco cambia nada que se pueda observar:
+   - sus tres mutaciones (CH6-B02 (a), CH6-B04 (c′) y CH6-B12 (c)) no pueden caer, así que el programador llega seguro a una PA-7;
+   - además, agrega un parámetro sin efecto a un gancho compartido;
+   - R-11 y la fila de A-4 meterían en `docs/ESTADO.md` una "laguna" de `features/admin` que no existe.
+2. **PR-1 bis no es lo que pide B en el salto.** El estado "en error sin estar vieja" de "Qué hace" y de CH6-B16 (c) no se puede armar: una consulta en error siempre está vieja. En un salto de clase, B se pide siempre por el observador, si está vieja o en error, en el mismo render del salto. En el resultado optimista `isFetching` ya viene en `true` (`queryObserver.js:createResult`, `fetchOptionally`), así que PR-1 bis nunca pide nada.
+   - **Lo que sí garantiza** es que no salga una segunda petición: es PR-3, con `isFetching` y `cancelRefetch: false`.
+   - **Hoy, en `023b450`, ese salto pide dos veces:** las cuatro vistas llaman a `x.refetch()`, que cancela la petición del observador y lanza otra. Por eso CH6-B16 (c) y (d) salen rojas antes del cambio y pasan después.
+   - **La decisión del humano se cumple** ("renueva solo si está en error o vieja"). Lo que está mal es cómo la explica el plan.
+   - **Una mutación no puede caer:** "quitar la llamada de `useRecargarAlPulsarLaSeccion` en `dudas-view.tsx` → CH6-B16 (c) Dudas". Sin la llamada sale una sola petición, la del observador, y el mensaje desaparece. Es otra PA-7 segura.
+3. **PR-2 es redundante con esta versión,** como ya se aceptó en ADMIN-01: se puede dejar como garantía escrita. Pero sus filas de mutación no caen a nivel de vista, porque la librería ya marcó la consulta:
+   - "`useMarcarViejaSiQuedoEnError` de una lista (Avisos) → CH6-B04", una fila anterior a esta enmienda;
+   - "`huella` → CH6-B18 (b)".
+
+   Solo pueden caer en una prueba del gancho que arme a mano un error sin `isInvalidated` (con `setState` de la consulta). Esa forma de armarlo hay que escribirla en el plan.
+4. **§D-5, "O-01", afirma dos cosas falsas:**
+   - "al volver a T1, la lista se ve como estaba": las consultas de `features/tareas` no consumen `signal`, así que el fallo de T1 la deja vieja y al volver se pide desde la primera página;
+   - "PR-2 con `tambienEnVuelo`" como lo que hace que se pida.
+
+   La decisión (no avisar con la vista desmontada; R8) no cambia. Cambia su porqué.
+5. **CH6-B12 (c) dice "en las 9 listas", y en una no se cumple.** El tema de Actividades (`useTrabajo`) consume `signal`: al salir, la página en vuelo se aborta y se revierte, nunca falla, y al volver no se pide nada (la lista sigue con su «Ver más»). El caso debe decirlo para esa lista. CH6-B04 (c′) ya elige bien sus listas, las que no consumen `signal`.
+
+**Qué se espera:**
+- **`tambienEnVuelo` sale del plan:** el parámetro, su párrafo, CH6-B02 (a) a (c), su fila de mutación, R-11 y la fila de A-4. CH6-B04 (c′) y CH6-B12 (c) se quedan como casos de camino, que ya cumple la librería.
+- **PR-1 bis y M-3 dicen la verdad del mecanismo.** En el salto, B la pide el observador si está vieja o en error. PR-1 bis aporta que no salga una segunda petición. CH6-B16 junta (c) y (d) en "en error", o arma (c) con un estado que exista.
+- **Ninguna fila de "Mutaciones" queda sin poder caer.** Se cambia por una que caiga o se declara redundante, con su mecanismo y el caso que sí cae, como O-05. Por ejemplo:
+  - en `dudas-view.tsx`, volver a la llamada de `023b450` (`if (!dudas.isError) return; void dudas.refetch()`) hace caer CH6-B16 (c) Dudas por conteo (dos peticiones);
+  - PR-2 y `huella` se vigilan con un caso del gancho que arme a mano el error sin `isInvalidated`, o se declaran redundantes.
+- **El paso 13 (rojo primero) dice qué casos salen verdes antes del cambio, y por qué:** como mínimo CH6-B04 (c′), CH6-B12 (c), CH6-B16 (b) y CH6-B18 (b).
+- **"O-01" se corrige** y la decisión no cambia. CH6-B12 (c) dice qué pasa en el tema de Actividades.
+- **El conteo no cambia** (38, hasta 41).
+
+#### M-02 — Tras conservar la lista, la recarga que la recupera la reemplaza por el error mientras vuela
+**Dónde:** §D-5, pasos 1, 2, 4 y 5 (`conserva` se calcula con `isFetchNextPageError`), y los casos que recuperan una lista conservada:
+- CH6-B01 (e) y CH6-B03 (pulsar);
+- CH6-B04 y CH6-B10 (salir y volver);
+- CH6-B16 y CH6-B17, con B cuya página falló;
+- CH6-B18 (a), el regreso a A.
+
+Es anterior a la Enmienda 3, pero la enmienda reescribió esa función y sumó DH-10, que pasa por ahí. Es un estado vecino del mecanismo M-4.
+
+**El hecho:**
+- `isFetchNextPageError` es `isError && fetchMeta?.fetchMore?.direction === "forward"` (`infiniteQueryObserver.js:104-105`).
+- Toda recarga (`refetch`, el montaje que pide, el observador que cambia de clave o una invalidación) despacha `fetch` sin `meta`, y eso deja `fetchMeta: null` (`query.js:353-356` y la acción `fetch`).
+- Mientras tanto, `status` sigue en `"error"` hasta que llega un `success`: `fetchState` solo lo toca si no hay datos.
+
+**Qué ve la persona.** Después de un «Ver más» que falló por red o `5xx` (la lista se conservó y salió el aviso), cualquier camino de recuperación pasa por un render en el que `conserva` es falso e `isError` es verdadero. La rama "error primero" pinta entonces el `MensajeError`:
+- dice «Algo salió mal. Inténtalo de nuevo.», y su `role="alert"` lo anuncia;
+- en el inicio, el título dice "No pudimos cargar tus clases";
+- en Personas, la vista deja de contar como cargada.
+
+Todo eso mientras la recarga vuela. Después vuelve la lista. Si el foco estaba en la lista o en «Ver más», el control se desmonta y el foco salta.
+
+Pasa por todos los caminos:
+- pulsar la sección;
+- volver de otra sección (la librería pide al montar, M-01);
+- el salto de DH-10 a una B cuya página falló;
+- el regreso a A en CH6-B18 (a);
+- una invalidación por una mutación, por ejemplo publicar un comentario, que invalida el muro.
+
+Recursos, el modelo que cita DH-02 (a), no lo hace: su condición (`isError && (filas === undefined || esErrorDeCursor(error))`, `seccion-de-recursos.tsx:62-63`) no depende de la dirección.
+
+**Por qué importa:**
+- La frase de recuperación promete "Inténtalo de nuevo". Al cumplirla, la vista anuncia un error que ya no es cierto.
+- Ningún caso del plan fija qué se ve durante esa recarga, así que es un hallazgo seguro del tester (una ronda extra por un estado vecino).
+- Toca la condición (a) de DH-10 ("la renovación no mueve el foco") cuando B llega con su página fallida.
+
+**Qué se espera:**
+- **El plan decide qué se ve mientras vuela la recarga que recupera una lista conservada,** y lo fija en los casos de cada camino: qué se pinta, qué se anuncia y dónde queda el foco. Dos salidas posibles; el arquitecto elige y argumenta:
+  1. que la lista siga a la vista mientras vuela esa recarga, con «Ver más» en espera;
+  2. que se acepte el error momentáneo y se declare.
+
+  Si elige 2, es una conducta visible que DH-02 (a) no cubrió, y va al humano. Si elige 1, se cuida que no cambie lo que DH-02 (a) dejó igual: una recarga de fondo que falla sin que antes fallara una página sigue reemplazando la lista.
+- **§D-5 dice qué recibe `useFocoAlPasarAError` en Avisos y Dudas** (`isError && !conserva`, o lo que decida el punto anterior). "Sigue igual" no basta: su memoria `eraError` cambia de sentido con la lista conservada.
+- **Cada caso de recuperación de §D-5 y de DH-10 verifica, además de la petición, que no aparezca un `role="alert"` ni el texto de error** mientras la recarga vuela, si se elige la salida 1.
+
+### Las dos correcciones de diseño
+**1. `conservaLaListaTrasLaPagina` solo con red o `5xx`: corrección de coherencia, no de producto. La acepto.**
+- **DH-02 (a), en el texto que aprobó el humano,** nombra lo que se conserva: "(red, `5xx`)".
+- **La función anterior contradecía el propio plan,** porque conservaba cualquier error que no fuera de cursor, de acceso o de redirección:
+  - contra CH6-B13: un `404 PUBLICACION_NO_ENCONTRADA` en «Ver más comentarios» debe decir «Esa publicación ya no existe.»;
+  - contra una vigilada de §D-R0, `consultas-ch3.test.tsx`: un `400 VALIDACION` fuera de contrato en «Ver más comentarios», en «Ver más clases» y en «Ver más alumnos» de Personas espera el texto fijo del lugar. Con la función de antes, esa prueba habría caído.
+- **Qué ve la persona con la función nueva, error por error.** Comprobado contra `CASOS` de `muro-c-r3` y `lib.ts`:
+  - **red o `5xx`** (`SIN_CONEXION` con `estado` 0 o 500 a 504, y cualquier otro `5xx`): la lista se queda, sale un aviso y «Ver más» sigue. Es lo nuevo que pidió el humano;
+  - **un error que no es `ApiError`:** igual que la red, con el texto genérico;
+  - **`400` del cursor:** la frase "…Vuelve a abrir…" reemplaza la lista, como hoy;
+  - **`400 VALIDACION` de otro campo:** el texto fijo del lugar reemplaza la lista, como hoy;
+  - **`400` que no es `VALIDACION` y `429`:** el texto de la consulta reemplaza la lista, como hoy;
+  - **`403 SIN_ACCESO_A_LA_CLASE`:** «No tienes acceso a esta clase.», como hoy;
+  - **`401` sin refresco, `403 ACCESO_RESTRINGIDO` y `403 CAMBIO_DE_CONTRASENA_REQUERIDO`:** sin aviso, y `apiClient` redirige;
+  - **`404 PUBLICACION_NO_ENCONTRADA` o `DUDA_NO_ENCONTRADA`:** el mensaje del bloque y la lista renovada (CH6-B13).
+
+  Ningún `4xx` cambia de conducta frente a `023b450`.
+- **Un matiz para el resumen del humano, que no requiere decisión:** Recursos, que DH-02 (a) cita como modelo, conserva también ante un `429` o un `400` de otro campo. Las 9 listas no. Es la lectura literal de DH-02 (a) y no rompe ningún caso.
+
+**2. `tambienEnVuelo`: no es una decisión de producto, pero se apoya en una premisa falsa. Se retira (M-01).**
+- No cancela ni duplica peticiones: marcar con `refetchType: "none"` no pide nada, y una vuelta antes de la respuesta se une a la petición en vuelo.
+- Tampoco cambia nada: la librería ya marca el fallo, y `success` o la reversión de una consulta con `signal` borran la marca.
+- Lo que prometía (CH6-B12 (c) y el camino "otra sección y regreso" de CH6-B04 (c′)) ya se cumple sin él. Esos casos se quedan.
+
+### O-08 (DH-10): fidelidad y casos
+- **El texto de DH-10 es el literal del humano** (`aprobacion.md:50`), con sus dos condiciones y un caso para cada una: CH6-B16 para (a) y CH6-B17 para (b).
+- **La interpretación de (b) en Avisos y Dudas es correcta y está dicha:** ahí una recarga que falla no da aviso, sino el `MensajeError` de B, como hoy (DH-02 (a)). Lo importante es que nunca salga nada de A, y CH6-B17 lo cubre en las cuatro vistas, también con la renovación de A en vuelo. Esas cuatro listas no consumen `signal`, así que ese caso se puede armar.
+- **"Dónde se dispara" es cierto** (lo verifiqué arriba).
+- **Lo que no sirve es el mecanismo de "Qué hace" y el estado (c)** (M-01). Las cifras que esperan los casos son correctas: 0, 1, 1, 1 y 0 peticiones.
+- **Dos precisiones de foco en CH6-B16, sin bloquear:**
+  - **Una frase de PR-1 bis no cuadra con CH6-B16.** La condición (a) dice que el foco va "al `h2` de la lista si lo tenía una fila o «Ver más»". Pero CH6-B16 y ATQ-CH6-31 (de 06a, en verde) fijan que, si B también tiene página siguiente, el foco se queda en «Ver más» de B: el botón es el mismo nodo. Hay que alinear la frase con el caso.
+  - **"Nunca a una fila" no siempre es cierto.** Cuando la renovación de B quita «Ver más», `useFocoAlCargarMas` lleva el foco a la primera fila nueva, si la respuesta trae alguna (`components/foco/hooks.ts:155-157`; ATQ-CH6-33, en la misma clase). Así que "nunca a una fila" solo vale si la respuesta no trae filas nuevas. El caso fija esa respuesta, o espera "la primera fila nueva de B o el `h2`".
+
+### El inventario M-5 y la Regla de la clave
+- **Mi grep sale igual que la tabla de M-5,** salvo una omisión menor. Busqué `useRef`, `useState`, `useContext`, `getQuery*`, `.subscribe(` y memoria de módulo en los 12 archivos de producción de `features/clases` de 06b y en los ganchos que llaman.
+  - **Lo que falta:** `limiteDeRecursos`, la memoria de módulo de `useRecursos` (`hooks.ts:1551`), que usa `SeccionDeRecursos`. No lleva nada de A a B, porque el `signal` saca de la fila a la sección que se desmonta; pero debe figurar junto a `limiteDeTrabajo`.
+- **Las refs y estados que aparecen en esos archivos son de 06a o anteriores,** y ya están en la tabla de "Arbitraje de la ronda 2":
+  - `clasePrevia`, `idsPrevios`, `clavesPrevias` y los de orden en Trabajo;
+  - las confirmaciones de las filas, `botonesQuitar`, etc.
+- **Lo nuevo con memoria es lo que dice la tabla:** `useAvisoDeRecargaFallida` en 9 sitios, `useRenovarSiLaPublicacionYaNoEsta` y `useMarcarViejaSiQuedoEnError`.
+- **La clave de cada sitio es la correcta,** incluida la huella constante de los inicios.
+- **La Regla de la clave, con su caso `renderHook` donde la `key` ya protege, está bien planteada:** CH6-B18 (c) y (d), declarada como segunda red. La mutación de la clave en `muro-view.tsx` sí hace caer CH6-B18 (a). Al volver a A, el render optimista conserva `fetchMeta` hacia adelante, así que `conserva` es verdadero y el aviso se repetiría. Ojo: ese mismo regreso cae en M-02.
+
+### La lista cerrada y §D-R0 contra `023b450` (mi grep)
+- **Sin router.** Pinté la búsqueda sobre los componentes de las 12 listas y sus vistas (`<PublicacionDelMuro`, `<ComentariosDePublicacion`, `<TablaAlumnos`, `<PersonasDeLaClase`, `<PanelMisClases`, las vistas de los inicios, de Avisos, de Dudas, de Personas, de Actividades y de Recursos, y las secciones). Solo dos archivos no montan ningún router:
+  - `publicacion-del-muro.test.tsx`, ya en la lista cerrada;
+  - `adjuntos-de-publicacion.test.tsx`, vigilada: no abre los comentarios, lo comprobé.
+
+  Son los del plan. El arquitecto dice "27 llamadas a `abrirComentarios`" y son 10; el remedio no cambia.
+- **`vi.mock` de `./hooks`.** Solo C-15 y C-16. **Precisión, sin bloquear:** C-15 y C-16 suman a la fábrica `useAvisoDeRecargaFallida` y un `QueryClientProvider`. Eso basta solo si los inicios importan `useRecargarAlPulsarLaSeccion` y `useMarcarViejaSiQuedoEnError` de `@/components/seccion/hooks`, no reexportados por `./hooks`. El plan debe decirlo en §D-4, "Sitios", para que el programador no tropiece con una PA-2.
+- **«Ver más» que falla por red o `5xx` y espera un `MensajeError` o el foco en un encabezado.** Crucé los archivos que pulsan un «Ver más» de las 9 listas con los que responden `5xx` o sin red y esperan `alert`, `GENERICO` o el texto de error. Todos los que cambian de sentido ya están en el plan:
+  - C-3 a C-7, C-17 y C-18;
+  - la lista cerrada (`ver-mas-y-orden-ch4` y `personas-view`).
+
+  Los demás no cambian:
+  - el `503` de `dudas-03e.test.tsx:1388` es del `DELETE`;
+  - `trabajo-view.test.tsx:1434` y `ver-mas-01e-r3:194` son recargas, que siguen reemplazando la lista;
+  - los `400` y `403` de `muro-c-r2`, de `muro-view.test` y de los inicios siguen reemplazando;
+  - `consultas-ch3` es `VALIDACION`, que sigue reemplazando.
+- **Las que cuentan peticiones tras un salto de clase.** Con M-01, PR-1 bis no agrega peticiones a las del observador. Solo quita la segunda que hoy lanza el `refetch()` de las cuatro vistas cuando B está en error. Ninguna prueba de 06a cuenta las peticiones de B en ese estado: CH6-A21 y ATQ-CH6-26 cuentan avisos, no peticiones. Sigo de acuerdo con que queden vigiladas y C-14 condicional.
+- **Doble que no se limpia (precisión para C-6 y C-18, sin bloquear).** Hay que contar los avisos desde el inicio de cada caso (con `mockClear` al empezar, o la diferencia entre antes y después):
+  - `muro-c-r3` dobla `toast.error` sin limpiarlo entre casos, así que el segundo de los dos casos que conservan acumula llamadas;
+  - `foco-pestana-02d-r3` usa `vi.restoreAllMocks()`, que en Vitest 4 no borra las llamadas de un `vi.fn()`;
+  - C-17 sí limpia (`alumnos-b-r5:191-193`).
+
+  Si no se precisa, "una vez" falla por el arnés y no por el código.
+- **C-13, C-14 y la precisión de C-3 a C-7 conservan la intención de sus pruebas.** C-15 y C-16 también: siguen protegiendo "sin datos no afirma vacío ni total".
+
+### Reglas de `AGENTS.md` para planes
+- **Un caso por camino de cada frase de recuperación:** no hay frases nuevas. El salto de clase es un camino nuevo para las frases que ya existían, y CH6-B16 y CH6-B17 lo cubren en las cuatro vistas. Pero con M-02, varios caminos de §D-5 no cumplen la frase sin pasar por un error falso.
+- **"Error primero":** ninguna viñeta de la enmienda lo contradice. M-02 es justamente el estado vecino que ese orden deja al descubierto.
+- **Mutaciones en el rojo primero:** M-01 enumera las filas que no pueden caer.
+- **Estados vecinos por mecanismo:** la matriz de §D-7 de la enmienda está completa para DH-10: B en cada estado, A en vuelo, ida y vuelta, `StrictMode` y un fallo en el render del salto. Le falta "la recarga que recupera una lista conservada" (M-02) y el tema de Actividades con `signal` (M-01, punto 5).
+
+### Problemas que no bloquean
+- **N-01:** la frase de PR-1 bis (a) sobre «Ver más», y "nunca a una fila" en CH6-B16 (arriba, en "O-08").
+- **N-02:** C-15 y C-16, de dónde importan los inicios los dos ganchos de `components/seccion/hooks.ts`.
+- **N-03:** C-6 y C-18, contar los avisos desde el inicio del caso.
+- **N-04:** M-5 nombra `limiteDeRecursos`.
+
+### Detalles menores
+- "27 llamadas a `abrirComentarios`": son 10.
+- §D-0 todavía dice "Dos subentregas: … CHORE-06b (32 archivos)" en "Rama" y en "Entra". La enmienda lo anota al lado; se puede dejar así, porque es historial.
+
+### Tamaño: 38 archivos (hasta 41) frente a "unos 30" y a DH-06 (a)
+- **Postura: no partir.**
+  - **Lo que crece desde los 32 son pruebas existentes, con su reescritura ya redactada:** C-13 y C-15 a C-18, que son del tester en la ronda 0, y `publicacion-del-muro.test.tsx`. El trabajo propio del programador son 26 archivos.
+  - **06a cerró con 38 y tres rondas,** sin problemas de tamaño.
+  - **M-01 y M-02 no cambian el conteo:** M-01 quita código y M-02 toca archivos que ya están en la lista.
+- **El corte por mecanismo es peor:** M-3 y DH-10 por un lado, M-4 por el otro. Toca dos veces las 9 listas: unos 48 archivos en total. Coincido con el arquitecto.
+- **El único corte limpio que encontré, si el humano prefiere acercarse a 30:**
+  - una 06c con N-52 del gradebook (§D-6, primera viñeta), de 4 archivos: `features/calificaciones/gradebook-view.tsx`, `features/calificaciones/hooks.ts`, `features/calificaciones/gradebook-ch6.test.tsx` y C-8 (`gradebook-01d-r3.ataque.test.tsx`);
+  - no comparte archivos con el resto de 06b. 06b quedaría en 34 (hasta 37) y 06c en 4;
+  - el costo es un ciclo completo más: commit, rondas y cierre, por cuatro archivos.
+
+  No lo recomiendo.
+- **Va al humano como confirmación:** 38 pasa de "unos 30" y de los 32 de DH-06 (a). Mi recomendación es no partir.
+
+### Para el humano
+1. **El tamaño de 06b:** 38 archivos (hasta 41). Recomiendo no partir. Si prefiere partir, el corte es "06c = N-52 del gradebook, 4 archivos".
+2. **Solo si el arquitecto elige la salida 2 de M-02,** que el error se vea un momento al recuperar una lista conservada: es una conducta visible que DH-02 (a) no cubrió y la decide el humano. Si elige la 1, no hay nada que decidir.
+3. **Para el resumen, sin decisión:**
+   - la corrección de `conservaLaListaTrasLaPagina` es fiel a DH-02 (a), con el matiz de Recursos ante un `429`;
+   - la decisión sobre O-08 se cumple tal como la escribió.
+
+### Para el orquestador
+- **Antes de la enmienda 3b:** guardar la copia de `plan.md` (`824af180…`) en el scratchpad y anotar su SHA-256 en `aprobacion.md`. Verifico 3b con `git diff --no-index` completo contra esa copia.
+- **06b no arranca hasta que 3b quede APROBADA.**
+- **Nada de lo que propone R-11 entra en `docs/ESTADO.md`** (M-01).
+
+## Verificación de la Enmienda 3b — CHORE-06b (2026-11-12)
+Manager, modo plan. Solo lectura, sin suites. Revisé:
+- `plan.md`: 1009 líneas, SHA-256 `48f981d74e19d5690bbd9046615173e3aec6896501b15ef0e234a41428996942`, comprobado;
+- la copia de antes `plan-ch6-antes-e3b-824af180.md` (`824af180…`, comprobado). El `git diff --no-index` completo da 154 inserciones y 53 borrados, y leí todos los hunks;
+- que nada más cambió: `revision.md` estaba en `46e89370…` antes de esta sección y `docs/ESTADO.md` en `2ce202ea…`. `frontend/` está limpio contra `023b450`;
+- la librería instalada: `@tanstack/query-core` 5.103.2 (`query.js`, `queryObserver.js` e `infiniteQueryObserver.js`) y `@tanstack/react-query` (`useBaseQuery.js`).
+
+**Veredicto: APROBADO.** M-01 y M-02 quedan cerrados, y también N-01 a N-04. Queda un hallazgo que no bloquea (N-05) y dos detalles de texto, que el programador puede leer sin enmienda. La enmienda no reabre ninguna decisión del humano, el alcance de 06b ni nada de 06a. El conteo sigue en 38 (hasta 41): el gancho nuevo va en `features/clases/hooks.ts`, que ya está en la lista. No queda nada para el humano.
+
+### M-01: cerrado
+- **`tambienEnVuelo` salió del plan, con todo lo que dependía de él:** el parámetro (`:380`), PR-2 (`:373`), los casos de CH6-B02, su fila de mutación, R-11 (`:917`, retirado), A-1 y la fila de A-4 (`:1008`, retirada).
+  - Lo busqué con `grep`. Solo queda en líneas que dicen que se retiró (`:37`, `:380`, `:917`).
+  - `Sitios` ya pasa un solo argumento a `useMarcarViejaSiQuedoEnError`.
+- **PR-1 bis, "Qué hace" (`:351-356`), describe el mecanismo real y queda bien sostenido en la librería:**
+  - el observador pide B en el render del salto (`queryObserver.js:444-446` y `:301-308`);
+  - PR-1 bis evita la segunda petición;
+  - hoy, en `023b450`, salen dos.
+  - Las cifras esperadas son 0, 1, 1 y 0.
+- **CH6-B16 junta (c) y (d)** en un solo estado "en error", con dos variantes que sí se pueden armar. CH6-B17 elige la variante "falló con B fuera de la vista", que no deja ningún aviso previo.
+- **M-3 (`:198`) se corrige en su lugar,** y PR-2 queda como garantía escrita, igual que en ADMIN-01.
+- **"O-01" (`:510-511`) se corrige,** y la decisión no cambia: en `features/tareas` la lista de T1 se vuelve a pedir al volver.
+- **CH6-B12 (c) separa las 8 listas sin `signal` del tema de Actividades,** que se aborta y no falla.
+- **El paso 13 dice qué sale verde y qué sale rojo antes del cambio, y por qué.** Lo contrasté con `023b450`:
+  - hoy, las cuatro vistas llaman a `x.refetch()`, que cancela la petición del observador, solo con B en error. Por eso CH6-B16 (c) y (e) salen rojas y (a) y (b) verdes;
+  - CH6-B04 (c′), CH6-B12 (c) en su parte "se pide" y CH6-B18 (b) los cumple la librería.
+
+### M-02: cerrado. La premisa del gancho nuevo, camino por camino
+Lo que sostiene la premisa:
+- `useBaseQuery.js:27-28` calcula el resultado del render con `observer.getOptimisticResult(...)`.
+- `setOptions`, que es lo que cambia la clave y lanza la petición, corre en un `useEffect` (`:35-36`).
+- La suscripción, que hace la petición del montaje en `onSubscribe`, corre en la fase de *commit* (`useSyncExternalStore`, `:30-33`).
+- El resultado optimista suma `fetchState`, que no toca `fetchMeta` (`queryObserver.js:305-308`, `query.js:486-496`).
+
+Así que el render anterior a la petición todavía ve la dirección "hacia adelante". La marca se toma con un `setState` durante el render, como `creandoEn` en `trabajo-view.tsx:87`, que ya pasa el lint con `eslint-plugin-react-hooks` 7. React vuelve a pintar el componente antes del *commit*, y en ese segundo render el resultado optimista sigue igual.
+
+| Camino | ¿Hay un render con la dirección "hacia adelante" antes de la recarga? | Resultado |
+|---|---|---|
+| El «Ver más» falla con la vista montada | Sí: el render del fallo (`isFetchNextPageError` verdadero). La marca se toma ahí | Se conserva y sale un aviso |
+| Pulsar la sección | La marca ya está, desde el render del fallo. `refetch` corre en un efecto | Se conserva mientras vuela: `isError` sigue verdadero y `errorUpdateCount` no cambia |
+| Una invalidación (comentar) con la vista montada | Igual que pulsar | Se conserva |
+| Volver de otra sección (montaje) | Sí: el primer render usa el resultado optimista del observador nuevo, con el `fetchMeta` del caché, y la petición sale en `onSubscribe`, después del *commit* | Se conserva. Sin aviso: `useAvisoDeRecargaFallida` arranca con el contador actual |
+| Cambio de clave del observador (el salto de DH-10 a B con la página fallida) | Sí: el render del salto calcula el resultado optimista de B con el estado de B, y `setOptions` corre en el efecto | Se conserva B, con su propia marca (`B:n`); la de A ya no cuenta |
+| El regreso a A de CH6-B18 (a) | Igual que el salto | Se conserva A |
+| `StrictMode` | El doble render da la misma marca. El suscribirse, darse de baja y volver a suscribirse une la segunda petición a la primera (`continueRetry`) | Sin cambio |
+| La página falló con la vista desmontada (CH6-B12 (c)) | Igual que "volver" | Se conserva, sin aviso |
+| La recarga que recupera falla | `errorUpdateCount` sube, `actual` cambia y la marca vieja deja de valer | Se reemplaza, sin aviso: `conserva` es falso para `useAvisoDeRecargaFallida` |
+| La recarga que recupera responde bien | `isError` pasa a falso | La lista se renueva. La marca queda, pero no sirve: el contador solo sube |
+| Un «Ver más» que vuelve a fallar | El fallo nuevo trae `isFetchNextPageError` y otro contador | Se conserva, con un aviso nuevo |
+| Una recarga de fondo que falla sin que antes fallara una página | No hay marca | Se reemplaza, como hoy (DH-02 (a)) |
+
+**Lo que DH-02 (a) dejó igual sigue igual.** La única conducta visible nueva es que la lista se vea mientras vuela la recarga que la recupera. Es la salida 1 de M-02, que no requería al humano, y queda declarada en R-05 y en A-2.
+
+### "Mutaciones", fila por fila (las que tocó la 3b)
+- **DH-10 en `dudas-view.tsx`, volviendo a la llamada de `023b450`:** hace caer CH6-B16 (c) de Dudas por conteo. En el mismo componente, el efecto de `setOptions` corre antes que el de `useAlPulsarLaSeccionActiva` y lanza la primera petición. Después, `refetch()` con `cancelRefetch: true` la cancela y lanza otra. Son dos peticiones.
+- **PR-3, `isFetching` y `cancelRefetch: false` quitados a la vez:** cae CH6-B16 (e), porque `refetch()` cancela la petición retenida.
+- **`huella` y la limpieza de `useMarcarViejaSiQuedoEnError`:** caen CH6-B02 (a) y (b), con el error armado a mano. Sin `huella`, el efecto no vuelve a correr al cambiar la clave y la clave anterior no se marca.
+  - **Lo que pregunta el orquestador sobre CH6-B02 (b):** el estado "en error sin `isInvalidated`" no ocurre en producción con 5.103.2. A `status: "error"` solo se llega por la acción `error`, que lo marca (`query.js:450-462`). Una reversión restaura un estado que ya venía marcado (`:357-362`), y ningún código de producción llama al `setState` de una consulta.
+  - Ese caso **solo fija la garantía escrita** de PR-2, para el día en que cambie la librería, como se aceptó en ADMIN-01. No prueba una conducta que la persona pueda ver hoy. Lo acepto así, y el resumen del programador lo dice con esas palabras.
+- **`useMarcarViejaSiQuedoEnError` en la vista de Avisos:** la redundancia está bien declarada, con su mecanismo (la acción `error`), y CH6-B04 sigue como caso de camino.
+- **`useListaConservadaTrasLaPagina` devolviendo solo `ahora`:** caen CH6-B10 (la recuperación), CH6-B16 (f), CH6-B18 (a) y (e). En cuanto se despacha la recarga, `ahora` es falso y vuelve el `role="alert"`.
+- **La marca sin la clave:** cae CH6-B18 (e), con `renderHook` y otra clave con el mismo contador. Ver N-05.
+- **El argumento de `useFocoAlPasarAError` de vuelta a `isError`:** la fila deja dicho qué hacer si no cae (declarar la redundancia con su mecanismo y nombrar el caso que sí lo vigila). Es lo que pide la regla del 2026-11-11, así que no lo cuento como hueco.
+- **Las filas de la Enmienda 3 que no cambian** (las claves de `useAvisoDeRecargaFallida`, H-R2, el bloque de la clave de `useRenovarSiLaPublicacionYaNoEsta`, red o `5xx`, y §D-6 (b)) las verifiqué en la revisión anterior y siguen cayendo.
+
+### Las dos condiciones del humano sobre O-08
+- **(a) La renovación no mueve el foco:** CH6-B16, en (b), (c) y (f), con los tres puntos de partida del foco. N-01 está corregido (`:357-366` y la viñeta de Avisos de CH6-B16): el foco se queda en «Ver más» de B si existe (ATQ-CH6-31), y si la respuesta trae filas nuevas va a la primera fila nueva de B.
+- **(b) Si falla, el aviso es el de B:** CH6-B17, en las cuatro vistas, con la renovación de A en vuelo. Las cuatro listas no consumen `signal`, así que ese fallo sí llega.
+
+### La lista cerrada y C-3 a C-18
+- **Lo que M-01 y M-02 obligaron a tocar está inventariado:**
+  - las fábricas de C-15 y C-16 suman `useListaConservadaTrasLaPagina: () => false`;
+  - los dos ganchos de `components/seccion/hooks.ts` se importan sin pasar por `./hooks` (N-02, `:381`).
+
+  Volví a buscar `vi.mock` de `./hooks` y de `@/components/seccion/hooks`: solo están esas dos fábricas. Ninguna otra prueba dobla `features/clases/hooks.ts`, así que el gancho nuevo no rompe ninguna más.
+- **C-6 y C-18 cuentan los avisos desde el inicio de cada caso** (N-03).
+- **La vigilada ATQ-CH6-29 y 32 queda con la explicación correcta** (`:752`).
+- **El conteo de 38 (hasta 41) se sostiene:** ni la 3b ni M-02 suman archivos.
+
+### Problemas que no bloquean
+- **N-05 — Sobre la clave de `useListaConservadaTrasLaPagina`, ningún caso de vista vigila el salto en negativo.** La Regla de la clave pide un caso con el salto de clase por cada gancho con memoria. CH6-B16 (f) es el salto en positivo, y la mutación "sin la clave" solo la hace caer `renderHook` (CH6-B18 (e)).
+  - En Avisos y en Dudas, que sobreviven al cambio de clase, falta el salto en negativo: A con su lista conservada (marca `A:n`) y B en error por una **recarga**, con el mismo `errorUpdateCount` `n`. Al llegar, B debe mostrar su `MensajeError` mientras vuela su renovación.
+  - Se resuelve sin enmienda: el programador arma así una de las variantes de CH6-B16 (c) en Avisos y lo dice en el resumen.
+- **N-06 — Un caso extremo de la marca, sin caso propio.** Si la consulta se vacía con la vista montada (`removeQueries` o `clear` de `features/auth/hooks.ts:46` y `:118`, al cambiar de sesión), `errorUpdateCount` vuelve a 0. Un fallo de recarga posterior podría repetir el número de la marca y conservar la lista sin deber.
+  - Al cambiar de sesión la vista se desmonta, así que no lo veo alcanzable.
+  - Si el programador quiere cerrarlo, basta sumar `errorUpdatedAt` a la marca. No lo exijo.
+
+### Detalles menores
+Quedan tres frases vivas con el mecanismo viejo. No cambian ninguna instrucción, porque las líneas de la 3b que las rodean ya dicen el correcto:
+- `:649`: "En CH6-A21, B sale en error y PR-2 la marca". La marca la pone la librería.
+- `:792`: CH6-B12 (c) conserva "(PR-2)" justo antes de su corrección.
+- `:902`: "piden según `refetchOnMount` y PR-2".
+
+### Para el humano
+Nada. La 3b eligió la salida 1 de M-02 (la lista sigue a la vista mientras se recupera), que no requería su decisión. La decisión de no partir 06b (38, hasta 41) y la de O-08 se respetan.
+
+### Para el orquestador
+Se puede arrancar 06b con la ronda 0 del tester (paso 12).
+
+## Verificación de la Enmienda 4 — CHORE-06b (2026-11-12)
+Manager, modo plan. Solo lectura; no corrí pruebas. Revisé:
+- `plan.md`: 1109 líneas, SHA-256 `306b9594d316f3212934cb496765b305eb17ff5c0118ad0394d3040652acda05`, comprobado;
+- la copia de antes `plan-ch6-antes-e4-48f981d7.md` (`48f981d7…`, comprobado). El `git diff --no-index` completo da 114 inserciones y 14 borrados, y leí todos los hunks;
+- `resumen-programador.md:590-674`, con P-1 y P-2;
+- `reporte-tester.md`, ronda 0 de 06b;
+- el árbol actual: 38 archivos en `frontend/`, con los cambios de 06b sin commit;
+- `@tanstack/query-core` 5.103.2 instalado.
+
+**Veredicto: CAMBIOS REQUERIDOS.** Hay un problema que bloquea (M-01): la condición nueva de P-1 deja sin cumplir un camino de la frase «Vuelve a abrir Calificaciones». Lo demás está bien:
+- P-2 es correcto contra la librería, con una observación (N-01);
+- el inventario de marcas está completo;
+- C-19 y C-20 conservan la intención de sus pruebas, con un ajuste que no bloquea (N-02);
+- el conteo de 40 archivos es cierto;
+- acepto la desviación de C-17.
+
+Ningún punto va al humano.
+
+### Problemas que bloquean
+#### M-01 — Con la frase solo "a la vista", ir a otra ventana antes de pulsar, salir o saltar deja la ventana vacía vieja en la caché
+**Dónde:** §D-6, "(Enmienda 4, P-1) La forma de (a)" (`plan.md:530-547`). También la limpieza de (b) (`:529`; la misma condición en `gradebook-view.tsx:163-172` del árbol) y CH6-B14.
+
+**El hecho:**
+- La frase de la ventana vacía deja «Alumnos anteriores» a la vista ("el resumen y la navegación siguen, para poder regresar"; `gradebook-view.tsx:132-136`).
+- **Regresar no marca la ventana vacía.** La deja fresca en la caché, y volver a avanzar la sirve de ahí sin pedirla. Lo fijan dos pruebas:
+  - CAL-1D02ac (`gradebook-01d.test.tsx:1222-1251`): `llamadas.slice(desde)` en 0 e `isInvalidated` de la ventana vacía en `false`;
+  - CAL-T-201.
+- El camino que falla:
+  1. la persona ve la frase en la ventana W;
+  2. pulsa «Alumnos anteriores», y la frase desaparece;
+  3. hace lo que le pidió la frase: pulsa «Calificaciones», o sale y vuelve, o salta de clase y regresa;
+  4. en el render del paso 3, `ocurrenciaDelCursor` es `null`, así que ni (a) ni (b) marcan nada;
+  5. «Alumnos siguientes» pide la misma clave antes de 30 s, porque la primera ventana trae el mismo cursor. Es el escenario de CAL-T-248.
+
+  Resultado: W se sirve vieja de la caché y la frase vuelve.
+- `AGENTS.md` (frases de recuperación) exige cubrir cada camino que la interfaz permite, "otra ventana" entre ellos.
+- **El hueco no es solo de la Enmienda 4.** En (b) y en el salto ya estaba en el plan aprobado, porque la limpieza siempre pidió la frase a la vista. La Enmienda 4 lo extiende a (a), donde la 3b marcaba siempre.
+
+**Qué se espera:**
+- **La condición de (a) y de (b) pasa a "la frase se vio en esta vista desde la última marca de N-52",** no "se ve ahora". Por ejemplo, una ref que se enciende cuando hay una ocurrencia y se apaga al marcar, sumada a la ocurrencia del render en curso.
+  - Con eso no cambia nada de lo que la Enmienda 4 quería conservar:
+    - la tabla sana, sin frase en ese montaje, no marca (CAL-1D03e);
+    - CAL-1D03d, C-19 y C-20 dan las mismas cifras;
+    - en C-20, la primera pulsación apaga la marca y la segunda no marca.
+  - El arquitecto revisa que ninguna otra prueba del inventario cuente marcas después de regresar y pulsar o desmontar. En mi grep no hay ninguna: CAL-T-241 y CAL-1D02ac no pulsan ni desmontan.
+- **CH6-B14 suma un caso por camino** (pulsar, salir y volver, saltar de clase y regresar): con la frase vista en W, «Alumnos anteriores» y después ese camino; «Alumnos siguientes» pide W una vez. Su mutación es volver a la condición "solo a la vista".
+- **El conteo no cambia:** 40 archivos.
+- **No requiere al humano:** es cumplir N-52, ya decidido, por un camino que la regla obliga a cubrir.
+
+### P-1, camino por camino (con la condición de la Enmienda 4)
+| Camino de «Vuelve a abrir Calificaciones» | ¿Marca? | ¿Se cumple N-52? |
+|---|---|---|
+| Pulsar la sección con la frase a la vista | Sí, por (a) | Sí (CH6-B14 (a) y CAL-1D03d) |
+| Salir y volver con la frase a la vista | Sí, por la limpieza de (b) | Sí (CH6-B14 (b) y CAL-T-248) |
+| Saltar de clase con la frase a la vista | Sí: `key={claseId}` monta de nuevo y corre la limpieza de A | Sí (CH6-B14 (d)) |
+| Repetir el control que falló | El `400` deja la ventana en error y la librería la marca (`query.js:450-462`). La ventana vacía se rige por CAL-T-201, con la vista quieta | Sin cambio |
+| Otra ventana («Alumnos anteriores») y después pulsar, salir o saltar | **No** | **No (M-01)** |
+| Tabla sana y pulsar | No; solo pide la primera ventana | Sí (CAL-1D03e, CH6-B14 (e)) |
+
+Que pulsar no marque con la tabla sana es correcto, y la razón para no ensanchar la marca de `useRecargarLaPrimeraVentana` también. Subir el cálculo de `ocurrenciaDelCursor` por encima de `useAlPulsarLaSeccionActiva` no cambia el orden de los ganchos: son líneas puras.
+
+### P-2 contra la librería (5.103.2)
+Todas las citas son exactas:
+- `queryClient.js:297-306`: marca todas las consultas que pasan el filtro y después llama a `refetchQueries` con `type: "active"`;
+- `:326-329`: `cancelRefetch` vale `true` por omisión;
+- `utils.js:40-47`: la consulta activa se filtra antes que el `predicate`;
+- `query.js:214-218`: `isStaleByTime`;
+- `:284-286`: `invalidate()` no hace nada si ya está inválida;
+- `:298-303`: `fetch` con una petición en vuelo.
+
+Los dos efectos son reales: `clase-layout.tsx:49` y `clase-anterior-view.tsx:31`. Lo que comprobé, caso por caso:
+- **Una lista sin datos:** `listaTraeLaClase` da falso y no se toca. Cuando la pida, la respuesta ya no trae la clase. Bien.
+- **Un inicio inactivo que la recolección borra** (5 min): sale de la caché y se pide de cero al montarse. Bien.
+- **Un inicio inactivo que se invalida:** se pide al montarse, por `isInvalidated`. Mientras llega se ve la clase un momento, como cualquier lista vieja. Bien.
+- **La segunda corrida del efecto:** el `predicate` y el filtro de activas evitan pedir de nuevo. La mutación del `predicate` hace caer CH6-B15, con 3 peticiones del alumno donde se esperan 2, como observó el programador.
+- **`{ cancelRefetch: false }`:** su fila de mutación cae, siempre que el caso retenga la barra, como dice la fila. Ver N-01.
+
+### Inventario de las marcas (mi grep)
+Busqué `marcasViejas|espiarMarcas|marcas\(\)|refetchType|spyOn(…, "invalidateQueries")|isInvalidated` en las pruebas de `frontend/src`. Salen 27 archivos.
+- **Los nueve que el plan no nombra** no cuentan marcas del gradebook ni la forma de la invalidación de las listas del inicio:
+  - `app/estado-por-id-ch6.test.tsx`, `app/invalidaciones-03c2-r1.ataque.test.tsx`, `alumnos-view.test.tsx`, `clase-archivada-01d1-vista.test.tsx`, `clase-archivada-01d2-vista.test.tsx`, `formulario-publicacion.test.tsx`, `guardas-ch4.test.tsx` y `recursos-03d.test.tsx` leen `isInvalidated` de otras claves o preparan el caso con `invalidateQueries`;
+  - `clases-admin-01c.test.tsx:310` (ADM-1C14) espía `invalidateQueries`, pero con `toContain` sobre las claves de sus mutaciones. Una llamada más con `predicate` no lo rompe.
+- **De los espías de las marcas del gradebook,** solo cambian las tres que dice el plan:
+  - `gradebook-01d-r3:210`: CAL-T-232, 234 y 246 cuentan antes de desmontar; CAL-T-242 desmonta sin frase; CAL-T-244 desmonta con frase (C-19);
+  - `gradebook-01d:1225`, `:1256`, `:1335` y `:1363`: CAL-1D03d cambia y CAL-1D02ac, CAL-1D02ad y CAL-1D03e no;
+  - `secciones-01d-r4:197`: CAL-T-258 (C-20).
+- **CAL-1D03d se puede escribir como dice la entrada 6:** `DESTINOS` (`:671`) y `claveGradebook` (`:6`) existen.
+- **Las líneas de C-19 y C-20 son exactas.** `gradebook-01d.test.tsx` y `secciones-01d-r4` no cambiaron contra `023b450`, y `gradebook-01d-r3` solo cambió en C-8.
+- **El inventario sigue valiendo con el remedio de M-01:** ninguna de estas pruebas regresa a otra ventana y después pulsa o desmonta.
+
+### C-19 y C-20: conservan la intención
+- **C-20:** la marca de N-52 se comprueba entre las dos pulsaciones, y la segunda, con la tabla sana, no marca. Sigue vigilando "ninguna pulsación repite la marca de la ocurrencia".
+- **C-19 (CAL-T-244):** sigue vigilando que mientras llega la ventana y al llegar no se agreguen marcas, porque la base de 2 es fija: una por la ocurrencia y otra por la limpieza de (b). Pero mezcla las dos cosas en una sola cifra. Ver N-02.
+
+### Problemas que no bloquean
+- **N-01 — `{ cancelRefetch: false }` se puede unir a una petición de la barra que salió antes de saber que la clase estaba archivada.**
+  - Si la barra ya estaba pidiendo cuando corre el primer efecto, la invalidación se une a esa petición (`query.js:298-303`). Si el servidor la contestó antes de archivar, la barra se queda con la clase hasta la siguiente recarga.
+  - En el maestro, el efecto no vuelve a correr. En el alumno, la segunda corrida llega casi siempre antes de esa respuesta y vuelve a unirse a ella.
+  - El propio gancho documenta lo contrario para "Clases anteriores" (`features/clases/hooks.ts:449-452`, T-04 de ADMIN-01d2): "lo que está en vuelo se pidió antes de saberlo".
+  - El daño es bajo: la clase se abre en solo lectura y desaparece en la siguiente recarga, en 30 s.
+  - Basta declararlo en "Riesgos" (o en "Decisiones tomadas que no son hallazgo") como precio de PR-3. Pido esa línea en la misma enmienda de M-01.
+- **N-02 — C-19 mezcla en una cifra la marca de la limpieza y el "ninguna marca más".** Mejor: después de `primera.unmount()` (`:591`), `const tras = marcas(); expect(tras).toBe(2)`, y al final `expect(marcas()).toBe(tras)`. El tester lo aplica sin enmienda si el arquitecto lo deja escrito en C-19.
+
+### La desviación de C-17: aceptada
+- En `023b450`, `encabezadoAlumnos` (`alumnos-b-r5.ataque.test.tsx:197`) solo se usaba en `:325`, la línea que C-17 reescribe. Quedó sin uso, y el lint lo rechaza.
+- Borrarla no cambia lo que vigila ninguna prueba.
+- El diff contra `023b450` es exactamente C-17 más esa línea.
+
+### Pasos de reanudación y conteo
+- **R-0 a R-4 están en buen orden:**
+  - el tester aplica C-19 y C-20 antes, como pide `AGENTS.md`;
+  - después van la lista cerrada, P-1, P-2, la corrida corta y los pasos 18 a 20 completos, con la suite de "Regresión" otra vez.
+
+  Con M-01, R-2 cambia de condición y CH6-B14 suma sus casos. R-4 debe contarlos.
+- **Conteo:**
+  - en el árbol hoy hay 38 archivos;
+  - R-0 suma `secciones-01d-r4.ataque.test.tsx`, porque `gradebook-01d-r3` ya cuenta por C-8;
+  - R-1 suma `gradebook-01d.test.tsx`.
+
+  Total: **40** = 19 + 4 + 4 + 13, hasta 43 con las tres condicionales, que no cayeron. Sin las condicionales no pasa de 41, así que la decisión del humano de no partir sigue valiendo.
+
+### Para el humano
+Nada.
+
+### Para el orquestador
+- Devolver M-01, con N-01 y N-02, al arquitecto para una Enmienda 4b corta.
+- Antes, guardar la copia de `plan.md` (`306b9594…`).
+- El tester no aplica C-19 hasta que 4b la confirme (N-02).
+
+## Verificación de la Enmienda 4b — CHORE-06b (2026-11-12)
+Manager, modo plan. Solo lectura, sin pruebas. Revisé:
+- `plan.md`: 1156 líneas, SHA-256 `201dc71fa4539ac3af13fd59a1a2ff0cf26b937a5cb0224215eef41239094984`, comprobado;
+- la copia de antes `plan-ch6-antes-e4b-306b9594.md` (`306b9594…`, comprobado). El `git diff --no-index` completo da 54 inserciones y 7 borrados, y leí todos los hunks;
+- el árbol actual: 38 archivos en `frontend/`, con `gradebook-view.tsx` y `components/seccion/hooks.ts` como están.
+
+**Veredicto: APROBADO.** M-01, N-01 y N-02 quedan cerrados. Solo queda un detalle de texto, que no cambia ninguna instrucción. Nada va al humano. El conteo sigue en 40 (hasta 43).
+
+### M-01: cerrado. El orden de los efectos
+- **`useAlPulsarLaSeccionActiva`** (`components/seccion/hooks.ts:8-15`) llama a `alPulsar()` dentro de su `useEffect([key, alPulsar])`, en la confirmación del render en que llega la `location.key` nueva. El primer render no cuenta: la ref nace con la `key` de ese momento.
+- **En una misma confirmación, React corre los efectos pasivos de un componente en el orden en que se declaran.** El efecto que enciende la frase (sin dependencias, `plan.md:552-554`) va antes de la llamada al gancho. Así:
+  - **la frase llega en el mismo render que la pulsación:** primero la enciende y después el manejador la marca y la apaga;
+  - **la frase se vio en una confirmación anterior:** la ref ya está encendida;
+  - **el primer render tras un montaje:** el gancho no dispara, así que no hay nada que ordenar.
+- **Leer la ref en el manejador es seguro.** El manejador es el cierre del render, pero las refs se leen en el momento de la llamada.
+- **Después de marcar, nada la vuelve a encender.** El render siguiente ya está en la ventana inicial: con `keepPreviousData`, `ventanaVaciaConCursor` pide `!isPlaceholderData` y una ventana con cursor, y la ventana inicial no está en error. Así que la ocurrencia es `null`. Aunque no lo fuera, la comparación con `fraseMarcadaRef` impide encenderla otra vez.
+- **Precondición:** el cálculo puro de `ocurrenciaDelCursor` tiene que ir antes de ese efecto y de `useAlPulsarLaSeccionActiva`. Ya lo pide la Enmienda 4 (`:541`), y moverlo no cambia el orden de los ganchos.
+
+### M-01: la limpieza con dos refs
+- **El efecto `[marcarViejasLasVentanas]` lee en su limpieza el valor actual de las refs, no el de su cierre.** Es lo correcto: son las refs de la instancia que se desmonta.
+  - `marcarViejasLasVentanas` lleva el `claseId` de su cierre (`useCallback([claseId, queryClient])`, `features/calificaciones/hooks.ts:99-107`).
+  - Con `key={claseId}`, la instancia de A marca las ventanas de A y nunca las de B (CH6-B14 (d) y (h)).
+- **"La frase aparece y la vista se desmonta" no deja una frase sin marcar:**
+  - si el render con la frase no llega a confirmarse, la persona nunca la vio;
+  - si se confirma, React vacía los efectos pasivos pendientes antes de la confirmación siguiente, así que el efecto que la enciende corre antes de la limpieza que desmonta.
+- **`StrictMode`:** la limpieza simulada marca a lo más una vez de más, sin pedir nada. Después, la frase ya está en `fraseMarcadaRef` y no se vuelve a encender. La ventana queda marcada, así que la marca de la pulsación siguiente sobra pero no falta. Está declarado en `:1026`.
+  - **Matiz sin efecto:** al primer montaje casi nunca hay frase, porque los datos no llegan antes de la limpieza simulada. El caso descrito en `:557` (CAL-1D02ad) solo ocurre con la caché ya llena.
+
+### M-01: los casos y las cifras
+- **(f), (g) y (h) se pueden armar** con el escenario de CAL-T-248, el que `gradebook-01d-r3` ya monta:
+  - «Alumnos anteriores» pide la primera ventana, que `useMarcarViejoElGradebook` marcó, y vuelve con el mismo cursor, así que W tiene la misma clave;
+  - CAL-1D02ac fija que W queda fresca y sin marcar.
+  - **(f)** marca al pulsar; **(g)** marca en la limpieza; **(h)** marca en la limpieza de la instancia de A, y al regresar A pide su primera ventana y W.
+- **Las mutaciones:**
+  - **volver a "se ve ahora":** caen (f), (g) y (h), porque W se sirve de la caché;
+  - **no apagar la frase:** cae la segunda pulsación de C-20 y la última de (f);
+  - **quitar la comparación con `fraseMarcadaRef`:** debería caer (f). Mientras se vuelve a pedir W, la consulta tiene sus propios datos (no los de respaldo), así que `ventanaVaciaConCursor` es verdadero con la misma ocurrencia `vacia:<dataUpdatedAt>`. Sin la comparación, la frase se encendería otra vez. La salida, por si no cae, está escrita (`:968`).
+- **Las cifras no cambian:**
+  - **CAL-1D03d:** la frase se ve al pulsar, así que suma una marca;
+  - **CAL-1D03e:** sin frase, cero marcas;
+  - **C-20:** la primera pulsación suma una y apaga la frase; la segunda, sin ocurrencia, no marca;
+  - **C-19 en su forma nueva:** `tras` es 2 (una marca de `useMarcarViejoElGradebook` por la ocurrencia y otra de la limpieza, con la frase vista y sin marcar). El montaje nuevo nace con las refs en `null`, la primera ventana vacía "de verdad" no tiene cursor y no hay ocurrencia, así que el final es igual a `tras`.
+- **Las líneas de C-19 son exactas:** `:591`, y `:626` pasa a `:629` con las tres líneas nuevas.
+
+### N-01 (R-12) y N-02: cerrados
+- **R-12 basta como declaración.** Trae:
+  - el mecanismo, con su línea;
+  - el choque con `hooks.ts:449-452`;
+  - por qué se acepta, como precio de PR-3;
+  - el daño, bajo y que se corrige solo: abrir la clase vuelve a correr el efecto, el `predicate` encuentra la barra con la clase y la renueva;
+  - por qué no hay remedio barato.
+
+  Está también en "Decisiones tomadas que no son hallazgo" (`:1025`).
+- **N-02:** C-19 separa la marca de la limpieza del "ninguna marca más".
+
+### Detalles menores
+- Siguen vivas, sin marca de reemplazo junto a ellas, tres frases de la Enmienda 4:
+  - "solo con la frase … a la vista" en `:50`;
+  - "La forma de (a): solo con la frase a la vista" y "*El cambio* … `ocurrenciaDelCursor !== null`, la misma condición que la limpieza de (b)" en `:539-540`;
+  - la frase original de (b) en `:538`.
+
+  No cambian ninguna instrucción: `:547` dice expresamente que la 4b las reemplaza, "tanto al pulsar como en la limpieza", y R-2 (`:1121`) también. Si hay otra enmienda, conviene marcarlas.
+
+### Para el humano
+Nada.
+
+### Para el orquestador
+El tester aplica C-19 (con la forma de la 4b) y C-20 (R-0), y después el programador reanuda en R-1.
+
+**Fe de erratas de esta sección:** el efecto que enciende la frase está en `plan.md:550-552`, no en `:552-554`, y el párrafo de `StrictMode` está en `:560`, no en `:557`. El contenido no cambia.
+
+## Verificación del resumen del programador — CHORE-06b (2026-11-12)
+Manager. Contra `resumen-programador.md` (925 líneas, SHA-256 `6e7e816d…` comprobado), "## Implementación — CHORE-06b" (el registro de la parada) y "## Reanudación — CHORE-06b: R-1 a R-4 y pasos 18 a 20". Plan `201dc71f…` (1156 líneas, comprobado), con las Enmiendas 1 a 4b; manda la posterior. Base `023b450`. Leí `reporte-tester.md` (ronda 0 y ronda 0 bis de 06b), el diff completo de producción y de la lista cerrada, y las cuatro pruebas nuevas completas. Equipo con corriente (`Win32_Battery.BatteryStatus` 2). Según el orquestador, la otra copia de trabajo ya no se usa. Corrí una cosa a la vez y no corrí la suite completa, que va en la revisión final. No hice mutaciones.
+
+**Veredicto del resumen: DEVUELTO, con dos hallazgos (M-01 y M-02).** Los dos son de pruebas que faltan o que afirman menos de lo que pide su viñeta. No hay que tocar código de producción. Todas las cifras coinciden, el diff se queda en lo que pide el plan y cada fila de "Mutaciones" de 06b tiene su corrida, con las redundancias ciertas contra la librería. Lo que falla es esto: la frase del cursor ("…Vuelve a abrir…", "Vuelve a abrirlos", "Vuelve a abrirlas", "Vuelve a entrar") solo tiene caso por el camino "pulsar". Para los demás caminos, el resumen cita casos que prueban otro error, o archivos que no recorren esos caminos. Además, el foco de CH6-B16 (f) cubre una sola de sus tres variantes. Después de la corrección, el tester puede atacar.
+
+### Mis corridas (desde `frontend/`, una a la vez)
+| Qué | Comando | Última línea (mía) | Resumen |
+|---|---|---|---|
+| lint | `npm run lint` | `> tsc -b`, salida 0 (antes, `All matched files use Prettier code style!`) | igual |
+| regresión de 06b | `npx vitest run src/features/clases src/features/calificaciones src/features/admin src/components/seccion src/app src/lib` | `Tests  5367 passed (5367)` (`Test Files  240 passed (240)`; `Duration  292.92s`) | `5367 passed (5367)` y `240 passed (240)`: coincide |
+| build | `npm run build` | `✓ built in 789ms`, salida 0 | `✓ built in 804ms`: coincide (el tiempo varía) |
+| conteo | `npx vitest list` de las cuatro pruebas nuevas, contado con `grep -a -c '> CH6-B'` | 294 = 12 + 133 + 142 + 7 | 294 (12, 133, 142 y 7): coincide |
+
+**Conteo por id**, con `grep -a -c "> CH6-Bxx"`: B01 9, B02 3, B03 25, B04 27, B05 3, B06 2, B07 7, B08 1, B09 3, B10 48, B11 45, B12 45, B13 4, B14 7, B15 7, B16 43, B17 8 y B18 7. Todos coinciden con las plantillas que nombra el resumen.
+
+**V-01:** `sha256sum -c scratchpad/v01-ch6b-r0bis.txt` desde la raíz da 288 líneas, todas OK. El programador no tocó ninguna `*.ataque`.
+
+### Problemas que bloquean
+
+#### M-01 — La frase del cursor no tiene caso por cada camino (CH6-B04, B05, B06 y el salto)
+**Dónde.**
+- `features/clases/recargas-ch6.test.tsx`: CH6-B04 (`:789-840`), CH6-B05 (`:878-902`) y CH6-B06 (`:908-925`).
+- El resumen: la tabla "Frases de recuperación: el caso de cada camino" (`resumen-programador.md:891`) y la viñeta de CH6-B06 (`:637`).
+
+**Qué pasa.** `cursorVencido` (el `400` del cursor) solo se usa en CH6-B03 (pulsar) y en CH6-B18 (b) (`grep` de `cursorVencido`: `:719` y `:1812`). Para los demás caminos de esa frase, el resumen cita casos o archivos que no la ejercen:
+- **CH6-B06.** El plan pide "cerrar y abrir los comentarios y las respuestas ("Vuelve a abrirlos", "Vuelve a abrirlas")". Esos dos textos son la frase del cursor (`TEXTOS_COMENTARIOS.cambioMientrasLosVeias`, `data.ts:571-572`; `TEXTOS_RESPUESTAS.cambioMientrasLasVeias`, `:855-856`). El caso arma la primera carga fallida con un `500`, cuyo mensaje es el genérico. Así, el caso afirma menos que su viñeta: nunca se ve "Vuelve a abrirlos" ni se comprueba que reabrir no repita el cursor vencido.
+- **Otra sección y regreso.** CH6-B04 pide "con datos (una recarga o una página que falló)… en las 12". El caso "con datos" solo arma una recarga fallida (`503`), y la página que falló con el `400` del cursor no tiene caso. El resumen cita además "los existentes de `recuperar-ch3.test.tsx` y `consultas-ch3.test.tsx`", pero ninguno de los dos recorre una lista:
+  - `recuperar-ch3.test.tsx` tiene CH3-B10 y CH3-B17, que son formularios (crear tema y editar clase);
+  - `consultas-ch3.test.tsx` tiene CH3-B09, que solo comprueba el texto.
+
+  Tampoco encontré, en otra prueba de `features/clases`, un caso de "salir y volver" con el `400` del cursor en esas listas.
+- **Atrás y adelante.** CH6-B05 se arma con un `503` de recarga, no con el cursor.
+- **Salto de clase.** El resumen cita CH6-B18 (b) para la frase del cursor, pero ese caso solo comprueba `isInvalidated` (la regresión de la librería). No comprueba que, al llegar a la clase con la frase, la lista se pida desde la primera página sin el cursor vencido ni que la frase desaparezca.
+
+**Por qué importa.** `AGENTS.md` ("Toda frase de recuperación…", decisión del 2026-10-26) exige un caso por camino y por frase, con el router real. Como mínimo son pulsar, ir a otra sección y regresar y repetir el control, más cada camino que permita la interfaz. Lo que importa en esta frase es no repetir el cursor vencido, y eso solo pasa con páginas ya cargadas, no con la primera carga fallida ni con una recarga. Según la regla del manager, la viñeta que falta y la cita equivocada devuelven el resumen. Además, `AGENTS.md` nació justo de caminos de "Vuelve a abrir…" sin inventariar (CALIFICACIONES-01d).
+
+**Qué se espera.** Para la frase del `400` del cursor, un caso por camino, con el router real y la caché de `providers.tsx`. En cada uno se pide una vez, desde la primera página y sin el `cursor` vencido, la frase desaparece y no sale ningún aviso:
+- (a) ir a otra sección y regresar antes de 30 s, en las 10 listas paginadas;
+- (b) cerrar y volver a abrir los comentarios y las respuestas, con "Vuelve a abrirlos" o "Vuelve a abrirlas" a la vista antes de cerrar;
+- (c) atrás del historial en Avisos, Dudas y el inicio del estudiante, las de CH6-B05;
+- (d) el salto de clase en Avisos y Dudas, las dos paginadas de las cuatro que sobreviven: B con la frase del cursor y salto a B.
+
+En lugar de un caso nuevo, se puede citar uno existente, pero con archivo y título exacto por lista y por camino, y que de verdad arme el `400` del cursor con páginas cargadas. Hay que corregir la tabla de frases y la viñeta de CH6-B06 del resumen. Si alguno de estos caminos no cumple, es PA-1 y se detiene: no se ajusta el texto.
+
+#### M-02 — CH6-B16 (f) no tiene dos de sus tres variantes de foco
+**Dónde.** `features/clases/recargas-ch6.test.tsx:1477-1520`. El plan dice, en CH6-B16: "Foco, en (b), (c) y (f)".
+
+**Qué pasa.** En (f) (B con su lista conservada tras un «Ver más» fallido), el único foco que se prueba es el del control segmentado. Ni el foco en una fila de A, que debe ir al `h2` de B y quedarse ahí tras la respuesta, ni el foco en «Ver más avisos» de A, que debe quedarse en «Ver más avisos» de B mientras está en espera y después de la respuesta, tienen caso en (f). Los casos "foco" (`:1543-1585`) cubren solo (b) y (c), y los de N-01 (`:1587-1678`) arman B vieja, no conservada.
+
+**Por qué importa.** Es la condición (a) de DH-10 ("la renovación no mueve el foco") en el estado nuevo de M-02. Ahí la lista de B no se reemplaza mientras vuela, así que el foco que llega por el salto sigue un camino distinto al de (b) y (c).
+
+**Qué se espera.** En Avisos y Dudas, con B en el estado (f):
+- con el foco en una fila de A: tras el salto, en el `h2` de B, y ahí sigue después de la respuesta;
+- (Avisos) con el foco en «Ver más avisos» de A: tras el salto, en «Ver más avisos» de B, en espera, y ahí sigue después de la respuesta.
+
+Nunca en `<body>` ni en una fila de A.
+
+### "Se toca" y "No se toca" (contra `023b450`)
+- **40 archivos bajo `frontend/`:** 19 de producción, que son exactamente la columna 06b de §D-0 (uno nuevo, `components/seccion/types.ts`); 4 pruebas nuevas; 4 de la lista cerrada; y 13 `*.ataque` de la ronda 0 y la ronda 0 bis. Nada cambia en `shared/`, `backend/`, `infra/`, `package*.json`, `CLAUDE.md`, `AGENTS.md` ni `docs/DESIGN.md` (`git diff --stat`, vacío).
+- **`features/clases/hooks.ts`:** cambian solo cinco cosas, todas permitidas por §D-4 a §D-6 y la Enmienda 3b:
+  - las dos guardas de `fetchStatus` (`useRecuperarListaDeClasesAnteriores` y `useRecuperarListaDeClasesAdmin`);
+  - `useClaseArchivadaEnSuLista`, con su ayuda `renovarLasListasSiTraenLaClase`;
+  - `useListaConservadaTrasLaPagina`, con la forma literal del plan;
+  - `useRenovarSiLaPublicacionYaNoEsta`, con la firma de cuatro argumentos y `clavePrevia`;
+  - dos importaciones.
+
+  `useAvisoDeRecargaFallida` no cambia de firma (en el diff solo aparece como contexto) y `useRenovarSiLaDudaYaNoEsta` no se toca.
+- **`features/admin/hooks.ts`:** se quitan las dos definiciones y se reexporta el gancho en una línea, nada más. No quedó ninguna importación sin uso: el lint pasa.
+- **`features/calificaciones/`:** en `hooks.ts`, solo `useMarcarViejasLasVentanas`. En `gradebook-view.tsx`, el cálculo de la ocurrencia sube sin ganchos entre medio, se agregan las dos refs con el efecto que enciende la frase antes de `useAlPulsarLaSeccionActiva`, y el manejador y la limpieza marcan y apagan. Es la forma de la Enmienda 4b.
+- **Ningún gancho de mutación gana `mutationKey`:** `git diff 023b450 -- src | grep mutationKey` está vacío. Tampoco cambia ningún `enEspera` ni ninguna guarda de doble clic (PA-6).
+- **Lo que fija CH6-A30 y "No se toca, además":** las `key` de los formularios, `creandoEn !== claseId`, las `key` de las secciones, la línea de H-R2 en `enfocarPublicacion` y `enfocarDuda`, y la clave de los cinco llamadores de `useAvisoDeRecargaFallida` no aparecen en el diff.
+- **Las 12 listas importan los dos ganchos de `@/components/seccion/hooks`** (N-02). Cada clave sale de la misma función que usa el gancho de la consulta (`claveDudas`, `claveTemasDeLaSeccion(claseId, bloque)`, `claveRecursos`, `claveTrabajo(claseId, seccion.clave)`, `claveComentarios`, `claveRespuestas`, `clavePersonas`, `claveAlumnos`, `clavePublicaciones` y `CLAVE_CLASES_*`). Lo cotejé con `features/clases/hooks.ts:203-214`, `:769-780`, `:1045`, `:1124`, `:1265`, `:1280`, `:1605`, `:1789` y `:1809`.
+
+### Lista cerrada
+Los cuatro archivos cambian exactamente lo que dice su entrada:
+- `ver-mas-y-orden-ch4.test.tsx`: la ayuda `comprobarFalloDeLaPagina`, que solo usan CH4-30 (c) y CH4-31 (c), sus dos títulos y aserciones (las filas, un aviso, ningún `role="alert"`, «Ver más» fuera de espera y, en los inicios, sin `TEXTOS_PANEL.error`) y la importación de `mensajeDeConsultaClases` en lugar de `mensajeDeErrorDeLista`, que quedó sin uso. El cambio de importación está declarado.
+- `personas-view.test.tsx:263-277`: el título, el espía de `toast.error`, que se restaura al final del caso, sin `role="alert"`, «Ver más alumnos» fuera de espera y con el foco. `:276` no cambia.
+- `publicacion-del-muro.test.tsx`: solo el `MemoryRouter`.
+- `gradebook-01d.test.tsx` (entrada 6): el título de CAL-1D03d, `marcas + 1` y la línea de `isInvalidated` de `DESTINOS[caso.pulsar].destino`. CAL-1D03e no se toca.
+
+Las tres condicionales (PR-C18, C-10 y C-14) siguen en verde sin tocarse, en mi corrida.
+
+### Pruebas requeridas (contraste caso por caso)
+Todos los títulos del resumen existen tal cual (plantillas de `it.each` incluidas). Salvo lo de M-01 y M-02, cada caso afirma lo que pide su viñeta:
+- **CH6-B01 y B02:** (a) a (i) con su conteo exacto. (e) comprueba que la única petición nueva no lleva `cursor`; (f) y (g) usan la petición retenida y aplican su respuesta; (h) monta con datos viejos y `refetchOnMount: false`. B02 arma el error sin `isInvalidated` con `setState`, como pide la Enmienda 3b.
+- **CH6-B03:** las 12 listas con la primera carga fallida, las 10 paginadas con el cursor sin repetirlo, el enlace del control segmentado y «Inicio» de la barra.
+- **CH6-B04:** "sin datos", "con datos" (recarga) y (c′) en Avisos, Personas y el inicio del estudiante. La parte M-02 va en CH6-B10 (volver). El hueco del cursor es M-01.
+- **CH6-B07 a B09:** las siete de H-2, con datos y la petición retenida; O-03 con los conteos renovados; los tres caminos del hermano de T-07.
+- **CH6-B10 a B13:** el `500` y la red en las 9 listas, con el foco en «Ver más» y el mismo cursor al repetir. Los tres caminos de recuperación (pulsar, volver y la recuperación que falla) en las 9, la invalidación por comentar y la fila con el foco en Avisos y Dudas. B11 cubre el `400` del cursor, el `VALIDACION` de otro campo, el `429`, el `403` y los dos `404`, más el `401` con `irA("/login")`. B12 (a) a (e), con (c) partido entre las listas sin `signal` y el tema de Actividades. B13: abrir, «Ver más comentarios», un recurso y dos fallos.
+- **CH6-B14:** (a) a (d) y (f) a (h); (e) lo cubre CAL-1D03e, como permite el plan.
+- **CH6-B15:** los siete casos, con el del maestro con el inicio en caché y el de la barra en vuelo.
+- **CH6-B16 a B18:**
+  - CH6-B16: (a), (b), (c) en sus dos variantes, N-05, (e), (f), el foco en (b) y (c) y las cuatro N-01;
+  - CH6-B17: las tres plantillas;
+  - CH6-B18: (a) a (e).
+
+  El foco de (f) es M-02.
+
+### Mutaciones
+No hice mutaciones (no me tocan). La tabla del resumen cubre todas las filas de 06b del plan, incluidas las de las Enmiendas 3, 3b, 4 y 4b:
+- M01 a M08 y M19;
+- G1 a G6, que incluyen la limpieza de §D-6 (b) (fila `:985`, en G2);
+- C1 a C4;
+- D1 a D4;
+- E1 a E6.
+
+Cada fila dice qué se quitó, qué cayó y "cmp igual". Comprobé las redundancias declaradas contra `@tanstack/query-core` 5.103.2 (`node_modules/@tanstack/query-core/build/modern/`):
+- **`isFetching` sola (M02 y M03):** `query.fetch` con `cancelRefetch: false` y una petición en vuelo devuelve la promesa que ya existe (`query.js:298-303`). Es cierta.
+- **CH6-B01 (f) dentro de M04:** sin datos, `fetch` no cancela aunque `cancelRefetch` sea verdadero (`query.js:299` exige `data !== undefined`). Es cierta, y CH6-B07 y CH6-B16 (e), que sí tienen datos, la vigilan.
+- **M05 (`useMarcarViejaSiQuedoEnError` en la vista):** la acción `error` pone `isInvalidated: true` (`query.js:450-462`). Es cierta. E1 y E2 vigilan el gancho con CH6-B02.
+
+**Los dos casos que sumó el programador para que cayeran dos filas:**
+- **«CH6-B15 (alumno, la barra en vuelo)»** (`recargas-ch6.test.tsx:1155-1175`). Retiene la petición de la barra que lanza el primer efecto, así que el segundo (`ClaseAnteriorView`) la encuentra en vuelo y todavía con la clase. Sin `cancelRefetch: false`, `fetch` cancela, porque hay datos, y pide otra: la barra sube a `barraAntes + 2` y el caso, que exige `+1` con la petición todavía retenida, cae. Vigila lo que dice. Es la retención que prevé la fila `:972` del plan.
+- **«CH6-B16 (Avisos, N-01, B vieja y sin página siguiente al llegar)»** (`:1603-1621`). B llega sin página siguiente, así que «Ver más avisos» de A se desmonta en el salto. Sin la línea de H-R2, `useFocoAlCargarMas` toma las publicaciones de B como "filas nuevas" y lleva el foco a una de ellas. El caso exige el `h2` y cae. Vigila la fila `:975`.
+
+### Hermanos, inventario de M-5, estados vecinos y matriz (contrastados con el código)
+- **§D-4:** en `023b450` hay 16 llamadas a `useAlPulsarLaSeccionActiva(`. Hoy son 10: las 9 que no son de `features/clases`, más la base de `useRecargarAlPulsarLaSeccion`. A eso se suman 12 sitios con `useRecargarAlPulsarLaSeccion(` y 19 con `useMarcarViejaSiQuedoEnError(`: las 12 listas, una por bloque de Recursos, y `features/admin`. La tabla del resumen coincide, sitio por sitio, con las variantes registradas sin cambio.
+- **§D-5:** las 9 listas tienen `useListaConservadaTrasLaPagina` con su clave, el error con `&& !conserva` y `useAvisoDeRecargaFallida(…, conserva, mensajeDeConsultaClases(…), clave)`. Además:
+  - los inicios usan `errorALaVista` en el panel y en `BloqueDestacado`;
+  - Personas, `cargada`;
+  - las respuestas, las dos condiciones de `:270` y `:274` (la de `:181` no cambia);
+  - `useFocoAlPasarAError` recibe `isError && !conserva` en Avisos y Dudas.
+
+  `seccion-de-recursos.tsx` cambia solo PR-1.
+- **§D-6:**
+  - N-52 vive solo en el gradebook. "Mis calificaciones" no tiene ventanas, así que no le aplica, y es cierto.
+  - `useClaseArchivadaEnSuLista` corre en `ClaseLayout` y en `ClaseAnteriorView` y llama a la ayuda con el `predicate`.
+- **M-5, gancho por gancho:** cada clave del resumen es la del código.
+  - `claseId` en Avisos, Dudas, el tema, Personas y el roster;
+  - `publicacionId` en los comentarios;
+  - `dudaId` en las respuestas;
+  - `JSON.stringify(CLAVE_CLASES_*)` en los inicios;
+  - `` `${claseId}:${publicacionId}` `` en `useRenovarSiLaPublicacionYaNoEsta`;
+  - `huella` en `useMarcarViejaSiQuedoEnError`;
+  - la `key` y el `claseId` del cierre en la limpieza del gradebook.
+
+  Las memorias de módulo (`limiteDeTrabajo` y `limiteDeRecursos`) no cambian.
+- **Estados vecinos de DH-10 y de las dos refs del gradebook:** cada fila nombra un caso que existe y afirma esa conducta. El foco de (f) es M-02, y la frase del cursor en el salto, M-01. `StrictMode` y "un fallo en el render del salto" van sin caso, con su razón (abajo).
+- **Matriz de §D-7:** coteja con el código y los casos fila por fila. Junta las listas en una sola fila y separa las excepciones (Recursos y Actividades, el `signal` del tema). Una imprecisión menor en "Detalles". Las filas de "pulsar «Calificaciones»" (con y sin la frase) y de "la clase archivada leída dos veces" (alumno y maestro con el inicio en caché) están, como pide la reanudación.
+- **Frases de recuperación:** la tabla cubre el texto de la consulta, el texto fijo del lugar, el aviso de «Ver más», «No pudimos actualizar…» y "Vuelve a abrir Calificaciones", y las citas de esas filas son correctas. La fila del cursor es M-01.
+
+### Lo que arbitro (inciso 7 del encargo)
+1. **R-3, sin `laTraen`: es cierto y equivalente.** El plan lo deja a elección del programador (Enmienda 4, `plan.md:581`: "puede quedarse o quitarse: el `predicate` ya decide. El programador dice cuál deja"), y él lo dice en `resumen-programador.md:703`. En 5.103.2:
+   - `invalidateQueries` invalida `findAll(filters)` y después llama a `refetchQueries` con los mismos filtros, `predicate` incluido (`queryClient.js:298-306`);
+   - `matchQuery` evalúa el `predicate` en los dos pasos (`utils.js:35-47`), con los mismos `state.data` dentro del mismo `batch`.
+
+   Si ninguna consulta trae la clase, nada se invalida y nada se pide, como con `laTraen`. C3 (la forma anterior) y C2 (sin `predicate`) hacen caer sus casos.
+2. **`StrictMode`: basta el razonamiento, y queda como punto de ataque.** El plan no pide un caso de 06b con `StrictMode`: ninguna viñeta CH6-B lo nombra. El paso 20 pide nombrar ese estado vecino en el resumen, y el resumen lo nombra con su porqué. "Puntos de ataque" 4 bis lo deja para el tester, y "Decisiones tomadas" acepta la marca de más del gradebook. Lo contrasté con el código:
+   - `useListaConservadaTrasLaPagina` ajusta el estado en el render solo si la marca cambia, y en el doble render la marca es la misma;
+   - el efecto de `useRenovarSiLaPublicacionYaNoEsta` no hace nada en el doble montaje, porque `fallosVistos` nace con el contador;
+   - `useRecargarAlPulsarLaSeccion` no tiene memoria y se apoya en `useAlPulsarLaSeccionActiva`, que no cambia;
+   - la limpieza del gradebook marca a lo más una vez de más, sin pedir nada.
+
+   CH6-A13 (d) de 06a sigue en verde. No le pido un caso al programador; es el punto de ataque 4.
+3. **El rojo primero de CH6-B14 (f): el caso sí vigila la condición nueva.** Antes de R-2, el árbol marcaba siempre al pulsar, así que W quedaba inválida y (f) cayó por su otra mitad, la pulsación con la tabla sana. Con "se ve ahora", en cambio, tras «Alumnos anteriores» `ocurrenciaDelCursor` es `null` en el render de la pulsación (la ventana inicial no tiene cursor), así que nada marca W. Entonces la espera de `wInvalidada(cliente)` en verdadero (`gradebook-ch6.test.tsx:308`) no se cumple y el caso cae. Eso es lo que reporta G4 (el efecto copia también el `null`): caen (f), (g) y (h). G5 y G6 vigilan la otra mitad. Lo acepto.
+4. **La desviación de C-17 y R-12 están declaradas:**
+   - C-17: `reporte-tester.md`, ronda 0, "Desviación para el manager" (la ayuda `encabezadoAlumnos`, que quedó sin uso);
+   - R-12: `plan.md:1043-1048` y "Decisiones tomadas"; el resumen la repite en `:925`, sin caso.
+5. **Estilo de `CLAUDE.md` en el código nuevo:**
+   - `ConsultaQueSeRecarga` va en `components/seccion/types.ts`. El tipo en línea de `conservaLaListaTrasLaPagina` lo permite el plan, y el lint no lo rechaza. `useListaConservadaTrasLaPagina` recibe parámetros sueltos, sin tipo nuevo en el archivo de ganchos.
+   - No hay textos nuevos: los avisos usan `mensajeDeConsultaClases` (`lib/errores-de-api.ts`).
+   - Hay retornos tempranos en `listaTraeLaClase`, `traeLaClaseEnSusFilas` (sin `as`), las guardas de `fetchStatus` y la limpieza del gradebook.
+   - No hay `any` ni `?? []`. El arreglo condicional de las respuestas (`pedir`) es una lista de argumentos, no un valor por defecto que oculte datos.
+   - Las guardas de doble clic y los `enEspera` no cambian.
+
+### Problemas que no bloquean
+- **N-01 · La parte M-02 de CH6-B04 afirma menos que su viñeta.** En CH6-B10 (volver de otra sección) no se afirma "el foco donde lo dejó el montaje". Tampoco hay caso de que, al volver con la consulta en error por una **recarga**, el `MensajeError` siga mientras vuela, que es "como hoy" según DH-02 (a): CH6-B04 "con datos" no retiene la recarga. El salto lo fija N-05. Si el programador ya está en M-01, puede sumarlo ahí. Si no, va al tester (punto 2).
+- **N-02 · CH6-B03 prueba los comentarios solo al pulsar «Avisos».** No prueba los comentarios de un recurso al pulsar «Recursos». El plan dice "«Avisos» o «Recursos»" y el componente es el mismo, así que no lo exijo. Va al tester (punto 5).
+
+### Detalles menores
+- El comentario de `useMarcarViejasLasVentanas` (`features/calificaciones/hooks.ts:95-98`) dice "al desmontarse con la frase … a la vista", que es la forma anterior a la Enmienda 4b. Debería decir "vista y sin marcar".
+- En la matriz, la fila "Pulsar, en error con datos (recarga fallida)" dice "Recursos y Actividades: la lista". Lo cierto es que "Actividades (un tema)" reemplaza: solo los temas del bloque y de Actividades conservan.
+- CH6-B13 («Ver más comentarios») no cuenta "un solo mensaje", como sí lo hace el caso "abrir". En `personas-view.test.tsx`, `aviso.mockRestore()` va al final del caso, no en un `finally`, como lo pide el plan.
+
+### Para el tester (ronda 1), además de "Puntos de ataque para el Tester" del plan
+Por prioridad:
+1. **La frase del cursor por cada camino**, en las 10 listas paginadas, una vez corregido M-01: salir y volver, cerrar y abrir, atrás y adelante, y el salto en Avisos y Dudas. Que no se repita el cursor vencido y que la frase desaparezca.
+2. **`useListaConservadaTrasLaPagina` en secuencias:**
+   - una página que falla con `5xx` y después una recuperación que falla con un `4xx` (`403`, `404` en los comentarios);
+   - una página que falla y después una mutación que invalida y falla, con el foco en una fila;
+   - una recarga de fondo que falla sin un fallo de página antes, también al volver de otra sección: el `MensajeError` debe seguir mientras vuela (N-01);
+   - el reflejo de N-05 en Dudas;
+   - A → B → A → B con las dos listas conservadas.
+3. **El gradebook por la otra dimensión.** CH6-B14 (f) a (h) usan solo «Alumnos siguientes» y «Alumnos anteriores». Hay que probar la frase de la ventana vacía de tareas (`cursorTareas`) y las dos dimensiones a la vez, y una segunda ocurrencia distinta después de haber marcado la primera.
+4. **`StrictMode`** en las 9 listas, en los comentarios con un `404` y en el gradebook (inciso 7.2).
+5. **Comentarios dentro de Recursos:** pulsar «Recursos» con los comentarios de un recurso en error o conservados, su «Ver más» con `5xx`, y `PUBLICACION_NO_ENCONTRADA` desde un recurso con el foco en el bloque (N-02).
+6. **DH-10 con una página de A en vuelo**, no una recarga, que falla ya en B. Y el salto con B pidiendo una página.
+7. **`listaTraeLaClase` con formas raras** (punto 5 del plan) y la clase archivada leída por el alumno con el inicio en caché y la barra ya respondida.
+
+### Para el humano
+Nada. M-01 y M-02 son pruebas que faltan o afirman menos que su viñeta, dentro del plan aprobado. No reabren ninguna decisión ni cambian el tamaño de 06b: van en archivos que ya están en la lista.
+
+### Qué hace el programador
+Corregir M-01 y M-02 en `features/clases/recargas-ch6.test.tsx` (o en `ver-mas-ch6.test.tsx`, si le acomoda) y la tabla de frases y la viñeta de CH6-B06 del resumen. Si quiere, también N-01 y el comentario de `useMarcarViejasLasVentanas`.
+
+Cada caso nuevo se comprueba con una mutación real que lo haga caer, por ejemplo, pedir de nuevo con el cursor vencido en lugar de desde la primera página. Si no hay mutación que lo haga caer, declara la redundancia con su mecanismo.
+
+En el resumen de la corrección van:
+- los hermanos: cada lista paginada por cada camino;
+- los estados vecinos del mecanismo: con datos y sin datos, cursor y `5xx`, y la vista montada o desmontada;
+- `npm run lint`, la suite de `src/features/clases` y el conteo con `npx vitest list`, con su última línea.
+
+Si algún camino no cumple con el código de hoy, es PA-1 y se detiene.
+
+## Verificación de la corrección de M-01 y M-02 — CHORE-06b (2026-11-12)
+Manager. Contra `resumen-programador.md` (1101 líneas, SHA-256 `f7db46f0…` comprobado), sección "## Corrección tras la verificación del manager — CHORE-06b: M-01 y M-02 (2026-11-12)" (`:927`). Plan `201dc71f…`. Leí los casos nuevos y los cambiados de `features/clases/recargas-ch6.test.tsx` (`:775-800`, `:878-919`, `:1007-1099` y `:1855-1979`), de `ver-mas-ch6.test.tsx` (CH6-B10 volver y CH6-B13) y de `personas-view.test.tsx`, y el diff del comentario de `features/calificaciones/hooks.ts`. Equipo con corriente. Sin otra suite corriendo. Corrí una cosa a la vez y no hice mutaciones.
+
+**Veredicto: ACEPTADO. El tester puede atacar.** M-01 y M-02 quedan corregidos y las cifras coinciden. La mutación temporal en `components/foco/hooks.ts` (K14) se acepta como desviación menor, declarada y sin rastro en el árbol. No queda nada para el humano.
+
+### Mis corridas (desde `frontend/`, una a la vez)
+| Qué | Comando | Última línea (mía) | Resumen |
+|---|---|---|---|
+| lint | `npm run lint` | `> tsc -b`, salida 0 | igual |
+| regresión de 06b | `npx vitest run src/features/clases src/features/calificaciones src/features/admin src/components/seccion src/app src/lib` | `Tests  5401 passed (5401)` (`Test Files  240 passed (240)`; `Duration  293.91s`) | `5401 passed (5401)` y `240 passed (240)`: coincide |
+| build | `npm run build` | `✓ built in 830ms`, salida 0 | `✓ built in 795ms`: coincide (el tiempo varía) |
+| conteo | `npx vitest list` de las 4 pruebas nuevas, con `grep -a -c '> CH6-B'` | 328 = 12 + 167 + 142 + 7 | 328 (12, 167, 142 y 7): coincide |
+
+- Casos con "el 400 del cursor" en el título: 28. Son los 10 de CH6-B03, CH6-B18 (b) y los 17 nuevos (10 + 2 + 3 + 2), como dice el resumen.
+- `git status --short frontend`: 40 archivos.
+- `sha256sum -c v01-ch6b-r0bis.txt`: las 288 `*.ataque`, todas OK.
+- `git diff --quiet 023b450 -- frontend/src/components/foco`: limpio.
+
+### M-01: corregido
+Los 17 casos se arman con el `400` del cursor de verdad, sobre páginas cargadas. `enErrorDelCursor` (`:718-727`) carga la primera página, hace fallar dos veces la petición con `cursor` usando `cursorVencido`, y espera la frase. En CH6-B05 y CH6-B16 se arma igual, inline. Antes del camino, cada caso comprueba que la frase de esa lista está a la vista. `FRASE_DEL_CURSOR` (`:1013-1024`) sale de los `cambioMientras…` de `data.ts` y, en Personas y el roster, de `mensajeDeConsultaClases` del mismo `400`. Además, CH6-B06 comprueba que la frase es "Vuelve a abrirlos" o "Vuelve a abrirlas".
+
+Después del camino, `cumpleLaFraseDelCursor` (`:1034-1042`) comprueba cuatro cosas: que la lista se ve sin `role="alert"`, que sale **exactamente una** petición nueva de la lista, que esa petición va **sin `cursor`**, y que la frase ya no está y no hay ningún aviso. Todo con el router real (`rutas`) y las `defaultOptions` de `app/providers.tsx` (`nuevoCliente`, `:453-456`). Es lo que pide `AGENTS.md`: la acción vuelve a pedir lo que el texto promete, sin servir la caché que se sabe vieja (la petición nueva lo prueba), y el texto desaparece.
+
+Los caminos que faltaban ya están:
+- salir y volver en las 10 listas paginadas;
+- cerrar y abrir en comentarios y respuestas;
+- atrás en Avisos, Dudas y el inicio del estudiante, después de dos pulsaciones;
+- el salto a B en Avisos y Dudas: B con la frase, se va a A y se regresa con el historial.
+
+La tabla de frases del resumen se reemplazó y ya cita casos que existen y arman el error de cada frase. Ya no cita `recuperar-ch3` ni `consultas-ch3`.
+
+### M-02: corregido
+Las variantes nuevas arman B en el estado (f) con `conBConservada` (`:1880-1899`): «Ver más» de B falla con un `500` y deja un aviso, y la lista queda conservada y fuera de espera. Después se salta a A, se pone el foco y se regresa con la renovación de B retenida.
+- **«CH6-B16 (f) (%s, foco en una fila de A)»** (Avisos y Dudas). Mientras vuela la renovación, el foco está en el `h2` de B, la lista de B se ve y no hay `role="alert"`. Después de la respuesta, el foco sigue en el `h2` y no hay ningún aviso más.
+- **«CH6-B16 (f) (Avisos, foco en «Ver más avisos» de A)».** Mientras vuela, «Ver más avisos» de B está con `aria-busy="true"` y tiene el foco, sin `role="alert"`. Después de la respuesta, el botón sale de la espera, sigue con el foco, el foco no está en `<body>` y no hay ningún aviso más.
+- **El hermano en el estado (c)** («CH6-B16 (c) (Avisos, foco en «Ver más avisos» de A)», `:1928-1947`). Como B no tiene «Ver más», el foco va al `h2`, mientras vuela y después de la respuesta. Es lo que dice el plan ("si no, va al `h2`").
+
+Afirman el foco en espera y tras la respuesta, como pide la viñeta. K9 (devolver solo `ahora`) y K11 (quitar el envío al `h2` de la rama `clasePrevia`) hacen caer las variantes de (f), según la tabla.
+
+### N-01, N-02 y detalles
+- **N-01.** CH6-B10 (volver) guarda el foco del montaje y comprueba que sigue en el mismo elemento tras la respuesta. Es una afirmación débil (solo pide que no sea nulo y que no cambie), pero cumple la viñeta.
+- **El caso nuevo de la recarga al volver** («CH6-B04 (%s, recarga fallida y la nueva petición retenida al volver)», 12 listas). Mientras vuela, en las listas que reemplazan sigue el `MensajeError`, y en las 3 con `conservaLaRecarga` se ve la lista sin `role="alert"`. Al responder no sale ningún aviso nuevo. K8 hace caer las 9 que reemplazan.
+- **N-02.** «CH6-B03 (comentarios de un recurso, pulsando «Recursos»)» falla la primera carga de los comentarios del recurso, pulsa «Recursos» estando ahí y pide una vez. K10 lo hace caer.
+- **Lo que cambió del doble del servidor** (3 comentarios en el recurso 1) no rompe nada: la regresión está en verde.
+- **Detalles.** CH6-B13 («Ver más comentarios») cuenta un solo mensaje dos veces. En `personas-view.test.tsx` el espía se restaura en un `finally`. Sigue siendo la entrada de la lista cerrada, solo que el cuerpo queda dentro del `try`. El comentario de `useMarcarViejasLasVentanas` ya dice la condición de la Enmienda 4b. En producción no cambió nada más.
+
+### Lo que arbitro
+- **K14, la mutación temporal en `components/foco/hooks.ts` ("No se toca"): la acepto como desviación menor, sin hallazgo.**
+  - "No se toca" protege el resultado contra la base, y el resultado no cambió: `git diff --quiet 023b450 -- frontend/src/components/foco` está limpio, y el programador comparó byte a byte.
+  - Es el método que pide la regla de las mutaciones (`AGENTS.md`, "Pruebas", decisión del 2026-11-11: en el archivo real, restaurado), y la declaró en el resumen.
+  - Pero el plan no la previó. No está en la tabla de "Mutaciones" y vigila un caso que el mismo programador sumó. Además, PA-4 pide detenerse antes de tocar un archivo de "No se toca".
+  - El tester debe repetir V-01 y el `git diff --quiet` de `components/foco` al empezar su ronda.
+  - Para lo que sigue: si una mutación necesita un archivo de "No se toca", se declara la redundancia con su mecanismo y se pregunta antes. No se toca el archivo.
+- **K6 y K7 son redundancias ciertas, y los casos bastan para la regla de las frases.**
+  - Lo comprobé en 5.103.2:
+    - la acción `error` deja la consulta inválida (`query.js:450-462`) y `isStaleByTime` la da por vieja (`:212-218`);
+    - al montarse, el observador la pide, y `infiniteQueryBehavior` vuelve a pedir solo las páginas que había, que es una sola porque la segunda falló, así que el cursor vencido no se repite;
+    - plegar los comentarios no los quita de la caché, porque el único `removeQueries` de esa clave es el de una duda que se borra (`features/clases/hooks.ts:1976-1988`).
+  - Los casos no dicen vigilar ninguna guarda nuestra. Prueban que la promesa del texto se cumple por ese camino, con nuestras vistas (`conserva` es falso ante un `4xx`, la rama de error y el montaje), que es lo que exige la regla de las frases de recuperación. No son vacíos: caerían si una de esas consultas dejara de pedirse al montarse, por ejemplo con `refetchOnMount: false` o un `staleTime: "static"` en su gancho, o si el `400` del cursor pasara a conservarse.
+  - El caso del salto (d) y el de atrás (c) sí tienen remedio nuestro, y caen con K1 a K5.
+  - No falta nada.
+- **K12 y K13: acepto la redundancia.** En el estado (c), B no tiene «Ver más» ni publicaciones pintadas, así que la línea de H-R2 no tiene ninguna fila de B a la cual no mandar el foco (K12). Si se quita `enfocarEncabezado` (K13), la defensa de `useFocoAlCargarMas` lleva el foco al primer enfocable de la sección, que es el `h2`. Quitar los dos (K14) hace caer el caso. Es la misma forma que PR-3 (O-05).
+
+### Hermanos de M-01 y M-02, contra las viñetas CH6-B
+La lista del resumen (`:1013-1079`) coincide con las viñetas y con lo que leí:
+- **Ya estaban:** CH6-B01 a B03, B07 a B15, B17 y B18, cada una armada con el estado o el código que nombra.
+- **Lo que faltaba:**
+  - CH6-B04, la página que falló con el `400`;
+  - CH6-B05 y CH6-B06, con el `400`;
+  - CH6-B16, el salto con la frase del cursor, la fila y «Ver más avisos» en (f), y «Ver más avisos» en (c).
+
+  Ya tiene caso.
+- **Lo que queda sin caso, declarado:** la rama "o al `h2`" de CH6-B13, cuando no hay vecina. El plan escribe "o", la alternativa que corresponda, y el efecto de fila del muro es anterior a 06b. No lo exijo; va al tester (punto 2).
+
+### Puntos de ataque para el tester (ronda 1, actualizados; reemplazan los de la verificación anterior)
+Por prioridad, además de "Puntos de ataque para el Tester" del plan:
+1. **`useListaConservadaTrasLaPagina` en secuencias:**
+   - un fallo de página con `5xx` seguido de una recuperación que falla con un `4xx` (`403`, o `404` en los comentarios);
+   - una página que falla y después una mutación que invalida y falla, con el foco en una fila;
+   - el reflejo de N-05 en Dudas;
+   - A → B → A → B con las dos listas conservadas;
+   - un `400` del cursor después de una lista conservada (que reemplace con su frase y no la marca).
+2. **CH6-B13 sin vecina:** `PUBLICACION_NO_ENCONTRADA` en la única publicación, o en la última, con el foco en el bloque. El foco debe ir al `h2` de Avisos, nunca a `<body>`. Y lo mismo desde un recurso.
+3. **El gradebook por la otra dimensión:**
+   - la frase de la ventana vacía de tareas (`cursorTareas`) por (f), (g) y (h);
+   - las dos dimensiones a la vez;
+   - una segunda ocurrencia distinta después de marcar la primera.
+4. **`StrictMode`** en las 9 listas, en los comentarios con un `404` y en el gradebook (marca de más declarada, sin peticiones).
+5. **Comentarios dentro de Recursos**, más allá de N-02:
+   - pulsar «Recursos» con los comentarios conservados;
+   - su «Ver más» con `5xx` y con el `400` del cursor;
+   - salir y volver.
+6. **DH-10 con una página de A en vuelo**, no una recarga, que falla ya en B. Y el salto a B con B pidiendo una página.
+7. **`listaTraeLaClase` con formas raras** (punto 5 del plan), y la clase archivada leída por el alumno con el inicio en caché y la barra ya respondida.
+8. **Al empezar:** V-01 y `git diff --quiet 023b450 -- frontend/src/components/foco` (por K14).
+
+### Para el humano
+Nada.
+
+## Verificación de la Enmienda 5 — CHORE-06b (2026-11-13)
+Manager, modo plan. Solo lectura, sin pruebas. Revisé:
+- `plan.md`: 1302 líneas, SHA-256 `73861b132a421741961986d72c50d838b0073c66a034c1ea052ad40382cad1de`, comprobado;
+- la copia de antes `plan-ch6-antes-e5-201dc71f.md` (`201dc71f…`, comprobado). El `git diff --no-index` completo da 151 inserciones y 5 borrados, y leí todos los hunks;
+- `reporte-tester.md:663-775` (ronda 1, T-04 y T-05);
+- el árbol actual: 42 archivos en `frontend/`, con el gancho en `features/clases/hooks.ts:1336-1353` y sus 9 llamadores;
+- `@tanstack/query-core` 5.103.2 (`query.js` y `queryObserver.js`).
+
+**Veredicto: APROBADO.** El remedio, una marca por instancia de consulta guardada en un `WeakMap` de módulo, cierra T-04 y T-05 sin cambiar lo que DH-02 (a) dejó igual. Quedan tres puntos que no bloquean (N-01 a N-03), una observación (O-01) y un detalle. Ninguno requiere enmienda: el programador los recoge en K-1 y en su resumen. Nada va al humano, salvo la confirmación del tamaño, que ya se le preguntó.
+
+### Punto 1 · El efecto que registra la marca
+- **Por qué llega a tiempo.** El render que ve el fallo de página (`isFetchNextPageError`) ya decide con `ahora`. React vacía los efectos pasivos pendientes de una confirmación antes de empezar el render siguiente, y también antes de confirmar un desmontaje. Así, el efecto de ese render registra la marca, con su propio cierre (`consulta` y `fallo`), antes de que exista un render en que `fetchMeta` ya sea `null`. Camino por camino:
+  - **La página falla con la vista montada:** el render del fallo conserva la lista. Su efecto registra la marca, y la pulsación, la invalidación o el montaje nuevo la leen después. Es el camino de T-04 (ATQ-CH6-36).
+  - **La página falla con la vista desmontada** (CH6-B12 (c)):
+    - el reintento se cancela al quedarse sin observadores (`query.js:244-251`), y el error deja `fetchMeta` hacia adelante;
+    - al volver, el primer render usa el resultado optimista, que conserva `fetchMeta` (`queryObserver.js:301-308`), así que `ahora` es verdadero;
+    - la suscripción, que lanza la recarga, corre en un efecto, y la notificación llega en un render posterior;
+    - para entonces la marca ya está escrita.
+  - **Qué ve la persona en ese caso:** la lista a la vista mientras vuela la recarga, con «Ver más» en espera, y sin aviso (`useAvisoDeRecargaFallida` nace con el contador del momento, R8). Es lo que piden M-02 y DH-02 (a).
+  - **`StrictMode`:** el efecto corre dos veces con el mismo valor y no tiene limpieza. Bien (ATQ-CH6-42).
+  - **La pestaña oculta:** los efectos se vacían igual antes del render siguiente. Bien.
+  - **Desmontar en la confirmación siguiente a la del fallo:** React vacía los efectos de la confirmación del fallo antes de desmontar. Bien.
+- **O-01 — La única excepción es una carrera.** Si el fallo de la página y el despacho de otra recarga de la misma clave (por ejemplo, una invalidación por una mutación) caen en el mismo lote de notificaciones de la librería, ningún render ve la dirección. No se registra la marca y se ve el `MensajeError` mientras vuela esa recarga.
+  - La forma de la 3b tenía la misma propiedad, y la conducta es la de antes de 06b.
+  - Es casi inalcanzable, porque requiere que la mutación termine en el mismo instante que la página. La acepto como observación, sin caso ni enmienda.
+
+### Punto 2 · La instancia en el render
+- **`find({ queryKey, exact: true })` encuentra la consulta en ese render en los 9 llamadores:**
+  - el gancho de la lista se llama antes en el mismo componente (`muro-view.tsx:57` y `:63`; `dudas-view.tsx:51` y `:56`);
+  - `useBaseQuery` construye la consulta en el constructor del observador, porque `setOptions` llama a `build` (`queryObserver.js:44-51`), y otra vez en `getOptimisticResult` (`:132-134`).
+- **El salto de clase en Avisos y Dudas:** el observador ya construyó la consulta de B en `getOptimisticResult` de ese mismo render, aunque `setOptions` llegue después, en un efecto. Así que `find` devuelve la instancia de B.
+- **Las respuestas sin `pedir`** (`enabled: false`): la consulta también se construye. La marca no se registra porque no hay fallo de página.
+- **Las claves coinciden exactamente con las de las consultas:** `clavePublicaciones`, `claveDudas`, `claveComentarios`, `claveRespuestas`, `claveTrabajo`, `clavePersonas`, `claveAlumnos`, `CLAVE_CLASES_INSCRITAS` y `CLAVE_CLASES_IMPARTIDAS` (`hooks.ts:203`, `:214`, `:769`, `:780`, `:1045`, `:1124`, `:1280`, `:1789` y `:1809`).
+  - Son las mismas que cada llamador ya pasa hoy a `useMarcarViejaSiQuedoEnError`.
+  - La barra cuelga de la clave del inicio pero tiene otra clave, y `exact` la deja fuera.
+- **Si `find` devolviera `undefined`, el gancho decide solo con `ahora`, sin marca.** Es seguro.
+
+### Punto 3 · La marca no conserva de más
+- **Cada acción `error` sube `errorUpdateCount` y fija `errorUpdatedAt`** (`query.js:450-462`). La marca solo coincide mientras el error actual es el mismo fallo de página que conservó la lista. Así:
+  - **una recarga de fondo que falla sin un fallo de página antes:** no hay marca y se reemplaza (ATQ-CH6-38);
+  - **la recuperación que falla** (con `5xx` o con `4xx`, ATQ-CH6-39): cambia el par y se reemplaza sin aviso;
+  - **el `400` del cursor después de una lista conservada** (ATQ-CH6-40): `ahora` es falso y el par es otro, así que se reemplaza con su frase;
+  - **N-05 y su reflejo en Dudas:** A y B son dos instancias distintas, cada una con su marca.
+- **`resetQueries`:**
+  - `query.reset()` deja la misma instancia con el estado inicial, contador 0 y hora 0 (`query.js:142-145`);
+  - un error posterior trae otra hora;
+  - dos errores en el mismo milisegundo con `resetQueries` en medio solo pueden darse con el reloj fijo de una prueba, y CH6-B18 (e) lo arma a propósito;
+  - ninguna de las 9 listas usa `resetQueries`.
+- **Una mejora frente a la 3b:** "la recuperación falla con la vista desmontada y se vuelve" también reemplaza. El par cambió y `ahora` es falso, así que el `MensajeError` se ve mientras se pide de nuevo. Es lo correcto según DH-02 (a), porque el último fallo es de una recarga. Ver N-02.
+
+### Punto 4 · La memoria de módulo
+- **El `WeakMap` tiene como clave la instancia `Query`.** Cada `QueryClient` tiene su propia `QueryCache` y sus propias instancias, así que dos clientes, o dos pruebas, nunca comparten una marca. La mutación "un `Map` por `queryHash`" lo comprueba en CH6-B18 (e).
+- **Ninguna ruta revive una marca vieja:**
+  - `removeQueries`, la recolección y `clear` al cerrar sesión (`features/auth/hooks.ts:46` y `:118`) sacan la instancia de la caché, y la que se construye después es otra, sin entrada;
+  - el `WeakMap` no retiene la instancia;
+  - `resetQueries` conserva la instancia, pero no el par;
+  - mientras la vista está montada, la lista solo se conserva si el error actual es el que se registró.
+- **Hay precedente en el repositorio:** `ultimoFalloAvisado` (`features/tareas/hooks.ts:265`), también un `WeakMap` por consulta.
+- **Leer el `WeakMap` durante el render es una lectura, no una mutación,** así que la regla `globals` de `eslint-plugin-react-hooks` 7 no debería rechazarla. Si el lint la rechaza, PA-4 (§D-5).
+
+### Punto 5 · Mutaciones y CH6-B19
+- **Las cuatro filas nuevas pueden caer:**
+  - **la marca en `useState`:** cae ATQ-CH6-36, y también el caso de CH6-B18 (e) de montar de nuevo con el mismo par y sin dirección (el estado nace en `null`);
+  - **una sola variable de módulo:** cae ATQ-CH6-37 (B pisa a A). En CH6-B18 (e), "otra consulta con el mismo par" da verdadero;
+  - **la marca sin `errorUpdatedAt`:** cae en CH6-B18 (e), si el caso marca con el contador 1, llama a `resetQueries` y produce un error nuevo con contador 1. Hay que armarlo así;
+  - **un `Map` por `queryHash`:** cae con el cliente nuevo, la misma clave, el mismo par y `Date` fijo.
+- **CH6-B19 (a), (b), (d), (e) y (f) se pueden armar tal como están escritos.** Los demás piden ajuste:
+  - **N-01 — CH6-B19 (c), en comentarios, no se puede armar como está escrito.** Las filas de Avisos llevan `key={publicacion.id}`, y saltar A → B desmonta las filas de A. Al volver, la fila nace con `abierto` en falso (`publicacion-del-muro.tsx:31`) y el bloque de comentarios está cerrado, así que no hay lista que conservar sin volver a abrirlo. El caso de comentarios tiene que decir "salta A → B → A **y vuelve a abrir el bloque**", que es el camino de T-04 por cerrar y abrir. Personas tal como está.
+  - **N-02 — Un estado vecino del inventario sin caso:** "la recuperación falla con la vista desmontada y después se vuelve". Debe verse el `MensajeError`, sin aviso, mientras se pide de nuevo, y nunca la lista conservada por una marca que ya no corresponde. Mecánicamente lo vigila CH6-B19 (e), que sigue la misma rama de decisión, pero es el camino nuevo que abre una marca que sobrevive al desmontaje. Conviene sumarlo como variante de (e) en Avisos.
+- **Lo que falta en el inventario de estados vecinos:** solo N-02. Los demás (montar dos veces, invalidación y salir, salto con montaje nuevo, A → B → A → B, recuperación que falla, `removeQueries`, `StrictMode` y el tema con `signal`) tienen caso, aquí o en la ronda 1.
+
+### Punto 6 · La firma
+- **Los 9 llamadores tienen la clave a mano:** ya la pasan a `useMarcarViejaSiQuedoEnError` en el mismo componente (`muro-view.tsx:104`, `dudas-view.tsx:94`, `personas-view.tsx:72`, `inicio-estudiante-view.tsx:52`, `inicio-maestro-view.tsx:50`, `comentarios-de-publicacion.tsx:175`, `respuestas-de-duda.tsx:188`, `seccion-de-tema.tsx:91` y `tabla-alumnos.tsx:183`). Son las mismas funciones con que se construye la consulta.
+- **Grep de los llamadores con la firma vieja en pruebas:**
+  - solo `recargas-ch6.test.tsx:2188` (CH6-B18 (e)), que el plan reescribe;
+  - las fábricas de C-15 y C-16 (`() => false`) no miran los argumentos;
+  - `recargas-ch6b-r1.ataque.test.tsx` lo menciona solo en un comentario (`:34`).
+
+### Punto 7 · Texto vivo de la 3b
+- **Lo reemplazado está bien marcado:**
+  - el bloque de código de la 3b (`plan.md:505-515`) y su "Por qué funciona en cada camino" quedan bajo "(Enmienda 5) … Reemplaza la forma de arriba";
+  - la "Regla de la clave" (`:420`) y la tabla de M-5 (`:250`) llevan la marca de reemplazo;
+  - la fila "comparar solo el `errorUpdateCount`, sin la clave" dice que la reemplazan las cuatro nuevas.
+- **N-03 (detalle) — Una frase que contradice la Enmienda 5:** la observación de N-06 de la Enmienda 4 (`plan.md:1142`) dice todavía "la marca no suma `errorUpdatedAt`. Es observación". La Enmienda 5 la suma y da N-06 por cerrado (`:531`). El programador sigue `:531`.
+
+### Tamaño
+No partir. Los 2 archivos que hacen pasar de 41 son pruebas del tester, y partir a mitad de las rondas reparte pruebas que atacan código ya escrito. Si el humano quiere partir, el corte limpio sigue siendo una 06c con N-52 (unos 7 archivos).
+
+### Para el humano
+Solo la confirmación del tamaño, que ya pidió el orquestador.
+
+### Para el orquestador
+El programador sigue K-1 a K-6. Que recoja N-01 (reabrir el bloque en CH6-B19 (c) de comentarios), N-02 (la variante de (e) con la recuperación que falla con la vista desmontada) y el armado de la mutación "sin `errorUpdatedAt`" (contador 1, `resetQueries` y contador 1 otra vez), y que los nombre en su resumen. No hace falta enmienda.
+
+## Verificación de la corrección de la ronda 1 (T-04 y T-05) — CHORE-06b (2026-11-14)
+Manager. Contra `resumen-programador.md` (1266 líneas, SHA-256 `67e1952e…` comprobado), "## Corrección de la ronda 1 — CHORE-06b: T-04 y T-05 (2026-11-14)" (`:1103`). Plan `73861b13…` (1302 líneas, comprobado), con la Enmienda 5. Leí además el reporte de la ronda 1 (`reporte-tester.md:664-775`) y la verificación de la Enmienda 5 (`revision.md:2105`). Equipo con corriente. Según el orquestador, no hay otra suite corriendo. Corrí una cosa a la vez y no hice mutaciones.
+
+### El gancho contra la Enmienda 5
+- **`useListaConservadaTrasLaPagina` (`features/clases/hooks.ts:1338-1365`) es, línea por línea, la forma de referencia de §D-5 (`plan.md:535-557`):**
+  - `const fallosDePaginaConservados = new WeakMap<Query, string>()` es memoria de módulo, con la instancia de la consulta como clave;
+  - la firma es `(queryKey, isFetchNextPageError, isError, errorUpdateCount, errorUpdatedAt, error)`;
+  - la instancia se obtiene con `useQueryClient().getQueryCache().find({ queryKey, exact: true })`;
+  - el valor es `` `${String(errorUpdateCount)}:${String(errorUpdatedAt)}` ``;
+  - el `WeakMap` **solo se escribe en el `useEffect`**, con `[ahora, consulta, fallo]` y la guarda `if (!ahora || consulta === undefined) return`. En el render solo se lee;
+  - el resultado es `ahora || (isError && consulta !== undefined && fallosDePaginaConservados.get(consulta) === fallo)`, como en el plan.
+
+  `Query` y `QueryKey` entran como tipos en la importación de `@tanstack/react-query` (`:53-54`). No queda ningún `useState` en el gancho. El lint aceptó los seis parámetros, así que no hizo falta leer `errorUpdatedAt` del estado.
+- **Los 9 llamadores pasan los seis argumentos en orden, y la `queryKey` exacta de su consulta.** La cotejé con la que construye cada gancho de lista en `features/clases/hooks.ts`:
+
+| Llamador | Primer argumento | Gancho de la lista y su `queryKey` |
+|---|---|---|
+| `muro-view.tsx:63` | `clavePublicaciones(claseId)` | `usePublicaciones(claseId)`, `:1045-1047` |
+| `dudas-view.tsx:56` | `claveDudas(claseId)` | `useDudas(claseId)`, `:1801-1803` |
+| `components/comentarios-de-publicacion.tsx:159` | `claveComentarios(claseId, publicacionId)` | `useComentarios(claseId, publicacionId)` (`:141`), `:1124-1126` |
+| `components/respuestas-de-duda.tsx:156` | `claveRespuestas(claseId, dudaId)` | `useRespuestas(claseId, dudaId, pedir)` (`:149`), `:1820-1823` |
+| `components/seccion-de-tema.tsx:65` | `claveTrabajo(claseId, seccion.clave)` | `useTrabajo(claseId, seccion.clave)` (`:55`), `:1280-1282` |
+| `personas-view.tsx:57` | `clavePersonas(claseId)` | `usePersonas(claseId)`, `:769-771` |
+| `components/tabla-alumnos.tsx:168` | `claveAlumnos(claseId)` | `useAlumnos(claseId)`, `:780-782` |
+| `inicio-estudiante-view.tsx:36` | `CLAVE_CLASES_INSCRITAS` | `useClasesInscritas()`, `:203-205` |
+| `inicio-maestro-view.tsx:34` | `CLAVE_CLASES_IMPARTIDAS` | `useClasesImpartidas()`, `:214-216` |
+
+  En las 9 son la misma función, con los mismos argumentos y en el mismo componente, y se llama al gancho de la lista antes, así que la instancia existe en ese render. Es también la clave que cada uno pasa a `useMarcarViejaSiQuedoEnError`. Ninguna conservaría ni reemplazaría la lista de otra consulta.
+- **No cambió nada más en producción:** `git diff 023b450 --stat` de lo que no es prueba da 18 archivos rastreados más `components/seccion/types.ts`, sin rastrear, que son los 19 de siempre. En `features/clases/hooks.ts` el cambio está dentro de lo que la Enmienda 5 permite (K-2). `useAvisoDeRecargaFallida` no cambia y el resto de las vistas tampoco.
+
+### Los casos de CH6-B18 (e) y CH6-B19
+- **CH6-B18 (e)** (`recargas-ch6.test.tsx:2175-2302`, 7 casos). Antes de llamar al gancho, cada caso construye su consulta con `getQueryCache().build` y comprueba con `find` que existe: si falta, el caso falla con un mensaje. Cubre las viñetas del plan (`:1041-1046`):
+  - con un `503` es verdadero; sin la dirección y con el mismo par, verdadero; con otra consulta y el mismo par, o con otro contador, falso;
+  - el `400` del cursor es falso;
+  - desmontar y montar otra vez es verdadero (T-04 a nivel del gancho);
+  - otra consulta con el mismo par es falso y A sigue verdadero (T-05);
+  - dos ganchos a la vez sobre la misma consulta, los dos verdaderos;
+  - `resetQueries` con la marca tomada con el contador en 1 y después contador 1 con otra hora es falso. Es el armado que pidió la verificación de la Enmienda 5 para que caiga la mutación "sin `errorUpdatedAt`";
+  - un `QueryClient` nuevo con la misma clave y el mismo par es falso.
+
+  Un detalle: en este último, el `Date` fijo no cambia nada, porque el par lo dan las props. Se dejó como lo pide el plan.
+- **La explicación del rojo primero de CH6-B18 (e) es cierta.** Con la firma vieja `(isFetchNextPageError, isError, errorUpdateCount, error, clave)`, la llamada nueva corre los argumentos:
+  - la `queryKey` (un arreglo, verdadero) entra como `isFetchNextPageError`;
+  - el contador (un número, que no es `ApiError`) entra como `error`.
+
+  Así, `conservaLaListaTrasLaPagina` da `arreglo && (!esApiError(número) || …)`, que es verdadero, y el gancho devuelve verdadero siempre. Por eso cayeron los cinco casos que esperan falso y pasaron los dos que solo esperan verdadero. Que "montar de nuevo" saliera verde antes del cambio no le resta valor: Q1 (volver al `useState`) lo hace caer.
+- **CH6-B19** (`ver-mas-ch6.test.tsx:1243-1528`, 9 casos). Usan el router real y las `defaultOptions` de `providers.tsx`, con la recuperación retenida. La ayuda `conservadaMientrasVuela` comprueba cuatro cosas: «Ver más» con `aria-busy="true"`, la primera fila de la lista junto a él, ningún `role="alert"` y ningún texto de error. Al soltar la respuesta, el caso comprueba que «Ver más» sale de la espera, que hay un solo aviso (el del fallo de página) y que no salió ninguna petición de más.
+  - (a) Avisos y Personas, dos regresos seguidos: la segunda vuelta no pide nada y sigue conservada.
+  - (b) La invalidación por comentar, y después salir y volver.
+  - (c) Personas: A → B → A con el historial, montada de nuevo por su `key`. Comentarios: igual, pero con el bloque abierto de nuevo, como pidió N-01.
+  - (d) Dudas: A → B → A → B con las dos conservadas y retenidas. B y A se conservan en cada llegada.
+  - (e) La recuperación que falla después de volver: un solo `role="alert"`, sin «Ver más» y sin aviso nuevo. Y la variante de N-02 (falla con la vista desmontada): al volver se ve el `MensajeError` mientras se pide otra vez, nunca la lista.
+  - (f) `removeQueries` con la vista en otra sección: la carga nueva que falla reemplaza.
+
+  Cada caso afirma lo que pide su viñeta (`plan.md:1048-1054`).
+
+### Mutaciones Q1 a Q5
+La tabla cubre las cinco filas que tocan el gancho: las cuatro de la Enmienda 5 (`plan.md:1097-1100`) y la de M-02 de la 3b, "devolver solo `ahora`" (`:1095`). Cada una cae con lo que el plan espera:
+- **Q1** (`useState`): ATQ-CH6-36, CH6-B19 (a), (b) y (c), y CH6-B18 (e) "montar de nuevo".
+- **Q2** (una sola variable de módulo): ATQ-CH6-37, CH6-B19 (d), y CH6-B18 (e) "otra consulta con el mismo par".
+- **Q3** (sin `errorUpdatedAt`): CH6-B18 (e), el caso de `resetQueries`.
+- **Q4** (un `Map` por `queryHash`): CH6-B18 (e), el caso del `QueryClient` nuevo.
+- **Q5** (solo `ahora`): 35 casos.
+
+Que con Q2 y Q4 caigan además casos de otras pruebas (la marca pasa de un caso o de un cliente a otro) confirma que el aislamiento por instancia es lo que cuenta. No hay redundancias, todas las mutaciones están en `features/clases/hooks.ts` ("Se toca") y ninguna tocó un archivo de "No se toca". No hice mutaciones; contrasté la tabla con el código y con los casos.
+
+### Mis corridas (desde `frontend/`, una a la vez)
+| Qué | Comando | Última línea (mía) | Resumen |
+|---|---|---|---|
+| lint | `npm run lint` | `> tsc -b`, salida 0 | salida 0: coincide |
+| regresión de 06b | `npx vitest run src/features/clases src/features/calificaciones src/features/admin src/components/seccion src/app src/lib` | `Tests  5491 passed (5491)` (`Test Files  242 passed (242)`; `Duration  517.40s`) | `5491 passed (5491)` y `242 passed (242)`: coincide |
+| build | `npm run build` | `✓ built in 1.55s`, salida 0 | `✓ built in 2.05s`: coincide (el tiempo varía) |
+| conteo | `npx vitest list` de las 4 pruebas nuevas, con `grep -a -c '> CH6-B'` | 342 = 12 + 172 + 151 + 7 | 342 (12, 172, 151 y 7): coincide |
+
+- CH6-B19 tiene 9 casos y CH6-B18 (e) tiene 7, como dice el resumen.
+- `git status --short frontend`: 42 archivos.
+- `sha256sum -c v01-ch6b-r1.txt`: las 290 `*.ataque`, todas OK. El programador no tocó ninguna, y los 13 casos de T-04 y T-05 pasan sin cambios en la regresión.
+- `git diff --quiet 023b450 -- frontend/src/components/foco`: limpio.
+
+### Hermanos y estados vecinos (contrastados con el código)
+- **Las 9 listas:** la tabla del resumen (`:1194-1207`) coincide con el código (la tabla de arriba). El remedio es uno solo, la marca por consulta, y se aplicó en las 9. Cada una tiene caso con la recuperación en vuelo y un montaje nuevo: ATQ-CH6-36 cubre las 9 y los comentarios de un recurso, y CH6-B19 suma los caminos vecinos. El tema de Actividades está cubierto por el control con `signal` de ATQ-CH6-36 y por CH6-B12 (c).
+- **Estados vecinos de §D-5, "Inventario por mecanismo"** (`plan.md:591-604`): cada uno tiene el caso que nombra el resumen (`:1209-1230`), y lo comprobé en el archivo:
+  - primera carga que falla;
+  - fallo de página;
+  - montaje nuevo con la recuperación en vuelo, por otra sección, por la invalidación y por el salto;
+  - cerrar y abrir;
+  - A → B → A y A → B → A → B;
+  - la recuperación que responde bien o falla, con la vista montada o desmontada;
+  - un fallo de página nuevo;
+  - `removeQueries`, `resetQueries` y un cliente nuevo;
+  - dos observadores;
+  - `StrictMode` (ATQ-CH6-42);
+  - el `signal`.
+
+  Solo "la clase pasa a archivada" queda sin caso propio (abajo).
+- **Los demás ganchos con memoria**, uno por uno, contra el código:
+  - `useAvisoDeRecargaFallida` (ref `fallosVistos` y `clavePrevia`, de 06a): al montarse de nuevo nace con el contador del momento. Olvidar un fallo ya ocurrido es justo R8, así que no tiene el hueco.
+  - `useRenovarSiLaPublicacionYaNoEsta` (`fallosVistos` nace con el contador, más `clavePrevia`): al reabrir el bloque, la consulta en error se pide otra vez y el `404` nuevo sube el contador. No tiene el hueco.
+  - `useMarcarViejaSiQuedoEnError`: la clave va en su efecto. No tiene el hueco.
+  - `useRecargarAlPulsarLaSeccion` y `renovarLasListasSiTraenLaClase`: no tienen memoria.
+  - Las dos refs del gradebook: la limpieza deja su saber en la caché antes de perderse (ATQ-CH6-46 a 49 en verde).
+  - `useFocoAlPasarAError`: decide con `isError && !conserva`, ya corregido.
+  - Memoria de módulo nueva: solo `fallosDePaginaConservados`. `limiteDeTrabajo` y `limiteDeRecursos` no cambian.
+
+  Coincide con el resumen: ningún otro tiene el hueco de "la memoria es del componente y una sola".
+- **La fila de la matriz de §D-7** ("volver, cerrar y abrir o el salto que monta de nuevo, con la recuperación todavía en vuelo") dice lo que hace el código y lo que fijan ATQ-CH6-36, ATQ-CH6-37 y CH6-B19: no sale ninguna petición nueva ni ningún aviso, se ve la lista con «Ver más» en espera y sin `role="alert"`, y el foco queda donde lo deja el montaje. Si la recuperación falla, sale el `MensajeError` sin aviso, también cuando falló con la vista desmontada (N-02). Las demás filas no cambian, porque el `conserva` de los caminos ya probados (con la vista montada) da lo mismo con la marca por consulta. La regresión en verde lo confirma.
+
+### Lo que arbitro
+- **¿T-04 y T-05 cuentan como rondas extra por hermanos o estados vecinos del programador? No. Las cuento como 0 rondas imputables al programador, y lo dejo anotado como 1 ronda extra de la subentrega por estados vecinos del mecanismo M-02, imputable al plan.**
+  - Los dos son estados vecinos del mismo mecanismo (la marca de M-02), pero de la **forma literal del plan**: §D-5 de la Enmienda 3b dio el gancho con su `useState` y una sola marca, y mandó detenerse (PA-4) si hacía falta otra forma.
+  - El programador la aplicó tal cual y cubrió los caminos que nombraban el plan y M-02 (pulsar, volver con la recarga lanzada por el montaje, el salto, el regreso y la invalidación). No dejó sin extender un remedio a sus hermanos.
+  - El tester los clasificó como huecos del plan. Lo confirmo: el remedio necesitó la Enmienda 5.
+  - Tampoco lo vimos en las revisiones: ni el manager de la 3b ni yo, cuando acepté M-01 y M-02, lo detectamos.
+  - **Para el umbral de la decisión del humano (2026-10-05), que dice "2 o más rondas extra del tester por este patrón", el programador sigue en 0.** Si la ronda 2 encuentra otro estado vecino de este mismo mecanismo y lo que falla es la ejecución del programador, no el plan, esa sería su primera ronda extra. La regla de CLASES-02c dice que rondas seguidas sobre el mismo mecanismo cuentan como una sola por hermanos, así que el orquestador debe decidir si se suma a esta.
+- **"La clase pasa a archivada" sin caso: basta la remisión, y queda como punto de ataque de prioridad baja.**
+  - En la decisión de `conserva`, un `409 CLASE_ARCHIVADA` sigue la misma rama que el `403` y el `404` de ATQ-CH6-39: es un `4xx`, así que `ahora` es falso, y en la recuperación cambia el par, así que la lista se reemplaza. No hay línea propia que vigilar.
+  - Pero ese `409` tiene efectos laterales que los otros `4xx` no tienen: el detalle de la clase se marca viejo (`useDetalleViejoAnteClaseArchivada`), la clase pasa a solo lectura y aparece el aviso fijo. Su combinación con una lista conservada no está probada.
+  - No lo exijo al programador: el plan no lo pide como caso, y el inventario lo da por cubierto por la rama. Va al tester (punto 4).
+- **Los detalles de la corrección no bloquean.** La Enmienda 5 no tenía notas sin atender: N-01 (reabrir el bloque en CH6-B19 (c)), N-02 (la variante de (e)) y N-03 (seguir `:531`) están aplicadas, el armado de Q3 es el pedido y O-01 queda aceptada sin caso.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean y detalles
+- En el caso del `QueryClient` nuevo de CH6-B18 (e), el reloj fijo no cambia nada, porque el par lo dan las props. Es inofensivo y lo pide el plan.
+
+### Puntos de ataque para el tester (ronda 2), por prioridad
+Además de los del plan:
+1. **La marca por consulta frente a la vida de la caché:**
+   - una lista conservada que vence su `gcTime` sin observadores y vuelve: es una instancia nueva y no tiene marca;
+   - `clear()` al cerrar sesión y entrar con otra cuenta;
+   - `resetQueries` desde otra vista, si se alcanza;
+   - dos `QueryClient` en la misma página: no se alcanza en la app; solo para confirmarlo.
+2. **Carreras de la marca:**
+   - el fallo de página y una invalidación en el mismo lote (O-01, aceptada; confirmar que el resultado es el `MensajeError` y nada peor, sin aviso doble ni foco en `<body>`);
+   - «Ver más» que vuelve a fallar mientras otra vista de la misma consulta está montada;
+   - el efecto que registra la marca contra un desmontaje inmediato tras el fallo: falla la página y la persona sale en el mismo `act`.
+3. **Los nueve llamadores con claves cruzadas:**
+   - dos publicaciones con los comentarios abiertos a la vez, una conservada y la otra no;
+   - dos dudas con las respuestas abiertas;
+   - dos temas de Actividades con «Ver más», uno con fallo de página y el otro con fallo de recarga.
+
+   La marca de uno nunca debe conservar al otro.
+4. **La clase que pasa a archivada con una lista conservada:** la recuperación responde `409 CLASE_ARCHIVADA` (la lista se reemplaza sin aviso, la vista pasa a solo lectura y el foco no cae en `<body>`). También el salto a una clase archivada con su lista conservada en caché.
+5. **Lo que sigue de la ronda 1, sin hallazgo:**
+   - la frase del cursor y el aviso de «Ver más» por cada camino, después de una lista conservada y recuperada;
+   - `StrictMode` con la recuperación en vuelo y un montaje nuevo;
+   - el inicio del maestro y el del estudiante, con «Inicio» de la barra pulsado varias veces seguidas con la recuperación en vuelo.
+6. **Al empezar:** V-01 contra `v01-ch6b-r1.txt` y `git diff --quiet 023b450 -- frontend/src/components/foco`.
+
+### Para el humano
+Nada. El tamaño (42 archivos) ya lo confirmó. Lo de las rondas extra es un dato para el orquestador y no exige ninguna decisión hoy: el programador sigue en 0 rondas imputables.
+
+### Veredicto
+**ACEPTADO.** El tester puede hacer la ronda 2.
+
+## Revisión final — CHORE-06b (2026-11-14)
+Manager, modo final. Plan `73861b13…` (1302 líneas, Enmiendas 1 a 5). Base `023b450` dentro de `frontend/` y `47c3339` fuera de los paquetes; `docs/trabajo/CHORE-06-foco-y-navegacion/` y `docs/ESTADO.md` quedan fuera. Leí la ronda 2 del tester (`reporte-tester.md:776-848`, RESISTE). Equipo con corriente (`BatteryStatus` 2). Según el orquestador, no hay otra suite corriendo. Corrí una cosa a la vez.
+
+### "Se toca" y "No se toca"
+- **`frontend/` contra `023b450`: 43 archivos, todos en la lista.**
+  - 19 de producción, la columna 06b de §D-0 (con `components/seccion/types.ts`, nuevo).
+  - 4 pruebas nuevas.
+  - 4 de la lista cerrada: `ver-mas-y-orden-ch4`, `personas-view`, `publicacion-del-muro` y `gradebook-01d`.
+  - 16 `*.ataque`:
+    - los 13 de C-3 a C-9, C-13 y C-15 a C-20 de §D-R0;
+    - los 3 nuevos del tester: `recargas-ch6b-r1`, `gradebook-ch6b-r1` y `recargas-ch6b-r2`.
+
+  Ninguna condicional cayó (PR-C18, C-10 y C-14).
+- **Fuera de los paquetes, contra `47c3339`:** solo `docs/DESIGN.md` (§7.14 de 06a) y `docs/trabajo/DOCS-05…/aprobacion.md`. Los dos entraron en el commit de 06a (`023b450`), autorizados y verificados entonces, y no cambian desde `023b450`. `docs/trabajo/DEPLOY-investigacion-vps.md` ya estaba sin rastrear antes del encargo.
+- **No cambia nada contra `023b450` en** `CLAUDE.md`, `AGENTS.md`, `docs/DESIGN.md`, `shared/`, `backend/`, `infra/` ni los `package*.json` (`git diff --quiet`).
+- **`components/foco` sigue limpio** (por K14), y ningún archivo de "No se toca" aparece en el diff: `clase-layout.tsx`, `components/clase`, `components/layout`, `components/adjuntos`, `services/`, `app/` de producción, `panel-mis-clases.tsx` y `bloque-destacado.tsx`.
+- **En los archivos de "Se toca"**, solo cambia lo permitido. Lo verifiqué en mis tres verificaciones anteriores y la producción no cambió desde la última:
+  - en `features/clases/hooks.ts`, las dos guardas de `fetchStatus`, `useClaseArchivadaEnSuLista` con `renovarLasListasSiTraenLaClase`, `useListaConservadaTrasLaPagina` con su `WeakMap` y `useRenovarSiLaPublicacionYaNoEsta`;
+  - en `features/admin/hooks.ts`, la reexportación;
+  - en `features/calificaciones`, `useMarcarViejasLasVentanas` y las dos refs.
+
+  Ningún gancho de mutación gana `mutationKey`, `useAvisoDeRecargaFallida` conserva su firma y nada de lo que fija CH6-A30 cambia.
+- **V-01:** `sha256sum -c v01-ch6b-r2.txt` (291 líneas, `b4ec4372…`): todas OK. Los 19 archivos de producción coinciden con la huella que tomó el tester antes y después de sus mutaciones de la ronda 2 (`scratchpad/r2b/prod-antes.sha`, 19 de 19 OK).
+
+### Cumplimiento del plan y de las decisiones del humano
+- **DH-02 (a), la página siguiente:** en las 9 listas, la red o un `5xx` conserva la lista, da un aviso y deja «Ver más» para repetir, con el foco en él. Cualquier `4xx` reemplaza la lista con su frase. Una recarga de fondo que falla la reemplaza como siempre. Lo fijan CH6-B10 a B12, ATQ-CH6-39 y 40. Las tres listas que conservan por otra regla no cambian.
+- **M-02 de la 3b, con la Enmienda 5:** mientras una recarga recupera una lista conservada, la lista sigue a la vista con «Ver más» en espera, sin `role="alert"` y sin mover el foco. Vale por cada camino: pulsar, volver, cerrar y abrir, la invalidación, el salto y el regreso. La marca es de la consulta (`WeakMap` por instancia). Lo fijan CH6-B10, B16 (f), B18 (a) y (e), B19, ATQ-CH6-36 y 37, y ATQ-CH6-50 a 54. La excepción aceptada es O-01: si el fallo y una recarga caen en el mismo lote, se ve el `MensajeError` sin aviso (ATQ-CH6-50).
+- **DH-03 (b), pulsar la sección:** en error o vieja, se pide; sana y fresca, nada; nunca se cancela ni se duplica lo que vuela (PR-3). Lo fijan CH6-B01, B03, B07 y B08. El hermano de T-07 en `/admin/clases` y "Clases anteriores" es CH6-B09. Las variantes registradas no cambian.
+- **DH-10 / O-08, el salto de clase cuenta como pulsar.** En las cuatro listas que sobreviven al cambio de clase, B se pide solo si está en error o vieja, una sola vez. Las dos condiciones del humano tienen caso:
+  - **(a) La renovación no mueve el foco:** la fila de A va al `h2`, el control segmentado se queda, y «Ver más» se queda en el de B o va al `h2` o a la primera fila nueva. Lo fijan CH6-B16 (foco, N-01, (f) y (c)) con sus mutaciones D2, K11 y K14.
+  - **(b) Si falla, el aviso es el de B**, y un fallo de A no se avisa en B ni al volver (R8). Lo fijan CH6-B17 y ATQ-CH6-43, con D3 y D4.
+- **P-1 y P-2 (Enmiendas 4 y 4b):**
+  - En el gradebook, las ventanas se marcan viejas al pulsar o al salir solo si la frase se vio y aún no se marcó. CH6-B14 (a) a (h) y CAL-1D03d y e lo fijan, igual que C-19, C-20 y ATQ-CH6-46 a 49 por la dimensión de tareas.
+  - La barra y los inicios se renuevan solo si todavía traen la clase archivada, con `{ cancelRefetch: false }`. Lo fijan CH6-B15 (7 casos) y ATQ-CH6-44 y 45.
+- **DH-06, el tamaño:** el plan pedía 40 archivos; el árbol tiene 43, porque suma 3 `*.ataque` que creó el tester. El humano confirmó dos veces no partir.
+- **Pruebas requeridas de 06b:** CH6-B01 a B19, cada una con su caso. Lo comprobé caso por caso en mis tres verificaciones (`revision.md:1884-1898`, `:2006-2103` y `:2199-2353`).
+- **Mutaciones:** cada fila de 06b de la tabla del plan tiene su corrida o su redundancia declarada con su mecanismo:
+  - M01 a M08, M19, G1 a G6, C1 a C4, D1 a D4 y E1 a E6 (implementación);
+  - K1 a K14 (corrección de M-01 y M-02);
+  - Q1 a Q5 (Enmienda 5);
+  - además, las del tester: MT16 a MT30.
+- **Regla de "Mutaciones" y PA-7:** no quedó ningún caso que pase sin su remedio y sin redundancia declarada.
+- **Reglas que no se rompen:** sin backend ni `shared/`; no hay consultas nuevas al servidor; las capas y el middleware no cambian; no hay textos nuevos; los avisos pasan por `mensajeDeConsultaClases` (`lib/errores-de-api.ts`); y las guardas de doble clic y los `enEspera` no cambian (PA-6).
+- **Estilo de `CLAUDE.md`:** el tipo nuevo va en `types.ts`; hay retornos tempranos; no hay `any`, `?? []` ni `as` en el código nuevo. La memoria de módulo (`WeakMap`) se escribe solo en un efecto.
+- **Diseño:** no hay componentes, tokens, colores ni textos nuevos. El único patrón visual nuevo es el de §7.10 ("Error de la página siguiente"), que el orquestador aplica al cierre (A-2).
+
+### Lo aceptado sin caso o declarado (en un solo lugar)
+| Qué | Dónde se aceptó | ¿Va a `docs/ESTADO.md` §3? |
+|---|---|---|
+| **R-12:** una petición de la barra que ya volaba antes de que se archivara la clase se une a la invalidación (`cancelRefetch: false`). La clase puede quedar en la barra hasta su siguiente recarga, y abrirla lleva a su vista de solo lectura | `plan.md:1162-1171` y "Decisiones tomadas" | **Sí**, como riesgo aceptado. Destino: **DEPLOY / piloto**; se reabre solo si se observa con datos reales, y se toca junto con `useClaseArchivadaEnSuLista` |
+| **O-01 de la Enmienda 5 (O-12 del tester):** si el fallo de la página y una recarga de la misma clave caen en el mismo lote, no hay marca y se ve el `MensajeError` sin aviso mientras vuela. Se confirmó que no hay aviso doble y que el foco va al `h2` (ATQ-CH6-50) | `revision.md`, verificación de la Enmienda 5 | **Sí**, como observación. Destino: **el `chore` de accesibilidad del marco** (es qué anuncia el lector de pantalla), sin prioridad |
+| **El salto a una clase archivada con su lista conservada en caché:** el detalle fresco no se vuelve a pedir, así que la vista no sabe que se archivó hasta que algo lo marque viejo. Es conducta anterior a 06b (`useDetalleViejoAnteClaseArchivada`, "No se toca"); el servidor responde `409 CLASE_ARCHIVADA` a toda escritura | "No atacado" de la ronda 2 del tester | **Sí**, si §3 no la tiene ya. Destino: **el próximo encargo que toque `clase-layout.tsx` o `useDetalleViejoAnteClaseArchivada`**, sin prioridad |
+| **O-10 del tester:** la ocurrencia de la frase del gradebook no lleva la ventana. Dos ventanas que respondieran en el mismo milisegundo darían la misma ocurrencia. Inalcanzable con el reloj real; es un riesgo de las pruebas que fijan `Date` | ronda 1 del tester | **Sí**, como nota. Destino: **el próximo encargo que toque `gradebook-view.tsx`**, por el carril trivial (sumar la ventana a la ocurrencia) |
+| **K14:** mutación temporal en `components/foco/hooks.ts` ("No se toca"), restaurada byte a byte | mi verificación de la corrección de M-01 y M-02 | No: desviación de proceso, registrada aquí y en `aprobacion.md` |
+| **C-17:** el tester borró la ayuda `encabezadoAlumnos`, que quedó sin uso | ronda 0 del tester | No: desviación aceptada |
+| **Redundancias declaradas:** PR-3 (M02 y M03, `isFetching` frente a `cancelRefetch: false`); CH6-B01 (f) sin datos; PR-2 en la vista (M05 y E-filas: la librería invalida el error); K6 y K7 (el cursor al volver y al reabrir los sostiene la librería); K12 y K13 (dos caminos al `h2`); O-11 y O-13 del tester (casos de regresión sin guarda propia) | resúmenes y reportes, cada una con su mecanismo, verificado contra 5.103.2 | No |
+| **No atacado por el tester:** vencer el `gcTime` y `clear()` (mismo camino que `removeQueries`, CH6-B19 (f)), y dos `QueryClient` en la misma página (inalcanzable; CH6-B18 (e)) | ronda 2 del tester | No |
+| **Riesgos y decisiones ya registrados por el plan:** R-02 (CH6-A30 solo ve la forma de una línea), R-06 (dos implementaciones de la política, `CLAUDE.md`), R-08 (el foco al cambiar de ruta), R-10 (la descarga de `components/adjuntos`), DH-05 y DH-09 | plan | Los lleva A-4 (o ya están en 2b) |
+
+### Conteo de rondas de 06b (para el registro)
+- **Rondas de ataque del tester: 2.** La ronda 1 salió ROTO (T-04 y T-05) y la ronda 2, RESISTE. Las rondas 0 y 0 bis fueron de preparación (C-n), no de ataque.
+- **Rondas extra: 1** (la ronda 2, que hizo falta por la ronda 1). T-04 y T-05 son estados vecinos del mecanismo de M-02, pero salen de la forma literal que dictaba el plan (§D-5 de la 3b), así que **se imputan al plan, no al programador**. El programador queda en **0 rondas extra** por hermanos o estados vecinos.
+- **Devoluciones del manager al resumen del programador: 1** (M-01 y M-02: casos que faltaban por camino de la frase del cursor y las variantes de foco de (f)). Las otras dos verificaciones salieron ACEPTADO.
+- **Paradas del programador: 2** (P-1 y P-2, contradicciones del plan en §D-6), resueltas con las Enmiendas 4 y 4b. Se imputan al plan.
+- **Enmiendas del plan en 06b: 5** (3, 3b, 4, 4b y 5), además de las 1 y 2 previas a 06a.
+- **La regla del modelo no aplica, por dos razones.** `AGENTS.md` y la decisión del 2026-10-05 piden 2 o más rondas extra imputables al programador por no extender un remedio a sus hermanos o estados vecinos, y además la regla es para el carril sensible. Aquí hay 0 imputables y el carril es normal. El programador sigue en `sonnet`.
+- **Lo que pesa en la subentrega es el plan:** dos paradas y una ronda extra salieron de supuestos sobre TanStack Query y de formas literales del plan. Las verificaciones de las enmiendas (la de la 3b incluida) tampoco lo detectaron, y yo tampoco al aceptar M-01 y M-02.
+
+### Documentos a actualizar (A-1 a A-4; ajustes que recomiendo por lo que quedó implementado)
+Los aplica el orquestador al cierre, con la autorización del humano. No los cuento como faltantes. Ajustes:
+- **A-1, la viñeta de `components/seccion/`:**
+  - "`useMarcarViejaSiQuedoEnError` … marca vieja al salir una consulta que quedó en error, así que volver antes del `staleTime` la pide" es **inexacto desde la Enmienda 3b**: con TanStack Query 5.103.2, la librería ya deja inválida toda consulta en error. Propongo: "…y `useMarcarViejaSiQuedoEnError` (movido desde `features/admin`, que lo reexporta) marca vieja al salir una consulta que quedó en error; con TanStack Query 5.103.2 es una garantía escrita, porque la librería ya la deja inválida".
+  - La variante de `features/calificaciones` puede sumar: "y el gradebook marca viejas sus ventanas al pulsar o al salir si vio la frase de la clase cambiada (N-52)".
+  - La frase de la Enmienda 3 sobre el salto (DH-10) va como dice el plan.
+- **A-1, recomendación opcional** en "Componentes" o "Manejo de errores": "Lo que una lista debe recordar de su consulta más allá del montaje de la vista (por ejemplo, que un fallo de página la conservó) va en memoria por consulta (`WeakMap` con la instancia de la caché como clave, escrito en un efecto), no en el estado del componente: la vista se monta de nuevo con la recarga en vuelo (CHORE-06b, T-04 y T-05)". Es la lección de la ronda 1. Decide el humano si sube a regla.
+- **A-2, el patrón de §7.10:**
+  1. En "Lo implementan…", **"Actividades" debe decir "un tema de Actividades"**: la lista de temas de Actividades conserva también ante una recarga de fondo, como Recursos. Así, la frase "van más allá" queda: "Recursos (los temas y un tema), la lista de temas de Actividades, Entregas y Mis calificaciones van más allá…".
+  2. La frase de M-02 (Enmienda 3b) dice "(al pulsar la sección, al volver a ella o al saltar de clase)". Con lo implementado, mejor: "(al pulsar la sección, al volver a ella, al abrir de nuevo un bloque de comentarios o respuestas, al saltar de clase o tras una acción que la renueva)". El resto de la frase ("si esa recarga falla, la reemplaza como cualquier recarga fallida") es exacto.
+  3. El texto de A-2 sí describe lo implementado: red o servidor, un solo aviso, «Ver más» sigue, el foco en el botón, y el cursor, el acceso y una recarga de fondo reemplazan.
+- **A-3 y A-4:** sin cambio. Suman las filas de la tabla de arriba con "Sí".
+
+### Comprobación humana (`plan.md:1179-1184`)
+Los cuatro puntos siguen siendo los correctos: lo que jsdom no ve es el historial real, la red cortada de verdad y el lector de pantalla.
+- **H-1 y H-2** son de 06a y siguen igual.
+- **H-3 necesita una precisión.** En "volver la red y pulsarlo", la persona debe **volver la red antes de navegar a otra sección**. Si con la red cortada va a otra sección y regresa, la recarga del montaje también falla, y eso reemplaza la lista: es lo decidido (DH-02 (a)), pero el humano podría tomarlo por error. Opcional, sin pasar de 4 puntos ni de 8 minutos: tras el aviso de H-3, con la red ya restablecida, pulsar «Avisos» estando ahí. La lista sigue a la vista con «Ver más avisos» en espera y sin mensaje de error, y después llegan los avisos. Es M-02 en un navegador real.
+- **H-4** no cambia.
+
+### Verificación propia (desde `frontend/`, una a la vez, con corriente)
+| Qué | Comando | Última línea |
+|---|---|---|
+| lint | `npm run lint` | `> tsc -b`, salida 0 (ESLint y Prettier sin errores) |
+| **suite completa del frontend** | `npx vitest run` | `Tests  8372 passed (8372)` (`Test Files  345 passed (345)`; `Duration  579.21s`), salida 0 |
+| build | `npm run build` | `✓ built in 1.05s`, salida 0 |
+
+**Cuadre con 06a**, que cerró con `338 passed (338)` y `7928 passed (7928)`:
+- **archivos:** +7, que son las 4 pruebas nuevas del programador y los 3 `*.ataque` del tester;
+- **casos:** +444, que son los 342 de las cuatro pruebas nuevas, los 76 de la ronda 1 del tester y los 26 de su ronda 2.
+
+Las pruebas de la lista cerrada y los C-n cambian su contenido, no cuántas hay. Cuadra exacto.
+
+Sin backend: el encargo no toca `shared/` ni el backend, así que no corresponde su suite (`AGENTS.md`, "Pruebas").
+
+### Definición de terminado (`AGENTS.md`)
+- [x] Cumple lo que pide el plan: no hay `RF-xx` nuevo; cierra las filas de `docs/ESTADO.md` §3 que tenían este destino (A-3).
+- [x] Respeta las capas y el middleware (solo frontend; sin endpoint nuevo).
+- [x] `lint`, `build` y `test` en verde (arriba).
+- [x] Pruebas de autorización: no aplica, no hay endpoint nuevo.
+- [x] Migración: no aplica.
+- [x] `infra/` y `.env.example`: no aplica.
+- [ ] Documentos (A-1 a A-4): pendientes del orquestador con la autorización del humano. Recomiendo los ajustes de arriba. Los verifico aparte, como en 06a.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+- **N-01 · Los textos de cierre A-1 y A-2 quedaron atrás de las Enmiendas 3b a 5.** En A-1, la frase de `useMarcarViejaSiQuedoEnError` es inexacta con la librería instalada. En A-2, "Actividades" y la lista de caminos de M-02 se quedan cortos. Los ajustes están en "Documentos a actualizar". No es código: lo resuelve el orquestador al aplicar los textos.
+- **N-02 · Precisión en H-3:** restablecer la red antes de navegar (ver "Comprobación humana").
+
+### Detalles menores
+- En CH6-B18 (e), el caso del `QueryClient` nuevo fija `Date` sin que importe, porque el par sale de las props.
+- CH6-B10 (volver) afirma el foco del montaje solo como "el mismo elemento antes y después".
+
+### Desacuerdos arbitrados
+- Ninguno abierto entre programador y tester en 06b.
+- Lo arbitrado durante la subentrega ya está escrito en sus secciones:
+  - K14, aceptada como desviación;
+  - K6 y K7, K12 y K13, redundancias ciertas;
+  - el rojo primero de CH6-B14 (f) y el de CH6-B18 (e);
+  - `laTraen`;
+  - `StrictMode`;
+  - "la clase pasa a archivada" (ATQ-CH6-52 lo cubrió después).
+
+### Para el humano (resumen)
+1. **06b: APROBADO.** Hace cuatro cosas:
+   - pulsar la sección vuelve a pedir una lista en error o vieja, sin peticiones duplicadas, y el salto de clase cuenta como pulsar;
+   - un «Ver más» que falla por red o servidor ya no borra la lista: sale un aviso y el botón sigue;
+   - la lista conservada no muestra un error falso mientras se recupera;
+   - la barra y los inicios sueltan una clase que se leyó archivada, y el gradebook ya no sirve de la caché una ventana vacía vieja.
+2. **Corridas del manager:** suite completa del frontend `8372 passed`, en 345 archivos; lint y build en verde.
+3. **Tamaño:** 43 archivos en `frontend/`, como confirmó dos veces el humano. Solo frontend.
+4. **Rondas:** 2 rondas del tester (ROTO y luego RESISTE). La ronda extra se imputa al plan (T-04 y T-05), no al programador. El programador sigue en `sonnet`.
+5. **Tu comprobación en el navegador:** H-1 a H-4, unos 8 minutos. En H-3, restablece la red antes de cambiar de sección.
+6. **Lo que queda registrado en `docs/ESTADO.md` §3:**
+   - R-12, la barra con una clase recién archivada, como riesgo aceptado;
+   - O-01, el error sin aviso en una carrera rara;
+   - el salto a una clase archivada todavía en caché;
+   - O-10 del gradebook.
+
+   Ninguno bloquea.
+7. **Al cierre:** el orquestador aplica `CLAUDE.md` y `docs/DESIGN.md` §7.10 con tu autorización, con los ajustes que recomiendo, y después los verifico.
+
+### Veredicto
+**APROBADO.** Sin problemas que bloqueen. Quedan pendientes los documentos del cierre (A-1 a A-4), con los ajustes recomendados, y su verificación aparte.
+
+## Verificación de los documentos del cierre — CHORE-06b (2026-11-14)
+Manager, solo lectura. Corrí una sola prueba: la que lee `docs/DESIGN.md`.
+
+Archivos verificados:
+- `CLAUDE.md`: SHA-256 `bad2a776…`, comprobado; `git diff` da 4 inserciones y 2 eliminaciones.
+- `docs/DESIGN.md`: `c340ccaa…`, comprobado; 1 inserción.
+- `docs/ESTADO.md`: `713b0b28…`, comprobado. Contra la copia `ESTADO-antes-cierre-06b.md` (`3ecca55f…`, comprobada), `git diff --no-index` da 40 inserciones y 15 eliminaciones, y los leí todos con `--word-diff`.
+
+Cada texto lo contrasté con el plan (`:1280-1302`), con los ajustes pedidos (`revision.md:1155-1157` para 06a y mi revisión final de 06b) y con el código.
+
+**Veredicto: CORRECCIONES.** Son cuatro, todas de `docs/ESTADO.md`: frases que afirman de más o citan un caso que no corresponde. `CLAUDE.md` y `docs/DESIGN.md` quedan aprobados tal como están.
+
+### `CLAUDE.md` (A-1): aprobado
+- **La viñeta de `components/seccion/`** es el texto de A-1 con lo que se pidió:
+  - la frase de la Enmienda 3 sobre el salto del historial (DH-10);
+  - `useMarcarViejaSiQuedoEnError` como garantía escrita con 5.103.2;
+  - el gradebook y N-52.
+
+  Coincide con el código: `useRecargarAlPulsarLaSeccion` y `useMarcarViejaSiQuedoEnError` viven en `components/seccion/hooks.ts`, `features/admin/hooks.ts` lo reexporta, y las 12 listas de `features/clases` los usan. Para el gradebook dice "si vio la frase", donde la condición exacta es "si la vio y aún no la marcó"; para una guía de ubicaciones, la simplificación es aceptable.
+- **"Lo abierto es del id de la ruta":** es el texto de `plan.md:1284`, con los dos ajustes de la revisión final de 06a palabra por palabra, la frase de la conservación a propósito y "en las cuatro listas y en las vistas de tarea, entrega y recurso". Coincide con CH6-A30.
+- **La viñeta nueva de la memoria por consulta** es mi texto, tal cual, y describe `fallosDePaginaConservados` (`features/clases/hooks.ts`: un `WeakMap` por instancia, escrito en un efecto).
+- **"Textos del servidor"** suma el texto de `plan.md:1285`, palabra por palabra.
+
+### `docs/DESIGN.md` §7.10 (A-2): aprobado
+- La viñeta "Error de la página siguiente (CHORE-06b, propuesta)" va después de **Error**, con la marca de propuesta. Es el texto de A-2 con los ajustes de mi revisión final:
+  - la frase de M-02 con todos los caminos;
+  - "un tema de Actividades";
+  - "Recursos (los temas y un tema), la lista de temas de Actividades, Entregas y Mis calificaciones van más allá".
+- **Describe lo implementado.** La red o el `5xx` conservan la lista (`conservaLaListaTrasLaPagina`), sale un solo aviso con `mensajeDeConsultaClases`, «Ver más» sigue y el foco se queda en él. La lista sigue a la vista mientras se recupera (`useListaConservadaTrasLaPagina`); si la recuperación falla, se reemplaza. El cursor, el acceso y una recarga de fondo reemplazan. La lista de quién lo implementa coincide con los 9 llamadores, y la de quién va más allá, con `conservaLaRecarga` de las pruebas (los temas de Recursos y de Actividades y un tema de Recursos).
+- **Cumple `AGENTS.md`:** el único patrón visual nuevo de 06b queda documentado en el mismo encargo.
+- **Prueba:** `npx vitest run src/styles/tokens-r1.ataque.test.ts`, desde `frontend/`, da `Tests  19 passed (19)` (`Test Files  1 passed (1)`).
+
+### `docs/ESTADO.md`: cuatro correcciones
+Lo demás es cierto y está bien:
+- el encabezado;
+- el párrafo de 06b: recorrido, qué quedó, las dos condiciones de O-08 con su caso (CH6-B16 y CH6-B17), los cambios visibles y las cifras (43 archivos; 345 y 8372; 342 = 12 + 172 + 151 + 7; 70, 6 y 26; 291 `*.ataque` desde 288);
+- la hoja de ruta y la sección 2b;
+- las filas cerradas: O-01 de 06a, ADMIN-01d2 (CH6-B15), O-03 (CH6-B08 y C-9), N-54, N-52 (CH6-B14 (a) a (h), ATQ-CH6-46 a 49, C-8, C-19, C-20 y CAL-1D03d) y "Ver más clases" (CH6-B03 a B05 con el cursor en los inicios);
+- los dos cambios de destino (`useTemasDelRecurso` y `useGuardarCategorias`);
+- las cuatro filas nuevas, con el destino de mi tabla;
+- la sección 4 y la sección 6: rondas, devoluciones, paradas, decisiones y enmiendas. La interrupción del manager de la Enmienda 5 está en `aprobacion.md:70`.
+
+**Las tres lecciones son justas.** Coinciden con mi revisión final (plan, inventario por contador y memoria por consulta), y la 2 enlaza bien con la lección 2 de 06a.
+
+**Formato:** las 6 filas de CHORE-06 en §3 tienen tres columnas, y no hay ninguna secuencia de cuatro asteriscos. Hay dos líneas con negritas impares, la 56 y la 489, pero ya lo estaban en la copia (la 56 y la 483) y no son de este cierre.
+
+Las correcciones, con el texto exacto para reemplazar (antes → después):
+
+1. **El párrafo de 06b (sección 2), R-12 afirma de más.** La barra no tiene `refetchInterval` ni se pide al volver el foco (`app/providers.tsx`), así que la clase no se queda "unos segundos": se queda hasta la siguiente recarga de la barra (por ejemplo, al volver a abrir la clase, que corre otra vez el efecto). Lo dice `plan.md:1162-1171`.
+   - Antes: `la barra puede conservar unos segundos una clase recién archivada si su petición ya volaba.`
+   - Después: `si su petición ya volaba, la barra puede conservar una clase recién archivada hasta su siguiente recarga (por ejemplo, al volver a abrir esa clase).`
+2. **La fila nueva de R-12 (§3), por lo mismo.**
+   - Antes: `hasta su siguiente recarga (unos 30 s)`
+   - Después: `hasta su siguiente recarga (por ejemplo, al volver a abrir esa clase, que corre otra vez el efecto)`
+3. **La fila de H-2 de CHORE-04 (§3) cita un caso que no es de esos siete sitios.** CH6-B09 es el hermano de T-07 en `/admin/clases` y "Clases anteriores". Los siete sitios los fijan CH6-B07 y, para el gancho, CH6-B01 (f) y (g).
+   - Antes: `(CH6-B07 y CH6-B09)`
+   - Después: `(CH6-B07; el gancho, CH6-B01 (f) y (g))`
+4. **La fila del hermano de T-02 (§3), punto (3): falta el caso de la frase del aviso de «Ver más».** Esa fila habla de la frase que sale tras el fallo de una página, y sus caminos (pulsar, volver y repetir) los fija CH6-B10; cerrar y abrir lo fija ATQ-CH6-36. CH6-B03 a B06 y CH6-B16 son de otras frases.
+   - Antes: `Cada frase de recuperación tiene un caso por camino (CH6-B03 a CH6-B06 y CH6-B16)`
+   - Después: `Cada frase de recuperación tiene un caso por camino (CH6-B03 a CH6-B06, CH6-B10, CH6-B16 y, para cerrar y abrir tras el fallo de una página, ATQ-CH6-36)`
+
+Una precisión más en la sección 6, que es la quinta y la dejo a criterio del orquestador porque no cambia ninguna cifra. La fila "Hallazgos que vinieron del plan | todos: …" es cierta para los hallazgos del tester y para las paradas, pero no para los míos: M-01 y M-02 fueron casos que faltaban en el resumen del programador.
+- Antes: `| Hallazgos que vinieron del plan | todos: dos premisas falsas`
+- Después: `| Hallazgos que vinieron del plan | todos los del tester y las paradas (M-01 y M-02 del manager fueron casos que faltaban en el resumen del programador): dos premisas falsas`
+
+### Lo que falta de A-1 a A-4 o de mi lista "Para el orquestador"
+Nada:
+- A-1 y A-2 están aplicados con los ajustes.
+- A-3: las filas de 06b están marcadas como hechas y O-01 de 06a está cerrada.
+- A-4: los cambios de destino pendientes están hechos y ninguna fila de §3 queda con destino en "el `chore` de foco y navegación del marco" sin cerrar o cambiar.
+- Las cuatro filas nuevas de mi tabla están.
+
+El hash del commit de 06b lo anota el orquestador después del commit del humano, como en 06a.
+
+### El commit de 06b
+`git add -n -A -- frontend CLAUDE.md docs/ESTADO.md docs/DESIGN.md docs/trabajo/CHORE-06-foco-y-navegacion` da **51 rutas**:
+- los 43 archivos de `frontend/`;
+- `CLAUDE.md`, `docs/DESIGN.md` y `docs/ESTADO.md`;
+- los 5 archivos de la carpeta del encargo (`aprobacion.md`, `plan.md`, `reporte-tester.md`, `resumen-programador.md` y `revision.md`).
+
+`docs/trabajo/DEPLOY-investigacion-vps.md` **queda fuera** (0 coincidencias). No ejecuté ningún `git add` real ni commit.
+
+Las correcciones son de texto y no cambian el número de rutas: después de aplicarlas, 51 sigue valiendo.
+
+### Veredicto
+**CORRECCIONES:** cuatro reemplazos exactos en `docs/ESTADO.md` (1 a 4) y uno opcional en la sección 6. No hace falta otra verificación completa: basta comprobar que las cuatro cadenas "después" estén y las cuatro "antes" no.

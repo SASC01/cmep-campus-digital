@@ -5,16 +5,33 @@ import { Cargando } from "@/components/cargando"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { clavePublicaciones } from "@/services/clasesService"
 
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioPublicacion } from "./components/formulario-publicacion"
 import { PublicacionDelMuro } from "./components/publicacion-del-muro"
 import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_MURO } from "./data"
-import { useFilaEnFoco, useFocoAlCargarMas, useFocoAlPasarAError, usePublicaciones } from "./hooks"
-import { focoPerdido, mensajeDeErrorDeLista, perspectivaDeRuta, vecinaDeFila } from "./lib"
+import {
+  useAvisoDeRecargaFallida,
+  useFilaEnFoco,
+  useFocoAlCargarMas,
+  useFocoAlPasarAError,
+  useListaConservadaTrasLaPagina,
+  usePublicaciones,
+} from "./hooks"
+import {
+  focoPerdido,
+  mensajeDeConsultaClases,
+  mensajeDeErrorDeLista,
+  perspectivaDeRuta,
+  vecinaDeFila,
+} from "./lib"
 import type { Perspectiva } from "./types"
 
 interface MuroDeLaClaseProps {
@@ -41,9 +58,26 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   // ADMIN-01d1 (§D-9, fila 3): en una clase archivada no se publica.
   const soloLectura = useSoloLecturaDeLaClase()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
-  // T-04: si la lista se recarga con error tras borrar una publicación, el foco va al encabezado.
-  useFocoAlPasarAError(
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva la lista, también
+  // mientras una recarga la recupera; avisa una vez por fallo, con la clase como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    clavePublicaciones(claseId),
+    publicaciones.isFetchNextPageError,
     publicaciones.isError,
+    publicaciones.errorUpdateCount,
+    publicaciones.errorUpdatedAt,
+    publicaciones.error,
+  )
+  useAvisoDeRecargaFallida(
+    publicaciones.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(publicaciones.error),
+    claseId,
+  )
+  // T-04: si la lista se recarga con error tras borrar una publicación, el foco va al encabezado. Con la
+  // lista conservada no hay paso a error (CHORE-06b, M-02).
+  useFocoAlPasarAError(
+    publicaciones.isError && !conserva,
     publicaciones.data !== undefined,
     claseId,
     encabezadoRef,
@@ -64,12 +98,11 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   }
 
   // T-35 y R1 (§D-10 a): pulsar "Avisos" estando en Avisos agrega una entrada con la misma ruta, pero
-  // la vista no se desmonta. Si la lista estaba en error (el cursor ya no existe), esa navegación la
-  // vuelve a pedir desde la primera página, sin recargar. Con la lista sana no hace nada (S-10).
-  useAlPulsarLaSeccionActiva(() => {
-    if (!publicaciones.isError) return
-    void publicaciones.refetch()
-  })
+  // la vista no se desmonta. CHORE-06b (§D-4): la lista en error o vieja se vuelve a pedir desde la
+  // primera página, sin cancelar ni duplicar lo que vuela; sana y fresca, nada. También al saltar con el
+  // historial a Avisos de otra clase (DH-10).
+  useRecargarAlPulsarLaSeccion(publicaciones)
+  useMarcarViejaSiQuedoEnError(clavePublicaciones(claseId))
 
   // "Ver más avisos" se desmonta con el foco dentro al cargar la última página (§7.14): el foco
   // va a la primera publicación nueva o, si no llegó ninguna, al encabezado de la lista.
@@ -112,7 +145,7 @@ function MuroDeLaClase({ claseId }: MuroDeLaClaseProps) {
   })
 
   const contenido = (): ReactNode => {
-    if (publicaciones.isError) {
+    if (publicaciones.isError && !conserva) {
       return (
         <MensajeError
           mensaje={mensajeDeErrorDeLista(publicaciones.error, TEXTOS_MURO.cambioMientrasLoVeias)}

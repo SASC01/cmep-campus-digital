@@ -589,6 +589,9 @@ describe("Volver a abrir Calificaciones", () => {
     await unSoloTexto()
     await reposar()
     primera.unmount()
+    // CHORE-06b (C-19, §D-6 b): una marca por la ocurrencia y otra al salir con el texto visto (N-52).
+    const tras = marcas()
+    expect(tras).toBe(2)
     // Otra hora para la respuesta nueva: con el reloj fijo, dos respuestas del mismo milisegundo no
     // cambian la clave del gancho de foco (como en CAL-T-204 y CAL-1D02n); en la aplicación no ocurre.
     vi.setSystemTime(new Date(AHORA.getTime() + 1_000))
@@ -623,7 +626,7 @@ describe("Volver a abrir Calificaciones", () => {
     expect(screen.queryByRole("alert")).toBeNull()
     expect(document.activeElement).not.toBe(document.body)
     expect(raizDeLaVista().contains(document.activeElement)).toBe(true)
-    expect(marcas()).toBe(1)
+    expect(marcas()).toBe(tras)
   })
 
   it("CAL-T-245 (control): después de 30 s, tras el 400 del cursor, volver a abrir muestra la clase como está", async () => {
@@ -719,8 +722,11 @@ describe("Volver a abrir Calificaciones", () => {
   )
 })
 
-describe("Evidencia de N-52 (riesgo residual ya decidido; no es hallazgo)", () => {
-  it("CAL-T-248 (evidencia N-52): con dos cambios de la clase en menos de 30 s y el mismo cursor en la primera ventana nueva, «Alumnos siguientes» sirve la ventana vacía de la caché sin pedirla y vuelve el texto", async () => {
+// CHORE-06b (C-8 de la ronda 0, §D-6, fila 446): N-52 se corrige y el caso cambia de sentido. Salir de la
+// vista con el texto del cursor a la vista marca viejas las ventanas de la clase: al volver antes de 30 s,
+// «Alumnos siguientes» pide la ventana en lugar de servirla vacía de la caché.
+describe("N-52 (CHORE-06b, §D-6): la ventana vacía ya no se sirve de la caché", () => {
+  it("CAL-T-248 (N-52, CHORE-06b): con dos cambios de la clase en menos de 30 s y el mismo cursor en la primera ventana nueva, salir con el texto a la vista y volver: «Alumnos siguientes» pide la ventana una vez (no la sirve de la caché) y, como ya no está vacía, el texto no vuelve", async () => {
     let etapa = 0
     cuerpoDelServidor = (c, t) => {
       const r = respuestaGradebook(c, t)
@@ -743,7 +749,12 @@ describe("Evidencia de N-52 (riesgo residual ya decidido; no es hallazgo)", () =
     await reposar()
     const i = llamadas.length
     fireEvent.click(boton("Alumnos siguientes"))
-    await unSoloTexto()
-    expect(desde(i)).toHaveLength(0)
+    await waitFor(() => expect(desde(i)).toHaveLength(1))
+    expect(desde(i)[0]?.cursor).toBe(CURSOR_ALUMNOS)
+    expect(await screen.findByRole("row", { name: /^Carla Gómez/ })).toBeInTheDocument()
+    await reposar()
+    expect(desde(i)).toHaveLength(1)
+    expect(screen.queryByText(CURSOR_TEXTO)).toBeNull()
+    expect(aviso.error).not.toHaveBeenCalled()
   })
 })

@@ -1328,7 +1328,7 @@ const BOTONES_DE_VENTANA = [
 
 describe("gradebook: pulsar la sección «Calificaciones» estando en ella (T-08, CAL-1D03d a CAL-1D03i)", () => {
   it.each(CASOS_DE_CURSOR_ROTO)(
-    "CAL-1D03d: $nombre y pulsar la sección «Calificaciones» (misma ruta, otra location.key): pide la primera ventana una sola vez, pinta la clase como está sin el texto ni las pilas, sin aviso, sin aria-busy ni otra marca, y el foco se queda en la sección",
+    "CAL-1D03d: $nombre y pulsar la sección «Calificaciones» (misma ruta, otra location.key): pide la primera ventana una sola vez, pinta la clase como está sin el texto ni las pilas, sin aviso, sin aria-busy, con una sola marca más (la de N-52: la ventana a la vista queda vieja; CHORE-06b) y el foco se queda en la sección",
     async (caso) => {
       const estado = prepararCursorRoto(caso)
       const cliente = clienteConStaleDeLaApp()
@@ -1352,7 +1352,13 @@ describe("gradebook: pulsar la sección «Calificaciones» estando en ella (T-08
         expect(screen.queryByRole("button", { name: nombre })).toBeNull()
       }
       expect(document.querySelector("[aria-busy='true']")).toBeNull()
-      expect(marcasViejas(espia)).toHaveLength(marcas)
+      expect(marcasViejas(espia)).toHaveLength(marcas + 1)
+      expect(
+        cliente.getQueryCache().find({
+          queryKey: claveGradebook(CLASE_ID, DESTINOS[caso.pulsar].destino),
+          exact: true,
+        })?.state.isInvalidated,
+      ).toBe(true)
       expect(document.activeElement).toBe(enlace)
       expect(aviso.error).not.toHaveBeenCalled()
     },

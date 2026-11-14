@@ -7,7 +7,10 @@ import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { esClaseArchivada } from "@/components/clase/lib"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Card } from "@/components/ui/card"
 import { baseDeClase } from "@/lib/ruta-de-clase"
 
@@ -16,6 +19,7 @@ import { FormularioRecurso } from "./components/formulario-recurso"
 import { SeccionDeRecursos } from "./components/seccion-de-recursos"
 import {
   CAPACIDADES_POR_PERSPECTIVA,
+  claveTemasDeLaSeccion,
   ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS,
   TEXTOS_DE_LOS_BLOQUES,
   TEXTOS_FORMULARIO_RECURSO,
@@ -72,12 +76,11 @@ function BloqueDeRecursos({ claseId, bloque, base, perspectiva }: BloqueDeRecurs
     ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS,
   )
 
-  // R3 y R9 (§D-10 a): pulsar "Recursos" estando ahí vuelve a pedir la lista de temas del bloque si está
-  // en error; cada sección en error lo hace por su cuenta (SeccionDeRecursos). Lo sano no se pide.
-  useAlPulsarLaSeccionActiva(() => {
-    if (!temas.isError) return
-    void temas.refetch()
-  })
+  // R3 y R9 (§D-10 a): pulsar "Recursos" estando ahí vuelve a pedir la lista de temas del bloque; cada
+  // sección lo hace por su cuenta (SeccionDeRecursos). CHORE-06b (§D-4): si está en error o vieja, sin
+  // cancelar ni duplicar lo que vuela; también al saltar con el historial a Recursos de otra clase (DH-10).
+  useRecargarAlPulsarLaSeccion(temas)
+  useMarcarViejaSiQuedoEnError(claveTemasDeLaSeccion(claseId, bloque))
 
   // §7.14: si la sección que tenía el foco desaparece del bloque (se borró o se movió su último recurso),
   // el foco va al encabezado de la sección vecina y, sin vecinas, al h2 del bloque. Si la sección sigue

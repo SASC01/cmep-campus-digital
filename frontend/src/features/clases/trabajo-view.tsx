@@ -7,7 +7,10 @@ import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/component
 import { esClaseArchivada } from "@/components/clase/lib"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,7 +19,7 @@ import { baseDeClase } from "@/lib/ruta-de-clase"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioTema } from "./components/formulario-tema"
 import { SeccionDeTema } from "./components/seccion-de-tema"
-import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_TRABAJO } from "./data"
+import { CAPACIDADES_POR_PERSPECTIVA, claveTemasDeLaSeccion, TEXTOS_TRABAJO } from "./data"
 import {
   useAvisoDeRecargaFallida,
   useFilaEnFoco,
@@ -116,13 +119,12 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
     claseId,
   )
 
-  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí no desmonta la vista. Si la
-  // lista de temas está en error, la vuelve a pedir; cada tema en error lo hace por su cuenta
-  // (SeccionDeTema). Lo que está sano no se pide (S-10).
-  useAlPulsarLaSeccionActiva(() => {
-    if (!temas.isError) return
-    void temas.refetch()
-  })
+  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí no desmonta la vista; cada tema
+  // se recarga por su cuenta (SeccionDeTema). CHORE-06b (§D-4, O-03): la lista de temas se vuelve a pedir
+  // si está en error o vieja (marcada tras «Subir» o «Bajar»), sin cancelar ni duplicar lo que vuela;
+  // también al saltar con el historial a Actividades de otra clase (DH-10). Sana y fresca, nada.
+  useRecargarAlPulsarLaSeccion(temas)
+  useMarcarViejaSiQuedoEnError(claveTemasDeLaSeccion(claseId, "actividades"))
 
   // "Nuevo tema" abre el formulario; al cerrarlo (guardado o cancelado), el foco vuelve a "Nuevo tema".
   useEffect(() => {

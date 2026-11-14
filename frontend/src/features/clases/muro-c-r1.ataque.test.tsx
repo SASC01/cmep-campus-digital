@@ -800,29 +800,31 @@ describe("ataque CLASES-c r1: foco de «Ver más avisos» y «Ver más comentari
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver más avisos" }))
   })
 
-  it("si la página siguiente del muro falla, el foco que estaba en «Ver más avisos» no cae en <body>", async () => {
+  // CHORE-06b (C-7 de la ronda 0, §D-5): el 500 de la página siguiente ya no reemplaza la lista por el
+  // MensajeError: la lista se queda con un solo aviso y el foco se queda en su «Ver más».
+  it("si la página siguiente del muro falla, el foco que estaba en «Ver más avisos» no cae en <body>: la lista se queda con un solo aviso y el foco sigue en «Ver más avisos» (CHORE-06b, §D-5)", async () => {
     conPaginas("publicaciones", () => error500())
     renderMuro("estudiante")
     const boton = await screen.findByRole("button", { name: "Ver más avisos" })
     boton.focus()
     fireEvent.click(boton)
-    await screen.findByRole("alert")
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
     await esperar(50)
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Avisos" }))
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver más avisos" }))
   })
 
-  it("si la página siguiente de comentarios falla, el foco que estaba en «Ver más comentarios» no cae en <body>", async () => {
+  it("si la página siguiente de comentarios falla, el foco que estaba en «Ver más comentarios» no cae en <body>: la lista se queda con un solo aviso y el foco sigue en «Ver más comentarios» (CHORE-06b, §D-5)", async () => {
     conPaginas("comentarios", () => error500())
     renderMuro("estudiante")
     fireEvent.click(await screen.findByRole("button", { name: "Ver comentarios (2)" }))
     const boton = await screen.findByRole("button", { name: "Ver más comentarios" })
     boton.focus()
     fireEvent.click(boton)
-    await screen.findByRole("alert")
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
     await esperar(50)
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Comentarios" }))
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver más comentarios" }))
   })
 
   it("con la última página de comentarios vacía, el foco va al encabezado de los comentarios", async () => {

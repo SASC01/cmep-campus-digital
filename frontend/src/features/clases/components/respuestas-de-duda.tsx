@@ -3,19 +3,24 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Cargando } from "@/components/cargando"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { formatearFechaHora } from "@/lib/format"
 
-import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_RESPUESTAS } from "../data"
+import { CAPACIDADES_POR_PERSPECTIVA, claveRespuestas, TEXTOS_RESPUESTAS } from "../data"
 import {
+  useAvisoDeRecargaFallida,
   useBorrarRespuesta,
   useFilaEnFoco,
   useFocoAlCargarMas,
+  useListaConservadaTrasLaPagina,
   useRenovarSiLaDudaYaNoEsta,
   useRespuestas,
 } from "../hooks"
-import { focoPerdido, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
+import { focoPerdido, mensajeDeConsultaClases, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
 import type { Comentario, Perspectiva } from "../types"
 import { FirmaDelAutor } from "./firma-del-autor"
 import { FormularioRespuesta } from "./formulario-respuesta"
@@ -146,6 +151,22 @@ export function RespuestasDeDuda({
   const soloLectura = useSoloLecturaDeLaClase()
   // T-02 (ronda 1 de 03e): si al pedirlas la duda ya no existe, la lista se renueva y la fila sale.
   useRenovarSiLaDudaYaNoEsta(claseId, respuestas.errorUpdateCount, respuestas.error)
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva las respuestas,
+  // también mientras una recarga las recupera; avisa una vez por fallo, con la duda como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    claveRespuestas(claseId, dudaId),
+    respuestas.isFetchNextPageError,
+    respuestas.isError,
+    respuestas.errorUpdateCount,
+    respuestas.errorUpdatedAt,
+    respuestas.error,
+  )
+  useAvisoDeRecargaFallida(
+    respuestas.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(respuestas.error),
+    dudaId,
+  )
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const filaEnFocoRef = useFilaEnFoco("data-respuesta-id")
   const idsPrevios = useRef<string[] | undefined>(undefined)
@@ -160,13 +181,12 @@ export function RespuestasDeDuda({
 
   const refVerMas = useFocoAlCargarMas(ids, enfocarRespuesta, () => encabezadoRef.current?.focus())
 
-  // R5 y R9 (§D-10 b): pulsar "Dudas" estando ahí vuelve a pedir estas respuestas desde la primera página
-  // si están en error; unas respuestas sanas no piden nada (S-10). M-01 (b) de la verificación de la ronda
-  // 2: refetch no mira `enabled`, así que tampoco pide mientras la duda se borra o si ya no existe.
-  useAlPulsarLaSeccionActiva(() => {
-    if (!pedir || !respuestas.isError) return
-    void respuestas.refetch()
-  })
+  // R5 y R9 (§D-10 b): pulsar "Dudas" estando ahí vuelve a pedir estas respuestas desde la primera página.
+  // CHORE-06b (§D-4): si están en error o viejas, sin cancelar ni duplicar lo que vuela; unas respuestas
+  // sanas y frescas no piden nada (S-10). M-01 (b) de la verificación de la ronda 2: refetch no mira
+  // `enabled`, así que sin `pedir` (la duda se borra o ya no existe) no se le pasa la consulta.
+  useRecargarAlPulsarLaSeccion(...(pedir ? [respuestas] : []))
+  useMarcarViejaSiQuedoEnError(claveRespuestas(claseId, dudaId))
 
   // Después de cada render, si la respuesta que tenía el foco salió de la lista (se borró), el foco va a
   // su "Borrar" vecino (o a la propia respuesta vecina) y, sin vecinas, al encabezado. Si el bloque pasó
@@ -196,7 +216,7 @@ export function RespuestasDeDuda({
   })
 
   const contenido = (): ReactNode => {
-    if (respuestas.isError)
+    if (respuestas.isError && !conserva)
       return (
         <MensajeError
           mensaje={mensajeDeErrorDeLista(
@@ -248,11 +268,11 @@ export function RespuestasDeDuda({
   // despliega sin respuestas en la caché (se quitaron al plegarlo, o al llegar el borrado con el bloque
   // plegado) no pinta nada: ni «Cargando…» de una consulta que no se va a pedir, ni el formulario de una
   // duda que se va. Lo que ya se veía (con datos o con su error) sigue hasta que la fila sale.
-  if (!pedir && filas === undefined && !respuestas.isError) return null
+  if (!pedir && filas === undefined && !(respuestas.isError && !conserva)) return null
 
   // ADMIN-01d2, ronda 1 (T-03): en una clase archivada, un bloque abierto sin respuestas no tiene nada que
   // mostrar: ni lista ni formulario. El título no se queda solo.
-  if (soloLectura && filas?.length === 0 && !respuestas.isError) return null
+  if (soloLectura && filas?.length === 0 && !(respuestas.isError && !conserva)) return null
 
   return (
     <div id={id} className="flex flex-col gap-3 border-t border-border pt-3">

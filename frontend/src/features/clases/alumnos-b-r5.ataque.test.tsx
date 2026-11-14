@@ -194,7 +194,6 @@ afterEach(() => {
 })
 
 const VISTAS = ["alumnos", "personas"] as const
-const encabezadoAlumnos = () => screen.getByRole("heading", { name: "Alumnos" })
 const releer = (queryClient: QueryClient) =>
   act(async () => {
     await queryClient.invalidateQueries({ queryKey: ["clases", CLASE_ID] })
@@ -313,16 +312,22 @@ describe(
 )
 
 describe("ataque CLASES-b r5: T-27 y la primera carga", { timeout: 30000 }, () => {
+  // CHORE-06b (C-17 de la ronda 0, §D-5): T-27 cambia de sentido. El 500 de la página siguiente ya no
+  // reemplaza la lista: se queda, sale un solo aviso y el foco no se mueve de «Ver más alumnos».
   it.each(VISTAS)(
-    "%s: si la página siguiente falla, el foco va exactamente al encabezado «Alumnos»",
+    "%s: si la página siguiente falla, la lista se queda, un solo aviso y el foco se queda exactamente en «Ver más alumnos» (CHORE-06b, §D-5)",
     async (vista) => {
       const { control } = crearServidor(52)
       renderVista(vista)
       await screen.findAllByText(nombreDe(1))
       control.fallarPaginaSiguiente = true
       pulsar(await screen.findByRole("button", { name: "Ver más alumnos" }))
-      await screen.findByRole("alert")
-      await waitFor(() => expect(focoEn()).toBe(encabezadoAlumnos()))
+      await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
+      await waitFor(() =>
+        expect(focoEn()).toBe(screen.getByRole("button", { name: "Ver más alumnos" })),
+      )
+      expect(screen.queryByRole("alert")).toBeNull()
+      expect(screen.getAllByText(nombreDe(1)).length).toBeGreaterThan(0)
     },
   )
 

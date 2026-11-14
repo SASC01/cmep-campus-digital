@@ -1,9 +1,14 @@
 import { Link } from "react-router"
 
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
 
 import {
+  CLAVE_CLASES_INSCRITAS,
   RUTA_CLASES_ANTERIORES_DEL_ALUMNO,
   TEXTOS_CLASES_ANTERIORES,
   TEXTOS_PANEL,
@@ -13,13 +18,40 @@ import { BloqueDestacado } from "./components/bloque-destacado"
 import { FormularioUnirseClase, ID_CAMPO_CODIGO_CLASE } from "./components/formulario-unirse-clase"
 import { PanelMisClases } from "./components/panel-mis-clases"
 import { TarjetaClase } from "./components/tarjeta-clase"
-import { useClasesInscritas, useNombreDeSesion } from "./hooks"
-import { mensajeDeErrorDeLista, unirNombres } from "./lib"
+import {
+  useAvisoDeRecargaFallida,
+  useClasesInscritas,
+  useListaConservadaTrasLaPagina,
+  useNombreDeSesion,
+} from "./hooks"
+import { mensajeDeConsultaClases, mensajeDeErrorDeLista, unirNombres } from "./lib"
 import type { ClaseDelPanel } from "./types"
 
 export function InicioEstudianteView() {
   const nombre = useNombreDeSesion()
   const clases = useClasesInscritas()
+  // CHORE-06b (§D-5, DH-02 a; O-E4-1): el fallo de la página siguiente (red o 5xx) conserva la lista,
+  // también mientras una recarga la recupera, y el bloque destacado no dice el error; avisa una vez por
+  // fallo. La ruta no tiene id: la clave es la de la consulta, que no cambia.
+  const conserva = useListaConservadaTrasLaPagina(
+    CLAVE_CLASES_INSCRITAS,
+    clases.isFetchNextPageError,
+    clases.isError,
+    clases.errorUpdateCount,
+    clases.errorUpdatedAt,
+    clases.error,
+  )
+  useAvisoDeRecargaFallida(
+    clases.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(clases.error),
+    JSON.stringify(CLAVE_CLASES_INSCRITAS),
+  )
+  // CHORE-06b (§D-4): pulsar «Inicio» de la barra estando en el inicio vuelve a pedir la lista si está
+  // en error o vieja, sin cancelar ni duplicar lo que vuela.
+  useRecargarAlPulsarLaSeccion(clases)
+  useMarcarViejaSiQuedoEnError(CLAVE_CLASES_INSCRITAS)
+  const errorALaVista = clases.isError && !conserva
   const primeraPagina = clases.data?.pages[0]
   const total = primeraPagina?.total
   // Corrección de la ronda 1 (T-09, segunda pasada): sin valor de respaldo. Mientras `clases.data`
@@ -41,7 +73,7 @@ export function InicioEstudianteView() {
         nombre={nombre.data ?? ""}
         total={total}
         cargando={clases.isLoading}
-        esError={clases.isError}
+        esError={errorALaVista}
         errorTitular={TEXTOS_PANEL.error}
         insignia={TEXTOS_UNIRSE.insignia}
         tituloTarjeta={TEXTOS_UNIRSE.titulo}
@@ -50,9 +82,9 @@ export function InicioEstudianteView() {
       </BloqueDestacado>
 
       <PanelMisClases
-        isError={clases.isError}
+        isError={errorALaVista}
         errorMensaje={
-          clases.isError
+          errorALaVista
             ? mensajeDeErrorDeLista(clases.error, TEXTOS_PANEL.cambioMientrasLasVeias)
             : ""
         }

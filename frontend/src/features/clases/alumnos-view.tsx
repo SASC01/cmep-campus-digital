@@ -24,5 +24,9 @@ function AlumnosDeLaClase({ claseId }: AlumnosDeLaClaseProps) {
 // de pago y restricción de acceso. Dos Card, sin acción principal: "Agregar a la clase" es de cada
 // fila. El :claseId lo lee ConClaseDeLaRuta (§D-C5 bis).
 export function AlumnosView() {
-  return <ConClaseDeLaRuta>{(claseId) => <AlumnosDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+  return (
+    <ConClaseDeLaRuta>
+      {(claseId) => <AlumnosDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
+  )
 }

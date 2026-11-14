@@ -6,6 +6,10 @@ import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoPagoBadge } from "@/components/estado-pago-badge"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -18,8 +22,15 @@ import {
 } from "@/components/ui/table"
 import { formatearFechaHora } from "@/lib/format"
 
-import { TEXTOS_PERSONAS, TEXTOS_TABLA_ALUMNOS } from "../data"
-import { useAlumnos, useFilaEnFoco, useFocoAlCargarMas, useQuitarAlumno } from "../hooks"
+import { claveAlumnos, TEXTOS_PERSONAS, TEXTOS_TABLA_ALUMNOS } from "../data"
+import {
+  useAlumnos,
+  useAvisoDeRecargaFallida,
+  useFilaEnFoco,
+  useFocoAlCargarMas,
+  useListaConservadaTrasLaPagina,
+  useQuitarAlumno,
+} from "../hooks"
 import { focoPerdido, mensajeDeConsultaClases } from "../lib"
 import type { AlumnoDeClase } from "../types"
 
@@ -152,6 +163,25 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
   const filaEnFocoRef = useFilaEnFoco("data-alumno-id")
   const idsPrevios = useRef<string[] | undefined>(undefined)
   const filas = alumnos.data?.pages.flatMap((pagina) => pagina.alumnos)
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva la tabla, también
+  // mientras una recarga la recupera; avisa una vez por fallo, con la clase como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    claveAlumnos(claseId),
+    alumnos.isFetchNextPageError,
+    alumnos.isError,
+    alumnos.errorUpdateCount,
+    alumnos.errorUpdatedAt,
+    alumnos.error,
+  )
+  useAvisoDeRecargaFallida(
+    alumnos.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(alumnos.error),
+    claseId,
+  )
+  // CHORE-06b (§D-4): pulsar «Personas» estando ahí vuelve a pedir el roster si está en error o viejo.
+  useRecargarAlPulsarLaSeccion(alumnos)
+  useMarcarViejaSiQuedoEnError(claveAlumnos(claseId))
 
   const registrarQuitar = (id: string, nodo: HTMLButtonElement | null) => {
     if (nodo === null) {
@@ -202,7 +232,9 @@ export function TablaAlumnos({ claseId }: TablaAlumnosProps) {
 
   // Estados en orden: error → cargando → vacío → datos.
   const contenido = (): ReactNode => {
-    if (alumnos.isError) return <MensajeError mensaje={mensajeDeConsultaClases(alumnos.error)} />
+    if (alumnos.isError && !conserva) {
+      return <MensajeError mensaje={mensajeDeConsultaClases(alumnos.error)} />
+    }
     if (alumnos.isLoading || !filas) return <Cargando />
     if (filas.length === 0) {
       return (

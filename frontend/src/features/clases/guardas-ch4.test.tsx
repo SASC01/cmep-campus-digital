@@ -385,7 +385,8 @@ interface Control {
   conDosMaestros: boolean
 }
 
-const avisoDeClases = (error: ApiError) => mensajeDeErrorClases(error)
+const avisoDeClases = (error: ApiError) =>
+  REDIRIGEN.includes(error.codigo) ? null : mensajeDeErrorClases(error)
 const REDIRIGEN = ["ACCESO_RESTRINGIDO", "CAMBIO_DE_CONTRASENA_REQUERIDO", "NO_AUTENTICADO"]
 
 const secciones = (otra: string, vuelta: string) => async () => {
@@ -730,7 +731,7 @@ describe("CHORE-04 · errores con que apiClient redirige (Enmienda 1, M-01)", ()
       ),
     ),
   )(
-    "CH4-25: %s con %s, el aviso de hoy (ninguno en «Sí, regenerar», uno en los demás) y, con el control montado, otro clic manda la petición",
+    "CH4-25: %s con %s, ningún aviso (apiClient redirige; CHORE-06a) y, con el control montado, otro clic manda la petición",
     async (nombre, clase, control, respuesta, error) => {
       preparar(control.clave, respuesta)
       const { elemento } = await montarControl(control)

@@ -20,6 +20,7 @@ import {
 import {
   useAlPulsarLaSeccionActiva,
   useGradebook,
+  useMarcarViejasLasVentanas,
   useMarcarViejoElGradebook,
   useRecargarLaPrimeraVentana,
 } from "./hooks"
@@ -79,15 +80,71 @@ function GradebookDeLaClase({ claseId }: GradebookDeLaClaseProps) {
     encabezadoRef.current?.focus()
   })
 
+  const reemplazada =
+    consulta.isError && (datos === undefined || esErrorDeSinAcceso(consulta.error))
+
+  const errorDeCursor =
+    reemplazada && esErrorDeCursorDeCalificaciones(consulta.error, CAMPOS_DE_CURSOR_DEL_GRADEBOOK)
+
+  // T-07: el texto del cursor pide volver a abrir Calificaciones; cada vez que se ve (el 400 de un
+  // cursor o la ventana pedida con cursor que llega vacía, no la de respaldo mientras llega otra), las
+  // demás ventanas de la clase quedan viejas. Una ocurrencia por respuesta o fallo nuevo.
+  const ventanaVaciaConCursor =
+    (ventanas.ventana.cursor !== null || ventanas.ventana.cursorTareas !== null) &&
+    !consulta.isPlaceholderData &&
+    datos !== undefined &&
+    (datos.alumnos.length === 0 || datos.tareas.length === 0)
+  let ocurrenciaDelCursor: string | null = null
+  if (errorDeCursor) {
+    ocurrenciaDelCursor = `cursor:${String(consulta.errorUpdatedAt)}:${String(consulta.errorUpdateCount)}`
+  } else if (ventanaVaciaConCursor) {
+    ocurrenciaDelCursor = `vacia:${String(consulta.dataUpdatedAt)}`
+  }
+  // CHORE-06b (§D-6, N-52; Enmiendas 4 y 4b): la frase "La clase cambió…" se vio en esta vista y todavía
+  // no se marcó. Se enciende con cada ocurrencia nueva (una por respuesta o fallo) y no se apaga al
+  // regresar a otra ventana: la ventana vacía sigue en la caché aunque ya no se vea. Este efecto va antes
+  // de useAlPulsarLaSeccionActiva para que, en el render de la pulsación, el manejador ya vea la frase de
+  // ese render. Una ocurrencia ya marcada no vuelve a encenderse.
+  const fraseSinMarcarRef = useRef<string | null>(null)
+  const fraseMarcadaRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (ocurrenciaDelCursor === null || ocurrenciaDelCursor === fraseMarcadaRef.current) return
+    fraseSinMarcarRef.current = ocurrenciaDelCursor
+  })
+
   // T-08: pulsar la sección "Calificaciones" estando en ella (con o sin el texto del cursor a la vista)
   // vuelve a la ventana inicial, sin pilas, y pide otra vez la primera ventana, como al abrir la vista.
   // La ventana que se esperaba ya no mueve el foco: se queda en la sección pulsada, como en el muro.
+  // CHORE-06b (§D-6 a, N-52): si la frase se vio y no se marcó, antes todas las ventanas de la clase
+  // quedan viejas, también la vacía: "Alumnos siguientes" ya no la sirve de la caché. Con la tabla sana y
+  // sin frase, nada se marca.
   const recargarLaPrimeraVentana = useRecargarLaPrimeraVentana(claseId)
+  const marcarViejasLasVentanas = useMarcarViejasLasVentanas(claseId)
   useAlPulsarLaSeccionActiva(() => {
     pulsadoRef.current = null
+    const sinMarcar = fraseSinMarcarRef.current
+    if (sinMarcar !== null) {
+      fraseMarcadaRef.current = sinMarcar
+      fraseSinMarcarRef.current = null
+      marcarViejasLasVentanas()
+    }
     recargarLaPrimeraVentana()
     setVentanas(VENTANAS_INICIALES)
   })
+
+  // CHORE-06b (§D-6 b, N-52): si la vista se va (otra sección, otra clase) con una frase vista y sin
+  // marcar, las ventanas de su clase quedan viejas: al volver antes de 30 s, la ventana vacía se pide de
+  // nuevo. La limpieza marca la clase de su cierre; la vista se monta de nuevo por clase (key={claseId}).
+  useEffect(
+    () => () => {
+      const sinMarcar = fraseSinMarcarRef.current
+      if (sinMarcar === null) return
+      fraseMarcadaRef.current = sinMarcar
+      fraseSinMarcarRef.current = null
+      marcarViejasLasVentanas()
+    },
+    [marcarViejasLasVentanas],
+  )
 
   useFocoAlPerderseElControl(
     raizRef,
@@ -112,9 +169,6 @@ function GradebookDeLaClase({ claseId }: GradebookDeLaClaseProps) {
     )
   }
 
-  const reemplazada =
-    consulta.isError && (datos === undefined || esErrorDeSinAcceso(consulta.error))
-
   // T-06: una ventana que llega vacía no es la clase vacía. Si se pidió con algún cursor (o lo que se ve
   // es la ventana anterior mientras llega otra, que solo se pide desde una ventana con navegación), el
   // alumno o la tarea del cursor desapareció entre dos ventanas: el texto del cursor va en lugar de la
@@ -125,23 +179,6 @@ function GradebookDeLaClase({ claseId }: GradebookDeLaClaseProps) {
     ventanas.ventana.cursorTareas !== null ||
     consulta.isPlaceholderData
 
-  const errorDeCursor =
-    reemplazada && esErrorDeCursorDeCalificaciones(consulta.error, CAMPOS_DE_CURSOR_DEL_GRADEBOOK)
-
-  // T-07: el texto del cursor pide volver a abrir Calificaciones; cada vez que se ve (el 400 de un
-  // cursor o la ventana pedida con cursor que llega vacía, no la de respaldo mientras llega otra), las
-  // demás ventanas de la clase quedan viejas. Una ocurrencia por respuesta o fallo nuevo.
-  const ventanaVaciaConCursor =
-    (ventanas.ventana.cursor !== null || ventanas.ventana.cursorTareas !== null) &&
-    !consulta.isPlaceholderData &&
-    datos !== undefined &&
-    (datos.alumnos.length === 0 || datos.tareas.length === 0)
-  let ocurrenciaDelCursor: string | null = null
-  if (errorDeCursor) {
-    ocurrenciaDelCursor = `cursor:${String(consulta.errorUpdatedAt)}:${String(consulta.errorUpdateCount)}`
-  } else if (ventanaVaciaConCursor) {
-    ocurrenciaDelCursor = `vacia:${String(consulta.dataUpdatedAt)}`
-  }
   useMarcarViejoElGradebook(claseId, ventanas.ventana, ocurrenciaDelCursor)
 
   const cuerpo = (respuesta: GradebookRespuesta): ReactNode => {
@@ -219,6 +256,8 @@ function GradebookDeLaClase({ claseId }: GradebookDeLaClaseProps) {
 // El :claseId lo lee ConClaseDeLaRuta (sin él no pide nada y dice "No tienes acceso a esta clase.").
 export function GradebookView() {
   return (
-    <ConClaseDeLaRuta>{(claseId) => <GradebookDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+    <ConClaseDeLaRuta>
+      {(claseId) => <GradebookDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
   )
 }

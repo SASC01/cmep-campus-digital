@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { useState } from "react"
 import { MemoryRouter, Route, Routes } from "react-router"
+import { toast } from "sonner"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
@@ -260,20 +261,31 @@ describe("PersonasView", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Alumnos" })).toHaveFocus())
   })
 
-  it("T-27 (ronda 5): si la consulta de la página siguiente falla, el foco queda en el encabezado «Alumnos» y no en <body>", async () => {
-    const primera = persona(1, "Ana Díaz")
-    stubApi((ruta) => {
-      if (ruta.includes(`cursor=${primera.id}`)) return errorJson(500, "ERROR_INTERNO")
-      return respuestaJson(200, pagina([primera], { totalAlumnos: 2, siguienteCursor: primera.id }))
-    })
-    renderVista()
-    const boton = await screen.findByRole("button", { name: "Ver más alumnos" })
-    boton.focus()
-    fireEvent.click(boton)
+  it("T-27 (ronda 5): si la consulta de la página siguiente falla, la lista se queda, un solo aviso y el foco se queda en «Ver más alumnos» (CHORE-06b, §D-5)", async () => {
+    const aviso = vi.spyOn(toast, "error")
+    try {
+      const primera = persona(1, "Ana Díaz")
+      stubApi((ruta) => {
+        if (ruta.includes(`cursor=${primera.id}`)) return errorJson(500, "ERROR_INTERNO")
+        return respuestaJson(
+          200,
+          pagina([primera], { totalAlumnos: 2, siguienteCursor: primera.id }),
+        )
+      })
+      renderVista()
+      const boton = await screen.findByRole("button", { name: "Ver más alumnos" })
+      boton.focus()
+      fireEvent.click(boton)
 
-    expect(await screen.findByRole("alert")).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Alumnos" })).toHaveFocus())
-    expect(document.activeElement).not.toBe(document.body)
+      await waitFor(() => expect(aviso).toHaveBeenCalledTimes(1))
+      expect(screen.queryByRole("alert")).toBeNull()
+      const verMas = screen.getByRole("button", { name: "Ver más alumnos" })
+      expect(verMas).not.toHaveAttribute("aria-busy", "true")
+      await waitFor(() => expect(verMas).toHaveFocus())
+      expect(document.activeElement).not.toBe(document.body)
+    } finally {
+      aviso.mockRestore()
+    }
   })
 
   it("T-28 (ronda 5): con ratón en «Ver más alumnos» y después un clic fuera, un render sin desmontaje no mueve el foco", async () => {

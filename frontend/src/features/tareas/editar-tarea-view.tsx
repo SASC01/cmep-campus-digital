@@ -4,7 +4,11 @@ import { Link, useNavigate, useParams } from "react-router"
 import { Cargando } from "@/components/cargando"
 import { ConClaseDeLaRuta } from "@/components/clase/con-clase-de-la-ruta"
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
-import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
+import {
+  useGeneracionDeSoloLectura,
+  useMontado,
+  useSoloLecturaDeLaClase,
+} from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { buttonVariants } from "@/components/ui/button-variants"
 
@@ -30,16 +34,24 @@ interface EditarTareaDeLaClaseProps {
   tareaId: string
 }
 
+interface EdicionDeLaTareaProps {
+  claseId: string
+  tareaId: string
+}
+
 // §D-10, DESIGN.md §7.21: editar una tarea. Carga la tarea (error → cargando → datos) y solo muestra el
 // formulario si el servidor dice `puedeEditar`; si no, lo dice con "No puedes editar esta tarea." (el
 // backend lo niega de todas formas con 403 EDICION_NO_PERMITIDA). Al terminar vuelve al detalle.
-function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
+// CHORE-06a (§D-1, Forma C): este es el contenido, montado con key por la tarea debajo de la raíz del
+// marco. Lo escrito, la versión de apertura, los reinicios y la espera de la lectura fresca son de esta
+// tarea: un salto del historial a otra tarea monta otro contenido, y lo que llega de esta no navega.
+function EdicionDeLaTarea({ claseId, tareaId }: EdicionDeLaTareaProps) {
   const { base } = useRutaDeLaClase(claseId)
   const navigate = useNavigate()
   const consulta = useTarea(claseId, tareaId)
   const editar = useEditarTarea(claseId, tareaId)
   const detalle = `${base}/tareas/${tareaId}`
-  const raizRef = useRef<HTMLDivElement>(null)
+  const montado = useMontado()
   // ENTREGAS-01a (P-05 a′, §D-8.3.4): cuántas veces se reinició el formulario tras un 409
   // TAREA_MODIFICADA. Es la `key` del formulario: solo recargarTrasConflicto la cambia, así que ninguna
   // otra recarga (de fondo, de otra mutación) toca lo escrito ni la versión de apertura.
@@ -76,10 +88,6 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
     consulta,
     avisoDeRecargaFallidaAlEditar(consulta.error),
   )
-  // T-09 y T-15: si una recarga quita `puedeEditar` (o la tarea ya no existe, o hay un error que reemplaza
-  // el formulario, también tras otro fallo que lo conservó) con el foco dentro del formulario, el foco va
-  // a la raíz de la vista y no a <body>.
-  useFocoAlPerderseElControl(raizRef, claveDeFocoDeLaTarea(tareaId, consulta))
 
   const contenido = (): ReactNode => {
     if (soloLectura) {
@@ -110,7 +118,7 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
     // La versión es la de apertura que guarda el formulario, nunca la de consulta.data al enviar.
     const handleGuardar = async (datos: CrearTarea, version: number) => {
       await editar.mutateAsync({ ...datos, version })
-      if (!sigueVigente(generacion)) return
+      if (!montado.current || !sigueVigente(generacion)) return
       navigate(detalle)
     }
 
@@ -142,9 +150,23 @@ function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
     )
   }
 
+  return contenido()
+}
+
+// CHORE-06a (§D-1, Forma C): el marco conserva la raíz de foco y su clave; la clave cambia con la tarea,
+// así que si el control con el foco se desmonta al pasar a otra, el foco va a la raíz y no a <body>. Lee
+// la misma consulta que el contenido (misma clave, una petición).
+function EditarTareaDeLaClase({ claseId, tareaId }: EditarTareaDeLaClaseProps) {
+  const consulta = useTarea(claseId, tareaId)
+  const raizRef = useRef<HTMLDivElement>(null)
+  // T-09 y T-15: si una recarga quita `puedeEditar` (o la tarea ya no existe, o hay un error que reemplaza
+  // el formulario, también tras otro fallo que lo conservó) con el foco dentro del formulario, el foco va
+  // a la raíz de la vista y no a <body>.
+  useFocoAlPerderseElControl(raizRef, claveDeFocoDeLaTarea(tareaId, consulta))
+
   return (
     <div ref={raizRef} tabIndex={-1}>
-      {contenido()}
+      <EdicionDeLaTarea key={tareaId} claseId={claseId} tareaId={tareaId} />
     </div>
   )
 }

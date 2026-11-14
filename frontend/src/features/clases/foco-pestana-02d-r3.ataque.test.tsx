@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { MemoryRouter, Route, Routes } from "react-router"
+import { toast } from "sonner"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { AlumnosView } from "./alumnos-view"
@@ -254,7 +255,10 @@ describe("ataque CLASES-02d r3: «Ver más alumnos» con cambio de pestaña (use
     },
   )
 
-  it("«Personas»: la página siguiente falla con la pestaña oculta (visibilitychange sin blur): el foco va al encabezado «Alumnos», no a <body>", async () => {
+  it("«Personas»: la página siguiente falla con la pestaña oculta (visibilitychange sin blur): la lista se queda con un solo aviso y el foco se queda en «Ver más alumnos», no en <body> (CHORE-06b, §D-5)", async () => {
+    // CHORE-06b (C-6 de la ronda 0): los avisos se cuentan desde el inicio del caso (N-03 de la
+    // Enmienda 3b: vi.restoreAllMocks() de Vitest 4 no borra las llamadas del vi.fn() del doble).
+    vi.mocked(toast.error).mockClear()
     const control = crearServidor()
     personas()
     const boton = await screen.findByRole("button", { name: "Ver más alumnos" })
@@ -264,10 +268,10 @@ describe("ataque CLASES-02d r3: «Ver más alumnos» con cambio de pestaña (use
     fireEvent.click(boton)
     const ventana = await salir(boton, { blurDeLaVentana: false, visibilidad: true })
     control.pagina.soltar()
-    await screen.findByRole("alert")
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1))
     await esperar(30)
     await volver(ventana)
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Alumnos" }))
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver más alumnos" }))
   })
 
   it("«Personas»: visibilitychange que llega después del turno pendiente (hasFocus ya falso): conserva la memoria", async () => {

@@ -382,7 +382,8 @@ interface Control {
   conDosMaestros: boolean
 }
 
-const avisoDeClases = (error: ApiError) => mensajeDeErrorClases(error)
+const avisoDeClases = (error: ApiError) =>
+  REDIRIGEN.includes(error.codigo) ? null : mensajeDeErrorClases(error)
 const REDIRIGEN = ["ACCESO_RESTRINGIDO", "CAMBIO_DE_CONTRASENA_REQUERIDO", "NO_AUTENTICADO"]
 
 const secciones = (otra: string, vuelta: string) => async () => {

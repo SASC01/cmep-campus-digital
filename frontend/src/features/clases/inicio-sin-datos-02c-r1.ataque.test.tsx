@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { describe, expect, it, vi } from "vitest"
@@ -21,10 +22,19 @@ const estado = vi.hoisted(() => ({
   },
 }))
 
+// CHORE-06b ronda 0 (C-15 y C-16, §D-R0, Enmiendas 3 y 3b): los inicios pasan a llamar a
+// useAvisoDeRecargaFallida y a useListaConservadaTrasLaPagina de ./hooks (§D-5). Con Vitest 4, leer un
+// export que esta fábrica no devuelve lanza un error, así que la fábrica suma dos dobles inertes: el
+// aviso no hace nada y la lista nunca se conserva (la consulta doblada no tiene error). Los ganchos de
+// la política de recarga vienen de @/components/seccion/hooks, que no se dobla y pide un
+// QueryClientProvider. Ninguna aserción cambia. Sigue protegiendo lo mismo: los inicios sin error, sin
+// carga y sin datos no afirman vacío ni total.
 vi.mock("./hooks", () => ({
   useNombreDeSesion: () => ({ data: "Luis Pérez" }),
   useClasesImpartidas: () => estado.consulta,
   useFocoAlCargarMas: () => ({ current: null }),
+  useAvisoDeRecargaFallida: () => undefined,
+  useListaConservadaTrasLaPagina: () => false,
 }))
 
 const TEXTOS_QUE_AFIRMAN_DATOS = [
@@ -39,9 +49,11 @@ const TEXTOS_QUE_AFIRMAN_DATOS = [
 describe("ataque CLASES-02c r1: inicio del maestro sin datos de la API (O-03)", () => {
   it("sin error, sin carga y sin datos: no afirma vacío, total ni la frase de la administración, y no ofrece crear", () => {
     render(
-      <MemoryRouter>
-        <InicioMaestroView />
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <InicioMaestroView />
+        </MemoryRouter>
+      </QueryClientProvider>,
     )
     expect(screen.getByText("Hola, Luis Pérez")).toBeInTheDocument()
     for (const texto of TEXTOS_QUE_AFIRMAN_DATOS) {

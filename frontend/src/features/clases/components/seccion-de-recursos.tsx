@@ -2,13 +2,17 @@ import { useEffect, useId, useRef, type FocusEvent, type ReactNode } from "react
 
 import { Cargando } from "@/components/cargando"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
-import { ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS, TEXTOS_RECURSOS } from "../data"
+import { claveRecursos, ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS, TEXTOS_RECURSOS } from "../data"
 import { useAvisoDeRecargaFallida, useFilaEnFoco, useFocoAlCargarMas, useRecursos } from "../hooks"
 import {
+  errorQueRedirigeElCliente,
   esErrorDeCursor,
   focoPerdido,
   marcaDeSeccionDeRecursos,
@@ -63,8 +67,11 @@ export function SeccionDeRecursos({
 
   useAvisoDeRecargaFallida(
     recursos.errorUpdateCount,
-    filas !== undefined && !esErrorDeCursor(recursos.error),
+    filas !== undefined &&
+      !esErrorDeCursor(recursos.error) &&
+      !errorQueRedirigeElCliente(recursos.error),
     mensajeDeConsultaClases(recursos.error),
+    claseId,
     ID_DEL_AVISO_DE_RECARGA_DE_RECURSOS,
   )
 
@@ -77,11 +84,10 @@ export function SeccionDeRecursos({
   const refVerMas = useFocoAlCargarMas(ids, enfocarRecurso, () => encabezadoRef.current?.focus())
 
   // R3 y R9 (§D-10 a, N-54): pulsar "Recursos" estando ahí vuelve a pedir este tema desde su primera
-  // página si está en error (el cursor ya no existe o la primera carga falló); un tema sano no pide nada.
-  useAlPulsarLaSeccionActiva(() => {
-    if (!recursos.isError) return
-    void recursos.refetch()
-  })
+  // página. CHORE-06b (§D-4): si está en error o vieja, sin cancelar ni duplicar lo que vuela; un tema
+  // sano y fresco no pide nada.
+  useRecargarAlPulsarLaSeccion(recursos)
+  useMarcarViejaSiQuedoEnError(claveRecursos(claseId, bloque, seccion.clave))
 
   useEffect(() => {
     const previos = idsPrevios.current

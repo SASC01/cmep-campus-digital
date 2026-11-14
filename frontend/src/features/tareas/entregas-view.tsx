@@ -42,11 +42,14 @@ interface EntregasDeLaTareaProps {
 // la lista en caché, "Ver más alumnos" que falla avisa una vez, solo si la vista sigue montada y el error
 // no la reemplaza ni lo redirige apiClient. Si una recarga quita el control con el foco, el foco va a la
 // raíz.
-function EntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
+// CHORE-06a (§D-1, Forma C; T-01 de la ronda 1): este es el contenido, montado con key por la tarea debajo
+// de la raíz del marco. La guarda de «Ver más alumnos», los alumnos de antes de la página siguiente y el
+// montaje son de esta tarea: tras un salto del historial a otra, su «Ver más alumnos» no espera por la
+// página de esta.
+function ListaDeEntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
   const { base } = useRutaDeLaClase(claseId)
   const tarea = useTarea(claseId, tareaId)
   const lista = useEntregasDeLaTarea(claseId, tareaId)
-  const raizRef = useRef<HTMLDivElement>(null)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const verMasRef = useRef<HTMLButtonElement>(null)
   const pidiendoMasRef = useRef(false)
@@ -62,10 +65,6 @@ function EntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
     tarea.isError && hayTarea && !errorQueReemplazaLaVista(hayTarea, tarea.error),
     tarea,
     TEXTOS_DETALLE_TAREA.avisoRecargaFallida,
-  )
-  useFocoAlPerderseElControl(
-    raizRef,
-    `${claveDeFocoDeLaTarea(tareaId, tarea)}|${claveDeFocoDeLaTarea("entregas", lista)}`,
   )
 
   useEffect(() => {
@@ -194,9 +193,25 @@ function EntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
     )
   }
 
+  return contenido()
+}
+
+// CHORE-06a (§D-1, Forma C): el marco conserva la raíz de foco y su clave; la clave cambia con la tarea,
+// así que si el control con el foco se desmonta al pasar a otra, el foco va a la raíz y no a <body>. Lee
+// las mismas consultas que el contenido (misma clave, una petición cada una). La key es el :tareaId, un
+// id global que ya implica su clase.
+function EntregasDeLaTarea({ claseId, tareaId }: EntregasDeLaTareaProps) {
+  const tarea = useTarea(claseId, tareaId)
+  const lista = useEntregasDeLaTarea(claseId, tareaId)
+  const raizRef = useRef<HTMLDivElement>(null)
+  useFocoAlPerderseElControl(
+    raizRef,
+    `${claveDeFocoDeLaTarea(tareaId, tarea)}|${claveDeFocoDeLaTarea("entregas", lista)}`,
+  )
+
   return (
     <div ref={raizRef} tabIndex={-1}>
-      {contenido()}
+      <ListaDeEntregasDeLaTarea key={tareaId} claseId={claseId} tareaId={tareaId} />
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { describe, expect, it, vi } from "vitest"
@@ -28,12 +29,21 @@ const estado = vi.hoisted(() => ({
 // la fábrica suma un doble inerte que devuelve un ref vacío, como el botonRef del hook real. No
 // mueve el foco ni toca la consulta; ninguna aserción cambia. Sigue protegiendo lo mismo: los
 // inicios sin error, sin carga y sin datos no afirman vacío ni total.
+// CHORE-06b ronda 0 (C-15 y C-16, §D-R0, Enmiendas 3 y 3b): los inicios pasan a llamar a
+// useAvisoDeRecargaFallida y a useListaConservadaTrasLaPagina de ./hooks (§D-5). Con Vitest 4, leer un
+// export que esta fábrica no devuelve lanza un error, así que la fábrica suma dos dobles inertes: el
+// aviso no hace nada y la lista nunca se conserva (la consulta doblada no tiene error). Los ganchos de
+// la política de recarga vienen de @/components/seccion/hooks, que no se dobla y pide un
+// QueryClientProvider. Ninguna aserción cambia. Sigue protegiendo lo mismo: los inicios sin error, sin
+// carga y sin datos no afirman vacío ni total.
 vi.mock("./hooks", () => ({
   useNombreDeSesion: () => ({ data: "Ana López" }),
   useClasesInscritas: () => estado.consulta,
   useClasesImpartidas: () => estado.consulta,
   useUnirseAClase: () => ({ isPending: false, mutate: vi.fn() }),
   useFocoAlCargarMas: () => ({ current: null }),
+  useAvisoDeRecargaFallida: () => undefined,
+  useListaConservadaTrasLaPagina: () => false,
 }))
 
 const TEXTOS_QUE_AFIRMAN_DATOS = [
@@ -50,9 +60,11 @@ describe("ataque CLASES-a r2: inicios sin datos de la API", () => {
   ] as const) {
     it(`inicio del ${rol}: sin error, sin carga y sin datos, no afirma vacío ni total`, () => {
       render(
-        <MemoryRouter>
-          <Vista />
-        </MemoryRouter>,
+        <QueryClientProvider client={new QueryClient()}>
+          <MemoryRouter>
+            <Vista />
+          </MemoryRouter>
+        </QueryClientProvider>,
       )
       expect(screen.getByText("Hola, Ana López")).toBeInTheDocument()
       for (const texto of TEXTOS_QUE_AFIRMAN_DATOS) {

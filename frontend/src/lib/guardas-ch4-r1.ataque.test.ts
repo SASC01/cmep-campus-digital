@@ -110,14 +110,6 @@ describe("ataque CHORE-04 r1 · formas de llamar a una mutación que la regla es
     )
     expect(sinOpcion.sort()).toEqual(
       [
-        // S-04 (H-2): pulsar la sección activa con la lista en error; destino el chore de foco y navegación.
-        "/src/features/clases/components/respuestas-de-duda.tsx: void respuestas.refetch()",
-        "/src/features/clases/components/seccion-de-recursos.tsx: void recursos.refetch()",
-        "/src/features/clases/components/seccion-de-tema.tsx: void trabajo.refetch()",
-        "/src/features/clases/dudas-view.tsx: void dudas.refetch()",
-        "/src/features/clases/muro-view.tsx: void publicaciones.refetch()",
-        "/src/features/clases/recursos-view.tsx: void temas.refetch()",
-        "/src/features/clases/trabajo-view.tsx: void temas.refetch()",
         // Recargas tras un conflicto, dentro de un manejador que ya guarda su ref.
         "/src/features/clases/editar-recurso-view.tsx: const resultado = await consulta.refetch()",
         "/src/features/tareas/editar-tarea-view.tsx: const resultado = await consulta.refetch()",

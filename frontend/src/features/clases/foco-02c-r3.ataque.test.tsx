@@ -373,7 +373,14 @@ describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más
     expect(document.activeElement).toBe(document.body)
   })
 
-  it("«Ver más avisos» que falla: con el foco en el botón, va al encabezado; si la persona se fue al campo del anuncio, se queda ahí", async () => {
+  // CHORE-06b (C-5 de la ronda 0, §D-5): el 500 de la página siguiente ya no reemplaza el muro por el
+  // MensajeError: la lista se queda y sale un solo aviso con el genérico.
+  const unAvisoConElGenerico = async () => {
+    await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
+    expect(aviso.error).toHaveBeenCalledWith(GENERICO)
+  }
+
+  it("«Ver más avisos» que falla: con el foco en el botón, se queda en el botón (CHORE-06b, §D-5); si la persona se fue al campo del anuncio, se queda ahí", async () => {
     const conDos = () =>
       respuestaJson(200, {
         publicaciones: [publicacion(1), publicacion(2)],
@@ -383,10 +390,12 @@ describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más
     const verMas = await screen.findByRole("button", { name: "Ver más avisos" })
     act(() => verMas.focus())
     fireEvent.click(verMas)
-    await screen.findByText(GENERICO)
+    await unAvisoConElGenerico()
     await esperar(30)
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Avisos" }))
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver más avisos" }))
     cleanup()
+    // Los avisos de la segunda mitad se cuentan desde su propio montaje.
+    aviso.error.mockClear()
 
     montarMuro({ primera: conDos, despues: [error500] })
     const otraVez = await screen.findByRole("button", { name: "Ver más avisos" })
@@ -394,7 +403,7 @@ describe("ataque CLASES-02c r3: la lista del muro cuando la recarga o «Ver más
     fireEvent.click(otraVez)
     const anuncio = screen.getByLabelText("Anuncio")
     act(() => anuncio.focus())
-    await screen.findByText(GENERICO)
+    await unAvisoConElGenerico()
     await esperar(30)
     expect(document.activeElement).toBe(anuncio)
   })

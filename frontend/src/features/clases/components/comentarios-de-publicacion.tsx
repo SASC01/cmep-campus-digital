@@ -3,12 +3,24 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Cargando } from "@/components/cargando"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { formatearFechaHora } from "@/lib/format"
 
-import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_COMENTARIOS } from "../data"
-import { useBorrarComentario, useComentarios, useFilaEnFoco, useFocoAlCargarMas } from "../hooks"
-import { focoPerdido, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
+import { CAPACIDADES_POR_PERSPECTIVA, claveComentarios, TEXTOS_COMENTARIOS } from "../data"
+import {
+  useAvisoDeRecargaFallida,
+  useBorrarComentario,
+  useComentarios,
+  useFilaEnFoco,
+  useFocoAlCargarMas,
+  useListaConservadaTrasLaPagina,
+  useRenovarSiLaPublicacionYaNoEsta,
+} from "../hooks"
+import { focoPerdido, mensajeDeConsultaClases, mensajeDeErrorDeLista, vecinaDeFila } from "../lib"
 import type { Comentario, Perspectiva } from "../types"
 import { FirmaDelAutor } from "./firma-del-autor"
 import { FormularioComentario } from "./formulario-comentario"
@@ -134,6 +146,34 @@ export function ComentariosDePublicacion({
   const idsPrevios = useRef<string[] | undefined>(undefined)
   const filas = comentarios.data?.pages.flatMap((pagina) => pagina.comentarios)
   const ids = filas?.map((comentario) => comentario.id)
+  // CHORE-06b (§D-5, hermano de T-02 de CLASES-03e): si la publicación ya no existe, se renuevan Avisos y
+  // Recursos para que la fila salga; el bloque dice mientras tanto «Esa publicación ya no existe.».
+  useRenovarSiLaPublicacionYaNoEsta(
+    claseId,
+    publicacionId,
+    comentarios.errorUpdateCount,
+    comentarios.error,
+  )
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva los comentarios,
+  // también mientras una recarga los recupera; avisa una vez por fallo, con la publicación como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    claveComentarios(claseId, publicacionId),
+    comentarios.isFetchNextPageError,
+    comentarios.isError,
+    comentarios.errorUpdateCount,
+    comentarios.errorUpdatedAt,
+    comentarios.error,
+  )
+  useAvisoDeRecargaFallida(
+    comentarios.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(comentarios.error),
+    publicacionId,
+  )
+  // CHORE-06b (§D-4): pulsar «Avisos» o «Recursos» estando ahí vuelve a pedir los comentarios abiertos si
+  // están en error o viejos ("Vuelve a abrirlos"), sin cancelar ni duplicar lo que vuela.
+  useRecargarAlPulsarLaSeccion(comentarios)
+  useMarcarViejaSiQuedoEnError(claveComentarios(claseId, publicacionId))
 
   const enfocarComentario = (comentarioId: string): boolean => {
     const fila = document.querySelector<HTMLElement>(`[data-comentario-id="${comentarioId}"]`)
@@ -167,7 +207,7 @@ export function ComentariosDePublicacion({
   })
 
   const contenido = (): ReactNode => {
-    if (comentarios.isError)
+    if (comentarios.isError && !conserva)
       return (
         <MensajeError
           mensaje={mensajeDeErrorDeLista(

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { MemoryRouter } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { establecerToken, limpiarToken } from "@/services/tokenAcceso"
@@ -87,11 +88,13 @@ const renderPublicacion = (
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <PublicacionDelMuro
-        claseId={CLASE_ID}
-        publicacion={props.publicacion ?? publicacion()}
-        perspectiva={props.perspectiva ?? "estudiante"}
-      />
+      <MemoryRouter>
+        <PublicacionDelMuro
+          claseId={CLASE_ID}
+          publicacion={props.publicacion ?? publicacion()}
+          perspectiva={props.perspectiva ?? "estudiante"}
+        />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }

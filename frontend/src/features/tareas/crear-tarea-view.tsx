@@ -2,7 +2,11 @@ import { Link, useNavigate } from "react-router"
 
 import { ConClaseDeLaRuta } from "@/components/clase/con-clase-de-la-ruta"
 import { TEXTOS_DE_LA_CLASE } from "@/components/clase/data"
-import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/components/clase/hooks"
+import {
+  useGeneracionDeSoloLectura,
+  useMontado,
+  useSoloLecturaDeLaClase,
+} from "@/components/clase/hooks"
 import { MensajeError } from "@/components/mensaje-error"
 import { buttonVariants } from "@/components/ui/button-variants"
 
@@ -25,10 +29,13 @@ function CrearTareaDeLaClase({ claseId }: CrearTareaDeLaClaseProps) {
   // guardado de un formulario de una generación anterior no navega: el aviso lo da el gancho.
   const soloLectura = useSoloLecturaDeLaClase()
   const { generacion, sigueVigente } = useGeneracionDeSoloLectura()
+  // CHORE-06a (§D-1, Forma A): la vista lleva key por la clase. Un guardado de otra clase que llega con
+  // esta vista ya desmontada no navega al detalle de su tarea; el aviso lo da el gancho.
+  const montado = useMontado()
 
   const handleGuardar = async (datos: CrearTarea) => {
     const { tarea } = await crear.mutateAsync(datos)
-    if (!sigueVigente(generacion)) return
+    if (!montado.current || !sigueVigente(generacion)) return
     navigate(`${base}/tareas/${tarea.id}`)
   }
 
@@ -57,6 +64,8 @@ function CrearTareaDeLaClase({ claseId }: CrearTareaDeLaClaseProps) {
 
 export function CrearTareaView() {
   return (
-    <ConClaseDeLaRuta>{(claseId) => <CrearTareaDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+    <ConClaseDeLaRuta>
+      {(claseId) => <CrearTareaDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
   )
 }

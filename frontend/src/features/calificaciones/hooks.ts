@@ -92,6 +92,21 @@ export const useMarcarViejoElGradebook = (
   }, [actual, claseId, ocurrencia, queryClient])
 }
 
+// CHORE-06b (§D-6, N-52; Enmienda 4b): marca viejas todas las ventanas de la clase, incluida la que está
+// a la vista, sin pedirlas. La usa el gradebook al pulsar «Calificaciones» y al desmontarse, si la frase
+// "La clase cambió…" se vio en esa vista y todavía no se marcó (aunque ya se haya regresado a otra
+// ventana): así "Alumnos siguientes" vuelve a pedir la ventana vacía en lugar de servirla de la caché.
+// Con la vista quieta no se llama (useMarcarViejoElGradebook sigue sin tocar la de la vista).
+export const useMarcarViejasLasVentanas = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: clavePrefijoDeCalificaciones(claseId),
+      refetchType: "none",
+    })
+  }, [claseId, queryClient])
+}
+
 export { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
 
 // T-08: marca vieja la primera ventana del gradebook y, si es la que se observa, la vuelve a pedir;

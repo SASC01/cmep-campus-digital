@@ -78,8 +78,10 @@ function DetalleDeLaTarea({ claseId, tareaId }: DetalleDeLaTareaProps) {
 
     const { tarea } = consulta.data
 
+    // CHORE-06a (§D-1): lo de abajo (la confirmación de borrar, lo elegido para entregar, la de anular y
+    // el texto del hilo) es de esta tarea; con otra tarea se monta de nuevo.
     return (
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div key={tarea.id} className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

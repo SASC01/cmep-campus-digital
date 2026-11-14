@@ -7,7 +7,10 @@ import { useGeneracionDeSoloLectura, useSoloLecturaDeLaClase } from "@/component
 import { esClaseArchivada } from "@/components/clase/lib"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,7 +19,7 @@ import { baseDeClase } from "@/lib/ruta-de-clase"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { FormularioTema } from "./components/formulario-tema"
 import { SeccionDeTema } from "./components/seccion-de-tema"
-import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_TRABAJO } from "./data"
+import { CAPACIDADES_POR_PERSPECTIVA, claveTemasDeLaSeccion, TEXTOS_TRABAJO } from "./data"
 import {
   useAvisoDeRecargaFallida,
   useFilaEnFoco,
@@ -27,6 +30,7 @@ import {
 } from "./hooks"
 import {
   elementosEnTotalDelTema,
+  errorQueRedirigeElCliente,
   errorQuitaLaVista,
   focoPerdido,
   mensajeDeConsultaClases,
@@ -79,10 +83,12 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   const ordenDeLaCache = useOrdenDeTemasEnVuelo(claseId)
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
   const nuevoTemaRef = useRef<HTMLButtonElement>(null)
-  const [creando, setCreando] = useState(false)
   // T-01 (ronda 1 de 01d1): al pasar a solo lectura, lo que estaba abierto se cierra aquí mismo, para que
   // al volver a activa (restaurada en esta u otra sesión) no reaparezca abierto sin que nadie lo pida.
-  if (soloLectura && creando) setCreando(false)
+  // CHORE-06a (§D-1): «Nuevo tema» es de su clase; al pasar a otra o a solo lectura, se cierra.
+  const [creandoEn, setCreandoEn] = useState<string | null>(null)
+  if (creandoEn !== null && (creandoEn !== claseId || soloLectura)) setCreandoEn(null)
+  const creando = creandoEn === claseId
   // CHORE-04 (§D-4 bis): el orden propio guarda su clase; la vista sobrevive al cambio de clase.
   const [ordenPropio, setOrdenPropio] = useState<OrdenPropioEnVuelo | null>(null)
   const focoTrasOrdenarRef = useRef<OrdenPropioEnVuelo | null>(null)
@@ -105,17 +111,20 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
   // Una recarga fallida que conserva la vista avisa una vez por fallo; la que la reemplaza ya lo dice.
   useAvisoDeRecargaFallida(
     temas.errorUpdateCount,
-    temas.data !== undefined && !errorQuitaLaVista(temas.error) && !esClaseArchivada(temas.error),
+    temas.data !== undefined &&
+      !errorQuitaLaVista(temas.error) &&
+      !esClaseArchivada(temas.error) &&
+      !errorQueRedirigeElCliente(temas.error),
     TEXTOS_TRABAJO.recargaFallida,
+    claseId,
   )
 
-  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí no desmonta la vista. Si la
-  // lista de temas está en error, la vuelve a pedir; cada tema en error lo hace por su cuenta
-  // (SeccionDeTema). Lo que está sano no se pide (S-10).
-  useAlPulsarLaSeccionActiva(() => {
-    if (!temas.isError) return
-    void temas.refetch()
-  })
+  // R2 (§D-10 a, N-54): pulsar "Actividades de aprendizaje" estando ahí no desmonta la vista; cada tema
+  // se recarga por su cuenta (SeccionDeTema). CHORE-06b (§D-4, O-03): la lista de temas se vuelve a pedir
+  // si está en error o vieja (marcada tras «Subir» o «Bajar»), sin cancelar ni duplicar lo que vuela;
+  // también al saltar con el historial a Actividades de otra clase (DH-10). Sana y fresca, nada.
+  useRecargarAlPulsarLaSeccion(temas)
+  useMarcarViejaSiQuedoEnError(claveTemasDeLaSeccion(claseId, "actividades"))
 
   // "Nuevo tema" abre el formulario; al cerrarlo (guardado o cancelado), el foco vuelve a "Nuevo tema".
   useEffect(() => {
@@ -212,7 +221,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
 
   const cerrarFormulario = () => {
     focoAlCerrarRef.current = true
-    setCreando(false)
+    setCreandoEn(null)
   }
 
   const contenido = (): ReactNode => {
@@ -237,7 +246,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
               : elementosEnTotalDelTema(temasEnTotal.data, temasEnTotal.isError, seccion.tema.id)
           return (
             <SeccionDeTema
-              key={seccion.clave}
+              key={`${claseId}:${seccion.clave}`}
               claseId={claseId}
               base={base}
               seccion={seccion}
@@ -274,7 +283,7 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
                 ref={nuevoTemaRef}
                 type="button"
                 variant="outline"
-                onClick={() => setCreando(true)}
+                onClick={() => setCreandoEn(claseId)}
               >
                 {TEXTOS_TRABAJO.nuevoTema}
               </Button>

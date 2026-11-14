@@ -58,11 +58,14 @@ interface EntregaDelAlumnoProps {
 // alumno ya no existen, o se perdió el acceso) la reemplaza por su mensaje, con la misma regla que el
 // detalle; con datos en caché, una recarga fallida de la entrega deja ver la última. Si una recarga
 // quita el control con el foco, el foco va a la raíz.
-function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps) {
+// CHORE-06a (§D-1, Forma C; Enmienda 1, M-01): este es el contenido, montado con key por la tarea y el
+// alumno juntos (el mismo alumno tiene entrega en cada tarea) debajo de la raíz del marco. Los puntos
+// escritos, la versión, los reinicios y la generación son de esta entrega: un salto del historial a otra
+// monta otro contenido, y lo que llega de esta (calificada o un conflicto) cae aquí, ya desmontado.
+function EntregaDeUnAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps) {
   const { perspectiva, base } = useRutaDeLaClase(claseId)
   const tarea = useTarea(claseId, tareaId)
   const consulta = useEntregaDeAlumno(claseId, tareaId, alumnoId)
-  const raizRef = useRef<HTMLDivElement>(null)
   const hayTarea = tarea.data !== undefined
   const hayEntrega = consulta.data !== undefined
   // CALIFICACIONES-01c (§D-12.7): cada reinicio vuelve a montar el panel de calificación (con la
@@ -102,10 +105,6 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
     tarea,
     TEXTOS_DETALLE_TAREA.avisoRecargaFallida,
     falloDeLaTarea && callaElFallo,
-  )
-  useFocoAlPerderseElControl(
-    raizRef,
-    `${claveDeFocoDeLaTarea(tareaId, tarea)}|${claveDeFocoDeLaTarea(alumnoId, consulta)}`,
   )
 
   // §D-12.7 (Enmienda 1, N-04; N-11): tras un 409 de calificar, se vuelve a pedir la entrega y, si el
@@ -245,9 +244,29 @@ function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps)
     )
   }
 
+  return contenido()
+}
+
+// CHORE-06a (§D-1, Forma C): el marco conserva la raíz de foco y su clave compuesta; la clave cambia con
+// la tarea o el alumno, así que si el control con el foco se desmonta al pasar a otra entrega, el foco va
+// a la raíz y no a <body>. Lee las mismas consultas que el contenido (misma clave, una petición).
+function EntregaDelAlumno({ claseId, tareaId, alumnoId }: EntregaDelAlumnoProps) {
+  const tarea = useTarea(claseId, tareaId)
+  const consulta = useEntregaDeAlumno(claseId, tareaId, alumnoId)
+  const raizRef = useRef<HTMLDivElement>(null)
+  useFocoAlPerderseElControl(
+    raizRef,
+    `${claveDeFocoDeLaTarea(tareaId, tarea)}|${claveDeFocoDeLaTarea(alumnoId, consulta)}`,
+  )
+
   return (
     <div ref={raizRef} tabIndex={-1}>
-      {contenido()}
+      <EntregaDeUnAlumno
+        key={`${tareaId}:${alumnoId}`}
+        claseId={claseId}
+        tareaId={tareaId}
+        alumnoId={alumnoId}
+      />
     </div>
   )
 }

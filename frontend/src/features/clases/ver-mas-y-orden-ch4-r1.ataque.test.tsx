@@ -15,7 +15,7 @@ import {
   TEXTOS_PUBLICACION,
   TEXTOS_TRABAJO,
 } from "./data"
-import { mensajeDeErrorDeLista } from "./lib"
+import { mensajeDeConsultaClases, mensajeDeErrorDeLista } from "./lib"
 
 // Tester, ronda 1 de CHORE-04 (puntos 3 y 4 del manager). El andamiaje (doble del servidor con
 // interceptores, montaje con `rutas` de app/router y las defaultOptions de app/providers.tsx, y las
@@ -385,10 +385,31 @@ const errorDeCursor = () => errorApi(400, "VALIDACION", MENSAJE_DE_CURSOR)
 const ERROR_DE_CURSOR = new ApiError("VALIDACION", MENSAJE_DE_CURSOR, 400)
 
 // Las fallas de una página que la Enmienda 4 deja sin caso propio (punto 3 del manager).
-const FALLAS: readonly (readonly [string, Respuesta, ApiError])[] = [
+// CHORE-06b (C-3 de la ronda 0, §D-5, DH-02 a): la fila "red" pasa a conservar la lista con un aviso;
+// la del 400 de cursor sigue reemplazándola con su frase y su caso no cambia.
+const FALLAS_QUE_CONSERVAN: readonly (readonly [string, Respuesta, ApiError])[] = [
   ["red", errorDeRed, ERROR_DE_RED],
+]
+const FALLAS: readonly (readonly [string, Respuesta, ApiError])[] = [
   ["400 VALIDACION de cursor", errorDeCursor, ERROR_DE_CURSOR],
 ]
+
+// CHORE-06b (C-3, como CH4-30 (c) y CH4-31 (c) de la lista cerrada): tras el fallo de la página por la
+// red (con su reintento), la lista se queda con sus filas, un solo aviso con mensajeDeConsultaClases del
+// error, ningún MensajeError, el «Ver más» sigue a la vista y nada queda en espera.
+const comprobarFalloQueConservaLaLista = async (
+  nombreDelBoton: string,
+  texto: string,
+  filasALaVista: () => void,
+) => {
+  await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1), { timeout: 8000 })
+  expect(aviso.error.mock.calls[0]?.[0]).toBe(texto)
+  expect(screen.queryAllByRole("alert")).toHaveLength(0)
+  filasALaVista()
+  const boton = screen.getByRole("button", { name: nombreDelBoton })
+  expect(boton).not.toHaveAttribute("aria-busy", "true")
+  expect(screen.queryAllByRole("button", { busy: true })).toHaveLength(0)
+}
 
 const RUTA_COMENTARIOS = `/api/clases/${A}/publicaciones/${PUBLICACION}/comentarios`
 const esPaginaDeComentarios = ({ metodo, url }: Llamada) =>
@@ -434,6 +455,34 @@ describe("ataque CHORE-04 r1 · el fallo de una página de «Ver más comentario
       await esperarUnMomento(1500)
       expect(contar(esPaginaDeComentarios)).toBe(2)
       expect(screen.getAllByRole("alert")).toHaveLength(1)
+      expect(screen.queryAllByRole("button", { busy: true })).toHaveLength(0)
+    },
+  )
+
+  it.each(FALLAS_QUE_CONSERVAN)(
+    "ATQ-CH4-20: con %s, salen las dos peticiones de la página y ninguna más, la lista se queda con sus comentarios, un solo aviso con su texto, ningún MensajeError, «Ver más comentarios» sigue a la vista y nada queda en espera (CHORE-06b, §D-5)",
+    async (_falla, respuesta, error) => {
+      interceptarUnaVez(esPaginaDeComentarios, respuesta)
+      interceptarUnaVez(esPaginaDeComentarios, respuesta)
+      const { verMas } = await abrirComentarios()
+
+      dosClicsEnElMismoRender(verMas)
+
+      const comentariosALaVista = () => {
+        expect(screen.getByText("Comentario 01")).toBeInTheDocument()
+        expect(screen.getByText("Comentario 02")).toBeInTheDocument()
+      }
+      await comprobarFalloQueConservaLaLista(
+        TEXTOS_COMENTARIOS.verMas,
+        mensajeDeConsultaClases(error),
+        comentariosALaVista,
+      )
+      await esperarUnMomento(1500)
+      expect(contar(esPaginaDeComentarios)).toBe(2)
+      expect(aviso.error).toHaveBeenCalledTimes(1)
+      expect(screen.queryAllByRole("alert")).toHaveLength(0)
+      comentariosALaVista()
+      expect(screen.getByRole("button", { name: TEXTOS_COMENTARIOS.verMas })).toBeInTheDocument()
       expect(screen.queryAllByRole("button", { busy: true })).toHaveLength(0)
     },
   )
@@ -520,6 +569,47 @@ describe("ataque CHORE-04 r1 · el fallo de una página de «Ver más clases» (
       await esperarUnMomento(1500)
       expect(contar(delInicio(inicio.api, true))).toBe(2)
       expect(screen.getAllByRole("alert")).toHaveLength(1)
+      expect(screen.queryAllByRole("button", { busy: true })).toHaveLength(0)
+    },
+  )
+
+  it.each(
+    INICIOS.flatMap((inicio) =>
+      FALLAS_QUE_CONSERVAN.map(
+        ([falla, respuesta, error]) => [inicio.rol, falla, inicio, respuesta, error] as const,
+      ),
+    ),
+  )(
+    "ATQ-CH4-22: %s con %s, salen las dos peticiones de la página y ninguna más, la lista se queda con sus clases, un solo aviso con su texto, sin MensajeError del panel ni el error en el título del bloque destacado, «Ver más clases» sigue a la vista y nada queda en espera (CHORE-06b, §D-5)",
+    async (_rol, _falla, inicio, respuesta, error) => {
+      servidor.rol = inicio.rol
+      interceptarUnaVez(delInicio(inicio.api, true), respuesta)
+      interceptarUnaVez(delInicio(inicio.api, true), respuesta)
+      await montar([inicio.ruta])
+      const verMas = await screen.findByRole("button", { name: TEXTOS_PANEL.verMas }, ESPERA)
+
+      dosClicsEnElMismoRender(verMas)
+
+      // Las tarjetas del panel, no las de la barra lateral (que trae las tres clases): el panel es el
+      // contenedor de «Ver más clases».
+      const clasesDelPanelALaVista = () => {
+        const panel = screen.getByRole("button", { name: TEXTOS_PANEL.verMas }).parentElement
+        if (panel === null) throw new Error("Precondición: «Ver más clases» está dentro del panel")
+        expect(within(panel).getByText("Clase 01")).toBeInTheDocument()
+        expect(within(panel).getByText("Clase 02")).toBeInTheDocument()
+      }
+      await comprobarFalloQueConservaLaLista(
+        TEXTOS_PANEL.verMas,
+        mensajeDeConsultaClases(error),
+        clasesDelPanelALaVista,
+      )
+      expect(screen.queryByText(TEXTOS_PANEL.error)).toBeNull()
+      await esperarUnMomento(1500)
+      expect(contar(delInicio(inicio.api, true))).toBe(2)
+      expect(aviso.error).toHaveBeenCalledTimes(1)
+      expect(screen.queryAllByRole("alert")).toHaveLength(0)
+      expect(screen.queryByText(TEXTOS_PANEL.error)).toBeNull()
+      clasesDelPanelALaVista()
       expect(screen.queryAllByRole("button", { busy: true })).toHaveLength(0)
     },
   )

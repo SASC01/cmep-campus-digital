@@ -738,6 +738,47 @@ export const avisoDeRecargaFallidaDelRecurso = (error: unknown): string => {
   return TEXTOS_EDITAR_RECURSO.recargaServidor
 }
 
+// CHORE-06b (§D-5, DH-02 a): con filas a la vista, el fallo de la página siguiente por la red o el servidor
+// (sin conexión o 5xx) no quita lo cargado: la lista se queda y «Ver más» sigue para repetir. Cualquier 4xx
+// (el cursor vencido, un error que quita el acceso o con que apiClient redirige, la publicación o la duda
+// que ya no existe) reemplaza la lista como antes.
+export const conservaLaListaTrasLaPagina = (consulta: {
+  isFetchNextPageError: boolean
+  error: unknown
+}): boolean =>
+  consulta.isFetchNextPageError &&
+  (!esApiError(consulta.error) ||
+    consulta.error.codigo === "SIN_CONEXION" ||
+    consulta.error.estado >= 500)
+
+const traeLaClaseEnSusFilas = (clases: unknown, claseId: string): boolean =>
+  Array.isArray(clases) &&
+  clases.some(
+    (clase: unknown) =>
+      typeof clase === "object" && clase !== null && "id" in clase && clase.id === claseId,
+  )
+
+// CHORE-06b (§D-6, fila 361): si lo que guarda la caché bajo CLAVE_CLASES_INSCRITAS o
+// CLAVE_CLASES_IMPARTIDAS trae la clase. Reconoce las dos formas de esas consultas (las páginas de los
+// inicios, con `clases` en cada una, y la página única de la barra); cualquier otra forma es falso.
+export const listaTraeLaClase = (dato: unknown, claseId: string): boolean => {
+  if (typeof dato !== "object" || dato === null) return false
+  if ("pages" in dato) {
+    return (
+      Array.isArray(dato.pages) &&
+      dato.pages.some(
+        (pagina: unknown) =>
+          typeof pagina === "object" &&
+          pagina !== null &&
+          "clases" in pagina &&
+          traeLaClaseEnSusFilas(pagina.clases, claseId),
+      )
+    )
+  }
+  if ("clases" in dato) return traeLaClaseEnSusFilas(dato.clases, claseId)
+  return false
+}
+
 // CLASES-03e (T-02 de la ronda 1): la duda ya no existe (404 DUDA_NO_ENCONTRADA).
 export const esDudaNoEncontrada = (error: unknown): boolean =>
   esApiError(error) && error.codigo === "DUDA_NO_ENCONTRADA"

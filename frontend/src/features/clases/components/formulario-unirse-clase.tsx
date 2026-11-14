@@ -10,7 +10,12 @@ import { Label } from "@/components/ui/label"
 
 import { TEXTOS_UNIRSE } from "../data"
 import { useUnirseAClase } from "../hooks"
-import { errorDelCampoCodigo, erroresPorCampo, mensajeDeErrorClases } from "../lib"
+import {
+  errorDelCampoCodigo,
+  erroresPorCampo,
+  errorQueRedirigeElCliente,
+  mensajeDeErrorClases,
+} from "../lib"
 import type { ErroresFormulario } from "../types"
 
 // Id fijo: el vacío de PanelMisClases le lleva el foco (PR-A18g), sin contexto compartido.
@@ -49,7 +54,8 @@ export function FormularioUnirseClase() {
         // N-04 (§D-B4 bis): solo CODIGO_INVALIDO y un VALIDACION de "codigo" son errores del campo,
         // sin el prefijo técnico "codigo:" (T-17). Cualquier otro (un 500, "sin conexión",
         // ACCESO_RESTRINGIDO) avisa con un toast y no marca el campo, igual que FormularioClase
-        // (T-19).
+        // (T-19). CHORE-06a (§D-3): con un error con que apiClient ya redirige, ni aviso ni campo.
+        if (errorQueRedirigeElCliente(error)) return
         const errorDeCampo = errorDelCampoCodigo(error)
         if (errorDeCampo === null) {
           toast.error(mensajeDeErrorClases(error))

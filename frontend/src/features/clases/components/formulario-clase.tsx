@@ -13,7 +13,12 @@ import { Input } from "@/components/ui/input"
 
 import { TEXTOS_FORMULARIO_CLASE } from "../data"
 import { useCrearClase, useEditarClase } from "../hooks"
-import { erroresDeLaClaseDeApi, erroresPorCampo, mensajeDeErrorClases } from "../lib"
+import {
+  erroresDeLaClaseDeApi,
+  erroresPorCampo,
+  errorQueRedirigeElCliente,
+  mensajeDeErrorClases,
+} from "../lib"
 import type { CandidatoMaestro, ErroresFormulario, MaestroDeLista } from "../types"
 import { SelectorDeMaestros } from "./selector-de-maestros"
 
@@ -72,7 +77,9 @@ export function FormularioClase({ modo, claseId, valoresIniciales }: FormularioC
   // "nombre". T-19 (ronda 3 del tester): un error que no es de un campo (500, sin conexión,
   // SIN_ACCESO_A_LA_CLASE, MAESTRO_NO_ENCONTRADO) no marca ningún campo como inválido; se avisa como
   // error del formulario.
+  // CHORE-06a (§D-3): con un error con que apiClient ya redirige no se avisa, como al duplicar.
   const alFallar = (error: unknown) => {
+    if (errorQueRedirigeElCliente(error)) return
     const erroresDeCampo = erroresDeLaClaseDeApi(error, modo)
     if (erroresDeCampo) {
       setErrores(erroresDeCampo)

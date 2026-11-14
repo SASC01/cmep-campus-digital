@@ -5,16 +5,32 @@ import { Cargando } from "@/components/cargando"
 import { useSoloLecturaDeLaClase } from "@/components/clase/hooks"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
-import { useAlPulsarLaSeccionActiva } from "@/components/seccion/hooks"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { ElementoDeDuda } from "./components/elemento-de-duda"
 import { FormularioDuda } from "./components/formulario-duda"
-import { CAPACIDADES_POR_PERSPECTIVA, TEXTOS_DUDAS } from "./data"
-import { useDudas, useFilaEnFoco, useFocoAlCargarMas, useFocoAlPasarAError } from "./hooks"
-import { focoPerdido, mensajeDeErrorDeLista, perspectivaDeRuta, vecinaDeFila } from "./lib"
+import { CAPACIDADES_POR_PERSPECTIVA, claveDudas, TEXTOS_DUDAS } from "./data"
+import {
+  useAvisoDeRecargaFallida,
+  useDudas,
+  useFilaEnFoco,
+  useFocoAlCargarMas,
+  useFocoAlPasarAError,
+  useListaConservadaTrasLaPagina,
+} from "./hooks"
+import {
+  focoPerdido,
+  mensajeDeConsultaClases,
+  mensajeDeErrorDeLista,
+  perspectivaDeRuta,
+  vecinaDeFila,
+} from "./lib"
 
 interface DudasDeLaClaseProps {
   claseId: string
@@ -35,8 +51,25 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
   const dudas = useDudas(claseId)
   const idTitulo = useId()
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
-  // T-04 (02c): si la lista se recarga con error después de una acción, el foco va al encabezado.
-  useFocoAlPasarAError(dudas.isError, dudas.data !== undefined, claseId, encabezadoRef)
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva la lista, también
+  // mientras una recarga la recupera; avisa una vez por fallo, con la clase como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    claveDudas(claseId),
+    dudas.isFetchNextPageError,
+    dudas.isError,
+    dudas.errorUpdateCount,
+    dudas.errorUpdatedAt,
+    dudas.error,
+  )
+  useAvisoDeRecargaFallida(
+    dudas.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(dudas.error),
+    claseId,
+  )
+  // T-04 (02c): si la lista se recarga con error después de una acción, el foco va al encabezado. Con
+  // la lista conservada no hay paso a error (CHORE-06b, M-02).
+  useFocoAlPasarAError(dudas.isError && !conserva, dudas.data !== undefined, claseId, encabezadoRef)
   const filaEnFocoRef = useFilaEnFoco("data-duda-id")
   // El control de la fila que tenía el foco: "Marcar como resuelta" lleva al de la vecina; cualquier
   // otro, a su "Borrar duda".
@@ -47,17 +80,19 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
   const ids = filas?.map((duda) => duda.id)
 
   const enfocarDuda = (id: string): boolean => {
+    // CHORE-06a (ronda 2): tras un cambio de clase, «Ver más» de la anterior no lleva el foco a una
+    // duda de la nueva (O-14): sin fila, el gancho va al encabezado de la lista.
+    if (clasePrevia.current !== claseId) return false
     const fila = document.querySelector<HTMLElement>(`[data-duda-id="${id}"]`)
     fila?.focus()
     return fila !== null
   }
 
-  // R4 y R9 (§D-10 a, N-54): pulsar "Dudas" estando ahí vuelve a pedir la lista desde la primera página
-  // si está en error (el cursor ya no existe o la primera carga falló). Con la lista sana no hace nada.
-  useAlPulsarLaSeccionActiva(() => {
-    if (!dudas.isError) return
-    void dudas.refetch()
-  })
+  // R4 y R9 (§D-10 a, N-54): pulsar "Dudas" estando ahí vuelve a pedir la lista desde la primera página.
+  // CHORE-06b (§D-4): si está en error o vieja, sin cancelar ni duplicar lo que vuela; también al saltar
+  // con el historial a Dudas de otra clase (DH-10). Sana y fresca, nada.
+  useRecargarAlPulsarLaSeccion(dudas)
+  useMarcarViejaSiQuedoEnError(claveDudas(claseId))
 
   // "Ver más dudas" se desmonta con el foco dentro al cargar la última página (§7.14): el foco va a la
   // primera duda nueva o, si no llegó ninguna, al encabezado.
@@ -108,7 +143,7 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
   }
 
   const contenido = (): ReactNode => {
-    if (dudas.isError) {
+    if (dudas.isError && !conserva) {
       return (
         <MensajeError
           mensaje={mensajeDeErrorDeLista(dudas.error, TEXTOS_DUDAS.cambioMientrasLasVeias)}
@@ -163,7 +198,9 @@ function DudasDeLaClase({ claseId }: DudasDeLaClaseProps) {
         </h2>
         {!soloLectura && <p className="text-small text-muted-foreground">{TEXTOS_DUDAS.frase}</p>}
       </div>
-      {capacidades.formularioComentario && !soloLectura && <FormularioDuda claseId={claseId} />}
+      {capacidades.formularioComentario && !soloLectura && (
+        <FormularioDuda key={claseId} claseId={claseId} />
+      )}
       {contenido()}
     </section>
   )

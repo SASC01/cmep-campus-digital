@@ -4,6 +4,10 @@ import { useLocation } from "react-router"
 import { Cargando } from "@/components/cargando"
 import { EstadoVacio } from "@/components/estado-vacio"
 import { MensajeError } from "@/components/mensaje-error"
+import {
+  useMarcarViejaSiQuedoEnError,
+  useRecargarAlPulsarLaSeccion,
+} from "@/components/seccion/hooks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
@@ -11,8 +15,14 @@ import { AlumnosView } from "./alumnos-view"
 import { ConClaseDeLaRuta } from "./components/con-clase-de-la-ruta"
 import { ListaMaestrosDeClase } from "./components/lista-maestros-de-clase"
 import { ListaPersonas } from "./components/lista-personas"
-import { TEXTOS_PERSONAS } from "./data"
-import { useClase, useFocoAlCargarMas, usePersonas } from "./hooks"
+import { clavePersonas, TEXTOS_PERSONAS } from "./data"
+import {
+  useAvisoDeRecargaFallida,
+  useClase,
+  useFocoAlCargarMas,
+  useListaConservadaTrasLaPagina,
+  usePersonas,
+} from "./hooks"
 import {
   etiquetaDeMaestros,
   mensajeDeConsultaClases,
@@ -42,6 +52,25 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
     },
     () => encabezadoRef.current?.focus(),
   )
+  // CHORE-06b (§D-5, DH-02 a): el fallo de la página siguiente (red o 5xx) conserva la lista, también
+  // mientras una recarga la recupera; avisa una vez por fallo, con la clase como clave.
+  const conserva = useListaConservadaTrasLaPagina(
+    clavePersonas(claseId),
+    personas.isFetchNextPageError,
+    personas.isError,
+    personas.errorUpdateCount,
+    personas.errorUpdatedAt,
+    personas.error,
+  )
+  useAvisoDeRecargaFallida(
+    personas.errorUpdateCount,
+    conserva,
+    mensajeDeConsultaClases(personas.error),
+    claseId,
+  )
+  // CHORE-06b (§D-4): pulsar «Personas» estando ahí vuelve a pedir la lista si está en error o vieja.
+  useRecargarAlPulsarLaSeccion(personas)
+  useMarcarViejaSiQuedoEnError(clavePersonas(claseId))
 
   // Antes de la primera carga no hay vista que conservar: solo el error o el cargando.
   if (personas.data === undefined) {
@@ -51,14 +80,16 @@ function PersonasDeLaClase({ claseId }: PersonasDeLaClaseProps) {
 
   const primera = personas.data?.pages[0]
   const ultima = personas.data?.pages.at(-1)
-  const cargada = !personas.isError && primera !== undefined && ultima !== undefined
+  const cargada = primera !== undefined && ultima !== undefined && (!personas.isError || conserva)
   const alumnos = cargada ? personas.data?.pages.flatMap((pagina) => pagina.alumnos) : undefined
 
   // T-27: después de la primera carga, el encabezado "Alumnos" queda montado en todos los estados
   // de la vista (error, cargando, vacío y datos): si la consulta de la página siguiente falla, el foco que estaba en "Ver más
   // alumnos" tiene a dónde ir. Estados en orden: error → cargando → vacío → datos.
   const contenido = (): ReactNode => {
-    if (personas.isError) return <MensajeError mensaje={mensajeDeConsultaClases(personas.error)} />
+    if (personas.isError && !conserva) {
+      return <MensajeError mensaje={mensajeDeConsultaClases(personas.error)} />
+    }
     if (personas.isLoading || !alumnos) return <Cargando />
     if (alumnos.length === 0) return <EstadoVacio titulo={TEXTOS_PERSONAS.vacio} />
     return (
@@ -187,5 +218,9 @@ export function PersonasView() {
     )
   }
   // El :claseId lo lee ConClaseDeLaRuta (§D-C5 bis).
-  return <ConClaseDeLaRuta>{(claseId) => <PersonasDeLaClase claseId={claseId} />}</ConClaseDeLaRuta>
+  return (
+    <ConClaseDeLaRuta>
+      {(claseId) => <PersonasDeLaClase key={claseId} claseId={claseId} />}
+    </ConClaseDeLaRuta>
+  )
 }

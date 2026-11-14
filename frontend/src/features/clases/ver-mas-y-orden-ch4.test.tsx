@@ -15,7 +15,7 @@ import {
   TEXTOS_PUBLICACION,
   TEXTOS_TRABAJO,
 } from "./data"
-import { mensajeDeErrorDeLista, ordenDeLasVariables } from "./lib"
+import { mensajeDeConsultaClases, ordenDeLasVariables } from "./lib"
 
 // CHORE-04 (§D-3, §D-4 y §D-4 bis; filas 27 a 29 y H-1): «Ver más comentarios», «Ver más clases» de los
 // dos inicios, «Reintentar» de la lista de clases de la barra y «Subir»/«Bajar» de los temas entre
@@ -65,12 +65,19 @@ const errorApi = (estado: number, codigo: string, mensaje = "mensaje del servido
 const error500 = () => errorApi(500, "ERROR_INTERNO")
 const ERROR_500 = new ApiError("ERROR_INTERNO", "mensaje del servidor", 500)
 
-// CH4-30 (c) y CH4-31 (c): tras el fallo de una página (con su reintento), un solo MensajeError con el
-// texto esperado, el «Ver más» ya no está y nada queda en espera.
+// CH4-30 (c) y CH4-31 (c), CHORE-06b (§D-5, DH-02 a): tras el fallo de una página (con su reintento), la
+// lista se queda, un solo aviso con el texto esperado, ningún MensajeError, y el «Ver más» sigue a la
+// vista y fuera de espera, sin nada más en espera.
 const comprobarFalloDeLaPagina = async (nombreDelBoton: string, texto: string) => {
-  await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(1), { timeout: 8000 })
-  expect(screen.getByRole("alert")).toHaveTextContent(texto)
-  expect(screen.queryByRole("button", { name: nombreDelBoton })).toBeNull()
+  await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1), { timeout: 8000 })
+  expect(aviso.error.mock.calls[0]?.[0]).toBe(texto)
+  expect(screen.queryByRole("alert")).toBeNull()
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: nombreDelBoton })).not.toHaveAttribute(
+      "aria-busy",
+      "true",
+    ),
+  )
   expect(screen.queryAllByRole("button", { busy: true })).toHaveLength(0)
 }
 
@@ -392,21 +399,21 @@ describe("CHORE-04 · «Ver más comentarios»", () => {
     expect(llamadas.filter(esPagina)[0]?.url.searchParams.get("cursor")).toBe(idComentario(4))
   })
 
-  it("CH4-30 (c): si la página falla, salen sus dos peticiones y ninguna más, la lista se reemplaza por un solo MensajeError, «Ver más comentarios» ya no está y nada queda en espera", async () => {
+  it("CH4-30 (c): si la página falla, salen sus dos peticiones y ninguna más, la lista se queda con sus comentarios, un solo aviso, «Ver más comentarios» sigue a la vista y nada queda en espera (CHORE-06b, §D-5)", async () => {
     interceptarUnaVez(esPagina, error500)
     interceptarUnaVez(esPagina, error500)
     const { verMas } = await abrirComentarios()
 
     fireEvent.click(verMas)
 
-    await comprobarFalloDeLaPagina(
-      TEXTOS_COMENTARIOS.verMas,
-      mensajeDeErrorDeLista(ERROR_500, TEXTOS_COMENTARIOS.cambioMientrasLosVeias),
-    )
+    await comprobarFalloDeLaPagina(TEXTOS_COMENTARIOS.verMas, mensajeDeConsultaClases(ERROR_500))
+    expect(screen.getByText("Comentario 01")).toBeInTheDocument()
+    expect(screen.getByText("Comentario 02")).toBeInTheDocument()
     // El reintento (retry: 1) ya salió; después de esperar no sale ninguna petición más.
     await esperarUnMomento(1500)
     expect(contar(esPagina)).toBe(2)
-    expect(screen.getAllByRole("alert")).toHaveLength(1)
+    expect(aviso.error).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("alert")).toBeNull()
   })
 })
 
@@ -543,7 +550,7 @@ describe("CHORE-04 · «Ver más clases» de los dos inicios", () => {
   )
 
   it.each(INICIOS)(
-    "CH4-31 (c): $rol, si la página falla, salen sus dos peticiones y ninguna más, la lista se reemplaza por un solo MensajeError del panel, «Ver más clases» ya no está y nada queda en espera",
+    "CH4-31 (c): $rol, si la página falla, salen sus dos peticiones y ninguna más, la lista se queda, un solo aviso, sin MensajeError del panel ni el error en el título del bloque destacado, «Ver más clases» sigue a la vista y nada queda en espera (CHORE-06b, §D-5)",
     async (inicio) => {
       servidor.rol = inicio.rol
       interceptarUnaVez(delInicio(inicio.api, true), error500)
@@ -553,14 +560,17 @@ describe("CHORE-04 · «Ver más clases» de los dos inicios", () => {
 
       fireEvent.click(verMas)
 
-      await comprobarFalloDeLaPagina(
-        TEXTOS_PANEL.verMas,
-        mensajeDeErrorDeLista(ERROR_500, TEXTOS_PANEL.cambioMientrasLasVeias),
-      )
+      await comprobarFalloDeLaPagina(TEXTOS_PANEL.verMas, mensajeDeConsultaClases(ERROR_500))
+      const contenedor = screen.getByRole("button", { name: TEXTOS_PANEL.verMas }).parentElement
+      if (contenedor === null) throw new Error("Precondición: «Ver más clases» tiene contenedor")
+      expect(within(contenedor).getByText("Clase 01")).toBeInTheDocument()
+      expect(within(contenedor).getByText("Clase 02")).toBeInTheDocument()
+      expect(screen.queryByText(TEXTOS_PANEL.error)).toBeNull()
       // Solo las del inicio (las de la barra van con limite=100); el reintento ya salió.
       await esperarUnMomento(1500)
       expect(contar(delInicio(inicio.api, true))).toBe(2)
-      expect(screen.getAllByRole("alert")).toHaveLength(1)
+      expect(aviso.error).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole("alert")).toBeNull()
     },
   )
 })

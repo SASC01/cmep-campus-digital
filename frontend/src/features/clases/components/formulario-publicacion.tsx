@@ -16,6 +16,7 @@ import {
   avisoDeFalloAlSubir,
   errorDeArchivoElegido,
   erroresDeLaPublicacionDeApi,
+  errorQueRedirigeElCliente,
   tipoDeArchivo,
 } from "../lib"
 import type { CrearAnuncio, ErroresFormulario } from "../types"
@@ -123,6 +124,9 @@ export function FormularioPublicacion({ claseId }: FormularioPublicacionProps) {
         if (erroresDeCampo) setErrores(erroresDeCampo)
         return
       }
+      // CHORE-06a (§D-3): si la solicitud de subida respondió con un error con que apiClient ya
+      // redirige, no se avisa.
+      if (errorQueRedirigeElCliente(error)) return
       toast.error(avisoDeFalloAlSubir(error, archivoEnSubida))
     } finally {
       publicandoRef.current = false

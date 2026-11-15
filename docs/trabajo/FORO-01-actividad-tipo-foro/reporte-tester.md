@@ -209,3 +209,217 @@ Son 249: 94 del backend y 155 del frontend. Comando: el de V-01, sobre el árbol
 - Tabla del backend: las 94 filas transcritas (ruta y SHA-256) son idénticas a `find backend -name "*.ataque.test.ts*" -not -path "*/node_modules/*" | sort | xargs sha256sum` sobre el árbol y a las 94 filas del backend de `tabla-r0.md` del scratchpad (`diff` sin diferencias en los dos).
 - SHA-256 de las listas ordenadas, recalculados: backend `dfdee81d1eb51d356410f9244f113bfd6c4e933d77f55c7a51976338e1730fc6`, frontend `a2f8282929a69aa29e60f8b4f39fe92057c17a524ceb6882c356752416caf674`: coinciden con el reporte.
 - `git diff --numstat e94ee59 -- backend frontend shared`: `5 1 backend/test/lecturas-fx-r1.ataque.test.ts` y `33 1 backend/test/sesiones-y-cadena.ataque.test.ts`, como dice el reporte.
+
+---
+
+# Rearranque (2026-11-14): subentregas de la Enmienda 9
+
+Lo anterior es la ronda 0 de 01a1 del 2026-11-05, sobre `e94ee59` y el plan de la Enmienda 6; queda como historial. Desde aquí, las rondas son sobre la rama `feat/foro-01-actividad-tipo-foro` (base `fd4a7ad`) y el plan aprobado el 2026-11-14 (SHA-256 `e899f7b5…`).
+
+## Ronda 0 — FORO-01a (2026-11-14)
+
+
+Veredicto de la ronda 0: **aplicada, sin PARADA.** C-1, C-2 y C-6 aplicados con el texto de §E7.5.1; ninguna prueba fuera de la lista cerrada, de los C-n o de las vigiladas cuenta algo que 01a cambia. Plan verificado antes de empezar: `plan.md` 2729 líneas, SHA-256 `e899f7b5bb1fe9b0cb2be14cc1268a7eb365a15cdef7ddbf8efbdd31ba61fd88` (coincide con el aprobado).
+
+### Arranque
+- `docker info`: responde (Docker Desktop, servidor 28.5.1). Equipo con corriente (`Win32_Battery.BatteryStatus` 2, 100 %), no a batería. Red declarada de confianza por el humano para hoy; no toqué Docker ni el firewall.
+- V-01 de arranque, desde la raíz: `sha256sum -c ".../foro01-arranque/v01-foro01a-base.txt"` → 291 `OK` (105 de `backend/`, 186 de `frontend/`), salida 0. Las rutas de la lista son exactamente las 291 `*.ataque` del árbol (`git ls-files --others --cached --exclude-standard`, cotejo con `diff`).
+- `git diff --quiet fd4a7ad -- backend frontend shared`: sin diferencias antes de empezar.
+
+### Comprobación de arranque (§E7.5.0; línea "Grep de la lista" de §E7.5.1), sobre el árbol = `fd4a7ad`
+Todos desde `backend/`:
+- `grep -rlE 'printRoutes|rutasDeLaApp\(' test --include='*.ts'` → **7 archivos**, como dice el plan: `ayudas-clases-archivadas.ts` (la ayuda que define `rutasDeLaApp`), `clases-archivadas-matriz.integracion` (lista cerrada), `clases-archivadas-r1.ataque`, `gestion-clases-autorizacion.integracion`, `movimientos-inscripcion.integracion`, `recursos-autorizacion.integracion` (vigiladas) y `sesiones-y-cadena.ataque` (C-1). En `src/`, ninguno.
+- `grep -rnoE '\b(leerTarea|crearTarea|editarTarea|borrarTarea|listarEntregas|leerEntregaDeAlumno|listarHiloPrivado|calificarEntrega)\(' src test` → llamadas en `src/adapters/db/{tareas,entregas}.ts`, `src/handlers/calificaciones.ts`, `src/handlers/tareas/{tareas,entregas,hilo-privado}.ts` y, en pruebas, `borrado-duplicado-r1.ataque` (2), `calificaciones-01a-r2.ataque` (2), `calificaciones-concurrencia.integracion` (1), `calificaciones-lecturas-consistentes.integracion` (2), `entregas-lecturas.integracion` (2), `instantanea-01b-r1.ataque` (5), `lecturas-consistentes.integracion` (2) y `tareas.integracion` (5). Todas pasan los argumentos de hoy; un parámetro opcional nuevo no cambia ninguna.
+- Las funciones de `core/` de §D-2.4 (`validarCategoriaRequerida`, `mensajeTareaConEntregas`, `exigirBorradoConEntregasPermitido`, `tareaModificada`, `entregaModificada`, `rubricaModificada`, `decidirCalificacion`, `entregaNoCalificable`, `exigirEntregaCalificable`, `tareaConCalificaciones`, `exigirRubricaCongelada`, `errorTareaNoEncontrada`): fuera de `core/` y `adapters/db`, solo las llaman `core/tareas/tareas.test.ts` y `core/calificaciones/calificar.test.ts`, con los argumentos de hoy. Un último parámetro opcional con `"tarea"` por omisión no cambia ninguna llamada.
+- `grep -rnE 'tipo_publicacion|TipoPublicacion' test` → `migracion-clases03a-r1.ataque.test.ts:128` (inserta tipos que existen) y un comentario de `migracion-tareas.integracion.test.ts:23`. Coincide con el plan.
+- `grep -rn 'instantaneaUnica: true' src/adapters/db` → **24** usos: `borrado-de-clase` 1, `calificaciones` 2, `clases-archivadas` 1, `clases` 4, `dudas` 2, `entregas` 4, `exportacion-de-calificaciones` 1, `gestion-de-usuarios` 2, `movimientos` 1, `publicaciones` 2, `recursos` 2, `tareas` 2. Son las veinticuatro del título de hoy; con los cinco de foros, veintinueve (C-2).
+
+**Búsqueda propia de pruebas no inventariadas** (backend, frontend y `shared/`; sin `.env`):
+- Catálogo de la base (`pg_enum`, `enum_range`, `pg_constraint`, `pg_indexes`, `information_schema`, `_prisma_migrations`): las que lo leen piden objetos por nombre (índices y CHECK de su encargo; `usuarios-admin-migracion:24` cuenta solo su migración por nombre). Ninguna enumera los valores de `tipo_publicacion` ni las tablas. El CHECK `publicaciones_titulo_segun_tipo` lo nombran solo `muro.integracion:201-219` y `migracion-tareas.integracion:69-105`, ya vigiladas.
+- Lecturas de carpetas (`readdirSync`/`readdir`): las de `prisma/migrations` aplican "hasta la suya" o buscan una por sufijo (`calificaciones-migracion:463`, `clases-archivadas-migracion:130`, `migracion-01a-r1:89`, `migracion-clases-03a:90`, `migracion-clases-03b:89`, `migracion-clases03a-r1:86`, `migracion-maestros-de-clase:28`, `sexto-paso-02a-r1:164`); las de `src/` son reglas generales que `handlers/foros.ts`, `adapters/db/foros.ts` y `core/foros/` cumplen si siguen el diseño (`tareas-01b-r1:789`, nadie fuera de `notifier` escribe notificaciones; `muro-c-r1:1136` y `muro-c-r2:326`, sin copias de la regla de caracteres visibles; `higiene-de-pruebas:251-302`, sin `setErrorHandler` ni `addHook` fuera de su lugar). Las demás son vigiladas de §E8.5.
+- `lecturas-fx-r2.ataque.test.ts:918-952` (solo `handlers/clases/muro.ts` llama a `listarPublicaciones` y `listarComentarios`, con un argumento) no está en la lista de vigiladas por línea, pero 01a no suma llamadas: §E8.1 cambia `listarPublicaciones` por dentro y el foro lista con `listarForos`. No es PARADA; lo dejo como observación para el programador (si `handlers/foros.ts` llamara a `listarPublicaciones(`, caería).
+- Exportaciones de `shared/src/index.ts`: ninguna prueba del backend ni del frontend enumera el módulo (`import * as`, `Object.keys`). Las listas de códigos que se cuentan (`CODIGOS_CON_MENSAJE_DEL_SERVIDOR` en `features/{tareas,clases}`, `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`) son del frontend y 01a no las cambia.
+- Prefijos `"<nombre>: …"` de `shared/src`: solo los lee `frontend/src/lib/errores-ch3-r2.ataque.test.ts` (C-6, con `import.meta.glob` sobre `shared/src/*.ts`). Su segundo caso (`:268-276`, el backend) solo pide que nada siga a un prefijo con otro nombre en camelCase: vigilado.
+- Archivos de `adapters/db` o `handlers` nombrados en listas: `calificaciones-estatico:69` y `:94-103`, `calificaciones-lecturas-estatico:113`, `exportacion-calificaciones-estatico:134` y `arquitectura-cuentas-r1:108`, todos ya vigilados; ninguno lista archivos de forma cerrada que 01a deba ampliar.
+
+**Resultado: ninguna prueba no inventariada. Sin PARADA.**
+
+### Respaldo
+Copias de los tres archivos, antes de tocarlos, en `foro01-arranque/r0-01a-respaldo/` del scratchpad: `sesiones-y-cadena.ataque.test.ts` (`e177959b…`), `lecturas-fx-r1.ataque.test.ts` (`e3e7d53e…`) y `errores-ch3-r2.ataque.test.ts` (`5d41a2af…`), iguales a los del árbol en `fd4a7ad`.
+
+### C-1 — `backend/test/sesiones-y-cadena.ataque.test.ts` (aplicado)
+- Líneas del plan cotejadas: el comentario de ADMIN-01e en `:573-584`, el título en `:585` y la lista hasta `:750`. Coinciden.
+- Cambios (`git diff -U0 fd4a7ad`): `:585` → `:585-592` (el comentario de FORO-01a, partido en 7 líneas sin cambiar una palabra, y el título con "ADMIN-01b, ADMIN-01e y FORO-01a"); `+1` DELETE después de `…/dudas/:dudaId/respuestas/:respuestaId` (`:624`); `+10` GET después de `GET …/dudas/:dudaId/respuestas` (`:647-656`); `+10` HEAD después del HEAD equivalente (`:694-703`); `+3` POST después de `POST …/dudas/:dudaId/respuestas` (`:752-754`); `+2` PUT después de `PUT …/dudas/:dudaId/resuelta` (`:775-776`).
+- Comprobación mecánica (node, sobre el texto): la lista pasa de 138 a 164 entradas, 26 nuevas, ninguna quitada ni repetida, y es igual a su `sort()`. El orden coincide con el ajuste de `e81ff10`.
+- Qué afirma ahora: bajo `/api` existen exactamente las rutas de hoy más las 26 entradas de las 16 rutas del foro; ninguna crea admins; siguen creando maestros solo las tres de hoy.
+- Antes: `npx vitest run test/sesiones-y-cadena.ataque.test.ts` → `Tests  35 passed (35)`.
+- Después: el mismo comando → `Tests  1 failed | 34 passed (35)`. **Rojo esperado:** `expected [ …(138) ] to deeply equal [ …(164) ]`; las 26 líneas del diff son todas `-` (esperadas y no recibidas) y todas de `/foros`; ningún `+`. Las rutas aún no existen. Los otros 34 casos, verdes como antes.
+
+### C-2 — `backend/test/lecturas-fx-r1.ataque.test.ts` (aplicado)
+- Líneas del plan cotejadas: el título en `:758`, la lista `usos` en `:805-839`, con `"adapters/db/exportacion-de-calificaciones.ts:1"` en `:827` y el comentario de ADMIN-01e en `:828`. Coinciden.
+- Cambios: `:758`, el título dice "veintinueve lecturas (…, dos de gestión de usuarios, una de movimientos y cinco de foros)"; `:828-831`, el comentario de FORO-01a (3 líneas, mismo texto) y `"adapters/db/foros.ts:5"`, entre la exportación y el comentario de ADMIN-01e. `<n>` = 5, el previsto; si el programador declara otro número, el título y la entrada cambian en otra ronda.
+- Qué afirma ahora: además de lo de hoy (nadie fuera de `adapters/db` nombra la opción, `index.ts` no reexporta `enTransaccion`, los niveles solo en `cliente.ts`, los dos usos de `tareas.ts` en código), `adapters/db/foros.ts` tiene exactamente cinco `instantaneaUnica: true`.
+- Antes: `npx vitest run test/lecturas-fx-r1.ataque.test.ts` → `Tests  24 passed (24)`.
+- Después: el mismo comando → `Tests  1 failed | 23 passed (24)`. **Rojo esperado:** en la última aserción, `expected [ …(12) ] to deeply equal [ …(13) ]`, con la única línea `-   "adapters/db/foros.ts:5"`: el archivo aún no existe. Las aserciones anteriores del caso pasan (la falla es la última). Los otros 23 casos, verdes como antes.
+
+### C-6 — `frontend/src/lib/errores-ch3-r2.ataque.test.ts` (aplicado)
+- Líneas del plan cotejadas: `INVENTARIO` en `:231-254`, con `"resuelta",` en `:253`. Coinciden.
+- Cambios: `:254-257`, después de `"resuelta",`, el comentario de FORO-01a (2 líneas, mismo texto) y `"foroId"` y `"participacionId"`. `"conForos"` no se agregó (va en C-7, 01b). `conTercero` sigue esperando `[]`.
+- Qué afirma ahora: en `shared/src`, todo mensaje con prefijo `«palabra:»` usa un nombre del inventario, que ahora admite `foroId` y `participacionId`, y nada lo sigue con otro nombre en camelCase.
+- Antes y después: `npx vitest run src/lib/errores-ch3-r2.ataque.test.ts` → `Tests  85 passed (85)` en las dos. **Verde, y es lo correcto:** `INVENTARIO` es una lista de permitidos; hoy ningún archivo de `shared/src` usa esos prefijos, así que agregarlos no cambia el resultado. Lo que vigila se activa cuando exista `shared/src/foros.ts`: con un prefijo fuera de la lista, el caso de `:258` cae.
+- Comprobación de legibilidad, con las dos expresiones de `quitarRutaDelMensaje` leídas del propio `lib/errores-de-api.ts` (`RUTA_DEL_MENSAJE` y `CAMPO_QUE_REPITE_EL_ESQUEMA`, en node): `"foroId: foroId: debe ser un identificador válido"` → `"debe ser un identificador válido"`; `"participacionId: participacionId: debe ser un identificador válido"` → `"debe ser un identificador válido"`; con un solo prefijo, lo mismo.
+
+### PA-07 (sobre los dos archivos del backend, uno a la vez)
+Conteo en la salida completa de cada una de las cuatro corridas (antes y después de cada archivo): `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0 y `"code":"P2028"` 0. Ningún motivo para detenerse. El control positivo y el cotejo con los permitidos son de la corrida completa del manager.
+
+### Lint
+- `npx prettier --check` sobre los tres archivos (en su paquete): "All matched files use Prettier code style!". No hizo falta escribir nada.
+- `cd backend; npm run lint` → salida 0; última línea: `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (sin errores).
+- `cd frontend; npm run lint` → salida 0; última línea: `tsc -b` (sin errores).
+
+### V-01 final
+- `sha256sum -c ".../v01-foro01a-base.txt"` → 288 `OK` y 3 `FAILED`: exactamente `backend/test/lecturas-fx-r1.ataque.test.ts`, `backend/test/sesiones-y-cadena.ataque.test.ts` y `frontend/src/lib/errores-ch3-r2.ataque.test.ts`. El árbol sigue con las mismas 291 rutas.
+- `git diff --stat fd4a7ad -- backend frontend shared`: solo esos tres archivos (43 inserciones, 2 eliminaciones: los dos títulos).
+- Lista nueva: `foro01-arranque/v01-foro01a-r0.txt` del scratchpad, 291 líneas en el formato de la base, SHA-256 `ba15a1739252d6245223cab95639ec8e9e999bfae5d3ce75d7c65442e56d0e8a`. Hashes nuevos: `lecturas-fx-r1` `e212c1b0…`, `sesiones-y-cadena` `5d3e50ee…`, `errores-ch3-r2` `fd52583f…`.
+
+### Paradas y discrepancias
+Ninguna. Toda línea que cita §E7.5.1 coincidió con el archivo. No toqué código de producción, pruebas normales ni otras `*.ataque`; no usé `git checkout`, `restore` ni `stash`.
+
+## Ronda 1 — FORO-01a (2026-11-14)
+
+
+Veredicto: **RESISTE.** Ningún hallazgo: 0 críticos, 0 altos, 0 medios, 0 bajos. 28 casos de ataque nuevos en 6 archivos, todos verdes contra el código de hoy, y 8 mutaciones reales de guardas de "Se toca", que tumban mis casos y se restauraron byte a byte.
+
+### Arranque
+- `docker info`: responde (Docker Desktop, servidor 28.5.1). Equipo con corriente (sin cambio desde la ronda 0); red de confianza por declaración del humano, solo hoy. No toqué Docker ni el firewall.
+- V-01 contra `foro01-arranque/v01-foro01a-r0.txt`: `sha256sum -c` → 291 `OK`, 0 fallas.
+- Migraciones: `20261114223913_foro_01_tipo_foro/migration.sql` `8ec418c5…` y `20261114224719_foro_01_participaciones/migration.sql` `478c2e22…`: coinciden con lo confirmado por el humano.
+- Leí `resumen-programador.md` (335 líneas), las dos últimas secciones de `revision.md`, de `plan.md` "Puntos de ataque", §D-2, §D-3, §D-4, "Acceso a datos" y "Autorización", y el código nuevo (`shared/src/foros.ts`, `core/foros/participacion.ts`, `core/actividades.ts`, `adapters/db/{foros,actividades}.ts`, `handlers/foros.ts` y el diff de `tareas.ts`, `entregas.ts`, `publicaciones.ts` y `calificar.ts`).
+
+### Hallazgos
+Ninguno. Ninguna de mis pruebas queda roja contra el código de hoy, y ninguna corrida tuvo un `500` en un flujo normal.
+
+### Atacado sin hallazgos (por punto de ataque, con el caso que lo prueba)
+Todo en `backend/test/`, archivos nuevos `foros-01a-r1-*.ataque.test.ts`.
+1. **Clase archivada sin escribir nada.** `foros-01a-r1-archivada` › ATQ-FORO-01. El foro, la principal, la réplica y la calificación con devolución nacen por la API (con recordatorio y `trabajo_id`), y la clase se archiva por `POST /admin/clases/:id/archivar`. Las 6 escrituras, con cada rol que las admite (10 peticiones, con datos que en una clase abierta sí cambiarían algo), responden `409 CLASE_ARCHIVADA`. Una foto de la clase queda idéntica antes y después de las escrituras y de las 10 lecturas: publicaciones (título, texto, tema, `version`, `actualizado_en`), tareas (fecha, puntos, tardías, `trabajo_id`, `version`), entregas (estado, fecha, retraso, calificación, `version`), participaciones, devoluciones y los trabajos de pg-boss de la clase con su estado. El maestro y el admin leen con `200`.
+2. **Carreras.** `foros-01a-r1-carreras`:
+   - ATQ-FORO-20: la frontera del milisegundo, con los adaptadores y una hora fija, sin tardías. Con la hora = fecha límite, la principal es a tiempo y calificar a quien no participó da `ENTREGA_NO_CALIFICABLE`. Un milisegundo después, `FORO_CERRADO` sin fila perezosa, y la calificación entra sin fecha de entrega. Después, publicar con la hora anterior da `PARTICIPACION_CALIFICADA`.
+   - ATQ-FORO-21: retención deliberada de la fila de la entrega (`FOR UPDATE`; la principal se da por formada solo cuando `formadasDetrasDe` la ve esperando esa fila; la retenedora lleva `timeout` de 30 s). Si la rival califica sin participar, la principal formada responde `409 PARTICIPACION_CALIFICADA`. Si la rival publica otra principal, `409 PARTICIPACION_YA_PUBLICADA`. Nunca hay segunda principal ni `500`.
+   - ATQ-FORO-22: 4 vueltas de 4 principales de alumnos distintos contra el borrado confirmado del admin. El borrado da `204`, cada principal `201` o `404 TAREA_NO_ENCONTRADA`, y no quedan filas.
+   - ATQ-FORO-23: dos calificaciones simultáneas con la misma versión dan `200` y `409 ENTREGA_MODIFICADA` (con el texto del foro), con una sola subida de versión y un solo `CALIFICACION_PUBLICADA`.
+   - ATQ-FORO-24: cerrar un foro vencido mientras publican tres alumnos. La edición da `200`, y cada principal es `201` con retraso o `409 FORO_CERRADO` sin fila.
+3. **IDOR por ids cruzados.** `foros-01a-r1-ids-y-fugas`:
+   - ATQ-FORO-10: el foro de otra clase del mismo maestro, con un alumno inscrito en las dos, bajo el `claseId` propio. Las 14 rutas con `:foroId` dan `404 TAREA_NO_ENCONTRADA` a cada rol admitido (27 peticiones), sin cambios en ninguno de los dos foros ni fila perezosa.
+   - ATQ-FORO-11: en 10 y 11, una principal de otra clase, el id del propio foro y el de una réplica dan `404 PARTICIPACION_NO_ENCONTRADA`, sin escribir.
+   - ATQ-FORO-12: en 13 a 16, como `:alumnoId`, un alumno de otra clase, un maestro, el admin, un alumno dado de baja, uno que salió de la clase con su principal y un id inexistente dan `404 ALUMNO_NO_ENCONTRADO`, sin entregas ni devoluciones nuevas.
+   - ATQ-FORO-13: cursores cruzados (una réplica de otra principal y la propia principal en 10; una participación de otro alumno o de otro foro en 14; una devolución de otro alumno en 7 y en 15) dan `400 VALIDACION`, sin traer el texto ajeno.
+   - El tipo cruzado en las rutas de tareas, entregas y calificaciones lo cubren FORO-1A45 a FORO-1A48 del programador (no lo repetí); el tipo en lo demás va en el punto 6.
+4. **Fugas a profundidad.** `foros-01a-r1-ids-y-fugas` › ATQ-FORO-14, con un foro del admin, vencido y con tardías:
+   - el alumno no recibe `conRetraso` de la principal ni de la réplica tardías del otro alumno (llave ausente, no `false`), y sí el de las suyas;
+   - el autor admin sale como `{ id, nombre: "Administración", administracion: true }`, sin `rol`, en la lista y en el detalle;
+   - la `201` de su réplica a una principal ajena solo trae `replica`, con su propio retraso;
+   - el autor de cada réplica trae solo `administracion`, `id` y `nombre`;
+   - el maestro ve la marca en todas;
+   - las devoluciones del alumno no traen las de nadie más.
+
+   El estado de pago, la restricción, el correo y el rol a toda profundidad en las 16 rutas los cubre FORO-1A50.
+5. **Autorización completa.** `foros-01a-r1-archivada`:
+   - ATQ-FORO-02: con cambio de contraseña obligatorio, un alumno inscrito y un maestro de la clase reciben `403 CAMBIO_DE_CONTRASENA_REQUERIDO` en cada ruta de su rol (21 peticiones), sin escribir;
+   - ATQ-FORO-03: un alumno y un maestro dados de baja, con su JWT vigente, reciben `401 NO_AUTENTICADO` en las 16 rutas;
+   - ATQ-FORO-04: el autor del foro que ya no imparte la clase recibe `403 SIN_ACCESO_A_LA_CLASE` en las 13 rutas de maestro, también en las de lectura.
+
+   Sin sesión, rol incorrecto, clase ajena, clase inexistente, restringido y el admin en cada ruta los cubren FORO-1A49 y FORO-1B01 a FORO-1B05; los contrasté con la matriz y no encontré una celda sin caso.
+6. **Tipo cruzado y la clase entera.** `foros-01a-r1-tipo-y-validacion`:
+   - ATQ-FORO-30: `PUT …/publicaciones/:foroId/tema` da `404 PUBLICACION_NO_ENCONTRADA` sin cambiar el tema. `?tipo=foro` en el muro da `400`. `GET …/trabajo` (con y sin `seccion=actividades`) no lista el foro y lo rechaza como cursor (`400`). `GET …/temas` (con y sin sección) da `200`.
+   - ATQ-FORO-31: una clase con foro, principal, réplicas de alumno y de maestro y una calificación con devolución se duplica sin ningún foro ni tarea. Archivada, su conteo da `actividades 1, entregas 1, calificaciones 1`, y el borrado definitivo da `204` sin participaciones ni publicación. Los usuarios siguen y el recordatorio queda `cancelled`.
+7. **El recordatorio.** `foros-01a-r1-tipo-y-validacion`:
+   - ATQ-FORO-32: a 24 h + 2 min se programa a la fecha − 24 h. Editar a 23 h lo cancela y deja `trabajo_id` nulo. Editar a 3 días, sin `trabajo_id`, programa uno nuevo. Cambiar solo el título no lo toca. Borrar cancela el vivo y `TAREA_CREADA`.
+   - ATQ-FORO-33: `editarTarea` (con `tipo: "foro"`) con un `alReprogramar` que cancela el recordatorio y después lanza. La cancelación se revierte con la escritura: el trabajo sigue `created`, y `trabajo_id`, la versión, la fecha y el título no cambian.
+   - ATQ-FORO-37: con el recordatorio ya `active`, editar la fecha da `200` y programa uno nuevo con la fecha nueva; borrar después da `204` sin trabajos vivos.
+8. **Validación.** `foros-01a-r1-tipo-y-validacion`:
+   - ATQ-FORO-34: la principal admite 5000 caracteres y no 5001 (`texto: No puede tener más de 5000 caracteres`), y la réplica 1000 y no 1001. Solo combinantes, solo invisibles (U+200B, U+2060, U+FEFF), `\u0000`, `\u0007`, U+202E o solo blancos dan `400 «texto: …»` en la principal y en la réplica, sin escribir ni dejar fila perezosa. El límite es de unidades de UTF-16, como el resto del proyecto (`textoLargoCon`, `.max`); es lo que pide §D-3.2.
+   - ATQ-FORO-35: `limite` de 0, 101, -1, 1.5 o `abc`, y `cursor=abc`, dan `400 VALIDACION` (`limite: …` o `cursor: …`) en las 7 listas con paginación, y `limite=100` da `200`. Un id mal formado da `400` con `foroId: foroId: …`, `participacionId: participacionId: …` o `alumnoId: alumnoId: …`, también en el `PUT` de calificar; es la forma que limpia C-6.
+   - ATQ-FORO-36: las llaves de más se ignoran.
+     - El foro, con `tipo`, `requiereAdjuntos`, `autorId`, `trabajoId`, `version` e `id`, queda `foro`, sin adjuntos requeridos, del autor real, en versión 0 y con su propio id y `trabajo_id`.
+     - La principal y la réplica, con `id`, `autorId`, `principalId`, `foroId` y `conRetraso`, quedan del autor real, en su foro y principal y sin retraso.
+9. **Calificaciones por la API real.** `foros-01a-r1-calificaciones` › ATQ-FORO-40, con tres foros (vencido con tardías, vencido sin tardías y abierto) y dos alumnos. Los pasos son publicar a tiempo, publicar tarde con tardías, calificar a quien participó y calificar a quien no participó con el foro cerrado. Antes del primero y después de cada uno, y para cada alumno y foro, coinciden con lo esperado:
+   - las celdas del gradebook y de la exportación;
+   - `vencidasSinEntregar` y `porcentaje` (en el gradebook y en la exportación);
+   - los cinco filtros de "Mis calificaciones", con la `entrega` de cada fila;
+   - la `entrega` de la lista de foros;
+   - "Participantes" (estado, retraso, si hay fecha, `entregadas` y `total`).
+
+   Al final, el alumno con 40 % queda en riesgo por promedio (`alumnosEnRiesgo: 1`, modo puntos).
+10. **Migraciones.** `foros-01a-r1-calificaciones`:
+    - ATQ-FORO-41: con los cuatro tipos, el CHECK del título rechaza un foro y un material sin título y un anuncio con título; un foro con bloque viola `publicaciones_bloque_solo_material`; un foro y una tarea con título entran.
+    - ATQ-FORO-42: borrar la fila de `tareas` del foro (no la publicación) se lleva principales y réplicas; borrar una réplica no toca su principal; la principal y la réplica del mismo alumno conviven con el índice único parcial.
+
+    El rechazo de la segunda principal, la cascada desde la publicación y el `RESTRICT` del autor los cubren FORO-1A12 y FORO-1A13.
+11. **Adjuntos del planteamiento** (fuera de la lista del manager; no tenían caso con un foro). `foros-01a-r1-adjuntos`:
+    - ATQ-FORO-50: crear con un archivo subido lo confirma en el foro; el alumno lo ve sin la clave del objeto y lo descarga; el restringido (`403 ACCESO_RESTRINGIDO`) y el de otra clase (`403`) no; quitarlo en la edición lo descarta y la descarga da `404`.
+    - ATQ-FORO-51: no se adjunta un archivo de otra clase, uno de otra persona ni uno ya publicado en un material: `400` al crear y al editar, sin foro nuevo, sin cambiar el título y sin mover el archivo.
+    - ATQ-FORO-52: borrar el foro descarta su adjunto y la descarga da `404`.
+
+### Observaciones (no son hallazgos)
+- **O-r1-1. El cursor de "Participantes" (ruta 12) acepta el id de cualquier usuario como posición.** Con `?cursor=<un alumno de otra clase>` responde `200` con la página que sigue a su nombre, sin `400`. El mecanismo es `condicionesDePaginaDeAlumnos` (`adapters/db/inscripciones.ts:87-105`), que solo exige que el usuario exista: es el roster de hoy, que también usan las entregas de una tarea y el gradebook. Es la decisión de "cursor con posición" de ADMIN-01 (Enmienda 5, M-08, R-19 aceptado; "el roster y el gradebook existentes, riesgo con destino"). No filtra datos: solo devuelve alumnos inscritos de la propia clase. Saqué ese caso de ATQ-FORO-13, porque no es de 01a y su archivo está en "No se toca".
+- **O-r1-2. La principal que llega en el milisegundo exacto, formada detrás de una calificación de un milisegundo después, pierde.** Con la hora de la petición = fecha límite (a tiempo) y la calificación de "no participó" un milisegundo después, ya cerrado, la principal recibe `409 PARTICIPACION_CALIFICADA` (ATQ-FORO-20, al final, y ATQ-FORO-21). Es coherente con §D-4 y con la tarea: la hora se toma al recibir la petición, y la fila de la entrega pone las dos en serie. Lo anoto por si el humano quiere otra regla para el foro; no lo pide ningún RF.
+- **O-r1-3.** Mover un foro de tema por la ruta del muro responde `404` en 01a (§E8.1, declarado), y borrar el tema deja el foro "Sin tema" sin contarlo antes (`temas.ts`, `TIPOS_CON_TEMA` sin `foro`, FK `SET NULL`). Los dos están declarados para 01b.
+- La observación de `borrarComentario` y `borrarMiComentario` es la aceptada (va a `ESTADO.md`); no la ataqué.
+
+### Mis mutaciones
+Archivos de "Se toca" de 01a, sin preguntar, con este procedimiento:
+- copia previa en el scratchpad (`tester-r1/respaldo-MTn`);
+- un solo cambio en un ancla que aparece exactamente una vez (`tester-r1/mutar.cjs` aborta si no);
+- la corrida de mi archivo;
+- la restauración desde la copia y la comparación byte a byte (`Buffer.compare`: "cmp igual: true" en las 8);
+- el SHA-256 de cada archivo mutado, igual al de antes (`sha256sum -c`: `foros.ts`, `actividades.ts`, `handlers/foros.ts` y `calificar.ts` en OK);
+- `git diff --stat -- src` igual antes y después (`8 files changed, 218 insertions(+), 85 deletions(-)`; los archivos nuevos no salen en él, por eso el SHA).
+
+No muté nada de "No se toca" ni de lo que nunca se muta.
+
+| Mutación | Archivo · ancla | Corrida | Cae |
+|---|---|---|---|
+| MT1 | `adapters/db/foros.ts` · `const donde = { foroId, principalId: participacionId }` → `{ foroId }` | `Tests  2 failed \| 3 passed (5)` | ATQ-FORO-13 y ATQ-FORO-14 |
+| MT2 | ídem · `const donde = { foroId, autorId: alumnoId }` → `{ foroId }` | `Tests  1 failed \| 4 passed (5)` | ATQ-FORO-13 |
+| MT3 | ídem · `estado: fila.estado,` (en `publicarParticipacion`) → `"asignado"` | `Tests  2 failed \| 3 passed (5)` | ATQ-FORO-20 y ATQ-FORO-21 |
+| MT4 | ídem · quitar `await exigirPrincipal(…)` de `publicarReplica` | `Tests  1 failed \| 4 passed (5)` | ATQ-FORO-11 |
+| MT5 | `adapters/db/actividades.ts` · `where: { id, claseId, tipo }` → `{ id, tipo }` | `Tests  1 failed \| 4 passed (5)` | ATQ-FORO-10 |
+| MT6 | `adapters/db/foros.ts` · `esPropia: fila.autor.id === actorId` → `true` | `Tests  1 failed \| 4 passed (5)` | ATQ-FORO-14 |
+| MT7 | `handlers/foros.ts` · la ruta 4 (`app.put` de `…/foros/:foroId`) con `enClaseArchivada: "lectura"` | `Tests  1 failed \| 3 passed (4)` | ATQ-FORO-01 |
+| MT8 | `core/calificaciones/calificar.ts` · la rama `foro` de `exigirEntregaCalificable` sin `throw` | `Tests  1 failed \| 4 passed (5)` | ATQ-FORO-20 |
+
+Redundancias declaradas:
+- **MT3.** Para la segunda mitad de ATQ-FORO-21 (`YA_PUBLICADA`), con `fechaEntrega` relevada en lugar del estado, el índice único parcial también da `409` por `traducirErrorPrisma`. Por eso elegí la mutación del estado, que la primera mitad (`CALIFICADA`) sí vigila.
+- **ATQ-FORO-33.** No tiene mutación de un ancla: lo que vigila es la transacción de `enTransaccion` entera.
+- **ATQ-FORO-10.** En las escrituras, el `clase_id` de `bloquearTareaParaEntregar` (`entregas.ts`) y el de `esActividadDeTipo` se cubren el uno al otro. MT5 cae por la ruta 8, que solo tiene el segundo.
+
+### Archivos nuevos (6; 28 casos)
+`npx vitest list test/foros-01a-r1` (desde `backend/`), contado con `grep -a ' > ' | grep -ac 'ATQ-FORO-'` → **28**:
+- `backend/test/foros-01a-r1-archivada.ataque.test.ts`: 4 (ATQ-FORO-01 a 04);
+- `backend/test/foros-01a-r1-ids-y-fugas.ataque.test.ts`: 5 (ATQ-FORO-10 a 14);
+- `backend/test/foros-01a-r1-carreras.ataque.test.ts`: 5 (ATQ-FORO-20 a 24);
+- `backend/test/foros-01a-r1-tipo-y-validacion.ataque.test.ts`: 8 (ATQ-FORO-30 a 37);
+- `backend/test/foros-01a-r1-calificaciones.ataque.test.ts`: 3 (ATQ-FORO-40 a 42);
+- `backend/test/foros-01a-r1-adjuntos.ataque.test.ts`: 3 (ATQ-FORO-50 a 52).
+
+Sin ayudas nuevas compartidas: cada archivo trae las suyas. Usé `ayudas-foros.ts` y las demás ayudas solo como import, sin cambiarlas. Ningún `LOCK TABLE`; la única retención (ATQ-FORO-21) es de una fila, con `timeout: 30_000` y `maxWait: 5_000`. Toda prueba tiene aserciones, y las precondiciones que faltan lanzan con su mensaje. Ninguna compara con la hora real fuera de márgenes de horas: las fronteras de ATQ-FORO-20 van con una hora fija pasada a los adaptadores, y las de 24 h, con márgenes de minutos.
+
+### Comandos (desde `backend/`, uno a la vez)
+- Cada archivo, en su ronda: `npx vitest run test/foros-01a-r1-archivada.ataque.test.ts` → `Tests  4 passed (4)`; `…-ids-y-fugas…` → `Tests  5 passed (5)`; `…-carreras…` → `Tests  5 passed (5)`; `…-tipo-y-validacion…` → `Tests  7 passed (7)` (y ATQ-FORO-37 sola, con `-t`, `1 passed | 7 skipped`); `…-calificaciones…` → `Tests  3 passed (3)`; `…-adjuntos…` → `Tests  3 passed (3)`.
+- `npm run lint` → salida 0; última línea `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (sin errores).
+- La suite de los módulos, con los 35 filtros de la §8 del resumen (mis archivos entran por `test/foros`): `npx vitest run test/foros test/migracion-foro-01 … test/middleware-orden` → `Test Files  156 passed (156)` · `Tests  1685 passed (1685)` (`Duration  184.07s`). 1685 = 1654 de la verificación del manager + 3 de M-09 + mis 28.
+- PA-07, en la salida completa de esa corrida: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0, `"code":"P2028"` 0. También en 0 en la corrida suelta de `foros-01a-r1-carreras`. El control positivo y el cotejo con los permitidos son de la corrida completa del manager.
+- `git diff --stat -- backend/src shared/src frontend/src` sigue en `11 files changed, 270 insertions(+), 86 deletions(-)`, igual que en la verificación de M-09. Las dos migraciones conservan `8ec418c5…` y `478c2e22…`.
+
+### V-01
+- `sha256sum -c foro01-arranque/v01-foro01a-r0.txt` → 291 `OK`: ninguna `*.ataque` anterior cambió.
+- `foro01-arranque/v01-foro01a-r1.txt` (scratchpad): las 291 líneas de la ronda 0 sin cambio, más mis 6 archivos = **297** líneas (el árbol tiene 297 `*.ataque`). SHA-256 `bdfaa952c6482624d418b6f12fc22dc61194fae513646e51f60b0bbd2a65ca32`.
+
+### No atacado y por qué
+- **La suite completa del backend y PA-07 con su control positivo:** las corre el manager al cerrar (`AGENTS.md`, "Suites por ronda").
+- **El frontend:** 01a no toca su producción; no corrí su suite. Mis archivos son solo del backend.
+- **El comentario del muro sembrado en un foro** (`borrarComentario`): aceptado, va a `ESTADO.md`.
+- **R-02** (volver a un backend anterior) y **DH-02** (la regla tardía por omisión, incluido que con tardías nunca se califica a quien no participó): aceptados.
+- **El borrado de participaciones del admin (ruta 17), `conForos`, `conTipo`, los foros en "Actividades" y los conteos de temas con foros:** son de 01b.
+- **La baja y la reactivación de una cuenta con participaciones** (DH-18): es FORO-1B10, de 01b. En 01a solo ataqué el `401` de la cuenta dada de baja (ATQ-FORO-03) y el `404` de un alumno dado de baja como `:alumnoId` (ATQ-FORO-12).
+- **El navegador:** 01a no tiene interfaz.

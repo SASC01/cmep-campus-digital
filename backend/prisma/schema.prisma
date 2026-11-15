@@ -51,6 +51,8 @@ enum TipoPublicacion {
   anuncio
   material
   tarea
+  // FORO-01a (§D-1.2): un foro es una publicación con su fila de tareas, como una tarea.
+  foro
 
   @@map("tipo_publicacion")
 }
@@ -115,6 +117,7 @@ model Usuario {
   entregas              Entrega[]
   dudas                 Duda[]                  @relation("DudasDelAutor")
   dudasResueltas        Duda[]                  @relation("DudasResueltasPor")
+  participacionesForo   ParticipacionForo[]     @relation("ParticipacionesForoDelAutor")
 
   @@index([rol])
   @@index([enlaceRegistroId, creadoEn])
@@ -365,22 +368,23 @@ model Categoria {
 // tareas ya creadas siguen pidiendo adjuntos) y version es la precondición del PUT (P-05 a′; sube al
 // editar y al mover de tema). El CHECK (version >= 0) se agregó a mano.
 model Tarea {
-  id               String            @id @db.Uuid
-  claseId          String            @map("clase_id") @db.Uuid
-  categoriaId      String?           @map("categoria_id") @db.Uuid
-  fechaLimite      DateTime          @map("fecha_limite") @db.Timestamptz(3)
+  id               String              @id @db.Uuid
+  claseId          String              @map("clase_id") @db.Uuid
+  categoriaId      String?             @map("categoria_id") @db.Uuid
+  fechaLimite      DateTime            @map("fecha_limite") @db.Timestamptz(3)
   puntos           Int
-  aceptaTardias    Boolean           @default(true) @map("acepta_tardias")
-  requiereAdjuntos Boolean           @default(true) @map("requiere_adjuntos")
-  version          Int               @default(0)
-  trabajoId        String?           @map("trabajo_id") @db.Uuid
-  creadoEn         DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
-  actualizadoEn    DateTime          @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  publicacion      Publicacion       @relation(fields: [id], references: [id], onDelete: Cascade)
-  clase            Clase             @relation(fields: [claseId], references: [id], onDelete: Cascade)
-  categoria        Categoria?        @relation(fields: [categoriaId], references: [id], onDelete: NoAction)
+  aceptaTardias    Boolean             @default(true) @map("acepta_tardias")
+  requiereAdjuntos Boolean             @default(true) @map("requiere_adjuntos")
+  version          Int                 @default(0)
+  trabajoId        String?             @map("trabajo_id") @db.Uuid
+  creadoEn         DateTime            @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn    DateTime            @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publicacion      Publicacion         @relation(fields: [id], references: [id], onDelete: Cascade)
+  clase            Clase               @relation(fields: [claseId], references: [id], onDelete: Cascade)
+  categoria        Categoria?          @relation(fields: [categoriaId], references: [id], onDelete: NoAction)
   criterios        CriterioRubrica[]
   entregas         Entrega[]
+  participaciones  ParticipacionForo[]
 
   @@index([claseId, fechaLimite])
   @@index([categoriaId])
@@ -427,6 +431,38 @@ model Comentario {
   @@index([entregaId, creadoEn, id])
   @@index([dudaId, creadoEn, id])
   @@map("comentarios")
+}
+
+// FORO-01a (§D-1.2, DH-01 a). Lo que se escribe en un foro: la participación principal de un alumno
+// (principal_id nulo) y las réplicas a una principal (principal_id con su id, S-03) viven en una sola
+// tabla, porque comparten forma, autor, fecha y la regla de retraso. Una principal por alumno y foro:
+// el índice único parcial participaciones_foro_una_principal (WHERE principal_id IS NULL) va a mano en
+// la migración, porque Prisma no expresa índices parciales; es la red de seguridad del orden de
+// bloqueo. Sin clase_id: se llega siempre por el foro, que se filtra por la clase de la ruta, como el
+// hilo privado. Sin actualizado_en: no se edita (DH-05). autor_id es RESTRICT y sin índice, como en
+// comentarios: no hay bajas físicas de usuarios. con_retraso lo decide la regla del foro al escribir y
+// no se recalcula si la fecha cambia, como entregas.con_retraso.
+model ParticipacionForo {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foroId      String              @map("foro_id") @db.Uuid
+  autorId     String              @map("autor_id") @db.Uuid
+  principalId String?             @map("principal_id") @db.Uuid
+  texto       String
+  conRetraso  Boolean             @default(false) @map("con_retraso")
+  creadoEn    DateTime            @default(now()) @map("creado_en") @db.Timestamptz(3)
+  foro        Tarea               @relation(fields: [foroId], references: [id], onDelete: Cascade)
+  autor       Usuario             @relation("ParticipacionesForoDelAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  principal   ParticipacionForo?  @relation("ReplicasDeParticipacion", fields: [principalId], references: [id], onDelete: Cascade)
+  replicas    ParticipacionForo[] @relation("ReplicasDeParticipacion")
+
+  // Las principales de un foro (principal_id IS NULL, por creado_en e id) y su conteo por foro.
+  @@index([foroId, principalId, creadoEn, id])
+  // E1-3 (M-03): las réplicas de una principal y su conteo, y la cascada de la FK sobre sí misma al
+  // borrar una principal (el foro o la clase).
+  @@index([principalId, creadoEn, id])
+  // Lo que escribió un alumno en un foro, y su principal.
+  @@index([foroId, autorId, creadoEn, id])
+  @@map("participaciones_foro")
 }
 
 // CLASES-03b (§D-4, P-07, S-06): una duda de una clase, sin título. resuelta_en y resuelta_por van

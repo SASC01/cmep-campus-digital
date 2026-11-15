@@ -251,6 +251,10 @@ const INVENTARIO = new Set([
   "dudaId",
   "respuestaId",
   "resuelta",
+  // FORO-01a, C-6 (§E7.5.1; §D-3.2): los prefijos de shared/src/foros.ts; quitarRutaDelMensaje deja
+  // texto legible en los dos mensajes.
+  "foroId",
+  "participacionId",
 ])
 const NOMBRE_EN_CAMEL_CASE = /^[a-z][A-Za-z0-9]*:/
 

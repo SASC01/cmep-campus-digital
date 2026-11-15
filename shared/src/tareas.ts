@@ -179,7 +179,7 @@ export const criterioEntradaSchema = z.object({
 // Sin zona horaria se rechaza: la fecha límite viaja en ISO 8601 con Z o con desfase (regla 7).
 export const fechaLimiteSchema = z.iso.datetime({ offset: true, error: "Elige la fecha límite" })
 
-const idOpcionalSchema = z
+export const idOpcionalSchema = z
   .uuid("Elige una opción válida")
   .transform((id) => id.toLowerCase())
   .nullable()

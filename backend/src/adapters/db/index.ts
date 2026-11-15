@@ -255,3 +255,23 @@ export {
   type ExportacionDeCalificacionesDb,
   type FilaDeExportacionDb,
 } from "./exportacion-de-calificaciones.js"
+export {
+  leerMiParticipacion,
+  listarForos,
+  listarParticipaciones,
+  listarParticipacionesDeAlumno,
+  listarReplicas,
+  publicarParticipacion,
+  publicarReplica,
+  type AutorFirmadoDb,
+  type ElementoDeForoDb,
+  type ListaForosDb,
+  type ListaParticipacionesDb,
+  type ListaParticipacionesDeAlumnoDb,
+  type ListaReplicasDb,
+  type MiParticipacionDb,
+  type ParticipacionDb,
+  type ParticipacionDeAlumnoDb,
+  type ParticipacionPublicadaDb,
+  type ReplicaDb,
+} from "./foros.js"

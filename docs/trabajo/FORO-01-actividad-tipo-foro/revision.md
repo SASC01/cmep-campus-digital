@@ -401,3 +401,691 @@ No hay cambios fuera de la tabla. El único borrado es la línea "Frontend", que
 ### Detalles menores (no bloquean; para la Enmienda de arranque de 01b)
 - **CAL-1B08 en 01b.** `calificaciones-lecturas-estatico.test.ts:90-108` exige que `columnaDelGradebookSchema` y `tareaDeMisCalificacionesSchema` sigan declarados como `z.strictObject(`. El `tipo` opcional de §D-6 debe sumarse dentro de esa declaración, no con `.extend` sobre otra base. Si no, la prueba cambia y es PARADA. Hay que nombrarla en las vigiladas de 01b.
 - **Regla de la fusión.** C-7 dice que, si la fusión trae `errores-ch3-r2.ataque` con cambios de ADMIN-01, el tester une el `INVENTARIO` "con la regla de las `*.ataque` de §D-R0 01b, punto 4". Pero el punto 4 nombra archivos concretos y trata cualquier otro conflicto como PARADA. Conviene sumar ese archivo al punto 4, o dejar escrito que su conflicto es PARADA. Hoy el resultado sería una PARADA, que es lo seguro.
+
+## Verificación de la Enmienda 7 (rearranque) — FORO-01 (2026-11-14)
+Veredicto: **CAMBIOS REQUERIDOS**
+Verificación propia: lint, test y build **no corridos** (modo plan; solo `git`, `grep` y lectura; no corrí ningún archivo de prueba). `plan.md`: 2283 líneas, SHA-256 `18b4f5cf32b2fa4b46c0066ecf82e4353f0bc5b12ab1d84e78632d3ac056200e` (coincide). Copia `plan-foro-01-antes-e7.md`: SHA-256 `6398b144…` (coincide). `git diff --no-index --shortstat`: 683 inserciones y 27 eliminaciones (coincide). `backend/`, `frontend/` y `shared/` idénticos a `fd4a7ad` (`git diff --stat fd4a7ad` vacío en los tres).
+
+El rearranque está bien planteado: nada de lo que el humano aprobó cambió sin decirlo, lo que queda "sin objeto" de verdad lo está, y el backend está bien reanclado salvo un punto de compilación. Bloquean dos cosas: el valor `foro` del enum rompe la compilación en archivos que 01a no puede tocar (M-07), y el inventario de 01c2 deja fuera al menos siete pruebas que la sección "Foro" pone en rojo, así que su conteo (y con él la partición del frontend de DH-15) no es creíble (M-08).
+
+### Problemas que bloquean
+
+#### M-07 — El valor `foro` del enum rompe la compilación del backend en archivos fuera de "Se toca"
+Dónde: plan §E7.2, fila de `duplicado-de-clase.ts` (línea 96); §E7.5.0, "No se toca" (línea 255: `core/clases/*` y `adapters/db/duplicado-de-clase.ts`); §E7.5.1, "Se toca" (línea 280: `publicaciones.ts` "solo `listarPublicaciones`"). Código: `backend/src/core/clases/duplicado.ts:8` (`TipoDePublicacionOriginal = "anuncio" | "material" | "tarea"`) y `:43` (`RecursoOriginal.tipo`); `backend/src/adapters/db/duplicado-de-clase.ts:90-107` (selecciona `tipo: true` de `publicacion`) y `:134-137` (lo pasa a `planDeDuplicado`); `backend/src/adapters/db/publicaciones.ts:29-31` (`PublicacionDb.tipo`), `:90-97` (`SELECT_PUBLICACION` con `tipo`) y `:140-171` (`crearPublicacion` devuelve `Promise<PublicacionDb>` con `...creada`).
+Por qué importa: Prisma no estrecha el tipo por el `where`: `tipo` llega como `$Enums.TipoPublicacion` (`generated/models/Publicacion.ts:222`), que con el paso 4 de 01a pasa a incluir `"foro"`. Desde ese `prisma generate`, `tsc` falla en `duplicado-de-clase.ts` (asigna a `TipoDePublicacionOriginal`) y en `crearPublicacion` (asigna a `PublicacionDb.tipo`). Los dos primeros archivos son ADMIN-01 y están en "No se toca"; `crearPublicacion` queda fuera del "solo `listarPublicaciones`". El remedio de la línea 1063 ("si hace falta para el compilador, se estrecha con una comprobación inalcanzable") solo nombra `listarPublicaciones`. Es una PARADA segura en el paso 4 o 5 de 01a, con `lint` y `build` en rojo, y el remedio exige crecer "Se toca" en carril sensible (§E7.5.0, E1-23). El reanclaje revisó el duplicado por su conducta (no copia foros), no por su tipo.
+Qué se espera: el inventario completo de los lugares de `backend/src` donde el `tipo` de Prisma desemboca en un tipo literal más estrecho (mi grep: `"anuncio" | "material" | "tarea"` y `tipo: true` en `adapters/db`; encontré esos tres; `tareas.ts:684-698` y `temas.ts:212-221` ya estrechan a mano y compilan), cada uno en "Se toca" de 01a con su remedio mínimo (estrechar en el adaptador o ensanchar el tipo de `core/`) y sus vigiladas (`duplicado-de-clase.integracion`, `borrado-duplicado-*`, las de `core/clases/duplicado`), y el conteo de 01a corregido (unos 32 o 33). El humano lo aprueba con el plan; no hace falta una DH.
+
+#### M-08 — El inventario de 01c2 deja fuera las pruebas que fijan la posición de las secciones, y su conteo no es creíble
+Dónde: plan §E7.5.4, "Lista cerrada" (líneas 402-408), "Grep de la lista" (línea 410, que da por "vigiladas" a `indicador-03c1-r1.ataque` e `indicador-03c1-r2.ataque` porque "buscan las secciones por nombre"), C-n (líneas 415-422) y "Vigiladas" (línea 426: `app/router-01d.test.tsx` y `app/rutas-01d-r1.ataque.test.tsx`); §E7.1 (línea 60, 01c2 ~30).
+Por qué importa: con "Foro" tercera, "Recursos", "Dudas", "Personas" y "Calificaciones" bajan una posición. Hay pruebas que fijan la lista completa en otros archivos y pruebas que fijan el indicador medido por índice. El grep del plan solo mira `features/clases` y solo busca textos. Mi grep (lista multilínea `"Dudas",\s*"Personas"` en todo `frontend/src` y `esperadas\(|medidasDeLaOpcion\(|indicador-x`) encuentra, además de lo inventariado:
+- **Normales fuera de la lista:**
+  - `app/router-01d.test.tsx:192-205` (CAL-1D06: las seis secciones de las tres perspectivas) y `:225-254` (el indicador en las opciones 4 y 5). El plan la da por vigilada y va a fallar.
+  - `features/clases/dudas-caminos-03e.test.tsx:451-458` (CL3-E12, la lista completa).
+- **Líneas de más en archivos ya listados:**
+  - `features/clases/clase-layout.test.tsx:310-317` (la lista del admin), `:274` y `:360` (`medidasDeLaOpcion(4)` de "Personas"). El plan solo nombra `:381-383` y `:418-460`.
+  - `features/clases/secciones-03c1.test.tsx:184` (`esperadas(5)` de "Calificaciones") y `:243-256` y `:276-282` (`esperadas(4)` de "Personas" y `{ x: "520px", ancho: "135px" }`). El plan solo nombra `:19-27` y `:153-160`.
+- **`*.ataque` sin C-n:**
+  - `app/rutas-01d-r1.ataque.test.tsx:196-210` ("Calificaciones" en el índice 5: `500px` y `130px`).
+  - `features/clases/clases-admin-02c-r1.ataque.test.tsx:383-393` (la lista completa del admin).
+  - `features/clases/indicador-03c1-r1.ataque.test.tsx:354-456` (`esperadas(5)` de "Calificaciones") e `indicador-03c1-r2.ataque.test.tsx:297-305` y `:439` (índices 4 y 5, con el historial de cada sección que se sumó).
+  - Precedente: CLASES-03e ajustó como C-n justo estas `*.ataque` al sumar "Dudas" (sus comentarios "CLASES-03e ronda 0" en `rutas-01d-r1`, `clases-admin-02c-r1`, `indicador-03c1-r1` e `indicador-03c1-r2`).
+- **Listas cerradas de CHORE-04 que el foro alcanza:** `lib/guardas-ch4-r1.ataque.test.ts`.
+  - ATQ-CH4-32 (`:72-93`) cierra la lista de mutaciones que no viven en un manejador a dos espacios. Hoy incluye `editar-tarea-view.tsx` («const handleGuardar = async (datos: CrearTarea, version: number) => {»). `editar-foro-view.tsx` con la misma forma (`key={foroId}` en un componente interno, §E7.3, punto 3) entra en esa lista.
+  - ATQ-CH4-34 (`:106-135`) cierra la de `.refetch(` sin `cancelRefetch: false`. Hoy incluye la recarga tras un conflicto de `editar-tarea-view.tsx:132` y las dos de `entrega-de-alumno-view.tsx`. `editar-foro-view.tsx` (01c2) y `participante-view.tsx` (01e) con la recarga tras un `409` de §7.21 suman líneas.
+  - En 01c1, el remedio de T-01 en `editar-tarea-view.tsx` toca el archivo de las dos líneas que fijan: como mínimo, vigilada.
+
+Con lo anterior, 01c2 pasa de ~30 a unos 37 (2 normales y 5 `*.ataque` más), por encima de la regla de corte. Así, la partición del frontend que el humano aprobaría con DH-15 ya no es la del plan. La comprobación de arranque del tester lo encontraría en la ronda 0 de 01c2, pero como PARADA y enmienda a mitad del encargo, sobre una partición ya aprobada.
+Qué se espera:
+- La lista cerrada y los C-n de 01c2 completos (con el texto exacto de cada C-n, como C-9), y un C-n condicional para `guardas-ch4-r1` en 01c2 y en 01e (como C-8), o la forma de `editar-foro-view.tsx` y `participante-view.tsx` fijada para no entrar en esas listas.
+- El recuento de 01c2 y, si pasa de unos 30, el corte nuevo con sus conteos, reflejado en §E7.1 y en DH-15 antes de que el humano la responda.
+- La línea "Grep" de cada subentrega del frontend ampliada a todo `frontend/src`, con los patrones por índice y por listas cerradas de CHORE-04, para que la comprobación de arranque sea una red de seguridad y no el inventario.
+
+### Problemas que no bloquean
+
+- **N-17 — La comprobación de arranque no sustituye al inventario; las vigiladas del backend tienen huecos.** Con M-08 cerrado, la comprobación de arranque basta como red de seguridad en 01c1, 01d y 01e. No basta como sustituto de lo que el arquitecto no abrió: la limitación declarada es justo donde salieron M-07 y M-08. En el backend no encontré pruebas que deban cambiar fuera de lo inventariado. Sí faltan tres vigiladas que leen archivos que 01a y 01b cambian, y conviene nombrarlas:
+  - `instantanea-01b-r1.ataque.test.ts:524-557`, que exige `export const leerTarea =`, `const leerTareaCon =`, `const listarTrabajoCon =` y la opción solo en `leerTarea` y `listarTrabajo` (01a y 01b cambian `tareas.ts`);
+  - `calificaciones-estatico-01b-r1.ataque.test.ts`, CAL-T-69 (sin `request.query.x` ni `request.query as` en `handlers/calificaciones.ts`; 01b suma `conTipo`) y su primer caso (sin `rol` ni `version` en `adapters/db/calificaciones.ts`);
+  - `autoria-02b-r1.ataque.test.ts` (oráculo propio de `core/autoria.ts`; 01b suma `puedeBorrarParticipacion`).
+- **N-18 — Las listas de `features/tareas`: la decisión es correcta; falta decir dónde vive la lógica.** Que `features/tareas` no importe los ganchos de `features/clases` es la regla 9, y la regla 5 no obliga a subirlos: nadie fuera de `features/clases` los usaría. El patrón de Entregas está documentado en `DESIGN.md` §7.10 ("conservan la lista también cuando falla una recarga de fondo"). Subir `useListaConservadaTrasLaPagina` a `components/` sería un refactor entre dominios que pide confirmación y no hace falta. Pero ese patrón vive en línea en `entregas-view.tsx:98-114` (`handleVerMas` con sus cuatro salidas), y el foro lo necesita en cinco listas. El plan debe decir que esa lógica va en un gancho de `features/tareas/hooks.ts` (CLAUDE.md, reglas 3 y 4), no copiada cinco veces en los componentes.
+- **N-19 — El plan corrige, no solo revisa, un riesgo que el humano había aceptado.** La fila de ADMIN-01d1 y 01d2 de ESTADO §3 dice "Riesgo declarado (decisión del humano, 2026-11-06); revisar en FORO-01". FORO-1C41 y FORO-1E41 lo corrigen en la tarea y en calificar (conducta nueva en flujos de tareas). Es razonable y está acotado, pero el humano debe saberlo al aprobar.
+- **N-20 — DH-09 (a) perdió su motivo original.** R-E7-4 lo dice bien: con DEPLOY después de ENVIVO, el opt-in (`conForos`, `conTipo`) ya no protege a un frontend anterior. Se conserva para no tocar los dobles que eligen por `seccion` (M-04) y se retira en el `chore` de compatibilidad. Coincido en conservarlo, pero el humano aprobó DH-09 por otra razón: hay que decírselo en una línea.
+- **N-21 — §E7.7 ubica mal un efecto de DH-02 (c).** `FormularioTarea` con `tipo="foro"` está en 01c1 (§E7.5.3), no "después de 01c2" (línea 497).
+
+### Lo que comprobé
+
+**Diff (punto 1).** Los 45 hunks se mapean a E7-1 a E7-16 (uno, la nota de "Cambios por capa" en la línea 1437, no está nombrado en la columna "Secciones" de la tabla; ver detalles). Las 27 eliminaciones son líneas reescritas que conservan su texto como historial, con la marca "(Enmienda 7)" delante o detrás. No cambió nada aprobado: §D-1 (modelo), §D-3.1 (las 17 rutas, verificadas en las líneas 943-958), §D-9 (textos; solo suma la fila del complemento de DH-12, presentada como decisión), DH-01 a DH-12 (DH-05 con la decisión del humano, literal), PB-1 (a), PB-2 (a), el opt-in y las migraciones como PARADA con su SQL. Lo "sin objeto" lo está de verdad: DH-13 y DH-10 cumplidas (ADMIN-01 en `main`; PR #32 revertido), DH-14 y §D-X sin fusión, R-03, R-04, R-09 y R-10. Las frases del plan viejo ("antes de fusionar ADMIN-01", `e94ee59`, "copia B", "otra copia", "remerge-diff", "01a1" y "01a2") solo quedan en secciones marcadas como historial o reemplazadas.
+
+**Reanclaje (punto 2).**
+- ADM-1A09 (a) (`clases-archivadas-matriz.integracion.test.ts:97-98`) compara la lista de rutas con `:claseId` de `printRoutes` con la tabla, por igualdad: se pone roja en cuanto `app.ts` registra el foro. La política en 01a está justificada.
+- Las 16 entradas que suma la lista cerrada y sus políticas son coherentes con (b) a (e): las rutas 6 y 7 (`roles: ["estudiante"]`, `"lectura"`) dan `403` al maestro y al admin y `409` al alumno, como la entrega propia de una tarea; (d) sigue en 4.
+- `contarParaBorrar` (`borrado-de-clase.ts:26-54`) cuenta `tarea.count({ claseId })`, las entregas con fecha y las calificadas. `borrarClaseDefinitivamente` lee los `archivos` por `clase_id` y los `trabajo_id` de `tareas`, y borra la clase con su cascada. Con las FK de §D-1.2 (`foro_id → tareas` y `principal_id` en cascada), el foro cae completo. El duplicado (`duplicado-de-clase.ts:90-95`) solo lee materiales. Correcto, salvo M-07.
+- Migraciones: 19 carpetas, las tres últimas de ADMIN-01 (`20261104234335`, `20261105163205`, `20261109150104`). El CHECK `publicaciones_titulo_segun_tipo` solo lo tocan `20261002003225` y `20261006151533`. El CHECK de `bloque` (`20261028165322`) exige `bloque` nulo fuera de materiales, como dice el plan. El enum en su propia migración y el CHECK en la segunda siguen el precedente de `tipo_publicacion_tarea`. Los tres nombres de índice miden menos de 63 caracteres. Compatibles hacia atrás, con R-02 declarado.
+- Cadena: `middleware/index.ts:14-22`, `:47-58` y `core/clases/archivada.ts` como dice §E7.2. **El plan no toca `middleware/`, `adapters/auth` ni `infra/`** (§E7.5.0, líneas 251-253; §E7.9).
+- `protegido({…, enClaseArchivada: "lectura" })` en varias líneas (`handlers/tareas/tareas.ts:121-127`) y el patrón de CAL-1B08 (`calificaciones-lecturas-estatico.test.ts:77-88`): correcto.
+- "Foro" activa en `foro` y no en `foros/:foroId`: `indiceDeSeccionActiva` (`features/clases/lib.ts:114-128`) compara `destino` o `destino/`, así que `…/foros/x` no activa `…/foro`. Correcto.
+- `DESIGN.md`: §7.32 y §7.33 son de ADMIN-01, y §7.34 está libre. §7.10 ya documenta las dos variantes ("Lo implementan…"; Entregas "va más allá").
+- Reglas que no se rompen: capas, cadena completa en cada ruta, sin estado de pago (FORO-1B10 con llaves exactas), índices de M-03 y paginación en cada lista (la de foros declara su índice y su riesgo en "Acceso a datos", línea 1509), nada por la cola al publicar (S-09), adjuntos por URL prefirmada y `BORRAR_OBJETOS`, UTC, el recordatorio con crear, editar y borrar en la misma transacción, avisos solo por `notifier` (no se toca). Sin hallazgos fuera de M-07.
+
+**Inventarios (punto 4), con mi grep.**
+- **C-1 coincide con el árbol:** título "…, ADMIN-01b, ADMIN-01e y FORO-01a: …" (hoy `:585`, "… y ADMIN-01e"); comentario después del de ADMIN-01e (`:573-584`); 26 entradas (10 GET, 10 HEAD, 3 POST, 2 PUT y 1 DELETE); posiciones de `sort()` verificadas una por una ("participaciones" antes de "participantes"; `…/devoluciones` antes de `…/participaciones`); igual al ajuste de `e81ff10`.
+- **C-2 coincide:** hoy son 24 (1+2+1+4+2+4+1+2+1+2+2+2 por archivo); "veintinueve" con "cinco de foros"; `adapters/db/foros.ts:5` va entre `exportacion-de-calificaciones.ts:1` y el comentario de ADMIN-01e que precede a `gestion-de-usuarios.ts:2`, que es su lugar en el orden.
+- **C-3, C-6 y C-7 coinciden:** `lecturas-fx-r2.ataque.test.ts:972` y `:995-996`, con `participacionForo` entre `movimientoInscripcion` y `publicacion`; `errores-ch3-r2.ataque.test.ts:231-254`, después de `"resuelta",`, con `alumnoId` y `tema` ya inventariados.
+- **C-8 a C-14 coinciden con sus líneas:** `tareas-01a-r1.ataque.test.tsx:176-195` y `:93`; `heredados-02d-r1.ataque.test.tsx:209-273`; `estatico-02c-r1.ataque.test.ts:123-133` (nueve archivos hoy); V-06 en 90 (lo conté: 90 `enEspera=` en producción), con `restoClases` en 3 y la regla de `fijos`; `categorias-01e-r1:174` y `-r2:153`.
+- **01a y 01b:** las listas cerradas cuadran con el árbol. Hay 7 archivos con `printRoutes` o `rutasDeLaApp`, como dice el plan; las demás pruebas que leen el esquema o los índices filtran por tabla o por nombre. Sí faltan vigiladas (N-17). **01d y 01e:** cuadran (`seccion=actividades` y la URL completa solo en `contenido-03c2:242`; "0 tareas" y "Tiene 3 tareas." solo en `categorias-view` y en las dos de C-12; las URL del gradebook solo en `calificaciones/lib.test.ts:150-162`). **01c2:** incompleto (M-08).
+
+**Conteos (punto 5).** Conté cada "Se toca": 01a 18+9+1+3 = 31; 01b 18+5+4+3 = 30; 01c1 8+4+1+1 = 14; 01c2 15+6+6+3 = 30; 01d 16+6+2+3 = 27; 01e 17+6+2+1 = 26. Las cifras cuadran con sus listas, pero la de 01a sube con M-07 y la de 01c2 no es creíble (M-08). Cada corte se justifica por tamaño, no por tema. El orden no deja la rama rota entre commits si se cierran M-07 y M-08. 01a y 01b verifican backend y frontend con `build` de `shared`; 01c1 a 01e no tocan `shared/`.
+
+**Reglas nuevas (punto 3).** Por subentrega están: las guardas con ref en un manejador con nombre y su comprobación quitándolas (FORO-1C50, 1D50 y 1E50); las `EXCEPCIONES` de CH4-01; «Ver más» con `isFetching`, `cancelRefetch: false` y sin lectores nuevos de `isFetchingNextPage`; la `key` por cada id de la ruta y CH6-A30 (c) (FORO-1C52, 1D52 y 1E52); ningún aviso ante un código que redirige (FORO-1C53, 1D53 y 1E53); la política única en `ForosView` (FORO-1C54 y 1D54); la memoria por consulta (FORO-1D51); `VALIDACION` fuera de contrato en cada formulario (FORO-1C06 a 1C11, con "pintado solo en otro modo" y "rechazo seguido de uno local"; los de participar y calificar en 01d y 01e); un caso por camino por frase (FORO-1C20 a 1C23, 1D20 a 1D27 y 1E20 a 1E35); la matriz desde el primer resumen de 01c1, y los ids con prefijo `FORO-`. Falta lo de M-08 (las dos listas cerradas de `guardas-ch4-r1`) y lo de N-18.
+
+### Detalles menores
+- La nota de "Cambios por capa" (línea 1437) no aparece en la columna "Secciones" de ninguna fila de la tabla E7.
+- A-11 (línea 2105) deja suelto, después de la marca, el fragmento viejo "el orden de fusión (DH-13) y la forma de la fusión de 01b (DH-14), cuando el humano los decida".
+- §D-0.1 (línea 693) y A-07 (línea 2094) citan filas de ESTADO por su número de línea en `e94ee59` (470, 331, 332): conviene citarlas por su texto.
+- A-04 no nombra la entrada de `services/trabajoService.ts` en "Ubicaciones compartidas" de `CLAUDE.md`, que hoy enumera sus claves y gana las del foro en 01c2.
+
+### Desacuerdos arbitrados
+Ninguno.
+
+### Documentos a actualizar
+Los de "Documentos al cierre", con la corrección de A-04 de arriba. M-07 no cambia documentos: ESSENTIALS ya dice que el duplicado no copia actividades.
+
+### Para el humano
+- **DH-15 (partición).** Coincido con (a) en el backend: dos subentregas de unos 30 y la política de clase archivada en 01a, porque la prueba de ADMIN-01 (ADM-1A09) se pone roja en cuanto el foro registra sus rutas; lo comprobé. Con M-07, 01a sube a unos 32 o 33, que sigue dentro de lo aceptado antes. **En el frontend no se puede responder todavía:** 01c2 tiene unos 37 archivos, no 30 (M-08), y hay que recortarla antes de que la apruebes.
+- **DH-16 (cuándo entra a `main`).** Coincido con (a): un solo PR al cerrar 01e. `main` nunca tiene medio foro y no hay trabajo en paralelo que pida adelantarlo. Con (b), entre 01b y 01e `main` tendría rutas y columnas del gradebook de un foro que ninguna pantalla puede crear.
+- **DH-17 (el foro al borrar una clase).** Coincido con (a): sin cambiar ADMIN-01. El diálogo ya cuenta actividades, entregas, calificaciones y archivos, que es lo que pide RN-10, y el foro entra en esas cuentas; la cascada lo borra completo (lo comprobé en el código).
+- **DH-18 (participaciones de una cuenta dada de baja).** Coincido con (a): siguen con su nombre y sin marca, como las dudas y los comentarios; el alumno sale de "Participantes", del gradebook y de la exportación, y vuelve al reactivarlo. Es coherente con "conserva todos sus datos" de ESSENTIALS.
+- **Complemento de DH-12.** Aprobarlos: "Tiene {n} actividades." / "Tiene 1 actividad." y "Esta clase no tiene categorías. Sus actividades se califican por puntos.". Es el mismo editor que ya decidiste en E1-9.
+- **DH-02 (la regla tardía).** De verdad no bloquea: vive en una sola función de 01a. Si el cliente responde tarde, se rehace esa función, unos textos y, con (c), el formulario de 01c1 (no de 01c2, N-21).
+- **Dos avisos sin decisión nueva:** el plan corrige (no solo revisa) un riesgo que aceptaste el 2026-11-06, el `409` con la clase archivada en tarea y calificar (N-19); y el opt-in de DH-09 se conserva por las pruebas, no por compatibilidad, y se retira antes de DEPLOY (N-20).
+- **Carril:** sensible, correcto. **El plan no toca `middleware/`, `adapters/auth` ni `infra/`.** Los archivos de ADMIN-01 que M-07 obliga a tocar entran con tu aprobación del plan.
+
+### Estado del plan
+Vuelve al arquitecto para una Enmienda 8 corta: M-07 (01a), M-08 (01c2 y DH-15 del frontend) y, si quiere, N-17, N-18 y N-21. Lo demás de la Enmienda 7 queda verificado y no hace falta revisarlo de nuevo.
+
+## Verificación de la Enmienda 8 — FORO-01 (2026-11-14)
+Veredicto: **APROBADO**
+Verificación propia: lint, test y build **no corridos** (modo plan; solo `git`, `grep` y lectura; no corrí ningún archivo de prueba). `plan.md`: 2565 líneas, SHA-256 `cf26b7f925e782ae34c5a5cabcc4647660c85e1d5ef049406096e2e1a409e81a` (coincide). Copia `plan-foro-01-antes-e8-18b4f5cf.md`: SHA-256 `18b4f5cf…` (coincide). `git diff --no-index --shortstat`: 288 inserciones y 6 eliminaciones (coincide).
+
+M-07 y M-08 quedan resueltos, y lo comprobé con mi propio grep. La partición nueva del frontend cuadra y su orden es viable. Quedan cuatro detalles de inventario y de texto (N-22 a N-25). Ninguno cambia lo que el humano decide ni un conteo: se corrigen con una enmienda corta antes de la ronda 0 de la subentrega que tocan, como se hizo con la Enmienda 6.
+
+### M-07: resuelto
+- **Mi grep.** Busqué en `backend/src`, sin `generated/`, las uniones `"anuncio" | "material" | "tarea"` y sus parciales, todo `tipo: true`, todo `tx.publicacion.(create|find*|update*)` con su `select`, los `include` y los `$queryRaw` con `tipo`. Sobre el tipo de publicación solo hay tres asignaciones de una fila de Prisma a una unión estrecha:
+  - `crearPublicacion` (`publicaciones.ts:140-171`, por `SELECT_PUBLICACION`, `:90-97`);
+  - `listarPublicaciones` (`:215-265`);
+  - `duplicado-de-clase.ts:90-107` hacia `RecursoOriginal` (`core/clases/duplicado.ts:8,43`).
+
+  Lo demás estrecha a mano (`tareas.ts:684-698`), compara (`temas.ts:215-221`), lleva el tipo escrito sobre SQL que filtra (`publicaciones.ts:272-304`) o es otro enum (archivos, tokens, movimientos). No hay `select` anidado de `publicacion` con `tipo`: el único, `calificaciones.ts:104`, lee `titulo`. En `shared/src` las uniones de `clases.ts:471` y `:527` y de `tareas.ts:285` son esquemas de respuesta y compilan. En el frontend no hay `switch`, `Record` ni `satisfies never` sobre el tipo.
+- **Los tres remedios son sanos:**
+  - `{ ...creada, tipo, … }` toma el tipo del parámetro (`"anuncio" | "material"`). No hace consultas nuevas y no cambia la conducta.
+  - La ayuda de `listarPublicaciones` es de verdad inalcanzable: los dos `donde` (`{ claseId, tipo: { in: [anuncio, material, tarea] } }` y `{ claseId, tipo: "anuncio", temaId: null }`) excluyen `foro`. Es un retorno temprano que lanza `AppError` en `adapters/`, como `errorElementoSinTitulo`, y no rompe `lecturas-fx-r2.ataque:1082-1108`, que solo prohíbe escrituras, bloqueos y SQL crudo dentro del cuerpo.
+  - Sumar `"foro"` a `TipoDePublicacionOriginal` no cambia el duplicado: el adaptador ya filtra `tipo: "material"` (`:93`), `planDeDuplicado` filtra con `esRecursoDeAprendizaje` (`:165`), y esa función devuelve `false` a todo lo que no es material (`:23`). `duplicado-de-clase.ts` no se toca. Ninguna prueba estática lee `core/clases/duplicado.ts`.
+- **El conteo de 01a** (19 + 9 + 1 + 3 = 32) es creíble. FORO-1A08 no choca con ningún id.
+- **"Mover" un foro en 01a** responde `404`: `TEMA_NO_ENCONTRADO` si el tema no existe y, si no, `PUBLICACION_NO_ENCONTRADA`, porque el `updateMany` filtra `TIPOS_CON_TEMA` (`temas.ts:204-238`). Coincide con lo declarado.
+
+### M-08: resuelto
+- **Mi grep, en todo `frontend/src`:**
+  - las listas multilínea `"Actividades de aprendizaje",\s*"Recursos"` y `"Dudas",\s*"Personas"`;
+  - los índices `esperadas\(\d`, `medidasDeLaOpcion\(`, `opcionDe\(lista, \d` e `indiceDeSeccionActiva\(`;
+  - los px literales `"\d{2,3}px"`;
+  - `toHaveLength\((6|7)\)`, los enlaces por posición y todo archivo que nombre "Secciones de la clase" y cuente.
+
+  Encuentra exactamente lo que inventaría §E8.2: `secciones-03c1`, `clase-layout`, `clases/lib.test`, `recursos-lib-03d`, `app/router-01d` y `dudas-caminos-03e` como normales; `heredados-02d-r1`, `rutas-01d-r1`, `clases-admin-02c-r1` e `indicador-03c1-r1` y `-r2` como `*.ataque`. `textos-03c1` enumera claves y no cambia. Los demás usan las secciones por nombre.
+- **Texto exacto, línea por línea, contra los archivos:**
+  - las seis normales con su antes y después, con la aritmética comprobada (130×5 = 650 y 95+50 = 145; 120+50 = 170; "Calificaciones" ocupa 600..740);
+  - C-17 (`rutas-01d-r1:196-210`) y C-18 (`clases-admin-02c-r1:378-393`);
+  - C-19 (`indicador-03c1-r1`: los once `esperadas(5)`, el `esperadas(4)` de `:523`, los cuatro `opcionDe(lista, 5)` y los dos `"500px"`, en las líneas citadas);
+  - C-15 (`guardas-ch4-r1:89-92` y `:112-120`; ATQ-CH4-32 compara en el orden del glob, así que `editar-foro-view` va antes que `editar-tarea-view`; ATQ-CH4-34 ordena).
+
+  Cada ajuste conserva la intención del ataque y sigue el precedente de CLASES-03d y CLASES-03e: los comentarios de esas dos están en los mismos archivos. El cambio de control de CL3-R2-08 (pulsar "Foro" en el índice 2 y sumar la ruta `foro` al router de prueba) es el que hizo CLASES-03d con "Recursos" y es necesario: "Recursos" en el índice 3 ya no cabe en 90..340.
+- C-20 tiene un hueco de texto (N-22).
+
+### La partición nueva
+- **Conteos.** Conté cada "Se toca":
+  - 01c1: 7 de producción (`foros-view.tsx`, `data.ts`, `hooks.ts`, `types.ts` y `fila-de-entrega.tsx` de `features/clases`, más `trabajoService.ts` y el router), 2 pruebas nuevas, 7 normales (las seis de §E8.2 y `como-se-entrega-01a`) y 7 `*.ataque` (C-9, C-10, C-11 y C-17 a C-20): **23**.
+  - 01c2: 13 de producción (11 de `features/tareas`, más `trabajoService.ts` y el router), 8 pruebas nuevas, 2 normales (CH4-01 y CH6-A30 (c)) y 2 `*.ataque` (C-8 condicional y C-15): **25**.
+  - 01a: **32**; 01e: 17 + 6 + 2 + 2 = **27**.
+
+  Todas quedan en unos 30 o menos, y cada corte se justifica por tamaño (01c1 y 01c2 juntas son unos 48).
+- **El orden es viable.**
+  - 01c1 cierra en verde con la sección y su lista.
+  - Las pruebas de 01c1 solo miran enlaces, la lista, la política única y la recarga; ninguna navega al detalle.
+  - La parte de FORO-1C01 que dice "no activa en `foros/:foroId`" sí depende de una ruta que llega en 01c2 (N-25).
+  - 01c2 no rompe lo de 01c1: suma rutas, y CH6-A30 (a) ya cubre el render prop de `ForosView` desde 01c1 con `key={claseId}`, sin entrar en ninguna lista.
+  - V-06 sin cambio en 01c2 es correcto: `porArchivo` solo cuenta archivos con `enEspera=` (`clases-r1.ataque:212-219`), y las vistas reutilizan `AccionesDeLaTarea` y `FormularioTarea`.
+- **Ids trazados.** Todos los de 01c quedan asignados en §E8.3: 1C01 a 1C14 (1C14 partido), 1C20 a 1C27 (1C25 ya movido a 01d), 1C30 a 1C37, 1C40, 1C41, 1C43 y 1C50 a 1C54 (partidos).
+- **Entre los commits de 01c1 y 01c2,** las filas de la lista y "Crear foro" apuntan a rutas que todavía no existen (el `*` del router lleva a `/login`). Solo pasa en la rama y no se puede crear un foro por la interfaz, así que es aceptable con DH-16 (a). Hay que declararlo (N-25).
+
+### N-17 a N-21
+- **N-17: aceptado en el backend, no del todo en el frontend.**
+  - Las tres vigiladas que pedí están con su línea.
+  - Las del backend citadas como archivo completo (`duplicado-de-clase.integracion`, `borrado-de-clase.integracion`, `borrado-duplicado-*`) no leen código ni enumeran rutas (grep de `readFileSync`, `readdirSync` y `printRoutes`: ninguno). De acuerdo con dejarlas así.
+  - En el frontend, cinco de las citadas como archivo completo **sí leen el código fuente**, contra la razón de §E8.5 (N-24).
+- **N-18: correcto.**
+  - `useVerMasConservandoLaLista` vive en `features/tareas/hooks.ts` y solo lo usa ese módulo, así que la regla 5 no obliga a subirlo.
+  - No duplica un dato entre módulos: es la variante de Entregas, que `DESIGN.md` §7.10 documenta aparte.
+  - No lee `isFetchingNextPage` y lleva `cancelRefetch: false` (CH4-03 lo revisa en todo `src/`).
+  - El aviso de la recarga de fondo con memoria por consulta sigue en la variante de `useAvisoDeRecargaFallida` (§E7.3, punto 5).
+  - Dejar `entregas-view.tsx` como está está justificado.
+- **N-19 y N-20:** bien redactados para el humano, con la opción de rechazar N-19 al aprobar.
+- **N-21:** corregido en §E7.7.
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+- **N-22 — A C-20 le faltan los índices que van como argumento suelto.**
+  - En `indicador-03c1-r2.ataque.test.tsx`, `visitar` y `fotosAjenasAlNavegar` reciben el índice en su propia línea:
+    - `:383`, `:404`, `:429`, `:446`, `:466` y `:484` llevan `5,` ("Calificaciones"), que pasa a `6,`;
+    - `:420` y `:499` llevan `4,` ("Personas"), que pasa a `5,`.
+  - La lista de "Cambios" de C-20 solo nombra `esperadas` y `opcionDe`, y su regla de respaldo ("si alguno de `esperadas(4)` u `opcionDe(lista, 4)` nombra Personas…") no los alcanza, aunque su comentario sí habla de "los destinos de visitar y fotosAjenasAlNavegar".
+  - Leído al pie de la letra, el tester se detiene. Hay que sumar esas ocho líneas antes de la ronda 0 de 01c1.
+- **N-23 — En §E7 quedan etiquetas de subentrega viejas sin marcar,** y algunas son texto literal de un C-n:
+  - El comentario de C-8 dice `// FORO-01c1, C-8` (línea 627), pero C-8 va ahora en 01c2.
+  - Los de C-9, C-10 y C-11 dicen `// FORO-01c2 ronda 0` (`:657`, `:658` y `:662`) y van en 01c1; §E8.2 dice "sin cambio de texto", así que la etiqueta equivocada quedaría escrita en las pruebas.
+  - Sin marca de la Enmienda 8 quedan también:
+    - §E7.2 (`:327` y `:329`, "(01c2)");
+    - §E7.3, puntos 1 (`:351`, "Secciones (01c2)"), 6 (`:366`, "01c1") y 8 (`:376` y `:384`, "(01c1)");
+    - los encabezados de §E7.4 (`:416` y `:434`), que reparten los casos al revés que §E8.3;
+    - R-E7-1 y R-E7-2 (`:780-781`).
+  - §E8 manda, así que no confunde a quien lee §E8 primero; los textos literales de los C-n sí hay que corregirlos.
+- **N-24 — Cinco `*.ataque` del frontend que §E8.5 da por "de conducta" leen el código fuente.**
+  - `tareas-01d-r1`, `-r2` y `-r3.ataque` (`:478-537`, `:503-540` y `:391-…`) recorren todo `features/tareas/`. Prohíben en los archivos nuevos del foro:
+    - `fetch(`, `console.`, `?? []` y emojis;
+    - `disabled` en JSX, las escalas anuladas y los valores arbitrarios en px o rem;
+    - importar con `from "@/features/…"`, también del propio módulo;
+    - tipos fuera de `types.ts` (salvo las interfaces Props).
+  - `entregas-01e-r1` y `-r2.ataque` (`:723-768` y `:523-560`) leen, entre otros, `hooks.ts`, `lib.ts`, `data.ts`, `types.ts`, `tabla-de-entregas.tsx` y `acciones-de-la-tarea.tsx`. Además de reglas como las de arriba, **fijan una cuenta: `renovarTrasErrorDeLaEntrega(` aparece exactamente 3 veces en `features/tareas/hooks.ts`** (`entregas-01e-r1:767` y `-r2:542`). Si los ganchos de participar (01d) o de calificar la participante (01e) lo reutilizan, las dos se ponen rojas.
+  - Qué se espera: nombrarlas como vigiladas, con esas reglas, y decir si el foro llama a `renovarTrasErrorDeLaEntrega`. Si lo llama, va un C-n en 01d o en 01e (más dos `*.ataque`, que siguen dentro de unos 30). Si no, que el plan lo prohíba de forma expresa.
+- **N-25 — Lo que 01c1 no puede probar sin las rutas de 01c2.**
+  - La parte de FORO-1C01 que dice "no activa en `foros/:foroId`" no se puede probar en 01c1 con el router real, porque esa ruta llega en 01c2 y hoy cae en el `*`. Debe ir con `indiceDeSeccionActiva` en 01c1, o en 01c2 con el router real.
+  - Hay que declarar que, entre los dos commits, las filas y "Crear foro" apuntan a rutas aún inexistentes, y que por eso 01c1 no puede entrar sola a `main`: vale con DH-16 (a) y no con (c).
+
+### Detalles menores
+- FORO-1A08 prueba `core/clases/duplicado.ts` desde `core/actividades.test.ts`, un archivo del foro. Funciona; solo hay que encontrarlo ahí.
+- C-15 da por hecha la firma exacta `handleGuardar = async (datos: CrearTarea, version: number)`. Si el foro usa otro tipo de datos, es una PARADA evitable: conviene que el programador declare la línea, como ya dice para C-16.
+
+### Hunks
+Los 17 hunks se mapean a E8-1 a E8-8:
+- el estado y la nota (E8-1 a E8-8);
+- §E8 (E8-1 a E8-5);
+- las notas de §E7.1, §E7.5.0, §E7.5.1, §E7.5.3, §E7.5.5 y §E7.5.6 (E8-1 y E8-3);
+- §E7.7 (E8-7);
+- DH-15 y los avisos (E8-3 y E8-6);
+- §E7.11 (E8-3);
+- §D-0.1, A-04 y A-11 (E8-8);
+- la tabla.
+
+Las 6 eliminaciones son líneas reescritas que conservan el texto anterior como historial. Ninguna DH aprobada cambió de opción ni de recomendación. Solo DH-15, que todavía no responde el humano, se reescribe.
+
+### Para el humano
+- **El plan está listo para tu aprobación escrita** (carril sensible), sobre el SHA-256 `cf26b7f9…`. N-22 a N-25 no cambian nada de lo que decides ni ningún conteo. Se corrigen con una enmienda corta que verifica el manager, como la Enmienda 6: N-22, N-23 y N-25 antes de la ronda 0 de 01c1, y N-24 antes de la de 01d. Si prefieres aprobar el texto ya corregido, pide esa enmienda primero; son pocas líneas.
+- **El plan no toca `middleware/`, `adapters/auth` ni `infra/`.** Toca una línea de ADMIN-01 (`core/clases/duplicado.ts:8`) sin cambiar su conducta.
+- **DH-15 (cómo se parte el trabajo):** coincido con **(a)**, seis subentregas en este orden:
+  - 01a, el núcleo del foro con su clase archivada (~32);
+  - 01b, el resto del backend (~30);
+  - 01c1, la sección "Foro" y su lista (~23);
+  - 01c2, los arreglos heredados de las tareas, el formulario y crear, editar, ver y borrar un foro (~25);
+  - 01d, "Actividades", participaciones y réplicas (~27);
+  - 01e, calificar y los enlaces del gradebook (~27).
+
+  Todas quedan en unos 30 o menos, y las cuentas son las mías. (b) solo cambia el backend y deja 01a en ~35.
+- **DH-16 (cuándo entra a `main`):** **(a)**, un solo PR al cerrar 01e. Con la partición nueva hay una razón más: entre 01c1 y 01c2 la lista de foros enlaza a pantallas que todavía no existen.
+- **DH-17 (el foro al borrar una clase):** **(a)**, sin tocar ADMIN-01. El diálogo ya cuenta actividades, entregas, calificaciones y archivos, como pide RN-10, y la cascada borra el foro completo.
+- **DH-18 (participaciones de una cuenta dada de baja):** **(a)**, siguen con su nombre y sin marca, como las dudas; el alumno vuelve completo al reactivarlo.
+- **Complemento de DH-12:** aprobar "Tiene {n} actividades." / "Tiene 1 actividad." y "Esta clase no tiene categorías. Sus actividades se califican por puntos.".
+- **DH-02 (participación tardía):** no bloquea. Si el cliente responde con (c) después de cerrar 01c2, se rehace ahí el formulario del foro.
+- **N-19 (riesgo que habías aceptado):** recomiendo dejar que el plan lo corrija en la tarea, el foro y calificar. Es acotado y tiene sus pruebas. Si no lo quieres, dilo al aprobar.
+- **N-20 (opt-in de DH-09):** se conserva por las pruebas y se retira antes de DEPLOY. No pide decisión.
+
+## Verificación de la Enmienda 9 — FORO-01 (2026-11-14)
+Veredicto: **APROBADO**
+Verificación propia: lint, test y build **no corridos** (modo plan; solo `git`, `grep` y lectura; no corrí ningún archivo de prueba).
+
+**El texto que el humano aprueba:** `plan.md`, **2729 líneas, SHA-256 `e899f7b5bb1fe9b0cb2be14cc1268a7eb365a15cdef7ddbf8efbdd31ba61fd88`**. La copia anterior `plan-foro-01-antes-e9-cf26b7f9.md` coincide con `cf26b7f9…`. `git diff --no-index --shortstat`: 200 inserciones y 36 eliminaciones. Los 33 hunks se mapean a E9-1 a E9-6.
+
+N-22 a N-25 quedan cerrados. Las decisiones del humano están integradas tal como las registra `aprobacion.md`, y la enmienda no cambió nada más. Dos detalles de redacción no bloquean (N-26 y N-27): se resuelven en el mensaje de aprobación, sin tocar el plan.
+
+### Lo que comprobé
+1. **N-22 a N-25, cerrados de verdad:**
+   - **N-22.** C-20 queda completo. Contra `indicador-03c1-r2.ataque.test.tsx`, línea por línea:
+     - `esperadas(5)` está en `:439`, `:475`, `:526`, `:557` y `:576`, y son las cinco del archivo;
+     - `opcionDe(lista, 5)` está en `:528`, `:554` y `:558`;
+     - los argumentos sueltos `5,` están en `:383`, `:404`, `:429`, `:446`, `:466` y `:484`, y los `4,` en `:420` y `:499`;
+     - no cambian `1,` en `:390` ni `0` en `:414`, `:440` y `:476`;
+     - el archivo no tiene ningún `esperadas(4)`;
+     - el router de prueba (`:75-84`) y el control de CL3-R2-08 (`:590-601`) están como dice el plan.
+
+     C-19 no tiene argumentos sueltos (mi grep de `^\s+\d,$` no da nada en `-r1`). La regla "si aparece otro índice ≥ 2, PARADA" es la red correcta.
+   - **N-23.** C-8 dice "FORO-01c2" y C-9, C-10 y C-11 dicen "FORO-01c1 ronda 0", en el texto literal que el tester escribe. Las demás menciones quedan marcadas: §E7.2, §E7.3 (puntos 1, 6 y 8), los encabezados de §E7.4, §E7.5.4, R-E7-1 y R-E7-2, §D-0.1, §D-8.6, §D-10 y §D-R0. Quedan tres cifras viejas sin marcar (N-27).
+   - **N-24.** Abrí cada prueba citada, y la regla de cada una es la que la prueba fija:
+     - `tareas-01d-r1` (`:479-537`), `-r2` (`:504-541`) y `-r3` (`:390-410`);
+     - `entregas-01d-r2:784`, `entregas-01e-r1:767` y `-r2:542`: `renovarTrasErrorDeLaEntrega(` aparece exactamente 3 veces, y además se prohíbe `reaccionarAlErrorDeLaEntrega`;
+     - CAL-T-127 (`aviso-calificar-01c-r3:530-555`): `avisarDelErrorDeLaEntrega(` aparece 5 veces, una sola con `mensajeDelAvisoDeCalificar`, y ese nombre vive solo en `hooks.ts` y `lib.ts`;
+     - `entregas-01d-r3:718-735`: los cinco ganchos con `MiEntrega|Hilo|Comentar|Entregar|Anular`. Ningún nombre del foro coincide; `useMiParticipacion` no contiene `MiEntrega`;
+     - CAL-T-98 (`estatico-01c-r1:106-112`): `.version` dos veces, en el panel;
+     - CAL-1D09 (`estatico-01d.test.ts:58`): doce archivos; conté 12 en `features/calificaciones`;
+     - V-16 y V-15 (`components/layout/estatico-r1.ataque:102-125`): `fixed` y `animate-`;
+     - `lib/estatico-ch3-r2.ataque:171-187`: `.isError) x.reset()` solo en los diez de `DIEZ` y los cinco de `REINICIAN_EN_01F`, quince en total. El grep de producción da 15.
+
+     **Las reglas no se contradicen entre sí:** `entregas-01d-r2` admite `@/features/tareas`, `tareas-01d-r2` prohíbe todo `@/features/`, y el plan elige la más estricta (rutas relativas). **Tampoco contradicen `CLAUDE.md`, "Formularios":** ese apartado admite dos formas, y la del plan es la segunda ("si el error del servidor vive en un estado del formulario, la validación local lo reemplaza en ese mismo estado o lo limpia antes de validar"). Sus casos de `VALIDACION` fuera de contrato la cubren en cada formulario: el del foro con FORO-1C06 a FORO-1C11 (el "otro modo" con `requiereAdjuntos` y `version`, y el "rechazo seguido de uno local" en FORO-1C09); la participación con FORO-1D05 a FORO-1D09; la réplica con FORO-1D10; calificar el foro con FORO-1E05 a FORO-1E09 (`puntajes` sin rúbrica como "otro modo") y FORO-1E40.
+
+     Mi grep de `import.meta.glob|readFileSync|readdirSync` da 41 archivos en el frontend, y el plan nombra todos los que leen código de lo que el foro toca, salvo `features/clases/estatico-03c1-r1.ataque` (detalle menor). `lib/xlsx-muestra` solo escribe un archivo.
+   - **N-25.** FORO-1C01 se parte: en 01c1, con `indiceDeSeccionActiva` (`foro` y `FORO` dan 2; `foros` y `foros/x` dan -1, que es lo que hace `features/clases/lib.ts:114-128`) y el orden de las secciones; en 01c2, con el router real.
+2. **El estado intermedio es cierto.** El único comodín es `app/router.tsx:212` (`{ path: "*", element: <Navigate to="/login" replace /> }`), y no hay ningún `*` anidado. Una ruta sin hijo coincidente cae ahí. Las pruebas de 01c1 solo miran el `href` de los enlaces, la lista, la política única y la recarga, así que 01c1 puede cerrar con sus suites en verde. Que 01c1 no entre sola a `main` cuadra con DH-16 (a).
+3. **No cambió nada más.**
+   - En las filas de DH-15 a DH-18 y del complemento de DH-12 (`git diff --word-diff`), las opciones y las recomendaciones son las mismas palabras: solo se agregan las marcas de "decidida por el humano".
+   - C-1, C-2, C-3, C-6, C-7 y C-14 a C-19 no cambian de contenido. C-15 deja de fijar la firma de `handleGuardar` (era el detalle pedido) y fija la forma. C-11 solo explicita que las vistas de 01c2 no llevan entrada en `fijos`, lo que ya decía la Enmienda 8.
+   - De los conteos, solo cambia 01a, de ~32 a ~33, por el archivo nuevo de FORO-1A08 (`core/clases/duplicado-con-foros.test.ts`). Un archivo nuevo de prueba lo permite §E7.5.0 aunque `core/clases/*` siga en "No se toca".
+4. **El encabezado** (líneas 8-23) dice lo que el humano aprueba y no afirma nada falso, pero se queda corto en dos puntos (N-26).
+
+### Problemas que bloquean
+Ninguno.
+
+### Problemas que no bloquean
+- **N-26 — El encabezado se queda corto en dos puntos.** Basta decirlos en el mensaje de aprobación; no hace falta tocar el plan.
+  - **Punto 3.** "Una sola línea de código de ADMIN-01" es cierto para el código de producción que creó ADMIN-01: `core/clases/duplicado.ts:8`. Pero el encargo también toca:
+    - la prueba de ADMIN-01 de la matriz de clase archivada (`clases-archivadas-matriz.integracion.test.ts`, lista cerrada en 01a y 01b);
+    - código existente de encargos anteriores: en 01a, `adapters/db/publicaciones.ts` (`crearPublicacion` y `listarPublicaciones`, sin cambio de conducta), `adapters/db/tareas.ts`, `adapters/db/entregas.ts`, `core/tareas/tareas.ts`, `core/calificaciones/calificar.ts` y `app.ts`; en 01b, `handlers/calificaciones.ts` (que ADMIN-01 modificó), `adapters/db/calificaciones.ts`, `temas.ts`, `categorias.ts`, `errores.ts` y `core/autoria.ts`; en el frontend, `FormularioTarea`, el panel de calificación, la tabla de entregas, el router y el gradebook.
+
+    Todo está en la lista "Se toca" de cada subentrega, que es lo que el humano aprueba con el plan; el encabezado no lo dice.
+  - **Punto 2.** "Las dos son compatibles hacia atrás" es cierto para el esquema: el código de hoy funciona con la base nueva. Volver a un backend anterior después de crear foros no está garantizado (R-02, con su fila de DEPLOY).
+- **N-27 — Tres cifras viejas sin la marca de la Enmienda 9.** §E8.1 `:201` ("01a pasa a ~32 (19, 9 pruebas nuevas…)"), la nota de §E7.5.1 `:647` y `:649` (FORO-1A08 "en `core/actividades.test.ts`" y "Total: ~32") y la nota de §E7.1 `:419` ("01a ~32"). §E9 manda (§E9.6 y §E9.7) y no confunde a quien lo lee primero. Si hay otra enmienda, que las marque.
+
+### Detalles menores
+- `features/clases/estatico-03c1-r1.ataque.test.ts` (CL3-R1-34: `features/clases/hooks.ts` sin declaraciones de tipos; CL3-R1-33: nadie copia el gancho de `components/seccion`) lee un archivo que 01c1 cambia (`useForos`) y no está nombrado. Es la regla general de `CLAUDE.md` y queda vigilada por la comprobación de arranque.
+
+### Punto 5: 01a en ~33
+Basta informarlo al pedir la aprobación; no hace falta volver a preguntar. La opción que el humano eligió es la misma partición, y el archivo de más es una prueba nueva que él mismo pidió aislar. 01a sigue en el margen que ya se aceptó para 01a1 (~32).
+
+### Para el humano: qué aprueba si aprueba este plan
+1. El foro completo (RF-66 a RF-68) en seis subentregas, cada una con su commit: 01a (~33) y 01b (~30) de backend; 01c1 (~23), 01c2 (~25), 01d (~27) y 01e (~27) de frontend. Un solo PR a `main` al cerrar 01e.
+2. Dos migraciones en 01a (el tipo `foro` y la tabla `participaciones_foro`), cada una como PARADA: el programador te enseña el SQL y espera tu confirmación escrita antes de aplicarla. Volver atrás después de crear foros no está garantizado (R-02).
+3. Sin cambios en `middleware/`, `adapters/auth`, `infra/` ni `.env.example`. De ADMIN-01 cambia una línea de producción (`core/clases/duplicado.ts:8`, sin cambio de conducta) y su prueba de la matriz de clase archivada. Se cambia, sin cambio de conducta salvo lo decidido, código existente de clases, tareas, entregas y calificaciones (por ejemplo, `publicaciones.ts` en 01a), todo en la lista "Se toca" de cada subentrega.
+4. Lo que ya decidiste: DH-01 a DH-18 (DH-05 con tu corrección), PB-1 y PB-2, los dos textos del editor de categorías y la corrección del `409` con la clase archivada (N-19).
+5. La regla de participación tardía queda con su valor por omisión hasta que responda el cliente (DH-02), en una sola función.
+6. Una sola comprobación tuya en el navegador, al final de 01e: 7 puntos y máximo 10 minutos.
+
+## Verificación del resumen del programador — FORO-01a (2026-11-14)
+Resumen verificado: `resumen-programador.md`, 297 líneas, SHA-256 `9fe14a96685dab8ee150253ef07b049817c69ba2864e4bb7c812c0afd912730a`. Plan: `e899f7b5…`. Precondiciones: Docker Desktop 28.5.1 responde (`docker info`); la red es de confianza solo hoy, por declaración del humano; hay una sola copia de trabajo; el equipo está conectado a la corriente (`Win32_Battery.BatteryStatus` = 2). Corrí todo una cosa a la vez.
+
+### Mis corridas contra las del resumen
+| Comando | Mi última línea | Resumen | ¿Coincide? |
+|---|---|---|---|
+| `shared`: `npm run lint` | `All matched files use Prettier code style!` | igual | sí |
+| `shared`: `npm run build` | `> tsc -p tsconfig.json` (sin errores) | igual | sí |
+| `backend`: `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (exit 0) | igual | sí |
+| `backend`: `npm run build` | `> tsc -p tsconfig.json` (exit 0) | igual | sí |
+| `backend`: `npx vitest run` con los 35 filtros de §8, tal cual | `Tests  1654 passed (1654)` · `Test Files  150 passed (150)` (exit 0; 158 s) | igual | sí |
+| `backend`: `npx vitest list` de los 5 filtros de §8, contado con `grep -a ' > ' \| grep -ac 'FORO-'` | **92**, en 10 archivos: 7, 2, 13, 10, 7, 5, 10, 15, 15 y 8 | igual, archivo por archivo | sí |
+| `grep -c "instantaneaUnica: true" backend/src/adapters/db/foros.ts` | `5` | igual | sí |
+| `backend`: `npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` | igual | sí |
+| `backend`: `npx prisma migrate status` | `21 migrations found in prisma/migrations` / `Database schema is up to date!` | igual | sí |
+| `backend`: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | `No difference detected.`, exit 0 | igual | sí |
+| `frontend`: `npm run lint` | `> tsc -b` (exit 0) | igual | sí |
+| `frontend`: `npm run build` | `✓ built in 967ms` | `✓ built in 2.15s` (solo cambia el tiempo) | sí |
+| `frontend`: `npx vitest run src/lib` (con C-6) | `Tests  296 passed (296)` · `Test Files  23 passed (23)` | igual | sí |
+
+### Migraciones, "Se toca" y reglas que no se rompen
+- **Migraciones.**
+  - Los dos `migration.sql` tienen los SHA-256 que confirmó el humano (`8ec418c5…` y `478c2e22…`).
+  - La primera es solo `ALTER TYPE "tipo_publicacion" ADD VALUE 'foro'`.
+  - La segunda trae lo de §D-1.2:
+    - la tabla con su PK;
+    - los tres índices con los nombres esperados (de menos de 63 caracteres);
+    - las FK `foro_id → tareas ON DELETE CASCADE`, `autor_id → usuarios RESTRICT` y `principal_id → participaciones_foro CASCADE`;
+    - a mano, el CHECK de título reemplazado con el mismo nombre y `'foro'`, y el índice único parcial `participaciones_foro_una_principal … WHERE principal_id IS NULL`, cada uno con su comentario.
+  - `schema.prisma` coincide con las migraciones (`migrate diff` sin diferencias). La relación de `Usuario` va después de `dudasResueltas`.
+  - Las dos son compatibles hacia atrás: el enum crece, el CHECK acepta lo de antes y la tabla es nueva.
+- **"Se toca" y "No se toca"** (`git status` y `git diff fd4a7ad`).
+  - Los 19 archivos de producción son los de §E7.5.1, §E8.1 y §E9.6, y el resto del árbol cuadra con la lista: las 10 pruebas nuevas, la ayuda `ayudas-foros.ts` (que el paso 9 de §E7.11 prevé: "y la ayuda `backend/test/ayudas-foros.ts` (nueva) si hace falta"), la lista cerrada y las 3 `*.ataque` de la ronda 0.
+  - Ningún archivo de producción del frontend, de `middleware/`, `adapters/auth|notifier|queue`, `config/`, `workers/`, `infra/` ni de `duplicado-de-clase.ts` cambió.
+  - En `core/clases/duplicado.ts` solo cambian la declaración del tipo y su comentario.
+  - En `publicaciones.ts`, solo `crearPublicacion` (`tipo` del parámetro) y `listarPublicaciones` (el `donde` con `TIPOS_DE_LA_LISTA` y `tipoDeLaLista`), más esas dos constantes privadas.
+  - En `tareas.ts`, solo `leerTarea` y `leerTareaCon`, `crearTarea`, `editarTarea`, `borrarTarea` y tres ayudas privadas (`errorTareaNoEncontrada`, `asegurarReferencias` y `autorYPertenencia`) que solo cambian para llevar la actividad hacia esas cuatro. `listarTrabajo` no cambió.
+  - La lista cerrada (`clases-archivadas-matriz`) suma exactamente las 16 filas y el comentario de §E7.5.1, y nada más.
+- **Capas.**
+  - `core/foros/participacion.ts` y `core/actividades.ts` solo importan `@campus/shared` (tipos) y `core/`.
+  - Prisma solo aparece en `adapters/db`.
+  - `handlers/foros.ts` es delgado: valida, llama al adaptador, encola en `alGuardar` y responde. No lleva `try/catch` ni compara rol ni relación, y pasa el perfil entero a `publicarReplica`.
+  - Los errores de Prisma (`P2002` del índice único parcial) se traducen con `traducirErrorPrisma` dentro de `adapters/db/foros.ts`.
+- **Cadena de middleware.** Abrí las 16 rutas (`handlers/foros.ts:148-653`): cada una va con `protegido({ roles, pertenencia })` exactamente como la sección 3 del resumen y §D-3.1, y `enClaseArchivada: "lectura"` en las 10 lecturas (2, 3, 6, 7, 8, 10 y 12 a 15). `protegido()` arma la cadena completa en su orden por construcción (`middleware/index.ts`), y ninguna ruta verifica a mano rol, propiedad o inscripción.
+- **Estado de pago.** Todas las respuestas pasan por esquemas `z.strictObject` de `shared/src/foros.ts`; los autores van firmados con `firmaDelAutor`, sin `rol`, correo ni estado de pago. Un campo de más daría `500`, nunca una fuga. FORO-1A50 compara las llaves exactas de las 16 rutas para los tres roles, con un alumno deudor.
+- **Consultas sanas.** Contrasté la sección 4 del resumen con `adapters/db/foros.ts` y `actividades.ts`, y coinciden:
+  - sin consultas dentro de un ciclo: un `groupBy` o un `findMany` por página;
+  - cada consulta por PK o por los índices de M-03, y cada lista paginada con cursor y `limite` de 1 a 100;
+  - las cinco lecturas en instantánea única;
+  - sin SQL crudo; el que tocan `tareas.ts` y `entregas.ts` sigue parametrizado y sin cambiar.
+  - `listarForos` usa el índice `(clase_id, tipo, tema_id, …)` por su prefijo, como declara "Acceso a datos".
+- **Cola, archivos y fechas.**
+  - Participar y replicar no encolan nada (FORO-1A34).
+  - Crear encola `TAREA_CREADA` y `RECORDATORIO_24H` dentro de `alGuardar` de `crearTarea`; editar cancela y recrea el recordatorio en `alReprogramar`; borrar cancela los dos en `alBorrar`. Todo en la transacción del dato (FORO-1A20, FORO-1A21 y FORO-1A22).
+  - Los adjuntos del planteamiento van por URL prefirmada (`archivosParaPublicar`).
+  - Las fechas salen con `toISOString()`, y la hora es la del servidor (`new Date()`).
+
+### Pruebas requeridas y matriz de autorización
+- Cada viñeta de 01a (FORO-1A01 a FORO-1A08, FORO-1A10 a FORO-1A13, FORO-1A15, FORO-1A20 a FORO-1A24, FORO-1A26 a FORO-1A35, FORO-1A40 a FORO-1A53, y FORO-1B01 a FORO-1B05 y FORO-1B07 de §E7.4) tiene su archivo y su título exacto en la sección 7 del resumen, y cada título existe en `vitest list`. FORO-1A25 y FORO-1A26b van en 01b, como dice §E7.4.
+- **La matriz de rutas** (sección 3) cubre las 16 rutas en cada caso negativo: sin sesión, rol incorrecto (el admin en 6, 7, 9, 11 y 16), clase ajena (maestro de otra clase y alumno no inscrito), clase inexistente, alumno restringido (RN-09) y, en una clase archivada, las escrituras (FORO-1B01, por rol), las lecturas (FORO-1B02, con 6 y 7 en `409` para el alumno), el `403` antes del `409` (FORO-1B03) y la restauración (FORO-1B05). ADM-1A09 (a) a (e) queda en verde con las 16 filas.
+- **Las 13 mutaciones** cubren cada guarda nueva. La redundancia que se declara es correcta: con M11, FORO-1A06 (ii) sigue en verde porque, con el valor por omisión de DH-02, la regla de la tarea y la del foro dan lo mismo, y la guarda la vigila la parte estática (i), que sí cae (`AGENTS.md`, "Pruebas").
+- **Hermano del defecto de aislamiento de FORO-1A47** (un conteo de toda la base). Busqué en las pruebas nuevas y en `ayudas-foros.ts` todo `count(`, `count(*)`, `findMany()` sin filtro y toda lectura de `pgboss.job`:
+  - todos van acotados a su foro, su tarea, su clase, su autor o un id único, por ejemplo `contarParticipaciones(foroId)` y `trabajosDeTarea(cola, id)`;
+  - el único `count(*)` sin `WHERE` (`migracion-foro-01:143`) lee el esquema aparte de esa prueba.
+
+  No queda otro con el mismo vicio.
+
+### Arbitraje de las desviaciones y las dudas
+1. **`editarTarea` también fuerza `requiereAdjuntos = false` en un foro:** aceptado. Es el hermano de `crearTarea`, con `"tarea"` no cambia nada y el handler ya manda `false`.
+2. **`exigirVersion` recibe `() => tareaModificada(tipo)` y `() => entregaModificada(tipo)`:** aceptado. No cambia ninguna firma existente: `exigirVersion` ya recibía `error: () => AppError` (`core/concurrencia.ts:6-12`). Las factorías ganan un parámetro opcional con su valor por omisión, así que las llamadas de hoy (`tareaModificada()` en `core/tareas/tareas.test.ts:90-…` y las de los adaptadores) siguen igual. Busqué si se pasan por referencia a algo que las llame con un argumento: no se pasan.
+3. **FORO-1A15, el conteo de réplicas con `(foro_id, principal_id, creado_en, id)`:** aceptado. La consulta lleva `foro_id = $1 AND principal_id IN (…)`, y los dos índices le sirven. El caso prueba lo que M-03 pedía: la lista de réplicas y la cascada de la FK nombran `participaciones_foro_principal_id_creado_en_id_idx`, y el conteo usa un `Index (Only) Scan` sin `Seq Scan` (`migracion-foro-01:298-323`). El plan mismo dice "la prueba mide que el índice sirve, no el plan que elige PostgreSQL".
+4. **`creadoEn = ahora` en la participación y la réplica, igual a `fecha_entrega`:** aceptado. Es lo que pide FORO-1A29, en UTC y con la hora del servidor.
+5. **`firmaDelAutor` en el adaptador para todas las listas nuevas:** aceptado. Es una función pura de `core/`, y el detalle del foro sigue firmándose en el handler, como la tarea.
+6. **FORO-1A47 con 14 rutas:** aceptado. Las rutas 1 y 2 no llevan `:foroId`.
+7. **FORO-1A41 sin el filtro `asignadas`:** sí falta un caso (M-09, abajo). La viñeta pide "cada filtro" y el título del caso dice "lo lista en cada filtro".
+8. **El singular de `TAREA_CON_ENTREGAS` del admin en un foro:** el texto es el aprobado, letra por letra, con la fila de §D-2.4 (`plan.md:1332`). En la frase, "sus participaciones, sus réplicas y sus calificaciones" es del foro, así que es correcta con 1 y con N alumnos, y solo varía "1 alumno" / "N alumnos". No hace falta otra decisión del humano.
+9. **`entregaCerrada({ ...foro, requiereAdjuntos: false }, ahora)`:** aceptado. `entregaCerrada` no lee ese campo (`core/entregas/entregas.ts:52-53`); dar uno de relleno evita tocar `TareaParaEntregar`, que no está en "Se toca".
+10. **`tareaNoEncontrada` en `TEXTOS_POR_ACTIVIDAD`:** aceptado. Es lo que pide la fila de `errorTareaNoEncontrada` de §D-2.4, y los tres lugares leen el texto de la tabla.
+11. **34 archivos frente a ~33:** aceptado. La diferencia es la ayuda que el plan prevé.
+
+### La observación para el arquitecto (`borrarComentario` y `borrarMiComentario`)
+No es un riesgo real.
+- **Por qué.**
+  - Las dos exigen `publicacionId` y `publicacion: { claseId }` (`publicaciones.ts:445-466`).
+  - El CHECK `num_nonnulls("publicacion_id", "entrega_id", "duda_id") = 1` deja fuera los comentarios de las devoluciones del foro, que van con `entrega_id`.
+  - Un comentario del muro sobre un foro no se puede crear por la API, porque `comentar` filtra `TIPOS_DEL_MURO` (FORO-1A48).
+  - Pasa lo mismo hoy con las tareas.
+  - Solo un dato sembrado a mano se borraría con `204`, y lo borraría su autor o quien ya puede borrar comentarios.
+- **Destino:** una fila en `docs/ESTADO.md` §3 con destino "retiro de compatibilidad e higiene de pruebas" (antes de DEPLOY). Allí se retira `DELETE …/mis-comentarios` (compatibilidad de CLASES-02) y se puede filtrar `TIPOS_DEL_MURO` en `borrarComentario`.
+- **No hace falta una decisión del humano.** No va en una subentrega de FORO-01, porque `publicaciones.ts` está en "Se toca" solo para dos funciones.
+
+**Corrida que el programador no hizo** (`plan.md:2052`): `frontend`: `npx vitest run src/features/clases` → `Tests  3068 passed (3068)` · `Test Files  124 passed (124)` (exit 0; 323 s). Queda cubierta.
+
+### Veredicto: **DEVUELTO**
+Todas las cifras del resumen coinciden con mis corridas y no encontré nada que rompa una regla. El resumen vuelve por una sola viñeta incompleta.
+
+#### M-09 — FORO-1A41 no prueba el filtro `asignadas`
+- **Dónde:** `backend/test/foros-calificar.integracion.test.ts:166-…`, caso "FORO-1A41: … Mis calificaciones lo lista en cada filtro"; viñeta de `plan.md:2030` ("'Mis calificaciones' lo lista con su estado en cada filtro"); desviación 8 del resumen.
+- **Por qué importa:**
+  - El título del caso dice "en cada filtro", pero solo se piden `sin-entregar`, `entregadas`, `calificadas` y `todas`.
+  - Falta `asignadas`, uno de los cinco de `shared/src/calificaciones.ts:153-156`. Es justo el que lista un foro abierto sin principal, el estado que más cambia con la regla del foro.
+  - Una viñeta que no se cubre entera devuelve el resumen (`manager.md`, "Verificación del resumen", punto 3).
+- **Qué se espera:**
+  - Un foro con la fecha límite en el futuro y sin principal del alumno aparece en `asignadas` y no en `sin-entregar`.
+  - Al publicar el alumno su principal, sale de `asignadas` y aparece en `entregadas`.
+  - El caso puede ir en el mismo `it` o en uno nuevo con el prefijo `FORO-1A41`.
+  - El resumen de la corrección trae el título exacto, la corrida de `test/foros-calificar` y el conteo nuevo de `vitest list`.
+  - Hermanos que debe revisar: los otros filtros por estado que toca el foro (el estado del alumno en la lista de foros, FORO-1A24, y en "Participantes", FORO-1A44), para confirmar que cada estado posible de su entrega (`asignado` abierto, `asignado` vencido, `entregado`, `calificado` con y sin fecha) tiene un caso.
+- No hace falta volver a correr las suites completas: basta `test/foros-calificar` y `lint`.
+
+### Para el tester (ronda 1 de 01a), por prioridad, además de "Puntos de ataque" del plan
+1. **Clase archivada "sin escribir nada".** FORO-1B01 solo comprueba que el conteo de participaciones no cambia. Hay que atacar PUT y DELETE del foro, publicar y calificar en una archivada, y comprobar que no cambian el título, la `version`, el `trabajo_id`, los trabajos de la cola, las entregas ni las calificaciones.
+2. **Carreras sobre la misma entrega:** publicar la principal mientras se califica a quien no participó con el foro a punto de cerrar (la frontera del milisegundo de la regla); publicar mientras el admin borra el foro con `?confirmar=entregas`; editar la fecha (reabrir o cerrar) mientras se publica. Nunca `500`, nunca un `P2003` ni un `P2002` sin traducir.
+3. **IDOR por ids cruzados:** `participacionId` de otro foro de la misma clase o de otra clase en las rutas 10 y 11; `alumnoId` de otra clase, dado de baja o maestro en 13 a 16; un cursor de otro foro, de otro alumno o de otro hilo en 8, 10, 14, 7 y 15.
+4. **Fuga de datos a profundidad:** `enRespuestaA.autor` (ruta 14), el autor admin ("Administración" y sin rol), `conRetraso` de otro alumno visible para un estudiante en las listas 8 y 10 y en la respuesta 201 de una réplica a una principal ajena.
+5. **El tipo cruzado en lo que no cambió:** sembrar a mano un comentario del muro en un foro y borrarlo por `DELETE …/publicaciones/:id/comentarios/:cid` y por `DELETE …/mis-comentarios/:cid` (la observación de arriba: esperado `204`, inofensivo; que quede documentado); `PUT …/publicaciones/:foroId/tema` en 01a (esperado `404`, nunca `500`); `?tipo=foro` en la lista del muro.
+6. **El recordatorio:** editar con fechas a menos de 24 h y a más, en la frontera exacta; editar un foro sin `trabajo_id`; borrar con un recordatorio ya en curso. Cada caso cancela y recrea en la misma transacción.
+7. **Textos y validación:** principal y réplica en los límites exactos (5 000 y 1 000 caracteres visibles), con invisibles, combinantes y `\u0000`; `limite` de 0, 101 y no numérico; y un cuerpo con llaves de más (`requiereAdjuntos`, `tipo`, `autorId`), que se deben ignorar.
+8. **El gradebook y el riesgo con foros:** un foro abierto sin principal no cuenta en `vencidasSinEntregar`; calificado sin participar sí sale en la exportación; un foro en una categoría ponderada junto a tareas.
+
+### Para el humano
+Nada que decidir. La observación de `borrarComentario` va a `docs/ESTADO.md` §3 con destino "retiro de compatibilidad e higiene de pruebas"; la anota el orquestador al cerrar 01a.
+
+## Verificación de la corrección de M-09 — FORO-01a (2026-11-14)
+Veredicto: **ACEPTADO** (el tester puede atacar)
+
+Leí `resumen-programador.md` (335 líneas), sección "Corrección tras la verificación del manager — FORO-01a: M-09 (2026-11-14)", y los tres casos nuevos (`backend/test/foros-calificar.integracion.test.ts:223-409`). El archivo es nuevo de 01a y no está en git, así que lo contrasté leyéndolo entero.
+
+### Mis corridas (desde `backend/`, una a la vez; Docker 28.5.1)
+| Comando | Mi última línea | Resumen | ¿Coincide? |
+|---|---|---|---|
+| `npx vitest run test/foros-calificar` | `Tests  10 passed (10)` · `Test Files  1 passed (1)` | igual | sí |
+| `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (exit 0) | igual | sí |
+| `npx vitest list` de los 5 filtros, contado con `grep -a ' > ' \| grep -ac 'FORO-'` | **95** en 10 archivos; `foros-calificar` tiene 10 | 95 en 10; de 7 a 10 | sí |
+
+### Los tres casos cumplen la viñeta (`plan.md:2030`) y lo que pedía M-09
+- **La transición** (`:276-290`). Un foro abierto sin principal del alumno está en `asignadas` y no en `sin-entregar` ni en `entregadas`. El alumno publica su principal por la API real (201), y entonces el foro sale de `asignadas` y aparece en `entregadas`.
+- **Los seis estados en los cinco filtros** (`:292-330`). Cada filtro se compara con igualdad exacta sobre la lista de su clase, con `todas` = los seis. El caso comprueba además la `entrega` de cuatro de esos estados en "Mis calificaciones". Es el caso que vigila la separación por fecha entre `asignadas` y `sin-entregar`.
+- **FORO-1A24 y FORO-1A44** (`:332-408`). Los mismos seis estados en la lista de foros del alumno (`entrega`) y en "Participantes" (`estado`, `conRetraso`, si trae fecha y `entregadas`).
+- **La tabla de hermanos del resumen** coincide, celda por celda, con lo que afirman estos casos y FORO-1A41 de antes. La redundancia que se declara es cierta: el caso de la transición no tiene ningún foro vencido, y M14 lo deja en verde.
+
+### No cambió nada más desde mi verificación
+- `git diff fd4a7ad --stat -- backend/src shared/src frontend/src` sigue en `11 files changed, 270 insertions(+), 86 deletions(-)`.
+- Los únicos archivos de los paquetes más nuevos que mi entrada anterior de `revision.md` son `foros-calificar.integracion.test.ts` y `adapters/db/calificaciones.ts`, y este último es idéntico a `fd4a7ad` (`git diff --quiet fd4a7ad -- backend/src/adapters/db/calificaciones.ts` → igual). `git status` muestra los mismos archivos que antes.
+- Las 291 `*.ataque` son idénticas, byte por byte, a `foro01-arranque/v01-foro01a-r0.txt`: hice `sha256sum` de todas y un `diff` sin diferencias.
+- Los SHA-256 de las dos migraciones siguen siendo `8ec418c5…` y `478c2e22…`.
+
+### Arbitraje: M14 y M15 mutaron `adapters/db/calificaciones.ts`, que está en "No se toca"
+**Se acepta como desviación declarada.**
+- **Por qué:**
+  - La guarda que el caso vigila vive en ese archivo. Sin mutarlo, `AGENTS.md` ("Pruebas": una prueba que dice vigilar una guarda se comprueba quitándola) no se podía cumplir.
+  - La mutación fue temporal, desde una copia, con `filecmp` byte a byte.
+  - Yo mismo comprobé que el archivo quedó idéntico a la base.
+  - Hay precedente: K14 de CHORE-06.
+- **Lo que no se repite:** hacerlo sin preguntar.
+
+**Regla para el tester desde la ronda 1 de 01a** (y para el programador en adelante):
+1. **Mutar un archivo de "No se toca" exige preguntar antes** (por el orquestador). Se nombran el archivo, el ancla exacta y el caso que se quiere comprobar, y se espera la respuesta.
+2. **Con permiso, la mutación es temporal:**
+   - copia previa;
+   - un solo cambio de ancla, que aparece exactamente una vez;
+   - corrida de las pruebas nombradas;
+   - restauración desde la copia;
+   - comparación byte a byte;
+   - `git diff --quiet <base> -- <archivo>` (o su SHA-256, si es un archivo nuevo de la subentrega).
+
+   El reporte trae el comando y su resultado.
+3. **Nunca se mutan, ni con permiso:**
+   - las migraciones, `schema.prisma` y el cliente generado;
+   - `infra/`, los `.env*` y `.claude/`;
+   - las `*.ataque` de otro encargo.
+4. **Un archivo de "Se toca"** se puede mutar sin preguntar, con las mismas condiciones del punto 2.
+
+### Puntos de ataque para la ronda 1
+Los ocho que di antes siguen y en el mismo orden. Solo el 8 se precisa: los casos nuevos de M-09 siembran tres de los seis estados con ayudas (`crearEntregaDePrueba`, `calificadaSinParticipar`). El ataque debe recorrerlos por la API real:
+- publicar tarde en un foro que acepta tardías;
+- calificar a quien participó;
+- calificar a quien no participó con el foro cerrado.
+
+Y comprobar los cinco filtros, la lista de foros, "Participantes", el gradebook y la exportación después de cada paso.
+
+## Revisión final — FORO-01a (2026-11-14)
+Veredicto: **ESCALAR AL HUMANO**, por un solo punto: la suite completa del backend no salió verde. Fallaron 6 archivos ajenos al foro, todos con `Hook timed out in 10000ms` en `beforeAll`; es el pendiente conocido de `hookTimeout` de ESTADO §3. Lo demás de 01a está **aprobado**: plan, reglas, decisiones del humano, pruebas, "Se toca", V-01, migraciones, frontend completo y PA-07 limpia. No hay nada que corregir en el código de FORO-01a.
+
+Precondiciones: Docker Desktop 28.5.1 con los contenedores de `infra/` de siempre, que no toqué; la red es de confianza solo hoy, por declaración del humano; una sola copia de trabajo; el equipo está conectado a la corriente (`BatteryStatus` = 2), con la CPU al 47 % medida durante la suite del frontend. Corrí todo una cosa a la vez.
+
+### 1. Corridas (comando exacto y última línea)
+| Paquete | Comando | Última línea |
+|---|---|---|
+| shared | `npm run lint` | `All matched files use Prettier code style!` |
+| shared | `npm run build` | `> tsc -p tsconfig.json`, exit 0 |
+| backend | `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, exit 0 |
+| backend | `npm run build` | `> tsc -p tsconfig.json`, exit 0 |
+| backend | `npm test` (completa, Testcontainers, de 18:59:49 a 19:05:30) | `Test Files  6 failed \| 285 passed (291)` · `Tests  3108 passed \| 58 skipped (3166)` (334 s; `import 805.90s`), **exit 1** |
+| backend | los 6 archivos rojos, solos, como diagnóstico (no es una segunda corrida completa: PA-12) | `Test Files  6 passed (6)` · `Tests  58 passed (58)` (15 s) |
+| backend | `npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` |
+| backend | `npx prisma migrate status` | `21 migrations found in prisma/migrations` / `Database schema is up to date!` |
+| backend | `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | `No difference detected.`, exit 0 |
+| frontend | `npm run lint` | `> tsc -b`, exit 0 |
+| frontend | `npm run build` | `✓ built in 1.10s` |
+| frontend | `npm run test` (completa, de 19:08:48 a 19:18:57) | `Test Files  345 passed (345)` · `Tests  8372 passed (8372)` (604 s), exit 0 |
+
+- **Cuentas del backend:**
+  - **Casos.** 3166 = 3043 del cierre de ADMIN-01 (`docs/ESTADO.md`, "backend `3043 passed`") + 95 casos `FORO-` del programador + 28 `ATQ-FORO-` del tester. C-1 y C-2 cambian casos que ya existían y no suman.
+  - **Archivos.** 291 = 275 + los 10 de pruebas nuevas + las 6 `*.ataque` de la ronda 1.
+  - **No verdes.** Los 58 `skipped` son los casos de los 6 archivos cuyo `beforeAll` (`construirApp`) venció a los 10 s: `admin-correo.integracion`, `admin-restablecimiento.integracion`, `archivos-d-r2.ataque`, `auth-registro.integracion`, `autorizacion-cuentas.integracion` e `invitacion-flujo-03a-r2.ataque`. Ninguno es del foro y ninguno falló por una aserción.
+- **Cuentas del frontend:** iguales a las del cierre de CHORE-06 (345 y 8372). C-6 suma entradas dentro de un caso que ya existía.
+
+### PA-07 sobre la suite completa del backend
+- **Conteo:** `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 7 · `"code":"P2028"` 5.
+- **Control positivo:** están los tres `P2028` de `servicio-ocupado`, en la misma app (pid 29152):
+  - `POST /api/auth/cambiar-contrasena`, con `tx.sesion.findFirst()` (`usuarios.ts:293`);
+  - `POST /api/auth/refrescar`, con `tx.sesion.updateMany()` (`sesiones.ts:72`);
+  - `POST …/publicaciones/:publicacionId/comentarios`, con `$queryRawUnsafe` de `encolar`.
+- **Los otros dos `P2028`** son los permitidos de `cuentas-r3` (pid 15188): `POST /api/auth/login`, con `tx.sesion.create()` (`sesiones.ts:39`), y `POST /api/auth/restablecer`, con `tx.tokenCuenta.updateMany()` (`tokens-cuenta.ts:119`).
+- **Los 7 "Error no controlado"** son del inventario:
+  - `handlers/auth/index.ts:125` ×5 y `:134` ×1, los fallos simulados del login;
+  - "boom" de `GET /api/prueba/error-comun`.
+- **Los 3 que faltan del inventario de 10** (`handlers/archivos.ts:62` y `:97`, y `handlers/clases/muro.ts:87`) son de `archivos-d-r2.ataque`, uno de los 6 archivos que no arrancaron. Aparecen en la corrida aislada de esos 6, así que no hay ninguno fuera del inventario.
+- **PA-07 limpia**, con la salvedad de esos 6 archivos.
+
+### 2. "Se toca", "No se toca", V-01 y migraciones (contra `fd4a7ad`)
+- **40 archivos en los paquetes.** Son 19 de producción, 10 pruebas nuevas, la ayuda `ayudas-foros.ts`, 1 de la lista cerrada (`clases-archivadas-matriz`), las 3 `*.ataque` de la ronda 0 y las 6 de la ronda 1. Todos están en la lista de §E7.5.1, §E8.1 y §E9.6, o son pruebas y ayudas nuevas, que §E7.5.0 permite.
+- **Producción sin cambio desde mi verificación:** `git diff fd4a7ad --stat -- backend/src shared/src frontend/src` sigue en `11 files changed, 270 insertions(+), 86 deletions(-)`. Ningún archivo de "No se toca" cambió: ni `middleware/`, ni `adapters/auth|notifier|queue`, ni `config/`, `workers/`, `infra/` o `.env.example`, ni `handlers/tareas|clases/*`, `duplicado-de-clase.ts` o `adapters/db/calificaciones.ts`, que es idéntico a la base. Tampoco cambió la producción del frontend.
+- **V-01:**
+  - Hay 297 `*.ataque`, idénticas a `foro01-arranque/v01-foro01a-r1.txt` (SHA-256 `bdfaa952…`); hice `sha256sum` de todas y un `diff` sin diferencias.
+  - Contra la lista de la ronda 0 solo se suman los 6 archivos nuevos del tester. Ninguna se modificó, se saltó ni se borró fuera de C-1, C-2 y C-6.
+- **Migraciones:** `8ec418c5…` y `478c2e22…` siguen siendo los SHA-256 que el humano confirmó por escrito, dos veces y con el SQL a la vista (`aprobacion.md`: las dos PARADAS, cada una con "Confirmo, aplícala"). `validate`, `migrate status` y `migrate diff` dan lo de la tabla.
+
+### 3. El plan y las decisiones del humano en 01a
+- **RF-66 a RF-68, en el backend de 01a:**
+  - crear, leer, editar y borrar un foro con su regla de autoría;
+  - participar con la principal y las réplicas, donde "la entrega es participar";
+  - calificar a cada alumno con o sin rúbrica, con su devolución;
+  - el foro en el gradebook, el riesgo, "Mis calificaciones" y la exportación.
+
+  La lista de foros, el detalle y "Participantes" ya responden. "Actividades" con foros, `conTipo` y el borrado de participaciones son de 01b, como dice el plan.
+- **DH-01 a DH-12, donde aplican.**
+  - DH-01 (a): el foro como publicación más su fila en `tareas` y `entregas`.
+  - DH-02 (a): la regla tardía vive solo en `reglaDeParticipacion`, y calificar la lee (FORO-1A06, (i) y (ii)).
+  - DH-03 (a): el maestro replica siempre y sin marca.
+  - DH-04 (a): el alumno replica en cualquier principal.
+  - DH-06 (a): la devolución va en las rutas 7 y 15.
+  - DH-07 (a): `conRetraso` solo para quien debe verlo.
+  - DH-09 (a): el muro sin foros. El opt-in de "Actividades" es de 01b.
+  - Los textos de DH-12 coinciden letra por letra con §D-2.4.
+  - DH-05, DH-08 y DH-11 son de 01b o del frontend.
+- **Clase archivada:** las 16 rutas tienen la política de §E7.3 (lecturas con `"lectura"` y escrituras cerradas), la prueban FORO-1B01 a FORO-1B05 y ATQ-FORO-01 a 04, y las 16 filas de ADM-1A09 quedan en verde.
+- **M-07:** se cumple con los tres remedios aprobados (`crearPublicacion`, `listarPublicaciones` y la línea del tipo en `core/clases/duplicado.ts`), y FORO-1A08 prueba que el duplicado no copia foros.
+- **Pruebas requeridas:** cada una tiene su caso (95 `FORO-`). Cada guarda tiene su mutación real: 15 del programador y 8 del tester (MT1 a MT8, todas en "Se toca"). La redundancia de FORO-1A06 (ii) quedó declarada y la vigila (i).
+
+### 4. Definición de terminado de `AGENTS.md`
+- [x] **Cumple RF-66 a RF-68 y RN-05, RN-07, RN-08 y RN-09 en su parte de backend** (RN-09: el alumno restringido recibe `403` en las 16 rutas, FORO-1A49).
+- [x] **Capas y middleware:** `core/` puro, Prisma solo en `adapters/` y handlers delgados. Las 16 rutas pasan por `protegido()` con la cadena completa, sin verificaciones a mano (FORO-1A51 estático).
+- [ ] **`lint`, `build` y `test` en verde:** `lint` y `build` en los tres paquetes y la suite completa del frontend, sí. **La suite completa del backend, no:** 6 archivos ajenos vencieron por tiempo en su `beforeAll` y pasan solos (tabla 1). Lo decide el humano (sección 9).
+- [x] **Pruebas de autorización de cada endpoint nuevo:** la matriz de las 16 rutas cubre sin sesión, rol incorrecto, clase ajena, clase inexistente, alumno restringido, clase archivada y llaves exactas sin estado de pago (FORO-1A49, FORO-1A50, FORO-1B01 a FORO-1B05 y ATQ-FORO-10 a 14).
+- [x] **Migraciones de Prisma incluidas y compatibles hacia atrás:** el enum crece, el CHECK acepta lo de antes y la tabla es nueva. R-02 (volver atrás después de crear foros) queda declarado.
+- [x] **`infra/` y `.env.example` sin cambio:** `git status` no muestra nada ahí, y 01a no suma ni cambia variables de entorno (`config/` sin cambio).
+- [ ] **Documentos:** no toca ninguno ahora. Están en "Documentos al cierre" y van al cerrar el encargo; los README, en 01b (punto 6).
+
+### 5. Lo aceptado sin caso o declarado, en un solo lugar
+| Qué | Estado | ¿Va a ESTADO §3? Destino |
+|---|---|---|
+| **O-r1-1:** el cursor de "Participantes" acepta el id de cualquier usuario como posición (`inscripciones.ts:87-105`) | Aceptado: es R-19 de ADMIN-01, que ya está en §3 ("el roster y el gradebook existentes, riesgo con destino"). No filtra datos | **Sí, ampliando la fila existente de R-19:** "también lo usa 'Participantes' del foro (FORO-01a)". Mismo destino |
+| **O-r1-2:** la principal hecha en el milisegundo exacto de la fecha límite, formada detrás de una calificación de "no participó" de un milisegundo después, recibe `409 PARTICIPACION_CALIFICADA` | Aceptado: es la conducta de la tarea (la hora se toma al recibir la petición y la fila de la entrega pone las dos en serie) y ningún RF pide otra cosa | **Sí, junto a DH-02:** "regla tardía del foro, cuando responda el cliente". Si el cliente pide otra frontera, se revisa ahí; no pide una decisión nueva hoy |
+| **O-r1-3:** mover un foro de tema (`404`) y borrar un tema con un foro sin contarlo | Declarados para 01b (§E8.1, `TIPOS_CON_TEMA`) | No: lo cierra 01b con FORO-1A25 y FORO-1A26b |
+| **Redundancias:** FORO-1A06 (ii) con M11 (la vigila la parte estática, (i)); el caso de la transición de M-09 con M14 (la vigila el de los seis estados) | Declaradas con su mecanismo (`AGENTS.md`, "Pruebas") | No |
+| **Desviaciones aceptadas:** `requiereAdjuntos = false` también en `editarTarea`; `exigirVersion` con una función; el conteo de réplicas de FORO-1A15 con el otro índice; `creadoEn = ahora`; `firmaDelAutor` en el adaptador; FORO-1A47 con 14 rutas; 34 → 40 archivos (la ayuda más las 6 `*.ataque` del tester) | Arbitradas en "Verificación del resumen del programador — FORO-01a" | No |
+| **Mutación temporal en `adapters/db/calificaciones.ts`** ("No se toca") por M14 y M15 | Aceptada como desviación declarada; el archivo es idéntico a la base. Regla nueva: preguntar antes | **Sí:** proponer al humano que la regla ("mutar un archivo de 'No se toca' exige preguntar antes…") pase a `.claude/agents/tester.md` y `programador.md`. Es la segunda vez (K14 de CHORE-06): la regla de `CLAUDE.md` sobre lo que se corrige dos veces |
+| **R-02:** volver a un backend anterior después de crear foros no está garantizado | Declarado; fila de DEPLOY en A-08 | **Sí**, ya prevista en A-08 (DEPLOY: R-01, R-02 y R-04) |
+| **`borrarComentario` y `borrarMiComentario` sin filtro de tipo** | No es un riesgo real: inalcanzable por la API | **Sí:** destino "retiro de compatibilidad e higiene de pruebas" (antes de DEPLOY) |
+| **La suite completa del backend en rojo por tiempo** (6 archivos en `beforeAll`) | Es la fila de §3 "Tiempo de espera de levantar la app en el backend (CLASES-03a)", con su remedio decidido (`hookTimeout: 30_000`) | **Sí, actualizando esa fila:** "se repitió en el cierre de FORO-01a: 6 archivos, 58 casos, verdes aislados". El destino lo decide el humano (sección 9) |
+
+### 6. Documentos
+- **Ahora, al cerrar 01a, solo lo de `docs/trabajo/` y `docs/ESTADO.md`:** las filas del punto 5 y el estado del encargo. Lo aplica el orquestador; `ESTADO.md` queda fuera de "No se toca".
+- **En 01b, dentro de la subentrega:** A-05, `backend/src/adapters/README.md` y `handlers/README.md`. Están en "Se toca" de 01b.
+- **Al cierre del encargo (después de 01e),** con la autorización del humano, porque están fuera de `docs/trabajo/`:
+  - A-01: ESSENTIALS, con la tabla `participaciones_foro`, sus restricciones, la viñeta "Foro" ya decidida y "siete secciones";
+  - A-02: el PRD;
+  - A-03: `ARCHITECTURE.md` §7 y §14, con las 17 rutas y el modelo;
+  - A-04: `CLAUDE.md`;
+  - A-06: `DESIGN.md`, que va dentro de 01e;
+  - A-07 a A-10: ESTADO.
+
+  Adelantar la tabla a ESSENTIALS ahora es posible (ya existe en `main` desde este commit), pero el plan la deja para el cierre, y DH-16 (a) no lleva nada a `main` antes de 01e. No lo recomiendo.
+
+### 7. Conteo de rondas de 01a (para el registro)
+- **Rondas de ataque:** 1, con veredicto RESISTE y 0 hallazgos. **Rondas extra por hermanos o estados vecinos:** 0.
+- **Resúmenes devueltos:** 1 (M-09, una viñeta incompleta). Se imputa al programador; no es una ronda del tester.
+- **PARADAS:** 2, las dos migraciones, previstas y confirmadas por escrito. No hubo PARADAS imprevistas, ni del programador ni del tester (la ronda 0 se aplicó sin PARADA).
+- **Enmiendas del plan:** 3 antes de programar (7, 8 y 9) y ninguna durante.
+- **Regla del modelo del programador:** no se activa (0 rondas extra; el umbral es 2). Además, `.claude/agents/programador.md` ya está en `model: opus` (`effort: medium`). La tabla de `AGENTS.md` todavía dice `sonnet`; es una diferencia de documentación anterior a FORO-01, y la anoto para el orquestador.
+
+### 8. El commit de 01a
+- `git add -n -A -- backend frontend shared docs/ESTADO.md docs/trabajo/FORO-01-actividad-tipo-foro docs/trabajo/CHORE-06-foco-y-navegacion/aprobacion.md` da **47 rutas**:
+  - `backend/prisma` 3: el esquema y las dos `migration.sql`;
+  - `backend/src` 16: 13 de producción y 3 pruebas;
+  - `backend/test` 17;
+  - `frontend/src` 1;
+  - `shared/src` 3;
+  - `docs/ESTADO.md` 1;
+  - `docs/trabajo` 6: los 5 de FORO-01 y el `aprobacion.md` de CHORE-06.
+- Son los 40 archivos de los paquetes más 7 documentos.
+- `docs/trabajo/DEPLOY-investigacion-vps.md` **queda fuera** (0 coincidencias). El cliente generado de Prisma no entra (lo ignora git).
+- No hice ningún `git add` real ni un commit. Con DH-16 (a), el commit queda solo en la rama.
+
+### 9. Para el humano: la decisión que bloquea el cierre
+La suite completa del backend de hoy dio `Test Files  6 failed | 285 passed (291)`.
+- **Qué falló:** 6 archivos de autenticación, cuentas, invitaciones y archivos, ninguno del foro ni tocado por 01a. Su `beforeAll` (levantar la app) pasó de los 10 s.
+- **Por qué:** fue con la máquina cargada; la importación tardó 806 s contra 288 s en la corrida de módulos de esta tarde.
+- **Comprobación:** los 6, solos, pasan los 58 casos en 15 s.
+- **Es la fila conocida de ESTADO §3,** con el remedio que ya decidiste (`hookTimeout: 30_000` en `backend/vitest.config.ts`) y su lugar en el `chore` de higiene de pruebas, después de ENVIVO.
+- **Por PA-12 no repetí la corrida completa** para limpiarla.
+
+Opciones:
+- **(a)** Aceptar el cierre de 01a así, con el registro de arriba.
+- **(b)** Autorizar una sola corrida completa más del backend, con la máquina descargada.
+- **(c)** Adelantar el remedio ya decidido: una línea en `backend/vitest.config.ts`, por el carril trivial, antes de 01b. Ese archivo está fuera de "Se toca" de FORO-01, así que necesita tu autorización.
+
+**Mi recomendación: (c) y luego (b).** El fallo ya se repite en cierres de subentrega, y en el carril sensible conviene que cada cierre tenga una corrida completa verde, no una explicada. Si prefieres no tocar nada ahora, (a) es defendible: nada de lo que cambió FORO-01a está en esos archivos.
+
+**Resumen para el humano (máximo 15 líneas):**
+1. FORO-01a (núcleo del foro en el backend: 16 rutas, dos migraciones, la regla tardía en una función) cumple el plan y tus decisiones.
+2. El tester no encontró nada (ronda 1 RESISTE, 28 ataques). Hubo un resumen devuelto y corregido (M-09) y ninguna PARADA imprevista.
+3. Shared, backend y frontend: `lint` y `build` en verde. Frontend completo en verde: 345 archivos, 8372 casos.
+4. Backend completo: 3108 de 3166 casos verdes. Los 58 restantes son de 6 archivos ajenos al foro que no arrancaron por tiempo. Solos, pasan.
+5. Necesito tu decisión: (a) cerrar así, (b) otra corrida, o (c) subir el tiempo de arranque ya decidido y volver a correr (mi recomendación).
+6. Las dos migraciones son las que confirmaste; no se tocó `middleware/`, `auth`, `infra/` ni `.env.example`.
+7. El commit de 01a lleva 47 rutas y deja fuera `DEPLOY-investigacion-vps.md`. Solo va a la rama: el PR se hace al cerrar 01e.
+8. A ESTADO §3 van cinco filas: R-19 ampliada, O-r1-2 junto a DH-02, R-02 en DEPLOY, `borrarComentario` al retiro de compatibilidad, y la fila del tiempo de arranque actualizada.
+9. Te propongo poner por escrito la regla de "preguntar antes de mutar un archivo de 'No se toca'", que ya se corrigió dos veces.
+
+## Cierre de la revisión final — FORO-01a (2026-11-14)
+Veredicto final de la subentrega: **APROBADO**
+
+El humano eligió "Subir el tiempo y repetir" (`aprobacion.md`, "Decisiones del humano al cerrar 01a"). Con `hookTimeout: 30_000`, la suite completa del backend sale verde. Lo demás de la revisión final sigue como estaba.
+
+### 1. Suite completa del backend, repetida (la única repetición, autorizada por el humano)
+- **Comando** (Docker 28.5.1, desde `backend/`, de 20:18:26 a 20:22:56): `npm test`. Última línea: `Test Files  291 passed (291)` · `Tests  3166 passed (3166)`, `Duration  254.64s` (`import 544.00s`), exit 0.
+  - Antes había dado `6 failed | 285 passed (291)` · `3108 passed | 58 skipped (3166)`.
+  - Los 58 casos que faltaban ahora corren y pasan. El total es el mismo.
+- **PA-07:**
+  - **Conteo:** `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 10 · `"code":"P2028"` 5.
+  - **Control positivo:** los tres de `servicio-ocupado` (pid 31672):
+    - `POST /api/auth/cambiar-contrasena`, por `usuarios.ts:293`;
+    - `POST /api/auth/refrescar`, por `sesiones.ts:72`;
+    - `POST …/comentarios`, por `$queryRawUnsafe`.
+  - **Los otros dos** son los permitidos de `cuentas-r3` (pid 28888): `POST /api/auth/login` (`sesiones.ts:39`) y `POST /api/auth/restablecer` (`tokens-cuenta.ts:119`).
+  - **Los 10 "Error no controlado"** son exactamente el inventario: `handlers/auth/index.ts:125` ×5 y `:134` ×1, `handlers/archivos.ts:62` y `:97`, `handlers/clases/muro.ts:87`, y "boom".
+  - **PA-07 limpia, sin salvedades.**
+
+### 2. `backend/vitest.config.ts`
+- **El cambio:** `git diff -- backend/vitest.config.ts` da `1 file changed, 2 insertions(+)`, exactamente el comentario y `hookTimeout: 30_000,`, junto a `testTimeout: 15000,`. No cambia nada más del archivo.
+- **El archivo:** está fuera de "Se toca" de 01a y lo cambió el programador por el carril trivial, con la autorización expresa del humano.
+- **Verificación:** `npm run lint` desde `backend/` sigue con `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, exit 0. Es el remedio que el humano decidió el 2026-10-28; su fila de ESTADO §3 se cierra con este cambio.
+
+### 3. `AGENTS.md`
+SHA-256 `24cd71ab…`; contra la copia `AGENTS-antes-01a.md` (`239ca2f6…`), `git diff --no-index` da 3 inserciones y 2 eliminaciones.
+- **(a) La celda del `programador`:** pasa de "`sonnet`, esfuerzo `medium` (a prueba)" a "`opus`, esfuerzo `medium` (desde TAREAS-01d, 2026-10-07)". Es correcto: `.claude/agents/programador.md` dice `model: opus` y `effort: medium`, y `git log -S"model: opus"` da `1118c1a 2026-10-07` (TAREAS-01d).
+- **(b) "Estado vigente…":** es correcto y no reescribe el historial (las decisiones de `sonnet` del 2026-10-02 y del 2026-10-05 quedan como estaban).
+- **(c) La viñeta nueva de "Pruebas":** dice lo esencial de mi regla de cuatro puntos y no afirma de más. Tiene un hueco que hay que cerrar, porque choca con una regla que ya existe.
+  - En "Reglas del equipo", `AGENTS.md:135` dice que, antes de instruir a un agente sobre un archivo de "No se toca", el orquestador pide autorización **al humano**. La viñeta nueva dice "con permiso" sin decir de quién, y se puede leer como que basta con el del orquestador.
+  - Le falta, además, que el ancla aparezca una sola vez, que es lo que garantiza "un solo cambio".
+  - **Corrección propuesta (antes → después),** en la misma viñeta:
+    - Antes: "Un archivo de "Se toca" se puede mutar sin preguntar: copia previa, un solo cambio, restauración desde la copia y comparación byte a byte. Antes de mutar un archivo de "No se toca", el agente pregunta a través del orquestador, con el archivo, el ancla exacta y el caso que quiere comprobar; con permiso, la mutación es temporal y se restaura igual, …"
+    - Después: "Un archivo de "Se toca" se puede mutar sin preguntar: copia previa, un solo cambio en un ancla que aparece una sola vez, restauración desde la copia y comparación byte a byte. Antes de mutar un archivo de "No se toca", el agente pregunta a través del orquestador, con el archivo, el ancla exacta y el caso que quiere comprobar, y el orquestador pide la autorización al humano (como manda "Reglas del equipo" para la lista "No se toca"); con su permiso, la mutación es temporal y se restaura igual, …"
+  - El resto de la viñeta se queda como está. La lista de "nunca" es más estricta que el texto que se le mostró al humano (suma el cliente generado y las `*.ataque` de otros encargos), y "Se toca sin preguntar" es la práctica que ya da la viñeta anterior ("mutación real, restaurada"). Ninguna de las dos cosas da más permiso del que había.
+  - **No bloquea el cierre de 01a**, pero conviene aplicarla antes de la ronda 0 de 01b, que es donde vuelve a aplicar.
+- **Registro pendiente:** `aprobacion.md` ya trae la copia previa (`239ca2f6…`), pero todavía no el SHA-256 resultante (`24cd71ab…`, o el que quede tras la corrección). `AGENTS.md` está en "No se toca", así que se verifica contra ese hash ("Commits y cierre de subentregas").
+
+### 4. Nada más cambió desde la revisión final
+- **Producción de 01a:** `git diff fd4a7ad --stat -- backend/src shared/src frontend/src` sigue en `11 files changed, 270 insertions(+), 86 deletions(-)`. Fuera de los paquetes solo cambiaron `backend/vitest.config.ts` y `AGENTS.md`, los dos con autorización.
+- **Las `*.ataque`:** son 297, idénticas a `v01-foro01a-r1.txt`; hice `sha256sum` de todas y un `diff` sin diferencias.
+- **Migraciones:** `8ec418c5…` y `478c2e22…`, como antes.
+
+### 5. El commit
+- **Rutas:** `git add -n -A -- backend frontend shared AGENTS.md docs/ESTADO.md docs/trabajo/FORO-01-actividad-tipo-foro docs/trabajo/CHORE-06-foco-y-navegacion/aprobacion.md` da **49 rutas**: las 47 de antes, más `backend/vitest.config.ts` y `AGENTS.md`. `DEPLOY-investigacion-vps.md` queda fuera (0).
+- **Mi postura:** `backend/vitest.config.ts` (carril trivial de pruebas) y `AGENTS.md` (proceso) van en un commit propio, antes del de 01a. Así el commit de 01a es solo el foro, y `AGENTS.md` dice "no mezcles refactor con funcionalidad". Si el humano prefiere uno solo, el mensaje debe nombrar los dos cambios. Lo decide el humano.
+
+### Para el humano
+- La suite completa del backend sale verde con el tiempo de 30 s que autorizaste: 291 archivos y 3166 casos, sin ningún rojo.
+- 01a queda **APROBADO**.
+- Antes de 01b, conviene precisar en `AGENTS.md` que el permiso para mutar un archivo de "No se toca" lo das tú (texto exacto arriba).
+- Sobre los commits, mi recomendación es uno propio para `vitest.config.ts` y `AGENTS.md`, y después el de 01a. Tú decides.

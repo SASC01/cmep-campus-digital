@@ -64,6 +64,9 @@ export type {
   // ADMIN-01d2 (§D-9): "Clases anteriores" y "Clases archivadas".
   ClaseAnterior,
   ListaClasesAnterioresRespuesta,
+  // FORO-01c1 (§D-8.2): la sección "Foro".
+  ElementoDeForo,
+  ListaForosRespuesta,
 } from "@campus/shared"
 
 // ADMIN-01c (§D-2, Enmienda 5): la página siguiente de /admin/clases. En "Archivadas" lleva además la

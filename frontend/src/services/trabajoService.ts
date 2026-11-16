@@ -18,6 +18,11 @@ export const claveTrabajo = (claseId: string, tema: string) =>
   ["clases", claseId, "trabajo", tema] as const
 export const claveTarea = (claseId: string, tareaId: string) =>
   ["clases", claseId, "tareas", tareaId] as const
+// FORO-01c1 (§D-8): todo lo del foro de una clase cuelga de un prefijo (invalidarlo lo alcanza todo);
+// la lista de la sección "Foro" cuelga de él. Las claves de cada foro llegan en 01c2.
+export const clavePrefijoDeForos = (claseId: string) => ["clases", claseId, "foros"] as const
+export const claveListaDeForos = (claseId: string) =>
+  [...clavePrefijoDeForos(claseId), "lista"] as const
 
 export const consultaTemas = (claseId: string) =>
   queryOptions({

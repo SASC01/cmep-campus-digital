@@ -450,6 +450,7 @@ describe("CL3-E12 · la ruta …/dudas y la sección «Dudas»", () => {
       expect(nombres).toEqual([
         "Avisos",
         "Actividades de aprendizaje",
+        "Foro",
         "Recursos",
         "Dudas",
         "Personas",

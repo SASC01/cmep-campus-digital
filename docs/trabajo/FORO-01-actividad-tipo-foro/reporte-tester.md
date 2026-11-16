@@ -666,3 +666,292 @@ No hay ayudas compartidas nuevas: cada archivo trae las suyas, y las ayudas exis
 - **El orden de la fila retenida de FORO-1A67 y FORO-1A68:** lo arbitró el manager. No lo repetí; lo complementan ATQ-FORO-60 a 64.
 - **Un `conForos` con valores en otras rutas fuera de Trabajo, temas y Recursos:** las demás no lo leen.
 - **El navegador:** 01b no tiene interfaz.
+
+## Ronda 0 — FORO-01c1 (2026-11-16)
+
+
+Veredicto de la ronda 0: **aplicada, sin PARADA.** Apliqué los siete C-n de 01c1 (C-9, C-10, C-11, C-17, C-18, C-19 y C-20) con el texto de §E8.2, §E9.2, §E9.3 y §E7.5.4. La búsqueda propia no encontró ninguna prueba que cuente, enumere o indexe las secciones fuera de la lista cerrada, de los C-n o de las vigiladas. **Ninguna de mis propias `*.ataque` cambia con 01c1:** las once que escribí en FORO-01 están en `backend/test/` (seis de 01a y tres de 01b, más los C-T1 y C-T2 de la ronda 0 de 01b sobre dos de ellas), y 01c1 es solo frontend.
+
+### Arranque
+- Equipo con corriente (`BatteryStatus` 2). No hace falta Docker: 01c1 es solo frontend y no corrí nada del backend.
+- `git log`: `ebbcb40` (01b). `git status --short -- backend frontend shared` vacío al empezar.
+- V-01 de arranque: `sha256sum -c foro01-arranque/v01-foro01b-r1.txt` (lista con SHA-256 `60b38386…`) → 300 `OK`, 0 fallas.
+
+### Comprobación de arranque (§E8.2, patrones, y §E8.3, línea "Grep"), sobre `ebbcb40`, en todo `frontend/src`
+Todas las búsquedas multilínea las hice en node sobre los `*.test.ts(x)` (`tester-r1/grep01c1.cjs`), porque `grep -P` no admite el locale de este shell.
+- `"Actividades de aprendizaje",\s*"Recursos"` → 8 archivos:
+  - de la lista cerrada (5): `app/router-01d.test.tsx`, `features/clases/clase-layout.test.tsx`, `dudas-caminos-03e.test.tsx`, `lib.test.ts` y `secciones-03c1.test.tsx`;
+  - C-n (2): `clases-admin-02c-r1.ataque` (C-18) y `heredados-02d-r1.ataque` (C-9);
+  - vigilada (1): `textos-03c1.test.ts:15-24`, que enumera claves explícitas de `TEXTOS_CLASE`; sumar `foro` no la cambia (§E8.2).
+- `"Dudas",\s*"Personas"` → los mismos 8.
+- `esperadas\(\d` → `indicador-03c1-r1.ataque` (C-19), `indicador-03c1-r2.ataque` (C-20) y `secciones-03c1.test.tsx` (lista cerrada).
+- `medidasDeLaOpcion\(\d` → `app/router-01d.test.tsx` y `clase-layout.test.tsx`, los dos de la lista cerrada.
+- `opcionDe\(lista, \d\)` → `indicador-03c1-r1` y `-r2` (C-19 y C-20).
+- `--indicador-x` → 9 pruebas.
+  - Siete están en la lista cerrada o son C-n: `router-01d`, `rutas-01d-r1` (C-17), `clase-layout`, `heredados-02d-r1`, `indicador-03c1-r1`, `-r2` y `secciones-03c1`. A ellas se suma el componente `secciones-de-clase.tsx`, que es producción.
+  - Las otras dos son reglas, no índices:
+    - `components/layout/estatico-r1.ataque:154` es un comentario dentro de la lista de valores arbitrarios;
+    - `features/clases/estatico-03c1-r1.ataque` (CL3-R1-30 a 35) pide que el indicador use solo esas dos variables, que `secciones-de-clase.tsx` no use corchetes ni tipos sueltos y que `hooks.ts` no declare tipos. Es la regla general que el manager ya señaló (CL3-R1-34). Queda **vigilada**: 01c1 suma `useForos` a `features/clases/hooks.ts`, y los tipos van en `types.ts`.
+- `"[1-6]\d0px"` → `rutas-01d-r1` (C-17), `indicador-03c1-r1` y `-r2` (C-19 y C-20), `secciones-03c1.test.tsx` (lista cerrada) y `styles/tokens.test.ts`, que son tokens y no secciones.
+- `indiceDeSeccionActiva\(` → `lib.test.ts` y `recursos-lib-03d.test.ts`, los dos de la lista cerrada.
+- `toHaveLength\(6\)` → `clase-layout.test.tsx` (lista cerrada, PR-2C08). Las otras tres no cuentan secciones:
+  - `clase-archivada-01d2-vista.test.tsx:1596` cuenta 6 celdas de una tabla;
+  - `recursos-03d.test.tsx:583-589` cuenta 6 peticiones de recursos;
+  - `trabajo-view.test.tsx:879` y `:1033` cuentan 6 peticiones o lugares de "Trabajo".
+- `getAllByRole\("link"\)\[\d\]` → `app/foco-barra-02d-r2.ataque` y `foco-pestana-02d-r3.ataque`, que indexan la lista de clases de la barra (vigiladas, §E8.2).
+- `seis secciones` → `clase-layout.test.tsx` y `secciones-03c1.test.tsx` (lista cerrada) y `heredados-02d-r1.ataque` (C-9; solo en sus comentarios de historial).
+- `SECCIONES_DE_LA_CLASE` en las pruebas → 0.
+- §E8.3, `\.refetch\(` y `mutate(Async)?\(` en los archivos nuevos: los archivos de 01c1 todavía no existen. Queda para la ronda 1, contra ATQ-CH4-32 y ATQ-CH4-34.
+
+**Las listas cerradas de las reglas estáticas** (CHORE-04, CHORE-06 y V-06), abiertas una por una:
+- **`lib/estado-por-id-estatico-ch6.test.ts` (CH6-A30):**
+  - `SIN_KEY_EN_EL_RENDER_PROP` es una lista cerrada que hoy incluye `dudas-view.tsx#DudasDeLaClase`: las listas con memoria de foco que no llevan la key en el render prop.
+  - Si `ForosView` copiara esa forma de `DudasView` sin la key, CH6-A30 (a) caería y haría falta sumarla a esa lista (prueba normal, no inventariada).
+  - El plan lo descarta: §E7.5.4, "Grep de la lista": "Render props de `ConClaseDeLaRuta`: los nuevos llevan `key={claseId}` (CH6-A30 (a))". Con eso no cambia nada. Queda **vigilada**, con esta restricción para el programador: `ForosView` pinta `ConClaseDeLaRuta` con `key={claseId}` en el render prop. Si no, PARADA.
+- **`lib/guardas-de-doble-clic-estatico.test.ts`:** CH4-01 a CH4-03 son reglas sobre toda la producción. CH4-04 tiene una lista cerrada de lectores de `isFetchingNextPage`: `mis-calificaciones-view.tsx`, `hilo-privado.tsx` y `entregas-view.tsx`. `dudas-view.tsx` no lo lee, así que `ForosView` tampoco debe (§E7.5.4, "Grep de la lista"). Vigilada.
+- **`lib/guardas-ch4-r1.ataque.test.ts`:** las listas de ATQ-CH4-31, 32 y 34 cambian con C-15 (01c2) y C-16 (01e), no en 01c1. "Ver más foros" con `fetchNextPage({ cancelRefetch: false })` no las toca. Vigilada.
+- **`styles/clases-r1.ataque.test.ts` (V-06):** es C-11.
+- **Las pruebas que recorren el router:** `app/marco-r1.ataque:376` y `features/admin/cuentas-view.test.tsx:185` comprueban con `matchRoutes` que cada enlace de la navegación principal y de la ficha de una cuenta tenga una ruta. Ninguno es un enlace de la sección ni de la lista de foros, así que los enlaces a `foros/:foroId` y `foros/nuevo`, que hasta 01c2 caen en el comodín (§E9.5), no las tocan.
+- **`estatico-02c-r1.ataque:140`** fija la línea `path: "clases/nueva"` del router; la ruta `foro` no coincide con ese patrón.
+
+**Resultado: ninguna prueba sin inventariar. Sin PARADA.**
+
+### Mis propias `*.ataque`
+Ninguna cambia. Las once de FORO-01 (`backend/test/foros-01a-r1-*` y `foros-01b-r1-*`) son del backend; 01c1 no toca el backend ni `shared/`.
+
+### Respaldo
+Los siete archivos, antes de tocarlos, en `foro01-arranque/r0-01c1-respaldo/` (scratchpad). Cada uno coincide con su línea de `v01-foro01b-r1.txt`.
+
+### Antes de cambiar nada (desde `frontend/`, `npx vitest run <ruta>`, uno a la vez)
+`heredados-02d-r1` 9 de 9, `estatico-02c-r1` 5 de 5, `styles/clases-r1` 11 de 11, `rutas-01d-r1` 7 de 7, `clases-admin-02c-r1` 17 de 17, `indicador-03c1-r1` 13 de 13 e `indicador-03c1-r2` 17 de 17, todo en verde.
+
+### C-9: `features/clases/heredados-02d-r1.ataque.test.tsx` (aplicado)
+- Las líneas citadas (`:209-273`) coinciden: el comentario de 03e termina en `:229-231` y las tres listas están en el `it.each`.
+- Cambios:
+  - El comentario literal de C-9 (§E9.3) va después del de 03e: `// FORO-01c1 ronda 0 (C-9, §E8.2; §D-8.1): …`.
+  - En las tres listas (estudiante, maestro y admin), `"Foro"` entra después de `"Actividades de aprendizaje"`. Prettier las parte en una línea por elemento.
+  - La medida de «Personas» sale de `esperadas.indexOf(activa)`, así que no hay otra cifra que tocar.
+- Qué afirma ahora: siete secciones con «Foro» tercera, la activa con `aria-current` y el indicador en su índice.
+- Después: `Tests  3 failed | 6 passed (9)`. **Rojo esperado** en los tres casos del `it.each` (`expected [ 'Avisos', …(5) ] to deeply equal [ 'Avisos', …(6) ]`), porque producción aún no tiene «Foro». Los otros seis, verdes.
+
+### C-10: `features/clases/estatico-02c-r1.ataque.test.ts` (aplicado)
+- Las líneas citadas (`:123-133`) coinciden. El comentario literal de C-10 va antes del `expect`, y `"/src/features/clases/foros-view.tsx"` queda en su lugar del orden, entre `editar-recurso-view.tsx` y `muro-view.tsx`.
+- **Es condicional** (§E7.5.4): vale si `ForosView` llama a `perspectivaDeRuta(` como `dudas-view.tsx` (§E8.3: "`ForosView` como `DudasView`"). La lista es exacta (`toEqual`). Si el programador hace `ForosView` sin esa llamada, este caso caerá. Entonces se quita la entrada, que es mía en esta ronda; él no la toca.
+- Después: `Tests  1 failed | 4 passed (5)`. **Rojo esperado:** `expected [ …(9) ] to deeply equal [ …(10) ]`, porque `foros-view.tsx` aún no existe.
+
+### C-11: `styles/clases-r1.ataque.test.ts` (V-06, aplicado)
+- Las líneas citadas (`:206-383`) coinciden: el `it` está en `:206`, `toHaveLength(90)` en `:213` y la lista `fijos` en `:220-379`.
+- Cambios:
+  - **El comentario.** El plan da su texto como `// FORO-01c1 ronda 0 (C-11, §E8.2): de 90 a <n> enEspera=, …`, con puntos suspensivos. Lo completé con <n> = 91, la cifra prevista (§E8.2, C-11), y con la aclaración de §E8.2: "un archivo nuevo sin `enEspera=` no necesita entrada en `fijos`".
+  - El título y `toHaveLength` pasan de 90 a 91.
+  - `fijos` suma `"/src/features/clases/foros-view.tsx": 1`, con su comentario «Ver más foros». Las vistas del foro de 01c2 no se escriben (Enmienda 9).
+  - Si el programador declara otra cifra, el título, el comentario y `toHaveLength` cambian en la ronda 1.
+- Después: `Tests  1 failed | 10 passed (11)`. **Rojo esperado:** `expected [ …(90) ] to have a length of 91 but got 90`.
+
+### C-17: `app/rutas-01d-r1.ataque.test.tsx` (aplicado)
+- Las líneas citadas (`:197-210`) coinciden. El comentario literal de C-17 va después del de 03e, y `:210` pasa de `{ x: "500px", ancho: "130px" }` a `{ x: "600px", ancho: "140px" }`.
+- Después: `Tests  2 failed | 5 passed (7)`. **Rojo esperado** en los dos casos que miden el indicador de «Calificaciones» (`expected { x: '500px', ancho: '130px' } to deeply equal { x: '600px', ancho: '140px' }`).
+
+### C-18: `features/clases/clases-admin-02c-r1.ataque.test.tsx` (aplicado)
+- Las líneas citadas (`:380-393`) coinciden. El comentario literal de C-18 va después del de 03e (`:380-381`), y la lista suma `"Foro",` entre `"Actividades de aprendizaje",` y `"Recursos",`.
+- Después: `Tests  1 failed | 16 passed (17)`. **Rojo esperado:** `expected [ 'Avisos', …(5) ] to deeply equal [ 'Avisos', …(6) ]`.
+
+### C-19: `features/clases/indicador-03c1-r1.ataque.test.tsx` (aplicado)
+- Apliqué cada línea con un script (`tester-r1/c19.cjs`) que antes comprueba que la línea tiene exactamente lo que el plan dice. Todas coincidieron en `ebbcb40`:
+  - `esperadas(5)` → `esperadas(6)` en `:354`, `:373`, `:387`, `:404`, `:420`, `:431`, `:456`, `:567`, `:578`, `:589` y `:594` (once);
+  - `esperadas(4)` → `esperadas(5)` en `:523`;
+  - `opcionDe(lista, 5)` → `opcionDe(lista, 6)` en `:406`, `:421`, `:433` y `:458`;
+  - `"500px"` → `"600px"` en `:357` y `:376`.
+- El comentario literal de C-19 va después de `:301-304`.
+- **Detalle de forma.** El plan pide cambiar "su comentario de `:522`" a "«Personas» pasa al índice 5". No reescribí el comentario de 03e; agregué debajo `// FORO-01c1 ronda 0 (C-19, §E8.2): «Personas» pasa al índice 5.`, que es como el proyecto conserva el historial en estos archivos. Si el arquitecto prefería reemplazar la línea, es cosa de texto: no cambia ninguna aserción.
+- `esperadas(0)`, `esperadas(1)` y los `scrollLeft` que fija la prueba no cambian.
+- Después: `Tests  11 failed | 2 passed (13)`. **Rojo esperado** en los once, uno por uno con el reporte JSON:
+  - diez dan `expected { x: '500px', ancho: '130px' } to deeply equal { x: '600px', ancho: '140px' }`;
+  - CL3-R1-05 da `expected { x: '400px', ancho: '120px' } to deeply equal { x: '500px', ancho: '130px' }` («Personas»).
+
+  Todos son «Calificaciones» o «Personas» un índice antes, porque producción aún no tiene «Foro».
+
+### C-20: `features/clases/indicador-03c1-r2.ataque.test.tsx` (aplicado, con el texto completo de §E8.2 reescrito por §E9.2)
+- Cada línea se comprobó antes de cambiarla (`tester-r1/c20.cjs`), y todas coincidieron:
+  - `esperadas(5)` → `esperadas(6)` en `:439`, `:475`, `:526`, `:557` y `:576`;
+  - `opcionDe(lista, 5)` → `opcionDe(lista, 6)` en `:528`, `:554` y `:558`;
+  - los argumentos sueltos `5,` → `6,` en `:383`, `:404`, `:429`, `:446`, `:466` y `:484`, y `4,` → `5,` en `:420` y `:499` (cada línea era exactamente `5,` o `4,`);
+  - el comentario de `:506-508`, «Calificaciones» de 500..630 a 600..740;
+  - en el control de CL3-R2-08, `"Recursos"` → `"Foro"` (`:599`) y `"recursos maestro"` → `"foro maestro"` (`:600`), con la línea literal de C-20 debajo del comentario de `:594-596`;
+  - el router de prueba suma `{ path: "foro", element: <p>{`foro ${rol}`}</p> },` con su comentario literal, en la línea anterior al comentario de `:78`;
+  - el comentario literal de C-20 va después de `:300-304`.
+- Lo que no cambia: los argumentos `1,` (`:390`) y `0` (`:414`, `:440`, `:476`), `esperadas(0)`, `esperadas(1)`, `esperadas(2)`, `opcionDe(lista, 0)` y `opcionDe(lista, 2)`. Las tablas de CL3-R2-07 y CL3-R2-08 usan los índices 0 y 1 y no cambian. **No apareció ningún otro índice ≥ 2 de una sección:** no hubo PARADA.
+- Después: `Tests  17 failed (17)`. **Rojo esperado** en los diecisiete, uno por uno con el reporte JSON:
+  - doce son la medida de «Calificaciones» o de «Personas» un índice antes;
+  - los cuatro de CL3-R2-07 son `Error: Precondición: la opción 6`, porque hoy solo hay seis opciones;
+  - el control de CL3-R2-08 da `Unable to find … the role "link" and name "Foro"`.
+
+  Todo por la falta de «Foro» en producción.
+
+### Por qué no hay verdes
+§E8.2 inventaría siete C-n para 01c1 y ninguno es una lista de permitidos que se amplía: todos cuentan, ordenan o miden la sección «Foro» o un archivo que todavía no existe. Por eso los siete quedan rojos hasta que el programador implemente. En la ronda 0 de 01a, C-6 era la única lista de permitidos y quedó verde.
+
+### Lint
+- `npx prettier --write`, solo sobre los siete archivos: los siete quedaron "unchanged" (Prettier ya había partido las listas de C-9 en la escritura).
+- `cd frontend; npm run lint` → salida 0; última línea `tsc -b`.
+
+### V-01 final
+- `sha256sum -c foro01-arranque/v01-foro01b-r1.txt` → 293 `OK` y 7 `FAILED`. Los siete son exactamente los de los C-n: `app/rutas-01d-r1`, `features/clases/clases-admin-02c-r1`, `estatico-02c-r1`, `heredados-02d-r1`, `indicador-03c1-r1`, `indicador-03c1-r2` y `styles/clases-r1`.
+- `git diff --stat ebbcb40 -- backend frontend shared`: solo esos 7 archivos (102 inserciones y 44 eliminaciones), sin producción.
+- `foro01-arranque/v01-foro01c1-r0.txt` (scratchpad): 300 líneas en el formato y el orden de la base. SHA-256 `a79d29789a31a995bf62b0be7d2fd82ee3919f96c6b5ad48b1db4a2143a482d2`.
+
+### Paradas y discrepancias
+- **Ninguna PARADA.** Todas las líneas que citan §E8.2, §E9.2 y §E7.5.4 coincidieron con los archivos en `ebbcb40`.
+- **Dos precisiones de forma, sin cambio de aserciones:**
+  - El comentario de C-11 tiene puntos suspensivos en el plan. Lo completé con 91 y con la aclaración de §E8.2.
+  - En C-19, el comentario de `:522` se conserva y lleva una línea nueva debajo, en lugar de reescribirse.
+- **C-10 es condicional:** si `ForosView` no llama a `perspectivaDeRuta(`, se retira en la ronda 1. La entrada es mía.
+- **Vigiladas que el programador debe cumplir por diseño:**
+  - CH6-A30 (a): `ForosView` con `key={claseId}` en el render prop; si no, la lista cerrada `SIN_KEY_EN_EL_RENDER_PROP` caería.
+  - CH4-04: ningún lector nuevo de `isFetchingNextPage`.
+  - CL3-R1-34: sin tipos en `features/clases/hooks.ts`.
+  - §E9.4, en `features/clases`: sin `?? []`, sin ternarios anidados en JSX, sin `disabled` en JSX, sin valores arbitrarios y sin importar de otro módulo.
+
+## Ronda 1 — FORO-01c1 (2026-11-16)
+
+
+Veredicto: **RESISTE.** Ningún hallazgo: 0 críticos, 0 altos, 0 medios y 0 bajos. Escribí 33 casos de ataque nuevos en 2 archivos del frontend, y todos pasan contra el código de hoy. Hice 6 mutaciones reales en archivos de "Se toca" de 01c1 (`foros-view.tsx` y `features/clases/hooks.ts`), en 7 corridas; todas tumban un caso mío (MC1, después de reforzar ATQ-FORO-101 y 102) y se restauraron byte a byte. Las siete `*.ataque` de la ronda 0 siguen verdes.
+
+### Arranque
+- Solo frontend; no corrí nada del backend. Equipo con corriente.
+- V-01 contra `foro01-arranque/v01-foro01c1-r0.txt` (`a79d2978…`): `sha256sum -c` → 300 `OK`.
+- Leí:
+  - el resumen de 01c1 y su corrección M-10 (`resumen-programador.md:558-873`), con la matriz, los hermanos frente a `DudasView`, las mutaciones y las redundancias F2, F5 y F14;
+  - las dos verificaciones del manager (`revision.md:1389-1715`);
+  - `git diff ebbcb40 -- frontend`, `foros-view.tsx` completo, y `useFilaEnFoco`, `useAvisoDeRecargaFallida`, `useListaConservadaTrasLaPagina`, `useRecargarAlPulsarLaSeccion` y `useMarcarViejaSiQuedoEnError`;
+  - `DESIGN.md` §7.14 y `CLAUDE.md`, "Componentes".
+
+### Hallazgos
+Ninguno. Dos rojos de la primera corrida fueron defectos de mis pruebas, no del código; están en "Observaciones".
+
+### Atacado sin hallazgos (por punto, con el caso que lo prueba)
+Archivos nuevos en `frontend/src/features/clases/`:
+- `foros-01c1-r1.ataque.test.tsx` (router real y `Providers`: `staleTime` de 30 s y un reintento);
+- `foros-01c1-r1-foco.ataque.test.tsx` (router real con un `QueryClient` igual al de la app, a la vista de la prueba).
+
+1. **«Vuelve a abrir Foro» por los caminos que el plan no inventarió:**
+   - ATQ-FORO-90: con la frase en A, ir a «Foro» de B y volver con el historial. La primera petición nueva de A va sin cursor, la frase sale, llega «Foro 7» y no hay aviso.
+   - ATQ-FORO-91: lo mismo por la barra de clases (B y su «Foro», y de vuelta A y su «Foro»).
+   - ATQ-FORO-92: pulsar «Foro» dos veces en el mismo instante, y una tercera después, con la recarga retenida, pide **una sola** primera página. Al soltarla, la frase sale.
+2. **El aviso heredado o doble:**
+   - ATQ-FORO-93: «Ver más foros» de A falla con la vista de A desmontada (sin observadores, TanStack no reintenta). Al volver a A no sale el aviso del fallo viejo, la lista se ve sin `alert` mientras la recarga vuela y luego llegan las filas.
+   - ATQ-FORO-94: dos fallos con un montaje entre ellos (ir a «Avisos» y volver) dan exactamente dos avisos, y la lista y el botón siguen.
+   - ATQ-FORO-95: en `StrictMode`, un fallo da un solo aviso.
+   - ATQ-FORO-96: A y B conservadas; de A a B y de vuelta dos veces da dos avisos en total y ninguna alerta mientras vuela cada recarga.
+3. **Los códigos con que `apiClient` redirige** (401 sin refresco, `ACCESO_RESTRINGIDO` y `CAMBIO_DE_CONTRASENA_REQUERIDO`):
+   - ATQ-FORO-97 (×3): en la primera página, `irA` y ningún aviso;
+   - ATQ-FORO-98 (×3): en la recarga al pulsar «Foro» de una lista conservada, `irA` y ningún aviso más que el del fallo de la página.
+4. **El foco del efecto de N-28:**
+   - ATQ-FORO-101 (control): una fila enfocada suelta el foco a `<body>` y, pasado el instante de `useFilaEnFoco`, un render real (otro conteo que cambia) no mueve el foco.
+   - ATQ-FORO-102: soltar el foco y el render en el mismo `act` tampoco lo mueve; la fila sigue en la lista. **La carrera que temía el manager no se da con una consulta.** TanStack notifica con `setTimeout(0)`, detrás del `setTimeout(0)` que `useFilaEnFoco` encola en el `focusout`, así que la ref ya está limpia cuando corre el efecto.
+   - ATQ-FORO-103: con la recarga retenida, la lista pasa por «Cargando los foros…» con la fila enfocada fuera. El foco va al `h2` y se queda ahí cuando vuelven las filas.
+   - ATQ-FORO-104: el foco en «Crear foro» no se mueve con una recarga que cambia la lista. En «Ver más foros», una recarga que deja una sola página lo lleva a un elemento conectado, nunca a `<body>`.
+   - ATQ-FORO-105: con una fila enfocada en A, volver con el historial a «Foro» de B, ya visitada, deja el foco en un encabezado (el título de la clase o el `h2`), nunca en `<body>`.
+   - ATQ-FORO-106: con el foco en «Crear foro», la clase entra en solo lectura (el detalle llega archivado). «Crear foro» sale y el foco va al título de la clase (`h1` «Historia»).
+   - Cambiar de ventana o de pestaña con una fila enfocada: `useFilaEnFoco` conserva la ref mientras la ventana no tiene el foco, pero el elemento activo sigue siendo la fila, así que `focoPerdido` es falso y el efecto no actúa. Lo leí en el código; jsdom no simula el foco de la ventana.
+5. **La página siguiente:**
+   - ATQ-FORO-107: el servidor anuncia otra página y la entrega vacía. «Ver más foros» sale, el foco va al `h2` y hay 20 filas, sin repetir.
+   - Las filas repetidas no las ataqué con una prueba (ver "No atacado").
+6. **El mensaje de la primera página** (ATQ-FORO-99, ×9):
+
+   | Lo que responde el servidor | Mensaje |
+   |---|---|
+   | 500 sin cuerpo | «Algo salió mal. Inténtalo de nuevo.» |
+   | 502 con HTML | ídem |
+   | sin red | ídem |
+   | 503 con mensaje vacío | ídem |
+   | 503 con mensaje de solo espacios | ídem |
+   | `VALIDACION` con ruta | ídem |
+   | 404 `CLASE_NO_ENCONTRADA` | ídem |
+   | `VALIDACION` de `claseId` | «No tienes acceso a esta clase.» |
+   | 403 `SIN_ACCESO_A_LA_CLASE` | ídem |
+
+   En cada caso hay un solo `alert`, ningún texto del servidor a la vista y ningún aviso.
+7. **La lista conservada** (ATQ-FORO-100, además de 93 a 96):
+   - después de conservarla, el 400 del cursor muestra la frase sin otro aviso;
+   - una recuperación que falla con `403 SIN_ACCESO_A_LA_CLASE` reemplaza la lista con su texto, sin otro aviso.
+8. **Las filas:**
+   - ATQ-FORO-108, con el reloj fijo (`vi.setSystemTime`), en la perspectiva del alumno. En el milisegundo de la fecha límite, la fila dice «Venció…» y la insignia «Sin entregar»; un milisegundo antes, «Vence hoy» y «Asignado». Las dos formas de la entrega sin participar (`null` y `{ asignado, conRetraso: false }`) dan el mismo texto de fila.
+   - ATQ-FORO-109: un título de 300 caracteres sin espacios y 1 234 567 participaciones se ven enteros («1234567 participaciones», en palabras), y la fila sigue siendo un solo enlace con «Foro:».
+9. **La clase archivada:**
+   - ATQ-FORO-106 cubre «Crear foro» que sale al entrar en solo lectura, con el foco en su sitio;
+   - FORO-1C14 del programador cubre la lista de una clase que ya llega archivada;
+   - `ForosView` no tiene efectos asíncronos que escriban, así que "un efecto que llega después de entrar en solo lectura" no tiene objeto aquí.
+10. **Las reglas estáticas** (ATQ-FORO-110, sobre el texto de `foros-view.tsx` sin comentarios):
+    - no aparecen `isFetchingNextPage` (CH4-04), `?? []`, `disabled`, `fetch(`, `console.`, vidrio (V-07), valores arbitrarios `-[…]` ni importaciones de `@/features/…`;
+    - los únicos tipos declarados son `…Props`;
+    - la key de la clase va en el render prop (CH6-A30 (a));
+    - hay un solo `enEspera=` (V-06 en 91).
+
+    CH4-04, CH6-A30, V-06 y V-07 también pasan en la suite de `src/lib` y `src/styles`.
+
+### Observaciones (no son hallazgos)
+- **O-01c1-1. Cambio de clase hacia una clase que no está en la caché: el foco queda en `<body>`.** No es de 01c1: es `ClaseLayout`, que está en "No se toca", y pasa igual en cualquier sección.
+  - La reproducción fue mi primera versión de ATQ-FORO-105: con una fila enfocada en «Foro» de A, `router.navigate` a «Foro» de B, que nunca se abrió.
+  - Mecanismo: mientras llega el detalle de B, `ClaseDeLaRuta` pinta `<Cargando />` en lugar de la raíz (`clase-layout.tsx:53-73`). `useFocoAlTituloDeLaClase` (`hooks.ts:296-312`) recibe la clave nueva sin raíz a la que llevar el foco, y cuando la raíz vuelve ya no hay cambio de clave.
+  - Con B en la caché (volver con el historial a una clase visitada, que es el camino real desde una fila enfocada), el foco va al título: ATQ-FORO-105, verde.
+  - La barra de clases no lo provoca, porque al pulsarla el foco está en el enlace de la barra.
+  - Destino propuesto: `docs/ESTADO.md` §3, para quien vuelva a tocar `ClaseLayout`.
+- **O-01c1-2. Dos rojos de mi primera corrida fueron míos:**
+  - ATQ-FORO-110 contaba como tipo el `type ReactNode` de una importación. Lo corregí: solo cuentan las declaraciones al inicio de línea.
+  - ATQ-FORO-103, sin retener la recarga, nunca llegaba a «Cargando». `resetQueries` y la respuesta caían en el mismo render y la fila no salía; ahora la recarga se retiene.
+- **O-01c1-3. ATQ-FORO-101 y 102 al principio no provocaban un render.** `setQueryData` con los mismos datos conserva la referencia (structural sharing) y no notifica, así que la mutación MC1 sobrevivió. Los reescribí para que cambie el conteo de otra fila, con una precondición que lo comprueba en pantalla, y entonces MC1 cayó.
+- **O-01c1-4. El estado de la fila y su insignia se calculan con dos `new Date()`:** el de `complementoDe` en `ForosDeLaClase` y el de `FilaDeEntrega`. En el milisegundo exacto de la fecha límite podrían discrepar si el reloj avanza entre los dos. Con el reloj fijo no discrepan (ATQ-FORO-108). Es un caso de un milisegundo y sin efecto práctico; lo dejo anotado.
+- **O-01c1-5. Las filas repetidas en la página siguiente** no son alcanzables: el backend pagina por `(creado_en, id)`, que no cambian, con el cursor de Prisma y `skip: 1` (`adapters/db/foros.ts`, `listarForos`), así que una fila no aparece en dos páginas. Por eso la vista no necesita `unirPaginasSinRepetidas`, a diferencia de las listas de ADMIN-01, cuya clave de orden cambia (R-19).
+
+### Mis mutaciones
+Archivos de "Se toca" de 01c1, sin preguntar:
+- copia previa;
+- `tester-r1/mutar.cjs`, que aborta si el ancla no aparece exactamente una vez;
+- restauración y comparación byte a byte («cmp igual: true» en las 7 corridas);
+- `sha256sum -c` de `foros-view.tsx` y `hooks.ts` en OK;
+- `git diff --stat -- src` igual antes y después (`20 files changed, 251 insertions(+), 93 deletions(-)`).
+
+No muté nada de "No se toca".
+
+| Mutación | Archivo · ancla | Cae |
+|---|---|---|
+| MC1 | `foros-view.tsx` · quitar `idEnFoco === null \|\|` del efecto de N-28 | primero **sobrevivió** (O-01c1-3); con el render real caen ATQ-FORO-101 y 102 |
+| MC2 | ídem · sin `encabezadoRef.current?.focus()` en el efecto | ATQ-FORO-103 |
+| MC3 | `features/clases/hooks.ts` · `useAvisoDeRecargaFallida` con `useRef(0)` en lugar de `useRef(errorUpdateCount)` | ATQ-FORO-93, 94 y 96 |
+| MC4 | `foros-view.tsx` · sin `useRecargarAlPulsarLaSeccion(foros)` | ATQ-FORO-92, 98 (×3) y 100 |
+| MC5 | ídem · `if (foros.isError)` sin `&& !conserva` | ATQ-FORO-93 y 96 |
+| MC6 | ídem · el render prop sin `key={claseId}` | ATQ-FORO-110 |
+
+Redundancias conocidas y aceptadas por el manager: F2 (la ref de «Ver más foros»), F5 (`useMarcarViejaSiQuedoEnError`) y F14 (`useFocoAlPasarAError`). No las repetí. ATQ-FORO-90 pasa sin `useMarcarViejaSiQuedoEnError` por la misma razón que F5.
+
+### Archivos nuevos (2; 33 casos)
+`npx vitest list src/features/clases/foros-01c1-r1` (desde `frontend/`), contado con `grep -a ' > ' | grep -ac 'ATQ-FORO-'`, da **33** casos:
+- `frontend/src/features/clases/foros-01c1-r1.ataque.test.tsx`: 23 (ATQ-FORO-90 a 100; los `it.each` de 97 y 98 tienen tres casos cada uno, y el de 99, nueve);
+- `frontend/src/features/clases/foros-01c1-r1-foco.ataque.test.tsx`: 10 (ATQ-FORO-101 a 110).
+
+Cómo están hechos:
+- Los elementos se localizan por rol, nombre o texto, nunca por clases de estilo.
+- Toda prueba con fechas fija el reloj (ATQ-FORO-108) o las arma a partir de `Date.now()` con márgenes de días.
+- Toda prueba tiene aserciones; las precondiciones que faltan lanzan con su mensaje.
+- No toqué ninguna `*.ataque` existente, ninguna prueba normal ni producción.
+
+### Comandos (desde `frontend/`, uno a la vez)
+- `npx vitest run src/features/clases/foros-01c1-r1.ataque.test.tsx` → `Tests  23 passed (23)`.
+- `npx vitest run src/features/clases/foros-01c1-r1-foco.ataque.test.tsx` → `Tests  10 passed (10)`.
+- `npm run lint` → salida 0; última línea `> tsc -b`.
+- `npx vitest run src/features/clases` → `Test Files  128 passed (128)` · `Tests  3138 passed (3138)` (298 s). 3138 = 3105 de la verificación del manager + mis 33.
+- `npx vitest run src/app src/lib src/styles` → `Test Files  62 passed (62)` · `Tests  1100 passed (1100)`. El manager corrió 1111 con `como-se-entrega-01a.test.tsx`, que esta vez no entra en el filtro; las siete `*.ataque` de la ronda 0 están dentro de las dos corridas y siguen verdes.
+- `git diff --stat -- frontend/src` sigue en `20 files changed, 251 insertions(+), 93 deletions(-)`, igual que antes de mis mutaciones.
+
+### V-01
+- `sha256sum -c foro01-arranque/v01-foro01c1-r0.txt` → 300 `OK`: ninguna `*.ataque` anterior cambió.
+- `foro01-arranque/v01-foro01c1-r1.txt` (scratchpad): las 300 de la ronda 0 sin cambio más mis 2 archivos, **302** líneas; el árbol tiene 302 `*.ataque`. SHA-256 `061d8fd917a761dddef38e6562f6ffaf94e72073f3d4bfe87afa0494fbc7634c`.
+
+### No atacado y por qué
+- **Las filas repetidas en la página siguiente:** no son alcanzables desde el backend (O-01c1-5). Probé la página siguiente vacía (ATQ-FORO-107).
+- **El ancho de 360 px y el corte visual de títulos largos:** jsdom no maqueta. ATQ-FORO-109 comprueba el texto entero y el enlace. Lo visual queda para la comprobación del humano en 01e.
+- **El foco de la ventana y de la pestaña:** jsdom no lo simula. Lo leí en `useFilaEnFoco` (punto 4).
+- **Las vistas del foro, crear, editar, borrar, participar y calificar:** son de 01c2 a 01e; en 01c1 las filas y «Crear foro» van a rutas que aún no existen (§E9.5).
+- **La suite completa del frontend:** la corre el manager al cerrar.
+- **El navegador:** no se abre.

@@ -201,13 +201,17 @@ describe("«Calificaciones» con la ruta escrita a mano", () => {
       // CLASES-03e ronda 0 (C-24, §D-R0; §D-7.1): con «Dudas» entre «Recursos» y «Personas»,
       // Calificaciones pasa a ser la sexta sección (índice 5: 500 px de posición y 130 px de ancho
       // simulados, con las mismas medidas). Sigue protegiendo lo mismo.
+      // FORO-01c1 ronda 0 (C-17, §E8.2; §D-8.1): con «Foro» entre «Actividades de aprendizaje» y
+      // «Recursos», Calificaciones pasa a ser la séptima sección (índice 6: 600 px de posición y 140 px
+      // de ancho simulados, con las mismas medidas). Sigue protegiendo que el indicador quede en la
+      // sección activa con la ruta escrita a mano.
       const indicador = lista.previousElementSibling
       if (!(indicador instanceof HTMLElement)) throw new Error("Precondición: sin indicador")
       await waitFor(() =>
         expect({
           x: indicador.style.getPropertyValue("--indicador-x"),
           ancho: indicador.style.getPropertyValue("--indicador-ancho"),
-        }).toEqual({ x: "500px", ancho: "130px" }),
+        }).toEqual({ x: "600px", ancho: "140px" }),
       )
       expect(pidioAlgunaRutaCon(fetchMock, "/mis-calificaciones")).toBe(false)
     },

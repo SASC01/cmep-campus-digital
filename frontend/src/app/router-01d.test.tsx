@@ -189,18 +189,42 @@ const medidasDeLaOpcion = (i: number) => ({
 describe("la sección «Calificaciones» (CAL-1D06)", () => {
   it.each([
     // CLASES-03 (§D-7.1): las mismas secciones en las tres perspectivas; 03d suma "Recursos" y 03e,
-    // "Dudas".
+    // "Dudas"; FORO-01 suma «Foro» en la tercera.
     [
       "estudiante",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+      [
+        "Avisos",
+        "Actividades de aprendizaje",
+        "Foro",
+        "Recursos",
+        "Dudas",
+        "Personas",
+        "Calificaciones",
+      ],
     ],
     [
       "maestro",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+      [
+        "Avisos",
+        "Actividades de aprendizaje",
+        "Foro",
+        "Recursos",
+        "Dudas",
+        "Personas",
+        "Calificaciones",
+      ],
     ],
     [
       "admin",
-      ["Avisos", "Actividades de aprendizaje", "Recursos", "Dudas", "Personas", "Calificaciones"],
+      [
+        "Avisos",
+        "Actividades de aprendizaje",
+        "Foro",
+        "Recursos",
+        "Dudas",
+        "Personas",
+        "Calificaciones",
+      ],
     ],
   ] as const)(
     "CAL-1D06: %s ve «Calificaciones» como última sección, con su href y aria-current en …/calificaciones",
@@ -229,15 +253,15 @@ describe("la sección «Calificaciones» (CAL-1D06)", () => {
     const lista = await secciones()
     expect(lista.previousElementSibling).toHaveAttribute("aria-hidden", "true")
     await waitFor(() =>
-      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(5)),
+      expect(medidasDelIndicador(lista.previousElementSibling)).toEqual(medidasDeLaOpcion(6)),
     )
   })
 
   it.each([
-    ["admin", "personas", 4],
-    ["admin", "personas", 4],
-    ["maestro", "personas", 4],
-    ["maestro", "calificaciones", 5],
+    ["admin", "personas", 5],
+    ["admin", "personas", 5],
+    ["maestro", "personas", 5],
+    ["maestro", "calificaciones", 6],
   ] as const)(
     "CAL-1D06: %s en …/%s: el indicador lleva la posición y el ancho medidos de la opción %i",
     async (rol, segmento, indice) => {

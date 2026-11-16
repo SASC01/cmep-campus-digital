@@ -120,11 +120,14 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // formulario de duda solo para estudiante y maestro); ElementoDeDuda y RespuestasDeDuda reciben lo
     // que necesitan por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un
     // prefijo.
+    // FORO-01c1 ronda 0 (C-10, §E8.2; §D-8.2): foros-view.tsx la llama como dudas-view.tsx. Sigue
+    // protegiendo que nadie más la llame ni compare el pathname con un prefijo.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
       "/src/features/clases/categorias-view.tsx",
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/dudas-view.tsx",
       "/src/features/clases/editar-recurso-view.tsx",
+      "/src/features/clases/foros-view.tsx",
       "/src/features/clases/muro-view.tsx",
       "/src/features/clases/personas-view.tsx",
       "/src/features/clases/recursos-view.tsx",

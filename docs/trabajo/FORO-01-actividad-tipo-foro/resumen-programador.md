@@ -554,3 +554,320 @@ No verificado:
 - La suite completa de cada paquete (la corre el manager al cerrar).
 - Los casos de concurrencia de FORO-1A67 y FORO-1A68 dependen de que PostgreSQL entregue la fila retenida en el orden en que las operaciones se formaron (`formadasDetrasDe`); pasaron en las dos corridas que hice (la del archivo solo y la de los módulos), pero es un orden del motor, no una garantía del código.
 - No se abrió ningún navegador; 01b no tiene interfaz.
+
+## Implementación — FORO-01c1 (2026-11-16)
+
+
+Plan: `docs/trabajo/FORO-01-actividad-tipo-foro/plan.md` (§E8.3, 01c1: la sección «Foro» y su lista). Solo `frontend/`; no se corrió nada del backend ni se tocó `shared/`.
+
+Estado: **terminado** (sin PARADA).
+
+### Archivos (23, contra ~23 estimados)
+
+Producción (7):
+- `frontend/src/features/clases/foros-view.tsx` (nuevo): `ForosView` y `ForosDeLaClase`, sobre el patrón de `DudasView`.
+- `frontend/src/features/clases/data.ts`: `TEXTOS_CLASE.foro`, la entrada `foro` tercera de `SECCIONES_DE_LA_CLASE`, `LIMITE_FOROS` y `TEXTOS_FOROS`; PR-1A17: sale `TEXTOS_FORMULARIO_PUBLICACION.sinTema` y `TEXTOS_TRABAJO.sinTema` pasa a `TEXTOS_DE_LA_CLASE.sinTema`.
+- `frontend/src/features/clases/hooks.ts`: `useForos` (infinita, `claveListaDeForos`, `listaForosRespuestaSchema`, `LIMITE_FOROS`).
+- `frontend/src/features/clases/types.ts`: reexporta `ElementoDeForo` y `ListaForosRespuesta` de `@campus/shared`.
+- `frontend/src/features/clases/components/fila-de-entrega.tsx`: props opcionales `rotulo` (por omisión `TEXTOS_TRABAJO.tarea`) y `complemento` (se pinta a la derecha).
+- `frontend/src/services/trabajoService.ts`: solo `clavePrefijoDeForos` y `claveListaDeForos`.
+- `frontend/src/app/router.tsx`: `{ path: "foro", element: <ForosView /> }` en las tres ramas.
+
+Pruebas nuevas (2):
+- `frontend/src/features/clases/foros-01c.test.tsx`
+- `frontend/src/features/clases/recuperar-foros-01c.test.tsx`
+
+Pruebas normales de la lista cerrada (7), cada una solo con lo que pide §E8.2 y PR-1A17:
+- `frontend/src/features/clases/secciones-03c1.test.tsx`
+- `frontend/src/features/clases/clase-layout.test.tsx`
+- `frontend/src/features/clases/lib.test.ts`
+- `frontend/src/features/clases/recursos-lib-03d.test.ts`
+- `frontend/src/app/router-01d.test.tsx`
+- `frontend/src/features/clases/dudas-caminos-03e.test.tsx`
+- `frontend/src/features/tareas/como-se-entrega-01a.test.tsx` (línea 262, PR-1A17; y la 241, ver desviación 2)
+
+`*.ataque` de la ronda 0 (7), no tocadas por mí; aparecen en `git status` porque el tester las dejó modificadas: `app/rutas-01d-r1`, `clases/clases-admin-02c-r1`, `clases/estatico-02c-r1`, `clases/heredados-02d-r1`, `clases/indicador-03c1-r1`, `clases/indicador-03c1-r2`, `styles/clases-r1`. Las siete pasan (ver verificación).
+
+### Pruebas requeridas (01c1)
+
+| Viñeta | Archivo | Título exacto |
+|---|---|---|
+| FORO-1C01 (su parte de 01c1) | `foros-01c.test.tsx` | "FORO-1C01: indiceDeSeccionActiva da 2 en …/foro, …/foro/ y …/FORO, y -1 en …/foros y …/foros/x (%s)" ×3 roles; "FORO-1C01: %s en …/foro ve las siete secciones con «Foro» tercera, con su href y aria-current, y la vista monta «Foro»" ×3 roles |
+| FORO-1C02 | `foros-01c.test.tsx` | "FORO-1C02: cargando, vacío y datos, en ese orden"; "FORO-1C02: con la primera página fallida (5xx), la lista se reemplaza por su mensaje de error, sin aviso"; "FORO-1C02: el maestro y el admin ven el conteo de participaciones y «Crear foro»; las filas llevan «Foro:» y van al foro" (×2); "FORO-1C02: el alumno ve su frase, sin «Crear foro», y el estado de su participación en cada fila (con retraso, calificado)"; "FORO-1C02: entrega null y { estado: asignado, conRetraso: false } se pintan igual, con el foro abierto y vencido (S-10)" (×2) |
+| FORO-1C03 | `foros-01c.test.tsx` | "FORO-1C03: pide la página siguiente con el cursor, lleva el foco al primer foro nuevo y, en la última página, ya no se ofrece"; "FORO-1C03: con la lista marcada vieja, pulsar «Foro» la recarga y «Ver más foros» queda en espera hasta que llega" |
+| FORO-1C14 (la lista) | `foros-01c.test.tsx` | "FORO-1C14: %s en una clase archivada ve la lista, sin «Crear foro»" (maestro y admin) |
+| FORO-1C20 | `recuperar-foros-01c.test.tsx` | "FORO-1C20: pulsar «Foro» estando ahí pide la primera página otra vez y la frase desaparece" |
+| FORO-1C21 | `recuperar-foros-01c.test.tsx` | "FORO-1C21: ir a «Avisos» y volver antes de 30 s pide la primera página y la frase desaparece" |
+| FORO-1C22 | `recuperar-foros-01c.test.tsx` | "FORO-1C22: atrás y adelante del historial piden la primera página y la frase desaparece" |
+| FORO-1C23 | `recuperar-foros-01c.test.tsx` | "FORO-1C23: con la frase a la vista no se ofrece «Ver más foros» y no hay aviso" |
+| FORO-1C50 («Ver más foros») | `foros-01c.test.tsx` | "FORO-1C50: dos clics en el mismo render de «Ver más foros» piden una sola página" |
+| FORO-1C51 | `foros-01c.test.tsx` | "FORO-1C51: con %s, la lista se queda, un solo aviso, «Ver más foros» sigue a la vista y el foco queda en el botón" (503 y sin red); "FORO-1C51: mientras una recarga la recupera (pulsar «Foro»), la lista se ve sin error; si esa recarga falla, la reemplaza" |
+| FORO-1C52 (la lista entre dos clases) | `foros-01c.test.tsx` | "FORO-1C52: la lista de la clase A con un «Ver más» en vuelo no hereda su aviso al saltar a la clase B" |
+| FORO-1C53 («Ver más foros») | `foros-01c.test.tsx` | "FORO-1C53: con %s, ningún aviso" (401 sin refresco, 403 ACCESO_RESTRINGIDO, 403 CAMBIO_DE_CONTRASENA_REQUERIDO) |
+| FORO-1C54 | `foros-01c.test.tsx` | "FORO-1C54: con la lista en error, pulsar «Foro» la pide una sola vez"; "FORO-1C54: con la lista vieja, una sola petición; sana y fresca, ninguna"; "FORO-1C54: con una petición en vuelo, pulsar «Foro» no la cancela ni la duplica"; "FORO-1C54: salir y volver antes de 30 s con la lista en error la pide" |
+
+Las demás viñetas de §E8.3 (crear, editar, el foro, su lectura, FORO-1C05 a 1C13, 1C24 a 1C27, 1C37, y FORO-1C01 en `foros/:foroId`) son de 01c2 y no están cubiertas aquí.
+
+### Red-first
+
+La mutación F0 deja la vista sin contenido (`{() => null}` en el render prop de `ForosView`). Con ella, `npx vitest run src/features/clases/foros-01c.test.tsx src/features/clases/recuperar-foros-01c.test.tsx` da `Tests  28 failed | 3 passed (31)`. Los 3 casos que sobreviven son los de `indiceDeSeccionActiva` (FORO-1C01, uno por rol): dependen de `SECCIONES_DE_LA_CLASE` y caen con F9. Las 4 frases de recuperación caen. La primera corrida de las dos pruebas contra el código ya escrito fue en rojo por defectos de la prueba (la regex del nombre de la fila, el `alert` vacío y la ruta de Avisos). Esos defectos se corrigieron en la prueba, no en la vista.
+
+### Verificación (desde `frontend/`, una corrida a la vez)
+
+- `npm run lint`: salida 0. Última línea: `> tsc -b`, sin errores; antes, `All matched files use Prettier code style!`.
+- `npx vitest run src/features/clases`: `Tests  3099 passed (3099)`, con `Test Files  126 passed (126)`.
+- `npx vitest run src/app src/lib src/styles src/features/tareas/como-se-entrega-01a.test.tsx`: `Tests  1111 passed (1111)`, con `Test Files  63 passed (63)`.
+- `npm run build`: `✓ built in 882ms`.
+- La suite completa del paquete no se corrió; la corre el manager al cerrar.
+
+### Conteos
+
+- `npx vitest list src/features/clases/foros-01c.test.tsx src/features/clases/recuperar-foros-01c.test.tsx`, contado con `grep -a -c`, da 31 casos: 27 de `foros-01c` (`grep -a -c "^src/features/clases/foros-01c"`) y 4 de `recuperar-foros-01c`.
+- `enEspera=` en producción: `grep -rho "enEspera=" frontend/src --include=*.tsx --exclude=*.test.tsx | wc -l` da 91, de 90 a 91. El único nuevo está en `foros-view.tsx` (`grep -c` da 1). Con las pruebas son 92: una prueba `.test.tsx` ajena también lo menciona. V-06 de `styles/clases-r1.ataque.test.ts` (91) pasa.
+- Archivos: `git status --short frontend` da 20 modificados y 3 nuevos, o sea 23, contra ~23 estimados. Ninguno fuera de "Se toca", aparte de las 7 `*.ataque` del tester.
+
+### `*.ataque` de la ronda 0
+
+Las siete pasan, dentro de las dos corridas de arriba:
+- C-9: `indicador-03c1-r1` y `-r2`.
+- C-10: `rutas-01d-r1` y `clases-admin-02c-r1`. Es condicional y aplica, porque la vista llama a `perspectivaDeRuta(`.
+- C-11: `styles/clases-r1`, con 91 `enEspera=`.
+- C-17 a C-20: `estatico-02c-r1` y `heredados-02d-r1`.
+
+No toqué ninguna.
+
+### Matriz de avisos y recargas (§D-10, `ForosView`), confirmada con dos correcciones
+
+| Disparador | Clase de error | Qué se renueva | Qué se anuncia | Foco |
+|---|---|---|---|---|
+| Primera página | `5xx` o red | — | Reemplaza con `MensajeError`, sin aviso. **Corrección:** el texto es el genérico del módulo de `mensajeDeErrorDeLista` ("Algo salió mal. Inténtalo de nuevo."), no "No pudimos cargar los foros." (desviación 1). Un `503 SERVICIO_OCUPADO` muestra el texto del servidor traducido, como en Dudas | `h2` (`useFocoAlPasarAError`) si el control enfocado desaparece |
+| Primera página | `VALIDACION` de `claseId` | — | Reemplaza con el texto fijo del lugar (`mensajeDeConsultaClases`) | ídem |
+| Primera página | Redirige (`401`, `ACCESO_RESTRINGIDO`, `CAMBIO_DE_CONTRASENA_REQUERIDO`) | — | Nada: `apiClient` saca a la persona | — |
+| «Ver más foros» | `400` del cursor | La lista sale de la caché (`useListaConservadaTrasLaPagina` no la conserva) | La frase, sin aviso, sin «Ver más foros» (FORO-1C23) | `h2` |
+| «Ver más foros» | `5xx` o red | — | Un aviso (`useAvisoDeRecargaFallida`); la lista se queda y el botón sigue a la vista (FORO-1C51) | Se queda en el botón |
+| «Ver más foros» | Redirige | — | Ningún aviso (FORO-1C53) | — |
+| «Ver más foros» en vuelo a la vez | Segundo clic | — | Una sola página (FORO-1C50) | — |
+| «Ver más foros» en vuelo con la vista desmontada (salto a la clase B) | Cualquiera | — | La clase B no hereda el aviso (`key={claseId}` y la clave del gancho; FORO-1C52) | — |
+| Pulsar «Foro» estando ahí | Lista en error o vieja | Una petición, sin cancelar ni duplicar lo que vuela (FORO-1C54, FORO-1C03) | Si la recarga falla, reemplaza la lista. **Corrección:** con la lista conservada, mientras la recarga vuela no se ve error (FORO-1C51) | `h2` si el foco estaba en una fila (FORO-1C51, aserción nueva) |
+| Salir y volver antes de 30 s | Lista en error | La pide de nuevo (FORO-1C54) | — | — |
+
+01c1 no tiene mutaciones (crear, editar y borrar son de 01c2). Por eso no hay filas `409` ni `onError` con la vista desmontada.
+
+### Frase de recuperación: «La lista de foros cambió mientras la veías. Vuelve a abrir Foro para verla completa.»
+
+Un caso por camino, con el router real y `Providers`. En cada uno, la primera petición nueva va sin `cursor`, aparece "Foro 7" y la frase desaparece:
+- **FORO-1C20:** pulsar «Foro» estando ahí, otra `location.key`.
+- **FORO-1C21:** ir a «Avisos» y volver antes de 30 s.
+- **FORO-1C22:** atrás y adelante del historial, con `router.navigate(-1)` y `router.navigate(1)`.
+- **FORO-1C23:** repetir el control que falló no es posible, porque «Ver más foros» no se ofrece. El caso comprueba también que no hay `toast.error`.
+- Otro filtro u otra ventana: la lista no los tiene.
+
+### Hermanos por mecanismo (contra `DudasView`)
+
+| Mecanismo de `DudasView` | En `ForosView` |
+|---|---|
+| `useListaConservadaTrasLaPagina` | Sí, con `claveListaDeForos` |
+| `useAvisoDeRecargaFallida` con `claseId` | Sí |
+| `useFocoAlPasarAError` | Sí. Lo vigila la aserción nueva de FORO-1C51 (mutación F14) |
+| `useRecargarAlPulsarLaSeccion` | Sí |
+| `useMarcarViejaSiQuedoEnError` | Sí. Su mutación sobrevive (ver abajo) |
+| `useFocoAlCargarMas` con fila y `h2` | Sí, con el enlace de la fila (`[data-foro-id] a`) |
+| `enEspera={isFetching}` y `fetchNextPage({ cancelRefetch: false })` | Sí |
+| `key` por clase | **Distinto a propósito:** Dudas monta `DudasDeLaClase` sin `key` y lleva la clase en sus ganchos (lista cerrada de CH6-A30). Foro va con `key={claseId}`, como pide el encargo. Así no necesita `clasePrevia` en `enfocarForo` |
+| Foco de la fila al borrar o marcar (`useFilaEnFoco`, `vecinaDeFila`) | No aplica: la lista de foros no tiene acciones por fila |
+| Guarda síncrona con ref en «Ver más» | Dudas no la lleva; Foro sí, porque el encargo la pide. Es redundante (ver abajo) |
+
+Estados del mecanismo de la lista:
+- primera carga;
+- recarga sana;
+- recarga en error con caché;
+- fallo de página conservado y luego recuperado;
+- dos fallos seguidos: el aviso se da uno por fallo, por `errorUpdateCount`;
+- cambio de clase;
+- salir y volver.
+
+Todos están cubiertos por los casos de arriba, salvo "dos fallos de «Ver más» seguidos". Ese camino lo cubre el gancho compartido y su prueba en Dudas; aquí no tiene un caso propio.
+
+### Mutaciones
+
+Todas en archivos de "Se toca": `foros-view.tsx` y `data.ts`. Cada una con copia, ancla única, restauración y `filecmp` igual. Los SHA-256 de antes y después coinciden: `foros-view.tsx` `fa50946c…d115` y `data.ts` `0c3be335…f921`. Script: `scratchpad/scripts/mutaciones01c.py`.
+
+| Mutación | Resultado |
+|---|---|
+| F0 vista vacía | 28 caídos de 31 |
+| F1 sin `key={claseId}` | Cae CH6-A30 (a) |
+| F2 sin la guarda `cargandoMasRef` | **Sobrevive** |
+| F3 `fetchNextPage()` sin `cancelRefetch` | Cae CH4-03 |
+| F4 sin `useRecargarAlPulsarLaSeccion` | 5 caídos (FORO-1C20, 1C03, 1C51 y 1C54 ×2) |
+| F5 sin `useMarcarViejaSiQuedoEnError` | **Sobrevive** |
+| F6 sin conservar (`isError` a secas) | 3 de FORO-1C51 |
+| F7 «Crear foro» en archivada | FORO-1C14 ×2 |
+| F8 sin complemento | FORO-1C02 ×3 |
+| F9 sin la sección `foro` | 14 caídos |
+| F10 `enEspera={isFetchingNextPage}` | FORO-1C03 (espera en la recarga) |
+| F11 frase para todos | FORO-1C02 maestro y admin |
+| F12 sin `useAvisoDeRecargaFallida` | FORO-1C51 ×3 |
+| F13 sin `enlace.focus()` | FORO-1C03 |
+| F14 sin `useFocoAlPasarAError` | Sobrevivía. Agregué la aserción de foco en el `h2` cuando la recarga fallida quita la fila enfocada al caso "FORO-1C51: mientras una recarga la recupera…". Primero la probé con el foco en «Ver más foros»: sobrevivió, porque `useFocoAlCargarMas` ya lleva ese foco al `h2`; con el foco en una fila, cae |
+
+Redundancias declaradas:
+- **F2:** la guarda síncrona de «Ver más foros» es redundante con `fetchNextPage({ cancelRefetch: false })`. Un segundo `fetchNextPage` con una página en vuelo devuelve la misma promesa y no pide otra. La dejo porque el encargo la pide (CHORE-04); FORO-1C50 la verifica junto con `cancelRefetch`.
+- **F5:** `useMarcarViejaSiQuedoEnError` es redundante con TanStack Query 5.103.2, que ya deja inválida la consulta en error al salir. `CLAUDE.md` lo registra como garantía escrita. FORO-1C54 ("salir y volver…") pasa con y sin el gancho.
+
+### Desviaciones y dudas
+
+1. **El texto del error de la primera página.** §D-9 propone "No pudimos cargar los foros.", pero no lo uso. Para producirlo haría falta una función nueva en `features/clases/lib.ts`, o una entrada en la traducción del módulo, y ese archivo no está en "Se toca" de 01c1. Seguí a `DudasView` con `mensajeDeErrorDeLista(error, TEXTOS_FOROS.cambioMientrasLosVeias)`, que muestra el genérico del módulo ante un `5xx`. Decide el manager o el arquitecto: aceptarlo, o abrir `lib.ts` en 01c2 o 01e para ese texto.
+2. **`como-se-entrega-01a.test.tsx`, línea 241.** Además de la 262 de PR-1A17, cambié el tipo del glob a `TEXTOS_FORMULARIO_RECURSO`. Sin ese cambio, `tsc -b` falla: el tipo nombraba `TEXTOS_FORMULARIO_PUBLICACION.sinTema`, que PR-1A17 quita. Es la misma prueba de la lista cerrada y la misma consecuencia de PR-1A17.
+3. **Nombres de las props nuevas de `FilaDeEntrega`.** El plan no los fija; elegí `rotulo` (por omisión, "Tarea:") y `complemento` (opcional, a la derecha). Las filas de "Actividades" siguen sin cambio.
+4. **La fila del alumno no pasa `entrega` a `FilaDeEntrega`.** La segunda línea queda con la fecha límite y el estado va como `complemento`, con `EstadoEntregaBadge` y `estadoDeEntregaVisible`. Así no se pinta dos veces el mismo estado.
+5. **La guarda con ref de «Ver más foros» es redundante** (F2, arriba). Se deja porque el encargo la pide.
+
+### Patrón visual nuevo
+
+La fila de entrega con un complemento a la derecha: la insignia del estado para el alumno, y el conteo "{n} participaciones" en texto atenuado para el maestro y el admin. Es una variante de un patrón existente de `DESIGN.md`. No toqué `DESIGN.md`, que no está en "Se toca" de 01c1: queda para documentarlo en 01e, como prevé el plan.
+
+### No verificado
+
+- La suite completa del paquete; la corre el manager al cerrar.
+- No abrí ningún navegador. El aspecto de la fila con complemento y el orden de las siete secciones en pantalla angosta los cubren solo las pruebas automáticas (medidas de `secciones-03c1` y `clase-layout`).
+- "Dos fallos de «Ver más foros» seguidos" no tiene un caso propio en `ForosView` (ver hermanos).
+
+## Corrección tras la verificación del manager — FORO-01c1: M-10 (2026-11-16)
+
+
+## Corrección tras la verificación del manager — FORO-01c1: M-10 (2026-11-16)
+
+Estado: **terminado**, sin PARADA. N-28 salió rojo contra el código y su remedio cabía en `foros-view.tsx`, así que lo apliqué; no toqué `components/foco/`.
+
+### M-10: corregido
+
+FORO-1C51 ya tiene los tres caminos de su viñeta. Los dos que faltaban están en `frontend/src/features/clases/foros-01c.test.tsx`, en el bloque "FORO-1C51 · la lista conservada con la vista montada de nuevo (M-10)". Cada camino tiene dos variantes: la recarga responde, o la recarga falla.
+- **Volver:**
+  - "FORO-1C51 (volver): con la lista conservada, ir a «Avisos» y volver a «Foro» con la recarga en vuelo la muestra sin error; si la recarga responde, llegan las filas"
+  - "FORO-1C51 (volver): con la lista conservada, ir a «Avisos» y volver a «Foro» con la recarga en vuelo la muestra sin error; si la recarga falla, la reemplaza"
+- **Saltar de clase:**
+  - "FORO-1C51 (saltar de clase): con la lista de A conservada, ir a «Foro» de B y regresar a A con el historial y la recarga en vuelo la muestra sin error; si la recarga responde, llegan las filas"
+  - "FORO-1C51 (saltar de clase): con la lista de A conservada, ir a «Foro» de B y regresar a A con el historial y la recarga en vuelo la muestra sin error; si la recarga falla, la reemplaza"
+- **Pulsar «Foro»:** sigue siendo el caso que ya existía, "FORO-1C51: mientras una recarga la recupera (pulsar «Foro»), la lista se ve sin error; si esa recarga falla, la reemplaza".
+
+Cómo están armados los casos nuevos:
+- Usan el router real (`rutas`) y `Providers`.
+- Primero, «Ver más foros» falla con un 503 y se ve un aviso. Después se retiene la primera página de A hasta que la prueba la suelta; cada petición, incluido el reintento, recibe su propia respuesta.
+- Mientras la recarga vuela, cada caso comprueba:
+  - que se ve "Foro 6";
+  - que no hay `role="alert"` ni el texto "Algo salió mal. Inténtalo de nuevo.";
+  - que `document.activeElement` no cambia después de esperar.
+- Si la recarga responde, llegan las filas (también "Foro 25") y no aparece ningún `alert`. Si falla, aparece el `alert` y la lista desaparece.
+- En el salto de clase, además, hay un solo aviso en total: A no repite su aviso al volver.
+
+Ningún caso salió rojo contra el código: los cuatro pasaron a la primera.
+
+### N-30: atendido
+
+Caso nuevo, en el bloque "FORO-1C51 · dos fallos seguidos de «Ver más foros» (N-30)": "FORO-1C51: dos fallos seguidos dan dos avisos, uno por fallo; la lista y «Ver más foros» siguen a la vista". Pasó a la primera.
+
+### N-28: atendido y declarado
+
+**Declaración:** la vista sigue a `DudasView` y no usa la raíz con `tabIndex={-1}` ni `useFocoAlPerderseElControl` de §D-8.2. El destino del foco es el `h2` con `tabIndex={-1}`. §E7.3, punto 5, lo permite.
+
+**Caso nuevo,** en el bloque "FORO-1C02 · una recarga correcta que quita la fila enfocada (N-28)": "FORO-1C02: si una recarga correcta quita el foro que tenía el foco, el foco va al h2, nunca a <body>". Simula la recarga con `invalidateQueries`, que sirve igual para `refetchOnReconnect`.
+
+**Salió rojo contra el código** (`Received element with focus:` vacío, o sea `<body>`). Es un hallazgo de producción y lo corregí en `foros-view.tsx`, que está en "Se toca":
+- `useFilaEnFoco("data-foro-id")`, de `./hooks`, recuerda qué foro tenía el foco.
+- Un efecto lleva el foco al `h2` si ese foro ya no está y el foco se perdió (`focoPerdido`, de `./lib`).
+- Así queda cubierta cualquier recarga, sea correcta o fallida.
+- No toqué `components/foco/`, `hooks.ts` ni `lib.ts`; solo usé lo que ya exportan.
+
+### N-29: corregido
+
+Fila corregida de la matriz:
+
+| Disparador | Clase de error | Qué se renueva | Qué se anuncia | Foco |
+|---|---|---|---|---|
+| «Ver más foros» | `400` del cursor | La lista **no** sale de la caché: queda en error con sus datos. Al salir, `useMarcarViejaSiQuedoEnError` la marca vieja (la librería ya lo hace). Al volver, al pulsar «Foro» o con atrás y adelante, la política única la pide desde la primera página (FORO-1C20 a FORO-1C22) | La frase, sin aviso y sin «Ver más foros» (FORO-1C23) | `h2` (`useFocoAlPasarAError`, o el efecto de N-28 si el foco estaba en una fila) |
+
+### El texto del error de la primera página: decisión del humano
+
+El humano decidió el 2026-11-16 que se queda el genérico del módulo, "Algo salió mal. Inténtalo de nuevo.", igual que en Dudas, Avisos y Recursos. No se usa "No pudimos cargar los foros." y `features/clases/lib.ts` no se toca. No cambié código por esto.
+
+Fila corregida de la matriz:
+
+| Disparador | Clase de error | Qué se renueva | Qué se anuncia | Foco |
+|---|---|---|---|---|
+| Primera página | `5xx` o red | — | Reemplaza con `MensajeError`, sin aviso, con el genérico "Algo salió mal. Inténtalo de nuevo." (decisión del humano del 2026-11-16). Un `503 SERVICIO_OCUPADO` muestra el texto del servidor traducido, como en Dudas | `h2` si el control enfocado desaparece |
+
+### Mutaciones
+
+Todas en archivos de "Se toca": `foros-view.tsx` y `hooks.ts` de `features/clases`. Cada una con copia, ancla única, restauración y `filecmp` igual (`cmp igual: True`). Los SHA-256 de los dos archivos coinciden antes y después:
+- `foros-view.tsx`: `099c3eaa…f962`
+- `hooks.ts`: `2892d76c…0854`
+
+Script: `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\scripts\mutaciones01c.py`.
+
+| Mutación | Remedio que quita | Resultado |
+|---|---|---|
+| G1, en `hooks.ts` | La memoria por consulta de `useListaConservadaTrasLaPagina` (`return ahora`: solo el fallo de ahora) | 5 caídos: «pulsar» y los 4 casos de volver y saltar de clase |
+| F6 | La conservación en la vista (`if (foros.isError)`) | 8 caídos: los 3 de antes de FORO-1C51, los 4 de M-10 y el de N-30 |
+| G2 | El efecto de N-28 (sin `encabezadoRef.current?.focus()`) | Cae el caso de N-28 |
+| G3 | Un aviso por fallo (`errorUpdateCount > 0 ? 1 : 0`) | Cae el caso de N-30 |
+| F14 | `useFocoAlPasarAError` | **Ahora sobrevive** (en la ronda anterior caía) |
+
+F14 queda como redundancia declarada, con su mecanismo:
+- Los únicos controles enfocables de la lista son los enlaces de las filas y «Ver más foros».
+- Si una recarga fallida reemplaza la lista, el foco que estaba en una fila lo lleva al `h2` el efecto de N-28. El que estaba en «Ver más foros» lo lleva `useFocoAlCargarMas`.
+- Dejo el gancho porque es parte de la política de lista de `DudasView`, que §E7.3 manda seguir.
+
+Las redundancias anteriores (F2 y F5) no cambian.
+
+### Hermanos, viñeta por viñeta
+
+| Viñeta | Camino o variante | ¿Tiene su caso? |
+|---|---|---|
+| FORO-1C20 a FORO-1C23 | Frase del cursor: pulsar «Foro», ir a Avisos y volver, atrás y adelante, y «Ver más» no ofrecido | Sí, uno por camino |
+| FORO-1C20 a FORO-1C23 | Saltar a Foro de otra clase y volver; pulsar «Foro» dos veces con la frase a la vista | **No.** El plan no los inventarió (el manager los deja como punto de ataque). El primero pasa por el mismo mecanismo que FORO-1C22 con `key={claseId}` |
+| FORO-1C50 | Dos clics en el mismo render | Sí |
+| FORO-1C50 | Clic durante una recarga | Sí (FORO-1C03, espera) |
+| FORO-1C51 | 503 y sin red | Sí |
+| FORO-1C51 | Recuperación al pulsar, al volver y al saltar de clase, cada una con la recarga que responde y la que falla | Sí (pulsar solo con la que falla; volver y saltar con las dos) |
+| FORO-1C51 | Dos fallos seguidos | Sí (N-30) |
+| FORO-1C52 | «Ver más» en vuelo al saltar de A a B | Sí |
+| FORO-1C52 | Volver a A después de que A falló con la vista desmontada | Parcial: el caso "saltar de clase" de M-10 vuelve a A con un fallo ya conservado y comprueba que hay un solo aviso. No hay un caso en que A falle mientras está desmontada y luego se vuelva |
+| FORO-1C53 | 401 sin refresco, `ACCESO_RESTRINGIDO` y `CAMBIO_DE_CONTRASENA_REQUERIDO` en «Ver más» | Sí, los tres |
+| FORO-1C53 | Los mismos tres en la **primera** página | **No.** La viñeta de 01c1 habla de «Ver más foros». Queda como punto de ataque |
+| FORO-1C54 | En error, vieja, sana y fresca, en vuelo, salir y volver | Sí, los cinco estados |
+
+Estados del mecanismo del foco (el mecanismo de N-28) y si el remedio les aplica:
+- **Recarga correcta que quita la fila enfocada:** sí, es el caso nuevo.
+- **Recarga fallida que reemplaza la lista con el foco en una fila:** sí, la cubren el efecto y `useFocoAlPasarAError`.
+- **Foco en «Ver más foros» cuando se acaba la lista:** ya lo cubre `useFocoAlCargarMas` (FORO-1C03).
+- **Cambio de clase:** la vista se monta de nuevo con `key={claseId}` y la ref empieza en `null`.
+- **Una fila que sigue en la lista:** no se mueve el foco.
+- **Dos recargas seguidas:** después del primer traslado, la ref queda en `null` y no vuelve a mover el foco.
+
+### Producción
+
+Un solo archivo, `frontend/src/features/clases/foros-view.tsx`:
+- importa `useEffect`, `useFilaEnFoco` y `focoPerdido`;
+- suma el efecto de N-28.
+
+Sin cambios de `enEspera=`: siguen siendo 91.
+
+### Verificación (desde `frontend/`, una corrida a la vez)
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | salida 0; termina en `> tsc -b`, sin errores |
+| `npx vitest run src/features/clases` | `Tests  3105 passed (3105)` (`Test Files  126 passed (126)`) |
+| `npx vitest run src/app src/lib src/styles src/features/tareas/como-se-entrega-01a.test.tsx` | `Tests  1111 passed (1111)` (`Test Files  63 passed (63)`) |
+| `npm run build` | `✓ built in 853ms` |
+
+No corrí la suite completa del paquete.
+
+### Conteos
+
+- **Casos:** `npx vitest list src/features/clases/foros-01c.test.tsx src/features/clases/recuperar-foros-01c.test.tsx`, contado con `grep -a -c`, da 37:
+  - `^src/features/clases/foros-01c`: 33, contra 27 antes (4 de M-10, 1 de N-30 y 1 de N-28);
+  - `^src/features/clases/recuperar-foros-01c`: 4.
+  - La suite de `features/clases` pasa de 3099 a 3105, los mismos 6.
+- **`enEspera=` en producción:** `grep -rho "enEspera=" src --include=*.tsx --exclude=*.test.tsx | wc -l` da 91.
+- **Archivos:** `git status --short frontend | wc -l` da 23. No hay archivos nuevos; esta corrección solo tocó `foros-view.tsx` y `foros-01c.test.tsx`.

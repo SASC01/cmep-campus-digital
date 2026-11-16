@@ -28,6 +28,7 @@ import { EditarClaseView } from "@/features/clases/editar-clase-view"
 import { DudasView } from "@/features/clases/dudas-view"
 import { DuplicarClaseView } from "@/features/clases/duplicar-clase-view"
 import { EditarRecursoView } from "@/features/clases/editar-recurso-view"
+import { ForosView } from "@/features/clases/foros-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
 import { MuroView } from "@/features/clases/muro-view"
@@ -93,6 +94,8 @@ export const rutas: RouteObject[] = [
               // `trabajo` se conserva, DH-09), de solo lectura para el alumno.
               { index: true, element: <MuroView /> },
               { path: "trabajo", element: <TrabajoView /> },
+              // FORO-01c1 (§D-8.1): "Foro", la tercera sección, en las tres perspectivas.
+              { path: "foro", element: <ForosView /> },
               // CLASES-03d (§D-7.4): "Recursos", de solo lectura para el alumno (comenta). Editar un
               // recurso no existe en esta rama y cae en `*`.
               { path: "recursos", element: <RecursosView /> },
@@ -129,6 +132,7 @@ export const rutas: RouteObject[] = [
               // TAREAS-01e (§D-11): "Trabajo de clase" y "Categorías de calificación" (no es una sección).
               { path: "trabajo", element: <TrabajoView /> },
               { path: "categorias", element: <CategoriasView /> },
+              { path: "foro", element: <ForosView /> },
               // CLASES-03d (§D-7.4, S-11): "Recursos" y su edición, que deja activa la sección.
               { path: "recursos", element: <RecursosView /> },
               { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
@@ -182,6 +186,7 @@ export const rutas: RouteObject[] = [
                   { index: true, element: <MuroView /> },
                   { path: "trabajo", element: <TrabajoView /> },
                   { path: "categorias", element: <CategoriasView /> },
+                  { path: "foro", element: <ForosView /> },
                   { path: "recursos", element: <RecursosView /> },
                   { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
                   { path: "dudas", element: <DudasView /> },

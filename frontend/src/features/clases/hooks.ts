@@ -16,6 +16,7 @@ import {
   listaComentariosRespuestaSchema,
   listaCategoriasRespuestaSchema,
   listaDudasRespuestaSchema,
+  listaForosRespuestaSchema,
   listaPublicacionesRespuestaSchema,
   listaRecursosRespuestaSchema,
   listaTemasRespuestaSchema,
@@ -63,6 +64,7 @@ import { consultaMe } from "@/services/sesionService"
 import { api, esApiError } from "@/services/apiClient"
 import {
   claveCategorias,
+  claveListaDeForos,
   clavePrefijoDelTrabajo,
   claveTarea,
   claveTemas,
@@ -104,6 +106,7 @@ import {
   LIMITE_CLASES,
   LIMITE_COMENTARIOS,
   LIMITE_DUDAS,
+  LIMITE_FOROS,
   LIMITE_PAGINAS_RECURSOS,
   LIMITE_PAGINAS_TRABAJO,
   LIMITE_PERSONAS,
@@ -1804,6 +1807,18 @@ export const useDudas = (claseId: string) =>
     queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/dudas?${conCursor(LIMITE_DUDAS, pageParam)}`, {
         schema: listaDudasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// FORO-01c1 (§D-8.2): la lista de la sección "Foro", del más reciente al más antiguo, de 20 en 20.
+export const useForos = (claseId: string) =>
+  useInfiniteQuery({
+    queryKey: claveListaDeForos(claseId),
+    queryFn: ({ pageParam }: PaginaConCursor) =>
+      api(`/api/clases/${claseId}/foros?${conCursor(LIMITE_FOROS, pageParam)}`, {
+        schema: listaForosRespuestaSchema,
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,

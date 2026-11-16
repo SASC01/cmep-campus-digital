@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto"
 
-import { conteoDeBorradoRespuestaSchema, foroRespuestaSchema } from "@campus/shared"
+import {
+  conteoDeBorradoRespuestaSchema,
+  foroRespuestaSchema,
+  listaTemasRespuestaSchema,
+} from "@campus/shared"
 import type { FastifyInstance } from "fastify"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
@@ -76,7 +80,13 @@ const leerTareaDelForo = (foroId: string) =>
   })
 
 describe("ataque FORO-01a r1 · punto 6: el tipo cruzado y la clase entera", () => {
-  it("ATQ-FORO-30: mover un foro de tema por la ruta del muro responde 404 sin cambiar su tema; ?tipo=foro en el muro es 400; Actividades y los temas no lo listan ni lo aceptan como cursor", async () => {
+  // FORO-01b ronda 0 (C-T1 del tester, §E7.5.2; §D-3.3 y E1-9): TIPOS_CON_TEMA suma "foro" y la rama
+  // de moverATema que sube tareas.version aplica también al foro, así que moverlo de tema por la ruta
+  // del muro deja de responder 404 (lo que fijaba la ronda 1 de 01a, declarado para 01b en §E8.1).
+  // El total de temas sin sección cuenta el foro; con ?seccion=actividades (sin conForos), no, como
+  // hoy. Lo demás que protege el caso no cambia: ?tipo=foro en el muro es 400 y "Trabajo" sin
+  // conForos no lista el foro ni lo acepta como cursor.
+  it("ATQ-FORO-30: los temas sin sección cuentan el foro y con ?seccion=actividades no; Actividades sin conForos no lo lista ni lo acepta como cursor; ?tipo=foro en el muro es 400; moverlo de tema por la ruta del muro responde 200, lo deja sin tema y sube la versión de su fila de tareas", async () => {
     const e = await escenario()
     const tema = await crearTemaDePrueba({ claseId: e.claseId, nombre: "Unidad 1" })
     const foroId = await crearForoDePrueba({
@@ -84,22 +94,21 @@ describe("ataque FORO-01a r1 · punto 6: el tipo cruzado y la clase entera", () 
       autorId: e.maestro.id,
       temaId: tema.id,
     })
-    const movido = await pedir({
-      method: "PUT",
-      url: `/api/clases/${e.claseId}/publicaciones/${foroId}/tema`,
-      token: e.tokenMaestro,
-      payload: { temaId: null },
-    })
-    expect(movido.statusCode, movido.body).toBe(404)
-    expect(codigoDe(movido)).toBe("PUBLICACION_NO_ENCONTRADA")
-    expect(
-      (
-        await obtenerDb().publicacion.findUnique({
-          where: { id: foroId },
-          select: { temaId: true },
-        })
-      )?.temaId,
-    ).toBe(tema.id)
+    const temas = async (consulta: string) => {
+      const respuesta = await pedir({
+        method: "GET",
+        url: `/api/clases/${e.claseId}/temas${consulta}`,
+        token: e.tokenAlumno,
+      })
+      expect(respuesta.statusCode, respuesta.body).toBe(200)
+      return listaTemasRespuestaSchema.parse(respuesta.json())
+    }
+    expect((await temas("")).temas).toEqual([
+      expect.objectContaining({ id: tema.id, elementos: 1 }),
+    ])
+    expect((await temas("?seccion=actividades")).temas).toEqual([
+      expect.objectContaining({ id: tema.id, elementos: 0 }),
+    ])
 
     const muro = await pedir({
       method: "GET",
@@ -124,13 +133,26 @@ describe("ataque FORO-01a r1 · punto 6: el tipo cruzado y la clase entera", () 
       expect(conCursor.statusCode, conCursor.body).toBe(400)
       expect(codigoDe(conCursor)).toBe("VALIDACION")
     }
-    for (const url of [
-      `/api/clases/${e.claseId}/temas`,
-      `/api/clases/${e.claseId}/temas?seccion=actividades`,
-    ]) {
-      const temas = await pedir({ method: "GET", url, token: e.tokenAlumno })
-      expect(temas.statusCode, temas.body).toBe(200)
-    }
+
+    const movido = await pedir({
+      method: "PUT",
+      url: `/api/clases/${e.claseId}/publicaciones/${foroId}/tema`,
+      token: e.tokenMaestro,
+      payload: { temaId: null },
+    })
+    expect(movido.statusCode, movido.body).toBe(200)
+    expect(movido.json()).toEqual({ publicacionId: foroId, temaId: null })
+    expect(
+      (
+        await obtenerDb().publicacion.findUnique({
+          where: { id: foroId },
+          select: { temaId: true },
+        })
+      )?.temaId,
+    ).toBeNull()
+    expect((await leerTareaDelForo(foroId))?.version).toBe(1)
+    expect((await temas("")).sinTema).toBe(1)
+    expect((await temas("?seccion=actividades")).sinTema).toBe(0)
   })
 
   it("ATQ-FORO-31: una clase con un foro, principal, réplicas del alumno y del maestro y una calificación con devolución se duplica sin el foro y, archivada, se cuenta y se borra definitivamente (204) sin dejar participaciones; los usuarios siguen", async () => {

@@ -589,7 +589,10 @@ describe("ataque: superficie de rutas", () => {
   // réplica), 2 PUT (el foro y la calificación de un participante) y 1 DELETE (el foro). Ninguna crea
   // cuentas ni cambia roles y ninguna es pública. printRoutes anida /foros bajo /api/clases/:claseId;
   // el análisis por sangría los reconstruye.
-  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a, ADMIN-01a, ADMIN-01b, ADMIN-01e y FORO-01a: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
+  // FORO-01b, C-1 bis (§E7.5.2; §D-11): se agrega exactamente DELETE
+  // /api/clases/:claseId/foros/:foroId/participaciones/:participacionId (solo el admin borra una
+  // participación o una réplica). No crea cuentas ni cambia roles y no es pública.
+  it("bajo /api solo existen las rutas de AUTH-01, AUTH-02a, AUTH-03a, AUTH-03b, AUTH-03c, CLASES-a, CLASES-b, CLASES-c, CLASES-d, CLASES-02a, TAREAS-01a, TAREAS-01b, ENTREGAS-01b, ENTREGAS-01c, CALIFICACIONES-01a, CALIFICACIONES-01b, CLASES-03a, CLASES-03b, CALIFICACIONES-02a, ADMIN-01a, ADMIN-01b, ADMIN-01e, FORO-01a y FORO-01b: ninguna crea admins; solo /admin/maestros, /admin/maestros/lote y /auth/registro-maestro crean maestros", () => {
     const arbol = obtenerApp().printRoutes({ commonPrefix: false })
     const rutas = new Set<string>()
     const noReconocidas: string[] = []
@@ -622,6 +625,7 @@ describe("ataque: superficie de rutas", () => {
       "DELETE /api/clases/:claseId/dudas/:dudaId",
       "DELETE /api/clases/:claseId/dudas/:dudaId/respuestas/:respuestaId",
       "DELETE /api/clases/:claseId/foros/:foroId",
+      "DELETE /api/clases/:claseId/foros/:foroId/participaciones/:participacionId",
       "DELETE /api/clases/:claseId/mis-comentarios/:comentarioId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId",
       "DELETE /api/clases/:claseId/publicaciones/:publicacionId/comentarios/:comentarioId",

@@ -1,6 +1,10 @@
 import type { Rol } from "@campus/shared"
 
-import { firmaDelAutor } from "../../core/autoria.js"
+import {
+  firmaDelAutor,
+  puedeBorrarParticipacion,
+  type ParticipanteDeAutoria,
+} from "../../core/autoria.js"
 import type { RelacionConClase } from "../../core/clases/pertenencia.js"
 import type { EstadoEntrega } from "../../core/entregas/entregas.js"
 import { AppError } from "../../core/errores.js"
@@ -8,6 +12,7 @@ import {
   accionesDelForo,
   decidirParticipacionPrincipal,
   decidirReplica,
+  efectoDeBorrarPrincipal,
   participacionNoEncontrada,
   participacionYaPublicada,
   verRetrasoDe,
@@ -76,6 +81,8 @@ export interface ParticipacionDb {
   conRetraso?: boolean
   replicas: number
   propia: boolean
+  // FORO-01b (§D-11): lo decide core/ con el actor de la petición (solo el admin).
+  puedeBorrar: boolean
 }
 
 export interface ReplicaDb {
@@ -85,6 +92,7 @@ export interface ReplicaDb {
   creadoEn: Date
   conRetraso?: boolean
   propia: boolean
+  puedeBorrar: boolean
 }
 
 export interface ListaParticipacionesDb {
@@ -149,28 +157,29 @@ interface FilaDeParticipacion {
 // La marca solo sale si esa persona la ve (DH-07 a): la decide core/ con la relación del sexto paso.
 const conRetrasoVisible = (
   fila: FilaDeParticipacion,
-  { actorId, relacion }: { actorId: string; relacion: RelacionConClase },
+  { actor, relacion }: { actor: ParticipanteDeAutoria; relacion: RelacionConClase },
 ): { conRetraso?: boolean } =>
-  verRetrasoDe({ relacion, esPropia: fila.autor.id === actorId })
+  verRetrasoDe({ relacion, esPropia: fila.autor.id === actor.id })
     ? { conRetraso: fila.conRetraso }
     : {}
 
 const replicaDe = (
   fila: FilaDeParticipacion,
-  quien: { actorId: string; relacion: RelacionConClase },
+  quien: { actor: ParticipanteDeAutoria; relacion: RelacionConClase },
 ): ReplicaDb => ({
   id: fila.id,
   texto: fila.texto,
   autor: firmaDelAutor(fila.autor),
   creadoEn: fila.creadoEn,
   ...conRetrasoVisible(fila, quien),
-  propia: fila.autor.id === quien.actorId,
+  propia: fila.autor.id === quien.actor.id,
+  puedeBorrar: puedeBorrarParticipacion(quien.actor),
 })
 
 const participacionDe = (
   fila: FilaDeParticipacion,
   replicas: number,
-  quien: { actorId: string; relacion: RelacionConClase },
+  quien: { actor: ParticipanteDeAutoria; relacion: RelacionConClase },
 ): ParticipacionDb => ({
   id: fila.id,
   texto: fila.texto,
@@ -178,7 +187,8 @@ const participacionDe = (
   creadoEn: fila.creadoEn,
   ...conRetrasoVisible(fila, quien),
   replicas,
-  propia: fila.autor.id === quien.actorId,
+  propia: fila.autor.id === quien.actor.id,
+  puedeBorrar: puedeBorrarParticipacion(quien.actor),
 })
 
 // Del más reciente al más antiguo, con cursor, por el índice de publicaciones (clase_id, tipo, …). En
@@ -317,14 +327,14 @@ export const listarParticipaciones = (
     foroId,
     cursor,
     limite,
-    actorId,
+    actor,
     relacion,
   }: {
     claseId: string
     foroId: string
     cursor: string | undefined
     limite: number
-    actorId: string
+    actor: ParticipanteDeAutoria
     relacion: RelacionConClase
   },
   ejecutor: Ejecutor = obtenerDb(),
@@ -360,7 +370,7 @@ export const listarParticipaciones = (
       )
       return {
         participaciones: pagina.map((fila) =>
-          participacionDe(fila, replicasPorPrincipal.get(fila.id) ?? 0, { actorId, relacion }),
+          participacionDe(fila, replicasPorPrincipal.get(fila.id) ?? 0, { actor, relacion }),
         ),
         siguienteCursor,
       }
@@ -391,7 +401,7 @@ export const listarReplicas = (
     participacionId,
     cursor,
     limite,
-    actorId,
+    actor,
     relacion,
   }: {
     claseId: string
@@ -399,7 +409,7 @@ export const listarReplicas = (
     participacionId: string
     cursor: string | undefined
     limite: number
-    actorId: string
+    actor: ParticipanteDeAutoria
     relacion: RelacionConClase
   },
   ejecutor: Ejecutor = obtenerDb(),
@@ -426,7 +436,7 @@ export const listarReplicas = (
       })
       const { pagina, siguienteCursor } = paginar(filas, limite, (fila) => fila.id)
       return {
-        replicas: pagina.map((fila) => replicaDe(fila, { actorId, relacion })),
+        replicas: pagina.map((fila) => replicaDe(fila, { actor, relacion })),
         siguienteCursor,
       }
     },
@@ -494,7 +504,10 @@ export const publicarParticipacion = (
     const miParticipacion = await leerMiParticipacionCon(tx, { claseId, foroId, alumnoId, ahora })
     if (miParticipacion === null) throw errorForoMalFormado()
     return {
-      participacion: participacionDe(creada, 0, { actorId: alumnoId, relacion: "estudiante" }),
+      participacion: participacionDe(creada, 0, {
+        actor: { id: alumnoId, rol: "estudiante" },
+        relacion: "estudiante",
+      }),
       miParticipacion,
     }
   })
@@ -543,10 +556,15 @@ export const publicarReplica = (
         select: SELECT_PARTICIPACION,
       })
       .catch((error: unknown) =>
-        traducirErrorPrisma(error, { alDuplicar: () => errorReplicaInalcanzable() }),
+        // FORO-01b (§D-11): si el admin borró la principal entre la lectura y el INSERT, la llave
+        // foránea ya no la encuentra: 404, nunca un 500.
+        traducirErrorPrisma(error, {
+          alDuplicar: () => errorReplicaInalcanzable(),
+          alFaltarReferencia: () => participacionNoEncontrada(),
+        }),
       )
     // Quien replica ve la marca de lo suyo con cualquier relación (DH-07 a): es propia.
-    return replicaDe(creada, { actorId: autor.id, relacion: "estudiante" })
+    return replicaDe(creada, { actor: autor, relacion: "estudiante" })
   })
 
 // Lo que escribió un alumno en un foro (su principal y sus réplicas), del más antiguo al más reciente,
@@ -613,3 +631,69 @@ export const listarParticipacionesDeAlumno = (
     },
     { instantaneaUnica: true },
   )
+
+const errorBorradoNoPermitido = (): AppError =>
+  new AppError("BORRADO_NO_PERMITIDO", "No puedes borrar lo que publicó otra persona.", 403)
+
+// FORO-01b (§D-11; DH-05, PB-1 a, PB-2 a, E5-1 y E5-4). Borrar una participación principal o una
+// réplica, en READ COMMITTED y con el orden del proyecto (tareas, entregas, participaciones_foro):
+// 1. la fila de tareas del foro (en serie con borrar el foro; false si no existe en la clase) y su tipo;
+// 2. la participación de ese foro (404 PARTICIPACION_NO_ENCONTRADA) y la regla de core/ (403);
+// 3. si es una principal, la fila de la entrega de su autor bloqueada (en serie con calificar, con otra
+//    principal de ese alumno y con otro borrado de la misma principal), la relectura de la principal
+//    después del bloqueo (si otro borrado confirmó mientras este esperaba, 404 sin escribir nada) y el
+//    efecto de core/: conservar una calificada; devolver una entregada a sin participar, con la versión
+//    siguiente;
+// 4. el borrado (las réplicas de una principal caen en cascada); si ya no estaba, 404, para revertir.
+// No encola nada (P-11).
+export const borrarParticipacion = (
+  {
+    claseId,
+    foroId,
+    participacionId,
+    actor,
+  }: { claseId: string; foroId: string; participacionId: string; actor: ParticipanteDeAutoria },
+  ejecutor: Ejecutor = obtenerDb(),
+): Promise<boolean> =>
+  enTransaccion(ejecutor, async (tx) => {
+    const foro = await bloquearTareaParaEntregar(tx, { tareaId: foroId, claseId })
+    if (foro === null) return false
+    if (!(await esActividadDeTipo(tx, { id: foroId, claseId, tipo: "foro" }))) return false
+    const participacion = await tx.participacionForo.findFirst({
+      where: { id: participacionId, foroId },
+      select: { id: true, autorId: true, principalId: true },
+    })
+    if (participacion === null) throw participacionNoEncontrada()
+    if (!puedeBorrarParticipacion(actor)) throw errorBorradoNoPermitido()
+
+    if (participacion.principalId === null) {
+      const entrega = await bloquearEntrega(tx, {
+        tareaId: foroId,
+        alumnoId: participacion.autorId,
+      })
+      const sigue = await tx.participacionForo.findFirst({
+        where: { id: participacionId, foroId, principalId: null },
+        select: { id: true },
+      })
+      if (sigue === null) throw participacionNoEncontrada()
+      if (entrega === null) throw errorForoMalFormado()
+      if (efectoDeBorrarPrincipal({ estado: entrega.estado }) === "volver-a-sin-participar") {
+        await tx.entrega.update({
+          where: { id: entrega.id },
+          data: {
+            estado: "asignado",
+            fechaEntrega: null,
+            conRetraso: false,
+            version: { increment: 1 },
+          },
+          select: { id: true },
+        })
+      }
+    }
+
+    const { count } = await tx.participacionForo.deleteMany({
+      where: { id: participacionId, foroId },
+    })
+    if (count === 0) throw participacionNoEncontrada()
+    return true
+  })

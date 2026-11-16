@@ -260,3 +260,19 @@ export const CLAVES_QUE_NUNCA_SALEN = [
   "trabajoId",
   "requiereAdjuntos",
 ] as const
+
+// FORO-01b (§D-11): la ruta 17, borrar una participación o una réplica (solo el admin). Va aparte de
+// rutasDelForo para que las pruebas de 01a que recorren las 16 no cambien.
+export const rutaDeBorrarParticipacion = ({
+  claseId,
+  foroId,
+  participacionId,
+}: {
+  claseId: string
+  foroId: string
+  participacionId: string
+}): RutaDelForo => ({
+  numero: 17,
+  method: "DELETE",
+  url: `${urlForo(claseId, foroId)}/participaciones/${participacionId}`,
+})

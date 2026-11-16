@@ -64,3 +64,8 @@ export const puedeBorrarTarea = (
   if (actor.rol === "admin") return true
   return puedeEditarTarea(actor, autor, autorSigueEnLaClase)
 }
+
+// FORO-01b (§D-11; DH-05, decisión del humano 2026-11-05): en un foro nadie borra lo suyo por ser
+// autor; solo el admin modera (PB-1 a, decisión del humano). La regla general, puedeBorrar, no cambia.
+export const puedeBorrarParticipacion = (actor: ParticipanteDeAutoria): boolean =>
+  actor.rol === "admin"

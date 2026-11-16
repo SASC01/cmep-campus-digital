@@ -42,16 +42,31 @@ const codigoDePostgres = (meta: unknown): string | undefined => {
 // 22021: secuencia de bytes inválida para UTF-8 (por ejemplo, el carácter nulo en un texto).
 const SECUENCIA_INVALIDA = "22021"
 
+// 23503: violación de llave foránea (la fila referida no existe).
+const LLAVE_FORANEA_SIN_FILA = "23503"
+
 // Único lugar del backend que conoce los códigos P2xxx (AGENTS.md, regla 1 y "Manejo de errores").
 // P2002 = violación de unicidad: alDuplicar decide el AppError según las columnas o el índice
 // afectados. 22021 = texto que PostgreSQL no puede guardar: es entrada inválida (400), no un 500.
 // Cualquier otro error se relanza tal cual para que el envoltorio responda 500.
+// FORO-01b (§D-11): alFaltarReferencia, opcional, traduce una llave foránea que ya no encuentra su
+// fila (P2003, o 23503 de PostgreSQL con el driver adapter): por ejemplo, una réplica cuya principal
+// borró el admin en medio. Sin la opción, ese error se relanza como hasta ahora.
 export const traducirErrorPrisma = (
   error: unknown,
-  { alDuplicar }: { alDuplicar: (target: readonly string[]) => AppError },
+  {
+    alDuplicar,
+    alFaltarReferencia,
+  }: {
+    alDuplicar: (target: readonly string[]) => AppError
+    alFaltarReferencia?: () => AppError
+  },
 ): never => {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) throw error
   if (error.code === "P2002") throw alDuplicar(extraerTarget(error.meta))
+  const faltaLaReferencia =
+    error.code === "P2003" || codigoDePostgres(error.meta) === LLAVE_FORANEA_SIN_FILA
+  if (alFaltarReferencia !== undefined && faltaLaReferencia) throw alFaltarReferencia()
   if (codigoDePostgres(error.meta) === SECUENCIA_INVALIDA) {
     throw new AppError("VALIDACION", TEXTO_CARACTERES_NO_PERMITIDOS, 400)
   }

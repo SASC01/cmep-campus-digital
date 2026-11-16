@@ -423,3 +423,246 @@ Sin ayudas nuevas compartidas: cada archivo trae las suyas. Usé `ayudas-foros.t
 - **El borrado de participaciones del admin (ruta 17), `conForos`, `conTipo`, los foros en "Actividades" y los conteos de temas con foros:** son de 01b.
 - **La baja y la reactivación de una cuenta con participaciones** (DH-18): es FORO-1B10, de 01b. En 01a solo ataqué el `401` de la cuenta dada de baja (ATQ-FORO-03) y el `404` de un alumno dado de baja como `:alumnoId` (ATQ-FORO-12).
 - **El navegador:** 01a no tiene interfaz.
+
+## Ronda 0 — FORO-01b (2026-11-16)
+
+
+Veredicto de la ronda 0: **aplicada, sin PARADA.** C-1 bis, C-3 y C-7 aplicados con el texto de §E7.5.2. La búsqueda propia no encontró ninguna prueba normal ni `*.ataque` de otro encargo sin inventariar. En **mis propias pruebas de la ronda 1 de 01a** aparecieron dos cosas que 01b cambia: una segura (C-T1, ATQ-FORO-30) y una posible (C-T2, ATQ-FORO-10). Como son `*.ataque` de este encargo y mías, las apliqué como C-n del tester y las declaro aquí. Por eso, contra la base, difieren **cinco** archivos y no tres.
+
+### Arranque
+- `docker info`: responde (servidor 28.5.1). Equipo con corriente (`BatteryStatus` 2, 100 %). Red de la casa del humano, con la regla del firewall (su declaración de hoy). No toqué Docker ni el firewall.
+- `git log`: `451aa35` (01a) sobre `d8e8fd3`. Árbol limpio en los paquetes; plan `e899f7b5…`.
+- V-01 de arranque: `sha256sum -c foro01-arranque/v01-foro01a-r1.txt` (lista con SHA-256 `bdfaa952…`) → 297 `OK`, 0 fallas. El árbol tiene las mismas 297 `*.ataque`.
+
+### Comprobación de arranque (§E7.5.0; "Grep de la lista" de §E7.5.2), sobre `451aa35`
+- `grep -rn "traducirErrorPrisma(" backend/src` (sin `errores.ts`) → **9** llamadas. Son las siete de §E7.2 (`clases.ts:124`, `inscripciones.ts:241`, `maestros-de-clase.ts:128`, `usuarios.ts:74,176,250` y `gestion-de-usuarios.ts:253`) más las dos de 01a en `adapters/db/foros.ts:487` y `:546`. La de `:546` (`publicarReplica`) es la que 01b cambia. **Ninguna pasa `alFaltarReferencia`.** Que sean nueve y no siete se explica por 01a; el plan las cuenta desde `fd4a7ad`.
+- `grep -rln "puedeBorrar(" --include=*.test.ts` → `core/autoria.test.ts` y `core/recursos.test.ts`, ninguna con datos de un foro (`grep foro` en las dos: nada).
+- `grep -rln "columnaParaResponder\|columnaDelGradebookSchema\|tareaDeMisCalificacionesSchema" backend/test` → solo `calificaciones-lecturas-estatico.test.ts` (CAL-1B08, vigilada).
+- `grep -rn "trabajoQuerySchema\|temasQuerySchema"` en las pruebas del backend y el frontend → `backend/test/esquemas-tareas.test.ts:17,432-457` y `frontend/src/lib/errores-de-api.test.ts:24,464-465`, vigiladas (`data.tema` y `limite` en la salida).
+- `grep -rln "seccion=actividades" backend/test` → `recursos-clases03a-r1.ataque` (CL3a-r1-17), `recursos-clases03a-r2.ataque` (CL3a-r2-07), `recursos-filtros.integracion` (CL3-A07) y mi `foros-01a-r1-tipo-y-validacion.ataque`. Ninguna pide `conForos`, y ninguna de las tres primeras siembra un foro: sin `conForos`, la respuesta no cambia.
+
+**Búsqueda propia** (backend, frontend y `shared/`; sin `.env`):
+- **Rutas bajo `/api`:** los 7 archivos con `printRoutes` o `rutasDeLaApp(` son los de 01a.
+  - `sesiones-y-cadena` es C-1 bis y `clases-archivadas-matriz` está en la lista cerrada.
+  - `movimientos-inscripcion:252` cuenta solo `movimiento` en el árbol, y la ruta 17 no lo nombra.
+  - `gestion-clases-autorizacion` (PR-2A24) y `recursos-autorizacion` (CL3-A18) buscan rutas por nombre.
+  - ADM-T1A09 (`clases-archivadas-r1:631-686`) acepta, para la ruta 17: `403 ROL_NO_PERMITIDO` del maestro ajeno, `ACCESO_RESTRINGIDO` del restringido y `CAMBIO_DE_CONTRASENA_REQUERIDO` del pendiente. Las tres son vigiladas.
+- **Borrados (`delete`/`deleteMany`):** la única enumeración es O-4 de `lecturas-fx-r2` (C-3). Los demás `DELETE FROM` de las pruebas son datos sembrados.
+- **El `tipo` en "Actividades", el gradebook, "Mis calificaciones" y la exportación:**
+  - sin `conForos` ni `conTipo` la respuesta no cambia;
+  - ninguna prueba enumera las opciones de `elementoDeTrabajoSchema.tipo`;
+  - las pruebas del frontend que arman elementos de "Trabajo" (`trabajo-01e-r1/r2`, `ver-mas-01e-r3`, `descarga-ch3-r2`) usan `tarea` y `material`, que siguen valiendo;
+  - el frontend de producción no tiene un `switch`, un `Record` ni un `satisfies never` sobre ese `tipo` (los dos `satisfies never` son del estado de pago y de la entrega).
+- **Llaves de los `strictObject`:** las pruebas que leen `shared/src/calificaciones.ts` o `tareas.ts` son vigiladas: CAL-1B08, CAL-1A18, CAL-T-68 y CAL-T-69 (`calificaciones-estatico-01b-r1`), CAL2-A08 y la de `temas-01a-r3`. CAL2-A09 (`esquemas-exportacion:88`) mira la exportación, que no cambia. Las que comparan `Object.keys(…Schema.shape)` (`entregas.integracion:1154`, `esquemas-tareas:416-421`, `tareas-version:537`) son de esquemas que 01b no toca.
+- **`conForos` y `conTipo`:** ninguna prueba los nombra hoy, salvo un `conTipo` local de `foros.integracion.test.ts:492` (una variable).
+- **Los textos del `409` de categorías:** son los vigilados de §E7.5.2. Borrar un tema no tiene `409` (`SET NULL`).
+- **Los README:** ninguna prueba los lee (las coincidencias de `README` son comentarios del código de producción).
+- **Mover de tema:** `tareas-01a-r1.ataque:737-746` lee el cuerpo de `moverATema` y pide `tx.tarea.updateMany` antes de `bloquearTemaParaUsar` y de `tx.publicacion.updateMany`, sin ciclos ni SQL crudo. 01b cambia la condición de esa rama (que sume `foro`), no el orden. Es una regla para el programador, no una enumeración: no es PARADA y la dejo como **vigilada nueva**.
+- **Lo mismo con `temas-01a-r3.ataque:440-485`.** Lista por ruta los archivos de `core/tareas/`, `handlers/tareas/`, `adapters/db/{temas,categorias,referencias,bloqueo-clase}.ts`, y les prohíbe `console.`, `estadoPago`, `.rol`, `relacion ===` y `=== "admin|maestro|estudiante"` fuera de `core/`. 01b toca `temas.ts` y `categorias.ts`, que ya están en la lista, sin agregar archivos a esas carpetas. Es **vigilada nueva**: §E8.5 solo nombraba `:426-428`.
+
+**Mis pruebas de la ronda 1 de 01a**, revisadas una por una:
+- **C-T1: `foros-01a-r1-tipo-y-validacion.ataque`, ATQ-FORO-30. 01b lo cambia con seguridad.** El caso afirmaba que mover un foro con `PUT …/publicaciones/:foroId/tema` responde `404 PUBLICACION_NO_ENCONTRADA` sin cambiar su tema. Era la conducta declarada para 01a en §E8.1 ("Mover un foro responde `404`… El total de temas no cuenta foros hasta 01b"). §D-3.3 manda que en 01b `TIPOS_CON_TEMA` sume `"foro"` y que la rama de `moverATema` que sube `tareas.version` aplique al foro, así que caería en cuanto el programador lo implemente. Lo reescribí con la conducta de 01b; el detalle va abajo.
+- **C-T2: `foros-01a-r1-ids-y-fugas.ataque`, ATQ-FORO-10. 01b puede cambiarlo.** El caso filtra `rutasDelForo(…)` con `numero >= 3` y exige 14 rutas. La lista cerrada 3 de §E7.5.2 dice que FORO-1A49 "suma la ruta 17". Si el programador la agrega a `rutasDelForo` (de `ayudas-foros.ts`) en lugar de una exportación nueva, el caso pasaría a 15 y caería. §E7.5.0 dice que una ayuda existente solo gana exportaciones, pero el riesgo es barato de cerrar. Acoté el filtro a `numero >= 3 && numero <= 16`, con su comentario, y lo que protege no cambia.
+- El resto no cambia con 01b:
+  - **ATQ-FORO-14** solo mira `autor`, `conRetraso` y `propia`, nunca todas las llaves de una participación. Por eso `puedeBorrar` no lo toca, y el `parse` usa el esquema de `shared`, que lo tendrá.
+  - **ATQ-FORO-12** recorre las rutas `>= 13` con su tabla `ROLES`, que no tiene la 17: si la ruta 17 aparece en la ayuda, se salta sin peticiones.
+  - **ATQ-FORO-01 a 04** filtran por sus tablas `ROLES`, `ESCRITURAS` y `LECTURAS`. La ATQ-FORO-03 manda la 17 sin token, y da 401 de todas formas.
+  - **ATQ-FORO-40** compara solo `entrega` en "Mis calificaciones" y las celdas del gradebook, que no ganan `tipo` sin `conTipo`.
+  - **ATQ-FORO-31** (el conteo y el borrado de la clase) no depende de nada que 01b cambie. FORO-1B08 y FORO-1B09 lo amplían.
+
+### Respaldo
+`foro01-arranque/r0-01b-respaldo/` (scratchpad), antes de tocar nada. Los cinco archivos coinciden con `v01-foro01a-r1.txt`: `sesiones-y-cadena` `5d3e50ee…`, `lecturas-fx-r2` `b008263d…`, `errores-ch3-r2` `fd52583f…`, `foros-01a-r1-tipo-y-validacion` `71fb0895…` y `foros-01a-r1-ids-y-fugas` `d7008214…`.
+
+### C-1 bis — `backend/test/sesiones-y-cadena.ataque.test.ts` (aplicado)
+- Las líneas de §E7.5.2 se ubicaron por su contenido, porque las de C-1 de 01a las movieron: el comentario de FORO-01a termina en `:591`, el título está en `:592` y `"DELETE /api/clases/:claseId/foros/:foroId"` en `:624`. El texto coincide con lo que el plan cita.
+- Cambios: el comentario de C-1 bis, en 3 líneas con el mismo texto, va antes del título; el título dice "…, ADMIN-01e, FORO-01a y FORO-01b: ninguna crea admins…"; y la entrada `"DELETE /api/clases/:claseId/foros/:foroId/participaciones/:participacionId"` va justo después de `"DELETE /api/clases/:claseId/foros/:foroId"`, que es su lugar en `sort()`.
+- Qué afirma ahora: bajo `/api` existen las rutas de hoy más la ruta 17, y nada más.
+- `npx vitest run test/sesiones-y-cadena.ataque.test.ts`:
+  - antes → `Tests  35 passed (35)`;
+  - después → `Tests  1 failed | 34 passed (35)`. **Rojo esperado:** `expected [ …(164) ] to deeply equal [ …(165) ]`, y la única diferencia es `- "DELETE /api/clases/:claseId/foros/:foroId/participaciones/:participacionId"`. La ruta aún no existe. Los otros 34 casos, verdes.
+
+### C-3 — `backend/test/lecturas-fx-r2.ataque.test.ts` (aplicado)
+- Las líneas citadas (`:957-1001`) coinciden: el comentario de ADMIN-01b, C-4 en `:967-971`, el título en `:972` y la lista en `:984-999`, con `"movimientoInscripcion"` en `:995` y `"publicacion"` en `:996`.
+- Cambios: el comentario de C-3 (4 líneas, mismo texto) va después del de ADMIN-01b y antes del `it`; el título dice "…, puntajes de rúbrica, dudas y participaciones de foro; …"; y `"participacionForo"` queda entre `"movimientoInscripcion"` y `"publicacion"`, en el orden de `sort()`.
+- `npx vitest run test/lecturas-fx-r2.ataque.test.ts`:
+  - antes → `Tests  19 passed (19)`;
+  - después → `Tests  1 failed | 18 passed (19)`. **Rojo esperado:** `expected [ 'categoria', 'clase', …(9) ] to deeply equal [ …(10) ]`, con la única diferencia `- "participacionForo"`. El `deleteMany` todavía no existe. Los otros 18, verdes.
+
+### C-7 — `frontend/src/lib/errores-ch3-r2.ataque.test.ts` (aplicado)
+- Después de las entradas de C-6 (`"foroId"` y `"participacionId"`, en `:256-257`) van el comentario de C-7 (2 líneas, mismo texto), `"conForos"` y `"conTipo"`.
+- Comprobación de legibilidad, con las dos expresiones de `quitarRutaDelMensaje` leídas de `lib/errores-de-api.ts`: `"conForos: conForos: no es válido"` da `"no es válido"`, igual que `"conTipo: conTipo: no es válido"`, y con un solo prefijo, lo mismo.
+- `npx vitest run src/lib/errores-ch3-r2.ataque.test.ts`, antes y después → `Tests  85 passed (85)`. **Verde, como C-6:** `INVENTARIO` es una lista de permitidos y hoy ningún mensaje de `shared/src` lleva esos prefijos.
+
+### C-T1 — `backend/test/foros-01a-r1-tipo-y-validacion.ataque.test.ts`, ATQ-FORO-30 (del tester, aplicado)
+- **Antes** (ronda 1 de 01a), el caso afirmaba:
+  - mover el foro con `PUT …/publicaciones/:foroId/tema` responde `404 PUBLICACION_NO_ENCONTRADA` sin cambiar su tema;
+  - `?tipo=foro` en el muro es `400`;
+  - "Trabajo" (con y sin `seccion=actividades`) no lista el foro ni lo acepta como cursor;
+  - `GET …/temas` responde `200`.
+- **Ahora**, con un comentario `FORO-01b ronda 0 (C-T1 del tester…)` que cita §E7.5.2, §D-3.3 y E1-9, el caso pide lo de 01b:
+  - `GET …/temas` sin sección cuenta el foro en su tema (`elementos: 1`), y con `?seccion=actividades` no (`elementos: 0`);
+  - el muro y "Trabajo" sin `conForos` siguen como antes, ahora comprobados antes de mover;
+  - mover el foro con `{ temaId: null }` responde `200` con `{ publicacionId, temaId: null }`, deja la publicación sin tema y sube `tareas.version` de 0 a 1;
+  - después, `sinTema` cuenta el foro sin sección (1) y no con `?seccion=actividades` (0).
+- Otros cambios en el archivo: el import de `listaTemasRespuestaSchema` y el formato de Prettier.
+- `npx vitest run test/foros-01a-r1-tipo-y-validacion.ataque.test.ts`:
+  - antes → `Tests  8 passed (8)`;
+  - después → `Tests  1 failed | 7 passed (8)`. **Rojo esperado:** el primer `expect` del caso ve `elementos: 0` donde pide `1`, porque `TIPOS_CON_TEMA` aún no tiene `foro`. Mover también responde `404` hoy (lo fijaba la ronda 1). Los otros 7 casos, verdes.
+- **Lo decide el arquitecto si no está de acuerdo.** Todo sale del texto de §D-3.3 y E1-9: el total sin sección cuenta los foros, `"actividades"` sigue siendo `{ tipo: "tarea" }`, y `moverATema` sube la versión del foro. El código de respuesta (`200`) y el cuerpo son los de mover una tarea hoy.
+
+### C-T2 — `backend/test/foros-01a-r1-ids-y-fugas.ataque.test.ts`, ATQ-FORO-10 (del tester, aplicado)
+- `.filter(({ numero }) => numero >= 3)` pasa a `.filter(({ numero }) => numero >= 3 && numero <= 16)`, con el comentario `FORO-01b ronda 0 (C-T2 del tester, §E7.5.2, lista cerrada 3): …`. Lo que protege no cambia: las 14 rutas de 01a con `:foroId`, para cada rol, con el foro de otra clase.
+- Antes y después → `Tests  5 passed (5)`. Verde hoy, y sigue verde si la ruta 17 entra en `rutasDelForo`.
+
+### PA-07 (las corridas sueltas de los cuatro archivos del backend, antes y después)
+En las ocho salidas: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0 y `"code":"P2028"` 0.
+
+### Lint
+- `npx prettier --write`, acotado a los cinco archivos de su paquete: solo reformateó `foros-01a-r1-tipo-y-validacion`; los otros cuatro, "unchanged".
+- `cd backend; npm run lint` → salida 0; última línea `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- `cd frontend; npm run lint` → salida 0; última línea `tsc -b`.
+
+### V-01 final
+- `sha256sum -c foro01-arranque/v01-foro01a-r1.txt` → 292 `OK` y 5 `FAILED`. Los cinco son los tres C-n del plan (`sesiones-y-cadena`, `lecturas-fx-r2` y `errores-ch3-r2`) y mis C-T1 y C-T2 (`foros-01a-r1-tipo-y-validacion` y `foros-01a-r1-ids-y-fugas`).
+- `git diff --stat 451aa35 -- backend frontend shared` → esos mismos 5 archivos, sin producción (65 inserciones y 28 eliminaciones).
+- `foro01-arranque/v01-foro01b-r0.txt` (scratchpad): 297 líneas, en el orden y el formato de la de 01a, SHA-256 `ac9a34db172e7db3e4a1193c38b713d6844c9476a37248f8577b82cc890ebb18`.
+
+### Paradas y discrepancias
+- Ninguna PARADA.
+- **Discrepancias con el plan:**
+  - las líneas de C-1 bis se movieron por C-1 de 01a, y su contenido coincide;
+  - el grep de `traducirErrorPrisma(` da 9 llamadas y no 7, por las dos de `foros.ts` de 01a.
+- **Diferencia con el encargo:** difieren cinco archivos y no tres, por C-T1 y C-T2, que son míos y quedan declarados arriba.
+- **Vigiladas nuevas** que sumo para el programador: `tareas-01a-r1.ataque:737-746` (el orden de `moverATema`) y `temas-01a-r3.ataque:440-485` (sin `.rol` ni comparaciones de rol en `temas.ts` y `categorias.ts`).
+
+## Ronda 1 — FORO-01b (2026-11-16)
+
+
+Veredicto: **RESISTE.** Ningún hallazgo: 0 críticos, 0 altos, 0 medios y 0 bajos. Escribí 18 casos de ataque nuevos en 3 archivos, todos verdes contra el código de hoy. Hice 5 mutaciones reales en archivos de "Se toca" de 01b, en 6 corridas; cada una tumba al menos un caso mío (MB4, después de reforzar ATQ-FORO-84) y se restauró byte a byte. Las 6 pruebas de mi ronda 1 de 01a siguen verdes.
+
+### Arranque
+- `docker info`: responde (servidor 28.5.1). Equipo con corriente; red de la casa del humano. No toqué Docker ni el firewall.
+- V-01 contra `foro01-arranque/v01-foro01b-r0.txt`: `sha256sum -c` → 297 `OK`. `git status --short -- backend/prisma` está vacío, sin migraciones.
+- Leí completos el resumen de 01b (`resumen-programador.md:356-556`, con sus 7 desviaciones, 15 mutaciones y las redundancias N1 y N3) y la verificación del manager (`revision.md:1127-1263`, puntos de ataque). También leí el diff de `shared/src` (`foros.ts`, `tareas.ts`, `recursos.ts`, `calificaciones.ts`), de `core/autoria.ts` y `core/foros/participacion.ts`, de `adapters/db/{foros,tareas,temas,categorias,calificaciones,errores}.ts` y de `handlers/{foros,calificaciones}.ts`.
+
+### Hallazgos
+Ninguno.
+
+### Atacado sin hallazgos (por punto, con el caso que lo prueba)
+Todo en `backend/test/`, archivos nuevos `foros-01b-r1-*.ataque.test.ts`.
+1. **Concurrencia de la ruta 17.** `foros-01b-r1-borrado-carreras`:
+   - ATQ-FORO-60: se retiene la fila del foro `FOR UPDATE`, como `borrarTarea`. El borrado de una principal queda formado detrás (`formadasDetrasDe`; retenedora con `timeout: 30_000`) y responde `404 TAREA_NO_ENCONTRADA` «Ese foro ya no existe.» cuando confirma el borrado del foro, sin dejar filas.
+   - ATQ-FORO-61: 5 vueltas, cada una con el borrado de una principal (con réplicas) a la vez que el borrado confirmado del foro. Los dos responden 204 o 404, nunca 500, `P2002` ni `P2003`, y no queda ninguna fila del foro. Los dos órdenes salen en la práctica.
+   - ATQ-FORO-62: 5 vueltas de borrar la principal a la vez que su autor vuelve a publicar. Nunca hay dos principales, y la entrega queda `entregado` (versión 3) si y solo si hay principal nueva; si no, queda `asignado` (versión 2).
+   - ATQ-FORO-63: 5 vueltas de dos réplicas en vuelo, del otro alumno y del maestro, contra el borrado de su principal. Cada réplica responde 201 o `404 PARTICIPACION_NO_ENCONTRADA`, nunca 500 ni `P2003`, y no queda ninguna réplica huérfana.
+   - ATQ-FORO-64: tres borrados a la vez de la misma principal y tres de la misma réplica, sin retención. Cada grupo da un 204 y dos 404, y la versión sube una sola vez.
+   - ATQ-FORO-65: borrar a la vez que se archiva la clase. El archivado responde 200, el borrado 204 o `409 CLASE_ARCHIVADA` (la carrera aceptada de ADM-T1A04), y la entrega queda coherente con lo que confirmó.
+2. **`puedeBorrar` y las llaves.** `foros-01b-r1-estados` › ATQ-FORO-71, con los dos alumnos deudores:
+   - en las listas 8 y 10, `puedeBorrar` vale `true` solo para el admin, también en una archivada, y `false` para el maestro y los alumnos;
+   - la 201 de una réplica del alumno y del maestro trae solo `replica`, con `puedeBorrar: false` y sus llaves exactas;
+   - las llaves exactas de cada fila tienen `conRetraso` solo si quien pide es maestro o admin, o si la fila es propia;
+   - el autor solo trae `administracion`, `id` y `nombre`, y no aparece ninguna de las `CLAVES_QUE_NUNCA_SALEN`.
+3. **El borrado, estado por estado, con las vistas.** `foros-01b-r1-estados` › ATQ-FORO-70. Hay tres foros (abierto, vencido con tardías y cerrado sin tardías) y dos alumnos, y la prueba sigue 9 pasos:
+   - publicar a tiempo, tarde, y en el cerrado (sembrado);
+   - calificar a Y;
+   - borrar la principal de X en los tres foros;
+   - borrar la principal calificada de Y, que conserva su calificación;
+   - X vuelve a publicar a tiempo y tarde, y en el cerrado recibe `409 FORO_CERRADO`;
+   - el maestro califica a X sin participar en el cerrado (versión 2);
+   - Y no vuelve a publicar (`409 PARTICIPACION_YA_PUBLICADA`) y sí replica.
+
+   Antes del primer paso y después de cada uno coinciden con lo esperado:
+   - las celdas del gradebook y de la exportación;
+   - `vencidasSinEntregar` y `porcentaje`;
+   - los cinco filtros de "Mis calificaciones", con su `entrega`;
+   - la `entrega` y el conteo de principales de la lista de foros;
+   - "Participantes" (estado, retraso, fecha y `entregadas`).
+
+   ATQ-FORO-72 cubre a los demás actores y los ids cruzados:
+   - ni el alumno ni el maestro borran su propia réplica, y el alumno tampoco su principal: 403 del rol;
+   - con el foro propio en la ruta, el admin recibe `404 PARTICIPACION_NO_ENCONTRADA` por una réplica o una principal de otro foro de la clase, y por una principal de otra clase;
+   - con el foro de otra clase en la ruta, recibe `404 TAREA_NO_ENCONTRADA`;
+   - nada se borra ni cambia de versión.
+4. **El opt-in.** `foros-01b-r1-optin`:
+   - ATQ-FORO-80: sin `conForos` ni `conTipo`, con una tarea, un foro y un material en la clase, el frontend viejo recibe lo de siempre:
+     - "Trabajo" con y sin sección no trae el foro;
+     - el muro y Recursos no lo traen;
+     - los temas de Actividades no lo cuentan;
+     - las columnas del gradebook y las filas de "Mis calificaciones" tienen las llaves de antes, sin `tipo`;
+     - la exportación nunca trae `tipo`, tampoco con `?conTipo=si`.
+   - ATQ-FORO-81: `conForos` con `SI`, vacío, repetido, sin `seccion` o con `seccion=aprendizaje` o `docente` responde `400 «conForos: …»` en Trabajo y en los temas. En Recursos se ignora (200, sin el foro). Con `seccion=actividades&conForos=si`, un material o un foro de otro tema como cursor responden 400.
+   - ATQ-FORO-82: `conTipo` con `SI`, vacío, repetido o `no` responde `400 «conTipo: …»` en el gradebook y en "Mis calificaciones". En una clase archivada, el gradebook del maestro y "Mis calificaciones" del alumno (`lectura-del-alumno`) traen el tipo de cada columna con `conTipo=si`.
+5. **El `409` de categorías.** `foros-01b-r1-optin`:
+   - ATQ-FORO-83: con solo un foro, con dos foros y con un foro y una tarea, el texto exacto dice «tiene 1 actividad.» o «tiene 2 actividades.», y la categoría sigue.
+   - ATQ-FORO-84: al quitar a la vez una categoría con dos tareas y otra con un foro (3 vueltas), el texto es el de una de las dos, con su propia cuenta de foros. En el caso determinista, se quita solo la de tareas y se conserva la del foro, y el texto es ««A» tiene 2 tareas.», no «actividades».
+6. **Temas.** `foros-01b-r1-optin`:
+   - ATQ-FORO-85: renombrar un tema con un foro y una tarea responde `elementos: 2`. Borrarlo deja el foro sin tema, y `sinTema` cuenta el foro sin sección y con `conForos=si`, no con `seccion=actividades`.
+   - ATQ-FORO-86: mover un foro sube su versión. Guardar el formulario abierto antes responde `409 TAREA_MODIFICADA` con «este foro» y sin cambios; con la versión nueva, se guarda.
+7. **ADMIN-01 con datos más ricos.** `foros-01b-r1-borrado-carreras`:
+   - ATQ-FORO-66: una principal calificada que el admin borró, otra sin calificar también borrada, y réplicas de un maestro dado de baja que sigue en la clase archivada.
+     - El conteo da `actividades 1, entregas 1, calificaciones 1`: cuenta la calificada, que conserva su fecha, y no la que volvió a "sin participar".
+     - El duplicado no copia nada del foro, y el borrado definitivo responde 204 sin filas, con los usuarios intactos.
+   - ATQ-FORO-67: un alumno calificado dado de baja sale del gradebook, y su principal sigue en la lista con su nombre y `puedeBorrar` para el admin. El admin la borra; al reactivarlo, vuelve con su calificación.
+8. **Regresiones de 01a.** Las seis `foros-01a-r1-*`, una a la vez: archivada 4, ids y fugas 5, carreras 5, tipo y validación 8, calificaciones 3 y adjuntos 3, todas verdes.
+
+### Observaciones (no son hallazgos)
+- **O-01b-1. La lista de foros distingue "nunca participó" de "le borraron la principal".**
+  - Sin fila de entrega, la `entrega` del alumno en `GET …/foros` es `null`. Después de que el admin borra su principal sin calificar, la fila queda y la lista trae `{ estado: "asignado", conRetraso: false }`.
+  - Es lo que dice §D-3.2 ("null para maestro y admin, o sin fila"), y "Mis calificaciones", el gradebook y "Participantes" lo tratan igual que a un asignado.
+  - Lo anoto para el frontend (01c1): las dos formas deben pintarse igual.
+  - Mi primera versión de ATQ-FORO-70 esperaba `null` y la corregí: el error era de mi prueba, no del código.
+- **O-01b-2. `puedeBorrar` vale `true` para el admin también en una clase archivada, donde la ruta 17 responde 409.** Es la regla del plan (`puedeBorrarParticipacion = actor.rol === "admin"`, §D-11), y el frontend oculta la escritura con su contexto de solo lectura (ADMIN-01). No es un permiso: el backend la niega.
+- **O-01b-3. `conForos` en `GET …/recursos` se ignora (200).** `recursosQuerySchema` es un `z.object` sin `strict`. No trae foros y el plan no lo define, así que no es hallazgo.
+
+### Mis mutaciones
+Todas en archivos de "Se toca" de 01b (§E7.5.2), sin preguntar, con el procedimiento de la ronda 1 de 01a:
+- copia previa;
+- `tester-r1/mutar.cjs`, que aborta si el ancla no aparece exactamente una vez;
+- la corrida de mi archivo;
+- la restauración y la comparación byte a byte, con «cmp igual: true» en las 6 corridas;
+- `sha256sum -c` de `foros.ts`, `categorias.ts` y `handlers/calificaciones.ts` en OK después de todas.
+
+`git diff --stat -- src` se mantuvo igual antes y después (`14 files changed, 382 insertions(+), 46 deletions(-)`). No muté nada de "No se toca".
+
+| Mutación | Archivo · ancla | Corrida | Cae |
+|---|---|---|---|
+| MB1 | `adapters/db/foros.ts` · en `borrarParticipacion`, `bloquearTareaParaEntregar(…)` → un `tarea.findFirst` sin bloqueo | `Tests  1 failed \| 7 passed (8)` | ATQ-FORO-60 (ya no espera la fila del foro) |
+| MB2 | ídem · sin `version: { increment: 1 }` al volver a "sin participar" | `Tests  4 failed \| 4 passed (8)` | ATQ-FORO-62, 63, 64 y 65 |
+| MB3 | ídem · `puedeBorrar` de `replicaDe` → `true` | `Tests  1 failed \| 2 passed (3)` | ATQ-FORO-71 |
+| MB4 | `adapters/db/categorias.ts` · la cuenta de foros sin `categoriaId` | primero `Tests  7 passed (7)`: **no cayó**; con el caso determinista agregado a ATQ-FORO-84, `Tests  1 failed \| 6 skipped (7)` | ATQ-FORO-84 |
+| MB5 | `handlers/calificaciones.ts` · la exportación con `columnaParaResponder(tarea, true)` | `Tests  1 failed \| 6 passed (7)` | ATQ-FORO-80 |
+
+Sobre MB4: en las tres vueltas, el `groupBy` eligió primero la categoría con el foro, así que la cuenta mal acotada daba lo mismo. Agregué a ATQ-FORO-84 el caso determinista (se quita solo «A» y «B» se queda con su foro), que sí lo vigila; la versión final del caso cae con MB4.
+
+Redundancia declarada: ATQ-FORO-61 y ATQ-FORO-63 son carreras sin retención (`Promise.all`, 5 vueltas). Vigilan que no haya 500 ni filas huérfanas en cualquier orden, no un orden fijo. Los órdenes fijos los cubren ATQ-FORO-60 (retención de la fila del foro), FORO-1A67 y FORO-1A68 del programador.
+
+### Archivos nuevos (3; 18 casos)
+`npx vitest list test/foros-01b-r1` (desde `backend/`), contado con `grep -a ' > ' | grep -ac 'ATQ-FORO-'`, da **18** casos:
+- `backend/test/foros-01b-r1-borrado-carreras.ataque.test.ts`: 8 (ATQ-FORO-60 a 67);
+- `backend/test/foros-01b-r1-estados.ataque.test.ts`: 3 (ATQ-FORO-70 a 72);
+- `backend/test/foros-01b-r1-optin.ataque.test.ts`: 7 (ATQ-FORO-80 a 86).
+
+No hay ayudas compartidas nuevas: cada archivo trae las suyas, y las ayudas existentes solo se importan. No hay ningún `LOCK TABLE`. La única retención (ATQ-FORO-60) es de una fila, con `timeout: 30_000` y `maxWait: 5_000`. Toda prueba tiene aserciones, y una precondición que falta lanza con su mensaje. No toqué mis `*.ataque` de 01a, ninguna otra prueba ni la ayuda del programador.
+
+### Comandos (desde `backend/`, uno a la vez)
+- Cada archivo, en su ronda:
+  - `npx vitest run test/foros-01b-r1-borrado-carreras.ataque.test.ts` → `Tests  8 passed (8)`;
+  - `…-estados…` → `Tests  3 passed (3)`;
+  - `…-optin…` → `Tests  7 passed (7)`, y ATQ-FORO-84 sola, ya reforzada, con `-t` → `1 passed | 6 skipped`.
+- Regresiones de 01a: las seis `foros-01a-r1-*` sueltas, en verde (4, 5, 5, 8, 3 y 3).
+- `npm run lint` → salida 0; última línea `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`.
+- La suite de los 38 filtros de la §7 del resumen de 01b, tal cual (mis archivos entran por `test/foros`) → `Test Files  180 passed (180)` · `Tests  1919 passed (1919)` (`Duration  137.86s`). 1919 = 1901 de la verificación del manager + mis 18.
+- PA-07, en la salida completa de esa corrida: `40P01` 0, `deadlock detected` 0, `could not serialize` 0, `too many clients` 0, `"Error no controlado"` 0 y `"code":"P2028"` 0. En la corrida suelta de `borrado-carreras` también dio 0 en los seis.
+- `git diff --stat -- src` se mantiene en `14 files changed, 382 insertions(+), 46 deletions(-)`, igual que antes de mis mutaciones.
+
+### V-01
+- `sha256sum -c foro01-arranque/v01-foro01b-r0.txt` → 297 `OK`: ninguna `*.ataque` anterior cambió.
+- `foro01-arranque/v01-foro01b-r1.txt` (scratchpad) tiene las 297 de la ronda 0 sin cambio más mis 3 archivos, **300** líneas; el árbol tiene 300 `*.ataque`. SHA-256 `60b38386e9fe8506953006a265f76bb2505076589028902abe5bb3a46776884d`.
+
+### No atacado y por qué
+- **La suite completa del backend y PA-07 con su control positivo:** las corre el manager al cerrar.
+- **El frontend:** 01b no toca su producción. C-7 quedó verde en la ronda 0, y el manager corrió `src/lib`, `src/features/clases`, `src/features/tareas` y `src/features/calificaciones`.
+- **`borrarComentario` sin filtro de tipo, R-02, DH-02, O-r1-1, O-r1-2 y las redundancias N1 y N3:** aceptados.
+- **El orden de la fila retenida de FORO-1A67 y FORO-1A68:** lo arbitró el manager. No lo repetí; lo complementan ATQ-FORO-60 a 64.
+- **Un `conForos` con valores en otras rutas fuera de Trabajo, temas y Recursos:** las demás no lo leen.
+- **El navegador:** 01b no tiene interfaz.

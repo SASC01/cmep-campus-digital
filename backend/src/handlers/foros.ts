@@ -29,6 +29,7 @@ import type { FastifyPluginAsync } from "fastify"
 
 import {
   adjuntosConfirmadosDe,
+  borrarParticipacion,
   borrarTarea,
   calificarEntrega,
   crearTarea,
@@ -391,7 +392,7 @@ export const forosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asy
         foroId,
         cursor,
         limite,
-        actorId: perfilDe(request).id,
+        actor: perfilDe(request),
         relacion,
       })
       if (lista === null) throw foroNoEncontrado()
@@ -454,7 +455,7 @@ export const forosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asy
         participacionId,
         cursor,
         limite,
-        actorId: perfilDe(request).id,
+        actor: perfilDe(request),
         relacion,
       })
       if (lista === null) throw foroNoEncontrado()
@@ -649,6 +650,28 @@ export const forosHandler: FastifyPluginAsync<{ almacen: Almacen | null }> = asy
       return reply.send(
         entregaDeAlumnoRespuestaSchema.parse(await entregaDeAlumnoParaResponder(almacen, entrega)),
       )
+    },
+  )
+
+  // 17. Borrar una participación principal o una réplica (solo el admin, PB-1 a). Sin
+  // enClaseArchivada: en una clase archivada queda cerrada, también para el admin (S-E3-1).
+  app.delete(
+    "/clases/:claseId/foros/:foroId/participaciones/:participacionId",
+    protegido({ roles: ["admin"], pertenencia: "propiedad" }),
+    async (request, reply) => {
+      const claseId = claseDe(request).id.toLowerCase()
+      const { foroId, participacionId } = validarParametros(
+        participacionParamSchema,
+        request.params,
+      )
+      const borrada = await borrarParticipacion({
+        claseId,
+        foroId,
+        participacionId,
+        actor: perfilDe(request),
+      })
+      if (!borrada) throw foroNoEncontrado()
+      return reply.status(204).send()
     },
   )
 }

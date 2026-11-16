@@ -256,6 +256,7 @@ export {
   type FilaDeExportacionDb,
 } from "./exportacion-de-calificaciones.js"
 export {
+  borrarParticipacion,
   leerMiParticipacion,
   listarForos,
   listarParticipaciones,

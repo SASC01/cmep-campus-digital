@@ -1,3 +1,5 @@
+import type { SeccionDeTrabajo } from "@campus/shared"
+
 import { TEXTOS_POR_ACTIVIDAD, type Actividad } from "../../core/actividades.js"
 import {
   puedeBorrarTarea,
@@ -65,7 +67,8 @@ export interface CriterioNuevo {
 
 export interface ElementoDeTrabajoDb {
   id: string
-  tipo: "material" | "tarea"
+  // FORO-01b (§D-3.3): con "actividades-con-foros", también foros.
+  tipo: "material" | "tarea" | "foro"
   titulo: string
   autor: AutorDb
   creadoEn: Date
@@ -123,6 +126,23 @@ const SELECT_AUTOR = { select: { id: true, nombre: true, rol: true } } as const
 
 // Los elementos que se agrupan en un tema: materiales y tareas (los anuncios no llevan tema).
 const TIPOS_DE_TRABAJO = ["material", "tarea"] as const
+
+// FORO-01b (§D-3.3, E1-4): lo que trae cada sección de "Trabajo". Sin sección, lo de hoy; un foro solo
+// entra con "actividades-con-foros", también como cursor.
+const TIPOS_DE_LA_SECCION: Record<
+  NonNullable<SeccionDeTrabajo> | "todo",
+  readonly ("material" | "tarea" | "foro")[]
+> = {
+  todo: TIPOS_DE_TRABAJO,
+  actividades: ["tarea"],
+  "actividades-con-foros": ["tarea", "foro"],
+}
+
+// El where de la página ya excluye el anuncio: si llegara uno, es un error explícito.
+const tipoDeTrabajo = (tipo: string): ElementoDeTrabajoDb["tipo"] => {
+  if (tipo === "material" || tipo === "tarea" || tipo === "foro") return tipo
+  throw new AppError("ERROR_INTERNO", "Trabajo de clase trajo un tipo que no admite.", 500)
+}
 
 // Lectura de la tarea (§D-4, "Ver"). Las sentencias van una tras otra con `db`: la tarea, su
 // publicación (relación obligatoria: título, instrucciones y autor, con el tema), la categoría, los
@@ -651,7 +671,8 @@ const listarTrabajoCon = async (
     limite: number
     alumnoId?: string | null
     // CLASES-03a (§D-3.3): "Actividades de aprendizaje" pide solo tareas; sin ella, lo de hoy.
-    seccion?: "actividades" | undefined
+    // FORO-01b (§D-3.3, E1-4): "actividades-con-foros" (conForos=si) pide tareas y foros.
+    seccion?: SeccionDeTrabajo
   },
 ): Promise<ListaTrabajoDb> => {
   const temaId = tema === "sin-tema" ? null : tema
@@ -660,7 +681,7 @@ const listarTrabajoCon = async (
     if (existe === null) throw errorTemaNoEncontrado()
   }
   // El mismo filtro vale para el cursor: con la sección, un material como cursor es 400.
-  const tipos = seccion === "actividades" ? (["tarea"] as const) : TIPOS_DE_TRABAJO
+  const tipos = TIPOS_DE_LA_SECCION[seccion ?? "todo"]
   const donde = { claseId, temaId, tipo: { in: [...tipos] } }
   if (cursor !== undefined) {
     const delCursor = await db.publicacion.findFirst({
@@ -703,7 +724,8 @@ const listarTrabajoCon = async (
       ])
     }
   }
-  const idsDeTareas = pagina.filter((fila) => fila.tipo === "tarea").map((fila) => fila.id)
+  // Las tareas y los foros de la página: los dos tienen la entrega del alumno.
+  const idsDeTareas = pagina.filter((fila) => fila.tipo !== "material").map((fila) => fila.id)
   const entregaPorTarea = new Map<string, { estado: EstadoEntrega; conRetraso: boolean }>()
   if (alumnoId !== null && idsDeTareas.length > 0) {
     const entregas = await db.entrega.findMany({
@@ -717,11 +739,11 @@ const listarTrabajoCon = async (
   return {
     elementos: pagina.map((fila) => {
       const esMaterial = fila.tipo === "material"
-      // Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a materiales y tareas.
+      // Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a materiales, tareas y foros.
       if (fila.titulo === null) throw errorElementoSinTitulo()
       return {
         id: fila.id,
-        tipo: esMaterial ? "material" : "tarea",
+        tipo: tipoDeTrabajo(fila.tipo),
         titulo: fila.titulo,
         autor: fila.autor,
         creadoEn: fila.creadoEn,
@@ -747,7 +769,7 @@ export const listarTrabajo = (
     cursor: string | undefined
     limite: number
     alumnoId?: string | null
-    seccion?: "actividades" | undefined
+    seccion?: SeccionDeTrabajo
   },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaTrabajoDb> =>

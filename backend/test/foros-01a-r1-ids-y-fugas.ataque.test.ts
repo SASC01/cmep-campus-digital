@@ -185,12 +185,14 @@ describe("ataque FORO-01a r1 · punto 3: ids cruzados", () => {
     const antesAjeno = await fotoDelForo(foroAjeno)
     const antesPropio = await fotoDelForo(foroPropio)
 
+    // FORO-01b ronda 0 (C-T2 del tester, §E7.5.2, lista cerrada 3): si 01b suma la ruta 17 a
+    // rutasDelForo, el caso sigue recorriendo las 14 de 01a con :foroId; la 17 tiene su propio caso.
     const rutas = rutasDelForo({
       claseId: e.claseId,
       foroId: foroAjeno,
       participacionId: principalAjena,
       alumnoId: e.alumno.id,
-    }).filter(({ numero }) => numero >= 3)
+    }).filter(({ numero }) => numero >= 3 && numero <= 16)
     expect(rutas).toHaveLength(14)
     let casos = 0
     for (const ruta of rutas) {

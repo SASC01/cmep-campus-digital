@@ -1089,3 +1089,298 @@ SHA-256 `24cd71ab…`; contra la copia `AGENTS-antes-01a.md` (`239ca2f6…`), `g
 - 01a queda **APROBADO**.
 - Antes de 01b, conviene precisar en `AGENTS.md` que el permiso para mutar un archivo de "No se toca" lo das tú (texto exacto arriba).
 - Sobre los commits, mi recomendación es uno propio para `vitest.config.ts` y `AGENTS.md`, y después el de 01a. Tú decides.
+
+## Arbitraje de la ronda 0 — FORO-01b (2026-11-16)
+Solo lectura; no corrí suites. Revisé `git diff 451aa35` de los dos archivos, `reporte-tester.md` ("Ronda 0 — FORO-01b"), el plan (§D-3.2, §D-3.3, la fila de `temas.ts` en `plan.md:1474`, E1-9, §E7.5.2 y FORO-1A62) y el código de hoy (`adapters/db/temas.ts`, `handlers/tareas/temas.ts:108-118` y `ayudas-foros.ts`).
+
+### C-T1 · ATQ-FORO-30 (`foros-01a-r1-tipo-y-validacion.ataque.test.ts`): **ACEPTADO**
+Lo que el caso exige ahora, contra lo que manda el plan:
+1. **`GET …/temas` sin sección, `elementos: 1` para el tema con el foro.** El plan, `plan.md:1474`: "`TIPOS_CON_TEMA` suma `"foro"` (el total, renombrar y mover). (E1-9, N-03) El total sin sección cuenta los foros a propósito". Correcto.
+2. **`?seccion=actividades` sin `conForos`, `elementos: 0`.** Misma fila: "`actividades` sigue siendo `{ tipo: "tarea" }`"; solo `"actividades-con-foros"` (que exige `conForos=si`, §D-3.2, `plan.md:1452`) cuenta foros. Correcto.
+3. **Mover con `{ temaId: null }` → `200` con `{ publicacionId, temaId: null }`.** El plan pone el foro en `TIPOS_CON_TEMA` también para "mover", así que el `updateMany` de `moverATema` lo encuentra. El código y el cuerpo los decide el handler de hoy (`reply.send(moverElementoRespuestaSchema.parse(movido))`, `temaId: temaId?.toLowerCase() ?? null`), que 01b no cambia (`handlers/tareas/*` está en "No se toca"). Correcto.
+4. **La publicación queda sin tema y `tareas.version` pasa de 0 a 1.** `plan.md:1474`: "En `moverATema`, la rama que sube `tareas.version` aplica también a `"foro"`". El foro de prueba nace con la versión por omisión (0). Correcto.
+5. **Después, `sinTema` es 1 sin sección y 0 con `?seccion=actividades`.** Sale de 1 y 2. `crearEscenarioDeForo` no crea ninguna otra publicación en la clase (`ayudas-foros.ts:47-50`), así que los conteos exactos son seguros. Correcto.
+6. **Lo que no cambia** (el muro con `?tipo=foro` da `400`; "Trabajo" sin `conForos` no lista el foro ni lo acepta como cursor): sigue `plan.md:1473` (sin `conForos`, `tipos` sin `foro`). Correcto.
+
+**Nada pide más ni algo distinto del plan, y no hay nada que decida el arquitecto.** El caso conserva la intención del original: el tipo cruzado por la ruta del muro. Ahora vigila además que mover un foro sube su versión, que es lo que protege a la edición concurrente. Lo que el original afirmaba (`404`) era la conducta de 01a, declarada para 01b en §E8.1.
+
+### C-T2 · ATQ-FORO-10 (`foros-01a-r1-ids-y-fugas.ataque.test.ts`): **ACEPTADO**
+Solo acota el filtro (`numero >= 3` pasa a `numero >= 3 && numero <= 16`) y agrega un comentario. Las aserciones son las mismas, las 14 rutas con `:foroId` para cada rol con el foro de otra clase, y `toHaveLength(14)` ya no depende de si 01b suma la ruta 17 a `rutasDelForo`. Los ids cruzados de la ruta 17 los cubre FORO-1A62 (`plan.md:2062-2068`: un foro de otra clase, el id de una tarea o una participación de otro foro dan `404`), como dice el comentario.
+
+### Proceso
+- **Lo que pedía el plan.** §E7.5.0 manda PARADA y enmienda si aparece una prueba que el diseño cambia y que no está inventariada. Estas dos son `*.ataque` del propio tester, nacidas en la ronda 1 de 01a, después del plan, que no podía inventariarlas.
+- **Por qué basta este arbitraje.** Lo que afirman ahora lo decide el plan letra por letra, así que no hace falta una enmienda.
+- **Registro.** El orquestador las anota en `aprobacion.md` como C-T1 y C-T2, con este arbitraje.
+- **En adelante,** el tester declara en su ronda 0 las `*.ataque` propias que la subentrega cambia, como hizo aquí, y el manager las arbitra antes de que el programador implemente.
+
+### Las dos vigiladas nuevas: el diseño de 01b las respeta
+- **`tareas-01a-r1.ataque:737-746`** exige, en el cuerpo de `moverATema`, `tx.tarea.updateMany` antes de `bloquearTemaParaUsar` y de `tx.publicacion.updateMany`, sin `for`, `while`, `.forEach(` ni SQL crudo. El plan solo amplía la condición de esa rama (de `publicacion.tipo === "tarea"` a tarea o foro), en el mismo lugar. Se cumple si la condición se escribe sin ciclos (`=== "tarea" || === "foro"`, o `.includes(…)`, que no es `.forEach`) y sin mover la llamada de sitio.
+- **`temas-01a-r3.ataque:440-485`.**
+  - Fija la lista cerrada de archivos de `core/tareas/` y `handlers/tareas/`, más cuatro de `adapters/db`, y les prohíbe `console.`, `estadoPago`, `.rol`, `relacion ===` y comparaciones de rol con texto.
+  - El diseño de 01b no crea archivos en esas carpetas: `core/autoria.ts` y `core/foros/` están fuera.
+  - En `temas.ts` solo cambian `TIPOS_CON_TEMA`, `FILTRO_DE_LA_SECCION` y la condición de `moverATema`. En `categorias.ts`, el texto del `409` y un `tx.tarea.count({ where: { categoriaId, publicacion: { tipo: "foro" } } })`.
+  - Nada de eso necesita `.rol` ni comparar un rol. Si `mensajeConActividades` se escribe en un archivo nuevo de `core/tareas/`, la lista cerrada de la prueba se rompe: tiene que ir en un archivo existente (`core/tareas/categorias.ts`) o fuera de esa carpeta.
+
+### Conteo de 01b
+Los dos archivos ya eran de 01a, pero 01b los cambia, así que cuentan en 01b: **~32** (18 de producción, 5 pruebas nuevas, 4 normales y 5 `*.ataque`: C-1 bis, C-3, C-7, C-T1 y C-T2). Sigue en "unos 30" y no hace falta partir; el humano aceptó 01a en ~33.
+
+## Verificación del resumen del programador — FORO-01b (2026-11-16)
+Veredicto: **ACEPTADO** (el tester puede atacar)
+
+Resumen: `resumen-programador.md`, "Implementación — FORO-01b (2026-11-16)", 556 líneas, SHA-256 `ea31390e…` (coincide). Base `451aa35`. Precondiciones: Docker 28.5.1; el equipo conectado a la corriente (`BatteryStatus` = 2); la red de casa, confirmada por el humano; no corre otra suite. Corrí todo una cosa a la vez.
+
+### 1. Mis corridas contra las del resumen
+| Comando | Mi última línea | ¿Coincide? |
+|---|---|---|
+| `shared`: `npm run lint` | `All matched files use Prettier code style!` | sí |
+| `shared`: `npm run build` | `> tsc -p tsconfig.json`, exit 0 | sí |
+| `backend`: `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, exit 0 | sí |
+| `backend`: `npm run build` | `> tsc -p tsconfig.json`, exit 0 | sí |
+| `backend`: `npx vitest run` con los 38 filtros de la §7, tal cual | `Tests  1901 passed (1901)` · `Test Files  177 passed (177)` (09:44 a 09:46) | sí |
+| PA-07 sobre esa salida | `40P01`, `deadlock detected`, `could not serialize`, `too many clients`, "Error no controlado" y `P2028`: 0 en los seis | — |
+| `backend`: `npx vitest list` de los 6 filtros de la §7, contado con `grep -a ' > ' \| grep -av '\.ataque\.' \| grep -ac 'FORO-'` | **134** en 16 archivos, con el mismo reparto (los 5 nuevos con 3, 18, 6, 4 y 4; `errores.test.ts` con 4) | sí |
+| `backend`: `npx prisma migrate status` | `21 migrations found` / `Database schema is up to date!` | sí |
+| `backend`: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | `No difference detected.`, exit 0 | sí |
+| `frontend`: `npm run lint` | `> tsc -b`, exit 0 | sí |
+| `frontend`: `npm run build` | `✓ built in 873ms` | sí (cambia solo el tiempo) |
+| `frontend`: `npx vitest run src/lib` | `Tests  296 passed (296)` · `Test Files  23 passed (23)` | sí |
+| `frontend`: `npx vitest run src/features/clases` | `Tests  3068 passed (3068)` · `Test Files  124 passed (124)` | sí |
+| `frontend`: `npx vitest run src/features/tareas` | `Tests  1355 passed (1355)` · `Test Files  42 passed (42)` | sí |
+| `frontend`: `npx vitest run src/features/calificaciones` | `Tests  474 passed (474)` · `Test Files  23 passed (23)` | sí |
+
+- **V-01:** hay 297 `*.ataque`, idénticas a `v01-foro01b-r0.txt`; hice `sha256sum` de todas y un `diff` sin diferencias.
+- **`backend/prisma/`:** sin cambios contra `451aa35`.
+- **`git status`:** 33 archivos en los paquetes, los de la §1 del resumen. Nada de "No se toca".
+
+### 2. "Se toca" (§E7.5.2) contra `451aa35`
+- **`adapters/db/tareas.ts`:** cambian `listarTrabajoCon` y `listarTrabajo` (solo el tipo de `seccion`), `ElementoDeTrabajoDb.tipo` y dos constantes privadas (`TIPOS_DE_LA_SECCION` y `tipoDeTrabajo`, que estrecha con un `ERROR_INTERNO` inalcanzable, como en 01a).
+- **`categorias.ts`:** solo el texto del `409` y el conteo de foros en su camino.
+- **`calificaciones.ts`:** `SELECT_TAREA` (suma `tipo`), `columnaDe` (lo estrecha a `"tarea" | "foro"`, con un error inalcanzable) y el campo `tipo` de la interfaz, que hace falta.
+- **`core/autoria.ts`:** solo `puedeBorrarParticipacion`.
+- **`shared/src/recursos.ts`:** solo la línea del tema, más su import.
+- **La lista cerrada:** los 4 archivos, como dice el plan. Las filas y los títulos, contrastados con el diff.
+- **`ayudas-foros.ts`:** solo gana `rutaDeBorrarParticipacion`, que §E7.5.0 permite. El conteo de 33 es correcto (~32 + la ayuda).
+
+### 3. Reglas que no se rompen
+- **Ruta 17** (`handlers/foros.ts`, al final):
+  - lleva `protegido({ roles: ["admin"], pertenencia: "propiedad" })` sin `enClaseArchivada`, así que en una archivada queda cerrada también para el admin (S-E3-1);
+  - el handler valida `participacionParamSchema`, pasa `perfilDe(request)` y responde `204`, o `404 "Ese foro ya no existe."` si el adaptador devuelve `false`;
+  - ninguna verificación de rol se hace a mano: la regla es `puedeBorrarParticipacion` de `core/` (`actor.rol === "admin"`), dentro del adaptador.
+- **`borrarParticipacion`** (`adapters/db/foros.ts`), en READ COMMITTED y con el orden del proyecto (tareas, entregas, participaciones):
+  - bloquea la fila del foro, con `bloquearTareaParaEntregar`;
+  - comprueba el tipo;
+  - busca la participación (`404`);
+  - aplica `puedeBorrarParticipacion` (`403`, inalcanzable por la ruta);
+  - si es principal, bloquea la entrega del autor y **vuelve a leer la principal después del bloqueo** (M-06 y E5-1: el segundo de dos borrados responde `404`, nunca `500`);
+  - aplica `efectoDeBorrarPrincipal`: calificada, conserva todo (DH-05 y E5-4); entregada, vuelve a `asignado` con `version + 1` (PB-2 a);
+  - borra con `deleteMany`, y las réplicas caen por la FK.
+
+  Sin SQL crudo, sin ciclos y sin encolar (FORO-1A69). Todo va por PK, por el único `(tarea_id, alumno_id)` y por `(principal_id, …)` para la cascada.
+- **`puedeBorrar`:** sale de `core/` con el actor de la petición. En la respuesta `201` de una réplica (alumno o maestro), `false`. FORO-1A70 y FORO-1A50 lo prueban, con llaves exactas y sin estado de pago en las 17 rutas.
+- **El opt-in:**
+  - `conForos` y `conTipo` son `z.literal("si").optional()`, así que otro valor o uno repetido da `400`;
+  - `conForos` exige `seccion=actividades` (`superRefine`);
+  - el `.transform` deja una sola llave, `seccion`, así que los handlers de `tareas` no cambian (están en "No se toca");
+  - `columnaParaResponder` solo suma `tipo` con `conTipo === "si"`, y la exportación nunca lo pide;
+  - sin los parámetros, la respuesta es la de siempre, llave por llave (FORO-1B06 y FORO-1A25).
+- **Consultas:**
+  - `listarTrabajoCon` usa el mismo `where` con un `tipo in`, y las entregas de la página en una sola consulta;
+  - el gradebook lee `publicacion.tipo` en la relación que ya leía;
+  - el `409` de categorías suma una sentencia, solo en su camino de error.
+
+  Sin N+1, todo por los índices de hoy.
+- **Errores de Prisma:** `alFaltarReferencia` (`P2003` y `23503`) vive en `adapters/db/errores.ts`, el único archivo que conoce esos códigos. `publicarReplica` traduce así el caso en que el admin borró la principal en medio (`404`, nunca `500` ni `P2003`).
+
+### 4. Pruebas requeridas de 01b
+- **Cada viñeta tiene su caso con el título que cita la §6:** FORO-1A25 (4), FORO-1A26b (2), FORO-1A60 a FORO-1A70, FORO-1B06 (4), FORO-1B08, FORO-1B09 y FORO-1B10 (2), y FORO-1B04 en ADM-1A09.
+- **Revisé el cuerpo de FORO-1B10 y FORO-1B09:**
+  - FORO-1B10 tiene llaves exactas sin `activo` ni `cuentaDesactivada`, `404 ALUMNO_NO_ENCONTRADO` en la ruta 13 y vuelta atrás al reactivar;
+  - FORO-1B09 (el archivo del planteamiento no se copia) y FORO-1B08 (el objeto va a la cola de borrado) afirman lo que pide su viñeta.
+- **La ruta 17 en la matriz:** la tabla de la §2 del resumen cubre sin sesión, rol, restringido, clase inexistente, ids cruzados, clase archivada, llaves exactas y la cadena estática (FORO-1A49, FORO-1A50, FORO-1A51, FORO-1A62 y FORO-1B01).
+- **Mutaciones:** 15 en archivos de "Se toca", cada una con su caso que cae (la regla nueva de `AGENTS.md`).
+- **Las dos redundancias están bien declaradas:**
+  - con N1, el `403` del adaptador es inalcanzable porque `requireRole` corta antes, y la regla la vigilan FORO-1A60 y FORO-1A70;
+  - con N3, el doble borrado de una calificada no escribe la entrega, y la relectura la vigilan los otros dos casos.
+
+### 5. Arbitraje de las desviaciones
+1. **`mensajeConActividades` en `adapters/db/categorias.ts`: aceptado.**
+   - Reemplaza a `mensajeConTareas`, que ya vivía ahí (el texto del `409` estaba en el adaptador desde TAREAS-01). No mueve una regla de dominio de capa: es el texto de un error que el adaptador ya lanzaba.
+   - Respeta `temas-01a-r3.ataque:440-485`: no hay archivo nuevo, ni `.rol`, ni comparaciones de rol. Lo comprobé en el diff.
+   - Es el texto del plan aprobado (§D-3.3, E1-9: "«X» tiene {total} actividad(es). Muévelas a otra categoría antes de quitarla.", y el de hoy, letra por letra, con solo tareas).
+   - El complemento de DH-12 son los textos del editor del frontend (01d), no este `409`.
+2. **`actor` en lugar de `actorId` en `listarParticipaciones` y `listarReplicas`: aceptado.** Hace falta para `puedeBorrarParticipacion`. Las dos funciones son nuevas de FORO-01a, así que no cambia ninguna firma de otro encargo. El handler pasa `perfilDe(request)` entero, como pide FORO-1A51.
+3. **`borrarParticipacion` devuelve `false` si el foro no existe o es de otro tipo: aceptado.** Es el mismo contrato que las rutas 3 a 16 (`404` "Ese foro ya no existe."), y la participación que falta la lanza el adaptador.
+4. **`columnaParaResponder` con una flecha: aceptado y necesario.** Pasada por referencia a `.map`, el índice entraría como `conTipo`.
+5. **`23503` además de `P2003`: aceptado.** Con el driver adapter, PostgreSQL entrega su código en `meta`, que `errores.ts` ya leía para el `22021`. Los códigos siguen solo en `adapters/db/errores.ts`.
+6. **`ayudas-foros.ts` con una exportación más y el conteo de 33: aceptado** (§E7.5.0: "una ayuda existente solo gana exportaciones").
+7. **FORO-1A67 y FORO-1A68 frente al orden de la fila retenida: aceptados como deterministas.**
+   - Cada operación se lanza solo después de que `formadasDetrasDe` confirma que la anterior ya espera la fila (`wait_event` `transactionid` o `tuple`), y la siguiente queda formada detrás del candado de la tupla.
+   - PostgreSQL concede ese candado en el orden de llegada. Es el mismo mecanismo que `conFilaRetenida`, que el proyecto usa desde CHORE-02 sin falsos rojos.
+   - Si alguna vez fallara, sería PA-12 (se reporta sin repetir). La salida es sumar la comprobación de que la operación siguiente espera a la anterior, no a la retención.
+
+   No hace falta cambiar nada ahora.
+
+### 6. Hermanos
+Contrasté la tabla de la §4 del resumen con el código:
+- **Temas:** `TIPOS_CON_TEMA` suma `foro`, con el total, renombrar y mover. `FILTRO_DE_LA_SECCION` lleva `actividades` (solo tareas) y `actividades-con-foros` (tareas y foros).
+- **Mover:** la rama de la versión aplica también al foro, en el mismo lugar que vigila `tareas-01a-r1.ataque:737-746`.
+- **"Actividades", categorías, gradebook, "Mis calificaciones", exportación, riesgo (FORO-1A66), borrado definitivo, duplicado y baja:** cada fila tiene su caso.
+- **Estados del borrado:** la tabla de la §4 cubre los once, con su caso.
+- **Detalle sin caso propio:** "renombrar un tema" cuenta el foro (`elementos` en la respuesta de `PUT …/temas/:temaId`). Lo cubre el mismo `TIPOS_CON_TEMA` que vigila N6, pero ningún caso lo afirma. No bloquea; queda como punto de ataque.
+
+### 7. Puntos de ataque para la ronda 1 de 01b, por prioridad
+1. **Concurrencia del borrado, más allá de FORO-1A67 y FORO-1A68:**
+   - borrar una principal contra el borrado del foro (`borrarTarea`, `FOR UPDATE` de la fila de tareas) en los dos órdenes;
+   - borrar contra volver a publicar después de "sin participar", con el foro abierto;
+   - borrar contra un archivado de la clase que confirma después del sexto paso (la carrera que ADMIN-01 aceptó en ADM-T1A04);
+   - dos réplicas en vuelo y el borrado de su principal.
+
+   En todos: nunca `500`, `P2003` ni `P2002` sin traducir, y la entrega siempre en un estado válido (`version` sube una sola vez).
+2. **`puedeBorrar` y las llaves:**
+   - `true` solo para el admin en las listas 8 y 10;
+   - `false` en la `201` de una réplica del maestro y del alumno;
+   - nunca `estadoPago`, `rol` ni correo, también en la vista del admin y en una clase archivada (lectura).
+3. **El opt-in:**
+   - `conForos`: con `SI`, vacío, repetido, con `seccion=aprendizaje` o `docente`, en `GET …/recursos` y en `GET …/temas` sin sección;
+   - `conTipo`: en la exportación, en "Mis calificaciones" de una clase anterior (`lectura-del-alumno`) y en el gradebook de una archivada;
+   - un frontend viejo (sin los parámetros): llave por llave, igual a `451aa35`, con un foro en la clase;
+   - un material como cursor con `actividades-con-foros`, y un foro como cursor de un tema distinto.
+4. **El texto del `409` de categorías:**
+   - una categoría con solo foros, con un foro y una tarea, con 1 y con N;
+   - dos categorías que se quitan a la vez (el texto debe ser de la primera con actividades y su cuenta de foros, no la de la otra).
+5. **Temas:**
+   - renombrar un tema con un foro (su `elementos`, sin caso propio);
+   - borrar un tema con un foro: pasa a «Sin tema» y la confirmación lo cuenta;
+   - mover un foro contra editarlo (el `409 TAREA_MODIFICADA` por la versión que sube al moverlo).
+6. **ADMIN-01 con foros** (FORO-1B08 a FORO-1B10), con datos más ricos:
+   - réplicas de un maestro dado de baja en una clase archivada que se borra o se duplica;
+   - un alumno calificado dado de baja y reactivado;
+   - el conteo del diálogo con una principal borrada por el admin antes.
+7. **La regla nueva de `AGENTS.md`:** toda mutación en un archivo de "No se toca" se pregunta antes, por el orquestador, y el humano autoriza.
+
+### Para el humano
+Nada.
+
+## Revisión final — FORO-01b (2026-11-16)
+Veredicto: **APROBADO**
+
+Precondiciones: Docker 28.5.1; el equipo conectado a la corriente (`BatteryStatus` = 2); la red de casa, confirmada por el humano; no corre otra suite. Corrí todo una cosa a la vez.
+
+### 1. Corridas (comando exacto y última línea)
+| Paquete | Comando | Última línea |
+|---|---|---|
+| shared | `npm run lint` | `All matched files use Prettier code style!` |
+| shared | `npm run build` | `> tsc -p tsconfig.json`, exit 0 |
+| backend | `npm run lint` | `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json`, exit 0 |
+| backend | `npm run build` | `> tsc -p tsconfig.json`, exit 0 |
+| backend | `npm test` (completa, de 10:14:43 a 10:18:31) | `Test Files  299 passed (299)` · `Tests  3223 passed (3223)` (`Duration  221.78s`), exit 0 |
+| backend | `npx prisma validate` | `The schema at prisma\schema.prisma is valid 🚀` |
+| backend | `npx prisma migrate status` | `21 migrations found in prisma/migrations` / `Database schema is up to date!` |
+| backend | `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | `No difference detected.`, exit 0 |
+| frontend | `npm run lint` | `> tsc -b`, exit 0 |
+| frontend | `npm run build` | `✓ built in 993ms` |
+| frontend | `npm run test` (completa, de 10:19:59 a 10:27:36) | `Test Files  345 passed (345)` · `Tests  8372 passed (8372)` (`Duration  453.22s`), exit 0 |
+
+- **Cuentas del backend:**
+  - **Archivos.** 299 = 291 del cierre de 01a + 5 pruebas nuevas + 3 `*.ataque` de la ronda 1.
+  - **Casos.** 3223 = 3166 + 39 casos `FORO-` del programador (de 95 a 134) + 18 `ATQ-FORO-` del tester. Las de la lista cerrada y las de la ronda 0 cambian casos que ya existían.
+- **Frontend:** igual que al cierre de 01a, como se esperaba (C-7 suma entradas dentro de un caso que ya existía).
+- **PA-07 sobre la suite completa del backend:**
+  - **Conteo:** `40P01` 0 · `deadlock detected` 0 · `could not serialize` 0 · `too many clients` 0 · `"Error no controlado"` 10 · `"code":"P2028"` 5.
+  - **Control positivo:** los tres de `servicio-ocupado` (pid 18956): `cambiar-contrasena` (`usuarios.ts:293`), `refrescar` (`sesiones.ts:72`) y `comentarios` (`$queryRawUnsafe`).
+  - **Los otros dos** son los permitidos de `cuentas-r3` (pid 20356): `login` (`sesiones.ts:39`) y `restablecer` (`tokens-cuenta.ts:119`).
+  - **Los 10 "Error no controlado"** son exactamente el inventario: `auth/index.ts:125` ×5 y `:134`, `archivos.ts:62` y `:97`, `muro.ts:87`, y "boom".
+  - **PA-07 limpia.**
+
+### 2. "Se toca", "No se toca", V-01
+- **Dentro de los paquetes, contra `451aa35`:** 36 archivos (18 de producción, 5 pruebas nuevas, 4 de la lista cerrada, `ayudas-foros.ts`, las 5 `*.ataque` de la ronda 0 y las 3 de la ronda 1). La producción es la que verifiqué en el resumen, sin cambios. `backend/prisma` no cambió.
+- **Fuera de los paquetes, contra `fd4a7ad`:**
+  - `infra/`, `.claude/`, `CLAUDE.md` y `docs/DESIGN.md` no cambiaron (`git diff --quiet` limpio);
+  - `AGENTS.md` solo cambió por el cierre de 01a, y su SHA-256 `b874bf2c…` es el registrado en `aprobacion.md`;
+  - el resto son `docs/trabajo/FORO-01-…`, `docs/ESTADO.md` y `DEPLOY-investigacion-vps.md`, que no entra.
+- **V-01:** hay 300 `*.ataque`, idénticas a `v01-foro01b-r1.txt` (`60b38386…`); hice `sha256sum` de todas y un `diff` sin diferencias. Solo cambiaron las 5 de la ronda 0 (C-1 bis, C-3, C-7, C-T1 y C-T2) y se sumaron las 3 del tester.
+
+### 3. El plan y las decisiones del humano en 01b
+- **DH-05 con PB-1 (a), PB-2 (a), S-E3-1, S-E3-2 y la Enmienda 5:**
+  - solo el admin borra (ruta 17, `roles: ["admin"]` y `puedeBorrarParticipacion`);
+  - nadie edita y el alumno no borra lo suyo;
+  - la calificación se conserva y el alumno calificado no vuelve a publicar pero sí replica (FORO-1A65);
+  - sin calificación, la entrega vuelve a "sin participar" (FORO-1A66);
+  - en una clase archivada nadie borra (FORO-1B01, ATQ);
+  - no se avisa ni queda registro de quién borró (FORO-1A69);
+  - M-06: dos borrados dan `204` y `404` (FORO-1A67, ATQ-FORO-6x).
+- **DH-09 (a), el opt-in:**
+  - sin `conForos` ni `conTipo`, la respuesta de "Trabajo", los temas con sección, el gradebook y "Mis calificaciones" es la de `451aa35`, llave por llave (FORO-1A25, FORO-1B06 y ATQ-FORO-80, con un frontend viejo y un foro en la clase);
+  - la excepción declarada en E1-9 es el total de temas sin sección, que cuenta los foros.
+- **DH-17 (a):** el borrado definitivo cuenta el foro y lo borra en cascada sin tocar ADMIN-01 (FORO-1B08, con el objeto del planteamiento en la cola).
+- **DH-18 (a):** las participaciones de una cuenta dada de baja siguen con su nombre y sin marca (FORO-1B10, los dos casos).
+- **P-10:** el duplicado no copia foros (FORO-1B09).
+- **README (A-05):** `handlers/README.md` y `adapters/README.md` describen las 17 rutas, la política de clase archivada, el opt-in y `esActividadDeTipo`.
+- **Pruebas requeridas:** cada una tiene su caso (39 `FORO-` nuevos). La ronda 1 suma 18 `ATQ-FORO-`.
+- **Guardas:** 15 mutaciones del programador y 5 del tester (MB4 reforzó ATQ-FORO-84 con un caso determinista), todas en "Se toca". Las redundancias N1 y N3 están declaradas con su mecanismo.
+
+### 4. Definición de terminado (01b)
+- [x] **RF-66 a RF-68 y RN-07, RN-08 y RN-10, en su parte de backend:** moderación del admin, "Actividades" con foros, tipo en el gradebook, y borrado y duplicado de clases con foros.
+- [x] **Capas y middleware:** la ruta 17 va por `protegido()` con la cadena completa; la regla vive en `core/` y los códigos de Prisma en `adapters/db`.
+- [x] **`lint`, `build` y `test` en verde:** shared, backend y frontend, con las suites completas (tabla 1).
+- [x] **Pruebas de autorización del endpoint nuevo:** la matriz de la ruta 17 y las 17 rutas con llaves exactas, sin estado de pago.
+- [x] **Migración:** no aplica; 01b no cambia el esquema (`migrate diff` sin diferencias).
+- [x] **`infra/`, `.env.example` y `config/` sin cambio:** no cambió la configuración.
+- [x] **Documentos:** los README van en el diff; lo demás va al cierre del encargo (punto 6).
+
+### 5. Lo aceptado o declarado, en un solo lugar
+| Qué | Estado | ¿A ESTADO §3? |
+|---|---|---|
+| **O-01b-1:** la lista de foros trae `entrega: null` si el alumno nunca tuvo fila, y `{ estado: "asignado", conRetraso: false }` si el admin le borró la principal | Es §D-3.2 ("`null` … o sin fila"). Con la fecha y el retraso iguales, la interfaz debe pintar lo mismo | **No.** Va al plan del frontend (abajo) |
+| **O-01b-2:** `puedeBorrar` es `true` para el admin también en una clase archivada, donde la ruta 17 responde `409` | Es la regla del plan (§D-11). El backend niega la escritura, y el frontend la oculta con el contexto de solo lectura de ADMIN-01 | **No.** Ya lo cubre FORO-1C14 (01c2): en una archivada no se pinta ningún control de escritura del foro. En 01d, "Borrar" del admin (FORO-1D35) dice "nunca en una archivada" |
+| **O-01b-3:** `conForos` en `GET …/recursos` se ignora con `200` | `recursosQuerySchema` no es estricto, como el de temas; el plan no lo define; no trae foros | **Sí, junto a la fila de retiro de compatibilidad (antes de DEPLOY):** al retirar el opt-in del foro (R-E7-4), se revisa que los esquemas de consulta no acepten parámetros que no son suyos |
+| Desviaciones aceptadas en la verificación del resumen: `mensajeConActividades` en el adaptador, `actor` en las listas, `false` y `404` en `borrarParticipacion`, la flecha de `columnaParaResponder`, `23503` y la ayuda | Arbitradas | No |
+| Redundancias N1 y N3 (programador) y MB4 reforzada (tester) | Declaradas con su mecanismo | No |
+| C-T1 y C-T2 (ronda 0) | Arbitrados y aceptados ("Arbitraje de la ronda 0 — FORO-01b") | No |
+
+**Cómo debe llegar O-01b-1 al programador de 01c1 y 01d.**
+- **Lo que ya cubre el plan:** S-10 manda pintar el estado del alumno con `estadoDeEntregaVisible`, sin cambios, y esa función ya trata igual `null` y `{ asignado, conRetraso: false }` (las dos caen en "Asignado" o "Sin entregar" según la fecha; `lib/estado-de-entrega.ts`).
+- **Lo que no fija ninguna prueba requerida:**
+  - FORO-1C02 (01c1, la fila de la lista de foros) pide "fila con estado del alumno";
+  - FORO-1D29 (01d, la fila en "Actividades") pide la insignia y el destino;
+  - ninguna de las dos exige las dos formas.
+- **No hace falta una enmienda.** En el encargo de la ronda 0 de 01c1 y de 01d, el orquestador pide al tester que sus casos (o un C-n propio) incluyan una fila con `entrega: null` y otra con `{ asignado, conRetraso: false }`, con el foro abierto y vencido, y que comprueben la misma insignia.
+- **Al programador** se le dice que FORO-1C02 y FORO-1D29 cubren las dos formas.
+
+### 6. Documentos del cierre de 01b
+- El plan pide en 01b solo A-05 (los README), y ya están en el diff.
+- Todo lo demás va al cierre del encargo, con la autorización del humano para lo que está fuera de `docs/trabajo/`:
+  - ESSENTIALS: la tabla, las restricciones, las reglas del foro y de autoría con el borrado del admin, y "siete secciones";
+  - PRD: RF-66 a RF-68, RN-07 y RN-08;
+  - `ARCHITECTURE.md`: §7 con las 17 rutas y los dos parámetros, y §14;
+  - `CLAUDE.md`;
+  - `DESIGN.md`, en 01e;
+  - ESTADO.
+- Ahora solo se toca `docs/ESTADO.md`, con el estado del encargo y la fila de O-01b-3.
+
+### 7. Conteo de rondas de 01b
+- **Rondas de ataque:** 1, RESISTE, 0 hallazgos. **Rondas extra:** 0.
+- **Resúmenes devueltos:** 0. **PARADAS:** 0. **Enmiendas del plan:** 0.
+- **C-n del tester arbitrados en la ronda 0:** 2 (C-T1 y C-T2), los dos aceptados sin corrección.
+- **Regla del modelo del programador:** no se activa (0 rondas extra); el programador sigue en `opus`.
+
+### 8. El commit de 01b
+- `git add -n -A -- backend frontend shared docs/ESTADO.md docs/trabajo/FORO-01-actividad-tipo-foro` da **41 rutas**:
+  - `backend/src` 15: 13 de producción, `borrado.test.ts` y `errores.test.ts`;
+  - `backend/test` 15;
+  - `frontend/src` 1;
+  - `shared/src` 5;
+  - `docs/ESTADO.md` 1;
+  - `docs/trabajo` 4: `aprobacion.md`, `reporte-tester.md`, `resumen-programador.md` y `revision.md`.
+- `docs/trabajo/DEPLOY-investigacion-vps.md` **queda fuera** (0).
+- No hice `git add` real ni commit. El commit queda en la rama (DH-16 a).
+
+### Para el humano
+1. FORO-01b cierra el backend del foro: el admin borra participaciones y réplicas, el foro aparece en "Actividades" y en los temas, el gradebook trae el tipo, y el foro funciona ante el borrado, el duplicado y la baja de cuentas.
+2. Todo, con las reglas que decidiste: solo el admin modera, la calificación se conserva, nada se avisa ni se registra, y en una clase archivada nadie borra.
+3. El tester no encontró nada (18 ataques). No hubo resúmenes devueltos, PARADAS ni enmiendas.
+4. Suites completas en verde: backend, 299 archivos y 3223 casos; frontend, 345 archivos y 8372 casos.
+5. Sin migraciones; no se tocó `middleware/`, `auth`, `infra/` ni `.env.example`.
+6. Un frontend viejo recibe exactamente lo de hoy: el foro solo aparece con los parámetros nuevos.
+7. El commit lleva 41 rutas y deja fuera `DEPLOY-investigacion-vps.md`; solo va a la rama.
+8. Siguiente: 01c1, la sección "Foro" en el frontend. Dos observaciones del tester ya tienen su lugar en las pruebas de 01c y 01d.

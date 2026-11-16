@@ -117,6 +117,8 @@ const POLITICAS: Readonly<Record<string, Politica>> = {
   [`POST ${C}/foros/:foroId/participaciones`]: "cerrada",
   [`POST ${C}/foros/:foroId/participaciones/:participacionId/replicas`]: "cerrada",
   [`PUT ${C}/foros/:foroId/participantes/:alumnoId/calificacion`]: "cerrada",
+  // FORO-01b (§D-11, S-E3-1): borrar una participación o una réplica (solo el admin) queda cerrado en una archivada.
+  [`DELETE ${C}/foros/:foroId/participaciones/:participacionId`]: "cerrada",
 }
 
 // Con los HEAD que Fastify agrega a cada GET (heredan su cadena y su política).

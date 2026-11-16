@@ -99,12 +99,19 @@ const categoriaDeLaTareaSchema = z.strictObject({ id: z.uuid(), nombre: z.string
 
 const calificacionDeCeldaSchema = z.number().min(0).max(PUNTOS_MAXIMOS).nullable()
 
+// FORO-01b (§D-6, DH-09 a): el tipo de la actividad sale solo con conTipo=si; sin él, la respuesta es
+// la de siempre.
+const tipoDeActividadSchema = z.enum(["tarea", "foro"])
+
+const conTipoSchema = z.literal("si", { error: "conTipo: no es válido" }).optional()
+
 export const columnaDelGradebookSchema = z.strictObject({
   id: z.uuid(),
   titulo: z.string(),
   fechaLimite: z.iso.datetime(),
   puntos: z.number().int().min(1).max(PUNTOS_MAXIMOS),
   categoria: categoriaDeLaTareaSchema.nullable(),
+  tipo: tipoDeActividadSchema.optional(),
 })
 
 // Sin fila de entrega: asignado, sin retraso ni calificación. Una calificada sin entrega (P-03 c′) es
@@ -146,6 +153,7 @@ export const gradebookQuerySchema = paginacionSchema.extend({
   limite: z.coerce.number().int().min(1).max(50).optional().default(25),
   cursorTareas: z.uuid().transform(enMinusculas).optional(),
   limiteTareas: z.coerce.number().int().min(1).max(50).optional().default(20),
+  conTipo: conTipoSchema,
 })
 
 export const filtroDeMisCalificacionesSchema = z.enum([
@@ -159,6 +167,7 @@ export const filtroDeMisCalificacionesSchema = z.enum([
 // cursor: un tareaId de la clase.
 export const misCalificacionesQuerySchema = paginacionSchema.extend({
   estado: filtroDeMisCalificacionesSchema.optional().default("todas"),
+  conTipo: conTipoSchema,
 })
 
 export const tareaDeMisCalificacionesSchema = z.strictObject({
@@ -167,6 +176,7 @@ export const tareaDeMisCalificacionesSchema = z.strictObject({
   fechaLimite: z.iso.datetime(),
   puntos: z.number().int().min(1).max(PUNTOS_MAXIMOS),
   categoria: categoriaDeLaTareaSchema.nullable(),
+  tipo: tipoDeActividadSchema.optional(),
   entrega: z.strictObject({
     estado: estadoEntregaSchema,
     conRetraso: z.boolean(),

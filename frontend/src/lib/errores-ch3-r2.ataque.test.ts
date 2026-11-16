@@ -255,6 +255,10 @@ const INVENTARIO = new Set([
   // texto legible en los dos mensajes.
   "foroId",
   "participacionId",
+  // FORO-01b, C-7 (§E7.5.2; §D-3.2 y §D-6): conForos de shared/src/tareas.ts y conTipo de
+  // shared/src/calificaciones.ts; quitarRutaDelMensaje deja texto legible en los dos.
+  "conForos",
+  "conTipo",
 ])
 const NOMBRE_EN_CAMEL_CASE = /^[a-z][A-Za-z0-9]*:/
 

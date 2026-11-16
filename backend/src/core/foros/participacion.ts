@@ -151,3 +151,24 @@ export const verRetrasoDe = ({
   if (relacion === "estudiante") return esPropia
   return true
 }
+
+export type EfectoDeBorrarPrincipal = "conservar" | "volver-a-sin-participar"
+
+// FORO-01b (§D-11, PB-2 a y E5-4): lo que le pasa a la entrega del alumno cuando el admin borra su
+// principal, decidido con la entrega ya bloqueada. Calificada, se conserva todo (calificación, fecha
+// de entrega y devolución); entregada, vuelve a sin participar. Asignado es inalcanzable: la
+// transacción vuelve a leer la principal después de bloquear la entrega y, si sigue ahí, la entrega
+// tiene fecha de entrega; si ya no está, responde 404 antes de llamar aquí.
+export const efectoDeBorrarPrincipal = ({
+  estado,
+}: {
+  estado: EstadoEntrega
+}): EfectoDeBorrarPrincipal => {
+  if (estado === "calificado") return "conservar"
+  if (estado === "entregado") return "volver-a-sin-participar"
+  throw new AppError(
+    "ERROR_INTERNO",
+    "Una participación principal no tiene una entrega publicada.",
+    500,
+  )
+}

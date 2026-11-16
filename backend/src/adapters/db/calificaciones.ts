@@ -32,6 +32,9 @@ export interface ColumnaDelGradebookDb {
   fechaLimite: Date
   puntos: number
   categoria: CategoriaDeLaTareaDb | null
+  // FORO-01b (§D-6): una columna puede ser una tarea o un foro; el handler lo responde solo con
+  // conTipo=si.
+  tipo: "tarea" | "foro"
 }
 
 export interface EntregaResumidaDb {
@@ -101,7 +104,7 @@ const SELECT_TAREA = {
   fechaLimite: true,
   puntos: true,
   categoria: { select: { id: true, nombre: true } },
-  publicacion: { select: { titulo: true } },
+  publicacion: { select: { titulo: true, tipo: true } },
 } as const
 
 const columnaDe = (fila: {
@@ -109,15 +112,19 @@ const columnaDe = (fila: {
   fechaLimite: Date
   puntos: number
   categoria: CategoriaDeLaTareaDb | null
-  publicacion: { titulo: string | null }
+  publicacion: { titulo: string | null; tipo: string }
 }): ColumnaDelGradebookDb => {
   if (fila.publicacion.titulo === null) throw errorDatoMalFormado()
+  // Inalcanzable: una fila de tareas solo pertenece a una tarea o a un foro.
+  const { tipo } = fila.publicacion
+  if (tipo !== "tarea" && tipo !== "foro") throw errorDatoMalFormado()
   return {
     id: fila.id,
     titulo: fila.publicacion.titulo,
     fechaLimite: fila.fechaLimite,
     puntos: fila.puntos,
     categoria: fila.categoria,
+    tipo,
   }
 }
 

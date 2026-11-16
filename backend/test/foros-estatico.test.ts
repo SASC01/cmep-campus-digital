@@ -134,7 +134,7 @@ describe("FORO-1A51: handlers/foros.ts es delgado y cada ruta lleva su cadena", 
     expect([...canceladas].sort()).toEqual(["COLA_RECORDATORIO_24H", "COLA_TAREA_CREADA"])
   })
 
-  it("FORO-1A51: cada una de las 16 rutas lleva su protegido exacto de §D-3.1, con enClaseArchivada: «lectura» en las 10 lecturas y sin ella en las 6 escrituras", () => {
+  it("FORO-1A51: cada una de las 17 rutas lleva su protegido exacto de §D-3.1 y §D-11, con enClaseArchivada: «lectura» en las 10 lecturas y sin ella en las 7 escrituras", () => {
     const C = '"/clases/:claseId/foros'
     const lectura = (roles: string, pertenencia: string) =>
       `protegido\\(\\{\\s*roles: \\[${roles}\\],\\s*pertenencia: "${pertenencia}",\\s*enClaseArchivada: "lectura",?\\s*\\}\\)`
@@ -176,6 +176,8 @@ describe("FORO-1A51: handlers/foros.ts es delgado y cada ruta lleva su cadena", 
         `${C}/:foroId/participantes/:alumnoId/calificacion"`,
         cerrada('"maestro"', "propiedad"),
       ],
+      // FORO-01b (§D-11, lista cerrada): la ruta 17, solo el admin y cerrada en una archivada.
+      ["delete", `${C}/:foroId/participaciones/:participacionId"`, cerrada('"admin"', "propiedad")],
     ]
     const escapar = (texto: string) => texto.replace(/[/.*+?^${}()|[\]\\]/g, "\\$&")
     for (const [metodo, ruta, protegido] of rutas) {
@@ -183,7 +185,7 @@ describe("FORO-1A51: handlers/foros.ts es delgado y cada ruta lleva su cadena", 
       expect(handler, `${metodo} ${ruta}`).toMatch(patron)
     }
     const registradas = [...handler.matchAll(/app\.(get|post|put|delete)\(/g)]
-    expect(registradas).toHaveLength(16)
+    expect(registradas).toHaveLength(17)
     expect(handler.match(/enClaseArchivada: "lectura"/g)).toHaveLength(10)
     expect(handler).not.toMatch(/enClaseArchivada: "(gestion|lectura-del-alumno)"/)
   })
@@ -200,7 +202,7 @@ describe("FORO-1A51: handlers/foros.ts es delgado y cada ruta lleva su cadena", 
 })
 
 describe("FORO-1A52: el adaptador del foro no usa SQL propio, ni consultas en ciclos, ni la cola", () => {
-  it("FORO-1A52: adapters/db/foros.ts y actividades.ts sin $queryRaw, $executeRaw ni FOR …, sin consultas en ciclos y sin importar adapters/queue", () => {
+  it("FORO-1A52: adapters/db/foros.ts y actividades.ts sin $queryRaw, $executeRaw ni FOR …, sin consultas en ciclos y sin importar adapters/queue; el único borrado es participacionForo.deleteMany", () => {
     for (const ruta of ["adapters/db/foros.ts", "adapters/db/actividades.ts"]) {
       const codigo = leer(ruta)
       expect(codigo.length, `Precondición: existe ${ruta}`).toBeGreaterThan(0)
@@ -210,6 +212,13 @@ describe("FORO-1A52: el adaptador del foro no usa SQL propio, ni consultas en ci
       expect(codigo, ruta).not.toMatch(/\.forEach\(/)
       expect(codigo, ruta).not.toMatch(/adapters\/queue|from\s+["']\.\.\/queue/)
     }
+    // FORO-01b (§D-11, lista cerrada): el adaptador del foro admite un solo borrado, el de
+    // borrarParticipacion; las réplicas caen en cascada.
+    expect(
+      [...leer("adapters/db/foros.ts").matchAll(/\.(\w+)\.(delete|deleteMany)\(/g)].map(
+        (m) => m[0],
+      ),
+    ).toEqual([".participacionForo.deleteMany("])
     // Una sola ayuda de tipo, sin reexportarla.
     expect(leer("adapters/db/index.ts")).not.toMatch(/esActividadDeTipo/)
   })

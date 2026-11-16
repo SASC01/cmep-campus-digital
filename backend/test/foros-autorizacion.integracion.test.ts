@@ -18,12 +18,16 @@ import {
   crearForoDePrueba,
   crearParticipacionDePrueba,
   pedirForo,
+  rutaDeBorrarParticipacion,
   rutasDelForo,
+  urlForo,
   urlForos,
   type EscenarioDeForo,
   type RutaDelForo,
 } from "./ayudas-foros.js"
 
+// FORO-01b (§E7.5.2, lista cerrada): FORO-1A49, FORO-1A50 y FORO-1B01 suman la ruta 17 (borrar una
+// participación o una réplica, solo el admin; cerrada en una clase archivada).
 // FORO-01a. FORO-1A49 y FORO-1A50 (la tabla de "Autorización" por cada una de las 16 rutas) y FORO-1B01
 // a FORO-1B05 (la clase archivada, que pasa a 01a por la Enmienda 7).
 
@@ -66,16 +70,18 @@ const ROLES: Readonly<Record<number, readonly ("estudiante" | "maestro" | "admin
   14: ["maestro", "admin"],
   15: ["maestro", "admin"],
   16: ["maestro"],
+  17: ["admin"],
 }
 
 const LECTURAS = [2, 3, 6, 7, 8, 10, 12, 13, 14, 15]
-const ESCRITURAS = [1, 4, 5, 9, 11, 16]
+const ESCRITURAS = [1, 4, 5, 9, 11, 16, 17]
 
 interface Montaje {
   e: EscenarioDeForo
   foroId: string
   principalId: string
   rutas: RutaDelForo[]
+  conLa17: RutaDelForo[]
 }
 
 const montar = async (): Promise<Montaje> => {
@@ -88,7 +94,12 @@ const montar = async (): Promise<Montaje> => {
     participacionId: principalId,
     alumnoId: e.alumno.id,
   })
-  return { e, foroId, principalId, rutas }
+  // FORO-01b: la ruta 17 va aparte; la suman FORO-1A49, FORO-1A50 y FORO-1B01 (lista cerrada).
+  const conLa17 = [
+    ...rutas,
+    rutaDeBorrarParticipacion({ claseId: e.claseId, foroId, participacionId: principalId }),
+  ]
+  return { e, foroId, principalId, rutas, conLa17 }
 }
 
 const tokenDe = (e: EscenarioDeForo, rol: "estudiante" | "maestro" | "admin"): string => {
@@ -105,21 +116,21 @@ const pedirRuta = (ruta: RutaDelForo, token?: string): Promise<LightMyRequestRes
     ...(ruta.payload === undefined ? {} : { payload: ruta.payload }),
   })
 
-describe("FORO-1A49: la cadena de middleware en cada una de las 16 rutas del foro", () => {
+describe("FORO-1A49: la cadena de middleware en cada una de las 17 rutas del foro", () => {
   it("FORO-1A49: sin sesión, cada ruta responde 401 NO_AUTENTICADO", async () => {
-    const { rutas } = await montar()
-    expect(rutas).toHaveLength(16)
-    for (const ruta of rutas) {
+    const { conLa17 } = await montar()
+    expect(conLa17).toHaveLength(17)
+    for (const ruta of conLa17) {
       const respuesta = await pedirRuta(ruta)
       expect(respuesta.statusCode, `ruta ${String(ruta.numero)}`).toBe(401)
       expect(codigoDe(respuesta)).toBe("NO_AUTENTICADO")
     }
   })
 
-  it("FORO-1A49: con un rol que la ruta no admite, 403 ROL_NO_PERMITIDO (el admin en 6, 7, 9, 11 y 16; el maestro en 6, 7 y 9; el alumno en las de gestión)", async () => {
-    const { e, rutas, foroId } = await montar()
+  it("FORO-1A49: con un rol que la ruta no admite, 403 ROL_NO_PERMITIDO (el admin en 6, 7, 9, 11 y 16; el maestro en 6, 7, 9 y 17; el alumno en las de gestión y en la 17)", async () => {
+    const { e, conLa17, foroId } = await montar()
     let negadas = 0
-    for (const ruta of rutas) {
+    for (const ruta of conLa17) {
       for (const rol of ["estudiante", "maestro", "admin"] as const) {
         if (ROLES[ruta.numero]?.includes(rol)) continue
         const respuesta = await pedirRuta(ruta, tokenDe(e, rol))
@@ -128,21 +139,27 @@ describe("FORO-1A49: la cadena de middleware en cada una de las 16 rutas del for
         negadas += 1
       }
     }
-    // 1, 4, 5, 12-15: alumno (7); 6, 7, 9: maestro y admin (6); 11: admin (1); 16: alumno y admin (2).
-    expect(negadas).toBe(16)
+    // 1, 4, 5, 12-15: alumno (7); 6, 7, 9: maestro y admin (6); 11: admin (1); 16: alumno y admin (2);
+    // 17: alumno y maestro (2).
+    expect(negadas).toBe(18)
     // Nada se escribió: el foro sigue con su única principal.
     expect(await contarParticipaciones(foroId)).toBe(1)
   })
 
   it("FORO-1A49: un maestro de otra clase y un alumno no inscrito reciben 403 SIN_ACCESO_A_LA_CLASE en cada ruta de su rol", async () => {
-    const { e, rutas } = await montar()
-    for (const ruta of rutas) {
+    const { e, conLa17 } = await montar()
+    for (const ruta of conLa17) {
       const roles = ROLES[ruta.numero] ?? []
       const ajenos = [
         ...(roles.includes("maestro") ? [e.tokenMaestroAjeno] : []),
         ...(roles.includes("estudiante") ? [e.tokenAlumnoAjeno] : []),
       ]
-      expect(ajenos.length, `ruta ${String(ruta.numero)}`).toBeGreaterThan(0)
+      // La ruta 17 solo admite al admin, que tiene relación con cualquier clase que exista: su clase
+      // inexistente va en el caso de abajo y sus ids cruzados en FORO-1A62.
+      if (ajenos.length === 0) {
+        expect(ruta.numero).toBe(17)
+        continue
+      }
       for (const token of ajenos) {
         const respuesta = await pedirRuta(ruta, token)
         expect(respuesta.statusCode, `ruta ${String(ruta.numero)}`).toBe(403)
@@ -153,27 +170,34 @@ describe("FORO-1A49: la cadena de middleware en cada una de las 16 rutas del for
 
   it("FORO-1A49: una clase inexistente responde lo mismo que una ajena (403 SIN_ACCESO_A_LA_CLASE)", async () => {
     const { e, foroId, principalId } = await montar()
-    const rutas = rutasDelForo({
-      claseId: "00000000-0000-4000-8000-000000000000",
-      foroId,
-      participacionId: principalId,
-      alumnoId: e.alumno.id,
-    })
+    const inexistente = "00000000-0000-4000-8000-000000000000"
+    const rutas = [
+      ...rutasDelForo({
+        claseId: inexistente,
+        foroId,
+        participacionId: principalId,
+        alumnoId: e.alumno.id,
+      }),
+      rutaDeBorrarParticipacion({ claseId: inexistente, foroId, participacionId: principalId }),
+    ]
+    expect(rutas).toHaveLength(17)
     for (const ruta of rutas) {
       const rol = ROLES[ruta.numero]?.[0]
       if (rol === undefined)
         throw new Error(`Precondición: la ruta ${String(ruta.numero)} tiene roles`)
-      const respuesta = await pedirRuta(
-        ruta,
-        rol === "estudiante" ? e.tokenAlumnoAjeno : e.tokenMaestroAjeno,
-      )
+      const tokens = {
+        estudiante: e.tokenAlumnoAjeno,
+        maestro: e.tokenMaestroAjeno,
+        admin: e.tokenAdmin,
+      }
+      const respuesta = await pedirRuta(ruta, tokens[rol])
       expect(respuesta.statusCode, `ruta ${String(ruta.numero)}`).toBe(403)
       expect(codigoDe(respuesta)).toBe("SIN_ACCESO_A_LA_CLASE")
     }
   })
 
-  it("FORO-1A49: un alumno inscrito con acceso restringido recibe 403 ACCESO_RESTRINGIDO en las 16 rutas (RN-09)", async () => {
-    const { e, rutas, foroId } = await montar()
+  it("FORO-1A49: un alumno inscrito con acceso restringido recibe 403 ACCESO_RESTRINGIDO en las 17 rutas (RN-09)", async () => {
+    const { e, conLa17, foroId } = await montar()
     const restringido = await crearUsuarioDePrueba(idsUsuarios, {
       nombre: "Alumna Restringida",
       accesoRestringido: true,
@@ -181,7 +205,7 @@ describe("FORO-1A49: la cadena de middleware en cada una de las 16 rutas del for
     })
     await inscribirDePrueba(e.claseId, restringido.id)
     const token = await firmarTokenDePrueba({ usuarioId: restringido.id })
-    for (const ruta of rutas) {
+    for (const ruta of conLa17) {
       const respuesta = await pedirRuta(ruta, token)
       expect(respuesta.statusCode, `ruta ${String(ruta.numero)}`).toBe(403)
       expect(codigoDe(respuesta)).toBe("ACCESO_RESTRINGIDO")
@@ -191,8 +215,8 @@ describe("FORO-1A49: la cadena de middleware en cada una de las 16 rutas del for
 })
 
 describe("FORO-1A50: ninguna respuesta del foro lleva estado de pago, restricción, correo, rol, trabajo ni adjuntos requeridos", () => {
-  it("FORO-1A50: las 16 rutas, con éxito y con error, para el alumno, el maestro y el admin", async () => {
-    const { e, rutas, foroId } = await montar()
+  it("FORO-1A50: las 17 rutas, con éxito y con error, para el alumno, el maestro y el admin; las listas de participaciones y réplicas llevan puedeBorrar", async () => {
+    const { e, conLa17, foroId } = await montar()
     // El alumno de la ruta con deuda: aun así nada del estado de pago sale, ni al maestro.
     await crearEntregaDePrueba({ tareaId: foroId, alumnoId: e.alumno.id, estado: "entregado" })
     await obtenerDb().usuario.update({
@@ -201,7 +225,7 @@ describe("FORO-1A50: ninguna respuesta del foro lleva estado de pago, restricci�
       select: { id: true },
     })
     let revisadas = 0
-    for (const ruta of rutas) {
+    for (const ruta of conLa17) {
       for (const rol of ["estudiante", "maestro", "admin"] as const) {
         const respuesta = await pedirRuta(ruta, tokenDe(e, rol))
         if (respuesta.statusCode === 204) continue
@@ -213,15 +237,58 @@ describe("FORO-1A50: ninguna respuesta del foro lleva estado de pago, restricci�
       }
     }
     expect(revisadas).toBeGreaterThan(40)
+    // FORO-1A70 en las llaves: cada participación y cada réplica llevan puedeBorrar, y nada más nuevo.
+    // En un foro nuevo: el recorrido de arriba ya publicó y borró participaciones en el primero.
+    const otroForo = await crearForoDePrueba({ claseId: e.claseId, autorId: e.maestro.id })
+    const otra = await crearParticipacionDePrueba({ foroId: otroForo, autorId: e.otroAlumno.id })
+    const replica = await crearParticipacionDePrueba({
+      foroId: otroForo,
+      autorId: e.alumno.id,
+      principalId: otra,
+    })
+    const lista = await pedir({
+      method: "GET",
+      url: `${urlForo(e.claseId, otroForo)}/participaciones`,
+      token: e.tokenMaestro,
+    })
+    expect(
+      Object.keys(lista.json<{ participaciones: object[] }>().participaciones[0] ?? {}).sort(),
+    ).toEqual([
+      "autor",
+      "conRetraso",
+      "creadoEn",
+      "id",
+      "propia",
+      "puedeBorrar",
+      "replicas",
+      "texto",
+    ])
+    const replicas = await pedir({
+      method: "GET",
+      url: `${urlForo(e.claseId, otroForo)}/participaciones/${otra}/replicas`,
+      token: e.tokenMaestro,
+    })
+    expect(replicas.json<{ replicas: { id: string }[] }>().replicas.map((r) => r.id)).toEqual([
+      replica,
+    ])
+    expect(Object.keys(replicas.json<{ replicas: object[] }>().replicas[0] ?? {}).sort()).toEqual([
+      "autor",
+      "conRetraso",
+      "creadoEn",
+      "id",
+      "propia",
+      "puedeBorrar",
+      "texto",
+    ])
   })
 })
 
 describe("FORO-1B01 a FORO-1B05: el foro en una clase archivada", () => {
   it("FORO-1B01: en una clase archivada, cada escritura responde 409 CLASE_ARCHIVADA al rol que la admite y 403 al que no, sin escribir nada", async () => {
-    const { e, rutas, foroId } = await montar()
+    const { e, conLa17, foroId } = await montar()
     await archivarClaseDePrueba(e.claseId)
     let casos = 0
-    for (const ruta of rutas.filter(({ numero }) => ESCRITURAS.includes(numero))) {
+    for (const ruta of conLa17.filter(({ numero }) => ESCRITURAS.includes(numero))) {
       for (const rol of ["estudiante", "maestro", "admin"] as const) {
         const respuesta = await pedirRuta(ruta, tokenDe(e, rol))
         const admitido = ROLES[ruta.numero]?.includes(rol) ?? false
@@ -232,7 +299,7 @@ describe("FORO-1B01 a FORO-1B05: el foro en una clase archivada", () => {
         casos += 1
       }
     }
-    expect(casos).toBe(18)
+    expect(casos).toBe(21)
     expect(await contarParticipaciones(foroId)).toBe(1)
     const lista = await pedir({ method: "GET", url: urlForos(e.claseId), token: e.tokenMaestro })
     expect(lista.json()).toMatchObject({ foros: [{ id: foroId }] })

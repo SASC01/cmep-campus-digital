@@ -1,4 +1,4 @@
-import type { SeccionDeTemas } from "@campus/shared"
+import type { SeccionDeTemasConForos } from "@campus/shared"
 
 import type { ParticipanteDeAutoria } from "../../core/autoria.js"
 import { AppError } from "../../core/errores.js"
@@ -37,8 +37,10 @@ export interface ElementoMovidoDb {
   temaId: string | null
 }
 
-// Los elementos que se agrupan en un tema son los materiales y las tareas; los anuncios no llevan tema.
-const TIPOS_CON_TEMA = ["material", "tarea"] as const
+// Los elementos que se agrupan en un tema son los materiales, las tareas y, desde FORO-01b, los foros
+// (§D-3.3, E1-9: el total sin sección cuenta los foros a propósito, porque también pasan a «Sin tema»
+// al borrar un tema); los anuncios no llevan tema.
+const TIPOS_CON_TEMA = ["material", "tarea", "foro"] as const
 
 const temaNoEncontrado = (): AppError =>
   new AppError("TEMA_NO_ENCONTRADO", "Ese tema ya no existe.", 404)
@@ -79,7 +81,7 @@ const listarTemasCon = async (
   }
 }
 
-// El total de hoy: materiales y tareas (índice (clase_id, tema_id, creado_en, id)).
+// El total: materiales, tareas y foros (índice (clase_id, tema_id, creado_en, id)).
 export const listarTemas = (
   claseId: string,
   ejecutor: Ejecutor = obtenerDb(),
@@ -87,8 +89,11 @@ export const listarTemas = (
 
 // CLASES-03a (§D-3.4): lo que cuenta cada sección. Los materiales con bloque nulo no cuentan en
 // ninguna sección de recursos (DH-02 a), aunque sí en el total.
-const FILTRO_DE_LA_SECCION: Record<SeccionDeTemas, Prisma.PublicacionWhereInput> = {
+// FORO-01b (§D-3.3, E1-4): "actividades" sigue contando solo tareas; con conForos=si, la sección
+// "actividades-con-foros" cuenta tareas y foros.
+const FILTRO_DE_LA_SECCION: Record<SeccionDeTemasConForos, Prisma.PublicacionWhereInput> = {
   actividades: { tipo: "tarea" },
+  "actividades-con-foros": { tipo: { in: ["tarea", "foro"] } },
   aprendizaje: { tipo: "material", bloque: "aprendizaje" },
   docente: { tipo: "material", bloque: "docente" },
 }
@@ -97,7 +102,7 @@ const FILTRO_DE_LA_SECCION: Record<SeccionDeTemas, Prisma.PublicacionWhereInput>
 // tema_id, …) y (clase_id, bloque, tema_id, …)). Sin transacción, como listarTemas.
 export const listarTemasDeLaSeccion = (
   claseId: string,
-  seccion: SeccionDeTemas,
+  seccion: SeccionDeTemasConForos,
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaTemasDb> => listarTemasCon(claseId, FILTRO_DE_LA_SECCION[seccion], ejecutor)
 
@@ -218,7 +223,8 @@ export const moverATema = (
     const esMaterial = publicacion.tipo === "material"
     const bloque = bloqueEfectivo(publicacion.bloque, publicacion.autor)
     if (esMaterial && !puedeMoverRecurso(actor, bloque)) throw errorMoverNoPermitido()
-    if (publicacion.tipo === "tarea") {
+    // FORO-01b (§D-3.3): un foro también sube su versión (su formulario lleva el tema).
+    if (publicacion.tipo === "tarea" || publicacion.tipo === "foro") {
       await tx.tarea.updateMany({
         where: { id: publicacionId, claseId },
         data: { version: { increment: 1 } },

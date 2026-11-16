@@ -352,3 +352,205 @@ Autorizado por el humano el 2026-11-14 ("Subir el tiempo y repetir"), fuera de "
 Verificación (desde `backend/`, una corrida a la vez; la suite completa la repite el manager):
 - `npm run lint` → `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (sin errores).
 - `npx vitest run test/admin-correo test/admin-restablecimiento test/archivos-d-r2 test/auth-registro test/autorizacion-cuentas test/invitacion-flujo-03a-r2` → `Tests  87 passed (87)` (`Test Files  7 passed (7)`). Son 7 archivos y no 6 porque el filtro `test/auth-registro` incluye `auth-registro.ataque.test.ts` y `auth-registro.integracion.test.ts`. Usé los filtros tal como venían.
+
+## Implementación — FORO-01b (2026-11-16)
+
+
+Plan: `docs/trabajo/FORO-01-actividad-tipo-foro/plan.md` (Enmiendas 1 a 9; §E7.5.2 y §E7.11, pasos 12 a 19). Base dentro de los paquetes: `451aa35`. Sin migraciones: `schema.prisma` no cambió.
+Pasos completados: 8 de 8 (12 a 19).
+
+### 1. Archivos de 01b (`git status --short` contra `451aa35`)
+
+Producción (18, como §E7.5.2):
+- `shared/src/foros.ts` (`puedeBorrar` en `participacionSchema` y `replicaSchema`), `shared/src/tareas.ts` (`temaDeTrabajoSchema`, `conForos` con su `.superRefine` y su `.transform` en `trabajoQuerySchema` y `temasQuerySchema`, `foro` en `elementoDeTrabajoSchema.tipo`, `SeccionDeTrabajo` y `SeccionDeTemasConForos`), `shared/src/recursos.ts` (solo la línea del tema, ahora `temaDeTrabajoSchema`), `shared/src/calificaciones.ts` (`conTipo` en las dos consultas y `tipo` opcional dentro de los dos `z.strictObject`), `shared/src/index.ts` (las exportaciones nuevas).
+- `backend/src/core/autoria.ts` (solo `puedeBorrarParticipacion`) y `core/foros/participacion.ts` (`efectoDeBorrarPrincipal`).
+- `backend/src/adapters/db/foros.ts` (`borrarParticipacion`, `puedeBorrar` en las listas, el `catch` de `publicarReplica`), `errores.ts` (`alFaltarReferencia`), `index.ts`, `tareas.ts` (solo `listarTrabajoCon`/`listarTrabajo`, `ElementoDeTrabajoDb.tipo` y dos constantes privadas), `temas.ts`, `categorias.ts` (solo el texto del `409` y el conteo de foros en su camino) y `calificaciones.ts` (`SELECT_TAREA`, `columnaDe` y `ColumnaDelGradebookDb.tipo`).
+- `backend/src/handlers/foros.ts` (la ruta 17 y `actor` en las listas), `handlers/calificaciones.ts` (`columnaParaResponder` y `conTipo`), `handlers/README.md` y `adapters/README.md`.
+
+Pruebas nuevas (5): `backend/src/core/foros/borrado.test.ts`; `backend/test/foros-borrar.integracion.test.ts`, `foros-actividades.integracion.test.ts`, `foros-tipo-en-calificaciones.integracion.test.ts` y `foros-admin-01.integracion.test.ts`.
+Lista cerrada (4): `backend/test/clases-archivadas-matriz.integracion.test.ts` (la fila de la ruta 17 con su comentario, tal cual), `backend/src/adapters/db/errores.test.ts` (cuatro casos nuevos de `alFaltarReferencia`; los de antes no cambian), `backend/test/foros-autorizacion.integracion.test.ts` (FORO-1A49, FORO-1A50 y FORO-1B01 suman la ruta 17; FORO-1A50 suma las llaves con `puedeBorrar`) y `backend/test/foros-estatico.test.ts` (FORO-1A51 suma la ruta 17; FORO-1A52 admite y fija el único `participacionForo.deleteMany`).
+Ayuda existente que solo gana una exportación: `backend/test/ayudas-foros.ts` (`rutaDeBorrarParticipacion`).
+`*.ataque` de la ronda 0 (5, del tester, sin tocar): `sesiones-y-cadena` (C-1 bis), `lecturas-fx-r2` (C-3), `frontend/src/lib/errores-ch3-r2` (C-7), `foros-01a-r1-tipo-y-validacion` (C-T1) y `foros-01a-r1-ids-y-fugas` (C-T2).
+
+Total: 18 + 5 + 4 + 5 = 32, más la ayuda = **33** (el arbitraje estimó ~32; la ayuda es la diferencia). Ningún archivo de "No se toca": nada en `middleware/`, `adapters/auth|notifier|queue`, `config/`, `workers/`, `infra/`, `handlers/tareas/*`, `handlers/clases/*`, `core/clases/*`, `core/tareas/*` ni en la producción del frontend.
+
+### 2. La ruta 17 en la matriz de autorización
+
+`DELETE /api/clases/:claseId/foros/:foroId/participaciones/:participacionId` · `protegido({ roles: ["admin"], pertenencia: "propiedad" })` (cadena completa: `authenticate → withProfile → withPasswordGate → withAccess → requireRole → requireOwnership`), sin `enClaseArchivada` (cerrada). Sin verificación a mano: el handler valida `participacionParamSchema` y llama a `borrarParticipacion` con `perfilDe(request)`; la regla de quién borra es `puedeBorrarParticipacion` en `core/autoria.ts`.
+
+| Negativa | Resultado | Caso (archivo › título) |
+|---|---|---|
+| Sin sesión | 401 `NO_AUTENTICADO` | `foros-autorizacion` › "FORO-1A49: sin sesión, cada ruta responde 401 NO_AUTENTICADO" |
+| Maestro de la clase, alumno autor, otro alumno | 403 `ROL_NO_PERMITIDO` | `foros-borrar` › "FORO-1A62: el maestro, el alumno autor y otro alumno reciben 403 del rol; …"; `foros-autorizacion` › "FORO-1A49: con un rol que la ruta no admite, 403 ROL_NO_PERMITIDO (…; el maestro en 6, 7, 9 y 17; el alumno en las de gestión y en la 17)" |
+| Alumno restringido | 403 `ACCESO_RESTRINGIDO` | los dos de arriba: "FORO-1A62: …" y "FORO-1A49: un alumno inscrito con acceso restringido recibe 403 ACCESO_RESTRINGIDO en las 17 rutas (RN-09)" |
+| Clase inexistente (el admin) | 403 `SIN_ACCESO_A_LA_CLASE` | "FORO-1A62: …"; "FORO-1A49: una clase inexistente responde lo mismo que una ajena (403 SIN_ACCESO_A_LA_CLASE)" |
+| Clase ajena | el admin tiene relación con toda clase que existe: no aplica por rol; el foro de otra clase es 404 | "FORO-1A62: el admin con un foro de otra clase, el id de una tarea o una participación de otro foro recibe 404 sin borrar nada" |
+| Ids cruzados (foro de otra clase, id de una tarea, participación de otro foro, inexistente) | 404 `TAREA_NO_ENCONTRADA` o `PARTICIPACION_NO_ENCONTRADA`, nada borrado | el mismo FORO-1A62 |
+| Clase archivada | admin 409 `CLASE_ARCHIVADA`; alumno y maestro 403 del rol; nada borrado | `foros-autorizacion` › "FORO-1B01: en una clase archivada, cada escritura responde 409 CLASE_ARCHIVADA al rol que la admite y 403 al que no, sin escribir nada"; la política en `clases-archivadas-matriz` (ADM-1A09 (a) a (e)) |
+| Estado de pago y demás | ninguna respuesta de las 17 lleva `estadoPago`, `accesoRestringido`, `email`, `correo`, `rol`, `trabajoId` ni `requiereAdjuntos` | `foros-autorizacion` › "FORO-1A50: las 17 rutas, con éxito y con error, para el alumno, el maestro y el admin; las listas de participaciones y réplicas llevan puedeBorrar" |
+| La cadena exacta en el texto | — | `foros-estatico` › "FORO-1A51: cada una de las 17 rutas lleva su protegido exacto de §D-3.1 y §D-11, con enClaseArchivada: «lectura» en las 10 lecturas y sin ella en las 7 escrituras" |
+
+### 3. Consultas nuevas o cambiadas, con su índice
+
+| Función | Consulta | Índice |
+|---|---|---|
+| `borrarParticipacion` (READ COMMITTED) | `bloquearTareaParaEntregar` (llave compartida de la fila de `tareas`) | PK de `tareas` |
+| | `esActividadDeTipo` | PK de `publicaciones` |
+| | `participacionForo.findFirst({ id, foroId })` | PK de `participaciones_foro` |
+| | principal: `bloquearEntrega` (fila de la entrega del autor) y relectura `findFirst({ id, foroId, principalId: null })` | único `(tarea_id, alumno_id)`; PK |
+| | `entrega.update` por PK; `participacionForo.deleteMany({ id, foroId })` (las réplicas caen por la FK sobre sí misma) | PK; `(principal_id, creado_en, id)` para la cascada |
+| `listarParticipaciones`, `listarReplicas` | sin consultas nuevas: `puedeBorrar` se calcula en memoria con el actor | las de 01a |
+| `listarTrabajoCon` | el mismo `where`, con `tipo in ["tarea", "foro"]` en la sección `actividades-con-foros` (también el cursor); las entregas de la página, ahora de tareas y foros, en la misma única consulta | `publicaciones (clase_id, tipo, tema_id, creado_en DESC, id DESC)`; único `(tarea_id, alumno_id)` |
+| `listarTemasCon` | el mismo `groupBy` por `tema_id`; `TIPOS_CON_TEMA` suma `foro`; la sección `actividades-con-foros` filtra `tipo in [tarea, foro]` | `(clase_id, tipo, tema_id, …)` y `(clase_id, tema_id, …)` |
+| `moverATema` | sin consulta nueva: la rama que sube `tareas.version` también aplica al foro, en su mismo lugar | PK |
+| `rechazarSiTienenTareas` | solo en el camino del `409`, una sentencia más: `tarea.count({ categoriaId, publicacion: { tipo: "foro" } })` | `tareas (categoria_id)` y PK de `publicaciones` |
+| `leerGradebookCon`, `leerMisCalificacionesCon` (y la exportación) | `SELECT_TAREA` lee también `publicacion.tipo`, en la misma relación ya leída | PK de `publicaciones` |
+
+Sin SQL crudo nuevo, sin consultas en ciclos, sin `instantaneaUnica` nuevas (`foros.ts` sigue en 5), sin encolar.
+
+### 4. Hermanos por mecanismo
+
+**Dónde entra `foro` como tipo** (cada lugar, qué hace y el caso que lo prueba):
+
+| Lugar | Con un foro | Caso |
+|---|---|---|
+| Temas sin sección (`listarTemas`, `renombrarTema`) | lo cuenta (E1-9: también pasa a «Sin tema» al borrar un tema) | "FORO-1A25: los conteos de los temas: …"; ATQ-FORO-30 |
+| Temas con `?seccion=actividades` | no lo cuenta | los mismos |
+| Temas con `?seccion=actividades&conForos=si` | lo cuenta | "FORO-1A25: los conteos de los temas: …" |
+| Temas con `aprendizaje` o `docente` | no (filtran `material`) | sin caso nuevo; vigiladas de recursos en verde |
+| Mover de tema (`moverATema`) | lo mueve y sube `tareas.version` | "FORO-1A25: mover un foro de tema sube tareas.version"; ATQ-FORO-30 |
+| "Actividades" sin `conForos` | no lo lista ni lo acepta como cursor | "FORO-1A25: un foro como cursor sin conForos, …"; ATQ-FORO-30 |
+| "Actividades" con `conForos=si` | lo lista con `tipo: "foro"`, su `entrega` (alumno) y `puedeMover` (de la rama de la tarea), y es cursor válido | "FORO-1A25: seccion=actividades no trae foros; con conForos=si …" |
+| "Trabajo de clase" sin sección | no lo lista (sin cambio) | ATQ-FORO-30 |
+| `conForos` sin `seccion=actividades`, con otro valor o repetido | 400 "conForos: no es válido" (trabajo y temas) | "FORO-1A25: un foro como cursor sin conForos, …"; C-7 en el frontend |
+| Categorías: el conteo de `GET …/categorias` | cuenta tareas y foros (sin cambio) | "FORO-1A26b: con un foro, y con un foro y una tarea, …" |
+| Categorías: el texto del 409 | con solo tareas, el de hoy; con foros, "actividad(es)" | "FORO-1A26b: con solo tareas, …" y "FORO-1A26b: con un foro, …" |
+| Gradebook | columna con `tipo` solo con `conTipo=si` | "FORO-1B06: con conTipo=si, …" y "FORO-1B06: sin el parámetro, …" |
+| "Mis calificaciones" | ídem | los mismos |
+| Exportación | nunca `tipo`, tampoco si se le pide | "FORO-1B06: la exportación nunca lleva tipo, tampoco si se le pide" |
+| Riesgo (vencidas sin entregar) | un foro cerrado cuya principal se borra cuenta como vencida sin entregar | "FORO-1A66: con el foro cerrado, no vuelve a publicar (409 FORO_CERRADO), cuenta como vencida sin entregar y el maestro la puede calificar" |
+| Borrado definitivo de la clase | cuenta el foro (actividades), su entrega y su calificación; borra todo y manda sus objetos a la cola | "FORO-1B08: …" |
+| Duplicar la clase | no copia el foro ni sus archivos, activa o archivada | "FORO-1B09: …" |
+| Baja de cuentas | sus participaciones siguen con su nombre; sale de Participantes, gradebook y exportación | "FORO-1B10: …" (los dos) |
+
+**Cada estado del borrado** (el caso de `foros-borrar.integracion.test.ts` que lo prueba):
+
+| Estado | Resultado | Caso |
+|---|---|---|
+| Principal sin calificar | entrega a `asignado`, sin fecha ni retraso, versión + 1; puede volver a publicar | "FORO-1A66: sin calificación, …" |
+| Principal sin calificar, foro cerrado | 409 `FORO_CERRADO` al volver a publicar, vencida sin entregar, calificable | "FORO-1A66: con el foro cerrado, …" |
+| Principal calificada (rúbrica y devolución) | todo intacto (entrega, puntajes, devolución, gradebook, "Mis calificaciones", exportación); 409 `PARTICIPACION_YA_PUBLICADA` al volver a publicar; sí replica | "FORO-1A65: …" |
+| Con réplicas de tres personas | cascada; bajan las principales y el conteo de la lista de foros | "FORO-1A64: …" |
+| Una réplica (de un alumno y de un maestro) | solo ella; baja el conteo de réplicas | "FORO-1A63: …" |
+| Dos borrados de la misma principal sin calificar | 204 y 404; versión + 1 una sola vez | "FORO-1A67: dos borrados de una principal sin calificar, …" |
+| Dos borrados de la misma principal calificada | 204 y 404; calificación intacta | "FORO-1A67: dos borrados de una principal calificada, …" |
+| Dos borrados de la misma réplica | 204 y 404 | "FORO-1A67: dos borrados de una réplica, …" |
+| Una principal y una de sus réplicas a la vez | principal 204; réplica 204 o 404; nunca 500 | "FORO-1A67: una principal y una de sus réplicas borradas a la vez: …" |
+| Borrado del id viejo contra volver a publicar | 404; la principal nueva y su entrega intactas | "FORO-1A67: un borrado del id viejo …" |
+| Réplica en vuelo contra borrar su principal (los dos órdenes) | réplica 201 y el borrado se la lleva / borrado 204 y réplica 404 | "FORO-1A67: una réplica formada antes …" y "FORO-1A67: con el borrado formado antes, …" |
+| Borrar contra calificar (los dos órdenes) | conserva / 409 `ENTREGA_MODIFICADA` | "FORO-1A68: calificar formado antes …" y "FORO-1A68: el borrado formado antes …" |
+| Clase archivada | 409 al admin, 403 a los demás, nada borrado | "FORO-1B01: …" |
+| Borrar no encola | ningún trabajo | "FORO-1A69: borrar una principal y una réplica no encola ningún trabajo" |
+
+### 5. Mutaciones reales
+
+Todas en archivos de "Se toca" de 01b (ninguno de "No se toca", ninguna migración, ningún `.env`, ninguna `*.ataque`). Script: `C:\Users\Carlos\AppData\Local\Temp\claude\cbc20defe2ff00dc\af34580f-db0f-4e17-b8f4-34eb4bf290b3\scratchpad\scripts\mutaciones01b.py` (sobre el de 01a): copia previa, un solo cambio en un ancla que aparece exactamente una vez, corrida, restauración desde la copia y `filecmp.cmp(shallow=False)`. Las 14 dieron `cmp igual: True`, y `git diff --stat -- src` dio la misma línea antes y después (`14 files changed, 382 insertions(+), 46 deletions(-)`).
+
+| Mutación | Archivo | Resultado | Cae |
+|---|---|---|---|
+| N1: cualquiera borra | `core/autoria.ts` | `Tests  2 failed \| 19 passed (21)` | FORO-1A60, FORO-1A70 |
+| N2: una calificada vuelve a sin participar | `core/foros/participacion.ts` | `Tests  4 failed \| 17 passed (21)` | FORO-1A61, FORO-1A65, FORO-1A67 (calificada), FORO-1A68 |
+| N3: sin la relectura después del bloqueo | `adapters/db/foros.ts` | `Tests  2 failed \| 16 passed (18)` | FORO-1A67 (dos borrados sin calificar; el id viejo contra volver a publicar) |
+| N4: la réplica sin `alFaltarReferencia` | `adapters/db/foros.ts` | `Tests  1 failed \| 17 passed (18)` | FORO-1A67 (el borrado formado antes) |
+| N5: `traducirErrorPrisma` sin la rama nueva | `adapters/db/errores.ts` | `Tests  2 failed \| 7 passed (9)` | FORO-1A69 (P2003 y 23503) |
+| N6: `TIPOS_CON_TEMA` sin `foro` | `adapters/db/temas.ts` | `Tests  3 failed \| 11 passed (14)` | FORO-1A25 (conteos, mover), ATQ-FORO-30 |
+| N7: mover un foro sin subir la versión | `adapters/db/temas.ts` | `Tests  2 failed \| 12 passed (14)` | FORO-1A25 (mover), ATQ-FORO-30 |
+| N8: `actividades-con-foros` sin foros | `adapters/db/tareas.ts` | `Tests  1 failed \| 5 passed (6)` | FORO-1A25 (la lista) |
+| N9: el texto de la categoría sin la rama de foros | `adapters/db/categorias.ts` | `Tests  1 failed \| 5 passed (6)` | FORO-1A26b (con foros) |
+| N10: el gradebook sin `tipo` | `handlers/calificaciones.ts` | `Tests  1 failed \| 3 passed (4)` | FORO-1B06 (con `conTipo=si`) |
+| N11: las entregas de la página solo de tareas | `adapters/db/tareas.ts` | `Tests  1 failed \| 5 passed (6)` | FORO-1A25 (la lista) |
+| N12: `conForos` sin su condición | `shared/src/tareas.ts` (con `npm run build` de `shared` antes y después; restaurado con `cp` y `cmp`: "cmp igual") | `Tests  1 failed \| 5 passed (6)` | FORO-1A25 (los 400 de `conForos`) |
+| N13: la entregada no vuelve | `adapters/db/foros.ts` | `Tests  9 failed \| 9 passed (18)` | FORO-1A65, FORO-1A66 (los dos), FORO-1A67 (varios) |
+| N14: la ruta 17 también al maestro | `handlers/foros.ts` | `Tests  4 failed \| 34 passed (38)` | FORO-1A51, FORO-1A49 (rol), FORO-1B01, FORO-1A62 |
+| N15: la exportación con `tipo` | `handlers/calificaciones.ts` | `Tests  1 failed \| 3 passed (4)` | FORO-1B06 (la exportación) |
+
+Redundancias declaradas:
+- Con N1, FORO-1A62 sigue verde: la ruta exige `roles: ["admin"]` y `requireRole` rechaza al maestro y al alumno antes del adaptador; el `403 BORRADO_NO_PERMITIDO` del adaptador es inalcanzable, como dice §D-11 (paso 4), y la regla la vigilan FORO-1A60 (en `core/`) y FORO-1A70 (en las listas).
+- Con N3, los dos borrados de una principal calificada siguen verdes: el segundo no escribe la entrega (conservar) y su `deleteMany` cuenta 0 y responde 404. La relectura la vigilan los otros dos casos de N3.
+
+### 6. Pruebas requeridas de 01b: archivo y título exacto
+
+Rojo primero: FORO-1A60 y FORO-1A61 (`npx vitest run src/core/foros/borrado.test.ts` antes de implementar: `TypeError: puedeBorrarParticipacion is not a function` y `TypeError: efectoDeBorrarPrincipal is not a function`, `Test Files  1 failed (1)`). Las de integración y FORO-1A69 se escribieron después del código: su rojo es el de las 15 mutaciones de §5, que tumban cada caso que vigila una guarda; C-1 bis, C-3 y C-T1 estaban rojas por la ronda 0 y quedaron verdes con la implementación.
+
+- `backend/src/core/foros/borrado.test.ts` › "FORO-1A60: solo el admin borra; el maestro, el alumno autor y otro alumno, no (PB-1 a)"
+- `backend/src/core/foros/borrado.test.ts` › "FORO-1A61: calificado conserva la calificación y entregado vuelve a sin participar (PB-2 a)"
+- `backend/src/core/foros/borrado.test.ts` › "FORO-1A61: asignado es inalcanzable (la transacción relee la principal después de bloquear la entrega) y lanza ERROR_INTERNO"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A62: el maestro, el alumno autor y otro alumno reciben 403 del rol; un restringido, 403 ACCESO_RESTRINGIDO; el admin con una clase inexistente, 403 SIN_ACCESO_A_LA_CLASE; nada se borra"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A62: el admin con un foro de otra clase, el id de una tarea o una participación de otro foro recibe 404 sin borrar nada"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A63: el admin borra una réplica de un alumno y una de un maestro; la principal y las demás réplicas siguen y el conteo de réplicas baja"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A64: borrar una principal con réplicas de tres personas se lleva todas sus réplicas; bajan la lista de principales y el conteo de la lista de foros"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A65: con la principal calificada (rúbrica y devolución), borrarla deja intactos la entrega, los puntajes, la devolución y las calificaciones de la clase; no puede volver a publicar y sí replicar"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A66: sin calificación, la entrega vuelve a asignado con la versión siguiente; calificar con la versión anterior da 409 ENTREGA_MODIFICADA; con el foro abierto, vuelve a publicar"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A66: con el foro cerrado, no vuelve a publicar (409 FORO_CERRADO), cuenta como vencida sin entregar y el maestro la puede calificar"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: una réplica formada antes que el borrado de su principal se inserta y el borrado se la lleva"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: con el borrado formado antes, la réplica responde 404 PARTICIPACION_NO_ENCONTRADA, nunca 500 ni P2003"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: dos borrados de una principal sin calificar, formados detrás de la entrega: un 204 y un 404, y la versión sube una sola vez"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: dos borrados de una principal calificada, formados detrás de la entrega: un 204 y un 404, y la calificación queda intacta"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: dos borrados de una réplica, formados detrás de la fila del foro: un 204 y un 404"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: una principal y una de sus réplicas borradas a la vez: la principal da 204, la réplica 204 o 404, nunca 500, y no queda ninguna"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A67: un borrado del id viejo formado detrás de la entrega mientras el primero confirma y el alumno publica su principal nueva responde 404; la principal nueva y su entrega quedan intactas"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A68: calificar formado antes que el borrado: el borrado ve calificado y conserva"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A68: el borrado formado antes que calificar: la versión sube y calificar con la anterior recibe 409 ENTREGA_MODIFICADA"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A69: borrar una principal y una réplica no encola ningún trabajo"
+- `backend/test/foros-borrar.integracion.test.ts` › "FORO-1A70: las listas de principales y de réplicas devuelven puedeBorrar en true solo para el admin"
+- `backend/test/foros-actividades.integracion.test.ts` › "FORO-1A25: seccion=actividades no trae foros; con conForos=si los trae mezclados con las tareas, por fecha, con la entrega del alumno y puedeMover"
+- `backend/test/foros-actividades.integracion.test.ts` › "FORO-1A25: un foro como cursor sin conForos, conForos sin seccion=actividades o con otro valor responden 400 VALIDACION «conForos: no es válido» (o el del cursor)"
+- `backend/test/foros-actividades.integracion.test.ts` › "FORO-1A25: los conteos de los temas: con seccion=actividades sin foros, con conForos=si con foros, y sin sección el total con foros"
+- `backend/test/foros-actividades.integracion.test.ts` › "FORO-1A25: mover un foro de tema sube tareas.version"
+- `backend/test/foros-actividades.integracion.test.ts` › "FORO-1A26b: con solo tareas, 409 CATEGORIA_CON_TAREAS con el texto de hoy, letra por letra"
+- `backend/test/foros-actividades.integracion.test.ts` › "FORO-1A26b: con un foro, y con un foro y una tarea, el texto habla de actividades (singular y plural) y nada cambia; GET …/categorias cuenta tareas y foros"
+- `backend/test/foros-tipo-en-calificaciones.integracion.test.ts` › "FORO-1B06: con conTipo=si, cada columna del gradebook y de Mis calificaciones lleva su tipo (tarea o foro)"
+- `backend/test/foros-tipo-en-calificaciones.integracion.test.ts` › "FORO-1B06: sin el parámetro, las columnas son las de siempre, llave por llave (sin tipo)"
+- `backend/test/foros-tipo-en-calificaciones.integracion.test.ts` › "FORO-1B06: conTipo=no o repetido responde 400 VALIDACION «conTipo: no es válido»"
+- `backend/test/foros-tipo-en-calificaciones.integracion.test.ts` › "FORO-1B06: la exportación nunca lleva tipo, tampoco si se le pide"
+- `backend/test/foros-admin-01.integracion.test.ts` › "FORO-1B08: el conteo incluye el foro, su entrega y su calificación; el borrado responde 204, no deja ninguna fila del foro y manda sus objetos a la cola"
+- `backend/test/foros-admin-01.integracion.test.ts` › "FORO-1B09: la copia de una clase activa y la de una archivada no tienen foro, ni tareas, participaciones, entregas ni puntajes, ningún archivo del planteamiento se copia y la original queda intacta"
+- `backend/test/foros-admin-01.integracion.test.ts` › "FORO-1B10: un alumno dado de baja conserva sus participaciones con su nombre, sale de Participantes, del gradebook y de la exportación; reactivarlo lo devuelve todo"
+- `backend/test/foros-admin-01.integracion.test.ts` › "FORO-1B10: un maestro dado de baja que sigue en una clase archivada conserva sus réplicas a la vista"
+- `backend/src/adapters/db/errores.test.ts` › "FORO-1A69: con la opción, un P2003 (llave foránea sin fila) se lanza como el AppError de alFaltarReferencia"
+- `backend/src/adapters/db/errores.test.ts` › "FORO-1A69: con la opción, un error del driver adapter con el código 23503 de PostgreSQL también se traduce"
+- `backend/src/adapters/db/errores.test.ts` › "FORO-1A69: sin la opción, un P2003 se relanza tal cual, como hasta ahora"
+- `backend/src/adapters/db/errores.test.ts` › "FORO-1A69: con la opción, un P2002 sigue yendo a alDuplicar y otro código se relanza"
+
+De la lista cerrada (títulos cambiados o casos ampliados, con la ruta 17):
+- `backend/test/foros-autorizacion.integracion.test.ts` › "FORO-1A49: sin sesión, cada ruta responde 401 NO_AUTENTICADO", "FORO-1A49: con un rol que la ruta no admite, 403 ROL_NO_PERMITIDO (el admin en 6, 7, 9, 11 y 16; el maestro en 6, 7, 9 y 17; el alumno en las de gestión y en la 17)", "FORO-1A49: un maestro de otra clase y un alumno no inscrito reciben 403 SIN_ACCESO_A_LA_CLASE en cada ruta de su rol", "FORO-1A49: una clase inexistente responde lo mismo que una ajena (403 SIN_ACCESO_A_LA_CLASE)", "FORO-1A49: un alumno inscrito con acceso restringido recibe 403 ACCESO_RESTRINGIDO en las 17 rutas (RN-09)", "FORO-1A50: las 17 rutas, con éxito y con error, para el alumno, el maestro y el admin; las listas de participaciones y réplicas llevan puedeBorrar" y "FORO-1B01: en una clase archivada, cada escritura responde 409 CLASE_ARCHIVADA al rol que la admite y 403 al que no, sin escribir nada". FORO-1B02, FORO-1B03 y FORO-1B05 no cambian (la ruta 17 va aparte, en `conLa17`).
+- `backend/test/foros-estatico.test.ts` › "FORO-1A51: cada una de las 17 rutas lleva su protegido exacto de §D-3.1 y §D-11, con enClaseArchivada: «lectura» en las 10 lecturas y sin ella en las 7 escrituras" y "FORO-1A52: adapters/db/foros.ts y actividades.ts sin $queryRaw, $executeRaw ni FOR …, sin consultas en ciclos y sin importar adapters/queue; el único borrado es participacionForo.deleteMany".
+- FORO-1B04 (ADM-1A09 con las 17 rutas): `backend/test/clases-archivadas-matriz.integracion.test.ts`, los casos "ADM-1A09 (a)" a "(e)", con la fila nueva.
+
+### 7. Verificación (comando exacto y última línea; una corrida a la vez)
+
+- `shared`: `npm run lint` → `All matched files use Prettier code style!`; `npm run build` → `> tsc -p tsconfig.json` (sin errores).
+- `backend`: `npm run lint` → `> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json` (sin errores); `npm run build` → `> tsc -p tsconfig.json` (sin errores).
+- `frontend`: `npm run lint` → `> tsc -b` (sin errores); `npm run build` → `✓ built in 1.75s`.
+- Suite del backend, módulos tocados y vigiladas (desde `backend/`): `npx vitest run test/foros test/migracion-foro-01 test/clases-archivadas test/tareas test/entregas test/hilo test/calificaciones test/gradebook test/mis-calificaciones test/exportacion test/temas test/categorias test/muro test/admin-muro test/logs-muro test/trabajo test/instantanea test/referencias src/core src/adapters test/sesiones-y-cadena test/lecturas-fx test/arquitectura-cuentas test/bloqueo-usuario test/higiene-de-pruebas test/gestion-clases-autorizacion test/movimientos-inscripcion test/recursos test/dudas test/duplicado-de-clase test/borrado test/migracion-tareas test/migracion-clases03a test/esquemas test/autoria-02b test/guarda-todas-las-rutas test/middleware-orden test/usuarios-admin-baja` → `Tests  1901 passed (1901)` (`Test Files  177 passed (177)`).
+- Las cuatro `*.ataque` del backend de la ronda 0, aparte: `npx vitest run test/sesiones-y-cadena.ataque.test.ts test/lecturas-fx-r2.ataque.test.ts test/foros-01a-r1-tipo-y-validacion.ataque.test.ts test/foros-01a-r1-ids-y-fugas.ataque.test.ts` → `Tests  67 passed (67)` (`Test Files  4 passed (4)`).
+- Frontend, una después de otra (desde `frontend/`): `npx vitest run src/lib` → `Tests  296 passed (296)` (incluye C-7); `npx vitest run src/features/clases` → `Tests  3068 passed (3068)`; `npx vitest run src/features/tareas` → `Tests  1355 passed (1355)`; `npx vitest run src/features/calificaciones` → `Tests  474 passed (474)`.
+- Conteo: `npx vitest list src/core/foros/borrado.test.ts test/foros-borrar test/foros-actividades test/foros-tipo-en-calificaciones test/foros-admin-01 src/adapters/db/errores.test.ts test/foros-autorizacion test/foros-estatico`, contado con `grep -a`: **35 casos `FORO-` en los 5 archivos nuevos** (`borrado.test.ts` 3, `foros-borrar` 18, `foros-actividades` 6, `foros-tipo-en-calificaciones` 4, `foros-admin-01` 4) y **4 en `errores.test.ts`** (FORO-1A69). Total de casos `FORO-` de FORO-01 fuera de las `*.ataque`: `npx vitest list test/foros test/migracion-foro-01 src/core/actividades.test.ts src/core/foros src/core/clases/duplicado-con-foros.test.ts src/adapters/db/errores.test.ts | grep -a ' > ' | grep -av '\.ataque\.' | grep -ac 'FORO-'` → **134** (eran 95), en 16 archivos.
+
+### 8. Desviaciones, dudas y lo no verificado
+
+Desviaciones (ninguna toca un archivo fuera de "Se toca" ni una prueba fuera de la lista cerrada):
+1. **`mensajeConActividades` vive en `adapters/db/categorias.ts`** y reemplaza a `mensajeConTareas`, privada. El arbitraje decía `core/tareas/categorias.ts` o fuera de esa carpeta; `core/tareas/categorias.ts` no está en "Se toca" de 01b, así que va fuera, en el archivo que ya lo estaba.
+2. **`listarParticipaciones` y `listarReplicas` reciben `actor` (`ParticipanteDeAutoria`) en lugar de `actorId`**, para calcular `puedeBorrar` con `puedeBorrarParticipacion`. El handler pasa `perfilDe(request)`.
+3. **`borrarParticipacion` devuelve `false` si el foro no existe o es de otro tipo** y el handler responde `404 TAREA_NO_ENCONTRADA` "Ese foro ya no existe.", como las demás rutas del foro; la participación que falta sí la lanza el adaptador (`404 PARTICIPACION_NO_ENCONTRADA`).
+4. **`columnaParaResponder` se llama con una flecha en las tres rutas** (`.map((tarea) => columnaParaResponder(tarea, …))`): con el segundo parámetro, pasarla como referencia a `.map` le daría el índice como `conTipo`.
+5. **La ruta 17 va aparte en las pruebas**: `rutaDeBorrarParticipacion` es una exportación nueva de `ayudas-foros.ts` (sin cambiar `rutasDelForo`), y `foros-autorizacion` la suma solo a FORO-1A49, FORO-1A50 y FORO-1B01 (`conLa17`). Así no cambian FORO-1B02, FORO-1B03, FORO-1B05, FORO-1A47 ni ATQ-FORO-10.
+6. **`errores.ts` también traduce el `23503` de PostgreSQL** que adjunta el driver adapter, además del `P2003`, con la misma lectura de `codigoDePostgres` que ya usaba el `22021`.
+7. **Un archivo más que el estimado:** la ayuda `ayudas-foros.ts` (33 en lugar de ~32).
+
+Dudas: ninguna nueva. La conducta de la ruta 17 en una clase archivada (cerrada también para el admin) es S-E3-1, aceptada.
+
+No verificado:
+- La suite completa de cada paquete (la corre el manager al cerrar).
+- Los casos de concurrencia de FORO-1A67 y FORO-1A68 dependen de que PostgreSQL entregue la fila retenida en el orden en que las operaciones se formaron (`formadasDetrasDe`); pasaron en las dos corridas que hice (la del archivo solo y la de los módulos), pero es un orden del motor, no una garantía del código.
+- No se abrió ningún navegador; 01b no tiene interfaz.

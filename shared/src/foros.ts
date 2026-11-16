@@ -127,6 +127,8 @@ export const participacionSchema = z.strictObject({
   conRetraso: z.boolean().optional(),
   replicas: z.number().int().min(0),
   propia: z.boolean(),
+  // FORO-01b (§D-11): si quien pide la lista puede borrarla (solo el admin, PB-1 a).
+  puedeBorrar: z.boolean(),
 })
 
 export const replicaSchema = z.strictObject({
@@ -136,6 +138,7 @@ export const replicaSchema = z.strictObject({
   creadoEn: z.iso.datetime(),
   conRetraso: z.boolean().optional(),
   propia: z.boolean(),
+  puedeBorrar: z.boolean(),
 })
 
 export const listaParticipacionesRespuestaSchema = z.strictObject({

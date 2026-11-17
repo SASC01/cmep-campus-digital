@@ -1542,3 +1542,714 @@ Son 31 entradas: 16 modificadas y 15 nuevas. Respecto de la ronda 1, se suman `f
 ?? frontend/src/features/tareas/traduccion-foro-01c.test.ts
 ?? frontend/src/features/tareas/vecinos-formulario-tarea-01c.test.tsx
 ```
+
+## Implementación — FORO-01d (2026-11-16)
+
+Plan: `docs/trabajo/FORO-01-actividad-tipo-foro/plan.md` (3374 líneas, con la Enmienda 12). Manda §E12, luego §E11, §E10 y así hasta §E7. Base: `60b5c88`. Solo `frontend/`: no toqué `shared/` ni el backend, y no corrí nada del backend.
+
+Estado: **terminado**. Hubo una PARADA, resuelta por la Enmienda 12; la cuento abajo.
+
+### La PARADA y su resolución
+- **Qué la provocó.** Con los componentes de participación escritos, `npx vitest run src/features/clases` dio un rojo en `features/clases/estatico-02c-r1.ataque.test.ts`. La lista de lectores de `.puedeBorrar` no tenía `participacion-del-foro.tsx` ni `replicas-de-participacion.tsx`. Además, `npx vitest run src/app src/lib src/services src/styles` dio el rojo de V-06 (`styles/clases-r1.ataque.test.ts`), de 91 a 96 `enEspera=`. Las dos son `*.ataque` y no las toqué.
+- **Resolución (Enmienda 12).** El tester aplicó en la ronda 0 bis:
+  - C-21 (§E12.1): suma los dos componentes a los lectores de `.puedeBorrar`; la segunda regla no cambia;
+  - C-13 (§E12.4): V-06 de 91 a 96, con `fijos` `formulario-de-participacion` 1, `participaciones-del-foro` 1, `replicas-de-participacion` 3, `participacion-del-foro` 0 y `mi-participacion` 0.
+- **Lo que hice yo después.**
+  - Quité la prop de rol con que pasaba «Borrar»: el botón lo decide solo el dato, `!soloLectura && ….puedeBorrar`, como confirmó el manager.
+  - Respeté las dos restricciones nuevas de §E12.2:
+    - ningún `.tsx` dice «Ocultar», ni en comentarios: `grep -rn "Ocultar" frontend/src --include=*.tsx --exclude=*.test.tsx` no da nada;
+    - `features/clases` no tiene `.split(":")` ni copias de la expresión de ruta.
+  - Cerré N-34 en `foro-detalle-01c.test.tsx:435-437`.
+
+### Archivos tocados contra `60b5c88`
+`git status --short -- frontend` da 27 entradas: 16 modificadas y 11 nuevas. Por clase:
+
+**Producción (14 de los 15 de «Se toca»; `features/clases/types.ts` no hizo falta):**
+- En `features/clases/`:
+  - `hooks.ts`: `useTrabajo` con `conForos: "si"`; `useTemasDeLaSeccion` con `conForos=si` en «actividades»; `useMoverElemento` marca viejo `claveForo(claseId, publicacionId)` con `exact: true` (FORO-1D39).
+  - `data.ts`: «Crear foro», la insignia «Foro», el rótulo «Foro:» y los textos de categorías en actividades (E1-9).
+  - `trabajo-view.tsx`: «Crear foro» (`outline`), fuera de una clase archivada.
+  - `components/seccion-de-tema.tsx`: la fila del foro con su insignia y su enlace a `foros/:id`.
+- En `features/tareas/`, nuevos en `components/`: `participaciones-del-foro.tsx`, `participacion-del-foro.tsx`, `replicas-de-participacion.tsx`, `formulario-de-participacion.tsx` y `mi-participacion.tsx`.
+- En `features/tareas/`, modificados:
+  - `foro-view.tsx`: monta «Participaciones» y, para el alumno, «Tu participación»;
+  - `hooks.ts`: las lecturas, las mutaciones, `pedirDeNuevoSoloElForo` y `useVerMasConservandoLaLista`;
+  - `data.ts`: los textos de §D-9 y los límites;
+  - `lib.ts`: las claves de §E11.3, las rutas y las funciones puras;
+  - `types.ts`: las reexportaciones de `shared/` y tres interfaces.
+- R-01d-5: no cambié los ganchos del foro de 01c2, `AccionesDeLaTarea`, `DetallesDeLaTarea` ni `idCanonicoDeLaRuta`.
+
+**Pruebas nuevas (6):**
+- `features/clases/actividades-foros-01d.test.tsx`;
+- en `features/tareas/`: `participar-01d.test.tsx`, `errores-participacion-01d.test.tsx`, `replicas-01d.test.tsx`, `borrar-participacion-01d.test.tsx` y `recuperar-participaciones-01d.test.tsx`.
+
+**Lista cerrada de pruebas normales (3):**
+- `features/clases/contenido-03c2.test.tsx:235/242`: el título y la URL `…/temas?seccion=actividades&conForos=si`.
+- `features/clases/categorias-view.test.tsx`: los textos de categorías en actividades.
+- `features/tareas/foro-detalle-01c.test.tsx:435-437` (N-34): el «después» literal.
+
+**`*.ataque` modificadas por el tester, no por mí (4):**
+- `features/clases/categorias-01e-r1.ataque.test.tsx` y `categorias-01e-r2.ataque.test.tsx` (C-12);
+- `features/clases/estatico-02c-r1.ataque.test.ts` (C-21);
+- `styles/clases-r1.ataque.test.ts` (C-13).
+
+Nada fuera de «Se toca»: ni `fila-de-entrega.tsx`, ni `services/**`, ni `components/**`, ni `router.tsx`, ni `entregas-view.tsx`. Tampoco `docs/trabajo/DEPLOY-investigacion-vps.md`, que es del humano.
+
+### `enEspera=` por archivo (V-06)
+`grep -rho "enEspera=" frontend/src --include=*.tsx --exclude=*.test.tsx | wc -l` da **96**. Por archivo, con `grep -o 'enEspera=' <archivo> | wc -l`:
+
+| Archivo | `enEspera=` | Control |
+|---|---|---|
+| `formulario-de-participacion.tsx` | 1 | «Publicar participación» |
+| `participaciones-del-foro.tsx` | 1 | «Ver más participaciones» |
+| `replicas-de-participacion.tsx` | 3 | «Sí, borrar …», «Publicar réplica» y «Ver más réplicas» |
+| `participacion-del-foro.tsx` | 0 | — |
+| `mi-participacion.tsx` | 0 | — |
+
+Los dos «Ver más» usan `enEspera={….isFetching}`, no `isFetchingNextPage`.
+
+### Pruebas requeridas de 01d: archivo y título exacto
+Los archivos de `features/tareas/` se nombran sin carpeta; el de `features/clases/` lleva la suya. Los títulos con `%s` son de `it.each`. Las variantes de réplica de FORO-1D05 a FORO-1D09 se llaman «FORO-1D10 (FORO-1D0x): …» y corren dos veces, en los `describe` «Errores fuera de contrato al publicar 'la réplica'» (maestro) y «… 'la réplica del alumno'».
+
+| Caso | Archivo | Título |
+|---|---|---|
+| FORO-1D01 | `participar-01d.test.tsx` | «FORO-1D01: el alumno sin principal y con el foro abierto ve «Escribe tu participación» y «Publicar participación», sin la nota de retraso»; «FORO-1D01: con participarConRetraso, la nota de retraso antes del campo»; «FORO-1D01: cerrado (sin poder participar, sin principal ni calificación), el texto de cerrado y ningún formulario»; «FORO-1D01: con su principal publicada, ni formulario ni texto de cerrado»; «FORO-1D01: el admin ve la nota de la administración y ningún formulario; el maestro, ningún formulario de principal; ninguno pide «mi-participacion»» |
+| FORO-1D02 | `participar-01d.test.tsx` | «FORO-1D02: avisa, escribe «Tu participación» y la lista con la respuesta sin pedirlas otra vez, marca viejas la lista de «Foro», las actividades y las calificaciones, y lleva el foco a la participación nueva». La guarda está en FORO-1D50 |
+| FORO-1D03 | `participar-01d.test.tsx` | «FORO-1D03: %s avisa con el texto del servidor, conserva lo escrito y vuelve a pedir «Tu participación» y la lista» (`PARTICIPACION_YA_PUBLICADA`, `PARTICIPACION_CALIFICADA` y `FORO_CERRADO`) |
+| FORO-1D04 | `participar-01d.test.tsx` | «FORO-1D04: «Con retraso» sale solo con conRetraso, y cada participación muestra su fecha y hora»; «FORO-1D04: la nota de retraso sale solo de participarConRetraso: en false no sale aunque el foro esté vencido; el cerrado, solo de puedeParticipar» |
+| FORO-1D04b | `participar-01d.test.tsx` | «FORO-1D04b: los componentes de participación no leen la hora ni la fecha límite, y las funciones de la participación de lib.ts no comparan con la hora» |
+| FORO-1D05 | `errores-participacion-01d.test.tsx` | «FORO-1D05: un VALIDACION de un campo que el formulario no pinta (foroId) da un solo aviso legible y ningún ErrorDeCampo» |
+| FORO-1D06 | `errores-participacion-01d.test.tsx` | «FORO-1D06: un VALIDACION con el mensaje «%s» da un solo aviso con el genérico de publicar» (vacío y solo espacios) |
+| FORO-1D07 | `errores-participacion-01d.test.tsx` | «FORO-1D07: con prefijo de ruta «texto.0:», el ErrorDeCampo de «Escribe tu participación» sin la ruta y sin aviso» |
+| FORO-1D08 | `errores-participacion-01d.test.tsx` | «FORO-1D08: tras el ErrorDeCampo de «texto:» del servidor, un envío vacío muestra solo «Escribe tu participación» y no pide nada» |
+| FORO-1D09 | `errores-participacion-01d.test.tsx` | «FORO-1D09: cada entrada de ENTRADAS_FUERA_DE_CONTRATO da un solo aviso, con el resto sin la ruta o el genérico, ningún ErrorDeCampo, y lo escrito se conserva» |
+| FORO-1D10 | `replicas-01d.test.tsx` | «FORO-1D10 (FORO-1D05): …», «FORO-1D10 (FORO-1D06): un VALIDACION con el mensaje «%s» …», «FORO-1D10 (FORO-1D07): con prefijo de ruta «texto.0:», el ErrorDeCampo de «Escribe tu réplica» sin la ruta y sin aviso», «FORO-1D10 (FORO-1D08): … «Escribe tu réplica» y no pide nada» y «FORO-1D10 (FORO-1D09): …»; cada uno para el maestro y para el alumno que puede replicar (12 casos) |
+| FORO-1D11 | `replicas-01d.test.tsx` | «FORO-1D11: sin réplicas, quien puede replicar ve «Replicar»; al abrir dice «Ocultar réplicas», es el mismo botón y conserva el foco»; «FORO-1D11: con réplicas, «Ver réplicas (n)»; al abrir se ven y al plegar vuelve a decir «Ver réplicas (n)»»; «FORO-1D11: con 0 en la lista y réplicas que llegan al abrir el bloque, al plegar dice «Ver réplicas (n)» con lo visto (O-r1-2)»; «FORO-1D11: el admin sin réplicas no ve el control; con réplicas, «Ver réplicas (n)»»; «FORO-1D11: el alumno que no puede replicar no ve «Replicar» ni el formulario; el que puede, sí» |
+| FORO-1D12 | `replicas-01d.test.tsx` | «FORO-1D12: la réplica se agrega al bloque sin pedirlo otra vez, el conteo sube, el campo se vacía y el foco vuelve al campo»; «FORO-1D12: con 404 PARTICIPACION_NO_ENCONTRADA avisa «Esa participación ya no existe.» y renueva la lista»; «FORO-1D12: abrir las réplicas de una principal que ya no existe (404 PARTICIPACION_NO_ENCONTRADA) dice «Esa participación ya no existe.» en el bloque, sin aviso, y renueva la lista una vez». **Maestro después de la fecha: no cubierto con un caso propio.** El formulario de réplica sale de `puedeReplicar` (el maestro siempre, fuera de una archivada), sin leer la fecha, y FORO-1D04b vigila que los componentes no lean la hora |
+| FORO-1D20 | `recuperar-participaciones-01d.test.tsx` | «FORO-1D20: abrir el foro desde «Foro» antes de 30 s pide la primera página y la frase desaparece» |
+| FORO-1D21 | igual | «FORO-1D21: abrirlo desde «Actividades de aprendizaje» pide la primera página y la frase desaparece» |
+| FORO-1D22 | igual | «FORO-1D22: atrás y adelante del historial piden la primera página y la frase desaparece» |
+| FORO-1D23 | igual | «FORO-1D23: pulsar «Foro» y volver al foro pide la primera página y la frase desaparece»; «FORO-1D23: saltar al foro B y volver al A pide la primera página de A y la frase desaparece» |
+| FORO-1D24 | igual | «FORO-1D24: «Ocultar réplicas» y «Ver réplicas» vuelven a pedir la primera página, no la de la caché» |
+| FORO-1D25 | igual | «FORO-1D25: salir del foro y volver antes de 30 s, y abrir el bloque, pide la primera página»; «FORO-1D25: saltar al foro B y volver al A, y abrir el bloque, pide la primera página» |
+| FORO-1D26 | igual | «FORO-1D26: una recarga fallida conserva la lista y avisa una vez; el siguiente fallo avisa otra vez; una lectura correcta no avisa y volver a abrir no repite ninguno» |
+| FORO-1D27 | igual | «FORO-1D27: (estudiante) «Escribe tu participación» con un 5xx avisa; lo escrito sigue y el mismo botón publica»; «FORO-1D27: (maestro) «Escribe tu réplica» con un 5xx avisa; lo escrito sigue y el mismo botón publica» |
+| FORO-1D28 | `participar-01d.test.tsx` | «FORO-1D28: sin participar, «Asignado» y «Todavía no participas.»»; «FORO-1D28: con su principal (conRetraso false), «Entregado» y «Participaste el … a las …»»; «FORO-1D28: con su principal (conRetraso true), «Entregado con retraso» y «Participaste el … a las … con retraso»»; «FORO-1D28: el maestro y el admin no ven «Tu participación»» |
+| FORO-1D29 | `features/clases/actividades-foros-01d.test.tsx` | «FORO-1D29: %s pide los temas y el trabajo con seccion=actividades&conForos=si, con la misma clave de caché» (×3); «FORO-1D29: %s ve el foro como «Foro: …», con la insignia «Foro», y su enlace lleva a foros/:id» (alumno y maestro); «FORO-1D29: %s ve «Crear foro» junto a «Crear tarea», hacia foros/nuevo, y no en una clase archivada» (maestro y admin); «FORO-1D29: el alumno no ve «Crear foro»»; «FORO-1D29: para el alumno, entrega null y { asignado, conRetraso: false } pintan la misma insignia y la misma segunda línea, con el foro %s» (abierto y vencido); «FORO-1D29: «Mover» un foro con éxito avisa y lo pasa al tema»; «FORO-1D29: «Mover» un foro con %s da un solo aviso, como el de una tarea» (`TEMA_NO_ENCONTRADO` y `PUBLICACION_NO_ENCONTRADA`). **`TAREA_MODIFICADA` en la edición abierta tras «Mover»: no cubierta con un caso propio.** La cubren por partes FORO-1C05 de 01c2 (la edición del foro ante un `409 TAREA_MODIFICADA` recarga y sigue con la versión nueva) y FORO-1D39 (mover marca viejo `claveForo`, así que abrir la edición después pide la versión nueva) |
+| FORO-1D30 | `features/clases/actividades-foros-01d.test.tsx` | «FORO-1D30: tras la recarga fallida, abrir el foro desde su fila en «Actividades» lo pide de nuevo y muestra la versión nueva» |
+| FORO-1D31 | igual | «FORO-1D31: «0 actividades», «1 actividad» y «Tiene 3 actividades.»; sin categorías, «Sus actividades se califican por puntos.»»; «FORO-1D31: un 409 CATEGORIA_CON_TAREAS con el texto de foros avisa una vez con el mensaje del servidor» |
+| FORO-1D32 | `participar-01d.test.tsx` | «FORO-1D32: la primera carga fallida dice «No pudimos cargar tu participación.», sin aviso y sin el formulario» |
+| FORO-1D33 | `recuperar-participaciones-01d.test.tsx` | «FORO-1D33: volver a abrir el foro desde «Foro» antes de 30 s pide «Tu participación» de nuevo»; «FORO-1D33: el siguiente fallo avisa otra vez y una lectura correcta no deja más avisos» |
+| FORO-1D35 | `borrar-participacion-01d.test.tsx` | «FORO-1D35: el admin ve «Borrar» en cada principal y en cada réplica; el maestro y el alumno no»; «FORO-1D35: en una clase archivada el admin no ve «Borrar»»; «FORO-1D35: la confirmación de una principal y la de una réplica, con sus textos; «Cancelar» la cierra y devuelve el foco a «Borrar»». La guarda está en FORO-1D50 |
+| FORO-1D36 | igual | «FORO-1D36: con 404 PARTICIPACION_NO_ENCONTRADA avisa «Esa participación ya no existe.», renueva la lista y la fila sale»; «FORO-1D36: con 403 BORRADO_NO_PERMITIDO avisa con el texto del servidor y renueva la lista»; «FORO-1D36: con un 5xx, un solo aviso; la confirmación sigue abierta y el botón sale de la espera»; «FORO-1D36: con 409 CLASE_ARCHIVADA avisa con el texto del servidor, la clase se vuelve a pedir y «Borrar» desaparece» |
+| FORO-1D37 | igual | «FORO-1D37: tras un 5xx, el mismo botón vuelve a pedir el borrado y con éxito avisa «Participación borrada»»; y además, en el `describe` «FORO-1D37 · lo que se renueva al borrar», «FORO-1D37: con éxito se marcan viejas la lista de «Foro» (el conteo) y las calificaciones de la clase, y la lista de principales se vuelve a pedir» y «FORO-1D37: borrar una principal saca de la caché el bloque de sus réplicas» |
+| FORO-1D38 | igual | «FORO-1D38: al borrar una principal de en medio, el foco va al «Borrar» de la que ocupa su lugar; la última, al de la anterior; sin vecinas, al h3»; «FORO-1D38: al borrar una réplica, el foco va al «Borrar» de la vecina y el conteo de la principal baja; sin vecinas, al encabezado del bloque» |
+| FORO-1D39 | `features/clases/actividades-foros-01d.test.tsx` | «FORO-1D39: con el detalle en caché y sin observador, mover deja viejo el foro sin pedirlo y sin marcar sus participaciones; volver antes de 30 s lo pide y «Detalles» muestra el tema» (mutaciones D7 y D8 en rojo) |
+| FORO-1D40 | `participar-01d.test.tsx` | «FORO-1D40: pide las participaciones y «Tu participación» en minúsculas, y publicar escribe en la clave que la vista lee: la nueva aparece sin otra lectura» (mutaciones D25 y D14 en rojo) |
+| FORO-1D41 | `participar-01d.test.tsx` | «FORO-1D41: claveMiParticipacion, claveParticipaciones y claveReplicas cuelgan de claveForo con sus segmentos fijos»; «FORO-1D41: con participacionId «%s» ninguna clave coincide con otra del foro ni es prefijo de una que no sea suya, y ninguna es prefijo de la lista» (`mia`, `participaciones`, `replicas`, `lista` y `foro`) |
+| FORO-1D42 | `participar-01d.test.tsx` | «FORO-1D42: con el foro en %s no sale ninguna lectura de participaciones ni de «Tu participación»» (×3); «FORO-1D42: si la lista de participaciones recibe %s con el foro en caché, se pide una sola vez más el foro, su respuesta reemplaza la vista con un solo mensaje y la lista no se repite» (×3); «FORO-1D42: con un servidor inconsistente (el foro responde 200 y la lista otra vez 403), el bloque se queda con su texto genérico, sin ciclo»; «FORO-1D42: un 404 NO_ENCONTRADO de la lista se queda en el bloque y no vuelve a pedir el foro». Sin `exact` (D1), el caso del servidor inconsistente se pone en rojo |
+| FORO-1D50 | varios | «FORO-1D50: dos clics en el mismo render de «Publicar participación» mandan una sola petición» (`participar-01d`); «FORO-1D50: dos clics en el mismo render de «Publicar réplica» mandan una sola petición» y «FORO-1D50: dos clics en el mismo render de «Ver más réplicas» piden una sola página, y la página siguiente lleva el foco a la primera réplica nueva» (`replicas-01d`); «FORO-1D50: dos clics en el mismo render de «%s» mandan un solo DELETE» («Sí, borrar participación» y «Sí, borrar réplica», en `borrar-participacion-01d`); «FORO-1D50: dos clics en el mismo render de «Ver más participaciones» piden una sola página, y el foco va a la primera nueva» (`recuperar-participaciones-01d`) |
+| FORO-1D51 | `recuperar-participaciones-01d.test.tsx` | «FORO-1D51: «Ver más participaciones» que falla (%s) conserva la lista, avisa una vez y el botón sigue a la vista» (`503` y sin red); «FORO-1D51: montar la vista con un fallo de recarga ya avisado (y su recarga en vuelo) no lo repite (memoria por consulta)»; con FORO-1D26 (dos fallos, dos avisos) y FORO-1D20 a FORO-1D25 (el cursor vencido, sin «Ver más»). «Ver más réplicas» con `5xx` no tiene un caso propio: usa el mismo gancho |
+| FORO-1D52 | `participar-01d.test.tsx` | «FORO-1D52: el maestro con el bloque de réplicas abierto y una réplica a medio escribir salta al foro B y vuelve: nada queda abierto, nada se envía y el foco no cae en <body>»; «FORO-1D52: el admin con la confirmación de «Borrar» abierta salta al foro B y vuelve: no queda abierta y nada se borra» |
+| FORO-1D53 | varios | «FORO-1D53: publicar con %s no avisa» y «FORO-1D53: la recarga de la lista y de «Tu participación» con %s no avisa» (`participar-01d`); «FORO-1D53: publicar una réplica con %s no avisa» (`replicas-01d`); «FORO-1D53: borrar una participación con %s no avisa» (`borrar-participacion-01d`); «FORO-1D53: «Ver más participaciones» con %s no avisa» (`recuperar-participaciones-01d`). Cada uno con `401 sin refresco`, `403 ACCESO_RESTRINGIDO` y `403 CAMBIO_DE_CONTRASENA_REQUERIDO` |
+| FORO-1D54 | `features/clases/actividades-foros-01d.test.tsx` | «FORO-1D54: con la sección en error, pulsar «Actividades de aprendizaje» estando ahí la pide una sola vez, otra vez con conForos=si» |
+
+**Casos que sumé en esta ronda, al cotejar el plan contra `npx vitest list`:**
+- **FORO-1D10, el alumno que replica:** el plan dice «alumno y maestro» y solo estaba el maestro. Suma 6 casos.
+- **FORO-1D53, el «Ver más»:** el plan lo nombra y no estaba. Suma 3 casos.
+- **FORO-1D12, abrir el bloque de una principal que ya no existe:** ningún caso vigilaba la renovación de la lista desde la lectura; la mutación D34 sobrevivía. Suma 1 caso.
+- **FORO-1D31, el `409 CATEGORIA_CON_TAREAS`:** el plan lo nombra y no estaba en el archivo del encargo. Suma 1 caso.
+
+### Matriz de avisos y recargas
+Las columnas de error son:
+- «Reemplaza»: `404 TAREA_NO_ENCONTRADA`, `403 SIN_ACCESO_A_LA_CLASE` o `400 VALIDACION` de `foroId`, según `errorQueReemplazaLaVistaDelForo`.
+- «Redirige»: los códigos de `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`.
+- «409» y «5xx o red».
+
+Reglas comunes a toda la tabla:
+- En «Reemplaza», se vuelve a pedir solo el foro (`pedirDeNuevoSoloElForo`, `exact`) y su respuesta reemplaza la vista con un solo mensaje. En una lectura, una vez por cada `errorUpdateCount` nuevo (R-01d-3). En una mutación, en su `onError`, como `alFallarUnaAccionDelForo` de 01c2: además va el aviso de la acción.
+- En «Redirige», nunca hay aviso.
+
+| Disparador | Reemplaza | Redirige | 409 | 5xx o red | Foco | En vuelo a la vez | Con la vista desmontada |
+|---|---|---|---|---|---|---|---|
+| Lectura de «Participaciones» (`useParticipaciones`) | pide el foro; el bloque no se repite (FORO-1D42) | sin aviso; el fallo queda marcado como avisado | `CLASE_ARCHIVADA`: sin aviso (`useAvisoDeRecargaFallidaDe`) | primera carga: «No pudimos cargar las participaciones.», sin aviso; recarga con datos: conserva la lista y avisa «No pudimos actualizar las participaciones. …» una vez por fallo (FORO-1D26 y FORO-1D51); cursor vencido: «Las participaciones cambiaron…», sin «Ver más» (FORO-1D20 a FORO-1D23) | no se mueve; si la recarga quita la fila enfocada, el foco va al `h3` | una lectura: la de TanStack Query | al salir en error queda vieja (`useMarcarViejaSiQuedoEnError`); el fallo ya avisado no se repite al montar (memoria por consulta, FORO-1D51) |
+| Lectura de «Tu participación» (`useMiParticipacion`, solo el alumno) | igual (FORO-1D42) | sin aviso | sin aviso | primera carga: «No pudimos cargar tu participación.», sin aviso y sin formulario (FORO-1D32); recarga con datos: «No pudimos actualizar tu participación. …» una vez por fallo (FORO-1D33) | no se mueve | una | el fallo avisado no se repite (memoria por consulta) |
+| Lectura de las réplicas (`useReplicas`, solo con el bloque abierto) | igual | sin aviso | — | primera carga: «No pudimos cargar las réplicas.»; con `404 PARTICIPACION_NO_ENCONTRADA`, «Esa participación ya no existe.» y la lista se renueva una vez por fallo (FORO-1D12); cursor vencido: «Las réplicas cambiaron…», sin «Ver más réplicas» (FORO-1D24 y FORO-1D25); recarga con datos: **sin aviso** (desviación 6) | no se mueve | una | al cerrar el bloque en error queda vieja: volver a abrirlo pide la primera página (FORO-1D24) |
+| «Ver réplicas (n)», «Replicar» y «Ocultar réplicas» (un solo botón con `aria-expanded`) | — (no pide; abre o cierra el bloque) | — | — | — | se queda en el botón (FORO-1D11) | — | — |
+| «Ver más participaciones» y «Ver más réplicas» (`useVerMasConservandoLaLista`) | sin aviso; pide el foro por la lectura | sin aviso | — | `5xx`: la lista se queda, con un aviso (FORO-1D51); cursor: la frase, sin aviso | a la primera fila nueva o, si no hay, al encabezado (`useFocoAlCargarMas`; FORO-1D50) | guarda `pidiendoRef` y `fetchNextPage({ cancelRefetch: false })`: dos clics piden una sola página (FORO-1D50) | sin aviso (`montado`) |
+| «Publicar participación» (`usePublicarParticipacion`) | pide el foro y avisa con la acción | sin aviso (FORO-1D53) | `PARTICIPACION_YA_PUBLICADA`, `PARTICIPACION_CALIFICADA` y `FORO_CERRADO`: aviso con el texto del servidor, lo escrito se conserva y se piden «Tu participación» y la lista (FORO-1D03); `CLASE_ARCHIVADA`: la clase se marca vieja y un aviso | «No pudimos publicar tu participación. Inténtalo de nuevo.»; repetir publica (FORO-1D27); un `VALIDACION` de `texto` va al `ErrorDeCampo` (FORO-1D05 a FORO-1D09) | éxito: a la participación nueva (FORO-1D02); error: se queda en el botón | guarda `publicandoRef` (FORO-1D50) | el error de `texto` sale como aviso (`montado`); el éxito escribe la caché y avisa igual |
+| «Publicar réplica» (`usePublicarReplica`) | igual | sin aviso | `FORO_CERRADO`: se pide «Tu participación»; `PARTICIPACION_NO_ENCONTRADA` (404): «Esa participación ya no existe.» y la lista se renueva (FORO-1D12) | «No pudimos publicar tu réplica. …»; repetir publica (FORO-1D27) | éxito: el campo se vacía y el foco vuelve al campo (FORO-1D12) | guarda `publicandoRef` (FORO-1D50) | igual que la principal |
+| «Sí, borrar participación» o «Sí, borrar réplica» (`useBorrarParticipacion`) | pide el foro y avisa | sin aviso (FORO-1D53) | `CLASE_ARCHIVADA`: aviso con el texto del servidor, la clase se vuelve a pedir y «Borrar» desaparece (FORO-1D36); `404 PARTICIPACION_NO_ENCONTRADA` y `403 BORRADO_NO_PERMITIDO`: aviso y se renuevan la lista y el bloque de la principal (FORO-1D36) | un aviso; la confirmación sigue abierta y el botón sale de la espera; repetir borra (FORO-1D36 y FORO-1D37) | éxito: al «Borrar» de la vecina, o al `h3` o al `h4` si no hay vecinas (FORO-1D38); cancelar: vuelve a «Borrar» (FORO-1D35) | guarda `borrandoRef`, también en «Cancelar» (FORO-1D50) | las invalidaciones y el aviso viven en el gancho y corren igual; el foco no se mueve |
+| «Mover» de un foro en «Actividades» (`useMoverElemento`) | los avisos y el foco de hoy (§7.22) | igual | igual | igual | el de hoy | el de hoy | éxito: además marca viejo `claveForo` (`exact`), sin pedirlo y sin tocar las participaciones (FORO-1D39) |
+| «Crear foro» (enlace) | — | — | — | — | — | — | — |
+
+### «Con la vista desmontada» y «en vuelo a la vez»
+- Los hooks que dependen de `montado` son dos: `usePublicarParticipacion` y `usePublicarReplica` (para decidir entre el `ErrorDeCampo` y el aviso), y `useVerMasConservandoLaLista` (sin aviso).
+- `useBorrarParticipacion` no depende de `montado`. Con «Borrar» desmontado (otra ruta), su `onError` del gancho avisa una vez y renueva. El `onBorrada` del `mutate` ya no corre, así que no hay foco que mover.
+- **Dos mutaciones a la vez** (publicar una réplica mientras se borra otra) no se pisan:
+  - publicar escribe en la última página del bloque;
+  - borrar invalida con `exact` la lista y el bloque de su principal, y la lectura que sigue trae el estado del servidor con las dos.
+
+### Desviaciones del plan (numeradas) y PARADAS
+**PARADA 1 (única):** `estatico-02c-r1.ataque` y V-06, contada arriba. La resolvió la Enmienda 12 (C-21 y C-13, aplicadas por el tester).
+
+**Desviaciones.** Las valora el manager.
+
+1. **FORO-1D42 cuenta `+2` lecturas del foro, no `+1`.**
+   - Por qué son dos peticiones: «una sola lectura más del foro» (§E11.2) es una lectura lógica, `invalidateQueries({ queryKey: claveForo(claseId, foroId), exact: true }, { cancelRefetch: false })`. Con la configuración de `app/providers.tsx` (`retry: 1`), cuando el doble responde otra vez con error, esa lectura sale dos veces: el intento y su reintento. Las dos son el mismo `fetchQuery` de la misma consulta, y TanStack Query sube `errorUpdateCount` una sola vez, al final.
+   - Por qué no hay una tercera: `usePedirElForoAnteUnFalloNuevo` llama a `pedirDeNuevoSoloElForo` una vez por cada `errorUpdateCount` nuevo del bloque, no del foro. El bloque no se vuelve a pedir: la invalidación es `exact` sobre el foro y no alcanza a `…/participaciones` ni a `…/mia`. Por eso no hay un fallo nuevo del bloque que dispare otra lectura.
+   - El caso lo comprueba:
+     - con el foro que también falla, la lista cuenta exactamente 2 (su petición y su reintento) y el foro `+2`, después de reposar 1,5 s;
+     - con el servidor inconsistente (el foro en `200` y la lista otra vez `403`), las dos cuentas no se mueven entre dos reposos de 1,5 s.
+   - Quitar `exact` lo pone en rojo (mutación D1, abajo): la invalidación alcanza el bloque y forma el ciclo.
+2. **FORO-1D29, el foro abierto del alumno:** la segunda línea muestra la fecha límite, como una tarea asignada en «Actividades» (la arma `segundaLineaDeLaFila` de `FilaDeEntrega`, que no se toca), no la palabra «Asignado». El caso compara entre sí las dos filas (`entrega: null` y `{ estado: "asignado", conRetraso: false }`): misma insignia y misma segunda línea. En el vencido, las dos dicen «Sin entregar».
+3. **FORO-1D06:** el mensaje vacío o de solo espacios da el genérico de la acción, «No pudimos publicar tu participación. Inténtalo de nuevo.» o «… tu réplica …», no el genérico del módulo. Es lo mismo que da el recorrido de `ENTRADAS_FUERA_DE_CONTRATO` (FORO-1D09) con `mensajeAlPublicarParticipacion`.
+4. **Textos que no están en §D-9:**
+   - el nombre accesible de cada «Borrar», «participación de {nombre}» o «réplica de {nombre}», como `sr-only` dentro del botón (`TEXTOS_PARTICIPACIONES.borrarParticipacionDe` y `borrarReplicaDe`);
+   - el `h4` `sr-only` «Réplicas» (`TEXTOS_PARTICIPACIONES.replicas`), destino del foco al borrar la última réplica (§D-11 lo pide: «al encabezado del bloque»).
+
+   **Lo que hacen los bloques hermanos:**
+   - **Comentarios de una publicación** (`features/clases/components/comentarios-de-publicacion.tsx`): el bloque tiene `<h3 … className="sr-only">` con `TEXTOS_COMENTARIOS.titulo` («Comentarios»), que es el mismo patrón que mi `h4`. Su «Borrar» dice solo «Borrar», sin el nombre del autor.
+   - **Respuestas de una duda** (`features/clases/components/respuestas-de-duda.tsx:279`): igual, con un `h3` `sr-only` y «Borrar» sin el nombre.
+   - **Las participaciones (este mismo encargo):** «Borrar» con el nombre `sr-only`.
+   - **Precedente en `features/tareas`** del nombre `sr-only` en un botón que se repite por fila:
+     - `tabla-de-entregas.tsx:63`, «Ver entrega» con el nombre del alumno;
+     - `lista-de-adjuntos-publicados.tsx:38`, «Quitar» con el nombre del adjunto;
+     - `editor-de-rubrica.tsx:131`, «Quitar» con el número del criterio.
+
+   El encabezado oculto sigue a los hermanos. El nombre en «Borrar» sigue a `features/tareas`, pero no a los comentarios ni a las respuestas, que dejan varios «Borrar» iguales en la misma vista. Si se quiere uniformar, la decisión es del humano; no cambia el comportamiento.
+5. **FORO-1D10 vive en `replicas-01d.test.tsx`**, no en `errores-participacion-01d.test.tsx`: sale del mismo cuerpo de casos de FORO-1D05 a FORO-1D09 (`describe.each` por formulario), solo con el formulario de réplica, para el alumno y para el maestro.
+6. **Sin aviso ante una recarga de fondo fallida del bloque de réplicas con datos.** El bloque conserva lo que ve y no avisa, porque §D-9 no tiene texto para eso. El «Ver más réplicas» que falla sí avisa (`useVerMasConservandoLaLista`), y la primera carga fallida la dice el bloque.
+
+   **Lo que hacen los hermanos:**
+   - **Comentarios de una publicación:** sí avisan. `comentarios-de-publicacion.tsx:167` llama a `useAvisoDeRecargaFallida(errorUpdateCount, conserva, mensajeDeConsultaClases(error), publicacionId)`: un aviso por fallo, con el texto de consulta del módulo.
+   - **Respuestas de una duda:** sí avisan, igual (`respuestas-de-duda.tsx:164`).
+   - **Participaciones (la lista):** sí avisan, «No pudimos actualizar las participaciones. …» (`TEXTOS_PARTICIPACIONES.recargaFallida`), una vez por fallo (FORO-1D26 y FORO-1D51).
+   - **«Tu participación»:** sí avisa (FORO-1D33).
+
+   Es decir, el bloque de réplicas es el único de los cinco que no avisa. El remedio cabe en un cambio: sumar en `ReplicasDeParticipacion` un `useAvisoDeRecargaFallidaEnElForo(claveReplicas(…), activo, replicas, <texto>)`, con la misma condición que la lista. Pero necesita un texto que §D-9 no tiene (por ejemplo, «No pudimos actualizar las réplicas. Mostramos la última versión que tenemos.»), y yo no invento textos. **Propongo que vaya al humano:** el texto y si se suma en 01d o en 01e.
+
+### Las claves y sus vecinas, una por una (§E11.3)
+Todas las claves cuelgan de `clavePrefijoDeForos(claseId) = ["clases", claseId, "foros"]`:
+
+| Clave | Forma literal | ¿Prefijo de otra? | Quién la invalida, y con qué alcance |
+|---|---|---|---|
+| `claveListaDeForos` | `[…, "foros", "lista"]` | No: ningún foro vive bajo `"lista"` (T-01 de 01c2) | publicar y borrar, sin `exact`: es una hoja con sus páginas |
+| `claveForo` | `[…, "foros", "foro", foroId]` | Sí: de las tres de abajo | `pedirDeNuevoSoloElForo`, **con `exact`** (FORO-1D42, D1); «Mover» de un foro, **con `exact`** (FORO-1D39, D8) |
+| `claveMiParticipacion` | `[…claveForo, "mia"]` | No (hoja) | el `409` de la participación, sin `exact`, porque no tiene hijas; publicar la escribe con `setQueryData` |
+| `claveParticipaciones` | `[…claveForo, "participaciones"]` | No | con `exact`: el `409` de la participación, el `404` de la réplica, borrar (éxito, `404` y `403`) y el efecto de `useReplicas` ante `PARTICIPACION_NO_ENCONTRADA` |
+| `claveReplicas` | `[…claveForo, "replicas", participacionId]` | No | con `exact`: borrar una réplica renueva el bloque de su principal; borrar una principal **quita** su bloque (`removeQueries`, `exact`) |
+
+FORO-1D41 lo fija con `participacionId` igual a `"mia"`, `"participaciones"`, `"replicas"`, `"lista"` y `"foro"`: ninguna clave coincide con otra ni es prefijo de una ajena.
+
+Fuera del foro, publicar y borrar marcan viejas `clavePrefijoDeCalificaciones(claseId)`. Publicar marca también `clavePrefijoDelTrabajo(claseId)`. Las dos sin `exact` a propósito, porque son prefijos de varias consultas (§D-8.4).
+
+**Las vecinas de `useMoverElemento`** (`features/clases/hooks.ts:1607-1615`):
+- `claveForo(claseId, publicacionId)` con `exact` se suma a lo que ya marcaba por el mismo id: los temas y el trabajo, `claveTarea` y `claveRecurso`;
+- como la tarea y el recurso de antes, se marca sin saber el tipo: con una tarea o un recurso movidos, `claveForo` de ese id no existe en la caché y la invalidación no hace nada;
+- con `exact` no alcanza a las participaciones ni a «Tu participación» de ese foro. FORO-1D39 lo verifica en `actividades-foros-01d.test.tsx:401-402`: `isInvalidated` en `true` en `claveForo` y en `false` en `claveParticipaciones`.
+
+### Frases de recuperación: un caso por camino
+Todas las pruebas usan el router real (`rutas`) y la configuración de `app/providers.tsx`.
+
+- **«Las participaciones cambiaron mientras las veías. Vuelve a abrir el foro para verlas completas.»** Archivo: `recuperar-participaciones-01d.test.tsx`. En cada camino se pide la primera página y la frase desaparece. Mientras se ve la frase, no hay «Ver más participaciones».
+  - Abrir el foro desde «Foro» antes de 30 s: FORO-1D20.
+  - Abrirlo desde «Actividades de aprendizaje»: FORO-1D21.
+  - Atrás y adelante del historial: FORO-1D22.
+  - Pulsar «Foro» y volver al foro: FORO-1D23.
+  - Saltar al foro B y volver al A: FORO-1D23, segundo caso.
+- **«Las réplicas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas.»** Mismo archivo.
+  - «Ocultar réplicas» y «Ver réplicas» (repetir el control): FORO-1D24. Pide la primera página, no la de la caché.
+  - Salir del foro y volver antes de 30 s, y abrir el bloque: FORO-1D25.
+  - Saltar al foro B, volver al A y abrir el bloque: FORO-1D25, segundo caso.
+- **«No pudimos actualizar las participaciones. Mostramos la última versión que tenemos.»** No pide ninguna acción: dice lo que se muestra. Mismo archivo.
+  - El siguiente fallo avisa otra vez, una lectura correcta no avisa, y volver a abrir el foro no repite ninguno: FORO-1D26.
+  - Montar con un fallo ya avisado no lo repite: FORO-1D51.
+- **«No pudimos actualizar tu participación. Mostramos la última versión que tenemos.»** Mismo archivo.
+  - Volver a abrir el foro desde «Foro» antes de 30 s pide «Tu participación» de nuevo: FORO-1D33.
+  - El siguiente fallo avisa otra vez y una lectura correcta no deja más avisos: FORO-1D33.
+- **«No pudimos publicar tu participación. Inténtalo de nuevo.» y «No pudimos publicar tu réplica. Inténtalo de nuevo.»** Repetir el mismo botón publica, porque lo escrito seguía ahí: FORO-1D27, en `recuperar-participaciones-01d.test.tsx` (`it.each` del alumno y del maestro).
+- **«Algo salió mal. Inténtalo de nuevo.» al borrar.** Repetir «Sí, borrar …» vuelve a pedir el borrado: FORO-1D37, en `borrar-participacion-01d.test.tsx`.
+- **El `5xx` de «Ver más participaciones».** La lista se queda, con un solo aviso, y el botón sigue a la vista: FORO-1D51 (`it.each` con `503` y sin red). El aviso es el texto de consulta del módulo, que no promete ninguna acción. Ningún caso repite el botón después del fallo. «Ver más réplicas» con `5xx` usa el mismo gancho (`useVerMasConservandoLaLista`), sin un caso propio.
+- **Otra clase.** Las claves llevan la clase y el foro, y los foros de otra clase tienen otro id. Saltar al mismo bloque en el foro de otra clase pasa por la misma lógica que saltar al foro B: la clave cambia y la vista se monta de nuevo, con `key` por el foro (01c2). No escribí un caso aparte con dos clases. Lo declaro como **no cubierto con un caso propio**, cubierto por el mecanismo del foro B.
+
+### `VALIDACION` fuera de contrato: el formulario de la participación y el de la réplica
+Los dos formularios pasan por el mismo cuerpo de casos (`describe.each` por formulario).
+- La participación (alumno) está en `errores-participacion-01d.test.tsx`.
+- La réplica (maestro y alumno que puede replicar) está en `replicas-01d.test.tsx`, como «FORO-1D10 (FORO-1D0x): …».
+
+En cada caso se comprueba lo mismo:
+- un solo mensaje: un aviso o un `ErrorDeCampo`, nunca los dos ni ninguno;
+- lo escrito se conserva;
+- el botón sale de la espera (`aria-busy` deja de ser `"true"`).
+
+| Entrada del servidor | Lo que ve la persona | Caso |
+|---|---|---|
+| `400 VALIDACION` de un campo que el formulario no pinta (`foroId:`) | un aviso legible, sin la ruta; ningún `ErrorDeCampo` | FORO-1D05 |
+| mensaje vacío o de solo espacios | el genérico de la acción («No pudimos publicar tu participación/réplica. Inténtalo de nuevo.»), un aviso (desviación 3) | FORO-1D06 |
+| prefijo con ruta, `texto.0: …` | el `ErrorDeCampo` del campo, sin la ruta y sin aviso (`errorDelTextoDeLaParticipacion`, `/^texto(\.\d+)?:/`) | FORO-1D07 |
+| un rechazo del servidor (el `ErrorDeCampo` de `texto:`), seguido de un envío vacío | solo «Escribe tu participación» o «Escribe tu réplica» (la validación local reemplaza el error en el mismo estado), sin otra petición | FORO-1D08 |
+| cada entrada de `ENTRADAS_FUERA_DE_CONTRATO` | un aviso con el resto sin la ruta o el genérico, ningún `ErrorDeCampo` | FORO-1D09 |
+
+Un campo que se pinta solo en otro modo no existe aquí: los dos formularios tienen solo `texto`, y `foroId` (FORO-1D05) es el no pintado.
+
+### Mutaciones reales
+Todas son de archivos de «Se toca». Cada mutación se hizo con:
+- copia previa en el scratchpad;
+- un ancla que aparece una sola vez (`assert texto.count(ancla) == 1`);
+- `vitest run` de los archivos que la vigilan, con `-t`;
+- restauración desde la copia y comparación byte a byte (`filecmp.cmp(..., shallow=False)`).
+
+En las 39 corridas (34 + 3 + 2), «restaurado; cmp igual: True». Scripts:
+- `scratchpad/scripts/mutaciones01d.py` (D1 a D34);
+- `mutaciones01d_b.py` (D14 de nuevo, D34 de nuevo y D35);
+- `mutaciones01d_c.py` (D14 con un filtro por caso: en Windows, `npx.cmd` pasa por `cmd`, que leyó el `|` de `-t "FORO-1D02|FORO-1D40"` como tubería, y la primera corrida de D14 no corrió ningún caso).
+
+| Id | Mutación (archivo) | Resultado | Caso que la vigila |
+|---|---|---|---|
+| D1 | sin `exact: true` en `pedirDeNuevoSoloElForo` (`tareas/hooks.ts`) | **rojo**, 4 | los tres FORO-1D42 «si la lista … con el foro en caché …» y «FORO-1D42: con un servidor inconsistente … sin ciclo» (timeout de 5 s: el ciclo) |
+| D2 | sin `publicandoRef` en «Publicar participación» (`formulario-de-participacion.tsx`) | **rojo**, 1 | «FORO-1D50: dos clics en el mismo render de «Publicar participación» mandan una sola petición» |
+| D3 | sin `publicandoRef` en «Publicar réplica» (`replicas-de-participacion.tsx`) | **rojo**, 1 | «FORO-1D50: dos clics en el mismo render de «Publicar réplica» mandan una sola petición» |
+| D4 | sin la guarda de `borrandoRef` en «Sí, borrar …» (`replicas-de-participacion.tsx`) | **rojo**, 2 | «FORO-1D50: dos clics en el mismo render de «Sí, borrar participación» mandan un solo DELETE» y lo mismo con «Sí, borrar réplica» |
+| D5 | sin `if (pidiendoRef.current) return` en «Ver más» (`tareas/hooks.ts`) | sobrevive (3 verdes) | redundancia declarada abajo |
+| D6 | `fetchNextPage({ cancelRefetch: true })` en «Ver más» (`tareas/hooks.ts`) | sobrevive (3 verdes) | redundancia declarada abajo |
+| D35 | D5 y D6 juntas | **rojo**, 2 | «FORO-1D50: dos clics en el mismo render de «Ver más participaciones» …» y «FORO-1D50: … «Ver más réplicas» …» |
+| D7 | sin la invalidación de `claveForo` en `useMoverElemento` (`clases/hooks.ts`) | **rojo**, 1 | «FORO-1D39: con el detalle en caché y sin observador, mover deja viejo el foro …» |
+| D8 | la misma invalidación sin `exact` | **rojo**, 1 | el mismo FORO-1D39 (`isInvalidated` de las participaciones en `false`) |
+| D9 | `useTrabajo` sin `conForos: "si"` | **rojo**, 3 | «FORO-1D29: %s pide los temas y el trabajo con seccion=actividades&conForos=si, con la misma clave de caché» (×3) |
+| D10 | los temas sin `conForos=si` | **rojo**, 3 | los mismos tres |
+| D11 | «Crear foro» también en una clase archivada (`trabajo-view.tsx`) | **rojo**, 2 | «FORO-1D29: %s ve «Crear foro» junto a «Crear tarea», hacia foros/nuevo, y no en una clase archivada» (maestro y admin) |
+| D12 | `usePedirElForoAnteUnFalloNuevo` sin llamar a `pedirDeNuevoSoloElForo` | **rojo**, 3 | los tres FORO-1D42 con el foro en caché |
+| D13 | publicar sin escribir «Tu participación» con la respuesta | **rojo**, 1 | FORO-1D02 |
+| D14 | publicar sin agregar la nueva a la lista | **rojo**, 1 y 1 | FORO-1D02; «FORO-1D40: pide las participaciones … y publicar escribe en la clave que la vista lee …» |
+| D15 | publicar sin marcar vieja la lista de «Foro» | **rojo**, 1 | FORO-1D02 |
+| D16 | publicar sin marcar viejas las actividades | **rojo**, 1 | FORO-1D02 |
+| D17 | publicar sin marcar viejas las calificaciones | **rojo**, 1 | FORO-1D02 |
+| D18 | el `409` de la participación sin renovar «Tu participación» | **rojo**, 3 | «FORO-1D03: %s avisa con el texto del servidor, conserva lo escrito y vuelve a pedir «Tu participación» y la lista» (×3) |
+| D19 | publicar réplica sin agregarla al bloque | **rojo**, 1 | «FORO-1D12: la réplica se agrega al bloque sin pedirlo otra vez …» |
+| D20 | publicar réplica con `404 PARTICIPACION_NO_ENCONTRADA` sin renovar la lista | **rojo**, 1 | «FORO-1D12: con 404 PARTICIPACION_NO_ENCONTRADA avisa … y renueva la lista» |
+| D21 | borrar sin marcar vieja la lista de «Foro» | **rojo**, 1 | «FORO-1D37: con éxito se marcan viejas la lista de «Foro» (el conteo) y las calificaciones …» |
+| D22 | borrar sin marcar viejas las calificaciones | **rojo**, 1 | el mismo |
+| D23 | borrar una principal sin quitar su bloque de réplicas | **rojo**, 1 | «FORO-1D37: borrar una principal saca de la caché el bloque de sus réplicas» |
+| D24 | borrar con `404` o `403 BORRADO_NO_PERMITIDO` sin renovar la lista | **rojo**, 2 | los dos FORO-1D36 de `404` y `403` |
+| D25 | `foroId={foroId}` en lugar de `idCanonicoDeLaRuta(foroId)` (`foro-view.tsx`) | **rojo**, 1 | FORO-1D40 |
+| D26 | el conteo sin `Math.max` (`tareas/lib.ts`) | **rojo**, 1 | «FORO-1D11: con 0 en la lista y réplicas que llegan al abrir el bloque …» |
+| D27 | sin el foco a la participación nueva | **rojo**, 1 | FORO-1D02 |
+| D28 | sin el foco al «Borrar» de la vecina | **rojo**, 1 | «FORO-1D38: al borrar una principal de en medio …» |
+| D29 | la lista sin `useMarcarViejaSiQuedoEnError` | sobrevive (15 verdes) | redundancia declarada abajo |
+| D30 | el bloque de réplicas sin `useMarcarViejaSiQuedoEnError` | sobrevive (18 verdes) | redundancia declarada abajo |
+| D31 | `errorDelTextoDeLaParticipacion` solo con `texto:` (sin `texto.0:`) | **rojo**, 3 | «FORO-1D07: con prefijo de ruta «texto.0:» …» y los dos «FORO-1D10 (FORO-1D07): …» (maestro y alumno) |
+| D32 | la lista sin su texto de recarga fallida | **rojo**, 1 | FORO-1D26 |
+| D33 | «Tu participación» sin su texto de recarga fallida | **rojo**, 2 | los dos FORO-1D33 |
+| D34 | `useReplicas` sin renovar la lista ante `404 PARTICIPACION_NO_ENCONTRADA` | primera corrida: sobrevive (2 verdes, ningún caso la vigilaba); **después del caso nuevo, rojo**, 1 | «FORO-1D12: abrir las réplicas de una principal que ya no existe (404 PARTICIPACION_NO_ENCONTRADA) dice «Esa participación ya no existe.» en el bloque, sin aviso, y renueva la lista una vez» (nuevo) |
+
+**Las sobrevivientes, con su mecanismo:**
+- **D5 y D6, el «Ver más».** Cada defensa basta sola:
+  - `fetchNextPage({ cancelRefetch: false })` devuelve la misma promesa mientras hay una lectura en vuelo, y el segundo clic no pide otra página (D5 sobrevive por eso);
+  - la guarda `pidiendoRef` corta el segundo clic antes de llamar (D6 sobrevive por eso).
+  - Quitar las dos a la vez (D35) pone en rojo los dos FORO-1D50. Las dos se quedan porque las pide la regla del repositorio (`CLAUDE.md`, «Componentes», y `lib/guardas-de-doble-clic-estatico.test.ts`, que exige `cancelRefetch: false` en los «Ver más»).
+- **D29 y D30, `useMarcarViejaSiQuedoEnError`.** Con TanStack Query 5.103.2, una consulta que queda en error al quitarse su último observador ya queda inválida: la librería la deja así. `CLAUDE.md` («Ubicaciones compartidas», `components/seccion/`) registra el gancho como una garantía escrita de lo mismo. Por eso los caminos de FORO-1D20 a FORO-1D25 (volver a abrir pide la primera página) siguen verdes sin él. Se queda por la política única de recarga (CHORE-06), como en las listas de `features/clases`.
+- **D34** ya no sobrevive: escribí el caso que faltaba (arriba).
+
+### Guardas de doble clic, cada una con su mutación
+Cada guarda está en un manejador con nombre del componente dueño de la mutación, a dos espacios. Se toma justo antes de `mutate` y se suelta en el `onSettled` de ese `mutate`.
+
+| Control | Guarda | Archivo | Mutación |
+|---|---|---|---|
+| «Publicar participación» | `publicandoRef` en `handleSubmit`, después de `evento.preventDefault()` y antes de la guarda `isPending` | `formulario-de-participacion.tsx` | D2, rojo |
+| «Publicar réplica» | `publicandoRef` en `handleSubmit` de `FormularioDeReplica` | `replicas-de-participacion.tsx` | D3, rojo |
+| «Sí, borrar participación» y «Sí, borrar réplica» | `borrandoRef` en `handleBorrar`; «Cancelar» lo lee también (`handleCancelar`) | `replicas-de-participacion.tsx` (`BorrarDelForo`) | D4, rojo |
+| «Ver más participaciones» y «Ver más réplicas» | `pidiendoRef` en `handleVerMas` (liberada en `finally`), más `fetchNextPage({ cancelRefetch: false })` | `tareas/hooks.ts` (`useVerMasConservandoLaLista`) | D5 y D6 sobreviven cada una sola; D35 (las dos), rojo |
+
+La `mutationKey` de estas mutaciones no lleva un id de la ruta, y ninguna se reenvía con un solo clic sobre el control montado de nuevo: «Sí, borrar …» pide abrir la confirmación otra vez. Por eso no hace falta leer la caché de mutaciones.
+
+### Hermanos y estados vecinos
+- **`pedirDeNuevoSoloElForo`** se usa en las tres lecturas (lista, «Tu participación» y réplicas, por `usePedirElForoAnteUnFalloNuevo`) y en las tres mutaciones (`onError` de publicar, replicar y borrar). Los estados:
+  - primera carga: pide el foro una vez;
+  - recarga con datos: lo mismo;
+  - fallo ya en la caché al montar: no pide nada, porque la cuenta parte del `errorUpdateCount` del montaje;
+  - dos fallos seguidos: uno por cada `errorUpdateCount`, sin ciclo, porque la invalidación es `exact` sobre el foro;
+  - cambio de foro: el componente se monta de nuevo con `key={foro.id}` (01c2).
+- **El aviso de recarga fallida**: la lista y «Tu participación» lo tienen; el bloque de réplicas no (desviación 6). En los dos que avisan, los estados:
+  - el primer fallo avisa;
+  - el segundo avisa otra vez;
+  - una lectura correcta no avisa;
+  - montar con un fallo ya avisado no lo repite (memoria por consulta, `ultimoFalloAvisado`);
+  - con un error que redirige o un `CLASE_ARCHIVADA`, no avisa.
+- **El foco tras una acción:**
+  - publicar la principal lleva el foco a la fila nueva; publicar una réplica, al campo;
+  - borrar lleva el foco a la vecina o al encabezado (`h3` en la lista, `h4` en el bloque);
+  - «Ver más» lo lleva a la primera fila nueva o al encabezado;
+  - con un error, se queda donde estaba.
+
+  Ninguno cae en `<body>` (FORO-1D52 lo verifica al saltar de foro).
+- **«Borrar» por el dato:** las principales (`participacion-del-foro.tsx`) y las réplicas (`replicas-de-participacion.tsx`) leen `!soloLectura && ….puedeBorrar`. No hay otro control de borrar en el foro.
+- **El id canónico (R-01d-4):** `foro-view.tsx` pasa `idCanonicoDeLaRuta(foroId)` a `DetalleDelForo`, y todo lo de 01d recibe ese `foroId` (D25 en rojo). No hay otra entrada de id de la ruta en 01d.
+
+### `git status --short -- frontend`, por clase
+27 entradas:
+
+| Clase | Cuántas | Archivos |
+|---|---|---|
+| Producción modificada | 9 | `clases/components/seccion-de-tema.tsx`, `clases/data.ts`, `clases/hooks.ts`, `clases/trabajo-view.tsx`, `tareas/data.ts`, `tareas/foro-view.tsx`, `tareas/hooks.ts`, `tareas/lib.ts`, `tareas/types.ts` |
+| Producción nueva | 5 | `tareas/components/formulario-de-participacion.tsx`, `mi-participacion.tsx`, `participacion-del-foro.tsx`, `participaciones-del-foro.tsx`, `replicas-de-participacion.tsx` |
+| Pruebas nuevas | 6 | `clases/actividades-foros-01d.test.tsx`; en `tareas/`: `borrar-participacion-01d.test.tsx`, `errores-participacion-01d.test.tsx`, `participar-01d.test.tsx`, `recuperar-participaciones-01d.test.tsx`, `replicas-01d.test.tsx` |
+| Lista cerrada (normales modificadas) | 3 | `clases/categorias-view.test.tsx`, `clases/contenido-03c2.test.tsx`, `tareas/foro-detalle-01c.test.tsx` |
+| `*.ataque` modificadas por el tester (C-12, C-13 y C-21) | 4 | `clases/categorias-01e-r1.ataque.test.tsx`, `clases/categorias-01e-r2.ataque.test.tsx`, `clases/estatico-02c-r1.ataque.test.ts`, `styles/clases-r1.ataque.test.ts` |
+
+Fuera de `frontend/`, `git status --short` muestra además los documentos del encargo (`docs/ESTADO.md`, `aprobacion.md`, `plan.md`, `reporte-tester.md` y `revision.md`, que no escribí yo) y `docs/trabajo/DEPLOY-investigacion-vps.md`, del humano, que no toqué. Este resumen solo agrega su sección a `resumen-programador.md`.
+
+### Verificación
+Desde `frontend/`, una corrida a la vez. No corrí la suite completa del paquete: la corre el manager al cerrar.
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | sale con 0; `All matched files use Prettier code style!` y termina en `> tsc -b`, sin errores. Corrido dos veces; la segunda, después de las últimas pruebas |
+| `npm run build` | `✓ built in 1.11s` (con el aviso de siempre del tamaño de los trozos) |
+| `npx vitest run src/features/tareas` | `Tests  1682 passed (1682)` (`Test Files  59 passed (59)`) |
+| `npx vitest run src/features/clases` | `Tests  3167 passed (3167)` (`Test Files  131 passed (131)`). Corrida después del caso nuevo de FORO-1D31; la anterior dio `Tests  3166 passed (3166)` |
+| `npx vitest run src/app src/lib src/services src/styles` | `Tests  1159 passed (1159)` (`Test Files  69 passed (69)`) |
+| `npx vitest run src/components` | `Tests  381 passed (381)` (`Test Files  30 passed (30)`) |
+
+### Conteos
+- Con `npx vitest list` sobre los seis archivos nuevos (`grep -a -c "<archivo>.test.tsx >"`):
+  - `participar-01d.test.tsx`: 41;
+  - `errores-participacion-01d.test.tsx`: 6;
+  - `replicas-01d.test.tsx`: 25;
+  - `borrar-participacion-01d.test.tsx`: 17;
+  - `recuperar-participaciones-01d.test.tsx`: 20;
+  - `features/clases/actividades-foros-01d.test.tsx`: 18.
+  - Total: **127 casos en 6 archivos** (`grep -a -o "^[^ ]*test.tsx" | sort -u | wc -l` da 6).
+- `git status --short -- frontend | wc -l` da 27.
+- `enEspera=` en producción: 96.
+- Mutaciones: 35 (D1 a D35) en 39 corridas. 31 terminan en rojo:
+  - D14 dio rojo al correrla con un filtro por caso; la primera corrida no corrió ninguno, por el `|`;
+  - D34 dio rojo con el caso nuevo de FORO-1D12;
+  - D35 (D5 y D6 juntas) dio rojo.
+- Sobreviven 4, con su redundancia declarada: D5, D6, D29 y D30.
+
+## Corrección tras la verificación del manager — FORO-01d: M-11, M-12 y N-38 (2026-11-16)
+
+La verificación está en `revision.md`, "## Verificación del resumen — FORO-01d — implementación (2026-11-16)". El texto del aviso nuevo es decisión del humano (2026-11-16, «Texto propio»). No hubo PARADA. Los archivos tocados están todos en «Se toca»:
+- producción: `features/tareas/data.ts`, `lib.ts` y `components/replicas-de-participacion.tsx`;
+- pruebas: mis archivos nuevos `features/tareas/replicas-01d.test.tsx` y `participar-01d.test.tsx`.
+
+No toqué ninguna `*.ataque` ni nada de la lista cerrada.
+
+### Hallazgos
+- **M-11, corregido.** Agregué un caso en `replicas-01d.test.tsx`:
+  - Título: «FORO-1D12: con el foro vencido y sin tardías, el maestro ve «Escribe tu réplica», publica y la réplica entra al bloque».
+  - Para fijarlo, el doble del servidor ganó `vencido` en cada foro: con él, `fechaLimite` es `2026-01-15T16:00:00.000Z` y `aceptaTardias` es `false`. El alumno queda con `puedeParticipar` y `puedeReplicar` en falso.
+  - **La conducta ya existía**, así que el caso pasó a la primera. **Mutación E1:** quitar al maestro de `puedeReplicar` en `participaciones-del-foro.tsx` lo pone en rojo.
+- **M-12, corregido, en dos partes.**
+  1. **«Ver más réplicas» con `5xx`.** Caso nuevo: «FORO-1D51: «Ver más réplicas» que falla (503) conserva las réplicas, avisa una vez, el botón sale de la espera y el foco se queda en él».
+     - La conducta ya existía (el gancho es compartido).
+     - **Mutación E2:** el botón llama a `replicas.fetchNextPage()` sin `handleVerMas` → rojo.
+     - **Mutación E7:** quitar `!replicas.isFetchNextPageError` del aviso nuevo da dos avisos → rojo.
+  2. **El aviso de la recarga de fondo del bloque de réplicas.** Es la desviación 6, que queda cerrada.
+     - `data.ts`: `TEXTOS_PARTICIPACIONES.recargaFallidaReplicas` = «No pudimos actualizar las réplicas. Mostramos la última versión que tenemos.».
+     - `components/replicas-de-participacion.tsx`: `useAvisoDeRecargaFallidaEnElForo(claveReplicas(…), activo, replicas, …)`, el mismo gancho que usan la lista de participaciones y «Tu participación».
+     - `activo` exige `isError` y datos a la vista, y excluye cinco casos: el fallo de una página, el cursor vencido, un error que reemplaza la vista, y `404 PARTICIPACION_NO_ENCONTRADA`.
+     - El último es una exclusión mía: la principal ya no existe, la lista se renueva y la fila sale, así que «Mostramos la última versión» sería falso.
+     - Para no importar `apiClient` en un componente, `lib.ts` ganó `esParticipacionNoEncontrada`.
+     - La clase archivada, los códigos con que `apiClient` redirige y la memoria por consulta los filtra el gancho (`useAvisoDeRecargaFallidaDe`, sin cambios).
+- **N-38, corregido.** En «FORO-1D52: el maestro con el bloque de réplicas abierto y una réplica a medio escribir salta al foro B y vuelve: …» (`participar-01d.test.tsx`):
+  - Ahora afirma que el foco está en la raíz de `DetalleDelForo`: un `div` con `tabindex="-1"` que contiene el `h2` «Segundo debate» y el `h3` «Participaciones».
+  - Dejé el título como estaba.
+  - **Mutación E11:** quitar `useFocoAlPerderseElControl` de `foro-view.tsx` → rojo.
+
+### Casos nuevos, con su rojo previo o su mutación
+Todos están en `features/tareas/replicas-01d.test.tsx` salvo N-38.
+
+| Título exacto | Rojo |
+|---|---|
+| «FORO-1D12: con el foro vencido y sin tardías, el maestro ve «Escribe tu réplica», publica y la réplica entra al bloque» | E1 |
+| «FORO-1D51: «Ver más réplicas» que falla (503) conserva las réplicas, avisa una vez, el botón sale de la espera y el foco se queda en él» | E2 y E7 |
+| «FORO-1D51: una recarga fallida del bloque con réplicas a la vista las conserva y avisa una vez; el siguiente fallo avisa otra vez; una lectura correcta no avisa» | rojo antes del remedio; E3 |
+| «FORO-1D51: cerrar y volver a abrir el bloque con un fallo ya avisado (y su recarga en vuelo) no lo repite (memoria por consulta)» | rojo antes del remedio; E3 |
+| «FORO-1D51: una recarga del bloque con réplicas a la vista que falla con %s no avisa «No pudimos actualizar las réplicas…»» con «el cursor vencido» | E4 |
+| el mismo, con «un 403 SIN_ACCESO_A_LA_CLASE (reemplaza la vista)» | E5 |
+| el mismo, con «un 409 CLASE_ARCHIVADA» | E8 |
+| el mismo, con «un 403 ACCESO_RESTRINGIDO (apiClient redirige)» | E9 |
+| el mismo, con «un 404 PARTICIPACION_NO_ENCONTRADA (la lista se renueva)» | E6 |
+| «FORO-1D51: dos bloques de principales distintas no heredan el aviso; si los dos fallan a la vez, sale un aviso por bloque» | rojo antes del remedio; E3 |
+| «FORO-1D42: con un fallo de las réplicas que reemplazaría la vista en la caché, volver a abrir el bloque no pide el foro por el fallo viejo; solo la lectura nueva que falla lo pide una vez, sin ciclo» | ninguna (ver abajo) |
+| «FORO-1D42: con réplicas a la vista y una recarga que falló con un código que reemplazaría la vista, volver a abrir el bloque no pide el foro por ese fallo; solo la lectura nueva que falla lo pide una vez» | E10b |
+| N-38, en `participar-01d.test.tsx`: la aserción nueva de FORO-1D52 | E11 |
+
+Ejecución de las mutaciones:
+- Cada una con copia previa, ancla única, restauración y comparación byte a byte. Las 13 corridas dieron «restaurado; cmp igual: True».
+- Scripts: `scratchpad/scripts/mutaciones01d_m12.py` (E1 a E11) y `mutaciones01d_m12b.py` (E10b). Registros: `scratchpad/mut01d_m12.log` y `mut01d_m12b.log`.
+- **E10** (`useRef(0)` en lugar de `useRef(fallo.errorUpdateCount)` en `usePedirElForoAnteUnFalloNuevo`) **sobrevivió** contra el primer caso de FORO-1D42. Escribí el segundo, que sí la tumba (E10b). La razón está abajo.
+- Corrida previa al remedio, con `npx vitest run src/features/tareas/replicas-01d.test.tsx src/features/tareas/participar-01d.test.tsx -t "M-11|M-12|useReplicas|FORO-1D52"`: `Tests  3 failed | 10 passed | 64 skipped (77)`. Los 3 rojos fueron los tres casos del aviso.
+
+### El detalle de `useReplicas` (el que señaló el manager)
+**Es la conducta que quiero, y la ref ya inicia con el `errorUpdateCount` del montaje.**
+- El `{ errorUpdateCount: 0, error: null }` de `useReplicas` solo lo recibe el control de `ParticipacionDelForo`, que llama a `useReplicas(…, false)` para el conteo. Nunca actúa, porque su cuenta nunca cambia, y así no se duplica la lectura del foro con el bloque.
+- El bloque abierto (`ReplicasDeParticipacion`) llama a `useReplicas(…, true)` y pasa la consulta real. Su ref arranca con el `errorUpdateCount` que hay en la caché al montar (R-01d-3).
+- Por qué E10 sobrevivía al primer caso: cuando el fallo viejo no tiene datos, TanStack Query 5 (`fetchState` en el resultado optimista del montaje) pone `error: null` y `status: "pending"` mientras vuelve a pedir. Aun con la ref en 0, `pedirDeNuevoSoloElForo(null)` no hace nada.
+- Cuando el fallo viejo tiene datos (una recarga que falló), el error sí queda a la vista al montar. Ahí la ref importa: con `useRef(0)` se pediría el foro por un fallo ya atendido. El segundo caso lo fija y E10b lo tumba.
+- En los dos caminos, solo la lectura nueva que falla pide el foro, una vez, y las cuentas no suben después de dos reposos de 1,5 s.
+
+### Fila nueva de la matriz de avisos y recargas
+| Disparador | Reemplaza | Redirige | 409 | 5xx o red | Foco | En vuelo a la vez | Con la vista desmontada |
+|---|---|---|---|---|---|---|---|
+| Recarga de fondo del bloque de réplicas con datos a la vista | sin aviso; pide el foro una vez por fallo nuevo (R-01d-3) | sin aviso; el fallo queda marcado como avisado | `CLASE_ARCHIVADA`: sin aviso (lo filtra el gancho; FORO-1D51 con E8) | conserva las réplicas y avisa «No pudimos actualizar las réplicas. …» una vez por fallo; un segundo fallo avisa otra vez; una lectura correcta, nada | no se mueve | una lectura por bloque (TanStack Query). Con dos bloques abiertos que fallan a la vez, **dos avisos**, uno por bloque | el bloque cerrado no vuelve a pedir (sin observador habilitado). Al abrirlo con el fallo ya avisado y su recarga en vuelo, no repite el aviso (memoria por consulta) |
+
+También cambió esta fila de la matriz anterior:
+- **«Ver más réplicas» con `5xx`:** un solo aviso, el de `useVerMasConservandoLaLista`. El aviso de recarga no se suma, porque excluye el fallo de página.
+
+**Por qué dos bloques que fallan a la vez dan dos avisos:**
+- Cada bloque es una lista distinta que la persona abrió, con su propia consulta y su propia memoria (`ultimoFalloAvisado` guarda la consulta como clave). Cada aviso dice que una lista a la vista quedó en su última versión.
+- Callar el segundo exigiría compartir la memoria entre consultas, y entonces el aviso de un bloque podría callar el fallo de otro. Eso es justo lo que el caso prueba que no pasa: el fallo de A no calla el de B.
+- Es lo mismo que hacen dos bloques de comentarios abiertos en «Avisos» (`useAvisoDeRecargaFallida`, una memoria por publicación).
+- No cambié `useAvisoDeRecargaFallidaDe` (R-01d-5).
+
+### Hermanos y estados vecinos del remedio
+Los bloques del foro con aviso de recarga fallida usan todos `useAvisoDeRecargaFallidaEnElForo`, es decir, `useAvisoDeRecargaFallidaDe` con `callado = false`.
+
+| Bloque | Primera carga | Cursor | Fallo de página | Reemplaza | Archivada | Redirige | Memoria por consulta | Entre consultas |
+|---|---|---|---|---|---|---|---|---|
+| Lista de participaciones (`participaciones-del-foro.tsx`) | sin aviso (exige datos) | excluido | excluido | excluido | gancho | gancho | sí (FORO-1D51) | n/a: hay una sola por foro, y cambiar de foro monta de nuevo con otra clave |
+| «Tu participación» (`mi-participacion.tsx`) | sin aviso (exige datos) | n/a: no pagina | n/a | excluido | gancho | gancho | sí | n/a |
+| Réplicas (`replicas-de-participacion.tsx`, nuevo) | sin aviso (exige datos) | excluido | excluido | excluido | gancho | gancho | sí | sí: una por principal; el caso de dos bloques prueba que no se heredan |
+
+Las tres cumplen las mismas reglas. La única diferencia es la exclusión de `PARTICIPACION_NO_ENCONTRADA`, que solo existe en las réplicas.
+
+El detalle del foro (`useAvisoDeRecargaFallidaDelForo`, 01c2) usa el mismo gancho base; no lo toqué. Los comentarios y las respuestas de `features/clases` usan otro gancho (`useAvisoDeRecargaFallida`, con el texto de consulta del módulo) y quedan fuera de este encargo.
+
+**Estados del mecanismo en las réplicas:**
+- primera carga: sin aviso (el bloque dice «No pudimos cargar las réplicas.»);
+- recarga fallida: un aviso;
+- segundo fallo: otro aviso;
+- lectura correcta: ninguno;
+- montar con el fallo ya avisado y su recarga en vuelo: ninguno;
+- dos bloques: uno por bloque;
+- cerrar el bloque: deja de observar.
+
+### Verificación
+Desde `frontend/`, una corrida a la vez.
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | sale con 0; `All matched files use Prettier code style!` y termina en `> tsc -b`, sin errores |
+| `npm run build` | `✓ built in 927ms` |
+| `npx vitest run src/features/tareas` | `Tests  1694 passed (1694)` (`Test Files  59 passed (59)`); antes 1682, +12 |
+| `npx vitest run src/features/clases` | `Tests  3167 passed (3167)` (`Test Files  131 passed (131)`); sin cambios |
+| `npx vitest run src/app src/lib src/services src/styles src/components` | `Tests  1540 passed (1540)` (`Test Files  99 passed (99)`), que son las cifras de antes sumadas (1159 + 381 y 69 + 30) |
+
+### Conteos
+Con `npx vitest list` sobre los seis archivos nuevos (`grep -a -c "<archivo>.test.tsx >"`):
+- `participar-01d.test.tsx`: 41. No cambia: N-38 es una aserción dentro de un caso que ya existía.
+- `errores-participacion-01d.test.tsx`: 6.
+- `replicas-01d.test.tsx`: **37** (antes 25; +12). Los 12 son:
+  - M-11: 1;
+  - «Ver más réplicas» con `5xx`: 1;
+  - el aviso: 8 (1 + 1 + 5 + 1);
+  - el detalle de `useReplicas`: 2.
+- `borrar-participacion-01d.test.tsx`: 17.
+- `recuperar-participaciones-01d.test.tsx`: 20.
+- `features/clases/actividades-foros-01d.test.tsx`: 18.
+- Total: **139 casos en 6 archivos**.
+
+La suite de `features/tareas` sube de 1682 a 1694, los mismos +12.
+
+### `enEspera=` y «Ocultar»
+- `grep -rho "enEspera=" frontend/src --include=*.tsx --exclude=*.test.tsx | wc -l` da **96**; sigue igual.
+- `replicas-de-participacion.tsx` sigue con 3. La corrección no suma ninguno.
+- `grep -rln "Ocultar" frontend/src --include=*.tsx --exclude=*.test.tsx | wc -l` da 0.
+
+### `git status --short -- frontend`
+Sigue en 27 entradas, sin archivos nuevos. Esta corrección cambió cinco:
+- en producción: `features/tareas/data.ts`, `features/tareas/lib.ts` y `features/tareas/components/replicas-de-participacion.tsx`;
+- en pruebas: `features/tareas/replicas-01d.test.tsx` y `features/tareas/participar-01d.test.tsx`.
+
+La clasificación de las 27 no cambia: 9 de producción modificados, 5 de producción nuevos, 6 pruebas nuevas, 3 de la lista cerrada y 4 `*.ataque` del tester.
+
+## Corrección tras la ronda 1 — FORO-01d: T-01 y T-02 (2026-11-16)
+
+Leí `reporte-tester.md` ("## Ronda 1 — FORO-01d") y `revision.md` ("## Arbitraje de la ronda 1 — FORO-01d: T-01 y T-02"). Las formas de los dos remedios son las que fijó el arbitraje.
+
+Todo lo que toqué está en «Se toca»:
+- Producción: `features/tareas/lib.ts`, `hooks.ts`, `components/participaciones-del-foro.tsx`, `components/participacion-del-foro.tsx` y `components/replicas-de-participacion.tsx`.
+- Dos pruebas nuevas mías: `features/tareas/unir-paginas-del-foro-01d.test.ts` y `features/tareas/foco-participaciones-01d.test.tsx`. Su arnés es una copia del de `replicas-01d.test.tsx`, sin cambios de conducta.
+
+No toqué `lib/unir-paginas.ts`, `components/foco/`, la clave de foco de `foro-view.tsx` ni los ganchos de 01c2. Tampoco ninguna `*.ataque`.
+
+### PARADA: ATQ-FORO-137 contradice O-01d-2
+- **Qué pasa.** Con los dos remedios y el aviso de O-01d-2, `foros-01d-r1.ataque.test.tsx` queda con un solo rojo: «ATQ-FORO-137: con 404 PARTICIPACION_NO_ENCONTRADA al recargar las réplicas, el foco no cae en <body> y no hay avisos de más».
+- **Dónde cae.** La aserción del foco (`:592`) ya pasa. Cae `:593`, `expect(aviso.error).not.toHaveBeenCalled()`, con «expected "vi.fn()" to not be called at all, but actually been called 1 times».
+- **Por qué.** El aviso que sale es justo el que manda O-01d-2: «Esa participación ya no existe.», una vez por fallo. El título del caso dice «no hay avisos de más», pero la aserción pide cero avisos. Escribió esa línea cuando la exclusión aceptada no avisaba nada.
+- **No la toqué** (es `*.ataque`). Las dos salidas posibles son:
+  - el tester ajusta `:593` a «un solo aviso, con ese texto»;
+  - el manager revierte O-01d-2. En ese caso, la mutación F4 indica la línea que se quita.
+
+  Decide el manager.
+- **Lo demás está en verde.** Los dos ATQ-FORO-135 y los dos ATQ-FORO-136 pasan. ATQ-FORO-137 pasa hasta `:592`.
+
+### T-01: antes → después
+- **Antes:**
+  - las tres uniones de páginas del foro usaban `unirPaginasSinRepetidas` (`lib/unir-paginas.ts`, se queda con la primera aparición): la lista de principales, el bloque de réplicas y el conteo de `participacion-del-foro.tsx`;
+  - publicar escribía la respuesta al final de la última página cargada;
+  - al cargar más, la copia del servidor se descartaba y la nueva quedaba entre la 20 y la 21.
+- **Después:**
+  - `features/tareas/lib.ts` tiene `unirPaginasConLaUltimaAparicion`: se queda con la última aparición de cada id y no muta la entrada;
+  - los tres usos del foro la llaman;
+  - publicar sigue escribiendo al final de lo cargado. La respuesta se ve en el acto, con el foco en ella y sin otra lectura (FORO-1D02 intacto);
+  - al cargar más, la copia del servidor queda en su lugar, al final.
+  - En las réplicas, el campo se vacía y el foco vuelve al campo, como antes.
+  - `lib/unir-paginas.ts` no cambia.
+- **Vecino B5, aplicado** (`hooks.ts`, `usePublicarReplica`). Publicar una réplica también sube `replicas` de su principal en la caché de la lista. Antes, con réplicas por cargar, el control plegado decía «Ver réplicas (25)» después de publicar la 26.ª: el mayor entre 25 del servidor y 21 vistas. Ahora dice 26, y al cargar más sigue en 26, sin contar dos veces la nueva.
+
+### T-02: antes → después
+- **Antes:** el bloque no tenía remedio propio. Lo único que movía el foco era el gancho de la vista, y su clave solo cambia con la consulta del foro (R-01d-6). Un control que desaparecía dentro de «Participaciones» dejaba el foco en `<body>`.
+- **Después:** gancho nuevo `useFocoAlEncabezadoSiSePierde(bloqueRef, encabezadoRef, selectorDeFila?)` en `features/tareas/hooks.ts`, con `focoPerdido` de `components/foco/lib.ts`, que solo se importa.
+  - **Qué recuerda.** Con `focusin`, si el control enfocado estaba dentro del bloque y, cuando hay selector, su fila.
+  - **Cuándo borra la memoria.** Ante un `focusout` sin destino con el control aún conectado y la ventana con foco, es decir, un clic en blanco, como `useFocoAlPerderseElControl`.
+  - **Cuándo mueve el foco.** Después de cada render de su dueño, solo si el control ya no está en el documento y el foco se perdió. Lo lleva al encabezado.
+  - **Dónde va:**
+    - En `ParticipacionesDelForo`, con el `section` como bloque y el `h3` «Participaciones» como destino. Va después del efecto que ya lleva el foco a la fila nueva o a la vecina tras borrar: si ese efecto movió el foco, el nuevo no hace nada.
+    - En `ReplicasDeParticipacion`, con su `div` y el `h4` «Réplicas», pero solo cuando lo que desapareció es la réplica del control (`selectorDeFila = "[data-replica-id]"`). Lo demás que desaparece en el bloque lo atiende «Participaciones» y lo lleva al `h3`: el formulario, la principal entera y la clase en solo lectura.
+  - **Nombres accesibles.** Los dos encabezados ya tenían `tabIndex={-1}` y su texto («Participaciones», visible, y «Réplicas», `sr-only`). Ningún `.tsx` escribe «Ocultar».
+- **O-01d-2, aplicado** en `ReplicasDeParticipacion`. Ante una recarga con datos a la vista que recibe `404 PARTICIPACION_NO_ENCONTRADA`, se avisa una vez por fallo con «Esa participación ya no existe.» (`MENSAJES_ERROR_FORO.participacionNoEncontrada`), por el mismo gancho con memoria por consulta. «No pudimos actualizar las réplicas…» sigue excluido en ese caso.
+
+### Casos nuevos, con su rojo previo
+- **`features/tareas/unir-paginas-del-foro-01d.test.ts`** (6). Los 6 dieron rojo antes del remedio (`unirPaginasConLaUltimaAparicion is not a function`):
+  - «FORO-1D60: sin repetidas, conserva el orden de las páginas y de sus filas»;
+  - «FORO-1D60: una fila repetida entre páginas queda en el lugar de su última aparición, con esa copia»;
+  - «FORO-1D60: una fila repetida en la misma página queda en su última aparición»;
+  - «FORO-1D60: sin páginas o con páginas vacías, la lista vacía»;
+  - «FORO-1D60: con una sola página, la misma página»;
+  - «FORO-1D60: no muta la entrada».
+- **`features/tareas/foco-participaciones-01d.test.tsx`** (20). Rojo en la corrida previa al remedio: 16 de 20. Para los otros cuatro, la mutación que los tumba:
+
+| Caso (título) | Rojo previo o mutación |
+|---|---|
+| «FORO-1D61 (A1): publicar con la lista en error lleva el foco al h3 «Participaciones»» (también B3: «Tu participación» se escribe) | rojo previo; F1 |
+| «FORO-1D61 (A2): el 409 %s al publicar quita el formulario y lleva el foco al h3, con un solo aviso» (`PARTICIPACION_YA_PUBLICADA`, `PARTICIPACION_CALIFICADA` y `FORO_CERRADO`) | rojo previo (×3); F1 |
+| «FORO-1D61 (A3): publicar con un error que reemplaza la vista lleva el foco a la raíz de la vista, como hoy» | verde de entrada; F9 |
+| «FORO-1D61 (A4): publicar una réplica con 404 PARTICIPACION_NO_ENCONTRADA saca la fila y lleva el foco al h3, con un solo aviso» | rojo previo; F1 |
+| «FORO-1D61 (A5): el alumno que publica una réplica con 409 FORO_CERRADO pierde el formulario y el foco va al h3» | rojo previo; F1 |
+| «FORO-1D61 (A6, O-01d-2): la recarga de las réplicas con 404 saca la principal con una réplica a medio escribir; el foco va al h3 y avisa una vez «Esa participación ya no existe.»» | rojo previo; F1 y F4 |
+| «FORO-1D61 (A6, O-01d-2): un segundo 404 de las réplicas de otra principal avisa otra vez; volver a abrir no repite el aviso» | rojo previo; F4 |
+| «FORO-1D61 (A7): una recarga de la lista que quita la fila con el foco lo lleva al h3, sin aviso» | rojo previo; F1 |
+| «FORO-1D61 (A8): una recarga del bloque que quita la réplica con el foco lo lleva al h4 «Réplicas» de su bloque» | rojo previo; F2 |
+| «FORO-1D61 (A10): borrar con 404 PARTICIPACION_NO_ENCONTRADA saca la fila con «Sí, borrar …» enfocado y el foco va al h3» | rojo previo; F1 |
+| «FORO-1D61 (A10): borrar con 403 BORRADO_NO_PERMITIDO deja la fila y el foco en «Sí, borrar …», aunque la lista renovada traiga otra fila» | verde de entrada; F7. En su primera versión F7 sobrevivía porque la lista renovada no cambiaba y el bloque no se volvía a pintar; la reescribí para que cambie |
+| «FORO-1D61 (A11): la clase que entra en solo lectura con el foco en «Escribe tu réplica» lleva el foco al h3» | rojo previo; F1 |
+| «FORO-1D61 (A14): «Tu participación» que pierde el formulario en una recarga (otra pestaña) lleva el foco al h3» | rojo previo; F1 |
+| «FORO-1D61: soltar el foco con un clic en blanco y después perder el control en una recarga no se lleva el foco» | verde de entrada; F8 |
+| «FORO-1D62 (B1): con páginas por cargar, la principal publicada se ve al final de lo cargado, con el foco y sin otra lectura; al cargar más queda al final» | rojo previo; F3 |
+| «FORO-1D62 (B2): con réplicas por cargar, la réplica publicada se ve al final de lo cargado, el campo se vacía, el foco vuelve al campo y no hay otra lectura; al cargar más queda al final» | rojo previo; F3 |
+| «FORO-1D62 (B4): borrar la última principal de la primera página con la siguiente cargada lleva el foco al «Borrar» de la vecina, que venía de la otra página» | verde de entrada; F6 |
+| «FORO-1D62 (B5): con réplicas por cargar, publicar sube el conteo plegado una vez, y al cargar más no cuenta dos veces la nueva» | rojo previo; F5 |
+
+Corrida previa al remedio: `npx vitest run src/features/tareas/foco-participaciones-01d.test.tsx src/features/tareas/unir-paginas-del-foro-01d.test.ts` dio `Tests  22 failed | 4 passed (26)`.
+
+### Los vecinos del arbitraje, uno por uno
+**A. Controles con foco que pueden desaparecer:**
+1. **Publicar la principal.** Aplica y está aplicado. Con la lista cargada, el foco va a la nueva (FORO-1D02 y FORO-1D62 B1). Con la lista en error, al `h3` (FORO-1D61 A1 y ATQ-FORO-136).
+2. **Los tres `409` al publicar.** Aplica y está aplicado: el foco va al `h3`, con un solo aviso (FORO-1D61 A2 ×3 y ATQ-FORO-136). Lo escrito se pierde con el formulario, como fijó el manager.
+3. **Publicar con un error que reemplaza la vista.** No aplica al remedio del bloque. El bloque se desmonta y el gancho de la vista lleva el foco a la raíz, como hoy (FORO-1D61 A3, que tumba F9).
+4. **Publicar una réplica con `404 PARTICIPACION_NO_ENCONTRADA`.** Aplica y está aplicado: el foco va al `h3`, con el aviso de §D-10, uno solo (FORO-1D61 A4).
+5. **Publicar una réplica con `409 FORO_CERRADO`.** Aplica y está aplicado: el alumno pierde el formulario y el foco va al `h3` (FORO-1D61 A5). Va al `h3` y no al `h4`, porque el formulario no está dentro de una réplica.
+6. **La recarga de las réplicas con `404`.** Aplica y está aplicado: el foco va al `h3` y se avisa una vez «Esa participación ya no existe.» (FORO-1D61 A6 ×2; O-01d-2). ATQ-FORO-137 es la PARADA de arriba.
+7. **La recarga de la lista que quita la fila con el foco.** Aplica y está aplicado: el foco va al `h3`, sin aviso (FORO-1D61 A7). Pasa lo mismo con `pedirDeNuevoElForo` y con un borrado desde otra sesión, porque todos llegan por la recarga de la lista.
+8. **Una recarga del bloque que quita la réplica con el foco.** Aplica y está aplicado: el foco va al `h4` (FORO-1D61 A8; F2).
+9. **Borrar como acción propia.** Sin cambio: el foco va a la vecina o al encabezado (FORO-1D38). El remedio va después y no actúa, porque el foco ya no está perdido.
+10. **Borrar con `404` o con `403`.**
+    - Con `404`, la fila sale y el foco va al `h3` (FORO-1D61 A10, primero).
+    - Con `403`, la fila se queda y el foco sigue en «Sí, borrar …», aunque el bloque se vuelva a pintar (FORO-1D61 A10, segundo; F7).
+    - En una réplica, el mismo `404` hace salir la réplica. Su bloque se recarga y el foco va al `h4`, por el mismo mecanismo de A8.
+11. **La clase entra en solo lectura.** Aplica y está aplicado: el foco va al `h3` (FORO-1D61 A11, con el campo de la réplica enfocado). En un «Borrar» de principal o de réplica pasa lo mismo: no es la réplica la que sale, así que el bloque de réplicas no actúa y lo atiende «Participaciones».
+12. **«Ocultar réplicas» y «Ver réplicas».** No aplica: el foco se queda en el botón, que es el mismo control y sigue conectado (FORO-1D11, «… es el mismo botón y conserva el foco»). El remedio no actúa, porque el foco no está perdido.
+13. **«Ver más».** Sin cambio: el foco va a la primera fila nueva o al encabezado (FORO-1D50 y `useFocoAlCargarMas`).
+14. **«Tu participación» pierde el formulario en una recarga.** Aplica y está aplicado: el foco va al `h3` (FORO-1D61 A14).
+15. **El foro que cierra por la fecha.** No aplica: el cliente no compara fechas (FORO-1D04b). Hasta que llega una recarga no cambia nada, y una recarga que quita el formulario es el caso 14.
+16. **El foro entero reemplazado.** No aplica al bloque: el foco va a la raíz, sin cambio (las vigiladas de 01c2, FORO-1C52, FORO-1D52 con N-38, y FORO-1D61 A3). Ninguna cayó.
+
+**B. Escrituras en una caché paginada:**
+1. **Publicar la principal con páginas pendientes.** Aplicado, con la regla de la última aparición (ATQ-FORO-135 y FORO-1D62 B1, que cubre la parte sin «Ver más»; F3).
+2. **Publicar una réplica con páginas pendientes.** Aplicado (ATQ-FORO-135 y FORO-1D62 B2, que cubre la parte sin «Ver más»; F3).
+3. **Publicar con la lista en error o sin cargar.** Sin cambio de código: `setQueryData` no escribe en una lista sin datos y «Tu participación» sí se escribe (FORO-1D61 A1 lo afirma: «Participaste el …»).
+4. **Borrar con varias páginas cargadas, con la vecina en otra página.** Funciona sin cambio: la lista se renueva con `exact`, TanStack Query 5 vuelve a calcular el cursor de cada página desde las nuevas, y la vecina se encuentra (FORO-1D62 B4; F6).
+5. **El conteo plegado.** Aplicado: publicar una réplica sube el conteo de su principal en la lista, y la regla de la última aparición no cuenta dos veces la que llegó del servidor (FORO-1D62 B5; F5). Al borrar, la lista se renueva y trae el conteo del servidor (FORO-1D38).
+6. **El conteo de la lista de «Foro».** Sin cambio: se marca vieja al publicar y al borrar (FORO-1D02 y FORO-1D37).
+
+**Vecino que agrego: el clic en blanco.** Quien suelta el foco con un clic en blanco y después pierde ese control en una recarga no debe recibir el foco de vuelta. Aplicado («FORO-1D61: soltar el foco con un clic en blanco …»; F8).
+
+### Filas de la matriz que cambian
+| Disparador | Antes | Después |
+|---|---|---|
+| Publicar la principal, éxito con la lista en error o sin fila nueva | foco en `<body>` | `h3` «Participaciones» |
+| Publicar la principal, los tres `409` de la participación | aviso; foco en `<body>` | aviso; el formulario sale; `h3` |
+| Publicar una réplica, `404` y `409 FORO_CERRADO` | aviso; foco en `<body>` | aviso; `h3` |
+| Recarga de las réplicas con datos y `404 PARTICIPACION_NO_ENCONTRADA` | sin aviso; la fila sale; foco en `<body>` | **un aviso por fallo, «Esa participación ya no existe.»**; la fila sale; `h3` |
+| Recarga de la lista que quita la fila con el foco, y «Tu participación» que quita el formulario | foco en `<body>` | `h3` |
+| Recarga del bloque que quita la réplica con el foco | foco en `<body>` | `h4` «Réplicas» |
+| Borrar con `404` | aviso; foco en `<body>` | aviso; `h3` (`h4` si era una réplica) |
+| La clase entra en solo lectura con el foco en un control de escritura | foco en `<body>` | `h3` |
+| Publicar una réplica con páginas por cargar | conteo plegado sin la nueva | el conteo la incluye |
+| Cualquier reemplazo de la vista o salto de foro | raíz | raíz (sin cambio) |
+
+**En vuelo a la vez y con la vista desmontada:**
+- El remedio vive en los componentes del bloque: con la vista desmontada no actúa, y manda el gancho de la vista.
+- Dos bloques de réplicas que pierden una réplica a la vez llevan el foco cada uno a su `h4`. Solo uno tenía el foco, así que solo ese se mueve.
+- El aviso de O-01d-2 lleva una memoria por consulta, una por principal (FORO-1D61 A6, segundo).
+
+### Mutaciones
+Todas con copia, ancla única, restauración y `filecmp`: «restaurado; cmp igual: True» en las 11 corridas (9 + F7 de nuevo + F3 de nuevo, listando todos los rojos). Script: `scratchpad/scripts/mutaciones01d_r1.py`. Registros: `scratchpad/mut01d_r1.log` y `mut01d_r1b.log`.
+
+| Id | Mutación | Resultado |
+|---|---|---|
+| F1 | sin `useFocoAlEncabezadoSiSePierde` en `participaciones-del-foro.tsx` | rojo, 14: ATQ-FORO-136 ×2 y FORO-1D61 A1, A2 ×3, A4, A5, A6 (primero), A7, A10 (`404`), A11 y A14. ATQ-FORO-137 también cae, pero ya estaba rojo por la PARADA; con F1 cae antes, en la aserción del foco |
+| F2 | sin el gancho en `replicas-de-participacion.tsx` | rojo, 1: FORO-1D61 A8 |
+| F3 | `unirPaginasConLaUltimaAparicion` con la regla de la primera aparición | rojo, 6 propios del remedio: FORO-1D60 (las dos repetidas), FORO-1D62 B1 y B2, y ATQ-FORO-135 ×2. El séptimo rojo de la corrida es ATQ-FORO-137, el de la PARADA, que no depende de F3. Lo listé con `mutaciones01d_r1c.py`; el registro es `mut01d_r1c.log` |
+| F4 | sin el aviso de O-01d-2 | rojo, 2: FORO-1D61 A6 ×2 |
+| F5 | sin subir el conteo de la principal al publicar una réplica | rojo, 1: FORO-1D62 B5 |
+| F6 | la vecina, solo la anterior | rojo, 1: FORO-1D62 B4 |
+| F7 | mover el foco aunque el control siga conectado | primera corrida: sobrevive (el caso no volvía a pintar el bloque). Con el caso reescrito: rojo, 1 (FORO-1D61 A10, `403`) |
+| F8 | sin borrar la memoria en un clic en blanco | rojo, 1: el caso del clic en blanco |
+| F9 | sin `useFocoAlPerderseElControl` en `foro-view.tsx` | rojo, 1: FORO-1D61 A3 |
+
+### Verificación
+Desde `frontend/`, una corrida a la vez.
+
+| Comando | Última línea |
+|---|---|
+| `npm run lint` | sale con 0; `All matched files use Prettier code style!` y termina en `> tsc -b`, sin errores |
+| `npm run build` | `✓ built in 881ms` |
+| `npx vitest run src/features/tareas` | `Tests  1 failed \| 1734 passed (1735)` (`Test Files  1 failed \| 61 passed (62)`). El único rojo es ATQ-FORO-137, la PARADA |
+| `npx vitest run src/features/clases` | `Tests  3167 passed (3167)` (`Test Files  131 passed (131)`) |
+| `npx vitest run src/app src/lib src/services src/styles src/components` | `Tests  1540 passed (1540)` (`Test Files  99 passed (99)`) |
+
+Cuenta de `features/tareas`: 1735 = 1694 de antes + 15 del archivo del tester + 26 míos (6 + 20).
+
+### Conteos
+Con `npx vitest list` y `grep -a -c "<archivo> >"`:
+- `foco-participaciones-01d.test.tsx`: 20 (nuevo);
+- `unir-paginas-del-foro-01d.test.ts`: 6 (nuevo);
+- `participar-01d.test.tsx`: 41;
+- `errores-participacion-01d.test.tsx`: 6;
+- `replicas-01d.test.tsx`: 37;
+- `borrar-participacion-01d.test.tsx`: 17;
+- `recuperar-participaciones-01d.test.tsx`: 20;
+- `features/clases/actividades-foros-01d.test.tsx`: 18.
+
+Total: **165 casos en mis 8 archivos de 01d**.
+
+### `enEspera=`, «Ocultar» y `*.ataque`
+- `grep -rho "enEspera=" frontend/src --include=*.tsx --exclude=*.test.tsx | wc -l` da **96**, sin cambio. `replicas-de-participacion.tsx` sigue con 3; ninguno cambió de lugar.
+- Ningún `.tsx` de producción escribe «Ocultar» (`grep -rln` da 0).
+- **`*.ataque` en rojo por el remedio:** solo ATQ-FORO-137 en `:593`, la PARADA de arriba. Las 7 `*.ataque` del foro de 01c1 y 01c2 y las vigiladas siguen en verde dentro de las suites de `features/tareas` y `features/clases`: `foro-detalle-01c:498`, `foros-01c2-r3:359`, FORO-1C52 y FORO-1D52.
+
+### `git status --short -- frontend`
+Son 30 entradas: las 27 de antes, más `foros-01d-r1.ataque.test.tsx` (del tester) y mis dos pruebas nuevas, `foco-participaciones-01d.test.tsx` y `unir-paginas-del-foro-01d.test.ts`.
+
+| Clase | Cuántas |
+|---|---|
+| Producción modificada | 9 |
+| Producción nueva | 5 |
+| Pruebas nuevas mías | 8 |
+| Lista cerrada | 3 |
+| `*.ataque` del tester | 5 (4 modificadas y 1 nueva) |

@@ -1570,3 +1570,480 @@ Cada una con copia previa, un ancla contada como única, restauración desde la 
   - `frontend/src/features/tareas/foros-01c2-r3.ataque.test.tsx`: SHA-256 `54b81bff…07ace5`, 20 casos.
   - `frontend/src/features/clases/foros-01c2-r3-temas.ataque.test.tsx`: SHA-256 `c07d27e0…a802e1`, 8 casos.
 - `git status --short -- frontend backend shared` da 33: los 31 de antes más mis dos archivos.
+
+## Ronda 0 — FORO-01d (2026-11-16)
+Comprobación de arranque; no es ronda de ataque. Base: `60b5c88` (cierre de 01c2). Solo frontend. Plan: 3194 líneas, SHA-256 `588fe3eb…`, con la Enmienda 11 (§E11).
+
+**Resultado:**
+- **PARADAS:** ninguna.
+- **C-12:** aplicado. Queda en rojo en sus dos casos hasta que el programador cambie el texto; es el rojo previo esperado.
+- **C-13:** preparado, sin escribir, para una ronda 0 bis.
+- **Mis `*.ataque` de FORO-01:** ninguna cambia, siempre que 01d cumpla de R-01d-1 a R-01d-6.
+
+### Arranque
+- `git status --short -- frontend backend shared` estaba vacío sobre `60b5c88` antes de C-12.
+- **V-01 de arranque:** `sha256sum -c foro01-arranque/v01-foro01d-base.txt` → 307 de 307 `OK`.
+
+### Grep de arranque (sobre `60b5c88`, en `frontend/src`)
+Repetí la línea «Grep» de §E7.5.5 y lo que me pareció necesario de §E11.2 y §E8.3:
+- **G1, `seccion=actividades`:**
+  - la URL completa solo la fija `features/clases/contenido-03c2.test.tsx:242` (con su título en `:235`), que es el punto 1 de la lista cerrada;
+  - `ver-mas-y-orden-ch4.test.tsx:756` arma una URL de entrada (vigilada);
+  - `formularios-ch3-r1.ataque.test.tsx:241` es un comentario.
+- **G1b, `conForos`:** solo C-7, en `lib/errores-ch3-r2.ataque.test.ts:258-260`, de 01b, que lee `shared`. Ninguna prueba exige que falte ni que esté.
+- **G2, `0 tareas|Tiene \d+ tarea|Sus tareas se califican`:**
+  - aparece en `categorias-view.test.tsx:122`, `:172`, `:176`, `:242`, `:278`, `:325`, `:432`, `:458` y `:482`, que es el punto 2 de la lista cerrada, completo;
+  - y en las dos de C-12: `categorias-01e-r1:174` y `categorias-01e-r2:153`.
+
+  Lo demás es de otros textos («16,381 tareas», «50 tareas», «30 tareas» de calificaciones). `TEXTOS_CATEGORIAS.tareas`, `tieneTareas` y `vacio` (`features/clases/data.ts:902-911`) no los lee ninguna otra prueba, y ninguna expresión regular de las pruebas que montan el editor de categorías toca «tarea(s)».
+- **G3, aserciones sobre la URL completa** (`searchParams.keys|size|toString`, `url.search`): las de admin (`estado-pago-01g:1158`, `movimientos-01g:163`, `usuarios-01f:195` y `:299`) y las de «Clases anteriores» (`clase-archivada-01d2-vista:769-770` y `:2315`) no son de «Actividades». Las `inesperadas` con `${url.pathname}${url.search}` (Dudas, Recursos y `avisos-03d`) eligen `/trabajo` por `pathname`, como dice la búsqueda 8 de §E11.2.
+- **G4, `trabajo?` o `temas?` literales:** solo `contenido-03c2:235` y `:242`, en la lista cerrada. Los ayudantes `String(entrada) === ruta` de `app/*` no se llaman con ninguna ruta de `/trabajo` ni de `/temas`.
+- **G5, `claveTemasDeLaSeccion(…, "actividades")` y `claveTrabajo(`:** `invalidaciones-03c2-r1.ataque`, `ordenar-03c2-r1.ataque`, `recargas-ch6:585` y `:596`, `recargas-ch6b-r1:567`, `recargas-ch6b-r2:604` y `:930`, y `ver-mas-ch6:534`. La clave no cambia (§E7.5.5), así que siguen valiendo.
+- **G6, los tipos de elemento en los dobles de `features/clases` y `app`:** `anuncio` 71, `material` 56, `tarea` 10, y ningún `foro`. `tipo: "foro"` solo aparece en `hermanos-03d-01c.test.tsx:73`. Ningún doble de «Actividades» devuelve un foro, así que la rama `foro` de `seccion-de-tema.tsx` no cambia ninguna prueba de hoy.
+- **G7, los enlaces de fila `^Tarea: …`:** `fila-01d-r1.ataque`, `fila-de-entrega-01d`, `reloj-01e-r4.ataque` y `trabajo-view.test.tsx:351-358`. Son tareas; la fila del foro es nueva.
+- **G8, los dobles que eligen por `searchParams.get("seccion")` o por `claveTemasDeLaSeccion(…, "actividades")`:** 29 archivos. Coinciden con la lista de §E7.5.5, más siete que no nombra:
+  - `clases-admin-01c-rutas.test.tsx:147`;
+  - `app/estado-por-id-ch6.test.tsx:374` (la lista dice `app/estado-por-id-ch6`; es esta);
+  - `app/estado-por-id-ch6a-r1.ataque.test.tsx:347`;
+  - `formularios-03c2-r1.ataque.test.tsx:90`;
+  - `recargas-ch6b-r1.ataque.test.tsx:349`;
+  - `recargas-ch6b-r2.ataque.test.tsx:375`;
+  - `ver-mas-ch6.test.tsx:335`.
+
+  Abrí cada una: todas eligen por `get("seccion")`, `get("cursor")`, `get("limite")` o por `pathname`, y ninguna fija la URL completa ni la ausencia de `conForos`. **No cambian.** Lo dejo como observación (O-01d-1), no como PARADA.
+- **G9, `.refetch(` sin `{ cancelRefetch: false }` en producción:** las cinco líneas de la lista cerrada de ATQ-CH4-34 (`editar-recurso-view:136`, `clases/hooks.ts:1243`, `editar-tarea-view:135`, `entrega-de-alumno-view:122-123`) más `editar-foro-view:120` (C-15). §E8.3: «01d no cambia» (no hay recargas sin opción); vigilada.
+- **G10, lectores de `isFetchingNextPage`:** los tres de CH4-04 (`mis-calificaciones-view`, `hilo-privado` y `entregas-view`). `useVerMasConservandoLaLista` no debe leerlo (§E8.4); vigilada.
+- **G11, `perspectivaDeRuta(` en producción:** las nueve vistas de `features/clases` y `features/tareas/hooks.ts` (C-10). Los componentes nuevos de 01d deben tomar la perspectiva de `useRutaDeLaClase`; vigilada (`estatico-02c-r1.ataque`).
+- **G12:** `CODIGOS_CON_MENSAJE_DEL_SERVIDOR` de tareas sigue en 15 (`errores-ch3.test.ts:44`); vigilada.
+- **G13:** `enEspera=` en producción da 91 (`grep -rho … --exclude=*.test.tsx | wc -l`). Es C-13, abajo.
+
+**Resultado:** ninguna prueba ajena cambia sin estar en la lista cerrada (3) o en los C-n. **Sin PARADA.**
+
+### Mis `*.ataque` de FORO-01 en el frontend: ninguna cambia
+Revisé las siete del foro (`foros-01c1-r1`, `foros-01c1-r1-foco`, `foros-01c2-r1`, `-r2`, `-r3`, `foros-01c2-r2-temas` y `-r3-temas`) y las de los C-n que ajusté (`errores-ch3-r2`, `guardas-ch4-r1`, `styles/clases-r1`, `estatico-02c-r1` y las de 01c1). Busqué lo que 01d cambia a propósito:
+- **Conteos sin la ruta exacta:** `llamadas.length`, `fetch` llamado N veces o `.calls.length` fuera de los avisos dan **0** coincidencias. Todos mis contadores filtran por la ruta exacta del foro (`lecturasDe`, `lecturasDeA`), por la lista, por método o por `lecturasNoCanonicas()`. Las rutas de participaciones (`…/foros/<id>/participaciones`) no caen en el patrón `^…/foros/([^/]+)$` de mis dobles:
+  - en r1 responden `500 "no esperada"`;
+  - en r2 y r3, `404 NO_ENCONTRADO`;
+  - en los `-temas`, `200 {}`, que el esquema rechaza.
+
+  Ninguno de esos errores reemplaza la vista, así que, con R-01d-3, no vuelven a pedir el foro.
+- **`alert` en todo el documento:**
+  - `foros-01c1-r1:179`, `:346`, `:474-476` y `:501` son de la lista «Foro», que 01d no toca;
+  - `foros-01c2-r1:920` y `foros-01c2-r2:264` llegan con la vista ya reemplazada;
+  - `foros-01c2-r2:452` llega tras esperar que el `h2` desaparezca, con la vista reemplazada y el bloque desmontado (R-01d-1).
+- **`invalidateQueries({ queryKey: claveForo(…) })` sin `exact`,** que desde 01d alcanza las participaciones:
+  - `foros-01c2-r1:812`, `:818`, `:843` y `:859` son de la edición, que no tiene bloque;
+  - `foros-01c2-r1:940`, `foros-01c2-r2:346` y `foros-01c2-r3:374` y `:385` son del detalle, y cuentan solo la ruta exacta del foro y los avisos. La relectura de participaciones nunca tiene datos, así que no avisa (R-01d-2);
+  - `foros-01c2-r3:483` es de la edición.
+- **`startsWith(`${API_FOROS}/`)`** (`foros-01c2-r3:221`, `:350` y `:371`):
+  - `lecturasNoCanonicas()` vigila R-01d-4;
+  - ATQ-FORO-130 hace fallar todo lo que está bajo `…/foros/` con `403` o `503`. Con R-01d-1 a R-01d-3 queda un solo «No tienes acceso a esta clase.» y un solo aviso.
+- **La única acción principal, la clase archivada y el foco:** ninguna de las mías afirma la acción principal del detalle. ATQ-FORO-116 busca `/Borrar foro|Sí, borrar foro/`, que no coincide con «Borrar participación» ni con «Sí, borrar réplica». El foco solo lo afirman casos de la edición o de la lista.
+- **Las filas de «Actividades» y el editor de categorías:** ninguna de mis `*.ataque` del foro los mira. Las de categorías son C-12.
+
+Mi conclusión coincide con §E11.2: **ninguna cambia.** Todas dependen de R-01d-1 a R-01d-6, que quedan como restricciones del diseño.
+
+### C-12 — aplicado
+Archivos: `features/clases/categorias-01e-r1.ataque.test.tsx:174` y `categorias-01e-r2.ataque.test.tsx:153`.
+
+- **Respaldo:** `scratchpad/tester-r1/copias01d/`. Los SHA-256 de antes son los de la lista base: `a3880b67…5325` y `66c0b873…430d`.
+- **El cambio:** «0 tareas» pasa a «0 actividades» en las dos líneas, cada una con el comentario literal de arriba: `// FORO-01d, C-12 (§E7.5.5; E1-9): el editor de categorías cuenta actividades (tareas y foros).`. Nada más cambia: `diff` contra el respaldo da solo `174c174,175` y `153c153,154`, y Prettier no marca nada.
+- **Por qué lo apliqué ya:**
+  - Es lo mismo que hice en 01c1 con C-9 a C-11: el plan fija el texto letra por letra, sin depender de una declaración del programador.
+  - El rojo que deja es el previo y esperado, por una sola razón: falta el texto nuevo.
+  - No hace falta una ronda 0 bis, porque no hay nada que declarar.
+- **El rojo:** `npx vitest run src/features/clases/categorias-01e-r1.ataque.test.tsx src/features/clases/categorias-01e-r2.ataque.test.tsx` → `Tests  2 failed | 10 passed (12)`.
+  - Caen exactamente los dos casos tocados: «guardar con el foco en el «Peso» de una fila nueva…» y «dos filas nuevas que el servidor devuelve en otro orden…».
+  - Los dos caen con `Unable to find an element with the text: 0 actividades`.
+  - Pasan a verde cuando `TEXTOS_CATEGORIAS.tareas` diga «N actividades».
+  - Si caen por otra razón, PARADA.
+
+### C-13, V-06 (`styles/clases-r1.ataque.test.ts`) — preparado, sin escribir, para la ronda 0 bis
+1. **Comentario, después de `:210`** (el bloque de FORO-01c1) y antes del `it(` de `:211`:
+   `// FORO-01d ronda 0 bis (C-13, §E7.5.5): de 91 a <91+N> enEspera=. Entran <archivo> (<n>: «<botón>»), …; mi-participacion.tsx y foro-view.tsx (0). Sigue protegiendo lo mismo: ningún \`disabled\` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con espera cambien solo con el plan.`
+2. **El total:** el título de `:211` («… 91 enEspera») y `:218` (`expect(usos).toHaveLength(91)`) pasan a 91 + N.
+3. **`fijos`:** después de `:366` (`"/src/features/clases/foros-view.tsx": 1,`), con su comentario `// FORO-01d ronda 0 bis (C-13, §E7.5.5): …`, una entrada por archivo nuevo de `features/tareas/components/`:
+   - `participaciones-del-foro.tsx`;
+   - `participacion-del-foro.tsx`;
+   - `replicas-de-participacion.tsx`;
+   - `formulario-de-participacion.tsx`;
+   - `mi-participacion.tsx`, en 0.
+
+   Cada uno con la cifra que declare el programador, y `"/src/features/tareas/foro-view.tsx": 0`.
+4. **Lo que puede cambiar la cifra:**
+   - si «Publicar participación» y «Publicar réplica» son un solo `enEspera=` de `formulario-de-participacion.tsx`, la suma es 5 y no 6;
+   - si un botón nuevo cae en `features/clases/components/`, se suma a `fijos` y la tolerancia de `restoClases` (3) no cambia.
+
+   Hoy los botones de «Actividades» no cambian: «Mover» de un foro usa `mover-elemento.tsx` (1), «Crear foro» es un enlace en `trabajo-view.tsx` (0) y `seccion-de-tema.tsx` sigue en 4.
+5. **Por qué no lo escribo ahora:** la cifra y su reparto dependen de dónde viva cada botón.
+   - Un archivo nuevo de `features/tareas/` con `enEspera=` que no esté en `fijos` cae en `resto` y rompe `resto.length === restoAdmin + restoClases`.
+   - Escribirlo antes daría un rojo que podría no ser el final.
+6. **Secuencia:** el programador declara las cifras por archivo y yo las copio de lo que reporta el caso al fallar, como C-15 en 01c2.
+7. **Forma alternativa:** no veo una mejor que respete el plan.
+   - Poner `foro-view.tsx: 0` en `fijos` es redundante, porque un `enEspera=` ahí ya caería en `resto` y rompería la prueba. Lo propongo solo por legibilidad, como en las demás vistas en 0.
+   - Lo decide el manager. No es un cambio de conducta.
+
+### Notas para el ataque de 01d (solo anotadas)
+- **FORO-1D29:** la fila del foro en «Actividades» y en «Foro» con `entrega: null` y con `{ estado: "asignado", conRetraso: false }` da la misma insignia y la misma segunda línea, con el foro abierto y vencido (O-01b-1). En una archivada, «Crear foro» no se pinta.
+- **FORO-1D42, sin ciclo de peticiones:**
+  - un `404 NO_ENCONTRADO` u otro código en participaciones, réplicas o «Tu participación» no vuelve a pedir el foro;
+  - un error que reemplaza la vista lo pide una sola vez (`exact`);
+  - con el foro respondiendo bien a pesar del error del bloque, el bloque se queda con su error sin volver a pedir;
+  - con el foro en error no sale ninguna lectura de 01d (R-01d-1).
+
+  Lo ataco contando por ruta exacta, con `retry: 1` y la espera del reintento.
+- **Los ids canónicos en todo lo que cuelgue de `claveForo`:**
+  - claves y rutas con el `foroId` canónico de `DetalleDelForo`, y `participacionId` siempre de los datos (R-01d-4, FORO-1D40 y FORO-1D41);
+  - lo ataco con el `:foroId` en mayúsculas o mezclado (borrar una participación, una réplica, «Ver más», «atrás» y la relectura) y con `lecturasNoCanonicas()` en toda petición bajo `…/foros/`;
+  - el vecino: `useMoverElemento` con `exact: true` (FORO-1D39) no debe volver a pedir las participaciones abiertas.
+
+### Observaciones
+- **O-01d-1:** la lista de «dobles por `seccion`» de §E7.5.5 omite siete archivos (G8). Todos eligen por parámetro o por `pathname` y no cambian con `conForos=si`. Es un detalle del inventario, no un rojo.
+
+### Corridas (desde `frontend/`, una a la vez)
+- `npx vitest run src/features/clases/categorias-01e-r1.ataque.test.tsx src/features/clases/categorias-01e-r2.ataque.test.tsx` → `Tests  2 failed | 10 passed (12)`. Es el rojo previo de C-12, en los dos casos tocados y por el texto que falta.
+- `npm run lint` → sale con 0 y termina en `> tsc -b`.
+
+### V-01 final
+- Contra `v01-foro01d-base.txt`: 305 `OK` y 2 `FAILED`, que son los de C-12 (`categorias-01e-r1.ataque.test.tsx` y `categorias-01e-r2.ataque.test.tsx`).
+- Lista nueva: `foro01-arranque/v01-foro01d-r0.txt`, con 307 rutas y 307 de 307 `OK`. Su SHA-256 es `f36e14773285867c11329f8cecd2f20451f21b334e797ae4f62e55f62051fbf0`.
+  - `categorias-01e-r1`: de `a3880b67…5325` a `36343531…6016`.
+  - `categorias-01e-r2`: de `66c0b873…430d` a `f628a26e…981c`.
+- `git status --short -- frontend backend shared` da exactamente esos dos archivos, `M`.
+
+### Paradas
+Ninguna.
+
+## Ronda 0 bis — FORO-01d (2026-11-16)
+**Resultado:** C-21 y C-13 están aplicados con el texto literal de §E12.1 y §E12.4, y los dos casos quedan en verde. No hubo PARADA. Plan: 3374 líneas, SHA-256 `f8cd4767…`, con la Enmienda 12.
+
+### Arranque
+V-01 de arranque: `sha256sum -c v01-foro01d-r0.txt` → 307 de 307 `OK`.
+
+### Lo que protege C-21, comprobado en el código antes de aplicarlo
+- **`features/tareas/components/participacion-del-foro.tsx`:**
+  - en `:82`, `{!soloLectura && participacion.puedeBorrar && (<BorrarDelForo … />)}`;
+  - las props (`:17-23`) son `claseId`, `foroId`, `participacion`, `puedeReplicar` y `onBorrada`: ninguna `puedeBorrar` propia, ni rol, ni perspectiva.
+- **`features/tareas/components/replicas-de-participacion.tsx`:**
+  - en `:313`, `{!soloLectura && replica.puedeBorrar && (<BorrarDelForo … />)}`;
+  - `BorrarDelForoProps` (`:29-38`) no recibe `puedeBorrar`, y `ReplicasDeParticipacionProps` (`:212-217`) tampoco.
+- **Ninguno lee el rol ni la perspectiva:** el grep de `rol\b|perspectiva|esAdmin` da solo comentarios. La única otra condición es `soloLectura`, la clase archivada, que el plan también pide.
+- **Conclusión:** «Borrar» lo decide el dato. Sin PARADA.
+
+### C-21 — `features/clases/estatico-02c-r1.ataque.test.ts`
+- **Respaldo:** `scratchpad/tester-r1/copias01d/estatico-02c-r1.ataque.test.ts.antes-c21`, SHA-256 `5c34619e…`.
+- **Antes,** con el árbol del programador, el caso «C-13 y A-5: los botones de borrar leen puedeBorrar del dato…» cae en `:78` (`expected [ …(8) ] to deeply equal [ …(6) ]`). El caso reportó al fallar dos rutas de más, y de ahí las copié:
+  - `+ "/src/features/tareas/components/participacion-del-foro.tsx"`;
+  - `+ "/src/features/tareas/components/replicas-de-participacion.tsx"`.
+- **Después:**
+  - el comentario literal de §E12.1 va debajo del de C-28 y antes del `expect` (`:78-82`);
+  - la lista pasa de 6 a 8, con las dos rutas después de `acciones-de-la-tarea.tsx` (`:90-91`).
+- **Nada más cambia.** La segunda regla (los nombres admitidos de la asignación) queda igual. `diff` contra el respaldo da solo `77a78,82` y `84a90,91`, 7 líneas añadidas.
+
+### C-13 — `styles/clases-r1.ataque.test.ts`
+- **Respaldo:** `scratchpad/tester-r1/copias01d/clases-r1.ataque.test.ts.antes-c13`, SHA-256 `d283b428…`.
+- **Cifras propias** (`grep -c 'enEspera='` por archivo):
+  - `formulario-de-participacion.tsx`: 1;
+  - `participaciones-del-foro.tsx`: 1;
+  - `replicas-de-participacion.tsx`: 3;
+  - `participacion-del-foro.tsx`: 0;
+  - `mi-participacion.tsx`: 0.
+
+  El total en producción es 96 (`grep -rho "enEspera=" … --exclude=*.test.tsx | wc -l`). Coinciden con las declaradas y con la falla del caso, que espera 91 y cuenta 96. Sin PARADA.
+- **Después:**
+  - el comentario literal de §E12.4 va debajo del de C-11 (`:211-217`);
+  - el título pasa de «… 91 enEspera» a «… 96 enEspera» (`:218`);
+  - la cuenta pasa de `toHaveLength(91)` a `toHaveLength(96)` (`:225`);
+  - el bloque de `fijos` va después de `tabla-movimientos.tsx` (`:394-399`), con su comentario y las cinco entradas, incluidas las de 0.
+- **Nada más cambia:** `restoClases` y `restoAdmin` quedan igual. `diff` contra el respaldo da solo `211c211,218`, `218c225` y `386a394,399`. Prettier no marca nada.
+
+### Corridas (desde `frontend/`, una a la vez)
+- `npx vitest run src/features/clases/estatico-02c-r1.ataque.test.ts` → `Tests  5 passed (5)`.
+- `npx vitest run src/styles/clases-r1.ataque.test.ts` → `Tests  11 passed (11)`.
+- `npx vitest run src/features/clases/categorias-01e-r1.ataque.test.tsx src/features/clases/categorias-01e-r2.ataque.test.tsx` (C-12) → `Tests  12 passed (12)`. Ya están en verde con el texto nuevo del programador.
+- `npm run lint` → sale con 0 y termina en `> tsc -b`.
+
+### V-01 final
+- Contra `v01-foro01d-r0.txt`: 305 `OK` y 2 `FAILED`, que son los dos archivos de esta ronda.
+- Lista nueva: `foro01-arranque/v01-foro01d-r0bis.txt`, con 307 rutas y 307 de 307 `OK`. Su SHA-256 es `39005943a28fc01fb31d0ae0587da23657342111d17e0ec19876d342e416e072`.
+  - `estatico-02c-r1.ataque.test.ts`: de `5c34619e…` a `06aa9b7c…4b25`.
+  - `clases-r1.ataque.test.ts`: de `d283b428…` a `87d27e6e…0ff7`.
+
+### Notas para el ataque de 01d (§E12.2)
+- **Ningún `.tsx` escribe «Ocultar», tampoco en un comentario** (`components/layout/estatico-r1.ataque.test.ts:256`). «Ocultar réplicas» vive en `data.ts`.
+- **En `features/clases`, ninguna copia de la expresión de ruta ni `.split(":")`, tampoco en un comentario** (`features/clases/errores-ch3-r1.ataque.test.ts:418-447`).
+- Las vigilo en la ronda 1 con la suite de cada módulo y, si hace falta, con un grep propio sobre los archivos de 01d.
+
+### Paradas
+Ninguna.
+
+## Ronda 1 — FORO-01d (2026-11-16)
+# Reporte del Tester — FORO-01d (participaciones, réplicas, «Tu participación», «Borrar» y «Actividades») — Ronda 1
+Veredicto: **ROTO**. Hay dos hallazgos de severidad media (T-01 y T-02) y ninguno crítico, alto ni bajo.
+
+Verificación propia, desde `frontend/`, una corrida a la vez y sin otra copia de trabajo corriendo:
+- `npm run lint`: salida 0, termina en `> tsc -b`.
+- `npx vitest run src/features/tareas`: `Tests  5 failed | 1704 passed (1709)` (`Test Files  1 failed | 59 passed (60)`). Los 5 rojos son T-01 y T-02.
+- `npx vitest run src/features/clases`: `Tests  3167 passed (3167)` (`Test Files  131 passed (131)`).
+- `npx vitest run src/app src/lib src/services src/styles src/components`: `Tests  1540 passed (1540)` (`Test Files  99 passed (99)`).
+
+**Archivo nuevo:** `frontend/src/features/tareas/foros-01d-r1.ataque.test.tsx`, con 15 casos, de ATQ-FORO-135 a ATQ-FORO-141.
+- Su arnés copia el doble del servidor de `participar-01d.test.tsx` (sin tocar ese archivo): paginación por cursor, `POST` de participación y de réplica, `DELETE` y el uuid en minúsculas.
+- Monta el router real (`rutas`) con el `QueryClient` de `app/providers.tsx`.
+- No usa selectores de clases de estilo: localiza por rol, etiqueta, texto y los atributos `data-participacion-id`, `data-replica-id` y `data-borrar` de la vista.
+- Cada caso afirma algo.
+
+V-01 de arranque: `sha256sum -c v01-foro01d-r0bis.txt` → 307 de 307 `OK`.
+
+## Hallazgos
+
+### T-01 — Publicar con más páginas por cargar rompe el orden «de la más antigua a la más reciente»
+**Severidad:** media. Es un caso borde mal resuelto: se alcanza con más de 20 participaciones o réplicas, y el orden visible queda mal hasta que la lista se vuelve a pedir entera.
+
+**Pruebas,** en `frontend/src/features/tareas/foros-01d-r1.ataque.test.tsx`:
+- «ATQ-FORO-135: la principal nueva del alumno queda al final de la lista después de «Ver más participaciones»»;
+- «ATQ-FORO-135: la réplica nueva del maestro queda al final del bloque después de «Ver más réplicas»».
+
+**Pasos (participación):**
+1. El foro tiene 25 participaciones de otros. El alumno abre el foro y se cargan las primeras 20 (hay «Ver más participaciones»).
+2. Publica «Mi aporte».
+3. Pulsa «Ver más participaciones».
+
+**Esperado:** el orden es el de §D-8.4 (las más antiguas primero): 1 a 25 y al final «Mi aporte», como devuelve el servidor.
+
+**Obtenido:** 1 a 20, **«Mi aporte»**, 21 a 25.
+- `usePublicarParticipacion` (`features/tareas/hooks.ts`, `onSuccess`) agrega la respuesta al final de la **última página cargada**, aunque falten páginas.
+- La página siguiente del servidor la vuelve a traer al final.
+- `unirPaginasSinRepetidas` conserva la primera aparición, así que la más reciente queda entre la 20 y la 21.
+
+El diff del caso:
+```
+    "…000000000020",
++   "9a9b3c4d-…-000000000001",
+    "…000000000021",
+    …
+    "…000000000025",
+-   "9a9b3c4d-…-000000000001",
+```
+
+**Réplicas:** lo mismo con 25 réplicas. El maestro abre el bloque (20 cargadas), publica «Mi réplica» y pulsa «Ver más réplicas». La réplica nueva queda entre la 20 y la 21, por la misma escritura en `usePublicarReplica` (`onSuccess`, `setQueryData` sobre la última página cargada).
+
+**Requisito o regla violada:**
+- §D-8.4: «la lista va de la más antigua a la más reciente», y lo mismo el bloque de réplicas.
+- §D-10, fila «Publicar participación», columna «Éxito»: «`miParticipacion` y la primera página con la respuesta». La implementación usa la última página cargada sin mirar si quedan más (`hasNextPage`).
+
+**Hermanos probables:**
+- las dos escrituras en caché de publicar (participación y réplica), ya verificadas;
+- en 01e, cualquier lista ascendente y paginada que agregue la respuesta de una mutación (lo que escribió un alumno, las devoluciones).
+
+Los demás caminos sin páginas por cargar (la lista vacía o completa) quedan bien: ATQ-FORO-138 (control) y ATQ-FORO-140.
+
+### T-02 — Cuando desaparece el control con el foco dentro de «Participaciones», el foco cae en `<body>`
+**Severidad:** media. Es de accesibilidad: el teclado y el lector de pantalla pierden el lugar sin aviso, y en el tercer camino además se pierde en silencio lo que se estaba escribiendo.
+
+**Pruebas,** en `frontend/src/features/tareas/foros-01d-r1.ataque.test.tsx`:
+- «ATQ-FORO-136: publicar con la lista de participaciones en error deja el foco en la vista, nunca en <body>»;
+- «ATQ-FORO-136: un 409 PARTICIPACION_YA_PUBLICADA que quita el formulario deja el foco en la vista, nunca en <body>, y avisa una vez»;
+- «ATQ-FORO-137: con 404 PARTICIPACION_NO_ENCONTRADA al recargar las réplicas, el foco no cae en <body> y no hay avisos de más».
+
+**Controles en verde** (ATQ-FORO-138), que muestran la conducta correcta en el mismo arnés:
+- con la lista cargada, publicar lleva el foco a la participación nueva;
+- una recarga correcta de las réplicas deja el foco y lo escrito en el campo.
+
+**Pasos y lo obtenido:**
+1. **Publicar con la lista en error.**
+   - Las participaciones fallan con `503` y el reintento también, y el bloque dice «No pudimos cargar las participaciones.».
+   - El alumno escribe, deja el foco en «Publicar participación» y publica. La respuesta pasa `principalId`, así que el formulario desaparece.
+   - La fila nueva no está en ninguna lista: la caché de la lista está vacía y `setQueryData` no escribe nada. Por eso `nuevaRef` nunca la encuentra.
+   - **Obtenido:** `document.activeElement === <body>`.
+2. **`409 PARTICIPACION_YA_PUBLICADA`** (el alumno ya publicó en otra pestaña).
+   - El aviso sale una vez («Ya publicaste tu participación.»), se vuelve a pedir «Tu participación» y su `principalId` quita el formulario con el foco en el botón.
+   - **Obtenido:** el foco cae en `<body>`.
+3. **La principal desaparece con el foco en «Escribe tu réplica» de su bloque.**
+   - El maestro tiene a medio escribir «Lo que estaba escribiendo», y otra persona borró esa principal.
+   - La recarga de las réplicas responde `404 PARTICIPACION_NO_ENCONTRADA`: `useReplicas` renueva la lista (`exact`), la fila sale y con ella el bloque y el campo.
+   - Por la exclusión aceptada, no hay aviso, y lo escrito se pierde sin que nada lo diga.
+   - **Obtenido:** el foco cae en `<body>`.
+
+**Esperado:** el foco no cae en `<body>`.
+- §D-10, fila «Consulta `mi-participacion`», columna «Foco»: «si se pierde el formulario enfocado, la raíz».
+- La fila «Publicar participación» lleva el foco, con éxito, a «la participación nueva», y si no está, debe quedar al menos en la vista.
+- Es la regla de todo el frontend (`CLAUDE.md`, `components/foco/`: «nunca a `<body>`»).
+- `useFocoAlPerderseElControl` de `foro-view.tsx` no lo cubre: su clave es la de la consulta del foro (R-01d-6), y ninguno de los tres caminos cambia el foro.
+
+**Requisito o regla violada:** §D-10 (las filas citadas), la columna «Foco» de §D-8.4 y `CLAUDE.md`, `components/foco/`.
+
+**Hermanos probables, sin verificar:**
+- `409 FORO_CERRADO` o `PARTICIPACION_CALIFICADA` al publicar (la nueva «Tu participación» cambia el formulario por el texto de «cerrado» o lo quita);
+- una recarga de la lista (`pedirDeNuevoElForo`, T-03 o borrar desde otra sesión) que quita la fila que tiene el foco o el bloque con su campo;
+- «Borrar» del admin cuando la fila desaparece por una recarga y no por su propio borrado (el suyo sí lleva el foco a la vecina: FORO-1D38).
+
+## Atacado sin hallazgos (por punto)
+
+**1. Ciclos y lecturas de más** (ATQ-FORO-139, dos casos).
+- **Servidor inconsistente:** con «Ver réplicas» abierto, el alumno recibe una recarga por el prefijo del foro (la misma de `pedirDeNuevoElForo`). La lista responde `404 TAREA_NO_ENCONTRADA`, «Tu participación» `403 SIN_ACCESO_A_LA_CLASE` y las réplicas un `VALIDACION` de `foroId:`, mientras el foro responde bien.
+  - Precondición: las tres lecturas sí se volvieron a pedir y fallaron.
+  - Las lecturas del foro suben a lo más 4 y no suben más entre los 4 y los 7 segundos: no hay ciclo. La vista sigue con el foro.
+  - El caso era vacío en su primera versión (O-01d-2, abajo). Ya corregido, la mutación X3 (`pedirDeNuevoSoloElForo` sin `exact`) lo tumba.
+- **«Borrar foro» con `403`** con la lista y un bloque abiertos: el foro, la lista y el bloque se vuelven a pedir **una vez cada uno**, hay un solo aviso y nada más.
+
+FORO-1D42 del programador cubre la primera carga y el reintento (desviación 1 aceptada).
+
+**2. El aviso nuevo y su exclusión:**
+- `PARTICIPACION_NO_ENCONTRADA` no da ningún aviso (ATQ-FORO-137, `aviso.error` sin llamadas). El foco y lo escrito son T-02.
+- `CLASE_ARCHIVADA`, las redirecciones, montar de nuevo y los dos avisos a la vez los cubren FORO-1D51 y sus mutaciones E3 a E9 (verificadas por el manager). No los dupliqué.
+
+**3. Publicar y borrar:**
+- el orden con varias páginas es T-01, y el foco con la lista en error y con el `409`, T-02;
+- publicar y replicar con la lista cargada, en mayúsculas, funcionan con el foco correcto (ATQ-FORO-138 y ATQ-FORO-140);
+- borrar una principal desde mayúsculas saca la fila con un solo `DELETE` (ATQ-FORO-140);
+- el doble clic, los `409` de la matriz y el cursor vencido los cubren FORO-1D50, FORO-1D04 a FORO-1D09, FORO-1D31 y FORO-1D33, y no los dupliqué.
+
+**4. Saltos con algo abierto:** los cubren FORO-1D23, FORO-1D25 y FORO-1D52 (con N-38, el foco en la raíz). El de otra clase lo aceptó el manager por el mecanismo de `key={foro.id}`. No escribí caso propio: ver «No atacado».
+
+**5. Mayúsculas en la URL** (ATQ-FORO-140, dos casos):
+- el alumno publica y replica desde `…/foros/<MAYÚSCULAS>`, y el admin borra una principal: ninguna petición sale con el id sin canonizar (`lecturasNoCanonicas()` en 0);
+- todas las claves bajo `[…, "foros", "foro", <id>]` son del id canónico, una sola.
+
+X2 (`rutaDelForo` con el id en mayúsculas) tumba los dos casos.
+
+**7. Autorización en la interfaz** (ATQ-FORO-141, cuatro casos), «Borrar» lo decide `puedeBorrar` del dato:
+- el admin con `false` no lo ve;
+- el alumno y el maestro con `true` lo ven;
+- el admin con `true` en una clase archivada no lo ve.
+
+X4 (sin `!soloLectura`) y X5 (sin `participacion.puedeBorrar`) tumban su fila. Ninguna respuesta del foro ni de las participaciones trae `estadoPago` ni `accesoRestringido`: el grep de `shared/src/foros.ts` y de los cinco componentes da 0.
+
+**9. Las pruebas que leen el código:**
+- ningún `.tsx` de producción escribe «Ocultar»;
+- `features/clases` no tiene `.split(":")` fuera de las pruebas;
+- V-06 (96), C-21 y C-12 siguen en verde dentro de la suite de `features/clases` y de `src/styles`.
+
+**10. Regresión:** mis siete `*.ataque` del foro de 01c1 y 01c2, y las de la tarea, siguen en verde dentro de las suites de `features/tareas` y `features/clases`. El único archivo rojo es el mío nuevo, por T-01 y T-02.
+
+## Mutaciones (7, en «Se toca» de 01d)
+Cada una con copia previa, un ancla contada como única, restauración desde la copia y `filecmp` (`cmp igual: True` en todas). Al final, `sha256sum -c` de `hooks.ts`, `lib.ts`, `participaciones-del-foro.tsx` y `participacion-del-foro.tsx` da `OK`. Script: `scratchpad/tester-r1/mut-01d.py`.
+
+| Mutación | Archivo y cambio | Cae |
+|---|---|---|
+| X1 | `participaciones-del-foro.tsx`: sin `nuevaRef.current = id` | ATQ-FORO-138 (control: el foco a la participación nueva) |
+| X2 (primera versión) | `hooks.ts`: la réplica no se agrega al bloque en caché | **Sobrevive**: no es lo que vigila ATQ-FORO-140, que mira las claves y los ids. La cambié por la siguiente |
+| X2 | `lib.ts`: `rutaDelForo` con `foroId.toUpperCase()` | ATQ-FORO-140 ×2 |
+| X3 | `hooks.ts`: `pedirDeNuevoSoloElForo` sin `exact: true` | ATQ-FORO-139 (ciclo), una vez corregido el caso |
+| X4 | `participacion-del-foro.tsx`: sin `!soloLectura` | ATQ-FORO-141 (archivada) |
+| X5 | `participacion-del-foro.tsx`: sin `participacion.puedeBorrar` | ATQ-FORO-141 (admin con `false`) |
+
+T-01 y T-02 no necesitan mutación: sus casos ya están en rojo, y los controles de ATQ-FORO-138 muestran que el mismo arnés sí ve la conducta correcta.
+
+## Observaciones
+- **O-01d-1, defectos de mis pruebas en su primera corrida:**
+  - quité dos ayudantes sin uso que ESLint marcó;
+  - el primer caso de ATQ-FORO-139 no ejercitaba nada: plegar y desplegar no volvía a pedir las réplicas (estaban frescas), y la mutación X3 sobrevivía. Ahora recarga por el prefijo, comprueba la precondición (las tres lecturas fallaron) y X3 lo tumba.
+- **O-01d-2:** la exclusión del aviso ante `PARTICIPACION_NO_ENCONTRADA` (aceptada por el manager) deja que lo escrito en la réplica se pierda sin que nada lo diga, porque la fila sale con su bloque. Lo cuento dentro de T-02 (tercer camino). Si el manager prefiere separarlo, es una decisión de texto: hoy no hay ninguno para ese caso.
+- **O-01d-3:** en ATQ-FORO-140 dejé de afirmar la escritura de la réplica en caché, que no vigilaba (la primera X2 sobrevivía), y la cambié por la mutación de la ruta.
+
+## No atacado y por qué
+- **«Actividades»** (`conForos=si`, «Mover» con el foro en caché, «Crear foro» en una archivada y para el alumno, las dos formas de la entrega y el editor de categorías): los cubren FORO-1D29, FORO-1D39 y FORO-1D54, la lista cerrada y C-12, todos en verde, y no les escribí caso propio por el tiempo de la ronda. Quedan para la siguiente si hay.
+- **`VALIDACION` fuera de contrato:** los cinco tipos los cubren FORO-1D06 a FORO-1D09 en los dos formularios (verificados por el manager); no los dupliqué.
+- **Los saltos con algo abierto a un foro de otra clase:** sin caso propio. El mecanismo es la `key` por foro.
+- **El backend:** 01d no lo toca.
+- **La suite completa:** la corre el manager.
+- **El navegador:** no se abre.
+
+### V-01 final
+- `v01-foro01d-r0bis.txt` sigue con 307 de 307 `OK`: ninguna `*.ataque` previa cambió.
+- Lista nueva: `foro01-arranque/v01-foro01d-r1.txt`, con 308 rutas (las 307 de antes más `frontend/src/features/tareas/foros-01d-r1.ataque.test.tsx`, SHA-256 `b2a562e8…`, 15 casos). `sha256sum -c` da 308 de 308 `OK`, y su SHA-256 es `c5afe7ccceba63ec31ef223ac9a5fdda77d997dfaad216473d0f8d718042a832`.
+- `git status --short -- frontend backend shared` da 28: los 27 de antes más mi archivo nuevo.
+
+## Ronda 2 — FORO-01d (2026-11-17)
+# Reporte del Tester — FORO-01d (los remedios de T-01 y T-02 y el aviso de O-01d-2) — Ronda 2
+Veredicto: **RESISTE**. No hay hallazgos. Los remedios de T-01 y T-02 y el aviso de O-01d-2 aguantan por los caminos que ataqué, y lo de la ronda 1 sigue en verde.
+
+### El ajuste arbitrado de mi prueba de la ronda 1 (antes de atacar)
+- **Archivo:** `features/tareas/foros-01d-r1.ataque.test.tsx:593`, con respaldo en `scratchpad/tester-r1/foros-01d-r1.antes-ajuste.tsx`.
+- **Antes:** `expect(aviso.error).not.toHaveBeenCalled()`.
+- **Después:** el comentario literal de tres líneas, `expect(aviso.error).toHaveBeenCalledTimes(1)` y `expect(aviso.error).toHaveBeenCalledWith("Esa participación ya no existe.")`.
+- **Nada más cambió:** `diff` contra el respaldo da solo `593c593,597`, y Prettier no marca nada.
+- **Corridas:**
+  - `npx vitest run src/features/tareas/foros-01d-r1.ataque.test.tsx` → `Tests  15 passed (15)`;
+  - en la suite de `src/features/tareas`, todo en verde (abajo).
+
+### Verificación propia (desde `frontend/`, una corrida a la vez, sin otra copia de trabajo corriendo)
+- `npm run lint`: salida 0, termina en `> tsc -b`.
+- `npx vitest run src/features/tareas`: `Tests  1747 passed (1747)` (`Test Files  63 passed (63)`).
+- `npx vitest run src/features/clases`: `Tests  3167 passed (3167)` (`Test Files  131 passed (131)`).
+- `npx vitest run src/app src/lib src/services src/styles src/components`: `Tests  1540 passed (1540)` (`Test Files  99 passed (99)`).
+
+**Archivo nuevo:** `frontend/src/features/tareas/foros-01d-r2.ataque.test.tsx`, con 12 casos, de ATQ-FORO-142 a ATQ-FORO-147.
+- Usa el mismo arnés copiado de `participar-01d.test.tsx`.
+- No usa selectores de clases de estilo: localiza por rol, etiqueta, texto y los atributos `data-*` de la vista.
+- Cada caso afirma algo.
+
+V-01 de arranque: `sha256sum -c v01-foro01d-r1.txt` → 308 de 308 `OK`.
+
+## Hallazgos
+Ninguno.
+
+## Atacado sin hallazgos (por punto)
+
+**1. El gancho de foco `useFocoAlEncabezadoSiSePierde`:**
+- **Hermanos de la ronda 1 al publicar** (ATQ-FORO-142, dos casos): un `409 FORO_CERRADO` o `PARTICIPACION_CALIFICADA` cambia «Tu participación» y quita el formulario con el foco en «Publicar participación». El foco va al `h3` «Participaciones», nunca a `<body>`, con un solo aviso con el texto del servidor.
+- **Una recarga de la lista quita la fila enfocada** (ATQ-FORO-144, dos casos):
+  - con el foco en «Ver réplicas» de la principal que otra persona borró, va al `h3`;
+  - la confirmación de «Borrar» del admin abierta («Cancelar» enfocado) en una principal que otra persona borró también lleva el foco al `h3`.
+- **No roba el foco** (ATQ-FORO-143, dos casos):
+  - con el foco movido de «Escribe tu réplica» a «Editar foro», una recarga que quita esa principal con su bloque no lo mueve;
+  - con el foco en el «Ver réplicas» de otra principal, quitar la de arriba no lo mueve.
+- **El cursor vencido en los dos «Ver más»** con el foco en el botón (ATQ-FORO-145, dos casos): el bloque dice su frase y el foco no cae en `<body>`.
+- **Dos controles que salen en el mismo render** (la réplica y su principal): ATQ-FORO-137 de la ronda 1, con el ajuste aplicado, lo cubre (el foco va a la vista). Una réplica enfocada que sale la cubre FORO-1D38 del programador.
+
+**2. La unión por la última aparición y el conteo** (ATQ-FORO-146, dos casos):
+- **Dos réplicas seguidas con páginas pendientes:** tras «Ver más réplicas», quedan al final y en su orden, como las devuelve el servidor. Al plegar, «Ver réplicas (27)».
+- **Una recarga del bloque entre publicar y «Ver más réplicas»:** la réplica nueva no se duplica ni se pierde, el orden final es el del servidor y el conteo plegado es 26.
+- **Las otras listas no cambian de regla:** `entregas-view.tsx`, las de 01c2 y las de `features/clases` siguen con `unirPaginasSinRepetidas`. El grep de `unirPaginasConLaUltimaAparicion` en producción da solo los tres usos de 01d: la lista de principales, el bloque y el conteo de `participacion-del-foro.tsx`.
+
+**3. O-01d-2, el aviso de la principal que desaparece** (ATQ-FORO-147, dos casos):
+- **Dos bloques abiertos** cuyas principales desaparecen a la vez: dos avisos, uno por bloque, los dos «Esa participación ya no existe.» y nunca «No pudimos actualizar las réplicas…».
+- **El `404` en la primera carga del bloque:** lo dice el bloque, sin aviso, y volver a abrirlo tampoco avisa.
+- **Clase archivada y redirecciones:** el aviso usa el mismo gancho (`useAvisoDeRecargaFallidaDe`), que las filtra (FORO-1D51 y sus mutaciones). No les escribí caso propio.
+
+**4. Regresión:**
+- en `src/features/tareas`, todo en verde (1747), con mis `foros-01d-r1` (15) y `foros-01d-r2` (12), las siete del foro de 01c1 y 01c2, las de la tarea y FORO-1D01 a FORO-1D62;
+- en verde también lo que resistió en la ronda 1: los ciclos (ATQ-FORO-139), las mayúsculas (ATQ-FORO-140) y «Borrar» por el dato (ATQ-FORO-141);
+- las vigiladas de §E12.2 que viven en `features/clases`, `src/styles` y `src/lib` siguen en verde en sus suites (abajo).
+
+**5. Lo que no ataqué con caso propio en la ronda 1:** sigue sin caso propio («Actividades» con foros, los `VALIDACION` y el salto a otra clase). Ver «No atacado».
+
+## Mutaciones (5, en «Se toca» de 01d)
+Cada una con copia previa, un ancla contada como única, restauración desde la copia y comparación byte a byte (`cmp igual: True` en todas). Al final, `sha256sum -c` de `hooks.ts`, `lib.ts` y `replicas-de-participacion.tsx` da `OK`. Script: `scratchpad/tester-r1/mut-01d-r2.py`.
+
+| Mutación | Archivo y cambio | Cae |
+|---|---|---|
+| Y1 | `hooks.ts`: el gancho no enfoca el encabezado | ATQ-FORO-142 ×2 y ATQ-FORO-144 ×2 |
+| Y2 | `hooks.ts`: `controlRef` no se limpia cuando el foco sale del bloque | **Sobrevive**: es redundante con `focoPerdido`, ver abajo |
+| Y2 + Y5 | `hooks.ts`: además, sin `if (!focoPerdido(document)) return` (dos cambios, restaurados juntos) | ATQ-FORO-143 («Editar foro»): el gancho roba el foco |
+| Y3 | `lib.ts`: `unirPaginasConLaUltimaAparicion` con la primera aparición | ATQ-FORO-146 (dos réplicas seguidas) |
+| Y4 | `replicas-de-participacion.tsx`: sin el aviso de O-01d-2 | ATQ-FORO-147 (dos bloques) |
+
+**La redundancia, declarada:** la protección contra robar el foco tiene dos guardas, y cualquiera de las dos basta.
+- La primera es `controlRef` limpio cuando el foco entra fuera del bloque.
+- La segunda es `focoPerdido(document)`: no se mueve nada si el foco está en algún control vivo.
+- Quitar solo una deja el caso en verde; quitar las dos lo tumba (Y2 + Y5). Fue una mutación doble, con una sola copia y una sola restauración, con `cmp` igual.
+
+**Sin mutación propia:** ATQ-FORO-145 (el cursor vencido) siguió en verde con Y1. El foco ahí lo sostiene otro mecanismo (`useFocoAlCargarMas`, de `components/foco/`, en «No se toca», o la frase que ocupa el lugar). El caso afirma la conducta («nunca `<body>`»), no vigila una guarda de 01d.
+
+## Observaciones
+- **O-01d-4, defectos de mi prueba en su primera corrida:** ESLint marcó tres ayudantes copiados del arnés que no usaba (`API_MIA`, `enVuelo` y `pedidas`), y los quité.
+- **O-01d-5:** que una recarga del bloque, entre publicar una réplica y «Ver más réplicas», haga que la réplica recién publicada deje de verse hasta cargar más es la conducta del servidor (orden ascendente y paginado). El conteo plegado la sigue contando (26). No lo considero defecto; lo dejo anotado por si el humano lo ve raro en la comprobación de 01e.
+
+## No atacado y por qué
+- **«Actividades» con foros** («Mover» con el detalle en caché, `entrega: null` y `{ asignado }`, «Crear foro» en una archivada), **los `VALIDACION` fuera de contrato** y **el salto a un foro de otra clase con algo abierto:** siguen cubiertos por FORO-1D29, FORO-1D39, FORO-1D54, FORO-1D06 a FORO-1D09 y FORO-1D52 (todos en verde). No les escribí caso propio: prioricé los dos remedios de esta ronda.
+- **Cambiar de pestaña o de ventana con una recarga en vuelo, y StrictMode:** no los ataqué con caso. jsdom no simula el foco de la ventana más allá de `document.hasFocus`, que el gancho consulta en `alSalir`. Por lectura: con la ventana sin foco, `alSalir` no limpia la referencia, y el efecto solo mueve el foco si el control salió y `focoPerdido` es cierto, así que no le quita el foco a nada vivo.
+- **El backend:** 01d no lo toca.
+- **La suite completa:** la corre el manager.
+- **El navegador:** no se abre.
+
+### V-01 final
+- Contra `v01-foro01d-r1.txt`: 307 `OK` y 1 `FAILED`, que es `foros-01d-r1.ataque.test.tsx`, por el ajuste arbitrado de `:593` (de `b2a562e8…` a `5c9ad87c…b595`).
+- Lista nueva: `foro01-arranque/v01-foro01d-r2.txt`, con 309 rutas (las 308 de antes más `frontend/src/features/tareas/foros-01d-r2.ataque.test.tsx`, SHA-256 `7430517c…640b`, 12 casos). `sha256sum -c` da 309 de 309 `OK`, y su SHA-256 es `7b6bc3e605d4838d2c9a69c3e9cb9f6b9751f190cfbdbb8d1010d7c607e219d1`.
+- `git status --short -- frontend backend shared` da 31: los 30 de antes más mi archivo nuevo.

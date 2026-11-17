@@ -18,6 +18,8 @@ export type {
   ComentarioPrivado,
   CrearComentario,
   CrearForo,
+  CrearParticipacion,
+  CrearReplica,
   CrearTarea,
   CriterioDeRubrica,
   EditarForo,
@@ -28,6 +30,11 @@ export type {
   FilaDeEntrega,
   ForoDetalle,
   ListaComentariosPrivadosRespuesta,
+  ListaParticipacionesRespuesta,
+  ListaReplicasRespuesta,
+  MiParticipacionRespuesta,
+  Participacion,
+  Replica,
   ListaEntregasRespuesta,
   MiEntrega,
   ResumenDeTarea,
@@ -123,4 +130,25 @@ export interface TextosDeLaPolitica {
   titulo: string
   acepta: string
   noAcepta: string
+}
+
+// FORO-01d (§E8.4): lo que useVerMasConservandoLaLista necesita de la consulta (su «Ver más») y de la
+// vista (el foco tras cargar: la primera fila nueva o el encabezado de la lista).
+export interface ConsultaConVerMas {
+  fetchNextPage: (opciones: { cancelRefetch: boolean }) => Promise<{
+    isError: boolean
+    error: unknown
+  }>
+}
+
+export interface OpcionesDeVerMas {
+  ids: string[] | undefined
+  enfocarFila: (id: string) => boolean
+  enfocarEncabezado: () => void
+}
+
+// FORO-01d (§D-11): borrar una principal (principalId null) o una réplica (con su principal).
+export interface VariablesDeBorrarParticipacion {
+  participacionId: string
+  principalId: string | null
 }

@@ -13,6 +13,8 @@ import { formatearFechaHora } from "@/lib/format"
 
 import { AccionesDeLaTarea } from "./components/acciones-de-la-tarea"
 import { DetallesDeLaTarea } from "./components/detalles-de-la-tarea"
+import { MiParticipacion } from "./components/mi-participacion"
+import { ParticipacionesDelForo } from "./components/participaciones-del-foro"
 import { RubricaDeSoloLectura } from "./components/rubrica-de-solo-lectura"
 import { MENSAJES_ERROR_FORO, POLITICA_DEL_FORO, TEXTOS_DETALLE_FORO } from "./data"
 import {
@@ -39,8 +41,9 @@ interface DetalleDelForoProps {
 // rúbrica de solo lectura; a la derecha, "Detalles" con la política del foro y, para el maestro y el
 // admin, "Editar foro" y "Borrar foro" según lo que diga el servidor ("Borrar con las participaciones",
 // solo el admin). En una clase archivada no se pinta ninguna acción (AccionesDeLaTarea lo lee). Estados en
-// orden: error → cargando → datos (un 404 dice "Ese foro ya no existe."). Las participaciones llegan en
-// 01d, debajo del planteamiento.
+// orden: error → cargando → datos (un 404 dice "Ese foro ya no existe."). FORO-01d (§D-8.4, §E11.6): las
+// participaciones van debajo del planteamiento y «Tu participación» del alumno, con «Detalles»; las dos
+// leen solo dentro de la rama de datos del foro (R-01d-1), con el id canónico (R-01d-4).
 function DetalleDelForo({ claseId, foroId }: DetalleDelForoProps) {
   const { perspectiva, base } = useRutaDeLaClase(claseId)
   const consulta = useForo(claseId, foroId)
@@ -74,39 +77,43 @@ function DetalleDelForo({ claseId, foroId }: DetalleDelForoProps) {
     // nuevo.
     return (
       <div key={foro.id} className="grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Badge variant="muted" icon={<MessagesSquare aria-hidden="true" />}>
-                {TEXTOS_DETALLE_FORO.insignia}
-              </Badge>
-              <p className="text-small text-muted-foreground">
-                <FirmaDelAutor autor={foro.autor} /> · {formatearFechaHora(foro.creadoEn)}
-              </p>
-            </div>
+        <div className="flex flex-col gap-5 lg:col-span-2">
+          <Card>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Badge variant="muted" icon={<MessagesSquare aria-hidden="true" />}>
+                  {TEXTOS_DETALLE_FORO.insignia}
+                </Badge>
+                <p className="text-small text-muted-foreground">
+                  <FirmaDelAutor autor={foro.autor} /> · {formatearFechaHora(foro.creadoEn)}
+                </p>
+              </div>
 
-            <h2 className="wrap-anywhere text-h2">{foro.titulo}</h2>
+              <h2 className="wrap-anywhere text-h2">{foro.titulo}</h2>
 
-            <section className="flex flex-col gap-2">
-              <h3 className="text-h3">{TEXTOS_DETALLE_FORO.planteamiento}</h3>
-              <p className="max-w-prose wrap-anywhere whitespace-pre-line text-body">
-                {foro.instrucciones}
-              </p>
-            </section>
+              <section className="flex flex-col gap-2">
+                <h3 className="text-h3">{TEXTOS_DETALLE_FORO.planteamiento}</h3>
+                <p className="max-w-prose wrap-anywhere whitespace-pre-line text-body">
+                  {foro.instrucciones}
+                </p>
+              </section>
 
-            <AdjuntosDePublicacion
-              claseId={claseId}
-              adjuntos={foro.adjuntos}
-              mensajeDeError={mensajeDeErrorForo}
-              alFallarLaDescarga={alFallarLaDescarga}
-            />
+              <AdjuntosDePublicacion
+                claseId={claseId}
+                adjuntos={foro.adjuntos}
+                mensajeDeError={mensajeDeErrorForo}
+                alFallarLaDescarga={alFallarLaDescarga}
+              />
 
-            <RubricaDeSoloLectura rubrica={foro.rubrica} />
-          </CardContent>
-        </Card>
+              <RubricaDeSoloLectura rubrica={foro.rubrica} />
+            </CardContent>
+          </Card>
+          <ParticipacionesDelForo claseId={claseId} foroId={foroId} perspectiva={perspectiva} />
+        </div>
 
         <div className="flex flex-col gap-5">
           <DetallesDeLaTarea tarea={foro} politica={POLITICA_DEL_FORO} />
+          {perspectiva === "estudiante" && <MiParticipacion claseId={claseId} foroId={foroId} />}
           {perspectiva !== "estudiante" && (
             <AccionesDeLaTarea
               claseId={claseId}

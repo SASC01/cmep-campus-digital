@@ -15,9 +15,10 @@ import {
   mensajeDeErrorDeApi,
   mensajeDeErrorDeConsulta,
 } from "@/lib/errores-de-api"
+import type { EstadoDeEntregaVisible } from "@/lib/estado-de-entrega"
 import { formatearFechaLarga } from "@/lib/format"
 import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
-import { claveTarea } from "@/services/trabajoService"
+import { claveForo, claveTarea } from "@/services/trabajoService"
 
 import {
   CAMPO_DE_CADA_CODIGO,
@@ -25,10 +26,14 @@ import {
   CAMPOS_DEL_FORMULARIO_DEL_FORO,
   CODIGOS_DE_CONFLICTO_DE_CALIFICACION,
   CODIGOS_DE_CONFLICTO_DE_ENTREGA,
+  CODIGOS_DE_CONFLICTO_DE_PARTICIPACION,
   CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO,
   LIMITE_DE_ENTREGAS,
+  MENSAJES_ERROR_FORO,
+  LIMITE_DE_PARTICIPACIONES,
+  LIMITE_DE_REPLICAS,
   LIMITE_DEL_HILO,
   PREFIJOS_QUE_REEMPLAZAN_LA_VISTA,
   PREFIJOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO,
@@ -39,6 +44,8 @@ import {
   TEXTOS_ENTREGAS,
   TEXTOS_FORMULARIO_FORO,
   TEXTOS_FORMULARIO_TAREA,
+  TEXTOS_MI_PARTICIPACION,
+  TEXTOS_PARTICIPACIONES,
   TEXTOS_TU_TRABAJO,
   TRADUCCION_DE_ERRORES_FORO,
   TRADUCCION_DE_ERRORES_TAREAS,
@@ -54,6 +61,7 @@ import type {
   EstadoDelPanel,
   EstadoEntrega,
   IncidenciaValidacion,
+  MiParticipacionRespuesta,
   ResultadoDeCalificacion,
   ResultadoDelCuerpo,
   TareaDeApertura,
@@ -766,3 +774,124 @@ export const fraseDeFechaDeCalificacion = (calificacion: CalificacionDeEntrega):
 
 export const fraseDePuntaje = (puntaje: CalificacionDeEntrega["puntajes"][number]): string =>
   TEXTOS_CALIFICACION.puntaje(puntaje.criterio, puntaje.puntos, puntaje.puntosMax)
+
+// FORO-01d (§E11.3): las claves de lo de cada foro, con su forma literal. Cuelgan de claveForo (borrar el
+// foro, pedirlo de nuevo y T-03 las alcanzan); claveParticipaciones no es prefijo de claveReplicas, así
+// que renovar la lista no vuelve a pedir cada bloque abierto. El participacionId sale siempre de los
+// datos (participacion.id), nunca de la URL.
+export const claveMiParticipacion = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "mia"] as const
+export const claveParticipaciones = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "participaciones"] as const
+export const claveReplicas = (claseId: string, foroId: string, participacionId: string) =>
+  [...claveForo(claseId, foroId), "replicas", participacionId] as const
+
+// FORO-01d (§D-3.1): las rutas de participar, replicar y borrar. foroId es el canónico de la vista.
+const rutaDelForo = (claseId: string, foroId: string): string =>
+  `/api/clases/${claseId}/foros/${foroId}`
+
+export const rutaDeMiParticipacion = (claseId: string, foroId: string): string =>
+  `${rutaDelForo(claseId, foroId)}/mi-participacion`
+
+export const rutaDeLasParticipaciones = (claseId: string, foroId: string): string =>
+  `${rutaDelForo(claseId, foroId)}/participaciones`
+
+export const rutaDeUnaParticipacion = (
+  claseId: string,
+  foroId: string,
+  participacionId: string,
+): string => `${rutaDeLasParticipaciones(claseId, foroId)}/${participacionId}`
+
+export const rutaDeLasReplicas = (claseId: string, foroId: string, participacionId: string) =>
+  `${rutaDeUnaParticipacion(claseId, foroId, participacionId)}/replicas`
+
+const conPagina = (ruta: string, limite: number, cursor: string | undefined): string => {
+  const consulta = new URLSearchParams({ limite: String(limite) })
+  if (cursor !== undefined) consulta.set("cursor", cursor)
+  return `${ruta}?${consulta.toString()}`
+}
+
+export const rutaDePaginaDeParticipaciones = (
+  claseId: string,
+  foroId: string,
+  cursor: string | undefined,
+): string => conPagina(rutaDeLasParticipaciones(claseId, foroId), LIMITE_DE_PARTICIPACIONES, cursor)
+
+export const rutaDePaginaDeReplicas = (
+  claseId: string,
+  foroId: string,
+  participacionId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(rutaDeLasReplicas(claseId, foroId, participacionId), LIMITE_DE_REPLICAS, cursor)
+
+// §D-8.4: un 409 de publicar (ya publicada, calificada o el foro cerrado).
+export const esConflictoDeParticipacion = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_DE_CONFLICTO_DE_PARTICIPACION.includes(error.codigo)
+
+// El error de «texto» de un VALIDACION (también con ruta, «texto.0:»), sin la ruta; null si no es de
+// ese campo. Lo pinta el formulario; los demás se avisan.
+export const errorDelTextoDeLaParticipacion = (error: unknown): string | null => {
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
+  if (!/^texto(\.\d+)?:/.test(error.message)) return null
+  return mensajeDeErrorForo(error)
+}
+
+// El aviso de un error al publicar: el texto del servidor o el fijo del código; ante lo que no tiene
+// texto propio (un 5xx, la red), el de §D-9 («No pudimos publicar tu …»).
+export const mensajeAlPublicarParticipacion = (error: unknown, generico: string): string => {
+  const mensaje = mensajeDeErrorForo(error)
+  return mensaje === TRADUCCION_DE_ERRORES_FORO.generico ? generico : mensaje
+}
+
+// «Tu participación» (E1-1): el estado lo decide el servidor; el cliente no compara fechas.
+export const estadoVisibleDeMiParticipacion = (
+  mia: MiParticipacionRespuesta,
+): EstadoDeEntregaVisible => {
+  if (mia.estado === "calificado") return "calificado"
+  if (mia.estado === "entregado" && mia.conRetraso) return "entregado-con-retraso"
+  if (mia.estado === "entregado") return "entregado"
+  if (!mia.puedeParticipar && mia.principalId === null) return "sin-entregar"
+  return "asignado"
+}
+
+// «Participaste el lunes 3 de noviembre a las 14:30» («… con retraso»), en la hora local; o «Todavía no
+// participas.» sin fecha.
+export const fraseDeMiParticipacion = (mia: MiParticipacionRespuesta): string => {
+  if (mia.fechaEntrega === null) return TEXTOS_MI_PARTICIPACION.todaviaNo
+  const fecha = new Date(mia.fechaEntrega)
+  const frase = TEXTOS_MI_PARTICIPACION.participaste(formatearFechaLarga(fecha), horaLocal(fecha))
+  return mia.conRetraso ? `${frase}${TEXTOS_MI_PARTICIPACION.conRetraso}` : frase
+}
+
+// §D-8.4 (O-r1-2): el conteo del control de réplicas es el mayor entre el de la lista y lo que el
+// bloque ya cargó, así una réplica vista nunca se olvida al plegar.
+export const conteoDeReplicasDeLaParticipacion = (enLaLista: number, cargadas: number): number =>
+  Math.max(enLaLista, cargadas)
+
+// FORO-01d, ronda 1 (T-01, arbitraje del manager, opción b): las dos listas del foro (principales y
+// réplicas) unen sus páginas quedándose con la ÚLTIMA aparición de cada id, en su lugar. Publicar agrega
+// la respuesta al final de lo cargado; si quedaban páginas, el servidor la vuelve a traer al final de la
+// suya (paginan por (creado_en, id) ascendente, así que una fila no se repite entre páginas del
+// servidor) y esa copia es la que tiene la posición correcta. lib/unir-paginas.ts (la primera
+// aparición) sigue siendo la de las demás listas. No muta la entrada.
+export const unirPaginasConLaUltimaAparicion = <T extends { id: string }>(
+  paginas: readonly (readonly T[])[],
+): T[] => {
+  const filas = paginas.flat()
+  const ultima = new Map<string, number>()
+  filas.forEach((fila, indice) => ultima.set(fila.id, indice))
+  return filas.filter((fila, indice) => ultima.get(fila.id) === indice)
+}
+
+// M-12: la principal ya no existe (404 PARTICIPACION_NO_ENCONTRADA); el bloque no avisa de una recarga
+// fallida, porque la lista se renueva y la fila sale.
+export const esParticipacionNoEncontrada = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA"
+
+// §D-10: la primera carga fallida del bloque de réplicas. Si la principal ya no existe, el bloque lo dice
+// (y la lista se renueva, en el gancho); lo demás, el texto del bloque (N-37), nunca el del servidor.
+export const textoDelErrorDeLasReplicas = (error: unknown): string =>
+  esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA"
+    ? MENSAJES_ERROR_FORO.participacionNoEncontrada
+    : TEXTOS_PARTICIPACIONES.errorAlCargarReplicas

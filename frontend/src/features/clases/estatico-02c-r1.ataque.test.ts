@@ -75,6 +75,11 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // respuestas-de-duda.tsx; `duda` y `respuesta` entran a los nombres admitidos de la segunda regla.
     // Sigue protegiendo que el botón decida por el dato y nunca por el rol, y que nadie más lea
     // puedeBorrar.
+    // FORO-01d ronda 0 bis (C-21, §E12; §D-11 y §D-8.4): «Borrar» de una participación lee puedeBorrar
+    // de la participación en participacion-del-foro.tsx y el de una réplica lo lee de la réplica en
+    // replicas-de-participacion.tsx (solo el admin lo recibe en true); son los dos lectores nuevos. La
+    // segunda regla no cambia: los dos leen el campo directo en el JSX, sin asignarlo. Sigue
+    // protegiendo que el botón decida por el dato y nunca por el rol, y que nadie más lea puedeBorrar.
     expect(rutasCon(/\.puedeBorrar\b/)).toEqual([
       "/src/features/clases/components/comentarios-de-publicacion.tsx",
       "/src/features/clases/components/elemento-de-duda.tsx",
@@ -82,6 +87,8 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
       "/src/features/clases/components/publicacion-del-muro.tsx",
       "/src/features/clases/components/respuestas-de-duda.tsx",
       "/src/features/tareas/components/acciones-de-la-tarea.tsx",
+      "/src/features/tareas/components/participacion-del-foro.tsx",
+      "/src/features/tareas/components/replicas-de-participacion.tsx",
     ])
     expect(
       lineasCon(

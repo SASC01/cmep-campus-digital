@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, MessagesSquare } from "lucide-react"
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react"
 
 import { Cargando } from "@/components/cargando"
@@ -8,6 +8,7 @@ import {
   useMarcarViejaSiQuedoEnError,
   useRecargarAlPulsarLaSeccion,
 } from "@/components/seccion/hooks"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { claveTrabajo } from "@/services/trabajoService"
@@ -145,6 +146,23 @@ function ElementosDelTema({
                 // ENTREGAS-01d (§D-9.8): solo el alumno (la perspectiva que no gestiona el trabajo
                 // de clase, T-16) ve el estado de su entrega; maestro y admin, la fila de siempre.
                 entrega={gestionar ? undefined : elemento.entrega}
+              />
+            )}
+            {/* FORO-01d (§D-8.3, §E11.5): un foro, con la misma fila, "Foro:" oculto y la insignia
+                "Foro" a la derecha (no lee la hora). El alumno ve el estado de su entrega, como en una
+                tarea. */}
+            {elemento.tipo === "foro" && (
+              <FilaDeEntrega
+                titulo={elemento.titulo}
+                fechaLimite={elemento.tarea?.fechaLimite ?? ""}
+                destino={`${base}/foros/${elemento.id}`}
+                entrega={gestionar ? undefined : elemento.entrega}
+                rotulo={TEXTOS_TRABAJO.foro}
+                complemento={
+                  <Badge variant="muted" icon={<MessagesSquare aria-hidden="true" />}>
+                    {TEXTOS_TRABAJO.insigniaForo}
+                  </Badge>
+                }
               />
             )}
             {elemento.tipo === "material" && (

@@ -519,3 +519,75 @@ export const POLITICA_DEL_FORO = {
   acepta: TEXTOS_DETALLE_FORO.aceptaTardias,
   noAcepta: TEXTOS_DETALLE_FORO.noAceptaTardias,
 } as const
+
+// FORO-01d (§D-8.4, §D-9, §D-11): participar, replicar y borrar en un foro. Las principales y las
+// réplicas se piden de 20 en 20, como el servidor.
+export const LIMITE_DE_PARTICIPACIONES = 20
+export const LIMITE_DE_REPLICAS = 20
+
+export const TEXTOS_PARTICIPACIONES = {
+  titulo: "Participaciones",
+  frase: "Lo que publiques aquí lo ve toda la clase.",
+  campo: "Escribe tu participación",
+  publicar: "Publicar participación",
+  avisoPublicada: "Participación publicada",
+  notaDeRetraso: "La fecha límite ya pasó: tu participación quedará marcada con retraso.",
+  cerrado: "La fecha límite ya pasó y este foro ya no recibe participaciones.",
+  tuya: "Tuya",
+  conRetraso: "Con retraso",
+  verReplicas: (n: number) => `Ver réplicas (${n})`,
+  replicar: "Replicar",
+  ocultarReplicas: "Ocultar réplicas",
+  replicas: "Réplicas",
+  campoReplica: "Escribe tu réplica",
+  publicarReplica: "Publicar réplica",
+  verMas: "Ver más participaciones",
+  verMasReplicas: "Ver más réplicas",
+  vacio: "Aún no hay participaciones en este foro.",
+  cambioMientrasLasVeias:
+    "Las participaciones cambiaron mientras las veías. Vuelve a abrir el foro para verlas completas.",
+  replicasCambiaron:
+    "Las réplicas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas.",
+  notaDelAdmin: "La administración puede leer este foro, pero no participar en él.",
+  recargaFallida:
+    "No pudimos actualizar las participaciones. Mostramos la última versión que tenemos.",
+  // M-12 (decisión del humano, 2026-11-16, «Texto propio»): la recarga de fondo fallida de las réplicas.
+  recargaFallidaReplicas:
+    "No pudimos actualizar las réplicas. Mostramos la última versión que tenemos.",
+  // N-37 (decisión del humano, 2026-11-16): la primera carga fallida de cada bloque.
+  errorAlCargar: "No pudimos cargar las participaciones.",
+  errorAlCargarReplicas: "No pudimos cargar las réplicas.",
+  errorAlPublicar: "No pudimos publicar tu participación. Inténtalo de nuevo.",
+  errorAlPublicarReplica: "No pudimos publicar tu réplica. Inténtalo de nuevo.",
+  // §D-11 (E3-3): borrar, solo el admin.
+  borrar: "Borrar",
+  // Sin texto en §D-9: el nombre accesible de cada «Borrar» dice de quién es (desviación declarada).
+  borrarParticipacionDe: (nombre: string) => `participación de ${nombre}`,
+  borrarReplicaDe: (nombre: string) => `réplica de ${nombre}`,
+  confirmarBorrarParticipacion:
+    "Se borrará con sus réplicas. Si el alumno ya tiene calificación, se conserva.",
+  confirmarBorrarReplica: "Se borrará esta réplica.",
+  siBorrarParticipacion: "Sí, borrar participación",
+  siBorrarReplica: "Sí, borrar réplica",
+  cancelar: "Cancelar",
+  avisoParticipacionBorrada: "Participación borrada",
+  avisoReplicaBorrada: "Réplica borrada",
+} as const
+
+// FORO-01d (§D-8.4, E1-11): «Tu participación», del alumno.
+export const TEXTOS_MI_PARTICIPACION = {
+  titulo: "Tu participación",
+  todaviaNo: "Todavía no participas.",
+  participaste: (fecha: string, hora: string) => `Participaste el ${fecha} a las ${hora}`,
+  conRetraso: " con retraso",
+  errorAlCargar: "No pudimos cargar tu participación.",
+  recargaFallida:
+    "No pudimos actualizar tu participación. Mostramos la última versión que tenemos.",
+} as const
+
+// §D-8.4: los 409 de publicar dicen que «Tu participación» o la lista que se ven ya no son las de ahora.
+export const CODIGOS_DE_CONFLICTO_DE_PARTICIPACION: readonly string[] = [
+  "PARTICIPACION_YA_PUBLICADA",
+  "PARTICIPACION_CALIFICADA",
+  "FORO_CERRADO",
+]

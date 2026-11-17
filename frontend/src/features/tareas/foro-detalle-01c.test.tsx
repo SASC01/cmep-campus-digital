@@ -432,9 +432,14 @@ describe("FORO-1C13 · borrar un foro", () => {
       await montar([del(rol)])
       fireEvent.click(await screen.findByRole("button", { name: "Borrar foro" }, ESPERA))
       fireEvent.click(screen.getByRole("button", { name: "Sí, borrar foro" }))
-      expect(await screen.findByRole("alert", undefined, ESPERA)).toHaveTextContent(
+      // FORO-01d (§E11.2, N-34): desde 01d, el bloque de participaciones que falla en su primera carga
+      // también es un role="alert"; se busca el mensaje del segundo paso y se comprueba que es el alert.
+      const conEntregas = await screen.findByText(
         "Este foro tiene 3 participaciones.",
+        undefined,
+        ESPERA,
       )
+      expect(conEntregas).toHaveAttribute("role", "alert")
       expect(aviso.error).not.toHaveBeenCalled()
       await waitFor(() => expect(screen.getByRole("button", { name: "Cancelar" })).toHaveFocus())
       const conParticipaciones = screen.queryByRole("button", {

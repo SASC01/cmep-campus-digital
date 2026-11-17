@@ -22,6 +22,19 @@ Base de "No se toca" (Enmienda 7): **`fd4a7ad`** (`main` al crear `feat/foro-01-
 4. **El plan no toca `middleware/`, `adapters/auth` ni `infra/`**, ni `.env.example`.
 5. Las decisiones ya tomadas: DH-01 a DH-18 (DH-05 con tu corrección), PB-1 y PB-2, el complemento de DH-12 y N-19.
 
+**Enmienda 12 (2026-11-16), corta:** atiende la PARADA del programador en 01d.
+- `features/clases/estatico-02c-r1.ataque.test.ts:78-85` fija la lista cerrada de los lectores de `.puedeBorrar`, y 01d suma dos, como mandan §D-11 y §D-8.4. Lo resuelve un C-n nuevo, C-21.
+- Inventaría todas las pruebas de `frontend/src` que leen el código fuente y fijan una lista cerrada, una cuenta o una línea, con avisos para 01e.
+- Deja escrito C-13 con sus cifras.
+
+Todo está en "§E12", debajo de estas notas, y **manda sobre §E11, §E10, §E9, §E8 y §E7 en lo que toca**: los C-n, las vigiladas y el conteo de 01d. La tabla está al final, en "Enmienda 12 — tabla de cambios".
+
+**Enmienda 11 (2026-11-16), corta:** antes de 01d (base `60b5c88`).
+- Inserta, tal cual, la nota del manager del punto 6 de "Revisión final — FORO-01c2" (`revision.md`): (a) en §D-8, (b) en §E7.3 y (c) en §E7.5.5 y debajo de la tabla de §D-10 (la primera parte de (c), con la opción (A) por decisión del orquestador, §E11.1).
+- Repasa los inventarios de 01d con las tres lecciones de 01c2.
+
+Todo está en "§E11", debajo de estas notas, y **manda sobre §E10, §E9, §E8 y §E7 en lo que toca**: la nota y los inventarios de 01d. La tabla está al final, en "Enmienda 11 — tabla de cambios".
+
 **Enmienda 10 (2026-11-16), corta:** atiende la PARADA del programador en 01c2. Una prueba normal de ADMIN-01d2 (`clase-archivada-01d2-tareas.test.tsx:961-974`, "ADM-1D221 fila 36, 409, con la vista desmontada") fija la recarga que T-01 quita. El plan la suma a la lista cerrada de 01c2 con su cambio literal, e inventaría por grep las demás que fijan conducta con la vista desmontada. Todo está en "§E10", debajo de estas notas, y **manda sobre §E9, §E8 y §E7 en lo que toca**: la lista cerrada y las vigiladas de 01c2. No cambia ids, decisiones del humano ni otras subentregas. La tabla está al final, en "Enmienda 10 — tabla de cambios".
 
 **Enmienda 9 (2026-11-14), final:** integra las decisiones del humano del 2026-11-14 (`aprobacion.md`, "Decisiones del humano sobre el rearranque (2026-11-14)") y atiende N-22 a N-25 y los dos detalles de la verificación de la Enmienda 8 (`revision.md`). Todo está en "§E9", debajo de estas notas, y **manda sobre §E8 y §E7**. Los cambios en el resto van marcados "(Enmienda 9)". La tabla está al final, en "Enmienda 9 — tabla de cambios".
@@ -54,6 +67,423 @@ Con la ruta nueva, 01a pasa de unos 30 archivos y se parte en **01a1** y **01a2*
 **Enmienda 1 (2026-11-04):** atiende la revisión del manager en modo plan (`revision.md`: M-01 a M-04, N-01 a N-10 y los detalles menores) y la corrección del orquestador sobre DH-13. Los cambios van en su lugar, marcados "(E1-n)". La tabla de cambios está al final, en "Enmienda 1 — tabla de cambios".
 
 **Regla de orden de fusión (E1-2, M-02; la confirma el humano en DH-13):** ningún commit de FORO-01 entra a `main` antes de que ADMIN-01 se fusione en `main`. 01a se queda en `feat/foro-01`. 01b arranca trayendo `main` a `feat/foro-01` (DH-14). **(Enmienda 7) Sin objeto y cumplida:** ADMIN-01 entró a `main` (PR #33 y #35) sin que entrara antes ningún commit de FORO-01 (el PR #32 se revirtió con el #34), y la rama nueva nace de `fd4a7ad`, así que no hay fusión de `main` que traer (§E7.0).
+
+## §E12. Enmienda 12 (2026-11-16): los lectores de `.puedeBorrar` y las pruebas que leen el código (PARADA de 01d)
+
+Manda sobre §E11, §E10, §E9, §E8 y §E7 en lo que toca: los C-n, las vigiladas y el conteo de 01d, y los avisos para 01e. No cambia ids, decisiones del humano ni otras subentregas. Árbol revisado: 01d casi completo, sin commit, sobre `60b5c88`.
+
+### §E12.1. La PARADA y C-21
+- **Qué pasó.** `features/clases/estatico-02c-r1.ataque.test.ts:62-91` (TAREAS-01d C-13, CLASES-03d C-27 y CLASES-03e C-28) fija en `:78-85` la lista cerrada de los archivos que leen `.puedeBorrar`.
+  - 01d suma dos lectores, como mandan §D-11 y §D-8.4 ("Borrar" según `puedeBorrar` del dato, solo el admin):
+    - `features/tareas/components/participacion-del-foro.tsx:82` (`participacion.puedeBorrar`);
+    - `features/tareas/components/replicas-de-participacion.tsx:313` (`replica.puedeBorrar`).
+  - Es justo lo que la prueba protege: decide el dato, nunca el rol.
+  - El plan solo conocía de ese archivo C-10 (`:123-136`). Por qué faltó, en §E12.2.
+- **El C-n: C-21**, el siguiente libre de este plan (el último era C-20). Lo aplica el tester en la ronda 0 bis, junto con C-13.
+  - **Lista de `:78-85`:** se suman dos rutas en su lugar del orden alfabético (`rutasCon` ordena), después de `acciones-de-la-tarea.tsx`:
+    ```ts
+    expect(rutasCon(/\.puedeBorrar\b/)).toEqual([
+      "/src/features/clases/components/comentarios-de-publicacion.tsx",
+      "/src/features/clases/components/elemento-de-duda.tsx",
+      "/src/features/clases/components/elemento-de-recurso.tsx",
+      "/src/features/clases/components/publicacion-del-muro.tsx",
+      "/src/features/clases/components/respuestas-de-duda.tsx",
+      "/src/features/tareas/components/acciones-de-la-tarea.tsx",
+      "/src/features/tareas/components/participacion-del-foro.tsx",
+      "/src/features/tareas/components/replicas-de-participacion.tsx",
+    ])
+    ```
+  - **Comentario**, debajo del de C-28 (`:73-77`) y antes del `expect`:
+    ```ts
+        // FORO-01d ronda 0 bis (C-21, §E12; §D-11 y §D-8.4): «Borrar» de una participación lee puedeBorrar
+        // de la participación en participacion-del-foro.tsx y el de una réplica lo lee de la réplica en
+        // replicas-de-participacion.tsx (solo el admin lo recibe en true); son los dos lectores nuevos. La
+        // segunda regla no cambia: los dos leen el campo directo en el JSX, sin asignarlo. Sigue
+        // protegiendo que el botón decida por el dato y nunca por el rol, y que nadie más lea puedeBorrar.
+    ```
+  - **Nada más cambia en el archivo:** ni el título del caso ni sus otras reglas.
+- **Decisión sobre la segunda regla (`:86-90`): se queda como está.** No se suman `participacion` ni `replica` a los nombres admitidos.
+  - **Hoy no hay ninguna asignación.** Los dos componentes leen el campo directo en el JSX, y la regla está en verde con el árbol de hoy.
+  - **Sumar nombres sin un uso amplía lo permitido.** Dejaría pasar `puedeBorrar: participacion.puedeBorrar` en un objeto o en una asignación, sin un caso que lo necesite. La regla queda más estricta así.
+  - C-27 y C-28 los sumaron cuando hacía falta. Si 01d o 01e llegan a necesitar una asignación, es otro C-n con su comentario, y se avisa como PARADA.
+  - La regla no admite props de JSX (`puedeBorrar={x.puedeBorrar}`): el `{` corta el lookahead. Un componente que reciba `puedeBorrar` como prop caería con o sin nombres nuevos. Por eso el diseño de 01d lee el dato dentro del componente que pinta el botón.
+
+### §E12.2. El inventario que faltó: las pruebas que leen el código fuente
+**Por qué §E9.4 no alcanzó a esta:**
+- §E9.4 se armó desde lo que FORO-01 cambia hacia afuera. Buscó las reglas que se aplican a los archivos nuevos y cambiados, y sus restricciones de estilo (`fetch(`, `disabled`, `?? []`, tipos, comentarios).
+- De `estatico-02c-r1` solo vio el caso de `perspectivaDeRuta(`, por el grep de §E8.2. No abrió los demás.
+- Un lector nuevo de un campo que ya existía (`puedeBorrar`, que §D-11 pide leer) no aparece en un grep de "lo que cambia". Aparece solo si se abren, desde las pruebas, todas las listas cerradas y se pasa cada patrón contra los archivos nuevos. Eso hace este inventario.
+
+**Comandos** (la búsqueda del entorno, equivalente a `rg`, sobre el árbol de hoy) y su resultado:
+
+| # | Patrón | Alcance | Resultado |
+|---|---|---|---|
+| 1 | `import\.meta\.glob\|readFileSync\|readdirSync` | `frontend/src` | 43 archivos |
+| 2 | `\?raw\|node:fs\|from "fs"` | `frontend/src` | 47 archivos. Unidos con los de la búsqueda 1, **48 archivos de prueba que leen código, estilos, documentos o un archivo** |
+| 3 | `import\.meta\.glob…\(\s*["'][^"']+["']\|readFileSync\(…\)\|\?raw"` | `frontend/src` | El alcance de cada uno (tabla de abajo) |
+| 4 | Por cada lista cerrada o cuenta: su patrón | Contra los archivos de 01d del árbol: los cinco componentes nuevos, `foro-view.tsx`, `features/tareas/hooks.ts`, `lib.ts`, `data.ts` y `types.ts`, y en `features/clases`, `hooks.ts`, `trabajo-view.tsx`, `components/seccion-de-tema.tsx` y `data.ts` | Resultados en la tabla. Por ejemplo, `puedeBorrar` en `features/tareas` (no pruebas): `participacion-del-foro.tsx:82` y `replicas-de-participacion.tsx:313` en código, y ninguna asignación |
+
+Las corridas del programador sobre ese árbol (las cita el orquestador):
+- `src/features/tareas`: verde;
+- `src/features/clases`: un rojo, esta PARADA;
+- `src/app`, `src/lib`, `src/services` y `src/styles`: un rojo, V-06, esperado hasta C-13.
+
+No corrieron `src/components`, `features/admin`, `features/calificaciones` ni los demás módulos. Sus pruebas que leen código las revisé a mano (abajo).
+
+**Clasificación de los 48:**
+
+| Prueba (alcance) | Lo que fija | Con 01d | Clase |
+|---|---|---|---|
+| `features/clases/estatico-02c-r1.ataque` (`/src/**`) | `.administracion` solo en la firma; `.puedeBorrar` (lista de 6); `.propio`, `esMaestro`, `mis-comentarios`; `perspectivaDeRuta(` (lista de 10); "Crear clase" y `/clases/nueva` | Lectores nuevos de `.puedeBorrar`, los 2 de C-21. Lo demás, sin coincidencias: `administraci` solo en textos de `data.ts`, ninguna comparación | **Cambia: C-21.** `perspectivaDeRuta(`: C-10, ya hecho en 01c1 |
+| `styles/clases-r1.ataque` (`/src/**`) | V-06: `disabled`, `aria-busy`, 91 `enEspera=` y `fijos` | +5 `enEspera=` | **Ya previsto: C-13** (§E12.4) |
+| `lib/guardas-de-doble-clic-estatico` (`/src/**`) | CH4-01 `EXCEPCIONES` de `mutateAsync`; `fetchNextPage({ cancelRefetch: false })`; `refetch` | Los componentes usan `mutate` en manejadores con nombre y `cancelRefetch: false` | Ya previsto (CH4-01, CH4-04); verde |
+| `lib/guardas-ch4-r1.ataque` (`/src/**`) | ATQ-CH4-32 y ATQ-CH4-34 | Nada nuevo en 01d (§E8.3) | Ya previsto (C-15 en 01c2, C-16 en 01e); verde |
+| `lib/estado-por-id-estatico-ch6` (`/src/features/**/*.tsx`) | CH6-A30: `key` por los ids de la ruta | 01d no crea vistas con ids de ruta | Ya previsto (CH6-A30); verde |
+| `lib/errores-de-api-estatico`, `lib/estatico-ch3-r1.ataque`, `lib/estatico-ch3-r2.ataque`, `lib/errores-ch3-r1.ataque`, `services/apiClient-ch3` y `apiClient-ch3-r1.ataque` (`/src/**`) | `.message` solo en tres archivos; la lista de 15 de `isError` y `reset()`; `esErrorDeCursor`; `CODIGOS_QUE_REDIRIGE_EL_CLIENTE` solo de `apiClient`; invisibles | `issues[0]?.message` de zod en dos componentes, la forma admitida; ningún `isError` con `reset()` | Vigiladas (§E9.4); verdes |
+| `lib/errores-ch3-r2.ataque` (`shared/src` y `backend/src`) | Los códigos y prefijos de `shared` | 01d no toca `shared/` | No le afecta |
+| `components/ui/desplazamiento-posicionado-h6` (`/src/**`) | `overflow-x-auto` con `relative` | Ninguno en 01d | No le afecta (no corrida; revisada) |
+| `components/layout/estatico-r1.ataque` (`/src/**/*.{ts,tsx,css}`) | Pie y fondo; `fixed`; `animate-`; valores arbitrarios (lista de 7); `<CampoContrasena` (7); **ninguna línea de un `.tsx` con «Ocultar», comentarios incluidos** | «Ocultar réplicas» vive en `data.ts`; ningún `.tsx` de 01d lo escribe, ni `fixed`, `animate-` ni `-[…]` | Vigilada (no corrida; revisada). **Restricción:** ningún `.tsx` de 01d o 01e escribe «Ocultar», tampoco en un comentario |
+| `features/tareas/estatico-01c` y `estatico-01c-r1.ataque`; `tareas-01a-r1`, `tareas-01d-r1`, `-r2` y `-r3`; `entregas-01d-r1`, `-r2` y `-r3`; `entregas-01e-r1` y `-r2`; `aviso-calificar-01c-r3` (`/src/**` o `features/tareas`) | Las reglas de §E9.4 | Cumplen | Vigiladas (§E9.4); verdes |
+| `features/tareas/participar-01d` (`features/tareas`) | FORO-1D04b | De 01d | Del programador |
+| `features/tareas/errores-ch3-r1.ataque` (`*-ch3-r1.ataque`) | Lee pruebas, no producción | — | No le afecta |
+| `features/tareas/como-se-entrega-01a` (`features/clases/data.ts`) | La constante «Sin tema» | — | No le afecta (PR-1A17, hecho) |
+| `features/clases/estatico-r1.ataque` y `errores-ch3` (`features/clases`) | `?? []`, ternarios anidados; llamadas a `erroresDeFormularioClases(` | Cumplen | Vigiladas (§E9.4); verdes |
+| `features/clases/errores-ch3-r1.ataque` (`/src/**`, alcance `features/clases` y `features/calificaciones`, **texto crudo, comentarios incluidos**) | Ninguna copia de la expresión de ruta, `.split(":")`, `new RegExp(`; `.message` solo en las dos formas admitidas | Los cambios de 01d en `features/clases` (`hooks.ts`, `trabajo-view.tsx`, `seccion-de-tema.tsx` y `data.ts`) cumplen | Vigilada; verde. **Restricción:** tampoco en un comentario |
+| `features/clases/estatico-03c1-r1.ataque` (`/src/**`) | El indicador; nada de `grid-cols-[45]`, `w-1/[45]` ni `translate-x-[…00%]` en todo `src/` | Ninguna coincidencia | Vigilada; verde |
+| `features/clases/refactor-01c-r1.ataque`, `ver-mas-01e-r3.ataque` y `reloj-01e-r4.ataque` | §E9.4 | Cumplen | Vigiladas; verdes |
+| `features/clases/foros-01c1-r1-foco.ataque` (solo `foros-view.tsx`) | ATQ-FORO-110 | 01d no toca `foros-view.tsx` | No le afecta |
+| `features/calificaciones/estatico-01d`, `estatico-01d-r1.ataque` y `estatico-02b` (`features/calificaciones` y `components/foco`) | 12 archivos exactos; reglas y comentarios | 01d no toca `features/calificaciones` | No le afecta (no corridas). Aviso para 01e |
+| `features/admin/cuentas-r1.ataque` y `maestros-03b-r1.ataque` (`features/admin`) | Las de admin | — | No le afecta |
+| `styles/tokens`, `tokens-r1.ataque`, `components/ui/badge-03b-r1.ataque`, `app/fondo-r1.ataque` y `features/clases/clases-r4.ataque` (`tokens.css`, `DESIGN.md`, `badge.tsx`, `bloque-destacado.tsx`) | Tokens y componentes fijos | 01d no los toca | No le afecta |
+| `lib/xlsx-muestra` (un archivo de muestra) | El .xlsx | — | No le afecta |
+
+**Resultado para 01d:**
+- **48 pruebas leen código.**
+- **Cambia una más: C-21.**
+- **Ya previstas:** C-13 (V-06), CH4-01 y CH4-04, C-15 y C-16, CH6-A30 y C-10.
+- **Las demás no se afectan:** siguen verdes con el árbol, y las que no se corrieron las revisé contra sus patrones.
+- **Dos restricciones nuevas para lo que queda de 01d:**
+  - ningún `.tsx` escribe «Ocultar», tampoco en un comentario (`components/layout/estatico-r1.ataque.test.ts:256`);
+  - en `features/clases`, ninguna copia de la expresión de ruta ni `.split(":")`, tampoco en un comentario (`features/clases/errores-ch3-r1.ataque.test.ts:418-447`).
+- Si una de las 48 se pone roja por otra lista cerrada, es PARADA, como esta.
+
+### §E12.3. Avisos para el arranque de 01e (sin reescribirlo)
+Las listas cerradas de §E12.2 en las que 01e meterá archivos nuevos o cambios: `participantes-view.tsx`, `participante-view.tsx`, `components/devoluciones.tsx`, el panel y la tabla, y `features/calificaciones`.
+- **`features/clases/estatico-02c-r1.ataque`:**
+  - si una vista de 01e lee `.puedeBorrar` o `.administracion`, entra a su lista (otro C-n);
+  - ninguna llama a `perspectivaDeRuta(`: usan `useRutaDeLaClase`.
+- **`styles/clases-r1.ataque` (V-06):** C-14, con sus cifras y su forma de `fijos`, como C-13.
+- **`lib/guardas-ch4-r1.ataque`:** C-16 (ATQ-CH4-34, `participante-view.tsx`).
+- **`lib/guardas-de-doble-clic-estatico`:** cada `mutateAsync` nuevo entra a `EXCEPCIONES` con su comentario, o la guarda vive en un manejador con nombre.
+- **`lib/estado-por-id-estatico-ch6`:** CH6-A30 (c), ya en la lista cerrada de 01e.
+- **`features/calificaciones/estatico-01d`, `estatico-01d-r1.ataque` y `estatico-02b`:**
+  - el módulo sigue con exactamente sus 12 archivos: un archivo nuevo en `features/calificaciones` es otra lista cerrada;
+  - siguen las reglas de §E9.4, incluidas las palabras prohibidas en los comentarios de `types.ts`, `data.ts`, `lib.ts` y `hooks.ts`.
+- **`features/clases/errores-ch3-r1.ataque`** (alcance `features/calificaciones`, texto crudo): en `features/calificaciones`, nada de `.split(":")` ni `new RegExp(`, y `.message` solo en las formas admitidas, tampoco en comentarios.
+- **`lib/estatico-ch3-r2.ataque`:** un formulario nuevo con `if (<m>.isError) <m>.reset()` entra a su lista de 15. Es mejor la forma de §E9.4.
+- **`components/layout/estatico-r1.ataque`:** ningún «Ocultar» ni valor arbitrario nuevo en los `.tsx`.
+- **`features/tareas/estatico-01c-r1.ataque`** (CAL-T-95 a CAL-T-98): el panel con `actividad` conserva sus tres campos, sus dos lecturas de `.version` y ningún texto suelto en JSX.
+- **El inventario de 01e repite §E12.2:** todas las listas cerradas de las 48, contra sus archivos nuevos y cambiados, antes de la ronda 0.
+
+### §E12.4. C-13 con sus cifras (V-06, `styles/clases-r1.ataque.test.ts`)
+Las cifras que declara el programador cuadran con el árbol: búsqueda de `enEspera=` en los cinco componentes nuevos.
+
+| Archivo | `enEspera=` |
+|---|---|
+| `formulario-de-participacion.tsx` | 1 («Publicar participación», `:83`) |
+| `participaciones-del-foro.tsx` | 1 («Ver más participaciones», `:171`) |
+| `replicas-de-participacion.tsx` | 3 («Sí, borrar …» de `BorrarDelForo`, que usan la participación y la réplica, `:122`; «Publicar réplica», `:203`; «Ver más réplicas», `:333`) |
+| `participacion-del-foro.tsx` | 0 |
+| `mi-participacion.tsx` | 0 |
+
+En `features/clases`, 01d no suma ninguno: «Crear foro» es un enlace. **De 91 a 96.**
+
+**El texto de C-13**, que aplica el tester en la ronda 0 bis:
+- **Título** (`:211`): "…; 91 enEspera" → "…; 96 enEspera".
+- **`:218`:** `expect(usos).toHaveLength(91)` → `expect(usos).toHaveLength(96)`.
+- **Comentario**, debajo del de C-11 (`:206-210`):
+  ```ts
+    // FORO-01d ronda 0 bis (C-13, §E7.5.5 y §E12.4): de 91 a 96 enEspera=. Entran
+    // formulario-de-participacion.tsx (1: «Publicar participación»), participaciones-del-foro.tsx (1:
+    // «Ver más participaciones») y replicas-de-participacion.tsx (3: «Sí, borrar …» de BorrarDelForo,
+    // para la participación y la réplica, «Publicar réplica» y «Ver más réplicas»), y
+    // participacion-del-foro.tsx y mi-participacion.tsx (0). Sigue protegiendo lo mismo: ningún
+    // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+    // botones con espera cambien solo con el plan.
+  ```
+- **`fijos`**, después del bloque de ADMIN-01g (`:380-386`) y antes de `}`:
+  ```ts
+        // FORO-01d ronda 0 bis (C-13, §E12.4): participar, replicar y borrar en el foro.
+        "/src/features/tareas/components/formulario-de-participacion.tsx": 1,
+        "/src/features/tareas/components/participaciones-del-foro.tsx": 1,
+        "/src/features/tareas/components/replicas-de-participacion.tsx": 3,
+        "/src/features/tareas/components/participacion-del-foro.tsx": 0,
+        "/src/features/tareas/components/mi-participacion.tsx": 0,
+  ```
+- **Por qué los 0 van en `fijos`:** C-13 de §E7.5.5 los pedía (`mi-participacion.tsx: 0`), y es lo que hace la mayoría de los bloques del archivo. C-11 de 01c1 optó por no escribirlos; las dos formas pasan.
+- **Nada más cambia:** `restoClases` y `restoAdmin` siguen igual.
+
+### §E12.5. Conteo de 01d
+**~28** = 15 de producción + 6 pruebas nuevas + 3 normales de la lista cerrada + **4** `*.ataque`: C-12 en dos archivos, C-13 y C-21. No pasa de unos 30.
+
+## §E11. Enmienda 11 (2026-11-16): la nota de la revisión final de 01c2 y el repaso de 01d
+
+Manda sobre §E10, §E9, §E8 y §E7 en lo que toca: la nota de §D-8, de §E7.3 y de §D-10, y los inventarios de 01d (§E7.5.5, §E8.3, §E8.4 y las filas de 01d de §D-10). No cambia ids existentes, decisiones del humano ni otras subentregas; lo que toca a 01e son avisos para su arranque (§E11.8). Base del repaso: `60b5c88` (cierre de 01c2).
+
+### §E11.1. La nota del manager (revisión final de 01c2, punto 6), literal
+- **(a)**, debajo de la línea de `claveForo` de §D-8: insertada tal cual.
+- **(b)**, debajo de la viñeta de `ParticipantesView` y `ParticipanteView` de §E7.3, "Frontend", punto 3: insertada tal cual.
+- **(c), segunda parte**, al final del paréntesis de `hooks.ts` en "Se toca" de §E7.5.5: insertada en línea, sin el `> ` de la cita, porque va dentro de un paréntesis.
+- **(c), primera parte: insertada con la opción (A), por decisión del orquestador (un ajuste de formato; el contenido no cambia).**
+  - Va tal cual, como línea de cita, después de la última fila de la tabla de §D-10 y antes de "### §D-11", con una línea en blanco antes y otra después.
+  - La fila "Mover un foro" lleva al final de su celda "Se renueva" la remisión "**(Enmienda 11)** Ver la nota debajo de la tabla".
+  - Por qué no va debajo de la fila: la fila está en medio de la tabla (debajo tiene la de `mi-participacion` y tres de 01e), y una línea de cita entre dos filas corta la tabla en Markdown. Las opciones eran:
+    - (A), la elegida: debajo de la tabla;
+    - (B): en línea, dentro de la celda;
+    - (C): debajo de la fila, partiendo la tabla.
+- **El id que pide (c):** **FORO-1D39**, en `features/clases/actividades-foros-01d.test.tsx`. Va en "Pruebas requeridas", 01d, bloque "«Actividades» y categorías", después de FORO-1D29.
+- **Precisión del arquitecto sobre (c):** la invalidación nueva de `useMoverElemento` es `queryClient.invalidateQueries({ queryKey: claveForo(claseId, publicacionId), exact: true })`, dentro del mismo `Promise.all` del `onSuccess`; el `onError` no cambia.
+  - Mover cambia el tema del detalle, no las participaciones.
+  - Con `exact`, las claves de 01d, que cuelgan de `claveForo` (§E11.3), no se vuelven a pedir al abrir el foro.
+  - En las pruebas de hoy no hay ningún foro en caché, así que la invalidación no tiene efecto en ellas.
+
+### §E11.2. Lección 1: pruebas que fijan una conducta con la vista desmontada, sin observador o por conteo
+**Comandos** (la búsqueda del entorno, equivalente a `rg`, sobre `frontend/src` en `60b5c88`) y su resultado:
+
+| # | Patrón | Alcance | Resultado |
+|---|---|---|---|
+| 1 | `desmontad\|sin observador\|VISTA_DESMONTADA` | `*.test.tsx` | El inventario de §E10.3 sigue valiendo. De lo nuevo de 01c2: FORO-1C30 y FORO-1C35 (`hermanos-03d-01c.test.tsx:316`, `:459`, `:482`) y ATQ-FORO-132 (`foros-01c2-r3.ataque.test.tsx:445`) |
+| 2 | `\.slice\(\|llamadas\)\.toHaveLength\|llamadas\.length\|AllByRole\("button"\|AllByRole\("link"\|ninguna petición\|nada más\|sin pedir\|no pide\|no vuelve a pedir` | las 8 pruebas del foro de `features/tareas` | 12 coincidencias en 5 archivos: `hermanos-03d-01c` `:316` y `:482`; `foros-01c2-r3` `:445` y `:506`; `foros-01c2-r1` `:352`, `:390`, `:398`, `:424`, `:504` y `:563`; `foro-detalle-01c` `:263`; `crear-editar-foro-01c` `:460` |
+| 3 | `const (lecturas\w*\|pedidas\w*\|borrados) =\|url\.pathname\.startsWith\|toHaveBeenCalledTimes` | las mismas | Todo contador filtra por la ruta exacta del foro (`${API_FOROS}/${id}`), por la de la lista o por método (`recuperar-foro-01c.test.tsx:359`, solo escrituras). `foros-01c2-r3` tiene además `lecturasNoCanonicas()`: toda petición bajo `…/foros/` con mayúsculas |
+| 4 | `stubGlobal\|const responder\|no esperada\|inesperad` y el `return` final de cada `responder` | las pruebas del foro de `features/tareas` y `features/clases` | Una ruta que el doble no conoce responde: `500 ERROR_INTERNO "no esperada"` en `foro-detalle-01c`, `crear-editar-foro-01c`, `errores-foro-01c`, `recuperar-foro-01c`, `hermanos-03d-01c` y `foros-01c2-r1`; `404 NO_ENCONTRADO` en `foros-01c2-r2` y `foros-01c2-r3`; `200 {}` en `foros-01c2-r2-temas` y `foros-01c2-r3-temas`. Ninguno conoce las rutas de participaciones |
+| 5 | `retry: \|isFetching\(\)\|No pudimos` | `*foro*.test.tsx` | Todos los clientes usan `retry: 1`; ninguna espera `isFetching() === 0` |
+| 6 | `publicaciones/\$\{[^}]+\}/tema\|/tema\`\|useMoverElemento\|claveForo\|clavePrefijoDeForos` | `*.test.ts*` | 65 coincidencias en 13 archivos. Las de `features/clases`: `formularios-ch3.test.tsx:579-593` (los errores de mover), `recursos-03d.test.tsx:1232` (cuenta los `PUT`), `clase-archivada-01d1-vista.test.tsx:1930-2002`, y `foros-01c2-r2-temas` y `-r3-temas` |
+| 7 | `seccion=actividades\|conForos` | `frontend/src` | Igual que en §E7.5.5: `contenido-03c2.test.tsx:235` y `:242` (lista cerrada), `ver-mas-y-orden-ch4.test.tsx:756`, el comentario de `formularios-ch3-r1.ataque.test.tsx:241` y C-7 (`errores-ch3-r2.ataque.test.ts:258-260`, de 01b) |
+| 8 | `\.search(\)\| ===\|\b)\|searchParams\.toString\(\)` | `*.test.ts*` | Las de Dudas, Recursos y `avisos-03d` guardan `${url.pathname}${url.search}` en `inesperadas`, pero eligen `/trabajo` por `pathname`. Ninguna fija la URL completa de `/trabajo` |
+| 9 | `"Crear tarea"\|AllByRole\("link"\)\|AllByRole\("button"\)` | `*.test.tsx` | `trabajo-view.test.tsx:454` y `:469`, y "Crear tarea" fuera en una archivada (`clase-archivada-01d1-vista:524`, `-01d1-r1.ataque:545`, `-01d2-r3.ataque:1101` y `features/tareas/clase-archivada-01d2-r1.ataque:503`) |
+| 10 | `tipo: "foro"` | `*.test.ts*` | Solo `hermanos-03d-01c.test.tsx:73` |
+
+**Resultado: ninguna prueba cambia.** La lista cerrada y los C-n de §E7.5.5 siguen igual. **(Enmienda 11, corrección; N-34)** Salvo `foro-detalle-01c.test.tsx:435-437`, que pasa a la lista cerrada de 01d (búsqueda 11, abajo). Los C-n siguen igual. Las vigiladas quedan en verde solo si 01d cumple estas restricciones, que pasan a ser parte del diseño. Cada una tiene su caso.
+- **R-01d-1.** Las lecturas de participaciones, réplicas y "Tu participación" salen solo de componentes dentro de la rama de datos de `DetalleDelForo`, en el bloque `key={foro.id}`. Con el foro en error no sale ninguna (FORO-1D42).
+- **R-01d-2.** La primera carga fallida de esas lecturas no avisa; lo pinta su bloque, como dice §D-10. Solo avisa una recarga fallida con datos en caché, una vez por fallo (FORO-1D26 y FORO-1D51).
+- **R-01d-3.** **(Enmienda 11, corrección; N-36: reescrita)** Lo que reemplaza la vista del foro se decide por código, con `errorQueReemplazaLaVistaDelForo(true, error)`, nunca por el estado HTTP.
+  - **Una función nueva en `features/tareas/hooks.ts`**, junto a `pedirDeNuevoElForo` (que no cambia, por R-01d-5):
+    ```ts
+    // FORO-01d (§E11.2, R-01d-3): una lectura de 01d con un error que reemplaza la vista del foro vuelve a
+    // pedir solo el foro (exact): su respuesta decide si la vista se reemplaza; el bloque no se repite.
+    const pedirDeNuevoSoloElForo = (
+      queryClient: ReturnType<typeof useQueryClient>,
+      claseId: string,
+      foroId: string,
+      error: unknown,
+    ) => {
+      if (!errorQueReemplazaLaVistaDelForo(true, error)) return
+      void queryClient.invalidateQueries(
+        { queryKey: claveForo(claseId, foroId), exact: true },
+        { cancelRefetch: false },
+      )
+    }
+    ```
+    Cubre `TAREA_NO_ENCONTRADA`, `SIN_ACCESO_A_LA_CLASE`, `ALUMNO_NO_ENCONTRADO` y el `VALIDACION` de `claseId:`, `foroId:` o `alumnoId:`, lo mismo que la vista.
+  - **Quién la llama:** el gancho de cada lectura de 01d (participaciones, réplicas y "Tu participación"), una vez por fallo nuevo (por su `errorUpdateCount`), desde un efecto.
+  - **Lo que pinta el bloque:** su texto genérico de error, nunca el del servidor ni el que reemplaza la vista.
+    - Si el foro responde ese error, la vista se reemplaza y queda un solo mensaje.
+    - Si el foro responde bien (un servidor inconsistente), el bloque se queda con su error y no se vuelve a pedir: con `exact` no hay ciclo.
+  - **Un `404 NO_ENCONTRADO` u otro código** se queda en el bloque y no vuelve a pedir el foro (FORO-1D42).
+  - **Consecuencia aceptada desde 01d:** `pedirDeNuevoElForo` (`hooks.ts:709-725`, sin `exact`) también vuelve a pedir las lecturas de 01d abiertas, porque cuelgan de `claveForo`. Hoy la llaman, con `ForoView` montada, borrar con `404` o `403` y la descarga con `403`.
+    - Es una lectura más de participaciones y de "Tu participación", sin aviso, porque en los dobles nunca tienen datos (R-01d-2).
+    - Las vigiladas la toleran porque cuentan solo la ruta exacta del foro (búsqueda 3): FORO-1C37 y ATQ-FORO-130 (`toBeGreaterThan`), ATQ-FORO-129 (`antes + 1`: su doble responde `404 NO_ENCONTRADO` a las participaciones, que no vuelve a pedir el foro) y ATQ-FORO-126 (no cuenta lecturas: el `404` reemplaza la vista y al final queda un solo `alert`).
+    - Si ese doble respondiera con un código que reemplaza la vista, habría una lectura más del foro; ninguna vigilada lo hace.
+- **R-01d-4.** Toda clave y toda ruta de 01d usan el `foroId` que recibe `DetalleDelForo`, ya canónico, y el `participacion.id` de los datos (FORO-1D40). 01d no lee ningún id nuevo de la URL.
+- **R-01d-5.** 01d no cambia lo que dejó 01c2 en el foro, y si necesita cambiarlo, PARADA, porque sus pruebas no están inventariadas para cambiar. Eso incluye:
+  - `useForo`, `invalidarTrasCambiarElForo`, `pedirDeNuevoElForo`, `useCrearForo`, `useEditarForo`, `useBorrarForo`, `useAvisoDeRecargaFallidaDelForo` y `renovarTrasErrorAlBorrar`, en `features/tareas/hooks.ts`;
+  - `AccionesDeLaTarea` y `DetallesDeLaTarea`;
+  - `idCanonicoDeLaRuta`.
+- **R-01d-6.** En `foro-view.tsx`, `useFocoAlPerderseElControl` sigue con la clave de la consulta del foro. El foco de los controles de 01d va según §D-10.
+- **El reintento:** con `retry: 1`, una lectura de 01d que el doble rechaza se reintenta una vez, en un segundo. Ninguna vigilada espera `isFetching() === 0`, así que no las cambia. Si una vigilada vence por eso, PARADA: no se cambia la prueba.
+
+**Vigiladas, una por una:**
+- **`features/tareas/foro-detalle-01c.test.tsx`** (FORO-1C01, FORO-1C12 a FORO-1C14, FORO-1C37, FORO-1C50, FORO-1C52, FORO-1C53 y T-01). **(Enmienda 11, corrección; N-34)** Vigilada salvo `:435-437`, que pasa a la lista cerrada (búsqueda 11):
+  - cuenta por la ruta exacta;
+  - los avisos no suben, porque las participaciones fallan con `500` y nunca tienen datos (R-01d-2);
+  - el único «Cancelar» sigue siendo el suyo, porque el doble no devuelve participaciones;
+  - el alumno "sin acciones" no ve «Publicar participación», porque "Tu participación" falla en el doble;
+  - en FORO-1C37 con `403`, un solo mensaje (R-01d-1 y R-01d-3).
+- **`crear-editar-foro-01c` y `errores-foro-01c`:** `ForoView` solo como destino. Cuentan por la ruta exacta y por los avisos.
+- **`recuperar-foro-01c`** (FORO-1C24, FORO-1C26 y FORO-1C27): cuenta por la ruta exacta, y en `:359` solo las escrituras.
+- **`hermanos-03d-01c`** (FORO-1C30 a FORO-1C36 y FORO-1C41): `lecturas()` va por la ruta exacta. `removeQueries(claveForo)` sin `exact` (`hooks.ts:267` y `:789`) se lleva también las claves de 01d, que cuelgan de ella: FORO-1C35 sigue.
+- **`claves-foro-01c2.test.ts`:** 01d no cambia `claveForo` ni `idCanonicoDeLaRuta`. Su hermano para las claves nuevas es FORO-1D41.
+- **`formulario-foro-01c` y `traduccion-foro-01c`:** no montan `ForoView`.
+- **`foros-01c2-r1.ataque`** (ATQ-FORO-111 a ATQ-FORO-119):
+  - los `.slice(…)` filtran por la ruta exacta (`:390-399` y `:563`) o por `POST` (`:424`);
+  - los avisos no suben (R-01d-2);
+  - en ATQ-FORO-111 (`foros/lista`), el `VALIDACION` reemplaza la vista y no sale ninguna lectura de 01d (R-01d-1).
+- **`foros-01c2-r2.ataque` y `foros-01c2-r3.ataque`:**
+  - sus dobles responden `404 NO_ENCONTRADO` a lo que no conocen: con R-01d-3 no se vuelve a pedir el foro (ATQ-FORO-133, `lecturasDeA()` en 1);
+  - `lecturasNoCanonicas()` vigila R-01d-4 en toda petición bajo `…/foros/` (ATQ-FORO-129, ATQ-FORO-130 y ATQ-FORO-133);
+  - ATQ-FORO-130 hace fallar con `503` o `403` todo lo que empieza con `…/foros/`. Con R-01d-2 no hay aviso de más. Con R-01d-1 y R-01d-3 hay un solo "No tienes acceso a esta clase." (su `findByText(…, { selector: "p" })` fallaría con dos).
+- **`features/clases/foros-01c2-r2-temas` y `-r3-temas`:**
+  - su doble responde `200 {}`: las lecturas de 01d fallan por el esquema, sin aviso;
+  - cuentan por la ruta exacta;
+  - la invalidación de T-03 por `clavePrefijoDeForos` alcanza las claves de 01d, sin efecto visible;
+  - ATQ-FORO-134, "termina sin esperar", sigue: sin observador no se espera nada.
+- **La sección "Foro"** (`foros-01c.test`, `recuperar-foros-01c`, `foros-01c1-r1.ataque` y `foros-01c1-r1-foco.ataque`): 01d no toca `foros-view.tsx`, y ATQ-FORO-110 lee solo ese archivo.
+- **Mover:**
+  - `formularios-ch3.test.tsx:579-593`: el `onError` no cambia;
+  - `recursos-03d.test.tsx:1232`: cuenta los `PUT`;
+  - `clase-archivada-01d1-vista.test.tsx:1930-2002`;
+  - `app/invalidaciones-03c2-r1.ataque` y `ordenar-03c2-r*.ataque`.
+
+  Ninguna tiene un foro en caché.
+- **"Actividades":**
+  - `trabajo-view.test.tsx:444-472`;
+  - las de la clase archivada de la búsqueda 9: "Crear foro" tampoco se pinta en una archivada, como prueba FORO-1D29;
+  - los dobles por `pathname` o por `searchParams.get("seccion")` de §E7.5.5;
+  - las `inesperadas` de la búsqueda 8.
+
+**(Enmienda 11, corrección; N-34) Búsqueda 11: los `alert` y los textos que se pueden duplicar.**
+- **Por qué hace falta:** desde 01d, con el foro en su rama de datos, la primera carga fallida del bloque de participaciones (o de "Tu participación") pinta un `MensajeError`, que lleva `role="alert"` (`components/mensaje-error.tsx:12`). Con `retry: 1` aparece cerca de un segundo después de montar.
+- **Comando:** `rg -n 'ByRole\("alert"|AllByRole\("alert"|ByText\('`, que cubre `getAllByRole`, `queryByRole("alert")` y los `getAllByText(…).toHaveLength`.
+  - Sobre las vigiladas que montan `ForoView` con datos: en `features/tareas`, `foro-detalle-01c`, `crear-editar-foro-01c`, `errores-foro-01c`, `recuperar-foro-01c`, `hermanos-03d-01c` y `foros-01c2-r1`, `-r2` y `-r3`.
+  - Y, por completar, en `features/clases`, `foros-01c2-r2-temas` y `-r3-temas`.
+- **Resultado:** 79 coincidencias en las ocho de `features/tareas` y 7 en las dos de `features/clases`. Clasificadas:
+
+| Clase | Coincidencias | Por qué |
+|---|---|---|
+| **Cae por tiempo** | `foro-detalle-01c.test.tsx:435` (FORO-1C13, `409 TAREA_CON_ENTREGAS`, maestro y admin) | `findByRole("alert")` en todo el documento, con el foro en datos. Si el segundo paso llega después del `alert` del bloque, encuentra dos ("Found multiple elements"). **Pasa a la lista cerrada de 01d** (abajo) |
+| **No le afecta: el foro no está en su rama de datos** (la vista reemplazada, la edición, la creación, «Foro» o «Avisos») | `foro-detalle-01c` `:341`, `:351`, `:357`, `:640`, `:652` y `:660`; `foros-01c2-r1` `:297-340`, `:401`, `:583`, `:737-743`, `:833`, `:861`, `:867` y `:920-960`; `foros-01c2-r2` `:261`, `:264` (ATQ-FORO-124: el bloque del foro B ya se desmontó), `:276-314`, `:412`, `:426`, `:452` y `:485-503`; `foros-01c2-r3` `:295`, `:333`, `:485` y `:542-551`; `errores-foro-01c` `:295-340`; `crear-editar-foro-01c:339`; `recuperar-foro-01c` `:288` y `:319`; `hermanos-03d-01c` `:324-544`; `foros-01c2-r3-temas` `:264-326` (la lista de «Foro» y los disparadores) | Sin rama de datos no hay bloque (R-01d-1). En `:452` de r2, y en `:333` y `:359` de r3, la vista ya se reemplazó al consultar: queda un solo `alert` y un solo texto |
+| **No le afecta: el texto es otro** | `foro-detalle-01c` `:291-312` (la insignia, el planteamiento, la política, `queryByText("Entrega")`) y `:386`; `foros-01c2-r2-temas` `:219` y `:236` (dentro de "Detalles", maestro) | El bloque dice su texto genérico ("No pudimos cargar…"), que no coincide con ninguno. "Tu participación" sale solo para el alumno, y `:301` busca "Entrega" exacto |
+| **No le afecta, con R-01d-3** | `foro-detalle-01c:498` (FORO-1C37, `403` al descargar) y `foros-01c2-r3:359` (ATQ-FORO-130, `403` en todo `…/foros/`) | El bloque no pinta "No tienes acceso a esta clase." (R-01d-3): solo vuelve a pedir el foro, cuyo `403` reemplaza la vista. Si 01d no cumpliera R-01d-3, `:359` (con `selector: "p"`) caería por dos coincidencias: queda vigilada como prueba de R-01d-3 |
+
+- **Ninguna `*.ataque` cambia:** no hay C-n nuevo.
+- **La alternativa de diseño que valoré y no propongo:** que el error de la primera carga del bloque no lleve `role="alert"`. `MensajeError` es el estado de error de §7.10 de `DESIGN.md` en todo el frontend, y su `role="alert"` es lo que anuncia el error a un lector de pantalla. Quitárselo solo en este bloque rompe ese patrón y esa accesibilidad para salvar una consulta de prueba. Es más sano acotar la prueba.
+- **Lista cerrada de 01d, entrada nueva (3): `features/tareas/foro-detalle-01c.test.tsx:435-437`** (FORO-1C13, el `it.each` del `409 TAREA_CON_ENTREGAS`). Lo aplica el programador; nada más cambia en el archivo.
+  - *Antes:*
+    ```ts
+          expect(await screen.findByRole("alert", undefined, ESPERA)).toHaveTextContent(
+            "Este foro tiene 3 participaciones.",
+          )
+    ```
+  - *Después:*
+    ```ts
+          // FORO-01d (§E11.2, N-34): desde 01d, el bloque de participaciones que falla en su primera carga
+          // también es un role="alert"; se busca el mensaje del segundo paso y se comprueba que es el alert.
+          const conEntregas = await screen.findByText(
+            "Este foro tiene 3 participaciones.",
+            undefined,
+            ESPERA,
+          )
+          expect(conEntregas).toHaveAttribute("role", "alert")
+    ```
+  - **Por qué esta forma y no `within(<la tarjeta de acciones>)`:**
+    - el texto es hijo directo del `<p role="alert">` del segundo paso (`acciones-de-la-tarea.tsx:140-142`), así que `findByText` devuelve ese mismo elemento;
+    - la aserción de `role` conserva lo que el caso afirmaba: el mensaje del servidor, en línea y como `alert`, que se anuncia;
+    - `within` necesitaría localizar la tarjeta por un selector o por `closest(…)`, que la prueba no tiene hoy y es más frágil.
+  - **Lo que sigue protegiendo:** el segundo paso con el mensaje del servidor, sin aviso (`:438`), el foco en «Cancelar» (`:439`) y «Borrar con las participaciones» solo para el admin (`:440-447`).
+
+### §E11.3. Lección 3: las claves de 01d, con su forma literal
+Van en **`features/tareas/lib.ts`**, junto a `claveMiEntrega` y las de entregas, porque solo las usa `features/tareas`. **`services/trabajoService.ts` sale de "Se toca" de 01d**: no falta ninguna clave compartida, y `useMoverElemento` usa `claveForo`, que ya está.
+```ts
+export const claveMiParticipacion = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "mia"] as const
+export const claveParticipaciones = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "participaciones"] as const
+export const claveReplicas = (claseId: string, foroId: string, participacionId: string) =>
+  [...claveForo(claseId, foroId), "replicas", participacionId] as const
+```
+
+| Posición | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|---|
+| `claveListaDeForos` | `"clases"` | `claseId` | `"foros"` | `"lista"` | | | |
+| `claveForo` | `"clases"` | `claseId` | `"foros"` | `"foro"` | `foroId` | | |
+| `claveMiParticipacion` | … | | | `"foro"` | `foroId` | `"mia"` | |
+| `claveParticipaciones` | … | | | `"foro"` | `foroId` | `"participaciones"` | |
+| `claveReplicas` | … | | | `"foro"` | `foroId` | `"replicas"` | `participacionId` |
+
+- **Ningún id comparte posición con un segmento fijo:**
+  - las posiciones 3 y 5 son siempre fijas;
+  - la 4 es siempre `foroId`, y solo detrás de `"foro"`;
+  - la 6 es `participacionId`, y solo detrás de `"replicas"`.
+- **`claveParticipaciones` no es prefijo de `claveReplicas`:**
+  - renovar la lista no vuelve a pedir cada bloque abierto, cada uno con su cursor;
+  - borrar una principal (admin) invalida `claveParticipaciones` y saca de la caché `claveReplicas(…, id)` con `exact`;
+  - borrar una réplica invalida su `claveReplicas` y `claveParticipaciones`, por el conteo.
+- **`claveForo` es prefijo de las tres:** borrar el foro (`removeQueries`), `pedirDeNuevoElForo`, T-03 y editar la clase las alcanzan.
+- **Los ids son canónicos:**
+  - `foroId` es el canónico de `DetalleDelForo`;
+  - `participacionId` sale siempre de `participacion.id`, los datos del servidor, nunca de la URL.
+- Lo prueba FORO-1D41.
+
+### §E11.4. Lección 2: las mutaciones que cambian lo que muestran las vistas de 01d
+**Vistas de 01d:**
+- la lista de principales;
+- las réplicas;
+- "Tu participación";
+- la fila del foro en "Actividades", con su insignia y, para el alumno, el estado de su entrega;
+- el conteo y el estado de la lista de "Foro".
+
+| Mutación (archivo) | Qué invalida hoy | ¿Alcanza lo de 01d? | Resultado |
+|---|---|---|---|
+| Crear foro (`useCrearForo`, `features/tareas/hooks.ts`) | Lista de foros, prefijo del trabajo, temas (con las listas por sección), categorías y prefijo de calificaciones | Sí: la fila nueva en "Actividades" y en "Foro" | Nada |
+| Editar foro (`useEditarForo`) | `setQueryData(claveForo)` y lo mismo que crear | Sí: la fila (título y fecha). Las participaciones no cambian, y quien edita (maestro o admin) no tiene "Tu participación" | Nada |
+| Borrar foro (`useBorrarForo`) | `removeQueries(claveForo)` sin `exact` y lo mismo que crear | Sí: también las claves de 01d | Nada |
+| Mover (`useMoverElemento`, `features/clases/hooks.ts`) | Temas, trabajo, recursos, `claveTarea` y `claveRecurso` | La fila de "Actividades", sí; el detalle del foro, **no** | **Entra a 01d** (nota (c), §E11.1; FORO-1D39) |
+| Renombrar tema, borrar tema y guardar categorías (`features/clases/hooks.ts`) | Además, `clavePrefijoDeForos` (01c2, T-03) | Sí, y más de lo necesario (las claves de 01d), sin efecto visible | Nada (ATQ-FORO-127 y ATQ-FORO-134) |
+| Crear y ordenar temas | Temas y sus secciones | El foro no muestra el orden y un tema nuevo no cambia ningún foro | Nada |
+| Editar la clase (`useEditarClase`) | `claveClaseDetalle` sin `exact`: todo lo de la clase | Sí | Nada (ATQ-FORO-134) |
+| Archivar y restaurar (`useArchivarClase` y `useRestaurarClase`) | `claveClaseDetalle` con `exact` y las listas | Los controles de 01d leen `useSoloLecturaDeLaClase`, que sale de ese detalle. "Tu participación" no cambia en la sesión del admin, que no participa | Nada |
+| Un `409 CLASE_ARCHIVADA` en cualquier consulta o mutación | `claveClaseDetalle` con `exact` (la escucha de `ClaseLayout`) | Sí | Nada |
+| Publicar participación y réplica, y borrar (01d) | Son nuevas: las filas de 01d de §D-10 | La lista de "Foro" cuenta solo las principales (§D-3.2), así que publicar o borrar una réplica no la cambia | Como en §D-10 |
+| Calificar (01e) | No existe todavía | — | Aviso para 01e (§E11.8) |
+
+**Falta solo `useMoverElemento`**, que entra a 01d. Lo demás ya alcanza, o no cambia nada de lo que muestran las vistas de 01d.
+
+### §E11.5. `FilaDeEntrega` en "Actividades" (O-01b-1 y O-01c1-4)
+- **O-01b-1:** FORO-1D29 suma las dos formas de la entrega (`entrega: null` y `{ estado: "asignado", conRetraso: false }`), con el foro abierto y vencido, en "Pruebas requeridas" (Enmienda 11).
+- **O-01c1-4:** en "Actividades", el complemento de la fila de un foro es la insignia "Foro", que no lee la hora. La única hora de la fila la calcula `FilaDeEntrega`, así que la discrepancia de un milisegundo de "Foro" no aparece.
+  - **01d no toca `fila-de-entrega.tsx`.**
+  - Restricción: el complemento de la fila del foro en "Actividades" no lee la hora. Si hiciera falta, PARADA, porque sumaría `fila-de-entrega.tsx` con una prop `ahora` calculada una sola vez.
+
+### §E11.6. Lo que 01c2 dejó en el árbol
+- **`foro-view.tsx`** ya tiene la forma de §D-8.3:
+  - `DetalleDelForo` con `useForo`, el aviso de recarga fallida, `useFocoAlPerderseElControl` y el bloque `key={foro.id}`;
+  - `ForoView` aplica `idCanonicoDeLaRuta` a la entrada.
+- **Dónde va lo de 01d,** dentro del bloque `key={foro.id}`:
+  - el `Card` de "Participaciones", debajo del `Card` del planteamiento, en la columna izquierda;
+  - "Tu participación", del alumno, en la columna derecha, con "Detalles".
+
+  El comentario de `foro-view.tsx:42-43` se actualiza.
+- **`AccionesDeLaTarea` con `tipo` e `idCanonicoDeLaRuta`:** 01d no los toca (R-01d-5).
+- **Las cuatro pruebas normales de 01c2 sobre el foro y `hermanos-03d-01c`:** ninguna fija algo que 01d cambie, siempre que se cumplan R-01d-1 a R-01d-6 (§E11.2). Nada pasa a la lista cerrada. **(Enmienda 11, corrección; N-34)** Salvo `foro-detalle-01c.test.tsx:435-437`, que pasa a la lista cerrada (§E11.2, búsqueda 11).
+
+### §E11.7. Conteo de 01d
+**~26** = 15 de producción + 6 pruebas nuevas + 2 normales de la lista cerrada + 3 `*.ataque` (C-12 en dos archivos y C-13).
+- Sale `services/trabajoService.ts`.
+- FORO-1D39 a FORO-1D42 y lo que suma FORO-1D29 van en los archivos nuevos que ya estaban (`participar-01d.test.tsx` y `actividades-foros-01d.test.tsx`).
+
+No pasa de unos 30.
+
+**(Enmienda 11, corrección; N-34)** **~27** = 15 de producción + 6 pruebas nuevas + **3** normales de la lista cerrada (se suma `features/tareas/foro-detalle-01c.test.tsx`) + 3 `*.ataque`. Sigue por debajo de unos 30.
+
+### §E11.8. Para el humano, y avisos para el arranque de 01e
+- **Para el humano:**
+  - aceptar por escrito la nota (a) a (c), como pide la revisión final de 01c2;
+  - el lugar de (c), primera parte, ya lo decidió el orquestador: la opción (A) (§E11.1).
+
+  Ninguna decisión de diseño queda abierta.
+- **Avisos para 01e** (sin reescribirlo; los fija su Enmienda de arranque):
+  - **Claves:** con la regla de §E11.3 y siguiendo a las de entregas, las de 01e serían:
+    - `[...claveForo(c, f), "participantes", "lista"]`;
+    - `[...claveForo(c, f), "participantes", "alumno", alumnoId]`;
+    - de esa última cuelgan `"participaciones"` y `"devoluciones"`;
+    - las devoluciones del alumno, `[...claveMiParticipacion(c, f), "devoluciones"]`.
+
+    `alumnoId` pasa por `idCanonicoDeLaRuta` (nota (b)).
+  - **Lección 2:** `useAgregarAlumno` y `useQuitarAlumno` (`features/clases/hooks.ts`) cambian "Participaron 12 de 30", pero hoy invalidan alumnos, candidatos, personas e impartidas, que no alcanzan la lista de participantes de 01e. El inventario de 01e debe decidir si la alcanzan o si se declara.
+  - **Calificar:** sus invalidaciones son las de §D-8.5. No cambia las participaciones ni el detalle del foro.
+  - **(Enmienda 11, corrección; N-34) Los `alert` de los bloques:**
+    - los bloques de 01e que fallen en su primera carga (lo que escribió un alumno, las devoluciones y "Participantes" dentro de una vista con datos) también pintarán un `MensajeError` con `role="alert"` en una vista que ya tiene datos;
+    - el inventario de 01e repite la búsqueda 11 de §E11.2 sobre las vigiladas que montan `ForoView`, `ParticipanteView` o el panel de calificación con datos (incluidas las de 01d), y acota a su bloque o a su texto toda consulta de `alert` en todo el documento.
 
 ## §E10. Enmienda 10 (2026-11-16): ADM-1D221 fila 36 con la vista desmontada (PARADA de 01c2)
 
@@ -652,6 +1082,7 @@ Leído en el árbol de hoy. "Igual" = lo que el plan cita sigue en su sitio y di
    - `CrearForoView`: `key={claseId}`.
    - `ForoView` y su bloque: `key={foro.id}` en el bloque del detalle (como `detalle-tarea-view.tsx`, `key={tarea.id}`); `EditarForoView`: `key={foroId}`.
    - `ParticipantesView`: `key={foroId}` en su lista (como `<ListaDeEntregasDeLaTarea key={tareaId}`); `ParticipanteView`: ``key={`${foroId}:${alumnoId}`}`` (el mismo alumno participa en cada foro; como `entrega-de-alumno-view.tsx`).
+> **(Corrección de la ronda 2 de 01c2, T-02; 2026-11-16)** Todo `:foroId` y `:alumnoId` que lea una vista del foro pasa por `idCanonicoDeLaRuta` (`features/tareas/lib.ts`) a la entrada, antes de armar una clave, una `key` o una ruta, como hacen `ForoView` y `EditarForoView` desde 01c2. Así la clave de la vista y la de los datos (que el servidor devuelve en minúsculas) son la misma. Las `key` de esta lista (``key={`${foroId}:${alumnoId}`}`` incluida) usan los ids canónicos.
    - Dentro de `ForoView`: cada `ParticipacionDelForo` lleva `key={participacion.id}`, y su bloque de réplicas, su formulario de réplica y su confirmación de "Borrar" son de esa participación.
 
    CH6-A30 (c) suma `foro-view.tsx`, `editar-foro-view.tsx`, `participantes-view.tsx` y `participante-view.tsx` (lista cerrada de 01c2 y 01e). Casos FORO-1C52 y FORO-1E52 (§E7.4).
@@ -972,8 +1403,9 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
 
 #### §E7.5.5. 01d (base: el commit de 01c2)
 **(Enmienda 8)** Sin cambio de conteo (~27). `features/tareas/hooks.ts` gana `useVerMasConservandoLaLista` (§E8.4). Suma como vigiladas `trabajo-view.test.tsx:444-472` y `clase-archivada-01d1-vista.test.tsx:520-524` (§E8.3).
+**(Enmienda 11)** El repaso sobre `60b5c88` está en §E11, que manda sobre esta sección. En resumen: `services/trabajoService.ts` sale de "Se toca" (las claves de 01d van en `features/tareas/lib.ts`, §E11.3); hay casos nuevos, FORO-1D39 a FORO-1D42; FORO-1D29 suma las dos formas de la entrega; y hay vigiladas nuevas, sin cambio en la lista cerrada ni en los C-n. Queda en ~26. **(Enmienda 11, corrección; N-34 y N-36)** La lista cerrada suma el punto 3, de abajo. `features/tareas/hooks.ts` suma `pedirDeNuevoSoloElForo` (R-01d-3). Queda en ~27.
 - **Se toca (16 de producción):**
-  - en `features/clases/`: `hooks.ts` (`conForos=si` en `useTrabajo` y en `useTemasDeLaSeccion` cuando la sección es `"actividades"`; la clave no cambia), `trabajo-view.tsx` ("Crear foro"), `components/seccion-de-tema.tsx` (la rama `foro`, con `FilaDeEntrega` y `destino` a `foros/:id`), `data.ts` (los textos de categorías, E1-9 y §E7.8) y `types.ts`;
+  - en `features/clases/`: `hooks.ts` (`conForos=si` en `useTrabajo` y en `useTemasDeLaSeccion` cuando la sección es `"actividades"`; la clave no cambia **(2026-11-16)** y `useMoverElemento`, que invalida además `claveForo` (la fila "Mover un foro" de §D-10).), `trabajo-view.tsx` ("Crear foro"), `components/seccion-de-tema.tsx` (la rama `foro`, con `FilaDeEntrega` y `destino` a `foros/:id`), `data.ts` (los textos de categorías, E1-9 y §E7.8) y `types.ts`;
   - en `features/tareas/`: `components/participaciones-del-foro.tsx`, `components/participacion-del-foro.tsx`, `components/replicas-de-participacion.tsx`, `components/formulario-de-participacion.tsx` y `components/mi-participacion.tsx` (nuevos), `foro-view.tsx`, `hooks.ts`, `data.ts`, `lib.ts` y `types.ts`;
   - `services/trabajoService.ts` (solo si falta una clave de §D-8).
 - **Pruebas nuevas (6):** en `features/tareas/`, `participar-01d.test.tsx`, `errores-participacion-01d.test.tsx`, `replicas-01d.test.tsx`, `borrar-participacion-01d.test.tsx` y `recuperar-participaciones-01d.test.tsx`; y `features/clases/actividades-foros-01d.test.tsx`.
@@ -983,6 +1415,7 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
      - `:172`, `:242`, `:432` y `:458`: "0 tareas" → "0 actividades";
      - `:176`, `:278` y `:482`: "Tiene 3 tareas." → "Tiene 3 actividades.";
      - `:122` y `:325`: "…Sus tareas se califican por puntos." → "…Sus actividades se califican por puntos." (§E7.8, textos).
+  3. **(Enmienda 11, corrección; N-34)** `features/tareas/foro-detalle-01c.test.tsx:435-437` (FORO-1C13, el `409 TAREA_CON_ENTREGAS`): `findByRole("alert")` pasa a `findByText("Este foro tiene 3 participaciones.")` más `toHaveAttribute("role", "alert")`, con el antes → después literal y su comentario de §E11.2, búsqueda 11. Nada más cambia en el archivo.
 - **Grep de la lista:**
   - `seccion=actividades` en `frontend/src`: la URL completa solo la fija `contenido-03c2.test.tsx:242`. `ver-mas-y-orden-ch4.test.tsx:756` arma una URL de entrada (vigilada). Los dobles que eligen por `searchParams.get("seccion")` o por `claveTemasDeLaSeccion(…, "actividades")` no cambian. Esos dobles están en `contenido-03c2`, `avisos-al-redirigir-ch6`, `avisos-03d`, `editar-recurso-03d`, `ordenar-03c2-r1`, `ordenar-03c2-r2`, `recargas-ch6`, `recursos-enmienda13-03e`, `recursos-03e-r1`, `recursos-03d-r1`, `recursos-03d-r2`, `recursos-03d-r3`, `recursos-03d`, `recursos-caminos-03d`, `ver-mas-y-orden-ch4`, `clase-archivada-01d1-r1`, `clase-archivada-01d1-r2`, `clase-archivada-01d1-r3`, `clase-archivada-01d1-vista`, `app/invalidaciones-03c2-r1`, `app/estado-por-id-ch6` y `app/estado-por-id-ch6a-r2` y `r3`.
   - `0 tareas|Tiene \d+ tarea|Sus tareas se califican`: `categorias-view.test.tsx` y las dos `*.ataque` de C-12.
@@ -992,7 +1425,10 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
     - La cifra suma los `enEspera=` nuevos: "Publicar participación", "Publicar réplica", "Ver más participaciones", "Ver más réplicas", "Sí, borrar participación" y "Sí, borrar réplica"; unos 6, según dónde viva cada botón.
     - `fijos` suma cada archivo nuevo de `features/tareas/components/` con su cifra (`mi-participacion.tsx`: 0).
     - Si un botón nuevo cae en `features/clases/components/`, se suma a `fijos`; la tolerancia de `restoClases` (3) no cambia.
+    - **(Enmienda 12)** Las cifras y el texto literal están en §E12.4: de 91 a 96. Lo aplica el tester en la ronda 0 bis.
+  - **(Enmienda 12) C-21, `features/clases/estatico-02c-r1.ataque.test.ts:78-85`:** la lista de lectores de `.puedeBorrar` suma `participacion-del-foro.tsx` y `replicas-de-participacion.tsx`, con su comentario. La segunda regla (`:86-90`) no cambia. El texto literal y la decisión están en §E12.1. Lo aplica el tester en la ronda 0 bis, junto con C-13.
 - **Vigiladas:**
+  - **(Enmienda 12)** Las 48 pruebas que leen el código, clasificadas en §E12.2, con dos restricciones nuevas: ningún «Ocultar» en un `.tsx`, y ninguna copia de la expresión de ruta ni `.split(":")` en `features/clases`, comentarios incluidos.
   - `recargas-ch6.test.tsx:583` y `:1183` (comparan un parámetro).
   - Los dobles por `seccion` de arriba.
   - `invalidaciones-03c2-r1.ataque` y `ordenar-03c2-r*.ataque`.
@@ -1747,7 +2183,8 @@ Lo resume §D-X. En detalle, en 01b:
 **(Enmienda 7)** Ahora es 01c1 a 01e. Los nombres de archivo quedan confirmados por el grep sobre `fd4a7ad` (§E7.5), y las reglas nuevas se aplican según §E7.3, "Frontend". Los nombres de archivo son los previstos; los confirma la Enmienda de arranque de 01c, con un grep sobre la base fusionada (§D-R0). Todo el foro del lado del alumno, del maestro y del admin vive en `features/tareas`, salvo la lista de la sección, que vive en `features/clases` (como las demás secciones). Las claves y las consultas compartidas por los dos módulos van en `services/trabajoService.ts`:
 - `clavePrefijoDeForos(claseId) = ["clases", claseId, "foros"]`, y `claveListaDeForos(claseId)` colgada de ella.
 - `claveForo(claseId, foroId) = ["clases", claseId, "foros", foroId]` y `consultaForo`.
-- `claveParticipaciones`, `claveReplicas`, `claveMiParticipacion`, `claveParticipantes`, `claveParticipante`, `claveParticipacionesDeAlumno` y `claveDevoluciones`, todas bajo `claveForo`.
+> **(Corrección de la ronda 1 de 01c2, T-01; 2026-11-16)** La forma vigente es `claveForo(claseId, foroId) = ["clases", claseId, "foros", "foro", foroId]`: el segmento fijo `"foro"` evita que un `:foroId` igual a `"lista"` coincida con `claveListaDeForos(claseId)` (como `"alumno"` en las entregas de una tarea). La línea de arriba queda como historial. Las claves de 01d y 01e (`claveParticipaciones` … `claveDevoluciones`) se arman siempre con `claveForo(claseId, foroId)` más su segmento, nunca con el literal, y ninguna usa en la posición 3 los segmentos `"lista"` ni `"foro"` para otra cosa.
+- `claveParticipaciones`, `claveReplicas`, `claveMiParticipacion`, `claveParticipantes`, `claveParticipante`, `claveParticipacionesDeAlumno` y `claveDevoluciones`, todas bajo `claveForo`. **(Enmienda 11, corrección; N-35)** Estas claves no van en `services/trabajoService.ts`, sino en `features/tareas/lib.ts`, porque solo las usa `features/tareas` (§E11.3: las de 01d, con su forma literal; las de 01e, en su Enmienda de arranque).
 - Así, invalidar `claveForo` renueva todo lo del foro, y un foro borrado sale con `removeQueries` de su prefijo.
 
 #### §D-8.1. Rutas del frontend (`app/router.tsx`)
@@ -1923,11 +2360,13 @@ El programador la confirma o la corrige en el primer resumen de cada subentrega 
 | 01e | `ParticipantesView` | Lista y "Ver más alumnos" | `400` del cursor: texto; `404` del foro / `403`: reemplaza | — | Primera: reemplaza; "Ver más": un aviso | — | §7.26 |
 | 01e | `ParticipanteView` | Lecturas (participante, sus participaciones, devoluciones) | `404 ALUMNO_NO_ENCONTRADO` / foro `404`: reemplaza | — | Con caché: aviso; sin caché: reemplaza | — | Raíz |
 | 01c (E1-11) | `ForoView` | Descargar un adjunto del planteamiento (`AdjuntosDePublicacion`, sin cambio) | `404 ARCHIVO_NO_ENCONTRADO`: un aviso con el mensaje de archivos; `403 SIN_ACCESO_A_LA_CLASE`: un aviso y se vuelve a pedir el foro (la recarga reemplaza la vista) | — | Un aviso (`alFallarLaDescarga`) | — | El botón de descarga |
-| 01d (E1-11) | "Actividades" | "Mover" un foro (`useMoverElemento`, sin cambio) | `TEMA_NO_ENCONTRADO` o `PUBLICACION_NO_ENCONTRADA`: los avisos y las renovaciones de hoy (§7.22) | — | Un aviso | Éxito: el trabajo, los temas y `claveForo` (sube `tareas.version`; la edición abierta recibirá `TAREA_MODIFICADA`) | §7.22 (el "Mover" de la fila vecina o el encabezado de la sección) |
+| 01d (E1-11) | "Actividades" | "Mover" un foro (`useMoverElemento`, sin cambio) | `TEMA_NO_ENCONTRADO` o `PUBLICACION_NO_ENCONTRADA`: los avisos y las renovaciones de hoy (§7.22) | — | Un aviso | Éxito: el trabajo, los temas y `claveForo` (sube `tareas.version`; la edición abierta recibirá `TAREA_MODIFICADA`). **(Enmienda 11)** Ver la nota debajo de la tabla | §7.22 (el "Mover" de la fila vecina o el encabezado de la sección) |
 | 01d (E1-11) | `ForoView` | Consulta `mi-participacion` (alumno) | `404` del foro: el foro se vuelve a pedir y su `404` reemplaza la vista | — | Primera carga: "Tu participación" muestra su error ("No pudimos cargar tu participación.") y el formulario no se pinta; recarga con caché: se conserva y avisa una vez por fallo ("No pudimos actualizar tu participación. Mostramos la última versión que tenemos.") | — | No se mueve (ningún control se pierde); si se pierde el formulario enfocado, la raíz |
 | 01e (E1-11) | `ForoView` y `ParticipanteView` | Devoluciones: primera página y "Ver más comentarios" | `400` del cursor: el bloque dice el texto de cursor de §D-9 (alumno o maestro), sin "Ver más", y la consulta sale de la caché | — | Primera carga: el bloque muestra su error; "Ver más": un aviso, el bloque se queda | — | §7.14 (el primer comentario nuevo o el `h3`) |
 | 01e (E1-11) | `ParticipanteView` | Recarga de la participante con caché | — | — | Se conserva y avisa una vez por fallo: "No pudimos actualizar la participación de este alumno. Mostramos la última versión que tenemos." | — | No se mueve |
 | 01e | `ParticipanteView` | "Publicar calificación" | Como §7.27 (campos pintados del panel; los no pintados, vacíos o con ruta: un aviso; FORO-1E05 a FORO-1E09) | `ENTREGA_MODIFICADA` / `RUBRICA_MODIFICADA` / `ENTREGA_NO_CALIFICABLE`: aviso, descarta y recarga (§7.27) | Un aviso; lo escrito se conserva | Éxito: participante (respuesta), participantes, prefijo de calificaciones, lista de foros y, con comentario, devoluciones | §7.27 |
+
+> **(Corrección de la ronda 2 de 01c2, T-03; 2026-11-16)** "Sin cambio" ya no es cierto: `useMoverElemento` (`features/clases/hooks.ts`) hoy solo invalida `claveTarea(claseId, publicacionId)` y `claveRecurso`, que no alcanzan el foro. En 01d invalida también `claveForo(claseId, publicacionId)` (el id de la publicación es el de los datos, ya canónico), y un caso de 01d, con el id que le dé el arquitecto, lo prueba con el detalle del foro en caché (marcado viejo y pedido al volver). El hueco hermano, que renombrar o borrar un tema y guardar las categorías no marcaran viejo el detalle del foro, lo cerró 01c2 con la autorización del humano (T-03): esas tres mutaciones invalidan `clavePrefijoDeForos(claseId)`.
 
 ### §D-11. Borrar participaciones y réplicas (DH-05 del humano; 01a2; E3-3)
 
@@ -2320,6 +2759,12 @@ Los ids llevan el prefijo del encargo y de la subentrega (`FORO-1A…` a `FORO-1
 - FORO-1D03: los `409` de la matriz: aviso con el texto del servidor, lo escrito se conserva y se piden `miParticipacion` y la lista.
 - FORO-1D04: "Con retraso" según `conRetraso` (no se calcula en el cliente); fecha y hora visibles en cada participación. **(E1-1)** El aviso "quedará marcada con retraso" sale solo si `participarConRetraso`. Con un doble que lo manda en `false` y una fecha límite vencida con tardías, no sale; con `true` y la fecha a futuro, sí sale. El texto de cerrado sale solo de `puedeParticipar`.
 - FORO-1D04b (E1-1, estática): los componentes y `lib.ts` del foro en `features/tareas` no comparan `fechaLimite` con la hora (`Date.now`, `new Date(`, `getTime(`) para decidir el cierre ni el retraso. La insignia de vencimiento usa `vencimientoDe` de `lib/vencimiento.ts`, que el caso admite por nombre.
+- **(Enmienda 11, §E11.2, R-01d-4; nota (b))** FORO-1D40: el foro abierto con su id en mayúsculas o mezclado pide las participaciones y "Tu participación" en minúsculas. Publicar escribe en la misma clave que la vista lee: la participación nueva aparece sin otra lectura.
+- **(Enmienda 11, §E11.3)** FORO-1D41: las formas literales de `claveMiParticipacion`, `claveParticipaciones` y `claveReplicas`. Con `participacionId` igual a `"mia"`, `"participaciones"`, `"replicas"`, `"lista"` o `"foro"`, ninguna coincide con otra clave del foro ni es prefijo de una que no sea suya, y ninguna es prefijo de `claveListaDeForos`.
+- **(Enmienda 11, §E11.2)** FORO-1D42: con el foro en `404`, `403 SIN_ACCESO_A_LA_CLASE` o `400 VALIDACION` de `foroId`, no sale ninguna lectura de participaciones ni de "Tu participación". Si una lectura de 01d recibe uno de esos códigos con el foro en caché, el bloque no repite el texto: se vuelve a pedir el foro, cuya respuesta reemplaza la vista con un solo mensaje. Un `404` con otro código (`NO_ENCONTRADO`) se queda en el bloque y no vuelve a pedir el foro. **(Enmienda 11, corrección; N-36)** Lo hace `pedirDeNuevoSoloElForo` (R-01d-3), y el caso suma:
+  - ante cada uno de esos códigos (también el `VALIDACION` de `foroId:`), **una sola lectura más del foro** (la ruta exacta) **y ninguna repetición de la lectura del bloque que falló**;
+  - con un servidor inconsistente (el foro responde `200` y el bloque otra vez `403`), el bloque se queda con su texto genérico, sin ciclo: después de reposar, las cuentas no suben;
+  - se comprueba quitando el `exact: true` (mutación real, restaurada): el caso del servidor inconsistente se pone en rojo.
 
 **`VALIDACION` fuera de contrato, participación (`features/tareas/errores-participacion-01d.test.tsx`)**
 - FORO-1D05: un campo no pintado (`foroId`).
@@ -2364,6 +2809,11 @@ Los ids llevan el prefijo del encargo y de la subentrega (`FORO-1A…` a `FORO-1
   - El foro sale con su insignia y enlaza a `foros/:id`.
   - "Crear foro" (`outline`) va junto a "Crear tarea" (única `primary`) y no sale en una archivada.
   - "Mover" de un foro: éxito, `TEMA_NO_ENCONTRADO`, `TAREA_MODIFICADA` en la edición abierta (sube la versión) y `PUBLICACION_NO_ENCONTRADA`. Son los avisos y el foco de hoy (§7.22).
+  - **(Enmienda 11, §E11.5; O-01b-1)** Para el alumno, una fila de foro con `entrega: null` y otra con `{ estado: "asignado", conRetraso: false }` pintan la misma insignia y la misma segunda línea, con el foro abierto ("Asignado") y vencido ("Sin entregar"), como FORO-1C02 en "Foro" (`foros-01c.test.tsx:354-378`).
+- **(Enmienda 11, §E11.1 y §E11.4; nota (c) de la revisión final de 01c2)** FORO-1D39: "Mover" un foro marca viejo su detalle.
+  - Con el detalle del foro en caché y sin observador (se abrió el foro y se volvió a "Actividades"), "Mover" con éxito deja `claveForo(claseId, foroId)` con `isInvalidated` en `true`, sin pedirlo, y no marca las participaciones de ese foro.
+  - Volver al foro antes de 30 s lo pide, y "Detalles" muestra el tema nuevo.
+  - Se comprueba quitando la invalidación (mutación real, restaurada): el caso se pone en rojo.
 - FORO-1D30 (antes FORO-1C25): "No pudimos actualizar el foro. …", con el camino de volver a abrirlo desde "Actividades" antes de 30 s.
 - FORO-1D31: el editor de categorías dice "{n} actividades" / "1 actividad" (E1-9). El `409 CATEGORIA_CON_TAREAS` con el texto de foros avisa con el mensaje del servidor.
 - **(E1-11) "Tu participación"**
@@ -2659,7 +3109,7 @@ Todo lo de esta sección vale para 01a1 sin cambio. Los C-1 y C-2 que el tester 
   - RN-08, viñeta "Foro": la marca y el cierre vigentes, y lo que queda pendiente con el cliente. **(E1-26)** RN-05: P-03 c′ en un foro sigue `reglaDeParticipacion`.
   - §6: las vistas del foro.
 - **A-03 · ARCHITECTURE.md:** §7 (las 17 rutas, E3-3, y los dos parámetros opt-in) y §14 (el modelo).
-- **A-04 · CLAUDE.md, tabla de módulos:** **(Enmienda 8)** Además, en "Ubicaciones compartidas", la entrada de `services/trabajoService.ts` suma las claves y las consultas del foro (`clavePrefijoDeForos`, `claveListaDeForos`, `claveForo`, `consultaForo` y las de participaciones, réplicas, participantes y devoluciones, §D-8).
+- **A-04 · CLAUDE.md, tabla de módulos:** **(Enmienda 8)** Además, en "Ubicaciones compartidas", la entrada de `services/trabajoService.ts` suma las claves y las consultas del foro (`clavePrefijoDeForos`, `claveListaDeForos`, `claveForo`, `consultaForo` y las de participaciones, réplicas, participantes y devoluciones, §D-8). **(Enmienda 11, corrección; N-35)** Las de participaciones, réplicas y "Tu participación" (01d) y las de participantes y devoluciones (01e) no van en `services/trabajoService.ts`, sino en `features/tareas/lib.ts`, junto a `claveMiEntrega` (§E11.3). Así que la entrada de `services/trabajoService.ts` suma solo `clavePrefijoDeForos`, `claveListaDeForos`, `claveForo` y `consultaForo`.
   - `clases` suma "la sección Foro (lista de foros)".
   - `tareas` suma "foro: crear y editar con el formulario de la tarea, detalle con participaciones y réplicas, participaciones de un foro y la de un alumno con el panel de calificación".
   - `calificaciones`: los enlaces por tipo.
@@ -2895,3 +3345,30 @@ Origen: la PARADA del programador en 01c2 (base `88b37af`). `features/tareas/cla
 | E10-2 | El inventario que faltaba | §E10.3 (nueva); §E7.5.3 (vigiladas) | Cinco búsquedas, con su comando y su resultado, sobre todo `frontend/src`. Una cambia seguro. Una cambia solo si se pone roja (`editar-tarea-view.test.tsx`, `:159-160`, `:236` y `:334-335`, por T-02 y T-03; cambio mecánico de esperar el campo). Las demás quedan vigiladas, una por una, con su porqué. Ninguna `*.ataque` cambia |
 | E10-3 | ESTADO §3 | §E10.4 (nueva) | ADM-1D221 fila 36 con la vista desmontada no era la prueba de la fila de ADMIN-01d1 y 01d2. Tarea y foro quedan hechos en 01c2, calificar en 01e y el recurso sigue en la fila. La redacción de "Documentos al cierre" no cambia |
 | E10-4 | Conteo | §E10.5 (nueva); §E7.5.4 (nota) | 01c2: de ~25 a ~26, o ~27 con la condicional. No pasa de unos 30 |
+
+## Enmienda 11 — tabla de cambios (2026-11-16)
+
+Origen: "Revisión final — FORO-01c2 (2026-11-16)" de `revision.md` (punto 6, la nota, y punto 7, lo que la subentrega enseña al arquitecto), con 01c2 cerrada en `60b5c88`. Copia previa de `plan.md`: SHA-256 `18d86a8a…` (la guardó el orquestador). No cambian ids existentes, decisiones del humano, otras subentregas ni ningún C-n.
+
+| E11-n | Origen | Secciones | Qué cambió |
+|---|---|---|---|
+| E11-1 | Nota (a) y (b) | §D-8 (debajo de la línea de `claveForo`); §E7.3, "Frontend", punto 3 (debajo de la viñeta de `ParticipantesView`) | Los textos del manager, tal cual, como líneas de cita |
+| E11-2 | Nota (c) | §E7.5.5 ("Se toca", el paréntesis de `hooks.ts`); §D-10 (debajo de la tabla, y la remisión en la celda "Se renueva" de "Mover un foro"); §E11.1 | La segunda parte, en línea y tal cual. La primera, tal cual, como línea de cita debajo de la tabla de §D-10, con la opción (A), por decisión del orquestador (formato: una cita a media tabla la corta). FORO-1D39 y la precisión `exact: true` |
+| E11-3 | Lección 1 | §E11.2 (nueva); "Pruebas requeridas", 01d (FORO-1D42) | Diez búsquedas con su resultado. Ninguna prueba cambia, y las vigiladas se abren una por una. R-01d-1 a R-01d-6 (dónde se leen las participaciones, sin aviso en la primera carga, la decisión por código, ids canónicos, lo de 01c2 no se toca y el foco) pasan a ser restricciones de diseño |
+| E11-4 | Lección 3 | §E11.3 (nueva); "Pruebas requeridas", 01d (FORO-1D41) | `claveMiParticipacion`, `claveParticipaciones` y `claveReplicas`, literales, en `features/tareas/lib.ts`. Ningún id comparte posición con un segmento fijo. `services/trabajoService.ts` sale de "Se toca" de 01d |
+| E11-5 | Lección 2 | §E11.4 (nueva); "Pruebas requeridas", 01d (FORO-1D39) | Las mutaciones de hoy contra lo que muestran las vistas de 01d. Solo falta `useMoverElemento`, que entra a 01d |
+| E11-6 | O-01b-1, O-01c1-4 y el vecino 23 | §E11.5 y §E11.6 (nuevas); "Pruebas requeridas", 01d (FORO-1D29, viñeta nueva; FORO-1D40) | FORO-1D29 con las dos formas de la entrega. 01d no toca `fila-de-entrega.tsx` y el complemento no lee la hora. Las participaciones se piden con el id canónico |
+| E11-7 | Conteo y avisos | §E11.7 y §E11.8 (nuevas); §E7.5.5 (nota) | 01d: de ~27 a ~26. Avisos para 01e: la forma de sus claves, `useAgregarAlumno` y `useQuitarAlumno` frente a "Participantes", y calificar |
+| E11-8 | Corrección tras la verificación de la Enmienda 11 (`revision.md`, "Verificación de la Enmienda 11 — FORO-01d"): N-34, N-36 y N-35 | §E11.2 (búsqueda 11, R-01d-3 reescrita y las notas de "Resultado" y de `foro-detalle-01c`); §E11.6; §E11.7; §E11.8 (aviso de los `alert` para 01e); §E7.5.5 (nota y lista cerrada, punto 3); "Pruebas requeridas", 01d (FORO-1D42); §D-8 (la línea de las claves); A-04 | **N-34:** la búsqueda 11 (`alert` y textos), con cada coincidencia clasificada. `foro-detalle-01c.test.tsx:435-437` pasa a la lista cerrada de 01d con su antes → después (`findByText` más `role="alert"`), y no se propone quitar el `role="alert"` de `MensajeError`. 01d pasa de ~26 a ~27. **N-36:** R-01d-3 usa una función nueva, `pedirDeNuevoSoloElForo` (`exact: true`, todo error de `errorQueReemplazaLaVistaDelForo`). FORO-1D42 suma una sola lectura más del foro, ninguna repetición del bloque y ningún ciclo. Se declara que `pedirDeNuevoElForo` renueva también las lecturas de 01d. **N-35:** las claves de 01d y 01e van en `features/tareas/lib.ts`, no en `services/trabajoService.ts` |
+
+## Enmienda 12 — tabla de cambios (2026-11-16)
+
+Origen: la PARADA del programador en 01d. `features/clases/estatico-02c-r1.ataque.test.ts:78-85` recibió dos lectores nuevos de `.puedeBorrar` que el plan no había inventariado. Copia previa de `plan.md`: SHA-256 `588fe3eb…` (la guardó el orquestador). No cambian ids, decisiones del humano ni otras subentregas.
+
+| E12-n | Origen | Secciones | Qué cambió |
+|---|---|---|---|
+| E12-1 | La PARADA | Nota de la Enmienda 12; §E12.1 (nueva); §E7.5.5 (C-n) | C-21: la lista de lectores de `.puedeBorrar` suma `participacion-del-foro.tsx` y `replicas-de-participacion.tsx`, con su comentario. La segunda regla no cambia, porque hoy no hay asignaciones y sumar nombres ampliaría lo permitido. Lo aplica el tester en la ronda 0 bis |
+| E12-2 | El inventario que faltó | §E12.2 (nueva); §E7.5.5 (vigiladas) | Las 48 pruebas de `frontend/src` que leen código, estilos, documentos o un archivo, con su alcance, lo que fijan y su clase. Cambia una (C-21); siete están ya previstas; las demás no se afectan. Por qué §E9.4 no la vio. Dos restricciones nuevas: «Ocultar» en un `.tsx`, y las copias de la expresión de ruta en `features/clases`, comentarios incluidos |
+| E12-3 | Avisos para 01e | §E12.3 (nueva) | Las listas cerradas en las que 01e meterá archivos o cambios, y repetir §E12.2 antes de su ronda 0 |
+| E12-4 | C-13 | §E12.4 (nueva); §E7.5.5 (C-13) | De 91 a 96 `enEspera=`, con las cifras por archivo comprobadas en el árbol y el texto literal (título, `toHaveLength`, comentario y `fijos`) |
+| E12-5 | Conteo | §E12.5 (nueva) | 01d: de ~27 a ~28 (una `*.ataque` más). No pasa de unos 30 |

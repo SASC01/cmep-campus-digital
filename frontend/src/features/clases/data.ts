@@ -667,6 +667,10 @@ export const TEXTOS_TRABAJO = {
   ocultarMaterial: "Ocultar material",
   verMasDe: (nombre: string) => `Ver más de ${nombre}`,
   crearTarea: "Crear tarea",
+  // FORO-01d (§D-8.3, §D-9): "Crear foro" junto a "Crear tarea", y la insignia de un foro en su fila.
+  crearForo: "Crear foro",
+  insigniaForo: "Foro",
+  foro: "Foro:",
   nuevoTema: "Nuevo tema",
   categorias: "Categorías de calificación",
   tarea: "Tarea:",
@@ -899,16 +903,17 @@ export const TEXTOS_CATEGORIAS = {
   peso: "Peso",
   sufijoPeso: "%",
   deLaFila: (n: number) => `de la categoría ${n}`,
-  tareas: (n: number) => (n === 1 ? "1 tarea" : `${n} tareas`),
+  // FORO-01d (E1-9, §E7.8): el editor cuenta actividades (tareas y foros).
+  tareas: (n: number) => (n === 1 ? "1 actividad" : `${n} actividades`),
   quitar: "Quitar",
-  tieneTareas: (n: number) => (n === 1 ? "Tiene 1 tarea." : `Tiene ${n} tareas.`),
+  tieneTareas: (n: number) => (n === 1 ? "Tiene 1 actividad." : `Tiene ${n} actividades.`),
   agregar: "Agregar categoría",
   totalExacto: "Total: 100 %",
   totalFaltan: (total: number, faltan: number) => `Total: ${total} %. Faltan ${faltan} %.`,
   totalSobran: (total: number, sobran: number) => `Total: ${total} %. Sobran ${sobran} %.`,
   guardar: "Guardar categorías",
   avisoGuardadas: "Categorías guardadas",
-  vacio: "Esta clase no tiene categorías. Sus tareas se califican por puntos.",
+  vacio: "Esta clase no tiene categorías. Sus actividades se califican por puntos.",
 } as const
 
 export const TEXTOS_CATEGORIAS_RECARGA =

@@ -64,6 +64,7 @@ import { consultaMe } from "@/services/sesionService"
 import { api, esApiError } from "@/services/apiClient"
 import {
   claveCategorias,
+  claveForo,
   claveListaDeForos,
   clavePrefijoDeForos,
   clavePrefijoDelTrabajo,
@@ -1269,10 +1270,15 @@ export const useTemasDelRecurso = (claseId: string, editar: boolean) => {
 export const useTemasDeLaSeccion = (claseId: string, seccion: SeccionDeTemas) =>
   useQuery({
     queryKey: claveTemasDeLaSeccion(claseId, seccion),
-    queryFn: () =>
-      api(`/api/clases/${claseId}/temas?${new URLSearchParams({ seccion }).toString()}`, {
+    queryFn: () => {
+      // FORO-01d (§D-8.3, E1-4): "Actividades" también cuenta los foros (conForos=si); la clave no
+      // cambia. "Recursos" pide como siempre.
+      const parametros = new URLSearchParams({ seccion })
+      if (seccion === "actividades") parametros.set("conForos", "si")
+      return api(`/api/clases/${claseId}/temas?${parametros.toString()}`, {
         schema: listaTemasRespuestaSchema,
-      }),
+      })
+    },
   })
 
 // Enmienda 5: una sola instancia por módulo. Toda lectura de GET …/trabajo (primera página y "Ver más")
@@ -1288,9 +1294,11 @@ export const useTrabajo = (claseId: string, tema: string) =>
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_TRABAJO : LIMITE_PAGINAS_TRABAJO
       // CLASES-03c2 (§D-7.6): "Actividades de aprendizaje" pide solo las actividades del tema.
+      // FORO-01d (§D-8.3, E1-4): con conForos=si también trae los foros; la clave no cambia.
       const parametros = new URLSearchParams({
         tema,
         seccion: "actividades",
+        conForos: "si",
         limite: String(limite),
       })
       if (pageParam !== undefined) parametros.set("cursor", pageParam)
@@ -1599,6 +1607,9 @@ export const useMoverElemento = (claseId: string) => {
       await Promise.all([
         invalidarTemasYTrabajo(queryClient, claseId),
         queryClient.invalidateQueries({ queryKey: claveTarea(claseId, publicacionId) }),
+        // FORO-01d (§E11.1, nota (c)): mover un foro cambia el tema de su detalle (no sus
+        // participaciones, que cuelgan de esa clave: exact).
+        queryClient.invalidateQueries({ queryKey: claveForo(claseId, publicacionId), exact: true }),
         // CLASES-03d (§D-8.4): mover un recurso sube su versión; su edición se vuelve a pedir.
         queryClient.invalidateQueries({ queryKey: claveRecurso(claseId, publicacionId) }),
       ])

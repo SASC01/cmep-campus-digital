@@ -171,7 +171,8 @@ describe("ataque TAREAS-01e r1: el foco al guardar con Enter desde una fila nuev
     if (formulario === null) throw new Error("el campo no está en un formulario")
     fireEvent.submit(formulario)
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Categorías guardadas"))
-    await waitFor(() => expect(screen.getByText("0 tareas")).toBeInTheDocument())
+    // FORO-01d, C-12 (§E7.5.5; E1-9): el editor de categorías cuenta actividades (tareas y foros).
+    await waitFor(() => expect(screen.getByText("0 actividades")).toBeInTheDocument())
     expect(document.activeElement).not.toBe(document.body)
   })
 })
